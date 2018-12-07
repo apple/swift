@@ -241,6 +241,10 @@ class TestDecimal : TestDecimalSuper {
                 expectEqual(Decimal(i*j), Decimal(i) * Decimal(j), "\(Decimal(i*j)) == \(i) * \(j)")
                 expectEqual(Decimal(i+j), Decimal(i) + Decimal(j), "\(Decimal(i+j)) == \(i)+\(j)")
                 expectEqual(Decimal(i-j), Decimal(i) - Decimal(j), "\(Decimal(i-j)) == \(i)-\(j)")
+                // Strideable methods
+                expectEqual(Decimal(i).advanced(by: Decimal(j)), Decimal(i+j), "\(Decimal(i).advanced(by: Decimal(j))) == \(i) + \(j)")
+                expectEqual(Decimal(i).distance(to: Decimal(j)), Decimal(j-i), "\(Decimal(i).distance(to: Decimal(j))) == \(j) - \(i)")
+                expectEqual(Decimal(i).advanced(by: Decimal(i).distance(to: Decimal(j))), Decimal(j), "\(Decimal(i).advanced(by: Decimal(i).distance(to: Decimal(j)))) == \(Decimal(j))")
                 if j != 0 {
                     let approximation = Decimal(Double(i)/Double(j))
                     let answer = Decimal(i) / Decimal(j)
