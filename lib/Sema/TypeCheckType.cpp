@@ -1076,6 +1076,25 @@ static Type diagnoseUnknownType(TypeResolution resolution,
           return resolution.mapTypeIntoContext(SelfType);
         }
 
+        // Allow use of 'Self' inside a class.
+        //
+        // class Foo {
+        //  func bar(class: Self) {
+        //    print(class is Foo)
+        //  }
+        // }
+        if (insideClass) {
+          auto type = nominal->getSelfInterfaceType();
+
+          if (!nominal->isFinal()) {
+            type = DynamicSelfType::get(type, ctx);
+          }
+
+          comp->overwriteIdentifier(nominal->getName());
+          comp->setValue(nominal, nominalDC->getParent());
+          return resolution.mapTypeIntoContext(type);
+        }
+
         // Attempt to refer to 'Self' within a non-protocol nominal type.
         // Produce a Fix-It replacing 'Self' with the nominal type name.
         auto name = getDeclNameFromContext(dc, nominal);
