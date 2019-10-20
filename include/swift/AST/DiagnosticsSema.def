@@ -5675,6 +5675,11 @@ ERROR(override_nsobject_hash_error,none,
       "'NSObject.hash(into:)' is not overridable; "
       "did you mean to override 'NSObject.hash'?", ())
 
+WARNING(synthesized_hashable_may_not_match_custom_equatable, none,
+         "automatically generated 'Hashable' implementation for type %0 "
+         "may not match the behavior of custom '==' operator", (Type))
+NOTE(add_custom_hashable, none, "add a custom 'hash(into:)' method", ())
+
 WARNING(hashvalue_implementation,Deprecation,
         "'Hashable.hashValue' is deprecated as a protocol requirement; "
         "conform type %0 to 'Hashable' by implementing 'hash(into:)' instead",
