@@ -1863,7 +1863,7 @@ for host in "${ALL_HOSTS[@]}"; do
                     -DSWIFT_NATIVE_LLVM_TOOLS_PATH:STRING="${native_llvm_tools_path}"
                     -DSWIFT_NATIVE_CLANG_TOOLS_PATH:STRING="${native_clang_tools_path}"
                     -DSWIFT_NATIVE_SWIFT_TOOLS_PATH:STRING="${native_swift_tools_path}"
-                    -DSWIFT_INCLUDE_TOOLS:BOOL=$(true_false "${BUILD_SWIFT_TOOLS}")
+                    -DSWIFT_BUILD_TOOLS:BOOL=$(true_false "${BUILD_SWIFT_TOOLS}")
                     -DSWIFT_BUILD_REMOTE_MIRROR:BOOL=$(true_false "${BUILD_SWIFT_REMOTE_MIRROR}")
                     -DSWIFT_STDLIB_SIL_DEBUGGING:BOOL=$(true_false "${BUILD_SIL_DEBUGGING_STDLIB}")
                     -DSWIFT_CHECK_INCREMENTAL_COMPILATION:BOOL=$(true_false "${CHECK_INCREMENTAL_COMPILATION}")

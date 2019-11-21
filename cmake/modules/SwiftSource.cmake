@@ -369,7 +369,7 @@ function(_compile_swift_files
   set(line_directive_tool "${SWIFT_SOURCE_DIR}/utils/line-directive")
   set(swift_compiler_tool "${SWIFT_NATIVE_SWIFT_TOOLS_PATH}/swiftc")
   set(swift_compiler_tool_dep)
-  if(SWIFT_INCLUDE_TOOLS)
+  if(SWIFT_BUILD_TOOLS)
     # Depend on the binary itself, in addition to the symlink.
     set(swift_compiler_tool_dep "swift")
   endif()

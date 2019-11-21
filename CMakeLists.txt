@@ -39,9 +39,8 @@ include(CheckSymbolExists)
 # This is primarily to support building smaller or faster project files.
 #
 
-option(SWIFT_INCLUDE_TOOLS
-    "Generate build targets for swift tools"
-    TRUE)
+option(SWIFT_BUILD_TOOLS
+  "Build the swift tools.  If OFF, just generate build targets."  TRUE)
 
 option(SWIFT_BUILD_REMOTE_MIRROR
     "Build the Swift Remote Mirror Library"
@@ -1106,7 +1105,7 @@ endif()
 
 add_subdirectory(include)
 
-if(SWIFT_INCLUDE_TOOLS)
+if(SWIFT_BUILD_TOOLS)
   add_subdirectory(lib)
 
   # Always include this after including stdlib/!

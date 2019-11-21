@@ -1,7 +1,9 @@
 
 include(AddSwiftUnittests)
 
-if(SWIFT_INCLUDE_TOOLS)
+# TODO(compnerd) unconditionalise the unit tests.  We can always build the tools
+# and not install them.
+if(SWIFT_BUILD_TOOLS)
   # We can't link C++ unit tests unless we build the tools.
 
   add_subdirectory(AST)

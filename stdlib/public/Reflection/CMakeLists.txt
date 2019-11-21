@@ -30,7 +30,7 @@ endif()
 
 # Build a specific version for the host with the host toolchain.  This is going
 # to be used by tools (e.g. lldb)
-if(SWIFT_INCLUDE_TOOLS)
+if(SWIFT_BUILD_TOOLS)
   if(NOT SWIFT_BUILD_STDLIB)
     add_custom_target(swiftReflection-${SWIFT_SDK_${SWIFT_HOST_VARIANT_SDK}_LIB_SUBDIR})
   endif()
