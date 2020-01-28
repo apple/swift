@@ -606,11 +606,6 @@ function set_build_options_for_host() {
     esac
 
 
-    llvm_cmake_options+=(
-        -DLLVM_TOOL_COMPILER_RT_BUILD:BOOL="$(false_true ${SKIP_BUILD_COMPILER_RT})"
-        -DLLVM_BUILD_EXTERNAL_COMPILER_RT:BOOL="$(false_true ${SKIP_BUILD_COMPILER_RT})"
-    )
-
     # If we are asked to not generate test targets for LLVM and or Swift,
     # disable as many LLVM tools as we can. This improves compile time when
     # compiling with LTO.
@@ -810,17 +805,6 @@ LOCAL_HOST=$HOST_TARGET
 
 if [[ "${CHECK_ARGS_ONLY}" ]]; then
     exit 0
-fi
-
-# FIXME: We currently do not support building compiler-rt with the
-# Xcode generator.
-if [[ "${CMAKE_GENERATOR}" == "Xcode" ]]; then
-    SKIP_BUILD_COMPILER_RT=1
-fi
-
-# FIXME: We currently do not support cross-compiling swift with compiler-rt.
-if [[ "${CROSS_COMPILE_HOSTS}" ]]; then
-    SKIP_BUILD_COMPILER_RT=1
 fi
 
 if [[ "${SKIP_RECONFIGURE}" ]]; then
@@ -1033,7 +1017,6 @@ FOUNDATION_STATIC_SOURCE_DIR="${WORKSPACE}/swift-corelibs-foundation"
 LIBDISPATCH_SOURCE_DIR="${WORKSPACE}/swift-corelibs-libdispatch"
 LIBDISPATCH_STATIC_SOURCE_DIR="${WORKSPACE}/swift-corelibs-libdispatch"
 LIBICU_SOURCE_DIR="${WORKSPACE}/icu"
-LIBCXX_SOURCE_DIR="${WORKSPACE}/llvm-project/libcxx"
 PLAYGROUNDSUPPORT_SOURCE_DIR="${WORKSPACE}/swift-xcode-playground-support"
 
 if [[ ! "${SKIP_BUILD_PLAYGROUNDSUPPORT}" && ! -d ${PLAYGROUNDSUPPORT_SOURCE_DIR} ]]; then
@@ -1046,7 +1029,6 @@ fi
 # that swift relies on for building and testing. See the LLVM configure rules.
 PRODUCTS=(llvm)
 [[ "${SKIP_BUILD_CMARK}" ]] || PRODUCTS+=(cmark)
-[[ "${SKIP_BUILD_LIBCXX}" ]] || PRODUCTS+=(libcxx)
 [[ "${SKIP_BUILD_LIBICU}" ]] || PRODUCTS+=(libicu)
 [[ "${SKIP_BUILD_SWIFT}" ]] || PRODUCTS+=(swift)
 [[ "${SKIP_BUILD_LLDB}" ]] || PRODUCTS+=(lldb)
@@ -1113,10 +1095,6 @@ function build_directory_bin() {
                 echo "${root}/${CMARK_BUILD_TYPE}/bin"
                 ;;
             llvm)
-                echo "${root}/${LLVM_BUILD_TYPE}/bin"
-                ;;
-            libcxx)
-                # Reuse LLVM's build type.
                 echo "${root}/${LLVM_BUILD_TYPE}/bin"
                 ;;
             swift)
@@ -1231,10 +1209,6 @@ function cmake_config_opt() {
                 echo "--config ${CMARK_BUILD_TYPE}"
                 ;;
             llvm)
-                echo "--config ${LLVM_BUILD_TYPE}"
-                ;;
-            libcxx)
-                # Reuse LLVM's build type.
                 echo "--config ${LLVM_BUILD_TYPE}"
                 ;;
             swift)
@@ -1482,16 +1456,23 @@ for host in "${ALL_HOSTS[@]}"; do
 
                 llvm_enable_projects=("clang")
 
-                if [[ ! "${SKIP_BUILD_COMPILER_RT}" && ! $(is_cross_tools_host ${host}) ]]; then
-                    llvm_enable_projects+=("compiler-rt")
-                fi
-
                 if [[ ! "${SKIP_BUILD_CLANG_TOOLS_EXTRA}" ]]; then
                     llvm_enable_projects+=("clang-tools-extra")
                 fi
 
+                runtimes=()
+                [[ ! ${SKIP_BUILD_LIBCXX} || ( ! ${SKIP_BUILD_COMPILER_RT} && $(uname -s) == Darwin ) ]] && {
+                  runtimes+=(libcxxabi libcxx)
+                }
+                [[ ${SKIP_BUILD_COMPILER_RT} ]] || {
+                  runtimes+=(compiler-rt)
+                  build_targets+=(builtins)
+                }
+
                 cmake_options+=(
                     -DLLVM_ENABLE_PROJECTS="$(join ";" ${llvm_enable_projects[@]})"
+                    -DLLVM_ENABLE_RUNTIMES="$(join ';' ${runtimes[@]})"
+                    -DLLVM_BUILD_RUNTIMES=NO
                 )
 
                 cmake_options+=(
@@ -1534,22 +1515,6 @@ for host in "${ALL_HOSTS[@]}"; do
                         -DLLVM_NATIVE_BUILD=$(build_directory "${LOCAL_HOST}" llvm)
                     )
                 fi
-
-                ;;
-
-            libcxx)
-                build_targets=(cxx-headers)
-                cmake_options=(
-                    "${cmake_options[@]}"
-                    -DCMAKE_C_FLAGS="$(llvm_c_flags ${host})"
-                    -DCMAKE_CXX_FLAGS="$(llvm_c_flags ${host})"
-                    -DCMAKE_C_FLAGS_RELWITHDEBINFO="-O2 -DNDEBUG"
-                    -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="-O2 -DNDEBUG"
-                    -DCMAKE_BUILD_TYPE:STRING="${LLVM_BUILD_TYPE}"
-                    -DLLVM_INCLUDE_DOCS:BOOL=TRUE
-                    -DLLVM_CONFIG_PATH="$(build_directory "${LOCAL_HOST}" llvm)/bin/llvm-config"
-                    "${llvm_cmake_options[@]}"
-                )
 
                 ;;
 
@@ -2181,31 +2146,6 @@ for host in "${ALL_HOSTS[@]}"; do
                 call env "${EXTRA_DISTCC_OPTIONS[@]}" "${CMAKE}" "${cmake_options[@]}" "${EXTRA_CMAKE_OPTIONS[@]}" "${source_dir}"
         fi
 
-        # When we are building LLVM create symlinks to the c++ headers. We need
-        # to do this before building LLVM since compiler-rt depends on being
-        # built with the just built clang compiler. These are normally put into
-        # place during the cmake step of LLVM's build when libcxx is in
-        # tree... but we are not building llvm with libcxx in tree when we build
-        # swift. So we need to do configure's work here.
-        if [[ "${product}" == "llvm" ]]; then
-            # Find the location of the c++ header dir.
-            if [[ "$(uname -s)" == "Darwin" ]] ; then
-              HOST_CXX_DIR=$(dirname "${HOST_CXX}")
-              HOST_CXX_HEADERS_DIR="$HOST_CXX_DIR/../../usr/include/c++"
-            elif [[ "$(uname -s)" == "Haiku" ]] ; then
-              HOST_CXX_HEADERS_DIR="/boot/system/develop/headers/c++"
-            else # Linux
-              HOST_CXX_HEADERS_DIR="/usr/include/c++"
-            fi
-
-            # Find the path in which the local clang build is expecting to find
-            # the c++ header files.
-            BUILT_CXX_INCLUDE_DIR="$llvm_build_dir/include"
-
-            echo "symlinking the system headers ($HOST_CXX_HEADERS_DIR) into the local clang build directory ($BUILT_CXX_INCLUDE_DIR)."
-            call ln -s -f "$HOST_CXX_HEADERS_DIR" "$BUILT_CXX_INCLUDE_DIR"
-        fi
-
         # Build.
         if [[ "${CMAKE_GENERATOR}" == "Xcode" ]] ; then
             # Xcode generator uses "ALL_BUILD" instead of "all".
@@ -2219,37 +2159,6 @@ for host in "${ALL_HOSTS[@]}"; do
         fi
 
         call "${CMAKE_BUILD[@]}" "${build_dir}" $(cmake_config_opt ${product}) -- "${BUILD_ARGS[@]}" ${build_targets[@]}
-
-        # When we are building LLVM copy over the compiler-rt
-        # builtins for iOS/tvOS/watchOS to ensure that Swift's
-        # stdlib can use compiler-rt builtins when targetting iOS/tvOS/watchOS.
-        if [[ "${product}" = "llvm" ]] && [[ "${BUILD_LLVM}" = "1" ]] && [[ "$(uname -s)" = "Darwin" ]]; then
-            HOST_CXX_DIR=$(dirname "${HOST_CXX}")
-            HOST_LIB_CLANG_DIR="${HOST_CXX_DIR}/../lib/clang"
-            DEST_LIB_CLANG_DIR="$(build_directory_bin ${host} llvm)/../lib/clang"
-
-            if [[ -d "${HOST_LIB_CLANG_DIR}" ]] && [[ -d "${DEST_LIB_CLANG_DIR}" ]]; then
-                DEST_CXX_BUILTINS_VERSION=$(ls "${DEST_LIB_CLANG_DIR}" | awk '{print $0}')
-                DEST_BUILTINS_DIR="$(build_directory_bin ${host} llvm)/../lib/clang/$DEST_CXX_BUILTINS_VERSION/lib/darwin"
-
-                if [[ -d "${DEST_BUILTINS_DIR}" ]]; then
-                    for HOST_CXX_BUILTINS_PATH in "${HOST_LIB_CLANG_DIR}"/*; do
-                        HOST_CXX_BUILTINS_DIR="${HOST_CXX_BUILTINS_PATH}/lib/darwin"
-                        echo "copying compiler-rt embedded builtins from ${HOST_CXX_BUILTINS_DIR} into the local clang build directory ${DEST_BUILTINS_DIR}."
-
-                        for OS in ios watchos tvos; do
-                            LIB_NAME="libclang_rt.$OS.a"
-                            HOST_LIB_PATH="$HOST_CXX_BUILTINS_DIR/$LIB_NAME"
-                            if [[ -f "${HOST_LIB_PATH}" ]]; then
-                                call cp "${HOST_LIB_PATH}" "${DEST_BUILTINS_DIR}/${LIB_NAME}"
-                            elif [[ "${VERBOSE_BUILD}" ]]; then
-                                echo "no file exists at ${HOST_LIB_PATH}"
-                            fi
-                        done
-                    done
-                fi
-            fi
-        fi
     done
 done
 # END OF BUILD PHASE
@@ -2293,9 +2202,6 @@ for host in "${ALL_HOSTS[@]}"; do
                 ;;
             llvm)
                 continue # We don't test LLVM
-                ;;
-            libcxx)
-                continue # We don't test libc++
                 ;;
             swift)
                 executable_target=
@@ -2639,12 +2545,8 @@ for host in "${ALL_HOSTS[@]}"; do
                 else
                     INSTALL_TARGETS=install-$(echo ${LLVM_INSTALL_COMPONENTS} | sed -E 's/;/ install-/g')
                 fi
-                ;;
-            libcxx)
-                if [[ -z "${INSTALL_LIBCXX}" ]] ; then
-                    continue
-                fi
-                INSTALL_TARGETS=install-cxx-headers
+                [[ -z "${INSTALL_LIBCXX}" ]] || INSTALL_TARGETS+=" install-cxx-headers"
+                [[ ${host} == macos* ]] && INSTALL_TARGETS+=" install-builtins"
                 ;;
             swift)
                 if [[ -z "${INSTALL_SWIFT}" ]] ; then
