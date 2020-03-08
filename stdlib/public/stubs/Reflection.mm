@@ -16,8 +16,7 @@
 #import <objc/runtime.h>
 #import <objc/NSObject.h>
 
-SWIFT_CC(swift)
-SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 bool _swift_stdlib_NSObject_isKindOfClass(
     id _Nonnull object,
     char * _Nonnull className) {

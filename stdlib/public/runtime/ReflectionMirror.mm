@@ -288,8 +288,8 @@ struct swift_closure {
   void *fptr;
   HeapObject *context;
 };
-SWIFT_RUNTIME_STDLIB_API SWIFT_CC(swift) swift_closure
-MANGLE_SYM(s20_playgroundPrintHookySScSgvg)();
+SWIFT_RUNTIME_STDLIB_API SWIFT_CC
+swift_closure MANGLE_SYM(s20_playgroundPrintHookySScSgvg)();
 
 static bool _shouldReportMissingReflectionMetadataWarnings() {
   // Missing metadata warnings noise up playground sessions and aren't really
@@ -772,7 +772,7 @@ auto call(OpaqueValue *passedValue, const Metadata *T, const Metadata *passedTyp
 
 
 // func _getNormalizedType<T>(_: T, type: Any.Type) -> Any.Type
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 const Metadata *swift_reflectionMirror_normalizedType(OpaqueValue *value,
                                                       const Metadata *type,
                                                       const Metadata *T) {
@@ -780,7 +780,7 @@ const Metadata *swift_reflectionMirror_normalizedType(OpaqueValue *value,
 }
 
 // func _getChildCount<T>(_: T, type: Any.Type) -> Int
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 intptr_t swift_reflectionMirror_count(OpaqueValue *value,
                                       const Metadata *type,
                                       const Metadata *T) {
@@ -800,7 +800,7 @@ intptr_t swift_reflectionMirror_count(OpaqueValue *value,
 //   outName: UnsafeMutablePointer<UnsafePointer<CChar>?>,
 //   outFreeFunc: UnsafeMutablePointer<NameFreeFunc?>
 // ) -> Any
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 AnyReturn swift_reflectionMirror_subscript(OpaqueValue *value, const Metadata *type,
                                            intptr_t index,
                                            const char **outName,
@@ -813,19 +813,19 @@ AnyReturn swift_reflectionMirror_subscript(OpaqueValue *value, const Metadata *t
 #pragma clang diagnostic pop
 
 // func _getDisplayStyle<T>(_: T) -> CChar
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 char swift_reflectionMirror_displayStyle(OpaqueValue *value, const Metadata *T) {
   return call(value, T, nullptr, [](ReflectionMirrorImpl *impl) { return impl->displayStyle(); });
 }
 
 // func _getEnumCaseName<T>(_ value: T) -> UnsafePointer<CChar>?
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 const char *swift_EnumCaseName(OpaqueValue *value, const Metadata *T) {
   return call(value, T, nullptr, [](ReflectionMirrorImpl *impl) { return impl->enumCaseName(); });
 }
 
 // func _opaqueSummary(_ metadata: Any.Type) -> UnsafePointer<CChar>?
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 const char *swift_OpaqueSummary(const Metadata *T) {
   switch (T->getKind()) {
     case MetadataKind::Class:
@@ -861,7 +861,7 @@ const char *swift_OpaqueSummary(const Metadata *T) {
 
 #if SWIFT_OBJC_INTEROP
 // func _getQuickLookObject<T>(_: T) -> AnyObject?
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 id swift_reflectionMirror_quickLookObject(OpaqueValue *value, const Metadata *T) {
   return call(value, T, nullptr, [](ReflectionMirrorImpl *impl) { return impl->quickLookObject(); });
 }

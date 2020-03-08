@@ -706,7 +706,7 @@ FUNCTION(GetAssociatedTypeWitness, swift_getAssociatedTypeWitness,
               ProtocolRequirementStructTy->getPointerTo()),
          ATTRS(NoUnwind, ReadNone))
 
-// SWIFT_RUNTIME_EXPORT SWIFT_CC(swift)
+// SWIFT_RUNTIME_EXPORT SWIFT_CC
 // const WitnessTable *swift_getAssociatedConformanceWitness(
 //                                 WitnessTable *wtable,
 //                                 const Metadata *conformingType,

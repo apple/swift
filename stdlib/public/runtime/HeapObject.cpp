@@ -175,7 +175,7 @@ swift::swift_verifyEndOfLifetime(HeapObject *object) {
 /// Allocate a reference-counted object on the heap that
 /// occupies <size> bytes of maximally-aligned storage.  The object is
 /// uninitialized except for its header.
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_SPI
+SWIFT_CC SWIFT_RUNTIME_STDLIB_SPI
 HeapObject* swift_bufferAllocate(
   HeapMetadata const* bufferType, size_t size, size_t alignMask)
 {
@@ -184,7 +184,7 @@ HeapObject* swift_bufferAllocate(
 
 namespace {
 /// Heap object destructor for a generic box allocated with swift_allocBox.
-static SWIFT_CC(swift) void destroyGenericBox(SWIFT_CONTEXT HeapObject *o) {
+static SWIFT_CC void destroyGenericBox(SWIFT_CONTEXT HeapObject *o) {
   auto metadata = static_cast<const GenericBoxHeapMetadata *>(o->metadata);
   // Destroy the object inside.
   auto *value = metadata->project(o);

@@ -31,7 +31,7 @@ struct YieldOnceBuffer {
   void *Data[NumWords_YieldOnceBuffer];
 };
 using YieldOnceContinuation =
-  SWIFT_CC(swift) void (YieldOnceBuffer *buffer, bool forUnwind);
+  SWIFT_CC void (YieldOnceBuffer *buffer, bool forUnwind);
 
 /// The return type of a call to a yield-once coroutine.  The function
 /// must be declared with the swiftcall calling convention.
@@ -49,8 +49,7 @@ struct YieldOnceCoroutine;
 template <class ResultTy, class... ArgTys>
 struct YieldOnceCoroutine<ResultTy(ArgTys...)> {
   using type =
-    SWIFT_CC(swift) YieldOnceResult<ResultTy> (YieldOnceBuffer *buffer,
-                                               ArgTys...);
+    SWIFT_CC YieldOnceResult<ResultTy> (YieldOnceBuffer *buffer, ArgTys...);
 };
 
 #if SWIFT_OBJC_INTEROP
@@ -280,13 +279,13 @@ int32_t getResilientImmediateMembersOffset(const ClassDescriptor *descriptor);
 
 /// Fetch a uniqued metadata object for a nominal type which requires
 /// singleton metadata initialization.
-SWIFT_RUNTIME_EXPORT SWIFT_CC(swift)
+SWIFT_RUNTIME_EXPORT SWIFT_CC
 MetadataResponse
 swift_getSingletonMetadata(MetadataRequest request,
                            const TypeContextDescriptor *description);
 
 /// Fetch a uniqued metadata object for a generic nominal type.
-SWIFT_RUNTIME_EXPORT SWIFT_CC(swift)
+SWIFT_RUNTIME_EXPORT SWIFT_CC
 MetadataResponse
 swift_getGenericMetadata(MetadataRequest request,
                          const void * const *arguments,
@@ -330,7 +329,7 @@ swift_allocateGenericValueMetadata(const ValueTypeDescriptor *description,
                                    size_t extraDataSize);
 
 /// Check that the given metadata has the right state.
-SWIFT_RUNTIME_EXPORT SWIFT_CC(swift)
+SWIFT_RUNTIME_EXPORT SWIFT_CC
 MetadataResponse swift_checkMetadataState(MetadataRequest request,
                                           const Metadata *type);
 
@@ -362,7 +361,7 @@ swift_getWitnessTable(const ProtocolConformanceDescriptor *conformance,
 /// \param assocType Associated type descriptor.
 ///
 /// \returns metadata for the associated type witness.
-SWIFT_RUNTIME_EXPORT SWIFT_CC(swift)
+SWIFT_RUNTIME_EXPORT SWIFT_CC
 MetadataResponse swift_getAssociatedTypeWitness(
                                           MetadataRequest request,
                                           WitnessTable *wtable,
@@ -380,7 +379,7 @@ MetadataResponse swift_getAssociatedTypeWitness(
 /// \param assocConformance Associated conformance descriptor.
 ///
 /// \returns corresponding witness table.
-SWIFT_RUNTIME_EXPORT SWIFT_CC(swift)
+SWIFT_RUNTIME_EXPORT SWIFT_CC
 const WitnessTable *swift_getAssociatedConformanceWitness(
                                   WitnessTable *wtable,
                                   const Metadata *conformingType,
@@ -452,7 +451,7 @@ swift_getObjCClassFromObject(HeapObject *object);
 #endif
 
 /// Fetch a unique type metadata object for a foreign type.
-SWIFT_RUNTIME_EXPORT SWIFT_CC(swift)
+SWIFT_RUNTIME_EXPORT SWIFT_CC
 MetadataResponse
 swift_getForeignTypeMetadata(MetadataRequest request,
                              ForeignTypeMetadata *nonUnique);
@@ -480,7 +479,7 @@ swift_getForeignTypeMetadata(MetadataRequest request,
 /// \param proposedWitnesses - an optional proposed set of value witnesses.
 ///   This is useful when working with a non-dependent tuple type
 ///   where the entrypoint is just being used to unique the metadata.
-SWIFT_RUNTIME_EXPORT SWIFT_CC(swift)
+SWIFT_RUNTIME_EXPORT SWIFT_CC
 MetadataResponse
 swift_getTupleTypeMetadata(MetadataRequest request,
                            TupleTypeFlags flags,
@@ -488,13 +487,13 @@ swift_getTupleTypeMetadata(MetadataRequest request,
                            const char *labels,
                            const ValueWitnessTable *proposedWitnesses);
 
-SWIFT_RUNTIME_EXPORT SWIFT_CC(swift)
+SWIFT_RUNTIME_EXPORT SWIFT_CC
 MetadataResponse
 swift_getTupleTypeMetadata2(MetadataRequest request,
                             const Metadata *elt0, const Metadata *elt1,
                             const char *labels,
                             const ValueWitnessTable *proposedWitnesses);
-SWIFT_RUNTIME_EXPORT SWIFT_CC(swift)
+SWIFT_RUNTIME_EXPORT SWIFT_CC
 MetadataResponse
 swift_getTupleTypeMetadata3(MetadataRequest request,
                             const Metadata *elt0, const Metadata *elt1,
@@ -508,7 +507,7 @@ swift_getTupleTypeMetadata3(MetadataRequest request,
 /// \param elementOffsets - An array into which to write the offsets of
 ///   the elements.  May be null.  Must have space for all elements,
 ///   including element 0 (which will always have offset 0).
-SWIFT_RUNTIME_EXPORT SWIFT_CC(swift)
+SWIFT_RUNTIME_EXPORT SWIFT_CC
 void swift_getTupleTypeLayout(TypeLayout *tupleLayout,
                               uint32_t *elementOffsets,
                               TupleTypeFlags flags,
@@ -521,7 +520,7 @@ void swift_getTupleTypeLayout(TypeLayout *tupleLayout,
 ///   Must be non-null.
 /// \returns The offset of the second element.
 ///   The first element always has offset 0.
-SWIFT_RUNTIME_EXPORT SWIFT_CC(swift)
+SWIFT_RUNTIME_EXPORT SWIFT_CC
 size_t swift_getTupleTypeLayout2(TypeLayout *tupleLayout,
                                  const TypeLayout *elt0,
                                  const TypeLayout *elt1);
@@ -535,7 +534,7 @@ struct OffsetPair { size_t First; size_t Second; };
 ///   Must be non-null.
 /// \returns The offsets of the second and third elements.
 ///   The first element always has offset 0.
-SWIFT_RUNTIME_EXPORT SWIFT_CC(swift)
+SWIFT_RUNTIME_EXPORT SWIFT_CC
 OffsetPair swift_getTupleTypeLayout3(TypeLayout *tupleLayout,
                                      const TypeLayout *elt0Layout,
                                      const TypeLayout *elt1Layout,
@@ -596,7 +595,7 @@ void swift_initClassMetadata(ClassMetadata *self,
                              const TypeLayout * const *fieldTypes,
                              size_t *fieldOffsets);
 
-SWIFT_RUNTIME_EXPORT SWIFT_CC(swift)
+SWIFT_RUNTIME_EXPORT SWIFT_CC
 MetadataDependency
 swift_initClassMetadata2(ClassMetadata *self,
                          ClassLayoutFlags flags,
@@ -620,7 +619,7 @@ void swift_updateClassMetadata(ClassMetadata *self,
                                const TypeLayout * const *fieldTypes,
                                size_t *fieldOffsets);
 
-SWIFT_RUNTIME_EXPORT SWIFT_CC(swift)
+SWIFT_RUNTIME_EXPORT SWIFT_CC
 MetadataDependency
 swift_updateClassMetadata2(ClassMetadata *self,
                            ClassLayoutFlags flags,
@@ -787,8 +786,7 @@ void swift_registerTypeMetadataRecords(const TypeMetadataRecord *begin,
 
 /// Return the superclass, if any.  The result is nullptr for root
 /// classes and class protocol types.
-SWIFT_CC(swift)
-SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 const Metadata *_swift_class_getSuperclass(const Metadata *theClass);
 
 #if !NDEBUG
@@ -797,7 +795,7 @@ const Metadata *_swift_class_getSuperclass(const Metadata *theClass);
 void verifyMangledNameRoundtrip(const Metadata *metadata);
 #endif
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 const TypeContextDescriptor *swift_getTypeContextDescriptor(const Metadata *type);
 
 // Defined in KeyPath.swift in the standard library.

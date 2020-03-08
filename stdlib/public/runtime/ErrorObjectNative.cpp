@@ -46,7 +46,7 @@ _getErrorAllocatedSizeAndAlignmentMask(const Metadata *type) {
 }
 
 /// Destructor for an Error box.
-static SWIFT_CC(swift) void _destroyErrorObject(SWIFT_CONTEXT HeapObject *obj) {
+static SWIFT_CC void _destroyErrorObject(SWIFT_CONTEXT HeapObject *obj) {
   auto error = static_cast<SwiftError *>(obj);
   
   // Destroy the value inside.

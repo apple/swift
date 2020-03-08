@@ -20,7 +20,7 @@ using namespace swift;
 
 // AnyHashable
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 void _swift_makeAnyHashableUsingDefaultRepresentation(
   const OpaqueValue *value,
   const void *anyHashableResultPointer,
@@ -35,27 +35,27 @@ const long long $ss11AnyHashableVMn[1] = {0};
 
 // SwiftHashableSupport
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 bool _swift_stdlib_Hashable_isEqual_indirect(
   const void *lhsValue, const void *rhsValue, const Metadata *type,
   const void *wt) {
   abort();
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 intptr_t _swift_stdlib_Hashable_hashValue_indirect(
   const void *value, const Metadata *type, const void *wt) {
   abort();
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 void _swift_convertToAnyHashableIndirect(
   OpaqueValue *source, OpaqueValue *destination, const Metadata *sourceType,
   const void *sourceConformance) {
   abort();
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 bool _swift_anyHashableDownCastConditionalIndirect(
   OpaqueValue *source, OpaqueValue *destination, const Metadata *targetType) {
   abort();
@@ -63,7 +63,7 @@ bool _swift_anyHashableDownCastConditionalIndirect(
 
 // Casting
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 void _swift_arrayDownCastIndirect(OpaqueValue *destination,
                                   OpaqueValue *source,
                                   const Metadata *sourceValueType,
@@ -71,7 +71,7 @@ void _swift_arrayDownCastIndirect(OpaqueValue *destination,
   abort();
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 bool _swift_arrayDownCastConditionalIndirect(OpaqueValue *destination,
                                              OpaqueValue *source,
                                              const Metadata *sourceValueType,
@@ -79,7 +79,7 @@ bool _swift_arrayDownCastConditionalIndirect(OpaqueValue *destination,
   abort();
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 void _swift_setDownCastIndirect(OpaqueValue *destination,
                                 OpaqueValue *source,
                                 const Metadata *sourceValueType,
@@ -89,7 +89,7 @@ void _swift_setDownCastIndirect(OpaqueValue *destination,
   abort();
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 bool _swift_setDownCastConditionalIndirect(OpaqueValue *destination,
                                            OpaqueValue *source,
                                            const Metadata *sourceValueType,
@@ -99,7 +99,7 @@ bool _swift_setDownCastConditionalIndirect(OpaqueValue *destination,
   abort();
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 void _swift_dictionaryDownCastIndirect(OpaqueValue *destination,
                                        OpaqueValue *source,
                                        const Metadata *sourceKeyType,
@@ -111,7 +111,7 @@ void _swift_dictionaryDownCastIndirect(OpaqueValue *destination,
   abort();
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 bool _swift_dictionaryDownCastConditionalIndirect(OpaqueValue *destination,
                                         OpaqueValue *source,
                                         const Metadata *sourceKeyType,
@@ -123,54 +123,54 @@ bool _swift_dictionaryDownCastConditionalIndirect(OpaqueValue *destination,
   abort();
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 void _bridgeNonVerbatimBoxedValue(const OpaqueValue *sourceValue,
                                   OpaqueValue *destValue,
                                   const Metadata *nativeType) {
   abort();
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 void _bridgeNonVerbatimFromObjectiveCToAny(HeapObject *sourceValue,
                                            OpaqueValue *destValue) {
   abort();
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 bool swift_unboxFromSwiftValueWithType(OpaqueValue *source,
                                        OpaqueValue *result,
                                        const Metadata *destinationType) {
   abort();
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 bool swift_swiftValueConformsTo(const Metadata *destinationType) {
   abort();
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 HeapObject *$ss27_bridgeAnythingToObjectiveCyyXlxlF(OpaqueValue *src, const Metadata *srcType) {
   abort();
 }
 
 // ErrorObject
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 int $ss13_getErrorCodeySiSPyxGs0B0RzlF(void *) {
   abort();
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 void *$ss23_getErrorDomainNSStringyyXlSPyxGs0B0RzlF(void *) {
   abort();
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 void *$ss29_getErrorUserInfoNSDictionaryyyXlSgSPyxGs0B0RzlF(void *) {
   abort();
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 void *$ss32_getErrorEmbeddedNSErrorIndirectyyXlSgSPyxGs0B0RzlF(void *) {
   abort();
 }
@@ -492,7 +492,7 @@ struct swift_closure {
   void *fptr;
   HeapObject *context;
 };
-SWIFT_RUNTIME_STDLIB_API SWIFT_CC(swift) swift_closure
+SWIFT_RUNTIME_STDLIB_API SWIFT_CC swift_closure
 MANGLE_SYM(s20_playgroundPrintHookySScSgvg)() {
   return {nullptr, nullptr};
 }

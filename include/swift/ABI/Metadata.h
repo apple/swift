@@ -736,8 +736,7 @@ struct TargetOpaqueMetadata {
   TargetMetadata<Runtime> base;
 };
 
-using HeapObjectDestroyer =
-  SWIFT_CC(swift) void(SWIFT_CONTEXT HeapObject *);
+using HeapObjectDestroyer = SWIFT_CC void(SWIFT_CONTEXT HeapObject *);
 
 /// The prefix on a heap metadata.
 template <typename Runtime>
@@ -1023,8 +1022,7 @@ struct TargetAnyClassMetadata : public TargetHeapMetadata<Runtime> {
 using AnyClassMetadata =
   TargetAnyClassMetadata<InProcess>;
 
-using ClassIVarDestroyer =
-  SWIFT_CC(swift) void(SWIFT_CONTEXT HeapObject *);
+using ClassIVarDestroyer = SWIFT_CC void(SWIFT_CONTEXT HeapObject *);
 
 /// The structure of all class metadata.  This structure is embedded
 /// directly within the class's heap metadata structure and therefore
@@ -1838,9 +1836,9 @@ using TargetWitnessTablePointer =
 using WitnessTablePointer = TargetWitnessTablePointer<InProcess>;
 
 using AssociatedWitnessTableAccessFunction =
-  SWIFT_CC(swift) WitnessTable *(const Metadata *associatedType,
-                                 const Metadata *self,
-                                 const WitnessTable *selfConformance);
+  SWIFT_CC WitnessTable *(const Metadata *associatedType,
+                          const Metadata *self,
+                          const WitnessTable *selfConformance);
 
 /// The possible physical representations of existential types.
 enum class ExistentialTypeRepresentation {
@@ -3226,7 +3224,7 @@ struct MetadataCompletionContext {
 /// If the function ever completes successfully (by returning null), it
 /// will not be called again for the same type.
 using MetadataCompleter =
-  SWIFT_CC(swift)
+  SWIFT_CC
   MetadataDependency(const Metadata *type,
                      MetadataCompletionContext *context,
                      const TargetGenericMetadataPattern<InProcess> *pattern);
@@ -3489,15 +3487,15 @@ public:
   
   /// Invoke with exactly 0 arguments.
   MetadataResponse operator()(MetadataRequest request) const {
-    using Fn0 = SWIFT_CC(swift) MetadataResponse(MetadataRequest request);
+    using Fn0 = SWIFT_CC MetadataResponse(MetadataRequest request);
     return reinterpret_cast<Fn0*>(Function)(request);
   }
 
   /// Invoke with exactly 1 argument.
   MetadataResponse operator()(MetadataRequest request,
                               const void *arg0) const {
-    using Fn1 = SWIFT_CC(swift) MetadataResponse(MetadataRequest request,
-                                                 const void *arg0);
+    using Fn1 = SWIFT_CC MetadataResponse(MetadataRequest request,
+                                          const void *arg0);
     return reinterpret_cast<Fn1*>(Function)(request, arg0);
 
   }
@@ -3506,9 +3504,9 @@ public:
   MetadataResponse operator()(MetadataRequest request,
                               const void *arg0,
                               const void *arg1) const {
-    using Fn2 = SWIFT_CC(swift) MetadataResponse(MetadataRequest request,
-                                                 const void *arg0,
-                                                 const void *arg1);
+    using Fn2 = SWIFT_CC MetadataResponse(MetadataRequest request,
+                                          const void *arg0,
+                                          const void *arg1);
     return reinterpret_cast<Fn2*>(Function)(request, arg0, arg1);
   }
 
@@ -3517,10 +3515,10 @@ public:
                               const void *arg0,
                               const void *arg1,
                               const void *arg2) const {
-    using Fn3 = SWIFT_CC(swift) MetadataResponse(MetadataRequest request,
-                                                 const void *arg0,
-                                                 const void *arg1,
-                                                 const void *arg2);
+    using Fn3 = SWIFT_CC MetadataResponse(MetadataRequest request,
+                                          const void *arg0,
+                                          const void *arg1,
+                                          const void *arg2);
     return reinterpret_cast<Fn3*>(Function)(request, arg0, arg1, arg2);
   }
   
@@ -3539,8 +3537,8 @@ private:
   /// In the more-than-max case, just pass all the arguments as an array.
   MetadataResponse applyMany(MetadataRequest request,
                              const void * const *args) const {
-    using FnN = SWIFT_CC(swift) MetadataResponse(MetadataRequest request,
-                                                 const void * const *args);
+    using FnN = SWIFT_CC MetadataResponse(MetadataRequest request,
+                                          const void * const *args);
     return reinterpret_cast<FnN*>(Function)(request, args);
   }
 };

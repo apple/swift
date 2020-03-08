@@ -17,10 +17,10 @@
 #include "swift/Basic/Lazy.h"
 #include "swift/Runtime/Debug.h"
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 void _stdlib_destroyTLS(void *);
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 void *_stdlib_createTLS(void);
 
 #if !SWIFT_TLS_HAS_RESERVED_PTHREAD_SPECIFIC || (defined(_WIN32) && !defined(__CYGWIN__))

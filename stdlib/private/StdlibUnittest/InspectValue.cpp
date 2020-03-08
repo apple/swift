@@ -15,7 +15,7 @@
 
 using namespace swift;
 
-SWIFT_CC(swift) LLVM_LIBRARY_VISIBILITY extern "C"
+SWIFT_CC LLVM_LIBRARY_VISIBILITY extern "C"
 const char *getMetadataKindOf(
     OpaqueValue *value,
     const Metadata *type

@@ -168,12 +168,12 @@ static SwiftObject *_allocHelper(Class cls) {
     class_getInstanceSize(cls), mask));
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 Class _swift_classOfObjCHeapObject(OpaqueValue *value) {
   return _swift_getObjCClassOfAllocated(value);
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 id swift_stdlib_getDescription(OpaqueValue *value,
                                       const Metadata *type);
 
@@ -447,7 +447,7 @@ bool swift::usesNativeSwiftReferenceCounting(const ClassMetadata *theClass) {
 /// reference-counting.  The metadata is known to correspond to a class
 /// type, but note that does not imply being known to be a ClassMetadata
 /// due to the existence of ObjCClassWrapper.
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_SPI
+SWIFT_CC SWIFT_RUNTIME_STDLIB_SPI
 bool
 _swift_objcClassUsesNativeSwiftReferenceCounting(const Metadata *theClass) {
 #if SWIFT_OBJC_INTEROP
@@ -1434,9 +1434,8 @@ struct ClassExtents {
   size_t positive; 
 };
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_SPI
-ClassExtents
-_swift_getSwiftClassInstanceExtents(const Metadata *c) {
+SWIFT_CC SWIFT_RUNTIME_STDLIB_SPI
+ClassExtents _swift_getSwiftClassInstanceExtents(const Metadata *c) {
   assert(c && c->isClassObject());
   auto metaData = c->getClassObject();
   return ClassExtents{
@@ -1447,9 +1446,8 @@ _swift_getSwiftClassInstanceExtents(const Metadata *c) {
 
 #if SWIFT_OBJC_INTEROP
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_SPI
-ClassExtents
-_swift_getObjCClassInstanceExtents(const ClassMetadata* c) {
+SWIFT_CC SWIFT_RUNTIME_STDLIB_SPI
+ClassExtents _swift_getObjCClassInstanceExtents(const ClassMetadata* c) {
   // Pure ObjC classes never have negative extents.
   if (c->isPureObjC())
     return ClassExtents{0, class_getInstanceSize(class_const_cast(c))};
@@ -1457,8 +1455,7 @@ _swift_getObjCClassInstanceExtents(const ClassMetadata* c) {
   return _swift_getSwiftClassInstanceExtents(c);
 }
 
-SWIFT_CC(swift)
-SWIFT_RUNTIME_EXPORT
+SWIFT_CC SWIFT_RUNTIME_EXPORT
 void swift_objc_swift3ImplicitObjCEntrypoint(id self, SEL selector,
                                              const char *filename,
                                              size_t filenameLength,

@@ -268,7 +268,7 @@ static unsigned loadMultiPayloadValue(const OpaqueValue *value,
   return loadEnumElement(bytes, layout.payloadSize);
 }
 
-SWIFT_CC(swift)
+SWIFT_CC
 static unsigned getMultiPayloadExtraInhabitantTag(const OpaqueValue *value,
                                                   unsigned enumNumXI,
                                                   const Metadata *enumType) {
@@ -280,7 +280,7 @@ static unsigned getMultiPayloadExtraInhabitantTag(const OpaqueValue *value,
   return index + 1;
 }
 
-SWIFT_CC(swift)
+SWIFT_CC
 static void storeMultiPayloadExtraInhabitantTag(OpaqueValue *value,
                                                 unsigned tag,
                                                 unsigned enumNumXI,

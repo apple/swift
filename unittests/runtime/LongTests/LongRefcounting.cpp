@@ -52,7 +52,7 @@ struct TestObject : HeapObject {
   { }
 };
 
-static SWIFT_CC(swift) void deinitTestObject(SWIFT_CONTEXT HeapObject *_object) {
+static SWIFT_CC void deinitTestObject(SWIFT_CONTEXT HeapObject *_object) {
   auto object = static_cast<TestObject*>(_object);
   assert(object->Addr && "object already deallocated");
 

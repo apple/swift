@@ -1322,7 +1322,7 @@ static OpaqueValue *tuple_initializeBufferWithCopyOfBuffer(ValueBuffer *dest,
   return tuple_projectBuffer<IsPOD, IsInline>(dest, metatype);
 }
 
-SWIFT_CC(swift)
+SWIFT_CC
 static void tuple_storeExtraInhabitantTag(OpaqueValue *tuple,
                                           unsigned tag,
                                           unsigned xiCount,
@@ -1340,7 +1340,7 @@ static void tuple_storeExtraInhabitantTag(OpaqueValue *tuple,
   eltInfo.Type->vw_storeEnumTagSinglePayload(elt, tag, xiCount);
 }
 
-SWIFT_CC(swift)
+SWIFT_CC
 static unsigned tuple_getExtraInhabitantTag(const OpaqueValue *tuple,
                                             unsigned xiCount,
                                             const Metadata *_metatype) {
@@ -2652,7 +2652,7 @@ initGenericObjCClass(ClassMetadata *self, size_t numFields,
 }
 #endif
 
-SWIFT_CC(swift)
+SWIFT_CC
 static std::pair<MetadataDependency, const ClassMetadata *>
 getSuperclassMetadata(ClassMetadata *self, bool allowDependency) {
   // If there is a mangled superclass name, demangle it to the superclass
@@ -2706,7 +2706,7 @@ getSuperclassMetadata(ClassMetadata *self, bool allowDependency) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunguarded-availability-new"
 
-static SWIFT_CC(swift) MetadataDependency
+static SWIFT_CC MetadataDependency
 _swift_initClassMetadataImpl(ClassMetadata *self,
                              ClassLayoutFlags layoutFlags,
                              size_t numFields,
@@ -2826,7 +2826,7 @@ swift::swift_initClassMetadata2(ClassMetadata *self,
 #pragma clang diagnostic ignored "-Wunguarded-availability-new"
 
 
-static SWIFT_CC(swift) MetadataDependency
+static SWIFT_CC MetadataDependency
 _swift_updateClassMetadataImpl(ClassMetadata *self,
                                ClassLayoutFlags layoutFlags,
                                size_t numFields,
@@ -4404,9 +4404,8 @@ static StringRef findAssociatedTypeName(const ProtocolDescriptor *protocol,
   return StringRef();
 }
 
-SWIFT_CC(swift)
-static MetadataResponse
-swift_getAssociatedTypeWitnessSlowImpl(
+SWIFT_CC
+static MetadataResponse swift_getAssociatedTypeWitnessSlowImpl(
                                       MetadataRequest request,
                                       WitnessTable *wtable,
                                       const Metadata *conformingType,
@@ -4544,7 +4543,7 @@ swift::swift_getAssociatedTypeWitness(MetadataRequest request,
                                             reqBase, assocType);
 }
 
-SWIFT_CC(swift)
+SWIFT_CC
 static const WitnessTable *swift_getAssociatedConformanceWitnessSlowImpl(
                                   WitnessTable *wtable,
                                   const Metadata *conformingType,

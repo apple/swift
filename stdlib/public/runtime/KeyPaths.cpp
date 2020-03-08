@@ -17,12 +17,12 @@
 
 using namespace swift;
 
-SWIFT_RUNTIME_EXPORT SWIFT_CC(swift)
+SWIFT_RUNTIME_EXPORT SWIFT_CC
 void swift_copyKeyPathTrivialIndices(const void *src, void *dest, size_t bytes) {
   memcpy(dest, src, bytes);
 }
 
-SWIFT_CC(swift)
+SWIFT_CC
 static bool equateGenericArguments(const void *a, const void *b, size_t bytes) {
   // Generic arguments can't affect equality, since an equivalent key path may
   // have been formed in a fully concrete context without capturing generic
@@ -30,7 +30,7 @@ static bool equateGenericArguments(const void *a, const void *b, size_t bytes) {
   return true;
 }
 
-SWIFT_CC(swift)
+SWIFT_CC
 static intptr_t hashGenericArguments(const void *src, size_t bytes) {
   // Generic arguments can't affect equality, since an equivalent key path may
   // have been formed in a fully concrete context without capturing generic
@@ -64,16 +64,16 @@ namespace {
 // parameters are passed impliictly in the isa of the key path.
 
 extern "C"
-SWIFT_CC(swift) void
+SWIFT_CC void
 swift_getAtKeyPath(SWIFT_INDIRECT_RESULT void *result,
                    const OpaqueValue *root, void *keyPath);
 
 extern "C"
-SWIFT_CC(swift) AddrAndOwner
+SWIFT_CC AddrAndOwner
 _swift_modifyAtWritableKeyPath_impl(OpaqueValue *root, void *keyPath);
 
 extern "C"
-SWIFT_CC(swift) AddrAndOwner
+SWIFT_CC AddrAndOwner
 _swift_modifyAtReferenceWritableKeyPath_impl(const OpaqueValue *root,
                                              void *keyPath);
 
@@ -107,7 +107,7 @@ namespace {
                 "temporary doesn't fit in a YieldOnceBuffer");
 }
 
-static SWIFT_CC(swift)
+static SWIFT_CC
 void _destroy_temporary_continuation(YieldOnceBuffer *buffer, bool forUnwind) {
   YieldOnceTemporary::destroyAndDeallocateIn(buffer);
 }
@@ -146,7 +146,7 @@ swift::swift_readAtKeyPath(YieldOnceBuffer *buffer,
   return { &_destroy_temporary_continuation, result };
 }
 
-static SWIFT_CC(swift)
+static SWIFT_CC
 void _release_owner_continuation(YieldOnceBuffer *buffer, bool forUnwind) {
   swift_unknownObjectRelease(buffer->Data[0]);
 }

@@ -171,7 +171,7 @@ struct SwiftError : SwiftErrorHeader {
 /// copied (or taken if \c isTake is true) into the newly-allocated error box.
 /// If value is null, the box's contents will be left uninitialized, and
 /// \c isTake should be false.
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 BoxPair swift_allocError(const Metadata *type,
                          const WitnessTable *errorConformance,
                          OpaqueValue *value, bool isTake);
@@ -206,14 +206,14 @@ SWIFT_RUNTIME_STDLIB_API
 void swift_errorRelease(SwiftError *object);
 
 /// Breakpoint hook for debuggers.
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 void swift_willThrow(SWIFT_CONTEXT void *unused,
                      SWIFT_ERROR_RESULT SwiftError **object);
 
 /// Halt in response to an error.
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API LLVM_ATTRIBUTE_NORETURN
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API LLVM_ATTRIBUTE_NORETURN
 void swift_errorInMain(SwiftError *object);
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API LLVM_ATTRIBUTE_NORETURN
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API LLVM_ATTRIBUTE_NORETURN
 void swift_unexpectedError(SwiftError *object,
                            OpaqueValue *filenameStart,
                            long filenameLength,
@@ -225,7 +225,7 @@ void swift_unexpectedError(SwiftError *object,
 /// Initialize an Error box to make it usable as an NSError instance.
 ///
 /// errorObject is assumed to be passed at +1 and consumed in this function.
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_SPI
+SWIFT_CC SWIFT_RUNTIME_STDLIB_SPI
 id _swift_stdlib_bridgeErrorToNSError(SwiftError *errorObject);
 
 /// Attempt to dynamically cast an NSError object to a Swift ErrorType
@@ -279,7 +279,7 @@ const size_t _swift_lldb_sizeof_SwiftError;
 //   _ x: UnsafePointer<T>) -> AnyObject?
 #define getErrorEmbeddedNSErrorIndirect \
   MANGLE_SYM(s32_getErrorEmbeddedNSErrorIndirectyyXlSgSPyxGs0B0RzlF)
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 id getErrorEmbeddedNSErrorIndirect(const swift::OpaqueValue *error,
                                    const swift::Metadata *T,
                                    const swift::WitnessTable *Error);

@@ -675,12 +675,12 @@ static bool _dynamicCastFromAnyHashable(OpaqueValue *destination,
 /******************************************************************************/
 
 #if !SWIFT_OBJC_INTEROP // __SwiftValue is a native class
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 bool swift_swiftValueConformsTo(const Metadata *, const Metadata *);
 
 #define _bridgeAnythingToObjectiveC                                 \
   MANGLE_SYM(s27_bridgeAnythingToObjectiveCyyXlxlF)
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 HeapObject *_bridgeAnythingToObjectiveC(OpaqueValue *src, const Metadata *srcType);
 #endif
 
@@ -1881,7 +1881,7 @@ checkDynamicCastFromOptional(OpaqueValue *dest,
 /******************************************************************************/
 
 #if !SWIFT_OBJC_INTEROP // __SwiftValue is a native class
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 bool swift_unboxFromSwiftValueWithType(OpaqueValue *source,
                                        OpaqueValue *result,
                                        const Metadata *destinationType);
@@ -2000,7 +2000,7 @@ extern "C" const StructDescriptor NOMINAL_TYPE_DESCR_SYM(Sh);
 // internal func _arrayDownCastIndirect<SourceValue, TargetValue>(
 //   _ source: UnsafePointer<Array<SourceValue>>,
 //   _ target: UnsafeMutablePointer<Array<TargetValue>>)
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 void _swift_arrayDownCastIndirect(OpaqueValue *destination,
                                   OpaqueValue *source,
                                   const Metadata *sourceValueType,
@@ -2010,7 +2010,7 @@ void _swift_arrayDownCastIndirect(OpaqueValue *destination,
 //   _ source: UnsafePointer<Array<SourceValue>>,
 //   _ target: UnsafeMutablePointer<Array<TargetValue>>
 // ) -> Bool
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 bool _swift_arrayDownCastConditionalIndirect(OpaqueValue *destination,
                                              OpaqueValue *source,
                                              const Metadata *sourceValueType,
@@ -2019,7 +2019,7 @@ bool _swift_arrayDownCastConditionalIndirect(OpaqueValue *destination,
 // internal func _setDownCastIndirect<SourceValue, TargetValue>(
 //   _ source: UnsafePointer<Set<SourceValue>>,
 //   _ target: UnsafeMutablePointer<Set<TargetValue>>)
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 void _swift_setDownCastIndirect(OpaqueValue *destination,
                                 OpaqueValue *source,
                                 const Metadata *sourceValueType,
@@ -2031,7 +2031,7 @@ void _swift_setDownCastIndirect(OpaqueValue *destination,
 //   _ source: UnsafePointer<Set<SourceValue>>,
 //   _ target: UnsafeMutablePointer<Set<TargetValue>>
 // ) -> Bool
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 bool _swift_setDownCastConditionalIndirect(OpaqueValue *destination,
                                        OpaqueValue *source,
                                        const Metadata *sourceValueType,
@@ -2043,7 +2043,7 @@ bool _swift_setDownCastConditionalIndirect(OpaqueValue *destination,
 //                                           TargetKey, TargetValue>(
 //   _ source: UnsafePointer<Dictionary<SourceKey, SourceValue>>,
 //   _ target: UnsafeMutablePointer<Dictionary<TargetKey, TargetValue>>)
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 void _swift_dictionaryDownCastIndirect(OpaqueValue *destination,
                                        OpaqueValue *source,
                                        const Metadata *sourceKeyType,
@@ -2058,7 +2058,7 @@ void _swift_dictionaryDownCastIndirect(OpaqueValue *destination,
 //   _ source: UnsafePointer<Dictionary<SourceKey, SourceValue>>,
 //   _ target: UnsafeMutablePointer<Dictionary<TargetKey, TargetValue>>
 // ) -> Bool
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 bool _swift_dictionaryDownCastConditionalIndirect(OpaqueValue *destination,
                                         OpaqueValue *source,
                                         const Metadata *sourceKeyType,
@@ -2532,14 +2532,14 @@ struct _ObjectiveCBridgeableWitnessTable : WitnessTable {
   void *_ObjectiveCType;
 
   // func _bridgeToObjectiveC() -> _ObjectiveCType
-  SWIFT_CC(swift)
+  SWIFT_CC
   HeapObject *(*bridgeToObjectiveC)(
                 SWIFT_CONTEXT OpaqueValue *self, const Metadata *Self,
                 const _ObjectiveCBridgeableWitnessTable *witnessTable);
 
   // class func _forceBridgeFromObjectiveC(x: _ObjectiveCType,
   //                                       inout result: Self?)
-  SWIFT_CC(swift)
+  SWIFT_CC
   void (*forceBridgeFromObjectiveC)(
          HeapObject *sourceValue,
          OpaqueValue *result,
@@ -2549,7 +2549,7 @@ struct _ObjectiveCBridgeableWitnessTable : WitnessTable {
 
   // class func _conditionallyBridgeFromObjectiveC(x: _ObjectiveCType,
   //                                              inout result: Self?) -> Bool
-  SWIFT_CC(swift)
+  SWIFT_CC
   bool (*conditionallyBridgeFromObjectiveC)(
          HeapObject *sourceValue,
          OpaqueValue *result,
@@ -2852,7 +2852,7 @@ static id bridgeAnythingNonVerbatimToObjectiveC(OpaqueValue *src,
 /// Called by inlined stdlib code.
 #define _bridgeAnythingNonVerbatimToObjectiveC                                 \
   MANGLE_SYM(s38_bridgeAnythingNonVerbatimToObjectiveCyyXlxnlF)
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 id _bridgeAnythingNonVerbatimToObjectiveC(OpaqueValue *src,
                                           const Metadata *srcType) {
   bool shouldConsume = true;
@@ -2912,7 +2912,7 @@ findBridgeWitness(const Metadata *T) {
 // Called by inlined stdlib code.
 #define _getBridgedNonVerbatimObjectiveCType \
   MANGLE_SYM(s36_getBridgedNonVerbatimObjectiveCTypeyypXpSgxmlF)
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 const Metadata *_getBridgedNonVerbatimObjectiveCType(
   const Metadata *value, const Metadata *T
 ) {
@@ -2936,7 +2936,7 @@ const Metadata *_getBridgedNonVerbatimObjectiveCType(
 //     x: AnyObject,
 //     inout result: Any?
 // )
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 void
 _bridgeNonVerbatimFromObjectiveCToAny(HeapObject *sourceValue,
                                       OpaqueValue *destValue);
@@ -2946,7 +2946,7 @@ _bridgeNonVerbatimFromObjectiveCToAny(HeapObject *sourceValue,
 //     x: UnsafePointer<NativeType>,
 //     inout result: NativeType?
 // )
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 void
 _bridgeNonVerbatimBoxedValue(const OpaqueValue *sourceValue,
                              OpaqueValue *destValue,
@@ -2996,7 +2996,7 @@ static bool tryBridgeNonVerbatimFromObjectiveCUniversal(
 // Called by inlined stdlib code.
 #define _bridgeNonVerbatimFromObjectiveC \
   MANGLE_SYM(s32_bridgeNonVerbatimFromObjectiveCyyyXl_xmxSgztlF)
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 void
 _bridgeNonVerbatimFromObjectiveC(
   HeapObject *sourceValue,
@@ -3043,7 +3043,7 @@ _bridgeNonVerbatimFromObjectiveC(
 /// Called by inlined stdlib code.
 #define _bridgeNonVerbatimFromObjectiveCConditional \
   MANGLE_SYM(s43_bridgeNonVerbatimFromObjectiveCConditionalySbyXl_xmxSgztlF)
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 bool
 _bridgeNonVerbatimFromObjectiveCConditional(
   HeapObject *sourceValue,
@@ -3092,7 +3092,7 @@ _bridgeNonVerbatimFromObjectiveCConditional(
 // Called by inlined stdlib code.
 #define _isBridgedNonVerbatimToObjectiveC \
   MANGLE_SYM(s33_isBridgedNonVerbatimToObjectiveCySbxmlF)
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 bool _isBridgedNonVerbatimToObjectiveC(const Metadata *value,
                                        const Metadata *T) {
   assert(!swift_isClassOrObjCExistentialTypeImpl(T));
@@ -3102,13 +3102,13 @@ bool _isBridgedNonVerbatimToObjectiveC(const Metadata *value,
 }
 
 // func _isClassOrObjCExistential<T>(x: T.Type) -> Bool
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 bool _swift_isClassOrObjCExistentialType(const Metadata *value,
                                                     const Metadata *T) {
   return swift_isClassOrObjCExistentialTypeImpl(T);
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 const Metadata *swift::_swift_class_getSuperclass(const Metadata *theClass) {
   if (const ClassMetadata *classType = theClass->getClassObject()) {
     if (classHasSuperclass(classType))
@@ -3137,12 +3137,12 @@ bool swift_isOptionalType(const Metadata *type) {
 }
 
 #if !SWIFT_OBJC_INTEROP
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 bool _swift_isOptional(OpaqueValue *src, const Metadata *type) {
   return swift_isOptionalType(type);
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_SPI
+SWIFT_CC SWIFT_RUNTIME_STDLIB_SPI
 HeapObject *_swift_extractDynamicValue(OpaqueValue *value, const Metadata *self) {
   OpaqueValue *outValue;
   const Metadata *outType;
@@ -3161,7 +3161,7 @@ HeapObject *_swift_extractDynamicValue(OpaqueValue *value, const Metadata *self)
   return nullptr;
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 HeapObject *_swift_bridgeToObjectiveCUsingProtocolIfPossible(
   OpaqueValue *src, const Metadata *srcType) {
   assert(!swift_isClassOrObjCExistentialTypeImpl(srcType));

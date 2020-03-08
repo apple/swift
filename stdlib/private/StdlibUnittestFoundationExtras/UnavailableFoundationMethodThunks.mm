@@ -13,7 +13,7 @@
 #include <Foundation/Foundation.h>
 #include "swift/Runtime/Config.h"
 
-SWIFT_CC(swift) SWIFT_RUNTIME_LIBRARY_VISIBILITY
+SWIFT_CC SWIFT_RUNTIME_LIBRARY_VISIBILITY
 extern "C" void
 NSArray_getObjects(NSArray *_Nonnull nsArray,
                    id *objects, NSUInteger rangeLocation,
@@ -21,7 +21,7 @@ NSArray_getObjects(NSArray *_Nonnull nsArray,
   [nsArray getObjects:objects range:NSMakeRange(rangeLocation, rangeLength)];
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_LIBRARY_VISIBILITY
+SWIFT_CC SWIFT_RUNTIME_LIBRARY_VISIBILITY
 extern "C" void
 NSDictionary_getObjectsAndKeysWithCount(NSDictionary *_Nonnull nsDictionary,
                                         id *objects, id *keys,

@@ -155,7 +155,7 @@ internal func _destroyTLS(_ ptr: UnsafeMutableRawPointer?) {
 ```
 
 ```C++
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 void _destroyTLS(void *);
 
 // ... C code can now call _destroyTLS on a void * ...

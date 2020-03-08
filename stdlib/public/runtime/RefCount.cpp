@@ -150,7 +150,7 @@ void RefCounts<SideTableRefCountBits>::incrementUnownedSlow(uint32_t n) {
   swift_abortUnownedRetainOverflow();
 }
   
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 void _swift_stdlib_immortalize(void *obj) {
   auto heapObj = reinterpret_cast<HeapObject *>(obj);
   heapObj->refCounts.setIsImmortal(true);

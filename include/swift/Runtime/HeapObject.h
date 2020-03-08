@@ -102,7 +102,7 @@ struct BoxPair {
 /// appropriate to store a value of the given type.
 /// The heap object has an initial retain count of 1, and its metadata is set
 /// such that destroying the heap object destroys the contained value.
-SWIFT_CC(swift) SWIFT_RUNTIME_EXPORT
+SWIFT_CC SWIFT_RUNTIME_EXPORT
 BoxPair swift_allocBox(Metadata const *type);
 
 /// Performs a uniqueness check on the pointer to a box structure. If the check
@@ -110,7 +110,7 @@ BoxPair swift_allocBox(Metadata const *type);
 ///
 ///  if (!isUnique(buffer[0]))
 ///    buffer[0] = swift_allocBox(type)
-SWIFT_CC(swift) SWIFT_RUNTIME_EXPORT
+SWIFT_CC SWIFT_RUNTIME_EXPORT
 BoxPair swift_makeBoxUnique(OpaqueValue *buffer, Metadata const *type,
                                     size_t alignMask);
 
@@ -1080,9 +1080,8 @@ struct TypeNamePair {
 /// Return the name of a Swift type represented by a metadata object.
 /// func _getTypeName(_ type: Any.Type, qualified: Bool)
 ///   -> (UnsafePointer<UInt8>, Int)
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
-TypeNamePair
-swift_getTypeName(const Metadata *type, bool qualified);  
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
+TypeNamePair swift_getTypeName(const Metadata *type, bool qualified);  
 
 } // end namespace swift
 

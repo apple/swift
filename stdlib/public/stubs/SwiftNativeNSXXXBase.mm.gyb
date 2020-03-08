@@ -80,16 +80,13 @@ STANDARD_OBJC_METHOD_IMPLS_FOR_SWIFT_OBJECTS
 @end
 % end
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_SPI
-bool
-swift_stdlib_NSObject_isEqual(id lhs,
-                              id rhs) {
+SWIFT_CC SWIFT_RUNTIME_STDLIB_SPI
+bool swift_stdlib_NSObject_isEqual(id lhs, id rhs) {
   return (lhs == rhs) || [lhs isEqual:rhs];
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_SPI
-bool
-swift_stdlib_connectNSBaseClasses() {
+SWIFT_CC SWIFT_RUNTIME_STDLIB_SPI
+bool swift_stdlib_connectNSBaseClasses() {
 % for Class in ('Array', 'MutableArray', 'Dictionary', 'Set', 'String', 'Enumerator'):
   Class NS${Class}Super = objc_lookUpClass("NS${Class}");
   if (!NS${Class}Super) return false;

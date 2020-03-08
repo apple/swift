@@ -43,7 +43,7 @@ static HeapObject *make_objc_object() {
 
 // Make a Native Swift object by calling a Swift function.
 // _swift_StdlibUnittest_make_swift_object is implemented in StdlibUnittest.
-SWIFT_CC(swift) extern "C"
+SWIFT_CC extern "C"
 HeapObject *_swift_StdlibUnittest_make_swift_object();
 
 static HeapObject *make_swift_object() {

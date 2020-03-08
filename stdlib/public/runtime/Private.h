@@ -358,7 +358,7 @@ public:
   /// given a particular generic parameter specified by depth/index.
   /// \p substWitnessTable Function that provides witness tables given a
   /// particular dependent conformance index.
-  SWIFT_CC(swift)
+  SWIFT_CC
   TypeInfo swift_getTypeByMangledNode(
                                MetadataRequest request,
                                Demangler &demangler,
@@ -373,7 +373,7 @@ public:
   /// given a particular generic parameter specified by depth/index.
   /// \p substWitnessTable Function that provides witness tables given a
   /// particular dependent conformance index.
-  SWIFT_CC(swift)
+  SWIFT_CC
   TypeInfo swift_getTypeByMangledName(
                                MetadataRequest request,
                                StringRef typeName,
@@ -592,7 +592,7 @@ public:
   /// \param assocType Associated type descriptor.
   ///
   /// \returns metadata for the associated type witness.
-  SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+  SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
   MetadataResponse swift_getAssociatedTypeWitnessSlow(
                                         MetadataRequest request,
                                         WitnessTable *wtable,
@@ -610,7 +610,7 @@ public:
   /// \param assocConformance Associated conformance descriptor.
   ///
   /// \returns corresponding witness table.
-  SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+  SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
   const WitnessTable *swift_getAssociatedConformanceWitnessSlow(
                                   WitnessTable *wtable,
                                   const Metadata *conformingType,

@@ -145,7 +145,7 @@ OVERRIDE_KEYPATH(getKeyPath, const HeapObject *, , , swift::,
                  (const void *pattern, const void *arguments),
                  (pattern, arguments))
 
-OVERRIDE_METADATALOOKUP(getTypeByMangledNode, TypeInfo, , SWIFT_CC(swift), swift::,
+OVERRIDE_METADATALOOKUP(getTypeByMangledNode, TypeInfo, , SWIFT_CC, swift::,
                         (MetadataRequest request,
                          Demangler &demangler,
                          Demangle::NodePointer node,
@@ -153,7 +153,7 @@ OVERRIDE_METADATALOOKUP(getTypeByMangledNode, TypeInfo, , SWIFT_CC(swift), swift
                          SubstGenericParameterFn substGenericParam,
                          SubstDependentWitnessTableFn substWitnessTable),
                         (request, demangler, node, arguments, substGenericParam, substWitnessTable))
-OVERRIDE_METADATALOOKUP(getTypeByMangledName, TypeInfo, , SWIFT_CC(swift), swift::,
+OVERRIDE_METADATALOOKUP(getTypeByMangledName, TypeInfo, , SWIFT_CC, swift::,
                         (MetadataRequest request,
                          StringRef typeName,
                          const void * const *arguments,
@@ -162,7 +162,7 @@ OVERRIDE_METADATALOOKUP(getTypeByMangledName, TypeInfo, , SWIFT_CC(swift), swift
                         (request, typeName, arguments, substGenericParam, substWitnessTable))
 
 OVERRIDE_WITNESSTABLE(getAssociatedTypeWitnessSlow, MetadataResponse,
-                      SWIFT_RUNTIME_STDLIB_INTERNAL, SWIFT_CC(swift), swift::,
+                      SWIFT_RUNTIME_STDLIB_INTERNAL, SWIFT_CC, swift::,
                       (MetadataRequest request, WitnessTable *wtable,
                        const Metadata *conformingType,
                        const ProtocolRequirement *reqBase,
@@ -170,7 +170,7 @@ OVERRIDE_WITNESSTABLE(getAssociatedTypeWitnessSlow, MetadataResponse,
                       (request, wtable, conformingType, reqBase, assocType))
 
 OVERRIDE_WITNESSTABLE(getAssociatedConformanceWitnessSlow, const WitnessTable *,
-                      SWIFT_RUNTIME_STDLIB_INTERNAL, SWIFT_CC(swift), swift::,
+                      SWIFT_RUNTIME_STDLIB_INTERNAL, SWIFT_CC, swift::,
                       (WitnessTable *wtable, const Metadata *conformingType,
                        const Metadata *assocType,
                        const ProtocolRequirement *reqBase,

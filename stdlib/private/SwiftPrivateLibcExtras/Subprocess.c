@@ -21,31 +21,31 @@
 #include <spawn.h>
 #include <sys/types.h>
 
-SWIFT_CC(swift)
+SWIFT_CC
 int _stdlib_posix_spawn_file_actions_init(
     posix_spawn_file_actions_t *file_actions) {
   return posix_spawn_file_actions_init(file_actions);
 }
 
-SWIFT_CC(swift)
+SWIFT_CC
 int _stdlib_posix_spawn_file_actions_destroy(
     posix_spawn_file_actions_t *file_actions) {
   return posix_spawn_file_actions_destroy(file_actions);
 }
 
-SWIFT_CC(swift)
+SWIFT_CC
 int _stdlib_posix_spawn_file_actions_addclose(
     posix_spawn_file_actions_t *file_actions, int filedes) {
   return posix_spawn_file_actions_addclose(file_actions, filedes);
 }
 
-SWIFT_CC(swift)
+SWIFT_CC
 int _stdlib_posix_spawn_file_actions_adddup2(
     posix_spawn_file_actions_t *file_actions, int filedes, int newfiledes) {
   return posix_spawn_file_actions_adddup2(file_actions, filedes, newfiledes);
 }
 
-SWIFT_CC(swift)
+SWIFT_CC
 int _stdlib_posix_spawn(pid_t *__restrict pid, const char * __restrict path,
                       const posix_spawn_file_actions_t *file_actions,
                       const posix_spawnattr_t *__restrict attrp,

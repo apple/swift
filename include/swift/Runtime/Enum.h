@@ -59,9 +59,9 @@ void swift_initEnumMetadataSinglePayload(EnumMetadata *enumType,
                                          unsigned emptyCases);
 
 using getExtraInhabitantTag_t =
-  SWIFT_CC(swift) unsigned (const OpaqueValue *vaue,
-                            unsigned numExtraInhabitants,
-                            const Metadata *payloadType);
+  SWIFT_CC unsigned (const OpaqueValue *vaue,
+                     unsigned numExtraInhabitants,
+                     const Metadata *payloadType);
 
 /// Implement getEnumTagSinglePayload generically in terms of a
 /// payload type with a getExtraInhabitantIndex function.
@@ -73,17 +73,17 @@ using getExtraInhabitantTag_t =
 /// \returns 0 if the payload case is inhabited. If an empty case is inhabited,
 ///          returns a value greater than or equal to one and less than or equal
 ///          emptyCases.
-SWIFT_RUNTIME_EXPORT SWIFT_CC(swift)
+SWIFT_RUNTIME_EXPORT SWIFT_CC
 unsigned swift_getEnumTagSinglePayloadGeneric(const OpaqueValue *value,
                                               unsigned emptyCases,
                                               const Metadata *payloadType,
                                               getExtraInhabitantTag_t *getTag);
 
 using storeExtraInhabitantTag_t =
-  SWIFT_CC(swift) void (OpaqueValue *value,
-                        unsigned whichCase,
-                        unsigned numExtraInhabitants,
-                        const Metadata *payloadType);
+  SWIFT_CC void (OpaqueValue *value,
+                 unsigned whichCase,
+                 unsigned numExtraInhabitants,
+                 const Metadata *payloadType);
 
 /// Implement storeEnumTagSinglePayload generically in terms of a
 /// payload type with a storeExtraInhabitant function.
@@ -96,7 +96,7 @@ using storeExtraInhabitantTag_t =
 ///                    case, or a value greater than or equal to one and less
 ///                    than or equal emptyCases for an empty case.
 /// \param emptyCases - the number of empty cases in the enum.
-SWIFT_RUNTIME_EXPORT SWIFT_CC(swift)
+SWIFT_RUNTIME_EXPORT SWIFT_CC
 void swift_storeEnumTagSinglePayloadGeneric(OpaqueValue *value,
                                             unsigned whichCase,
                                             unsigned emptyCases,

@@ -21,7 +21,7 @@ using namespace swift;
 
 // @_silgen_name("_swift_stdlib_getDefaultErrorCode")
 // func _getDefaultErrorCode<T : Error>(_ x: T) -> Int
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_SPI
+SWIFT_CC SWIFT_RUNTIME_STDLIB_SPI
 intptr_t _swift_stdlib_getDefaultErrorCode(OpaqueValue *error,
                                            const Metadata *T,
                                            const WitnessTable *Error) {

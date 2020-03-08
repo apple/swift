@@ -3,7 +3,7 @@
 
 using namespace swift;
 
-SWIFT_CC(swift) SWIFT_RUNTIME_LIBRARY_VISIBILITY extern "C"
+SWIFT_CC SWIFT_RUNTIME_LIBRARY_VISIBILITY extern "C"
 void testExclusivityNullPC() {
   ValueBuffer scratch, scratch2;
   long var;
@@ -16,7 +16,7 @@ void testExclusivityNullPC() {
   swift_endAccess(&scratch);
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_LIBRARY_VISIBILITY extern "C"
+SWIFT_CC SWIFT_RUNTIME_LIBRARY_VISIBILITY extern "C"
 void testExclusivityPCOne() {
   ValueBuffer scratch, scratch2;
   long var;
@@ -29,7 +29,7 @@ void testExclusivityPCOne() {
   swift_endAccess(&scratch);
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_LIBRARY_VISIBILITY extern "C"
+SWIFT_CC SWIFT_RUNTIME_LIBRARY_VISIBILITY extern "C"
 void testExclusivityBogusPC() {
   ValueBuffer scratch, scratch2;
   long var;
@@ -44,7 +44,7 @@ void testExclusivityBogusPC() {
 
 
 // rdar://32866493
-SWIFT_CC(swift) SWIFT_RUNTIME_LIBRARY_VISIBILITY extern "C"
+SWIFT_CC SWIFT_RUNTIME_LIBRARY_VISIBILITY extern "C"
 void testExclusivityNonNested() {
   const int N = 5;
   ValueBuffer scratches[N];

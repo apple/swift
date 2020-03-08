@@ -27,9 +27,9 @@ using namespace swift;
 void (*swift::_swift_willThrow)(SwiftError *error);
 
 /// Breakpoint hook for debuggers, and calls _swift_willThrow if set.
-SWIFT_CC(swift) void
-swift::swift_willThrow(SWIFT_CONTEXT void *unused,
-                       SWIFT_ERROR_RESULT SwiftError **error) {
+SWIFT_CC
+void swift::swift_willThrow(SWIFT_CONTEXT void *unused,
+                            SWIFT_ERROR_RESULT SwiftError **error) {
   // Cheap check to bail out early, since we expect there to be no callbacks
   // the vast majority of the time.
   if (SWIFT_LIKELY(!_swift_willThrow))

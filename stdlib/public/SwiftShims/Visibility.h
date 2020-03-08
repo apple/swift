@@ -132,7 +132,7 @@
 /// Attributes for runtime-stdlib interfaces.
 /// Use these for C implementations that are imported into Swift via SwiftShims
 /// and for C implementations of Swift @_silgen_name declarations
-/// Note that @_silgen_name implementations must also be marked SWIFT_CC(swift).
+/// Note that @_silgen_name implementations must also be marked SWIFT_CC.
 ///
 /// SWIFT_RUNTIME_STDLIB_API functions are called by compiler-generated code
 /// or by @inlinable Swift code.

@@ -427,7 +427,7 @@ swift::swift_getErrorValue(const SwiftError *errorObject,
 //   (_ x: UnsafePointer<T>) -> AnyObject
 #define getErrorDomainNSString \
   MANGLE_SYM(s23_getErrorDomainNSStringyyXlSPyxGs0B0RzlF)
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 id getErrorDomainNSString(const OpaqueValue *error,
                           const Metadata *T,
                           const WitnessTable *Error);
@@ -435,7 +435,7 @@ id getErrorDomainNSString(const OpaqueValue *error,
 // internal func _getErrorCode<T : Error>(_ x: UnsafePointer<T>) -> Int
 #define getErrorCode \
   MANGLE_SYM(s13_getErrorCodeySiSPyxGs0B0RzlF)
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 NSInteger getErrorCode(const OpaqueValue *error,
                        const Metadata *T,
                        const WitnessTable *Error);
@@ -443,7 +443,7 @@ NSInteger getErrorCode(const OpaqueValue *error,
 // internal func _getErrorUserInfoNSDictionary<T : Error>(_ x: UnsafePointer<T>) -> AnyObject
 #define getErrorUserInfoNSDictionary \
   MANGLE_SYM(s29_getErrorUserInfoNSDictionaryyyXlSgSPyxGs0B0RzlF)
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 id getErrorUserInfoNSDictionary(
                 const OpaqueValue *error,
                 const Metadata *T,
@@ -451,13 +451,13 @@ id getErrorUserInfoNSDictionary(
 
 // @_silgen_name("_swift_stdlib_getErrorDefaultUserInfo")
 // internal func _getErrorDefaultUserInfo<T : Error>(_ x: T) -> AnyObject
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SWIFT_CC SWIFT_RUNTIME_STDLIB_INTERNAL
 id _swift_stdlib_getErrorDefaultUserInfo(OpaqueValue *error,
                                          const Metadata *T,
                                          const WitnessTable *Error) {
   // public func Foundation._getErrorDefaultUserInfo<T: Error>(_ error: T)
   //   -> AnyObject?
-  typedef SWIFT_CC(swift) NSDictionary *(*GetErrorDefaultUserInfoFunction)(
+  typedef SWIFT_CC NSDictionary *(*GetErrorDefaultUserInfoFunction)(
     const OpaqueValue *error,
     const Metadata *T,
     const WitnessTable *Error);
@@ -571,7 +571,7 @@ swift::tryDynamicCastNSErrorObjectToValue(HeapObject *object,
   // public func Foundation._bridgeNSErrorToError<
   //   T : _ObjectiveCBridgeableError
   // >(error: NSError, out: UnsafeMutablePointer<T>) -> Bool {
-  typedef SWIFT_CC(swift) bool (*BridgeErrorToNSErrorFunction)(
+  typedef SWIFT_CC bool (*BridgeErrorToNSErrorFunction)(
     NSError *, OpaqueValue*, const Metadata *,
     const WitnessTable *);
   auto bridgeNSErrorToError = SWIFT_LAZY_CONSTANT(

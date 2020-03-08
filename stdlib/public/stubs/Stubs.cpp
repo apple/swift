@@ -111,7 +111,7 @@ static uint64_t uint64ToStringImpl(char *Buffer, uint64_t Value,
   return size_t(P - Buffer);
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 uint64_t swift_int64ToString(char *Buffer, size_t BufferLength,
                              int64_t Value, int64_t Radix,
                              bool Uppercase) {
@@ -135,7 +135,7 @@ uint64_t swift_int64ToString(char *Buffer, size_t BufferLength,
                             Negative);
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 uint64_t swift_uint64ToString(char *Buffer, intptr_t BufferLength,
                               uint64_t Value, int64_t Radix,
                               bool Uppercase) {
@@ -261,19 +261,19 @@ static uint64_t swift_floatingPointToString(char *Buffer, size_t BufferLength,
 }
 #endif
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 uint64_t swift_float32ToString(char *Buffer, size_t BufferLength,
                                float Value, bool Debug) {
   return swift_format_float(Value, Buffer, BufferLength);
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 uint64_t swift_float64ToString(char *Buffer, size_t BufferLength,
                                double Value, bool Debug) {
   return swift_format_double(Value, Buffer, BufferLength);
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
+SWIFT_CC SWIFT_RUNTIME_STDLIB_API
 uint64_t swift_float80ToString(char *Buffer, size_t BufferLength,
                                long double Value, bool Debug) {
 #if SWIFT_DTOA_FLOAT80_SUPPORT
