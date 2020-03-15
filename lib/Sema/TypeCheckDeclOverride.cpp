@@ -1539,6 +1539,21 @@ namespace  {
         .fixItInsert(Base->getAttributeInsertionLoc(false),
                      "@objc ");
     }
+
+    void visitRequiresConcreteImplementationAttr(
+                                    RequiresConcreteImplementationAttr *attr) {
+      // Require '@_requiresConcreteImplementation' on the override if it was
+      // there on the base.
+      if (!Base->getAttrs().hasAttribute<RequiresConcreteImplementationAttr>())
+        return;
+
+      if (Override->getAttrs().hasAttribute<RequiresConcreteImplementationAttr>())
+        return;
+
+      Diags.diagnose(Override,
+                     diag::override_not_requiring_concrete_implementation);
+      Diags.diagnose(Base, diag::overridden_here);
+    }
   };
 } // end anonymous namespace
 

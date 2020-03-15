@@ -60,6 +60,7 @@ public protocol RandomNumberGenerator {
   /// method.
   ///
   /// - Returns: An unsigned 64-bit random value.
+  @_requiresConcreteImplementation
   mutating func next() -> UInt64
 }
 

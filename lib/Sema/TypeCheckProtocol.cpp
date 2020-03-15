@@ -1377,6 +1377,13 @@ RequirementCheck WitnessChecker::checkWitness(ValueDecl *requirement,
     return CheckKind::WitnessUnavailable;
   }
 
+  // If a requirement has the @_requiresConcreteImplementation attribute, it
+  // cannot be satisfied by a default implementation in a protocol extension.
+  if (requirement->getAttrs().hasAttribute<RequiresConcreteImplementationAttr>()
+      && match.Witness->getDeclContext()->getExtendedProtocolDecl()) {
+    return CheckKind::RequiresConcreteImplementation;
+  }
+
   return CheckKind::Success;
 }
 
@@ -3433,8 +3440,7 @@ ConformanceChecker::resolveWitnessViaLookup(ValueDecl *requirement) {
 
     case CheckKind::WitnessUnavailable:
       diagnoseOrDefer(requirement, /*isError=*/true,
-        [witness, requirement](
-                                    NormalProtocolConformance *conformance) {
+        [witness, requirement](NormalProtocolConformance *conformance) {
           auto &diags = witness->getASTContext().Diags;
           SourceLoc diagLoc = getLocForDiagnosingWitness(conformance, witness);
           diags.diagnose(diagLoc,
@@ -3442,6 +3448,22 @@ ConformanceChecker::resolveWitnessViaLookup(ValueDecl *requirement) {
                          witness->getDescriptiveKind(),
                          witness->getFullName(),
                          conformance->getProtocol()->getFullName());
+          emitDeclaredHereIfNeeded(diags, diagLoc, witness);
+          diags.diagnose(requirement, diag::kind_declname_declared_here,
+                         DescriptiveDeclKind::Requirement,
+                         requirement->getFullName());
+        });
+      break;
+
+    case CheckKind::RequiresConcreteImplementation:
+      diagnoseOrDefer(requirement, /*isError=*/true,
+        [witness, requirement](NormalProtocolConformance *conformance) {
+          auto &diags = witness->getASTContext().Diags;
+          SourceLoc diagLoc = getLocForDiagnosingWitness(conformance, witness);
+          diags.diagnose(diagLoc,
+                         diag::witness_must_be_concrete_implementation,
+                         witness->getDescriptiveKind(),
+                         witness->getFullName());
           emitDeclaredHereIfNeeded(diags, diagLoc, witness);
           diags.diagnose(requirement, diag::kind_declname_declared_here,
                          DescriptiveDeclKind::Requirement,

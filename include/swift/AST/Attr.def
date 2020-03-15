@@ -552,6 +552,12 @@ DECL_ATTR(transpose, Transpose,
   ABIStableToAdd | ABIBreakingToRemove | APIStableToAdd | APIBreakingToRemove,
   99)
 
+SIMPLE_DECL_ATTR(_requiresConcreteImplementation, RequiresConcreteImplementation,
+  OnFunc | OnAccessor | OnVar | OnSubscript | OnConstructor |
+  LongAttribute | UserInaccessible | NotSerialized |
+  ABIStableToAdd | ABIStableToRemove | APIStableToAdd | APIStableToRemove,
+  100)
+
 #undef TYPE_ATTR
 #undef DECL_ATTR_ALIAS
 #undef CONTEXTUAL_DECL_ATTR_ALIAS

@@ -2123,8 +2123,8 @@ NOTE(declared_protocol_conformance_here,none,
      (Type, unsigned, DeclName, DeclName))
 
 ERROR(witness_unavailable,none,
-        "unavailable %0 %1 was used to satisfy a requirement of protocol %2",
-        (DescriptiveDeclKind, DeclName, DeclName))
+      "unavailable %0 %1 was used to satisfy a requirement of protocol %2",
+      (DescriptiveDeclKind, DeclName, DeclName))
 
 ERROR(redundant_conformance,none,
       "redundant conformance of %0 to protocol %1", (Type, DeclName))
@@ -2907,6 +2907,19 @@ ERROR(implements_attr_non_protocol_type,none,
 ERROR(implements_attr_protocol_not_conformed_to,none,
       "containing type %0 does not conform to protocol %1",
       (DeclName, DeclName))
+      
+// @_requiresConcreteImplementation
+ERROR(requires_concrete_implementation_attr_wrong_decl_context,none,
+      "'@_requiresConcreteImplementation' can only be specified on protocol "
+      "requirements", ())
+ERROR(witness_must_be_concrete_implementation,none,
+      "protocol requirement marked '@_requiresConcreteImplementation' cannot "
+      "be satisfied by %0 %1 declared in protocol extension",
+      (DescriptiveDeclKind, DeclName))
+ERROR(override_not_requiring_concrete_implementation,none,
+      "override of protocol requirement marked "
+      "'@_requiresConcreteImplementation' should also be marked "
+      "'@_requiresConcreteImplementation'", ())
 
 // @differentiable
 ERROR(differentiable_attr_no_vjp_or_jvp_when_linear,none,

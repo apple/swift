@@ -278,6 +278,10 @@ enum class CheckKind : unsigned {
 
   /// The witness itself is inaccessible.
   WitnessUnavailable,
+
+  /// The requirement was marked '@_requiresConcreteImplementation', but the
+  /// witness is a default implementation in a protocol extension.
+  RequiresConcreteImplementation,
 };
 
 /// Describes an optional adjustment made to a witness.

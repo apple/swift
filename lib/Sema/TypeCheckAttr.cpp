@@ -254,6 +254,9 @@ public:
 
   void visitDifferentiableAttr(DifferentiableAttr *attr);
   void visitDerivativeAttr(DerivativeAttr *attr);
+  
+  void visitRequiresConcreteImplementationAttr(
+                                     RequiresConcreteImplementationAttr *attr);
 };
 } // end anonymous namespace
 
@@ -4550,4 +4553,11 @@ static bool typeCheckDerivativeAttr(ASTContext &Ctx, Decl *D,
 void AttributeChecker::visitDerivativeAttr(DerivativeAttr *attr) {
   if (typeCheckDerivativeAttr(Ctx, D, attr))
     attr->setInvalid();
+}
+
+void AttributeChecker::visitRequiresConcreteImplementationAttr(
+                                     RequiresConcreteImplementationAttr *attr) {
+  if (!isa<ProtocolDecl>(D->getDeclContext()))
+    diagnoseAndRemoveAttr(attr,
+                diag::requires_concrete_implementation_attr_wrong_decl_context);
 }
