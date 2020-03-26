@@ -974,6 +974,63 @@ public:
   }
 };
 
+// XXX FIXME XXX Make sure the following calculation returns `false` (failure)
+// when it is unable to accurately obtain the spare bit mask.
+
+// Recursively populate the spare bit mask for this single type
+static bool populateSpareBitsMask(const TypeInfo *TI, BitMask &mask);
+
+// Recursively populate the spare bit mask for this collection of
+// record fields or enum cases.
+static bool populateSpareBitsMask(const std::vector<FieldInfo> &Fields, BitMask &mask) {
+  for (auto Field : Fields) {
+    if (Field.TR != 0) {
+      BitMask submask(Field.TI.getSize());
+      if (!populateSpareBitsMask(&Field.TI, submask)) {
+        return false;
+      }
+      mask.andMask(submask, Field.Offset);
+    }
+  }
+  return true;
+}
+
+// General recursive type walk to combine spare bit info from nested structures.
+static bool populateSpareBitsMask(const TypeInfo *TI, BitMask &mask) {
+  switch (TI->getKind()) {
+  case TypeInfoKind::Reference: {
+    // Or else somehow get access to target architecture information?
+    if (TI->getSize() == 8) {
+      // x86_64 masking (ARM64 is different)
+      mask.andMask((uint64_t)0xFF00000000000007ULL, 0);
+    } else {
+      // Common to all 32-bit platforms
+      mask.andMask((uint32_t)0x00000003U, 0);
+    }
+    break;
+  }
+  case TypeInfoKind::Enum: {
+    auto EnumTI = reinterpret_cast<const EnumTypeInfo *>(TI);
+    if (!populateSpareBitsMask(EnumTI->getCases(), mask)) {
+      return false;
+    }
+    break;
+  }
+  case TypeInfoKind::Record: {
+    auto RecordTI = dyn_cast<RecordTypeInfo>(TI);
+    if (!populateSpareBitsMask(RecordTI->getFields(), mask)) {
+      return false;
+    }
+    break;
+  }
+  default: {
+    mask.makeZero();
+    break;
+  }
+  }
+  return true;
+}
+
 /// Utility class for building values that contain witness tables.
 class ExistentialTypeInfoBuilder {
   TypeConverter &TC;
@@ -1878,28 +1935,32 @@ public:
         if (Stride == 0)
           Stride = 1;
 
-/*
-        // TODO: Obtain spare bit mask data from the field descriptor
-        // TODO: Have the compiler emit spare bit mask data in the FD
         auto PayloadSize = EnumTypeInfo::getPayloadSizeForCases(Cases);
         BitMask spareBitsMask(PayloadSize);
-        if (readSpareBitsMask(XYZ, spareBitsMask)) {
-          if (spareBitsMask.isZero()) {
-            // If there are no spare bits, use the "simple" tag-only implementation.
-            return TC.makeTypeInfo<SimpleMultiPayloadEnumTypeInfo>(
-              Size, Alignment, Stride, NumExtraInhabitants,
-              BitwiseTakable, Cases);
-          } else {
-            // General case using a mix of spare bits and extra tag
-            return TC.makeTypeInfo<MultiPayloadEnumTypeInfo>(
-              Size, Alignment, Stride, NumExtraInhabitants,
-              BitwiseTakable, Cases, spareBitsMask);
-          }
+        auto validSpareBitsMask = populateSpareBitsMask(Cases, spareBitsMask);
+
+        if (!validSpareBitsMask) {
+          // If we couldn't correctly determine the spare bits mask,
+          // return a TI that will always fail when asked for XIs or value.
+          return TC.makeTypeInfo<UnsupportedEnumTypeInfo>(
+            Size, Alignment, Stride, NumExtraInhabitants,
+            BitwiseTakable, EnumKind::MultiPayloadEnum, Cases);
+        } else if (spareBitsMask.isZero()) {
+          // Simple case that does not use spare bits
+          // This is correct as long as our local spare bits calculation
+          // above only returns an empty mask when the mask is really empty,
+          return TC.makeTypeInfo<SimpleMultiPayloadEnumTypeInfo>(
+            Size, Alignment, Stride, NumExtraInhabitants,
+            BitwiseTakable, Cases);
+        } else {
+          // General case can mix spare bits and extra discriminator
+          // It obviously relies on having an accurate spare bit mask.
+          return TC.makeTypeInfo<MultiPayloadEnumTypeInfo>(
+            Size, Alignment, Stride, NumExtraInhabitants,
+            BitwiseTakable, Cases, spareBitsMask);
         }
 
-
-        // Fallback:  Try computing the spare bits locally to support old images
-        // where the compiler did not embed the data.
+/*
         auto PayloadSize = EnumTypeInfo::getPayloadSizeForCases(Cases);
         BitMask spareBitsMask(PayloadSize);
         if (readSpareBitsMask(XYZ, spareBitsMask)) {
@@ -1916,13 +1977,6 @@ public:
           }
         }
 */
-
-        // Without spare bit mask info, we have to leave this particular
-        // enum as "Unsupported", meaning we will not be able to project
-        // cases or evaluate XIs.
-        return TC.makeTypeInfo<UnsupportedEnumTypeInfo>(
-          Size, Alignment, Stride, NumExtraInhabitants,
-          BitwiseTakable, EnumKind::MultiPayloadEnum, Cases);
       } else {
         // Dynamic multi-payload enums cannot use spare bits, so they
         // always use a separate tag value:
