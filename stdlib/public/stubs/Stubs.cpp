@@ -76,6 +76,7 @@ static float swift_strtof_l(const char *nptr, char **endptr, locale_t loc) {
 #include <thread>
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/Compiler.h"
+#include "swift/Demangling/Demangle.h"
 #include "swift/Runtime/Debug.h"
 #include "swift/Runtime/SwiftDtoa.h"
 #include "swift/Basic/Lazy.h"
@@ -547,3 +548,11 @@ size_t swift::_swift_stdlib_getHardwareConcurrency() {
   return std::thread::hardware_concurrency();
 }
 
+char *swift::_swift_stdlib_demangle(const char *mangledName,
+                                    __swift_size_t mangledNameLength,
+                                    char *outputBuffer,
+                                    __swift_size_t *outputBufferSize,
+                                    __swift_uint32_t flags) {
+  return swift_demangle(mangledName, mangledNameLength, outputBuffer,
+                        outputBufferSize, flags);
+ }

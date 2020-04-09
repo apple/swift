@@ -60,6 +60,7 @@ if(SWIFT_BUILD_STDLIB)
   add_subdirectory(runtime)
   add_subdirectory(stubs)
   add_subdirectory(core)
+  add_subdirectory(LowLevel)
   add_subdirectory(SwiftOnoneSupport)
 
   if(SWIFT_ENABLE_EXPERIMENTAL_DIFFERENTIABLE_PROGRAMMING)

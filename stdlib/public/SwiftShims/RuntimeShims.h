@@ -64,6 +64,13 @@ int _swift_stdlib_putc_stderr(int C);
 SWIFT_RUNTIME_STDLIB_API
 __swift_size_t _swift_stdlib_getHardwareConcurrency(void);
 
+SWIFT_RUNTIME_STDLIB_API
+char *_swift_stdlib_demangle(const char *mangledName,
+                             __swift_size_t mangledNameLength,
+                             char *outputBuffer,
+                             __swift_size_t *outputBufferSize,
+                             __swift_uint32_t flags);
+
 /// Manually allocated memory is at least 16-byte aligned in Swift.
 ///
 /// When swift_slowAlloc is called with "default" alignment (alignMask ==

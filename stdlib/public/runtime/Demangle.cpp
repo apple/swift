@@ -635,17 +635,14 @@ swift::_swift_buildDemanglingForMetadata(const Metadata *type,
   return nullptr;
 }
 
-// NB: This function is not used directly in the Swift codebase, but is
-// exported for Xcode support and is used by the sanitizers. Please coordinate
+// This function is exported for Xcode support, used by the sanitizers, and is
+// used by the demangle function in the LowLevel module. Please coordinate
 // before changing.
 char *swift_demangle(const char *mangledName,
                      size_t mangledNameLength,
                      char *outputBuffer,
                      size_t *outputBufferSize,
                      uint32_t flags) {
-  if (flags != 0) {
-    swift::fatalError(0, "Only 'flags' value of '0' is currently supported.");
-  }
   if (outputBuffer != nullptr && outputBufferSize == nullptr) {
     swift::fatalError(0, "'outputBuffer' is passed but the size is 'nullptr'.");
   }
@@ -655,9 +652,25 @@ char *swift_demangle(const char *mangledName,
   if (!Demangle::isSwiftSymbol(mangledName))
     return nullptr; // Not a mangled name
 
-  // Demangle the name.
   auto options = Demangle::DemangleOptions();
   options.DisplayDebuggerGeneratedModule = false;
+
+  // It's important that we use two bits here because we want to maintain
+  // compatibility with other clients that have been using this and passing
+  // 0 for the flag value.
+
+  // If the first bit is set, use swift-demangle's default options.
+  if (flags & 0x1) {
+    options.DisplayDebuggerGeneratedModule = true;
+    options.SynthesizeSugarOnTypes = true;
+  }
+
+  // If the second bit is set, use swift-demangle's simplified version.
+  if (flags & 0x2) {
+    options = Demangle::DemangleOptions::SimplifiedUIDemangleOptions();
+  }
+
+  // Demangle the name.
   auto result =
       Demangle::demangleSymbolAsString(mangledName,
                                        mangledNameLength,
