@@ -1190,6 +1190,13 @@ public:
     if (Triple.isOSBinFormatELF())
       return;
 
+    // Avoid to create GOT because wasm doesn't support
+    // dynamic linking yet
+    if (Triple.isOSBinFormatWasm()) {
+      GV->setDSOLocal(true);
+      return;
+    }
+
     if (IRL.Linkage == llvm::GlobalValue::LinkOnceODRLinkage ||
         IRL.Linkage == llvm::GlobalValue::WeakODRLinkage)
       if (Triple.supportsCOMDAT())

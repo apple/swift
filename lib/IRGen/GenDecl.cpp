@@ -3021,6 +3021,11 @@ IRGenModule::getAddrOfLLVMVariableOrGOTEquivalent(LinkEntity entity) {
     return {gotEquivalent, ConstantReference::Indirect};
   };
   
+  // Avoid to create GOT because wasm32 doesn't support
+  // dynamic linking yet
+  if (TargetInfo.OutputObjectFormat == llvm::Triple::Wasm) {
+    return direct();
+  }
   // The integrated REPL incrementally adds new definitions, so always use
   // indirect references in this mode.
   if (IRGen.Opts.IntegratedREPL)
