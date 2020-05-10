@@ -317,6 +317,14 @@ def apply_default_arguments(toolchain, args):
             args.stdlib_deployment_targets.append(
                 StdlibDeploymentTarget.Android.aarch64.name)
 
+    if args.wasi:
+        args.build_swift_static_stdlib = True
+        args.build_dynamic_stdlib = False
+        args.build_swift_static_sdk_overlay = True
+        args.build_swift_dynamic_sdk_overlay = False
+        args.stdlib_deployment_targets.append(
+            StdlibDeploymentTarget.WASI.wasm32.name)
+
     # Infer platform flags from manually-specified configure targets.
     # This doesn't apply to Darwin platforms, as they are
     # already configured. No building without the platform flag, though.
@@ -588,6 +596,8 @@ class BuildScriptInvocation(object):
             impl_args += ["--skip-build-watchos-simulator"]
         if not args.build_android:
             impl_args += ["--skip-build-android"]
+        if not args.build_wasi:
+            impl_args += ["--skip-build-wasi"]
         if not args.build_clang_tools_extra:
             impl_args += ["--skip-build-clang-tools-extra"]
 
@@ -629,6 +639,8 @@ class BuildScriptInvocation(object):
             impl_args += ["--skip-test-android"]
         if not args.test_android_host:
             impl_args += ["--skip-test-android-host"]
+        if not args.test_wasi:
+            impl_args += ["--skip-test-wasi"]
         if args.build_runtime_with_host_compiler:
             impl_args += ["--build-runtime-with-host-compiler"]
         if args.validation_test:

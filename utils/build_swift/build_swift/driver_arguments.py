@@ -147,6 +147,9 @@ def _apply_default_arguments(args):
     if not args.android or not args.build_android:
         args.build_android = False
 
+    if not args.wasi or not args.build_wasi:
+        args.build_wasi = False
+
     # --test-paths implies --test and/or --validation-test
     # depending on what directories/files have been specified.
     if args.test_paths:
@@ -183,6 +186,7 @@ def _apply_default_arguments(args):
         args.test_tvos = False
         args.test_watchos = False
         args.test_android = False
+        args.test_wasi = False
         args.test_swiftpm = False
         args.test_swiftsyntax = False
         args.test_indexstoredb = False
@@ -232,6 +236,12 @@ def _apply_default_arguments(args):
 
     if not args.test_android:
         args.test_android_host = False
+
+    if not args.build_wasi:
+        args.test_wasi = False
+
+    if not args.test_wasi:
+        args.test_wasi = False
 
     if not args.host_test:
         args.test_ios_host = False
@@ -325,6 +335,9 @@ def create_argument_parser():
 
     option('--android', toggle_true,
            help='also build for Android')
+
+    option('--wasi', toggle_true,
+           help='also build for WebAssembly/WASI')
 
     option('--swift-analyze-code-coverage', store,
            choices=['false', 'not-merged', 'merged'],
@@ -938,6 +951,9 @@ def create_argument_parser():
     option('--skip-build-android', toggle_false('build_android'),
            help='skip building Swift stdlibs for Android')
 
+    option('--skip-build-wasi', toggle_false('build_wasi'),
+           help='skip building Swift stdlibs for WebAssembly/WASI')
+
     option('--skip-build-benchmarks', toggle_false('build_benchmarks'),
            help='skip building Swift Benchmark Suite')
 
@@ -994,6 +1010,10 @@ def create_argument_parser():
            help='skip testing Android device targets on the host machine (the '
                 'phone itself)')
 
+    option('--skip-test-wasi',
+           toggle_false('test_wasi'),
+           help='skip testing all WebAssembly/WASI targets.')
+
     option('--skip-test-swiftpm', toggle_false('test_swiftpm'),
            help='skip testing swiftpm')
     option('--skip-test-swiftsyntax', toggle_false('test_swiftsyntax'),
@@ -1017,7 +1037,7 @@ def create_argument_parser():
     in_group('Build settings specific for LLVM')
 
     option('--llvm-targets-to-build', store,
-           default='X86;ARM;AArch64;PowerPC;SystemZ;Mips',
+           default='X86;ARM;AArch64;PowerPC;SystemZ;Mips;WebAssembly',
            help='LLVM target generators to build')
 
     # -------------------------------------------------------------------------

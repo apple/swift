@@ -265,11 +265,11 @@ set(SWIFT_ANDROID_DEPLOY_DEVICE_PATH "" CACHE STRING
   "Path on an Android device where build products will be pushed. These are used when running the test suite against the device")
 
 #
-# User-configurable ICU specific options for Android, FreeBSD, Linux and Haiku.
+# User-configurable ICU specific options for Android, FreeBSD, Linux, Haiku, and WebAssembly/WASI.
 #
 
-foreach(sdk ANDROID;FREEBSD;LINUX;WINDOWS;HAIKU)
-  foreach(arch aarch64;armv6;armv7;i686;powerpc64;powerpc64le;s390x;x86_64)
+foreach(sdk ANDROID;FREEBSD;LINUX;WINDOWS;HAIKU;WASI)
+  foreach(arch aarch64;armv6;armv7;i686;powerpc64;powerpc64le;s390x;wasm32;x86_64)
     set(SWIFT_${sdk}_${arch}_ICU_UC "" CACHE STRING
         "Path to a directory containing the icuuc library for ${sdk}")
     set(SWIFT_${sdk}_${arch}_ICU_UC_INCLUDE "" CACHE STRING
@@ -601,6 +601,8 @@ else()
     set(SWIFT_HOST_VARIANT_ARCH_default "powerpc64le")
   elseif("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "s390x")
     set(SWIFT_HOST_VARIANT_ARCH_default "s390x")
+  elseif("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "wasm32")
+    set(SWIFT_HOST_VARIANT_ARCH_default "wasm32")
   # FIXME: Only matches v6l/v7l - by far the most common variants
   elseif("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "armv6l")
     set(SWIFT_HOST_VARIANT_ARCH_default "armv6")
@@ -792,6 +794,14 @@ if(swift_build_windows AND NOT "${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
     set(SWIFT_SDK_WINDOWS_ARCHITECTURES aarch64;armv7;i686;x86_64)
   endif()
   configure_sdk_windows("Windows" "msvc" "${SWIFT_SDK_WINDOWS_ARCHITECTURES}")
+endif()
+
+is_sdk_requested(WASI swift_build_wasi)
+if(swift_build_wasi AND NOT "${SWIFT_HOST_VARIANT_SDK}" STREQUAL "WASI")
+  if("${SWIFT_SDK_WASI_ARCHITECTURES}" STREQUAL "")
+    set(SWIFT_SDK_WASI_ARCHITECTURES wasm32)
+  endif()
+  configure_sdk_unix("WASI" "${SWIFT_SDK_WASI_ARCHITECTURES}")
 endif()
 
 if("${SWIFT_SDKS}" STREQUAL "")

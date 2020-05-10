@@ -243,6 +243,8 @@ class HostSpecificConfiguration(object):
                 StdlibDeploymentTarget.AppleWatchSimulator)
         if not args.test_android:
             platforms_to_skip_test.add(StdlibDeploymentTarget.Android)
+        if not args.test_wasi:
+            platforms_to_skip_test.add(StdlibDeploymentTarget.WASI)
 
         return platforms_to_skip_test
 

@@ -154,6 +154,7 @@ KNOWN_SETTINGS=(
     skip-test-osx                                 ""                "set to skip testing Swift stdlibs for OS X"
     skip-test-tvos-host                           ""                "set to skip testing the host parts of the tvOS toolchain"
     skip-test-tvos-simulator                      ""                "set to skip testing Swift stdlibs for tvOS simulators (i.e. test devices only)"
+    skip-test-wasi                                ""                "set to skip testing Swift stdlibs for WebAssembly/WASI"
     skip-test-watchos-host                        ""                "set to skip testing the host parts of the watchOS toolchain"
     skip-test-watchos-simulator                   ""                "set to skip testing Swift stdlibs for Apple watchOS simulators (i.e. test devices only)"
     skip-test-benchmarks                          ""                "set to skip running Swift Benchmark Suite"
