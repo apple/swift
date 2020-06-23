@@ -10,11 +10,13 @@
 // RUN: %FileCheck %s < %t.complex.txt
 // RUN: %FileCheck -check-prefix TWO-OUTPUTS %s < %t.complex.txt
 
-// RUN: %swiftc_driver -driver-print-jobs -c %s -emit-objc-header -o sdk.foo.out 2>&1 > %t.complex.txt
+// RUN: %swiftc_driver -driver-print-jobs -c %s -emit-module -module-name sdk -emit-objc-header 2>&1 > %t.complex.txt
 // RUN: %FileCheck %s < %t.complex.txt
 // RUN: %FileCheck -check-prefix THREE-OUTPUTS %s < %t.complex.txt
 
 // RUN: %swiftc_driver -emit-module -driver-print-jobs -driver-filelist-threshold=0 %s %S/../Inputs/empty.swift -module-name main 2>&1 | %FileCheck -check-prefix FILELISTS %s
+
+// RUN: %swiftc_driver -emit-library -emit-module-interface -driver-print-jobs -static -o libModule.a %s | %FileCheck -check-prefix EMIT-LIBRARY %s
 
 // CHECK: {{bin(/|\\\\)swiftc?(\.exe)?"?}} -frontend
 // CHECK: -module-name {{[^ ]+}}
@@ -66,8 +68,8 @@
 // THREE-OUTPUTS: -o {{[^ ]*[/\\]}}merge-module-{{[^ ]*}}.o
 // THREE-OUTPUTS: {{bin(/|\\\\)swiftc?(\.exe)?"?}} -frontend
 // THREE-OUTPUTS: -emit-module [[MODULE]]
-// THREE-OUTPUTS: -emit-objc-header-path sdk.foo.h
-// THREE-OUTPUTS: -o sdk.foo.out
+// THREE-OUTPUTS: -emit-objc-header-path sdk.h
+// THREE-OUTPUTS: -o sdk.swiftmodule
 
 
 // FILELISTS: {{bin(/|\\\\)swiftc?(\.exe)?"?}} -frontend
@@ -78,6 +80,7 @@
 // FILELISTS-NOT: .swiftmodule
 // FILELISTS: -o {{[^ ]+}}
 
+// EMIT-LIBRARY-NOT: {{bin(/|\\\\)swiftc?(\.exe)?"?}} -frontend -merge-modules {{.*}} -o lib{{[^ ]*}}.a
 
 // RUN: %swiftc_driver -driver-print-jobs -emit-module %S/Inputs/main.swift %S/Inputs/lib.swift -module-name merge -o /tmp/modules > %t.complex.txt
 // RUN: %FileCheck %s < %t.complex.txt
