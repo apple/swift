@@ -33,6 +33,7 @@
 #include "swift/AST/TypeMatcher.h"
 #include "swift/AST/TypeRepr.h"
 #include "swift/AST/TypeWalker.h"
+#include "swift/AST/NameLookup.h"
 #include "swift/Basic/Debug.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/Statistic.h"
@@ -3814,6 +3815,23 @@ static ConstraintResult visitInherited(
     visitInherited(inheritedType, inherited.getTypeRepr());
   }
 
+  // Protocol extensions with conformances.
+  if (auto *protoDecl = dyn_cast_or_null<ProtocolDecl>(typeDecl))
+    for (auto *ext : protoDecl->getExtensions()) {
+      ArrayRef<TypeLoc> inheritedTypes = ext->getInherited();
+      for (unsigned index : indices(inheritedTypes)) {
+        Type inheritedType
+          = evaluateOrDefault(evaluator,
+                              InheritedTypeRequest{ext, index,
+                                TypeResolutionStage::Structural},
+                              Type());
+        if (!inheritedType) continue;
+
+        const auto &inherited = inheritedTypes[index];
+        visitInherited(inheritedType, inherited.getTypeRepr());
+      }
+    }
+
   return result;
 }
 
@@ -4446,6 +4464,28 @@ ConstraintResult GenericSignatureBuilder::addTypeRequirement(
       if (isErrorResult(addConformanceRequirement(resolvedSubject, protoDecl,
                                                   source)))
         anyErrors = true;
+    }
+
+    // Protocol extensions with conformances.
+    if (auto *protoDecl =
+        dyn_cast_or_null<ProtocolDecl>(constraintType->getAnyNominal())) {
+      auto &conforms = resolvedSubject.getEquivalenceClass(*this)->conformsTo;
+      bool anyObject = false;
+
+      for (auto *ext : protoDecl->getExtensions())
+        for (const auto &found :
+                getDirectlyInheritedNominalTypeDecls(ext, anyObject))
+          if (auto inheritedProtocol = dyn_cast<ProtocolDecl>(found.Item)) {
+            if (conforms.find(inheritedProtocol) != conforms.end())
+              continue;
+            if (isErrorResult(addConformanceRequirement(resolvedSubject,
+                                                        inheritedProtocol,
+                                                        source)))
+              anyErrors = true;
+            else if (Type subjectType = resolvedSubject.getAsConcreteType())
+              if (NominalTypeDecl *nominal = subjectType->getAnyNominal())
+                inheritedProtocol->recordExtendedNominal(nominal, ext);
+          }
     }
 
     return anyErrors ? ConstraintResult::Conflicting

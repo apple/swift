@@ -29,6 +29,7 @@
 #include "swift/AST/SourceFile.h"
 #include "swift/AST/SubstitutionMap.h"
 #include "swift/AST/TypeMemberVisitor.h"
+#include "swift/AST/DiagnosticsSema.h"
 #include "swift/SIL/FormalLinkage.h"
 #include "swift/SIL/PrettyStackTrace.h"
 #include "swift/SIL/SILArgument.h"
@@ -676,6 +677,14 @@ SILFunction *SILGenModule::emitProtocolWitness(
   // Mapping from the requirement's generic signature to the witness
   // thunk's generic signature.
   auto reqtSubMap = witness.getRequirementToSyntheticSubs();
+  if (reqtSubMap.empty()) {
+    if (auto conf = dyn_cast<NormalProtocolConformance>(conformance.getConcrete())) {
+      M.getASTContext().Diags.
+        diagnose(conf->getLoc(), diag::extension_protocol_limitation,
+                 conf->getProtocol()->getName(), conf->getType());
+      exit(EXIT_FAILURE);
+    }
+  }
 
   // The generic environment for the witness thunk.
   auto *genericEnv = witness.getSyntheticEnvironment();

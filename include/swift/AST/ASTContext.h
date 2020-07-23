@@ -330,7 +330,14 @@ private:
   llvm::BumpPtrAllocator &
   getAllocator(AllocationArena arena = AllocationArena::Permanent) const;
 
+  /// Record of conformances that have come about by extending a protocol
+  llvm::DenseMap<ProtocolDecl *, llvm::DenseMap<NominalTypeDecl *,
+                              ExtensionDecl *>> ExtendedConformances;
+
 public:
+  llvm::DenseMap<ProtocolDecl *, llvm::DenseMap<NominalTypeDecl *,
+    ExtensionDecl *>> &getExtendedConformances() { return ExtendedConformances; }
+
   /// Allocate - Allocate memory from the ASTContext bump pointer.
   void *Allocate(unsigned long bytes, unsigned alignment,
                  AllocationArena arena = AllocationArena::Permanent) const {
@@ -745,6 +752,12 @@ public:
   /// contains extensions loaded from any generation up to and including this
   /// one.
   void loadExtensions(NominalTypeDecl *nominal, unsigned previousGeneration);
+
+  /// Iterate over conformances arising from protocol extensions.
+  ///
+  /// \param emitWitness A function to call to emit a witness table.
+  void forEachExtendedConformance(ModuleDecl *module,
+                std::function<void (NormalProtocolConformance *)> emitWitness);
 
   /// Load the methods within the given class that produce
   /// Objective-C class or instance methods with the given selector.

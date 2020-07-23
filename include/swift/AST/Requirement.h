@@ -60,10 +60,13 @@ class Requirement {
     LayoutConstraint SecondLayout;
   };
 
+  /// Module this requirement was derived from. Used to re-order witness table.
+  unsigned ModuleNumber;
+
 public:
   /// Create a conformance or same-type requirement.
-  Requirement(RequirementKind kind, Type first, Type second)
-    : FirstTypeAndKind(first, kind), SecondType(second) {
+  Requirement(RequirementKind kind, Type first, Type second, unsigned moduleNumber = 0)
+    : FirstTypeAndKind(first, kind), SecondType(second), ModuleNumber(moduleNumber) {
     assert(first);
     assert(second);
   }
@@ -87,6 +90,10 @@ public:
   Type getSecondType() const {
     assert(getKind() != RequirementKind::Layout);
     return SecondType;
+  }
+
+  unsigned getModuleNumber() const {
+    return ModuleNumber;
   }
 
   /// Subst the types involved in this requirement.

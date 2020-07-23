@@ -96,11 +96,34 @@ class alignas(1 << DeclAlignInBits) ProtocolConformance {
   /// conformance definition.
   Type ConformingType;
 
+  // The conformance has been used during Sema.
+  mutable bool hasBeenReferenced = false;
+
+  // Ad-hoc conformances from protocol extensions must be private.
+  mutable bool fromProtocolExtension = false;
+
 protected:
   ProtocolConformance(ProtocolConformanceKind kind, Type conformingType)
     : Kind(kind), ConformingType(conformingType) {}
 
 public:
+  ProtocolConformance *recordReferenced() const {
+    hasBeenReferenced = true;
+    return const_cast<ProtocolConformance *>(this);
+  }
+
+  bool isInUse() {
+    return hasBeenReferenced;
+  }
+
+  void makePrivate() const {
+    fromProtocolExtension = true;
+  }
+
+  bool isFromProtocolExtension() const {
+    return fromProtocolExtension;
+  }
+
   /// Determine the kind of protocol conformance.
   ProtocolConformanceKind getKind() const { return Kind; }
 

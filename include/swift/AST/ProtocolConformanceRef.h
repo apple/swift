@@ -85,9 +85,7 @@ public:
   bool isConcrete() const {
     return !isInvalid() && Union.is<ProtocolConformance*>();
   }
-  ProtocolConformance *getConcrete() const {
-    return Union.get<ProtocolConformance*>();
-  }
+  ProtocolConformance *getConcrete() const;
 
   bool isAbstract() const {
     return !isInvalid() && Union.is<ProtocolDecl*>();

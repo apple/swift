@@ -541,6 +541,11 @@ def enable_experimental_additive_arithmetic_derivation :
   Flags<[FrontendOption]>,
   HelpText<"Enable experimental 'AdditiveArithmetic' derived conformances">;
 
+def enable_conforming_protocol_extensions : Flag<["-"],
+    "enable-conforming-protocol-extensions">,
+  Flags<[FrontendOption]>,
+  HelpText<"Enable experimental feature to conforming protocol extensions">;
+
 def enable_experimental_concise_pound_file : Flag<["-"],
     "enable-experimental-concise-pound-file">,
   Flags<[FrontendOption, ModuleInterfaceOption]>,

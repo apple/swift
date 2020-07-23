@@ -182,7 +182,9 @@ private:
 
 public:
   // Caching
-  bool isCached() const { return true; }
+  bool isCached() const {
+    return std::get<0>(getStorage())->areInheritedProtocolsValid();
+  }
   Optional<ArrayRef<ProtocolDecl *>> getCachedResult() const;
   void cacheResult(ArrayRef<ProtocolDecl *> value) const;
 

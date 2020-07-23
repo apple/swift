@@ -773,6 +773,29 @@ RequirementSignatureRequest::evaluate(Evaluator &evaluator,
     SmallVector<Requirement, 8> requirements;
     contextData->loader->loadRequirementSignature(
         proto, contextData->requirementSignatureData, requirements);
+
+    if (!proto->isResilient()) {
+      // Tack on conformances from protocol extensions in modules
+      bool anyObject = false;
+      unsigned moduleNumber = 0;
+      ModuleDecl *currentModule = proto->getParentModule();
+      for (auto *ext : proto->getExtensions()) {
+        if (currentModule != ext->getParentModule()) {
+          currentModule = ext->getParentModule();
+          ++moduleNumber;
+        }
+        for (const auto &found :
+                getDirectlyInheritedNominalTypeDecls(ext, anyObject))
+          if (!llvm::count_if(requirements, [&](Requirement req) {
+            return req.getSecondType()->getAnyNominal() == found.Item;
+          }))
+            requirements.push_back(Requirement(RequirementKind::Conformance,
+                                               proto->getSelfInterfaceType(),
+                                               found.Item->getDeclaredType(),
+                                               moduleNumber));
+      }
+    }
+
     if (requirements.empty())
       return None;
     return ctx.AllocateCopy(requirements);

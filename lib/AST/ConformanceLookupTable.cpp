@@ -25,6 +25,7 @@
 #include "swift/AST/ProtocolConformance.h"
 #include "swift/AST/ProtocolConformanceRef.h"
 #include "llvm/Support/SaveAndRestore.h"
+#include "../Sema/TypeCheckProtocol.h"
 
 using namespace swift;
 
@@ -266,13 +267,14 @@ void ConformanceLookupTable::inheritConformances(ClassDecl *classDecl,
 
 void ConformanceLookupTable::updateLookupTable(NominalTypeDecl *nominal,
                                                ConformanceStage stage) {
+  ++Updating;
   switch (stage) {
   case ConformanceStage::RecordedExplicit:
     // Record all of the explicit conformances.
     forEachInStage(
         stage, nominal,
         [&](NominalTypeDecl *nominal) {
-          addInheritedProtocols(nominal,
+          addInheritedProtocols(nominal, nominal,
                                 ConformanceSource::forExplicit(nominal));
         },
         [&](ExtensionDecl *ext,
@@ -392,6 +394,7 @@ void ConformanceLookupTable::updateLookupTable(NominalTypeDecl *nominal,
     }
     break;
   }
+  --Updating;
 }
 
 void ConformanceLookupTable::loadAllConformances(
@@ -422,16 +425,23 @@ bool ConformanceLookupTable::addProtocol(ProtocolDecl *protocol, SourceLoc loc,
   // recording).
   auto &conformanceEntries = Conformances[protocol];
   if (kind == ConformanceEntryKind::Implied ||
+      kind == ConformanceEntryKind::Explicit ||
       kind == ConformanceEntryKind::Synthesized) {
     for (const auto *existingEntry : conformanceEntries) {
       switch (existingEntry->getKind()) {
       case ConformanceEntryKind::Explicit:
       case ConformanceEntryKind::Inherited:
-        return false;
+        // some subtle adjustments required here a table can be invalidated
+        // ... when inherited protocols change and reclaculated.
+        if (kind != ConformanceEntryKind::Explicit)
+          return false;
+        if (loc == existingEntry->getLoc())
+          return false;
+        break;
 
       case ConformanceEntryKind::Implied:
         // Ignore implied circular protocol inheritance
-        if (existingEntry->getDeclContext() == dc)
+        if (existingEntry->getDeclContext() == dc && existingEntry->getLoc() == loc)
           return false;
 
         // An implied conformance is better than a synthesized one, unless
@@ -463,16 +473,48 @@ bool ConformanceLookupTable::addProtocol(ProtocolDecl *protocol, SourceLoc loc,
   return true;
 }
 
-void ConformanceLookupTable::addInheritedProtocols(
+void ConformanceLookupTable::addInheritedProtocols(NominalTypeDecl *nominal,
                           llvm::PointerUnion<TypeDecl *, ExtensionDecl *> decl,
                           ConformanceSource source) {
   // Find all of the protocols in the inheritance list.
   bool anyObject = false;
   for (const auto &found :
-          getDirectlyInheritedNominalTypeDecls(decl, anyObject)) {
-    if (auto proto = dyn_cast<ProtocolDecl>(found.Item))
-      addProtocol(proto, found.Loc, source);
-  }
+          getDirectlyInheritedNominalTypeDecls(decl, anyObject))
+    if (auto proto = dyn_cast<ProtocolDecl>(found.Item)) {
+      InheritedFrom[proto] = {decl, found.Loc};
+      auto extended = isExtendedConformance(proto);
+      ExtensionDecl *protocolExtension = std::get<0>(extended);
+      SourceLoc loc = protocolExtension ? std::get<1>(extended) : found.Loc;
+      if (protocolExtension)
+        protocolExtension->getExtendedProtocolDecl()
+          ->recordExtendedNominal(nominal, protocolExtension);
+      proto->recordExtendedNominal(nominal, protocolExtension);
+      addProtocol(proto, loc, source);
+    }
+
+  // Protocol extensions with conformances.
+  if (ProtocolDecl *extendedProtocol =
+      dyn_cast_or_null<ProtocolDecl>(decl.dyn_cast<TypeDecl *>()))
+    for (ExtensionDecl *ext : extendedProtocol->getExtensions())
+      addInheritedProtocols(nominal, ext, source);
+}
+
+std::pair<ExtensionDecl *, SourceLoc>
+ConformanceLookupTable::isExtendedConformance(ProtocolDecl *proto) {
+  auto decl_loc = InheritedFrom[proto];
+  if (std::get<0>(decl_loc).isNull()) return {nullptr, SourceLoc()};
+
+  ExtensionDecl *extension = std::get<0>(decl_loc).dyn_cast<ExtensionDecl *>();
+  ProtocolDecl *extendedProtocol = extension ?
+    extension->getExtendedProtocolDecl() :
+    dyn_cast<ProtocolDecl>(std::get<0>(decl_loc).get<TypeDecl *>());
+
+  if (extension && extendedProtocol)
+    return {extension, std::get<1>(decl_loc)};
+
+  auto ext = isExtendedConformance(extendedProtocol);
+  InheritedFrom[proto] = ext;
+  return ext;
 }
 
 void ConformanceLookupTable::expandImpliedConformances(NominalTypeDecl *nominal,
@@ -504,7 +546,7 @@ void ConformanceLookupTable::expandImpliedConformances(NominalTypeDecl *nominal,
       }
     }
 
-    addInheritedProtocols(conformingProtocol,
+    addInheritedProtocols(nominal, conformingProtocol,
                           ConformanceSource::forImplied(conformanceEntry));
   }
 }
@@ -661,7 +703,8 @@ ConformanceLookupTable::Ordering ConformanceLookupTable::compareConformances(
     return Ordering::Before;
   }
   auto module = lhs->getDeclContext()->getParentModule();
-  assert(lhs->getDeclContext()->getParentModule()
+  assert(module->getASTContext().LangOpts.EnableConformingExtensions ||
+         lhs->getDeclContext()->getParentModule()
            == rhs->getDeclContext()->getParentModule() &&
          "conformances should be in the same module");
   for (auto file : module->getFiles()) {
@@ -1183,3 +1226,76 @@ void ConformanceLookupTable::dump(raw_ostream &os) const {
   }
 }
 
+// Miscellaneous code added to implement conforming protocol extensions
+
+void ConformanceLookupTable::invalidate(NominalTypeDecl *nomimal, ProtocolDecl *proto) {
+  if (Updating) return;
+  LastProcessed.clear();
+  InheritedFrom.clear();
+  AllSupersededDiagnostics.clear();
+}
+
+void ExtensionDecl::setInherited(MutableArrayRef<TypeLoc> i) {
+  Inherited = i;
+  if (!Inherited.empty() && hasBeenBound())
+    if (auto *proto = getExtendedProtocolDecl()) {
+      proto->inheritedProtocolsChanged();
+    }
+}
+
+void ProtocolDecl::inheritedProtocolsChanged() {
+  RequirementSignature = nullptr;
+  Bits.ProtocolDecl.InheritedProtocolsValid = false;
+  auto &extendeds = getASTContext().getExtendedConformances();
+  auto protocol_nominals = extendeds.find(this);
+  if (protocol_nominals != extendeds.end())
+    for (auto &nominal_extension : protocol_nominals->getSecond())
+      if (NominalTypeDecl *nominal = nominal_extension.getFirst())
+        nominal->prepareConformanceTable()->invalidate(nominal, this);
+}
+
+void ProtocolDecl::recordExtendedNominal(NominalTypeDecl *nominal, ExtensionDecl *ext) {
+  assert(nominal);
+  getASTContext().getExtendedConformances()[this][nominal] = ext;
+}
+
+void ASTContext::forEachExtendedConformance(ModuleDecl *module,
+                std::function<void (NormalProtocolConformance *)> emitWitness) {
+  SmallVector<NormalProtocolConformance *, 30> normals;
+  MultiConformanceChecker groupChecker(*this);
+
+  for (auto &protocol_nominals : getExtendedConformances())
+    for (auto &nominal_extensions : protocol_nominals.getSecond()) {
+      ProtocolDecl *proto = protocol_nominals.getFirst();
+      NominalTypeDecl *nominal = nominal_extensions.getFirst();
+      ExtensionDecl *extension = nominal_extensions.getSecond();
+
+      if (!extension)
+        continue;
+      if (isa<ProtocolDecl>(nominal))
+        continue;
+
+      SmallVector<ProtocolConformance *,10> conformances;
+      nominal->prepareConformanceTable()
+        ->lookupConformance(module, nominal, proto, conformances);
+
+      for (ProtocolConformance *conformance : conformances)
+        if (auto *normal = dyn_cast<NormalProtocolConformance>(conformance)) {
+          normals.push_back(normal);
+          if (!normal->isComplete())
+            groupChecker.addConformance(normal);
+          normal->makePrivate();
+        }
+    }
+
+  if (groupChecker.checkAllConformances())
+    exit(EXIT_FAILURE);
+
+  for (NormalProtocolConformance *normal : normals)
+    if (normal->isComplete()) {
+      if (normal->isInUse() && !normal->isLazilyLoaded())
+        emitWitness(normal);
+    } else
+      llvm::errs() << normal->getType()->getAnyNominal()->getName() << ": " <<
+        normal->getProtocol()->getName().str() << " not complete\n";
+}

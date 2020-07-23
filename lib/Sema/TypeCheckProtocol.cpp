@@ -1456,48 +1456,6 @@ RequirementCheck WitnessChecker::checkWitness(ValueDecl *requirement,
 
 # pragma mark Witness resolution
 
-/// This is a wrapper of multiple instances of ConformanceChecker to allow us
-/// to diagnose and fix code from a more global perspective; for instance,
-/// having this wrapper can help issue a fixit that inserts protocol stubs from
-/// multiple protocols under checking.
-class swift::MultiConformanceChecker {
-  ASTContext &Context;
-  llvm::SmallVector<ValueDecl*, 16> UnsatisfiedReqs;
-  llvm::SmallVector<ConformanceChecker, 4> AllUsedCheckers;
-  llvm::SmallVector<NormalProtocolConformance*, 4> AllConformances;
-  llvm::SetVector<ValueDecl*> MissingWitnesses;
-  llvm::SmallPtrSet<ValueDecl *, 8> CoveredMembers;
-
-  /// Check one conformance.
-  ProtocolConformance * checkIndividualConformance(
-    NormalProtocolConformance *conformance, bool issueFixit);
-
-  /// Determine whether the given requirement was left unsatisfied.
-  bool isUnsatisfiedReq(NormalProtocolConformance *conformance, ValueDecl *req);
-public:
-  MultiConformanceChecker(ASTContext &ctx) : Context(ctx) {}
-
-  ASTContext &getASTContext() const { return Context; }
-
-  /// Add a conformance into the batched checker.
-  void addConformance(NormalProtocolConformance *conformance) {
-    AllConformances.push_back(conformance);
-  }
-
-  /// Peek the unsatisfied requirements collected during conformance checking.
-  ArrayRef<ValueDecl*> getUnsatisfiedRequirements() {
-    return llvm::makeArrayRef(UnsatisfiedReqs);
-  }
-
-  /// Whether this member is "covered" by one of the conformances.
-  bool isCoveredMember(ValueDecl *member) const {
-    return CoveredMembers.count(member) > 0;
-  }
-
-  /// Check all conformances and emit diagnosis globally.
-  void checkAllConformances();
-};
-
 bool MultiConformanceChecker::
 isUnsatisfiedReq(NormalProtocolConformance *conformance, ValueDecl *req) {
   if (conformance->isInvalid()) return false;
@@ -1523,7 +1481,7 @@ isUnsatisfiedReq(NormalProtocolConformance *conformance, ValueDecl *req) {
   return false;
 }
 
-void MultiConformanceChecker::checkAllConformances() {
+bool MultiConformanceChecker::checkAllConformances() {
   bool anyInvalid = false;
   for (unsigned I = 0, N = AllConformances.size(); I < N; ++I) {
     auto *conformance = AllConformances[I];
@@ -1548,7 +1506,7 @@ void MultiConformanceChecker::checkAllConformances() {
   }
   // If all missing witnesses are issued with fixits, we are done.
   if (MissingWitnesses.empty())
-    return;
+    return anyInvalid;
 
   // Otherwise, backtrack to the last checker that has missing witnesses
   // and diagnose missing witnesses from there.
@@ -1558,6 +1516,8 @@ void MultiConformanceChecker::checkAllConformances() {
       It->diagnoseMissingWitnesses(MissingWitnessDiagnosisKind::FixItOnly);
     }
   }
+
+  return true;
 }
 
 static void diagnoseConformanceImpliedByConditionalConformance(

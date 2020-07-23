@@ -50,8 +50,19 @@ template <class T> class SILWitnessVisitor : public ASTVisitor<T> {
 
 public:
   void visitProtocolDecl(ProtocolDecl *protocol) {
+    // This chicanery is to move conformances arising from
+    // protocol extensions to the end of the witness table.
+    unsigned moduleNumber = 0;
+    while (visitProtocolDecl(protocol, moduleNumber++)) {}
+  }
+
+  bool visitProtocolDecl(ProtocolDecl *protocol, unsigned moduleNumber) {
+    bool emittedConformance = false;
+    llvm::DenseMap<ProtocolDecl *,bool> seen;
+
     // The protocol conformance descriptor gets added first.
-    asDerived().addProtocolConformanceDescriptor();
+    if (moduleNumber == 0)
+      asDerived().addProtocolConformanceDescriptor();
 
     for (const auto &reqt : protocol->getRequirementSignature()) {
       switch (reqt.getKind()) {
@@ -72,6 +83,9 @@ public:
         if (!Lowering::TypeConverter::protocolRequiresWitnessTable(requirement))
           continue;
 
+        if (reqt.getModuleNumber() != moduleNumber)
+          continue;
+
         // If the type parameter is 'self', consider this to be protocol
         // inheritance.  In the canonical signature, these should all
         // come before any protocol requirements on associated types.
@@ -80,17 +94,22 @@ public:
           assert(parameter->getDepth() == 0 && parameter->getIndex() == 0 &&
                  "non-self type parameter in protocol");
           asDerived().addOutOfLineBaseProtocol(requirement);
+          emittedConformance = true;
           continue;
         }
 
         // Otherwise, add an associated requirement.
         AssociatedConformance assocConf(protocol, type, requirement);
         asDerived().addAssociatedConformance(assocConf);
+        emittedConformance = true;
         continue;
       }
       }
       llvm_unreachable("bad requirement kind");
     }
+
+    if (moduleNumber)
+      return emittedConformance;
 
     // Add the associated types.
     for (auto *associatedType : protocol->getAssociatedTypeMembers()) {
@@ -100,13 +119,15 @@ public:
         asDerived().addAssociatedType(AssociatedType(associatedType));
     }
 
-    if (asDerived().shouldVisitRequirementSignatureOnly())
-      return;
+//    if (asDerived().shouldVisitRequirementSignatureOnly())
+//      return true;
 
     // Visit the witnesses for the direct members of a protocol.
     for (Decl *member : protocol->getMembers()) {
       ASTVisitor<T>::visit(member);
     }
+
+    return true;
   }
 
   /// If true, only the base protocols and associated types will be visited.

@@ -2247,6 +2247,15 @@ InheritedProtocolsRequest::evaluate(Evaluator &evaluator,
     }
   }
 
+  // Protocol extensions with conformances.
+  for (ExtensionDecl *ext : PD->getExtensions())
+    for (const auto &found : getDirectlyInheritedNominalTypeDecls(ext, anyObject)) {
+      if (auto proto = dyn_cast<ProtocolDecl>(found.Item)) {
+        if (known.insert(proto).second)
+          result.push_back(proto);
+      }
+    }
+
   return PD->getASTContext().AllocateCopy(result);
 }
 
@@ -2425,6 +2434,10 @@ swift::getDirectlyInheritedNominalTypeDecls(
 
       // constraining Self.
       if (!req.getFirstType()->isEqual(protoSelfTy))
+        continue;
+
+      // don't duplicate extended conformances.
+      if (req.getModuleNumber())
         continue;
 
       result.emplace_back(req.getSecondType()->castTo<ProtocolType>()->getDecl(),

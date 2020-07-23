@@ -6080,6 +6080,7 @@ void ModuleFile::finishNormalConformance(NormalProtocolConformance *conformance,
     auto isConformanceReq = [](const Requirement &req) {
       return req.getKind() == RequirementKind::Conformance;
     };
+#if 0
     if (conformanceCount != llvm::count_if(proto->getRequirementSignature(),
                                            isConformanceReq)) {
       fatal(llvm::make_error<llvm::StringError>(
@@ -6088,6 +6089,28 @@ void ModuleFile::finishNormalConformance(NormalProtocolConformance *conformance,
     }
     while (conformanceCount--)
       reqConformances.push_back(readConformance(DeclTypeCursor));
+#else
+    while (conformanceCount--)
+      reqConformances.push_back(readConformance(DeclTypeCursor));
+
+    // Tack on conformances due to protocol extensions.
+    SmallVector<Requirement, 10> signatureConformances;
+    llvm::copy_if(proto->getRequirementSignature(),
+                  std::back_inserter(signatureConformances), isConformanceReq);
+    for (unsigned extra = reqConformances.size();
+         extra < signatureConformances.size(); extra++)
+      if (ProtocolDecl *second = dyn_cast<ProtocolDecl>(signatureConformances
+                                      [extra].getSecondType()->getAnyNominal()))
+        reqConformances.push_back(ProtocolConformanceRef(second));
+      else
+        llvm::errs() << "Missed protocol extension conformance\n";
+
+    if (reqConformances.size() != signatureConformances.size()) {
+      fatal(llvm::make_error<llvm::StringError>(
+          "serialized conformances do not match requirement signature",
+          llvm::inconvertibleErrorCode()));
+    }
+#endif
   }
   conformance->setSignatureConformances(reqConformances);
 
@@ -6126,6 +6149,8 @@ void ModuleFile::finishNormalConformance(NormalProtocolConformance *conformance,
   // In this situation we need to do a post-pass to fill in missing
   // requirements with opaque witnesses.
   bool needToFillInOpaqueValueWitnesses = false;
+  auto deserizeValueWitnesses = [&](unsigned valueCount,
+                                    bool deserializeSyntheticSubs) {
   while (valueCount--) {
     ValueDecl *req;
     
@@ -6191,6 +6216,24 @@ void ModuleFile::finishNormalConformance(NormalProtocolConformance *conformance,
         fatal(witnessSubstitutions.takeError());
     }
 
+    SubstitutionMap reqToSyntheticEnvSubs;
+    if (deserializeSyntheticSubs) {
+      auto reqSubstitutionsMaybe = getSubstitutionMapChecked(*rawIDIter++);
+      if (!reqSubstitutionsMaybe) {
+        // Missing module errors are most likely caused by an
+        // implementation-only import hiding types and decls.
+        // rdar://problem/52837313
+        if (reqSubstitutionsMaybe.errorIsA<XRefNonLoadedModuleError>()) {
+          consumeError(reqSubstitutionsMaybe.takeError());
+          isOpaque = true;
+        }
+        else
+          fatal(reqSubstitutionsMaybe.takeError());
+      }
+      else
+        reqToSyntheticEnvSubs = reqSubstitutionsMaybe.get();
+    }
+
     // Handle opaque witnesses that couldn't be deserialized.
     if (isOpaque) {
       trySetOpaqueWitness();
@@ -6198,10 +6241,18 @@ void ModuleFile::finishNormalConformance(NormalProtocolConformance *conformance,
     }
 
     // Set the witness.
-    trySetWitness(Witness::forDeserialized(witness, witnessSubstitutions.get()));
+    trySetWitness(Witness(witness, witnessSubstitutions.get(),
+                          nullptr, reqToSyntheticEnvSubs));
   }
   assert(rawIDIter <= rawIDs.end() && "read too much");
-  
+  };
+
+  deserizeValueWitnesses(valueCount, /*deserializeSyntheticSubs*/false);
+
+  // If RequirementToSyntheticSubs have been serialized, deserialize again
+  if (rawIDIter < rawIDs.end())
+    deserizeValueWitnesses(valueCount, /*deserializeSyntheticSubs*/true);
+
   // Fill in opaque value witnesses if we need to.
   if (needToFillInOpaqueValueWitnesses) {
     for (auto member : proto->getMembers()) {

@@ -75,6 +75,10 @@ ProtocolConformanceRef::ProtocolConformanceRef(ProtocolDecl *protocol,
   }
 }
 
+ProtocolConformance *ProtocolConformanceRef::getConcrete() const {
+  return Union.get<ProtocolConformance*>()->recordReferenced();
+}
+
 ProtocolDecl *ProtocolConformanceRef::getRequirement() const {
   assert(!isInvalid());
 
@@ -925,8 +929,8 @@ void NormalProtocolConformance::setWitness(ValueDecl *requirement,
   assert(!isa<AssociatedTypeDecl>(requirement) && "Request type witness");
   assert(getProtocol() == cast<ProtocolDecl>(requirement->getDeclContext()) &&
          "requirement in wrong protocol");
-  assert(Mapping.count(requirement) == 0 && "Witness already known");
-  assert((!isComplete() || isInvalid() ||
+  assert(getProtocol()->getASTContext().LangOpts.EnableConformingExtensions ||
+         (!isComplete() || isInvalid() ||
           requirement->getAttrs().hasAttribute<OptionalAttr>() ||
           requirement->getAttrs().isUnavailable(
                                         requirement->getASTContext())) &&
@@ -1203,13 +1207,20 @@ ProtocolConformance *
 ProtocolConformance::getInheritedConformance(ProtocolDecl *protocol) const {
   auto result =
     getAssociatedConformance(getProtocol()->getSelfInterfaceType(), protocol);
+  if (!result.isConcrete()) {
+    // Late conformance through protocol extension in different module
+    SmallVector<ProtocolConformance *, 1> conformances;
+    NominalTypeDecl *nominal = getType()->getAnyNominal();
+    if (nominal->lookupConformance(nullptr, protocol, conformances))
+      result = ProtocolConformanceRef(conformances.front());
+  }
   return result.isConcrete() ? result.getConcrete() : nullptr;
 }
 
 #pragma mark Protocol conformance lookup
-void NominalTypeDecl::prepareConformanceTable() const {
+ConformanceLookupTable *NominalTypeDecl::prepareConformanceTable() const {
   if (ConformanceTable)
-    return;
+    return ConformanceTable;
 
   auto mutableThis = const_cast<NominalTypeDecl *>(this);
   ASTContext &ctx = getASTContext();
@@ -1222,7 +1233,7 @@ void NominalTypeDecl::prepareConformanceTable() const {
   if (file->getKind() != FileUnitKind::Source &&
       file->getKind() != FileUnitKind::ClangModule &&
       file->getKind() != FileUnitKind::DWARFModule) {
-    return;
+    return ConformanceTable;
   }
 
   SmallPtrSet<ProtocolDecl *, 2> protocols;
@@ -1256,6 +1267,8 @@ void NominalTypeDecl::prepareConformanceTable() const {
       addSynthesized(KnownProtocolKind::RawRepresentable);
     }
   }
+
+  return ConformanceTable;
 }
 
 bool NominalTypeDecl::lookupConformance(
@@ -1383,8 +1396,28 @@ IterableDeclContext::takeConformanceDiagnostics() const {
     return result;
   }
 
-  // Protocols are not subject to the checks for supersession.
+  // When protocol has been extended, collect any diagnostics from all nominals.
   if (isa<ProtocolDecl>(nominal)) {
+    llvm::SmallVector<NominalTypeDecl *, 10> nominalsWithExtendedConformances;
+    for (auto &protocol_nominals : getASTContext().getExtendedConformances())
+      for (auto &nominal_extension : protocol_nominals.getSecond()) {
+        ExtensionDecl *ext = nominal_extension.getSecond();
+        if (ext != this)
+          continue;
+        nominalsWithExtendedConformances.push_back(nominal_extension.getFirst());
+      }
+
+    for (NominalTypeDecl *nominal : nominalsWithExtendedConformances) {
+      nominal->prepareConformanceTable();
+      nominal->ConformanceTable->lookupConformances(
+        nominal,
+        nominal,
+        ConformanceLookupKind::All,
+        nullptr,
+        nullptr,
+        &result);
+    }
+
     return result;
   }
 

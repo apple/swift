@@ -314,6 +314,14 @@ TypeCheckSourceFileRequest::evaluate(Evaluator &eval, SourceFile *SF) const {
     }
 
     typeCheckDelayedFunctions(*SF);
+
+    // re-typecheck protocol extensions to diagnose any redundant conformances
+    if (SF->getASTContext().LangOpts.EnableConformingExtensions) {
+      for (auto D : SF->getTopLevelDecls())
+        if (auto *ED = dyn_cast<ExtensionDecl>(D))
+          if (ED->getExtendedProtocolDecl() && ED->getInherited().size())
+            TypeChecker::typeCheckDecl(ED);
+    }
   }
 
   // Check to see if there's any inconsistent @_implementationOnly imports.

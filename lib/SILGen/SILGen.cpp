@@ -1885,6 +1885,13 @@ public:
         continue;
       SGM.visit(TD);
     }
+
+#if 01
+    SGM.getASTContext().forEachExtendedConformance(SGM.SwiftModule,
+                                 [&](NormalProtocolConformance *normal) {
+      SGM.getWitnessTable(normal);
+    });
+#endif
   }
 
   explicit SILGenModuleRAII(SILModule &M) : SGM{M, M.getSwiftModule()} {}

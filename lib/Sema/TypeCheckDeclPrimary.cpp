@@ -85,11 +85,19 @@ static void checkInheritanceClause(
     // Protocol extensions cannot have inheritance clauses.
     if (auto proto = ext->getExtendedProtocolDecl()) {
       if (!inheritedClause.empty()) {
-        ext->diagnose(diag::extension_protocol_inheritance,
-                 proto->getName())
-          .highlight(SourceRange(inheritedClause.front().getSourceRange().Start,
-                                 inheritedClause.back().getSourceRange().End));
-        return;
+        // Force recalculation conformance table
+        ext->setInherited(inheritedClause);
+
+        auto *attr = ext->getAttrs().getAttribute<AccessControlAttr>();
+        if (!attr || attr->getAccess() < AccessLevel::Public)
+          ext->diagnose(diag::protocol_extension_access_with_conformances)
+                              .fixItInsert(ext->getStartLoc(), "public ");
+
+        // error unless comforming extensions is enabled.
+        if (!ext->getASTContext().LangOpts.EnableConformingExtensions)
+          ext->diagnose(diag::extension_protocol_inheritance, proto->getName())
+            .highlight(SourceRange(inheritedClause.front().getSourceRange().Start,
+                                   inheritedClause.back().getSourceRange().End));
       }
     }
   } else {

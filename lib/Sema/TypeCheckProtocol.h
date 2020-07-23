@@ -1024,4 +1024,45 @@ void diagnoseConformanceFailure(Type T,
 
 }
 
+/// This is a wrapper of multiple instances of ConformanceChecker to allow us
+/// to diagnose and fix code from a more global perspective; for instance,
+/// having this wrapper can help issue a fixit that inserts protocol stubs from
+/// multiple protocols under checking.
+class swift::MultiConformanceChecker {
+  ASTContext &Context;
+  llvm::SmallVector<ValueDecl*, 16> UnsatisfiedReqs;
+  llvm::SmallVector<ConformanceChecker, 4> AllUsedCheckers;
+  llvm::SmallVector<NormalProtocolConformance*, 4> AllConformances;
+  llvm::SetVector<ValueDecl*> MissingWitnesses;
+  llvm::SmallPtrSet<ValueDecl *, 8> CoveredMembers;
+
+  /// Check one conformance.
+  ProtocolConformance * checkIndividualConformance(
+    NormalProtocolConformance *conformance, bool issueFixit);
+
+  /// Determine whether the given requirement was left unsatisfied.
+  bool isUnsatisfiedReq(NormalProtocolConformance *conformance, ValueDecl *req);
+public:
+  MultiConformanceChecker(ASTContext &ctx) : Context(ctx) {}
+
+  ASTContext &getASTContext() const { return Context; }
+
+  /// Add a conformance into the batched checker.
+  void addConformance(NormalProtocolConformance *conformance) {
+    AllConformances.push_back(conformance);
+  }
+
+  /// Peek the unsatisfied requirements collected during conformance checking.
+  ArrayRef<ValueDecl*> getUnsatisfiedRequirements() {
+    return llvm::makeArrayRef(UnsatisfiedReqs);
+  }
+
+  /// Whether this member is "covered" by one of the conformances.
+  bool isCoveredMember(ValueDecl *member) const {
+    return CoveredMembers.count(member) > 0;
+  }
+
+  /// Check all conformances and emit diagnosis globally.
+  bool checkAllConformances();
+};
 #endif // SWIFT_SEMA_PROTOCOL_H

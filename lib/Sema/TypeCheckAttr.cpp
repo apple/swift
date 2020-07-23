@@ -706,8 +706,10 @@ bool AttributeChecker::visitAbstractAccessControlAttr(
 
   if (auto extension = dyn_cast<ExtensionDecl>(D)) {
     if (!extension->getInherited().empty()) {
-      diagnoseAndRemoveAttr(attr, diag::extension_access_with_conformances,
-                            attr);
+      if (!extension->getExtendedProtocolDecl())
+        diagnoseAndRemoveAttr(attr, diag::extension_access_with_conformances, attr);
+      else if (!(attr->getAccess() == AccessLevel::Public))
+        diagnoseAndRemoveAttr(attr, diag::protocol_extension_access_with_conformances);
       return true;
     }
   }

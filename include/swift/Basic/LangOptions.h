@@ -111,6 +111,9 @@ namespace swift {
     /// when using RequireExplicitAvailability.
     std::string RequireExplicitAvailabilityTarget;
 
+    /// Gate for conforming protocol extensions code.
+    bool EnableConformingExtensions = false;
+
     /// If false, '#file' evaluates to the full path rather than a
     /// human-readable string.
     bool EnableConcisePoundFile = false;

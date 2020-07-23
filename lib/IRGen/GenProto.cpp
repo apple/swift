@@ -36,6 +36,7 @@
 #include "swift/AST/IRGenOptions.h"
 #include "swift/AST/PrettyStackTrace.h"
 #include "swift/AST/SubstitutionMap.h"
+#include "swift/AST/DiagnosticsSema.h"
 #include "swift/ClangImporter/ClangModule.h"
 #include "swift/IRGen/Linking.h"
 #include "swift/SIL/SILDeclRef.h"
@@ -1085,7 +1086,8 @@ mapConformanceIntoContext(IRGenModule &IGM, const RootProtocolConformance &conf,
 WitnessIndex ProtocolInfo::getAssociatedTypeIndex(
                                     IRGenModule &IGM,
                                     AssociatedType assocType) const {
-  assert(!IGM.isResilient(assocType.getSourceProtocol(),
+  assert(IGM.Context.LangOpts.EnableConformingExtensions ||
+         !IGM.isResilient(assocType.getSourceProtocol(),
                           ResilienceExpansion::Maximal) &&
          "Cannot ask for the associated type index of non-resilient protocol");
   for (auto &witness : getWitnessEntries()) {
@@ -1959,6 +1961,8 @@ void IRGenModule::emitProtocolConformance(
                                                  init.finishAndCreateFuture()));
   var->setConstant(true);
   setTrueConstGlobal(var);
+  if (record.conformance->isFromProtocolExtension())
+    var->setLinkage(llvm::GlobalValue::InternalLinkage);
 }
 
 void IRGenerator::ensureRelativeSymbolCollocation(SILWitnessTable &wt) {
@@ -1996,7 +2000,8 @@ void IRGenerator::ensureRelativeSymbolCollocation(SILDefaultWitnessTable &wt) {
 const ProtocolInfo &IRGenModule::getProtocolInfo(ProtocolDecl *protocol,
                                                  ProtocolInfoKind kind) {
   // If the protocol is resilient, we cannot know the full witness table layout.
-  assert(!isResilient(protocol, ResilienceExpansion::Maximal) ||
+  assert(Context.LangOpts.EnableConformingExtensions ||
+         !isResilient(protocol, ResilienceExpansion::Maximal) ||
          kind == ProtocolInfoKind::RequirementSignature);
 
   return Types.getProtocolInfo(protocol, kind);
@@ -2165,6 +2170,9 @@ void IRGenModule::emitSILWitnessTable(SILWitnessTable *wt) {
 
     tableSize = wtableBuilder.getTableSize();
     instantiationFunction = wtableBuilder.buildInstantiationFunction();
+
+    if (conf->isFromProtocolExtension())
+      global->setLinkage(llvm::GlobalValue::InternalLinkage);
   } else {
     // Build the witness table.
     ResilientWitnessTableBuilder wtableBuilder(*this, wt);

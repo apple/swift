@@ -570,6 +570,9 @@ static bool ParseLangArgs(LangOptions &Opts, ArgList &Args,
     Opts.OptimizationRemarkMissedPattern =
         generateOptimizationRemarkRegex(Diags, Args, A);
 
+  Opts.EnableConformingExtensions =
+      Args.hasArg(OPT_enable_conforming_protocol_extensions);
+
   Opts.EnableConcisePoundFile =
       Args.hasArg(OPT_enable_experimental_concise_pound_file);
 

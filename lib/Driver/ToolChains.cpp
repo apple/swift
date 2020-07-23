@@ -263,6 +263,8 @@ void ToolChain::addCommonFrontendArgs(const OutputInfo &OI,
   inputArgs.AddLastArg(arguments, options::OPT_disable_astscope_lookup);
   inputArgs.AddLastArg(arguments, options::OPT_disable_parser_lookup);
   inputArgs.AddLastArg(arguments,
+                       options::OPT_enable_conforming_protocol_extensions);
+  inputArgs.AddLastArg(arguments,
                        options::OPT_enable_experimental_concise_pound_file);
   inputArgs.AddLastArg(arguments,
                        options::OPT_verify_incremental_dependencies);

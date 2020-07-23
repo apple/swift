@@ -1682,7 +1682,7 @@ public:
   MutableArrayRef<TypeLoc> getInherited() { return Inherited; }
   ArrayRef<TypeLoc> getInherited() const { return Inherited; }
 
-  void setInherited(MutableArrayRef<TypeLoc> i) { Inherited = i; }
+  void setInherited(MutableArrayRef<TypeLoc> i);
 
   bool hasDefaultAccessLevel() const {
     return Bits.ExtensionDecl.DefaultAndMaxAccessLevel != 0;
@@ -3327,9 +3327,6 @@ class NominalTypeDecl : public GenericTypeDecl, public IterableDeclContext {
   /// a given nominal type.
   mutable ConformanceLookupTable *ConformanceTable = nullptr;
 
-  /// Prepare the conformance table.
-  void prepareConformanceTable() const;
-
   /// Returns the protocol requirements that \c Member conforms to.
   ArrayRef<ValueDecl *>
     getSatisfiedProtocolRequirementsForMember(const ValueDecl *Member,
@@ -3438,6 +3435,9 @@ public:
   /// Collect the set of protocols to which this type should implicitly
   /// conform, such as AnyObject (for classes).
   void getImplicitProtocols(SmallVectorImpl<ProtocolDecl *> &protocols);
+
+  /// Prepare the conformance table (also acts as accessor).
+  ConformanceLookupTable *prepareConformanceTable() const;
 
   /// Look for conformances of this nominal type to the given
   /// protocol.
@@ -4284,6 +4284,9 @@ public:
   /// Retrieve the set of protocols inherited from this protocol.
   ArrayRef<ProtocolDecl *> getInheritedProtocols() const;
 
+  /// An extension has inherited a new protocol
+  void inheritedProtocolsChanged();
+
   /// Determine whether this protocol has a superclass.
   bool hasSuperclass() const { return (bool)getSuperclassDecl(); }
 
@@ -4373,6 +4376,9 @@ public:
   /// all the members do not contain any associated types, and do not
   /// contain 'Self' in 'parameter' or 'other' position.
   bool existentialTypeSupported() const;
+
+  /// Track conformances that have come about due to a  protocol extension
+  void recordExtendedNominal(NominalTypeDecl *nomial, ExtensionDecl *ext);
 
 private:
   void computeKnownProtocolKind() const;

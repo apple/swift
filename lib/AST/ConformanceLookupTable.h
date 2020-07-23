@@ -77,6 +77,9 @@ class ConformanceLookupTable {
   std::unordered_map<NominalTypeDecl *,
                      std::array<LastProcessedEntry, NumConformanceStages>>
   LastProcessed;
+
+  /// Prevents invalidating while table is in the midst of being updated.
+  unsigned Updating = 0;
   
   struct ConformanceEntry;
 
@@ -318,6 +321,11 @@ class ConformanceLookupTable {
   llvm::DenseMap<const ValueDecl *, llvm::TinyPtrVector<ValueDecl *>>
     ConformingDeclMap;
 
+  typedef std::pair<llvm::PointerUnion<TypeDecl *, ExtensionDecl *>, SourceLoc> WhereFrom;
+
+  /// Record of protocol and location a protocol is inferred from
+  llvm::DenseMap<ProtocolDecl *, WhereFrom> InheritedFrom;
+
   /// Indicates whether we are visiting the superclass.
   bool VisitingSuperclass = false;
 
@@ -326,9 +334,12 @@ class ConformanceLookupTable {
                    ConformanceSource source);
 
   /// Add the protocols from the given list.
-  void addInheritedProtocols(
-                         llvm::PointerUnion<TypeDecl *, ExtensionDecl *> decl,
-                         ConformanceSource source);
+  void addInheritedProtocols(NominalTypeDecl *nominal,
+                             llvm::PointerUnion<TypeDecl *, ExtensionDecl *> decl,
+                             ConformanceSource source);
+
+  /// Find any protocol extension in the chain of inhertance
+  std::pair<ExtensionDecl *,SourceLoc> isExtendedConformance(ProtocolDecl *proto);
 
   /// Expand the implied conformances for the given DeclContext.
   void expandImpliedConformances(NominalTypeDecl *nominal, DeclContext *dc);
@@ -411,6 +422,9 @@ class ConformanceLookupTable {
 public:
   /// Create a new conformance lookup table.
   ConformanceLookupTable(ASTContext &ctx);
+
+  /// Reset that conformance table has been processed so it will be recalculated
+  void invalidate(NominalTypeDecl *nomimal, ProtocolDecl *decl);
 
   /// Destroy the conformance table.
   void destroy();
