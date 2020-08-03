@@ -74,17 +74,25 @@ struct HeapObject {
 #ifdef __cplusplus
 extern "C" {
 #endif
+#if __has_attribute(swiftcall)
+#define SWIFT_CC_swift __attribute__((swiftcall))
+#else
+#define SWIFT_CC_swift
+#endif
 
 SWIFT_RUNTIME_STDLIB_API
 void _swift_instantiateInertHeapObject(void *address,
                                        const HeapMetadata *metadata);
 
+SWIFT_CC_swift
 SWIFT_RUNTIME_STDLIB_API
 __swift_size_t swift_retainCount(HeapObject *obj);
 
+SWIFT_CC_swift
 SWIFT_RUNTIME_STDLIB_API
 __swift_size_t swift_unownedRetainCount(HeapObject *obj);
 
+SWIFT_CC_swift
 SWIFT_RUNTIME_STDLIB_API
 __swift_size_t swift_weakRetainCount(HeapObject *obj);
 

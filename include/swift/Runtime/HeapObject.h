@@ -205,10 +205,13 @@ void swift_nonatomic_release_n(HeapObject *object, uint32_t n);
 
 // Refcounting observation hooks for memory tools. Don't use these.
 SWIFT_RUNTIME_EXPORT
+SWIFT_CC(swift)
 size_t swift_retainCount(HeapObject *object);
 SWIFT_RUNTIME_EXPORT
+SWIFT_CC(swift)
 size_t swift_unownedRetainCount(HeapObject *object);
 SWIFT_RUNTIME_EXPORT
+SWIFT_CC(swift)
 size_t swift_weakRetainCount(HeapObject *object);
 
 /// Is this pointer a non-null unique reference to an object
