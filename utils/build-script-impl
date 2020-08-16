@@ -1196,50 +1196,16 @@ function build_directory() {
 }
 
 function build_directory_bin() {
-    host=$1
-    product=$2
-    root="$(build_directory ${host} ${product})"
-    if [[ "${CMAKE_GENERATOR}" == "Xcode" ]] ; then
-        case ${product} in
-            cmark)
-                echo "${root}/${CMARK_BUILD_TYPE}/bin"
-                ;;
-            llvm)
-                echo "${root}/${LLVM_BUILD_TYPE}/bin"
-                ;;
-            libcxx)
-                # Reuse LLVM's build type.
-                echo "${root}/${LLVM_BUILD_TYPE}/bin"
-                ;;
-            swift)
-                echo "${root}/${SWIFT_BUILD_TYPE}/bin"
-                ;;
-            lldb)
-                ;;
-            llbuild)
-                echo "${root}/${LLBUILD_BUILD_TYPE}/bin"
-                ;;
-            xctest)
-                echo "${root}/${XCTEST_BUILD_TYPE}/bin"
-                ;;
-            foundation|foundation_static)
-                echo "${root}/${FOUNDATION_BUILD_TYPE}/bin"
-                ;;
-            libdispatch|libdispatch_static)
-                echo "${root}/${LIBDISPATCH_BUILD_TYPE}/bin"
-                ;;
-            libicu)
-                ;;
-            playgroundsupport)
-                echo "${root}/${PLAYGROUNDSUPPORT_BUILD_TYPE}/bin"
-                ;;
-            *)
-                echo "error: unknown product: ${product}"
-                exit 1
-                ;;
-        esac
+    local host=${1}
+    local product=${2}
+    local root=$(build_directory ${host} ${product})
+    # TODO: why does lldb get handled differntly?
+    [[ ${product} == lldb || ${product} == libicu ]] && return
+    if [[ ${CMAKE_GENERATOR} == Xcode ]] ; then
+      local build_type=$(toupper ${product/_static})_BUILD_TYPE
+      echo ${root}/${!build_type}/bin
     else
-        echo "${root}/bin"
+      echo ${root}/bin
     fi
 }
 
@@ -1266,22 +1232,22 @@ function common_cross_c_flags() {
             echo -n " -arch ${arch} "
             ;;
         iphonesimulator-*)
-            echo -n " -arch ${arch}  -mios-simulator-version-min=${DARWIN_DEPLOYMENT_VERSION_IOS}"
+            echo -n " -arch ${arch} -mios-simulator-version-min=${DARWIN_DEPLOYMENT_VERSION_IOS}"
             ;;
         iphoneos-*)
-            echo -n " -arch ${arch}  -miphoneos-version-min=${DARWIN_DEPLOYMENT_VERSION_IOS}"
+            echo -n " -arch ${arch} -miphoneos-version-min=${DARWIN_DEPLOYMENT_VERSION_IOS}"
             ;;
         appletvsimulator-*)
-            echo -n " -arch ${arch}  -mtvos-simulator-version-min=${DARWIN_DEPLOYMENT_VERSION_TVOS}"
+            echo -n " -arch ${arch} -mtvos-simulator-version-min=${DARWIN_DEPLOYMENT_VERSION_TVOS}"
             ;;
         appletvos-*)
-            echo -n " -arch ${arch}  -mtvos-version-min=${DARWIN_DEPLOYMENT_VERSION_TVOS}"
+            echo -n " -arch ${arch} -mtvos-version-min=${DARWIN_DEPLOYMENT_VERSION_TVOS}"
             ;;
         watchsimulator-*)
-            echo -n " -arch ${arch}  -mwatchos-simulator-version-min=${DARWIN_DEPLOYMENT_VERSION_WATCHOS}"
+            echo -n " -arch ${arch} -mwatchos-simulator-version-min=${DARWIN_DEPLOYMENT_VERSION_WATCHOS}"
             ;;
         watchos-*)
-            echo -n " -arch ${arch}  -mwatchos-version-min=${DARWIN_DEPLOYMENT_VERSION_WATCHOS}"
+            echo -n " -arch ${arch} -mwatchos-version-min=${DARWIN_DEPLOYMENT_VERSION_WATCHOS}"
             ;;
     esac
 
@@ -1317,49 +1283,14 @@ function swift_c_flags() {
 }
 
 function cmake_config_opt() {
-    product=$1
-    if [[ "${CMAKE_GENERATOR}" == "Xcode" ]] ; then
-        # CMake automatically adds --target ALL_BUILD if we don't pass this.
-        echo "--target ZERO_CHECK "
-        case ${product} in
-            cmark)
-                echo "--config ${CMARK_BUILD_TYPE}"
-                ;;
-            llvm)
-                echo "--config ${LLVM_BUILD_TYPE}"
-                ;;
-            libcxx)
-                # Reuse LLVM's build type.
-                echo "--config ${LLVM_BUILD_TYPE}"
-                ;;
-            swift)
-                echo "--config ${SWIFT_BUILD_TYPE}"
-                ;;
-            lldb)
-                ;;
-            llbuild)
-                echo "--config ${LLBUILD_BUILD_TYPE}"
-                ;;
-            xctest)
-                echo "--config ${XCTEST_BUILD_TYPE}"
-                ;;
-            foundation|foundation_static)
-                echo "--config ${FOUNDATION_BUILD_TYPE}"
-                ;;
-            libdispatch|libdispatch_static)
-                echo "--config ${LIBDISPATCH_BUILD_TYPE}"
-                ;;
-            libicu)
-                ;;
-            playgroundsupport)
-                echo "--config ${PLAYGROUNDSUPPORT_BUILD_TYPE}"
-                ;;
-            *)
-                echo "error: unknown product: ${product}"
-                exit 1
-                ;;
-        esac
-    fi
+    [[ ${CMAKE_GENERATOR} == Xcode ]] || return
+
+    # TODO: why does LLDB not require a CMake configuration?
+    [[ ${product} == lldb || ${product} == libicu ]] && return
+
+    local product=${1}
+    local build_type=$(toupper ${product/_static})_BUILD_TYPE
+    echo --target ZERO_CHECK --config ${!build_type}
 }
 
 #
