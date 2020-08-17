@@ -54,6 +54,44 @@ _stdlib_thread_key_create(__swift_thread_key_t * _Nonnull key,
 
 #endif
 
+#if defined(__wasi__)
+// WebAssembly doesn't have threading standardized yet, so TLS is emulated
+// here, see https://bugs.swift.org/browse/SR-12774.
+#include <map>
+using __swift_thread_key_destructor = void (*)(void *);
+
+struct _stdlib_tls_element_t {
+  const void *value;
+  __swift_thread_key_destructor destructor;
+};
+
+using _stdlib_tls_map_t = std::map<__swift_thread_key_t, _stdlib_tls_element_t>;
+static void *_stdlib_tls_map;
+
+static inline int _stdlib_thread_key_create(__swift_thread_key_t *key,
+                          __swift_thread_key_destructor destructor) {
+  if (!_stdlib_tls_map)
+      _stdlib_tls_map = new _stdlib_tls_map_t();
+  auto *map = (_stdlib_tls_map_t *)_stdlib_tls_map;
+  *key = map->size();
+  _stdlib_tls_element_t element = { nullptr, destructor };
+  map->insert(std::make_pair(*key, element));
+  return 0;
+}
+
+static inline void *_stdlib_thread_getspecific(__swift_thread_key_t key) {
+  auto *map = (_stdlib_tls_map_t *)_stdlib_tls_map;
+  return const_cast<void *>(map->operator[](key).value);
+}
+
+static inline int _stdlib_thread_setspecific(__swift_thread_key_t key, const void *value) {
+  auto *map = (_stdlib_tls_map_t *)_stdlib_tls_map;
+  map->operator[](key).value = value;
+  return 0;
+}
+
+#endif
+
 #if SWIFT_TLS_HAS_RESERVED_PTHREAD_SPECIFIC
 
 SWIFT_RUNTIME_STDLIB_INTERNAL
