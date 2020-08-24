@@ -1893,6 +1893,7 @@ static bool serializeSIB(SILModule *SM, const PrimarySpecificPaths &PSPs,
   serializationOpts.OutputPath = moduleOutputPath.c_str();
   serializationOpts.SerializeAllSIL = true;
   serializationOpts.IsSIB = true;
+  serializationOpts.SerializeOptionsForDebugging = true;
 
   serialize(MSF, serializationOpts, SM);
   return Context.hadError();

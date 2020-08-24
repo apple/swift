@@ -1,0 +1,3 @@
+import lib
+
+_ = getLibX()

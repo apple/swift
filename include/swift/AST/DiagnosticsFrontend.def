@@ -392,6 +392,10 @@ REMARK(interface_file_lock_failure,none,
 
 REMARK(interface_file_lock_timed_out,none,
       "timed out waiting to acquire lock file for module interface '%0'", (StringRef))
+ERROR(invalid_serialized_module,none,
+      "unable to register invalid serialized module", ())
+ERROR(unable_to_load_serialized_module,none,
+      "unable to load serialized module '%0'", (StringRef))
 
 // Dependency Verifier Diagnostics
 ERROR(dependency_cascading_mismatch,none,

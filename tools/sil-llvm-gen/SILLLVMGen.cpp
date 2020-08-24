@@ -111,11 +111,18 @@ static llvm::cl::opt<bool>
 // without being given the address of a function in the main executable).
 void anchorForGetMainExecutable() {}
 
+extern llvm::cl::SubCommand LTOSubcommand;
+int swift_lto_main(int argc, char **argv);
+
 int main(int argc, char **argv) {
   PROGRAM_START(argc, argv);
   INITIALIZE_LLVM();
 
   llvm::cl::ParseCommandLineOptions(argc, argv, "Swift LLVM IR Generator\n");
+
+  if (LTOSubcommand) {
+    return swift_lto_main(argc, argv);
+  }
 
   if (PrintStats)
     llvm::EnableStatistics();
