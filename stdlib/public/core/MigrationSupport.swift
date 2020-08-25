@@ -309,12 +309,14 @@ extension Substring {
   }
 }
 
+#if SWIFT_ENABLE_REFLECTION
 extension Substring: _CustomPlaygroundQuickLookable {
   @available(swift, deprecated: 4.2/*, obsoleted: 5.0*/, message: "Substring.customPlaygroundQuickLook will be removed in Swift 5.0")
   public var customPlaygroundQuickLook: _PlaygroundQuickLook {
     return String(self).customPlaygroundQuickLook
   }
 }
+#endif
 
 extension Collection {
   // FIXME: <rdar://problem/34142121>
@@ -630,6 +632,7 @@ public enum _PlaygroundQuickLook {
   case _raw([UInt8], String)
 }
 
+#if SWIFT_ENABLE_REFLECTION
 extension _PlaygroundQuickLook {
   /// Creates a new Quick Look for the given instance.
   ///
@@ -663,6 +666,7 @@ extension _PlaygroundQuickLook {
     }
   }
 }
+#endif
 
 /// A type that explicitly supplies its own playground Quick Look.
 ///

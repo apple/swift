@@ -1413,6 +1413,7 @@ extension Array {
   }
 }
 
+#if SWIFT_ENABLE_REFLECTION
 extension Array: CustomReflectable {
   /// A mirror that reflects the array.
   public var customMirror: Mirror {
@@ -1422,6 +1423,7 @@ extension Array: CustomReflectable {
       displayStyle: .collection)
   }
 }
+#endif
 
 extension Array: CustomStringConvertible, CustomDebugStringConvertible {
   /// A textual representation of the array and its elements.

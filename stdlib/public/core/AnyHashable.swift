@@ -240,6 +240,7 @@ extension AnyHashable: Hashable {
   }
 }
 
+#if SWIFT_ENABLE_REFLECTION
 extension AnyHashable: CustomStringConvertible {
   public var description: String {
     return String(describing: base)
@@ -259,6 +260,7 @@ extension AnyHashable: CustomReflectable {
       children: ["value": base])
   }
 }
+#endif
 
 /// Returns a default (non-custom) representation of `self`
 /// as `AnyHashable`.

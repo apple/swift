@@ -302,6 +302,10 @@ function(_add_target_variant_c_compile_flags)
     list(APPEND result "-DSWIFT_RUNTIME_NO_COMPATIBILITY_OVERRIDES")
   endif()
 
+  if(SWIFT_ENABLE_REFLECTION)
+    list(APPEND result "-DSWIFT_ENABLE_REFLECTION")
+  endif()
+
   if(SWIFT_RUNTIME_MACHO_NO_DYLD)
     list(APPEND result "-DSWIFT_RUNTIME_MACHO_NO_DYLD")
   endif()

@@ -682,6 +682,7 @@ extension Unsafe${Mutable}RawBufferPointer {
   }
 }
 
+#if SWIFT_ENABLE_REFLECTION
 extension Unsafe${Mutable}RawBufferPointer: CustomDebugStringConvertible {
   /// A textual representation of the buffer, suitable for debugging.
   public var debugDescription: String {
@@ -689,6 +690,7 @@ extension Unsafe${Mutable}RawBufferPointer: CustomDebugStringConvertible {
       + "(start: \(_position.map(String.init(describing:)) ?? "nil"), count: \(count))"
   }
 }
+#endif
 
 extension ${Self} {
   @available(*, unavailable, 

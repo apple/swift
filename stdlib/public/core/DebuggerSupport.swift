@@ -12,6 +12,8 @@
 
 import SwiftShims
 
+#if SWIFT_ENABLE_REFLECTION
+
 @frozen // namespace
 public enum _DebuggerSupport {
   private enum CollectionStatus {
@@ -254,6 +256,8 @@ public enum _DebuggerSupport {
 public func _stringForPrintObject(_ value: Any) -> String {
   return _DebuggerSupport.stringForPrintObject(value)
 }
+
+#endif // SWIFT_ENABLE_REFLECTION
 
 public func _debuggerTestingCheckExpect(_: String, _: String) { }
 

@@ -194,6 +194,7 @@ KNOWN_SETTINGS=(
     stdlib-deployment-targets                     ""                "space-separated list of targets to configure the Swift standard library to be compiled or cross-compiled for"
     swift-objc-interop                            ""                "whether to enable interoperability with Objective-C, default is 1 on Apple platfors, 0 otherwise"
     swift-enable-compatibility-overrides          "1"               "whether to support back-deploying compatibility fixes for newer apps running on older runtimes"
+    swift-enable-reflection                       "1"               "whether to support reflection and mirrors"
     swift-runtime-macho-no-dyld                   "0"               "whether to build stdlib assuming the runtime environment does not support dynamic modules"
 
     ## FREESTANDING Stdlib Options
@@ -1815,6 +1816,13 @@ for host in "${ALL_HOSTS[@]}"; do
                     cmake_options=(
                         "${cmake_options[@]}"
                         -DSWIFT_DISABLE_OBJC_INTEROP:BOOL=True
+                    )
+                fi
+
+                if [[ "${SWIFT_ENABLE_REFLECTION}" == "0" ]] ; then
+                    cmake_options=(
+                        "${cmake_options[@]}"
+                        -DSWIFT_ENABLE_REFLECTION:BOOL=FALSE
                     )
                 fi
 

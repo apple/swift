@@ -307,9 +307,11 @@ extension Substring: StringProtocol {
   }
 }
 
+#if SWIFT_ENABLE_REFLECTION
 extension Substring: CustomReflectable {
  public var customMirror: Mirror { return String(self).customMirror }
 }
+#endif
 
 extension Substring: CustomStringConvertible {
   @inlinable @inline(__always)

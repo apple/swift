@@ -371,6 +371,7 @@ extension Range: CustomStringConvertible {
   }
 }
 
+#if SWIFT_ENABLE_REFLECTION
 extension Range: CustomDebugStringConvertible {
   /// A textual representation of the range, suitable for debugging.
   public var debugDescription: String {
@@ -385,6 +386,7 @@ extension Range: CustomReflectable {
       self, children: ["lowerBound": lowerBound, "upperBound": upperBound])
   }
 }
+#endif
 
 extension Range: Equatable {
   /// Returns a Boolean value indicating whether two ranges are equal.

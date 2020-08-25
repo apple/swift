@@ -308,9 +308,11 @@ extension StaticString: CustomDebugStringConvertible {
   }
 }
 
+#if SWIFT_ENABLE_REFLECTION
 extension StaticString: CustomReflectable {
 
   public var customMirror: Mirror {
     return Mirror(reflecting: description)
   }
 }
+#endif

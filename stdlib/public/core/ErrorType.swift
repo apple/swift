@@ -185,8 +185,14 @@ public func _unexpectedError(
   filenameIsASCII: Builtin.Int1,
   line: Builtin.Word
 ) {
+  let message: String
+#if SWIFT_ENABLE_REFLECTION
+  message = "'try!' expression unexpectedly raised an error: \(String(reflecting: error))"
+#else
+  message = "'try!' expression unexpectedly raised an error: \(error)"
+#endif
   preconditionFailure(
-    "'try!' expression unexpectedly raised an error: \(String(reflecting: error))",
+    message,
     file: StaticString(
       _start: filenameStart,
       utf8CodeUnitCount: filenameLength,
@@ -197,7 +203,13 @@ public func _unexpectedError(
 /// Invoked by the compiler when code at top level throws an uncaught error.
 @_silgen_name("swift_errorInMain")
 public func _errorInMain(_ error: Error) {
-  fatalError("Error raised at top level: \(String(reflecting: error))")
+  let message: String
+#if SWIFT_ENABLE_REFLECTION
+  message = "Error raised at top level: \(String(reflecting: error))"
+#else
+  message = "Error raised at top level: \(error)"
+#endif
+  fatalError(message)
 }
 
 /// Runtime function to determine the default code for an Error-conforming type.
@@ -210,9 +222,11 @@ extension Error {
     return _getDefaultErrorCode(self)
   }
 
+#if SWIFT_ENABLE_REFLECTION
   public var _domain: String {
     return String(reflecting: type(of: self))
   }
+#endif
 
   public var _userInfo: AnyObject? {
 #if _runtime(_ObjC)

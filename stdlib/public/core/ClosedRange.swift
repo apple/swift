@@ -378,6 +378,7 @@ extension ClosedRange: CustomStringConvertible {
   }
 }
 
+#if SWIFT_ENABLE_REFLECTION
 extension ClosedRange: CustomDebugStringConvertible {
   /// A textual representation of the range, suitable for debugging.
   public var debugDescription: String {
@@ -392,6 +393,7 @@ extension ClosedRange: CustomReflectable {
       self, children: ["lowerBound": lowerBound, "upperBound": upperBound])
   }
 }
+#endif
 
 extension ClosedRange {
   /// Returns a copy of this range clamped to the given limiting range.

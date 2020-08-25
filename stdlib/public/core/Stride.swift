@@ -300,11 +300,13 @@ extension StrideTo: Sequence {
   }
 }
 
+#if SWIFT_ENABLE_REFLECTION
 extension StrideTo: CustomReflectable {
   public var customMirror: Mirror {
     return Mirror(self, children: ["from": _start, "to": _end, "by": _stride])
   }
 }
+#endif
 
 // FIXME(conditional-conformances): This does not yet compile (SR-6474).
 #if false
@@ -508,12 +510,14 @@ extension StrideThrough: Sequence {
   }
 }
 
+#if SWIFT_ENABLE_REFLECTION
 extension StrideThrough: CustomReflectable {
   public var customMirror: Mirror {
     return Mirror(self,
       children: ["from": _start, "through": _end, "by": _stride])
   }
 }
+#endif
 
 // FIXME(conditional-conformances): This does not yet compile (SR-6474).
 #if false

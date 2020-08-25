@@ -21,6 +21,10 @@ option(SWIFT_RUNTIME_MACHO_NO_DYLD
   "Build stdlib assuming the runtime environment uses Mach-O but does not support dynamic modules."
   FALSE)
 
+option(SWIFT_ENABLE_REFLECTION
+  "Build stdlib with support for runtime reflection and mirrors."
+  TRUE)
+
 #
 # End of user-configurable options.
 #

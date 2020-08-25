@@ -10,11 +10,17 @@
 //
 //===----------------------------------------------------------------------===//
 
+#if SWIFT_ENABLE_REFLECTION
+public protocol _CustomReflectableOrNone: CustomReflectable {}
+#else
+public protocol _CustomReflectableOrNone {}
+#endif
+
 /// A stdlib-internal protocol modeled by the intrinsic pointer types,
 /// UnsafeMutablePointer, UnsafePointer, UnsafeRawPointer,
 /// UnsafeMutableRawPointer, and AutoreleasingUnsafeMutablePointer.
 public protocol _Pointer
-: Hashable, Strideable, CustomDebugStringConvertible, CustomReflectable {
+: Hashable, Strideable, CustomDebugStringConvertible, _CustomReflectableOrNone {
   /// A type that represents the distance between two pointers.
   typealias Distance = Int
   
@@ -220,6 +226,7 @@ extension _Pointer /*: CustomDebugStringConvertible */ {
   }
 }
 
+#if SWIFT_ENABLE_REFLECTION
 extension _Pointer /*: CustomReflectable */ {
   public var customMirror: Mirror {
     let ptrValue = UInt64(
@@ -227,6 +234,7 @@ extension _Pointer /*: CustomReflectable */ {
     return Mirror(self, children: ["pointerValue": ptrValue])
   }
 }
+#endif
 
 extension Int {
   /// Creates a new value with the bit pattern of the given pointer.

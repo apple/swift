@@ -416,6 +416,12 @@ function(_compile_swift_files
     list(APPEND swift_flags "-Xfrontend" "-emit-sorted-sil")
   endif()
 
+  if(NOT SWIFT_ENABLE_REFLECTION)
+    list(APPEND swift_flags "-Xfrontend" "-disable-reflection-metadata")
+  else()
+    list(APPEND swift_flags "-D" "SWIFT_ENABLE_REFLECTION")
+  endif()
+
   # FIXME: Cleaner way to do this?
   if(SWIFTFILE_IS_STDLIB_CORE)
     list(APPEND swift_flags

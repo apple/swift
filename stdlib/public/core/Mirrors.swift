@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#if SWIFT_ENABLE_REFLECTION
+
 extension Float: CustomReflectable {
   /// A mirror that reflects the `Float` instance.
   public var customMirror: Mirror {
@@ -257,4 +259,6 @@ extension Float80: CustomReflectable {
     return Mirror(self, unlabeledChildren: EmptyCollection<Void>())
   }
 }
+#endif
+
 #endif

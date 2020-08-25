@@ -2034,6 +2034,7 @@ extension Dictionary.Iterator: IteratorProtocol {
   }
 }
 
+#if SWIFT_ENABLE_REFLECTION
 extension Dictionary.Iterator: CustomReflectable {
   /// A mirror that reflects the iterator.
   public var customMirror: Mirror {
@@ -2050,6 +2051,7 @@ extension Dictionary: CustomReflectable {
     return Mirror(self, unlabeledChildren: self, displayStyle: style)
   }
 }
+#endif
 
 extension Dictionary {
   /// Removes and returns the first key-value pair of the dictionary if the

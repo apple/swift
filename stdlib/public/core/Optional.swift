@@ -279,6 +279,7 @@ extension Optional: CustomDebugStringConvertible {
   }
 }
 
+#if SWIFT_ENABLE_REFLECTION
 extension Optional: CustomReflectable {
   public var customMirror: Mirror {
     switch self {
@@ -292,6 +293,7 @@ extension Optional: CustomReflectable {
     }
   }
 }
+#endif
 
 @_transparent
 public // COMPILER_INTRINSIC

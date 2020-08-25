@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#ifdef SWIFT_ENABLE_REFLECTION
+
 #include "swift/Basic/Lazy.h"
 #include "swift/Runtime/Reflection.h"
 #include "swift/Runtime/Casting.h"
@@ -1098,4 +1100,6 @@ SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_API
 id swift_reflectionMirror_quickLookObject(OpaqueValue *value, const Metadata *T) {
   return call(value, T, nullptr, [](ReflectionMirrorImpl *impl) { return impl->quickLookObject(); });
 }
+#endif
+
 #endif
