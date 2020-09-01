@@ -1,0 +1,1 @@
+double fakeCos(double);

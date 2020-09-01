@@ -889,6 +889,17 @@ ERROR(imported_decl_is_wrong_kind_typealias,none,
 ERROR(ambiguous_decl_in_module,none,
       "ambiguous name %0 in module %1", (Identifier, Identifier))
 
+WARNING(decl_from_textual_header,none,
+  "module %0 may not intend to export %1 %2, which is defined in a non-modular "
+  "header that the module includes textually",
+  (StringRef, DescriptiveDeclKind, DeclName))
+NOTE(decl_from_textual_header_note_header,none,
+  "%0 defined in this textually included header (preferred fix: create a "
+  "module map for this header, then import the new module)", (DeclName))
+NOTE(decl_from_textual_header_note_module,none,
+  "module %0 defined here (alternative fix: add 'exports *' to the definition "
+  "of this module)", (StringRef))
+
 ERROR(module_not_testable,Fatal,
       "module %0 was not compiled for testing", (Identifier))
 

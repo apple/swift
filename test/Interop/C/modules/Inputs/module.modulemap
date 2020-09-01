@@ -1,0 +1,8 @@
+module FakeGlibc {
+  header "fake-glibc.h"
+  export *
+}
+
+module WarnOnImplicitTextualIncludes {
+  header "warn-on-implicit-textual-includes.h"
+}

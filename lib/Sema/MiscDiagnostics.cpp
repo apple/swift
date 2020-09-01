@@ -17,7 +17,12 @@
 #include "MiscDiagnostics.h"
 #include "TypeChecker.h"
 #include "TypeCheckAvailability.h"
+#include "clang/AST/ASTContext.h"
+#include "clang/AST/Decl.h"
+#include "clang/AST/DeclBase.h"
+#include "clang/Basic/SourceManager.h"
 #include "swift/AST/ASTWalker.h"
+#include "swift/AST/ClangModuleLoader.h"
 #include "swift/AST/NameLookup.h"
 #include "swift/AST/NameLookupRequests.h"
 #include "swift/AST/Pattern.h"
@@ -28,7 +33,9 @@
 #include "swift/Parse/Lexer.h"
 #include "swift/Parse/Parser.h"
 #include "swift/Sema/IDETypeChecking.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/MapVector.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/SaveAndRestore.h"
 
@@ -2660,6 +2667,161 @@ public:
   }
 };
 
+/// Emits diagnostics for uses of Clang declarations defined in header files
+/// that are implicitly textually included in a module.
+///
+/// If the header files of a module include other header files, the module
+/// typically does not intend to export the definitions from those included
+/// header files. If the included header files themselves have an associated
+/// module map, then their definitions are indeed not exported, unless this is
+/// done with an explicit export statement. However, if the included header
+/// files do not have an associated module map, then the module exports all of
+/// the definitions from these modules.
+///
+/// We therefore warn on uses of declarations from such textually included
+/// headers, unless the module map contains an `exports *` statement; in the
+/// latter case, we assume that the module intends to export definitions from
+/// all headers it includes (whether modular or textual).
+///
+/// An additional consideration is that the same header may be included
+/// textually in multiple modules; some of these modules may contain an
+/// `exports *`, while others may not. If the reference to the declaration is
+/// qualified with a module name, we therefore need to check this particular
+/// module. If the reference is unqualified, we need to check all modules in
+/// which the declaration appears.
+class ImplicitTextualIncludesChecker : public ASTWalker {
+  DiagnosticEngine &Diags;
+  llvm::DenseMap<const clang::Module *, bool> ModuleExportsStar;
+  llvm::DenseMap<const clang::Module *,
+                 SmallPtrSet<const clang::FileEntry *, 8>>
+      ModuleHeaders;
+
+  // Returns whether the specified module has an `exports *` statement.
+  bool exportsStar(const clang::Module *Module) {
+    auto Iter = ModuleExportsStar.find(Module);
+    if (Iter != ModuleExportsStar.end())
+      return Iter->second;
+
+    bool Result = false;
+    for (const auto &Exp : Module->Exports) {
+      if (Exp.getPointer() == nullptr && Exp.getInt() == 1) {
+        Result = true;
+        break;
+      }
+    }
+    ModuleExportsStar[Module] = Result;
+    return Result;
+  }
+
+  // Returns a map from a module to the headers contained in it.
+  const SmallPtrSetImpl<const clang::FileEntry *> &
+  moduleHeaders(const clang::Module *Module) {
+    auto Iter = ModuleHeaders.find(Module);
+    if (Iter == ModuleHeaders.end()) {
+      Iter = ModuleHeaders.try_emplace(Module).first;
+      for (const auto &Header : Module->Headers[clang::Module::HK_Normal]) {
+        Iter->second.insert(Header.Entry);
+      }
+    }
+
+    return Iter->second;
+  }
+
+  // Returns whether `ClangDecl` is an implicit textual include in its owning
+  // module.
+  bool isImplicitTextualInclude(const clang::Decl *ClangDecl) {
+    const clang::Module *Module = ClangDecl->getOwningModule();
+
+    // Protect against `Module` being null -- though this shouldn't happen, as
+    // we always import Clang declarations from modules.
+    if (!Module)
+      return false;
+
+    return isImplicitTextualInclude(ClangDecl, Module);
+  }
+
+  // Returns whether `clangDecl` is an implicit textual include in `module`.
+  bool isImplicitTextualInclude(const clang::Decl *ClangDecl,
+                 const clang::Module *Module) {
+    if (exportsStar(Module))
+      return false;
+
+    clang::SourceManager &SourceManager =
+        ClangDecl->getASTContext().getSourceManager();
+    const clang::FileEntry *FileEntry = SourceManager.getFileEntryForID(
+        SourceManager.getFileID(ClangDecl->getLocation()));
+
+    return moduleHeaders(Module).count(FileEntry) == 0;
+  }
+
+  // Returns the module that qualifies the current DeclRefExpr, if any.
+  // For example, if the current DeclRefExpr corresponds to `Decl` in
+  // `Module.Decl`, returns the module `Module`.
+  const ModuleDecl *getQualifyingModule() {
+    auto *DotSyntax =
+        dyn_cast_or_null<DotSyntaxBaseIgnoredExpr>(Parent.getAsExpr());
+    if (!DotSyntax)
+      return nullptr;
+
+    auto *LHS_DRE = dyn_cast<DeclRefExpr>(DotSyntax->getLHS());
+    if (!LHS_DRE) return nullptr;
+
+    return dyn_cast<ModuleDecl>(LHS_DRE->getDecl());
+  }
+
+public:
+  ImplicitTextualIncludesChecker(DiagnosticEngine &Diags) : Diags(Diags) {}
+
+  // If `DRE` references a declaration from an implicit textual include, emits
+  // a corresponding diagnostic.
+  void diagnoseImplicitTextualInclude(const DeclRefExpr *DRE) {
+    const ValueDecl *Decl = DRE->getDecl();
+
+    const clang::Decl *ClangDecl = Decl->getClangDecl();
+    if (!ClangDecl) return;
+
+    const clang::Module *Module = ClangDecl->getOwningModule();
+
+    // Protect against `Module` being null -- though this shouldn't happen, as
+    // we always import Clang declarations from modules.
+    if (!Module) return;
+
+    if (const ModuleDecl *QualifyingModule = getQualifyingModule()) {
+      // If the qualifying module has an underlying Clang module, use that to
+      // perform the check. If it doesn't have an underlying Clang module, it's
+      // presumably a Swift module that re-exports the Clang module; just use
+      // the owning module in that case.
+      if (const clang::Module *QualifyingClangModule =
+              QualifyingModule->findUnderlyingClangModule())
+        Module = QualifyingClangModule;
+
+      if (!isImplicitTextualInclude(ClangDecl, Module)) return;
+    } else {
+      for (auto Redecl : ClangDecl->redecls()) {
+        if (!isImplicitTextualInclude(Redecl)) return;
+      }
+    }
+
+    Diags.diagnose(DRE->getLoc(), diag::decl_from_textual_header,
+                   Module->Name, Decl->getDescriptiveKind(), Decl->getName());
+    ClangModuleLoader *ClangLoader =
+        Decl->getASTContext().getClangModuleLoader();
+    Diags.diagnose(ClangLoader->resolveSourceLocation(ClangDecl->getLocation()),
+                   diag::decl_from_textual_header_note_header, Decl->getName());
+    Diags.diagnose(
+        ClangLoader->resolveSourceLocation(Module->DefinitionLoc),
+        diag::decl_from_textual_header_note_module, Module->Name);
+  }
+
+  std::pair<bool, Expr *> walkToExprPre(Expr *E) override {
+    if (auto *DRE = dyn_cast<DeclRefExpr>(E)) {
+      diagnoseImplicitTextualInclude(DRE);
+    }
+
+    return { true, E };
+  }
+};
+
 } // end anonymous namespace
 
 // After we have scanned the entire region, diagnose variables that could be
@@ -3166,6 +3328,8 @@ performTopLevelDeclDiagnostics(TopLevelCodeDecl *TLCD) {
   auto &ctx = TLCD->getDeclContext()->getASTContext();
   VarDeclUsageChecker checker(ctx.Diags);
   TLCD->walk(checker);
+  ImplicitTextualIncludesChecker textualChecker(ctx.Diags);
+  TLCD->walk(textualChecker);
 }
 
 /// Perform diagnostics for func/init/deinit declarations.

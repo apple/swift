@@ -3332,6 +3332,14 @@ void ClangImporter::printClangType(const clang::Type *type,
   clang::QualType(type, 0).print(os, policy);
 }
 
+SourceLoc
+ClangImporter::resolveSourceLocation(clang::SourceLocation clangLoc) const {
+  auto &srcMgr = getClangASTContext().getSourceManager();
+  ClangSourceBufferImporter &bufferImporter =
+      Impl.getBufferImporterForDiagnostics();
+  return bufferImporter.resolveSourceLocation(srcMgr, clangLoc);
+}
+
 //===----------------------------------------------------------------------===//
 // ClangModule Implementation
 //===----------------------------------------------------------------------===//
