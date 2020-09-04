@@ -45,14 +45,14 @@ class WashingMachine : Toaster {}
 class Dryer : WashingMachine {}
 class HairDryer {}
 
-let a: Toaster.Type.Protocol = Toaster.Type.self
-let b: Any.Type.Type = Toaster.Type.self // expected-error {{cannot convert value of type 'Toaster.Type.Protocol' to specified type 'Any.Type.Type'}}
-let c: Any.Type.Protocol = Toaster.Type.self // expected-error {{cannot convert value of type 'Toaster.Type.Protocol' to specified type 'Any.Type.Protocol'}}
-let d: Toaster.Type.Type = WashingMachine.Type.self
-let e: Any.Type.Type = WashingMachine.Type.self
-let f: Toaster.Type.Type = Dryer.Type.self
-let g: Toaster.Type.Type = HairDryer.Type.self // expected-error {{cannot convert value of type 'HairDryer.Type.Type' to specified type 'Toaster.Type.Type'}}
-let h: WashingMachine.Type.Type = Dryer.Type.self // expected-error {{cannot convert value of type 'Dryer.Type.Type' to specified type 'WashingMachine.Type.Type'}}
+let a: Toaster.Type.Protocol = (Toaster.Type).self
+let b: Any.Type.Type = (Toaster.Type).self // expected-error {{cannot convert value of type '(Toaster.Type).Protocol' to specified type 'Any.Type.Type'}}
+let c: Any.Type.Protocol = (Toaster.Type).self // expected-error {{cannot convert value of type '(Toaster.Type).Protocol' to specified type 'Any.Type.Protocol'}}
+let d: Toaster.Type.Type = (WashingMachine.Type).self
+let e: Any.Type.Type = (WashingMachine.Type).self
+let f: Toaster.Type.Type = (Dryer.Type).self
+let g: Toaster.Type.Type = (HairDryer.Type).self // expected-error {{cannot convert value of type '(HairDryer.Type).Type' to specified type 'Toaster.Type.Type'}}
+let h: WashingMachine.Type.Type = (Dryer.Type).self // expected-error {{cannot convert value of type '(Dryer.Type).Type' to specified type 'WashingMachine.Type.Type'}}
 
 func generic<T : WashingMachine>(_ t: T.Type) {
   let _: Toaster.Type.Type = type(of: t)

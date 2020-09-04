@@ -4179,6 +4179,11 @@ WARNING(class_super_not_usable_from_inline_warn,none,
         "should be '@usableFromInline' or public",
         (bool))
 
+WARNING(metatype_self,none,
+        "self expression applied to a metatype results in a meta-metatype, "
+        "which may be unexpected", ())
+NOTE(metatype_self_silence,none,
+     "add parentheses to silence this warning", ())
 ERROR(dot_protocol_on_non_existential,none,
       "cannot use 'Protocol' with non-protocol type %0", (Type))
 ERROR(tuple_single_element,none,

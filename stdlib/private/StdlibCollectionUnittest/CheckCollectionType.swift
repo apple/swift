@@ -610,7 +610,7 @@ extension TestSuite {
       return makeCollectionOfEquatable(elements.map(wrapValueIntoEquatable))
     }
 
-    testNamePrefix += String(describing: C.Type.self)
+    testNamePrefix += String(describing: C.self)
 
     //===------------------------------------------------------------------===//
     // generate()
@@ -1311,7 +1311,7 @@ extension TestSuite {
       return makeCollectionOfEquatable(elements.map(wrapValueIntoEquatable))
     }
 
-    testNamePrefix += String(describing: C.Type.self)
+    testNamePrefix += String(describing: C.self)
 
     // FIXME: swift-3-indexing-model - add tests for the follow?
     //          index(before: of i: Index) -> Index
@@ -1756,7 +1756,7 @@ extension TestSuite {
     outOfBoundsSubscriptOffset: outOfBoundsSubscriptOffset,
     collectionIsBidirectional: collectionIsBidirectional)
 
-    testNamePrefix += String(describing: C.Type.self)
+    testNamePrefix += String(describing: C.self)
 
     func makeWrappedCollection(_ elements: [OpaqueValue<Int>]) -> C {
       return makeCollection(elements.map(wrapValue))

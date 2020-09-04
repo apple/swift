@@ -489,7 +489,7 @@ extension TestSuite {
       return makeCollection(elements.map(wrapValue))
     }
 
-    testNamePrefix += String(describing: C.Type.self)
+    testNamePrefix += String(describing: C.self)
 
 //===----------------------------------------------------------------------===//
 // init()
@@ -1215,7 +1215,7 @@ self.test("\(testNamePrefix).OperatorPlus") {
       return makeCollection(elements.map(wrapValue))
     }
 
-    testNamePrefix += String(describing: C.Type.self)
+    testNamePrefix += String(describing: C.self)
 
 //===----------------------------------------------------------------------===//
 // removeLast()
@@ -1329,7 +1329,7 @@ self.test("\(testNamePrefix).removeLast(n: Int)/whereIndexIsBidirectional/remove
       resiliencyChecks: resiliencyChecks,
       outOfBoundsIndexOffset: outOfBoundsIndexOffset)
 
-    testNamePrefix += String(describing: C.Type.self)
+    testNamePrefix += String(describing: C.self)
 
     // No extra checks for collections with random access traversal so far.
   } // addRangeReplaceableRandomAccessCollectionTests

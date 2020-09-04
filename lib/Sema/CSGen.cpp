@@ -1643,6 +1643,41 @@ namespace {
       return CS.getType(expr->getSubExpr());
     }
 
+    Type visitDotSelfExpr(DotSelfExpr *expr) {
+      auto result = visitIdentityExpr(expr);
+
+      // Dig through the result to see if warnings are needed.
+      auto metaTy = result->getAs<AnyMetatypeType>();
+      if (metaTy == nullptr)
+        return result;
+      if (!metaTy->getInstanceType()->is<AnyMetatypeType>())
+        return result;
+      auto typeExpr = dyn_cast<TypeExpr>(expr->getSubExpr());
+      if (typeExpr == nullptr)
+        return result;
+      auto typeRepr = typeExpr->getTypeRepr();
+      if (isa<TupleTypeRepr>(typeRepr))
+        return result;
+
+      auto &diags = CS.getASTContext().Diags;
+
+      if (auto metaRepr = dyn_cast<MetatypeTypeRepr>(typeRepr)) {
+        diags.diagnose(expr->getSelfLoc(), diag::metatype_self)
+          .fixItRemove(metaRepr->getMetaLoc());
+      } else if (auto protocolRepr = dyn_cast<ProtocolTypeRepr>(typeRepr)) {
+        diags.diagnose(expr->getSelfLoc(), diag::metatype_self)
+          .fixItRemove(protocolRepr->getProtocolLoc());
+      } else {
+        diags.diagnose(expr->getSelfLoc(), diag::metatype_self);
+      }
+
+      diags.diagnose(typeExpr->getStartLoc(), diag::metatype_self_silence)
+        .fixItInsert(typeExpr->getStartLoc(), "(")
+        .fixItInsertAfter(typeExpr->getEndLoc(), ")");
+
+      return result;
+    }
+
     Type visitAnyTryExpr(AnyTryExpr *expr) {
       return CS.getType(expr->getSubExpr());
     }

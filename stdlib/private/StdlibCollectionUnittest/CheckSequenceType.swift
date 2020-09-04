@@ -1641,7 +1641,7 @@ extension TestSuite {
       return makeSequenceOfEquatable(elements.map(wrapValueIntoEquatable))
     }
 
-    testNamePrefix += String(describing: S.Type.self)
+    testNamePrefix += String(describing: S.self)
 
     // FIXME: swift-3-indexing-model: add tests for `underestimatedCount`
     // Check that it is non-negative, and an underestimate of the actual

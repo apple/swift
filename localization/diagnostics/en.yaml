@@ -5994,6 +5994,15 @@
 - id: class_super_not_usable_from_inline_warn
   msg: "%select{type referenced from |}0the superclass of a '@usableFromInline' class should be '@usableFromInline' or public"
 
+- id: metatype_self
+  msg: >-
+    self expression applied to a metatype results in a meta-metatype,
+    which may be unexpected
+
+- id: metatype_self_silence
+  msg: >-
+    add parentheses to silence this warning
+
 - id: dot_protocol_on_non_existential
   msg: "cannot use 'Protocol' with non-protocol type %0"
 

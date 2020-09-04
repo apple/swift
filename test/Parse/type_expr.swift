@@ -78,8 +78,8 @@ func qualifiedType() {
 
 // We allow '.Type' in expr context
 func metaType() {
-  let _ = Foo.Type.self
-  let _ = Foo.Type.self
+  let _ = Foo.Type.self // expected-warning{{self expression applied to a metatype results in a meta-metatype, which may be unexpected}} {{15-19=}}
+  // expected-note@-1 {{add parentheses to silence this warning}}
 
   let _ = Foo.Type // expected-error{{expected member name or constructor call after type name}}
   // expected-note@-1 {{use '.self' to reference the type object}}
@@ -194,11 +194,14 @@ protocol P {}
 
 func meta_metatypes() {
   let _: P.Protocol = P.self
-  _ = P.Type.self
-  _ = P.Protocol.self
+  _ = P.Type.self // expected-warning{{self expression applied to a metatype results in a meta-metatype, which may be unexpected}} {{9-13=}}
+  // expected-note@-1 {{add parentheses to silence this warning}}
+  _ = P.Protocol.self // expected-warning{{self expression applied to a metatype results in a meta-metatype, which may be unexpected}} {{9-17=}}
+  // expected-note@-1 {{add parentheses to silence this warning}}
   _ = P.Protocol.Protocol.self // expected-error{{cannot use 'Protocol' with non-protocol type 'P.Protocol'}}
-  _ = P.Protocol.Type.self
-  _ = B.Type.self
+  _ = P.Protocol.Type.self // expected-warning{{self expression applied to a metatype results in a meta-metatype, which may be unexpected}} {{18-22=}}
+  // expected-note@-1 {{add parentheses to silence this warning}}
+  _ = (B.Type).self
 }
 
 class E {

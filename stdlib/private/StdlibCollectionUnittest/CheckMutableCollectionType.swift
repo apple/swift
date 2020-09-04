@@ -156,7 +156,7 @@ extension TestSuite {
       return makeCollectionOfComparable(elements.map(wrapValueIntoComparable))
     }
 
-    testNamePrefix += String(describing: C.Type.self)
+    testNamePrefix += String(describing: C.self)
 
 //===----------------------------------------------------------------------===//
 // subscript(_: Index)
@@ -907,7 +907,7 @@ self.test("\(testNamePrefix).partition/InvalidOrderings") {
       return makeCollection(elements.map(wrapValue))
     }
 
-    testNamePrefix += String(describing: C.Type.self)
+    testNamePrefix += String(describing: C.self)
 
 //===----------------------------------------------------------------------===//
 // subscript(_: Index)
@@ -1055,7 +1055,7 @@ self.test("\(testNamePrefix).partition/DispatchesThrough_withUnsafeMutableBuffer
       return makeCollectionOfComparable(elements.map(wrapValueIntoComparable))
     }
 
-    testNamePrefix += String(describing: C.Type.self)
+    testNamePrefix += String(describing: C.self)
 
 //===----------------------------------------------------------------------===//
 // sort()
