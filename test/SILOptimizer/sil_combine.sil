@@ -1,5 +1,7 @@
 // RUN: %target-sil-opt -enable-objc-interop -enforce-exclusivity=none -enable-sil-verify-all %s -sil-combine -verify-skip-unreachable-must-be-last | %FileCheck %s
 
+// REQUIRES: swift_stable_abi
+
 // Declare this SIL to be canonical because some tests break raw SIL
 // conventions. e.g. address-type block args. -enforce-exclusivity=none is also
 // required to allow address-type block args in canonical SIL.

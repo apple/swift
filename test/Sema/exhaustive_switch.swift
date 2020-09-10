@@ -3,6 +3,8 @@
 // RUN: %target-typecheck-verify-swift -swift-version 5 -enable-library-evolution -I %t
 // RUN: %target-typecheck-verify-swift -swift-version 4 -enable-library-evolution -enable-nonfrozen-enum-exhaustivity-diagnostics -I %t
 
+// REQUIRES: swift_stable_abi
+
 import exhaustive_switch_testable_helper
 
 func foo(a: Int?, b: Int?) -> Int {

@@ -4,6 +4,7 @@
 // RUN: %target-codesign %t/a.out
 // RUN: %target-run %t/a.out
 // REQUIRES: executable_test
+// REQUIRES: swift_stable_abi
 
 // Tests for traps at run time when enforcing exclusive access.
 

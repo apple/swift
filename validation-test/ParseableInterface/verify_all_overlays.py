@@ -13,6 +13,7 @@
 # RUN:   diff %t/filter.txt %t/failures.txt
 
 # REQUIRES: nonexecutable_test, no_asan
+# REQUIRES: swift_stable_abi
 
 # Expected failures by platform
 # -----------------------------

@@ -1,5 +1,7 @@
 // RUN: %target-typecheck-verify-swift -swift-version 4 -enable-library-evolution
 
+// REQUIRES: swift_stable_abi
+
 func foo(a: Int?, b: Int?) -> Int {
   switch (a, b) {
   case (.none, _): return 1

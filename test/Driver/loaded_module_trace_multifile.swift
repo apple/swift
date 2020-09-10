@@ -4,6 +4,8 @@
 // RUN: %target-build-swift %s %S/Inputs/loaded_module_trace_imports_module.swift -emit-loaded-module-trace-path %t/multifile.trace.json -emit-library -o %t/loaded_module_trace_multifile -I %t
 // RUN: %FileCheck %s < %t/multifile.trace.json
 
+// REQUIRES: swift_stable_abi
+
 // This file only imports Module2, but the other file imports Module: hopefully they both appear!
 // The difference between this test and the one in loaded_module_trace is that here, we test that
 // dependencies from multiple files in the same module are accounted for correctly. As a result,

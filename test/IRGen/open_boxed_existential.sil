@@ -1,5 +1,7 @@
 // RUN: %target-swift-frontend %s -emit-ir | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-%target-runtime
 
+// REQUIRES: swift_stable_abi
+
 import Swift
 
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc {{i[0-9]+}} @open_boxed_existential(%swift.error* %0)

@@ -119,9 +119,6 @@ void _destroy_temporary_continuation(YieldOnceBuffer *buffer, bool forUnwind) {
   YieldOnceTemporary::destroyAndDeallocateIn(buffer);
 }
 
-// The resilient offset to the start of KeyPath's class-specific data.
-extern "C" size_t MANGLE_SYM(s7KeyPathCMo);
-
 YieldOnceResult<const OpaqueValue*>
 swift::swift_readAtKeyPath(YieldOnceBuffer *buffer,
                            const OpaqueValue *root, void *keyPath) {
@@ -134,12 +131,11 @@ swift::swift_readAtKeyPath(YieldOnceBuffer *buffer,
   // data section of the class; the generic arguments are always at the start
   // of that.
   //
-  // We use the resilient access pattern because it's easy; since we're within
-  // KeyPath's resilience domain, that's not really necessary, and it would
-  // be totally valid to hard-code an offset.
+  // We're within KeyPath's resilience domain, let's just hard-code an offset
+  // to the start of KeyPath's class-specific data.
   auto keyPathGenericArgs =
     reinterpret_cast<const Metadata * const *>(
-      reinterpret_cast<const char*>(keyPathType) + MANGLE_SYM(s7KeyPathCMo));
+      reinterpret_cast<const char*>(keyPathType) + 0 /* XXX TODO FIXME */);
   const Metadata *valueTy = keyPathGenericArgs[1];
 
   // Allocate the buffer.

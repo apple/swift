@@ -5,6 +5,8 @@
 // RUN: %target-swift-frontend -module-name struct_resilience -Xllvm -sil-disable-pass=GuaranteedARCOpts -I %t -emit-ir -enable-library-evolution %s | %FileCheck %s
 // RUN: %target-swift-frontend -module-name struct_resilience -I %t -emit-ir -enable-library-evolution -O %s
 
+// REQUIRES: swift_stable_abi
+
 import resilient_struct
 import resilient_enum
 

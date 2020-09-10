@@ -1,6 +1,7 @@
 // RUN: %swift -prespecialize-generic-metadata -target %module-target-future -emit-ir %s | %FileCheck %s -DINT=i%target-ptrsize -DALIGNMENT=%target-alignment
 
 // REQUIRES: VENDOR=apple || OS=linux-gnu
+// REQUIRES: swift_stable_abi
 // UNSUPPORTED: CPU=i386 && OS=ios
 // UNSUPPORTED: CPU=armv7 && OS=ios
 // UNSUPPORTED: CPU=armv7s && OS=ios

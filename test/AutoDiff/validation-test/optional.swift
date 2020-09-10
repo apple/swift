@@ -1,5 +1,6 @@
 // RUN: %target-run-simple-swift
 // REQUIRES: executable_test
+// REQUIRES: swift_stable_abi
 
 // Test differentiation of `Optional` values and operations.
 

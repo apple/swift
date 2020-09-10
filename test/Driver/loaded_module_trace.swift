@@ -5,6 +5,8 @@
 // RUN: %FileCheck -check-prefix=CHECK %s < %t/loaded_module_trace.trace.json
 // RUN: %FileCheck -check-prefix=CHECK-CONFIRM-ONELINE %s < %t/loaded_module_trace.trace.json
 
+// REQUIRES: swift_stable_abi
+
 // CHECK: {
 // CHECK: "version":2
 // CHECK: "name":"loaded_module_trace"

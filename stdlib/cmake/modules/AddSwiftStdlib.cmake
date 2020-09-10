@@ -298,6 +298,12 @@ function(_add_target_variant_c_compile_flags)
     list(APPEND result "-DSWIFT_OBJC_INTEROP=0")
   endif()
 
+  if("${CFLAGS_SDK}" IN_LIST SWIFT_APPLE_PLATFORMS)
+    list(APPEND result "-DSWIFT_LIBRARY_EVOLUTION=1")
+  else()
+    list(APPEND result "-DSWIFT_LIBRARY_EVOLUTION=0")
+  endif()
+
   if(NOT SWIFT_ENABLE_COMPATIBILITY_OVERRIDES)
     list(APPEND result "-DSWIFT_RUNTIME_NO_COMPATIBILITY_OVERRIDES")
   endif()

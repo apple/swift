@@ -328,8 +328,13 @@ struct swift_closure {
   void *fptr;
   HeapObject *context;
 };
+#if SWIFT_LIBRARY_EVOLUTION
 SWIFT_RUNTIME_STDLIB_API SWIFT_CC(swift) swift_closure
 MANGLE_SYM(s20_playgroundPrintHookySScSgvg)();
+#else
+SWIFT_RUNTIME_STDLIB_API swift_closure
+MANGLE_SYM(s20_playgroundPrintHookySScSgvp);
+#endif
 
 static bool _shouldReportMissingReflectionMetadataWarnings() {
   // Missing metadata warnings noise up playground sessions and aren't really
@@ -339,7 +344,11 @@ static bool _shouldReportMissingReflectionMetadataWarnings() {
   // Guesstimate whether we're in a playground by looking at the
   // _playgroundPrintHook variable in the standard library, which is set during
   // playground execution.
+  #if SWIFT_LIBRARY_EVOLUTION
   auto hook = MANGLE_SYM(s20_playgroundPrintHookySScSgvg)();
+  #else
+  auto hook = MANGLE_SYM(s20_playgroundPrintHookySScSgvp);
+  #endif
   if (hook.fptr) {
     swift_release(hook.context);
     return false;

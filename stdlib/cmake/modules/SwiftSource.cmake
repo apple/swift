@@ -399,8 +399,8 @@ function(_compile_swift_files
     list(APPEND swift_flags "-Xfrontend" "-sil-verify-all")
   endif()
 
-  # The standard library and overlays are always built resiliently.
-  if(SWIFTFILE_IS_STDLIB)
+  # The standard library and overlays are built resiliently on Darwin (has stable ABI).
+  if(SWIFTFILE_IS_STDLIB AND SWIFTFILE_SDK IN_LIST SWIFT_APPLE_PLATFORMS)
     list(APPEND swift_flags "-enable-library-evolution")
   endif()
 

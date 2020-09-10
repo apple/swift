@@ -1,6 +1,8 @@
 // RUN: %target-run-simple-swift | %FileCheck %s
 // REQUIRES: executable_test
 
+// REQUIRES: swift_stable_abi
+
 protocol Observed: AnyObject {
   func broadcastValueWillChange<T>(newValue: T)
 }

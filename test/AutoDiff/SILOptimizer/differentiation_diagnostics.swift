@@ -1,4 +1,5 @@
 // RUN: %target-swift-frontend -emit-sil -verify %s
+// REQUIRES: swift_stable_abi
 
 // Test differentiation transform diagnostics.
 

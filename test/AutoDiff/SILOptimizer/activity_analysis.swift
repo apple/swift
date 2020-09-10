@@ -1,5 +1,6 @@
 // RUN: %target-swift-emit-sil -verify -Xllvm -debug-only=differentiation 2>&1 %s | %FileCheck %s
 // REQUIRES: asserts
+// REQUIRES: swift_stable_abi
 
 import _Differentiation
 
