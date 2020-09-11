@@ -601,7 +601,8 @@ private:
   /// Otherwise, just return the passed-in size, which is always valid even if
   /// not necessarily optimal.
   size_t goodSize(size_t size) {
-#if defined(__APPLE__) && defined(__MACH__)
+#if defined(__APPLE__) && defined(__MACH__) && \
+        defined(SWIFT_STDLIB_HAS_DARWIN_LIBMALLOC)
     return malloc_good_size(size);
 #else
     return size;

@@ -196,6 +196,7 @@ KNOWN_SETTINGS=(
     swift-enable-compatibility-overrides          "1"               "whether to support back-deploying compatibility fixes for newer apps running on older runtimes"
     swift-runtime-macho-no-dyld                   "0"               "whether to build stdlib assuming the runtime environment does not support dynamic modules"
     swift-stdlib-single-threaded-runtime          "0"               "whether to build stdlib as a single-threaded runtime only"
+    swift-stdlib-has-darwin-libmalloc             "1"               "whether the Darwin build of stdlib can use extended libmalloc APIs"
 
     ## FREESTANDING Stdlib Options
     swift-freestanding-sdk                      ""                "which SDK to use when building the FREESTANDING stdlib"
@@ -1776,6 +1777,7 @@ for host in "${ALL_HOSTS[@]}"; do
                     -DSWIFT_STDLIB_SINGLE_THREADED_RUNTIME:BOOL=$(true_false "${SWIFT_STDLIB_SINGLE_THREADED_RUNTIME}")
                     -DSWIFT_ENABLE_RUNTIME_FUNCTION_COUNTERS:BOOL=$(true_false "${SWIFT_ENABLE_RUNTIME_FUNCTION_COUNTERS}")
                     -DSWIFT_RUNTIME_MACHO_NO_DYLD:BOOL=$(true_false "${SWIFT_RUNTIME_MACHO_NO_DYLD}")
+                    -DSWIFT_STDLIB_HAS_DARWIN_LIBMALLOC:BOOL=$(true_false "${SWIFT_STDLIB_HAS_DARWIN_LIBMALLOC}")
                     -DSWIFT_NATIVE_LLVM_TOOLS_PATH:STRING="${native_llvm_tools_path}"
                     -DSWIFT_NATIVE_CLANG_TOOLS_PATH:STRING="${native_clang_tools_path}"
                     -DSWIFT_NATIVE_SWIFT_TOOLS_PATH:STRING="${native_swift_tools_path}"
