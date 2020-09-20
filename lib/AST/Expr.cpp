@@ -1751,23 +1751,20 @@ Expr *CallExpr::getDirectCallee() const {
   }
 }
 
-void ExplicitCastExpr::setCastType(Type type) {
-  CastTy->setType(MetatypeType::get(type));
-}
-
 ForcedCheckedCastExpr *ForcedCheckedCastExpr::create(ASTContext &ctx,
                                                      SourceLoc asLoc,
                                                      SourceLoc exclaimLoc,
                                                      TypeRepr *tyRepr) {
-  return new (ctx) ForcedCheckedCastExpr(nullptr, asLoc, exclaimLoc,
-                                         new (ctx) TypeExpr(tyRepr));
+  return new (ctx) ForcedCheckedCastExpr(nullptr, asLoc, exclaimLoc, tyRepr);
 }
 
 ForcedCheckedCastExpr *
 ForcedCheckedCastExpr::createImplicit(ASTContext &ctx, Expr *sub, Type castTy) {
+  assert(!castTy.isNull() && "Implicit cast without a type?");
   auto *const expr = new (ctx) ForcedCheckedCastExpr(
-      sub, SourceLoc(), SourceLoc(), TypeExpr::createImplicit(castTy, ctx));
+      sub, SourceLoc(), SourceLoc(), /*repr=*/nullptr);
   expr->setType(castTy);
+  expr->setCastType(castTy);
   expr->setImplicit();
   return expr;
 }
@@ -1776,33 +1773,36 @@ ConditionalCheckedCastExpr *
 ConditionalCheckedCastExpr::create(ASTContext &ctx, SourceLoc asLoc,
                                    SourceLoc questionLoc, TypeRepr *tyRepr) {
   return new (ctx) ConditionalCheckedCastExpr(nullptr, asLoc, questionLoc,
-                                              new (ctx) TypeExpr(tyRepr));
+                                              tyRepr);
 }
 
 ConditionalCheckedCastExpr *
 ConditionalCheckedCastExpr::createImplicit(ASTContext &ctx, Expr *sub,
                                            Type castTy) {
+  assert(!castTy.isNull() && "Implicit cast without a type?");
   auto *const expr = new (ctx) ConditionalCheckedCastExpr(
-      sub, SourceLoc(), SourceLoc(), TypeExpr::createImplicit(castTy, ctx));
+      sub, SourceLoc(), SourceLoc(), /*repr=*/nullptr);
   expr->setType(OptionalType::get(castTy));
+  expr->setCastType(castTy);
   expr->setImplicit();
   return expr;
 }
 
 IsExpr *IsExpr::create(ASTContext &ctx, SourceLoc isLoc, TypeRepr *tyRepr) {
-  return new (ctx) IsExpr(nullptr, isLoc, new (ctx) TypeExpr(tyRepr));
+  return new (ctx) IsExpr(nullptr, isLoc, tyRepr);
 }
 
 CoerceExpr *CoerceExpr::create(ASTContext &ctx, SourceLoc asLoc,
                                TypeRepr *tyRepr) {
-  return new (ctx) CoerceExpr(nullptr, asLoc, new (ctx) TypeExpr(tyRepr));
+  return new (ctx) CoerceExpr(nullptr, asLoc, tyRepr);
 }
 
 CoerceExpr *CoerceExpr::createImplicit(ASTContext &ctx, Expr *sub,
                                        Type castTy) {
-  auto *const expr = new (ctx)
-      CoerceExpr(sub, SourceLoc(), TypeExpr::createImplicit(castTy, ctx));
+  assert(!castTy.isNull() && "Implicit cast without a type?");
+  auto *const expr = new (ctx) CoerceExpr(sub, SourceLoc(), /*repr=*/nullptr);
   expr->setType(castTy);
+  expr->setCastType(castTy);
   expr->setImplicit();
   return expr;
 }
@@ -1811,7 +1811,7 @@ CoerceExpr *CoerceExpr::forLiteralInit(ASTContext &ctx, Expr *literal,
                                        SourceRange range,
                                        TypeRepr *literalTyRepr) {
   auto *const expr =
-      new (ctx) CoerceExpr(range, literal, new (ctx) TypeExpr(literalTyRepr));
+      new (ctx) CoerceExpr(range, literal, literalTyRepr);
   expr->setImplicit();
   return expr;
 }
@@ -2392,6 +2392,19 @@ SourceLoc TapExpr::getEndLoc() const {
   if (auto *const se = getSubExpr())
     return se->getEndLoc();
   return SourceLoc();
+}
+
+SourceRange ExplicitCastExpr::getSourceRange() const {
+  if (CastRepr == nullptr)
+    return SourceRange();
+  const SourceRange castTyRange = CastRepr->getSourceRange();
+  if (castTyRange.isInvalid())
+    return SubExpr->getSourceRange();
+
+  auto startLoc = SubExpr ? SubExpr->getStartLoc() : AsLoc;
+  auto endLoc = castTyRange.End;
+
+  return {startLoc, endLoc};
 }
 
 void swift::simple_display(llvm::raw_ostream &out, const ClosureExpr *CE) {

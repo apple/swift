@@ -1345,7 +1345,7 @@ public:
 ///
 /// The type of this expression is always \c MetatypeType.
 class TypeExpr : public Expr {
-  TypeRepr *Repr;
+  TypeRepr *const Repr;
 public:
   /// Create a \c TypeExpr from a parsed \c TypeRepr.
   TypeExpr(TypeRepr *Ty);
@@ -4636,22 +4636,27 @@ public:
 class ExplicitCastExpr : public Expr {
   Expr *SubExpr;
   SourceLoc AsLoc;
-  TypeExpr *const CastTy;
+  Type CastTy;
+  TypeRepr *const CastRepr;
 
 protected:
-  ExplicitCastExpr(ExprKind kind, Expr *sub, SourceLoc AsLoc, TypeExpr *castTy)
+  ExplicitCastExpr(ExprKind kind, Expr *sub, SourceLoc AsLoc, TypeRepr *repr)
       : Expr(kind, /*Implicit=*/false), SubExpr(sub), AsLoc(AsLoc),
-        CastTy(castTy) {}
+        CastTy(Type()), CastRepr(repr) {}
 
 public:
   Expr *getSubExpr() const { return SubExpr; }
 
   /// Get the type syntactically spelled in the cast. For some forms of checked
   /// cast this is different from the result type of the expression.
-  Type getCastType() const { return CastTy->getInstanceType(); }
-  void setCastType(Type type);
+  Type getCastType() const { return CastTy; }
+  void setCastType(Type type) {
+    assert((CastTy.isNull() || CastTy.getPointer() == type.getPointer()) &&
+           "Cannot change cast type after initialization");
+    CastTy = type;
+  }
 
-  TypeRepr *getCastTypeRepr() const { return CastTy->getTypeRepr(); }
+  TypeRepr *getCastTypeRepr() const { return CastRepr; }
 
   void setSubExpr(Expr *E) { SubExpr = E; }
 
@@ -4666,16 +4671,7 @@ public:
     return AsLoc;
   }
 
-  SourceRange getSourceRange() const {
-    const SourceRange castTyRange = CastTy->getSourceRange();
-    if (castTyRange.isInvalid())
-      return SubExpr->getSourceRange();
-    
-    auto startLoc = SubExpr ? SubExpr->getStartLoc() : AsLoc;
-    auto endLoc = castTyRange.End;
-    
-    return {startLoc, endLoc};
-  }
+  SourceRange getSourceRange() const;
   
   /// True if the node has been processed by SequenceExpr folding.
   bool isFolded() const { return SubExpr; }
@@ -4693,7 +4689,7 @@ StringRef getCheckedCastKindName(CheckedCastKind kind);
 /// casts that can dynamically fail.
 class CheckedCastExpr : public ExplicitCastExpr {
 protected:
-  CheckedCastExpr(ExprKind kind, Expr *sub, SourceLoc asLoc, TypeExpr *castTy)
+  CheckedCastExpr(ExprKind kind, Expr *sub, SourceLoc asLoc, TypeRepr *castTy)
       : ExplicitCastExpr(kind, sub, asLoc, castTy) {
     Bits.CheckedCastExpr.CastKind = unsigned(CheckedCastKind::Unresolved);
   }
@@ -4726,7 +4722,7 @@ class ForcedCheckedCastExpr final : public CheckedCastExpr {
   SourceLoc ExclaimLoc;
 
   ForcedCheckedCastExpr(Expr *sub, SourceLoc asLoc, SourceLoc exclaimLoc,
-                        TypeExpr *type)
+                        TypeRepr *type)
       : CheckedCastExpr(ExprKind::ForcedCheckedCast, sub, asLoc, type),
         ExclaimLoc(exclaimLoc) {}
 
@@ -4753,7 +4749,7 @@ class ConditionalCheckedCastExpr final : public CheckedCastExpr {
   SourceLoc QuestionLoc;
 
   ConditionalCheckedCastExpr(Expr *sub, SourceLoc asLoc, SourceLoc questionLoc,
-                             TypeExpr *type)
+                             TypeRepr *type)
       : CheckedCastExpr(ExprKind::ConditionalCheckedCast, sub, asLoc, type),
         QuestionLoc(questionLoc) {}
 
@@ -4779,7 +4775,7 @@ public:
 ///
 /// FIXME: We should support type queries with a runtime metatype value too.
 class IsExpr final : public CheckedCastExpr {
-  IsExpr(Expr *sub, SourceLoc isLoc, TypeExpr *type)
+  IsExpr(Expr *sub, SourceLoc isLoc, TypeRepr *type)
       : CheckedCastExpr(ExprKind::Is, sub, isLoc, type) {}
 
 public:
@@ -4799,10 +4795,10 @@ class CoerceExpr final : public ExplicitCastExpr {
   /// call source range to save some storage.
   SourceLoc InitRangeEnd;
 
-  CoerceExpr(Expr *sub, SourceLoc asLoc, TypeExpr *type)
+  CoerceExpr(Expr *sub, SourceLoc asLoc, TypeRepr *type)
       : ExplicitCastExpr(ExprKind::Coerce, sub, asLoc, type) {}
 
-  CoerceExpr(SourceRange initRange, Expr *literal, TypeExpr *type)
+  CoerceExpr(SourceRange initRange, Expr *literal, TypeRepr *type)
       : ExplicitCastExpr(ExprKind::Coerce, literal, initRange.Start, type),
         InitRangeEnd(initRange.End) {}
 
