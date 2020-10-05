@@ -400,6 +400,16 @@ bool getAllBorrowIntroducingValues(SILValue value,
 /// introducer, then we return a .some(BorrowScopeIntroducingValue).
 Optional<BorrowedValue> getSingleBorrowIntroducingValue(SILValue inputValue);
 
+/// Pass all uses of guaranteed value \p value to \p visitor looking through
+/// guaranteed forwarding instructions.
+///
+/// \returns true if we were able to visit all uses, false if callback asked us
+/// to end iterating early.
+/// \arg visitor The visitor callback passed in by the caller. Return false to
+/// stop visiting early.
+bool visitGuaranteedValueUsesIgnoringForwarding(
+    SILValue value, function_ref<bool(Operand *)> visitor);
+
 class InteriorPointerOperandKind {
 public:
   enum Kind : uint8_t {

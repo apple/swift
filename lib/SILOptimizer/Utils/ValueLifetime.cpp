@@ -90,7 +90,7 @@ SILInstruction *ValueLifetimeAnalysis::findLastUserInBlock(SILBasicBlock *bb) {
   llvm_unreachable("Expected to find use of value in block!");
 }
 
-bool ValueLifetimeAnalysis::computeFrontier(Frontier &frontier, Mode mode,
+bool ValueLifetimeAnalysis::computeFrontier(FrontierImpl &frontier, Mode mode,
                                             DeadEndBlocks *deBlocks) {
   assert(!isAliveAtBeginOfBlock(getFunction()->getEntryBlock()) &&
          "Can't compute frontier for def which does not dominate all uses");
@@ -287,7 +287,7 @@ blockContainsDeallocRef(SILBasicBlock *bb,
   return false;
 }
 
-bool ValueLifetimeAnalysis::containsDeallocRef(const Frontier &frontier) {
+bool ValueLifetimeAnalysis::containsDeallocRef(const FrontierImpl &frontier) {
   SmallPtrSet<SILBasicBlock *, 8> frontierBlocks;
   // Search in live blocks where the value is not alive until the end of the
   // block, i.e. the live range is terminated by a frontier instruction.
@@ -326,7 +326,8 @@ void ValueLifetimeAnalysis::dump() const {
 }
 
 void swift::endLifetimeAtFrontier(
-    SILValue valueOrStackLoc, const ValueLifetimeAnalysis::Frontier &frontier,
+    SILValue valueOrStackLoc,
+    const ValueLifetimeAnalysis::FrontierImpl &frontier,
     SILBuilderContext &builderCtxt) {
   for (SILInstruction *endPoint : frontier) {
     SILBuilderWithScope builder(endPoint, builderCtxt);

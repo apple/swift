@@ -1,0 +1,478 @@
+// RUN: %target-sil-opt -semantic-arc-opts -sil-semantic-arc-coroutine-lifetime-extend-copy-elim %s | %FileCheck %s
+
+sil_stage canonical
+
+import Builtin
+
+enum FakeOptional<T> {
+case none
+case some(T)
+}
+
+class Klass {
+  init()
+}
+
+class InternalState {
+  private final var _klass: Klass
+  final var klass: Klass { get }
+  init()
+}
+
+struct InternalStateWrapper {
+  private var _state: InternalState
+  private var _optState: FakeOptional<InternalState>
+  private var state: InternalState { get }
+  var klass: Klass { get }
+  init(_state: InternalState = InternalState())
+  init()
+}
+
+sil [ossa] @klass_user : $@convention(thin) (@guaranteed Klass) -> ()
+
+sil hidden [ossa] @coroutine_access_class_in_internal_state : $@yield_once @convention(method) (@guaranteed InternalState) -> @yields @guaranteed Klass {
+bb0(%0 : @guaranteed $InternalState):
+  %2 = ref_element_addr %0 : $InternalState, #InternalState._klass
+  %3 = begin_access [read] [dynamic] %2 : $*Klass
+  %4 = load [copy] %3 : $*Klass
+  end_access %3 : $*Klass
+  yield %4 : $Klass, resume bb1, unwind bb2
+
+bb1:
+  destroy_value %4 : $Klass
+  %8 = tuple ()
+  return %8 : $()
+
+bb2:
+  destroy_value %4 : $Klass
+  unwind
+}
+
+sil private [ossa] @simple_coroutine_access_internal_state_from_wrapper : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @guaranteed InternalState {
+bb0(%0 : @guaranteed $InternalStateWrapper):
+  %2 = struct_extract %0 : $InternalStateWrapper, #InternalStateWrapper._state
+  yield %2 : $InternalState, resume bb1, unwind bb2
+
+bb1:
+  %4 = tuple ()
+  return %4 : $()
+
+bb2:
+  unwind
+}
+
+// CHECK-LABEL: sil hidden [ossa] @simple_coroutine_caller : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @guaranteed Klass {
+// CHECK: bb0([[ARG:%.*]] :
+// CHECK:   ([[YIELDED_VALUE:%.*]], [[TOKEN_VALUE:%.*]]) = begin_apply {{%.*}}([[ARG]])
+// CHECK:   [[BORROWED_COPY_VALUE:%.*]] = begin_borrow [[YIELDED_VALUE]]
+// CHECK:   ({{%.*}}, [[TOKEN_VALUE_2:%.*]]) = begin_apply {{%.*}}([[BORROWED_COPY_VALUE]])
+// CHECK:   yield {{.*}}, resume [[RESUME_BB:bb[0-9]+]], unwind [[UNWIND_BB:bb[0-9]+]]
+//
+// CHECK: [[RESUME_BB]]:
+// CHECK:   end_apply [[TOKEN_VALUE_2]]
+// CHECK:   end_borrow [[BORROWED_COPY_VALUE]]
+// CHECK:   end_apply [[TOKEN_VALUE]]
+// CHECK:   return
+//
+// CHECK: [[UNWIND_BB]]:
+// CHECK:   end_apply [[TOKEN_VALUE_2]]
+// CHECK:   end_borrow [[BORROWED_COPY_VALUE]]
+// CHECK:   end_apply [[TOKEN_VALUE]]
+// CHECK:   unwind
+// CHECK: } // end sil function 'simple_coroutine_caller'
+sil hidden [ossa] @simple_coroutine_caller : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @guaranteed Klass {
+bb0(%0 : @guaranteed $InternalStateWrapper):
+  %2 = function_ref @simple_coroutine_access_internal_state_from_wrapper : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @guaranteed InternalState
+  (%3, %4) = begin_apply %2(%0) : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @guaranteed InternalState
+  %5 = copy_value %3 : $InternalState
+  end_apply %4
+  %7 = begin_borrow %5 : $InternalState
+  %8 = function_ref @coroutine_access_class_in_internal_state : $@yield_once @convention(method) (@guaranteed InternalState) -> @yields @guaranteed Klass
+  (%9, %10) = begin_apply %8(%7) : $@yield_once @convention(method) (@guaranteed InternalState) -> @yields @guaranteed Klass
+  yield %9 : $Klass, resume bb1, unwind bb2
+
+bb1:
+  end_apply %10
+  end_borrow %7 : $InternalState
+  destroy_value %5 : $InternalState
+  %15 = tuple ()
+  return %15 : $()
+
+bb2:
+  end_apply %10
+  end_borrow %7 : $InternalState
+  destroy_value %5 : $InternalState
+  unwind
+}
+
+// Tests for forwarding insts.
+
+// CHECK-LABEL: sil hidden [ossa] @simple_coroutine_caller_direct_extract : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @in_guaranteed Klass {
+// CHECK-NOT: copy_value
+// CHECK: } // end sil function 'simple_coroutine_caller_direct_extract'
+sil hidden [ossa] @simple_coroutine_caller_direct_extract : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @in_guaranteed Klass {
+bb0(%0 : @guaranteed $InternalStateWrapper):
+  %2 = function_ref @simple_coroutine_access_internal_state_from_wrapper : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @guaranteed InternalState
+  (%3, %4) = begin_apply %2(%0) : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @guaranteed InternalState
+  %5 = copy_value %3 : $InternalState
+  end_apply %4
+  %7 = begin_borrow %5 : $InternalState
+  %9 = ref_element_addr %7 : $InternalState, #InternalState._klass
+  yield %9 : $*Klass, resume bb1, unwind bb2
+
+bb1:
+  end_borrow %7 : $InternalState
+  destroy_value %5 : $InternalState
+  %15 = tuple ()
+  return %15 : $()
+
+bb2:
+  end_borrow %7 : $InternalState
+  destroy_value %5 : $InternalState
+  unwind
+}
+
+// Test dead end blocks where we do not place various end_borrow, destroy_value
+// etc. Make sure to include a switch_enum test case so last use along a path is
+// a consuming use that is not a destroy.
+//
+// CHECK-LABEL: sil hidden [ossa] @simple_coroutine_caller_unreachable_1 : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @in_guaranteed Klass {
+// CHECK-NOT: copy_value
+// CHECK: } // end sil function 'simple_coroutine_caller_unreachable_1'
+sil hidden [ossa] @simple_coroutine_caller_unreachable_1 : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @in_guaranteed Klass {
+bb0(%0 : @guaranteed $InternalStateWrapper):
+  %2 = function_ref @simple_coroutine_access_internal_state_from_wrapper : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @guaranteed InternalState
+  (%3, %4) = begin_apply %2(%0) : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @guaranteed InternalState
+  %5 = copy_value %3 : $InternalState
+  end_apply %4
+  %7 = begin_borrow %5 : $InternalState
+  %9 = ref_element_addr %7 : $InternalState, #InternalState._klass
+  yield %9 : $*Klass, resume bb1, unwind bb2
+
+bb1:
+  cond_br undef, bb3, bb4
+
+bb2:
+  end_borrow %7 : $InternalState
+  destroy_value %5 : $InternalState
+  unwind
+
+bb3:
+  end_borrow %7 : $InternalState
+  destroy_value %5 : $InternalState
+  %15 = tuple ()
+  return %15 : $()
+
+bb4:
+  unreachable
+}
+
+sil [ossa] @coroutine_get_optional_from_wrapper : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @guaranteed FakeOptional<InternalState> {
+bb0(%0 : @guaranteed $InternalStateWrapper):
+  %1 = struct_extract %0 : $InternalStateWrapper, #InternalStateWrapper._optState
+  yield %1 : $FakeOptional<InternalState>, resume bb1, unwind bb2
+
+bb1:
+  %8 = tuple ()
+  return %8 : $()
+
+bb2:
+  unwind
+}
+
+// CHECK-LABEL: sil hidden [ossa] @simple_coroutine_caller_unreachable_2 : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @guaranteed InternalState {
+// CHECK-NOT: copy_value
+// CHECK: } // end sil function 'simple_coroutine_caller_unreachable_2'
+sil hidden [ossa] @simple_coroutine_caller_unreachable_2 : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @guaranteed InternalState {
+bb0(%0 : @guaranteed $InternalStateWrapper):
+  %2 = function_ref @coroutine_get_optional_from_wrapper : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @guaranteed FakeOptional<InternalState>
+  (%3, %4) = begin_apply %2(%0) : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @guaranteed FakeOptional<InternalState>
+  %5 = copy_value %3 : $FakeOptional<InternalState>
+  end_apply %4
+  switch_enum %5 : $FakeOptional<InternalState>, case #FakeOptional.some: bbSome, case #FakeOptional.none: bbNone
+
+bbSome(%6 : @owned $InternalState):
+  %7 = begin_borrow %6 : $InternalState
+  yield %7 : $InternalState, resume bbResume, unwind bbUnwind
+
+bbUnwind:
+  end_borrow %7 : $InternalState
+  destroy_value %6 : $InternalState
+  unwind
+
+bbResume:
+  end_borrow %7 : $InternalState
+  destroy_value %6 : $InternalState
+  %15 = tuple ()
+  return %15 : $()
+
+bbNone:
+  unreachable
+}
+
+sil @consume_internalstate : $@convention(thin) (@owned InternalState) -> ()
+
+// Make sure that if copy value is consumed, we bail
+//
+// CHECK-LABEL: sil hidden [ossa] @simple_coroutine_caller_consumed_copyvalue : $@convention(method) (@guaranteed InternalStateWrapper) -> () {
+// CHECK: copy_value
+// CHECK-NEXT: end_apply
+// CHECK-NEXT: switch_enum
+// CHECK: } // end sil function 'simple_coroutine_caller_consumed_copyvalue'
+sil hidden [ossa] @simple_coroutine_caller_consumed_copyvalue : $@convention(method) (@guaranteed InternalStateWrapper) -> () {
+bb0(%0 : @guaranteed $InternalStateWrapper):
+  %2 = function_ref @coroutine_get_optional_from_wrapper : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @guaranteed FakeOptional<InternalState>
+  (%3, %4) = begin_apply %2(%0) : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @guaranteed FakeOptional<InternalState>
+  %5 = copy_value %3 : $FakeOptional<InternalState>
+  end_apply %4
+  switch_enum %5 : $FakeOptional<InternalState>, case #FakeOptional.some: bbSome, case #FakeOptional.none: bbNone
+
+bbSome(%6 : @owned $InternalState):
+  %f = function_ref @consume_internalstate : $@convention(thin) (@owned InternalState) -> ()
+  apply %f(%6) : $@convention(thin) (@owned InternalState) -> ()
+  %15 = tuple ()
+  return %15 : $()
+
+bbNone:
+  unreachable
+}
+
+// Make sure we bail if our coroutine has an abort.
+
+// First make sure we succeed in eliminating the copy_value given the two end_apply diamonds.
+//
+// CHECK-LABEL: sil hidden [ossa] @simple_coroutine_caller_diamond_no_abort : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @in_guaranteed Klass {
+// CHECK-NOT: copy_value
+// CHECK: } // end sil function 'simple_coroutine_caller_diamond_no_abort'
+sil hidden [ossa] @simple_coroutine_caller_diamond_no_abort : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @in_guaranteed Klass {
+bb0(%0 : @guaranteed $InternalStateWrapper):
+  %2 = function_ref @simple_coroutine_access_internal_state_from_wrapper : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @guaranteed InternalState
+  (%3, %4) = begin_apply %2(%0) : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @guaranteed InternalState
+  %5 = copy_value %3 : $InternalState
+  cond_br undef, bb1a, bb1b
+
+bb1a:
+  end_apply %4
+  br bb1c
+
+bb1b:
+  end_apply %4
+  br bb1c
+
+bb1c:
+  %7 = begin_borrow %5 : $InternalState
+  %9 = ref_element_addr %7 : $InternalState, #InternalState._klass
+  yield %9 : $*Klass, resume bb1, unwind bb2
+
+bb1:
+  end_borrow %7 : $InternalState
+  destroy_value %5 : $InternalState
+  %15 = tuple ()
+  return %15 : $()
+
+bb2:
+  end_borrow %7 : $InternalState
+  destroy_value %5 : $InternalState
+  unwind
+}
+
+// Then make sure we do not eliminate the copy_value if we convert one of those end_apply to an abort_apply
+//
+// CHECK-LABEL: sil hidden [ossa] @simple_coroutine_caller_diamond_with_abort : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @in_guaranteed Klass {
+// CHECK: copy_value
+// CHECK: } // end sil function 'simple_coroutine_caller_diamond_with_abort'
+sil hidden [ossa] @simple_coroutine_caller_diamond_with_abort : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @in_guaranteed Klass {
+bb0(%0 : @guaranteed $InternalStateWrapper):
+  %2 = function_ref @simple_coroutine_access_internal_state_from_wrapper : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @guaranteed InternalState
+  (%3, %4) = begin_apply %2(%0) : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @guaranteed InternalState
+  %5 = copy_value %3 : $InternalState
+  cond_br undef, bb1a, bb1b
+
+bb1a:
+  abort_apply %4
+  br bb1c
+
+bb1b:
+  end_apply %4
+  br bb1c
+
+bb1c:
+  %7 = begin_borrow %5 : $InternalState
+  %9 = ref_element_addr %7 : $InternalState, #InternalState._klass
+  yield %9 : $*Klass, resume bb1, unwind bb2
+
+bb1:
+  end_borrow %7 : $InternalState
+  destroy_value %5 : $InternalState
+  %15 = tuple ()
+  return %15 : $()
+
+bb2:
+  end_borrow %7 : $InternalState
+  destroy_value %5 : $InternalState
+  unwind
+}
+
+// Make sure we bail if our coroutine yields multiple times. We can support this
+// with time, just for simplicity now we do not support it.
+sil private [ossa] @simple_coroutine_access_internal_state_from_wrapper_multiple_yield : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @guaranteed InternalState {
+bb0(%0 : @guaranteed $InternalStateWrapper):
+  cond_br undef, bb1a, bb1b
+
+bb1a:
+  %2 = struct_extract %0 : $InternalStateWrapper, #InternalStateWrapper._state
+  yield %2 : $InternalState, resume bb1c, unwind bb2a
+
+bb1b:
+  %3 = struct_extract %0 : $InternalStateWrapper, #InternalStateWrapper._state
+  yield %3 : $InternalState, resume bb1d, unwind bb2b
+
+bb1c:
+  br bb1
+
+bb1d:
+  br bb1
+
+bb1:
+  %4 = tuple ()
+  return %4 : $()
+
+bb2a:
+  br bb2
+
+bb2b:
+  br bb2
+
+bb2:
+  unwind
+}
+
+// We do not handle this due to the multiple yield.
+//
+// CHECK-LABEL: sil hidden [ossa] @simple_coroutine_caller_multiple_yield : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @guaranteed Klass {
+// CHECK: copy_value
+// CHECK: } // end sil function 'simple_coroutine_caller_multiple_yield'
+sil hidden [ossa] @simple_coroutine_caller_multiple_yield : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @guaranteed Klass {
+bb0(%0 : @guaranteed $InternalStateWrapper):
+  %2 = function_ref @simple_coroutine_access_internal_state_from_wrapper_multiple_yield : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @guaranteed InternalState
+  (%3, %4) = begin_apply %2(%0) : $@yield_once @convention(method) (@guaranteed InternalStateWrapper) -> @yields @guaranteed InternalState
+  %5 = copy_value %3 : $InternalState
+  end_apply %4
+  %7 = begin_borrow %5 : $InternalState
+  %8 = function_ref @coroutine_access_class_in_internal_state : $@yield_once @convention(method) (@guaranteed InternalState) -> @yields @guaranteed Klass
+  (%9, %10) = begin_apply %8(%7) : $@yield_once @convention(method) (@guaranteed InternalState) -> @yields @guaranteed Klass
+  yield %9 : $Klass, resume bb1, unwind bb2
+
+bb1:
+  end_apply %10
+  end_borrow %7 : $InternalState
+  destroy_value %5 : $InternalState
+  %15 = tuple ()
+  return %15 : $()
+
+bb2:
+  end_apply %10
+  end_borrow %7 : $InternalState
+  destroy_value %5 : $InternalState
+  unwind
+}
+
+sil [ossa] @simple_coroutine_yield_two_klass_tuple : $@yield_once @convention(method) (@guaranteed InternalState) -> @yields @guaranteed (Klass, FakeOptional<Klass>) {
+bb0(%0 : @guaranteed $InternalState):
+  %2 = ref_element_addr %0 : $InternalState, #InternalState._klass
+//  %3 = begin_access [read] [dynamic] %2 : $*Klass
+  %4 = load_borrow %2 : $*Klass
+  %5 = enum $FakeOptional<Klass>, #FakeOptional.some!enumelt, %4 : $Klass
+  %6 = tuple(%4 : $Klass, %5 : $FakeOptional<Klass>)
+  yield %6 : $(Klass, FakeOptional<Klass>), resume bb1, unwind bb2
+
+bb1:
+  end_borrow %4 : $Klass
+//  end_access %3 : $*Klass
+  %8 = tuple ()
+  return %8 : $()
+
+bb2:
+  end_borrow %4 : $Klass
+//  end_access %3 : $*Klass
+  unwind
+}
+
+// Make sure that in the following, we can eliminate the copy_value,
+// destroy_value /and/ that we move the end apply in bb2 to be after the apply.
+//
+// CHECK-LABEL: sil [ossa] @simple_coroutine_yield_two_klass_tuple_caller : $@convention(thin) (@guaranteed InternalState) -> () {
+// CHECK-NOT: copy_value
+// CHECK-NOT: destroy_value
+// CHECK: bb2:
+// CHECK-NEXT:   apply {{%.*}}({{%.*}})
+// CHECK-NEXT:   end_apply
+// CHECK: } // end sil function 'simple_coroutine_yield_two_klass_tuple_caller'
+sil [ossa] @simple_coroutine_yield_two_klass_tuple_caller : $@convention(thin) (@guaranteed InternalState) -> () {
+bb0(%0 : @guaranteed $InternalState):
+  %1 = function_ref @simple_coroutine_yield_two_klass_tuple : $@yield_once @convention(method) (@guaranteed InternalState) -> @yields @guaranteed (Klass, FakeOptional<Klass>)
+  %1a = function_ref @klass_user : $@convention(thin) (@guaranteed Klass) -> ()
+  (%2, %3) = begin_apply %1(%0) : $@yield_once @convention(method) (@guaranteed InternalState) -> @yields @guaranteed (Klass, FakeOptional<Klass>)
+  %4 = tuple_extract %2 : $(Klass, FakeOptional<Klass>), 0
+  %5 = tuple_extract %2 : $(Klass, FakeOptional<Klass>), 1
+  %6 = copy_value %4 : $Klass
+  cond_br undef, bb1, bb2
+
+bb1:
+  destroy_value %6 : $Klass
+  %5a = unchecked_enum_data %5 : $FakeOptional<Klass>, #FakeOptional.some!enumelt
+  apply %1a(%5a) : $@convention(thin) (@guaranteed Klass) -> ()
+  end_apply %3
+  br bb3
+
+bb2:
+  end_apply %3
+  apply %1a(%6) : $@convention(thin) (@guaranteed Klass) -> ()
+  destroy_value %6 : $Klass
+  br bb3
+
+bb3:
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @simple_coroutine_yield_two_klass_tuple_caller_2 : $@convention(thin) (@guaranteed InternalState) -> () {
+// CHECK-NOT: copy_value
+// CHECK-NOT: destroy_value
+// CHECK: } // end sil function 'simple_coroutine_yield_two_klass_tuple_caller_2'
+sil [ossa] @simple_coroutine_yield_two_klass_tuple_caller_2 : $@convention(thin) (@guaranteed InternalState) -> () {
+bb0(%0 : @guaranteed $InternalState):
+  %1 = function_ref @simple_coroutine_yield_two_klass_tuple : $@yield_once @convention(method) (@guaranteed InternalState) -> @yields @guaranteed (Klass, FakeOptional<Klass>)
+  %1a = function_ref @klass_user : $@convention(thin) (@guaranteed Klass) -> ()
+  (%2, %3) = begin_apply %1(%0) : $@yield_once @convention(method) (@guaranteed InternalState) -> @yields @guaranteed (Klass, FakeOptional<Klass>)
+  %4 = tuple_extract %2 : $(Klass, FakeOptional<Klass>), 0
+  %5 = tuple_extract %2 : $(Klass, FakeOptional<Klass>), 1
+  %6 = copy_value %5 : $FakeOptional<Klass>
+  cond_br undef, bb1, bb2
+
+bb1:
+  switch_enum %6 : $FakeOptional<Klass>, case #FakeOptional.some!enumelt: bbSome, case #FakeOptional.none!enumelt: bbNone
+
+bbSome(%7 : @owned $Klass):
+  destroy_value %7 : $Klass
+  %5a = unchecked_enum_data %5 : $FakeOptional<Klass>, #FakeOptional.some!enumelt
+  apply %1a(%5a) : $@convention(thin) (@guaranteed Klass) -> ()
+  end_apply %3
+  br bb3
+
+bbNone:
+  apply %1a(%4) : $@convention(thin) (@guaranteed Klass) -> ()
+  end_apply %3
+  br bb3
+
+bb2:
+  end_apply %3
+  %6a = unchecked_enum_data %6 : $FakeOptional<Klass>, #FakeOptional.some!enumelt
+  apply %1a(%6a) : $@convention(thin) (@guaranteed Klass) -> ()
+  destroy_value %6a : $Klass
+  br bb3
+
+bb3:
+  %9999 = tuple()
+  return %9999 : $()
+}

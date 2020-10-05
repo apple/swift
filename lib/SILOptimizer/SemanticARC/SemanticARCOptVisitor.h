@@ -58,6 +58,8 @@ struct LLVM_LIBRARY_VISIBILITY SemanticARCOptVisitor
 
   DeadEndBlocks &getDeadEndBlocks() { return ctx.getDeadEndBlocks(); }
 
+  SILFunction *getFunction() const { return &ctx.fn; }
+
   /// Given a single value instruction, RAUW it with newValue, add newValue to
   /// the worklist, and then call eraseInstruction on i.
   void eraseAndRAUWSingleValueInstruction(SingleValueInstruction *i,
@@ -82,6 +84,8 @@ struct LLVM_LIBRARY_VISIBILITY SemanticARCOptVisitor
     eraseInstruction(i);
   }
 
+  void verify() const;
+
   /// Pop values off of visitedSinceLastMutation, adding .some values to the
   /// worklist.
   void drainVisitedSinceLastMutationIntoWorklist() {
@@ -90,6 +94,7 @@ struct LLVM_LIBRARY_VISIBILITY SemanticARCOptVisitor
       if (!nextValue.hasValue()) {
         continue;
       }
+      assert(*nextValue);
       worklist.insert(*nextValue);
     }
   }

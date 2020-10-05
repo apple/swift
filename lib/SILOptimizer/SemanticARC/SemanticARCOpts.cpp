@@ -28,6 +28,7 @@ namespace {
 enum class TransformToPerformKind {
   Peepholes,
   OwnedToGuaranteedPhi,
+  CoroutineLifetimeExtendingCopyElimination,
 };
 
 } // anonymous namespace
@@ -41,7 +42,12 @@ static llvm::cl::list<TransformToPerformKind> TransformsToPerform(
                    "sil-semantic-arc-owned-to-guaranteed-phi",
                    "Perform Owned To Guaranteed Phi. NOTE: Seeded by peephole "
                    "optimizer for compile time saving purposes, so run this "
-                   "after running peepholes)")),
+                   "after running peepholes)"),
+        clEnumValN(
+            TransformToPerformKind::CoroutineLifetimeExtendingCopyElimination,
+            "sil-semantic-arc-coroutine-lifetime-extend-copy-elim",
+            "Attempt to eliminate copies by extending the lifetime of trivial "
+            "coroutines")),
     llvm::cl::desc(
         "For testing purposes only run the specified list of semantic arc "
         "optimization. If the list is empty, we run all transforms"));
@@ -66,7 +72,7 @@ struct SemanticARCOpts : SILFunctionTransform {
     for (auto transform : TransformsToPerform) {
       switch (transform) {
       case TransformToPerformKind::Peepholes:
-        if (performPeepholes(visitor)) {
+        if (performCanonicalizations(visitor)) {
           invalidateAnalysis(SILAnalysis::InvalidationKind::Instructions);
         }
         continue;
@@ -76,24 +82,32 @@ struct SemanticARCOpts : SILFunctionTransform {
               SILAnalysis::InvalidationKind::BranchesAndInstructions);
         }
         continue;
+      case TransformToPerformKind::CoroutineLifetimeExtendingCopyElimination:
+        if (tryEliminatingCopiesByLifetimeExtendingTrivialCoroutines(
+                visitor.ctx)) {
+          invalidateAnalysis(SILAnalysis::InvalidationKind::Instructions);
+        }
+        continue;
       }
+      llvm_unreachable("Unhandled case or missing continue?!");
     }
   }
 #endif
 
-  bool performPeepholes(SemanticARCOptVisitor &visitor) {
-    // Add all the results of all instructions that we want to visit to the
-    // worklist.
-    for (auto &block : *getFunction()) {
-      for (auto &inst : block) {
-        if (SemanticARCOptVisitor::shouldVisitInst(&inst)) {
-          for (SILValue v : inst.getResults()) {
-            visitor.worklist.insert(v);
-          }
-        }
-      }
+  bool performCanonicalizations(SemanticARCOptVisitor &visitor,
+                                bool shouldInitializeWorklist = true) {
+    // If we are meant to initialize the worklist, walk all instructions in the
+    // function and all the results of all instructions that we want to visit to
+    // the worklist.
+    if (shouldInitializeWorklist) {
+      for (auto &block : *getFunction())
+        for (auto &inst : block)
+          if (SemanticARCOptVisitor::shouldVisitInst(&inst))
+            for (SILValue v : inst.getResults())
+              visitor.worklist.insert(v);
     }
-    // Then process the worklist, performing peepholes.
+
+    // Then process the worklist, canonicalizing using peepholes.
     return visitor.optimize();
   }
 
@@ -119,21 +133,30 @@ struct SemanticARCOpts : SILFunctionTransform {
     }
 #endif
 
-    // Otherwise, perform our standard optimizations.
-    bool didEliminateARCInsts = performPeepholes(visitor);
+    bool madeChangeWhileCanonicalizing = false;
+    bool madeChangeWhileNotCanonicalizing = false;
+
+    // Otherwise, perform our standard canonicalizations, eliminating
+    // unnecessary ARC traffic.
+    madeChangeWhileCanonicalizing |= performCanonicalizations(visitor);
 
     // Now that we have seeded the map of phis to incoming values that could be
     // converted to guaranteed, ignoring the phi, try convert those phis to be
     // guaranteed.
-    if (tryConvertOwnedPhisToGuaranteedPhis(visitor.ctx)) {
-      // We return here early to save a little compile time so we do not
-      // invalidate analyses redundantly.
-      return invalidateAnalysis(
-          SILAnalysis::InvalidationKind::BranchesAndInstructions);
+    madeChangeWhileNotCanonicalizing |=
+        tryConvertOwnedPhisToGuaranteedPhis(visitor.ctx);
+
+    // Then see if we can eliminate additional copies by extending the lifetime
+    // of coroutines.
+    madeChangeWhileNotCanonicalizing |=
+        tryEliminatingCopiesByLifetimeExtendingTrivialCoroutines(visitor.ctx);
+
+    if (madeChangeWhileNotCanonicalizing) {
+      madeChangeWhileCanonicalizing |=
+          performCanonicalizations(visitor, false /*do not reinit*/);
     }
 
-    // Otherwise, we only deleted instructions and did not touch phis.
-    if (didEliminateARCInsts)
+    if (madeChangeWhileCanonicalizing || madeChangeWhileNotCanonicalizing)
       invalidateAnalysis(SILAnalysis::InvalidationKind::Instructions);
   }
 };

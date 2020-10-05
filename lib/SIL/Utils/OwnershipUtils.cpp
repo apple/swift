@@ -862,3 +862,62 @@ swift::getSingleOwnedValueIntroducer(SILValue inputValue) {
 
   llvm_unreachable("Should never hit this");
 }
+
+//===----------------------------------------------------------------------===//
+//                       Guaranteed Value Use Visiting
+//===----------------------------------------------------------------------===//
+
+bool swift::visitGuaranteedValueUsesIgnoringForwarding(
+    SILValue value, function_ref<bool(Operand *)> visitor) {
+  SmallVector<Operand *, 32> worklist(value->getUses());
+  while (!worklist.empty()) {
+    auto *use = worklist.pop_back_val();
+
+    // We only visit transitive uses that are guaranteed. This is maintained by
+    // only looking through guarantee forwarding insts.
+    assert(use->get().getOwnershipKind() == ValueOwnershipKind::Guaranteed);
+
+    auto *user = use->getUser();
+
+    if (!isGuaranteedForwardingInst(user)) {
+      if (!visitor(use))
+        return false;
+      continue;
+    }
+
+    auto *ti = dyn_cast<TermInst>(user);
+    if (!ti) {
+      for (SILValue result : user->getResults()) {
+        llvm::copy(result->getUses(), std::back_inserter(worklist));
+      }
+      continue;
+    }
+
+    if (!ti->isTransformationTerminator()) {
+      continue;
+    }
+
+    // We know that we have a transforming terminator. This means that in OSSA,
+    // we are guaranteed in each successor to have a single result element.
+    for (auto &succ : ti->getSuccessors()) {
+      auto *succBlock = succ.getBB();
+
+      // If we do not have any arguments, then continue.
+      if (succBlock->args_empty())
+        continue;
+
+      // Otherwise, we should have a single argument.
+      assert(succBlock->getNumArguments() == 1);
+      auto *arg = succBlock->getArgument(0);
+
+      // If that argument has none ownership, just continue.
+      if (arg->getOwnershipKind() == ValueOwnershipKind::None)
+        continue;
+
+      // Otherwise, gather up the arg's users and add them to the worklist.
+      llvm::copy(arg->getUses(), std::back_inserter(worklist));
+    }
+  }
+
+  return true;
+}

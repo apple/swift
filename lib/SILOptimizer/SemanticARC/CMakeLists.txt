@@ -7,4 +7,5 @@ target_sources(swiftSILOptimizer PRIVATE
   OwnedToGuaranteedPhiOpt.cpp
   Context.cpp
   SemanticARCOptVisitor.cpp
+  CoroutineLifetimeExtender.cpp
   )

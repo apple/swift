@@ -110,3 +110,18 @@ bool SemanticARCOptVisitor::processWorklist() {
 
   return madeChange;
 }
+
+void SemanticARCOptVisitor::verify() const {
+#ifndef NDEBUG
+  for (auto optValue : visitedSinceLastMutation) {
+    if (SILValue value = optValue.getValueOr(SILValue())) {
+      assert(value);
+    }
+  }
+  for (auto optValue : worklist) {
+    if (SILValue value = optValue.getValueOr(SILValue())) {
+      assert(value);
+    }
+  }
+#endif
+}

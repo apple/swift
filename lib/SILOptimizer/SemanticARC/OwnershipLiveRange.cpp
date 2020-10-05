@@ -17,8 +17,8 @@ using namespace swift;
 using namespace swift::semanticarc;
 
 OwnershipLiveRange::OwnershipLiveRange(SILValue value)
-    : introducer(*OwnedValueIntroducer::get(value)), destroyingUses(),
-      ownershipForwardingUses(), unknownConsumingUses() {
+    : consumingUses(), introducer(*OwnedValueIntroducer::get(value)),
+      destroyingUses(), ownershipForwardingUses(), unknownConsumingUses() {
   assert(introducer.value.getOwnershipKind() == ValueOwnershipKind::Owned);
 
   SmallVector<Operand *, 32> tmpDestroyingUses;

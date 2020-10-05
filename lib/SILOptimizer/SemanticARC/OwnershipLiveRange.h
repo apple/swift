@@ -39,10 +39,6 @@ namespace semanticarc {
 /// phi arguments, struct, tuple). Instead we represent those as nodes in a
 /// larger phi ownership web, connected via individual OwnershipLiveRange.
 class LLVM_LIBRARY_VISIBILITY OwnershipLiveRange {
-  /// The value that we are computing the LiveRange for. Expected to be an owned
-  /// introducer and not to be forwarding.
-  OwnedValueIntroducer introducer;
-
   /// A vector that we store all of our uses into.
   ///
   /// Some properties of this array are:
@@ -55,6 +51,10 @@ class LLVM_LIBRARY_VISIBILITY OwnershipLiveRange {
   /// construct the LiveRange since going from small -> large could invalidate
   /// the uses.
   SmallVector<Operand *, 6> consumingUses;
+
+  /// The value that we are computing the LiveRange for. Expected to be an owned
+  /// introducer and not to be forwarding.
+  OwnedValueIntroducer introducer;
 
   /// A list of destroy_values of the live range.
   ///
@@ -85,6 +85,7 @@ class LLVM_LIBRARY_VISIBILITY OwnershipLiveRange {
 
 public:
   OwnershipLiveRange(SILValue value);
+
   OwnershipLiveRange(const OwnershipLiveRange &) = delete;
   OwnershipLiveRange &operator=(const OwnershipLiveRange &) = delete;
 
@@ -108,6 +109,14 @@ public:
   ArrayRef<Operand *> getAllConsumingUses() const { return consumingUses; }
 
   ArrayRef<Operand *> getDestroyingUses() const { return destroyingUses; }
+
+  /// Return a list of consuming uses that do not forward ownership and do not
+  /// release the underlying value.
+  ///
+  /// Example: a store of a value or an @owned argument.
+  ArrayRef<Operand *> getUnknownConsumingUses() const {
+    return unknownConsumingUses;
+  }
 
 private:
   struct OperandToUser;
