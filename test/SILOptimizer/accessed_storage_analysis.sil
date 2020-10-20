@@ -638,7 +638,7 @@ class BaseClass {
 class SubClass : BaseClass {}
 
 // CHECK-LABEL: @testElementAddressPhiAccess
-// CHECK: [read] [no_nested_conflict] Class %{{.*}} = upcast %0 : $SubClass to $BaseClass
+// CHECK: [read] [no_nested_conflict] Class %{{.*}} = argument of bb0 : $SubClass
 // CHECK: Field: @_hasInitialValue var f: Float
 sil @testElementAddressPhiAccess : $@convention(thin) (@guaranteed SubClass) -> () {
 bb0(%0 : $SubClass):

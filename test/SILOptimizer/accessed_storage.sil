@@ -131,14 +131,14 @@ struct MyArray<T> {
 
 // CHECK-LABEL: @arrayValue
 // CHECK:   load [trivial] %{{.*}} : $*Builtin.Int64
-// CHECK: Tail   %{{.*}} = unchecked_ref_cast %{{.*}} : $Builtin.BridgeObject to $__ContiguousArrayStorageBase
+// CHECK: Tail     %{{.*}} = struct_extract %{{.*}} : $_MyBridgeStorage, #_MyBridgeStorage.rawValue
 // CHECK: Base:    %{{.*}} = ref_tail_addr [immutable] %{{.*}} : $__ContiguousArrayStorageBase, $Int64
-// CHECK: Storage: Tail   %{{.*}} = unchecked_ref_cast %{{.*}} : $Builtin.BridgeObject to $__ContiguousArrayStorageBase
+// CHECK: Storage: Tail %{{.*}} = struct_extract %{{.*}} : $_MyBridgeStorage, #_MyBridgeStorage.rawValue
 // CHECK: Path:    (@3,#0)
 // CHECK:   load [trivial] %{{.*}} : $*Builtin.Int64
-// CHECK: Tail   %{{.*}} = unchecked_ref_cast %{{.*}} : $Builtin.BridgeObject to $__ContiguousArrayStorageBase
+// CHECK: Tail    %{{.*}} = struct_extract %5 : $_MyBridgeStorage, #_MyBridgeStorage.rawValue
 // CHECK: Base:    %{{.*}} = ref_tail_addr [immutable] %{{.*}} : $__ContiguousArrayStorageBase, $Int64
-// CHECK: Storage: Tail   %{{.*}} = unchecked_ref_cast %{{.*}} : $Builtin.BridgeObject to $__ContiguousArrayStorageBase
+// CHECK: Storage: Tail   %{{.*}} = struct_extract %5 : $_MyBridgeStorage, #_MyBridgeStorage.rawValue
 // CHECK: Path:    (@4,#0)
 sil [ossa] @arrayValue : $@convention(thin) (@guaranteed MyArray<Int64>) -> Int64 {
 bb0(%0 : @guaranteed $MyArray<Int64>):
@@ -191,7 +191,7 @@ bb0(%0 : $Builtin.RawPointer):
 
 // CHECK-LABEL: @staticIndexAddrSubobject
 // CHECK: ###For MemOp:   %5 = load [trivial] %4 : $*Int64
-// CHECK: Argument %0 = argument of bb0 : $Builtin.RawPointer        // user: %1
+// CHECK: Argument %0 = argument of bb0 : $Builtin.RawPointer
 // CHECK: INVALID
 sil [ossa] @staticIndexAddrSubobject : $@convention(thin) (Builtin.RawPointer) -> () {
 bb0(%0 : $Builtin.RawPointer):
@@ -271,10 +271,10 @@ class B : A {
 // CHECK:   Field: var prop1: Int64 Index: 1
 // CHECK: Path: ()
 // CHECK:   store %0 to %{{.*}} : $*Int64
-// CHECK: Class   %{{.*}} = upcast %{{.*}} : $B to $A
+// CHECK: Class   %{{.*}} = alloc_ref $B
 // CHECK:   Field: var prop0: Int64 Index: 0
 // CHECK: Base:   %{{.*}} = ref_element_addr %{{.*}} : $A, #A.prop0
-// CHECK: Storage: Class   %{{.*}} = upcast %{{.*}} : $B to $A
+// CHECK: Storage: Class   %{{.*}} = alloc_ref $B
 // CHECK:   Field: var prop0: Int64 Index: 0
 // CHECK: Path: ()
 sil @testNonUniquePropertyIndex : $@convention(thin) (Int64) -> () {
@@ -291,21 +291,21 @@ bb0(%0 : $Int64):
 
 // CHECK-LABEL: @testRefTailAndStruct0
 // CHECK: %{{.*}} = load %{{.*}} : $*Builtin.Int64
-// CHECK: Class   %{{.*}} = unchecked_ref_cast %{{.*}} : $Builtin.BridgeObject to $__ContiguousArrayStorageBase
-// CHECK:   Field: @usableFromInline final var countAndCapacity: _ArrayBody Index: 0
+// CHECK: Class   %{{.*}} = struct_extract %{{.*}} : $_MyBridgeStorage, #_MyBridgeStorage.rawValue
+// CHECK:  Index: 0
 // CHECK: Base:   %{{.*}} = ref_element_addr [immutable] %{{.*}} : $__ContiguousArrayStorageBase, #__ContiguousArrayStorageBase.countAndCapacity
-// CHECK: Storage: Class   %{{.*}} = unchecked_ref_cast %{{.*}} : $Builtin.BridgeObject to $__ContiguousArrayStorageBase
-// CHECK:   Field: @usableFromInline final var countAndCapacity: _ArrayBody Index: 0
+// CHECK: Storage: Class   %{{.*}} = struct_extract %{{.*}} : $_MyBridgeStorage, #_MyBridgeStorage.rawValue
+// CHECK:  Index: 0
 // CHECK: Path: (#0,#0,#0)
 // CHECK:   %{{.*}} = load %{{.*}} : $*_StringGuts
-// CHECK: Tail   %{{.*}} = unchecked_ref_cast %{{.*}} : $Builtin.BridgeObject to $__ContiguousArrayStorageBase
+// CHECK: Tail   %{{.*}} = struct_extract %{{.*}} : $_MyBridgeStorage, #_MyBridgeStorage.rawValue
 // CHECK: Base:   %{{.*}} = ref_tail_addr [immutable] %{{.*}} : $__ContiguousArrayStorageBase, $String
-// CHECK: Storage: Tail   %{{.*}} = unchecked_ref_cast %{{.*}} : $Builtin.BridgeObject to $__ContiguousArrayStorageBase
+// CHECK: Storage: Tail   %{{.*}} = struct_extract %{{.*}} : $_MyBridgeStorage, #_MyBridgeStorage.rawValue
 // CHECK: Path: (#0)
 // CHECK: %{{.*}} = load %{{.*}} : $*String
-// CHECK: Tail   %{{.*}} = unchecked_ref_cast %{{.*}} : $Builtin.BridgeObject to $__ContiguousArrayStorageBase
+// CHECK: Tail   %{{.*}} = struct_extract %{{.*}} : $_MyBridgeStorage, #_MyBridgeStorage.rawValue
 // CHECK: Base:   %{{.*}} = ref_tail_addr [immutable] %{{.*}} : $__ContiguousArrayStorageBase, $String
-// CHECK: Storage: Tail   %{{.*}} = unchecked_ref_cast %{{.*}} : $Builtin.BridgeObject to $__ContiguousArrayStorageBase
+// CHECK: Storage: Tail   %{{.*}} = struct_extract %{{.*}} : $_MyBridgeStorage, #_MyBridgeStorage.rawValue
 // CHECK: Path: ()
 sil hidden [noinline] @testRefTailAndStruct0 : $@convention(thin) (@owned MyArray<String>) -> () {
 bb0(%0 : $MyArray<String>):

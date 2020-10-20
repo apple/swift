@@ -12,6 +12,7 @@
 
 #define DEBUG_TYPE "sil-inst-utils"
 #include "swift/SIL/InstructionUtils.h"
+#include "swift/SIL/MemAccessUtils.h"
 #include "swift/AST/SubstitutionMap.h"
 #include "swift/Basic/NullablePtr.h"
 #include "swift/Basic/STLExtras.h"
@@ -64,20 +65,6 @@ SILValue swift::getUnderlyingObjectStopAtMarkDependence(SILValue v) {
   }
 }
 
-static bool isRCIdentityPreservingCast(ValueKind Kind) {
-  switch (Kind) {
-  case ValueKind::UpcastInst:
-  case ValueKind::UncheckedRefCastInst:
-  case ValueKind::UnconditionalCheckedCastInst:
-  case ValueKind::UnconditionalCheckedCastValueInst:
-  case ValueKind::RefToBridgeObjectInst:
-  case ValueKind::BridgeObjectToRefInst:
-    return true;
-  default:
-    return false;
-  }
-}
-
 /// Return the underlying SILValue after stripping off identity SILArguments if
 /// we belong to a BB with one predecessor.
 SILValue swift::stripSinglePredecessorArgs(SILValue V) {
@@ -122,42 +109,39 @@ SILValue swift::stripSinglePredecessorArgs(SILValue V) {
   }
 }
 
-SILValue swift::stripCastsWithoutMarkDependence(SILValue V) {
+SILValue swift::stripCastsWithoutMarkDependence(SILValue v) {
   while (true) {
-    V = stripSinglePredecessorArgs(V);
-
-    auto K = V->getKind();
-    if (isRCIdentityPreservingCast(K)
-        || K == ValueKind::UncheckedTrivialBitCastInst
-        || K == ValueKind::BeginAccessInst
-        || K == ValueKind::EndCOWMutationInst) {
-      V = cast<SingleValueInstruction>(V)->getOperand(0);
-      continue;
+    v = stripSinglePredecessorArgs(v);
+    if (auto *svi = dyn_cast<SingleValueInstruction>(v)) {
+      if (isRCIdentityPreservingCast(svi)
+          || isa<UncheckedTrivialBitCastInst>(v)
+          || isa<BeginAccessInst>(v)
+          || isa<EndCOWMutationInst>(v)) {
+        v = svi->getOperand(0);
+        continue;
+      }
     }
-
-    return V;
+    return v;
   }
 }
 
 SILValue swift::stripCasts(SILValue v) {
   while (true) {
     v = stripSinglePredecessorArgs(v);
-    
-    auto k = v->getKind();
-    if (isRCIdentityPreservingCast(k)
-        || k == ValueKind::UncheckedTrivialBitCastInst
-        || k == ValueKind::MarkDependenceInst
-        || k == ValueKind::BeginAccessInst) {
-      v = cast<SingleValueInstruction>(v)->getOperand(0);
-      continue;
+    if (auto *svi = dyn_cast<SingleValueInstruction>(v)) {
+      if (isRCIdentityPreservingCast(svi)
+          || isa<UncheckedTrivialBitCastInst>(v)
+          || isa<MarkDependenceInst>(v)
+          || isa<BeginAccessInst>(v)) {
+        v = cast<SingleValueInstruction>(v)->getOperand(0);
+        continue;
+      }
     }
-
     SILValue v2 = stripOwnershipInsts(v);
     if (v2 != v) {
       v = v2;
       continue;
     }
-
     return v;
   }
 }

@@ -129,6 +129,9 @@ bool SILType::isPointerSizeAndAligned() {
 //
 // TODO: handle casting to a loadable existential by generating
 // init_existential_ref. Until then, only promote to a heap object dest.
+//
+// This cannot allow trivial-to-reference casts, as required by
+// isRCIdentityPreservingCast.
 bool SILType::canRefCast(SILType operTy, SILType resultTy, SILModule &M) {
   auto fromTy = operTy.unwrapOptionalType();
   auto toTy = resultTy.unwrapOptionalType();

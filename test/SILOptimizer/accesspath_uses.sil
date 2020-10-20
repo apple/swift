@@ -705,4 +705,323 @@ bb0(%0 : $*T, %1 : $*T):
   dealloc_stack %2 : $*T
   %10 = tuple ()
   return %10 : $()
+
+// Test reference root casts.
+class A {
+  var prop0: Int64
+}
+class B : A {
+  var alsoProp0: Int64
+}
+
+// CHECK-LABEL: @testReferenceRootCast
+// CHECK: ###For MemOp:   store %0 to [[ADR0:%.*]] : $*Int64
+// CHECK: Class  %{{.*}} = alloc_ref $B
+// CHECK: Field: var prop0: Int64 Index: 0
+// CHECK: Base:  [[ADR0]] = ref_element_addr %{{.*}} : $A, #A.prop0
+// CHECK: Storage: Class   %1 = alloc_ref $B
+// CHECK: Field: var prop0: Int64 Index: 0
+// CHECK: Path: ()
+// CHECK: Exact Uses {
+// CHECK-NEXT:  store %0 to [[ADR0]] : $*Int64
+// CHECK-NEXT:  Path: ()
+// CHECK-NEXT: }
+// CHECK: Overlapping Uses {
+// CHECK-NEXT:  store %0 to [[ADR0]] : $*Int64
+// CHECK-NEXT:  Path: ()
+// CHECK-NEXT: }
+// CHECK: ###For MemOp:   store %0 to [[ADR1:%.*]] : $*Int64
+// CHECK-NEXT: Class   %{{.*}} = alloc_ref $B
+// CHECK-NEXT:  Field: var alsoProp0: Int64 Index: 1
+// CHECK-NEXT: Base:   [[ADR1]] = ref_element_addr %10 : $B, #B.alsoProp0
+// CHECK-NEXT: Storage: Class   %{{.*}} = alloc_ref $B
+// CHECK-NEXT:  Field: var alsoProp0: Int64 Index: 1
+// CHECK-NEXT: Path: ()
+// CHECK-NEXT: Exact Uses {
+// CHECK-NEXT:  store %0 to [[ADR1]] : $*Int64
+// CHECK-NEXT:  Path: ()
+// CHECK-NEXT: }
+// CHECK: Overlapping Uses {
+// CHECK-NEXT:  store %0 to [[ADR1]] : $*Int64
+// CHECK-NEXT:  Path: ()
+// CHECK-NEXT: }
+sil @testReferenceRootCast : $@convention(thin) (Int64) -> () {
+bb0(%0 : $Int64):
+  %1 = alloc_ref $B
+  cond_br undef, bb1, bb2
+
+bb1:
+  %3 = upcast %1 : $B to $A
+  br bb3(%3 : $A)
+
+bb2:
+  %5 = upcast %1 : $B to $A
+  br bb3(%5 : $A)
+
+bb3(%7 : $A):
+  %8 = ref_element_addr %7 : $A, #A.prop0
+  store %0 to %8 : $*Int64
+  %10 = unchecked_ref_cast %7 : $A to $B
+  %11 = ref_element_addr %10 : $B, #B.alsoProp0
+  store %0 to %11 : $*Int64
+  %99 = tuple ()
+  return %99 : $()
+}
+
+// Test a phi cycle where the phi itself is the root (there is no common phi reference).
+// CHECK-LABEL: @testRootPhiCycle
+// CHECK: ###For MemOp: %{{.*}} = load %{{.*}} : $*Double
+// CHECK: Storage: Tail %{{.*}} = argument of bb3 : $Builtin.BridgeObject
+// CHECK: Path: ()
+// CHECK: Exact Uses {
+// CHECK-NEXT:   %{{.*}} = load %{{.*}} : $*Double
+// CHECK-NEXT:   Path: ()
+// CHECK-NEXT:   %{{.*}} = load %{{.*}} : $*Double
+// CHECK-NEXT:   Path: ()
+// CHECK-NEXT: }
+// CHECK: ###For MemOp:   %{{.*}} = load %{{.*}} : $*Double
+// CHECK: Storage: Tail %{{.*}} = argument of bb3 : $Builtin.BridgeObject
+// CHECK: Path: ()
+// CHECK: Exact Uses {
+// CHECK-NEXT:   %{{.*}} = load %{{.*}} : $*Double
+// CHECK-NEXT:   Path: ()
+// CHECK-NEXT:   %{{.*}} = load %{{.*}} : $*Double
+// CHECK-NEXT:   Path: ()
+// CHECK-NEXT: }
+sil @testRootPhiCycle : $@convention(thin) (Builtin.BridgeObject, Builtin.BridgeObject) -> () {
+bb0(%0 : $Builtin.BridgeObject, %1 : $Builtin.BridgeObject):
+  cond_br undef, bb1, bb2
+
+bb1:
+  br bb3(%0 : $Builtin.BridgeObject)
+
+bb2:
+  br bb3(%1 : $Builtin.BridgeObject)
+
+bb3(%820 : $Builtin.BridgeObject):
+  %834 = unchecked_ref_cast %820 : $Builtin.BridgeObject to $C
+  %844 = ref_tail_addr [immutable] %834 : $C, $Double
+  %853 = load %844 : $*Double
+  %943 = load %844 : $*Double
+  cond_br undef, bb4, bb5
+
+bb4:
+  br bb3(%820 : $Builtin.BridgeObject)
+
+bb5:
+  %999 = tuple ()
+  return %999 : $()
+}
+
+class C {}
+
+// Test a CoW mutation followed by a phi cycle.
+//
+// Note: FindReferenceRoot currently does not see past CoW mutation,
+// but probably should.
+// CHECK: @testCowMutationPhi
+// CHECK: ###For MemOp:   (%{{.*}}, %{{.*}}) = begin_cow_mutation [native] %0 : $Builtin.BridgeObject
+// CHECK-NEXT: ###For MemOp:   %{{.*}} = load %{{.*}} : $*Double
+// CHECK: Storage: Tail %{{.*}} = argument of bb3 : $Builtin.BridgeObject
+// CHECK: Path: ()
+// CHECK: Exact Uses {
+// CHECK-NEXT:   %{{.*}} = load %{{.*}} : $*Double
+// CHECK-NEXT:   Path: ()
+// CHECK-NEXT:   %{{.*}} = load %{{.*}} : $*Double
+// CHECK-NEXT:   Path: ()
+// CHECK-NEXT: }
+// CHECK: ###For MemOp:   %{{.*}} = load %{{.*}} : $*Double
+// CHECK: Storage: Tail %{{.*}} = argument of bb3 : $Builtin.BridgeObject
+// CHECK: Path: ()
+// CHECK: Exact Uses {
+// CHECK-NEXT:   %{{.*}} = load %{{.*}} : $*Double
+// CHECK-NEXT:   Path: ()
+// CHECK-NEXT:   %{{.*}} = load %{{.*}} : $*Double
+// CHECK-NEXT:   Path: ()
+// CHECK-NEXT: }
+sil @testCowMutationPhi : $@convention(thin) (Builtin.BridgeObject) -> () {
+bb0(%0 : $Builtin.BridgeObject):
+  cond_br undef, bb1, bb2
+
+bb1:
+  br bb3(%0 : $Builtin.BridgeObject)
+
+bb2:
+  (%3, %4) = begin_cow_mutation [native] %0 : $Builtin.BridgeObject
+  %5 = end_cow_mutation [keep_unique] %4 : $Builtin.BridgeObject
+  br bb3(%5 : $Builtin.BridgeObject)
+
+bb3(%820 : $Builtin.BridgeObject):
+  %834 = unchecked_ref_cast %820 : $Builtin.BridgeObject to $C
+  %844 = ref_tail_addr [immutable] %834 : $C, $Double
+  %853 = load %844 : $*Double
+  %943 = load %844 : $*Double
+  cond_br undef, bb4, bb5
+
+bb4:
+  br bb3(%820 : $Builtin.BridgeObject)
+
+bb5:
+  %999 = tuple ()
+  return %999 : $()
+}
+
+// Test reference root casts.
+class A {
+  var prop0: Int64
+}
+class B : A {
+  var alsoProp0: Int64
+}
+
+// CHECK-LABEL: @testReferenceRootCast
+// CHECK: ###For MemOp:   store %0 to [[ADR0:%.*]] : $*Int64
+// CHECK: Class  %{{.*}} = alloc_ref $B
+// CHECK: Field: var prop0: Int64 Index: 0
+// CHECK: Base:  [[ADR0]] = ref_element_addr %{{.*}} : $A, #A.prop0
+// CHECK: Storage: Class   %1 = alloc_ref $B
+// CHECK: Field: var prop0: Int64 Index: 0
+// CHECK: Path: ()
+// CHECK: Exact Uses {
+// CHECK-NEXT:  store %0 to [[ADR0]] : $*Int64
+// CHECK-NEXT:  Path: ()
+// CHECK-NEXT: }
+// CHECK: Overlapping Uses {
+// CHECK-NEXT:  store %0 to [[ADR0]] : $*Int64
+// CHECK-NEXT:  Path: ()
+// CHECK-NEXT: }
+// CHECK: ###For MemOp:   store %0 to [[ADR1:%.*]] : $*Int64
+// CHECK-NEXT: Class   %{{.*}} = alloc_ref $B
+// CHECK-NEXT:  Field: var alsoProp0: Int64 Index: 1
+// CHECK-NEXT: Base:   [[ADR1]] = ref_element_addr %10 : $B, #B.alsoProp0
+// CHECK-NEXT: Storage: Class   %{{.*}} = alloc_ref $B
+// CHECK-NEXT:  Field: var alsoProp0: Int64 Index: 1
+// CHECK-NEXT: Path: ()
+// CHECK-NEXT: Exact Uses {
+// CHECK-NEXT:  store %0 to [[ADR1]] : $*Int64
+// CHECK-NEXT:  Path: ()
+// CHECK-NEXT: }
+// CHECK: Overlapping Uses {
+// CHECK-NEXT:  store %0 to [[ADR1]] : $*Int64
+// CHECK-NEXT:  Path: ()
+// CHECK-NEXT: }
+sil @testReferenceRootCast : $@convention(thin) (Int64) -> () {
+bb0(%0 : $Int64):
+  %1 = alloc_ref $B
+  cond_br undef, bb1, bb2
+
+bb1:
+  %3 = upcast %1 : $B to $A
+  br bb3(%3 : $A)
+
+bb2:
+  %5 = upcast %1 : $B to $A
+  br bb3(%5 : $A)
+
+bb3(%7 : $A):
+  %8 = ref_element_addr %7 : $A, #A.prop0
+  store %0 to %8 : $*Int64
+  %10 = unchecked_ref_cast %7 : $A to $B
+  %11 = ref_element_addr %10 : $B, #B.alsoProp0
+  store %0 to %11 : $*Int64
+  %99 = tuple ()
+  return %99 : $()
+}
+
+// Test a phi cycle where the phi itself is the root (there is no common phi reference).
+// CHECK-LABEL: @testRootPhiCycle
+// CHECK: ###For MemOp: %{{.*}} = load %{{.*}} : $*Double
+// CHECK: Storage: Tail %{{.*}} = argument of bb3 : $Builtin.BridgeObject
+// CHECK: Path: ()
+// CHECK: Exact Uses {
+// CHECK-NEXT:   %{{.*}} = load %{{.*}} : $*Double
+// CHECK-NEXT:   Path: ()
+// CHECK-NEXT:   %{{.*}} = load %{{.*}} : $*Double
+// CHECK-NEXT:   Path: ()
+// CHECK-NEXT: }
+// CHECK: ###For MemOp:   %{{.*}} = load %{{.*}} : $*Double
+// CHECK: Storage: Tail %{{.*}} = argument of bb3 : $Builtin.BridgeObject
+// CHECK: Path: ()
+// CHECK: Exact Uses {
+// CHECK-NEXT:   %{{.*}} = load %{{.*}} : $*Double
+// CHECK-NEXT:   Path: ()
+// CHECK-NEXT:   %{{.*}} = load %{{.*}} : $*Double
+// CHECK-NEXT:   Path: ()
+// CHECK-NEXT: }
+sil @testRootPhiCycle : $@convention(thin) (Builtin.BridgeObject, Builtin.BridgeObject) -> () {
+bb0(%0 : $Builtin.BridgeObject, %1 : $Builtin.BridgeObject):
+  cond_br undef, bb1, bb2
+
+bb1:
+  br bb3(%0 : $Builtin.BridgeObject)
+
+bb2:
+  br bb3(%1 : $Builtin.BridgeObject)
+
+bb3(%820 : $Builtin.BridgeObject):
+  %834 = unchecked_ref_cast %820 : $Builtin.BridgeObject to $C
+  %844 = ref_tail_addr [immutable] %834 : $C, $Double
+  %853 = load %844 : $*Double
+  %943 = load %844 : $*Double
+  cond_br undef, bb4, bb5
+
+bb4:
+  br bb3(%820 : $Builtin.BridgeObject)
+
+bb5:
+  %999 = tuple ()
+  return %999 : $()
+}
+
+class C {}
+
+// Test a CoW mutation followed by a phi cycle.
+//
+// Note: FindReferenceRoot currently does not see past CoW mutation,
+// but probably should.
+// CHECK: @testCowMutationPhi
+// CHECK: ###For MemOp:   (%{{.*}}, %{{.*}}) = begin_cow_mutation [native] %0 : $Builtin.BridgeObject
+// CHECK-NEXT: ###For MemOp:   %{{.*}} = load %{{.*}} : $*Double
+// CHECK: Storage: Tail %{{.*}} = argument of bb3 : $Builtin.BridgeObject
+// CHECK: Path: ()
+// CHECK: Exact Uses {
+// CHECK-NEXT:   %{{.*}} = load %{{.*}} : $*Double
+// CHECK-NEXT:   Path: ()
+// CHECK-NEXT:   %{{.*}} = load %{{.*}} : $*Double
+// CHECK-NEXT:   Path: ()
+// CHECK-NEXT: }
+// CHECK: ###For MemOp:   %{{.*}} = load %{{.*}} : $*Double
+// CHECK: Storage: Tail %{{.*}} = argument of bb3 : $Builtin.BridgeObject
+// CHECK: Path: ()
+// CHECK: Exact Uses {
+// CHECK-NEXT:   %{{.*}} = load %{{.*}} : $*Double
+// CHECK-NEXT:   Path: ()
+// CHECK-NEXT:   %{{.*}} = load %{{.*}} : $*Double
+// CHECK-NEXT:   Path: ()
+// CHECK-NEXT: }
+sil @testCowMutationPhi : $@convention(thin) (Builtin.BridgeObject) -> () {
+bb0(%0 : $Builtin.BridgeObject):
+  cond_br undef, bb1, bb2
+
+bb1:
+  br bb3(%0 : $Builtin.BridgeObject)
+
+bb2:
+  (%3, %4) = begin_cow_mutation [native] %0 : $Builtin.BridgeObject
+  %5 = end_cow_mutation [keep_unique] %4 : $Builtin.BridgeObject
+  br bb3(%5 : $Builtin.BridgeObject)
+
+bb3(%820 : $Builtin.BridgeObject):
+  %834 = unchecked_ref_cast %820 : $Builtin.BridgeObject to $C
+  %844 = ref_tail_addr [immutable] %834 : $C, $Double
+  %853 = load %844 : $*Double
+  %943 = load %844 : $*Double
+  cond_br undef, bb4, bb5
+
+bb4:
+  br bb3(%820 : $Builtin.BridgeObject)
+
+bb5:
+  %999 = tuple ()
+  return %999 : $()
 }

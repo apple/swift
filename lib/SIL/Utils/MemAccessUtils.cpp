@@ -365,15 +365,38 @@ bool swift::isLetAddress(SILValue address) {
 //                          MARK: FindReferenceRoot
 //===----------------------------------------------------------------------===//
 
+// On some platforms, casting from a metatype to a reference type dynamically
+// allocates a ref-counted box for the metatype. Naturally that is the place
+// where RC-identity begins. Considering the source of such a casts to be
+// RC-identical would confuse ARC optimization, which might eliminate a retain
+// of such an object completely.
+//
+// The SILVerifier checks that none of these operations cast a nontrivial value
+// to a reference except unconditional_checked_cast[_value].
+bool swift::isRCIdentityPreservingCast(SingleValueInstruction *svi) {
+  switch (svi->getKind()) {
+  default:
+    return false;
+  // Ignore ownership casts
+  case SILInstructionKind::CopyValueInst:
+  case SILInstructionKind::BeginBorrowInst:
+  // Ignore class type casts
+  case SILInstructionKind::UpcastInst:
+  case SILInstructionKind::UncheckedRefCastInst:
+  case SILInstructionKind::RefToBridgeObjectInst:
+  case SILInstructionKind::BridgeObjectToRefInst:
+    return true;
+  case SILInstructionKind::UnconditionalCheckedCastInst:
+  case SILInstructionKind::UnconditionalCheckedCastValueInst:
+    // If the source is nontrivial, then this checked cast may actually create a
+    // new object, so its source is not ref-count equivalent.
+    return !svi->getOperand(0)->getType().isTrivial(*svi->getFunction());
+  }
+}
+
 namespace {
 
 // Essentially RC identity where the starting point is already a reference.
-//
-// FIXME: We cannot currently see through type casts for true RC identity,
-// because property indices are not unique within a class hierarchy. Either fix
-// RefElementAddr::getFieldNo so it returns a unique index, or figure out a
-// different way to encode the property's VarDecl. (Note that the lack of a
-// unique property index could be the source of bugs elsewhere).
 class FindReferenceRoot {
   SmallPtrSet<SILPhiArgument *, 4> visitedPhis;
 
@@ -386,18 +409,13 @@ public:
 
 protected:
   // Return an invalid value for a phi with no resolved inputs.
-  //
-  // FIXME: We should be able to see through RC identity like this:
-  //   nextRoot = stripRCIdentityCasts(nextRoot);
   SILValue recursiveFindRoot(SILValue ref) {
-    while (true) {
-      SILValue nextRoot = ref;
-      nextRoot = stripOwnershipInsts(nextRoot);
-      if (nextRoot == ref)
+    while (auto *svi = dyn_cast<SingleValueInstruction>(ref)) {
+      if (!isRCIdentityPreservingCast(svi)) {
         break;
-      ref = nextRoot;
-    }
-
+      }
+      ref = svi->getOperand(0);
+    };
     auto *phi = dyn_cast<SILPhiArgument>(ref);
     if (!phi || !phi->isPhiArgument()) {
       return ref;
@@ -558,8 +576,16 @@ const ValueDecl *AccessedStorage::getDecl(SILValue base) const {
     return global->getDecl();
 
   case Class: {
-    auto *decl = getObject()->getType().getNominalOrBoundGenericNominal();
-    return decl ? getIndexedField(decl, getPropertyIndex()) : nullptr;
+    // The property index is relative to the VarDecl in ref_element_addr, and
+    // can only be reliably determined when the base is avaiable. Otherwise, we
+    // can only make a best effort to extract it from the object type, which
+    // might not even be a class in the case of bridge objects.
+    if (ClassDecl *classDecl =
+            base ? cast<RefElementAddrInst>(base)->getClassDecl()
+                 : getObject()->getType().getClassOrBoundGenericClass()) {
+      return getIndexedField(classDecl, getPropertyIndex());
+    }
+    return nullptr;
   }
   case Tail:
     return nullptr;
@@ -1297,7 +1323,14 @@ void AccessPathDefUseTraversal::followProjection(SingleValueInstruction *svi,
 AccessPathDefUseTraversal::UseKind
 AccessPathDefUseTraversal::visitSingleValueUser(SingleValueInstruction *svi,
                                                 DFSEntry dfs) {
-  if (isAccessedStorageCast(svi)) {
+  if (dfs.isRef()) {
+    if (isRCIdentityPreservingCast(svi)) {
+      pushUsers(svi, dfs);
+      return IgnoredUse;
+    }
+    // 'svi' will be processed below as either RefElementAddrInst,
+    // RefTailAddrInst, or some unknown LeafUse.
+  } else if (isAccessedStorageCast(svi)) {
     pushUsers(svi, dfs);
     return IgnoredUse;
   }

@@ -664,7 +664,7 @@ class SILVerifier : public SILVerifierBase<SILVerifier> {
   llvm::DenseMap<const SILInstruction *, unsigned> InstNumbers;
   
   DeadEndBlocks DEBlocks;
-  LoadBorrowNeverInvalidatedAnalysis loadBorrowNeverInvalidatedAnalysis;
+  LoadBorrowImmutabilityAnalysis loadBorrowImmutabilityAnalysis;
   bool SingleFunction = true;
 
   SILVerifier(const SILVerifier&) = delete;
@@ -863,7 +863,7 @@ public:
         fnConv(F.getConventionsInContext()), TC(F.getModule().Types),
         OpenedArchetypes(&F), Dominance(nullptr),
         InstNumbers(numInstsInFunction(F)), DEBlocks(&F),
-        loadBorrowNeverInvalidatedAnalysis(DEBlocks),
+        loadBorrowImmutabilityAnalysis(DEBlocks, &F),
         SingleFunction(SingleFunction) {
     if (F.isExternalDeclaration())
       return;
@@ -1881,7 +1881,9 @@ public:
     requireSameType(LBI->getOperand()->getType().getObjectType(),
                     LBI->getType(),
                     "Load operand type and result type mismatch");
-    require(loadBorrowNeverInvalidatedAnalysis.isNeverInvalidated(LBI),
+    //!!!
+    require(!F.hasName("$s5ArrayyycfU_"), "Intentionally break verification");
+    require(loadBorrowImmutabilityAnalysis.isImmutable(LBI),
             "Found load borrow that is invalidated by a local write?!");
   }
 
@@ -3591,6 +3593,15 @@ public:
     verifyOpenedArchetype(CI, CI->getType().getASTType());
   }
 
+  // Make sure that opcodes handled by isRCIdentityPreservingCast cannot cast
+  // from a trivial to a reference type. Such a cast may dynamically
+  // instantiate a new reference-counted object.
+  void checkNoTrivialToReferenceCast(SingleValueInstruction *svi) {
+    require(!svi->getOperand(0)->getType().isTrivial(*svi->getFunction())
+            || svi->getType().isTrivial(*svi->getFunction()),
+            "Unexpected trivial-to-reference conversion: ");
+  }
+
   /// Verify if a given type is or contains an opened archetype or dynamic self.
   /// If this is the case, verify that the provided instruction has a type
   /// dependent operand for it.
@@ -3753,6 +3764,7 @@ public:
   void checkUpcastInst(UpcastInst *UI) {
     require(UI->getType() != UI->getOperand()->getType(),
             "can't upcast to same type");
+    checkNoTrivialToReferenceCast(UI);
     if (UI->getType().is<MetatypeType>()) {
       CanType instTy(UI->getType().castTo<MetatypeType>()->getInstanceType());
       require(UI->getOperand()->getType().is<MetatypeType>(),
