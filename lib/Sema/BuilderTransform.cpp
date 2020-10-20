@@ -1883,33 +1883,69 @@ std::vector<ReturnStmt *> TypeChecker::findReturnStatements(AnyFunctionRef fn) {
 
 bool TypeChecker::typeSupportsBuilderOp(
     Type builderType, DeclContext *dc, Identifier fnName,
-    ArrayRef<Identifier> argLabels, SmallVectorImpl<ValueDecl *> *allResults) {
+    ArrayRef<Identifier> argLabels, SmallVectorImpl<FuncDecl *> *matches,
+    SmallVectorImpl<BuilderOpMismatch> *nearMisses) {
+
+  auto recordNearMiss = [&](ValueDecl *vd, BuilderOpMismatchKind kind) {
+    if (nearMisses)
+      nearMisses->emplace_back(vd, kind);
+  };
+
   bool foundMatch = false;
   SmallVector<ValueDecl *, 4> foundDecls;
   dc->lookupQualified(
       builderType, DeclNameRef(fnName),
       NL_QualifiedDefault | NL_ProtocolMembers, foundDecls);
   for (auto decl : foundDecls) {
-    if (auto func = dyn_cast<FuncDecl>(decl)) {
-      // Function must be static.
-      if (!func->isStatic())
-        continue;
-
-      // Function must have the right argument labels, if provided.
-      if (!argLabels.empty()) {
-        auto funcLabels = func->getName().getArgumentNames();
-        if (argLabels.size() > funcLabels.size() ||
-            funcLabels.slice(0, argLabels.size()) != argLabels)
-          continue;
-      }
-
-      foundMatch = true;
-      break;
+    if (isa<EnumElementDecl>(decl)) {
+      recordNearMiss(decl, BuilderOpMismatchKind::EnumCase);
+      continue;
+    } else if (!isa<FuncDecl>(decl)) {
+      recordNearMiss(decl, BuilderOpMismatchKind::Other);
+      continue;
     }
-  }
 
-  if (allResults)
-    allResults->append(foundDecls.begin(), foundDecls.end());
+    auto *func = cast<FuncDecl>(decl);
+    // Function must be static.
+    if (!func->isStatic()) {
+      recordNearMiss(func, BuilderOpMismatchKind::InstanceMethod);
+      continue;
+    }
+
+    // Function must have the right argument labels, if provided.
+    if (!argLabels.empty()) {
+      auto funcLabels = func->getName().getArgumentNames();
+      if (argLabels.size() > funcLabels.size() ||
+          funcLabels.slice(0, argLabels.size()) != argLabels) {
+        recordNearMiss(func, BuilderOpMismatchKind::ArgumentLabelMismatch);
+        continue;
+      }
+    }
+
+    // After the labels provided by the builder transform, any additional
+    // labeled parameters must have a default value (or else the function will
+    // be uncallable by the builder transformation).
+    auto params = func->getParameters()->getArray();
+    auto isLabeledUndefaulted = [&](ParamDecl *param) -> bool {
+      return !param->isDefaultArgument() && !param->getArgumentName().empty();
+    };
+    if (llvm::any_of(params.drop_front(argLabels.size()),
+                     isLabeledUndefaulted)) {
+      recordNearMiss(func,
+                     BuilderOpMismatchKind::ExtraneousUndefaultedArgument);
+      continue;
+    }
+
+    foundMatch = true;
+
+    // If we're not recording any candidates or matches, we can bail out as soon
+    // as we find the first match.
+    if (!nearMisses && !matches)
+      break;
+
+    if (matches)
+      matches->push_back(func);
+  }
 
   return foundMatch;
 }
@@ -1917,17 +1953,13 @@ bool TypeChecker::typeSupportsBuilderOp(
 Type swift::inferFunctionBuilderComponentType(NominalTypeDecl *builder) {
   Type componentType;
 
-  SmallVector<ValueDecl *, 4> potentialMatches;
+  SmallVector<FuncDecl *, 4> matches;
   ASTContext &ctx = builder->getASTContext();
   bool supportsBuildBlock = TypeChecker::typeSupportsBuilderOp(
       builder->getDeclaredInterfaceType(), builder, ctx.Id_buildBlock,
-      /*argLabels=*/{}, &potentialMatches);
+      /*argLabels=*/{}, &matches);
   if (supportsBuildBlock) {
-    for (auto decl : potentialMatches) {
-      auto func = dyn_cast<FuncDecl>(decl);
-      if (!func || !func->isStatic())
-        continue;
-
+    for (auto func : matches) {
       // If we haven't seen a component type before, gather it.
       if (!componentType) {
         componentType = func->getResultInterfaceType();

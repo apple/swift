@@ -5415,6 +5415,9 @@ NOTE(function_builder_non_static_buildblock, none,
 NOTE(function_builder_buildblock_enum_case, none,
      "enum case 'buildBlock' cannot be used to satisfy the function builder "
      "requirement", ())
+NOTE(function_builder_buildblock_arg_labels, none,
+     "potential match 'buildBlock' can never be called implicitly because it "
+     "has at least one labeled argument", ())
 NOTE(function_builder_buildblock_not_static_method, none,
      "potential match 'buildBlock' is not a static method", ())
 

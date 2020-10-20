@@ -1172,12 +1172,37 @@ bool requireArrayLiteralIntrinsics(ASTContext &ctx, SourceLoc loc);
 /// an \c UnresolvedMemberExpr, \c nullptr is returned.
 UnresolvedMemberExpr *getUnresolvedMemberChainBase(Expr *expr);
 
+enum class BuilderOpMismatchKind : unsigned {
+    /// The potential match was an instance method rather than a static method.
+    InstanceMethod,
+
+    /// The potential match was an enum case.
+    EnumCase,
+
+    /// The potential match did not have the correct argument labels.
+    ArgumentLabelMismatch,
+
+    /// The potential match had an argument that would not be provided by the
+    /// function builder transformation.
+    ExtraneousUndefaultedArgument,
+
+    /// Catchall for mismatches which could not be classified more specifically.
+    Other
+};
+
+using BuilderOpMismatch = std::pair<ValueDecl *, BuilderOpMismatchKind>;
+
 /// Checks whether a function builder type has a well-formed function builder
-/// method with the given name. If provided and non-empty, the argument labels
-/// are verified against any candidates.
-bool typeSupportsBuilderOp(Type builderType, DeclContext *dc, Identifier fnName,
-                           ArrayRef<Identifier> argLabels = {},
-                           SmallVectorImpl<ValueDecl *> *allResults = nullptr);
+/// method with the given name. If provided and non-empty, the \c argLabels
+/// are verified against any candidates. If provided, \c nearMisses will be
+/// populated with all members which have the correct base name, but were not
+/// considered matches (as well as the reason they were not considered matches,
+/// if known).
+bool typeSupportsBuilderOp(
+    Type builderType, DeclContext *dc, Identifier fnName,
+    ArrayRef<Identifier> argLabels = {},
+    SmallVectorImpl<FuncDecl *> *matches = nullptr,
+    SmallVectorImpl<BuilderOpMismatch> *nearMisses = nullptr);
 }; // namespace TypeChecker
 
 /// Temporary on-stack storage and unescaping for encoded diagnostic

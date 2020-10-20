@@ -3142,10 +3142,10 @@ void AttributeChecker::visitPropertyWrapperAttr(PropertyWrapperAttr *attr) {
 
 void AttributeChecker::visitFunctionBuilderAttr(FunctionBuilderAttr *attr) {
   auto *nominal = dyn_cast<NominalTypeDecl>(D);
-  SmallVector<ValueDecl *, 4> potentialMatches;
+  SmallVector<TypeChecker::BuilderOpMismatch, 4> nearMisses;
   bool supportsBuildBlock = TypeChecker::typeSupportsBuilderOp(
       nominal->getDeclaredType(), nominal, D->getASTContext().Id_buildBlock,
-      /*argLabels=*/{}, &potentialMatches);
+      /*argLabels=*/{}, nullptr, &nearMisses);
 
   if (!supportsBuildBlock) {
     {
@@ -3158,7 +3158,7 @@ void AttributeChecker::visitFunctionBuilderAttr(FunctionBuilderAttr *attr) {
       Type componentType;
       std::tie(buildInsertionLoc, stubIndent, componentType) =
           determineFunctionBuilderBuildFixItInfo(nominal);
-      if (buildInsertionLoc.isValid() && potentialMatches.empty()) {
+      if (buildInsertionLoc.isValid() && nearMisses.empty()) {
         std::string fixItString;
         {
           llvm::raw_string_ostream out(fixItString);
@@ -3174,19 +3174,35 @@ void AttributeChecker::visitFunctionBuilderAttr(FunctionBuilderAttr *attr) {
 
     // For any close matches, attempt to explain to the user why they aren't
     // valid.
-    for (auto *member : potentialMatches) {
-      if (member->isStatic() && isa<FuncDecl>(member))
-        continue;
+    for (auto nearMiss : nearMisses) {
+      auto *member = nearMiss.first;
+      auto note = diag::function_builder_buildblock_not_static_method;
+      std::function<void(InFlightDiagnostic &)> fixIt;
+      
+      switch (nearMiss.second) {
+      case TypeChecker::BuilderOpMismatchKind::InstanceMethod:
+        if (member->getDeclContext()->getSelfNominalTypeDecl() == nominal) {
+          note = diag::function_builder_non_static_buildblock;
+          fixIt = [&](InFlightDiagnostic &diag) {
+            diag.fixItInsert(member->getAttributeInsertionLoc(true), "static ");
+          };
+        }
+        break;
+      case TypeChecker::BuilderOpMismatchKind::EnumCase:
+        note = diag::function_builder_buildblock_enum_case;
+        break;
+      case TypeChecker::BuilderOpMismatchKind::ExtraneousUndefaultedArgument:
+        note = diag::function_builder_buildblock_arg_labels;
+        break;
+      case TypeChecker::BuilderOpMismatchKind::Other:
+        break;
+      case TypeChecker::BuilderOpMismatchKind::ArgumentLabelMismatch:
+          llvm_unreachable("buildBlock should not check argument labels");
+      }
 
-      if (isa<FuncDecl>(member) &&
-          member->getDeclContext()->getSelfNominalTypeDecl() == nominal)
-        diagnose(member->getLoc(), diag::function_builder_non_static_buildblock)
-          .fixItInsert(member->getAttributeInsertionLoc(true), "static ");
-      else if (isa<EnumElementDecl>(member))
-        diagnose(member->getLoc(), diag::function_builder_buildblock_enum_case);
-      else
-        diagnose(member->getLoc(),
-                 diag::function_builder_buildblock_not_static_method);
+      auto diag = diagnose(member->getLoc(), note);
+      if (fixIt)
+        fixIt(diag);
     }
   }
 }

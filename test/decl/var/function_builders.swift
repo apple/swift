@@ -199,6 +199,11 @@ enum InvalidBuilder11 { // expected-error {{function builder must provide at lea
     case buildBlock(Any) // expected-note {{enum case 'buildBlock' cannot be used to satisfy the function builder requirement}}
 }
 
+@_functionBuilder
+struct InvalidBuilder12 { // expected-error {{function builder must provide at least one static 'buildBlock' method}}
+  static func buildBlock(exprs: Any...) -> Int { return exprs.count } // expected-note {{potential match 'buildBlock' can never be called implicitly because it has at least one labeled argument}}
+}
+
 struct S {
   @ValidBuilder1 var v1: Int { 1 }
   @ValidBuilder2 var v2: Int { 1 }
@@ -216,4 +221,5 @@ struct S {
   @InvalidBuilder9 var i9: Int { 1 }
   @InvalidBuilder10 var i10: Int { 1 }
   @InvalidBuilder11 var i11: InvalidBuilder11 { 1 }
+  @InvalidBuilder12 var i12: Int { 1 } // expected-error {{missing argument label 'exprs:' in call}}
 }
