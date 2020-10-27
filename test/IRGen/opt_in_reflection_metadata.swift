@@ -6,39 +6,52 @@
 // reflection metadata field descriptor opt_in_reflection_metadata.RefProtocol
 // CHECK-DAG: @"$s26opt_in_reflection_metadata11RefProtocol_pMF" = internal constant {{.*}} section "{{[^"]*swift5_fieldmd|.sw5flmd\$B}}
 
-// CHECK-DAG: @"$s26opt_in_reflection_metadata12RefProtocol2_pMF" = internal constant {{.*}} section "{{[^"]*swift5_fieldmd|.sw5flmd\$B}}
+// CHECK-DAG: @"$s26opt_in_reflection_metadata12RefProtocol2_pMF" = internal constant {{.*}} section "{{[^"]*swift5_fieldmd|.sw5flmd\$B}}, regular, live_support
 
 // reflection metadata field descriptor opt_in_reflection_metadata.Conformance
-// CHECK-DAG: @"$s26opt_in_reflection_metadata11ConformanceVMF" = internal constant {{.*}} section "{{[^"]*swift5_fieldmd|.sw5flmd\$B}}
+// CHECK-DAG: @"$s26opt_in_reflection_metadata11ConformanceVMF" = internal constant {{.*}} section "{{[^"]*swift5_fieldmd|.sw5flmd\$B}}, regular, live_support
 
 // reflection metadata field descriptor opt_in_reflection_metadata.RefStruct
-// CHECK-DAG: @"$s26opt_in_reflection_metadata9RefStructVMF" = internal constant {{.*}} section "{{[^"]*swift5_fieldmd|.sw5flmd\$B}}
+// CHECK-DAG: @"$s26opt_in_reflection_metadata9RefStructVMF" = internal constant {{.*}} section "{{[^"]*swift5_fieldmd|.sw5flmd\$B}}, regular, live_support
 
 // reflection metadata field descriptor opt_in_reflection_metadata.RefEnum
-// CHECK-DAG: @"$s26opt_in_reflection_metadata7RefEnumOMF" = internal constant {{.*}} section "{{[^"]*swift5_fieldmd|.sw5flmd\$B}}
+// CHECK-DAG: @"$s26opt_in_reflection_metadata7RefEnumOMF" = internal constant {{.*}} section "{{[^"]*swift5_fieldmd|.sw5flmd\$B}}, regular, live_support
 
 // reflection metadata field descriptor opt_in_reflection_metadata.RefClass
-// CHECK-DAG: @"$s26opt_in_reflection_metadata8RefClassCMF" = internal constant {{.*}} section "{{[^"]*swift5_fieldmd|.sw5flmd\$B}}
+// CHECK-DAG: @"$s26opt_in_reflection_metadata8RefClassCMF" = internal constant {{.*}} section "{{[^"]*swift5_fieldmd|.sw5flmd\$B}}, regular, live_support
 
 // reflection metadata field descriptor opt_in_reflection_metadata.RefClassChild
-// CHECK-DAG: @"$s26opt_in_reflection_metadata13RefClassChildCMF" = internal constant {{.*}} section "{{[^"]*swift5_fieldmd|.sw5flmd\$B}}
+// CHECK-DAG: @"$s26opt_in_reflection_metadata13RefClassChildCMF" = internal constant {{.*}} section "{{[^"]*swift5_fieldmd|.sw5flmd\$B}}, regular, live_support
 
 // reflection metadata field descriptor opt_in_reflection_metadata.RefGenericClass
-// CHECK-DAG: @"$s26opt_in_reflection_metadata15RefGenericClassCMF" = internal constant {{.*}} section "{{[^"]*swift5_fieldmd|.sw5flmd\$B}}
+// CHECK-DAG: @"$s26opt_in_reflection_metadata15RefGenericClassCMF" = internal constant {{.*}} section "{{[^"]*swift5_fieldmd|.sw5flmd\$B}}, regular, live_support
 
 // reflection metadata field descriptor opt_in_reflection_metadata.NonRefProtocol
-// CHECK-NOT: @"$s26opt_in_reflection_metadata14NonRefProtocol_pMF" = internal constant {{.*}} section "{{[^"]*swift5_fieldmd|.sw5flmd\$B}}
+// CHECK-DAG: @"$s26opt_in_reflection_metadata14NonRefProtocol_pMF" = internal constant {{.*}} section "{{[^"]*swift5_fieldmd|.sw5flmd\$B}}, regular, live_support
 // reflection metadata field descriptor opt_in_reflection_metadata.NonRefStruct
-// CHECK-NOT: @"$s26opt_in_reflection_metadata12NonRefStructVMF" = internal constant {{.*}} section "{{[^"]*swift5_fieldmd|.sw5flmd\$B}}
+// CHECK-DAG: @"$s26opt_in_reflection_metadata12NonRefStructVMF" = internal constant {{.*}} section "{{[^"]*swift5_fieldmd|.sw5flmd\$B}}, regular, live_support
 // reflection metadata field descriptor opt_in_reflection_metadata.NonRefGenericStruct
-// CHECK-NOT: @"$s26opt_in_reflection_metadata19NonRefGenericStructVMF" = internal constant {{.*}} section "{{[^"]*swift5_fieldmd|.sw5flmd\$B}}
+// CHECK-DAG: @"$s26opt_in_reflection_metadata19NonRefGenericStructVMF" = internal constant {{.*}} section "{{[^"]*swift5_fieldmd|.sw5flmd\$B}}, regular, live_support
 
 // CHECK-DAG: @__swift_reflection_version = linkonce_odr hidden constant i16 {{[0-9]+}}
 
-// associated type descriptor for opt_in_reflection_metadata.RefProtocol.RefInner
-// CHECK-DAG: @"$s8RefInner26opt_in_reflection_metadata0A8ProtocolPTl" =
-// associated type descriptor for opt_in_reflection_metadata.NonRefProtocol.NonRefInner
-// CHECK-DAG: @"$s11NonRefInner26opt_in_reflection_metadata0aB8ProtocolPTl" =
+// CHECK:      @llvm.used = appending global [
+// CHECK-NOT:    @"$s26opt_in_reflection_metadata14NonRefProtocol_pMF"
+// CHECK-NOT:    @"$s26opt_in_reflection_metadata12NonRefStructVMF"
+// CHECK-NOT:    @"$s26opt_in_reflection_metadata19NonRefGenericStructVMF"
+
+// CHECK-SAME:   @"$s26opt_in_reflection_metadata11ConformanceVAA11RefProtocolAAMA"
+// CHECK-SAME:   @"$s26opt_in_reflection_metadata11RefProtocol_pMF"
+// CHECK-SAME:   @"$s8RefInner26opt_in_reflection_metadata0A8ProtocolPTl"
+// CHECK-SAME:   @"$s26opt_in_reflection_metadata12RefProtocol2_pMF"
+// CHECK-SAME:   @"$s26opt_in_reflection_metadata11ConformanceVMF"
+// CHECK-SAME:   @"$s26opt_in_reflection_metadata9RefStructVMF"
+// CHECK-SAME:   @"$s26opt_in_reflection_metadata7RefEnumOMF"
+// CHECK-SAME:   @"$s26opt_in_reflection_metadata8RefClassCMF"
+// CHECK-SAME:   @"$s26opt_in_reflection_metadata13RefClassChildCMF"
+// CHECK-SAME:   @"$s26opt_in_reflection_metadata15RefGenericClassCMF"
+// CHECK-SAME:   @"$s11NonRefInner26opt_in_reflection_metadata0aB8ProtocolPTl"
+// CHECK-SAME: ], section "llvm.metadata", align 8
 
 @reflectable
 public protocol RefProtocol {
@@ -70,7 +83,7 @@ public enum RefEnum {
 @reflectable
 public class RefClass {
   let i: Int
-  
+
   public init(i: Int) {
     self.i = i
   }
@@ -78,7 +91,7 @@ public class RefClass {
 
 public class RefClassChild: RefClass {
   let y: Int
-  
+
   public init(y: Int) {
     self.y = y
     super.init(i: y)
