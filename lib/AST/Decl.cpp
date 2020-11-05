@@ -3558,6 +3558,13 @@ bool NominalTypeDecl::isResilient() const {
   return getModuleContext()->isResilient();
 }
 
+bool NominalTypeDecl::isReflectable() const {
+  ASTContext &ctx = getASTContext();
+  return evaluateOrDefault(ctx.evaluator,
+    IsReflectableRequest{const_cast<NominalTypeDecl *>(this)},
+    getAttrs().hasAttribute<ReflectableAttr>());
+}
+
 static bool isOriginallyDefinedIn(const Decl *D, const ModuleDecl* MD) {
   if (!MD)
     return false;

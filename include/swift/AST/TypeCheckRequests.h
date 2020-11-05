@@ -333,6 +333,25 @@ public:
   void cacheResult(bool value) const;
 };
 
+/// Determine whether the given declaration is 'reflectable'.
+class IsReflectableRequest :
+    public SimpleRequest<IsReflectableRequest,
+                         bool(NominalTypeDecl *),
+                         RequestFlags::Cached> {
+public:
+  using SimpleRequest::SimpleRequest;
+
+private:
+  friend SimpleRequest;
+
+  // Evaluation.
+  bool evaluate(Evaluator &evaluator, NominalTypeDecl *decl) const;
+
+public:
+  // Caching
+  bool isCached() const { return true; }
+};
+
 /// Determine whether the given declaration is 'dynamic''.
 class IsDynamicRequest :
     public SimpleRequest<IsDynamicRequest,

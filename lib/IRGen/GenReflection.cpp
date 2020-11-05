@@ -575,7 +575,8 @@ protected:
 
   llvm::GlobalVariable *emit(
                         Optional<llvm::function_ref<GetAddrOfEntityFn>> getAddr,
-                        const char *section) {
+                        const char *section,
+                        bool isDeadStrippable) {
     layout();
 
     llvm::GlobalVariable *var;
@@ -596,7 +597,8 @@ protected:
 
     var->setSection(section);
 
-    IGM.addUsedGlobal(var);
+    if (!isDeadStrippable)
+      IGM.addUsedGlobal(var);
 
     disableAddressSanitizer(IGM, var);
 
@@ -606,14 +608,18 @@ protected:
   // Helpers to guide the C++ type system into converting lambda arguments
   // to Optional<function_ref>
   llvm::GlobalVariable *emit(llvm::function_ref<GetAddrOfEntityFn> getAddr,
-                             const char *section) {
+                             const char *section,
+                             bool isDeadStrippable) {
     return emit(Optional<llvm::function_ref<GetAddrOfEntityFn>>(getAddr),
-                section);
+                section,
+                isDeadStrippable);
   }
   llvm::GlobalVariable *emit(NoneType none,
-                             const char *section) {
+                             const char *section,
+                             bool isDeadStrippable) {
     return emit(Optional<llvm::function_ref<GetAddrOfEntityFn>>(),
-                section);
+                section,
+                isDeadStrippable);
   }
 
   virtual void layout() = 0;
@@ -661,7 +667,8 @@ public:
       [&](IRGenModule &IGM, ConstantInit init) -> llvm::Constant* {
        return IGM.getAddrOfReflectionAssociatedTypeDescriptor(Conformance,init);
       },
-      section);
+      section,
+      false);
   }
 };
 
@@ -813,13 +820,17 @@ public:
     : ReflectionMetadataBuilder(IGM), NTD(NTD) {}
 
   llvm::GlobalVariable *emit() {
+    bool isOptInEnabled = IGM.getOptions().ReflectionLevel == ReflectionMetadataLevel::OptIn;
+    bool isDeadStrippable = isOptInEnabled && !NTD->isReflectable();
+        
     auto section = IGM.getFieldTypeMetadataSectionName();
     return ReflectionMetadataBuilder::emit(
       [&](IRGenModule &IGM, ConstantInit definition) -> llvm::Constant* {
         return IGM.getAddrOfReflectionFieldDescriptor(
           NTD->getDeclaredType()->getCanonicalType(), definition);
       },
-      section);
+      section,
+      isDeadStrippable);
   }
 };
 
@@ -870,7 +881,8 @@ public:
         return IGM.getAddrOfReflectionFieldDescriptor(
           NTD->getDeclaredType()->getCanonicalType(), definition);
       },
-      section);
+      section,
+      false);
   }
 };
 
@@ -925,7 +937,8 @@ public:
       [&](IRGenModule &IGM, ConstantInit definition) -> llvm::Constant * {
         return IGM.getAddrOfReflectionBuiltinDescriptor(type, definition);
       },
-      section);
+      section,
+      false);
   }
 };
 
@@ -956,7 +969,7 @@ public:
 
   llvm::GlobalVariable *emit() {
     auto section = IGM.getCaptureDescriptorMetadataSectionName();
-    return ReflectionMetadataBuilder::emit(None, section);
+    return ReflectionMetadataBuilder::emit(None, section, false);
   }
 };
 
@@ -1176,7 +1189,7 @@ public:
 
   llvm::GlobalVariable *emit() {
     auto section = IGM.getCaptureDescriptorMetadataSectionName();
-    return ReflectionMetadataBuilder::emit(None, section);
+    return ReflectionMetadataBuilder::emit(None, section, false);
   }
 };
 
@@ -1201,7 +1214,13 @@ static std::string getReflectionSectionName(IRGenModule &IGM,
   case llvm::Triple::MachO:
     assert(LongName.size() <= 7 &&
            "Mach-O section name length must be <= 16 characters");
-    OS << "__TEXT,__swift5_" << LongName << ", regular, no_dead_strip";
+    OS << "__TEXT,__swift5_" << LongName;
+      
+    if (IGM.getOptions().ReflectionLevel == ReflectionMetadataLevel::OptIn)
+      OS << ", regular, live_support";
+    else
+      OS << ", regular, no_dead_strip";
+      
     break;
   }
   return std::string(OS.str());
@@ -1257,7 +1276,7 @@ llvm::Constant *IRGenModule::getAddrOfFieldName(StringRef Name) {
 llvm::Constant *
 IRGenModule::getAddrOfBoxDescriptor(SILType BoxedType,
                                     CanGenericSignature genericSig) {
-  if (!IRGen.Opts.EnableReflectionMetadata)
+  if (IRGen.Opts.ReflectionLevel == ReflectionMetadataLevel::Disabled)
     return llvm::Constant::getNullValue(CaptureDescriptorPtrTy);
 
   BoxDescriptorBuilder builder(*this, BoxedType, genericSig);
@@ -1272,7 +1291,7 @@ IRGenModule::getAddrOfCaptureDescriptor(SILFunction &Caller,
                                         CanSILFunctionType SubstCalleeType,
                                         SubstitutionMap Subs,
                                         const HeapLayout &Layout) {
-  if (!IRGen.Opts.EnableReflectionMetadata)
+  if (IRGen.Opts.ReflectionLevel == ReflectionMetadataLevel::Disabled)
     return llvm::Constant::getNullValue(CaptureDescriptorPtrTy);
 
   if (CaptureDescriptorBuilder::hasOpenedExistential(OrigCalleeType, Layout))
@@ -1290,8 +1309,8 @@ emitAssociatedTypeMetadataRecord(const RootProtocolConformance *conformance) {
   auto normalConf = dyn_cast<NormalProtocolConformance>(conformance);
   if (!normalConf)
     return;
-
-  if (!IRGen.Opts.EnableReflectionMetadata)
+  
+  if (IRGen.Opts.ReflectionLevel == ReflectionMetadataLevel::Disabled)
     return;
 
   SmallVector<std::pair<StringRef, CanType>, 2> AssociatedTypes;
@@ -1350,7 +1369,7 @@ void IRGenerator::emitBuiltinReflectionMetadata() {
 }
 
 void IRGenModule::emitFieldDescriptor(const NominalTypeDecl *D) {
-  if (!IRGen.Opts.EnableReflectionMetadata)
+  if (IRGen.Opts.ReflectionLevel == ReflectionMetadataLevel::Disabled)
     return;
 
   auto T = D->getDeclaredTypeInContext()->getCanonicalType();

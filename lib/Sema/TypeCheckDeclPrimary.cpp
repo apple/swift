@@ -1388,6 +1388,24 @@ public:
     DeclVisitor<DeclChecker>::visit(decl);
 
     TypeChecker::checkUnsupportedProtocolType(decl);
+    
+    if (auto NTD = dyn_cast<NominalTypeDecl>(decl)) {
+      // Compute reflectability.
+      bool isDeclReflectable = NTD->isReflectable();
+      bool isReflectableMetadataDisabled = NTD->getASTContext().LangOpts.ReflectionMetadataIsDisabled;
+      bool isFullReflectionMetadataEnabled = NTD->getASTContext().LangOpts.FullReflectionMetadataIsEnabled;
+      
+      auto &DE = getASTContext().Diags;
+      if (isDeclReflectable && isFullReflectionMetadataEnabled) {
+        if (auto RefAttr = NTD->getAttrs().getAttribute<ReflectableAttr>())
+          DE.diagnose(RefAttr->getLocation(), diag::reflection_metadata_emitted_in_full)
+          .fixItRemove(RefAttr->getRange());
+      } else if (isDeclReflectable && isReflectableMetadataDisabled) {
+        if (auto RefAttr = NTD->getAttrs().getAttribute<ReflectableAttr>())
+          DE.diagnose(RefAttr->getLocation(), diag::reflection_metadata_is_disabled)
+          .fixItRemove(RefAttr->getRange());
+      }
+    }
 
     if (auto VD = dyn_cast<ValueDecl>(decl)) {
       auto &Context = getASTContext();

@@ -796,6 +796,9 @@ namespace {
         else
           OS << " non-resilient";
       }
+      
+      if (NTD->isReflectable())
+        OS << " @reflectable";
     }
 
     void printCommonPost(const IterableDeclContext *IDC) {

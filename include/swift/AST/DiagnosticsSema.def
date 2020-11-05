@@ -5451,6 +5451,19 @@ NOTE(result_builder_missing_build_limited_availability, none,
  WARNING(warn_reordering_tuple_shuffle_deprecated,none,
         "expression shuffles the elements of this tuple; "
         "this behavior is deprecated", ())
+        
+//------------------------------------------------------------------------------
+// MARK: Reflectable Diagnostics
+//------------------------------------------------------------------------------
+
+  WARNING(reflection_metadata_emitted_in_full,none,
+         "the compiler emits reflection metadata in full, "
+         "`@reflectable` is ignored",
+         ())
+         
+  WARNING(reflection_metadata_is_disabled,none,
+         "`@reflectable` is ignored because reflection metadata is disabled",
+         ())
 
 //------------------------------------------------------------------------------
 // MARK: differentiable programming diagnostics

@@ -588,6 +588,11 @@ SIMPLE_DECL_ATTR(_specializeExtension, SpecializeExtension,
   ABIStableToAdd | ABIStableToRemove | APIStableToAdd | APIStableToRemove,
   105)
 
+SIMPLE_DECL_ATTR(reflectable, Reflectable,
+  OnClass | OnEnum | OnStruct | OnProtocol |
+  ABIStableToAdd | ABIStableToRemove | APIStableToAdd | APIStableToRemove,
+  106)
+
 #undef TYPE_ATTR
 #undef DECL_ATTR_ALIAS
 #undef CONTEXTUAL_DECL_ATTR_ALIAS

@@ -121,6 +121,7 @@ public:
   IGNORED_ATTR(OriginallyDefinedIn)
   IGNORED_ATTR(NoDerivative)
   IGNORED_ATTR(SpecializeExtension)
+  IGNORED_ATTR(Reflectable)
 #undef IGNORED_ATTR
 
   void visitAlignmentAttr(AlignmentAttr *attr) {
@@ -5371,4 +5372,55 @@ void AttributeChecker::visitTransposeAttr(TransposeAttr *attr) {
 
   // Set the resolved linearity parameter indices in the attribute.
   attr->setParameterIndices(linearParamIndices);
+}
+
+static bool isReflectableProtocol(ProtocolDecl *PD) {
+  
+  // Check for circular inheritance within the protocol.
+  if (PD->hasCircularInheritedProtocols())
+    return false;
+  
+  if (PD->getAttrs().hasAttribute<ReflectableAttr>()) {
+    return true;
+  } else {
+    for (ProtocolDecl *inherited : PD->getInheritedProtocols()) {
+      // Recursively check inherited protocols for Reflectable attribute.
+      if (isReflectableProtocol(inherited))
+        return true;
+    }
+  }
+  return false;
+}
+
+bool
+IsReflectableRequest::evaluate(Evaluator &evaluator,
+                               NominalTypeDecl *decl) const {
+  
+  auto addImplicitReflectionAttr = [&](bool result){
+    if (result && !decl->getAttrs().hasAttribute<ReflectableAttr>())
+      decl->getAttrs().add(new (decl->getASTContext()) ReflectableAttr(true));
+    return result;
+  };
+  
+  if (decl->getAttrs().hasAttribute<ReflectableAttr>())
+    return true;
+  
+  for (auto P : decl->getAllProtocols()) {
+    if (isReflectableProtocol(P))
+      return addImplicitReflectionAttr(true);
+  }
+  
+  bool result = false;
+  // Classes can inherit the attribute from parents.
+  if (auto CD = dyn_cast<ClassDecl>(decl)) {
+    CD->walkSuperclasses([&](ClassDecl *SuperDecl) {
+      if (SuperDecl->getAttrs().hasAttribute<ReflectableAttr>()) {
+        result = true;
+        return TypeWalker::Action::Stop;
+      }
+      return TypeWalker::Action::Continue;
+    });
+  }
+  
+  return addImplicitReflectionAttr(result);
 }

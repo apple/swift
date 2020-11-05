@@ -359,6 +359,14 @@ namespace swift {
     /// recovery issues won't bring down the debugger.
     /// TODO: remove this when @_implementationOnly modules are robust enough.
     bool AllowDeserializingImplementationOnly = false;
+    
+    /// Allows to diagnose @reflectable declarations
+    /// when full reflection metadata is enabled.
+    bool FullReflectionMetadataIsEnabled = false;
+    
+    /// Allows to diagnose @reflectable declarations
+    /// when reflection metadata is disabled.
+    bool ReflectionMetadataIsDisabled = false;
 
     /// Sets the target we are building for and updates platform conditions
     /// to match.

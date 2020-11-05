@@ -348,6 +348,9 @@ def disable_reflection_names : Flag<["-"], "disable-reflection-names">,
   HelpText<"Disable emission of names of stored properties and enum cases in"
            "reflection metadata">;
 
+def enable_opt_in_reflection_metadata : Flag<["-"], "enable-opt-in-reflection-metadata">,
+  HelpText<"Enable emission of reflection metadata for nominal types with @reflectable attribute">;
+
 def function_sections: Flag<["-"], "function-sections">,
   Flags<[FrontendOption, NoInteractiveOption]>,
   HelpText<"Emit functions to separate sections.">;

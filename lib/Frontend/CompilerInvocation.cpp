@@ -164,6 +164,22 @@ static void updateRuntimeLibraryPaths(SearchPathOptions &SearchPathOpts,
 }
 
 static void
+setLangOptsFromIRGenOptions(LangOptions &LangOpts,
+                            const IRGenOptions &IRGenOpts) {
+  switch (IRGenOpts.ReflectionLevel) {
+    case ReflectionMetadataLevel::Disabled:
+      LangOpts.ReflectionMetadataIsDisabled = true;
+      LangOpts.FullReflectionMetadataIsEnabled = false;
+      break;
+    case ReflectionMetadataLevel::Full:
+      LangOpts.ReflectionMetadataIsDisabled = false;
+      LangOpts.FullReflectionMetadataIsEnabled = true;
+      break;
+    default: break;
+  }
+}
+
+static void
 setIRGenOutputOptsFromFrontendOptions(IRGenOptions &IRGenOpts,
                                       const FrontendOptions &FrontendOpts) {
   // Set the OutputKind for the given Action.
@@ -1531,18 +1547,32 @@ static bool ParseIRGenArgs(IRGenOptions &Opts, ArgList &Args,
     Opts.SanitizeCoverage.Inline8bitCounters = true;
     Opts.SanitizeCoverage.CoverageType = llvm::SanitizerCoverageOptions::SCK_Edge;
   }
-
+  
+  if (Args.hasArg(OPT_disable_reflection_metadata) &&
+      Args.hasArg(OPT_enable_opt_in_reflection_metadata)) {
+    auto OptInRefArg = Args.getLastArg(OPT_enable_opt_in_reflection_metadata);
+    auto DisableRefArg = Args.getLastArg(OPT_disable_reflection_metadata);
+    Diags.diagnose(SourceLoc(),
+                   diag::error_argument_not_allowed_with,
+                   OptInRefArg->getAsString(Args),
+                   DisableRefArg->getAsString(Args));
+  }
+  
   if (Args.hasArg(OPT_disable_reflection_metadata)) {
-    Opts.EnableReflectionMetadata = false;
+    Opts.ReflectionLevel = ReflectionMetadataLevel::Disabled;
     Opts.EnableReflectionNames = false;
+  } else {
+    if (Args.hasArg(OPT_enable_opt_in_reflection_metadata)) {
+      Opts.ReflectionLevel = ReflectionMetadataLevel::OptIn;
+    } else {
+      Opts.ReflectionLevel = ReflectionMetadataLevel::Full;
+    }
+    if (Args.hasArg(OPT_disable_reflection_names))
+      Opts.EnableReflectionNames = false;
   }
 
   if (Args.hasArg(OPT_enable_anonymous_context_mangled_names))
     Opts.EnableAnonymousContextMangledNames = true;
-
-  if (Args.hasArg(OPT_disable_reflection_names)) {
-    Opts.EnableReflectionNames = false;
-  }
 
   if (Args.hasArg(OPT_force_public_linkage)) {
     Opts.ForcePublicLinkage = true;
@@ -1815,6 +1845,7 @@ bool CompilerInvocation::parseArgs(
 
   // Now that we've parsed everything, setup some inter-option-dependent state.
   setIRGenOutputOptsFromFrontendOptions(IRGenOpts, FrontendOpts);
+  setLangOptsFromIRGenOptions(LangOpts, IRGenOpts);
   setBridgingHeaderFromFrontendOptions(ClangImporterOpts, FrontendOpts);
 
   return false;
