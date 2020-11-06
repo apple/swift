@@ -1,0 +1,243 @@
+// RUN: %target-sil-opt -enable-sil-verify-all %s -sil-combine | %FileCheck %s
+
+// REQUIRES: objc_interop
+
+// TODO: Update optimizer for id-as-Any changes.
+
+sil_stage canonical
+
+import Builtin
+import Swift
+import Foundation
+
+// FIXME: Should go into the standard library.
+public extension _ObjectiveCBridgeable {
+  static func _unconditionallyBridgeFromObjectiveC(_ source: _ObjectiveCType?)
+      -> Self
+}
+
+class AnNSArray {
+}
+
+struct AnArray<T> : _ObjectiveCBridgeable {
+  @_hasStorage var Buffer : Builtin.NativeObject
+
+  func _bridgeToObjectiveC() -> AnNSArray {
+    return AnNSArray()
+  }
+  static func _forceBridgeFromObjectiveC(
+    _ x: AnNSArray,
+    result: inout AnArray?
+  ) {
+    preconditionFailure("implement")
+  }
+  static func _conditionallyBridgeFromObjectiveC(
+    _ x: AnNSArray,
+    result: inout AnArray?
+  ) -> Bool {
+    preconditionFailure("implement")
+  }
+}
+
+sil [_semantics "convertFromObjectiveC"] @bridgeFromObjectiveC :
+  $@convention(thin) <τ_0_0> (@owned AnNSArray) -> @owned AnArray<τ_0_0>
+
+sil [_semantics "convertToObjectiveC"] @bridgeToObjectiveC:
+  $@convention(method) <τ_0_0> (@owned AnArray<τ_0_0>) -> @owned AnNSArray
+
+// CHECK-LABEL: sil [ossa] @bridge_from_to_owned
+// CHECK-NOT: apply
+// CHECK: strong_retain
+// CHECK-NOT: apply
+// CHECK: strong_release
+// CHECK-NOT: apply
+// CHECK: return
+
+sil [ossa] @bridge_from_to_owned : $@convention(thin) (@owned AnNSArray) -> @owned AnNSArray {
+bb0(%0 : @owned $AnNSArray):
+  %1 = function_ref @bridgeFromObjectiveC : $@convention(thin) <AnyObject> (@owned AnNSArray) -> @owned AnArray<AnyObject>
+  %2 = apply %1<AnyObject>(%0) : $@convention(thin) <AnyObject> (@owned AnNSArray) -> @owned AnArray<AnyObject>
+  %2a = copy_value %2 : $AnArray<AnyObject>
+  destroy_value %2 : $AnArray<AnyObject>
+  %3 = function_ref @bridgeToObjectiveC : $@convention(method) <AnyObject> (@owned AnArray<AnyObject>) -> @owned AnNSArray
+  %4 = apply %3<AnyObject>(%2a) : $@convention(method) <AnyObject> (@owned AnArray<AnyObject>) -> @owned AnNSArray
+  return %4 : $AnNSArray
+}
+
+sil [_semantics "convertFromObjectiveC"] [dynamically_replacable] @bridgeFromObjectiveC2 :
+  $@convention(thin) <τ_0_0> (@owned AnNSArray) -> @owned AnArray<τ_0_0>
+
+sil [_semantics "convertToObjectiveC"] [dynamically_replacable] @bridgeToObjectiveC2:
+  $@convention(method) <τ_0_0> (@owned AnArray<τ_0_0>) -> @owned AnNSArray
+
+// This should not crash.
+sil [ossa] @bridge_from_to_owned_dynamic : $@convention(thin) (@owned AnNSArray) -> @owned AnNSArray {
+bb0(%0 : @owned $AnNSArray):
+  %1 = dynamic_function_ref @bridgeFromObjectiveC2 : $@convention(thin) <AnyObject> (@owned AnNSArray) -> @owned AnArray<AnyObject>
+  %2 = apply %1<AnyObject>(%0) : $@convention(thin) <AnyObject> (@owned AnNSArray) -> @owned AnArray<AnyObject>
+  %2a = copy_value %2 : $AnArray<AnyObject>
+  destroy_value %2 : $AnArray<AnyObject>
+  %3 = dynamic_function_ref @bridgeToObjectiveC2 : $@convention(method) <AnyObject> (@owned AnArray<AnyObject>) -> @owned AnNSArray
+  %4 = apply %3<AnyObject>(%2a) : $@convention(method) <AnyObject> (@owned AnArray<AnyObject>) -> @owned AnNSArray
+  return %4 : $AnNSArray
+}
+// CHECK-LABEL: sil [ossa] @bridge_to_from_owned
+// CHECK-NOT: apply
+// CHECK: retain_value
+// CHECK-NOT: apply
+// CHECK: destroy_value
+// CHECK-NOT: apply
+// CHECK: return
+
+sil [ossa] @bridge_to_from_owned : $@convention(thin) (@owned AnArray<AnyObject>) -> @owned AnArray<AnyObject>{
+bb0(%0 : @owned $AnArray<AnyObject>):
+  %1 = function_ref @bridgeToObjectiveC : $@convention(method) <AnyObject> (@owned AnArray<AnyObject>) -> @owned AnNSArray
+  %2 = apply %1<AnyObject>(%0) : $@convention(method) <AnyObject> (@owned AnArray<AnyObject>) -> @owned AnNSArray
+  debug_value %2 : $AnNSArray    // should not prevent the optimization
+  %2a = copy_value %2 : $AnNSArray
+  destroy_value %2 : $AnNSArray
+  %3 = function_ref @bridgeFromObjectiveC : $@convention(thin) <AnyObject> (@owned AnNSArray) -> @owned AnArray<AnyObject>
+  %4 = apply %3<AnyObject>(%2a) : $@convention(thin) <AnyObject> (@owned AnNSArray) -> @owned AnArray<AnyObject>
+  return %4 : $AnArray<AnyObject>
+}
+
+sil [_semantics "convertFromObjectiveC"] @bridgeFromObjectiveCGuaranteed :
+  $@convention(thin) <τ_0_0> (@guaranteed AnNSArray) -> @owned AnArray<τ_0_0>
+
+sil [_semantics "convertToObjectiveC"] @bridgeToObjectiveCGuaranteed:
+  $@convention(method) <τ_0_0> (@guaranteed AnArray<τ_0_0>) -> @owned AnNSArray
+
+// CHECK-LABEL: sil [ossa] @bridge_from_to_guaranteed
+// CHECK-NOT: apply
+// CHECK: strong_retain
+// CHECK-NOT: apply
+// CHECK: strong_release
+// CHECK-NOT: apply
+// CHECK: return
+
+sil [ossa] @bridge_from_to_guaranteed : $@convention(thin) (@owned AnNSArray) -> @owned AnNSArray {
+bb0(%0 : @owned $AnNSArray):
+  %1 = function_ref @bridgeFromObjectiveCGuaranteed : $@convention(thin) <AnyObject> (@guaranteed AnNSArray) -> @owned AnArray<AnyObject>
+  %2 = apply %1<AnyObject>(%0) : $@convention(thin) <AnyObject> (@guaranteed AnNSArray) -> @owned AnArray<AnyObject>
+  destroy_value %0 : $AnNSArray
+  %3 = function_ref @bridgeToObjectiveCGuaranteed : $@convention(method) <AnyObject> (@guaranteed AnArray<AnyObject>) -> @owned AnNSArray
+  %4 = apply %3<AnyObject>(%2) : $@convention(method) <AnyObject> (@guaranteed AnArray<AnyObject>) -> @owned AnNSArray
+  destroy_value %2 : $AnArray<AnyObject>
+  return %4 : $AnNSArray
+}
+
+// CHECK-LABEL: sil [ossa] @bridge_to_from_guaranteed
+// CHECK-NOT: apply
+// CHECK: retain_value
+// CHECK-NOT: apply
+// CHECK: destroy_value
+// CHECK-NOT: apply
+// CHECK: return
+
+sil [ossa] @bridge_to_from_guaranteed : $@convention(thin) (@owned AnArray<AnyObject>) -> @owned AnArray<AnyObject>{
+bb0(%0 : @owned $AnArray<AnyObject>):
+  %1 = function_ref @bridgeToObjectiveCGuaranteed : $@convention(method) <AnyObject> (@guaranteed AnArray<AnyObject>) -> @owned AnNSArray
+  %2 = apply %1<AnyObject>(%0) : $@convention(method) <AnyObject> (@guaranteed AnArray<AnyObject>) -> @owned AnNSArray
+  destroy_value %0 : $AnArray<AnyObject>
+  %3 = function_ref @bridgeFromObjectiveCGuaranteed : $@convention(thin) <AnyObject> (@guaranteed AnNSArray) -> @owned AnArray<AnyObject>
+  %4 = apply %3<AnyObject>(%2) : $@convention(thin) <AnyObject> (@guaranteed AnNSArray) -> @owned AnArray<AnyObject>
+  destroy_value %2 : $AnNSArray
+  return %4 : $AnArray<AnyObject>
+}
+
+struct PlainStruct {
+}
+
+// CHECK-LABEL: sil [ossa] @plain_struct_bridge_from_to_owned
+// CHECK-NOT: apply
+// CHECK-NOT: apply
+// CHECK: return
+sil [ossa] @plain_struct_bridge_from_to_owned : $@convention(thin) (@owned AnNSArray) -> @owned AnNSArray {
+bb0(%0 : @owned $AnNSArray):
+  %1 = function_ref @bridgeFromObjectiveC : $@convention(thin) <PlainStruct> (@owned AnNSArray) -> @owned AnArray<PlainStruct>
+  %2 = apply %1<PlainStruct>(%0) : $@convention(thin) <PlainStruct> (@owned AnNSArray) -> @owned AnArray<PlainStruct>
+  %2a = copy_value %2 : $AnArray<PlainStruct>
+  destroy_value %2 : $AnArray<PlainStruct>
+  %3 = function_ref @bridgeToObjectiveC : $@convention(method) <PlainStruct> (@owned AnArray<PlainStruct>) -> @owned AnNSArray
+  %4 = apply %3<PlainStruct>(%2a) : $@convention(method) <PlainStruct> (@owned AnArray<PlainStruct>) -> @owned AnNSArray
+  return %4 : $AnNSArray
+}
+
+// CHECK-LABEL: sil [ossa] @plain_struct_bridge_from_to_owned_generic
+// CHECK-NOT: apply
+// CHECK-NOT: apply
+// CHECK: return
+
+sil [ossa] @plain_struct_bridge_from_to_owned_generic : $@convention(thin) <T>(@owned AnNSArray) -> @owned AnNSArray {
+bb0(%0 : @owned $AnNSArray):
+  %1 = function_ref @bridgeFromObjectiveC : $@convention(thin) <T2> (@owned AnNSArray) -> @owned AnArray<T2>
+  %2 = apply %1<T>(%0) : $@convention(thin) <T2> (@owned AnNSArray) -> @owned AnArray<T2>
+  %2a = copy_value %2 : $AnArray<T>
+  destroy_value %2 : $AnArray<T>
+  %3 = function_ref @bridgeToObjectiveC : $@convention(method) <T2> (@owned AnArray<T2>) -> @owned AnNSArray
+  %4 = apply %3<T>(%2a) : $@convention(method) <T> (@owned AnArray<T>) -> @owned AnNSArray
+  return %4 : $AnNSArray
+}
+
+// CHECK-LABEL: sil [ossa] @plain_struct_from_to_owned_recursive_type
+// CHECK-NOT: apply
+// CHECK-NOT: apply
+// CHECK: return
+
+sil [ossa] @plain_struct_from_to_owned_recursive_type : $@convention(thin) (@owned AnNSArray) -> @owned AnNSArray {
+bb0(%0 : @owned $AnNSArray):
+  %1 = function_ref @bridgeFromObjectiveC : $@convention(thin) <T> (@owned AnNSArray) -> @owned AnArray<T>
+  %2 = apply %1<AnArray<PlainStruct>>(%0) : $@convention(thin) <T> (@owned AnNSArray) -> @owned AnArray<T>
+  %2a = copy_value %2 : $AnArray<AnArray<PlainStruct>>
+  destroy_value %2 : $AnArray<AnArray<PlainStruct>>
+  %3 = function_ref @bridgeToObjectiveC : $@convention(method) <T> (@owned AnArray<T>) -> @owned AnNSArray
+  %4 = apply %3<AnArray<PlainStruct>>(%2a) : $@convention(method) <T> (@owned AnArray<T>) -> @owned AnNSArray
+  return %4 : $AnNSArray
+}
+
+// CHECK-LABEL: sil shared @bridge_from_swift_array_to_NSObject_cast
+// CHECK: function_ref @$sSa10FoundationE19_bridgeToObjectiveC{{[_0-9a-zA-Z]*}}F
+// CHECK-NOT: retain
+// CHECK: apply
+// CHECK: destroy_value
+// CHECK: upcast %{{.*}} : $NSArray to $NSObject
+// CHECK: store
+// CHECK: return
+sil shared @bridge_from_swift_array_to_NSObject_cast: $@convention(thin) (@in Array<String>) -> @out NSObject {
+bb0(%0 : $*NSObject, %1 : $*Array<String>):
+  %2 = alloc_stack $Array<String>
+  copy_addr %1 to [initialization] %2 : $*Array<String>
+  unconditional_checked_cast_addr Array<String> in %2 : $*Array<String> to NSObject in %0 : $*NSObject
+  dealloc_stack %2 : $*Array<String>
+  destroy_addr %1 : $*Array<String>
+  %7 = tuple ()
+  return %7 : $()
+}
+
+enum AddressOnlyError : Error {
+  case data(Data)
+  case none
+}
+
+// Test that we emit a copy_addr for the address-only value initialization.
+
+// CHECK-LABEL: sil [ossa] @unconditional_checked_cast_addr_address_only_type
+// CHECK: alloc_stack $Error
+// CHECK: alloc_stack $AddressOnlyError
+// CHECK:  copy_addr
+// CHECK: alloc_existential_box
+// CHECK: project_existential_box
+// CHECK: copy_addr
+// CHECK: store
+sil [ossa] @unconditional_checked_cast_addr_address_only_type: $@convention(thin) (@in_guaranteed AddressOnlyError) -> @owned Error {
+bb0(%0 : $*AddressOnlyError):
+  %1 = alloc_stack $Error
+  %2 = alloc_stack $AddressOnlyError
+  copy_addr %0 to [initialization] %2 : $*AddressOnlyError
+  unconditional_checked_cast_addr AddressOnlyError in %2 : $*AddressOnlyError to Error in %1 : $*Error
+  dealloc_stack %2 : $*AddressOnlyError
+  %8 = tuple ()
+  %9 = load [take] %1 : $*Error
+  dealloc_stack %1 : $*Error
+  return %9 : $Error
+}

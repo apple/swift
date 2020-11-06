@@ -1,0 +1,1169 @@
+// RUN: %target-sil-opt -enable-sil-verify-all %s -sil-combine -sil-combine-disable-alloc-stack-opts | %FileCheck %s
+
+import Swift
+import Builtin
+
+//////////////////
+// Declarations //
+//////////////////
+
+sil @unknown : $@convention(thin) () -> ()
+sil @generic_callee_in : $@convention(thin) <T, U> (@in T, @in U) -> ()
+sil @generic_callee_inguaranteed : $@convention(thin) <T, U> (@in_guaranteed T, @in_guaranteed U) -> ()
+sil @callee : $@convention(thin) (Double, @in_guaranteed Int) -> ()
+sil @callee_nontrivial : $@convention(thin) (@guaranteed Klass, @in_guaranteed Klass) -> ()
+sil @noreturn_func : $@convention(thin) () -> Never
+
+protocol SwiftP {
+  func foo()
+}
+
+class Klass {}
+
+sil @non_trivial_callee : $@convention(thin) (@guaranteed Klass, @in_guaranteed Klass) -> ()
+
+protocol FakeProtocol {
+  func requirement()
+}
+
+/////////////////////////////////
+// Tests for SILCombinerApply. //
+/////////////////////////////////
+
+// Make sure that we handle partial_apply captured arguments correctly.
+//
+// We use custom types here to make it easier to pattern match with FileCheck.
+struct S1 { var x: Builtin.NativeObject }
+struct S2 { var x: Builtin.NativeObject }
+struct S3 { var x: Builtin.NativeObject }
+struct S4 { var x: Builtin.NativeObject }
+struct S5 { var x: Builtin.NativeObject }
+struct S6 { var x: Builtin.NativeObject }
+struct S7 { var x: Builtin.NativeObject }
+struct S8 { var x: Builtin.NativeObject }
+
+sil @get_s1 : $@convention(thin) () -> @out S1
+sil @get_s3 : $@convention(thin) () -> @out S3
+
+sil @sil_combine_partial_apply_callee : $@convention(thin) (@in S1, @in S2, @in_guaranteed S3, @in_guaranteed S4, @inout S5, S6, @owned S7, @guaranteed S8) -> ()
+
+// *NOTE PLEASE READ*. If this test case looks funny to you, it is b/c partial
+// apply is funny. Specifically, even though a partial apply has the conventions
+// of the function on it, arguments to the partial apply (that will be passed
+// off to the function) must /always/ be passed in at +1. This is because the
+// partial apply is building up a boxed aggregate to send off to the closed over
+// function. Of course when you call the function, the proper conventions will
+// be used.
+//
+// CHECK-LABEL: sil [ossa] @sil_combine_dead_partial_apply : $@convention(thin) (@in S2, @in S4, @inout S5, S6, @owned S7, @guaranteed S8) -> () {
+// CHECK: bb0([[IN_ARG:%.*]] : $*S2, [[INGUARANTEED_ARG:%.*]] : $*S4, [[INOUT_ARG:%.*]] : $*S5, [[UNOWNED_ARG:%.*]] : @unowned $S6, [[OWNED_ARG:%.*]] : @owned $S7, [[GUARANTEED_ARG:%.*]] : @guaranteed $S8):
+//
+// CHECK: function_ref unknown
+// CHECK: [[UNKNOWN_FUNC:%.*]] = function_ref @unknown
+// CHECK-NEXT: [[IN_ADDRESS:%.*]] = alloc_stack $S1
+// CHECK: apply {{%.*}}([[IN_ADDRESS]]) : $@convention(thin) () -> @out S1
+// CHECK-NEXT: [[INGUARANTEED_ADDRESS:%.*]] = alloc_stack $S3
+// CHECK: apply {{%.*}}([[INGUARANTEED_ADDRESS]]) : $@convention(thin) () -> @out S3
+//
+// CHECK-NEXT: apply [[UNKNOWN_FUNC]]()
+// CHECK: [[IN_ADDRESS_1:%.*]] = alloc_stack $S1
+// CHECK: copy_addr [take] [[IN_ADDRESS]] to [initialization] [[IN_ADDRESS_1]]
+// CHECK: [[IN_ARG_1:%.*]] = alloc_stack $S2
+// CHECK: copy_addr [take] [[IN_ARG]] to [initialization] [[IN_ARG_1]]
+// CHECK: [[INGUARANTEED_ADDRESS_1:%.*]] = alloc_stack $S3
+// CHECK: copy_addr [take] [[INGUARANTEED_ADDRESS]] to [initialization] [[INGUARANTEED_ADDRESS_1]]
+// CHECK: [[INGUARANTEED_ARG_1:%.*]] = alloc_stack $S4
+// CHECK: copy_addr [take] [[INGUARANTEED_ARG]] to [initialization] [[INGUARANTEED_ARG_1]]
+//
+// Then make sure that the destroys are placed after the destroy_value of the
+// partial_apply (which is after this apply)...
+// CHECK-NEXT: apply [[UNKNOWN_FUNC]]()
+//
+// CHECK-NEXT: destroy_addr [[IN_ADDRESS_1]]
+// CHECK-NEXT: destroy_addr [[IN_ARG_1]]
+// CHECK-NEXT: destroy_addr [[INGUARANTEED_ADDRESS_1]]
+// CHECK-NEXT: destroy_addr [[INGUARANTEED_ARG_1]]
+// CHECK-NEXT: dealloc_stack [[INGUARANTEED_ARG_1]]
+// CHECK-NEXT: dealloc_stack [[INGUARANTEED_ADDRESS_1]]
+// CHECK-NEXT: dealloc_stack [[IN_ARG_1]]
+// CHECK-NEXT: dealloc_stack [[IN_ADDRESS_1]]
+// CHECK-NEXT: destroy_value [[OWNED_ARG]]
+//
+// ... but before the function epilog.
+// CHECK-NEXT: apply [[UNKNOWN_FUNC]]()
+// CHECK-NEXT: dealloc_stack [[INGUARANTEED_ADDRESS]]
+// CHECK-NEXT: dealloc_stack [[IN_ADDRESS]]
+// CHECK-NEXT: tuple
+// CHECK-NEXT: return
+// CHECK-NEXT: } // end sil function 'sil_combine_dead_partial_apply'
+sil [ossa] @sil_combine_dead_partial_apply : $@convention(thin) (@in S2, @in S4, @inout S5, S6, @owned S7, @guaranteed S8) -> () {
+bb0(%1 : $*S2, %2 : $*S4, %4 : $*S5, %5 : @unowned $S6, %6 : @owned $S7, %7 : @guaranteed $S8):
+  %8 = function_ref @unknown : $@convention(thin) () -> ()
+  %9 = function_ref @sil_combine_partial_apply_callee : $@convention(thin) (@in S1, @in S2, @in_guaranteed S3, @in_guaranteed S4, @inout S5, S6, @owned S7, @guaranteed S8) -> ()
+
+  // This is for the @in alloc_stack case.
+  %10 = alloc_stack $S1
+  %getS1Fun = function_ref @get_s1 : $@convention(thin) () -> @out S1
+  apply %getS1Fun(%10) : $@convention(thin) () -> @out S1
+
+  // This is for the @in_guaranteed alloc_stack case.
+  %11 = alloc_stack $S3
+  %getS3Fun = function_ref @get_s3 : $@convention(thin) () -> @out S3
+  apply %getS3Fun(%11) : $@convention(thin) () -> @out S3
+
+  // Marker of space in between the alloc_stack and the partial_apply
+  apply %8() : $@convention(thin) () -> ()
+
+  // Now call the partial apply. We use the "unknown" function call after the
+  // partial apply to ensure that we are truly placing releases at the partial
+  // applies release rather than right afterwards.
+  %5a = copy_value %5 : $S6
+  %7a = copy_value %7 : $S8
+  %102 = partial_apply %9(%10, %1, %11, %2, %4, %5a, %6, %7a) : $@convention(thin) (@in S1, @in S2, @in_guaranteed S3, @in_guaranteed S4, @inout S5, S6, @owned S7, @guaranteed S8) -> ()
+
+  // Marker of space in between partial_apply and the release of %102.
+  apply %8() : $@convention(thin) () -> ()
+
+  destroy_value %102 : $@callee_owned () -> ()
+
+  apply %8() : $@convention(thin) () -> ()
+
+  // Epilog.
+
+  // Cleanup the stack locations.
+  dealloc_stack %11 : $*S3
+  dealloc_stack %10 : $*S1
+
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+sil [ossa] @sil_combine_partial_apply_callee_2 : $@convention(thin) (@in S1) -> ()
+
+// CHECK-LABEL: sil [ossa] @sil_combine_dead_partial_apply_non_overlapping_lifetime : $@convention(thin) (@in S1) -> () {
+// CHECK: bb0([[ARG:%.*]] : $*S1):
+// CHECK-NEXT: function_ref unknown
+// CHECK-NEXT: [[UNKNOWN_FUNC:%.*]] = function_ref @unknown : $@convention(thin) () -> ()
+// CHECK-NEXT: apply [[UNKNOWN_FUNC]]()
+// CHECK-NEXT: br bb1
+//
+// CHECK: bb1:
+// CHECK:   [[ORIGINAL_ALLOC_STACK:%.*]] = alloc_stack $S1
+// CHECK-NEXT: copy_addr [take] [[ARG]] to [initialization] [[ORIGINAL_ALLOC_STACK]]
+// CHECK-NEXT: apply [[UNKNOWN_FUNC]]()
+// CHECK-NEXT: apply [[UNKNOWN_FUNC]]()
+// CHECK-NEXT: [[NEW_ALLOC_STACK:%.*]] = alloc_stack $S1
+// CHECK-NEXT: copy_addr [take] [[ORIGINAL_ALLOC_STACK]] to [initialization] [[NEW_ALLOC_STACK]]
+// CHECK-NEXT: apply [[UNKNOWN_FUNC]]()
+// CHECK-NEXT: apply
+// CHECK-NEXT: cond_br undef, bb2, bb3
+//
+// CHECK: bb2:
+// CHECK-NEXT: apply [[UNKNOWN_FUNC]]()
+// CHECK-NEXT: destroy_addr [[NEW_ALLOC_STACK]]
+// CHECK-NEXT: dealloc_stack [[NEW_ALLOC_STACK]]
+// CHECK-NEXT: dealloc_stack [[ORIGINAL_ALLOC_STACK]]
+// CHECK-NEXT: apply [[UNKNOWN_FUNC]]()
+// CHECK-NEXT:   br bb4
+//
+// CHECK: bb3:
+// CHECK-NEXT: apply [[UNKNOWN_FUNC]]()
+// CHECK-NEXT:   destroy_addr [[NEW_ALLOC_STACK]]
+// CHECK-NEXT: dealloc_stack [[NEW_ALLOC_STACK]]
+// CHECK-NEXT: dealloc_stack [[ORIGINAL_ALLOC_STACK]]
+// CHECK-NEXT: apply [[UNKNOWN_FUNC]]()
+// CHECK-NEXT:   br bb4
+//
+// CHECK: bb4:
+// CHECK-NEXT: apply [[UNKNOWN_FUNC]]()
+// CHECK-NEXT: tuple
+// CHECK-NEXT: apply [[UNKNOWN_FUNC]]()
+// CHECK: } // end sil function 'sil_combine_dead_partial_apply_non_overlapping_lifetime'
+sil [ossa] @sil_combine_dead_partial_apply_non_overlapping_lifetime : $@convention(thin) (@in S1) -> () {
+bb0(%s1 : $*S1):
+  %3 = function_ref @unknown : $@convention(thin) () -> ()
+  apply %3() : $@convention(thin) () -> ()
+  br bb1
+
+bb1:
+  %0 = alloc_stack $S1
+  copy_addr [take] %s1 to [initialization] %0 : $*S1
+  apply %3() : $@convention(thin) () -> ()
+  %1 = function_ref @sil_combine_partial_apply_callee_2 : $@convention(thin) (@in S1) -> ()
+  apply %3() : $@convention(thin) () -> ()
+  %2 = partial_apply %1(%0) : $@convention(thin) (@in S1) -> ()
+  apply %3() : $@convention(thin) () -> ()
+  dealloc_stack %0 : $*S1
+  apply %3() : $@convention(thin) () -> ()
+  cond_br undef, bb2, bb3
+
+bb2:
+  apply %3() : $@convention(thin) () -> ()
+  destroy_value %2 : $@callee_owned () -> ()
+  apply %3() : $@convention(thin) () -> ()
+  br bb4
+
+bb3:
+  apply %3() : $@convention(thin) () -> ()
+  destroy_value %2 : $@callee_owned () -> ()
+  apply %3() : $@convention(thin) () -> ()
+  br bb4
+
+bb4:
+  apply %3() : $@convention(thin) () -> ()
+  %9999 = tuple()
+  apply %3() : $@convention(thin) () -> ()
+  return %9999 : $()
+}
+
+sil [ossa] @try_apply_func : $@convention(thin) () -> (Builtin.Int32, @error Error)
+
+// CHECK-LABEL: sil [ossa] @sil_combine_dead_partial_apply_try_apply : $@convention(thin) (@in S1) -> ((), @error Error) {
+// CHECK: bb0([[ARG:%.*]] : $*S1):
+// CHECK: bb1:
+// CHECK-NEXT: [[ORIGINAL_ALLOC_STACK:%.*]] = alloc_stack $S1
+// CHECK-NEXT: copy_addr [take] [[ARG]] to [initialization] [[ORIGINAL_ALLOC_STACK]]
+// CHECK-NEXT: [[NEW_ALLOC_STACK:%.*]] = alloc_stack $S1
+// CHECK: bb2:
+// CHECK-NEXT: destroy_addr [[NEW_ALLOC_STACK]]
+// CHECK-NEXT: dealloc_stack [[NEW_ALLOC_STACK]]
+// CHECK-NEXT: dealloc_stack [[ORIGINAL_ALLOC_STACK]]
+// CHECK: bb3:
+// CHECK-NEXT: destroy_addr [[NEW_ALLOC_STACK]]
+// CHECK-NEXT: dealloc_stack [[NEW_ALLOC_STACK]]
+// CHECK-NEXT: dealloc_stack [[ORIGINAL_ALLOC_STACK]]
+// CHECK: bb5(
+// CHECK-NEXT: tuple
+// CHECK-NEXT: return
+// CHECK: bb6(
+// CHECK-NEXT: builtin "willThrow"
+// CHECK-NEXT: throw
+// CHECK: } // end sil function 'sil_combine_dead_partial_apply_try_apply'
+sil [ossa] @sil_combine_dead_partial_apply_try_apply : $@convention(thin) (@in S1) -> ((), @error Error) {
+bb0(%0a : $*S1):
+  br bb1
+
+bb1:
+  %0 = alloc_stack $S1
+  copy_addr [take] %0a to [initialization] %0 : $*S1
+  %1 = function_ref @sil_combine_partial_apply_callee_2 : $@convention(thin) (@in S1) -> ()
+  %2 = partial_apply %1(%0) : $@convention(thin) (@in S1) -> ()
+  dealloc_stack %0 : $*S1
+  cond_br undef, bb2, bb3
+
+bb2:
+  destroy_value %2 : $@callee_owned () -> ()
+  %99991 = tuple()
+  br bb4
+
+bb3:
+  destroy_value %2 : $@callee_owned () -> ()
+  %99992 = tuple()
+  br bb4
+
+bb4:
+  %3 = function_ref @try_apply_func : $@convention(thin) () -> (Builtin.Int32, @error Error)
+  try_apply %3() : $@convention(thin) () -> (Builtin.Int32, @error Error), normal bb5, error bb6
+
+bb5(%4 : $Builtin.Int32):
+  %9999 = tuple()
+  return %9999 : $()
+
+bb6(%5 : $Error):
+  %6 = builtin "willThrow"(%5 : $Error) : $()
+  throw %5 : $Error
+}
+
+// Make sure that we do not optimize this case. If we do optimize this case,
+// given the current algorithm which puts alloc_stack at the beginning/end of
+// the function, we will have a fatal error.
+sil [ossa] @sil_combine_dead_partial_apply_with_opened_existential : $@convention(thin) (@in SwiftP) -> ((), @error Error) {
+bb0(%arg : $*SwiftP):
+  %0b = alloc_stack $SwiftP
+  copy_addr [take] %arg to [initialization] %0b : $*SwiftP
+  %1 = open_existential_addr mutable_access %0b : $*SwiftP to $*@opened("3305E696-5685-11E5-9393-B8E856428C60") SwiftP
+  %2 = witness_method $@opened("3305E696-5685-11E5-9393-B8E856428C60") SwiftP, #SwiftP.foo, %1 : $*@opened("3305E696-5685-11E5-9393-B8E856428C60") SwiftP : $@convention(witness_method: SwiftP) <τ_0_0 where τ_0_0 : SwiftP> (@in_guaranteed τ_0_0) -> ()
+  %0c = alloc_stack $@opened("3305E696-5685-11E5-9393-B8E856428C60") SwiftP
+  copy_addr %1 to [initialization] %0c : $*@opened("3305E696-5685-11E5-9393-B8E856428C60") SwiftP
+  %3 = partial_apply %2<@opened("3305E696-5685-11E5-9393-B8E856428C60") SwiftP>(%0c) : $@convention(witness_method: SwiftP) <τ_0_0 where τ_0_0 : SwiftP> (@in_guaranteed τ_0_0) -> ()
+  dealloc_stack %0c : $*@opened("3305E696-5685-11E5-9393-B8E856428C60") SwiftP
+  destroy_value %3 : $@callee_owned () -> ()
+  destroy_addr %0b : $*SwiftP
+  dealloc_stack %0b : $*SwiftP
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_generic_partial_apply_apply_in :
+// CHECK: bb0([[ARG0:%.*]] : $*T, [[ARG1:%.*]] : $*T):
+// CHECK:   [[STACK:%.*]] = alloc_stack $T
+// CHECK:   copy_addr [take] [[ARG1]] to [initialization] [[STACK]]
+// CHECK: bb1:
+// CHECK:   [[STACK3:%.*]] = alloc_stack $T
+// CHECK:   copy_addr [[STACK]] to [initialization] [[STACK3]]
+// CHECK:   apply {{%.*}}<T, T>([[ARG0]], [[STACK3]])
+// CHECK:   dealloc_stack [[STACK3]]
+// CHECK: bb2:
+// CHECK:   destroy_addr [[STACK]]
+// CHECK:   dealloc_stack [[STACK]]
+// CHECK: } // end sil function 'test_generic_partial_apply_apply_in'
+sil [ossa] @test_generic_partial_apply_apply_in : $@convention(thin) <T> (@in T, @in T) -> () {
+bb0(%0 : $*T, %1 : $*T):
+  %f1 = function_ref @generic_callee_in : $@convention(thin) <T, U> (@in T, @in U) -> ()
+  %pa = partial_apply [callee_guaranteed] %f1<T, T>(%1) : $@convention(thin) <T, U> (@in T, @in U) -> ()
+  br bb1
+
+bb1:
+  %a1 = apply %pa(%0) : $@callee_guaranteed (@in T) -> ()
+  br bb2
+
+bb2:
+  destroy_value %pa : $@callee_guaranteed (@in T) -> ()
+  %r = tuple ()
+  return %r : $()
+}
+
+// Now check that we handle the in_guaranteed case.
+// CHECK-LABEL: sil [ossa] @test_generic_partial_apply_apply_inguaranteed : $@convention(thin) <T> (@in T, @in T) -> () {
+// CHECK: bb0([[ARG0:%.*]] : $*T, [[ARG1:%.*]] : $*T):
+// CHECK:   [[STACK:%.*]] = alloc_stack $T
+// CHECK:   copy_addr [take] [[ARG1]] to [initialization] [[STACK]]
+// CHECK:   apply {{%.*}}<T, T>([[ARG0]], [[STACK]])
+// CHECK:   destroy_addr [[STACK]]
+// CHECK:   destroy_addr [[ARG0]]
+// CHECK: } // end sil function 'test_generic_partial_apply_apply_inguaranteed'
+sil [ossa] @test_generic_partial_apply_apply_inguaranteed : $@convention(thin) <T> (@in T, @in T) -> () {
+bb0(%0 : $*T, %1 : $*T):
+  %f1 = function_ref @generic_callee_inguaranteed : $@convention(thin) <T, U> (@in_guaranteed T, @in_guaranteed U) -> ()
+  %pa = partial_apply %f1<T, T>(%1) : $@convention(thin) <T, U> (@in_guaranteed T, @in_guaranteed U) -> ()
+  %a1 = apply %pa(%0) : $@callee_owned (@in_guaranteed T) -> ()
+  destroy_addr %0 : $*T
+  %r = tuple ()
+  return %r : $()
+}
+
+// CHECK-LABEL: sil [ossa] @sil_combine_applied_partialapply_to_apply_with_dependent_type : $@convention(thin) (@in_guaranteed SwiftP) -> () {
+// CHECK: bb0({{.*}}):
+// CHECK:   [[EX:%.*]] = open_existential_addr
+// CHECK:   [[METHOD:%.*]] = witness_method
+// CHECK:   [[STACK1:%.*]] = alloc_stack $@opened
+// CHECK:   copy_addr [[EX]] to [initialization] [[STACK1]]
+// CHECK:   [[STACK2:%.*]] = alloc_stack $@opened
+// CHECK:   copy_addr [take] [[STACK1]] to [initialization] [[STACK2]]
+// CHECK:   apply [[METHOD]]<@opened{{.*}}>([[STACK2]])
+// CHECK:   destroy_addr [[STACK2]]
+// CHECK:   dealloc_stack [[STACK2]]
+// CHECK:   dealloc_stack [[STACK1]]
+// CHECK: } // end sil function 'sil_combine_applied_partialapply_to_apply_with_dependent_type'
+sil [ossa] @sil_combine_applied_partialapply_to_apply_with_dependent_type : $@convention(thin) (@in_guaranteed SwiftP) -> () {
+bb0(%0 : $*SwiftP):
+  %1 = open_existential_addr immutable_access %0 : $*SwiftP to $*@opened("3305E696-5685-11E5-9393-B8E856428C60") SwiftP
+  %2 = witness_method $@opened("3305E696-5685-11E5-9393-B8E856428C60") SwiftP, #SwiftP.foo, %1 : $*@opened("3305E696-5685-11E5-9393-B8E856428C60") SwiftP : $@convention(witness_method: SwiftP) <τ_0_0 where τ_0_0 : SwiftP> (@in_guaranteed τ_0_0) -> ()
+  %0c = alloc_stack $@opened("3305E696-5685-11E5-9393-B8E856428C60") SwiftP
+  copy_addr %1 to [initialization] %0c : $*@opened("3305E696-5685-11E5-9393-B8E856428C60") SwiftP
+  %3 = partial_apply %2<@opened("3305E696-5685-11E5-9393-B8E856428C60") SwiftP>(%0c) : $@convention(witness_method: SwiftP) <τ_0_0 where τ_0_0 : SwiftP> (@in_guaranteed τ_0_0) -> ()
+  dealloc_stack %0c : $*@opened("3305E696-5685-11E5-9393-B8E856428C60") SwiftP
+  %4 = apply %3() : $@callee_owned () -> ()
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+protocol MutatingProto {
+    mutating func mutatingMethod()
+}
+
+struct MStruct : MutatingProto {
+
+    var somevar: Builtin.Int32
+
+    mutating func mutatingMethod()
+}
+
+// CHECK-LABEL: sil [ossa] @dont_replace_copied_self_in_mutating_method_call
+sil [ossa] @dont_replace_copied_self_in_mutating_method_call : $@convention(thin) (MStruct) -> (@out MutatingProto) {
+bb0(%0 : $*MutatingProto, %1 : $MStruct):
+  %2 = alloc_stack $MutatingProto
+  %4 = init_existential_addr %2 : $*MutatingProto, $MStruct
+  store %1 to [trivial] %4 : $*MStruct
+  %9 = alloc_stack $MutatingProto
+  copy_addr %2 to [initialization] %9 : $*MutatingProto
+  // CHECK: [[E:%[0-9]+]] = open_existential_addr
+  %11 = open_existential_addr mutable_access %9 : $*MutatingProto to $*@opened("FC5F3CFA-A7A4-11E7-911F-685B35C48C83") MutatingProto
+  // CHECK: [[M:%[0-9]+]] = witness_method $MStruct,
+  %12 = witness_method $@opened("FC5F3CFA-A7A4-11E7-911F-685B35C48C83") MutatingProto, #MutatingProto.mutatingMethod : <Self where Self : MutatingProto> (inout Self) -> () -> (), %11 : $*@opened("FC5F3CFA-A7A4-11E7-911F-685B35C48C83") MutatingProto : $@convention(witness_method: MutatingProto) <τ_0_0 where τ_0_0 : MutatingProto> (@inout τ_0_0) -> ()
+  // CHECK: apply [[M]]<@opened("{{.*}}") MutatingProto>([[E]]) :
+  %13 = apply %12<@opened("FC5F3CFA-A7A4-11E7-911F-685B35C48C83") MutatingProto>(%11) : $@convention(witness_method: MutatingProto) <τ_0_0 where τ_0_0 : MutatingProto> (@inout τ_0_0) -> ()
+  copy_addr [take] %9 to [initialization] %0 : $*MutatingProto
+  dealloc_stack %9 : $*MutatingProto
+  destroy_addr %2 : $*MutatingProto
+  dealloc_stack %2 : $*MutatingProto
+  %27 = tuple ()
+  return %27 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @dont_replace_copied_self_in_mutating_method_call2
+sil [ossa] @dont_replace_copied_self_in_mutating_method_call2 : $@convention(thin) (@thick MutatingProto.Type) -> (@out MutatingProto) {
+bb0(%0 : $*MutatingProto, %1 : $@thick MutatingProto.Type):
+  %alloc1 = alloc_stack $MutatingProto, let, name "p"
+  %openType = open_existential_metatype %1 : $@thick MutatingProto.Type to $@thick (@opened("66A6DAFC-AF78-11E7-8F3B-28CFE9213F4F") MutatingProto).Type
+  %initType =  init_existential_addr %alloc1 : $*MutatingProto, $@opened("66A6DAFC-AF78-11E7-8F3B-28CFE9213F4F") MutatingProto
+  %alloc2 = alloc_stack $MutatingProto
+  copy_addr %alloc1 to [initialization] %alloc2 : $*MutatingProto
+  %oeaddr = open_existential_addr mutable_access %alloc2 : $*MutatingProto to $*@opened("6E02DCF6-AF78-11E7-8F3B-28CFE9213F4F") MutatingProto
+  %witmethod = witness_method $@opened("66A6DAFC-AF78-11E7-8F3B-28CFE9213F4F") MutatingProto, #MutatingProto.mutatingMethod : <Self where Self : MutatingProto> (inout Self) -> () -> (), %openType : $@thick (@opened("66A6DAFC-AF78-11E7-8F3B-28CFE9213F4F") MutatingProto).Type : $@convention(witness_method: MutatingProto) <τ_0_0 where τ_0_0 : MutatingProto> (@inout τ_0_0) -> ()
+  // CHECK: apply {{%.*}}<@opened("6E02DCF6-AF78-11E7-8F3B-28CFE9213F4F") MutatingProto>({{%.*}}) : $@convention(witness_method: MutatingProto) <τ_0_0 where τ_0_0 : MutatingProto> (@inout τ_0_0) -> () // type-defs
+  %apply = apply %witmethod<@opened("6E02DCF6-AF78-11E7-8F3B-28CFE9213F4F") MutatingProto>(%oeaddr) : $@convention(witness_method: MutatingProto) <τ_0_0 where τ_0_0 : MutatingProto> (@inout τ_0_0) -> ()
+  copy_addr [take] %alloc2 to [initialization] %0 : $*MutatingProto
+  dealloc_stack %alloc2 : $*MutatingProto
+  dealloc_stack %alloc1 : $*MutatingProto
+  %27 = tuple ()
+  return %27 : $()
+}
+
+sil [ossa] @helperForOptimizeApplyOfConvertFunction : $@convention(thin) (@in Builtin.Int8) -> @out Builtin.Int32
+
+// Test function_ref -> thin_to_thick -> convert_function with indirect results.
+// (we currently bail on it).
+// CHECK-LABEL: sil [ossa] @testOptimizeApplyOfConvertFunction : $@convention(thin) (@in Builtin.Int8) -> @out Builtin.Int32 {
+// CHECK: bb0(%0 : $*Builtin.Int32, %1 : $*Builtin.Int8):
+// CHECK:   [[FN:%.*]] = function_ref @helperForOptimizeApplyOfConvertFunction : $@convention(thin) (@in Builtin.Int8) -> @out Builtin.Int32
+// CHECK:   [[TTF:%.*]] = thin_to_thick_function [[FN]] : $@convention(thin) (@in Builtin.Int8) -> @out Builtin.Int32 to $@noescape @callee_owned (@in Builtin.Int8) -> @out Builtin.Int32
+// CHECK:   %{{.*}} = apply [[TTF]](%0, %1) : $@noescape @callee_owned (@in Builtin.Int8) -> @out Builtin.Int32
+// CHECK:   %{{.*}} = tuple ()
+// CHECK:   return %{{.*}} : $()
+// CHECK-LABEL: } // end sil function 'testOptimizeApplyOfConvertFunction'
+sil [ossa] @testOptimizeApplyOfConvertFunction : $@convention(thin) (@in Builtin.Int8) -> @out Builtin.Int32 {
+bb0(%0 : $*Builtin.Int32, %1 : $*Builtin.Int8):
+  %2 = function_ref @helperForOptimizeApplyOfConvertFunction : $@convention(thin) (@in Builtin.Int8) -> @out Builtin.Int32
+  %3 = thin_to_thick_function %2 : $@convention(thin) (@in Builtin.Int8) -> @out Builtin.Int32 to $@callee_owned (@in Builtin.Int8) -> @out Builtin.Int32
+  %4 = convert_escape_to_noescape %3 : $@callee_owned (@in Builtin.Int8) -> @out Builtin.Int32 to $@noescape @callee_owned (@in Builtin.Int8) -> @out Builtin.Int32
+
+  %18 = apply %4(%0, %1) : $@noescape @callee_owned (@in Builtin.Int8) -> @out Builtin.Int32
+
+  %29 = tuple ()
+  return %29 : $()
+}
+
+sil [ossa] @actually_not_throwing: $@convention(thin) (Builtin.Int32) -> (@owned Builtin.Int32, @error Error)
+
+// CHECK-LABEL: sil [ossa] @remove_throwing_thin_to_not_throwing_thick_conversion
+// CHECK: [[FN:%[0-9]+]] = function_ref
+// CHECK: apply [nothrow] [[FN]](%0)
+// CHECK: } // end sil function 'remove_throwing_thin_to_not_throwing_thick_conversion'
+sil [ossa] @remove_throwing_thin_to_not_throwing_thick_conversion : $@convention(thin) (Builtin.Int32) -> @owned Builtin.Int32 {
+bb0(%0 : $Builtin.Int32):
+  %2 = function_ref @actually_not_throwing : $@convention(thin) (Builtin.Int32) -> (@owned Builtin.Int32, @error Error)
+  %3 = thin_to_thick_function %2 : $@convention(thin) (Builtin.Int32) -> (@owned Builtin.Int32, @error Error) to $@callee_guaranteed (Builtin.Int32) -> @owned Builtin.Int32
+  %5 = apply %3(%0) : $@callee_guaranteed (Builtin.Int32) -> @owned Builtin.Int32
+  return %5 : $Builtin.Int32
+}
+
+sil [ossa] @testCombineClosureHelper : $(Builtin.Int32) -> ()
+
+// Test function_ref -> partial_apply -> convert_function -> apply.
+// Where the convert_function only affects @noescape.
+//
+// CHECK-LABEL: sil [ossa] @testCombineClosureNoescape : $@convention(thin) (Builtin.Int32) -> () {
+// CHECK: bb0(%0 : $Builtin.Int32):
+// CHECK:  [[F:%.*]] = function_ref @testCombineClosureHelper : $@convention(thin) (Builtin.Int32) -> ()
+// CHECK:  apply [[F]](%0) : $@convention(thin) (Builtin.Int32) -> ()
+// CHECK-LABEL: } // end sil function 'testCombineClosureNoescape'
+sil [ossa] @testCombineClosureNoescape : $(Builtin.Int32) -> () {
+bb0(%0 : $Builtin.Int32):
+  %49 = function_ref @testCombineClosureHelper : $@convention(thin) (Builtin.Int32) -> ()
+  %50 = partial_apply %49(%0) : $@convention(thin) (Builtin.Int32) -> ()
+  %51 = convert_escape_to_noescape %50 : $@callee_owned () -> () to $@noescape @callee_owned () -> ()
+  apply %51() : $@noescape @callee_owned () -> ()
+  destroy_value %50 : $@callee_owned () -> ()
+  %empty = tuple ()
+  return %empty : $()
+}
+
+// Test function_ref -> partial_apply -> convert_function -> try_apply.
+// This is not currently combined because we don't know how to reform the
+// try_apply with a different type.
+//
+// CHECK-LABEL: sil [ossa] @testCombineClosureConvert : $@convention(thin) (Builtin.Int32) -> () {
+// CHECK: bb0(%0 : $Builtin.Int32):
+// CHECK:  [[F:%.*]] = function_ref @testCombineClosureHelper : $@convention(thin) (Builtin.Int32) -> ()
+// CHECK:  [[PA:%.*]] = partial_apply [[F]](%0) : $@convention(thin) (Builtin.Int32) -> ()
+// CHECK:  [[CVT1:%.*]] = convert_escape_to_noescape [[PA]] : $@callee_owned () -> () to $@noescape @callee_owned () -> ()
+// CHECK:  [[CVT2:%.*]] = convert_function [[CVT1]] : $@noescape @callee_owned () -> () to $@noescape @callee_owned () -> @error Error
+// CHECK:  try_apply [[CVT2]]() : $@noescape @callee_owned () -> @error Error, normal bb1, error bb2
+// CHECK-LABEL: } // end sil function 'testCombineClosureConvert'
+sil [ossa] @testCombineClosureConvert : $(Builtin.Int32) -> () {
+bb0(%0 : $Builtin.Int32):
+  %49 = function_ref @testCombineClosureHelper : $@convention(thin) (Builtin.Int32) -> ()
+  %50 = partial_apply %49(%0) : $@convention(thin) (Builtin.Int32) -> ()
+  %51 = convert_escape_to_noescape %50 : $@callee_owned () -> () to $@noescape @callee_owned () -> ()
+  %52 = convert_function %51 : $@noescape @callee_owned () -> () to $@noescape @callee_owned () -> @error Error
+  try_apply %52() : $@noescape @callee_owned () -> @error Error, normal bb7, error bb11
+
+bb7(%callret : $()):
+  br bb99
+
+bb11(%128 : @owned $Error):
+  destroy_value %128 : $Error
+  br bb99
+
+bb99:
+  destroy_value %50 : $@callee_owned () -> ()
+  %empty = tuple ()
+  return %empty : $()
+}
+
+class C {}
+
+sil [ossa] @guaranteed_closure : $@convention(thin) (@guaranteed C) -> ()
+
+// CHECK-LABEL: sil [ossa] @test_guaranteed_closure
+// CHECK: bb0([[ARG:%.*]] : @guaranteed $C):
+// CHECK: [[ARG_COPY:%.*]] = copy_value [[ARG]]
+// CHECK: [[F:%.*]] = function_ref @guaranteed_closure
+// CHECK: [[ARG_COPY_2:%.*]] = copy_value [[ARG_COPY]]
+// CHECK: [[C:%.*]] = partial_apply [callee_guaranteed] [[F]]([[ARG_COPY]])
+// CHECK: apply [[F]]([[ARG_COPY_2]])
+// Don't release the closure context -- it is @callee_guaranteed.
+// CHECK-NOT: destroy_value [[C]] : $@callee_guaranteed () -> ()
+// CHECK: destroy_value [[ARG_COPY_2]]
+// CHECK-NOT: destroy_value [[C]] : $@callee_guaranteed () -> ()
+// CHECK: return [[C]]
+// CHECK: } // end sil function 'test_guaranteed_closure'
+sil [ossa] @test_guaranteed_closure : $@convention(thin) (@guaranteed C) -> @owned @callee_guaranteed () -> () {
+bb0(%0 : @guaranteed $C):
+  %0a = copy_value %0 : $C
+  %closure_fun = function_ref @guaranteed_closure : $@convention(thin) (@guaranteed C) -> ()
+  %closure = partial_apply [callee_guaranteed] %closure_fun(%0a) : $@convention(thin) (@guaranteed C) -> ()
+  apply %closure() : $@callee_guaranteed () -> ()
+  return %closure : $@callee_guaranteed () -> ()
+}
+
+sil [ossa] @guaranteed_closure_throws : $@convention(thin) (@guaranteed C, Builtin.Int32) -> @error Error
+
+// CHECK: sil [ossa] @test_guaranteed_closure_try_apply :
+// CHECK: bb0(%0 : @guaranteed $C, %1 : $Builtin.Int32):
+// CHECK:   [[FUN:%.*]] = function_ref @guaranteed_closure_throws
+// CHECK:   [[CL:%.*]] = partial_apply [callee_guaranteed] [[FUN]](%1)
+// CHECK:   try_apply [[FUN]](%0, %1)
+// CHECK: bb1({{.*}}):
+// CHECK-NOT:   destroy_value
+// CHECK:   br bb3
+// CHECK: bb2([[ERROR:%.*]] : @owned $Error):
+// CHECK-NEXT: destroy_value [[ERROR]]
+// CHECK-NEXT:   br bb3
+// CHECK: bb3:
+// CHECK:   return [[CL]]
+// CHECK: } // end sil function 'test_guaranteed_closure_try_apply'
+sil [ossa] @test_guaranteed_closure_try_apply : $@convention(thin) (@guaranteed C, Builtin.Int32) -> @owned @callee_guaranteed (@guaranteed C) -> @error Error {
+bb0(%0 : @guaranteed $C, %1: $Builtin.Int32):
+  %closure_fun = function_ref @guaranteed_closure_throws : $@convention(thin) (@guaranteed C, Builtin.Int32) -> @error Error
+  %closure = partial_apply [callee_guaranteed] %closure_fun(%1) : $@convention(thin) (@guaranteed C, Builtin.Int32) -> @error Error
+  try_apply %closure(%0) : $@callee_guaranteed (@guaranteed C) -> @error Error, normal bb7, error bb11
+
+bb7(%callret : $()):
+  br bb99
+
+bb11(%128 : @owned $Error):
+  destroy_value %128 : $Error
+  br bb99
+
+bb99:
+  return %closure : $@callee_guaranteed (@guaranteed C) -> @error Error
+}
+
+// Make sure convert_function -> apply does the right thing with metatypes
+class Base {}
+class Derived {}
+
+sil [ossa] @takesMetatype : $@convention(thin) (@thick Base.Type) -> ()
+
+// CHECK-LABEL: sil [ossa] @passesMetatype :
+// CHECK: [[METATYPE:%.*]] = metatype $@thick Derived.Type
+// CHECK: [[FN:%.*]] = function_ref @takesMetatype
+// CHECK: [[CONVERTED:%.*]] = unchecked_trivial_bit_cast [[METATYPE]] : $@thick Derived.Type to $@thick Base.Type
+// CHECK: [[RESULT:%.*]] = apply [[FN]]([[CONVERTED]])
+// CHECK: } // end sil function 'passesMetatype'
+sil [ossa] @passesMetatype : $@convention(thin) () -> () {
+bb0:
+  %metatype = metatype $@thick Derived.Type
+  %fn = function_ref @takesMetatype : $@convention(thin) (@thick Base.Type) -> ()
+  %converted = convert_function %fn : $@convention(thin) (@thick Base.Type) -> () to $@convention(thin) (@thick Derived.Type) -> ()
+  %result = apply %converted(%metatype) : $@convention(thin) (@thick Derived.Type) -> ()
+  %return = tuple ()
+  return %return : $()
+}
+
+sil shared [ossa] [transparent] [thunk] @genericClosure : $@convention(thin) <T> (@in T) -> @out T {
+bb0(%0 : $*T, %1 : $*T):
+  copy_addr [take] %1 to [initialization] %0 : $*T
+  %12 = tuple ()
+  return %12 : $()
+}
+
+// CHECK-LABEL: sil shared [ossa] @genericThinToThick : $@convention(thin) () -> ()
+// CHECK: [[F:%.*]] = function_ref @genericClosure : $@convention(thin) <τ_0_0> (@in τ_0_0) -> @out τ_0_0
+// CHECK: apply [[F]]<Builtin.Int64>(%{{.*}}, %{{.*}}) : $@convention(thin) <τ_0_0> (@in τ_0_0) -> @out τ_0_0
+// CHECK-LABEL: } // end sil function 'genericThinToThick'
+sil shared [ossa] @genericThinToThick : $@convention(thin) () -> () {
+bb0:
+  %fn = function_ref @genericClosure : $@convention(thin) <T> (@in T) -> @out T
+  %thick = thin_to_thick_function %fn : $@convention(thin) <T> (@in T) -> @out T to $@noescape @callee_guaranteed <T> (@in T) -> @out T
+  %in = alloc_stack $Builtin.Int64
+  %out = alloc_stack $Builtin.Int64
+  %c3 = integer_literal $Builtin.Int64, 3
+  store %c3 to [trivial] %in : $*Builtin.Int64
+  %call = apply %thick<Builtin.Int64>(%out, %in) : $@noescape @callee_guaranteed <T> (@in T) -> @out T
+  dealloc_stack %out : $*Builtin.Int64
+  dealloc_stack %in : $*Builtin.Int64
+  %999 = tuple ()
+  return %999 : $()
+}
+
+// CHECK-LABEL: sil shared [ossa] @genericThinToThickNonTrivial : $@convention(thin) (@owned Klass) -> ()
+// CHECK: [[F:%.*]] = function_ref @genericClosure : $@convention(thin) <τ_0_0> (@in τ_0_0) -> @out τ_0_0
+// CHECK: apply [[F]]<Klass>(%{{.*}}, %{{.*}}) : $@convention(thin) <τ_0_0> (@in τ_0_0) -> @out τ_0_0
+// CHECK-LABEL: } // end sil function 'genericThinToThickNonTrivial'
+sil shared [ossa] @genericThinToThickNonTrivial : $@convention(thin) (@owned Klass) -> () {
+bb0(%0 : @owned $Klass):
+  %fn = function_ref @genericClosure : $@convention(thin) <T> (@in T) -> @out T
+  %thick = thin_to_thick_function %fn : $@convention(thin) <T> (@in T) -> @out T to $@noescape @callee_guaranteed <T> (@in T) -> @out T
+  %in = alloc_stack $Klass
+  %out = alloc_stack $Klass
+  store %0 to [init] %in : $*Klass
+  %call = apply %thick<Klass>(%out, %in) : $@noescape @callee_guaranteed <T> (@in T) -> @out T
+  destroy_addr %out : $*Klass
+  dealloc_stack %out : $*Klass
+  dealloc_stack %in : $*Klass
+  %999 = tuple ()
+  return %999 : $()
+}
+
+sil shared [ossa] [transparent] [thunk] @indirectClosure : $@convention(thin) (@in Builtin.Int64) -> @out Builtin.Int64 {
+bb0(%0 : $*Builtin.Int64, %1 : $*Builtin.Int64):
+  %val = load [trivial] %1 : $*Builtin.Int64
+  store %val to [trivial] %0 : $*Builtin.Int64
+  %999 = tuple ()
+  return %999 : $()
+}
+
+sil shared [ossa] [transparent] [thunk] @indirectClosure_non_trivial : $@convention(thin) (@in Klass) -> @out Klass {
+bb0(%0 : $*Klass, %1 : $*Klass):
+  %val = load [take] %1 : $*Klass
+  store %val to [init] %0 : $*Klass
+  %999 = tuple ()
+  return %999 : $()
+}
+
+// CHECK-LABEL: sil shared [ossa] @appliedEscapeToNoEscape : $@convention(thin) () -> () {
+// CHECK: [[F:%.*]] = function_ref @indirectClosure : $@convention(thin) (@in Builtin.Int64) -> @out Builtin.Int64
+// CHECK: apply [[F]](%{{.*}}, %{{.*}}) : $@convention(thin) (@in Builtin.Int64) -> @out Builtin.Int64
+// CHECK: } // end sil function 'appliedEscapeToNoEscape'
+sil shared [ossa] @appliedEscapeToNoEscape : $@convention(thin) () -> () {
+bb0:
+  %fn = function_ref @indirectClosure : $@convention(thin) (@in Builtin.Int64) -> @out Builtin.Int64
+  %pa = partial_apply [callee_guaranteed] %fn() : $@convention(thin) (@in Builtin.Int64) -> @out Builtin.Int64
+  %cvt = convert_escape_to_noescape %pa : $@callee_guaranteed (@in Builtin.Int64) -> @out Builtin.Int64 to $@noescape @callee_guaranteed (@in Builtin.Int64) -> @out Builtin.Int64
+  %out = alloc_stack $Builtin.Int64
+  %in = alloc_stack $Builtin.Int64
+  %c3 = integer_literal $Builtin.Int64, 3
+  store %c3 to [trivial] %in : $*Builtin.Int64
+  %call = apply %cvt(%out, %in) : $@noescape @callee_guaranteed (@in Builtin.Int64) -> @out Builtin.Int64
+  dealloc_stack %in : $*Builtin.Int64
+  dealloc_stack %out : $*Builtin.Int64
+  destroy_value %pa : $@callee_guaranteed (@in Builtin.Int64) -> @out Builtin.Int64
+  %999 = tuple ()
+  return %999 : $()
+}
+
+// CHECK-LABEL: sil shared [ossa] @appliedEscapeToNoEscapeNonTrivial : $@convention(thin) (@owned Klass) -> () {
+// CHECK: [[F:%.*]] = function_ref @indirectClosure_non_trivial : $@convention(thin) (@in Klass) -> @out Klass
+// CHECK: apply [[F]](%{{.*}}, %{{.*}}) : $@convention(thin) (@in Klass) -> @out Klass
+// CHECK: } // end sil function 'appliedEscapeToNoEscapeNonTrivial'
+sil shared [ossa] @appliedEscapeToNoEscapeNonTrivial : $@convention(thin) (@owned Klass) -> () {
+bb0(%0 : @owned $Klass):
+  %fn = function_ref @indirectClosure_non_trivial : $@convention(thin) (@in Klass) -> @out Klass
+  %pa = partial_apply [callee_guaranteed] %fn() : $@convention(thin) (@in Klass) -> @out Klass
+  %cvt = convert_escape_to_noescape %pa : $@callee_guaranteed (@in Klass) -> @out Klass to $@noescape @callee_guaranteed (@in Klass) -> @out Klass
+  %out = alloc_stack $Klass
+  %in = alloc_stack $Klass
+  store %0 to [init] %in : $*Klass
+  %call = apply %cvt(%out, %in) : $@noescape @callee_guaranteed (@in Klass) -> @out Klass
+  dealloc_stack %in : $*Klass
+  destroy_addr %out : $*Klass
+  dealloc_stack %out : $*Klass
+  destroy_value %pa : $@callee_guaranteed (@in Klass) -> @out Klass
+  %999 = tuple ()
+  return %999 : $()
+}
+
+// CHECK-LABEL: sil shared [ossa] @applied_on_stack : $@convention(thin) () -> () {
+// CHECK: bb0:
+// CHECK:   [[F:%.*]] = function_ref @indirectClosure : $@convention(thin) (@in Builtin.Int64) -> @out Builtin.Int64
+// CHECK:   [[STK:%.*]] = alloc_stack $Builtin.Int64
+// CHECK:   [[STK2:%.*]] = alloc_stack $Builtin.Int64
+// CHECK:   [[I:%.*]] = integer_literal $Builtin.Int64, 3
+// CHECK:   store [[I]] to [trivial] [[STK2]] : $*Builtin.Int64
+// CHECK:   apply [[F]]([[STK]], [[STK2]]) : $@convention(thin) (@in Builtin.Int64) -> @out Builtin.Int64
+// CHECK:   dealloc_stack [[STK2]] : $*Builtin.Int64
+// CHECK:   dealloc_stack [[STK]] : $*Builtin.Int64
+// CHECK:   return %8 : $()
+// CHECK: } // end sil function 'applied_on_stack'
+sil shared [ossa] @applied_on_stack : $@convention(thin) () -> () {
+bb0:
+  %fn = function_ref @indirectClosure : $@convention(thin) (@in Builtin.Int64) -> @out Builtin.Int64
+  %pa = partial_apply [callee_guaranteed] [on_stack] %fn() : $@convention(thin) (@in Builtin.Int64) -> @out Builtin.Int64
+  %out = alloc_stack $Builtin.Int64
+  %in = alloc_stack $Builtin.Int64
+  %c3 = integer_literal $Builtin.Int64, 3
+  store %c3 to [trivial] %in : $*Builtin.Int64
+  %call = apply %pa(%out, %in) : $@noescape @callee_guaranteed (@in Builtin.Int64) -> @out Builtin.Int64
+  dealloc_stack %in : $*Builtin.Int64
+  dealloc_stack %out : $*Builtin.Int64
+  dealloc_stack %pa : $@noescape @callee_guaranteed (@in Builtin.Int64) -> @out Builtin.Int64
+  %999 = tuple ()
+  return %999 : $()
+}
+
+// CHECK-LABEL: sil shared [ossa] @applied_on_stack_non_trivial : $@convention(thin) (@owned Klass) -> () {
+// CHECK: bb0(%0 : @owned $Klass):
+// CHECK:   [[F:%.*]] = function_ref @indirectClosure_non_trivial : $@convention(thin) (@in Klass) -> @out Klass
+// CHECK:   [[STK:%.*]] = alloc_stack $Klass
+// CHECK:   [[STK2:%.*]] = alloc_stack $Klass
+// CHECK:   store %0 to [init] [[STK2]]
+// CHECK:   apply [[F]]([[STK]], [[STK2]]) : $@convention(thin) (@in Klass) -> @out Klass
+// CHECK:   dealloc_stack [[STK2]]
+// CHECK:   dealloc_stack [[STK]]
+// CHECK: } // end sil function 'applied_on_stack_non_trivial'
+sil shared [ossa] @applied_on_stack_non_trivial : $@convention(thin) (@owned Klass) -> () {
+bb0(%0 : @owned $Klass):
+  %fn = function_ref @indirectClosure_non_trivial : $@convention(thin) (@in Klass) -> @out Klass
+  %pa = partial_apply [callee_guaranteed] [on_stack] %fn() : $@convention(thin) (@in Klass) -> @out Klass
+  %out = alloc_stack $Klass
+  %in = alloc_stack $Klass
+  store %0 to [init] %in : $*Klass
+  %call = apply %pa(%out, %in) : $@noescape @callee_guaranteed (@in Klass) -> @out Klass
+  dealloc_stack %in : $*Klass
+  destroy_addr %out : $*Klass
+  dealloc_stack %out : $*Klass
+  dealloc_stack %pa : $@noescape @callee_guaranteed (@in Klass) -> @out Klass
+  %999 = tuple ()
+  return %999 : $()
+}
+
+
+sil [ossa] @guaranteed_closure_throws2 : $@convention(thin) (Builtin.Int32, @guaranteed C) -> @error Error
+
+// CHECK-LABEL: sil [ossa] @test_guaranteed_closure_try_apply_on_stack
+// CHECK: bb0
+// CHECK: copy_value
+// CHECK: try_apply
+// CHECK: bb1
+// CHECK: destroy_value
+// CHECK: br bb3
+// CHECK: bb2
+// CHECK: destroy_value
+// CHECK: br bb3
+sil [ossa] @test_guaranteed_closure_try_apply_on_stack : $@convention(thin) (@guaranteed C, Builtin.Int32) ->  () {
+bb0(%0 : @guaranteed $C, %1 : $Builtin.Int32):
+  %0a = copy_value %0 : $C
+  %closure_fun = function_ref @guaranteed_closure_throws2 : $@convention(thin) (Builtin.Int32, @guaranteed C) -> @error Error
+  %closure = partial_apply [callee_guaranteed] [on_stack] %closure_fun(%0) : $@convention(thin) (Builtin.Int32, @guaranteed C) -> @error Error
+  try_apply %closure(%1) : $@noescape @callee_guaranteed (Builtin.Int32) -> @error Error, normal bb7, error bb11
+
+bb7(%callret : $()):
+	dealloc_stack %closure : $@noescape @callee_guaranteed (Builtin.Int32) -> @error Error
+	destroy_value %0a : $C
+  br bb99
+
+bb11(%128 : @owned $Error):
+	dealloc_stack %closure : $@noescape @callee_guaranteed (Builtin.Int32) -> @error Error
+	destroy_value %0a : $C
+  destroy_value %128 : $Error
+  br bb99
+
+bb99:
+  %t = tuple()
+  return %t : $()
+}
+
+sil [ossa] @convert_function_simplification_callee : $@convention(thin) (@guaranteed Klass) -> () {
+bb0(%0 : @guaranteed $Klass):
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+sil [ossa] @convert_function_simplification_callee_with_error : $@convention(thin) (@guaranteed Klass) -> @error Error {
+bb0(%0 : @guaranteed $Klass):
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @convert_function_simplification_caller : $@convention(thin) (@guaranteed Klass) -> () {
+// CHECK:   [[FUNC:%.*]] = function_ref @convert_function_simplification_callee : $@convention(thin) (@guaranteed Klass) -> ()
+// CHECK:   apply [[FUNC]]({{.*}}) : $@convention(thin) (@guaranteed Klass) -> ()
+// CHECK:   [[FUNC:%.*]] = function_ref @convert_function_simplification_callee_with_error : $@convention(thin) (@guaranteed Klass) -> @error Error
+// CHECK:   apply [nothrow] [[FUNC]]({{.*}}) : $@convention(thin) (@guaranteed Klass) -> @error Error
+// CHECK: } // end sil function 'convert_function_simplification_caller'
+sil [ossa] @convert_function_simplification_caller : $@convention(thin) (@guaranteed Klass) -> () {
+bb0(%0 : @guaranteed $Klass):
+  %1 = function_ref @convert_function_simplification_callee : $@convention(thin) (@guaranteed Klass) -> ()
+  %2 = thin_to_thick_function %1 : $@convention(thin) (@guaranteed Klass) -> () to $@callee_guaranteed (@guaranteed Klass) -> ()
+  %3 = convert_function %2 : $@callee_guaranteed (@guaranteed Klass) -> () to $@callee_guaranteed (@guaranteed Klass) -> @error Error
+  %4 = apply [nothrow] %3(%0) : $@callee_guaranteed (@guaranteed Klass) -> @error Error
+
+  %5 = function_ref @convert_function_simplification_callee_with_error : $@convention(thin) (@guaranteed Klass) -> @error Error
+  %6 = thin_to_thick_function %5 : $@convention(thin) (@guaranteed Klass) -> @error Error to $@callee_guaranteed (@guaranteed Klass) -> @error Error
+  %7 = convert_function %6 : $@callee_guaranteed (@guaranteed Klass) -> @error Error to $@callee_guaranteed (@guaranteed Klass) -> @error Error
+  %8 = apply [nothrow] %7(%0) : $@callee_guaranteed (@guaranteed Klass) -> @error Error
+
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+///////////////////////////////////
+// (apply partial_apply()) tests //
+///////////////////////////////////
+
+class CC1 {
+   deinit
+  init()
+}
+
+class CC2 {
+   deinit
+  init()
+}
+
+class CC3 {
+   deinit
+  init()
+}
+
+class CC4 {
+   deinit
+  init()
+}
+
+sil [ossa] @closure_with_in_args : $@convention(method) (@in CC1) -> ()
+sil [ossa] @closure_with_inguaranteed_args : $@convention(method) (@in_guaranteed CC1) -> ()
+sil [ossa] @closure_with_owned_args : $@convention(method) (@owned CC1) -> ()
+sil [ossa] @closure_with_guaranteed_args : $@convention(method) (@guaranteed CC1) -> ()
+
+// Test the peephole performing apply{partial_apply(x, y, z)}(a) -> apply(a, x, y, z)
+//
+// We need to check the following:
+//
+// - All arguments of a partial_apply, which are either results of a stack_alloc
+//   or consumed indirect arguments should be copied into temporaries. This should
+//   happen just before that partial_apply instruction.
+//
+// - Before each apply of the partial_apply, we retain values of any arguments
+//   which are of non-address type.  This is required because they could be
+//   consumed (i.e. released by the callee).
+//
+// - After each apply of the partial_apply, we release values of any arguments
+//   which are non-consumed by the callee (e.g. @guaranteed ones)
+//
+// We do this separately for each type of argument.
+
+// CHECK-LABEL: sil [ossa] @test_apply_of_partial_apply_in : $@convention(thin) (@in CC1) -> () {
+// CHECK:   [[FUNC:%.*]] = function_ref
+// CHECK:   [[STACK1:%.*]] = alloc_stack $CC1
+// CHECK:   copy_addr [take] %0 to [initialization] [[STACK1]]
+// CHECK:   cond_br undef, bb1, bb2
+// CHECK: bb1:
+// CHECK:   destroy_addr [[STACK1]]
+// CHECK:   dealloc_stack [[STACK1]]
+// CHECK: bb2:
+// CHECK:   [[STACK2:%.*]] = alloc_stack $CC1
+// CHECK:   copy_addr [[STACK1]] to [initialization] [[STACK2]]
+// CHECK:   apply [[FUNC]]([[STACK2]])
+// CHECK:   dealloc_stack [[STACK2]]
+// CHECK:   destroy_addr [[STACK1]]
+// CHECK:   dealloc_stack [[STACK1]]
+// CHECK: bb3:
+// CHECK: } // end sil function 'test_apply_of_partial_apply_in'
+sil [ossa] @test_apply_of_partial_apply_in : $@convention(thin) (@in CC1) -> () {
+bb0(%0 : $*CC1):
+  %1 = function_ref @closure_with_in_args : $@convention(method) (@in CC1) -> ()
+  %3 = partial_apply %1(%0) : $@convention(method) (@in CC1) -> ()
+  cond_br undef, bb1, bb2
+
+bb1:
+  destroy_value %3 : $@callee_owned () -> ()
+  br bb3
+
+bb2:
+  apply %3() : $@callee_owned () -> ()
+  br bb3
+
+bb3:
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_apply_of_partial_apply_inguaranteed : $@convention(thin) (@in CC1) -> () {
+// CHECK: bb0([[ARG:%.*]] :
+// CHECK:   [[STACK1:%.*]] = alloc_stack $CC1
+// CHECK:   copy_addr [take] [[ARG]] to [initialization] [[STACK1]]
+// CHECK:   [[STACK2:%.*]] = alloc_stack $CC1
+// CHECK:   copy_addr [take] [[STACK1]] to [initialization] [[STACK2]]
+// CHECK:   cond_br undef, bb1, bb2
+//
+// CHECK: bb1:
+// CHECK:   destroy_addr [[STACK2]]
+// CHECK:   dealloc_stack [[STACK2]]
+// CHECK:   br bb3
+//
+// CHECK: bb2:
+// CHECK:   apply {{%.*}}([[STACK2]]) : $@convention(method) (@in_guaranteed CC1) -> ()
+// CHECK:   destroy_addr [[STACK2]]
+// CHECK:   dealloc_stack [[STACK2]]
+// CHECK:   br bb3
+//
+// CHECK: bb3:
+// CHECK:   dealloc_stack [[STACK1]]
+// CHECK: } // end sil function 'test_apply_of_partial_apply_inguaranteed'
+sil [ossa] @test_apply_of_partial_apply_inguaranteed : $@convention(thin) (@in CC1) -> () {
+bb0(%0 : $*CC1):
+  %1 = function_ref @closure_with_inguaranteed_args : $@convention(method) (@in_guaranteed CC1) -> ()
+  %2 = alloc_stack $CC1
+  copy_addr [take] %0 to [initialization] %2 : $*CC1
+  %3 = partial_apply %1(%2) : $@convention(method) (@in_guaranteed CC1) -> ()
+  cond_br undef, bb1, bb2
+
+bb1:
+  destroy_value %3 : $@callee_owned () -> ()
+  br bb3
+
+bb2:
+  apply %3() : $@callee_owned () -> ()
+  br bb3
+
+bb3:
+  dealloc_stack %2 : $*CC1
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_apply_of_partial_apply_owned : $@convention(thin) (@in CC1) -> () {
+// CHECK: bb0([[ARG:%.*]] :
+// CHECK:   [[LOAD_ARG:%.*]] = load [take] [[ARG]]
+// CHECK:   [[LOAD_ARG_COPY:%.*]] = copy_value [[LOAD_ARG]]
+// CHECK:   destroy_value [[LOAD_ARG]]
+// CHECK:   cond_br undef, bb1, bb2
+//
+// CHECK: bb1:
+// CHECK:   destroy_value [[LOAD_ARG_COPY]]
+// CHECK:   br bb3
+//
+// CHECK: bb2:
+// CHECK:   [[LOAD_ARG_COPY_COPY:%.*]] = copy_value [[LOAD_ARG_COPY]]
+// CHECK:   apply {{%.*}}([[LOAD_ARG_COPY_COPY]]) : $@convention(method) (@owned CC1) -> ()
+// CHECK:   destroy_value [[LOAD_ARG_COPY]]
+// CHECK:   br bb3
+//
+// CHECK: bb3:
+// CHECK: } // end sil function 'test_apply_of_partial_apply_owned'
+sil [ossa] @test_apply_of_partial_apply_owned : $@convention(thin) (@in CC1) -> () {
+bb0(%0 : $*CC1):
+  %1 = function_ref @closure_with_owned_args : $@convention(method) (@owned CC1) -> ()
+  %2 = load [take] %0 : $*CC1
+  %3 = partial_apply %1(%2) : $@convention(method) (@owned CC1) -> ()
+  cond_br undef, bb1, bb2
+
+bb1:
+  destroy_value %3 : $@callee_owned () -> ()
+  br bb3
+
+bb2:
+  apply %3() : $@callee_owned () -> ()
+  br bb3
+
+bb3:
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_apply_of_partial_apply_guaranteed : $@convention(thin) (@in CC1) -> () {
+// CHECK: bb0([[ARG:%.*]] :
+// CHECK:   [[LOAD_ARG:%.*]] = load [take] [[ARG]]
+// CHECK:   [[LOAD_ARG_COPY:%.*]] = copy_value [[LOAD_ARG]]
+// CHECK:   destroy_value [[LOAD_ARG]]
+// CHECK:   cond_br undef, bb1, bb2
+//
+// CHECK: bb1:
+// CHECK:   destroy_value [[LOAD_ARG_COPY]]
+// CHECK:   br bb3
+//
+// CHECK: bb2:
+// CHECK:   apply {{%.*}}([[LOAD_ARG_COPY]]) : $@convention(method) (@guaranteed CC1) -> ()
+// CHECK:   destroy_value [[LOAD_ARG_COPY]]
+// CHECK:   br bb3
+//
+// CHECK: bb3:
+// CHECK: } // end sil function 'test_apply_of_partial_apply_guaranteed'
+sil [ossa] @test_apply_of_partial_apply_guaranteed : $@convention(thin) (@in CC1) -> () {
+bb0(%0 : $*CC1):
+  %1 = function_ref @closure_with_guaranteed_args : $@convention(method) (@guaranteed CC1) -> ()
+  %2 = load [take] %0 : $*CC1
+  %3 = partial_apply %1(%2) : $@convention(method) (@guaranteed CC1) -> ()
+  cond_br undef, bb1, bb2
+
+bb1:
+  destroy_value %3 : $@callee_owned () -> ()
+  br bb3
+
+bb2:
+  apply %3() : $@callee_owned () -> ()
+  br bb3
+
+bb3:
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+
+// Test if we insert the right stack/dealloc-stack when converting apply{partial_apply}.
+
+// CHECK-LABEL: sil [ossa] @test_stack_insertion_for_partial_apply_apply
+// CHECK:     bb0({{.*}}):
+// CHECK-NEXT:  alloc_stack $Bool
+// CHECK-NEXT:  [[S1:%[0-9]+]] = alloc_stack $Int
+// CHECK:       store %0 to [trivial] [[S1]]
+// CHECK:       [[S2:%[0-9]+]] = alloc_stack $Int
+// CHECK:       copy_addr [[S1]] to [initialization] [[S2]]
+// CHECK:       apply {{.*}}(%1, [[S2]])
+// CHECK:       destroy_addr [[S2]] : $*Int
+// CHECK:       dealloc_stack [[S2]] : $*Int
+// CHECK:       dealloc_stack [[S1]] : $*Int
+// CHECK:     bb1:
+// CHECK-NOT:   dealloc_stack
+// CHECK:     bb2:
+// CHECK:       dealloc_stack {{.*}} : $*Bool
+// CHECK:       return
+// CHECK: } // end sil function 'test_stack_insertion_for_partial_apply_apply'
+sil [ossa] @test_stack_insertion_for_partial_apply_apply : $@convention(thin) (Int, Double) -> () {
+bb0(%0 : $Int, %1 : $Double):
+  %s1 = alloc_stack $Bool
+  %s2 = alloc_stack $Int
+  store %0 to [trivial] %s2 : $*Int
+  %f1 = function_ref @callee : $@convention(thin) (Double, @in_guaranteed Int) -> ()
+  %pa = partial_apply %f1(%s2) : $@convention(thin) (Double, @in_guaranteed Int) -> ()
+  dealloc_stack %s2 : $*Int
+  %a1 = apply %pa(%1) : $@callee_owned (Double) -> ()
+  cond_br undef, bb1, bb2
+
+bb1:
+  %f2 = function_ref @noreturn_func : $@convention(thin) () -> Never
+  %a2 = apply %f2() : $@convention(thin) () -> Never
+  unreachable
+
+bb2:
+  dealloc_stack %s1 : $*Bool
+  %r = tuple ()
+  return %r : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_stack_insertion_for_partial_apply_apply_non_trivial :
+// CHECK:     bb0({{.*}}):
+// CHECK-NEXT:  alloc_stack $Klass
+// CHECK-NEXT:  [[S1:%[0-9]+]] = alloc_stack $Klass
+// CHECK:       store %0 to [init] [[S1]]
+// CHECK:       [[S2:%[0-9]+]] = alloc_stack $Klass
+// CHECK:       copy_addr [take] [[S1]] to [initialization] [[S2]]
+// CHECK:       apply {{.*}}(%1, [[S2]])
+// CHECK:       destroy_addr [[S2]] : $*Klass
+// CHECK:       dealloc_stack [[S2]] : $*Klass
+// CHECK:       dealloc_stack [[S1]] : $*Klass
+// CHECK:     bb1:
+// CHECK-NOT:   dealloc_stack
+// CHECK:     bb2:
+// CHECK:       dealloc_stack {{.*}} : $*Klass
+// CHECK:       return
+// CHECK: } // end sil function 'test_stack_insertion_for_partial_apply_apply_non_trivial'
+sil [ossa] @test_stack_insertion_for_partial_apply_apply_non_trivial : $@convention(thin) (@owned Klass, @guaranteed Klass) -> () {
+bb0(%0 : @owned $Klass, %1 : @guaranteed $Klass):
+  %s1 = alloc_stack $Klass
+  %s2 = alloc_stack $Klass
+  store %0 to [init] %s2 : $*Klass
+  %f1 = function_ref @callee_nontrivial : $@convention(thin) (@guaranteed Klass, @in_guaranteed Klass) -> ()
+  %pa = partial_apply %f1(%s2) : $@convention(thin) (@guaranteed Klass, @in_guaranteed Klass) -> ()
+  dealloc_stack %s2 : $*Klass
+  %a1 = apply %pa(%1) : $@callee_owned (@guaranteed Klass) -> ()
+  cond_br undef, bb1, bb2
+
+bb1:
+  %f2 = function_ref @noreturn_func : $@convention(thin) () -> Never
+  %a2 = apply %f2() : $@convention(thin) () -> Never
+  unreachable
+
+bb2:
+  dealloc_stack %s1 : $*Klass
+  %r = tuple ()
+  return %r : $()
+}
+
+
+// CHECK-LABEL: sil [ossa] @test_existential_partial_apply_apply
+// CHECK: bb0(%0 : $*FakeProtocol):
+// CHECK-NEXT: [[OPEN:%.*]] = open_existential_addr immutable_access
+// CHECK-NEXT: [[FN:%.*]] = witness_method
+// CHECK-NEXT: apply [[FN]]<@opened("5DD6F3D0-808A-11E6-93A0-34363BD08DA0") FakeProtocol>([[OPEN]])
+// CHECK-NEXT: tuple
+// CHECK-NEXT: return
+sil [ossa] @test_existential_partial_apply_apply : $@convention(thin) (@in FakeProtocol) -> () {
+bb0(%0: $*FakeProtocol):
+  %o = open_existential_addr immutable_access %0 : $*FakeProtocol to $*@opened("5DD6F3D0-808A-11E6-93A0-34363BD08DA0") FakeProtocol
+  %f1 = witness_method $@opened("5DD6F3D0-808A-11E6-93A0-34363BD08DA0") FakeProtocol, #FakeProtocol.requirement, %o : $*@opened("5DD6F3D0-808A-11E6-93A0-34363BD08DA0") FakeProtocol : $@convention(witness_method: FakeProtocol) <T where T : FakeProtocol> (@in_guaranteed T) -> ()
+  %pa = partial_apply %f1<@opened("5DD6F3D0-808A-11E6-93A0-34363BD08DA0") FakeProtocol>() : $@convention(witness_method: FakeProtocol) <T where T : FakeProtocol> (@in_guaranteed T) -> ()
+  %a1 = apply %pa(%o) : $@callee_owned (@in_guaranteed @opened("5DD6F3D0-808A-11E6-93A0-34363BD08DA0") FakeProtocol) -> ()
+
+  %r = tuple ()
+  return %r : $()
+}
+
+// Test `partial_apply` with a `@convention(method)` callee.
+// Rewriting `partial_apply` to `thin_to_thick_function` is not okay because
+// `thin_to_thick_function` supports only `@convention(thin)` operands.
+
+sil [ossa] @method : $@convention(method) (Int32) -> ()
+
+sil [ossa] @test_partial_apply_method : $@convention(thin) () -> @owned @callee_owned (Int32) -> () {
+  %1 = function_ref @method : $@convention(method) (Int32) -> ()
+  %2 = partial_apply %1() : $@convention(method) (Int32) -> ()
+  return %2 : $@callee_owned (Int32) -> ()
+}
+
+// CHECK-LABEL: sil [ossa] @test_partial_apply_method
+// CHECK: [[FN:%.*]] = function_ref @method
+// CHECK-NEXT: partial_apply [[FN]]()
+// CHECK-NEXT: return
+
+sil [noinline] @$foo : $@convention(thin) (@owned { var Int64 }) -> ()
+
+// CHECK-LABEL: sil private [noinline] [ossa] @$testdeadpartialapply :
+// CHECK-NOT: partial_apply
+// CHECK-LABEL: } // end sil function '$testdeadpartialapply'
+sil private [noinline] [ossa] @$testdeadpartialapply : $@convention(thin) (@owned { var Int64 }) -> () {
+bb0(%0 : @owned ${ var Int64 }):
+  %0b = copy_value %0 : ${ var Int64 }
+  %3 = function_ref @$foo : $@convention(thin) (@owned { var Int64 }) -> ()
+  %5 = partial_apply [callee_guaranteed] %3(%0) : $@convention(thin) (@owned { var Int64 }) -> ()
+  cond_br undef, bb1, bb2
+
+bb1:
+  %5a = copy_value %5 : $@callee_guaranteed () -> ()
+  unreachable
+
+bb2:
+  %5b = copy_value %5 : $@callee_guaranteed () -> ()
+  br bb3
+
+bb3:
+  destroy_value %5b : $@callee_guaranteed () -> ()
+  destroy_value %5 : $@callee_guaranteed () -> ()
+  destroy_value %0b : ${ var Int64 }
+  %rv = tuple()
+  return %rv : $()
+}

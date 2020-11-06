@@ -1,0 +1,57 @@
+// RUN: %target-sil-opt -enable-sil-verify-all %s -devirtualizer | %FileCheck %s
+
+sil_stage canonical
+
+import Builtin
+import Swift
+
+/*
+class Foo {
+  var m_val : Int32
+  init(x : Int32) { m_val = x }
+  func get() -> Int32 {return m_val}
+}
+func test_me(x : Int32) -> Foo { return Foo(x) }
+func main() { print(test_me(3).get()) } */
+
+class Foo {
+  var m_val: Int32
+  init(x: Int32)
+  func get() -> Int32
+}
+
+//CHECK: _TF4main4mainFT_T_
+//CHECK: function_ref @_TFC4main3Foo3getfS0_FT_Si
+//CHECK: return
+sil [ossa] @_TF4main4mainFT_T_ : $@convention(thin) () -> () {
+bb0:
+  // function_ref swift
+  %0 = function_ref @_Ts5printFT3valSi_T_ : $@convention(thin) (Int32) -> () // user: %8
+  %1 = integer_literal $Builtin.Int32, 3          // user: %2
+  %2 = struct $Int32 (%1 : $Builtin.Int32)        // user: %5
+  %3 = alloc_ref $Foo                             // users: %6, %7, %4
+  %3a = begin_borrow %3 : $Foo
+  %4 = ref_element_addr %3a : $Foo, #Foo.m_val     // user: %5
+  store %2 to [trivial] %4 : $*Int32                        // id: %5
+  end_borrow %3a : $Foo
+  %6 = class_method %3 : $Foo, #Foo.get : (Foo) -> () -> Int32, $@convention(method) (@guaranteed Foo) -> Int32 // user: %7
+  %7 = apply %6(%3) : $@convention(method) (@guaranteed Foo) -> Int32 // user: %8
+  %8 = apply %0(%7) : $@convention(thin) (Int32) -> ()
+  %9 = tuple ()                                   // user: %10
+  destroy_value %3 : $Foo
+  return %9 : $()                                 // id: %10
+}
+
+sil [ossa] @_Ts5printFT3valSi_T_ : $@convention(thin) (Int32) -> ()
+
+// main.Foo.get (main.Foo)() -> Swift.Int32
+sil [noinline] [ossa]  @_TFC4main3Foo3getfS0_FT_Si : $@convention(method) (@guaranteed Foo) -> Int32 {
+bb0(%0 : @guaranteed $Foo):
+  %1 = ref_element_addr %0 : $Foo, #Foo.m_val     // user: %2
+  %2 = load [trivial] %1 : $*Int32                          // user: %4
+  return %2 : $Int32                              // id: %4
+}
+
+sil_vtable Foo {
+  #Foo.get: @_TFC4main3Foo3getfS0_FT_Si
+}

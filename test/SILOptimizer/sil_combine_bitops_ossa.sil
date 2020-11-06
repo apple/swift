@@ -1,0 +1,144 @@
+// RUN: %target-sil-opt -enable-sil-verify-all %s -sil-combine | %FileCheck %s
+
+// Test optimizations for binary bit operations.
+
+sil_stage canonical
+
+import Builtin
+import Swift
+
+// CHECK-LABEL: sil [ossa] @test_and1
+// CHECK: %1 = integer_literal $Builtin.Int64, 0
+// CHECK: return %1
+sil [ossa] @test_and1 : $@convention(thin) (Builtin.Int64) -> Builtin.Int64 {
+bb0(%0 : $Builtin.Int64):
+  %1 = integer_literal $Builtin.Int64, 0
+  %2 = builtin "and_Int64"(%0 : $Builtin.Int64, %1 : $Builtin.Int64) : $Builtin.Int64
+  return %2 : $Builtin.Int64
+}
+
+// CHECK-LABEL: sil [ossa] @test_and2
+// CHECK: bb0(%0 : $Builtin.Int64):
+// CHECK: return %0
+sil [ossa] @test_and2 : $@convention(thin) (Builtin.Int64) -> Builtin.Int64 {
+bb0(%0 : $Builtin.Int64):
+  %1 = integer_literal $Builtin.Int64, -1
+  %2 = builtin "and_Int64"(%0 : $Builtin.Int64, %1 : $Builtin.Int64) : $Builtin.Int64
+  return %2 : $Builtin.Int64
+}
+
+// CHECK-LABEL: sil [ossa] @test_and3
+// CHECK: %1 = integer_literal $Builtin.Int64, 32
+// CHECK: %2 = builtin "and_Int64"(%0 : $Builtin.Int64, %1 : $Builtin.Int64)
+// CHECK: return %2
+sil [ossa] @test_and3 : $@convention(thin) (Builtin.Int64) -> Builtin.Int64 {
+bb0(%0 : $Builtin.Int64):
+  %1 = integer_literal $Builtin.Int64, 288
+  %2 = builtin "and_Int64"(%0 : $Builtin.Int64, %1 : $Builtin.Int64) : $Builtin.Int64
+  %3 = integer_literal $Builtin.Int64, 35
+  %4 = builtin "and_Int64"(%2 : $Builtin.Int64, %3 : $Builtin.Int64) : $Builtin.Int64
+  return %4 : $Builtin.Int64
+}
+
+// CHECK-LABEL: sil [ossa] @test_and4
+// CHECK: %1 = integer_literal $Builtin.Int64, 0
+// CHECK: return %1
+sil [ossa] @test_and4 : $@convention(thin) (Builtin.Int64) -> Builtin.Int64 {
+bb0(%0 : $Builtin.Int64):
+  %1 = integer_literal $Builtin.Int64, 18
+  %2 = builtin "and_Int64"(%1 : $Builtin.Int64, %0 : $Builtin.Int64) : $Builtin.Int64
+  %3 = integer_literal $Builtin.Int64, 256
+  %4 = builtin "and_Int64"(%2 : $Builtin.Int64, %3 : $Builtin.Int64) : $Builtin.Int64
+  return %4 : $Builtin.Int64
+}
+
+// CHECK-LABEL: sil [ossa] @test_or1
+// CHECK: bb0(%0 : $Builtin.Int64):
+// CHECK: return %0
+sil [ossa] @test_or1 : $@convention(thin) (Builtin.Int64) -> Builtin.Int64 {
+bb0(%0 : $Builtin.Int64):
+  %1 = integer_literal $Builtin.Int64, 0
+  %2 = builtin "or_Int64"(%1 : $Builtin.Int64, %0 : $Builtin.Int64) : $Builtin.Int64
+  return %2 : $Builtin.Int64
+}
+
+// CHECK-LABEL: sil [ossa] @test_or2
+// CHECK: %1 = integer_literal $Builtin.Int64, -1
+// CHECK: return %1
+sil [ossa] @test_or2 : $@convention(thin) (Builtin.Int64) -> Builtin.Int64 {
+bb0(%0 : $Builtin.Int64):
+  %1 = integer_literal $Builtin.Int64, -1
+  %2 = builtin "or_Int64"(%1 : $Builtin.Int64, %0 : $Builtin.Int64) : $Builtin.Int64
+  return %2 : $Builtin.Int64
+}
+
+// CHECK-LABEL: sil [ossa] @test_or3
+// CHECK: %1 = integer_literal $Builtin.Int64, 291
+// CHECK: %2 = builtin "or_Int64"(%0 : $Builtin.Int64, %1 : $Builtin.Int64)
+// CHECK: return %2
+sil [ossa] @test_or3 : $@convention(thin) (Builtin.Int64) -> Builtin.Int64 {
+bb0(%0 : $Builtin.Int64):
+  %1 = integer_literal $Builtin.Int64, 288
+  %2 = builtin "or_Int64"(%0 : $Builtin.Int64, %1 : $Builtin.Int64) : $Builtin.Int64
+  %3 = integer_literal $Builtin.Int64, 35
+  %4 = builtin "or_Int64"(%2 : $Builtin.Int64, %3 : $Builtin.Int64) : $Builtin.Int64
+  return %4 : $Builtin.Int64
+}
+
+// CHECK-LABEL: sil [ossa] @test_or4
+// CHECK: %1 = integer_literal $Builtin.Int64, -1
+// CHECK: return %1
+sil [ossa] @test_or4 : $@convention(thin) (Builtin.Int64) -> Builtin.Int64 {
+bb0(%0 : $Builtin.Int64):
+  %1 = integer_literal $Builtin.Int64, -4
+  %2 = builtin "or_Int64"(%0 : $Builtin.Int64, %1 : $Builtin.Int64) : $Builtin.Int64
+  %3 = integer_literal $Builtin.Int64, 3
+  %4 = builtin "or_Int64"(%2 : $Builtin.Int64, %3 : $Builtin.Int64) : $Builtin.Int64
+  return %4 : $Builtin.Int64
+}
+
+// CHECK-LABEL: sil [ossa] @test_xor1
+// CHECK: bb0(%0 : $Builtin.Int64):
+// CHECK: return %0
+sil [ossa] @test_xor1 : $@convention(thin) (Builtin.Int64) -> Builtin.Int64 {
+bb0(%0 : $Builtin.Int64):
+  %1 = integer_literal $Builtin.Int64, 0
+  %2 = builtin "xor_Int64"(%0 : $Builtin.Int64, %1 : $Builtin.Int64) : $Builtin.Int64
+  return %2 : $Builtin.Int64
+}
+
+// CHECK-LABEL: sil [ossa] @test_xor2
+// CHECK: %1 = integer_literal $Builtin.Int64, -1
+// CHECK: %2 = builtin "xor_Int64"(%0 : $Builtin.Int64, %1 : $Builtin.Int64)
+// CHECK: return %2
+sil [ossa] @test_xor2 : $@convention(thin) (Builtin.Int64) -> Builtin.Int64 {
+bb0(%0 : $Builtin.Int64):
+  %1 = integer_literal $Builtin.Int64, -1
+  %2 = builtin "xor_Int64"(%0 : $Builtin.Int64, %1 : $Builtin.Int64) : $Builtin.Int64
+  return %2 : $Builtin.Int64
+}
+
+// CHECK-LABEL: sil [ossa] @test_xor3
+// CHECK: %1 = integer_literal $Builtin.Int64, 259
+// CHECK: %2 = builtin "xor_Int64"(%0 : $Builtin.Int64, %1 : $Builtin.Int64)
+// CHECK: return %2
+sil [ossa] @test_xor3 : $@convention(thin) (Builtin.Int64) -> Builtin.Int64 {
+bb0(%0 : $Builtin.Int64):
+  %1 = integer_literal $Builtin.Int64, 288
+  %2 = builtin "xor_Int64"(%0 : $Builtin.Int64, %1 : $Builtin.Int64) : $Builtin.Int64
+  %3 = integer_literal $Builtin.Int64, 35
+  %4 = builtin "xor_Int64"(%2 : $Builtin.Int64, %3 : $Builtin.Int64) : $Builtin.Int64
+  return %4 : $Builtin.Int64
+}
+
+// CHECK-LABEL: sil [ossa] @test_xor4
+// CHECK: bb0(%0 : $Builtin.Int64):
+// CHECK: return %0
+sil [ossa] @test_xor4 : $@convention(thin) (Builtin.Int64) -> Builtin.Int64 {
+bb0(%0 : $Builtin.Int64):
+  %1 = integer_literal $Builtin.Int64, 18
+  %2 = builtin "xor_Int64"(%0 : $Builtin.Int64, %1 : $Builtin.Int64) : $Builtin.Int64
+  %3 = builtin "xor_Int64"(%1 : $Builtin.Int64, %2 : $Builtin.Int64) : $Builtin.Int64
+  return %3 : $Builtin.Int64
+}
+

@@ -1029,6 +1029,31 @@ SILInstruction::MemoryBehavior SILInstruction::getMemoryBehavior() const {
                              MemoryBehavior::MayHaveSideEffects;
   }
 
+  if (auto *li = dyn_cast<LoadInst>(this)) {
+    switch (li->getOwnershipQualifier()) {
+    case LoadOwnershipQualifier::Unqualified:
+    case LoadOwnershipQualifier::Trivial:
+      return MemoryBehavior::MayRead;
+    case LoadOwnershipQualifier::Copy:
+      return MemoryBehavior::MayHaveSideEffects;
+    case LoadOwnershipQualifier::Take:
+      // TODO: Should this be a read-write effect?
+      return MemoryBehavior::MayRead;
+    }
+  }
+
+  if (auto *si = dyn_cast<StoreInst>(this)) {
+    switch (si->getOwnershipQualifier()) {
+    case StoreOwnershipQualifier::Unqualified:
+    case StoreOwnershipQualifier::Trivial:
+    case StoreOwnershipQualifier::Init:
+      return MemoryBehavior::MayWrite;
+    case StoreOwnershipQualifier::Assign:
+      // For the release.
+      return MemoryBehavior::MayHaveSideEffects;
+    }
+  }
+
   switch (getKind()) {
 #define FULL_INST(CLASS, TEXTUALNAME, PARENT, MEMBEHAVIOR, RELEASINGBEHAVIOR)  \
   case SILInstructionKind::CLASS:                                              \
@@ -1138,6 +1163,10 @@ bool SILInstruction::mayRelease() const {
     }
     return true;
   }
+  case SILInstructionKind::StoreInst:
+    // If our store is an assign, then we release. Otherwise, we do not release.
+    return cast<StoreInst>(this)->getOwnershipQualifier() ==
+           StoreOwnershipQualifier::Assign;
   }
 }
 

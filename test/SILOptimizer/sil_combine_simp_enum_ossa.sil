@@ -1,0 +1,53 @@
+// RUN: %target-sil-opt -enable-sil-verify-all %s -sil-combine | %FileCheck %s
+
+sil_stage canonical
+
+import Builtin
+import Swift
+
+enum SimpleEnum {
+  case Empty
+  case HasInt(Int)
+  case HasInt2(Int)
+}
+
+//CHECK: _TF4main12test_union_1FT1EOS_10SimpleEnum_S0_
+//CHECK: switch_enum
+//CHECK: bb2
+//CHECK: enum $SimpleEnum, #SimpleEnum.HasInt2!enumelt, %{{[0-9]+}} : $Int
+//CHECK: bb3
+//CHECK: enum $SimpleEnum, #SimpleEnum.HasInt!enumelt, %{{[0-9]+}} : $Int
+//CHECK: bb4
+//CHECK: return
+
+// main.test_union_1 (E : main.SimpleEnum) -> main.SimpleEnum
+sil [ossa] @_TF4main12test_union_1FT1EOS_10SimpleEnum_S0_ : $@convention(thin) (SimpleEnum) -> SimpleEnum {
+bb0(%0 : $SimpleEnum):
+  %1 = alloc_stack $SimpleEnum, var, name "E"          // users: %16, %2
+  store %0 to [trivial] %1 : $*SimpleEnum                 // id: %2
+  %3 = tuple ()
+  switch_enum %0 : $SimpleEnum, case #SimpleEnum.Empty!enumelt: bb1, case #SimpleEnum.HasInt!enumelt: bb3, case #SimpleEnum.HasInt2!enumelt:bb4 // id: %4
+
+bb1:                                              // Preds: bb0
+  %6 = enum $SimpleEnum, #SimpleEnum.Empty!enumelt // user: %7
+  br bb5(%6 : $SimpleEnum)                        // id: %7
+
+bb3(%8 : $Int):                                 // Preds: bb0
+  %9 = alloc_stack $Int, var, name "N"               // users: %13, %10
+  store %8 to [trivial] %9 : $*Int                      // id: %10
+  %12 = enum $SimpleEnum, #SimpleEnum.HasInt2!enumelt, %8 : $Int // user: %14
+  dealloc_stack %9 : $*Int     // id: %13
+  br bb5(%12 : $SimpleEnum)                       // id: %14
+
+bb4(%13 : $Int):                                 // Preds: bb0
+  %14 = alloc_stack $Int, var, name "N"               // users: %13, %10
+  store %13 to [trivial] %14 : $*Int                     // id: %10
+  %15 = enum $SimpleEnum, #SimpleEnum.HasInt!enumelt, %13 : $Int // user: %14
+  dealloc_stack %14 : $*Int     // id: %13
+  br bb5(%15 : $SimpleEnum)                       // id: %14
+
+bb5(%16 : $SimpleEnum):                           // Preds: bb2 bb4
+  dealloc_stack %1 : $*SimpleEnum // id: %16
+  return %16 : $SimpleEnum                        // id: %17
+}
+

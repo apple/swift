@@ -1,0 +1,101 @@
+// RUN: %target-sil-opt -enforce-exclusivity=none -enable-sil-verify-all %s -sil-combine -devirtualizer | %FileCheck %s
+
+// Test to see if concrete type can be propagated from
+// global_addr in sil_combiner.
+sil_stage canonical
+
+import Builtin
+import Swift
+
+protocol SomeProtocol {
+  func foo() -> Int
+}
+
+class SomeClass  : SomeProtocol {
+  init()
+  func foo() -> Int
+}
+
+sil hidden [thunk] [always_inline] [ossa] @foo_ : $@convention(witness_method:SomeProtocol) (@in_guaranteed SomeClass) -> Int {
+bb0(%0 : $*SomeClass):
+  %1 = load_borrow %0 : $*SomeClass
+  %2 = class_method %1 : $SomeClass, #SomeClass.foo : (SomeClass) -> () -> Int, $@convention(method) (@guaranteed SomeClass) -> Int
+  %3 = apply %2(%1) : $@convention(method) (@guaranteed SomeClass) -> Int
+  end_borrow %1 : $SomeClass
+  return %3 : $Int
+}
+
+sil hidden_external @foo : $@convention(method) (@guaranteed SomeClass) -> Int
+
+sil_global hidden [let] @$global_var : $SomeProtocol
+
+// CHECK-LABEL: sil [ossa] @witness_global_addr
+// CHECK: bb0
+// CHECK: alloc_global 
+// CHECK: global_addr
+// CHECK: init_existential_addr
+// CHECK: alloc_ref
+// CHECK: store
+// CHECK: function_ref
+// CHECK: apply
+// CHECK: return
+// CHECK: } // end sil function 'witness_global_addr'
+sil [ossa] @witness_global_addr : $@convention(thin) () -> Int {
+bb0:
+  alloc_global @$global_var
+  %3 = global_addr @$global_var : $*SomeProtocol
+  %4 = init_existential_addr %3 : $*SomeProtocol, $SomeClass
+  %5 = alloc_ref $SomeClass
+  store %5 to [init] %4 : $*SomeClass
+  %8 = alloc_stack $SomeProtocol
+  copy_addr %3 to [initialization] %8 : $*SomeProtocol
+  %9 = open_existential_addr immutable_access %8 : $*SomeProtocol to $*@opened("1B0A5B84-3441-11E8-AC03-DCA9048B1C6D") SomeProtocol
+  %10 = witness_method $@opened("1B0A5B84-3441-11E8-AC03-DCA9048B1C6D") SomeProtocol, #SomeProtocol.foo : <Self where Self : SomeProtocol> (Self) -> () -> Int, %9 : $*@opened("1B0A5B84-3441-11E8-AC03-DCA9048B1C6D") SomeProtocol : $@convention(witness_method: SomeProtocol) <τ_0_0 where τ_0_0 : SomeProtocol> (@in_guaranteed τ_0_0) -> Int
+  %11 = apply %10<@opened("1B0A5B84-3441-11E8-AC03-DCA9048B1C6D") SomeProtocol>(%9) : $@convention(witness_method: SomeProtocol) <τ_0_0 where τ_0_0 : SomeProtocol> (@in_guaranteed τ_0_0) -> Int
+  destroy_addr %8 : $*SomeProtocol
+  dealloc_stack %8 : $*SomeProtocol
+  return %11 : $Int
+}
+
+// CHECK-LABEL: sil [ossa] @witness_global_addr_fail_2
+// CHECK: bb0
+// CHECK: alloc_global 
+// CHECK: global_addr
+// CHECK: init_existential_addr
+// CHECK: alloc_ref
+// CHECK: store
+// CHECK: init_existential_addr
+// CHECK: alloc_stack
+// CHECK: copy_addr
+// CHECK: open_existential_addr
+// CHECK: witness_method
+// CHECK: apply
+// CHECK: destroy_addr
+// CHECK: dealloc_stack
+// CHECK: return
+// CHECK: } // end sil function 'witness_global_addr_fail_2'
+sil [ossa] @witness_global_addr_fail_2 : $@convention(thin) () -> Int {
+bb0:
+  alloc_global @$global_var
+  %3 = global_addr @$global_var : $*SomeProtocol
+  %4 = init_existential_addr %3 : $*SomeProtocol, $SomeClass
+  %5 = alloc_ref $SomeClass
+  store %5 to [init] %4 : $*SomeClass
+  %6 = init_existential_addr %3 : $*SomeProtocol, $SomeClass
+  %8 = alloc_stack $SomeProtocol
+  copy_addr %3 to [initialization] %8 : $*SomeProtocol
+  %9 = open_existential_addr immutable_access %8 : $*SomeProtocol to $*@opened("1B0A5B84-3441-11E8-AC03-DCA9048B1C6D") SomeProtocol
+  %10 = witness_method $@opened("1B0A5B84-3441-11E8-AC03-DCA9048B1C6D") SomeProtocol, #SomeProtocol.foo : <Self where Self : SomeProtocol> (Self) -> () -> Int, %9 : $*@opened("1B0A5B84-3441-11E8-AC03-DCA9048B1C6D") SomeProtocol : $@convention(witness_method: SomeProtocol) <τ_0_0 where τ_0_0 : SomeProtocol> (@in_guaranteed τ_0_0) -> Int
+  %11 = apply %10<@opened("1B0A5B84-3441-11E8-AC03-DCA9048B1C6D") SomeProtocol>(%9) : $@convention(witness_method: SomeProtocol) <τ_0_0 where τ_0_0 : SomeProtocol> (@in_guaranteed τ_0_0) -> Int
+  destroy_addr %8 : $*SomeProtocol
+  dealloc_stack %8 : $*SomeProtocol
+  return %11 : $Int
+}
+
+sil_vtable SomeClass {
+  #SomeClass.foo: (SomeClass) -> () -> Int : @foo
+}
+
+sil_witness_table hidden SomeClass: SomeProtocol module test {
+  method #SomeProtocol.foo: <Self where Self : SomeProtocol> (Self) -> () -> Int : @foo_
+}

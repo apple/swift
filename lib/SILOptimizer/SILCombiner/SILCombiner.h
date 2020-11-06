@@ -177,8 +177,11 @@ public:
   SILInstruction *visitStrongRetainInst(StrongRetainInst *SRI);
   SILInstruction *visitRefToRawPointerInst(RefToRawPointerInst *RRPI);
   SILInstruction *visitUpcastInst(UpcastInst *UCI);
-  SILInstruction *optimizeLoadFromStringLiteral(LoadInst *LI);
+  // We check with an assert that load/load_borrow are only passed to this
+  // function.
+  SILInstruction *optimizeLoadFromStringLiteral(SingleValueInstruction *LI);
   SILInstruction *visitLoadInst(LoadInst *LI);
+  SILInstruction *visitLoadBorrowInst(LoadBorrowInst *LI);
   SILInstruction *visitIndexAddrInst(IndexAddrInst *IA);
   bool optimizeStackAllocatedEnum(AllocStackInst *AS);
   SILInstruction *visitAllocStackInst(AllocStackInst *AS);
@@ -199,6 +202,9 @@ public:
   SILInstruction *
   visitUncheckedTakeEnumDataAddrInst(UncheckedTakeEnumDataAddrInst *TEDAI);
   SILInstruction *visitStrongReleaseInst(StrongReleaseInst *SRI);
+  SILInstruction *visitCopyValueInst(CopyValueInst *cvi);
+  SILInstruction *visitBeginBorrowInst(BeginBorrowInst *bbi);
+  SILInstruction *visitDestroyValueInst(DestroyValueInst *dvi);
   SILInstruction *visitCondBranchInst(CondBranchInst *CBI);
   SILInstruction *
   visitUncheckedTrivialBitCastInst(UncheckedTrivialBitCastInst *UTBCI);

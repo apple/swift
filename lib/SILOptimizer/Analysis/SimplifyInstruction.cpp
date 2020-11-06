@@ -20,9 +20,12 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "sil-simplify"
+
 #include "swift/SILOptimizer/Analysis/SimplifyInstruction.h"
 #include "swift/SIL/InstructionUtils.h"
+#include "swift/SIL/OwnershipUtils.h"
 #include "swift/SIL/PatternMatch.h"
+#include "swift/SIL/SILValue.h"
 #include "swift/SIL/SILVisitor.h"
 #include "swift/SILOptimizer/Analysis/ValueTracking.h"
 #include "swift/SILOptimizer/Utils/InstOptUtils.h"
@@ -158,6 +161,9 @@ SILValue InstSimplifier::visitTupleExtractInst(TupleExtractInst *TEI) {
 
 SILValue InstSimplifier::visitStructExtractInst(StructExtractInst *SEI) {
   // struct_extract(struct(x, y), x) -> x
+  //
+  // struct_extract can only take guaranteed values so the struct must be
+  // guaranteed as well.
   if (auto *Struct = dyn_cast<StructInst>(SEI->getOperand()))
     return Struct->getFieldValue(SEI->getField());
 
@@ -170,6 +176,12 @@ visitUncheckedEnumDataInst(UncheckedEnumDataInst *UEDI) {
   // (unchecked_enum_data (enum payload)) -> payload
   if (auto *EI = dyn_cast<EnumInst>(UEDI->getOperand())) {
     if (EI->getElement() != UEDI->getElement())
+      return SILValue();
+
+    // unchecked_enum_data/enum can take owned values. Since we do not know if
+    // out caller is going to get rid of the underlying value, do not return the
+    // SILValue() if we have an owned value.
+    if (UEDI->getOwnershipKind() == ValueOwnershipKind::Owned)
       return SILValue();
 
     assert(EI->hasOperand() &&
@@ -201,7 +213,13 @@ static SILValue simplifyEnumFromUncheckedEnumData(EnumInst *EI) {
 
   if (OriginalEnum != NewEnum)
     return SILValue();
-  
+
+  // Unless we know that our caller will eliminate the unchecked_enum_data
+  // itself, we can only perform this simplification if we have a value without
+  // owned ownership.
+  if (EnumOp.getOwnershipKind() == ValueOwnershipKind::Owned)
+    return SILValue();
+
   return EnumOp;
 }
 
@@ -254,6 +272,12 @@ SILValue InstSimplifier::visitEnumInst(EnumInst *EI) {
 
     auto Case = SEI->getUniqueCaseForDestination(EI->getParent());
 
+    // NOTE: We can not perform this optimization if the underlying value is
+    // owned. But if it is guaranteed, we may be able to do it. Since without
+    // ownership all values have None, we can just check for Owned here.
+    if (SEI->getOperand().getOwnershipKind() == ValueOwnershipKind::Owned)
+      return SILValue();
+
     if (Case && Case.getPtrOrNull() == EI->getElement() &&
         SEI->getOperand()->getType() == EI->getType()) {
       return SEI->getOperand();
@@ -268,7 +292,9 @@ SILValue InstSimplifier::visitEnumInst(EnumInst *EI) {
   // bb1:
   //   %1 = enum $Bool, #Bool.true!enumelt
   //
-  // we'll return %0
+  // we'll return %0. We can only do this if we have a guaranteed value since
+  // otherwise the switch_enum will have consumed %0 so the value will no longer
+  // be valid.
   auto *BB = EI->getParent();
   auto *Pred = BB->getSinglePredecessorBlock();
   if (!Pred)
@@ -276,6 +302,9 @@ SILValue InstSimplifier::visitEnumInst(EnumInst *EI) {
 
   if (auto *SEI = dyn_cast<SwitchEnumInst>(Pred->getTerminator())) {
     if (EI->getType() != SEI->getOperand()->getType())
+      return SILValue();
+
+    if (SEI->getOperand().getOwnershipKind() == ValueOwnershipKind::Owned)
       return SILValue();
 
     if (EI->getElement() == SEI->getUniqueCaseForDestination(BB).getPtrOrNull())
@@ -298,11 +327,41 @@ SILValue InstSimplifier::visitAddressToPointerInst(AddressToPointerInst *ATPI) {
 
 SILValue InstSimplifier::visitPointerToAddressInst(PointerToAddressInst *PTAI) {
   // (pointer_to_address strict (address_to_pointer x)) -> x
+  //
   // If this address is not strict, then it cannot be replaced by an address
   // that may be strict.
-  if (auto *ATPI = dyn_cast<AddressToPointerInst>(PTAI->getOperand()))
-    if (ATPI->getOperand()->getType() == PTAI->getType() && PTAI->isStrict())
-      return ATPI->getOperand();
+  //
+  // When ownership is enabled, we can only perform this if the underlying
+  // address of our operand is either not an interior pointer or if it is an
+  // interior pointer if all uses of the pointer to address are with in the
+  // borrow scope that the interior pointer belongs to.
+  if (auto *ATPI = dyn_cast<AddressToPointerInst>(PTAI->getOperand())) {
+    if (ATPI->getOperand()->getType() == PTAI->getType() && PTAI->isStrict()) {
+      if (!PTAI->getFunction()->hasOwnership())
+        return ATPI->getOperand();
+
+      // If we do not have an interior pointer operand, we can just use this
+      // without issue. If we do have an interior pointer operand, we have to
+      // make sure that we are not adding a new interior pointer address to a
+      // borrow scope. This can happen since the address to pointer can be used
+      // to escape an address out of a borrow scope. If the pointer to address
+      // that rematerializes the address is outside the borrow scope and has
+      // uses outside of the borrow scope, we could introduce an ownership
+      // violation.
+      //
+      // TODO: We need to be able to exhaustively traverse all uses of the
+      // resulting address to determine if all are within the borrow scope. This
+      // requires using the access scope. Instead of doing that, we just bail
+      // here.
+      SILValue baseAddr =
+          getUnderlyingObjectStoppingAtMixedProjections(ATPI->getOperand());
+      auto *svi = dyn_cast<SingleValueInstruction>(baseAddr);
+      if (!svi || svi->getNumOperands() == 0 ||
+          !InteriorPointerOperand::get(&svi->getAllOperands()[0]))
+        return ATPI->getOperand();
+      return SILValue();
+    }
+  }
 
   return SILValue();
 }
@@ -396,21 +455,23 @@ SILValue InstSimplifier::visitUpcastInst(UpcastInst *UI) {
   return simplifyDeadCast(UI);
 }
 
-#define LOADABLE_REF_STORAGE(Name, ...) \
-SILValue \
-InstSimplifier::visitRefTo##Name##Inst(RefTo##Name##Inst *RUI) { \
-  if (auto *URI = dyn_cast<Name##ToRefInst>(RUI->getOperand())) \
-    if (URI->getOperand()->getType() == RUI->getType()) \
-      return URI->getOperand(); \
-  return SILValue(); \
-} \
-SILValue \
-InstSimplifier::visit##Name##ToRefInst(Name##ToRefInst *URI) { \
-  if (auto *RUI = dyn_cast<RefTo##Name##Inst>(URI->getOperand())) \
-    if (RUI->getOperand()->getType() == URI->getType()) \
-      return RUI->getOperand(); \
-  return SILValue(); \
-}
+#define LOADABLE_REF_STORAGE(Name, ...)                                        \
+  SILValue InstSimplifier::visitRefTo##Name##Inst(RefTo##Name##Inst *RUI) {    \
+    if (RUI->getFunction()->hasOwnership())                                    \
+      return SILValue();                                                       \
+    if (auto *URI = dyn_cast<Name##ToRefInst>(RUI->getOperand()))              \
+      if (URI->getOperand()->getType() == RUI->getType())                      \
+        return URI->getOperand();                                              \
+    return SILValue();                                                         \
+  }                                                                            \
+  SILValue InstSimplifier::visit##Name##ToRefInst(Name##ToRefInst *URI) {      \
+    if (URI->getFunction()->hasOwnership())                                    \
+      return SILValue();                                                       \
+    if (auto *RUI = dyn_cast<RefTo##Name##Inst>(URI->getOperand()))            \
+      if (RUI->getOperand()->getType() == URI->getType())                      \
+        return RUI->getOperand();                                              \
+    return SILValue();                                                         \
+  }
 #include "swift/AST/ReferenceStorage.def"
 
 SILValue
@@ -436,6 +497,13 @@ SILValue InstSimplifier::visitEndCOWMutationInst(EndCOWMutationInst *ECM) {
 SILValue
 InstSimplifier::
 visitUncheckedBitwiseCastInst(UncheckedBitwiseCastInst *UBCI) {
+  // TODO: Implement this for ownership.
+  //
+  // The problem is unchecked_bitwise_cast introduces unowned ownership which
+  // our original value may not have. So this is not a simple simplification.
+  if (!UBCI->getFunction()->hasOwnership())
+    return SILValue();
+
   // (unchecked_bitwise_cast X->X x) -> x
   if (UBCI->getOperand()->getType() == UBCI->getType())
     return UBCI->getOperand();

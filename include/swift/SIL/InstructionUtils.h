@@ -25,6 +25,10 @@ namespace swift {
 /// nothing left to strip.
 SILValue getUnderlyingObject(SILValue V);
 
+/// Look through underlying objects, stopping at mixed object -> address
+/// projections.
+SILValue getUnderlyingObjectStoppingAtMixedProjections(SILValue V);
+
 SILValue getUnderlyingObjectStopAtMarkDependence(SILValue V);
 
 SILValue stripSinglePredecessorArgs(SILValue V);
@@ -52,6 +56,12 @@ SILValue stripClassCasts(SILValue V);
 /// Return the underlying SILValue after stripping off all address projection
 /// instructions.
 SILValue stripAddressProjections(SILValue V);
+
+/// Return the underlying SILValue after stripping off all address projection
+/// instructions.
+///
+/// NOTE: We do not look through mixed projections.
+SILValue stripAddressProjectionsStoppingAtMixedProjections(SILValue V);
 
 /// Return the underlying SILValue after stripping off all aggregate projection
 /// instructions.

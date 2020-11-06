@@ -53,6 +53,18 @@ SILValue swift::getUnderlyingObject(SILValue v) {
   }
 }
 
+SILValue swift::getUnderlyingObjectStoppingAtMixedProjections(SILValue v) {
+  while (true) {
+    SILValue v2 = stripCasts(v);
+    v2 = stripAddressProjectionsStoppingAtMixedProjections(v2);
+    v2 = stripIndexingInsts(v2);
+    v2 = stripOwnershipInsts(v2);
+    if (v2 == v)
+      return v2;
+    v = v2;
+  }
+}
+
 SILValue swift::getUnderlyingObjectStopAtMarkDependence(SILValue v) {
   while (true) {
     SILValue v2 = stripCastsWithoutMarkDependence(v);
@@ -195,6 +207,16 @@ SILValue swift::stripAddressProjections(SILValue V) {
     if (!Projection::isAddressProjection(V))
       return V;
     V = cast<SingleValueInstruction>(V)->getOperand(0);
+  }
+}
+
+SILValue swift::stripAddressProjectionsStoppingAtMixedProjections(SILValue v) {
+  while (true) {
+    v = stripSinglePredecessorArgs(v);
+    if (Projection::isObjectToAddressProjection(v) ||
+        !Projection::isAddressProjection(v))
+      return v;
+    v = cast<SingleValueInstruction>(v)->getOperand(0);
   }
 }
 

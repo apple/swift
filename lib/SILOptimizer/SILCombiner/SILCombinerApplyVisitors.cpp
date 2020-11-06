@@ -78,41 +78,37 @@ static bool foldInverseReabstractionThunks(PartialApplyInst *PAI,
   return true;
 }
 
-SILInstruction *SILCombiner::visitPartialApplyInst(PartialApplyInst *PAI) {
-  if (PAI->getFunction()->hasOwnership())
-    return nullptr;
-
+SILInstruction *SILCombiner::visitPartialApplyInst(PartialApplyInst *pai) {
   // partial_apply without any substitutions or arguments is just a
   // thin_to_thick_function. thin_to_thick_function supports only thin operands.
-  if (!PAI->hasSubstitutions() && (PAI->getNumArguments() == 0) &&
-      PAI->getSubstCalleeType()->getRepresentation() ==
+  if (!pai->hasSubstitutions() && (pai->getNumArguments() == 0) &&
+      pai->getSubstCalleeType()->getRepresentation() ==
           SILFunctionTypeRepresentation::Thin) {
-    if (!PAI->isOnStack())
-      return Builder.createThinToThickFunction(PAI->getLoc(), PAI->getCallee(),
-                                               PAI->getType());
+    if (!pai->isOnStack())
+      return Builder.createThinToThickFunction(pai->getLoc(), pai->getCallee(),
+                                               pai->getType());
 
     // Remove dealloc_stack of partial_apply [stack].
     // Iterating while delete use a copy.
-    SmallVector<Operand *, 8> Uses(PAI->getUses());
-    for (auto *Use : Uses)
-      if (auto *dealloc = dyn_cast<DeallocStackInst>(Use->getUser()))
+    SmallVector<Operand *, 8> uses(pai->getUses());
+    for (auto *use : uses)
+      if (auto *dealloc = dyn_cast<DeallocStackInst>(use->getUser()))
         eraseInstFromFunction(*dealloc);
     auto *thinToThick = Builder.createThinToThickFunction(
-        PAI->getLoc(), PAI->getCallee(), PAI->getType());
-    replaceInstUsesWith(*PAI, thinToThick);
-    eraseInstFromFunction(*PAI);
+        pai->getLoc(), pai->getCallee(), pai->getType());
+    replaceInstUsesWith(*pai, thinToThick);
+    eraseInstFromFunction(*pai);
     return nullptr;
   }
-
 
   // partial_apply %reabstraction_thunk_typeAtoB(
   //    partial_apply %reabstraction_thunk_typeBtoA %closure_typeB))
   // -> %closure_typeB
-  if (foldInverseReabstractionThunks(PAI, this))
+  if (foldInverseReabstractionThunks(pai, this))
     return nullptr;
 
   bool argsAreKeptAlive = tryOptimizeApplyOfPartialApply(
-      PAI, Builder.getBuilderContext(), getInstModCallbacks());
+      pai, Builder.getBuilderContext(), getInstModCallbacks());
   if (argsAreKeptAlive)
     invalidatedStackNesting = true;
 
@@ -120,7 +116,7 @@ SILInstruction *SILCombiner::visitPartialApplyInst(PartialApplyInst *PAI) {
   // In case it became dead because of tryOptimizeApplyOfPartialApply, we don't
   // need to copy all arguments again (to extend their lifetimes), because it
   // was already done in tryOptimizeApplyOfPartialApply.
-  if (tryDeleteDeadClosure(PAI, getInstModCallbacks(), !argsAreKeptAlive))
+  if (tryDeleteDeadClosure(pai, getInstModCallbacks(), !argsAreKeptAlive))
     invalidatedStackNesting = true;
 
   return nullptr;
@@ -570,13 +566,13 @@ SILCombiner::recursivelyCollectARCUsers(UserListTy &Uses, ValueBase *Value) {
 
   for (auto *Use : Value->getUses()) {
     SILInstruction *Inst = Use->getUser();
-    if (isa<RefCountingInst>(Inst) ||
-        isa<DebugValueInst>(Inst)) {
+    if (isa<RefCountingInst>(Inst) || isa<DestroyValueInst>(Inst) ||
+        isa<DebugValueInst>(Inst) || isa<EndBorrowInst>(Inst)) {
       Uses.push_back(Inst);
       continue;
     }
-    if (isa<TupleExtractInst>(Inst) ||
-        isa<StructExtractInst>(Inst) ||
+    if (isa<TupleExtractInst>(Inst) || isa<StructExtractInst>(Inst) ||
+        isa<CopyValueInst>(Inst) || isa<BeginBorrowInst>(Inst) ||
         isa<PointerToAddressInst>(Inst)) {
       Uses.push_back(Inst);
       if (recursivelyCollectARCUsers(Uses, cast<SingleValueInstruction>(Inst)))
@@ -628,10 +624,8 @@ bool SILCombiner::eraseApply(FullApplySite FAS, const UserListTy &Users) {
       switch (PI.getConvention()) {
         case ParameterConvention::Indirect_In:
         case ParameterConvention::Indirect_In_Constant:
-          Builder.createDestroyAddr(FAS.getLoc(), Arg);
-          break;
         case ParameterConvention::Direct_Owned:
-          Builder.createReleaseValue(FAS.getLoc(), Arg, Builder.getDefaultAtomicity());
+          Builder.emitDestroyOperation(FAS.getLoc(), Arg);
           break;
         case ParameterConvention::Indirect_In_Guaranteed:
         case ParameterConvention::Indirect_Inout:
@@ -945,8 +939,8 @@ struct ConcreteArgumentCopy {
   }
 
   static Optional<ConcreteArgumentCopy>
-  generate(const ConcreteExistentialInfo &CEI, ApplySite apply, unsigned argIdx,
-           SILBuilderContext &BuilderCtx) {
+  generate(const ConcreteExistentialInfo &existentialInfo, ApplySite apply,
+           unsigned argIdx, SILBuilderContext &builderCtx) {
     SILParameterInfo paramInfo =
         apply.getOrigCalleeConv().getParamInfoForSILArg(argIdx);
     // Mutation should have been checked before we get this far.
@@ -976,21 +970,23 @@ struct ConcreteArgumentCopy {
     if (!paramInfo.isFormalIndirect())
       return None;
 
-    SILBuilderWithScope B(apply.getInstruction(), BuilderCtx);
+    SILBuilderWithScope builder(apply.getInstruction(), builderCtx);
     auto loc = apply.getLoc();
-    auto *ASI = B.createAllocStack(loc, CEI.ConcreteValue->getType());
+    auto *asi =
+        builder.createAllocStack(loc, existentialInfo.ConcreteValue->getType());
     // If the type is an address, simple copy it.
-    if (CEI.ConcreteValue->getType().isAddress()) {
-      B.createCopyAddr(loc, CEI.ConcreteValue, ASI, IsNotTake,
-                       IsInitialization_t::IsInitialization);
+    if (existentialInfo.ConcreteValue->getType().isAddress()) {
+      builder.createCopyAddr(loc, existentialInfo.ConcreteValue, asi, IsNotTake,
+                             IsInitialization_t::IsInitialization);
     } else {
       // Otherwise, we probably got the value from the source of a store
       // instruction so, create a store into the temporary argument.
-      B.createStrongRetain(loc, CEI.ConcreteValue, B.getDefaultAtomicity());
-      B.createStore(loc, CEI.ConcreteValue, ASI,
-                    StoreOwnershipQualifier::Unqualified);
+      auto copy =
+          builder.emitCopyValueOperation(loc, existentialInfo.ConcreteValue);
+      builder.emitStoreValueOperation(loc, copy, asi,
+                                      StoreOwnershipQualifier::Init);
     }
-    return ConcreteArgumentCopy(origArg, ASI);
+    return ConcreteArgumentCopy(origArg, asi);
   }
 };
 
@@ -1352,19 +1348,19 @@ SILCombiner::propagateConcreteTypeOfInitExistential(FullApplySite Apply) {
 /// Check that all users of the apply are retain/release ignoring one
 /// user.
 static bool
-hasOnlyRetainReleaseUsers(ApplyInst *AI, SILInstruction *IgnoreUser,
-                          SmallVectorImpl<SILInstruction *> &Users) {
-  for (auto *Use : getNonDebugUses(AI)) {
-    if (Use->getUser() == IgnoreUser)
+hasOnlyRetainReleaseUsers(ApplyInst *ai, SILInstruction *ignoreUser,
+                          SmallVectorImpl<SILInstruction *> &users) {
+  for (auto *use : getNonDebugUses(ai)) {
+    auto *user = use->getUser();
+    if (user == ignoreUser)
       continue;
 
-    if (!isa<RetainValueInst>(Use->getUser()) &&
-        !isa<ReleaseValueInst>(Use->getUser()) &&
-        !isa<StrongRetainInst>(Use->getUser()) &&
-        !isa<StrongReleaseInst>(Use->getUser()))
+    if (!isa<RetainValueInst>(user) && !isa<ReleaseValueInst>(user) &&
+        !isa<StrongRetainInst>(user) && !isa<StrongReleaseInst>(user) &&
+        !isa<CopyValueInst>(user) && !isa<DestroyValueInst>(user))
       return false;
 
-    Users.push_back(Use->getUser());
+    users.push_back(user);
   }
   return true;
 };
@@ -1416,7 +1412,7 @@ static void emitMatchingRCAdjustmentsForCall(ApplyInst *Call, SILValue OnX) {
 
   // Emit a retain for the @owned return.
   SILBuilderWithScope Builder(Call);
-  Builder.createRetainValue(Call->getLoc(), OnX, Builder.getDefaultAtomicity());
+  OnX = Builder.emitCopyValueOperation(Call->getLoc(), OnX);
 
   // Emit a release for the @owned parameter, or none for a @guaranteed
   // parameter.
@@ -1428,7 +1424,7 @@ static void emitMatchingRCAdjustmentsForCall(ApplyInst *Call, SILValue OnX) {
          ParamInfo == ParameterConvention::Direct_Guaranteed);
 
   if (ParamInfo == ParameterConvention::Direct_Owned)
-    Builder.createReleaseValue(Call->getLoc(), OnX, Builder.getDefaultAtomicity());
+    Builder.emitDestroyValueOperation(Call->getLoc(), OnX);
 }
 
 /// Replace an application of a cast composition f_inverse(f(x)) by x.
@@ -1465,6 +1461,9 @@ bool SILCombiner::optimizeIdentityCastComposition(ApplyInst *FInverse,
   auto X = F->getArgument(0);
 
   // Redirect f's result's retains/releases to affect x.
+  //
+  // NOTE: This part of the code is only used in non-ownership SIL since we
+  // represent ARC operations there with a single destroy_value instruction.
   for (auto *User : RetainReleases) {
     // X might not be strong_retain/release'able. Replace it by a
     // retain/release_value on X instead.
@@ -1501,9 +1500,6 @@ bool SILCombiner::optimizeIdentityCastComposition(ApplyInst *FInverse,
 }
 
 SILInstruction *SILCombiner::visitApplyInst(ApplyInst *AI) {
-  if (AI->getFunction()->hasOwnership())
-    return nullptr;
-
   Builder.setCurrentDebugScope(AI->getDebugScope());
   // apply{partial_apply(x,y)}(z) -> apply(z,x,y) is triggered
   // from visitPartialApplyInst(), so bail here.
@@ -1579,9 +1575,6 @@ SILInstruction *SILCombiner::visitApplyInst(ApplyInst *AI) {
 }
 
 SILInstruction *SILCombiner::visitBeginApplyInst(BeginApplyInst *BAI) {
-  if (BAI->getFunction()->hasOwnership())
-    return nullptr;
-
   if (tryOptimizeInoutKeypath(BAI))
     return nullptr;
   return nullptr;
@@ -1637,9 +1630,6 @@ isTryApplyResultNotUsed(UserListTy &AcceptedUses, TryApplyInst *TAI) {
 }
 
 SILInstruction *SILCombiner::visitTryApplyInst(TryApplyInst *AI) {
-  if (AI->getFunction()->hasOwnership())
-    return nullptr;
-
   // apply{partial_apply(x,y)}(z) -> apply(z,x,y) is triggered
   // from visitPartialApplyInst(), so bail here.
   if (isa<PartialApplyInst>(AI->getCallee()))

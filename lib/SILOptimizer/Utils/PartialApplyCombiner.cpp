@@ -215,6 +215,13 @@ bool PartialApplyCombiner::combine() {
     auto *use = worklist.pop_back_val();
     auto *user = use->getUser();
 
+    // Recurse through copy_value
+    if (auto *cvi = dyn_cast<CopyValueInst>(user)) {
+      for (auto *copyUse : cvi->getUses())
+        worklist.push_back(copyUse);
+      continue;
+    }
+
     // Recurse through conversions.
     if (auto *cfi = dyn_cast<ConvertEscapeToNoEscapeInst>(user)) {
       // TODO: Handle argument conversion. All the code in this file needs to be

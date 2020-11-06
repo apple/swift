@@ -1064,6 +1064,13 @@ OperandOwnershipKindClassifier::visitBuiltinInst(BuiltinInst *bi) {
 
 OperandOwnershipKindMap
 Operand::getOwnershipKindMap(bool isForwardingSubValue) const {
+  // If we do not have ownership enabled, just return all live. This ensures
+  // that we do not have any consuming uses and everything from an ownership
+  // perspective is just a liveness use short-circuiting many of the
+  // optimizations.
+  if (!getUser()->getFunction()->hasOwnership())
+    return OperandOwnershipKindMap::allLive();
+
   OperandOwnershipKindClassifier classifier(
       getUser()->getModule(), *this,
       isForwardingSubValue);

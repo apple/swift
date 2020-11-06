@@ -1,0 +1,42 @@
+// RUN: %target-sil-opt -enable-sil-verify-all %s -sil-combine | %FileCheck %s
+
+sil_stage canonical
+
+import Builtin
+import Swift
+
+// CHECK: sil [ossa] @a_function1
+// CHECK-NOT: partial_apply
+// CHECK: return
+sil [ossa] @a_function1 : $@convention(thin) (Int64) -> () {
+bb0(%0 : $Int64):
+  %1 = function_ref @our_closure_function1 : $@convention(thin) (Int64) -> Bool // user: %2
+  %2 = partial_apply %1(%0) : $@convention(thin) (Int64) -> Bool // user: %3
+  destroy_value %2 : $@callee_owned () -> Bool   // id: %3
+  %4 = tuple ()                                   // user: %5
+  return %4 : $()                                 // id: %5
+}
+
+class K {
+}
+
+//CHECK: sil [ossa] @a_function2
+// The release_value of $K is optimized to a destroy_value.
+sil [ossa] @a_function2 : $@convention(thin) (@owned K) -> () {
+bb0(%0 : $K):
+  %1 = alloc_ref $K
+  %2 = function_ref @our_closure_function2 : $@convention(thin) (@owned K) -> Bool // user: %2
+//CHECK-NOT: partial_apply
+  %3 = partial_apply %2(%0) : $@convention(thin) (@owned K) -> Bool // user: %3
+//CHECK: br
+  br bb1
+ bb1:
+//CHECK: destroy_value
+  destroy_value %3 : $@callee_owned () -> Bool   // id: %3
+  %5 = tuple ()                                   // user: %5
+//CHECK: return
+  return %5 : $()                                 // id: %5
+}
+
+sil [ossa] @our_closure_function2 : $@convention(thin) (@owned K) -> Bool
+sil [ossa] @our_closure_function1 : $@convention(thin) (Int64) -> Bool

@@ -707,41 +707,58 @@ SILValue swift::
 getConcreteValueOfExistentialBox(AllocExistentialBoxInst *existentialBox,
                                   SILInstruction *ignoreUser) {
   StoreInst *singleStore = nullptr;
-  for (Operand *use : getNonDebugUses(existentialBox)) {
+  SmallVector<Operand *, 32> worklist;
+  SmallPtrSet<Operand *, 8> addedToWorklistPreviously;
+  for (auto *use : getNonDebugUses(existentialBox)) {
+    worklist.push_back(use);
+    addedToWorklistPreviously.insert(use);
+  }
+
+  while (!worklist.empty()) {
+    auto *use = worklist.pop_back_val();
     SILInstruction *user = use->getUser();
     switch (user->getKind()) {
-      case SILInstructionKind::StrongRetainInst:
-      case SILInstructionKind::StrongReleaseInst:
-        break;
-      case SILInstructionKind::ProjectExistentialBoxInst: {
-        auto *projectedAddr = cast<ProjectExistentialBoxInst>(user);
-        for (Operand *addrUse : getNonDebugUses(projectedAddr)) {
-          if (auto *store = dyn_cast<StoreInst>(addrUse->getUser())) {
-            assert(store->getSrc() != projectedAddr &&
-                   "cannot store an address");
-            // Bail if there are multiple stores.
-            if (singleStore)
-              return SILValue();
-            singleStore = store;
-            continue;
-          }
-          // If there are other users to the box value address then bail out.
-          return SILValue();
+    case SILInstructionKind::StrongRetainInst:
+    case SILInstructionKind::StrongReleaseInst:
+    case SILInstructionKind::DestroyValueInst:
+    case SILInstructionKind::EndBorrowInst:
+      break;
+    case SILInstructionKind::CopyValueInst:
+    case SILInstructionKind::BeginBorrowInst:
+      // Look through copy_value, begin_borrow
+      for (SILValue result : user->getResults())
+        for (auto *transitiveUse : result->getUses())
+          if (!addedToWorklistPreviously.insert(transitiveUse).second)
+            worklist.push_back(use);
+      break;
+    case SILInstructionKind::ProjectExistentialBoxInst: {
+      auto *projectedAddr = cast<ProjectExistentialBoxInst>(user);
+      for (Operand *addrUse : getNonDebugUses(projectedAddr)) {
+        if (auto *store = dyn_cast<StoreInst>(addrUse->getUser())) {
+          assert(store->getSrc() != projectedAddr && "cannot store an address");
+          // Bail if there are multiple stores.
+          if (singleStore)
+            return SILValue();
+          singleStore = store;
+          continue;
         }
-        break;
+        // If there are other users to the box value address then bail out.
+        return SILValue();
       }
-      case SILInstructionKind::BuiltinInst: {
-        auto *builtin = cast<BuiltinInst>(user);
-        if (KeepWillThrowCall ||
-            builtin->getBuiltinInfo().ID != BuiltinValueKind::WillThrow) {
-          return SILValue();
-        }
-        break;
+      break;
+    }
+    case SILInstructionKind::BuiltinInst: {
+      auto *builtin = cast<BuiltinInst>(user);
+      if (KeepWillThrowCall ||
+          builtin->getBuiltinInfo().ID != BuiltinValueKind::WillThrow) {
+        return SILValue();
       }
-      default:
-        if (user != ignoreUser)
-          return SILValue();
-        break;
+      break;
+    }
+    default:
+      if (user != ignoreUser)
+        return SILValue();
+      break;
     }
   }
   if (!singleStore)
@@ -759,29 +776,42 @@ getConcreteValueOfExistentialBoxAddr(SILValue addr, SILInstruction *ignoreUser) 
   for (Operand *stackUse : stackLoc->getUses()) {
     SILInstruction *stackUser = stackUse->getUser();
     switch (stackUser->getKind()) {
-      case SILInstructionKind::DeallocStackInst:
-      case SILInstructionKind::DebugValueAddrInst:
-      case SILInstructionKind::LoadInst:
-        break;
-      case SILInstructionKind::StoreInst: {
-        auto *store = cast<StoreInst>(stackUser);
-        assert(store->getSrc() != stackLoc && "cannot store an address");
-        // Bail if there are multiple stores.
-        if (singleStackStore)
+    case SILInstructionKind::DestroyAddrInst: {
+      // Make sure the destroy_addr is the instruction before one of our
+      // dealloc_stack insts and is directly on the stack location.
+      auto next = std::next(stackUser->getIterator());
+      if (auto *dsi = dyn_cast<DeallocStackInst>(next))
+        if (dsi->getOperand() != stackLoc)
           return SILValue();
-        singleStackStore = store;
-        break;
-      }
-      default:
-        if (stackUser != ignoreUser)
-          return SILValue();
-        break;
+      break;
+    }
+    case SILInstructionKind::DeallocStackInst:
+    case SILInstructionKind::DebugValueAddrInst:
+    case SILInstructionKind::LoadInst:
+      break;
+    case SILInstructionKind::StoreInst: {
+      auto *store = cast<StoreInst>(stackUser);
+      assert(store->getSrc() != stackLoc && "cannot store an address");
+      // Bail if there are multiple stores.
+      if (singleStackStore)
+        return SILValue();
+      singleStackStore = store;
+      break;
+    }
+    default:
+      if (stackUser != ignoreUser)
+        return SILValue();
+      break;
     }
   }
   if (!singleStackStore)
     return SILValue();
 
-  auto *box = dyn_cast<AllocExistentialBoxInst>(singleStackStore->getSrc());
+  // Look through copy value insts.
+  SILValue val = singleStackStore->getSrc();
+  while (auto *cvi = dyn_cast<CopyValueInst>(val))
+    val = cvi->getOperand();
+  auto *box = dyn_cast<AllocExistentialBoxInst>(val);
   if (!box)
     return SILValue();
 

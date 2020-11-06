@@ -116,11 +116,6 @@ static SILInstruction *getStackInitInst(SILValue allocStackAddr,
         if (SingleWrite)
           return nullptr;
         SingleWrite = store;
-        // When we support OSSA here, we need to insert a new copy of the value
-        // before `store` (and make sure that the copy is destroyed when
-        // replacing the apply operand).
-        assert(store->getOwnershipQualifier() ==
-               StoreOwnershipQualifier::Unqualified);
       }
       continue;
     }

@@ -1,0 +1,270 @@
+// RUN: %target-sil-opt -enable-sil-verify-all %s -sil-combine -jumpthread-simplify-cfg | %FileCheck %s
+
+sil_stage canonical
+
+import Builtin
+import Swift
+
+// CHECK-LABEL: sil [ossa] @convert_inject_enum_addr_select_enum_addr_into_cond_br : $@convention(thin) (@in Int, @inout _Stdout, @in_guaranteed CustomStringConvertible) -> ()
+// CHECK-NOT: init_existential_addr
+// CHECK-NOT: inject_enum_addr
+// CHECK-NOT: select_enum_addr
+// CHECK-NOT: unchecked_take_enum_data_addr
+// CHECK: return
+// CHEcK: } // end sil function 'convert_inject_enum_addr_select_enum_addr_into_cond_br'
+sil [ossa] @convert_inject_enum_addr_select_enum_addr_into_cond_br : $@convention(thin) (@in Int, @inout _Stdout, @in_guaranteed CustomStringConvertible) -> () {
+bb0(%0 : $*Int, %1 : $*_Stdout, %1a : $*CustomStringConvertible):
+  %2 = alloc_stack $CustomStringConvertible
+  %3 = alloc_stack $Optional<CustomStringConvertible>
+  %4 = init_enum_data_addr %3 : $*Optional<CustomStringConvertible>, #Optional.some!enumelt
+  %5 = alloc_stack $Int
+  %6 = load [trivial] %0 : $*Int
+  store %6 to [trivial] %5 : $*Int
+  unconditional_checked_cast_addr Int in %5 : $*Int to CustomStringConvertible in %4 : $*CustomStringConvertible
+  inject_enum_addr %3 : $*Optional<CustomStringConvertible>, #Optional.some!enumelt
+  dealloc_stack %5 : $*Int
+  %11 = integer_literal $Builtin.Int1, -1
+  %12 = integer_literal $Builtin.Int1, 0
+  %13 = select_enum_addr %3 : $*Optional<CustomStringConvertible>, case #Optional.some!enumelt: %11, case #Optional.none!enumelt: %12 : $Builtin.Int1
+  cond_br %13, bb2, bb1a
+
+bb1a:
+  copy_addr %1a to [initialization] %2 : $*CustomStringConvertible
+  br bb1
+
+bb1:
+  %15 = tuple ()
+  dealloc_stack %3 : $*Optional<CustomStringConvertible>
+  destroy_addr %2 : $*CustomStringConvertible
+  dealloc_stack %2 : $*CustomStringConvertible
+  return %15 : $()
+
+bb2:
+  %19 = unchecked_take_enum_data_addr %3 : $*Optional<CustomStringConvertible>, #Optional.some!enumelt
+  copy_addr [take] %19 to [initialization] %2 : $*CustomStringConvertible
+  br bb1
+}
+
+
+// CHECK-LABEL: sil [ossa] @convert_inject_enum_addr_switch_enum_addr_into_cond_br : $@convention(thin) (@in Int, @inout _Stdout, @in_guaranteed CustomStringConvertible) -> ()
+// CHECK-NOT: init_existential_addr
+// CHECK-NOT: inject_enum_addr
+// CHECK-NOT: switch_enum_addr
+// CHECK-NOT: unchecked_take_enum_data_addr
+// CHECK: return
+// CHECK: } // end sil function 'convert_inject_enum_addr_switch_enum_addr_into_cond_br'
+sil [ossa] @convert_inject_enum_addr_switch_enum_addr_into_cond_br : $@convention(thin) (@in Int, @inout _Stdout, @in_guaranteed CustomStringConvertible) -> () {
+bb0(%0 : $*Int, %1 : $*_Stdout, %1a : $*CustomStringConvertible):
+  %2 = alloc_stack $CustomStringConvertible
+  %3 = alloc_stack $Optional<CustomStringConvertible>
+  %4 = init_enum_data_addr %3 : $*Optional<CustomStringConvertible>, #Optional.some!enumelt
+  %5 = alloc_stack $Int
+  %6 = load [trivial] %0 : $*Int
+  store %6 to [trivial] %5 : $*Int
+  unconditional_checked_cast_addr Int in %5 : $*Int to CustomStringConvertible in %4 : $*CustomStringConvertible
+  inject_enum_addr %3 : $*Optional<CustomStringConvertible>, #Optional.some!enumelt
+  dealloc_stack %5 : $*Int
+  switch_enum_addr %3 : $*Optional<CustomStringConvertible>, case #Optional.some!enumelt: bb3, case #Optional.none!enumelt: bb2
+
+bb1:
+  %15 = tuple ()
+  dealloc_stack %3 : $*Optional<CustomStringConvertible>
+  destroy_addr %2 : $*CustomStringConvertible
+  dealloc_stack %2 : $*CustomStringConvertible
+  return %15 : $()
+
+bb2:
+  copy_addr %1a to [initialization] %2 : $*CustomStringConvertible
+  br bb1
+
+bb3:
+  %19 = unchecked_take_enum_data_addr %3 : $*Optional<CustomStringConvertible>, #Optional.some!enumelt
+  copy_addr [take] %19 to [initialization] %2 : $*CustomStringConvertible
+  br bb1
+}
+
+
+// Check that a checked_cast_addr_br converting a known type into a protocol type
+// is performed at the compile-time if protocol conformances are statically known.
+//
+// TODO: This is disabled for now since the transformation is done by jumpthread
+// simplify-cfg that has not been updated yet for ossa.
+//
+// CHECK-LABEL: sil [ossa] @convert_checked_cast_addr_br_into_unconditional_checked_cast_addr_cond_br : $@convention(thin) (@in Int, @inout _Stdout) -> ()
+// CHECK: checked_cast_addr_br
+// CHECK: } // end sil function 'convert_checked_cast_addr_br_into_unconditional_checked_cast_addr_cond_br'
+// xCHECK: store
+// xCHECK-NOT: checked_cast_addr_br
+// xCHECK-NOT: bb1
+// xCHECK: inject_enum_addr %{{.*}} : $*Optional<CustomStringConvertible>, #Optional.some!enumelt
+// xCHECK: dealloc_stack
+// xCHECK: return
+sil [ossa] @convert_checked_cast_addr_br_into_unconditional_checked_cast_addr_cond_br : $@convention(thin) (@in Int, @inout _Stdout) -> () {
+bb0(%0 : $*Int, %1 : $*_Stdout):
+  %2 = alloc_stack $CustomStringConvertible
+  %3 = alloc_stack $Optional<CustomStringConvertible>
+  %4 = init_enum_data_addr %3 : $*Optional<CustomStringConvertible>, #Optional.some!enumelt
+  %5 = alloc_stack $Int
+  %6 = load [trivial] %0 : $*Int
+  store %6 to [trivial] %5 : $*Int
+  checked_cast_addr_br take_always Int in %5 : $*Int to CustomStringConvertible in %4 : $*CustomStringConvertible, bb1, bb22
+
+bb1:
+  inject_enum_addr %3 : $*Optional<CustomStringConvertible>, #Optional.some!enumelt
+  br bb2
+
+bb2:
+  dealloc_stack %5 : $*Int
+  dealloc_stack %3 : $*Optional<CustomStringConvertible>
+  %12 = integer_literal $Builtin.Int1, -1
+  %13 = integer_literal $Builtin.Int1, 0
+  %26 = tuple ()
+  dealloc_stack %2 : $*CustomStringConvertible
+  return %26 : $()
+
+bb22:
+  inject_enum_addr %3 : $*Optional<CustomStringConvertible>, #Optional.none!enumelt
+  br bb2
+}
+
+
+class A {
+
+}
+
+private final class B {
+}
+
+public class C {
+}
+
+// D cannot be extended elsewhere, but C can!
+private class D : C {
+}
+
+// Check that a checked_cast_addr_br converting a known type into a protocol type
+// is performed at the compile-time if protocol conformances are statically known.
+// In a negative case, take care that check for internal types are not folded (unless
+// a whole module optimization is used), because an extension implementing a conformance
+// could be defined elsewhere.
+//
+// CHECK-LABEL: sil [ossa] @convert_checked_cast_addr_br_with_internal_type : $@convention(thin) (@in A, @inout _Stdout) -> ()
+// CHECK: checked_cast_addr_br
+// CHECK: inject_enum_addr %{{.*}} : $*Optional<CustomStringConvertible>, #Optional.some!enumelt
+// CHECK: dealloc_stack
+// CHECK: return
+// CHECK: inject_enum_addr %{{.*}} : $*Optional<CustomStringConvertible>, #Optional.none!enumelt
+// CHECK: }
+sil [ossa] @convert_checked_cast_addr_br_with_internal_type : $@convention(thin) (@in A, @inout _Stdout) -> () {
+bb0(%0 : $*A, %1 : $*_Stdout):
+  %2 = alloc_stack $CustomStringConvertible
+  %3 = alloc_stack $Optional<CustomStringConvertible>
+  %4 = init_enum_data_addr %3 : $*Optional<CustomStringConvertible>, #Optional.some!enumelt
+  %5 = alloc_stack $A
+  %6 = load [take] %0 : $*A
+  store %6 to [init] %5 : $*A
+  checked_cast_addr_br take_always A in %5 : $*A to CustomStringConvertible in %4 : $*CustomStringConvertible, bb1, bb22
+
+bb1:
+  inject_enum_addr %3 : $*Optional<CustomStringConvertible>, #Optional.some!enumelt
+  br bb2
+
+bb2:
+  dealloc_stack %5 : $*A
+  dealloc_stack %3 : $*Optional<CustomStringConvertible>
+  %12 = integer_literal $Builtin.Int1, -1
+  %13 = integer_literal $Builtin.Int1, 0
+  %26 = tuple ()
+  dealloc_stack %2 : $*CustomStringConvertible
+  return %26 : $()
+
+bb22:
+  inject_enum_addr %3 : $*Optional<CustomStringConvertible>, #Optional.none!enumelt
+  br bb2
+}
+
+// Check that a checked_cast_addr_br converting a known type into a protocol type
+// is performed at the compile-time if protocol conformances are statically known.
+// In a negative case, if the source type is private, it is safe to fold the check,
+// because a conformance for this type cannot be defined elsewhere.
+//
+// TODO: This is handled by jumpthread simplify-cfg which has not been updated
+// yet for OSSA so just validate we don't optimize this.
+//
+// CHECK-LABEL: sil [ossa] @convert_checked_cast_addr_br_with_private_type : $@convention(thin) (@in B, @inout _Stdout) -> ()
+// CHECK: checked_cast_addr_br
+// CHECK: } // end sil function 'convert_checked_cast_addr_br_with_private_type'
+// xCHECK: store
+// xCHECK-NOT: checked_cast_addr_br
+// xCHECK-NOT: bb1
+// xCHECK: inject_enum_addr %{{.*}} : $*Optional<CustomStringConvertible>, #Optional.none!enumelt
+// xCHECK: dealloc_stack
+// xCHECK: return
+sil [ossa] @convert_checked_cast_addr_br_with_private_type : $@convention(thin) (@in B, @inout _Stdout) -> () {
+bb0(%0 : $*B, %1 : $*_Stdout):
+  %2 = alloc_stack $CustomStringConvertible
+  %3 = alloc_stack $Optional<CustomStringConvertible>
+  %4 = init_enum_data_addr %3 : $*Optional<CustomStringConvertible>, #Optional.some!enumelt
+  %5 = alloc_stack $B
+  %6 = load [take] %0 : $*B
+  store %6 to [init]  %5 : $*B
+  checked_cast_addr_br take_always B in %5 : $*B to CustomStringConvertible in %4 : $*CustomStringConvertible, bb1, bb22
+
+bb1:
+  inject_enum_addr %3 : $*Optional<CustomStringConvertible>, #Optional.some!enumelt
+  br bb2
+
+bb2:
+  dealloc_stack %5 : $*B
+  destroy_addr %3 : $*Optional<CustomStringConvertible>
+  dealloc_stack %3 : $*Optional<CustomStringConvertible>
+  %12 = integer_literal $Builtin.Int1, -1
+  %13 = integer_literal $Builtin.Int1, 0
+  %26 = tuple ()
+  dealloc_stack %2 : $*CustomStringConvertible
+  return %26 : $()
+
+bb22:
+  inject_enum_addr %3 : $*Optional<CustomStringConvertible>, #Optional.none!enumelt
+  br bb2
+}
+
+// Check that a checked_cast_addr_br converting a known type into a protocol type
+// is performed at the compile-time if protocol conformances are statically known.
+// In a negative case, take care that cast for private types are not folded if one
+// of its superclasses could have a conformance extension defined elsewhere.
+//
+// CHECK-LABEL: sil [ossa] @convert_checked_cast_addr_br_with_non_private_superclass : $@convention(thin) (@in D, @inout _Stdout) -> ()
+// CHECK: checked_cast_addr_br
+// CHECK: inject_enum_addr %{{.*}} : $*Optional<CustomStringConvertible>, #Optional.some!enumelt
+// CHECK: dealloc_stack
+// CHECK: return
+// CHECK: inject_enum_addr %{{.*}} : $*Optional<CustomStringConvertible>, #Optional.none!enumelt
+// CHECK: }
+sil [ossa] @convert_checked_cast_addr_br_with_non_private_superclass : $@convention(thin) (@in D, @inout _Stdout) -> () {
+bb0(%0 : $*D, %1 : $*_Stdout):
+  %2 = alloc_stack $CustomStringConvertible
+  %3 = alloc_stack $Optional<CustomStringConvertible>
+  %4 = init_enum_data_addr %3 : $*Optional<CustomStringConvertible>, #Optional.some!enumelt
+  %5 = alloc_stack $D
+  %6 = load [take] %0 : $*D
+  store %6 to [init] %5 : $*D
+  checked_cast_addr_br take_always D in %5 : $*D to CustomStringConvertible in %4 : $*CustomStringConvertible, bb1, bb22
+
+bb1:
+  inject_enum_addr %3 : $*Optional<CustomStringConvertible>, #Optional.some!enumelt
+  br bb2
+
+bb2:
+  dealloc_stack %5 : $*D
+  dealloc_stack %3 : $*Optional<CustomStringConvertible>
+  %12 = integer_literal $Builtin.Int1, -1
+  %13 = integer_literal $Builtin.Int1, 0
+  %26 = tuple ()
+  dealloc_stack %2 : $*CustomStringConvertible
+  return %26 : $()
+
+bb22:
+  inject_enum_addr %3 : $*Optional<CustomStringConvertible>, #Optional.none!enumelt
+  br bb2
+}

@@ -1177,6 +1177,11 @@ SILInstruction *CastOptimizer::optimizeCheckedCastAddrBranchInst(
       if (isa<DeallocStackInst>(User) || User == Inst)
         continue;
       if (auto *SI = dyn_cast<StoreInst>(User)) {
+        if (SI->getOwnershipQualifier() == StoreOwnershipQualifier::Assign) {
+          // We do not handle [assign]
+          isLegal = false;
+          break;
+        }
         if (!Store) {
           Store = SI;
           continue;
@@ -1210,11 +1215,14 @@ SILInstruction *CastOptimizer::optimizeCheckedCastAddrBranchInst(
               SuccessBB, FailureBB, Inst->getTrueBBCount(),
               Inst->getFalseBBCount());
           SuccessBB->createPhiArgument(Dest->getType().getObjectType(),
-                                       ValueOwnershipKind::Owned);
+                                       ValueOwnershipKind::None);
           B.setInsertionPoint(SuccessBB->begin());
           // Store the result
-          B.createStore(Loc, SuccessBB->getArgument(0), Dest,
-                        StoreOwnershipQualifier::Unqualified);
+          B.emitStoreValueOperation(Loc, SuccessBB->getArgument(0), Dest,
+                                    StoreOwnershipQualifier::Trivial);
+          if (B.hasOwnership())
+            FailureBB->createPhiArgument(MI->getType(),
+                                         ValueOwnershipKind::None);
           eraseInstAction(Inst);
           return NewI;
         }

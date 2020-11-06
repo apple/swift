@@ -1,0 +1,183 @@
+// RUN: %target-sil-opt -enable-sil-verify-all %s -sil-combine | %FileCheck %s
+// REQUIRES: objc_interop
+
+// See https://bugs.swift.org/browse/SR-5065, rdar://32511494
+// XFAIL: *
+
+sil_stage canonical
+
+import Builtin
+import Swift
+
+class ZZZ {
+  @objc deinit
+  init()
+}
+
+class C {}
+
+sil [ossa] @stringcore_invariant_check : $@convention(thin) (@owned _LegacyStringCore) -> @owned Optional<_CocoaString>
+sil [ossa] @reabstraction_thunk : $@convention(thin) (@owned @callee_owned () -> @owned Optional<_CocoaString>) -> @out Optional<_CocoaString>
+
+// CHECK-LABEL: sil [ossa] @dead_closure_elimination : $@convention(thin) (@owned _LegacyStringCore) -> ()
+// CHECK: bb0
+// CHECK-NEXT: destroy_value
+// CHECK-NEXT: tuple
+// CHECK-NEXT: return
+sil [ossa] @dead_closure_elimination : $@convention(thin) (@owned _LegacyStringCore) -> () {
+bb0(%0 : @owned $_LegacyStringCore):
+  %1 = function_ref @stringcore_invariant_check : $@convention(thin) (@owned _LegacyStringCore) -> @owned Optional<_CocoaString>
+  %2 = partial_apply %1(%0) : $@convention(thin) (@owned _LegacyStringCore) -> @owned Optional<_CocoaString>
+  %3 = function_ref @reabstraction_thunk : $@convention(thin) (@owned @callee_owned () -> @owned Optional<_CocoaString>) -> @out Optional<_CocoaString>
+  %4 = partial_apply %3(%2) : $@convention(thin) (@owned @callee_owned () -> @owned Optional<_CocoaString>) -> @out Optional<_CocoaString>
+  destroy_value %4 : $@callee_owned () -> @out Optional<_CocoaString>
+  %5 = tuple()
+  return %5 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @dead_closure_elimination2
+// CHECK:      bb0
+// CHECK-NEXT:   br bb1
+// CHECK:      bb1
+// CHECK-NEXT:   destroy_value
+// CHECK-NEXT:   tuple
+// CHECK-NEXT:   return
+sil [ossa] @dead_closure_elimination2 : $@convention(thin) (@owned _LegacyStringCore) -> () {
+bb0(%0 : @owned $_LegacyStringCore):
+  %1 = function_ref @stringcore_invariant_check : $@convention(thin) (@owned _LegacyStringCore) -> @owned Optional<_CocoaString>
+  %2 = partial_apply %1(%0) : $@convention(thin) (@owned _LegacyStringCore) -> @owned Optional<_CocoaString>
+  %3 = function_ref @reabstraction_thunk : $@convention(thin) (@owned @callee_owned () -> @owned Optional<_CocoaString>) -> @out Optional<_CocoaString>
+  %4 = partial_apply %3(%2) : $@convention(thin) (@owned @callee_owned () -> @owned Optional<_CocoaString>) -> @out Optional<_CocoaString>
+  br bb1
+
+bb1:
+  %4a = copy_value %4 : $@callee_owned () -> @out Optional<_CocoaString>
+  destroy_value %4 : $@callee_owned () -> @out Optional<_CocoaString>
+  destroy_value %4a : $@callee_owned () -> @out Optional<_CocoaString>
+  %5 = tuple()
+  return %5 : $()
+}
+
+// FIXME: <rdar://problem/20980377> Add dead array elimination to DeadObjectElimination
+// CHECK-LABEL: test_dead_array
+// CHECK: bb0(%0 : $ZZZ):
+// DISABLED-CHECK-NEXT: strong_destroy_value %0
+// DISABLED-CHECK-NEXT: tuple
+// DISABLED-CHECK-NEXT: return
+sil [ossa] @test_dead_array : $@convention(thin) (@owned ZZZ) -> () {
+bb0(%0 : @owned $ZZZ):
+  %1 = integer_literal $Builtin.Word, 1
+  %2 = function_ref @_allocate_uninitialized_ZZZ : $@convention(thin) (Builtin.Word) -> @owned (Array<ZZZ>, Builtin.RawPointer)
+  %3 = apply %2(%1) : $@convention(thin) (Builtin.Word) -> @owned (Array<ZZZ>, Builtin.RawPointer)
+  (%4, %5) = destructure_tuple %3 : $(Array<ZZZ>, Builtin.RawPointer)
+  %6 = pointer_to_address %5 : $Builtin.RawPointer to [strict] $*ZZZ
+  store %0 to [init] %6 : $*ZZZ
+  destroy_value %4 : $Builtin.BridgeObject
+  %12 = tuple ()
+  return %12 : $()
+}
+
+sil [_semantics "array.uninitialized"] @_allocate_uninitialized_ZZZ : $@convention(thin) (Builtin.Word) -> @owned (Array<ZZZ>, Builtin.RawPointer)
+
+// dead_array test helpers
+sil [thunk] @dead_array_run_closure : $@convention(thin) (@owned @callee_owned () -> Bool) -> () {
+bb0(%0 : @owned $@callee_owned () -> Bool):
+  %1 = apply %0() : $@callee_owned () -> Bool
+  %2 = tuple ()
+  return %2 : $()
+}
+
+sil [ossa] @dead_array_closure : $@convention(thin) (@inout _HeapBuffer<C, Int>) -> Bool {
+bb0(%0 : $*_HeapBuffer<C, Int>):
+  %1 = struct_element_addr %0 : $*_HeapBuffer<C, Int>, #_HeapBuffer._storage // user: %2
+  %2 = is_unique %1 : $*Optional<Builtin.NativeObject> // user: %3
+  %3 = struct $Bool (%2 : $Builtin.Int1)          // user: %4
+  return %3 : $Bool                               // id: %4
+}
+
+// Mimicks Swift._allocateUninitializedArray
+sil [_semantics "array.uninitialized"] @dead_array_alloc : $@convention(thin) <τ_0_0> (Builtin.Word) -> @owned (Array<τ_0_0>, Builtin.RawPointer)
+
+// <rdar://problem/20980377> HeapBuffer.swift test case spuriously reports a "unique" buffer
+// CHECK-LABEL: sil [ossa] @dead_array
+// CHECK-NOT: destroy_value
+// CHECK: copy_value %{{[0-9]+}} : $Optional<Builtin.NativeObject>
+// CHECK: apply
+// CHECK: strong_destroy_value %{{[0-9]+}} : $Builtin.BridgeObject
+sil [ossa] @dead_array : $@convention(thin) (@inout _HeapBuffer<C, Int>) -> () {
+bb0(%0 : $*_HeapBuffer<C, Int>):
+  %1 = integer_literal $Builtin.Word, 1           // user: %3
+  %2 = function_ref @dead_array_alloc : $@convention(thin) <τ_0_0> (Builtin.Word) -> @owned (Array<τ_0_0>, Builtin.RawPointer)
+  %3 = apply %2<_HeapBuffer<C, Int>>(%1) : $@convention(thin) <τ_0_0> (Builtin.Word) -> @owned (Array<τ_0_0>, Builtin.RawPointer)
+  (%4, %5) = destructure_tuple %3 : $(Array<_HeapBuffer<C, Int>>, Builtin.RawPointer)
+  %6 = pointer_to_address %5 : $Builtin.RawPointer to [strict] $*_HeapBuffer<C, Int> // user: %9
+  %7 = load [copy] %0 : $*_HeapBuffer<C, Int>            // users: %8, %9
+  %7a = begin_borrow %7 : $_HeapBuffer<C, Int>
+  %8 = struct_extract %7a : $_HeapBuffer<C, Int>, #_HeapBuffer._storage // user: %13
+  %8a = copy_value %8 : $Optional<Builtin.NativeObject>
+  end_borrow %7 : $_HeapBuffer<C, Int>
+  store %7 to [init] %6 : $*_HeapBuffer<C, Int>          // id: %9
+  %10 = function_ref @dead_array_run_closure : $@convention(thin) (@owned @callee_owned () -> Bool) -> () // user: %14
+  %11 = function_ref @dead_array_closure : $@convention(thin) (@inout _HeapBuffer<C, Int>) -> Bool // user: %12
+  %12 = partial_apply %11(%0) : $@convention(thin) (@inout _HeapBuffer<C, Int>) -> Bool // user: %14
+  %14 = apply %10(%12) : $@convention(thin) (@owned @callee_owned () -> Bool) -> ()
+  destroy_value %4 : $Array<_HeapBuffer<C, Int>>
+  %19 = tuple ()                                  // user: %20
+  return %19 : $()                                // id: %20
+}
+
+// Check that it does not crash the compiler.
+// Int is ObjC-bridgeable in this case, but its conformance is not know,
+// because Foundation is not imported yet.
+// Therefore the cast may succeed from the compiler point of view.
+// CHECK-LABEL: sil [ossa] @cast_of_class_to_int
+// CHECK: unconditional_checked_cast_addr
+// CHECK: return
+sil [ossa] @cast_of_class_to_int : $@convention(thin) (@owned C) -> Int {
+bb0(%0 : @owned $C):
+  %1 = alloc_stack $Int
+  %2 = alloc_stack $C
+  store %0 to [init] %2 : $*C
+  unconditional_checked_cast_addr C in %2 : $*C to Int in %1 : $*Int
+  %4 = load [trivial] %1 : $*Int
+  dealloc_stack %2 : $*C
+  dealloc_stack %1 : $*Int
+  return %4 : $Int
+}
+
+@objc(XX) protocol XX {
+}
+
+class XXImpl : XX {
+  @objc deinit
+  init()
+}
+
+// CHECK-LABEL: sil [ossa] @remove_destroy_value_objc_metatype_to_object
+// CHECK-NOT: strong_destroy_value {{%[0-9]+}} : $AnyObject
+sil [ossa] @remove_destroy_value_objc_metatype_to_object : $@convention(thin) () -> () {
+bb0:
+  %0 = metatype $@thick XXImpl.Type                // user: %1
+  %1 = thick_to_objc_metatype %0 : $@thick XXImpl.Type to $@objc_metatype XXImpl.Type // user: %2
+  %2 = objc_metatype_to_object %1 : $@objc_metatype XXImpl.Type to $AnyObject // users: %3, %4
+  debug_value %2 : $AnyObject  // id: %3
+  destroy_value %2 : $AnyObject                  // id: %4
+  %5 = tuple ()                                   // user: %6
+  return %5 : $()                                 // id: %6
+}
+
+// CHECK-LABEL: sil [ossa] @remove_destroy_value_objc_existential_metatype_to_object
+// CHECK-NOT: strong_destroy_value {{%[0-9]+}} : $AnyObject
+sil [ossa] @remove_destroy_value_objc_existential_metatype_to_object: $@convention(thin) (@owned XX) -> () {
+bb0(%0 : @owned $XX):
+  debug_value %0 : $XX                   // id: %1
+  %2 = existential_metatype $@thick XX.Type, %0 : $XX // user: %3
+  %3 = thick_to_objc_metatype %2 : $@thick XX.Type to $@objc_metatype XX.Type // user: %4
+  %4 = objc_existential_metatype_to_object %3 : $@objc_metatype XX.Type to $AnyObject // users: %5, %6
+  debug_value %4 : $AnyObject, let, name "obj1" // id: %5
+  destroy_value %4 : $AnyObject                  // id: %6
+  destroy_value %0 : $XX                         // id: %7
+  %8 = tuple ()                                   // user: %9
+  return %8 : $()                                 // id: %9
+}
+

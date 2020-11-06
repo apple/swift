@@ -120,6 +120,10 @@ SILInstruction *SILCombiner::optimizeBuiltinIsConcrete(BuiltinInst *BI) {
 /// \endcode
 /// The same for ref_tail_addr.
 SILInstruction *SILCombiner::optimizeBuiltinCOWBufferForReading(BuiltinInst *BI) {
+  // We do not support this for ownership now.
+  if (BI->getFunction()->hasOwnership())
+    return nullptr;
+
   auto useIter = BI->use_begin();
   while (useIter != BI->use_end()) {
     auto nextIter = std::next(useIter);
@@ -577,9 +581,6 @@ SILInstruction *SILCombiner::optimizeStringObject(BuiltinInst *BI) {
 }
 
 SILInstruction *SILCombiner::visitBuiltinInst(BuiltinInst *I) {
-  if (I->getFunction()->hasOwnership())
-    return nullptr;
-
   if (I->getBuiltinInfo().ID == BuiltinValueKind::CanBeObjCClass)
     return optimizeBuiltinCanBeObjCClass(I);
   if (I->getBuiltinInfo().ID == BuiltinValueKind::IsConcrete)

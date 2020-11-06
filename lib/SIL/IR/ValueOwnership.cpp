@@ -581,6 +581,14 @@ ValueOwnershipKindClassifier::visitBuiltinInst(BuiltinInst *BI) {
 //===----------------------------------------------------------------------===//
 
 ValueOwnershipKind SILValue::getOwnershipKind() const {
+  // If we do not have an undef, we should always be able to get to our function
+  // here. If we do not have ownership enabled, just return none for everything
+  // to short circuit ownership optimizations. If we have an undef we may still
+  // get some results that are slightly wonky but hopefully when we lower
+  // ownership we remove that.
+  if (auto *f = Value->getFunction())
+    if (!f->hasOwnership())
+      return ValueOwnershipKind::None;
   ValueOwnershipKindClassifier Classifier;
   return Classifier.visit(const_cast<ValueBase *>(Value));
 }

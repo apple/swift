@@ -1,0 +1,133 @@
+// RUN: %target-sil-opt -enable-sil-verify-all -sil-combine %s | %FileCheck %s
+
+// This file tests sil combine's canonicalization of memory.
+
+class Klass {}
+
+////////////////////////////
+// Store Canonicalization //
+////////////////////////////
+
+// We canonicalize stores of fields of single element structs into stores of the
+// struct itself. The two are equivalent.
+
+struct SingleEltStruct {
+  var k: Klass
+}
+
+// CHECK-LABEL: sil [ossa] @promote_initialization_of_single_elt_struct : $@convention(thin) (@owned Klass) -> @owned SingleEltStruct {
+// CHECK: bb0([[ARG:%.*]] : @owned $Klass):
+// CHECK:   [[STACK:%.*]] = alloc_stack $SingleEltStruct
+// CHECK:   [[STRUCT_ARG:%.*]] = struct $SingleEltStruct ([[ARG]] : $Klass)
+// CHECK:   store [[STRUCT_ARG]] to [init] [[STACK]]
+// CHECK:   dealloc_stack [[STACK]]
+// CHECK: } // end sil function 'promote_initialization_of_single_elt_struct'
+sil [ossa] @promote_initialization_of_single_elt_struct : $@convention(thin) (@owned Klass) -> @owned SingleEltStruct {
+bb0(%0 : @owned $Klass):
+  %1 = alloc_stack $SingleEltStruct
+  %2 = struct_element_addr %1 : $*SingleEltStruct, #SingleEltStruct.k
+  store %0 to [init] %2 : $*Klass
+  %3 = load [take] %1 : $*SingleEltStruct
+  dealloc_stack %1 : $*SingleEltStruct
+  return %3 : $SingleEltStruct
+}
+
+struct RecursiveSingleEltStruct {
+  var field: RecursiveSingleEltStructField
+}
+
+struct RecursiveSingleEltStructField {
+  var k: Klass
+}
+
+// CHECK-LABEL: sil [ossa] @promote_initialization_of_recursive_single_elt_struct : $@convention(thin) (@owned Klass) -> () {
+// CHECK: bb0([[ARG:%.*]] : @owned $Klass):
+// CHECK:   [[STACK:%.*]] = alloc_stack $RecursiveSingleEltStruct
+// CHECK:   [[STRUCT_ARG_1:%.*]] = struct $RecursiveSingleEltStructField ([[ARG]] : $Klass)
+// CHECK:   [[STRUCT_ARG_2:%.*]] = struct $RecursiveSingleEltStruct ([[STRUCT_ARG_1]] : $RecursiveSingleEltStructField)
+// CHECK:   store [[STRUCT_ARG_2]] to [init] [[STACK]]
+// CHECK:   dealloc_stack [[STACK]]
+// CHECK: } // end sil function 'promote_initialization_of_recursive_single_elt_struct'
+sil [ossa] @promote_initialization_of_recursive_single_elt_struct : $@convention(thin) (@owned Klass) -> () {
+bb0(%0 : @owned $Klass):
+  %1 = alloc_stack $RecursiveSingleEltStruct
+  %2 = struct_element_addr %1 : $*RecursiveSingleEltStruct, #RecursiveSingleEltStruct.field
+  %3 = struct_element_addr %2 : $*RecursiveSingleEltStructField, #RecursiveSingleEltStructField.k
+  store %0 to [init] %3 : $*Klass
+  %4 = load [take] %1 : $*RecursiveSingleEltStruct
+  destroy_value %4 : $RecursiveSingleEltStruct
+  dealloc_stack %1 : $*RecursiveSingleEltStruct
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+struct MultipleFieldStruct {
+  var k: Klass
+  var field: RecursiveSingleEltStructField
+}
+
+// CHECK-LABEL: sil [ossa] @only_promote_as_far_as_have_single_elts : $@convention(thin) (@owned Klass) -> () {
+// CHECK: bb0([[ARG:%.*]] :
+// CHECK:   [[STACK:%.*]] = alloc_stack $MultipleFieldStruct
+// CHECK:   [[MULTIPLE_FIELD_SEA:%.*]] = struct_element_addr [[STACK]]
+// CHECK:   [[VALUE:%.*]] = struct $RecursiveSingleEltStructField ([[ARG]] : $Klass)
+// CHECK:   store [[VALUE]] to [init] [[MULTIPLE_FIELD_SEA]]
+// CHECK:   dealloc_stack [[STACK]]
+// CHECK: } // end sil function 'only_promote_as_far_as_have_single_elts'
+sil [ossa] @only_promote_as_far_as_have_single_elts : $@convention(thin) (@owned Klass) -> () {
+bb0(%0 : @owned $Klass):
+  %1 = alloc_stack $MultipleFieldStruct
+  %2 = struct_element_addr %1 : $*MultipleFieldStruct, #MultipleFieldStruct.field
+  %2a = struct_element_addr %1 : $*MultipleFieldStruct, #MultipleFieldStruct.k
+  %3 = struct_element_addr %2 : $*RecursiveSingleEltStructField, #RecursiveSingleEltStructField.k
+  %0a = copy_value %0 : $Klass
+  store %0a to [init] %2a : $*Klass
+  store %0 to [init] %3 : $*Klass
+  destroy_addr %1 : $*MultipleFieldStruct
+  dealloc_stack %1 : $*MultipleFieldStruct
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @perform_no_work_if_multiple_fields : $@convention(thin) (@owned RecursiveSingleEltStructField, @owned Klass) -> () {
+// CHECK: bb0([[ARG:%[0-9][0-9]*]] : @owned $RecursiveSingleEltStructField, [[ARG2:%.*]] : @owned
+// CHECK:   [[STACK:%.*]] = alloc_stack $MultipleFieldStruct
+// CHECK:   [[MULTIPLE_FIELD_SEA:%.*]] = struct_element_addr [[STACK]]
+// CHECK:   store [[ARG]] to [init] [[MULTIPLE_FIELD_SEA]]
+// CHECK:   dealloc_stack [[STACK]]
+// CHECK: } // end sil function 'perform_no_work_if_multiple_fields'
+sil [ossa] @perform_no_work_if_multiple_fields : $@convention(thin) (@owned RecursiveSingleEltStructField, @owned Klass) -> () {
+bb0(%0 : @owned $RecursiveSingleEltStructField, %0a : @owned $Klass):
+  %1 = alloc_stack $MultipleFieldStruct
+  %2 = struct_element_addr %1 : $*MultipleFieldStruct, #MultipleFieldStruct.field
+  %2a = struct_element_addr %1 : $*MultipleFieldStruct, #MultipleFieldStruct.k
+  store %0a to [init] %2a : $*Klass
+  store %0 to [init] %2 : $*RecursiveSingleEltStructField
+  destroy_addr %1 : $*MultipleFieldStruct
+  dealloc_stack %1 : $*MultipleFieldStruct
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @only_promote_while_we_have_sea : $@convention(thin) (@owned Klass) -> () {
+// CHECK: bb0([[ARG:%.*]] :
+// CHECK:   [[STACK:%.*]] = alloc_stack $(Klass, RecursiveSingleEltStructField)
+// CHECK:   [[TUPLE_ADDR:%.*]] = tuple_element_addr [[STACK]]
+// CHECK:   [[VALUE:%.*]] = struct $RecursiveSingleEltStructField ([[ARG]] : $Klass)
+// CHECK:   store [[VALUE]] to [init] [[TUPLE_ADDR]]
+// CHECK:   dealloc_stack [[STACK]]
+// CHECK: } // end sil function 'only_promote_while_we_have_sea'
+sil [ossa] @only_promote_while_we_have_sea : $@convention(thin) (@owned Klass) -> () {
+bb0(%0 : @owned $Klass):
+  %1 = alloc_stack $(Klass, RecursiveSingleEltStructField)
+  %2 = tuple_element_addr %1 : $*(Klass, RecursiveSingleEltStructField), 1
+  %2a = tuple_element_addr %1 : $*(Klass, RecursiveSingleEltStructField), 0
+  %0a = copy_value %0 : $Klass
+  store %0a to [init] %2a : $*Klass
+  %3 = struct_element_addr %2 : $*RecursiveSingleEltStructField, #RecursiveSingleEltStructField.k
+  store %0 to [init] %3 : $*Klass
+  destroy_addr %1 : $*(Klass, RecursiveSingleEltStructField)
+  dealloc_stack %1 : $*(Klass, RecursiveSingleEltStructField)
+  %9999 = tuple()
+  return %9999 : $()
+}

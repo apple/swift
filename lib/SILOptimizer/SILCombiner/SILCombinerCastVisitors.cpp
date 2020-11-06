@@ -31,9 +31,6 @@ using namespace swift::PatternMatch;
 
 SILInstruction *
 SILCombiner::visitRefToRawPointerInst(RefToRawPointerInst *RRPI) {
-  if (RRPI->getFunction()->hasOwnership())
-    return nullptr;
-
   // Ref to raw pointer consumption of other ref casts.
   if (auto *URCI = dyn_cast<UncheckedRefCastInst>(RRPI->getOperand())) {
     // (ref_to_raw_pointer (unchecked_ref_cast x))
@@ -60,11 +57,6 @@ SILCombiner::visitRefToRawPointerInst(RefToRawPointerInst *RRPI) {
 }
 
 SILInstruction *SILCombiner::visitUpcastInst(UpcastInst *UCI) {
-  if (UCI->getFunction()->hasOwnership())
-    return nullptr;
-
-  // Ref to raw pointer consumption of other ref casts.
-  //
   // (upcast (upcast x)) -> (upcast x)
   if (auto *Op = dyn_cast<UpcastInst>(UCI->getOperand())) {
     UCI->setOperand(Op->getOperand());
@@ -77,10 +69,6 @@ SILInstruction *SILCombiner::visitUpcastInst(UpcastInst *UCI) {
 SILInstruction *
 SILCombiner::
 visitPointerToAddressInst(PointerToAddressInst *PTAI) {
-  auto *F = PTAI->getFunction();
-  if (F->hasOwnership())
-    return nullptr;
-
   Builder.setCurrentDebugScope(PTAI->getDebugScope());
 
   // If we reach this point, we know that the types must be different since
@@ -138,9 +126,8 @@ visitPointerToAddressInst(PointerToAddressInst *PTAI) {
                                             m_MetatypeInst(Metatype))),
                     m_SILValue(Distance)))) {
 
-        SILType InstanceType =
-            F->getLoweredType(Metatype->getType()
-                .castTo<MetatypeType>().getInstanceType());
+        SILType InstanceType = Builder.getFunction().getLoweredType(
+            Metatype->getType().castTo<MetatypeType>().getInstanceType());
 
         auto *Trunc = cast<BuiltinInst>(TruncOrBitCast);
 
@@ -184,9 +171,8 @@ visitPointerToAddressInst(PointerToAddressInst *PTAI) {
                                              m_MetatypeInst(Metatype)),
                                  m_ValueBase()))) {
 
-      SILType InstanceType =
-          F->getLoweredType(Metatype->getType()
-              .castTo<MetatypeType>().getInstanceType());
+      SILType InstanceType = PTAI->getFunction()->getLoweredType(
+          Metatype->getType().castTo<MetatypeType>().getInstanceType());
 
       // Make sure that the type of the metatype matches the type that we are
       // casting to so we stride by the correct amount.
@@ -208,9 +194,6 @@ visitPointerToAddressInst(PointerToAddressInst *PTAI) {
 
 SILInstruction *
 SILCombiner::visitUncheckedAddrCastInst(UncheckedAddrCastInst *UADCI) {
-  if (UADCI->getFunction()->hasOwnership())
-    return nullptr;
-
   Builder.setCurrentDebugScope(UADCI->getDebugScope());
 
   // (unchecked-addr-cast (unchecked-addr-cast x X->Y) Y->Z)
@@ -232,9 +215,6 @@ SILCombiner::visitUncheckedAddrCastInst(UncheckedAddrCastInst *UADCI) {
 
 SILInstruction *
 SILCombiner::visitUncheckedRefCastInst(UncheckedRefCastInst *URCI) {
-  if (URCI->getFunction()->hasOwnership())
-    return nullptr;
-
   // (unchecked-ref-cast (unchecked-ref-cast x X->Y) Y->Z)
   //   ->
   // (unchecked-ref-cast x X->Z)
@@ -265,7 +245,6 @@ SILCombiner::visitUncheckedRefCastInst(UncheckedRefCastInst *URCI) {
 }
 
 SILInstruction *SILCombiner::visitEndCOWMutationInst(EndCOWMutationInst *ECM) {
-
   // Remove a cast if it's only used by an end_cow_mutation.
   //
   // (end_cow_mutation (upcast X)) -> (end_cow_mutation X)
@@ -287,8 +266,6 @@ SILInstruction *SILCombiner::visitEndCOWMutationInst(EndCOWMutationInst *ECM) {
 
 SILInstruction *
 SILCombiner::visitBridgeObjectToRefInst(BridgeObjectToRefInst *BORI) {
-  if (BORI->getFunction()->hasOwnership())
-    return nullptr;
   // Fold noop casts through Builtin.BridgeObject.
   // (bridge_object_to_ref (unchecked-ref-cast x BridgeObject) y)
   //  -> (unchecked-ref-cast x y)
@@ -302,9 +279,6 @@ SILCombiner::visitBridgeObjectToRefInst(BridgeObjectToRefInst *BORI) {
 
 SILInstruction *
 SILCombiner::visitUncheckedRefCastAddrInst(UncheckedRefCastAddrInst *URCI) {
-  if (URCI->getFunction()->hasOwnership())
-    return nullptr;
-
   SILType SrcTy = URCI->getSrc()->getType();
   if (!SrcTy.isLoadable(*URCI->getFunction()))
     return nullptr;
@@ -323,16 +297,16 @@ SILCombiner::visitUncheckedRefCastAddrInst(UncheckedRefCastAddrInst *URCI) {
  
   SILLocation Loc = URCI->getLoc();
   Builder.setCurrentDebugScope(URCI->getDebugScope());
-  LoadInst *load = Builder.createLoad(Loc, URCI->getSrc(),
-                                      LoadOwnershipQualifier::Unqualified);
+  SILValue load = Builder.emitLoadValueOperation(Loc, URCI->getSrc(),
+                                                 LoadOwnershipQualifier::Take);
 
   assert(SILType::canRefCast(load->getType(), DestTy.getObjectType(),
                              Builder.getModule()) &&
          "SILBuilder cannot handle reference-castable types");
   auto *cast = Builder.createUncheckedRefCast(Loc, load,
                                               DestTy.getObjectType());
-  Builder.createStore(Loc, cast, URCI->getDest(),
-                      StoreOwnershipQualifier::Unqualified);
+  Builder.emitStoreValueOperation(Loc, cast, URCI->getDest(),
+                                  StoreOwnershipQualifier::Init);
 
   return eraseInstFromFunction(*URCI);
 }
@@ -345,13 +319,8 @@ static bool canBeUsedAsCastDestination(SILValue value, CastInst *castInst,
          DA->get(castInst->getFunction())->properlyDominates(value, castInst);
 }
 
-
-SILInstruction *
-SILCombiner::
-visitUnconditionalCheckedCastAddrInst(UnconditionalCheckedCastAddrInst *UCCAI) {
-  if (UCCAI->getFunction()->hasOwnership())
-    return nullptr;
-
+SILInstruction *SILCombiner::visitUnconditionalCheckedCastAddrInst(
+    UnconditionalCheckedCastAddrInst *uccai) {
   // Optimize the unconditional_checked_cast_addr in this pattern:
   //
   //   %box = alloc_existential_box $Error, $ConcreteError
@@ -371,20 +340,36 @@ visitUnconditionalCheckedCastAddrInst(UnconditionalCheckedCastAddrInst *UCCAI) {
   //
   // This lets the alloc_existential_box become dead and it can be removed in
   // following optimizations.
-  SILValue val = getConcreteValueOfExistentialBoxAddr(UCCAI->getSrc(), UCCAI);
-  if (canBeUsedAsCastDestination(val, UCCAI, DA)) {
-    SILBuilderContext builderCtx(Builder.getModule(), Builder.getTrackingList());
-    SILBuilderWithScope builder(UCCAI, builderCtx);
-    SILLocation loc = UCCAI->getLoc();
-    builder.createRetainValue(loc, val, builder.getDefaultAtomicity());
-    builder.createDestroyAddr(loc, UCCAI->getSrc());
-    builder.createStore(loc, val, UCCAI->getDest(),
-                        StoreOwnershipQualifier::Unqualified);
-    return eraseInstFromFunction(*UCCAI);
+  SILValue val = getConcreteValueOfExistentialBoxAddr(uccai->getSrc(), uccai);
+  while (auto *cvi = dyn_cast_or_null<CopyValueInst>(val))
+    val = cvi->getOperand();
+  if (canBeUsedAsCastDestination(val, uccai, DA)) {
+    // We need to copy the value at its insertion point.
+    {
+      auto *valInsertPt = val->getDefiningInsertionPoint();
+      if (!valInsertPt)
+        return nullptr;
+      auto valInsertPtIter = valInsertPt->getIterator();
+      // If our value is defined by an instruction (not an argument), we want to
+      // insert the copy after that. Otherwise, we have an argument and we want
+      // to insert the copy right at the beginning of the block.
+      if (val->getDefiningInstruction())
+        valInsertPtIter = std::next(valInsertPtIter);
+      SILBuilderWithScope builder(valInsertPtIter, Builder);
+      val = builder.emitCopyValueOperation(valInsertPtIter->getLoc(), val);
+    }
+
+    // Then we insert the destroy value/store at the cast location.
+    SILBuilderWithScope builder(uccai, Builder);
+    SILLocation loc = uccai->getLoc();
+    builder.createDestroyAddr(loc, uccai->getSrc());
+    builder.emitStoreValueOperation(loc, val, uccai->getDest(),
+                                    StoreOwnershipQualifier::Init);
+    return eraseInstFromFunction(*uccai);
   }
 
   // Perform the purly type-based cast optimization.
-  if (CastOpt.optimizeUnconditionalCheckedCastAddrInst(UCCAI))
+  if (CastOpt.optimizeUnconditionalCheckedCastAddrInst(uccai))
     MadeChange = true;
 
   return nullptr;
@@ -393,9 +378,6 @@ visitUnconditionalCheckedCastAddrInst(UnconditionalCheckedCastAddrInst *UCCAI) {
 SILInstruction *
 SILCombiner::
 visitUnconditionalCheckedCastInst(UnconditionalCheckedCastInst *UCCI) {
-  if (UCCI->getFunction()->hasOwnership())
-    return nullptr;
-
   if (CastOpt.optimizeUnconditionalCheckedCastInst(UCCI)) {
     MadeChange = true;
     return nullptr;
@@ -424,13 +406,18 @@ visitUnconditionalCheckedCastInst(UnconditionalCheckedCastInst *UCCI) {
 SILInstruction *
 SILCombiner::
 visitRawPointerToRefInst(RawPointerToRefInst *RawToRef) {
-  if (RawToRef->getFunction()->hasOwnership())
-    return nullptr;
-
   // (raw_pointer_to_ref (ref_to_raw_pointer x X->Y) Y->Z)
   //   ->
   // (unchecked_ref_cast X->Z)
+  //
+  // TODO: Use unsafe ownership conversion to make this value unowned?
   if (auto *RefToRaw = dyn_cast<RefToRawPointerInst>(RawToRef->getOperand())) {
+    // For now we do not support this optimization with ownership due to issues
+    // around the ref_to_raw_pointer being unowned. We need to find a way to
+    // localize these sorts of transforms such that SILCombine can do them and
+    // then a later pass fixed/canonicalize them.
+    if (RawToRef->getFunction()->hasOwnership())
+      return nullptr;
     return Builder.createUncheckedRefCast(RawToRef->getLoc(),
                                           RefToRaw->getOperand(),
                                           RawToRef->getType());
@@ -442,9 +429,6 @@ visitRawPointerToRefInst(RawPointerToRefInst *RawToRef) {
 SILInstruction *
 SILCombiner::
 visitUncheckedTrivialBitCastInst(UncheckedTrivialBitCastInst *UTBCI) {
-  if (UTBCI->getFunction()->hasOwnership())
-    return nullptr;
-
   // (unchecked_trivial_bit_cast Y->Z
   //                                 (unchecked_trivial_bit_cast X->Y x))
   //   ->
@@ -472,9 +456,6 @@ visitUncheckedTrivialBitCastInst(UncheckedTrivialBitCastInst *UTBCI) {
 SILInstruction *
 SILCombiner::
 visitUncheckedBitwiseCastInst(UncheckedBitwiseCastInst *UBCI) {
-  if (UBCI->getFunction()->hasOwnership())
-    return nullptr;
-
   // (unchecked_bitwise_cast Y->Z (unchecked_bitwise_cast X->Y x))
   // OR (unchecked_trivial_cast Y->Z (unchecked_bitwise_cast X->Y x))
   //   ->
@@ -495,15 +476,24 @@ visitUncheckedBitwiseCastInst(UncheckedBitwiseCastInst *UBCI) {
                            Builder.getModule()))
     return nullptr;
 
+  // unchecked_bitwise_cast produces a value with .unowned ownership. As a
+  // result, when ownership is enabled, we can only perform this optimization if
+  // we know that all of the uses of our unchecked_bitwise_cast can accept the
+  // ownership of our unchecked_bitwise_cast operand. Otherwise we need to do a
+  // more complex analysis or introduce a new instruction that converts our
+  // input to have unowned ownership and run a later fixup ownership pass.
+  //
+  // TODO: Make decision with respect to the above discussion.
+  if (UBCI->getFunction()->hasOwnership()) {
+    return nullptr;
+  }
+
   return Builder.createUncheckedRefCast(UBCI->getLoc(), UBCI->getOperand(),
                                         UBCI->getType());
 }
 
 SILInstruction *
 SILCombiner::visitThickToObjCMetatypeInst(ThickToObjCMetatypeInst *TTOCMI) {
-  if (TTOCMI->getFunction()->hasOwnership())
-    return nullptr;
-
   if (auto *OCTTMI = dyn_cast<ObjCToThickMetatypeInst>(TTOCMI->getOperand())) {
     TTOCMI->replaceAllUsesWith(OCTTMI->getOperand());
     return eraseInstFromFunction(*TTOCMI);
@@ -526,9 +516,6 @@ SILCombiner::visitThickToObjCMetatypeInst(ThickToObjCMetatypeInst *TTOCMI) {
 
 SILInstruction *
 SILCombiner::visitObjCToThickMetatypeInst(ObjCToThickMetatypeInst *OCTTMI) {
-  if (OCTTMI->getFunction()->hasOwnership())
-    return nullptr;
-
   if (auto *TTOCMI = dyn_cast<ThickToObjCMetatypeInst>(OCTTMI->getOperand())) {
     OCTTMI->replaceAllUsesWith(TTOCMI->getOperand());
     return eraseInstFromFunction(*OCTTMI);
@@ -551,9 +538,6 @@ SILCombiner::visitObjCToThickMetatypeInst(ObjCToThickMetatypeInst *OCTTMI) {
 
 SILInstruction *
 SILCombiner::visitCheckedCastBranchInst(CheckedCastBranchInst *CBI) {
-  if (CBI->getFunction()->hasOwnership())
-    return nullptr;
-
   if (CastOpt.optimizeCheckedCastBranchInst(CBI))
     MadeChange = true;
 
@@ -563,9 +547,6 @@ SILCombiner::visitCheckedCastBranchInst(CheckedCastBranchInst *CBI) {
 SILInstruction *
 SILCombiner::
 visitCheckedCastAddrBranchInst(CheckedCastAddrBranchInst *CCABI) {
-  if (CCABI->getFunction()->hasOwnership())
-    return nullptr;
-
   // Optimize the checked_cast_addr_br in this pattern:
   //
   //   %box = alloc_existential_box $Error, $ConcreteError
@@ -589,11 +570,27 @@ visitCheckedCastAddrBranchInst(CheckedCastAddrBranchInst *CCABI) {
   //
   // TODO: Also handle the WillFail case.
   SILValue val = getConcreteValueOfExistentialBoxAddr(CCABI->getSrc(), CCABI);
+  while (auto *cvi = dyn_cast_or_null<CopyValueInst>(val))
+    val = cvi->getOperand();
   if (canBeUsedAsCastDestination(val, CCABI, DA)) {
-    SILBuilderContext builderCtx(Builder.getModule(), Builder.getTrackingList());
-    SILBuilderWithScope builder(CCABI, builderCtx);
+    // We need to insert the copy after the defining instruction of val or at
+    // the top of the block if val is an argument.
+    {
+      auto *valInsertPt = val->getDefiningInsertionPoint();
+      if (!valInsertPt)
+        return nullptr;
+      auto valInsertPtIter = valInsertPt->getIterator();
+      // If our value is defined by an instruction (not an argument), we want to
+      // insert the copy after that. Otherwise, we have an argument and we want
+      // to insert the copy right at the beginning of the block.
+      if (val->getDefiningInstruction())
+        valInsertPtIter = std::next(valInsertPtIter);
+      SILBuilderWithScope builder(valInsertPtIter, Builder);
+      val = builder.emitCopyValueOperation(valInsertPtIter->getLoc(), val);
+    }
+
+    SILBuilderWithScope builder(CCABI, Builder);
     SILLocation loc = CCABI->getLoc();
-    builder.createRetainValue(loc, val, builder.getDefaultAtomicity());
     switch (CCABI->getConsumptionKind()) {
       case CastConsumptionKind::TakeAlways:
       case CastConsumptionKind::TakeOnSuccess:
@@ -604,9 +601,9 @@ visitCheckedCastAddrBranchInst(CheckedCastAddrBranchInst *CCABI) {
       case CastConsumptionKind::BorrowAlways:
         llvm_unreachable("BorrowAlways is not supported on addresses");
     }
-    builder.createStore(loc, val, CCABI->getDest(),
-                        StoreOwnershipQualifier::Unqualified);
-                        
+    builder.emitStoreValueOperation(loc, val, CCABI->getDest(),
+                                    StoreOwnershipQualifier::Init);
+
     // Replace the cast with a constant conditional branch.
     // Don't just create an unconditional branch to not change the CFG in
     // SILCombine. SimplifyCFG will clean that up.
@@ -630,9 +627,6 @@ visitCheckedCastAddrBranchInst(CheckedCastAddrBranchInst *CCABI) {
 
 SILInstruction *SILCombiner::visitConvertEscapeToNoEscapeInst(
     ConvertEscapeToNoEscapeInst *Cvt) {
-  if (Cvt->getFunction()->hasOwnership())
-    return nullptr;
-
   auto *OrigThinToThick =
       dyn_cast<ThinToThickFunctionInst>(Cvt->getConverted());
   if (!OrigThinToThick)
@@ -646,9 +640,6 @@ SILInstruction *SILCombiner::visitConvertEscapeToNoEscapeInst(
 }
 
 SILInstruction *SILCombiner::visitConvertFunctionInst(ConvertFunctionInst *CFI) {
-  if (CFI->getFunction()->hasOwnership())
-    return nullptr;
-
   // If this conversion only changes substitutions, then rewrite applications
   // of the converted function as applications of the original.
   //

@@ -592,7 +592,7 @@ ABSTRACT_VALUE_AND_INST(SingleValueInstruction, ValueBase, SILInstruction)
 
   // Accessing memory
   SINGLE_VALUE_INST(LoadInst, load,
-                    SingleValueInstruction, MayRead, DoesNotRelease)
+                    SingleValueInstruction, MayHaveSideEffects, DoesNotRelease)
   SINGLE_VALUE_INST(LoadBorrowInst, load_borrow,
                     SingleValueInstruction, MayRead, DoesNotRelease)
   SINGLE_VALUE_INST(BeginBorrowInst, begin_borrow,
@@ -852,7 +852,7 @@ NON_VALUE_INST(BeginUnpairedAccessInst, begin_unpaired_access,
 NON_VALUE_INST(EndUnpairedAccessInst, end_unpaired_access,
                SILInstruction, MayHaveSideEffects, DoesNotRelease)
 NON_VALUE_INST(StoreInst, store,
-               SILInstruction, MayWrite, DoesNotRelease)
+               SILInstruction, MayHaveSideEffects, MayRelease)
 NON_VALUE_INST(AssignInst, assign,
                SILInstruction, MayWrite, DoesNotRelease)
 NON_VALUE_INST(AssignByWrapperInst, assign_by_wrapper,

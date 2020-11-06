@@ -711,6 +711,19 @@ public:
     return constraint == UseLifetimeConstraint::MustBeInvalidated;
   }
 
+  /// Returns false if this operand is incompatible with a value with ownership
+  /// kind \p kind or if the operand is compatible with a value with said
+  /// ownership kind but would consume it.
+  bool canAcceptKindWithoutConsuming(ValueOwnershipKind kind) const {
+    if (isTypeDependent())
+      return false;
+    auto map = getOwnershipKindMap();
+    if (!map.canAcceptKind(kind))
+      return false;
+    auto constraint = map.getLifetimeConstraint(kind);
+    return constraint != UseLifetimeConstraint::MustBeInvalidated;
+  }
+
   SILBasicBlock *getParentBlock() const;
   SILFunction *getParentFunction() const;
 

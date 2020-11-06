@@ -1,0 +1,83 @@
+// RUN: %target-sil-opt -enable-sil-verify-all %s -sil-combine -remove-runtime-asserts | %FileCheck %s
+
+sil_stage canonical
+
+import Builtin
+import Swift
+
+class RawBuffer {}
+class HeapBufferStorage<T, U> : RawBuffer {}
+
+class C {
+}
+class D : C {
+}
+class E {
+}
+
+// CHECK-LABEL: sil [ossa] @test_unconditional_checked_cast
+// CHECK: bb0
+// CHECK-NEXT: unchecked_ref_cast
+// CHECK-NEXT: return
+sil [ossa] @test_unconditional_checked_cast : $@convention(thin) <T_0_0, T_0_1> (@owned RawBuffer) -> @owned HeapBufferStorage<T_0_0, T_0_1> {
+bb0(%0 : @owned $RawBuffer):
+  %3 = unconditional_checked_cast %0 : $RawBuffer to HeapBufferStorage<T_0_0, T_0_1>
+  return %3 : $HeapBufferStorage<T_0_0, T_0_1>
+}
+
+// CHECK-LABEL: sil [ossa] @test_cond_fail
+// CHECK: bb0
+// CHECK-NEXT: tuple ()
+// CHECK-NEXT: return
+sil [ossa] @test_cond_fail : $@convention(thin) (Builtin.Int1) -> () {
+bb0(%0 : $Builtin.Int1):
+  cond_fail %0 : $Builtin.Int1
+  %2 = tuple ()
+  return %2 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_unconditional_checked_cast_addr_fail
+// CHECK: bb0
+// CHECK-NEXT: store undef
+// CHECK-NEXT: destroy_addr
+// CHECK-NEXT: builtin "int_trap"
+// CHECK: unreachable
+// CHECK: }
+sil [ossa] @test_unconditional_checked_cast_addr_fail : $@convention(thin) (@in E, @in D) -> @out D {
+bb0(%0 : $*D, %1 : $*E, %2 : $*D):
+  unconditional_checked_cast_addr E in %1 : $*E to D in %0 : $*D
+  %4 = load [take] %2 : $*D
+  destroy_value %4 : $D
+  %6 = tuple ()
+  return %6 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_unconditional_checked_cast_other_use
+// CHECK: bb0([[ARG:%.*]] : @owned $C
+// CHECK-NEXT:  [[COPY_ARG:%.*]] = copy_value [[ARG]]
+// CHECK-NEXT:  destroy_value [[ARG]]
+// CHECK-NEXT:  return [[COPY_ARG]]
+sil [ossa] @test_unconditional_checked_cast_other_use : $@convention(thin) (@owned C) -> @owned C {
+bb0(%0 : @owned $C):
+  %0a = copy_value %0 : $C
+  %3 = unconditional_checked_cast %0a : $C to C
+  destroy_value %0 : $C
+  return %3 : $C
+}
+
+protocol Class : class {
+}
+
+class G : Class {
+}
+
+// CHECK-LABEL: sil [ossa] @test_unconditional_checked_cast_class_exist
+// CHECK: unchecked_ref_cast
+// CHECK: return
+sil [ossa] @test_unconditional_checked_cast_class_exist : $@convention(thin) (@owned Class) -> @owned G {
+bb0(%0 : @owned $Class):
+  %0a = copy_value %0 : $Class
+  %2 = unconditional_checked_cast %0a : $Class to G
+  destroy_value %0 : $Class
+  return %2 : $G
+}
