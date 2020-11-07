@@ -160,12 +160,14 @@ static int run_driver(StringRef ExecName,
   DiagnosticEngine Diags(SM);
   Diags.addConsumer(PDC);
 
+  SmallString<256> NewDriverPath(llvm::sys::path::parent_path(Path));
+  llvm::sys::path::append(NewDriverPath, "swift-driver");
+
   // Forwarding calls to the swift driver if the C++ driver is invoked as `swift`
   // or `swiftc`, and an environment variable SWIFT_USE_NEW_DRIVER is defined.
-  if (llvm::sys::Process::GetEnv("SWIFT_USE_NEW_DRIVER") &&
-      (ExecName == "swift" || ExecName == "swiftc")) {
-    SmallString<256> NewDriverPath(llvm::sys::path::parent_path(Path));
-    llvm::sys::path::append(NewDriverPath, "swift-driver");
+  if (llvm::sys::fs::exists(NewDriverPath.str()) &&
+      (ExecName == "swift" || ExecName == "swiftc")
+      && !llvm::sys::Process::GetEnv("BUILDING_TOOLCHAIN")) {
     SmallVector<const char *, 256> subCommandArgs;
     // Rewrite the program argument.
     subCommandArgs.push_back(NewDriverPath.c_str());

@@ -1377,6 +1377,10 @@ def main():
 
 if __name__ == "__main__":
     try:
-        sys.exit(main())
+        os.environ["BUILDING_TOOLCHAIN"] = "YES"
+        result = main()
+        del os.environ['BUILDING_TOOLCHAIN']
+        sys.exit(result)
     except KeyboardInterrupt:
+        del os.environ['BUILDING_TOOLCHAIN']
         sys.exit(1)
