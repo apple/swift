@@ -239,6 +239,9 @@ namespace swift {
     /// optimized custom allocator, so that memory debugging tools can be used.
     bool UseMalloc = false;
 
+    /// Enable experimental 'Module::name' syntax.
+    bool EnableExperimentalModuleSelector = false;
+
     /// Enable experimental #assert feature.
     bool EnableExperimentalStaticAssert = false;
 

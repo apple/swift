@@ -714,7 +714,8 @@ Parser::parseTypeIdentifier(bool isParsingQualifiedDeclBaseType) {
   while (true) {
     DeclNameLoc Loc;
     DeclNameRef Name =
-        parseDeclNameRef(Loc, diag::expected_identifier_in_dotted_type, {});
+        parseDeclNameRef(Loc, diag::expected_identifier_in_dotted_type,
+                         DeclNameFlag::AllowModuleSelector);
     if (!Name)
       Status.setIsParseError();
 

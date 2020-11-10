@@ -4316,15 +4316,18 @@ llvm::Error DeclDeserializer::deserializeDeclAttributes() {
         serialization::decls_block::DynamicReplacementDeclAttrLayout::
             readRecord(scratch, isImplicit, replacedFunID, numArgs, rawPieceIDs);
 
-        auto baseName = MF.getDeclBaseName(rawPieceIDs[0]);
+        auto moduleSelector = MF.getIdentifier(rawPieceIDs[0]);
+        auto baseName = MF.getDeclBaseName(rawPieceIDs[1]);
         SmallVector<Identifier, 4> pieces;
-        for (auto pieceID : rawPieceIDs.slice(1))
+        for (auto pieceID : rawPieceIDs.slice(2))
           pieces.push_back(MF.getIdentifier(pieceID));
+
+        DeclNameRef replacedFunName(ctx, moduleSelector, baseName, pieces);
 
         assert(numArgs != 0);
         assert(!isImplicit && "Need to update for implicit");
-        Attr = DynamicReplacementAttr::create(
-            ctx, DeclNameRef({ ctx, baseName, pieces }), &MF, replacedFunID);
+        Attr = DynamicReplacementAttr::create(ctx, replacedFunName, &MF,
+                                              replacedFunID);
         break;
       }
 
@@ -4406,6 +4409,7 @@ llvm::Error DeclDeserializer::deserializeDeclAttributes() {
 
       case decls_block::Derivative_DECL_ATTR: {
         bool isImplicit;
+        uint64_t origModuleSelectorId;
         uint64_t origNameId;
         bool hasAccessorKind;
         uint64_t rawAccessorKind;
@@ -4414,8 +4418,9 @@ llvm::Error DeclDeserializer::deserializeDeclAttributes() {
         ArrayRef<uint64_t> parameters;
 
         serialization::decls_block::DerivativeDeclAttrLayout::readRecord(
-            scratch, isImplicit, origNameId, hasAccessorKind, rawAccessorKind,
-            origDeclId, rawDerivativeKind, parameters);
+            scratch, isImplicit, origModuleSelectorId, origNameId,
+            hasAccessorKind, rawAccessorKind, origDeclId, rawDerivativeKind,
+            parameters);
 
         Optional<AccessorKind> accessorKind = None;
         if (hasAccessorKind) {
@@ -4425,8 +4430,12 @@ llvm::Error DeclDeserializer::deserializeDeclAttributes() {
           accessorKind = *maybeAccessorKind;
         }
 
-        DeclNameRefWithLoc origName{DeclNameRef(MF.getDeclBaseName(origNameId)),
-                                    DeclNameLoc(), accessorKind};
+        Identifier origModuleSelector = MF.getIdentifier(origModuleSelectorId);
+        DeclBaseName origBaseName = MF.getDeclBaseName(origNameId);
+        DeclNameRef origName(ctx, origModuleSelector, origBaseName);
+        DeclNameRefWithLoc origNameWithLoc{origName, DeclNameLoc(),
+                                           accessorKind};
+
         auto derivativeKind =
             getActualAutoDiffDerivativeFunctionKind(rawDerivativeKind);
         if (!derivativeKind)
@@ -4438,7 +4447,8 @@ llvm::Error DeclDeserializer::deserializeDeclAttributes() {
 
         auto *derivativeAttr =
             DerivativeAttr::create(ctx, isImplicit, SourceLoc(), SourceRange(),
-                                   /*baseType*/ nullptr, origName, indices);
+                                   /*baseType*/ nullptr, origNameWithLoc,
+                                   indices);
         derivativeAttr->setOriginalFunctionResolver(&MF, origDeclId);
         derivativeAttr->setDerivativeKind(*derivativeKind);
         Attr = derivativeAttr;

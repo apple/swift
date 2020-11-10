@@ -939,9 +939,8 @@ private:
       }
       SmallVector<ValueDecl *, 1> decls;
       declContext->lookupQualified(declContext->getParentModule(),
-                                   renamedDeclName.withoutArgumentLabels(),
-                                   NL_OnlyTypes,
-                                   decls);
+          renamedDeclName.withoutArgumentLabels(astContext), NL_OnlyTypes,
+          decls);
       if (decls.size() == 1)
         return decls[0];
       return nullptr;

@@ -1781,6 +1781,14 @@ SourceRange IfConfigDecl::getSourceRange() const {
   return SourceRange(getLoc(), EndLoc);
 }
 
+DeclNameRef ValueDecl::createNameRef(bool moduleSelector) const {
+  if (moduleSelector)
+    return DeclNameRef(getASTContext(), getModuleContext()->getName(),
+                       getName());
+
+  return DeclNameRef(getName());
+}
+
 static bool isPolymorphic(const AbstractStorageDecl *storage) {
   if (storage->shouldUseObjCDispatch())
     return true;

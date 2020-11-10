@@ -1149,7 +1149,8 @@ Parser::parseExprPostfixSuffix(ParserResult<Expr> Result, bool isExprBasic,
                      ? diag::expected_identifier_after_super_dot_expr
                      : diag::expected_member_name;
       auto Name = parseDeclNameRef(NameLoc, D,
-          DeclNameFlag::AllowKeywords | DeclNameFlag::AllowCompoundNames);
+          DeclNameFlag::AllowKeywords | DeclNameFlag::AllowCompoundNames |
+          DeclNameFlag::AllowModuleSelector);
       if (!Name) {
         SourceRange ErrorRange = Result.get()->getSourceRange();
         ErrorRange.widen(TokLoc);
@@ -1499,6 +1500,10 @@ ParserResult<Expr> Parser::parseExprPrimary(Diag<> ID, bool isExprBasic) {
         // call pattern.
         peekToken().isNot(tok::period, tok::period_prefix, tok::l_paren)) {
       DeferringContextRAII Deferring(*SyntaxContext);
+
+      diagnoseAndConsumeIfModuleSelector(InVarOrLetPattern != IVOLP_InVar
+                                         ? "constant" : "variable");
+
       Identifier name;
       SourceLoc loc = consumeIdentifier(&name, /*allowDollarIdentifier=*/true);
       auto introducer = (InVarOrLetPattern != IVOLP_InVar
@@ -1584,7 +1589,8 @@ ParserResult<Expr> Parser::parseExprPrimary(Diag<> ID, bool isExprBasic) {
     }
 
     Name = parseDeclNameRef(NameLoc, diag::expected_identifier_after_dot_expr,
-        DeclNameFlag::AllowKeywords | DeclNameFlag::AllowCompoundNames);
+        DeclNameFlag::AllowKeywords | DeclNameFlag::AllowCompoundNames |
+        DeclNameFlag::AllowModuleSelector);
     if (!Name)
       return makeParserErrorResult(new (Context) ErrorExpr(DotLoc));
     SyntaxContext->createNodeInPlace(SyntaxKind::MemberAccessExpr);
@@ -2006,9 +2012,25 @@ ParserResult<Expr> Parser::parseExprStringLiteral() {
                                       AppendingExpr));
 }
 
+/// Equivalent to \c Tok.is(tok::colon), but pretends that \c tok::colon_colon
+/// doesn't exist if \c EnableExperimentalModuleSelector is disabled.
+static bool isColon(Parser &P, Token Tok) {
+  // FIXME: Introducing tok::colon_colon broke diag::empty_arg_label_underscore.
+  // We only care about tok::colon_colon when module selectors are turned on, so
+  // when they are turned off, this function works around the bug by treating
+  // tok::colon_colon as a synonym for tok::colon. However, the bug still exists
+  // when EnableExperimentalModuleSelector is true. We will need to address this
+  // before the feature can be released.
+
+  if (P.Context.LangOpts.EnableExperimentalModuleSelector)
+    return Tok.is(tok::colon);
+
+  return Tok.isAny(tok::colon, tok::colon_colon);
+}
+
 void Parser::parseOptionalArgumentLabel(Identifier &name, SourceLoc &loc) {
   // Check to see if there is an argument label.
-  if (Tok.canBeArgumentLabel() && peekToken().is(tok::colon)) {
+  if (Tok.canBeArgumentLabel() && isColon(*this, peekToken())) {
     auto text = Tok.getText();
 
     // If this was an escaped identifier that need not have been escaped, say
@@ -2026,7 +2048,7 @@ void Parser::parseOptionalArgumentLabel(Identifier &name, SourceLoc &loc) {
     }
 
     loc = consumeArgumentLabel(name);
-    consumeToken(tok::colon);
+    consumeIfColonSplittingDoubles();
   }
 }
 
@@ -2051,7 +2073,7 @@ static bool tryParseArgLabelList(Parser &P, Parser::DeclNameOptions flags,
       flags.contains(Parser::DeclNameFlag::AllowZeroArgCompoundNames) &&
       next.is(tok::r_paren);
   // An argument label.
-  bool nextIsArgLabel = next.canBeArgumentLabel() || next.is(tok::colon);
+  bool nextIsArgLabel = next.canBeArgumentLabel() || isColon(P, next);
   // An editor placeholder.
   bool nextIsPlaceholder = Identifier::isEditorPlaceholder(next.getText());
 
@@ -2067,11 +2089,11 @@ static bool tryParseArgLabelList(Parser &P, Parser::DeclNameOptions flags,
     SyntaxParsingContext ArgCtxt(P.SyntaxContext, SyntaxKind::DeclNameArgument);
 
     // If we see a ':', the user forgot the '_';
-    if (P.Tok.is(tok::colon)) {
-      P.diagnose(P.Tok, diag::empty_arg_label_underscore)
-          .fixItInsert(P.Tok.getLoc(), "_");
+    if (P.consumeIfColonSplittingDoubles()) {
+      P.diagnose(P.PreviousLoc, diag::empty_arg_label_underscore)
+          .fixItInsert(P.PreviousLoc, "_");
       argumentLabels.push_back(Identifier());
-      argumentLabelLocs.push_back(P.consumeToken(tok::colon));
+      argumentLabelLocs.push_back(P.PreviousLoc);
     }
 
     Identifier argName;
@@ -2111,6 +2133,33 @@ static bool tryParseArgLabelList(Parser &P, Parser::DeclNameOptions flags,
 DeclNameRef Parser::parseDeclNameRef(DeclNameLoc &loc,
                                      const Diagnostic &diag,
                                      DeclNameOptions flags) {
+  // Consume the module name, if present.
+  SourceLoc moduleSelectorLoc;
+  Identifier moduleSelector;
+  if (Context.LangOpts.EnableExperimentalModuleSelector &&
+      peekToken().is(tok::colon_colon)) {
+    // FIXME: libSyntax
+
+    if (Tok.is(tok::identifier)) { // FIXME: tok::dollarident?
+      moduleSelectorLoc = consumeIdentifier(&moduleSelector);
+    }
+    else {
+      diagnose(Tok, diag::expected_identifier_in_module_selector);
+      moduleSelector = Identifier();
+      moduleSelectorLoc = consumeToken();
+    }
+
+    // Diagnose if we don't allow a module selector here.
+    if (!flags.contains(DeclNameFlag::AllowModuleSelector)) {
+      diagnose(Tok, diag::module_selector_not_allowed_here)
+          .fixItRemove({moduleSelectorLoc, Tok.getLoc()});
+      moduleSelector = Identifier();
+      moduleSelectorLoc = SourceLoc();
+    }
+
+    consumeToken(tok::colon_colon);
+  }
+
   // Consume the base name.
   DeclBaseName baseName;
   SourceLoc baseNameLoc;
@@ -2157,15 +2206,15 @@ DeclNameRef Parser::parseDeclNameRef(DeclNameLoc &loc,
                                          rparenLoc);
 
   if (argumentLabelLocs.empty() || !hadArgList)
-    loc = DeclNameLoc(baseNameLoc);
+    loc = DeclNameLoc(Context, moduleSelectorLoc, baseNameLoc);
   else
-    loc = DeclNameLoc(Context, baseNameLoc, lparenLoc, argumentLabelLocs,
-                      rparenLoc);
+    loc = DeclNameLoc(Context, moduleSelectorLoc, baseNameLoc,
+                      lparenLoc, argumentLabelLocs, rparenLoc);
 
   if (!hadArgList)
-    return DeclNameRef(baseName);
+    return DeclNameRef(Context, moduleSelector, baseName);
 
-  return DeclNameRef({ Context, baseName, argumentLabels });
+  return DeclNameRef(Context, moduleSelector, baseName, argumentLabels);
 }
 
 ///   expr-identifier:
@@ -2179,7 +2228,8 @@ Expr *Parser::parseExprIdentifier() {
   // Parse the unqualified-decl-name.
   DeclNameLoc loc;
   DeclNameRef name = parseDeclNameRef(loc, diag::expected_expr,
-                                      DeclNameFlag::AllowCompoundNames);
+                                      DeclNameFlag::AllowCompoundNames |
+                                      DeclNameFlag::AllowModuleSelector);
 
   SmallVector<TypeRepr*, 8> args;
   SourceLoc LAngleLoc, RAngleLoc;
@@ -2421,9 +2471,23 @@ parseClosureSignatureIfPresent(SourceRange &bracketRange,
 
       // Okay, we have a closure signature.
     } else if (Tok.isIdentifierOrUnderscore()) {
-      // Parse identifier (',' identifier)*
+      // Parse module-selector? identifier (',' module-selector? identifier)*
+      // The module selectors aren't legal, but we want to diagnose them if
+      // they're present.
+      if (Context.LangOpts.EnableExperimentalModuleSelector &&
+          peekToken().is(tok::colon_colon)) {
+        consumeToken();
+        consumeToken(tok::colon_colon);
+      }
+
       consumeToken();
       while (consumeIf(tok::comma)) {
+        if (Context.LangOpts.EnableExperimentalModuleSelector &&
+            peekToken().is(tok::colon_colon)) {
+          consumeToken();
+          consumeToken(tok::colon_colon);
+        }
+
         if (Tok.isIdentifierOrUnderscore()) {
           consumeToken();
           continue;
@@ -2494,8 +2558,11 @@ parseClosureSignatureIfPresent(SourceRange &bracketRange,
             diagnose(Tok, diag::attr_unowned_expected_rparen);
         }
       } else if (Tok.isAny(tok::identifier, tok::kw_self) &&
-                 peekToken().isAny(tok::equal, tok::comma, tok::r_square)) {
+                 peekToken().isAny(tok::equal, tok::comma, tok::r_square,
+                                   tok::colon_colon)) {
         // "x = 42", "x," and "x]" are all strong captures of x.
+        // "x::" is not permitted, but we want to diagnose it as though it were
+        // a strong capture.
       } else {
         diagnose(Tok, diag::expected_capture_specifier);
         skipUntil(tok::comma, tok::r_square);
@@ -2513,10 +2580,17 @@ parseClosureSignatureIfPresent(SourceRange &bracketRange,
 
       // The thing being capture specified is an identifier, or as an identifier
       // followed by an expression.
+
       Expr *initializer;
       Identifier name;
       SourceLoc nameLoc = Tok.getLoc();
       SourceLoc equalLoc;
+
+      // FIXME: It'd be nice to be able to capture with a module selector, but
+      // define a local name; however, that would complicate the equals check
+      // here.
+      diagnoseAndConsumeIfModuleSelector("captured variable");
+
       if (peekToken().isNot(tok::equal)) {
         // If this is the simple case, then the identifier is both the name and
         // the expression to capture.
@@ -2603,6 +2677,9 @@ parseClosureSignatureIfPresent(SourceRange &bracketRange,
       bool HasNext;
       do {
         SyntaxParsingContext ClParamCtx(SyntaxContext, SyntaxKind::ClosureParam);
+
+        diagnoseAndConsumeIfModuleSelector("parameter");
+
         if (Tok.isNot(tok::identifier, tok::kw__)) {
           diagnose(Tok, diag::expected_closure_parameter_name);
           invalid = true;
@@ -3036,8 +3113,11 @@ ParserStatus Parser::parseExprList(tok leftTok, tok rightTok,
       SyntaxParsingContext operatorContext(SyntaxContext,
                                            SyntaxKind::IdentifierExpr);
       DeclNameLoc Loc;
+      // FIXME: We would like to allow module selectors on binary operators, but
+      // the condition above won't let us reach this code.
       auto OperName = parseDeclNameRef(Loc, diag::expected_operator_ref,
-                                       DeclNameFlag::AllowOperators);
+                                       DeclNameFlag::AllowOperators |
+                                       DeclNameFlag::AllowModuleSelector);
       if (!OperName) {
         return makeParserError();
       }

@@ -166,6 +166,11 @@ inline ValueDecl *ScopeInfo::lookupValueName(DeclNameRef Name) {
   if (!CurScope)
     return nullptr;
 
+  // If the name has a module selector, by definition it can only match a
+  // top-level declaration.
+  if (Name.hasModuleSelector())
+    return nullptr;
+
   assert(CurScope && "no scope");
   // If we found nothing, or we found a decl at the top-level, return nothing.
   // We ignore results at the top-level because we may have overloading that

@@ -19,16 +19,24 @@
 
 using namespace swift;
 
-DeclNameLoc::DeclNameLoc(ASTContext &ctx, SourceLoc baseNameLoc,
+DeclNameLoc::DeclNameLoc(ASTContext &ctx, SourceLoc moduleSelectorLoc,
+                         SourceLoc baseNameLoc,
                          SourceLoc lParenLoc,
                          ArrayRef<SourceLoc> argumentLabelLocs,
                          SourceLoc rParenLoc)
-  : NumArgumentLabels(argumentLabelLocs.size()) {
-  assert(NumArgumentLabels > 0 && "Use other constructor");
+    : NumArgumentLabels(argumentLabelLocs.size()),
+      HasModuleSelectorLoc(moduleSelectorLoc.isValid())
+{
+  if (NumArgumentLabels == 0 && !HasModuleSelectorLoc) {
+    LocationInfo = baseNameLoc.getOpaquePointerValue();
+    return;
+  }
 
   // Copy the location information into permanent storage.
-  auto storedLocs = ctx.Allocate<SourceLoc>(NumArgumentLabels + 3);
+  auto storedLocs =
+      ctx.Allocate<SourceLoc>(FirstArgumentLabelIndex + NumArgumentLabels);
   storedLocs[BaseNameIndex] = baseNameLoc;
+  storedLocs[ModuleSelectorIndex] = moduleSelectorLoc;
   storedLocs[LParenIndex] = lParenLoc;
   storedLocs[RParenIndex] = rParenLoc;
   std::memcpy(storedLocs.data() + FirstArgumentLabelIndex,

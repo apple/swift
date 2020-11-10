@@ -449,7 +449,21 @@ public:
 private:
   friend SimpleRequest;
 
-  // Evaluation.
+  /// Performs a lookup into the given module and its imports.
+  ///
+  /// If 'moduleOrFile' is a ModuleDecl, we search the module and its
+  /// public imports. If 'moduleOrFile' is a SourceFile, we search the
+  /// file's parent module, the module's public imports, and the source
+  /// file's private imports.
+  ///
+  /// \param evaluator The request evaluator.
+  /// \param moduleOrFile The module or file unit to search, including imports.
+  /// \param name The name to look up.
+  /// \param lookupKind Whether this lookup is qualified or unqualified.
+  /// \param resolutionKind What sort of decl is expected.
+  /// \param moduleScopeContext The top-level context from which the lookup is
+  ///        being performed, for checking access. This must be either a
+  ///        FileUnit or a Module.
   QualifiedLookupResult
   evaluate(Evaluator &evaluator, const DeclContext *moduleOrFile, DeclName name,
            NLKind lookupKind, namelookup::ResolutionKind resolutionKind,

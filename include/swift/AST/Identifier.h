@@ -628,74 +628,127 @@ void simple_display(llvm::raw_ostream &out, DeclName name);
 /// An in-source reference to another declaration, including qualification
 /// information.
 class DeclNameRef {
-  DeclName FullName;
+  friend class ASTContext;
+
+  /// Contains the name and module for a DeclNameRef with a module selector.
+  struct alignas(Identifier) SelectiveDeclNameRef : llvm::FoldingSetNode {
+    Identifier moduleSelector;   // Note: currently can never be empty().
+    DeclName fullName;
+
+    SelectiveDeclNameRef(Identifier moduleSelector, DeclName fullName)
+      : moduleSelector(moduleSelector), fullName(fullName) { }
+
+    /// Uniquing for the ASTContext.
+    static void Profile(llvm::FoldingSetNodeID &id, Identifier moduleSelector,
+                        DeclName fullName);
+
+    void Profile(llvm::FoldingSetNodeID &id) {
+      Profile(id, moduleSelector, fullName);
+    }
+
+    // Make vanilla new/delete illegal for SelectiveDeclNameRef.
+    void *operator new(size_t Bytes) = delete;
+    void operator delete(void *Data) = delete;
+
+    // Only allow allocation of SelectiveDeclNameRef using the allocator
+    // in ASTContext or by doing a placement new.
+    void *operator new(size_t Bytes, const ASTContext &C,
+                       unsigned Alignment = alignof(SelectiveDeclNameRef));
+    void *operator new(size_t Bytes, void *Mem) {
+      assert(Mem);
+      return Mem;
+    }
+  };
+
+  llvm::PointerUnion<DeclName, SelectiveDeclNameRef *> storage;
+
+  explicit DeclNameRef(void *Opaque)
+    : storage(decltype(storage)::getFromOpaqueValue(Opaque)) { }
+
+  void initialize(ASTContext &C, Identifier moduleScope, DeclName fullName);
 
 public:
   static DeclNameRef createSubscript();
   static DeclNameRef createConstructor();
 
-  DeclNameRef() : FullName() { }
+  DeclNameRef() : storage(DeclName()) { }
 
-  void *getOpaqueValue() const { return FullName.getOpaqueValue(); }
+  void *getOpaqueValue() const {
+    return storage.getOpaqueValue();
+  }
   static DeclNameRef getFromOpaqueValue(void *p);
 
+  explicit DeclNameRef(ASTContext &C, Identifier moduleSelector,
+                       DeclName fullName) {
+    initialize(C, moduleSelector, fullName);
+  }
+
+  explicit DeclNameRef(ASTContext &C, Identifier moduleSelector,
+                       DeclBaseName baseName, ArrayRef<Identifier> argLabels) {
+    initialize(C, moduleSelector, DeclName(C, baseName, argLabels));
+  }
+
   explicit DeclNameRef(DeclName FullName)
-    : FullName(FullName) { }
+    : storage(FullName) { }
 
-  explicit DeclNameRef(DeclBaseName BaseName)
-    : FullName(BaseName) { }
+  bool hasModuleSelector() const {
+    return storage.is<SelectiveDeclNameRef *>();
+  }
 
-  explicit DeclNameRef(Identifier BaseName)
-    : FullName(BaseName) { }
+  Identifier getModuleSelector() const {
+    if (!hasModuleSelector())
+      return Identifier();
+
+    return storage.get<SelectiveDeclNameRef *>()->moduleSelector;
+  }
 
   /// The name of the declaration being referenced.
   DeclName getFullName() const {
-    return FullName;
-  }
+    if (!hasModuleSelector())
+      return storage.get<DeclName>();
 
-  DeclName &getFullName() {
-    return FullName;
+    return storage.get<SelectiveDeclNameRef *>()->fullName;
   }
 
   /// The base name of the declaration being referenced.
   DeclBaseName getBaseName() const {
-    return FullName.getBaseName();
+    return getFullName().getBaseName();
   }
 
   Identifier getBaseIdentifier() const {
-    return FullName.getBaseIdentifier();
+    return getFullName().getBaseIdentifier();
   }
 
   ArrayRef<Identifier> getArgumentNames() const {
-    return FullName.getArgumentNames();
+    return getFullName().getArgumentNames();
   }
 
   bool isSimpleName() const {
-    return FullName.isSimpleName();
+    return getFullName().isSimpleName();
   }
 
   bool isSimpleName(DeclBaseName name) const {
-    return FullName.isSimpleName(name);
+    return getFullName().isSimpleName(name);
   }
 
   bool isSimpleName(StringRef name) const {
-    return FullName.isSimpleName(name);
+    return getFullName().isSimpleName(name);
   }
 
   bool isSpecial() const {
-    return FullName.isSpecial();
+    return getFullName().isSpecial();
   }
 
   bool isOperator() const {
-    return FullName.isOperator();
+    return getFullName().isOperator();
   }
 
   bool isCompoundName() const {
-    return FullName.isCompoundName();
+    return getFullName().isCompoundName();
   }
 
   explicit operator bool() const {
-    return (bool)FullName;
+    return (bool)getFullName();
   }
 
   /// Compare two declaration names, producing -1 if \c *this comes before
@@ -735,7 +788,7 @@ public:
     return lhs.compare(rhs) >= 0;
   }
 
-  DeclNameRef withoutArgumentLabels() const;
+  DeclNameRef withoutArgumentLabels(ASTContext &C) const;
   DeclNameRef withArgumentLabels(ASTContext &C,
                                  ArrayRef<Identifier> argumentNames) const;
 
@@ -766,18 +819,17 @@ public:
 };
 
 inline DeclNameRef DeclNameRef::getFromOpaqueValue(void *p) {
-  return DeclNameRef(DeclName::getFromOpaqueValue(p));
+  return DeclNameRef(p);
 }
 
-inline DeclNameRef DeclNameRef::withoutArgumentLabels() const {
-  return DeclNameRef(getBaseName());
+inline DeclNameRef DeclNameRef::withoutArgumentLabels(ASTContext &C) const {
+  return DeclNameRef(C, getModuleSelector(), getBaseName());
 }
 
 inline DeclNameRef DeclNameRef::withArgumentLabels(
     ASTContext &C, ArrayRef<Identifier> argumentNames) const {
-  return DeclNameRef(DeclName(C, getBaseName(), argumentNames));
+  return DeclNameRef(C, getModuleSelector(), getBaseName(), argumentNames);
 }
-
 
 inline DeclNameRef DeclNameRef::createSubscript() {
   return DeclNameRef(DeclBaseName::createSubscript());
@@ -944,7 +996,7 @@ namespace llvm {
     static inline swift::DeclNameRef getFromVoidPointer(void *ptr) {
       return swift::DeclNameRef::getFromOpaqueValue(ptr);
     }
-    enum { NumLowBitsAvailable = PointerLikeTypeTraits<swift::DeclName>::NumLowBitsAvailable };
+    enum { NumLowBitsAvailable = PointerLikeTypeTraits<swift::DeclName>::NumLowBitsAvailable - 1 };
   };
 
   // DeclNameRefs hash just like DeclNames.

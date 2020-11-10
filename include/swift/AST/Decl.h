@@ -2065,11 +2065,10 @@ public:
     return Name.getBaseIdentifier();
   }
 
-  /// Generates a DeclNameRef referring to this declaration with as much
-  /// specificity as possible.
-  DeclNameRef createNameRef() const {
-    return DeclNameRef(Name);
-  }
+  /// Generates a DeclNameRef referring to this declaration.
+  ///
+  /// \param moduleSelector If true, the name ref includes the module name.
+  DeclNameRef createNameRef(bool moduleSelector = false) const;
 
   /// Retrieve the name to use for this declaration when interoperating
   /// with the Objective-C runtime.

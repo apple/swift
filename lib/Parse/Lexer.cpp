@@ -2420,8 +2420,14 @@ void Lexer::lexImpl() {
 
   case ',': return formToken(tok::comma, TokStart);
   case ';': return formToken(tok::semi, TokStart);
-  case ':': return formToken(tok::colon, TokStart);
   case '\\': return formToken(tok::backslash, TokStart);
+
+  case ':':
+    if (CurPtr[0] == ':') {
+      CurPtr++;
+      return formToken(tok::colon_colon, TokStart);
+    }
+    return formToken(tok::colon, TokStart);
 
   case '#':
     if (unsigned CustomDelimiterLen = advanceIfCustomDelimiter(CurPtr, Diags))

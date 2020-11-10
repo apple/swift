@@ -224,6 +224,7 @@ SYNTAX_TOKENS = [
     Punctuator('Comma', 'comma', text=',', serialization_code=84),
     Punctuator('Ellipsis', 'ellipsis', text='...', serialization_code=118),
     Punctuator('Colon', 'colon', text=':', serialization_code=82),
+    Punctuator('ColonColon', 'colon_colon', text='::', serialization_code=123),
     Punctuator('Semicolon', 'semi', text=';', serialization_code=83),
     Punctuator('Equal', 'equal', text='=', serialization_code=86),
     Punctuator('AtSign', 'at_sign', text='@', classification='Attribute',

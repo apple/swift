@@ -1161,7 +1161,7 @@ WitnessChecker::lookupValueWitnesses(ValueDecl *req, bool *ignoringNames) {
   lookupValueWitnessesViaImplementsAttr(req, witnesses);
 
   auto reqName = req->createNameRef();
-  auto reqBaseName = reqName.withoutArgumentLabels();
+  auto reqBaseName = reqName.withoutArgumentLabels(DC->getASTContext());
 
   if (req->isOperator()) {
     // Operator lookup is always global.

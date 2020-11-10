@@ -91,6 +91,14 @@ ERROR(forbidden_interpolated_string,none,
 ERROR(forbidden_extended_escaping_string,none,
       "%0 cannot be an extended escaping string literal", (StringRef))
 
+ERROR(expected_identifier_in_module_selector,none,
+      "expected identifier in module selector", ())
+ERROR(module_selector_not_allowed_here,none,
+      "name cannot be qualified with module selector here", ())
+ERROR(module_selector_not_allowed_in_decl,none,
+      "%select{%1|name of %1 declaration}0 cannot be qualified with module "
+      "selector", (bool, StringRef))
+
 //------------------------------------------------------------------------------
 // MARK: Lexer diagnostics
 //------------------------------------------------------------------------------

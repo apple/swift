@@ -29,8 +29,10 @@ class ASTContext;
 class DeclNameLoc {
   /// Source location information.
   ///
-  /// If \c NumArgumentLabels == 0, this is the SourceLoc for the base name.
-  /// Otherwise, it points to an array of SourceLocs, which contains:
+  /// If \c NumArgumentLabels == 0 and \c !HasModuleSelectorLoc, this is the
+  /// SourceLoc for the base name. Otherwise, it points to an array of
+  /// SourceLocs, which contains:
+  /// * The module selector location
   /// * The base name location
   /// * The left parentheses location
   /// * The right parentheses location
@@ -38,19 +40,21 @@ class DeclNameLoc {
   const void *LocationInfo;
 
   /// The number of argument labels stored in the name.
-  unsigned NumArgumentLabels;
+  uint32_t NumArgumentLabels;
+  bool HasModuleSelectorLoc;
 
   enum {
     BaseNameIndex = 0,
-    LParenIndex = 1,
-    RParenIndex = 2,
-    FirstArgumentLabelIndex = 3,
+    ModuleSelectorIndex = 1,
+    LParenIndex = 2,
+    RParenIndex = 3,
+    FirstArgumentLabelIndex = 4,
   };
 
   /// Retrieve a pointer to either the only source location that was
   /// stored or to the array of source locations that was stored.
   SourceLoc const * getSourceLocs() const {
-    if (NumArgumentLabels == 0) 
+    if (NumArgumentLabels == 0 && !HasModuleSelectorLoc)
       return reinterpret_cast<SourceLoc const *>(&LocationInfo);
 
     return reinterpret_cast<SourceLoc const *>(LocationInfo);
@@ -58,16 +62,30 @@ class DeclNameLoc {
 
 public:
   /// Create an invalid declaration name location.
-  DeclNameLoc() : LocationInfo(0), NumArgumentLabels(0) { }
+  DeclNameLoc()
+      : LocationInfo(0), NumArgumentLabels(0), HasModuleSelectorLoc(false) { }
 
   /// Create declaration name location information for a base name.
   explicit DeclNameLoc(SourceLoc baseNameLoc)
     : LocationInfo(baseNameLoc.getOpaquePointerValue()),
-      NumArgumentLabels(0) { }
+      NumArgumentLabels(0), HasModuleSelectorLoc(false) { }
+
+  explicit DeclNameLoc(ASTContext &ctx, SourceLoc moduleSelectorLoc,
+                       SourceLoc baseNameLoc)
+    : DeclNameLoc(ctx, moduleSelectorLoc, baseNameLoc,
+                  SourceLoc(), {}, SourceLoc()) { }
 
   /// Create declaration name location information for a compound
   /// name.
   DeclNameLoc(ASTContext &ctx, SourceLoc baseNameLoc,
+              SourceLoc lParenLoc,
+              ArrayRef<SourceLoc> argumentLabelLocs,
+              SourceLoc rParenLoc)
+    : DeclNameLoc(ctx, SourceLoc(), baseNameLoc,
+                  lParenLoc, argumentLabelLocs, rParenLoc) { }
+
+  DeclNameLoc(ASTContext &ctx, SourceLoc moduleSelectorLoc,
+              SourceLoc baseNameLoc,
               SourceLoc lParenLoc,
               ArrayRef<SourceLoc> argumentLabelLocs,
               SourceLoc rParenLoc);
@@ -105,8 +123,13 @@ public:
     return getSourceLocs()[FirstArgumentLabelIndex + index];
   }
 
+  SourceLoc getModuleSelectorLoc() const {
+    if (!HasModuleSelectorLoc) return SourceLoc();
+    return getSourceLocs()[ModuleSelectorIndex];
+  }
+
   SourceLoc getStartLoc() const {
-    return getBaseNameLoc();
+    return HasModuleSelectorLoc ? getModuleSelectorLoc() : getBaseNameLoc();
   }
 
   SourceLoc getEndLoc() const {
@@ -115,9 +138,7 @@ public:
   
   /// Retrieve the complete source range for this declaration name.
   SourceRange getSourceRange() const {
-    if (NumArgumentLabels == 0) return getBaseNameLoc();
-
-    return SourceRange(getBaseNameLoc(), getRParenLoc());
+    return SourceRange(getStartLoc(), getEndLoc());
   }
 };
 

@@ -2418,6 +2418,7 @@ class Serializer::DeclSerializer : public DeclVisitor<DeclSerializer> {
       auto theAttr = cast<DynamicReplacementAttr>(DA);
       auto replacedFun = theAttr->getReplacedFunctionName();
       SmallVector<IdentifierID, 4> pieces;
+      pieces.push_back(S.addDeclBaseNameRef(replacedFun.getModuleSelector()));
       pieces.push_back(S.addDeclBaseNameRef(replacedFun.getBaseName()));
       for (auto argName : replacedFun.getArgumentNames())
         pieces.push_back(S.addDeclBaseNameRef(argName));
@@ -2487,7 +2488,10 @@ class Serializer::DeclSerializer : public DeclVisitor<DeclSerializer> {
              "`@derivative` attribute should have original declaration set "
              "during construction or parsing");
       auto origDeclNameRef = attr->getOriginalFunctionName();
+      auto origModuleSelector = origDeclNameRef.Name.getModuleSelector();
       auto origName = origDeclNameRef.Name.getBaseName();
+      IdentifierID origModuleSelectorId =
+          S.addDeclBaseNameRef(origModuleSelector);
       IdentifierID origNameId = S.addDeclBaseNameRef(origName);
       DeclID origDeclID = S.addDeclRef(attr->getOriginalFunction(ctx));
       auto derivativeKind =
@@ -2502,9 +2506,9 @@ class Serializer::DeclSerializer : public DeclVisitor<DeclSerializer> {
       for (unsigned i : range(parameterIndices->getCapacity()))
         paramIndicesVector.push_back(parameterIndices->contains(i));
       DerivativeDeclAttrLayout::emitRecord(
-          S.Out, S.ScratchRecord, abbrCode, attr->isImplicit(), origNameId,
-          origAccessorKind.hasValue(), rawAccessorKind, origDeclID,
-          derivativeKind, paramIndicesVector);
+          S.Out, S.ScratchRecord, abbrCode, attr->isImplicit(),
+          origModuleSelectorId, origNameId, origAccessorKind.hasValue(),
+          rawAccessorKind, origDeclID, derivativeKind, paramIndicesVector);
       return;
     }
 

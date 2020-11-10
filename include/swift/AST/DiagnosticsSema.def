@@ -854,6 +854,16 @@ ERROR(cannot_find_type_in_scope,none,
       "cannot find type %0 in scope", (DeclNameRef))
 ERROR(cannot_find_type_in_scope_did_you_mean,none,
       "cannot find type %0 in scope; did you mean to use '%1'?", (DeclNameRef, StringRef))
+ERROR(type_not_in_module,none,
+      "type %0 is not imported through module %1", (DeclName, Identifier))
+ERROR(decl_not_in_module,none,
+      "declaration %0 is not imported through module %1", (DeclName, Identifier))
+NOTE(note_change_module_selector,none,
+     "did you mean module %0?", (Identifier))
+NOTE(note_remove_module_selector,none,
+     "did you mean the local declaration?", ())
+NOTE(note_add_explicit_self_with_module_selector,none,
+     "did you mean the member of 'self'?", ())
 NOTE(note_typo_candidate_implicit_member,none,
      "did you mean the implicitly-synthesized %1 '%0'?", (StringRef, StringRef))
 NOTE(note_remapped_type,none,

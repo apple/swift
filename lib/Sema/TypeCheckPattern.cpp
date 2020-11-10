@@ -118,7 +118,7 @@ static EnumElementDecl *
 lookupUnqualifiedEnumMemberElement(DeclContext *DC, DeclNameRef name,
                                    SourceLoc UseLoc) {
   // FIXME: We should probably pay attention to argument labels someday.
-  name = name.withoutArgumentLabels();
+  name = name.withoutArgumentLabels(DC->getASTContext());
 
   auto lookup =
       TypeChecker::lookupUnqualified(DC, name, UseLoc,
@@ -135,7 +135,7 @@ lookupEnumMemberElement(DeclContext *DC, Type ty,
     return nullptr;
 
   // FIXME: We should probably pay attention to argument labels someday.
-  name = name.withoutArgumentLabels();
+  name = name.withoutArgumentLabels(DC->getASTContext());
 
   // Look up the case inside the enum.
   // FIXME: We should be able to tell if this is a private lookup.

@@ -41,14 +41,14 @@ enum class ResolutionKind {
 
 void simple_display(llvm::raw_ostream &out, ResolutionKind kind);
 
-/// Performs a lookup into the given module and it's imports.
+/// Performs a lookup into the given module and its imports.
 ///
-/// If 'moduleOrFile' is a ModuleDecl, we search the module and it's
+/// If 'moduleOrFile' is a ModuleDecl, we search the module and its
 /// public imports. If 'moduleOrFile' is a SourceFile, we search the
 /// file's parent module, the module's public imports, and the source
 /// file's private imports.
 ///
-/// \param moduleOrFile The module or file unit whose imports to search.
+/// \param moduleOrFile The module or file unit to search, including imports.
 /// \param name The name to look up.
 /// \param[out] decls Any found decls will be added to this vector.
 /// \param lookupKind Whether this lookup is qualified or unqualified.

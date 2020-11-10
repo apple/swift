@@ -1,0 +1,42 @@
+// swift-interface-format-version: 1.0
+// swift-module-flags: -module-name ModuleSelectorTestingKit -swift-version 5
+
+import Swift
+
+// These types are identical; we just use them to test with different scope
+// selectors.
+
+public struct A {
+  public init(value: Swift.Int)
+  public dynamic mutating func negate()
+  public var magnitude: Swift.UInt
+}
+
+public struct B {
+  public init(value: Swift.Int)
+  public dynamic mutating func negate()
+  public var magnitude: Swift.UInt
+}
+
+public struct C {
+  public init(value: Int)
+  public dynamic mutating func negate()
+  public var magnitude: Swift.UInt
+}
+
+public struct D {
+  public init(value: Int)
+  public dynamic mutating func negate()
+  public var magnitude: Swift.UInt
+}
+
+@propertyWrapper
+public struct available {
+  public init() {}
+  public var wrappedValue: Int { 0 }
+}
+
+@_functionBuilder
+public struct MyBuilder {
+  public static func buildBlock()
+}

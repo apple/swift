@@ -33,6 +33,7 @@ namespace {
   class LookupResultBuilder {
     LookupResult &Result;
     DeclContext *DC;
+    Identifier ModuleSelector;
     NameLookupOptions Options;
 
     /// The vector of found declarations.
@@ -45,8 +46,9 @@ namespace {
 
   public:
     LookupResultBuilder(LookupResult &result, DeclContext *dc,
-                        NameLookupOptions options)
-      : Result(result), DC(dc), Options(options) {
+                        Identifier moduleSelector, NameLookupOptions options)
+      : Result(result), DC(dc), ModuleSelector(moduleSelector), Options(options)
+    {
       if (dc->getASTContext().isAccessControlDisabled())
         Options |= NameLookupFlags::IgnoreAccessControl;
     }
@@ -55,6 +57,11 @@ namespace {
       // Remove any overridden declarations from the found-declarations set.
       removeOverriddenDecls(FoundDecls);
       removeOverriddenDecls(FoundOuterDecls);
+
+      // Remove any declarations excluded by the module selector from the
+      // found-declarations set.
+      removeOutOfModuleDecls(FoundDecls, ModuleSelector, DC);
+      removeOutOfModuleDecls(FoundOuterDecls, ModuleSelector, DC);
 
       // Remove any shadowed declarations from the found-declarations set.
       removeShadowedDecls(FoundDecls, DC);
@@ -245,7 +252,7 @@ LookupResult TypeChecker::lookupUnqualified(DeclContext *dc, DeclNameRef name,
                                   UnqualifiedLookupRequest{descriptor}, {});
 
   LookupResult result;
-  LookupResultBuilder builder(result, dc, options);
+  LookupResultBuilder builder(result, dc, name.getModuleSelector(), options);
   for (auto idx : indices(lookup.allResults())) {
     const auto &found = lookup[idx];
     // Determine which type we looked through to find this result.
@@ -324,7 +331,7 @@ LookupResult TypeChecker::lookupMember(DeclContext *dc,
     current->synthesizeSemanticMembersIfNeeded(name.getFullName());
   }
 
-  LookupResultBuilder builder(result, dc, options);
+  LookupResultBuilder builder(result, dc, name.getModuleSelector(), options);
   SmallVector<ValueDecl *, 4> lookupResults;
   dc->lookupQualified(type, name, subOptions, lookupResults);
 

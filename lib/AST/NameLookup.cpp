@@ -256,6 +256,42 @@ enum class ConstructorComparison {
   Better,
 };
 
+bool swift::removeOutOfModuleDecls(SmallVectorImpl<ValueDecl*> &decls,
+                                   Identifier moduleSelector,
+                                   const DeclContext *dc) {
+  if (moduleSelector.empty())
+    return false;
+
+  ASTContext &ctx = dc->getASTContext();
+
+  // FIXME: Should we look this up relative to dc?
+  // We'd need a new ResolutionKind.
+  // FIXME: How can we diagnose this?
+  ModuleDecl *visibleFrom = ctx.getLoadedModule(moduleSelector);
+  if (!visibleFrom) {
+    LLVM_DEBUG(llvm::dbgs() << "no module " << moduleSelector << "\n");
+    decls.clear();
+    return true;
+  }
+
+  bool initialCount = decls.size();
+  decls.erase(
+    std::remove_if(decls.begin(), decls.end(), [&](ValueDecl *decl) -> bool {
+      bool inScope = ctx.getImportCache().isImportedBy(decl->getModuleContext(),
+                                                       visibleFrom);
+
+      LLVM_DEBUG(decl->dumpRef(llvm::dbgs()));
+      LLVM_DEBUG(llvm::dbgs() << ": " << decl->getModuleContext()->getName()
+                              << (inScope ? " is " : " is NOT ")
+                              << "selected by " << visibleFrom->getName()
+                              << "\n");
+
+      return !inScope;
+    }),
+    decls.end());
+  return initialCount != decls.size();
+}
+
 /// Determines whether \p ctor1 is a "better" initializer than \p ctor2.
 static ConstructorComparison compareConstructors(ConstructorDecl *ctor1,
                                                  ConstructorDecl *ctor2,
@@ -1565,14 +1601,17 @@ static bool isAcceptableLookupResult(const DeclContext *dc,
 }
 
 void namelookup::pruneLookupResultSet(const DeclContext *dc, NLOptions options,
+                                      Identifier moduleSelector,
                                       SmallVectorImpl<ValueDecl *> &decls) {
   // If we're supposed to remove overridden declarations, do so now.
   if (options & NL_RemoveOverridden)
     removeOverriddenDecls(decls);
 
   // If we're supposed to remove shadowed/hidden declarations, do so now.
-  if (options & NL_RemoveNonVisible)
+  if (options & NL_RemoveNonVisible) {
+    removeOutOfModuleDecls(decls, moduleSelector, dc);
     removeShadowedDecls(decls, dc);
+  }
 
   ModuleDecl *M = dc->getParentModule();
   filterForDiscriminator(decls, M->getDebugClient());
@@ -1804,7 +1843,7 @@ QualifiedLookupRequest::evaluate(Evaluator &eval, const DeclContext *DC,
     }
   }
 
-  pruneLookupResultSet(DC, options, decls);
+  pruneLookupResultSet(DC, options, member.getModuleSelector(), decls);
   if (auto *debugClient = DC->getParentModule()->getDebugClient()) {
     debugClient->finishLookupInNominals(DC, typeDecls, member.getFullName(),
                                         options, decls);
@@ -1856,7 +1895,7 @@ ModuleQualifiedLookupRequest::evaluate(Evaluator &eval, const DeclContext *DC,
     }
   }
 
-  pruneLookupResultSet(DC, options, decls);
+  pruneLookupResultSet(DC, options, member.getModuleSelector(), decls);
 
   if (auto *debugClient = DC->getParentModule()->getDebugClient()) {
     debugClient->finishLookupInModule(DC, module, member.getFullName(),
@@ -1919,7 +1958,7 @@ AnyObjectLookupRequest::evaluate(Evaluator &evaluator, const DeclContext *dc,
       decls.push_back(decl);
   }
 
-  pruneLookupResultSet(dc, options, decls);
+  pruneLookupResultSet(dc, options, member.getModuleSelector(), decls);
   if (auto *debugClient = dc->getParentModule()->getDebugClient()) {
     debugClient->finishLookupInAnyObject(dc, member.getFullName(), options,
                                          decls);

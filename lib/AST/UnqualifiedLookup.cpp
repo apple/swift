@@ -273,8 +273,9 @@ void UnqualifiedLookupFactory::performUnqualifiedLookup() {
                                   DC->getParentSourceFile());
 
   if (Loc.isValid()) {
-    // Operator lookup is always global, for the time being.
-    if (!Name.isOperator())
+    // Operator lookup is always global, for the time being. Unqualified lookups
+    // with module selectors always start at global scope.
+    if (!Name.isOperator() && !Name.hasModuleSelector())
       lookInASTScopes();
   } else {
     assert(DC->isModuleScopeContext() &&
@@ -379,14 +380,27 @@ void UnqualifiedLookupFactory::setAsideUnavailableResults(
 }
 
 void UnqualifiedLookupFactory::addImportedResults(const DeclContext *const dc) {
+  assert(dc);
+
   using namespace namelookup;
   SmallVector<ValueDecl *, 8> CurModuleResults;
   auto resolutionKind = isOriginallyTypeLookup ? ResolutionKind::TypesOnly
                                                : ResolutionKind::Overloadable;
+  auto moduleToLookIn = dc;
+  if (Name.hasModuleSelector())
+    // FIXME: Should we look this up relative to dc?
+    // We'd need a new ResolutionKind.
+    moduleToLookIn =
+        dc->getASTContext().getLoadedModule(Name.getModuleSelector());
+  
+  // If we didn't find the module, it obviously can't have any results.
+  if (!moduleToLookIn)
+    return;
+
   auto nlOptions = NL_UnqualifiedDefault;
   if (options.contains(Flags::IncludeUsableFromInline))
     nlOptions |= NL_IncludeUsableFromInline;
-  lookupInModule(dc, Name.getFullName(), CurModuleResults,
+  lookupInModule(moduleToLookIn, Name.getFullName(), CurModuleResults,
                  NLKind::UnqualifiedLookup, resolutionKind, dc, nlOptions);
 
   // Always perform name shadowing for type lookup.

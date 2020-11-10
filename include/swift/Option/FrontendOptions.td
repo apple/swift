@@ -390,6 +390,10 @@ def enable_sil_opaque_values : Flag<["-"], "enable-sil-opaque-values">,
 def enable_large_loadable_types : Flag<["-"], "enable-large-loadable-types">,
   HelpText<"Enable Large Loadable types IRGen pass">;
 
+def enable_experimental_module_selector :
+  Flag<["-"], "enable-experimental-module-selector">,
+  HelpText<"Enable experimental 'Module::name' syntax">;
+
 def enable_experimental_static_assert :
   Flag<["-"], "enable-experimental-static-assert">,
   HelpText<"Enable experimental #assert">;

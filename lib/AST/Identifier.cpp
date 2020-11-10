@@ -52,6 +52,8 @@ void swift::simple_display(llvm::raw_ostream &out, DeclName name) {
 }
 
 raw_ostream &llvm::operator<<(raw_ostream &OS, DeclNameRef I) {
+  if (I.hasModuleSelector())
+    OS << I.getModuleSelector() << "::";
   OS << I.getFullName();
   return OS;
 }
@@ -203,17 +205,27 @@ void DeclNameRef::dump() const {
 }
 
 StringRef DeclNameRef::getString(llvm::SmallVectorImpl<char> &scratch,
-                             bool skipEmptyArgumentNames) const {
-  return FullName.getString(scratch, skipEmptyArgumentNames);
+                                 bool skipEmptyArgumentNames) const {
+  {
+    llvm::raw_svector_ostream out(scratch);
+    print(out, skipEmptyArgumentNames);
+  }
+
+  return StringRef(scratch.data(), scratch.size());
 }
 
-llvm::raw_ostream &DeclNameRef::print(llvm::raw_ostream &os,
-                                  bool skipEmptyArgumentNames) const {
-  return FullName.print(os, skipEmptyArgumentNames);
+llvm::raw_ostream &
+DeclNameRef::print(llvm::raw_ostream &os,
+                   bool skipEmptyArgumentNames) const {
+  if (hasModuleSelector())
+    os << getModuleSelector() << "::";
+  return getFullName().print(os, skipEmptyArgumentNames);
 }
 
 llvm::raw_ostream &DeclNameRef::printPretty(llvm::raw_ostream &os) const {
-  return FullName.printPretty(os);
+  if (hasModuleSelector())
+    os << getModuleSelector() << "::";
+  return getFullName().printPretty(os);
 }
 
 ObjCSelector::ObjCSelector(ASTContext &ctx, unsigned numArgs,

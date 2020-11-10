@@ -610,6 +610,21 @@ public:
              Context.getIdentifier(tok.getText()));
   }
 
+  /// If the next two tokens appear to form a module selector, consume them and
+  /// diagnose an error. Call this method before consuming an identifier that
+  /// should *not* have a module selector before it.
+  ///
+  /// \param KindName A string describing the name or declaration being written.
+  /// \param IsDef If \c true, the identifier defines a declaration's name, and
+  /// \p KindName should be a string describing the declaration; if \c false,
+  /// the identifier does something else, and \p KindName should be a more
+  /// complete string.
+  ///
+  /// \returns true if a module selector was consumed and an error was diagnosed;
+  /// false otherwise.
+  bool
+  diagnoseAndConsumeIfModuleSelector(StringRef KindName, bool IsDef = true);
+
   /// Retrieve the location just past the end of the previous
   /// source location.
   SourceLoc getEndOfPreviousLoc() const;
@@ -786,6 +801,17 @@ public:
   SourceLoc
   consumeStartingCharacterOfCurrentToken(tok Kind = tok::oper_binary_unspaced,
                                          size_t Len = 1);
+
+  /// If the next token is \c tok::colon, consume it; if the next token is
+  /// \c tok::colon_colon, split it into two \c tok::colons and consume the
+  /// first; otherwise, do nothing and return false.
+  bool consumeIfColonSplittingDoubles() {
+    if (!Tok.isAny(tok::colon, tok::colon_colon))
+      return false;
+
+    consumeStartingCharacterOfCurrentToken(tok::colon);
+    return true;
+  }
 
   swift::ScopeInfo &getScopeInfo() { return State->getScopeInfo(); }
 
@@ -1523,6 +1549,10 @@ public:
     /// If passed, 'deinit' and 'subscript' should be parsed as special names,
     /// not ordinary identifiers.
     AllowKeywordsUsingSpecialNames = AllowKeywords | 1 << 2,
+
+    /// If passed, a module selector (ModuleName::) is permitted before the base
+    /// name.
+    AllowModuleSelector = 1 << 3,
 
     /// If passed, compound names with argument lists are allowed, unless they
     /// have empty argument lists.
