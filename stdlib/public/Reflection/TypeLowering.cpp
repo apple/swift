@@ -1937,8 +1937,28 @@ public:
 
         auto PayloadSize = EnumTypeInfo::getPayloadSizeForCases(Cases);
         BitMask spareBitsMask(PayloadSize);
-        auto validSpareBitsMask = populateSpareBitsMask(Cases, spareBitsMask);
 
+/*
+        // If present, use the spare bit mask data provided by the compiler
+        if (readSpareBitsMask(XYZ, spareBitsMask)) {
+          if (spareBitsMask.isZero()) {
+            // If there are no spare bits, use the "simple" tag-only implementation.
+            return TC.makeTypeInfo<SimpleMultiPayloadEnumTypeInfo>(
+              Size, Alignment, Stride, NumExtraInhabitants,
+              BitwiseTakable, Cases);
+          } else {
+            // General case using a mix of spare bits and extra tag
+            return TC.makeTypeInfo<MultiPayloadEnumTypeInfo>(
+              Size, Alignment, Stride, NumExtraInhabitants,
+              BitwiseTakable, Cases, spareBitsMask);
+          }
+        }
+*/
+
+        // If there was no compiler data, try computing the mask ourselves
+        // (This is less robust, but necessary to support images from older
+        // compilers.)
+        auto validSpareBitsMask = populateSpareBitsMask(Cases, spareBitsMask);
         if (!validSpareBitsMask) {
           // If we couldn't correctly determine the spare bits mask,
           // return a TI that will always fail when asked for XIs or value.
@@ -1960,23 +1980,6 @@ public:
             BitwiseTakable, Cases, spareBitsMask);
         }
 
-/*
-        auto PayloadSize = EnumTypeInfo::getPayloadSizeForCases(Cases);
-        BitMask spareBitsMask(PayloadSize);
-        if (readSpareBitsMask(XYZ, spareBitsMask)) {
-          if (spareBitsMask.isZero()) {
-            // If there are no spare bits, use the "simple" tag-only implementation.
-            return TC.makeTypeInfo<SimpleMultiPayloadEnumTypeInfo>(
-              Size, Alignment, Stride, NumExtraInhabitants,
-              BitwiseTakable, Cases);
-          } else {
-            // General case using a mix of spare bits and extra tag
-            return TC.makeTypeInfo<MultiPayloadEnumTypeInfo>(
-              Size, Alignment, Stride, NumExtraInhabitants,
-              BitwiseTakable, Cases, spareBitsMask);
-          }
-        }
-*/
       } else {
         // Dynamic multi-payload enums cannot use spare bits, so they
         // always use a separate tag value:
