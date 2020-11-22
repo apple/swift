@@ -1,4 +1,4 @@
-// RUN: %empty-directory(%t) && %target-swift-frontend -c -update-code -primary-file %s -emit-migrated-file-path %t/migrated_null_migration.swift -emit-remap-file-path %t/null_migration.remap -o /dev/null
+// RUN: %empty-directory(%t) && %target-swift-frontend -c -swift-version 4 -update-code -primary-file %s -emit-migrated-file-path %t/migrated_null_migration.swift -emit-remap-file-path %t/null_migration.remap -o /dev/null
 // RUN: %diff -u %s %t/migrated_null_migration.swift
 
 // This file tests that, if all migration passes are no-op,

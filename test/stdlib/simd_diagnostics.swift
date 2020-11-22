@@ -5,15 +5,15 @@
 
 import simd
 
-let a = int4(0) + int4(0) // expected-error{{'+' is unavailable: integer vector types do not support checked arithmetic; use the wrapping operator '&+' instead}}
-let b = int4(0) - int4(0) // expected-error{{'-' is unavailable: integer vector types do not support checked arithmetic; use the wrapping operator '&-' instead}}
-let c = int4(0) * int4(0) // expected-error{{'*' is unavailable: integer vector types do not support checked arithmetic; use the wrapping operator '&*' instead}}
-let x = int4(0) * (0 as Int32) // expected-error{{'*' is unavailable: integer vector types do not support checked arithmetic; use the wrapping operator '&*' instead}}
-let y = (0 as Int32) * int4(0) // expected-error{{'*' is unavailable: integer vector types do not support checked arithmetic; use the wrapping operator '&*' instead}}
+let a = SIMD4<Int32>(repeating: 0) + SIMD4<Int32>(repeating: 0) // expected-error{{'+' is unavailable: integer vector types do not support checked arithmetic; use the wrapping operator '&+' instead}}
+let b = SIMD4<Int32>(repeating: 0) - SIMD4<Int32>(repeating: 0) // expected-error{{'-' is unavailable: integer vector types do not support checked arithmetic; use the wrapping operator '&-' instead}}
+let c = SIMD4<Int32>(repeating: 0) * SIMD4<Int32>(repeating: 0) // expected-error{{'*' is unavailable: integer vector types do not support checked arithmetic; use the wrapping operator '&*' instead}}
+let x = SIMD4<Int32>(repeating: 0) * (0 as Int32) // expected-error{{'*' is unavailable: integer vector types do not support checked arithmetic; use the wrapping operator '&*' instead}}
+let y = (0 as Int32) * SIMD4<Int32>(repeating: 0) // expected-error{{'*' is unavailable: integer vector types do not support checked arithmetic; use the wrapping operator '&*' instead}}
 
-var d = int4(0)
-d += int4(0) // expected-error{{'+=' is unavailable: integer vector types do not support checked arithmetic; use the wrapping operator '&+=' instead}}
-d -= int4(0) // expected-error{{'-=' is unavailable: integer vector types do not support checked arithmetic; use the wrapping operator '&-=' instead}}
-d *= int4(0) // expected-error{{'*=' is unavailable: integer vector types do not support checked arithmetic; use the wrapping operator '&*=' instead}}
+var d = SIMD4<Int32>(repeating: 0)
+d += SIMD4<Int32>(repeating: 0) // expected-error{{'+=' is unavailable: integer vector types do not support checked arithmetic; use the wrapping operator '&+=' instead}}
+d -= SIMD4<Int32>(repeating: 0) // expected-error{{'-=' is unavailable: integer vector types do not support checked arithmetic; use the wrapping operator '&-=' instead}}
+d *= SIMD4<Int32>(repeating: 0) // expected-error{{'*=' is unavailable: integer vector types do not support checked arithmetic; use the wrapping operator '&*=' instead}}
 d *= 0 // expected-error{{'*=' is unavailable: integer vector types do not support checked arithmetic; use the wrapping operator '&*=' instead}}
 

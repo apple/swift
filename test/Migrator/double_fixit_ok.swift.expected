@@ -1,5 +1,5 @@
 // RUN: %empty-directory(%t)
-// RUN: not %target-swift-frontend -typecheck -update-code -primary-file %s -emit-migrated-file-path %t/double_fixit_ok.result -swift-version 4
+// RUN: not %target-swift-frontend -swift-version 4 -typecheck -update-code -primary-file %s -emit-migrated-file-path %t/double_fixit_ok.result -swift-version 4
 // RUN: %diff -u %s.expected %t/double_fixit_ok.result
 // RUN: %target-swift-frontend -typecheck %s.expected -swift-version 5
 

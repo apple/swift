@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift.org open source project
 //
-// Copyright (c) 2014 - 2017 Apple Inc. and the Swift project authors
+// Copyright (c) 2014 - 2020 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -20,7 +20,7 @@ let FilterTests = TestSuite("Filter")
 // Check that the generic parameter is called 'Base'.
 protocol TestProtocol1 {}
 
-extension LazyFilterIterator where Base : TestProtocol1 {
+extension LazyFilterSequence.Iterator where Base : TestProtocol1 {
   var _baseIsTestProtocol1: Bool {
     fatalError("not implemented")
   }

@@ -15,7 +15,7 @@
 // Check that the generic parameters are called 'Base' and 'Element'.
 protocol TestProtocol1 {}
 
-extension LazyMapIterator where Base : TestProtocol1, Element : TestProtocol1 {
+extension LazyMapSequence.Iterator where Base : TestProtocol1, Element : TestProtocol1 {
   var _baseIsTestProtocol1: Bool {
     fatalError("not implemented")
   }

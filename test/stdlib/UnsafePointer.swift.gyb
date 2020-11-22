@@ -28,7 +28,7 @@ extension UnsafeMutablePointer where Pointee : TestProtocol1 {
 }
 
 // Check that the generic parameter is called 'Element'.
-extension UnsafeBufferPointerIterator where Element : TestProtocol1 {
+extension UnsafeBufferPointer.Iterator where Element : TestProtocol1 {
   var _elementIsTestProtocol1: Bool {
     fatalError("not implemented")
   }
@@ -61,12 +61,12 @@ var OpaquePointerTestSuite = TestSuite("OpaquePointer")
 ${SelfName}TestSuite.test("initFromOpaquePointer") {
   let other = OpaquePointer(bitPattern: 0x12345678)!
   let ptr = ${SelfType}(other)
-  expectEqual(0x12345678, unsafeBitCast(ptr, to: Int.self))
+  expectEqual(0x12345678, Int(bitPattern: ptr))
 
   let optionalOther: Optional = other
   let optionalPointer = ${SelfType}(optionalOther)
   expectNotNil(optionalPointer)
-  expectEqual(0x12345678, unsafeBitCast(optionalPointer, to: Int.self))
+  expectEqual(0x12345678, Int(bitPattern: optionalPointer))
 
   let nilOther: Optional<OpaquePointer> = nil
   let nilPointer = ${SelfType}(nilOther)
@@ -81,7 +81,7 @@ ${SelfName}TestSuite.test("initFromOpaquePointer") {
 UnsafeMutableRawPointerTestSuite.test("initFromMutating") {
   let other = UnsafeRawPointer(bitPattern: 0x12345678)!
   let ptr = UnsafeMutableRawPointer(mutating: other)
-  expectEqual(0x12345678, unsafeBitCast(ptr, to: Int.self))
+  expectEqual(0x12345678, Int(bitPattern: ptr))
 
   let optionalOther: Optional = other
   let optionalPointer = UnsafeMutableRawPointer(mutating: optionalOther)
@@ -175,12 +175,12 @@ ${SelfName}TestSuite.test("toInteger") {
 ${SelfName}TestSuite.test("initFromUnsafeMutablePointer") {
   let other = UnsafeMutablePointer<Float>(bitPattern: 0x12345678)!
   let ptr = ${SelfType}(other)
-  expectEqual(0x12345678, unsafeBitCast(ptr, to: Int.self))
+  expectEqual(0x12345678, Int(bitPattern: ptr))
 
   let optionalOther: Optional = other
   let optionalPointer = ${SelfType}(optionalOther)
   expectNotNil(optionalPointer)
-  expectEqual(0x12345678, unsafeBitCast(optionalPointer, to: Int.self))
+  expectEqual(0x12345678, Int(bitPattern: optionalPointer))
 
   let nilOther: Optional<UnsafeMutablePointer<Float>> = nil
   let nilPointer = ${SelfType}(nilOther)
@@ -196,12 +196,12 @@ ${SelfName}TestSuite.test("initFromUnsafeMutablePointer") {
 ${SelfName}TestSuite.test("initFromUnsafePointer") {
   let other = UnsafePointer<Float>(bitPattern: 0x12345678)!
   let ptr = ${SelfType}(other)
-  expectEqual(0x12345678, unsafeBitCast(ptr, to: Int.self))
+  expectEqual(0x12345678, Int(bitPattern: ptr))
 
   let optionalOther: Optional = other
   let optionalPointer = ${SelfType}(optionalOther)
   expectNotNil(optionalPointer)
-  expectEqual(0x12345678, unsafeBitCast(optionalPointer, to: Int.self))
+  expectEqual(0x12345678, Int(bitPattern: optionalPointer))
 
   let nilOther: Optional<UnsafePointer<Float>> = nil
   let nilPointer = ${SelfType}(nilOther)
@@ -213,7 +213,7 @@ ${SelfName}TestSuite.test("initFromUnsafePointer") {
 UnsafeRawPointerTestSuite.test("initFromUnsafeMutableRawPointer") {
   let other = UnsafeMutableRawPointer(bitPattern: 0x12345678)!
   let ptr = UnsafeRawPointer(other)
-  expectEqual(0x12345678, unsafeBitCast(ptr, to: Int.self))
+  expectEqual(0x12345678, Int(bitPattern: ptr))
 
   let optionalOther: Optional = other
   let optionalPointer = UnsafeRawPointer(optionalOther)
@@ -357,7 +357,7 @@ UnsafeMutablePointerTestSuite.test("initialize:from:.Right") {
 }
 
 UnsafeMutablePointerTestSuite.test("initialize:from:/immutable") {
-  var ptr = UnsafeMutablePointer<Missile>.allocate(capacity: 3)
+  let ptr = UnsafeMutablePointer<Missile>.allocate(capacity: 3)
   defer {
     ptr.deinitialize(count: 3)
     ptr.deallocate()
@@ -372,7 +372,7 @@ UnsafeMutablePointerTestSuite.test("initialize:from:/immutable") {
 }
 
 UnsafeMutablePointerTestSuite.test("assign/immutable") {
-  var ptr = UnsafeMutablePointer<Missile>.allocate(capacity: 2)
+  let ptr = UnsafeMutablePointer<Missile>.allocate(capacity: 2)
   defer {
     ptr.deinitialize(count: 2)
     ptr.deallocate()
@@ -462,9 +462,9 @@ ${SelfName}TestSuite.test("withMemoryRebound") {
   let ptrI = ${SelfName}<Int>(mutablePtrI)
   ptrI.withMemoryRebound(to: UInt.self, capacity: 4) {
     // Make sure the closure argument isa $SelfName
-    var ptrU: ${SelfName}<UInt> = $0
+    let ptrU: ${SelfName}<UInt> = $0
     // and that the element type is UInt.
-    var mutablePtrU = UnsafeMutablePointer(mutating: ptrU)
+    let mutablePtrU = UnsafeMutablePointer(mutating: ptrU)
     expectType(UInt.self, &mutablePtrU.pointee)
   }
 }

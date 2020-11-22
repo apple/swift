@@ -13,13 +13,11 @@ func testIntSubscripting(s: String, i: Int) {
   _ = s[17..<20] // expected-error{{'subscript(_:)' is unavailable: cannot subscript String with an integer range, use a String.Index range instead.}}
   _ = s[17...20] // expected-error{{'subscript(_:)' is unavailable: cannot subscript String with an integer range, use a String.Index range instead.}}
 
+  let r1 = 17 ..< 20
+  let r2 = 17 ... 20
   _ = s[Range(i...i)] // expected-error{{'subscript(_:)' is unavailable: cannot subscript String with an integer range, use a String.Index range instead.}}
-  _ = s[Range(17..<20)] // expected-error{{'subscript(_:)' is unavailable: cannot subscript String with an integer range, use a String.Index range instead.}}
-  _ = s[Range(17...20)] // expected-error{{'subscript(_:)' is unavailable: cannot subscript String with an integer range, use a String.Index range instead.}}
-
-  _ = s[Range(i...i)] // expected-error{{'subscript(_:)' is unavailable: cannot subscript String with an integer range, use a String.Index range instead.}}
-  _ = s[Range(17..<20)] // expected-error{{'subscript(_:)' is unavailable: cannot subscript String with an integer range, use a String.Index range instead.}}
-  _ = s[Range(17...20)] // expected-error{{'subscript(_:)' is unavailable: cannot subscript String with an integer range, use a String.Index range instead.}}
+  _ = s[r1] // expected-error{{'subscript(_:)' is unavailable: cannot subscript String with an integer range, use a String.Index range instead.}}
+  _ = s[r2] // expected-error{{'subscript(_:)' is unavailable: cannot subscript String with an integer range, use a String.Index range instead.}}
 }
 
 func testNonAmbiguousStringComparisons() {

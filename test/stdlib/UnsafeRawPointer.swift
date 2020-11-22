@@ -42,8 +42,12 @@ UnsafeMutableRawPointerExtraTestSuite.test("initializeMemory") {
     expectEqual(2, ptrM2[1].number)
     expectEqual(2, ptrM2[2].number)
 
-    ptrM = p1.initializeMemory(
-      as: Missile.self, from: (1...3).map(Missile.init))
+    (1...3).map(Missile.init).withUnsafeBufferPointer { b in
+      ptrM = p1.initializeMemory(
+        as: Missile.self,
+        from: b.baseAddress!,
+        count: b.count)
+    }
     defer {
       ptrM.deinitialize(count: 3)
     }
@@ -79,7 +83,9 @@ UnsafeMutableRawPointerExtraTestSuite.test("load/store") {
   defer {
     p1.deallocate()
   }
-  let ptrI = p1.initializeMemory(as: Int.self, from: 1...3)
+  let ptrI = [1, 2, 3].withUnsafeBufferPointer { b in
+    p1.initializeMemory(as: Int.self, from: b.baseAddress!, count: b.count)
+  }
   defer {
     ptrI.deinitialize(count: 3)
   }

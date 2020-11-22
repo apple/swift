@@ -1,7 +1,7 @@
 // REQUIRES: objc_interop
 // RUN: %empty-directory(%t.mod)
-// RUN: %target-swift-frontend -emit-module -o %t.mod/Cities.swiftmodule %S/Inputs/Cities.swift -module-name Cities -parse-as-library
-// RUN: %empty-directory(%t) && %target-swift-frontend -c -update-code -disable-migrator-fixits -I %t.mod -primary-file %s -api-diff-data-file %S/Inputs/API-function-hoist.json -emit-migrated-file-path %t/function-hoist.swift.result -emit-remap-file-path %t/function-hoist.swift.remap -o /dev/null
+// RUN: %target-swift-frontend -swift-version 4 -emit-module -o %t.mod/Cities.swiftmodule %S/Inputs/Cities.swift -module-name Cities -parse-as-library
+// RUN: %empty-directory(%t) && %target-swift-frontend -c -swift-version 4 -update-code -disable-migrator-fixits -I %t.mod -primary-file %s -api-diff-data-file %S/Inputs/API-function-hoist.json -emit-migrated-file-path %t/function-hoist.swift.result -emit-remap-file-path %t/function-hoist.swift.remap -o /dev/null
 // RUN: diff -u %S/function-hoist.swift.expected %t/function-hoist.swift.result
 
 import Cities

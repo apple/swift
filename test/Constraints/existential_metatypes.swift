@@ -86,6 +86,9 @@ func testP3(_ p: P3, something: Something) {
   p.withP3(Something.takeP3(something))
 }
 
-func testIUOToAny(_ t: AnyObject.Type!) {
-  let _: Any = t
+func testIUOToAny(_ t: AnyObject.Type!) { // expected-note {{implicitly unwrapped parameter 't' declared here}}
+  let _: Any = t // expected-warning {{coercion of implicitly unwrappable value of type 'AnyObject.Type?' to 'Any' does not unwrap optional}}
+  // expected-note@-1 {{force-unwrap the value to avoid this warning}}
+  // expected-note@-2 {{provide a default value to avoid this warning}}
+  // expected-note@-3 {{explicitly cast to 'Any' with 'as Any' to silence this warning}}
 }

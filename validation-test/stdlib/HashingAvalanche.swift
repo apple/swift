@@ -22,7 +22,7 @@ func avalancheTest<Input: FixedWidthInteger & UnsignedInteger>(
   for inputBit in 0..<Input.bitWidth {
     // Using an array here makes the test too slow.
     let bitFlips = UnsafeMutablePointer<Int>.allocate(capacity: Output.bitWidth)
-    bitFlips.initialize(to: 0, count: Output.bitWidth)
+    bitFlips.initialize(repeating: 0, count: Output.bitWidth)
     for i in testData.indices {
       let inputA = testData[i]
       let outputA = testDataHashed[i]

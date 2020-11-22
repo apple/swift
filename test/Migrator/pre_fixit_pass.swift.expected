@@ -1,5 +1,5 @@
 // REQUIRES: objc_interop
-// RUN: %empty-directory(%t) && not %target-swift-frontend -c -update-code -primary-file %s -F %S/mock-sdk -api-diff-data-file %S/Inputs/API.json -emit-migrated-file-path %t/pre_fixit_pass.swift.result -o /dev/null
+// RUN: %empty-directory(%t) && not %target-swift-frontend -c -swift-version 4 -update-code -primary-file %s -F %S/mock-sdk -api-diff-data-file %S/Inputs/API.json -emit-migrated-file-path %t/pre_fixit_pass.swift.result -o /dev/null
 // RUN: diff -u %S/pre_fixit_pass.swift.expected %t/pre_fixit_pass.swift.result
 
 import Bar

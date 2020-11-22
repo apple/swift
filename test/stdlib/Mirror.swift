@@ -969,6 +969,7 @@ mirrors.test("Invalid Path Type")
   _ = m.descendant(X())
 }
 
+#if swift(<5) // CustomPlaygroundQuickLookable was obsoleted in Swift 5
 mirrors.test("PlaygroundQuickLook") {
   // Customization works.
   struct CustomQuickie : CustomPlaygroundQuickLookable {
@@ -1036,6 +1037,7 @@ mirrors.test("_DefaultCustomPlaygroundQuickLookable") {
   default: expectUnreachable("FancyChild custom quicklookable was expected")
   }
 }
+#endif
 
 mirrors.test("String.init") {
   expectEqual("42", String(42))

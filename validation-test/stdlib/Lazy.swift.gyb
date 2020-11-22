@@ -78,7 +78,7 @@ LazyTestSuite.test("Repeated")
 // Check that the generic parameter is called 'Element'.
 // FIXME: this should be extension CollectionOfOne.Iterator, but this needs
 // a fix to the compiler.
-extension IteratorOverOne where Element : TestProtocol1 {
+extension CollectionOfOne.Iterator where Element : TestProtocol1 {
   var _elementIsTestProtocol1: Bool {
     fatalError("not implemented")
   }
@@ -368,7 +368,7 @@ LazyTestSuite.test("EmptyCollection/_failEarlyRangeCheck/NoTrap") {
 //===----------------------------------------------------------------------===//
 
 // Check that the generic parameter is called 'Element'.
-extension EmptyIterator where Element : TestProtocol1 {
+extension EmptyCollection.Iterator where Element : TestProtocol1 {
   var _elementIsTestProtocol1: Bool {
     fatalError("not implemented")
   }
@@ -552,7 +552,7 @@ LazyTestSuite.test("Lazy${TraversalCollection}.array") {
 LazyTestSuite.test("Lazy${TraversalCollection}.reversed") {
   let base = Minimal${TraversalCollection}(
     elements: [ 0, 30, 10, 90 ].map(OpaqueValue.init),
-    underestimatedCount: .value(42))
+    underestimatedCount: .value(4))
   var reversed = base.lazy.reversed()
   expectType(
     ${ReversedType}<LazyCollection
@@ -563,10 +563,17 @@ LazyTestSuite.test("Lazy${TraversalCollection}.reversed") {
   check${Traversal}Collection(expected, reversed) { $0.value == $1.value }
 
   var reversedTwice = reversed.reversed()
+#if swift(<4.2)
   expectType(
     ${ReversedType}<${ReversedType}<LazyCollection<
       Minimal${TraversalCollection}<OpaqueValue<Int>>
     >>>.self, &reversedTwice)
+#else
+  // Reversing twice gets back the original collection in Swift 5+
+  expectType(
+    LazyCollection<Minimal${TraversalCollection}<OpaqueValue<Int>>>.self,
+    &reversedTwice)
+#endif
 
   check${Traversal}Collection(
     [ 0, 30, 10, 90 ].map(OpaqueValue.init) as [OpaqueValue<Int>],

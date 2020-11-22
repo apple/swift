@@ -234,7 +234,7 @@ class TestIndexSet : TestIndexSetSuper {
             expectEqual(ranges.count, view.count)
 
             for i in 0 ..< min(ranges.count, view.count) {
-                expectEqual(Range(ranges[i]), Range(view[i]))
+                expectEqual(ranges[i], view[i])
             }
         }
 
@@ -243,8 +243,8 @@ class TestIndexSet : TestIndexSetSuper {
         var indexes = IndexSet()
         indexes.insert(integersIn: 2..<5)
         indexes.insert(integersIn: 8...10)
-        indexes.insert(integersIn: Range(15..<20))
-        indexes.insert(integersIn: Range(30...39))
+        indexes.insert(integersIn: 15..<20)
+        indexes.insert(integersIn: 30...39)
         indexes.insert(integersIn: 60..<80)
 
         // Empty ranges should yield no results:

@@ -1,5 +1,5 @@
 // RUN: %empty-directory(%t)
-// RUN: %target-build-swift %s -o %t/a.out && %target-codesign %t/a.out && %target-run %t/a.out
+// RUN: %target-build-swift -swift-version 4 %s -o %t/a.out && %target-codesign %t/a.out && %target-run %t/a.out
 
 // REQUIRES: executable_test
 

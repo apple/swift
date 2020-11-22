@@ -32,8 +32,8 @@ class MyDimensionalUnit : Dimension {
     class var unitMegaA : MyDimensionalUnit {
         return MyDimensionalUnit(symbol: "Ma", converter: UnitConverterLinear(coefficient: 1_000_000))
     }
-    override class func baseUnit() -> MyDimensionalUnit {
-        return MyDimensionalUnit.unitA
+    override class func baseUnit() -> Self {
+        return MyDimensionalUnit.unitA as! Self
     }
 }
 

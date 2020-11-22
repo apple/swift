@@ -1,6 +1,6 @@
 // REQUIRES: objc_interop
 // RUN: %empty-directory(%t)
-// RUN: %target-swift-frontend -c -update-code -primary-file %s -F %S/mock-sdk -api-diff-data-file %S/Inputs/API.json -emit-migrated-file-path %t/property.swift.result -disable-migrator-fixits -o /dev/null
+// RUN: %target-swift-frontend -c -swift-version 4 -update-code -primary-file %s -F %S/mock-sdk -api-diff-data-file %S/Inputs/API.json -emit-migrated-file-path %t/property.swift.result -disable-migrator-fixits -o /dev/null
 // RUN: diff -u %S/property.swift.expected %t/property.swift.result
 
 import Bar

@@ -18,12 +18,12 @@ var CollectionTests = TestSuite("Collection")
 
 // Test collections using value types as elements.
 CollectionTests.addRandomAccessCollectionTests(
-  makeCollection: { (elements: [OpaqueValue<Int>]) -> LazyMapRandomAccessCollection<MinimalRandomAccessCollection<OpaqueValue<Int>>, OpaqueValue<Int>> in
+  makeCollection: { (elements: [OpaqueValue<Int>]) -> LazyMapCollection<MinimalRandomAccessCollection<OpaqueValue<Int>>, OpaqueValue<Int>> in
     MinimalRandomAccessCollection(elements: elements).lazy.map(identity)
   },
   wrapValue: identity,
   extractValue: identity,
-  makeCollectionOfEquatable: { (elements: [MinimalEquatableValue]) -> LazyMapRandomAccessCollection<MinimalRandomAccessCollection<MinimalEquatableValue>, MinimalEquatableValue> in
+  makeCollectionOfEquatable: { (elements: [MinimalEquatableValue]) -> LazyMapCollection<MinimalRandomAccessCollection<MinimalEquatableValue>, MinimalEquatableValue> in
     MinimalRandomAccessCollection(elements: elements).lazy.map(identityEq)
   },
   wrapValueIntoEquatable: identityEq,
@@ -32,7 +32,7 @@ CollectionTests.addRandomAccessCollectionTests(
 
 // Test collections using reference types as elements.
 CollectionTests.addRandomAccessCollectionTests(
-  makeCollection: { (elements: [LifetimeTracked]) -> LazyMapRandomAccessCollection<MinimalRandomAccessCollection<LifetimeTracked>, LifetimeTracked> in
+  makeCollection: { (elements: [LifetimeTracked]) -> LazyMapCollection<MinimalRandomAccessCollection<LifetimeTracked>, LifetimeTracked> in
     MinimalRandomAccessCollection(elements: elements).lazy.map { $0 }
   },
   wrapValue: { (element: OpaqueValue<Int>) in
@@ -41,7 +41,7 @@ CollectionTests.addRandomAccessCollectionTests(
   extractValue: { (element: LifetimeTracked) in
     OpaqueValue(element.value, identity: element.identity)
   },
-  makeCollectionOfEquatable: { (elements: [LifetimeTracked]) -> LazyMapRandomAccessCollection<MinimalRandomAccessCollection<LifetimeTracked>, LifetimeTracked> in
+  makeCollectionOfEquatable: { (elements: [LifetimeTracked]) -> LazyMapCollection<MinimalRandomAccessCollection<LifetimeTracked>, LifetimeTracked> in
     MinimalRandomAccessCollection(elements: elements).lazy.map { $0 }
   },
   wrapValueIntoEquatable: { (element: MinimalEquatableValue) in

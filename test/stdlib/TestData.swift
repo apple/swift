@@ -3896,7 +3896,7 @@ class TestData : TestDataSuper {
         let slice = data[3...] // Bar
 
         let range = slice.range(of: "a".data(using: .ascii)!)
-        expectEqual(range, Range<Data.Index>(4..<5))
+        expectEqual(range, 4..<5)
     }
 
     func test_nsdataSequence() {

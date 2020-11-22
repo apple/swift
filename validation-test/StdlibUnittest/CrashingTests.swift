@@ -26,7 +26,7 @@ private func fatalErrorWithDelayIfNeeded(
   #if os(Windows)
     Sleep(1)
   #endif
-  fatalError(message, file: file, line: line)
+  fatalError(message(), file: file, line: line)
 }
 
 //
