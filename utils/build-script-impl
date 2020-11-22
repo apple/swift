@@ -1619,9 +1619,14 @@ for host in "${ALL_HOSTS[@]}"; do
 
             llvm)
                 if [ "${BUILD_LLVM}" == "0" ] ; then
-                    build_targets=(clean)
+                    build_targets=()
                 fi
-                if [[ "${SKIP_BUILD}" || "${SKIP_BUILD_LLVM}" ]] ; then
+
+                if [[ "${BUILD_SWIFT_TOOLS}" == "0" && "${SWIFT_INCLUDE_TESTS}" == "0" ]] ; then
+                    # If we're building standalone stdlib (not the compiler) and we don't include tests,
+                    # we can skip building LLVM altogether.
+                    build_targets=()
+                elif [[ "${SKIP_BUILD}" || "${SKIP_BUILD_LLVM}" ]] ; then
                     # We can't skip the build completely because the standalone
                     # build of Swift depend on these for building and testing.
                     build_targets=(llvm-tblgen clang-resource-headers intrinsics_gen clang-tablegen-targets)
@@ -2477,7 +2482,9 @@ for host in "${ALL_HOSTS[@]}"; do
                 call "${CMAKE_BUILD[@]}" "${build_dir}" $(cmake_config_opt ${product})
             fi
 
-            call "${CMAKE_BUILD[@]}" "${build_dir}" $(cmake_config_opt ${product}) -- "${BUILD_ARGS[@]}" ${build_targets[@]}
+            if [[ ${#build_targets[@]} -gt 0 ]] ; then
+                call "${CMAKE_BUILD[@]}" "${build_dir}" $(cmake_config_opt ${product}) -- "${BUILD_ARGS[@]}" ${build_targets[@]}
+            fi
         fi
 
         # When we are building LLVM copy over the compiler-rt
