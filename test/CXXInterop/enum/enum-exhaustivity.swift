@@ -1,6 +1,6 @@
-// RUN: %target-swift-frontend -typecheck %s -I %S/Inputs/custom-modules -verify -warnings-as-errors -enable-nonfrozen-enum-exhaustivity-diagnostics
+// RUN: %target-swift-frontend -typecheck %s -I %S/Inputs -verify -warnings-as-errors -enable-nonfrozen-enum-exhaustivity-diagnostics
 
-// RUN: %target-swift-ide-test -source-filename %s -print-module -module-to-print EnumExhaustivity -I %S/Inputs/custom-modules | %FileCheck %s
+// RUN: %target-swift-ide-test -source-filename %s -print-module -module-to-print EnumExhaustivity -I %S/Inputs | %FileCheck %s
 
 // CHECK-LABEL: {{^}}enum RegularEnum : {{.+}} {
 // CHECK:      case A

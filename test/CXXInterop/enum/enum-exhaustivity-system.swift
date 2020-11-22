@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend -typecheck %s -Xcc -isystem -Xcc %S/Inputs/custom-modules -verify -enable-nonfrozen-enum-exhaustivity-diagnostics
+// RUN: %target-swift-frontend -typecheck %s -Xcc -isystem -Xcc %S/Inputs -verify -enable-nonfrozen-enum-exhaustivity-diagnostics
 
 import EnumExhaustivity
 

@@ -1,0 +1,8 @@
+module EnumAnon {
+  header "enum-anon.h"
+}
+
+module EnumExhaustivity {
+  header "EnumExhaustivity.h"
+  export *
+}

@@ -1,4 +1,7 @@
-// RUN: %target-swift-frontend -emit-ir %s -enable-objc-interop -import-objc-header %S/Inputs/enum-anon.h | %FileCheck -check-prefix=CHECK -check-prefix=CHECK-%target-runtime %s
+// RUN: %target-swift-frontend -emit-ir %s -I %S/Inputs | %FileCheck -check-prefix=CHECK %s
+// RUN: %target-swift-frontend -emit-ir %s -I %S/Inputs -enable-cxx-interop | %FileCheck -check-prefix=CHECK %s
+
+import EnumAnon
 
 func verifyIsInt(_: inout Int) { }
 func verifyIsInt32(_: inout Int32) { }
@@ -22,11 +25,6 @@ verifyIsInt32(&c)
 public func testIR(x: UnsafePointer<SR2511>) -> CInt {
   // CHECK: store i32 1, i32* getelementptr inbounds ([[ENUM_TYPE]], [[ENUM_TYPE]]* bitcast (i32* @global to [[ENUM_TYPE]]*), i32 0, i32 0), align 4
   global = VarConstant2
-
-#if _runtime(_ObjC)
-  // CHECK-objc: store i16 1, i16* getelementptr inbounds (%Ts6UInt16V, %Ts6UInt16V* bitcast (i16* @usGlobal to %Ts6UInt16V*), i32 0, i32 0), align 2
-  usGlobal = USVarConstant2
-#endif
 
   // Force the definition of the type above.
   // CHECK: ret

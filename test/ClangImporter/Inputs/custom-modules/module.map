@@ -45,11 +45,6 @@ module ctypes_bits_exported {
   export *
 }
 
-module EnumExhaustivity {
-  header "EnumExhaustivity.h"
-  export *
-}
-
 module ExternIntX { header "x.h" }
 
 module HasSubmodule {
