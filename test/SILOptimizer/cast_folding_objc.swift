@@ -207,14 +207,15 @@ public protocol P {
 
 // Any casts from P.Protocol to P.Type should fail.
 @inline(never)
-public func testCastPProtocolToPType() -> ObjCP.Type? {
-  return cast(ObjCP.self)
+public func testCastPProtocolToPType() -> P.Type? {
+  return cast(P.self)
 }
 
 @objc
 public protocol ObjCP {
 }
 
+// ObjC protocols always self-conform
 @inline(never)
 public func testCastObjCPProtocolToObjCPType() -> ObjCP.Type? {
   return cast(ObjCP.self)
@@ -280,8 +281,9 @@ print("test0=\(test0())")
 // CHECK-NEXT: return %0
 
 // CHECK-LABEL: sil [noinline] @{{.*}}testCastObjCPProtocolTo{{.*}}PType
-// CHECK: %0 = enum $Optional{{.*}}, #Optional.none!enumelt
-// CHECK-NEXT: return %0
+// CHECK: %2 = unconditional_checked_cast %0 : $@thick ObjCP.Protocol to ObjCP.Type
+// CHECK: %3 = enum $Optional<@thick ObjCP.Type>, #Optional.some!enumelt, %2 : $@thick ObjCP.Type
+// CHECK-NEXT: return %3
 
 // CHECK-LABEL: sil [noinline] @{{.*}}testCastProtocolComposition{{.*}}Type
 // CHECK: %0 = enum $Optional{{.*}}, #Optional.none!enumelt

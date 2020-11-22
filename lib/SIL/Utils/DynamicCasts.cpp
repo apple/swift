@@ -452,20 +452,24 @@ swift::classifyDynamicCast(ModuleDecl *M,
             sourceMetatype.isAnyExistentialType())
       return DynamicCastFeasibility::WillSucceed;
 
-    // If the source and target are the same existential type, but the source is
-    // P.Protocol and the dest is P.Type, then we need to consider whether the
-    // protocol is self-conforming.
-    // The only cases where a protocol self-conforms are objc protocols, but
-    // we're going to expect P.Type to hold a class object. And this case
-    // doesn't matter since for a self-conforming protocol type there can't be
-    // any type-level methods.
-    // Thus we consider this kind of cast to always fail. The only exception
-    // from this rule is when the target is Any.Type, because *.Protocol
-    // can always be casted to Any.Type.
+    // All metatypes are instances of Any.Type
+    if (isa<MetatypeType>(sourceMetatype) && target->isAny()) {
+      return DynamicCastFeasibility::WillSucceed;
+    }
+
+    // If the source is a protocol metatype (P.Protocol) and the target is a
+    // protocol existential metatype (Q.Type), then we can ask the Type Checker
+    // whether the cast will succeed or fail.  In particular, if P == Q, then
+    // the Type Checker knows whether the protocol is self-conforming.
+    // (Note the call to classifyDynamicCastToProtocol below currently
+    // mis-handles such cases, so we need to check this first.)
     if (source->isAnyExistentialType() && isa<MetatypeType>(sourceMetatype) &&
         isa<ExistentialMetatypeType>(targetMetatype)) {
-      return target->isAny() ? DynamicCastFeasibility::WillSucceed
-                             : DynamicCastFeasibility::WillFail;
+      auto targetProtocol = dyn_cast<ProtocolType>(target);
+      if (targetProtocol && M->conformsToProtocol(source, targetProtocol->getDecl())) {
+        return DynamicCastFeasibility::WillSucceed;
+      }
+      return DynamicCastFeasibility::WillFail;
     }
 
     if (targetMetatype.isAnyExistentialType() &&

@@ -128,10 +128,12 @@ func TF_954(_ x: Float) -> Float {
 
 @differentiable
 func checked_cast_branch(_ x: Float) -> Float {
+  // expected-note @+2 {{condition always evaluates to true}}
   // expected-warning @+1 {{'is' test is always true}}
   if Int.self is Any.Type {
     return x + x
   }
+  // expected-warning @+1 {{will never be executed}}
   return x * x
 }
 

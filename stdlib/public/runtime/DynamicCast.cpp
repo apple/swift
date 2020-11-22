@@ -1655,12 +1655,17 @@ _dynamicCastMetatypeToExistentialMetatype(
   const Metadata *&destFailureType, const Metadata *&srcFailureType,
   bool takeOnSuccess, bool mayDeferChecks)
 {
-  // The instance type of an existential metatype must be either an
-  // existential or an existential metatype.
+  // We have a metatype "Source.self" and we want to cast it to an existential
+  // metatype "Dest.Type"
+
+  // The instance type of an existential metatype must be either an existential
+  // (P.Type's instance type is the existential P) or an existential metatype
+  // (P.Type.Type's instance type is the existential metatype P.Type).
   auto destMetatype
     = reinterpret_cast<ExistentialMetatypeContainer *>(destLocation);
 
-  // If it's an existential, we need to check for conformances.
+  // Casting Source.self to P.Type for some protocol P just requires testing
+  // whether Source conforms to P.
   auto targetInstanceType = destType->InstanceType;
   if (auto targetInstanceTypeAsExistential =
         dyn_cast<ExistentialTypeMetadata>(targetInstanceType)) {
@@ -1679,7 +1684,7 @@ _dynamicCastMetatypeToExistentialMetatype(
     return DynamicCastResult::SuccessViaCopy;
   }
 
-  // Otherwise, we're casting to SomeProtocol.Type.Type.
+  // Otherwise, we're casting to P.Type(.Type)+
   auto targetInstanceTypeAsMetatype =
     cast<ExistentialMetatypeMetadata>(targetInstanceType);
 

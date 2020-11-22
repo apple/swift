@@ -15,8 +15,15 @@ class ClassWithMembers {
 }
 
 class ClassWithMirror: CustomReflectable {
+  var a = 1
   var customMirror: Mirror {
     return Mirror(self, children: ["a" : 1, "b" : "Hello World"])
+  }
+}
+
+class SubClassWithMirror: ClassWithMirror {
+  override var customMirror: Mirror {
+    return Mirror(self, children: ["z" : 99])
   }
 }
 
@@ -70,6 +77,16 @@ StringForPrintObjectTests.test("ClassWithMembers") {
 StringForPrintObjectTests.test("ClassWithMirror") {
   let printed = _stringForPrintObject(ClassWithMirror())
   expectEqual(printed, "▿ ClassWithMirror\n  - a : 1\n  - b : \"Hello World\"\n")
+}
+
+StringForPrintObjectTests.test("SubClassWithMirror") {
+  let printed = _stringForPrintObject(SubClassWithMirror())
+  let expected =
+    "▿ SubClassWithMirror\n" +
+    "  ▿ super : ClassWithMirror\n" +
+    "    - a : 1\n" +
+    "  - z : 99\n";
+  expectEqual(expected, printed);
 }
 
 StringForPrintObjectTests.test("Array") {
