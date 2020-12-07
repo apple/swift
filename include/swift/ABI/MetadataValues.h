@@ -1456,6 +1456,9 @@ class TypeContextDescriptorFlags : public FlagSet<uint16_t> {
     ///
     /// Only meaningful for class descriptors.
     Class_HasVTable = 15,
+
+    /// Set if the context descriptor includes a spare bit mask
+    Enum_HasSpareBits = 9
   };
 
 public:
@@ -1522,6 +1525,10 @@ public:
                                  TypeReferenceKind,
                                  class_getResilientSuperclassReferenceKind,
                                  class_setResilientSuperclassReferenceKind)
+
+  FLAGSET_DEFINE_FLAG_ACCESSORS(Enum_HasSpareBits,
+                                enum_hasSpareBits,
+                                enum_setHasSpareBits)
 };
 
 /// Extra flags for resilient classes, since we need more than 16 bits of

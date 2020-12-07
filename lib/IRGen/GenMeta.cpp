@@ -1470,6 +1470,7 @@ namespace {
     void layout() {
       super::layout();
       maybeAddCanonicalMetadataPrespecializations();
+      maybeAddSpareBitMask();
     }
     
     ContextDescriptorKind getContextKind() {
@@ -1498,6 +1499,7 @@ namespace {
       TypeContextDescriptorFlags flags;
 
       setCommonFlags(flags);
+      flags.enum_setHasSpareBits(false);
       return flags.getOpaqueValue();
     }
 
@@ -1522,8 +1524,16 @@ namespace {
       B.addRelativeAddress(IGM.getAddrOfReflectionFieldDescriptor(
         getType()->getDeclaredType()->getCanonicalType()));
     }
+
+    void maybeAddSpareBitMask() {
+      auto hasSpareBits = TypeContextDescriptorFlags(getKindSpecificFlags()).enum_hasSpareBits();
+      if (hasSpareBits) {
+        B.addSize(Size(3));
+        B.addInt32(0x11223300);
+      }
+    }
   };
-  
+
   class ClassContextDescriptorBuilder
     : public TypeContextDescriptorBuilderBase<ClassContextDescriptorBuilder,
                                               ClassDecl>,

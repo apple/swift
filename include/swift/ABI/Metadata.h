@@ -4645,6 +4645,16 @@ public:
 
 using StructDescriptor = TargetStructDescriptor<InProcess>;
 
+// Enum spare bits mask is stored as 1 "header" followed by some number of "chunks" that hold the actual mask bits.
+template <typename Runtime>
+struct TargetEnumSpareBitsHeader {
+  size_t bytes;
+};
+template <typename Runtime>
+struct TargetEnumSpareBitsChunk {
+  uint32_t value;
+};
+
 template <typename Runtime>
 class TargetEnumDescriptor final
     : public TargetValueTypeDescriptor<Runtime>,
@@ -4655,7 +4665,9 @@ class TargetEnumDescriptor final
                             TargetSingletonMetadataInitialization<Runtime>,
                             TargetCanonicalSpecializedMetadatasListCount<Runtime>,
                             TargetCanonicalSpecializedMetadatasListEntry<Runtime>,
-                            TargetCanonicalSpecializedMetadatasCachingOnceToken<Runtime>> {
+                            TargetCanonicalSpecializedMetadatasCachingOnceToken<Runtime>,
+                            TargetEnumSpareBitsHeader<Runtime>,
+                            TargetEnumSpareBitsChunk<Runtime>> {
 public:
   using SingletonMetadataInitialization =
     TargetSingletonMetadataInitialization<Runtime>;
@@ -4669,6 +4681,10 @@ public:
     TargetCanonicalSpecializedMetadatasListEntry<Runtime>;
   using MetadataCachingOnceToken =
       TargetCanonicalSpecializedMetadatasCachingOnceToken<Runtime>;
+  using EnumSpareBitsHeader =
+      TargetEnumSpareBitsHeader<Runtime>;
+  using EnumSpareBitsChunk =
+      TargetEnumSpareBitsChunk<Runtime>;
 
 private:
   using TrailingGenericContextObjects =
@@ -4678,7 +4694,9 @@ private:
                                         SingletonMetadataInitialization,
                                         MetadataListCount,
                                         MetadataListEntry, 
-                                        MetadataCachingOnceToken>;
+                                        MetadataCachingOnceToken,
+                                        EnumSpareBitsHeader,
+                                        EnumSpareBitsChunk>;
 
   using TrailingObjects =
     typename TrailingGenericContextObjects::TrailingObjects;
@@ -4710,6 +4728,21 @@ private:
 
   size_t numTrailingObjects(OverloadToken<MetadataCachingOnceToken>) const {
     return this->hasCanonicicalMetadataPrespecializations() ? 1 : 0;
+  }
+
+  size_t numTrailingObjects(OverloadToken<EnumSpareBitsHeader>) const {
+    return this->getTypeContextDescriptorFlags().enum_hasSpareBits() ? 1 : 0;
+  }
+
+  size_t numTrailingObjects(OverloadToken<EnumSpareBitsChunk>) const {
+    if (false) { // (this->getTypeContextDescriptorFlags().enum_hasSpareBits()) {
+      auto value = this->template getTrailingObjects<TargetEnumSpareBitsHeader>();
+      auto bytes = value.bytes;
+      auto chunkSize = sizeof(EnumSpareBitsChunk);
+      return (bytes + chunkSize - 1) / chunkSize;
+    } else {
+      return 0;
+    }
   }
 
 public:
@@ -4777,6 +4810,18 @@ public:
     }
     auto box = this->template getTrailingObjects<MetadataCachingOnceToken>();
     return box->token.get();
+  }
+
+  // TODO: Fix up return type...
+  size_t getEnumSpareBits() const {
+    assert(this->enum_hasSpareBits());
+    auto header = *this->template getTrailingObjects<TargetEnumSpareBitsHeader>();
+    size_t length = header.bytes;
+
+//    auto mask = this->template getTrailingObjects<TargetEnumSpareBitsChunk>();
+    // TODO: Convert mask data into some sort of SpareBits object
+
+    return length;
   }
 
   static bool classof(const TargetContextDescriptor<Runtime> *cd) {
