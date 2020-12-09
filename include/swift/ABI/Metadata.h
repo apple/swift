@@ -4648,7 +4648,7 @@ using StructDescriptor = TargetStructDescriptor<InProcess>;
 // Enum spare bits mask is stored as 1 "header" followed by some number of "chunks" that hold the actual mask bits.
 template <typename Runtime>
 struct TargetEnumSpareBitsHeader {
-  size_t bytes;
+  uint32_t bytesCount;
 };
 template <typename Runtime>
 struct TargetEnumSpareBitsChunk {
