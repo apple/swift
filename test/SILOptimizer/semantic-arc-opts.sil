@@ -720,10 +720,10 @@ bb3:
   return %9999 : $()
 }
 
-// TODO: We can support this with time.
+// We eliminate this since the phi arg is actually dead.
 //
 // CHECK-LABEL: sil [ossa] @do_eliminate_begin_borrow_consumed_by_guaranteed_phi : $@convention(thin) (@owned Builtin.NativeObject) -> () {
-// CHECK: begin_borrow
+// CHECK-NOT: begin_borrow
 // CHECK: } // end sil function 'do_eliminate_begin_borrow_consumed_by_guaranteed_phi'
 sil [ossa] @do_eliminate_begin_borrow_consumed_by_guaranteed_phi : $@convention(thin) (@owned Builtin.NativeObject) -> () {
 bb0(%0 : @owned $Builtin.NativeObject):
@@ -876,11 +876,11 @@ bb6(%6a : @owned $FakeOptional<Klass>):
   return %9999 : $()
 }
 
-// Make sure we do not crash here. We need to be able to think about multiple
-// phi node at the same time.
+// We handle this now by hoisting the destroy_value into the incoming values
+// allowing us to eliminate copy_value.
 //
 // CHECK-LABEL: sil [ossa] @multiple_phi_node_uses_of_one_copy : $@convention(thin) (@guaranteed Klass) -> () {
-// CHECK: copy_value
+// CHECK-NOT: copy_value
 // CHECK: } // end sil function 'multiple_phi_node_uses_of_one_copy'
 sil [ossa] @multiple_phi_node_uses_of_one_copy : $@convention(thin) (@guaranteed Klass) -> () {
 bb0(%0 : @guaranteed $Klass):

@@ -40,6 +40,9 @@ static llvm::cl::list<ARCTransformKind> TransformsToPerform(
         clEnumValN(ARCTransformKind::LifetimeJoiningPeephole,
                    "sil-semantic-arc-peepholes-lifetime-joining",
                    "Perform the join lifetimes peephole"),
+        clEnumValN(ARCTransformKind::PhiArgPeepholes,
+                   "sil-semantic-arc-peepholes-phi-arg-peepholes",
+                   "Perform small peepholes on phi arguments"),
         clEnumValN(ARCTransformKind::OwnedToGuaranteedPhi,
                    "sil-semantic-arc-owned-to-guaranteed-phi",
                    "Perform Owned To Guaranteed Phi. NOTE: Seeded by peephole "
@@ -77,6 +80,7 @@ struct SemanticARCOpts : SILFunctionTransform {
       case ARCTransformKind::RedundantCopyValueElimPeephole:
       case ARCTransformKind::RedundantBorrowScopeElimPeephole:
       case ARCTransformKind::LoadCopyToLoadBorrowPeephole:
+      case ARCTransformKind::PhiArgPeepholes:
       case ARCTransformKind::AllPeepholes:
         // We never assume we are at fixed point when running these transforms.
         if (performPeepholesWithoutFixedPoint(visitor)) {
@@ -97,10 +101,14 @@ struct SemanticARCOpts : SILFunctionTransform {
   }
 #endif
 
-  bool performPeepholesWithoutFixedPoint(SemanticARCOptVisitor &visitor) {
-    // Add all the results of all instructions that we want to visit to the
-    // worklist.
+  void seedWorklist(SemanticARCOptVisitor &visitor) {
+    auto &front = getFunction()->front();
     for (auto &block : *getFunction()) {
+      if (&block != &front)
+        for (auto *arg : block.getArguments())
+          if (SemanticARCOptVisitor::shouldVisitArg(arg))
+            visitor.worklist.insert(arg);
+
       for (auto &inst : block) {
         if (SemanticARCOptVisitor::shouldVisitInst(&inst)) {
           for (SILValue v : inst.getResults()) {
@@ -109,6 +117,13 @@ struct SemanticARCOpts : SILFunctionTransform {
         }
       }
     }
+  }
+
+  bool performPeepholesWithoutFixedPoint(SemanticARCOptVisitor &visitor) {
+    // Add all the results of all instructions that we want to visit to the
+    // worklist.
+    seedWorklist(visitor);
+
     // Then process the worklist, performing peepholes.
     return visitor.optimizeWithoutFixedPoint();
   }
@@ -116,15 +131,8 @@ struct SemanticARCOpts : SILFunctionTransform {
   bool performPeepholes(SemanticARCOptVisitor &visitor) {
     // Add all the results of all instructions that we want to visit to the
     // worklist.
-    for (auto &block : *getFunction()) {
-      for (auto &inst : block) {
-        if (SemanticARCOptVisitor::shouldVisitInst(&inst)) {
-          for (SILValue v : inst.getResults()) {
-            visitor.worklist.insert(v);
-          }
-        }
-      }
-    }
+    seedWorklist(visitor);
+
     // Then process the worklist, performing peepholes.
     return visitor.optimize();
   }
@@ -153,22 +161,29 @@ struct SemanticARCOpts : SILFunctionTransform {
     }
 #endif
 
+    using InvalidationKind = SILAnalysis::InvalidationKind;
+    auto invalidationKind = InvalidationKind::Nothing;
+
     // Otherwise, perform our standard optimizations.
-    bool didEliminateARCInsts = performPeepholes(visitor);
+    if (performPeepholes(visitor))
+      invalidationKind = invalidationKind | InvalidationKind::Instructions;
 
     // Now that we have seeded the map of phis to incoming values that could be
     // converted to guaranteed, ignoring the phi, try convert those phis to be
     // guaranteed.
-    if (tryConvertOwnedPhisToGuaranteedPhis(visitor.ctx)) {
-      // We return here early to save a little compile time so we do not
-      // invalidate analyses redundantly.
-      return invalidateAnalysis(
-          SILAnalysis::InvalidationKind::BranchesAndInstructions);
-    }
+    if (tryConvertOwnedPhisToGuaranteedPhis(visitor.ctx))
+      invalidationKind =
+          invalidationKind | InvalidationKind::BranchesAndInstructions;
 
-    // Otherwise, we only deleted instructions and did not touch phis.
-    if (didEliminateARCInsts)
-      invalidateAnalysis(SILAnalysis::InvalidationKind::Instructions);
+    if (visitor.deleteDeadArgs())
+      invalidationKind = invalidationKind | InvalidationKind::Branches;
+
+    // Then invalidate as we need.
+    //
+    // NOTE: This is only safe since we are not using any analyses internally to
+    // this pass... If we ever do so, we will need to be significantly more
+    // careful about this and may need to invalidate above.
+    invalidateAnalysis(invalidationKind);
   }
 };
 

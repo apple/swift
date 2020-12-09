@@ -1,0 +1,153 @@
+// RUN: %target-sil-opt -module-name Swift -enable-sil-verify-all -semantic-arc-opts -sil-semantic-arc-peepholes-phi-arg-peepholes %s | %FileCheck %s
+
+sil_stage canonical
+
+import Builtin
+
+//////////////////
+// Declarations //
+//////////////////
+
+typealias AnyObject = Builtin.AnyObject
+
+enum MyNever {}
+enum FakeOptional<T> {
+case none
+case some(T)
+}
+
+sil @guaranteed_user : $@convention(thin) (@guaranteed Builtin.NativeObject) -> ()
+sil @owned_user : $@convention(thin) (@owned Builtin.NativeObject) -> ()
+sil @get_owned_obj : $@convention(thin) () -> @owned Builtin.NativeObject
+sil @unreachable_guaranteed_user : $@convention(thin) (@guaranteed Builtin.NativeObject) -> MyNever
+sil @inout_user : $@convention(thin) (@inout FakeOptional<NativeObjectPair>) -> ()
+sil @get_native_object : $@convention(thin) () -> @owned Builtin.NativeObject
+
+struct NativeObjectPair {
+  var obj1 : Builtin.NativeObject
+  var obj2 : Builtin.NativeObject
+}
+
+sil @get_object_pair : $@convention(thin) () -> @owned NativeObjectPair
+
+struct FakeOptionalNativeObjectPairPair {
+  var pair1 : FakeOptional<NativeObjectPair>
+  var pair2 : FakeOptional<NativeObjectPair>
+}
+sil @inout_user2 : $@convention(thin) (@inout FakeOptionalNativeObjectPairPair) -> ()
+
+sil @get_nativeobject_pair : $@convention(thin) () -> @owned NativeObjectPair
+sil @consume_nativeobject_pair : $@convention(thin) (@owned NativeObjectPair) -> ()
+
+protocol MyFakeAnyObject : Klass {
+  func myFakeMethod()
+}
+
+final class Klass {
+  var base: Klass
+  let baseLet: Klass
+}
+
+extension Klass : MyFakeAnyObject {
+  func myFakeMethod()
+}
+sil @guaranteed_klass_user : $@convention(thin) (@guaranteed Klass) -> ()
+sil @guaranteed_fakeoptional_klass_user : $@convention(thin) (@guaranteed FakeOptional<Klass>) -> ()
+sil @guaranteed_fakeoptional_classlet_user : $@convention(thin) (@guaranteed FakeOptional<ClassLet>) -> ()
+
+struct MyInt {
+  var value: Builtin.Int32
+}
+
+struct StructWithDataAndOwner {
+  var data : Builtin.Int32
+  var owner : Klass
+}
+
+struct StructMemberTest {
+  var c : Klass
+  var s : StructWithDataAndOwner
+  var t : (Builtin.Int32, StructWithDataAndOwner)
+}
+
+class ClassLet {
+  @_hasStorage let aLet: Klass
+  @_hasStorage var aVar: Klass
+  @_hasStorage let aLetTuple: (Klass, Klass)
+  @_hasStorage let anOptionalLet: FakeOptional<Klass>
+
+  @_hasStorage let anotherLet: ClassLet
+}
+
+class SubclassLet: ClassLet {}
+
+sil_global [let] @a_let_global : $Klass
+sil_global @a_var_global : $Klass
+
+enum EnumWithIndirectCase {
+case first
+indirect case second(Builtin.NativeObject)
+}
+
+struct StructWithEnumWithIndirectCaseField {
+  var i: Builtin.Int23
+  var field : EnumWithIndirectCase
+}
+
+sil @get_fakeoptional_nativeobject : $@convention(thin) () -> @owned FakeOptional<Builtin.NativeObject>
+sil @black_hole : $@convention(thin) (@guaranteed Klass) -> ()
+
+///////////
+// Tests //
+///////////
+
+// CHECK-LABEL: sil [ossa] @dead_owned_phi_arg : $@convention(thin) (@owned Klass) -> () {
+// CHECK: bb0([[ARG:%.*]] : @owned $Klass):
+// CHECK: bb1:
+// CHECK-NEXT:   destroy_value [[ARG]]
+// CHECK-NEXT:   br bb3(undef : $Klass)
+// CHECK: bb2:
+// CHECK-NEXT:   destroy_value [[ARG]]
+// CHECK-NEXT:   br bb3(undef : $Klass)
+// CHECK: bb3({{%.*}} : $Klass):
+// CHECK: } // end sil function 'dead_owned_phi_arg'
+sil [ossa] @dead_owned_phi_arg : $@convention(thin) (@owned Klass) -> () {
+bb0(%0 : @owned $Klass):
+  cond_br undef, bb1, bb2
+
+bb1:
+  br bb3(%0 : $Klass)
+
+bb2:
+  br bb3(%0 : $Klass)
+
+bb3(%1 : @owned $Klass):
+  destroy_value %1 : $Klass
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @dead_guaranteed_phi_arg : $@convention(thin) (@guaranteed Klass) -> () {
+// CHECK: bb0([[ARG:%.*]] : @guaranteed $Klass):
+// CHECK: bb1:
+// CHECK-NEXT:   br bb3(undef : $Klass)
+// CHECK: bb2:
+// CHECK-NEXT:   br bb3(undef : $Klass)
+// CHECK: bb3({{%.*}} : $Klass):
+sil [ossa] @dead_guaranteed_phi_arg : $@convention(thin) (@guaranteed Klass) -> () {
+bb0(%0 : @guaranteed $Klass):
+  cond_br undef, bb1, bb2
+
+bb1:
+  %1 = begin_borrow %0 : $Klass
+  br bb3(%1 : $Klass)
+
+bb2:
+  %2 = begin_borrow %0 : $Klass
+  br bb3(%2 : $Klass)
+
+bb3(%3 : @guaranteed $Klass):
+  end_borrow %3 : $Klass
+  %9999 = tuple()
+  return %9999 : $()
+}

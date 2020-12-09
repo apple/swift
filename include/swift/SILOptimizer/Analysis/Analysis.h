@@ -17,6 +17,7 @@
 #include "swift/SIL/Notifications.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/Support/Casting.h"
+#include <type_traits>
 
 namespace swift {
 
@@ -150,6 +151,14 @@ public:
   /// Verify that the function \p F can be used by the analysis.
   static void verifyFunction(SILFunction *F);
 };
+
+inline SILAnalysis::InvalidationKind
+operator|(SILAnalysis::InvalidationKind lhs,
+          SILAnalysis::InvalidationKind rhs) {
+  using InvalidationKind = SILAnalysis::InvalidationKind;
+  using UnderlyingKind = std::underlying_type<InvalidationKind>::type;
+  return InvalidationKind(UnderlyingKind(lhs) | UnderlyingKind(rhs));
+}
 
 /// RAII helper for locking analyses. Locks the analysis upon construction and
 /// unlocks upon destruction.

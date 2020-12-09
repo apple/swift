@@ -30,10 +30,12 @@ enum class ARCTransformKind : uint64_t {
   // such as dead live range, guaranteed copy_value opt, etc.
   RedundantCopyValueElimPeephole = 0x8,
   LifetimeJoiningPeephole = 0x10,
+  PhiArgPeepholes = 0x20,
 
   AllPeepholes = LoadCopyToLoadBorrowPeephole |
                  RedundantBorrowScopeElimPeephole |
-                 RedundantCopyValueElimPeephole | LifetimeJoiningPeephole,
+                 RedundantCopyValueElimPeephole | LifetimeJoiningPeephole |
+                 PhiArgPeepholes,
   All = AllPeepholes | OwnedToGuaranteedPhi,
 };
 

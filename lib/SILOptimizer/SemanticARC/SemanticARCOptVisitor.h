@@ -36,7 +36,7 @@ namespace semanticarc {
 /// visitors do, we maintain a visitedSinceLastMutation list to ensure that we
 /// revisit all interesting instructions in between mutations.
 struct LLVM_LIBRARY_VISIBILITY SemanticARCOptVisitor
-    : SILInstructionVisitor<SemanticARCOptVisitor, bool> {
+    : SILValueVisitor<SemanticARCOptVisitor, bool> {
   /// Our main worklist. We use this after an initial run through.
   SmallBlotSetVector<SILValue, 32> worklist;
 
@@ -127,9 +127,19 @@ struct LLVM_LIBRARY_VISIBILITY SemanticARCOptVisitor
         });
   }
 
-  /// The default visitor.
   bool visitSILInstruction(SILInstruction *i) {
-    assert(!isa<OwnershipForwardingInst>(i) &&
+    assert((isa<OwnershipForwardingTermInst>(i) ||
+            !isa<OwnershipForwardingInst>(i)) &&
+           "Should have forwarding visitor for all ownership forwarding "
+           "non-term instructions");
+    return false;
+  }
+
+  /// The default visitor.
+  bool visitValueBase(ValueBase *v) {
+    auto *inst = v->getDefiningInstruction();
+    (void)inst;
+    assert((!inst || !isa<OwnershipForwardingInst>(inst)) &&
            "Should have forwarding visitor for all ownership forwarding "
            "instructions");
     return false;
@@ -138,6 +148,8 @@ struct LLVM_LIBRARY_VISIBILITY SemanticARCOptVisitor
   bool visitCopyValueInst(CopyValueInst *cvi);
   bool visitBeginBorrowInst(BeginBorrowInst *bbi);
   bool visitLoadInst(LoadInst *li);
+  bool visitSILPhiArgument(SILPhiArgument *arg);
+
   static bool shouldVisitInst(SILInstruction *i) {
     switch (i->getKind()) {
     default:
@@ -147,6 +159,24 @@ struct LLVM_LIBRARY_VISIBILITY SemanticARCOptVisitor
     case SILInstructionKind::LoadInst:
       return true;
     }
+  }
+
+  static bool shouldVisitArg(SILArgument *arg) {
+    auto *phiArg = dyn_cast<SILPhiArgument>(arg);
+    if (!phiArg || !phiArg->isPhiArgument())
+      return false;
+
+    switch (phiArg->getOwnershipKind()) {
+    case OwnershipKind::Any:
+      llvm_unreachable("Value should never have any ownership");
+    case OwnershipKind::None:
+    case OwnershipKind::Unowned:
+      return false;
+    case OwnershipKind::Owned:
+    case OwnershipKind::Guaranteed:
+      return true;
+    }
+    llvm_unreachable("Covered switch isn't covered?!");
   }
 
 #define FORWARDING_INST(NAME)                                                  \
@@ -187,20 +217,6 @@ struct LLVM_LIBRARY_VISIBILITY SemanticARCOptVisitor
   FORWARDING_INST(LinearFunctionExtract)
 #undef FORWARDING_INST
 
-#define FORWARDING_TERM(NAME)                                                  \
-  bool visit##NAME##Inst(NAME##Inst *cls) {                                    \
-    for (auto succValues : cls->getSuccessorBlockArgumentLists()) {            \
-      for (SILValue v : succValues) {                                          \
-        worklist.insert(v);                                                    \
-      }                                                                        \
-    }                                                                          \
-    return false;                                                              \
-  }
-  FORWARDING_TERM(SwitchEnum)
-  FORWARDING_TERM(CheckedCastBranch)
-  FORWARDING_TERM(Branch)
-#undef FORWARDING_TERM
-
   bool processWorklist();
   bool optimize();
   bool optimizeWithoutFixedPoint();
@@ -209,6 +225,8 @@ struct LLVM_LIBRARY_VISIBILITY SemanticARCOptVisitor
   bool eliminateDeadLiveRangeCopyValue(CopyValueInst *cvi);
   bool tryJoiningCopyValueLiveRangeWithOperand(CopyValueInst *cvi);
   bool tryPerformOwnedCopyValueOptimization(CopyValueInst *cvi);
+
+  bool deleteDeadArgs();
 };
 
 } // namespace semanticarc

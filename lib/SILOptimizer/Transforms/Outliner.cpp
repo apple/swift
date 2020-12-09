@@ -28,6 +28,7 @@
 #include "swift/SIL/SILModule.h"
 #include "swift/SILOptimizer/PassManager/Passes.h"
 #include "swift/SILOptimizer/PassManager/Transforms.h"
+#include "swift/SILOptimizer/Utils/CFGOptUtils.h"
 #include "swift/SILOptimizer/Utils/SILOptFunctionBuilder.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/Support/CommandLine.h"
@@ -191,6 +192,10 @@ struct SwitchInfo {
   SILBasicBlock *SomeBB = nullptr;
   SILBasicBlock *NoneBB = nullptr;
   BranchInst *Br = nullptr;
+
+  /// If we have a consuming switch, this is the release_value along the some
+  /// branch that destroys the apply.
+  ReleaseValueInst *Release = nullptr;
 };
 
 /// Pattern for a bridged property call.
@@ -412,10 +417,9 @@ BridgedProperty::outline(SILModule &M) {
       return false;                                                            \
   } while (0);
 
-static bool matchSwitch(SwitchInfo &SI, SILInstruction *Inst,
+static bool matchSwitch(SwitchInfo &SI, SwitchEnumInst *SwitchEnum,
                         SILValue SwitchOperand) {
-  auto *SwitchEnum = dyn_cast<SwitchEnumInst>(Inst);
-  if (!SwitchEnum || SwitchEnum->getNumCases() != 2 ||
+  if (SwitchEnum->getNumCases() != 2 ||
       SwitchEnum->getOperand() != SwitchOperand)
     return false;
 
@@ -523,6 +527,112 @@ static bool matchSwitch(SwitchInfo &SI, SILInstruction *Inst,
   return true;
 }
 
+/// Match a switch where our operand's lifetime ends inside the switch.
+static bool matchConsumingSwitch(SwitchInfo &SI, SwitchEnumInst *SwitchEnum,
+                                 SILValue SwitchOperand) {
+  if (SwitchEnum->getNumCases() != 2 ||
+      SwitchEnum->getOperand() != SwitchOperand)
+    return false;
+
+  auto *SwitchBB = SwitchEnum->getParent();
+  SILBasicBlock *SomeBB = SwitchEnum->getCase(0).second;
+  SILBasicBlock *NoneBB = SwitchEnum->getCase(1).second;
+  if (NoneBB->getSinglePredecessorBlock() != SwitchBB)
+    return false;
+  if (SomeBB->getSinglePredecessorBlock() != SwitchBB)
+    return false;
+  if (NoneBB->args_size() == 1)
+    std::swap(NoneBB, SomeBB);
+  if (SomeBB->args_size() != 1 || NoneBB->args_size() != 0)
+    return false;
+
+  // We pattern match a bb with a single br in it.
+  auto It = NoneBB->begin();
+  auto *Br1 = dyn_cast<BranchInst>(It);
+  if (!Br1 || Br1->getNumArgs() != 0)
+    return false;
+  auto *MergeBB = Br1->getDestBB();
+
+  // bb8(%36 : $NSString):
+  It = SomeBB->begin();
+  auto *SomeBBArg = SomeBB->getArgument(0);
+  if (!SomeBBArg->hasOneUse())
+    return false;
+
+  // %37 = function_ref @$SSS10FoundationE36_unconditionallyBridgeFromObjectiveCSSSo8NSStringCSgFZ : $@convention(method) (@owned Optional<NSString>, @thin String.Type) -> @owned String
+  auto *FunRef = dyn_cast<FunctionRefInst>(It);
+  if (!FunRef || !FunRef->hasOneUse())
+    return false;
+
+  // %38 = enum $Optional<NSString>, #Optional.some!enumelt, %36 : $NSString
+  ADVANCE_ITERATOR_OR_RETURN_FALSE(It);
+  auto *SomeEnum = dyn_cast<EnumInst>(It);
+  if (!SomeEnum || !SomeEnum->hasOperand() ||
+      SomeEnum->getOperand() != SomeBBArg)
+    return false;
+  size_t numSomeEnumUses =
+      std::distance(SomeEnum->use_begin(), SomeEnum->use_end());
+  if (numSomeEnumUses > 2)
+    return false;
+
+  // %39 = metatype $@thin String.Type
+  ADVANCE_ITERATOR_OR_RETURN_FALSE(It);
+  auto *Metatype = dyn_cast<MetatypeInst>(It);
+  if (!Metatype || !Metatype->hasOneUse())
+    return false;
+
+  // %40 = apply %37(%38, %39) : $@convention(method) (@owned Optional<NSString>, @thin String.Type) -> @owned String
+  ADVANCE_ITERATOR_OR_RETURN_FALSE(It);
+  auto *Apply = dyn_cast<ApplyInst>(It);
+  if (!Apply || !Apply->hasOneUse() || Apply->getCallee() != FunRef ||
+      Apply->getNumArguments() != 2 || Apply->getArgument(0) != SomeEnum ||
+      Apply->getArgument(1) != Metatype ||
+      Apply->getSubstCalleeType()->getNumResults() != 1)
+    return false;
+  if (Apply->getSubstCalleeType()->getSingleResult().getConvention() !=
+      ResultConvention::Owned)
+    return false;
+
+  // Check that we call the _unconditionallyBridgeFromObjectiveC witness.
+  auto NativeType = Apply->getType().getASTType();
+  auto *BridgeFun = FunRef->getInitiallyReferencedFunction();
+  auto *SwiftModule = BridgeFun->getModule().getSwiftModule();
+  // Not every type conforms to the ObjectiveCBridgeable protocol in such a case
+  // getBridgeFromObjectiveC returns SILDeclRef().
+  auto bridgeWitness = getBridgeFromObjectiveC(NativeType, SwiftModule);
+  if (bridgeWitness == SILDeclRef() ||
+      BridgeFun->getName() != bridgeWitness.mangle())
+    return false;
+
+  // release_value %41 : $Optional<String>
+  ADVANCE_ITERATOR_OR_RETURN_FALSE(It);
+  auto *rvi = dyn_cast<ReleaseValueInst>(It);
+  if (!rvi || rvi->getOperand() != Apply)
+    return false;
+
+  if (numSomeEnumUses == 2) {
+    // release_value %38 : $Optional<NSString>
+    ADVANCE_ITERATOR_OR_RETURN_FALSE(It);
+    auto *someEnumRVI = dyn_cast<ReleaseValueInst>(It);
+    if (!someEnumRVI || someEnumRVI->getOperand() != SomeEnum)
+      return false;
+  }
+
+  // br bb10
+  ADVANCE_ITERATOR_OR_RETURN_FALSE(It);
+  auto *br = dyn_cast<BranchInst>(It);
+  if (!br || br->getDestBB() != MergeBB || br->getNumArgs() != 0)
+    return false;
+
+  SI.SwitchEnum = SwitchEnum;
+  SI.SomeBB = SomeBB;
+  SI.NoneBB = NoneBB;
+  SI.Br = br;
+  SI.Release = rvi;
+
+  return true;
+}
+
 bool BridgedProperty::matchMethodCall(SILBasicBlock::iterator It) {
   // Matches:
   //    %33 = objc_method %31 : $UITextField, #UITextField.text!getter.foreign : (UITextField) -> () -> String?, $@convention(objc_method) (UITextField) -> @autoreleased Optional<NSString>
@@ -569,7 +679,14 @@ bool BridgedProperty::matchMethodCall(SILBasicBlock::iterator It) {
 
   // switch_enum %34 : $Optional<NSString>, case #Optional.some!enumelt: bb8, case #Optional.none!enumelt: bb9
   ADVANCE_ITERATOR_OR_RETURN_FALSE(It);
-  return matchSwitch(switchInfo, &*It, PropApply);
+  auto *switchEnum = dyn_cast<SwitchEnumInst>(&*It);
+  if (!switchEnum)
+    return false;
+
+  if (matchSwitch(switchInfo, switchEnum, PropApply))
+    return true;
+
+  return matchConsumingSwitch(switchInfo, switchEnum, PropApply);
 }
 
 bool BridgedProperty::matchInstSequence(SILBasicBlock::iterator It) {
@@ -835,7 +952,12 @@ BridgedArgument BridgedArgument::match(unsigned ArgIdx, SILValue Arg,
 }
 
 namespace {
-// Match the return value briding pattern.
+
+// Match one of the following return value briding patterns.
+//
+// Non-Consuming Pattern:
+//
+// ```
 //   switch_enum %20 : $Optional<NSString>, case #O.some: bb1, case #O.none: bb2
 //
 // bb1(%23 : $NSString):
@@ -851,18 +973,54 @@ namespace {
 //   br bb3(%30 : $Optional<String>)
 //
 // bb3(%32 : $Optional<String>):
+// ```
+//
+// Consuming Pattern:
+//
+// ```
+//   switch_enum %20 : $Optional<NSString>, case #O.some: bb1, case #O.none: bb2
+//
+// bb1(%23 : $NSString):
+//   %24 = function_ref @_unconditionallyBridgeFromObjectiveC
+//   %25 = enum $Optional<NSString>, #Optional.some!enumelt, %23 : $NSString
+//   %26 = metatype $@thin String.Type
+//   %27 = apply %24(%25, %26)
+//   %28 = enum $Optional<String>, #Optional.some!enumelt, %27 : $String
+//   release_value %28 : $Optional<String>
+//   release_value %25 : $Optional<String>
+//   br bb3
+//
+// bb2:
+//   br bb3
+//
+// bb3:
+//   ...
 class BridgedReturn {
   SwitchInfo switchInfo;
 public:
   bool match(ApplyInst *BridgedCall) {
     switchInfo = SwitchInfo();
     auto *SwitchBB = BridgedCall->getParent();
-    return matchSwitch(switchInfo, SwitchBB->getTerminator(), BridgedCall);
+    auto *SwitchEnum = dyn_cast<SwitchEnumInst>(SwitchBB->getTerminator());
+    if (!SwitchEnum)
+      return false;
+    if (matchSwitch(switchInfo, SwitchEnum, BridgedCall))
+      return true;
+    return matchConsumingSwitch(switchInfo, SwitchEnum, BridgedCall);
   }
 
   operator bool() { return switchInfo.SomeBB != nullptr; }
 
   CanType getReturnType() {
+    // If switchInfo.Release is set, then we know that we had a consuming return
+    // and thus we end the life of the value before the branch (and thus our
+    // branch has no arg). Even though this is consuming, we are going to fix up
+    // the function so we can use the same outlined function in all cases.
+    if (auto *rvi = switchInfo.Release) {
+      auto type = rvi->getOperand()->getType();
+      return SILType::getOptionalType(type).getASTType();
+    }
+
     return switchInfo.Br->getArg(0)->getType().getASTType();
   }
 
@@ -872,33 +1030,75 @@ public:
 }
 
 void BridgedReturn::outline(SILFunction *Fun, ApplyInst *NewOutlinedCall) {
-// Outline the bridged return result blocks.
-//   switch_enum %20 : $Optional<NSString>, case #O.some: bb1, case #O.none: bb2
-//
-// bb1(%23 : $NSString):
-//   %24 = function_ref @$SSS10FoundationE36_unconditionallyBridgeFromObjectiveC
-//   %25 = enum $Optional<NSString>, #Optional.some!enumelt, %23 : $NSString
-//   %26 = metatype $@thin String.Type
-//   %27 = apply %24(%25, %26)
-//   %28 = enum $Optional<String>, #Optional.some!enumelt, %27 : $String
-//   br bb3(%28 : $Optional<String>)
-//
-// bb2:
-//   %30 = enum $Optional<String>, #Optional.none!enumelt
-//   br bb3(%30 : $Optional<String>)
-//
-// bb3(%32 : $Optional<String>):
-
+  // Outline the bridged return result blocks handling both of the following
+  // patterns:
+  //
+  // Non Consuming Pattern
+  //
+  // ```
+  //   switch_enum %20 : $Optional<NSString>, case #O.some: bb1, case #O.none: bb2
+  //
+  // bb1(%23 : $NSString):
+  //   %24 = function_ref @$SSS10FoundationE36_unconditionallyBridgeFromObjectiveC
+  //   %25 = enum $Optional<NSString>, #Optional.some!enumelt, %23 : $NSString
+  //   %26 = metatype $@thin String.Type
+  //   %27 = apply %24(%25, %26)
+  //   %28 = enum $Optional<String>, #Optional.some!enumelt, %27 : $String
+  //   br bb3(%28 : $Optional<String>)
+  //
+  // bb2:
+  //   %30 = enum $Optional<String>, #Optional.none!enumelt
+  //   br bb3(%30 : $Optional<String>)
+  //
+  // bb3(%32 : $Optional<String>):
+  // ```
+  //
+  // Consuming Pattern
+  //
+  // ```
+  //   switch_enum %20 : $Optional<NSString>, case #O.some: bb1, case #O.none: bb2
+  //
+  // bb1(%23 : $NSString):
+  //   %24 = function_ref @$SSS10FoundationE36_unconditionallyBridgeFromObjectiveC
+  //   %25 = enum $Optional<NSString>, #Optional.some!enumelt, %23 : $NSString
+  //   %26 = metatype $@thin String.Type
+  //   %27 = apply %24(%25, %26)
+  //   release_value %27 : $Optional<String>
+  //   release_value %25 : $Optional<NSString>
+  //   br bb3
+  //
+  // bb2:
+  //   br bb3
+  //
+  // bb3:
+  // ```
+  //
+  // In the consuming case, we assume that we are going to insert a fake return
+  // and assert in our caller.
   auto *StartBB = switchInfo.SwitchEnum->getParent();
   auto *OutlinedEntryBB = StartBB->split(SILBasicBlock::iterator(switchInfo.SwitchEnum));
   auto *OldMergeBB = switchInfo.Br->getDestBB();
   auto *NewTailBB = OldMergeBB->split(OldMergeBB->begin());
-	auto Loc = switchInfo.SwitchEnum->getLoc();
+  auto Loc = switchInfo.SwitchEnum->getLoc();
 
   {
     SILBuilder Builder(StartBB);
     Builder.createBranch(Loc, NewTailBB);
-    OldMergeBB->getArgument(0)->replaceAllUsesWith(NewOutlinedCall);
+    if (!switchInfo.Release) {
+      // If we aren't matching a consuming pattern, RAUW old merge bb with our
+      // new outlined call.
+      OldMergeBB->getArgument(0)->replaceAllUsesWith(NewOutlinedCall);
+    }
+  }
+
+  // If we have a release, move it into the new tail BB and set it to be
+  // NewOutlinedCall.
+  SILValue oldReleaseValue;
+  if (auto *release = switchInfo.Release) {
+    release->moveFront(NewTailBB);
+    auto &op = release->getAllOperands()[0];
+    oldReleaseValue = op.get();
+    op.set(NewOutlinedCall);
   }
 
   // Outlined function already existed. Just delete instructions and wire up
@@ -915,6 +1115,31 @@ void BridgedReturn::outline(SILFunction *Fun, ApplyInst *NewOutlinedCall) {
     return;
   }
 
+  // See if we have had a release. In such a case, we need to do some fixups to
+  // convert our consuming case to the standard non-consuming case by inserting
+  // branches, forwarding enums, etc. We already moved the release into
+  // NewTailBB, so we will release our value appropriately when we return it
+  // from NewOutlinedCall.
+  if (switchInfo.Release) {
+    auto loc = RegularLocation::getAutoGeneratedLocation();
+    auto resultType = NewOutlinedCall->getType();
+    OldMergeBB->createPhiArgument(resultType, OwnershipKind::None);
+    {
+      SILBuilder Builder(switchInfo.NoneBB->getTerminator());
+      auto *none = Builder.createOptionalNone(loc, resultType);
+      addNewEdgeValueToBranch(switchInfo.NoneBB->getTerminator(), OldMergeBB,
+                              none);
+    }
+
+    {
+      SILBuilder Builder(switchInfo.SomeBB->getTerminator());
+      assert(oldReleaseValue);
+      auto *some = Builder.createOptionalSome(loc, oldReleaseValue, resultType);
+      addNewEdgeValueToBranch(switchInfo.SomeBB->getTerminator(), OldMergeBB,
+                              some);
+    }
+  }
+
   // Move the blocks into the new function.
   assert(Fun->begin() != Fun->end() &&
          "The entry block must already have been created");
@@ -922,12 +1147,13 @@ void BridgedReturn::outline(SILFunction *Fun, ApplyInst *NewOutlinedCall) {
   auto &FromBlockList = OutlinedEntryBB->getParent()->getBlocks();
   Fun->getBlocks().splice(Fun->begin(), FromBlockList, OldMergeBB);
   OldMergeBB->moveAfter(EntryBB);
-	auto InsertPt = SILFunction::iterator(OldMergeBB);
+
+  auto InsertPt = SILFunction::iterator(OldMergeBB);
   Fun->getBlocks().splice(InsertPt, FromBlockList, OutlinedEntryBB);
   Fun->getBlocks().splice(InsertPt, FromBlockList, switchInfo.NoneBB);
   Fun->getBlocks().splice(InsertPt, FromBlockList, switchInfo.SomeBB);
 
-	SILBuilder Builder (EntryBB);
+  SILBuilder Builder(EntryBB);
   Builder.createBranch(Loc, OutlinedEntryBB);
 
   Builder.setInsertionPoint(OldMergeBB);
@@ -1015,7 +1241,7 @@ ObjCMethodCall::outline(SILModule &M) {
 
   // Outlined function already exists. Only need to delete basic blocks/instructions.
   if (!NeedsDefinition) {
-		if (BridgedReturn)
+    if (BridgedReturn)
       BridgedReturn.outline(nullptr, OutlinedCall);
     BridgedCall->eraseFromParent();
     ObjCMethod->eraseFromParent();

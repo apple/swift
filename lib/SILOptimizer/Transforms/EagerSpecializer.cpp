@@ -59,7 +59,7 @@ cleanupCallArguments(SILBuilder &builder, SILLocation loc,
 }
 
 /// Returns true if the given return or throw block can be used as a merge point
-/// for new return or error values.
+/// for new return or error values. If not, we must split the block.
 static bool isTrivialReturnBlock(SILBasicBlock *RetBB) {
   auto *RetInst = RetBB->getTerminator();
   assert(RetInst->isFunctionExiting() &&
@@ -68,8 +68,14 @@ static bool isTrivialReturnBlock(SILBasicBlock *RetBB) {
   auto RetOperand = RetInst->getOperand(0);
 
   // Allow:
+  //
+  // bbN(%arg1, %arg2)
   //   % = tuple ()
   //   return % : $()
+  //
+  // Where all arguments have only undef incoming values. We allow for undef if
+  // we are running before CFG simplification has run again after performing
+  // ownership RAUW.
   if (RetOperand->getType().isVoid()) {
     auto *TupleI = dyn_cast<TupleInst>(RetBB->begin());
     if (!TupleI || !TupleI->getType().isVoid())
@@ -78,8 +84,26 @@ static bool isTrivialReturnBlock(SILBasicBlock *RetBB) {
     if (&*std::next(RetBB->begin()) != RetInst)
       return false;
 
-    return RetOperand == TupleI;
+    if (RetOperand != TupleI)
+      return false;
+
+    // Now check if we have any phi arguments and if we do that they only have
+    // undef incoming values. If we have any non-undef incoming values, we need
+    // to split.
+    for (auto *arg : RetBB->getSILPhiArguments())
+      // This will visit all incoming phi operands until we find an incomingUse
+      // that is not undef. In such a case, we will return false, causing
+      // visitIncomingPhiOperands to exit early returning false. We invert that
+      // to get the desired result.
+      if (!arg->visitIncomingPhiOperands([&](Operand *incomingUse) {
+            return isa<SILUndef>(incomingUse->get());
+          }))
+        return false;
+
+    // Ok! We simple enough to handle so we don't need to split!
+    return true;
   }
+
   // Allow:
   //   bb(% : $T)
   //   return % : $T
@@ -89,7 +113,7 @@ static bool isTrivialReturnBlock(SILBasicBlock *RetBB) {
   if (RetBB->args_size() != 1)
     return false;
 
-  return (RetOperand == RetBB->getArgument(0));
+  return RetOperand == RetBB->getArgument(0);
 }
 
 /// Adds a CFG edge from the unterminated NewRetBB to a merged "return" or
@@ -141,8 +165,15 @@ static void addReturnValueImpl(SILBasicBlock *RetBB, SILBasicBlock *NewRetBB,
   // Create a CFG edge from NewRetBB to MergedBB.
   Builder.setInsertionPoint(NewRetBB);
   SmallVector<SILValue, 1> BBArgs;
-  if (!NewRetVal->getType().isVoid())
+  if (!NewRetVal->getType().isVoid()) {
     BBArgs.push_back(NewRetVal);
+  } else {
+    // If it is trivial, insert undef for all phi arguments in our dest
+    // block. We checked earlier in isTrivialReturnBlock that this was safe to
+    // do.
+    for (auto *arg : MergedBB->getSILPhiArguments())
+      BBArgs.push_back(SILUndef::get(arg->getType(), *F));
+  }
   Builder.createBranch(Loc, MergedBB, BBArgs);
 
   // Then split any critical edges we created to the merged block.
@@ -174,7 +205,6 @@ emitApplyWithRethrow(SILBuilder &Builder, SILLocation Loc, SILValue FuncRef,
                      ArrayRef<unsigned> CallArgIndicesThatNeedEndBorrow) {
   auto &F = Builder.getFunction();
   SILFunctionConventions fnConv(CanSILFuncTy, Builder.getModule());
-
   SILBasicBlock *ErrorBB = F.createBasicBlock();
   SILBasicBlock *NormalBB = F.createBasicBlock();
 

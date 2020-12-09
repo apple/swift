@@ -35,6 +35,7 @@ struct LLVM_LIBRARY_VISIBILITY Context {
   Optional<DeadEndBlocks> deadEndBlocks;
   ValueLifetimeAnalysis::Frontier lifetimeFrontier;
   SmallMultiMapCache<SILValue, Operand *> addressToExhaustiveWriteListCache;
+  SmallVector<SILPhiArgument *, 2> phiArgumentToDelete;
 
   /// Are we assuming that we reached a fix point and are re-processing to
   /// prepare to use the phiToIncomingValueMultiMap.

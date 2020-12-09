@@ -846,6 +846,40 @@ bb0(%0 : $*T):
   return %8 : $Builtin.Int64
 }
 
+// Make sure that we do not crash on this due to the undef args and insert our
+// own undef.
+
+// CHECK-EAGER-SPECIALIZE-AND-GENERICS-INLINE: sil @testSimpleGeneric2 : $@convention(thin) <T> (@in_guaranteed T) -> () {
+// CHECK: bb4:
+// CHECK:   br bb5(undef :
+// CHECK: bb5({{%.*}} : $Builtin.Int64):
+// CHECK-NEXT: tuple
+// CHECK-NEXT: return
+// CHECK: bb7:
+// CHECK-NEXT: unchecked_addr_cast
+// CHECK-NEXT: function_ref
+// CHECK-NEXT: function_ref
+// CHECK-NEXT: apply
+// CHECK-NEXT: tuple
+// CHECK-NEXT: unchecked_trivial_bit_cast
+// CHECK:   br bb5(undef :
+// CHECK-EAGER-SPECIALIZE-AND-GENERICS-INLINE: } // end sil function 'testSimpleGeneric2'
+sil [_specialize exported: false, kind: full, where T: _Trivial(64, 64)] @testSimpleGeneric2 : $@convention(thin) <T>(@in_guaranteed T) -> () {
+bb0(%0 : $*T):
+  br bb1
+
+bb1:
+  %1a = metatype $@thick T.Type
+  %2a = builtin "sizeof"<T>(%1a : $@thick T.Type) : $Builtin.Word 
+  %8a = builtin "zextOrBitCast_Word_Int64"(%2a : $Builtin.Word) : $Builtin.Int64
+  br bb2(undef : $Builtin.Int64)
+
+bb2(%8c : $Builtin.Int64):
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+
 sil_vtable ClassUsingThrowingP {
   #ClassUsingThrowingP.init!allocator: (ClassUsingThrowingP.Type) -> () -> ClassUsingThrowingP : @$s34eager_specialize_throwing_function19ClassUsingThrowingPCACycfC	// ClassUsingThrowingP.__allocating_init()
   #ClassUsingThrowingP.init!initializer: (ClassUsingThrowingP.Type) -> () -> ClassUsingThrowingP : @$s34eager_specialize_throwing_function19ClassUsingThrowingPCACycfc	// ClassUsingThrowingP.init()

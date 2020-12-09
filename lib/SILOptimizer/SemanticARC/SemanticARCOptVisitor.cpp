@@ -19,6 +19,7 @@
 
 #include "SemanticARCOptVisitor.h"
 #include "swift/SIL/DebugUtils.h"
+#include "swift/SILOptimizer/Utils/CFGOptUtils.h"
 
 using namespace swift;
 using namespace swift::semanticarc;
@@ -115,7 +116,31 @@ bool SemanticARCOptVisitor::processWorklist() {
       }
       continue;
     }
+
+    // Optimize phi args.
+    if (auto *arg = dyn_cast<SILPhiArgument>(next)) {
+      bool madeSingleChange = visit(arg);
+      assert((!madeSingleChange || !ctx.assumingAtFixedPoint) &&
+             "Assumed was at fixed point and modified state?!");
+      madeChange |= madeSingleChange;
+      if (madeSingleChange) {
+        ctx.verify();
+      }
+    }
   }
 
   return madeChange;
+}
+
+bool SemanticARCOptVisitor::deleteDeadArgs() {
+  if (ctx.phiArgumentToDelete.empty())
+    return false;
+
+  do {
+    auto *arg = ctx.phiArgumentToDelete.pop_back_val();
+    assert(arg->use_empty() && arg->getOwnershipKind() == OwnershipKind::None);
+    erasePhiArgument(arg->getParent(), arg->getIndex());
+  } while (!ctx.phiArgumentToDelete.empty());
+
+  return true;
 }
