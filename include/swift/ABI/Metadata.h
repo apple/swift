@@ -3225,7 +3225,7 @@ private:
   using TrailingGenericContextObjects::numTrailingObjects;
 
   size_t numTrailingObjects(OverloadToken<MangledContextName>) const {
-    return this->hasMangledNam() ? 1 : 0;
+    return this->hasMangledName() ? 1 : 0;
   }
 
 public:
@@ -4737,7 +4737,7 @@ private:
   size_t numTrailingObjects(OverloadToken<EnumSpareBitsChunk>) const {
     if (hasSpareBits()) {
       auto value = this->template getTrailingObjects<EnumSpareBitsHeader>();
-      auto bytes = value.bytes;
+      auto bytes = value->bytes;
       auto chunkSize = sizeof(EnumSpareBitsChunk);
       return (bytes + chunkSize - 1) / chunkSize;
     } else {
