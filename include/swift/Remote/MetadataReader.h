@@ -1048,39 +1048,6 @@ public:
       return nullptr;
     }
 
-<<<<<<< HEAD
-    // Determine the full size of the descriptor. This is reimplementing a fair
-    // bit of TrailingObjects but for out-of-process; maybe there's a way to
-    // factor the layout stuff out...
-    uint64_t genericsSize = 0;
-    if (flags.isGeneric()) {
-      GenericContextDescriptorHeader header;
-      auto headerAddr = address
-        + baseSize
-        + genericHeaderSize
-        - sizeof(header);
-      
-      if (!Reader->readBytes(RemoteAddress(headerAddr),
-                             (uint8_t*)&header, sizeof(header)))
-        return nullptr;
-      
-      genericsSize = genericHeaderSize
-        + (header.NumParams + 3u & ~3u)
-        + header.NumRequirements
-          * sizeof(TargetGenericRequirementDescriptor<Runtime>);
-    }
-
-    uint64_t vtableSize = 0;
-    if (hasVTable) {
-      TargetVTableDescriptorHeader<Runtime> header;
-      auto headerAddr = address
-        + baseSize
-        + genericsSize
-        + metadataInitSize;
-      
-      if (!Reader->readBytes(RemoteAddress(headerAddr),
-                             (uint8_t*)&header, sizeof(header)))
-=======
     // We don't know what trailing objects might be present, so
     // round up our initial estimate a bit.
     unsigned sizeEstimate = std::max(baseSize, 128U);
@@ -1113,7 +1080,7 @@ public:
         break;
       }
       // For types that use trailing objects, ask the trailing object logic to
-      // tell us if we're done or not
+      // look at what we have so far and tell us whether we're done or not
       case ContextDescriptorKind::Anonymous: {
         revisedEstimate = TargetAnonymousContextDescriptor<Runtime>::totalSizeOfPartialObject(buffer, bufferSize);
         break;
@@ -1140,33 +1107,26 @@ public:
       }
       // We don't know about this kind of context.
       default:
->>>>>>> 4d4947e40b3 (More robust reading of descriptors with trailing objects)
         return nullptr;
       }
 
-<<<<<<< HEAD
-      vtableSize = sizeof(header)
-        + header.VTableSize * sizeof(TargetMethodDescriptor<Runtime>);
-    }
-
-    uint64_t size = baseSize + genericsSize + metadataInitSize + vtableSize;
-    if (size > MaxMetadataSize)
-      return nullptr;
-    auto readResult = Reader->readBytes(RemoteAddress(address), size);
-    if (!readResult)
-      return nullptr;
-
-    auto descriptor =
-        reinterpret_cast<const TargetContextDescriptor<Runtime> *>(
-            readResult.get());
-
-=======
-      // If we have everything ...
+      // If we have everything, then clean up the buffer and exit the loop
       if (revisedEstimate <= bufferSize) {
-        // TODO: If the revisedEstimate is a lot smaller than bufferSize,
-        // we should probably trim the allocated buffer to release some memory.
+        auto trueSize = revisedEstimate;
+        // If the final true object size is a lot smaller than the allocated
+        // buffer, then it's worth a little more work to save memory.
+        if (trueSize < bufferSize / 2 && trueSize + 64 < bufferSize) {
+          auto newbuffer = realloc(buffer, trueSize);
+          if (!newbuffer) {
+            free(buffer);
+            return nullptr;
+          }
+          buffer = newbuffer;
+        }
+        bufferSize = trueSize;
         break;
       }
+
       // We didn't get everything, increase the working size estimate and try again
       sizeEstimate = std::max(sizeEstimate + 128, revisedEstimate);
       auto newbuffer = realloc(buffer, sizeEstimate);
@@ -1174,12 +1134,12 @@ public:
         free(buffer);
         return nullptr;
       }
+      buffer = newbuffer;
     }
 
     // Insert the final object into the descriptor cache and return it
     auto descriptor
       = reinterpret_cast<TargetContextDescriptor<Runtime> *>(buffer);
->>>>>>> 4d4947e40b3 (More robust reading of descriptors with trailing objects)
     ContextDescriptorCache.insert(
         std::make_pair(address, std::move(readResult)));
     return ContextDescriptorRef(address, descriptor);
