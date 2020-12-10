@@ -317,6 +317,55 @@ public:
         static_cast<BaseTy *>(this), TrailingObjectsBase::OverloadToken<T>());
   }
 
+  /// This returns the total size of the object to the extent that it can be
+  /// determined based on the partial object currently available.
+  ///
+  /// This is useful when copying objects from another address space; you can't
+  /// easily query the size of the remote object directly, so instead copy
+  /// enough data to get the base class, then use this to determine if you need
+  /// to copy more.  There are two cases:
+  ///
+  /// 1. The partial data contains the full object.  In this case, the
+  ///    returned size will be less than or equal to the provided size.
+  ///
+  /// 2. The partial data is not a complete object.  In this case, the returned
+  ///    size will be an estimate that is larger than the provided size.
+  ///    Note that the returned size may be smaller or larger than the true size of the
+  ///    object.
+  ///
+  /// In short, if the return value is larger than the provided size, you should
+  /// fetch more and try again.  Note that if the returned size is larger than
+  /// the provided size, all you really know is that the current data is
+  /// insufficient.  In particular, you cannot avoid calling this method again
+  /// after you fetch more data.
+  template <typename PrevTy>
+  size_t
+  totalSizeOfPartialObjectImpl(size_t available, BaseTy *Obj) {
+    return callNumTrailingObjects(
+            Obj, TrailingObjectsBase::OverloadToken<PrevTy>())
+        * sizeof(PrevTy);
+  }
+
+  template <typename PrevTy, typename... Tys>
+  size_t
+  totalSizeOfPartialObjectImpl(size_t available,
+                               BaseTy *Obj) {
+    size_t previousSize = totalSizeOfPartialObjectImpl<PrevTy>(available);
+    if (previousSize > available) {
+        return previousSize;
+    }
+    return previousSize
+      + totalSizeOfPartialObjectImpl<Tys...>(available - previousSize);
+  }
+
+  size_t
+  totalSizeOfPartialObject(size_t available) {
+    size_t baseSize = sizeof(BaseTy);
+    return baseSize
+      + totalSizeOfPartialTrailingObjectImpl<TrailingTys...>(available - baseSize,
+                                                             static_cast<BaseTy *>(this));
+  }
+
   /// Returns the size of the trailing data, if an object were
   /// allocated with the given counts (The counts are in the same order
   /// as the template arguments). This does not include the size of the

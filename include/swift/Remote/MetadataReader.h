@@ -991,12 +991,12 @@ public:
           address, reinterpret_cast<const TargetContextDescriptor<Runtime> *>(
                        cached->second.get()));
 
-    // Read the flags to figure out how much space we should read.
+    // Read the flags to figure out what kind of descriptor this is
     ContextDescriptorFlags flags;
     if (!Reader->readBytes(RemoteAddress(address), (uint8_t*)&flags,
-                           sizeof(flags)))
+                           sizeof(flags))) {
       return nullptr;
-    
+    }
     TypeContextDescriptorFlags typeFlags(flags.getKindSpecificFlags());
     uint64_t baseSize = 0;
     uint64_t genericHeaderSize = sizeof(GenericContextDescriptorHeader);
@@ -1016,51 +1016,39 @@ public:
       return 0;
     };
 
+    // Compute the size of the base object based on the kind of descriptor
+    unsigned baseSize = 0;
     switch (auto kind = flags.getKind()) {
     case ContextDescriptorKind::Module:
       baseSize = sizeof(TargetModuleContextDescriptor<Runtime>);
       break;
-    // TODO: Should we include trailing generic arguments in this load?
     case ContextDescriptorKind::Extension:
       baseSize = sizeof(TargetExtensionContextDescriptor<Runtime>);
       break;
     case ContextDescriptorKind::Anonymous:
       baseSize = sizeof(TargetAnonymousContextDescriptor<Runtime>);
-      if (AnonymousContextDescriptorFlags(flags.getKindSpecificFlags())
-            .hasMangledName()) {
-        metadataInitSize = sizeof(TargetMangledContextName<Runtime>);
-      }
       break;
     case ContextDescriptorKind::Class:
       baseSize = sizeof(TargetClassDescriptor<Runtime>);
-      genericHeaderSize = sizeof(TypeGenericContextDescriptorHeader);
-      hasVTable = typeFlags.class_hasVTable();
-      metadataInitSize = readMetadataInitSize();
       break;
     case ContextDescriptorKind::Enum:
       baseSize = sizeof(TargetEnumDescriptor<Runtime>);
-      genericHeaderSize = sizeof(TypeGenericContextDescriptorHeader);
-      metadataInitSize = readMetadataInitSize();
       break;
     case ContextDescriptorKind::Struct:
       baseSize = sizeof(TargetStructDescriptor<Runtime>);
-      genericHeaderSize = sizeof(TypeGenericContextDescriptorHeader);
-      metadataInitSize = readMetadataInitSize();
       break;
     case ContextDescriptorKind::Protocol:
       baseSize = sizeof(TargetProtocolDescriptor<Runtime>);
       break;
     case ContextDescriptorKind::OpaqueType:
       baseSize = sizeof(TargetOpaqueTypeDescriptor<Runtime>);
-      metadataInitSize =
-        sizeof(typename Runtime::template RelativeDirectPointer<const char>)
-          * flags.getKindSpecificFlags();
       break;
     default:
       // We don't know about this kind of context.
       return nullptr;
     }
 
+<<<<<<< HEAD
     // Determine the full size of the descriptor. This is reimplementing a fair
     // bit of TrailingObjects but for out-of-process; maybe there's a way to
     // factor the layout stuff out...
@@ -1092,8 +1080,77 @@ public:
       
       if (!Reader->readBytes(RemoteAddress(headerAddr),
                              (uint8_t*)&header, sizeof(header)))
-        return nullptr;
+=======
+    // We don't know what trailing objects might be present, so
+    // round up our initial estimate a bit.
+    unsigned sizeEstimate = std::max(baseSize, 128U);
+    auto buffer = (uint8_t *)malloc(sizeEstimate);
+    unsigned bufferSize = 0; // Size of data in buffer
 
+    while (true) {
+      // Read more of the object
+      // The first `bufferSize` bytes have already been read, so just
+      // grab the next section to fulfill `sizeEstimate`
+      if (!Reader->readBytes(RemoteAddress(address + bufferSize),
+                             buffer + bufferSize,
+                             sizeEstimate - bufferSize)) {
+        free(buffer);
+        return nullptr;
+      }
+      bufferSize = sizeEstimate;
+      // Note that `buffer` includes at least the base object, so
+      // it's safe to query the object as long as we don't
+      // try to actually access trailing objects that might not exist.
+
+      // Based on what we have so far, figure out whether we have
+      // all the trailing data yet.
+      unsigned revisedEstimate = 0;
+      switch (auto kind = flags.getKind()) {
+      // For fixed-size descriptors without trailing data, the baseSize is always correct
+      case ContextDescriptorKind::Module:
+      case ContextDescriptorKind::Extension: {
+        revisedEstimate = baseSize;
+        break;
+      }
+      // For types that use trailing objects, ask the trailing object logic to
+      // tell us if we're done or not
+      case ContextDescriptorKind::Anonymous: {
+        auto descriptor = reinterpret_cast<TargetAnonymousContextDescriptor<Runtime> *>(buffer);
+        revisedEstimate = descriptor->totalSizeOfPartialObject(bufferSize);
+        break;
+      }
+      case ContextDescriptorKind::Class: {
+        auto descriptor = reinterpret_cast<TargetClassDescriptor<Runtime> *>(buffer);
+        revisedEstimate = descriptor->totalSizeOfPartialObject(bufferSize);
+        break;
+      }
+      case ContextDescriptorKind::Enum: {
+        auto descriptor = reinterpret_cast<TargetEnumDescriptor<Runtime> *>(buffer);
+        revisedEstimate = descriptor->totalSizeOfPartialObject(bufferSize);
+        break;
+      }
+      case ContextDescriptorKind::Struct: {
+        auto descriptor = reinterpret_cast<TargetStructDescriptor<Runtime> *>(buffer);
+        revisedEstimate = descriptor->totalSizeOfPartialObject(bufferSize);
+        break;
+      }
+      case ContextDescriptorKind::Protocol: {
+        auto descriptor = reinterpret_cast<TargetProtocolDescriptor<Runtime> *>(buffer);
+        revisedEstimate = descriptor->totalSizeOfPartialObject(bufferSize);
+        break;
+      }
+      case ContextDescriptorKind::OpaqueType: {
+        auto descriptor = reinterpret_cast<TargetOpaqueTypeDescriptor<Runtime> *>(buffer);
+        revisedEstimate = descriptor->totalSizeOfPartialObject(bufferSize);
+        break;
+      }
+      // We don't know about this kind of context.
+      default:
+>>>>>>> 4d4947e40b3 (More robust reading of descriptors with trailing objects)
+        return nullptr;
+      }
+
+<<<<<<< HEAD
       vtableSize = sizeof(header)
         + header.VTableSize * sizeof(TargetMethodDescriptor<Runtime>);
     }
@@ -1109,6 +1166,26 @@ public:
         reinterpret_cast<const TargetContextDescriptor<Runtime> *>(
             readResult.get());
 
+=======
+      // If we have everything ...
+      if (revisedEstimate <= bufferSize) {
+        // TODO: If the revisedEstimate is a lot smaller than bufferSize,
+        // we should probably trim the allocated buffer to release some memory.
+        break;
+      }
+      // We didn't get everything, increase the working size estimate and try again
+      sizeEstimate = std::max(sizeEstimate + 128, revisedEstimate);
+      auto newbuffer = realloc(buffer, sizeEstimate);
+      if (!newbuffer) {
+        free(buffer);
+        return nullptr;
+      }
+    }
+
+    // Insert the final object into the descriptor cache and return it
+    auto descriptor
+      = reinterpret_cast<TargetContextDescriptor<Runtime> *>(buffer);
+>>>>>>> 4d4947e40b3 (More robust reading of descriptors with trailing objects)
     ContextDescriptorCache.insert(
         std::make_pair(address, std::move(readResult)));
     return ContextDescriptorRef(address, descriptor);
