@@ -1454,6 +1454,12 @@ namespace {
     
     Size PayloadSizeOffset;
     const EnumImplStrategy &Strategy;
+
+    bool needsSpareBitMask() const {
+      // TODO: Fix this
+      return false;
+    }
+
     
   public:
     EnumContextDescriptorBuilder(IRGenModule &IGM, EnumDecl *Type,
@@ -1499,7 +1505,7 @@ namespace {
       TypeContextDescriptorFlags flags;
 
       setCommonFlags(flags);
-      flags.enum_setHasSpareBits(false);
+      flags.enum_setHasSpareBits(needsSpareBitMask());
       return flags.getOpaqueValue();
     }
 
@@ -1526,10 +1532,8 @@ namespace {
     }
 
     void maybeAddSpareBitMask() {
-      auto hasSpareBits = TypeContextDescriptorFlags(getKindSpecificFlags()).enum_hasSpareBits();
-      if (hasSpareBits) {
-        B.addSize(Size(3));
-        B.addInt32(0x11223300);
+      if (needsSpareBitMask()) {
+        // TODO: Add spare bit mask data
       }
     }
   };

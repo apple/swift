@@ -4731,12 +4731,12 @@ private:
   }
 
   size_t numTrailingObjects(OverloadToken<EnumSpareBitsHeader>) const {
-    return this->getTypeContextDescriptorFlags().enum_hasSpareBits() ? 1 : 0;
+    return hasSpareBits() ? 1 : 0;
   }
 
   size_t numTrailingObjects(OverloadToken<EnumSpareBitsChunk>) const {
-    if (false) { // (this->getTypeContextDescriptorFlags().enum_hasSpareBits()) {
-      auto value = this->template getTrailingObjects<TargetEnumSpareBitsHeader>();
+    if (hasSpareBits()) {
+      auto value = this->template getTrailingObjects<EnumSpareBitsHeader>();
       auto bytes = value.bytes;
       auto chunkSize = sizeof(EnumSpareBitsChunk);
       return (bytes + chunkSize - 1) / chunkSize;
@@ -4777,6 +4777,10 @@ public:
     return getPayloadSizeOffset() != 0;
   }
 
+  bool hasSpareBits() const {
+    return this->getTypeContextDescriptorFlags().enum_hasSpareBits();
+  }
+
   static constexpr int32_t getGenericArgumentOffset() {
     return TargetEnumMetadata<Runtime>::getGenericArgumentOffset();
   }
@@ -4814,11 +4818,10 @@ public:
 
   // TODO: Fix up return type...
   size_t getEnumSpareBits() const {
-    assert(this->enum_hasSpareBits());
-    auto header = *this->template getTrailingObjects<TargetEnumSpareBitsHeader>();
+    assert(hasSpareBits());
+    auto header = *this->template getTrailingObjects<EnumSpareBitsHeader>();
     size_t length = header.bytes;
-
-//    auto mask = this->template getTrailingObjects<TargetEnumSpareBitsChunk>();
+    EnumSpareBitsChunk *chunks = this->template getTrailingObjects<EnumSpareBitsChunk>();
     // TODO: Convert mask data into some sort of SpareBits object
 
     return length;
