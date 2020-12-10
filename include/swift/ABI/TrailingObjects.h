@@ -94,7 +94,7 @@ protected:
   /// parameters. (Necessary because member function templates cannot
   /// be specialized, so overloads must be used instead of
   /// specialization.)
-  template <typename T> struct OverloadToken {};
+  template <typename... T> struct OverloadToken {};
 };
 
 template <int Align>
@@ -195,6 +195,24 @@ protected:
       return reinterpret_cast<NextTy *>(Ptr);
   }
 
+public:
+  static size_t
+  totalSizeOfPartialObjectImpl(size_t available,
+                               BaseTy *Obj,
+                               TrailingObjectsBase::OverloadToken<PrevTy, NextTy, MoreTys...>) {
+    size_t previousSize = TopTrailingObj::callNumTrailingObjects(
+            Obj, TrailingObjectsBase::OverloadToken<PrevTy>())
+        * sizeof(PrevTy);
+    if (previousSize > available) {
+        return previousSize;
+    }
+    return previousSize
+      + ParentType::totalSizeOfPartialObjectImpl(available - previousSize,
+                                     Obj,
+                                     TrailingObjectsBase::OverloadToken<NextTy, MoreTys...>());
+  }
+
+protected:
   // Helper function for TrailingObjects::additionalSizeToAlloc: this
   // function recurses to superclasses, each of which requires one
   // fewer size_t argument, and adds its own size.
@@ -222,6 +240,15 @@ protected:
 
   static constexpr size_t additionalSizeToAllocImpl(size_t SizeSoFar) {
     return SizeSoFar;
+  }
+
+  static size_t
+  totalSizeOfPartialObjectImpl(size_t available,
+                               BaseTy *Obj,
+                               TrailingObjectsBase::OverloadToken<PrevTy>) {
+    return TopTrailingObj::callNumTrailingObjects(
+        Obj, TrailingObjectsBase::OverloadToken<PrevTy>())
+      * sizeof(PrevTy);
   }
 
   template <bool CheckAlignment> static void verifyTrailingObjectsAlignment() {}
@@ -292,8 +319,8 @@ public:
 #else
   // MSVC bug prevents the above from working, at least up through CL
   // 19.10.24629.
-  template <typename T>
-  using OverloadToken = typename ParentType::template OverloadToken<T>;
+  template <typename... T>
+  using OverloadToken = typename ParentType::template OverloadToken<T...>;
 #endif
 
   /// Returns a pointer to the trailing object array of the given type
@@ -338,32 +365,16 @@ public:
   /// the provided size, all you really know is that the current data is
   /// insufficient.  In particular, you cannot avoid calling this method again
   /// after you fetch more data.
-  template <typename PrevTy>
-  size_t
-  totalSizeOfPartialObjectImpl(size_t available, BaseTy *Obj) {
-    return callNumTrailingObjects(
-            Obj, TrailingObjectsBase::OverloadToken<PrevTy>())
-        * sizeof(PrevTy);
-  }
-
-  template <typename PrevTy, typename... Tys>
-  size_t
-  totalSizeOfPartialObjectImpl(size_t available,
-                               BaseTy *Obj) {
-    size_t previousSize = totalSizeOfPartialObjectImpl<PrevTy>(available);
-    if (previousSize > available) {
-        return previousSize;
+  static size_t
+  totalSizeOfPartialObject(uint8_t *buffer, size_t available) {
+    auto baseSize = sizeof(BaseTy);
+    if (baseSize > available) {
+      return baseSize;
     }
-    return previousSize
-      + totalSizeOfPartialObjectImpl<Tys...>(available - previousSize);
-  }
-
-  size_t
-  totalSizeOfPartialObject(size_t available) {
-    size_t baseSize = sizeof(BaseTy);
     return baseSize
-      + totalSizeOfPartialTrailingObjectImpl<TrailingTys...>(available - baseSize,
-                                                             static_cast<BaseTy *>(this));
+      + ParentType::totalSizeOfPartialObjectImpl(available - baseSize,
+                                                 reinterpret_cast<BaseTy *>(buffer),
+                                                 TrailingObjectsBase::OverloadToken<TrailingTys...>());
   }
 
   /// Returns the size of the trailing data, if an object were

@@ -1115,33 +1115,27 @@ public:
       // For types that use trailing objects, ask the trailing object logic to
       // tell us if we're done or not
       case ContextDescriptorKind::Anonymous: {
-        auto descriptor = reinterpret_cast<TargetAnonymousContextDescriptor<Runtime> *>(buffer);
-        revisedEstimate = descriptor->totalSizeOfPartialObject(bufferSize);
+        revisedEstimate = TargetAnonymousContextDescriptor<Runtime>::totalSizeOfPartialObject(buffer, bufferSize);
         break;
       }
       case ContextDescriptorKind::Class: {
-        auto descriptor = reinterpret_cast<TargetClassDescriptor<Runtime> *>(buffer);
-        revisedEstimate = descriptor->totalSizeOfPartialObject(bufferSize);
+        revisedEstimate = TargetClassDescriptor<Runtime>::totalSizeOfPartialObject(buffer, bufferSize);
         break;
       }
       case ContextDescriptorKind::Enum: {
-        auto descriptor = reinterpret_cast<TargetEnumDescriptor<Runtime> *>(buffer);
-        revisedEstimate = descriptor->totalSizeOfPartialObject(bufferSize);
+        revisedEstimate = TargetEnumDescriptor<Runtime>::totalSizeOfPartialObject(buffer, bufferSize);
         break;
       }
       case ContextDescriptorKind::Struct: {
-        auto descriptor = reinterpret_cast<TargetStructDescriptor<Runtime> *>(buffer);
-        revisedEstimate = descriptor->totalSizeOfPartialObject(bufferSize);
+        revisedEstimate = TargetStructDescriptor<Runtime>::totalSizeOfPartialObject(buffer, bufferSize);
         break;
       }
       case ContextDescriptorKind::Protocol: {
-        auto descriptor = reinterpret_cast<TargetProtocolDescriptor<Runtime> *>(buffer);
-        revisedEstimate = descriptor->totalSizeOfPartialObject(bufferSize);
+        revisedEstimate = TargetProtocolDescriptor<Runtime>::totalSizeOfPartialObject(buffer, bufferSize);
         break;
       }
       case ContextDescriptorKind::OpaqueType: {
-        auto descriptor = reinterpret_cast<TargetOpaqueTypeDescriptor<Runtime> *>(buffer);
-        revisedEstimate = descriptor->totalSizeOfPartialObject(bufferSize);
+        revisedEstimate = TargetOpaqueTypeDescriptor<Runtime>::totalSizeOfPartialObject(buffer, bufferSize);
         break;
       }
       // We don't know about this kind of context.
