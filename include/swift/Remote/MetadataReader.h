@@ -1116,7 +1116,7 @@ public:
         // If the final true object size is a lot smaller than the allocated
         // buffer, then it's worth a little more work to save memory.
         if (trueSize < bufferSize / 2 && trueSize + 64 < bufferSize) {
-          auto newbuffer = realloc(buffer, trueSize);
+          auto newbuffer = (uint8_t *)realloc(buffer, trueSize);
           if (!newbuffer) {
             free(buffer);
             return nullptr;
@@ -1129,7 +1129,7 @@ public:
 
       // We didn't get everything, increase the working size estimate and try again
       sizeEstimate = std::max(sizeEstimate + 128, revisedEstimate);
-      auto newbuffer = realloc(buffer, sizeEstimate);
+      auto newbuffer = (uint8_t *)realloc(buffer, sizeEstimate);
       if (!newbuffer) {
         free(buffer);
         return nullptr;

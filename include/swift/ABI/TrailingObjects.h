@@ -94,7 +94,7 @@ protected:
   /// parameters. (Necessary because member function templates cannot
   /// be specialized, so overloads must be used instead of
   /// specialization.)
-  template <typename... T> struct OverloadToken {};
+  template <typename T> struct OverloadToken {};
 };
 
 template <int Align>
@@ -195,21 +195,21 @@ protected:
       return reinterpret_cast<NextTy *>(Ptr);
   }
 
-public:
+  using ParentType::estimatedSizeOfPartialTrailingObjects;
+
   static size_t
-  totalSizeOfPartialObjectImpl(size_t available,
+  estimatedSizeOfPartialTrailingObjects(size_t available,
                                BaseTy *Obj,
-                               TrailingObjectsBase::OverloadToken<PrevTy, NextTy, MoreTys...>) {
-    size_t previousSize = TopTrailingObj::callNumTrailingObjects(
-            Obj, TrailingObjectsBase::OverloadToken<PrevTy>())
-        * sizeof(PrevTy);
+                               TrailingObjectsBase::OverloadToken<NextTy>) {
+    size_t previousSize = TopTrailingObj::estimatedSizeOfPartialTrailingObjects(
+      available, Obj, TrailingObjectsBase::OverloadToken<PrevTy>());
     if (previousSize > available) {
         return previousSize;
     }
     return previousSize
-      + ParentType::totalSizeOfPartialObjectImpl(available - previousSize,
-                                     Obj,
-                                     TrailingObjectsBase::OverloadToken<NextTy, MoreTys...>());
+      + TopTrailingObj::callNumTrailingObjects(
+        Obj, TrailingObjectsBase::OverloadToken<NextTy>())
+      * sizeof(NextTy);
   }
 
 protected:
@@ -243,12 +243,10 @@ protected:
   }
 
   static size_t
-  totalSizeOfPartialObjectImpl(size_t available,
-                               BaseTy *Obj,
-                               TrailingObjectsBase::OverloadToken<PrevTy>) {
-    return TopTrailingObj::callNumTrailingObjects(
-        Obj, TrailingObjectsBase::OverloadToken<PrevTy>())
-      * sizeof(PrevTy);
+  estimatedSizeOfPartialTrailingObjects(size_t available,
+                                        BaseTy *Obj) {
+    return TopTrailingObj::estimatedSizeOfPartialTrailingObjects(
+      available, Obj, TrailingObjectsBase::OverloadToken<PrevTy>());
   }
 
   template <bool CheckAlignment> static void verifyTrailingObjectsAlignment() {}
@@ -344,8 +342,9 @@ public:
         static_cast<BaseTy *>(this), TrailingObjectsBase::OverloadToken<T>());
   }
 
-  /// This returns the total size of the object to the extent that it can be
-  /// determined based on the partial object currently available.
+  /// `totalSizeOfPartialObject` returns the total size of the object to the
+  /// extent that it can be determined based on the partial object currently
+  /// available.
   ///
   /// This is useful when copying objects from another address space; you can't
   /// easily query the size of the remote object directly, so instead copy
@@ -365,16 +364,22 @@ public:
   /// the provided size, all you really know is that the current data is
   /// insufficient.  In particular, you cannot avoid calling this method again
   /// after you fetch more data.
+
+  // Recursively defined helpers...
+  using ParentType::estimatedSizeOfPartialTrailingObjects;
+
+  // Base case that just returns size of the base type.
+  static size_t
+  estimatedSizeOfPartialTrailingObjects(size_t available,
+                                        BaseTy *Obj,
+                                        TrailingObjectsBase::OverloadToken<BaseTy>) {
+    return sizeof(BaseTy);
+  }
+
   static size_t
   totalSizeOfPartialObject(uint8_t *buffer, size_t available) {
-    auto baseSize = sizeof(BaseTy);
-    if (baseSize > available) {
-      return baseSize;
-    }
-    return baseSize
-      + ParentType::totalSizeOfPartialObjectImpl(available - baseSize,
-                                                 reinterpret_cast<BaseTy *>(buffer),
-                                                 TrailingObjectsBase::OverloadToken<TrailingTys...>());
+    return ParentType::estimatedSizeOfPartialTrailingObjects(
+      available, reinterpret_cast<BaseTy *>(buffer));
   }
 
   /// Returns the size of the trailing data, if an object were

@@ -3048,6 +3048,7 @@ protected:
 public:
   using StoredSize = typename Runtime::StoredSize;
   using StoredPointer = typename Runtime::StoredPointer;
+  using TrailingObjects::totalSizeOfPartialObject;
 
   const GenericContextHeaderType &getFullGenericContextHeader() const {
     assert(asSelf()->isGeneric());
@@ -4737,7 +4738,7 @@ private:
   size_t numTrailingObjects(OverloadToken<EnumSpareBitsChunk>) const {
     if (hasSpareBits()) {
       auto value = this->template getTrailingObjects<EnumSpareBitsHeader>();
-      auto bytes = value->bytes;
+      auto bytes = value->bytesCount;
       auto chunkSize = sizeof(EnumSpareBitsChunk);
       return (bytes + chunkSize - 1) / chunkSize;
     } else {
