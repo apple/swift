@@ -3906,6 +3906,7 @@ static uint8_t getRawStableSILFunctionTypeRepresentation(
   SIMPLE_CASE(SILFunctionTypeRepresentation, CFunctionPointer)
   SIMPLE_CASE(SILFunctionTypeRepresentation, Method)
   SIMPLE_CASE(SILFunctionTypeRepresentation, ObjCMethod)
+  SIMPLE_CASE(SILFunctionTypeRepresentation, CXXMethod)
   SIMPLE_CASE(SILFunctionTypeRepresentation, WitnessMethod)
   SIMPLE_CASE(SILFunctionTypeRepresentation, Closure)
   }

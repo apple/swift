@@ -4716,6 +4716,17 @@ void SILGenFunction::emitProtocolWitness(AbstractionPattern reqtOrigTy,
                                          witnessUnsubstTy->getSelfParameter());
   }
 
+  // For static C++ methods and constructors, we need to drop the (metatype)
+  // "self" param. The "native" SIL representation will look like this:
+  //    @convention(method) (@thin Foo.Type) -> () but the "actual" SIL function
+  // looks like this:
+  //    @convention(c) () -> ()
+  // . We do this by simply omiting the last params.
+  // TODO: fix this for static C++ methods.
+  if (witness.getDecl()->getClangDecl() &&
+      isa<clang::CXXConstructorDecl>(witness.getDecl()->getClangDecl()))
+    reqtSubstParams = reqtSubstParams.drop_back();
+
   // For a free function witness, discard the 'self' parameter of the
   // requirement.
   if (isFree) {

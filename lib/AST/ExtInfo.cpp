@@ -68,6 +68,7 @@ Optional<UnexpectedClangTypeError> UnexpectedClangTypeError::checkClangType(
 #else
   bool isBlock = true;
   switch (silRep) {
+  case SILFunctionTypeRepresentation::CXXMethod:
   case SILFunctionTypeRepresentation::CFunctionPointer:
       isBlock = false;
       LLVM_FALLTHROUGH;

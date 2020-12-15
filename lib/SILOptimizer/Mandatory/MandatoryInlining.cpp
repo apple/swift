@@ -758,6 +758,7 @@ getCalleeFunction(SILFunction *F, FullApplySite AI, bool &IsThick,
     break;
     
   case SILFunctionTypeRepresentation::CFunctionPointer:
+  case SILFunctionTypeRepresentation::CXXMethod:
   case SILFunctionTypeRepresentation::ObjCMethod:
   case SILFunctionTypeRepresentation::Block:
     return nullptr;

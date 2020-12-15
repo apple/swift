@@ -204,6 +204,7 @@ const clang::Type *ClangTypeConverter::getFunctionType(
     return nullptr;
 
   switch (repr) {
+  case SILFunctionType::Representation::CXXMethod:
   case SILFunctionType::Representation::CFunctionPointer:
     return ClangASTContext.getPointerType(fn).getTypePtr();
   case SILFunctionType::Representation::Block:

@@ -417,9 +417,18 @@ public:
     // If it's not an accessor, just look for the witness.
     if (!reqAccessor) {
       if (auto witness = asDerived().getWitness(reqDecl)) {
-        return addMethodImplementation(
-            requirementRef, requirementRef.withDecl(witness.getDecl()),
-            witness);
+        auto newDecl = requirementRef.withDecl(witness.getDecl());
+        // Don't import Objective-C methods as forien. If the following
+        // Objective-C function is imported here as foreing:
+        //   () -> String
+        // It will be imported as the following type:
+        //   () -> NSString
+        // But the first is correct, so make sure we don't mark this witness
+        // as forien.
+        if (dyn_cast_or_null<clang::CXXMethodDecl>(
+                witness.getDecl()->getClangDecl()))
+          newDecl = newDecl.asForeign();
+        return addMethodImplementation(requirementRef, newDecl, witness);
       }
 
       return asDerived().addMissingMethod(requirementRef);

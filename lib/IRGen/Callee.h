@@ -322,6 +322,9 @@ namespace irgen {
     /// Given that this callee is a block, return the block pointer.
     llvm::Value *getBlockObject() const;
 
+    /// Given that this callee is a C++ method, return the self argument.
+    llvm::Value *getCXXMethodSelf() const;
+
     /// Given that this callee is an ObjC method, return the receiver
     /// argument.  This might not be 'self' anymore.
     llvm::Value *getObjCMethodReceiver() const;

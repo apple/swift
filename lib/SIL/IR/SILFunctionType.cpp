@@ -2476,6 +2476,7 @@ static CanSILFunctionType getNativeSILFunctionType(
   switch (extInfoBuilder.getRepresentation()) {
   case SILFunctionType::Representation::Block:
   case SILFunctionType::Representation::CFunctionPointer:
+  case SILFunctionTypeRepresentation::CXXMethod:
     return getSILFunctionTypeForAbstractCFunction(
         TC, origType, substInterfaceType, extInfoBuilder, constant);
 
@@ -3248,8 +3249,19 @@ SILFunctionTypeRepresentation
 TypeConverter::getDeclRefRepresentation(SILDeclRef c) {
   // If this is a foreign thunk, it always has the foreign calling convention.
   if (c.isForeign) {
-    if (!c.hasDecl() ||
-        c.getDecl()->isImportAsMember())
+    if (!c.hasDecl())
+      return SILFunctionTypeRepresentation::CFunctionPointer;
+
+    // TODO: Is this correct for operators?
+    if (auto method =
+            dyn_cast_or_null<clang::CXXMethodDecl>(c.getDecl()->getClangDecl()))
+      return isa<clang::CXXConstructorDecl>(method) || method->isStatic() ||
+                     method->isOverloadedOperator()
+                 ? SILFunctionTypeRepresentation::CFunctionPointer
+                 : SILFunctionTypeRepresentation::CXXMethod;
+
+    // For example, if we have a function in a namespace:
+    if (c.getDecl()->isImportAsMember())
       return SILFunctionTypeRepresentation::CFunctionPointer;
 
     if (isClassOrProtocolMethod(c.getDecl()) ||
@@ -4233,6 +4245,7 @@ TypeConverter::getLoweredFormalTypes(SILDeclRef constant,
     bridgedResultType = resultType;
     break;
 
+  case SILFunctionTypeRepresentation::CXXMethod:
   case SILFunctionTypeRepresentation::ObjCMethod:
   case SILFunctionTypeRepresentation::CFunctionPointer: {
     if (rep == SILFunctionTypeRepresentation::ObjCMethod) {

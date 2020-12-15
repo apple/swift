@@ -109,6 +109,7 @@ Type TypeConverter::getLoweredBridgedType(AbstractionPattern pattern,
   case SILFunctionTypeRepresentation::CFunctionPointer:
   case SILFunctionTypeRepresentation::ObjCMethod:
   case SILFunctionTypeRepresentation::Block:
+  case SILFunctionTypeRepresentation::CXXMethod:
     // Map native types back to bridged types.
 
     // Look through optional types.
@@ -180,13 +181,12 @@ Type TypeConverter::getLoweredCBridgedType(AbstractionPattern pattern,
   
   if (auto funTy = t->getAs<FunctionType>()) {
     switch (funTy->getExtInfo().getSILRepresentation()) {
-    // Functions that are already represented as blocks or C function pointers
-    // don't need bridging.
     case SILFunctionType::Representation::Block:
     case SILFunctionType::Representation::CFunctionPointer:
     case SILFunctionType::Representation::Thin:
     case SILFunctionType::Representation::Method:
     case SILFunctionType::Representation::ObjCMethod:
+    case SILFunctionTypeRepresentation::CXXMethod:
     case SILFunctionType::Representation::WitnessMethod:
     case SILFunctionType::Representation::Closure:
       return t;
