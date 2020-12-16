@@ -203,13 +203,19 @@ protected:
                                TrailingObjectsBase::OverloadToken<NextTy>) {
     size_t previousSize = TopTrailingObj::estimatedSizeOfPartialTrailingObjects(
       available, Obj, TrailingObjectsBase::OverloadToken<PrevTy>());
-    if (previousSize > available) {
-        return previousSize;
+    if (requiresRealignment()) {
+      // Pretend `previousSize` is a pointer to a trailing object of a
+      // descriptor based at address zero so we can just use the
+      // standard alignment calculations.
+      previousSize = llvm::alignAddr((const void *)previousSize,
+                                     llvm::Align(alignof(NextTy)));
     }
-    return previousSize
-      + TopTrailingObj::callNumTrailingObjects(
-        Obj, TrailingObjectsBase::OverloadToken<NextTy>())
-      * sizeof(NextTy);
+    if (previousSize <= available) {
+      auto count = TopTrailingObj::callNumTrailingObjects(
+          Obj, TrailingObjectsBase::OverloadToken<NextTy>());
+      previousSize += sizeof(NextTy) * count;
+    }
+    return previousSize;
   }
 
 protected:
