@@ -21,9 +21,6 @@
 
 // EDUCATIONAL_NOTES(DIAG_ID, EDUCATIONAL_NOTE_FILENAMES...)
 
-EDUCATIONAL_NOTES(unsupported_existential_type,
-                  "associated-type-requirements.md")
-
 EDUCATIONAL_NOTES(cannot_pass_type_to_non_ephemeral, "temporary-pointers.md")
 EDUCATIONAL_NOTES(cannot_pass_type_to_non_ephemeral_warning,
                   "temporary-pointers.md")

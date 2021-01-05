@@ -3230,8 +3230,6 @@ static void checkSwitch(ASTContext &ctx, const SwitchStmt *stmt) {
   // We want to warn about "case .Foo, .Bar where 1 != 100:" since the where
   // clause only applies to the second case, and this is surprising.
   for (auto cs : stmt->getCases()) {
-    TypeChecker::checkUnsupportedProtocolType(ctx, cs);
-
     // The case statement can have multiple case items, each can have a where.
     // If we find a "where", and there is a preceding item without a where, and
     // if they are on the same source line, then warn.
@@ -4617,8 +4615,6 @@ void swift::performSyntacticExprDiagnostics(const Expr *E,
 void swift::performStmtDiagnostics(const Stmt *S, DeclContext *DC) {
   auto &ctx = DC->getASTContext();
 
-  TypeChecker::checkUnsupportedProtocolType(ctx, const_cast<Stmt *>(S));
-    
   if (auto switchStmt = dyn_cast<SwitchStmt>(S))
     checkSwitch(ctx, switchStmt);
 

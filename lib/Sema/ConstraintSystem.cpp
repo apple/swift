@@ -1643,16 +1643,38 @@ ConstraintSystem::getTypeOfMemberReference(
   if (!isDynamicResult &&
       baseObjTy->isExistentialType() &&
       outerDC->getSelfProtocolDecl()) {
-    auto selfTy = replacements[
-      cast<GenericTypeParamType>(outerDC->getSelfInterfaceType()
-                                 ->getCanonicalType())];
+    const auto selfTy = cast<GenericTypeParamType>(
+        outerDC->getSelfInterfaceType()->getCanonicalType());
+    const auto selfTyVar = replacements[selfTy];
+
+    // Reconsitute the 'Self' type parameter.
     type = type.transform([&](Type t) -> Type {
-      if (t->is<TypeVariableType>())
+      if (t->is<TypeVariableType>() && t->isEqual(selfTyVar))
+        return selfTy;
+
+      return t;
+    });
+
+    const auto sig = value->getASTContext().getOpenedArchetypeSignature(
+        baseObjTy->getCanonicalType());
+
+    // Replace 'Self' based type parameters with contextual types.
+    type = type.transform([&](Type t) -> Type {
+      if (t->isTypeParameter() && t->getRootGenericParam()->isEqual(selfTy))
+        return sig->getCanonicalTypeInContext(t);
+
+      return t;
+    });
+
+    // Finally, replace leftover 'Self' references with the existential type.
+    type = type.transform([&](Type t) -> Type {
+      if (t->is<GenericTypeParamType>())
         if (t->isEqual(selfTy))
           return baseObjTy;
       if (auto *metatypeTy = t->getAs<MetatypeType>())
         if (metatypeTy->getInstanceType()->isEqual(selfTy))
           return ExistentialMetatypeType::get(baseObjTy);
+
       return t;
     });
   }
@@ -2629,6 +2651,7 @@ void ConstraintSystem::resolveOverload(ConstraintLocator *locator,
                                    (kind == OverloadChoiceKind::DeclViaDynamic),
                                    choice.getFunctionRefKind(),
                                    locator, base, nullptr);
+
     } else {
       std::tie(openedFullType, refType)
         = getTypeOfReference(choice.getDecl(),

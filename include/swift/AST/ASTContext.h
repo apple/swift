@@ -1112,6 +1112,22 @@ public:
       const ValueDecl *base, const ValueDecl *derived,
       const OverrideGenericSignatureReqCheck direction);
 
+  /// Find 'Self' references within the given requirement as viewed from
+  /// the given existential base type.
+  ///
+  /// \param treatNonResultCovariantSelfAsInvariant If true, 'Self' is only
+  /// assumed to be covariant in a top-level non-function type, or in the
+  /// eventual result type of a top-level function type.
+  SelfReferenceInfo findExistentialSelfReferences(
+      Type existential, const ValueDecl *value,
+      bool treatNonResultCovariantSelfAsInvariant) const;
+
+  /// Determine whether we are allowed to refer to the given member with
+  /// the given existential base type. This is only permitted if the type of
+  /// the member does not contain any associated types, and does not
+  /// contain 'Self' in 'parameter' or 'other' position.
+  bool isAvailableOnExistential(Type existential, const ValueDecl *decl) const;
+
   /// Whether our effective Swift version is at least 'major'.
   ///
   /// This is usually the check you want; for example, when introducing

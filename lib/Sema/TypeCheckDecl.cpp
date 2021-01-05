@@ -682,7 +682,8 @@ ExistentialTypeSupportedRequest::evaluate(Evaluator &evaluator,
 
     // For value members, look at their type signatures.
     if (auto valueMember = dyn_cast<ValueDecl>(member)) {
-      if (!decl->isAvailableInExistential(valueMember))
+      if (!decl->getASTContext().isAvailableOnExistential(
+              decl->getDeclaredInterfaceType(), valueMember))
         return false;
     }
   }

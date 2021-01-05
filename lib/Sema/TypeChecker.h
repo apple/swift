@@ -247,22 +247,6 @@ Type getOptionalType(SourceLoc loc, Type elementType);
 Expr *resolveDeclRefExpr(UnresolvedDeclRefExpr *UDRE, DeclContext *Context,
                          bool replaceInvalidRefsWithErrors);
 
-/// Check for unsupported protocol types in the given declaration.
-void checkUnsupportedProtocolType(Decl *decl);
-
-/// Check for unsupported protocol types in the given statement.
-void checkUnsupportedProtocolType(ASTContext &ctx, Stmt *stmt);
-
-/// Check for unsupported protocol types in the given generic requirement
-/// list.
-void checkUnsupportedProtocolType(ASTContext &ctx,
-                                  TrailingWhereClause *whereClause);
-
-/// Check for unsupported protocol types in the given generic requirement
-/// list.
-void checkUnsupportedProtocolType(ASTContext &ctx,
-                                  GenericParamList *genericParams);
-
 /// Resolve a reference to the given type declaration within a particular
 /// context.
 ///

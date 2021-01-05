@@ -144,8 +144,7 @@ func freeFunction() {
   struct ConformingType : ProtoWithAssocType {
     typealias T = Int
 
-    func method() -> ProtoWithAssocType {}
-    // expected-error@-1 {{can only be used as a generic constraint because it has Self or associated type requirements}}
+    func method() -> ProtoWithAssocType {} // Ok
   }
 }
 

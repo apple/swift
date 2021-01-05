@@ -3528,11 +3528,6 @@ static Type getMemberForBaseType(LookupConformanceFn lookupConformances,
   if (auto *selfType = substBase->getAs<DynamicSelfType>())
     substBase = selfType->getSelfType();
 
-  // Error recovery path.
-  // FIXME: Generalized existentials will look here.
-  if (substBase->isOpenedExistential())
-    return failed();
-
   // If the parent is an archetype, extract the child archetype with the
   // given name.
   if (auto archetypeParent = substBase->getAs<ArchetypeType>()) {

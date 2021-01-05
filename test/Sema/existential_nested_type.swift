@@ -15,7 +15,7 @@ enum MyError : Error {
 
 func checkIt(_ js: Any) throws {
   switch js {
-    case let dbl as HasAssoc: // expected-error {{protocol 'HasAssoc' can only be used as a generic constraint because it has Self or associated type requirements}}
+    case let dbl as HasAssoc: // Ok
       throw MyError.bad(dbl)
 
     default:

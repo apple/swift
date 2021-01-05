@@ -2633,16 +2633,27 @@ void ArchetypeType::resolveNestedType(
   Type interfaceType = getInterfaceType();
   Type memberInterfaceType =
     DependentMemberType::get(interfaceType, nested.first);
-  auto equivClass =
-    builder.resolveEquivalenceClass(
-                                  memberInterfaceType,
-                                  ArchetypeResolutionKind::CompleteWellFormed);
-  if (!equivClass) {
+  const auto resolved = builder.maybeResolveEquivalenceClass(
+      memberInterfaceType, ArchetypeResolutionKind::CompleteWellFormed,
+      /*wantExactPotentialArchetype=*/false);
+  if (!resolved) {
     nested.second = ErrorType::get(interfaceType);
     return;
   }
 
-  auto result = equivClass->getTypeInContext(builder, genericEnv);
+  Type result;
+  if (const auto concrete = resolved.getAsConcreteType()) {
+    result = concrete;
+  } else {
+    auto *const equivClass = resolved.getEquivalenceClass(builder);
+    if (!equivClass) {
+      nested.second = ErrorType::get(interfaceType);
+      return;
+    }
+
+    result = equivClass->getTypeInContext(builder, genericEnv);
+  }
+
   assert(!nested.second ||
          nested.second->isEqual(result) ||
          (nested.second->hasError() && result->hasError()));
@@ -3697,12 +3708,17 @@ ResolvedType GenericSignatureBuilder::maybeResolveEquivalenceClass(
 EquivalenceClass *GenericSignatureBuilder::resolveEquivalenceClass(
                                     Type type,
                                     ArchetypeResolutionKind resolutionKind) {
-  if (auto resolved =
-        maybeResolveEquivalenceClass(type, resolutionKind,
-                                     /*wantExactPotentialArchetype=*/false))
-    return resolved.getEquivalenceClass(*this);
 
-  return nullptr;
+  const auto resolved =
+      maybeResolveEquivalenceClass(type, resolutionKind,
+                                   /*wantExactPotentialArchetype=*/false);
+  if (!resolved)
+    return nullptr;
+
+  if (resolved.getAsConcreteType())
+    return nullptr;
+
+  return resolved.getEquivalenceClass(*this);
 }
 
 auto GenericSignatureBuilder::resolve(UnresolvedType paOrT,

@@ -6512,15 +6512,14 @@ performMemberLookup(ConstraintKind constraintKind, DeclNameRef memberName,
       hasInstanceMethods = true;
     }
 
-    // If our base is an existential type, we can't make use of any
-    // member whose signature involves associated types.
-    if (instanceTy->isExistentialType()) {
-      if (auto *proto = decl->getDeclContext()->getSelfProtocolDecl()) {
-        if (!proto->isAvailableInExistential(decl)) {
-          result.addUnviable(candidate,
-                             MemberLookupResult::UR_UnavailableInExistential);
-          return;
-        }
+    // If our base is an existential type, see if the given member is
+    // available on the existential.
+    if (instanceTy->isExistentialType() &&
+        decl->getDeclContext()->getSelfProtocolDecl()) {
+      if (!ctx.isAvailableOnExistential(instanceTy, decl)) {
+        result.addUnviable(candidate,
+                           MemberLookupResult::UR_UnavailableInExistential);
+        return;
       }
     }
 

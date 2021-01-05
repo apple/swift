@@ -5035,3 +5035,203 @@ bool ASTContext::isASCIIString(StringRef s) const {
   }
   return true;
 }
+
+/// Classify usages of Self in the given type.
+///
+/// \param position The position we are currently at, in terms of variance.
+static SelfReferenceInfo
+findExistentialSelfReferences(GenericSignature existentialSig, Type type,
+                              SelfReferencePosition position) {
+  // If there are no type parameters, we're done.
+  if (!type->hasTypeParameter())
+    return SelfReferenceInfo();
+
+  // Tuples preserve variance.
+  if (auto tuple = type->getAs<TupleType>()) {
+    auto info = SelfReferenceInfo();
+    for (auto &elt : tuple->getElements()) {
+      info |= findExistentialSelfReferences(existentialSig, elt.getType(),
+                                            position);
+    }
+
+    // A covariant Self result inside a tuple will not be bona fide.
+    info.hasCovariantSelfResult = false;
+
+    return info;
+  }
+
+  // Function preserve variance in the result type, and flip variance in
+  // the parameter type.
+  if (auto funcTy = type->getAs<AnyFunctionType>()) {
+    auto inputInfo = SelfReferenceInfo();
+    for (auto param : funcTy->getParams()) {
+      // inout parameters are invariant.
+      if (param.isInOut()) {
+        inputInfo |=
+            findExistentialSelfReferences(existentialSig, param.getPlainType(),
+                                          SelfReferencePosition::Invariant);
+        continue;
+      }
+      inputInfo |= findExistentialSelfReferences(
+          existentialSig, param.getParameterType(), position.flipped());
+    }
+
+    // A covariant Self result inside a parameter will not be bona fide.
+    inputInfo.hasCovariantSelfResult = false;
+
+    auto resultInfo = findExistentialSelfReferences(
+        existentialSig, funcTy->getResult(), position);
+    if (resultInfo.selfRef == SelfReferencePosition::Covariant) {
+      resultInfo.hasCovariantSelfResult = true;
+    }
+    return inputInfo |= resultInfo;
+  }
+
+  // Metatypes preserve variance.
+  if (auto metaTy = type->getAs<MetatypeType>()) {
+    return findExistentialSelfReferences(existentialSig,
+                                         metaTy->getInstanceType(), position);
+  }
+
+  // Optionals preserve variance.
+  if (auto optType = type->getOptionalObjectType()) {
+    return findExistentialSelfReferences(existentialSig, optType, position);
+  }
+
+  // DynamicSelfType preserves variance.
+  // FIXME: This shouldn't ever appear in protocol requirement
+  // signatures.
+  if (auto selfType = type->getAs<DynamicSelfType>()) {
+    return findExistentialSelfReferences(existentialSig,
+                                         selfType->getSelfType(), position);
+  }
+
+  // Bound generic types are invariant.
+  if (auto boundGenericType = type->getAs<BoundGenericType>()) {
+    auto info = SelfReferenceInfo();
+    for (auto paramType : boundGenericType->getGenericArgs()) {
+      info |= findExistentialSelfReferences(existentialSig, paramType,
+                                            SelfReferencePosition::Invariant);
+    }
+
+    return info;
+  }
+
+  // Opaque result types of protocol extension members contain an invariant
+  // reference to 'Self'.
+  if (type->is<OpaqueTypeArchetypeType>())
+    return SelfReferenceInfo::forSelfRef(SelfReferencePosition::Invariant);
+
+  const auto selfTy = existentialSig->getGenericParams().front();
+
+  // A direct reference to 'Self'.
+  if (selfTy->isEqual(type))
+    return SelfReferenceInfo::forSelfRef(position);
+
+  if (type->is<DependentMemberType>() &&
+      selfTy->isEqual(type->getRootGenericParam())) {
+    const auto typeInContext = existentialSig->getCanonicalTypeInContext(type);
+
+    // A direct reference to 'Self'.
+    if (selfTy->isEqual(typeInContext))
+      return SelfReferenceInfo::forSelfRef(position);
+
+    // If we still have a type parameter, keep it as a reference to
+    // an associated type rooted on 'Self'.
+    if (typeInContext->hasTypeParameter())
+      return SelfReferenceInfo::forAssocTypeRef(position);
+  }
+
+  return SelfReferenceInfo();
+}
+
+/// Find Self references within the given requirement.
+SelfReferenceInfo ASTContext::findExistentialSelfReferences(
+    Type existential, const ValueDecl *value,
+    bool treatNonResultCovariantSelfAsInvariant) const {
+  assert(existential->isExistentialType());
+  const auto sig = existential->getASTContext().getOpenedArchetypeSignature(
+      existential->getCanonicalType());
+
+  // Types never refer to 'Self'.
+  if (isa<TypeDecl>(value))
+    return SelfReferenceInfo();
+
+  auto type = value->getInterfaceType();
+
+  // Skip invalid declarations.
+  if (type->hasError())
+    return SelfReferenceInfo();
+
+  if (isa<AbstractFunctionDecl>(value) || isa<SubscriptDecl>(value)) {
+    // For a method, skip the 'self' parameter.
+    if (isa<AbstractFunctionDecl>(value))
+      type = type->castTo<AnyFunctionType>()->getResult();
+
+    auto inputInfo = SelfReferenceInfo();
+    for (auto param : type->castTo<AnyFunctionType>()->getParams()) {
+      // inout parameters are invariant.
+      if (param.isInOut()) {
+        inputInfo |= ::findExistentialSelfReferences(
+            sig, param.getPlainType(), SelfReferencePosition::Invariant);
+        continue;
+      }
+      inputInfo |= ::findExistentialSelfReferences(
+          sig, param.getParameterType(), SelfReferencePosition::Contravariant);
+    }
+
+    // A covariant Self result inside a parameter will not be bona fide.
+    inputInfo.hasCovariantSelfResult = false;
+
+    // FIXME: Rather than having a special flag for the is-inheritable check,
+    // ensure non-result covariant Self is always diagnosed during type
+    // resolution.
+    //
+    // Methods of non-final classes can only contain a covariant 'Self'
+    // as their result type.
+    if (treatNonResultCovariantSelfAsInvariant &&
+        inputInfo.selfRef == SelfReferencePosition::Covariant) {
+      inputInfo.selfRef = SelfReferencePosition::Invariant;
+    }
+
+    auto resultInfo = ::findExistentialSelfReferences(
+        sig, type->castTo<AnyFunctionType>()->getResult(),
+        SelfReferencePosition::Covariant);
+    if (resultInfo.selfRef == SelfReferencePosition::Covariant) {
+      resultInfo.hasCovariantSelfResult = true;
+    }
+
+    return inputInfo |= resultInfo;
+  } else {
+    assert(isa<VarDecl>(value));
+
+    auto info = ::findExistentialSelfReferences(
+        sig, type, SelfReferencePosition::Covariant);
+    if (info.selfRef == SelfReferencePosition::Covariant) {
+      info.hasCovariantSelfResult = true;
+    }
+
+    return info;
+  }
+
+  return SelfReferenceInfo();
+}
+
+bool ASTContext::isAvailableOnExistential(Type existential,
+                                          const ValueDecl *decl) const {
+  // If the member type references 'Self' in non-covariant position, or an
+  // associated type in any position, we cannot use the existential type.
+  const auto info = findExistentialSelfReferences(
+      existential, decl, /*treatNonResultCovariantSelfAsInvariant=*/false);
+  if (info.selfRef > SelfReferencePosition::Covariant || info.assocTypeRef) {
+    return false;
+  }
+
+  // FIXME: Appropriately diagnose assignments instead.
+  if (auto *const storageDecl = dyn_cast<AbstractStorageDecl>(decl)) {
+    if (info.hasCovariantSelfResult && storageDecl->supportsMutation())
+      return false;
+  }
+
+  return true;
+}

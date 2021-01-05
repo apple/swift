@@ -4030,21 +4030,6 @@ public:
   /// Does this protocol require a self-conformance witness table?
   bool requiresSelfConformanceWitnessTable() const;
 
-  /// Find direct Self references within the given requirement.
-  ///
-  /// \param treatNonResultCovariantSelfAsInvariant If true, 'Self' is only
-  /// assumed to be covariant in a top-level non-function type, or in the
-  /// eventual result type of a top-level function type.
-  SelfReferenceInfo
-  findProtocolSelfReferences(const ValueDecl *decl,
-                             bool treatNonResultCovariantSelfAsInvariant) const;
-
-  /// Determine whether we are allowed to refer to an existential type
-  /// conforming to this protocol. This is only permitted if the type of
-  /// the member does not contain any associated types, and does not
-  /// contain 'Self' in 'parameter' or 'other' position.
-  bool isAvailableInExistential(const ValueDecl *decl) const;
-
   /// Determine whether we are allowed to refer to an existential type
   /// conforming to this protocol. This is only permitted if the types of
   /// all the members do not contain any associated types, and do not

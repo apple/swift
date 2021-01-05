@@ -875,9 +875,6 @@ NOTE(object_literal_resolve_import,none,
 
 ERROR(use_local_before_declaration,none,
       "use of local variable %0 before its declaration", (DeclNameRef))
-ERROR(unsupported_existential_type,none,
-      "protocol %0 can only be used as a generic constraint because it has "
-      "Self or associated type requirements", (Identifier))
 
 ERROR(decl_does_not_exist_in_module,none,
       "%select{%error|type|struct|class|enum|protocol|variable|function}0 "

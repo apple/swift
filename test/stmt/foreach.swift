@@ -176,7 +176,7 @@ func testOptionalSequence() {
 }
 
 // Crash with (invalid) for each over an existential
-func testExistentialSequence(s: Sequence) { // expected-error {{protocol 'Sequence' can only be used as a generic constraint because it has Self or associated type requirements}}
+func testExistentialSequence(s: Sequence) { // Ok
   for x in s { // expected-error {{protocol 'Sequence' as a type cannot conform to the protocol itself}} expected-note {{only concrete types such as structs, enums and classes can conform to protocols}}
     _ = x
   }
