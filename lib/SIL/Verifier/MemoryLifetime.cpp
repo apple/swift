@@ -11,11 +11,13 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "sil-memory-lifetime"
+
 #include "swift/SIL/MemoryLifetime.h"
+#include "swift/SIL/ApplySite.h"
 #include "swift/SIL/SILArgument.h"
 #include "swift/SIL/SILBasicBlock.h"
 #include "swift/SIL/SILFunction.h"
-#include "swift/SIL/ApplySite.h"
+#include "swift/SIL/SILInstruction.h"
 #include "swift/SIL/SILModule.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/Support/CommandLine.h"
@@ -302,6 +304,9 @@ bool MemoryLocations::analyzeLocationUsesRecursively(SILValue V, unsigned locIdx
       case SILInstructionKind::CopyAddrInst:
       case SILInstructionKind::YieldInst:
       case SILInstructionKind::DeallocStackInst:
+      case SILInstructionKind::UnconditionalCheckedCastAddrInst:
+      case SILInstructionKind::CheckedCastAddrBranchInst:
+      case SILInstructionKind::UncheckedRefCastAddrInst:
         break;
       default:
         return false;
@@ -577,6 +582,7 @@ class MemoryLifetimeVerifier {
 
   /// Handles locations of the predecessor's terminator, which are only valid
   /// in \p block.
+  ///
   /// Example: @out results of try_apply. They are only valid in the
   /// normal-block, but not in the throw-block.
   void setBitsOfPredecessor(Bits &bits, SILBasicBlock *block);
@@ -700,6 +706,22 @@ void MemoryLifetimeVerifier::initDataflowInBlock(BlockState &state) {
         }
         break;
       }
+      case SILInstructionKind::UnconditionalCheckedCastAddrInst: {
+        auto *uccai = cast<UnconditionalCheckedCastAddrInst>(&I);
+        state.killBits(uccai->getSrc(), locations);
+        state.genBits(uccai->getDest(), locations);
+        break;
+      }
+      case SILInstructionKind::CheckedCastAddrBranchInst: {
+        // We handle this in the predecessor code.
+        break;
+      }
+      case SILInstructionKind::UncheckedRefCastAddrInst: {
+        auto *urcai = cast<UncheckedRefCastAddrInst>(&I);
+        state.killBits(urcai->getSrc(), locations);
+        state.genBits(urcai->getDest(), locations);
+        break;
+      }
       case SILInstructionKind::StoreInst:
         state.genBits(cast<StoreInst>(&I)->getDest(), locations);
         break;
@@ -744,6 +766,37 @@ void MemoryLifetimeVerifier::setBitsOfPredecessor(Bits &bits,
   SILBasicBlock *pred = block->getSinglePredecessorBlock();
   if (!pred)
     return;
+
+  if (auto *ccabi =
+          dyn_cast<CheckedCastAddrBranchInst>(pred->getTerminator())) {
+    if (block == ccabi->getSuccessBB()) {
+      switch (ccabi->getConsumptionKind()) {
+      case CastConsumptionKind::BorrowAlways:
+        llvm_unreachable("Only for SILGenPattern");
+      case CastConsumptionKind::CopyOnSuccess:
+        locations.setBits(bits, ccabi->getDest());
+        break;
+      case CastConsumptionKind::TakeOnSuccess:
+      case CastConsumptionKind::TakeAlways:
+        locations.clearBits(bits, ccabi->getSrc());
+        locations.setBits(bits, ccabi->getDest());
+        break;
+      }
+      return;
+    }
+
+    switch (ccabi->getConsumptionKind()) {
+    case CastConsumptionKind::BorrowAlways:
+      llvm_unreachable("Only for SILGenPattern");
+    case CastConsumptionKind::CopyOnSuccess:
+    case CastConsumptionKind::TakeOnSuccess:
+      break;
+    case CastConsumptionKind::TakeAlways:
+      locations.clearBits(bits, ccabi->getSrc());
+      break;
+    }
+    return;
+  }
 
   auto *TAI = dyn_cast<TryApplyInst>(pred->getTerminator());
 
@@ -868,6 +921,28 @@ void MemoryLifetimeVerifier::checkBlock(SILBasicBlock *block, Bits &bits) {
           case LoadOwnershipQualifier::Unqualified:
             llvm_unreachable("unqualified load shouldn't be in ownership SIL");
         }
+        break;
+      }
+      case SILInstructionKind::UnconditionalCheckedCastAddrInst: {
+        auto *uccai = cast<UnconditionalCheckedCastAddrInst>(&I);
+        requireBitsSet(bits, uccai->getSrc(), &I);
+        locations.clearBits(bits, uccai->getSrc());
+        requireBitsClear(bits, uccai->getDest(), &I);
+        locations.setBits(bits, uccai->getDest());
+        break;
+      }
+      case SILInstructionKind::UncheckedRefCastAddrInst: {
+        auto *uccai = cast<UncheckedRefCastAddrInst>(&I);
+        requireBitsSet(bits, uccai->getSrc(), &I);
+        locations.clearBits(bits, uccai->getSrc());
+        requireBitsClear(bits, uccai->getDest(), &I);
+        locations.setBits(bits, uccai->getDest());
+        break;
+      }
+      case SILInstructionKind::CheckedCastAddrBranchInst: {
+        auto *ccbai = cast<CheckedCastAddrBranchInst>(&I);
+        requireBitsSet(bits, ccbai->getSrc(), &I);
+        requireBitsClear(bits, ccbai->getDest(), &I);
         break;
       }
       case SILInstructionKind::StoreInst: {
