@@ -22,6 +22,15 @@ function(swift_optimize_flag_for_build_type build_type result_var_name)
   endif()
 endfunction()
 
+function(swift_lto_flag option out_var)
+  string(TOLOWER "${option}" lowercase_option)
+  if (lowercase_option STREQUAL "full")
+    set(${out_var} "-lto=llvm-full" PARENT_SCOPE)
+  elseif (lowercase_option STREQUAL "thin")
+    set(${out_var} "-lto=llvm-thin" PARENT_SCOPE)
+  endif()
+endfunction()
+
 # Process the sources within the given variable, pulling out any Swift
 # sources to be compiled with 'swift' directly. This updates
 # ${sourcesvar} in place with the resulting list and ${externalvar} with the
@@ -370,6 +379,7 @@ function(_compile_swift_files
 
   # Compute flags for the Swift compiler.
   set(swift_flags)
+  set(swift_o_flags)
   set(swift_module_flags)
 
   _add_target_variant_swift_compile_flags(
@@ -454,6 +464,12 @@ function(_compile_swift_files
 
   if(SWIFT_DISABLE_OBJC_INTEROP)
     list(APPEND swift_flags "-Xfrontend" "-disable-objc-interop")
+  endif()
+
+  swift_lto_flag("${SWIFT_STDLIB_LLVM_LTO}" _lto_flag_out)
+  if (_lto_flag_out)
+    list(APPEND swift_flags ${_lto_flag_out})
+    list(APPEND swift_o_flags "-emit-bc")
   endif()
 
   list(APPEND swift_flags ${SWIFT_EXPERIMENTAL_EXTRA_FLAGS})
@@ -753,7 +769,7 @@ function(_compile_swift_files
       dependency_target
       COMMAND
         "$<TARGET_FILE:Python3::Interpreter>" "${line_directive_tool}" "@${file_path}" --
-        "${swift_compiler_tool}" "${main_command}" ${swift_flags}
+        "${swift_compiler_tool}" "${main_command}" ${swift_flags} ${swift_o_flags}
         ${output_option} ${embed_bitcode_option} "@${file_path}"
       ${command_touch_standard_outputs}
       OUTPUT ${standard_outputs}

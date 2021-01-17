@@ -199,6 +199,7 @@ KNOWN_SETTINGS=(
     swift-stdlib-single-threaded-runtime          "0"               "whether to build stdlib as a single-threaded runtime only"
     swift-stdlib-os-versioning                    "1"               "whether to build stdlib with availability based on OS versions (Darwin only)"
     swift-stdlib-stable-abi                       ""                "should stdlib be built with stable ABI, if not set defaults to true on Darwin, false otherwise"
+    swift-stdlib-llvm-lto                         ""                "should stdlib be built with llvm lto, if set must be either 'thin' or 'full'"
 
     ## FREESTANDING Stdlib Options
     swift-freestanding-sdk                      ""                "which SDK to use when building the FREESTANDING stdlib"
@@ -1968,6 +1969,13 @@ for host in "${ALL_HOSTS[@]}"; do
                     cmake_options=(
                         "${cmake_options[@]}"
                         -DSWIFT_STDLIB_STABLE_ABI:BOOL=$(true_false "${SWIFT_STDLIB_STABLE_ABI}")
+                    )
+                fi
+
+                if [[ "${SWIFT_STDLIB_LLVM_LTO}" ]] ; then
+                    cmake_options=(
+                        "${cmake_options[@]}"
+                        -DSWIFT_STDLIB_LLVM_LTO:STRING="${SWIFT_STDLIB_LLVM_LTO}"
                     )
                 fi
 

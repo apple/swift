@@ -1144,7 +1144,9 @@ function(_add_swift_target_library_single target name)
     set(analyze_code_coverage "${SWIFT_ANALYZE_CODE_COVERAGE}")
   endif()
 
-  if (NOT SWIFTLIB_SINGLE_TARGET_LIBRARY)
+  if(SWIFTLIB_SINGLE_TARGET_LIBRARY)
+    set(lto_type "${SWIFT_STDLIB_LLVM_LTO}")
+  else()
     set(lto_type "${SWIFT_TOOLS_ENABLE_LTO}")
   endif()
 
