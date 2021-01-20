@@ -25,6 +25,7 @@
 #include "swift/SIL/SILBuilder.h"
 #include "swift/SIL/SILVisitor.h"
 #include "swift/SILOptimizer/Analysis/AliasAnalysis.h"
+#include "swift/SILOptimizer/Analysis/DeadEndBlocksAnalysis.h"
 #include "swift/SILOptimizer/Analysis/SimplifyInstruction.h"
 #include "swift/SILOptimizer/PassManager/Passes.h"
 #include "swift/SILOptimizer/PassManager/Transforms.h"
@@ -120,9 +121,8 @@ class SILCombineCanonicalize final : CanonicalizeInstruction {
 
 public:
   SILCombineCanonicalize(SmallSILInstructionWorklist<256> &Worklist,
-                         DeadEndBlocks &deadEndBlocks)
-      : CanonicalizeInstruction(DEBUG_TYPE, deadEndBlocks), Worklist(Worklist) {
-  }
+                         DeadEndBlocks &deBlocks)
+      : CanonicalizeInstruction(DEBUG_TYPE, deBlocks), Worklist(Worklist) {}
 
   void notifyNewInstruction(SILInstruction *inst) override {
     Worklist.add(inst);
@@ -218,7 +218,7 @@ bool SILCombiner::doOneIteration(SILFunction &F, unsigned Iteration) {
   // Add reachable instructions to our worklist.
   addReachableCodeToWorklist(&*F.begin());
 
-  SILCombineCanonicalize scCanonicalize(Worklist, deadEndBlocks);
+  SILCombineCanonicalize scCanonicalize(Worklist, deBlocks);
 
   // Process until we run out of items in our worklist.
   while (!Worklist.isEmpty()) {
@@ -351,17 +351,20 @@ class SILCombine : public SILFunctionTransform {
   
   /// The entry point to the transformation.
   void run() override {
-    auto *AA = PM->getAnalysis<AliasAnalysis>();
-    auto *DA = PM->getAnalysis<DominanceAnalysis>();
-    auto *PCA = PM->getAnalysis<ProtocolConformanceAnalysis>();
-    auto *CHA = PM->getAnalysis<ClassHierarchyAnalysis>();
+    auto *fn = getFunction();
+
+    auto *AA = getAnalysis<AliasAnalysis>();
+    auto *DA = getAnalysis<DominanceAnalysis>();
+    auto *PCA = getAnalysis<ProtocolConformanceAnalysis>();
+    auto *CHA = getAnalysis<ClassHierarchyAnalysis>();
+    auto &deBlocks = *getAnalysis<DeadEndBlocksAnalysis>()->get(fn);
 
     SILOptFunctionBuilder FuncBuilder(*this);
     // Create a SILBuilder with a tracking list for newly added
     // instructions, which we will periodically move to our worklist.
-    SILBuilder B(*getFunction(), &TrackingList);
+    SILBuilder B(*fn, &TrackingList);
     SILCombiner Combiner(FuncBuilder, B, AA, DA, PCA, CHA,
-                         getOptions().RemoveRuntimeAsserts);
+                         getOptions().RemoveRuntimeAsserts, deBlocks);
     bool Changed = Combiner.runOnFunction(*getFunction());
     assert(TrackingList.empty() &&
            "TrackingList should be fully processed by SILCombiner");

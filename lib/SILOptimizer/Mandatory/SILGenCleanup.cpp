@@ -18,6 +18,7 @@
 
 #include "swift/SIL/BasicBlockUtils.h"
 #include "swift/SIL/SILInstruction.h"
+#include "swift/SILOptimizer/Analysis/DeadEndBlocksAnalysis.h"
 #include "swift/SILOptimizer/PassManager/Transforms.h"
 #include "swift/SILOptimizer/Utils/CanonicalizeInstruction.h"
 #include "swift/SILOptimizer/Utils/InstOptUtils.h"
@@ -84,12 +85,13 @@ struct SILGenCleanup : SILModuleTransform {
 
 void SILGenCleanup::run() {
   auto &module = *getModule();
+  auto *deBlocksAnalysis = getAnalysis<DeadEndBlocksAnalysis>();
+
   for (auto &function : module) {
     LLVM_DEBUG(llvm::dbgs()
                << "\nRunning SILGenCleanup on " << function.getName() << "\n");
 
-    DeadEndBlocks deadEndBlocks(&function);
-    SILGenCanonicalize sgCanonicalize(deadEndBlocks);
+    SILGenCanonicalize sgCanonicalize(*deBlocksAnalysis->get(&function));
 
     // Iterate over all blocks even if they aren't reachable. No phi-less
     // dataflow cycles should have been created yet, and these transformations

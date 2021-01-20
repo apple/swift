@@ -14,6 +14,7 @@
 #include "swift/SIL/CFG.h"
 #include "swift/SIL/SILArgument.h"
 #include "swift/SIL/SILBuilder.h"
+#include "swift/SILOptimizer/Analysis/DeadEndBlocksAnalysis.h"
 #include "swift/SILOptimizer/Analysis/EscapeAnalysis.h"
 #include "swift/SILOptimizer/PassManager/Passes.h"
 #include "swift/SILOptimizer/PassManager/Transforms.h"
@@ -61,8 +62,9 @@ void StackPromotion::run() {
 
   LLVM_DEBUG(llvm::dbgs() << "** StackPromotion in " << F->getName() << " **\n");
 
-  auto *EA = PM->getAnalysis<EscapeAnalysis>();
-  DeadEndBlocks DEBlocks(F);
+  auto *EA = getAnalysis<EscapeAnalysis>();
+  auto *DEBA = getAnalysis<DeadEndBlocksAnalysis>();
+  auto &DEBlocks = *DEBA->get(F);
   bool Changed = false;
 
   // Search the whole function for stack promotable allocations.

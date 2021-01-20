@@ -24,8 +24,9 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "dead-object-elim"
-#include "swift/Basic/IndexTrie.h"
+
 #include "swift/AST/ResilienceExpansion.h"
+#include "swift/Basic/IndexTrie.h"
 #include "swift/SIL/BasicBlockUtils.h"
 #include "swift/SIL/DebugUtils.h"
 #include "swift/SIL/InstructionUtils.h"
@@ -37,6 +38,7 @@
 #include "swift/SIL/SILModule.h"
 #include "swift/SIL/SILUndef.h"
 #include "swift/SILOptimizer/Analysis/ArraySemantic.h"
+#include "swift/SILOptimizer/Analysis/DeadEndBlocksAnalysis.h"
 #include "swift/SILOptimizer/PassManager/Passes.h"
 #include "swift/SILOptimizer/PassManager/Transforms.h"
 #include "swift/SILOptimizer/Utils/InstOptUtils.h"
@@ -702,7 +704,8 @@ class DeadObjectElimination : public SILFunctionTransform {
   bool processAllocApply(ApplyInst *AI, DeadEndBlocks &DEBlocks);
 
   bool processFunction(SILFunction &Fn) {
-    DeadEndBlocks DEBlocks(&Fn);
+    auto *DEBA = getAnalysis<DeadEndBlocksAnalysis>();
+    auto &DEBlocks = *DEBA->get(&Fn);
     Allocations.clear();
     DestructorAnalysisCache.clear();
     bool Changed = false;

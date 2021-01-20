@@ -20,6 +20,7 @@
 #include "swift/SIL/LinearLifetimeChecker.h"
 #include "swift/SIL/OwnershipUtils.h"
 #include "swift/SIL/SILBuilder.h"
+#include "swift/SILOptimizer/Analysis/DeadEndBlocksAnalysis.h"
 #include "swift/SILOptimizer/PassManager/Passes.h"
 #include "swift/SILOptimizer/PassManager/Transforms.h"
 #include "swift/SILOptimizer/Utils/CFGOptUtils.h"
@@ -2578,9 +2579,8 @@ static AllocationInst *getOptimizableAllocation(SILInstruction *i) {
   return alloc;
 }
 
-static bool optimizeMemoryAccesses(SILFunction &fn) {
+static bool optimizeMemoryAccesses(SILFunction &fn, DeadEndBlocks &deBlocks) {
   bool changed = false;
-  DeadEndBlocks deadEndBlocks(&fn);
 
   for (auto &bb : fn) {
     auto i = bb.begin(), e = bb.end();
@@ -2608,7 +2608,7 @@ static bool optimizeMemoryAccesses(SILFunction &fn) {
         continue;
       }
 
-      AllocOptimize allocOptimize(alloc, uses, destroys, deadEndBlocks);
+      AllocOptimize allocOptimize(alloc, uses, destroys, deBlocks);
       changed |= allocOptimize.optimizeMemoryAccesses();
 
       // Move onto the next instruction. We know this is safe since we do not
@@ -2620,9 +2620,8 @@ static bool optimizeMemoryAccesses(SILFunction &fn) {
   return changed;
 }
 
-static bool eliminateDeadAllocations(SILFunction &fn) {
+static bool eliminateDeadAllocations(SILFunction &fn, DeadEndBlocks &deBlocks) {
   bool changed = false;
-  DeadEndBlocks deadEndBlocks(&fn);
 
   for (auto &bb : fn) {
     auto i = bb.begin(), e = bb.end();
@@ -2651,7 +2650,7 @@ static bool eliminateDeadAllocations(SILFunction &fn) {
         continue;
       }
 
-      AllocOptimize allocOptimize(alloc, uses, destroys, deadEndBlocks);
+      AllocOptimize allocOptimize(alloc, uses, destroys, deBlocks);
       changed |= allocOptimize.tryToRemoveDeadAllocation();
 
       // Move onto the next instruction. We know this is safe since we do not
@@ -2680,14 +2679,18 @@ class PredictableMemoryAccessOptimizations : public SILFunctionTransform {
   /// or has a pass order dependency on other early passes.
   void run() override {
     // TODO: Can we invalidate here just instructions?
-    if (optimizeMemoryAccesses(*getFunction()))
+    auto *fn = getFunction();
+    auto *deBlocks = getAnalysis<DeadEndBlocksAnalysis>()->get(fn);
+    if (optimizeMemoryAccesses(*fn, *deBlocks))
       invalidateAnalysis(SILAnalysis::InvalidationKind::FunctionBody);
   }
 };
 
 class PredictableDeadAllocationElimination : public SILFunctionTransform {
   void run() override {
-    if (eliminateDeadAllocations(*getFunction()))
+    auto *fn = getFunction();
+    auto *deBlocks = getAnalysis<DeadEndBlocksAnalysis>()->get(fn);
+    if (eliminateDeadAllocations(*fn, *deBlocks))
       invalidateAnalysis(SILAnalysis::InvalidationKind::FunctionBody);
   }
 };

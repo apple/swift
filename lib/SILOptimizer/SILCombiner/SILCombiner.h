@@ -61,11 +61,6 @@ class SILCombiner :
   /// Worklist containing all of the instructions primed for simplification.
   SmallSILInstructionWorklist<256> Worklist;
 
-  /// A cache of "dead end blocks" through which all paths it is known that the
-  /// program will terminate. This means that we are allowed to leak
-  /// objects.
-  DeadEndBlocks deadEndBlocks;
-
   /// Variable to track if the SILCombiner made any changes.
   bool MadeChange;
 
@@ -90,7 +85,7 @@ class SILCombiner :
 
   /// Dead end blocks cache. SILCombine is already not allowed to mess with CFG
   /// edges so it is safe to use this here.
-  DeadEndBlocks deBlocks;
+  DeadEndBlocks &deBlocks;
 
   /// A utility struct used by OwnershipFixupContext to map sets of partially
   /// post-dominating blocks to a full jointly post-dominating set.
@@ -106,9 +101,8 @@ public:
   SILCombiner(SILOptFunctionBuilder &FuncBuilder, SILBuilder &B,
               AliasAnalysis *AA, DominanceAnalysis *DA,
               ProtocolConformanceAnalysis *PCA, ClassHierarchyAnalysis *CHA,
-              bool removeCondFails)
-      : AA(AA), DA(DA), PCA(PCA), CHA(CHA), Worklist("SC"),
-        deadEndBlocks(&B.getFunction()), MadeChange(false),
+              bool removeCondFails, DeadEndBlocks &deBlocks)
+      : AA(AA), DA(DA), PCA(PCA), CHA(CHA), Worklist("SC"), MadeChange(false),
         RemoveCondFails(removeCondFails), Iteration(0), Builder(B),
         CastOpt(
             FuncBuilder, nullptr /*SILBuilderContext*/,
@@ -133,7 +127,7 @@ public:
               use->set(newValue);
               Worklist.add(use->getUser());
             }),
-        deBlocks(&B.getFunction()), jPostDomComputer(deBlocks),
+        deBlocks(deBlocks), jPostDomComputer(deBlocks),
         ownershipRAUWHelper(instModCallbacks, deBlocks, jPostDomComputer) {}
 
   bool runOnFunction(SILFunction &F);

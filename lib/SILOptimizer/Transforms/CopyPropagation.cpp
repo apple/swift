@@ -23,6 +23,7 @@
 ///
 /// ===----------------------------------------------------------------------===
 
+#include "swift/SILOptimizer/Analysis/DeadEndBlocksAnalysis.h"
 #define DEBUG_TYPE "copy-propagation"
 
 #include "swift/SIL/BasicBlockUtils.h"
@@ -88,8 +89,7 @@ void CopyPropagation::run() {
     accessBlockAnalysis->lockInvalidation();
     invalidateAnalysis(SILAnalysis::InvalidationKind::Instructions);
     accessBlockAnalysis->unlockInvalidation();
-    DeadEndBlocks deBlocks(f);
-    f->verifyOwnership(&deBlocks);
+    f->verifyOwnership(getAnalysis<DeadEndBlocksAnalysis>()->get(f));
   }
 }
 

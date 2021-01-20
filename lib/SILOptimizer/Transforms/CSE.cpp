@@ -16,6 +16,7 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "sil-cse"
+
 #include "swift/SIL/DebugUtils.h"
 #include "swift/SIL/Dominance.h"
 #include "swift/SIL/InstructionUtils.h"
@@ -27,6 +28,7 @@
 #include "swift/SIL/SILValue.h"
 #include "swift/SIL/SILVisitor.h"
 #include "swift/SILOptimizer/Analysis/ArraySemantic.h"
+#include "swift/SILOptimizer/Analysis/DeadEndBlocksAnalysis.h"
 #include "swift/SILOptimizer/Analysis/DominanceAnalysis.h"
 #include "swift/SILOptimizer/Analysis/SideEffectAnalysis.h"
 #include "swift/SILOptimizer/Analysis/SimplifyInstruction.h"
@@ -1396,7 +1398,8 @@ class SILCSE : public SILFunctionTransform {
     SILOptFunctionBuilder FuncBuilder(*this);
 
     auto *Fn = getFunction();
-    DeadEndBlocks DeadEndBBs(Fn);
+    auto *DEBA = getAnalysis<DeadEndBlocksAnalysis>();
+    auto &DeadEndBBs = *DEBA->get(Fn);
     JointPostDominanceSetComputer Computer(DeadEndBBs);
     InstModCallbacks callbacks;
     OwnershipFixupContext FixupCtx{callbacks, DeadEndBBs, Computer};

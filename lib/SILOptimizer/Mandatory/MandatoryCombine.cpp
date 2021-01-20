@@ -31,6 +31,7 @@
 #include "swift/SIL/BasicBlockUtils.h"
 #include "swift/SIL/SILInstructionWorklist.h"
 #include "swift/SIL/SILVisitor.h"
+#include "swift/SILOptimizer/Analysis/DeadEndBlocksAnalysis.h"
 #include "swift/SILOptimizer/PassManager/Passes.h"
 #include "swift/SILOptimizer/PassManager/Transforms.h"
 #include "swift/SILOptimizer/Utils/CanonicalizeInstruction.h"
@@ -398,8 +399,9 @@ public:
       return;
     }
 
-    DeadEndBlocks deadEndBlocks(function);
-    MandatoryCombiner combiner(optimized, createdInstructions, deadEndBlocks);
+    auto *deBlocksAnalysis = getAnalysis<DeadEndBlocksAnalysis>();
+    MandatoryCombiner combiner(optimized, createdInstructions,
+                               *deBlocksAnalysis->get(function));
     bool madeChange = combiner.runOnFunction(*function);
 
     if (madeChange) {
