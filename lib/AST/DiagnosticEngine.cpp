@@ -82,6 +82,8 @@ static const constexpr StoredDiagnosticInfo storedDiagnosticInfos[] = {
   StoredDiagnosticInfo(DiagnosticKind::Error, DiagnosticOptions::Options),
 #define WARNING(ID, Options, Text, Signature)                                  \
   StoredDiagnosticInfo(DiagnosticKind::Warning, DiagnosticOptions::Options),
+#define LINT(ID, Options, Text, Signature)                                     \
+  StoredDiagnosticInfo(DiagnosticKind::Warning, DiagnosticOptions::Options),
 #define NOTE(ID, Options, Text, Signature)                                     \
   StoredDiagnosticInfo(DiagnosticKind::Note, DiagnosticOptions::Options),
 #define REMARK(ID, Options, Text, Signature)                                   \

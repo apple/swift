@@ -40,4 +40,16 @@ namespace swift {
     detail::StructuredFixItWithArguments<void Signature>::type ID = {FixItID::ID};
 #include "swift/AST/DiagnosticsAll.def"
   } // end namespace diag
+
+  const char *lintArgument(swift::DiagID ID) {
+    switch (ID) {
+  #define DIAG(KIND,ID,Options,Text,Signature)
+  #define LINT(ID,Options,Text,Signature) \
+      case DiagID::ID: \
+        return #ID;
+  #include "swift/AST/DiagnosticsAll.def"
+      default:
+        return nullptr;
+    }
+  }
 } // end namespace swift

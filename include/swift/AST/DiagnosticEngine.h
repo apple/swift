@@ -50,6 +50,7 @@ namespace swift {
   /// Each of the diagnostics described in Diagnostics.def has an entry in
   /// this enumeration type that uniquely identifies it.
   enum class DiagID : uint32_t;
+  const char *lintArgument(DiagID ID);
 
   /// Describes a diagnostic along with its argument types.
   ///
@@ -684,6 +685,9 @@ namespace swift {
     /// display diagnostics.
     SourceManager &SourceMgr;
 
+    /// Enabled linter options
+    llvm::DenseMap<StringRef, bool> ActiveLints;
+
   private:
     /// The diagnostic consumer(s) that will be responsible for actually
     /// emitting diagnostics.
@@ -906,6 +910,13 @@ namespace swift {
     InFlightDiagnostic 
     diagnose(SourceLoc Loc, Diag<ArgTypes...> ID,
              typename detail::PassArgument<ArgTypes>::type... Args) {
+      if (const char *lintArg = lintArgument(ID.ID))
+        if (ActiveLints.find(lintArg) == ActiveLints.end()) {
+          InFlightDiagnostic inflight(*this);
+          inflight.IsActive = false;
+          return inflight;
+        }
+
       return diagnose(Loc, Diagnostic(ID, std::move(Args)...));
     }
 

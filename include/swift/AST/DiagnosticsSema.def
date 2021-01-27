@@ -983,6 +983,8 @@ ERROR(tuple_types_not_convertible,none,
 
 ERROR(invalid_force_unwrap,none,
       "cannot force unwrap value of non-optional type %0", (Type))
+LINT(force_unwrap_usage,none,
+      "consider using an alternative to a forced unwrap", ())
 ERROR(invalid_optional_chain,none,
       "cannot use optional chaining on non-optional value of type %0",
       (Type))

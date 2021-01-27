@@ -37,6 +37,11 @@
   DIAG(NOTE, ID, Options, Text, Signature)
 #endif
 
+#ifndef LINT
+#define LINT(ID, Options, Text, Signature)                                     \
+  DIAG(LINT, ID, Options, Text, Signature)
+#endif
+
 #ifndef REMARK
 #define REMARK(ID, Options, Text, Signature)                                   \
   DIAG(REMARK, ID, Options, Text, Signature)
@@ -60,6 +65,7 @@
 
 #undef REMARK
 #undef NOTE
+#undef LINT
 #undef WARNING
 #undef ERROR
 #undef FIXIT

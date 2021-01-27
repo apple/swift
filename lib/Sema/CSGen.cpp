@@ -2995,6 +2995,9 @@ namespace {
             CS, CS.getConstraintLocator(nilLiteral)));
       }
 
+      CS.getASTContext().Diags.diagnose(expr->getLoc(),
+                                        diag::force_unwrap_usage);
+
       // The result is the object type of the optional subexpression.
       CS.addConstraint(ConstraintKind::OptionalObject, CS.getType(valueExpr),
                        objectTy, locator);

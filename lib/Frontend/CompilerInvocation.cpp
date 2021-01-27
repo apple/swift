@@ -689,6 +689,11 @@ static bool ParseLangArgs(LangOptions &Opts, ArgList &Args,
     Opts.AllowModuleWithCompilerErrors = true;
   }
 
+  for (const Arg *A : Args.filtered(OPT_lint)) {
+    Diags.ActiveLints[A->getValue()] = true;
+    A->claim();
+  }
+
   return HadError || UnsupportedOS || UnsupportedArch;
 }
 
