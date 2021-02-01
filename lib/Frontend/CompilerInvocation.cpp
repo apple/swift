@@ -1596,6 +1596,12 @@ static bool ParseIRGenArgs(IRGenOptions &Opts, ArgList &Args,
     Opts.EnableReflectionNames = false;
   }
 
+  if (Args.hasArg(OPT_emit_dead_strippable_symbols)) {
+    if (!Opts.UseJIT) {
+      Opts.EmitDeadStrippableSymbols = true;
+    }
+  }
+
   if (Args.hasArg(OPT_force_public_linkage)) {
     Opts.ForcePublicLinkage = true;
   }

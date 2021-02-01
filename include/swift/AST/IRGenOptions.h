@@ -265,6 +265,10 @@ public:
   /// Emit names of struct stored properties and enum cases.
   unsigned EnableReflectionNames : 1;
 
+  /// Emit metadata, variables and functions in a way that a linker can remove
+  /// them if they're unused, even across modules (when linking statically).
+  unsigned EmitDeadStrippableSymbols : 1;
+
   /// Emit mangled names of anonymous context descriptors.
   unsigned EnableAnonymousContextMangledNames : 1;
 
@@ -364,7 +368,8 @@ public:
         PrintInlineTree(false), EmbedMode(IRGenEmbedMode::None),
         LLVMLTOKind(IRGenLLVMLTOKind::None), HasValueNamesSetting(false),
         ValueNames(false), EnableReflectionMetadata(true),
-        EnableReflectionNames(true), EnableAnonymousContextMangledNames(false),
+        EnableReflectionNames(true), EmitDeadStrippableSymbols(false),
+        EnableAnonymousContextMangledNames(false),
         ForcePublicLinkage(false), LazyInitializeClassMetadata(false),
         LazyInitializeProtocolConformances(false), DisableLegacyTypeInfo(false),
         PrespecializeGenericMetadata(false), UseIncrementalLLVMCodeGen(true),
