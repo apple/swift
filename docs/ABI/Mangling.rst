@@ -88,11 +88,13 @@ The following symbolic reference kinds are currently implemented:
    // The grammatical role of the symbolic reference is determined by the
    // kind of context descriptor referenced
 
-   protocol-conformance-ref ::= '\x03' .{4}  // Reference points directly to protocol conformance descriptor (NOT IMPLEMENTED)
-   protocol-conformance-ref ::= '\x04' .{4}  // Reference points indirectly to protocol conformance descriptor (NOT IMPLEMENTED)
+   #if SWIFT_RUNTIME_VERSION >= 5.5
+     protocol-conformance-ref ::= '\x03' .{4}  // Reference points directly to protocol conformance descriptor
+     protocol-conformance-ref ::= '\x04' .{4}  // Reference points indirectly to protocol conformance descriptor
 
-   dependent-associated-conformance ::= '\x05' .{4}  // Reference points directly to associated conformance descriptor (NOT IMPLEMENTED)
-   dependent-associated-conformance ::= '\x06' .{4}  // Reference points indirectly to associated conformance descriptor (NOT IMPLEMENTED)
+     dependent-associated-conformance ::= '\x05' .{4}  // Reference points directly to associated conformance descriptor
+     dependent-associated-conformance ::= '\x06' .{4}  // Reference points indirectly to associated conformance descriptor
+   #endif
 
    associated-conformance-access-function ::= '\x07' .{4}  // Reference points directly to associated conformance access function relative to the protocol
    associated-conformance-access-function ::= '\x08' .{4}  // Reference points directly to associated conformance access function relative to the conforming type

@@ -1550,13 +1550,23 @@ void ASTMangler::appendRetroactiveConformances(SubstitutionMap subMap,
     SWIFT_DEFER {
       ++numProtocolRequirements;
     };
-
-    // Ignore abstract conformances.
-    if (!conformance.isConcrete())
-      continue;
-
-    // Skip non-retroactive conformances.
-    if (!containsRetroactiveConformance(conformance.getConcrete(), fromModule))
+    
+    bool shouldAppendConformance;
+    
+    if (!conformance.isConcrete()) {
+      // Ignore abstract conformances.
+      shouldAppendConformance = false;
+    } else if (canSymbolicReference(conformance.getConcrete())) {
+      // Always include conformances that will be symbolic-referenced, because
+      // the direct reference is ideal for runtime lookup.
+      shouldAppendConformance = true;
+    } else {
+      // Skip non-retroactive conformances.
+      shouldAppendConformance =
+        containsRetroactiveConformance(conformance.getConcrete(), fromModule);
+    }
+    
+    if (!shouldAppendConformance)
       continue;
 
     appendConcreteProtocolConformance(conformance.getConcrete());
@@ -2959,7 +2969,11 @@ ASTMangler::appendProtocolConformance(const ProtocolConformance *conformance) {
 
 void ASTMangler::appendProtocolConformanceRef(
                                 const RootProtocolConformance *conformance) {
-  // FIXME: Symbolic reference to the protocol conformance descriptor.
+  if (canSymbolicReference(conformance)) {
+    appendSymbolicReference(conformance);
+    return;
+  }
+  
   appendProtocolName(conformance->getProtocol());
 
   // For retroactive conformances, add a reference to the module in which the

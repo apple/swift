@@ -59,6 +59,9 @@ public:
   using BuiltType = swift::Type;
   using BuiltTypeDecl = swift::GenericTypeDecl *; // nominal or type alias
   using BuiltProtocolDecl = swift::ProtocolDecl *;
+  using BuiltProtocolConformance = swift::ProtocolConformanceRef;
+  using BuiltProtocolConformanceDecl = swift::ProtocolConformance *;
+  
   explicit ASTBuilder(ASTContext &ctx) : Ctx(ctx) {}
 
   ASTContext &getASTContext() { return Ctx; }
@@ -148,6 +151,40 @@ public:
   Type createDictionaryType(Type key, Type value);
 
   Type createParenType(Type base);
+  
+  ProtocolConformanceRef
+  createConcreteProtocolConformance(Type conformingType,
+                                    ProtocolConformance *conformanceDecl,
+                                    ArrayRef<ProtocolConformanceRef> args);
+  
+  ProtocolConformanceRef
+  createDependentProtocolConformanceRoot(Type conformingType,
+                                         ProtocolDecl *requirement,
+                                         unsigned index);
+  
+  ProtocolConformanceRef
+  createDependentProtocolConformanceAssociated(ProtocolConformanceRef base,
+                                               Type conformingType,
+                                               ProtocolDecl *requirement,
+                                               unsigned index);
+  
+  ProtocolConformanceRef
+  createDependentProtocolConformanceInherited(ProtocolConformanceRef base,
+                                              BuiltProtocolDecl requirement,
+                                              unsigned index);
+  
+  ProtocolConformance *
+  createProtocolConformanceDeclInTypeModule(Type conformingType,
+                                            ProtocolDecl *protocol);
+  
+  ProtocolConformance *
+  createProtocolConformanceDeclInProtocolModule(Type conformingType,
+                                                ProtocolDecl *protocol);
+
+  ProtocolConformance *
+  createProtocolConformanceDeclRetroactive(Type conformingType,
+                                           ProtocolDecl *protocol,
+                                           StringRef moduleName);
 
 private:
   bool validateParentType(TypeDecl *decl, Type parent);

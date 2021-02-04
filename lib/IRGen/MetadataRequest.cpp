@@ -377,6 +377,12 @@ llvm::Constant *IRGenModule::getAddrOfStringForTypeRef(
       ref = getAddrOfLLVMVariableOrGOTEquivalent(
                                    LinkEntity::forOpaqueTypeDescriptor(opaque));
       baseKind = 1;
+    } else if (auto conformance = symbolic.first.dyn_cast<const ProtocolConformance*>()){
+      auto rootConformance = conformance->getRootConformance();
+      ref = getAddrOfLLVMVariableOrGOTEquivalent(
+                 LinkEntity::forProtocolConformanceDescriptor(rootConformance));
+      // \3 - direct reference, \4 - indirect reference
+      baseKind = 3;
     } else {
       llvm_unreachable("unhandled symbolic referent");
     }

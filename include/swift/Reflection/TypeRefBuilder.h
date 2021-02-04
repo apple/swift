@@ -252,6 +252,10 @@ public:
   using BuiltProtocolDecl =
       llvm::Optional<std::pair<std::string, bool /*isObjC*/>>;
 
+  // TODO: Represent protocol conformances
+  struct BuiltProtocolConformance {};
+  struct BuiltProtocolConformanceDecl {};
+  
   TypeRefBuilder(const TypeRefBuilder &other) = delete;
   TypeRefBuilder &operator=(const TypeRefBuilder &other) = delete;
 
@@ -544,6 +548,54 @@ public:
   const ForeignClassTypeRef *
   createForeignClassType(const std::string &mangledName) {
     return ForeignClassTypeRef::create(*this, mangledName);
+  }
+  
+  BuiltProtocolConformance
+  createConcreteProtocolConformance(const TypeRef *conformingType,
+                                    BuiltProtocolConformanceDecl conformanceDecl,
+                                    llvm::ArrayRef<BuiltProtocolConformance> args) {
+    return {};
+  }
+  
+  BuiltProtocolConformance
+  createDependentProtocolConformanceRoot(const TypeRef *conformingType,
+                                         BuiltProtocolDecl requirement,
+                                         unsigned index) {
+    return {};
+  }
+  
+  BuiltProtocolConformance
+  createDependentProtocolConformanceAssociated(BuiltProtocolConformance base,
+                                               const TypeRef *conformingType,
+                                               BuiltProtocolDecl requirement,
+                                               unsigned index) {
+    return {};
+  }
+  
+  BuiltProtocolConformance
+  createDependentProtocolConformanceInherited(BuiltProtocolConformance base,
+                                              BuiltProtocolDecl requirement,
+                                              unsigned index) {
+    return {};
+  }
+  
+  BuiltProtocolConformanceDecl
+  createProtocolConformanceDeclInTypeModule(const TypeRef *conformingType,
+                                            BuiltProtocolDecl protocol) {
+    return {};
+  }
+  
+  BuiltProtocolConformanceDecl
+  createProtocolConformanceDeclInProtocolModule(const TypeRef *conformingType,
+                                                BuiltProtocolDecl protocol) {
+    return {};
+  }
+
+  BuiltProtocolConformanceDecl
+  createProtocolConformanceDeclRetroactive(const TypeRef *conformingType,
+                                           BuiltProtocolDecl protocol,
+                                           StringRef moduleName) {
+    return {};
   }
 
   const ForeignClassTypeRef *
