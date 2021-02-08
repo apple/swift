@@ -1294,7 +1294,6 @@ public:
     auto *differentialCall =
         diffBuilder.createApply(loc, differential, SubstitutionMap(), diffArgs,
                                 /*isNonThrowing*/ false);
-    diffBuilder.emitDestroyValueOperation(loc, differential);
 
     // Get the original `apply` results.
     SmallVector<SILValue, 8> origDirectResults;

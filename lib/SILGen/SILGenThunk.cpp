@@ -410,7 +410,7 @@ SILFunction *SILGenModule::getOrCreateAutoDiffClassMethodThunk(
 
   SILGenFunctionBuilder builder(*this);
   auto originalFnDeclRef = derivativeFnDeclRef.asAutoDiffOriginalFunction();
-  // TODO(TF-685): Use principled thunk mangling.
+  // TODO(SR-13508): Use principled thunk mangling.
   // Do not simply reuse reabstraction thunk mangling.
   auto name = "AD__" + derivativeFnDeclRef.mangle() + "_vtable_entry_thunk";
   auto *thunk = builder.getOrCreateFunction(

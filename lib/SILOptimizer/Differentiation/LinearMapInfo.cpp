@@ -139,7 +139,8 @@ LinearMapInfo::createBranchingTraceDecl(SILBasicBlock *originalBB,
   // `Parser::parseDeclListDelayed`.
   branchingTraceDecl->setImplicit();
   // Branching trace enums shall not be resilient.
-  branchingTraceDecl->getAttrs().add(new (astCtx) FrozenAttr(/*implicit*/ true));
+  branchingTraceDecl->getAttrs().add(
+      new (astCtx) FrozenAttr(/*implicit*/ true));
   if (genericSig)
     branchingTraceDecl->setGenericSignature(genericSig);
   computeAccessLevel(branchingTraceDecl, original->getEffectiveSymbolLinkage());

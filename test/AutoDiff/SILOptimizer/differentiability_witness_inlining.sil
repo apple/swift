@@ -7,8 +7,8 @@ import Swift
 import Builtin
 
 sil_differentiability_witness [parameters 0] [results 0] @witness_defined_in_module : $@convention(thin) (Float) -> Float {
-  jvp: @witness_defined_in_module_jvp : $@convention(thin) (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float)
-  vjp: @witness_defined_in_module_vjp : $@convention(thin) (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float)
+  jvp: @witness_defined_in_module_jvp : $@convention(thin) (Float) -> (Float, @owned @callee_owned (Float) -> Float)
+  vjp: @witness_defined_in_module_vjp : $@convention(thin) (Float) -> (Float, @owned @callee_owned (Float) -> Float)
 }
 
 sil_differentiability_witness [parameters 0] [results 0] @witness_definition_not_available : $@convention(thin) (Float) -> Float
@@ -20,9 +20,9 @@ sil_differentiability_witness [parameters 0 1] [results 0] @$sSf1poiyS2f_SftFZ :
 
 sil @witness_defined_in_module : $@convention(thin) (Float) -> Float
 
-sil @witness_defined_in_module_jvp : $@convention(thin) (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float)
+sil @witness_defined_in_module_jvp : $@convention(thin) (Float) -> (Float, @owned @callee_owned (Float) -> Float)
 
-sil @witness_defined_in_module_vjp : $@convention(thin) (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float)
+sil @witness_defined_in_module_vjp : $@convention(thin) (Float) -> (Float, @owned @callee_owned (Float) -> Float)
 
 sil @witness_definition_not_available : $@convention(thin) (Float) -> Float
 
@@ -31,13 +31,21 @@ sil public_external [transparent] [serialized] @$sSf1poiyS2f_SftFZ : $@conventio
 sil @test : $@convention(thin) (Float) -> () {
 bb0(%0 : $Float):
   %1 = differentiability_witness_function [vjp] [parameters 0] [results 0] @witness_defined_in_module : $@convention(thin) (Float) -> Float
+<<<<<<< HEAD
   // CHECK: function_ref @witness_defined_in_module_vjp : $@convention(thin) (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float)
+=======
+  // CHECK: %1 = function_ref @witness_defined_in_module_vjp : $@convention(thin) (Float) -> (Float, @owned @callee_owned (Float) -> Float)
+>>>>>>> [AutoDiff] Use owned callee convention for linear maps.
 
   %2 = differentiability_witness_function [vjp] [parameters 0] [results 0] @witness_definition_not_available : $@convention(thin) (Float) -> Float
   // CHECK: differentiability_witness_function [vjp] [parameters 0] [results 0] @witness_definition_not_available : $@convention(thin) (Float) -> Float
 
   %3 = differentiability_witness_function [vjp] [parameters 0 1] [results 0] @$sSf1poiyS2f_SftFZ : $@convention(method) (Float, Float, @thin Float.Type) -> Float
+<<<<<<< HEAD
   // CHECK: function_ref @$sSf1poiyS2f_SftFZTJrSSUpSr : $@convention(method) (Float, Float, @thin Float.Type) -> (Float, @owned @callee_guaranteed (Float) -> (Float, Float))
+=======
+  // CHECK: %3 = function_ref @AD__$sSf1poiyS2f_SftFZ__vjp_src_0_wrt_0_1 : $@convention(method) (Float, Float, @thin Float.Type) -> (Float, @owned @callee_owned (Float) -> (Float, Float))
+>>>>>>> [AutoDiff] Use owned callee convention for linear maps.
 
   return undef : $()
 }

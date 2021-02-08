@@ -41,7 +41,7 @@ struct Tensor<T>: Differentiable {
 // CHECK-LABEL: sil hidden @$s4main6TensorVyACyxGx_ADtcfC : $@convention(method) <T> (@in T, @in Tensor<T>, @thin Tensor<T>.Type) -> @out Tensor<T> {
 // CHECK: [[SELF_ALLOC:%.*]] = alloc_stack [dynamic_lifetime] $Tensor<T>, var, name "self"
 
-// CHECK-LABEL: sil hidden @AD__$s4main6TensorVyACyxGx_ADtcfC__vjp_src_0_wrt_1_l : $@convention(method) <τ_0_0> (@in τ_0_0, @in Tensor<τ_0_0>, @thin Tensor<τ_0_0>.Type) -> (@out Tensor<τ_0_0>, @owned @callee_guaranteed @substituted <τ_0_0, τ_0_1> (@in_guaranteed τ_0_0) -> @out τ_0_1 for <Tensor<τ_0_0>.TangentVector, Tensor<τ_0_0>.TangentVector>) {
+// CHECK-LABEL: sil hidden @AD__$s4main6TensorVyACyxGx_ADtcfC__vjp_src_0_wrt_1_l : $@convention(method) <τ_0_0> (@in τ_0_0, @in Tensor<τ_0_0>, @thin Tensor<τ_0_0>.Type) -> (@out Tensor<τ_0_0>, @owned @callee_owned @substituted <τ_0_0, τ_0_1> (@in_guaranteed τ_0_0) -> @out τ_0_1 for <Tensor<τ_0_0>.TangentVector, Tensor<τ_0_0>.TangentVector>) {
 // CHECK: [[SELF_ALLOC:%.*]] = alloc_stack [dynamic_lifetime] $Tensor<τ_0_0>, var, name "self"
 
 // SR-12886 original error:

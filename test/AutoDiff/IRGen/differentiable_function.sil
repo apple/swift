@@ -11,25 +11,25 @@ bb0(%0 : $Float):
   return undef : $Float
 }
 
-sil @f_jvp : $@convention(thin) (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float) {
+sil @f_jvp : $@convention(thin) (Float) -> (Float, @owned @callee_owned (Float) -> Float) {
 bb0(%0 : $Float):
-  return undef : $(Float, @callee_guaranteed (Float) -> Float)
+  return undef : $(Float, @callee_owned (Float) -> Float)
 }
 
-sil @f_vjp : $@convention(thin) (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float) {
+sil @f_vjp : $@convention(thin) (Float) -> (Float, @owned @callee_owned (Float) -> Float) {
 bb0(%0 : $Float):
-  return undef : $(Float, @callee_guaranteed (Float) -> Float)
+  return undef : $(Float, @callee_owned (Float) -> Float)
 }
 
 sil @test_form_diff_func : $@convention(thin) () -> @owned @differentiable @callee_guaranteed (Float) -> Float {
 bb0:
   %orig = function_ref @f : $@convention(thin) (Float) -> Float
   %origThick = thin_to_thick_function %orig : $@convention(thin) (Float) -> Float to $@callee_guaranteed (Float) -> Float
-  %jvp = function_ref @f_jvp : $@convention(thin) (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float)
-  %jvpThick = thin_to_thick_function %jvp : $@convention(thin) (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float) to $@callee_guaranteed (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float)
-  %vjp = function_ref @f_vjp : $@convention(thin) (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float)
-  %vjpThick = thin_to_thick_function %vjp : $@convention(thin) (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float) to $@callee_guaranteed (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float)
-  %result = differentiable_function [parameters 0] [results 0] %origThick : $@callee_guaranteed (Float) -> Float with_derivative {%jvpThick : $@callee_guaranteed (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float), %vjpThick : $@callee_guaranteed (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float)}
+  %jvp = function_ref @f_jvp : $@convention(thin) (Float) -> (Float, @owned @callee_owned (Float) -> Float)
+  %jvpThick = thin_to_thick_function %jvp : $@convention(thin) (Float) -> (Float, @owned @callee_owned (Float) -> Float) to $@callee_guaranteed (Float) -> (Float, @owned @callee_owned (Float) -> Float)
+  %vjp = function_ref @f_vjp : $@convention(thin) (Float) -> (Float, @owned @callee_owned (Float) -> Float)
+  %vjpThick = thin_to_thick_function %vjp : $@convention(thin) (Float) -> (Float, @owned @callee_owned (Float) -> Float) to $@callee_guaranteed (Float) -> (Float, @owned @callee_owned (Float) -> Float)
+  %result = differentiable_function [parameters 0] [results 0] %origThick : $@callee_guaranteed (Float) -> Float with_derivative {%jvpThick : $@callee_guaranteed (Float) -> (Float, @owned @callee_owned (Float) -> Float), %vjpThick : $@callee_guaranteed (Float) -> (Float, @owned @callee_owned (Float) -> Float)}
   return %result : $@differentiable @callee_guaranteed (Float) -> Float
 }
 
@@ -51,13 +51,13 @@ bb0:
 // CHECK:   [[OUT_VJP_DATA:%.*]] = getelementptr{{.*}}[[OUT_VJP]], i32 0, i32 1
 // CHECK:   store{{.*}}null{{.*}}[[OUT_VJP_DATA]]
 
-sil @test_extract_components : $@convention(thin) (@guaranteed @differentiable @callee_guaranteed (Float) -> Float) -> (@owned @callee_guaranteed (Float) -> Float, @owned @callee_guaranteed (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float), @owned @callee_guaranteed (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float)) {
+sil @test_extract_components : $@convention(thin) (@guaranteed @differentiable @callee_guaranteed (Float) -> Float) -> (@owned @callee_guaranteed (Float) -> Float, @owned @callee_guaranteed (Float) -> (Float, @owned @callee_owned (Float) -> Float), @owned @callee_guaranteed (Float) -> (Float, @owned @callee_owned (Float) -> Float)) {
 bb0(%0 : $@differentiable @callee_guaranteed (Float) -> Float):
   %orig = differentiable_function_extract [original] %0 : $@differentiable @callee_guaranteed (Float) -> Float
   %jvp = differentiable_function_extract [jvp] %0 : $@differentiable @callee_guaranteed (Float) -> Float
   %vjp = differentiable_function_extract [vjp] %0 : $@differentiable @callee_guaranteed (Float) -> Float
-  %result = tuple (%orig : $@callee_guaranteed (Float) -> Float, %jvp : $@callee_guaranteed (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float), %vjp : $@callee_guaranteed (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float))
-  return %result : $(@callee_guaranteed (Float) -> Float, @callee_guaranteed (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float), @callee_guaranteed (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float))
+  %result = tuple (%orig : $@callee_guaranteed (Float) -> Float, %jvp : $@callee_guaranteed (Float) -> (Float, @owned @callee_owned (Float) -> Float), %vjp : $@callee_guaranteed (Float) -> (Float, @owned @callee_owned (Float) -> Float))
+  return %result : $(@callee_guaranteed (Float) -> Float, @callee_guaranteed (Float) -> (Float, @owned @callee_owned (Float) -> Float), @callee_guaranteed (Float) -> (Float, @owned @callee_owned (Float) -> Float))
 }
 
 // CHECK-LABEL: define{{.*}}@test_extract_components(<{ %swift.function, %swift.function, %swift.function }>* noalias nocapture sret(<{ %swift.function, %swift.function, %swift.function }>)

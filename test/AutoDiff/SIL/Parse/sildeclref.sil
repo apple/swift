@@ -44,10 +44,10 @@ bb0(%0 : $Class<T>):
   %1 = class_method %0 : $Class<T>, #Class.f : <T> (Class<T>) -> (T, Float) -> T, $@convention(method) <τ_0_0> (@in_guaranteed τ_0_0, Float, @guaranteed Class<τ_0_0>) -> @out τ_0_0
 
   // CHECK: class_method %0 : $Class<T>, #Class.f!jvp.SSU
-  %2 = class_method %0 : $Class<T>, #Class.f!jvp.SSU.<T where T : Differentiable> : <T> (Class<T>) -> (T, Float) -> T, $@convention(method) <τ_0_0 where τ_0_0 : Differentiable> (@in_guaranteed τ_0_0, Float, @guaranteed Class<τ_0_0>) -> (@out τ_0_0, @owned @callee_guaranteed @substituted <τ_0_0, τ_0_1> (@in_guaranteed τ_0_0, Float) -> @out τ_0_1 for <τ_0_0.TangentVector, τ_0_0.TangentVector>)
+  %2 = class_method %0 : $Class<T>, #Class.f!jvp.SSU.<T where T : Differentiable> : <T> (Class<T>) -> (T, Float) -> T, $@convention(method) <τ_0_0 where τ_0_0 : Differentiable> (@in_guaranteed τ_0_0, Float, @guaranteed Class<τ_0_0>) -> (@out τ_0_0, @owned @callee_owned @substituted <τ_0_0, τ_0_1> (@in_guaranteed τ_0_0, Float) -> @out τ_0_1 for <τ_0_0.TangentVector, τ_0_0.TangentVector>)
 
   // CHECK: class_method %0 : $Class<T>, #Class.f!vjp.SSU
-  %3 = class_method %0 : $Class<T>, #Class.f!vjp.SSU.<T where T : Differentiable> : <T> (Class<T>) -> (T, Float) -> T, $@convention(method) <τ_0_0 where τ_0_0 : Differentiable> (@in_guaranteed τ_0_0, Float, @guaranteed Class<τ_0_0>) -> (@out τ_0_0, @owned @callee_guaranteed @substituted <τ_0_0, τ_0_1> (@in_guaranteed τ_0_0) -> (@out τ_0_1, Float) for <τ_0_0.TangentVector, τ_0_0.TangentVector>)
+  %3 = class_method %0 : $Class<T>, #Class.f!vjp.SSU.<T where T : Differentiable> : <T> (Class<T>) -> (T, Float) -> T, $@convention(method) <τ_0_0 where τ_0_0 : Differentiable> (@in_guaranteed τ_0_0, Float, @guaranteed Class<τ_0_0>) -> (@out τ_0_0, @owned @callee_owned @substituted <τ_0_0, τ_0_1> (@in_guaranteed τ_0_0) -> (@out τ_0_1, Float) for <τ_0_0.TangentVector, τ_0_0.TangentVector>)
 
   %6 = tuple ()
   return %6 : $()

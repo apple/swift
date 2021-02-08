@@ -38,9 +38,13 @@ func applyDerivative_f1_jvp(_ x: Float) -> (Float, (Float) -> Float) {
 // CHECK: bb0([[X:%.*]] : $Float):
 // CHECK: [[D:%.*]] = differentiable_function_extract [jvp]
 // CHECK: [[D_RESULT:%.*]] = apply [[D]]([[X]])
-// CHECK: ([[D_RESULT_0:%.*]], [[D_RESULT_1:%.*]]) = destructure_tuple [[D_RESULT]]
-// CHECK: [[D_RESULT_RETUPLED:%.*]] = tuple ([[D_RESULT_0]] : {{.*}}, [[D_RESULT_1]] : {{.*}})
-// CHECK: return [[D_RESULT_RETUPLED]]
+// CHECK: ([[D_RESULT_0:%.*]], [[DF:%.*]]) = destructure_tuple [[D_RESULT]]
+// CHECK: [[THUNK:%.*]] = function_ref @{{.*}} : $@convention(thin) (Float, @owned @callee_owned (Float) -> Float) -> Float
+// CHECK: [[REABSTRACTED_DF:%.*]] = partial_apply [callee_guaranteed] [[THUNK]]([[DF]])
+// CHECK: [[D_RESULT_RETUPLED:%.*]] = tuple ([[D_RESULT_0]] : {{.*}}, [[REABSTRACTED_DF]] : {{.*}})
+// CHECK: ([[D_RESULT_0:%.*]], [[REABSTRACTED_DF:%.*]]) = destructure_tuple [[D_RESULT_RETUPLED]] : $(Float, @callee_guaranteed (Float) -> Float)
+// CHECK: [[D_RESULT_RETUPLED:%.*]] = tuple ([[D_RESULT_0]] : $Float, [[REABSTRACTED_DF]] : $@callee_guaranteed (Float) -> Float)
+// CHECK:  return [[D_RESULT_RETUPLED]] : $(Float, @callee_guaranteed (Float) -> Float)
 
 @_silgen_name("applyDerivative_f_direct_arity1_vjp")
 func applyDerivative_f1_vjp(_ x: Float) -> (Float, (Float) -> Float) {
@@ -50,9 +54,13 @@ func applyDerivative_f1_vjp(_ x: Float) -> (Float, (Float) -> Float) {
 // CHECK: bb0([[X:%.*]] : $Float):
 // CHECK: [[D:%.*]] = differentiable_function_extract [vjp]
 // CHECK: [[D_RESULT:%.*]] = apply [[D]]([[X]])
-// CHECK: ([[D_RESULT_0:%.*]], [[D_RESULT_1:%.*]]) = destructure_tuple [[D_RESULT]]
-// CHECK: [[D_RESULT_RETUPLED:%.*]] = tuple ([[D_RESULT_0]] : {{.*}}, [[D_RESULT_1]] : {{.*}})
-// CHECK: return [[D_RESULT_RETUPLED]]
+// CHECK: ([[D_RESULT_0:%.*]], [[PB:%.*]]) = destructure_tuple [[D_RESULT]]
+// CHECK: [[THUNK:%.*]] = function_ref @{{.*}} : $@convention(thin) (Float, @owned @callee_owned (Float) -> Float) -> Float
+// CHECK: [[REABSTRACTED_PB:%.*]] = partial_apply [callee_guaranteed] [[THUNK]]([[PB]])
+// CHECK: [[D_RESULT_RETUPLED:%.*]] = tuple ([[D_RESULT_0]] : {{.*}}, [[REABSTRACTED_PB]] : {{.*}})
+// CHECK: ([[D_RESULT_0:%.*]], [[REABSTRACTED_PB:%.*]]) = destructure_tuple [[D_RESULT_RETUPLED]] : $(Float, @callee_guaranteed (Float) -> Float)
+// CHECK: [[D_RESULT_RETUPLED:%.*]] = tuple ([[D_RESULT_0]] : $Float, [[REABSTRACTED_PB]] : $@callee_guaranteed (Float) -> Float)
+// CHECK:  return [[D_RESULT_RETUPLED]] : $(Float, @callee_guaranteed (Float) -> Float)
 
 @_silgen_name("applyDerivative_f_direct_arity2_vjp")
 func applyDerivative_f1_vjp(_ x: Float, _ y: Float) -> (Float, (Float) -> (Float, Float)) {
@@ -62,9 +70,13 @@ func applyDerivative_f1_vjp(_ x: Float, _ y: Float) -> (Float, (Float) -> (Float
 // CHECK: bb0([[X:%.*]] : $Float, [[Y:%.*]] : $Float):
 // CHECK: [[D:%.*]] = differentiable_function_extract [vjp]
 // CHECK: [[D_RESULT:%.*]] = apply [[D]]([[X]], [[Y]])
-// CHECK: ([[D_RESULT_0:%.*]], [[D_RESULT_1:%.*]]) = destructure_tuple [[D_RESULT]]
-// CHECK: [[D_RESULT_RETUPLED:%.*]] = tuple ([[D_RESULT_0]] : {{.*}}, [[D_RESULT_1]] : {{.*}})
-// CHECK: return [[D_RESULT_RETUPLED]]
+// CHECK: ([[D_RESULT_0:%.*]], [[PB:%.*]]) = destructure_tuple [[D_RESULT]]
+// CHECK: [[THUNK:%.*]] = function_ref @{{.*}} : $@convention(thin) (Float, @owned @callee_owned (Float) -> (Float, Float)) -> (Float, Float)
+// CHECK: [[REABSTRACTED_PB:%.*]] = partial_apply [callee_guaranteed] [[THUNK]]([[PB]])
+// CHECK: [[D_RESULT_RETUPLED:%.*]] = tuple ([[D_RESULT_0]] : {{.*}}, [[REABSTRACTED_PB]] : {{.*}})
+// CHECK: ([[D_RESULT_0:%.*]], [[REABSTRACTED_PB:%.*]]) = destructure_tuple [[D_RESULT_RETUPLED]] : $(Float, @callee_guaranteed (Float) -> (Float, Float))
+// CHECK: [[D_RESULT_RETUPLED:%.*]] = tuple ([[D_RESULT_0]] : $Float, [[REABSTRACTED_PB]] : $@callee_guaranteed (Float) -> (Float, Float))
+// CHECK:  return [[D_RESULT_RETUPLED]] : $(Float, @callee_guaranteed (Float) -> (Float, Float))
 
 @_silgen_name("applyDerivative_f_indirect_arity1_vjp")
 func applyDerivative_f1_vjp<T: AdditiveArithmetic & Differentiable>(t0: T) -> (T, (T.TangentVector) -> T.TangentVector) {
@@ -75,14 +87,19 @@ func applyDerivative_f1_vjp<T: AdditiveArithmetic & Differentiable>(t0: T) -> (T
 // CHECK: [[D:%.*]] = differentiable_function_extract [vjp]
 // CHECK: [[D_RESULT_BUFFER:%.*]] = alloc_stack $(T, @callee_guaranteed @substituted <τ_0_0, τ_0_1> (@in_guaranteed τ_0_0) -> @out τ_0_1 for <T.TangentVector, T.TangentVector>)
 // CHECK: [[D_RESULT_BUFFER_0_FOR_STORE:%.*]] = tuple_element_addr [[D_RESULT_BUFFER]] : ${{.*}}, 0
-// CHECK: [[D_RESULT:%.*]] = apply [[D]]([[D_RESULT_BUFFER_0_FOR_STORE]], [[X]])
-// CHECK: [[D_RESULT_BUFFER_1_FOR_STORE:%.*]] = tuple_element_addr [[D_RESULT_BUFFER]] : ${{.*}}, 1
-// CHECK: store [[D_RESULT]] to [init] [[D_RESULT_BUFFER_1_FOR_STORE]]
-// CHECK: [[D_RESULT_BUFFER_0_FOR_LOAD:%.*]] = tuple_element_addr [[D_RESULT_BUFFER]] : ${{.*}}, 0
-// CHECK: [[D_RESULT_BUFFER_1_FOR_LOAD:%.*]] = tuple_element_addr [[D_RESULT_BUFFER]] : ${{.*}}, 1
-// CHECK: [[PULLBACK:%.*]] = load [take] [[D_RESULT_BUFFER_1_FOR_LOAD]]
-// CHECK: copy_addr [take] [[D_RESULT_BUFFER_0_FOR_LOAD]] to [initialization] [[ORIG_RESULT_OUT_PARAM]]
-// CHECK: return [[PULLBACK]]
+// CHECK: [[PB:%.*]] = apply [[D]]([[D_RESULT_BUFFER_0_FOR_STORE]], [[X]])
+// CHECK: [[PB_SUBST:%.*]] = convert_function [[PB]]
+// CHECK: [[THUNK:%.*]] = function_ref @{{.*}} : $@convention(thin) <τ_0_0 where τ_0_0 : AdditiveArithmetic, τ_0_0 : Differentiable> (@in_guaranteed τ_0_0.TangentVector, @owned @callee_owned (@in_guaranteed τ_0_0.TangentVector) -> @out τ_0_0.TangentVector) -> @out τ_0_0.TangentVector
+// CHECK: [[PB:%.*]] = partial_apply [callee_guaranteed] [[THUNK]]<T>([[PB_SUBST]]) : $@convention(thin) <τ_0_0 where τ_0_0 : AdditiveArithmetic, τ_0_0 : Differentiable> (@in_guaranteed τ_0_0.TangentVector, @owned @callee_owned (@in_guaranteed τ_0_0.TangentVector) -> @out τ_0_0.TangentVector) -> @out τ_0_0.TangentVector
+// CHECK: [[PB_SUBST:%.*]] = convert_function [[PB]] : $@callee_guaranteed (@in_guaranteed T.TangentVector) -> @out T.TangentVector to $@callee_guaranteed @substituted <τ_0_0, τ_0_1> (@in_guaranteed τ_0_0) -> @out τ_0_1 for <T.TangentVector, T.TangentVector>
+// CHECK: [[PB_BUFFER:%.*]] = tuple_element_addr [[D_RESULT_BUFFER]] : $*(T, @callee_guaranteed @substituted <τ_0_0, τ_0_1> (@in_guaranteed τ_0_0) -> @out τ_0_1 for <T.TangentVector, T.TangentVector>), 1
+// CHECK: store [[PB_SUBST]] to [init] [[PB_BUFFER]] : $*@callee_guaranteed @substituted <τ_0_0, τ_0_1> (@in_guaranteed τ_0_0) -> @out τ_0_1 for <T.TangentVector, T.TangentVector>
+// CHECK: [[ORIG_RESULT_BUFFER:%.*]] = tuple_element_addr [[D_RESULT_BUFFER]] : $*(T, @callee_guaranteed @substituted <τ_0_0, τ_0_1> (@in_guaranteed τ_0_0) -> @out τ_0_1 for <T.TangentVector, T.TangentVector>), 0
+// CHECK: [[PB_BUFFER:%.*]] = tuple_element_addr [[D_RESULT_BUFFER]] : $*(T, @callee_guaranteed @substituted <τ_0_0, τ_0_1> (@in_guaranteed τ_0_0) -> @out τ_0_1 for <T.TangentVector, T.TangentVector>), 1
+// CHECK: [[PB:%.*]] = load [take] [[PB_BUFFER]] : $*@callee_guaranteed @substituted <τ_0_0, τ_0_1> (@in_guaranteed τ_0_0) -> @out τ_0_1 for <T.TangentVector, T.TangentVector> // user: %25
+// CHECK: copy_addr [take] [[ORIG_RESULT_BUFFER]] to [initialization] [[ORIG_RESULT_OUT_PARAM]] : $*T
+// CHECK: dealloc_stack [[D_RESULT_BUFFER]] : $*(T, @callee_guaranteed @substituted <τ_0_0, τ_0_1> (@in_guaranteed τ_0_0) -> @out τ_0_1 for <T.TangentVector, T.TangentVector>)
+// CHECK: return [[PB]] : $@callee_guaranteed @substituted <τ_0_0, τ_0_1> (@in_guaranteed τ_0_0) -> @out τ_0_1 for <T.TangentVector, T.TangentVector>
 
 // MARK: - applyTranspose
 

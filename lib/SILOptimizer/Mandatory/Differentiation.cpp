@@ -1014,7 +1014,7 @@ static SILValue promoteCurryThunkApplicationToDifferentiableFunction(
 
   // Create a new curry thunk.
   AutoDiffConfig desiredConfig(parameterIndices, resultIndices);
-  // TODO(TF-685): Use more principled mangling for thunks.
+  // TODO(SR-13508): Use more principled mangling for thunks.
   auto newThunkName = "AD__" + thunk->getName().str() +
                       "__differentiable_curry_thunk_" + desiredConfig.mangle();
 

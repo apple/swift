@@ -167,8 +167,9 @@ SILGenModule::emitVTableMethod(ClassDecl *theClass,
         cast<ConstructorDecl>(derivedDecl),
         base.kind == SILDeclRef::Kind::Allocator);
     }
-    // TODO(TF-685): Use proper autodiff thunk mangling.
     if (auto *derivativeId = derived.getDerivativeFunctionIdentifier()) {
+      // TODO(SR-13508): Use proper autodiff thunk mangling.
+      name.insert(0, "AD__");
       switch (derivativeId->getKind()) {
       case AutoDiffDerivativeFunctionKind::JVP:
         name += "_jvp";
@@ -742,7 +743,7 @@ SILFunction *SILGenModule::emitProtocolWitness(
       conformance.isConcrete() ? conformance.getConcrete() : nullptr;
   std::string nameBuffer =
       NewMangler.mangleWitnessThunk(manglingConformance, requirement.getDecl());
-  // TODO(TF-685): Proper mangling for derivative witness thunks.
+  // TODO(SR-13508): Proper mangling for derivative witness thunks.
   if (auto *derivativeId = requirement.getDerivativeFunctionIdentifier()) {
     std::string kindString;
     switch (derivativeId->getKind()) {

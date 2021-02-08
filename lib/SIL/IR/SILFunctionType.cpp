@@ -340,9 +340,10 @@ getDifferentiabilityParameters(SILFunctionType *originalFnTy,
 /// `originalResults`. The semantic results are formal results followed by
 /// `inout` parameters, in type order.
 static void
-getSemanticResults(SILFunctionType *functionType, IndexSubset *parameterIndices,
-                   IndexSubset *&inoutParameterIndices,
-                   SmallVectorImpl<SILResultInfo> &originalResults) {
+getAutoDiffSemanticResults(
+    SILFunctionType *functionType, IndexSubset *parameterIndices,
+    IndexSubset *&inoutParameterIndices,
+    SmallVectorImpl<SILResultInfo> &originalResults) {
   auto &C = functionType->getASTContext();
   SmallVector<unsigned, 4> inoutParamIndices;
   // Collect original formal results.
@@ -427,8 +428,8 @@ static CanSILFunctionType getAutoDiffDifferentialType(
 
   IndexSubset *inoutParamIndices;
   SmallVector<SILResultInfo, 2> originalResults;
-  getSemanticResults(originalFnTy, parameterIndices, inoutParamIndices,
-                     originalResults);
+  getAutoDiffSemanticResults(originalFnTy, parameterIndices, inoutParamIndices,
+                             originalResults);
 
   SmallVector<SILParameterInfo, 4> diffParams;
   getDifferentiabilityParameters(originalFnTy, parameterIndices, diffParams);
@@ -505,7 +506,7 @@ static CanSILFunctionType getAutoDiffDifferentialType(
   }
   return SILFunctionType::get(
       GenericSignature(), SILFunctionType::ExtInfo(), SILCoroutineKind::None,
-      ParameterConvention::Direct_Guaranteed, differentialParams, {},
+      ParameterConvention::Direct_Owned, differentialParams, {},
       differentialResults, None, substitutions,
       /*invocationSubstitutions*/ SubstitutionMap(), ctx);
 }
@@ -524,8 +525,8 @@ static CanSILFunctionType getAutoDiffPullbackType(
 
   IndexSubset *inoutParamIndices;
   SmallVector<SILResultInfo, 2> originalResults;
-  getSemanticResults(originalFnTy, parameterIndices, inoutParamIndices,
-                     originalResults);
+  getAutoDiffSemanticResults(originalFnTy, parameterIndices, inoutParamIndices,
+                             originalResults);
 
   // Given a type, returns its formal SIL parameter info.
   auto getTangentParameterConventionForOriginalResult =
@@ -682,7 +683,7 @@ static CanSILFunctionType getAutoDiffPullbackType(
   }
   return SILFunctionType::get(
       GenericSignature(), SILFunctionType::ExtInfo(), SILCoroutineKind::None,
-      ParameterConvention::Direct_Guaranteed, pullbackParams, {},
+      ParameterConvention::Direct_Owned, pullbackParams, {},
       pullbackResults, None, substitutions,
       /*invocationSubstitutions*/ SubstitutionMap(), ctx);
 }
@@ -2187,6 +2188,29 @@ static CanSILFunctionType getSILFunctionType(
     DestructureResults destructurer(expansionContext, TC, conventions,
                                     results, subst);
     destructurer.destructure(origResultType, substFormalResultType);
+
+    // If it's a derivative function, its linear map result has `@callee_owned`
+    // convention.
+    if (origType.isDerivativeFunctionType()) {
+      assert(results.size() == 2);
+      auto &linearMapResult = results[1];
+      auto linearMapType = linearMapResult.getInterfaceType()
+          ->getAs<SILFunctionType>();
+      auto newLinearMapType = SILFunctionType::get(
+          linearMapType->getInvocationGenericSignature(),
+          linearMapType->getExtInfo(),
+          linearMapType->getCoroutineKind(),
+          ParameterConvention::Direct_Owned,
+          linearMapType->getParameters(),
+          linearMapType->getYields(),
+          linearMapType->getResults(),
+          linearMapType->getOptionalErrorResult(),
+          linearMapType->getPatternSubstitutions(),
+          linearMapType->getInvocationSubstitutions(),
+          linearMapType->getASTContext(),
+          linearMapType->getWitnessMethodConformanceOrInvalid());
+      linearMapResult = linearMapResult.getWithInterfaceType(newLinearMapType);
+    }
   }
 
   // Lower the capture context parameters, if any.

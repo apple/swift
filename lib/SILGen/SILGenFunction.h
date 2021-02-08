@@ -1950,18 +1950,23 @@ public:
   // Differentiation thunks
   //===--------------------------------------------------------------------===//
 
-  /// Get or create a thunk for reabstracting and self-reordering
-  /// differentials/pullbacks returned by user-defined JVP/VJP functions, and
-  /// apply it to the given differential/pullback.
+  /// Transform the given linear map function using a thunk that reabstracts and
+  /// optionally reorders the `self` parameter.
   ///
   /// If `reorderSelf` is true, reorder self so that it appears as:
   /// - The last parameter, for differentials.
   /// - The last result, for pullbacks.
-  ManagedValue getThunkedAutoDiffLinearMap(ManagedValue linearMap,
-                                           AutoDiffLinearMapKind linearMapKind,
-                                           CanSILFunctionType fromType,
-                                           CanSILFunctionType toType,
-                                           bool reorderSelf);
+  ManagedValue emitTransformedAutoDiffLinearMap(
+      ManagedValue linearMap, AutoDiffLinearMapKind linearMapKind,
+      CanSILFunctionType substFromType, CanSILFunctionType substToType,
+      bool reorderSelf);
+
+  /// Emits a derivative function by transforming the given derivative
+  /// function's returned derivative.
+  ManagedValue emitDerivativeWithTransformedLinearMap(
+      ManagedValue derivativeFn, AutoDiffLinearMapKind linearMapKind,
+      CanSILFunctionType substLinearMapFromType,
+      CanSILFunctionType substLinearMapToType);
 
   //===--------------------------------------------------------------------===//
   // Declarations

@@ -894,14 +894,11 @@ public:
 
     // Handle callee pullback indirect results.
     // Create local allocations for these and destroy them after the call.
-    auto pullbackType =
-        remapType(pullback->getType()).castTo<SILFunctionType>();
-    auto actualPullbackType = applyInfo.originalPullbackType
-                                  ? *applyInfo.originalPullbackType
-                                  : pullbackType;
-    actualPullbackType = actualPullbackType->getUnsubstitutedType(getModule());
+    auto actualPullbackType = applyInfo.originalPullbackType;
+    auto unsubstActualPullbackType =
+        actualPullbackType->getUnsubstitutedType(getModule());
     SmallVector<AllocStackInst *, 4> pullbackIndirectResults;
-    for (auto indRes : actualPullbackType->getIndirectFormalResults()) {
+    for (auto indRes : unsubstActualPullbackType->getIndirectFormalResults()) {
       auto *alloc = builder.createAllocStack(
           loc, remapType(indRes.getSILStorageInterfaceType()));
       pullbackIndirectResults.push_back(alloc);
@@ -926,19 +923,13 @@ public:
     }
 
     // If callee pullback was reabstracted in VJP, reabstract callee pullback.
-    if (applyInfo.originalPullbackType) {
-      SILOptFunctionBuilder fb(getContext().getTransform());
-      pullback = reabstractFunction(
-          builder, fb, loc, pullback, *applyInfo.originalPullbackType,
-          [this](SubstitutionMap subs) -> SubstitutionMap {
-            return this->remapSubstitutionMap(subs);
-          });
-    }
+    pullback = builder.createUncheckedBitCast(
+        loc, pullback,
+        SILType::getPrimitiveObjectType(applyInfo.originalPullbackType));
 
     // Call the callee pullback.
     auto *pullbackCall = builder.createApply(loc, pullback, SubstitutionMap(),
                                              args, /*isNonThrowing*/ false);
-    builder.emitDestroyValueOperation(loc, pullback);
 
     // Extract all results from `pullbackCall`.
     SmallVector<SILValue, 8> dirResults;

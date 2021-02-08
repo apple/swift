@@ -194,11 +194,16 @@ CanSILFunctionType buildThunkType(SILFunction *fn,
     if (fn->getLoweredFunctionType()->isPseudogeneric())
       extInfoBuilder = extInfoBuilder.withIsPseudogeneric();
 
+  ParameterConvention contextConvention;
+  if (SILType::getPrimitiveObjectType(sourceType).isTrivial(*fn)) {
+    contextConvention = ParameterConvention::Direct_Unowned;
+  } else {
+    contextConvention = sourceType->isCalleeConsumed()
+        ? ParameterConvention::Direct_Owned
+        : ParameterConvention::Direct_Guaranteed;
+  }
+
   // Add the function type as the parameter.
-  auto contextConvention =
-      SILType::getPrimitiveObjectType(sourceType).isTrivial(*fn)
-          ? ParameterConvention::Direct_Unowned
-          : ParameterConvention::Direct_Guaranteed;
   SmallVector<SILParameterInfo, 4> params;
   params.append(expectedType->getParameters().begin(),
                 expectedType->getParameters().end());
@@ -545,7 +550,7 @@ SILValue reabstractFunction(
 
   fn = builder.createPartialApply(
       loc, thunkRef, remapSubstitutions(thunk->getForwardingSubstitutionMap()),
-      {fn}, fromType->getCalleeConvention());
+      {fn}, toType->getCalleeConvention());
 
   if (toType != unsubstToType)
     fn = builder.createConvertFunction(loc, fn,
@@ -574,7 +579,7 @@ getOrCreateSubsetParametersThunkForLinearMap(
                                   /*withoutActuallyEscaping*/ true,
                                   DifferentiationThunkKind::Reabstraction);
 
-  // TODO(TF-685): Use more principled mangling for thunks.
+  // TODO(SR-13508): Use more principled mangling for thunks.
   std::string thunkName;
   switch (kind) {
   case AutoDiffDerivativeFunctionKind::JVP:
@@ -603,7 +608,7 @@ getOrCreateSubsetParametersThunkForLinearMap(
   if (!thunk->empty())
     return {thunk, interfaceSubs};
 
-  // TODO(TF-1206): Enable ownership in all differentiation thunks.
+  // TODO(SR-13929): Enable ownership in all differentiation thunks.
   thunk->setOwnershipEliminated();
   thunk->setGenericEnvironment(genericEnv);
   auto *entry = thunk->createBasicBlock();
@@ -743,7 +748,7 @@ getOrCreateSubsetParametersThunkForLinearMap(
   }
   }
 
-  // Get the linear map thunk argument and apply it.
+  // Get the linear map value (the thunk's last argument) and apply it.
   auto *linearMap = thunk->getArguments().back();
   auto *ai = builder.createApply(loc, linearMap, SubstitutionMap(), arguments,
                                  /*isNonThrowing*/ false);
@@ -861,7 +866,7 @@ getOrCreateSubsetParametersThunkForDerivativeFunction(
                    ->getNameStr();
   }
   assert(!origName.empty() && "Original function name could not be resolved");
-  // TODO(TF-685): Use more principled mangling for thunks.
+  // TODO(SR-13508): Use more principled mangling for thunks.
   std::string thunkName;
   switch (kind) {
   case AutoDiffDerivativeFunctionKind::JVP:
@@ -886,6 +891,7 @@ getOrCreateSubsetParametersThunkForDerivativeFunction(
   auto *thunk = fb.getOrCreateSharedFunction(
       loc, thunkName, thunkType, IsBare, IsTransparent, caller->isSerialized(),
       ProfileCounter(), IsThunk, IsNotDynamic);
+  thunk->setInlineStrategy(AlwaysInline);
 
   if (!thunk->empty())
     return {thunk, interfaceSubs};
@@ -977,7 +983,9 @@ getOrCreateSubsetParametersThunkForDerivativeFunction(
   }
   thunkedLinearMap = builder.createPartialApply(
       loc, linearMapThunkFRI, linearMapSubs, {thunkedLinearMap},
-      ParameterConvention::Direct_Guaranteed);
+      linearMapTargetType->isCalleeConsumed()
+          ? ParameterConvention::Direct_Owned
+          : ParameterConvention::Direct_Guaranteed);
   if (linearMapTargetType != unsubstLinearMapTargetType) {
     thunkedLinearMap = builder.createConvertFunction(
         loc, thunkedLinearMap,

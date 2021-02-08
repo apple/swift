@@ -36,8 +36,8 @@ func large2large(_ foo: Large) -> Large {
 
 // `large2large` old verification error:
 // SIL verification failed: JVP type does not match expected JVP type
-// $@callee_guaranteed (@in_constant Large) -> (Large, @owned @callee_guaranteed (Large.TangentVector) -> Large.TangentVector)
-// $@callee_guaranteed (@in_constant Large) -> (@out Large, @owned @callee_guaranteed (@in_constant Large.TangentVector) -> @out Large.TangentVector)
+// $@callee_guaranteed (@in_constant Large) -> (Large, @owned @callee_owned (Large.TangentVector) -> Large.TangentVector)
+// $@callee_guaranteed (@in_constant Large) -> (@out Large, @owned @callee_owned (@in_constant Large.TangentVector) -> @out Large.TangentVector)
 
 @_silgen_name("large2small")
 @differentiable
@@ -47,8 +47,8 @@ func large2small(_ foo: Large) -> Float {
 
 // `large2small` old verification error:
 // SIL verification failed: JVP type does not match expected JVP type
-//   $@callee_guaranteed (@in_constant Large) -> (Float, @owned @callee_guaranteed (Large.TangentVector) -> Float)
-//   $@callee_guaranteed (@in_constant Large) -> (Float, @owned @callee_guaranteed (@in_constant Large.TangentVector) -> Float)
+//   $@callee_guaranteed (@in_constant Large) -> (Float, @owned @callee_owned (Large.TangentVector) -> Float)
+//   $@callee_guaranteed (@in_constant Large) -> (Float, @owned @callee_owned (@in_constant Large.TangentVector) -> Float)
 
 // CHECK-SIL: sil {{.*}}@large2large : $@convention(thin) (Large) -> Large {
 // CHECK-LBA-SIL: sil {{.*}}@large2large : $@convention(thin) (@in_constant Large) -> @out Large {
@@ -56,17 +56,17 @@ func large2small(_ foo: Large) -> Float {
 // CHECK-SIL-LABEL: sil {{.*}}@large2small : $@convention(thin) (Large) -> Float {
 // CHECK-LBA-SIL: sil {{.*}}@large2small : $@convention(thin) (@in_constant Large) -> Float {
 
-// CHECK-SIL: sil {{.*}}@large2largeTJfSpSr : $@convention(thin) (Large) -> (Large, @owned @callee_guaranteed (Large.TangentVector) -> Large.TangentVector) {
-// CHECK-LBA-SIL: sil {{.*}}@large2largeTJfSpSr : $@convention(thin) (@in_constant Large) -> (Large, @owned @callee_guaranteed (Large.TangentVector) -> Large.TangentVector) {
+// CHECK-SIL: sil {{.*}}@large2largeTJfSpSr : $@convention(thin) (Large) -> (Large, @owned @callee_owned (Large.TangentVector) -> Large.TangentVector) {
+// CHECK-LBA-SIL: sil {{.*}}@large2largeTJfSpSr : $@convention(thin) (@in_constant Large) -> (Large, @owned @callee_owned (Large.TangentVector) -> Large.TangentVector) {
 
-// CHECK-SIL: sil {{.*}}@large2largeTJrSpSr : $@convention(thin) (Large) -> (Large, @owned @callee_guaranteed (Large.TangentVector) -> Large.TangentVector) {
-// CHECK-LBA-SIL: sil {{.*}}@large2largeTJrSpSr : $@convention(thin) (@in_constant Large) -> (Large, @owned @callee_guaranteed (Large.TangentVector) -> Large.TangentVector) {
+// CHECK-SIL: sil {{.*}}@large2largeTJrSpSr : $@convention(thin) (Large) -> (Large, @owned @callee_owned (Large.TangentVector) -> Large.TangentVector) {
+// CHECK-LBA-SIL: sil {{.*}}@large2largeTJrSpSr : $@convention(thin) (@in_constant Large) -> (Large, @owned @callee_owned (Large.TangentVector) -> Large.TangentVector) {
 
-// CHECK-SIL: sil {{.*}}@large2smallTJfSpSr : $@convention(thin) (Large) -> (Float, @owned @callee_guaranteed (Large.TangentVector) -> Float) {
-// CHECK-LBA-SIL: sil {{.*}}@large2smallTJfSpSr : $@convention(thin) (@in_constant Large) -> (Float, @owned @callee_guaranteed (Large.TangentVector) -> Float) {
+// CHECK-SIL: sil {{.*}}@large2smallTJfSpSr : $@convention(thin) (Large) -> (Float, @owned @callee_owned (Large.TangentVector) -> Float) {
+// CHECK-LBA-SIL: sil {{.*}}@large2smallTJfSpSr : $@convention(thin) (@in_constant Large) -> (Float, @owned @callee_owned (Large.TangentVector) -> Float) {
 
-// CHECK-SIL: sil {{.*}}@large2smallTJrSpSr : $@convention(thin) (Large) -> (Float, @owned @callee_guaranteed (Float) -> Large.TangentVector) {
-// CHECK-LBA-SIL: sil {{.*}}@large2smallTJrSpSr : $@convention(thin) (@in_constant Large) -> (Float, @owned @callee_guaranteed (Float) -> Large.TangentVector) {
+// CHECK-SIL: sil {{.*}}@large2smallTJrSpSr : $@convention(thin) (Large) -> (Float, @owned @callee_owned (Float) -> Large.TangentVector) {
+// CHECK-LBA-SIL: sil {{.*}}@large2smallTJrSpSr : $@convention(thin) (@in_constant Large) -> (Float, @owned @callee_owned (Float) -> Large.TangentVector) {
 
 LBATests.test("Correctness") {
   let one = Large.TangentVector(a: 1, b: 1, c: 1, d: 1)

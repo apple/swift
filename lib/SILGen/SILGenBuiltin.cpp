@@ -1118,34 +1118,75 @@ static ManagedValue emitBuiltinAutoDiffApplyDerivativeFunction(
   assert(origFnVal->getType().isTrivial(SGF.F));
   assert(derivativeFn->getType().isTrivial(SGF.F));
 
-  // Do the apply for the indirect result case.
+  auto getCalleeGuaranteedType = [&](CanSILFunctionType type) {
+    return SILFunctionType::get(
+        GenericSignature(),
+        type->getExtInfo(),
+        type->getCoroutineKind(),
+        ParameterConvention::Direct_Guaranteed,
+        type->getParameters(),
+        type->getYields(),
+        type->getResults(),
+        type->getOptionalErrorResult(),
+        type->getPatternSubstitutions(),
+        type->getInvocationSubstitutions(),
+        SGF.getASTContext());
+  };
+
+  // When there are indirect reslts, emit a tuple result into the result buffer.
   if (derivativeFnType->hasIndirectFormalResults()) {
-    auto indResBuffer = SGF.getBufferForExprResult(
-        loc, derivativeFnType->getAllResultsInterfaceType(), C);
+    auto linearMapType = CanSILFunctionType(
+        derivativeFnType->getDirectFormalResults().begin()
+            ->getInterfaceType()->castTo<SILFunctionType>());
+    auto calleeGuaranteedLinearMapType = getCalleeGuaranteedType(linearMapType);
+    auto origResultType = derivativeFnType->getIndirectFormalResults().begin()
+        ->getInterfaceType();
+    auto tupleResultType = SILType::getPrimitiveObjectType(
+        TupleType::get({
+            TupleTypeElt(origResultType),
+            TupleTypeElt(calleeGuaranteedLinearMapType)},
+        SGF.getASTContext())
+            ->getCanonicalType());
+    auto indResBuffer = SGF.getBufferForExprResult(loc, tupleResultType, C);
     SmallVector<SILValue, 3> applyArgs;
     applyArgs.push_back(SGF.B.createTupleElementAddr(loc, indResBuffer, 0));
     for (auto origFnArgVal : origFnArgVals)
       applyArgs.push_back(origFnArgVal);
-    auto differential = SGF.B.createApply(loc, derivativeFn, SubstitutionMap(),
-                                          applyArgs, /*isNonThrowing*/ false);
-
-    derivativeFn = SILValue();
-
-    SGF.B.createStore(loc, differential,
-                      SGF.B.createTupleElementAddr(loc, indResBuffer, 1),
-                      StoreOwnershipQualifier::Init);
+    auto linearMap = SGF.emitManagedRValueWithCleanup(
+        SGF.B.createApply(loc, derivativeFn, SubstitutionMap(), applyArgs,
+                          /*isNonThrowing*/ false));
+    // Reabstract the linear map to `@callee_guaranteed` since that matches the
+    // lowered type of AST closure types.
+    linearMap = SGF.emitTransformedAutoDiffLinearMap(
+        linearMap, kind.getLinearMapKind(), linearMapType,
+        calleeGuaranteedLinearMapType, /*reorderSelf*/ false);
+    linearMap.forwardInto(
+        SGF, loc, SGF.B.createTupleElementAddr(loc, indResBuffer, 1));
     return SGF.manageBufferForExprResult(
         indResBuffer, SGF.getTypeLowering(indResBuffer->getType()), C);
   }
-
-  // Do the apply for the direct result case.
-  auto resultTuple = SGF.B.createApply(
-      loc, derivativeFn, SubstitutionMap(), origFnArgVals,
-      /*isNonThrowing*/ false);
-
-  derivativeFn = SILValue();
-
-  return SGF.emitManagedRValueWithCleanup(resultTuple);
+  // Otherwise, use the tuple result from the application directly (with
+  // necessary reabstractions).
+  else {
+    SILValue resultTuple = SGF.B.createApply(
+        loc, derivativeFn, SubstitutionMap(), origFnArgVals,
+        /*isNonThrowing*/ false);
+    auto *destructure = SGF.B.createDestructureTuple(loc, resultTuple);
+    auto origResult =
+        SGF.emitManagedRValueWithCleanup(destructure->getResult(0));
+    auto linearMap =
+        SGF.emitManagedRValueWithCleanup(destructure->getResult(1));
+    auto linearMapType = linearMap.getType().getAs<SILFunctionType>();
+    // Reabstract the linear map to `@callee_guaranteed` since that matches the
+    // lowered type of AST closure types.
+    linearMap = SGF.emitTransformedAutoDiffLinearMap(
+        linearMap, kind.getLinearMapKind(),
+        linearMapType, getCalleeGuaranteedType(linearMapType),
+        /*reorderSelf*/ false);
+    resultTuple = SGF.B.createTuple(
+        loc, {origResult.forward(SGF), linearMap.forward(SGF)});
+    return SGF.emitManagedRValueWithCleanup(resultTuple);
+  }
 }
 
 static ManagedValue emitBuiltinAutoDiffApplyTransposeFunction(
