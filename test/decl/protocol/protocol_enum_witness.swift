@@ -139,3 +139,12 @@ protocol ThrowingFactory {
 enum HorseFactory : ThrowingFactory {
   case horse(Int)
 }
+
+protocol MissingAccessorsVar {
+  // expected-error@+2 {{property in protocol must have explicit { get } or { get set } specifier}}
+  // expected-note@+1 {{protocol requires property 'bar' with type 'Bar14'; do you want to add a stub?}}
+  static var bar: Self
+}
+enum Bar14: MissingAccessorsVar { // expected-error {{type 'Bar14' does not conform to protocol 'MissingAccessorsVar'}}
+  case bar // expected-note {{candidate is not settable, but protocol requires it}}
+}

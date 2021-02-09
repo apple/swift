@@ -618,7 +618,7 @@ swift::matchWitness(
     if (!cast<ValueDecl>(req)->isStatic())
       return RequirementMatch(witness, MatchKind::StaticNonStaticConflict);
     if (isa<VarDecl>(req) &&
-        cast<VarDecl>(req)->getParsedAccessor(AccessorKind::Set))
+        cast<VarDecl>(req)->isSettable(req->getDeclContext()))
       return RequirementMatch(witness, MatchKind::SettableConflict);
 
     decomposeFunctionType = enumCase->hasAssociatedValues();
