@@ -5377,6 +5377,11 @@ bool VarDecl::isSettable(const DeclContext *UseDC,
   if (!isLet())
     return supportsMutation();
 
+  // Static 'let's are not settable regardless of the context.
+  if (isStatic()) {
+    return false;
+  }
+
   //
   // All the remaining logic handles the special cases where you can
   // assign a 'let'.
