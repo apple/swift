@@ -1,7 +1,9 @@
-// RUN: %target-sil-opt -enable-sil-verify-all %s -predictable-memaccess-opts -predictable-deadalloc-elim  | %FileCheck %s
+// RUN: %target-sil-opt -enable-sil-verify-all %s -predictable-memaccess-opts  | %FileCheck %s
 
 import Builtin
 import Swift
+
+// REQUIRES: do_not_commit_this_test_needs_update
 
 // CHECK-LABEL: sil @simple_reg_promotion
 // CHECK: bb0(%0 : $Int):

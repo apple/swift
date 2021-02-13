@@ -3,9 +3,9 @@
 // RUN: %target-sil-opt -enable-sil-verify-all -I %t -performance-linker -inline %s -o - | %FileCheck %s
 
 // CHECK: sil private @top_level_code
-// CHECK: sil public_external [serialized] @$ss1XVABycfC{{.*}}
-// CHECK: sil public_external [serialized] @$ss17the_thing_it_does1xys1XV_tF{{.*}}
-// CHECK: sil shared_external [serializable] [noinline] @$ss9the_thing1tyx_tlFs1XV_Tgq5{{.*}}
+// CHECK: sil public_external [serialized] [ossa] @$ss1XVABycfC{{.*}}
+// CHECK: sil public_external [serialized] [ossa] @$ss17the_thing_it_does1xys1XV_tF{{.*}}
+// CHECK: sil shared_external [serializable] [noinline] [ossa] @$ss9the_thing1tyx_tlFs1XV_Tgq5{{.*}}
 
 sil_stage canonical
 

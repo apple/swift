@@ -102,6 +102,18 @@
 
 namespace swift {
 
+/// Convert this struct_extract into a copy+destructure. Return the destructured
+/// result or invalid SILValue. The caller must delete the extract and its
+/// now-dead copy use.
+///
+// If a copied-def is a struct-extract, attempt a destructure conversion
+//   %extract = struct_extract %... : $TypeWithSingleOwnershipValue
+//   %copy = copy_value %extract : $OwnershipValue
+// To:
+//   %copy = copy_value %extract : $TypeWithSingleOwnershipValue
+//   (%extracted,...) = destructure %copy : $TypeWithSingleOwnershipValue
+SILValue convertExtractToDestructure(StructExtractInst *extract);
+
 /// Information about consumes on the extended-lifetime boundary. Consuming uses
 /// within the lifetime are not included--they will consume a copy after
 /// rewriting. For borrowed def values, the consumes do not include the end of
@@ -175,6 +187,50 @@ public:
   SWIFT_ASSERT_ONLY_DECL(void dump() const LLVM_ATTRIBUTE_USED);
 };
 
+// Worklist of pointer-like things that have an invalid default value. Avoid
+// revisiting nodes--suitable for DAGs, but pops finished nodes without
+// preserving them in the vector.
+//
+// The primary API has two methods: intialize() and pop(). Others are provided
+// for flexibility.
+//
+// TODO: make this a better utility.
+template <typename T, unsigned SmallSize> struct PtrWorklist {
+  SmallPtrSet<T, SmallSize> ptrVisited;
+  SmallVector<T, SmallSize> ptrVector;
+
+  PtrWorklist() = default;
+
+  PtrWorklist(const PtrWorklist &) = delete;
+
+  void initialize(T t) {
+    clear();
+    insert(t);
+  }
+
+  template <typename R> void initializeRange(R &&range) {
+    clear();
+    ptrVisited.insert(range.begin(), range.end());
+    ptrVector.append(range.begin(), range.end());
+  }
+
+  T pop() { return empty() ? T() : ptrVector.pop_back_val(); }
+
+  bool empty() const { return ptrVector.empty(); }
+
+  unsigned size() const { return ptrVector.size(); }
+
+  void clear() {
+    ptrVector.clear();
+    ptrVisited.clear();
+  }
+
+  void insert(T t) {
+    if (ptrVisited.insert(t).second)
+      ptrVector.push_back(t);
+  }
+};
+
 /// Canonicalize OSSA lifetimes.
 ///
 /// Allows the allocation of analysis state to be reused across calls to
@@ -221,11 +277,11 @@ private:
   /// outisde the pruned liveness at the time it is discovered.
   llvm::SmallPtrSet<DebugValueInst *, 8> debugValues;
 
-  /// Reuse a general worklist for def-use traversal.
-  SmallSetVector<SILValue, 8> defUseWorklist;
+  /// Reuse a general visited set for def-use traversal.
+  PtrWorklist<SILValue, 8> defUseWorklist;
 
   /// Reuse a general worklist for CFG traversal.
-  SmallSetVector<SILBasicBlock *, 8> blockWorklist;
+  PtrWorklist<SILBasicBlock *, 8> blockWorklist;
 
   /// Pruned liveness for the extended live range including copies. For this
   /// purpose, only consuming instructions are considered "lifetime
@@ -297,6 +353,15 @@ protected:
   bool computeBorrowLiveness();
 
   bool consolidateBorrowScope();
+
+  bool findBorrowScopeUses(llvm::SmallPtrSetImpl<SILInstruction *> &useInsts);
+
+  void filterOuterBorrowUseInsts(
+      llvm::SmallPtrSetImpl<SILInstruction *> &outerUseInsts);
+
+  void rewriteOuterBorrowUsesAndFindConsumes(
+      SILValue incomingValue,
+      llvm::SmallPtrSetImpl<SILInstruction *> &outerUseInsts);
 
   bool computeCanonicalLiveness();
 

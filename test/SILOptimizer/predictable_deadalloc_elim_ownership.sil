@@ -16,6 +16,11 @@ struct KlassWithKlassTuple {
   var third: Klass
 }
 
+enum FakeOptional<T> {
+case none
+case some(T)
+}
+
 ///////////
 // Tests //
 ///////////
@@ -515,4 +520,181 @@ bb3:
   dealloc_stack %2 : $*NativeObjectTriple
   %9999 = tuple()
   return %9999 : $()
+}
+
+// In this case, there isn't any cleanup of %1 along bbNone since. Make sure we
+// handle it appropriately and eliminate the alloc_stack.
+//
+// CHECK-LABEL: sil [ossa] @leak_along_nopayload_case_is_ok : $@convention(thin) (@owned Optional<Builtin.NativeObject>) -> () {
+// CHECK-NOT: alloc_stack
+// CHECK: } // end sil function 'leak_along_nopayload_case_is_ok'
+sil [ossa] @leak_along_nopayload_case_is_ok : $@convention(thin) (@owned Optional<Builtin.NativeObject>) -> () {
+bb0(%0 : @owned $Optional<Builtin.NativeObject>):
+  %1 = alloc_stack $Optional<Builtin.NativeObject>
+  %2 = copy_value %0 : $Optional<Builtin.NativeObject>
+  store %0 to [init] %1 : $*Optional<Builtin.NativeObject>
+  %3 = copy_value %2 : $Optional<Builtin.NativeObject>
+  %4 = begin_borrow %3 : $Optional<Builtin.NativeObject>
+  destroy_value %2 : $Optional<Builtin.NativeObject>
+  switch_enum %4 : $Optional<Builtin.NativeObject>, case #Optional.some!enumeult: bbSome, case #Optional.none!enumelt: bbNone
+
+bbNone:
+  end_borrow %4 : $Optional<Builtin.NativeObject>
+  destroy_value %3 : $Optional<Builtin.NativeObject>
+  dealloc_stack %1 : $*Optional<Builtin.NativeObject>
+  br bbEnd
+
+bbSome(%obj : @guaranteed $Builtin.NativeObject):
+  end_borrow %4 : $Optional<Builtin.NativeObject>
+  destroy_value %3 : $Optional<Builtin.NativeObject>
+  %1Loaded = load [take] %1 : $*Optional<Builtin.NativeObject>
+  destroy_value %1Loaded : $Optional<Builtin.NativeObject>
+  dealloc_stack %1 : $*Optional<Builtin.NativeObject>
+  br bbEnd
+
+bbEnd:
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// Add an unreachable into the mix so that we do not have any destroy_value on
+// %0 when we promote.
+// CHECK-LABEL: sil [ossa] @leak_along_nopayload_case_and_unreachable_is_ok : $@convention(thin) (@owned Optional<Builtin.NativeObject>) -> () {
+// CHECK-NOT: alloc_stack
+// CHECK: } // end sil function 'leak_along_nopayload_case_and_unreachable_is_ok'
+sil [ossa] @leak_along_nopayload_case_and_unreachable_is_ok : $@convention(thin) (@owned Optional<Builtin.NativeObject>) -> () {
+bb0(%0 : @owned $Optional<Builtin.NativeObject>):
+  %1 = alloc_stack $Optional<Builtin.NativeObject>
+  %2 = copy_value %0 : $Optional<Builtin.NativeObject>
+  store %0 to [init] %1 : $*Optional<Builtin.NativeObject>
+  %3 = copy_value %2 : $Optional<Builtin.NativeObject>
+  %4 = begin_borrow %3 : $Optional<Builtin.NativeObject>
+  destroy_value %2 : $Optional<Builtin.NativeObject>
+  switch_enum %4 : $Optional<Builtin.NativeObject>, case #Optional.some!enumeult: bbSome, case #Optional.none!enumelt: bbNone
+
+bbNone:
+  end_borrow %4 : $Optional<Builtin.NativeObject>
+  destroy_value %3 : $Optional<Builtin.NativeObject>
+  dealloc_stack %1 : $*Optional<Builtin.NativeObject>
+  br bbEnd
+
+bbSome(%obj : @guaranteed $Builtin.NativeObject):
+  end_borrow %4 : $Optional<Builtin.NativeObject>
+  destroy_value %3 : $Optional<Builtin.NativeObject>
+  unreachable
+
+bbEnd:
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @leak_along_nopayload_case_and_unreachable_is_ok_with_destroyaddr : $@convention(thin) (@owned Optional<Builtin.NativeObject>) -> () {
+// CHECK-NOT: alloc_stack
+// CHECK: } // end sil function 'leak_along_nopayload_case_and_unreachable_is_ok_with_destroyaddr'
+sil [ossa] @leak_along_nopayload_case_and_unreachable_is_ok_with_destroyaddr : $@convention(thin) (@owned Optional<Builtin.NativeObject>) -> () {
+bb0(%0 : @owned $Optional<Builtin.NativeObject>):
+  %1 = alloc_stack $Optional<Builtin.NativeObject>
+  %2 = copy_value %0 : $Optional<Builtin.NativeObject>
+  store %0 to [init] %1 : $*Optional<Builtin.NativeObject>
+  %3 = copy_value %2 : $Optional<Builtin.NativeObject>
+  %4 = begin_borrow %3 : $Optional<Builtin.NativeObject>
+  destroy_value %2 : $Optional<Builtin.NativeObject>
+  switch_enum %4 : $Optional<Builtin.NativeObject>, case #Optional.some!enumeult: bbSome, case #Optional.none!enumelt: bbNone
+
+bbNone:
+  end_borrow %4 : $Optional<Builtin.NativeObject>
+  destroy_value %3 : $Optional<Builtin.NativeObject>
+  dealloc_stack %1 : $*Optional<Builtin.NativeObject>
+  br bbEnd
+
+bbSome(%obj : @guaranteed $Builtin.NativeObject):
+  end_borrow %4 : $Optional<Builtin.NativeObject>
+  destroy_value %3 : $Optional<Builtin.NativeObject>
+  destroy_addr %1 : $*Optional<Builtin.NativeObject>
+  unreachable
+
+bbEnd:
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @leak_along_nopayload_case_and_unreachable_is_ok_with_deallocstack : $@convention(thin) (@owned Optional<Builtin.NativeObject>) -> () {
+// CHECK-NOT: alloc_stack
+// CHECK: } // end sil function 'leak_along_nopayload_case_and_unreachable_is_ok_with_deallocstack'
+sil [ossa] @leak_along_nopayload_case_and_unreachable_is_ok_with_deallocstack : $@convention(thin) (@owned Optional<Builtin.NativeObject>) -> () {
+bb0(%0 : @owned $Optional<Builtin.NativeObject>):
+  %1 = alloc_stack $Optional<Builtin.NativeObject>
+  %2 = copy_value %0 : $Optional<Builtin.NativeObject>
+  store %0 to [init] %1 : $*Optional<Builtin.NativeObject>
+  %3 = copy_value %2 : $Optional<Builtin.NativeObject>
+  %4 = begin_borrow %3 : $Optional<Builtin.NativeObject>
+  destroy_value %2 : $Optional<Builtin.NativeObject>
+  switch_enum %4 : $Optional<Builtin.NativeObject>, case #Optional.some!enumeult: bbSome, case #Optional.none!enumelt: bbNone
+
+bbNone:
+  end_borrow %4 : $Optional<Builtin.NativeObject>
+  destroy_value %3 : $Optional<Builtin.NativeObject>
+  dealloc_stack %1 : $*Optional<Builtin.NativeObject>
+  br bbEnd
+
+bbSome(%obj : @guaranteed $Builtin.NativeObject):
+  end_borrow %4 : $Optional<Builtin.NativeObject>
+  destroy_value %3 : $Optional<Builtin.NativeObject>
+  dealloc_stack %1 : $*Optional<Builtin.NativeObject>
+  unreachable
+
+bbEnd:
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// Make sure that we can handle this test case without asserting. Previously the
+// pass had memory safety issues since we could delete %0 below before %1 is
+// optimized. When %1 was optimized we would be using as its available value a
+// stale pointer to %0.
+// CHECK-LABEL: sil [ossa] @promoting_loadtake_with_other_promoting_loadtake : $@convention(thin) (@owned Builtin.NativeObject) -> () {
+// CHECK-NOT: load [take]
+// CHECK: } // end sil function 'promoting_loadtake_with_other_promoting_loadtake'
+sil [ossa] @promoting_loadtake_with_other_promoting_loadtake : $@convention(thin) (@owned Builtin.NativeObject) -> () {
+bb0(%arg : @owned $Builtin.NativeObject):
+  %mem = alloc_stack $Builtin.NativeObject
+  store %arg to [init] %mem : $*Builtin.NativeObject
+  %0 = load [take] %mem : $*Builtin.NativeObject
+  store %0 to [init] %mem : $*Builtin.NativeObject
+  %1 = load [take] %mem : $*Builtin.NativeObject
+  destroy_value %1 : $Builtin.NativeObject
+  dealloc_stack %mem : $*Builtin.NativeObject
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @bail_on_forwardingunowned_use : $@convention(thin) (@owned Builtin.NativeObject) -> () {
+// CHECK: alloc_stack
+// CHECK: } // end sil function 'bail_on_forwardingunowned_use'
+sil [ossa] @bail_on_forwardingunowned_use : $@convention(thin) (@owned Builtin.NativeObject) -> () {
+bb0(%arg : @owned $Builtin.NativeObject):
+  br bb1(%arg : $Builtin.NativeObject)
+
+bb1(%unowned : @unowned $Builtin.NativeObject):
+  %mem = alloc_stack $Builtin.NativeObject
+  store %arg to [init] %mem : $*Builtin.NativeObject
+  %0 = load [take] %mem : $*Builtin.NativeObject
+  store %0 to [init] %mem : $*Builtin.NativeObject
+  %1 = load [take] %mem : $*Builtin.NativeObject
+  destroy_value %1 : $Builtin.NativeObject
+  unreachable
+}
+
+// CHECK-LABEL: sil [ossa] @bail_on_forwardingunowned_use_negativecase : $@convention(thin) (@owned Builtin.NativeObject) -> () {
+// CHECK-NOT: alloc_stack
+// CHECK: } // end sil function 'bail_on_forwardingunowned_use_negativecase'
+sil [ossa] @bail_on_forwardingunowned_use_negativecase : $@convention(thin) (@owned Builtin.NativeObject) -> () {
+bb0(%arg : @owned $Builtin.NativeObject):
+  %mem = alloc_stack $Builtin.NativeObject
+  store %arg to [init] %mem : $*Builtin.NativeObject
+  %0 = load [take] %mem : $*Builtin.NativeObject
+  store %0 to [init] %mem : $*Builtin.NativeObject
+  %1 = load [take] %mem : $*Builtin.NativeObject
+  destroy_value %1 : $Builtin.NativeObject
+  unreachable
 }

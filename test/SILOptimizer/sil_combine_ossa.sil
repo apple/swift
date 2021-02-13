@@ -4901,3 +4901,28 @@ bb3(%4 : @owned $KlassNativeObjEither):
   return %4 : $KlassNativeObjEither
 }
 
+
+sil @convert_raw_pointer_to_nativeobject : $@convention(thin) (Builtin.RawPointer) -> @owned Builtin.NativeObject
+
+// To eliminate the convert_function below we need to convert the try_apply to
+// an apply. We do not delete edges like this in SILCombine with ownership and
+// are trying to reduce it without ownership. So make sure we don't optimize
+// this. This should be done in a different pass that handles CFG issues.
+//
+// CHECK-LABEL: sil [ossa] @do_not_eliminate_error_adding_convert_function_used_by_try_apply : $@convention(thin) (Builtin.RawPointer) -> @owned Builtin.NativeObject {
+// CHECK: convert_function
+// CHECK: try_apply
+// CHECK: } // end sil function 'do_not_eliminate_error_adding_convert_function_used_by_try_apply'
+sil [ossa] @do_not_eliminate_error_adding_convert_function_used_by_try_apply : $@convention(thin) (Builtin.RawPointer) -> @owned Builtin.NativeObject {
+bb0(%0 : $Builtin.RawPointer):
+  %f = function_ref @convert_raw_pointer_to_nativeobject : $@convention(thin) (Builtin.RawPointer) -> @owned Builtin.NativeObject
+  %t = thin_to_thick_function %f : $@convention(thin) (Builtin.RawPointer) -> @owned Builtin.NativeObject to $@noescape @callee_guaranteed (Builtin.RawPointer) -> @owned Builtin.NativeObject
+  %c = convert_function %t : $@noescape @callee_guaranteed (Builtin.RawPointer) -> @owned Builtin.NativeObject to $@noescape @callee_guaranteed (Builtin.RawPointer) -> (@owned Builtin.NativeObject, @error Error)
+  try_apply %c(%0) : $@noescape @callee_guaranteed (Builtin.RawPointer) -> (@owned Builtin.NativeObject, @error Error), normal bb1, error bb2
+
+bb1(%result : @owned $Builtin.NativeObject):
+  return %result : $Builtin.NativeObject
+
+bb2(%error : @owned $Error):
+  unreachable
+}

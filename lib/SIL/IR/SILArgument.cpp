@@ -161,6 +161,12 @@ bool SILPhiArgument::getIncomingPhiValues(
   return true;
 }
 
+Operand *SILPhiArgument::getIncomingPhiOperand(SILBasicBlock *predBlock) const {
+  if (!isPhiArgument())
+    return nullptr;
+  return getIncomingPhiOperandForPred(getParent(), predBlock, getIndex());
+}
+
 bool SILPhiArgument::getIncomingPhiOperands(
     SmallVectorImpl<Operand *> &returnedPhiOperands) const {
   if (!isPhiArgument())

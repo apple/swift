@@ -142,6 +142,8 @@ static bool canHandleAllocStack(AllocStackInst *asi) {
   if (asi->hasDynamicLifetime())
     return false;
 
+  SILType stackType = asi->getType();
+
   // Currently in this verifier, we stop verifying if we find a switch_enum_addr
   // use. This creates a problem since no one has gone through and changed the
   // frontend/optimizer to understand that it needs to insert destroy_addr on
@@ -155,8 +157,15 @@ static bool canHandleAllocStack(AllocStackInst *asi) {
   // implemented.
   //
   // https://bugs.swift.org/browse/SR-14123
-  if (asi->getType().getEnumOrBoundGenericEnum())
+  if (stackType.getEnumOrBoundGenericEnum())
     return false;
+
+  // Same for tuples that have an enum element. We are just working around this
+  // for now until the radar above is solved.
+  if (auto tt = stackType.getAs<TupleType>())
+    for (unsigned i : range(tt->getNumElements()))
+      if (stackType.getTupleElementType(i).getEnumOrBoundGenericEnum())
+        return false;
 
   // Otherwise we can optimize!
   return true;

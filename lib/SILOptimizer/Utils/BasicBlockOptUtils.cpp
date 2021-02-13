@@ -44,6 +44,8 @@ void swift::clearBlockBody(SILBasicBlock *bb) {
 
   for (SILArgument *arg : bb->getArguments()) {
     arg->replaceAllUsesWithUndef();
+    // To appease the ownership verifier, just set to None.
+    arg->setOwnershipKind(OwnershipKind::None);
   }
 
   // Instructions in the dead block may be used by other dead blocks.  Replace

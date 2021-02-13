@@ -345,11 +345,9 @@ void addFunctionPasses(SILPassPipelinePlan &P,
   // class_method/witness_method instructions may use concrete types now.
   P.addDevirtualizer();
 
-  // We earlier eliminated ownership if we are not compiling the stdlib. Now
-  // handle the stdlib functions, re-simplifying, eliminating ARC as we do.
-  P.addCopyPropagation();
+//!!! New Experimental Passes
   P.addSemanticARCOpts();
-  P.addNonTransparentFunctionOwnershipModelEliminator();
+//!!! End new passes
 
   switch (OpLevel) {
   case OptimizationLevelKind::HighLevel:
@@ -366,6 +364,10 @@ void addFunctionPasses(SILPassPipelinePlan &P,
     P.addLateInliner();
     break;
   }
+
+  // Clean up Semantic ARC before we perform additional post-inliner opts.
+  P.addCopyPropagation();
+  P.addSemanticARCOpts();
 
   // Promote stack allocations to values and eliminate redundant
   // loads.
@@ -425,6 +427,10 @@ void addFunctionPasses(SILPassPipelinePlan &P,
   P.addRetainSinking();
   P.addReleaseHoisting();
   P.addARCSequenceOpts();
+
+  // Run a final round of ARC opts when ownership is enabled.
+  P.addCopyPropagation();
+  P.addSemanticARCOpts();
 }
 
 static void addPerfDebugSerializationPipeline(SILPassPipelinePlan &P) {
@@ -513,7 +519,6 @@ static void addHighLevelFunctionPipeline(SILPassPipelinePlan &P) {
   // FIXME: update EagerSpecializer to be a function pass!
   P.addEagerSpecializer();
 
-  // stdlib ownership model elimination is done within addFunctionPasses
   addFunctionPasses(P, OptimizationLevelKind::HighLevel);
 
   addHighLevelLoopOptPasses(P);
@@ -768,6 +773,11 @@ SILPassPipelinePlan::getPerformancePassPipeline(const SILOptions &Options) {
   addHighLevelFunctionPipeline(P);
 
   addHighLevelModulePipeline(P);
+
+  // Run one last copy propagation/semantic arc opts run before serialization/us
+  // lowering ownership.
+  P.addCopyPropagation();
+  P.addSemanticARCOpts();
 
   addSerializePipeline(P);
   if (Options.StopOptimizationAfterSerialization)

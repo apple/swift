@@ -137,7 +137,7 @@ bb0(%0 : $AnyObject, %1 : $Int):
   %10 = open_existential_ref %8 : $AnyObject to $@opened("01234567-89ab-cdef-0123-111111111111") AnyObject
   // CHECK: [[SEL:%[0-9]+]] = load i8*, i8** @"\01L_selector(objectAtIndexedSubscript:)", align {{(4|8)}}
   // CHECK: [[RESPONDS:%[0-9]+]] = load i8*, i8** @"\01L_selector(respondsToSelector:)"
-  // CHECK-NEXT: [[HAS_SEL:%[0-9]]] = call i1 {{.*}}@objc_msgSend {{.*}}(%objc_object* [[OBJECT:%[0-9]+]], i8* [[RESPONDS]], i8* [[SEL]])
+  // CHECK-NEXT: [[HAS_SEL:%[0-9]+]] = call i1 {{.*}}@objc_msgSend {{.*}}(%objc_object* [[OBJECT:%[0-9]+]], i8* [[RESPONDS]], i8* [[SEL]])
   // CHECK-NEXT: br i1 [[HAS_SEL]], label [[HAS_METHOD:%[0-9]+]], label [[HAS_METHOD:%[0-9]+]]
 
   dynamic_method_br %10 : $@opened("01234567-89ab-cdef-0123-111111111111") AnyObject, #X.subscript!getter.foreign, bb1, bb2

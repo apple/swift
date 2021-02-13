@@ -1709,10 +1709,6 @@ SILInstruction *SILCombiner::visitTryApplyInst(TryApplyInst *AI) {
   if (isa<PartialApplyInst>(AI->getCallee()))
     return nullptr;
 
-  if (auto *CFI = dyn_cast<ConvertFunctionInst>(AI->getCallee())) {
-    return optimizeApplyOfConvertFunctionInst(AI, CFI);
-  }
-
   // Optimize readonly functions with no meaningful users.
   SILFunction *Fn = AI->getReferencedFunctionOrNull();
   if (Fn && Fn->getEffectsKind() < EffectsKind::ReleaseNone) {

@@ -472,3 +472,58 @@ bb2:
  return %1 : $()
 }
 
+// Make sure that we do not create address phis.
+//
+// CHECK-LABEL: sil [ossa] @addressPhiFixUp : $@convention(thin) (Builtin.RawPointer) -> Builtin.RawPointer {
+// CHECK: bb1:
+// CHECK:   [[NEXT:%.*]] = address_to_pointer {{%.*}} : $*UInt8 to $Builtin.RawPointer
+// CHECK:   cond_br {{%.*}}, bb3, bb2
+//
+// CHECK: bb2:
+// CHECK-NEXT: br bb7(%0 : $Builtin.RawPointer)
+//
+// CHECK: bb3:
+// CHECK-NEXT: br bb4([[NEXT]] : $Builtin.RawPointer)
+//
+// CHECK: bb4([[ARG:%.*]] :
+// CHECK:  [[CAST_BACK:%.*]] = pointer_to_address [[ARG]] : $Builtin.RawPointer to [strict] $*UInt8
+// CHECK:  [[GEP:%.*]] = index_addr [[CAST_BACK]] :
+// CHECK:  [[CAST_ROUND_TRIP_START:%.*]] = address_to_pointer [[GEP]]
+// CHECK:  [[CAST_ROUND_TRIP_END:%.*]] = pointer_to_address [[CAST_ROUND_TRIP_START]] : $Builtin.RawPointer to [strict] $*UInt8
+// CHECK:  [[BACK_TO_RAWPOINTER:%.*]] = address_to_pointer [[CAST_ROUND_TRIP_END]]
+// CHECK:  cond_br {{%.*}}, bb6, bb5
+//
+// CHECK: bb5:
+// CHECK-NEXT: br bb7([[CAST_ROUND_TRIP_START]] :
+//
+// CHECK: bb6:
+// CHECK-NEXT: br bb4([[BACK_TO_RAWPOINTER]] :
+//
+// CHECK: bb7([[RESULT:%.*]] :
+// CHECK-NEXT: return [[RESULT]]
+// CHECK: } // end sil function 'addressPhiFixUp'
+sil [ossa] @addressPhiFixUp : $@convention(thin) (Builtin.RawPointer) -> Builtin.RawPointer {
+bb0(%0 : $Builtin.RawPointer):
+  br bb1
+
+bb1:
+  br bb2(%0 : $Builtin.RawPointer)
+
+bb2(%1 : $Builtin.RawPointer):
+  %2 = pointer_to_address %1 : $Builtin.RawPointer to [strict] $*UInt8
+  %3 = load [trivial] %2 : $*UInt8
+  %4 = destructure_struct %3 : $UInt8
+  %5 = integer_literal $Builtin.Int64, 0
+  %6 = builtin "zextOrBitCast_Int8_Int64"(%4 : $Builtin.Int8) : $Builtin.Int64
+  %7 = builtin "cmp_eq_Int64"(%6 : $Builtin.Int64, %5 : $Builtin.Int64) : $Builtin.Int1
+  cond_br %7, bb3, bb4
+
+bb3:
+  %8 = integer_literal $Builtin.Word, 1
+  %9 = index_addr %2 : $*UInt8, %8 : $Builtin.Word
+  %10 = address_to_pointer %9 : $*UInt8 to $Builtin.RawPointer
+  br bb2(%10 : $Builtin.RawPointer)
+
+bb4:
+  return %1 : $Builtin.RawPointer
+}

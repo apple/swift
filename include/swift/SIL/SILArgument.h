@@ -215,6 +215,12 @@ public:
   /// this will be guaranteed to return a valid SILValue.
   SILValue getIncomingPhiValue(SILBasicBlock *predBlock) const;
 
+  /// If this argument is a true phi, return the operand in the \p predBLock
+  /// associated with an incoming value.
+  ///
+  /// \returns the operand or nullptr if this is not a true phi.
+  Operand *getIncomingPhiOperand(SILBasicBlock *predBlock) const;
+
   /// If this argument is a phi, populate `OutArray` with the incoming phi
   /// values for each predecessor BB. If this argument is not a phi, return
   /// false.

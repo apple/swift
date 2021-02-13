@@ -32,6 +32,9 @@
 #include "swift/SILOptimizer/Utils/CanonicalOSSALifetime.h"
 #include "swift/SILOptimizer/Utils/InstOptUtils.h"
 
+//!!!
+#include "swift/Basic/Defer.h"
+
 using namespace swift;
 
 //===----------------------------------------------------------------------===//
@@ -72,6 +75,13 @@ void CopyPropagation::run() {
   auto *dominanceAnalysis = getAnalysis<DominanceAnalysis>();
   auto *deBlocksAnalysis = getAnalysis<DeadEndBlocksAnalysis>();
 
+  //!!!
+  if (f->hasName("$ss18_StringBreadcrumbsCyABSScfc")) {
+    llvm::DebugFlag = true;
+    llvm::setCurrentDebugType("copy-propagation");
+  }
+  SWIFT_DEFER { llvm::DebugFlag = false; };
+
   // Debug label for unit testing.
   LLVM_DEBUG(llvm::dbgs() << "*** CopyPropagation: " << f->getName() << "\n");
 
@@ -88,12 +98,49 @@ void CopyPropagation::run() {
             CanonicalizeOSSALifetime::getCanonicalCopiedDef(copy));
     }
   }
+  // Push copy_value instructions above their struct_extract operands by
+  // inserting destructures.
+  //
+  // copiedDefs be be modified, but it never shrinks
+  for (unsigned idx = 0; idx < copiedDefs.size(); ++idx) {
+    SILValue def = copiedDefs[idx];
+    auto *copy = dyn_cast<CopyValueInst>(def);
+    if (!copy)
+      continue;
+
+    auto *extract = dyn_cast<StructExtractInst>(copy->getOperand());
+    if (!extract
+        || SILValue(extract).getOwnershipKind() != OwnershipKind::Guaranteed)
+      continue;
+
+    if (SILValue destructuredResult = convertExtractToDestructure(extract)) {
+      // Remove to-be-deleted instructions from copiedDeds. The extract cannot
+      // be in the copiedDefs set since getCanonicalCopiedDef does not allow a
+      // guaranteed projection to be a canonical def.
+      copiedDefs.remove(copy);
+      --idx; // point back to the current element, which was erased.
+
+      // TODO: unfortunately SetVector has no element replacement.
+      copiedDefs.insert(destructuredResult);
+
+      auto *destructure = cast<DestructureStructInst>(
+          destructuredResult.getDefiningInstruction());
+      auto *newCopy = cast<CopyValueInst>(destructure->getOperand());
+      copiedDefs.insert(
+          CanonicalizeOSSALifetime::getCanonicalCopiedDef(newCopy));
+
+      LLVM_DEBUG(llvm::dbgs() << "Destructure Conversion:\n"
+                              << *extract << "  to " << *destructure);
+      // Delete both the copy and the extract.
+      InstructionDeleter().recursivelyDeleteUsersIfDead(extract);
+    }
+  }
   // Perform copy propgation for each copied value.
   CanonicalizeOSSALifetime canonicalizer(pruneDebug, accessBlockAnalysis,
                                          dominanceAnalysis,
                                          deBlocksAnalysis->get(f));
   // Cleanup dead copies. If getCanonicalCopiedDef returns a copy (because the
-  // copy's source operand is unrecgonized), then the copy is itself treated
+  // copy's source operand is unrecgonized), then thecan copy is itself treated
   // like a def and may be dead after canonicalization.
   llvm::SmallVector<CopyValueInst *, 4> deadCopies;
   for (auto &def : copiedDefs) {

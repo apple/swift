@@ -682,6 +682,31 @@ class SILVerifier : public SILVerifierBase<SILVerifier> {
   LoadBorrowImmutabilityAnalysis loadBorrowImmutabilityAnalysis;
   bool SingleFunction = true;
 
+  /// A cache of the isOperandInValueUse check. When we process an operand, we
+  /// fix this for each of its uses.
+  llvm::DenseSet<std::pair<SILValue, const Operand *>> isOperandInValueUsesCache;
+
+  /// Check that this operand appears in the use-chain of the value it uses.
+  bool isOperandInValueUses(const Operand *operand) {
+    SILValue value = operand->get();
+
+    // First check the cache.
+    if (isOperandInValueUsesCache.contains({value, operand}))
+      return true;
+
+    // Otherwise, compute the value and initialize the cache for each of the
+    // operand's value uses.
+    bool foundUse = false;
+    for (auto *use : value->getUses()) {
+      if (use == operand) {
+        foundUse = true;
+      }
+      isOperandInValueUsesCache.insert({value, use});
+    }
+
+    return foundUse;
+  }
+
   SILVerifier(const SILVerifier&) = delete;
   void operator=(const SILVerifier&) = delete;
 public:
@@ -1112,7 +1137,7 @@ public:
 
       require(operand.getUser() == I,
               "instruction's operand's owner isn't the instruction");
-      require(isInValueUses(&operand), "operand value isn't used by operand");
+      require(isOperandInValueUses(&operand), "operand value isn't used by operand");
 
       if (operand.isTypeDependent()) {
         require(isa<SILInstruction>(I),
@@ -1309,14 +1334,6 @@ public:
                 "definition of this opened archetype");
       }
     });
-  }
-
-  /// Check that this operand appears in the use-chain of the value it uses.
-  static bool isInValueUses(const Operand *operand) {
-    for (auto use : operand->get()->getUses())
-      if (use == operand)
-        return true;
-    return false;
   }
 
   /// \return True if all of the users of the AllocStack instruction \p ASI are
