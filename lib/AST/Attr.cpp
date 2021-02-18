@@ -766,6 +766,17 @@ bool DeclAttribute::printImpl(ASTPrinter &Printer, const PrintOptions &Options,
     }
     break;
   }
+  case DAK_RethrowsUnchecked: {
+    if (!Options.IsForSwiftInterface)
+      break;
+
+    // Don't print @_rethrowsUnchecked on non-inlinable functions in Swift
+    // interfaces, since it is logically part of the body and does not
+    // affect now the function declaration is used.
+    auto *AFD = cast<AbstractFunctionDecl>(D);
+    if (AFD->getResilienceExpansion() == ResilienceExpansion::Maximal)
+      return false;
+  }
   default:
     break;
   }

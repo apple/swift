@@ -689,7 +689,7 @@ public:
 class ApplyClassifier {
   /// The key to this cache is the function decl or closure being analyzed.  The
   /// value in this cache is nil when the body has an error detected in it.
-  llvm::DenseMap<void*, Optional<ThrowingKind>> Cache;
+  llvm::DenseMap<AnyFunctionRef, Optional<ThrowingKind>> Cache;
 
 public:
   DeclContext *RethrowsDC = nullptr;
@@ -857,6 +857,9 @@ private:
   }
 
   bool isLocallyDefinedInRethrowsContext(DeclContext *DC) {
+    if (RethrowsDC == nullptr)
+      return false;
+
     while (true) {
       assert(DC->isLocalContext());
       if (DC == RethrowsDC) return true;
@@ -993,7 +996,7 @@ private:
   };
 
   Optional<ThrowingKind>
-  classifyThrowingFunctionBodyImpl(void *key, BraceStmt *body,
+  classifyThrowingFunctionBodyImpl(AnyFunctionRef key, BraceStmt *body,
                                    bool allowNone) {
     // Look for the key in the cache.
     auto existingIter = Cache.find(key);
@@ -1020,9 +1023,8 @@ private:
     }
 
     // The body result cannot be 'none' unless it's an autoclosure.
-    if (!allowNone) {
+    if (!allowNone && result == ThrowingKind::None)
       result = ThrowingKind::RethrowingOnly;
-    }
 
     // Remember the result.
     Cache[key] = result;
@@ -1227,6 +1229,11 @@ public:
 
     auto fn = Function->getAbstractFunctionDecl();
     if (!fn)
+      return false;
+
+    // Allow an escape hatch from rethrows checking via the
+    // '@_rethrowsUnchecked' attribute.
+    if (fn->getAttrs().hasAttribute<RethrowsUncheckedAttr>())
       return false;
 
     return fn->getRethrowingKind() == FunctionRethrowingKind::ByClosure;

@@ -1540,6 +1540,8 @@ namespace  {
 
     UNINTERESTING_ATTR(AtReasync)
 
+    UNINTERESTING_ATTR(RethrowsUnchecked)
+
 #undef UNINTERESTING_ATTR
 
     void visitAvailableAttr(AvailableAttr *attr) {

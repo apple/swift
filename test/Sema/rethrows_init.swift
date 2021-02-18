@@ -16,7 +16,9 @@ class Base {
   }
 
   convenience init(throws2: (), fn: () throws -> ()) rethrows {
-    try self.init { throw MyError.bad } // FIXME
+    try self.init { throw MyError.bad }
+    // expected-error@-1 {{call can throw, but the error is not handled; a function declared 'rethrows' may only throw if its parameter does}}
+    // expected-note@-2 {{call is to 'rethrows' function, but argument function can throw}}
   }
 
   convenience init() {
@@ -56,6 +58,8 @@ class DerivedWithSuperInitCall : Base {
   }
 
   init(throws2: (), _ fn: () throws -> ()) rethrows {
-    try super.init { throw MyError.bad } // FIXME
+    try super.init { throw MyError.bad }
+    // expected-error@-1 {{call can throw, but the error is not handled; a function declared 'rethrows' may only throw if its parameter does}}
+    // expected-note@-2 {{call is to 'rethrows' function, but argument function can throw}}
   }
 }

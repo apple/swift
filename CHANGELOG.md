@@ -28,6 +28,41 @@ CHANGELOG
 Swift Next
 ----------
 
+* [SR-680] Calls to `rethrows` functions where one of the argument functions unconditionally throws are now correctly rejected inside of a `rethrows` context. Previously, the compiler would accept the following code, which would then crash at runtime:
+
+  ```swift
+  enum MyError : Error {
+    case bad
+  }
+
+  func rethrowsViaClosure(_ fn: () throws -> ()) rethrows {
+    try fn()
+  }
+
+  func invalidRethrows(_ fn: () throws -> ()) rethrows {
+    try rethrowsViaClosure { throw MyError.bad }
+  }
+  ```
+
+  It was possible to make use of this bug to write code which had correct behavior at runtime, but where the compiler is now unable to prove soundness. In these rare cases, the unsupported `@_rethrowsUnchecked` attribute can be used to disable `rethrows` checking entirely:
+
+  ```swift
+  @_rethrowsUnchecked
+  func rethrowsSafely(_ fn: () throws -> ()) rethrows {
+    var e: Error?
+
+    do {
+      try fn()
+    } catch {
+      e = error
+    }
+
+    if let e = e {
+      throw e
+    }
+  }
+  ```
+
 * Whenever a reference to `Self` does not impede the usage of a protocol as a value type, or a protocol member on a value of protocol type, the same is now true for references to `[Self]` and `[Key : Self]`:
 
   ```swift
@@ -8342,6 +8377,7 @@ Swift 1.0
 [SR-106]: <https://bugs.swift.org/browse/SR-106>
 [SR-419]: <https://bugs.swift.org/browse/SR-419>
 [SR-631]: <https://bugs.swift.org/browse/SR-631>
+[SR-680]: <https://bugs.swift.org/browse/SR-680>
 [SR-695]: <https://bugs.swift.org/browse/SR-695>
 [SR-1009]: <https://bugs.swift.org/browse/SR-1009>
 [SR-1446]: <https://bugs.swift.org/browse/SR-1446>

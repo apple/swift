@@ -294,51 +294,33 @@ extension DispatchQueue {
 		__dispatch_barrier_sync(self, block)
 	}
 
+	@_rethrowsUnchecked
 	private func _syncHelper<T>(
 		fn: (() -> Void) -> Void,
-		execute work: () throws -> T,
-		rescue: ((Error) throws -> (T))) rethrows -> T
+		execute work: () throws -> T) rethrows -> T
 	{
-		var result: T?
-		var error: Error?
+		var result: Result<T, Error>!
 		withoutActuallyEscaping(work) { _work in
 			fn {
-				do {
-					result = try _work()
-				} catch let e {
-					error = e
-				}
+				result = Result(catching: _work)
 			}
 		}
-		if let e = error {
-			return try rescue(e)
-		} else {
-			return result!
-		}
+		return try result.get()
 	}
 
+	@_rethrowsUnchecked
 	@available(macOS 10.10, iOS 8.0, *)
 	private func _syncHelper<T>(
 		fn: (DispatchWorkItem) -> Void,
 		flags: DispatchWorkItemFlags,
-		execute work: () throws -> T,
-		rescue: ((Error) throws -> (T))) rethrows -> T
+		execute work: () throws -> T) rethrows -> T
 	{
-		var result: T?
-		var error: Error?
+		var result: Result<T, Error>!
 		let workItem = DispatchWorkItem(flags: flags, noescapeBlock: {
-			do {
-				result = try work()
-			} catch let e {
-				error = e
-			}
+			result = Result(catching: work)
 		})
 		fn(workItem)
-		if let e = error {
-			return try rescue(e)
-		} else {
-			return result!
-		}
+		return try result.get()
 	}
 
 	///
@@ -352,7 +334,7 @@ extension DispatchQueue {
 	/// - SeeAlso: `sync(execute:)`
 	///
 	public func sync<T>(execute work: () throws -> T) rethrows -> T {
-		return try self._syncHelper(fn: sync, execute: work, rescue: { throw $0 })
+		return try self._syncHelper(fn: sync, execute: work)
 	}
 
 	///
@@ -369,11 +351,11 @@ extension DispatchQueue {
 	///
 	public func sync<T>(flags: DispatchWorkItemFlags, execute work: () throws -> T) rethrows -> T {
 		if flags == .barrier {
-			return try self._syncHelper(fn: _syncBarrier, execute: work, rescue: { throw $0 })
+			return try self._syncHelper(fn: _syncBarrier, execute: work)
 		} else if #available(macOS 10.10, iOS 8.0, *), !flags.isEmpty {
-			return try self._syncHelper(fn: sync, flags: flags, execute: work, rescue: { throw $0 })
+			return try self._syncHelper(fn: sync, flags: flags, execute: work)
 		} else {
-			return try self._syncHelper(fn: sync, execute: work, rescue: { throw $0 })
+			return try self._syncHelper(fn: sync, execute: work)
 		}
 	}
 

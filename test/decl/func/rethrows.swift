@@ -612,3 +612,17 @@ func rdar_47550715() {
   func foo(_: A<F>? = nil) {} // Ok
   func bar(_: A<F>? = .none) {} // Ok
 }
+
+// https://bugs.swift.org/browse/SR-680 - rethrows function called with
+// unconditionally throws function argument
+func alwaysThrows() throws {}
+
+func rethrowsViaClosure(_ fn: () throws -> ()) rethrows {
+  try fn()
+}
+
+func rethrowsUnsound(_ fn: () throws -> ()) rethrows {
+  try rethrowsViaClosure { try alwaysThrows() }
+  // expected-error@-1 {{call can throw, but the error is not handled; a function declared 'rethrows' may only throw if its parameter does}}
+  // expected-note@-2 {{call is to 'rethrows' function, but argument function can throw}}
+}

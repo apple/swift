@@ -1,5 +1,4 @@
 // RUN: %target-swift-frontend -emit-sil -verify %s
-// RUN: %target-swift-frontend -emit-sil -verify %s
 
 @propertyWrapper
 final class ClassWrapper<T> {
