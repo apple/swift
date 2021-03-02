@@ -299,3 +299,41 @@ enum MismatchedRawValues {
   }
 }
 
+// The fix-it should not suggest adding a default value (i.e. ?? <#default value>) if we have a
+// non-failable init(rawValue:).
+enum FooRawReprNonFailable1: RawRepresentable {
+  init(rawValue: Int) {}
+  var rawValue: Int { return 0 }
+}
+
+enum FooRawReprNonFailable2: RawRepresentable {
+  init(rawValue: Int?) {}
+  var rawValue: Int? { return 0 }
+}
+
+func takesNonFailableFoo1(_: FooRawReprNonFailable1) {}
+func takesNonFailableFoo2(_: FooRawReprNonFailable2) {}
+
+takesNonFailableFoo1(0)
+// expected-error@-1 {{cannot convert value of type 'Int' to expected argument type 'FooRawReprNonFailable1'}} {{22-22=FooRawReprNonFailable1(rawValue: }} {{23-23=)}}
+
+takesNonFailableFoo2(0)
+// expected-error@-1 {{cannot convert value of type 'Int' to expected argument type 'FooRawReprNonFailable2'}} {{22-22=FooRawReprNonFailable2(rawValue: }} {{23-23=)}}
+
+func rawReprNonFailable3() {
+  enum E: RawRepresentable {
+    init(rawValue: Int) {}
+    var rawValue: Int { return 0 }
+  }
+    
+  let items1: [Int] = [0, 1]
+  let items2: [Int]? = [0]
+    
+  let myE1: E = items1.first
+  // expected-error@-1 {{cannot convert value of type 'Int?' to specified type 'E'}}
+  // expected-note@-2 {{construct 'E' from unwrapped 'Int' value}} {{17-17=E(rawValue: }} {{29-29=!)}}
+
+  let myE2: E = items2?.first
+  // expected-error@-1 {{cannot convert value of type 'Int?' to specified type 'E'}}
+  // expected-note@-2 {{construct 'E' from unwrapped 'Int' value}} {{17-17=E(rawValue: (}} {{30-30=)!)}}
+}

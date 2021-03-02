@@ -10717,7 +10717,6 @@ ConstraintSystem::SolutionKind ConstraintSystem::simplifyFixConstraint(
   case FixKind::AddPropertyWrapperAttribute:
   case FixKind::ExpandArrayIntoVarargs:
   case FixKind::UseRawValue:
-  case FixKind::ExplicitlyConstructRawRepresentable:
   case FixKind::SpecifyBaseTypeForContextualMember:
   case FixKind::CoerceToCheckedCast:
   case FixKind::SpecifyObjectLiteralTypeImport:
@@ -10735,6 +10734,33 @@ ConstraintSystem::SolutionKind ConstraintSystem::simplifyFixConstraint(
   case FixKind::AllowUnsupportedRuntimeCheckedCast:
   case FixKind::AllowAlwaysSucceedCheckedCast:
   case FixKind::AllowInvalidStaticMemberRefOnProtocolMetatype: {
+    return recordFix(fix) ? SolutionKind::Error : SolutionKind::Solved;
+  }
+
+  case FixKind::ExplicitlyConstructRawRepresentable: {
+    auto rawValueLabel = getASTContext().Id_rawValue;
+    auto valueTy = type1->lookThroughSingleOptionalType();
+    auto unwrappedRawReprTy = type2->lookThroughSingleOptionalType();
+    auto memberLoc = getConstraintLocator(
+        locator.withPathElement(ConstraintLocator::ApplyFunction));
+    auto memberTy = createTypeVariable(memberLoc, TVO_CanBindToNoEscape);
+    addValueMemberConstraint(
+        MetatypeType::get(unwrappedRawReprTy, getASTContext()),
+        DeclNameRef(DeclName(getASTContext(), DeclBaseName::createConstructor(),
+                             {rawValueLabel})),
+        memberTy, DC, FunctionRefKind::SingleApply, {},
+        getConstraintLocator(
+            locator.withPathElement(ConstraintLocator::ConstructorMember)));
+    addConstraint(
+        ConstraintKind::ApplicableFunction,
+        FunctionType::get({AnyFunctionType::Param(valueTy, rawValueLabel)},
+                          unwrappedRawReprTy),
+        memberTy, memberLoc);
+    addConstraint(ConstraintKind::Bind, unwrappedRawReprTy, valueTy, memberLoc);
+
+    ArgumentInfos[getArgumentInfoLocator(memberLoc)] =
+        ArgumentInfo({rawValueLabel, None});
+
     return recordFix(fix) ? SolutionKind::Error : SolutionKind::Solved;
   }
 
