@@ -11,6 +11,10 @@ if(NOT BUILD_STANDALONE)
   list(APPEND darwin_depends copy_apinotes)
 endif()
 
+set(swiftDarwin_target_sdks ALL_APPLE_PLATFORMS)
+if(SWIFT_FREESTANDING_FLAVOR STREQUAL "apple")
+  set(swiftDarwin_target_sdks ALL_APPLE_PLATFORMS FREESTANDING)
+endif()
 add_swift_target_library(swiftDarwin ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_SDK_OVERLAY
     ${swift_platform_sources}
     POSIXError.swift
@@ -27,11 +31,15 @@ add_swift_target_library(swiftDarwin ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_SDK_
       ${SWIFT_STANDARD_LIBRARY_SWIFT_FLAGS}
       -Xfrontend -disable-objc-attr-requires-foundation-module
     LINK_FLAGS "${SWIFT_RUNTIME_SWIFT_LINK_FLAGS}"
-    TARGET_SDKS ALL_APPLE_PLATFORMS FREESTANDING
+    TARGET_SDKS "${swiftDarwin_target_sdks}"
     INSTALL_IN_COMPONENT sdk-overlay
 
     DEPENDS ${darwin_depends})
 
+set(swiftGlibc_target_sdks ANDROID CYGWIN FREEBSD OPENBSD LINUX HAIKU)
+if(SWIFT_FREESTANDING_FLAVOR STREQUAL "linux")
+  set(swiftGlibc_target_sdks ANDROID CYGWIN FREEBSD OPENBSD LINUX HAIKU FREESTANDING)
+endif()
 add_swift_target_library(swiftGlibc ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_SDK_OVERLAY
     ${swift_platform_sources}
     POSIXError.swift
@@ -44,7 +52,7 @@ add_swift_target_library(swiftGlibc ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_SDK_O
       ${SWIFT_RUNTIME_SWIFT_COMPILE_FLAGS}
       ${SWIFT_STANDARD_LIBRARY_SWIFT_FLAGS}
     LINK_FLAGS "${SWIFT_RUNTIME_SWIFT_LINK_FLAGS}"
-    TARGET_SDKS ANDROID CYGWIN FREEBSD OPENBSD LINUX HAIKU
+    TARGET_SDKS "${swiftGlibc_target_sdks}"
     INSTALL_IN_COMPONENT sdk-overlay
     DEPENDS glibc_modulemap)
 

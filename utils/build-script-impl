@@ -202,10 +202,11 @@ KNOWN_SETTINGS=(
     swift-disable-dead-stripping                  "0"               "turns off Darwin-specific dead stripping for Swift host tools"
 
     ## FREESTANDING Stdlib Options
-    swift-freestanding-sdk                      ""                "which SDK to use when building the FREESTANDING stdlib"
-    swift-freestanding-triple-name              ""                "which triple name (e.g. 'none-macho') to use when building the FREESTANDING stdlib"
-    swift-freestanding-module-name              ""                "which .swiftmodule name (e.g. 'freestanding') to use when building the FREESTANDING stdlib"
-    swift-freestanding-archs                    ""                "space-separated list of which architectures to build when building the FREESTANDING stdlib"
+    swift-freestanding-flavor                     ""                "when building the FREESTANDING stdlib, which build style to use (options: apple, linux)"
+    swift-freestanding-sdk                        ""                "which SDK to use when building the FREESTANDING stdlib"
+    swift-freestanding-triple-name                ""                "which triple name (e.g. 'none-macho') to use when building the FREESTANDING stdlib"
+    swift-freestanding-module-name                ""                "which .swiftmodule name (e.g. 'freestanding') to use when building the FREESTANDING stdlib"
+    swift-freestanding-archs                      ""                "space-separated list of which architectures to build when building the FREESTANDING stdlib"
 
     ## Uncategorised
     install-prefix                                ""                "installation prefix"
@@ -1980,6 +1981,13 @@ for host in "${ALL_HOSTS[@]}"; do
                     cmake_options=(
                         "${cmake_options[@]}"
                         -DSWIFT_INSTALL_COMPONENTS:STRING="${SWIFT_INSTALL_COMPONENTS}"
+                    )
+                fi
+
+                if [ "${SWIFT_FREESTANDING_FLAVOR}" ] ; then
+                    cmake_options=(
+                        "${cmake_options[@]}"
+                        -DSWIFT_FREESTANDING_FLAVOR:STRING="${SWIFT_FREESTANDING_FLAVOR}"
                     )
                 fi
 

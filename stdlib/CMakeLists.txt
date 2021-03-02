@@ -79,6 +79,9 @@ option(SWIFT_BUILD_TEST_SUPPORT_MODULES
        "Whether to build StdlibUnittest and other test support modules. Defaults to On when SWIFT_BUILD_SDK_OVERLAY is On, or when SWIFT_INCLUDE_TESTS is On."
        "${SWIFT_BUILD_TEST_SUPPORT_MODULES_default}")
 
+option(SWIFT_FREESTANDING_FLAVOR
+       "When building the FREESTANDING stdlib, which build style to use (options: apple, linux)")
+
 #
 # End of user-configurable options.
 #

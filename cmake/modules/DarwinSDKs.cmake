@@ -27,7 +27,7 @@ if(swift_build_osx)
 endif()
 
 is_sdk_requested(FREESTANDING swift_build_freestanding)
-if(swift_build_freestanding)
+if(swift_build_freestanding AND (SWIFT_FREESTANDING_FLAVOR STREQUAL "apple"))
   set(SWIFT_FREESTANDING_SDK "" CACHE STRING
       "Which SDK to use when building the FREESTANDING stdlib")
   set(SWIFT_FREESTANDING_TRIPLE_NAME "" CACHE STRING
@@ -45,6 +45,8 @@ if(swift_build_freestanding)
   configure_target_variant(FREESTANDING-RA "FREESTANDING Release+Asserts" FREESTANDING RA "Release+Asserts")
   configure_target_variant(FREESTANDING-R  "FREESTANDING Release"         FREESTANDING R  "Release")
   configure_target_variant(FREESTANDING-S  "FREESTANDING MinSizeRelease"  FREESTANDING S  "MinSizeRelease")
+
+  set(SWIFT_FREESTANDING_TEST_DEPENDENCIES "Darwin")
 endif()
 
 # Compatible cross-compile SDKS for Darwin OSes: IOS, IOS_SIMULATOR, TVOS,
