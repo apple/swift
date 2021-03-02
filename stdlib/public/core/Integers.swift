@@ -58,9 +58,7 @@ extension ExpressibleByIntegerLiteral
 /// =============================================
 ///
 /// To add `AdditiveArithmetic` protocol conformance to your own custom type,
-/// implement the required operators, and provide a static `zero` property
-/// using a type that can represent the magnitude of any value of your custom
-/// type.
+/// implement the required operators and provide a static `zero` property.
 public protocol AdditiveArithmetic: Equatable {
   /// The zero value.
   ///
