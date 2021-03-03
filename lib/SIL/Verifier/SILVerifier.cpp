@@ -821,23 +821,17 @@ public:
     forbidObjectType(UnownedStorageType, value, valueDescription);
   }
 
-  // Require that the operand is a reference-counted type, or an Optional
-  // thereof.
-  void requireReferenceOrOptionalReferenceValue(SILValue value,
-                                                const Twine &valueDescription) {
-    require(value->getType().isObject(), valueDescription +" must be an object");
-    
-    auto objectTy = value->getType().unwrapOptionalType();
-    
-    require(objectTy.isReferenceCounted(F.getModule()),
-            valueDescription + " must have reference semantics");
-  }
-  
   // Require that the operand is a type that supports reference storage
   // modifiers.
   void requireReferenceStorageCapableValue(SILValue value,
                                            const Twine &valueDescription) {
-    requireReferenceOrOptionalReferenceValue(value, valueDescription);
+    require(value->getType().isObject(),
+            valueDescription +" must be an object");
+
+    auto objectTy = value->getType().unwrapOptionalType();
+    require(objectTy.allowsRefStorageOwnership(F),
+            valueDescription + " must have reference semantics");
+
     require(!value->getType().is<SILFunctionType>(),
             valueDescription + " cannot apply to a function type");
   }
@@ -2482,9 +2476,13 @@ public:
             "Source value should be an object value");
     require(!I->getOperand()->getType().isTrivial(*I->getFunction()),
             "Source value should be non-trivial");
-    require(!fnConv.useLoweredAddresses() || F.hasOwnership(),
-            "destroy_value is only valid in functions with qualified "
-            "ownership");
+    if (fnConv.useLoweredAddresses()) {
+      require(I->getOperand()->getType().isLoadable(*I->getFunction()),
+              "Source value should be loadable");
+      require(F.hasOwnership(),
+              "destroy_value is only valid in functions with qualified "
+              "ownership");
+    }
   }
 
   void checkReleaseValueInst(ReleaseValueInst *I) {

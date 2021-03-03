@@ -24,7 +24,7 @@ using namespace semanticarc;
 bool SemanticARCOptVisitor::visitUncheckedOwnershipConversionInst(
     UncheckedOwnershipConversionInst *uoci) {
   // Return false if we are supposed to only be running guaranteed opts.
-  if (ctx.onlyGuaranteedOpts)
+  if (ctx.onlyMandatoryOpts)
     return false;
 
   // Then check if we are running tests and shouldn't perform this optimization

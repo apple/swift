@@ -66,10 +66,10 @@ namespace {
 // case DiagnosticConstantPropagation exposed anything new in this assert
 // configuration.
 struct SemanticARCOpts : SILFunctionTransform {
-  bool guaranteedOptsOnly;
+  bool mandatoryOptsOnly;
 
-  SemanticARCOpts(bool guaranteedOptsOnly)
-      : guaranteedOptsOnly(guaranteedOptsOnly) {}
+  SemanticARCOpts(bool mandatoryOptsOnly)
+      : mandatoryOptsOnly(mandatoryOptsOnly) {}
 
 #ifndef NDEBUG
   void performCommandlineSpecifiedTransforms(SemanticARCOptVisitor &visitor) {
@@ -153,7 +153,7 @@ struct SemanticARCOpts : SILFunctionTransform {
 
     auto *deBlocksAnalysis = getAnalysis<DeadEndBlocksAnalysis>();
     SemanticARCOptVisitor visitor(f, *deBlocksAnalysis->get(&f),
-                                  guaranteedOptsOnly);
+                                  mandatoryOptsOnly);
 
 #ifndef NDEBUG
     // If we are being asked for testing purposes to run a series of transforms
@@ -185,9 +185,9 @@ struct SemanticARCOpts : SILFunctionTransform {
 } // end anonymous namespace
 
 SILTransform *swift::createSemanticARCOpts() {
-  return new SemanticARCOpts(false /*guaranteed*/);
+  return new SemanticARCOpts(false /*mandatory*/);
 }
 
-SILTransform *swift::createGuaranteedARCOpts() {
-  return new SemanticARCOpts(true /*guaranteed*/);
+SILTransform *swift::createMandatoryARCOpts() {
+  return new SemanticARCOpts(true /*mandatory*/);
 }

@@ -124,12 +124,22 @@ class CanonicalOSSAConsumeInfo {
   llvm::SmallDenseMap<SILBasicBlock *, CopyValueInst *, 4> persistentCopies;
 
 public:
-  bool hasUnclaimedConsumes() const { return !finalBlockConsumes.empty(); }
+  /// Instructions that might end the unowned remnant's lifetime.
+  ///
+  /// After findOrInsertDestroys, this contains any consume within a LiveWithin
+  /// block but outside pruned liveness (occurring after the final consume in
+  /// the same block).
+  ///
+  /// After rewriteCopies, this contains only those consumes in a
+  /// block containing a final unowned consume. rewriteUnownedRemnantDestroys
+  /// will pick out the final unowned consume in each block.
+  SmallSetVector<SILInstruction *, 8> possibleUnownedRemnantConsumes;
 
   void clear() {
     finalBlockConsumes.clear();
     debugAfterConsume.clear();
     persistentCopies.clear();
+    possibleUnownedRemnantConsumes.clear();
   }
 
   bool hasFinalConsumes() const { return !finalBlockConsumes.empty(); }
@@ -137,6 +147,12 @@ public:
   void recordFinalConsume(SILInstruction *inst) {
     assert(!finalBlockConsumes.count(inst->getParent()));
     finalBlockConsumes[inst->getParent()] = inst;
+    // If the final consume turned out to be an existing destroy, that destroy
+    // might have already been recorded as a possible unowned remnant
+    // destroy. Remove it from that set--it can't be both the real destroy and
+    // unowned remnant destroy.
+    if (auto *destroy = dyn_cast<DestroyValueInst>(inst))
+      possibleUnownedRemnantConsumes.remove(destroy);
   }
 
   // Return true if this instruction is marked as a final consume point of the
@@ -144,12 +160,21 @@ public:
   // because instructions like `tuple` can consume the same value via multiple
   // operands.
   bool claimConsume(SILInstruction *inst) {
-    auto destroyPos = finalBlockConsumes.find(inst->getParent());
-    if (destroyPos != finalBlockConsumes.end() && destroyPos->second == inst) {
-      finalBlockConsumes.erase(destroyPos);
+    assert((!isa<DestroyValueInst>(inst)
+            || !possibleUnownedRemnantConsumes.count(inst))
+           && "don't claim possible unowned remnant destroys");
+    auto consumePos = finalBlockConsumes.find(inst->getParent());
+    if (consumePos != finalBlockConsumes.end() && consumePos->second == inst) {
+      finalBlockConsumes.erase(consumePos);
       return true;
     }
     return false;
+  }
+
+  bool isDestoyFinalConsume(DestroyValueInst *destroy) {
+    auto consumePos = finalBlockConsumes.find(destroy->getParent());
+    return consumePos != finalBlockConsumes.end()
+           && consumePos->second == destroy;
   }
 
   /// Record a debug_value that is known to be outside pruned liveness. Assumes
@@ -172,6 +197,14 @@ public:
     return iter->second == copy;
   }
 
+  void recordPossibleUnownedRemnantConsume(SILInstruction *consume) {
+    auto inserted = possibleUnownedRemnantConsumes.insert(consume);
+    assert(inserted && "destroy can only be seen once");
+    (void)inserted;
+  }
+
+  SWIFT_ASSERT_ONLY_DECL(void checkClaimedConsumes());
+
   SWIFT_ASSERT_ONLY_DECL(void dump() const LLVM_ATTRIBUTE_USED);
 };
 
@@ -187,7 +220,20 @@ public:
 private:
   /// If true, then debug_value instructions outside of non-debug
   /// liveness may be pruned during canonicalization.
-  bool pruneDebug;
+  bool pruneDebugMode;
+
+  /// If true, then the lifetime of the currentDef itself will shrink, but a new
+  /// lifetime will be created with ReferenceOwnership::Unowned (@sil_unowned)
+  /// for any references within that lifetime. This "unowned remnant" is exactly
+  /// the same size as the currentDef's original extended lifetime.
+  ///
+  /// An unknowned remnant does *not* have Unowned ownership. Each reference
+  /// copy is an Owned value with ReferenceOwnership::Unowned.
+  ///
+  /// Note: subsequently running CanonicalizeOSSALifetime with
+  /// unownedRemnantMode=false will erase the unowned remnants created by
+  /// previous canonicalization.
+  bool unownedRemnantMode;
 
   NonLocalAccessBlockAnalysis *accessBlockAnalysis;
   // Lazily initialize accessBlocks only when
@@ -201,11 +247,18 @@ private:
   /// Current copied def for which this state describes the liveness.
   SILValue currentDef;
 
+  /// Should an unowned remnant lifetime be created for this def?
+  bool shouldCreateUnownedRemnant = false;
+
   /// If an outer copy is created for uses outside the borrow scope
   CopyValueInst *outerCopy = nullptr;
 
   /// Cumulatively, have any instructions been modified by canonicalization?
   bool changed = false;
+
+  /// Cummulatively, have any alloc_stack's been created since the last call to
+  /// fixStackNesting().
+  bool invalidStackNesting = false;
 
   /// Original points in the CFG where the current value's lifetime is consumed
   /// or destroyed. For guaranteed values it remains empty. A backward walk from
@@ -232,17 +285,34 @@ private:
   /// ending". end_borrows do not end a liverange that may include owned copies.
   PrunedLiveness liveness;
 
+  /// unownedRemnantLiveOutBlocks are part of the unowned remnant's lifetime
+  /// that are not already in canonical pruned liveness. They are the blocks in
+  /// which canonical pruned liveness has ended but the unowned remnant will be
+  /// used on at least one successor path. In other words, there is a path
+  /// from a PrunedLiveness boundary to an original destroy that passes through
+  /// this block.
+  ///
+  /// These blocks would be equivalent to PrunedLiveness::LiveOut if
+  /// PrunedLiveness were recomputed using all original destroys as interesting
+  /// uses, minus blocks already marked PrunedLiveness::LiveOut
+  SmallSetVector<SILBasicBlock *, 8> unownedRemnantLiveOutBlocks;
+
   /// Information about consuming instructions discovered in this caonical OSSA
   /// lifetime.
   CanonicalOSSAConsumeInfo consumes;
 
 public:
-  CanonicalizeOSSALifetime(bool pruneDebug,
+  CanonicalizeOSSALifetime(bool pruneDebugMode, bool unownedRemnantMode,
                            NonLocalAccessBlockAnalysis *accessBlockAnalysis,
                            DominanceAnalysis *dominanceAnalysis,
                            DeadEndBlocks *deBlocks)
-    : pruneDebug(pruneDebug), accessBlockAnalysis(accessBlockAnalysis),
-      dominanceAnalysis(dominanceAnalysis), deBlocks(deBlocks) {}
+      : pruneDebugMode(pruneDebugMode), unownedRemnantMode(unownedRemnantMode),
+        accessBlockAnalysis(accessBlockAnalysis),
+        dominanceAnalysis(dominanceAnalysis), deBlocks(deBlocks) {}
+
+  ~CanonicalizeOSSALifetime() {
+    assert(!invalidStackNesting && "must call fixStackNesting()");
+  }
 
   SILValue getCurrentDef() const { return currentDef; }
 
@@ -256,12 +326,15 @@ public:
     currentDef = def;
     outerCopy = nullptr;
     liveness.initializeDefBlock(def->getParentBlock());
+
+    shouldCreateUnownedRemnant = checkShouldCreateUnownedRemnant();
   }
 
   void clearLiveness() {
     consumingBlocks.clear();
     debugValues.clear();
     liveness.clear();
+    unownedRemnantLiveOutBlocks.clear();
   }
 
   bool hasChanged() const { return changed; }
@@ -285,7 +358,15 @@ public:
   /// lifetime, call this API again on the value defined by the new copy.
   bool canonicalizeValueLifetime(SILValue def);
 
+  /// Call this at least once after canonicalizing lifetimes before this
+  /// instance goes out of scope.
+  ///
+  /// Returns true if any changes were made.
+  bool fixStackNesting(SILFunction *function);
+
 protected:
+  bool checkShouldCreateUnownedRemnant();
+
   void recordDebugValue(DebugValueInst *dvi) {
     debugValues.insert(dvi);
   }
@@ -308,7 +389,12 @@ protected:
 
   void findOrInsertDestroys();
 
+  bool checkPossibleUnownedRemnantConsume(SILInstruction *consume);
+
   void rewriteCopies();
+
+  void rewriteUnownedRemnantDestroys(
+      SmallVectorImpl<SILInstruction *> &instsToDelete);
 };
 
 } // end namespace swift

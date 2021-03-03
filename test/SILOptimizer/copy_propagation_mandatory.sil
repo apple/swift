@@ -1,0 +1,297 @@
+// RUN: %target-sil-opt -mandatory-copy-propagation -canonical-ossa-rewrite-borrows -module-name=Swift -enable-sil-verify-all %s | %FileCheck %s
+//
+// module-name=Swift is required so that Optional is a recognized type and Optional<AnyObject> is considered a reference.
+
+// REQUIRES: asserts
+
+sil_stage canonical
+
+import Builtin
+
+typealias AnyObject = Builtin.AnyObject
+
+enum Optional<T> {
+case some(T)
+case none
+}
+
+class K {}
+
+sil [ossa] @dummy : $@convention(thin) () -> ()
+
+sil [ossa] @takeGuaranteedK : $@convention(thin) (@guaranteed K) -> ()
+
+sil @consumeK : $@convention(thin) (@owned K) -> ()
+
+sil @consumeAny : $@convention(thin) <τ_0_0 where τ_0_0 : AnyObject> (@owned τ_0_0) -> ()
+
+// Test single remaining unowned destroy postdominating multiple new destroys.
+//
+// CHECK-LABEL: sil [ossa] @testCommonDestroy : $@convention(thin) () -> () {
+// CHECK:   [[ALLOC:%.*]] = alloc_ref $K
+// CHECK:   [[UNOWNED:%.*]] = ref_to_unowned %0 : $K to $@sil_unowned K
+// CHECK:   [[COPY:%.*]] = copy_value [[UNOWNED]] : $@sil_unowned K
+// CHECK:   cond_br undef, bb1, bb2
+// CHECK: bb1:
+// CHECK:   apply
+// CHECK:   destroy_value [[ALLOC]] : $K
+// CHECK:   br bb3
+// CHECK: bb2:
+// CHECK:   apply
+// CHECK:   destroy_value [[ALLOC]] : $K
+// CHECK:   br bb3
+// CHECK: bb3:
+// CHECK:   apply
+// CHECK:   destroy_value [[COPY]] : $@sil_unowned K
+// CHECK-LABEL: } // end sil function 'testCommonDestroy'
+sil [ossa] @testCommonDestroy : $@convention(thin) () -> () {
+bb0:
+  %k = alloc_ref $K
+  %f = function_ref @takeGuaranteedK : $@convention(thin) (@guaranteed K) -> ()
+  %f2 = function_ref @dummy : $@convention(thin) () -> ()
+  cond_br undef, bb1, bb2
+
+bb1:
+  %call1 = apply %f(%k) : $@convention(thin) (@guaranteed K) -> ()  
+  br bb3
+
+bb2:
+  %call2 = apply %f(%k) : $@convention(thin) (@guaranteed K) -> ()  
+  br bb3
+
+bb3:
+  %call3 = apply %f2() : $@convention(thin) () -> ()  
+  destroy_value %k : $K
+  %99 = tuple ()
+  return %99 : $()
+}
+
+// Test each of cases for destroys.
+// - within pruned liveness
+// - final consume
+// - outside pruned liveness in LiveWithin, nonfinal unowned destroy
+// - outside pruned liveness in LiveWithin, final unowned destroy
+// - outside pruned liveness in Dead, nonboundary block
+// - outside pruned liveness in Dead, boundary block nonfinal unowned destroy
+// - outside pruned liveness in Dead, boundary block final unowned destroy
+// CHECK-LABEL: sil [ossa] @testDestroyCategories : $@convention(thin) () -> () {
+// CHECK: bb0:
+// CHECK:   [[ALLOC:%.*]] = alloc_ref $K
+// CHECK:   [[UNOWNED:%.*]] = ref_to_unowned [[ALLOC]] : $K to $@sil_unowned K
+// CHECK:   [[COPY:%.*]] = copy_value [[UNOWNED]] : $@sil_unowned K
+// CHECK:   cond_br undef, bb1, bb2
+// CHECK:      bb1:
+// CHECK-NEXT:   apply %{{.*}}([[ALLOC]]) : $@convention(thin) (@guaranteed K) -> ()
+// CHECK-NEXT:   destroy_value [[ALLOC]] : $K
+// CHECK-NEXT:   apply %{{.*}}() : $@convention(thin) () -> ()
+// CHECK-NEXT:   apply %{{.*}}() : $@convention(thin) () -> ()
+// CHECK-NEXT:   destroy_value [[COPY]] : $@sil_unowned K
+// CHECK-NEXT:   br bb4
+// CHECK:      bb2:
+// CHECK-NEXT:  destroy_value %0 : $K
+// CHECK-NEXT:  br bb3
+// CHECK: bb3:
+// CHECK-NEXT:  apply %{{.*}}() : $@convention(thin) () -> ()
+// CHECK-NEXT:  destroy_value [[COPY]] : $@sil_unowned K
+// CHECK-NEXT:  br bb4
+// CHECK: bb4:
+// CHECK-LABEL: } // end sil function 'testDestroyCategories'
+sil [ossa] @testDestroyCategories : $@convention(thin) () -> () {
+bb0:
+  %k = alloc_ref $K
+  %c1 = copy_value %k : $K
+  destroy_value %c1 : $K // LiveOut
+  %fuse = function_ref @takeGuaranteedK : $@convention(thin) (@guaranteed K) -> ()
+  %fdum = function_ref @dummy : $@convention(thin) () -> ()
+  cond_br undef, bb1, bb2
+
+bb1:
+  %c2 = copy_value %k : $K
+  destroy_value %c2 : $K // LiveWithin
+  %call1 = apply %fuse(%k) : $@convention(thin) (@guaranteed K) -> ()  
+  %c3 = copy_value %k : $K
+  destroy_value %c3 : $K // LiveWithin final consume
+  %call2 = apply %fdum() : $@convention(thin) () -> ()  
+  %c4 = copy_value %k : $K
+  destroy_value %k : $K // LiveWithin nonfinal destroy
+  %call3 = apply %fdum() : $@convention(thin) () -> ()  
+  destroy_value %c4 : $K // LiveWithin final destroy
+  br bb4
+
+bb2:
+  %c6 = copy_value %k : $K
+  destroy_value %c6 : $K // nonboundary block
+  br bb3
+
+bb3:
+  %c7 = copy_value %k : $K
+  destroy_value %k : $K // boundary block, nonfinal destroy
+  %call4 = apply %fdum() : $@convention(thin) () -> ()  
+  destroy_value %c7 : $K // boundary block, final destroy
+  br bb4
+
+bb4:
+  %99 = tuple ()
+  return %99 : $()
+}
+
+// Ensure the above test does not change after canonicalizing it again.
+// The sil_unowned copy should not be removed.
+//
+// CHECK-LABEL: sil [ossa] @testDestroyCategoriesRepeat : $@convention(thin) () -> () {
+// CHECK: [[ALLOC:%.*]] = alloc_ref $K
+// CHECK: [[UNOWNED:%.*]] = ref_to_unowned [[ALLOC]] : $K to $@sil_unowned K
+// CHECK: [[CP:%.*]] = copy_value [[UNOWNED]] : $@sil_unowned K
+// CHECK:   cond_br undef, bb1, bb2
+// CHECK: bb1:
+// CHECK:   apply
+// CHECK:   destroy_value [[ALLOC]] : $K
+// CHECK:   apply
+// CHECK:   apply
+// CHECK:   destroy_value [[CP]] : $@sil_unowned K
+// CHECK:   br bb4
+// CHECK: bb2:
+// CHECK:   destroy_value [[ALLOC]] : $K
+// CHECK:   br bb3
+// CHECK: bb3:
+// CHECK:   apply
+// CHECK:   destroy_value [[CP]] : $@sil_unowned K
+// CHECK:   br bb4
+// CHECK-LABEL: } // end sil function 'testDestroyCategoriesRepeat'
+sil [ossa] @testDestroyCategoriesRepeat : $@convention(thin) () -> () {
+bb0:
+  %0 = alloc_ref $K
+  %1 = ref_to_unowned %0 : $K to $@sil_unowned K
+  %2 = copy_value %1 : $@sil_unowned K
+  %3 = function_ref @takeGuaranteedK : $@convention(thin) (@guaranteed K) -> ()
+  %4 = function_ref @dummy : $@convention(thin) () -> ()
+  cond_br undef, bb1, bb2
+
+bb1:
+  %6 = apply %3(%0) : $@convention(thin) (@guaranteed K) -> ()
+  destroy_value %0 : $K
+  %8 = apply %4() : $@convention(thin) () -> ()
+  %9 = apply %4() : $@convention(thin) () -> ()
+  destroy_value %2 : $@sil_unowned K
+  br bb4
+
+bb2:
+  destroy_value %0 : $K
+  br bb3
+
+bb3:
+  %14 = apply %4() : $@convention(thin) () -> ()
+  destroy_value %2 : $@sil_unowned K
+  br bb4
+
+bb4:
+  %17 = tuple ()
+  return %17 : $()
+}
+
+// Test copy-propagation of a guaranteed argument. No unowned remnant
+// should be created.
+//
+// CHECK-LABEL: sil [ossa] @testGuaranteedArg : $@convention(thin) <C where C : AnyObject> (@guaranteed C) -> () {
+// CHECK: bb0(%0 : @guaranteed $C):
+// CHECK:   debug_value %0 : $C, let, name "c", argno 1
+// CHECK:   alloc_stack $C, var, name "cc"
+// CHECK:   [[CP1:%.*]] = copy_value %0 : $C
+// CHECK:   store [[CP1]] to [init]
+// CHECK:   [[CP2:%.*]] = copy_value %0 : $C
+// CHECK:   apply %{{.*}}<C>([[CP2]]) : $@convention(thin) <τ_0_0 where τ_0_0 : AnyObject> (@owned τ_0_0) -> ()
+// CHECK-LABEL: } // end sil function 'testGuaranteedArg'
+sil [ossa] @testGuaranteedArg : $@convention(thin) <C where C : AnyObject> (@guaranteed C) -> () {
+bb0(%0 : @guaranteed $C):
+  debug_value %0 : $C, let, name "c", argno 1
+  %2 = alloc_stack $C, var, name "cc"
+  %3 = copy_value %0 : $C
+  %4 = copy_value %3 : $C
+  store %3 to [init] %2 : $*C
+  %6 = copy_value %4 : $C
+  destroy_value %4 : $C
+  %8 = function_ref @consumeAny : $@convention(thin) <τ_0_0 where τ_0_0 : AnyObject> (@owned τ_0_0) -> ()
+  %9 = apply %8<C>(%6) : $@convention(thin) <τ_0_0 where τ_0_0 : AnyObject> (@owned τ_0_0) -> ()
+  destroy_addr %2 : $*C
+  dealloc_stack %2 : $*C
+  %12 = tuple ()
+  return %12 : $()
+}
+
+// Test 3 cases of unowned remnant handling:
+// - bb1: create a new destroy after final consuming destroy
+// - bb2: delete destroy in a nonboundary block
+// - bb3: create a new destroy after a final consuming apply.
+// CHECK-LABEL: sil [ossa] @testConsume : $@convention(thin) () -> () {
+// CHECK: [[ALLOC:%.*]] = alloc_ref $K
+// CHECK: [[UNOWNED:%.*]] = ref_to_unowned [[ALLOC]] : $K to $@sil_unowned K
+// CHECK: [[CP:%.*]] = copy_value [[UNOWNED]] : $@sil_unowned K
+// CHECK:   cond_br undef, bb1, bb2
+// CHECK: bb1:
+// CHECK:   destroy_value [[ALLOC]] : $K
+// CHECK:   destroy_value [[CP]] : $@sil_unowned K
+// CHECK:   br bb4
+// CHECK: bb2:
+// CHECK:   br bb3
+// CHECK: bb3:
+// CHECK:   apply %{{.*}}([[ALLOC]]) : $@convention(thin) (@owned K) -> ()
+// CHECK:   destroy_value [[CP]] : $@sil_unowned K
+// CHECK:   br bb4
+// CHECK-LABEL: } // end sil function 'testConsume'
+sil [ossa] @testConsume : $@convention(thin) () -> () {
+bb0:
+  %k = alloc_ref $K
+  %f = function_ref @consumeK : $@convention(thin) (@owned K) -> ()
+  cond_br undef, bb1, bb2
+
+bb1:
+  destroy_value %k : $K
+  br bb4
+
+bb2:
+  %c2 = copy_value %k : $K
+  destroy_value %c2 : $K
+  br bb3
+
+bb3:
+  %c3 = copy_value %k : $K
+  destroy_value %c3 : $K
+  %14 = apply %f(%k) : $@convention(thin) (@owned K) -> ()
+  br bb4
+
+bb4:
+  %17 = tuple ()
+  return %17 : $()
+}
+
+// For a lifetime that ends in a terminator, destroy the unowned
+// remnant before the terminator.
+//
+// CHECK-LABEL: sil [ossa] @testTerminatingConsume : $@convention(thin) (Optional<AnyObject>) -> () {
+// CHECK: bb0(%0 : @unowned $Optional<AnyObject>):
+// CHECK:   [[CP:%.*]] = copy_value %0 : $Optional<AnyObject>
+// CHECK:   [[UNOWNED:%.*]] = alloc_stack $@sil_unowned Optional<AnyObject>
+// CHECK:   store_unowned [[CP]] to [initialization] [[UNOWNED]] : $*@sil_unowned Optional<AnyObject>
+// CHECK:   destroy_addr [[UNOWNED]] : $*@sil_unowned Optional<AnyObject>
+// CHECK:   dealloc_stack [[UNOWNED]] : $*@sil_unowned Optional<AnyObject>
+// CHECK:   switch_enum [[CP]] : $Optional<AnyObject>, case #Optional.some!enumelt: bb1, case #Optional.none!enumelt: bb2
+// CHECK:     bb1([[SOME:%.*]] : @owned $AnyObject):
+// CHECK-NEXT:   destroy_value [[SOME]] : $AnyObject
+// CHECK-NEXT:   br bb3
+// CHECK-LABEL: } // end sil function 'testTerminatingConsume'
+sil [ossa] @testTerminatingConsume : $@convention(thin) (Optional<AnyObject>) -> () {
+bb0(%0 : @unowned $Optional<AnyObject>):
+  %3 = copy_value %0 : $Optional<AnyObject>
+  switch_enum %3 : $Optional<AnyObject>, case #Optional.some!enumelt: bb1, case #Optional.none!enumelt: bb2
+
+bb1(%10 : @owned $AnyObject):
+  destroy_value %10 : $AnyObject
+  br bb3
+
+bb2:
+  br bb3
+
+bb3:
+  %99 = tuple ()
+  return %99 : $()
+}

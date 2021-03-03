@@ -66,12 +66,11 @@ using namespace swift::semanticarc;
 // are within the borrow scope.
 //
 // TODO: This needs a better name.
-//
-// FIXME: CanonicalizeOSSALifetime replaces this once it supports borrows.
 bool SemanticARCOptVisitor::performGuaranteedCopyValueOptimization(
     CopyValueInst *cvi) {
-  // For now, do not run this optimization. This is just to be careful.
-  if (ctx.onlyGuaranteedOpts)
+  // All mandatory copy optimization is handled by CanonicalizeOSSALifetime,
+  // which knows how to preserve lifetimes for debugging.
+  if (ctx.onlyMandatoryOpts)
     return false;
 
   SmallVector<BorrowedValue, 4> borrowScopeIntroducers;
@@ -251,11 +250,12 @@ bool SemanticARCOptVisitor::performGuaranteedCopyValueOptimization(
 
 /// If cvi only has destroy value users, then cvi is a dead live range. Lets
 /// eliminate all such dead live ranges.
-///
-/// FIXME: CanonicalizeOSSALifetime replaces this.
 bool SemanticARCOptVisitor::eliminateDeadLiveRangeCopyValue(
     CopyValueInst *cvi) {
-  // This is a cheap optimization generally.
+  // All mandatory copy optimization is handled by CanonicalizeOSSALifetime,
+  // which knows how to preserve lifetimes for debugging.
+  if (ctx.onlyMandatoryOpts)
+    return false;
 
   // See if we are lucky and have a simple case.
   if (auto *op = cvi->getSingleUse()) {
@@ -616,10 +616,13 @@ static bool tryJoiningIfCopyOperandHasSingleDestroyValue(
 // interior pointers (e.x. project_box) are properly guarded by
 // begin_borrow. Because of that we can not shrink lifetimes and instead rely on
 // SILGen's correctness.
-//
-// FIXME: CanonicalizeOSSALifetime replaces this.
 bool SemanticARCOptVisitor::tryJoiningCopyValueLiveRangeWithOperand(
     CopyValueInst *cvi) {
+  // All mandatory copy optimization is handled by CanonicalizeOSSALifetime,
+  // which knows how to preserve lifetimes for debugging.
+  if (ctx.onlyMandatoryOpts)
+    return false;
+
   // First do a quick check if our operand is owned. If it is not owned, we can
   // not join live ranges.
   SILValue operand = cvi->getOperand();
@@ -721,11 +724,11 @@ bool SemanticARCOptVisitor::tryJoiningCopyValueLiveRangeWithOperand(
 
 /// Given an owned value that is completely enclosed within its parent owned
 /// value and is not consumed, eliminate the copy.
-///
-/// FIXME: CanonicalizeOSSALifetime replaces this.
 bool SemanticARCOptVisitor::tryPerformOwnedCopyValueOptimization(
     CopyValueInst *cvi) {
-  if (ctx.onlyGuaranteedOpts)
+  // All mandatory copy optimization is handled by CanonicalizeOSSALifetime,
+  // which knows how to preserve lifetimes for debugging.
+  if (ctx.onlyMandatoryOpts)
     return false;
 
   auto originalValue = cvi->getOperand();

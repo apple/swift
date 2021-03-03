@@ -27,6 +27,10 @@
 //                       })
 // }
 //
+// Pass dependency: currently runs before MandatoryCopyPropagation, which
+// creates additional @sil_unowned values. This probably won't affect the
+// diagnostics though.
+//
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "diagnose-lifetime-issues"

@@ -168,8 +168,13 @@ void MemoryLocations::analyzeLocations(SILFunction *function) {
     case SILArgumentConvention::Indirect_In:
     case SILArgumentConvention::Indirect_In_Constant:
     case SILArgumentConvention::Indirect_In_Guaranteed:
-    case SILArgumentConvention::Indirect_Inout:
     case SILArgumentConvention::Indirect_Out:
+      // These are not SIL addresses under -enable-sil-opaque-values
+      if (!function->getConventions().useLoweredAddresses())
+        break;
+
+      LLVM_FALLTHROUGH;
+    case SILArgumentConvention::Indirect_Inout:
       analyzeLocation(funcArg);
       break;
     default:

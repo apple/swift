@@ -109,7 +109,7 @@ struct LLVM_LIBRARY_VISIBILITY Context {
   /// As an example, we do not do load [copy] optimizations here since they
   /// generally involve more complex analysis, but simple peepholes of
   /// copy_values we /do/ allow.
-  bool onlyGuaranteedOpts;
+  bool onlyMandatoryOpts;
 
   /// Callbacks that we must use to remove or RAUW values.
   InstModCallbacks instModCallbacks;
@@ -119,11 +119,11 @@ struct LLVM_LIBRARY_VISIBILITY Context {
 
   DeadEndBlocks &getDeadEndBlocks() { return deadEndBlocks; }
 
-  Context(SILFunction &fn, DeadEndBlocks &deBlocks, bool onlyGuaranteedOpts,
+  Context(SILFunction &fn, DeadEndBlocks &deBlocks, bool onlyMandatoryOpts,
           InstModCallbacks callbacks)
       : fn(fn), deadEndBlocks(deBlocks), lifetimeFrontier(),
         addressToExhaustiveWriteListCache(constructCacheValue),
-        onlyGuaranteedOpts(onlyGuaranteedOpts), instModCallbacks(callbacks) {}
+        onlyMandatoryOpts(onlyMandatoryOpts), instModCallbacks(callbacks) {}
 
   void verify() const;
 

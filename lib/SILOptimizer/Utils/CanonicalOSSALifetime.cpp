@@ -45,6 +45,7 @@
 #include "swift/SIL/OwnershipUtils.h"
 #include "swift/SILOptimizer/Utils/CFGOptUtils.h"
 #include "swift/SILOptimizer/Utils/InstOptUtils.h"
+#include "swift/SILOptimizer/Utils/StackNesting.h"
 #include "swift/SILOptimizer/Utils/ValueLifetime.h"
 #include "llvm/ADT/Statistic.h"
 
@@ -369,7 +370,7 @@ bool CanonicalizeOSSALifetime::computeCanonicalLiveness() {
         continue;
       }
       // Handle debug_value instructions separately.
-      if (pruneDebug) {
+      if (pruneDebugMode) {
         if (auto *dvi = dyn_cast<DebugValueInst>(user)) {
           // Only instructions potentially outside current pruned liveness are
           // interesting.
@@ -647,7 +648,7 @@ void CanonicalizeOSSALifetime::findOrInsertDestroyInBlock(SILBasicBlock *bb) {
   while (true) {
     auto *inst = &*instIter;
 
-    if (pruneDebug) {
+    if (pruneDebugMode) {
       if (auto *dvi = dyn_cast<DebugValueInst>(inst)) {
         if (debugValues.erase(dvi))
           consumes.recordDebugAfterConsume(dvi);
@@ -672,18 +673,27 @@ void CanonicalizeOSSALifetime::findOrInsertDestroyInBlock(SILBasicBlock *bb) {
     case PrunedLiveness::LifetimeEndingUse:
       // This consuming use becomes a final destroy.
       consumes.recordFinalConsume(inst);
+      if (shouldCreateUnownedRemnant) {
+        consumes.recordPossibleUnownedRemnantConsume(inst);
+      }
       return;
     }
     // This is not a potential last user. Keep scanning.
-    // Allow lifetimes to be artificially extended up to the next call.
+    // Allow lifetimes to be artificially extended up to the next call. The goal
+    // is to prevent repeated destroy rewriting without inhibiting optimization.
     if (ApplySite::isa(inst)) {
       existingDestroy = nullptr;
-    } else if (!existingDestroy) {
+    } else if (!existingDestroy || shouldCreateUnownedRemnant) {
       if (auto *destroy = dyn_cast<DestroyValueInst>(inst)) {
         auto destroyDef = CanonicalizeOSSALifetime::getCanonicalCopiedDef(
             destroy->getOperand());
         if (destroyDef == currentDef) {
-          existingDestroy = destroy;
+          if (!existingDestroy) {
+            existingDestroy = destroy;
+          }
+          if (shouldCreateUnownedRemnant) {
+            consumes.recordPossibleUnownedRemnantConsume(destroy);
+          }
         }
       }
     }
@@ -742,6 +752,9 @@ void CanonicalizeOSSALifetime::findOrInsertDestroys() {
           insertDestroyOnCFGEdge(predBB, bb, currentDef, consumes);
           setChanged();
         } else {
+          if (shouldCreateUnownedRemnant) {
+            unownedRemnantLiveOutBlocks.insert(predBB);
+          }
           blockWorklist.insert(predBB);
         }
       }
@@ -760,9 +773,60 @@ void CanonicalizeOSSALifetime::findOrInsertDestroys() {
 // MARK: Step 3. Rewrite copies and destroys
 //===----------------------------------------------------------------------===//
 
+/// Return true if this consume may end the unownd remnant lifetime. This is
+/// true for any consuming use that isn't already proven to be inside that
+/// lifetime either because
+/// (a) it is inside the pruned lifetime
+/// (b) it is in a block marked unownedRemnantLiveOutBlocks
+///
+/// For DestroyValue consumes only:
+///
+///   If this returns false, then the caller may delete the destroy since it
+///   won't be reused. If this returns true, then
+///   rewriteUnownedRemnantDestroys() must later either reuse or delete the
+///   destroy.
+bool CanonicalizeOSSALifetime::checkPossibleUnownedRemnantConsume(
+    SILInstruction *consume) {
+  if (!shouldCreateUnownedRemnant) {
+    return false;
+  }
+  // If an unowned consume is on any successor, then this can't be the final
+  // consume. We must remove it so that rewriteUnownedRemnantDestroys does not
+  // put a final unowned consume in this block.
+  if (unownedRemnantLiveOutBlocks.count(consume->getParent())) {
+    consumes.possibleUnownedRemnantConsumes.remove(consume);
+    return false;
+  }
+  switch (liveness.getBlockLiveness(consume->getParent())) {
+  case PrunedLiveBlocks::LiveOut:
+    // This destroy is within pruned liveness. It is useless.
+    return false;
+  case PrunedLiveBlocks::LiveWithin:
+    // Since this block is not unowned-live-out, a final unowned consume must be
+    // somewhere inside.
+    //
+    // This destroy is either within the pruned liveness part of the block (in
+    // which case it can be deleted) or findOrInsertDestroyInBlock() already
+    // must have seen it and added it to the possibleUnownedRemnantConsumes set,
+    // in which case it should be kept around for
+    // rewriteUnownedRemnantDestroys() to check.
+    return consumes.possibleUnownedRemnantConsumes.count(consume);
+  case PrunedLiveBlocks::Dead:
+    // Since this block is not unowned-live-out, a final unowned consume must be
+    // somewhere inside. Record this destroy for
+    // rewriteUnownedRemnantDestroys() to check.
+    consumes.recordPossibleUnownedRemnantConsume(consume);
+    return true;
+  }
+}
+
 /// Revisit the def-use chain of currentDef. Mark unneeded original
 /// copies and destroys for deletion. Insert new copies for interior uses that
 /// require ownership of the used operand.
+///
+/// When shouldCreateUnownedRemnant is true, only the destroys within pruned
+/// liveness will be marked for deletion. The remaining destroys will all be
+/// added to the possibleUnownedRemnantConsumes set.
 void CanonicalizeOSSALifetime::rewriteCopies() {
   bool isOwned = currentDef.getOwnershipKind() == OwnershipKind::Owned;
   assert((!isOwned || !consumes.hasPersistentCopies())
@@ -785,12 +849,17 @@ void CanonicalizeOSSALifetime::rewriteCopies() {
       }
     }
     if (auto *destroy = dyn_cast<DestroyValueInst>(user)) {
-      // If this destroy was marked as a final destroy, ignore it; otherwise,
-      // delete it.
-      if (!consumes.claimConsume(destroy)) {
-        instsToDelete.insert(destroy);
-        LLVM_DEBUG(llvm::dbgs() << "  Removing " << *destroy);
-        ++NumDestroysEliminated;
+      // Destroys are not marked as claimed yet in unownedRemnantMode because
+      // rewriteUnownedRemnantDestroys() needs to know whether they can be
+      // reused first.
+      if (!checkPossibleUnownedRemnantConsume(destroy)) {
+        if (!consumes.claimConsume(destroy)) {
+          bool inserted = instsToDelete.insert(destroy);
+          assert(inserted && "defUseWorklist should only visit uses once");
+          (void)inserted;
+          LLVM_DEBUG(llvm::dbgs() << "  Removing " << *destroy);
+          ++NumDestroysEliminated;
+        }
       }
       return true;
     }
@@ -800,6 +869,9 @@ void CanonicalizeOSSALifetime::rewriteCopies() {
     // uses have been filtered out.
     if (!use->isLifetimeEnding())
       return true;
+
+    // Track this consume if it might end the unowned remnant lifetime.
+    checkPossibleUnownedRemnantConsume(user);
 
     // If this use was marked as a final destroy *and* this is the first
     // consumed operand we have visited, then ignore it. Otherwise, treat it as
@@ -842,13 +914,19 @@ void CanonicalizeOSSALifetime::rewriteCopies() {
       if (reusedCopyOp) {
         reusedCopyOp->set(srcCopy);
       } else {
-        instsToDelete.insert(srcCopy);
-        LLVM_DEBUG(llvm::dbgs() << "  Removing " << *srcCopy);
-        ++NumCopiesEliminated;
+        if (instsToDelete.insert(srcCopy)) {
+          LLVM_DEBUG(llvm::dbgs() << "  Removing " << *srcCopy);
+          ++NumCopiesEliminated;
+        }
       }
     }
   }
-  assert(!consumes.hasUnclaimedConsumes());
+  // Create the unowned remnant.
+  SmallVector<SILInstruction *> destroysToDelete;
+  rewriteUnownedRemnantDestroys(destroysToDelete);
+  instsToDelete.insert(destroysToDelete.begin(), destroysToDelete.end());
+
+  SWIFT_ASSERT_ONLY(consumes.checkClaimedConsumes());
 
   // Remove any dead debug_values.
   for (auto *dvi : consumes.getDebugInstsAfterConsume()) {
@@ -865,11 +943,188 @@ void CanonicalizeOSSALifetime::rewriteCopies() {
   }
 }
 
+bool CanonicalizeOSSALifetime::checkShouldCreateUnownedRemnant() {
+  if (!unownedRemnantMode)
+    return false;
+
+  if (currentDef->getOwnershipKind() != OwnershipKind::Owned)
+    return false;
+
+  // TODO: Support unowned remnants of composite types as long as they can be
+  // exploded into their individual references.
+  auto ownedTy = currentDef->getType();
+
+  // TODO: is it possible/worthwhile to support opened existentials? We need to
+  // find the instruction that opens the archetype to create an alloc_stack.
+  if (ownedTy.hasOpenedExistential())
+    return false;
+
+  // Only create unowned remnants for values that have strong ownership.
+  // refOwnership is .None for strong ownership.
+  auto refOwnership = ownedTy.getReferenceStorageOwnership();
+  if (refOwnership) {
+    assert(*refOwnership != ReferenceOwnership::Strong && "postcondition");
+    return false;
+  }
+
+  // Ensure that this value can be converted to an Unowned reference.
+  //
+  // TODO: when supporting composite types, this needs to visit and check all
+  // interior pointers.
+  return ownedTy.allowsRefStorageOwnership(*currentDef->getFunction());
+}
+
+using ConsumeHandler = llvm::function_ref<void(SILInstruction *consume)>;
+
+static void rewriteUnownedRemnantDestroysForCopy(
+    SingleValueInstruction *unownedCopy, CanonicalOSSAConsumeInfo &consumes,
+    ConsumeHandler handleInnerConsume, ConsumeHandler handleBoundaryConsume) {
+
+  LLVM_DEBUG(llvm::dbgs() << "  UnownedRemnant copy " << *unownedCopy);
+
+  for (auto *possibleConsume : consumes.possibleUnownedRemnantConsumes) {
+    // Find the last destroy in this boundary block
+    // The handlers may insert new instructions after the current iterator but
+    // do not delete anything.
+    auto *bb = possibleConsume->getParent();
+    auto instIter = bb->end();
+    while (true) {
+      auto *inst = &*(--instIter);
+      if (inst == possibleConsume) {
+        // This destroy is on the extended, scoped boundary. Update it.
+        handleBoundaryConsume(possibleConsume);
+        break;
+      }
+      if (consumes.possibleUnownedRemnantConsumes.count(inst)) {
+        // Another destroy is on the boundary instead.
+        handleInnerConsume(possibleConsume);
+        break;
+      }
+    }
+  }
+}
+
+/// At this point, all consumes outside of pruned liveness that might be on the
+/// UnownedRemnant lifetime boundary (either in LiveWithin or Dead blocks) have
+/// been added to the possibleUnownedRemnantConsumes set.
+///
+/// Note: the unowned remnant values do not have Unowned ownership. They are
+/// owned references with ReferenceOwnership::Unowned.
+void CanonicalizeOSSALifetime::rewriteUnownedRemnantDestroys(
+    SmallVectorImpl<SILInstruction *> &instsToDelete) {
+
+  if (consumes.possibleUnownedRemnantConsumes.empty())
+    return;
+
+  assert(shouldCreateUnownedRemnant && "wrong mode for unowned destroys");
+
+  SILBuilderWithScope buildCopy(currentDef->getNextInstruction());
+  SILType ownedTy = currentDef->getType();
+  assert(ownedTy.allowsRefStorageOwnership(*currentDef->getFunction())
+         && "precondition");
+  SILType unownedTy =
+      ownedTy.getReferenceStorageType(ReferenceOwnership::Unowned)
+          .getObjectType();
+
+  // Give the creation of the unowned remnant a completely empty location. It's
+  // tempting to make it "shadow" currentDef's original variable, but that might
+  // lead to a confusing mismatch, especially variables (in future
+  // implementation) are split into multiple references. The unowned
+  // retain operations don't really have a position in the original
+  // source anyway. The unowned release operations do however corresponding to
+  // the end of the lexical scope, so they have a line number.
+  auto copyLoc = RegularLocation::getAutoGeneratedLocation();
+
+  // Inner destroys can now be deleted if they aren't final consumes.
+  auto handleInnerConsume = [&](SILInstruction *consume) {
+    if (auto *destroy = dyn_cast<DestroyValueInst>(consume)) {
+      if (!consumes.isDestoyFinalConsume(destroy))
+        instsToDelete.push_back(destroy);
+    }
+  };
+  // The loadable reference case (non-ObjC).
+  if (unownedTy.isLoadable(*currentDef->getFunction())) {
+    auto *unownedDef =
+        buildCopy.createRefToUnowned(copyLoc, currentDef, unownedTy);
+    auto *unownedCopy = buildCopy.createCopyValue(copyLoc, unownedDef);
+    auto handleBoundaryConsume = [&](SILInstruction *consume) {
+      if (auto *destroy = dyn_cast<DestroyValueInst>(consume)) {
+        // This destroy is either already used or will be reused, never deleted.
+        if (!consumes.isDestoyFinalConsume(destroy)) {
+          destroy->setOperand(unownedCopy);
+          return;
+        }
+      }
+      // If we can't reuse the old destroy, create a new one.
+      // For terminators, release the unowned copy before the end of the block
+      // (it may be function-exiting).
+      auto destroyLoc =
+          RegularLocation::getAutoGeneratedLocation(consume->getLoc());
+      auto insertPt = consume->getIterator();
+      if (!isa<TermInst>(consume)) {
+        ++insertPt;
+      }
+      SILBuilderWithScope(insertPt).createDestroyValue(destroyLoc, unownedCopy);
+    };
+    rewriteUnownedRemnantDestroysForCopy(
+        unownedCopy, consumes, handleInnerConsume, handleBoundaryConsume);
+    return;
+  }
+  // The address-only reference case (ObjC or unknown).
+  invalidStackNesting = true;
+  auto *allocStack = buildCopy.createAllocStack(copyLoc, unownedTy);
+  buildCopy.createStoreUnowned(copyLoc, currentDef, allocStack,
+                               IsInitialization_t::IsInitialization);
+  auto handleBoundaryConsume = [&](SILInstruction *consume) {
+    if (auto *destroy = dyn_cast<DestroyValueInst>(consume)) {
+      if (!consumes.isDestoyFinalConsume(destroy)) {
+        // This destroy is unused. It needs to be deleted.
+        instsToDelete.push_back(destroy);
+      }
+    }
+    auto destroyLoc =
+        RegularLocation::getAutoGeneratedLocation(consume->getLoc());
+    auto insertPt = consume->getIterator();
+    if (!isa<TermInst>(consume)) {
+      ++insertPt;
+    }
+    SILBuilderWithScope buildDestroy(insertPt);
+    buildDestroy.createDestroyAddr(destroyLoc, allocStack);
+    buildDestroy.createDeallocStack(destroyLoc, allocStack);
+  };
+  rewriteUnownedRemnantDestroysForCopy(allocStack, consumes, handleInnerConsume,
+                                       handleBoundaryConsume);
+}
+
+bool CanonicalizeOSSALifetime::fixStackNesting(SILFunction *function) {
+  if (!invalidStackNesting)
+    return false;
+
+  invalidStackNesting = false;
+  auto changes = StackNesting::fixNesting(function);
+  assert(changes != StackNesting::Changes::CFG && "no critical edges");
+  if (changes != StackNesting::Changes::None) {
+    setChanged();
+    return true;
+  }
+  return false;
+}
+
 //===----------------------------------------------------------------------===//
 //                            MARK: Top-Level API
 //===----------------------------------------------------------------------===//
 
 bool CanonicalizeOSSALifetime::canonicalizeValueLifetime(SILValue def) {
+  // In unownedRemnantMode, don't touch values of type
+  // ReferenceOwnership::Unowned (@sil_unowned). This allows repeated
+  // canonicalization to converge. However, a subsequent run with
+  // unownedRemnantMode=false will erase previously generated unowned remnants.
+  if (unownedRemnantMode) {
+    auto refStorage = def->getType().getReferenceStorageOwnership();
+    if (refStorage && *refStorage == ReferenceOwnership::Unowned) {
+      return false;
+    }
+  }
   LLVM_DEBUG(llvm::dbgs() << "  Canonicalizing: " << def);
 
   switch (def.getOwnershipKind()) {
@@ -893,6 +1148,7 @@ bool CanonicalizeOSSALifetime::canonicalizeValueLifetime(SILValue def) {
     clearLiveness();
     // Rewrite copies and delete extra destroys within the scope.
     assert(!consumes.hasFinalConsumes());
+    assert(!shouldCreateUnownedRemnant && "guaranteed def can't have remnant");
     rewriteCopies();
     return true;
   case OwnershipKind::Owned:
@@ -905,10 +1161,10 @@ bool CanonicalizeOSSALifetime::canonicalizeValueLifetime(SILValue def) {
     extendLivenessThroughOverlappingAccess();
     // Step 2: record final destroys
     findOrInsertDestroys();
-    // Invalidate book-keeping before deleting instructions.
-    clearLiveness();
     // Step 3: rewrite copies and delete extra destroys
     rewriteCopies();
+    // Invalidate book-keeping.
+    clearLiveness();
     return true;
   }
 }
@@ -916,6 +1172,13 @@ bool CanonicalizeOSSALifetime::canonicalizeValueLifetime(SILValue def) {
 //===----------------------------------------------------------------------===//
 //                              MARK: Debugging
 //===----------------------------------------------------------------------===//
+
+SWIFT_ASSERT_ONLY_DECL(void CanonicalOSSAConsumeInfo::checkClaimedConsumes() {
+  for (auto *possibleConsume : possibleUnownedRemnantConsumes) {
+    finalBlockConsumes.erase(possibleConsume->getParent());
+  }
+  assert(finalBlockConsumes.empty() && "unclaimed consumes");
+})
 
 SWIFT_ASSERT_ONLY_DECL(
   void CanonicalOSSAConsumeInfo::dump() const {

@@ -42,16 +42,31 @@ namespace {
 class CopyPropagation : public SILFunctionTransform {
   /// True if debug_value instructions should be pruned.
   bool pruneDebug;
+  /// True if only the value's owned lifetime will shrink, leaving an unowned
+  /// remnant exactly the same size as the original extended lifetime.
+  bool unownedRemnant;
+  /// True of all values should be canonicalized.
+  bool canonicalizeAll;
 
 public:
-  CopyPropagation(bool pruneDebug): pruneDebug(pruneDebug) {}
+  CopyPropagation(bool pruneDebug, bool unownedRemnant, bool canonicalizeAll)
+      : pruneDebug(pruneDebug), unownedRemnant(unownedRemnant),
+        canonicalizeAll(canonicalizeAll) {}
 
   /// The entry point to this function transformation.
   void run() override;
 };
 } // end anonymous namespace
 
-static bool isCopyDead(CopyValueInst *copy, bool pruneDebug) {
+static bool isCopyDead(CopyValueInst *copy, bool pruneDebug,
+                       bool unownedRemnant) {
+  // When creating unownedRemnant, don't delete copies to Unowned references
+  // storage.
+  if (unownedRemnant) {
+    auto refStorage = copy->getType().getReferenceStorageOwnership();
+    if (refStorage && *refStorage == ReferenceOwnership::Unowned)
+      return false;
+  }
   for (Operand *use : copy->getUses()) {
     auto *user = use->getUser();
     if (isa<DestroyValueInst>(user)) {
@@ -83,14 +98,20 @@ void CopyPropagation::run() {
   llvm::SmallSetVector<SILValue, 16> copiedDefs;
   for (auto &bb : *f) {
     for (auto &i : bb) {
-      if (auto *copy = dyn_cast<CopyValueInst>(&i))
+      if (auto *copy = dyn_cast<CopyValueInst>(&i)) {
         copiedDefs.insert(
             CanonicalizeOSSALifetime::getCanonicalCopiedDef(copy));
+      } else if (canonicalizeAll) {
+        if (auto *destroy = dyn_cast<DestroyValueInst>(&i)) {
+          copiedDefs.insert(CanonicalizeOSSALifetime::getCanonicalCopiedDef(
+              destroy->getOperand()));
+        }
+      }
     }
   }
   // Perform copy propgation for each copied value.
-  CanonicalizeOSSALifetime canonicalizer(pruneDebug, accessBlockAnalysis,
-                                         dominanceAnalysis,
+  CanonicalizeOSSALifetime canonicalizer(pruneDebug, unownedRemnant,
+                                         accessBlockAnalysis, dominanceAnalysis,
                                          deBlocksAnalysis->get(f));
   // Cleanup dead copies. If getCanonicalCopiedDef returns a copy (because the
   // copy's source operand is unrecgonized), then the copy is itself treated
@@ -101,7 +122,7 @@ void CopyPropagation::run() {
     canonicalizer.canonicalizeValueLifetime(def);
 
     if (auto *copy = dyn_cast<CopyValueInst>(def)) {
-      if (isCopyDead(copy, pruneDebug)) {
+      if (isCopyDead(copy, pruneDebug, unownedRemnant)) {
         deadCopies.push_back(copy);
       }
     }
@@ -113,6 +134,7 @@ void CopyPropagation::run() {
     // TODO: also canonicalize any lifetime.persistentCopies like separate owned
     // live ranges.
   }
+  canonicalizer.fixStackNesting(getFunction());
   if (canonicalizer.hasChanged() || !deadCopies.empty()) {
     InstructionDeleter deleter;
     for (auto *copy : deadCopies) {
@@ -122,14 +144,18 @@ void CopyPropagation::run() {
     accessBlockAnalysis->lockInvalidation();
     invalidateAnalysis(SILAnalysis::InvalidationKind::Instructions);
     accessBlockAnalysis->unlockInvalidation();
-    f->verifyOwnership(deBlocksAnalysis->get(f));
+    if (f->getModule().getOptions().VerifySILOwnership) {
+      f->verifyOwnership(deBlocksAnalysis->get(f));
+    }
   }
 }
 
-SILTransform *swift::createCopyPropagation() {
-  return new CopyPropagation(/*pruneDebug*/ true);
+SILTransform *swift::createMandatoryCopyPropagation() {
+  return new CopyPropagation(/*pruneDebug*/ true, /*unownedRemnant*/ true,
+                             /*canonicalizeAll*/ true);
 }
 
-SILTransform *swift::createMandatoryCopyPropagation() {
-  return new CopyPropagation(/*pruneDebug*/ false);
+SILTransform *swift::createCopyPropagation() {
+  return new CopyPropagation(/*pruneDebug*/ true, /*unownedRemnant*/ false,
+                             /*canonicalizeAll*/ false);
 }

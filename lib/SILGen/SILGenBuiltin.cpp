@@ -1303,7 +1303,7 @@ static ManagedValue emitBuiltinConvertStrongToUnownedUnsafe(
   }
 
   SILType unmanagedOptType = objectSrcValue->getType().getReferenceStorageType(
-      SGF.getASTContext(), ReferenceOwnership::Unmanaged);
+      ReferenceOwnership::Unmanaged);
   SILValue unownedObjectSrcValue = SGF.B.createRefToUnmanaged(
       loc, objectSrcValue, unmanagedOptType.getObjectType());
   SGF.B.emitStoreValueOperation(loc, unownedObjectSrcValue, inoutDest,

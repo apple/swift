@@ -289,6 +289,11 @@ public:
   /// type. Returns false for non-trivial aggregates.
   bool isReferenceCounted(SILModule &M) const;
 
+  /// True if this type is allowed to have reference storage ownership
+  /// (unowned/weak). This is true for reference-counted types, or Optionals
+  /// thereof, where the reference ASTType allowsOwnership().
+  bool allowsRefStorageOwnership(const SILFunction &F);
+
   /// Returns true if the referenced type is a function type that never
   /// returns.
   bool isNoReturnFunction(SILModule &M, TypeExpansionContext context) const;
@@ -484,9 +489,9 @@ public:
   /// Attempt to wrap the passed in type as a type with reference ownership \p
   /// ownership. For simplicity, we always return an address since reference
   /// storage types may not be loadable (e.x.: weak ownership).
-  SILType getReferenceStorageType(const ASTContext &ctx,
-                                  ReferenceOwnership ownership) const {
-    auto *type = ReferenceStorageType::get(getASTType(), ownership, ctx);
+  SILType getReferenceStorageType(ReferenceOwnership ownership) const {
+    auto *type =
+      ReferenceStorageType::get(getASTType(), ownership, getASTContext());
     return SILType::getPrimitiveAddressType(type->getCanonicalType());
   }
 

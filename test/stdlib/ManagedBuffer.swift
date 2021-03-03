@@ -122,7 +122,9 @@ var tests = TestSuite("ManagedBuffer")
 tests.test("basic") {
   do {
     let s = TestManagedBuffer<LifetimeTracked>.create(0)
-    expectEqual(1, LifetimeTracked.instances)
+    withExtendedLifetime(s) {
+      expectEqual(1, LifetimeTracked.instances)
+    }
   }
   
   expectEqual(0, LifetimeTracked.instances)
@@ -220,8 +222,9 @@ tests.test("ManagedBufferPointer") {
     expectEqual(mgr.header.capacity, 99)
 
     let s2 = mgr.buffer as! MyBuffer<LifetimeTracked>
-    expectFalse(mgr.isUniqueReference())
-    
+    withExtendedLifetime(s2) {
+      expectFalse(mgr.isUniqueReference())
+    }
     let val = mgr.withUnsafeMutablePointerToHeader { $0 }.pointee
     expectEqual(val.count.value, 0)
     expectEqual(val.capacity, 99)

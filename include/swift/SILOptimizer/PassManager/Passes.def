@@ -202,8 +202,8 @@ PASS(GlobalOpt, "global-opt",
      "SIL Global Optimization")
 PASS(GlobalPropertyOpt, "global-property-opt",
      "Global Property Optimization")
-PASS(GuaranteedARCOpts, "guaranteed-arc-opts",
-     "Guaranteed ARC Optimization")
+PASS(MandatoryARCOpts, "mandatory-arc-opts",
+     "Mandatory ARC Optimization")
 PASS(HighLevelCSE, "high-level-cse",
      "Common Subexpression Elimination on High-Level SIL")
 PASS(HighLevelLICM, "high-level-licm",

@@ -321,7 +321,7 @@ static bool isWrittenTo(Context &ctx, LoadInst *load,
 bool SemanticARCOptVisitor::visitLoadInst(LoadInst *li) {
   // This optimization can use more complex analysis. We should do some
   // experiments before enabling this by default as a guaranteed optimization.
-  if (ctx.onlyGuaranteedOpts)
+  if (ctx.onlyMandatoryOpts)
     return false;
 
   // If we are not supposed to perform this transform, bail.

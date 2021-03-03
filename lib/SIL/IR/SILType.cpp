@@ -17,6 +17,7 @@
 #include "swift/AST/GenericEnvironment.h"
 #include "swift/AST/LazyResolver.h"
 #include "swift/AST/Module.h"
+#include "swift/AST/ReferenceCounting.h"
 #include "swift/AST/Type.h"
 #include "swift/SIL/AbstractionPattern.h"
 #include "swift/SIL/SILFunctionConventions.h"
@@ -90,6 +91,34 @@ bool SILType::isReferenceCounted(SILModule &M) const {
   return M.Types.getTypeLowering(*this,
                                  TypeExpansionContext::minimal())
     .isReferenceCounted();
+}
+
+bool SILType::allowsRefStorageOwnership(const SILFunction &F) {
+  if (isAddress())
+    return false;
+
+  auto unwrappedTy = unwrapOptionalType();
+  auto contextTy =
+      hasTypeParameter() ? F.mapTypeIntoContext(unwrappedTy) : unwrappedTy;
+  auto canTy = contextTy.getASTType();
+
+  // FIXME!!! with a contextual type, we should not need to pass a signature?
+  if (!canTy->allowsOwnership())
+    return false;
+
+  switch (canTy->getReferenceCounting()) {
+  case ReferenceCounting::Native:
+  case ReferenceCounting::ObjC:
+  case ReferenceCounting::Block:
+  case ReferenceCounting::Unknown:
+    break;
+
+  case ReferenceCounting::Bridge:
+  case ReferenceCounting::Error:
+    // IRGen does not know how to represent unowned references of these types.
+    return false;
+  }
+  return true;
 }
 
 bool SILType::isNoReturnFunction(SILModule &M,
