@@ -83,9 +83,14 @@ void CopyPropagation::run() {
   llvm::SmallSetVector<SILValue, 16> copiedDefs;
   for (auto &bb : *f) {
     for (auto &i : bb) {
-      if (auto *copy = dyn_cast<CopyValueInst>(&i))
+      if (auto *copy = dyn_cast<CopyValueInst>(&i)) {
         copiedDefs.insert(
             CanonicalizeOSSALifetime::getCanonicalCopiedDef(copy));
+      } else if (auto *destroy = dyn_cast<DestroyValueInst>(&i)) {
+        copiedDefs.insert(
+          CanonicalizeOSSALifetime::getCanonicalCopiedDef(
+            destroy->getOperand()));
+      }
     }
   }
   // Perform copy propgation for each copied value.
