@@ -1,10 +1,14 @@
 // RUN: %target-sil-opt -copy-propagation -canonical-ossa-rewrite-borrows -enable-sil-opaque-values -enable-sil-verify-all %s | %FileCheck %s --check-prefixes=CHECK,CHECK-NDEBUG,CHECK-OPT
-// RUN: %target-sil-opt -mandatory-copy-propagation -canonical-ossa-rewrite-borrows -enable-sil-opaque-values -enable-sil-verify-all %s | %FileCheck %s --check-prefixes=CHECK,CHECK-NDEBUG,CHECK-ONONE
 // RUN: %target-sil-opt -copy-propagation -canonical-ossa-rewrite-borrows -enable-sil-opaque-values -debug-only=copy-propagation %s -o /dev/null 2>&1 | %FileCheck %s --check-prefix=CHECK-TRACE
 //
-// Lines starting with CHECK-DEBUG are not currently tested because we
-// don't have a flag to enable debug_value preservation, and it isn't
-// clear that it's useful.
+// Mandatory copy propagation does not currently handle address-only
+// types. It needs a visible layout to inject poison refs.
+//   %target-sil-opt -mandatory-copy-propagation -canonical-ossa-rewrite-borrows -enable-sil-opaque-values -enable-sil-verify-all %s | %FileCheck %s --check-prefixes=CHECK,CHECK-NDEBUG,CHECK-ONONE
+//
+// The CHECK-DEBUG/CHECK-NDEBUG prefixes are for the controlling the
+// debug_values preservation. CHECK-DEBUG are not currently tested
+// because we don't have a flag to enable debug_value preservation,
+// and it isn't clear that it's useful.
 //
 // REQUIRES: asserts
 
@@ -126,20 +130,19 @@ bb3(%11 : @owned $T):
 // CHECK-LABEL: sil [ossa] @testConsume : $@convention(thin) <T> (@in T, @inout T) -> () {
 // CHECK: bb0(%0 : @owned $T, %1 : $*T):
 //
-// TODO: Mandatory opt will reuse the original copy for the consuming store.
+// TODO:  opt will reuse the original copy for the consuming store.
 // CHECK-DEBUG-NEXT:   [[STOREVAL:%.*]] = copy_value %0 : $T
 //
 // CHECK-NEXT:   debug_value %0 : $T
 // CHECK-DEBUG-NEXT: store [[STOREVAL]] to [assign] %1 : $*T
-// CHECK-NDEBUG-NEXT:   store %0 to [assign] %1 : $*T
+// CHECK-NEXT:   store %0 to [assign] %1 : $*T
 //
 // The non-consuming use now uses the original value.
 // CHECK-DEBUG-NEXT:   debug_value %0 : $T
-//
 // CHECK-NEXT:   debug_value_addr %1 : $*T
 //
 // The original destroy is deleted with optimizations enabled.
-// CHECK-DEBUG-NEXT:   destroy_value %0 : $T
+// CHECK-DEBUG-NEXT: destroy_value %0 : $T
 // CHECK-NEXT:   tuple ()
 // CHECK-NEXT:   return
 // CHECK-LABEL: // end sil function 'testConsume'
@@ -157,7 +160,8 @@ bb0(%arg : @owned $T, %addr : $*T):
 
 // CHECK-LABEL: sil [ossa] @testDestroyEdge : $@convention(thin) <T> (@in T, Builtin.Int1) -> () {
 // CHECK: bb0(%0 : @owned $T, %1 : $Builtin.Int1):
-// CHECK-NDEBUG-NEXT:   destroy_value %0 : $T
+// CHECK-OPT-NEXT:   destroy_value %0 : $T
+// CHECK-ONONE-NEXT: destroy_value [poison] %0 : $T
 // CHECK-DEBUG-NEXT: cond_br %1, bb2, bb1
 //
 // CHECK: bb1:
@@ -227,9 +231,11 @@ bb(%0 : @owned $T):
 // CHECK-LABEL: sil [ossa] @testCopy2OperReuse : $@convention(thin) <T> (@in T) -> () {
 // CHECK: bb0(%0 : @owned $T):
 // CHECK-NEXT:  [[CP:%.*]] = copy_value %0 : $T
+// CHECK-ONONE-NEXT:  [[CP:%.*]] = copy_value %0 : $T
 // CHECK-NEXT:  // function_ref takeMultipleOwned
 // CHECK-NEXT:  function_ref @takeMultipleOwned : $@convention(thin) <τ_0_0> (@in τ_0_0, @in τ_0_0) -> ()
 // CHECK-NEXT:  apply %{{.*}}<T>(%0, [[CP]]) : $@convention(thin) <τ_0_0> (@in τ_0_0, @in τ_0_0) -> ()
+// CHECK-ONONE-NEXT:  destroy_value
 // CHECK-NEXT:  tuple ()
 // CHECK-NEXT:  return
 // CHECK-LABEL: } // end sil function 'testCopy2OperReuse'
@@ -254,6 +260,7 @@ bb0(%arg : @owned $T):
 // CHECK-LABEL: sil [ossa] @testCopy2CallReuse : $@convention(thin) <T> (@in T) -> () {
 // CHECK: bb0(%0 : @owned $T):
 // CHECK-NEXT:  [[CP:%.*]] = copy_value %0 : $T
+// CHECK-ONONE-NEXT:  [[CP:%.*]] = copy_value %0 : $T
 // CHECK-NEXT:  // function_ref
 // CHECK-NEXT:  function_ref
 // CHECK-NEXT:  apply %{{.*}}<T>([[CP]])

@@ -36,12 +36,16 @@ import Foundation
 
 // CHECK: [[L2]]:                                     ; preds = %entry
 // CHECK-NEXT: %[[T4:.+]] = phi %TSo10CFArrayRefa* [ %[[T0]], %entry ]
+// CHECK-NEXT: %[[T4a:.+]] = bitcast %T25unmanaged_objc_throw_func9SR_9035_CC* %{{.+}} to i8*
+// CHECK-NEXT: call void @llvm.objc.release(i8* %[[T4a]])
 // CHECK-NEXT: %[[T5:.+]] = ptrtoint %TSo10CFArrayRefa* %[[T4]] to i{{32|64}}
 // CHECK-NEXT: br label %[[L3:.+]]
 
 // CHECK: [[L1]]:                                     ; preds = %entry
 // CHECK-NEXT: %[[T6:.+]] = phi %swift.error* [ %[[T2]], %entry ]
 // CHECK-NEXT: store %swift.error* null, %swift.error** %swifterror, align {{[0-9]+}}
+// CHECK-NEXT: %[[T6a:.+]] = bitcast %T25unmanaged_objc_throw_func9SR_9035_CC* %{{.+}} to i8*
+// CHECK-NEXT: call void @llvm.objc.release(i8* %[[T6a]])
 // CHECK-NEXT: %[[T7:.+]] = icmp eq i{{32|64}} %{{.+}}, 0
 // CHECK-NEXT: br i1 %[[T7]], label %[[L4:.+]], label %[[L5:.+]]
 
@@ -66,7 +70,5 @@ import Foundation
 
 // CHECK: [[L3]]:                                     ; preds = %[[L2]], %[[L7]]
 // CHECK-NEXT: %[[T12:.+]] = phi i{{32|64}} [ 0, %[[L7]] ], [ %[[T5]], %[[L2]] ]
-// CHECK-NEXT: %[[T13:.+]] = bitcast %T25unmanaged_objc_throw_func9SR_9035_CC* %{{.+}} to i8*
-// CHECK-NEXT: call void @llvm.objc.release(i8* %[[T13]])
 // CHECK-NEXT: %[[T14:.+]] = inttoptr i{{32|64}} %[[T12]] to %struct.__CFArray*
 // CHECK-NEXT: ret %struct.__CFArray* %[[T14]]

@@ -1198,7 +1198,7 @@ SILInstruction *SILCombiner::visitCopyValueInst(CopyValueInst *cvi) {
 }
 
 SILInstruction *SILCombiner::visitDestroyValueInst(DestroyValueInst *dvi) {
-  assert(dvi->getFunction()->hasOwnership());
+  assert(dvi->poisonRefs() || dvi->getFunction()->hasOwnership());
 
   // Sometimes when RAUWing code we get destroy_value on .none values. In such a
   // case, just delete the destroy_value.

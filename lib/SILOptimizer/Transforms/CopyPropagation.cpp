@@ -44,10 +44,13 @@ class CopyPropagation : public SILFunctionTransform {
   bool pruneDebug;
   /// True of all values should be canonicalized.
   bool canonicalizeAll;
+  /// If true, then new destroy_value instructions will be poison.
+  bool poisonRefs;
 
 public:
-  CopyPropagation(bool pruneDebug, bool canonicalizeAll)
-      : pruneDebug(pruneDebug), canonicalizeAll(canonicalizeAll) {}
+  CopyPropagation(bool pruneDebug, bool canonicalizeAll, bool poisonRefs)
+    : pruneDebug(pruneDebug), canonicalizeAll(canonicalizeAll),
+      poisonRefs(poisonRefs) {}
 
   /// The entry point to this function transformation.
   void run() override;
@@ -98,7 +101,8 @@ void CopyPropagation::run() {
     }
   }
   // Perform copy propgation for each copied value.
-  CanonicalizeOSSALifetime canonicalizer(pruneDebug, accessBlockAnalysis,
+  CanonicalizeOSSALifetime canonicalizer(pruneDebug, poisonRefs,
+                                         accessBlockAnalysis,
                                          dominanceAnalysis,
                                          deBlocksAnalysis->get(f));
   // Cleanup dead copies. If getCanonicalCopiedDef returns a copy (because the
@@ -138,9 +142,12 @@ void CopyPropagation::run() {
 }
 
 SILTransform *swift::createMandatoryCopyPropagation() {
-  return new CopyPropagation(/*pruneDebug*/ true, /*canonicalizeAll*/ true);
+  return new CopyPropagation(/*pruneDebug*/ true, /*canonicalizeAll*/ true,
+                             /*poisonRefs*/ true);
 }
 
 SILTransform *swift::createCopyPropagation() {
-  return new CopyPropagation(/*pruneDebug*/ true, /*canonicalizeAll*/ false);
+  return new CopyPropagation(/*pruneDebug*/ true, /*canonicalizeAll*/ false,
+                             /*poisonRefs*/ false);
 }
+

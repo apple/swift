@@ -3,7 +3,7 @@ class C {
   func withClosure(_ : () -> ()) -> () {}
 
   func f() {
-    // CHECK: define{{.*}}$s11capturelist1CC1fyyFyyXEfU_
+    // CHECK-LABEL: define{{.*}}$s11capturelist1CC1fyyFyyXEfU_
     // There should not be a local weak variable "self" shadowing the
     // implicit self argument.
     // let self
@@ -12,7 +12,7 @@ class C {
     // CHECK: call void @llvm.dbg
     // var weak self
     // CHECK-NOT: call void @llvm.dbg
-    // CHECK: ret void
+    // CHECK-LABEL: ret void
     withClosure { [weak self] in
       guard let s = self else { return }
     }

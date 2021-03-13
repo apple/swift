@@ -1,6 +1,11 @@
 // RUN: %target-sil-opt -diagnostics -enable-sil-opaque-values %s | \
-// RUN:     %target-sil-opt -Onone-performance -enable-sil-opaque-values -emit-sorted-sil | \
+// RUN:     %target-sil-opt -Onone-performance -enable-sil-opaque-values -emit-sorted-sil -sil-disable-pass=mandatory-copy-propagation | \
 // RUN:     %FileCheck %s
+
+// Using -sil-disable-pass=mandatory-copy-propagation to pattern match
+// against older SIL output. At least until -enable-copy-propagation
+// has been around long enough in the same form to be worth rewriting
+// CHECK lines.
 
 import Builtin
 

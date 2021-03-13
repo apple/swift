@@ -42,7 +42,7 @@ var lens = Lens(Rectangle(topLeft: topLeft,
 // CHECK: function_ref @$s29keypath_dynamic_member_lookup4LensV0B6MemberACyqd__Gs15WritableKeyPathCyxqd__G_tcluig
 // CHECK-NEXT: apply %45<Rectangle, Point>({{.*}})
 // CHECK: function_ref @$s29keypath_dynamic_member_lookup4LensV0B6MemberACyqd__Gs7KeyPathCyxqd__G_tcluig
-// CHECK-NEXT: apply %54<Point, Int>({{.*}})
+// CHECK-NEXT: apply %{{.*}}<Point, Int>({{.*}})
 _ = lens.topLeft.x
 
 // CHECK: function_ref @$s29keypath_dynamic_member_lookup4LensV0B6MemberACyqd__Gs15WritableKeyPathCyxqd__G_tcluig

@@ -1,4 +1,8 @@
-// RUN: %target-swift-frontend -emit-sil %s | %FileCheck %s
+// RUN: %target-swift-frontend -emit-sil -disable-copy-propagation %s | %FileCheck %s
+
+// Using -disable-copy-propagation to pattern match against older SIL
+// output. At least until -enable-copy-propagation has been around
+// long enough in the same form to be worth rewriting CHECK lines.
 
 // High-level tests that DI handles early returns from failable and throwing
 // initializers properly. The main complication is conditional release of self

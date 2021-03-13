@@ -1,4 +1,8 @@
-// RUN: %target-swift-frontend -emit-sil -disable-objc-attr-requires-foundation-module %s | %FileCheck %s
+// RUN: %target-swift-frontend -emit-sil -disable-copy-propagation -disable-objc-attr-requires-foundation-module %s | %FileCheck %s
+
+// Using -disable-copy-propagation to pattern match against older SIL
+// output. At least until -enable-copy-propagation has been around
+// long enough in the same form to be worth rewriting CHECK lines.
 
 // REQUIRES: objc_interop
 

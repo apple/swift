@@ -1,5 +1,9 @@
-// RUN: %target-swift-frontend %s -sil-verify-all -emit-sil -o - -I %S/Inputs/usr/include | %FileCheck %s
+// RUN: %target-swift-frontend %s -sil-verify-all -emit-sil -disable-copy-propagation -o - -I %S/Inputs/usr/include | %FileCheck %s
 // REQUIRES: objc_interop
+
+// Using -disable-copy-propagation to pattern match against older SIL
+// output. At least until -enable-copy-propagation has been around
+// long enough in the same form to be worth rewriting CHECK lines.
 
 import Foundation
 import ClosureLifetimeFixupObjC

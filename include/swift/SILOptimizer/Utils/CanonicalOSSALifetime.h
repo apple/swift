@@ -93,6 +93,7 @@
 #ifndef SWIFT_SILOPTIMIZER_UTILS_CANONICALOSSALIFETIME_H
 #define SWIFT_SILOPTIMIZER_UTILS_CANONICALOSSALIFETIME_H
 
+#include "swift/Basic/SmallPtrSetVector.h"
 #include "swift/SIL/SILInstruction.h"
 #include "swift/SILOptimizer/Analysis/DominanceAnalysis.h"
 #include "swift/SILOptimizer/Analysis/NonLocalAccessBlockAnalysis.h"
@@ -123,6 +124,13 @@ class CanonicalOSSAConsumeInfo {
   /// that should be canonicalized separately.
   llvm::SmallDenseMap<SILBasicBlock *, CopyValueInst *, 4> persistentCopies;
 
+  /// The set of non-destroy consumes that need to be poisoned. This is
+  /// determined in two steps. First findOrInsertDestroyInBlock() checks if the
+  /// lifetime shrank within the block. Second rewriteCopies() checks if the
+  /// consume is in remnantLiveOutBlock(). Finally injectPoison() inserts new
+  /// copies and poison destroys for everything in this set.
+  SmallPtrSetVector<SILInstruction *, 4> needsPoisonConsumes;
+
 public:
   bool hasUnclaimedConsumes() const { return !finalBlockConsumes.empty(); }
 
@@ -130,6 +138,19 @@ public:
     finalBlockConsumes.clear();
     debugAfterConsume.clear();
     persistentCopies.clear();
+    needsPoisonConsumes.clear();
+  }
+
+  void recordNeedsPoison(SILInstruction *consume) {
+    needsPoisonConsumes.insert(consume);
+  }
+
+  bool needsPoison(SILInstruction *consume) const {
+    return needsPoisonConsumes.count(consume);
+  }
+
+  ArrayRef<SILInstruction *> getNeedsPoisonConsumes() const {
+    return needsPoisonConsumes.getArrayRef();
   }
 
   bool hasFinalConsumes() const { return !finalBlockConsumes.empty(); }
@@ -156,6 +177,11 @@ public:
   /// that instructions are only visited once.
   void recordDebugAfterConsume(DebugValueInst *dvi) {
     debugAfterConsume.push_back(dvi);
+  }
+
+  void popDebugAfterConsume(DebugValueInst *dvi) {
+    if (!debugAfterConsume.empty() && debugAfterConsume.back() == dvi)
+      debugAfterConsume.pop_back();
   }
 
   ArrayRef<DebugValueInst *> getDebugInstsAfterConsume() const {
@@ -188,6 +214,9 @@ private:
   /// If true, then debug_value instructions outside of non-debug
   /// liveness may be pruned during canonicalization.
   bool pruneDebugMode;
+
+  /// If true, then new destroy_value instructions will be poison.
+  bool poisonRefsMode;
 
   NonLocalAccessBlockAnalysis *accessBlockAnalysis;
   // Lazily initialize accessBlocks only when
@@ -232,16 +261,26 @@ private:
   /// ending". end_borrows do not end a liverange that may include owned copies.
   PrunedLiveness liveness;
 
+  /// remnantLiveOutBlocks are part of the original extended lifetime that are
+  /// not in canonical pruned liveness. There is a path from a PrunedLiveness
+  /// boundary to an original destroy that passes through this block.
+  ///
+  /// These blocks would be equivalent to PrunedLiveness::LiveOut if
+  /// PrunedLiveness were recomputed using all original destroys as interesting
+  /// uses, minus blocks already marked PrunedLiveness::LiveOut. (These blocks
+  /// may be in PrunedLiveness::LiveWithin).
+  SmallSetVector<SILBasicBlock *, 8> remnantLiveOutBlocks;
+
   /// Information about consuming instructions discovered in this caonical OSSA
   /// lifetime.
   CanonicalOSSAConsumeInfo consumes;
 
 public:
-  CanonicalizeOSSALifetime(bool pruneDebugMode,
+  CanonicalizeOSSALifetime(bool pruneDebugMode, bool poisonRefsMode,
                            NonLocalAccessBlockAnalysis *accessBlockAnalysis,
                            DominanceAnalysis *dominanceAnalysis,
                            DeadEndBlocks *deBlocks)
-      : pruneDebugMode(pruneDebugMode),
+      : pruneDebugMode(pruneDebugMode), poisonRefsMode(poisonRefsMode),
         accessBlockAnalysis(accessBlockAnalysis),
         dominanceAnalysis(dominanceAnalysis), deBlocks(deBlocks) {}
 
@@ -263,6 +302,7 @@ public:
     consumingBlocks.clear();
     debugValues.clear();
     liveness.clear();
+    remnantLiveOutBlocks.clear();
   }
 
   bool hasChanged() const { return changed; }
@@ -309,7 +349,12 @@ protected:
 
   void findOrInsertDestroys();
 
+  void insertDestroyOnCFGEdge(SILBasicBlock *predBB, SILBasicBlock *succBB,
+                              bool needsPoison);
+
   void rewriteCopies();
+
+  void injectPoison();
 };
 
 } // end namespace swift

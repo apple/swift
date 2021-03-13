@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend %s -emit-sil -emit-verbose-sil -g -o - | %FileCheck %s
+// RUN: %target-swift-frontend %s -emit-sil -disable-copy-propagation -emit-verbose-sil -g -o - | %FileCheck %s --check-prefixes=CHECK,CHECK-NCP
+// RUN: %target-swift-frontend %s -emit-sil -enable-copy-propagation -emit-verbose-sil -g -o - | %FileCheck %s --check-prefixes=CHECK,CHECK-CP
 
 class NSURL {}
 
@@ -26,14 +27,15 @@ class AppDelegate {
         // Verify that the branch's location is >= the cleanup's location.
         // (The implicit false block of the conditional
         //  below inherits the location from the condition.)
+        // CHECK-CP: destroy_value [poison] {{.*}}$NSPathControlItem{{.*}}line:[[@LINE+2]]
         // CHECK: br{{.*}}line:[[@LINE+1]]
         if let url = item.URL
         {
           LogStr( "There is a url" )
         }
         // Verify that the branch's location is >= the cleanup's location.
-        // CHECK: strong_release{{.*}}$NSPathControlItem{{.*}}line:[[@LINE+2]]
-        // CHECK-NEXT: br{{.*}}line:[[@LINE+1]]
+        // CHECK-NCP: strong_release{{.*}}$NSPathControlItem{{.*}}line:[[@LINE+2]]
+        // CHECK: br{{.*}}line:[[@LINE+1]]
       }
     }
   }

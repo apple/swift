@@ -330,6 +330,11 @@ bool OwnershipModelEliminatorVisitor::visitDestroyValueInst(
   if (dvi->getOperand()->getType().isAddressOnly(*dvi->getFunction()))
     return false;
 
+  // A destroy_value that poisons refs should not be replaced.
+  if (dvi->poisonRefs()) {
+    return false;
+  }
+
   // Now that we have set the unqualified ownership flag, destroy value
   // operation will delegate to the appropriate strong_release, etc.
   withBuilder<void>(dvi, [&](SILBuilder &b, SILLocation loc) {

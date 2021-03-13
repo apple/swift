@@ -1,5 +1,9 @@
-// RUN: %target-swift-frontend -module-name A -verify -emit-sil -import-objc-header %S/Inputs/Closure.h -disable-objc-attr-requires-foundation-module %s | %FileCheck %s
-// RUN: %target-swift-frontend -module-name A -verify -emit-sil -import-objc-header %S/Inputs/Closure.h -disable-objc-attr-requires-foundation-module -Xllvm -sil-disable-convert-escape-to-noescape-switch-peephole %s | %FileCheck %s --check-prefix=NOPEEPHOLE
+// RUN: %target-swift-frontend -module-name A -verify -emit-sil -import-objc-header %S/Inputs/Closure.h -disable-copy-propagation -disable-objc-attr-requires-foundation-module %s | %FileCheck %s
+// RUN: %target-swift-frontend -module-name A -verify -emit-sil -import-objc-header %S/Inputs/Closure.h -disable-copy-propagation -disable-objc-attr-requires-foundation-module -Xllvm -sil-disable-convert-escape-to-noescape-switch-peephole %s | %FileCheck %s --check-prefix=NOPEEPHOLE
+//
+// Using -disable-copy-propagation to pattern match against older SIL
+// output. At least until -enable-copy-propagation has been around
+// long enough in the same form to be worth rewriting CHECK lines.
 
 // REQUIRES: objc_interop
 

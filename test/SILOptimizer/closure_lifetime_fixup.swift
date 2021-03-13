@@ -1,7 +1,11 @@
 // RUN: %empty-directory(%t)
 // RUN: %target-swift-frontend %S/../Inputs/resilient_struct.swift -enable-library-evolution -emit-module -emit-module-path %t/resilient_struct.swiftmodule
 // RUN: %target-swift-frontend %S/../Inputs/resilient_enum.swift -I %t -enable-library-evolution -emit-module -emit-module-path %t/resilient_enum.swiftmodule
-// RUN: %target-swift-frontend %s -sil-verify-all -emit-sil -I %t -o - | %FileCheck %s --check-prefix=CHECK --check-prefix=%target-os
+// RUN: %target-swift-frontend %s -sil-verify-all -emit-sil -disable-copy-propagation -I %t -o - | %FileCheck %s --check-prefix=CHECK --check-prefix=%target-os
+
+// Using -disable-copy-propagation to pattern match against older SIL
+// output. At least until -enable-copy-propagation has been around
+// long enough in the same form to be worth rewriting CHECK lines.
 
 import resilient_struct
 import resilient_enum

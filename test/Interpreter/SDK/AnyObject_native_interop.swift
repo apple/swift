@@ -16,6 +16,7 @@ autoreleasepool {
 
   // CHECK: {{^}}main.FullyNative{{$}}
   print(c.description!)
+  _fixLifetime(c)
 }
 // CHECK-NEXT: dead
 

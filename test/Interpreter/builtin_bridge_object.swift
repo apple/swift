@@ -65,6 +65,7 @@ if true {
   // CHECK-NEXT: true
   print(x === x2)
   // CHECK-OPT-NEXT: deallocated
+  // CHECK-DBG-NEXT: deallocated
 
   print(nonPointerBits(bo) == 0)
   // CHECK-NEXT: true
@@ -78,7 +79,6 @@ if true {
   _fixLifetime(bo3)
   _fixLifetime(bo4)
 }
-// CHECK-DBG-NEXT: deallocated
 // CHECK-NEXT: deallocated
 
 // Try with all spare bits set.
@@ -94,6 +94,7 @@ if true {
   // CHECK-NEXT: true
   print(x === x2)
   // CHECK-OPT-NEXT: deallocated
+  // CHECK-DBG-NEXT: deallocated
   
   print(nonPointerBits(bo) == NATIVE_SPARE_BITS)
   // CHECK-NEXT: true
@@ -107,7 +108,6 @@ if true {
   _fixLifetime(bo3)
   _fixLifetime(bo4)
 }
-// CHECK-DBG-NEXT: deallocated
 // CHECK-NEXT: deallocated
 
 

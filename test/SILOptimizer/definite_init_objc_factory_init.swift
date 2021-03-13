@@ -1,4 +1,8 @@
-// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -I %S/../IDE/Inputs/custom-modules %s -emit-sil | %FileCheck %s
+// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -I %S/../IDE/Inputs/custom-modules %s -emit-sil -disable-copy-propagation | %FileCheck %s
+
+// Using -disable-copy-propagation to pattern match against older SIL
+// output. At least until -enable-copy-propagation has been around
+// long enough in the same form to be worth rewriting CHECK lines.
 
 // REQUIRES: objc_interop
 
