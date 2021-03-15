@@ -173,6 +173,16 @@ extension _StringGuts {
   }
 }
 
+// Convenience optional getters.
+extension _StringGuts {
+  internal var cocoaObject: _CocoaString? {
+     guard _object.isLarge && _object.largeIsCocoa && !_object.isImmortal else {
+       return nil
+     }
+     return _object.cocoaObject
+  }
+}
+
 // Internal invariants
 extension _StringGuts {
   #if !INTERNAL_CHECKS_ENABLED

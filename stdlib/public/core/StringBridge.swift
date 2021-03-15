@@ -348,16 +348,19 @@ internal func _bridgeTagged(
 #endif
 
 @_effects(readonly)
-private func _NSStringASCIIPointer(_ str: _StringSelectorHolder) -> UnsafePointer<UInt8>? {
+private func _NSStringASCIIPointer(
+  _ str: _StringSelectorHolder, requiresZeroTerminated: Bool
+) -> UnsafePointer<UInt8>? {
  // TODO(String bridging): Is there a better interface here? Ideally we'd be
   // able to ask for UTF8 rather than just ASCII
-  return str._fastCStringContents(0)?._asUInt8
+  return str._fastCStringContents(requiresZeroTerminated ? 1 : 0)?._asUInt8
 }
 
 @_effects(readonly) // @opaque
 private func _withCocoaASCIIPointer<R>(
   _ str: _CocoaString,
   requireStableAddress: Bool,
+  requiresZeroTerminated: Bool,
   work: (UnsafePointer<UInt8>) -> R?
 ) -> R? {
   #if !(arch(i386) || arch(arm))
@@ -373,7 +376,9 @@ private func _withCocoaASCIIPointer<R>(
   }
   #endif
   defer { _fixLifetime(str) }
-  if let ptr = _NSStringASCIIPointer(_objc(str)) {
+  if let ptr = _NSStringASCIIPointer(
+    _objc(str), requiresZeroTerminated: requiresZeroTerminated
+  ) {
     return work(ptr)
   }
   return nil
@@ -384,13 +389,22 @@ internal func withCocoaASCIIPointer<R>(
   _ str: _CocoaString,
   work: (UnsafePointer<UInt8>) -> R?
 ) -> R? {
-  return _withCocoaASCIIPointer(str, requireStableAddress: false, work: work)
+  return _withCocoaASCIIPointer(
+    str,
+    requireStableAddress: false,
+    requiresZeroTerminated: false,
+    work: work)
 }
 
 @_effects(readonly)
-internal func stableCocoaASCIIPointer(_ str: _CocoaString)
-  -> UnsafePointer<UInt8>? {
-  return _withCocoaASCIIPointer(str, requireStableAddress: true, work: { $0 })
+internal func stableCocoaASCIIPointer(
+  _ str: _CocoaString, requiresZeroTerminated: Bool
+) -> UnsafePointer<UInt8>? {
+  return _withCocoaASCIIPointer(
+    str,
+    requireStableAddress: true,
+    requiresZeroTerminated: requiresZeroTerminated,
+    work: { $0 })
 }
 
 private enum CocoaStringPointer {
@@ -404,7 +418,9 @@ private enum CocoaStringPointer {
 private func _getCocoaStringPointer(
   _ cfImmutableValue: _CocoaString
 ) -> CocoaStringPointer {
-  if let ascii = stableCocoaASCIIPointer(cfImmutableValue) {
+  if let ascii = stableCocoaASCIIPointer(
+    cfImmutableValue, requiresZeroTerminated: false
+  ) {
     return .ascii(ascii)
   }
   if let utf16Ptr = _stdlib_binary_CFStringGetCharactersPtr(cfImmutableValue) {
@@ -458,7 +474,7 @@ private func getConstantTaggedCocoaContents(_ cocoaString: _CocoaString) ->
   }
 
   let taggedValue = unsafeBitCast(cocoaString, to: UInt.self)
-  
+
 
 
   guard taggedValue & constantTagMask == expectedConstantTagValue else {

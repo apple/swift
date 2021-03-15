@@ -105,7 +105,7 @@ extension _StringGuts {
 ╞════════════════════╬═══════════════════════╪═════════════════════╪═════════════╪═════════════════╡
 │ shared             ║ __SharedStringStorage │ shared pointer      │ false       │ false           │
 ├────────────────────╫───────────────────────┼─────────────────────┼─────────────┼─────────────────┤
-│ shared, bridged    ║ _CocoaString          │ cocoa ASCII pointer │ false       │ false           │
+│ shared, bridged    ║ _CocoaString          │ cocoa ASCII pointer │ false       │ !nullTerminated │
 ╞════════════════════╬═══════════════════════╪═════════════════════╪═════════════╪═════════════════╡
 │ foreign            ║ extra allocation      │ `owner` pointer     │ false       │ true            │
 └────────────────────╨───────────────────────┴─────────────────────┴─────────────┴─────────────────┘
@@ -141,13 +141,21 @@ extension _StringGuts {
           usesScratch: true, allocatedMemory: false)
       }
     } else if _fastPath(self.isFastUTF8) {
-      let ptr: ToPointer =
-        _convertPointerToPointerArgument(self._object.fastUTF8.baseAddress!)
-      return (
-        owner: self._object.owner,
-        ptr,
-        length: self._object.count,
-        usesScratch: false, allocatedMemory: false)
+      let utf8Ptr: UnsafePointer<UInt8>?
+      if let cocoa = self.cocoaObject {
+        // TODO(String performance): Change this to a bit check in _object of
+        // whether shared is zero terminated
+        utf8Ptr = stableCocoaASCIIPointer(cocoa, requiresZeroTerminated: true)
+      } else {
+        utf8Ptr = self._object.fastUTF8.baseAddress
+      }
+      if let utf8Ptr = utf8Ptr {
+        return (
+          owner: self._object.owner,
+          _convertPointerToPointerArgument(utf8Ptr),
+          length: self._object.count,
+          usesScratch: false, allocatedMemory: false)
+      }
     }
 
     let (object, ptr, len) = self._allocateForDeconstruct()

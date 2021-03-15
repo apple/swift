@@ -802,7 +802,9 @@ extension _StringObject {
     _internalInvariant(largeFastIsShared)
 #if _runtime(_ObjC)
     if largeIsCocoa {
-      return stableCocoaASCIIPointer(cocoaObject)._unsafelyUnwrappedUnchecked
+      return stableCocoaASCIIPointer(
+        cocoaObject, requiresZeroTerminated: false
+      )._unsafelyUnwrappedUnchecked
     }
 #endif
 
@@ -887,7 +889,7 @@ extension _StringObject {
   @inline(__always)
   internal var isNFC: Bool {
     if isSmall {
-      // TODO(String performance): Worth implementing more sophisiticated
+      // TODO(String performance): Worth implementing more sophisticated
       // check, or else performing normalization on- construction. For now,
       // approximate it with isASCII
       return smallIsASCII
@@ -930,10 +932,11 @@ extension _StringObject {
     // Small strings nul-terminate when spilling for contiguous access
     if isSmall { return true }
 
-    // TODO(String performance): Use performance flag, which could be more
-    // inclusive. For now, we only know native strings and small strings (when
-    // accessed) are. We could also know about some shared strings.
-
+    // TODO(String performance): Add performance flag for zero terminated. We
+    // can check bridged shared strings when bridging and normal shared
+    // strings can have it be a condition on construction. For now, we do the
+    // more conservative approach of only allowing strings we allocated (and
+    // know are null-terminated).
     return largeFastIsTailAllocated
   }
 }
