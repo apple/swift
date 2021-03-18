@@ -370,8 +370,8 @@ func testClonableExistential(_ v: Clonable, _ vv: Clonable.Type) {
   let _: (Bool) -> Clonable? = id(vv.returnSelfIUOStatic as (Bool) -> Clonable?)
   let _: Clonable! = id(vv.returnSelfIUOStatic(true))
 
-  let _ = v.badClonerFn() // expected-error {{member 'badClonerFn' cannot be used on value of protocol type 'Clonable'; use a generic constraint instead}}
-  let _ = v.veryBadClonerFn() // expected-error {{member 'veryBadClonerFn' cannot be used on value of protocol type 'Clonable'; use a generic constraint instead}}
+  let _ = v.badClonerFn() // expected-error {{member 'badClonerFn' cannot be used on value of protocol type 'Clonable'; use a conformance constraint instead}}
+  let _ = v.veryBadClonerFn() // expected-error {{member 'veryBadClonerFn' cannot be used on value of protocol type 'Clonable'; use a conformance constraint instead}}
 
 }
 

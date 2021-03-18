@@ -499,9 +499,9 @@ extension OpaqueProtocol {
 
 func takesOpaqueProtocol(existential: OpaqueProtocol) {
   // this is not allowed:
-  _ = existential.asSome // expected-error{{member 'asSome' cannot be used on value of protocol type 'OpaqueProtocol'; use a generic constraint instead}}
-  _ = existential.getAsSome() // expected-error{{member 'getAsSome' cannot be used on value of protocol type 'OpaqueProtocol'; use a generic constraint instead}}
-  _ = existential[0] // expected-error{{member 'subscript' cannot be used on value of protocol type 'OpaqueProtocol'; use a generic constraint instead}}
+  _ = existential.asSome // expected-error{{member 'asSome' cannot be used on value of protocol type 'OpaqueProtocol'; use a conformance constraint instead}}
+  _ = existential.getAsSome() // expected-error{{member 'getAsSome' cannot be used on value of protocol type 'OpaqueProtocol'; use a conformance constraint instead}}
+  _ = existential[0] // expected-error{{member 'subscript' cannot be used on value of protocol type 'OpaqueProtocol'; use a conformance constraint instead}}
 }
 
 func takesOpaqueProtocol<T : OpaqueProtocol>(generic: T) {

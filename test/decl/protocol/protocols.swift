@@ -268,7 +268,7 @@ struct WrongIsEqual : IsEqualComparable { // expected-error{{type 'WrongIsEqual'
 //===----------------------------------------------------------------------===//
 
 func existentialSequence(_ e: Sequence) { // expected-error{{has Self or associated type requirements}}
-  var x = e.makeIterator() // expected-error{{member 'makeIterator' cannot be used on value of protocol type 'Sequence'; use a generic constraint instead}}
+  var x = e.makeIterator() // expected-error{{member 'makeIterator' cannot be used on value of protocol type 'Sequence'; use a conformance constraint instead}}
   x.next()
   x.nonexistent()
 }
@@ -280,7 +280,7 @@ protocol HasSequenceAndStream {
 
 func existentialSequenceAndStreamType(_ h: HasSequenceAndStream) { // expected-error{{has Self or associated type requirements}}
   // FIXME: Crummy diagnostics.
-  var x = h.getR() // expected-error{{member 'getR' cannot be used on value of protocol type 'HasSequenceAndStream'; use a generic constraint instead}}
+  var x = h.getR() // expected-error{{member 'getR' cannot be used on value of protocol type 'HasSequenceAndStream'; use a conformance constraint instead}}
   x.makeIterator()
   x.next()
 
@@ -309,7 +309,7 @@ struct DictionaryIntInt {
 
 func testSubscripting(_ iis: IntIntSubscriptable, i_s: IntSubscriptable) { // expected-error{{has Self or associated type requirements}}
   var i: Int = iis[17] 
-  var i2 = i_s[17] // expected-error{{member 'subscript' cannot be used on value of protocol type 'IntSubscriptable'; use a generic constraint instead}}
+  var i2 = i_s[17] // expected-error{{member 'subscript' cannot be used on value of protocol type 'IntSubscriptable'; use a conformance constraint instead}}
 }
 
 //===----------------------------------------------------------------------===//
@@ -488,18 +488,18 @@ func g<T : C2>(_ x : T) {
 
 class C3 : P1 {} // expected-error{{type 'C3' does not conform to protocol 'P1'}}
 func h<T : C3>(_ x : T) {
-  _ = x as P1 // expected-error{{protocol 'P1' can only be used as a generic constraint because it has Self or associated type requirements}}
+  _ = x as P1 // expected-error{{protocol 'P1' can only be used as a conformance constraint because it has Self or associated type requirements}}
 }
 func i<T : C3>(_ x : T?) -> Bool {
-  return x is P1 // expected-error{{protocol 'P1' can only be used as a generic constraint because it has Self or associated type requirements}}
+  return x is P1 // expected-error{{protocol 'P1' can only be used as a conformance constraint because it has Self or associated type requirements}}
   // FIXME: Bogus diagnostic.  See SR-11920.
   // expected-warning@-2 {{checking a value with optional type 'T?' against dynamic type 'P1' succeeds whenever the value is non-nil; did you mean to use '!= nil'?}}
 }
 func j(_ x : C1) -> Bool {
-  return x is P1 // expected-error{{protocol 'P1' can only be used as a generic constraint because it has Self or associated type requirements}}
+  return x is P1 // expected-error{{protocol 'P1' can only be used as a conformance constraint because it has Self or associated type requirements}}
 }
 func k(_ x : C1?) -> Bool {
-  return x is P1 // expected-error{{protocol 'P1' can only be used as a generic constraint because it has Self or associated type requirements}}
+  return x is P1 // expected-error{{protocol 'P1' can only be used as a conformance constraint because it has Self or associated type requirements}}
 }
 
 

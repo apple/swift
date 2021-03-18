@@ -3,7 +3,7 @@
 protocol HasSelfRequirements {
   func foo(_ x: Self)
 
-  func returnsOwnProtocol() -> HasSelfRequirements // expected-error{{protocol 'HasSelfRequirements' can only be used as a generic constraint because it has Self or associated type requirements}} {{educational-notes=associated-type-requirements}}
+  func returnsOwnProtocol() -> HasSelfRequirements // expected-error{{protocol 'HasSelfRequirements' can only be used as a conformance constraint because it has Self or associated type requirements}} {{educational-notes=associated-type-requirements}}
 }
 protocol Bar {
   // init() methods should not prevent use as an existential.
@@ -36,10 +36,10 @@ func useCompoAsWhereRequirement<T>(_ x: T) where T: HasSelfRequirements & Bar {}
 func useCompoAliasAsWhereRequirement<T>(_ x: T) where T: Compo {}
 func useNestedCompoAliasAsWhereRequirement<T>(_ x: T) where T: CompoAssocType.Compo {}
 
-func useAsType(_ x: HasSelfRequirements) { } // expected-error{{protocol 'HasSelfRequirements' can only be used as a generic constraint}}
-func useCompoAsType(_ x: HasSelfRequirements & Bar) { } // expected-error{{protocol 'HasSelfRequirements' can only be used as a generic constraint}}
-func useCompoAliasAsType(_ x: Compo) { } // expected-error{{protocol 'HasSelfRequirements' can only be used as a generic constraint}}
-func useNestedCompoAliasAsType(_ x: CompoAssocType.Compo) { } // expected-error{{protocol 'HasSelfRequirements' can only be used as a generic constraint}}
+func useAsType(_ x: HasSelfRequirements) { } // expected-error{{protocol 'HasSelfRequirements' can only be used as a conformance constraint}}
+func useCompoAsType(_ x: HasSelfRequirements & Bar) { } // expected-error{{protocol 'HasSelfRequirements' can only be used as a conformance constraint}}
+func useCompoAliasAsType(_ x: Compo) { } // expected-error{{protocol 'HasSelfRequirements' can only be used as a conformance constraint}}
+func useNestedCompoAliasAsType(_ x: CompoAssocType.Compo) { } // expected-error{{protocol 'HasSelfRequirements' can only be used as a conformance constraint}}
 
 struct TypeRequirement<T: HasSelfRequirements> {}
 struct CompoTypeRequirement<T: HasSelfRequirements & Bar> {}
@@ -68,7 +68,7 @@ protocol HasAssoc {
 }
 
 func testHasAssoc(_ x: Any) {
-  if let p = x as? HasAssoc { // expected-error {{protocol 'HasAssoc' can only be used as a generic constraint}} {{educational-notes=associated-type-requirements}}
+  if let p = x as? HasAssoc { // expected-error {{protocol 'HasAssoc' can only be used as a conformance constraint}} {{educational-notes=associated-type-requirements}}
     p.foo() // don't crash here.
   }
 }
@@ -78,18 +78,18 @@ protocol InheritsAssoc : HasAssoc {
   func silverSpoon()
 }
 
-func testInheritsAssoc(_ x: InheritsAssoc) { // expected-error {{protocol 'InheritsAssoc' can only be used as a generic constraint}}
+func testInheritsAssoc(_ x: InheritsAssoc) { // expected-error {{protocol 'InheritsAssoc' can only be used as a conformance constraint}}
   x.silverSpoon()
 }
 
 // SR-38
-var b: HasAssoc // expected-error {{protocol 'HasAssoc' can only be used as a generic constraint because it has Self or associated type requirements}}
+var b: HasAssoc // expected-error {{protocol 'HasAssoc' can only be used as a conformance constraint because it has Self or associated type requirements}}
 
 // Further generic constraint error testing - typealias used inside statements
 protocol P {}
 typealias MoreHasAssoc = HasAssoc & P
 func testHasMoreAssoc(_ x: Any) {
-  if let p = x as? MoreHasAssoc { // expected-error {{protocol 'HasAssoc' can only be used as a generic constraint}}
+  if let p = x as? MoreHasAssoc { // expected-error {{protocol 'HasAssoc' can only be used as a conformance constraint}}
     p.foo() // don't crash here.
   }
 }
@@ -105,35 +105,35 @@ _ = Struct1<Pub & Bar>.self
 
 typealias BadAlias<T> = T
 where T : HasAssoc, T.Assoc == HasAssoc
-// expected-error@-1 {{protocol 'HasAssoc' can only be used as a generic constraint because it has Self or associated type requirements}}
+// expected-error@-1 {{protocol 'HasAssoc' can only be used as a conformance constraint because it has Self or associated type requirements}}
 
 struct BadStruct<T>
 where T : HasAssoc,
       T.Assoc == HasAssoc {}
-// expected-error@-1 {{protocol 'HasAssoc' can only be used as a generic constraint because it has Self or associated type requirements}}
+// expected-error@-1 {{protocol 'HasAssoc' can only be used as a conformance constraint because it has Self or associated type requirements}}
 
 protocol BadProtocol where T == HasAssoc {
-  // expected-error@-1 {{protocol 'HasAssoc' can only be used as a generic constraint because it has Self or associated type requirements}}
+  // expected-error@-1 {{protocol 'HasAssoc' can only be used as a conformance constraint because it has Self or associated type requirements}}
   associatedtype T
 
   associatedtype U : HasAssoc
     where U.Assoc == HasAssoc
-  // expected-error@-1 {{protocol 'HasAssoc' can only be used as a generic constraint because it has Self or associated type requirements}}
+  // expected-error@-1 {{protocol 'HasAssoc' can only be used as a conformance constraint because it has Self or associated type requirements}}
 }
 
 extension HasAssoc where Assoc == HasAssoc {}
-// expected-error@-1 {{protocol 'HasAssoc' can only be used as a generic constraint because it has Self or associated type requirements}}
+// expected-error@-1 {{protocol 'HasAssoc' can only be used as a conformance constraint because it has Self or associated type requirements}}
 
 func badFunction<T>(_: T)
 where T : HasAssoc,
       T.Assoc == HasAssoc {}
-// expected-error@-1 {{protocol 'HasAssoc' can only be used as a generic constraint because it has Self or associated type requirements}}
+// expected-error@-1 {{protocol 'HasAssoc' can only be used as a conformance constraint because it has Self or associated type requirements}}
 
 struct BadSubscript {
   subscript<T>(_: T) -> Int
   where T : HasAssoc,
         T.Assoc == HasAssoc {
-    // expected-error@-1 {{protocol 'HasAssoc' can only be used as a generic constraint because it has Self or associated type requirements}}
+    // expected-error@-1 {{protocol 'HasAssoc' can only be used as a conformance constraint because it has Self or associated type requirements}}
     get {}
     set {}
   }

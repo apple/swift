@@ -16,7 +16,7 @@ While all Swift protocols can be used as generic constraints and as part of opaq
 
 ```swift
 func foo(bar: Identifiable) { /* ... */ }
-// error: protocol 'Identifiable' can only be used as a generic constraint because it has Self or associated type requirements
+// error: protocol 'Identifiable' can only be used as a conformance constraint because it has Self or associated type requirements
 ```
 
 Protocols like `Identifiable` which have `Self` or associated type requirements cannot be used as types because such types would rarely be useful in practice. They would be unable to allow use of `Self` or associated type requirements like `var id: ID { get }` because the associated type is not specified.

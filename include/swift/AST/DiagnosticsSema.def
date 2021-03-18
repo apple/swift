@@ -138,7 +138,7 @@ ERROR(could_not_use_instance_member_on_type,none,
       "%select{| instance of nested}3 type %0",
       (Type, DeclNameRef, Type, bool))
 ERROR(could_not_use_member_on_existential,none,
-      "member %1 cannot be used on value of protocol type %0; use a generic"
+      "member %1 cannot be used on value of protocol type %0; use a conformance"
       " constraint instead",
       (Type, DeclNameRef))
 FIXIT(replace_with_type,"%0",(Type))
@@ -892,7 +892,7 @@ NOTE(object_literal_resolve_import,none,
 ERROR(use_local_before_declaration,none,
       "use of local variable %0 before its declaration", (DeclNameRef))
 ERROR(unsupported_existential_type,none,
-      "protocol %0 can only be used as a generic constraint because it has "
+      "protocol %0 can only be used as a conformance constraint because it has "
       "Self or associated type requirements", (Identifier))
 
 ERROR(decl_does_not_exist_in_module,none,

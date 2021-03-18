@@ -32,7 +32,7 @@ struct ConformsToOuterProtocol : OuterProtocol {
   typealias Hen = Int
 
   func f() { let _ = InnerProtocol.self }
-  // expected-error@-1 {{protocol 'InnerProtocol' can only be used as a generic constraint because it has Self or associated type requirements}}
+  // expected-error@-1 {{protocol 'InnerProtocol' can only be used as a conformance constraint because it has Self or associated type requirements}}
 }
 
 protocol Racoon {

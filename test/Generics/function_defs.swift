@@ -37,7 +37,7 @@ func existential<T : EqualComparable, U : EqualComparable>(_ t1: T, t2: T, u: U)
   var eqComp : EqualComparable = t1 // expected-error{{protocol 'EqualComparable' can only be used as a generic constraint}}
   eqComp = u
   if t1.isEqual(eqComp) {} // expected-error{{cannot convert value of type 'EqualComparable' to expected argument type 'T'}}
-  if eqComp.isEqual(t2) {} // expected-error{{member 'isEqual' cannot be used on value of protocol type 'EqualComparable'; use a generic constraint instead}}
+  if eqComp.isEqual(t2) {} // expected-error{{member 'isEqual' cannot be used on value of protocol type 'EqualComparable'; use a conformance constraint instead}}
 }
 
 protocol OtherEqualComparable {
