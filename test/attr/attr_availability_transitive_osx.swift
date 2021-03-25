@@ -47,10 +47,10 @@ var osx_init_osx = osx() // OK
 var osx_extension_init_osx = osx() // expected-error {{'osx()' is unavailable}}
 
 @available(OSX, unavailable)
-var osx_inner_init_osx = { let inner_var = osx() } // OK
+var osx_inner_init_osx = { let _ = osx() } // OK
 
 @available(OSXApplicationExtension, unavailable)
-var osx_extension_inner_init_osx = { let inner_var = osx() } // expected-error {{'osx()' is unavailable}}
+var osx_extension_inner_init_osx = { let _ = osx() } // expected-error {{'osx()' is unavailable}}
 
 struct Outer {
   @available(OSX, unavailable)
@@ -90,10 +90,10 @@ struct Outer {
   var (osx_extension_init_deconstruct1_only_osx, _) = osx_pair() // expected-error {{'osx_pair()' is unavailable}}
 
   @available(OSX, unavailable)
-  var osx_inner_init_osx = { let inner_var = osx() } // OK
+  var osx_inner_init_osx = { let _ = osx() } // OK
   
   @available(OSXApplicationExtension, unavailable)
-  var osx_extension_inner_init_osx = { let inner_var = osx() } // expected-error {{'osx()' is unavailable}}
+  var osx_extension_inner_init_osx = { let _ = osx() } // expected-error {{'osx()' is unavailable}}
 }
 
 extension Outer {

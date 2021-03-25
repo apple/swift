@@ -313,7 +313,6 @@ struct SS SS : Multi {
     // expected-error @-1 {{found an unexpected second identifier in variable declaration; is there an accidental break?}}
     // expected-note @-2 {{join the identifiers together}} {{9-12=cd}}
     // expected-note @-3 {{join the identifiers together with camel-case}} {{9-12=cD}}
-    // expected-warning @-4 {{initialization of variable 'c' was never used; consider replacing with assignment to '_' or removing it}}
     
     let _ = 0
   }

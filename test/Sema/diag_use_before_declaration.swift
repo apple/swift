@@ -11,22 +11,12 @@ func sr5163() {
   }
 }
 
-// SR-6726
-var foo: Int?
-
-func test() {
-  guard let bar = foo else {
-    return
-  }
-  let foo = String(bar) // expected-warning {{initialization of immutable value 'foo' was never used; consider replacing with assignment to '_' or removing it}}
-}
-
 // SR-7660
 class C {
   var variable: Int?
   func f() {
     guard let _ = variable else { return }
-    let variable = 1 // expected-warning {{initialization of immutable value 'variable' was never used; consider replacing with assignment to '_' or removing it}}
+    let variable = 1
   }
 }
 
@@ -57,25 +47,14 @@ func nested_scope_1() {
   let x = 1
 }
 
-func nested_scope_2() {
-  do {
-    let x = 11
-    do {
-      let _ = x
-      let x = 111 // expected-warning {{initialization of immutable value 'x' was never used; consider replacing with assignment to '_' or removing it}}
-    }
-  }
-  let x = 1  // expected-warning {{initialization of immutable value 'x' was never used; consider replacing with assignment to '_' or removing it}}
-}
-
 func nested_scope_3() {
   let x = 1
   do {
     do {
       let _ = x
-      let x = 111 // expected-warning {{initialization of immutable value 'x' was never used; consider replacing with assignment to '_' or removing it}}
+      let x = 111
     }
-    let x = 11 // expected-warning {{initialization of immutable value 'x' was never used; consider replacing with assignment to '_' or removing it}}
+    let x = 11
   }
 }
 
@@ -88,7 +67,7 @@ class Ty {
 
   func fn() {
     let _ = v
-    let v = 1 // expected-warning {{initialization of immutable value 'v' was never used; consider replacing with assignment to '_' or removing it}}
+    let v = 1
   }
 }
 
@@ -100,7 +79,7 @@ let g = 0
 
 func file_scope_1() {
   let _ = g
-  let g = 1 // expected-warning {{initialization of immutable value 'g' was never used; consider replacing with assignment to '_' or removing it}}
+  let g = 1
 }
 
 func file_scope_2() {
@@ -114,7 +93,7 @@ func file_scope_2() {
 
 func module_scope_1() {
   let _ = print // Legal use of func print declared in Swift Standard Library
-  let print = "something" // expected-warning {{initialization of immutable value 'print' was never used; consider replacing with assignment to '_' or removing it}}
+  let print = "something"
 }
 
 func module_scope_2() {

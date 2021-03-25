@@ -46,6 +46,5 @@ dummy {
 
 dummy {
   @resultBuilder var attributedVar: Int = 123 // expected-error {{@resultBuilder' attribute cannot be applied to this declaration}}
-  // expected-warning@-1 {{variable 'attributedVar' was never used; consider replacing with '_' or removing it}}
   ()
 }

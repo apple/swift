@@ -4,10 +4,6 @@
 // RUN: %swift -typecheck -target %target-triple %s -fixit-all -emit-fixits-path %t.remap
 // RUN: c-arcmt-test %t.remap | arcmt-test -verify-transformed-files %s.result
 
-func ftest1() {
-  let myvar = 0
-}
-
 func foo() -> Int {
   do {
   } catch var err {

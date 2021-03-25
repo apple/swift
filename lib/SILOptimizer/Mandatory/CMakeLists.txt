@@ -13,6 +13,7 @@ target_sources(swiftSILOptimizer PRIVATE
   DiagnoseLifetimeIssues.cpp
   DiagnoseStaticExclusivity.cpp
   DiagnoseUnreachable.cpp
+  DiagnoseVarUsage.cpp
   Differentiation.cpp
   IRGenPrepare.cpp
   MandatoryInlining.cpp

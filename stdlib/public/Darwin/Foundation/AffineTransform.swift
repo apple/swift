@@ -195,15 +195,13 @@ public struct AffineTransform : ReferenceConvertible, Hashable, CustomStringConv
                = [    (m21_T*m11_M + m22_T*m21_M)       (m21_T*m12_M + m22_T*m22_M)    0 ]
                  [ (tX_T*m11_M + tY_T*m21_M + tX_M)  (tX_T*m12_M + tY_T*m22_M + tY_M)  1 ]
      */
-    private func concatenated(_ other: AffineTransform) -> AffineTransform {
-        let (t, m) = (self, other)
-        
+    private func concatenated(_ m: AffineTransform) -> AffineTransform {
         // this could be optimized with a vector version
         return AffineTransform(
-            m11: (t.m11 * m.m11) + (t.m12 * m.m21), m12: (t.m11 * m.m12) + (t.m12 * m.m22),
-            m21: (t.m21 * m.m11) + (t.m22 * m.m21), m22: (t.m21 * m.m12) + (t.m22 * m.m22),
-            tX: (t.tX * m.m11) + (t.tY * m.m21) + m.tX,
-            tY: (t.tX * m.m12) + (t.tY * m.m22) + m.tY
+            m11: (self.m11 * m.m11) + (self.m12 * m.m21), m12: (self.m11 * m.m12) + (self.m12 * m.m22),
+            m21: (self.m21 * m.m11) + (self.m22 * m.m21), m22: (self.m21 * m.m12) + (self.m22 * m.m22),
+            tX: (self.tX * m.m11) + (self.tY * m.m21) + m.tX,
+            tY: (self.tX * m.m12) + (self.tY * m.m22) + m.tY
         )
     }
     

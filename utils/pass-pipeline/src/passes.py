@@ -19,6 +19,7 @@ DCE = Pass('DCE')
 DeadFunctionElimination = Pass('DeadFunctionElimination')
 DeadObjectElimination = Pass('DeadObjectElimination')
 DefiniteInitialization = Pass('DefiniteInitialization')
+DiagnoseVarUsage = Pass('DiagnoseVarUsage')
 DiagnoseUnreachable = Pass('DiagnoseUnreachable')
 DiagnosticConstantPropagation = Pass('DiagnosticConstantPropagation')
 EarlyInliner = Pass('EarlyInliner')
@@ -68,6 +69,7 @@ PASSES = [
     DeadFunctionElimination,
     DeadObjectElimination,
     DefiniteInitialization,
+    DiagnoseVarUsage,
     DiagnoseUnreachable,
     DiagnosticConstantPropagation,
     EarlyInliner,

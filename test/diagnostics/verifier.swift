@@ -1,6 +1,5 @@
 // RUN: %empty-directory(%t)
 // RUN: not %target-swift-frontend -typecheck -verify -serialize-diagnostics-path %t/serialized.dia -emit-fixits-path %t/fixits %s 2>&1 | %FileCheck %s
-// RUN: not %target-swift-frontend -typecheck -verify -warnings-as-errors %s 2>&1 | %FileCheck %s -check-prefix CHECK-WARNINGS-AS-ERRORS
 // RUN: %FileCheck %s -check-prefix CHECK-SERIALIZED <%t/serialized.dia
 // RUN: %FileCheck %s -check-prefix CHECK-FIXITS <%t/fixits
 
@@ -26,12 +25,6 @@ let a: Bool = "hello, world!" as Any
 // Unexpected error
 _ = foo()
 // CHECK: unexpected error produced: cannot find 'foo' in scope
-
-func b() {
-  let c = 2
-}
-// CHECK: unexpected warning produced: initialization of immutable value 'c' was never used
-// CHECK-WARNINGS-AS-ERRORS: unexpected error produced: initialization of immutable value 'c' was never used
 
 extension (Int, Int) {} // expected-error {{non-nominal type '(Int, Int)' cannot be extended}} {{educational-notes=foo-bar-baz}}
 // CHECK: error: expected educational note(s) not seen; actual educational note(s): {{[{][{]}}educational-notes=nominal-types{{[}][}]}}

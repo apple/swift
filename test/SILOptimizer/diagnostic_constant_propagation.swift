@@ -24,12 +24,13 @@ func testArithmeticOverflow() {
   var _ /*xpyu64*/ : UInt64 = 9223372036854775807 * 30 // expected-error {{results in an overflow}}
   var _ /*xpyi64*/ : Int64 = 9223372036854775807 + 1  // expected-error {{results in an overflow}}
 
-  var xu8_2 : UInt8 = 240
+  var xu8_2 : UInt8 = 240 // expected-warning {{variable 'xu8_2' was written to, but never read}}
   xu8_2 += 40 // expected-error {{arithmetic operation '240 + 40' (on type 'UInt8') results in an overflow}}
 
   var _ : UInt8 = 230 - 240 // expected-error {{arithmetic operation '230 - 240' (on type 'UInt8') results in an overflow}}
 
-  var xu8_3 : UInt8 = 240   // Global (cross block) analysis.
+  // Global (cross block) analysis.
+  var xu8_3 : UInt8 = 240 //expected-warning {{variable 'xu8_3' was written to, but never read}}
   for _ in 0..<10 {}
   xu8_3 += 40 // expected-error {{arithmetic operation '240 + 40' (on type 'UInt8') results in an overflow}}
   var _ : UInt8 = 240 + 5 + 15 // expected-error {{arithmetic operation '245 + 15' (on type 'UInt8') results in an overflow}}

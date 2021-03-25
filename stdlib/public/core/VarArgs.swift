@@ -499,7 +499,7 @@ final internal class __VaListBuilder {
     }
 #endif
 
-    var encoded = arg._cVarArgEncoding
+    let encoded = arg._cVarArgEncoding
 
 #if arch(x86_64) || arch(arm64)
     let isDouble = arg is _CVarArgPassedAsDouble

@@ -17,5 +17,6 @@ func multipleLocalResults2() {
   func other() -> B {}
   let result = other()
   takesB(result)
-  let other: Int = 123 // expected-warning {{never used}}
+  let other: Int = 123
+  print(other)
 }

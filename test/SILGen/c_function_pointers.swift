@@ -1,7 +1,7 @@
 // RUN: %target-swift-emit-silgen -verify %s | %FileCheck %s
 
 if true {
-  var x = 0 // expected-warning {{variable 'x' was never mutated; consider changing to 'let' constant}}
+  var x = 0
   func local() -> Int { return 0 }
   func localWithContext() -> Int { return x }
   func transitiveWithoutContext() -> Int { return local() }
@@ -100,10 +100,6 @@ func pointers_to_nested_local_functions_in_generics<T>(x: T) -> Int{
   func foo(y: Int) -> Int { return y }
 
   return calls(foo, 0)
-}
-
-func capture_list_no_captures(x: Int) {
-  calls({ [x] in $0 }, 0) // expected-warning {{capture 'x' was never used}}
 }
 
 class Selfless {

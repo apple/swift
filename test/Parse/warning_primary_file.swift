@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend -typecheck -verify -primary-file %s %S/Inputs/warning_nonprimary_file.swift
+// RUN: %target-swift-frontend -emit-sil -verify -primary-file %s %S/Inputs/warning_nonprimary_file.swift
 
 // Tests that parse warnings are only emitted for the primary
 // input. Below, we expect a warning diagnostic to be emitted

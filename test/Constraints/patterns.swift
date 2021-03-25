@@ -128,13 +128,6 @@ default:
   break
 }
 
-
-// <rdar://problem/19382878> Introduce new x? pattern
-switch Optional(42) {
-case let x?: break // expected-warning{{immutable value 'x' was never used; consider replacing with '_' or removing it}} {{10-11=_}}
-case nil: break
-}
-
 func SR2066(x: Int?) {
     // nil literals should still work when wrapped in parentheses
     switch x {
@@ -189,8 +182,6 @@ case x ?? 42: break // match value
 default: break
 }
 
-for (var x) in 0...100 {} // expected-warning{{variable 'x' was never used; consider replacing with '_' or removing it}}
-for var x in 0...100 {}  // rdar://20167543 expected-warning{{variable 'x' was never used; consider replacing with '_' or removing it}}
 for (let x) in 0...100 { _ = x} // expected-error {{'let' pattern cannot appear nested in an already immutable context}}
 
 var (let y) = 42  // expected-error {{'let' cannot appear nested inside another 'var' or 'let' pattern}}
@@ -488,19 +479,13 @@ func rdar63510989() {
   func test(e: E) {
     if case .single(_ as Value) = e {} // Ok
     if case .single(let v as Value) = e {} // Ok
-    // expected-warning@-1 {{immutable value 'v' was never used; consider replacing with '_' or removing it}}
     if case .double(_ as Value) = e {} // Ok
     if case .double(let v as Value) = e {} // Ok
-    // expected-warning@-1 {{immutable value 'v' was never used; consider replacing with '_' or removing it}}
     if case .double(let v as Value?) = e {} // Ok
-    // expected-warning@-1 {{immutable value 'v' was never used; consider replacing with '_' or removing it}}
     if case .triple(_ as Value) = e {} // Ok
     if case .triple(let v as Value) = e {} // Ok
-    // expected-warning@-1 {{immutable value 'v' was never used; consider replacing with '_' or removing it}}
     if case .triple(let v as Value?) = e {} // Ok
-    // expected-warning@-1 {{immutable value 'v' was never used; consider replacing with '_' or removing it}}
     if case .triple(let v as Value??) = e {} // Ok
-    // expected-warning@-1 {{immutable value 'v' was never used; consider replacing with '_' or removing it}}
   }
 }
 

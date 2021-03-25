@@ -2448,7 +2448,6 @@ public func _swift_getKeyPath(pattern: UnsafeMutableRawPointer,
   // These are resolved dynamically, so that they always reflect the dynamic
   // capability of the properties involved.
 
-  let oncePtrPtr = pattern
   let patternPtr = pattern.advanced(by: 4)
 
   let bufferHeader = patternPtr.load(fromByteOffset: keyPathPatternHeaderSize,
@@ -2457,10 +2456,10 @@ public func _swift_getKeyPath(pattern: UnsafeMutableRawPointer,
 
   // If the first word is nonzero, it relative-references a cache variable
   // we can use to reference a single shared instantiation of this key path.
-  let oncePtrOffset = oncePtrPtr.load(as: Int32.self)
+  let oncePtrOffset = pattern.load(as: Int32.self)
   let oncePtr: UnsafeRawPointer?
   if oncePtrOffset != 0 {
-    let theOncePtr = _resolveRelativeAddress(oncePtrPtr, oncePtrOffset)
+    let theOncePtr = _resolveRelativeAddress(pattern, oncePtrOffset)
     oncePtr = theOncePtr
 
     // See whether we already instantiated this key path.
@@ -3631,7 +3630,7 @@ internal func _instantiateKeyPathBuffer(
   _ arguments: UnsafeRawPointer
 ) {
   let destHeaderPtr = origDestData.baseAddress.unsafelyUnwrapped
-  var destData = UnsafeMutableRawBufferPointer(
+  let destData = UnsafeMutableRawBufferPointer(
     start: destHeaderPtr.advanced(by: MemoryLayout<Int>.size),
     count: origDestData.count - MemoryLayout<Int>.size)
 

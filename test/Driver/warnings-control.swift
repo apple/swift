@@ -5,13 +5,12 @@
 // RUN: not %target-swiftc_driver -suppress-warnings -warnings-as-errors %s 2>&1 | %FileCheck -check-prefix=FLAGS_CONFLICT %s
 // FLAGS_CONFLICT: error: conflicting options '-warnings-as-errors' and '-suppress-warnings'
 
-func foo() -> Int {
+func foo() {
 	let x = 1
-	var y = 2
-// DEFAULT:    warning: variable 'y' was never mutated; consider changing to 'let' constant
-// WERR:       error: variable 'y' was never mutated; consider changing to 'let' constant
-// NOWARN-NOT: variable 'y' was never mutated
-	return x + y
+	x
+// DEFAULT: warning: expression of type 'Int' is unused
+// WERR:    error: expression of type 'Int' is unused
+// NOWARN-NOT:  warning: expression of type 'Int' is unused
 }
 
 func bar() {

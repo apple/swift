@@ -1,4 +1,4 @@
-// RUN: %target-typecheck-verify-swift
+// RUN: %target-swift-frontend -emit-sil %s -verify
 
 func doFoo() {}
 
@@ -13,10 +13,6 @@ rootView.subviews = v
 _ = rootView.subviews as! [View]
 
 for view in rootView.subviews as! [View] { // expected-warning{{immutable value 'view' was never used; consider replacing with '_' or removing it}}
-  doFoo()
-}
-
-for view:View in rootView.subviews { // expected-error{{cannot convert sequence element type 'AnyObject' to expected type 'View'}}
   doFoo()
 }
 

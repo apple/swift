@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// These utilities model the storage locations of memory access. See
-/// ProgrammersGuide.md for high-level design.
+/// SILProgrammersManual.md for high-level design.
 ///
 /// All memory operations that are part of a formal access, as defined by
 /// exclusivity rules, are marked by begin_access and end_access instructions.

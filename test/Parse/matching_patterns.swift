@@ -47,7 +47,7 @@ case 1 + (_): // expected-error{{'_' can only appear in a pattern or on the left
 }
 
 switch (x,x) {
-case (var a, var a): // expected-error {{invalid redeclaration of 'a'}} expected-note {{'a' previously declared here}} expected-warning {{variable 'a' was never used; consider replacing with '_' or removing it}} expected-warning {{variable 'a' was never used; consider replacing with '_' or removing it}}
+case (var a, var a): // expected-error {{invalid redeclaration of 'a'}} expected-note {{'a' previously declared here}}
   fallthrough
 case _: // expected-warning {{case is already handled by previous patterns; consider removing it}}
   ()

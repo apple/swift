@@ -1,5 +1,5 @@
 func foo() {
-let a = 0; let b = 0 }; unresolved
+let a = 0; let b = 0 };
 
 // Test that offsets of diagnostic ranges and fixits get updated correctly after the edit request
 
@@ -27,15 +27,6 @@ let a = 0; let b = 0 }; unresolved
 // CHECK-NEXT:   key.sourcetext: "_"
 // CHECK-NEXT: }
 
-// CHECK:      key.line: 2,
-// CHECK-NEXT: key.column: 25,
-// CHECK:      key.description: "cannot find 'unresolved' in scope",
-// CHECK:      key.ranges:
-// CHECK-NEXT: {
-// CHECK-NEXT:   key.offset: 37,
-// CHECK-NEXT:   key.length: 10
-// CHECK-NEXT: }
-
 // == After the edit =====
 
 // CHECK:      key.line: 2,
@@ -46,13 +37,4 @@ let a = 0; let b = 0 }; unresolved
 // CHECK-NEXT:   key.offset: 20,
 // CHECK-NEXT:   key.length: 5,
 // CHECK-NEXT:   key.sourcetext: "_"
-// CHECK-NEXT: }
-
-// CHECK:      key.line: 2,
-// CHECK-NEXT: key.column: 21,
-// CHECK:      key.description: "cannot find 'unresolved' in scope",
-// CHECK:      key.ranges:
-// CHECK-NEXT: {
-// CHECK-NEXT:   key.offset: 33,
-// CHECK-NEXT:   key.length: 10
 // CHECK-NEXT: }

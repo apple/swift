@@ -584,12 +584,6 @@ func foo1() {
   _ = MyGenericEnum<Int>.OneTwo // expected-error {{enum type 'MyGenericEnum<Int>' has no case 'OneTwo'; did you mean 'oneTwo'?}}{{26-32=oneTwo}}
 }
 
-// SR-4082
-func foo2() {
-  let x = 5
-  if x < 0, let x = Optional(1) { } // expected-warning {{immutable value 'x' was never used; consider replacing with '_' or removing it}}
-}
-
 struct Person {
   let name: String?
 }

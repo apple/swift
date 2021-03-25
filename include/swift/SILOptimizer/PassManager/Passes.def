@@ -130,6 +130,8 @@ PASS(COWOpts, "cow-opts",
      "Optimize COW operations")
 PASS(Differentiation, "differentiation",
      "Automatic Differentiation")
+PASS(DiagnoseVarUsage, "diagnose-var-usage",
+     "Diagnose Var Usage")
 PASS(EpilogueARCMatcherDumper, "sil-epilogue-arc-dumper",
      "Print Epilogue retains of Returned Values and Argument releases")
 PASS(EpilogueRetainReleaseMatcherDumper, "sil-epilogue-retain-release-dumper",

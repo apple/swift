@@ -512,7 +512,7 @@ extension Hoozit {
 
   // CHECK-LABEL: sil hidden [ossa] @$s11objc_thunks6HoozitC6doubleACSd_tcfC : $@convention(method) (Double, @thick Hoozit.Type) -> @owned Hoozit
   convenience init(double d: Double) {
-    var x = X()       // expected-warning {{initialization of variable 'x' was never used}}
+    var x = X()
     self.init(int:Int(d))
     other()
   }

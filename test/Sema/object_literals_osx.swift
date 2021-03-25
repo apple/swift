@@ -43,7 +43,7 @@ let _: Path = #fileLiteral() // expected-error {{missing argument for parameter 
 
 // rdar://problem/62927467
 func test_literal_arguments_are_loaded() {
-  var resource = "foo.txt" // expected-warning {{variable 'resource' was never mutated; consider changing to 'let' constant}}
+  var resource = "foo.txt"
   let _: Path = #fileLiteral(resourceName: resource) // Ok
 
   func test(red: inout Float, green: inout Float) -> S {

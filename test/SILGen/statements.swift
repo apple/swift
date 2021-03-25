@@ -525,7 +525,6 @@ func defer_in_closure_in_generic<T>(_ x: T) {
 // CHECK-LABEL: sil hidden [ossa] @$s10statements13defer_mutableyySiF
 func defer_mutable(_ x: Int) {
   var x = x
-  // expected-warning@-1 {{variable 'x' was never mutated; consider changing to 'let' constant}}
   // CHECK: [[BOX:%.*]] = alloc_box ${ var Int }
   // CHECK-NEXT: project_box [[BOX]]
   // CHECK-NOT: [[BOX]]

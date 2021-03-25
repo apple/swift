@@ -246,11 +246,9 @@ func test_as_2() {
 func test_lambda() {
   // A simple closure.
   var a = { (value: Int) -> () in markUsed(value+1) }
-  // expected-warning@-1 {{initialization of variable 'a' was never used; consider replacing with assignment to '_' or removing it}}
 
   // A recursive lambda.
   var fib = { (n: Int) -> Int in
-    // expected-warning@-1 {{variable 'fib' was never mutated; consider changing to 'let' constant}}
     if (n < 2) {
       return n
     }
@@ -498,7 +496,6 @@ func stringliterals(_ d: [String: Int]) {
     "something else")"
   // expected-error @-2 {{unterminated string literal}} expected-error @-1 {{unterminated string literal}}
 
-  // expected-warning @+2 {{variable 'x2' was never used; consider replacing with '_' or removing it}}
   // expected-error @+1 {{unterminated string literal}}
   var x2 : () = ("hello" + "
   ;

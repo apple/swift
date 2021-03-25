@@ -48,13 +48,3 @@ struct T {
         let self = self
     }
 }
-
-class MyCls {
-    func something() {}
-
-    func test() {
-        // expected-warning @+1 {{initialization of immutable value 'self' was never used}}
-        let `self` = Writer() // Even if `self` is shadowed,
-        something() // this should still refer `MyCls.something`.
-    }
-}

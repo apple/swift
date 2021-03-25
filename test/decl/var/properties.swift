@@ -95,32 +95,10 @@ var implicitGet1: X {
 }
 
 var implicitGet2: Int {
-  var zzz = 0
-  // expected-warning@-1 {{initialization of variable 'zzz' was never used; consider replacing with assignment to '_' or removing it}}
-  // For the purpose of this test, any other function attribute work as well.
   @inline(__always)
   func foo() {}
   return 0
 }
-
-var implicitGet3: Int {
-  @inline(__always)
-  func foo() {}
-  return 0
-}
-
-// Here we used apply weak to the getter itself, not to the variable.
-var x15: Int {
-  // For the purpose of this test we need to use an attribute that cannot be
-  // applied to the getter.
-  weak
-  var foo: SomeClass? = SomeClass()  // expected-warning {{variable 'foo' was written to, but never read}}
-  // expected-warning@-1 {{instance will be immediately deallocated because variable 'foo' is 'weak'}}
-  // expected-note@-2 {{a strong reference is required to prevent the instance from being deallocated}}
-  // expected-note@-3 {{'foo' declared here}}
-  return 0
-}
-
 
 // Disambiguated as stored property with a trailing closure in the initializer.
 //
@@ -184,18 +162,6 @@ func disambiguateGetSet4() {
   func set(_ x: Int, fn: () -> ()) {}
   let newValue: Int = 0
   var a: Int = takeTrailingClosure {
-    set(newValue) {}
-  }
-  // Check that the property is read-write.
-  a = a + 42
-}
-func disambiguateGetSet4Attr() {
-  func set(_ x: Int, fn: () -> ()) {}
-  var newValue: Int = 0
-  // expected-warning@-1 {{variable 'newValue' was never mutated; consider changing to 'let' constant}}
-  var a: Int = takeTrailingClosure {
-    @inline(__always)
-    func foo() {}
     set(newValue) {}
   }
   // Check that the property is read-write.
@@ -410,10 +376,6 @@ var x21: X {
 var x23: Int, x24: Int { // expected-error{{'var' declarations with multiple variables cannot have explicit getters/setters}}
   return 42
 }
-
-var x25: Int { // expected-error{{'var' declarations with multiple variables cannot have explicit getters/setters}}
-  return 42
-}, x26: Int // expected-warning{{variable 'x26' was never used; consider replacing with '_' or removing it}}
 
 // Properties of struct/enum/extensions
 struct S {
@@ -662,17 +624,6 @@ class SelfRefProperties {
   var getter: Int {
     return getter // expected-warning {{attempting to access 'getter' within its own getter}}
     // expected-note@-1 {{access 'self' explicitly to silence this warning}} {{12-12=self.}}
-  }
-  var setter: Int {
-    get {
-      return 42
-    }
-    set {
-      markUsed(setter) // no-warning
-      var unused = setter + setter // expected-warning {{initialization of variable 'unused' was never used; consider replacing with assignment to '_' or removing it}} {{7-17=_}}
-      setter = newValue // expected-warning {{attempting to modify 'setter' within its own setter}}
-      // expected-note@-1 {{access 'self' explicitly to silence this warning}} {{7-7=self.}}
-    }
   }
   var silenced: Int {
     get {
@@ -932,14 +883,6 @@ class ObservingPropertiesNotMutableInWillSet {
   weak var weakProperty: Box? {
     willSet {
       _oldBox = weakProperty?.num ?? -1
-    }
-  }
-
-  func localCase() {
-    var localProperty: Int = 42 { // expected-warning {{variable 'localProperty' was written to, but never read}}
-      willSet {
-        localProperty = 19   // expected-warning {{attempting to store to property 'localProperty' within its own willSet}}
-      }
     }
   }
 }
@@ -1300,10 +1243,8 @@ class SR_10995 {
   func sr_10995_foo() {
     let doubleOptionalNever = makeDoubleOptionalNever() // expected-warning {{constant 'doubleOptionalNever' inferred to have type 'Never??', which may be unexpected}}
     // expected-note@-1 {{add an explicit type annotation to silence this warning}} {{28-28=: Never??}}
-    // expected-warning@-2 {{initialization of immutable value 'doubleOptionalNever' was never used; consider replacing with assignment to '_' or removing it}}
     let singleOptionalNever = makeSingleOptionalNever() // expected-warning {{constant 'singleOptionalNever' inferred to have type 'Never?', which may be unexpected}} 
     // expected-note@-1 {{add an explicit type annotation to silence this warning}} {{28-28=: Never?}}
-    // expected-warning@-2 {{initialization of immutable value 'singleOptionalNever' was never used; consider replacing with assignment to '_' or removing it}}
   }
 }
 

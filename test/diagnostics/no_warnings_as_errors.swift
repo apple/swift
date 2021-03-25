@@ -1,5 +1,5 @@
-// RUN: %target-swift-frontend -typecheck -warnings-as-errors -no-warnings-as-errors %s 2>&1 | %FileCheck %s --check-prefix=CHECK-WARNING
-// RUN: not %target-swift-frontend -typecheck -no-warnings-as-errors -warnings-as-errors  %s 2>&1 | %FileCheck %s --check-prefix=CHECK-ERROR
+// RUN: %target-swift-frontend -emit-sil -warnings-as-errors -no-warnings-as-errors %s 2>&1 | %FileCheck %s --check-prefix=CHECK-WARNING
+// RUN: not %target-swift-frontend -emit-sil -no-warnings-as-errors -warnings-as-errors  %s 2>&1 | %FileCheck %s --check-prefix=CHECK-ERROR
 
 
 // This test verifies that the -no-warnings-as-errors option nullifies the effect of the -warnings-as-errors option

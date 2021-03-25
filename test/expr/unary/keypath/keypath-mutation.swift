@@ -1,4 +1,4 @@
-// RUN: %target-typecheck-verify-swift
+// RUN: %target-swift-frontend -emit-sil %s -verify
 
 struct User {
   var id: Int

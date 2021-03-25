@@ -217,10 +217,9 @@ private func fastFill(
   // TODO: Additional fast-path: All CCC-ascending NFC_QC segments are NFC
   // TODO: Just freakin do normalization and don't bother with ICU
   var outputCount = 0
-  let outputEnd = outputBufferThreshold
   var inputCount = 0
   let inputEnd = sourceBuffer.count
-  while inputCount < inputEnd && outputCount < outputEnd {
+  while inputCount < inputEnd && outputCount < outputBufferThreshold {
     // TODO: Slightly faster code-unit scan for latiny (<0xCC)
 
     // Check scalar-based fast-paths
@@ -318,10 +317,9 @@ internal func _allocateBuffers(
   icuOutputBuffer: inout UnsafeMutableBufferPointer<UInt16>
 ) {
   let output = count * _Normalization._maxNFCExpansionFactor * _Normalization._maxUTF16toUTF8ExpansionFactor
-  let icuInput = count
   let icuOutput = count * _Normalization._maxNFCExpansionFactor
   let newOutputBuffer = UnsafeMutableBufferPointer<UInt8>.allocate(capacity: output)
-  let newICUInputBuffer = UnsafeMutableBufferPointer<UInt16>.allocate(capacity: icuInput)
+  let newICUInputBuffer = UnsafeMutableBufferPointer<UInt16>.allocate(capacity: count)
   let newICUOutputBuffer = UnsafeMutableBufferPointer<UInt16>.allocate(capacity: icuOutput)
   
   switch bufferToCopy {

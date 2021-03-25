@@ -34,22 +34,12 @@ var (self7a, self7b) = (self7b, self7a)
 // expected-note@-1 2{{through reference here}}
 // expected-error@-2 {{circular reference}}
 
-var self8 = 0
-func testShadowing() {
-  var self8 = self8
-  // expected-warning@-1 {{initialization of variable 'self8' was never used; consider replacing with assignment to '_' or removing it}}
-}
-
 var (paren) = 0
 var paren2: Int = paren
 
 struct Broken {
   var b : Bool = True // expected-error{{cannot find 'True' in scope}}
 }
-
-// rdar://16252090 - Warning when inferring empty tuple type for declarations
-var emptyTuple = testShadowing()  // expected-warning {{variable 'emptyTuple' inferred to have type '()'}} \
-                                  // expected-note {{add an explicit type annotation to silence this warning}} {{15-15=: ()}}
 
 // rdar://15263687 - Diagnose variables inferenced to 'AnyObject'
 var ao1 : AnyObject
@@ -129,10 +119,4 @@ if true {
   let s : Int
   s = 42  // should be valid.
   _ = s
-}
-
-// ASTScope assertion
-func patternBindingWithTwoEntries() {
-  let x2 = 1, (_, _) = (1, 2)
-  // expected-warning@-1 {{immutable value 'x2' was never used; consider replacing with '_' or removing it}}
 }

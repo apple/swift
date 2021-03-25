@@ -338,7 +338,6 @@ class TestNestedExpr {
 
   convenience init(a: Int) {
     let x: () = self.init() // expected-error {{initializer delegation ('self.init') cannot be nested in another statement}}
-    // expected-warning@-1 {{immutable value 'x' was never used; consider replacing with '_' or removing it}}
   }
 
   convenience init(b: Int) {
@@ -352,7 +351,6 @@ class TestNestedExpr {
 
   convenience init(d: Int) {
     let x: () = self.init(fail: true)! // expected-error {{initializer delegation ('self.init') cannot be nested in another statement}}
-    // expected-warning@-1 {{immutable value 'x' was never used; consider replacing with '_' or removing it}}
   }
 
   convenience init(e: Int) {
@@ -366,7 +364,6 @@ class TestNestedExpr {
 
   convenience init(g: Int) {
     let x: () = try! self.init(error: true) // expected-error {{initializer delegation ('self.init') cannot be nested in another statement}}
-    // expected-warning@-1 {{immutable value 'x' was never used; consider replacing with '_' or removing it}}
   }
 
   convenience init(h: Int) {
@@ -411,7 +408,6 @@ class TestNestedExpr {
 class TestNestedExprSub : TestNestedExpr {
   init(a: Int) {
     let x: () = super.init() // expected-error {{initializer chaining ('super.init') cannot be nested in another statement}}
-    // expected-warning@-1 {{immutable value 'x' was never used; consider replacing with '_' or removing it}}
   }
 
   init(b: Int) {
@@ -425,7 +421,6 @@ class TestNestedExprSub : TestNestedExpr {
 
   init(d: Int) {
     let x: () = super.init(fail: true)! // expected-error {{initializer chaining ('super.init') cannot be nested in another statement}}
-    // expected-warning@-1 {{immutable value 'x' was never used; consider replacing with '_' or removing it}}
   }
 
   init(e: Int) {
@@ -439,7 +434,6 @@ class TestNestedExprSub : TestNestedExpr {
 
   init(g: Int) {
     let x: () = try! super.init(error: true) // expected-error {{initializer chaining ('super.init') cannot be nested in another statement}}
-    // expected-warning@-1 {{immutable value 'x' was never used; consider replacing with '_' or removing it}}
   }
 
   init(h: Int) {

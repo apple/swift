@@ -140,7 +140,9 @@ func overloadtest(x: Int) {
 func localtest() {
   func shadowbug() { 
     var Foo = 10
-    // expected-warning@-1 {{initialization of variable 'Foo' was never used; consider replacing with assignment to '_' or removing it}}
+    Foo += 1
+    print(Foo)
+    
     func g() {
       struct S {
         // FIXME: Swap these two lines to crash our broken lookup.
@@ -197,15 +199,6 @@ test+++
 func forwardReference() {
   v = 0 // expected-error{{use of local variable 'v' before its declaration}}
   var v: Float = 0.0 // expected-note{{'v' declared here}}
-}
-
-class ForwardReference {
-  var x: Int = 0
-
-  func test() {
-    x = 0
-    var x: Float = 0.0 // expected-warning{{variable 'x' was never used; consider replacing with '_' or removing it}}
-  }
 }
 
 func questionablyValidForwardReference() { print(qvfrVar, terminator: ""); }; var qvfrVar: Int = 0

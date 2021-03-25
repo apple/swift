@@ -38,7 +38,6 @@ class D : B {}// expected-note * {{did you mean 'D'?}}
 // TODO poor recovery in these cases
 if let {} // expected-error {{expected '{' after 'if' condition}} expected-error {{pattern matching in a condition requires the 'case' keyword}}
 if let x = { } // expected-error{{'{' after 'if'}} expected-error {{variable binding in a condition requires an initializer}} expected-error{{initializer for conditional binding must have Optional type, not '() -> ()'}}
-// expected-warning@-1{{value 'x' was defined but never used}}
 
 if let x = foo() {
   _ = x
@@ -59,8 +58,8 @@ if let x = foo() {
 
 var opt: Int? = .none
 
-if let x = opt {} // expected-warning {{value 'x' was defined but never used; consider replacing with boolean test}}
-if var x = opt {} // expected-warning {{value 'x' was defined but never used; consider replacing with boolean test}}
+if let x = opt {}
+if var x = opt {}
 
 // <rdar://problem/20800015> Fix error message for invalid if-let
 let someInteger = 1
@@ -69,21 +68,21 @@ if case let y? = someInteger { _ = y }  // expected-error {{'?' pattern cannot m
 
 // Test multiple clauses on "if let".
 if let x = opt, let y = opt, x != y,
-   let a = opt, var b = opt { // expected-warning {{immutable value 'a' was never used; consider replacing with '_' or removing it}} expected-warning {{variable 'b' was never used; consider replacing with '_' or removing it}}
+   let a = opt, var b = opt {
 }
 
 // Leading boolean conditional.
 if 1 != 2, let x = opt,
    y = opt,  // expected-error {{expected 'let' in conditional}} {{4-4=let }}
    x != y,
-   let a = opt, var b = opt { // expected-warning {{immutable value 'a' was never used; consider replacing with '_' or removing it}} expected-warning {{variable 'b' was never used; consider replacing with '_' or removing it}}
+   let a = opt, var b = opt {
 }
 
 // <rdar://problem/20457938> typed pattern is not allowed on if/let condition
-if 1 != 2, let x : Int? = opt {} // expected-warning {{immutable value 'x' was never used; consider replacing with '_' or removing it}}
+if 1 != 2, let x : Int? = opt {}
 // expected-warning @-1 {{explicitly specified type 'Int?' adds an additional level of optional to the initializer, making the optional check always succeed}} {{20-24=Int}}
 
-if 1 != 2, case let x? : Int? = 42 {} // expected-warning {{immutable value 'x' was never used; consider replacing with '_' or removing it}}
+if 1 != 2, case let x? : Int? = 42 {}
 // expected-warning @-1 {{non-optional expression of type 'Int' used in a check for optionals}}
 
 
@@ -93,7 +92,7 @@ if 1 != 2, case let x? : Int? = 42 {} // expected-warning {{immutable value 'x' 
 if 1 != 2, { // expected-error {{cannot convert value of type '() -> ()' to expected condition type 'Bool'}}
 } // expected-error {{expected '{' after 'if' condition}}
 if 1 != 2, 4 == 57 {}
-if 1 != 2, 4 == 57, let x = opt {} // expected-warning {{immutable value 'x' was never used; consider replacing with '_' or removing it}}
+if 1 != 2, 4 == 57, let x = opt {}
 
 // Test that these don't cause the parser to crash.
 if true { if a == 0; {} }   // expected-error {{cannot find 'a' in scope}} expected-error {{expected '{' after 'if' condition}}

@@ -6,7 +6,7 @@ import Swift
 func takesTwoInouts<T>(_ p1: inout T, _ p2: inout T) { }
 
 func simpleInoutDiagnostic() {
-  var i = 7
+  var i = 7 // expected-warning {{variable 'i' was written to, but never read}}
 
   // FIXME: This diagnostic should be removed if static enforcement is
   // turned on by default.
@@ -26,7 +26,7 @@ func inoutOnInoutParameter(p: inout Int) {
 }
 
 func swapNoSuppression(_ i: Int, _ j: Int) {
-  var a: [Int] = [1, 2, 3]
+  var a: [Int] = [1, 2, 3] // expected-warning {{variable 'a' was written to, but never read}}
 
   // expected-error@+2{{overlapping accesses to 'a', but modification requires exclusive access; consider calling MutableCollection.swapAt(_:_:)}}
   // expected-note@+1{{conflicting access is here}}
@@ -83,7 +83,7 @@ class ClassWithFinalStoredProp {
 }
 
 func violationWithGenericType<T>(_ p: T) {
-  var local = p
+  var local = p // expected-warning {{variable 'local' was written to, but never read}}
   // expected-error@+4{{inout arguments are not allowed to alias each other}}
   // expected-note@+3{{previous aliasing argument}}
   // expected-error@+2{{overlapping accesses to 'local', but modification requires exclusive access; consider copying to a local variable}}
@@ -125,7 +125,7 @@ struct StructWithFixits {
 
   mutating
   func shouldHaveFixIts<T>(_ i: Int, _ j: Int, _ param: T, _ paramIndex: T.Index) where T : MutableCollection {
-    var array1 = [1, 2, 3]
+    var array1 = [1, 2, 3] // expected-warning {{variable 'array1' was written to, but never read}}
     // expected-error@+2{{overlapping accesses}}{{5-41=array1.swapAt(i + 5, j - 2)}}
     // expected-note@+1{{conflicting access is here}}
     swap(&array1[i + 5], &array1[j - 2])
@@ -152,7 +152,7 @@ struct StructWithFixits {
     swap(&s.f, &s.f)
 
     var array1 = [1, 2, 3]
-    var array2 = [1, 2, 3]
+    var array2 = [1, 2, 3] // expected-warning {{variable 'array2' was written to, but never read}}
 
     // Swapping between different arrays should cannot have the
     // Fix-It.
@@ -454,19 +454,19 @@ func inoutSameStoredProperty() {
 }
 
 func inoutSeparateTupleElements() {
-  var t = (1, 4)
+  var t = (1, 4) // expected-warning {{variable 't' was written to, but never read}}
   takesTwoInouts(&t.0, &t.1) // no-error
 }
 
 func inoutSameTupleElement() {
-  var t = (1, 4)
+  var t = (1, 4) // expected-warning {{variable 't' was written to, but never read}}
   takesTwoInouts(&t.0, &t.0)
   // expected-error@-1{{overlapping accesses to 't.0', but modification requires exclusive access; consider copying to a local variable}}
   // expected-note@-2{{conflicting access is here}}
 }
 
 func inoutSameTupleNamedElement() {
-  var t = (name1: 1, name2: 4)
+  var t = (name1: 1, name2: 4) // expected-warning {{variable 't' was written to, but never read}}
   takesTwoInouts(&t.name2, &t.name2)
   // expected-error@-1{{overlapping accesses to 't.name2', but modification requires exclusive access; consider copying to a local variable}}
   // expected-note@-2{{conflicting access is here}}

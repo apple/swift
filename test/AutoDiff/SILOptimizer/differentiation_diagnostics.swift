@@ -434,7 +434,7 @@ func twoInoutParameters(_ x: inout Float, _ y: inout Float) {}
 @differentiable(reverse)
 func testTwoInoutParameters(_ x: Float, _ y: Float) -> Float {
   var x = x
-  var y = y
+  var y = y // expected-warning {{variable 'y' was written to, but never read}}
   twoInoutParameters(&x, &y)
   return x
 }

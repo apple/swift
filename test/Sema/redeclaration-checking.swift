@@ -12,11 +12,11 @@ func test1() {
 }
 
 func test2() {
-  let x = 123 // expected-warning {{never used}}
+  let x = 123
   func f() {}
   struct S {}
   do {
-    let x = 321 // expected-warning {{never used}}
+    let x = 321
     func f() {}
     struct S {}
   }
@@ -63,40 +63,34 @@ func stmtTest() {
   if case (let x, let x)? = n {}
   // expected-note@-1 {{'x' previously declared here}}
   // expected-error@-2 {{invalid redeclaration of 'x'}}
-  // expected-warning@-3 2{{never used}}
 
   for case (let x, let x) in [(Int, Int)]() {}
   // expected-note@-1 {{'x' previously declared here}}
   // expected-error@-2 {{invalid redeclaration of 'x'}}
-  // expected-warning@-3 2{{never used}}
 
   switch n {
   case (let x, let x)?: _ = ()
   // expected-note@-1 {{'x' previously declared here}}
   // expected-error@-2 {{invalid redeclaration of 'x'}}
-  // expected-warning@-3 2{{never used}}
   case nil: _ = ()
   }
 
   while case (let x, let x)? = n {}
   // expected-note@-1 {{'x' previously declared here}}
   // expected-error@-2 {{invalid redeclaration of 'x'}}
-  // expected-warning@-3 2{{never used}}
 
   guard case (let x, let x)? = n else {}
   // expected-note@-1 {{'x' previously declared here}}
   // expected-error@-2 {{invalid redeclaration of 'x'}}
-  // expected-warning@-3 2{{never used}}
 
   do {} catch MyError.error(let x, let x) {}
   // expected-note@-1 {{'x' previously declared here}}
   // expected-error@-2 {{invalid redeclaration of 'x'}}
-  // expected-warning@-3 2{{never used}}
-  // expected-warning@-4 {{unreachable}}
+  // expected-warning@-3 {{unreachable}}
 }
 
 func fullNameTest() {
-  let x = 123 // expected-warning {{never used}}
+  let x = 123
   func x() {}
 }
 

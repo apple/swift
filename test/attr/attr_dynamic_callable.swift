@@ -33,20 +33,15 @@ struct KeywordArgumentCallable {
 }
 
 func testCallable(
-  a: Callable, b: DiscardableResult, c: Throwing, d: KeywordArgumentCallable
+  a: DiscardableResult, b: KeywordArgumentCallable
 ) {
-  _ = a()
-  let a1 = a(1, 2, 3, 4) // expected-warning {{initialization of immutable value 'a1' was never used}}
+
+  a()
+  a(1, 2, 3, 4.0)
 
   b()
-  b(1, 2, 3, 4.0)
-
-  _ = try? c()
-  let c1 = try! c("hello", "world") // expected-warning {{initialization of immutable value 'c1' was never used}}
-
-  d()
-  d(1, 2.0, 3)
-  d(x1: 1, 2.0, x2: 3)
+  b(1, 2.0, 3)
+  b(x1: 1, 2.0, x2: 3)
 }
 
 func testCallableDiagnostics(

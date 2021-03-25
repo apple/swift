@@ -91,7 +91,7 @@ class SA3 {
       return foo // expected-warning {{attempting to access 'foo' within its own getter}} expected-note{{access 'self' explicitly to silence this warning}} {{14-14=self.}}
     }
     set {
-      foo = foo // expected-warning {{attempting to modify 'foo' within its own setter}} expected-note{{access 'self' explicitly to silence this warning}} {{7-7=self.}} expected-warning{{setter argument 'newValue' was never used, but the property was accessed}} expected-note{{did you mean to use 'newValue' instead of accessing the property's current value?}}
+      foo = foo // expected-warning {{attempting to modify 'foo' within its own setter}} expected-note{{access 'self' explicitly to silence this warning}} {{7-7=self.}}
       self.foo = self.foo // no-error
       foo = self.foo // expected-warning {{attempting to modify 'foo' within its own setter}} expected-note{{access 'self' explicitly to silence this warning}} {{7-7=self.}}
       self.foo = foo
@@ -105,7 +105,7 @@ struct SA3a {
       return foo // expected-warning {{attempting to access 'foo' within its own getter}} expected-note{{access 'self' explicitly to silence this warning}} {{14-14=self.}}
     }
     set {
-      foo = foo // expected-warning {{attempting to modify 'foo' within its own setter}} expected-note{{access 'self' explicitly to silence this warning}} {{7-7=self.}} expected-warning{{setter argument 'newValue' was never used, but the property was accessed}} expected-note{{did you mean to use 'newValue' instead of accessing the property's current value?}}
+      foo = foo // expected-warning {{attempting to modify 'foo' within its own setter}} expected-note{{access 'self' explicitly to silence this warning}} {{7-7=self.}}
       self.foo = self.foo // no-error
       foo = self.foo // expected-warning {{attempting to modify 'foo' within its own setter}} expected-note{{access 'self' explicitly to silence this warning}} {{7-7=self.}}
       self.foo = foo

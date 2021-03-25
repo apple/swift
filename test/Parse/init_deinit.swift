@@ -98,13 +98,11 @@ func fooFunc() {
 
 func barFunc() {
   var x : () = { () -> () in
-    // expected-warning@-1 {{variable 'x' was never used; consider replacing with '_' or removing it}}
     init() {} // expected-error {{initializers may only be declared within a type}}
     return
   } ()
 
   var y : () = { () -> () in
-    // expected-warning@-1 {{variable 'y' was never used; consider replacing with '_' or removing it}}
     deinit {} // expected-error {{deinitializers may only be declared within a class}}
     return
   } ()

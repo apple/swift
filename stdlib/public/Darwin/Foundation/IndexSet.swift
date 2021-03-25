@@ -420,15 +420,13 @@ public struct IndexSet : ReferenceConvertible, Equatable, BidirectionalCollectio
     
     private func _index(ofInteger integer: Element) -> Index {
         let rangeCount = _rangeCount
-        let value = integer
         if let rangeIndex = _indexOfRange(containing: integer) {
             let extent = _range(at: rangeIndex)
-            let rangeIndex = rangeIndex
-            return Index(value: value, extent: extent, rangeIndex: rangeIndex, rangeCount: rangeCount)
+            return Index(value: integer, extent: extent, rangeIndex: rangeIndex, rangeCount: rangeCount)
         } else {
             let extent = 0..<0
             let rangeIndex = 0
-            return Index(value: value, extent: extent, rangeIndex: rangeIndex, rangeCount: rangeCount)
+            return Index(value: integer, extent: extent, rangeIndex: rangeIndex, rangeCount: rangeCount)
         }
     }
     

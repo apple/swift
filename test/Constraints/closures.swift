@@ -656,7 +656,7 @@ extension Int {
 
 func rdar33429010_2() {
   let iter = I_33429010()
-  var acc: Int = 0 // expected-warning {{}}
+  var acc: Int = 0
   let _: Int = AnySequence { iter }.rdar33429010(into: acc, { $0 + $1 })
   // expected-warning@-1 {{result of operator '+' is unused}}
   let _: Int = AnySequence { iter }.rdar33429010(into: acc, { $0.rdar33429010_incr($1) })

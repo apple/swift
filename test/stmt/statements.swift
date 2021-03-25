@@ -14,9 +14,7 @@ func invalid_semi() {
 }
 
 func nested1(_ x: Int) {
-  var y : Int
-  // expected-warning@-1 {{variable 'y' was never mutated; consider changing to 'let' constant}}
-  
+  var y : Int  
   func nested2(_ z: Int) -> Int {
     return x+y+z
   }
@@ -167,7 +165,6 @@ func missing_semicolons() {
   func g() {}
   g() w += 1             // expected-error{{consecutive statements}} {{6-6=;}}
   var z = w"hello"    // expected-error{{consecutive statements}} {{12-12=;}} expected-warning {{string literal is unused}}
-  // expected-warning@-1 {{initialization of variable 'z' was never used; consider replacing with assignment to '_' or removing it}}
   class  C {}class  C2 {} // expected-error{{consecutive statements}} {{14-14=;}}
   struct S {}struct S2 {} // expected-error{{consecutive statements}} {{14-14=;}}
   func j() {}func k() {}  // expected-error{{consecutive statements}} {{14-14=;}}

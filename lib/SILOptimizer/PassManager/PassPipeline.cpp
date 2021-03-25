@@ -87,6 +87,7 @@ static void addDefiniteInitialization(SILPassPipelinePlan &P) {
 // should be in the -Onone pass pipeline and the prepare optimizations pipeline.
 static void addMandatoryDiagnosticOptPipeline(SILPassPipelinePlan &P) {
   P.startPipeline("Mandatory Diagnostic Passes + Enabling Optimization Passes");
+  P.addDiagnoseVarUsage();
   P.addSILGenCleanup();
   P.addDiagnoseInvalidEscapingCaptures();
   P.addDiagnoseStaticExclusivity();

@@ -307,9 +307,8 @@ internal final class __DataStorage {
     }
     
     @inlinable // This is @inlinable as it does not escape the _DataStorage boundary layer.
-    func setLength(_ length: Int) {
+    func setLength(_ newLength: Int) {
         let origLength = _length
-        let newLength = length
         if _capacity < newLength || _bytes == nil {
             ensureUniqueBufferReference(growingTo: newLength, clear: true)
         } else if origLength < newLength && _needToZero {

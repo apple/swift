@@ -67,7 +67,7 @@ func testQuestionMarkOperator() -> Int {
 func userCode() {}
 
 func whileTrue() {
-  var x = 0
+  var x = 0 // expected-warning {{variable 'x' was written to, but never read}}
   while true { // expected-note {{always evaluates to true}}
     x += 1
   }
@@ -80,7 +80,7 @@ func whileTrueSilent() {
 }   // no warning!
 
 func whileTrueReachable(_ v: Int) -> () {
-  var x = 0
+  var x = 0 // expected-warning {{variable 'x' was written to, but never read}}
   while true {
     if v == 0 {
       break
@@ -91,7 +91,7 @@ func whileTrueReachable(_ v: Int) -> () {
 }
 
 func whileTrueTwoPredecessorsEliminated() -> () {
-  var x = 0
+  var x = 0 // expected-warning {{variable 'x' was written to, but never read}}
   while (true) { // expected-note {{always evaluates to true}}
     if false {
       break
@@ -212,8 +212,8 @@ func intConstantTest() -> Int{
 }
 
 func intConstantTest2() -> Int{
-  let y:Int = 1
-  let x:Int = y
+  let y:Int = 1 // expected-note {{initially referenced here}}
+  let x:Int = y // expected-warning {{immutable value referenced by 'x' is already referenced by 'y'; consider removing it and replacing all uses of 'x' with 'y'}}
 
   if x != 1 { // expected-note {{condition always evaluates to false}}
     return y // expected-warning {{will never be executed}}

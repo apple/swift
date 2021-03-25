@@ -36,7 +36,6 @@ do {
 // Invalid case
 do {
   var x = 123 // expected-note {{captured value declared here}}
-  // expected-warning@-1 {{variable 'x' was never mutated; consider changing to 'let' constant}}
 
   func local() {
     // expected-error@-1 {{closure captures 'x' before it is declared}}

@@ -25,7 +25,7 @@ func testIntSubscripting(s: String, i: Int) {
 func testNonAmbiguousStringComparisons() {
   let s1 = "a"
   let s2 = "b"
-  var x = false // expected-warning {{variable 'x' was written to, but never read}}
+  var x = false
   x = s1 > s2
   x = s1 as String > s2
 }

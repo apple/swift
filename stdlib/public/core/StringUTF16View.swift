@@ -572,7 +572,6 @@ extension String.UTF16View {
       _internalInvariant(readIdx < readEnd)
 
       var utf16I = 0
-      let utf16End: Int = remaining
 
       // Adjust for sub-scalar initial transcoding: If we're starting the scan
       // at a trailing surrogate, then we set our starting count to be -1 so as
@@ -586,9 +585,9 @@ extension String.UTF16View {
         let utf16Len = len == 4 ? 2 : 1
         utf16I &+= utf16Len
 
-        if utf16I >= utf16End {
+        if utf16I >= remaining {
           // Uncommon: final sub-scalar transcoded offset
-          if _slowPath(utf16I > utf16End) {
+          if _slowPath(utf16I > remaining) {
             _internalInvariant(utf16Len == 2)
             return Index(encodedOffset: readIdx, transcodedOffset: 1)
           }
