@@ -42,7 +42,7 @@ internal struct _HashTable {
   @inlinable
   internal var bucketCount: Int {
     @inline(__always) get {
-      return bucketMask &+ 1
+      return _assumeNonNegative(bucketMask &+ 1)
     }
   }
 
@@ -482,5 +482,24 @@ extension _HashTable {
     }
 
     words[hole.word].uncheckedRemove(hole.bit)
+  }
+}
+
+extension _Bitset {
+  @inlinable
+  internal init(occupiedBucketsIn hashTable: _HashTable, count: Int) {
+    // FIXME: This is a bit of a hack. Find a better way to express this.
+    self.init(_uninitializedCapacity: hashTable.bucketCount)
+    if hashTable.bucketCount < Word.capacity {
+      word0 = hashTable.words[0]
+        .intersecting(elementsBelow: hashTable.bucketCount)
+    } else {
+      word0 = hashTable.words[0]
+      // Note: storage can be nil when bucket count is exactly at Word.capacity.
+      storage?.copy(contentsOf: _UnsafeBitset(
+        words: hashTable.words + 1,
+        wordCount: hashTable.wordCount - 1))
+    }
+    self.count = count
   }
 }

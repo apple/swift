@@ -78,6 +78,13 @@ extension _NativeSet { // Primitive fields
   }
 
   @inlinable
+  internal var bucketCount: Int {
+    @inline(__always) get {
+      return _assumeNonNegative(_storage._bucketCount)
+    }
+  }
+
+  @inlinable
   internal var hashTable: _HashTable {
     @inline(__always) get {
       return _storage._hashTable
@@ -576,5 +583,160 @@ extension _NativeSet.Iterator: IteratorProtocol {
   internal mutating func next() -> Element? {
     guard let index = iterator.next() else { return nil }
     return base.uncheckedElement(at: index)
+  }
+}
+
+extension _NativeSet {
+  @inlinable
+  internal func isSubset<S: Sequence>(of possibleSuperset: S) -> Bool
+  where S.Element == Element {
+    // Allocate a temporary bitset to mark elements in self that we've seen in
+    // possibleSuperset.
+    var seen = _Bitset(capacity: self.bucketCount)
+    for element in possibleSuperset {
+      // Found a new element of self in possibleSuperset.
+      let (bucket, found) = find(element)
+      guard found else { continue }
+      let inserted = seen.uncheckedInsert(bucket.offset)
+      if inserted, seen.count == self.count {
+        return true
+      }
+    }
+    return false
+  }
+
+  @inlinable
+  internal func isStrictSubset<S: Sequence>(of possibleSuperset: S) -> Bool
+  where S.Element == Element {
+    // Allocate a temporary bitset to mark elements in self that we've seen in
+    // possibleSuperset.
+    var seen = _Bitset(capacity: self.bucketCount)
+    var isStrict = false
+    for element in possibleSuperset {
+      let (bucket, found) = find(element)
+      guard found else {
+        if !isStrict {
+          isStrict = true
+          if seen.count == self.count { return true }
+        }
+        continue
+      }
+      let inserted = seen.uncheckedInsert(bucket.offset)
+      if inserted, seen.count == self.count, isStrict {
+        return true
+      }
+    }
+    return false
+  }
+
+  @inlinable
+  internal func isStrictSuperset<S: Sequence>(of possibleSubset: S) -> Bool
+    where S.Element == Element {
+    // Allocate a temporary bitset to mark elements in self that we've seen in
+    // possibleStrictSubset.
+    var seen = _Bitset(capacity: self.bucketCount)
+    for element in possibleSubset {
+      let (bucket, found) = find(element)
+      guard found else { return false }
+      let inserted = seen.uncheckedInsert(bucket.offset)
+      if inserted, seen.count == self.count {
+        return false
+      }
+    }
+    return true
+  }
+
+  @inlinable
+  internal __consuming func unsafeExtractSubset(
+    using bitset: _Bitset
+  ) -> _NativeSet {
+    if bitset.count == 0 { return _NativeSet() }
+    if bitset.count == self.count { return self }
+    let result = _NativeSet(capacity: bitset.count)
+    for offset in bitset {
+      result._unsafeInsertNew(self.uncheckedElement(at: Bucket(offset: offset)))
+    }
+    _internalInvariant(result.count == bitset.count)
+    return result
+  }
+
+  @inlinable
+  @inline(__always)
+  internal func filteredBuckets(
+    _ isIncluded: (Bucket) throws -> Bool
+  ) rethrows -> _Bitset {
+    var bitset = _Bitset(capacity: bucketCount)
+    for bucket in hashTable where try isIncluded(bucket) {
+      bitset.uncheckedInsert(bucket.offset)
+    }
+    return bitset
+  }
+
+  @inlinable
+  internal __consuming func subtracting<S: Sequence>(_ other: S) -> _NativeSet
+  where S.Element == Element {
+    guard count > 0 else { return _NativeSet() }
+    // Rather than directly creating a new set, calculate the difference in a
+    // bitset first. This ensures we hash each element (in both sets) only once,
+    // and that we'll have an exact count for the result set, preventing
+    // rehashings during insertions.
+    defer { _fixLifetime(self) }
+    var difference = _Bitset(occupiedBucketsIn: hashTable, count: count)
+    for element in other {
+      let (bucket, found) = find(element)
+      if found {
+        if difference.uncheckedRemove(bucket.offset), difference.count == 0 {
+          return _NativeSet()
+        }
+      }
+    }
+    _internalInvariant(difference.count > 0)
+    return unsafeExtractSubset(using: difference)
+  }
+
+  @inlinable
+  @inline(__always)
+  internal __consuming func filter(
+    _ isIncluded: (Element) throws -> Bool
+  ) rethrows -> _NativeSet<Element> {
+    defer { _fixLifetime(self) }
+    let buckets = try filteredBuckets { bucket in
+      try isIncluded(uncheckedElement(at: bucket))
+    }
+    return unsafeExtractSubset(using: buckets)
+  }
+
+  @inlinable
+  internal __consuming func intersection(
+    _ other: _NativeSet<Element>
+  ) -> _NativeSet<Element> {
+    // Prefer to iterate over the smaller set. However, we must be careful to
+    // only include elements from `self`, not `other`.
+    guard self.count <= other.count else {
+      return genericIntersection(other)
+    }
+    // Rather than directly creating a new set, mark common elements in a bitset
+    // first. This minimizes hashing, and ensures that we'll have an exact count
+    // for the result set, preventing rehashings during insertions.
+    let buckets = filteredBuckets { bucket in
+      other.find(uncheckedElement(at: bucket)).found
+    }
+    return unsafeExtractSubset(using: buckets)
+  }
+
+  @inlinable
+  internal __consuming func genericIntersection<S: Sequence>(
+    _ other: S
+  ) -> _NativeSet<Element>
+  where S.Element == Element {
+    // Rather than directly creating a new set, mark common elements in a bitset
+    // first. This minimizes hashing, and ensures that we'll have an exact count
+    // for the result set, preventing rehashings during insertions.
+    var buckets = _Bitset(capacity: self.bucketCount)
+    for element in other {
+      let (bucket, found) = find(element)
+      if found { buckets.uncheckedInsert(bucket.offset) }
+    }
+    return unsafeExtractSubset(using: buckets)
   }
 }

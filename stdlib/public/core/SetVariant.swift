@@ -368,3 +368,112 @@ extension Set._Variant {
   }
 }
 
+extension Set._Variant {
+  @inlinable
+  @inline(__always)
+  internal func isSubset<S: Sequence>(of possibleSuperset: S) -> Bool
+  where S.Element == Element {
+#if _runtime(_ObjC)
+    guard isNative else {
+      return _NativeSet<Element>(asCocoa).isSubset(of: possibleSuperset)
+    }
+#endif
+    return asNative.isSubset(of: possibleSuperset)
+  }
+
+  @inlinable
+  @inline(__always)
+  public func isStrictSubset<S: Sequence>(of possibleStrictSuperset: S) -> Bool
+  where S.Element == Element {
+#if _runtime(_ObjC)
+    guard isNative else {
+      return _NativeSet<Element>(asCocoa)
+        .isStrictSubset(of: possibleStrictSuperset)
+    }
+#endif
+    return asNative.isStrictSubset(of: possibleStrictSuperset)
+  }
+
+  @inlinable
+  @inline(__always)
+  internal __consuming func subtracting<S: Sequence>(
+    _ other: S
+  ) -> _NativeSet<Element>
+  where S.Element == Element {
+#if _runtime(_ObjC)
+    guard isNative else {
+      return _NativeSet(asCocoa).subtracting(other)
+    }
+#endif
+    return asNative.subtracting(other)
+  }
+
+  @inlinable
+  @inline(__always)
+  internal __consuming func filter(
+    _ isIncluded: (Element) throws -> Bool
+  ) rethrows -> _NativeSet<Element> {
+#if _runtime(_ObjC)
+    guard isNative else {
+      var result = _NativeSet<Element>()
+      for cocoaElement in asCocoa {
+        let nativeElement = _forceBridgeFromObjectiveC(
+          cocoaElement, Element.self)
+        if try isIncluded(nativeElement) {
+          result.insertNew(nativeElement, isUnique: true)
+        }
+      }
+      return result
+    }
+#endif
+    return try asNative.filter(isIncluded)
+  }
+
+  @inlinable
+  internal __consuming func intersection<S: Sequence>(
+    _ other: S
+  ) -> _NativeSet<Element>
+  where S.Element == Element {
+    if let other = other as? Set<Element> {
+      return self.intersection(other)
+    }
+#if _runtime(_ObjC)
+    guard isNative else {
+      return _NativeSet(asCocoa).genericIntersection(other)
+    }
+#endif
+    return asNative.genericIntersection(other)
+  }
+
+  @inlinable
+  internal __consuming func intersection(
+    _ other: Set<Element>
+  ) -> _NativeSet<Element> {
+#if _runtime(_ObjC)
+    switch (self.isNative, other._variant.isNative) {
+    case (true, true):
+      return asNative.intersection(other._variant.asNative)
+    case (true, false):
+      return asNative.genericIntersection(other)
+    case (false, false):
+      return _NativeSet(asCocoa).genericIntersection(other)
+    case (false, true):
+      // Note: It is tempting to implement this as `that.intersection(this)`,
+      // but intersection isn't symmetric -- the result should only contain
+      // elements from `self`.
+      let that = other._variant.asNative
+      var result = _NativeSet<Element>()
+      for cocoaElement in asCocoa {
+        let nativeElement = _forceBridgeFromObjectiveC(
+          cocoaElement, Element.self)
+        if that.contains(nativeElement) {
+          result.insertNew(nativeElement, isUnique: true)
+        }
+      }
+      return result
+    }
+#else
+    return asNative.intersection(other._variant.asNative)
+#endif
+  }
+}

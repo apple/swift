@@ -295,14 +295,7 @@ extension Set {
   public __consuming func filter(
     _ isIncluded: (Element) throws -> Bool
   ) rethrows -> Set {
-    // FIXME(performance): Eliminate rehashes by using a bitmap.
-    var result = Set()
-    for element in self {
-      if try isIncluded(element) {
-        result.insert(element)
-      }
-    }
-    return result
+    return try Set(_native: _variant.filter(isIncluded))
   }
 }
 
@@ -710,9 +703,11 @@ extension Set: SetAlgebra {
   public func isSubset<S: Sequence>(of possibleSuperset: S) -> Bool
   where S.Element == Element {
     guard !isEmpty else { return true }
-    
-    let other = Set(possibleSuperset)
-    return isSubset(of: other)
+    if self.count == 1 { return possibleSuperset.contains(self.first!) }
+    if let s = possibleSuperset as? Set<Element> {
+      return isSubset(of: s)
+    }
+    return _variant.isSubset(of: possibleSuperset)
   }
 
   /// Returns a Boolean value that indicates whether the set is a strict subset
@@ -738,9 +733,11 @@ extension Set: SetAlgebra {
   @inlinable
   public func isStrictSubset<S: Sequence>(of possibleStrictSuperset: S) -> Bool
   where S.Element == Element {
-    // FIXME: code duplication.
-    let other = Set(possibleStrictSuperset)
-    return isStrictSubset(of: other)
+    defer { _fixLifetime(self) }
+    if let s = possibleStrictSuperset as? Set<Element> {
+      return isStrictSubset(of: s)
+    }
+    return _variant.isStrictSubset(of: possibleStrictSuperset)
   }
 
   /// Returns a Boolean value that indicates whether the set is a superset of
@@ -760,7 +757,11 @@ extension Set: SetAlgebra {
   ///   otherwise, `false`.
   @inlinable
   public func isSuperset<S: Sequence>(of possibleSubset: __owned S) -> Bool
-    where S.Element == Element {
+  where S.Element == Element {
+    defer { _fixLifetime(self) }
+    if let s = possibleSubset as? Set<Element> {
+      return isSuperset(of: s)
+    }
     for member in possibleSubset {
       if !contains(member) {
         return false
@@ -790,8 +791,17 @@ extension Set: SetAlgebra {
   @inlinable
   public func isStrictSuperset<S: Sequence>(of possibleStrictSubset: S) -> Bool
   where S.Element == Element {
-    let other = Set(possibleStrictSubset)
-    return other.isStrictSubset(of: self)
+    defer { _fixLifetime(self) }
+    if isEmpty { return false }
+    if let s = possibleStrictSubset as? Set<Element> {
+      return isStrictSuperset(of: s)
+    }
+#if _runtime(_ObjC)
+    guard _variant.isNative else {
+      return isStrictSuperset(of: Set(possibleStrictSubset))
+    }
+#endif
+    return _variant.asNative.isStrictSuperset(of: possibleStrictSubset)
   }
 
   /// Returns a Boolean value that indicates whether the set has no members in
@@ -891,9 +901,7 @@ extension Set: SetAlgebra {
     _ other: S
   ) -> Set<Element>
   where S.Element == Element {
-    var newSet = self
-    newSet.subtract(other)
-    return newSet
+    return Set(_native: _variant.subtracting(other))
   }
 
   /// Removes the elements of the given sequence from the set.
@@ -946,8 +954,7 @@ extension Set: SetAlgebra {
   @inlinable
   public __consuming func intersection<S: Sequence>(_ other: S) -> Set<Element>
   where S.Element == Element {
-    let otherSet = Set(other)
-    return intersection(otherSet)
+    return Set(_native: _variant.intersection(other))
   }
 
   /// Removes the elements of the set that aren't also in the given sequence.
@@ -966,20 +973,10 @@ extension Set: SetAlgebra {
   @inlinable
   public mutating func formIntersection<S: Sequence>(_ other: S)
   where S.Element == Element {
-    // Because `intersect` needs to both modify and iterate over
-    // the left-hand side, the index may become invalidated during
-    // traversal so an intermediate set must be created.
-    //
-    // FIXME(performance): perform this operation at a lower level
-    // to avoid invalidating the index and avoiding a copy.
-    let result = self.intersection(other)
-
-    // The result can only have fewer or the same number of elements.
-    // If no elements were removed, don't perform a reassignment
-    // as this may cause an unnecessary uniquing COW.
-    if result.count != count {
-      self = result
-    }
+    // FIXME: This discards storage reserved with reserveCapacity.
+    // FIXME: Depending on the ratio of elements kept in the result, it may be
+    // faster to do the removals in place, in bulk.
+    self = self.intersection(other)
   }
 
   /// Returns a new set with the elements that are either in this set or in the
@@ -1079,9 +1076,11 @@ extension Set {
   /// - Returns: `true` if the set is a subset of `other`; otherwise, `false`.
   @inlinable
   public func isSubset(of other: Set<Element>) -> Bool {
+    defer { _fixLifetime(self) }
+    defer { _fixLifetime(other) }
     guard self.count <= other.count else { return false }
     for member in self {
-      if !other.contains(member) {
+      guard other.contains(member) else {
         return false
       }
     }
@@ -1123,9 +1122,13 @@ extension Set {
   ///   otherwise, `false`.
   @inlinable
   public func isDisjoint(with other: Set<Element>) -> Bool {
+    // Prefer to iterate over the smaller set.
+    if self.count < other.count {
+      return other._isDisjoint(with: self)
+    }
     return _isDisjoint(with: other)
   }
-    
+
   @inlinable
   internal func _isDisjoint<S: Sequence>(with other: S) -> Bool
   where S.Element == Element {
@@ -1177,7 +1180,7 @@ extension Set {
   ///   `other`; otherwise, `false`.
   @inlinable
   public func isStrictSuperset(of other: Set<Element>) -> Bool {
-    return self.isSuperset(of: other) && self != other
+    return self.count > other.count && other.isSubset(of: self)
   }
 
   /// Returns a Boolean value that indicates whether the set is a strict subset
@@ -1201,7 +1204,7 @@ extension Set {
   ///   `other`; otherwise, `false`.
   @inlinable
   public func isStrictSubset(of other: Set<Element>) -> Bool {
-    return other.isStrictSuperset(of: self)
+    return self.count < other.count && self.isSubset(of: other)
   }
 
   /// Returns a new set with the elements that are common to both this set and
@@ -1222,13 +1225,7 @@ extension Set {
   /// - Returns: A new set.
   @inlinable
   public __consuming func intersection(_ other: Set<Element>) -> Set<Element> {
-    var newSet = Set<Element>()
-    for member in self {
-      if other.contains(member) {
-        newSet.insert(member)
-      }
-    }
-    return newSet
+    return Set(_native: _variant.intersection(other))
   }
 
   /// Removes the elements of the set that are also in the given sequence and
