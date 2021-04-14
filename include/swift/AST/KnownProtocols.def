@@ -69,6 +69,7 @@ PROTOCOL(Error)
 PROTOCOL_(ErrorCodeProtocol)
 PROTOCOL(OptionSet)
 PROTOCOL(CaseIterable)
+PROTOCOL(SIMD)
 PROTOCOL(SIMDScalar)
 PROTOCOL(BinaryInteger)
 

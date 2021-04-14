@@ -1893,6 +1893,7 @@ void ConstraintSystem::partitionGenericOperators(ArrayRef<Constraint *> constrai
   SmallVector<unsigned, 4> concreteOverloads;
   SmallVector<unsigned, 4> numericOverloads;
   SmallVector<unsigned, 4> sequenceOverloads;
+  SmallVector<unsigned, 4> simdOverloads;
   SmallVector<unsigned, 4> otherGenericOverloads;
 
   auto refinesOrConformsTo = [&](NominalTypeDecl *nominal, KnownProtocolKind kind) -> bool {
@@ -1913,7 +1914,10 @@ void ConstraintSystem::partitionGenericOperators(ArrayRef<Constraint *> constrai
     unsigned index = *iter;
     auto *decl = constraints[index]->getOverloadChoice().getDecl();
     auto *nominal = decl->getDeclContext()->getSelfNominalTypeDecl();
-    if (!decl->getInterfaceType()->is<GenericFunctionType>()) {
+
+    if (isSIMDOperator(decl)) {
+      simdOverloads.push_back(index);
+    } else if (!decl->getInterfaceType()->is<GenericFunctionType>()) {
       concreteOverloads.push_back(index);
     } else if (refinesOrConformsTo(nominal, KnownProtocolKind::AdditiveArithmetic)) {
       numericOverloads.push_back(index);
@@ -1962,11 +1966,18 @@ void ConstraintSystem::partitionGenericOperators(ArrayRef<Constraint *> constrai
       sequenceOverloads.clear();
       break;
     }
+
+    if (conformsToKnownProtocol(DC, argType, KnownProtocolKind::SIMD)) {
+      first = std::copy(simdOverloads.begin(), simdOverloads.end(), first);
+      simdOverloads.clear();
+      break;
+    }
   }
 
   first = std::copy(otherGenericOverloads.begin(), otherGenericOverloads.end(), first);
   first = std::copy(numericOverloads.begin(), numericOverloads.end(), first);
   first = std::copy(sequenceOverloads.begin(), sequenceOverloads.end(), first);
+  first = std::copy(simdOverloads.begin(), simdOverloads.end(), first);
 }
 
 void ConstraintSystem::partitionDisjunction(
@@ -2045,7 +2056,8 @@ void ConstraintSystem::partitionDisjunction(
   }
 
   // Partition SIMD operators.
-  if (isOperatorBindOverload(Choices[0])) {
+  if (isOperatorBindOverload(Choices[0]) &&
+      !Choices[0]->getOverloadChoice().getName().getBaseIdentifier().isArithmeticOperator()) {
     forEachChoice(Choices, [&](unsigned index, Constraint *constraint) -> bool {
       if (!isOperatorBindOverload(constraint))
         return false;
