@@ -191,19 +191,24 @@ class Product(object):
         """
         return is_release_variant(self.args.build_variant)
 
-    def install_toolchain_path(self, host_target):
+    def install_toolchain_path(self, host_target, force_local=False):
         """toolchain_path() -> string
 
-        Returns the path to the toolchain that is being created as part of this
-        build, or to a native prebuilt toolchain that was passed in.
+        Returns the path to the local toolchain that is being created as part of
+        this build, or to a native prebuilt toolchain that was passed in.
         """
-        if self.args.native_swift_tools_path is not None:
+        if self.args.native_swift_tools_path is not None and not force_local:
             return os.path.split(self.args.native_swift_tools_path)[0]
 
         install_destdir = self.args.install_destdir
         if self.args.cross_compile_hosts:
-            build_root = os.path.dirname(self.build_dir)
-            install_destdir = '%s/intermediate-install/%s' % (build_root, host_target)
+            if targets.StdlibDeploymentTarget.get_target_for_name(
+                    host_target).platform.is_darwin:
+                build_root = os.path.dirname(self.build_dir)
+                install_destdir = '%s/intermediate-install/%s' % (build_root,
+                                                                  host_target)
+            elif host_target != self.args.host_target:
+                install_destdir = os.path.join(install_destdir, host_target)
         return targets.toolchain_path(install_destdir,
                                       self.args.install_prefix)
 

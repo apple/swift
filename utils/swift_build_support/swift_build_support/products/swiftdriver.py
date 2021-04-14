@@ -91,8 +91,7 @@ def run_build_script_helper(action, host_target, product, args):
         install_destdir = swiftpm.SwiftPM.get_install_destdir(args,
                                                               host_target,
                                                               product.build_dir)
-    toolchain_path = targets.toolchain_path(install_destdir,
-                                            args.install_prefix)
+    toolchain_path = product.install_toolchain_path(host_target)
 
     # Pass Dispatch directory down if we built it
     dispatch_build_dir = os.path.join(
@@ -137,6 +136,16 @@ def run_build_script_helper(action, host_target, product, args):
         helper_cmd += ['--cross-compile-hosts']
         for cross_compile_host in args.cross_compile_hosts:
             helper_cmd += [cross_compile_host]
+        build_toolchain_path = product.install_toolchain_path(host_target,
+                                                              force_local=True)
+        resource_dir = '%s/lib/swift' % build_toolchain_path
+        helper_cmd += [
+            '--cross-compile-config',
+            targets.StdlibDeploymentTarget.get_target_for_name(host_target).platform
+            .swiftpm_config(args, output_dir=build_toolchain_path,
+                            swift_toolchain=toolchain_path,
+                            resource_path=resource_dir),
+            '--prefix', install_destdir + args.install_prefix]
     if args.verbose_build:
         helper_cmd.append('--verbose')
 
