@@ -103,7 +103,7 @@ func test_various_situations_converting_to_double() {
 }
 
 func test_conversions_with_optionals(v: CGFloat?) {
-  // CHECK: function_ref @$s34implicit_double_cgfloat_conversion31test_conversions_with_optionals1vy12CoreGraphics7CGFloatVSg_tFAFyKXEfu_ : $@convention(thin) () -> (CGFloat, @error Error)
+  // CHECK: function_ref @$s34implicit_double_cgfloat_conversion31test_conversions_with_optionals1vy12CoreGraphics7CGFloatVSg_tFAFyYaKXEfu_ : $@convention(thin) @async () -> (CGFloat, @error Error)
   // CHECK: function_ref @$sSd12CoreGraphicsEySdAA7CGFloatVcfC : $@convention(method) (CGFloat, @thin Double.Type) -> Double
   let _: Double = (v ?? 0)
 }

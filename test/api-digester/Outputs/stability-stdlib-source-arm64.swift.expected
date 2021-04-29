@@ -25,3 +25,7 @@ Constructor UInt8.init(_:) has parameter 0 type change from Swift.Float80 to Swi
 Constructor UInt8.init(exactly:) has parameter 0 type change from Swift.Float80 to Swift.Float16
 Struct Float80 has been removed
 TypeAlias CLongDouble has underlying type change from Swift.Float80 to Swift.Double
+
+Func Bool.&&(_:_:) is now with @reasync
+Func Bool.||(_:_:) is now with @reasync
+Func ??(_:_:) is now with @reasync

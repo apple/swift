@@ -2,3 +2,7 @@ Protocol CodingKey has added inherited protocol Sendable
 Protocol CodingKey has generic signature change from <Self : Swift.CustomDebugStringConvertible, Self : Swift.CustomStringConvertible> to <Self : Swift.CustomDebugStringConvertible, Self : Swift.CustomStringConvertible, Self : Swift.Sendable>
 Protocol Error has added inherited protocol Sendable
 Protocol Error has generic signature change from to <Self : Swift.Sendable>
+
+Func Bool.&&(_:_:) is now with @reasync
+Func Bool.||(_:_:) is now with @reasync
+Func ??(_:_:) is now with @reasync

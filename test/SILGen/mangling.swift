@@ -88,8 +88,8 @@ func uses_optionals(x: Int?) -> UnicodeScalar? { return nil }
 struct HasVarInit {
   static var state = true && false
 }
-// CHECK-LABEL: // function_ref implicit closure #1 () throws -> Swift.Bool in variable initialization expression of static mangling.HasVarInit.state : Swift.Bool
-// CHECK-NEXT:  function_ref @$s8mangling10HasVarInitV5stateSbvpZfiSbyKXEfu_
+// CHECK-LABEL: // function_ref implicit closure #1 () async throws -> Swift.Bool in variable initialization expression of static mangling.HasVarInit.state : Swift.Bool
+// CHECK-NEXT:  function_ref @$s8mangling10HasVarInitV5stateSbvpZfiSbyYaKXEfu_
 
 // auto_closures should not collide with the equivalent non-auto_closure
 // function type.
