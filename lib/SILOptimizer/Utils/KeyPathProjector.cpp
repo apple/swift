@@ -230,7 +230,12 @@ public:
       auto addr = builder.createAllocStack(loc, type);
       
       assertHasNoContext();
-      assert(getter->getArguments().size() == 2);
+      // For wasm, SILGen emits keypath projector with extra generic param
+      // argument to match callee and caller signature evens if it doesn't
+      // have generic params. WebAssembly *requires* callee and caller signature
+      // to always match.
+      auto target = builder.getASTContext().LangOpts.Target;
+      assert(getter->getArguments().size() == 2 + target.isOSBinFormatWasm());
       
       auto ref = builder.createFunctionRef(loc, getter);
       builder.createApply(loc, ref, subs, {addr, parentValue});
