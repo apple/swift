@@ -17,7 +17,7 @@ func foo() {
 // CHECK-LABEL: sil_coverage_map {{.*}}// f1 #1 ((Swift.Int32, Swift.Int32) -> Swift.Bool) -> Swift.Bool in coverage_closures.foo()
 // CHECK-NEXT: [[@LINE+1]]:55 -> {{.*}}:4 : 0
   func f1(_ closure : (Int32, Int32) -> Bool) -> Bool {
-// CHECK-LABEL: sil_coverage_map {{.*}}// implicit closure #1 () throws -> Swift.Bool in f1
+// CHECK-LABEL: sil_coverage_map {{.*}}// implicit closure #1 () async throws -> Swift.Bool in f1
 // CHECK-NEXT: [[@LINE+1]]:29 -> [[@LINE+1]]:42 : 0
     return closure(0, 1) && closure(1, 0)
   }
@@ -30,7 +30,7 @@ func foo() {
 
 // CHECK-LABEL: sil_coverage_map {{.*}}// closure #3 (Swift.Int32, Swift.Int32) -> Swift.Bool in coverage_closures.foo()
 // CHECK-NEXT: [[@LINE+3]]:6 -> [[@LINE+3]]:48 : 0
-// CHECK-LABEL: sil_coverage_map {{.*}}// implicit closure #1 () throws -> {{.*}} in coverage_closures.foo
+// CHECK-LABEL: sil_coverage_map {{.*}}// implicit closure #1 () async throws -> {{.*}} in coverage_closures.foo
 // CHECK-NEXT: [[@LINE+1]]:36 -> [[@LINE+1]]:46 : 0
   f1 { left, right in left == 0 || right == 1 }
 }

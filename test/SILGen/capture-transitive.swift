@@ -7,7 +7,7 @@ func fibonacci(_ n: Int) -> Int {
     return cache[m] ?? {
       // Make sure cache is only captured once in the closure
       // CHECK: implicit closure #1 in recursive #1
-      // CHECK-LABEL: sil private [transparent] [ossa] @{{.*}}9fibonacci{{.*}}9recursive{{.*}} : $@convention(thin) (Int, @guaranteed { var Dictionary<Int, Int> }) -> (Int, @error Error)
+      // CHECK-LABEL: sil private [transparent] [ossa] @{{.*}}9fibonacci{{.*}}9recursive{{.*}} : $@convention(thin) @async (Int, @guaranteed { var Dictionary<Int, Int> }) -> (Int, @error Error)
       // CHECK: closure #1 in implicit closure #1 in recursive #1
       // CHECK-LABEL: sil private [ossa] @{{.*}}9fibonacci{{.*}}9recursive{{.*}} : $@convention(thin) (Int, @guaranteed { var Dictionary<Int, Int> }) -> Int
       let output = m < 2 ? m : recursive(m - 1) + recursive(m - 2)
