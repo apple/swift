@@ -1189,6 +1189,7 @@ NINJA_SOURCE_DIR="${WORKSPACE}/ninja"
 SWIFT_SOURCE_DIR="${WORKSPACE}/swift"
 LLVM_SOURCE_DIR="${WORKSPACE}/llvm-project/llvm"
 CMARK_SOURCE_DIR="${WORKSPACE}/cmark"
+USWIFT_SOURCE_DIR="${WORKSPACE}/uswift"
 LLDB_SOURCE_DIR="${WORKSPACE}/llvm-project/lldb"
 LLBUILD_SOURCE_DIR="${WORKSPACE}/llbuild"
 STRESSTEST_PACKAGE_DIR="${WORKSPACE}/swift-stress-tester"
@@ -1209,6 +1210,7 @@ PRODUCTS=(llvm)
 [[ "${SKIP_BUILD_LIBCXX}" ]] || PRODUCTS+=(libcxx)
 [[ "${SKIP_BUILD_LIBICU}" ]] || PRODUCTS+=(libicu)
 [[ "${SKIP_BUILD_SWIFT}" ]] || PRODUCTS+=(swift)
+PRODUCTS+=(uswift)
 [[ "${SKIP_BUILD_LLDB}" ]] || PRODUCTS+=(lldb)
 [[ "${SKIP_BUILD_LIBDISPATCH}" ]] || PRODUCTS+=(libdispatch)
 [[ "${SKIP_BUILD_STATIC_LIBDISPATCH}" ]] || PRODUCTS+=(libdispatch_static)
@@ -1667,6 +1669,91 @@ for host in "${ALL_HOSTS[@]}"; do
                 build_targets=(all)
                 ;;
 
+            uswift)
+                uswift_targets=(
+                    "macos-arm64" "arm64-apple-macosx10.9"
+                    "macos-x86_64" "x86_64-apple-macosx10.9"
+                    "linux-armv7" "armv7-unknown-linux-androideabi"
+                    "windows-x86_64" "x86_64-unknown-windows-msvc"
+                )
+                uswift_targets_length=${#uswift_targets[@]}
+
+                cmake_options=(
+                    "${cmake_options[@]}"
+                    -D BUILD_SHARED_LIBS=NO
+                    -D CMAKE_Swift_COMPILER_WORKS=YES
+                    -D CMAKE_BUILD_TYPE=Release
+                    -D CMAKE_Swift_COMPILER=$(build_directory ${host} swift)/bin/swiftc
+                )
+
+                # Build uswift for each target.
+                for (( i=1; i<${uswift_targets_length}+1; i+=2 ));
+                do
+                    uswift_target_name=${uswift_targets[$i-1]}
+                    uswift_target=${uswift_targets[$i]}
+                    all_cmake_options=(
+                        "${cmake_options[@]}"
+                        -D CMAKE_Swift_COMPILER_TARGET=${uswift_target}
+                    )
+
+                    if [[ "$uswift_target_name" == "windows-x86_64" ]] ; then
+                        all_cmake_options=(
+                            "${all_cmake_options[@]}"
+                            -D CMAKE_Swift_FLAGS="-use-ld=$(build_directory ${LOCAL_HOST} llvm)/bin/lld-link"
+                        )
+                    else
+                        all_cmake_options=(
+                            "${all_cmake_options[@]}"
+                            -D CMAKE_Swift_FLAGS="-Xfrontend -disable-legacy-type-info"
+                        )
+                    fi
+
+                    build_dir=$(build_directory ${uswift_target_name} ${product})
+
+                    generator_output_path=""
+                    if [[ "${CMAKE_GENERATOR}" == "Ninja" ]] ; then
+                        generator_output_path="${build_dir}/build.ninja"
+                    fi
+
+                    # Configure if necessary.
+                    cmake_cache_path="${build_dir}/CMakeCache.txt"
+                    if [[  "${RECONFIGURE}" || ! -f "${cmake_cache_path}" || \
+                                ( ! -z "${generator_output_path}" && ! -f "${generator_output_path}" ) ]] ; then
+                        call mkdir -p "${build_dir}"
+
+                        # Use `cmake-file-api` in case it is available.
+                        call mkdir -p "${build_dir}/.cmake/api/v1/query"
+                        call touch "${build_dir}/.cmake/api/v1/query/codemodel-v2" "${build_dir}/.cmake/api/v1/query/cache-v2"
+
+                        if [[ -n "${DISTCC}" ]]; then
+                            EXTRA_DISTCC_OPTIONS=("DISTCC_HOSTS=localhost,lzo,cpp")
+                        fi
+                        with_pushd "${build_dir}" \
+                            call env "${EXTRA_DISTCC_OPTIONS[@]}" "${CMAKE}" "${all_cmake_options[@]}" "${EXTRA_CMAKE_OPTIONS[@]}" "${source_dir}"
+                    fi
+
+                    # Note: unconditionally build uswift because it is required for running some tests.
+                    if [[ "${CMAKE_GENERATOR}" == "Xcode" ]] ; then
+                        # Xcode generator uses "ALL_BUILD" instead of "all".
+                        # Also, xcodebuild uses -target instead of bare names.
+                        build_targets=("${build_targets[@]/all/ALL_BUILD}")
+                        build_targets=("${build_targets[@]/#/${BUILD_TARGET_FLAG} }")
+
+                        # Xcode can't restart itself if it turns out we need to reconfigure.
+                        # Do an advance build to handle that.
+                        call "${CMAKE_BUILD[@]}" "${build_dir}" $(cmake_config_opt ${product})
+                    fi
+
+                    call "${CMAKE_BUILD[@]}" "${build_dir}" $(cmake_config_opt ${product}) -- "${BUILD_ARGS[@]}" ${build_targets[@]}
+
+                    # Copy over the uswift build.
+                    cp -a $(build_directory ${uswift_target_name} uswift) $(build_directory ${host} swift)
+                done
+
+                # We've already run cmake/build so we can just break out here.
+                continue
+                ;;
+
             llvm)
                 if [[ -n "${LLVM_NINJA_TARGETS_FOR_CROSS_COMPILE_HOSTS}" && $(is_cross_tools_host ${host}) ]] ; then
                     build_targets=("${LLVM_NINJA_TARGETS_FOR_CROSS_COMPILE_HOSTS[@]}")
@@ -1724,7 +1811,7 @@ for host in "${ALL_HOSTS[@]}"; do
                     "${llvm_cmake_options[@]}"
                 )
 
-                llvm_enable_projects=("clang")
+                llvm_enable_projects=("clang" "lld")
 
                 if [[ ! "${SKIP_BUILD_COMPILER_RT}" && ! $(is_cross_tools_host ${host}) ]]; then
                     llvm_enable_projects+=("compiler-rt")
@@ -1732,18 +1819,6 @@ for host in "${ALL_HOSTS[@]}"; do
 
                 if [[ ! "${SKIP_BUILD_CLANG_TOOLS_EXTRA}" ]]; then
                     llvm_enable_projects+=("clang-tools-extra")
-                fi
-
-                # On non-Darwin platforms, build lld so we can always have a
-                # linker that is compatible with the swift we are using to
-                # compile the stdlib.
-                #
-                # This makes it easier to build target stdlibs on systems that
-                # have old toolchains without more modern linker features.
-                if [[ "$(uname -s)" != "Darwin" ]] ; then
-                    if [[ ! "${SKIP_BUILD_LLD}" ]]; then
-                        llvm_enable_projects+=("lld")
-                    fi
                 fi
 
                 cmake_options+=(
@@ -1804,7 +1879,6 @@ for host in "${ALL_HOSTS[@]}"; do
                 ;;
 
             swift)
-
                 if [[ "${ANDROID_API_LEVEL}" ]]; then
                     cmake_options=(
                         "${cmake_options[@]}"

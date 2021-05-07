@@ -1,4 +1,4 @@
-// RUN: %target-swift-emit-ir %s -I %S/Inputs -enable-cxx-interop -validate-tbd-against-ir=none | %FileCheck %s
+// RUN: %cxx-all-targets(-I %S/Inputs %s -emit-ir -validate-tbd-against-ir=none | %FileCheck %s)
 
 // TODO: See why -validate-tbd-against-ir=none is needed here (SR-14069)
 

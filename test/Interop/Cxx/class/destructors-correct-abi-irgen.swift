@@ -1,4 +1,4 @@
-// RUN: %swift -I %S/Inputs -enable-cxx-interop -emit-ir %s | %FileCheck %s
+// RUN: %cxx-all-targets(-I %S/Inputs %s -emit-ir | %FileCheck %s)
 
 import Destructors
 

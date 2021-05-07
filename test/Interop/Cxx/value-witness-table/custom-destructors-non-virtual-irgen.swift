@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend -enable-cxx-interop -I %S/Inputs %s -emit-ir | %FileCheck %s
+// RUN: %cxx-all-targets(-I %S/Inputs %s -emit-ir | %FileCheck %s)
 
 // This tests output needs to be updated for arm64.
 // XFAIL: CPU=arm64e

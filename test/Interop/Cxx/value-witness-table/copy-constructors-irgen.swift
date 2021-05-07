@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend -enable-cxx-interop -I %S/Inputs %s -emit-ir | %FileCheck %s
+// RUN: %cxx-all-targets(-I %S/Inputs %s -emit-ir | %FileCheck %s)
 
 // REQUIRES: CPU=x86_64
 // REQUIRES: objc_interop

@@ -12,6 +12,7 @@
 
 from .benchmarks import Benchmarks
 from .cmark import CMark
+from .uswift import USwift
 from .foundation import Foundation
 from .indexstoredb import IndexStoreDB
 from .libcxx import LibCXX
@@ -35,6 +36,7 @@ from .tsan_libdispatch import TSanLibDispatch
 from .xctest import XCTest
 
 __all__ = [
+    'USwift',
     'CMark',
     'Ninja',
     'Foundation',

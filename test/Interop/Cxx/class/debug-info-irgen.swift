@@ -1,4 +1,4 @@
-// RUN: %target-swiftxx-frontend -I %S/Inputs %s -emit-ir -g | %FileCheck %s
+// RUN: %cxx-all-targets(-I %S/Inputs %s -emit-ir -g | %FileCheck %s)
 
 // Validate that we don't crash when trying to deserialize C++ type debug info.
 // Note, however, that the actual debug info is not generated, see SR-13223.

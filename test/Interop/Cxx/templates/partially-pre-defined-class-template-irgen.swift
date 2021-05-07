@@ -1,5 +1,7 @@
-// RUN: %target-swift-emit-ir %s -I %S/Inputs -enable-cxx-interop | %FileCheck %s
+// RUN: %cxx-all-targets(-I %S/Inputs %s -emit-ir | %FileCheck %s)
+
 // REQUIRES: rdar67257133
+
 import PartiallyPreDefinedClassTemplate
 
 public func getWrappedMagicInt() -> CInt {

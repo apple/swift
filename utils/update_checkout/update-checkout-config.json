@@ -52,7 +52,9 @@
         "swift-format": {
             "remote": { "id": "apple/swift-format" } },
         "llvm-project": {
-            "remote": { "id": "apple/llvm-project" } }
+            "remote": { "id": "apple/llvm-project" } },
+        "uswift": {
+            "remote": { "id": "compnerd/uswift" } }
     },
     "default-branch-scheme": "main",
     "branch-schemes": {
@@ -81,7 +83,8 @@
                 "cmake": "v3.16.5",
                 "indexstore-db": "main",
                 "sourcekit-lsp": "main",
-                "swift-format": "main"
+                "swift-format": "main",
+                "uswift": "main"
             }
         },
        "release/5.5": {
@@ -137,7 +140,8 @@
                 "cmake": "v3.16.5",
                 "indexstore-db": "main",
                 "sourcekit-lsp": "main",
-                "swift-format": "main"
+                "swift-format": "main",
+                "uswift": "main"
             }
         },
         "next" : {
@@ -168,7 +172,8 @@
                 "cmake": "v3.16.5",
                 "indexstore-db": "main",
                 "sourcekit-lsp": "main",
-                "swift-format": "main"
+                "swift-format": "main",
+                "uswift": "main"
             }
         },
        "swift-3.0-branch" : {

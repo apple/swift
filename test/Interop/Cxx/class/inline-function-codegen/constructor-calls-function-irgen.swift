@@ -1,4 +1,4 @@
-// RUN: %target-swift-emit-ir %s -I %S/Inputs -enable-cxx-interop | %FileCheck %s
+// RUN: %cxx-all-targets(-I %S/Inputs %s -emit-ir | %FileCheck %s)
 
 import ConstructorCallsFunction
 
