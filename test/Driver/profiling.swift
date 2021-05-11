@@ -6,6 +6,7 @@
 // RUN: %swiftc_driver -sdk "" -driver-print-jobs -profile-generate -target x86_64-apple-ios7.1-simulator -resource-dir %S/Inputs/fake-resource-dir/lib/swift/ %s | %FileCheck -check-prefix=CHECK -check-prefix=IOSSIM %s
 // RUN: %swiftc_driver -sdk "" -driver-print-jobs -profile-generate -target arm64-apple-ios7.1 -resource-dir %S/Inputs/fake-resource-dir/lib/swift/ %s | %FileCheck -check-prefix=CHECK -check-prefix=IOS %s
 
+// RUN: %swiftc_driver -driver-print-jobs -profile-generate -target wasm32-unknown-wasi %s | %FileCheck -check-prefix CHECK -check-prefix WASI %s
 // RUN: %swiftc_driver -sdk "" -driver-print-jobs -profile-generate -target x86_64-apple-tvos9.0-simulator -resource-dir %S/Inputs/fake-resource-dir-old/lib/swift/ %s | %FileCheck -check-prefix=CHECK -check-prefix=tvOS %s
 // RUN: %swiftc_driver -sdk "" -driver-print-jobs -profile-generate -target arm64-apple-tvos9.0 -resource-dir %S/Inputs/fake-resource-dir-old/lib/swift/ %s | %FileCheck -check-prefix=CHECK -check-prefix=tvOS %s
 

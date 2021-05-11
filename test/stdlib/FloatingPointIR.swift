@@ -56,3 +56,6 @@ func testConstantFoldFloatLiterals() {
 
 // s390x: call swiftcc void @"$s15FloatingPointIR13acceptFloat32yySfF{{.*}}"(float 1.000000e+00)
 // s390x: call swiftcc void @"$s15FloatingPointIR13acceptFloat64yySdF{{.*}}"(double 1.000000e+00)
+
+// wasm32: call swiftcc void @"$s15FloatingPointIR13acceptFloat32yySfF{{.*}}"(float 1.000000e+00)
+// wasm32: call swiftcc void @"$s15FloatingPointIR13acceptFloat64yySdF{{.*}}"(double 1.000000e+00)

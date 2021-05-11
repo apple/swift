@@ -81,17 +81,25 @@ struct HeapObject {
 #ifdef __cplusplus
 extern "C" {
 #endif
+#if __has_attribute(swiftcall)
+#define SWIFT_CC_swift __attribute__((swiftcall))
+#else
+#define SWIFT_CC_swift
+#endif
 
 SWIFT_RUNTIME_STDLIB_API
 void _swift_instantiateInertHeapObject(void *address,
                                        const HeapMetadata *metadata);
 
+SWIFT_CC_swift
 SWIFT_RUNTIME_STDLIB_API
 __swift_size_t swift_retainCount(HeapObject *obj);
 
+SWIFT_CC_swift
 SWIFT_RUNTIME_STDLIB_API
 __swift_size_t swift_unownedRetainCount(HeapObject *obj);
 
+SWIFT_CC_swift
 SWIFT_RUNTIME_STDLIB_API
 __swift_size_t swift_weakRetainCount(HeapObject *obj);
 
@@ -189,6 +197,22 @@ static_assert(alignof(HeapObject) == alignof(void*),
   (unsigned) SWIFT_ABI_S390X_OBJC_NUM_RESERVED_LOW_BITS
 #define _swift_BridgeObject_TaggedPointerBits                                  \
   (__swift_uintptr_t) SWIFT_ABI_DEFAULT_BRIDGEOBJECT_TAG_64
+
+#elif defined(__wasm32__)
+extern unsigned char __global_base;
+#define _swift_abi_LeastValidPointerValue                                      \
+  (__swift_uintptr_t) SWIFT_ABI_WASM32_LEAST_VALID_POINTER
+
+#define _swift_abi_SwiftSpareBitsMask                                          \
+  (__swift_uintptr_t) SWIFT_ABI_DEFAULT_SWIFT_SPARE_BITS_MASK
+
+#define _swift_abi_ObjCReservedBitsMask                                        \
+  (__swift_uintptr_t) SWIFT_ABI_DEFAULT_OBJC_RESERVED_BITS_MASK
+#define _swift_abi_ObjCReservedLowBits                                         \
+  (unsigned) SWIFT_ABI_DEFAULT_OBJC_NUM_RESERVED_LOW_BITS
+
+#define _swift_BridgeObject_TaggedPointerBits                                  \
+  (__swift_uintptr_t) SWIFT_ABI_DEFAULT_BRIDGEOBJECT_TAG_32
 
 #else
 

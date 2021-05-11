@@ -25,7 +25,7 @@
 #include "AsyncCall.h"
 #include "Debug.h"
 
-#if !defined(_WIN32)
+#if !defined(_WIN32) && !defined(__wasi__)
 #include <dlfcn.h>
 #endif
 

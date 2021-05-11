@@ -1,0 +1,31 @@
+version: "1"
+rules:
+  - base: swiftwasm
+    upstream: main
+    mergeMethod: merge
+  - base: main
+    upstream: apple:main
+    mergeMethod: hardreset
+
+  - base: release/5.3
+    upstream: apple:release/5.3
+    mergeMethod: hardreset
+  - base: swiftwasm-release/5.3
+    upstream: release/5.3
+    mergeMethod: merge
+
+  - base: release/5.4
+    upstream: apple:release/5.4
+    mergeMethod: hardreset
+  - base: swiftwasm-release/5.4
+    upstream: release/5.4
+    mergeMethod: merge
+
+  - base: release/5.5
+    upstream: apple:release/5.5
+    mergeMethod: hardreset
+  - base: swiftwasm-release/5.5
+    upstream: release/5.5
+    mergeMethod: merge
+
+label: ":arrow_heading_down: Upstream Tracking"

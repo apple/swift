@@ -338,6 +338,7 @@ OptionalTests.test("Casting Optional") {
   expectTrue(anyToAnyIsOptional(Optional<(String, String)>.none, Bool.self))
 }
 
+#if !os(WASI)
 OptionalTests.test("Casting Optional Traps") {
   let nx: C? = nil
   expectCrash { _blackHole(anyToAny(nx, Int.self)) }
@@ -346,6 +347,7 @@ OptionalTests.test("Casting Optional Any Traps") {
   let nx: X? = X()
   expectCrash { _blackHole(anyToAny(nx as Any, Optional<Int>.self)) }
 }
+#endif
 
 class TestNoString {}
 class TestString : CustomStringConvertible, CustomDebugStringConvertible {
@@ -407,6 +409,7 @@ OptionalTests.test("unsafelyUnwrapped") {
   expectEqual(3, nonEmpty.unsafelyUnwrapped)
 }
 
+#if !os(WASI)
 OptionalTests.test("unsafelyUnwrapped nil")
   .xfail(.custom(
     { !_isDebugAssertConfiguration() },
@@ -416,5 +419,6 @@ OptionalTests.test("unsafelyUnwrapped nil")
   expectCrashLater()
   _blackHole(empty.unsafelyUnwrapped)
 }
+#endif
 
 runAllTests()

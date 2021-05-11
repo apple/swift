@@ -36,18 +36,19 @@ add_swift_target_library(swiftStdlibUnittest ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES}
   TestHelpers.swift
   TypeIndexed.swift
 
-  SWIFT_MODULE_DEPENDS SwiftPrivate SwiftPrivateThreadExtras SwiftPrivateLibcExtras
-  SWIFT_MODULE_DEPENDS_IOS Darwin Foundation
-  SWIFT_MODULE_DEPENDS_OSX Darwin Foundation
-  SWIFT_MODULE_DEPENDS_TVOS Darwin Foundation
-  SWIFT_MODULE_DEPENDS_WATCHOS Darwin Foundation
-  SWIFT_MODULE_DEPENDS_FREESTANDING Darwin
-  SWIFT_MODULE_DEPENDS_LINUX Glibc
-  SWIFT_MODULE_DEPENDS_FREEBSD Glibc
-  SWIFT_MODULE_DEPENDS_OPENBSD Glibc
-  SWIFT_MODULE_DEPENDS_CYGWIN Glibc
-  SWIFT_MODULE_DEPENDS_HAIKU Glibc
-  SWIFT_MODULE_DEPENDS_WINDOWS CRT WinSDK
+  SWIFT_MODULE_DEPENDS SwiftPrivate SwiftPrivateLibcExtras
+  SWIFT_MODULE_DEPENDS_IOS Darwin Foundation SwiftPrivateThreadExtras
+  SWIFT_MODULE_DEPENDS_OSX Darwin Foundation SwiftPrivateThreadExtras
+  SWIFT_MODULE_DEPENDS_TVOS Darwin Foundation SwiftPrivateThreadExtras
+  SWIFT_MODULE_DEPENDS_WATCHOS Darwin Foundation SwiftPrivateThreadExtras
+  SWIFT_MODULE_DEPENDS_FREESTANDING Darwin SwiftPrivateThreadExtras
+  SWIFT_MODULE_DEPENDS_LINUX Glibc SwiftPrivateThreadExtras
+  SWIFT_MODULE_DEPENDS_FREEBSD Glibc SwiftPrivateThreadExtras
+  SWIFT_MODULE_DEPENDS_OPENBSD Glibc SwiftPrivateThreadExtras
+  SWIFT_MODULE_DEPENDS_CYGWIN Glibc SwiftPrivateThreadExtras
+  SWIFT_MODULE_DEPENDS_HAIKU Glibc SwiftPrivateThreadExtras
+  SWIFT_MODULE_DEPENDS_WASI WASILibc
+  SWIFT_MODULE_DEPENDS_WINDOWS CRT WinSDK SwiftPrivateThreadExtras
   SWIFT_COMPILE_FLAGS ${swift_stdlib_unittest_compile_flags} ${SWIFT_STANDARD_LIBRARY_SWIFT_FLAGS}
   INSTALL_IN_COMPONENT stdlib-experimental
   DARWIN_INSTALL_NAME_DIR "${SWIFT_DARWIN_STDLIB_PRIVATE_INSTALL_NAME_DIR}"

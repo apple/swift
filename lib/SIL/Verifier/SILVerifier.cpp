@@ -278,7 +278,8 @@ void verifyKeyPathComponent(SILModule &M,
                 SILFunctionTypeRepresentation::Thin,
               "getter should be a thin function");
       
-      require(substGetterType->getNumParameters() == 1 + hasIndices,
+      auto &C = M.getASTContext();
+      require(substGetterType->getNumParameters() == 1 + (hasIndices || C.LangOpts.Target.isOSBinFormatWasm()),
               "getter should have one parameter");
       auto baseParam = substGetterType->getParameters()[0];
       require(baseParam.getConvention() == normalArgConvention,
@@ -330,7 +331,8 @@ void verifyKeyPathComponent(SILModule &M,
                 SILFunctionTypeRepresentation::Thin,
               "setter should be a thin function");
       
-      require(substSetterType->getNumParameters() == 2 + hasIndices,
+      auto &C = M.getASTContext();
+      require(substSetterType->getNumParameters() == 2 + (hasIndices || C.LangOpts.Target.isOSBinFormatWasm()),
               "setter should have two parameters");
 
       auto newValueParam = substSetterType->getParameters()[0];
@@ -5914,7 +5916,8 @@ void SILDefaultWitnessTable::verify(const SILModule &M) const {
       continue;
 
     SILFunction *F = E.getMethodWitness().Witness;
-
+    // Default witness can be null
+    if (!F) continue;
 #if 0
     // FIXME: For now, all default witnesses are private.
     assert(F->hasValidLinkageForFragileRef() &&

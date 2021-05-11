@@ -23,11 +23,13 @@ RepeatTests.test("associated-types") {
       indicesType: CountableRange<Int>.self)
 }
 
+#if !os(WASI)
 RepeatTests.test("out-of-bounds") {
   let sequence = repeatElement(0, count: 1)
   expectCrashLater()
   _ = sequence[sequence.count]
 }
+#endif
 
 runAllTests()
 

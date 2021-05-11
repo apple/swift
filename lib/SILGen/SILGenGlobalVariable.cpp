@@ -212,6 +212,19 @@ void SILGenFunction::emitLazyGlobalInitializer(PatternBindingDecl *binding,
                                                unsigned pbdEntry) {
   MagicFunctionName = SILGenModule::getMagicFunctionName(binding->getDeclContext());
 
+  ASTContext &C = getASTContext();
+  // wasm: Lazy global init is used with swift_once which passes a context
+  // pointer parameter. If lazy global init doesn't take a context argument,
+  // caller and callee signatures are mismatched and it causes runtime
+  // exception on WebAssembly runtime. So we need to add dummy argument
+  // to consume the context pointer.
+  // See also: emitLazyGlobalInitializer
+  if (C.LangOpts.Target.isOSBinFormatWasm()) {
+    auto UnsafeRawPointer = C.getUnsafeRawPointerDecl();
+    auto UnsafeRawPtrTy = getLoweredType(UnsafeRawPointer->getDeclaredInterfaceType());
+    F.front().createFunctionArgument(UnsafeRawPtrTy);
+  }
+
   {
     Scope scope(Cleanups, binding);
 

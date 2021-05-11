@@ -1,0 +1,231 @@
+//===--- wasi.modulemap.gyb ----------------------------------------------===//
+//
+// This source file is part of the Swift.org open source project
+//
+// Copyright (c) 2020 Apple Inc. and the Swift project authors
+// Licensed under Apache License v2.0 with Runtime Library Exception
+//
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
+//
+//===----------------------------------------------------------------------===//
+
+/// This is a semi-complete modulemap that maps WASI headers in a roughly
+/// similar way to the Darwin SDK modulemap. We do not take care to list every
+/// single header which may be included by a particular submodule, so there can
+/// still be issues if imported into the same context as one in which someone
+/// included those headers directly.
+///
+/// It's not named just WASI so that it doesn't conflict in the event of a
+/// future official WASI modulemap.
+module SwiftWASILibc [system] {
+  // C standard library
+  module C {
+    module ctype {
+      header "${LIBC_INCLUDE_PATH}/ctype.h"
+      export *
+    }
+    module errno {
+      header "${LIBC_INCLUDE_PATH}/errno.h"
+      export *
+    }
+
+    module fenv {
+      header "${LIBC_INCLUDE_PATH}/fenv.h"
+      export *
+    }
+
+    // note: supplied by compiler
+    // module float {
+    //   header "${LIBC_INCLUDE_PATH}/float.h"
+    //   export *
+    // }
+
+    module inttypes {
+      header "${LIBC_INCLUDE_PATH}/inttypes.h"
+      export *
+    }
+
+    // note: potentially supplied by compiler
+    // module iso646 {
+    //   header "${LIBC_INCLUDE_PATH}/iso646.h"
+    //   export *
+    // }
+    // module limits {
+    //   header "${LIBC_INCLUDE_PATH}/limits.h"
+    //   export *
+    // }
+
+    module locale {
+      header "${LIBC_INCLUDE_PATH}/locale.h"
+      export *
+    }
+    module math {
+      header "${LIBC_INCLUDE_PATH}/math.h"
+      export *
+    }
+    module signal {
+      header "${LIBC_INCLUDE_PATH}/signal.h"
+      export *
+    }
+
+    // note: supplied by the compiler
+    // module stdarg {
+    //   header "${LIBC_INCLUDE_PATH}/stdarg.h"
+    //   export *
+    // }
+    // module stdbool {
+    //   header "${LIBC_INCLUDE_PATH}/stdbool.h"
+    //   export *
+    // }
+    // module stddef {
+    //   header "${LIBC_INCLUDE_PATH}/stddef.h"
+    //   export *
+    // }
+    // module stdint {
+    //   header "${LIBC_INCLUDE_PATH}/stdint.h"
+    //   export *
+    // }
+
+    module stdio {
+      header "${LIBC_INCLUDE_PATH}/stdio.h"
+      export *
+    }
+    module stdlib {
+      header "${LIBC_INCLUDE_PATH}/stdlib.h"
+      export *
+      export stddef
+    }
+    module string {
+      header "${LIBC_INCLUDE_PATH}/string.h"
+      export *
+    }
+
+    // note: supplied by the compiler
+    // explicit module tgmath {
+    //   header "${LIBC_INCLUDE_PATH}/tgmath.h"
+    //   export *
+    // }
+
+    module time {
+      header "${LIBC_INCLUDE_PATH}/time.h"
+      export *
+    }
+  }
+
+  // POSIX
+  module POSIX {
+    module arpa {
+      module inet {
+        header "${LIBC_INCLUDE_PATH}/arpa/inet.h"
+        export *
+      }
+      export *
+    }
+    module dirent {
+      header "${LIBC_INCLUDE_PATH}/dirent.h"
+      export *
+    }
+    module fcntl {
+      header "${LIBC_INCLUDE_PATH}/fcntl.h"
+      export *
+    }
+    module fnmatch {
+      header "${LIBC_INCLUDE_PATH}/fnmatch.h"
+      export *
+    }
+    module ioctl {
+      header "${LIBC_ARCH_INCLUDE_PATH}/sys/ioctl.h"
+      export *
+    }
+    module libgen {
+      header "${LIBC_INCLUDE_PATH}/libgen.h"
+      export *
+    }
+    module netinet {
+      module in {
+        header "${LIBC_INCLUDE_PATH}/netinet/in.h"
+        export *
+
+        exclude header "${LIBC_INCLUDE_PATH}/netinet6/in6.h"
+      }
+      module tcp {
+        header "${LIBC_INCLUDE_PATH}/netinet/tcp.h"
+        export *
+      }
+    }
+    module poll {
+      header "${LIBC_INCLUDE_PATH}/poll.h"
+      export *
+    }
+    module regex {
+      header "${LIBC_INCLUDE_PATH}/regex.h"
+      export *
+    }
+    module sched {
+      header "${LIBC_INCLUDE_PATH}/sched.h"
+      export *
+    }
+    module semaphore {
+      header "${LIBC_INCLUDE_PATH}/semaphore.h"
+      export *
+    }
+    module strings {
+      header "${LIBC_INCLUDE_PATH}/strings.h"
+      export *
+    }
+
+    module sys {
+      export *
+
+      module mman {
+        header "${LIBC_ARCH_INCLUDE_PATH}/sys/mman.h"
+        export *
+      }
+      module resource {
+        header "${LIBC_ARCH_INCLUDE_PATH}/sys/resource.h"
+        export *
+      }
+      module select {
+        header "${LIBC_ARCH_INCLUDE_PATH}/sys/select.h"
+        export *
+      }
+      module socket {
+        header "${LIBC_ARCH_INCLUDE_PATH}/sys/socket.h"
+        export *
+      }
+      module stat {
+        header "${LIBC_ARCH_INCLUDE_PATH}/sys/stat.h"
+        export *
+      }
+      module time {
+        header "${LIBC_ARCH_INCLUDE_PATH}/sys/time.h"
+        export *
+      }
+      module times {
+        header "${LIBC_ARCH_INCLUDE_PATH}/sys/times.h"
+        export *
+      }
+      module types {
+        header "${LIBC_ARCH_INCLUDE_PATH}/sys/types.h"
+        export *
+      }
+      module uio {
+        header "${LIBC_ARCH_INCLUDE_PATH}/sys/uio.h"
+        export *
+      }
+      module un {
+        header "${LIBC_ARCH_INCLUDE_PATH}/sys/un.h"
+        export *
+      }
+      module utsname {
+        header "${LIBC_ARCH_INCLUDE_PATH}/sys/utsname.h"
+        export *
+      }
+    }
+    module unistd {
+      header "${LIBC_INCLUDE_PATH}/unistd.h"
+      export *
+    }
+  }
+}

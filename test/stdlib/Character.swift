@@ -369,6 +369,7 @@ UnicodeScalarTests.test("UInt8(ascii: UnicodeScalar)") {
   }
 }
 
+#if !os(WASI)
 UnicodeScalarTests.test("UInt8(ascii: UnicodeScalar)/non-ASCII should trap")
   .skip(.custom(
     { _isFastAssertConfiguration() },
@@ -378,6 +379,7 @@ UnicodeScalarTests.test("UInt8(ascii: UnicodeScalar)/non-ASCII should trap")
   expectCrashLater()
   _blackHole(UInt8(ascii: us))
 }
+#endif
 
 UnicodeScalarTests.test("UInt32(_: UnicodeScalar),UInt64(_: UnicodeScalar)") {
   for us in baseScalars {

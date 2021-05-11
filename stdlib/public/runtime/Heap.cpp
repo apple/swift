@@ -46,6 +46,11 @@ using namespace swift;
 #elif defined(_WIN32)
 #  define MALLOC_ALIGN_MASK 7
 
+#elif defined(__wasi__)
+// Musl malloc is 4*sizeof(size_t), so 16 bytes on 32-bit?
+// For some reason the unknown alignment code fails because std::max isn't constexpr?
+#  define MALLOC_ALIGN_MASK  15
+
 #else
 // Unknown alignment, but the standard requires alignment suitable for the largest
 // standard types.

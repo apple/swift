@@ -957,6 +957,7 @@ mirrors.test("Addressing") {
   expectNil(m.descendant(1, 1, "bork"))
 }
 
+#if !os(WASI)
 mirrors.test("Invalid Path Type")
   .skip(.custom(
     { _isFastAssertConfiguration() },
@@ -968,6 +969,7 @@ mirrors.test("Invalid Path Type")
   expectCrashLater()
   _ = m.descendant(X())
 }
+#endif
 
 mirrors.test("PlaygroundQuickLook") {
   // Customization works.

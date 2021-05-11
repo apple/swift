@@ -76,11 +76,9 @@ internal func _enqueueOnMain(_ job: UnownedJob)
 
 // Used by the concurrency runtime
 @available(SwiftStdlib 5.5, *)
-extension SerialExecutor {
-  @_silgen_name("_swift_task_getMainExecutor")
-  internal func _getMainExecutor() -> UnownedSerialExecutor {
-    return MainActor.shared.unownedExecutor
-  }
+@_silgen_name("_swift_task_getMainExecutor")
+internal func _getMainExecutor() -> UnownedSerialExecutor {
+  return MainActor.shared.unownedExecutor
 }
 
 @available(SwiftStdlib 5.5, *)

@@ -2,6 +2,7 @@ add_swift_host_tool(swift-frontend
   driver.cpp
   autolink_extract_main.cpp
   modulewrap_main.cpp
+  cross_module_opt_main.cpp
   swift_api_digester_main.cpp
   swift_indent_main.cpp
   swift_symbolgraph_extract_main.cpp

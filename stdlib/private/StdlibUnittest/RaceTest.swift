@@ -38,11 +38,15 @@
 
 import SwiftPrivate
 import SwiftPrivateLibcExtras
+#if !os(WASI)
 import SwiftPrivateThreadExtras
+#endif
 #if canImport(Darwin)
 import Darwin
 #elseif canImport(Glibc)
 import Glibc
+#elseif os(WASI)
+import WASILibc
 #elseif os(Windows)
 import CRT
 import WinSDK
@@ -334,6 +338,36 @@ public func evaluateObservationsAllEqual<T : Equatable>(_ observations: [T])
   }
   return .pass
 }
+
+// Notes: WebAssembly/WASI doesn't support multi thread yet
+#if os(WASI)
+public func runRaceTest<RT : RaceTestWithPerTrialData>(
+  _: RT.Type,
+  trials: Int,
+  timeoutInSeconds: Int? = nil,
+  threads: Int? = nil
+) {}
+public func runRaceTest<RT : RaceTestWithPerTrialData>(
+  _ test: RT.Type,
+  operations: Int,
+  timeoutInSeconds: Int? = nil,
+  threads: Int? = nil
+) {}
+public func consumeCPU(units amountOfWork: Int) {}
+public func runRaceTest(
+  trials: Int,
+  timeoutInSeconds: Int? = nil,
+  threads: Int? = nil,
+  invoking body: @escaping () -> Void
+) {}
+
+public func runRaceTest(
+  operations: Int,
+  timeoutInSeconds: Int? = nil,
+  threads: Int? = nil,
+  invoking body: @escaping () -> Void
+) {}
+#else
 
 struct _RaceTestAggregatedEvaluations : CustomStringConvertible {
   var passCount: Int = 0
@@ -756,3 +790,4 @@ public func runRaceTest(
     timeoutInSeconds: timeoutInSeconds, threads: threads)
 }
 
+#endif

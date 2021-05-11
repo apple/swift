@@ -374,6 +374,11 @@ option(SWIFT_DISABLE_OBJC_INTEROP
     "Disable Objective-C interoperability even on platforms what would normally have it"
     FALSE)
 
+# FIXME(wasm) Reflection tests are temporalily disabled due to lack of linker features
+option(SWIFTWASM_DISABLE_REFLECTION_TEST
+    "Disable building swift-reflection-test for WebAssembly build"
+    FALSE)
+
 #
 # User-configurable experimental options.  Do not use in production builds.
 #

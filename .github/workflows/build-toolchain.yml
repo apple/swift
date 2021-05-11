@@ -1,0 +1,146 @@
+name: Build Toolchain
+
+on:
+  push:
+    branches:
+      - swiftwasm
+      - swiftwasm-release/5.3
+      - swiftwasm-release/5.5
+  pull_request:
+    branches:
+      - swiftwasm
+      - swiftwasm-release/5.3
+      - swiftwasm-release/5.5
+jobs:
+  build_toolchain:
+    env:
+      TOOLCHAIN_CHANNEL: DEVELOPMENT
+    strategy:
+      matrix:
+        include:
+          - build_os: ubuntu-18.04
+            target: ubuntu18.04_x86_64
+            run_full_test: false
+            run_e2e_test: true
+            build_hello_wasm: true
+
+          - build_os: ubuntu-20.04
+            target: ubuntu20.04_x86_64
+            run_full_test: false
+            run_e2e_test: true
+            build_hello_wasm: true
+
+          - build_os: macos-10.15
+            target: macos_x86_64
+            run_full_test: true
+            run_e2e_test: true
+            build_hello_wasm: true
+
+    name: Target ${{ matrix.target }}
+    timeout-minutes: 0
+    runs-on: ${{ matrix.build_os }}
+    steps:
+      - name: Free disk space
+        if: ${{ matrix.build_os == 'ubuntu-20.04' || matrix.build_os == 'ubuntu-18.04' }}
+        run: |
+          df -h
+          sudo apt-get purge libgcc-9-dev gcc-9 libstdc++-9-dev clang-6.0 llvm-6.0
+          sudo swapoff -a
+          sudo rm -f /swapfile
+          sudo rm -rf /opt/hostedtoolcache
+          sudo rm -rf /usr/share/dotnet
+          sudo apt clean
+          docker rmi $(docker image ls -aq)
+          df -h
+
+      - uses: actions/checkout@v2
+        with:
+          path: swift
+          fetch-depth: 0
+
+      - name: Prepare sccache timestamp
+        id: cache_timestamp
+        shell: cmake -P {0}
+        run: |
+          string(TIMESTAMP current_date "%Y-%m-%d-%H;%M;%S" UTC)
+          message("::set-output name=timestamp::${current_date}")
+
+      - uses: actions/cache@v1
+        with:
+          path: build-cache
+          key: ${{ matrix.target }}-sccache-v10-${{ steps.cache_timestamp.outputs.timestamp }}
+          restore-keys: |
+            ${{ matrix.target }}-sccache-v10-
+
+      - name: Select Xcode version
+        if: ${{ matrix.build_os == 'macos-10.15' }}
+        run: |
+          sudo xcode-select --switch /Applications/Xcode_12.3.app/Contents/Developer/
+          xcodebuild -version
+
+      - name: Build ${{ matrix.target }} installable archive
+        env:
+          SKIP_XCODE_VERSION_CHECK: 1
+        run: |
+
+          case "${{ matrix.target }}" in
+            "ubuntu20.04_x86_64" | "ubuntu18.04_x86_64" | "macos_x86_64")
+              ./swift/utils/webassembly/ci.sh
+            ;;
+            *)
+              echo "Unrecognised target: ${{ matrix.target }}"
+              exit 1
+            ;;
+          esac
+
+      - name: Upload ${{ matrix.target }} installable archive
+        uses: actions/upload-artifact@v1
+        with:
+          name: ${{ matrix.target }}-installable
+          path: swift-wasm-${{ env.TOOLCHAIN_CHANNEL }}-SNAPSHOT-${{ matrix.target }}.tar.gz
+
+      - name: Pack test results
+        if: ${{ matrix.run_full_test }}
+        run: |
+          tar cJf ./swift-test-results.tar.gz target-build/swift-stdlib-wasi-wasm32/swift-test-results
+      - name: Upload test results
+        uses: actions/upload-artifact@v1
+        if: ${{ matrix.run_full_test }}
+        with:
+          name: ${{ matrix.target }}-test-results
+          path: ./swift-test-results.tar.gz
+
+      # Run e2e test
+      - name: Prepare E2E test
+        run: |
+          INSTALL_DIR=$(mktemp -d)
+          tar xf swift-wasm-$TOOLCHAIN_CHANNEL-SNAPSHOT-${{ matrix.target }}.tar.gz -C "$INSTALL_DIR"
+          echo "TOOLCHAIN=$(find "$INSTALL_DIR" -name "swift-wasm-$TOOLCHAIN_CHANNEL-*" -type d | head -n1)" >> $GITHUB_ENV
+      - name: Build hello.wasm
+        shell: bash
+        if: ${{ matrix.build_hello_wasm }}
+        run: |
+          echo 'print("Hello, world!")' > hello.swift
+          $TOOLCHAIN/usr/bin/swiftc \
+                -target wasm32-unknown-wasi \
+                -sdk $TOOLCHAIN/usr/share/wasi-sysroot \
+                hello.swift -o hello.wasm && \
+                echo "Successfully linked hello.wasm"
+      - name: Upload hello.wasm
+        if: ${{ matrix.build_hello_wasm }}
+        uses: actions/upload-artifact@v1
+        with:
+          name: ${{ matrix.target }}-hello.wasm
+          path: hello.wasm
+      - name: Checkout integration-tests
+        if: ${{ matrix.run_e2e_test }}
+        uses: actions/checkout@v2
+        with:
+          repository: swiftwasm/integration-tests
+          path: integration-tests
+      - name: Run integration tests
+        if: ${{ matrix.run_e2e_test }}
+        run: |
+          swift run # Use TOOLCHAIN env value
+        working-directory: ${{ github.workspace }}/integration-tests
+

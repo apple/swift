@@ -57,6 +57,9 @@ bool ArgsToFrontendOptionsConverter::convert(
   if (const Arg *A = Args.getLastArg(OPT_group_info_path)) {
     Opts.GroupInfoPath = A->getValue();
   }
+  if (const Arg *A = Args.getLastArg(OPT_emit_module_summary_path)) {
+    Opts.ModuleSummaryOutputPath = A->getValue();
+  }
   if (const Arg *A = Args.getLastArg(OPT_index_store_path)) {
     Opts.IndexStorePath = A->getValue();
   }

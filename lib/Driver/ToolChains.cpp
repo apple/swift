@@ -235,6 +235,7 @@ void ToolChain::addCommonFrontendArgs(const OutputInfo &OI,
   inputArgs.AddLastArg(arguments, options::OPT_import_underlying_module);
   inputArgs.AddLastArg(arguments, options::OPT_module_cache_path);
   inputArgs.AddLastArg(arguments, options::OPT_module_link_name);
+  inputArgs.AddLastArg(arguments, options::OPT_module_summary_path);
   inputArgs.AddLastArg(arguments, options::OPT_module_abi_name);
   inputArgs.AddLastArg(arguments, options::OPT_nostdimport);
   inputArgs.AddLastArg(arguments, options::OPT_parse_stdlib);
@@ -312,6 +313,7 @@ void ToolChain::addCommonFrontendArgs(const OutputInfo &OI,
   }
 
   addLTOArgs(OI, arguments);
+  inputArgs.AddLastArg(arguments, options::OPT_no_stdlib_link);
 
   // -g implies -enable-anonymous-context-mangled-names, because the extra
   // metadata aids debugging.
@@ -569,7 +571,8 @@ ToolChain::constructInvocation(const CompileJobAction &job,
   if (context.Args.hasFlag(options::OPT_static_executable,
                            options::OPT_no_static_executable, false) ||
       context.Args.hasFlag(options::OPT_static_stdlib,
-                           options::OPT_no_static_stdlib, false)) {
+                           options::OPT_no_static_stdlib, false) ||
+      getTriple().isOSBinFormatWasm()) {
     Arguments.push_back("-use-static-resource-dir");
   }
 
@@ -1075,7 +1078,13 @@ ToolChain::constructInvocation(const MergeModuleJobAction &job,
   context.Args.AddLastArg(Arguments, options::OPT_import_objc_header);
 
   context.Args.AddLastArg(Arguments, options::OPT_disable_incremental_imports);
-
+  if (context.Args.hasFlag(options::OPT_static_executable,
+                            options::OPT_no_static_executable, false) ||
+      context.Args.hasFlag(options::OPT_static_stdlib,
+                            options::OPT_no_static_stdlib, false) ||
+      getTriple().isOSBinFormatWasm()) {
+    Arguments.push_back("-use-static-resource-dir");
+  }
   Arguments.push_back("-module-name");
   Arguments.push_back(context.Args.MakeArgString(context.OI.ModuleName));
 
@@ -1275,6 +1284,14 @@ ToolChain::constructInvocation(const GeneratePCHJobAction &job,
   addInputsOfType(Arguments, context.InputActions, file_types::TY_ObjCHeader);
   context.Args.AddLastArg(Arguments, options::OPT_index_store_path);
 
+  if (context.Args.hasFlag(options::OPT_static_executable,
+                   options::OPT_no_static_executable, false) ||
+      context.Args.hasFlag(options::OPT_static_stdlib, options::OPT_no_static_stdlib,
+                   false) ||
+      getTriple().isOSBinFormatWasm()) {
+    Arguments.push_back("-use-static-resource-dir");
+  }
+
   if (job.isPersistentPCH()) {
     Arguments.push_back("-emit-pch");
     Arguments.push_back("-pch-output-dir");
@@ -1359,7 +1376,8 @@ void ToolChain::getResourceDirPath(SmallVectorImpl<char> &resourceDirPath,
   if (const Arg *A = args.getLastArg(options::OPT_resource_dir)) {
     StringRef value = A->getValue();
     resourceDirPath.append(value.begin(), value.end());
-  } else if (!getTriple().isOSDarwin() && args.hasArg(options::OPT_sdk)) {
+  } else if (!getTriple().isOSDarwin() && !getTriple().isOSWASI() && args.hasArg(options::OPT_sdk)) {
+    // for WASI, sdk option points to wasi-sysroot which doesn't have Swift toolchain
     StringRef value = args.getLastArg(options::OPT_sdk)->getValue();
     resourceDirPath.append(value.begin(), value.end());
     llvm::sys::path::append(resourceDirPath, "usr");

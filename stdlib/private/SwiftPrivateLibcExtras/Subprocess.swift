@@ -15,6 +15,8 @@ import SwiftPrivate
 import Darwin
 #elseif canImport(Glibc)
 import Glibc
+#elseif os(WASI)
+import WASILibc
 #elseif os(Windows)
 import CRT
 import WinSDK
@@ -23,6 +25,9 @@ import WinSDK
 #if !os(WASI)
 // No signals support on WASI yet, see https://github.com/WebAssembly/WASI/issues/166.
 internal func _signalToString(_ signal: Int) -> String {
+#if os(WASI)
+  return "unsupported"
+#else
   switch CInt(signal) {
   case SIGILL:  return "SIGILL"
   case SIGABRT: return "SIGABRT"
@@ -35,6 +40,7 @@ internal func _signalToString(_ signal: Int) -> String {
 #endif
   default:      return "SIG???? (\(signal))"
   }
+#endif // os(WASI)
 }
 #endif
 

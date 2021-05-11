@@ -1438,6 +1438,15 @@ public:
     // TODO: BFD and gold do not handle COMDATs properly
     if (Triple.isOSBinFormatELF())
       return;
+    // WebAssembly: hack: comdat + custom section = explosion
+    // the comdat code assumes section name would be unique for each comdat
+    // this doesn't happen for metadata.
+    // And avoid to create GOT because wasm32 doesn't support
+    // dynamic linking yet
+    if (Triple.isOSBinFormatWasm()) {
+      GV->setDSOLocal(true);
+      return;
+    }
 
     // COMDATs cannot be applied to declarations.  If we have a definition,
     // apply the COMDAT.

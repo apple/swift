@@ -78,13 +78,21 @@ class Swift(product.Product):
         if self.args.compiler_vendor == "none":
             return []
 
-        if self.args.compiler_vendor != "apple":
-            raise RuntimeError("Unknown compiler vendor?! Was build-script \
-updated without updating swift.py?")
-
         swift_compiler_version = ""
         if self.args.swift_compiler_version is not None:
             swift_compiler_version = self.args.swift_compiler_version
+
+        if self.args.compiler_vendor == "swiftwasm":
+            return [
+                ('SWIFT_VENDOR', 'SwiftWasm'),
+                ('SWIFT_VENDOR_UTI', 'org.swiftwasm.compilers.llvm.swift'),
+                ('SWIFT_VERSION', str(self.args.swift_user_visible_version)),
+                ('SWIFT_COMPILER_VERSION', str(swift_compiler_version)),
+            ]
+
+        if self.args.compiler_vendor != "apple":
+            raise RuntimeError("Unknown compiler vendor?! Was build-script \
+updated without updating swift.py?")
 
         return [
             ('SWIFT_VENDOR', 'Apple'),

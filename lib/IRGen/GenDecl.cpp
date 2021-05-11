@@ -31,6 +31,7 @@
 #include "swift/Demangling/ManglingMacros.h"
 #include "swift/IRGen/Linking.h"
 #include "swift/Runtime/HeapObject.h"
+#include "swift/Serialization/SerializedModuleLoader.h"
 #include "swift/SIL/FormalLinkage.h"
 #include "swift/SIL/SILDebugScope.h"
 #include "swift/SIL/SILModule.h"
@@ -442,6 +443,18 @@ public:
   }
 };
 
+class PrettySerializedASTFileUnitEmission : public llvm::PrettyStackTraceEntry {
+  const SerializedASTFile &SAF;
+
+public:
+  explicit PrettySerializedASTFileUnitEmission(const SerializedASTFile &SAF)
+      : SAF(SAF) {}
+
+  void print(raw_ostream &os) const override {
+    os << "While emitting IR for serialized ast file" << &SAF << "\n";
+  }
+};
+
 } // end anonymous namespace
 
 /// Emit all the top-level code in the source file.
@@ -504,6 +517,64 @@ void IRGenModule::emitSourceFile(SourceFile &SF) {
     #define BACK_DEPLOYMENT_LIB(Version, Filter, LibraryName)         \
       addBackDeployLib(llvm::VersionTuple Version, LibraryName);
     #include "swift/Frontend/BackDeploymentLibs.def"
+  }
+}
+
+void IRGenModule::emitSerializedASTFile(SerializedASTFile &SAF) {
+  PrettySerializedASTFileUnitEmission StackEntry(SAF);
+  SmallVector<Decl *, 4> TopLevelDecls;
+  SmallVector<TypeDecl *, 4> LocalTypeDecls;
+  SmallVector<OpaqueTypeDecl *, 4> OpaqueReturnTypeDecls;
+  SAF.getTopLevelDecls(TopLevelDecls);
+  SAF.getLocalTypeDecls(LocalTypeDecls);
+  SAF.getOpaqueReturnTypeDecls(OpaqueReturnTypeDecls);
+  // Emit types and other global decls.
+  for (auto *decl : TopLevelDecls)
+    emitGlobalDecl(decl);
+  for (auto *localDecl : LocalTypeDecls)
+    emitGlobalDecl(localDecl);
+  for (auto *opaqueDecl : OpaqueReturnTypeDecls)
+    maybeEmitOpaqueTypeDecl(opaqueDecl);
+
+  SAF.collectLinkLibraries([this](LinkLibrary linkLib) {
+      this->addLinkLibrary(linkLib);
+  });
+
+  if (ObjCInterop)
+    this->addLinkLibrary(LinkLibrary("objc", LibraryKind::Library));
+  
+  // FIXME: It'd be better to have the driver invocation or build system that
+  // executes the linker introduce these compatibility libraries, since at
+  // that point we know whether we're building an executable, which is the only
+  // place where the compatibility libraries take effect. For the benefit of
+  // build systems that build Swift code, but don't use Swift to drive
+  // the linker, we can also use autolinking to pull in the compatibility
+  // libraries. This may however cause the library to get pulled in in
+  // situations where it isn't useful, such as for dylibs, though this is
+  // harmless aside from code size.
+  if (!IRGen.Opts.UseJIT) {
+    if (auto compatibilityVersion
+          = IRGen.Opts.AutolinkRuntimeCompatibilityLibraryVersion) {
+      if (*compatibilityVersion <= llvm::VersionTuple(5, 0)) {
+        this->addLinkLibrary(LinkLibrary("swiftCompatibility50",
+                                         LibraryKind::Library,
+                                         /*forceLoad*/ true));
+      }
+      if (*compatibilityVersion <= llvm::VersionTuple(5, 1)) {
+        this->addLinkLibrary(LinkLibrary("swiftCompatibility51",
+                                         LibraryKind::Library,
+                                         /*forceLoad*/ true));
+      }
+    }
+
+    if (auto compatibilityVersion =
+            IRGen.Opts.AutolinkRuntimeCompatibilityDynamicReplacementLibraryVersion) {
+      if (*compatibilityVersion <= llvm::VersionTuple(5, 0)) {
+        this->addLinkLibrary(LinkLibrary("swiftCompatibilityDynamicReplacements",
+                                         LibraryKind::Library,
+                                         /*forceLoad*/ true));
+      }
+    }
   }
 }
 
@@ -3434,6 +3505,12 @@ IRGenModule::getAddrOfLLVMVariableOrGOTEquivalent(LinkEntity entity) {
       cast<llvm::GlobalValue>(entry), entity);
     return {gotEquivalent, ConstantReference::Indirect};
   };
+  
+  // Avoid to create GOT because wasm32 doesn't support
+  // dynamic linking yet
+  if (TargetInfo.OutputObjectFormat == llvm::Triple::Wasm) {
+    return direct();
+  }
 
   // Dynamically replaceable function keys are stored in the GlobalVars
   // table, but they don't have an associated Decl, so they require
@@ -3604,6 +3681,11 @@ IRGenModule::emitDirectRelativeReference(llvm::Constant *target,
                                          ArrayRef<unsigned> baseIndices) {
   // Convert the target to an integer.
   auto targetAddr = llvm::ConstantExpr::getPtrToInt(target, SizeTy);
+
+  // WebAssembly hack: WebAssembly doesn't support PC-relative references
+  if (TargetInfo.OutputObjectFormat == llvm::Triple::Wasm) {
+    return targetAddr;
+  }
 
   SmallVector<llvm::Constant*, 4> indices;
   indices.push_back(llvm::ConstantInt::get(Int32Ty, 0));

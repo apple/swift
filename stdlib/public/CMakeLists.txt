@@ -90,6 +90,10 @@ if(SWIFT_BUILD_STDLIB)
   add_subdirectory(core)
   add_subdirectory(SwiftOnoneSupport)
 
+  if(WASI IN_LIST SWIFT_SDKS)
+    add_subdirectory(WASI)
+  endif()
+
   if(SWIFT_ENABLE_EXPERIMENTAL_DIFFERENTIABLE_PROGRAMMING)
     add_subdirectory(Differentiation)
   endif()

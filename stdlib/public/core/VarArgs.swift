@@ -601,7 +601,7 @@ final internal class __VaListBuilder {
     // supported vararg type is greater than the alignment of Int, such
     // as non-iOS ARM. Note that we can't use alignof because it
     // differs from ABI alignment on some architectures.
-#if (arch(arm) && !os(iOS)) || arch(arm64_32)
+#if (arch(arm) && !os(iOS)) || arch(arm64_32) || arch(wasm32)
     if let arg = arg as? _CVarArgAligned {
       let alignmentInWords = arg._cVarArgAlignment / MemoryLayout<Int>.size
       let misalignmentInWords = count % alignmentInWords

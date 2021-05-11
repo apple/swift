@@ -2700,9 +2700,19 @@ internal protocol KeyPathPatternVisitor {
 
 internal func _resolveRelativeAddress(_ base: UnsafeRawPointer,
                                       _ offset: Int32) -> UnsafeRawPointer {
+  #if arch(wasm32)
+  // FIXME: If offset is 0, it means the pointer is null.
+  // For real relative pointer, it always calculates valid non-null address
+  // because the base address is always valid.
+  // But hacked absolute pointer can be null pointer.
+  // The return type doesn't allow nil, so return given base temporarily.
+  if offset == 0 { return base }
+  return UnsafeRawPointer(bitPattern: Int(offset)).unsafelyUnwrapped
+  #else
   // Sign-extend the offset to pointer width and add with wrap on overflow.
   return UnsafeRawPointer(bitPattern: Int(bitPattern: base) &+ Int(offset))
     .unsafelyUnwrapped
+  #endif
 }
 internal func _resolveRelativeIndirectableAddress(_ base: UnsafeRawPointer,
                                                   _ offset: Int32)

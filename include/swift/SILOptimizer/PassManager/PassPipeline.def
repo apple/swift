@@ -25,6 +25,7 @@
 PASSPIPELINE(Diagnostic, "Guaranteed Passes")
 PASSPIPELINE(LowerHopToActor, "Lower Hop to Actor")
 PASSPIPELINE(OwnershipEliminator, "Utility pass to just run the ownership eliminator pass")
+PASSPIPELINE(CrossModuleEliminator, "Passes run at -module-summary-path")
 PASSPIPELINE(Performance, "Passes run at -O")
 PASSPIPELINE(Onone, "Passes run at -Onone")
 PASSPIPELINE(InstCount, "Utility pipeline to just run the inst count pass")

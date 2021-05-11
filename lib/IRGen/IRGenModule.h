@@ -111,6 +111,7 @@ namespace swift {
   class SILWitnessTable;
   class SourceLoc;
   class SourceFile;
+  class SerializedASTFile;
   class Type;
   enum class TypeReferenceKind : unsigned;
 
@@ -1356,6 +1357,7 @@ public:
   llvm::LLVMContext &getLLVMContext() const { return *LLVMContext; }
 
   void emitSourceFile(SourceFile &SF);
+  void emitSerializedASTFile(SerializedASTFile &SF);
   void emitSynthesizedFileUnit(SynthesizedFileUnit &SFU);
   void addLinkLibrary(const LinkLibrary &linkLib);
 

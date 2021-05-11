@@ -8,6 +8,8 @@
   import Darwin
 #elseif canImport(Glibc)
   import Glibc
+#elseif os(WASI)
+  import WASILibc
 #elseif os(Windows)
   import CRT
 #else

@@ -2407,6 +2407,57 @@ forEachRefcountableReference(const KeyPathPatternComponent &component,
   }
 }
 
+void KeyPathPatternComponent::clearReferencedFunctions_if(
+    llvm::function_ref<bool(SILFunction *)> predicate) {
+  switch (getKind()) {
+  case KeyPathPatternComponent::Kind::StoredProperty:
+  case KeyPathPatternComponent::Kind::OptionalChain:
+  case KeyPathPatternComponent::Kind::OptionalWrap:
+  case KeyPathPatternComponent::Kind::OptionalForce:
+  case KeyPathPatternComponent::Kind::TupleElement:
+    return;
+  case KeyPathPatternComponent::Kind::SettableProperty: {
+    auto setter = getComputedPropertySetter();
+    if (predicate(setter)) {
+      SetterAndIdKind.setPointer(nullptr);
+    }
+    LLVM_FALLTHROUGH;
+  }
+  case KeyPathPatternComponent::Kind::GettableProperty:
+    auto getter = getComputedPropertyGetter();
+    if (predicate(getter)) {
+      ValueAndKind.setPointer(nullptr);
+    }
+    switch (getComputedPropertyId().getKind()) {
+    case KeyPathPatternComponent::ComputedPropertyId::DeclRef:
+      // Mark the vtable entry as used somehow?
+      break;
+    case KeyPathPatternComponent::ComputedPropertyId::Function: {
+      auto idFn = getComputedPropertyId().getFunction();
+      if (predicate(idFn)) {
+        IdValue = ComputedPropertyId::ValueType();
+      }
+      break;
+    }
+    case KeyPathPatternComponent::ComputedPropertyId::Property:
+      break;
+    }
+
+    if (auto equals = getSubscriptIndexEquals()) {
+      if (predicate(equals)) {
+        IndexEquality.Equal = nullptr;
+      }
+    }
+
+    if (auto hash = getSubscriptIndexHash()) {
+      if (predicate(hash)) {
+        IndexEquality.Hash = nullptr;
+      }
+    }
+    return;
+  }
+}
+
 void KeyPathPatternComponent::incrementRefCounts() const {
   forEachRefcountableReference(*this,
     [&](SILFunction *f) { f->incrementRefCount(); });

@@ -202,4 +202,12 @@
 #define SWIFT_ABI_S390X_OBJC_WEAK_REFERENCE_MARKER_VALUE \
   (1<<SWIFT_ABI_S390X_OBJC_NUM_RESERVED_LOW_BITS)
 
+/*********************************** wasm32 ************************************/
+
+// WebAssembly doesn't reserve low addresses But without "extra inhabitants" of
+// the pointer representation, runtime performance and memory footprint are
+// worse. So assume that compiler driver uses wasm-ld and --global-base=1024 to
+// reserve low 1KB.
+#define SWIFT_ABI_WASM32_LEAST_VALID_POINTER 1024
+
 #endif // SWIFT_STDLIB_SHIMS_ABI_SYSTEM_H

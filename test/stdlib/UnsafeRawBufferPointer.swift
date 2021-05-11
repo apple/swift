@@ -128,6 +128,7 @@ UnsafeRawBufferPointerTestSuite.test("initFromArray") {
   expectEqual(array2, array1)
 }
 
+#if !os(WASI)
 UnsafeRawBufferPointerTestSuite.test("initializeMemory(as:from:).underflow") {
   let buffer = UnsafeMutableRawBufferPointer.allocate(byteCount: 30, alignment: MemoryLayout<UInt>.alignment)
   defer { buffer.deallocate() }
@@ -159,6 +160,7 @@ UnsafeRawBufferPointerTestSuite.test("initializeMemory(as:from:).overflow") {
   expected.withUnsafeBytes { expectEqualSequence($0,buffer[0..<idx]) }
   expectEqualSequence([5, 4, 3],bound)
 }
+#endif
 
 UnsafeRawBufferPointerTestSuite.test("initializeMemory(as:from:).exact") {
   let buffer = UnsafeMutableRawBufferPointer.allocate(byteCount: 24, alignment: MemoryLayout<UInt>.alignment)
@@ -172,12 +174,14 @@ UnsafeRawBufferPointerTestSuite.test("initializeMemory(as:from:).exact") {
   expectEqualSequence([5, 4, 3],bound)
 }
 
+#if !os(WASI)
 UnsafeRawBufferPointerTestSuite.test("initializeMemory(as:from:).invalidNilPtr") {
   let buffer = UnsafeMutableRawBufferPointer(start: nil, count: 0)
   let source: [Int64] = [5, 4, 3, 2, 1]
   expectCrashLater()
   _ = buffer.initializeMemory(as: Int64.self, from: source)
 }
+#endif
 
 UnsafeRawBufferPointerTestSuite.test("initializeMemory(as:from:).validNilPtr") {
   let buffer = UnsafeMutableRawBufferPointer(start: nil, count: 0)
@@ -280,6 +284,7 @@ UnsafeRawBufferPointerTestSuite.test("inBounds") {
   expectEqualSequence(firstHalf, secondHalf)
 }
 
+#if !os(WASI)
 UnsafeRawBufferPointerTestSuite.test("subscript.get.underflow") {
   let buffer = UnsafeMutableRawBufferPointer.allocate(byteCount: 2, alignment: MemoryLayout<UInt>.alignment)
   defer { buffer.deallocate() }
@@ -512,6 +517,7 @@ UnsafeRawBufferPointerTestSuite.test("copy.sequence.overflow")
     }
   }
 }
+#endif
 
 UnsafeRawBufferPointerTestSuite.test("copy.overlap") {
   let bytes = UnsafeMutableRawBufferPointer.allocate(byteCount: 4, alignment: MemoryLayout<UInt>.alignment)

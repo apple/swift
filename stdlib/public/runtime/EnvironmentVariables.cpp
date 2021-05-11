@@ -189,6 +189,7 @@ void swift::runtime::environment::initialize(void *context) {
 }
 #endif
 
+SWIFT_CC(swift)
 SWIFT_RUNTIME_EXPORT
 bool swift_COWChecksEnabled() {
   return runtime::environment::SWIFT_DEBUG_ENABLE_COW_CHECKS();

@@ -41,7 +41,7 @@
 
 #else
 
-#if defined(__ELF__)
+#if defined(__ELF__) || defined(__wasm__)
 #define SWIFT_REFLECTION_METADATA_ELF_NOTE_MAGIC_STRING "swift_reflection_metadata_magic_string"
 #endif // defined(__ELF__)
 

@@ -100,6 +100,7 @@
 
 
 // REQUIRES: executable_test
+// UNSUPPORTED: wasm
 
 import Module1
 

@@ -6,6 +6,7 @@
 // RUN: %target-run %t/main %t/%target-library-name(Module1) %t/%target-library-name(Module2)
 
 // REQUIRES: executable_test
+// UNSUPPORTED: wasm
 
 import Module1
 

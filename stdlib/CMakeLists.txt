@@ -59,6 +59,10 @@ option(SWIFT_ENABLE_MODULE_INTERFACES
        "Generate .swiftinterface files alongside .swiftmodule files"
        "${SWIFT_STDLIB_STABLE_ABI}")
 
+option(SWIFT_STDLIB_ENABLE_THINCMO
+       "Generate .swiftmodulesummary and .sib files alongside .swiftmodule files for thin cross module optimization"
+       FALSE)
+
 option(SWIFT_ENABLE_COMPATIBILITY_OVERRIDES
        "Support back-deploying compatibility fixes for newer apps running on older runtimes."
        TRUE)

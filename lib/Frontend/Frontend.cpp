@@ -765,6 +765,8 @@ static bool shouldImportConcurrencyByDefault(const llvm::Triple &target) {
   if (target.isOSLinux())
     return true;
 #if SWIFT_ENABLE_EXPERIMENTAL_CONCURRENCY
+  if (target.isOSWASI())
+    return true;
   if (target.isOSOpenBSD())
     return true;
 #endif
@@ -1250,6 +1252,11 @@ static void countStatsPostSILOpt(UnifiedStatsReporter &Stats,
 }
 
 bool CompilerInstance::performSILProcessing(SILModule *silModule) {
+
+  if (!silModule->getOptions().ModuleSummaryPath.empty()) {
+    return runSILCrossModuleEliminatorPass(*silModule);
+  }
+
   if (performMandatorySILPasses(Invocation, silModule) &&
       !Invocation.getFrontendOptions().AllowModuleWithCompilerErrors)
     return true;

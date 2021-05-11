@@ -200,6 +200,7 @@ func checkPtr(
   }
 }
 
+#if !os(WASI)
 UnsafeMutableRawPointerExtraTestSuite.test("initializeMemory:as:from:count:") {
   let check = checkPtr(UnsafeMutableRawPointer.initializeMemory(as:from:count:))
   check(Check.Disjoint)
@@ -220,6 +221,7 @@ UnsafeMutableRawPointerExtraTestSuite.test("initializeMemory:as:from:count:.Righ
     check(Check.RightOverlap)
   }
 }
+#endif
 
 UnsafeMutableRawPointerExtraTestSuite.test("moveInitialize:from:") {
   let check =

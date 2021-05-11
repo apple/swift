@@ -229,6 +229,8 @@ class HostSpecificConfiguration(object):
                 StdlibDeploymentTarget.AppleWatchSimulator)
         if not args.build_android:
             platforms_to_skip_build.add(StdlibDeploymentTarget.Android)
+        if not args.build_wasm:
+            platforms_to_skip_build.add(StdlibDeploymentTarget.WASI)
         return platforms_to_skip_build
 
     def __platforms_to_skip_test(self, args):
@@ -268,6 +270,8 @@ class HostSpecificConfiguration(object):
                 StdlibDeploymentTarget.AppleWatchSimulator)
         if not args.test_android:
             platforms_to_skip_test.add(StdlibDeploymentTarget.Android)
+        if not args.test_wasm:
+            platforms_to_skip_test.add(StdlibDeploymentTarget.WASI)
 
         return platforms_to_skip_test
 
@@ -310,4 +314,6 @@ class HostSpecificConfiguration(object):
             platforms_to_skip_test_host.add(StdlibDeploymentTarget.AppleTV)
         if not args.test_watchos_host and not args.only_non_executable_test:
             platforms_to_skip_test_host.add(StdlibDeploymentTarget.AppleWatch)
+        if not args.test_wasm_host:
+            platforms_to_skip_test_host.add(StdlibDeploymentTarget.WASI)
         return platforms_to_skip_test_host

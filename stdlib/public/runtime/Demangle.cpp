@@ -673,6 +673,7 @@ swift::_swift_buildDemanglingForMetadata(const Metadata *type,
 // NB: This function is not used directly in the Swift codebase, but is
 // exported for Xcode support and is used by the sanitizers. Please coordinate
 // before changing.
+SWIFT_CC(swift)
 char *swift_demangle(const char *mangledName,
                      size_t mangledNameLength,
                      char *outputBuffer,

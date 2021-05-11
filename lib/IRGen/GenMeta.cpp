@@ -916,6 +916,8 @@ namespace {
         if (!entry.isValid() || entry.getKind() != SILWitnessTable::Method ||
             entry.getMethodWitness().Requirement != func)
           continue;
+        if (!entry.getMethodWitness().Witness)
+          continue;
         return IGM.getAddrOfSILFunction(entry.getMethodWitness().Witness,
                                         NotForDefinition);
       }
@@ -5287,6 +5289,17 @@ GenericRequirementsMetadata irgen::addGenericRequirements(
           unsigned tag = unsigned(descriptorRef.isIndirect());
           if (protocol->isObjC())
             tag |= 0x02;
+          // WebAssembly: hack: Wasm doesn't support PC-relative offsets.
+          // also doesn't handle tag yet
+          if (IGM.TargetInfo.OutputObjectFormat == llvm::Triple::Wasm) {
+            llvm::Constant *offset = llvm::ConstantExpr::getPtrToInt(descriptorRef.getValue(), IGM.RelativeAddressTy, false);
+            // borrowed from addTaggedRelativeOffset
+            if (tag) {
+                offset = llvm::ConstantExpr::getAdd(offset, llvm::ConstantInt::get(IGM.RelativeAddressTy, tag));
+            }
+            B.add(offset);
+            return;
+          }
           
           B.addTaggedRelativeOffset(IGM.RelativeAddressTy,
                                     descriptorRef.getValue(),

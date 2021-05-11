@@ -5489,7 +5489,8 @@ void IRGenSILFunction::visitBeginUnpairedAccessInst(
     // in which case we should use the caller, which is generally ok because
     // materializeForSet can't usually be thunked.
     llvm::Value *pc;
-    if (hasBeenInlined(access)) {
+    // hack: wasm doesn't have returnaddress
+    if (true || hasBeenInlined(access)) {
       pc = llvm::ConstantPointerNull::get(IGM.Int8PtrTy);
     } else {
       auto retAddrFn =

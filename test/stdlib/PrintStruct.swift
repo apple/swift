@@ -4,6 +4,10 @@
 // RUN: %target-codesign %t/main
 // RUN: %target-run %t/main
 // REQUIRES: executable_test
+//
+// FIXME Disable this case because this failed on only CI.
+// Failed with 'Caught exception of type "CallIndirectOOB"'
+// UNSUPPORTED: CPU=wasm32
 
 import StdlibUnittest
 import PrintTestTypes

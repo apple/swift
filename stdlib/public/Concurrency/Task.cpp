@@ -27,9 +27,11 @@
 #include "Debug.h"
 #include "Error.h"
 
+#if !SWIFT_CONCURRENCY_COOPERATIVE_GLOBAL_EXECUTOR
 #include <dispatch/dispatch.h>
+#endif
 
-#if !defined(_WIN32)
+#if !defined(_WIN32) && !defined(__wasi__)
 #include <dlfcn.h>
 #endif
 

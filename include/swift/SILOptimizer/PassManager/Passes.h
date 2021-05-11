@@ -45,6 +45,8 @@ namespace swift {
 /// Run the SIL ownership eliminator pass on \p M.
   bool runSILOwnershipEliminatorPass(SILModule &M);
 
+  bool runSILCrossModuleEliminatorPass(SILModule &M);
+
   void runSILOptimizationPassesWithFileSpecification(SILModule &Module,
                                                      StringRef FileName);
 

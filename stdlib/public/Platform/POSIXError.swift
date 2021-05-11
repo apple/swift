@@ -556,6 +556,168 @@ public enum POSIXErrorCode : Int32 {
   case EHWPOISON       = 133
 }
 
+#elseif os(WASI)
+
+/// Enumeration describing POSIX error codes.
+public enum POSIXErrorCode : Int32 {
+  /// Argument list too long.
+  case E2BIG = 1
+  /// Permission denied.
+  case EACCES = 2
+  /// Address in use.
+  case EADDRINUSE = 3
+  /// Address not available.
+  case EADDRNOTAVAIL = 4
+  /// Address family not supported.
+  case EAFNOSUPPORT = 5
+  /// Resource unavailable, or operation would block.
+  case EAGAIN = 6
+  /// Operation would block.
+  public static var EWOULDBLOCK: POSIXErrorCode { return .EAGAIN }
+  /// Connection already in progress.
+  case EALREADY = 7
+  /// Bad file descriptor.
+  case EBADF = 8
+  /// Bad message.
+  case EBADMSG = 9
+  /// Device or resource busy.
+  case EBUSY = 10
+  /// Operation canceled.
+  case ECANCELED = 11
+  /// No child processes.
+  case ECHILD = 12
+  /// Connection aborted.
+  case ECONNABORTED = 13
+  /// Connection refused.
+  case ECONNREFUSED = 14
+  /// Connection reset.
+  case ECONNRESET = 15
+  /// Resource deadlock would occur.
+  case EDEADLK = 16
+  /// Destination address required.
+  case EDESTADDRREQ = 17
+  /// Mathematics argument out of domain of function.
+  case EDOM = 18
+  /// Reserved.
+  case EDQUOT = 19
+  /// File exists.
+  case EEXIST = 20
+  /// Bad address.
+  case EFAULT = 21
+  /// File too large.
+  case EFBIG = 22
+  /// Host is unreachable.
+  case EHOSTUNREACH = 23
+  /// Identifier removed.
+  case EIDRM = 24
+  /// Illegal byte sequence.
+  case EILSEQ = 25
+  /// Operation in progress.
+  case EINPROGRESS = 26
+  /// Interrupted function.
+  case EINTR = 27
+  /// Invalid argument.
+  case EINVAL = 28
+  /// I/O error.
+  case EIO = 29
+  /// Socket is connected.
+  case EISCONN = 30
+  /// Is a directory.
+  case EISDIR = 31
+  /// Too many levels of symbolic links.
+  case ELOOP = 32
+  /// File descriptor value too large.
+  case EMFILE = 33
+  /// Too many links.
+  case EMLINK = 34
+  /// Message too large.
+  case EMSGSIZE = 35
+  /// Reserved.
+  case EMULTIHOP = 36
+  /// Filename too long.
+  case ENAMETOOLONG = 37
+  /// Network is down.
+  case ENETDOWN = 38
+  /// Connection aborted by network.
+  case ENETRESET = 39
+  /// Network unreachable.
+  case ENETUNREACH = 40
+  /// Too many files open in system.
+  case ENFILE = 41
+  /// No buffer space available.
+  case ENOBUFS = 42
+  /// No such device.
+  case ENODEV = 43
+  /// No such file or directory.
+  case ENOENT = 44
+  /// Executable file format error.
+  case ENOEXEC = 45
+  /// No locks available.
+  case ENOLCK = 46
+  /// Reserved.
+  case ENOLINK = 47
+  /// Not enough space.
+  case ENOMEM = 48
+  /// No message of the desired type.
+  case ENOMSG = 49
+  /// Protocol not available.
+  case ENOPROTOOPT = 50
+  /// No space left on device.
+  case ENOSPC = 51
+  /// Function not supported.
+  case ENOSYS = 52
+  /// The socket is not connected.
+  case ENOTCONN = 53
+  /// Not a directory or a symbolic link to a directory.
+  case ENOTDIR = 54
+  /// Directory not empty.
+  case ENOTEMPTY = 55
+  /// State not recoverable.
+  case ENOTRECOVERABLE = 56
+  /// Not a socket.
+  case ENOTSOCK = 57
+  /// Not supported, or operation not supported on socket.
+  case ENOTSUP = 58
+  /// Operation not supported on transport endpoint
+  public static var EOPNOTSUPP: POSIXErrorCode { return .ENOTSUP }
+  /// Inappropriate I/O control operation.
+  case ENOTTY = 59
+  /// No such device or address.
+  case ENXIO = 60
+  /// Value too large to be stored in data type.
+  case EOVERFLOW = 61
+  /// Previous owner died.
+  case EOWNERDEAD = 62
+  /// Operation not permitted.
+  case EPERM = 63
+  /// Broken pipe.
+  case EPIPE = 64
+  /// Protocol error.
+  case EPROTO = 65
+  /// Protocol not supported.
+  case EPROTONOSUPPORT = 66
+  /// Protocol wrong type for socket.
+  case EPROTOTYPE = 67
+  /// Result too large.
+  case ERANGE = 68
+  /// Read-only file system.
+  case EROFS = 69
+  /// Invalid seek.
+  case ESPIPE = 70
+  /// No such process.
+  case ESRCH = 71
+  /// Reserved.
+  case ESTALE = 72
+  /// Connection timed out.
+  case ETIMEDOUT = 73
+  /// Text file busy.
+  case ETXTBSY = 74
+  /// Cross-device link.
+  case EXDEV = 75
+  /// Extension: Capabilities insufficient.
+  case ENOTCAPABLE = 76
+}
+
 #elseif os(Windows)
 
 /// Enumeration describing POSIX error codes.

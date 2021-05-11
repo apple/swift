@@ -118,12 +118,16 @@ KNOWN_SETTINGS=(
     darwin-toolchain-require-use-os-runtime       "0"               "When setting up a plist for a toolchain, require the users of the toolchain to link against the OS instead of the packaged toolchain runtime. 0 for false, 1 for true"
     darwin-xcrun-toolchain                        "default"         "the name of the toolchain to use on Darwin"
 
+    ## WebAssembly/WASI Options
+    wasi-sysroot                                  ""                "An absolute path to the wasi-sysroot that will be used as a libc implementation for Wasm builds"
+
     ## Build Types for Components
     swift-stdlib-build-type                       "Debug"           "the CMake build variant for Swift"
 
     ## Skip Build ...
     skip-build                                    ""                "set to configure as usual while skipping the build step"
     skip-build-android                            ""                "set to skip building Swift stdlibs for Android"
+    skip-build-wasm                               ""                "set to skip building Swift stdlibs for WebAssembly"
     skip-build-benchmarks                         ""                "set to skip building Swift Benchmark Suite"
     skip-build-clang-tools-extra                  ""                "set to skip building clang-tools-extra as part of llvm"
     skip-build-compiler-rt                        ""                "set to skip building Compiler-RT"
@@ -440,7 +444,8 @@ function verify_host_is_supported() {
       | watchos-arm64_32        \
       | android-armv7           \
       | android-aarch64         \
-      | android-x86_64)
+      | android-x86_64          \
+      | wasi-wasm32)
         ;;
       *)
         echo "Unknown host tools target: ${host}"
@@ -1347,6 +1352,9 @@ function common_cross_c_flags() {
         watchos-*)
             echo -n " -arch ${arch} -target ${arch}-apple-watchos${DARWIN_DEPLOYMENT_VERSION_WATCHOS}"
             ;;
+        wasi-wasm32)
+            echo -n " -arch wasm32"
+            ;;
     esac
 
     local build_type=$2
@@ -1740,11 +1748,15 @@ for host in "${ALL_HOSTS[@]}"; do
                 #
                 # This makes it easier to build target stdlibs on systems that
                 # have old toolchains without more modern linker features.
-                if [[ "$(uname -s)" != "Darwin" ]] ; then
+
+                # wasm: lld should be built when cross building for wasm
+                # After enabling stdlib cross compile, add if statement
+                # to build only when cross compiling for wasm
+                # if [[ "$(uname -s)" != "Darwin" ]] ; then
                     if [[ ! "${SKIP_BUILD_LLD}" ]]; then
                         llvm_enable_projects+=("lld")
                     fi
-                fi
+                # fi
 
                 cmake_options+=(
                     -DLLVM_ENABLE_PROJECTS="$(join ";" ${llvm_enable_projects[@]})"
@@ -1825,6 +1837,13 @@ for host in "${ALL_HOSTS[@]}"; do
                         -DSWIFT_ANDROID_${ANDROID_ARCH}_ICU_DATA:STRING="${ANDROID_ICU_DATA}"
                         -DSWIFT_ANDROID_DEPLOY_DEVICE_PATH:STRING="${ANDROID_DEPLOY_DEVICE_PATH}"
                         -DSWIFT_SDK_ANDROID_ARCHITECTURES:STRING="${ANDROID_ARCH}"
+                    )
+                fi
+
+                if [[ ! "${SKIP_BUILD_WASM}" ]]; then
+                    cmake_options=(
+                        "${cmake_options[@]}"
+                        -DSWIFT_WASI_SYSROOT_PATH:STRING="${WASI_SYSROOT}"
                     )
                 fi
 

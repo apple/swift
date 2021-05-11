@@ -14,6 +14,8 @@
   import Darwin
 #elseif canImport(Glibc)
   import Glibc
+#elseif os(WASI)
+  import WASILibc
 #elseif os(Windows)
   import CRT
   import WinSDK
@@ -23,7 +25,7 @@
 
 #if canImport(Darwin) || os(OpenBSD)
   let RTLD_DEFAULT = UnsafeMutableRawPointer(bitPattern: -2)
-#elseif os(Linux)
+#elseif os(Linux) || os(WASI)
   let RTLD_DEFAULT = UnsafeMutableRawPointer(bitPattern: 0)
 #elseif os(Android)
   #if arch(arm) || arch(i386)

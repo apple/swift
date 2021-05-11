@@ -12,6 +12,7 @@
 // -*- swift -*-
 // RUN: %target-run-simple-swiftgyb
 // REQUIRES: executable_test
+// UNSUPPORTED: OS=wasi
 
 import StdlibUnittest
 

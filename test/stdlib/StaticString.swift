@@ -72,6 +72,7 @@ StaticStringTestSuite.test("PointerRepresentation/NonASCII") {
   expectDebugPrinted("\"абв\"", str)
 }
 
+#if !os(WASI)
 StaticStringTestSuite.test("PointerRepresentation/unicodeScalar")
   .skip(.custom(
     { _isFastAssertConfiguration() },
@@ -84,6 +85,7 @@ StaticStringTestSuite.test("PointerRepresentation/unicodeScalar")
   expectCrashLater()
   strOpaque.unicodeScalar
 }
+#endif
 
 StaticStringTestSuite.test("UnicodeScalarRepresentation/ASCII") {
   // The type checker does not call the UnicodeScalar initializer even if
@@ -122,6 +124,7 @@ StaticStringTestSuite.test("UnicodeScalarRepresentation/NonASCII") {
   expectDebugPrinted("\"Ы\"", str)
 }
 
+#if !os(WASI)
 StaticStringTestSuite.test("UnicodeScalarRepresentation/utf8Start")
   .skip(.custom(
     { _isFastAssertConfiguration() },
@@ -147,6 +150,7 @@ StaticStringTestSuite.test("UnicodeScalarRepresentation/utf8CodeUnitCount")
   expectCrashLater()
   strOpaque.utf8CodeUnitCount
 }
+#endif
 
 runAllTests()
 

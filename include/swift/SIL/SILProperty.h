@@ -67,7 +67,14 @@ public:
   const Optional<KeyPathPatternComponent> &getComponent() const {
     return Component;
   }
-  
+
+  void clearReferencedFunctions_if(
+      llvm::function_ref<bool(SILFunction *)> predicate) {
+    if (Component) {
+      Component->clearReferencedFunctions_if(predicate);
+    }
+  }
+
   void print(SILPrintContext &Ctx) const;
   void dump() const;
   

@@ -233,6 +233,10 @@ function(_add_target_variant_swift_compile_flags
         "-target" "${SWIFT_SDK_${sdk}_ARCH_${arch}_TRIPLE}")
   endif()
 
+  if("${sdk}" STREQUAL "WASI")
+    list(APPEND result "-Xcc" "-D_WASI_EMULATED_MMAN")
+  endif()
+
   if(NOT BUILD_STANDALONE)
     list(APPEND result "-resource-dir" "${SWIFTLIB_DIR}")
   endif()
@@ -813,6 +817,28 @@ function(_compile_swift_files
           ${copy_legacy_layouts_dep}
         COMMENT "Generating ${module_file}")
 
+    set(modulesummary_file "${module_base}.swiftmodulesummary")
+    set(modulesummary_file_static "${module_base_static}.swiftmodulesummary")
+    set(thincmo_sib_file "${module_base}.sib")
+    set(thincmo_sib_file_static "${module_base_static}.sib")
+    if(SWIFT_STDLIB_ENABLE_THINCMO)
+      add_custom_command_target(
+        thincmo_intermediate_target
+        COMMAND
+          "$<TARGET_FILE:Python3::Interpreter>" "${line_directive_tool}" "@${file_path}" --
+          "${swift_compiler_tool}" "-emit-sib" "-o" "${thincmo_sib_file}"
+          ${swift_flags} "-emit-module-summary" "@${file_path}"
+        OUTPUT "${modulesummary_file}" "${thincmo_sib_file}"
+        DEPENDS
+          ${swift_compiler_tool_dep}
+          ${source_files} ${SWIFTFILE_DEPENDS}
+          ${swift_ide_test_dependency}
+          ${create_dirs_dependency_target}
+          ${copy_legacy_layouts_dep}
+          ${module_dependency_target}
+        COMMENT "Generating ${modulesummary_file}")
+    endif()
+
     if(SWIFTFILE_STATIC)
       add_custom_command_target(
         module_dependency_target_static
@@ -830,8 +856,22 @@ function(_compile_swift_files
           "${module_dependency_target}"
         COMMENT "Generating ${module_file}")
       set("${dependency_module_target_out_var_name}" "${module_dependency_target_static}" PARENT_SCOPE)
+
+      if(SWIFT_STDLIB_ENABLE_THINCMO)
+        add_custom_command_target(
+          thincmo_intermediate_target_static
+          COMMAND
+            "${CMAKE_COMMAND}" "-E" "copy" ${modulesummary_file} ${modulesummary_file_static}
+          COMMAND
+            "${CMAKE_COMMAND}" "-E" "copy" ${thincmo_sib_file} ${thincmo_sib_file_static}
+          OUTPUT ${modulesummary_file_static}
+          DEPENDS
+            "${thincmo_intermediate_target}" "${module_dependency_target_static}"
+          COMMENT "Generating ${modulesummary_file_static}")
+        set("${dependency_module_target_out_var_name}" "${module_dependency_target_static}" "${thincmo_intermediate_target_static}" PARENT_SCOPE)
+      endif()
     else()
-      set("${dependency_module_target_out_var_name}" "${module_dependency_target}" PARENT_SCOPE)
+      set("${dependency_module_target_out_var_name}" "${module_dependency_target}" "${thincmo_intermediate_target}" PARENT_SCOPE)
     endif()
 
     # macCatalyst zippered swiftmodule

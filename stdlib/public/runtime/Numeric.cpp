@@ -50,10 +50,12 @@ static T convert(IntegerLiteral value) {
   return result;
 }
 
+SWIFT_CC(swift)
 float swift::swift_intToFloat32(IntegerLiteral value) {
   return convert<float>(value);
 }
 
+SWIFT_CC(swift)
 double swift::swift_intToFloat64(IntegerLiteral value) {
   return convert<double>(value);
 }

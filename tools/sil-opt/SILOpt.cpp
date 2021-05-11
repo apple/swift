@@ -76,6 +76,9 @@ ModuleName("module-name", llvm::cl::desc("The name of the module if processing"
                                          " a module. Necessary for processing "
                                          "stdin."));
 
+static llvm::cl::opt<std::string>
+ModuleSummaryPath("module-summary-path", llvm::cl::desc("module summary filename"));
+
 static llvm::cl::opt<bool>
 EnableLibraryEvolution("enable-library-evolution",
                        llvm::cl::desc("Compile the module to export resilient "
@@ -430,6 +433,10 @@ int main(int argc, char **argv) {
   SILOpts.VerifySILOwnership = !DisableSILOwnershipVerifier;
   SILOpts.OptRecordFile = RemarksFilename;
   SILOpts.OptRecordPasses = RemarksPasses;
+
+  if (!ModuleSummaryPath.empty()) {
+    SILOpts.ModuleSummaryPath = ModuleSummaryPath;
+  }
 
   SILOpts.VerifyExclusivity = VerifyExclusivity;
   if (EnforceExclusivity.getNumOccurrences() != 0) {

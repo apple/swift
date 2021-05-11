@@ -162,6 +162,13 @@ static void configureSystemZ(IRGenModule &IGM, const llvm::Triple &triple,
   target.SwiftRetainIgnoresNegativeValues = true;
 }
 
+/// Configures target-specific information for wasm32 platforms.
+static void configureWasm32(IRGenModule &IGM, const llvm::Triple &triple,
+                            SwiftTargetInfo &target) {
+  target.LeastValidPointerValue =
+    SWIFT_ABI_WASM32_LEAST_VALID_POINTER;
+}
+
 /// Configure a default target.
 SwiftTargetInfo::SwiftTargetInfo(
   llvm::Triple::ObjectFormatType outputObjectFormat,
@@ -229,7 +236,9 @@ SwiftTargetInfo SwiftTargetInfo::get(IRGenModule &IGM) {
   case llvm::Triple::systemz:
     configureSystemZ(IGM, triple, target);
     break;
-
+  case llvm::Triple::wasm32:
+    configureWasm32(IGM, triple, target);
+    break;
   default:
     // FIXME: Complain here? Default target info is unlikely to be correct.
     break;

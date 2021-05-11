@@ -94,6 +94,16 @@ bool swift::runSILOwnershipEliminatorPass(SILModule &Module) {
   return Ctx.hadError();
 }
 
+bool swift::runSILCrossModuleEliminatorPass(SILModule &Module) {
+  auto &Ctx = Module.getASTContext();
+
+  auto &opts = Module.getOptions();
+  executePassPipelinePlan(
+      &Module, SILPassPipelinePlan::getCrossModuleEliminatorPassPipeline(opts));
+
+  return Ctx.hadError();
+}
+
 void swift::runSILOptimizationPasses(SILModule &Module) {
   auto &opts = Module.getOptions();
 

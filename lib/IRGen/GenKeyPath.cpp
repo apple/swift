@@ -119,7 +119,11 @@ getAccessorForComputedComponent(IRGenModule &IGM,
     accessor = component.getSubscriptIndexHash();
     break;
   }
-  
+
+  if (!accessor) {
+    return nullptr;
+  }
+
   // If the accessor is not generic, and locally available, we can use it as is.
   // If it's only externally available, we need a local thunk to relative-
   // reference.
@@ -225,7 +229,8 @@ getAccessorForComputedComponent(IRGenModule &IGM,
       componentArgsBuf = params.claimNext();
       // Pass the argument pointer down to the underlying function, if it
       // wants it.
-      if (hasSubscriptIndices) {
+      // Always forward extra argument to match callee and caller signature on WebAssembly
+      if (hasSubscriptIndices || IGM.TargetInfo.OutputObjectFormat == llvm::Triple::Wasm) {
         forwardedArgs.add(componentArgsBuf);
       }
       break;
@@ -281,7 +286,8 @@ getLayoutFunctionForComputedComponent(IRGenModule &IGM,
   auto layoutFn = llvm::Function::Create(fnTy,
     llvm::GlobalValue::PrivateLinkage, "keypath_get_arg_layout", IGM.getModule());
   layoutFn->setAttributes(IGM.constructInitialAttributes());
-    
+  layoutFn->setCallingConv(IGM.SwiftCC);
+
   {
     IRGenFunction IGF(IGM, layoutFn);
     if (IGM.DebugInfo)
@@ -381,6 +387,7 @@ getWitnessTableForComputedComponent(IRGenModule &IGM,
                                                  /*vararg*/ false);
       auto destroyFn = llvm::Function::Create(destroyType,
         llvm::GlobalValue::PrivateLinkage, "keypath_destroy", IGM.getModule());
+      destroyFn->setCallingConv(IGM.SwiftCC);
       destroy = destroyFn;
       destroyFn->setAttributes(IGM.constructInitialAttributes());
       
@@ -430,6 +437,7 @@ getWitnessTableForComputedComponent(IRGenModule &IGM,
                                               /*vararg*/ false);
       auto copyFn = llvm::Function::Create(copyType,
         llvm::GlobalValue::PrivateLinkage, "keypath_copy", IGM.getModule());
+      copyFn->setCallingConv(IGM.SwiftCC);
       copy = copyFn;
       copyFn->setAttributes(IGM.constructInitialAttributes());
       
@@ -516,10 +524,18 @@ getWitnessTableForComputedComponent(IRGenModule &IGM,
     fields.addNullPointer(IGM.FunctionPtrTy);
   fields.addSignedPointer(copy, schemaKeyPath,
                           PointerAuthEntity::Special::KeyPathCopy);
-  fields.addSignedPointer(equals, schemaKeyPath,
-                          PointerAuthEntity::Special::KeyPathEquals);
-  fields.addSignedPointer(hash, schemaKeyPath,
-                          PointerAuthEntity::Special::KeyPathHash);
+  if (equals)
+    fields.addSignedPointer(equals, schemaKeyPath,
+                            PointerAuthEntity::Special::KeyPathEquals);
+  else
+    fields.addNullPointer(IGM.FunctionPtrTy);
+
+  if (hash)
+    fields.addSignedPointer(hash, schemaKeyPath,
+                            PointerAuthEntity::Special::KeyPathHash);
+  else
+    fields.addNullPointer(IGM.FunctionPtrTy);
+
   return fields.finishAndCreateGlobal(
       "keypath_witnesses", IGM.getPointerAlignment(), /*constant*/ true,
       llvm::GlobalVariable::PrivateLinkage);
@@ -545,6 +561,7 @@ getInitializerForComputedComponent(IRGenModule &IGM,
   auto initFn = llvm::Function::Create(fnTy,
     llvm::GlobalValue::PrivateLinkage, "keypath_arg_init", IGM.getModule());
   initFn->setAttributes(IGM.constructInitialAttributes());
+  initFn->setCallingConv(IGM.SwiftCC);
     
   {
     IRGenFunction IGF(IGM, initFn);
@@ -921,6 +938,11 @@ emitKeyPathComponent(IRGenModule &IGM,
     switch (id.getKind()) {
     case KeyPathPatternComponent::ComputedPropertyId::Function: {
       idKind = KeyPathComponentHeader::Pointer;
+      if (!id.getFunction()) {
+        idValue = nullptr;
+        idResolution = KeyPathComponentHeader::Resolved;
+        break;
+      }
       // FIXME: Does this need to be signed?
       auto idRef = IGM.getAddrOfLLVMVariableOrGOTEquivalent(
         LinkEntity::forSILFunction(id.getFunction()));
@@ -1066,7 +1088,7 @@ emitKeyPathComponent(IRGenModule &IGM,
     switch (idKind) {
     case KeyPathComponentHeader::Pointer:
       // Use a relative offset to the referent.
-      fields.addRelativeAddress(idValue);
+      fields.addRelativeAddressOrNull(idValue);
       break;
 
     case KeyPathComponentHeader::VTableOffset:
@@ -1077,15 +1099,12 @@ emitKeyPathComponent(IRGenModule &IGM,
     }
 
     // Push the accessors, possibly thunked to marshal generic environment.
-    fields.addRelativeAddress(
-      getAccessorForComputedComponent(IGM, component, Getter,
-                                      genericEnv, requirements,
-                                      hasSubscriptIndices));
+    fields.addRelativeAddressOrNull(getAccessorForComputedComponent(
+        IGM, component, Getter, genericEnv, requirements, hasSubscriptIndices));
     if (settable)
-      fields.addRelativeAddress(
-        getAccessorForComputedComponent(IGM, component, Setter,
-                                        genericEnv, requirements,
-                                        hasSubscriptIndices));
+      fields.addRelativeAddressOrNull(
+          getAccessorForComputedComponent(IGM, component, Setter, genericEnv,
+                                          requirements, hasSubscriptIndices));
 
     if (!isInstantiableOnce) {
       // If there's generic context or subscript indexes, embed as

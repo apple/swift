@@ -59,10 +59,13 @@
 #include "TaskPrivate.h"
 #include "Error.h"
 
+#if !SWIFT_CONCURRENCY_COOPERATIVE_GLOBAL_EXECUTOR
 #include <dispatch/dispatch.h>
 
 #if !defined(_WIN32)
 #include <dlfcn.h>
+#endif
+
 #endif
 
 using namespace swift;
@@ -100,7 +103,7 @@ static DelayedJob *DelayedJobQueue = nullptr;
 
 /// Get the next-in-queue storage slot.
 static Job *&nextInQueue(Job *cur) {
-  return reinterpret_cast<Job*&>(&cur->SchedulerPrivate[NextWaitingTaskIndex]);
+  return reinterpret_cast<Job*&>(cur->SchedulerPrivate);
 }
 
 /// Insert a job into the cooperative global queue.
@@ -180,7 +183,7 @@ void swift::donateThreadToGlobalExecutorUntil(bool (*condition)(void *),
   while (!condition(conditionContext)) {
     auto job = claimNextFromJobQueue();
     if (!job) return;
-    job->run(ExecutorRef::generic());
+    swift_job_run(job, ExecutorRef::generic());
   }
 }
 

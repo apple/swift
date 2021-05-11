@@ -1548,7 +1548,19 @@ SILFunction *SILGenModule::emitLazyGlobalInitializer(StringRef funcName,
       cast<FuncDecl>(getBuiltinValueDecl(C, C.getIdentifier("once")));
   auto blockParam = onceBuiltin->getParameters()->get(1);
   auto *type = blockParam->getType()->castTo<FunctionType>();
-  Type initType = FunctionType::get({}, TupleType::getEmpty(C),
+  SmallVector<AnyFunctionType::Param, 1> params;
+  // wasm: Lazy global init is used with swift_once which passes a context
+  // pointer parameter. If lazy global init doesn't take a context argument,
+  // caller and callee signatures are mismatched and it causes runtime
+  // exception on WebAssembly runtime. So we need to add dummy argument
+  // to consume the context pointer.
+  // See also: emitLazyGlobalInitializer
+  if (C.LangOpts.Target.isOSBinFormatWasm()) {
+    auto dummyParam = AnyFunctionType::Param(C.getUnsafeRawPointerDecl()->getDeclaredInterfaceType()
+                                             ->getCanonicalType());
+    params.push_back(dummyParam);
+  }
+  Type initType = FunctionType::get(params, TupleType::getEmpty(C),
                                     type->getExtInfo());
   auto initSILType = cast<SILFunctionType>(
       Types.getLoweredRValueType(TypeExpansionContext::minimal(), initType));

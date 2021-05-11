@@ -75,6 +75,8 @@ SILVTable::SILVTable(ClassDecl *c, IsSerialized_t serialized,
 SILVTable::~SILVTable() {
   // Drop the reference count of functions referenced by this table.
   for (const Entry &entry : getEntries()) {
-    entry.getImplementation()->decrementRefCount();
+      if (entry.getImplementation()) {
+          entry.getImplementation()->decrementRefCount();
+      }
   }
 }

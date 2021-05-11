@@ -3297,7 +3297,10 @@ public:
   void visitReferencedFunctionsAndMethods(
       std::function<void (SILFunction *)> functionCallBack,
       std::function<void (SILDeclRef)> methodCallBack) const;
-    
+
+  void clearReferencedFunctions_if(
+      llvm::function_ref<bool(SILFunction *)> predicate);
+
   void incrementRefCounts() const;
   void decrementRefCounts() const;
   

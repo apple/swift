@@ -349,6 +349,8 @@ function(_add_host_variant_link_flags target)
       ${SWIFT_HOST_VARIANT_ARCH}_LIB)
     target_link_directories(${target} PRIVATE
       ${${SWIFT_HOST_VARIANT_ARCH}_LIB})
+  elseif("${LFLAGS_SDK}" STREQUAL "WASI")
+    list(APPEND result "-Wl,wasi-emulated-mman")
   else()
     # If lto is enabled, we need to add the object path flag so that the LTO code
     # generator leaves the intermediate object file in a place where it will not

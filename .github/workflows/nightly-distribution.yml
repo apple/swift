@@ -1,0 +1,67 @@
+name: Nightly distribution
+on:
+  schedule:
+    - cron: '0 0 * * *'
+jobs:
+  nightly-distribution:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Setup keychain
+        run: |
+          security create-keychain -p "$KEYCHAIN_PASSWORD" swiftwasm-ci
+          KEYCHAIN=$HOME/Library/Keychains/swiftwasm-ci-db
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN
+          security set-keychain-settings -lut 7200 $KEYCHAIN
+          security default-keychain -s $KEYCHAIN
+
+          echo "$DARWIN_TOOLCHAIN_APPLICATION_CERT_BASE64" | base64 --decode -o developerID_application.p12
+          security import developerID_application.p12 -P "$DARWIN_TOOLCHAIN_APPLICATION_CERT_PASSWORD" -T /usr/bin/pkgbuild -T /usr/bin/codesign
+          echo "$DARWIN_TOOLCHAIN_INSTALLER_CERT_BASE64" | base64 --decode -o developerID_installer.p12
+          security import developerID_installer.p12 -P "$DARWIN_TOOLCHAIN_INSTALLER_CERT_PASSWORD" -T /usr/bin/pkgbuild -T /usr/bin/codesign
+
+          security set-key-partition-list -S "apple-tool:,apple:" -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN
+        env:
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          DARWIN_TOOLCHAIN_APPLICATION_CERT: ${{ secrets.DARWIN_TOOLCHAIN_APPLICATION_CERT }}
+          DARWIN_TOOLCHAIN_APPLICATION_CERT_BASE64: ${{ secrets.DARWIN_TOOLCHAIN_APPLICATION_CERT_BASE64 }}
+          DARWIN_TOOLCHAIN_APPLICATION_CERT_PASSWORD: ${{ secrets.DARWIN_TOOLCHAIN_APPLICATION_CERT_PASSWORD }}
+          DARWIN_TOOLCHAIN_INSTALLER_CERT: ${{ secrets.DARWIN_TOOLCHAIN_INSTALLER_CERT }}
+          DARWIN_TOOLCHAIN_INSTALLER_CERT_BASE64: ${{ secrets.DARWIN_TOOLCHAIN_INSTALLER_CERT_BASE64 }}
+          DARWIN_TOOLCHAIN_INSTALLER_CERT_PASSWORD: ${{ secrets.DARWIN_TOOLCHAIN_INSTALLER_CERT_PASSWORD }}
+      - run: ./utils/webassembly/distribute-latest-toolchain.sh swiftwasm DEVELOPMENT
+        env:
+          GITHUB_TOKEN: ${{ secrets.SWIFTWASM_BUILDBOT_TOKEN }}
+          DARWIN_TOOLCHAIN_APPLICATION_CERT: ${{ secrets.DARWIN_TOOLCHAIN_APPLICATION_CERT }}
+          DARWIN_TOOLCHAIN_INSTALLER_CERT: ${{ secrets.DARWIN_TOOLCHAIN_INSTALLER_CERT }}
+          DARWIN_TOOLCHAIN_NOTARIZE_EMAIL: ${{ secrets.DARWIN_TOOLCHAIN_NOTARIZE_EMAIL }}
+          DARWIN_TOOLCHAIN_NOTARIZE_PASSWORD: ${{ secrets.DARWIN_TOOLCHAIN_NOTARIZE_PASSWORD }}
+          DARWIN_TOOLCHAIN_NOTARIZE_TEAM_ID: ${{ secrets.DARWIN_TOOLCHAIN_NOTARIZE_TEAM_ID }}
+        if: github.ref == 'refs/heads/swiftwasm'
+
+      - run: ./utils/webassembly/distribute-latest-toolchain.sh swiftwasm-release/5.3 5.3
+        env:
+          GITHUB_TOKEN: ${{ secrets.SWIFTWASM_BUILDBOT_TOKEN }}
+          DARWIN_TOOLCHAIN_APPLICATION_CERT: ${{ secrets.DARWIN_TOOLCHAIN_APPLICATION_CERT }}
+          DARWIN_TOOLCHAIN_INSTALLER_CERT: ${{ secrets.DARWIN_TOOLCHAIN_INSTALLER_CERT }}
+          DARWIN_TOOLCHAIN_NOTARIZE_EMAIL: ${{ secrets.DARWIN_TOOLCHAIN_NOTARIZE_EMAIL }}
+          DARWIN_TOOLCHAIN_NOTARIZE_PASSWORD: ${{ secrets.DARWIN_TOOLCHAIN_NOTARIZE_PASSWORD }}
+          DARWIN_TOOLCHAIN_NOTARIZE_TEAM_ID: ${{ secrets.DARWIN_TOOLCHAIN_NOTARIZE_TEAM_ID }}
+
+      - run: ./utils/webassembly/distribute-latest-toolchain.sh swiftwasm-release/5.4 5.4
+        env:
+          GITHUB_TOKEN: ${{ secrets.SWIFTWASM_BUILDBOT_TOKEN }}
+          DARWIN_TOOLCHAIN_APPLICATION_CERT: ${{ secrets.DARWIN_TOOLCHAIN_APPLICATION_CERT }}
+          DARWIN_TOOLCHAIN_INSTALLER_CERT: ${{ secrets.DARWIN_TOOLCHAIN_INSTALLER_CERT }}
+          DARWIN_TOOLCHAIN_NOTARIZE_EMAIL: ${{ secrets.DARWIN_TOOLCHAIN_NOTARIZE_EMAIL }}
+          DARWIN_TOOLCHAIN_NOTARIZE_PASSWORD: ${{ secrets.DARWIN_TOOLCHAIN_NOTARIZE_PASSWORD }}
+          DARWIN_TOOLCHAIN_NOTARIZE_TEAM_ID: ${{ secrets.DARWIN_TOOLCHAIN_NOTARIZE_TEAM_ID }}
+
+      - run: ./utils/webassembly/distribute-latest-toolchain.sh swiftwasm-release/5.5 5.5
+        env:
+          GITHUB_TOKEN: ${{ secrets.SWIFTWASM_BUILDBOT_TOKEN }}
+          DARWIN_TOOLCHAIN_APPLICATION_CERT: ${{ secrets.DARWIN_TOOLCHAIN_APPLICATION_CERT }}
+          DARWIN_TOOLCHAIN_INSTALLER_CERT: ${{ secrets.DARWIN_TOOLCHAIN_INSTALLER_CERT }}
+          DARWIN_TOOLCHAIN_NOTARIZE_EMAIL: ${{ secrets.DARWIN_TOOLCHAIN_NOTARIZE_EMAIL }}
+          DARWIN_TOOLCHAIN_NOTARIZE_PASSWORD: ${{ secrets.DARWIN_TOOLCHAIN_NOTARIZE_PASSWORD }}
+          DARWIN_TOOLCHAIN_NOTARIZE_TEAM_ID: ${{ secrets.DARWIN_TOOLCHAIN_NOTARIZE_TEAM_ID }}

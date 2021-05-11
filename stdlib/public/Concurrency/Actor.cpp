@@ -292,6 +292,8 @@ static bool isExecutingOnMainThread() {
   }
 
   return __initialPthread == GetCurrentThread();
+#elif defined(__wasi__)
+  return true;
 #else
   return pthread_main_np() == 1;
 #endif

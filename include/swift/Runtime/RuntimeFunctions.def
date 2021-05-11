@@ -159,7 +159,7 @@ FUNCTION(CopyPOD, swift_copyPOD, C_CC, AlwaysAvailable,
          ATTRS(NoUnwind))
 
 // void *swift_retain(void *ptr);
-FUNCTION(NativeStrongRetain, swift_retain, C_CC, AlwaysAvailable,
+FUNCTION(NativeStrongRetain, swift_retain, SwiftCC, AlwaysAvailable,
          RETURNS(RefCountedPtrTy),
          ARGS(RefCountedPtrTy),
          ATTRS(NoUnwind, FirstParamReturned))
@@ -1238,7 +1238,7 @@ FUNCTION(ConformsToProtocol,
 
 // bool swift_isClassType(type*);
 FUNCTION(IsClassType,
-         swift_isClassType, C_CC, AlwaysAvailable,
+         swift_isClassType, SwiftCC, AlwaysAvailable,
          RETURNS(Int1Ty),
          ARGS(TypeMetadataPtrTy),
          ATTRS(ZExt, NoUnwind, ReadNone))

@@ -74,6 +74,9 @@ public:
   /// The path to which we should store indexing data, if any.
   std::string IndexStorePath;
 
+  /// The path to which we should emit combined module summary file
+  std::string ModuleSummaryOutputPath;
+
   /// The path to load access notes from.
   std::string AccessNotesPath;
 

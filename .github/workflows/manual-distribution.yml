@@ -1,0 +1,71 @@
+name: Manual distribution
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: 'Release channel'
+        required: true
+      toolchain_name:
+        description: 'Toolchain name'
+        required: true
+      branch:
+        description: 'Branch name used to fetch built artifacts. If empty, use default branch based on channel'
+      display_name:
+        description: 'Display name for Darwin toolchain'
+      display_name_short:
+        description: 'Short display name for Darwin toolchain'
+jobs:
+  manual-distribution:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup keychain
+        run: |
+          security create-keychain -p "$KEYCHAIN_PASSWORD" swiftwasm-ci
+          KEYCHAIN=$HOME/Library/Keychains/swiftwasm-ci-db
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN
+          security set-keychain-settings -lut 7200 $KEYCHAIN
+          security default-keychain -s $KEYCHAIN
+          echo "$DARWIN_TOOLCHAIN_APPLICATION_CERT_BASE64" | base64 --decode -o developerID_application.p12
+          security import developerID_application.p12 -P "$DARWIN_TOOLCHAIN_APPLICATION_CERT_PASSWORD" -T /usr/bin/pkgbuild -T /usr/bin/codesign
+          echo "$DARWIN_TOOLCHAIN_INSTALLER_CERT_BASE64" | base64 --decode -o developerID_installer.p12
+          security import developerID_installer.p12 -P "$DARWIN_TOOLCHAIN_INSTALLER_CERT_PASSWORD" -T /usr/bin/pkgbuild -T /usr/bin/codesign
+          security set-key-partition-list -S "apple-tool:,apple:" -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN
+        env:
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          DARWIN_TOOLCHAIN_APPLICATION_CERT: ${{ secrets.DARWIN_TOOLCHAIN_APPLICATION_CERT }}
+          DARWIN_TOOLCHAIN_APPLICATION_CERT_BASE64: ${{ secrets.DARWIN_TOOLCHAIN_APPLICATION_CERT_BASE64 }}
+          DARWIN_TOOLCHAIN_APPLICATION_CERT_PASSWORD: ${{ secrets.DARWIN_TOOLCHAIN_APPLICATION_CERT_PASSWORD }}
+          DARWIN_TOOLCHAIN_INSTALLER_CERT: ${{ secrets.DARWIN_TOOLCHAIN_INSTALLER_CERT }}
+          DARWIN_TOOLCHAIN_INSTALLER_CERT_BASE64: ${{ secrets.DARWIN_TOOLCHAIN_INSTALLER_CERT_BASE64 }}
+          DARWIN_TOOLCHAIN_INSTALLER_CERT_PASSWORD: ${{ secrets.DARWIN_TOOLCHAIN_INSTALLER_CERT_PASSWORD }}
+      - run: |
+          BRANCH="${{ github.event.inputs.branch }}"
+
+          case "${{ github.event.inputs.channel }}" in
+            "DEVELOPMENT")
+              ./utils/webassembly/distribute-latest-toolchain.sh ${BRANCH:-swiftwasm} DEVELOPMENT "${{ github.event.inputs.toolchain_name }}"
+            ;;
+            "5.3")
+              ./utils/webassembly/distribute-latest-toolchain.sh ${BRANCH:-swiftwasm-release/5.3} 5.3 "${{ github.event.inputs.toolchain_name }}"
+            ;;
+            "5.4")
+              ./utils/webassembly/distribute-latest-toolchain.sh ${BRANCH:-swiftwasm-release/5.4} 5.4 "${{ github.event.inputs.toolchain_name }}"
+            ;;
+            "5.5")
+              ./utils/webassembly/distribute-latest-toolchain.sh ${BRANCH:-swiftwasm-release/5.5} 5.5 "${{ github.event.inputs.toolchain_name }}"
+            ;;
+            *)
+              echo "Unrecognised release channel: ${{ github.event.inputs.channel }}"
+              exit 1
+            ;;
+          esac
+
+        env:
+          GITHUB_TOKEN: ${{ secrets.SWIFTWASM_BUILDBOT_TOKEN }}
+          DARWIN_TOOLCHAIN_APPLICATION_CERT: ${{ secrets.DARWIN_TOOLCHAIN_APPLICATION_CERT }}
+          DARWIN_TOOLCHAIN_INSTALLER_CERT: ${{ secrets.DARWIN_TOOLCHAIN_INSTALLER_CERT }}
+          DARWIN_TOOLCHAIN_NOTARIZE_EMAIL: ${{ secrets.DARWIN_TOOLCHAIN_NOTARIZE_EMAIL }}
+          DARWIN_TOOLCHAIN_NOTARIZE_PASSWORD: ${{ secrets.DARWIN_TOOLCHAIN_NOTARIZE_PASSWORD }}
+          DARWIN_TOOLCHAIN_DISPLAY_NAME: ${{ github.event.inputs.display_name }}
+          DARWIN_TOOLCHAIN_DISPLAY_NAME_SHORT: ${{ github.event.inputs.display_name_short }}

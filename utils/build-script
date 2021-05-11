@@ -253,6 +253,10 @@ def validate_arguments(toolchain, args):
                 "--android-icu-uc-include, --android-icu-i18n, "
                 "--android-icu-i18n-include, and --android-icu-data "
                 "must be specified")
+    if args.wasm:
+        if args.wasi_sysroot is None:
+            fatal_error(
+                "when building for WebAssembly, --wasi-sysroot must be specified")
 
     targets_needing_toolchain = [
         'build_indexstoredb',
@@ -268,7 +272,6 @@ def validate_arguments(toolchain, args):
         fatal_error(
             "--legacy-impl is incompatible with building packages needing "
             "a toolchain (%s)" % ", ".join(targets_needing_toolchain))
-
 
 def default_stdlib_deployment_targets(args):
     """
@@ -362,6 +365,9 @@ def apply_default_arguments(toolchain, args):
         elif args.android_arch == "x86_64":
             args.stdlib_deployment_targets.append(
                 StdlibDeploymentTarget.Android.x86_64.name)
+    if args.wasm:
+        args.stdlib_deployment_targets.append(
+            StdlibDeploymentTarget.WASI.wasm32.name)
 
     # Infer platform flags from manually-specified configure targets.
     # This doesn't apply to Darwin platforms, as they are
@@ -413,7 +419,6 @@ def apply_default_arguments(toolchain, args):
         args.extra_cmake_options.append(
             '-DSWIFT_DARWIN_MODULE_ARCHS:STRING={}'.format(
                 args.swift_darwin_module_archs))
-
 
 # -----------------------------------------------------------------------------
 # Build Script Impl Wrapping
@@ -648,6 +653,8 @@ class BuildScriptInvocation(object):
 
         if not args.build_android:
             impl_args += ["--skip-build-android"]
+        if not args.build_wasm:
+            impl_args += ["--skip-build-wasm"]
         if not args.build_clang_tools_extra:
             impl_args += ["--skip-build-clang-tools-extra"]
 
@@ -699,6 +706,11 @@ class BuildScriptInvocation(object):
             impl_args += [
                 "--android-deploy-device-path",
                 args.android_deploy_device_path,
+            ]
+
+        if args.wasm:
+            impl_args += [
+                "--wasi-sysroot", args.wasi_sysroot,
             ]
 
         if platform.system() == 'Darwin':

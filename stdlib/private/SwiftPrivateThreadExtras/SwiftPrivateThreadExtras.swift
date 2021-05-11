@@ -19,6 +19,8 @@
 import Darwin
 #elseif canImport(Glibc)
 import Glibc
+#elseif os(WASI)
+import WASILibc
 #elseif os(Windows)
 import CRT
 import WinSDK
@@ -98,6 +100,9 @@ public func _stdlib_thread_create_block<Argument, Result>(
   } else {
     return (0, ThreadHandle(bitPattern: threadID))
   }
+#elseif os(WASI)
+  // WASI environment has a only single thread
+  return (0, nil)
 #else
   var threadID = _make_pthread_t()
   let result = pthread_create(&threadID, nil,
@@ -129,6 +134,9 @@ public func _stdlib_thread_join<Result>(
     }
   }
   return (CInt(result), value)
+#elseif os(WASI)
+  // WASI environment has a only single thread
+  return (0, nil)
 #else
   var threadResultRawPtr: UnsafeMutableRawPointer?
   let result = pthread_join(thread, &threadResultRawPtr)

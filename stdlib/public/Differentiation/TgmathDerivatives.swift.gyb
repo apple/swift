@@ -18,6 +18,8 @@ import Swift
   import Darwin.C.tgmath
 #elseif os(Linux) || os(FreeBSD) || os(OpenBSD) || os(PS4) || os(Android) || os(Cygwin) || os(Haiku)
   import Glibc
+#elseif os(WASI)
+  import WASILibc
 #elseif os(Windows)
   import CRT
 #else

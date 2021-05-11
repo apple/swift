@@ -104,7 +104,7 @@ std::string SILDefaultWitnessTable::getUniqueName() const {
 SILDefaultWitnessTable::~SILDefaultWitnessTable() {
   // Drop the reference count of witness functions referenced by this table.
   for (auto entry : getEntries()) {
-    if (entry.isValid() && entry.getKind() == SILWitnessTable::Method) {
+    if (entry.isValid() && entry.getKind() == SILWitnessTable::Method && entry.getMethodWitness().Witness) {
       entry.getMethodWitness().Witness->decrementRefCount();
     }
   }

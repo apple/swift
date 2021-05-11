@@ -1269,6 +1269,10 @@ static bool ParseSILArgs(SILOptions &Opts, ArgList &Args,
   if (const Arg *A = Args.getLastArg(OPT_save_optimization_record_path))
     Opts.OptRecordFile = A->getValue();
 
+  if (const Arg *A = Args.getLastArg(OPT_module_summary_path)) {
+    Opts.ModuleSummaryPath = A->getValue();
+  }
+
   if (Args.hasArg(OPT_debug_on_sil)) {
     // Derive the name of the SIL file for debugging from
     // the regular outputfile.
@@ -1613,6 +1617,10 @@ static bool ParseIRGenArgs(IRGenOptions &Opts, ArgList &Args,
     else
       Diags.diagnose(SourceLoc(), diag::error_invalid_arg_value,
                      A->getAsString(Args), A->getValue());
+  }
+
+  if (Args.hasArg(OPT_no_stdlib_link)) {
+    Opts.DisableAutolinkStdlib = true;
   }
 
   if (const Arg *A = Args.getLastArg(options::OPT_sanitize_coverage_EQ)) {

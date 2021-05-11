@@ -335,7 +335,7 @@ Driver::buildToolChain(const llvm::opt::InputArgList &ArgList) {
   case llvm::Triple::Haiku:
     return std::make_unique<toolchains::GenericUnix>(*this, target);
   case llvm::Triple::WASI:
-    return std::make_unique<toolchains::GenericUnix>(*this, target);
+    return std::make_unique<toolchains::WebAssembly>(*this, target);
   default:
     Diags.diagnose(SourceLoc(), diag::error_unknown_target,
                    ArgList.getLastArg(options::OPT_target)->getValue());
@@ -1743,6 +1743,13 @@ void Driver::buildOutputInfo(const ToolChain &TC, const DerivedArgList &Args,
           });
         }
       }
+    } if (OI.SDKPath.empty() && TC.getTriple().isOSWASI()) {
+        llvm::SmallString<128> SDKPath;
+        llvm::sys::path::append(SDKPath, getSwiftProgramPath());
+        llvm::sys::path::remove_filename(SDKPath); // 'swift'
+        llvm::sys::path::remove_filename(SDKPath); // 'bin'
+        llvm::sys::path::append(SDKPath, "share", "wasi-sysroot");
+        OI.SDKPath = SDKPath.str().str();
     }
 
     if (!OI.SDKPath.empty()) {
@@ -2003,6 +2010,7 @@ void Driver::buildActions(SmallVectorImpl<const Action *> &TopLevelActions,
         }
       case file_types::TY_AutolinkFile:
       case file_types::TY_Object:
+      case file_types::TY_LLVM_BC:
       case file_types::TY_TBD:
         // Object inputs are only okay if linking.
         if (OI.shouldLink()) {
@@ -2016,7 +2024,6 @@ void Driver::buildActions(SmallVectorImpl<const Action *> &TopLevelActions,
       case file_types::TY_Dependencies:
       case file_types::TY_Assembly:
       case file_types::TY_LLVM_IR:
-      case file_types::TY_LLVM_BC:
       case file_types::TY_SerializedDiagnostics:
       case file_types::TY_ObjCHeader:
       case file_types::TY_ClangModuleFile:
@@ -2177,7 +2184,7 @@ void Driver::buildActions(SmallVectorImpl<const Action *> &TopLevelActions,
     // argument input file to the linker.
     const auto &Triple = TC.getTriple();
     SmallVector<const Action *, 2> AutolinkExtractInputs;
-    for (const Action *A : AllLinkerInputs)
+    for (const Action *A : AllLinkerInputs) {
       if (A->getType() == file_types::TY_Object) {
         // Shared objects on ELF platforms don't have a swift1_autolink_entries
         // section in them because the section in the .o files is marked as
@@ -2189,12 +2196,14 @@ void Driver::buildActions(SmallVectorImpl<const Action *> &TopLevelActions,
             continue;
         }
         AutolinkExtractInputs.push_back(A);
+      } else if (A->getType() == file_types::TY_LLVM_BC) {
+        AutolinkExtractInputs.push_back(A);
       }
+    }
     const bool AutolinkExtractRequired =
-        ((Triple.getObjectFormat() == llvm::Triple::ELF && !Triple.isPS4()) ||
-         Triple.getObjectFormat() == llvm::Triple::Wasm ||
-         Triple.isOSCygMing()) &&
-        !shouldPerformLTO;
+        ((Triple.getObjectFormat() == llvm::Triple::ELF && !Triple.isPS4() && !shouldPerformLTO) ||
+        Triple.getObjectFormat() == llvm::Triple::Wasm ||
+        (Triple.isOSCygMing() && !shouldPerformLTO));
     if (!AutolinkExtractInputs.empty() && AutolinkExtractRequired) {
       auto *AutolinkExtractAction =
           C.createAction<AutolinkExtractJobAction>(AutolinkExtractInputs);
@@ -2326,7 +2335,8 @@ bool Driver::handleImmediateArgs(const ArgList &Args, const ToolChain &TC) {
     if (Args.hasFlag(options::OPT_static_executable,
                      options::OPT_no_static_executable, false) ||
         Args.hasFlag(options::OPT_static_stdlib, options::OPT_no_static_stdlib,
-                     false)) {
+                     false) ||
+        TC.getTriple().isOSBinFormatWasm()) {
       commandLine.push_back("-use-static-resource-dir");
     }
 

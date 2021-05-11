@@ -35,9 +35,11 @@
 #include "queue" // TODO: remove and replace with usage of our mpsc queue
 #include <atomic>
 #include <assert.h>
+#if !SWIFT_CONCURRENCY_COOPERATIVE_GLOBAL_EXECUTOR
 #include <dispatch/dispatch.h>
+#endif
 
-#if !defined(_WIN32)
+#if !defined(_WIN32) && !defined(__wasi__)
 #include <dlfcn.h>
 #endif
 

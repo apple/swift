@@ -147,6 +147,9 @@ def _apply_default_arguments(args):
     if not args.android or not args.build_android:
         args.build_android = False
 
+    if not args.wasm or not args.build_wasm:
+        args.build_wasm = False
+
     # --test-paths implies --test and/or --validation-test
     # depending on what directories/files have been specified.
     if args.test_paths:
@@ -183,6 +186,7 @@ def _apply_default_arguments(args):
         args.test_tvos = False
         args.test_watchos = False
         args.test_android = False
+        args.test_wasm = False
         args.test_swiftpm = False
         args.test_swift_driver = False
         args.test_swiftsyntax = False
@@ -241,11 +245,19 @@ def _apply_default_arguments(args):
     if not args.test_android:
         args.test_android_host = False
 
+    if not args.build_wasm:
+        args.test_wasm = False
+        args.test_wasm_host = False
+
+    if not args.test_android:
+        args.test_android_host = False
+
     if not args.host_test:
         args.test_ios_host = False
         args.test_tvos_host = False
         args.test_watchos_host = False
         args.test_android_host = False
+        args.test_wasm_host = False
 
 
 def create_argument_parser():
@@ -333,6 +345,9 @@ def create_argument_parser():
 
     option('--android', toggle_true,
            help='also build for Android')
+
+    option('--wasm', toggle_true,
+           help='also build for WebAssembly')
 
     option('--swift-analyze-code-coverage', store,
            choices=['false', 'not-merged', 'merged'],
@@ -429,7 +444,7 @@ def create_argument_parser():
                 'fuzzing swiftc')
 
     option('--compiler-vendor', store,
-           choices=['none', 'apple'],
+           choices=['none', 'apple', 'swiftwasm'],
            default=defaults.COMPILER_VENDOR,
            help='Compiler vendor name')
     option('--clang-compiler-version', store,
@@ -989,6 +1004,9 @@ def create_argument_parser():
     option('--skip-build-android', toggle_false('build_android'),
            help='skip building Swift stdlibs for Android')
 
+    option('--skip-build-wasm', toggle_false('build_wasm'),
+           help='skip building Swift stdlibs for WebAssembly')
+
     option('--skip-build-benchmarks', toggle_false('build_benchmarks'),
            help='skip building Swift Benchmark Suite')
 
@@ -1060,6 +1078,15 @@ def create_argument_parser():
            help='skip cleaning up swiftpm')
     option('--skip-clean-swift-driver', toggle_false('clean_swift_driver'),
            help='skip cleaning up Swift driver')
+
+    option('--skip-test-wasm',
+           toggle_false('test_wasm'),
+           help='skip testing all WebAssembly targets.')
+    option('--skip-test-wasm-host',
+           toggle_false('test_wasm_host'),
+           help='skip testing WebAssembly device targets on the host machine (the '
+                'WebAssembly runtime)')
+
     option('--skip-test-swiftpm', toggle_false('test_swiftpm'),
            help='skip testing swiftpm')
     option('--skip-test-swift-driver', toggle_false('test_swift_driver'),
@@ -1152,6 +1179,13 @@ def create_argument_parser():
            help='The target architecture when building for Android. '
                 'Currently, only armv7, aarch64, and x86_64 are supported. '
                 '%(default)s is the default.')
+
+    # -------------------------------------------------------------------------
+    in_group('Build settings for WebAssembly')
+
+    option('--wasi-sysroot', store_path,
+           help='An absolute path to wasi-sysroot that will be used as a libc '
+                'implementation for Wasm builds')
 
     # -------------------------------------------------------------------------
     in_group('Experimental language features')

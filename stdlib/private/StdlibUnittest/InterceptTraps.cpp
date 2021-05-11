@@ -50,8 +50,6 @@ static void CrashCatcher(int Sig) {
   _exit(0);
 }
 
-#endif // __wasi__
-
 #if defined(_WIN32)
 static LONG WINAPI
 VectoredCrashHandler(PEXCEPTION_POINTERS ExceptionInfo) {
@@ -92,6 +90,8 @@ void installTrapInterceptor() {
   signal(SIGBUS,  CrashCatcher);
   signal(SIGSYS,  CrashCatcher);
 #endif
+
+#endif // !defined(__wasi__)
 }
 
 #endif // !defined(__wasi__)

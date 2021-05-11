@@ -47,7 +47,8 @@ endif()
 # Build any target libdispatch if needed.
 foreach(sdk ${SWIFT_SDKS})
   # Apple targets have libdispatch available, do not build it.
-  if(NOT "${sdk}" IN_LIST SWIFT_APPLE_PLATFORMS)
+  # Wasm/WASI doesn't support libdispatch yet.
+  if(NOT "${sdk}" IN_LIST SWIFT_APPLE_PLATFORMS AND NOT "${sdk}" STREQUAL WASI)
     list(APPEND DISPATCH_SDKS "${sdk}")
   endif()
 endforeach()

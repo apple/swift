@@ -1,0 +1,13 @@
+-static
+-lswiftSwiftOnoneSupport
+-lswiftWasiPthread
+-licuuc
+-licudata
+-ldl
+-lstdc++
+-lm
+-lwasi-emulated-mman
+-Xlinker --error-limit=0
+-Xlinker --no-gc-sections
+-Xlinker --threads=1
+-D_WASI_EMULATED_MMAN

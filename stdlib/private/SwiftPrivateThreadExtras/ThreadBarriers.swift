@@ -14,6 +14,8 @@
 import Darwin
 #elseif canImport(Glibc)
 import Glibc
+#elseif os(WASI)
+import WASILibc
 #elseif os(Windows)
 import CRT
 import WinSDK
@@ -36,6 +38,8 @@ public struct _stdlib_thread_barrier_t {
 #elseif os(Cygwin) || os(FreeBSD) || os(OpenBSD)
   var mutex: UnsafeMutablePointer<pthread_mutex_t?>?
   var cond: UnsafeMutablePointer<pthread_cond_t?>?
+#elseif os(WASI)
+  // No pthread for WASI
 #else
   var mutex: UnsafeMutablePointer<pthread_mutex_t>?
   var cond: UnsafeMutablePointer<pthread_cond_t>?
@@ -67,6 +71,8 @@ public func _stdlib_thread_barrier_init(
 
   barrier.pointee.cond = UnsafeMutablePointer.allocate(capacity: 1)
   InitializeConditionVariable(barrier.pointee.cond!)
+#elseif os(WASI)
+  // WASI environment has a only single thread
 #else
   barrier.pointee.mutex = UnsafeMutablePointer.allocate(capacity: 1)
   barrier.pointee.cond = UnsafeMutablePointer.allocate(capacity: 1)
@@ -82,7 +88,7 @@ public func _stdlib_thread_barrier_init(
   return 0
 }
 
-#if !os(Windows)
+#if !os(Windows) && !os(WASI)
 private func _stdlib_thread_barrier_mutex_and_cond_init(_ barrier: UnsafeMutablePointer<_stdlib_thread_barrier_t>) -> CInt {
   guard pthread_mutex_init(barrier.pointee.mutex!, nil) == 0 else {
     return -1
@@ -101,17 +107,22 @@ public func _stdlib_thread_barrier_destroy(
 #if os(Windows)
   // Condition Variables do not need to be explicitly destroyed
   // Mutexes do not need to be explicitly destroyed
+#elseif os(WASI)
+  // WASI environment has a only single thread
 #else
   guard pthread_cond_destroy(barrier.pointee.cond!) == 0 &&
     pthread_mutex_destroy(barrier.pointee.mutex!) == 0 else {
     fatalError("_stdlib_thread_barrier_destroy() failed")
   }
 #endif
+
+#if !os(WASI)
   barrier.pointee.cond!.deinitialize(count: 1)
   barrier.pointee.cond!.deallocate()
 
   barrier.pointee.mutex!.deinitialize(count: 1)
   barrier.pointee.mutex!.deallocate()
+#endif
 
   return
 }
@@ -121,6 +132,8 @@ public func _stdlib_thread_barrier_wait(
 ) -> CInt {
 #if os(Windows)
   AcquireSRWLockExclusive(barrier.pointee.mutex!)
+#elseif os(WASI)
+  // WASI environment has a only single thread
 #else
   if pthread_mutex_lock(barrier.pointee.mutex!) != 0 {
     return -1
@@ -135,6 +148,8 @@ public func _stdlib_thread_barrier_wait(
       return -1
     }
     ReleaseSRWLockExclusive(barrier.pointee.mutex!)
+#elseif os(WASI)
+  // WASI environment has a only single thread
 #else
     if pthread_cond_wait(barrier.pointee.cond!, barrier.pointee.mutex!) != 0 {
       return -1
@@ -152,6 +167,8 @@ public func _stdlib_thread_barrier_wait(
 #if os(Windows)
     WakeAllConditionVariable(barrier.pointee.cond!)
     ReleaseSRWLockExclusive(barrier.pointee.mutex!)
+#elseif os(WASI)
+  // WASI environment has a only single thread
 #else
     if pthread_cond_broadcast(barrier.pointee.cond!) != 0 {
       return -1

@@ -331,6 +331,7 @@ FloatingPoint.test("Float/Int16") {
   expectEqual(Int16.max, Int16(Float(Int16.max)))
 }
 
+#if !os(WASI)
 FloatingPoint.test("Float/UInt32") {
   expectEqual(UInt32.min, UInt32(Float(UInt32.min)))
   expectCrashLater()
@@ -354,6 +355,7 @@ FloatingPoint.test("Float/Int64") {
   expectCrashLater()
   expectEqual(Int64.max, Int64(Float(Int64.max)))
 }
+#endif
 
 FloatingPoint.test("Double/ExpressibleByIntegerLiteral") {
   expectEqual(positiveOne(),  1.0 as Double)
@@ -419,6 +421,7 @@ FloatingPoint.test("Double/Int32") {
   expectEqual(Int32.max, Int32(Double(Int32.max)))
 }
 
+#if !os(WASI)
 FloatingPoint.test("Double/UInt64") {
   expectEqual(UInt64.min, UInt64(Double(UInt64.min)))
   expectCrashLater()
@@ -430,6 +433,7 @@ FloatingPoint.test("Double/Int64") {
   expectCrashLater()
   expectEqual(Int64.max, Int64(Double(Int64.max)))
 }
+#endif
 
 FloatingPoint.test("Float/HashValueZero") {
   let zero: Float = getFloat32(0.0)
@@ -1175,11 +1179,14 @@ FloatingPoint.test("Float32/quietNaN") {
     expectTrue(f.isNaN && !f.isSignalingNaN)
     expectEqual(0x7fdf_ffff, f.bitPattern)
   }
+
+#if !os(WASI)
   do {
     // Payload overflow
     expectCrashLater()
     _ = Float32(nan: 0x20_0000, signaling: false)
   }
+#endif
 }
 
 FloatingPoint.test("Float64/quietNaN") {
@@ -1204,11 +1211,13 @@ FloatingPoint.test("Float64/quietNaN") {
     expectTrue(f.isNaN && !f.isSignalingNaN)
     expectEqual(0x7ffb_ffff_ffff_ffff, f.bitPattern)
   }
+#if !os(WASI)
   do {
     // Payload overflow
     expectCrashLater()
     _ = Float64(nan: 0x4_0000_0000_0000, signaling: false)
   }
+#endif
 }
 
 #if !os(Windows) && (arch(i386) || arch(x86_64))
@@ -1235,11 +1244,13 @@ FloatingPoint.test("Float80/quietNaN") {
     expectTrue(f.isNaN && !f.isSignalingNaN)
     expectEqual(Float80Bits(0x7fff, 0xdfff_ffff_ffff_ffff), f.bitPattern)
   }
+#if !os(WASI)
   do {
     // Payload overflow
     expectCrashLater()
     _ = Float80(nan: 0x2000_0000_0000_0000, signaling: false)
   }
+#endif
 }
 
 #endif
@@ -1268,11 +1279,13 @@ FloatingPoint.test("Float32/signalingNaN") {
     expectTrue(f.isNaN && f.isSignalingNaN)
     expectEqual(0x7fbf_ffff, f.bitPattern)
   }
+#if !os(WASI)
   do {
     // payload overflow
     expectCrashLater()
     _ = Float32(nan: 0x20_0000, signaling: true)
   }
+#endif
 }
 
 FloatingPoint.test("Float64/signalingNaN") {
@@ -1297,11 +1310,13 @@ FloatingPoint.test("Float64/signalingNaN") {
     expectTrue(f.isNaN && f.isSignalingNaN)
     expectEqual(0x7ff7_ffff_ffff_ffff, f.bitPattern)
   }
+#if !os(WASI)
   do {
     // payload overflow
     expectCrashLater()
     _ = Float64(nan: 0x4_0000_0000_0000, signaling: true)
   }
+#endif
 }
 
 #endif
@@ -1330,11 +1345,13 @@ FloatingPoint.test("Float80/signalingNaN") {
     expectTrue(f.isNaN && f.isSignalingNaN)
     expectEqual(Float80Bits(0x7fff, 0xbfff_ffff_ffff_ffff), f.bitPattern)
   }
+#if !os(WASI)
   do {
     // payload overflow
     expectCrashLater()
     _ = Float80(nan: 0x2000_0000_0000_0000, signaling: true)
   }
+#endif
 }
 
 #endif

@@ -66,6 +66,8 @@ PASS(AccessEnforcementWMO, "access-enforcement-wmo",
      "Access Enforcement Whole Module Optimization")
 PASS(CrossModuleSerializationSetup, "cross-module-serialization-setup",
      "Setup serialization flags for cross-module optimization")
+PASS(CrossDeadFunctionElimination, "sil-cross-deadfuncelim",
+     "Cross Dead Function Elimination")
 PASS(AccessSummaryDumper, "access-summary-dump",
      "Dump Address Parameter Access Summary")
 PASS(AccessedStorageAnalysisDumper, "accessed-storage-analysis-dump",

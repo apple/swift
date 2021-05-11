@@ -54,7 +54,7 @@ _stdlib_thread_key_create(__swift_thread_key_t * _Nonnull key,
 
 #endif
 
-#ifdef SWIFT_STDLIB_SINGLE_THREADED_RUNTIME
+#if defined(SWIFT_STDLIB_SINGLE_THREADED_RUNTIME)
 
 SWIFT_RUNTIME_STDLIB_INTERNAL
 void *

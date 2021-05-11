@@ -48,6 +48,58 @@ add_swift_target_library(swiftGlibc ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_SDK_O
     INSTALL_IN_COMPONENT sdk-overlay
     DEPENDS glibc_modulemap)
 
+if(WASI IN_LIST SWIFT_SDKS)
+  set(arch_subdir "${SWIFT_SDK_WASI_LIB_SUBDIR}/wasm32")
+  set(module_dir "${SWIFTLIB_DIR}/${arch_subdir}")
+  set(module_dir_static "${SWIFTSTATICLIB_DIR}/${arch_subdir}")
+  set(wasi_libc_modulemap_out "${module_dir}/wasi.modulemap")
+  set(wasi_libc_modulemap_out_static "${module_dir_static}/wasi.modulemap")
+  handle_gyb_source_single(wasi_libc_modulemap_target
+    SOURCE "wasi.modulemap.gyb"
+    OUTPUT "${wasi_libc_modulemap_out}"
+    FLAGS "-DLIBC_INCLUDE_PATH=${SWIFT_SDK_WASI_ARCH_wasm32_LIBC_INCLUDE_DIRECTORY}"
+          "-DLIBC_ARCH_INCLUDE_PATH=${SWIFT_SDK_WASI_ARCH_wasm32_LIBC_ARCHITECTURE_INCLUDE_DIRECTORY}")
+  add_custom_command_target(
+    copy_wasi_libc_modulemap_static
+    COMMAND
+      "${CMAKE_COMMAND}" "-E" "make_directory" ${module_dir_static}
+    COMMAND
+      "${CMAKE_COMMAND}" "-E" "copy" ${wasi_libc_modulemap_out} ${wasi_libc_modulemap_out_static}
+    OUTPUT ${wasi_libc_modulemap_out_static}
+    DEPENDS
+      "${wasi_libc_modulemap_target}"
+    COMMENT "Copying WASILlibc modulemap to static resources")
+
+  add_swift_target_library(swiftWASILibc ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_SDK_OVERLAY
+      ${swift_platform_sources}
+      POSIXError.swift
+
+      GYB_SOURCES
+        ${swift_platform_gyb_sources}
+        WASI.swift.gyb
+
+      SWIFT_COMPILE_FLAGS
+        ${SWIFT_RUNTIME_SWIFT_COMPILE_FLAGS}
+        ${SWIFT_STANDARD_LIBRARY_SWIFT_FLAGS}
+      LINK_FLAGS "${SWIFT_RUNTIME_SWIFT_LINK_FLAGS}"
+      TARGET_SDKS WASI
+      INSTALL_IN_COMPONENT sdk-overlay
+      DEPENDS ${wasi_libc_modulemap_target} ${copy_wasi_libc_modulemap_static})
+
+  swift_install_in_component(FILES "${wasi_libc_modulemap_out}"
+                             DESTINATION "lib/swift/${arch_subdir}"
+                             COMPONENT sdk-overlay)
+
+  swift_install_in_component(FILES "${wasi_libc_modulemap_out}"
+                             DESTINATION "lib/swift_static/${arch_subdir}"
+                             COMPONENT sdk-overlay)
+
+  add_custom_target(wasi_libc_modulemap
+      DEPENDS ${wasi_libc_modulemap_target} ${copy_wasi_libc_modulemap_static})
+  set_property(TARGET wasi_libc_modulemap PROPERTY FOLDER "Miscellaneous")
+  add_dependencies(sdk-overlay wasi_libc_modulemap)
+endif()
+
 add_swift_target_library(swiftCRT ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_SDK_OVERLAY
     ucrt.swift
     ${swift_platform_sources}

@@ -3,7 +3,7 @@
     "https-clone-pattern": "https://github.com/%s.git",
     "repos" : {
        "swift": {
-            "remote": { "id": "apple/swift" } },
+            "remote": { "id": "swiftwasm/swift" } },
        "cmark": {
             "remote": { "id": "apple/swift-cmark" } },
         "llbuild": {
@@ -17,15 +17,15 @@
         "swift-tools-support-core": {
             "remote": { "id": "apple/swift-tools-support-core" } },
         "swiftpm": {
-            "remote": { "id": "apple/swift-package-manager" } },
+            "remote": { "id": "swiftwasm/swift-package-manager" } },
         "swift-syntax": {
             "remote": { "id": "apple/swift-syntax" } },
         "swift-stress-tester": {
             "remote": { "id": "apple/swift-stress-tester" } },
         "swift-corelibs-xctest": {
-            "remote": { "id": "apple/swift-corelibs-xctest" } },
+            "remote": { "id": "swiftwasm/swift-corelibs-xctest" } },
         "swift-corelibs-foundation": {
-            "remote": { "id": "apple/swift-corelibs-foundation" } },
+            "remote": { "id": "swiftwasm/swift-corelibs-foundation" } },
         "swift-corelibs-libdispatch": {
             "remote": { "id": "apple/swift-corelibs-libdispatch" } },
         "swift-integration-tests": {
@@ -35,8 +35,7 @@
         "ninja": {
             "remote": { "id": "ninja-build/ninja" } },
         "icu": {
-            "remote": { "id": "unicode-org/icu" },
-            "platforms": [ "Linux" ]
+            "remote": { "id": "unicode-org/icu" }
         },
         "yams": {
             "remote": { "id": "jpsim/Yams" }
@@ -52,10 +51,62 @@
         "swift-format": {
             "remote": { "id": "apple/swift-format" } },
         "llvm-project": {
-            "remote": { "id": "apple/llvm-project" } }
+            "remote": { "id": "swiftwasm/llvm-project" } }
     },
-    "default-branch-scheme": "main",
+    "default-branch-scheme": "wasm",
     "branch-schemes": {
+        "wasm": {
+            "aliases": ["wasm", "swiftwasm"],
+            "repos": {
+                "llvm-project": "swiftwasm",
+                "swift": "swiftwasm",
+                "cmark": "main",
+                "llbuild": "main",
+                "swift-tools-support-core": "main",
+                "swiftpm": "swiftwasm",
+                "swift-argument-parser": "0.4.3",
+                "swift-crypto": "1.1.5",
+                "swift-driver": "main",
+                "swift-syntax": "main",
+                "swift-stress-tester": "main",
+                "swift-corelibs-xctest": "swiftwasm",
+                "swift-corelibs-foundation": "swiftwasm",
+                "swift-corelibs-libdispatch": "main",
+                "swift-integration-tests": "main",
+                "swift-xcode-playground-support": "main",
+                "ninja": "release",
+                "icu": "release-65-1",
+                "yams": "4.0.2",
+                "cmake": "v3.16.5",
+                "indexstore-db": "main",
+                "sourcekit-lsp": "main",
+                "swift-format": "main"
+            }
+        },
+        "wasm/5.3": {
+            "aliases": ["wasm/5.3", "swiftwasm-release/5.3"],
+            "repos": {
+                "llvm-project": "swiftwasm-release/5.3",
+                "swift": "swiftwasm-release/5.3",
+                "cmark": "release/5.3",
+                "llbuild": "release/5.3",
+                "swift-tools-support-core": "release/5.3",
+                "swiftpm": "swiftwasm-release/5.3",
+                "swift-syntax": "release/5.3",
+                "swift-stress-tester": "release/5.3",
+                "swift-corelibs-xctest": "release/5.3",
+                "swift-corelibs-foundation": "release/5.3",
+                "swift-corelibs-libdispatch": "release/5.3",
+                "swift-integration-tests": "release/5.3",
+                "swift-xcode-playground-support": "release/5.3",
+                "ninja": "release",
+                "icu": "release-65-1",
+                "cmake": "v3.16.5",               
+                "indexstore-db": "release/5.3",
+                "sourcekit-lsp": "release/5.3",
+                "swift-format": "master"
+            }
+        },
        "main": {
             "aliases": ["master", "swift/main", "main"],
             "repos": {

@@ -34,7 +34,9 @@
 #include <stdio.h>
 
 // Pick a return-address strategy
-#if __GNUC__
+#if defined(__wasm__)
+#define get_return_address() ((void*) 0)
+#elif __GNUC__
 #define get_return_address() __builtin_return_address(0)
 #elif _MSC_VER
 #include <intrin.h>
