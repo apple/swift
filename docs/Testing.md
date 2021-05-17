@@ -29,6 +29,7 @@ We use multiple approaches to test the Swift toolchain.
 
 The [test/lit.cfg](https://github.com/apple/swift/blob/main/test/lit.cfg)
 uses an iOS 10.3 simulator configuration named "iPhone 5" for 32-bit testing.
+If you are running macOS 10.15 (Catalina) or earlier:
 
 1.  Download and install the iOS 10.3 simulator runtime, in Xcode's
     [Components](https://help.apple.com/xcode/#/deva7379ae35) preferences.
@@ -42,6 +43,12 @@ uses an iOS 10.3 simulator configuration named "iPhone 5" for 32-bit testing.
     ```
 
 3.  Append `--ios` to the `utils/build-script` command line (see below).
+
+macOS 11 (Big Sur) drops support for the iOS 10.3 simulator. If you want to
+reproduce a 32-bit iOS simulator failure, you can instead try using the 32-bit
+watchOS simulator using `build-script`'s `--watchos` flag. If you are
+additionally using the `--swift-darwin-supported-archs` flag, include
+`i386` in the list of architectures.
 
 ### Testsuite subsets
 
