@@ -18,6 +18,15 @@ module FreeFunctionsSecondHeader {
   header "free-functions-second-header.h"
 }
 
+module Submodules {
+  module SubmoduleA {
+    header "submodule-a.h"
+  }
+  module SubmoduleB {
+    header "submodule-b.h"
+  }
+}
+
 module Templates {
   header "templates.h"
 }

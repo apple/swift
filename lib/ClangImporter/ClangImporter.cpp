@@ -2867,6 +2867,11 @@ void ClangImporter::lookupTypeDecl(
           continue;
         }
         auto *imported = Impl.importDecl(clangDecl, Impl.CurrentVersion);
+
+        // Namespaces are imported as extensions for enums.
+        if (auto ext = dyn_cast_or_null<ExtensionDecl>(imported)) {
+          imported = ext->getExtendedNominal();
+        }
         if (auto *importedType = dyn_cast_or_null<TypeDecl>(imported)) {
           foundViaClang = true;
           receiver(importedType);
@@ -3833,11 +3838,33 @@ void ClangImporter::Implementation::lookupValue(
     // If the entry is not visible, skip it.
     if (!isVisibleClangEntry(entry)) continue;
 
-    ValueDecl *decl;
+    ValueDecl *decl = nullptr;
     // If it's a Clang declaration, try to import it.
     if (auto clangDecl = entry.dyn_cast<clang::NamedDecl *>()) {
-      decl = cast_or_null<ValueDecl>(
-          importDeclReal(clangDecl->getMostRecentDecl(), CurrentVersion));
+      // When looking for a namespace, we need to populate all of its members.
+      // To do this, let's import all of its redeclarations.
+      if (auto ns = dyn_cast<clang::NamespaceDecl>(clangDecl)) {
+        Decl *realDecl = nullptr;
+        for (auto redecl : ns->redecls()) {
+          // A redeclaration may belong to a different module, or to a different
+          // submodule of the same module. We import them separately here to
+          // avoid nested `VisitNamespaceDecl` calls for different
+          // redeclarations of the same namespace, which would prevent the
+          // namespace's contents from being imported consistently.
+          realDecl = importDeclReal(redecl, CurrentVersion,
+                                    /*useCanonicalDecl*/ false);
+        }
+        auto extension = cast_or_null<ExtensionDecl>(realDecl);
+        if (!extension)
+          continue;
+        decl = extension->getExtendedNominal();
+      } else {
+        Decl *realDecl =
+            importDeclReal(clangDecl->getMostRecentDecl(), CurrentVersion);
+        if (!realDecl)
+          continue;
+        decl = cast_or_null<ValueDecl>(realDecl);
+      }
       if (!decl) continue;
     } else if (!name.isSpecial()) {
       // Try to import a macro.

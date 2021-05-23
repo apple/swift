@@ -197,11 +197,10 @@ public:
       DC = omDecl->getCanonicalDecl();
     } else if (auto fDecl = dyn_cast<clang::FunctionDecl>(dc)) {
       DC = fDecl->getCanonicalDecl();
-    } else if (auto nsDecl = dyn_cast<clang::NamespaceDecl>(dc)) {
-      DC = nsDecl->getCanonicalDecl();
     } else {
       assert(isa<clang::TranslationUnitDecl>(dc) ||
              isa<clang::LinkageSpecDecl>(dc) ||
+             isa<clang::NamespaceDecl>(dc) ||
              isa<clang::ObjCContainerDecl>(dc) &&
                  "No other kinds of effective Clang contexts");
       DC = dc;

@@ -2,6 +2,5 @@
 
 // TODO: This file doesn't really test anything because functions need not be defined.
 // CHECK: extension FunctionsNS1 {
-// CHECK-NOT: extension
 // CHECK:   static func definedInDefs() -> UnsafePointer<CChar>!
 // CHECK: }
