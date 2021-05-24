@@ -981,7 +981,44 @@ bool BindingSet::isViable(PotentialBinding &binding) {
 }
 
 bool BindingSet::favoredOverDisjunction(Constraint *disjunction) const {
-  if (isHole() || isDelayed())
+  if (isHole())
+    return false;
+
+  if (llvm::any_of(Bindings, [&](const PotentialBinding &binding) {
+        if (binding.Kind == AllowedBindingKind::Supertypes)
+          return false;
+
+        auto type = binding.BindingType;
+
+        if (CS.isAnyHashableType(type))
+          return false;
+
+        {
+          PointerTypeKind pointerKind;
+          if (type->getAnyPointerElementType(pointerKind)) {
+            switch (pointerKind) {
+            case PTK_UnsafeRawPointer:
+            case PTK_UnsafeMutableRawPointer:
+              return false;
+
+            default:
+              break;
+            }
+          }
+        }
+
+        return type->is<StructType>() || type->is<EnumType>();
+      })) {
+    // Result type of subscript could be l-value so we can't bind it early.
+    if (!TypeVar->getImpl().isSubscriptResultType() &&
+        llvm::none_of(Info.DelayedBy, [](const Constraint *constraint) {
+          return constraint->getKind() == ConstraintKind::Disjunction ||
+                 constraint->getKind() == ConstraintKind::ValueMember;
+        }))
+      return true;
+  }
+
+  if (isDelayed())
     return false;
 
   // If this bindings are for a closure and there are no holes,

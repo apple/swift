@@ -3,9 +3,7 @@
 // rdar://problem/32998180
 func checksum(value: UInt16) -> UInt16 {
   var checksum = (((value >> 2) ^ (value >> 8) ^ (value >> 12) ^ (value >> 14)) & 0x01) << 1
-  // expected-error@-1 {{the compiler is unable to type-check this expression in reasonable time}}
   checksum |= (((value) ^ (value >> UInt16(4)) ^ (value >> UInt16(6)) ^ (value >> UInt16(10))) & 0x01)
-  // expected-error@-1 {{the compiler is unable to type-check this expression in reasonable time}}
   checksum ^= 0x02
   return checksum
 }
