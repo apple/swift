@@ -1645,6 +1645,9 @@ function(add_swift_target_library name)
                       "-Xfrontend;-disable-implicit-concurrency-module-import")
   endif()
 
+  # Turn on ossa modules for all swift that we compile.
+  list(APPEND SWIFTLIB_SWIFT_COMPILE_FLAGS "-Xfrontend;-enable-ossa-modules")
+
   # If we are building this library for targets, loop through the various
   # SDKs building the variants of this library.
   list_intersect(
