@@ -932,11 +932,13 @@ void EscapeAnalysis::ConnectionGraph::computeUsePoints() {
         case SILInstructionKind::StrongReleaseInst:
         case SILInstructionKind::ReleaseValueInst:
         case SILInstructionKind::DestroyValueInst:
+        case SILInstructionKind::EndBorrowInst:
         case SILInstructionKind::ApplyInst:
         case SILInstructionKind::TryApplyInst: {
           /// Actually we only add instructions which may release a reference.
           /// We need the use points only for getting the end of a reference's
-          /// liferange. And that must be a releasing instruction.
+          /// liferange. And that must be a lifetime ending instruction when in
+          /// OSSA and specifically a release in non-ossa.
           int ValueIdx = -1;
           for (const Operand &Op : I.getAllOperands()) {
             CGNode *content = getValueContent(Op.get());
@@ -2661,7 +2663,7 @@ bool EscapeAnalysis::canEscapeToUsePoint(SILValue value,
                                          ConnectionGraph *conGraph) {
 
   assert((FullApplySite::isa(usePoint) || isa<RefCountingInst>(usePoint) ||
-          isa<DestroyValueInst>(usePoint)) &&
+          isa<DestroyValueInst>(usePoint) || isa<EndBorrowInst>(usePoint)) &&
          "use points are only created for calls and refcount instructions");
 
   CGNode *node = conGraph->getValueContent(value);
@@ -2727,6 +2729,14 @@ bool EscapeAnalysis::canEscapeTo(SILValue V, DestroyValueInst *DVI) {
     return true;
   auto *ConGraph = getConnectionGraph(DVI->getFunction());
   return canEscapeToUsePoint(V, DVI, ConGraph);
+}
+
+bool EscapeAnalysis::canEscapeTo(SILValue V, EndBorrowInst *EBI) {
+  // If it's not uniquely identified we don't know anything about the value.
+  if (!isUniquelyIdentified(V))
+    return true;
+  auto *ConGraph = getConnectionGraph(EBI->getFunction());
+  return canEscapeToUsePoint(V, EBI, ConGraph);
 }
 
 /// Utility to get the function which contains both values \p V1 and \p V2.

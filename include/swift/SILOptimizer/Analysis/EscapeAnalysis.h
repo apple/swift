@@ -1177,6 +1177,10 @@ public:
   /// \p DVI.
   bool canEscapeTo(SILValue V, DestroyValueInst *DVI);
 
+  /// Returns true if the value \p V can escape to the end_borrow instruction
+  /// \p EBI.
+  bool canEscapeTo(SILValue V, EndBorrowInst *EBI);
+
   /// Return true if \p releasedReference deinitialization may release memory
   /// pointed to by \p liveAddress.
   ///

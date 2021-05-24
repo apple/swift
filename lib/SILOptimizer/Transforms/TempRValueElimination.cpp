@@ -269,6 +269,13 @@ collectLoads(Operand *addressUse, CopyAddrInst *originalCopy,
     return true;
   }
   case SILInstructionKind::LoadBorrowInst:
+    for (auto *consumingUse : cast<LoadBorrowInst>(user)->getConsumingUses()) {
+      // We do not support analyzing reborrows for now.
+      auto *consumingUser = consumingUse->getUser();
+      if (!isa<EndBorrowInst>(consumingUser))
+        return false;
+      loadInsts.insert(consumingUser);
+    }
     loadInsts.insert(user);
     return true;
   case SILInstructionKind::FixLifetimeInst:
@@ -331,9 +338,12 @@ SILInstruction *TempRValueOptPass::getLastUseWhileSourceIsNotModified(
     if (numLoadsFound == useInsts.size()) {
       // Function calls are an exception: in a called function a potential
       // modification of copySrc could occur _before_ the read of the temporary.
-      if (FullApplySite::isa(inst) && aa->mayWriteToMemory(inst, copySrc))
+      if (FullApplySite::isa(inst) && aa->mayWriteToMemory(inst, copySrc)) {
+        LLVM_DEBUG(llvm::dbgs()
+                   << "  Source modified by full apply site" << *inst);
         return nullptr;
-
+      }
+      LLVM_DEBUG(llvm::dbgs() << "  Last load inst" << *inst);
       return inst;
     }
 
@@ -342,8 +352,10 @@ SILInstruction *TempRValueOptPass::getLastUseWhileSourceIsNotModified(
       return nullptr;
     }
   }
+
   // For some reason, not all normal uses have been seen between the copy and
   // the end of the initialization block. We should never reach here.
+  LLVM_DEBUG(llvm::dbgs() << "  Didn't find all normal uses?!" << *iter);
   return nullptr;
 }
 
@@ -515,8 +527,10 @@ bool TempRValueOptPass::tryOptimizeCopyIntoTemp(CopyAddrInst *copyInst) {
   // Check if the source is modified within the lifetime of the temporary.
   SILInstruction *lastLoadInst = getLastUseWhileSourceIsNotModified(copyInst,
                                                                     loadInsts);
-  if (!lastLoadInst)
+  if (!lastLoadInst) {
+    LLVM_DEBUG(llvm::dbgs() << "  Failure: did not find a last load inst?!\n");
     return false;
+  }
 
   // We cannot insert the destroy of copySrc after lastLoadInst if copySrc is
   // re-initialized by exactly this instruction.
@@ -526,11 +540,18 @@ bool TempRValueOptPass::tryOptimizeCopyIntoTemp(CopyAddrInst *copyInst) {
   //   copy_addr [take] %tempObj to [initialization] %copySrc   // lastLoadInst
   if (needToInsertDestroy && lastLoadInst != copyInst &&
       !isa<DestroyAddrInst>(lastLoadInst) &&
-      aa->mayWriteToMemory(lastLoadInst, copySrc))
+      aa->mayWriteToMemory(lastLoadInst, copySrc)) {
+    LLVM_DEBUG(llvm::dbgs()
+               << "  Failure: last load inst might write to src?!\n");
     return false;
+  }
 
-  if (!isOSSA && !checkTempObjectDestroy(tempObj, copyInst))
+  if (!isOSSA && !checkTempObjectDestroy(tempObj, copyInst)) {
+    LLVM_DEBUG(
+        llvm::dbgs()
+        << "  Failure: not in OSSA and failed checkTempObjectDestroy?!\n");
     return false;
+  }
 
   if (!extendAccessScopes(copyInst, lastLoadInst))
     return false;
@@ -578,6 +599,10 @@ bool TempRValueOptPass::tryOptimizeCopyIntoTemp(CopyAddrInst *copyInst) {
       if (li->getOwnershipQualifier() == LoadOwnershipQualifier::Take)
         li->setOwnershipQualifier(LoadOwnershipQualifier::Copy);
       use->set(copySrc);
+      break;
+    }
+    case SILInstructionKind::LoadBorrowInst: {
+      use->set(copyInst->getSrc());
       break;
     }
 

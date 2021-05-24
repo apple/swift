@@ -22,6 +22,7 @@ struct Two {
 }
 
 sil @unknown : $@convention(thin) () -> ()
+sil @klasstuple_init : $@convention(thin) () -> @out Optional<(Klass, Klass)>
 
 sil [ossa] @guaranteed_user : $@convention(thin) (@guaranteed Klass) -> ()
 sil [ossa] @guaranteed_user_with_result : $@convention(thin) (@guaranteed Klass) -> @out Klass
@@ -1386,3 +1387,147 @@ bb0(%0 : @owned $Klass):
   return %105 : $Klass
 }
 
+
+// load_borrow tests
+//
+// Make sure we hoist the destroy_addr to right before the end_borrow.
+//
+// CHECK-LABEL: sil [ossa] @treat_endborrow_of_loadborrow_as_loads : $@convention(thin) () -> () {
+// CHECK: load_borrow
+// CHECK-NEXT: end_borrow
+// CHECK-NEXT: destroy_addr
+// CHECK: } // end sil function 'treat_endborrow_of_loadborrow_as_loads'
+sil [ossa] @treat_endborrow_of_loadborrow_as_loads : $@convention(thin) () -> () {
+bb0:
+  %loopVar = alloc_stack $Optional<(Klass, Klass)>
+  %initFunc = function_ref @klasstuple_init : $@convention(thin) () -> @out Optional<(Klass, Klass)>
+  br bbPreHeader
+
+bbPreHeader:
+  br bbHeader
+
+bbHeader:
+  apply %initFunc(%loopVar) : $@convention(thin) () -> @out Optional<(Klass, Klass)>
+  br bbLoopBody
+
+bbLoopBody:
+  switch_enum_addr %loopVar : $*Optional<(Klass, Klass)>, case #Optional.some!enumelt: bbBackEdge, case #Optional.none!enumelt: bbExiting
+
+bbBackEdge:
+  %1 = alloc_stack $(Klass, Klass)
+  %2 = unchecked_take_enum_data_addr %loopVar : $*Optional<(Klass, Klass)>, #Optional.some!enumelt
+  copy_addr [take] %2 to [initialization] %1 : $*(Klass, Klass)
+  %1a = tuple_element_addr %1 : $*(Klass, Klass), 0
+  %1b = tuple_element_addr %1 : $*(Klass, Klass), 1
+  %1al = load_borrow %1a : $*Klass
+  end_borrow %1al : $Klass
+  %initFunc2 = function_ref @klasstuple_init : $@convention(thin) () -> @out Optional<(Klass, Klass)>
+  destroy_addr %1 : $*(Klass, Klass)
+  dealloc_stack %1 : $*(Klass, Klass)
+  br bbHeader
+
+bbExiting:
+  br bbExit
+
+bbExit:
+  dealloc_stack %loopVar : $*Optional<(Klass, Klass)>
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @treat_endborrow_of_loadborrow_as_loads_2 : $@convention(thin) () -> () {
+// CHECK: load_borrow
+// CHECK-NEXT: end_borrow
+// CHECK-NEXT: destroy_addr
+// CHECK: } // end sil function 'treat_endborrow_of_loadborrow_as_loads_2'
+sil [ossa] @treat_endborrow_of_loadborrow_as_loads_2 : $@convention(thin) () -> () {
+bb0:
+  %loopVar = alloc_stack $Optional<(Klass, Klass)>
+  %initFunc = function_ref @klasstuple_init : $@convention(thin) () -> @out Optional<(Klass, Klass)>
+  br bbPreHeader
+
+bbPreHeader:
+  br bbHeader
+
+bbHeader:
+  apply %initFunc(%loopVar) : $@convention(thin) () -> @out Optional<(Klass, Klass)>
+  br bbLoopBody
+
+bbLoopBody:
+  switch_enum_addr %loopVar : $*Optional<(Klass, Klass)>, case #Optional.some!enumelt: bbBackEdge, case #Optional.none!enumelt: bbExiting
+
+bbBackEdge:
+  %1 = alloc_stack $(Klass, Klass)
+  %2 = unchecked_take_enum_data_addr %loopVar : $*Optional<(Klass, Klass)>, #Optional.some!enumelt
+  copy_addr [take] %2 to [initialization] %1 : $*(Klass, Klass)
+  %1a = tuple_element_addr %1 : $*(Klass, Klass), 0
+  %1b = tuple_element_addr %1 : $*(Klass, Klass), 1
+  %1al = load_borrow %1a : $*Klass
+  end_borrow %1al : $Klass
+  %f2 = function_ref @klasstuple_init : $@convention(thin) () -> @out Optional<(Klass, Klass)>
+  br bbBackEdgeCombine
+
+bbBackEdgeCombine:
+  br bbBackEdgeCombine2
+
+bbBackEdgeCombine2:
+  destroy_addr %1 : $*(Klass, Klass)
+  dealloc_stack %1 : $*(Klass, Klass)
+  br bbHeader
+
+bbExiting:
+  br bbExit
+
+bbExit:
+  dealloc_stack %loopVar : $*Optional<(Klass, Klass)>
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @donot_optimize_loadborrow_with_reborrow_uses : $@convention(thin) () -> () {
+// CHECK: destroy_addr
+// CHECK-NEXT: dealloc_stack
+// CHECK: } // end sil function 'donot_optimize_loadborrow_with_reborrow_uses'
+sil [ossa] @donot_optimize_loadborrow_with_reborrow_uses : $@convention(thin) () -> () {
+bb0:
+  %loopVar = alloc_stack $Optional<(Klass, Klass)>
+  %initFunc = function_ref @klasstuple_init : $@convention(thin) () -> @out Optional<(Klass, Klass)>
+  br bbPreHeader
+
+bbPreHeader:
+  br bbHeader
+
+bbHeader:
+  apply %initFunc(%loopVar) : $@convention(thin) () -> @out Optional<(Klass, Klass)>
+  br bbLoopBody
+
+bbLoopBody:
+  switch_enum_addr %loopVar : $*Optional<(Klass, Klass)>, case #Optional.some!enumelt: bbBackEdge, case #Optional.none!enumelt: bbExiting
+
+bbBackEdge:
+  %1 = alloc_stack $(Klass, Klass)
+  %2 = unchecked_take_enum_data_addr %loopVar : $*Optional<(Klass, Klass)>, #Optional.some!enumelt
+  copy_addr [take] %2 to [initialization] %1 : $*(Klass, Klass)
+  %1a = tuple_element_addr %1 : $*(Klass, Klass), 0
+  %1b = tuple_element_addr %1 : $*(Klass, Klass), 1
+  %1al = load_borrow %1a : $*Klass
+  %f2 = function_ref @klasstuple_init : $@convention(thin) () -> @out Optional<(Klass, Klass)>
+  br bbBackEdgeCombine(%1al : $Klass)
+
+bbBackEdgeCombine(%1ab : @guaranteed $Klass):
+  end_borrow %1ab : $Klass
+  br bbBackEdgeCombine2
+
+bbBackEdgeCombine2:
+  destroy_addr %1 : $*(Klass, Klass)
+  dealloc_stack %1 : $*(Klass, Klass)
+  br bbHeader
+
+bbExiting:
+  br bbExit
+
+bbExit:
+  dealloc_stack %loopVar : $*Optional<(Klass, Klass)>
+  %9999 = tuple()
+  return %9999 : $()
+}
