@@ -1903,6 +1903,15 @@ ERROR(invalid_nominal_extension,none,
       (Type, Type))
 NOTE(invalid_nominal_extension_rewrite,none,
      "did you mean to extend %0 instead?", (Type))
+WARNING(extension_retroactive_conformance_in_resilient_module,none,
+       "extension declares a conformance of imported type %0 to imported "
+       "%select{protocols|protocol}1 %2; this is not supported when "
+       "library evolution is enabled",
+       (Identifier, bool, StringRef))
+
+NOTE(extension_retroactive_conformance_silence,none,
+     "explicitly qualify all imported types involved in this extension to "
+     "silence this warning", ())
 
 // Protocols
 ERROR(type_does_not_conform,none,

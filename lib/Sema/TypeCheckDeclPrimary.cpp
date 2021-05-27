@@ -52,6 +52,7 @@
 #include "swift/AST/NameLookupRequests.h"
 #include "swift/AST/TypeCheckRequests.h"
 #include "swift/Basic/Defer.h"
+#include "clang/Basic/Module.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/APSInt.h"
@@ -1399,6 +1400,205 @@ static void maybeDiagnoseClassWithoutInitializers(ClassDecl *classDecl) {
   }
 
   diagnoseClassWithoutInitializers(classDecl);
+}
+
+/// Determines if a given TypeLoc is module qualified by checking if it's
+/// of the form `<Module>.<Type>`.
+static bool isModuleQualified(TypeRepr *repr, ModuleDecl *module) {
+  auto compoundIdent = dyn_cast<CompoundIdentTypeRepr>(repr);
+  if (!compoundIdent) {
+    return false;
+  }
+
+  auto components = compoundIdent->getComponents();
+  if (components.size() == 1) {
+    return false;
+  }
+
+  // FIXME(ModQual): This needs to be updated once we have an explicit
+  //                 module qualification syntax.
+  return components.front()->getNameRef().isSimpleName(module->getName());
+}
+
+/// Determines if this extension declares a conformance of a type declared
+/// outside this module to a protocol declared outside this module (but only
+/// in library evolution mode)
+///
+/// Since there can only be one conformance of a type to a given protocol,
+/// it's not supported to declare these conformances because any other framework
+/// (including the source framework) can declare this conformance, which would
+/// result in duplicate symbols at runtime.
+static void diagnoseRetroactiveConformances(ExtensionDecl *ext) {
+  ModuleDecl *module = ext->getParentModule();
+
+  // We only want to warn about this if a module has library evolution enabled,
+  // which we assume means it's a library meant to be distributed to clients.
+  if (!module->isResilient()) {
+    return;
+  }
+
+  // Disable this for the Foundation module because of the interplay with
+  // _ObjectiveCBridgeable.
+  if (module->isFoundationModule()) {
+    return;
+  }
+
+  // Don't warn for this if we see it in module interfaces (that usually
+  // indicates the interface was built with
+  // -module-interface-preserve-types-as-written)
+  if (ext->getParentSourceFile()->Kind == SourceFileKind::Interface) {
+    return;
+  }
+
+  Type extendedType = ext->getExtendedType();
+  NominalTypeDecl *extendedNominalDecl = ext->getExtendedNominal();
+  if (!extendedNominalDecl) {
+    return;
+  }
+
+  // If it's a type in the same module, conformances aren't retroactive.
+  ModuleDecl *extTypeModule = extendedNominalDecl->getParentModule();
+  if (extTypeModule == module) {
+    return;
+  }
+
+  // If we're compiling an overlay and the type comes from the clang module,
+  // conformances aren't retroactive.
+  if (module->isClangOverlayOf(extTypeModule)) {
+    return;
+  }
+
+  // At this point, we know we're extending a type declared outside this module.
+  // We better only be conforming it to protocols declared within this module.
+  llvm::SmallPtrSet<ProtocolDecl *, 8> seen;
+  llvm::SmallSetVector<ProtocolDecl *, 8> externalProtocols;
+  for (TypeLoc typeLoc : ext->getInherited()) {
+    auto proto =
+        dyn_cast_or_null<ProtocolDecl>(typeLoc.getType()->getAnyNominal());
+    if (!proto) {
+      continue;
+    }
+
+    if (isModuleQualified(typeLoc.getTypeRepr(), proto->getParentModule())) {
+      continue;
+    }
+
+    proto->walkInheritedProtocols([&](ProtocolDecl *decl) {
+      // No need to walk a protocol twice.
+      if (!seen.insert(decl).second) {
+        return TypeWalker::Action::SkipChildren;
+      }
+
+      // Get the original conformance of the extended type to this protocol.
+      auto conformanceRef = TypeChecker::conformsToProtocol(
+          extendedType, decl, ext);
+      if (!conformanceRef.isConcrete()) {
+        return TypeWalker::Action::Continue;
+      }
+
+      // Check to see if this protocol is one we care about.
+      auto conformance = conformanceRef.getConcrete();
+      auto protoModule = decl->getParentModule();
+
+      // If this protocol comes from the extension's module, skip it.
+      if (protoModule == module) {
+        return TypeWalker::Action::Continue;
+      }
+
+      // If the protocol comes from the underlying clang module of the
+      // extension's module, skip it.
+      if (module->isClangOverlayOf(protoModule)) {
+        return TypeWalker::Action::Continue;
+      }
+
+      // If that conformance came from this extension, then we warn. Otherwise
+      // we will have diagnosed it on the extension that actually declares this
+      // specific conformance.
+      if (conformance->getDeclContext() != ext) {
+        return TypeWalker::Action::Continue;
+      }
+
+      // If we've come this far, we know this extension is the first declaration
+      // of the conformance of the extended type to this protocol.
+      externalProtocols.insert(decl);
+
+      return TypeWalker::Action::Continue;
+    });
+  }
+
+  TypeRepr *extTypeRepr = ext->getExtendedTypeRepr();
+
+  // If we didn't find any violations, we're done.
+  if (externalProtocols.empty()) {
+    return;
+  }
+
+  // Diagnose the list of protocols we're introducing a conformance to.
+
+  llvm::SmallString<32> protocolList;
+
+  {
+    llvm::raw_svector_ostream os(protocolList);
+    llvm::interleaveComma(externalProtocols, os, [&os](ProtocolDecl *proto) {
+      os << "'" << proto->getName() << "'";
+    });
+  }
+
+  ext->diagnose(
+      diag::extension_retroactive_conformance_in_resilient_module,
+      extendedNominalDecl->getName(),
+      externalProtocols.size() == 1,
+      protocolList.str());
+
+  // Now build up a set of fix-its to force the user to explicitly specify the
+  // declared conformances.
+
+  auto diag = ext->diagnose(diag::extension_retroactive_conformance_silence);
+
+  // If the extended type name isn't qualified with the module name, add it.
+  if (!isModuleQualified(extTypeRepr, extTypeModule)) {
+    llvm::SmallString<32> qualifiedName;
+    llvm::raw_svector_ostream os(qualifiedName);
+    os << extTypeModule->getName() << "." << extendedNominalDecl->getName();
+    diag.fixItReplace(extTypeRepr->getSourceRange(), qualifiedName.str());
+  }
+
+  // First, find if we can insert `<Module>.` within this extension declaration
+  // to silence the warning. Each one of these gets removed from the
+  // externalProtocols list, and that might end up being all of them.
+  for (TypeLoc tyLoc : ext->getInherited()) {
+    auto protoDecl =
+        dyn_cast_or_null<ProtocolDecl>(tyLoc.getType()->getAnyNominal());
+    if (protoDecl && externalProtocols.remove(protoDecl)) {
+      llvm::SmallString<32> qualifiedName;
+      llvm::raw_svector_ostream os(qualifiedName);
+      os << protoDecl->getParentModule()->getName() << "."
+        << protoDecl->getName();
+      diag.fixItReplace(
+          tyLoc.getTypeRepr()->getSourceRange(), qualifiedName.str());
+    }
+  }
+
+  // If we've hit every protocol declared by this extension, we're good to go.
+  if (externalProtocols.empty()) {
+    return;
+  }
+
+  // Otherwise, we've got inherited protocols that are being implicitly declared
+  // by this extension. Create explicit declarations for these with module
+  // qualified type names.
+
+  {
+    llvm::SmallString<32> additionalExtensions;
+    llvm::raw_svector_ostream os(additionalExtensions);
+    for (ProtocolDecl *proto : externalProtocols) {
+      os << "extension " << extTypeModule->getName() << "."
+        << extendedNominalDecl->getName() << ": "
+        << proto->getParentModule()->getName() << "." << proto->getName()
+        << " {}\n";
+    }
+    diag.fixItInsert(ext->getStartLoc(), additionalExtensions.str());
+  }
 }
 
 void TypeChecker::diagnoseDuplicateBoundVars(Pattern *pattern) {
@@ -2852,6 +3052,8 @@ public:
     }
 
     checkInheritanceClause(ED);
+
+    diagnoseRetroactiveConformances(ED);
 
     // Only generic and protocol types are permitted to have
     // trailing where clauses.

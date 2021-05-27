@@ -381,6 +381,9 @@ private:
 
 public:
 
+  /// Returns true if this module is the Clang overlay of \p other.
+  bool isClangOverlayOf(ModuleDecl *other);
+
   /// Returns true if this module is an underscored cross import overlay
   /// declared by \p other or its underlying clang module, either directly or
   /// transitively (via intermediate cross-import overlays - for cross-imports

@@ -23,7 +23,7 @@ vectorscalarCounts = storagescalarCounts + [3]
 // Protocol conformances
 //===----------------------------------------------------------------------===//
 
-extension SIMD${n}: AdditiveArithmetic where Scalar: FloatingPoint {}
+extension Swift.SIMD${n}: Swift.AdditiveArithmetic where Scalar: FloatingPoint {}
 
 extension SIMD${n}: Differentiable
 where
