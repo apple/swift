@@ -10,12 +10,22 @@ set(LLVM_EXPORTED_SYMBOL_FILE
 add_swift_host_library(libSwiftSyntaxParser SHARED
   c-include-check.c
   libSwiftSyntaxParser.cpp)
+
+add_swift_host_library(libSwiftSyntaxParserStatic STATIC
+  libSwiftSyntaxParser.cpp)
+
 if(NOT SWIFT_BUILT_STANDALONE AND NOT CMAKE_C_COMPILER_ID MATCHES Clang)
   add_dependencies(libSwiftSyntaxParser clang)
+  add_dependencies(libSwiftSyntaxParserStatic clang)
 endif()
 target_link_libraries(libSwiftSyntaxParser PRIVATE
   swiftParse)
+target_link_libraries(libSwiftSyntaxParserStatic PRIVATE
+  swiftParse)
 set_target_properties(libSwiftSyntaxParser
+    PROPERTIES
+    OUTPUT_NAME ${SYNTAX_PARSER_LIB_NAME})
+  set_target_properties(libSwiftSyntaxParserStatic
     PROPERTIES
     OUTPUT_NAME ${SYNTAX_PARSER_LIB_NAME})
 
@@ -45,13 +55,22 @@ endif()
 
 set_property(TARGET libSwiftSyntaxParser APPEND_STRING PROPERTY
   COMPILE_FLAGS " -fblocks")
+set_property(TARGET libSwiftSyntaxParserStatic APPEND_STRING PROPERTY
+  COMPILE_FLAGS " -fblocks")
 if(NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
   target_link_libraries(libSwiftSyntaxParser PRIVATE
+    BlocksRuntime)
+  target_link_libraries(libSwiftSyntaxParserStatic PRIVATE
     BlocksRuntime)
 endif()
 
 add_dependencies(parser-lib libSwiftSyntaxParser)
+add_dependencies(parser-lib libSwiftSyntaxParserStatic)
 swift_install_in_component(TARGETS libSwiftSyntaxParser
+  ARCHIVE DESTINATION "lib${LLVM_LIBDIR_SUFFIX}/swift/${SWIFT_SDK_${SWIFT_HOST_VARIANT_SDK}_LIB_SUBDIR}" COMPONENT parser-lib
+  LIBRARY DESTINATION "lib${LLVM_LIBDIR_SUFFIX}/swift/${SWIFT_SDK_${SWIFT_HOST_VARIANT_SDK}_LIB_SUBDIR}" COMPONENT parser-lib
+  RUNTIME DESTINATION "bin" COMPONENT parser-lib)
+swift_install_in_component(TARGETS libSwiftSyntaxParserStatic
   ARCHIVE DESTINATION "lib${LLVM_LIBDIR_SUFFIX}/swift/${SWIFT_SDK_${SWIFT_HOST_VARIANT_SDK}_LIB_SUBDIR}" COMPONENT parser-lib
   LIBRARY DESTINATION "lib${LLVM_LIBDIR_SUFFIX}/swift/${SWIFT_SDK_${SWIFT_HOST_VARIANT_SDK}_LIB_SUBDIR}" COMPONENT parser-lib
   RUNTIME DESTINATION "bin" COMPONENT parser-lib)
