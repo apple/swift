@@ -26,11 +26,23 @@
 #include "swift/SIL/SILModule.h"
 #include "swift/SIL/SILUndef.h"
 #include "swift/Strings.h"
+extern "C" {
+#include "swift/SIL/SILBridging.h"
+}
+
 using namespace swift;
 
 //===----------------------------------------------------------------------===//
 // SILBasicBlock Implementation
 //===----------------------------------------------------------------------===//
+
+SwiftMetatype SILBasicBlock::registeredMetatype;
+
+SILBasicBlock::SILBasicBlock()
+    : SwiftObjectHeader(registeredMetatype), Parent(nullptr) {}
+
+SILBasicBlock::SILBasicBlock(SILFunction *parent)
+    : SwiftObjectHeader(registeredMetatype), Parent(parent) {}
 
 SILBasicBlock::~SILBasicBlock() {
   if (!getParent()) {

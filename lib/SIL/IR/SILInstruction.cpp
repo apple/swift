@@ -103,6 +103,16 @@ SILModule &SILInstruction::getModule() const {
   return getFunction()->getModule();
 }
 
+void SILInstruction::removeFromParent() {
+#ifndef NDEBUG
+  for (auto result : getResults()) {
+    assert(result->use_empty() && "Uses of SILInstruction remain at deletion.");
+  }
+#endif
+  getParent()->remove(this);
+  ParentBB = nullptr;
+}
+
 /// eraseFromParent - This method unlinks 'self' from the containing basic
 /// block and deletes it.
 ///

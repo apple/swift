@@ -1,20 +1,34 @@
+
+set(driver_sources_and_options
+                driver.cpp
+                autolink_extract_main.cpp
+                modulewrap_main.cpp
+                swift_api_digester_main.cpp
+                swift_indent_main.cpp
+                swift_symbolgraph_extract_main.cpp
+                swift_api_extract_main.cpp
+                )
+
+set(driver_common_libs
+                swiftAPIDigester
+                swiftDriver
+                swiftFrontendTool
+                swiftSymbolGraphGen
+                LLVMBitstreamReader
+                LibSwiftSIL
+                LibSwiftOptimizer
+                )
+
+# The swift-frontend tool
+
 add_swift_host_tool(swift-frontend
-  driver.cpp
-  autolink_extract_main.cpp
-  modulewrap_main.cpp
-  swift_api_digester_main.cpp
-  swift_indent_main.cpp
-  swift_symbolgraph_extract_main.cpp
-  swift_api_extract_main.cpp
+  ${driver_sources_and_options}
   SWIFT_COMPONENT compiler
 )
 target_link_libraries(swift-frontend
                       PRIVATE
-                        swiftAPIDigester
-                        swiftDriver
-                        swiftFrontendTool
-                        swiftSymbolGraphGen
-                        LLVMBitstreamReader)
+                      ${driver_common_libs}
+                      )
 
 # Create a `swift-driver` symlinks adjacent to the `swift-frontend` executable
 # to ensure that `swiftc` forwards to the standalone driver when invoked.

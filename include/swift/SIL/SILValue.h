@@ -1004,6 +1004,8 @@ public:
   SILInstruction *getUser() { return Owner; }
   const SILInstruction *getUser() const { return Owner; }
 
+  Operand *getNextUse() const { return NextUse; }
+
   /// Return true if this operand is a type dependent operand.
   ///
   /// Implemented in SILInstruction.h

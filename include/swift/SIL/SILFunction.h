@@ -26,6 +26,7 @@
 #include "swift/SIL/SILDeclRef.h"
 #include "swift/SIL/SILLinkage.h"
 #include "swift/SIL/SILPrintContext.h"
+#include "swift/SIL/SwiftObjectHeader.h"
 
 namespace swift {
 
@@ -128,8 +129,12 @@ private:
 /// SILFunction - A function body that has been lowered to SIL. This consists of
 /// zero or more SIL SILBasicBlock objects that contain the SILInstruction
 /// objects making up the function.
-class SILFunction
-  : public llvm::ilist_node<SILFunction>, public SILAllocated<SILFunction> {
+class SILFunction : public llvm::ilist_node<SILFunction>,
+                    public SILAllocated<SILFunction>,
+                    public SwiftObjectHeader {
+
+  static SwiftMetatype registeredMetatype;
+
 public:
   using BlockListType = llvm::iplist<SILBasicBlock>;
 
@@ -385,6 +390,10 @@ private:
   void setHasOwnership(bool newValue) { HasOwnership = newValue; }
 
 public:
+  static void registerBridgedMetatype(SwiftMetatype metatype) {
+    registeredMetatype = metatype;
+  }
+
   ~SILFunction();
 
   SILModule &getModule() const { return Module; }
@@ -1201,7 +1210,6 @@ public:
   void viewCFG() const;
   /// Like ViewCFG, but the graph does not show the contents of basic blocks.
   void viewCFGOnly() const;
-
 };
 
 inline llvm::raw_ostream &operator<<(llvm::raw_ostream &OS,

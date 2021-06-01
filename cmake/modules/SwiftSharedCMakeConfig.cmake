@@ -98,7 +98,37 @@ macro(swift_common_standalone_build_config_llvm product)
   endif()
 
   if(LLVM_ENABLE_ZLIB)
-   find_package(ZLIB REQUIRED)
+    find_package(ZLIB REQUIRED)
+  endif()
+
+  # Work around a bug in the swift-driver that causes the swift-driver to not be
+  # able to accept .tbd files when linking without passing in the .tbd file with
+  # a -Xlinker flag.
+  #
+  # Both clang and swiftc can accept an -Xlinker flag so we use that to pass the
+  # value.
+  if (APPLE)
+    get_target_property(LLVMSUPPORT_INTERFACE_LINK_LIBRARIES LLVMSupport INTERFACE_LINK_LIBRARIES)
+    set(new_libraries)
+    foreach(lib ${LLVMSUPPORT_INTERFACE_LINK_LIBRARIES})
+      if (TARGET ${lib})
+        list(APPEND new_libraries "-Xlinker;$<TARGET_FILE:${lib}>")
+        continue()
+      endif()
+
+      get_filename_component(LIB_FILENAME_COMPONENT ${lib} LAST_EXT)
+      if ("${LIB_FILENAME_COMPONENT}" STREQUAL ".tbd")
+        # This needs to be an actual string argument since if we use a list,
+        # cmake seems to swallow the -Xlinker. But we need that -Xlinker for our
+        # work around!
+        list(APPEND new_libraries "-Xlinker ${lib}")
+        continue()
+      endif()
+
+      list(APPEND new_libraries "${lib}")
+    endforeach()
+
+    set_target_properties(LLVMSupport PROPERTIES INTERFACE_LINK_LIBRARIES "${new_libraries}")
   endif()
 
   include(AddLLVM)

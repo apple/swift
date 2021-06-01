@@ -102,6 +102,11 @@
 #endif
 #endif
 
+#ifndef BRIDGED_SINGLE_VALUE_INST
+#define BRIDGED_SINGLE_VALUE_INST(ID, NAME, PARENT, MEMBEHAVIOR, MAYRELEASE) \
+  SINGLE_VALUE_INST(ID, NAME, PARENT, MEMBEHAVIOR, MAYRELEASE)
+#endif
+
 /// DYNAMICCAST_SINGLE_VALUE_INST(ID, TEXTUALNAME, PARENT, MEMBEHAVIOR, MAYRELEASE)
 ///
 /// A SINGLE_VALUE_INST that is a cast instruction. ID is a member of
@@ -204,11 +209,19 @@
 #define VALUE(ID, PARENT) NODE(ID, PARENT)
 #endif
 
+#ifndef BRIDGED_VALUE
+#define BRIDGED_VALUE(ID, PARENT) VALUE(ID, PARENT)
+#endif
+
 /// ARGUMENT(ID, PARENT)
 ///
 ///   A concrete subclass of SILArgument, which is a subclass of ValueBase.
 #ifndef ARGUMENT
 #define ARGUMENT(ID, PARENT) VALUE(ID, PARENT)
+#endif
+
+#ifndef BRIDGED_ARGUMENT
+#define BRIDGED_ARGUMENT(ID, PARENT) ARGUMENT(ID, PARENT)
 #endif
 
 /// INST(ID, PARENT)
@@ -243,6 +256,11 @@
 #ifndef NON_VALUE_INST
 #define NON_VALUE_INST(ID, NAME, PARENT, MEMBEHAVIOR, MAYRELEASE) \
   FULL_INST(ID, NAME, PARENT, MEMBEHAVIOR, MAYRELEASE)
+#endif
+
+#ifndef BRIDGED_NON_VALUE_INST
+#define BRIDGED_NON_VALUE_INST(ID, NAME, PARENT, MEMBEHAVIOR, MAYRELEASE) \
+  NON_VALUE_INST(ID, NAME, PARENT, MEMBEHAVIOR, MAYRELEASE)
 #endif
 
 #ifndef DYNAMICCAST_NON_VALUE_INST
@@ -407,17 +425,17 @@
 ABSTRACT_NODE(ValueBase, SILNode)
 
 ABSTRACT_VALUE(SILArgument, ValueBase)
-  ARGUMENT(SILPhiArgument, SILArgument)
-  ARGUMENT(SILFunctionArgument, SILArgument)
+  BRIDGED_ARGUMENT(SILPhiArgument, SILArgument)
+  BRIDGED_ARGUMENT(SILFunctionArgument, SILArgument)
   ARGUMENT_RANGE(SILArgument, SILPhiArgument, SILFunctionArgument)
 
-VALUE(MultipleValueInstructionResult, ValueBase)
+BRIDGED_VALUE(MultipleValueInstructionResult, ValueBase)
 
-VALUE(SILUndef, ValueBase)
+BRIDGED_VALUE(SILUndef, ValueBase)
 
 /// Used internally in e.g. the SIL parser and deserializer.
 /// A PlaceholderValue must not appear in valid SIL.
-VALUE(PlaceholderValue, ValueBase)
+BRIDGED_VALUE(PlaceholderValue, ValueBase)
 
 ABSTRACT_NODE(SILInstruction, SILNode)
 
@@ -455,11 +473,11 @@ ABSTRACT_VALUE_AND_INST(SingleValueInstruction, ValueBase, SILInstruction)
                       LiteralInst, None, DoesNotRelease)
     SINGLE_VALUE_INST(PreviousDynamicFunctionRefInst, prev_dynamic_function_ref,
                       LiteralInst, None, DoesNotRelease)
-    SINGLE_VALUE_INST(GlobalAddrInst, global_addr,
+    BRIDGED_SINGLE_VALUE_INST(GlobalAddrInst, global_addr,
                       LiteralInst, None, DoesNotRelease)
     SINGLE_VALUE_INST(BaseAddrForOffsetInst, base_addr_for_offset,
                       LiteralInst, None, DoesNotRelease)
-    SINGLE_VALUE_INST(GlobalValueInst, global_value,
+    BRIDGED_SINGLE_VALUE_INST(GlobalValueInst, global_value,
                       LiteralInst, None, DoesNotRelease)
     SINGLE_VALUE_INST(IntegerLiteralInst, integer_literal,
                       LiteralInst, None, DoesNotRelease)
@@ -485,7 +503,7 @@ ABSTRACT_VALUE_AND_INST(SingleValueInstruction, ValueBase, SILInstruction)
 
   // Conversions
   ABSTRACT_SINGLE_VALUE_INST(ConversionInst, SingleValueInstruction)
-    SINGLE_VALUE_INST(UpcastInst, upcast,
+    BRIDGED_SINGLE_VALUE_INST(UpcastInst, upcast,
                       ConversionInst, None, DoesNotRelease)
     SINGLE_VALUE_INST(AddressToPointerInst, address_to_pointer,
                       ConversionInst, None, DoesNotRelease)
@@ -619,7 +637,7 @@ ABSTRACT_VALUE_AND_INST(SingleValueInstruction, ValueBase, SILInstruction)
   // Function Application
   FULLAPPLYSITE_SINGLE_VALUE_INST(ApplyInst, apply,
                                   SingleValueInstruction, MayHaveSideEffects, MayRelease)
-  SINGLE_VALUE_INST(BuiltinInst, builtin,
+  BRIDGED_SINGLE_VALUE_INST(BuiltinInst, builtin,
                     SingleValueInstruction, MayHaveSideEffects, MayRelease)
   APPLYSITE_SINGLE_VALUE_INST(PartialApplyInst, partial_apply,
                               SingleValueInstruction, MayHaveSideEffects, DoesNotRelease)
@@ -639,7 +657,7 @@ ABSTRACT_VALUE_AND_INST(SingleValueInstruction, ValueBase, SILInstruction)
                     SingleValueInstruction, None, DoesNotRelease)
   SINGLE_VALUE_INST(TupleInst, tuple,
                     SingleValueInstruction, None, DoesNotRelease)
-  SINGLE_VALUE_INST(TupleExtractInst, tuple_extract,
+  BRIDGED_SINGLE_VALUE_INST(TupleExtractInst, tuple_extract,
                     SingleValueInstruction, None, DoesNotRelease)
   SINGLE_VALUE_INST(TupleElementAddrInst, tuple_element_addr,
                     SingleValueInstruction, None, DoesNotRelease)
@@ -649,9 +667,9 @@ ABSTRACT_VALUE_AND_INST(SingleValueInstruction, ValueBase, SILInstruction)
                     SingleValueInstruction, None, DoesNotRelease)
   SINGLE_VALUE_INST(StructElementAddrInst, struct_element_addr,
                     SingleValueInstruction, None, DoesNotRelease)
-  SINGLE_VALUE_INST(RefElementAddrInst, ref_element_addr,
+  BRIDGED_SINGLE_VALUE_INST(RefElementAddrInst, ref_element_addr,
                     SingleValueInstruction, None, DoesNotRelease)
-  SINGLE_VALUE_INST(RefTailAddrInst, ref_tail_addr,
+  BRIDGED_SINGLE_VALUE_INST(RefTailAddrInst, ref_tail_addr,
                     SingleValueInstruction, None, DoesNotRelease)
 
   // Enums
@@ -861,7 +879,7 @@ NON_VALUE_INST(AssignByWrapperInst, assign_by_wrapper,
                SILInstruction, MayWrite, DoesNotRelease)
 NON_VALUE_INST(MarkFunctionEscapeInst, mark_function_escape,
                SILInstruction, None, DoesNotRelease)
-NON_VALUE_INST(DebugValueInst, debug_value,
+BRIDGED_NON_VALUE_INST(DebugValueInst, debug_value,
                SILInstruction, None, DoesNotRelease)
 NON_VALUE_INST(DebugValueAddrInst, debug_value_addr,
                SILInstruction, None, DoesNotRelease)
@@ -895,7 +913,7 @@ NON_VALUE_INST(AbortApplyInst, abort_apply,
 
 // Runtime failure
 // FIXME: Special MemBehavior for runtime failure?
-NON_VALUE_INST(CondFailInst, cond_fail,
+BRIDGED_NON_VALUE_INST(CondFailInst, cond_fail,
                SILInstruction, MayHaveSideEffects, DoesNotRelease)
 
 NODE_RANGE(NonValueInstruction, UnreachableInst, CondFailInst)
@@ -935,6 +953,7 @@ NODE_RANGE(SILNode, SILPhiArgument, DestructureTupleInst)
 #undef DYNAMICCAST_TERMINATOR
 #undef TERMINATOR
 #undef NON_VALUE_INST
+#undef BRIDGED_NON_VALUE_INST
 #undef DYNAMICCAST_NON_VALUE_INST
 #undef MULTIPLE_VALUE_INST_RESULT
 #undef FULLAPPLYSITE_MULTIPLE_VALUE_INST
@@ -945,10 +964,13 @@ NODE_RANGE(SILNode, SILPhiArgument, DestructureTupleInst)
 #undef DYNAMICCAST_SINGLE_VALUE_INST
 #undef DYNAMICCAST_INST
 #undef SINGLE_VALUE_INST
+#undef BRIDGED_SINGLE_VALUE_INST
 #undef FULL_INST
 #undef INST
 #undef ARGUMENT
+#undef BRIDGED_ARGUMENT
 #undef VALUE
+#undef BRIDGED_VALUE
 #undef NODE
 #undef APPLYSITE_INST
 #undef FULLAPPLYSITE_INST

@@ -153,6 +153,9 @@ if(NOT CMAKE_CFG_INTDIR STREQUAL ".")
        "--param" "build_mode=${CMAKE_CFG_INTDIR}")
 endif()
 
+list(APPEND SWIFT_LIT_ARGS
+     "--param" "libswift_build_mode=${LIBSWIFT_BUILD_MODE}")
+
 if (LLVM_USE_SANITIZER STREQUAL "Address")
   set(SWIFT_ASAN_BUILD TRUE)
 endif()

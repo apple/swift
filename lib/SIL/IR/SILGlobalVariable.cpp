@@ -15,8 +15,13 @@
 #include "swift/SIL/SILInstruction.h"
 #include "swift/SIL/SILLinkage.h"
 #include "swift/SIL/SILModule.h"
+extern "C" {
+#include "swift/SIL/SILBridging.h"
+}
 
 using namespace swift;
+
+SwiftMetatype SILGlobalVariable::registeredMetatype;
 
 SILGlobalVariable *SILGlobalVariable::create(SILModule &M, SILLinkage linkage,
                                              IsSerialized_t isSerialized,
@@ -39,18 +44,14 @@ SILGlobalVariable *SILGlobalVariable::create(SILModule &M, SILLinkage linkage,
   return var;
 }
 
-
 SILGlobalVariable::SILGlobalVariable(SILModule &Module, SILLinkage Linkage,
                                      IsSerialized_t isSerialized,
                                      StringRef Name, SILType LoweredType,
                                      Optional<SILLocation> Loc, VarDecl *Decl)
-  : Module(Module),
-    Name(Name),
-    LoweredType(LoweredType),
-    Location(Loc.getValueOr(SILLocation::invalid())),
-    Linkage(unsigned(Linkage)),
-    HasLocation(Loc.hasValue()),
-    VDecl(Decl) {
+    : SwiftObjectHeader(registeredMetatype), Module(Module), Name(Name),
+      LoweredType(LoweredType),
+      Location(Loc.getValueOr(SILLocation::invalid())),
+      Linkage(unsigned(Linkage)), HasLocation(Loc.hasValue()), VDecl(Decl) {
   setSerialized(isSerialized);
   IsDeclaration = isAvailableExternally(Linkage);
   setLet(Decl ? Decl->isLet() : false);

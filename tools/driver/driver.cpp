@@ -14,15 +14,16 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "swift/Driver/Driver.h"
 #include "swift/AST/DiagnosticEngine.h"
 #include "swift/AST/DiagnosticsDriver.h"
+#include "swift/Basic/InitializeLibSwift.h"
 #include "swift/Basic/LLVMInitialize.h"
 #include "swift/Basic/PrettyStackTrace.h"
 #include "swift/Basic/Program.h"
-#include "swift/Basic/TaskQueue.h"
 #include "swift/Basic/SourceManager.h"
+#include "swift/Basic/TaskQueue.h"
 #include "swift/Driver/Compilation.h"
-#include "swift/Driver/Driver.h"
 #include "swift/Driver/FrontendUtil.h"
 #include "swift/Driver/Job.h"
 #include "swift/Driver/ToolChain.h"
@@ -183,6 +184,10 @@ static bool appendSwiftDriverName(SmallString<256> &buffer) {
 
 static int run_driver(StringRef ExecName,
                        const ArrayRef<const char *> argv) {
+  // This is done here and not done in FrontendTool.cpp, because
+  // FrontendTool.cpp is linked to tools, which don't use libswift.
+  initializeLibSwift();
+
   // Handle integrated tools.
   if (argv.size() > 1) {
     StringRef FirstArg(argv[1]);

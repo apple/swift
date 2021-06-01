@@ -35,6 +35,7 @@
 
 #include "swift/Basic/BlotSetVector.h"
 #include "swift/SIL/SILInstruction.h"
+#include "swift/SIL/InstructionUtils.h"
 #include "swift/SIL/SILValue.h"
 #include "swift/SILOptimizer/Utils/InstOptUtils.h"
 #include "llvm/ADT/DenseMap.h"
@@ -65,12 +66,19 @@ template <typename VectorT = std::vector<SILInstruction *>,
 class SILInstructionWorklist : SILInstructionWorklistBase {
   BlotSetVector<SILInstruction *, VectorT, MapT> worklist;
 
+  /// For invoking Swift instruction passes in libswift.
+  LibswiftPassInvocation *libswiftPassInvocation = nullptr;
+
   void operator=(const SILInstructionWorklist &rhs) = delete;
   SILInstructionWorklist(const SILInstructionWorklist &worklist) = delete;
 
 public:
   SILInstructionWorklist(const char *loggingName = "InstructionWorklist")
       : SILInstructionWorklistBase(loggingName) {}
+
+  void setLibswiftPassInvocation(LibswiftPassInvocation *invocation) {
+    libswiftPassInvocation = invocation;
+  }
 
   /// Returns true if the worklist is empty.
   bool isEmpty() const { return worklist.empty(); }
@@ -304,7 +312,11 @@ public:
         if (iterator == user->getIterator())
           ++iterator;
         erase(user);
-        user->eraseFromParent();
+        if (libswiftPassInvocation) {
+          libswiftPassInvocation->eraseInstructionImpl(user);
+        } else {
+          user->eraseFromParent();
+        }
       }
     }
     if (iterator == instruction.getIterator())
@@ -330,7 +342,11 @@ public:
       addOperandsToWorklist(instruction);
 
     erase(&instruction);
-    instruction.eraseFromParent();
+    if (libswiftPassInvocation) {
+      libswiftPassInvocation->eraseInstructionImpl(&instruction);
+    } else {
+      instruction.eraseFromParent();
+    }
   }
 };
 

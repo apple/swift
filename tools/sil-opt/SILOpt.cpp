@@ -15,23 +15,24 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "swift/Subsystems.h"
 #include "swift/AST/DiagnosticsFrontend.h"
 #include "swift/AST/SILOptions.h"
 #include "swift/Basic/FileTypes.h"
+#include "swift/Basic/InitializeLibSwift.h"
 #include "swift/Basic/LLVMInitialize.h"
 #include "swift/Frontend/DiagnosticVerifier.h"
 #include "swift/Frontend/Frontend.h"
 #include "swift/Frontend/PrintingDiagnosticConsumer.h"
-#include "swift/SIL/SILRemarkStreamer.h"
-#include "swift/SILOptimizer/Analysis/Analysis.h"
-#include "swift/SILOptimizer/PassManager/Passes.h"
-#include "swift/SILOptimizer/PassManager/PassManager.h"
-#include "swift/Serialization/SerializedModuleLoader.h"
-#include "swift/Serialization/SerializedSILLoader.h"
-#include "swift/Serialization/SerializationOptions.h"
 #include "swift/IRGen/IRGenPublic.h"
 #include "swift/IRGen/IRGenSILPasses.h"
+#include "swift/SIL/SILRemarkStreamer.h"
+#include "swift/SILOptimizer/Analysis/Analysis.h"
+#include "swift/SILOptimizer/PassManager/PassManager.h"
+#include "swift/SILOptimizer/PassManager/Passes.h"
+#include "swift/Serialization/SerializationOptions.h"
+#include "swift/Serialization/SerializedModuleLoader.h"
+#include "swift/Serialization/SerializedSILLoader.h"
+#include "swift/Subsystems.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileSystem.h"
@@ -356,6 +357,8 @@ int main(int argc, char **argv) {
   llvm::EnablePrettyStackTraceOnSigInfoForThisThread();
 
   llvm::cl::ParseCommandLineOptions(argc, argv, "Swift SIL optimizer\n");
+
+  initializeLibSwift();
 
   if (PrintStats)
     llvm::EnableStatistics();

@@ -43,6 +43,52 @@
 #define IRGEN_PASS(Id, Tag, Description) PASS(Id, Tag, Description)
 #endif
 
+/// SWIFT_FUNCTION_PASS(Id, Tag, Description)
+///   This macro follows the same conventions as PASS(Id, Tag, Description),
+///   but is used for function passes which are implemented in libswift.
+///
+///   No further code is need on the C++ side. In libswift a function pass with
+///   the same name must be registered with 'registerPass()'.
+///
+#ifndef SWIFT_FUNCTION_PASS
+#define SWIFT_FUNCTION_PASS(Id, Tag, Description) PASS(Id, Tag, Description)
+#endif
+
+/// SWIFT_FUNCTION_PASS_WITH_LEGACY(Id, Tag, Description)
+///   Like SWIFT_FUNCTION_PASS, but the a C++ legacy pass is used if the not
+///   built with libswift.
+///   The C++ legacy creation function must be named 'createLegacy<Id>'
+///
+#ifndef SWIFT_FUNCTION_PASS_WITH_LEGACY
+#define SWIFT_FUNCTION_PASS_WITH_LEGACY(Id, Tag, Description) \
+        SWIFT_FUNCTION_PASS(Id, Tag, Description)
+#endif
+
+/// SWIFT_INSTRUCTION_PASS(Inst, Tag)
+///   Similar to SWIFT_FUNCTION_PASS, but defines an instruction pass which is
+///   implemented in libswift and is run by the SILCombiner.
+///   The \p Inst argument specifies the instruction class, and \p Tag a name
+///   for the pass.
+///
+///   No further code is need on the C++ side. In libswift an instruction pass
+///   with the same name must be registered with 'registerPass()'.
+///
+#ifndef SWIFT_INSTRUCTION_PASS
+#define SWIFT_INSTRUCTION_PASS(Inst, Tag)
+#endif
+
+/// SWIFT_INSTRUCTION_PASS_WITH_LEGACY(Inst, Tag)
+///   Like SWIFT_INSTRUCTION_PASS, but the a C++ legacy SILCombine visit
+///   function is used if the not
+///   built with libswift.
+///   The C++ legacy visit function must be named
+///   'SILCombiner::legacyVisit<Inst>'.
+///
+#ifndef SWIFT_INSTRUCTION_PASS_WITH_LEGACY
+#define SWIFT_INSTRUCTION_PASS_WITH_LEGACY(Inst, Tag) \
+        SWIFT_INSTRUCTION_PASS(Inst, Tag)
+#endif
+
 /// PASS_RANGE(RANGE_ID, START, END)
 ///   Pass IDs between PassKind::START and PassKind::END, inclusive,
 ///   fall within the set known as
@@ -250,7 +296,7 @@ PASS(MemBehaviorDumper, "mem-behavior-dump",
      "Print SIL Instruction MemBehavior from Alias Analysis over all Pairs")
 PASS(LSLocationPrinter, "lslocation-dump",
      "Print Load-Store Location Results Covering all Accesses")
-PASS(MergeCondFails, "merge-cond_fails",
+SWIFT_FUNCTION_PASS_WITH_LEGACY(MergeCondFails, "merge-cond_fails",
      "Merge SIL cond_fail to Eliminate Redundant Overflow Checks")
 PASS(MoveCondFailToPreds, "move-cond-fail-to-preds",
      "Move SIL cond_fail by Hoisting Checks")
@@ -318,6 +364,8 @@ PASS(SILDebugInfoGenerator, "sil-debuginfo-gen",
      "Generate Debug Information with Source Locations into Textual SIL")
 PASS(EarlySROA, "early-sroa",
      "Scalar Replacement of Aggregate Stack Objects on high-level SIL")
+SWIFT_FUNCTION_PASS(SILPrinter, "sil-printer",
+     "Test pass which prints the SIL of a function")
 PASS(SROA, "sroa",
      "Scalar Replacement of Aggregate Stack Objects")
 PASS(SROABBArgs, "sroa-bb-args",
@@ -373,6 +421,12 @@ PASS(PruneVTables, "prune-vtables",
      "Mark class methods that do not require vtable dispatch")
 PASS_RANGE(AllPasses, AADumper, PruneVTables)
 
+SWIFT_INSTRUCTION_PASS_WITH_LEGACY(GlobalValueInst, "simplify-global_value")
+
 #undef IRGEN_PASS
+#undef SWIFT_FUNCTION_PASS
+#undef SWIFT_FUNCTION_PASS_WITH_LEGACY
+#undef SWIFT_INSTRUCTION_PASS
+#undef SWIFT_INSTRUCTION_PASS_WITH_LEGACY
 #undef PASS
 #undef PASS_RANGE

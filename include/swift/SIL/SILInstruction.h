@@ -365,9 +365,14 @@ class SILInstruction : public llvm::ilist_node<SILInstruction> {
   SILInstructionResultArray getResultsImpl() const;
 
 protected:
+  friend class LibswiftPassInvocation;
+
   SILInstruction() {
     NumCreatedInstructions++;
   }
+
+  /// This method unlinks 'self' from the containing basic block.
+  void removeFromParent();
 
   ~SILInstruction() {
     NumDeletedInstructions++;

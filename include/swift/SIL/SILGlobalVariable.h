@@ -17,12 +17,13 @@
 #ifndef SWIFT_SIL_SILGLOBALVARIABLE_H
 #define SWIFT_SIL_SILGLOBALVARIABLE_H
 
+#include "swift/SIL/SILBasicBlock.h"
 #include "swift/SIL/SILLinkage.h"
 #include "swift/SIL/SILLocation.h"
-#include "swift/SIL/SILBasicBlock.h"
 #include "swift/SIL/SILType.h"
-#include "llvm/ADT/ilist_node.h"
+#include "swift/SIL/SwiftObjectHeader.h"
 #include "llvm/ADT/ilist.h"
+#include "llvm/ADT/ilist_node.h"
 
 namespace swift {
 
@@ -33,10 +34,11 @@ class SILModule;
 class VarDecl;
   
 /// A global variable that has been referenced in SIL.
-class SILGlobalVariable
-  : public llvm::ilist_node<SILGlobalVariable>,
-    public SILAllocated<SILGlobalVariable>
-{
+class SILGlobalVariable : public llvm::ilist_node<SILGlobalVariable>,
+                          public SILAllocated<SILGlobalVariable>,
+                          public SwiftObjectHeader {
+  static SwiftMetatype registeredMetatype;
+
 public:
   using const_iterator = SILBasicBlock::const_iterator;
 
@@ -97,6 +99,10 @@ private:
                     Optional<SILLocation> loc, VarDecl *decl);
   
 public:
+  static void registerBridgedMetatype(SwiftMetatype metatype) {
+    registeredMetatype = metatype;
+  }
+
   static SILGlobalVariable *create(SILModule &Module, SILLinkage Linkage,
                                    IsSerialized_t IsSerialized,
                                    StringRef MangledName, SILType LoweredType,
@@ -221,7 +227,7 @@ public:
   
   ASTContext &getASTContext() const;
 };
-  
+
 inline llvm::raw_ostream &operator<<(llvm::raw_ostream &OS,
                                      const SILGlobalVariable &F) {
   F.print(OS);
