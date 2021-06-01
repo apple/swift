@@ -92,7 +92,16 @@ function(_add_host_variant_c_compile_link_flags name)
       MACCATALYST_BUILD_FLAVOR ""
       DEPLOYMENT_VERSION "${DEPLOYMENT_VERSION}")
     target_compile_options(${name} PRIVATE $<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:-target;${target}>)
+    # We always link as cxx language today using clang so we do not need to
+    # conditionalize this on target_link_options.
     target_link_options(${name} PRIVATE -target;${target})
+  endif()
+
+  if (CMAKE_Swift_COMPILER)
+    get_target_triple(target target_variant "${SWIFT_HOST_VARIANT_SDK}" "${SWIFT_HOST_VARIANT_ARCH}"
+      MACCATALYST_BUILD_FLAVOR ""
+      DEPLOYMENT_VERSION "${DEPLOYMENT_VERSION}")
+    target_compile_options(${name} PRIVATE $<$<COMPILE_LANGUAGE:Swift>:-target;${target}>)
   endif()
 
   set(_sysroot
@@ -390,7 +399,7 @@ endfunction()
 #     [SHARED]
 #     [STATIC]
 #     [OBJECT]
-#     [IGNORE_LLVM_UPDATE_COMPILE_FLAGS]
+#     [PURE_SWIFT]
 #     [LLVM_LINK_COMPONENTS comp1 ...]
 #     source1 [source2 source3 ...])
 #
@@ -409,10 +418,9 @@ endfunction()
 # LLVM_LINK_COMPONENTS
 #   LLVM components this library depends on.
 #
-# IGNORE_LLVM_UPDATE_COMPILE_FLAGS
-#   If set do not use llvm_update_compile_flags to generate cflags/etc.  This is
-#   generally used when compiling a mixed c/c++/swift library and one wants to
-#   disable this for the swift part.
+# PURE_SWIFT
+#   This has two effects if set: we do not use llvm_update_compile_flags to
+#   generate cflags/etc and we leave the linking mode of the library as swift.
 #
 # source1 ...
 #   Sources to add into this library.
@@ -421,7 +429,7 @@ function(add_swift_host_library name)
         SHARED
         STATIC
         OBJECT
-        IGNORE_LLVM_UPDATE_COMPILE_FLAGS)
+        PURE_SWIFT)
   set(single_parameter_options)
   set(multiple_parameter_options
         LLVM_LINK_COMPONENTS)
@@ -467,7 +475,7 @@ function(add_swift_host_library name)
 
   add_library(${name} ${libkind} ${ASHL_SOURCES})
   add_dependencies(${name} ${LLVM_COMMON_DEPENDS})
-  if (NOT ASHL_IGNORE_LLVM_UPDATE_COMPILE_FLAGS)
+  if (NOT ASHL_PURE_SWIFT)
     llvm_update_compile_flags(${name})
   endif()
   swift_common_llvm_config(${name} ${ASHL_LLVM_LINK_COMPONENTS})
@@ -536,8 +544,29 @@ function(add_swift_host_library name)
         "LINKER:-current_version,${SWIFT_COMPILER_VERSION}")
     endif()
 
+    # Always link as CXX even if we have swift content unless we only contain
+    # swift content signaled via us being marked "PURE_SWIFT".
+    if (NOT ASHL_PURE_SWIFT)
+      set_target_properties(${name} PROPERTIES LINKER_LANGUAGE CXX)
+    endif()
+
+    # If we found a swift compiler and are going to use swift code in swift host
+    # side tools but link with clang, add the appropriate -L paths so we find
+    # all of the necessary swift libraries.
+    if (CMAKE_Swift_COMPILER)
+      # Add in the SDK directory for the host platform and add an rpath.
+      target_link_libraries(${name} PRIVATE
+        -L${SWIFT_SDK_${SWIFT_HOST_VARIANT_ARCH}_PATH}/usr/lib/swift)
+      # Add in the toolchain directory so we can grab compatibility libraries
+      get_filename_component(TOOLCHAIN_BIN_DIR ${CMAKE_Swift_COMPILER} DIRECTORY)
+      get_filename_component(TOOLCHAIN_LIB_DIR "${TOOLCHAIN_BIN_DIR}/../lib/swift/macosx" ABSOLUTE)
+      target_link_libraries(${name} PUBLIC
+        -L${TOOLCHAIN_LIB_DIR})
+    endif()
+
     # For now turn off in swift targets, debug info if we are compiling a static
-    # library.
+    # library and set up an rpath so that if someone works around this by using
+    # shared libraries that in the short term we can find shared libraries.
     if (ASHL_STATIC)
       target_compile_options(${name} PRIVATE $<$<COMPILE_LANGUAGE:Swift>:-gnone>)
     endif()
@@ -605,9 +634,23 @@ function(add_swift_host_tool executable)
       JOB_POOL_LINK swift_link_job_pool)
   endif()
   if(${SWIFT_HOST_VARIANT_SDK} IN_LIST SWIFT_APPLE_PLATFORMS)
+    # Lists of rpaths that we are going to add to our executables.
+    #
+    # Please add each rpath separately below to the list, explaining why you are
+    # adding it.
+    set(RPATH_LIST)
+
+    # We also want to be able to find libraries from the base toolchain
+    # directory. This is so swiftc can rely on its own host side dylibs that may
+    # contain swift content.
+    list(APPEND RPATH_LIST "@executable_path/../lib")
+
+    # Also include the swift specific resource dir in our rpath.
+    list(APPEND RPATH_LIST "@executable_path/../lib/swift/${SWIFT_SDK_${SWIFT_HOST_VARIANT_SDK}_LIB_SUBDIR}")
+
     set_target_properties(${executable} PROPERTIES
       BUILD_WITH_INSTALL_RPATH YES
-      INSTALL_RPATH "@executable_path/../lib/swift/${SWIFT_SDK_${SWIFT_HOST_VARIANT_SDK}_LIB_SUBDIR}")
+      INSTALL_RPATH "${RPATH_LIST}")
   endif()
 
   llvm_update_compile_flags(${executable})
