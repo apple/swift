@@ -55,8 +55,8 @@ bb0(%0 : $Int32, %1 : $UnsafeMutablePointer<Optional<UnsafeMutablePointer<Int8>>
 // CHECK-macho: @"\01l_entry_point" = private constant { i32 } { i32 trunc (i64 sub (i64 ptrtoint (i32 (i32, i8**)* @main to i64), i64 ptrtoint ({ i32 }* @"\01l_entry_point" to i64)) to i32) }, section "__TEXT, __swift5_entry, regular, no_dead_strip", align 4
 // CHECK-elf: @"\01l_entry_point" = private constant { i32 } { i32 trunc (i64 sub (i64 ptrtoint (i32 (i32, i8**)* @main to i64), i64 ptrtoint ({ i32 }* @"\01l_entry_point" to i64)) to i32) }, section "swift5_entry", align 4
 
-// CHECK-macho: @llvm.used = appending global [4 x i8*] [i8* bitcast (void ()* @frieda to i8*), i8* bitcast (i32 (i32, i8**)* @main to i8*), i8* bitcast ({ i32 }* @"\01l_entry_point" to i8*), i8* bitcast (i16* @__swift_reflection_version to i8*)], section "llvm.metadata", align 8
-// CHECK-elf: @llvm.used = appending global [5 x i8*] [i8* bitcast (void ()* @frieda to i8*), i8* bitcast (i32 (i32, i8**)* @main to i8*), i8* bitcast ({ i32 }* @"\01l_entry_point" to i8*), i8* bitcast (i16* @__swift_reflection_version to i8*), i8* getelementptr inbounds ([{{[0-9]+}} x i8], [{{[0-9]+}} x i8]* @_swift1_autolink_entries, i32 0, i32 0)], section "llvm.metadata", align 8
+// CHECK-macho: @llvm.used = appending global [4 x i8*] [i8* bitcast (void ()* @frieda to i8*), i8* bitcast (i32 (i32, i8**)* @main to i8*), i8* bitcast ({ i32 }* @"\01l_entry_point" to i8*), i8* bitcast (i16* @__swift_reflection_version to i8*)], section "llvm.metadata"
+// CHECK-elf: @llvm.used = appending global [5 x i8*] [i8* bitcast (void ()* @frieda to i8*), i8* bitcast (i32 (i32, i8**)* @main to i8*), i8* bitcast ({ i32 }* @"\01l_entry_point" to i8*), i8* bitcast (i16* @__swift_reflection_version to i8*), i8* getelementptr inbounds ([{{[0-9]+}} x i8], [{{[0-9]+}} x i8]* @_swift1_autolink_entries, i32 0, i32 0)], section "llvm.metadata"
 
 // CHECK: define linkonce_odr hidden swiftcc void @qux()
 // CHECK: define hidden swiftcc void @fred()

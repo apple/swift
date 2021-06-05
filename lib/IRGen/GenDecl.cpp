@@ -570,8 +570,14 @@ emitGlobalList(IRGenModule &IGM, ArrayRef<llvm::WeakTrackingVH> handles,
   auto var = new llvm::GlobalVariable(IGM.Module, varTy, isConstant, linkage,
                                       init, name);
   var->setSection(section);
-  var->setAlignment(llvm::MaybeAlign(alignment.getValue()));
-  disableAddressSanitizer(IGM, var);
+
+  // Do not set alignment and don't set disableAddressSanitizer on @llvm.used
+  // and @llvm.compiler.used. Doing so confuses LTO (merging) and they're not
+  // going to end up as real global symbols in the binary anyways.
+  if (name != "llvm.used" && name != "llvm.compiler.used") {
+    var->setAlignment(llvm::MaybeAlign(alignment.getValue()));
+    disableAddressSanitizer(IGM, var);
+  }
 
   // Mark the variable as used if doesn't have external linkage.
   // (Note that we'd specifically like to not put @llvm.used in itself.)
