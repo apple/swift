@@ -167,9 +167,9 @@ public class NSKeyValueObservation : NSObject {
     //
     // For the associated object, we use the Helper instance itself as its own key. This guarantees key uniqueness.
     private class Helper : NSObject {
-        @nonobjc weak var object : NSObject?
+        @nonobjc weak var object: NSObject?
         @nonobjc let path: String
-        @nonobjc let callback : (NSObject, NSKeyValueObservedChange<Any>) -> Void
+        @nonobjc var callback: ((NSObject, NSKeyValueObservedChange<Any>) -> Void)?
         
         // workaround for <rdar://problem/31640524> Erroneous (?) error when using bridging in the Foundation overlay
         // specifically, overriding observeValue(forKeyPath:of:change:context:) complains that it's not Obj-C-compatible
@@ -198,6 +198,7 @@ public class NSKeyValueObservation : NSObject {
         }
         
         @nonobjc func invalidate() {
+            callback = nil
             guard let object = self.object else { return }
             object.removeObserver(self, forKeyPath: path, context: nil)
             objc_setAssociatedObject(object, associationKey(), nil, .OBJC_ASSOCIATION_ASSIGN)
@@ -217,7 +218,7 @@ public class NSKeyValueObservation : NSObject {
                                                         oldValue: change[NSKeyValueChangeKey.oldKey.rawValue as NSString],
                                                         indexes: change[NSKeyValueChangeKey.indexesKey.rawValue as NSString] as! IndexSet?,
                                                         isPrior: change[NSKeyValueChangeKey.notificationIsPriorKey.rawValue as NSString] as? Bool ?? false)
-            callback(object, notification)
+            callback?(object, notification)
         }
     }
     
