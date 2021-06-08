@@ -66,7 +66,11 @@ enum class Status {
   TargetIncompatible,
 
   /// The module file was built for a target newer than the current target.
-  TargetTooNew
+  TargetTooNew,
+
+  /// The module file was built with a different SDK than the one in use
+  /// to build the client.
+  SDKMismatch
 };
 
 /// Returns true if the data looks like it contains a serialized AST.
@@ -80,6 +84,7 @@ struct ValidationInfo {
   StringRef miscVersion = {};
   version::Version compatibilityVersion = {};
   llvm::VersionTuple userModuleVersion;
+  StringRef builderSDK = {};
   size_t bytes = 0;
   Status status = Status::Malformed;
 };

@@ -58,6 +58,9 @@ class ModuleFileSharedCore {
   /// The target the module was built for.
   StringRef TargetTriple;
 
+  /// The name of the SDK the module was built with.
+  StringRef BuilderSDK;
+
   /// The name of the module interface this module was compiled from.
   ///
   /// Empty if this module didn't come from an interface file.

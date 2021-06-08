@@ -25,6 +25,7 @@
 #include "swift/AST/PrettyStackTrace.h"
 #include "swift/AST/USRGeneration.h"
 #include "swift/Basic/Range.h"
+#include "swift/Basic/Platform.h"
 #include "swift/ClangImporter/ClangImporter.h"
 #include "swift/Serialization/SerializedModuleLoader.h"
 #include "llvm/ADT/StringExtras.h"
@@ -147,6 +148,15 @@ Status ModuleFile::associateWithFileContext(FileUnit *file, SourceLoc diagLoc,
     status = Status::TargetTooNew;
     if (!recoverFromIncompatibility)
       return error(status);
+  }
+
+  auto clientSDK = swift::getSDKName(ctx.SearchPathOpts.SDKPath);
+  StringRef moduleSDK = Core->BuilderSDK;
+  if (ctx.SearchPathOpts.EnableSDKBuilderChecking &&
+      !moduleSDK.empty() && !clientSDK.empty() &&
+      moduleSDK != clientSDK) {
+    status = Status::SDKMismatch;
+    return error(status);
   }
 
   for (const auto &searchPath : Core->SearchPaths)

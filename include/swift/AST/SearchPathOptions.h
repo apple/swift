@@ -82,6 +82,10 @@ public:
   /// would for a non-system header.
   bool DisableModulesValidateSystemDependencies = false;
 
+  /// Enforce loading only serialized modules built with the same SDK
+  /// as the context loading it.
+  bool EnableSDKBuilderChecking = true;
+
   /// The paths to a set of explicitly built modules from interfaces.
   std::vector<std::string> ExplicitSwiftModules;
 

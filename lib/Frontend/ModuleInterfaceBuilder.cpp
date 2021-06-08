@@ -20,6 +20,7 @@
 #include "swift/AST/FileSystem.h"
 #include "swift/AST/Module.h"
 #include "swift/Basic/Defer.h"
+#include "swift/Basic/Platform.h"
 #include "swift/Frontend/Frontend.h"
 #include "swift/Frontend/ModuleInterfaceSupport.h"
 #include "swift/SILOptimizer/PassManager/Passes.h"
@@ -255,6 +256,8 @@ bool ModuleInterfaceBuilder::buildSwiftModuleInternal(
     StringRef SDKPath = SubInstance.getASTContext().SearchPathOpts.SDKPath;
     if (!getRelativeDepPath(InPath, SDKPath))
       SerializationOpts.ModuleInterface = InPath;
+
+    SerializationOpts.BuilderSDK = swift::getSDKName(SDKPath);
 
     SmallVector<FileDependency, 16> Deps;
     bool serializeHashes = FEOpts.SerializeModuleInterfaceDependencyHashes;

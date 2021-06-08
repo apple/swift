@@ -802,6 +802,7 @@ void Serializer::writeBlockInfoBlock() {
   BLOCK_RECORD(control_block, METADATA);
   BLOCK_RECORD(control_block, MODULE_NAME);
   BLOCK_RECORD(control_block, TARGET);
+  BLOCK_RECORD(control_block, BUILDER_SDK);
 
   BLOCK(OPTIONS_BLOCK);
   BLOCK_RECORD(options_block, SDK_PATH);
@@ -947,6 +948,7 @@ void Serializer::writeHeader(const SerializationOptions &options) {
     control_block::ModuleNameLayout ModuleName(Out);
     control_block::MetadataLayout Metadata(Out);
     control_block::TargetLayout Target(Out);
+    control_block::BuilderSDK BuilderSDK(Out);
 
     ModuleName.emit(ScratchRecord, M->getName().str());
 
@@ -979,6 +981,9 @@ void Serializer::writeHeader(const SerializationOptions &options) {
                   userModuleMajor, userModuleMinor,
                   userModuleSubminor, userModuleBuild,
                   versionString.str());
+
+    if (!options.BuilderSDK.empty())
+      BuilderSDK.emit(ScratchRecord, options.BuilderSDK);
 
     Target.emit(ScratchRecord, M->getASTContext().LangOpts.Target.str());
 

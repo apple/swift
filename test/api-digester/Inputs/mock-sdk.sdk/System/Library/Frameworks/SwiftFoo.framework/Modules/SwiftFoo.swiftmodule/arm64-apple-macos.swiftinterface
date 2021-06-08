@@ -1,7 +1,6 @@
 // swift-interface-format-version: 1.0
 // swift-tools-version: Apple Swift version 5.1 (swiftlang-1100.0.38 clang-1100.0.20.14)
-// swift-module-flags: -target arm64-apple-macos10.14 -enable-objc-interop -enable-library-evolution -swift-version 5 -enforce-exclusivity=checked -O -module-name SwiftFoo
-import Swift
+// swift-module-flags: -target arm64-apple-macos10.14 -enable-objc-interop -enable-library-evolution -swift-version 5 -enforce-exclusivity=checked -O -module-name SwiftFoo -parse-stdlib
 public class AddedClass {
   @objc deinit
 }
