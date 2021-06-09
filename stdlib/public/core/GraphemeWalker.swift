@@ -33,22 +33,69 @@
 // boundaries and to correctly report that the string "🇺🇸🇬🇧" has two characters
 // (🇺🇸 and 🇬🇧).
 internal struct GraphemeWalker {
-  let buffer: UnsafeBufferPointer<UInt8>
+  // This is either a buffer of utf8 code units for native Swift strings, or
+  // a buffer of utf16 code units when working with bridged NSStrings.
+  let buffer: UnsafeRawBufferPointer
   var offset = 0
   var stride = 0
+  var isUTF8 = true
 
   var inEmojiSequence = false
   var shouldBreakRI = false
+
+  var utf8: UnsafeBufferPointer<UInt8> {
+    _internalInvariant(isUTF8)
+
+    let base = buffer.baseAddress._unsafelyUnwrappedUnchecked
+
+    // This is ok because we're given a typed buffer to UInt8 that we type
+    // erase on init.
+    let start = base.assumingMemoryBound(to: UInt8.self)
+    return UnsafeBufferPointer(start: start, count: buffer.count)
+  }
+
+  var utf16: UnsafeBufferPointer<UInt16> {
+    _internalInvariant(!isUTF8)
+
+    let base = buffer.baseAddress._unsafelyUnwrappedUnchecked
+
+    // This is ok because we're given a typed buffer to UInt16 that we type
+    // erase on init.
+    let start = base.assumingMemoryBound(to: UInt16.self)
+    return UnsafeBufferPointer(start: start, count: buffer.count)
+  }
+
+  init(buffer: UnsafeBufferPointer<UInt8>, offset: Int) {
+    self.buffer = UnsafeRawBufferPointer(buffer)
+    self.offset = offset
+  }
+
+  init(buffer: UnsafeBufferPointer<UInt16>, offset: Int) {
+    self.buffer = UnsafeRawBufferPointer(buffer)
+    self.offset = offset
+
+    self.isUTF8 = false
+  }
+
+  func decodeScalar(startingAt idx: Int) -> (Unicode.Scalar, Int) {
+    if _fastPath(isUTF8) {
+      return _decodeScalar(utf8, startingAt: idx)
+
+    // We're UTF16.
+    } else {
+      return _decodeScalar(utf16, startingAt: idx)
+    }
+  }
 
   // Returns the stride of the next grapheme cluster at the previous boundary at
   // offset.
   mutating func nextStride() -> Int {
     while true {
-      let (sc1, len1) = _decodeScalar(buffer, startingAt: offset &+ stride)
+      let (sc1, len1) = decodeScalar(startingAt: offset &+ stride)
 
       stride &+= len1
 
-      let (sc2, len2) = _decodeScalar(buffer, startingAt: offset &+ stride)
+      let (sc2, len2) = decodeScalar(startingAt: offset &+ stride)
 
       let gbp1 = Unicode.GraphemeBreakProperty(from: sc1)
       let gbp2 = Unicode.GraphemeBreakProperty(from: sc2)

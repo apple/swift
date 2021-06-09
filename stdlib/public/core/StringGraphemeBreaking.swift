@@ -84,25 +84,6 @@ private func _hasGraphemeBreakBetween(
 @inline(never) // slow-path
 @_effects(releasenone)
 private func _measureCharacterStrideICU(
-  of utf16: UnsafeBufferPointer<UInt16>, startingAt i: Int
-) -> Int {
-  // ICU will gives us a different result if we feed in the whole buffer, so
-  // slice it appropriately.
-  let utf16Slice = UnsafeBufferPointer(rebasing: utf16[i...])
-  let iterator = _ThreadLocalStorage.getUBreakIterator(utf16Slice)
-  let offset = __swift_stdlib_ubrk_following(iterator, 0)
-
-  // ubrk_following returns -1 (UBRK_DONE) when it hits the end of the buffer.
-  guard _fastPath(offset != -1) else { return utf16Slice.count }
-
-  // The offset into our buffer is the distance.
-  _internalInvariant(offset > 0, "zero-sized grapheme?")
-  return Int(truncatingIfNeeded: offset)
-}
-
-@inline(never) // slow-path
-@_effects(releasenone)
-private func _measureCharacterStrideICU(
   of utf8: UnsafeBufferPointer<UInt8>, endingAt i: Int
 ) -> Int {
   // Slice backwards as well, even though ICU currently seems to give the same
@@ -202,7 +183,9 @@ extension _StringGuts {
 
     if let utf16Ptr = _stdlib_binary_CFStringGetCharactersPtr(cocoa) {
       let utf16 = UnsafeBufferPointer(start: utf16Ptr, count: count)
-      return _measureCharacterStrideICU(of: utf16, startingAt: i)
+      
+      var walker = GraphemeWalker(buffer: utf16, offset: i)
+      return walker.nextStride()
     }
 
     // TODO(String performance): Local small stack first, before making large
@@ -215,7 +198,8 @@ extension _StringGuts {
         initializedCount = count
     }
     return codeUnits.withUnsafeBufferPointer {
-      _measureCharacterStrideICU(of: $0, startingAt: i)
+      var walker = GraphemeWalker(buffer: $0, offset: i)
+      return walker.nextStride()
     }
 #else
   fatalError("No foreign strings on Linux in this version of Swift")
