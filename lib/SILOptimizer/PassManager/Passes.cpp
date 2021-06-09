@@ -25,6 +25,7 @@
 #include "swift/AST/ASTContext.h"
 #include "swift/AST/Module.h"
 #include "swift/SIL/SILModule.h"
+#include "swift/SIL/SILBridgingUtils.h"
 #include "swift/SILOptimizer/Analysis/Analysis.h"
 #include "swift/SILOptimizer/PassManager/PassManager.h"
 #include "swift/SILOptimizer/PassManager/Transforms.h"
@@ -36,6 +37,9 @@
 #include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/YAMLParser.h"
+extern "C" {
+#include "swift/SILOptimizer/OptimizerBridging.h"
+}
 
 using namespace swift;
 
@@ -212,3 +216,66 @@ void swift::runSILLoweringPasses(SILModule &Module) {
 
   assert(Module.getStage() == SILStage::Lowered);
 }
+
+/// Registered briged pass run functions.
+static llvm::StringMap<BridgedFunctionPassRunFn> bridgedPassRunFunctions;
+static bool passesRegistered = false;
+
+/// Runs a bridged function pass.
+///
+/// \p runFunction is a cache for the run function, so that it has to be looked
+/// up only once in bridgedPassRunFunctions.
+static void runBridgedFunctionPass(BridgedFunctionPassRunFn &runFunction,
+                                   SILPassManager *passManager,
+                                   SILFunction *f, StringRef passName) {
+  if (!runFunction) {
+    runFunction = bridgedPassRunFunctions[passName];
+    if (!runFunction) {
+      if (passesRegistered) {
+        llvm::errs() << "Swift pass " << passName << " is not registered\n";
+        abort();
+      }
+      return;
+    }
+  }
+  if (!f->isBridged()) {
+    llvm::errs() << "SILFunction metatype is not registered\n";
+    abort();
+  }
+  runFunction({{f}, {passManager->getLibswiftPassInvocation()}});
+}
+
+// Called from libswift's initializeLibSwift().
+void SILPassManager_registerFunctionPass(BridgedStringRef name,
+                                         BridgedFunctionPassRunFn runFn) {
+  bridgedPassRunFunctions[getStringRef(name)] = runFn;
+  passesRegistered = true;
+}
+
+#define SWIFT_FUNCTION_PASS_COMMON(ID, TAG) \
+class ID##Pass : public SILFunctionTransform {                             \
+  static BridgedFunctionPassRunFn runFunction;                             \
+  void run() override {                                                    \
+    runBridgedFunctionPass(runFunction, PM, getFunction(), TAG);           \
+  }                                                                        \
+};                                                                         \
+BridgedFunctionPassRunFn ID##Pass::runFunction = nullptr;                  \
+
+#define PASS(ID, TAG, DESCRIPTION)
+#define SWIFT_INSTRUCTION_PASS(INST, TAG)
+
+#define SWIFT_FUNCTION_PASS(ID, TAG, DESCRIPTION) \
+SWIFT_FUNCTION_PASS_COMMON(ID, TAG)                                        \
+SILTransform *swift::create##ID() { return new ID##Pass(); }               \
+
+#define SWIFT_FUNCTION_PASS_WITH_LEGACY(ID, TAG, DESCRIPTION) \
+SWIFT_FUNCTION_PASS_COMMON(ID, TAG)                                        \
+SILTransform *swift::create##ID() {                                        \
+  if (passesRegistered)                                                    \
+    return new ID##Pass();                                                 \
+  return createLegacy##ID();                                               \
+}                                                                          \
+
+#include "swift/SILOptimizer/PassManager/Passes.def"
+
+#undef SWIFT_FUNCTION_PASS_COMMON

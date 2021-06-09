@@ -23,13 +23,14 @@
 #include "SILCombiner.h"
 #include "swift/SIL/BasicBlockDatastructures.h"
 #include "swift/SIL/DebugUtils.h"
+#include "swift/SIL/SILBridgingUtils.h"
 #include "swift/SIL/SILBuilder.h"
 #include "swift/SIL/SILVisitor.h"
 #include "swift/SILOptimizer/Analysis/AliasAnalysis.h"
 #include "swift/SILOptimizer/Analysis/DominanceAnalysis.h"
 #include "swift/SILOptimizer/Analysis/NonLocalAccessBlockAnalysis.h"
 #include "swift/SILOptimizer/Analysis/SimplifyInstruction.h"
-#include "swift/SILOptimizer/PassManager/Passes.h"
+#include "swift/SILOptimizer/PassManager/PassManager.h"
 #include "swift/SILOptimizer/PassManager/Transforms.h"
 #include "swift/SILOptimizer/Utils/CanonicalOSSALifetime.h"
 #include "swift/SILOptimizer/Utils/CanonicalizeInstruction.h"
@@ -378,6 +379,56 @@ void SILCombiner::eraseInstIncludingUsers(SILInstruction *inst) {
   eraseInstFromFunction(*inst);
 }
 
+/// Runs an instruction pass in libswift.
+void SILCombiner::runSwiftInstructionPass(SILInstruction *inst,
+                              void (*runFunction)(BridgedInstructionPassCtxt)) {
+  Worklist.setLibswiftPassInvocation(&libswiftPassInvocation);
+  runFunction({ {inst->asSILNode()}, {&libswiftPassInvocation} });
+  Worklist.setLibswiftPassInvocation(nullptr);
+  libswiftPassInvocation.finishedPassRun();
+}
+
+/// Registered briged instruction pass run functions.
+static llvm::StringMap<BridgedInstructionPassRunFn> libswiftInstPasses;
+static bool passesRegistered = false;
+
+// Called from libswift's initializeLibSwift().
+void SILCombine_registerInstructionPass(BridgedStringRef name,
+                                        BridgedInstructionPassRunFn runFn) {
+  libswiftInstPasses[getStringRef(name)] = runFn;
+  passesRegistered = true;
+}
+
+#define SWIFT_INSTRUCTION_PASS_COMMON(INST, TAG, LEGACY_RUN) \
+SILInstruction *SILCombiner::visit##INST(INST *inst) {                     \
+  static BridgedInstructionPassRunFn runFunction = nullptr;                \
+  static bool runFunctionSet = false;                                      \
+  if (!runFunctionSet) {                                                   \
+    runFunction = libswiftInstPasses[TAG];                                 \
+    if (!runFunction && passesRegistered) {                                \
+      llvm::errs() << "Swift pass " << TAG << " is not registered\n";      \
+      abort();                                                             \
+    }                                                                      \
+    runFunctionSet = true;                                                 \
+  }                                                                        \
+  if (!runFunction) {                                                      \
+    LEGACY_RUN;                                                            \
+  }                                                                        \
+  runSwiftInstructionPass(inst, runFunction);                              \
+  return nullptr;                                                          \
+}                                                                          \
+
+#define PASS(ID, TAG, DESCRIPTION)
+
+#define SWIFT_INSTRUCTION_PASS(INST, TAG) \
+  SWIFT_INSTRUCTION_PASS_COMMON(INST, TAG, { return nullptr; })
+
+#define SWIFT_INSTRUCTION_PASS_WITH_LEGACY(INST, TAG) \
+  SWIFT_INSTRUCTION_PASS_COMMON(INST, TAG, { return legacyVisit##INST(inst); })
+
+#include "swift/SILOptimizer/PassManager/Passes.def"
+
+#undef SWIFT_INSTRUCTION_PASS_COMMON
 
 //===----------------------------------------------------------------------===//
 //                                Entry Points
@@ -418,4 +469,16 @@ class SILCombine : public SILFunctionTransform {
 
 SILTransform *swift::createSILCombine() {
   return new SILCombine();
+}
+
+//===----------------------------------------------------------------------===//
+//                          SwiftFunctionPassContext
+//===----------------------------------------------------------------------===//
+
+void LibswiftPassInvocation::eraseInstruction(SILInstruction *inst) {
+  if (silCombiner) {
+    silCombiner->eraseInstFromFunction(*inst);
+  } else {
+    inst->eraseFromParent();
+  }
 }

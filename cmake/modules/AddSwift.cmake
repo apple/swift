@@ -477,7 +477,9 @@ function(add_swift_host_library name)
   endif()
 
   add_library(${name} ${libkind} ${ASHL_SOURCES})
-  add_dependencies(${name} ${LLVM_COMMON_DEPENDS})
+  if (LLVM_COMMON_DEPENDS)
+    add_dependencies(${name} ${LLVM_COMMON_DEPENDS})
+  endif()
   if (NOT ASHL_PURE_SWIFT)
     llvm_update_compile_flags(${name})
   endif()
@@ -597,6 +599,112 @@ function(add_swift_host_library name)
   endif()
 endfunction()
 
+# Add a module of libswift
+#
+# Creates a target to compile a module which is part of libswift.
+# Adds the module name to the global property "libswift_modules".
+function(add_libswift_module module)
+  cmake_parse_arguments(ALSM
+                        ""
+                        "DEPENDS"
+                        ""
+                        ${ARGN})
+  set(sources ${ALSM_UNPARSED_ARGUMENTS})
+  list(TRANSFORM sources PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/")
+
+  set(target_name "LibSwift${module}")
+
+  # Add a target which depends on the actual compilation target, which
+  # will be created in add_libswift.
+  # This target is mainly used to add properties, like the list of source files.
+  add_custom_target(
+      ${target_name}
+      SOURCES ${sources}
+      COMMENT "libswift module ${module}")
+
+  set_property(TARGET ${target_name} PROPERTY "module_name" ${module})
+  set_property(TARGET ${target_name} PROPERTY "module_depends" ${ALSM_DEPENDS})
+
+  get_property(modules GLOBAL PROPERTY "libswift_modules")
+  set_property(GLOBAL PROPERTY "libswift_modules" ${modules} ${module})
+endfunction()
+ 
+# Add source files to a libswift module.
+function(libswift_sources module)
+  cmake_parse_arguments(LSS
+                        ""
+                        ""
+                        ""
+                        ${ARGN})
+  set(sources ${LSS_UNPARSED_ARGUMENTS})
+  list(TRANSFORM sources PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/")
+
+  set(target_name "LibSwift${module}")
+  set_property(TARGET "LibSwift${module}" APPEND PROPERTY SOURCES ${sources})
+endfunction()
+ 
+# Add the libswift library.
+#
+# Adds targets to compile all modules of libswift and a target for the
+# libswift library itself.
+function(add_libswift name)
+  if(CMAKE_BUILD_TYPE STREQUAL Debug)
+    set(libswift_compile_options "-g")
+  else()
+    set(libswift_compile_options "-O" "-cross-module-optimization")
+  endif()
+
+  set(build_dir ${CMAKE_CURRENT_BINARY_DIR})
+
+  if(SWIFT_HOST_VARIANT_SDK IN_LIST SWIFT_APPLE_PLATFORMS)
+    set(deployment_version "${SWIFT_SDK_${SWIFT_HOST_VARIANT_SDK}_DEPLOYMENT_VERSION}")
+  endif()
+  get_versioned_target_triple(target ${SWIFT_HOST_VARIANT_SDK}
+      ${SWIFT_HOST_VARIANT_ARCH} "${deployment_version}")
+
+  get_property(modules GLOBAL PROPERTY "libswift_modules")
+  foreach(module ${modules})
+
+    set(module_target "LibSwift${module}")
+    get_target_property(module ${module_target} "module_name")
+    get_target_property(sources ${module_target} SOURCES)
+    get_target_property(dependencies ${module_target} "module_depends")
+    if(dependencies)
+      list(TRANSFORM dependencies PREPEND "LibSwift")
+    else()
+      set(dependencies "")
+    endif()
+
+    set(module_obj_file "${build_dir}/${module}.o")
+    set(module_file "${build_dir}/${module}.swiftmodule")
+    set_property(TARGET ${module_target} PROPERTY "module_file" "${module_file}")
+
+    set(all_obj_files ${all_obj_files} ${module_obj_file})
+
+    # Compile the libswift module into an object file
+    add_custom_command_target(dep_target OUTPUT ${module_obj_file}
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+      DEPENDS ${sources} ${dependencies}
+      COMMAND ${CMAKE_Swift_COMPILER} "-c" "-o" ${module_obj_file}
+              "-sdk" "${SWIFT_SDK_${SWIFT_HOST_VARIANT_SDK}_ARCH_${SWIFT_HOST_VARIANT_ARCH}_PATH}"
+              "-target" ${target}
+              "-module-name" ${module} "-emit-module"
+              "-emit-module-path" "${build_dir}/${module}.swiftmodule"
+              "-parse-as-library" ${sources}
+              "-wmo" ${libswift_compile_options}
+              "-I" "${CMAKE_SOURCE_DIR}/include/swift"
+              "-I" "${build_dir}"
+      COMMENT "Building libswift module ${module}")
+
+    add_dependencies(${module_target} ${dep_target})
+
+  endforeach()
+
+  # Create a static libswift library containing all module object files.
+  add_library(${name} STATIC ${all_obj_files})
+  set_target_properties(${name} PROPERTIES LINKER_LANGUAGE CXX)
+endfunction()
+
 macro(add_swift_tool_subdirectory name)
   add_llvm_subdirectory(SWIFT TOOL ${name})
 endmacro()
@@ -606,7 +714,7 @@ macro(add_swift_lib_subdirectory name)
 endmacro()
 
 function(add_swift_host_tool executable)
-  set(options)
+  set(options HAS_LIBSWIFT)
   set(single_parameter_options SWIFT_COMPONENT)
   set(multiple_parameter_options LLVM_LINK_COMPONENTS)
 
@@ -649,6 +757,24 @@ function(add_swift_host_tool executable)
       get_filename_component(TOOLCHAIN_BIN_DIR ${CMAKE_Swift_COMPILER} DIRECTORY)
       get_filename_component(TOOLCHAIN_LIB_DIR "${TOOLCHAIN_BIN_DIR}/../lib/swift/macosx" ABSOLUTE)
       target_link_directories(${executable} PUBLIC ${TOOLCHAIN_LIB_DIR})
+
+      if (ASHT_HAS_LIBSWIFT AND SWIFT_TOOLS_ENABLE_LIBSWIFT)
+        # Workaround to make lldb happy: we have to explicitly add all libswift modules
+        # to the linker command line.
+        set(libswift_ast_path_flags "-Wl")
+        get_property(modules GLOBAL PROPERTY "libswift_modules")
+        foreach(module ${modules})
+          get_target_property(module_file "LibSwift${module}" "module_file")
+          string(APPEND libswift_ast_path_flags ",-add_ast_path,${module_file}")
+        endforeach()
+
+        set_property(TARGET ${executable} APPEND_STRING PROPERTY
+                     LINK_FLAGS ${libswift_ast_path_flags})
+
+        # Workaround for a linker crash related to autolinking: rdar://77839981
+        set_property(TARGET ${executable} APPEND_STRING PROPERTY
+                     LINK_FLAGS " -lobjc ")
+      endif()
     endif()
 
     # Lists of rpaths that we are going to add to our executables.
@@ -668,6 +794,22 @@ function(add_swift_host_tool executable)
     set_target_properties(${executable} PROPERTIES
       BUILD_WITH_INSTALL_RPATH YES
       INSTALL_RPATH "${RPATH_LIST}")
+
+  elseif(SWIFT_HOST_VARIANT_SDK STREQUAL "LINUX")
+    if (ASHT_HAS_LIBSWIFT AND SWIFT_TOOLS_ENABLE_LIBSWIFT)
+      # At build time and and run time, link against the swift libraries in the
+      # installed host toolchain.
+      get_filename_component(swift_bin_dir ${CMAKE_Swift_COMPILER} DIRECTORY)
+      get_filename_component(swift_dir ${swift_bin_dir} DIRECTORY)
+      set(host_lib_dir "${swift_dir}/lib/swift/linux")
+
+      target_link_libraries(${executable} PRIVATE "swiftCore")
+
+      target_link_directories(${executable} PRIVATE ${host_lib_dir})
+      set_target_properties(${executable} PROPERTIES
+        BUILD_WITH_INSTALL_RPATH YES
+        INSTALL_RPATH  "${host_lib_dir}")
+    endif()
   endif()
 
   llvm_update_compile_flags(${executable})

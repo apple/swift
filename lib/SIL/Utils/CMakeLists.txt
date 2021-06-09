@@ -13,6 +13,7 @@ target_sources(swiftSIL PRIVATE
   OwnershipUtils.cpp
   PrettyStackTrace.cpp
   Projection.cpp
+  SILBridging.cpp
   SILInstructionWorklist.cpp
   SILRemarkStreamer.cpp
   ValueUtils.cpp)

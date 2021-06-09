@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "swift/SIL/Notifications.h"
+#include "swift/SIL/InstructionUtils.h"
 #include "swift/SILOptimizer/Analysis/Analysis.h"
 #include "swift/SILOptimizer/PassManager/PassPipeline.h"
 #include "swift/SILOptimizer/PassManager/Passes.h"
@@ -31,6 +32,8 @@ class SILModule;
 class SILModuleTransform;
 class SILOptions;
 class SILTransform;
+class SILPassManager;
+class SILCombiner;
 
 namespace irgen {
 class IRGenModule;
@@ -40,6 +43,35 @@ class IRGenModule;
 void executePassPipelinePlan(SILModule *SM, const SILPassPipelinePlan &plan,
                              bool isMandatory = false,
                              irgen::IRGenModule *IRMod = nullptr);
+
+/// Utility class to invoke passes in libswift.
+class LibswiftPassInvocation {
+  /// Backlink to the pass manager.
+  SILPassManager *passManager;
+  
+  /// Non-null if this is an instruction pass, invoked from SILCombine.
+  SILCombiner *silCombiner;
+
+  /// All slabs, allocated by the pass.
+  SILModule::SlabList allocatedSlabs;
+
+public:
+  LibswiftPassInvocation(SILPassManager *passManager, SILCombiner *silCombiner) :
+    passManager(passManager), silCombiner(silCombiner) {}
+
+  FixedSizeSlab *allocSlab(FixedSizeSlab *afterSlab);
+
+  FixedSizeSlab *freeSlab(FixedSizeSlab *slab);
+
+  /// The top-level API to erase an instruction, called from the Swift pass.
+  void eraseInstruction(SILInstruction *inst);
+
+  /// Called by the pass when changes are made to the SIL.
+  void notifyChanges(SILAnalysis::InvalidationKind invalidationKind);
+
+  /// Called by the pass manager when the pass has finished.
+  void finishedPassRun();
+};
 
 /// The SIL pass manager.
 class SILPassManager {
@@ -78,6 +110,13 @@ class SILPassManager {
 
   /// The number of passes run so far.
   unsigned NumPassesRun = 0;
+
+  /// For invoking Swift passes in libswift.
+  LibswiftPassInvocation libswiftPassInvocation;
+
+  /// Change notifications, collected during a bridged pass run.
+  SILAnalysis::InvalidationKind changeNotifications =
+      SILAnalysis::InvalidationKind::Nothing;
 
   /// A mask which has one bit for each pass. A one for a pass-bit means that
   /// the pass doesn't need to run, because nothing has changed since the
@@ -147,6 +186,10 @@ public:
   /// \returns the associated IGenModule or null if this is not an IRGen
   /// pass manager.
   irgen::IRGenModule *getIRGenModule() { return IRMod; }
+
+  LibswiftPassInvocation *getLibswiftPassInvocation() {
+    return &libswiftPassInvocation;
+  }
 
   /// Restart the function pass pipeline on the same function
   /// that is currently being processed.
@@ -224,6 +267,11 @@ public:
     CurrentPassHasInvalidated = true;
     // Any change let all passes run again.
     CompletedPassesMap[F].reset();
+  }
+
+  void notifyPassChanges(SILAnalysis::InvalidationKind invalidationKind) {
+    changeNotifications = (SILAnalysis::InvalidationKind)
+        (changeNotifications | invalidationKind);
   }
 
   /// Reset the state of the pass manager and remove all transformation
@@ -314,6 +362,11 @@ private:
   /// When asserts are disabled, this is a NoOp.
   void viewCallGraph();
 };
+
+inline void LibswiftPassInvocation::
+notifyChanges(SILAnalysis::InvalidationKind invalidationKind) {
+  passManager->notifyPassChanges(invalidationKind);
+}
 
 } // end namespace swift
 

@@ -22,6 +22,7 @@
 #include "swift/SIL/SILArgumentArrayRef.h"
 #include "swift/SIL/SILInstruction.h"
 #include "swift/SIL/SILArgument.h"
+#include "swift/SIL/SwiftObjectHeader.h"
 #include "llvm/ADT/TinyPtrVector.h"
 
 namespace swift {
@@ -31,13 +32,16 @@ class SILArgument;
 class SILPrintContext;
 
 class SILBasicBlock :
-public llvm::ilist_node<SILBasicBlock>, public SILAllocated<SILBasicBlock> {
+public llvm::ilist_node<SILBasicBlock>, public SILAllocated<SILBasicBlock>,
+public SwiftObjectHeader {
   friend class SILSuccessor;
   friend class SILFunction;
   friend class SILGlobalVariable;
   template <typename, unsigned> friend class BasicBlockData;
   friend class BasicBlockBitfield;
 
+  static SwiftMetatype registeredMetatype;
+    
 public:
   using InstListType = llvm::iplist<SILInstruction>;
 private:
@@ -47,7 +51,7 @@ private:
   /// PrevList - This is a list of all of the terminator operands that are
   /// branching to this block, forming the predecessor list.  This is
   /// automatically managed by the SILSuccessor class.
-  SILSuccessor *PredList;
+  SILSuccessor *PredList = nullptr;
 
   /// This is the list of basic block arguments for this block.
   /// A TinyPtrVector is the right choice, because ~98% of blocks have 0 or 1
@@ -82,14 +86,18 @@ private:
   uint64_t lastInitializedBitfieldID = 0;
 
   friend struct llvm::ilist_traits<SILBasicBlock>;
-  SILBasicBlock() : Parent(nullptr) {}
-  void operator=(const SILBasicBlock &) = delete;
 
+  SILBasicBlock();
+  SILBasicBlock(SILFunction *parent);
+
+  void operator=(const SILBasicBlock &) = delete;
   void operator delete(void *Ptr, size_t) = delete;
 
-  SILBasicBlock(SILFunction *parent) : Parent(parent), PredList(nullptr) { }
-
 public:
+  static void registerBridgedMetatype(SwiftMetatype metatype) {
+    registeredMetatype = metatype;
+  }
+
   ~SILBasicBlock();
 
   /// Gets the ID (= index in the function's block list) of the block.

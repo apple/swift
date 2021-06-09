@@ -125,6 +125,6 @@ public:
 };
 } // end anonymous namespace
 
-SILTransform *swift::createMergeCondFails() {
+SILTransform *swift::createLegacyMergeCondFails() {
   return new MergeCondFailInsts();
 }

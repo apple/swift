@@ -57,10 +57,10 @@ class Output;
 
 namespace swift {
 
-/// A fixed size slab of memory, which can be allocated and freed by the
-/// SILModule at (basically) zero cost.
-class FixedSizeSlab : public llvm::ilist_node<FixedSizeSlab>,
-                       public SILAllocated<FixedSizeSlab> {
+/// The payload for the FixedSizeSlab.
+/// This is a super-class rather than a member of FixedSizeSlab to make briding
+/// with libswift easier.
+class FixedSizeSlabPayload {
 public:
   /// The capacity of the payload.
   static constexpr size_t capacity = 64 * sizeof(uintptr_t);
@@ -78,7 +78,7 @@ private:
   uintptr_t overflowGuard = magicNumber;
 
 public:
-  void operator=(const FixedSizeSlab &) = delete;
+  void operator=(const FixedSizeSlabPayload &) = delete;
   void operator delete(void *Ptr, size_t) = delete;
 
   /// Returns the payload pointing to \p T.
@@ -86,6 +86,16 @@ public:
 
   /// Returns the payload pointing to const \p T
   template<typename T> const T *dataFor() const { return (const T *)(&data[0]); }
+};
+
+/// A fixed size slab of memory, which can be allocated and freed by the
+/// SILModule at (basically) zero cost.
+class FixedSizeSlab : public llvm::ilist_node<FixedSizeSlab>,
+                      public SILAllocated<FixedSizeSlab>,
+                      public FixedSizeSlabPayload {
+public:
+  void operator=(const FixedSizeSlab &) = delete;
+  void operator delete(void *Ptr, size_t) = delete;
 };
 
 class AnyFunctionType;

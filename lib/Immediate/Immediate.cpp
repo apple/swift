@@ -237,26 +237,42 @@ int swift::RunImmediately(CompilerInstance &CI,
   //
   // This must be done here, before any library loading has been done, to avoid
   // racing with the static initializers in user code.
+  // Setup interpreted process arguments.
+  using ArgOverride = void (*)(const char **, int);
+#if defined(_WIN32)
   auto stdlib = loadSwiftRuntime(Context.SearchPathOpts.RuntimeLibraryPaths);
   if (!stdlib) {
     CI.getDiags().diagnose(SourceLoc(),
                            diag::error_immediate_mode_missing_stdlib);
     return -1;
   }
-
-  // Setup interpreted process arguments.
-  using ArgOverride = void (*)(const char **, int);
-#if defined(_WIN32)
   auto module = static_cast<HMODULE>(stdlib);
   auto emplaceProcessArgs = reinterpret_cast<ArgOverride>(
     GetProcAddress(module, "_swift_stdlib_overrideUnsafeArgvArgc"));
   if (emplaceProcessArgs == nullptr)
     return -1;
 #else
+  // In case the compiler is built with libswift, it already has the stdlib
+  // linked to. First try to lookup the symbol with the standard library
+  // resolving.
   auto emplaceProcessArgs
-          = (ArgOverride)dlsym(stdlib, "_swift_stdlib_overrideUnsafeArgvArgc");
-  if (dlerror())
-    return -1;
+     = (ArgOverride)dlsym(RTLD_DEFAULT, "_swift_stdlib_overrideUnsafeArgvArgc");
+
+  if (dlerror()) {
+    // If this does not work (= not build with libswift), we have to explicitly
+    // load the stdlib.
+    auto stdlib = loadSwiftRuntime(Context.SearchPathOpts.RuntimeLibraryPaths);
+    if (!stdlib) {
+      CI.getDiags().diagnose(SourceLoc(),
+                             diag::error_immediate_mode_missing_stdlib);
+      return -1;
+    }
+    dlerror();
+    emplaceProcessArgs
+            = (ArgOverride)dlsym(stdlib, "_swift_stdlib_overrideUnsafeArgvArgc");
+    if (dlerror())
+      return -1;
+  }
 #endif
 
   SmallVector<const char *, 32> argBuf;

@@ -28,6 +28,7 @@
 #include "swift/SIL/SILInstructionWorklist.h"
 #include "swift/SIL/SILValue.h"
 #include "swift/SIL/SILVisitor.h"
+#include "swift/SIL/InstructionUtils.h"
 #include "swift/SILOptimizer/Analysis/ClassHierarchyAnalysis.h"
 #include "swift/SILOptimizer/Analysis/NonLocalAccessBlockAnalysis.h"
 #include "swift/SILOptimizer/Analysis/ProtocolConformanceAnalysis.h"
@@ -35,6 +36,10 @@
 #include "swift/SILOptimizer/Utils/Existential.h"
 #include "swift/SILOptimizer/Utils/InstOptUtils.h"
 #include "swift/SILOptimizer/Utils/OwnershipOptUtils.h"
+#include "swift/SILOptimizer/PassManager/PassManager.h"
+extern "C" {
+#include "swift/SILOptimizer/OptimizerBridging.h"
+}
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 
@@ -101,6 +106,9 @@ class SILCombiner :
 
   /// External context struct used by \see ownershipRAUWHelper.
   OwnershipFixupContext ownershipFixupContext;
+  
+  /// For invoking Swift instruction passes in libswift.
+  LibswiftPassInvocation libswiftPassInvocation;
 
 public:
   SILCombiner(SILFunctionTransform *parentTransform,
@@ -145,7 +153,8 @@ public:
                         /* EraseAction */
                         [&](SILInstruction *I) { eraseInstFromFunction(*I); }),
         deBlocks(&B.getFunction()),
-        ownershipFixupContext(getInstModCallbacks(), deBlocks) {}
+        ownershipFixupContext(getInstModCallbacks(), deBlocks),
+        libswiftPassInvocation(parentTransform->getPassManager(), this) {}
 
   bool runOnFunction(SILFunction &F);
 
@@ -318,10 +327,17 @@ public:
       
   SILInstruction *visitMarkDependenceInst(MarkDependenceInst *MDI);
   SILInstruction *visitClassifyBridgeObjectInst(ClassifyBridgeObjectInst *CBOI);
-  SILInstruction *visitGlobalValueInst(GlobalValueInst *globalValue);
   SILInstruction *visitConvertFunctionInst(ConvertFunctionInst *CFI);
   SILInstruction *
   visitConvertEscapeToNoEscapeInst(ConvertEscapeToNoEscapeInst *Cvt);
+
+  SILInstruction *legacyVisitGlobalValueInst(GlobalValueInst *globalValue);
+
+#define PASS(ID, TAG, DESCRIPTION)
+#define SWIFT_FUNCTION_PASS(ID, TAG, DESCRIPTION)
+#define SWIFT_INSTRUCTION_PASS(INST, TAG) \
+  SILInstruction *visit##INST(INST *);
+#include "swift/SILOptimizer/PassManager/Passes.def"
 
   /// Instruction visitor helpers.
   SILInstruction *optimizeBuiltinCanBeObjCClass(BuiltinInst *AI);
@@ -453,6 +469,10 @@ private:
   bool hasOwnership() const {
     return Builder.hasOwnership();
   }
+  
+  void runSwiftInstructionPass(SILInstruction *inst,
+                               void (*runFunction)(BridgedInstructionPassCtxt));
+
 };
 
 } // end namespace swift

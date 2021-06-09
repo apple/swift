@@ -1,0 +1,10 @@
+module SILBridging {
+  header "SIL/SILBridging.h"
+  export *
+}
+
+module OptimizerBridging {
+  header "SILOptimizer/OptimizerBridging.h"
+  export *
+}
+
