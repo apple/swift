@@ -210,7 +210,7 @@ public class NSKeyValueObservation : NSObject {
         
         @objc private func _swizzle_me_observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSString : Any]?, context: UnsafeMutableRawPointer?) {
             guard let object = object as? NSObject, object === self.object, let change = change else { return }
-            let rawKind:UInt = change[NSKeyValueChangeKey.kindKey.rawValue as NSString] as! UInt
+            let rawKind = change[NSKeyValueChangeKey.kindKey.rawValue as NSString] as! UInt
             let kind = NSKeyValueChange(rawValue: rawKind)!
             let notification = NSKeyValueObservedChange(kind: kind,
                                                         newValue: change[NSKeyValueChangeKey.newKey.rawValue as NSString],
@@ -237,54 +237,64 @@ public class NSKeyValueObservation : NSObject {
     }
 }
 
-// Used for type-erase Optional type
-private protocol _OptionalForKVO {
-    static func _castForKVO(_ value: Any) -> Any?
-}
-
-extension Optional: _OptionalForKVO {
-    static func _castForKVO(_ value: Any) -> Any? {
-        return value as? Wrapped
-    }
-}
-
 extension _KeyValueCodingAndObserving {
-    
-    ///when the returned NSKeyValueObservation is deinited or invalidated, it will stop observing
-    public func observe<Value>(
-            _ keyPath: KeyPath<Self, Value>,
-            options: NSKeyValueObservingOptions = [],
-            changeHandler: @escaping (Self, NSKeyValueObservedChange<Value>) -> Void)
-        -> NSKeyValueObservation {
-        return NSKeyValueObservation(object: self as! NSObject, keyPath: keyPath, options: options) { (obj, change) in
-            
-            let converter = { (changeValue: Any?) -> Value? in
-                if let optionalType = Value.self as? _OptionalForKVO.Type {
-                    // Special logic for keyPath having a optional target value. When the keyPath referencing a nil value, the newValue/oldValue should be in the form .some(nil) instead of .none
-                    // Solve https://bugs.swift.org/browse/SR-6066
-                    
-                    // NSNull is used by KVO to signal that the keyPath value is nil.
-                    // If Value == Optional<T>.self, We will get nil instead of .some(nil) when casting Optional(<null>) directly.
-                    // To fix this behavior, we will eliminate NSNull first, then cast the transformed value.
-                    
-                    if let unwrapped = changeValue {
-                        // We use _castForKVO to cast first.
-                        // If Value != Optional<NSNull>.self, the NSNull value will be eliminated.
-                        let nullEliminatedValue = optionalType._castForKVO(unwrapped) as Any
-                        let transformedOptional: Any? = nullEliminatedValue
-                        return transformedOptional as? Value
-                    }
-                }
-                return changeValue as? Value
-            }
-            
+    private func observation<Value>(for keyPath: AnyKeyPath,
+                                    options: NSKeyValueObservingOptions,
+                                    changeHandler: @escaping (Self, NSKeyValueObservedChange<Value>) -> Void,
+                                    valueConverter: @escaping (Any) -> Value?) -> NSKeyValueObservation {
+        return NSKeyValueObservation(object: self as! NSObject, keyPath: keyPath, options: options) { obj, change in
             let notification = NSKeyValueObservedChange(kind: change.kind,
-                                                        newValue: converter(change.newValue),
-                                                        oldValue: converter(change.oldValue),
+                                                        newValue: change.newValue.flatMap(valueConverter),
+                                                        oldValue: change.oldValue.flatMap(valueConverter),
                                                         indexes: change.indexes,
                                                         isPrior: change.isPrior)
             changeHandler(obj as! Self, notification)
         }
+    }
+
+    ///when the returned NSKeyValueObservation is deinited or invalidated, it will stop observing
+    public func observe<Value>(
+            _ keyPath: KeyPath<Self, Value>,
+            options: NSKeyValueObservingOptions = [],
+            changeHandler: @escaping (Self, NSKeyValueObservedChange<Value>) -> Void) -> NSKeyValueObservation {
+        return observation(for: keyPath, options: options, changeHandler: changeHandler, valueConverter: {
+            // Special logic for keyPath having a optional target value. When the keyPath referencing a nil value, the newValue/oldValue should be in the form .some(nil) instead of .none
+            // Solve https://bugs.swift.org/browse/SR-6066
+
+            // NSNull is used by KVO to signal that the keyPath value is nil.
+            // If Value == Optional<T>.self, We will get nil instead of .some(nil) when casting Optional(<null>) directly.
+            // To fix this behavior, we try to cast Optional<Any>.none to Value in case casting the input to Value fails.
+            // In case of NSNull, the first cast will fail producing nil, but the second cast then allows nil (Optional<Any>.none) to be converted to Value, because it is also Optional<T>.
+            // In any other case, the first cast already succeeds.
+            // If for some reason the input is not of type Value (nor NSNull) and Value is not optional, both casts fail producing nil.
+
+            // Note that this is not necessary for the RawRepresentable overloads below, since there is a concrete overload for optionals.
+            $0 as? Value ?? Optional<Any>.none as? Value
+        })
+    }
+
+    ///when the returned NSKeyValueObservation is deinited or invalidated, it will stop observing
+    public func observe<Value>(
+            _ keyPath: KeyPath<Self, Value>,
+            options: NSKeyValueObservingOptions = [],
+            changeHandler: @escaping (Self, NSKeyValueObservedChange<Value>) -> Void) -> NSKeyValueObservation
+            where Value: RawRepresentable
+    {
+        return observation(for: keyPath, options: options, changeHandler: changeHandler, valueConverter: {
+            ($0 as? Value.RawValue).flatMap(Value.init)
+        })
+    }
+
+    ///when the returned NSKeyValueObservation is deinited or invalidated, it will stop observing
+    public func observe<Value>(
+            _ keyPath: KeyPath<Self, Value?>,
+            options: NSKeyValueObservingOptions = [],
+            changeHandler: @escaping (Self, NSKeyValueObservedChange<Value?>) -> Void) -> NSKeyValueObservation
+            where Value: RawRepresentable
+    {
+        return observation(for: keyPath, options: options, changeHandler: changeHandler, valueConverter: {
+            ($0 as? Value.RawValue).flatMap(Value.init)
+        })
     }
     
     public func willChangeValue<Value>(for keyPath: __owned KeyPath<Self, Value>) {

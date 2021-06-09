@@ -860,6 +860,21 @@ Swift 5.1
 
 ### 2019-09-20 (Xcode 11.0)
 
+* [SR-5872][]:
+
+  When key-value-observing a `RawRepresentable` property using the `KeyPath`-based APIs, the change notification will now have its `oldValue`/`newValue` set correctly (instead of always being nil).
+
+  ```swift
+  @objc enum State: Int { case a, b }
+  class Target: NSObject { @objc dynamic var state: State = .a }
+  let target = Target()
+  target.observe(\.state, options: [.old, .new]) { object, change in
+      change.oldValue // State.a
+      change.newValue // State.b
+  }
+  target.state = .b
+  ```
+
 * [SR-8974][]:
 
   Duplicate tuple element labels are no longer allowed, because it leads
@@ -8547,6 +8562,7 @@ Swift 1.0
 [SR-4248]: <https://bugs.swift.org/browse/SR-4248>
 [SR-5581]: <https://bugs.swift.org/browse/SR-5581>
 [SR-5719]: <https://bugs.swift.org/browse/SR-5719>
+[SR-5872]: <https://bugs.swift.org/browse/SR-5872>
 [SR-6118]: <https://bugs.swift.org/browse/SR-6118>
 [SR-7083]: <https://bugs.swift.org/browse/SR-7083>
 [SR-7139]: <https://bugs.swift.org/browse/SR-7139>
