@@ -30,39 +30,6 @@ extern "C" {
 #endif
 
 SWIFT_RUNTIME_STDLIB_API
-const __swift_uint8_t *_swift_stdlib_GraphemeClusterBreakPropertyTrie;
-
-struct _swift_stdlib_GraphemeClusterBreakPropertyTrieMetadataTy {
-  unsigned BMPFirstLevelIndexBits;
-  unsigned BMPDataOffsetBits;
-  unsigned SuppFirstLevelIndexBits;
-  unsigned SuppSecondLevelIndexBits;
-  unsigned SuppDataOffsetBits;
-
-  unsigned BMPLookupBytesPerEntry;
-  unsigned BMPDataBytesPerEntry;
-  unsigned SuppLookup1BytesPerEntry;
-  unsigned SuppLookup2BytesPerEntry;
-  unsigned SuppDataBytesPerEntry;
-
-  unsigned TrieSize;
-
-  unsigned BMPLookupBytesOffset;
-  unsigned BMPDataBytesOffset;
-  unsigned SuppLookup1BytesOffset;
-  unsigned SuppLookup2BytesOffset;
-  unsigned SuppDataBytesOffset;
-};
-
-SWIFT_RUNTIME_STDLIB_API
-const struct _swift_stdlib_GraphemeClusterBreakPropertyTrieMetadataTy
-_swift_stdlib_GraphemeClusterBreakPropertyTrieMetadata;
-
-SWIFT_RUNTIME_STDLIB_API
-const __swift_uint16_t *
-_swift_stdlib_ExtendedGraphemeClusterNoBoundaryRulesMatrix;
-
-SWIFT_RUNTIME_STDLIB_API
 __swift_int32_t _swift_stdlib_unicode_strToUpper(
   __swift_uint16_t *Destination, __swift_int32_t DestinationCapacity,
   const __swift_uint16_t *Source, __swift_int32_t SourceLength);
@@ -362,17 +329,6 @@ typedef enum __swift_stdlib_UErrorCode {
   __swift_stdlib_U_ERROR_LIMIT = __swift_stdlib_U_PLUGIN_ERROR_LIMIT
 } __swift_stdlib_UErrorCode;
 
-typedef enum __swift_stdlib_UBreakIteratorType {
-  __swift_stdlib_UBRK_CHARACTER = 0,
-  __swift_stdlib_UBRK_WORD = 1,
-  __swift_stdlib_UBRK_LINE = 2,
-  __swift_stdlib_UBRK_SENTENCE = 3,
-#ifndef U_HIDE_DEPRECATED_API
-  __swift_stdlib_UBRK_TITLE = 4,
-#endif
-  __swift_stdlib_UBRK_COUNT = 5
-} __swift_stdlib_UBreakIteratorType;
-
 typedef enum __swift_stdlib_UCharCategory {
   __swift_stdlib_U_UNASSIGNED              = 0,
   __swift_stdlib_U_GENERAL_OTHER_TYPES     = 0,
@@ -447,47 +403,6 @@ typedef __swift_uint16_t __swift_stdlib_UChar;
 #define __SWIFT_STDLIB_U_MAX_VERSION_LENGTH 4
 typedef __swift_uint8_t
     __swift_stdlib_UVersionInfo[__SWIFT_STDLIB_U_MAX_VERSION_LENGTH];
-
-SWIFT_RUNTIME_STDLIB_API
-void __swift_stdlib_ubrk_close(__swift_stdlib_UBreakIterator *bi);
-
-SWIFT_RUNTIME_STDLIB_API
-__swift_stdlib_UBreakIterator *
-__swift_stdlib_ubrk_open(__swift_stdlib_UBreakIteratorType type,
-                         const char *_Nullable locale,
-                         const __swift_stdlib_UChar *_Null_unspecified text,
-                         __swift_int32_t textLength,
-                         __swift_stdlib_UErrorCode *status);
-
-SWIFT_RUNTIME_STDLIB_API
-void __swift_stdlib_ubrk_setUText(__swift_stdlib_UBreakIterator *bi,
-                                  __swift_stdlib_UText *text,
-                                  __swift_stdlib_UErrorCode *status);
-
-SWIFT_RUNTIME_STDLIB_API
-void __swift_stdlib_ubrk_setText(__swift_stdlib_UBreakIterator *bi,
-                                 const __swift_stdlib_UChar *text,
-                                 __swift_int32_t textLength,
-                                 __swift_stdlib_UErrorCode *status);
-
-SWIFT_RUNTIME_STDLIB_API
-__swift_stdlib_UText *
-__swift_stdlib_utext_openUTF8(__swift_stdlib_UText *_Nullable, const char *,
-                              __swift_int64_t, __swift_stdlib_UErrorCode *);
-
-SWIFT_RUNTIME_STDLIB_API
-__swift_stdlib_UText *
-__swift_stdlib_utext_openUChars(__swift_stdlib_UText *_Nullable,
-                                const __swift_stdlib_UChar *, __swift_int64_t,
-                                __swift_stdlib_UErrorCode *);
-
-SWIFT_RUNTIME_STDLIB_API
-__swift_int32_t __swift_stdlib_ubrk_preceding(__swift_stdlib_UBreakIterator *bi,
-                                              __swift_int32_t offset);
-
-SWIFT_RUNTIME_STDLIB_API
-__swift_int32_t __swift_stdlib_ubrk_following(__swift_stdlib_UBreakIterator *bi,
-                                              __swift_int32_t offset);
 
 SWIFT_RUNTIME_STDLIB_API
 __swift_stdlib_UBool
