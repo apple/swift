@@ -35,43 +35,47 @@
 internal struct GraphemeWalker {
   // This is either a buffer of utf8 code units for native Swift strings, or
   // a buffer of utf16 code units when working with bridged NSStrings.
-  let buffer: UnsafeRawBufferPointer
+  let bufferAddress: UnsafeRawPointer
+  let bufferCount: Int
+
   var offset = 0
   var stride = 0
   var isUTF8 = true
 
-  var inEmojiSequence = false
-  var shouldBreakRI = false
+  var inEmojiSequence: Bool? = nil
+  var shouldBreakRI: Bool? = nil
 
   var utf8: UnsafeBufferPointer<UInt8> {
     _internalInvariant(isUTF8)
 
-    let base = buffer.baseAddress._unsafelyUnwrappedUnchecked
-
     // This is ok because we're given a typed buffer to UInt8 that we type
     // erase on init.
-    let start = base.assumingMemoryBound(to: UInt8.self)
-    return UnsafeBufferPointer(start: start, count: buffer.count)
+    let start = bufferAddress.assumingMemoryBound(to: UInt8.self)
+    return UnsafeBufferPointer(start: start, count: bufferCount)
   }
 
   var utf16: UnsafeBufferPointer<UInt16> {
     _internalInvariant(!isUTF8)
 
-    let base = buffer.baseAddress._unsafelyUnwrappedUnchecked
-
     // This is ok because we're given a typed buffer to UInt16 that we type
     // erase on init.
-    let start = base.assumingMemoryBound(to: UInt16.self)
-    return UnsafeBufferPointer(start: start, count: buffer.count)
+    let start = bufferAddress.assumingMemoryBound(to: UInt16.self)
+    return UnsafeBufferPointer(start: start, count: bufferCount)
   }
 
   init(buffer: UnsafeBufferPointer<UInt8>, offset: Int) {
-    self.buffer = UnsafeRawBufferPointer(buffer)
+    self.bufferAddress = UnsafeRawPointer(
+      buffer.baseAddress._unsafelyUnwrappedUnchecked
+    )
+    self.bufferCount = buffer.count
     self.offset = offset
   }
 
   init(buffer: UnsafeBufferPointer<UInt16>, offset: Int) {
-    self.buffer = UnsafeRawBufferPointer(buffer)
+    self.bufferAddress = UnsafeRawPointer(
+      buffer.baseAddress._unsafelyUnwrappedUnchecked
+    )
+    self.bufferCount = buffer.count
     self.offset = offset
 
     self.isUTF8 = false
@@ -87,9 +91,22 @@ internal struct GraphemeWalker {
     }
   }
 
+  func decodeScalar(endingAt idx: Int) -> (Unicode.Scalar, Int) {
+    if isUTF8 {
+      return _decodeScalar(utf8, endingAt: idx)
+
+    // We're UTF16
+    } else {
+      return _decodeScalar(utf16, endingAt: idx)
+    }
+  }
+
   // Returns the stride of the next grapheme cluster at the previous boundary at
   // offset.
   mutating func nextStride() -> Int {
+    inEmojiSequence = false
+    shouldBreakRI = false
+
     while true {
       let (sc1, len1) = decodeScalar(startingAt: offset &+ stride)
 
@@ -106,8 +123,33 @@ internal struct GraphemeWalker {
 
       // If we've reached the end of the buffer, then there's nothing else for
       // us to do.
-      if (offset &+ stride &+ len2) == buffer.count {
+      if offset &+ stride &+ len2 == bufferCount {
         return stride &+ len2
+      }
+    }
+  }
+
+  // Returns the stride of the previous grapheme cluster at the current boundary
+  // at offset.
+  mutating func previousStride() -> Int {
+    while true {
+      let (sc2, len2) = decodeScalar(endingAt: offset &- stride)
+
+      stride &+= len2
+
+      let (sc1, len1) = decodeScalar(endingAt: offset &- stride)
+
+      let gbp1 = Unicode.GraphemeBreakProperty(from: sc1)
+      let gbp2 = Unicode.GraphemeBreakProperty(from: sc2)
+
+      if shouldBreak(gbp1, between: gbp2) {
+        return stride
+      }
+
+      // If we've reached the beginning of the buffer, then there's nothing else
+      // for us to do.
+      if offset &- stride &- len1 == 0 {
+        return stride &+ len1
       }
     }
   }
@@ -168,7 +210,8 @@ internal struct GraphemeWalker {
     case (_, .extend),
          (_, .zwj),
          (_, .spacingMark):
-      if inEmojiSequence || x == .extendedPictographic, y != .spacingMark {
+      if inEmojiSequence ?? false || x == .extendedPictographic,
+         y != .spacingMark {
         enterEmojiSequence = true
       }
       return false
@@ -179,7 +222,12 @@ internal struct GraphemeWalker {
 
     // GB11
     case (.zwj, .extendedPictographic):
-      if inEmojiSequence {
+      // This is only ever nil when walking backwards.
+      if inEmojiSequence == nil {
+        checkIfInEmojiSequence()
+      }
+
+      if inEmojiSequence! {
         return false
       } else {
         return true
@@ -187,12 +235,145 @@ internal struct GraphemeWalker {
 
     // GB12 & GB13
     case (.regionalIndicator, .regionalIndicator):
-      shouldBreakRI.toggle()
-      return !shouldBreakRI
+      // This is only ever nil when walking backwards.
+      if shouldBreakRI == nil {
+        countRIs()
+      }
+
+      shouldBreakRI?.toggle()
+      return !shouldBreakRI!
 
     // GB999
     default:
       return true
     }
+  }
+
+  // When walking backwards, it's impossible to know whether we were in an emoji
+  // sequence without walking further backwards. This walks the string backwards
+  // enough until we figure out whether or not to break our
+  // (.zwj, .extendedPictographic) question. For example:
+  //
+  // Scalar view #1:
+  //
+  //     [.control, .zwj, .extendedPictographic]
+  //                     ^
+  //                     | = To determine whether or not we break here, we need
+  //                         to see the previous scalar's grapheme property.
+  //          ^
+  //          | = This is neither .extendedPictographic nor .extend, thus we
+  //              were never in an emoji sequence, so break between the .zwj
+  //              and .extendedPictographic.
+  //
+  // Scalar view #2:
+  //
+  //     [.extendedPictographic, .zwj, .extendedPictographic]
+  //                                  ^
+  //                                  | = Same as above, move backwards one to
+  //                                      view the previous scalar's property.
+  //                ^
+  //                | = This is an .extendedPictographic, so this indicates that
+  //                    we are in an emoji sequence, so we should NOT break
+  //                    between the .zwj and .extendedPictographic.
+  //
+  // Scalar view #3:
+  //
+  //     [.extendedPictographic, .extend, .extend, .zwj, .extendedPictographic]
+  //                                                    ^
+  //                                                    | = Same as above
+  //                                         ^
+  //                                         | = This is an .extend which means
+  //                                             there is a potential emoji
+  //                                             sequence, walk further backwards
+  //                                             to find an .extendedPictographic.
+  //
+  //                               <-- = Another extend, go backwards more.
+  //                ^
+  //                | = We found our starting .extendedPictographic letting us
+  //                    know that we are in an emoji sequence so our initial
+  //                    break question is answered as NO.
+  mutating func checkIfInEmojiSequence() {
+    let (_, currentLen) = decodeScalar(endingAt: offset &- stride)
+
+    guard offset &- stride &- currentLen != 0 else {
+      inEmojiSequence = false
+      return
+    }
+
+    var emojiStride = currentLen
+
+    repeat {
+      let (sc, len) = decodeScalar(endingAt: offset &- stride &- emojiStride)
+      let gbp = Unicode.GraphemeBreakProperty(from: sc)
+
+      emojiStride += len
+
+      switch gbp {
+      case .extend:
+        continue
+      case .extendedPictographic:
+        inEmojiSequence = true
+        return
+      default:
+        inEmojiSequence = false
+        return
+      }
+    } while offset &- stride &- emojiStride != 0
+  }
+
+  // When walking backwards, it's impossible to know whether we break when we
+  // see our first (.regionalIndicator, .regionalIndicator) without walking
+  // further backwards. This walks the string backwards enough until we figure
+  // out whether or not to break these RIs. For example:
+  //
+  // Scalar view #1:
+  //
+  //     [.control, .regionalIndicator, .regionalIndicator]
+  //                                   ^
+  //                                   | = To be able to know whether or not to
+  //                                       break these two, we need to walk
+  //                                       backwards to determine if there were
+  //                                       any previous .regionalIndicators in
+  //                                       a row.
+  //         ^
+  //         | = Not a .regionalIndicator, so our total riCount is 0 and 0 is
+  //             even thus we do not break.
+  //
+  // Scalar view #2:
+  //
+  //     [.control, .regionalIndicator, .regionalIndicator, .regionalIndicator]
+  //                                                       ^
+  //                                                       | = Same as above
+  //                         ^
+  //                         | = This is a .regionalIndicator, so continue
+  //                             walking backwards for more of them. riCount is
+  //                             now equal to 1.
+  //         ^
+  //         | = Not a .regionalIndicator. riCount = 1 which is odd, so break
+  //             the last two .regionalIndicators.
+  mutating func countRIs() {
+    let (_, currentLen) = decodeScalar(endingAt: offset &- stride)
+
+    guard offset &- stride &- currentLen != 0 else {
+      shouldBreakRI = false
+      return
+    }
+
+    var riCount = 0
+    var riStride = currentLen
+
+    repeat {
+      let (sc, len) = decodeScalar(endingAt: offset &- stride &- riStride)
+      let gbp = Unicode.GraphemeBreakProperty(from: sc)
+
+      guard gbp == .regionalIndicator else {
+        break
+      }
+
+      riCount += 1
+      riStride += len
+    } while (offset &- stride &- riStride) != 0
+
+    shouldBreakRI = riCount & 1 != 0
   }
 }
