@@ -425,6 +425,29 @@ tryCastUnwrappingObjCSwiftValueSource(
       destFailureType, srcFailureType,
       /*takeOnSuccess=*/ false, mayDeferChecks);
 }
+#else
+static DynamicCastResult
+tryCastUnwrappingSwiftValueSource(
+  OpaqueValue *destLocation, const Metadata *destType,
+  OpaqueValue *srcValue, const Metadata *srcType,
+  const Metadata *&destFailureType, const Metadata *&srcFailureType,
+  bool takeOnSuccess, bool mayDeferChecks)
+{
+    const Metadata *srcInnerType;
+    const OpaqueValue *srcInnerValue;
+    if (swift_unboxFromSwiftValueWithType(srcValue, &srcInnerValue, &srcInnerType)) {
+      return DynamicCastResult::SuccessViaCopy;
+    }
+
+    // Note: We never `take` the contents from a SwiftValue box as
+    // it might have other references.  Instead, let our caller
+    // destroy the reference if necessary.
+    return tryCast(
+      destLocation, destType,
+      const_cast<OpaqueValue *>(srcInnerValue), srcInnerType,
+      destFailureType, srcFailureType,
+      /*takeOnSuccess=*/ false, mayDeferChecks);
+}
 #endif
 
 /******************************************************************************/
@@ -1461,6 +1484,16 @@ tryCastToClassExistential(
   }
 
   case MetadataKind::ObjCClassWrapper:
+#if SWIFT_OBJC_INTEROP
+    id srcObject;
+    memcpy(&srcObject, srcValue, sizeof(id));
+    if (getAsSwiftValue(srcObject) != nullptr) {
+      // Do not directly cast a `__SwiftValue` box
+      // Return failure so our caller will unwrap and try again
+      return DynamicCastResult::Failure;
+    }
+#endif
+    SWIFT_FALLTHROUGH;
   case MetadataKind::Class:
   case MetadataKind::ForeignClass: {
     auto srcObject = getNonNullSrcObject(srcValue, srcType, destType);
@@ -2079,8 +2112,11 @@ tryCast(
   case MetadataKind::Class: {
 #if !SWIFT_OBJC_INTEROP
     // Try unwrapping native __SwiftValue implementation
-    if (swift_unboxFromSwiftValueWithType(srcValue, destLocation, destType)) {
-      return DynamicCastResult::SuccessViaCopy;
+    auto subcastResult = tryCastUnwrappingSwiftValueSource(
+      destLocation, destType, srcValue, srcType,
+      destFailureType, srcFailureType, takeOnSuccess, mayDeferChecks);
+    if (isSuccess(subcastResult)) {
+      return subcastResult;
     }
 #endif
     break;
