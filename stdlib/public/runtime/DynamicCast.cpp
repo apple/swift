@@ -433,21 +433,14 @@ tryCastUnwrappingSwiftValueSource(
   const Metadata *&destFailureType, const Metadata *&srcFailureType,
   bool takeOnSuccess, bool mayDeferChecks)
 {
-    const Metadata *srcInnerType;
-    const OpaqueValue *srcInnerValue;
-    if (swift_unboxFromSwiftValueWithType(srcValue,
-       reinterpret_cast<OpaqueValue *>(&srcInnerValue), &srcInnerType)) {
-      return DynamicCastResult::SuccessViaCopy;
-    }
+  assert(srcType->getKind() == MetadataKind::Class);
 
-    // Note: We never `take` the contents from a SwiftValue box as
-    // it might have other references.  Instead, let our caller
-    // destroy the reference if necessary.
-    return tryCast(
-      destLocation, destType,
-      const_cast<OpaqueValue *>(srcInnerValue), srcInnerType,
-      destFailureType, srcFailureType,
-      /*takeOnSuccess=*/ false, mayDeferChecks);
+  // unboxFromSwiftValueWithType is really just a recursive casting operation...
+  if (swift_unboxFromSwiftValueWithType(srcValue, destLocation, destType)) {
+    return DynamicCastResult::SuccessViaCopy;
+  } else {
+    return DynamicCastResult::Failure;
+  }
 }
 #endif
 
