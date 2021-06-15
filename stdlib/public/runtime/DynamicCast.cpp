@@ -435,7 +435,8 @@ tryCastUnwrappingSwiftValueSource(
 {
     const Metadata *srcInnerType;
     const OpaqueValue *srcInnerValue;
-    if (swift_unboxFromSwiftValueWithType(srcValue, &srcInnerValue, &srcInnerType)) {
+    if (swift_unboxFromSwiftValueWithType(srcValue,
+       reinterpret_cast<OpaqueValue *>(&srcInnerValue), &srcInnerType)) {
       return DynamicCastResult::SuccessViaCopy;
     }
 
