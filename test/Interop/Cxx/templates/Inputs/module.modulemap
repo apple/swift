@@ -117,3 +117,8 @@ module LargeClassTemplates {
   header "large-class-templates.h"
   requires cplusplus
 }
+
+module DefaultedTemplateTypeParameter {
+  header "defaulted-template-type-parameter.h"
+  requires cplusplus
+}
