@@ -99,141 +99,46 @@ extension _StringGuts {
   @usableFromInline @inline(never)
   @_effects(releasenone)
   internal func _opaqueCharacterStride(startingAt i: Int) -> Int {
-    if _slowPath(isForeign) {
-      return _foreignOpaqueCharacterStride(startingAt: i)
-    }
+    var idx = String.Index(_encodedOffset: i)
+    let scalars = String.UnicodeScalarView(self)
 
-    return self.withFastUTF8 { utf8 in
-      let (sc1, len) = _decodeScalar(utf8, startingAt: i)
-      if i &+ len == utf8.endIndex {
-        // Last scalar is last grapheme
-        return len
-      }
-      let (sc2, _) = _decodeScalar(utf8, startingAt: i &+ len)
-      if _fastPath(_hasGraphemeBreakBetween(sc1, sc2)) {
-        return len
-      }
+    let sc1 = scalars[idx]
+    scalars.formIndex(after: &idx)
 
-      var walker = GraphemeWalker(buffer: utf8, offset: i)
-      return walker.nextStride()
-    }
-  }
-
-  @inline(never)
-  @_effects(releasenone)
-  private func _foreignOpaqueCharacterStride(startingAt i: Int) -> Int {
-#if _runtime(_ObjC)
-    _internalInvariant(isForeign)
-
-    // TODO(String performance): Faster to do it from a pointer directly
-    let count = _object.largeCount
-    let cocoa = _object.cocoaObject
-
-    let startIdx = String.Index(_encodedOffset: i)
-    let (sc1, len) = foreignErrorCorrectedScalar(startingAt: startIdx)
-    if i &+ len == count {
+    if idx == scalars.endIndex {
       // Last scalar is last grapheme
-      return len
+      return idx._encodedOffset &- i
     }
-    let (sc2, _) = foreignErrorCorrectedScalar(
-      startingAt: startIdx.encoded(offsetBy: len))
+
+    let sc2 = scalars[idx]
     if _fastPath(_hasGraphemeBreakBetween(sc1, sc2)) {
-      return len
+      return idx._encodedOffset &- i
     }
 
-    if let utf16Ptr = _stdlib_binary_CFStringGetCharactersPtr(cocoa) {
-      let utf16 = UnsafeBufferPointer(start: utf16Ptr, count: count)
-      
-      var walker = GraphemeWalker(buffer: utf16, offset: i)
-      return walker.nextStride()
-    }
-
-    // TODO(String performance): Local small stack first, before making large
-    // array. Also, make a smaller initial array and grow over time.
-    let codeUnits = Array<UInt16>(unsafeUninitializedCapacity: count) { buf, initializedCount in
-        _cocoaStringCopyCharacters(
-          from: cocoa,
-          range: 0..<count,
-          into: buf.baseAddress._unsafelyUnwrappedUnchecked)
-        initializedCount = count
-    }
-    return codeUnits.withUnsafeBufferPointer {
-      var walker = GraphemeWalker(buffer: $0, offset: i)
-      return walker.nextStride()
-    }
-#else
-  fatalError("No foreign strings on Linux in this version of Swift")
-#endif
+    var iter = GraphemeIterator(String(self), offset: i)
+    return iter.next()._unsafelyUnwrappedUnchecked
   }
 
   @usableFromInline @inline(never)
   @_effects(releasenone)
   internal func _opaqueCharacterStride(endingAt i: Int) -> Int {
-    if _slowPath(isForeign) {
-      return _foreignOpaqueCharacterStride(endingAt: i)
-    }
+    var idx = String.Index(_encodedOffset: i)
+    let scalars = String.UnicodeScalarView(self)
+    scalars.formIndex(before: &idx)
 
-    return self.withFastUTF8 { utf8 in
-      let (sc2, len) = _decodeScalar(utf8, endingAt: i)
-      if i &- len == utf8.startIndex {
-        // First scalar is first grapheme
-        return len
-      }
-      let (sc1, _) = _decodeScalar(utf8, endingAt: i &- len)
-      if _fastPath(_hasGraphemeBreakBetween(sc1, sc2)) {
-        return len
-      }
-
-      var walker = GraphemeWalker(buffer: utf8, offset: i)
-      return walker.previousStride()
-    }
-  }
-
-  @inline(never)
-  @_effects(releasenone)
-  private func _foreignOpaqueCharacterStride(endingAt i: Int) -> Int {
-#if _runtime(_ObjC)
-    _internalInvariant(isForeign)
-
-    // TODO(String performance): Faster to do it from a pointer directly
-    let count = _object.largeCount
-    let cocoa = _object.cocoaObject
-
-    let endIdx = String.Index(_encodedOffset: i)
-    let (sc2, len) = foreignErrorCorrectedScalar(endingAt: endIdx)
-    if i &- len == 0 {
+    let sc2 = scalars[idx]
+    if idx == scalars.startIndex {
       // First scalar is first grapheme
-      return len
+      return i &- idx._encodedOffset
     }
-    let (sc1, _) = foreignErrorCorrectedScalar(
-      endingAt: endIdx.encoded(offsetBy: -len))
+
+    let sc1 = scalars[scalars.index(before: idx)]
     if _fastPath(_hasGraphemeBreakBetween(sc1, sc2)) {
-      return len
+      return i &- idx._encodedOffset
     }
 
-    if let utf16Ptr = _stdlib_binary_CFStringGetCharactersPtr(cocoa) {
-      let utf16 = UnsafeBufferPointer(start: utf16Ptr, count: count)
-      
-      var walker = GraphemeWalker(buffer: utf16, offset: i)
-      return walker.previousStride()
-    }
-
-    // TODO(String performance): Local small stack first, before making large
-    // array. Also, make a smaller initial array and grow over time.
-    let codeUnits = Array<UInt16>(unsafeUninitializedCapacity: count) { buf, initializedCount in
-        _cocoaStringCopyCharacters(
-          from: cocoa,
-          range: 0..<count,
-          into: buf.baseAddress._unsafelyUnwrappedUnchecked)
-        initializedCount = count
-    }
-    return codeUnits.withUnsafeBufferPointer {
-      var walker = GraphemeWalker(buffer: $0, offset: i)
-      return walker.previousStride()
-    }
-#else
-  fatalError("No foreign strings on Linux in this version of Swift")
-#endif
+    var iter = GraphemeIterator(String(self), offset: i)
+    return iter.previous()._unsafelyUnwrappedUnchecked
   }
 }
 

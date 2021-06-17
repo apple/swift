@@ -8,7 +8,7 @@
     "CString.swift",
     "Character.swift",
     "CharacterProperties.swift",
-    "GraphemeWalker.swift",
+    "GraphemeIterator.swift",
     "ICU.swift",
     "NormalizedCodeUnitIterator.swift",
     "SmallString.swift",
