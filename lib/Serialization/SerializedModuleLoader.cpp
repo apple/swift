@@ -973,6 +973,12 @@ bool swift::extractCompilerFlagsFromInterface(StringRef buffer,
     return true;
   assert(FlagMatches.size() == 2);
   llvm::cl::TokenizeGNUCommandLine(FlagMatches[1], ArgSaver, SubArgs);
+  auto targetIt = llvm::find_if(SubArgs,
+                                [](const char* arg) { return strcmp("-target", arg) == 0;} );
+  if (targetIt != SubArgs.end()) {
+    assert(targetIt + 1 != SubArgs.end());
+    SubArgs.erase(targetIt, targetIt + 2);
+  }
   SmallVector<StringRef, 1> IgnFlagMatches;
   // Cherry-pick supported options from the ignorable list.
   auto IgnFlagRe = llvm::Regex("^// swift-module-flags-ignorable:(.*)$",
