@@ -13,11 +13,51 @@
 import Swift
 
 @available(SwiftStdlib 5.5, *)
-public struct AsyncThrowingStream<Element> {
+public struct AsyncThrowingStream<Element, Failure: Error> {
   public struct Continuation: Sendable {
+    /// Indication of the type of termination informed to
+    /// `onTermination`.
     public enum Termination {
-      case finished(Error?)
+      
+      /// The stream was finished via the `finish` method
+      case finished(Failure?)
+      
+      /// The stream was cancelled
       case cancelled
+    }
+    
+    /// A result of yielding values.
+    public enum YieldResult {
+      
+      /// When a value is successfully enqueued, either buffered
+      /// or immediately consumed to resume a pending call to next
+      /// and a count of remaining slots available in the buffer at
+      /// the point in time of yielding. Note: transacting upon the
+      /// remaining count is only valid when then calls to yield are
+      /// mutually exclusive.
+      case enqueued(remaining: Int)
+      
+      /// Yielding resulted in not buffering an element because the
+      /// buffer was full. The element is the dropped value.
+      case dropped(Element)
+      
+      /// Indication that the continuation was yielded when the
+      /// stream was already in a terminal state: either by cancel or
+      /// by finishing.
+      case terminated
+    }
+    
+    /// A strategy that handles exhaustion of a buffer’s capacity.
+    public enum BufferingPolicy {
+      case unbounded
+      
+      /// When the buffer is full, discard the newly received element.
+      /// This enforces keeping the specified amount of oldest values.
+      case bufferingOldest(Int)
+      
+      /// When the buffer is full, discard the oldest element in the buffer.
+      /// This enforces keeping the specified amount of newest values.
+      case bufferingNewest(Int)
     }
 
     let storage: _Storage
@@ -30,7 +70,8 @@ public struct AsyncThrowingStream<Element> {
     ///
     /// This can be called more than once and returns to the caller immediately
     /// without blocking for any awaiting consumption from the iteration.
-    public func yield(_ value: __owned Element) {
+    @discardableResult
+    public func yield(_ value: __owned Element) -> YieldResult {
       storage.yield(value)
     }
 
@@ -43,19 +84,20 @@ public struct AsyncThrowingStream<Element> {
     /// than once does not alter the state beyond the requirements of
     /// AsyncSequence; which claims that all values past a terminal state are
     /// nil.
-    public func finish(throwing error: __owned Error? = nil) {
+    public func finish(throwing error: __owned Failure? = nil) {
       storage.finish(throwing: error)
     }
 
-    /// A callback to invoke when iteration of a AsyncThrowingStream is cancelled.
+    /// A callback to invoke when iteration of a AsyncThrowingStream is 
+    /// cancelled.
     ///
-    /// If an `onTermination` callback is set, when iteration of a AsyncStream is
-    /// cancelled via task cancellation that callback is invoked. The callback
-    /// is disposed of after any terminal state is reached.
+    /// If an `onTermination` callback is set, when iteration of a AsyncStream 
+    /// is cancelled via task cancellation that callback is invoked. The
+    /// callback is disposed of after any terminal state is reached.
     ///
-    /// Cancelling an active iteration will first invoke the onTermination callback
-    /// and then resume yeilding nil. This means that any cleanup state can be
-    /// emitted accordingly in the cancellation handler
+    /// Cancelling an active iteration will first invoke the onTermination 
+    /// callback and then resume yeilding nil. This means that any cleanup state
+    /// can be emitted accordingly in the cancellation handler
     public var onTermination: (@Sendable (Termination) -> Void)? {
       get {
         return storage.getOnTermination()
@@ -73,7 +115,8 @@ public struct AsyncThrowingStream<Element> {
   /// - Parameter elementType: The type the AsyncStream will produce.
   /// - Parameter maxBufferedElements: The maximum number of elements to
   ///   hold in the buffer past any checks for continuations being resumed.
-  /// - Parameter build: The work associated with yielding values to the AsyncStream.
+  /// - Parameter build: The work associated with yielding values to the 
+  ///   AsyncStream.
   ///
   /// The maximum number of pending elements limited by dropping the oldest
   /// value when a new value comes in if the buffer would excede the limit
@@ -85,12 +128,18 @@ public struct AsyncThrowingStream<Element> {
   /// concurrent contexts could result in out of order delivery.
   public init(
     _ elementType: Element.Type = Element.self,
-    maxBufferedElements limit: Int = .max,
+    bufferingPolicy limit: Continuation.BufferingPolicy = .unbounded,
     _ build: (Continuation) -> Void
-  ) {
+  ) where Failure == Error {
     let storage: _Storage = .create(limit: limit)
-    produce = storage.next
+    self.init(unfolding: storage.next)
     build(Continuation(storage: storage))
+  }
+  
+  public init(
+    unfolding produce: @escaping () async throws -> Element?
+  ) {
+    self.produce = produce
   }
 }
 
@@ -126,14 +175,16 @@ extension AsyncThrowingStream.Continuation {
   ///
   /// This can be called more than once and returns to the caller immediately
   /// without blocking for any awaiting consuption from the iteration.
-  public func yield<Failure: Error>(
+  @discardableResult
+  public func yield(
     with result: Result<Element, Failure>
-  ) {
+  ) -> YieldResult where Failure == Error {
     switch result {
-      case .success(let val):
-        storage.yield(val)
-      case .failure(let err):
-        storage.finish(throwing: err)
+    case .success(let val):
+      return storage.yield(val)
+    case .failure(let err):
+      storage.finish(throwing: err)
+      return .terminated
     }
   }
 
@@ -143,7 +194,8 @@ extension AsyncThrowingStream.Continuation {
   ///
   /// This can be called more than once and returns to the caller immediately
   /// without blocking for any awaiting consuption from the iteration.
-  public func yield() where Element == Void {
+  @discardableResult
+  public func yield() -> YieldResult where Element == Void {
     storage.yield(())
   }
 }

@@ -49,9 +49,49 @@ import Swift
 @available(SwiftStdlib 5.5, *)
 public struct AsyncStream<Element> {
   public struct Continuation: Sendable {
+    /// Indication of the type of termination informed to
+    /// `onTermination`.
     public enum Termination {
+      
+      /// The stream was finished via the `finish` method
       case finished
+      
+      /// The stream was cancelled
       case cancelled
+    }
+    
+    /// A result of yielding values.
+    public enum YieldResult {
+      
+      /// When a value is successfully enqueued, either buffered
+      /// or immediately consumed to resume a pending call to next
+      /// and a count of remaining slots available in the buffer at
+      /// the point in time of yielding. Note: transacting upon the
+      /// remaining count is only valid when then calls to yield are
+      /// mutually exclusive.
+      case enqueued(remaining: Int)
+      
+      /// Yielding resulted in not buffering an element because the
+      /// buffer was full. The element is the dropped value.
+      case dropped(Element)
+      
+      /// Indication that the continuation was yielded when the
+      /// stream was already in a terminal state: either by cancel or
+      /// by finishing.
+      case terminated
+    }
+    
+    /// A strategy that handles exhaustion of a buffer’s capacity.
+    public enum BufferingPolicy {
+      case unbounded
+      
+      /// When the buffer is full, discard the newly received element.
+      /// This enforces keeping the specified amount of oldest values.
+      case bufferingOldest(Int)
+      
+      /// When the buffer is full, discard the oldest element in the buffer.
+      /// This enforces keeping the specified amount of newest values.
+      case bufferingNewest(Int)
     }
 
     let storage: _Storage
@@ -64,7 +104,8 @@ public struct AsyncStream<Element> {
     ///
     /// This can be called more than once and returns to the caller immediately
     /// without blocking for any awaiting consuption from the iteration.
-    public func yield(_ value: __owned Element) {
+    @discardableResult
+    public func yield(_ value: __owned Element) -> YieldResult {
       storage.yield(value)
     }
 
@@ -85,9 +126,9 @@ public struct AsyncStream<Element> {
     /// cancelled via task cancellation that callback is invoked. The callback
     /// is disposed of after any terminal state is reached.
     ///
-    /// Cancelling an active iteration will first invoke the onTermination callback
-    /// and then resume yeilding nil. This means that any cleanup state can be
-    /// emitted accordingly in the cancellation handler
+    /// Cancelling an active iteration will first invoke the onTermination 
+    /// callback and then resume yeilding nil. This means that any cleanup state
+    /// can be emitted accordingly in the cancellation handler.
     public var onTermination: (@Sendable (Termination) -> Void)? {
       get {
         return storage.getOnTermination()
@@ -105,7 +146,8 @@ public struct AsyncStream<Element> {
   /// - Parameter elementType: The type the AsyncStream will produce.
   /// - Parameter maxBufferedElements: The maximum number of elements to
   ///   hold in the buffer past any checks for continuations being resumed.
-  /// - Parameter build: The work associated with yielding values to the AsyncStream.
+  /// - Parameter build: The work associated with yielding values to the 
+  ///   AsyncStream.
   ///
   /// The maximum number of pending elements limited by dropping the oldest
   /// value when a new value comes in if the buffer would excede the limit
@@ -117,12 +159,33 @@ public struct AsyncStream<Element> {
   /// concurrent contexts could result in out of order delivery.
   public init(
     _ elementType: Element.Type = Element.self,
-    maxBufferedElements limit: Int = .max,
+    bufferingPolicy limit: Continuation.BufferingPolicy = .unbounded,
     _ build: (Continuation) -> Void
   ) {
     let storage: _Storage = .create(limit: limit)
-    produce = storage.next
+    self.init(unfolding: storage.next)
     build(Continuation(storage: storage))
+  }
+
+  
+  public init(
+    unfolding produce: @escaping () async -> Element?, 
+    onCancel: (@Sendable () -> Void)? = nil
+  ) {
+    let storage: _AsyncStreamCriticalStorage<Optional<() async -> Element?>>
+      = .create(produce)
+    self.produce = {
+      return await Task.withCancellationHandler {
+        storage.value = nil
+        onCancel?()
+      } operation: {
+        guard let result = await storage.value?() else {
+          storage.value = nil
+          return nil
+        }
+        return result
+      }
+    }
   }
 }
 
@@ -139,13 +202,13 @@ extension AsyncStream: AsyncSequence {
 
     /// The next value from the AsyncStream.
     ///
-    /// When next returns nil this signifies the end of the AsyncStream. Any such
-    /// case that next is invoked concurrently and contends with another call to
-    /// next is a programmer error and will fatalError.
+    /// When next returns nil this signifies the end of the AsyncStream. Any 
+    /// such case that next is invoked concurrently and contends with another 
+    /// call to next is a programmer error and will fatalError.
     ///
     /// If the task this iterator is running in is canceled while next is
-    /// awaiting a value, this will terminate the AsyncStream and next may return nil
-    /// immediately (or will return nil on subseuqent calls)
+    /// awaiting a value, this will terminate the AsyncStream and next may 
+    /// return nil immediately (or will return nil on subseuqent calls)
     public mutating func next() async -> Element? {
       await produce()
     }
@@ -167,12 +230,13 @@ extension AsyncStream.Continuation {
   ///
   /// This can be called more than once and returns to the caller immediately
   /// without blocking for any awaiting consuption from the iteration.
+  @discardableResult
   public func yield(
     with result: Result<Element, Never>
-  ) {
+  ) -> YieldResult {
     switch result {
       case .success(let val):
-        storage.yield(val)
+        return storage.yield(val)
     }
   }
 
@@ -182,7 +246,8 @@ extension AsyncStream.Continuation {
   ///
   /// This can be called more than once and returns to the caller immediately
   /// without blocking for any awaiting consuption from the iteration.
-  public func yield() where Element == Void {
-    storage.yield(())
+  @discardableResult
+  public func yield() -> YieldResult where Element == Void {
+    return storage.yield(())
   }
 }
