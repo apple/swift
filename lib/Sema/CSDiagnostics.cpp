@@ -7311,6 +7311,19 @@ bool MissingContextualTypeForNil::diagnoseAsError() {
   return true;
 }
 
+bool CouldNotInferPlaceholderType::diagnoseAsError() {
+  // If this placeholder was explicitly written out by the user, they can maybe
+  // fix things by specifying an actual type.
+  if (auto *typeExpr = getAsExpr<TypeExpr>(getAnchor())) {
+    if (typeExpr->getLoc().isValid()) {
+      emitDiagnostic(diag::could_not_infer_placeholder);
+      return true;
+    }
+  }
+
+  return false;
+}
+
 bool ReferenceToInvalidDeclaration::diagnoseAsError() {
   auto &DE = getASTContext().Diags;
 

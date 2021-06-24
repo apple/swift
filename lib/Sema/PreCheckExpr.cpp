@@ -380,6 +380,44 @@ static bool isValidForwardReference(ValueDecl *D, DeclContext *DC,
   return true;
 }
 
+/// Checks whether this is a BinaryExpr with operator `&` and returns the
+/// BinaryExpr, if so.
+static BinaryExpr *getCompositionExpr(Expr *expr) {
+  if (auto *binaryExpr = dyn_cast<BinaryExpr>(expr)) {
+    // look at the name of the operator, if it is a '&' we can create the
+    // composition TypeExpr
+    auto fn = binaryExpr->getFn();
+    if (auto Overload = dyn_cast<OverloadedDeclRefExpr>(fn)) {
+      if (llvm::any_of(Overload->getDecls(), [](auto *decl) -> bool {
+            return decl->getBaseName() == "&";
+          }))
+        return binaryExpr;
+    } else if (auto *Decl = dyn_cast<UnresolvedDeclRefExpr>(fn)) {
+      if (Decl->getName().isSimpleName() &&
+          Decl->getName().getBaseName() == "&")
+        return binaryExpr;
+    }
+  }
+
+  return nullptr;
+}
+
+/// Whether the given expression "looks like" a (possibly sugared) type. For
+/// example, `(foo, bar)` "looks like" a type, but `foo + bar` does not.
+static bool exprLooksLikeAType(Expr *expr) {
+  return isa<OptionalEvaluationExpr>(expr) ||
+      isa<BindOptionalExpr>(expr) ||
+      isa<ForceValueExpr>(expr) ||
+      isa<ParenExpr>(expr) ||
+      isa<ArrowExpr>(expr) ||
+      isa<TupleExpr>(expr) ||
+      (isa<ArrayExpr>(expr) &&
+       cast<ArrayExpr>(expr)->getElements().size() == 1) ||
+      (isa<DictionaryExpr>(expr) &&
+       cast<DictionaryExpr>(expr)->getElements().size() == 1) ||
+      getCompositionExpr(expr);
+}
+
 /// Bind an UnresolvedDeclRefExpr by performing name lookup and
 /// returning the resultant expression. Context is the DeclContext used
 /// for the lookup.
@@ -864,6 +902,13 @@ namespace {
     /// insert RebindSelfInConstructorExpr nodes.
     llvm::SmallVector<Expr *, 8> ExprStack;
 
+    /// A stack, corresponding to \c ExprStack above, that indicates at each
+    /// level whether the enclosing context is plausibly something that will
+    /// be folded into a \c TypeExpr after \c simplifyTypeExpr is called.
+    /// This helps us determine whether '_' should become a placeholder type or
+    /// not, which lets us produce better diagnostics during type checking.
+    llvm::SmallVector<bool, 8> PossibleTypeContextStack;
+
     /// The 'self' variable to use when rebinding 'self' in a constructor.
     VarDecl *UnresolvedCtorSelf = nullptr;
 
@@ -896,6 +941,18 @@ namespace {
     /// Simplify constructs like `UInt32(1)` into `1 as UInt32` if
     /// the type conforms to the expected literal protocol.
     Expr *simplifyTypeConstructionWithLiteralArg(Expr *E);
+
+    /// Whether we are in a context that might turn out to be a \c TypeExpr
+    /// after \c simplifyTypeExpr is called up the tree. This function allows
+    /// us to make better guesses about whether invalid uses of '_' were
+    /// "supposed" to be \c DiscardAssignmentExprs or patterns, which results
+    /// in better diagnostics after type checking.
+    bool possiblyInTypeContext();
+
+    /// Whether we can simplify the given discard assignment expr. Not possible
+    /// if it's been marked "valid" or if the current state of the AST disallows
+    /// such simplification (see \c canSimplifyPlaceholderTypes above).
+    bool canSimplifyDiscardAssignmentExpr(DiscardAssignmentExpr *DAE);
 
     /// In Swift < 5, diagnose and correct invalid multi-argument or
     /// argument-labeled interpolations.
@@ -1110,8 +1167,21 @@ namespace {
       // return site should call through here.
       auto finish = [&](bool recursive, Expr *expr) {
         // If we're going to recurse, record this expression on the stack.
-        if (recursive)
+        if (recursive) {
+          if (isa<SequenceExpr>(expr))
+            SequenceExprDepth++;
+
+          // The next level is considered a type context if either:
+          // - The expression is a valid parent for a TypeExpr, or
+          // - The current level is a type context and the expression "looks
+          //   like" a type (and is not a call arg).
+          bool shouldEnterTypeContext = expr->isValidTypeExprParent();
+          bool shouldContinueTypeContext = possiblyInTypeContext() &&
+              exprLooksLikeAType(expr) && !CallArgs.count(expr);
           ExprStack.push_back(expr);
+          PossibleTypeContextStack.push_back(shouldEnterTypeContext ||
+                                             shouldContinueTypeContext);
+        }
 
         return std::make_pair(recursive, expr);
       };
@@ -1225,9 +1295,6 @@ namespace {
       if (auto *assignment = dyn_cast<AssignExpr>(expr))
         markAcceptableDiscardExprs(assignment->getDest());
 
-      if (isa<SequenceExpr>(expr))
-        SequenceExprDepth++;
-
       return finish(true, expr);
     }
 
@@ -1235,6 +1302,7 @@ namespace {
       // Remove this expression from the stack.
       assert(ExprStack.back() == expr);
       ExprStack.pop_back();
+      PossibleTypeContextStack.pop_back();
 
       // Mark the direct callee as being a callee.
       if (auto *call = dyn_cast<ApplyExpr>(expr))
@@ -1521,6 +1589,19 @@ TypeExpr *PreCheckExpression::simplifyUnresolvedSpecializeExpr(
   return nullptr;
 }
 
+bool PreCheckExpression::possiblyInTypeContext() {
+  return !PossibleTypeContextStack.empty() && PossibleTypeContextStack.back();
+}
+
+/// Only allow simplification of a DiscardAssignmentExpr if it hasn't already
+/// been explicitly marked as correct, and the current AST state allows it.
+bool PreCheckExpression::canSimplifyDiscardAssignmentExpr(
+    DiscardAssignmentExpr *DAE) {
+  return !CorrectDiscardAssignmentExprs.count(DAE) &&
+      possiblyInTypeContext() &&
+      SequenceExprDepth == 0;
+}
+
 /// Simplify expressions which are type sugar productions that got parsed
 /// as expressions due to the parser not knowing which identifiers are
 /// type names.
@@ -1534,8 +1615,14 @@ TypeExpr *PreCheckExpression::simplifyTypeExpr(Expr *E) {
     return simplifyNestedTypeExpr(UDE);
   }
 
-  // TODO: Fold DiscardAssignmentExpr into a placeholder type here once parsing
-  // them is supported.
+  // Fold '_' into a placeholder type, if we're allowed.
+  if (auto *DAE = dyn_cast<DiscardAssignmentExpr>(E)) {
+    if (canSimplifyDiscardAssignmentExpr(DAE)) {
+      auto *placeholderRepr =
+          new (getASTContext()) PlaceholderTypeRepr(DAE->getLoc());
+      return new (getASTContext()) TypeExpr(placeholderRepr);
+    }
+  }
 
   // Fold T? into an optional type when T is a TypeExpr.
   if (isa<OptionalEvaluationExpr>(E) || isa<BindOptionalExpr>(E)) {
@@ -1778,56 +1865,38 @@ TypeExpr *PreCheckExpression::simplifyTypeExpr(Expr *E) {
   }
   
   // Fold 'P & Q' into a composition type
-  if (auto *binaryExpr = dyn_cast<BinaryExpr>(E)) {
-    bool isComposition = false;
-    // look at the name of the operator, if it is a '&' we can create the
-    // composition TypeExpr
-    auto fn = binaryExpr->getFn();
-    if (auto Overload = dyn_cast<OverloadedDeclRefExpr>(fn)) {
-      for (auto Decl : Overload->getDecls())
-        if (Decl->getBaseName() == "&") {
-          isComposition = true;
-          break;
-        }
-    } else if (auto *Decl = dyn_cast<UnresolvedDeclRefExpr>(fn)) {
-      if (Decl->getName().isSimpleName() &&
-          Decl->getName().getBaseName() == "&")
-        isComposition = true;
-    }
+  if (auto *binaryExpr = getCompositionExpr(E)) {
+    // The protocols we are composing
+    SmallVector<TypeRepr *, 4> Types;
 
-    if (isComposition) {
-      // The protocols we are composing
-      SmallVector<TypeRepr *, 4> Types;
-
-      auto *lhsExpr = binaryExpr->getLHS();
-      if (auto *lhs = dyn_cast<TypeExpr>(lhsExpr)) {
-        Types.push_back(lhs->getTypeRepr());
-      } else if (isa<BinaryExpr>(lhsExpr)) {
-        // If the lhs is another binary expression, we have a multi element
-        // composition: 'A & B & C' is parsed as ((A & B) & C); we get
-        // the protocols from the lhs here
-        if (auto expr = simplifyTypeExpr(lhsExpr))
-          if (auto *repr = dyn_cast<CompositionTypeRepr>(expr->getTypeRepr()))
-            // add the protocols to our list
-            for (auto proto : repr->getTypes())
-              Types.push_back(proto);
-          else
-            return nullptr;
+    auto lhsExpr = binaryExpr->getLHS();
+    if (auto *lhs = dyn_cast<TypeExpr>(lhsExpr)) {
+      Types.push_back(lhs->getTypeRepr());
+    } else if (isa<BinaryExpr>(lhsExpr)) {
+      // If the lhs is another binary expression, we have a multi element
+      // composition: 'A & B & C' is parsed as ((A & B) & C); we get
+      // the protocols from the lhs here
+      if (auto expr = simplifyTypeExpr(lhsExpr))
+        if (auto *repr = dyn_cast<CompositionTypeRepr>(expr->getTypeRepr()))
+          // add the protocols to our list
+          for (auto proto : repr->getTypes())
+            Types.push_back(proto);
         else
           return nullptr;
-      } else
+      else
         return nullptr;
+    } else
+      return nullptr;
 
-      // Add the rhs which is just a TypeExpr
-      auto *rhs = dyn_cast<TypeExpr>(binaryExpr->getRHS());
-      if (!rhs) return nullptr;
-      Types.push_back(rhs->getTypeRepr());
+    // Add the rhs which is just a TypeExpr
+    auto *rhs = dyn_cast<TypeExpr>(binaryExpr->getRHS());
+    if (!rhs) return nullptr;
+    Types.push_back(rhs->getTypeRepr());
 
-      auto CompRepr = CompositionTypeRepr::create(getASTContext(), Types,
-                                                  lhsExpr->getStartLoc(),
-                                                  binaryExpr->getSourceRange());
-      return new (getASTContext()) TypeExpr(CompRepr);
-    }
+    auto CompRepr = CompositionTypeRepr::create(getASTContext(), Types,
+                                                lhsExpr->getStartLoc(),
+                                                binaryExpr->getSourceRange());
+    return new (getASTContext()) TypeExpr(CompRepr);
   }
 
   return nullptr;

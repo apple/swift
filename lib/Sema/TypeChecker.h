@@ -1159,6 +1159,19 @@ bool typeSupportsBuilderOp(Type builderType, DeclContext *dc, Identifier fnName,
 /// once.
 void applyAccessNote(ValueDecl *VD);
 
+/// Returns true if the given type conforms to `Differentiable` in the
+/// module of `dc`. If `tangentVectorEqualsSelf` is true, returns true iff
+/// the given type additionally satisfies `Self == Self.TangentVector`.
+bool isDifferentiable(Type type, bool tangentVectorEqualsSelf, DeclContext *dc,
+                      Optional<TypeResolutionStage> stage);
+
+/// Emits diagnostics if the given function type's parameter/result types are
+/// not compatible with the ext info. Returns whether an error was diagnosed.
+bool diagnoseInvalidFunctionType(FunctionType *fnTy, SourceLoc loc,
+                                 Optional<FunctionTypeRepr *>repr,
+                                 DeclContext *dc,
+                                 Optional<TypeResolutionStage> stage);
+
 }; // namespace TypeChecker
 
 /// Temporary on-stack storage and unescaping for encoded diagnostic

@@ -558,6 +558,9 @@ public:
   /// the parent map.
   llvm::DenseMap<Expr *, Expr *> getParentMap();
 
+  /// Whether this expression is a valid parent for a TypeExpr.
+  bool isValidTypeExprParent() const;
+
   SWIFT_DEBUG_DUMP;
   void dump(raw_ostream &OS, unsigned Indent = 0) const;
   void dump(raw_ostream &OS, llvm::function_ref<Type(Expr *)> getType,

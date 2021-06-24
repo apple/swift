@@ -400,6 +400,16 @@ let _: @differentiable(reverse) (Float, Float) -> TF_521<Float> = { r, i in
   TF_521(real: r, imaginary: i)
 }
 
+// expected-error @+1 {{result type 'TF_521<Float>' does not conform to 'Differentiable', but the enclosing function type is '@differentiable'}}
+let _: @differentiable(reverse) (_, _) -> TF_521<Float> = { (r: Float, i: Float) in
+  TF_521(real: r, imaginary: i)
+}
+
+// expected-error @+1 {{result type 'TF_521<Float>' does not conform to 'Differentiable', but the enclosing function type is '@differentiable'}}
+let _: @differentiable(reverse) (Float, Float) -> _ = { r, i in
+  TF_521(real: r, imaginary: i)
+}
+
 // TF-296: Infer `@differentiable` wrt parameters to be to all parameters that conform to `Differentiable`.
 
 @differentiable(reverse)

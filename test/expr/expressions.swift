@@ -865,7 +865,7 @@ func r20802757(_ z: inout Int = &g20802757) { // expected-error {{cannot provide
   print(z)
 }
 
-_ = _.foo // expected-error {{'_' can only appear in a pattern or on the left side of an assignment}}
+_ = _.foo // expected-error {{placeholders are not allowed as top-level types}}
 
 // <rdar://problem/22211854> wrong arg list crashing sourcekit
 func r22211854() {

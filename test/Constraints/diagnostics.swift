@@ -1129,7 +1129,7 @@ func badTypes() {
 // rdar://34357545
 func unresolvedTypeExistential() -> Bool {
   return (Int.self==_{})
-  // expected-error@-1 {{'_' can only appear in a pattern or on the left side of an assignment}}
+  // expected-error@-1 {{placeholders are not allowed as top-level types}}
 }
 
 do {

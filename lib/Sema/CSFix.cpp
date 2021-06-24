@@ -1764,6 +1764,18 @@ SpecifyContextualTypeForNil::create(ConstraintSystem &cs,
   return new (cs.getAllocator()) SpecifyContextualTypeForNil(cs, locator);
 }
 
+bool SpecifyTypeForPlaceholder::diagnose(const Solution &solution,
+                                           bool asNote) const {
+  CouldNotInferPlaceholderType failure(solution, getLocator());
+  return failure.diagnose(asNote);
+}
+
+SpecifyTypeForPlaceholder *
+SpecifyTypeForPlaceholder::create(ConstraintSystem &cs,
+                                  ConstraintLocator *locator) {
+  return new (cs.getAllocator()) SpecifyTypeForPlaceholder(cs, locator);
+}
+
 bool AllowRefToInvalidDecl::diagnose(const Solution &solution,
                                      bool asNote) const {
   ReferenceToInvalidDeclaration failure(solution, getLocator());

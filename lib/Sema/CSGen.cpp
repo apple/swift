@@ -2072,7 +2072,9 @@ namespace {
         extInfo = extInfo.withGlobalActor(getExplicitGlobalActor(closure));
       }
 
-      return FunctionType::get(closureParams, resultTy, extInfo);
+      auto *fnTy = FunctionType::get(closureParams, resultTy, extInfo);
+      return CS.replaceInferableTypesWithTypeVars(
+          fnTy, CS.getConstraintLocator(closure))->castTo<FunctionType>();
     }
 
     /// Produces a type for the given pattern, filling in any missing

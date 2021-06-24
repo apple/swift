@@ -2393,6 +2393,21 @@ public:
   bool diagnoseAsError() override;
 };
 
+/// Diagnose situations where there is no context to determine the type of a
+/// placeholder, e.g.,
+///
+/// \code
+/// let _ = _.foo
+/// \endcode
+class CouldNotInferPlaceholderType final : public FailureDiagnostic {
+public:
+  CouldNotInferPlaceholderType(const Solution &solution,
+                               ConstraintLocator *locator)
+      : FailureDiagnostic(solution, locator) {}
+
+  bool diagnoseAsError() override;
+};
+
 /// Diagnostic situations where AST node references an invalid declaration.
 ///
 /// \code

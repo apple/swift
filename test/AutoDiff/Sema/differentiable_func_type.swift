@@ -45,8 +45,7 @@ let _: @differentiable(_linear) (Float) -> Float
 func test1<T: Differentiable, U: Differentiable>(_: @differentiable(reverse) (T) -> @differentiable(reverse) (U) -> Float) {}
 // expected-error @+1 {{result type '(U) -> Float' does not conform to 'Differentiable', but the enclosing function type is '@differentiable'}}
 func test2<T: Differentiable, U: Differentiable>(_: @differentiable(reverse) (T) -> (U) -> Float) {}
-// expected-error @+2 {{result type 'Int' does not conform to 'Differentiable', but the enclosing function type is '@differentiable'}}
-// expected-error @+1 {{result type '@differentiable(reverse) (U) -> Int' does not conform to 'Differentiable', but the enclosing function type is '@differentiable'}}
+// expected-error @+1 {{result type 'Int' does not conform to 'Differentiable', but the enclosing function type is '@differentiable'}}
 func test3<T: Differentiable, U: Differentiable>(_: @differentiable(reverse) (T) -> @differentiable(reverse) (U) -> Int) {}
 // expected-error @+1 {{result type '(U) -> Int' does not conform to 'Differentiable', but the enclosing function type is '@differentiable'}}
 func test4<T: Differentiable, U: Differentiable>(_: @differentiable(reverse) (T) -> (U) -> Int) {}
@@ -189,7 +188,6 @@ extension Vector: Differentiable where T: Differentiable {
 // expected-note@+1 2 {{found this candidate}}
 func inferredConformancesGeneric<T, U>(_: @differentiable(reverse) (Vector<T>) -> Vector<U>) {}
 
-// expected-note  @+5 2 {{found this candidate}}
 // expected-error @+4 {{generic signature requires types 'Vector<T>' and 'Vector<T>.TangentVector' to be the same}}
 // expected-error @+3 {{generic signature requires types 'Vector<U>' and 'Vector<U>.TangentVector' to be the same}}
 // expected-error @+2 {{parameter type 'Vector<T>' does not conform to 'Differentiable' and satisfy 'Vector<T> == Vector<T>.TangentVector', but the enclosing function type is '@differentiable(_linear)'}}
@@ -203,7 +201,8 @@ func nondiff(x: Vector<Int>) -> Vector<Int> {}
 
 // expected-error @+1 {{no exact matches in call to global function 'inferredConformancesGeneric'}}
 inferredConformancesGeneric(nondiff)
-// expected-error @+1 {{no exact matches in call to global function 'inferredConformancesGenericLinear'}}
+// expected-error @+2 {{global function 'inferredConformancesGenericLinear' requires that 'Int' conform to 'Differentiable'}}
+// expected-error @+1 {{global function 'inferredConformancesGenericLinear' requires that 'Int' conform to 'Differentiable'}}
 inferredConformancesGenericLinear(nondiff)
 
 func diff(x: Vector<Float>) -> Vector<Float> {}
@@ -228,13 +227,15 @@ extension Linear: Differentiable where T: Differentiable, T == T.TangentVector {
 // expected-note @+1 2 {{found this candidate}}
 func inferredConformancesGeneric<T, U>(_: @differentiable(reverse) (Linear<T>) -> Linear<U>) {}
 
-// expected-note @+1 2 {{found this candidate}}
+// expected-note  @+2 2 {{where 'T' = 'Int'}}
+// expected-note  @+1 2 {{where 'U' = 'Int'}}
 func inferredConformancesGenericLinear<T, U>(_: @differentiable(_linear) (Linear<T>) -> Linear<U>) {}
 
 func nondiff(x: Linear<Int>) -> Linear<Int> {}
 // expected-error @+1 {{no exact matches in call to global function 'inferredConformancesGeneric'}}
 inferredConformancesGeneric(nondiff)
-// expected-error @+1 {{no exact matches in call to global function 'inferredConformancesGenericLinear'}}
+// expected-error @+2 {{global function 'inferredConformancesGenericLinear' requires that 'Int' conform to 'Differentiable'}}
+// expected-error @+1 {{global function 'inferredConformancesGenericLinear' requires that 'Int' conform to 'Differentiable'}}
 inferredConformancesGenericLinear(nondiff)
 
 func diff(x: Linear<Float>) -> Linear<Float> {}

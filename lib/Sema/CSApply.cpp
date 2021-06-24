@@ -6592,6 +6592,19 @@ Expr *ExprRewriter::coerceToType(Expr *expr, Type toType,
                                  Optional<Pattern*> typeFromPattern) {
   auto &ctx = cs.getASTContext();
 
+  // Diagnose conversions to invalid function types that couldn't be performed
+  // beforehand because of placeholders.
+  if (auto *fnTy = toType->getAs<FunctionType>()) {
+    auto contextTy = cs.getContextualType(expr);
+    if (cs.getConstraintLocator(locator)->isForContextualType() && contextTy &&
+        contextTy->hasPlaceholder()) {
+      bool hadError = TypeChecker::diagnoseInvalidFunctionType(
+          fnTy, expr->getLoc(), None, dc, None);
+      if (hadError)
+        return nullptr;
+    }
+  }
+
   // The type we're converting from.
   Type fromType = cs.getType(expr);
 

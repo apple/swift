@@ -613,26 +613,9 @@ static void diagSyntacticUseRestrictions(const Expr *E, const DeclContext *DC,
       if (!AlreadyDiagnosedMetatypes.insert(E).second)
         return;
 
-      // Allow references to types as a part of:
-      // - member references T.foo, T.Type, T.self, etc.
-      // - constructor calls T()
-      // - Subscripts T[]
-      if (auto *ParentExpr = Parent.getAsExpr()) {
-        // This is an exhaustive list of the accepted syntactic forms.
-        if (isa<ErrorExpr>(ParentExpr) ||
-            isa<DotSelfExpr>(ParentExpr) ||               // T.self
-            isa<CallExpr>(ParentExpr) ||                  // T()
-            isa<MemberRefExpr>(ParentExpr) ||             // T.foo
-            isa<UnresolvedMemberExpr>(ParentExpr) ||
-            isa<SelfApplyExpr>(ParentExpr) ||             // T.foo()  T()
-            isa<UnresolvedDotExpr>(ParentExpr) ||
-            isa<DotSyntaxBaseIgnoredExpr>(ParentExpr) ||
-            isa<UnresolvedSpecializeExpr>(ParentExpr) ||
-            isa<OpenExistentialExpr>(ParentExpr) ||
-            isa<SubscriptExpr>(ParentExpr)) {
+      if (auto *ParentExpr = Parent.getAsExpr())
+        if (ParentExpr->isValidTypeExprParent())
           return;
-        }
-      }
 
       // Is this a protocol metatype?
 

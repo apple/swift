@@ -742,6 +742,130 @@ llvm::DenseMap<Expr *, Expr *> Expr::getParentMap() {
   return parentMap;
 }
 
+bool Expr::isValidTypeExprParent() const {
+  // Allow references to types as a part of:
+  // - member references T.foo, T.Type, T.self, etc.
+  // - constructor calls T()
+  // - Subscripts T[]
+  //
+  // This is an exhaustive list of the accepted syntactic forms.
+  switch (getKind()) {
+  case ExprKind::Error:
+  case ExprKind::DotSelf:
+  case ExprKind::Call:
+  case ExprKind::MemberRef:
+  case ExprKind::UnresolvedMember:
+  case ExprKind::DotSyntaxCall:
+  case ExprKind::ConstructorRefCall:
+  case ExprKind::UnresolvedDot:
+  case ExprKind::DotSyntaxBaseIgnored:
+  case ExprKind::UnresolvedSpecialize:
+  case ExprKind::OpenExistential:
+  case ExprKind::Subscript:
+    return true;
+
+  case ExprKind::NilLiteral:
+  case ExprKind::BooleanLiteral:
+  case ExprKind::IntegerLiteral:
+  case ExprKind::FloatLiteral:
+  case ExprKind::StringLiteral:
+  case ExprKind::MagicIdentifierLiteral:
+  case ExprKind::InterpolatedStringLiteral:
+  case ExprKind::ObjectLiteral:
+  case ExprKind::DiscardAssignment:
+  case ExprKind::DeclRef:
+  case ExprKind::SuperRef:
+  case ExprKind::Type:
+  case ExprKind::OtherConstructorDeclRef:
+  case ExprKind::OverloadedDeclRef:
+  case ExprKind::UnresolvedDeclRef:
+  case ExprKind::DynamicMemberRef:
+  case ExprKind::DynamicSubscript:
+  case ExprKind::Sequence:
+  case ExprKind::Paren:
+  case ExprKind::Await:
+  case ExprKind::UnresolvedMemberChainResult:
+  case ExprKind::Try:
+  case ExprKind::ForceTry:
+  case ExprKind::OptionalTry:
+  case ExprKind::Tuple:
+  case ExprKind::Array:
+  case ExprKind::Dictionary:
+  case ExprKind::KeyPathApplication:
+  case ExprKind::TupleElement:
+  case ExprKind::CaptureList:
+  case ExprKind::Closure:
+  case ExprKind::AutoClosure:
+  case ExprKind::InOut:
+  case ExprKind::VarargExpansion:
+  case ExprKind::DynamicType:
+  case ExprKind::RebindSelfInConstructor:
+  case ExprKind::OpaqueValue:
+  case ExprKind::PropertyWrapperValuePlaceholder:
+  case ExprKind::AppliedPropertyWrapper:
+  case ExprKind::DefaultArgument:
+  case ExprKind::BindOptional:
+  case ExprKind::OptionalEvaluation:
+  case ExprKind::ForceValue:
+  case ExprKind::MakeTemporarilyEscapable:
+  case ExprKind::PrefixUnary:
+  case ExprKind::PostfixUnary:
+  case ExprKind::Binary:
+  case ExprKind::Load:
+  case ExprKind::DestructureTuple:
+  case ExprKind::UnresolvedTypeConversion:
+  case ExprKind::FunctionConversion:
+  case ExprKind::CovariantFunctionConversion:
+  case ExprKind::CovariantReturnConversion:
+  case ExprKind::ImplicitlyUnwrappedFunctionConversion:
+  case ExprKind::MetatypeConversion:
+  case ExprKind::CollectionUpcastConversion:
+  case ExprKind::Erasure:
+  case ExprKind::AnyHashableErasure:
+  case ExprKind::BridgeToObjC:
+  case ExprKind::BridgeFromObjC:
+  case ExprKind::ConditionalBridgeFromObjC:
+  case ExprKind::DerivedToBase:
+  case ExprKind::ArchetypeToSuper:
+  case ExprKind::InjectIntoOptional:
+  case ExprKind::ClassMetatypeToObject:
+  case ExprKind::ExistentialMetatypeToObject:
+  case ExprKind::ProtocolMetatypeToObject:
+  case ExprKind::InOutToPointer:
+  case ExprKind::ArrayToPointer:
+  case ExprKind::StringToPointer:
+  case ExprKind::PointerToPointer:
+  case ExprKind::ForeignObjectConversion:
+  case ExprKind::UnevaluatedInstance:
+  case ExprKind::UnderlyingToOpaque:
+  case ExprKind::DifferentiableFunction:
+  case ExprKind::LinearFunction:
+  case ExprKind::DifferentiableFunctionExtractOriginal:
+  case ExprKind::LinearFunctionExtractOriginal:
+  case ExprKind::LinearToDifferentiableFunction:
+  case ExprKind::ForcedCheckedCast:
+  case ExprKind::ConditionalCheckedCast:
+  case ExprKind::Is:
+  case ExprKind::Coerce:
+  case ExprKind::Arrow:
+  case ExprKind::If:
+  case ExprKind::EnumIsCase:
+  case ExprKind::Assign:
+  case ExprKind::CodeCompletion:
+  case ExprKind::UnresolvedPattern:
+  case ExprKind::LazyInitializer:
+  case ExprKind::EditorPlaceholder:
+  case ExprKind::ObjCSelector:
+  case ExprKind::KeyPath:
+  case ExprKind::KeyPathDot:
+  case ExprKind::OneWay:
+  case ExprKind::Tap:
+    return false;
+  }
+
+  llvm_unreachable("Unhandled ExprKind in switch.");
+}
+
 //===----------------------------------------------------------------------===//
 // Support methods for Exprs.
 //===----------------------------------------------------------------------===//

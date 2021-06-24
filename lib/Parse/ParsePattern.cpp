@@ -151,10 +151,6 @@ static ParserStatus parseDefaultArgument(
 /// Determine whether we are at the start of a parameter name when
 /// parsing a parameter.
 bool Parser::startsParameterName(bool isClosure) {
-  // '_' cannot be a type, so it must be a parameter name.
-  if (Tok.is(tok::kw__))
-    return true;
-
   // To have a parameter name here, we need a name.
   if (!Tok.canBeArgumentLabel())
     return false;
