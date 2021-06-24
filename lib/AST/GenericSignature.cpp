@@ -237,18 +237,10 @@ CanGenericSignature::getCanonical(TypeArrayView<GenericTypeParamType> params,
       break;
 
     case RequirementKind::SameType: {
-      auto isCanonicalAnchor = [&](Type type) {
-        if (auto *dmt = type->getAs<DependentMemberType>())
-          return canSig->isCanonicalTypeInContext(dmt->getBase());
-        return type->is<GenericTypeParamType>();
-      };
-
       auto firstType = reqt.getFirstType();
       auto secondType = reqt.getSecondType();
-      assert(isCanonicalAnchor(firstType));
 
       if (reqt.getSecondType()->isTypeParameter()) {
-        assert(isCanonicalAnchor(secondType));
         assert(compareDependentTypes(firstType, secondType) < 0 &&
                "Out-of-order type parameters in same-type constraint");
       } else {
