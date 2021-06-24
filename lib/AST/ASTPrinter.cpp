@@ -2779,6 +2779,10 @@ static bool usesFeatureBuiltinTaskGroupWithArgument(Decl *decl) {
   return false;
 }
 
+static bool usesFeatureBuiltinCreateAsyncTaskInGroup(Decl *decl) {
+  return false;
+}
+
 static bool usesFeatureInheritActorContext(Decl *decl) {
   if (auto func = dyn_cast<AbstractFunctionDecl>(decl)) {
     for (auto param : *func->getParameters()) {

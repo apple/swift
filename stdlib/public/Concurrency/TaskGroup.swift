@@ -207,29 +207,23 @@ public struct TaskGroup<ChildTaskResult> {
   /// - Returns:
   ///   - `true` if the operation was added to the group successfully,
   ///     `false` otherwise (e.g. because the group `isCancelled`)
+  @_alwaysEmitIntoClient
   public mutating func async(
     priority: TaskPriority? = nil,
     operation: __owned @Sendable @escaping () async -> ChildTaskResult
   ) {
-    _ = _taskGroupAddPendingTask(group: _group, unconditionally: true)
+#if compiler(>=5.5) && $BuiltinCreateAsyncTaskInGroup
+    let flags = taskCreateFlags(
+      priority: priority, isChildTask: true, copyTaskLocals: false,
+      inheritContext: false, enqueueJob: true,
+      addPendingGroupTaskUnconditionally: true
+    )
 
-    // Set up the job flags for a new task.
-    var flags = JobFlags()
-    flags.kind = .task
-    flags.priority = priority
-    flags.isFuture = true
-    flags.isChildTask = true
-    flags.isGroupChildTask = true
-
-    // Create the asynchronous task future.
-    let (childTask, _) = Builtin.createAsyncTaskGroupFuture(
-      Int(flags.bits), _group, /*options*/nil, operation)
-
-    // Attach it to the group's task record in the current task.
-    _taskGroupAttachChild(group: _group, child: childTask)
-
-    // Enqueue the resulting job.
-    _enqueueJobGlobal(Builtin.convertTaskToJob(childTask))
+    // Create the task in this group.
+    _ = Builtin.createAsyncTaskInGroup(flags, _group, operation)
+#else
+    fatalError("Unsupported Swift compiler")
+#endif
   }
 
   /// Add a child task to the group.
@@ -247,10 +241,12 @@ public struct TaskGroup<ChildTaskResult> {
   /// - Returns:
   ///   - `true` if the operation was added to the group successfully,
   ///     `false` otherwise (e.g. because the group `isCancelled`)
+  @_alwaysEmitIntoClient
   public mutating func asyncUnlessCancelled(
     priority: TaskPriority? = nil,
     operation: __owned @Sendable @escaping () async -> ChildTaskResult
   ) -> Bool {
+#if compiler(>=5.5) && $BuiltinCreateAsyncTaskInGroup
     let canAdd = _taskGroupAddPendingTask(group: _group, unconditionally: false)
 
     guard canAdd else {
@@ -258,25 +254,19 @@ public struct TaskGroup<ChildTaskResult> {
       return false
     }
 
-    // Set up the job flags for a new task.
-    var flags = JobFlags()
-    flags.kind = .task
-    flags.priority = priority
-    flags.isFuture = true
-    flags.isChildTask = true
-    flags.isGroupChildTask = true
+    let flags = taskCreateFlags(
+      priority: priority, isChildTask: true, copyTaskLocals: false,
+      inheritContext: false, enqueueJob: true,
+      addPendingGroupTaskUnconditionally: false
+    )
 
-    // Create the asynchronous task future.
-    let (childTask, _) = Builtin.createAsyncTaskGroupFuture(
-      Int(flags.bits), _group, /*options*/nil, operation)
-
-    // Attach it to the group's task record in the current task.
-    _taskGroupAttachChild(group: _group, child: childTask)
-
-    // Enqueue the resulting job.
-    _enqueueJobGlobal(Builtin.convertTaskToJob(childTask))
+    // Create the task in this group.
+    _ = Builtin.createAsyncTaskInGroup(flags, _group, operation)
 
     return true
+#else
+    fatalError("Unsupported Swift compiler")
+#endif
   }
 
   /// Wait for the a child task that was added to the group to complete,
@@ -449,30 +439,23 @@ public struct ThrowingTaskGroup<ChildTaskResult, Failure: Error> {
   /// - Returns:
   ///   - `true` if the operation was added to the group successfully,
   ///     `false` otherwise (e.g. because the group `isCancelled`)
+  @_alwaysEmitIntoClient
   public mutating func async(
     priority: TaskPriority? = nil,
     operation: __owned @Sendable @escaping () async throws -> ChildTaskResult
   ) {
-    // we always add, so no need to check if group was cancelled
-    _ = _taskGroupAddPendingTask(group: _group, unconditionally: true)
+#if compiler(>=5.5) && $BuiltinCreateAsyncTaskInGroup
+    let flags = taskCreateFlags(
+      priority: priority, isChildTask: true, copyTaskLocals: false,
+      inheritContext: false, enqueueJob: true,
+      addPendingGroupTaskUnconditionally: true
+    )
 
-    // Set up the job flags for a new task.
-    var flags = JobFlags()
-    flags.kind = .task
-    flags.priority = priority
-    flags.isFuture = true
-    flags.isChildTask = true
-    flags.isGroupChildTask = true
-
-    // Create the asynchronous task future.
-    let (childTask, _) = Builtin.createAsyncTaskGroupFuture(
-      Int(flags.bits), _group, /*options*/nil, operation)
-
-    // Attach it to the group's task record in the current task.
-    _taskGroupAttachChild(group: _group, child: childTask)
-
-    // Enqueue the resulting job.
-    _enqueueJobGlobal(Builtin.convertTaskToJob(childTask))
+    // Create the task in this group.
+    _ = Builtin.createAsyncTaskInGroup(flags, _group, operation)
+#else
+    fatalError("Unsupported Swift compiler")
+#endif
   }
 
   /// Add a child task to the group.
@@ -490,10 +473,12 @@ public struct ThrowingTaskGroup<ChildTaskResult, Failure: Error> {
   /// - Returns:
   ///   - `true` if the operation was added to the group successfully,
   ///     `false` otherwise (e.g. because the group `isCancelled`)
+  @_alwaysEmitIntoClient
   public mutating func asyncUnlessCancelled(
     priority: TaskPriority? = nil,
     operation: __owned @Sendable @escaping () async throws -> ChildTaskResult
   ) -> Bool {
+#if compiler(>=5.5) && $BuiltinCreateAsyncTaskInGroup
     let canAdd = _taskGroupAddPendingTask(group: _group, unconditionally: false)
 
     guard canAdd else {
@@ -501,25 +486,19 @@ public struct ThrowingTaskGroup<ChildTaskResult, Failure: Error> {
       return false
     }
 
-    // Set up the job flags for a new task.
-    var flags = JobFlags()
-    flags.kind = .task
-    flags.priority = priority
-    flags.isFuture = true
-    flags.isChildTask = true
-    flags.isGroupChildTask = true
+    let flags = taskCreateFlags(
+      priority: priority, isChildTask: true, copyTaskLocals: false,
+      inheritContext: false, enqueueJob: true,
+      addPendingGroupTaskUnconditionally: false
+    )
 
-    // Create the asynchronous task future.
-    let (childTask, _) = Builtin.createAsyncTaskGroupFuture(
-      Int(flags.bits), _group, /*options*/nil, operation)
-
-    // Attach it to the group's task record in the current task.
-    _taskGroupAttachChild(group: _group, child: childTask)
-
-    // Enqueue the resulting job.
-    _enqueueJobGlobal(Builtin.convertTaskToJob(childTask))
+    // Create the task in this group.
+    _ = Builtin.createAsyncTaskInGroup(flags, _group, operation)
 
     return true
+#else
+    fatalError("Unsupported Swift compiler")
+#endif
   }
 
   /// Wait for the a child task that was added to the group to complete,
@@ -746,20 +725,13 @@ extension ThrowingTaskGroup: AsyncSequence {
 
 /// ==== -----------------------------------------------------------------------
 
-/// Attach task group child to the group group to the task.
-@available(SwiftStdlib 5.5, *)
-@_silgen_name("swift_taskGroup_attachChild")
-func _taskGroupAttachChild(
-  group: Builtin.RawPointer,
-  child: Builtin.NativeObject
-)
-
 @available(SwiftStdlib 5.5, *)
 @_silgen_name("swift_taskGroup_destroy")
 func _taskGroupDestroy(group: __owned Builtin.RawPointer)
 
 @available(SwiftStdlib 5.5, *)
 @_silgen_name("swift_taskGroup_addPending")
+@usableFromInline
 func _taskGroupAddPendingTask(
   group: Builtin.RawPointer,
   unconditionally: Bool

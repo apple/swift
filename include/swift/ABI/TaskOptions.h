@@ -24,6 +24,7 @@
 #include "swift/ABI/MetadataValues.h"
 #include "swift/Runtime/Config.h"
 #include "swift/Basic/STLExtras.h"
+#include "llvm/Support/Casting.h"
 
 namespace swift {
 
@@ -34,14 +35,12 @@ namespace swift {
 /// to configure a newly spawned task.
 class TaskOptionRecord {
 public:
-  TaskOptionRecordFlags Flags;
+  const TaskOptionRecordFlags Flags;
   TaskOptionRecord *Parent;
 
   TaskOptionRecord(TaskOptionRecordKind kind,
                    TaskOptionRecord *parent = nullptr)
-  : Flags(kind) {
-    Parent = parent;
-  }
+    : Flags(kind), Parent(parent) { }
 
   TaskOptionRecord(const TaskOptionRecord &) = delete;
   TaskOptionRecord &operator=(const TaskOptionRecord &) = delete;
@@ -53,7 +52,6 @@ public:
   TaskOptionRecord *getParent() const {
     return Parent;
   }
-
 };
 
 /******************************************************************************/
@@ -61,7 +59,7 @@ public:
 /******************************************************************************/
 
 class TaskGroupTaskOptionRecord : public TaskOptionRecord {
-  TaskGroup *Group;
+  TaskGroup * const Group;
 
   public:
     TaskGroupTaskOptionRecord(TaskGroup *group)
@@ -70,6 +68,10 @@ class TaskGroupTaskOptionRecord : public TaskOptionRecord {
 
   TaskGroup *getGroup() const {
     return Group;
+  }
+
+  static bool classof(const TaskOptionRecord *record) {
+    return record->getKind() == TaskOptionRecordKind::TaskGroup;
   }
 };
 
@@ -80,15 +82,37 @@ class TaskGroupTaskOptionRecord : public TaskOptionRecord {
 /// executor should be used instead, most often this may mean the global
 /// concurrent executor, or the enclosing actor's executor.
 class ExecutorTaskOptionRecord : public TaskOptionRecord {
-  ExecutorRef *Executor;
+  const ExecutorRef Executor;
 
 public:
-  ExecutorTaskOptionRecord(ExecutorRef *executor)
+  ExecutorTaskOptionRecord(ExecutorRef executor)
     : TaskOptionRecord(TaskOptionRecordKind::Executor),
       Executor(executor) {}
 
-  ExecutorRef *getExecutor() const {
+  ExecutorRef getExecutor() const {
     return Executor;
+  }
+
+  static bool classof(const TaskOptionRecord *record) {
+    return record->getKind() == TaskOptionRecordKind::Executor;
+  }
+};
+
+/// Task option to specify that the created task is for an 'async let'.
+class AsyncLetTaskOptionRecord : public TaskOptionRecord {
+  AsyncLet *asyncLet;
+
+  public:
+  AsyncLetTaskOptionRecord(AsyncLet *asyncLet)
+    : TaskOptionRecord(TaskOptionRecordKind::AsyncLet),
+      asyncLet(asyncLet) {}
+
+  AsyncLet *getAsyncLet() const {
+    return asyncLet;
+  }
+
+  static bool classof(const TaskOptionRecord *record) {
+    return record->getKind() == TaskOptionRecordKind::AsyncLet;
   }
 };
 

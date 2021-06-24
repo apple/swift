@@ -224,15 +224,14 @@ namespace irgen {
 
   void emitTaskCancel(IRGenFunction &IGF, llvm::Value *task);
 
-  /// Emit a class to swift_task_create[_f] or swift_task_create_future[__f]
-  /// with the given flags, parent task, and task function.
-  ///
-  /// When \c futureResultType is non-null, calls the future variant to create
-  /// a future.
+  /// Emit a call to swift_task_create[_f] with the given flags, options, and
+  /// task function.
   llvm::Value *emitTaskCreate(
-    IRGenFunction &IGF, llvm::Value *flags,
+    IRGenFunction &IGF,
+    llvm::Value *flags,
     llvm::Value *taskGroup,
-    llvm::Value *taskOptions,
+    llvm::Value *executor1,
+    llvm::Value *executor2,
     llvm::Value *futureResultType,
     llvm::Value *taskFunction,
     llvm::Value *localContextInfo,

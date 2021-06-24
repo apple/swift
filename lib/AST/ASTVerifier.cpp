@@ -2329,12 +2329,6 @@ public:
     }
 
     void verifyChecked(ValueDecl *VD) {
-    if (VD->getName().isSimpleName()  &&
-          !VD->getName().isSpecial() &&
-          VD->getName().getBaseIdentifier().str() == "echo") {
-        VD->dump();
-      }
-
       if (VD->getInterfaceType()->hasError()) {
         Out << "checked decl cannot have error type\n";
         VD->dump(Out);

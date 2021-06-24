@@ -1854,8 +1854,10 @@ static void visitBuiltinAddress(BuiltinInst *builtin,
     case BuiltinValueKind::IntInstrprofIncrement:
     case BuiltinValueKind::TSanInoutAccess:
     case BuiltinValueKind::CancelAsyncTask:
-    case BuiltinValueKind::CreateAsyncTaskFuture:
-    case BuiltinValueKind::CreateAsyncTaskGroupFuture:
+    case BuiltinValueKind::CreateAsyncTask:
+    case BuiltinValueKind::CreateAsyncTaskInGroup:
+    case BuiltinValueKind::CreateAsyncTaskWithExecutor:
+    case BuiltinValueKind::CreateAsyncTaskInGroupWithExecutor:
     case BuiltinValueKind::AutoDiffCreateLinearMapContext:
     case BuiltinValueKind::AutoDiffAllocateSubcontext:
     case BuiltinValueKind::InitializeDefaultActor:

@@ -270,15 +270,27 @@ void irgen::emitBuiltinCall(IRGenFunction &IGF, const BuiltinInfo &Builtin,
     return;
   }
 
-  if (Builtin.ID == BuiltinValueKind::CreateAsyncTaskFuture ||
-      Builtin.ID == BuiltinValueKind::CreateAsyncTaskGroupFuture) {
+  if (Builtin.ID == BuiltinValueKind::CreateAsyncTask ||
+      Builtin.ID == BuiltinValueKind::CreateAsyncTaskInGroup ||
+      Builtin.ID == BuiltinValueKind::CreateAsyncTaskWithExecutor ||
+      Builtin.ID == BuiltinValueKind::CreateAsyncTaskInGroupWithExecutor) {
 
     auto flags = args.claimNext();
     auto taskGroup =
-        (Builtin.ID == BuiltinValueKind::CreateAsyncTaskGroupFuture)
+        (Builtin.ID == BuiltinValueKind::CreateAsyncTaskInGroup ||
+         Builtin.ID == BuiltinValueKind::CreateAsyncTaskInGroupWithExecutor)
         ? args.claimNext()
         : nullptr;
-    auto taskOptions = args.claimNext();
+    auto executor1 =
+        (Builtin.ID == BuiltinValueKind::CreateAsyncTaskWithExecutor ||
+         Builtin.ID == BuiltinValueKind::CreateAsyncTaskInGroupWithExecutor)
+        ? args.claimNext()
+        : nullptr;
+    auto executor2 =
+        (Builtin.ID == BuiltinValueKind::CreateAsyncTaskWithExecutor ||
+         Builtin.ID == BuiltinValueKind::CreateAsyncTaskInGroupWithExecutor)
+        ? args.claimNext()
+        : nullptr;
     auto futureResultType = args.claimNext();
     auto taskFunction = args.claimNext();
     auto taskContext = args.claimNext();
@@ -287,7 +299,8 @@ void irgen::emitBuiltinCall(IRGenFunction &IGF, const BuiltinInfo &Builtin,
         IGF,
         flags,
         taskGroup,
-        taskOptions,
+        executor1,
+        executor2,
         futureResultType,
         taskFunction, taskContext,
         substitutions);

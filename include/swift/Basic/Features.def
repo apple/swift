@@ -52,5 +52,6 @@ LANGUAGE_FEATURE(InheritActorContext, 0, "@_inheritActorContext attribute", true
 LANGUAGE_FEATURE(ImplicitSelfCapture, 0, "@_implicitSelfCapture attribute", true)
 LANGUAGE_FEATURE(BuiltinBuildExecutor, 0, "Executor-building builtins", true)
 LANGUAGE_FEATURE(BuiltinBuildMainExecutor, 0, "MainActor executor building builtin", true)
+LANGUAGE_FEATURE(BuiltinCreateAsyncTaskInGroup, 0, "MainActor executor building builtin", true)
 
 #undef LANGUAGE_FEATURE

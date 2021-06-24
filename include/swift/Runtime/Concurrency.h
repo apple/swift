@@ -36,53 +36,27 @@ struct AsyncTaskAndContext {
   AsyncContext *InitialContext;
 };
 
-/// Create a task object with no future which will run the given function.
+/// Create a task object.
 SWIFT_EXPORT_FROM(swift_Concurrency) SWIFT_CC(swift)
-AsyncTaskAndContext swift_task_create_f(
-    size_t flags,
+AsyncTaskAndContext swift_task_create(
+    size_t taskCreateFlags,
     TaskOptionRecord *options,
-    ThinNullaryAsyncSignature::FunctionType *function, size_t initialContextSize);
+    const Metadata *futureResultType,
+    void *closureEntry, HeapObject *closureContext);
 
 /// Caution: not all future-initializing functions actually throw, so
 /// this signature may be incorrect.
 using FutureAsyncSignature =
   AsyncSignature<void(void*), /*throws*/ true>;
 
-/// Create a task object with a future which will run the given closure.
+/// Create a task object.
 SWIFT_EXPORT_FROM(swift_Concurrency) SWIFT_CC(swift)
-AsyncTaskAndContext swift_task_create_future(
-    size_t flags,
+AsyncTaskAndContext swift_task_create_common(
+    size_t taskCreateFlags,
     TaskOptionRecord *options,
     const Metadata *futureResultType,
-    void *closureEntryPoint, HeapObject * /* +1 */ closureContext);
-
-/// Create a task object with a future which will run the given function.
-SWIFT_EXPORT_FROM(swift_Concurrency) SWIFT_CC(swift)
-AsyncTaskAndContext swift_task_create_future_f(
-    size_t flags,
-    TaskOptionRecord *options,
-    const Metadata *futureResultType,
-    FutureAsyncSignature::FunctionType *function, size_t initialContextSize);
-
-/// Create a task object with a future which will run the given
-/// closure, and offer its result to the task group
-SWIFT_EXPORT_FROM(swift_Concurrency) SWIFT_CC(swift)
-AsyncTaskAndContext swift_task_create_group_future(
-    size_t flags,
-    TaskGroup *group,
-    TaskOptionRecord *options,
-    const Metadata *futureResultType,
-    void *closureEntryPoint, HeapObject * /* +1 */ closureContext);
-
-/// Create a task object with a future which will run the given
-/// function, and offer its result to the task group
-SWIFT_EXPORT_FROM(swift_Concurrency) SWIFT_CC(swift)
-AsyncTaskAndContext swift_task_create_group_future_f(
-    size_t flags,
-    TaskGroup *group,
-    TaskOptionRecord *options,
-    const Metadata *futureResultType,
-    FutureAsyncSignature::FunctionType *function, size_t initialContextSize);
+    FutureAsyncSignature::FunctionType *function, void *closureContext,
+    size_t initialContextSize);
 
 /// Allocate memory in a task.
 ///
@@ -279,7 +253,7 @@ SWIFT_EXPORT_FROM(swift_Concurrency) SWIFT_CC(swift)
 void swift_asyncLet_start(AsyncLet *alet,
                           TaskOptionRecord *options,
                           const Metadata *futureResultType,
-                          void *closureEntryPoint, void *closureContext);
+                          void *closureEntryPoint, HeapObject *closureContext);
 
 /// This matches the ABI of a closure `<T>(Builtin.RawPointer) async -> T`
 using AsyncLetWaitSignature =

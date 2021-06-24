@@ -58,6 +58,7 @@ add_swift_target_library(swift_Concurrency ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} I
   AsyncThrowingMapSequence.swift
   AsyncThrowingPrefixWhileSequence.swift
   GlobalActor.swift
+  LinkCompatibilityShims.cpp
   MainActor.swift
   PartialAsyncTask.swift
   SourceCompatibilityShims.swift

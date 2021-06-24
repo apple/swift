@@ -2022,6 +2022,43 @@ enum class JobPriority : size_t {
   Unspecified     = 0x00,
 };
 
+/// Flags for task creation.
+class TaskCreateFlags : public FlagSet<size_t> {
+public:
+  enum {
+    Priority       = 0,
+    Priority_width = 8,
+
+    Task_IsChildTask                              = 8,
+    // bit 9 is unused
+    Task_CopyTaskLocals                           = 10,
+    Task_InheritContext                           = 11,
+    Task_EnqueueJob                               = 12,
+    Task_AddPendingGroupTaskUnconditionally       = 13,
+  };
+
+  explicit constexpr TaskCreateFlags(size_t bits) : FlagSet(bits) {}
+  constexpr TaskCreateFlags() {}
+
+  FLAGSET_DEFINE_FIELD_ACCESSORS(Priority, Priority_width, JobPriority,
+                                 getPriority, setPriority)
+  FLAGSET_DEFINE_FLAG_ACCESSORS(Task_IsChildTask,
+                                isChildTask,
+                                setIsChildTask)
+  FLAGSET_DEFINE_FLAG_ACCESSORS(Task_CopyTaskLocals,
+                                copyTaskLocals,
+                                setCopyTaskLocals)
+  FLAGSET_DEFINE_FLAG_ACCESSORS(Task_InheritContext,
+                                inheritContext,
+                                setInheritContext)
+  FLAGSET_DEFINE_FLAG_ACCESSORS(Task_EnqueueJob,
+                                enqueueJob,
+                                setEnqueueJob)
+  FLAGSET_DEFINE_FLAG_ACCESSORS(Task_AddPendingGroupTaskUnconditionally,
+                                addPendingGroupTaskUnconditionally,
+                                setAddPendingGroupTaskUnconditionally)
+};
+
 /// Flags for schedulable jobs.
 class JobFlags : public FlagSet<uint32_t> {
 public:
@@ -2039,7 +2076,7 @@ public:
     Task_IsChildTask           = 24,
     Task_IsFuture              = 25,
     Task_IsGroupChildTask      = 26,
-    Task_IsContinuingAsyncTask = 27,
+    // 27 is currently unused
     Task_IsAsyncLetTask        = 28,
   };
 
@@ -2070,9 +2107,6 @@ public:
   FLAGSET_DEFINE_FLAG_ACCESSORS(Task_IsGroupChildTask,
                                 task_isGroupChildTask,
                                 task_setIsGroupChildTask)
-  FLAGSET_DEFINE_FLAG_ACCESSORS(Task_IsContinuingAsyncTask,
-                                task_isContinuingAsyncTask,
-                                task_setIsContinuingAsyncTask)
   FLAGSET_DEFINE_FLAG_ACCESSORS(Task_IsAsyncLetTask,
                                 task_isAsyncLetTask,
                                 task_setIsAsyncLetTask)
@@ -2111,6 +2145,8 @@ enum class TaskOptionRecordKind : uint8_t {
   Executor  = 0,
   /// Request a child task to be part of a specific task group.
   TaskGroup = 1,
+  /// Request a child task for an 'async let'.
+  AsyncLet  = 2,
 };
 
 /// Flags for cancellation records.

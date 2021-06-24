@@ -23,6 +23,16 @@ import StdlibUnittest
 var asyncTests = TestSuite("Async")
 
 @available(SwiftStdlib 5.5, *)
+final class CountEnqueues: Executor, UnsafeSendable {
+  var enqueueCount = 0
+
+  func enqueue(_ job: UnownedJob) {
+    enqueueCount += 1
+    print("enqueuing the job...")
+  }
+}
+
+@available(SwiftStdlib 5.5, *)
 actor MyActor {
   func synchronous() { }
 
@@ -54,6 +64,15 @@ if #available(SwiftStdlib 5.5, *) {
       }
     }
     sleep(1)
+  }
+
+  asyncTests.test("SpecificExecutor") {
+    let counter = CountEnqueues()
+    Task(on: counter) {
+      fatalError("never executed")
+    }
+
+    assert(counter.enqueueCount == 1)
   }
 
   asyncTests.test("GlobalDispatchQueue") {
