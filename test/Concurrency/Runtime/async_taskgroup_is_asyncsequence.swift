@@ -9,6 +9,7 @@
 
 // UNSUPPORTED: linux
 // XFAIL: windows
+// XFAIL: openbsd
 
 @available(SwiftStdlib 5.5, *)
 func test_taskGroup_is_asyncSequence() async {
