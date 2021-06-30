@@ -238,10 +238,10 @@ static void tryDiagnoseUnnecessaryCastOverOptionSet(ASTContext &Ctx,
     return;
   if (!isa<ConstructorRefCallExpr>(CE->getFn()))
     return;
-  auto *ParenE = dyn_cast<ParenExpr>(CE->getArg());
-  if (!ParenE)
+  auto *unaryArg = CE->getArgs()->getUnaryArgExpr();
+  if (!unaryArg)
     return;
-  auto *ME = dyn_cast<MemberRefExpr>(ParenE->getSubExpr());
+  auto *ME = dyn_cast<MemberRefExpr>(unaryArg);
   if (!ME)
     return;
   ValueDecl *VD = ME->getMember().getDecl();
@@ -1257,16 +1257,6 @@ static void diagnoseIgnoredLiteral(ASTContext &Ctx, LiteralExpr *LE) {
 }
 
 void TypeChecker::checkIgnoredExpr(Expr *E) {
-  // For parity with C, several places in the grammar accept multiple
-  // comma-separated expressions and then bind them together as an implicit
-  // tuple.  Break these apart and check them separately.
-  if (E->isImplicit() && isa<TupleExpr>(E)) {
-    for (auto Elt : cast<TupleExpr>(E)->getElements()) {
-      checkIgnoredExpr(Elt);
-    }
-    return;
-  }
-
   // Skip checking if there is no type, which presumably means there was a
   // type error.
   if (!E->getType()) {
@@ -1434,14 +1424,12 @@ void TypeChecker::checkIgnoredExpr(Expr *E) {
     // Diagnose unused literals that were translated to implicit
     // constructor calls during CSApply / ExprRewriter::convertLiteral.
     if (call->isImplicit()) {
-      Expr *arg = call->getArg();
-      if (auto *TE = dyn_cast<TupleExpr>(arg))
-        if (TE->getNumElements() == 1)
-          arg = TE->getElement(0);
-
-      if (auto *LE = dyn_cast<LiteralExpr>(arg)) {
-        diagnoseIgnoredLiteral(Context, LE);
-        return;
+      auto *args = call->getArgs();
+      if (auto *unaryArg = args->getUnaryArgExpr()) {
+        if (auto *LE = dyn_cast<LiteralExpr>(unaryArg)) {
+          diagnoseIgnoredLiteral(Context, LE);
+          return;
+        }
       }
     }
 
@@ -1449,11 +1437,11 @@ void TypeChecker::checkIgnoredExpr(Expr *E) {
     if (callee && isa<ConstructorDecl>(callee) && !call->isImplicit()) {
       DE.diagnose(fn->getLoc(), diag::expression_unused_init_result,
                callee->getDeclContext()->getDeclaredInterfaceType())
-        .highlight(call->getArg()->getSourceRange());
+        .highlight(call->getArgs()->getSourceRange());
       return;
     }
     
-    SourceRange SR1 = call->getArg()->getSourceRange(), SR2;
+    SourceRange SR1 = call->getArgs()->getSourceRange(), SR2;
     if (auto *BO = dyn_cast<BinaryExpr>(call)) {
       SR1 = BO->getLHS()->getSourceRange();
       SR2 = BO->getRHS()->getSourceRange();
@@ -1605,7 +1593,7 @@ static Expr* constructCallToSuperInit(ConstructorDecl *ctor,
                                               SourceLoc(), /*Implicit=*/true);
   Expr *r = UnresolvedDotExpr::createImplicit(
       Context, superRef, DeclBaseName::createConstructor());
-  r = CallExpr::createImplicit(Context, r, { }, { });
+  r = CallExpr::createImplicitEmpty(Context, r);
 
   if (ctor->hasThrows())
     r = new (Context) TryExpr(SourceLoc(), r, Type(), /*implicit=*/true);
@@ -1637,7 +1625,7 @@ static bool checkSuperInit(ConstructorDecl *fromCtor,
       if (auto classTy = selfTy->getClassOrBoundGenericClass()) {
         assert(classTy->getSuperclass());
         auto &Diags = fromCtor->getASTContext().Diags;
-        Diags.diagnose(apply->getArg()->getLoc(), diag::chain_convenience_init,
+        Diags.diagnose(apply->getArgs()->getLoc(), diag::chain_convenience_init,
                        classTy->getSuperclass());
         ctor->diagnose(diag::convenience_init_here);
       }

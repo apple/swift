@@ -539,12 +539,10 @@ class Traversal : public ASTVisitor<Traversal, Expr*, Stmt*,
   }
 
   Expr *visitObjectLiteralExpr(ObjectLiteralExpr *E) {
-    if (Expr *arg = E->getArg()) {
-      if (Expr *arg2 = doIt(arg)) {
-        E->setArg(arg2);
-      } else {
-        return nullptr;
-      }
+    if (auto *args = doIt(E->getArgs())) {
+      E->setArgs(args);
+    } else {
+      return nullptr;
     }
     return E;
   }
@@ -609,11 +607,12 @@ class Traversal : public ASTVisitor<Traversal, Expr*, Stmt*,
       E->setBase(Base);
     else
       return nullptr;
-    
-    if (Expr *Index = doIt(E->getIndex()))
-      E->setIndex(Index);
-    else
+
+    if (auto *args = doIt(E->getArgs())) {
+      E->setArgs(args);
+    } else {
       return nullptr;
+    }
     
     return E;
   }
@@ -635,11 +634,12 @@ class Traversal : public ASTVisitor<Traversal, Expr*, Stmt*,
       E->setBase(Base);
     else
       return nullptr;
-    
-    if (Expr *Index = doIt(E->getIndex()))
-      E->setIndex(Index);
-    else
+
+    if (auto *args = doIt(E->getArgs())) {
+      E->setArgs(args);
+    } else {
       return nullptr;
+    }
     
     return E;
   }
@@ -853,15 +853,10 @@ class Traversal : public ASTVisitor<Traversal, Expr*, Stmt*,
       E->setFn(E2);
     }
 
-    if (E->getArg()) {
-      Expr *E2 = doIt(E->getArg());
-      if (E2 == nullptr) return nullptr;
-      
-      // Protect against setting a non-tuple argument expression for a binop,
-      // which may occur as a result of error recovery.
-      // E.g., "print(Array<Int)"
-      if (!isa<BinaryExpr>(E) || isa<TupleExpr>(E2))
-        E->setArg(E2);
+    if (auto *args = doIt(E->getArgs())) {
+      E->setArgs(args);
+    } else {
+      return nullptr;
     }
 
     return E;
@@ -1089,30 +1084,15 @@ class Traversal : public ASTVisitor<Traversal, Expr*, Stmt*,
         return nullptr;
     }
 
-    SmallVector<KeyPathExpr::Component, 4> updatedComponents;
-    bool didChangeComponents = false;
     for (auto &origComponent : components) {
       auto component = origComponent;
       switch (auto kind = component.getKind()) {
       case KeyPathExpr::Component::Kind::Subscript:
       case KeyPathExpr::Component::Kind::UnresolvedSubscript: {
-        Expr *origIndex = component.getIndexExpr();
-        Expr *newIndex = doIt(origIndex);
-        if (!newIndex) return nullptr;
-        if (newIndex != origIndex) {
-          didChangeComponents = true;
-          component = kind == KeyPathExpr::Component::Kind::Subscript
-            ? KeyPathExpr::Component::forSubscriptWithPrebuiltIndexExpr(
-                component.getDeclRef(),
-                newIndex,
-                component.getSubscriptLabels(),
-                component.getComponentType(),
-                component.getLoc(),
-                component.getSubscriptIndexHashableConformances())
-            : KeyPathExpr::Component
-                         ::forUnresolvedSubscriptWithPrebuiltIndexExpr(
-                E->getType()->getASTContext(),
-                newIndex, component.getSubscriptLabels(), component.getLoc());
+        if (auto *newArgs = doIt(component.getSubscriptArgs())) {
+          component.setSubscriptArgs(newArgs);
+        } else {
+          return nullptr;
         }
         break;
       }
@@ -1129,14 +1109,7 @@ class Traversal : public ASTVisitor<Traversal, Expr*, Stmt*,
         // No subexpr to visit.
         break;
       }
-      updatedComponents.push_back(component);
     }
-    
-    if (didChangeComponents) {
-      E->resolveComponents(E->getType()->getASTContext(),
-                           updatedComponents);
-    }
-
     return E;
   }
 
@@ -1365,6 +1338,19 @@ public:
     }
 
     return false;
+  }
+
+  ArgumentList *doIt(ArgumentList *ArgList) {
+    auto Pre = Walker.walkToArgumentListPre(ArgList);
+    if (!Pre.first || !Pre.second)
+      return Pre.second;
+
+    for (auto &Arg : *Pre.second) {
+      auto *E = doIt(Arg.getExpr());
+      if (!E) return nullptr;
+      Arg.setExpr(E);
+    }
+    return Walker.walkToArgumentListPost(Pre.second);
   }
 };
 
@@ -1909,5 +1895,9 @@ bool Decl::walk(ASTWalker &walker) {
 }
 
 bool GenericParamList::walk(ASTWalker &walker) {
+  return Traversal(walker).doIt(this);
+}
+
+ArgumentList *ArgumentList::walk(ASTWalker &walker) {
   return Traversal(walker).doIt(this);
 }

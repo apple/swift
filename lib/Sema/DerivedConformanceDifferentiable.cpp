@@ -280,8 +280,8 @@ deriveBodyDifferentiable_move(AbstractFunctionDecl *funcDecl, void *) {
         new (C) MemberRefExpr(paramDRE, SourceLoc(), paramMember, DeclNameLoc(),
                               /*Implicit*/ true);
     // Create expression: `self.<member>.move(by: offset.<member>)`.
-    return CallExpr::createImplicit(C, memberMethodExpr, {paramMemberExpr},
-                                    {C.Id_by});
+    auto *args = ArgumentList::forImplicitSingle(C, C.Id_by, paramMemberExpr);
+    return CallExpr::createImplicit(C, memberMethodExpr, args);
   };
 
   // Collect member `move(by:)` method call expressions.

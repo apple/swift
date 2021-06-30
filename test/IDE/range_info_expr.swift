@@ -67,7 +67,7 @@ func bar(x: SR12957 = .main) {}
 // CHECK-PART-EXPR-NEXT: <Content>getSelf()</Content>
 // CHECK-PART-EXPR-NEXT: <Context>swift_ide_test.(file).foo1(_:)</Context>
 // CHECK-PART-EXPR-NEXT: <Parent>Call</Parent>
-// CHECK-PART-EXPR-NEXT: <ASTNodes>2</ASTNodes>
+// CHECK-PART-EXPR-NEXT: <ASTNodes>1</ASTNodes>
 // CHECK-PART-EXPR-NEXT: <end>
 
 // CHECK-PART-EXPR1: <Kind>PartOfExpression</Kind>

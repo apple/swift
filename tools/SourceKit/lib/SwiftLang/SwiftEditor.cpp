@@ -1597,29 +1597,30 @@ private:
   /// For example, if the CallExpr is enclosed in another expression or statement
   /// such as "outer(inner(<#closure#>))", or "if inner(<#closure#>)", then trailing
   /// closure should not be applied to the inner call.
-  std::pair<Expr*, bool> enclosingCallExprArg(SourceFile &SF, SourceLoc SL) {
+  std::pair<ArgumentList *, bool> enclosingCallExprArg(SourceFile &SF,
+                                                       SourceLoc SL) {
 
     class CallExprFinder : public SourceEntityWalker {
     public:
       const SourceManager &SM;
       SourceLoc TargetLoc;
-      std::pair<Expr *, Expr*> EnclosingCallAndArg;
+      std::pair<Expr *, ArgumentList *> EnclosingCallAndArg;
       Expr *OuterExpr;
       Stmt *OuterStmt;
       explicit CallExprFinder(const SourceManager &SM)
         :SM(SM) { }
 
       bool checkCallExpr(Expr *E) {
-        Expr* Arg = nullptr;
+        ArgumentList *Args = nullptr;
         if (auto *CE = dyn_cast<CallExpr>(E)) {
           // Call expression can have argument.
-          Arg = CE->getArg();
+          Args = CE->getArgs();
         }
-        if (!Arg)
+        if (!Args)
           return false;
         if (EnclosingCallAndArg.first)
           OuterExpr = EnclosingCallAndArg.first;
-        EnclosingCallAndArg = {E, Arg};
+        EnclosingCallAndArg = {E, Args};
         return true;
       }
 
@@ -1683,7 +1684,7 @@ private:
 
       bool shouldWalkInactiveConfigRegion() override { return true; }
 
-      Expr *findEnclosingCallArg(SourceFile &SF, SourceLoc SL) {
+      ArgumentList *findEnclosingCallArg(SourceFile &SF, SourceLoc SL) {
         EnclosingCallAndArg = {nullptr, nullptr};
         OuterExpr = nullptr;
         OuterStmt = nullptr;
@@ -1694,16 +1695,16 @@ private:
     };
 
     CallExprFinder CEFinder(SM);
-    auto *CE = CEFinder.findEnclosingCallArg(SF, SL);
+    auto *Args = CEFinder.findEnclosingCallArg(SF, SL);
 
-    if (!CE)
-      return std::make_pair(CE, false);
+    if (!Args)
+      return std::make_pair(Args, false);
     if (CEFinder.OuterExpr)
-      return std::make_pair(CE, false);
+      return std::make_pair(Args, false);
     if (CEFinder.OuterStmt)
-      return std::make_pair(CE, false);
+      return std::make_pair(Args, false);
 
-    return std::make_pair(CE, true);
+    return std::make_pair(Args, true);
   }
 
   struct ParamClosureInfo {
@@ -1712,19 +1713,21 @@ private:
     bool isWrappedWithBraces = false;
   };
 
-  /// Scan the given TupleExpr collecting parameter closure information and
+  /// Scan the given ArgumentList collecting argument closure information and
   /// returning the index of the given target placeholder (if found).
-  Optional<unsigned> scanTupleExpr(TupleExpr *TE, SourceLoc targetPlaceholderLoc,
-                                   std::vector<ParamClosureInfo> &outParams) {
-    if (TE->getElements().empty())
+  Optional<unsigned>
+  scanArgumentList(ArgumentList *Args, SourceLoc targetPlaceholderLoc,
+                   std::vector<ParamClosureInfo> &outParams) {
+    if (Args->empty())
       return llvm::None;
 
     outParams.clear();
-    outParams.reserve(TE->getNumElements());
+    outParams.reserve(Args->size());
 
     Optional<unsigned> targetPlaceholderIndex;
 
-    for (Expr *E : TE->getElements()) {
+    for (auto &Arg : *Args) {
+      auto *E = Arg.getExpr();
       outParams.emplace_back();
       auto &outParam = outParams.back();
 
@@ -1770,10 +1773,10 @@ public:
   /// a typed completion placeholder in a function call.
   /// For example: foo.bar(aaa, <#T##(Int, Int) -> Bool#>).
   bool scan(SourceFile &SF, unsigned BufID, unsigned Offset, unsigned Length,
-            std::function<void(Expr *Args, bool UseTrailingClosure,
+            std::function<void(ArgumentList *Args, bool UseTrailingClosure,
                                bool isWrappedWithBraces, const ClosureInfo &)>
                 OneClosureCallback,
-            std::function<void(TupleExpr *Args, unsigned FirstTrailingIndex,
+            std::function<void(ArgumentList *Args, unsigned FirstTrailingIndex,
                                ArrayRef<ClosureInfo> trailingClosures)>
                 MultiClosureCallback,
             std::function<bool(EditorPlaceholderExpr *)> NonClosureCallback) {
@@ -1797,15 +1800,10 @@ public:
     std::vector<ParamClosureInfo> params;
     Optional<unsigned> targetPlaceholderIndex;
     auto ECE = enclosingCallExprArg(SF, PlaceholderStartLoc);
-    Expr *Args = ECE.first;
+    ArgumentList *Args = ECE.first;
     if (Args && ECE.second) {
-      if (isa<ParenExpr>(Args)) {
-        params.emplace_back();
-        params.back().placeholderClosure = TargetClosureInfo;
-        targetPlaceholderIndex = 0;
-      } else if (auto *TE = dyn_cast<TupleExpr>(Args)) {
-        targetPlaceholderIndex = scanTupleExpr(TE, PlaceholderStartLoc, params);
-      }
+      targetPlaceholderIndex =
+          scanArgumentList(Args, PlaceholderStartLoc, params);
     }
 
     // If there was no appropriate parent call expression, it's non-trailing.
@@ -1849,8 +1847,7 @@ public:
          llvm::makeArrayRef(params).slice(firstTrailingIndex)) {
       trailingClosures.push_back(*param.placeholderClosure);
     }
-    MultiClosureCallback(cast<TupleExpr>(Args), firstTrailingIndex,
-                         trailingClosures);
+    MultiClosureCallback(Args, firstTrailingIndex, trailingClosures);
     return true;
   }
 };
@@ -2190,7 +2187,7 @@ void SwiftEditorDocument::expandPlaceholder(unsigned Offset, unsigned Length,
   SourceFile &SF = SyntaxInfo->getSourceFile();
 
   Scanner.scan(SF, BufID, Offset, Length,
-          [&](Expr *Args,
+          [&](ArgumentList *Args,
               bool UseTrailingClosure, bool isWrappedWithBraces,
               const PlaceholderExpansionScanner::ClosureInfo &closure) {
 
@@ -2202,7 +2199,7 @@ void SwiftEditorDocument::expandPlaceholder(unsigned Offset, unsigned Length,
         if (UseTrailingClosure) {
           assert(Args);
 
-          if (isa<ParenExpr>(Args)) {
+          if (Args->isUnary()) {
             // There appears to be no other parameters in this call, so we'll
             // expand replacement for trailing closure and cover call parens.
             // For example:
@@ -2210,25 +2207,16 @@ void SwiftEditorDocument::expandPlaceholder(unsigned Offset, unsigned Length,
             EffectiveOffset = SM.getLocOffsetInBuffer(Args->getStartLoc(), BufID);
             OS << " ";
           } else {
-            auto *TupleE = cast<TupleExpr>(Args);
-            auto Elems = TupleE->getElements();
-            assert(!Elems.empty());
-            if (Elems.size() == 1) {
-              EffectiveOffset = SM.getLocOffsetInBuffer(Args->getStartLoc(), BufID);
-              OS << " ";
-            } else {
-              // Expand replacement range for trailing closure.
-              // For example:
-              // foo.bar(a, <#closure#>) turns into foo.bar(a) <#closure#>.
+            // Expand replacement range for trailing closure.
+            // For example:
+            // foo.bar(a, <#closure#>) turns into foo.bar(a) <#closure#>.
 
-              // If the preceding token in the call is the leading parameter
-              // separator, we'll expand replacement to cover that.
-              assert(Elems.size() > 1);
-              SourceLoc BeforeLoc = Lexer::getLocForEndOfToken(SM,
-                                              Elems[Elems.size()-2]->getEndLoc());
-              EffectiveOffset = SM.getLocOffsetInBuffer(BeforeLoc, BufID);
-              OS << ") ";
-            }
+            // If the preceding token in the call is the leading parameter
+            // separator, we'll expand replacement to cover that.
+            auto *Arg = Args->getExpr(Args->size() - 2);
+            auto BeforeLoc = Lexer::getLocForEndOfToken(SM, Arg->getEndLoc());
+            EffectiveOffset = SM.getLocOffsetInBuffer(BeforeLoc, BufID);
+            OS << ") ";
           }
 
           unsigned End = SM.getLocOffsetInBuffer(Args->getEndLoc(), BufID);
@@ -2246,7 +2234,7 @@ void SwiftEditorDocument::expandPlaceholder(unsigned Offset, unsigned Length,
       Consumer.handleSourceText(ExpansionStr);
       Consumer.recordAffectedRange(EffectiveOffset, EffectiveLength);
 
-    },[&](TupleExpr *args, unsigned firstTrailingIndex,
+    },[&](ArgumentList *args, unsigned firstTrailingIndex,
           ArrayRef<PlaceholderExpansionScanner::ClosureInfo> trailingClosures) {
       unsigned EffectiveOffset = Offset;
       unsigned EffectiveLength = Length;
@@ -2254,7 +2242,7 @@ void SwiftEditorDocument::expandPlaceholder(unsigned Offset, unsigned Length,
       {
         llvm::raw_svector_ostream OS(ExpansionStr);
 
-        assert(args->getNumElements() - firstTrailingIndex == trailingClosures.size());
+        assert(args->size() - firstTrailingIndex == trailingClosures.size());
         if (firstTrailingIndex == 0) {
           // foo(<....>) -> foo { <...> }
           EffectiveOffset = SM.getLocOffsetInBuffer(args->getStartLoc(), BufID);
@@ -2262,7 +2250,7 @@ void SwiftEditorDocument::expandPlaceholder(unsigned Offset, unsigned Length,
         } else {
           // foo(blah, <....>) -> foo(blah) { <...> }
           SourceLoc beforeTrailingLoc = Lexer::getLocForEndOfToken(SM,
-              args->getElements()[firstTrailingIndex - 1]->getEndLoc());
+              args->getExpr(firstTrailingIndex - 1)->getEndLoc());
           EffectiveOffset = SM.getLocOffsetInBuffer(beforeTrailingLoc, BufID);
           OS << ") ";
         }
@@ -2271,12 +2259,12 @@ void SwiftEditorDocument::expandPlaceholder(unsigned Offset, unsigned Length,
         EffectiveLength = (End + 1) - EffectiveOffset;
 
         unsigned argI = firstTrailingIndex;
-        for (unsigned i = 0; argI != args->getNumElements(); ++i, ++argI) {
+        for (unsigned i = 0; argI != args->size(); ++i, ++argI) {
           const auto &closure = trailingClosures[i];
           if (i == 0) {
             OS << "{ ";
           } else {
-            auto label = args->getElementName(argI);
+            auto label = args->getLabel(argI);
             OS << " " << (label.empty() ? "_" : label.str()) << ": { ";
           }
           printClosureBody(closure, OS, SM);

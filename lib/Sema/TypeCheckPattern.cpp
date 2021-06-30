@@ -274,7 +274,23 @@ public:
 
     return new (Context) ExprPattern(E, nullptr, nullptr);
   }
-  
+
+  /// Turn an argument list into a matching tuple or paren pattern.
+  Pattern *composeTupleOrParenPattern(ArgumentList *args) {
+    if (auto *unary = args->getUnlabelledUnaryExpr()) {
+      auto *subPattern = getSubExprPattern(unary);
+      return new (Context)
+          ParenPattern(args->getLParenLoc(), subPattern, args->getRParenLoc());
+    }
+    SmallVector<TuplePatternElt, 4> elts;
+    for (auto &arg : *args) {
+      auto *subPattern = getSubExprPattern(arg.getExpr());
+      elts.emplace_back(arg.getLabel(), arg.getLabelLoc(), subPattern);
+    }
+    return TuplePattern::create(Context, args->getLParenLoc(), elts,
+                                args->getRParenLoc());
+  }
+
   // Handle productions that are always leaf patterns or are already resolved.
 #define ALWAYS_RESOLVED_PATTERN(Id) \
   Pattern *visit##Id##Pattern(Id##Pattern *P) { return P; }
@@ -552,7 +568,7 @@ public:
         return nullptr;
 
       auto *EEP = cast<EnumElementPattern>(P);
-      EEP->setSubPattern(getSubExprPattern(ce->getArg()));
+      EEP->setSubPattern(composeTupleOrParenPattern(ce->getArgs()));
       EEP->setUnresolvedOriginalExpr(ce);
 
       return P;
@@ -621,7 +637,7 @@ public:
     assert(!isa<GenericIdentTypeRepr>(tailComponent) &&
            "should be handled above");
 
-    auto *subPattern = getSubExprPattern(ce->getArg());
+    auto *subPattern = composeTupleOrParenPattern(ce->getArgs());
     return new (Context) EnumElementPattern(
         baseTE, SourceLoc(), tailComponent->getNameLoc(),
         tailComponent->getNameRef(), referencedElement, subPattern);
@@ -1015,8 +1031,7 @@ Pattern *TypeChecker::coercePatternToType(ContextualPattern pattern,
     if ((options.getContext() == TypeResolverContext::EnumPatternPayload)
         && !isa<TuplePattern>(semantic)) {
       if (auto tupleType = type->getAs<TupleType>()) {
-        if (tupleType->getNumElements() == 1 &&
-            !tupleType->getElement(0).isVararg()) {
+        if (tupleType->getNumElements() == 1) {
           auto elementTy = tupleType->getElementType(0);
           sub = coercePatternToType(
               pattern.forSubPattern(sub, /*retainTopLevel=*/true), elementTy,

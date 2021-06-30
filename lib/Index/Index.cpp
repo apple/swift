@@ -372,27 +372,25 @@ private:
     if (!DeclRef || !isMemberwiseInit(DeclRef->getDecl()))
       return;
 
-    // get label locations
     auto *MemberwiseInit = DeclRef->getDecl();
-    std::vector<SourceLoc> LabelLocs;
-    ArrayRef<Identifier> Labels;
     auto NameLoc = DeclRef->getNameLoc();
+    auto ArgNames = MemberwiseInit->getName().getArgumentNames();
+
+    // Get label locations.
+    llvm::SmallVector<Argument, 4> Args;
     if (NameLoc.isCompound()) {
       size_t LabelIndex = 0;
-      SourceLoc ArgLoc;
-      while ((ArgLoc = NameLoc.getArgumentLabelLoc(LabelIndex++)).isValid()) {
-        LabelLocs.push_back(ArgLoc);
+      while (auto ArgLoc = NameLoc.getArgumentLabelLoc(LabelIndex)) {
+        Args.emplace_back(ArgLoc, ArgNames[LabelIndex], /*expr*/ nullptr);
+        LabelIndex++;
       }
-      Labels = MemberwiseInit->getName().getArgumentNames();
     } else if (auto *CallParent = dyn_cast_or_null<CallExpr>(getParentExpr())) {
-      LabelLocs = CallParent->getArgumentLabelLocs();
-      Labels = CallParent->getArgumentLabels();
+      auto *args = CallParent->getArgs();
+      Args.append(args->begin(), args->end());
     }
 
-    if (LabelLocs.empty())
+    if (Args.empty())
       return;
-
-    assert(Labels.size() == LabelLocs.size());
 
     // match labels to properties
     auto *TypeContext =
@@ -409,14 +407,15 @@ private:
       if (!Prop->isMemberwiseInitialized(/*preferDeclaredProperties=*/true))
         continue;
 
-      if (CurLabel == LabelLocs.size())
+      if (CurLabel == Args.size())
         break;
 
-      if (Labels[CurLabel] != Prop->getName())
+      if (Args[CurLabel].getLabel() != Prop->getName())
         continue;
 
       IndexSymbol Info;
-      if (initIndexSymbol(Prop, LabelLocs[CurLabel++], /*IsRef=*/true, Info))
+      auto LabelLoc = Args[CurLabel++].getLabelLoc();
+      if (initIndexSymbol(Prop, LabelLoc, /*IsRef=*/true, Info))
         continue;
       if (startEntity(Prop, Info, /*IsRef=*/true))
         finishCurrentEntity();

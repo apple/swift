@@ -1643,7 +1643,18 @@
       key.nameoffset: 2669,
       key.namelength: 5,
       key.bodyoffset: 2675,
-      key.bodylength: 8
+      key.bodylength: 8,
+      key.substructure: [
+        {
+          key.kind: source.lang.swift.expr.argument,
+          key.offset: 2675,
+          key.length: 8,
+          key.nameoffset: 0,
+          key.namelength: 0,
+          key.bodyoffset: 2675,
+          key.bodylength: 8
+        }
+      ]
     },
     {
       key.kind: source.lang.swift.decl.protocol,

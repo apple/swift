@@ -13,6 +13,7 @@ add_swift_host_library(swiftAST STATIC
   AbstractSourceFileDepGraphFactory.cpp
   AccessNotes.cpp
   AccessRequests.cpp
+  ArgumentList.cpp
   ASTContext.cpp
   ASTDemangler.cpp
   ASTDumper.cpp

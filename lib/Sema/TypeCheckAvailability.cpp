@@ -1784,11 +1784,12 @@ static void fixItAvailableAttrRename(InFlightDiagnostic &diag,
     SourceLoc removeRangeStart;
     SourceLoc removeRangeEnd;
 
-    auto *argExpr = call->getArg();
-    auto argList = getOriginalArgumentList(argExpr);
+    auto *argList = call->getArgs();
+    SmallVector<Argument, 4> originalArgs;
+    argList->getOriginalArguments(originalArgs);
 
-    size_t numElementsWithinParens = argList.args.size();
-    numElementsWithinParens -= argList.hasTrailingClosure;
+    size_t numElementsWithinParens = originalArgs.size();
+    numElementsWithinParens -= argList->getNumTrailingClosures();
     if (selfIndex >= numElementsWithinParens)
       return;
 
@@ -1799,48 +1800,48 @@ static void fixItAvailableAttrRename(InFlightDiagnostic &diag,
       if (numElementsWithinParens != 2)
         return;
     } else {
-      if (parsed.ArgumentLabels.size() != argList.args.size() - 1)
+      if (parsed.ArgumentLabels.size() != originalArgs.size() - 1)
         return;
     }
 
-    selfExpr = argList.args[selfIndex];
+    selfExpr = originalArgs[selfIndex].getExpr();
 
     if (selfIndex + 1 == numElementsWithinParens) {
       if (selfIndex > 0) {
         // Remove from the previous comma to the close-paren (half-open).
-        removeRangeStart = argList.args[selfIndex-1]->getEndLoc();
+        removeRangeStart = originalArgs[selfIndex - 1].getExpr()->getEndLoc();
         removeRangeStart = Lexer::getLocForEndOfToken(sourceMgr,
                                                       removeRangeStart);
       } else {
         // Remove from after the open paren to the close paren (half-open).
-        removeRangeStart = Lexer::getLocForEndOfToken(sourceMgr,
-                                                      argExpr->getStartLoc());
+        removeRangeStart =
+            Lexer::getLocForEndOfToken(sourceMgr, argList->getStartLoc());
       }
 
       // Prefer the r-paren location, so that we get the right behavior when
       // there's a trailing closure, but handle some implicit cases too.
-      removeRangeEnd = argList.rParenLoc;
+      removeRangeEnd = argList->getRParenLoc();
       if (removeRangeEnd.isInvalid())
-        removeRangeEnd = argExpr->getEndLoc();
+        removeRangeEnd = argList->getEndLoc();
 
     } else {
       // Remove from the label to the start of the next argument (half-open).
-      SourceLoc labelLoc = argList.labelLocs[selfIndex];
+      SourceLoc labelLoc = originalArgs[selfIndex].getLabelLoc();
       if (labelLoc.isValid())
         removeRangeStart = labelLoc;
       else
         removeRangeStart = selfExpr->getStartLoc();
 
-      SourceLoc nextLabelLoc = argList.labelLocs[selfIndex + 1];
+      SourceLoc nextLabelLoc = originalArgs[selfIndex + 1].getLabelLoc();
       if (nextLabelLoc.isValid())
         removeRangeEnd = nextLabelLoc;
       else
-        removeRangeEnd = argList.args[selfIndex + 1]->getStartLoc();
+        removeRangeEnd = originalArgs[selfIndex + 1].getExpr()->getStartLoc();
     }
 
     // Avoid later argument label fix-its for this argument.
     if (!parsed.isPropertyAccessor()) {
-      Identifier oldLabel = argList.labels[selfIndex];
+      Identifier oldLabel = originalArgs[selfIndex].getLabel();
       StringRef oldLabelStr;
       if (!oldLabel.empty())
         oldLabelStr = oldLabel.str();
@@ -1929,35 +1930,35 @@ static void fixItAvailableAttrRename(InFlightDiagnostic &diag,
   if (!call || !isa<CallExpr>(call))
     return;
 
-  auto *argExpr = call->getArg();
-  auto argList = getOriginalArgumentList(argExpr);
+  auto *argList = call->getArgs();
+  SmallVector<Argument, 4> originalArgs;
+  argList->getOriginalArguments(originalArgs);
 
   if (parsed.IsGetter) {
-    diag.fixItRemove(argExpr->getSourceRange());
+    diag.fixItRemove(argList->getSourceRange());
     return;
   }
 
   if (parsed.IsSetter) {
     const Expr *newValueExpr = nullptr;
 
-    if (argList.args.size() >= 1) {
+    if (originalArgs.size() >= 1) {
       size_t newValueIndex = 0;
       if (parsed.isInstanceMember()) {
         assert(parsed.SelfIndex.getValue() == 0 ||
                parsed.SelfIndex.getValue() == 1);
         newValueIndex = !parsed.SelfIndex.getValue();
       }
-      newValueExpr = argList.args[newValueIndex];
+      newValueExpr = originalArgs[newValueIndex].getExpr();
     } else {
-      newValueExpr = argList.args[0];
+      newValueExpr = originalArgs[0].getExpr();
     }
 
-    diag.fixItReplaceChars(argExpr->getStartLoc(), newValueExpr->getStartLoc(),
+    diag.fixItReplaceChars(argList->getStartLoc(), newValueExpr->getStartLoc(),
                            " = ");
-    diag.fixItRemoveChars(Lexer::getLocForEndOfToken(sourceMgr,
-                                                     newValueExpr->getEndLoc()),
-                          Lexer::getLocForEndOfToken(sourceMgr,
-                                                     argExpr->getEndLoc()));
+    diag.fixItRemoveChars(
+        Lexer::getLocForEndOfToken(sourceMgr, newValueExpr->getEndLoc()),
+        Lexer::getLocForEndOfToken(sourceMgr, argList->getEndLoc()));
     return;
   }
 
@@ -2021,33 +2022,30 @@ static void fixItAvailableAttrRename(InFlightDiagnostic &diag,
     return false;
   };
 
-  if (auto *parenExpr = dyn_cast<ParenExpr>(argExpr)) {
-    if (updateLabelsForArg(parenExpr->getSubExpr()))
+  for (auto &arg : *argList) {
+    if (updateLabelsForArg(arg.getExpr()))
       return;
-  } else {
-    for (auto *arg : cast<TupleExpr>(argExpr)->getElements()) {
-      if (updateLabelsForArg(arg))
-        return;
-    }
   }
 
-  if (argumentLabelIDs.size() != argList.args.size()) {
+  if (argumentLabelIDs.size() != originalArgs.size()) {
     // Mismatched lengths; give up.
     return;
   }
 
   auto argumentLabelsToCheck = llvm::makeArrayRef(argumentLabelIDs);
   // The argument label for a trailing closure is ignored.
-  if (argList.hasTrailingClosure)
+  // FIXME: What about multiple trailing closures?
+  if (argList->hasSingleTrailingClosure())
     argumentLabelsToCheck = argumentLabelsToCheck.drop_back();
 
-  if (std::equal(argumentLabelsToCheck.begin(), argumentLabelsToCheck.end(),
-                 argList.labels.begin())) {
+  if (llvm::all_of(indices(argumentLabelsToCheck), [&](auto idx) {
+        return argumentLabelsToCheck[idx] == originalArgs[idx].getLabel();
+      })) {
     // Already matching.
     return;
   }
 
-  diagnoseArgumentLabelError(ctx, argExpr, argumentLabelIDs, false, &diag);
+  diagnoseArgumentLabelError(ctx, argList, argumentLabelIDs, false, &diag);
 }
 
 // Must be kept in sync with diag::availability_decl_unavailable_rename and
@@ -3055,8 +3053,8 @@ ExprAvailabilityWalker::diagnoseIncDecRemoval(const ValueDecl *D, SourceRange R,
     // Otherwise, it must be an index type.  Rewrite to:
     // "lvalue = lvalue.successor()".
     auto &SM = Context.SourceMgr;
-    auto CSR = Lexer::getCharSourceRangeFromSourceRange(SM,
-                                         call->getArg()->getSourceRange());
+    auto CSR = Lexer::getCharSourceRangeFromSourceRange(
+        SM, call->getArgs()->getSourceRange());
     replacement = " = " + SM.extractText(CSR).str();
     replacement += isInc ? ".successor()" : ".predecessor()";
   }
@@ -3074,7 +3072,7 @@ ExprAvailabilityWalker::diagnoseIncDecRemoval(const ValueDecl *D, SourceRange R,
     if (isa<PrefixUnaryExpr>(call)) {
       // Prefix: remove the ++ or --.
       diag.fixItRemove(call->getFn()->getSourceRange());
-      diag.fixItInsertAfter(call->getArg()->getEndLoc(), replacement);
+      diag.fixItInsertAfter(call->getArgs()->getEndLoc(), replacement);
     } else {
       // Postfix: replace the ++ or --.
       diag.fixItReplace(call->getFn()->getSourceRange(), replacement);
@@ -3110,8 +3108,9 @@ ExprAvailabilityWalker::diagnoseMemoryLayoutMigration(const ValueDecl *D,
   if (Property.empty())
     return false;
 
-  auto args = dyn_cast<ParenExpr>(call->getArg());
-  if (!args)
+  auto *args = call->getArgs();
+  auto *subject = args->getUnlabelledUnaryExpr();
+  if (!subject)
     return false;
 
   DeclName Name;
@@ -3124,8 +3123,6 @@ ExprAvailabilityWalker::diagnoseMemoryLayoutMigration(const ValueDecl *D,
           R.Start, diag::availability_decl_unavailable, RawAccessorKind,
           Name, true, "", EncodedMessage.Message);
   diag.highlight(R);
-
-  auto subject = args->getSubExpr();
 
   StringRef Prefix = "MemoryLayout<";
   StringRef Suffix = ">.";

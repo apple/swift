@@ -723,11 +723,10 @@ public:
   /// \returns Lowered index arguments.
   /// \param subscript - The subscript decl who's arguments are being lowered.
   /// \param subs - Used to get subscript function type and to substitute generic args.
-  /// \param indexExpr - An expression holding the indices of the
-  /// subscript (either a TupleExpr or a ParenExpr).
+  /// \param argList - The argument list of the subscript.
   SmallVector<ManagedValue, 4>
   emitKeyPathSubscriptOperands(SubscriptDecl *subscript, SubstitutionMap subs,
-                               Expr *indexExpr);
+                               ArgumentList *argList);
 
   /// Convert a block to a native function with a thunk.
   ManagedValue emitBlockToFunc(SILLocation loc,
@@ -1353,7 +1352,7 @@ public:
   PreparedArguments prepareSubscriptIndices(SubscriptDecl *subscript,
                                             SubstitutionMap subs,
                                             AccessStrategy strategy,
-                                            Expr *indices);
+                                            ArgumentList *argList);
 
   ArgumentSource prepareAccessorBaseArg(SILLocation loc, ManagedValue base,
                                         CanType baseFormalType,

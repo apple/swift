@@ -25,7 +25,6 @@ func DictS(_ a: [Int: S]) {
 // CHECK: (183, 196): String
 // CHECK: (183, 184): [C]
 // CHECK: (203, 211): (Int) -> (Int) -> Int
-// CHECK: (211, 218): (by: Int)
 // CHECK: (216, 217): Int
 // CHECK: (257, 258): Int
 // CHECK: (291, 332): ()

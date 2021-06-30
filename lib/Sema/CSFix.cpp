@@ -430,10 +430,12 @@ getStructuralTypeContext(const Solution &solution, ConstraintLocator *locator) {
                            solution.getType(assignExpr->getDest())->getRValueType());
   } else if (auto *call = getAsExpr<CallExpr>(locator->getAnchor())) {
     assert(isa<TypeExpr>(call->getFn()));
+    auto &ctx = solution.getDC()->getASTContext();
+    auto argTuple = call->getArgs()->composeTupleOrParenType(
+        ctx, [&](Expr *E) { return solution.getType(E); });
     return std::make_tuple(
         CTP_Initialization,
-        solution.getType(call->getFn())->getMetatypeInstanceType(),
-        solution.getType(call->getArg()));
+        solution.getType(call->getFn())->getMetatypeInstanceType(), argTuple);
   }
 
   return None;

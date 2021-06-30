@@ -89,10 +89,9 @@ deriveRawValueInit(AbstractFunctionDecl *initDecl, void *) {
       C, selfRef, DeclBaseName::createConstructor(), paramList);
 
   // Bind the value param in self.init(rawValue: {string,int}Value).
-  Expr *args[1] = {valueParamExpr};
-  Identifier argLabels[1] = {C.Id_rawValue};
-  auto *callExpr = CallExpr::createImplicit(C, initExpr, C.AllocateCopy(args),
-                                            C.AllocateCopy(argLabels));
+  auto *argList =
+      ArgumentList::forImplicitSingle(C, C.Id_rawValue, valueParamExpr);
+  auto *callExpr = CallExpr::createImplicit(C, initExpr, argList);
 
   auto *body = BraceStmt::create(C, SourceLoc(), ASTNode(callExpr),
                                  SourceLoc());

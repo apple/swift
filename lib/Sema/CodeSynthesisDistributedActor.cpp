@@ -76,10 +76,8 @@ createCall_DistributedActor_transport_assignAddress(ASTContext &C,
                                               SourceLoc(), param);
 
   // Full bound self.assignAddress(Self.self) call
-  Expr *args[1] = {dotSelfTypeExpr};
-  Identifier argLabels[1] = {Identifier()};
-  return CallExpr::createImplicit(C, unboundCall, C.AllocateCopy(args),
-                                  C.AllocateCopy(argLabels));
+  auto *argList = ArgumentList::forImplicitUnlabelled(C, {dotSelfTypeExpr});
+  return CallExpr::createImplicit(C, unboundCall, argList);
 }
 
 
@@ -106,10 +104,8 @@ createCall_DistributedActor_transport_actorReady(ASTContext &C,
                                                         paramList);
 
   // Full bound transport.actorReady(self) call
-  Expr *args[1] = {initalizedSelf};
-  Identifier argLabels[1] = {Identifier()};
-  return CallExpr::createImplicit(C, unboundCall, C.AllocateCopy(args),
-                                  C.AllocateCopy(argLabels));
+  auto *argList = ArgumentList::forImplicitUnlabelled(C, {initalizedSelf});
+  return CallExpr::createImplicit(C, unboundCall, argList);
 }
 
 /// Synthesizes the body of the `init(transport:)` initializer as:
@@ -629,8 +625,9 @@ synthesizeRemoteFuncStubBody(AbstractFunctionDecl *func, void *context) {
   column->setType(uintType);
   column->setBuiltinInitializer(uintInit);
 
-  auto *call = CallExpr::createImplicit(
-      ctx, ref, { className, funcName, file, line, column }, {});
+  auto *argList = ArgumentList::forImplicitUnlabelled(
+      ctx, {className, funcName, file, line, column});
+  auto *call = CallExpr::createImplicit(ctx, ref, argList);
   call->setType(ctx.getNeverType());
   call->setThrows(false);
 

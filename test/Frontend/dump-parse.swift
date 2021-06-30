@@ -65,14 +65,16 @@ let _: (Int) -> () = generic
 func escaping(_: @escaping (Int) -> Int) {}
 escaping({ $0 })
 // CHECK-AST:        (declref_expr type='(@escaping (Int) -> Int) -> ()'
-// CHECK-AST-NEXT:        (paren_expr
-// CHECK-AST-NEXT:          (closure_expr type='(Int) -> Int' {{.*}} discriminator=0 escaping single-expression
+// CHECK-AST-NEXT:        (argument_list
+// CHECK-AST-NEXT:          (argument
+// CHECK-AST-NEXT:            (closure_expr type='(Int) -> Int' {{.*}} discriminator=0 escaping single-expression
 
 func nonescaping(_: (Int) -> Int) {}
 nonescaping({ $0 })
 // CHECK-AST:        (declref_expr type='((Int) -> Int) -> ()'
-// CHECK-AST-NEXT:        (paren_expr
-// CHECK-AST-NEXT:          (closure_expr type='(Int) -> Int' {{.*}} discriminator=1 single-expression
+// CHECK-AST-NEXT:        (argument_list
+// CHECK-AST-NEXT:          (argument
+// CHECK-AST-NEXT:            (closure_expr type='(Int) -> Int' {{.*}} discriminator=1 single-expression
 
 // CHECK-LABEL: (struct_decl range=[{{.+}}] "MyStruct")
 struct MyStruct {}
@@ -117,9 +119,9 @@ struct SelfParam {
   // CHECK-NEXT:          (component id='SelfParam' bind=none))))
   static func createOptional() -> SelfParam? {
 
-    // CHECK-LABEL: (call_expr type='<null>' arg_labels=
+    // CHECK-LABEL: (call_expr type='<null>'
     // CHECK-NEXT:    (unresolved_decl_ref_expr type='<null>' name=SelfParam function_ref=unapplied)
-    // CHECK-NEXT:    (tuple_expr type='()'{{.*}}))
+    // CHECK-NEXT:    (argument_list)
     SelfParam()
   }
 }

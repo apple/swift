@@ -210,7 +210,7 @@ protected:
   /// within an argument application, returns the argument list for that
   /// application. If the locator is not for an argument application, or
   /// the argument list cannot be found, returns \c nullptr.
-  Expr *getArgumentListExprFor(ConstraintLocator *locator) const;
+  ArgumentList *getArgumentListFor(ConstraintLocator *locator) const;
 
   /// \returns A new type with all of the type variables associated with
   /// generic parameters substituted back into being generic parameter type.
@@ -1383,6 +1383,8 @@ public:
     assert(!SynthesizedArgs.empty() && "No missing arguments?!");
   }
 
+  SourceLoc getLoc() const override;
+
   ASTNode getAnchor() const override;
 
   bool diagnoseAsError() override;
@@ -1406,10 +1408,8 @@ private:
   bool isPropertyWrapperInitialization() const;
 
   /// Gather information associated with expression that represents
-  /// a call - function, arguments, # of arguments and the position of
-  /// the first trailing closure.
-  std::tuple<Expr *, Expr *, unsigned, Optional<unsigned>>
-      getCallInfo(ASTNode anchor) const;
+  /// a call - function and argument list.
+  Optional<std::pair<Expr *, ArgumentList *>> getCallInfo(ASTNode anchor) const;
 
   /// Transform given argument into format suitable for a fix-it
   /// text e.g. `[<label>:]? <#<type#>`
@@ -1444,6 +1444,8 @@ public:
       : FailureDiagnostic(solution, locator),
         ContextualType(resolveType(contextualType)->castTo<FunctionType>()),
         ExtraArgs(extraArgs.begin(), extraArgs.end()) {}
+
+  SourceLoc getLoc() const override;
 
   bool diagnoseAsError() override;
   bool diagnoseAsNote() override;

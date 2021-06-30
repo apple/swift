@@ -36,7 +36,8 @@ func asyncFunc() async {
 // CHECK-AST-SAME:             type='(@escaping () async throws -> ()) -> ()'
 // CHECK-AST-SAME:             decl=_Concurrency.(file)._runAsyncMain
 // CHECK-AST-SAME:             function_ref=single
-// CHECK-AST-NEXT:        (paren_expr implicit type='(() async throws -> ())'
-// CHECK-AST-NEXT:          (function_conversion_expr implicit type='() async throws -> ()'
-// CHECK-AST-NEXT:          (dot_syntax_call_expr
-// CHECK-AST-NEXT:          (autoclosure_expr implicit type='(MyProgram.Type) -> () async -> ()'
+// CHECK-AST-NEXT:        (argument_list
+// CHECK-AST-NEXT:          (argument
+// CHECK-AST-NEXT:            (function_conversion_expr implicit type='() async throws -> ()'
+// CHECK-AST-NEXT:            (dot_syntax_call_expr
+// CHECK-AST-NEXT:            (autoclosure_expr implicit type='(MyProgram.Type) -> () async -> ()'

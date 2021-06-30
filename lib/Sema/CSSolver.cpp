@@ -878,10 +878,10 @@ void ConstraintSystem::shrink(Expr *expr) {
       expr = expr->getSemanticsProvidingExpr();
 
       if (auto prefix = dyn_cast<PrefixUnaryExpr>(expr))
-        return isArithmeticExprOfLiterals(prefix->getArg());
+        return isArithmeticExprOfLiterals(prefix->getOperand());
 
       if (auto postfix = dyn_cast<PostfixUnaryExpr>(expr))
-        return isArithmeticExprOfLiterals(postfix->getArg());
+        return isArithmeticExprOfLiterals(postfix->getOperand());
 
       if (auto binary = dyn_cast<BinaryExpr>(expr))
         return isArithmeticExprOfLiterals(binary->getLHS()) &&

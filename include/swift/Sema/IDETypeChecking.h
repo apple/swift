@@ -233,25 +233,6 @@ namespace swift {
                            std::vector<VariableTypeInfo> &VariableTypeInfos,
                            llvm::raw_ostream &OS);
 
-  /// FIXME: All of the below goes away once CallExpr directly stores its
-  /// arguments.
-
-  /// Return value for getOriginalArgumentList().
-  struct OriginalArgumentList {
-    SmallVector<Expr *, 4> args;
-    SmallVector<Identifier, 4> labels;
-    SmallVector<SourceLoc, 4> labelLocs;
-    SourceLoc lParenLoc;
-    SourceLoc rParenLoc;
-    bool hasTrailingClosure = false;
-  };
-
-  /// When applying a solution to a constraint system, the type checker rewrites
-  /// argument lists of calls to insert default arguments and collect varargs.
-  /// Sometimes for diagnostics we want to work on the original argument list as
-  /// written by the user; this performs the reverse transformation.
-  OriginalArgumentList getOriginalArgumentList(Expr *expr);
-
   /// Returns the root type and result type of the keypath type in a keypath
   /// dynamic member lookup subscript, or \c None if it cannot be determined.
   ///

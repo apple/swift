@@ -3293,39 +3293,6 @@ AnyFunctionType *AnyFunctionType::withExtInfo(ExtInfo info) const {
                                   getParams(), getResult(), info);
 }
 
-void AnyFunctionType::decomposeInput(
-    Type type, SmallVectorImpl<AnyFunctionType::Param> &result) {
-  switch (type->getKind()) {
-  case TypeKind::Tuple: {
-    auto tupleTy = cast<TupleType>(type.getPointer());
-    for (auto &elt : tupleTy->getElements()) {
-      result.emplace_back((elt.isVararg()
-                           ? elt.getVarargBaseTy()
-                           : elt.getRawType()),
-                          elt.getName(),
-                          elt.getParameterFlags());
-    }
-    return;
-  }
-      
-  case TypeKind::Paren: {
-    auto pty = cast<ParenType>(type.getPointer());
-    result.emplace_back(pty->getUnderlyingType()->getInOutObjectType(),
-                        Identifier(),
-                        pty->getParameterFlags());
-    return;
-  }
-      
-  default:
-    result.emplace_back(
-        type->getInOutObjectType(), Identifier(),
-        ParameterTypeFlags::fromParameterType(type, false, false, false,
-                                              ValueOwnership::Default, false,
-                                              false));
-    return;
-  }
-}
-
 Type AnyFunctionType::Param::getParameterType(bool forCanonical,
                                               ASTContext *ctx) const {
   Type type = getPlainType();
@@ -3342,7 +3309,7 @@ Type AnyFunctionType::Param::getParameterType(bool forCanonical,
   return type;
 }
 
-Type AnyFunctionType::composeInput(ASTContext &ctx, ArrayRef<Param> params,
+Type AnyFunctionType::composeTuple(ASTContext &ctx, ArrayRef<Param> params,
                                    bool canonicalVararg) {
   SmallVector<TupleTypeElt, 4> elements;
   for (const auto &param : params) {
@@ -3379,11 +3346,11 @@ bool AnyFunctionType::equalParams(CanParamArrayRef a, CanParamArrayRef b) {
 }
 
 void AnyFunctionType::relabelParams(MutableArrayRef<Param> params,
-                                    ArrayRef<Identifier> labels) {
-  assert(params.size() == labels.size());
+                                    ArgumentList *argList) {
+  assert(params.size() == argList->size());
   for (auto i : indices(params)) {
     auto &param = params[i];
-    param = AnyFunctionType::Param(param.getPlainType(), labels[i],
+    param = AnyFunctionType::Param(param.getPlainType(), argList->getLabel(i),
                                    param.getParameterFlags(),
                                    param.getInternalLabel());
   }

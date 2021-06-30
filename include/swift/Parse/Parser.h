@@ -1672,24 +1672,30 @@ public:
           SourceLoc &inLoc);
 
   Expr *parseExprAnonClosureArg();
-  ParserResult<Expr> parseExprList(tok LeftTok, tok RightTok,
-                                   syntax::SyntaxKind Kind);
 
-  /// Parse an expression list, keeping all of the pieces separated.
-  ParserStatus parseExprList(tok leftTok, tok rightTok,
-                             bool isPostfix,
-                             bool isExprBasic,
+  struct ExprListElt {
+    SourceLoc LabelLoc;
+    Identifier Label;
+    Expr *E;
+  };
+
+  /// Parse a tuple or paren expr.
+  ParserResult<Expr> parseTupleOrParenExpr(tok leftTok, tok rightTok);
+
+  /// Parse an argument list.
+  ParserResult<ArgumentList>
+  parseArgumentList(tok leftTok, tok rightTok, bool isExprBasic,
+                    bool allowTrailingClosure = true);
+
+  /// Parse one or more trailing closures after an argument list.
+  ParserStatus parseTrailingClosures(bool isExprBasic, SourceRange calleeRange,
+                                     SmallVectorImpl<Argument> &closures);
+
+  /// Parse an expression list.
+  ParserStatus parseExprList(tok leftTok, tok rightTok, bool isArgumentList,
                              SourceLoc &leftLoc,
-                             SmallVectorImpl<Expr *> &exprs,
-                             SmallVectorImpl<Identifier> &exprLabels,
-                             SmallVectorImpl<SourceLoc> &exprLabelLocs,
-                             SourceLoc &rightLoc,
-                             SmallVectorImpl<TrailingClosure> &trailingClosures,
-                             syntax::SyntaxKind Kind);
-
-  ParserStatus
-  parseTrailingClosures(bool isExprBasic, SourceRange calleeRange,
-                        SmallVectorImpl<TrailingClosure> &closures);
+                             SmallVectorImpl<ExprListElt> &elts,
+                             SourceLoc &rightLoc, SyntaxKind Kind);
 
   /// Parse an object literal.
   ///

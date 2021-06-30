@@ -605,6 +605,21 @@ static void extendDepthMap(
         llvm::DenseMap<Expr *, std::pair<unsigned, Expr *>> &depthMap)
         : DepthMap(depthMap) {}
 
+    // For argument lists, bump the depth of the arguments, as they are
+    // effectively nested within the argument list. It's debatable whether we
+    // should actually do this, as it doesn't reflect the true expression depth,
+    // but it's needed to preserve compatibility with the behavior from when
+    // TupleExpr and ParenExpr were used to represent argument lists.
+    std::pair<bool, ArgumentList *>
+    walkToArgumentListPre(ArgumentList *ArgList) override {
+      ++Depth;
+      return {true, ArgList};
+    }
+    ArgumentList *walkToArgumentListPost(ArgumentList *ArgList) override {
+      --Depth;
+      return ArgList;
+    }
+
     std::pair<bool, Expr *> walkToExprPre(Expr *E) override {
       DepthMap[E] = {Depth, Parent.getAsExpr()};
       ++Depth;
@@ -3231,7 +3246,9 @@ static void diagnoseOperatorAmbiguity(ConstraintSystem &cs,
           .highlight(rhs->getSourceRange());
     }
   } else {
-    auto argType = solution.simplifyType(solution.getType(applyExpr->getArg()));
+    auto *arg = applyExpr->getArgs()->getUnaryArgExpr();
+    assert(arg && "Expected a unary arg");
+    auto argType = solution.simplifyType(solution.getType(arg));
     DE.diagnose(anchor->getLoc(), diag::cannot_apply_unop_to_arg,
                 operatorName.str(), argType->getRValueType());
   }
@@ -3622,10 +3639,12 @@ static bool diagnoseAmbiguity(
       // e.g. `arr.sort(by: <)` it's better to produce generic error
       // and a note per candidate.
       if (auto *parentExpr = cs.getParentExpr(anchor)) {
-        if (isa<ApplyExpr>(parentExpr)) {
-          diagnoseOperatorAmbiguity(cs, name.getBaseIdentifier(), solutions,
-                                    commonCalleeLocator);
-          return true;
+        if (auto *apply = dyn_cast<ApplyExpr>(parentExpr)) {
+          if (apply->getFn() == anchor) {
+            diagnoseOperatorAmbiguity(cs, name.getBaseIdentifier(), solutions,
+                                      commonCalleeLocator);
+            return true;
+          }
         }
       }
 
@@ -3634,8 +3653,8 @@ static bool diagnoseAmbiguity(
                   name.isSpecial(), name.getBaseName());
     } else {
       bool isApplication =
-          llvm::any_of(cs.ArgumentInfos, [&](const auto &argInfo) {
-            return argInfo.first->getAnchor() == commonAnchor;
+          llvm::any_of(cs.ArgumentLists, [&](const auto &pair) {
+            return pair.first->getAnchor() == commonAnchor;
           });
 
       DE.diagnose(getLoc(commonAnchor),
@@ -3676,12 +3695,14 @@ static bool diagnoseAmbiguity(
         assert(fn);
 
         if (fn->getNumParams() == 1) {
-          auto argExpr =
-              simplifyLocatorToAnchor(solution.Fixes.front()->getLocator());
-          assert(argExpr);
+          auto *argList =
+              cs.getArgumentList(solution.Fixes.front()->getLocator());
+          assert(argList);
 
           const auto &param = fn->getParams()[0];
-          auto argType = solution.simplifyType(cs.getType(argExpr));
+          auto argType = argList->composeTupleOrParenType(
+              cs.getASTContext(),
+              [&](Expr *E) { return solution.getResolvedType(E); });
 
           DE.diagnose(noteLoc, diag::candidate_has_invalid_argument_at_position,
                       solution.simplifyType(param.getPlainType()),
@@ -3769,39 +3790,19 @@ static bool diagnoseContextualFunctionCallGenericAmbiguity(
     return false;
   }
 
-  auto typeParamResultInvolvesTypeVar = [&cs, &applyFnType, &argMatching](
-                                            unsigned argIdx,
-                                            TypeVariableType *typeVar) {
-    auto argParamMatch = argMatching->second.parameterBindings[argIdx];
-    auto param = applyFnType->getParams()[argParamMatch.front()];
-    if (param.isVariadic()) {
-      auto paramType = param.getParameterType();
-      // Variadic parameter is constructed as an ArraySliceType(which is
-      // just sugared type for a bound generic) with the closure type as
-      // element.
-      auto baseType = paramType->getDesugaredType()->castTo<BoundGenericType>();
-      auto paramFnType = baseType->getGenericArgs()[0]->castTo<FunctionType>();
-      return cs.typeVarOccursInType(typeVar, paramFnType->getResult());
-    }
-    auto paramFnType = param.getParameterType()->castTo<FunctionType>();
-    return cs.typeVarOccursInType(typeVar, paramFnType->getResult());
-  };
-
+  auto *args = AE->getArgs();
   llvm::SmallVector<ClosureExpr *, 2> closureArguments;
-  // A single closure argument.
-  if (auto *closure =
-          getAsExpr<ClosureExpr>(AE->getArg()->getSemanticsProvidingExpr())) {
-    if (typeParamResultInvolvesTypeVar(/*paramIdx=*/0, resultTypeVar))
+  for (auto i : indices(*AE->getArgs())) {
+    auto *closure = getAsExpr<ClosureExpr>(args->getExpr(i));
+    if (!closure)
+      continue;
+
+    auto argParamMatch = argMatching->second.parameterBindings[i];
+    auto param = applyFnType->getParams()[argParamMatch.front()];
+    auto paramFnType = param.getPlainType()->castTo<FunctionType>();
+
+    if (cs.typeVarOccursInType(resultTypeVar, paramFnType->getResult()))
       closureArguments.push_back(closure);
-  } else if (auto *argTuple = getAsExpr<TupleExpr>(AE->getArg())) {
-    for (auto i : indices(argTuple->getElements())) {
-      auto arg = argTuple->getElements()[i];
-      auto *closure = getAsExpr<ClosureExpr>(arg);
-      if (closure &&
-          typeParamResultInvolvesTypeVar(/*paramIdx=*/i, resultTypeVar)) {
-        closureArguments.push_back(closure);
-      }
-    }
   }
 
   // If no closure result's involves the generic parameter, just bail because we
@@ -4210,34 +4211,29 @@ void constraints::simplifyLocator(ASTNode &anchor,
   while (!path.empty()) {
     switch (path[0].getKind()) {
     case ConstraintLocator::ApplyArgument: {
+      auto *anchorExpr = castToExpr(anchor);
+      // If the next element is an ApplyArgToParam, we can simplify by looking
+      // into the index expression.
+      if (path.size() < 2)
+        break;
+
+      auto elt = path[1].getAs<LocatorPathElt::ApplyArgToParam>();
+      if (!elt)
+        break;
+
       // Extract application argument.
-      if (auto applyExpr = getAsExpr<ApplyExpr>(anchor)) {
-        anchor = applyExpr->getArg();
-        path = path.slice(1);
-        continue;
-      }
-
-      if (auto subscriptExpr = getAsExpr<SubscriptExpr>(anchor)) {
-        anchor = subscriptExpr->getIndex();
-        path = path.slice(1);
-
-        // TODO: It would be better if the index expression was always wrapped
-        // in a ParenExpr (if there is no label).
-        if (!(isExpr<TupleExpr>(anchor) || isExpr<ParenExpr>(anchor)) &&
-            !path.empty() && path[0].is<LocatorPathElt::ApplyArgToParam>()) {
-          path = path.slice(1);
+      if (auto *args = anchorExpr->getArgs()) {
+        if (elt->getArgIdx() < args->size()) {
+          anchor = args->getExpr(elt->getArgIdx());
+          path = path.slice(2);
+          continue;
         }
-        continue;
       }
-
-      if (auto objectLiteralExpr = getAsExpr<ObjectLiteralExpr>(anchor)) {
-        anchor = objectLiteralExpr->getArg();
-        path = path.slice(1);
-        continue;
-      }
-
       break;
     }
+
+    case ConstraintLocator::ApplyArgToParam:
+      llvm_unreachable("Cannot appear without ApplyArgument");
 
     case ConstraintLocator::DynamicCallable: {
       path = path.slice(1);
@@ -4300,29 +4296,6 @@ void constraints::simplifyLocator(ASTNode &anchor,
       break;
     }
 
-    case ConstraintLocator::ApplyArgToParam: {
-      auto elt = path[0].castTo<LocatorPathElt::ApplyArgToParam>();
-      // Extract tuple element.
-      if (auto tupleExpr = getAsExpr<TupleExpr>(anchor)) {
-        unsigned index = elt.getArgIdx();
-        if (index < tupleExpr->getNumElements()) {
-          anchor = tupleExpr->getElement(index);
-          path = path.slice(1);
-          continue;
-        }
-      }
-
-      // Extract subexpression in parentheses.
-      if (auto parenExpr = getAsExpr<ParenExpr>(anchor)) {
-        // This simplication request could be for a synthesized argument.
-        if (elt.getArgIdx() == 0) {
-          anchor = parenExpr->getSubExpr();
-          path = path.slice(1);
-          continue;
-        }
-      }
-      break;
-    }
     case ConstraintLocator::ConstructorMember:
       if (auto typeExpr = getAsExpr<TypeExpr>(anchor)) {
         // This is really an implicit 'init' MemberRef, so point at the base,
@@ -4372,16 +4345,20 @@ void constraints::simplifyLocator(ASTNode &anchor,
 
       // If the next element is an ApplyArgument, we can simplify by looking
       // into the index expression.
-      if (path.size() < 2 ||
+      if (path.size() < 3 ||
           path[1].getKind() != ConstraintLocator::ApplyArgument)
+        break;
+
+      auto applyArgElt = path[2].getAs<LocatorPathElt::ApplyArgToParam>();
+      if (!applyArgElt)
         break;
 
       if (auto *kpe = getAsExpr<KeyPathExpr>(anchor)) {
         auto component = kpe->getComponents()[elt.getIndex()];
-        auto indexExpr = component.getIndexExpr();
-        assert(indexExpr && "Trying to apply a component without an index?");
-        anchor = indexExpr;
-        path = path.slice(2);
+        auto *args = component.getSubscriptArgs();
+        assert(args && "Trying to apply a component without args?");
+        anchor = args->getExpr(applyArgElt->getArgIdx());
+        path = path.slice(3);
         continue;
       }
       break;
@@ -4459,25 +4436,14 @@ Expr *constraints::getArgumentExpr(ASTNode node, unsigned index) {
   if (!expr)
     return nullptr;
 
-  Expr *argExpr = nullptr;
-  if (auto *AE = dyn_cast<ApplyExpr>(expr))
-    argExpr = AE->getArg();
-  else if (auto *SE = dyn_cast<SubscriptExpr>(expr))
-    argExpr = SE->getIndex();
-  else
+  auto *argList = expr->getArgs();
+  if (!argList)
     return nullptr;
 
-  if (auto *PE = dyn_cast<ParenExpr>(argExpr)) {
-    assert(index == 0);
-    return PE->getSubExpr();
-  }
+  if (index >= argList->size())
+    return nullptr;
 
-  if (auto *tuple = dyn_cast<TupleExpr>(argExpr)) {
-    return (tuple->getNumElements() > index) ? tuple->getElement(index)
-                                             : nullptr;
-  }
-
-  return nullptr;
+  return argList->getExpr(index);
 }
 
 bool constraints::isAutoClosureArgument(Expr *argExpr) {
@@ -4610,17 +4576,16 @@ ConstraintSystem::getArgumentInfoLocator(ConstraintLocator *locator) {
   return getCalleeLocator(locator);
 }
 
-Optional<ConstraintSystem::ArgumentInfo>
-ConstraintSystem::getArgumentInfo(ConstraintLocator *locator) {
+ArgumentList *ConstraintSystem::getArgumentList(ConstraintLocator *locator) {
   if (!locator)
-    return None;
+    return nullptr;
 
   if (auto *infoLocator = getArgumentInfoLocator(locator)) {
-    auto known = ArgumentInfos.find(infoLocator);
-    if (known != ArgumentInfos.end())
+    auto known = ArgumentLists.find(infoLocator);
+    if (known != ArgumentLists.end())
       return known->second;
   }
-  return None;
+  return nullptr;
 }
 
 /// Given an apply expr, returns true if it is expected to have a direct callee
@@ -4684,20 +4649,11 @@ Solution::getFunctionArgApplyInfo(ConstraintLocator *locator) const {
 
   // It's only valid to use `&` in argument positions, but we need
   // to figure out exactly where it was used.
+  // FIXME: Remove this with the removal of InOutExpr
   if (auto *argExpr = getAsExpr<InOutExpr>(locator->getAnchor())) {
-    auto argInfo = cs.isArgumentExpr(argExpr);
-    assert(argInfo && "Incorrect use of `inout` expression");
-
-    Expr *call;
-    unsigned argIdx;
-
-    std::tie(call, argIdx) = *argInfo;
-
-    ParameterTypeFlags flags;
-    locator = cs.getConstraintLocator(
-        call, {ConstraintLocator::ApplyArgument,
-               LocatorPathElt::ApplyArgToParam(argIdx, argIdx,
-                                               flags.withInOut(true))});
+    auto *argLoc = cs.getArgumentLocator(argExpr);
+    assert(argLoc && "Incorrect use of `inout` expression");
+    locator = argLoc;
   }
 
   auto anchor = locator->getAnchor();
@@ -4726,6 +4682,10 @@ Solution::getFunctionArgApplyInfo(ConstraintLocator *locator) const {
   // If we were unable to simplify down to the argument expression, we don't
   // know what this is.
   if (!argExpr)
+    return None;
+
+  auto *argList = cs.getArgumentList(argLocator);
+  if (!argList)
     return None;
 
   Optional<OverloadChoice> choice;
@@ -4793,7 +4753,7 @@ Solution::getFunctionArgApplyInfo(ConstraintLocator *locator) const {
   auto argIdx = applyArgElt->getArgIdx();
   auto paramIdx = applyArgElt->getParamIdx();
 
-  return FunctionArgApplyInfo(cs.getParentExpr(argExpr), argExpr, argIdx,
+  return FunctionArgApplyInfo(argList, argExpr, argIdx,
                               simplifyType(getType(argExpr)), paramIdx,
                               fnInterfaceType, fnType, callee);
 }
@@ -4865,59 +4825,42 @@ bool constraints::isStandardComparisonOperator(ASTNode node) {
   return false;
 }
 
-Optional<std::pair<Expr *, unsigned>>
-ConstraintSystem::isArgumentExpr(Expr *expr) {
-  auto *argList = getParentExpr(expr);
-  if (!argList) {
-    return None;
-  }
-
-  if (isa<ParenExpr>(argList)) {
-    for (;;) {
-      auto *parent = getParentExpr(argList);
-      if (!parent)
-        return None;
-
-      if (isa<TupleExpr>(parent)) {
-        argList = parent;
-        break;
-      }
-
-      // Drop all of the semantically insignificant parens
-      // that might be wrapping an argument e.g. `test(((42)))`
-      if (isa<ParenExpr>(parent)) {
-        argList = parent;
-        continue;
-      }
-
-      break;
-    }
-  }
-
-  if (!(isa<ParenExpr>(argList) || isa<TupleExpr>(argList)))
-    return None;
-
-  auto *application = getParentExpr(argList);
+ConstraintLocator *ConstraintSystem::getArgumentLocator(Expr *expr) {
+  auto *application = getParentExpr(expr);
   if (!application)
-    return None;
+    return nullptr;
 
-  if (!(isa<ApplyExpr>(application) || isa<SubscriptExpr>(application) ||
-        isa<ObjectLiteralExpr>(application)))
-    return None;
-
-  unsigned argIdx = 0;
-  if (auto *tuple = dyn_cast<TupleExpr>(argList)) {
-    auto arguments = tuple->getElements();
-
-    for (auto idx : indices(arguments)) {
-      if (arguments[idx]->getSemanticsProvidingExpr() == expr) {
-        argIdx = idx;
-        break;
-      }
-    }
+  while (application->getSemanticsProvidingExpr() == expr) {
+    application = getParentExpr(application);
+    if (!application)
+      return nullptr;
   }
 
-  return std::make_pair(application, argIdx);
+  ArgumentList *argList = application->getArgs();
+  if (!argList && !isa<KeyPathExpr>(application))
+    return nullptr;
+
+  ConstraintLocator *loc = nullptr;
+  if (auto *KP = dyn_cast<KeyPathExpr>(application)) {
+    auto idx = KP->findComponentWithSubscriptArg(expr);
+    if (!idx)
+      return nullptr;
+    loc = getConstraintLocator(KP, {LocatorPathElt::KeyPathComponent(*idx)});
+    argList = KP->getComponents()[*idx].getSubscriptArgs();
+  } else {
+    loc = getConstraintLocator(application);
+  }
+  assert(argList);
+
+  auto argIdx = argList->findArgumentExpr(expr);
+  if (!argIdx)
+    return nullptr;
+
+  ParameterTypeFlags flags;
+  flags = flags.withInOut(argList->get(*argIdx).isInOut());
+  return getConstraintLocator(
+      loc, {LocatorPathElt::ApplyArgument(),
+            LocatorPathElt::ApplyArgToParam(*argIdx, *argIdx, flags)});
 }
 
 bool constraints::isOperatorArgument(ConstraintLocator *locator,
@@ -5164,9 +5107,9 @@ Expr *ConstraintSystem::buildTypeErasedExpr(Expr *expr, DeclContext *dc,
   auto typeEraser = attr->getResolvedType(PD);
   assert(typeEraser && "Failed to resolve eraser type!");
   auto &ctx = dc->getASTContext();
-  return CallExpr::createImplicit(ctx,
-                                  TypeExpr::createImplicit(typeEraser, ctx),
-                                  {expr}, {ctx.Id_erasing});
+  auto *argList = ArgumentList::forImplicitSingle(ctx, ctx.Id_erasing, expr);
+  return CallExpr::createImplicit(
+      ctx, TypeExpr::createImplicit(typeEraser, ctx), argList);
 }
 
 /// If an UnresolvedDotExpr, SubscriptMember, etc has been resolved by the
@@ -5260,11 +5203,11 @@ void SolutionApplicationTarget::maybeApplyPropertyWrapper() {
 
     // Retrieve the outermost wrapper argument. If there isn't one, we're
     // performing default initialization.
-    auto outermostArg = outermostWrapperAttr->getArg();
-    if (!outermostArg) {
+    auto outermostArgs = outermostWrapperAttr->getArgs();
+    if (!outermostArgs) {
       SourceLoc fakeParenLoc = outermostWrapperAttr->getRange().End;
-      outermostArg = TupleExpr::createEmpty(
-          ctx, fakeParenLoc, fakeParenLoc, /*Implicit=*/true);
+      outermostArgs = ArgumentList::createImplicit(ctx, fakeParenLoc, {},
+                                                   fakeParenLoc);
       isImplicit = true;
     }
 
@@ -5274,12 +5217,8 @@ void SolutionApplicationTarget::maybeApplyPropertyWrapper() {
     }
     auto typeExpr =
         TypeExpr::createImplicitHack(typeLoc, outermostWrapperType, ctx);
-    backingInitializer = CallExpr::create(
-        ctx, typeExpr, outermostArg,
-        outermostWrapperAttr->getArgumentLabels(),
-        outermostWrapperAttr->getArgumentLabelLocs(),
-        /*hasTrailingClosure=*/false,
-        /*implicit=*/isImplicit);
+    backingInitializer = CallExpr::create(ctx, typeExpr, outermostArgs,
+                                          /*implicit=*/isImplicit);
   }
   wrapperAttrs[0]->setSemanticInit(backingInitializer);
 

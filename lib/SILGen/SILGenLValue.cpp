@@ -94,7 +94,8 @@ static void pushWriteback(SILGenFunction &SGF,
   cleanup.Depth = context.stable_begin();
 }
 
-static bool areCertainlyEqualIndices(const Expr *e1, const Expr *e2);
+static bool areCertainlyEqualArgumentLists(const ArgumentList *l1,
+                                           const ArgumentList *l2);
 
 void ExclusiveBorrowFormalAccess::diagnoseConflict(
                                     const ExclusiveBorrowFormalAccess &rhs,
@@ -168,10 +169,10 @@ void ExclusiveBorrowFormalAccess::diagnoseConflict(
   if (!lhsStorage->Indices->isObviouslyEqual(*rhsStorage->Indices)) {
     // If the index value doesn't lower to literally the same SILValue's,
     // do some fuzzy matching to catch the common case.
-    if (!lhsStorage->IndexExprForDiagnostics ||
-        !rhsStorage->IndexExprForDiagnostics ||
-        !areCertainlyEqualIndices(lhsStorage->IndexExprForDiagnostics,
-                                  rhsStorage->IndexExprForDiagnostics))
+    if (!lhsStorage->ArgListForDiagnostics ||
+        !rhsStorage->ArgListForDiagnostics ||
+        !areCertainlyEqualArgumentLists(lhsStorage->ArgListForDiagnostics,
+                                        rhsStorage->ArgListForDiagnostics))
       return;
   }
 
@@ -1064,32 +1065,31 @@ static bool isReadNoneFunction(const Expr *e) {
   return false;
 }
 
-
-/// Given two expressions used as indexes to the same SubscriptDecl (and thus
+/// Given two expressions used as arguments to the same SubscriptDecl (and thus
 /// are guaranteed to have the same AST type) check to see if they are going to
 /// produce the same value.
-static bool areCertainlyEqualIndices(const Expr *e1, const Expr *e2) {
+static bool areCertainlyEqualArgs(const Expr *e1, const Expr *e2) {
   if (e1->getKind() != e2->getKind()) return false;
-  
+
   // Look through ParenExpr's.
   if (auto *pe1 = dyn_cast<ParenExpr>(e1)) {
     auto *pe2 = cast<ParenExpr>(e2);
-    return areCertainlyEqualIndices(pe1->getSubExpr(), pe2->getSubExpr());
+    return areCertainlyEqualArgs(pe1->getSubExpr(), pe2->getSubExpr());
   }
-  
+
   // Calls are identical if the callee and operands are identical and we know
   // that the call is something that is "readnone".
   if (auto *ae1 = dyn_cast<ApplyExpr>(e1)) {
     auto *ae2 = cast<ApplyExpr>(e2);
-    return areCertainlyEqualIndices(ae1->getFn(), ae2->getFn()) &&
-           areCertainlyEqualIndices(ae1->getArg(), ae2->getArg()) &&
+    return areCertainlyEqualArgs(ae1->getFn(), ae2->getFn()) &&
+           areCertainlyEqualArgumentLists(ae1->getArgs(), ae2->getArgs()) &&
            isReadNoneFunction(ae1->getFn());
   }
-  
+
   // TypeExpr's that produce the same metatype type are identical.
   if (isa<TypeExpr>(e1))
     return true;
-  
+
   if (auto *dre1 = dyn_cast<DeclRefExpr>(e1)) {
     auto *dre2 = cast<DeclRefExpr>(e2);
     return dre1->getDecl() == dre2->getDecl() &&
@@ -1111,20 +1111,19 @@ static bool areCertainlyEqualIndices(const Expr *e1, const Expr *e2) {
     return bl1->getValue() == cast<BooleanLiteralExpr>(e2)->getValue();
   if (auto *sl1 = dyn_cast<StringLiteralExpr>(e1))
     return sl1->getValue() == cast<StringLiteralExpr>(e2)->getValue();
-  
+
   // Compare tuple expressions.
   if (auto *te1 = dyn_cast<TupleExpr>(e1)) {
     auto *te2 = cast<TupleExpr>(e2);
 
-    // Easy checks: # of elements, trailing closures, element names.
+    // Easy checks: # of elements, element names.
     if (te1->getNumElements() != te2->getNumElements() ||
-        te1->hasTrailingClosure() != te2->hasTrailingClosure() ||
         te1->getElementNames() != te2->getElementNames()) {
       return false;
     }
 
     for (unsigned i = 0, n = te1->getNumElements(); i != n; ++i) {
-      if (!areCertainlyEqualIndices(te1->getElement(i), te2->getElement(i)))
+      if (!areCertainlyEqualArgs(te1->getElement(i), te2->getElement(i)))
         return false;
     }
 
@@ -1133,6 +1132,21 @@ static bool areCertainlyEqualIndices(const Expr *e1, const Expr *e2) {
 
   // Otherwise, we have no idea if they are identical.
   return false;
+}
+
+/// Given two argument lists to the same SubscriptDecl (and thus are guaranteed
+/// to have the same AST type) check to see if they are going to produce the
+/// same value.
+static bool areCertainlyEqualArgumentLists(const ArgumentList *l1,
+                                           const ArgumentList *l2) {
+  if (l1->size() != l2->size())
+    return false;
+
+  for (auto idx : indices(*l1)) {
+    if (!areCertainlyEqualArgs(l1->getExpr(idx), l2->getExpr(idx)))
+      return false;
+  }
+  return true;
 }
 
 static LValueOptions getBaseOptions(LValueOptions options,
@@ -1162,8 +1176,8 @@ namespace {
     // The VarDecl or SubscriptDecl being get/set.
     AbstractStorageDecl *Storage;
 
-    /// The subscript index expression.  Useless
-    Expr *IndexExprForDiagnostics;
+    /// The subscript argument list.  Useless
+    ArgumentList *ArgListForDiagnostics;
     PreparedArguments Indices;
 
     /// AST type of the base expression, in case the accessor call
@@ -1201,10 +1215,10 @@ namespace {
                     AbstractStorageDecl *storage,
                     CanType baseFormalType,
                     LValueTypeData typeData,
-                    Expr *indexExprForDiagnostics,
+                    ArgumentList *argListForDiagnostics,
                     PreparedArguments &&indices)
       : Base(typeData, kind), Storage(storage),
-        IndexExprForDiagnostics(indexExprForDiagnostics),
+        ArgListForDiagnostics(argListForDiagnostics),
         Indices(std::move(indices)),
         BaseFormalType(baseFormalType)
     {
@@ -1215,7 +1229,7 @@ namespace {
                     SILLocation loc)
       : Base(copied.getTypeData(), copied.getKind()),
         Storage(copied.Storage),
-        IndexExprForDiagnostics(copied.IndexExprForDiagnostics),
+        ArgListForDiagnostics(copied.ArgListForDiagnostics),
         Indices(copied.Indices.copy(SGF, loc)) ,
         BaseFormalType(copied.BaseFormalType) {}
 
@@ -1229,9 +1243,9 @@ namespace {
     
     void printBase(raw_ostream &OS, unsigned indent, StringRef name) const {
       OS.indent(indent) << name << "(" << Storage->getBaseName() << ")";
-      if (IndexExprForDiagnostics) {
+      if (ArgListForDiagnostics) {
         OS << " subscript_index:\n";
-        IndexExprForDiagnostics->dump(OS, 2);
+        ArgListForDiagnostics->dump(OS, 2);
       }
       OS << '\n';
     }
@@ -1257,11 +1271,11 @@ namespace {
                            bool isSuper, bool isDirectAccessorUse,
                            SubstitutionMap substitutions,
                            CanType baseFormalType, LValueTypeData typeData,
-                           Expr *indexExprForDiagnostics,
+                           ArgumentList *argListForDiagnostics,
                            PreparedArguments &&indices,
                            bool isOnSelfParameter = false,
                            Optional<ActorIsolation> actorIso = None)
-        : super(kind, decl, baseFormalType, typeData, indexExprForDiagnostics,
+        : super(kind, decl, baseFormalType, typeData, argListForDiagnostics,
                 std::move(indices)),
           Accessor(accessor), IsSuper(isSuper),
           IsDirectAccessorUse(isDirectAccessorUse),
@@ -1294,13 +1308,13 @@ namespace {
                            SubstitutionMap substitutions,
                            CanType baseFormalType,
                            LValueTypeData typeData,
-                           Expr *subscriptIndexExpr,
+                           ArgumentList *subscriptArgList,
                            PreparedArguments &&indices,
                            bool isOnSelfParameter,
                            Optional<ActorIsolation> actorIso)
       : AccessorBasedComponent(GetterSetterKind, decl, accessor, isSuper,
                                isDirectAccessorUse, substitutions,
-                               baseFormalType, typeData, subscriptIndexExpr,
+                               baseFormalType, typeData, subscriptArgList,
                                std::move(indices), isOnSelfParameter, actorIso)
     {
       assert(getAccessorDecl()->isGetterOrSetter());
@@ -1632,7 +1646,7 @@ namespace {
     Optional<AccessedStorage> getAccessedStorage() const override {
       return AccessedStorage{Storage, IsSuper,
                              Indices.isNull() ? nullptr : &Indices,
-                             IndexExprForDiagnostics };
+                             ArgListForDiagnostics };
     }
   };
 
@@ -1653,11 +1667,11 @@ namespace {
                                     AccessStrategy writeStrategy,
                                     CanType baseFormalType,
                                     LValueTypeData typeData,
-                                    Expr *indexExprForDiagnostics,
+                                    ArgumentList *argListForDiagnostics,
                                     PreparedArguments &&indices,
                                     bool isOnSelfParameter)
       : AccessComponent(MaterializeToTemporaryKind, storage, baseFormalType,
-                        typeData, indexExprForDiagnostics, std::move(indices)),
+                        typeData, argListForDiagnostics, std::move(indices)),
         Substitutions(subs),
         ReadStrategy(readStrategy), WriteStrategy(writeStrategy),
         Options(options), IsSuper(isSuper), IsOnSelfParameter(isOnSelfParameter)
@@ -1673,7 +1687,7 @@ namespace {
                                             Options,
                                             ReadStrategy, WriteStrategy,
                                             BaseFormalType, getTypeData(),
-                                            IndexExprForDiagnostics,
+                                            ArgListForDiagnostics,
                                             std::move(clonedIndices),
                                             IsOnSelfParameter);
       return std::unique_ptr<LogicalPathComponent>(clone);
@@ -1698,7 +1712,7 @@ namespace {
     Optional<AccessedStorage> getAccessedStorage() const override {
       return AccessedStorage{Storage, IsSuper,
                              Indices.isNull() ? nullptr : &Indices,
-                             IndexExprForDiagnostics};
+                             ArgListForDiagnostics};
     }
 
     void dump(raw_ostream &OS, unsigned indent) const override {
@@ -1722,7 +1736,7 @@ namespace {
                                        Options, IsSuper, accessKind, strategy,
                                        getSubstFormalType(),
                                        std::move(Indices),
-                                       IndexExprForDiagnostics);
+                                       ArgListForDiagnostics);
       } else {
         auto var = cast<VarDecl>(Storage);
         if (base) {
@@ -1751,12 +1765,12 @@ namespace {
                         SubstitutionMap substitutions,
                         CanType baseFormalType, LValueTypeData typeData,
                         SILType substFieldType,
-                        Expr *indexExprForDiagnostics,
+                        ArgumentList *argListForDiagnostics,
                         PreparedArguments &&indices, bool isOnSelfParameter)
       : AccessorBasedComponent(AddressorKind, decl, accessor, isSuper,
                                isDirectAccessorUse, substitutions,
                                baseFormalType, typeData,
-                               indexExprForDiagnostics, std::move(indices),
+                               argListForDiagnostics, std::move(indices),
                                isOnSelfParameter),
         SubstFieldType(substFieldType)
     {
@@ -1797,19 +1811,19 @@ namespace {
     AbstractStorageDecl *Storage;
     bool IsSuper;
     PreparedArguments PeekedIndices;
-    Expr *IndexExprForDiagnostics;
+    ArgumentList *ArgListForDiagnostics;
   public:
     EndApplyPseudoComponent(const LValueTypeData &typeData,
                             CleanupHandle endApplyHandle,
                             AbstractStorageDecl *storage,
                             bool isSuper,
                             PreparedArguments &&peekedIndices,
-                            Expr *indexExprForDiagnostics)
+                            ArgumentList *argListForDiagnostics)
       : WritebackPseudoComponent(typeData),
         EndApplyHandle(endApplyHandle),
         Storage(storage), IsSuper(isSuper),
         PeekedIndices(std::move(peekedIndices)),
-        IndexExprForDiagnostics(indexExprForDiagnostics) {}
+        ArgListForDiagnostics(argListForDiagnostics) {}
 
   private:
     void writeback(SILGenFunction &SGF, SILLocation loc,
@@ -1831,7 +1845,7 @@ namespace {
     Optional<AccessedStorage> getAccessedStorage() const override {
       return AccessedStorage{Storage, IsSuper,
                              PeekedIndices.isNull() ? nullptr : &PeekedIndices,
-                             IndexExprForDiagnostics};
+                             ArgListForDiagnostics};
     }
   };
 }
@@ -1844,11 +1858,11 @@ static void pushEndApplyWriteback(SILGenFunction &SGF, SILLocation loc,
                                   bool isSuper = false,
                                   PreparedArguments &&indices
                                     = PreparedArguments(),
-                                  Expr *indexExprForDiagnostics = nullptr) {
+                                  ArgumentList *argListForDiagnostics = nullptr) {
   std::unique_ptr<LogicalPathComponent>
     component(new EndApplyPseudoComponent(typeData, endApplyHandle,
                                           storage, isSuper, std::move(indices),
-                                          indexExprForDiagnostics));
+                                          argListForDiagnostics));
   pushWriteback(SGF, loc, std::move(component), /*for diagnostics*/ base,
                 MaterializedLValue());
 }
@@ -1863,13 +1877,13 @@ namespace {
                                bool isSuper, bool isDirectAccessorUse,
                                SubstitutionMap substitutions,
                                CanType baseFormalType, LValueTypeData typeData,
-                               Expr *indexExprForDiagnostics,
+                               ArgumentList *argListForDiagnostics,
                                PreparedArguments &&indices,
                                bool isOnSelfParameter)
         : AccessorBasedComponent(
               CoroutineAccessorKind, decl, accessor, isSuper,
               isDirectAccessorUse, substitutions, baseFormalType, typeData,
-              indexExprForDiagnostics, std::move(indices), isOnSelfParameter) {}
+              argListForDiagnostics, std::move(indices), isOnSelfParameter) {}
 
     using AccessorBasedComponent::AccessorBasedComponent;
 
@@ -1892,7 +1906,7 @@ namespace {
       // Push a writeback that ends the access.
       pushEndApplyWriteback(SGF, loc, endApplyHandle, getTypeData(),
                             base, Storage, IsSuper, std::move(peekedIndices),
-                            IndexExprForDiagnostics);
+                            ArgListForDiagnostics);
 
       auto decl = cast<AccessorDecl>(Accessor.getFuncDecl());
 
@@ -2355,7 +2369,7 @@ void LValue::addMemberComponent(SILGenFunction &SGF, SILLocation loc,
                                 AccessStrategy accessStrategy,
                                 CanType formalRValueType,
                                 PreparedArguments &&indices,
-                                Expr *indexExprForDiagnostics) {
+                                ArgumentList *argListForDiagnostics) {
   if (auto var = dyn_cast<VarDecl>(storage)) {
     assert(indices.isNull());
     addMemberVarComponent(SGF, loc, var, subs, options, isSuper,
@@ -2364,7 +2378,7 @@ void LValue::addMemberComponent(SILGenFunction &SGF, SILLocation loc,
     auto subscript = cast<SubscriptDecl>(storage);
     addMemberSubscriptComponent(SGF, loc, subscript, subs, options, isSuper,
                                 accessKind, accessStrategy, formalRValueType,
-                                std::move(indices), indexExprForDiagnostics);
+                                std::move(indices), argListForDiagnostics);
   }
 }
 
@@ -3202,7 +3216,7 @@ struct MemberStorageAccessEmitter : AccessEmitter<Impl, StorageType> {
   bool IsOnSelfParameter; // Is self the self parameter in context.
   CanType BaseFormalType;
   SubstitutionMap Subs;
-  Expr *IndexExprForDiagnostics;
+  ArgumentList *ArgListForDiagnostics;
   PreparedArguments Indices;
   // If any, holds the actor we must switch to when performing the access.
   Optional<ActorIsolation> ActorIso;
@@ -3211,13 +3225,13 @@ struct MemberStorageAccessEmitter : AccessEmitter<Impl, StorageType> {
                              StorageType *storage, SubstitutionMap subs,
                              bool isSuper, SGFAccessKind accessKind,
                              CanType formalRValueType, LValueOptions options,
-                             LValue &lv, Expr *indexExprForDiagnostics,
+                             LValue &lv, ArgumentList *argListForDiagnostics,
                              PreparedArguments &&indices, bool isSelf = false,
                              Optional<ActorIsolation> actorIso = None)
       : super(SGF, storage, accessKind, formalRValueType), LV(lv),
         Options(options), Loc(loc), IsSuper(isSuper), IsOnSelfParameter(isSelf),
         BaseFormalType(lv.getSubstFormalType()), Subs(subs),
-        IndexExprForDiagnostics(indexExprForDiagnostics),
+        ArgListForDiagnostics(argListForDiagnostics),
         Indices(std::move(indices)), ActorIso(actorIso) {}
 
   void emitUsingAddressor(SILDeclRef addressor, bool isDirect,
@@ -3228,7 +3242,7 @@ struct MemberStorageAccessEmitter : AccessEmitter<Impl, StorageType> {
 
     LV.add<AddressorComponent>(Storage, addressor, IsSuper, isDirect, Subs,
                                BaseFormalType, typeData, varStorageType,
-                               IndexExprForDiagnostics, std::move(Indices),
+                               ArgListForDiagnostics, std::move(Indices),
                                IsOnSelfParameter);
   }
 
@@ -3237,14 +3251,14 @@ struct MemberStorageAccessEmitter : AccessEmitter<Impl, StorageType> {
     assert(!ActorIso);
     LV.add<CoroutineAccessorComponent>(
         Storage, accessor, IsSuper, isDirect, Subs, BaseFormalType, typeData,
-        IndexExprForDiagnostics, std::move(Indices), IsOnSelfParameter);
+        ArgListForDiagnostics, std::move(Indices), IsOnSelfParameter);
   }
 
   void emitUsingGetterSetter(SILDeclRef accessor, bool isDirect,
                              LValueTypeData typeData) {
     LV.add<GetterSetterComponent>(
         Storage, accessor, IsSuper, isDirect, Subs, BaseFormalType, typeData,
-        IndexExprForDiagnostics, std::move(Indices), IsOnSelfParameter,
+        ArgListForDiagnostics, std::move(Indices), IsOnSelfParameter,
         ActorIso);
   }
 
@@ -3254,7 +3268,7 @@ struct MemberStorageAccessEmitter : AccessEmitter<Impl, StorageType> {
     assert(!ActorIso);
     LV.add<MaterializeToTemporaryComponent>(
         Storage, IsSuper, Subs, Options, readStrategy, writeStrategy,
-        BaseFormalType, typeData, IndexExprForDiagnostics, std::move(Indices),
+        BaseFormalType, typeData, ArgListForDiagnostics, std::move(Indices),
         IsOnSelfParameter);
   }
 };
@@ -3367,14 +3381,14 @@ LValue SILGenLValue::visitSubscriptExpr(SubscriptExpr *e,
   if (e->isImplicitlyAsync())
     actorIso = getActorIsolation(decl);
 
-  Expr *indexExpr = e->getIndex();
-  auto indices = SGF.prepareSubscriptIndices(decl, subs, strategy, indexExpr);
+  auto *argList = e->getArgs();
+  auto indices = SGF.prepareSubscriptIndices(decl, subs, strategy, argList);
 
   CanType formalRValueType = getSubstFormalRValueType(e);
   lv.addMemberSubscriptComponent(SGF, e, decl, subs,
                                  options, e->isSuper(), accessKind, strategy,
                                  formalRValueType, std::move(indices),
-                                 indexExpr, isOnSelfParameter, actorIso);
+                                 argList, isOnSelfParameter, actorIso);
   return lv;
 }
 
@@ -3474,7 +3488,7 @@ void LValue::addMemberSubscriptComponent(SILGenFunction &SGF, SILLocation loc,
                                          AccessStrategy strategy,
                                          CanType formalRValueType,
                                          PreparedArguments &&indices,
-                                         Expr *indexExprForDiagnostics,
+                                         ArgumentList *argListForDiagnostics,
                                          bool isOnSelfParameter,
                                          Optional<ActorIsolation> actorIso) {
   struct MemberSubscriptAccessEmitter
@@ -3486,7 +3500,7 @@ void LValue::addMemberSubscriptComponent(SILGenFunction &SGF, SILLocation loc,
       llvm_unreachable("subscripts never have storage");
     }
   } emitter(SGF, loc, decl, subs, isSuper, accessKind, formalRValueType,
-            options, *this, indexExprForDiagnostics, std::move(indices),
+            options, *this, argListForDiagnostics, std::move(indices),
             isOnSelfParameter, actorIso);
 
   emitter.emitUsingStrategy(strategy);

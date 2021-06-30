@@ -923,7 +923,7 @@ namespace {
         auto outputOrigType = AbstractionPattern::getTuple(outputOrigTypes);
 
         // Build the substituted output tuple type. Note that we deliberately
-        // don't use composeInput() because we want to drop ownership
+        // don't use composeTuple() because we want to drop ownership
         // qualifiers.
         SmallVector<TupleTypeElt, 8> elts;
         for (auto param : outputSubstTypes) {

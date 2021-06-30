@@ -88,8 +88,8 @@ class BuilderClosureVisitor
 
   /// Produce a builder call to the given named function with the given
   /// arguments.
-  Expr *buildCallIfWanted(SourceLoc loc,
-                          Identifier fnName, ArrayRef<Expr *> args,
+  Expr *buildCallIfWanted(SourceLoc loc, Identifier fnName,
+                          ArrayRef<Expr *> argExprs,
                           ArrayRef<Identifier> argLabels) {
     if (!cs)
       return nullptr;
@@ -120,21 +120,24 @@ class BuilderClosureVisitor
     }
     cs->setType(typeExpr, MetatypeType::get(builderType));
 
-    SmallVector<SourceLoc, 4> argLabelLocs;
-    for (auto i : indices(argLabels)) {
-      argLabelLocs.push_back(args[i]->getStartLoc());
+    SmallVector<Argument, 4> args;
+    for (auto i : indices(argExprs)) {
+      auto *expr = argExprs[i];
+      auto label = argLabels.empty() ? Identifier() : argLabels[i];
+      auto labelLoc = argLabels.empty() ? SourceLoc() : expr->getStartLoc();
+      args.emplace_back(labelLoc, label, expr);
     }
 
     auto memberRef = new (ctx) UnresolvedDotExpr(
         typeExpr, loc, DeclNameRef(fnName), DeclNameLoc(loc),
         /*implicit=*/true);
     memberRef->setFunctionRefKind(FunctionRefKind::SingleApply);
-    SourceLoc openLoc = args.empty() ? loc : args.front()->getStartLoc();
-    SourceLoc closeLoc = args.empty() ? loc : args.back()->getEndLoc();
-    Expr *result = CallExpr::create(ctx, memberRef, openLoc, args,
-                                    argLabels, argLabelLocs, closeLoc,
-                                    /*trailing closures*/{},
-                                    /*implicit*/true);
+
+    auto openLoc = args.empty() ? loc : argExprs.front()->getStartLoc();
+    auto closeLoc = args.empty() ? loc : argExprs.back()->getEndLoc();
+
+    auto *argList = ArgumentList::createImplicit(ctx, openLoc, args, closeLoc);
+    Expr *result = CallExpr::create(ctx, memberRef, argList, /*implicit*/ true);
 
     return result;
   }
@@ -641,7 +644,8 @@ protected:
     auto someRef = new (ctx) UnresolvedDotExpr(
         optionalTypeExpr, loc, DeclNameRef(ctx.getIdentifier("some")),
         DeclNameLoc(loc), /*implicit=*/true);
-    return CallExpr::createImplicit(ctx, someRef, arg, { });
+    auto *argList = ArgumentList::forImplicitUnlabelled(ctx, {arg});
+    return CallExpr::createImplicit(ctx, someRef, argList);
   }
 
   Expr *buildNoneExpr(SourceLoc endLoc) {
@@ -861,10 +865,12 @@ protected:
         arrayVarRef, endLoc, DeclNameRef(ctx.getIdentifier("append")),
         DeclNameLoc(endLoc), /*implicit=*/true);
     arrayAppendRef->setFunctionRefKind(FunctionRefKind::SingleApply);
+
     auto bodyVarRef = buildVarRef(bodyVar, endLoc);
-    Expr *arrayAppendCall = CallExpr::create(
-        ctx, arrayAppendRef, endLoc, { bodyVarRef } , { Identifier() },
-        { endLoc }, endLoc, /*trailingClosures=*/{}, /*implicit=*/true);
+    auto *argList = ArgumentList::createImplicit(
+        ctx, endLoc, {Argument::unlabelled(bodyVarRef)}, endLoc);
+    Expr *arrayAppendCall =
+        CallExpr::create(ctx, arrayAppendRef, argList, /*implicit=*/true);
     arrayAppendCall = cs->generateConstraints(arrayAppendCall, dc);
     if (!arrayAppendCall) {
       hadError = true;

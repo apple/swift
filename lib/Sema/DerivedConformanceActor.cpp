@@ -70,14 +70,15 @@ static Expr *constructUnownedSerialExecutor(ASTContext &ctx,
     //   (Builtin.Executor) -> UnownedSerialExecutor
     auto metatypeRef = TypeExpr::createImplicit(executorType, ctx);
     Type ctorAppliedType = ctorType->getAs<FunctionType>()->getResult();
-    auto selfApply = new (ctx) ConstructorRefCallExpr(initRef, metatypeRef,
-                                                      ctorAppliedType);
+    auto selfApply = ConstructorRefCallExpr::create(ctx, initRef, metatypeRef,
+                                                    ctorAppliedType);
     selfApply->setImplicit(true);
     selfApply->setThrows(false);
 
     // Call the constructor, building an expression of type
     // UnownedSerialExecutor.
-    auto call = CallExpr::createImplicit(ctx, selfApply, arg, /*labels*/ {});
+    auto *argList = ArgumentList::forImplicitUnlabelled(ctx, {arg});
+    auto call = CallExpr::createImplicit(ctx, selfApply, argList);
     call->setType(executorType);
     call->setThrows(false);
     return call;

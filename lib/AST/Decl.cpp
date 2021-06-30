@@ -1502,7 +1502,7 @@ bool PatternBindingEntry::isInitialized(bool onlyExplicit) const {
   // Initialized via a property wrapper.
   if (auto var = getPattern()->getSingleVar()) {
     auto customAttrs = var->getAttachedPropertyWrappers();
-    if (customAttrs.size() > 0 && customAttrs[0]->getArg() != nullptr)
+    if (customAttrs.size() > 0 && customAttrs[0]->getArgs() != nullptr)
       return true;
   }
 
@@ -6056,7 +6056,7 @@ bool VarDecl::hasExternalPropertyWrapper() const {
     return true;
 
   // Wrappers with attribute arguments are always implementation-detail.
-  if (getAttachedPropertyWrappers().front()->getArg())
+  if (getAttachedPropertyWrappers().front()->getArgs())
     return false;
 
   auto wrapperInfo = getAttachedPropertyWrapperTypeInfo(0);
@@ -6214,7 +6214,7 @@ bool VarDecl::isPropertyMemberwiseInitializedWithWrappedType() const {
 
   // If there was an initializer on the outermost wrapper, initialize
   // via the full wrapper.
-  if (customAttrs[0]->getArg() != nullptr)
+  if (customAttrs[0]->getArgs() != nullptr)
     return false;
 
   // Default initialization does not use a value.
@@ -6719,9 +6719,9 @@ ParamDecl::getDefaultValueStringRepresentation(
       auto wrapperAttrs = original->getAttachedPropertyWrappers();
       if (wrapperAttrs.size() > 0) {
         auto attr = wrapperAttrs.front();
-        if (auto arg = attr->getArg()) {
+        if (auto *args = attr->getArgs()) {
           SourceRange fullRange(attr->getTypeRepr()->getSourceRange().Start,
-                                arg->getEndLoc());
+                                args->getEndLoc());
           auto charRange = Lexer::getCharSourceRangeFromSourceRange(
               getASTContext().SourceMgr, fullRange);
           return getASTContext().SourceMgr.extractText(charRange);

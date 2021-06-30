@@ -401,9 +401,9 @@ canReplaceWithCallToCollectionSwapAt(const BeginAccessInst *Access1,
 
     assert(isCallToStandardLibrarySwap(CE, Ctx));
     // swap() takes two arguments.
-    auto *ArgTuple = cast<TupleExpr>(CE->getArg());
-    const Expr *Arg1 = ArgTuple->getElement(0);
-    const Expr *Arg2 = ArgTuple->getElement(1);
+    auto *Args = CE->getArgs();
+    const Expr *Arg1 = Args->getExpr(0);
+    const Expr *Arg2 = Args->getExpr(1);
     if ((Arg1 == InOut1 && Arg2 == InOut2)) {
         FoundCall = CE;
       break;
@@ -463,17 +463,12 @@ canReplaceWithCallToCollectionSwapAt(const BeginAccessInst *Access1,
   if (Base1Text != Base2Text)
     return false;
 
-  auto *Index1Paren = dyn_cast<ParenExpr>(SE1->getIndex());
-  if (!Index1Paren)
-    return false;
-
-  auto *Index2Paren = dyn_cast<ParenExpr>(SE2->getIndex());
-  if (!Index2Paren)
+  if (!SE1->getArgs()->isUnary() || !SE2->getArgs()->isUnary())
     return false;
 
   Base = SE1->getBase();
-  Index1 = Index1Paren->getSubExpr();
-  Index2 = Index2Paren->getSubExpr();
+  Index1 = SE1->getArgs()->getExpr(0);
+  Index2 = SE2->getArgs()->getExpr(0);
   return true;
 }
 

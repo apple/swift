@@ -296,8 +296,9 @@ public:
     emplace(params);
   }
 
-  // Decompse an argument list expression.
-  PreparedArguments(ArrayRef<AnyFunctionType::Param> params, Expr *arg);
+  // Create from an argument list.
+  PreparedArguments(ArrayRef<AnyFunctionType::Param> params,
+                    ArgumentList *argList);
 
   // Move-only.
   PreparedArguments(const PreparedArguments &) = delete;

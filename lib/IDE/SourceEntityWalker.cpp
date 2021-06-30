@@ -65,6 +65,9 @@ private:
   std::pair<bool, Stmt *> walkToStmtPre(Stmt *S) override;
   Stmt *walkToStmtPost(Stmt *S) override;
 
+  std::pair<bool, ArgumentList *>
+  walkToArgumentListPre(ArgumentList *ArgList) override;
+
   std::pair<bool, Pattern *> walkToPatternPre(Pattern *P) override;
   Pattern *walkToPatternPost(Pattern *P) override;
 
@@ -83,7 +86,7 @@ private:
   bool passCallAsFunctionReference(ValueDecl *D, SourceLoc Loc,
                                    ReferenceMetaData Data);
 
-  bool passCallArgNames(Expr *Fn, TupleExpr *TupleE);
+  bool passCallArgNames(Expr *Fn, ArgumentList *ArgList);
 
   bool shouldIgnore(Decl *D);
 
@@ -262,6 +265,25 @@ static SemaReferenceKind getReferenceKind(Expr *Parent, Expr *E) {
   return SemaReferenceKind::DeclRef;
 }
 
+std::pair<bool, ArgumentList *>
+SemaAnnotator::walkToArgumentListPre(ArgumentList *ArgList) {
+  auto doStopTraversal = [&]() -> std::pair<bool, ArgumentList *> {
+    Cancelled = true;
+    return {false, nullptr};
+  };
+
+  // Don't consider the argument labels for an implicit ArgumentList.
+  if (ArgList->isImplicit())
+    return {true, ArgList};
+
+  // FIXME: What about SubscriptExpr and KeyPathExpr arg labels?
+  if (auto CallE = dyn_cast_or_null<CallExpr>(Parent.getAsExpr())) {
+    if (!passCallArgNames(CallE->getFn(), ArgList))
+      return doStopTraversal();
+  }
+  return {true, ArgList};
+}
+
 std::pair<bool, Expr *> SemaAnnotator::walkToExprPre(Expr *E) {
   assert(E);
 
@@ -402,7 +424,7 @@ std::pair<bool, Expr *> SemaAnnotator::walkToExprPre(Expr *E) {
         return doStopTraversal();
     }
 
-    if (!SE->getIndex()->walk(*this))
+    if (!SE->getArgs()->walk(*this))
       return doStopTraversal();
 
     if (SubscrD) {
@@ -453,12 +475,6 @@ std::pair<bool, Expr *> SemaAnnotator::walkToExprPre(Expr *E) {
 
     // We already visited the children.
     return doSkipChildren();
-
-  } else if (auto TupleE = dyn_cast<TupleExpr>(E)) {
-    if (auto CallE = dyn_cast_or_null<CallExpr>(Parent.getAsExpr())) {
-      if (!passCallArgNames(CallE->getFn(), TupleE))
-        return doStopTraversal();
-    }
   } else if (auto IOE = dyn_cast<InOutExpr>(E)) {
     llvm::SaveAndRestore<Optional<AccessKind>>
       C(this->OpAccess, AccessKind::ReadWrite);
@@ -647,15 +663,15 @@ bool SemaAnnotator::handleCustomAttributes(Decl *D) {
     }
     if (auto *SemaInit = customAttr->getSemanticInit()) {
       if (!SemaInit->isImplicit()) {
-        assert(customAttr->getArg());
+        assert(customAttr->getArgs());
         if (!SemaInit->walk(*this))
           return false;
         // Don't walk this again via the associated PatternBindingDecl's
         // initializer
         ExprsToSkip.insert(SemaInit);
       }
-    } else if (auto *Arg = customAttr->getArg()) {
-      if (!Arg->walk(*this))
+    } else if (auto *Args = customAttr->getArgs()) {
+      if (!Args->walk(*this))
         return false;
     }
   }
@@ -789,19 +805,17 @@ bool SemaAnnotator::passReference(ModuleEntity Mod,
   return Continue;
 }
 
-bool SemaAnnotator::passCallArgNames(Expr *Fn, TupleExpr *TupleE) {
+bool SemaAnnotator::passCallArgNames(Expr *Fn, ArgumentList *ArgList) {
   ValueDecl *D = extractDecl(Fn);
   if (!D)
     return true; // continue.
 
-  ArrayRef<Identifier> ArgNames = TupleE->getElementNames();
-  ArrayRef<SourceLoc> ArgLocs = TupleE->getElementNameLocs();
-  for (auto i : indices(ArgNames)) {
-    Identifier Name = ArgNames[i];
+  for (auto &Arg : *ArgList) {
+    Identifier Name = Arg.getLabel();
     if (Name.empty())
       continue;
 
-    SourceLoc Loc = ArgLocs[i];
+    SourceLoc Loc = Arg.getLabelLoc();
     if (Loc.isInvalid())
       continue;
 

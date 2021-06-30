@@ -129,7 +129,7 @@ func f() -> Int { 42 }
 // This should be interpreted as a trailing closure, instead of being 
 // interpreted as a computed property with undesired initial value.
 struct TrickyTest {
-    var x : Int = f () { // expected-error {{argument passed to call that takes no arguments}}
+    var x : Int = f () { // expected-error {{extra trailing closure passed in call}}
         3
     }
 }

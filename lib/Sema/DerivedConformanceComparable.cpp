@@ -203,8 +203,7 @@ deriveBodyComparable_enum_hasAssociatedValues_lt(AbstractFunctionDecl *ltDecl, v
   auto aRef = new (C) DeclRefExpr(aParam, DeclNameLoc(), /*implicit*/true);
   auto bRef = new (C) DeclRefExpr(bParam, DeclNameLoc(), /*implicit*/true);
   auto abExpr = TupleExpr::create(C, SourceLoc(), { aRef, bRef }, {}, {},
-                                  SourceLoc(), /*HasTrailingClosure*/ false,
-                                  /*implicit*/ true);
+                                  SourceLoc(), /*implicit*/ true);
   auto switchStmt =
       SwitchStmt::createImplicit(LabeledStmtInfo(), abExpr, cases, C);
   statements.push_back(switchStmt);

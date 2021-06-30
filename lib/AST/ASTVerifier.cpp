@@ -118,7 +118,7 @@ std::pair<bool, Expr *> dispatchVisitPreExprHelper(
   if (V.shouldVerify(node)) {
     // Record any inout_to_pointer or array_to_pointer that we see in
     // the proper position.
-    V.maybeRecordValidPointerConversion(node, node->getArg());
+    V.maybeRecordValidPointerConversion(node->getArgs());
     return {true, node};
   }
   V.cleanup(node);
@@ -134,7 +134,7 @@ std::pair<bool, Expr *> dispatchVisitPreExprHelper(
   if (V.shouldVerify(node)) {
     // Record any inout_to_pointer or array_to_pointer that we see in
     // the proper position.
-    V.maybeRecordValidPointerConversion(node, node->getIndex());
+    V.maybeRecordValidPointerConversion(node->getArgs());
     return {true, node};
   }
   V.cleanup(node);
@@ -150,7 +150,7 @@ std::pair<bool, Expr *> dispatchVisitPreExprHelper(
   if (V.shouldVerify(node)) {
     // Record any inout_to_pointer or array_to_pointer that we see in
     // the proper position.
-    V.maybeRecordValidPointerConversion(node, node->getSingleExpressionBody());
+    V.maybeRecordValidPointerConversionForArg(node->getSingleExpressionBody());
     return {true, node};
   }
   V.cleanup(node);
@@ -1675,107 +1675,71 @@ public:
       verifyCheckedBase(E);
     }
 
-    void maybeRecordValidPointerConversion(Expr *Base, Expr *Arg) {
-      auto handleSubExpr = [&](Expr *origSubExpr) {
-        auto subExpr = origSubExpr;
-        unsigned optionalDepth = 0;
+    void maybeRecordValidPointerConversionForArg(Expr *argExpr) {
+      auto *subExpr = argExpr;
+      unsigned optionalDepth = 0;
 
-        auto checkIsBindOptional = [&](Expr *expr) {
-          for (unsigned depth = optionalDepth; depth; --depth) {
-            if (auto bind = dyn_cast<BindOptionalExpr>(expr)) {
-              expr = bind->getSubExpr();
-            } else {
-              Out << "malformed optional pointer conversion\n";
-              origSubExpr->dump(Out);
-              Out << '\n';
-              abort();
-            }
+      auto checkIsBindOptional = [&](Expr *expr) {
+        for (unsigned depth = optionalDepth; depth; --depth) {
+          if (auto bind = dyn_cast<BindOptionalExpr>(expr)) {
+            expr = bind->getSubExpr();
+          } else {
+            Out << "malformed optional pointer conversion\n";
+            argExpr->dump(Out);
+            Out << '\n';
+            abort();
           }
-        };
-
-        // FIXME: This doesn't seem like a particularly robust
-        //        approach to tracking whether pointer conversions
-        //        always appear as call arguments.
-        while (true) {
-          // Look through optional evaluations.
-          if (auto *optionalEval = dyn_cast<OptionalEvaluationExpr>(subExpr)) {
-            subExpr = optionalEval->getSubExpr();
-            ++optionalDepth;
-            continue;
-          }
-
-          // Look through injections into Optional<Pointer>.
-          if (auto *injectIntoOpt = dyn_cast<InjectIntoOptionalExpr>(subExpr)) {
-            subExpr = injectIntoOpt->getSubExpr();
-            continue;
-          }
-
-          // FIXME: This is only handling the value conversion, not
-          //        the key conversion. What this verifier check
-          //        should probably do is just track whether we're
-          //        currently visiting arguments of an apply when we
-          //        find these conversions.
-          if (auto *upcast =
-                  dyn_cast<CollectionUpcastConversionExpr>(subExpr)) {
-            subExpr = upcast->getValueConversion().Conversion;
-            continue;
-          }
-
-          break;
-        }
-
-        // Record inout-to-pointer conversions.
-        if (auto *inOutToPtr = dyn_cast<InOutToPointerExpr>(subExpr)) {
-          ValidInOutToPointerExprs.insert(inOutToPtr);
-          checkIsBindOptional(inOutToPtr->getSubExpr());
-          return;
-        }
-
-        // Record array-to-pointer conversions.
-        if (auto *arrayToPtr = dyn_cast<ArrayToPointerExpr>(subExpr)) {
-          ValidArrayToPointerExprs.insert(arrayToPtr);
-          checkIsBindOptional(arrayToPtr->getSubExpr());
-          return;
         }
       };
 
-      if (auto *ParentExprArg = dyn_cast<ParenExpr>(Arg)) {
-        return handleSubExpr(ParentExprArg->getSubExpr());
+      // FIXME: This doesn't seem like a particularly robust
+      //        approach to tracking whether pointer conversions
+      //        always appear as call arguments.
+      while (true) {
+        // Look through optional evaluations.
+        if (auto *optionalEval = dyn_cast<OptionalEvaluationExpr>(subExpr)) {
+          subExpr = optionalEval->getSubExpr();
+          ++optionalDepth;
+          continue;
+        }
+
+        // Look through injections into Optional<Pointer>.
+        if (auto *injectIntoOpt = dyn_cast<InjectIntoOptionalExpr>(subExpr)) {
+          subExpr = injectIntoOpt->getSubExpr();
+          continue;
+        }
+
+        // FIXME: This is only handling the value conversion, not
+        //        the key conversion. What this verifier check
+        //        should probably do is just track whether we're
+        //        currently visiting arguments of an apply when we
+        //        find these conversions.
+        if (auto *upcast = dyn_cast<CollectionUpcastConversionExpr>(subExpr)) {
+          subExpr = upcast->getValueConversion().Conversion;
+          continue;
+        }
+
+        break;
       }
 
-      if (auto *TupleArg = dyn_cast<TupleExpr>(Arg)) {
-        for (auto *SubExpr : TupleArg->getElements()) {
-          handleSubExpr(SubExpr);
-        }
+      // Record inout-to-pointer conversions.
+      if (auto *inOutToPtr = dyn_cast<InOutToPointerExpr>(subExpr)) {
+        ValidInOutToPointerExprs.insert(inOutToPtr);
+        checkIsBindOptional(inOutToPtr->getSubExpr());
         return;
       }
 
-      // Otherwise, just run it through handle sub expr. This case can happen if
-      // we have an autoclosure.
-      if (isa<AutoClosureExpr>(Base)) {
-        handleSubExpr(Arg);
+      // Record array-to-pointer conversions.
+      if (auto *arrayToPtr = dyn_cast<ArrayToPointerExpr>(subExpr)) {
+        ValidArrayToPointerExprs.insert(arrayToPtr);
+        checkIsBindOptional(arrayToPtr->getSubExpr());
         return;
       }
     }
 
-    /// A version of AnyFunctionType::equalParams() that ignores "isolated"
-    /// parameters, which aren't represented in the type system.
-    static bool equalParamsIgnoringIsolation(
-        ArrayRef<AnyFunctionType::Param> a,
-        ArrayRef<AnyFunctionType::Param> b) {
-      auto withoutIsolation = [](AnyFunctionType::Param param) {
-        return param.withFlags(param.getParameterFlags().withIsolated(false));
-      };
-
-      if (a.size() != b.size())
-        return false;
-
-      for (unsigned i = 0, n = a.size(); i != n; ++i) {
-        if (withoutIsolation(a[i]) != withoutIsolation(b[i]))
-          return false;
-      }
-
-      return true;
+    void maybeRecordValidPointerConversion(ArgumentList *argList) {
+      for (auto &arg : *argList)
+        maybeRecordValidPointerConversionForArg(arg.getExpr());
     }
 
     void verifyChecked(ApplyExpr *E) {
@@ -1798,14 +1762,10 @@ public:
         abort();
       }
 
-      SmallVector<AnyFunctionType::Param, 8> Args;
-      Type InputExprTy = E->getArg()->getType();
-      AnyFunctionType::decomposeInput(InputExprTy, Args);
-      auto Params = FT->getParams();
-      if (!equalParamsIgnoringIsolation(Args, Params)) {
-        Out << "Argument type does not match parameter type in ApplyExpr:"
-               "\nArgument type: ";
-        InputExprTy.print(Out);
+      if (!E->getArgs()->matches(FT->getParams())) {
+        Out << "Argument list does not match parameters in ApplyExpr:"
+               "\nArgument list: ";
+        E->getArgs()->dump(Out);
         Out << "\nParameter types: ";
         AnyFunctionType::printParams(FT->getParams(), Out);
         Out << "\n";
@@ -2182,8 +2142,13 @@ public:
         abort();
       }
 
-      auto callArgTy = call->getArg()->getType()->getAs<FunctionType>();
-      if (!callArgTy) {
+      auto *unaryArg = call->getArgs()->getUnaryArgExpr();
+      if (!unaryArg) {
+        Out << "MakeTemporarilyEscapableExpr doesn't have a unary argument\n";
+        abort();
+      }
+
+      if (!unaryArg->getType()->is<FunctionType>()) {
         Out << "MakeTemporarilyEscapableExpr call argument is not a function\n";
         abort();
       }

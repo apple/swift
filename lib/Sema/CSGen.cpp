@@ -504,19 +504,6 @@ namespace {
     }
   }
   
-  size_t getOperandCount(Type t) {
-    size_t nOperands = 0;
-    
-    if (auto parenTy = dyn_cast<ParenType>(t.getPointer())) {
-      if (parenTy->getDesugaredType())
-        nOperands = 1;
-    } else if (auto tupleTy = t->getAs<TupleType>()) {
-      nOperands = tupleTy->getElementTypes().size();
-    }
-    
-    return nOperands;
-  }
-  
   /// Return a pair, containing the total parameter count of a function, coupled
   /// with the number of non-default parameters.
   std::pair<size_t, size_t> getParamCount(ValueDecl *VD) {
@@ -553,18 +540,19 @@ namespace {
   /// for the operand and contextual type.
   void favorMatchingUnaryOperators(ApplyExpr *expr,
                                    ConstraintSystem &CS) {
+    auto *unaryArg = expr->getArgs()->getUnaryArgExpr();
+    assert(unaryArg);
+
     // Determine whether the given declaration is favored.
     auto isFavoredDecl = [&](ValueDecl *value, Type type) -> bool {
       auto fnTy = type->getAs<AnyFunctionType>();
       if (!fnTy)
         return false;
-      
-      Type paramTy = FunctionType::composeInput(CS.getASTContext(),
-                                                fnTy->getParams(), false);
 
-      auto argTy = CS.getType(expr->getArg())
-                       ->getWithoutParens()
-                       ->getWithoutSpecifierType();
+      auto params = fnTy->getParams();
+      assert(params.size() == 1);
+      auto paramTy = params[0].getPlainType();
+      auto argTy = CS.getType(unaryArg);
 
       // There are no CGFloat overloads on some of the unary operators, so
       // in order to preserve current behavior, let's not favor overloads
@@ -584,7 +572,7 @@ namespace {
   void favorMatchingOverloadExprs(ApplyExpr *expr,
                                   ConstraintSystem &CS) {
     // Find the argument type.
-    size_t nArgs = getOperandCount(CS.getType(expr->getArg()));
+    size_t nArgs = expr->getArgs()->size();
     auto fnExpr = expr->getFn();
     
     // Check to ensure that we have an OverloadedDeclRef, and that we're not
@@ -628,39 +616,37 @@ namespace {
       favorCallOverloads(expr, CS, isFavoredDecl);
       
     }
-    
-    if (auto favoredTy = CS.getFavoredType(expr->getArg())) {
-      // Determine whether the given declaration is favored.
-      auto isFavoredDecl = [&](ValueDecl *value, Type type) -> bool {
-        auto fnTy = type->getAs<AnyFunctionType>();
-        if (!fnTy)
-          return false;
 
-        auto paramTy =
-            AnyFunctionType::composeInput(CS.getASTContext(), fnTy->getParams(),
-                                          /*canonicalVararg*/ false);
-        return favoredTy->isEqual(paramTy);
-      };
+    if (auto *unaryArg = expr->getArgs()->getUnlabelledUnaryExpr()) {
+      if (auto favoredTy = CS.getFavoredType(unaryArg)) {
+        // Determine whether the given declaration is favored.
+        auto isFavoredDecl = [&](ValueDecl *value, Type type) -> bool {
+          auto fnTy = type->getAs<AnyFunctionType>();
+          if (!fnTy || fnTy->getParams().size() != 1)
+            return false;
 
-      // This is a hack to ensure we always consider the protocol requirement
-      // itself when calling something that has a default implementation in an
-      // extension. Otherwise, the extension method might be favored if we're
-      // inside an extension context, since any archetypes in the parameter
-      // list could match exactly.
-      auto mustConsider = [&](ValueDecl *value) -> bool {
-        return isa<ProtocolDecl>(value->getDeclContext());
-      };
+          return favoredTy->isEqual(fnTy->getParams()[0].getPlainType());
+        };
 
-      favorCallOverloads(expr, CS,
-                         isFavoredDecl,
-                         mustConsider);
+        // This is a hack to ensure we always consider the protocol requirement
+        // itself when calling something that has a default implementation in an
+        // extension. Otherwise, the extension method might be favored if we're
+        // inside an extension context, since any archetypes in the parameter
+        // list could match exactly.
+        auto mustConsider = [&](ValueDecl *value) -> bool {
+          return isa<ProtocolDecl>(value->getDeclContext());
+        };
+
+        favorCallOverloads(expr, CS,
+                           isFavoredDecl,
+                           mustConsider);
+      }
     }
   }
   
   /// Favor binary operator constraints where we have exact matches
   /// for the operands and contextual type.
-  void favorMatchingBinaryOperators(ApplyExpr *expr,
-                                    ConstraintSystem &CS) {
+  void favorMatchingBinaryOperators(ApplyExpr *expr, ConstraintSystem &CS) {
     // If we're generating constraints for a binary operator application,
     // there are two special situations to consider:
     //  1. If the type checker has any newly created functions with the
@@ -673,12 +659,12 @@ namespace {
     //     to any contextual type associated with the application expression.
     
     // Find the argument types.
-    auto argTy = CS.getType(expr->getArg());
-    auto argTupleTy = argTy->castTo<TupleType>();
-    auto argTupleExpr = dyn_cast<TupleExpr>(expr->getArg());
+    auto *args = expr->getArgs();
+    auto *lhs = args->getExpr(0);
+    auto *rhs = args->getExpr(1);
 
-    Type firstArgTy = argTupleTy->getElement(0).getType()->getWithoutParens();
-    Type secondArgTy = argTupleTy->getElement(1).getType()->getWithoutParens();
+    auto firstArgTy = CS.getType(lhs)->getWithoutParens();
+    auto secondArgTy = CS.getType(rhs)->getWithoutParens();
 
     auto isOptionalWithMatchingObjectType = [](Type optional,
                                                Type object) -> bool {
@@ -699,10 +685,8 @@ namespace {
       if (!fnTy)
         return false;
 
-      Expr *firstArg = argTupleExpr->getElement(0);
-      auto firstFavoredTy = CS.getFavoredType(firstArg);
-      Expr *secondArg = argTupleExpr->getElement(1);
-      auto secondFavoredTy = CS.getFavoredType(secondArg);
+      auto firstFavoredTy = CS.getFavoredType(lhs);
+      auto secondFavoredTy = CS.getFavoredType(rhs);
       
       auto favoredExprTy = CS.getFavoredType(expr);
       
@@ -711,12 +695,12 @@ namespace {
         // information to its children.
         // TODO: This is only valid for arithmetic expressions.
         if (!firstFavoredTy) {
-          CS.setFavoredType(argTupleExpr->getElement(0), favoredExprTy);
+          CS.setFavoredType(lhs, favoredExprTy);
           firstFavoredTy = favoredExprTy;
         }
         
         if (!secondFavoredTy) {
-          CS.setFavoredType(argTupleExpr->getElement(1), favoredExprTy);
+          CS.setFavoredType(rhs, favoredExprTy);
           secondFavoredTy = favoredExprTy;
         }
       }
@@ -830,6 +814,42 @@ namespace {
       return true;
     }
 
+    /// Retrieves a matching set of function params for an argument list.
+    void getMatchingParams(ArgumentList *argList,
+                           SmallVectorImpl<AnyFunctionType::Param> &result) {
+      for (auto &arg : *argList) {
+        ParameterTypeFlags flags;
+        auto ty = CS.getType(arg.getExpr());
+        if (arg.isInOut()) {
+          ty = ty->getInOutObjectType();
+          flags = flags.withInOut(true);
+        }
+        result.emplace_back(ty, arg.getLabel(), flags);
+      }
+    }
+
+    /// If the provided type is a tuple, decomposes it into a matching set of
+    /// function params. Otherwise produces a single parameter of the type,
+    /// stripping a ParenType if needed.
+    void decomposeTuple(Type ty,
+                        SmallVectorImpl<AnyFunctionType::Param> &result) {
+      switch (ty->getKind()) {
+      case TypeKind::Tuple: {
+        auto tupleTy = cast<TupleType>(ty.getPointer());
+        for (auto &elt : tupleTy->getElements())
+          result.emplace_back(elt.getRawType(), elt.getName());
+        return;
+      }
+      case TypeKind::Paren: {
+        auto pty = cast<ParenType>(ty.getPointer());
+        result.emplace_back(pty->getUnderlyingType(), Identifier());
+        return;
+      }
+      default:
+        result.emplace_back(ty, Identifier());
+      }
+    }
+
     /// Add constraints for a reference to a named member of the given
     /// base type, and return the type of such a reference.
     Type addMemberRefConstraints(Expr *expr, Expr *base, DeclNameRef name,
@@ -878,9 +898,7 @@ namespace {
 
     /// Add constraints for a subscript operation.
     Type addSubscriptConstraints(
-        Expr *anchor, Type baseTy, Expr *index,
-        ValueDecl *declOrNull, ArrayRef<Identifier> argLabels,
-        Optional<unsigned> unlabeledTrailingClosure,
+        Expr *anchor, Type baseTy, ValueDecl *declOrNull, ArgumentList *argList,
         ConstraintLocator *locator = nullptr,
         SmallVectorImpl<TypeVariableType *> *addedTypeVars = nullptr) {
       // Locators used in this expression.
@@ -897,8 +915,7 @@ namespace {
         CS.getConstraintLocator(locator,
                                 ConstraintLocator::FunctionResult);
 
-      associateArgumentLabels(memberLocator,
-                              {argLabels, unlabeledTrailingClosure});
+      associateArgumentList(memberLocator, argList);
 
       Type outputTy;
 
@@ -919,15 +936,10 @@ namespace {
                 dyn_cast<ArraySliceType>(baseObjTy.getPointer())) {
             baseObjTy = arraySliceTy->getDesugaredType();
           }
-          
-          auto indexExpr = index;
-          
-          if (auto parenExpr = dyn_cast<ParenExpr>(indexExpr)) {
-            indexExpr = parenExpr->getSubExpr();
-          }
-          
-          if (isa<IntegerLiteralExpr>(indexExpr)) {
-            
+
+          if (argList->isUnlabelledUnary() &&
+              isa<IntegerLiteralExpr>(argList->getExpr(0))) {
+
             outputTy = baseObjTy->getAs<BoundGenericType>()->getGenericArgs()[0];
             
             if (isLValueBase)
@@ -937,11 +949,13 @@ namespace {
           auto keyTy = dictTy->first;
           auto valueTy = dictTy->second;
 
-          if (isFavoredParamAndArg(CS, keyTy, CS.getType(index))) {
-            outputTy = OptionalType::get(valueTy);
-            
-            if (isLValueBase)
-              outputTy = LValueType::get(outputTy);
+          if (argList->isUnlabelledUnary()) {
+            auto argTy = CS.getType(argList->getExpr(0));
+            if (isFavoredParamAndArg(CS, keyTy, argTy)) {
+              outputTy = OptionalType::get(valueTy);
+              if (isLValueBase)
+                outputTy = LValueType::get(outputTy);
+            }
           }
         }
       }
@@ -986,11 +1000,8 @@ namespace {
                                     memberLocator);
       }
 
-      // FIXME: Redesign the AST so that an ApplyExpr directly stores a list of
-      // arguments together with their inout-ness, instead of a single
-      // ParenExpr or TupleExpr.
       SmallVector<AnyFunctionType::Param, 8> params;
-      AnyFunctionType::decomposeInput(CS.getType(index), params);
+      getMatchingParams(argList, params);
 
       // Add the constraint that the index expression's type be convertible
       // to the input type of the subscript operator.
@@ -1161,9 +1172,7 @@ namespace {
 
     Type visitObjectLiteralExpr(ObjectLiteralExpr *expr) {
       auto *exprLoc = CS.getConstraintLocator(expr);
-      associateArgumentLabels(
-          exprLoc, {expr->getArgumentLabels(),
-                    expr->getUnlabeledTrailingClosureIndex()});
+      associateArgumentList(exprLoc, expr->getArgs());
 
       // If the expression has already been assigned a type; just use that type.
       if (expr->getType())
@@ -1210,8 +1219,8 @@ namespace {
                                   DeclNameRef(constrName), memberType, CurDC,
                                   FunctionRefKind::DoubleApply, {}, memberLoc);
 
-      SmallVector<AnyFunctionType::Param, 8> args;
-      AnyFunctionType::decomposeInput(CS.getType(expr->getArg()), args);
+      SmallVector<AnyFunctionType::Param, 8> params;
+      getMatchingParams(expr->getArgs(), params);
 
       auto resultType = CS.createTypeVariable(
           CS.getConstraintLocator(expr, ConstraintLocator::FunctionResult),
@@ -1219,7 +1228,7 @@ namespace {
 
       CS.addConstraint(
           ConstraintKind::ApplicableFunction,
-          FunctionType::get(args, resultType), memberType,
+          FunctionType::get(params, resultType), memberType,
           CS.getConstraintLocator(expr, ConstraintLocator::ApplyFunction));
 
       if (constr->isFailable())
@@ -1659,13 +1668,8 @@ namespace {
       SmallVector<TupleTypeElt, 4> elements;
       elements.reserve(expr->getNumElements());
       for (unsigned i = 0, n = expr->getNumElements(); i != n; ++i) {
-        auto *elt = expr->getElement(i);
-        auto ty = CS.getType(elt);
-        auto flags = ParameterTypeFlags()
-            .withInOut(elt->isSemanticallyInOutExpr())
-            .withVariadic(isa<VarargExpansionExpr>(elt));
-        elements.push_back(TupleTypeElt(ty->getInOutObjectType(),
-                                        expr->getElementName(i), flags));
+        elements.push_back(TupleTypeElt(CS.getType(expr->getElement(i)),
+                                        expr->getElementName(i)));
       }
 
       return TupleType::get(elements, CS.getASTContext());
@@ -1683,10 +1687,8 @@ namespace {
       if (!isValidBaseOfMemberRef(base, diag::cannot_subscript_nil_literal))
         return nullptr;
 
-      return addSubscriptConstraints(expr, CS.getType(base),
-                                     expr->getIndex(),
-                                     decl, expr->getArgumentLabels(),
-                                     expr->getUnlabeledTrailingClosureIndex());
+      return addSubscriptConstraints(expr, CS.getType(base), decl,
+                                     expr->getArgs());
     }
     
     Type visitArrayExpr(ArrayExpr *expr) {
@@ -1966,9 +1968,7 @@ namespace {
 
     Type visitDynamicSubscriptExpr(DynamicSubscriptExpr *expr) {
       return addSubscriptConstraints(expr, CS.getType(expr->getBase()),
-                                     expr->getIndex(), /*decl*/ nullptr,
-                                     expr->getArgumentLabels(),
-                                     expr->getUnlabeledTrailingClosureIndex());
+                                     /*decl*/ nullptr, expr->getArgs());
     }
 
     Type visitTupleElementExpr(TupleElementExpr *expr) {
@@ -2264,8 +2264,7 @@ namespace {
         // types so long as we have the right number of such types.
         SmallVector<AnyFunctionType::Param, 4> externalEltTypes;
         if (externalPatternType) {
-          AnyFunctionType::decomposeInput(externalPatternType,
-                                          externalEltTypes);
+          decomposeTuple(externalPatternType, externalEltTypes);
 
           // If we have the wrong number of elements, we may not be able to
           // provide more specific types.
@@ -2449,7 +2448,7 @@ namespace {
             return Type();
 
           SmallVector<AnyFunctionType::Param, 4> params;
-          AnyFunctionType::decomposeInput(subPatternType, params);
+          decomposeTuple(subPatternType, params);
 
           // Remove parameter labels; they aren't used when matching cases,
           // but outright conflicts will be checked during coercion.
@@ -2656,17 +2655,12 @@ namespace {
     Type visitApplyExpr(ApplyExpr *expr) {
       auto fnExpr = expr->getFn();
 
-      SmallVector<Identifier, 4> scratch;
-      associateArgumentLabels(
-          CS.getConstraintLocator(expr),
-          {expr->getArgumentLabels(scratch),
-           expr->getUnlabeledTrailingClosureIndex()},
-          /*labelsArePermanent=*/isa<CallExpr>(expr));
+      associateArgumentList(CS.getConstraintLocator(expr), expr->getArgs());
 
       if (auto *UDE = dyn_cast<UnresolvedDotExpr>(fnExpr)) {
         auto typeOperation = getTypeOperation(UDE, CS.getASTContext());
         if (typeOperation != TypeOperation::None)
-          return resultOfTypeOperation(typeOperation, expr->getArg());
+          return resultOfTypeOperation(typeOperation, expr->getArgs());
       }
 
       // The result type is a fresh type variable.
@@ -2679,11 +2673,8 @@ namespace {
       if (isa<ClosureExpr>(fnExpr->getSemanticsProvidingExpr()))
         extInfo = extInfo.withNoEscape();
 
-      // FIXME: Redesign the AST so that an ApplyExpr directly stores a list of
-      // arguments together with their inout-ness, instead of a single
-      // ParenExpr or TupleExpr.
       SmallVector<AnyFunctionType::Param, 8> params;
-      AnyFunctionType::decomposeInput(CS.getType(expr->getArg()), params);
+      getMatchingParams(expr->getArgs(), params);
 
       CS.addConstraint(ConstraintKind::ApplicableFunction,
                        FunctionType::get(params, resultType, extInfo),
@@ -3174,15 +3165,9 @@ namespace {
         // Subscript should only appear in resolved ASTs, but we may need to
         // re-type-check the constraints during failure diagnosis.
         case KeyPathExpr::Component::Kind::Subscript: {
-          auto index = component.getIndexExpr();
-          auto unlabeledTrailingClosureIndex =
-            index->getUnlabeledTrailingClosureIndexOfPackedArgument();
-          base = addSubscriptConstraints(E, base, index,
-                                         /*decl*/ nullptr,
-                                         component.getSubscriptLabels(),
-                                         unlabeledTrailingClosureIndex,
-                                         memberLocator,
-                                         &componentTypeVars);
+          auto *args = component.getSubscriptArgs();
+          base = addSubscriptConstraints(E, base, /*decl*/ nullptr, args,
+                                         memberLocator, &componentTypeVars);
           break;
         }
 
@@ -3336,11 +3321,9 @@ namespace {
           .Default(TypeOperation::None);
     }
 
-    Type resultOfTypeOperation(TypeOperation op, Expr *Arg) {
-      auto *tuple = cast<TupleExpr>(Arg);
-
-      auto *lhs = tuple->getElement(0);
-      auto *rhs = tuple->getElement(1);
+    Type resultOfTypeOperation(TypeOperation op, ArgumentList *Args) {
+      auto *lhs = Args->getExpr(0);
+      auto *rhs = Args->getExpr(1);
 
       switch (op) {
       case TypeOperation::None:
@@ -3420,14 +3403,9 @@ namespace {
       llvm_unreachable("unhandled operation");
     }
 
-    void associateArgumentLabels(ConstraintLocator *locator,
-                                 ConstraintSystem::ArgumentInfo info,
-                                 bool labelsArePermanent = true) {
+    void associateArgumentList(ConstraintLocator *locator, ArgumentList *args) {
       assert(locator && locator->getAnchor());
-      // Record the labels.
-      if (!labelsArePermanent)
-        info.Labels = CS.allocateCopy(info.Labels);
-      CS.ArgumentInfos[CS.getArgumentInfoLocator(locator)] = info;
+      CS.ArgumentLists[CS.getArgumentInfoLocator(locator)] = args;
     }
   };
 
@@ -3520,15 +3498,16 @@ namespace {
 
           if (typeOperation == ConstraintGenerator::TypeOperation::OneWay) {
             // For a one-way constraint, create the OneWayExpr node.
-            auto *arg = cast<ParenExpr>(apply->getArg())->getSubExpr();
-            expr = new (CS.getASTContext()) OneWayExpr(arg);
+            auto *unaryArg = apply->getArgs()->getUnaryArgExpr();
+            assert(unaryArg);
+            expr = new (CS.getASTContext()) OneWayExpr(unaryArg);
           } else if (typeOperation !=
                          ConstraintGenerator::TypeOperation::None) {
             // Handle the Builtin.type_join* family of calls by replacing
             // them with dot_self_expr of type_expr with the type being the
             // result of the join.
             auto joinMetaTy =
-                CG.resultOfTypeOperation(typeOperation, apply->getArg());
+                CG.resultOfTypeOperation(typeOperation, apply->getArgs());
             auto joinTy = joinMetaTy->castTo<MetatypeType>();
 
             auto *TE = TypeExpr::createImplicit(joinTy->getInstanceType(),
@@ -4220,58 +4199,4 @@ swift::resolveValueMember(DeclContext &DC, Type BaseTy, DeclName Name) {
     Result.Impl->AllDecls.push_back(VD);
   }
   return Result;
-}
-
-OriginalArgumentList
-swift::getOriginalArgumentList(Expr *expr) {
-  OriginalArgumentList result;
-
-  auto add = [&](Expr *arg, Identifier label, SourceLoc labelLoc) {
-    if (isa<DefaultArgumentExpr>(arg)) {
-      return;
-    }
-
-    if (auto *varargExpr = dyn_cast<VarargExpansionExpr>(arg)) {
-      if (auto *arrayExpr = dyn_cast<ArrayExpr>(varargExpr->getSubExpr())) {
-        for (auto *elt : arrayExpr->getElements()) {
-          result.args.push_back(elt);
-          result.labels.push_back(label);
-          result.labelLocs.push_back(labelLoc);
-
-          label = Identifier();
-          labelLoc = SourceLoc();
-        }
-
-        return;
-      }
-    }
-
-    result.args.push_back(arg);
-    result.labels.push_back(label);
-    result.labelLocs.push_back(labelLoc);
-  };
-
-  if (auto *parenExpr = dyn_cast<ParenExpr>(expr)) {
-    result.lParenLoc = parenExpr->getLParenLoc();
-    result.rParenLoc = parenExpr->getRParenLoc();
-    result.hasTrailingClosure = parenExpr->hasTrailingClosure();
-    add(parenExpr->getSubExpr(), Identifier(), SourceLoc());
-  } else if (auto *tupleExpr = dyn_cast<TupleExpr>(expr)) {
-    result.lParenLoc = tupleExpr->getLParenLoc();
-    result.rParenLoc = tupleExpr->getRParenLoc();
-    result.hasTrailingClosure = tupleExpr->hasTrailingClosure();
-
-    auto args = tupleExpr->getElements();
-    auto labels = tupleExpr->getElementNames();
-    auto labelLocs = tupleExpr->getElementNameLocs();
-    for (unsigned i = 0, e = args.size(); i != e; ++i) {
-      // Implicit TupleExprs don't always store label locations.
-      add(args[i], labels[i],
-          labelLocs.empty() ? SourceLoc() : labelLocs[i]);
-    }
-  } else {
-    add(expr, Identifier(), SourceLoc());
-  }
-
-  return result;
 }

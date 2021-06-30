@@ -814,7 +814,7 @@ func testParenExprInTheWay() {
   if (x & 4.0) {}   // expected-error {{cannot convert value of type 'Double' to expected argument type 'Int'}}
   // expected-error@-1 {{type 'Int' cannot be used as a boolean; test for '!= 0' instead}}
   if !(x & 4.0) {}  // expected-error {{cannot convert value of type 'Double' to expected argument type 'Int'}}
-  // expected-error@-1 {{type 'Int' cannot be used as a boolean; test for '!= 0' instead}}
+  // expected-error@-1 {{type 'Int' cannot be used as a boolean; test for '== 0' instead}} {{6-7=}}{{7-7=(}}{{16-16= == 0)}}
 
   if x & x {} // expected-error {{type 'Int' cannot be used as a boolean; test for '!= 0' instead}}
 }

@@ -244,9 +244,9 @@ class NameMatcher: public ASTWalker {
   std::vector<ResolvedLoc> ResolvedLocs;
   ArrayRef<Token> TokensToCheck;
 
-  /// The \c Expr argument of a parent \c CustomAttr (if one exists) and
+  /// The \c ArgumentList of a parent \c CustomAttr (if one exists) and
   /// the \c SourceLoc of the type name it applies to.
-  llvm::Optional<Located<Expr *>> CustomAttrArg;
+  llvm::Optional<Located<ArgumentList *>> CustomAttrArgList;
   unsigned InactiveConfigRegionNestings = 0;
   unsigned SelectorNestings = 0;
 
@@ -265,12 +265,13 @@ class NameMatcher: public ASTWalker {
   bool shouldSkip(SourceRange Range);
   bool shouldSkip(CharSourceRange Range);
   bool tryResolve(ASTWalker::ParentTy Node, SourceLoc NameLoc);
-  bool tryResolve(ASTWalker::ParentTy Node, DeclNameLoc NameLoc, Expr *Arg);
+  bool tryResolve(ASTWalker::ParentTy Node, DeclNameLoc NameLoc,
+                  ArgumentList *Args);
   bool tryResolve(ASTWalker::ParentTy Node, SourceLoc NameLoc, LabelRangeType RangeType,
                   ArrayRef<CharSourceRange> LabelLocs,
                   Optional<unsigned> FirstTrailingLabel);
   bool handleCustomAttrs(Decl *D);
-  Expr *getApplicableArgFor(Expr* E);
+  ArgumentList *getApplicableArgsFor(Expr* E);
 
   std::pair<bool, Expr*> walkToExprPre(Expr *E) override;
   Expr* walkToExprPost(Expr *E) override;
@@ -282,6 +283,9 @@ class NameMatcher: public ASTWalker {
   bool walkToTypeReprPost(TypeRepr *T) override;
   std::pair<bool, Pattern*> walkToPatternPre(Pattern *P) override;
   bool shouldWalkIntoGenericParams() override { return true; }
+
+  std::pair<bool, ArgumentList *>
+  walkToArgumentListPre(ArgumentList *ArgList) override;
 
   // FIXME: Remove this
   bool shouldWalkAccessorsTheOldWay() override { return true; }
@@ -568,13 +572,14 @@ struct CallArgInfo {
 };
 
 std::vector<CallArgInfo>
-getCallArgInfo(SourceManager &SM, Expr *Arg, LabelRangeEndAt EndKind);
+getCallArgInfo(SourceManager &SM, ArgumentList *Args, LabelRangeEndAt EndKind);
 
 // Get the ranges of argument labels from an Arg, either tuple or paren, and
 // the index of the first trailing closure argument, if any. This includes empty
 // ranges for any unlabelled arguments, including the first trailing closure.
 std::pair<std::vector<CharSourceRange>, Optional<unsigned>>
-getCallArgLabelRanges(SourceManager &SM, Expr *Arg, LabelRangeEndAt EndKind);
+getCallArgLabelRanges(SourceManager &SM, ArgumentList *Args,
+                      LabelRangeEndAt EndKind);
 
 /// Whether a decl is defined from clang source.
 bool isFromClang(const Decl *D);

@@ -251,18 +251,11 @@ void ArgumentSource::dump(raw_ostream &out, unsigned indent) const {
   llvm_unreachable("bad kind");
 }
 
-PreparedArguments::PreparedArguments(
-    ArrayRef<AnyFunctionType::Param> params,
-    Expr *arg) : PreparedArguments(params) {
-  if (auto *PE = dyn_cast<ParenExpr>(arg))
-    addArbitrary(PE->getSubExpr());
-  else if (auto *TE = dyn_cast<TupleExpr>(arg)) {
-    for (auto *elt : TE->getElements())
-      addArbitrary(elt);
-  } else {
-    // FIXME: All ApplyExprs should have a ParenExpr or TupleExpr as their argument
-    addArbitrary(arg);
-  }
+PreparedArguments::PreparedArguments(ArrayRef<AnyFunctionType::Param> params,
+                                     ArgumentList *argList)
+    : PreparedArguments(params) {
+  for (auto &arg : *argList)
+    addArbitrary(arg.getExpr());
 }
 
 PreparedArguments

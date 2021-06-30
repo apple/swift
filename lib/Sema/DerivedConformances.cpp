@@ -431,8 +431,8 @@ DerivedConformance::createBuiltinCall(ASTContext &ctx,
   Expr *ref = new (ctx) DeclRefExpr(declRef, DeclNameLoc(),
                                     /*Implicit=*/true,
                                     AccessSemantics::Ordinary, fnType);
-  CallExpr *call =
-    CallExpr::createImplicit(ctx, ref, args, /*labels*/ {});
+  auto *argList = ArgumentList::forImplicitUnlabelled(ctx, args);
+  auto *call = CallExpr::createImplicit(ctx, ref, argList);
   call->setType(resultType);
   call->setThrows(false);
 

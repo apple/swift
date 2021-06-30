@@ -492,8 +492,9 @@ synthesizeEnumRawValueConstructorBody(AbstractFunctionDecl *afd,
   reinterpretCastRef->setType(
       FunctionType::get({FunctionType::Param(rawTy)}, enumTy, info));
 
+  auto *argList = ArgumentList::forImplicitUnlabelled(ctx, {paramRef});
   auto reinterpreted = CallExpr::createImplicit(ctx, reinterpretCastRef,
-                                                { paramRef }, { Identifier() });
+                                                argList);
   reinterpreted->setType(enumTy);
   reinterpreted->setThrows(false);
 
@@ -574,8 +575,9 @@ synthesizeEnumRawValueGetterBody(AbstractFunctionDecl *afd, void *context) {
   reinterpretCastRef->setType(
       FunctionType::get({FunctionType::Param(enumTy)}, rawTy, info));
 
+  auto *argList = ArgumentList::forImplicitUnlabelled(ctx, {selfRef});
   auto reinterpreted = CallExpr::createImplicit(ctx, reinterpretCastRef,
-                                                { selfRef }, { Identifier() });
+                                                argList);
   reinterpreted->setType(rawTy);
   reinterpreted->setThrows(false);
 
@@ -941,9 +943,9 @@ synthesizeUnionFieldGetterBody(AbstractFunctionDecl *afd, void *context) {
       FunctionType::get(AnyFunctionType::Param(selfDecl->getInterfaceType()),
                         importedFieldDecl->getInterfaceType(), info));
 
+  auto *argList = ArgumentList::forImplicitUnlabelled(ctx, {selfRef});
   auto reinterpreted = CallExpr::createImplicit(ctx, reinterpretCastRefExpr,
-                                                { selfRef },
-                                                { Identifier() });
+                                                argList);
   reinterpreted->setType(importedFieldDecl->getInterfaceType());
   reinterpreted->setThrows(false);
   auto ret = new (ctx) ReturnStmt(SourceLoc(), reinterpreted);
@@ -988,9 +990,10 @@ synthesizeUnionFieldSetterBody(AbstractFunctionDecl *afd, void *context) {
       AnyFunctionType::Param(inoutSelfDecl->getInterfaceType(), Identifier(),
                              ParameterTypeFlags().withInOut(true)),
       ctx.TheRawPointerType, addressOfInfo));
+
+  auto *selfPtrArgs = ArgumentList::forImplicitUnlabelled(ctx, {inoutSelf});
   auto selfPointer = CallExpr::createImplicit(ctx, addressofFnRefExpr,
-                                              { inoutSelf },
-                                              { Identifier() });
+                                              selfPtrArgs);
   selfPointer->setType(ctx.TheRawPointerType);
   selfPointer->setThrows(false);
 
@@ -1008,9 +1011,11 @@ synthesizeUnionFieldSetterBody(AbstractFunctionDecl *afd, void *context) {
       {AnyFunctionType::Param(newValueDecl->getInterfaceType()),
        AnyFunctionType::Param(ctx.TheRawPointerType)},
       TupleType::getEmpty(ctx), initializeInfo));
+
+  auto *initArgs =
+      ArgumentList::forImplicitUnlabelled(ctx, {newValueRef, selfPointer});
   auto initialize = CallExpr::createImplicit(ctx, initializeFnRefExpr,
-                                             { newValueRef, selfPointer },
-                                             { Identifier(), Identifier() });
+                                             initArgs);
   initialize->setType(TupleType::getEmpty(ctx));
   initialize->setThrows(false);
 
@@ -1279,7 +1284,7 @@ synthesizeStructDefaultConstructorBody(AbstractFunctionDecl *afd,
   FunctionType::ExtInfo info;
   zeroInitializerRef->setType(FunctionType::get({}, selfType, info));
 
-  auto call = CallExpr::createImplicit(ctx, zeroInitializerRef, {}, {});
+  auto call = CallExpr::createImplicitEmpty(ctx, zeroInitializerRef);
   call->setType(selfType);
   call->setThrows(false);
 
@@ -6463,8 +6468,8 @@ Decl *SwiftDeclConverter::importEnumCaseAlias(
                                             /*implicit*/ true);
     constantRef->setType(enumElt->getInterfaceType());
 
-    auto instantiate = new (Impl.SwiftContext)
-        DotSyntaxCallExpr(constantRef, SourceLoc(), typeRef);
+    auto instantiate = DotSyntaxCallExpr::create(Impl.SwiftContext, constantRef,
+                                                 SourceLoc(), typeRef);
     instantiate->setType(importedEnumTy);
     instantiate->setThrows(false);
 
@@ -7605,16 +7610,14 @@ createAccessorImplCallExpr(FuncDecl *accessorImpl,
                             /*Implicit=*/ true);
   accessorImplExpr->setType(accessorImpl->getInterfaceType());
 
-  auto accessorImplDotCallExpr =
-      new (ctx) DotSyntaxCallExpr(accessorImplExpr,
-                                  SourceLoc(),
-                                  inoutSelfExpr);
+  auto accessorImplDotCallExpr = DotSyntaxCallExpr::create(
+      ctx, accessorImplExpr, SourceLoc(), inoutSelfExpr);
   accessorImplDotCallExpr->setType(accessorImpl->getMethodInterfaceType());
   accessorImplDotCallExpr->setThrows(false);
 
+  auto *argList = ArgumentList::forImplicitUnlabelled(ctx, {keyRefExpr});
   auto *accessorImplCallExpr =
-      CallExpr::createImplicit(ctx, accessorImplDotCallExpr,
-                               { keyRefExpr }, { Identifier() });
+      CallExpr::createImplicit(ctx, accessorImplDotCallExpr, argList);
   accessorImplCallExpr->setType(accessorImpl->getResultInterfaceType());
   accessorImplCallExpr->setThrows(false);
   return accessorImplCallExpr;
@@ -9636,15 +9639,15 @@ synthesizeConstantGetterBody(AbstractFunctionDecl *afd, void *voidContext) {
 
     // (Self) -> ...
     initTy = initTy->castTo<FunctionType>()->getResult();
-    auto initRef = new (ctx) DotSyntaxCallExpr(declRef, SourceLoc(),
-                                               typeRef, initTy);
+    auto initRef = DotSyntaxCallExpr::create(ctx, declRef, SourceLoc(),
+                                             typeRef, initTy);
     initRef->setThrows(false);
 
     // (rawValue: T) -> ...
     initTy = initTy->castTo<FunctionType>()->getResult();
 
-    auto initCall = CallExpr::createImplicit(ctx, initRef, { expr },
-                                             { ctx.Id_rawValue });
+    auto *argList = ArgumentList::forImplicitSingle(ctx, ctx.Id_rawValue, expr);
+    auto initCall = CallExpr::createImplicit(ctx, initRef, argList);
     initCall->setType(initTy);
     initCall->setThrows(false);
 

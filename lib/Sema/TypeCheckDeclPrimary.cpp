@@ -401,14 +401,14 @@ static void checkForEmptyOptionSet(const VarDecl *VD) {
     return;
   
   // Make sure it is calling the rawValue constructor
-  if (ctor->getNumArguments() != 1)
+  auto *args = ctor->getArgs();
+  if (!args->isUnary())
     return;
-  if (ctor->getArgumentLabels().front() != VD->getASTContext().Id_rawValue)
+  if (args->getLabel(0) != VD->getASTContext().Id_rawValue)
     return;
   
   // Make sure the rawValue parameter is a '0' integer literal
-  auto *args = cast<TupleExpr>(ctor->getArg());
-  auto intArg = dyn_cast<IntegerLiteralExpr>(args->getElement(0));
+  auto intArg = dyn_cast<IntegerLiteralExpr>(args->getExpr(0));
   if (!intArg)
     return;
   if (intArg->getValue() != 0)

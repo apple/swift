@@ -538,11 +538,10 @@ static bool doesAccessorHaveBody(AccessorDecl *accessor) {
   return true;
 }
 
-
-/// Build a reference to the subscript index variables for this subscript
-/// accessor.
-static Expr *buildSubscriptIndexReference(ASTContext &ctx,
-                                          AccessorDecl *accessor) {
+/// Build an argument list referencing the subscript parameters for this
+/// subscript accessor.
+static ArgumentList *buildSubscriptArgumentList(ASTContext &ctx,
+                                                AccessorDecl *accessor) {
   // Pull out the body parameters, which we should have cloned
   // previously to be forwardable.  Drop the initial buffer/value
   // parameter in accessors that have one.
@@ -554,8 +553,8 @@ static Expr *buildSubscriptIndexReference(ASTContext &ctx,
     params = params.slice(1);
   }
 
-  // Okay, everything else should be forwarded, build the expression.
-  return buildArgumentForwardingExpr(params, ctx);
+  // Okay, everything else should be forwarded, build the argument list.
+  return buildForwardingArgumentList(params, ctx);
 }
 
 namespace {
@@ -923,11 +922,11 @@ static Expr *buildStorageReference(AccessorDecl *accessor,
                                            /*hasLeadingDot=*/true);
     Expr *args[3] = {selfDRE, propertyKeyPath, storageKeyPath};
 
-    SubscriptDecl *subscriptDecl = enclosingSelfAccess->subscript;
-    lookupExpr = SubscriptExpr::create(
-        ctx, wrapperMetatype, SourceLoc(), args,
-        subscriptDecl->getName().getArgumentNames(), { }, SourceLoc(),
-        /*trailingClosures=*/{}, subscriptDecl, /*Implicit=*/true);
+    auto *subscriptDecl = enclosingSelfAccess->subscript;
+    auto argList =
+        ArgumentList::forImplicitCallTo(subscriptDecl->getIndices(), args, ctx);
+    lookupExpr = SubscriptExpr::create(ctx, wrapperMetatype, argList,
+                                       subscriptDecl, /*Implicit=*/true);
 
     // FIXME: Since we're not resolving overloads or anything, we should be
     // building fully type-checked AST above; we already have all the
@@ -947,8 +946,8 @@ static Expr *buildStorageReference(AccessorDecl *accessor,
       }
     }
   } else if (isa<SubscriptDecl>(storage)) {
-    Expr *indices = buildSubscriptIndexReference(ctx, accessor);
-    lookupExpr = SubscriptExpr::create(ctx, selfDRE, indices, memberRef,
+    auto *argList = buildSubscriptArgumentList(ctx, accessor);
+    lookupExpr = SubscriptExpr::create(ctx, selfDRE, argList, memberRef,
                                        /*IsImplicit=*/true, semantics);
 
     if (selfAccessKind == SelfAccessorKind::Super)
@@ -1068,7 +1067,7 @@ static Expr *synthesizeCopyWithZoneCall(Expr *Val, VarDecl *VD,
   // Drop the self type
   copyMethodType = copyMethodType->getResult()->castTo<FunctionType>();
 
-  auto DSCE = new (Ctx) DotSyntaxCallExpr(DRE, SourceLoc(), Val);
+  auto *DSCE = DotSyntaxCallExpr::create(Ctx, DRE, SourceLoc(), Val);
   DSCE->setImplicit();
   DSCE->setType(copyMethodType);
   DSCE->setThrows(false);
@@ -1076,7 +1075,9 @@ static Expr *synthesizeCopyWithZoneCall(Expr *Val, VarDecl *VD,
   Expr *Nil = new (Ctx) NilLiteralExpr(SourceLoc(), /*implicit*/true);
   Nil->setType(copyMethodType->getParams()[0].getParameterType());
 
-  auto *Call = CallExpr::createImplicit(Ctx, DSCE, { Nil }, { Ctx.Id_with });
+  auto *argList =
+      ArgumentList::forImplicitCallTo(copyMethod->getParameters(), {Nil}, Ctx);
+  auto *Call = CallExpr::createImplicit(Ctx, DSCE, argList);
   Call->setType(copyMethodType->getResult());
   Call->setThrows(false);
 
@@ -1553,7 +1554,7 @@ synthesizeObservedSetterBody(AccessorDecl *Set, TargetImpl target,
       auto *SelfDRE =
           buildSelfReference(SelfDecl, SelfAccessorKind::Peer, IsSelfLValue);
       SelfDRE = maybeWrapInOutExpr(SelfDRE, Ctx);
-      auto *DSCE = new (Ctx) DotSyntaxCallExpr(Callee, SourceLoc(), SelfDRE);
+      auto *DSCE = DotSyntaxCallExpr::create(Ctx, Callee, SourceLoc(), SelfDRE);
 
       if (auto funcType = type->getAs<FunctionType>())
         type = funcType->getResult();
@@ -1564,9 +1565,10 @@ synthesizeObservedSetterBody(AccessorDecl *Set, TargetImpl target,
 
     CallExpr *Call = nullptr;
     if (arg) {
-      Call = CallExpr::createImplicit(Ctx, Callee, {ValueDRE}, {Identifier()});
+      auto *argList = ArgumentList::forImplicitUnlabelled(Ctx, {ValueDRE});
+      Call = CallExpr::createImplicit(Ctx, Callee, argList);
     } else {
-      Call = CallExpr::createImplicit(Ctx, Callee, {}, {});
+      Call = CallExpr::createImplicitEmpty(Ctx, Callee);
     }
 
     if (auto funcType = type->getAs<FunctionType>())
@@ -1734,7 +1736,7 @@ synthesizeModifyCoroutineBodyWithSimpleDidSet(AccessorDecl *accessor,
       auto *SelfDRE = buildSelfReference(SelfDecl, SelfAccessorKind::Peer,
                                          storage->isSetterMutating());
       SelfDRE = maybeWrapInOutExpr(SelfDRE, ctx);
-      auto *DSCE = new (ctx) DotSyntaxCallExpr(Callee, SourceLoc(), SelfDRE);
+      auto *DSCE = DotSyntaxCallExpr::create(ctx, Callee, SourceLoc(), SelfDRE);
 
       if (auto funcType = type->getAs<FunctionType>())
         type = funcType->getResult();
@@ -1743,7 +1745,7 @@ synthesizeModifyCoroutineBodyWithSimpleDidSet(AccessorDecl *accessor,
       Callee = DSCE;
     }
 
-    auto *Call = CallExpr::createImplicit(ctx, Callee, {}, {});
+    auto *Call = CallExpr::createImplicitEmpty(ctx, Callee);
     if (auto funcType = type->getAs<FunctionType>())
       type = funcType->getResult();
     Call->setType(type);

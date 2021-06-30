@@ -1050,8 +1050,10 @@ void DefaultArgumentInitializerScope::
 void AttachedPropertyWrapperScope::
     expandAScopeThatDoesNotCreateANewInsertionPoint(
         ScopeCreator &scopeCreator) {
-  if (auto *expr = attr->getArg())
-      scopeCreator.addToScopeTree(expr, this);
+  if (auto *args = attr->getArgs()) {
+    for (auto &arg : *args)
+      scopeCreator.addToScopeTree(arg.getExpr(), this);
+  }
 }
 
 #pragma mark expandScope

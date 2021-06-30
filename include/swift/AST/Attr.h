@@ -36,7 +36,6 @@
 #include "swift/AST/PlatformKind.h"
 #include "swift/AST/Requirement.h"
 #include "swift/AST/StorageImpl.h"
-#include "swift/AST/TrailingCallArguments.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
@@ -45,6 +44,7 @@
 #include "llvm/Support/VersionTuple.h"
 
 namespace swift {
+class ArgumentList;
 class ASTPrinter;
 class ASTContext;
 struct PrintOptions;
@@ -1528,48 +1528,36 @@ public:
 };
 
 /// Defines a custom attribute.
-class CustomAttr final : public DeclAttribute,
-                         public TrailingCallArguments<CustomAttr> {
+class CustomAttr final : public DeclAttribute {
   TypeExpr *typeExpr;
-  Expr *arg;
+  ArgumentList *argList;
   PatternBindingInitializer *initContext;
   Expr *semanticInit = nullptr;
 
-  unsigned hasArgLabelLocs : 1;
-  unsigned numArgLabels : 16;
   mutable unsigned isArgUnsafeBit : 1;
 
   CustomAttr(SourceLoc atLoc, SourceRange range, TypeExpr *type,
-             PatternBindingInitializer *initContext, Expr *arg,
-             ArrayRef<Identifier> argLabels, ArrayRef<SourceLoc> argLabelLocs,
+             PatternBindingInitializer *initContext, ArgumentList *argList,
              bool implicit);
 
 public:
   static CustomAttr *create(ASTContext &ctx, SourceLoc atLoc, TypeExpr *type,
                             bool implicit = false) {
-    return create(ctx, atLoc, type, false, nullptr, SourceLoc(), { }, { }, { },
-                  SourceLoc(), implicit);
+    return create(ctx, atLoc, type, /*hasInit*/ false, /*initContext*/ nullptr,
+                  /*argList*/ nullptr, implicit);
   }
 
   static CustomAttr *create(ASTContext &ctx, SourceLoc atLoc, TypeExpr *type,
                             bool hasInitializer,
                             PatternBindingInitializer *initContext,
-                            SourceLoc lParenLoc,
-                            ArrayRef<Expr *> args,
-                            ArrayRef<Identifier> argLabels,
-                            ArrayRef<SourceLoc> argLabelLocs,
-                            SourceLoc rParenLoc,
-                            bool implicit = false);
-
-  unsigned getNumArguments() const { return numArgLabels; }
-  bool hasArgumentLabelLocs() const { return hasArgLabelLocs; }
+                            ArgumentList *argList, bool implicit = false);
 
   TypeExpr *getTypeExpr() const { return typeExpr; }
   TypeRepr *getTypeRepr() const;
   Type getType() const;
 
-  Expr *getArg() const { return arg; }
-  void setArg(Expr *newArg) { arg = newArg; }
+  ArgumentList *getArgs() const { return argList; }
+  void setArgs(ArgumentList *newArgs) { argList = newArgs; }
 
   /// Determine whether the argument is '(unsafe)', a special subexpression
   /// used by global actors.

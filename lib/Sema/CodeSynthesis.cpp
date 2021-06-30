@@ -95,18 +95,13 @@ Expr *swift::buildSelfReference(VarDecl *selfDecl,
   llvm_unreachable("bad self access kind");
 }
 
-/// Build an expression that evaluates the specified parameter list as a tuple
-/// or paren expr, suitable for use in an apply expr.
-Expr *swift::buildArgumentForwardingExpr(ArrayRef<ParamDecl*> params,
-                                         ASTContext &ctx) {
-  SmallVector<Identifier, 4> labels;
-  SmallVector<SourceLoc, 4> labelLocs;
-  SmallVector<Expr *, 4> args;
-  SmallVector<AnyFunctionType::Param, 4> elts;
-
-  for (auto param : params) {
+/// Build an argument list that forwards references to the specified parameter
+/// list.
+ArgumentList *swift::buildForwardingArgumentList(ArrayRef<ParamDecl *> params,
+                                                 ASTContext &ctx) {
+  SmallVector<Argument, 4> args;
+  for (auto *param : params) {
     auto type = param->getType();
-    elts.push_back(param->toFunctionParam(type));
 
     Expr *ref = new (ctx) DeclRefExpr(param, DeclNameLoc(), /*implicit*/ true);
     ref->setType(param->isInOut() ? LValueType::get(type) : type);
@@ -118,28 +113,9 @@ Expr *swift::buildArgumentForwardingExpr(ArrayRef<ParamDecl*> params,
       ref->setType(type);
     }
 
-    args.push_back(ref);
-    
-    labels.push_back(param->getArgumentName());
-    labelLocs.push_back(SourceLoc());
+    args.emplace_back(SourceLoc(), param->getArgumentName(), ref);
   }
-
-  Expr *argExpr;
-  if (args.size() == 1 &&
-      labels[0].empty() &&
-      !isa<VarargExpansionExpr>(args[0])) {
-    argExpr = new (ctx) ParenExpr(SourceLoc(), args[0], SourceLoc(),
-                                  /*hasTrailingClosure=*/false);
-    argExpr->setImplicit();
-  } else {
-    argExpr = TupleExpr::create(ctx, SourceLoc(), args, labels, labelLocs,
-                                SourceLoc(), false, IsImplicit);
-  }
-
-  auto argTy = AnyFunctionType::composeInput(ctx, elts, /*canonical*/false);
-  argExpr->setType(argTy);
-
-  return argExpr;
+  return ArgumentList::createImplicit(ctx, args);
 }
 
 static void maybeAddMemberwiseDefaultArg(ParamDecl *arg, VarDecl *var,
@@ -416,8 +392,10 @@ synthesizeStubBody(AbstractFunctionDecl *fn, void *) {
   column->setType(uintType);
   column->setBuiltinInitializer(uintInit);
 
-  auto *call = CallExpr::createImplicit(
-      ctx, ref, { className, initName, file, line, column }, {});
+  auto *argList = ArgumentList::forImplicitUnlabelled(
+      ctx, {className, initName, file, line, column});
+
+  auto *call = CallExpr::createImplicit(ctx, ref, argList);
   call->setType(ctx.getNeverType());
   call->setThrows(false);
 
@@ -663,15 +641,13 @@ synthesizeDesignatedInitOverride(AbstractFunctionDecl *fn, void *context) {
   if (auto *funcTy = type->getAs<FunctionType>())
     type = funcTy->getResult();
   auto *superclassCtorRefExpr =
-      new (ctx) DotSyntaxCallExpr(ctorRefExpr, SourceLoc(), superRef, type);
+      DotSyntaxCallExpr::create(ctx, ctorRefExpr, SourceLoc(), superRef, type);
   superclassCtorRefExpr->setThrows(false);
 
   auto *bodyParams = ctor->getParameters();
-  auto ctorArgs = buildArgumentForwardingExpr(bodyParams->getArray(), ctx);
+  auto *ctorArgs = buildForwardingArgumentList(bodyParams->getArray(), ctx);
   auto *superclassCallExpr =
-    CallExpr::create(ctx, superclassCtorRefExpr, ctorArgs,
-                     superclassCtor->getName().getArgumentNames(), { },
-                     /*hasTrailingClosure=*/false, /*implicit=*/true);
+      CallExpr::createImplicit(ctx, superclassCtorRefExpr, ctorArgs);
 
   if (auto *funcTy = type->getAs<FunctionType>())
     type = funcTy->getResult();

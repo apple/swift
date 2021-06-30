@@ -714,10 +714,9 @@ Expr *swift::buildPropertyWrapperInitCall(
   // over the wrapper attributes.
   if (initKind == PropertyWrapperInitKind::ProjectedValue) {
     auto typeExpr = TypeExpr::createImplicit(backingStorageType, ctx);
-    auto argName = ctx.Id_projectedValue;
-    auto *init =
-        CallExpr::createImplicit(ctx, typeExpr, { initializer }, { argName });
-
+    auto *argList = ArgumentList::forImplicitSingle(ctx, ctx.Id_projectedValue,
+                                                    initializer);
+    auto *init = CallExpr::createImplicit(ctx, typeExpr, argList);
     innermostInitCallback(init);
     return init;
   }
@@ -742,7 +741,8 @@ Expr *swift::buildPropertyWrapperInitCall(
     // If there were no arguments provided for the attribute at this level,
     // call `init(wrappedValue:)` directly.
     auto attr = wrapperAttrs[i];
-    if (!attr->getArg()) {
+    auto *args = attr->getArgs();
+    if (!args) {
       Identifier argName;
       assert(initKind == PropertyWrapperInitKind::WrappedValue);
       switch (var->getAttachedPropertyWrapperTypeInfo(i).wrappedValueInit) {
@@ -760,10 +760,10 @@ Expr *swift::buildPropertyWrapperInitCall(
       if (endLoc.isInvalid() && startLoc.isValid())
         endLoc = reprRange.End;
 
-      auto *init =
-          CallExpr::create(ctx, typeExpr, startLoc, {initializer}, {argName},
-                           {initializer->getStartLoc()}, endLoc,
-                           /*trailingClosures=*/{}, /*implicit=*/true);
+      auto arg = Argument(initializer->getStartLoc(), argName, initializer);
+      auto *argList = ArgumentList::createImplicit(ctx, startLoc, {arg},
+                                                   endLoc);
+      auto *init = CallExpr::create(ctx, typeExpr, argList, /*implicit=*/true);
       initializer = init;
 
       if (!innermostInit)
@@ -772,33 +772,18 @@ Expr *swift::buildPropertyWrapperInitCall(
     }
 
     // Splice `wrappedValue:` into the argument list.
-    SmallVector<Expr *, 4> elements;
-    SmallVector<Identifier, 4> elementNames;
-    SmallVector<SourceLoc, 4> elementLocs;
-    elements.push_back(initializer);
-    elementNames.push_back(ctx.Id_wrappedValue);
-    elementLocs.push_back(initializer->getStartLoc());
+    SmallVector<Argument, 4> newArgs;
+    newArgs.emplace_back(initializer->getStartLoc(), ctx.Id_wrappedValue,
+                         initializer);
+    newArgs.append(args->begin(), args->end());
 
-    if (auto tuple = dyn_cast<TupleExpr>(attr->getArg())) {
-      for (unsigned i : range(tuple->getNumElements())) {
-        elements.push_back(tuple->getElement(i));
-        elementNames.push_back(tuple->getElementName(i));
-        elementLocs.push_back(tuple->getElementNameLoc(i));
-      }
-    } else {
-      auto paren = cast<ParenExpr>(attr->getArg());
-      elements.push_back(paren->getSubExpr());
-      elementNames.push_back(Identifier());
-      elementLocs.push_back(SourceLoc());
-    }
-    
-    auto endLoc = attr->getArg()->getEndLoc();
+    auto endLoc = args->getEndLoc();
     if (endLoc.isInvalid() && startLoc.isValid())
       endLoc = reprRange.End;
 
-    auto *init = CallExpr::create(ctx, typeExpr, startLoc, elements,
-                                   elementNames, elementLocs, endLoc,
-                                   /*trailingClosures=*/{}, /*implicit=*/true);
+    auto *argList = ArgumentList::createImplicit(ctx, startLoc, newArgs,
+                                                 endLoc);
+    auto *init = CallExpr::create(ctx, typeExpr, argList, /*implicit=*/true);
     initializer = init;
 
     if (!innermostInit)

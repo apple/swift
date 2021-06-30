@@ -1036,24 +1036,16 @@ ParserResult<Pattern> Parser::parseTypedPattern() {
           contextChange.emplace(*this, CurDeclContext, &dummyContext);
         }
         
-        SourceLoc lParenLoc, rParenLoc;
-        SmallVector<Expr *, 2> args;
-        SmallVector<Identifier, 2> argLabels;
-        SmallVector<SourceLoc, 2> argLabelLocs;
-        SmallVector<TrailingClosure, 2> trailingClosures;
-        ParserStatus status = parseExprList(tok::l_paren, tok::r_paren,
-                                            /*isPostfix=*/true,
-                                            /*isExprBasic=*/false,
-                                            lParenLoc, args, argLabels,
-                                            argLabelLocs, rParenLoc,
-                                            trailingClosures,
-                                            SyntaxKind::Unknown);
-        if (status.isSuccess() && !status.hasCodeCompletion()) {
+        SmallVector<ExprListElt, 2> elts;
+        auto argListResult = parseArgumentList(tok::l_paren, tok::r_paren,
+                                               /*isExprBasic*/ false);
+        if (!argListResult.isParseErrorOrHasCompletion()) {
           backtrack.cancelBacktrack();
           
           // Suggest replacing ':' with '='
-          diagnose(lParenLoc, diag::initializer_as_typed_pattern)
-            .highlight({Ty.get()->getStartLoc(), rParenLoc})
+          auto *args = argListResult.get();
+          diagnose(args->getLParenLoc(), diag::initializer_as_typed_pattern)
+            .highlight({Ty.get()->getStartLoc(), args->getRParenLoc()})
             .fixItReplace(colonLoc, " = ");
           result.setIsParseError();
         }

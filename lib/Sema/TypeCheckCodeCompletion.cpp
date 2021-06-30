@@ -89,18 +89,16 @@ static bool isKeyPathCurriedThunkCallExpr(Expr *E) {
       thunk->getParameters()->get(0)->getParameterName().str() != "$kp$")
     return false;
 
-  auto PE = dyn_cast<ParenExpr>(CE->getArg());
-  if (!PE)
+  auto *unaryArg = CE->getArgs()->getUnaryArgExpr();
+  if (!unaryArg)
     return false;
-  return isa<KeyPathExpr>(PE->getSubExpr());
+  return isa<KeyPathExpr>(unaryArg);
 }
 
 // Extract the keypath expression from the curried thunk expression.
 static Expr *extractKeyPathFromCurryThunkCall(Expr *E) {
   assert(isKeyPathCurriedThunkCallExpr(E));
-  auto call = cast<CallExpr>(E);
-  auto arg = cast<ParenExpr>(call->getArg());
-  return arg->getSubExpr();
+  return cast<CallExpr>(E)->getArgs()->getUnaryArgExpr();
 }
 
 namespace {
@@ -118,6 +116,22 @@ public:
   SanitizeExpr(ASTContext &C,
                bool shouldReusePrecheckedType)
     : C(C), ShouldReusePrecheckedType(shouldReusePrecheckedType) { }
+
+  std::pair<bool, ArgumentList *>
+  walkToArgumentListPre(ArgumentList *argList) override {
+    // Strip default arguments and varargs from type-checked call
+    // argument lists.
+    SmallVector<Argument, 4> newArgs;
+    Optional<unsigned> newTrailingClosureIdx;
+    bool anyChanged =
+        argList->getOriginalArguments(newArgs, &newTrailingClosureIdx);
+    if (anyChanged) {
+      argList = ArgumentList::create(
+          C, argList->getLParenLoc(), newArgs, argList->getRParenLoc(),
+          newTrailingClosureIdx, argList->isImplicit());
+    }
+    return {true, argList};
+  }
 
   std::pair<bool, Expr *> walkToExprPre(Expr *expr) override {
     while (true) {
@@ -198,42 +212,34 @@ public:
         EPE->setSemanticExpr(nullptr);
       }
 
-      // Strip default arguments and varargs from type-checked call
-      // argument lists.
-      if (isa<ParenExpr>(expr) || isa<TupleExpr>(expr)) {
-        if (shouldSanitizeArgumentList(expr))
-          expr = sanitizeArgumentList(expr);
-      }
-
       // If this expression represents keypath based dynamic member
       // lookup, let's convert it back to the original form of
       // member or subscript reference.
       if (auto *SE = dyn_cast<SubscriptExpr>(expr)) {
-        if (auto *TE = dyn_cast<TupleExpr>(SE->getIndex())) {
-          auto isImplicitKeyPathExpr = [](Expr *argExpr) -> bool {
-            if (auto *KP = dyn_cast<KeyPathExpr>(argExpr))
-              return KP->isImplicit();
-            return false;
-          };
+        auto *args = SE->getArgs();
+        auto isImplicitKeyPathExpr = [](Expr *argExpr) -> bool {
+          if (auto *KP = dyn_cast<KeyPathExpr>(argExpr))
+            return KP->isImplicit();
+          return false;
+        };
 
-          if (TE->isImplicit() && TE->getNumElements() == 1 &&
-              TE->getElementName(0) == C.Id_dynamicMember &&
-              isImplicitKeyPathExpr(TE->getElement(0))) {
-            auto *keyPathExpr = cast<KeyPathExpr>(TE->getElement(0));
-            auto *componentExpr = keyPathExpr->getParsedPath();
+        if (SE->isImplicit() && args->isUnary() &&
+            args->front().getLabel() == C.Id_dynamicMember &&
+            isImplicitKeyPathExpr(args->front().getExpr())) {
+          auto *keyPathExpr = cast<KeyPathExpr>(args->front().getExpr());
+          auto *componentExpr = keyPathExpr->getParsedPath();
 
-            if (auto *UDE = dyn_cast<UnresolvedDotExpr>(componentExpr)) {
-              UDE->setBase(SE->getBase());
-              return {true, UDE};
-            }
-
-            if (auto *subscript = dyn_cast<SubscriptExpr>(componentExpr)) {
-              subscript->setBase(SE->getBase());
-              return {true, subscript};
-            }
-
-            llvm_unreachable("unknown keypath component type");
+          if (auto *UDE = dyn_cast<UnresolvedDotExpr>(componentExpr)) {
+            UDE->setBase(SE->getBase());
+            return {true, UDE};
           }
+
+          if (auto *subscript = dyn_cast<SubscriptExpr>(componentExpr)) {
+            subscript->setBase(SE->getBase());
+            return {true, subscript};
+          }
+
+          llvm_unreachable("unknown keypath component type");
         }
       }
 
@@ -250,57 +256,6 @@ public:
       // Now, we're ready to walk into sub expressions.
       return {true, expr};
     }
-  }
-
-  bool isSyntheticArgumentExpr(const Expr *expr) {
-    if (isa<DefaultArgumentExpr>(expr))
-      return true;
-
-    if (auto *varargExpr = dyn_cast<VarargExpansionExpr>(expr))
-      if (isa<ArrayExpr>(varargExpr->getSubExpr()))
-        return true;
-
-    return false;
-  }
-
-  bool shouldSanitizeArgumentList(const Expr *expr) {
-    if (auto *parenExpr = dyn_cast<ParenExpr>(expr)) {
-      return isSyntheticArgumentExpr(parenExpr->getSubExpr());
-    } else if (auto *tupleExpr = dyn_cast<TupleExpr>(expr)) {
-      for (auto *arg : tupleExpr->getElements()) {
-        if (isSyntheticArgumentExpr(arg))
-          return true;
-      }
-
-      return false;
-    } else {
-      return isSyntheticArgumentExpr(expr);
-    }
-  }
-
-  Expr *sanitizeArgumentList(Expr *original) {
-    auto argList = getOriginalArgumentList(original);
-
-    if (argList.args.size() == 1 &&
-        argList.labels[0].empty() &&
-        !isa<VarargExpansionExpr>(argList.args[0])) {
-      auto *result =
-        new (C) ParenExpr(argList.lParenLoc,
-                          argList.args[0],
-                          argList.rParenLoc,
-                          argList.hasTrailingClosure);
-      result->setImplicit();
-      return result;
-    }
-
-    return TupleExpr::create(C,
-                             argList.lParenLoc,
-                             argList.args,
-                             argList.labels,
-                             argList.labelLocs,
-                             argList.rParenLoc,
-                             argList.hasTrailingClosure,
-                             /*implicit=*/true);
   }
 
   Expr *walkToExprPost(Expr *expr) override {
@@ -518,14 +473,10 @@ getTypeOfCompletionOperatorImpl(DeclContext *DC, Expr *expr,
   // Return '(ArgType[, ArgType]) -> ResultType' as a function type.
   // We don't use the type of the operator expression because we want the types
   // of the *arguments* instead of the types of the parameters.
-  Expr *argsExpr = cast<ApplyExpr>(expr)->getArg();
+  auto *args = cast<ApplyExpr>(expr)->getArgs();
   SmallVector<FunctionType::Param, 2> argTypes;
-  if (auto *PE = dyn_cast<ParenExpr>(argsExpr)) {
-    argTypes.emplace_back(solution.simplifyType(CS.getType(PE->getSubExpr())));
-  } else if (auto *TE = dyn_cast<TupleExpr>(argsExpr)) {
-    for (auto arg : TE->getElements())
-      argTypes.emplace_back(solution.simplifyType(CS.getType(arg)));
-  }
+  for (auto arg : *args)
+    argTypes.emplace_back(solution.simplifyType(CS.getType(arg.getExpr())));
 
   // FIXME: Verify ExtInfo state is correct, not working by accident.
   FunctionType::ExtInfo info;
@@ -560,29 +511,25 @@ TypeChecker::getTypeOfCompletionOperator(DeclContext *DC, Expr *LHS,
   auto Loc = LHS->getEndLoc();
 
   // Build temporary expression to typecheck.
-  // We allocate these expressions on the stack because we know they can't
-  // escape and there isn't a better way to allocate scratch Expr nodes.
   UnresolvedDeclRefExpr UDRE(DeclNameRef(opName), refKind, DeclNameLoc(Loc));
   auto *opExpr = TypeChecker::resolveDeclRefExpr(
       &UDRE, DC, /*replaceInvalidRefsWithErrors=*/true);
 
+  auto &ctx = DC->getASTContext();
   switch (refKind) {
   case DeclRefKind::PostfixOperator: {
     // (postfix_unary_expr
     //   (declref_expr name=<opName>)
-    //   (paren_expr
+    //   (argument_list
     //     (<LHS>)))
-    ParenExpr Args(SourceLoc(), LHS, SourceLoc(),
-                   /*hasTrailingClosure=*/false);
-    PostfixUnaryExpr postfixExpr(opExpr, &Args);
-    return getTypeOfCompletionOperatorImpl(DC, &postfixExpr,
-                                           referencedDecl);
+    auto *postfixExpr = PostfixUnaryExpr::create(ctx, opExpr, LHS);
+    return getTypeOfCompletionOperatorImpl(DC, postfixExpr, referencedDecl);
   }
 
   case DeclRefKind::BinaryOperator: {
     // (binary_expr
     //   (declref_expr name=<opName>)
-    //   (tuple_expr
+    //   (argument_list
     //     (<LHS>)
     //     (code_completion_expr)))
     CodeCompletionExpr dummyRHS(Loc);

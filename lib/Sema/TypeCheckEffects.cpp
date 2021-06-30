@@ -328,17 +328,7 @@ public:
     return Substitutions;
   }
 
-  static AbstractFunction decomposeApply(ApplyExpr *apply,
-                                         SmallVectorImpl<Expr *> &args) {
-    auto *argExpr = apply->getArg();
-    if (auto *tupleExpr = dyn_cast<TupleExpr>(argExpr)) {
-      auto elts = tupleExpr->getElements();
-      args.append(elts.begin(), elts.end());
-    } else {
-      auto *parenExpr = cast<ParenExpr>(argExpr);
-      args.push_back(parenExpr->getSubExpr());
-    }
-
+  static AbstractFunction getAppliedFn(ApplyExpr *apply) {
     Expr *fn = apply->getFn()->getValueProvidingExpr();
 
     if (auto *selfCall = dyn_cast<SelfApplyExpr>(fn))
@@ -781,12 +771,13 @@ public:
     }
 
     // Decompose the application.
-    SmallVector<Expr *, 2> args;
-    auto fnRef = AbstractFunction::decomposeApply(E, args);
+    auto *args = E->getArgs();
+    auto fnRef = AbstractFunction::getAppliedFn(E);
 
     // If any of the arguments didn't type check, fail.
-    for (auto *arg : args) {
-      if (!arg->getType() || arg->getType()->hasError())
+    for (auto &arg : *args) {
+      auto *argExpr = arg.getExpr();
+      if (!argExpr->getType() || argExpr->getType()->hasError())
         return Classification::forInvalidCode();
     }
 
@@ -824,13 +815,13 @@ public:
 
         // Use the most significant result from the arguments.
         auto params = origType->getParams();
-        if (params.size() != args.size()) {
+        if (params.size() != args->size()) {
           result.merge(Classification::forInvalidCode());
           return;
         }
 
         for (unsigned i = 0, e = params.size(); i < e; ++i) {
-          result.merge(classifyArgument(args[i],
+          result.merge(classifyArgument(args->getExpr(i),
                                         params[i].getParameterType(),
                                         kind));
         }
@@ -2112,12 +2103,11 @@ class CheckEffectsCoverage : public EffectsHandlingWalker<CheckEffectsCoverage> 
       assert(parent == nullptr && "Expected to be at top of expression");
       assert(isa<CallExpr>(lastParent) &&
              "Expected top of string interpolation to be CalExpr");
-      assert(isa<ParenExpr>(dyn_cast<CallExpr>(lastParent)->getArg()) &&
-             "Expected paren expr in string interpolation call");
-      if (CallExpr *callExpr = dyn_cast<CallExpr>(lastParent)) {
-        if (ParenExpr *body = dyn_cast<ParenExpr>(callExpr->getArg())) {
-          return body->getSubExpr();
-        }
+      assert(dyn_cast<CallExpr>(lastParent)->getArgs()->isUnary() &&
+             "Expected unary arg in string interpolation call");
+      if (auto *callExpr = dyn_cast<CallExpr>(lastParent)) {
+        if (auto *unaryArg = callExpr->getArgs()->getUnaryArgExpr())
+          return unaryArg;
       }
     }
 

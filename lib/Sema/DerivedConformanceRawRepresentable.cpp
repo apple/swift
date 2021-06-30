@@ -97,8 +97,10 @@ deriveBodyRawRepresentable_raw(AbstractFunctionDecl *toRawDecl, void *) {
     auto selfRef = DerivedConformance::createSelfDeclRef(toRawDecl);
     auto bareTypeExpr = TypeExpr::createImplicit(rawTy, C);
     auto typeExpr = new (C) DotSelfExpr(bareTypeExpr, SourceLoc(), SourceLoc());
-    auto call = CallExpr::createImplicit(C, functionRef, {selfRef, typeExpr},
-                                         {Identifier(), C.Id_to});
+
+    auto *argList = ArgumentList::forImplicitCallTo(functionRef->getName(),
+                                                    {selfRef, typeExpr}, C);
+    auto call = CallExpr::createImplicit(C, functionRef, argList);
     auto returnStmt = new (C) ReturnStmt(SourceLoc(), call);
     auto body = BraceStmt::create(C, SourceLoc(), ASTNode(returnStmt),
                                   SourceLoc());
@@ -376,13 +378,13 @@ deriveBodyRawRepresentable_init(AbstractFunctionDecl *initDecl, void *) {
     auto *Fun = UnresolvedDeclRefExpr::createImplicit(
         C, C.getIdentifier("_findStringSwitchCase"));
     auto *strArray = ArrayExpr::create(C, SourceLoc(), stringExprs, {},
-                                       SourceLoc());;
-    Identifier tableId = C.getIdentifier("cases");
-    Identifier strId = C.getIdentifier("string");
-    auto *Args = TupleExpr::createImplicit(C, {strArray, rawRef},
-                                              {tableId, strId});
-    auto *CallExpr = CallExpr::create(C, Fun, Args, {}, {}, false, false);
-    switchArg = CallExpr;
+                                       SourceLoc());
+    Argument args[] = {
+      Argument(SourceLoc(), C.getIdentifier("cases"), strArray),
+      Argument(SourceLoc(), C.getIdentifier("string"), rawRef)
+    };
+    auto *argList = ArgumentList::createImplicit(C, args);
+    switchArg = CallExpr::createImplicit(C, Fun, argList);
   }
   auto switchStmt =
       SwitchStmt::createImplicit(LabeledStmtInfo(), switchArg, cases, C);

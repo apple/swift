@@ -1183,7 +1183,9 @@ static bool isSuperInitUse(SILInstruction *User) {
   if (!LocExpr || !isa<OtherConstructorDeclRefExpr>(LocExpr->getFn()))
     return false;
 
-  if (LocExpr->getArg()->isSuperExpr())
+  auto *UnaryArg = LocExpr->getArgs()->getUnaryArgExpr();
+  assert(UnaryArg);
+  if (UnaryArg->isSuperExpr())
     return true;
 
   // Instead of super_ref_expr, we can also get this for inherited delegating
@@ -1191,7 +1193,7 @@ static bool isSuperInitUse(SILInstruction *User) {
 
   // (derived_to_base_expr implicit type='C'
   //   (declref_expr type='D' decl='self'))
-  if (auto *DTB = dyn_cast<DerivedToBaseExpr>(LocExpr->getArg())) {
+  if (auto *DTB = dyn_cast<DerivedToBaseExpr>(UnaryArg)) {
     if (auto *DRE = dyn_cast<DeclRefExpr>(DTB->getSubExpr())) {
         ASTContext &Ctx = DRE->getDecl()->getASTContext();
       if (DRE->getDecl()->isImplicit() &&

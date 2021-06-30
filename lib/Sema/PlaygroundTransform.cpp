@@ -361,29 +361,23 @@ public:
     }
   }
 
-  static DeclRefExpr *digForInoutDeclRef(Expr *E) {
-    if (auto inout = dyn_cast<InOutExpr>(E)) {
-      return dyn_cast<DeclRefExpr>(
-          inout->getSubExpr()->getSemanticsProvidingExpr());
+  static DeclRefExpr *digForInoutDeclRef(ArgumentList *args) {
+    DeclRefExpr *uniqueRef = nullptr;
+    for (auto &arg : *args) {
+      if (auto *inout = dyn_cast<InOutExpr>(arg.getExpr())) {
+        auto *ref = dyn_cast<DeclRefExpr>(
+            inout->getSubExpr()->getSemanticsProvidingExpr());
+        if (!ref)
+          continue;
 
-      // Try to find a unique inout argument in a tuple.
-    } else if (auto tuple = dyn_cast<TupleExpr>(E)) {
-      DeclRefExpr *uniqueRef = nullptr;
-      for (Expr *elt : tuple->getElements()) {
-        if (auto ref = digForInoutDeclRef(elt)) {
-          // If we already have a reference, it's not unique.
-          if (uniqueRef)
-            return nullptr;
-          uniqueRef = ref;
-        }
+        // If we already have a reference, it's not unique.
+        if (uniqueRef)
+          return nullptr;
+
+        uniqueRef = ref;
       }
-      return uniqueRef;
-
-      // Look through parens.
-    } else {
-      auto subExpr = E->getSemanticsProvidingExpr();
-      return (E == subExpr ? nullptr : digForInoutDeclRef(subExpr));
     }
+    return uniqueRef;
   }
 
   BraceStmt *transformBraceStmt(BraceStmt *BS, bool TopLevel = false) override {
@@ -479,7 +473,7 @@ public:
           if (!Handled &&
               AE->getType()->isEqual(Context.TheEmptyTupleType)) {
             if (auto *DSCE = dyn_cast<DotSyntaxCallExpr>(AE->getFn())) {
-              Expr *TargetExpr = DSCE->getArg();
+              Expr *TargetExpr = DSCE->getBase();
               Added<Expr *> Target_RE;
               ValueDecl *TargetVD = nullptr;
 
@@ -495,7 +489,7 @@ public:
               }
             }
             if (!Handled) {
-              if (DeclRefExpr *DRE = digForInoutDeclRef(AE->getArg())) {
+              if (DeclRefExpr *DRE = digForInoutDeclRef(AE->getArgs())) {
                 Added<Stmt *> Log = logDeclOrMemberRef(DRE);
                 if (*Log) {
                   Elements.insert(Elements.begin() + (EI + 1), *Log);
@@ -665,55 +659,46 @@ public:
 
   std::pair<PatternBindingDecl *, VarDecl *>
   maybeFixupPrintArgument(ApplyExpr *Print) {
-    Expr *ArgTuple = Print->getArg();
-    if (auto *PE = dyn_cast<ParenExpr>(ArgTuple)) {
-      std::pair<PatternBindingDecl *, VarDecl *> PV =
-          buildPatternAndVariable(PE->getSubExpr());
-      PE->setSubExpr(new (Context) DeclRefExpr(
-          ConcreteDeclRef(PV.second), DeclNameLoc(),
-          true, // implicit
-          AccessSemantics::Ordinary, PE->getSubExpr()->getType()));
-      return PV;
-    } else if (auto *TE = dyn_cast<TupleExpr>(ArgTuple)) {
-      if (TE->getNumElements() == 0) {
-        return std::make_pair(nullptr, nullptr);
-      } else {
-        // Are we using print() specialized to handle a single argument,
-        // or is actually only the first argument of interest and the rest are
-        // extra information for print()?
-        bool useJustFirst = false;
-        if (TE->hasElementNames()) {
+    auto *args = Print->getArgs();
+    if (args->empty())
+      return std::make_pair(nullptr, nullptr);
+
+    // Are we using print() specialized to handle a single argument,
+    // or is actually only the first argument of interest and the rest are
+    // extra information for print()?
+    bool useJustFirst = false;
+    if (args->hasAnyArgumentLabels()) {
+      useJustFirst = true;
+    } else {
+      for (auto &arg : *args) {
+        if (arg.isInOut()) {
           useJustFirst = true;
-        } else {
-          for (Expr *Arg : TE->getElements()) {
-            if (Arg->isSemanticallyInOutExpr()) {
-              useJustFirst = true;
-              break;
-            }
-          }
-        }
-        if (useJustFirst) {
-          std::pair<PatternBindingDecl *, VarDecl *> PV =
-              buildPatternAndVariable(TE->getElement(0));
-          TE->setElement(0, new (Context) DeclRefExpr(
-                                ConcreteDeclRef(PV.second), DeclNameLoc(),
-                                true, // implicit
-                                AccessSemantics::Ordinary,
-                                TE->getElement(0)->getType()));
-          return PV;
-        } else {
-          std::pair<PatternBindingDecl *, VarDecl *> PV =
-              buildPatternAndVariable(TE);
-          Print->setArg(new (Context) DeclRefExpr(
-              ConcreteDeclRef(PV.second), DeclNameLoc(),
-              true, // implicit
-              AccessSemantics::Ordinary, TE->getType()));
-          return PV;
+          break;
         }
       }
-    } else {
-      return std::make_pair(nullptr, nullptr);
     }
+
+    if (useJustFirst) {
+      auto *argExpr = args->front().getExpr();
+      auto PV = buildPatternAndVariable(argExpr);
+      args->front().setExpr(new (Context) DeclRefExpr(
+          ConcreteDeclRef(PV.second), DeclNameLoc(),
+          true, // implicit
+          AccessSemantics::Ordinary, argExpr->getType()));
+      return PV;
+    }
+
+    auto *packedArg = args->packIntoImplicitTupleOrParen(Context);
+    auto PV = buildPatternAndVariable(packedArg);
+
+    auto newArg = new (Context)
+        DeclRefExpr(ConcreteDeclRef(PV.second), DeclNameLoc(),
+                    true, // implicit
+                    AccessSemantics::Ordinary, packedArg->getType());
+    Print->setArgs(ArgumentList::createImplicit(Context, args->getLParenLoc(),
+                                                {Argument::unlabelled(newArg)},
+                                                args->getRParenLoc()));
+    return PV;
   }
 
   Added<Stmt *> logPrint(bool isDebugPrint, ApplyExpr *AE,
@@ -823,8 +808,10 @@ public:
                               DeclNameLoc(SR.End));
     LoggerRef->setImplicit(true);
 
-    ApplyExpr *LoggerCall = CallExpr::createImplicit(Context, LoggerRef,
-                                                     ArgsWithSourceRange, {});
+    auto *ArgList =
+        ArgumentList::forImplicitUnlabelled(Context, ArgsWithSourceRange);
+    ApplyExpr *LoggerCall =
+        CallExpr::createImplicit(Context, LoggerRef, ArgList);
     Added<ApplyExpr *> AddedLogger(LoggerCall);
 
     if (!doTypeCheck(Context, TypeCheckDC, AddedLogger)) {
@@ -851,8 +838,9 @@ public:
 
     SendDataRef->setImplicit(true);
 
+    auto *ArgList = ArgumentList::forImplicitUnlabelled(Context, {DRE});
     Expr *SendDataCall =
-        CallExpr::createImplicit(Context, SendDataRef, {DRE}, {Identifier()});
+        CallExpr::createImplicit(Context, SendDataRef, ArgList);
     Added<Expr *> AddedSendData(SendDataCall);
 
     if (!doTypeCheck(Context, TypeCheckDC, AddedSendData)) {

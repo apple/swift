@@ -498,10 +498,10 @@ struct APIDiffMigratorPass : public ASTMigratorPass, public SourceEntityWalker {
     }
   };
 
-  void emitRenameLabelChanges(Expr *Arg, DeclNameViewer NewName,
+  void emitRenameLabelChanges(ArgumentList *Args, DeclNameViewer NewName,
                               llvm::ArrayRef<unsigned> IgnoreArgIndex) {
     unsigned Idx = 0;
-    auto Ranges = getCallArgLabelRanges(SM, Arg,
+    auto Ranges = getCallArgLabelRanges(SM, Args,
                                         LabelRangeEndAt::LabelNameOnly);
     llvm::SmallVector<uint8_t, 2> ToRemoveIndices;
     for (unsigned I = 0; I < Ranges.first.size(); I ++) {
@@ -529,7 +529,7 @@ struct APIDiffMigratorPass : public ASTMigratorPass, public SourceEntityWalker {
       }
     }
     if (!ToRemoveIndices.empty()) {
-      auto Ranges = getCallArgLabelRanges(SM, Arg,
+      auto Ranges = getCallArgLabelRanges(SM, Args,
                                          LabelRangeEndAt::BeforeElemStart);
       for (auto I : ToRemoveIndices) {
         Editor.remove(Ranges.first[I]);
@@ -537,7 +537,8 @@ struct APIDiffMigratorPass : public ASTMigratorPass, public SourceEntityWalker {
     }
   }
 
-  void handleFuncRename(ValueDecl *FD, Expr* FuncRefContainer, Expr *Arg) {
+  void handleFuncRename(ValueDecl *FD, Expr* FuncRefContainer,
+                        ArgumentList *Args) {
     bool IgnoreBase = false;
     llvm::SmallString<32> Buffer;
     if (auto View = getFuncRename(FD, Buffer, IgnoreBase)) {
@@ -546,7 +547,7 @@ struct APIDiffMigratorPass : public ASTMigratorPass, public SourceEntityWalker {
         Walker.walk(FuncRefContainer);
         Editor.replace(Walker.Result, View.base());
       }
-      emitRenameLabelChanges(Arg, View, {});
+      emitRenameLabelChanges(Args, View, {});
     }
   }
 
@@ -579,7 +580,7 @@ struct APIDiffMigratorPass : public ASTMigratorPass, public SourceEntityWalker {
     return false;
   }
 
-  bool handleSpecialCases(ValueDecl *FD, CallExpr* Call, Expr *Arg) {
+  bool handleSpecialCases(ValueDecl *FD, CallExpr* Call, ArgumentList *Args) {
     SpecialCaseDiffItem *Item = nullptr;
     for (auto *I: getRelatedDiffItems(FD)) {
       Item = dyn_cast<SpecialCaseDiffItem>(I);
@@ -589,7 +590,7 @@ struct APIDiffMigratorPass : public ASTMigratorPass, public SourceEntityWalker {
     if (!Item)
       return false;
     std::vector<CallArgInfo> AllArgs =
-      getCallArgInfo(SM, Arg, LabelRangeEndAt::LabelNameOnly);
+      getCallArgInfo(SM, Args, LabelRangeEndAt::LabelNameOnly);
     switch(Item->caseId) {
     case SpecialCaseId::NSOpenGLSetOption: {
       // swift 3.2:
@@ -655,43 +656,39 @@ struct APIDiffMigratorPass : public ASTMigratorPass, public SourceEntityWalker {
       }
       return false;
     case SpecialCaseId::NSOpenGLGetVersion: {
-      if (const auto *Tuple = dyn_cast<TupleExpr>(Arg)) {
-        if (Tuple->getNumElements() != 2) {
-          return false;
+      if (Args->size() != 2)
+        return false;
+
+      auto extractArg = [](const Expr *Arg) -> const DeclRefExpr * {
+        while (const auto *ICE = dyn_cast<ImplicitConversionExpr>(Arg)) {
+          Arg = ICE->getSubExpr();
         }
-
-        auto extractArg = [](const Expr *Arg) -> const DeclRefExpr * {
-          while (const auto *ICE = dyn_cast<ImplicitConversionExpr>(Arg)) {
-            Arg = ICE->getSubExpr();
-          }
-          if (const auto *IOE = dyn_cast<InOutExpr>(Arg)) {
-            return dyn_cast<DeclRefExpr>(IOE->getSubExpr());
-          }
-          return nullptr;
-        };
-
-        const auto *Arg0 = extractArg(Tuple->getElement(0));
-        const auto *Arg1 = extractArg(Tuple->getElement(1));
-
-        if (!(Arg0 && Arg1)) {
-          return false;
+        if (const auto *IOE = dyn_cast<InOutExpr>(Arg)) {
+          return dyn_cast<DeclRefExpr>(IOE->getSubExpr());
         }
-        SmallString<256> Scratch;
-        llvm::raw_svector_ostream OS(Scratch);
-        auto StartLoc = Call->getStartLoc();
-        Editor.insert(StartLoc, "(");
-        Editor.insert(StartLoc,
-          SM.extractText(Lexer::getCharSourceRangeFromSourceRange(SM,
-            Arg0->getSourceRange())));
-        Editor.insert(StartLoc, ", ");
-        Editor.insert(StartLoc,
-          SM.extractText(Lexer::getCharSourceRangeFromSourceRange(SM,
-            Arg1->getSourceRange())));
-        Editor.insert(StartLoc, ") = ");
-        Editor.replace(Call->getSourceRange(), "NSOpenGLContext.openGLVersion");
-        return true;
+        return nullptr;
+      };
+
+      const auto *Arg0 = extractArg(Args->getExpr(0));
+      const auto *Arg1 = extractArg(Args->getExpr(1));
+
+      if (!(Arg0 && Arg1)) {
+        return false;
       }
-      return false;
+      SmallString<256> Scratch;
+      llvm::raw_svector_ostream OS(Scratch);
+      auto StartLoc = Call->getStartLoc();
+      Editor.insert(StartLoc, "(");
+      Editor.insert(StartLoc,
+        SM.extractText(Lexer::getCharSourceRangeFromSourceRange(SM,
+          Arg0->getSourceRange())));
+      Editor.insert(StartLoc, ", ");
+      Editor.insert(StartLoc,
+        SM.extractText(Lexer::getCharSourceRangeFromSourceRange(SM,
+          Arg1->getSourceRange())));
+      Editor.insert(StartLoc, ") = ");
+      Editor.replace(Call->getSourceRange(), "NSOpenGLContext.openGLVersion");
+      return true;
     }
     case SpecialCaseId::UIApplicationMain: {
       // If the first argument is CommandLine.argc, replace the second argument
@@ -714,7 +711,7 @@ struct APIDiffMigratorPass : public ASTMigratorPass, public SourceEntityWalker {
     llvm_unreachable("unhandled case");
   }
 
-  bool handleTypeHoist(ValueDecl *FD, CallExpr* Call, Expr *Arg) {
+  bool handleTypeHoist(ValueDecl *FD, CallExpr* Call, ArgumentList *Args) {
     TypeMemberDiffItem *Item = nullptr;
     for (auto *I: getRelatedDiffItems(FD)) {
       Item = dyn_cast<TypeMemberDiffItem>(I);
@@ -736,7 +733,7 @@ struct APIDiffMigratorPass : public ASTMigratorPass, public SourceEntityWalker {
     if (*Item->selfIndex)
       return false;
     std::vector<CallArgInfo> AllArgs =
-      getCallArgInfo(SM, Arg, LabelRangeEndAt::LabelNameOnly);
+      getCallArgInfo(SM, Args, LabelRangeEndAt::LabelNameOnly);
     if (!AllArgs.size())
       return false;
     assert(*Item->selfIndex == 0 && "we cannot handle otherwise");
@@ -745,7 +742,7 @@ struct APIDiffMigratorPass : public ASTMigratorPass, public SourceEntityWalker {
     IgnoredArgIndices.push_back(*Item->selfIndex);
     if (auto RI = Item->removedIndex)
       IgnoredArgIndices.push_back(*RI);
-    emitRenameLabelChanges(Arg, NewName, IgnoredArgIndices);
+    emitRenameLabelChanges(Args, NewName, IgnoredArgIndices);
     auto *SelfExpr = AllArgs[0].ArgExp;
     if (auto *IOE = dyn_cast<InOutExpr>(SelfExpr))
       SelfExpr = IOE->getSubExpr();
@@ -796,28 +793,28 @@ struct APIDiffMigratorPass : public ASTMigratorPass, public SourceEntityWalker {
     }
     case TypeMemberDiffItemSubKind::HoistSelfAndUseProperty:
       // Remove ).
-      Editor.remove(Arg->getEndLoc());
+      Editor.remove(Args->getEndLoc());
       return true;
     }
     llvm_unreachable("unhandled subkind");
   }
 
   void handleFunctionCallToPropertyChange(ValueDecl *FD, Expr* FuncRefContainer,
-                                          Expr *Arg) {
+                                          ArgumentList *Args) {
     for (auto *Item : getRelatedDiffItems(FD)) {
       if (auto *CD = dyn_cast<CommonDiffItem>(Item)) {
         switch (CD->DiffKind) {
         case NodeAnnotation::GetterToProperty: {
           // Remove "()"
           Editor.remove(Lexer::getCharSourceRangeFromSourceRange(SM,
-                                                        Arg->getSourceRange()));
+                                                       Args->getSourceRange()));
           return;
         }
         case NodeAnnotation::SetterToProperty: {
           ReferenceCollector Walker(FD);
           Walker.walk(FuncRefContainer);
           auto ReplaceRange = CharSourceRange(SM, Walker.Result.getStart(),
-                                          Arg->getStartLoc().getAdvancedLoc(1));
+                                         Args->getStartLoc().getAdvancedLoc(1));
 
           // Replace "x.getY(" with "x.Y =".
           auto Replacement = (llvm::Twine(Walker.Result.str()
@@ -827,8 +824,8 @@ struct APIDiffMigratorPass : public ASTMigratorPass, public SourceEntityWalker {
                          camel_case::toLowercaseInitialisms(Replacement, Scratch));
 
           // Remove ")"
-          Editor.remove(CharSourceRange(SM, Arg->getEndLoc(), Arg->getEndLoc().
-                                        getAdvancedLoc(1)));
+          Editor.remove(CharSourceRange(SM, Args->getEndLoc(),
+                                        Args->getEndLoc().getAdvancedLoc(1)));
           return;
         }
         default:
@@ -974,7 +971,8 @@ struct APIDiffMigratorPass : public ASTMigratorPass, public SourceEntityWalker {
     return Info;
   }
 
-  void handleStringRepresentableArg(ValueDecl *FD, Expr *Arg, Expr *Call) {
+  void handleStringRepresentableArg(ValueDecl *FD, ArgumentList *Args,
+                                    Expr *Call) {
     NodeAnnotation Kind;
     StringRef RawType;
     StringRef NewAttributeType;
@@ -998,7 +996,7 @@ struct APIDiffMigratorPass : public ASTMigratorPass, public SourceEntityWalker {
     if (ArgIdx) {
       ArgIdx --;
       FromString = true;
-      auto AllArgs = getCallArgInfo(SM, Arg, LabelRangeEndAt::LabelNameOnly);
+      auto AllArgs = getCallArgInfo(SM, Args, LabelRangeEndAt::LabelNameOnly);
       if (AllArgs.size() <= ArgIdx)
         return;
       WrapTarget = AllArgs[ArgIdx].ArgExp;
@@ -1053,7 +1051,7 @@ struct APIDiffMigratorPass : public ASTMigratorPass, public SourceEntityWalker {
       if (!Found)
         return false;
       std::vector<CallArgInfo> AllArgs =
-        getCallArgInfo(SM, CE->getArg(), LabelRangeEndAt::LabelNameOnly);
+        getCallArgInfo(SM, CE->getArgs(), LabelRangeEndAt::LabelNameOnly);
       if (AllArgs.size() == 1) {
         auto Label = AllArgs.front().LabelRange.str();
         if (Label == "rawValue" || Label.empty()) {
@@ -1128,7 +1126,7 @@ struct APIDiffMigratorPass : public ASTMigratorPass, public SourceEntityWalker {
       return false;
     if (auto *CE = dyn_cast<CallExpr>(E)) {
       auto Fn = CE->getFn();
-      auto Args = CE->getArg();
+      auto Args = CE->getArgs();
 
       if (auto *DRE = dyn_cast<DeclRefExpr>(Fn)) {
         if (auto *VD = DRE->getDecl()) {

@@ -560,19 +560,18 @@ public:
     Expr *ModuleExpr = buildIDArgumentExpr(ModuleIdentifier, SR);
     Expr *FileExpr = buildIDArgumentExpr(FileIdentifier, SR);
 
-    llvm::SmallVector<Expr *, 6> ArgsWithSourceRange{};
-
-    ArgsWithSourceRange.append(
-        {StartLine, EndLine, StartColumn, EndColumn, ModuleExpr, FileExpr});
+    Expr *LoggerArgs[] = {
+      StartLine, EndLine, StartColumn, EndColumn, ModuleExpr, FileExpr
+    };
 
     UnresolvedDeclRefExpr *BeforeLoggerRef = new (Context)
         UnresolvedDeclRefExpr(LogBeforeName,
                               DeclRefKind::Ordinary, DeclNameLoc(SR.End));
     BeforeLoggerRef->setImplicit(true);
-    SmallVector<Identifier, 6> ArgLabels(ArgsWithSourceRange.size(),
-                                         Identifier());
+
     ApplyExpr *BeforeLoggerCall = CallExpr::createImplicit(
-        Context, BeforeLoggerRef, ArgsWithSourceRange, ArgLabels);
+        Context, BeforeLoggerRef,
+        ArgumentList::forImplicitUnlabelled(Context, LoggerArgs));
     Added<ApplyExpr *> AddedBeforeLogger(BeforeLoggerCall);
     if (!doTypeCheck(Context, TypeCheckDC, AddedBeforeLogger)) {
       // typically due to 'cannot find '__builtin_pc_before' in scope'
@@ -584,7 +583,8 @@ public:
                               DeclRefKind::Ordinary, DeclNameLoc(SR.End));
     AfterLoggerRef->setImplicit(true);
     ApplyExpr *AfterLoggerCall = CallExpr::createImplicit(
-        Context, AfterLoggerRef, ArgsWithSourceRange, ArgLabels);
+        Context, AfterLoggerRef,
+        ArgumentList::forImplicitUnlabelled(Context, LoggerArgs));
     Added<ApplyExpr *> AddedAfterLogger(AfterLoggerCall);
     if (!doTypeCheck(Context, TypeCheckDC, AddedAfterLogger)) {
       // typically due to 'cannot find '__builtin_pc_after' in scope'
@@ -631,20 +631,17 @@ public:
     Expr *ModuleExpr = buildIDArgumentExpr(ModuleIdentifier, SR);
     Expr *FileExpr = buildIDArgumentExpr(FileIdentifier, SR);
 
-    llvm::SmallVector<Expr *, 6> ArgsWithSourceRange{
-      StartLine, EndLine, StartColumn, EndColumn, ModuleExpr, FileExpr
-    };
-
     UnresolvedDeclRefExpr *LoggerRef = new (Context)
         UnresolvedDeclRefExpr(LoggerName,
                               DeclRefKind::Ordinary, DeclNameLoc(SR.End));
 
     LoggerRef->setImplicit(true);
 
-    SmallVector<Identifier, 6> ArgLabels(ArgsWithSourceRange.size(),
-                                         Identifier());
-    ApplyExpr *LoggerCall = CallExpr::createImplicit(
-        Context, LoggerRef, ArgsWithSourceRange, ArgLabels);
+    auto *ArgList = ArgumentList::forImplicitUnlabelled(Context, {
+      StartLine, EndLine, StartColumn, EndColumn, ModuleExpr, FileExpr
+    });
+    ApplyExpr *LoggerCall =
+        CallExpr::createImplicit(Context, LoggerRef, ArgList);
     Added<ApplyExpr *> AddedLogger(LoggerCall);
 
     if (!doTypeCheck(Context, TypeCheckDC, AddedLogger)) {

@@ -28,6 +28,7 @@ namespace swift {
 
 class AbstractFunctionDecl;
 class AbstractStorageDecl;
+class ArgumentList;
 class ASTContext;
 class ClassDecl;
 class ConstructorDecl;
@@ -61,10 +62,10 @@ enum class SelfAccessorKind {
 Expr *buildSelfReference(VarDecl *selfDecl, SelfAccessorKind selfAccessorKind,
                          bool isLValue, Type convertTy = Type());
 
-/// Build an expression that evaluates the specified parameter list as a tuple
-/// or paren expr, suitable for use in an apply expr.
-Expr *buildArgumentForwardingExpr(ArrayRef<ParamDecl*> params,
-                                  ASTContext &ctx);
+/// Build an argument list that forwards references to the specified parameter
+/// list.
+ArgumentList *buildForwardingArgumentList(ArrayRef<ParamDecl *> params,
+                                          ASTContext &ctx);
 
 /// Returns the protocol requirement with the specified name.
 ValueDecl *getProtocolRequirement(ProtocolDecl *protocol, Identifier name);
