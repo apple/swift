@@ -256,9 +256,11 @@ class Term final {
 public:
   size_t size() const;
 
-  ArrayRef<Atom>::const_iterator begin() const;
+  ArrayRef<Atom>::iterator begin() const;
+  ArrayRef<Atom>::iterator end() const;
 
-  ArrayRef<Atom>::const_iterator end() const;
+  ArrayRef<Atom>::reverse_iterator rbegin() const;
+  ArrayRef<Atom>::reverse_iterator rend() const;
 
   Atom back() const;
 
@@ -343,6 +345,12 @@ public:
 
   decltype(Atoms)::iterator begin() { return Atoms.begin(); }
   decltype(Atoms)::iterator end() { return Atoms.end(); }
+
+  decltype(Atoms)::const_reverse_iterator rbegin() const { return Atoms.rbegin(); }
+  decltype(Atoms)::const_reverse_iterator rend() const { return Atoms.rend(); }
+
+  decltype(Atoms)::reverse_iterator rbegin() { return Atoms.rbegin(); }
+  decltype(Atoms)::reverse_iterator rend() { return Atoms.rend(); }
 
   Atom back() const {
     return Atoms.back();

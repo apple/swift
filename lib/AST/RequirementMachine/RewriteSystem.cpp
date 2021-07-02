@@ -687,12 +687,20 @@ struct Term::Storage final
 
 size_t Term::size() const { return Ptr->Size; }
 
-ArrayRef<Atom>::const_iterator Term::begin() const {
+ArrayRef<Atom>::iterator Term::begin() const {
   return Ptr->getElements().begin();
 }
 
-ArrayRef<Atom>::const_iterator Term::end() const {
+ArrayRef<Atom>::iterator Term::end() const {
   return Ptr->getElements().end();
+}
+
+ArrayRef<Atom>::reverse_iterator Term::rbegin() const {
+  return Ptr->getElements().rbegin();
+}
+
+ArrayRef<Atom>::reverse_iterator Term::rend() const {
+  return Ptr->getElements().rend();
 }
 
 Atom Term::back() const {
