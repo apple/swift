@@ -772,14 +772,18 @@ sil [ossa] @unbalanced_closure : $@convention(thin) (@guaranteed B) -> ()
 // CHECK-NOT: partial_apply
 // Check that the arguments of the closure are released after its last use
 // CHECK-NEXT: destroy_value %0 : $B
-// CHECK-NEXT: unreachable
+// CHECK-NEXT: tuple
+// CHECK-NEXT: return
 // CHECK: } // end sil function 'partial_apply_unbalanced_retain_release'
 sil [ossa] @partial_apply_unbalanced_retain_release : $@convention(thin) (@owned B) -> () {
 bb0(%0 : @owned $B):
   %1 = function_ref @unbalanced_closure : $@convention(thin) (@guaranteed B) -> ()
   %2 = partial_apply %1(%0) : $@convention(thin) (@guaranteed B) -> ()
   %2a = copy_value %2 : $@callee_owned () -> ()
-  unreachable
+  destroy_value %2 : $@callee_owned () -> ()
+  destroy_value %2a  : $@callee_owned () -> ()
+  %99 = tuple ()
+  return %99 : $()
 }
 
 class C1 {}

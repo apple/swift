@@ -582,8 +582,10 @@ ABSTRACT_VALUE_AND_INST(SingleValueInstruction, ValueBase, SILInstruction)
                     SingleValueInstruction, MayHaveSideEffects, DoesNotRelease)
   SINGLE_VALUE_INST(CopyBlockWithoutEscapingInst, copy_block_without_escaping,
                     SingleValueInstruction, MayHaveSideEffects, DoesNotRelease)
+  // A copy_value's retain semantics are fully encapsulated in OSSA
+  // invariants. It has no side effects relative to other OSSA values.
   SINGLE_VALUE_INST(CopyValueInst, copy_value,
-                    SingleValueInstruction, MayHaveSideEffects, DoesNotRelease)
+                    SingleValueInstruction, None, DoesNotRelease)
 #define UNCHECKED_REF_STORAGE(Name, name, ...) \
   SINGLE_VALUE_INST(StrongCopy##Name##ValueInst, strong_copy_##name##_value, \
                     SingleValueInstruction, MayHaveSideEffects, DoesNotRelease)

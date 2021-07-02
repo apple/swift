@@ -122,11 +122,11 @@ bb0(%0 : $Int64):
   return %14 : $Int64
 }
 
-// CHECK-LABEL: sil [ossa] @dont_cse_retain_only_apply :
-// CHECK: %{{[0-9]+}} = apply
-// CHECK: %{{[0-9]+}} = apply
-// CHECK-LABEL:} // end sil function 'dont_cse_retain_only_apply'
-sil [ossa] @dont_cse_retain_only_apply : $@convention(thin) () -> () {
+// CHECK-LABEL: sil [ossa] @cse_retain_only_apply :
+// CHECK: apply
+// CHECK-NOT: apply
+// CHECK-LABEL:} // end sil function 'cse_retain_only_apply'
+sil [ossa] @cse_retain_only_apply : $@convention(thin) () -> () {
 bb0:
   %f = function_ref @retain_only : $@convention(thin) () -> @owned XX
   %a1 = apply %f() : $@convention(thin) () -> @owned XX
@@ -169,7 +169,7 @@ bb0(%0 : @guaranteed $Klass):
 
 // CHECK-LABEL: sil [ossa] @apply_nontrivial_test2 :
 // CHECK: apply
-// CHECK: apply
+// CHECK-NOT: apply
 // CHECK-LABEL:} // end sil function 'apply_nontrivial_test2'
 sil [ossa] @apply_nontrivial_test2 : $@convention(thin) (@guaranteed Klass) -> () {
 bb0(%0 : @guaranteed $Klass):
