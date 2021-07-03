@@ -22,19 +22,7 @@ add_swift_target_library(swift_Differentiation ${SWIFT_STDLIB_LIBRARY_BUILD_TYPE
 
   GYB_SOURCES
     FloatingPointDifferentiation.swift.gyb
-    TgmathDerivatives.swift.gyb
     SIMDDifferentiation.swift.gyb
-
-  SWIFT_MODULE_DEPENDS_OSX Darwin
-  SWIFT_MODULE_DEPENDS_IOS Darwin
-  SWIFT_MODULE_DEPENDS_TVOS Darwin
-  SWIFT_MODULE_DEPENDS_WATCHOS Darwin
-  SWIFT_MODULE_DEPENDS_LINUX Glibc
-  SWIFT_MODULE_DEPENDS_FREEBSD Glibc
-  SWIFT_MODULE_DEPENDS_OPENBSD Glibc
-  SWIFT_MODULE_DEPENDS_CYGWIN Glibc
-  SWIFT_MODULE_DEPENDS_HAIKU Glibc
-  SWIFT_MODULE_DEPENDS_WINDOWS CRT
 
   C_COMPILE_FLAGS
     -Dswift_Differentiation_EXPORTS

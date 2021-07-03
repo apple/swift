@@ -562,7 +562,7 @@ inline llvm::raw_ostream &operator<<(
 }
 
 /// Returns `true` iff differentiable programming is enabled.
-bool isDifferentiableProgrammingEnabled(SourceFile &SF);
+bool isDifferentiableProgrammingEnabled(const SourceFile &SF);
 
 /// Automatic differentiation utility namespace.
 namespace autodiff {

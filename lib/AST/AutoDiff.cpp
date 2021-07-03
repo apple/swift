@@ -109,7 +109,7 @@ void AutoDiffConfig::print(llvm::raw_ostream &s) const {
   s << ')';
 }
 
-bool swift::isDifferentiableProgrammingEnabled(SourceFile &SF) {
+bool swift::isDifferentiableProgrammingEnabled(const SourceFile &SF) {
   auto &ctx = SF.getASTContext();
   // Return true if differentiable programming is explicitly enabled.
   if (ctx.LangOpts.EnableExperimentalDifferentiableProgramming)

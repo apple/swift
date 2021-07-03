@@ -111,6 +111,9 @@ endif()
 
 if(SWIFT_BUILD_SDK_OVERLAY OR SWIFT_BUILD_TEST_SUPPORT_MODULES)
   add_subdirectory(Platform)
+  if(SWIFT_ENABLE_EXPERIMENTAL_DIFFERENTIABLE_PROGRAMMING)
+    add_subdirectory(PlatformDifferentiation)
+  endif()
 endif()
 
 if(SWIFT_BUILD_SDK_OVERLAY)
