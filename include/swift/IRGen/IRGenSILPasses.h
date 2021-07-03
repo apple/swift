@@ -16,9 +16,9 @@ class SILTransform;
 
 namespace irgen {
 
-/// Create a pass to hoist alloc_stack instructions with non-fixed size.
 SILTransform *createAllocStackHoisting();
 SILTransform *createLoadableByAddress();
+SILTransform *createStackSizeLimitTransform();
 
 } // end namespace irgen
 } // end namespace swift

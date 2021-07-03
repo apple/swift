@@ -963,6 +963,11 @@ static ValueDecl *getEndUnpairedAccessOperation(ASTContext &ctx,
                             _void);
 }
 
+static ValueDecl *getIsOnStackOperation(ASTContext &ctx, Identifier id) {
+  return getBuiltinFunction(ctx, id, _thin, _parameters(_nativeObject),
+                            _int(1));
+}
+
 static ValueDecl *getSizeOrAlignOfOperation(ASTContext &ctx,
                                             Identifier id) {
   return getBuiltinFunction(ctx, id, _thin,
@@ -2491,6 +2496,11 @@ ValueDecl *swift::getBuiltinValueDecl(ASTContext &Context, Identifier Id) {
   case BuiltinValueKind::EndUnpairedAccess:
     if (!Types.empty()) return nullptr;
     return getEndUnpairedAccessOperation(Context, Id);
+
+  case BuiltinValueKind::IsOnStack:
+    if (!Types.empty())
+      return nullptr;
+    return getIsOnStackOperation(Context, Id);
 
 #define BUILTIN(id, name, Attrs)
 #define BUILTIN_BINARY_OPERATION(id, name, attrs)

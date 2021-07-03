@@ -1657,6 +1657,21 @@ static ManagedValue emitBuiltinBuildMainActorExecutorRef(
                               BuiltinValueKind::BuildMainActorExecutorRef);
 }
 
+static ManagedValue emitBuiltinIsOnStack(SILGenFunction &SGF, SILLocation loc,
+                                         SubstitutionMap substitutions,
+                                         ArrayRef<ManagedValue> args,
+                                         SGFContext C) {
+  auto &ctx = SGF.getASTContext();
+  auto id = ctx.getIdentifier(getBuiltinName(BuiltinValueKind::IsOnStack));
+  SmallVector<SILValue, 1> argValues;
+  if (!args.empty())
+    argValues.push_back(args[0].getValue());
+  auto builtinType = SILType::getBuiltinIntegerType(1, ctx);
+  auto builtin =
+      SGF.B.createBuiltin(loc, id, builtinType, substitutions, argValues);
+  return ManagedValue::forUnmanaged(builtin);
+}
+
 Optional<SpecializedEmitter>
 SpecializedEmitter::forDecl(SILGenModule &SGM, SILDeclRef function) {
   // Only consider standalone declarations in the Builtin module.

@@ -2373,6 +2373,18 @@ void EscapeAnalysis::analyzeInstruction(SILInstruction *I,
       }
       return;
     }
+    case SILInstructionKind::BuiltinInst: {
+      // Some builtins do not escape.
+      if (auto *bi = dyn_cast<BuiltinInst>(I))
+        if (auto kind = bi->getBuiltinKind())
+          // For now we only do is on stack.
+          if (*kind == BuiltinValueKind::IsOnStack)
+            return;
+
+      // If we don't have one of those, be conservative.
+      setAllEscaping(I, ConGraph);
+      return;
+    }
     default:
       // We handle all other instructions conservatively.
       setAllEscaping(I, ConGraph);

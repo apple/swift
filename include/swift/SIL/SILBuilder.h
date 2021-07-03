@@ -414,6 +414,14 @@ public:
                                        Var, hasDynamicLifetime));
   }
 
+  /// Helper method for creating alloc_box from an instance value.
+  AllocBoxInst *createAllocBox(SILLocation Loc, SILType InstanceType,
+                               Optional<SILDebugVariable> Var = None,
+                               bool hasDynamicLifetime = false) {
+    auto BoxType = SILBoxType::get(InstanceType.getASTType());
+    return createAllocBox(Loc, BoxType, Var, hasDynamicLifetime);
+  }
+
   AllocExistentialBoxInst *
   createAllocExistentialBox(SILLocation Loc, SILType ExistentialType,
                             CanType ConcreteType,
@@ -608,6 +616,15 @@ public:
     return insert(
         IntegerLiteralInst::create(getSILDebugLocation(Loc), Ty, Value,
                                    getModule()));
+  }
+
+  /// Returns integer_literal Builtin.Int1, 1
+  IntegerLiteralInst *createIntegerLiteralBool(SILLocation Loc, bool Value) {
+    auto builtinType =
+        SILType::getBuiltinIntegerType(1, getModule().getASTContext());
+
+    return insert(IntegerLiteralInst::create(getSILDebugLocation(Loc),
+                                             builtinType, Value, getModule()));
   }
 
   FloatLiteralInst *createFloatLiteral(FloatLiteralExpr *E);
