@@ -704,6 +704,35 @@ extension _NativeDictionary { // Deletion
     _storage._count = 0
     invalidateIndices()
   }
+  
+  @inlinable
+  mutating func removeAll(
+    where predicate: (Key, Value) throws -> Bool,
+    isUnique: Bool,
+    keepCapacity: Bool = false
+  ) rethrows {
+    //FIXME(performance): it would be more efficient to filter as we go, instead
+    //of copying (if not unique) and then filtering
+    let _ = ensureUnique(isUnique: isUnique, capacity: capacity)
+    var removedCount = 0
+    var bucket = hashTable.startBucket
+    let end = hashTable.endBucket
+    while bucket != end {
+      let key = self.uncheckedKey(at: bucket)
+      let value = self.uncheckedValue(at: bucket)
+      if try predicate(key, value) {
+        hashTable.delete(at: bucket, with: self)
+        removedCount += 1
+      }
+      bucket = hashTable.occupiedBucket(after: bucket)
+    }
+    _storage._count -= removedCount
+    _internalInvariant(_storage._count >= 0)
+    if !keepCapacity {
+      let _ = ensureUnique(isUnique: true, capacity: _storage._count)
+    }
+    invalidateIndices()
+  }
 }
 
 extension _NativeDictionary { // High-level operations

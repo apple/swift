@@ -1344,6 +1344,179 @@ DictionaryTestSuite.test("COW.Slow.RemoveAllDoesNotReallocate") {
 }
 
 
+DictionaryTestSuite.test("COW.Fast.RemoveAllWhereDoesNotReallocate") {
+  do {
+    var d = getCOWFastDictionary()
+    let originalCapacity = d.capacity
+    assert(d.count == 3)
+    assert(d[10]! == 1010)
+
+    d.removeAll(where: { $0 == 10 })
+    // We cannot assert that identity changed, since the new buffer of smaller
+    // size can be allocated at the same address as the old one.
+    let identity1 = d._rawIdentifier()
+    assert(d.capacity < originalCapacity)
+    assert(d.count == 2)
+    assert(d[10] == nil)
+
+    d.removeAll(where: { $0 == 10 })
+    assert(identity1 == d._rawIdentifier())
+    assert(d.count == 2)
+    assert(d[10] == nil)
+  }
+
+  do {
+    var d = getCOWFastDictionary()
+    let identity1 = d._rawIdentifier()
+    let originalCapacity = d.capacity
+    assert(d.count == 3)
+    assert(d[10]! == 1010)
+
+    d.removeAll(where: { $0 == 10 }, keepingCapacity: true)
+    assert(identity1 == d._rawIdentifier())
+    assert(d.capacity == originalCapacity)
+    assert(d.count == 2)
+    assert(d[10] == nil)
+
+    d.removeAll(where: { $0 == 10 }, keepingCapacity: true)
+    assert(identity1 == d._rawIdentifier())
+    assert(d.capacity == originalCapacity)
+    assert(d.count == 2)
+    assert(d[10] == nil)
+  }
+
+  do {
+    var d1 = getCOWFastDictionary()
+    let identity1 = d1._rawIdentifier()
+    assert(d1.count == 3)
+    assert(d1[10]! == 1010)
+
+    var d2 = d1
+    d2.removeAll(where: { $0 == 10 })
+    let identity2 = d2._rawIdentifier()
+    assert(identity1 == d1._rawIdentifier())
+    assert(identity2 != identity1)
+    assert(d1.count == 3)
+    assert(d1[10]! == 1010)
+    assert(d2.count == 2)
+    assert(d2[10] == nil)
+
+    // Keep variables alive.
+    _fixLifetime(d1)
+    _fixLifetime(d2)
+  }
+
+  do {
+    var d1 = getCOWFastDictionary()
+    let identity1 = d1._rawIdentifier()
+    let originalCapacity = d1.capacity
+    assert(d1.count == 3)
+    assert(d1[10] == 1010)
+
+    var d2 = d1
+    d2.removeAll(where: { $0 == 10 }, keepingCapacity: true)
+    let identity2 = d2._rawIdentifier()
+    assert(identity1 == d1._rawIdentifier())
+    assert(identity2 != identity1)
+    assert(d1.count == 3)
+    assert(d1[10]! == 1010)
+    assert(d2.capacity == originalCapacity)
+    assert(d2.count == 2)
+    assert(d2[10] == nil)
+
+    // Keep variables alive.
+    _fixLifetime(d1)
+    _fixLifetime(d2)
+  }
+}
+
+DictionaryTestSuite.test("COW.Slow.RemoveAllWhereDoesNotReallocate") {
+  do {
+    var d = getCOWSlowDictionary()
+    let originalCapacity = d.capacity
+    assert(d.count == 3)
+    assert(d[TestKeyTy(10)]!.value == 1010)
+
+    d.removeAll(where: { $0 == 10 })
+    // We cannot assert that identity changed, since the new buffer of smaller
+    // size can be allocated at the same address as the old one.
+    let identity1 = d._rawIdentifier()
+    assert(d.capacity < originalCapacity)
+    assert(d.count == 2)
+    assert(d[TestKeyTy(10)] == nil)
+
+    d.removeAll(where: { $0 == 10 })
+    assert(identity1 == d._rawIdentifier())
+    assert(d.count == 2)
+    assert(d[TestKeyTy(10)] == nil)
+  }
+
+  do {
+    var d = getCOWSlowDictionary()
+    let identity1 = d._rawIdentifier()
+    let originalCapacity = d.capacity
+    assert(d.count == 3)
+    assert(d[TestKeyTy(10)]!.value == 1010)
+
+    d.removeAll(where: { $0 == 10 }, keepingCapacity: true)
+    assert(identity1 == d._rawIdentifier())
+    assert(d.capacity == originalCapacity)
+    assert(d.count == 2)
+    assert(d[TestKeyTy(10)] == nil)
+
+    d.removeAll(where: { $0 == 10 }, keepingCapacity: true)
+    assert(identity1 == d._rawIdentifier())
+    assert(d.capacity == originalCapacity)
+    assert(d.count == 2)
+    assert(d[TestKeyTy(10)] == nil)
+  }
+
+  do {
+    var d1 = getCOWSlowDictionary()
+    let identity1 = d1._rawIdentifier()
+    assert(d1.count == 3)
+    assert(d1[TestKeyTy(10)]!.value == 1010)
+
+    var d2 = d1
+    d2.removeAll(where: { $0 == 10 })
+    let identity2 = d2._rawIdentifier()
+    assert(identity1 == d1._rawIdentifier())
+    assert(identity2 != identity1)
+    assert(d1.count == 3)
+    assert(d1[TestKeyTy(10)]!.value == 1010)
+    assert(d2.count == 2)
+    assert(d2[TestKeyTy(10)] == nil)
+
+    // Keep variables alive.
+    _fixLifetime(d1)
+    _fixLifetime(d2)
+  }
+
+  do {
+    var d1 = getCOWSlowDictionary()
+    let identity1 = d1._rawIdentifier()
+    let originalCapacity = d1.capacity
+    assert(d1.count == 3)
+    assert(d1[TestKeyTy(10)]!.value == 1010)
+
+    var d2 = d1
+    d2.removeAll(where: { $0 == 10 }, keepingCapacity: true)
+    let identity2 = d2._rawIdentifier()
+    assert(identity1 == d1._rawIdentifier())
+    assert(identity2 != identity1)
+    assert(d1.count == 3)
+    assert(d1[TestKeyTy(10)]!.value == 1010)
+    assert(d2.capacity == originalCapacity)
+    assert(d2.count == 2)
+    assert(d2[TestKeyTy(10)] == nil)
+
+    // Keep variables alive.
+    _fixLifetime(d1)
+    _fixLifetime(d2)
+  }
+}
+
+
 DictionaryTestSuite.test("COW.Fast.CountDoesNotReallocate") {
   let d = getCOWFastDictionary()
   let identity1 = d._rawIdentifier()
@@ -1766,12 +1939,42 @@ DictionaryTestSuite.test("deleteChainCollision") {
   helperDeleteThree(k1, k2, k3)
 }
 
+DictionaryTestSuite.test("deleteAllWhereCollision") {
+  let k1 = RawTestKeyTy(value: 10, hashValue: 0)
+  let k2 = RawTestKeyTy(value: 20, hashValue: 0)
+  let k3 = RawTestKeyTy(value: 30, hashValue: 0)
+  
+  var d1 = Dictionary<RawTestKeyTy, TestValueTy>(minimumCapacity: 10)
+  d1[k1] = 1010
+  d1[k2] = 1020
+  d1[k3] = 1030
+  d1.removeAll(where: { $0 == 20 })
+  assert(d1[k1] == 1010)
+  assert(d1[k2] == nil)
+  assert(d1[k3] == 1030)
+}
+
 DictionaryTestSuite.test("deleteChainNoCollision") {
   let k1 = RawTestKeyTy(value: 10, hashValue: 0)
   let k2 = RawTestKeyTy(value: 20, hashValue: 1)
   let k3 = RawTestKeyTy(value: 30, hashValue: 2)
 
   helperDeleteThree(k1, k2, k3)
+}
+
+DictionaryTestSuite.test("deleteAllWhereNoCollision") {
+  let k1 = RawTestKeyTy(value: 10, hashValue: 0)
+  let k2 = RawTestKeyTy(value: 20, hashValue: 1)
+  let k3 = RawTestKeyTy(value: 30, hashValue: 2)
+  
+  var d1 = Dictionary<RawTestKeyTy, TestValueTy>(minimumCapacity: 10)
+  d1[k1] = 1010
+  d1[k2] = 1020
+  d1[k3] = 1030
+  d1.removeAll(where: { $0 == 20 })
+  assert(d1[k1] == 1010)
+  assert(d1[k2] == nil)
+  assert(d1[k3] == 1030)
 }
 
 DictionaryTestSuite.test("deleteChainCollision2") {
@@ -1792,6 +1995,33 @@ DictionaryTestSuite.test("deleteChainCollision2") {
   d[k6_0] = TestValueTy(1060) // in bucket 5
 
   d[k3_2] = nil
+
+  assert(d[k1_0]!.value == 1010)
+  assert(d[k2_0]!.value == 1020)
+  assert(d[k3_2] == nil)
+  assert(d[k4_0]!.value == 1040)
+  assert(d[k5_2]!.value == 1050)
+  assert(d[k6_0]!.value == 1060)
+}
+
+DictionaryTestSuite.test("deleteAllCollision2") {
+  let k1_0 = RawTestKeyTy(value: 10, hashValue: 0)
+  let k2_0 = RawTestKeyTy(value: 20, hashValue: 0)
+  let k3_2 = RawTestKeyTy(value: 30, hashValue: 2)
+  let k4_0 = RawTestKeyTy(value: 40, hashValue: 0)
+  let k5_2 = RawTestKeyTy(value: 50, hashValue: 2)
+  let k6_0 = RawTestKeyTy(value: 60, hashValue: 0)
+
+  var d = Dictionary<RawTestKeyTy, TestValueTy>(minimumCapacity: 10)
+
+  d[k1_0] = TestValueTy(1010) // in bucket 0
+  d[k2_0] = TestValueTy(1020) // in bucket 1
+  d[k3_2] = TestValueTy(1030) // in bucket 2
+  d[k4_0] = TestValueTy(1040) // in bucket 3
+  d[k5_2] = TestValueTy(1050) // in bucket 4
+  d[k6_0] = TestValueTy(1060) // in bucket 5
+
+  d.removeAll(where: { $1.value == 1030 })
 
   assert(d[k1_0]!.value == 1010)
   assert(d[k2_0]!.value == 1020)
@@ -2793,7 +3023,6 @@ DictionaryTestSuite.test("BridgedFromObjC.Nonverbatim.RemoveAt")
   assert(d.index(forKey: TestBridgedKeyTy(10)) == nil)
 }
 
-
 DictionaryTestSuite.test("BridgedFromObjC.Verbatim.RemoveValueForKey") {
   do {
     var d = getBridgedVerbatimDictionary()
@@ -3084,6 +3313,41 @@ DictionaryTestSuite.test("BridgedFromObjC.Nonverbatim.RemoveAll") {
     assert(d2.count == 0)
     assert(d2[TestBridgedKeyTy(10)] == nil)
   }
+}
+
+DictionaryTestSuite.test("BridgedFromObjC.Verbatim.RemoveAllWhere") {
+  var d = getBridgedVerbatimDictionary()
+  let identity1 = d._rawIdentifier()
+  assert(isCocoaDictionary(d))
+
+  let foundIndex1 = d.index(forKey: TestObjCKeyTy(10))!
+  assert(d[foundIndex1].0 == TestObjCKeyTy(10))
+  assert((d[foundIndex1].1 as! TestObjCValueTy).value == 1010)
+  assert(identity1 == d._rawIdentifier())
+
+  d.removeAll(where: { $0 == TestObjCKeyTy(10) })
+  assert(identity1 != d._rawIdentifier())
+  assert(isNativeDictionary(d))
+  assert(d.count == 2)
+  assert(d.index(forKey: TestObjCKeyTy(10)) == nil)
+}
+
+DictionaryTestSuite.test("BridgedFromObjC.Nonverbatim.RemoveAllWhere")
+  .code {
+  var d = getBridgedNonverbatimDictionary()
+  let identity1 = d._rawIdentifier()
+  assert(isNativeDictionary(d))
+
+  let foundIndex1 = d.index(forKey: TestBridgedKeyTy(10))!
+  assert(d[foundIndex1].0 == TestBridgedKeyTy(10))
+  assert(d[foundIndex1].1.value == 1010)
+  assert(identity1 == d._rawIdentifier())
+
+  d.removeAll(where: { $0 == TestObjCKeyTy(10) })
+  assert(identity1 == d._rawIdentifier())
+  assert(isNativeDictionary(d))
+  assert(d.count == 2)
+  assert(d.index(forKey: TestBridgedKeyTy(10)) == nil)
 }
 
 DictionaryTestSuite.test("BridgedFromObjC.Verbatim.Count") {
@@ -4963,6 +5227,29 @@ DictionaryTestSuite.test(
     Array(IteratorSequence(iter)))
 }
 
+DictionaryTestSuite.test(
+  "mutationDoesNotAffectIterator/removeAllWhere,keepingCapacity=false") {
+  var dict = getDerivedAPIsDictionary()
+  let iter = dict.makeIterator()
+  dict.removeAll(where: { $0 == 10 }, keepingCapacity: false)
+
+  expectEqualsUnordered(
+    [ (10, 1010), (20, 1020), (30, 1030) ],
+    Array(IteratorSequence(iter)))
+}
+
+DictionaryTestSuite.test(
+  "mutationDoesNotAffectIterator/removeAllWhere,keepingCapacity=true") {
+  var dict = getDerivedAPIsDictionary()
+  let iter = dict.makeIterator()
+  dict.removeAll(where: { $0 == 10 }, keepingCapacity: true)
+
+  expectEqualsUnordered(
+    [ (10, 1010), (20, 1020), (30, 1030) ],
+    Array(IteratorSequence(iter)))
+}
+
+
 //===---
 // Misc tests.
 //===---
@@ -5376,6 +5663,17 @@ DictionaryTestSuite.test("RemoveAll.InvalidatesIndices") {
   expectEqual(d[i], (key: 20, value: 1020))
 
   d.removeAll(keepingCapacity: true)
+
+  expectCrashLater()
+  _ = d[i]
+}
+
+DictionaryTestSuite.test("RemoveAllWhere.InvalidatesIndices") {
+  var d = getCOWFastDictionary()
+  let i = d.index(forKey: 20)!
+  expectEqual(d[i], (key: 20, value: 1020))
+
+  d.removeAll(where: { $0 == 20 }, keepingCapacity: true)
 
   expectCrashLater()
   _ = d[i]

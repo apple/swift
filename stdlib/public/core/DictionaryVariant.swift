@@ -430,6 +430,25 @@ extension Dictionary._Variant {
     let isUnique = isUniquelyReferenced()
     asNative.removeAll(isUnique: isUnique)
   }
+  
+  @inlinable
+  internal mutating func removeAll(
+    where predicate: (Key, Value) throws -> Bool,
+    keepCapacity: Bool = false
+  ) rethrows {
+    let isUnique: Bool
+    if !isNative {
+      let _ = ensureUniqueNative()
+      isUnique = true
+    } else {
+      isUnique = isUniquelyReferenced()
+    }
+    try asNative.removeAll(
+      where: predicate,
+      isUnique: isUnique,
+      keepCapacity: keepCapacity
+    )
+  }
 }
 
 extension Dictionary._Variant {

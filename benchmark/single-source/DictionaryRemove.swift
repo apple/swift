@@ -18,6 +18,7 @@ let t: [BenchmarkCategory] = [.validation, .api, .Dictionary]
 
 let size = 100
 let numberMap = Dictionary(uniqueKeysWithValues: zip(1...size, 1...size))
+var temporaryNumberMap: [Int:Int] = [:]
 let boxedNums = (1...size).lazy.map { Box($0) }
 let boxedNumMap = Dictionary(uniqueKeysWithValues: zip(boxedNums, boxedNums))
 
@@ -26,6 +27,10 @@ public let DictionaryRemove = [
     runFunction: remove, tags: t, legacyFactor: 10),
   BenchmarkInfo(name: "DictionaryRemoveOfObjects",
     runFunction: removeObjects, tags: t, legacyFactor: 100),
+  BenchmarkInfo(name: "DictionaryRemoveWhere",
+    runFunction: removeWhere, tags: t, setUpFunction: setup_removeWhere),
+  BenchmarkInfo(name: "DictionaryRemoveWhereKeepingCapacity",
+    runFunction: removeWhereKeepingCapacity, tags: t, setUpFunction: setup_removeWhere)
 ]
 
 class Box<T : Hashable> : Hashable {
@@ -58,4 +63,25 @@ func removeObjects(N: Int) {
     for i in 1...size { dict.removeValue(forKey: Box(i)) }
     CheckResults(dict.isEmpty)
   }
+}
+
+func setup_removeWhere() {
+  temporaryNumberMap = numberMap
+  temporaryNumberMap[1000] = 1000 //force a copy
+}
+
+func _removeWhere(N: Int, keepCapacity: Bool) {
+  var map = temporaryNumberMap
+  temporaryNumberMap = [:] //let map be unique
+  for i in 1...N {
+    map.removeAll(where: { $0 == i }, keepingCapacity: keepCapacity)
+  }
+}
+
+func removeWhere(N: Int) {
+  _removeWhere(N: N, keepCapacity: false)
+}
+
+func removeWhereKeepingCapacity(N: Int) {
+  _removeWhere(N: N, keepCapacity: true)
 }
