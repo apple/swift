@@ -6,28 +6,6 @@ struct MyType<TyA, TyB> { // expected-note {{generic type 'MyType' declared here
   var a : TyA, b : TyB
 }
 
-//
-// Type aliases that reference unbound generic types -- not really generic,
-// but they behave as such, in the sense that you can apply generic
-// arguments to them.
-//
-
-typealias OurType = MyType
-
-typealias YourType = Swift.Optional
-
-struct Container {
-  typealias YourType = Swift.Optional
-}
-
-let _: OurType<Int, String>
-let _: YourType<Int>
-let _: Container.YourType<Int>
-
-//
-// Bona-fide generic type aliases
-//
-
 typealias DS<T> = MyType<String, T>
 
 typealias BadA<T : Int> = MyType<String, T>  // expected-error {{type 'T' constrained to non-protocol, non-class type 'Int'}}

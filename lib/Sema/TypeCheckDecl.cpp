@@ -1826,33 +1826,84 @@ IsImplicitlyUnwrappedOptionalRequest::evaluate(Evaluator &evaluator,
   return (TyR && TyR->getKind() == TypeReprKind::ImplicitlyUnwrappedOptional);
 }
 
-/// Validate the underlying type of the given typealias.
-Type
-UnderlyingTypeRequest::evaluate(Evaluator &evaluator,
-                                TypeAliasDecl *typeAlias) const {
-  TypeResolutionOptions options((typeAlias->getGenericParams()
-                                     ? TypeResolverContext::GenericTypeAliasDecl
-                                     : TypeResolverContext::TypeAliasDecl));
+static Type computeUnderlyingType(TypeAliasDecl *typeAlias, bool structural) {
+  bool isGeneric = (typeAlias->getParsedGenericParams() ||
+                    typeAlias->getTrailingWhereClause());
+  TypeResolutionOptions options(isGeneric
+                                ? TypeResolverContext::GenericTypeAliasDecl
+                                : TypeResolverContext::TypeAliasDecl);
+
+  auto resolution = (structural
+                     ? TypeResolution::forStructural(typeAlias, options,
+                                                     /*unboundTyOpener*/ nullptr,
+                                                     /*placeholderHandler*/ nullptr)
+                     : TypeResolution::forInterface(typeAlias, options,
+                                                    /*unboundTyOpener*/ nullptr,
+                                                    /*placeholderHandler*/ nullptr));
 
   // This can happen when code completion is attempted inside
   // of typealias underlying type e.g. `typealias F = () -> Int#^TOK^#`
-  auto *underlyingRepr = typeAlias->getUnderlyingTypeRepr();
-  if (!underlyingRepr) {
+  auto &ctx = typeAlias->getASTContext();
+  auto underlyingTypeRepr = typeAlias->getUnderlyingTypeRepr();
+  if (!underlyingTypeRepr) {
+    typeAlias->setInvalid();
+    return ErrorType::get(ctx);
+  }
+
+  auto type = resolution.resolveType(underlyingTypeRepr);
+
+  // A non-generic typealias is allowed to reference the unbound form of a
+  // generic type as its underlying type. We desugar this form to a typealias
+  // that is generic and forwards the generic arguments verbatim.
+  //
+  // This should use the 'unboundTyOpener' callback, but the interface isn't
+  // quite right. We only want to open the generic arguments for the top-level
+  // unbound generic type; any other occurrence of an unbound generic type in
+  // the underlying type is invalid.
+  if (auto *unboundType = type->getAs<UnboundGenericType>()) {
+    assert(!isGeneric);
+
+    // GenericParamListRequest should have given the typealias a copy of the
+    // underlying declaration's generic parameter list.
+    SmallVector<Type, 2> args;
+    for (auto paramDecl : *typeAlias->getGenericParams())
+      args.push_back(paramDecl->getDeclaredInterfaceType());
+
+    type = resolution.applyUnboundGenericArguments(
+        unboundType->getDecl(), unboundType->getParent(),
+        typeAlias->getLoc(), args,
+        /*skipRequirementsCheck=*/true);
+  }
+
+  return type;
+}
+
+Type StructuralTypeRequest::evaluate(Evaluator &evaluator,
+                                     TypeAliasDecl *typeAlias) const {
+  auto type = computeUnderlyingType(typeAlias, /*structural*/ true);
+
+  auto genericSig = typeAlias->getGenericSignature();
+  SubstitutionMap subs;
+  if (genericSig)
+    subs = genericSig->getIdentitySubstitutionMap();
+
+  Type parent;
+  auto parentDC = typeAlias->getDeclContext();
+  if (parentDC->isTypeContext())
+    parent = parentDC->getSelfInterfaceType();
+  return TypeAliasType::get(typeAlias, parent, subs, type);
+}
+
+Type UnderlyingTypeRequest::evaluate(Evaluator &evaluator,
+                                     TypeAliasDecl *typeAlias) const {
+  auto type = computeUnderlyingType(typeAlias, /*structural*/ false);
+
+  if (type->hasError()) {
     typeAlias->setInvalid();
     return ErrorType::get(typeAlias->getASTContext());
   }
 
-  const auto result =
-      TypeResolution::forInterface(typeAlias, options,
-                                   /*unboundTyOpener*/ nullptr,
-                                   /*placeholderHandler*/ nullptr)
-          .resolveType(underlyingRepr);
-
-  if (result->hasError()) {
-    typeAlias->setInvalid();
-    return ErrorType::get(typeAlias->getASTContext());
-  }
-  return result;
+  return type;
 }
 
 /// Bind the given function declaration, which declares an operator, to the

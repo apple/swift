@@ -24,7 +24,7 @@ public class A<X> {
   public func f11<T, U>(x: X, y: T) {} //expected-error{{generic parameter 'U' is not used in function signature}}
 }
 
-struct G<T> {} // expected-note {{generic type 'G' declared here}}
+struct G<T> {}
 
 struct GG<T, U> {}
 
@@ -32,7 +32,7 @@ protocol P {
   associatedtype A
   typealias B = Int
   typealias C<T> = T
-  typealias D = G
+  typealias D = G // expected-note {{generic type 'D' declared here}}
   typealias E<T> = GG<T, T>
 }
 
@@ -44,7 +44,7 @@ func f14<T : P>(x: T) -> T.C<Int> {}
 
 func f15<T : P>(x: T) -> T.D<Int> {}
 
-func f16<T : P>(x: T) -> T.D {} // expected-error {{reference to generic type 'T.D' (aka 'G') requires arguments in <...>}}
+func f16<T : P>(x: T) -> T.D {} // expected-error {{reference to generic type 'T.D' requires arguments in <...>}}
 
 func f17<T : P>(x: T) -> T.E<Int> {}
 

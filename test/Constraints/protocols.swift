@@ -99,7 +99,7 @@ protocol Initable {
   init()
 }
 
-protocol P : Initable {
+protocol P : Initable { // expected-note {{required by referencing type alias 'G' on 'P' where 'Self' = 'P'}}
   func bar(_ x: Int)
   mutating func mut(_ x: Int)
   static func tum()
@@ -138,6 +138,9 @@ func generic<T: P>(_ t: T) {
 
   _ = t.mut // expected-error{{partial application of 'mutating' method is not allowed}}
   _ = t.tum // expected-error{{static member 'tum' cannot be used on instance of type 'T'}}
+
+  // Make sure that we open generics
+  let _: [Int].Type = T.G.self
 }
 
 func genericClassP<T: ClassP>(_ t: T) {
@@ -227,6 +230,7 @@ func staticExistential(_ p: P.Type, pp: P.Protocol) {
 
   // Make sure that we open generics
   let _: [Int].Type = p.G.self
+  // expected-error@-1 {{protocol 'P' as a type cannot conform to the protocol itself; only concrete types such as structs, enums and classes can conform to protocols}}
 }
 
 protocol StaticP {

@@ -4458,11 +4458,6 @@ ResolveWitnessResult ConformanceChecker::resolveTypeWitnessViaLookup(
         skipRequirementCheck = true;
     }
 
-    // Skip typealiases with an unbound generic type as their underlying type.
-    if (auto *typeAliasDecl = dyn_cast<TypeAliasDecl>(typeDecl))
-      if (typeAliasDecl->getDeclaredInterfaceType()->is<UnboundGenericType>())
-        continue;
-
     // Skip dependent protocol typealiases.
     //
     // FIXME: This should not be necessary.

@@ -3048,7 +3048,15 @@ void PrintAST::visitTypeAliasDecl(TypeAliasDecl *decl) {
     // preserving sugar.
     llvm::SaveAndRestore<const GenericSignatureImpl *> setGenericSig(
         Options.GenericSig, decl->getGenericSignature().getPointer());
-    printTypeLoc(TypeLoc(decl->getUnderlyingTypeRepr(), Ty));
+
+    // Don't print the TypeRepr if we desugared an unbound generic type as
+    // the underlying type of the type alias.
+    auto *typeRepr = decl->getUnderlyingTypeRepr();
+    if (decl->getParsedGenericParams() == nullptr &&
+        decl->getGenericParams() != nullptr)
+      typeRepr = nullptr;
+
+    printTypeLoc(TypeLoc(typeRepr, Ty));
     printDeclGenericRequirements(decl);
   }
 }

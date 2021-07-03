@@ -960,36 +960,3 @@ RequirementRequest::evaluate(Evaluator &evaluator,
   }
   llvm_unreachable("unhandled kind");
 }
-
-Type StructuralTypeRequest::evaluate(Evaluator &evaluator,
-                                     TypeAliasDecl *typeAlias) const {  
-  TypeResolutionOptions options((typeAlias->getGenericParams()
-                                     ? TypeResolverContext::GenericTypeAliasDecl
-                                     : TypeResolverContext::TypeAliasDecl));
-
-  // This can happen when code completion is attempted inside
-  // of typealias underlying type e.g. `typealias F = () -> Int#^TOK^#`
-  auto &ctx = typeAlias->getASTContext();
-  auto underlyingTypeRepr = typeAlias->getUnderlyingTypeRepr();
-  if (!underlyingTypeRepr) {
-    typeAlias->setInvalid();
-    return ErrorType::get(ctx);
-  }
-
-  const auto type =
-      TypeResolution::forStructural(typeAlias, options,
-                                    /*unboundTyOpener*/ nullptr,
-                                    /*placeholderHandler*/ nullptr)
-          .resolveType(underlyingTypeRepr);
-
-  auto genericSig = typeAlias->getGenericSignature();
-  SubstitutionMap subs;
-  if (genericSig)
-    subs = genericSig->getIdentitySubstitutionMap();
-
-  Type parent;
-  auto parentDC = typeAlias->getDeclContext();
-  if (parentDC->isTypeContext())
-    parent = parentDC->getSelfInterfaceType();
-  return TypeAliasType::get(typeAlias, parent, subs, type);
-}

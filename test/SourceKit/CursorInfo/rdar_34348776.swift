@@ -12,3 +12,7 @@ public typealias Aliased = Alias
 // CHECK-NEXT: $s13rdar_343487765AliasamD
 // CHECK-NEXT: <Declaration>public typealias Aliased = <Type usr="s:13rdar_343487765Aliasa">Alias</Type></Declaration>
 // CHECK-NEXT: <decl.typealias><syntaxtype.keyword>public</syntaxtype.keyword> <syntaxtype.keyword>typealias</syntaxtype.keyword> <decl.name>Aliased</decl.name> = <ref.typealias usr="s:13rdar_343487765Aliasa">Alias</ref.typealias></decl.typealias>
+// CHECK-NEXT: Alias.Type
+// CHECK-NEXT: $s13rdar_343487765AliasamD
+// CHECK-NEXT: <Declaration>public typealias Aliased = <Type usr="s:13rdar_343487765Aliasa">Alias</Type></Declaration>
+// CHECK-NEXT: <decl.typealias><syntaxtype.keyword>public</syntaxtype.keyword> <syntaxtype.keyword>typealias</syntaxtype.keyword> <decl.name>Aliased</decl.name> = <ref.typealias usr="s:13rdar_343487765Aliasa">Alias</ref.typealias></decl.typealias>

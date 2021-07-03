@@ -445,7 +445,8 @@ public:
   /// \see applyGenericArguments
   Type applyUnboundGenericArguments(GenericTypeDecl *decl, Type parentTy,
                                     SourceLoc loc,
-                                    ArrayRef<Type> genericArgs) const;
+                                    ArrayRef<Type> genericArgs,
+                                    bool skipRequirementCheck=false) const;
 };
 
 } // end namespace swift

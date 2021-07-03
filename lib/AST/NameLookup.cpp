@@ -2306,6 +2306,53 @@ static DirectlyReferencedTypeDecls directReferencesForType(Type type) {
   return { };
 }
 
+static bool isDirectUnboundGenericTypeRepr(TypeRepr *typeRepr) {
+  switch (typeRepr->getKind()) {
+  case TypeReprKind::SimpleIdent:
+    return true;
+
+  case TypeReprKind::Attributed: {
+    auto attributed = cast<AttributedTypeRepr>(typeRepr);
+    return isDirectUnboundGenericTypeRepr(attributed->getTypeRepr());
+  }
+
+  case TypeReprKind::CompoundIdent: {
+    auto compound = cast<CompoundIdentTypeRepr>(typeRepr);
+    return isDirectUnboundGenericTypeRepr(compound->getComponentRange().back());
+  }
+
+  case TypeReprKind::Tuple: {
+    auto tupleRepr = cast<TupleTypeRepr>(typeRepr);
+    if (tupleRepr->isParenType()) {
+      return isDirectUnboundGenericTypeRepr(tupleRepr->getElementType(0));
+    }
+    return false;
+  }
+
+  case TypeReprKind::Composition:
+  case TypeReprKind::Array:
+  case TypeReprKind::Dictionary:
+  case TypeReprKind::GenericIdent:
+  case TypeReprKind::Error:
+  case TypeReprKind::Function:
+  case TypeReprKind::InOut:
+  case TypeReprKind::Metatype:
+  case TypeReprKind::Owned:
+  case TypeReprKind::Protocol:
+  case TypeReprKind::Shared:
+  case TypeReprKind::SILBox:
+  case TypeReprKind::OpaqueReturn:
+  case TypeReprKind::Optional:
+  case TypeReprKind::ImplicitlyUnwrappedOptional:
+  case TypeReprKind::Placeholder:
+    return false;
+
+  case TypeReprKind::Fixed:
+    llvm_unreachable("Cannot get fixed TypeReprs in name lookup");
+  }
+  llvm_unreachable("unhandled kind");
+}
+
 DirectlyReferencedTypeDecls InheritedDeclsReferencedRequest::evaluate(
     Evaluator &evaluator,
     llvm::PointerUnion<const TypeDecl *, const ExtensionDecl *> decl,
@@ -2496,9 +2543,81 @@ createExtensionGenericParams(ASTContext &ctx,
   return toParams;
 }
 
+static GenericTypeDecl *
+getUnboundDeclReferencedFromUnderlyingType(TypeAliasDecl *typeAlias) {
+  if (typeAlias->getTrailingWhereClause())
+    return nullptr;
+
+  assert(typeAlias->getParsedGenericParams() == nullptr);
+
+  auto *typeRepr = typeAlias->getUnderlyingTypeRepr();
+  if (typeRepr == nullptr)
+    return nullptr;
+
+  // Check if the underlying type is written as a (possibly nested)
+  // identifier without generic arguments applied.
+  if (!isDirectUnboundGenericTypeRepr(typeRepr))
+    return nullptr;
+
+  // Look up the referenced declaration.
+  ASTContext &ctx = typeAlias->getASTContext();
+  DirectlyReferencedTypeDecls referenced =
+    directReferencesForTypeRepr(ctx.evaluator, ctx, typeRepr,
+                                typeAlias->getDeclContext());
+
+  if (referenced.size() != 1)
+    return nullptr;
+
+  // Check if it's the right kind of declaration.
+  auto *decl = dyn_cast<GenericTypeDecl>(referenced[0]);
+  if (decl == nullptr || isa<ProtocolDecl>(decl) || !decl->isGeneric())
+    return nullptr;
+
+  assert(isa<ClassDecl>(decl) || isa<StructDecl>(decl) ||
+         isa<EnumDecl>(decl) || isa<TypeAliasDecl>(decl));
+
+  // A reference to a declaration inside its own context is own context is not
+  // unbound; we implicitly add the context generic parameters if they're missing.
+  //
+  // eg,
+  //
+  // struct S<T> {
+  //   typealias A = S
+  //   // desugars to 'typealias A = S<T>' and not
+  //   // 'typealias A<T2> = S<T2>'.
+  // }
+  //
+  // See resolveTypeInContext() for the gory details.
+  bool isInOwnContext = [&]() {
+    // Only unqualified references have this behavior.
+    if (isa<CompoundIdentTypeRepr>(typeRepr))
+      return false;
+
+    auto *dc = typeAlias->getDeclContext();
+    while (!dc->isModuleScopeContext()) {
+      if (dc->getSelfNominalTypeDecl() == decl)
+        return true;
+
+      dc = dc->getParent();
+    }
+
+    return false;
+  }();
+
+  if (isInOwnContext)
+    return nullptr;
+
+  return decl;
+}
+
 GenericParamList *
 GenericParamListRequest::evaluate(Evaluator &evaluator, GenericContext *value) const {
-  if (auto *ext = dyn_cast<ExtensionDecl>(value)) {
+  if (auto *typeAlias = dyn_cast<TypeAliasDecl>(value)) {
+    if (auto *decl = getUnboundDeclReferencedFromUnderlyingType(typeAlias))
+      if (auto *params = decl->getGenericParams())
+        return params->clone(typeAlias);
+
+  } else if (auto *ext = dyn_cast<ExtensionDecl>(value)) {
     // Create the generic parameter list for the extension by cloning the
     // generic parameter lists of the nominal and any of its parent types.
     auto &ctx = value->getASTContext();
