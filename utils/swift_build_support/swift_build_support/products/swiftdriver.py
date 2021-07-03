@@ -49,15 +49,18 @@ class SwiftDriver(product.Product):
 
     @classmethod
     def get_dependencies(cls):
-        return [cmark.CMark,
-                llvm.LLVM,
-                libcxx.LibCXX,
-                libicu.LibICU,
-                swift.Swift,
-                libdispatch.LibDispatch,
-                foundation.Foundation,
-                xctest.XCTest,
-                llbuild.LLBuild]
+        return [
+            cmark.CMark,
+            llvm.LLVM,
+            libcxx.LibCXX,
+            libicu.LibICU,
+            swift.Swift,
+            libdispatch.LibDispatch,
+            foundation.Foundation,
+            xctest.XCTest,
+            llbuild.LLBuild,
+            argumentparser.ArgumentParser,
+        ]
 
     def should_clean(self, host_target):
         return self.args.clean_swift_driver

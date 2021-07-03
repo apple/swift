@@ -88,6 +88,7 @@ EXPECTED_DEFAULTS = {
     'build_swift_static_stdlib': False,
     'build_swift_stdlib_unittest_extra': False,
     'build_swiftpm': False,
+    'build_argument_parser': False,
     'build_swift_driver': False,
     'build_early_swift_driver': True,
     'build_swiftsyntax': False,
@@ -492,6 +493,7 @@ EXPECTED_OPTIONS = [
                   dest='install_playgroundsupport'),
     SetTrueOption('--skip-build'),
     SetTrueOption('--swiftpm', dest='build_swiftpm'),
+    SetTrueOption('--swift-argument-parser', dest='build_swift_argument_parser')
     SetTrueOption('--swift-driver', dest='build_swift_driver'),
     SetTrueOption('--swiftsyntax', dest='build_swiftsyntax'),
     SetTrueOption('--build-libparser-only', dest='build_libparser_only'),

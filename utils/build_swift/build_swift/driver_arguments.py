@@ -617,6 +617,10 @@ def create_argument_parser():
     option(['--swiftevolve'], toggle_true('build_swiftevolve'),
            help='build the swift-evolve tool')
 
+    option(['--swift-argument-parser'],
+           toggle_true('build_swift_argument_parser'),
+           help='build swift-argument-parser')
+
     option(['--swift-driver'], toggle_true('build_swift_driver'),
            help='build swift-driver')
 
