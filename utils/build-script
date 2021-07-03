@@ -507,6 +507,8 @@ class BuildScriptInvocation(object):
             "--build-args=%s" % ' '.join(
                 pipes.quote(arg) for arg in cmake.build_args()),
             "--dsymutil-jobs", str(args.dsymutil_jobs),
+            "--darwin-enable-lto-only-for-cmake-targets=%s" % (
+                str(args.darwin_enable_lto_only_for_cmake_targets)),
         ]
 
         # Compute any product specific cmake arguments.

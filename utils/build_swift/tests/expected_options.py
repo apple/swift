@@ -137,6 +137,7 @@ EXPECTED_DEFAULTS = {
         defaults.DARWIN_DEPLOYMENT_VERSION_TVOS,
     'darwin_deployment_version_watchos':
         defaults.DARWIN_DEPLOYMENT_VERSION_WATCHOS,
+    'darwin_enable_lto_only_for_cmake_targets': '',
     'darwin_symroot_path_filters': [],
     'darwin_xcrun_toolchain': None,
     'distcc': False,
@@ -719,6 +720,7 @@ EXPECTED_OPTIONS = [
     # valid choices
     SetOption('--lto', dest='lto_type'),
     ChoicesOption('--lto', dest='lto_type', choices=['thin', 'full']),
+    StrOption('--darwin-enable-lto-only-for-cmake-targets'),
 
     # NOTE: We'll need to manually test the behavior of these since they
     # validate compiler version strings.

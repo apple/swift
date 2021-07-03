@@ -1,0 +1,48 @@
+# REQUIRES: standalone_build
+
+# RUN: %empty-directory(%t)
+# RUN: mkdir -p %t/build
+# RUN: mkdir -p %t/source
+# RUN: split-file %s %t/source
+# RUN: %{cmake-generate} -DSWIFT_TOOLS_ENABLE_LTO="thin" -DCMAKE_MODULE_PATH=%swift_src_root/cmake/modules -S %t/source -B %t/build | %FileCheck --check-prefix=CHECK-THIN %s
+
+# CHECK-THIN: COMPILE_OPTIONS
+# CHECK-THIN-SAME: -flto=thin
+# CHECK-THIN: LINK_OPTIONS
+# CHECK-THIN-SAME: -flto=thin
+
+# RUN: %{cmake-generate} -DSWIFT_TOOLS_ENABLE_LTO="full" -DCMAKE_MODULE_PATH=%swift_src_root/cmake/modules -S %t/source -B %t/build | %FileCheck --check-prefix=CHECK-FULL %s
+
+# CHECK-FULL: COMPILE_OPTIONS
+# CHECK-FULL-SAME: -flto=full
+# CHECK-FULL: LINK_OPTIONS
+# CHECK-FULL-SAME: -flto=full
+
+# RUN: %{cmake-generate} -DSWIFT_TOOLS_ENABLE_LTO="" -DCMAKE_MODULE_PATH=%swift_src_root/cmake/modules -S %t/source -B %t/build | %FileCheck %s
+
+# CHECK-NOT: COMPILE_OPTIONS {{.*}}-flto=
+# CHECK-NOT: LINK_OPTIONS {{.*}}-flto=
+
+#--- CMakeLists.txt
+cmake_minimum_required(VERSION 3.12.4)
+
+project(character)
+
+include(AddSwift)
+
+set(SWIFT_HOST_VARIANT_SDK "OSX")
+set(SWIFT_HOST_VARIANT_ARCH "x86_64")
+set(DEPLOYMENT_VERSION "10.9")
+set(SWIFT_SDK_OSX_ARCH_X86_64_TRIPLE "x86_64-apple-macos")
+
+add_executable(placeholder hello.c)
+
+_add_host_variant_c_compile_link_flags(placeholder)
+
+get_target_property(placeholder_compile_options placeholder COMPILE_OPTIONS)
+message(STATUS "COMPILE_OPTIONS ${placeholder_compile_options}")
+get_target_property(placeholder_link_options placeholder LINK_OPTIONS)
+message(STATUS "LINK_OPTIONS ${placeholder_link_options}")
+
+#--- hello.c
+int main(){}

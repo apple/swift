@@ -1,0 +1,58 @@
+# REQUIRES: standalone_build
+
+# RUN: %empty-directory(%t)
+# RUN: mkdir -p %t/build
+# RUN: mkdir -p %t/source
+# RUN: split-file %s %t/source
+
+# ensure SWIFT_TOOLS_DARWIN_ENABLE_LTO_ONLY_FOR_TARGETS is honored for Darwin platforms
+# RUN: %{cmake-generate} -DSWIFT_TOOLS_ENABLE_LTO="thin" -DSWIFT_TOOLS_DARWIN_ENABLE_LTO_ONLY_FOR_TARGETS="placeholder;placeholder-missing" -DSWIFT_HOST_VARIANT_SDK="OSX" -DCMAKE_MODULE_PATH=%swift_src_root/cmake/modules -S %t/source -B %t/build | %FileCheck %s
+
+# CHECK: placeholder COMPILE_OPTIONS
+# CHECK-SAME: -flto=thin
+# CHECK: placeholder LINK_OPTIONS
+# CHECK-SAME: -flto=thin
+# CHECK: placeholder-alternate COMPILE_OPTIONS
+# CHECK-SAME: -flto=thin
+# CHECK: placeholder-alternate LINK_OPTIONS
+# CHECK-SAME: -flto=thin
+# CHECK-SAME: -flto-codegen-only
+
+# ensure SWIFT_TOOLS_DARWIN_ENABLE_LTO_ONLY_FOR_TARGETS is ignored for other platforms or
+# when the setting is empty
+# RUN: %{cmake-generate} -DSWIFT_TOOLS_ENABLE_LTO="thin" -DSWIFT_TOOLS_DARWIN_ENABLE_LTO_ONLY_FOR_TARGETS="placeholder;placeholder-missing" -DSWIFT_HOST_VARIANT_SDK="LINUX" -DCMAKE_MODULE_PATH=%swift_src_root/cmake/modules -S %t/source -B %t/build | %FileCheck --check-prefix CHECK-IGNORED %s
+# RUN: %{cmake-generate} -DSWIFT_TOOLS_ENABLE_LTO="thin" -DSWIFT_TOOLS_DARWIN_ENABLE_LTO_ONLY_FOR_TARGETS="" -DSWIFT_HOST_VARIANT_SDK="LINUX" -DCMAKE_MODULE_PATH=%swift_src_root/cmake/modules -S %t/source -B %t/build | %FileCheck --check-prefix CHECK-IGNORED %s
+
+# CHECK-IGNORED: placeholder COMPILE_OPTIONS
+# CHECK-IGNORED-SAME: -flto=thin
+# CHECK-IGNORED: placeholder LINK_OPTIONS
+# CHECK-IGNORED-SAME: -flto=thin
+# CHECK-IGNORED: placeholder-alternate COMPILE_OPTIONS
+# CHECK-IGNORED-SAME: -flto=thin
+# CHECK-IGNORED-LABEL: placeholder-alternate LINK_OPTIONS
+# CHECK-IGNORED-SAME: -flto=thin
+# CHECK-IGNORED-NOT: -flto-codegen-only
+# CHECK-IGNORED-LABEL: Configuring done
+
+#--- CMakeLists.txt
+cmake_minimum_required(VERSION 3.12.4)
+
+project(character)
+
+include(AddSwift)
+
+SET(SWIFT_APPLE_PLATFORMS OSX)
+
+foreach(current_target placeholder;placeholder-alternate)
+    add_executable(${current_target} hello.c)
+
+    add_lto_flags(${current_target})
+
+    get_target_property(${current_target}_compile_options ${current_target} COMPILE_OPTIONS)
+    message(STATUS "${current_target} COMPILE_OPTIONS ${${current_target}_compile_options}")
+    get_target_property(${current_target}_link_options ${current_target} LINK_OPTIONS)
+    message(STATUS "${current_target} LINK_OPTIONS ${${current_target}_link_options}")
+endforeach()
+
+#--- hello.c
+int main(){}

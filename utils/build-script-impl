@@ -119,6 +119,7 @@ KNOWN_SETTINGS=(
     darwin-toolchain-version                      ""                "Version for xctoolchain info plist and installer pkg"
     darwin-toolchain-require-use-os-runtime       "0"               "When setting up a plist for a toolchain, require the users of the toolchain to link against the OS instead of the packaged toolchain runtime. 0 for false, 1 for true"
     darwin-xcrun-toolchain                        "default"         "the name of the toolchain to use on Darwin"
+    darwin-enable-lto-only-for-cmake-targets       ""               "Swift CMake targets for which to enable LTO (Darwin only)"
 
     ## Build Types for Components
     swift-stdlib-build-type                       "Debug"           "the CMake build variant for Swift"
@@ -1949,6 +1950,7 @@ for host in "${ALL_HOSTS[@]}"; do
                     -DSWIFT_TOOLS_ENABLE_LTO:STRING="${SWIFT_TOOLS_ENABLE_LTO}"
                     -DSWIFT_BUILD_RUNTIME_WITH_HOST_COMPILER:BOOL=$(true_false "${BUILD_RUNTIME_WITH_HOST_COMPILER}")
                     -DLIBDISPATCH_CMAKE_BUILD_TYPE:STRING="${LIBDISPATCH_BUILD_TYPE}"
+                    -DSWIFT_TOOLS_DARWIN_ENABLE_LTO_ONLY_FOR_TARGETS:STRING="${DARWIN_ENABLE_LTO_ONLY_FOR_CMAKE_TARGETS}"
                     "${swift_cmake_options[@]}"
                 )
 

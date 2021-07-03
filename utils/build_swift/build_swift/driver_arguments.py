@@ -498,6 +498,14 @@ def create_argument_parser():
                 'imply using lto on the swift standard library or runtime. '
                 'Options: thin, full. If no optional arg is provided, full is '
                 'chosen by default')
+    option('--darwin-enable-lto-only-for-cmake-targets', store,
+           default='',
+           help='A semi-colon split list of CMake targets for '
+           'which to explicitly enable LTO when building for '
+           'Darwin. The net effect of this option is to '
+           'add a linker flags for other tool targets '
+           'to skip optimization phase. '
+           'The setting is ignored for other platforms.')
 
     option('--clang-profile-instr-use', store_path,
            help='profile file to use for clang PGO')

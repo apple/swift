@@ -1,0 +1,13 @@
+# REQUIRES: standalone_build
+
+# RUN: %empty-directory(%t)
+# RUN: mkdir -p %t
+# RUN: SKIP_XCODE_VERSION_CHECK=1 SWIFT_BUILD_ROOT=%t %swift_src_root/utils/build-script --dry-run --cmake %cmake  2>&1 | %FileCheck --check-prefix=CHECK-NO-PARAM %s
+
+# CHECK-NO-PARAM: -DSWIFT_TOOLS_DARWIN_ENABLE_LTO_ONLY_FOR_TARGETS:STRING={{ |$}}
+
+# RUN: %empty-directory(%t)
+# RUN: mkdir -p %t
+# RUN: SKIP_XCODE_VERSION_CHECK=1 SWIFT_BUILD_ROOT=%t %swift_src_root/utils/build-script --darwin-enable-lto-only-for-cmake-targets="swift-frontend;sil-nm" --dry-run --cmake %cmake  2>&1 | %FileCheck --check-prefix=CHECK-PARAM %s
+
+# CHECK-PARAM: -DSWIFT_TOOLS_DARWIN_ENABLE_LTO_ONLY_FOR_TARGETS:STRING=swift-frontend;sil-nm
