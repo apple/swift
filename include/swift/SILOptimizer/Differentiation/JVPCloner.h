@@ -29,7 +29,27 @@ namespace autodiff {
 
 class ADContext;
 
-/// A helper class for generating JVP functions.
+/// Consider a function f with type (Ti) -> U, where Ti = {T0, ..., Ti, ... Tn}
+/// and U all conform to the Differentiable protocol.
+///
+/// In that case, JVP(f) or the Jacobian Vector Product of f is defined as:
+///
+///  JVP(f)(t1) : Ti -> ((Ti) -> (U, U.TangentVector))
+///  JVP(f)(t1)(t2) = (f(Ti), Df(Ti)(t2))
+///         ^   ^--\   ^      ^--------v
+///  original args |   normal result   full derivative (jacobian) of f wrt args
+///                |
+///            free parameter passed applied to full derivative
+///
+/// In words, the JVP(f)(t1) is a function that maps the vector Ti to a 2nd
+/// function that maps t2 in T to (f(t1), Df(t1)(t2)). The first element of this
+/// result tuple, is just the constant original result of f at the point t1, but
+/// the 2nd result is a linear approximation of f at t1 that varies linearly
+/// over the input value t2.
+///
+/// Operationally, this cloner takes in a function f and produces said tuple
+/// function, producing the parts of the jacobian needed to evaluate the full
+/// derivative.
 class JVPCloner final {
   class Implementation;
   Implementation &impl;

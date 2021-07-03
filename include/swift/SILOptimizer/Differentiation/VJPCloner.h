@@ -29,7 +29,29 @@ namespace autodiff {
 class ADContext;
 class PullbackCloner;
 
-/// A helper class for generating VJP functions.
+/// Consider a function f with type (Ti) -> U, where Ti = {T0, ..., Ti, ... Tn}
+/// and U all conform to the Differentiable protocol.
+///
+/// In that case, VJP(f) or the Vector Jacobian Product of f is defined as:
+///
+///  VJP(f)(t) : Ti -> ((U.TangentVector) -> (U, Ti.TangentVector))
+///  VJP(f)(t)(u) = (f(Ti), f*(Ti)(t2))
+///         ^  ^---\ ^      ^--------v
+///  original args | normal result   pullback (jacobian) of f wrt args
+///                |
+///            free parameter passed applied to full derivative
+///
+/// In words, the VJP(f)(t) is a function that maps the list of vectors Ti to a
+/// 2nd function that maps u in U to the tuple (f(t), f*(t)(u)). The first
+/// element of this result tuple, is just the constant original result of f at
+/// the point t, but the 2nd result is a backpropagation function called the
+/// "pullback", which takes the derivatives with respect to the result and
+/// returns the derivative with respect to arguments.
+///
+/// Operationally, this cloner takes in a SILFunction f and maps it during
+/// cloning to a SILFunction that returns the above mentioned tuple without
+/// evaluating f*(Ti) so that our caller can evaluate the pullback at Ti when
+/// they need.
 class VJPCloner final {
   class Implementation;
   Implementation &impl;
