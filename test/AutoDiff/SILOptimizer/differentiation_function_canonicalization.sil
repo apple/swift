@@ -139,3 +139,94 @@ bb0(%0 : $Class):
 // CHECK:  [[VJP_FN_PARTIALLY_APPLIED:%.*]] = partial_apply [callee_guaranteed] [[VJP_FN]]([[ARG]])
 // CHECK:  differentiable_function [parameters 0] [results 0] [[ORIG_FN_PARTIALLY_APPLIED]] : {{.*}} with_derivative {[[JVP_FN_PARTIALLY_APPLIED]] : {{.*}}, [[VJP_FN_PARTIALLY_APPLIED]] : {{.*}}}
 // CHECK: }
+
+// Test curry thunks.
+
+struct S {
+  var x: Float
+}
+
+sil @method : $@convention(method) (Float, S) -> Float {
+bb0(%0 : $Float, %1 : $S):
+  return %0 : $Float
+}
+
+sil @method_thin : $@convention(thin) (Float, S) -> Float {
+bb0(%0 : $Float, %1 : $S):
+  %4 = function_ref @method : $@convention(method) (Float, S) -> Float
+  %5 = apply %4(%0, %1) : $@convention(method) (Float, S) -> Float
+  return %5 : $Float
+}
+
+sil @method_curried : $@convention(thin) (S) -> @owned @callee_guaranteed (Float) -> Float {
+bb0(%0 : $S):
+  %2 = function_ref @method_thin : $@convention(thin) (Float, S) -> Float
+  %3 = partial_apply [callee_guaranteed] %2(%0) : $@convention(thin) (Float, S) -> Float
+  return %3 : $@callee_guaranteed (Float) -> Float
+}
+
+sil @test_curry_thunk : $@convention(thin) (Float, S) -> () {
+bb0(%0 : $Float, %1 : $S):
+  %2 = function_ref @method_curried : $@convention(thin) (S) -> @owned @callee_guaranteed (Float) -> Float
+  %3 = apply %2(%1) : $@convention(thin) (S) -> @owned @callee_guaranteed (Float) -> Float
+  %4 = differentiable_function [parameters 0] [results 0] %3 : $@callee_guaranteed (Float) -> Float
+  %5 = tuple ()
+  return %5 : $()
+}
+
+sil [ossa] @method_ossa : $@convention(method) (Float, S) -> Float {
+bb0(%0 : $Float, %1 : $S):
+  return %0 : $Float
+}
+
+sil [ossa] @method_thin_ossa : $@convention(thin) (Float, S) -> Float {
+bb0(%0 : $Float, %1 : $S):
+  %4 = function_ref @method_ossa : $@convention(method) (Float, S) -> Float
+  %5 = apply %4(%0, %1) : $@convention(method) (Float, S) -> Float
+  return %5 : $Float
+}
+
+sil [ossa] @method_curried_ossa : $@convention(thin) (S) -> @owned @callee_guaranteed (Float) -> Float {
+bb0(%0 : $S):
+  %2 = function_ref @method_thin_ossa : $@convention(thin) (Float, S) -> Float
+  %3 = partial_apply [callee_guaranteed] %2(%0) : $@convention(thin) (Float, S) -> Float
+  return %3 : $@callee_guaranteed (Float) -> Float
+}
+
+sil [ossa] @test_curry_thunk_ossa : $@convention(thin) (Float, S) -> () {
+bb0(%0 : $Float, %1 : $S):
+  %2 = function_ref @method_curried_ossa : $@convention(thin) (S) -> @owned @callee_guaranteed (Float) -> Float
+  %3 = apply %2(%1) : $@convention(thin) (S) -> @owned @callee_guaranteed (Float) -> Float
+  %4 = differentiable_function [parameters 0] [results 0] %3 : $@callee_guaranteed (Float) -> Float
+  destroy_value %4 : $@differentiable @callee_guaranteed (Float) -> Float
+  %5 = tuple ()
+  return %5 : $()
+}
+
+// CHECK-LABEL: sil {{.*}} @AD__method_curried_ossa__differentiable_curry_thunk_src_0_wrt_0 :
+// CHECK: bb0([[SELF:%.*]] : $S):
+// CHECK:   [[METHOD:%.*]] = function_ref @method_thin_ossa : $@convention(thin) (Float, S) -> Float
+// CHECK:   [[CURRIED:%.*]] = partial_apply [callee_guaranteed] [[METHOD]]([[SELF]]) : $@convention(thin) (Float, S) -> Float
+// CHECK:   [[METHOD_JVP:%.*]] = differentiability_witness_function [jvp] [parameters 0] [results 0] @method_thin_ossa : $@convention(thin) (Float, S) -> Float
+// CHECK:   [[CURRIED_JVP:%.*]] = partial_apply [callee_guaranteed] [[METHOD_JVP]]([[SELF]]) : $@convention(thin) (Float, S) -> (Float, @owned @callee_guaranteed (Float) -> Float)
+// CHECK:   [[METHOD_VJP:%.*]] = differentiability_witness_function [vjp] [parameters 0] [results 0] @method_thin_ossa : $@convention(thin) (Float, S) -> Float
+// CHECK:   [[CURRIED_VJP:%.*]] = partial_apply [callee_guaranteed] [[METHOD_VJP]]([[SELF]]) : $@convention(thin) (Float, S) -> (Float, @owned @callee_guaranteed (Float) -> Float)
+// CHECK:   strong_retain [[CURRIED]] : $@callee_guaranteed (Float) -> Float
+// CHECK:   [[RESULT:%.*]] = differentiable_function [parameters 0] [results 0] [[CURRIED]] : $@callee_guaranteed (Float) -> Float with_derivative {[[CURRIED_JVP]] : $@callee_guaranteed (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float), [[CURRIED_VJP]] : $@callee_guaranteed (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float)}
+// CHECK:   strong_release [[CURRIED]] : $@callee_guaranteed (Float) -> Float
+// CHECK:   return [[RESULT]] : $@differentiable @callee_guaranteed (Float) -> Float
+// CHECK: } // end sil function 'AD__method_curried_ossa__differentiable_curry_thunk_src_0_wrt_0'
+
+// CHECK-LABEL: sil {{.*}} @AD__method_curried__differentiable_curry_thunk_src_0_wrt_0 :
+// CHECK: bb0([[SELF:%.*]] : $S):
+// CHECK:   [[METHOD:%.*]] = function_ref @method_thin : $@convention(thin) (Float, S) -> Float
+// CHECK:   [[CURRIED:%.*]] = partial_apply [callee_guaranteed] [[METHOD]]([[SELF]]) : $@convention(thin) (Float, S) -> Float
+// CHECK:   [[METHOD_JVP:%.*]] = differentiability_witness_function [jvp] [parameters 0] [results 0] @method_thin : $@convention(thin) (Float, S) -> Float
+// CHECK:   [[CURRIED_JVP:%.*]] = partial_apply [callee_guaranteed] [[METHOD_JVP]]([[SELF]]) : $@convention(thin) (Float, S) -> (Float, @owned @callee_guaranteed (Float) -> Float)
+// CHECK:   [[METHOD_VJP:%.*]] = differentiability_witness_function [vjp] [parameters 0] [results 0] @method_thin : $@convention(thin) (Float, S) -> Float
+// CHECK:   [[CURRIED_VJP:%.*]] = partial_apply [callee_guaranteed] [[METHOD_VJP]]([[SELF]]) : $@convention(thin) (Float, S) -> (Float, @owned @callee_guaranteed (Float) -> Float)
+// CHECK:   strong_retain [[CURRIED]] : $@callee_guaranteed (Float) -> Float
+// CHECK:   [[RESULT:%.*]] = differentiable_function [parameters 0] [results 0] [[CURRIED]] : $@callee_guaranteed (Float) -> Float with_derivative {[[CURRIED_JVP]] : $@callee_guaranteed (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float), [[CURRIED_VJP]] : $@callee_guaranteed (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float)}
+// CHECK:   strong_release [[CURRIED]] : $@callee_guaranteed (Float) -> Float
+// CHECK:   return [[RESULT]] : $@differentiable @callee_guaranteed (Float) -> Float
+// CHECK: } // end sil function 'AD__method_curried__differentiable_curry_thunk_src_0_wrt_0'
