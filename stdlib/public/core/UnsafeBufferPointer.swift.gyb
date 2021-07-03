@@ -384,8 +384,8 @@ extension Unsafe${Mutable}BufferPointer: ${Mutable}Collection, RandomAccessColle
     guard i != j else { return }
     _debugPrecondition(i >= 0 && j >= 0)
     _debugPrecondition(i < endIndex && j < endIndex)
-    let pi = (_position! + i)
-    let pj = (_position! + j)
+    let pi = _position._unsafelyUnwrappedUnchecked + i
+    let pj = _position._unsafelyUnwrappedUnchecked + j
     let tmp = pi.move()
     pi.moveInitialize(from: pj, count: 1)
     pj.initialize(to: tmp)
