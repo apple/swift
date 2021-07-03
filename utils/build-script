@@ -178,6 +178,42 @@ def validate_xcode_compatibility():
         )
 
 
+def build_script_log_analyzer():
+    """
+    Analyze .build_script_log and provide a summary of the time execution.
+    """
+    build_script_log_path = os.path.join(SWIFT_BUILD_ROOT,
+                                         ".build_script_log")
+    print("--- Build Script Analyzer ---")
+    build_events = []
+    total_duration = 0
+    if os.path.exists(build_script_log_path):
+        print("Build Script Log: {}".format(build_script_log_path))
+        with open(build_script_log_path) as f:
+            for event in f:
+                build_event = json.loads(event)
+                remove_build_path = SWIFT_BUILD_ROOT + "/"
+                build_event["command"] = \
+                    build_event["command"].replace(remove_build_path, "")
+                build_event["duration"] = int(build_event["duration"])
+                total_duration += build_event["duration"]
+                build_events.append(build_event)
+        finish_events = [x for x in build_events if x["event"] == "finish"]
+        finish_events.sort(key=lambda x: x["duration"], reverse=True)
+        print("Build Percentage \t Build Duration (sec) \t Command")
+        print("================ \t ==================== \t =======")
+        event_row = '{:<17.1%} \t {:<21} \t {}'
+        for build_event in finish_events:
+            duration_percentage = \
+                (float(build_event["duration"]) / float(total_duration))
+            if duration_percentage > 0.001:
+                print(event_row.format(duration_percentage, build_event["duration"],
+                                       build_event["command"]))
+    else:
+        print("Skip build script analyzer")
+        print(".build_script_log file not found at {}".format(build_script_log_path))
+
+
 def tar(source, destination):
     """
     Create a gzip archive of the file at 'source' at the given
@@ -1489,6 +1525,9 @@ def main():
 
 if __name__ == "__main__":
     try:
-        sys.exit(main())
+        exit_code = main()
     except KeyboardInterrupt:
         sys.exit(1)
+    finally:
+        build_script_log_analyzer()
+    sys.exit(exit_code)
