@@ -122,9 +122,6 @@ static void addMandatoryDiagnosticOptPipeline(SILPassPipelinePlan &P) {
     P.addSILSkippingChecker();
 #endif
 
-  if (Options.shouldOptimize()) {
-    P.addDestroyHoisting();
-  }
   P.addMandatoryInlining();
   P.addMandatorySILLinker();
 
@@ -492,6 +489,7 @@ static void addPerfEarlyModulePassPipeline(SILPassPipelinePlan &P) {
   if (P.getOptions().EnableCopyPropagation) {
     P.addCopyPropagation();
   }
+  P.addDestroyHoisting();
   P.addSemanticARCOpts();
 
   // Devirtualizes differentiability witnesses into functions that reference them.
