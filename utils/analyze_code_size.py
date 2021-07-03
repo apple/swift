@@ -212,6 +212,7 @@ class Categories(object):
             ['Type metadata accessor',
                 re.compile(r'.*type metadata accessor')],
             ['Type metadata', re.compile(r'.*type metadata')],
+            ['Metadata instantiation cache', re.compile(r'metadata instantiation cache for')],
             ['Reflection metadata descriptor',
                 re.compile(r'reflection metadata .* descriptor')],
         ]
@@ -227,6 +228,7 @@ class Categories(object):
             ['Swift modify', re.compile(r'^_\$s.*[iv][M]$')],
             ['Swift read', re.compile(r'^_\$s.*[iv][r]$')],
             ['Swift addressor', re.compile(r'^_\$s.*[iv][al][uOop]$')],
+            ['Swift static function', re.compile(r'^_\$s.*FZ$')],
             ['Swift function', re.compile(r'^_\$s.*F$')],
             ['Swift unknown', re.compile(r'^_\$s.*')],
         ]
