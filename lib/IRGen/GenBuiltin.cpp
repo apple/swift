@@ -124,6 +124,9 @@ void irgen::emitBuiltinCall(IRGenFunction &IGF, const BuiltinInfo &Builtin,
                             ArrayRef<SILType> argTypes,
                             Explosion &args, Explosion &out,
                             SubstitutionMap substitutions) {
+  assert(Builtin.ID != BuiltinValueKind::IsOnStack &&
+         "Builtin should not exist at IRGen time");
+
   if (Builtin.ID == BuiltinValueKind::COWBufferForReading) {
     // Just forward the incoming argument.
     assert(args.size() == 1 && "Expecting one incoming argument");

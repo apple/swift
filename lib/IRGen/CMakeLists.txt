@@ -54,6 +54,7 @@ add_swift_host_library(swiftIRGen STATIC
   MetadataRequest.cpp
   Outlining.cpp
   StructLayout.cpp
+  StackSizeLimitTransform.cpp
   SwiftTargetInfo.cpp
   TypeLayout.cpp
   TypeLayoutDumper.cpp

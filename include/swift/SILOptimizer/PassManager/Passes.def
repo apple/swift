@@ -342,6 +342,8 @@ PASS(LateReleaseHoisting, "late-release-hoisting",
      "Late SIL release Hoisting Preserving Epilogues")
 IRGEN_PASS(LoadableByAddress, "loadable-address",
      "SIL Large Loadable type by-address lowering.")
+IRGEN_PASS(StackSizeLimitTransform, "stack-size-limit",
+           "Limit the amount of stack growth possible in a single SIL function by converting stack memory to heap memory")
 PASS(MandatorySILLinker, "mandatory-linker",
      "Deserialize all referenced SIL functions that are shared or transparent")
 PASS(PerformanceSILLinker, "performance-linker",

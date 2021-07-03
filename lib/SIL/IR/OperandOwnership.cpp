@@ -761,6 +761,7 @@ BUILTIN_OPERAND_OWNERSHIP(DestroyingConsume, StartAsyncLet)
 BUILTIN_OPERAND_OWNERSHIP(DestroyingConsume, EndAsyncLet)
 BUILTIN_OPERAND_OWNERSHIP(InstantaneousUse, CreateTaskGroup)
 BUILTIN_OPERAND_OWNERSHIP(InstantaneousUse, DestroyTaskGroup)
+BUILTIN_OPERAND_OWNERSHIP(InstantaneousUse, IsOnStack)
 
 BUILTIN_OPERAND_OWNERSHIP(ForwardingConsume, COWBufferForReading)
 BUILTIN_OPERAND_OWNERSHIP(ForwardingConsume, UnsafeGuaranteed)

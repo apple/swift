@@ -855,6 +855,11 @@ BUILTIN_MISC_OPERATION_WITH_SILGEN(BuildDefaultActorExecutorRef,
 BUILTIN_MISC_OPERATION_WITH_SILGEN(BuildMainActorExecutorRef,
                                    "buildMainActorExecutorRef", "n", Special)
 
+/// isOnStack : (Builtin.NativeObject) -> Builtin.Int1
+///
+/// Returns true if the optimizer successfully moved this object from the stack onto the heap.
+BUILTIN_MISC_OPERATION_WITH_SILGEN(IsOnStack, "isOnStack", "n", Special)
+
 #undef BUILTIN_MISC_OPERATION_WITH_SILGEN
 
 #undef BUILTIN_MISC_OPERATION

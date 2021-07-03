@@ -758,6 +758,10 @@ SILPassPipelinePlan::getLoweringPassPipeline(const SILOptions &Options) {
   return P;
 }
 
+static llvm::cl::opt<bool>
+    EnableStackSizeLimitTransform("swift-irgen-enable-stack-size-limit",
+                                  llvm::cl::init(true), llvm::cl::Hidden);
+
 SILPassPipelinePlan
 SILPassPipelinePlan::getIRGenPreparePassPipeline(const SILOptions &Options) {
   SILPassPipelinePlan P(Options);
@@ -767,6 +771,8 @@ SILPassPipelinePlan::getIRGenPreparePassPipeline(const SILOptions &Options) {
   // llvm-ir generation for dynamic alloca instructions.
   P.addAllocStackHoisting();
   P.addLoadableByAddress();
+  if (EnableStackSizeLimitTransform)
+    P.addStackSizeLimitTransform();
 
   return P;
 }

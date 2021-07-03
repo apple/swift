@@ -276,8 +276,8 @@ internal struct _ContiguousArrayBuffer<Element>: _ArrayBufferProtocol {
          _ContiguousArrayStorage<Element>.self,
          realMinimumCapacity._builtinWordValue, Element.self)
 
-      let storageAddr = UnsafeMutableRawPointer(Builtin.bridgeToRawPointer(_storage))
-      if let allocSize = _mallocSize(ofAllocation: storageAddr) {
+      if let allocSize = _mallocSizeIfHeap(of: _storage) {
+        let storageAddr = UnsafeMutableRawPointer(Builtin.bridgeToRawPointer(_storage))
         let endAddr = storageAddr + allocSize
         let realCapacity = endAddr.assumingMemoryBound(to: Element.self) - firstElementAddress
         _initStorageHeader(
