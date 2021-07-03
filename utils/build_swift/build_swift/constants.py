@@ -165,7 +165,10 @@ def _get_swift_build_root(source_root, env=None):
     env = env or {}
 
     if "SWIFT_BUILD_ROOT" in env:
-        return env["SWIFT_BUILD_ROOT"]
+        build_root = env["SWIFT_BUILD_ROOT"]
+        if os.path.isabs(build_root):
+            return build_root
+        return os.path.join(source_root, build_root)
 
     return os.path.join(source_root, "build")
 
