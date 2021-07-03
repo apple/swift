@@ -34,6 +34,7 @@ benefit of all Swift developers.
         - [Options for Dumping LLVM IR](#options-for-dumping-llvm-ir)
     - [Bisecting Compiler Errors](#bisecting-compiler-errors)
         - [Bisecting on SIL optimizer pass counts to identify optimizer bugs](#bisecting-on-sil-optimizer-pass-counts-to-identify-optimizer-bugs)
+        - [Bisecting on LLVM optimizer pass counts to identify optimizer bugs](#bisecting-on-llvm-optimizer-pass-counts-to-identify-optimizer-bugs)
         - [Using git-bisect in the presence of branch forwarding/feature branches](#using-git-bisect-in-the-presence-of-branch-forwardingfeature-branches)
         - [Reducing SIL test cases using bug_reducer](#reducing-sil-test-cases-using-bug_reducer)
 - [Debugging the Compiler Build](#debugging-the-compiler-build)
@@ -747,6 +748,20 @@ it's quite easy to do this manually:
   c. Compare both SIL files and try to figure out what the optimization pass
      did wrong. To simplify the comparison, it's sometimes helpful to replace
      all SIL values (e.g. `%27`) with a constant string (e.g. `%x`).
+
+### Bisecting on LLVM optimizer pass counts to identify optimizer bugs
+
+One can use the tips from the previous section to also bisect the LLVM optimizer
+with slightly different options:
+
+1. `-Xllvm --opt-bisect-limit=<INT>`: Maximum number of optimizations to perform. The equivalent of `-sil-opt-pass-count`.
+2. `-Xllvm --filter-print-funcs=<function names>`: Only print IR for functions whose name match this for all print-[before|after][-all] options.
+3. `-Xllvm --print-after=<string>`: Print IR after specified passes
+4. `-Xllvm --print-after-all`: Print IR after each pass
+6. `-Xllvm --print-before=<string>`: Print IR before specified passes
+7. `-Xllvm --print-before-all`: Print IR before each pass
+8. `-Xllvm --print-before-changed`: Print before passes that change them
+
 
 ### Using git-bisect in the presence of branch forwarding/feature branches
 
