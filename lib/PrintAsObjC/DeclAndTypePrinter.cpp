@@ -770,7 +770,7 @@ private:
 
     printAvailability(FD);
 
-    os << ';';
+    os << ";\n";
   }
 
   enum class PrintLeadingSpace : bool {
