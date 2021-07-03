@@ -5130,6 +5130,9 @@ NOTE(objc_optional_requirement_swift_rename,none,
      "rename %select{method|initializer|property|subscript}0 to match "
      "requirement %1", (bool, DeclName))
 
+NOTE(witness_objc_default_implementation, none, 
+     "default implementations cannot be used to satisfy requirements of '@objc' protocols", ())
+
 ERROR(witness_non_objc,none,
       "non-'@objc' " OBJC_DIAG_SELECT " does not satisfy requirement "
       "of '@objc' protocol %2",

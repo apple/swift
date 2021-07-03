@@ -4623,6 +4623,8 @@ void ConformanceChecker::ensureRequirementsAreSatisfied() {
 #pragma mark Protocol conformance checking
 
 void ConformanceChecker::resolveValueWitnesses() {
+  SmallVector<ValueDecl *, 4> objcRequirementsWithDefaultImpl;
+
   for (auto member : Proto->getMembers()) {
     auto requirement = dyn_cast<ValueDecl>(member);
     if (!requirement)
@@ -4669,76 +4671,80 @@ void ConformanceChecker::resolveValueWitnesses() {
           !requirement->getAttrs().isUnavailable(getASTContext())) {
         // The witness must also be @objc.
         if (!witness->isObjC()) {
-          bool isOptional =
-            requirement->getAttrs().hasAttribute<OptionalAttr>();
           SourceLoc diagLoc = getLocForDiagnosingWitness(Conformance, witness);
-          if (auto witnessFunc = dyn_cast<AbstractFunctionDecl>(witness)) {
-            auto diagInfo = getObjCMethodDiagInfo(witnessFunc);
-            Optional<InFlightDiagnostic> fixItDiag = C.Diags.diagnose(
-                diagLoc,
-                isOptional ? diag::witness_non_objc_optional
-                           : diag::witness_non_objc,
-                diagInfo.first, diagInfo.second, Proto->getName());
-            if (diagLoc != witness->getLoc()) {
-              // If the main diagnostic is emitted on the conformance, we want
-              // to attach the fix-it to the note that shows where the
-              // witness is defined.
-              fixItDiag.getValue().flush();
-              fixItDiag.emplace(witness->diagnose(
-                  diag::make_decl_objc, witness->getDescriptiveKind()));
+          // Default implementations of '@objc' requirements are not allowed.
+          if (auto ED = dyn_cast<ExtensionDecl>(witness->getDeclContext())) {
+            if (auto proto = ED->getExtendedProtocolDecl()) {
+              // Store the requirement so we can use it to print stubs.
+              objcRequirementsWithDefaultImpl.push_back(requirement);
             }
-            if (!witness->canInferObjCFromRequirement(requirement)) {
-              fixDeclarationObjCName(
-                  fixItDiag.getValue(), witness,
-                  witness->getObjCRuntimeName(),
-                  requirement->getObjCRuntimeName());
+          } else {
+            bool isOptional =
+                requirement->getAttrs().hasAttribute<OptionalAttr>();
+            if (auto witnessFunc = dyn_cast<AbstractFunctionDecl>(witness)) {
+              auto diagInfo = getObjCMethodDiagInfo(witnessFunc);
+              Optional<InFlightDiagnostic> fixItDiag = C.Diags.diagnose(
+                  diagLoc,
+                  isOptional ? diag::witness_non_objc_optional
+                             : diag::witness_non_objc,
+                  diagInfo.first, diagInfo.second, Proto->getName());
+              if (diagLoc != witness->getLoc()) {
+                // If the main diagnostic is emitted on the conformance, we want
+                // to attach the fix-it to the note that shows where the
+                // witness is defined.
+                fixItDiag.getValue().flush();
+                fixItDiag.emplace(witness->diagnose(
+                    diag::make_decl_objc, witness->getDescriptiveKind()));
+              }
+              if (!witness->canInferObjCFromRequirement(requirement)) {
+                fixDeclarationObjCName(fixItDiag.getValue(), witness,
+                                       witness->getObjCRuntimeName(),
+                                       requirement->getObjCRuntimeName());
+              }
+            } else if (isa<VarDecl>(witness)) {
+              Optional<InFlightDiagnostic> fixItDiag = C.Diags.diagnose(
+                  diagLoc,
+                  isOptional ? diag::witness_non_objc_storage_optional
+                             : diag::witness_non_objc_storage,
+                  /*isSubscript=*/false, witness->getName(), Proto->getName());
+              if (diagLoc != witness->getLoc()) {
+                // If the main diagnostic is emitted on the conformance, we want
+                // to attach the fix-it to the note that shows where the
+                // witness is defined.
+                fixItDiag.getValue().flush();
+                fixItDiag.emplace(witness->diagnose(
+                    diag::make_decl_objc, witness->getDescriptiveKind()));
+              }
+              if (!witness->canInferObjCFromRequirement(requirement)) {
+                fixDeclarationObjCName(fixItDiag.getValue(), witness,
+                                       witness->getObjCRuntimeName(),
+                                       requirement->getObjCRuntimeName());
+              }
+            } else if (isa<SubscriptDecl>(witness)) {
+              Optional<InFlightDiagnostic> fixItDiag = C.Diags.diagnose(
+                  diagLoc,
+                  isOptional ? diag::witness_non_objc_storage_optional
+                             : diag::witness_non_objc_storage,
+                  /*isSubscript=*/true, witness->getName(), Proto->getName());
+              if (diagLoc != witness->getLoc()) {
+                // If the main diagnostic is emitted on the conformance, we want
+                // to attach the fix-it to the note that shows where the
+                // witness is defined.
+                fixItDiag.getValue().flush();
+                fixItDiag.emplace(witness->diagnose(
+                    diag::make_decl_objc, witness->getDescriptiveKind()));
+              }
+              fixItDiag->fixItInsert(witness->getAttributeInsertionLoc(false),
+                                     "@objc ");
             }
-          } else if (isa<VarDecl>(witness)) {
-            Optional<InFlightDiagnostic> fixItDiag = C.Diags.diagnose(
-                diagLoc,
-                isOptional ? diag::witness_non_objc_storage_optional
-                           : diag::witness_non_objc_storage,
-                /*isSubscript=*/false, witness->getName(),
-                Proto->getName());
-            if (diagLoc != witness->getLoc()) {
-              // If the main diagnostic is emitted on the conformance, we want
-              // to attach the fix-it to the note that shows where the
-              // witness is defined.
-              fixItDiag.getValue().flush();
-              fixItDiag.emplace(witness->diagnose(
-                  diag::make_decl_objc, witness->getDescriptiveKind()));
-            }
-            if (!witness->canInferObjCFromRequirement(requirement)) {
-              fixDeclarationObjCName(
-                  fixItDiag.getValue(), witness,
-                  witness->getObjCRuntimeName(),
-                  requirement->getObjCRuntimeName());
-            }
-          } else if (isa<SubscriptDecl>(witness)) {
-            Optional<InFlightDiagnostic> fixItDiag = C.Diags.diagnose(
-                diagLoc,
-                isOptional ? diag::witness_non_objc_storage_optional
-                           : diag::witness_non_objc_storage,
-                /*isSubscript=*/true, witness->getName(),
-                Proto->getName());
-            if (diagLoc != witness->getLoc()) {
-              // If the main diagnostic is emitted on the conformance, we want
-              // to attach the fix-it to the note that shows where the
-              // witness is defined.
-              fixItDiag.getValue().flush();
-              fixItDiag.emplace(witness->diagnose(
-                  diag::make_decl_objc, witness->getDescriptiveKind()));
-            }
-            fixItDiag->fixItInsert(witness->getAttributeInsertionLoc(false),
-                                   "@objc ");
-          }
 
-          // If the requirement is optional, @nonobjc suppresses the
-          // diagnostic.
-          if (isOptional) {
-            witness->diagnose(diag::req_near_match_nonobjc, false)
-                .fixItInsert(witness->getAttributeInsertionLoc(false),
-                             "@nonobjc ");
+            // If the requirement is optional, @nonobjc suppresses the
+            // diagnostic.
+            if (isOptional) {
+              witness->diagnose(diag::req_near_match_nonobjc, false)
+                  .fixItInsert(witness->getAttributeInsertionLoc(false),
+                               "@nonobjc ");
+            }
           }
 
           requirement->diagnose(diag::kind_declname_declared_here,
@@ -4819,6 +4825,41 @@ void ConformanceChecker::resolveValueWitnesses() {
     case ResolveWitnessResult::Missing:
       // Let it get diagnosed later.
       break;
+    }
+  }
+
+  // Emit a tailored diagnostic when we have witnesses to
+  // '@objc' requirements which are default implementations.
+  if (!objcRequirementsWithDefaultImpl.empty()) {
+    SourceLoc FixItLocation;
+    SourceLoc TypeLoc;
+    auto DC = Conformance->getDeclContext();
+    if (auto Extension = dyn_cast<ExtensionDecl>(DC)) {
+      FixItLocation = Extension->getBraces().Start;
+      TypeLoc = Extension->getStartLoc();
+    } else if (auto Nominal = dyn_cast<NominalTypeDecl>(DC)) {
+      FixItLocation = Nominal->getBraces().Start;
+      TypeLoc = Nominal->getStartLoc();
+    } else {
+      llvm_unreachable("Unknown adopter kind");
+    }
+
+    auto &Diags = getASTContext().Diags;
+    Diags.diagnose(TypeLoc, diag::type_does_not_conform, Conformance->getType(),
+                   Proto->getDeclaredInterfaceType());
+    Diags.diagnose(TypeLoc, diag::witness_objc_default_implementation);
+
+    if (getASTContext().LangOpts.DiagnosticsEditorMode) {
+      llvm::SmallString<128> FixItString;
+      llvm::raw_svector_ostream FixItStream(FixItString);
+      for (auto requirement : objcRequirementsWithDefaultImpl) {
+        printRequirementStub(requirement, Conformance->getDeclContext(),
+                             Conformance->getType(), TypeLoc, FixItStream);
+      }
+      if (!FixItString.empty()) {
+        Diags.diagnose(TypeLoc, diag::missing_witnesses_general)
+            .fixItInsert(FixItLocation, FixItString.str());
+      }
     }
   }
 }
