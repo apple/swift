@@ -415,7 +415,8 @@ private:
   llvm::SmallDenseMap<ModuleDecl *, SourceFile *> ClangSwiftAttrSourceFiles;
 
 public:
-  /// Mapping of already-imported declarations.
+  /// Mapping of already-imported declarations. If the import failed then it
+  /// maps to nullptr.
   llvm::DenseMap<std::pair<const clang::Decl *, Version>, Decl *> ImportedDecls;
 
   /// The set of "special" typedef-name declarations, which are
@@ -851,8 +852,9 @@ public:
 
   /// If we already imported a given decl, return the corresponding Swift decl.
   /// Otherwise, return nullptr.
-  Decl *importDeclCached(const clang::NamedDecl *ClangDecl, Version version,
-                         bool UseCanonicalDecl = true);
+  Optional<Decl *> importDeclCached(const clang::NamedDecl *ClangDecl,
+                                    Version version,
+                                    bool UseCanonicalDecl = true);
 
   Decl *importDeclImpl(const clang::NamedDecl *ClangDecl, Version version,
                        bool &TypedefIsSuperfluous, bool &HadForwardDeclaration);

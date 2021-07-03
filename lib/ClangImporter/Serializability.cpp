@@ -66,7 +66,8 @@ private:
 
   StableSerializationPath findImportedPath(const clang::NamedDecl *decl) {
     // We've almost certainly imported this declaration, look for it.
-    if (auto swiftDecl = Impl.importDeclCached(decl, Impl.CurrentVersion)) {
+    if (auto swiftDecl = Impl.importDeclCached(decl, Impl.CurrentVersion)
+                             .getValueOr(nullptr)) {
       // The serialization code doesn't allow us to cross-reference
       // typealias declarations directly.  We could fix that, but it's
       // easier to just avoid doing so and fall into the external-path code.
