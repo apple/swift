@@ -50,6 +50,9 @@ WARNING(warning_inferred_simulator_target,none,
 ERROR(error_argument_not_allowed_with, none,
       "argument '%0' is not allowed with '%1'", (StringRef, StringRef))
 
+ERROR(error_not_a_swift_file, none,
+      "not a swift file: '%0'", (StringRef))
+
 WARNING(warning_argument_not_supported_with_optimization, none,
         "argument '%0' is not supported with optimization", (StringRef))
 

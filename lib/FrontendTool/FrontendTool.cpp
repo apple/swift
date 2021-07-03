@@ -1285,19 +1285,19 @@ static bool performCompile(CompilerInstance &Instance,
       return true;
   }
 
-  assert([&]() -> bool {
-    if (FrontendOptions::shouldActionOnlyParse(Action)) {
-      // Parsing gets triggered lazily, but let's make sure we have the right
-      // input kind.
-      return llvm::all_of(
-          opts.InputsAndOutputs.getAllInputs(), [](const InputFile &IF) {
-            const auto kind = IF.getType();
-            return kind == file_types::TY_Swift ||
-                   kind == file_types::TY_SwiftModuleInterfaceFile;
-          });
+  if (FrontendOptions::shouldActionOnlyParse(Action)) {
+    // Parsing gets triggered lazily, but let's make sure we have the right
+    // input kind.
+    for (const InputFile &IF : opts.InputsAndOutputs.getAllInputs()) {
+      const auto kind = IF.getType();
+      if (kind != file_types::TY_Swift &&
+          kind != file_types::TY_SwiftModuleInterfaceFile) {
+        Instance.getDiags().diagnose(SourceLoc(), diag::error_not_a_swift_file,
+                                     IF.getFileName());
+        return true;
+      }
     }
-    return true;
-  }() && "Only supports parsing .swift files");
+  }
 
   bool hadError = performAction(Instance, ReturnValue, observer);
 
