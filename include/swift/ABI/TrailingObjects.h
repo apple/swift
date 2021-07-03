@@ -195,6 +195,30 @@ protected:
       return reinterpret_cast<NextTy *>(Ptr);
   }
 
+  using ParentType::estimatedSizeOfPartialTrailingObjects;
+
+  static size_t
+  estimatedSizeOfPartialTrailingObjects(size_t available,
+                               BaseTy *Obj,
+                               TrailingObjectsBase::OverloadToken<NextTy>) {
+    size_t previousSize = TopTrailingObj::estimatedSizeOfPartialTrailingObjects(
+      available, Obj, TrailingObjectsBase::OverloadToken<PrevTy>());
+    if (requiresRealignment()) {
+      // Pretend `previousSize` is a pointer to a trailing object of a
+      // descriptor based at address zero so we can just use the
+      // standard alignment calculations.
+      previousSize = llvm::alignAddr((const void *)previousSize,
+                                     llvm::Align(alignof(NextTy)));
+    }
+    if (previousSize <= available) {
+      auto count = TopTrailingObj::callNumTrailingObjects(
+          Obj, TrailingObjectsBase::OverloadToken<NextTy>());
+      previousSize += sizeof(NextTy) * count;
+    }
+    return previousSize;
+  }
+
+protected:
   // Helper function for TrailingObjects::additionalSizeToAlloc: this
   // function recurses to superclasses, each of which requires one
   // fewer size_t argument, and adds its own size.
@@ -222,6 +246,13 @@ protected:
 
   static constexpr size_t additionalSizeToAllocImpl(size_t SizeSoFar) {
     return SizeSoFar;
+  }
+
+  static size_t
+  estimatedSizeOfPartialTrailingObjects(size_t available,
+                                        BaseTy *Obj) {
+    return TopTrailingObj::estimatedSizeOfPartialTrailingObjects(
+      available, Obj, TrailingObjectsBase::OverloadToken<PrevTy>());
   }
 
   template <bool CheckAlignment> static void verifyTrailingObjectsAlignment() {}
@@ -292,8 +323,8 @@ public:
 #else
   // MSVC bug prevents the above from working, at least up through CL
   // 19.10.24629.
-  template <typename T>
-  using OverloadToken = typename ParentType::template OverloadToken<T>;
+  template <typename... T>
+  using OverloadToken = typename ParentType::template OverloadToken<T...>;
 #endif
 
   /// Returns a pointer to the trailing object array of the given type
@@ -315,6 +346,46 @@ public:
     // function templates can't be specialized.
     return this->getTrailingObjectsImpl(
         static_cast<BaseTy *>(this), TrailingObjectsBase::OverloadToken<T>());
+  }
+
+  /// `totalSizeOfPartialObject` returns the total size of the object to the
+  /// extent that it can be determined based on the partial object currently
+  /// available.
+  ///
+  /// This is useful when copying objects from another address space; you can't
+  /// easily query the size of the remote object directly, so instead copy
+  /// enough data to get the base class, then use this to determine if you need
+  /// to copy more.  There are two cases:
+  ///
+  /// 1. The partial data contains the full object.  In this case, the
+  ///    returned size will be less than or equal to the provided size.
+  ///
+  /// 2. The partial data is not a complete object.  In this case, the returned
+  ///    size will be an estimate that is larger than the provided size.
+  ///    Note that the returned size may be smaller or larger than the true size of the
+  ///    object.
+  ///
+  /// In short, if the return value is larger than the provided size, you should
+  /// fetch more and try again.  Note that if the returned size is larger than
+  /// the provided size, all you really know is that the current data is
+  /// insufficient.  In particular, you cannot avoid calling this method again
+  /// after you fetch more data.
+
+  // Recursively defined helpers...
+  using ParentType::estimatedSizeOfPartialTrailingObjects;
+
+  // Base case that just returns size of the base type.
+  static size_t
+  estimatedSizeOfPartialTrailingObjects(size_t available,
+                                        BaseTy *Obj,
+                                        TrailingObjectsBase::OverloadToken<BaseTy>) {
+    return sizeof(BaseTy);
+  }
+
+  static size_t
+  totalSizeOfPartialObject(uint8_t *buffer, size_t available) {
+    return ParentType::estimatedSizeOfPartialTrailingObjects(
+      available, reinterpret_cast<BaseTy *>(buffer));
   }
 
   /// Returns the size of the trailing data, if an object were

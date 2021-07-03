@@ -1454,6 +1454,12 @@ namespace {
     
     Size PayloadSizeOffset;
     const EnumImplStrategy &Strategy;
+
+    bool needsSpareBitMask() const {
+      // TODO: Fix this
+      return false;
+    }
+
     
   public:
     EnumContextDescriptorBuilder(IRGenModule &IGM, EnumDecl *Type,
@@ -1470,6 +1476,7 @@ namespace {
     void layout() {
       super::layout();
       maybeAddCanonicalMetadataPrespecializations();
+      maybeAddSpareBitMask();
     }
     
     ContextDescriptorKind getContextKind() {
@@ -1498,6 +1505,7 @@ namespace {
       TypeContextDescriptorFlags flags;
 
       setCommonFlags(flags);
+      flags.enum_setHasSpareBits(needsSpareBitMask());
       return flags.getOpaqueValue();
     }
 
@@ -1522,8 +1530,14 @@ namespace {
       B.addRelativeAddress(IGM.getAddrOfReflectionFieldDescriptor(
         getType()->getDeclaredType()->getCanonicalType()));
     }
+
+    void maybeAddSpareBitMask() {
+      if (needsSpareBitMask()) {
+        // TODO: Add spare bit mask data
+      }
+    }
   };
-  
+
   class ClassContextDescriptorBuilder
     : public TypeContextDescriptorBuilderBase<ClassContextDescriptorBuilder,
                                               ClassDecl>,
