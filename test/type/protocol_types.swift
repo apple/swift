@@ -142,4 +142,20 @@ struct BadSubscript {
 struct OuterGeneric<T> {
   func contextuallyGenericMethod() where T == HasAssoc {}
   // expected-error@-1 {{protocol 'HasAssoc' can only be used as a generic constraint because it has Self or associated type requirements}}
+
+  struct Inner {}
+}
+
+func returnsNestedType() -> OuterGeneric<HasAssoc>.Inner {}
+// expected-error@-1 {{protocol 'HasAssoc' can only be used as a generic constraint because it has Self or associated type requirements}}
+
+protocol ProtocolWithNestedTypeResult {}
+
+extension ProtocolWithNestedTypeResult {
+  func returnsNestedTypeSelf() -> OuterGeneric<Self>.Inner {}
+}
+
+func callsNestedTypeSelf(_ p: ProtocolWithNestedTypeResult) {
+  _ = p.returnsNestedTypeSelf()
+  // expected-error@-1 {{member 'returnsNestedTypeSelf' cannot be used on value of protocol type 'ProtocolWithNestedTypeResult'; use a generic constraint instead}}
 }

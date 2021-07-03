@@ -4032,7 +4032,16 @@ public:
     if (auto compound = dyn_cast<CompoundIdentTypeRepr>(T)) {
       // Only visit the last component to check, because nested typealiases in
       // existentials are okay.
-      visit(compound->getComponentRange().back());
+      visit(compound->getComponents().back());
+
+      // ... but still visit generic arguments in parent components.
+      for (auto comp : compound->getComponents().drop_back()) {
+        if (auto *genericComp = dyn_cast<GenericIdentTypeRepr>(comp)) {
+          for (auto *arg : genericComp->getGenericArgs()) {
+            visit(arg);
+          }
+        }
+      }
       return false;
     }
     // Arbitrary protocol constraints are OK on opaque types.
