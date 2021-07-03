@@ -50,6 +50,17 @@ enum : unsigned { NumPatternKindBits =
 llvm::raw_ostream &operator<<(llvm::raw_ostream &OS, PatternKind kind);
 
 /// Pattern - Base class for all patterns in Swift.
+///
+/// Patterns match a value and binds new variables to parts or all of it
+/// The patterns contain the reference to the variable declaration that is being
+/// assigned to, / or bound, in an assignment.
+/// e.g. In `let (a, _) = (1, 2)`, the pattern is the part after the `let` and
+/// before the `=`. This pattern is a TuplePattern, which contains a
+/// NamedPattern representing the variable declaration of `A` and an AnyPattern.
+/// Patterns also appear in switch cases. In this example `case .some(let foo)`,
+/// where we unwrap an optional in a switch-case, there is an
+/// EnumElementPattern matching the `.some`, a BindingPattern for the `let`,
+/// and a `NamedPattern` referencing the variable declaration of `foo`.
 class alignas(8) Pattern {
 protected:
   union { uint64_t OpaqueBits;
@@ -293,11 +304,17 @@ public:
 };
 
 /// A pattern consisting of a tuple of patterns.
+///
+/// The tuple pattern really represents parentheses in the position of a pattern
+/// around one or more other patterns. This could be another tuple pattern, or
+/// a mixed listing of the other pattern types. The other patterns are stored in
+/// a list of TuplePatternElt's.
+/// e.g. `let (a, _) = (1, 2)`, this tuple pattern contains a NamedPattern and
+/// an AnyPattern.
 class TuplePattern final : public Pattern,
     private llvm::TrailingObjects<TuplePattern, TuplePatternElt> {
   friend TrailingObjects;
   SourceLoc LPLoc, RPLoc;
-  // Bits.TuplePattern.NumElements
 
   TuplePattern(SourceLoc lp, unsigned numElements, SourceLoc rp)
       : Pattern(PatternKind::Tuple), LPLoc(lp), RPLoc(rp) {
@@ -346,6 +363,10 @@ public:
 };
 
 /// A pattern which binds a name to an arbitrary value of its type.
+///
+/// This represents the name of a single variable.
+/// e.g `var a: Int?` includes the NamedPattern `a`, as well as the TypedPattern
+/// representing `Int?`.
 class NamedPattern : public Pattern {
   VarDecl *const Var;
 
@@ -372,7 +393,8 @@ public:
 };
 
 /// A pattern which matches an arbitrary value of a type, but does not
-/// bind a name to it.  This is spelled "_".
+/// bind a name to it.  This is spelled "_". A `default:` case label will also
+/// implicitly match an AnyPattern.
 class AnyPattern : public Pattern {
   SourceLoc Loc;
 
@@ -628,7 +650,6 @@ public:
     return P->getKind() == PatternKind::OptionalSome;
   }
 };
-
 
 /// A pattern which matches a value obtained by evaluating an expression.
 /// The match will be tested using user-defined '~=' operator function lookup;
