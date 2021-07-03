@@ -7,9 +7,6 @@
 // UNSUPPORTED: use_os_stdlib
 // UNSUPPORTED: back_deployment_runtime
 
-// https://bugs.swift.org/browse/SR-14333
-// UNSUPPORTED: OS=windows-msvc
-
 class X {
   init() {
     print("X: init")
