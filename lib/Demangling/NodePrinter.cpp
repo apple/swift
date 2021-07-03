@@ -1722,9 +1722,7 @@ NodePointer NodePrinter::print(NodePointer Node, unsigned depth,
 
     unsigned lastChildIndex = Node->getNumChildren();
     auto lastChild = Node->getChild(lastChildIndex - 1);
-    bool isSerialized = false;
     if (lastChild->getKind() == Node::Kind::IsSerialized) {
-      isSerialized = true;
       --lastChildIndex;
       lastChild = Node->getChild(lastChildIndex - 1);
     }
