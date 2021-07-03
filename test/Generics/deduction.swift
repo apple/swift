@@ -106,8 +106,8 @@ func acceptUnaryFnSameRef<T>(_ f: inout (T) -> T) { }
 
 func unaryFnIntInt(_: Int) -> Int {}
 
-func unaryFnOvl(_: Int) -> Int {} // expected-note{{found this candidate}}
-func unaryFnOvl(_: Float) -> Int {} // expected-note{{found this candidate}}
+func unaryFnOvl(_: Int) -> Int {}
+func unaryFnOvl(_: Float) -> Int {}
 
 // Variable forms of the above functions
 var unaryFnIntIntVar : (Int) -> Int = unaryFnIntInt
@@ -118,8 +118,7 @@ func passOverloadSet() {
   acceptUnaryFnSame(unaryFnIntInt)
 
   // Passing an overloaded function set to a generic function
-  // FIXME: Yet more terrible diagnostics.
-  acceptUnaryFn(unaryFnOvl)  // expected-error{{ambiguous use of 'unaryFnOvl'}}
+  acceptUnaryFn(unaryFnOvl) // expected-error{{conflicting arguments to generic parameter 'T' ('Int' vs. 'Float')}}
   acceptUnaryFnSame(unaryFnOvl)
 
   // Passing a variable of function type to a generic function
@@ -369,3 +368,34 @@ func test_transitive_subtype_deduction_for_generic_params() {
     fiz(v, !=, -1) // Ok because -1 literal should be inferred as Int32
   }
 }
+
+// SR-13776
+func SR13776<E: Equatable>(_ e1: E, _ e2: E) {} 
+
+func SR1377f<C1: Collection, C2: Collection>(_ c1: C1, _ c2: C2) where C1.Element: Equatable, C2.Element: Equatable {
+    SR13776(c1.map({ $0 }), c2.map({ $0 })) // expected-error {{conflicting arguments to generic parameter 'E' ('[C1.Element]' vs. '[C2.Element]')}}
+}
+
+struct SR13776A {}
+struct SR13776B {}
+struct SR13776C: Equatable {}
+
+SR13776(SR13776A(), SR13776B()) // expected-error {{conflicting arguments to generic parameter 'E' ('SR13776A' vs. 'SR13776B')}}
+SR13776(SR13776A(), SR13776C()) // expected-error {{conflicting arguments to generic parameter 'E' ('SR13776A' vs. 'SR13776C')}}
+
+// Chooses the E == SR13776C as best solution.
+SR13776(SR13776C(), SR13776A()) // expected-error {{cannot convert value of type 'SR13776A' to expected argument type 'SR13776C'}}
+
+// Generic mismatch involving deep-equality.
+func SR13776_Test<T>(_ expression1: @autoclosure () throws -> T, 
+                     _ expression2: @autoclosure () throws -> T) where T : Equatable {}
+
+extension Collection {
+  func aCollectionExtension() -> [SubSequence] { [] }
+}
+
+let expected : [[Int]] = []
+let actual = [1, 2, 3].aCollectionExtension()
+
+SR13776_Test(expected, actual) 
+// expected-error@-1 {{conflicting arguments to generic parameter 'T' ('[[Int]]' vs. '[ArraySlice<Int>]')}}

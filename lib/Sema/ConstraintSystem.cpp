@@ -3295,6 +3295,45 @@ std::string swift::describeGenericType(ValueDecl *GP, bool includeName) {
   return OS.str().str();
 }
 
+/// Abstract the logic that decides if diagnoseConflictingGenericArguments
+/// should attempt diagnostic for argument mismatches allowing particular kinds
+/// of additional fixes e.g. Allowing possible additional requirement fixes for
+/// cases such as:
+///   func f<E: Equatable>(_ e1: E, _ e2: E) {}
+///
+///    struct A {}
+///    struct B {}
+///
+///    f(A(), B())
+/// where we have an argument mismatch involving the generic argument
+/// together with additional missing conformance fixes which can be ignored
+/// in order to diagnose the conflicting generic arguments.
+static bool
+shouldDiagnoseConflictingGenericArguments(ConstraintSystem &cs,
+                                          ArrayRef<Solution> solutions) {
+  // The kinds of fixes allowed together with mismatch ones. For now only
+  // `AddConformance`, but we can extend this with other possible kinds.
+  llvm::SmallSet<FixKind, 8> allowedAdditionalFixes;
+  allowedAdditionalFixes.insert(FixKind::AddConformance);
+
+  return llvm::all_of(solutions, [&](const Solution &solution) -> bool {
+    bool onlyAllowedAdditionalFixes = true;
+    if (!llvm::all_of(solution.Fixes, [&](const ConstraintFix *fix) -> bool {
+          if (allowedAdditionalFixes.count(fix->getKind()))
+            return true;
+
+          onlyAllowedAdditionalFixes = false;
+          return fix->getKind() == FixKind::AllowArgumentTypeMismatch ||
+                 fix->getKind() == FixKind::AllowFunctionTypeMismatch ||
+                 fix->getKind() == FixKind::AllowTupleTypeMismatch;
+        }))
+      return false;
+    // Making sure that the solution has at least one mismatch fix and not only
+    // the additional allowed.
+    return !onlyAllowedAdditionalFixes;
+  });
+}
+
 /// Special handling of conflicts associated with generic arguments.
 ///
 /// func foo<T>(_: T, _: T) {}
@@ -3307,7 +3346,17 @@ std::string swift::describeGenericType(ValueDecl *GP, bool includeName) {
 static bool diagnoseConflictingGenericArguments(ConstraintSystem &cs,
                                                 const SolutionDiff &diff,
                                                 ArrayRef<Solution> solutions) {
-  if (!diff.overloads.empty())
+  // Also attempt to detect and diagnose conflicting generic arguments across
+  // multiple solutions and overloads when all fixes are generic mismatches.
+  bool allGenericMismatch =
+      llvm::all_of(solutions, [](const Solution &solution) -> bool {
+        return llvm::all_of(
+            solution.Fixes, [](const ConstraintFix *fix) -> bool {
+              return fix->getKind() == FixKind::GenericArgumentsMismatch;
+            });
+      });
+
+  if (!(diff.overloads.empty() || allGenericMismatch))
     return false;
 
   bool noFixes = llvm::all_of(solutions, [](const Solution &solution) -> bool {
@@ -3315,17 +3364,13 @@ static bool diagnoseConflictingGenericArguments(ConstraintSystem &cs,
      return score.Data[SK_Fix] == 0 && solution.Fixes.empty();
   });
 
-  bool allMismatches =
-      llvm::all_of(solutions, [](const Solution &solution) -> bool {
-        return llvm::all_of(
-            solution.Fixes, [](const ConstraintFix *fix) -> bool {
-              return fix->getKind() == FixKind::AllowArgumentTypeMismatch ||
-                     fix->getKind() == FixKind::AllowFunctionTypeMismatch ||
-                     fix->getKind() == FixKind::AllowTupleTypeMismatch;
-            });
-      });
+  bool shouldAttemptDiagnose = false;
+  if (!allGenericMismatch) {
+    shouldAttemptDiagnose =
+        shouldDiagnoseConflictingGenericArguments(cs, solutions);
+  }
 
-  if (!noFixes && !allMismatches)
+  if (!(noFixes || allGenericMismatch || shouldAttemptDiagnose))
     return false;
 
   auto &DE = cs.getASTContext().Diags;
