@@ -65,7 +65,8 @@ ERROR(error_unknown_target,none,
       "unknown target '%0'", (StringRef))
 
 ERROR(error_framework_bridging_header,none,
-      "using bridging headers with framework targets is unsupported", ())
+      "using bridging headers with framework targets is unsupported; use "
+      "the framework umbrella header instead", ())
 ERROR(error_bridging_header_module_interface,none,
       "using bridging headers with module interfaces is unsupported",
       ())
