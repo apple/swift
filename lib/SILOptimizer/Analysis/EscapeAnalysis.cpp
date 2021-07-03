@@ -61,6 +61,10 @@ EscapeAnalysis::findRecursivePointerKind(SILType Ty,
   if (Ty.getASTType() == F.getModule().getASTContext().TheRawPointerType)
     return EscapeAnalysis::AnyPointer;
 
+  // Metatypes are not pointers for the sake of escape analysis.
+  if (Ty.is<AnyMetatypeType>())
+    return NoPointer;
+
   if (Ty.hasReferenceSemantics())
     return EscapeAnalysis::ReferenceOnly;
 

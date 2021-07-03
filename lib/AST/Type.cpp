@@ -161,8 +161,9 @@ bool TypeBase::isAnyClassReferenceType() {
   return getCanonicalType().isAnyClassReferenceType();
 }
 
-bool CanType::isReferenceTypeImpl(CanType type, const GenericSignatureImpl *sig,
-                                  bool functionsCount) {
+bool CanType::hasReferenceSemanticsImpl(CanType type,
+                                        const GenericSignatureImpl *sig,
+                                        bool onlyInstanceTypes) {
   switch (type->getKind()) {
 #define SUGARED_TYPE(id, parent) case TypeKind::id:
 #define TYPE(id, parent)
@@ -179,8 +180,8 @@ bool CanType::isReferenceTypeImpl(CanType type, const GenericSignatureImpl *sig,
 
   // For Self types, recur on the underlying type.
   case TypeKind::DynamicSelf:
-    return isReferenceTypeImpl(cast<DynamicSelfType>(type).getSelfType(),
-                               sig, functionsCount);
+    return hasReferenceSemanticsImpl(cast<DynamicSelfType>(type).getSelfType(),
+                                     sig, onlyInstanceTypes);
 
   // Archetypes and existentials are only class references if class-bounded.
   case TypeKind::PrimaryArchetype:
@@ -200,7 +201,9 @@ bool CanType::isReferenceTypeImpl(CanType type, const GenericSignatureImpl *sig,
   case TypeKind::Function:
   case TypeKind::GenericFunction:
   case TypeKind::SILFunction:
-    return functionsCount;
+  case TypeKind::Metatype:
+  case TypeKind::ExistentialMetatype:
+    return !onlyInstanceTypes;
 
   // Nothing else is statically just a class reference.
   case TypeKind::SILBlockStorage:
@@ -219,8 +222,6 @@ bool CanType::isReferenceTypeImpl(CanType type, const GenericSignatureImpl *sig,
   case TypeKind::Tuple:
   case TypeKind::Enum:
   case TypeKind::Struct:
-  case TypeKind::Metatype:
-  case TypeKind::ExistentialMetatype:
   case TypeKind::Module:
   case TypeKind::LValue:
   case TypeKind::InOut:
