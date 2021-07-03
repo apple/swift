@@ -848,10 +848,9 @@ static void embedBitcode(llvm::Module *M, const IRGenOptions &Opts)
       reinterpret_cast<const uint8_t *>(OS.str().data()), OS.str().size());
   llvm::Constant *ModuleConstant =
     llvm::ConstantDataArray::get(M->getContext(), ModuleData);
-  llvm::GlobalVariable *GV = new llvm::GlobalVariable(*M,
-                                       ModuleConstant->getType(), true,
-                                       llvm::GlobalValue::PrivateLinkage,
-                                       ModuleConstant);
+  llvm::GlobalVariable *GV = new llvm::GlobalVariable(
+      *M, ModuleConstant->getType(), true, llvm::GlobalValue::PrivateLinkage,
+      ModuleConstant, ".swiftmoduleconstant");
   UsedArray.push_back(
     llvm::ConstantExpr::getPointerBitCastOrAddrSpaceCast(GV, UsedElementType));
   GV->setSection("__LLVM,__bitcode");
@@ -871,8 +870,8 @@ static void embedBitcode(llvm::Module *M, const IRGenOptions &Opts)
   llvm::Constant *CmdConstant =
     llvm::ConstantDataArray::get(M->getContext(), CmdData);
   GV = new llvm::GlobalVariable(*M, CmdConstant->getType(), true,
-                                llvm::GlobalValue::PrivateLinkage,
-                                CmdConstant);
+                                llvm::GlobalValue::PrivateLinkage, CmdConstant,
+                                ".cmdconstant");
   GV->setSection("__LLVM,__swift_cmdline");
   UsedArray.push_back(
     llvm::ConstantExpr::getPointerBitCastOrAddrSpaceCast(GV, UsedElementType));

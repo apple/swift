@@ -571,7 +571,11 @@ emitGlobalList(IRGenModule &IGM, ArrayRef<llvm::WeakTrackingVH> handles,
                                       init, name);
   var->setSection(section);
   var->setAlignment(llvm::MaybeAlign(alignment.getValue()));
-  disableAddressSanitizer(IGM, var);
+
+  // Do not apply disableAddressSanitizer to @llvm.used and @llvm.compiler.used
+  // because that confuses ThinLTO and crashes when merging these lists.
+  if (name != "llvm.used" && name != "llvm.compiler.used")
+    disableAddressSanitizer(IGM, var);
 
   // Mark the variable as used if doesn't have external linkage.
   // (Note that we'd specifically like to not put @llvm.used in itself.)
@@ -4899,7 +4903,8 @@ llvm::Constant *IRGenModule::getAddrOfGlobalString(StringRef data,
     return entry.second;
   }
 
-  entry = createStringConstant(data, willBeRelativelyAddressed);
+  entry = createStringConstant(data, willBeRelativelyAddressed,
+                               "" /*no section*/, ".str");
   return entry.second;
 }
 
@@ -4930,7 +4935,7 @@ llvm::Constant *IRGenModule::getAddrOfGlobalUTF16String(StringRef utf8) {
   auto init = llvm::ConstantDataArray::get(getLLVMContext(), utf16);
   auto global = new llvm::GlobalVariable(Module, init->getType(), true,
                                          llvm::GlobalValue::PrivateLinkage,
-                                         init);
+                                         init, ".str");
   global->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
 
   // Drill down to make an i16*.
