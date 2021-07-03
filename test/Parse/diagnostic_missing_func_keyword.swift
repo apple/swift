@@ -57,7 +57,7 @@ class C1 {
 }
 
 class C2 {
-  class classProperty: Int { 0 } // expected-error {{inheritance from non-protocol, non-class type 'Int'}}
+  class classProperty: Int { 0 } // expected-error {{class type cannot inherit from non-protocol, non-class type 'Int'}}
                                  // expected-note @-1 {{in declaration of 'classProperty'}}
                                  // expected-error @-2 {{expected declaration}}
 }

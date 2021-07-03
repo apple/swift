@@ -236,10 +236,19 @@ static void checkInheritanceClause(
       // AnyObject is not allowed except on protocols.
       if (layout.hasExplicitAnyObject &&
           !isa<ProtocolDecl>(decl)) {
-        decl->diagnose(canHaveSuperclass
-                       ? diag::inheritance_from_non_protocol_or_class
-                       : diag::inheritance_from_non_protocol,
-                       inheritedTy);
+        // Check if the inherited type is exclusively AnyObject
+        // If not, we can be sure of the composition of Protocol(s) with
+        // AnyObject
+        if (!layout.isAnyObject()) {
+          decl->diagnose(diag::composition_of_protocol_and_anyobject,
+                         typeDecl->getName(), inheritedTy);
+        } else {
+          decl->diagnose(canHaveSuperclass
+                             ? diag::inheritance_from_non_protocol_or_class
+                             : diag::inheritance_from_non_protocol,
+                         decl->getDescriptiveKind(), inheritedTy);
+        }
+
         continue;
       }
 
@@ -343,6 +352,7 @@ static void checkInheritanceClause(
     decl->diagnose(canHaveSuperclass
                    ? diag::inheritance_from_non_protocol_or_class
                    : diag::inheritance_from_non_protocol,
+                   decl->getDescriptiveKind(),
                    inheritedTy);
     // FIXME: Note pointing to the declaration 'inheritedTy' references?
   }

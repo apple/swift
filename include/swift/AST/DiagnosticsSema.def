@@ -2701,9 +2701,9 @@ WARNING(anyobject_class_inheritance_deprecated,Deprecation,
 ERROR(multiple_inheritance,none,
   "multiple inheritance from classes %0 and %1", (Type, Type))
 ERROR(inheritance_from_non_protocol_or_class,none,
-  "inheritance from non-protocol, non-class type %0", (Type))
+  "%0 type cannot inherit from non-protocol, non-class type %1", (DescriptiveDeclKind, Type))
 ERROR(inheritance_from_non_protocol,none,
-  "inheritance from non-protocol type %0", (Type))
+  "%0 type cannot inherit from non-protocol type %1", (DescriptiveDeclKind, Type))
 ERROR(superclass_not_first,none,
   "superclass %0 must appear first in the inheritance clause", (Type))
 ERROR(superclass_not_open,none,
@@ -2730,6 +2730,11 @@ ERROR(inheritance_from_cf_class,none,
 ERROR(inheritance_from_objc_runtime_visible_class,none,
       "cannot inherit from class %0 because it is only visible via the "
       "Objective-C runtime", (Identifier))
+ERROR(composition_of_protocol_and_anyobject,none,
+      "non-protocol type %0 cannot conform to composition type %1; "
+      "%0 must be a protocol type", 
+      (Identifier, Type))
+      
 
 // Enums
 ERROR(enum_case_access,none,

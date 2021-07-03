@@ -30,13 +30,13 @@ class D3 : Any, A { } // expected-error{{superclass 'A' must appear first in the
 class D4 : P & P1, A { } // expected-error{{superclass 'A' must appear first in the inheritance clause}}{{18-21=}}{{12-12=A, }}
 
 // Struct inheriting a class
-struct S : A { } // expected-error{{inheritance from non-protocol type 'A'}}
+struct S : A { } // expected-error{{struct type cannot inherit from non-protocol type 'A'}}
 
 // Protocol inheriting a class
 protocol Q : A { }
 
 // Extension inheriting a class
-extension C : A { } // expected-error{{inheritance from non-protocol type 'A'}}
+extension C : A { } // expected-error{{extension type cannot inherit from non-protocol type 'A'}}
 
 // Keywords in inheritance clauses
 struct S2 : struct { } // expected-error{{expected type}}
@@ -56,7 +56,7 @@ class GenericBase<T> {}
 
 class GenericSub<T> : GenericBase<T> {} // okay
 
-class InheritGenericParam<T> : T {} // expected-error {{inheritance from non-protocol, non-class type 'T'}}
+class InheritGenericParam<T> : T {} // expected-error {{generic class type cannot inherit from non-protocol, non-class type 'T'}}
 class InheritBody : T { // expected-error {{cannot find type 'T' in scope}}
   typealias T = A
 }

@@ -3,7 +3,7 @@
 class Base {}
 
 @objc protocol Protocol1 : Base {}
-// expected-error@-1 {{inheritance from non-protocol type 'Base'}}
+// expected-error@-1 {{protocol type cannot inherit from non-protocol type 'Base'}}
 
 @objc protocol OtherProtocol {}
 
