@@ -627,6 +627,9 @@ ERROR(sil_basicblock_redefinition,none,
       "redefinition of basic block %0", (Identifier))
 ERROR(sil_basicblock_arg_rparen,none,
       "expected ')' in basic block argument list", ())
+// A backup error in case we are returned that we have an error but a diagnostic
+// was not emitted.
+ERROR(sil_failed_parse_basicblock, none, "Failed to parse SIL basic block", ())
 
 // SIL Functions
 ERROR(expected_sil_function_name,none,
