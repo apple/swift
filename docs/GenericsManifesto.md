@@ -275,7 +275,7 @@ See the "Existentials" section, particularly "Generalized existentials", for mor
 
 ### Generalized supertype constraints
 
-Currently, supertype constraints may only be specified using a concrete class or protocol type.  This prevents us from abstracting over the supertype.
+Currently, supertype constraints may only be specified using a concrete class. This prevents us from abstracting over the value supertype, including existential types.
 
 ```Swift
 protocol P {
@@ -284,9 +284,21 @@ protocol P {
 }
 ```
 
-In the above example `Base` may be any type.  `Derived` may be the same as `Base` or may be _any_ subtype of `Base`.  All subtype relationships supported by Swift should be supported in this context including (but not limited to) classes and subclasses, existentials and conforming concrete types or refining existentials, `T?` and  `T`, `((Base) -> Void)` and `((Derived) -> Void)`, etc.
+In the example above `Base` may be any type. `Derived` may be the same as `Base` or may be _any_ subtype of `Base`.  All subtype relationships supported by Swift should be supported in this context including (but not limited to) classes and subclasses, existentials and conforming concrete types or refining existentials, `T?` and  `T`, `((Base) -> Void)` and `((Derived) -> Void)`, etc.
 
 Generalized supertype constraints would be accepted in all syntactic locations where generic constraints are accepted.
+
+There is also a protocol conformance constraint, which is a different kind of constraint. But these two constraints are often confused with each other because both use the `:` symbol and protocols can be used as types.
+
+Currently it is not possible to express existential supertype constraint. Since `:` symbol is overloaded to represent both supertype and protocol conformance constraints, disambiguating between two requires syntax to disambiguate between protocol and its existential. Assuming that syntax is `any P` for existential:
+
+```Swift
+protocol P {}
+struct G1<T: P> {} // Protocol conformance constraint
+struct G2<T: any P> // Existential supertype constraint
+G1<P> /* == G1<any P> */ // Error, 'any P' does not conform to P
+G2<P> /* == G2<any P> */ // OK, 'any P' is a subtype of `any P`.
+```
 
 ### Allowing subclasses to override requirements satisfied by defaults (*)
 
