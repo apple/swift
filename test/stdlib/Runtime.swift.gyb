@@ -119,10 +119,10 @@ struct Struct3ConformsToP2 : CustomStringConvertible, Q1 {
     // Don't rely on string interpolation, it uses the casts that we are trying
     // to test.
     var result = ""
-    result += _uint64ToString(a) + " "
-    result += _uint64ToString(b) + " "
-    result += _uint64ToString(c) + " "
-    result += _uint64ToString(d)
+    result += a.description + " "
+    result += b.description + " "
+    result += c.description + " "
+    result += d.description
     return result
   }
 }
@@ -143,10 +143,10 @@ struct Struct4ConformsToP2<T : CustomStringConvertible> : CustomStringConvertibl
     // Don't rely on string interpolation, it uses the casts that we are trying
     // to test.
     var result = value.description + " "
-    result += _uint64ToString(e) + " "
-    result += _uint64ToString(f) + " "
-    result += _uint64ToString(g) + " "
-    result += _uint64ToString(h)
+    result += e.description + " "
+    result += f.description + " "
+    result += g.description + " "
+    result += h.description
     return result
   }
 }

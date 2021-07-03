@@ -408,7 +408,7 @@ extension UnsafeRawPointer: _CustomPlaygroundQuickLookable {
       bitPattern: Int64(Int(Builtin.ptrtoint_Word(_rawValue))))
     return ptrValue == 0
     ? "UnsafeRawPointer(nil)"
-    : "UnsafeRawPointer(0x\(_uint64ToString(ptrValue, radix:16, uppercase:true)))"
+    : "UnsafeRawPointer(0x\(ptrValue._description(radix: 16, uppercase: true)))"
   }
 
   @available(swift, deprecated: 4.2/*, obsoleted: 5.0*/, message: "UnsafeRawPointer.customPlaygroundQuickLook will be removed in a future Swift version")
@@ -423,7 +423,7 @@ extension UnsafeMutableRawPointer: _CustomPlaygroundQuickLookable {
       bitPattern: Int64(Int(Builtin.ptrtoint_Word(_rawValue))))
     return ptrValue == 0
     ? "UnsafeMutableRawPointer(nil)"
-    : "UnsafeMutableRawPointer(0x\(_uint64ToString(ptrValue, radix:16, uppercase:true)))"
+    : "UnsafeMutableRawPointer(0x\(ptrValue._description(radix: 16, uppercase: true)))"
   }
 
   @available(swift, deprecated: 4.2/*, obsoleted: 5.0*/, message: "UnsafeMutableRawPointer.customPlaygroundQuickLook will be removed in a future Swift version")
@@ -437,7 +437,7 @@ extension UnsafePointer: _CustomPlaygroundQuickLookable {
     let ptrValue = UInt64(bitPattern: Int64(Int(Builtin.ptrtoint_Word(_rawValue))))
     return ptrValue == 0 
     ? "UnsafePointer(nil)" 
-    : "UnsafePointer(0x\(_uint64ToString(ptrValue, radix:16, uppercase:true)))"
+    : "UnsafePointer(0x\(ptrValue._description(radix: 16, uppercase: true)))"
   }
 
   @available(swift, deprecated: 4.2/*, obsoleted: 5.0*/, message: "UnsafePointer.customPlaygroundQuickLook will be removed in a future Swift version")
@@ -451,7 +451,7 @@ extension UnsafeMutablePointer: _CustomPlaygroundQuickLookable {
     let ptrValue = UInt64(bitPattern: Int64(Int(Builtin.ptrtoint_Word(_rawValue))))
     return ptrValue == 0 
     ? "UnsafeMutablePointer(nil)" 
-    : "UnsafeMutablePointer(0x\(_uint64ToString(ptrValue, radix:16, uppercase:true)))"
+    : "UnsafeMutablePointer(0x\(ptrValue._description(radix: 16, uppercase: true)))"
   }
 
   @available(swift, deprecated: 4.2/*, obsoleted: 5.0*/, message: "UnsafeMutablePointer.customPlaygroundQuickLook will be removed in a future Swift version")

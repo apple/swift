@@ -1493,69 +1493,191 @@ extension BinaryInteger {
 //===--- CustomStringConvertible conformance ------------------------------===//
 //===----------------------------------------------------------------------===//
 
+@_alwaysEmitIntoClient
+@inline(__always)
+internal func _overestimatedBufferCapacity<T: BinaryInteger>(
+  _ value: T, radix: Int
+) -> Int {
+  assert(radix >= 2 && radix <= 36)
+  let bitWidth = value.bitWidth
+  // We have to *overestimate* the buffer capacity required, and we'll do so by
+  // finding the nearest power-of-two base that's equal to or less than `radix`.
+  //
+  // This function could be optimized by looking to the *value* rather than the
+  // value's bit width, but consider that this may involve multiple
+  // generic heterogeneous comparisons.
+  let divisor = Int.bitWidth &- radix.leadingZeroBitCount &- 1
+  let result = (bitWidth &- 1) / divisor &+ 1
+  return T.isSigned ? result &+ 1 : result
+}
+
+@_alwaysEmitIntoClient
+@inline(__always)
+internal func _moveInitializedBytesFromEnd(
+  _ buffer: UnsafeMutableBufferPointer<UInt8>,
+  initializedCount: Int
+) {
+  let count = buffer.count
+  let unusedCapacity = count &- initializedCount
+  guard unusedCapacity > 0 else { return }
+  // The last `initializedCount` bytes of the buffer have been initialized, but
+  // we need the first `initializedCount` bytes of the buffer to be initialized
+  // instead, so we move the initialized bytes if necessary.
+  _internalInvariant(buffer.baseAddress != nil)
+  let ptr1 = buffer.baseAddress!
+  ptr1.moveInitialize(from: ptr1 + unusedCapacity, count: initializedCount)
+  // Work around a `_SmallString` bug.
+  let ptr2 = ptr1 + initializedCount
+  ptr2.initialize(repeating: 0, count: unusedCapacity)
+  ptr2.deinitialize(count: unusedCapacity)
+}
+
+@_alwaysEmitIntoClient
+@inline(__always)
+internal func _convertInteger<T: BinaryInteger>(
+  _ buffer: UnsafeMutableBufferPointer<UInt8>, _ value: T,
+  radix: Int, uppercase: Bool
+) -> /* initializedCount: */ Int {
+  var initializedCount = _convertUnsignedInteger(
+    buffer, value.magnitude, radix: radix, uppercase: uppercase)
+  if T.isSigned && value < (0 as T) {
+    initializedCount += 1
+    buffer[buffer.count &- initializedCount] = 45 /* "-" */
+  }
+  return initializedCount
+}
+
+@_alwaysEmitIntoClient
+@inline(__always)
+internal func _convertUnsignedInteger<T: BinaryInteger>(
+  _ buffer: UnsafeMutableBufferPointer<UInt8>, _ value: T,
+  radix: Int, uppercase: Bool
+) -> /* initializedCount: */ Int {
+  if value == (0 as T) {
+    buffer[buffer.count &- 1] = 48 /* "0" */
+    return 1
+  }
+  if value.bitWidth <= 64 {
+    return _convertNonzeroUInt64(
+      buffer, UInt64(truncatingIfNeeded: value),
+      radix: radix, uppercase: uppercase)
+  }
+  return _convertNonzeroUnsignedInteger(
+    buffer, value, radix: radix, uppercase: uppercase)
+}
+
+@_alwaysEmitIntoClient
+@inline(__always)
+internal func _convertNonzeroUInt64(
+  _ buffer: UnsafeMutableBufferPointer<UInt8>, _ value: UInt64,
+  radix: Int, uppercase: Bool
+) -> /* initializedCount: */ Int {
+  switch radix {
+  case 10:
+    return _convertNonzeroUInt64ToDecimal(buffer, value)
+  case 16:
+    return _convertNonzeroUInt64ToHexadecimal(
+      buffer, value, uppercase: uppercase)
+  default:
+    return _convertNonzeroUnsignedInteger(
+      buffer, value, radix: radix, uppercase: uppercase)
+  }
+}
+
+@_alwaysEmitIntoClient
+@inline(__always)
+internal func _convertNonzeroUInt64ToDecimal(
+  _ buffer: UnsafeMutableBufferPointer<UInt8>, _ value: UInt64
+) -> /* initializedCount: */ Int {
+  var value = value
+  var i = buffer.count
+  while value > 0 {
+    i -= 1
+    let digit: UInt64
+    (value, digit) = value.quotientAndRemainder(dividingBy: 10)
+    buffer[i] = 48 /* "0" */ &+ UInt8(truncatingIfNeeded: digit)
+  }
+  return buffer.count &- i
+}
+
+@_alwaysEmitIntoClient
+@inline(__always)
+internal func _convertNonzeroUInt64ToHexadecimal(
+  _ buffer: UnsafeMutableBufferPointer<UInt8>, _ value: UInt64,
+  uppercase: Bool
+) -> /* initializedCount: */ Int {
+  var value = value
+  var i = buffer.count
+  if uppercase {
+    while value > 0 {
+      i -= 1
+      let digit = value & 15
+      value &>>= 4
+      buffer[i] = digit < 10
+        ? 48 /* "0" */ &+ UInt8(truncatingIfNeeded: digit)
+        : 65 /* "A" */ &+ (UInt8(truncatingIfNeeded: digit) &- 10)
+    }
+  } else {
+    while value > 0 {
+      i -= 1
+      let digit = value & 15
+      value &>>= 4
+      buffer[i] = digit < 10
+        ? 48 /* "0" */ &+ UInt8(truncatingIfNeeded: digit)
+        : 97 /* "a" */ &+ (UInt8(truncatingIfNeeded: digit) &- 10)
+    }
+  }
+  return buffer.count &- i
+}
+
+@_alwaysEmitIntoClient
+@_specialize(where T == UInt64)
+internal func _convertNonzeroUnsignedInteger<T: BinaryInteger>(
+  _ buffer: UnsafeMutableBufferPointer<UInt8>, _ value: T,
+  radix: Int, uppercase: Bool
+) -> /* initializedCount: */ Int {
+  _internalInvariant(radix >= 2 && radix <= 36)
+  let radix = T(radix)
+  var value = value
+  var i = buffer.count
+  while value > (0 as T) {
+    i -= 1
+    let digit: T
+    (value, digit) = value.quotientAndRemainder(dividingBy: radix)
+    if digit < 10 {
+      buffer[i] = 48 /* "0" */ &+ UInt8(truncatingIfNeeded: digit)
+    } else if uppercase {
+      buffer[i] = 65 /* "A" */ &+ (UInt8(truncatingIfNeeded: digit) &- 10)
+    } else {
+      buffer[i] = 97 /* "a" */ &+ (UInt8(truncatingIfNeeded: digit) &- 10)
+    }
+  }
+  return buffer.count &- i
+}
+
 extension BinaryInteger {
+  @_alwaysEmitIntoClient
+  @inline(__always)
   internal func _description(radix: Int, uppercase: Bool) -> String {
     _precondition(2...36 ~= radix, "Radix must be between 2 and 36")
-
-    if bitWidth <= 64 {
-      let radix_ = Int64(radix)
-      return Self.isSigned
-        ? _int64ToString(
-          Int64(truncatingIfNeeded: self), radix: radix_, uppercase: uppercase)
-        : _uint64ToString(
-          UInt64(truncatingIfNeeded: self), radix: radix_, uppercase: uppercase)
-    }
-
-    if self == (0 as Self) { return "0" }
-
-    // Bit shifting can be faster than division when `radix` is a power of two
-    // (although not necessarily the case for builtin types).
-    let isRadixPowerOfTwo = radix.nonzeroBitCount == 1
-    let radix_ = Magnitude(radix)
-    func _quotientAndRemainder(_ value: Magnitude) -> (Magnitude, Magnitude) {
-      return isRadixPowerOfTwo
-        ? (value >> radix.trailingZeroBitCount, value & (radix_ - 1))
-        : value.quotientAndRemainder(dividingBy: radix_)
-    }
-
-    let hasLetters = radix > 10
-    func _ascii(_ digit: UInt8) -> UInt8 {
-      let base: UInt8
-      if !hasLetters || digit < 10 {
-        base = UInt8(("0" as Unicode.Scalar).value)
-      } else if uppercase {
-        base = UInt8(("A" as Unicode.Scalar).value) &- 10
-      } else {
-        base = UInt8(("a" as Unicode.Scalar).value) &- 10
+    let capacity = _overestimatedBufferCapacity(self, radix: radix)
+    if #available(macOS 10.16, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
+      return String(unsafeUninitializedCapacity: capacity) {
+        let i = _convertInteger($0, self, radix: radix, uppercase: uppercase)
+        _moveInitializedBytesFromEnd($0, initializedCount: i)
+        return i
       }
-      return base &+ digit
     }
-
-    let isNegative = Self.isSigned && self < (0 as Self)
-    var value = magnitude
-
-    // TODO(FIXME JIRA): All current stdlib types fit in small. Use a stack
-    // buffer instead of an array on the heap.
-
-    var result: [UInt8] = []
-    while value != 0 {
-      let (quotient, remainder) = _quotientAndRemainder(value)
-      result.append(_ascii(UInt8(truncatingIfNeeded: remainder)))
-      value = quotient
-    }
-
-    if isNegative {
-      result.append(UInt8(("-" as Unicode.Scalar).value))
-    }
-
-    result.reverse()
-    return result.withUnsafeBufferPointer {
-      return String._fromASCII($0)
-    }
+    let buffer =
+      UnsafeMutableBufferPointer<UInt8>.allocate(capacity: capacity)
+    defer { buffer.deallocate() }
+    let i = _convertInteger(buffer, self, radix: radix, uppercase: uppercase)
+    return String._fromASCII(UnsafeBufferPointer(rebasing: buffer.suffix(i)))
   }
 
   /// A textual representation of this value.
   @_semantics("binaryInteger.description")
+  @inlinable
   public var description: String {
     return _description(radix: 10, uppercase: false)
   }

@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift.org open source project
 //
-// Copyright (c) 2014 - 2019 Apple Inc. and the Swift project authors
+// Copyright (c) 2014 - 2021 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -207,92 +207,6 @@ internal struct _Buffer32 {
   }
 }
 
-/// A 72 byte buffer.
-internal struct _Buffer72 {
-  internal init() {}
-
-  internal var _x0: UInt8 = 0
-  internal var _x1: UInt8 = 0
-  internal var _x2: UInt8 = 0
-  internal var _x3: UInt8 = 0
-  internal var _x4: UInt8 = 0
-  internal var _x5: UInt8 = 0
-  internal var _x6: UInt8 = 0
-  internal var _x7: UInt8 = 0
-  internal var _x8: UInt8 = 0
-  internal var _x9: UInt8 = 0
-  internal var _x10: UInt8 = 0
-  internal var _x11: UInt8 = 0
-  internal var _x12: UInt8 = 0
-  internal var _x13: UInt8 = 0
-  internal var _x14: UInt8 = 0
-  internal var _x15: UInt8 = 0
-  internal var _x16: UInt8 = 0
-  internal var _x17: UInt8 = 0
-  internal var _x18: UInt8 = 0
-  internal var _x19: UInt8 = 0
-  internal var _x20: UInt8 = 0
-  internal var _x21: UInt8 = 0
-  internal var _x22: UInt8 = 0
-  internal var _x23: UInt8 = 0
-  internal var _x24: UInt8 = 0
-  internal var _x25: UInt8 = 0
-  internal var _x26: UInt8 = 0
-  internal var _x27: UInt8 = 0
-  internal var _x28: UInt8 = 0
-  internal var _x29: UInt8 = 0
-  internal var _x30: UInt8 = 0
-  internal var _x31: UInt8 = 0
-  internal var _x32: UInt8 = 0
-  internal var _x33: UInt8 = 0
-  internal var _x34: UInt8 = 0
-  internal var _x35: UInt8 = 0
-  internal var _x36: UInt8 = 0
-  internal var _x37: UInt8 = 0
-  internal var _x38: UInt8 = 0
-  internal var _x39: UInt8 = 0
-  internal var _x40: UInt8 = 0
-  internal var _x41: UInt8 = 0
-  internal var _x42: UInt8 = 0
-  internal var _x43: UInt8 = 0
-  internal var _x44: UInt8 = 0
-  internal var _x45: UInt8 = 0
-  internal var _x46: UInt8 = 0
-  internal var _x47: UInt8 = 0
-  internal var _x48: UInt8 = 0
-  internal var _x49: UInt8 = 0
-  internal var _x50: UInt8 = 0
-  internal var _x51: UInt8 = 0
-  internal var _x52: UInt8 = 0
-  internal var _x53: UInt8 = 0
-  internal var _x54: UInt8 = 0
-  internal var _x55: UInt8 = 0
-  internal var _x56: UInt8 = 0
-  internal var _x57: UInt8 = 0
-  internal var _x58: UInt8 = 0
-  internal var _x59: UInt8 = 0
-  internal var _x60: UInt8 = 0
-  internal var _x61: UInt8 = 0
-  internal var _x62: UInt8 = 0
-  internal var _x63: UInt8 = 0
-  internal var _x64: UInt8 = 0
-  internal var _x65: UInt8 = 0
-  internal var _x66: UInt8 = 0
-  internal var _x67: UInt8 = 0
-  internal var _x68: UInt8 = 0
-  internal var _x69: UInt8 = 0
-  internal var _x70: UInt8 = 0
-  internal var _x71: UInt8 = 0
-
-  internal mutating func withBytes<Result>(
-    _ body: (UnsafeMutablePointer<UInt8>) throws -> Result
-  ) rethrows -> Result {
-    return try withUnsafeMutablePointer(to: &self) {
-      try body(UnsafeMutableRawPointer($0).assumingMemoryBound(to: UInt8.self))
-    }
-  }
-}
-
 #if !((os(macOS) || targetEnvironment(macCatalyst)) && arch(x86_64))
 // Note that this takes a Float32 argument instead of Float16, because clang
 // doesn't have _Float16 on all platforms yet.
@@ -366,9 +280,7 @@ internal func _float64ToString(
   return (buffer, length)
 }
 
-
 #if !(os(Windows) || os(Android)) && (arch(i386) || arch(x86_64))
-
 // Returns a UInt64, but that value is the length of the string, so it's
 // guaranteed to fit into an Int. This is part of the ABI, so we can't
 // trivially change it to Int. Callers can safely convert the result
@@ -394,6 +306,20 @@ internal func _float80ToString(
 }
 #endif
 
+@inlinable
+internal func _rawPointerToString(_ value: Builtin.RawPointer) -> String {
+  var result = String(
+    UInt64(UInt(bitPattern: UnsafeRawPointer(value))),
+    radix: 16,
+    uppercase: false)
+  let count = 2 * MemoryLayout<UnsafeRawPointer>.size - result.utf8.count
+  return "0x" + String(repeating: "0", count: count) + result
+}
+
+//===----------------------------------------------------------------------===//
+// Old entry points preserved for ABI compatibility.
+//===----------------------------------------------------------------------===//
+
 // Returns a UInt64, but that value is the length of the string, so it's
 // guaranteed to fit into an Int. This is part of the ABI, so we can't
 // trivially change it to Int. Callers can safely convert the result
@@ -406,30 +332,6 @@ internal func _int64ToStringImpl(
   _ radix: Int64,
   _ uppercase: Bool
 ) -> UInt64
-
-internal func _int64ToString(
-  _ value: Int64,
-  radix: Int64 = 10,
-  uppercase: Bool = false
-) -> String {
-  if radix >= 10 {
-    var buffer = _Buffer32()
-    return buffer.withBytes { (bufferPtr) in
-      let actualLength = _int64ToStringImpl(bufferPtr, 32, value, radix, uppercase)
-      return String._fromASCII(UnsafeBufferPointer(
-        start: bufferPtr, count: Int(truncatingIfNeeded: actualLength)
-      ))
-    }
-  } else {
-    var buffer = _Buffer72()
-    return buffer.withBytes { (bufferPtr) in
-      let actualLength = _int64ToStringImpl(bufferPtr, 72, value, radix, uppercase)
-      return String._fromASCII(UnsafeBufferPointer(
-        start: bufferPtr, count: Int(truncatingIfNeeded: actualLength)
-      ))
-    }
-  }
-}
 
 // Returns a UInt64, but that value is the length of the string, so it's
 // guaranteed to fit into an Int. This is part of the ABI, so we can't
@@ -444,44 +346,21 @@ internal func _uint64ToStringImpl(
   _ uppercase: Bool
 ) -> UInt64
 
+@available(*, deprecated, message: "Use 'String(_:radix:uppercase:)' instead")
 public // @testable
 func _uint64ToString(
-    _ value: UInt64,
-    radix: Int64 = 10,
-    uppercase: Bool = false
+  _ value: UInt64,
+  radix: Int64 = 10,
+  uppercase: Bool = false
 ) -> String {
-  if radix >= 10 {
-    var buffer = _Buffer32()
-    return buffer.withBytes { (bufferPtr) in
-      let actualLength = _uint64ToStringImpl(bufferPtr, 32, value, radix, uppercase)
-      return String._fromASCII(UnsafeBufferPointer(
-        start: bufferPtr, count: Int(truncatingIfNeeded: actualLength)
-      ))
-    }
-  } else {
-    var buffer = _Buffer72()
-    return buffer.withBytes { (bufferPtr) in
-      let actualLength = _uint64ToStringImpl(bufferPtr, 72, value, radix, uppercase)
-      return String._fromASCII(UnsafeBufferPointer(
-        start: bufferPtr, count: Int(truncatingIfNeeded: actualLength)
-      ))
-    }
-  }
+  return value._description(
+    radix: Int(truncatingIfNeeded: radix),
+    uppercase: uppercase)
 }
 
-@inlinable
-internal func _rawPointerToString(_ value: Builtin.RawPointer) -> String {
-  var result = _uint64ToString(
-    UInt64(
-      UInt(bitPattern: UnsafeRawPointer(value))),
-      radix: 16,
-      uppercase: false
-    )
-  for _ in 0..<(2 * MemoryLayout<UnsafeRawPointer>.size - result.utf16.count) {
-    result = "0" + result
-  }
-  return "0x" + result
-}
+//===----------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
 
 #if _runtime(_ObjC)
 // At runtime, these classes are derived from `__SwiftNativeNSXXXBase`,
