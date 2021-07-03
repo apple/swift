@@ -1,0 +1,755 @@
+#!/usr/bin/env python
+
+# RUN: %empty-directory(%t)
+
+# Note: The --variant option simply provides a textual token that is added to
+# the file and test suite names to help make sense of test failures.
+
+# RUN: %{python} %s --dir %t --variant Onone_Swift5 --generate
+# RUN: %{python} %s --dir %t --variant Onone_Swift5 --compile -- %target-build-swift -Onone -swift-version 5
+# RUN: %{python} %s --dir %t --variant Onone_Swift5 --run -- %target-run
+
+# RUN: %{python} %s --dir %t --variant Onone_Swift4 --generate
+# RUN: %{python} %s --dir %t --variant Onone_Swift4 --compile -- %target-build-swift -Onone -swift-version 4
+# RUN: %{python} %s --dir %t --variant Onone_Swift4 --run -- %target-run
+
+# RUN: %{python} %s --dir %t --variant O_Swift5 --generate
+# RUN: %{python} %s --dir %t --variant O_Swift5 --compile -- %target-build-swift -O -swift-version 5
+# RUN: %{python} %s --dir %t --variant O_Swift5 --run -- %target-run
+
+# RUN: %{python} %s --dir %t --variant O_Swift4 --generate
+# RUN: %{python} %s --dir %t --variant O_Swift4 --compile -- %target-build-swift -O -swift-version 4
+# RUN: %{python} %s --dir %t --variant O_Swift4 --run -- %target-run
+
+from __future__ import print_function
+import argparse
+import itertools
+import os
+import subprocess
+import sys
+from textwrap import dedent
+
+# Part of textwrap package for Python 3.4+
+def indent(text, indent):
+   return '\n'.join([indent + line for line in text.split('\n')])
+# If `text` is non-empty, make sure it ends with a clean newline
+def ensurenewline(text):
+   text = text.rstrip()
+   if text and not text.endswith('\n'):
+      text += '\n'
+   return text
+
+# Standard processing for a text block that goes into the body
+# of a Swift function
+def bodyText(text):
+   return ensurenewline(indent(dedent(text).strip(), '  '))
+
+# Standard processing for a text block that goes into file
+# scope of a Swift file
+def globalText(text):
+   return ensurenewline(dedent(text).strip())
+
+# The following may seem roundabout, but it manages to both work correctly and
+# avoid lint errors on both Python 2 and 3
+if sys.version_info.major > 2:
+   unicode = str
+def isString(s):
+   return isinstance(s, (str, unicode))
+
+# Base class for type-specific test classes below.
+#
+# This defines common machinery for generating Swift test files
+# and defines sets of common invariants (following PR #33010)
+# that can be reused across those tests.
+#
+class TypeTester:
+   # Overridden in subclasses
+   name = 'UNNAMED'
+   sourceInstance = 'a'
+   sourceType = 'NOTYPE'
+   destType = 'NOTYPE'
+   needsFoundation = False
+
+   def sourceFilename(self, dir=None, variant=None):
+      if variant:
+         file = 'CastSpecification_{name}_{variant}.swift'.format(name=self.name, variant=variant)
+      else:
+         file = 'CastSpecification_{name}.swift'.format(name=self.name)
+      if dir:
+         return os.path.join(dir, file)
+      return file
+
+   def executableFilename(self, dir=None, variant=None):
+      return self.sourceFilename(dir, variant) + '.out'
+
+   def printSource(self, variant=None):
+      print('///////////// ',
+            self.sourceFilename(variant=variant),
+            ' ////////////////')
+      testSource = self.testFileContents(variant=args.variant)
+      line = 1
+      for l in testSource.split('\n'):
+         print('%4d  %s' % (line,l))
+         line += 1
+
+   # Common Swift utility functions that are used in many tests
+   def common_utilities(self):
+      return '''
+      // Encourage the compiler to issue this as a pure runtime cast
+      // In debug builds, a cast made via this function should always dispatch to
+      // the runtime.  Even in optimized builds, this will exercise different paths
+      // than a straight inline cast operation, so it's valuable to attempt casts
+      // both ways.
+      fileprivate func runtimeCast<From, To>(_ x: From, to: To.Type) -> To? {
+        return x as? To
+      }
+
+      // The compiler should always see the argument as used, preventing it from
+      // being optimized away.
+      func expectNoCrash<T>(_ t: T) { }
+
+      // Require that rhs is true whenever lhs is.
+      public func expectImplication(_ lhs: Bool, _ rhs: Bool,
+        _ message: @autoclosure () -> String = "",
+        stackTrace: SourceLocStack = SourceLocStack(),
+        showFrame: Bool = true,
+        file: String = #file, line: UInt = #line) {
+        if lhs && !rhs {
+          expectationFailure(
+            "Implication failed: lhs true but rhs is not true",
+            trace: message(),
+            stackTrace: stackTrace.pushIf(showFrame, file: file, line: line)
+          )
+        }
+      }
+      '''
+
+   ################################################################
+   #
+   # Invariants used in tests
+   #
+   # Each of these methods is named as `invariant_<requirements><category>`
+   #
+   # Requirements indicate any restrictions on the types being tested: `common`
+   # invariants apply to all types, while `equatable` invariants apply to
+   # Equatable types.
+   #
+   # Category generally follows the specification in PR #33010.
+
+   # `is`, `as?` and `as!` must provide consistent results,
+   # including runtime and compiler-optimized forms
+   def invariant_commonConsistency(self):
+      return '''
+      // 'is', 'as?', and 'as!' consistency
+      expectEqual({sourceInstance} is {destType}, ({sourceInstance} as? {destType}) != nil)
+      expectEqual({sourceInstance} is {destType},
+                  runtimeCast({sourceInstance}, to: {destType}.self) != nil)
+      if {sourceInstance} is {destType} {{
+        expectNoCrash({sourceInstance} as! {destType})
+      }}'''.format(sourceInstance=self.sourceInstance,
+                 sourceType=self.sourceType,
+                 destType=self.destType)
+
+   # We can be more exact about consistency if a type is Equatable
+   def invariant_equatableConsistency(self):
+      return '''
+      // 'is', 'as?', and 'as!' consistency for Equatable types
+      if {sourceInstance} is {destType} {{
+        expectEqual({sourceInstance} as! {destType},
+                    ({sourceInstance} as? {destType})!)
+        expectEqual(runtimeCast({sourceInstance}, to: {destType}.self),
+                    {sourceInstance} as? {destType})
+        expectEqual(({sourceInstance} as! {destType}) as! {sourceType},
+                    {sourceInstance})
+      }}'''.format(sourceInstance=self.sourceInstance,
+                 sourceType=self.sourceType,
+                 destType=self.destType)
+      
+   # Identity casts must always succeed
+   def invariant_commonIdentity(self):
+      return '''
+      // Identity cast
+      expectTrue({sourceInstance} is {sourceType})
+      expectNotNil({sourceInstance} as? {sourceType})
+      expectNotNil(runtimeCast({sourceInstance}, to: {sourceType}.self))
+      expectNoCrash({sourceInstance} as! {sourceType})
+      '''.format(sourceInstance=self.sourceInstance,
+                 sourceType=self.sourceType,
+                 destType=self.destType)
+
+   # For Equatable types, identity casts must provide the same value
+   def invariant_equatableIdentity(self):
+      return '''
+      // Identity cast
+      expectEqual({sourceInstance} as! {sourceType}, {sourceInstance})
+      expectEqual({sourceInstance} as? {sourceType}, {sourceInstance})
+      expectEqual(runtimeCast({sourceInstance}, to: {sourceType}.self),
+                  {sourceInstance})
+      '''.format(sourceInstance=self.sourceInstance,
+                 sourceType=self.sourceType,
+                 destType=self.destType)
+
+   def invariant_commonOptional(self):
+      return '''
+      // Invariants involving Optionals
+      // Can always inject into an Optional
+      expectTrue({sourceInstance} is Optional<{sourceType}>)
+      // Can always inject into a double-optional
+      expectTrue({sourceInstance} is Optional<Optional<{sourceType}>>)
+      // Cannot project nil (except to Any)
+      if "{sourceType}" != "Any" {{
+        expectFalse(Optional<{sourceType}>.none is {sourceType})
+      }}
+      // Can always project non-nil
+      expectTrue(Optional<{sourceType}>.some({sourceInstance}) is {sourceType})
+      // Can always project non-nil double-optionals
+      expectTrue(Optional<Optional<{sourceType}>>.some(.some({sourceInstance})) is {sourceType})
+      // Casting non-nil optional is the same as casting the contents
+      expectEqual({sourceInstance} is {destType},
+                  Optional<{sourceType}>.some({sourceInstance}) is {destType})
+      // Can cast non-nil values between optional types iff the contents cast
+      expectEqual({sourceInstance} is {destType},
+                  Optional<{sourceType}>.some({sourceInstance}) is Optional<{destType}>)
+      // TODO: Only true if we constrain sourceInstance to be non-nil
+      //  expectEqual({sourceInstance} is {destType},
+      //              {sourceInstance} is Optional<{destType}>)
+      // Can always cast nil to any optional type
+      expectTrue(Optional<{sourceType}>.none is Optional<{destType}>)
+      '''.format(sourceInstance=self.sourceInstance,
+                 sourceType=self.sourceType,
+                 destType=self.destType)
+
+   # Invariants that apply to any type regarding how they interact
+   # with NSObject
+   def invariant_commonObjectiveC(self):
+      return '''
+      // Invariants of Obj-C types
+      // We can cast to NSObject iff the metatype is NSObject.Type
+      expectEqual({sourceInstance} is NSObject, {sourceType}.self is NSObject.Type)
+      '''.format(sourceInstance=self.sourceInstance,
+                 sourceType=self.sourceType,
+                 destType=self.destType)
+
+   # We must be able to cast to Any, Any is a top type,
+   # we can cast things back out of Any, and Any.self is
+   # the only member of Any.Protocol.
+   def invariant_commonAny(self):
+      return '''
+      // Any casts
+      // Everything casts to Any == Any is a top type
+      expectTrue({sourceInstance} is Any)
+      // Any.Type is a top metatype
+      expectTrue({sourceType}.self is Any.Type)
+      // We can cast contents back out of an Any
+      expectEqual({sourceInstance} is {destType}, ({sourceInstance} as! Any) is {destType})
+      // Any.self is the only member of Any.Protocol
+      expectEqual({sourceType}.self is Any.Protocol, "{sourceType}" == "Any")
+      '''.format(sourceInstance=self.sourceInstance,
+                 sourceType=self.sourceType,
+                 destType=self.destType)
+
+   # If we can cast to AnyObject, we must be able
+   # to cast back out again.
+   def invariant_commonAnyObject(self):
+      return '''
+      // If we can cast into AnyObject, we can cast back out
+      if ({sourceInstance} is AnyObject) {{
+          expectImplication({sourceInstance} is {destType},
+                            ({sourceInstance} as! AnyObject) is {destType})
+      }}
+      '''.format(sourceInstance=self.sourceInstance,
+                 sourceType=self.sourceType,
+                 destType=self.destType)
+
+   # AnyHashable invariants for all types
+   #
+   # If we can cast to AnyHashable, we must be able to
+   # get the result back out again.
+   def invariant_commonAnyHashable(self):
+      return '''
+      // If we can cast into AnyHashable, we can cast back out
+      if ({sourceInstance} is AnyHashable) {{
+          expectImplication({sourceInstance} is {destType},
+                        ({sourceInstance} as! AnyHashable) is {destType})
+      }}
+      '''.format(sourceInstance=self.sourceInstance,
+                 sourceType=self.sourceType,
+                 destType=self.destType)
+
+   # Array invariants
+   def invariant_commonArray(self):
+      return '''
+      // Arrays cast if their contents do
+      expectEqual({sourceInstance} is {destType}, [{sourceInstance}] is [{destType}])
+      // Empty arrays always cast
+      expectTrue([{sourceType}]() is [{destType}])
+      '''.format(sourceInstance=self.sourceInstance,
+                 sourceType=self.sourceType,
+                 destType=self.destType)
+
+   # Set invariants for Equatable types
+   def invariant_equatableSet(self):
+      return '''
+      let s: Set<{sourceType}> = [{sourceInstance}]
+      // Non-empty Sets cast iff contents do
+      expectEqual({sourceInstance} is {destType}, s is Set<{destType}>)
+      // Empty sets always cast
+      expectTrue(Set<{sourceType}>() is Set<{destType}>)
+      '''.format(sourceInstance=self.sourceInstance,
+                 sourceType=self.sourceType,
+                 destType=self.destType)
+   
+   # Dictionary invariants for all types
+   def invariant_commonDictionary(self):
+      return '''
+      let d0: Dictionary<Int, {sourceType}> = [0: {sourceInstance}]
+      // Non-empty dictionaries cast iff values do (for identical keys)
+      expectEqual({sourceInstance} is {destType}, d0 is Dictionary<Int, {destType}>)
+      // Empty dictionaries always cast
+      expectTrue(Dictionary<Int, {sourceType}>() is Dictionary<Int, {destType}>)
+      '''.format(sourceInstance=self.sourceInstance,
+                 sourceType=self.sourceType,
+                 destType=self.destType)
+
+   # Dictionary invariants for Equatable types
+   def invariant_equatableDictionary(self):
+      return '''
+      let d1: Dictionary<{sourceType}, Int> = [{sourceInstance}: 0]
+      // Non-empty dictionaries cast iff keys do (for identical values)
+      expectEqual({sourceInstance} is {destType}, d1 is Dictionary<{destType}, Int>)
+      // Empty dictionaries always cast
+      expectTrue(Dictionary<{sourceType}, Int>() is Dictionary<{destType}, Int>)
+      '''.format(sourceInstance=self.sourceInstance,
+                 sourceType=self.sourceType,
+                 destType=self.destType)
+
+   # Invariants specific to class casting
+   # Assumes sourceType and destType are both class types
+   #
+   # TODO: this should probably be broken up into classIdentity and classAnyObject
+   def invariant_class(self):
+      return '''
+      // Identity casting preserves ===
+      expectTrue({sourceInstance} as! {sourceType} === {sourceInstance})
+      expectTrue(({sourceInstance} as? {sourceType})! === {sourceInstance})
+      expectTrue(runtimeCast({sourceInstance}, to: {sourceType}.self)! === {sourceInstance})
+      // Round-trip through different class types
+      expectEqual(({sourceInstance} is {sourceType}) && ({sourceInstance} is {destType}),
+                  (({sourceInstance} as? {sourceType}) as? {destType}) != nil)
+      expectEqual(({sourceInstance} is {sourceType}) && ({sourceInstance} is {destType}),
+                  (({sourceInstance} as? {destType}) as? {sourceType}) != nil)
+      // Classes are compatible with AnyObject
+      expectTrue({sourceInstance} is AnyObject)
+      expectEqual({sourceInstance} is {destType},
+                  ({sourceInstance} as! AnyObject) is {destType})
+      if ({sourceInstance} is {destType}) {{
+          expectTrue((({sourceInstance} as! AnyObject) as! {destType}) === {sourceInstance})
+      }}
+      '''.format(sourceInstance=self.sourceInstance,
+                 sourceType=self.sourceType,
+                 destType=self.destType)
+
+   # TODO: More invariants for protocols, metatypes, existential metatypes, Obj-C types
+      
+   ################################
+   # Useful subsets of the above
+
+   # Invariants that apply to every type without assumptions
+   def invariant_common(self):
+      return [self.invariant_commonConsistency,
+              self.invariant_commonIdentity,
+              self.invariant_commonOptional,
+#              + self.invariant_commonObjectiveC()
+              self.invariant_commonAny,
+              self.invariant_commonAnyObject,
+              self.invariant_commonAnyHashable,
+              self.invariant_commonArray,
+              self.invariant_commonDictionary]
+
+   def invariant_equatable(self):
+      return [self.invariant_equatableConsistency,
+              self.invariant_equatableIdentity,
+              self.invariant_equatableSet,
+              self.invariant_equatableDictionary]
+
+   ################################
+   # Build Swift test file contents
+
+   # Override with Swift program text to insert at file scope
+   def customGlobals(self):
+      return ''
+
+   # Override with Swift program text to insert at top of each test function
+   def customLocals(self):
+      return ''
+
+   # Expand full list of test bodies (recursively calling functions and
+   # flattening nested lists).  This allows the test list to contain any
+   # combination of bare strings, nested lists, and bound functions that return
+   # bare strings or nested lists, etc.
+   def collectTestBodies(self, test):
+      if isString(test):
+         return [test]
+      elif callable(test):
+         return self.collectTestBodies(test())
+      else:
+         expanded = []
+         for t in test:
+            x = self.collectTestBodies(t)
+            expanded.extend(x)
+         return expanded
+
+   # Build full text of test file
+   def testFileContents(self, variant=''):
+      if variant:
+         variant = '_' + variant
+      fileIntro = globalText(
+         'import StdlibUnittest\n'
+         + '\n'
+         + globalText(self.common_utilities())
+         + '\n'
+         + 'let suite = TestSuite("CastSpecification' + variant + '")\n'
+         + '\n'
+         + globalText(self.customGlobals()))
+
+      fileBody = ''
+      testNumber = 1
+      for t in self.collectTestBodies(self.tests()):
+         testIntro = 'suite.test("' + self.name + '_' + str(testNumber) + '") {\n'
+         testNumber += 1
+         testBody = bodyText(self.customLocals()) + bodyText(t)
+         testOutro = '}\n\n'
+         fileBody += testIntro + testBody + testOutro
+
+      fileOutro = 'runAllTests()\n'
+
+      return fileIntro + '\n' + fileBody + fileOutro
+
+############################################################
+#
+# Test a variety of types, selecting the appropriate invariants
+# for each one.
+#
+# Each class below specifies a set of checks for a particular
+# instance of a particular source type being cast to a particular
+# destination type.
+#
+# Common machinery above generates a Swift test file from
+# each of these specifications.
+#
+############################################################
+
+class Type_Any(TypeTester): 
+   name = 'Any'
+   sourceInstance = 'a'
+   sourceType = 'Any'
+   destType = 'Any'
+   needsFoundation = False
+   def customLocals(self):
+      return 'let a: Any = Int(7)'
+   def tests(self):
+      return [self.invariant_common]
+
+class Type_Any_Protocol(TypeTester):
+   name = 'Any.Protocol'
+   sourceInstance = 'a'
+   sourceType = 'Any.Protocol'
+   destType = 'Any.Protocol'
+   needsFoundation = False
+   def customGlobals(self):
+      return 'protocol P {}'
+   def customLocals(self):
+      return 'let a: Any.Protocol = Any.self'
+   def tests(self):
+      return ['expectTrue(Any.self is Any.Protocol)',
+              'expectFalse(Int.self is Any.Protocol)',
+              'expectFalse(Any?.self is Any.Protocol)',
+              'expectFalse(P.self is Any.Protocol)',
+              self.invariant_common,
+              ]
+
+class Type_Struct_Same(TypeTester):
+   name = 'Struct_Same'
+   sourceInstance = 's1'
+   sourceType = 'S1'
+   destType = 'S1'
+   def customGlobals(self):
+      return 'struct S1 {}'
+   def customLocals(self):
+      return 'let s1 = S1()'
+   def tests(self):
+      return ['expectTrue(s1 is S1)',
+              self.invariant_common]
+
+class Type_Struct_Different(TypeTester):
+   name = 'Struct_Different'
+   sourceInstance = 's1'
+   sourceType = 'S1'
+   destType = 'S2'
+   def customGlobals(self):
+      return '''
+      struct S1 {}
+      struct S2 {}'''
+   def customLocals(self):
+      return 'let s1 = S1()'
+   def tests(self):
+      return ['expectTrue(s1 is S1)',
+              'expectFalse(s1 is S2)',
+              self.invariant_common]
+
+class Type_Enum_Same(TypeTester):
+   name = 'Enum_Same'
+   sourceInstance = 'e1'
+   sourceType = 'E1'
+   destType = 'E1'
+   def customGlobals(self):
+      return 'enum E1 {case none}'
+   def customLocals(self):
+      return 'let e1 = E1.none'
+   def tests(self):
+      return ['expectTrue(e1 is E1)',
+              self.invariant_common]
+
+class Type_Enum_Different(TypeTester):
+   name = 'Enum_Different'
+   sourceInstance = 'e1'
+   sourceType = 'E1'
+   destType = 'E2'
+   def customGlobals(self):
+      return '''
+      enum E1 {case none}
+      enum E2 {case none}'''
+   def customLocals(self):
+      return 'let e1 = E1.none'
+   def tests(self):
+      return ['expectTrue(e1 is E1)',
+              'expectFalse(e1 is E2)',
+              self.invariant_common]
+
+class Type_Int(TypeTester):
+   name = 'Int'
+   sourceInstance = '(7 as Int)'
+   sourceType = 'Int'
+   destType = 'Int'
+   def tests(self):
+      return [self.invariant_common,
+              self.invariant_equatable]
+
+class Type_Class_Unrelated(TypeTester):
+   name = 'Class_Unrelated'
+   sourceInstance = 'c1'
+   sourceType = 'C1'
+   destType = 'C2'
+   def customGlobals(self):
+      return '''
+      class C1 {}
+      class C2 {}'''
+   def customLocals(self):
+      return 'let c1 = C1()'
+   def tests(self):
+      return ['expectTrue(c1 is C1)',
+              'expectFalse(c1 is C2)',
+              self.invariant_common,
+              self.invariant_class]
+
+class Type_Class_Super(TypeTester):
+   name = 'Class_Super'
+   sourceInstance = 'c1'
+   sourceType = 'C1'
+   destType = 'C2'
+   def customGlobals(self):
+      return '''
+      class C2 {}
+      class C1: C2 {}'''
+   def customLocals(self):
+      return 'let c1 = C1()'
+   def tests(self):
+      return ['expectTrue(c1 is C1)',
+              'expectTrue(c1 is C2)',
+              self.invariant_common,
+              self.invariant_class]
+
+class Type_Class_Sub(TypeTester):
+   name = 'Class_Sub'
+   sourceInstance = 'c1'
+   sourceType = 'C1'
+   destType = 'C2'
+   def customGlobals(self):
+      return '''
+      class C1 {}
+      class C2: C1 {}'''
+   def customLocals(self):
+      return 'let c1 = C1()'
+   def tests(self):
+      return ['expectTrue(c1 is C1)',
+              'expectFalse(c1 is C2)',
+              self.invariant_common,
+              self.invariant_class]
+
+class Type_Tuple(TypeTester):
+   name = 'Tuple'
+   sourceInstance = 't'
+   sourceType = 'T1'
+   destType = 'T2'
+   def customLocals(self):
+      return '''
+      let t = (i: 7, "abc")
+      typealias T1 = (i:Int,String)
+      typealias T2 = (Int,s:String)'''
+   def tests(self):
+      return ['expectTrue(t is T1)',
+              'expectTrue(t is T2)',
+              'expectTrue((t as! T1) is T2)',
+              'expectTrue((t as! T2) is T1)',
+              self.invariant_common,
+              'expectTrue(t is (Int,String))',
+              'expectTrue(t is (i:Int, s:String))',
+              'expectFalse(t is (j:Int, s:String))',
+              'expectTrue((i: 7, s: "abc") is (Int,String))',
+              'expectFalse((i: 7, s: "abc") is (i:Int, t:String))',
+              # TODO: tests where individual elements are castable but not same-type
+      ]
+
+class Type_Function_more_throwy(TypeTester):
+   name = 'Function_more_throwy'
+   sourceInstance = 'f'
+   sourceType = 'F1'
+   destType = 'F2'
+   def customLocals(self):
+      return '''
+      func f() -> () {}
+      typealias F1 = () -> ()
+      typealias F2 = () throws -> ()'''
+   def tests(self):
+      return ['expectTrue(f is F1)',
+              'expectTrue(f is F2)',
+              'expectTrue((f as! F1) is F2)',
+#              'expectTrue((f as! F2) is F1)',  # FIXME:  This needs to be verified against the spec
+              self.invariant_common]
+
+class Type_Function_less_throwy(TypeTester):
+   name = 'Function_less_throwy'
+   sourceInstance = 'f'
+   sourceType = 'F1'
+   destType = 'F2'
+   def customLocals(self):
+      return '''
+      func f() throws -> () {}
+      typealias F1 = () throws -> ()
+      typealias F2 = () -> ()'''
+   def tests(self):
+      return ['expectTrue(f is F1)',
+              'expectFalse(f is F2)',
+              self.invariant_common]
+
+# TODO: More function tests here....
+
+# TODO: Protocols
+
+# TODO: Metatypes
+
+# TODO: Existential Metatypes
+
+############################################################
+#
+# Main Driver logic
+#
+# The `RUN` lines at the top of this file pass test driver
+# info into this script that is used to compile and execute
+# all of the Swift test programs.
+#
+# TODO: Emit every test with and without `import Foundation`
+############################################################
+
+tests = [
+   Type_Any(),
+   Type_Any_Protocol(),
+   Type_Int(),
+   Type_Class_Unrelated(),
+   Type_Class_Super(),
+   Type_Class_Sub(),
+   Type_Struct_Same(),
+   Type_Struct_Different(),
+   Type_Enum_Same(),
+   Type_Enum_Different(),
+   Type_Tuple(),
+   Type_Function_more_throwy(),
+   Type_Function_less_throwy(),
+]
+
+# TODO: On non-Apple platforms, filter out tests that require Obj-C Foundation
+
+def get_args():
+   parser = argparse.ArgumentParser(description='')
+   parser.add_argument('--dir', type=str)
+   parser.add_argument('--variant', type=str)
+   parser.add_argument('--generate', action='store_true')
+   parser.add_argument('--compile', action='store_true')
+   parser.add_argument('--run', action='store_true')
+   parser.add_argument('command', nargs='*')
+   return parser.parse_args()
+
+def compile(test):
+   # Full path, including directory
+   sourceFilename = test.sourceFilename(dir=args.dir, variant=args.variant)
+   executableFilename = test.executableFilename(dir=args.dir, variant=args.variant)
+   # Without directory, for easier-to-read messages
+   shortSourceFilename = test.sourceFilename(variant=args.variant)
+   shortExecutableFilename = test.executableFilename(variant=args.variant)
+
+   sys.stdout.flush() # Interleave our output with children
+   ret = subprocess.call(args.command + [sourceFilename,
+                                         '-o', executableFilename])
+   if ret:
+      print('!!! Compile failed (return code', ret, ')', sourceFilename)
+      print()
+      test.printSource(variant=args.variant)
+      print()
+      print()
+   else:
+      print('Compiled ', shortSourceFilename, '->', shortExecutableFilename)
+   return ret
+
+def execute(test):
+   executableFilename = test.executableFilename(dir=args.dir, variant=args.variant)
+   shortExecutableFilename = test.executableFilename(variant=args.variant)
+   sys.stdout.flush()
+   ret = subprocess.call(args.command + [executableFilename])
+   if ret:
+      print('!!! Execution failed (return code', ret, ') ', shortExecutableFilename)
+      print()
+      test.printSource(variant=args.variant)
+      print()
+      print()
+   return ret
+   
+if __name__ == '__main__':
+   args = get_args()
+   finalRet = 0
+
+   # Set the current directory to the work directory
+   if args.dir:
+      os.chdir(args.dir)
+
+   if args.generate:
+      # Generate all the Swift output files
+      for t in tests:
+         sourceFilename = t.sourceFilename(dir=args.dir, variant=args.variant)
+         print('Generating', sourceFilename)
+         with open(sourceFilename, 'wt') as outfile:
+            print(t.testFileContents(variant=args.variant), file=outfile)
+         print('Generated', sourceFilename)
+
+   elif args.compile:
+      # Compile all the Swift output files
+      for t in tests:
+         ret = compile(t)
+         finalRet = finalRet or ret
+
+   elif args.run:
+      # Run all the compiled test programs
+      for t in tests:
+         ret = execute(t)
+         finalRet = finalRet or ret
+
+   exit(finalRet)
