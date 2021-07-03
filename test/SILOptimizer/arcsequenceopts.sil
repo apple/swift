@@ -87,6 +87,9 @@ public protocol Error {
   var _code: Builtin.Int32 { get }
 }
 
+class EmptyCls {
+}
+
 sil [serialized] @use : $@convention(thin) (Builtin.NativeObject) -> ()
 sil [serialized] @guaranteed_use : $@convention(thin) (@guaranteed Builtin.NativeObject) -> ()
 
@@ -2380,4 +2383,34 @@ bb0:
   end_access %12 : $*UnsafeMutablePointer<UInt8>
   %15 = tuple ()
   return %15 : $()
+}
+
+sil @userg : $@convention(thin) (EmptyCls) -> () {
+bb0(%0 : $EmptyCls):
+  %ret = tuple ()
+  return %ret : $()
+}
+
+// %0 and %1 are not aliasing. Both RR pairs on %0 and %1 should be optimized away in a single iteration of ASO.
+// ASO should not transition the bottom up RefCountState of %0 to MightBeDecremented on seeing a non aliasing strong_release %1.
+// Same for top down processing as well.
+// CHECK-LABEL: sil hidden @$test_handle_decrement_nonaliasing :
+// CHECK-NOT: strong_retain
+// CHECK-NOT: strong_release
+// CHECK-LABEL: } // end sil function '$test_handle_decrement_nonaliasing'
+sil hidden @$test_handle_decrement_nonaliasing : $@convention(thin) () -> () {
+bb0:
+  %0 = alloc_ref [stack] $EmptyCls
+  %1 = alloc_ref [stack] $EmptyCls
+  strong_retain %0 : $EmptyCls
+  strong_retain %1 : $EmptyCls
+  strong_release %1 : $EmptyCls
+  %funcref = function_ref @userg : $@convention(thin) (EmptyCls) -> ()
+  apply %funcref (%0) : $@convention(thin) (EmptyCls) -> ()
+  strong_release %0 : $EmptyCls
+  dealloc_ref %1 : $EmptyCls
+  dealloc_ref [stack] %1 : $EmptyCls
+  dealloc_ref %0 : $EmptyCls
+  dealloc_ref [stack] %0 : $EmptyCls
+  return undef : $()
 }

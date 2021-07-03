@@ -81,6 +81,10 @@ bool swift::mayDecrementRefCount(SILInstruction *User,
     return AA->canApplyDecrementRefCount(TAI, Ptr);
   if (auto *BI = dyn_cast<BuiltinInst>(User))
     return AA->canBuiltinDecrementRefCount(BI, Ptr);
+  if (auto *SRI = dyn_cast<StrongReleaseInst>(User))
+    return !AA->isNoAlias(SRI->getOperand(), Ptr);
+  if (auto *RVI = dyn_cast<ReleaseValueInst>(User))
+    return !AA->isNoAlias(RVI->getOperand(), Ptr);
 
   // We cannot conservatively prove that this instruction cannot decrement the
   // ref count of Ptr. So assume that it does.
