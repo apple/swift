@@ -84,6 +84,11 @@ public:
 
   virtual bool finishProcessing() override;
 
+  /// Forward declaration of struct only used in internal impl so it can be used
+  /// in internal helper methods on this class. It is only declared, not defined
+  /// in any header.
+  struct ExpectedDiagnosticInfo;
+
 private:
   /// Result of verifying a file.
   struct Result {
@@ -94,6 +99,19 @@ private:
     bool HadError;
     bool HadUnexpectedDiag;
   };
+
+  void verifyAllExpectedDiagnosticsAppeared(
+      StringRef BufferName, StringRef InputFile,
+      std::vector<ExpectedDiagnosticInfo> &ExpectedDiagnostics,
+      std::vector<llvm::SMDiagnostic> &Errors);
+
+  void diagnoseIncorrectDiagnostics(
+      StringRef BufferName, std::vector<llvm::SMDiagnostic> &Errors,
+      std::vector<ExpectedDiagnosticInfo> &ExpectedDiagnostics);
+
+  void diagnoseExpectedDiagnosticsThatDidntAppear(
+      StringRef InputFile, ArrayRef<ExpectedDiagnosticInfo> ExpectedDiagnostics,
+      std::vector<llvm::SMDiagnostic> &Errors);
 
   /// verifyFile - After the file has been processed, check to see if we
   /// got all of the expected diagnostics and check to see if there were any
