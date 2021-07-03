@@ -1771,13 +1771,19 @@ This lattice is applied to SIL by requiring well formed SIL to:
    model is strict, we do not allow for values to have unknown ownership.
 
 2. Define a map from each operand of a SILInstruction, `i`, to a constant
-   Ownership Kind, Boolean pair called the operand's `Ownership
-   Constraint`_. The Ownership Kind element of the `Ownership Constraint`_
-   determines semantically which ownership kind's the operand's value can take
-   on. The Boolean value is used to know if an operand will end the lifetime of
-   the incoming value when checking dataflow rules. The dataflow rules that each
-   `Value Ownership Kind`_ obeys is documented for each `Value Ownership Kind`_
-   in its detailed description below.
+   `Operand Ownership Semantics Kind`__ that classifies the "high level"
+   ownership semantics of the operand. Each of these high level semantics can be
+   mapped to a Ownership Kind, Boolean pair called the operand's
+   `Ownership Constraint`__. The Ownership Kind element of the
+   `Ownership Constraint`__ determines semantically which ownership kind's the
+   operand's value can take on. The Boolean value is used to know if an operand
+   will end the lifetime of the incoming value when checking dataflow rules. The
+   dataflow rules that each `Value Ownership Kind`_ obeys is documented for each
+   `Value Ownership Kind`_ in its detailed description below.
+
+.. __: Operand Ownership Semantic Kinds and Ownership Constraints
+.. __: Operand Ownership Semantic Kinds and Ownership Constraints
+.. __: Operand Ownership Semantic Kinds and Ownership Constraints
 
 Then we take these two maps and require that valid SIL has the property that
 given an operand, ``op(i)`` of an instruction ``i`` and a value ``v`` that
@@ -1800,7 +1806,10 @@ ownership. Operationally this has a few interesting effects on SIL:
    will take. They can just define all of their operand's as having an
    ownership constraint of Any.
 
-Now lets go into more depth upon `Value Ownership Kind`_ and `Ownership Constraint`_.
+Now lets go into more depth upon `Value Ownership Kind`_ and
+`Operand Ownership Semantic Kinds/Ownership Constraints`__.
+
+.. __: Operand Ownership Semantic Kinds and Ownership Constraints
 
 Value Ownership Kind
 ~~~~~~~~~~~~~~~~~~~~
@@ -2002,26 +2011,126 @@ This is a form of ownership that is used to model two different use cases:
   trivial pointer to a class. In that case, since we have no reason to assume
   that the object will remain alive, we need to make a copy of the value.
 
-Ownership Constraint
-~~~~~~~~~~~~~~~~~~~~
+Operand Ownership Semantic Kinds and Ownership Constraints
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 NOTE: We assume that one has read the section above on `Ownership Kind`_.
 
-As mentioned above, every operand ``operand(i)`` of a SIL instruction ``i`` has
-statically mapped to it:
+As mentioned in previously in `Ownership Kind`_, we use ``Operand Ownership
+Semantics Kind`` to classify the "high level" ownership semantics of an operand
+and then lower these high level semantics to the operand's ``Ownership
+Constraint`` that we then use to perform OSSA verification.
 
-1. An ownership kind that acts as an "Ownership Constraint" upon what "Ownership
-   Kind" a value can take.
+First with words, we lay out each of the kinds of operand ownership semantics
+grouped according to the types of values that those uses can accept.
 
-2. A boolean value that defines whether or not the execution of the operand's
-   instruction will cause the operand's value to be invalidated. This is often
-   times referred to as an operand acting as a "lifetime ending use".
+Use semantics that require a value with `None`_ ownership:
+
+* **None**: Uses of ownership None. These uses are incompatible with
+  values that have ownership but are otherwise not verified.
+
+Use semantics that require a value with `Guaranteed`_ or `Owned`_
+ownership:
+
+* **Instantaneous Use**: Use an ARC managed value only for the duration of the
+  operation, which may have side effects. (single-instruction `apply`_ with
+  @guaranteed argument)
+
+Use semantics that can accept a value with any form of `Value Ownership Kind`_:
+
+* **Unowned Instantaneous Use**: Use a value without requiring or propagating
+  ownership. The operation may not have side-effects that could affect
+  ownership. This is limited to a small number of operations that are allowed to
+  take Unowned values. (`copy_value`_, single-instruction `apply`_ with @unowned
+  argument))
+
+* **Forwarding Unowned**: Forwarding instruction with an Unowned result. Its
+  operands may have any ownership.
+
+* **Pointer Escape**: Escape a pointer into a value which cannot be tracked or
+  verified.
+
+* **Bitwise Escape**: Escapes the nontrivial contents of the value. OSSA does not
+  enforce the lifetime of the escaping bits.  The programmer must explicitly
+  force lifetime extension.  (`ref_to_unowned`_, `unchecked_trivial_bit_cast`_)
+
+Use semantics that can only accept `Owned`_ values:
+
+* **Borrow**: Propagates the owned value within a scope, without consuming it.
+  (`begin_borrow`_, `begin_apply`_ with @guaranteed argument)
+
+* **Destroying Consume**: Destroys the owned value immediately. (`store`_,
+  `destroy_value`_)
+
+* **Forwarding Consume**: Consumes the owned value indirectly via a move.
+  (`br`_, `destructure_struct`_, `destructure_tuple`_, `tuple`_, `struct`_,
+  `checked_cast_br`_, `switch_enum`_).
+
+Uses that can only accept `Guaranteed`_ values:
+
+* **Nested Borrow**: Propagates the guaranteed value within a nested borrow
+  scope, without ending the outer borrow scope, following stack discipline.
+  (`begin_borrow`_, `begin_apply`_ with @guaranteed).
+
+* **Interior Pointer**: Propagates a trivial value (e.g. address, pointer, or
+  no-escape closure) that depends on the guaranteed value within the base's
+  borrow scope. The verifier checks that all uses of the trivial value are in
+  scope.  (`ref_element_addr`_, `open_existential_box`_)
+
+* **Forwarding Borrow**: Propagates the guaranteed value within the base's
+  borrow scope. (`tuple_extract`_, `struct_extract`_, `checked_cast_br`_,
+  `switch_enum`_)
+
+* **End Borrow**: End the borrow scope opened directly by the operand.  The
+  operand must be a `begin_borrow`_, `begin_apply`_, or function argument.
+  (`end_borrow`_, `end_apply`_)
+
+* **Reborrow** Ends the borrow scope opened directly by the operand and begins
+  one or multiple disjoint borrow scopes. If a forwarded value is reborrowed,
+  then its base must also be reborrowed at the same point.  (`br`_)
+
+We summarize the information in the above sections in the following table:
+
++-----------------------------+---------------------------+----------------------------+
+| Operand Ownership Semantics | Ownership Kind Constraint | Lifetime Ending Constraint |
++=============================+===========================+============================+
+| None                        | None                      | NonLifetimeEnding          |
++-----------------------------+---------------------------+----------------------------+
+| Instantaneous Use           | Any                       | NonLifetimeEnding          |
++-----------------------------+---------------------------+----------------------------+
+| Unowned Instantaneous Use   | Any                       | NonLifetimeEnding          |
++-----------------------------+---------------------------+----------------------------+
+| Forwarding Unowned          | Any                       | NonLifetimeEnding          |
++-----------------------------+---------------------------+----------------------------+
+| Pointer Escape              | Any                       | NonLifetimeEnding          |
++-----------------------------+---------------------------+----------------------------+
+| Bitwise Escape              | Any                       | NonLifetimeEnding          |
++-----------------------------+---------------------------+----------------------------+
+| Borrow                      | Owned                     | NonLifetimeEnding          |
++-----------------------------+---------------------------+----------------------------+
+| Destroying Consume          | Owned                     | LifetimeEnding             |
++-----------------------------+---------------------------+----------------------------+
+| Forwarding Consume          | Owned                     | LifetimeEnding             |
++-----------------------------+---------------------------+----------------------------+
+| Nested Borrow               | Guaranteed                | NonLifetimeEnding          |
++-----------------------------+---------------------------+----------------------------+
+| Interior Pointer            | Guaranteed                | NonLifetimeEnding          |
++-----------------------------+---------------------------+----------------------------+
+| Forwarding Borrow           | Guaranteed                | NonLifetimeEnding          |
++-----------------------------+---------------------------+----------------------------+
+| End Borrow                  | Guaranteed                | LifetimeEnding             |
++-----------------------------+---------------------------+----------------------------+
+| Reborrow                    | Guaranteed                | LifetimeEnding             |
++-----------------------------+---------------------------+----------------------------+
+
+One important thing to note when reading the above chart is that though
+"Instantaneous Use" maps to Any, we add the additional constraint when checking
+that it only takes values with `Guaranteed`_ and `Owned`_ ownership. This is a
+case where our lattice does not fully describe the semantics of SIL, but we are
+able to shoe-horn it in this way.
 
 Forwarding Uses
 ~~~~~~~~~~~~~~~
-
-NOTE: In the following, we assumed that one read the section above, `Ownership
-Kind`_, `Value Ownership Kind`_ and `Ownership Constraint`_.
 
 A subset of SIL instructions define the value ownership kind of their results in
 terms of the value ownership kind of their operands. Such an instruction is
