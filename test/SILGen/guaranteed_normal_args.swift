@@ -28,9 +28,9 @@ protocol Sequence {
   func makeIterator() -> Iterator
 }
 
-enum Optional<T> {
-case none
-case some(T)
+public enum Optional<T> {
+  case none
+  case some(T)
 }
 
 extension Optional : ExpressibleByNilLiteral {

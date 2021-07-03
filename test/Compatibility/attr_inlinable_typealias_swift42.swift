@@ -1,4 +1,4 @@
-// RUN: %target-typecheck-verify-swift -swift-version 4.2
+// RUN: %target-typecheck-verify-swift -swift-version 4.2 -enable-access-control-hacks
 
 // Only warnings in Swift 4.2 mode.
 

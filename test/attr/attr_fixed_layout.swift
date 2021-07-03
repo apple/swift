@@ -1,7 +1,7 @@
-// RUN: %target-swift-frontend -typecheck -swift-version 4.2 -verify -dump-ast -enable-library-evolution %s | %FileCheck --check-prefix=RESILIENCE-ON %s
-// RUN: %target-swift-frontend -typecheck -swift-version 4.2 -verify -dump-ast -enable-library-evolution -enable-testing %s | %FileCheck --check-prefix=RESILIENCE-ON %s
-// RUN: not %target-swift-frontend -typecheck -swift-version 4.2 -dump-ast %s | %FileCheck --check-prefix=RESILIENCE-OFF %s
-// RUN: not %target-swift-frontend -typecheck -swift-version 4.2 -dump-ast %s -enable-testing | %FileCheck --check-prefix=RESILIENCE-OFF %s
+// RUN: %target-swift-frontend -typecheck -swift-version 4.2 -verify -dump-ast -enable-library-evolution -enable-access-control-hacks %s | %FileCheck --check-prefix=RESILIENCE-ON %s
+// RUN: %target-swift-frontend -typecheck -swift-version 4.2 -verify -dump-ast -enable-library-evolution -enable-access-control-hacks -enable-testing %s | %FileCheck --check-prefix=RESILIENCE-ON %s
+// RUN: not %target-swift-frontend -typecheck -swift-version 4.2 -enable-access-control-hacks -dump-ast %s | %FileCheck --check-prefix=RESILIENCE-OFF %s
+// RUN: not %target-swift-frontend -typecheck -swift-version 4.2 -enable-access-control-hacks -dump-ast %s -enable-testing | %FileCheck --check-prefix=RESILIENCE-OFF %s
 
 //
 // Public types with @frozen are always fixed layout

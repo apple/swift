@@ -235,6 +235,7 @@ void AccessControlCheckerBase::checkTypeAccessImpl(
     // TypeRepr into account).
 
     if (typeRepr && mayBeInferred &&
+        Context.LangOpts.EnableAccessControlHacks &&
         !Context.LangOpts.isSwiftVersionAtLeast(5) &&
         !useDC->getParentModule()->isResilient()) {
       // Swift 4.2 and earlier didn't check the Type when a TypeRepr was
@@ -366,13 +367,16 @@ void AccessControlCheckerBase::checkGenericParamAccess(
   if (minAccessScope.isPublic())
     return;
 
+  auto &Context = ownerDecl->getASTContext();
+
   // FIXME: Promote these to an error in the next -swift-version break.
-  if (isa<SubscriptDecl>(ownerDecl) || isa<TypeAliasDecl>(ownerDecl))
+  if (Context.LangOpts.EnableAccessControlHacks &&
+      (isa<SubscriptDecl>(ownerDecl) || isa<TypeAliasDecl>(ownerDecl)))
     downgradeToWarning = DowngradeToWarning::Yes;
 
-  auto &Context = ownerDecl->getASTContext();
   if (checkUsableFromInline) {
-    if (!Context.isSwiftVersionAtLeast(5))
+    if (Context.LangOpts.EnableAccessControlHacks &&
+        !Context.isSwiftVersionAtLeast(5))
       downgradeToWarning = DowngradeToWarning::Yes;
 
     auto diagID = diag::generic_param_usable_from_inline;
@@ -653,7 +657,9 @@ public:
 
         // Swift versions before 5.0 did not check requirements on the
         // protocol's where clause, so emit a warning.
-        if (!assocType->getASTContext().isSwiftVersionAtLeast(5))
+        auto &Context = assocType->getASTContext();
+        if (Context.LangOpts.EnableAccessControlHacks &&
+            !Context.isSwiftVersionAtLeast(5))
           downgradeToWarning = DowngradeToWarning::Yes;
       }
     });
@@ -730,9 +736,11 @@ public:
       if (superclassLocIter == CD->getInherited().end())
         return;
 
+      auto &Context = CD->getASTContext();
       auto outerDowngradeToWarning = DowngradeToWarning::No;
       if (superclassDecl->isGenericContext() &&
-          !CD->getASTContext().isSwiftVersionAtLeast(5)) {
+          Context.LangOpts.EnableAccessControlHacks &&
+          !Context.isSwiftVersionAtLeast(5)) {
         // Swift 4 failed to properly check this if the superclass was generic,
         // because the above loop was too strict.
         outerDowngradeToWarning = DowngradeToWarning::Yes;
@@ -827,7 +835,9 @@ public:
               declKind = declKindForType(type);
               // Swift versions before 5.0 did not check requirements on the
               // protocol's where clause, so emit a warning.
-              if (!proto->getASTContext().isSwiftVersionAtLeast(5))
+              auto &Context = proto->getASTContext();
+              if (Context.LangOpts.EnableAccessControlHacks &&
+                  !Context.isSwiftVersionAtLeast(5))
                 downgradeToWarning = DowngradeToWarning::Yes;
             }
           });
@@ -1031,7 +1041,9 @@ public:
   };
 
   void visit(Decl *D) {
-    if (!D->getASTContext().isSwiftVersionAtLeast(4, 2))
+    auto &Context = D->getASTContext();
+    if (Context.LangOpts.EnableAccessControlHacks &&
+        !Context.isSwiftVersionAtLeast(4, 2))
       return;
 
     if (D->isInvalid() || D->isImplicit())
@@ -1112,7 +1124,8 @@ public:
           auto diagID = diag::pattern_type_not_usable_from_inline_inferred;
           if (fixedLayoutStructContext) {
             diagID = diag::pattern_type_not_usable_from_inline_inferred_frozen;
-          } else if (!Ctx.isSwiftVersionAtLeast(5)) {
+          } else if (Ctx.LangOpts.EnableAccessControlHacks &&
+                     !Ctx.isSwiftVersionAtLeast(5)) {
             diagID = diag::pattern_type_not_usable_from_inline_inferred_warn;
           }
           Ctx.Diags.diagnose(NP->getLoc(), diagID, theVar->isLet(),
@@ -1149,7 +1162,8 @@ public:
           auto diagID = diag::pattern_type_not_usable_from_inline;
           if (fixedLayoutStructContext)
             diagID = diag::pattern_type_not_usable_from_inline_frozen;
-          else if (!Ctx.isSwiftVersionAtLeast(5))
+          else if (Ctx.LangOpts.EnableAccessControlHacks &&
+                   !Ctx.isSwiftVersionAtLeast(5))
             diagID = diag::pattern_type_not_usable_from_inline_warn;
           auto diag = Ctx.Diags.diagnose(TP->getLoc(), diagID, anyVar->isLet(),
                                          isTypeContext);
@@ -1201,7 +1215,9 @@ public:
                         const TypeRepr *complainRepr,
                         DowngradeToWarning downgradeToWarning) {
       auto diagID = diag::type_alias_underlying_type_not_usable_from_inline;
-      if (!TAD->getASTContext().isSwiftVersionAtLeast(5))
+      auto &Context = TAD->getASTContext();
+      if (Context.LangOpts.EnableAccessControlHacks &&
+          !Context.isSwiftVersionAtLeast(5))
         diagID = diag::type_alias_underlying_type_not_usable_from_inline_warn;
       auto diag = TAD->diagnose(diagID);
       highlightOffendingType(diag, complainRepr);
@@ -1223,7 +1239,9 @@ public:
             const TypeRepr *complainRepr,
             DowngradeToWarning downgradeDiag) {
         auto diagID = diag::associated_type_not_usable_from_inline;
-        if (!assocType->getASTContext().isSwiftVersionAtLeast(5))
+        auto &Context = assocType->getASTContext();
+        if (Context.LangOpts.EnableAccessControlHacks &&
+            !Context.isSwiftVersionAtLeast(5))
           diagID = diag::associated_type_not_usable_from_inline_warn;
         auto diag = assocType->diagnose(diagID, ACEK_Requirement);
         highlightOffendingType(diag, complainRepr);
@@ -1236,7 +1254,9 @@ public:
                         const TypeRepr *complainRepr,
                         DowngradeToWarning downgradeDiag) {
       auto diagID = diag::associated_type_not_usable_from_inline;
-      if (!assocType->getASTContext().isSwiftVersionAtLeast(5))
+      auto &Context = assocType->getASTContext();
+      if (Context.LangOpts.EnableAccessControlHacks &&
+          !Context.isSwiftVersionAtLeast(5))
         diagID = diag::associated_type_not_usable_from_inline_warn;
       auto diag = assocType->diagnose(diagID, ACEK_DefaultDefinition);
       highlightOffendingType(diag, complainRepr);
@@ -1252,7 +1272,9 @@ public:
                                  const TypeRepr *complainRepr,
                                  DowngradeToWarning downgradeDiag) {
         auto diagID = diag::associated_type_not_usable_from_inline;
-        if (!assocType->getASTContext().isSwiftVersionAtLeast(5))
+        auto &Context = assocType->getASTContext();
+        if (Context.LangOpts.EnableAccessControlHacks &&
+            !Context.isSwiftVersionAtLeast(5))
           diagID = diag::associated_type_not_usable_from_inline_warn;
         auto diag = assocType->diagnose(diagID, ACEK_Requirement);
         highlightOffendingType(diag, complainRepr);
@@ -1280,7 +1302,9 @@ public:
                           const TypeRepr *complainRepr,
                           DowngradeToWarning downgradeToWarning) {
         auto diagID = diag::enum_raw_type_not_usable_from_inline;
-        if (!ED->getASTContext().isSwiftVersionAtLeast(5))
+        auto &Context = ED->getASTContext();
+        if (Context.LangOpts.EnableAccessControlHacks &&
+            !Context.isSwiftVersionAtLeast(5))
           diagID = diag::enum_raw_type_not_usable_from_inline_warn;
         auto diag = ED->diagnose(diagID);
         highlightOffendingType(diag, complainRepr);
@@ -1322,7 +1346,9 @@ public:
                           const TypeRepr *complainRepr,
                           DowngradeToWarning downgradeToWarning) {
         auto diagID = diag::class_super_not_usable_from_inline;
-        if (!CD->getASTContext().isSwiftVersionAtLeast(5))
+        auto &Context = CD->getASTContext();
+        if (Context.LangOpts.EnableAccessControlHacks &&
+            !Context.isSwiftVersionAtLeast(5))
           diagID = diag::class_super_not_usable_from_inline_warn;
         auto diag = CD->diagnose(diagID, superclassLocIter->getTypeRepr() !=
                                              complainRepr);
@@ -1346,7 +1372,9 @@ public:
                           const TypeRepr *complainRepr,
                           DowngradeToWarning downgradeDiag) {
         auto diagID = diag::protocol_usable_from_inline;
-        if (!proto->getASTContext().isSwiftVersionAtLeast(5))
+        auto &Context = proto->getASTContext();
+        if (Context.LangOpts.EnableAccessControlHacks &&
+            !Context.isSwiftVersionAtLeast(5))
           diagID = diag::protocol_usable_from_inline_warn;
         auto diag = proto->diagnose(diagID, PCEK_Refine);
         highlightOffendingType(diag, complainRepr);
@@ -1363,7 +1391,9 @@ public:
                                  const TypeRepr *complainRepr,
                                  DowngradeToWarning downgradeDiag) {
         auto diagID = diag::protocol_usable_from_inline;
-        if (!proto->getASTContext().isSwiftVersionAtLeast(5))
+        auto &Context = proto->getASTContext();
+        if (Context.LangOpts.EnableAccessControlHacks &&
+            !Context.isSwiftVersionAtLeast(5))
           diagID = diag::protocol_usable_from_inline_warn;
         auto diag = proto->diagnose(diagID, PCEK_Requirement);
         highlightOffendingType(diag, complainRepr);
@@ -1380,7 +1410,9 @@ public:
           [&](AccessScope typeAccessScope, const TypeRepr *complainRepr,
               DowngradeToWarning downgradeDiag) {
             auto diagID = diag::subscript_type_usable_from_inline;
-            if (!SD->getASTContext().isSwiftVersionAtLeast(5))
+            auto &Context = SD->getASTContext();
+            if (Context.LangOpts.EnableAccessControlHacks &&
+                !Context.isSwiftVersionAtLeast(5))
               diagID = diag::subscript_type_usable_from_inline_warn;
             auto diag = SD->diagnose(diagID, /*problemIsElement=*/false);
             highlightOffendingType(diag, complainRepr);
@@ -1393,8 +1425,10 @@ public:
                         const TypeRepr *complainRepr,
                         DowngradeToWarning downgradeDiag) {
       auto diagID = diag::subscript_type_usable_from_inline;
-      if (!SD->getASTContext().isSwiftVersionAtLeast(5))
-        diagID = diag::subscript_type_usable_from_inline_warn;
+      auto &Context = SD->getASTContext();
+      if (Context.LangOpts.EnableAccessControlHacks &&
+          !Context.isSwiftVersionAtLeast(5))
+      diagID = diag::subscript_type_usable_from_inline_warn;
       auto diag = SD->diagnose(diagID, /*problemIsElement=*/true);
       highlightOffendingType(diag, complainRepr);
     });
@@ -1442,7 +1476,9 @@ public:
           [&](AccessScope typeAccessScope, const TypeRepr *complainRepr,
               DowngradeToWarning downgradeDiag) {
             auto diagID = diag::function_type_usable_from_inline;
-            if (!fn->getASTContext().isSwiftVersionAtLeast(5))
+            auto &Context = fn->getASTContext();
+            if (Context.LangOpts.EnableAccessControlHacks &&
+                !Context.isSwiftVersionAtLeast(5))
               diagID = diag::function_type_usable_from_inline_warn;
             auto diag = fn->diagnose(diagID, functionKind,
                                      /*problemIsResult=*/false,
@@ -1458,7 +1494,9 @@ public:
                           const TypeRepr *complainRepr,
                           DowngradeToWarning downgradeDiag) {
         auto diagID = diag::function_type_usable_from_inline;
-        if (!fn->getASTContext().isSwiftVersionAtLeast(5))
+        auto &Context = fn->getASTContext();
+        if (Context.LangOpts.EnableAccessControlHacks &&
+            !Context.isSwiftVersionAtLeast(5))
           diagID = diag::function_type_usable_from_inline_warn;
         auto diag = fn->diagnose(diagID, functionKind,
                                  /*problemIsResult=*/true,
@@ -1477,7 +1515,9 @@ public:
           [&](AccessScope typeAccessScope, const TypeRepr *complainRepr,
               DowngradeToWarning downgradeToWarning) {
             auto diagID = diag::enum_case_usable_from_inline;
-            if (!EED->getASTContext().isSwiftVersionAtLeast(5))
+            auto &Context = EED->getASTContext();
+            if (Context.LangOpts.EnableAccessControlHacks &&
+                !Context.isSwiftVersionAtLeast(5))
               diagID = diag::enum_case_usable_from_inline_warn;
             auto diag = EED->diagnose(diagID);
             highlightOffendingType(diag, complainRepr);

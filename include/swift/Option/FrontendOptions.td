@@ -355,6 +355,11 @@ def disable_access_control : Flag<["-"], "disable-access-control">,
 def enable_access_control : Flag<["-"], "enable-access-control">,
   HelpText<"Respect access control restrictions">;
 
+def disable_access_control_hacks : Flag<["-"], "disable-access-control-hacks">,
+  HelpText<"Don't simulate old access control behavior for compatibility">;
+def enable_access_control_hacks : Flag<["-"], "enable-access-control-hacks">,
+  HelpText<"Simulate old access control behavior for compatibility">;
+
 def code_complete_inits_in_postfix_expr : Flag<["-"], "code-complete-inits-in-postfix-expr">,
   HelpText<"Include initializers when completing a postfix expression">;
 def code_complete_call_pattern_heuristics : Flag<["-"], "code-complete-call-pattern-heuristics">,

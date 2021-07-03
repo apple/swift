@@ -469,6 +469,12 @@ static bool ParseLangArgs(LangOptions &Opts, ArgList &Args,
       = A->getOption().matches(OPT_enable_access_control);
   }
 
+  if (auto A = Args.getLastArg(OPT_enable_access_control_hacks,
+                               OPT_disable_access_control_hacks)) {
+    Opts.EnableAccessControlHacks
+      = A->getOption().matches(OPT_enable_access_control_hacks);
+  }
+
   if (auto A = Args.getLastArg(OPT_disable_typo_correction,
                                OPT_typo_correction_limit)) {
     if (A->getOption().matches(OPT_disable_typo_correction))

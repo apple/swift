@@ -144,6 +144,9 @@ namespace swift {
     /// Should access control be respected?
     bool EnableAccessControl = true;
 
+    /// Should we simulate old access control behavior, downgrading certain errors to warnings?
+    bool EnableAccessControlHacks = false;
+
     /// Enable 'availability' restrictions for App Extensions.
     bool EnableAppExtensionRestrictions = false;
 

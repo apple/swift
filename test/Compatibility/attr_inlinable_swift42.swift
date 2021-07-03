@@ -1,7 +1,7 @@
-// RUN: %target-typecheck-verify-swift -swift-version 4.2
-// RUN: %target-typecheck-verify-swift -swift-version 4.2 -enable-testing
-// RUN: %target-typecheck-verify-swift -swift-version 4.2 -enable-library-evolution
-// RUN: %target-typecheck-verify-swift -swift-version 4.2 -enable-library-evolution -enable-testing
+// RUN: %target-typecheck-verify-swift -swift-version 4.2 -enable-access-control-hacks
+// RUN: %target-typecheck-verify-swift -swift-version 4.2 -enable-testing -enable-access-control-hacks
+// RUN: %target-typecheck-verify-swift -swift-version 4.2 -enable-library-evolution -enable-access-control-hacks
+// RUN: %target-typecheck-verify-swift -swift-version 4.2 -enable-library-evolution -enable-testing -enable-access-control-hacks
 
 enum InternalEnum {
   // expected-note@-1 {{type declared here}}

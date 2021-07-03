@@ -1,4 +1,4 @@
-// RUN: %target-typecheck-verify-swift -swift-version 4
+// RUN: %target-typecheck-verify-swift -swift-version 4 -enable-access-control-hacks
 
 private struct PrivateStruct {} // expected-note 6{{type declared here}}
 internal struct InternalStruct {} // expected-note 2{{type declared here}}

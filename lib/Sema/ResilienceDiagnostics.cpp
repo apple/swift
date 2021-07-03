@@ -60,7 +60,8 @@ bool TypeChecker::diagnoseInlinableDeclRefAccess(SourceLoc loc,
   DowngradeToWarning downgradeToWarning = DowngradeToWarning::No;
 
   // Swift 4.2 did not perform any checks for type aliases.
-  if (isa<TypeAliasDecl>(D)) {
+  if (Context.LangOpts.EnableAccessControlHacks &&
+      isa<TypeAliasDecl>(D)) {
     if (!Context.isSwiftVersionAtLeast(4, 2))
       return false;
     if (!Context.isSwiftVersionAtLeast(5))
@@ -74,7 +75,8 @@ bool TypeChecker::diagnoseInlinableDeclRefAccess(SourceLoc loc,
   if (auto accessor = dyn_cast<AccessorDecl>(D)) {
     isAccessor = true;
 
-    if (!Context.isSwiftVersionAtLeast(5))
+    if (Context.LangOpts.EnableAccessControlHacks &&
+        !Context.isSwiftVersionAtLeast(5))
       downgradeToWarning = DowngradeToWarning::Yes;
 
     // For accessors, diagnose with the name of the storage instead of the
@@ -84,7 +86,8 @@ bool TypeChecker::diagnoseInlinableDeclRefAccess(SourceLoc loc,
 
   // Swift 5.0 did not check the underlying types of local typealiases.
   // FIXME: Conditionalize this once we have a new language mode.
-  if (isa<TypeAliasDecl>(DC))
+  if (Context.LangOpts.EnableAccessControlHacks &&
+      isa<TypeAliasDecl>(DC))
     downgradeToWarning = DowngradeToWarning::Yes;
 
   auto diagID = diag::resilience_decl_unavailable;

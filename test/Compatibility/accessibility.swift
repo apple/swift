@@ -1,5 +1,5 @@
-// RUN: %target-typecheck-verify-swift -swift-version 4
-// RUN: %target-typecheck-verify-swift -swift-version 4.2
+// RUN: %target-typecheck-verify-swift -swift-version 4 -enable-access-control-hacks
+// RUN: %target-typecheck-verify-swift -swift-version 4.2 -enable-access-control-hacks
 
 public protocol PublicProto {
   func publicReq()

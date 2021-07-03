@@ -1,4 +1,4 @@
-// RUN: %target-typecheck-verify-swift -swift-version 4
+// RUN: %target-typecheck-verify-swift -swift-version 4 -enable-access-control-hacks
 
 // No diagnostics at all in Swift 4.0 mode.
 

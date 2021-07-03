@@ -1,4 +1,4 @@
-// RUN: %target-typecheck-verify-swift -swift-version 5
+// RUN: %target-typecheck-verify-swift -swift-version 5 -enable-access-control-hacks
 
 private typealias PrivateAlias = Int
 // expected-note@-1 {{type alias 'PrivateAlias' is not '@usableFromInline' or public}}

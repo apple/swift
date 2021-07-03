@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend -typecheck -verify %s %S/Inputs/inlinable-other.swift
+// RUN: %target-swift-frontend -typecheck -verify %s %S/Inputs/inlinable-other.swift -enable-access-control-hacks
 
 @frozen public struct HasInitExpr {
   public var hasInlinableInit = mutatingFunc(&OtherStruct.staticProp)

@@ -2533,7 +2533,8 @@ bool swift::diagnoseExplicitUnavailability(
   // obsolete decls still map to valid ObjC runtime names, so behave correctly
   // at runtime, even though their use would produce an error outside of a
   // #keyPath expression.
-  bool warnInObjCKeyPath = Flags.contains(DeclAvailabilityFlag::ForObjCKeyPath);
+  bool warnInObjCKeyPath = (ctx.LangOpts.EnableAccessControlHacks &&
+                            Flags.contains(DeclAvailabilityFlag::ForObjCKeyPath));
 
   if (!Attr->Rename.empty()) {
     SmallString<32> newNameBuf;
