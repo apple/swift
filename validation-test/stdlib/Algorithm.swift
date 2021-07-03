@@ -222,5 +222,78 @@ Algorithm.test("sorted/return type") {
   let _: Array = ([5, 4, 3, 2, 1] as ArraySlice).sorted()
 }
 
+Algorithm.test("Double.clamped(to:)") {
+  func expect(
+    _ sign: FloatingPointSign,
+    _ keyPath: KeyPath<Double, Bool>,
+    _ actual: Double,
+    line: UInt = #line
+  ) {
+    expectEqual(sign, actual.sign, line: line)
+    expectTrue(actual[keyPath: keyPath], line: line)
+  }
+
+  // ClosedRange<Double>
+  expect(.minus, \.isZero,     (-0.0).clamped(to: (+0.0)...(+0.0)))
+  expect(.plus,  \.isZero,     (+0.0).clamped(to: (-0.0)...(-0.0)))
+  expect(.minus, \.isZero,     (-Double.infinity).clamped(to: (-0.0)...(+0.0)))
+  expect(.plus,  \.isZero,     (+Double.infinity).clamped(to: (-0.0)...(+0.0)))
+
+  // PartialRangeFrom<Double>
+  expect(.minus, \.isZero,     (-0.0).clamped(to: (+0.0)...))
+  expect(.plus,  \.isZero,     (+0.0).clamped(to: (-0.0)...))
+  expect(.minus, \.isZero,     (-Double.infinity).clamped(to: (-0.0)...))
+  expect(.plus,  \.isInfinite, (+Double.infinity).clamped(to: (-0.0)...))
+
+  // PartialRangeThrough<Double>
+  expect(.minus, \.isZero,     (-0.0).clamped(to: ...(+0.0)))
+  expect(.plus,  \.isZero,     (+0.0).clamped(to: ...(-0.0)))
+  expect(.minus, \.isInfinite, (-Double.infinity).clamped(to: ...(+0.0)))
+  expect(.plus,  \.isZero,     (+Double.infinity).clamped(to: ...(+0.0)))
+}
+
+Algorithm.test("Int.clamped(to:)") {
+  // ClosedRange<Int>
+  expectEqual(42,      42.clamped(to: 0...100))
+  expectEqual(0,       Int.min.clamped(to: 0...100))
+  expectEqual(100,     Int.max.clamped(to: 0...100))
+
+  // PartialRangeFrom<Int>
+  expectEqual(42,      42.clamped(to: 0...))
+  expectEqual(0,       Int.min.clamped(to: 0...))
+  expectEqual(Int.max, Int.max.clamped(to: 0...))
+
+  // PartialRangeThrough<Int>
+  expectEqual(42,      42.clamped(to: ...100))
+  expectEqual(Int.min, Int.min.clamped(to: ...100))
+  expectEqual(100,     Int.max.clamped(to: ...100))
+
+  // PartialRangeUpTo<Int>
+  expectEqual(42,      42.clamped(to: ..<100))
+  expectEqual(Int.min, Int.min.clamped(to: ..<100))
+  expectEqual(99,      Int.max.clamped(to: ..<100))
+
+  // Range<Int>
+  expectEqual(42,      42.clamped(to: 0..<100))
+  expectEqual(0,       Int.min.clamped(to: 0..<100))
+  expectEqual(99,      Int.max.clamped(to: 0..<100))
+}
+
+Algorithm.test("42.clamped(to: ..<Int.min)").skip(
+  .custom({ _isFastAssertConfiguration() }, reason: "-Ounchecked")
+).code {
+  expectCrash {
+    _blackHole(42.clamped(to: ..<Int.min))
+  }
+}
+
+Algorithm.test("42.clamped(to: 0..<0)").skip(
+  .custom({ _isFastAssertConfiguration() }, reason: "-Ounchecked")
+).code {
+  expectCrash {
+    _blackHole(42.clamped(to: 0..<0))
+  }
+}
+
 runAllTests()
 

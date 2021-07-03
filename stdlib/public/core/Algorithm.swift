@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift.org open source project
 //
-// Copyright (c) 2014 - 2017 Apple Inc. and the Swift project authors
+// Copyright (c) 2014 - 2020 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -74,6 +74,93 @@ public func max<T: Comparable>(_ x: T, _ y: T, _ z: T, _ rest: T...) -> T {
   }
   return maxValue
 }
+
+// MARK: -
+
+extension Comparable {
+
+  /// Returns `self` if it is contained within `limits`; otherwise,
+  /// returns `limits.lowerBound` or `limits.upperBound`.
+  ///
+  ///     42.clamped(to: 0...100)       //-> 42
+  ///     Int.min.clamped(to: 0...100)  //-> 0
+  ///     Int.max.clamped(to: 0...100)  //-> 100
+  ///
+  /// - Parameter limits: The range with which to clamp `self`.
+  @_alwaysEmitIntoClient
+  @_transparent
+  public func clamped(to limits: ClosedRange<Self>) -> Self {
+    return self
+      .clamped(to: limits.lowerBound...)
+      .clamped(to: ...limits.upperBound)
+  }
+
+  /// Returns `self` if it is contained within `limits`; otherwise,
+  /// returns `limits.lowerBound`.
+  ///
+  ///     42.clamped(to: 0...)       //-> 42
+  ///     Int.min.clamped(to: 0...)  //-> 0
+  ///     Int.max.clamped(to: 0...)  //-> Int.max
+  ///
+  /// - Parameter limits: The range with which to clamp `self`.
+  @_alwaysEmitIntoClient
+  @_transparent
+  public func clamped(to limits: PartialRangeFrom<Self>) -> Self {
+    limits.contains(self) ? self : limits.lowerBound
+  }
+
+  /// Returns `self` if it is contained within `limits`; otherwise,
+  /// returns `limits.upperBound`.
+  ///
+  ///     42.clamped(to: ...100)       //-> 42
+  ///     Int.min.clamped(to: ...100)  //-> Int.min
+  ///     Int.max.clamped(to: ...100)  //-> 100
+  ///
+  /// - Parameter limits: The range with which to clamp `self`.
+  @_alwaysEmitIntoClient
+  @_transparent
+  public func clamped(to limits: PartialRangeThrough<Self>) -> Self {
+    limits.contains(self) ? self : limits.upperBound
+  }
+}
+
+extension Strideable where Stride: SignedInteger {
+
+  /// Returns `self` if it is contained within `limits`; otherwise,
+  /// returns `limits.upperBound.advanced(by: -1)`.
+  ///
+  ///     42.clamped(to: ..<Int.min)   //-> Fatal error!
+  ///     42.clamped(to: ..<100)       //-> 42
+  ///     Int.min.clamped(to: ..<100)  //-> Int.min
+  ///     Int.max.clamped(to: ..<100)  //-> 99
+  ///
+  /// - Parameter limits: The range with which to clamp `self`.
+  @_alwaysEmitIntoClient
+  @_transparent
+  public func clamped(to limits: PartialRangeUpTo<Self>) -> Self {
+    limits.contains(self) ? self : limits.upperBound.advanced(by: -1)
+  }
+
+  /// Returns `self` if it is contained within `limits`; otherwise,
+  /// returns `limits.lowerBound` or `limits.upperBound.advanced(by: -1)`.
+  ///
+  ///     42.clamped(to: 0..<0)         //-> Fatal error!
+  ///     42.clamped(to: 0..<100)       //-> 42
+  ///     Int.min.clamped(to: 0..<100)  //-> 0
+  ///     Int.max.clamped(to: 0..<100)  //-> 99
+  ///
+  /// - Parameter limits: The *non-empty* range with which to clamp `self`.
+  @_alwaysEmitIntoClient
+  @_transparent
+  public func clamped(to limits: Range<Self>) -> Self {
+    _precondition(!limits.isEmpty, #function)
+    return self
+      .clamped(to: limits.lowerBound...)
+      .clamped(to: ..<limits.upperBound)
+  }
+}
+
+// MARK: -
 
 /// An enumeration of the elements of a sequence or collection.
 ///
