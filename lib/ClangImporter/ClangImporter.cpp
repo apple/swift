@@ -670,6 +670,13 @@ importer::getNormalInvocationArguments(
 
       invocationArgStrs.push_back("-isystem");
       invocationArgStrs.push_back(std::string(path.str()));
+
+      llvm::SmallString<261> visualcPath(searchPathOpts.SDKPath);
+      llvm::sys::path::append(visualcPath, "usr", "lib", "swift", "visualc");
+      llvm::sys::path::native(visualcPath);
+
+      invocationArgStrs.push_back("-isystem");
+      invocationArgStrs.push_back(std::string(visualcPath.str()));
     } else {
       // On Darwin, Clang uses -isysroot to specify the include
       // system root. On other targets, it seems to use --sysroot.

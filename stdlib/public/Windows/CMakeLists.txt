@@ -1,3 +1,5 @@
+add_subdirectory(visualc)
+
 add_swift_target_library(swiftWinSDK ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_SDK_OVERLAY
     WinSDK.swift
 
