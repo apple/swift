@@ -75,6 +75,9 @@ if '@SWIFT_TOOLS_ENABLE_LTO@'.lower() in ['full', 'thin']:
 else:
     config.available_features.add('no_lto')
 
+if '@SWIFT_STDLIB_LLVM_LTO@'.lower() in ['full', 'thin']:
+    config.available_features.add('stdlib_lto')
+
 if "@LLVM_ENABLE_ASSERTIONS@" == "TRUE":
     config.available_features.add('asserts')
 else:
