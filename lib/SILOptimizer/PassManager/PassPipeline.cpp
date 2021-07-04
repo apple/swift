@@ -63,6 +63,7 @@ static void addCFGPrinterPipeline(SILPassPipelinePlan &P, StringRef Name) {
 static void addMandatoryDebugSerialization(SILPassPipelinePlan &P) {
   P.startPipeline("Mandatory Debug Serialization");
   P.addOwnershipModelEliminator();
+  P.addMandatorySpecialization();
   P.addMandatoryInlining();
 }
 
@@ -125,6 +126,7 @@ static void addMandatoryDiagnosticOptPipeline(SILPassPipelinePlan &P) {
   if (Options.shouldOptimize()) {
     P.addDestroyHoisting();
   }
+  P.addMandatorySpecialization();
   P.addMandatoryInlining();
   P.addMandatorySILLinker();
 

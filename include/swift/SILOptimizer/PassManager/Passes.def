@@ -290,6 +290,9 @@ PASS(LowerAggregateInstrs, "lower-aggregate-instrs",
      "Lower Aggregate SIL Instructions to Multiple Scalar Operations")
 PASS(MandatoryInlining, "mandatory-inlining",
      "Mandatory Inlining of Transparent Functions")
+PASS(MandatorySpecialization, "mandatory-specialization",
+     "Forces specialization of functions marked with the 'must_specialize' "
+     "semantics attribute.")
 PASS(Mem2Reg, "mem2reg",
      "Memory to SSA Value Conversion to Remove Stack Allocation")
 PASS(MemBehaviorDumper, "mem-behavior-dump",

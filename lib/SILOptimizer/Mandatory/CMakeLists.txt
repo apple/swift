@@ -17,6 +17,7 @@ target_sources(swiftSILOptimizer PRIVATE
   IRGenPrepare.cpp
   LowerHopToActor.cpp
   MandatoryInlining.cpp
+  MandatorySpecialization.cpp
   NestedSemanticFunctionCheck.cpp
   OptimizeHopToExecutor.cpp
   PredictableMemOpt.cpp

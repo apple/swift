@@ -112,5 +112,7 @@ SEMANTICS_ATTR(FORCE_EMIT_OPT_REMARK_PREFIX, "optremark")
 /// for testing purposes.
 SEMANTICS_ATTR(OBJC_FORBID_ASSOCIATED_OBJECTS, "objc.forbidAssociatedObjects")
 
+SEMANTICS_ATTR(MUST_SPECIALIZE, "must_specialize")
+
 #undef SEMANTICS_ATTR
 

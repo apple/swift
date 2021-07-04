@@ -5620,6 +5620,16 @@ WARNING(debug_long_expression, none,
         "expression took %0ms to type-check (limit: %1ms)",
         (unsigned, unsigned))
 
+ERROR(must_specialize_function_not_public, none,
+      "function %0 marked as 'must_specialize' must not be publicly available.",
+      (StringRef))
+ERROR(must_specialize_function_never_specialized, none,
+      "function %0 was never called with concrete generic substitutions.",
+      (StringRef))
+NOTE(note_must_specialize_function_called_here, none,
+     "function marked 'must_specialize' called here %0",
+     (StringRef))
+
 //------------------------------------------------------------------------------
 // MARK: Pattern match diagnostics
 //------------------------------------------------------------------------------
