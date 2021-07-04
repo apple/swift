@@ -648,17 +648,23 @@ swift::matchWitness(
   } else if (isa<ConstructorDecl>(witness)) {
     decomposeFunctionType = true;
     ignoreReturnType = true;
-  } else if (isa<EnumElementDecl>(witness)) {
-    auto enumCase = cast<EnumElementDecl>(witness);
+  } else if (auto *enumCase = dyn_cast<EnumElementDecl>(witness)) {
+    // An enum case with associated values can satisfy only a
+    // method requirement.
     if (enumCase->hasAssociatedValues() && isa<VarDecl>(req))
       return RequirementMatch(witness, MatchKind::EnumCaseWithAssociatedValues);
-    auto isValid = isa<VarDecl>(req) || isa<FuncDecl>(req);
-    if (!isValid)
+
+    // An enum case can satisfy only a method or property requirement.
+    if (!isa<VarDecl>(req) && !isa<FuncDecl>(req))
       return RequirementMatch(witness, MatchKind::KindConflict);
-    if (!cast<ValueDecl>(req)->isStatic())
+
+    // An enum case can satisfy only a static requirement.
+    if (!req->isStatic())
       return RequirementMatch(witness, MatchKind::StaticNonStaticConflict);
+
+    // An enum case cannot satisfy a settable property requirement.
     if (isa<VarDecl>(req) &&
-        cast<VarDecl>(req)->getParsedAccessor(AccessorKind::Set))
+        cast<VarDecl>(req)->isSettable(req->getDeclContext()))
       return RequirementMatch(witness, MatchKind::SettableConflict);
 
     decomposeFunctionType = enumCase->hasAssociatedValues();
