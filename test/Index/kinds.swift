@@ -250,9 +250,9 @@ _ = ImplCtors()
 _ = ImplCtors(x:0)
 // CHECK: [[@LINE-1]]:5 | constructor/Swift | init(x:) | [[ImplCtors_init_with_param_USR]] | Ref,Call | rel: 0
 
-var globalCompProp: Int // CHECK: [[@LINE]]:5 | variable/Swift | [[globalCompProp:.*]] | Def
-{ // CHECK: [[@LINE]]:1 | function/acc-get/Swift | getter:globalCompProp |
-  // CHECK-NEXT: RelChild,RelAcc | variable/Swift | [[globalCompProp]]
+var globalCompProp: Int // CHECK: [[@LINE]]:5 | variable/Swift | [[globalCompProp:.*]] | Def | rel: 0
+{ // CHECK: [[@LINE-1]]:5 | function/acc-get/Swift | getter:globalCompProp | [[globalCompProp:.*]] | Def,Impl,RelChild,RelAcc | rel: 1
+  // CHECK-NEXT: RelChild,RelAcc | variable/Swift | [[globalCompProp:.*]]
   // Check that the accessor def is not showing up twice.
   // CHECK-NOT: [[@LINE-3]]:1 | function/acc-get/Swift
   return 0

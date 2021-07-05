@@ -573,10 +573,55 @@
       key.kind: source.lang.swift.decl.var.global,
       key.accessibility: source.lang.swift.accessibility.internal,
       key.setter_accessibility: source.lang.swift.accessibility.internal,
+      key.name: "Qtys",
       key.offset: 1079,
-      key.length: 3,
-      key.nameoffset: 1079,
-      key.namelength: 0
+      key.length: 15,
+      key.nameoffset: 1089,
+      key.namelength: 4
+    },
+    {
+      key.kind: source.lang.swift.expr.closure,
+      key.offset: 1095,
+      key.length: 17,
+      key.nameoffset: 0,
+      key.namelength: 0,
+      key.bodyoffset: 1096,
+      key.bodylength: 15,
+      key.substructure: [
+        {
+          key.kind: source.lang.swift.stmt.brace,
+          key.offset: 1095,
+          key.length: 17,
+          key.nameoffset: 0,
+          key.namelength: 0,
+          key.bodyoffset: 1096,
+          key.bodylength: 15,
+          key.substructure: [
+            {
+              key.kind: source.lang.swift.expr.call,
+              key.name: "417",
+              key.offset: 1099,
+              key.length: 11,
+              key.nameoffset: 1099,
+              key.namelength: 3,
+              key.bodyoffset: 1103,
+              key.bodylength: 6,
+              key.substructure: [
+                {
+                  key.kind: source.lang.swift.expr.argument,
+                  key.name: "d",
+                  key.offset: 1103,
+                  key.length: 6,
+                  key.nameoffset: 1103,
+                  key.namelength: 1,
+                  key.bodyoffset: 1106,
+                  key.bodylength: 3
+                }
+              ]
+            }
+          ]
+        }
+      ]
     },
     {
       key.kind: source.lang.swift.stmt.foreach,
@@ -1740,12 +1785,12 @@
   ],
   key.diagnostics: [
     {
-      key.line: 71,
-      key.column: 5,
+      key.line: 72,
+      key.column: 1,
       key.filepath: "-foobar",
       key.severity: source.diagnostic.severity.error,
-      key.id: "getset_nontrivial_pattern",
-      key.description: "getter/setter can only be defined for a single variable",
+      key.id: "statement_begins_with_closure",
+      key.description: "top-level statement cannot begin with a closure expression",
       key.diagnostic_stage: source.diagnostic.stage.swift.parse
     },
     {

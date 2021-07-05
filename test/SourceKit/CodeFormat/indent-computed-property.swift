@@ -66,7 +66,7 @@ class C3 {
 // CHECK: key.sourcetext: "}"
 //                        "    public var someValue: Int"
 // CHECK: key.sourcetext: "    {"
-// CHECK: key.sourcetext: "        return 0"
+// CHECK: key.sourcetext: "    return 0"
 // CHECK: key.sourcetext: "    }"
 // CHECK: key.sourcetext: "    didSet {"
                           "    didSet {"

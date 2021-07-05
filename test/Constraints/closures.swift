@@ -89,9 +89,9 @@ func test13811882() {
 // <rdar://problem/21544303> QoI: "Unexpected trailing closure" should have a fixit to insert a 'do' statement
 // <https://bugs.swift.org/browse/SR-3671>
 func r21544303() {
-  var inSubcall = true
-  {
-  }  // expected-error {{computed property must have accessors specified}}
+  var inSubcall = true 
+  {  // expected-error {{closure expression is unused}} expected-note {{did you mean to use a 'do' statement?}}
+  }  
   inSubcall = false
 
   // This is a problem, but isn't clear what was intended.

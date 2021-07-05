@@ -6,7 +6,7 @@ class X {
 
   // Convenience inits must dynamically dispatch designated inits...
   // CHECK-LABEL: sil hidden [ossa] @$s32convenience_init_peer_delegation1XC0A0ACyt_tcfC
-  // CHECK:         class_method {{%.*}}, #X.init!allocator
+  // CHECK:         class_methddod {{%.*}}, #X.init!allocator
   convenience init(convenience: ()) {
     self.init()
   }
