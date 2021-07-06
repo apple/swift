@@ -451,6 +451,21 @@ namespace {
     void doIt();
 
   private:
+    /// Injects `hop_to_executor` instructions into the function after
+    /// `self` becomes fully initialized, only if the current function
+    /// is an actor initializer that requires this, and if TheMemory
+    /// corresponds to `self`.
+    void injectActorHops();
+
+    /// Given an initializing block and the live-in availability of TheMemory,
+    /// this function injects a `hop_to_executor` instruction after the
+    /// first non-load use of TheMemory that fully-initializes it.
+    /// An "initializing block" is one that definitely contains a such a
+    /// non-load use, e.g., because its live-in set is *not* all-Yes, but its
+    /// live-out set is all-Yes.
+    void injectActorHopForBlock(SILLocation loc,
+                                SILBasicBlock *initializingBlock,
+                                AvailabilitySet const &liveInAvailability);
 
     void emitSelfConsumedDiagnostic(SILInstruction *Inst);
 
@@ -476,7 +491,6 @@ namespace {
                             bool *FailedSelfUse = nullptr,
                             bool *FullyUninitialized = nullptr);
 
-
     void handleStoreUse(unsigned UseID);
     void handleLoadUse(const DIMemoryUse &Use);
     void handleLoadForTypeOfSelfUse(DIMemoryUse &Use);
@@ -487,12 +501,11 @@ namespace {
     bool diagnoseReturnWithoutInitializingStoredProperties(
         const SILInstruction *Inst, SILLocation loc, const DIMemoryUse &Use);
 
-    /// Returns true iff the use involves 'self' in a restricted kind of
+    /// Returns true iff TheMemory involves 'self' in a restricted kind of
     /// actor initializer. If a non-null Kind pointer was passed in,
     /// then the specific kind of restricted actor initializer will be
     /// written out. Otherwise, the None initializer kind will be written out.
-    bool isRestrictedActorInitSelf(const DIMemoryUse& Use,
-                               ActorInitKind *Kind = nullptr) const;
+    bool isRestrictedActorInitSelf(ActorInitKind *kind = nullptr) const;
 
     void reportIllegalUseForActorInit(const DIMemoryUse &Use,
                                       ActorInitKind ActorKind,
@@ -783,6 +796,144 @@ void LifetimeChecker::diagnoseInitError(const DIMemoryUse &Use,
     diagnose(Module, TheMemory.getLoc(), diag::variable_defined_here, isLet);
 }
 
+/// Injects a hop_to_executor instruction after the specified insertion point.
+static void injectHopToExecutorAfter(SILLocation loc,
+                                     SILBasicBlock::iterator insertPt,
+                                     SILValue actor, bool needsBorrow = true) {
+
+  LLVM_DEBUG(llvm::dbgs() << "hop-injector: inserting hop after " << *insertPt);
+
+  // While insertAfter can handle terminators, it cannot handle ones that lead
+  // to a block with multiple predecessors. I don't expect that a terminator
+  // could initialize a stored property at all: a try_apply passed the property
+  // as an inout would not be a valid use until _after_ the property has been
+  // initialized.
+  assert(!isa<TermInst>(*insertPt) && "unexpected hop-inject after terminator");
+
+  SILBuilderWithScope::insertAfter(&*insertPt, [&](SILBuilder &b) {
+    if (needsBorrow)
+      actor = b.createBeginBorrow(loc, actor);
+
+    b.createHopToExecutor(loc, actor, /*mandatory=*/false);
+
+    if (needsBorrow)
+      b.createEndBorrow(loc, actor);
+  });
+}
+
+void LifetimeChecker::injectActorHopForBlock(
+    SILLocation loc, SILBasicBlock *block,
+    AvailabilitySet const &liveInAvailability) {
+  // Tracks status of each element of TheMemory as we scan through the block,
+  // starting with the initial availability at the block's entry-point.
+  AvailabilitySet localAvail = liveInAvailability;
+
+  auto bbi = block->begin(); // our cursor and eventual insertion-point.
+  const auto bbe = block->end();
+  for (; bbi != bbe; ++bbi) {
+    auto *inst = &*bbi;
+
+    auto result = NonLoadUses.find(inst);
+    if (result == NonLoadUses.end())
+      continue; // not a possible store
+
+    // Mark the tuple elements involved in this use as defined.
+    for (unsigned use : result->second) {
+      auto const &instUse = Uses[use];
+      for (unsigned i = instUse.FirstElement;
+           i < instUse.FirstElement + instUse.NumElements; ++i)
+        localAvail.set(i, DIKind::Yes);
+    }
+
+    // Stop if we found the instruction that initializes TheMemory.
+    if (localAvail.isAllYes())
+      break;
+  }
+
+  // Make sure we found the initializing use of TheMemory.
+  assert(bbi != bbe && "this block is not initializing?");
+
+  injectHopToExecutorAfter(loc, bbi, TheMemory.getUninitializedValue());
+}
+
+void LifetimeChecker::injectActorHops() {
+  auto ctor = TheMemory.getActorInitSelf();
+
+  // Must be `self` within an actor's designated initializer.
+  if (!ctor)
+    return;
+
+  // If the initializer has restricted use of `self`, then no hops are needed.
+  if (isRestrictedActorInitSelf())
+    return;
+
+  // Even if there are no stored properties to initialize, we still need a hop.
+  // We insert this directly after the mark_uninitialized instruction, so
+  // that it happens as early as `self` is available.`
+  if (TheMemory.getNumElements() == 0) {
+    auto *selfDef = TheMemory.getUninitializedValue();
+    return injectHopToExecutorAfter(ctor, selfDef->getIterator(), selfDef);
+  }
+
+  /////
+  // Step 1: Find initializing blocks, which are blocks that contain a store
+  // to TheMemory that fully-initializes it, and build the Map.
+
+  // We determine whether a block is "initializing" by inspecting the "in" and
+  // "out" availability sets of the block. If the block goes from No / Partial
+  // "in" to Yes "out", then some instruction in the block caused TheMemory to
+  // become fully-initialized, so we record that block and its in-availability
+  // to scan the block more precisely later in the next Step.
+  for (auto &block : F) {
+    auto &info = getBlockInfo(&block);
+
+    if (!info.HasNonLoadUse) {
+      LLVM_DEBUG(llvm::dbgs()
+                 << "hop-injector: rejecting bb" << block.getDebugID()
+                 << " b/c no non-load uses.\n");
+      continue; // could not be an initializing block.
+    }
+
+    // Determine if this `block` is initializing, that is:
+    //
+    //     InAvailability ≡ merge(OutAvailability(predecessors(block)))
+    //                    ≠ Yes
+    //               AND
+    //     OutAvailability(block)) = Yes
+    //
+    // For a block with no successors, we assume it's out-avail is Yes,
+    // and a block with no predecessors has in-avail of non-Yes.
+
+    auto outSet = info.OutAvailability;
+    if (block.getNumSuccessors() != 0 && !outSet.isAllYes()) {
+      LLVM_DEBUG(llvm::dbgs()
+                 << "hop-injector: rejecting bb" << block.getDebugID()
+                 << " b/c non-Yes OUT avail\n");
+      continue; // then this block never sees TheMemory initialized.
+    }
+
+    AvailabilitySet inSet(outSet.size());
+    auto const &predecessors = block.getPredecessorBlocks();
+    for (const auto &pred : predecessors)
+      inSet.mergeIn(getBlockInfo(pred).OutAvailability);
+
+    if (inSet.isAllYes()) {
+      LLVM_DEBUG(llvm::dbgs()
+                 << "hop-injector: rejecting bb" << block.getDebugID()
+                 << " b/c all-Yes IN avail\n");
+      continue; // then this block always sees TheMemory initialized.
+    }
+
+    LLVM_DEBUG(llvm::dbgs() << "hop-injector: bb" << block.getDebugID()
+                            << " is initializing block with in-availability: "
+                            << inSet << "\n");
+
+    // Step 2: Scan the initializing block to find the first non-load use that
+    // fully-initializes TheMemory, and insert the hop there.
+    injectActorHopForBlock(ctor, &block, inSet);
+  } // end loop
+}
+
 void LifetimeChecker::doIt() {
   // With any escapes tallied up, we can work through all the uses, checking
   // for definitive initialization, promoting loads, rewriting assigns, and
@@ -851,6 +1002,9 @@ void LifetimeChecker::doIt() {
   // If we emitted an error, there is no reason to proceed with load promotion.
   if (!EmittedErrorLocs.empty()) return;
 
+  // Insert hop_to_executor instructions for actor initializers, if needed.
+  injectActorHops();
+
   // If the memory object has nontrivial type, then any destroy/release of the
   // memory object will destruct the memory.  If the memory (or some element
   // thereof) is not initialized on some path, the bad things happen.  Process
@@ -893,7 +1047,7 @@ void LifetimeChecker::handleLoadUse(const DIMemoryUse &Use) {
   if (!isInitializedAtUse(Use, &IsSuperInitComplete, &FailedSelfUse))
     return handleLoadUseFailure(Use, IsSuperInitComplete, FailedSelfUse);
   // Check if it involves 'self' in a restricted actor init.
-  if (isRestrictedActorInitSelf(Use, &ActorKind))
+  if (isRestrictedActorInitSelf(&ActorKind))
     return handleLoadUseFailureForActorInit(Use, ActorKind);
 }
 
@@ -1223,7 +1377,7 @@ void LifetimeChecker::handleInOutUse(const DIMemoryUse &Use) {
   }
 
   // 'self' cannot be passed 'inout' from some kinds of actor initializers.
-  if (isRestrictedActorInitSelf(Use, &ActorKind))
+  if (isRestrictedActorInitSelf(&ActorKind))
     reportIllegalUseForActorInit(Use, ActorKind, "be passed 'inout'",
                                  /*suggestConvenienceInit=*/false);
 
@@ -1399,7 +1553,7 @@ void LifetimeChecker::handleEscapeUse(const DIMemoryUse &Use) {
                          &FullyUninitialized)) {
 
     // no escaping uses of 'self' are allowed in restricted actor inits.
-    if (isRestrictedActorInitSelf(Use, &ActorKind))
+    if (isRestrictedActorInitSelf(&ActorKind))
       reportIllegalUseForActorInit(Use, ActorKind, "be captured by a closure",
                                    /*suggestConvenienceInit=*/true);
 
@@ -1786,18 +1940,17 @@ bool LifetimeChecker::diagnoseReturnWithoutInitializingStoredProperties(
   return true;
 }
 
-bool LifetimeChecker::isRestrictedActorInitSelf(const DIMemoryUse& Use,
-                                            ActorInitKind *Kind) const {
+bool LifetimeChecker::isRestrictedActorInitSelf(ActorInitKind *kind) const {
 
   auto result = [&](ActorInitKind k, bool isRestricted) -> bool {
-    if (Kind)
-      *Kind = k;
+    if (kind)
+      *kind = k;
     return isRestricted;
   };
 
   // Currently: being synchronous, or global-actor isolated, means the actor's
   // self is restricted within the init.
-  if (auto *ctor = TheMemory.isActorInitSelf()) {
+  if (auto *ctor = TheMemory.getActorInitSelf()) {
     if (getActorIsolation(ctor).isGlobalActor())  // global-actor isolated?
       return result(ActorInitKind::GlobalActorIsolated, true);
     else if (!ctor->hasAsync()) // synchronous?
