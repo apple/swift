@@ -1,5 +1,7 @@
 // Target-specific tests for C++ copy constructor code generation.
 
+// REQUIRES: CODEGENERATOR=ARM && CODEGENERATOR=X86
+
 // RUN: %swift -module-name Swift -target x86_64-apple-macosx10.9 -dump-clang-diagnostics -I %S/Inputs -enable-cxx-interop -emit-ir %s -parse-stdlib -parse-as-library -disable-legacy-type-info | %FileCheck %s -check-prefix=ITANIUM_X64
 // RUN: %swift -module-name Swift -target armv7-none-linux-androideabi -dump-clang-diagnostics -I %S/Inputs -enable-cxx-interop -emit-ir %s -parse-stdlib -parse-as-library -disable-legacy-type-info | %FileCheck %s -check-prefix=ITANIUM_ARM
 // RUN: %swift -module-name Swift -target x86_64-unknown-windows-msvc -dump-clang-diagnostics -I %S/Inputs -enable-cxx-interop -emit-ir %s -parse-stdlib -parse-as-library -disable-legacy-type-info | %FileCheck %s -check-prefix=MICROSOFT_X64
