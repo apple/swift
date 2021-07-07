@@ -387,7 +387,7 @@ function(_add_host_variant_link_flags target)
       ${SWIFT_HOST_VARIANT_ARCH}_LIB)
     target_link_directories(${target} PRIVATE
       ${${SWIFT_HOST_VARIANT_ARCH}_LIB})
-  else()
+  elseif(SWIFT_HOST_VARIANT_SDK IN_LIST SWIFT_APPLE_PLATFORMS)
     # If lto is enabled, we need to add the object path flag so that the LTO code
     # generator leaves the intermediate object file in a place where it will not
     # be touched. The reason why this must be done is that on OS X, debug info is
@@ -398,6 +398,8 @@ function(_add_host_variant_link_flags target)
         "SHELL:-Xlinker -object_path_lto"
         "SHELL:-Xlinker ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/${target}-${SWIFT_HOST_VARIANT_SDK}-${SWIFT_HOST_VARIANT_ARCH}-lto${CMAKE_C_OUTPUT_EXTENSION}")
     endif()
+  else()
+    # Assume no extra libraries required.
   endif()
 
   if(NOT SWIFT_COMPILER_IS_MSVC_LIKE)
