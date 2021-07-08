@@ -48,7 +48,7 @@ class Sample(namedtuple("Sample", "i num_iters runtime")):
     """
 
     def __repr__(self):
-        """Shorter Sample formating for debugging purposes."""
+        """Shorter Sample formatting for debugging purposes."""
         return "s({0.i!r}, {0.num_iters!r}, {0.runtime!r})".format(self)
 
 
