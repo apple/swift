@@ -76,7 +76,6 @@ const ClassMetadata *swift::_swift_getClass(const void *object) {
 }
 
 #if SWIFT_OBJC_INTEROP
-
 /// Replacement for ObjC object_isClass(), which is unavailable on
 /// deployment targets macOS 10.9 and iOS 7.
 static bool objcObjectIsClass(id object) {
@@ -1352,6 +1351,32 @@ bool swift::swift_isUniquelyReferencedNonObjC_nonNull(const void* object) {
     swift_isUniquelyReferenced_nonNull_native((const HeapObject*)object);
 }
 
+#if SWIFT_OBJC_INTEROP
+// It would be nice to weak link instead of doing this, but we can't do that
+// until the new API is in the versions of libobjc that we're linking against.
+static bool isUniquelyReferenced(const void *object) {
+  static auto objcIsUniquelyRefd = reinterpret_cast<bool (*)(const void *)>(
+      dlsym(RTLD_DEFAULT, "objc_isUniquelyReferenced"));
+
+  return objcIsUniquelyRefd && objcIsUniquelyRefd(object);
+}
+#endif
+
+bool swift::swift_isUniquelyReferenced_nonNull(const void *object) {
+  assert(object != nullptr);
+
+#if SWIFT_OBJC_INTEROP
+  if (isObjCTaggedPointer(object))
+    return false;
+
+  if (!usesNativeSwiftReferenceCounting_nonNull(object)) {
+    return isUniquelyReferenced(id_const_cast(object));
+  }
+#endif
+  return swift_isUniquelyReferenced_nonNull_native(
+      static_cast<const HeapObject *>(object));
+}
+
 // Given an object reference, return true iff it is non-nil and refers
 // to a native swift object with strong reference count of 1.
 bool swift::swift_isUniquelyReferencedNonObjC(
@@ -1359,6 +1384,12 @@ bool swift::swift_isUniquelyReferencedNonObjC(
 ) {
   return object != nullptr
     && swift_isUniquelyReferencedNonObjC_nonNull(object);
+}
+
+// Given an object reference, return true if it is non-nil and refers
+// to an ObjC or native swift object with a strong reference count of 1.
+bool swift::swift_isUniquelyReferenced(const void *object) {
+  return object != nullptr && swift_isUniquelyReferenced_nonNull(object);
 }
 
 /// Return true if the given bits of a Builtin.BridgeObject refer to a
@@ -1381,6 +1412,26 @@ bool swift::swift_isUniquelyReferencedNonObjC_nonNull_bridgeObject(
              ? swift_isUniquelyReferenced_nonNull_native(
                    (const HeapObject *)object)
              : swift_isUniquelyReferencedNonObjC_nonNull(object);
+#else
+  return swift_isUniquelyReferenced_nonNull_native((const HeapObject *)object);
+#endif
+}
+
+/// Return true if the given bits of a Builtin.BridgeObject refer to
+/// an object whose strong reference count is 1.
+bool swift::swift_isUniquelyReferenced_nonNull_bridgeObject(uintptr_t bits) {
+  auto bridgeObject = reinterpret_cast<void *>(bits);
+
+  if (isObjCTaggedPointer(bridgeObject))
+    return false;
+
+  const auto object = toPlainObject_unTagged_bridgeObject(bridgeObject);
+
+#if SWIFT_OBJC_INTEROP
+  return !isNonNative_unTagged_bridgeObject(bridgeObject)
+             ? swift_isUniquelyReferenced_nonNull_native(
+                   (const HeapObject *)object)
+             : swift_isUniquelyReferenced_nonNull(object);
 #else
   return swift_isUniquelyReferenced_nonNull_native((const HeapObject *)object);
 #endif
