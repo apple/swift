@@ -1247,7 +1247,7 @@ public:
   emitMaterializedRValueAsOrig(Expr *E, AbstractionPattern origPattern);
   
   /// Emit the given expression, ignoring its result.
-  void emitIgnoredExpr(Expr *E);
+  void emitIgnoredExpr(Expr *E, bool isAssignment = false);
   
   /// Emit the given expression as an r-value, then (if it is a tuple), combine
   /// it together into a single ManagedValue.

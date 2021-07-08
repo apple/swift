@@ -904,7 +904,8 @@ public:
   bool shouldShadowVariable(SILDebugVariable varInfo, bool isAnonymous) {
     return !IGM.IRGen.Opts.DisableDebuggerShadowCopies
       && !IGM.IRGen.Opts.shouldOptimize()
-      && !isAnonymous;
+      && !isAnonymous
+      && !varInfo.Discard;
   }
 
   bool shouldShadowStorage(llvm::Value *Storage) {

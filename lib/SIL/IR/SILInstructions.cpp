@@ -128,7 +128,7 @@ TailAllocatedDebugVariable::TailAllocatedDebugVariable(
     return;
   }
 
-  Bits.Data.HasValue = true;
+  Bits.Data.Discard = Var->Discard;
   Bits.Data.Constant = Var->Constant;
   Bits.Data.ArgNo = Var->ArgNo;
   Bits.Data.NameLength = Var->Name.size();

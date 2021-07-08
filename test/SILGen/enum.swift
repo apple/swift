@@ -11,7 +11,7 @@ func Boolish_cases() {
   // CHECK:       [[BOOLISH:%[0-9]+]] = metatype $@thin Boolish.Type
   // CHECK-NEXT:  [[FALSY:%[0-9]+]] = enum $Boolish, #Boolish.falsy!enumelt
   _ = Boolish.falsy
-
+  // CHECK-NEXT:  debug_value [[FALSY:%[0-9]+]] : $Boolish, let, name "_", discarded
   // CHECK-NEXT:  [[BOOLISH:%[0-9]+]] = metatype $@thin Boolish.Type
   // CHECK-NEXT:  [[TRUTHY:%[0-9]+]] = enum $Boolish, #Boolish.truthy!enumelt
   _ = Boolish.truthy
@@ -52,6 +52,7 @@ func AddressOnly_cases(_ s: S) {
   // CHECK:       [[METATYPE:%.*]] = metatype $@thin AddressOnly.Type
   // CHECK:       [[FN:%.*]] = function_ref @$s4enum17AddressOnly_casesyyAA1SVFAA0bC0OAA1P_pcAFmcfu_
   // CHECK-NEXT:  [[CTOR:%.*]] = apply [[FN]]([[METATYPE]])
+  // CHECK-NEXT:  debug_value [[CTOR]] : $@callee_guaranteed (@in_guaranteed P) -> @out AddressOnly, let, name "_", discarded
   // CHECK-NEXT:  destroy_value [[CTOR]]
   _ = AddressOnly.mere
 
@@ -129,7 +130,7 @@ func PolyOptionable_specialized_cases(_ t: Int) {
 // CHECK:         [[METATYPE:%.*]] = metatype $@thin PolyOptionable<Int>.Type
 // CHECK-NEXT:    [[NOUGHT:%.*]] = enum $PolyOptionable<Int>, #PolyOptionable.nought!enumelt
   _ = PolyOptionable<Int>.nought
-
+// CHECK-NEXT:    debug_value [[NOUGHT:%.*]] :  $PolyOptionable<Int>, let, name "_", discarded
 // CHECK-NEXT:    [[METATYPE:%.*]] = metatype $@thin PolyOptionable<Int>.Type
 // CHECK-NEXT:    [[NOUGHT:%.*]] = enum $PolyOptionable<Int>, #PolyOptionable.mere!enumelt, %0
   _ = PolyOptionable<Int>.mere(t)

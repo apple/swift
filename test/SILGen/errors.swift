@@ -526,8 +526,9 @@ func testForceTryMultiple() {
 // CHECK: [[FN_2:%.+]] = function_ref @$s6errors10make_a_catAA3CatCyKF
 // CHECK-NEXT: try_apply [[FN_2]]() : $@convention(thin) () -> (@owned Cat, @error Error), normal [[SUCCESS_2:[^ ]+]], error [[CLEANUPS_2:[^ ]+]],
 // CHECK: [[SUCCESS_2]]([[VALUE_2:%.+]] : @owned $Cat)
-// CHECK-NEXT: destroy_value [[VALUE_2]] : $Cat
-// CHECK-NEXT: destroy_value [[VALUE_1]] : $Cat
+// CHECK-NEXT: [[VALUE_3:%.+]] = tuple ([[VALUE_1]] : $Cat, [[VALUE_2]] : $Cat)
+// CHECK-NEXT: debug_value [[VALUE_3]] : $(Cat, Cat), let, name "_"
+// CHECK-NEXT: destroy_value [[VALUE_3]] : $(Cat, Cat)
 // CHECK-NEXT: [[VOID:%.+]] = tuple ()
 // CHECK-NEXT: return [[VOID]] : $()
 // CHECK: [[FAILURE:.+]]([[ERROR:%.+]] : @owned $Error):
@@ -835,6 +836,7 @@ func testForcePeephole(_ f: () throws -> Int?) -> Int {
 // CHECK-NEXT: [[WRAPPED:%.+]] = enum $Optional<Cat>, #Optional.some!enumelt, [[VALUE]]
 // CHECK-NEXT: br [[DONE:[^ ]+]]([[WRAPPED]] : $Optional<Cat>)
 // CHECK: [[DONE]]([[RESULT:%.+]] : @owned $Optional<Cat>):
+// CHECK-NEXT: debug_value [[RESULT]] : $Optional<Cat>, let, name "_"
 // CHECK-NEXT: destroy_value [[RESULT]] : $Optional<Cat>
 // CHECK-NEXT: [[VOID:%.+]] = tuple ()
 // CHECK-NEXT: return [[VOID]] : $()
@@ -939,6 +941,7 @@ func testOptionalTryAddressOnlyVar<T>(_ obj: T) {
 // CHECK-NEXT: [[WRAPPED:%.+]] = enum $Optional<(Cat, Cat)>, #Optional.some!enumelt, [[TUPLE]]
 // CHECK-NEXT: br [[DONE:[^ ]+]]([[WRAPPED]] : $Optional<(Cat, Cat)>)
 // CHECK: [[DONE]]([[RESULT:%.+]] : @owned $Optional<(Cat, Cat)>):
+// CHECK-NEXT: debug_value [[RESULT]] : $Optional<(Cat, Cat)>, let, name "_"
 // CHECK-NEXT: destroy_value [[RESULT]] : $Optional<(Cat, Cat)>
 // CHECK-NEXT: [[VOID:%.+]] = tuple ()
 // CHECK-NEXT: return [[VOID]] : $()
@@ -958,8 +961,9 @@ func testOptionalTryMultiple() {
 
 // CHECK-LABEL: sil hidden [ossa] @$s6errors25testOptionalTryNeverFailsyyF
 // CHECK: bb0:
-// CHECK-NEXT:   [[VALUE:%.+]] = tuple ()
-// CHECK-NEXT:   = enum $Optional<()>, #Optional.some!enumelt, [[VALUE]]
+// CHECK-NEXT:   [[VALUE_1:%.+]] = tuple ()
+// CHECK-NEXT:   [[VALUE_2:%.+]] = enum $Optional<()>, #Optional.some!enumelt, [[VALUE_1]]
+// CHECK-NEXT:   debug_value [[VALUE_2]] : $Optional<()>, let, name "_"
 // CHECK-NEXT:   [[VOID:%.+]] = tuple ()
 // CHECK-NEXT:   return [[VOID]] : $()
 // CHECK: } // end sil function '$s6errors25testOptionalTryNeverFailsyyF'

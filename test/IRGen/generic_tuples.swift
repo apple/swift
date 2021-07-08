@@ -67,8 +67,8 @@ func callDupC(_ c: C) { _ = dupC(c) }
 // CHECK-NEXT: [[TUPLE:%.*]] = call swiftcc { %T14generic_tuples1CC*, %T14generic_tuples1CC* } @"$s14generic_tuples4dupCyx_xtxAA1CCRbzlF"(%T14generic_tuples1CC* %0, %swift.type* [[METATYPE]])
 // CHECK-NEXT: [[LEFT:%.*]] = extractvalue { %T14generic_tuples1CC*, %T14generic_tuples1CC* } [[TUPLE]], 0
 // CHECK-NEXT: [[RIGHT:%.*]] = extractvalue { %T14generic_tuples1CC*, %T14generic_tuples1CC* } [[TUPLE]], 1
-// CHECK-NEXT: call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T14generic_tuples1CC*)*)(%T14generic_tuples1CC* [[RIGHT]])
 // CHECK-NEXT: call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T14generic_tuples1CC*)*)(%T14generic_tuples1CC* [[LEFT]])
+// CHECK-NEXT: call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T14generic_tuples1CC*)*)(%T14generic_tuples1CC* [[RIGHT]])
 // CHECK-NEXT: ret void
 
 // CHECK: define hidden swiftcc i64 @"$s14generic_tuples4lumpySi_xxtxlF"(%swift.opaque* noalias nocapture %0, %swift.opaque* noalias nocapture %1, %swift.opaque* noalias nocapture %2, %swift.type* %T)

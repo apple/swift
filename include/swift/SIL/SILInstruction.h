@@ -1725,12 +1725,18 @@ struct SILDebugVariable {
   StringRef Name;
   unsigned ArgNo : 16;
   unsigned Constant : 1;
+  unsigned Discard : 1;
 
-  SILDebugVariable() : ArgNo(0), Constant(false) {}
+  SILDebugVariable() : ArgNo(0), Constant(false), Discard(false) {}
   SILDebugVariable(bool Constant, uint16_t ArgNo)
-      : ArgNo(ArgNo), Constant(Constant) {}
+      : ArgNo(ArgNo), Constant(Constant), Discard(false) {}
   SILDebugVariable(StringRef Name, bool Constant, unsigned ArgNo)
-      : Name(Name), ArgNo(ArgNo), Constant(Constant) {}
+      : Name(Name), ArgNo(ArgNo), Constant(Constant), Discard(false) {}
+  SILDebugVariable(StringRef Name, bool Constant, unsigned ArgNo, bool Discard)
+    : Name(Name), ArgNo(ArgNo), Constant(Constant), Discard(Discard) {
+      assert((!Discard || (Discard && Constant)) &&
+             "Discarded assignments must be constant.");
+    }
   bool operator==(const SILDebugVariable &V) {
     return ArgNo == V.ArgNo && Constant == V.Constant && Name == V.Name;
   }
@@ -1743,8 +1749,8 @@ class TailAllocatedDebugVariable {
   union {
     int_type RawValue;
     struct {
-      /// Whether this is a debug variable at all.
-      int_type HasValue : 1;
+      /// Whether this debug variable is a discarded assignment.
+      int_type Discard : 1;
       /// True if this is a let-binding.
       int_type Constant : 1;
       /// When this is nonzero there is a tail-allocated string storing
@@ -1767,15 +1773,15 @@ public:
   /// instruction.
   StringRef getName(const char *buf) const;
   bool isLet() const { return Bits.Data.Constant; }
+  bool shouldDiscard() const { return Bits.Data.Discard; }
 
   Optional<SILDebugVariable> get(VarDecl *VD, const char *buf) const {
-    if (!Bits.Data.HasValue)
-      return None;
     if (VD)
       return SILDebugVariable(VD->getName().empty() ? "" : VD->getName().str(),
-                              VD->isLet(), getArgNo());
+                              VD->isLet(), getArgNo(), shouldDiscard());
     else
-      return SILDebugVariable(getName(buf), isLet(), getArgNo());
+      return SILDebugVariable(getName(buf), isLet(), getArgNo(),
+                              shouldDiscard());
   }
 };
 static_assert(sizeof(TailAllocatedDebugVariable) == 4,

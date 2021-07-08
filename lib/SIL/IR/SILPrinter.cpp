@@ -1151,6 +1151,8 @@ public:
     else
       *this << ", var";
     *this << ", name \"" << Var->Name << '"';
+    if (Var->Discard)
+      *this << ", discarded";
     if (Var->ArgNo)
       *this << ", argno " << Var->ArgNo;
   }

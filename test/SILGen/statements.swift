@@ -671,6 +671,7 @@ func let_else_tuple_binding(_ a : (Int, Int)?) -> Int {
   // CHECK-NEXT:   ([[PAYLOAD_1:%.*]], [[PAYLOAD_2:%.*]]) = destructure_tuple [[PAYLOAD]]
   // CHECK-NEXT:   debug_value [[PAYLOAD_1]] : $Int, let, name "x"
   // CHECK-NEXT:   debug_value [[PAYLOAD_2]] : $Int, let, name "y"
+  // CHECK-NEXT:   debug_value [[PAYLOAD_2]] : $Int
   // CHECK-NEXT:   return [[PAYLOAD_1]] : $Int
 }
 

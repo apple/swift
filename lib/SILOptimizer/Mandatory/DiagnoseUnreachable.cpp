@@ -744,6 +744,15 @@ static bool simplifyBlocksWithCallsToNoReturn(SILBasicBlock &BB,
   // If all of the predecessor blocks end in a try_apply to a noreturn
   // function, the entire block is dead.
   NoReturnCall = getPrecedingCallToNoReturn(BB);
+  
+  // A deferred check for discarded results in an underscore assignment, and
+  // ignore a NoReturn.
+  auto isDiscard = [&](SILInstruction *I) -> bool {
+    if (auto DVI = dyn_cast<DebugValueInst>(I)) {
+      return DVI->getVarInfo()->Discard;
+    }
+    return false;
+  };
 
   // Does this block contain a call to a noreturn function?
   while (I != E) {
@@ -764,7 +773,7 @@ static bool simplifyBlocksWithCallsToNoReturn(SILBasicBlock &BB,
         // If we have an instruction that is an end_borrow, ignore it. This
         // happens when passing a guaranteed argument through generic code paths
         // to no return functions.
-        if (!isa<EndBorrowInst>(CurrentInst)) {
+        if (!isa<EndBorrowInst>(CurrentInst) && !isDiscard(CurrentInst)) {
           if (NoReturnCall->getLoc().is<RegularLocation>()) {
             if (!NoReturnCall->getLoc().isASTNode<ExplicitCastExpr>()) {
               diagnose(BB.getModule().getASTContext(),

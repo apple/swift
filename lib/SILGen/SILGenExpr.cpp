@@ -4528,7 +4528,7 @@ static void emitSimpleAssignment(SILGenFunction &SGF, SILLocation loc,
     // If we're assigning to a discard, just emit the operand as ignored.
     dest = dest->getSemanticsProvidingExpr();
     if (isa<DiscardAssignmentExpr>(dest)) {
-      SGF.emitIgnoredExpr(src);
+      SGF.emitIgnoredExpr(src, true);
       return;
     }
     
@@ -5679,12 +5679,12 @@ RValue SILGenFunction::emitPlusZeroRValue(Expr *E) {
 }
 
 // Evaluate the expression as an lvalue or rvalue, discarding the result.
-void SILGenFunction::emitIgnoredExpr(Expr *E) {
+void SILGenFunction::emitIgnoredExpr(Expr *E, bool isAssignment) {
   // If this is a tuple expression, recursively ignore its elements.
   // This may let us recursively avoid work.
   if (auto *TE = dyn_cast<TupleExpr>(E)) {
     for (auto *elt : TE->getElements())
-      emitIgnoredExpr(elt);
+      emitIgnoredExpr(elt, isAssignment);
     return;
   }
   
@@ -5708,18 +5708,30 @@ void SILGenFunction::emitIgnoredExpr(Expr *E) {
 
     // If loading from the lvalue is guaranteed to have no side effects, we
     // don't need to drill into it.
-    if (lv.isLoadingPure())
+    if (lv.isLoadingPure() && !isAssignment)
       return;
 
     // If the last component is physical, then we just need to drill through
     // side effects in the lvalue, but don't need to perform the final load.
     if (lv.isLastComponentPhysical()) {
-      emitAddressOfLValue(E, std::move(lv));
+      ManagedValue mv = emitAddressOfLValue(E, std::move(lv));
+      if (isAssignment) {
+        SILDebugVariable dbgVar(StringRef("_"), true, 0, /*Discard=*/1);
+        B.emitDebugDescription(E, mv.getValue(), dbgVar);
+      }
       return;
     }
 
     // Otherwise, we must call the ultimate getter to get its potential side
     // effect.
+    if (isAssignment) {
+      ManagedValue mv = emitLoadOfLValue(E, std::move(lv),
+                                         SGFContext::AllowImmediatePlusZero)
+                        .getAsSingleValue(*this, LE);
+      SILDebugVariable dbgVar(StringRef("_"), true, 0, /*Discard=*/1);
+      B.emitDebugDescription(E, mv.getValue(), dbgVar);
+      return;
+    }
     emitLoadOfLValue(E, std::move(lv), SGFContext::AllowImmediatePlusZero);
     return;
   }
@@ -5756,11 +5768,32 @@ void SILGenFunction::emitIgnoredExpr(Expr *E) {
       value = emitCheckedGetOptionalValueFrom(
           FVE, value, isImplicitUnwrap, optTL, SGFContext::AllowImmediatePlusZero);
     }
+    
+    if (isAssignment) {
+      SILDebugVariable dbgVar(StringRef("_"), true, 0, /*Discard=*/1);
+      B.emitDebugDescription(E, value.getValue(), dbgVar);
+    }
+    
     return;
   }
 
   // Otherwise, emit the result (to get any side effects), but produce it at +0
   // if that allows simplification.
+  
+  // Generate debug info for an RHS of a discarded assignment that indicates
+  // usage of a variable. Top level variable usage is not yet monitored, and
+  // creating debug info at the top level may interfere with shadow copies.
+  if (isAssignment) {
+    ManagedValue mv = emitRValue(E, SGFContext::AllowImmediatePlusZero)
+                      .getAsSingleValue(*this, E);
+    
+    if (!mv.getType().isAddress()) {
+      SILDebugVariable dbgVar(StringRef("_"), true, /*ArgNo=*/0, /*Discard=*/1);
+      B.emitDebugDescription(E, mv.getValue(), dbgVar);
+    }
+    return;
+  }
+  
   emitRValue(E, SGFContext::AllowImmediatePlusZero);
 }
 
