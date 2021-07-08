@@ -45,7 +45,11 @@ class SwiftPM(product.Product):
     def run_bootstrap_script(self, action, host_target, additional_params=[]):
         script_path = os.path.join(
             self.source_dir, 'Utilities', 'bootstrap')
-        toolchain_path = self.install_toolchain_path(host_target)
+
+        if self.args.native_swift_tools_path is not None:
+            toolchain_path = os.path.split(self.args.native_swift_tools_path)[0]
+        else:
+            toolchain_path = self.install_toolchain_path(host_target)
         swiftc = os.path.join(toolchain_path, "bin", "swiftc")
 
         # FIXME: We require llbuild build directory in order to build. Is
@@ -101,8 +105,8 @@ class SwiftPM(product.Product):
             elif host_target != self.args.host_target:
                 helper_cmd += [host_target]
                 helper_cmd.append("--skip-cmake-bootstrap")
-                build_toolchain_path = self.install_toolchain_path(host_target,
-                                                                   force_local=True)
+                build_toolchain_path = self.get_install_destdir(
+                    self.args, host_target, self.build_dir) + self.args.install_prefix
                 resource_dir = '%s/lib/swift' % build_toolchain_path
                 helper_cmd += [
                     '--cross-compile-config',
