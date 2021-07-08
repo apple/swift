@@ -3692,20 +3692,20 @@ NOTE(ambiguous_because_of_trailing_closure,none,
 // Cannot capture inout-ness of a parameter
 // Partial application of foreign functions not supported
 ERROR(partial_application_of_function_invalid,none,
-      "partial application of %select{"
+      "calling a %select{"
         "'mutating' method|"
         "'super.init' initializer chain|"
         "'self.init' initializer delegation|"
         "'super' instance method with metatype base"
-      "}0 is not allowed",
+      "}0 without an argument list is not allowed",
       (unsigned))
 WARNING(partial_application_of_function_invalid_swift4,none,
-      "partial application of %select{"
+      "calling a %select{"
         "'mutating' method|"
         "'super.init' initializer chain|"
         "'self.init' initializer delegation|"
         "'super' instance method with metatype base"
-      "}0 is not allowed; calling the function has undefined behavior and will "
+      "}0 without an argument list is not allowed; calling the function has undefined behavior and will "
       "be an error in future Swift versions",
       (unsigned))
 

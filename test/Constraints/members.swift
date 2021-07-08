@@ -28,7 +28,7 @@ func g0(_: (inout X) -> (Float) -> ()) {}
 _ = x.f0(i)
 x.f0(i).f1(i)
 
-g0(X.f1) // expected-error{{partial application of 'mutating' method}}
+g0(X.f1) // expected-error{{calling a 'mutating' method without an argument list is not allowed}}
 
 _ = x.f0(x.f2(1))
 _ = x.f0(1).f2(i)
@@ -74,7 +74,7 @@ struct GZ<T> {
 
 var z = Z(i: 0)
 var getI = z.getI
-var incI = z.incI // expected-error{{partial application of 'mutating'}}
+var incI = z.incI // expected-error{{calling a 'mutating' method without an argument list is not allowed}}
 var zi = z.getI()
 var zcurried1 = z.curried
 var zcurried2 = z.curried(0)

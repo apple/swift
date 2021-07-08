@@ -13,4 +13,4 @@ struct C {
 }
 
 var c = C()
-let x = c.f // expected-error{{partial application of 'mutating' method is not allowed}}
+let x = c.f // expected-error{{calling a 'mutating' method without an argument list is not allowed}}
