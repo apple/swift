@@ -234,12 +234,6 @@ static bool isUnavailableInAllVersions(ValueDecl *decl) {
 /// declaration in a superclass.
 static bool areOverrideCompatibleSimple(ValueDecl *decl,
                                         ValueDecl *parentDecl) {
-  // If the number of argument labels does not match, these overrides cannot
-  // be compatible.
-  if (decl->getName().getArgumentNames().size() !=
-        parentDecl->getName().getArgumentNames().size())
-    return false;
-
   // If the parent declaration is not in a class (or extension thereof) or
   // a protocol, we cannot override it.
   if (decl->getDeclContext()->getSelfClassDecl() &&
@@ -512,6 +506,92 @@ namespace {
   };
 }
 
+static bool fixMissingParameters(InFlightDiagnostic &diag, ValueDecl *decl,
+                                 ValueDecl *baseDecl) {
+  // Only check class override
+  if (!(decl->getDeclContext()->getSelfClassDecl() &&
+      baseDecl->getDeclContext()->getSelfClassDecl())) {
+    return false;
+  }
+  
+  const ParameterList *derivedParams = nullptr;
+  const ParameterList *baseParams = nullptr;
+  if ((isa<AbstractFunctionDecl>(decl) &&
+       isa<AbstractFunctionDecl>(baseDecl)) ||
+      isa<SubscriptDecl>(baseDecl)) {
+    derivedParams = getParameterList(const_cast<ValueDecl *>(decl));
+    baseParams = getParameterList(const_cast<ValueDecl *>(baseDecl));
+  }
+
+  if (!derivedParams && !baseParams) {
+    return false;
+  }
+
+  int diff = baseParams->size() - derivedParams->size();
+  if (diff <= 0)
+    return false;
+  
+  unsigned numMissing = abs(diff);
+  
+  SmallString<32> scratch;
+  llvm::raw_svector_ostream fixIt(scratch);
+
+  auto subs = SubstitutionMap::getOverrideSubstitutions(baseDecl, decl,
+                                                        /*derivedSubs=*/None);
+  
+  bool isFirst = true;
+  for (unsigned i = baseParams->size() - numMissing, n = baseParams->size();
+       i != n; ++i) {
+    auto *baseParam = baseParams->get(i);
+    auto baseParamTy = baseParam->getInterfaceType();
+    if (baseParam->isInOut())
+      baseParamTy = baseParamTy->getInOutObjectType();
+    baseParamTy = baseParamTy.subst(subs);
+      
+    auto argName = baseParam->getArgumentName();
+    auto paraName = baseParam->getParameterName();
+    
+    if (isFirst) {
+      isFirst = false;
+      fixIt << ", ";
+    }
+    
+    auto paraNameStr = paraName.empty() ? " _" : paraName.str();
+    auto argNameStr = argName.empty() ? " _" : argName.str();
+    if (paraName == argName) {
+      fixIt << argNameStr << ": ";
+    } else {
+      fixIt << argNameStr << " " << paraNameStr << ": ";
+    }
+    
+    if (baseParam->isInOut())
+      fixIt << "inout ";
+    
+    auto type = baseParamTy->getCanonicalType();
+    if (auto funcTy = dyn_cast<FunctionType>(type)) {
+      if (!funcTy->isNoEscape()) {
+        fixIt << "@escaping ";
+      }
+    }
+      
+    if (baseParam->isVariadic()) {
+      fixIt << baseParam->getVarargBaseTy() << "...";
+    } else {
+      fixIt << baseParamTy;
+    }
+      
+    if (i + 1 < n)
+      fixIt << ", ";
+  }
+    
+  // The location where to insert stubs.
+  SourceLoc FixitLocation;
+  FixitLocation = derivedParams->get(derivedParams->size()-1)->getEndLoc();
+  diag.fixItInsertAfter(FixitLocation, fixIt.str());
+  
+  return true;
+}
+
 static void diagnoseGeneralOverrideFailure(ValueDecl *decl,
                                            ArrayRef<OverrideMatch> matches,
                                            OverrideCheckingAttempt attempt) {
@@ -551,13 +631,84 @@ static void diagnoseGeneralOverrideFailure(ValueDecl *decl,
       continue;
     }
 
-    auto diag = diags.diagnose(matchDecl, diag::overridden_near_match_here,
-                               matchDecl->getDescriptiveKind(),
-                               matchDecl->getName());
-    if (attempt == OverrideCheckingAttempt::BaseName) {
+    if (decl->getName().getArgumentNames().size()
+        < matchDecl->getName().getArgumentNames().size()) {
+      auto diag = diags.diagnose(matchDecl, diag::overridden_near_match_here,
+                                 matchDecl->getDescriptiveKind(),
+                                 matchDecl->getName());
+      fixMissingParameters(diag, decl, matchDecl);
+    } else {
+      auto diag = diags.diagnose(matchDecl, diag::overridden_near_match_here,
+                                 matchDecl->getDescriptiveKind(),
+                                 matchDecl->getName());
       fixDeclarationName(diag, decl, matchDecl->getName());
     }
   }
+}
+
+static bool partialParameterMatch(const ValueDecl *derivedDecl,
+                                  const ValueDecl *baseDecl,
+                                  TypeMatchOptions matchMode) {
+  const ParameterList *derivedParams = nullptr;
+  const ParameterList *baseParams = nullptr;
+  if ((isa<AbstractFunctionDecl>(derivedDecl) &&
+       isa<AbstractFunctionDecl>(baseDecl)) ||
+      isa<SubscriptDecl>(baseDecl)) {
+    derivedParams = getParameterList(const_cast<ValueDecl *>(derivedDecl));
+    baseParams = getParameterList(const_cast<ValueDecl *>(baseDecl));
+  }
+  
+  if (!derivedParams && !baseParams) {
+    return false;
+  }
+  
+  if (baseParams->size() == derivedParams->size())
+    return false;
+    
+  auto subs = SubstitutionMap::getOverrideSubstitutions(baseDecl, derivedDecl,
+                                                        /*derivedSubs=*/None);
+  
+  for (auto i : indices(derivedParams->getArray())) {
+    auto *baseParam = baseParams->get(i);
+    auto *derivedParam = derivedParams->get(i);
+    // Make sure parameter name match
+    if (baseParam->getParameterName() != derivedParam->getParameterName())
+      return false;
+    
+    // Make sure inout-ness and varargs match.
+    if (baseParam->isInOut() != derivedParam->isInOut() ||
+        baseParam->isVariadic() != derivedParam->isVariadic()) {
+      return false;
+    }
+    
+    auto baseParamTy = baseParam->getInterfaceType();
+    baseParamTy = baseParamTy.subst(subs);
+    auto derivedParamTy = derivedParam->getInterfaceType();
+
+    if (baseParam->isInOut() || baseParam->isVariadic()) {
+      // Inout and vararg parameters must match exactly.
+      if (baseParamTy->isEqual(derivedParamTy))
+        continue;
+    } else {
+      // Attempt contravariant match.
+      if (baseParamTy->matchesParameter(derivedParamTy, matchMode))
+        continue;
+
+      // Try once more for a match, using the underlying type of an
+      // IUO if we're allowing that.
+      if (baseParam->isImplicitlyUnwrappedOptional() &&
+          matchMode.contains(TypeMatchFlags::AllowNonOptionalForIUOParam)) {
+        baseParamTy = baseParamTy->getOptionalObjectType();
+        if (baseParamTy->matches(derivedParamTy, matchMode))
+          continue;
+      }
+    }
+    
+    // If there is no match, then we're done.
+    return false;
+  }
+  
+  return true;
 }
 
 static bool parameterTypesMatch(const ValueDecl *derivedDecl,
@@ -961,6 +1112,25 @@ SmallVector<OverrideMatch, 2> OverrideMatcher::match(
       matches.push_back({parentDecl, false});
       continue;
     }
+    
+    // collect matches for method_does_not_override
+    if ((attempt == OverrideCheckingAttempt::BaseName) &&
+        (decl->getBaseName() == parentDecl->getBaseName() &&
+         (decl->getName().getArgumentNames().size() <
+          parentDecl->getName().getArgumentNames().size()) &&
+           (declFnTy && parentDeclFnTy))) {
+      auto partiaParamsAndResultMatch = [=]() -> bool {
+        return partialParameterMatch(decl, parentDecl, matchMode) &&
+               declFnTy->getResult()->matches(parentDeclFnTy->getResult(),
+                                              matchMode);
+      };
+
+      if (declFnTy->matchesFunctionType(parentDeclFnTy, matchMode,
+                                        partiaParamsAndResultMatch)) {
+        matches.push_back({parentDecl, false});
+        continue;
+      }
+    }
   }
 
   // If we have more than one match, and any of them was exact, remove all
@@ -1094,11 +1264,21 @@ bool OverrideMatcher::checkOverride(ValueDecl *baseDecl,
   // If the name of our match differs from the name we were looking for,
   // complain.
   if (decl->getName() != baseDecl->getName()) {
-    auto diag = diags.diagnose(decl, diag::override_argument_name_mismatch,
-                               isa<ConstructorDecl>(decl),
-                               decl->getName(),
-                               baseDecl->getName());
-    fixDeclarationName(diag, decl, baseDecl->getName());
+    if ((decl->getName().getArgumentNames().size()
+         < baseDecl->getName().getArgumentNames().size())
+        && attempt == OverrideCheckingAttempt::BaseName) {
+      auto diagKind = diag::method_does_not_override;
+      if (isa<ConstructorDecl>(decl))
+        diagKind = diag::initializer_does_not_override;
+      auto diag = diags.diagnose(decl, diagKind);
+      fixMissingParameters(diag, decl, baseDecl);
+    } else {
+      auto diag = diags.diagnose(decl, diag::override_argument_name_mismatch,
+                                 isa<ConstructorDecl>(decl),
+                                 decl->getName(),
+                                 baseDecl->getName());
+      fixDeclarationName(diag, decl, baseDecl->getName());
+    }
     emittedMatchError = true;
   }
 

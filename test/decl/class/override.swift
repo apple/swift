@@ -160,6 +160,22 @@ class H : G {
   override init(b: Double) {} // expected-error{{initializer does not override a designated initializer from its superclass}} {{none}}
 }
 
+class J {
+  func f1(_: Int, int1: Int) { } //  expected-note * {{here}}
+  
+  func g1(_: Int, int1: inout Int, _ a: Int..., d: String) { } //  expected-note * {{here}}
+  
+  init(a: Int, string: String) {} //  expected-note * {{here}}
+}
+
+class K: J {
+  override func f1(_: Int) { } // expected-error{{method does not override any method from its superclass}} {{26-26=, int1: Int}}
+  
+  override func g1(_: Int) { } // expected-error{{method does not override any method from its superclass}} {{26-26=, int1: inout Int, _ a: Int..., d: String}}
+  
+  override init(a: Int) {} // expected-error{{declaration 'init(a:)' has different argument labels from any potential overrides}} {{23-23=, string: String}}
+}
+
 @objc class IUOTestBaseClass {
   @objc func none() {}
 
