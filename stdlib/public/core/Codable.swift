@@ -5519,6 +5519,16 @@ internal struct _DictionaryCodingKey: CodingKey {
     self.stringValue = "\(intValue)"
     self.intValue = intValue
   }
+
+  fileprivate init(codingKey: CodingKey) {
+    self.stringValue = codingKey.stringValue
+    self.intValue = codingKey.intValue
+  }
+}
+
+public protocol CodingKeyRepresentable {
+  var codingKey: CodingKey { get }
+  init?(codingKey: CodingKey)
 }
 
 extension Dictionary: Encodable where Key: Encodable, Value: Encodable {
@@ -5546,6 +5556,15 @@ extension Dictionary: Encodable where Key: Encodable, Value: Encodable {
       for (key, value) in self {
         let codingKey = _DictionaryCodingKey(intValue: key as! Int)!
         try container.encode(value, forKey: codingKey)
+      }
+    } else if let _ = Key.self as? CodingKeyRepresentable.Type {
+      // Since the keys are CodingKeyRepresentable, we can use the `codingKey`
+      // to create `_DictionaryCodingKey` instances.
+      var container = encoder.container(keyedBy: _DictionaryCodingKey.self)
+      for (key, value) in self.dict {
+        let codingKey = (key as! CodingKeyRepresentable).codingKey
+        let dictionaryCodingKey = _DictionaryCodingKey(codingKey: codingKey)
+        try container.encode(value, forKey: dictionaryCodingKey)
       }
     } else {
       // Keys are Encodable but not Strings or Ints, so we cannot arbitrarily
@@ -5600,6 +5619,14 @@ extension Dictionary: Decodable where Key: Decodable, Value: Decodable {
 
         let value = try container.decode(Value.self, forKey: key)
         self[key.intValue! as! Key] = value
+      }
+    } else if let codingKeyRepresentableType = Key.self as? CodingKeyRepresentable.Type {
+      // The keys are CodingKeyRepresentable, so we should be able to expect a keyed container.
+      let container = try decoder.container(keyedBy: _DictionaryCodingKey.self)
+      for key in container.allKeys {
+        let value = try container.decode(Value.self, forKey: key)
+        let k = codingKeyRepresentableType.init(codingKey: key)
+        self.dict[k as! Key] = value
       }
     } else {
       // We should have encoded as an array of alternating key-value pairs.
