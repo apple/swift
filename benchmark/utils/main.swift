@@ -48,6 +48,7 @@ import Chars
 import ClassArrayGetter
 import Codable
 import Combos
+import ConcurrencyBasics
 import CreateObjects
 import DataBenchmarks
 import DeadArray
@@ -244,6 +245,7 @@ registerBenchmark(Chars)
 registerBenchmark(Codable)
 registerBenchmark(Combos)
 registerBenchmark(ClassArrayGetter)
+registerBenchmark(ConcurrencyBasics)
 registerBenchmark(CreateObjects)
 registerBenchmark(DataBenchmarks)
 registerBenchmark(DeadArray)

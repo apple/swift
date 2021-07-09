@@ -349,7 +349,7 @@ function (swift_benchmark_compile_archopts)
     message(FATAL_ERROR "Invalid benchmark configuration ${BENCH_COMPILE_ARCHOPTS_OPT}")
   endif()
 
-  set(bench_flags "${${benchvar}}")
+  set(bench_flags "${${benchvar}}" "-Xfrontend" "-enable-experimental-concurrency")
 
   set(common_options
       "-c"
