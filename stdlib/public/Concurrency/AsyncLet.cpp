@@ -123,31 +123,72 @@ void swift::swift_asyncLet_start(AsyncLet *alet,
 // ==== wait -------------------------------------------------------------------
 
 SWIFT_CC(swiftasync)
-static void swift_asyncLet_waitImpl(
-    OpaqueValue *result, SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
-    AsyncLet *alet, TaskContinuationFunction *resumeFunction,
+static void swift_asyncLet_wait_with_optionsImpl(
+    OpaqueValue *result,
+    SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
+    AsyncLet *alet,
+    TaskOptionRecord *options,
+    TaskContinuationFunction *resumeFunction,
     AsyncContext *callContext) {
-  auto task = alet->getTask();
-  swift_task_future_wait(result, callerContext, task, resumeFunction,
-                         callContext);
+  swift_task_future_wait_with_options(
+      result,
+      callerContext,
+      alet->getTask(),
+      options,
+      resumeFunction, callContext);
+}
+
+SWIFT_CC(swiftasync)
+static void swift_asyncLet_waitImpl(
+    OpaqueValue *result,
+    SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
+    AsyncLet *alet,
+    TaskContinuationFunction *resumeFunction,
+    AsyncContext *callContext) {
+  swift_asyncLet_wait_with_optionsImpl(
+      result,
+      callerContext,
+      alet,
+      /*options=*/nullptr,
+      resumeFunction, callContext);
+}
+
+SWIFT_CC(swiftasync)
+static void swift_asyncLet_wait_throwing_with_optionsImpl(
+    OpaqueValue *result,
+    SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
+    AsyncLet *alet,
+    TaskOptionRecord *options,
+    ThrowingTaskFutureWaitContinuationFunction *resumeFunction,
+    AsyncContext *callContext) {
+  swift_task_future_wait_throwing_with_options(
+      result,
+      callerContext,
+      alet->getTask(),
+      options,
+      resumeFunction, callContext);
 }
 
 SWIFT_CC(swiftasync)
 static void swift_asyncLet_wait_throwingImpl(
-    OpaqueValue *result, SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
+    OpaqueValue *result,
+    SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
     AsyncLet *alet,
     ThrowingTaskFutureWaitContinuationFunction *resumeFunction,
-    AsyncContext * callContext) {
-  auto task = alet->getTask();
-  swift_task_future_wait_throwing(result, callerContext, task, resumeFunction,
-                                  callContext);
+    AsyncContext *callContext) {
+  swift_asyncLet_wait_throwing_with_optionsImpl(
+      result,
+      callerContext,
+      alet,
+      /*options=*/nullptr,
+      resumeFunction, callContext);
 }
 
 // =============================================================================
 // ==== end --------------------------------------------------------------------
 
 SWIFT_CC(swift)
-static void swift_asyncLet_endImpl(AsyncLet *alet) {
+static void swift_asyncLet_end_with_optionsImpl(AsyncLet *alet, TaskOptionRecord *options) {
   auto task = alet->getTask();
 
   // Cancel the task as we exit the scope
@@ -168,6 +209,12 @@ static void swift_asyncLet_endImpl(AsyncLet *alet) {
           _swift_get_thread_id(), task, parent);
 #endif
   _swift_task_dealloc_specific(parent, task);
+}
+
+
+SWIFT_CC(swift)
+static void swift_asyncLet_endImpl(AsyncLet *alet) {
+  swift_asyncLet_end_with_options(alet, /*options=*/nullptr);
 }
 
 // =============================================================================

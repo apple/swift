@@ -204,9 +204,13 @@ llvm::Value *irgen::emitBuiltinStartAsyncLet(IRGenFunction &IGF,
   return alet;
 }
 
-void irgen::emitEndAsyncLet(IRGenFunction &IGF, llvm::Value *alet) {
+void irgen::emitEndAsyncLet(IRGenFunction &IGF,
+                            llvm::Value *alet,
+                            llvm::Value *taskOptions) {
+  IGF.IGM.getEndAsyncLetFn()->dump();
+
   auto *call = IGF.Builder.CreateCall(IGF.IGM.getEndAsyncLetFn(),
-                                      {alet});
+                                      {alet, taskOptions});
   call->setDoesNotThrow();
   call->setCallingConv(IGF.IGM.SwiftCC);
 

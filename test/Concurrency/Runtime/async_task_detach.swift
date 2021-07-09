@@ -24,7 +24,7 @@ struct Boom: Error {}
 @available(SwiftStdlib 5.5, *)
 func test_detach() async {
   let x = X()
-  let h = detach {
+  let h = Task.detached {
     print("inside: \(x)")
   }
   await h.get()
@@ -36,7 +36,7 @@ func test_detach() async {
 @available(SwiftStdlib 5.5, *)
 func test_detach_throw() async {
   let x = X()
-  let h = detach {
+  let h = Task.detached {
     print("inside: \(x)")
     throw Boom()
   }

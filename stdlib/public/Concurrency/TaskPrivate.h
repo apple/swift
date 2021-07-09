@@ -117,19 +117,34 @@ namespace {
 /// The layout of a context to call one of the following functions:
 ///
 ///   @_silgen_name("swift_task_future_wait")
-///   func _taskFutureGet<T>(_ task: Builtin.NativeObject) async -> T
+///   func _taskFutureGet<T>(
+///     _ task: Builtin.NativeObject,
+///     options: Builtin.RawPointer?
+///   ) async -> T
 ///
 ///   @_silgen_name("swift_task_future_wait_throwing")
-///   func _taskFutureGetThrowing<T>(_ task: Builtin.NativeObject) async throws -> T
+///   func _taskFutureGetThrowing<T>(
+///     _ task: Builtin.NativeObject,
+///     options: Builtin.RawPointer?
+///   ) async throws -> T
 ///
 ///   @_silgen_name("swift_asyncLet_wait")
-///   func _asyncLetGet<T>(_ task: Builtin.RawPointer) async -> T
+///   func _asyncLetGet<T>(
+///     _ task: Builtin.RawPointer,
+///     options: Builtin.RawPointer?
+///   ) async -> T
 ///
 ///   @_silgen_name("swift_asyncLet_waitThrowing")
-///   func _asyncLetGetThrowing<T>(_ task: Builtin.RawPointer) async throws -> T
+///   func _asyncLetGetThrowing<T>(
+///     _ task: Builtin.RawPointer,
+///     options: Builtin.RawPointer?
+///   ) async throws -> T
 ///
 ///   @_silgen_name("swift_taskGroup_wait_next_throwing")
-///   func _taskGroupWaitNext<T>(group: Builtin.RawPointer) async throws -> T?
+///   func _taskGroupWaitNext<T>(
+///     group: Builtin.RawPointer,
+///     options: Builtin.RawPointer?
+///   ) async throws -> T?
 ///
 class TaskFutureWaitAsyncContext : public AsyncContext {
 public:

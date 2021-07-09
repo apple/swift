@@ -2512,17 +2512,22 @@ FunctionPointer::Kind irgen::classifyFunctionPointerKind(SILFunction *fn) {
   // Check for some special cases, which are currently all async:
   if (fn->isAsync()) {
     auto name = fn->getName();
-    if (name.equals("swift_task_future_wait"))
+    if (name.equals("swift_task_future_wait") ||
+        name.equals("swift_task_future_wait_with_options"))
       return SpecialKind::TaskFutureWait;
-    if (name.equals("swift_task_future_wait_throwing"))
+    if (name.equals("swift_task_future_wait_throwing") ||
+        name.equals("swift_task_future_wait_throwing_with_options"))
       return SpecialKind::TaskFutureWaitThrowing;
 
-    if (name.equals("swift_asyncLet_wait"))
+    if (name.equals("swift_asyncLet_wait") ||
+        name.equals("swift_asyncLet_wait_with_options"))
       return SpecialKind::AsyncLetWait;
-    if (name.equals("swift_asyncLet_wait_throwing"))
+    if (name.equals("swift_asyncLet_wait_throwing") ||
+        name.equals("swift_asyncLet_wait_throwing_with_options"))
       return SpecialKind::AsyncLetWaitThrowing;
 
-    if (name.equals("swift_taskGroup_wait_next_throwing"))
+    if (name.equals("swift_taskGroup_wait_next_throwing") ||
+        name.equals("swift_taskGroup_wait_next_throwing_with_options"))
       return SpecialKind::TaskGroupWaitNext;
   }
 

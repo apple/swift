@@ -1511,9 +1511,25 @@ static ValueDecl *getStartAsyncLet(ASTContext &ctx, Identifier id) {
 }
 
 static ValueDecl *getEndAsyncLet(ASTContext &ctx, Identifier id) {
-  return getBuiltinFunction(ctx, id, _thin,
-                            _parameters(_rawPointer),
-                            _void);
+  ModuleDecl *M = ctx.TheBuiltinModule;
+  DeclContext *DC = &M->getMainFile(FileUnitKind::Builtin);
+  SynthesisContext SC(ctx, DC);
+
+  BuiltinFunctionBuilder builder(ctx);
+
+  // AsyncLet*
+  builder.addParameter(makeConcrete(OptionalType::get(ctx.TheRawPointerType)));
+
+  // TaskOptionRecord*
+  builder.addParameter(makeConcrete(OptionalType::get(ctx.TheRawPointerType)));
+
+  // -> Void
+  builder.setResult(makeConcrete(synthesizeType(SC, _void)));
+  return builder.build(id);
+//  return getBuiltinFunction(ctx, id, _thin,
+//                            _parameters(_rawPointer,
+//                                        makeConcrete(OptionalType::get(ctx.TheRawPointerType))),
+//                            _void);
 }
 
 static ValueDecl *getCreateTaskGroup(ASTContext &ctx, Identifier id) {

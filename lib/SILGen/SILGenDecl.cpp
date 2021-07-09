@@ -1174,19 +1174,28 @@ void SILGenFunction::emitPatternBinding(PatternBindingDecl *PBD,
       // If we can statically detect some option needs to be passed, e.g.
       // an executor preference, we'd construct the appropriate option here and
       // pass it to the async let start.
-      auto options = B.createManagedOptionalNone(
+      auto taskOptions = B.createManagedOptionalNone(
           loc, SILType::getOptionalType(SILType::getRawPointerType(C)));
 
       alet = emitAsyncLetStart(
           loc,
-          options.forward(*this), // options is B.createManagedOptionalNone
+          taskOptions.forward(*this),
           init->getType(),
           emitRValue(init).getScalarValue()
         ).forward(*this);
     }
 
-    // Push a cleanup to destroy the AsyncLet along with the task and child record.
-    enterAsyncLetCleanup(alet);
+    {
+      SILLocation loc(PBD);
+
+      // create options to pass to the for the AsyncLet end
+      auto endOptions = B.createManagedOptionalNone(
+          loc, SILType::getOptionalType(SILType::getRawPointerType(C)));
+
+      // Push a cleanup to destroy the AsyncLet along with the task and child
+      // record.
+      enterAsyncLetCleanup(alet, endOptions.forward(*this));
+    }
 
     // Save the child task so we can await it as needed.
     AsyncLetChildTasks[{PBD, idx}] = { alet, isThrowing };
@@ -1519,26 +1528,31 @@ namespace {
 /// A cleanup that destroys the AsyncLet along with the child task and record.
 class AsyncLetCleanup: public Cleanup {
   SILValue alet;
+  SILValue taskOptions;
 public:
-  AsyncLetCleanup(SILValue alet) : alet(alet) { }
+  AsyncLetCleanup(SILValue alet, SILValue taskOptions)
+      : alet(alet),
+        taskOptions(taskOptions){ }
 
   void emit(SILGenFunction &SGF, CleanupLocation l,
             ForUnwind_t forUnwind) override {
-    SGF.emitEndAsyncLet(l, alet);
+    SGF.emitEndAsyncLet(l, alet, taskOptions);
   }
 
   void dump(SILGenFunction &) const override {
 #ifndef NDEBUG
     llvm::errs() << "AsyncLetCleanup\n"
-                 << "AsyncLet:" << alet << "\n";
+                 << "AsyncLet:" << alet << "\n"
+                 << "TaskOptions:" << taskOptions << "\n";
 #endif
   }
 };
 } // end anonymous namespace
 
-CleanupHandle SILGenFunction::enterAsyncLetCleanup(SILValue alet) {
+CleanupHandle SILGenFunction::enterAsyncLetCleanup(SILValue alet,
+                                                   SILValue taskOptions) {
   Cleanups.pushCleanupInState<AsyncLetCleanup>(
-      CleanupState::Active, alet);
+      CleanupState::Active, alet, taskOptions);
   return Cleanups.getTopCleanup();
 }
 

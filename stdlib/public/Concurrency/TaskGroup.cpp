@@ -667,10 +667,12 @@ SWIFT_CC(swiftasync) static void workaround_function_swift_taskGroup_wait_next_t
 
 // =============================================================================
 // ==== group.next() implementation (wait_next and groupPoll) ------------------
+
 SWIFT_CC(swiftasync)
-static void swift_taskGroup_wait_next_throwingImpl(
+static void swift_taskGroup_wait_next_throwing_with_optionsImpl(
     OpaqueValue *resultPointer, SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
     TaskGroup *_group,
+    TaskOptionRecord *options,
     ThrowingTaskFutureWaitContinuationFunction *resumeFunction,
     AsyncContext *rawContext) {
   auto waitingTask = swift_task_getCurrent();
@@ -705,6 +707,19 @@ static void swift_taskGroup_wait_next_throwingImpl(
     fillGroupNextResult(context, polled);
     return waitingTask->runInFullyEstablishedContext();
   }
+}
+
+SWIFT_CC(swiftasync)
+static void swift_taskGroup_wait_next_throwingImpl(
+    OpaqueValue *resultPointer, SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
+    TaskGroup *_group,
+    ThrowingTaskFutureWaitContinuationFunction *resumeFunction,
+    AsyncContext *rawContext) {
+  swift_taskGroup_wait_next_throwingImpl(
+      resultPointer, callerContext,
+      _group,
+      resumeFunction,
+      rawContext);
 }
 
 PollResult TaskGroupImpl::poll(AsyncTask *waitingTask) {

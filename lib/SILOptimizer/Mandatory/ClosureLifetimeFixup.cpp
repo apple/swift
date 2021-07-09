@@ -582,11 +582,11 @@ static bool tryExtendLifetimeToLastUse(
       // alive) as a second operand to the endAsyncLet builtin.
       // This ensures that the closure arguments are kept alive until the
       // endAsyncLet builtin.
-      assert(endAsyncLet->getNumOperands() == 1);
+      assert(endAsyncLet->getNumOperands() == 2);
       SILBuilderWithScope builder(endAsyncLet);
       builder.createBuiltin(endAsyncLet->getLoc(), endAsyncLet->getName(),
         endAsyncLet->getType(), endAsyncLet->getSubstitutions(),
-        {endAsyncLet->getOperand(0), closure});
+        {endAsyncLet->getOperand(0), endAsyncLet->getOperand(1), closure});
       endAsyncLet->eraseFromParent();
     }
     return true;

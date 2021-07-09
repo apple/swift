@@ -325,7 +325,7 @@ public struct TaskGroup<ChildTaskResult> {
   public mutating func next() async -> ChildTaskResult? {
     // try!-safe because this function only exists for Failure == Never,
     // and as such, it is impossible to spawn a throwing child task.
-    return try! await _taskGroupWaitNext(group: _group)
+    return try! await _taskGroupWaitNext(group: _group, options: nil)
   }
 
   /// Await all the remaining tasks on this group.
@@ -574,13 +574,13 @@ public struct ThrowingTaskGroup<ChildTaskResult, Failure: Error> {
   /// It is possible to directly rethrow such error out of a `withTaskGroup` body
   /// function's body, causing all remaining tasks to be implicitly cancelled.
   public mutating func next() async throws -> ChildTaskResult? {
-    return try await _taskGroupWaitNext(group: _group)
+    return try await _taskGroupWaitNext(group: _group, options: nil)
   }
 
   /// - SeeAlso: `next()`
   public mutating func nextResult() async throws -> Result<ChildTaskResult, Failure>? {
     do {
-      guard let success: ChildTaskResult = try await _taskGroupWaitNext(group: _group) else {
+      guard let success: ChildTaskResult = try await _taskGroupWaitNext(group: _group, options: nil) else {
         return nil
       }
 
@@ -768,7 +768,10 @@ func _taskGroupIsCancelled(group: Builtin.RawPointer) -> Bool
 
 @available(SwiftStdlib 5.5, *)
 @_silgen_name("swift_taskGroup_wait_next_throwing")
-func _taskGroupWaitNext<T>(group: Builtin.RawPointer) async throws -> T?
+func _taskGroupWaitNext<T>(
+  group: Builtin.RawPointer,
+  options: Builtin.RawPointer?
+) async throws -> T?
 
 @available(SwiftStdlib 5.5, *)
 @_silgen_name("swift_task_hasTaskGroupStatusRecord")

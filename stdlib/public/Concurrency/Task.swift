@@ -65,7 +65,7 @@ extension Task {
   /// thrown out of the task will be re-thrown here.
   public var value: Success {
     get async throws {
-      return try await _taskFutureGetThrowing(_task)
+      return try await _taskFutureGetThrowing(_task, options: nil)
     }
   }
 
@@ -138,7 +138,7 @@ extension Task where Failure == Never {
   /// that type itself.
   public var value: Success {
     get async {
-      return await _taskFutureGet(_task)
+      return await _taskFutureGet(_task, options: nil)
     }
   }
 }
@@ -778,11 +778,17 @@ public func _runAsyncMain(_ asyncFun: @escaping () async throws -> ()) {
 //        unreferenced
 @available(SwiftStdlib 5.5, *)
 @_silgen_name("swift_task_future_wait")
-public func _taskFutureGet<T>(_ task: Builtin.NativeObject) async -> T
+public func _taskFutureGet<T>(
+  _ task: Builtin.NativeObject,
+  options: Builtin.RawPointer?
+) async -> T
 
 @available(SwiftStdlib 5.5, *)
 @_silgen_name("swift_task_future_wait_throwing")
-public func _taskFutureGetThrowing<T>(_ task: Builtin.NativeObject) async throws -> T
+public func _taskFutureGetThrowing<T>(
+  _ task: Builtin.NativeObject,
+  options: Builtin.RawPointer?
+) async throws -> T
 
 @available(SwiftStdlib 5.5, *)
 @_silgen_name("swift_task_cancel")

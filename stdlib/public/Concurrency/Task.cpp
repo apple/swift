@@ -397,7 +397,6 @@ static void future_adapter(SWIFT_ASYNC_CONTEXT AsyncContext *_context) {
 
 SWIFT_CC(swiftasync)
 static void task_wait_throwing_resume_adapter(SWIFT_ASYNC_CONTEXT AsyncContext *_context) {
-
   auto context = static_cast<TaskFutureWaitAsyncContext *>(_context);
   auto resumeWithError =
       reinterpret_cast<AsyncVoidClosureEntryPoint *>(context->ResumeParent);
@@ -712,10 +711,11 @@ SWIFT_CC(swiftasync) static void workaround_function_swift_task_future_waitImpl(
 #endif
 
 SWIFT_CC(swiftasync)
-static void swift_task_future_waitImpl(
+static void swift_task_future_wait_with_optionsImpl(
   OpaqueValue *result,
   SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
   AsyncTask *task,
+  TaskOptionRecord *taskOptions,
   TaskContinuationFunction *resumeFn,
   AsyncContext *callContext) {
   // Suspend the waiting task.
@@ -725,6 +725,8 @@ static void swift_task_future_waitImpl(
 
   // Wait on the future.
   assert(task->isFuture());
+
+  // TODO: check `options` for ExecutorTaskOptionRecord and use it to resume if it was set.
 
   switch (task->waitFuture(waitingTask, callContext, resumeFn, callerContext,
                            result)) {
@@ -750,6 +752,21 @@ static void swift_task_future_waitImpl(
   }
 }
 
+SWIFT_CC(swiftasync)
+static void swift_task_future_waitImpl(
+    OpaqueValue *result,
+    SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
+    AsyncTask *task,
+    TaskContinuationFunction *resumeFn,
+    AsyncContext *callContext) {
+  swift_task_future_wait_with_optionsImpl(
+      result,
+      callerContext,
+      task,
+      /*options=*/nullptr,
+      resumeFn, callContext);
+}
+
 #ifdef __ARM_ARCH_7K__
 __attribute__((noinline))
 SWIFT_CC(swiftasync) static void workaround_function_swift_task_future_wait_throwingImpl(
@@ -767,9 +784,10 @@ SWIFT_CC(swiftasync) static void workaround_function_swift_task_future_wait_thro
 #endif
 
 SWIFT_CC(swiftasync)
-void swift_task_future_wait_throwingImpl(
+void swift_task_future_wait_throwing_with_optionsImpl(
     OpaqueValue *result, SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
     AsyncTask *task,
+    TaskOptionRecord *taskOptions,
     ThrowingTaskFutureWaitContinuationFunction *resumeFunction,
     AsyncContext *callContext) {
   auto waitingTask = swift_task_getCurrent();
@@ -808,6 +826,19 @@ void swift_task_future_wait_throwingImpl(
     return resumeFunction(callerContext, error);
   }
   }
+}
+
+SWIFT_CC(swiftasync)
+void swift_task_future_wait_throwingImpl(
+    OpaqueValue *result, SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
+    AsyncTask *task,
+    ThrowingTaskFutureWaitContinuationFunction *resumeFunction,
+    AsyncContext *callContext) {
+  swift_task_future_wait_throwing_with_optionsImpl(
+      result, callerContext,
+      task,
+      /*options=*/nullptr,
+      resumeFunction, callContext);
 }
 
 namespace {

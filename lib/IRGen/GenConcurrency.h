@@ -65,7 +65,9 @@ llvm::Value *emitBuiltinStartAsyncLet(IRGenFunction &IGF,
                                       SubstitutionMap subs);
 
 /// Emit the endAsyncLet builtin.
-void emitEndAsyncLet(IRGenFunction &IGF, llvm::Value *alet);
+void emitEndAsyncLet(IRGenFunction &IGF,
+                     llvm::Value *alet,
+                     llvm::Value *taskOptions);
 
 /// Emit the createTaskGroup builtin.
 llvm::Value *emitCreateTaskGroup(IRGenFunction &IGF, SubstitutionMap subs);

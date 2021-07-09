@@ -1690,12 +1690,17 @@ FUNCTION(AsyncLetStart,
          ),
          ATTRS(NoUnwind, ArgMemOnly))
 
-// void swift_asyncLet_end(AsyncLet *alet);
+// void swift_asyncLet_end(
+//      AsyncLet *alet,
+//      TaskOptionRecord *options
+// );
 FUNCTION(EndAsyncLet,
          swift_asyncLet_end, SwiftCC,
          ConcurrencyAvailability,
          RETURNS(VoidTy),
-         ARGS(SwiftAsyncLetPtrTy),
+         ARGS(SwiftAsyncLetPtrTy, // AsyncLet*
+              SwiftTaskOptionRecordPtrTy // options
+         ),
          ATTRS(NoUnwind))
 
 // void swift_taskGroup_initialize(TaskGroup *group);

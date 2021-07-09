@@ -1384,12 +1384,17 @@ public:
 
   ManagedValue emitAsyncLetGet(SILLocation loc, SILValue asyncLet);
 
-  ManagedValue emitEndAsyncLet(SILLocation loc, SILValue asyncLet);
+  ManagedValue emitEndAsyncLet(SILLocation loc,
+                               SILValue asyncLet,
+                               SILValue taskOptions);
 
   ManagedValue emitCancelAsyncTask(SILLocation loc, SILValue task);
 
   void completeAsyncLetChildTask(
-      PatternBindingDecl *patternBinding, unsigned index);
+      PatternBindingDecl *patternBinding, unsigned index
+//      ,
+//      SILValue taskOptions
+      );
 
   bool maybeEmitMaterializeForSetThunk(ProtocolConformanceRef conformance,
                                        SILLinkage linkage,
@@ -2108,7 +2113,7 @@ public:
   CleanupHandle enterCancelAsyncTaskCleanup(SILValue task);
 
   // Enter a cleanup to cancel and destroy an AsyncLet as it leaves the scope.
-  CleanupHandle enterAsyncLetCleanup(SILValue alet);
+  CleanupHandle enterAsyncLetCleanup(SILValue alet, SILValue taskOptions);
 
   /// Evaluate an Expr as an lvalue.
   LValue emitLValue(Expr *E, SGFAccessKind accessKind,

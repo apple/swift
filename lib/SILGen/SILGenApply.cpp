@@ -5834,13 +5834,25 @@ ManagedValue SILGenFunction::emitCancelAsyncTask(
 }
 
 void SILGenFunction::completeAsyncLetChildTask(
-    PatternBindingDecl *patternBinding, unsigned index) {
+    PatternBindingDecl *patternBinding, unsigned index
+//    ,
+//    SILValue taskOptions
+    ) {
+  auto &C = patternBinding->getASTContext();
+
   SILValue asyncLet;
   bool isThrowing;
   std::tie(asyncLet, isThrowing)= AsyncLetChildTasks[{patternBinding, index}];
 
+  // TODO: if (options) { ... } else { make the null option }
+  // Create a "none" options
+  SILLocation loc(patternBinding);
+  auto taskOptions = B.createManagedOptionalNone(
+      loc, SILType::getOptionalType(SILType::getRawPointerType(C)));
+
   Type childResultType = patternBinding->getPattern(index)->getType();
 
+  // TODO: call this Wait rather than Get for consitency
   auto asyncLetGet = isThrowing
       ? SGM.getAsyncLetGetThrowing()
       : SGM.getAsyncLetGet();
@@ -5852,7 +5864,9 @@ void SILGenFunction::completeAsyncLetChildTask(
                                    ArrayRef<ProtocolConformanceRef>{});
   RValue childResult = emitApplyOfLibraryIntrinsic(
       SILLocation(patternBinding), asyncLetGet, subs,
-      { ManagedValue::forTrivialObjectRValue(asyncLet) },
+      { ManagedValue::forTrivialObjectRValue(asyncLet),
+        taskOptions
+      },
       SGFContext());
 
   // Write the child result into the pattern variables.
@@ -5861,14 +5875,15 @@ void SILGenFunction::completeAsyncLetChildTask(
       std::move(childResult));
 }
 
-ManagedValue SILGenFunction::emitEndAsyncLet(
-    SILLocation loc, SILValue asyncLet) {
+ManagedValue SILGenFunction::emitEndAsyncLet(SILLocation loc,
+                                             SILValue asyncLet,
+                                             SILValue taskOptions) {
   ASTContext &ctx = getASTContext();
   auto apply = B.createBuiltin(
       loc,
       ctx.getIdentifier(getBuiltinName(BuiltinValueKind::EndAsyncLet)),
       getLoweredType(ctx.TheEmptyTupleType), SubstitutionMap(),
-      { asyncLet });
+      { asyncLet, taskOptions });
   return ManagedValue::forUnmanaged(apply);
 }
 

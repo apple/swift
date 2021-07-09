@@ -107,19 +107,42 @@ OVERRIDE_TASK(task_create_common, AsyncTaskAndContext,
               (taskCreateFlags, options, futureResultType, function,
                closureContext, initialContextSize))
 
+OVERRIDE_TASK(task_future_wait_with_options, void, SWIFT_EXPORT_FROM(swift_Concurrency),
+              SWIFT_CC(swiftasync), swift::,
+              (OpaqueValue *result,
+               SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
+               AsyncTask *task,
+               TaskOptionRecord *options,
+               TaskContinuationFunction *resumeFunction,
+               AsyncContext *callContext),
+               (result, callerContext, task, options, resumeFunction, callContext))
+
 OVERRIDE_TASK(task_future_wait, void, SWIFT_EXPORT_FROM(swift_Concurrency),
               SWIFT_CC(swiftasync), swift::,
               (OpaqueValue *result,
-               SWIFT_ASYNC_CONTEXT AsyncContext *callerContext, AsyncTask *task,
+               SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
+               AsyncTask *task,
                TaskContinuationFunction *resumeFunction,
                AsyncContext *callContext),
-              (result, callerContext, task, resumeFunction, callContext))
+               (result, callerContext, task, resumeFunction, callContext))
+
+OVERRIDE_TASK(task_future_wait_throwing_with_options, void,
+              SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swiftasync),
+              swift::,
+              (OpaqueValue *result,
+               SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
+               AsyncTask *task,
+               TaskOptionRecord *options,
+               ThrowingTaskFutureWaitContinuationFunction *resumeFunction,
+               AsyncContext *callContext),
+              (result, callerContext, task, options, resumeFunction, callContext))
 
 OVERRIDE_TASK(task_future_wait_throwing, void,
               SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swiftasync),
               swift::,
               (OpaqueValue *result,
-               SWIFT_ASYNC_CONTEXT AsyncContext *callerContext, AsyncTask *task,
+               SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
+               AsyncTask *task,
                ThrowingTaskFutureWaitContinuationFunction *resumeFunction,
                AsyncContext *callContext),
               (result, callerContext, task, resumeFunction, callContext))
@@ -159,27 +182,57 @@ OVERRIDE_TASK(task_asyncMainDrainQueue, void,
               SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swift), swift::,
               , )
 
+OVERRIDE_ASYNC_LET(asyncLet_wait_with_options, void, SWIFT_EXPORT_FROM(swift_Concurrency),
+                   SWIFT_CC(swiftasync), swift::,
+                   (OpaqueValue *result,
+                    SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
+                    AsyncLet *alet,
+                    TaskOptionRecord *options,
+                    TaskContinuationFunction *resumeFn,
+                    AsyncContext *callContext),
+                   (result, callerContext, alet, options, resumeFn, callContext))
+
 OVERRIDE_ASYNC_LET(asyncLet_wait, void, SWIFT_EXPORT_FROM(swift_Concurrency),
                    SWIFT_CC(swiftasync), swift::,
                    (OpaqueValue *result,
-                       SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
-                       AsyncLet *alet, TaskContinuationFunction *resumeFn,
-                       AsyncContext *callContext),
+                    SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
+                    AsyncLet *alet,
+                    TaskContinuationFunction *resumeFn,
+                    AsyncContext *callContext),
                    (result, callerContext, alet, resumeFn, callContext))
+
+OVERRIDE_ASYNC_LET(asyncLet_wait_throwing_with_options, void,
+                   SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swiftasync),
+                   swift::,
+                   (OpaqueValue *result,
+                    SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
+                    AsyncLet *alet,
+                    TaskOptionRecord *options,
+                    ThrowingTaskFutureWaitContinuationFunction *resume,
+                    AsyncContext *callContext),
+                   (result, callerContext, alet, options, resume, callContext))
 
 OVERRIDE_ASYNC_LET(asyncLet_wait_throwing, void,
                    SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swiftasync),
                    swift::,
                    (OpaqueValue *result,
-                       SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
-                       AsyncLet *alet,
-                       ThrowingTaskFutureWaitContinuationFunction *resume,
-                       AsyncContext *callContext),
+                    SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
+                    AsyncLet *alet,
+                    ThrowingTaskFutureWaitContinuationFunction *resume,
+                    AsyncContext *callContext),
                    (result, callerContext, alet, resume, callContext))
+
+OVERRIDE_ASYNC_LET(asyncLet_end_with_options, void,
+                   SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swift),
+                   swift::,
+                   (AsyncLet *alet, TaskOptionRecord *options),
+                   (alet, options))
 
 OVERRIDE_ASYNC_LET(asyncLet_end, void,
                    SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swift),
-                   swift::, (AsyncLet *alet), (alet))
+                   swift::,
+                   (AsyncLet *alet),
+                   (alet))
 
 OVERRIDE_TASK_GROUP(taskGroup_initialize, void,
                     SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swift),
@@ -194,6 +247,18 @@ OVERRIDE_TASK_GROUP(taskGroup_destroy, void,
                     SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swift),
                     swift::, (TaskGroup *group), (group))
 
+OVERRIDE_TASK_GROUP(taskGroup_wait_next_throwing_with_options, void,
+                    SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swiftasync),
+                    swift::,
+                    (OpaqueValue *resultPointer,
+                     SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
+                     TaskGroup *_group,
+                     TaskOptionRecord *options,
+                     ThrowingTaskFutureWaitContinuationFunction *resumeFn,
+                     AsyncContext *callContext),
+                    (resultPointer, callerContext, _group, options, resumeFn,
+                     callContext))
+
 OVERRIDE_TASK_GROUP(taskGroup_wait_next_throwing, void,
                     SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swiftasync),
                     swift::,
@@ -203,7 +268,7 @@ OVERRIDE_TASK_GROUP(taskGroup_wait_next_throwing, void,
                      ThrowingTaskFutureWaitContinuationFunction *resumeFn,
                      AsyncContext *callContext),
                     (resultPointer, callerContext, _group, resumeFn,
-                    callContext))
+                     callContext))
 
 OVERRIDE_TASK_GROUP(taskGroup_isEmpty, bool,
                     SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swift),

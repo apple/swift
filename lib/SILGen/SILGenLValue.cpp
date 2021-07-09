@@ -2842,7 +2842,16 @@ SILGenFunction::maybeEmitValueOfLocalVarDecl(
     if (var->isAsyncLet() && accessKind != AccessKind::Write) {
       auto patternBinding = var->getParentPatternBinding();
       unsigned index = patternBinding->getPatternEntryIndexForVarDecl(var);
-      completeAsyncLetChildTask(patternBinding, index);
+
+      auto &C = var->getASTContext();
+      SILLocation loc(var);
+      auto taskOptions = B.createManagedOptionalNone(
+          loc, SILType::getOptionalType(SILType::getRawPointerType(C)));
+      // TODO: should we create task option record here and pass to completeAsyncLetChildTask?
+
+      completeAsyncLetChildTask(patternBinding, index
+//                                , taskOptions
+                                );
     }
 
     // If this has an address, return it.  By-value let's have no address.
