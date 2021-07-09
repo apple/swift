@@ -137,16 +137,20 @@ def run_build_script_helper(action, host_target, product, args):
     # Pass Cross compile host info
     if swiftpm.SwiftPM.has_cross_compile_hosts(args):
         helper_cmd += ['--cross-compile-hosts']
-        for cross_compile_host in args.cross_compile_hosts:
-            helper_cmd += [cross_compile_host]
-        build_toolchain_path = install_destdir + args.install_prefix
-        resource_dir = '%s/lib/swift' % build_toolchain_path
-        helper_cmd += [
-            '--cross-compile-config',
-            targets.StdlibDeploymentTarget.get_target_for_name(host_target).platform
-            .swiftpm_config(args, output_dir=build_toolchain_path,
-                            swift_toolchain=toolchain_path,
-                            resource_path=resource_dir)]
+        if targets.StdlibDeploymentTarget.get_target_for_name(
+                host_target).platform.is_darwin:
+            for cross_compile_host in args.cross_compile_hosts:
+                helper_cmd += [cross_compile_host]
+        elif host_target != args.host_target:
+            helper_cmd += [host_target]
+            build_toolchain_path = install_destdir + args.install_prefix
+            resource_dir = '%s/lib/swift' % build_toolchain_path
+            helper_cmd += [
+                '--cross-compile-config',
+                targets.StdlibDeploymentTarget.get_target_for_name(
+                    host_target).platform.swiftpm_config(
+                    args, output_dir=build_toolchain_path,
+                    swift_toolchain=toolchain_path, resource_path=resource_dir)]
     if args.verbose_build:
         helper_cmd.append('--verbose')
 
