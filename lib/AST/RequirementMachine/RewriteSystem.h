@@ -580,11 +580,15 @@ public:
   };
 
   std::pair<CompletionResult, unsigned>
-  computeConfluentCompletion(unsigned maxIterations, unsigned maxDepth);
+  computeConfluentCompletion(unsigned maxIterations,
+                             unsigned maxDepth);
 
   void simplifyRightHandSides();
 
-  bool buildEquivalenceClassMap(EquivalenceClassMap &map);
+  std::pair<CompletionResult, unsigned>
+  buildEquivalenceClassMap(EquivalenceClassMap &map,
+                           unsigned maxIterations,
+                           unsigned maxDepth);
 
   void dump(llvm::raw_ostream &out) const;
 

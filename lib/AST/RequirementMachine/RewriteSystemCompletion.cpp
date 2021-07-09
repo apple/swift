@@ -202,9 +202,9 @@ Atom RewriteSystem::mergeAssociatedTypes(Atom lhs, Atom rhs) const {
   }
 
   // The two input sets are minimal already, so the merged set
-  // should have at least as many elements as each input set.
-  assert(minimalProtos.size() >= protos.size());
-  assert(minimalProtos.size() >= otherProtos.size());
+  // should have at least as many elements as the smallest
+  // input set.
+  assert(minimalProtos.size() >= std::min(protos.size(), otherProtos.size()));
 
   // The merged set cannot contain more elements than the union
   // of the two sets.
@@ -446,7 +446,7 @@ RewriteSystem::computeConfluentCompletion(unsigned maxIterations,
   // moving on to overlaps between rules introduced by completion.
   while (!Worklist.empty()) {
     // Check if we've already done too much work.
-    if (steps >= maxIterations)
+    if (Rules.size() > maxIterations)
       return std::make_pair(CompletionResult::MaxIterations, steps);
 
     auto next = Worklist.front();

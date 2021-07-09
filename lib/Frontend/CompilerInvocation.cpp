@@ -814,7 +814,7 @@ static bool ParseLangArgs(LangOptions &Opts, ArgList &Args,
 
   Opts.EnableRequirementMachine = Args.hasFlag(
       OPT_enable_requirement_machine,
-      OPT_disable_requirement_machine, /*default=*/false);
+      OPT_disable_requirement_machine, /*default=*/true);
 
   Opts.DebugRequirementMachine = Args.hasArg(
       OPT_debug_requirement_machine);

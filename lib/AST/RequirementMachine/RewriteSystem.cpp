@@ -854,26 +854,80 @@ Term RewriteContext::getTermForType(CanType paramType,
 /// parameter atom.
 ///
 /// If \p proto is non-null, this is a term relative to a protocol's
-/// 'Self' type. The term is rooted in a protocol atom.
+/// 'Self' type. The term is rooted in a protocol atom for this protocol,
+/// or an associated type atom for some associated type in this protocol.
 ///
-/// The bound associated types in the interface type are ignored; the
-/// resulting term consists entirely of a root atom followed by zero
-/// or more name atoms.
+/// Resolved DependentMemberTypes map to associated type atoms.
+/// Unresolved DependentMemberTypes map to name atoms.
+///
+/// Note the behavior of the root term is special if it is an associated
+/// type atom. The protocol of the associated type is always mapped to
+/// \p proto if it was provided. This ensures we get the correct behavior
+/// if a protocol places a constraint on an associated type inherited from
+/// another protocol:
+///
+/// protocol P {
+///   associatedtype Foo
+/// }
+///
+/// protocol Q : P where Foo : R {}
+///
+/// protocol R {}
+///
+/// The DependentMemberType in the requirement signature of Q refers to
+/// P::Foo.
+///
+/// However, we want Q's requirement signature to introduce the rewrite rule
+///
+///   [Q:Foo].[R] => [Q:Foo]
+///
+/// and not
+///
+///   [P:Foo].[R] => [P:Foo]
+///
+/// This is because the rule only applies to Q's logical override of Foo, and
+/// not P's Foo.
+///
+/// To handle this, getMutableTermForType() behaves as follows:
+///
+/// Self.P::Foo with proto = P         => [P:Foo]
+/// Self.P::Foo with proto = Q         => [Q:Foo]
+/// τ_0_0.P::Foo with proto == nullptr => τ_0_0.[P:Foo]
+///
 MutableTerm RewriteContext::getMutableTermForType(CanType paramType,
                                                   const ProtocolDecl *proto) {
   assert(paramType->isTypeParameter());
 
   // Collect zero or more nested type names in reverse order.
+  bool innermostAssocTypeWasResolved = false;
+
   SmallVector<Atom, 3> atoms;
   while (auto memberType = dyn_cast<DependentMemberType>(paramType)) {
-    atoms.push_back(Atom::forName(memberType->getName(), *this));
     paramType = memberType.getBase();
+
+    if (auto *assocType = memberType->getAssocType()) {
+      const auto *thisProto = assocType->getProtocol();
+      if (proto && isa<GenericTypeParamType>(paramType)) {
+        thisProto = proto;
+        innermostAssocTypeWasResolved = true;
+      }
+      atoms.push_back(Atom::forAssociatedType(thisProto,
+                                              assocType->getName(),
+                                              *this));
+    } else {
+      atoms.push_back(Atom::forName(memberType->getName(), *this));
+      innermostAssocTypeWasResolved = false;
+    }
   }
 
   // Add the root atom at the end.
   if (proto) {
     assert(proto->getSelfInterfaceType()->isEqual(paramType));
-    atoms.push_back(Atom::forProtocol(proto, *this));
+
+    // Self.Foo becomes [P].Foo
+    // Self.Q::Foo becomes [P:Foo] (not [Q:Foo] or [P].[Q:Foo])
+    if (!innermostAssocTypeWasResolved)
+      atoms.push_back(Atom::forProtocol(proto, *this));
   } else {
     atoms.push_back(Atom::forGenericParam(
         cast<GenericTypeParamType>(paramType), *this));

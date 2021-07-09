@@ -485,10 +485,19 @@ void EquivalenceClassMap::dump(llvm::raw_ostream &out) const {
 /// Build the equivalence class map from all rules of the form T.[p] => T, where
 /// [p] is a property atom.
 ///
-/// Returns true if concrete term unification performed while building the map
-/// introduced new rewrite rules; in this case, the completion procedure must
-/// run again.
-bool RewriteSystem::buildEquivalenceClassMap(EquivalenceClassMap &map) {
+/// Returns a pair consisting of a status and number of iterations executed.
+///
+/// The status is CompletionResult::MaxIterations if we exceed \p maxIterations
+/// iterations.
+///
+/// The status is CompletionResult::MaxDepth if we produce a rewrite rule whose
+/// left hand side has a length exceeding \p maxDepth.
+///
+/// Otherwise, the status is CompletionResult::Success.
+std::pair<RewriteSystem::CompletionResult, unsigned>
+RewriteSystem::buildEquivalenceClassMap(EquivalenceClassMap &map,
+                                        unsigned maxIterations,
+                                        unsigned maxDepth) {
   map.clear();
 
   std::vector<std::pair<MutableTerm, Atom>> properties;
@@ -537,14 +546,17 @@ bool RewriteSystem::buildEquivalenceClassMap(EquivalenceClassMap &map) {
   // where the left hand side is not already equivalent to the right hand side.
   unsigned addedNewRules = 0;
   for (auto pair : inducedRules) {
-    if (addRule(pair.first, pair.second))
+    if (addRule(pair.first, pair.second)) {
       ++addedNewRules;
+
+      const auto &newRule = Rules.back();
+      if (newRule.getLHS().size() > maxDepth)
+        return std::make_pair(CompletionResult::MaxDepth, addedNewRules);
+    }
   }
 
-  if (auto *stats = Context.getASTContext().Stats) {
-    stats->getFrontendCounters()
-      .NumRequirementMachineUnifiedConcreteTerms += addedNewRules;
-  }
+  if (Rules.size() > maxIterations)
+    return std::make_pair(CompletionResult::MaxIterations, addedNewRules);
 
-  return addedNewRules > 0;
+  return std::make_pair(CompletionResult::Success, addedNewRules);
 }

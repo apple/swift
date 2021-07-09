@@ -446,7 +446,7 @@ namespace swift {
         ASTVerifierOverrideKind::NoOverride;
 
     /// Whether the new experimental generics implementation is enabled.
-    bool EnableRequirementMachine = false;
+    bool EnableRequirementMachine = true;
 
     /// Enables debugging output from the requirement machine.
     bool DebugRequirementMachine = false;

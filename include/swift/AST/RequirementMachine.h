@@ -49,7 +49,7 @@ class RequirementMachine final {
   void addGenericSignature(CanGenericSignature sig);
 
   bool isComplete() const;
-  void computeCompletion(CanGenericSignature sig);
+  void computeCompletion();
 
 public:
   ~RequirementMachine();
