@@ -218,3 +218,35 @@ extension Comparable {
     return !(lhs < rhs)
   }
 }
+
+extension Comparable { 
+  // Returns a value of type `Self` clamped to the provided `ClosedRange`.
+  //
+  // - Parameters:
+  //   - range: A value to determin the upper and lower bounds.
+  // - Returns: A value of type `Self` that is within the bounds of the provided `ClosedRange`.
+  @inlinable
+  func clamped(to range: ClosedRange<Self>) -> Self {
+    max(min(self, range.upperBound), range.lowerBound)
+  }
+  
+  // Returns a value of type `Self` clamped to the provided `PartialRangeFrom`.
+  //
+  // - Parameters:
+  //   - range: A value to determin the upper and lower bounds.
+  // - Returns: A value of type `Self` that is within the bounds of the provided `PartialRangeFrom`.
+  @inlinable
+  func clamped(to range: PartialRangeFrom<Self>) -> Self {
+    max(self, range.lowerBound)
+  }
+
+  // Returns a value of type `Self` clamped to the provided `PartialRangeThrough`
+  //
+  // - Parameters:
+  //   - range: A value to determin the upper and lower bounds
+  // - Returns: A value of type `Self` that is within the bounds of the provided `PartialRangeThrough`
+  @inlinable
+  func clamped(to range: PartialRangeThrough<Self>) -> Self {
+    min(self, range.upperBound)
+  }
+}
