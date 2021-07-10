@@ -39,6 +39,7 @@ set(SWIFT_BENCH_MODULES
     single-source/ArrayOfRef
     single-source/ArraySetElement
     single-source/ArraySubscript
+    Single-source/AsyncSequenceFoundation
     single-source/BinaryFloatingPointConversionFromBinaryInteger
     single-source/BinaryFloatingPointProperties
     single-source/BitCount

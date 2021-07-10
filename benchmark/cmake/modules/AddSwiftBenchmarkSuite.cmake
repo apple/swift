@@ -366,7 +366,8 @@ function (swift_benchmark_compile_archopts)
       "-I" "${srcdir}/utils/LibProc"
       "-F" "${sdk}/../../../Developer/Library/Frameworks"
       "-sdk" "${sdk}"
-      "-no-link-objc-runtime")
+      "-no-link-objc-runtime"
+      "-Xfrontend" "-enable-experimental-concurrency")
 
     # If we are not compiling at -Onone and are performing WMO, always emit
     # optimization-records.

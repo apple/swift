@@ -511,13 +511,13 @@ final class TestRunner {
   }
 
   /// Measure the `fn` and return the average sample time per iteration (μs).
-  func measure(_ name: String, fn: (Int) -> Void, numIters: Int) -> Int {
+  func measure(_ name: String, fn: (Int) async -> Void, numIters: Int) async -> Int {
 #if SWIFT_RUNTIME_ENABLE_LEAK_CHECKER
     name.withCString { p in startTrackingObjects(p) }
 #endif
 
     startMeasurement()
-    fn(numIters)
+    await fn(numIters)
     stopMeasurement()
 
 #if SWIFT_RUNTIME_ENABLE_LEAK_CHECKER
@@ -532,7 +532,7 @@ final class TestRunner {
   }
 
   /// Run the benchmark and return the measured results.
-  func run(_ test: BenchmarkInfo) -> BenchResults? {
+  func run(_ test: BenchmarkInfo) async -> BenchResults? {
     // Before we do anything, check that we actually have a function to
     // run. If we don't it is because the benchmark is not supported on
     // the platform and we should skip it.
@@ -558,8 +558,8 @@ final class TestRunner {
     }
 
     // Determine number of iterations for testFn to run for desired time.
-    func iterationsPerSampleTime() -> (numIters: Int, oneIter: Int) {
-      let oneIter = measure(test.name, fn: testFn, numIters: 1)
+    func iterationsPerSampleTime() async -> (numIters: Int, oneIter: Int) {
+      let oneIter = await measure(test.name, fn: testFn, numIters: 1)
       if oneIter > 0 {
         let timePerSample = Int(c.sampleTime * 1_000_000.0) // microseconds (μs)
         return (max(timePerSample / oneIter, 1), oneIter)
@@ -570,28 +570,42 @@ final class TestRunner {
 
     // Determine the scale of measurements. Re-use the calibration result if
     // it is just one measurement.
-    func calibrateMeasurements() -> Int {
-      let (numIters, oneIter) = iterationsPerSampleTime()
+    func calibrateMeasurements() async -> Int {
+      let (numIters, oneIter) = await iterationsPerSampleTime()
       if numIters == 1 { addSample(oneIter) }
       else { resetMeasurements() } // for accurate yielding reports
       return numIters
     }
 
+    var tmpNumIters = c.numIters
+    if tmpNumIters == nil {
+      tmpNumIters = await calibrateMeasurements()
+    }
     let numIters = min( // Cap to prevent overflow on 32-bit systems when scaled
       Int.max / 10_000, // by the inner loop multiplier inside the `testFn`.
-      c.numIters ?? calibrateMeasurements())
+      tmpNumIters!)
 
-    let numSamples = c.numSamples ??
-      // Compute the number of samples to measure for `sample-time`,
-      // clamped in (`min-samples`, 200) range, if the `num-iters` are fixed.
-      max(c.minSamples ?? 1, min(200, c.numIters == nil ? 1 :
-        calibrateMeasurements()))
+    // Compute the number of samples to measure for `sample-time`,
+    // clamped in (`min-samples`, 200) range, if the `num-iters` are fixed.
+    let computeNumSamples = { (c: TestConfig) async -> Int in
+      if c.numSamples != nil {
+        return c.numSamples!
+      }
+      let minSamples = c.minSamples ?? 1
+      var iters = c.numIters == nil ? 1 : nil
+      if iters == nil {
+        iters = await calibrateMeasurements()
+      }
+      return max(minSamples, min(200, iters!))
+    }
+    
+    let numSamples = await computeNumSamples(c)
 
     samples.reserveCapacity(numSamples)
     logVerbose("    Collecting \(numSamples) samples.")
     logVerbose("    Measuring with scale \(numIters).")
     for _ in samples.count..<numSamples {
-      addSample(measure(test.name, fn: testFn, numIters: numIters))
+      addSample(await measure(test.name, fn: testFn, numIters: numIters))
     }
 
     test.tearDownFunction?()
@@ -628,7 +642,7 @@ final class TestRunner {
   }
 
   /// Execute benchmarks and continuously report the measurement results.
-  func runBenchmarks() {
+  func runBenchmarks() async {
     var testCount = 0
 
     func report(_ index: String, _ t: BenchmarkInfo, results: BenchResults?) {
@@ -664,14 +678,14 @@ final class TestRunner {
     print(header)
 
     for (index, test) in c.tests {
-      report(index, test, results:run(test))
+      report(index, test, results: await run(test))
     }
 
     print("\nTotal performance tests executed: \(testCount)")
   }
 }
 
-public func main() {
+public func main() async {
   let config = TestConfig(registeredBenchmarks)
   switch (config.action) {
   case .listTests:
@@ -682,7 +696,7 @@ public func main() {
       print(testDescription)
     }
   case .run:
-    TestRunner(config).runBenchmarks()
+    await TestRunner(config).runBenchmarks()
     if let x = config.afterRunSleep {
       sleep(x)
     }

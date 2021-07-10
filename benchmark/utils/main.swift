@@ -27,6 +27,9 @@ import ArrayOfPOD
 import ArrayOfRef
 import ArraySetElement
 import ArraySubscript
+#if canImport(Darwin)
+import AsyncSequenceFoundation
+#endif
 import BinaryFloatingPointConversionFromBinaryInteger
 import BinaryFloatingPointProperties
 import BitCount
@@ -193,6 +196,10 @@ import Walsh
 import WordCount
 import XorLoop
 
+#if canImport(Darwin)
+import Darwin
+#endif
+
 @inline(__always)
 private func registerBenchmark(_ bench: BenchmarkInfo) {
   registeredBenchmarks.append(bench)
@@ -218,6 +225,9 @@ registerBenchmark(ArrayOfPOD)
 registerBenchmark(ArrayOfRef)
 registerBenchmark(ArraySetElement)
 registerBenchmark(ArraySubscript)
+if #available(macOS 9999, *) {
+registerBenchmark(AsyncSequenceFoundation)
+}
 registerBenchmark(BinaryFloatingPointConversionFromBinaryInteger)
 registerBenchmark(BinaryFloatingPointPropertiesBinade)
 registerBenchmark(BinaryFloatingPointPropertiesNextUp)
@@ -400,4 +410,12 @@ registerBenchmark(Walsh)
 registerBenchmark(WordCount)
 registerBenchmark(XorLoop)
 
-main()
+if #available(macOS 9999, *) {
+  
+  Task.runDetached {
+    await main()
+    exit(0)
+  }
+  
+  sleep(100000)
+}

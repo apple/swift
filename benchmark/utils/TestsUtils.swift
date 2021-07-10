@@ -113,10 +113,10 @@ public struct BenchmarkInfo {
   public var name: String
 
   /// Shadow static variable for runFunction.
-  private var _runFunction: (Int) -> ()
+  private var _runFunction: (Int) async -> ()
 
   /// A function that invokes the specific benchmark routine.
-  public var runFunction: ((Int) -> ())? {
+  public var runFunction: ((Int) async -> ())? {
     if !shouldRun {
       return nil
     }
@@ -171,7 +171,7 @@ public struct BenchmarkInfo {
   /// to be interrupted by a context switch.
   public var legacyFactor: Int?
 
-  public init(name: String, runFunction: @escaping (Int) -> (), tags: [BenchmarkCategory],
+  public init(name: String, runFunction: @escaping (Int) async -> (), tags: [BenchmarkCategory],
               setUpFunction: (() -> ())? = nil,
               tearDownFunction: (() -> ())? = nil,
               unsupportedPlatforms: BenchmarkPlatformSet = [],
