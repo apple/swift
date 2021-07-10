@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 //
 //  This file implements implicit derivation of the Equatable and Hashable
-//  protocols. 
+//  protocols.
 //
 //===----------------------------------------------------------------------===//
 
@@ -225,7 +225,7 @@ deriveBodyEquatable_enum_hasAssociatedValues_eq(AbstractFunctionDecl *eqDecl,
       auto rhsVar = rhsPayloadVars[varIdx];
       auto rhsExpr = new (C) DeclRefExpr(rhsVar, DeclNameLoc(),
                                          /*Implicit*/true);
-      auto guardStmt = DerivedConformance::returnFalseIfNotEqualGuard(C, 
+      auto guardStmt = DerivedConformance::returnFalseIfNotEqualGuard(C,
           lhsExpr, rhsExpr);
       statementsInCase.emplace_back(guardStmt);
     }
@@ -495,7 +495,7 @@ static CallExpr *createHasherCombineCall(ASTContext &C,
   // hasher.combine(_:)
   auto *combineCall = UnresolvedDotExpr::createImplicit(
       C, hasherExpr, C.Id_combine, {Identifier()});
-  
+
   // hasher.combine(hashable)
   return CallExpr::createImplicit(C, combineCall, {hashable}, {Identifier()});
 }
@@ -987,14 +987,14 @@ ValueDecl *DerivedConformance::deriveHashable(ValueDecl *requirement) {
     if (hashValueDecl->isImplicit()) {
       // Neither hashValue nor hash(into:) is explicitly defined; we need to do
       // a full Hashable derivation.
-      
+
       // Refuse to synthesize Hashable if type isn't a struct or enum, or if it
       // has non-Hashable stored properties/associated values.
       auto hashableProto = C.getProtocol(KnownProtocolKind::Hashable);
+      auto nominalTy = Nominal->getDeclaredType();
       if (!canDeriveConformance(getConformanceContext(), Nominal,
                                 hashableProto)) {
-        ConformanceDecl->diagnose(diag::type_does_not_conform,
-                                  Nominal->getDeclaredType(),
+        ConformanceDecl->diagnose(diag::type_does_not_conform, nominalTy,
                                   hashableProto->getDeclaredInterfaceType());
         // Ideally, this would be diagnosed in
         // ConformanceChecker::resolveWitnessViaLookup. That doesn't work for
@@ -1008,6 +1008,27 @@ ValueDecl *DerivedConformance::deriveHashable(ValueDecl *requirement) {
 
       if (checkAndDiagnoseDisallowedContext(requirement))
         return nullptr;
+
+      // Warn the user that having a custom == almost surely require a
+      // custom Hashable conformance even if, for source stability reasons,
+      // it will be synthesized
+      auto equatableProto = C.getProtocol(KnownProtocolKind::Equatable);
+      auto eqConformance = TypeChecker::conformsToProtocol(nominalTy,
+          equatableProto, getParentModule());
+      if (eqConformance) {
+        DeclName equalsName(C, DeclBaseName(C.Id_EqualsOperator),
+                            {Identifier(), Identifier()});
+        ConcreteDeclRef witness = eqConformance.getWitnessByName(
+            nominalTy->getRValueType(), equalsName);
+
+        auto equalsDeclaration = witness.getDecl();
+        if (equalsDeclaration && !equalsDeclaration->isImplicit()) {
+          equalsDeclaration->diagnose(
+              diag::synthesized_hashable_may_not_match_custom_equatable,
+              nominalTy);
+          equalsDeclaration->diagnose(diag::add_custom_hashable);
+        }
+      }
 
       if (auto ED = dyn_cast<EnumDecl>(Nominal)) {
         std::pair<BraceStmt *, bool> (*bodySynthesizer)(
@@ -1024,7 +1045,7 @@ ValueDecl *DerivedConformance::deriveHashable(ValueDecl *requirement) {
                                        &deriveBodyHashable_struct_hashInto);
       else // This should've been caught by canDeriveHashable above.
         llvm_unreachable("Attempt to derive Hashable for a type other "
-                         "than a struct or enum");      
+                         "than a struct or enum");
     } else {
       // hashValue has an explicit implementation, but hash(into:) doesn't.
       // Emit a deprecation warning, then derive hash(into:) in terms of
