@@ -41,6 +41,11 @@ module CoreCooling {
   export *
 }
 
+module CxxExceptions {
+  header "CxxExceptions.h"
+  link "stdc++"
+}
+
 module CXXInterop {
   header "cxx_interop.h"
 }
