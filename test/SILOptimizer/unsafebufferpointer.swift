@@ -80,7 +80,7 @@ public func testSubscript(_ ubp: UnsafeBufferPointer<Float>) -> Float {
 // CHECK: [[CMP:%[0-9]+]] = icmp eq
 // CHECK: br i1 [[CMP]], label %[[RET:.*]], label %[[LOOP]]
 //
-// CHECK: [[RET]]: ; preds = %[[LOOP]], %entry
+// CHECK: [[RET]]: ; preds = %[[LOOP]], %{{.*}}
 // CHECK: ret i64
 public func testSubscript(_ ubp: UnsafeRawBufferPointer) -> Int64 {
   var sum: Int64 = 0

@@ -143,7 +143,12 @@ extension Unsafe${Mutable}BufferPointer: ${Mutable}Collection, RandomAccessColle
     // optimizer is not capable of creating partial specializations yet.
     // NOTE: Range checks are not performed here, because it is done later by
     // the subscript function.
-    return i + 1
+    // NOTE: Unchecked math because unsafe pointers are not required to
+    // behave sensibly if you misuse their indices. We validate in
+    // debug mode.
+    let result = i.addingReportingOverflow(1)
+    _debugPrecondition(!result.overflow)
+    return result.partialValue
   }
 
   @inlinable // unsafe-performance
@@ -153,7 +158,12 @@ extension Unsafe${Mutable}BufferPointer: ${Mutable}Collection, RandomAccessColle
     // optimizer is not capable of creating partial specializations yet.
     // NOTE: Range checks are not performed here, because it is done later by
     // the subscript function.
-    i += 1
+    // NOTE: Unchecked math because unsafe pointers are not required to
+    // behave sensibly if you misuse their indices. We validate in
+    // debug mode.
+    let result = i.addingReportingOverflow(1)
+    _debugPrecondition(!result.overflow)
+    i = result.partialValue
   }
 
   @inlinable // unsafe-performance
@@ -163,7 +173,12 @@ extension Unsafe${Mutable}BufferPointer: ${Mutable}Collection, RandomAccessColle
     // optimizer is not capable of creating partial specializations yet.
     // NOTE: Range checks are not performed here, because it is done later by
     // the subscript function.
-    return i - 1
+    // NOTE: Unchecked math because unsafe pointers are not required to
+    // behave sensibly if you misuse their indices. We validate in
+    // debug mode.
+    let result = i.subtractingReportingOverflow(1)
+    _debugPrecondition(!result.overflow)
+    return result.partialValue
   }
 
   @inlinable // unsafe-performance
@@ -173,7 +188,12 @@ extension Unsafe${Mutable}BufferPointer: ${Mutable}Collection, RandomAccessColle
     // optimizer is not capable of creating partial specializations yet.
     // NOTE: Range checks are not performed here, because it is done later by
     // the subscript function.
-    i -= 1
+    // NOTE: Unchecked math because unsafe pointers are not required to
+    // behave sensibly if you misuse their indices. We validate in
+    // debug mode.
+    let result = i.subtractingReportingOverflow(1)
+    _debugPrecondition(!result.overflow)
+    i = result.partialValue
   }
 
   @inlinable // unsafe-performance
@@ -183,7 +203,12 @@ extension Unsafe${Mutable}BufferPointer: ${Mutable}Collection, RandomAccessColle
     // optimizer is not capable of creating partial specializations yet.
     // NOTE: Range checks are not performed here, because it is done later by
     // the subscript function.
-    return i + n
+    // NOTE: Unchecked math because unsafe pointers are not required to
+    // behave sensibly if you misuse their indices. We validate in
+    // debug mode.
+    let result = i.addingReportingOverflow(n)
+    _debugPrecondition(!result.overflow)
+    return result.partialValue
   }
 
   @inlinable // unsafe-performance
@@ -193,11 +218,19 @@ extension Unsafe${Mutable}BufferPointer: ${Mutable}Collection, RandomAccessColle
     // optimizer is not capable of creating partial specializations yet.
     // NOTE: Range checks are not performed here, because it is done later by
     // the subscript function.
-    let l = limit - i
+    // NOTE: Unchecked math because unsafe pointers are not required to
+    // behave sensibly if you misuse their indices. We validate in
+    // debug mode.
+    let maxOffset = limit.subtractingReportingOverflow(i)
+    _debugPrecondition(!maxOffset.overflow)
+    let l = maxOffset.partialValue
+
     if n > 0 ? l >= 0 && l < n : l <= 0 && n < l {
       return nil
     }
-    return i + n
+
+    // No need to check here, for the same index misuse reasons.
+    return i &+ n
   }
 
   @inlinable // unsafe-performance
@@ -233,7 +266,8 @@ extension Unsafe${Mutable}BufferPointer: ${Mutable}Collection, RandomAccessColle
 
   @inlinable // unsafe-performance
   public var indices: Indices {
-    return startIndex..<endIndex
+    // Not checked because init forbids negative count.
+    return Indices(uncheckedBounds: (startIndex, endIndex))
   }
 
   /// Accesses the element at the specified position.

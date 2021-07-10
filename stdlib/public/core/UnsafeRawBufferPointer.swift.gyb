@@ -172,7 +172,8 @@ extension Unsafe${Mutable}RawBufferPointer: ${Mutable}Collection {
 
   @inlinable
   public var indices: Indices {
-    return startIndex..<endIndex
+    // Not checked because init forbids negative count.
+    return Indices(uncheckedBounds: (startIndex, endIndex))
   }
 
   /// Accesses the byte at the given offset in the memory region as a `UInt8`
@@ -253,7 +254,10 @@ extension Unsafe${Mutable}RawBufferPointer: ${Mutable}Collection {
   @inlinable
   public var count: Int {
     if let pos = _position {
-      return _assumeNonNegative(_end! - pos)
+      // Unsafely unwrapped because init forbids end being nil if _position
+      // isn't.
+      _internalInvariant(_end != nil)
+      return _assumeNonNegative(_end._unsafelyUnwrappedUnchecked - pos)
     }
     return 0
   }
@@ -595,7 +599,7 @@ extension Unsafe${Mutable}RawBufferPointer {
       return UnsafeMutableBufferPointer<T>(start: nil, count: 0)
     }
     
-    let count = (_end! - base) / MemoryLayout<T>.stride
+    let count = (_end._unsafelyUnwrappedUnchecked - base) / MemoryLayout<T>.stride
     let typed = base.initializeMemory(
       as: type, repeating: repeatedValue, count: count)
     return UnsafeMutableBufferPointer<T>(start: typed, count: count)
@@ -644,9 +648,10 @@ extension Unsafe${Mutable}RawBufferPointer {
       return (it, UnsafeMutableBufferPointer(start: nil, count: 0))
     }  
 
+    _internalInvariant(_end != nil)
     for p in stride(from: base, 
       // only advance to as far as the last element that will fit
-      to: base + count - elementStride + 1, 
+      to: _end._unsafelyUnwrappedUnchecked - elementStride + 1, 
       by: elementStride
     ) {
       // underflow is permitted -- e.g. a sequence into
