@@ -132,6 +132,18 @@ git rebase --continue
 ```
 
 ### How do I clean up my git history?
+To fix that, you can do the following:
+```
+# 1. Delete your local branch.
+git branch -D
 
-TODO: Link to a beginner-friendly external resource, or (less preferably)
-describe basic usage of rebase here.
+# 2. Create a branch with the same name.
+git checkout -b <branch-name> --track origin/main
+
+# 3. Cherry-pick all of your changed from remote. 
+# I.e. can just copy commit hashes from https://github.com/apple/swift/pull/<Your_PR>/commits
+git cherry-pick <commit-hash> 
+
+# 4. Force push your changes.
+git push -f
+```
