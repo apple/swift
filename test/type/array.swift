@@ -125,3 +125,8 @@ let sr_11134_3 = [
 // expected-note@-1 {{add a separator between the elements}}{{12-12=,}}
 // expected-note@-2 {{remove the space between the elements to silence this warning}}{{12-13=}}
 ]
+
+// Disallow trailing commas when types are parsed in expression contexts.
+let _ = [Int,]() // expected-error {{expected ']' in array type}}
+                 // expected-note@-1 {{to match this opening '['}}
+let _ = [1,] // ok

@@ -43,3 +43,8 @@ struct Y<T> : Hashable {
 let _ = [Y<Int>: Int]()
 let _ = [Y<Int> : Int]()
 let _ = [Y<Int> :Int]()
+
+// Disallow trailing commas when types are parsed in expression contexts.
+let _ = [Int: String,]() // expected-error {{expected ']' in dictionary type}}
+                         // expected-note@-1 {{to match this opening '['}}
+let _ = [1: "foo",] // ok

@@ -1628,6 +1628,11 @@ TypeExpr *PreCheckExpression::simplifyTypeExpr(Expr *E) {
     return new (getASTContext()) TypeExpr(NewTypeRepr);
   }
   
+  auto diagnoseCollectionTrailingComma =
+      [](ASTContext &ctx, CollectionExpr *expr, Diag<> rbracketDiag) {
+        ctx.Diags.diagnose(expr->getCommaLocs()[0], rbracketDiag);
+        ctx.Diags.diagnose(expr->getLBracketLoc(), diag::opening_bracket);
+      };
 
   // Fold [T] into an array type.
   if (auto *AE = dyn_cast<ArrayExpr>(E)) {
@@ -1637,6 +1642,15 @@ TypeExpr *PreCheckExpression::simplifyTypeExpr(Expr *E) {
     auto *TyExpr = dyn_cast<TypeExpr>(AE->getElement(0));
     if (!TyExpr)
       return nullptr;
+
+    if (AE->getNumCommas() != 0) {
+      // Once we know the element is a type, if there is a trailing comma, emit
+      // the same error that the parser would emit if this occurred in a type
+      // parsing context. Continue type-checking, however, to avoid spurious
+      // errors later on.
+      diagnoseCollectionTrailingComma(getASTContext(), AE,
+                                      diag::expected_rbracket_array_type);
+    }
 
     auto *NewTypeRepr = new (getASTContext())
         ArrayTypeRepr(TyExpr->getTypeRepr(),
@@ -1676,6 +1690,15 @@ TypeExpr *PreCheckExpression::simplifyTypeExpr(Expr *E) {
       assert(TRE->getElements().size() == 2);
       keyTypeRepr = TRE->getElementType(0);
       valueTypeRepr = TRE->getElementType(1);
+    }
+
+    if (DE->getNumCommas() != 0) {
+      // Once we know the elements are types, if there is a trailing comma, emit
+      // the same error that the parser would emit if this occurred in a type
+      // parsing context. Continue type-checking, however, to avoid spurious
+      // errors later on.
+      diagnoseCollectionTrailingComma(getASTContext(), DE,
+                                      diag::expected_rbracket_dictionary_type);
     }
 
     auto *NewTypeRepr = new (getASTContext()) DictionaryTypeRepr(
