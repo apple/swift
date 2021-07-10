@@ -22,7 +22,7 @@ public func ArchetypeToArchetypeCast<T1, T2>(t1 : T1, t2 : T2) -> T2 {
   if let x = t1 as? T2 {
     return x
   }
-  preconditionFailure("??? Profit?")
+  preconditionFailure()
 }
 
 // CHECK-LABEL: sil shared @$s30specialize_checked_cast_branch011ArchetypeToE4Cast2t12t2q_x_q_tr0_lFAA1CC_AA1DCTg5 : $@convention(thin) (@guaranteed C, @guaranteed D) -> @owned D
@@ -34,7 +34,7 @@ public func ArchetypeToArchetypeCast<T1, T2>(t1 : T1, t2 : T2) -> T2 {
 // CHECK:   return [[T0]]
 //
 // CHECK: bb2
-// CHECK:   cond_fail {{%.*}}, "precondition failure"
+// CHECK:   cond_fail {{%.*}}, "Precondition failed"
 // CHECK:   unreachable
 // CHECK: } // end sil function '$s30specialize_checked_cast_branch011ArchetypeToE4Cast2t12t2q_x_q_tr0_lFAA1CC_AA1DCTg5'
 _ = ArchetypeToArchetypeCast(t1: c, t2: d)
@@ -58,7 +58,7 @@ _ = ArchetypeToArchetypeCast(t1: b, t2: f)
 // CHECK-LABEL: sil shared @$s30specialize_checked_cast_branch011ArchetypeToE4Cast2t12t2q_x_q_tr0_lFAA8NotUInt8V_AA1CCTg5 : $@convention(thin) (NotUInt8, @guaranteed C) -> @owned C {
 // CHECK: bb0
 // CHECK-NOT: bb1
-// CHECK: cond_fail {{%.*}}, "precondition failure"
+// CHECK: cond_fail {{%.*}}, "Precondition failed"
 // CHECK: unreachable
 // CHECK: } // end sil function '$s30specialize_checked_cast_branch011ArchetypeToE4Cast2t12t2q_x_q_tr0_lFAA8NotUInt8V_AA1CCTg5'
 _ = ArchetypeToArchetypeCast(t1: b, t2: c)
@@ -67,7 +67,7 @@ _ = ArchetypeToArchetypeCast(t1: b, t2: c)
 // CHECK-LABEL: sil shared @$s30specialize_checked_cast_branch011ArchetypeToE4Cast2t12t2q_x_q_tr0_lFAA1CC_AA8NotUInt8VTg5 : $@convention(thin) (@guaranteed C, NotUInt8) -> NotUInt8 {
 // CHECK: bb0
 // CHECK-NOT: bb1
-// CHECK: cond_fail {{%.*}}, "precondition failure"
+// CHECK: cond_fail {{%.*}}, "Precondition failed"
 // CHECK: unreachable
 // CHECK: } // end sil function '$s30specialize_checked_cast_branch011ArchetypeToE4Cast2t12t2q_x_q_tr0_lFAA1CC_AA8NotUInt8VTg5'
 _ = ArchetypeToArchetypeCast(t1: c, t2: b)
@@ -84,7 +84,7 @@ _ = ArchetypeToArchetypeCast(t1: d, t2: c)
 // CHECK-LABEL: sil shared @$s30specialize_checked_cast_branch011ArchetypeToE4Cast2t12t2q_x_q_tr0_lFAA1CC_AA1ECTg5 : $@convention(thin) (@guaranteed C, @guaranteed E) -> @owned E {
 // CHECK: bb0
 // CHECK-NOT: bb1
-// CHECK: cond_fail {{%.*}}, "precondition failure"
+// CHECK: cond_fail {{%.*}}, "Precondition failed"
 // CHECK: unreachable
 // CHECK: } // end sil function '$s30specialize_checked_cast_branch011ArchetypeToE4Cast2t12t2q_x_q_tr0_lFAA1CC_AA1ECTg5'
 _ = ArchetypeToArchetypeCast(t1: c, t2: e)
@@ -97,28 +97,28 @@ func ArchetypeToConcreteCastUInt8<T>(t : T) -> NotUInt8 {
   if let x = t as? NotUInt8 {
     return x
   }
-  preconditionFailure("??? Profit?")
+  preconditionFailure()
 }
 
 func ArchetypeToConcreteCastC<T>(t : T) -> C {
   if let x = t as? C {
     return x
   }
-  preconditionFailure("??? Profit?")
+  preconditionFailure()
 }
 
 func ArchetypeToConcreteCastD<T>(t : T) -> D {
   if let x = t as? D {
     return x
   }
-  preconditionFailure("??? Profit?")
+  preconditionFailure()
 }
 
 func ArchetypeToConcreteCastE<T>(t : T) -> E {
   if let x = t as? E {
     return x
   }
-  preconditionFailure("??? Profit?")
+  preconditionFailure()
 }
 
 // uint8 -> uint8
@@ -135,7 +135,7 @@ _ = ArchetypeToConcreteCastUInt8(t: c)
 // CHECK-LABEL: sil shared @$s30specialize_checked_cast_branch28ArchetypeToConcreteCastUInt81tAA03NotI0Vx_tlFAA0J6UInt64V_Tg5 : $@convention(thin) (NotUInt64) -> NotUInt8 {
 // CHECK: bb0
 // CHECK-NOT: checked_cast_br
-// CHECK: cond_fail {{%.*}}, "precondition failure"
+// CHECK: cond_fail {{%.*}}, "Precondition failed"
 // CHECK: unreachable
 _ = ArchetypeToConcreteCastUInt8(t: f)
 
@@ -167,7 +167,7 @@ _ = ArchetypeToConcreteCastC(t: d)
 // E -> C
 // CHECK-LABEL: sil shared @$s30specialize_checked_cast_branch24ArchetypeToConcreteCastC1tAA1CCx_tlFAA1EC_Tg5 : $@convention(thin) (@guaranteed E) -> @owned C {
 // CHECK: bb0
-// CHECK: cond_fail {{%.*}}, "precondition failure"
+// CHECK: cond_fail {{%.*}}, "Precondition failed"
 // CHECK: unreachable
 _ = ArchetypeToConcreteCastC(t: e)
 
@@ -182,7 +182,7 @@ _ = ArchetypeToConcreteCastC(t: e)
 // CHECK:   return [[T0]] : $D
 //
 // CHECK: [[FAIL_BB]]:
-// CHECK:   cond_fail {{%.*}}, "precondition failure"
+// CHECK:   cond_fail {{%.*}}, "Precondition failed"
 // CHECK:   unreachable
 // CHECK: } // end sil function '$s30specialize_checked_cast_branch24ArchetypeToConcreteCastD1tAA1DCx_tlFAA1CC_Tg5'
 _ = ArchetypeToConcreteCastD(t: c)
@@ -190,7 +190,7 @@ _ = ArchetypeToConcreteCastD(t: c)
 // C -> E
 // CHECK-LABEL: sil shared @$s30specialize_checked_cast_branch24ArchetypeToConcreteCastE1tAA1ECx_tlFAA1CC_Tg5 : $@convention(thin) (@guaranteed C) -> @owned E {
 // CHECK: bb0
-// CHECK: cond_fail {{%.*}}, "precondition failure"
+// CHECK: cond_fail {{%.*}}, "Precondition failed"
 // CHECK: unreachable
 _ = ArchetypeToConcreteCastE(t: c)
 
@@ -202,19 +202,19 @@ func ConcreteToArchetypeCastUInt8<T>(t: NotUInt8, t2: T) -> T {
   if let x = t as? T {
     return x
   }
-  preconditionFailure("??? Profit?")
+  preconditionFailure()
 }
 func ConcreteToArchetypeCastC<T>(t: C, t2: T) -> T {
   if let x = t as? T {
     return x
   }
-  preconditionFailure("??? Profit?")
+  preconditionFailure()
 }
 func ConcreteToArchetypeCastD<T>(t: D, t2: T) -> T {
   if let x = t as? T {
     return x
   }
-  preconditionFailure("??? Profit?")
+  preconditionFailure()
 }
 
 // x -> x where x is not a class.
@@ -273,14 +273,14 @@ func SuperToArchetypeCastC<T>(c : C, t : T) -> T {
   if let x = c as? T {
     return x
   }
-  preconditionFailure("??? Profit?")
+  preconditionFailure()
 }
 
 func SuperToArchetypeCastD<T>(d : D, t : T) -> T {
   if let x = d as? T {
     return x
   }
-  preconditionFailure("??? Profit?")
+  preconditionFailure()
 }
 
 // CHECK-LABEL: sil shared @$s30specialize_checked_cast_branch21SuperToArchetypeCastC1c1txAA1CC_xtlFAF_Tg5 : $@convention(thin) (@guaranteed C, @guaranteed C) -> @owned C
@@ -318,7 +318,7 @@ func ExistentialToArchetypeCast<T>(o : AnyObject, t : T) -> T {
   if let x = o as? T {
     return x
   }
-  preconditionFailure("??? Profit?")
+  preconditionFailure()
 }
 
 // CHECK-LABEL: sil shared @$s30specialize_checked_cast_branch26ExistentialToArchetypeCast1o1txyXl_xtlFAA1CC_Tg5 : $@convention(thin) (@guaranteed AnyObject, @guaranteed C) -> @owned C

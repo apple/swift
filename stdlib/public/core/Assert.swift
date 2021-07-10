@@ -59,10 +59,12 @@ public func assert(
 ///
 /// * In playgrounds and `-Onone` builds (the default for Xcode's Debug
 ///   configuration): If `condition` evaluates to `false`, stop program
-///   execution in a debuggable state after printing `message`.
+///   execution in a debuggable state after printing `message`
+///   along with the file and line information..
 ///
 /// * In `-O` builds (the default for Xcode's Release configuration): If
-///   `condition` evaluates to `false`, stop program execution.
+///   `condition` evaluates to `false`, stop program execution state after
+///   printing `message`.
 ///
 /// * In `-Ounchecked` builds, `condition` is not evaluated, but the optimizer
 ///   may assume that it *always* evaluates to `true`. Failure to satisfy that
@@ -82,7 +84,7 @@ public func assert(
 @_transparent
 public func precondition(
   _ condition: @autoclosure () -> Bool,
-  _ message: @autoclosure () -> String = String(),
+  _ message: @autoclosure () -> String,
   file: StaticString = #file, line: UInt = #line
 ) {
   // Only check in debug and release mode. In release mode just trap.
@@ -92,9 +94,54 @@ public func precondition(
         flags: _fatalErrorFlags())
     }
   } else if _isReleaseAssertConfiguration() {
+    if !_fastPath(condition()) {
+      _assertionFailure("Precondition failed", message(),
+        flags: _fatalErrorFlags())
+    }
+  }
+}
+
+/// Checks a necessary condition for making forward progress.
+///
+/// Use this function to detect conditions that must prevent the program from
+/// proceeding, even in shipping code, but without a failure message.
+///
+/// * In playgrounds and `-Onone` builds (the default for Xcode's Debug
+///   configuration): If `condition` evaluates to `false`, stop program
+///   execution in a debuggable state after printing "Precondition failed",
+///   along with the file and line information.
+///
+/// * In `-O` builds (the default for Xcode's Release configuration): If
+///   `condition` evaluates to `false`, stop program execution.
+///
+/// * In `-Ounchecked` builds, `condition` is not evaluated, but the optimizer
+///   may assume that it *always* evaluates to `true`. Failure to satisfy that
+///   assumption is a serious programming error.
+///
+/// - Parameters:
+///   - condition: The condition to test. `condition` is not evaluated in
+///     `-Ounchecked` builds.
+///   - file: The file name to print with `message` if the precondition fails.
+///     The default is the file where `precondition(_:_:file:line:)` is
+///     called.
+///   - line: The line number to print along with `message` if the assertion
+///     fails. The default is the line number where
+///     `precondition(_:_:file:line:)` is called.
+@_transparent
+public func precondition(
+  _ condition: @autoclosure () -> Bool,
+  file: StaticString = #file, line: UInt = #line
+) {
+  // Only check in debug and release mode. In release mode just trap.
+  if _isDebugAssertConfiguration() {
+    if !_fastPath(condition()) {
+      _assertionFailure("Precondition failed", String(), file: file, line: line,
+        flags: _fatalErrorFlags())
+    }
+  } else if _isReleaseAssertConfiguration() {
     let error = !condition()
     Builtin.condfail_message(error._value,
-      StaticString("precondition failure").unsafeRawPointer)
+      StaticString("Precondition failed").unsafeRawPointer)
   }
 }
 
@@ -146,10 +193,10 @@ public func assertionFailure(
 ///
 /// * In playgrounds and `-Onone` builds (the default for Xcode's Debug
 ///   configuration), stops program execution in a debuggable state after
-///   printing `message`.
+///   printing `message` along with the file and line information.
 ///
 /// * In `-O` builds (the default for Xcode's Release configuration), stops
-///   program execution.
+///   program execution after printing `message`.
 ///
 /// * In `-Ounchecked` builds, the optimizer may assume that this function is
 ///   never called. Failure to satisfy that assumption is a serious
@@ -164,7 +211,7 @@ public func assertionFailure(
 ///     line number where `preconditionFailure(_:file:line:)` is called.
 @_transparent
 public func preconditionFailure(
-  _ message: @autoclosure () -> String = String(),
+  _ message: @autoclosure () -> String,
   file: StaticString = #file, line: UInt = #line
 ) -> Never {
   // Only check in debug and release mode.  In release mode just trap.
@@ -172,8 +219,45 @@ public func preconditionFailure(
     _assertionFailure("Fatal error", message(), file: file, line: line,
       flags: _fatalErrorFlags())
   } else if _isReleaseAssertConfiguration() {
+    _assertionFailure("Precondition failed", message(),
+      flags: _fatalErrorFlags())
+  }
+  _conditionallyUnreachable()
+}
+
+/// Indicates that a precondition was violated, without a message.
+///
+/// Use this function to stop the program when control flow can only reach the
+/// call if your API was improperly used. This function's effects vary
+/// depending on the build flag used:
+///
+/// * In playgrounds and `-Onone` builds (the default for Xcode's Debug
+///   configuration), stops program execution in a debuggable state after
+///   printing "Fatal error".
+///
+/// * In `-O` builds (the default for Xcode's Release configuration), stops
+///   program execution.
+///
+/// * In `-Ounchecked` builds, the optimizer may assume that this function is
+///   never called. Failure to satisfy that assumption is a serious
+///   programming error.
+///
+/// - Parameters:
+///   - file: The file name to print with `message`. The default is the file
+///     where `preconditionFailure(file:line:)` is called.
+///   - line: The line number to print. The default is the
+///     line number where `preconditionFailure(file:line:)` is called.
+@_transparent
+public func preconditionFailure(
+  file: StaticString = #file, line: UInt = #line
+) -> Never {
+  // Only check in debug and release mode.  In release mode just trap.
+  if _isDebugAssertConfiguration() {
+    _assertionFailure("Fatal error", String(), file: file, line: line,
+      flags: _fatalErrorFlags())
+  } else if _isReleaseAssertConfiguration() {
     Builtin.condfail_message(true._value,
-      StaticString("precondition failure").unsafeRawPointer)
+      StaticString("Precondition failed").unsafeRawPointer)
   }
   _conditionallyUnreachable()
 }
