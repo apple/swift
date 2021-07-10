@@ -1,0 +1,556 @@
+// RUN: %target-sil-opt -enable-objc-interop -enforce-exclusivity=none -enable-sil-verify-all %s -sil-combine -verify-skip-unreachable-must-be-last | %FileCheck %s
+
+// Declare this SIL to be canonical because some tests break raw SIL
+// conventions. e.g. address-type block args. -enforce-exclusivity=none is also
+// required to allow address-type block args in canonical SIL.
+sil_stage canonical
+
+import Builtin
+import Swift
+
+struct MyInt {
+  var value: Builtin.Int32
+}
+
+class B { }
+
+// CHECK-LABEL: sil [ossa] @generic_is_objc
+// CHECK: [[TYPE:%[a-zA-Z0-9]+]] = metatype $@thick [[ARCH:[a-zA-Z]+]].Type
+// CHECK: builtin "canBeClass"<[[ARCH]]>([[TYPE]] : $@thick [[ARCH]].Type)
+// CHECK-LABEL: end sil function 'generic_is_objc'
+sil [ossa] @generic_is_objc : $@convention(thin) <T> (@in T) -> Int8 {
+bb0(%0 : $*T):
+  %1 = metatype $@thick T.Type
+  %3 = builtin "canBeClass"<T>(%1 : $@thick T.Type) : $Builtin.Int8
+  %4 = struct $Int8 (%3 : $Builtin.Int8)
+  destroy_addr %0 : $*T
+  return %4 : $Int8
+}
+
+// CHECK-LABEL: sil [ossa] @is_int_objc
+// CHECK-NOT: builtin "canBeClass"
+// CHECK-NOT: apply
+// CHECK: [[LITERAL:%[a-zA-Z0-9]+]] = integer_literal $Builtin.Int8, 0
+// CHECK: [[RESULT:%[a-zA-Z0-9]+]] = struct $Int8 ([[LITERAL]] : $Builtin.Int8)
+// CHECK: return [[RESULT]] : $Int8
+sil [ossa] @is_int_objc : $@convention(thin) (Int) -> Int8 {
+bb0(%0 : $Int):
+  %1 = metatype $@thick Int.Type
+  %3 = builtin "canBeClass"<Int>(%1 : $@thick Int.Type) : $Builtin.Int8
+  %4 = struct $Int8 (%3 : $Builtin.Int8)
+  return %4 : $Int8
+}
+
+// An archetype with a trivial layout constraint can never be a class.
+// CHECK-LABEL: sil [ossa] @is_trivial_layout_constraint_class
+sil [ossa] @is_trivial_layout_constraint_class : $@convention(thin) <T where T: _Trivial> (@in T) -> Int8 {
+bb0(%0 : $*T):
+  %1 = metatype $@thick T.Type
+// CHECK-NOT: builtin "canBeClass"
+// CHECK-NOT: apply
+  %3 = builtin "canBeClass"<T>(%1 : $@thick T.Type) : $Builtin.Int8
+// CHECK: [[LITERAL:%[a-zA-Z0-9]+]] = integer_literal $Builtin.Int8, 0
+// CHECK: [[RESULT:%[a-zA-Z0-9]+]] = struct $Int8 ([[LITERAL]] : $Builtin.Int8)
+  %4 = struct $Int8 (%3 : $Builtin.Int8)
+// CHECK: return [[RESULT]] : $Int8
+  return %4 : $Int8
+}
+
+// An archetype with a _Class layout constraint is always a class.
+// CHECK-LABEL: sil [ossa] @is_class_layout_constraint_class
+sil [ossa] @is_class_layout_constraint_class : $@convention(thin) <T where T: _Class> (@inout T) -> Int8 {
+bb0(%0 : $*T):
+  %1 = metatype $@thick T.Type
+// CHECK-NOT: builtin "canBeClass"
+// CHECK-NOT: apply
+  %3 = builtin "canBeClass"<T>(%1 : $@thick T.Type) : $Builtin.Int8
+// CHECK: [[LITERAL:%[a-zA-Z0-9]+]] = integer_literal $Builtin.Int8, 1
+// CHECK: [[RESULT:%[a-zA-Z0-9]+]] = struct $Int8 ([[LITERAL]] : $Builtin.Int8)
+  %4 = struct $Int8 (%3 : $Builtin.Int8)
+// CHECK: return [[RESULT]] : $Int8
+  return %4 : $Int8
+}
+
+// An archetype with a _NativeClass layout constraint is always a class.
+// CHECK-LABEL: sil [ossa] @is_native_class_layout_constraint_class
+sil [ossa] @is_native_class_layout_constraint_class : $@convention(thin) <T where T: _NativeClass> (@inout T) -> Int8 {
+bb0(%0 : $*T):
+  %1 = metatype $@thick T.Type
+// CHECK-NOT: builtin "canBeClass"
+// CHECK-NOT: apply
+  %3 = builtin "canBeClass"<T>(%1 : $@thick T.Type) : $Builtin.Int8
+// CHECK: [[LITERAL:%[a-zA-Z0-9]+]] = integer_literal $Builtin.Int8, 1
+// CHECK: [[RESULT:%[a-zA-Z0-9]+]] = struct $Int8 ([[LITERAL]] : $Builtin.Int8)
+  %4 = struct $Int8 (%3 : $Builtin.Int8)
+// CHECK: return [[RESULT]] : $Int8
+  return %4 : $Int8
+}
+
+@objc class MyClass {
+}
+
+// CHECK-LABEL: sil [ossa] @is_objc_class_objc
+sil [ossa] @is_objc_class_objc : $@convention(thin) (@owned MyClass) -> Int8 {
+bb0(%0 : @owned $MyClass):
+  %1 = metatype $@thick MyClass.Type              // user: %3
+// CHECK-NOT: builtin "canBeClass"
+  %3 = builtin "canBeClass"<MyClass>(%1 : $@thick MyClass.Type) : $Builtin.Int8 // user: %4
+// CHECK: [[LITERAL:%[a-zA-Z0-9]+]] = integer_literal $Builtin.Int8, 1
+// CHECK: [[RESULT:%[a-zA-Z0-9]+]] = struct $Int8 ([[LITERAL]] : $Builtin.Int8)
+  %4 = struct $Int8 (%3 : $Builtin.Int8)          // user: %6
+  destroy_value %0 : $MyClass                    // id: %5
+// CHECK: return [[RESULT]] : $Int8
+  return %4 : $Int8                               // id: %6
+}
+
+// CHECK-LABEL: sil [ossa] @indexrawpointer_to_indexaddr_mismatched_metatype : $@convention(thin) (Builtin.RawPointer, Builtin.Word) -> Int32 {
+// CHECK-NOT: index_addr
+sil [ossa] @indexrawpointer_to_indexaddr_mismatched_metatype : $@convention(thin) (Builtin.RawPointer, Builtin.Word) -> Int32 {
+bb0(%0 : $Builtin.RawPointer, %1 : $Builtin.Word):
+  %3 = metatype $@thick Int8.Type
+  %4 = builtin "strideof"<Int8>(%3 : $@thick Int8.Type) : $Builtin.Word
+  %6 = integer_literal $Builtin.Int1, -1
+  %7 = builtin "smul_with_overflow_Word"(%4 : $Builtin.Word, %1 : $Builtin.Word, %6 : $Builtin.Int1) : $(Builtin.Word, Builtin.Int1)
+  %8 = tuple_extract %7 : $(Builtin.Word, Builtin.Int1), 0
+  %9 = index_raw_pointer %0 : $Builtin.RawPointer, %8 : $Builtin.Word
+  %10 = pointer_to_address %9 : $Builtin.RawPointer to [strict] $*Int32
+  %11 = load [trivial] %10 : $*Int32
+  return %11 : $Int32
+}
+
+// CHECK-LABEL: sil [ossa] @max_int_ult : $@convention(thin) (Builtin.Int32) -> Builtin.Int32
+// CHECK-NOT: builtin "cmp_ult_Int32"
+// CHECK: integer_literal $Builtin.Int1, 0
+sil [ossa] @max_int_ult : $@convention(thin) (Builtin.Int32) -> Builtin.Int32 {
+bb0(%0 : $Builtin.Int32):
+  %minint = integer_literal $Builtin.Int32, -1
+  %cmp = builtin "cmp_ult_Int32"(%minint : $Builtin.Int32, %0 : $Builtin.Int32) : $Builtin.Int1
+  cond_br %cmp, bb1, bb2
+
+bb1:
+  %badret = integer_literal $Builtin.Int32, 0
+  br bb3(%badret : $Builtin.Int32)
+
+bb2:
+  %goodret = integer_literal $Builtin.Int32, 1
+  br bb3(%goodret : $Builtin.Int32)
+
+bb3(%ret : $Builtin.Int32):
+  return %ret : $Builtin.Int32
+}
+
+// CHECK-LABEL: sil [ossa] @max_int_ule : $@convention(thin) (Builtin.Int32) -> Builtin.Int32
+// CHECK: builtin "cmp_ule_Int32"
+// CHECK-NOT: integer_literal $Builtin.Int1, 0
+sil [ossa] @max_int_ule : $@convention(thin) (Builtin.Int32) -> Builtin.Int32 {
+bb0(%0 : $Builtin.Int32):
+  %minint = integer_literal $Builtin.Int32, -1
+  %cmp = builtin "cmp_ule_Int32"(%minint : $Builtin.Int32, %0 : $Builtin.Int32) : $Builtin.Int1
+  cond_br %cmp, bb1, bb2
+
+bb1:
+  %badret = integer_literal $Builtin.Int32, 0
+  br bb3(%badret : $Builtin.Int32)
+
+bb2:
+  %goodret = integer_literal $Builtin.Int32, 1
+  br bb3(%goodret : $Builtin.Int32)
+
+bb3(%ret : $Builtin.Int32):
+  return %ret : $Builtin.Int32
+}
+
+// CHECK-LABEL: sil [ossa] @trunc_of_zext : $@convention(thin) (Builtin.Int16) -> Builtin.Int32
+// CHECK-NOT: builtin "zextOrBitCast_Int16_Int64"
+// CHECK-NOT: builtin "truncOrBitCast_Int64_Int32"
+// CHECK: builtin "zextOrBitCast_Int16_Int32"
+// CHECK-NEXT: return
+sil [ossa] @trunc_of_zext : $@convention(thin) (Builtin.Int16) -> Builtin.Int32 {
+bb0(%0 : $Builtin.Int16):
+  %zext = builtin "zextOrBitCast_Int16_Int64"(%0 : $Builtin.Int16) : $Builtin.Int64
+  %trunc = builtin "truncOrBitCast_Int64_Int32"(%zext : $Builtin.Int64) : $Builtin.Int32
+  return %trunc : $Builtin.Int32
+}
+
+// CHECK-LABEL: sil [ossa] @zext_of_zext : $@convention(thin) (Builtin.Int16) -> Builtin.Int64
+// CHECK-NOT: builtin "zextOrBitCast_Int16_Int32"
+// CHECK-NOT: builtin "zextOrBitCast_Int32_Int64"
+// CHECK: builtin "zextOrBitCast_Int16_Int64"
+// CHECK-NEXT: return
+sil [ossa] @zext_of_zext : $@convention(thin) (Builtin.Int16) -> Builtin.Int64 {
+bb0(%0 : $Builtin.Int16):
+  %zext1 = builtin "zextOrBitCast_Int16_Int32"(%0 : $Builtin.Int16) : $Builtin.Int32
+  %zext2 = builtin "zextOrBitCast_Int32_Int64"(%zext1 : $Builtin.Int32) : $Builtin.Int64
+  return %zext2 : $Builtin.Int64
+}
+
+// CHECK-LABEL: sil [ossa] @trunc_of_zext_then_zext : $@convention(thin) (Builtin.Int16) -> Builtin.Int16
+// CHECK-NOT: builtin "zextOrBitCast_Int16_Int64"
+// CHECK-NOT: builtin "truncOrBitCast_Int64_Int32"
+// CHECK-NOT: builtin "zextOrBitCast_Int32_Int64"
+// CHECK-NOT: builtin "truncOrBitCast_Int64_Int16"
+// CHECK: return
+sil [ossa] @trunc_of_zext_then_zext : $@convention(thin) (Builtin.Int16) -> Builtin.Int16 {
+bb0(%0 : $Builtin.Int16):
+  %zext = builtin "zextOrBitCast_Int16_Int64"(%0 : $Builtin.Int16) : $Builtin.Int64
+  %trunc = builtin "truncOrBitCast_Int64_Int32"(%zext : $Builtin.Int64) : $Builtin.Int32
+  %zext2 = builtin "zextOrBitCast_Int32_Int64"(%trunc : $Builtin.Int32) : $Builtin.Int64
+  %trunc2 = builtin "truncOrBitCast_Int64_Int16"(%zext2 : $Builtin.Int64) : $Builtin.Int16
+  return %trunc2 : $Builtin.Int16
+}
+
+// CHECK-LABEL: sil [ossa] @sub_pointers : $@convention(thin) (Builtin.RawPointer) -> Builtin.Word
+// CHECK: bb0
+// CHECK-NEXT: integer_literal
+// CHECK-NEXT: return
+sil [ossa] @sub_pointers : $@convention(thin) (Builtin.RawPointer) -> Builtin.Word {
+bb0(%0 : $Builtin.RawPointer):
+  %1 = integer_literal $Builtin.Word, 0
+  %23 = index_raw_pointer %0 : $Builtin.RawPointer, %1 : $Builtin.Word
+  %26 = builtin "ptrtoint_Word"(%23 : $Builtin.RawPointer) : $Builtin.Word
+  %27 = builtin "ptrtoint_Word"(%0 : $Builtin.RawPointer) : $Builtin.Word
+  %28 = builtin "sub_Word"(%26 : $Builtin.Word, %27 : $Builtin.Word) : $Builtin.Word
+  return %28 : $Builtin.Word
+}
+
+// CHECK-LABEL: sil [ossa] @sub_same_value : $@convention(thin) (Builtin.RawPointer) -> Builtin.Word
+// CHECK: bb0
+// CHECK-NEXT: integer_literal
+// CHECK-NEXT: return
+sil [ossa] @sub_same_value : $@convention(thin) (Builtin.RawPointer) -> Builtin.Word {
+bb0(%0 : $Builtin.RawPointer):
+  %27 = builtin "ptrtoint_Word"(%0 : $Builtin.RawPointer) : $Builtin.Word
+  %28 = builtin "sub_Word"(%27 : $Builtin.Word, %27 : $Builtin.Word) : $Builtin.Word
+  return %28 : $Builtin.Word
+}
+
+//CHECK-LABEL: @remove_pointer_compare_to_zero
+//CHECK-NOT: apply
+//CHECK-NOT: cond_fail
+//CHECK: return
+sil [ossa] @remove_pointer_compare_to_zero : $@convention(thin) (Int) -> () {
+bb0(%0 : $Int):
+  %1 = string_literal utf16 "ss"
+  %2 = integer_literal $Builtin.Word, 0
+  %4 = builtin "inttoptr_Word"(%2 : $Builtin.Word) : $Builtin.RawPointer
+  %6 = builtin "cmp_eq_RawPointer"(%1 : $Builtin.RawPointer, %4 : $Builtin.RawPointer) : $Builtin.Int1
+  cond_fail %6 : $Builtin.Int1
+  %8 = tuple ()
+  return %8 : $()
+}
+
+// CHECK-LABEL: @remove_pointer_compare_to_zero_NE
+// CHECK-NOT: apply
+// CHECK: [[IL:%.*]] = integer_literal
+// CHECK-NEXT: cond_fail [[IL]]
+// CHECK-NEXT: tuple
+// CHECK-NEXT: return
+sil [ossa] @remove_pointer_compare_to_zero_NE : $@convention(thin) (Int) -> () {
+bb0(%0 : $Int):
+  %1 = string_literal utf16 "ss"
+  %2 = integer_literal $Builtin.Word, 0
+  %4 = builtin "inttoptr_Word"(%2 : $Builtin.Word) : $Builtin.RawPointer
+  %6 = builtin "cmp_ne_RawPointer"(%1 : $Builtin.RawPointer, %4 : $Builtin.RawPointer) : $Builtin.Int1
+  cond_fail %6 : $Builtin.Int1
+  %8 = tuple ()
+  return %8 : $()
+}
+
+
+//CHECK-LABEL: @remove_pointer_compare_to_zero_arith
+//CHECK-NOT: apply
+//CHECK-NOT: cond_fail
+//CHECK: return
+sil [ossa] @remove_pointer_compare_to_zero_arith : $@convention(thin) (Builtin.Word) -> () {
+bb0(%0 : $Builtin.Word):
+  %1 = string_literal utf16 "ss"
+  %2 = integer_literal $Builtin.Word, 0
+  %3 = integer_literal $Builtin.Word, 4
+  %4 = integer_literal $Builtin.Int1, -1
+  %6 = builtin "smul_with_overflow_Word"(%0 : $Builtin.Word, %2 : $Builtin.Word, %4 : $Builtin.Int1) : $(Builtin.Word, Builtin.Int1)
+  %7 = tuple_extract %6 : $(Builtin.Word, Builtin.Int1), 0
+  %9 = builtin "inttoptr_Word"(%7 : $Builtin.Word) : $Builtin.RawPointer
+  %11 = builtin "cmp_eq_RawPointer"(%1 : $Builtin.RawPointer, %9 : $Builtin.RawPointer) : $Builtin.Int1
+  cond_fail %11 : $Builtin.Int1
+  %13 = tuple ()
+  return %13 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @builtin_array_opt_index_raw_pointer_to_index_addr
+// CHECK:  [[MT:%.*]] = metatype $@thick Int32.Type
+// CHECK:  [[ONE:%.*]] = integer_literal $Builtin.Word, 1
+// CHECK:  [[PTA1:%.*]] = pointer_to_address %1 : $Builtin.RawPointer to [strict] $*Int32
+// CHECK:  [[CAST1:%.*]] = builtin "truncOrBitCast_Int64_Word"(%0 : $Builtin.Int64)
+// CHECK:  [[IAD1:%.*]] = index_addr [[PTA1]] : $*Int32, [[CAST1]] : $Builtin.Word
+// CHECK:  [[ATP1:%.*]] = address_to_pointer [[IAD1]] : $*Int32 to $Builtin.RawPointer
+// CHECK:  [[PTA2:%.*]] = pointer_to_address %2 : $Builtin.RawPointer to [strict] $*Int32
+// CHECK:  [[CAST2:%.*]] = builtin "truncOrBitCast_Int64_Word"(%0 : $Builtin.Int64)
+// CHECK:  [[IAD2:%.*]] = index_addr [[PTA2]] : $*Int32, [[CAST2]] : $Builtin.Word
+// CHECK:  [[ATP2:%.*]] = address_to_pointer [[IAD2]] : $*Int32 to $Builtin.RawPointer
+// CHECK:  builtin "takeArrayFrontToBack"<Int32>([[MT]] : $@thick Int32.Type, [[ATP1]] : $Builtin.RawPointer, [[ATP2]] : $Builtin.RawPointer, [[ONE]] : $Builtin.Word) : $()
+// CHECK: return
+sil [ossa] @builtin_array_opt_index_raw_pointer_to_index_addr : $@convention(thin) (Builtin.Int64, Builtin.RawPointer, Builtin.RawPointer) -> () {
+bb0(%0 : $Builtin.Int64, %1 : $Builtin.RawPointer, %2 : $Builtin.RawPointer):
+  %4 = metatype $@thick Int32.Type
+  %5 = integer_literal $Builtin.Word, 1
+  %6 = integer_literal $Builtin.Int1, 0
+  %7 = builtin "strideof"<Int32>(%4 : $@thick Int32.Type) : $Builtin.Word
+  %14 = builtin "zextOrBitCast_Word_Int64"(%7 : $Builtin.Word) : $Builtin.Int64
+  %8 = builtin "smul_with_overflow_Word"(%14 : $Builtin.Int64, %0 : $Builtin.Int64, %6 : $Builtin.Int1) : $(Builtin.Int64, Builtin.Int1)
+  %9 = tuple_extract %8 : $(Builtin.Int64, Builtin.Int1), 0
+  %15 = builtin "truncOrBitCast_Int64_Word"(%9 : $Builtin.Int64) : $Builtin.Word
+  %10 = index_raw_pointer %1 : $Builtin.RawPointer, %15 : $Builtin.Word
+  %11 = index_raw_pointer %2 : $Builtin.RawPointer, %15 : $Builtin.Word
+  %12 = builtin "takeArrayFrontToBack"<Int32>(%4 : $@thick Int32.Type, %10 : $Builtin.RawPointer, %11 : $Builtin.RawPointer, %5 : $Builtin.Word) : $()
+  %13 = tuple ()
+  return %13 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @cmp_zext_peephole
+// CHECK: bb0([[Arg1:%.*]] : $Builtin.Word, [[Arg2:%.*]] : $Builtin.Word):
+// CHECK:   [[ZA1:%.*]] = builtin "zextOrBitCast_Word_Int64"([[Arg1]] : $Builtin.Word) : $Builtin.Int64
+// CHECK:   [[ZA2:%.*]] = builtin "zextOrBitCast_Word_Int64"([[Arg2]] : $Builtin.Word) : $Builtin.Int64
+// CHECK: builtin "cmp_eq_Word"([[Arg1]] : $Builtin.Word, [[Arg2]] : $Builtin.Word)
+// CHECK: builtin "cmp_ne_Word"([[Arg1]] : $Builtin.Word, [[Arg2]] : $Builtin.Word)
+// CHECK: builtin "cmp_ule_Word"([[Arg1]] : $Builtin.Word, [[Arg2]] : $Builtin.Word)
+// CHECK: builtin "cmp_ult_Word"([[Arg1]] : $Builtin.Word, [[Arg2]] : $Builtin.Word)
+// CHECK: builtin "cmp_uge_Word"([[Arg1]] : $Builtin.Word, [[Arg2]] : $Builtin.Word)
+// CHECK: builtin "cmp_ugt_Word"([[Arg1]] : $Builtin.Word, [[Arg2]] : $Builtin.Word)
+// CHECK: builtin "cmp_sle_Int64"([[ZA1]] : $Builtin.Int64, [[ZA2]] : $Builtin.Int64)
+// CHECK: builtin "cmp_slt_Int64"([[ZA1]] : $Builtin.Int64, [[ZA2]] : $Builtin.Int64)
+// CHECK: builtin "cmp_sge_Int64"([[ZA1]] : $Builtin.Int64, [[ZA2]] : $Builtin.Int64)
+// CHECK: builtin "cmp_sgt_Int64"([[ZA1]] : $Builtin.Int64, [[ZA2]] : $Builtin.Int64)
+sil [ossa] @cmp_zext_peephole : $@convention(thin) (Builtin.Word, Builtin.Word) -> () {
+bb0(%0 : $Builtin.Word, %1 : $Builtin.Word):
+  %2 = builtin "zextOrBitCast_Word_Int64"(%0 : $Builtin.Word) : $Builtin.Int64
+  %3 = builtin "zextOrBitCast_Word_Int64"(%1 : $Builtin.Word) : $Builtin.Int64
+
+  %4 = builtin "cmp_eq_Int64"(%2 : $Builtin.Int64, %3 : $Builtin.Int64) : $Builtin.Int1
+  cond_fail %4 : $Builtin.Int1
+
+  %6 = builtin "cmp_ne_Int64"(%2 : $Builtin.Int64, %3 : $Builtin.Int64) : $Builtin.Int1
+  cond_fail %6 : $Builtin.Int1
+
+  %8 = builtin "cmp_ule_Int64"(%2 : $Builtin.Int64, %3 : $Builtin.Int64) : $Builtin.Int1
+  cond_fail %8 : $Builtin.Int1
+
+  %10 = builtin "cmp_ult_Int64"(%2 : $Builtin.Int64, %3 : $Builtin.Int64) : $Builtin.Int1
+  cond_fail %10 : $Builtin.Int1
+
+  %12 = builtin "cmp_uge_Int64"(%2 : $Builtin.Int64, %3 : $Builtin.Int64) : $Builtin.Int1
+  cond_fail %12 : $Builtin.Int1
+
+  %14 = builtin "cmp_ugt_Int64"(%2 : $Builtin.Int64, %3 : $Builtin.Int64) : $Builtin.Int1
+  cond_fail %14 : $Builtin.Int1
+
+  %16 = builtin "cmp_sle_Int64"(%2 : $Builtin.Int64, %3 : $Builtin.Int64) : $Builtin.Int1
+  cond_fail %16 : $Builtin.Int1
+
+  %18 = builtin "cmp_slt_Int64"(%2 : $Builtin.Int64, %3 : $Builtin.Int64) : $Builtin.Int1
+  cond_fail %18 : $Builtin.Int1
+
+  %20 = builtin "cmp_sge_Int64"(%2 : $Builtin.Int64, %3 : $Builtin.Int64) : $Builtin.Int1
+  cond_fail %20 : $Builtin.Int1
+
+  %22 = builtin "cmp_sgt_Int64"(%2 : $Builtin.Int64, %3 : $Builtin.Int64) : $Builtin.Int1
+  cond_fail %22 : $Builtin.Int1
+
+  %24 = tuple()
+  return %24 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_cmp_xor_canonicalization
+// CHECK:bb0([[ARG:%.*]] : $Builtin.Int1
+// CHECK:  [[TRUE:%.*]] = integer_literal $Builtin.Int1, -1
+// CHECK:  [[FALSE:%.*]] = integer_literal $Builtin.Int1, 0
+// CHECK:  [[EQ:%.*]] = builtin "cmp_eq_Int1"([[ARG]] : $Builtin.Int1, [[FALSE]]
+// CHECK:  [[NOT:%.*]] = builtin "xor_Int1"([[EQ]] : $Builtin.Int1, [[TRUE]] : $Builtin.Int1)
+// CHECK:  return [[NOT]]
+sil [ossa] @test_cmp_xor_canonicalization : $@convention(thin) (Builtin.Int1) -> Builtin.Int1 {
+bb0(%0 : $Builtin.Int1):
+  %1 = integer_literal $Builtin.Int1, -1
+  %2 = builtin "cmp_eq_Int1"(%0 : $Builtin.Int1, %1 : $Builtin.Int1) : $Builtin.Int1
+  return %2 : $Builtin.Int1
+}
+
+// Make sure that we do not crash when determining if a value is not zero and
+// has a value that cannot be stored in a UInt64. The specific issue is that we
+// were using getZExtValue before which assumes that an APInt can be stored in a
+// UInt64.
+//
+// CHECK-LABEL: sil [ossa] @large_int_zero_comparison : $@convention(thin) () -> Builtin.Int1 {
+// CHECK: [[CMP_RESULT:%.*]] = integer_literal $Builtin.Int1, 0
+// CHECK: return [[CMP_RESULT]]
+sil [ossa] @large_int_zero_comparison : $@convention(thin) () -> Builtin.Int1 {
+bb0:
+  %0 = integer_literal $Builtin.Int1024, 0
+  %1 = integer_literal $Builtin.Int1024, 0xFFFFFFFFFFFFFFFFFFFF
+  %2 = builtin "cmp_eq_Int1024"(%0 : $Builtin.Int1024, %1 : $Builtin.Int1024) : $Builtin.Int1
+  return %2 : $Builtin.Int1
+}
+
+sil [ossa] @callee : $@convention(thin) (Double, @in_guaranteed Int) -> ()
+sil [ossa] @generic_callee : $@convention(thin) <T, U> (@in T, @in U) -> ()
+sil [ossa] @noreturn_func : $@convention(thin) () -> Never
+
+// CHECK-LABEL: sil [ossa] @remove_destroy_array
+// CHECK-NOT: destroyArray
+// CHECK: return
+sil [ossa] @remove_destroy_array : $@convention(thin) (Builtin.RawPointer, Builtin.Word) -> () {
+bb0(%0 : $Builtin.RawPointer, %1 : $Builtin.Word):
+  %4 = metatype $@thick Int32.Type
+  %8 = builtin "destroyArray"<Int32>(%4 : $@thick Int32.Type, %0 : $Builtin.RawPointer, %1 : $Builtin.Word) : $()
+  %90 = tuple ()
+  return %90 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @dont_remove_destroy_array_of_nontrivial_type
+// CHECK: builtin "destroyArray"
+// CHECK: return
+sil [ossa] @dont_remove_destroy_array_of_nontrivial_type : $@convention(thin) (Builtin.RawPointer, Builtin.Word) -> () {
+bb0(%0 : $Builtin.RawPointer, %1 : $Builtin.Word):
+  %4 = metatype $@thick B.Type
+  %8 = builtin "destroyArray"<B>(%4 : $@thick B.Type, %0 : $Builtin.RawPointer, %1 : $Builtin.Word) : $()
+  %90 = tuple ()
+  return %90 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @dont_remove_destroy_array_of_generic_type
+// CHECK: builtin "destroyArray"
+// CHECK: return
+sil [ossa] @dont_remove_destroy_array_of_generic_type : $@convention(thin) <Memory> (Builtin.RawPointer, Builtin.Word) -> () {
+bb0(%0 : $Builtin.RawPointer, %1 : $Builtin.Word):
+  %4 = metatype $@thick Memory.Type
+  %8 = builtin "destroyArray"<Memory>(%4 : $@thick Memory.Type, %0 : $Builtin.RawPointer, %1 : $Builtin.Word) : $()
+  %90 = tuple ()
+  return %90 : $()
+}
+
+// Int1_const == x -> x == Int1_const
+// CHECK-LABEL: sil [ossa] @canonicalize_bool_eq_checks
+sil [ossa] @canonicalize_bool_eq_checks : $@convention(thin) (Builtin.Int1) -> Builtin.Int1 {
+bb0(%0 : $Builtin.Int1):
+  %1 = integer_literal $Builtin.Int1, 0
+  %2 = builtin "cmp_eq_Int1"(%1 : $Builtin.Int1, %0 : $Builtin.Int1) : $Builtin.Int1
+  return %2 : $Builtin.Int1
+}
+
+// Int1_const != x -> x != Int1_const
+// CHECK-LABEL: sil [ossa] @canonicalize_bool_ne_checks
+sil [ossa] @canonicalize_bool_ne_checks : $@convention(thin) (Builtin.Int1) -> Builtin.Int1 {
+bb0(%0 : $Builtin.Int1):
+  %1 = integer_literal $Builtin.Int1, 0
+  %2 = builtin "cmp_ne_Int1"(%1 : $Builtin.Int1, %0 : $Builtin.Int1) : $Builtin.Int1
+  return %2 : $Builtin.Int1
+}
+
+// CHECK-LABEL: sil [ossa] @optimize_stringObject_bit_operations
+// CHECK:      bb0:
+// CHECK-NEXT:   %0 = integer_literal $Builtin.Int64, 4611686018427387904
+// CHECK-NEXT:   return %0
+sil [ossa] @optimize_stringObject_bit_operations : $@convention(thin) () -> Builtin.Int64 {
+bb0:
+  %2 = string_literal utf8 "thequickbrownfoxjumpsoverthelazydogusingasmanycharacteraspossible123456789"
+  %5 = builtin "ptrtoint_Word"(%2 : $Builtin.RawPointer) : $Builtin.Word
+  %6 = builtin "zextOrBitCast_Word_Int64"(%5 : $Builtin.Word) : $Builtin.Int64
+  %9 = integer_literal $Builtin.Int64, 13835058055282163712
+  %10 = builtin "stringObjectOr_Int64"(%6 : $Builtin.Int64, %9 : $Builtin.Int64) : $Builtin.Int64
+  %11 = struct $UInt64 (%10 : $Builtin.Int64)
+  %12 = value_to_bridge_object %11 : $UInt64
+  %33 = unchecked_trivial_bit_cast %12 : $Builtin.BridgeObject to $UInt64
+  %34 = integer_literal $Builtin.Int64, 6917529027641081856
+  %35 = struct_extract %33 : $UInt64, #UInt64._value
+  %36 = builtin "and_Int64"(%35 : $Builtin.Int64, %34 : $Builtin.Int64) : $Builtin.Int64
+  return %36 : $Builtin.Int64
+}
+
+// CHECK-LABEL: sil [ossa] @dont_optimize_stringObject_bit_operations1
+// CHECK:   builtin "stringObjectOr_Int64"
+// CHECK:   builtin "and_Int64"
+sil [ossa] @dont_optimize_stringObject_bit_operations1 : $@convention(thin) (Builtin.RawPointer) -> Builtin.Int64 {
+bb0(%2 : $Builtin.RawPointer):
+  %5 = builtin "ptrtoint_Word"(%2 : $Builtin.RawPointer) : $Builtin.Word
+  %6 = builtin "zextOrBitCast_Word_Int64"(%5 : $Builtin.Word) : $Builtin.Int64
+  %9 = integer_literal $Builtin.Int64, -9223372036854775808
+  %10 = builtin "stringObjectOr_Int64"(%6 : $Builtin.Int64, %9 : $Builtin.Int64) : $Builtin.Int64
+  %11 = struct $UInt64 (%10 : $Builtin.Int64)
+  %12 = value_to_bridge_object %11 : $UInt64
+  %33 = unchecked_trivial_bit_cast %12 : $Builtin.BridgeObject to $UInt64
+  %34 = integer_literal $Builtin.Int64, 4611686018427387904
+  %35 = struct_extract %33 : $UInt64, #UInt64._value
+  %36 = builtin "and_Int64"(%35 : $Builtin.Int64, %34 : $Builtin.Int64) : $Builtin.Int64
+  return %36 : $Builtin.Int64
+}
+
+// CHECK-LABEL: sil [ossa] @dont_optimize_stringObject_bit_operations2
+// CHECK:   builtin "stringObjectOr_Int64"
+// CHECK:   builtin "and_Int64"
+sil [ossa] @dont_optimize_stringObject_bit_operations2 : $@convention(thin) () -> Builtin.Int64 {
+bb0:
+  %2 = string_literal utf8 "thequickbrownfoxjumpsoverthelazydogusingasmanycharacteraspossible123456789"
+  %5 = builtin "ptrtoint_Word"(%2 : $Builtin.RawPointer) : $Builtin.Word
+  %6 = builtin "zextOrBitCast_Word_Int64"(%5 : $Builtin.Word) : $Builtin.Int64
+  %9 = integer_literal $Builtin.Int64, 13835058055282163712
+  %10 = builtin "stringObjectOr_Int64"(%6 : $Builtin.Int64, %9 : $Builtin.Int64) : $Builtin.Int64
+  %11 = struct $UInt64 (%10 : $Builtin.Int64)
+  %12 = value_to_bridge_object %11 : $UInt64
+  %33 = unchecked_trivial_bit_cast %12 : $Builtin.BridgeObject to $UInt64
+  %34 = integer_literal $Builtin.Int64, 1152921504606846975
+  %35 = struct_extract %33 : $UInt64, #UInt64._value
+  %36 = builtin "and_Int64"(%35 : $Builtin.Int64, %34 : $Builtin.Int64) : $Builtin.Int64
+  return %36 : $Builtin.Int64
+}
+
+// CHECK-LABEL: sil [ossa] @conversion_to_and_from_bridge_object
+// CHECK:      bb0(%0 : $Builtin.Int64):
+// CHECK-NEXT:   return %0
+sil [ossa] @conversion_to_and_from_bridge_object : $@convention(thin) (Builtin.Int64) -> (Builtin.Int64) {
+bb0(%0 : $Builtin.Int64):
+  %1 = struct $UInt64 (%0 : $Builtin.Int64)
+  %2 = value_to_bridge_object %1 : $UInt64
+  %3 = bridge_object_to_word %2 : $Builtin.BridgeObject to $Builtin.Word
+  %4 = builtin "zextOrBitCast_Word_Int64"(%3 : $Builtin.Word) : $Builtin.Int64
+  return %4 : $Builtin.Int64
+}
+
+// CHECK-LABEL: sil [ossa] @isConcrete_true : $@convention(thin) (@thin MyInt.Type) -> Builtin.Int1 {
+// CHECK:       bb0(%0 : $@thin MyInt.Type):
+// CHECK:         [[RESULT:%.*]] = integer_literal $Builtin.Int1, -1
+// CHECK:         return [[RESULT]]
+// CHECK:       } // end sil function 'isConcrete_true'
+sil [ossa] @isConcrete_true : $@convention(thin) (@thin MyInt.Type) -> Builtin.Int1 {
+bb0(%0 : $@thin MyInt.Type):
+  %1 = builtin "isConcrete"(%0 : $@thin MyInt.Type) : $Builtin.Int1
+  return %1 : $Builtin.Int1
+}
+
+// CHECK-LABEL: sil [ossa] @isConcrete_false : $@convention(thin) <T> (@thin T.Type) -> Builtin.Int1 {
+// CHECK:       bb0(%0 : $@thin T.Type):
+// CHECK:         [[RESULT:%.*]] = builtin "isConcrete"<T>(%0 : $@thin T.Type) : $Builtin.Int1
+// CHECK:         return [[RESULT]]
+// CHECK:       } // end sil function 'isConcrete_false'
+sil [ossa] @isConcrete_false : $@convention(thin) <T> (@thin T.Type) -> Builtin.Int1 {
+bb0(%0 : $@thin T.Type):
+  // FIXME: Explicit specialization is required here when it shouldn't be
+  %1 = builtin "isConcrete"<T>(%0 : $@thin T.Type) : $Builtin.Int1
+  return %1 : $Builtin.Int1
+}
+
+// Test builtin "is_same_metatype" folding.
+protocol SomeP {}
+
+public enum SpecialEnum : SomeP {}
+
+// CHECK-LABEL: sil [ossa] @testFoldBuiltinIsSameMetatype : $@convention(thin) (@thick SpecialEnum.Type) -> Bool {
+// CHECK-NEXT: bb0(%0 : $@thick SpecialEnum.Type):
+// CHECK-NEXT:   [[TRUE:%.*]] = integer_literal $Builtin.Int1, -1
+// CHECK-NEXT:   struct $Bool ([[TRUE]] : $Builtin.Int1)
+// CHECK-NEXT:   return
+// CHECK-LABEL: }  // end sil function 'testFoldBuiltinIsSameMetatype'
+sil [ossa] @testFoldBuiltinIsSameMetatype : $@convention(thin) (@thick SpecialEnum.Type) -> Bool {
+bb0(%0 : $@thick SpecialEnum.Type):
+  %1 = init_existential_metatype %0 : $@thick SpecialEnum.Type, $@thick Any.Type
+  %3 = builtin "is_same_metatype"(%1 : $@thick Any.Type, %1 : $@thick Any.Type) : $Builtin.Int1
+  %4 = struct $Bool (%3 : $Builtin.Int1)
+  return %4 : $Bool
+}
