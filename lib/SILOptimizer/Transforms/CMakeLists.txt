@@ -40,6 +40,7 @@ target_sources(swiftSILOptimizer PRIVATE
   SpeculativeDevirtualizer.cpp
   StackPromotion.cpp
   StringOptimization.cpp
+  StringSwitch.cpp
   TempLValueOpt.cpp
   TempRValueElimination.cpp
   UnsafeGuaranteedPeephole.cpp)
