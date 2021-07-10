@@ -246,11 +246,24 @@ public func _unsafeUncheckedDowncast<T: AnyObject>(_ x: AnyObject, to type: T.Ty
 @inline(__always)
 public func _getUnsafePointerToStoredProperties(_ x: AnyObject)
   -> UnsafeMutableRawPointer {
-  let storedPropertyOffset = _roundUp(
+  return _getUnsafePointerToStoredProperty(
+    atOffset: _offsetOfFirstStoredProperty(),
+    in: x)
+}
+
+@_alwaysEmitIntoClient
+internal func _offsetOfFirstStoredProperty() -> Int {
+  return _roundUp(
     MemoryLayout<SwiftShims.HeapObject>.size,
     toAlignment: MemoryLayout<Optional<AnyObject>>.alignment)
-  return UnsafeMutableRawPointer(Builtin.bridgeToRawPointer(x)) +
-    storedPropertyOffset
+}
+
+@_alwaysEmitIntoClient
+internal func _getUnsafePointerToStoredProperty(
+  atOffset offset: Int,
+  in object: AnyObject
+) -> UnsafeMutableRawPointer {
+  return UnsafeMutableRawPointer(Builtin.bridgeToRawPointer(object)) + offset
 }
 
 /// Get the minimum alignment for manually allocated memory.

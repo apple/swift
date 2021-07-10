@@ -229,6 +229,83 @@ extension MemoryLayout {
   }
 }
 
+extension MemoryLayout where T: AnyObject {
+  /// Return an unsafe mutable pointer to the memory location of
+  /// the stored property referred to by `key` within a class instance.
+  ///
+  /// The memory location is available only if the given key refers to directly
+  /// addressable storage within the in-memory representation of `T`, which must
+  /// be a class type.
+  ///
+  /// A class instance property has directly addressable storage when it is a
+  /// stored property for which no additional work is required to extract or set
+  /// the value. Properties are not directly accessible if they are potentially
+  /// overridable, trigger any `didSet` or `willSet` accessors, perform any
+  /// representation changes such as bridging or closure reabstraction, or mask
+  /// the value out of overlapping storage as for packed bitfields.
+  ///
+  /// For example, in the `ProductCategory` class defined here, only
+  /// `\.updateCounter`, `\.identifier`, and `\.identifier.name` refer to
+  /// properties with inline, directly addressable storage:
+  ///
+  ///     final class ProductCategory {
+  ///         struct Identifier {
+  ///             var name: String              // addressable
+  ///         }
+  ///
+  ///         var identifier: Identifier        // addressable
+  ///         var updateCounter: Int            // addressable
+  ///         var products: [Product] {         // not addressable: didSet handler
+  ///             didSet { updateCounter += 1 }
+  ///         }
+  ///         var productCount: Int {           // not addressable: computed property
+  ///             return products.count
+  ///         }
+  ///         var parent: ProductCategory?  // addressable
+  ///     }
+  ///
+  /// When the return value of this method is non-`nil`, then accessing the
+  /// value by key path or via the returned pointer are equivalent. For example:
+  ///
+  ///     let category: ProductCategory = ...
+  ///     category[keyPath: \.identifier.name] = "Cereal"
+  ///
+  ///     withExtendedLifetime(category) {
+  ///       let p = MemoryLayout.unsafeAddress(of: \.identifier.name, in: category)!
+  ///       p.pointee = "Cereal"
+  ///     }
+  ///
+  /// `unsafeAddress(of:in:)` returns nil if the supplied key path has directly
+  /// accessible storage but it's outside of the instance storage of the
+  /// specified `root` object. For example, this can happen with key paths that
+  /// have components with reference semantics, such as the `parent` field
+  /// above:
+  ///
+  ///     MemoryLayout.unsafeAddress(of: \.parent, in: category) // non-nil
+  ///     MemoryLayout.unsafeAddress(of: \.parent.name, in: category) // nil
+  ///
+  /// - Warning: The returned pointer is only valid until the root object gets
+  ///   deallocated. It is the responsibility of the caller to ensure that the
+  ///   object stays alive while it is using the pointer. (The
+  ///   `withExtendedLifetime` call above is one example of how this can be
+  ///   done.)
+  ///
+  ///   Additionally, the Law of Exclusivity still applies: the caller must
+  ///   ensure that any access of the instance variable through the returned
+  ///   pointer will not overlap with any other access to the same variable,
+  ///   unless both accesses are reads.
+  @available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
+  @_transparent
+  public static func unsafeAddress<Value>(
+    of key: ReferenceWritableKeyPath<T, Value>,
+    in root: T
+  ) -> UnsafeMutablePointer<Value>? {
+    guard let offset = key._storedInstanceOffset else { return nil }
+    let p = _getUnsafePointerToStoredProperty(atOffset: offset, in: root)
+    return p.assumingMemoryBound(to: Value.self)
+  }
+}
+
 // Not-yet-public alignment conveniences
 extension MemoryLayout {
   internal static var _alignmentMask: Int { return alignment - 1 }
