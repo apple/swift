@@ -231,11 +231,9 @@ set(SWIFTLIB_GYB_SOURCES
 set(GROUP_INFO_JSON_FILE ${CMAKE_CURRENT_SOURCE_DIR}/GroupInfo.json)
 set(swift_core_link_flags "${SWIFT_RUNTIME_SWIFT_LINK_FLAGS}")
 set(swift_core_framework_depends)
-set(swift_core_private_link_libraries)
 set(swift_stdlib_compile_flags "${SWIFT_RUNTIME_SWIFT_COMPILE_FLAGS}")
 if(SWIFT_PRIMARY_VARIANT_SDK IN_LIST SWIFT_APPLE_PLATFORMS)
   list(APPEND swift_core_link_flags "-all_load")
-  list(APPEND swift_core_private_link_libraries icucore)
 else()
   # With the GNU linker the equivalent of -all_load is to tell the linker
   # --whole-archive before the archive and --no-whole-archive after (without
@@ -248,29 +246,36 @@ else()
   # effort has been completed.
   #set(LINK_FLAGS
   #  -Wl,--whole-archive swiftRuntime -Wl,--no-whole-archive)
-  if("${SWIFT_PATH_TO_LIBICU_BUILD}" STREQUAL "")
-    list(APPEND swift_core_private_link_libraries
-      ${SWIFT_${SWIFT_PRIMARY_VARIANT_SDK}_${SWIFT_PRIMARY_VARIANT_ARCH}_ICU_UC}
-      ${SWIFT_${SWIFT_PRIMARY_VARIANT_SDK}_${SWIFT_PRIMARY_VARIANT_ARCH}_ICU_I18N})
-  else()
-    list(APPEND swift_core_private_link_libraries -licui18nswift -licuucswift -licudataswift)
-  endif()
 endif()
 
-if(SWIFT_PRIMARY_VARIANT_SDK STREQUAL CYGWIN)
-  # TODO(compnerd) cache this variable to permit re-configuration
-  execute_process(COMMAND "cygpath" "-u" "$ENV{SYSTEMROOT}" OUTPUT_VARIABLE ENV_SYSTEMROOT)
-  list(APPEND swift_core_private_link_libraries "${ENV_SYSTEMROOT}/system32/psapi.dll")
-elseif(SWIFT_PRIMARY_VARIANT_SDK STREQUAL FREEBSD)
-  find_library(EXECINFO_LIBRARY execinfo)
-  list(APPEND swift_core_private_link_libraries ${EXECINFO_LIBRARY})
-elseif(SWIFT_PRIMARY_VARIANT_SDK STREQUAL LINUX)
-  if(SWIFT_BUILD_STATIC_STDLIB)
-    list(APPEND swift_core_private_link_libraries)
+function(swift_core_private_libraries sdk arch libraries_var_name)
+  set(private_link_libraries)
+  if(${sdk} IN_LIST SWIFT_APPLE_PLATFORMS)
+    list(APPEND private_link_libraries icucore)
+  else()
+    if(${sdk} STREQUAL ${SWIFT_HOST_VARIANT_SDK} AND NOT "${SWIFT_PATH_TO_LIBICU_BUILD}" STREQUAL "")
+      list(APPEND private_link_libraries -licui18nswift -licuucswift -licudataswift)
+    else()
+      list(APPEND private_link_libraries ${SWIFT_${sdk}_${arch}_ICU_UC}
+        ${SWIFT_${sdk}_${arch}_ICU_I18N})
+    endif()
   endif()
-elseif(SWIFT_PRIMARY_VARIANT_SDK STREQUAL WINDOWS)
-  list(APPEND swift_core_private_link_libraries shell32;DbgHelp)
-endif()
+
+  if(${sdk} STREQUAL CYGWIN)
+    if(${sdk} STREQUAL ${SWIFT_HOST_VARIANT_SDK})
+      # TODO(compnerd) cache this variable to permit re-configuration
+      execute_process(COMMAND "cygpath" "-u" "$ENV{SYSTEMROOT}" OUTPUT_VARIABLE ENV_SYSTEMROOT)
+      list(APPEND private_link_libraries "${ENV_SYSTEMROOT}/system32/psapi.dll")
+    else()
+      message(FATAL_ERROR "CYGWIN cross-compilation doesn't know where to find psapi.dll.")
+    endif()
+  elseif(${sdk} STREQUAL FREEBSD)
+    find_library(EXECINFO_LIBRARY execinfo)
+    list(APPEND private_link_libraries ${EXECINFO_LIBRARY})
+  endif()
+
+  set(${libraries_var_name} ${private_link_libraries} PARENT_SCOPE)
+endfunction()
 
 option(SWIFT_CHECK_ESSENTIAL_STDLIB
     "Check core standard library layering by linking its essential subset"
@@ -313,8 +318,6 @@ add_swift_target_library(swiftCore
                     ${swift_stdlib_compile_flags} -Xcc -DswiftCore_EXPORTS ${SWIFT_STANDARD_LIBRARY_SWIFT_FLAGS}
                   LINK_FLAGS
                     ${swift_core_link_flags}
-                  PRIVATE_LINK_LIBRARIES
-                    ${swift_core_private_link_libraries}
                   INCORPORATE_OBJECT_LIBRARIES
                     swiftRuntime swiftLLVMSupport swiftDemangling swiftStdlibStubs
                   FRAMEWORK_DEPENDS

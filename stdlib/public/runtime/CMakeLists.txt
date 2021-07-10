@@ -79,8 +79,7 @@ set(swift_runtime_library_compile_flags ${swift_runtime_compile_flags})
 list(APPEND swift_runtime_library_compile_flags -DswiftCore_EXPORTS)
 list(APPEND swift_runtime_library_compile_flags -I${SWIFT_SOURCE_DIR}/stdlib/include/llvm/Support -I${SWIFT_SOURCE_DIR}/include)
 
-set(sdk "${SWIFT_HOST_VARIANT_SDK}")
-if(SWIFT_BUILD_STATIC_STDLIB AND "${sdk}" STREQUAL "LINUX")
+function(swift_runtime_static_libraries sdk)
   set(static_binary_lnk_file_list)
   string(TOLOWER "${sdk}" lowercase_sdk)
 
@@ -102,7 +101,7 @@ if(SWIFT_BUILD_STATIC_STDLIB AND "${sdk}" STREQUAL "LINUX")
                              COMPONENT stdlib)
   add_dependencies(stdlib ${static_binary_lnk_file_list})
   add_custom_target(static_binary_magic ALL DEPENDS ${static_binary_lnk_file_list})
-endif()
+endfunction()
 
 add_swift_target_library(swiftRuntime OBJECT_LIBRARY
   ${swift_runtime_sources}

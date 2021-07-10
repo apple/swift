@@ -393,11 +393,6 @@ function(_add_target_variant_link_flags)
     swift_android_cxx_libraries_for_arch(${LFLAGS_ARCH} cxx_link_libraries)
     list(APPEND link_libraries ${cxx_link_libraries})
 
-    # link against the ICU libraries
-    list(APPEND link_libraries
-      ${SWIFT_ANDROID_${LFLAGS_ARCH}_ICU_I18N}
-      ${SWIFT_ANDROID_${LFLAGS_ARCH}_ICU_UC})
-
     swift_android_libgcc_for_arch_cross_compile(${LFLAGS_ARCH} ${LFLAGS_ARCH}_LIB)
     foreach(path IN LISTS ${LFLAGS_ARCH}_LIB)
       list(APPEND library_search_directories ${path})
@@ -1822,6 +1817,14 @@ function(add_swift_target_library name)
       list(APPEND swiftlib_link_flags_all "-dynamiclib -Wl,-headerpad_max_install_names")
     endif()
 
+    set(SWIFTLIB_${sdk}_SOURCES ${SWIFTLIB_SOURCES})
+    if(name STREQUAL swiftRuntime)
+      if(SWIFT_BUILD_STATIC_STDLIB AND "${sdk}" STREQUAL "LINUX")
+        list(REMOVE_ITEM SWIFTLIB_${sdk}_SOURCES ImageInspectionELF.cpp)
+        swift_runtime_static_libraries(${sdk})
+      endif()
+    endif()
+
     set(sdk_supported_archs
       ${SWIFT_SDK_${sdk}_ARCHITECTURES}
       ${SWIFT_SDK_${sdk}_MODULE_ARCHITECTURES})
@@ -1858,6 +1861,12 @@ function(add_swift_target_library name)
       # linked libraries.  Find targets for both of these here.
       set(swiftlib_module_dependency_targets)
       set(swiftlib_private_link_libraries_targets)
+
+      if(name STREQUAL swiftCore)
+        # This initializes swiftlib_private_link_libraries_targets for swiftCore,
+        # so don't move it away from the variable declaration just above.
+        swift_core_private_libraries(${sdk} ${arch} swiftlib_private_link_libraries_targets)
+      endif()
 
       if(NOT BUILD_STANDALONE)
         foreach(mod ${swiftlib_module_depends_flattened})
@@ -1973,7 +1982,7 @@ function(add_swift_target_library name)
         ${SWIFTLIB_STATIC_keyword}
         ${SWIFTLIB_OBJECT_LIBRARY_keyword}
         ${SWIFTLIB_INSTALL_WITH_SHARED_keyword}
-        ${SWIFTLIB_SOURCES}
+        ${SWIFTLIB_${sdk}_SOURCES}
         TARGET_LIBRARY
         MODULE_TARGETS ${module_variant_names}
         SDK ${sdk}
