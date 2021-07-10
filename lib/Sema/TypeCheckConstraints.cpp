@@ -654,7 +654,12 @@ bool TypeChecker::typeCheckExprPattern(ExprPattern *EP, DeclContext *DC,
   
   SmallVector<ValueDecl*, 4> choices;
   for (auto &result : matchLookup) {
-    choices.push_back(result.getValueDecl());
+    auto FD = cast<FuncDecl>(result.getValueDecl());
+    // We don't allow the pattern to be passed inout to the ~= method.
+    if (FD->getParameters()->size() > 0 &&
+        FD->getParameters()->get(0)->isInOut())
+      continue;
+    choices.push_back(FD);
   }
   
   if (choices.empty()) {
