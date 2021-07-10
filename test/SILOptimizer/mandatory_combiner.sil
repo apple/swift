@@ -924,3 +924,115 @@ bb0(%0 : @guaranteed $Klass, %1 : @guaranteed $Klass, %2 : @guaranteed $Klass):
   %9999 = tuple ()
   return %9999 : $()
 }
+
+///////////////////////////////
+// Partial Apply Elimination //
+///////////////////////////////
+
+sil @use_klass : $@convention(thin) (@guaranteed Klass) -> ()
+
+sil [transparent] @guaranteed_closure_func : $@convention(thin) (@guaranteed Klass) -> () {
+bb0(%0 : $Klass):
+  %use = function_ref @use_klass : $@convention(thin) (@guaranteed Klass) -> ()
+  apply %use(%0) : $@convention(thin) (@guaranteed Klass) -> ()
+  %t = tuple ()
+  return %t : $()
+}
+
+// CHECK: sil [ossa] @test_no_copies_for_stack_pa : $@convention(thin) (@guaranteed Klass) -> () {
+// CHECK-NOT: apply
+// CHECK-NOT: copy_value
+// CHECK: [[FUNC:%.*]] = function_ref @use_klass :
+// CHECK-NEXT: apply [[FUNC]]
+// CHECK-NOT: apply
+// CHECK-NOT: destroy_value
+// CHECK: } // end sil function 'test_no_copies_for_stack_pa'
+sil [ossa] @test_no_copies_for_stack_pa : $@convention(thin) (@guaranteed Klass) ->  () {
+bb0(%0 : @guaranteed $Klass):
+  br bb1
+
+ bb1:
+  %closure_fun = function_ref @guaranteed_closure_func : $@convention(thin) (@guaranteed Klass) -> ()
+  %closure = partial_apply [on_stack] [callee_guaranteed] %closure_fun(%0) : $@convention(thin) (@guaranteed Klass) -> ()
+  cond_br undef, bb2, bb3
+
+ bb2:
+  %5 = function_ref @use_klass : $@convention(thin) (@guaranteed Klass) -> ()
+  %6 = apply %5(%0) : $@convention(thin) (@guaranteed Klass) -> ()
+  %7 = tuple ()
+  br bb4
+
+ bb3:
+  br bb4
+
+ bb4:
+  dealloc_stack %closure : $@noescape @callee_guaranteed () -> ()
+  cond_br undef, bb1, bb5
+
+ bb5:
+  %tuple = tuple()
+  return %tuple : $()
+}
+
+// CHECK-LABEL: sil @test_apply_pai_in_loop : $@convention(thin) (@guaranteed Klass) ->  () {
+// CHECK: bb0([[ARG:%.*]] : $Klass):
+// CHECK-NEXT:   strong_retain [[ARG]]
+// CHECK-NEXT:   br bb1
+//
+// CHECK: bb1:
+// CHECK-NEXT:   cond_br undef, bb2, bb3
+//
+// CHECK: bb2:
+// CHECK-NEXT: function_ref use_klass
+// CHECK-NEXT: [[FUNC:%.*]] = function_ref @use_klass
+// CHECK-NEXT: apply [[FUNC]]([[ARG]])
+// CHECK-NEXT: br bb1
+//
+// CHECK: bb3:
+// CHECK-NEXT: strong_release [[ARG]]
+// CHECK-NEXT: strong_release [[ARG]]
+// CHECK-NEXT: tuple
+// CHECK-NEXT: return
+// CHECK-NEXT: } // end sil function 'test_apply_pai_in_loop'
+sil @test_apply_pai_in_loop : $@convention(thin) (@guaranteed Klass) ->  () {
+bb0(%0: $Klass):
+  strong_retain %0 : $Klass
+  %closure_fun = function_ref @guaranteed_closure_func : $@convention(thin) (@guaranteed Klass) -> ()
+  strong_retain %0 : $Klass
+  %closure = partial_apply [callee_guaranteed] %closure_fun(%0) : $@convention(thin) (@guaranteed Klass) -> ()
+  br bb1
+
+ bb1:
+  cond_br undef, bb2, bb3
+
+ bb2:
+  %7 = function_ref @use_klass : $@convention(thin) (@guaranteed Klass) -> ()
+  %8 = apply %7(%0) : $@convention(thin) (@guaranteed Klass) -> ()
+  br bb1
+
+ bb3:
+  strong_release %0: $Klass
+  strong_release %0: $Klass
+  %tuple = tuple()
+  return %tuple : $()
+}
+
+ // CHECK-LABEL: sil @test_guaranteed_on_stack_closure
+// CHECK:  strong_retain %0 : $Klass
+// CHECK:  [[F:%.*]] = function_ref @use_klass : $@convention(thin) (@guaranteed Klass) -> ()
+// CHECK:  apply [[F]](%0) : $@convention(thin) (@guaranteed Klass) -> ()
+// CHECK:  strong_release %0 : $Klass
+// CHECK: return
+sil @test_guaranteed_on_stack_closure : $@convention(thin) (@guaranteed Klass) ->  () {
+bb0(%0: $Klass):
+  strong_retain %0 : $Klass
+  %closure_fun = function_ref @guaranteed_closure_func : $@convention(thin) (@guaranteed Klass) -> ()
+  %closure = partial_apply [on_stack] [callee_guaranteed] %closure_fun(%0) : $@convention(thin) (@guaranteed Klass) -> ()
+  %closure2 = function_ref @use_klass : $@convention(thin) (@guaranteed Klass) -> ()
+  apply %closure2(%0) : $@convention(thin) (@guaranteed Klass) -> ()
+  %6 = tuple ()
+  strong_release %0 : $Klass
+  dealloc_stack %closure : $@noescape @callee_guaranteed () -> ()
+  %tuple = tuple()
+  return %tuple : $()
+}
