@@ -70,6 +70,7 @@ void ReleaseDevirtualizer::run() {
   SILFunction *F = getFunction();
   RCIA = PM->getAnalysis<RCIdentityAnalysis>()->get(F);
 
+  SmallPtrSet<SILValue, 8> devirtualizedDestroys;  
   bool Changed = false;
   for (SILBasicBlock &BB : *F) {
 
@@ -80,7 +81,10 @@ void ReleaseDevirtualizer::run() {
     for (SILInstruction &I : BB) {
       if (LastRelease) {
         if (auto *DRI = dyn_cast<DeallocRefInst>(&I)) {
-          Changed |= devirtualizeReleaseOfObject(LastRelease, DRI);
+          if (devirtualizeReleaseOfObject(LastRelease, DRI)) {
+            devirtualizedDestroys.insert(DRI->getOperand());
+            Changed = true;
+          }
           LastRelease = nullptr;
           continue;
         }
@@ -94,6 +98,27 @@ void ReleaseDevirtualizer::run() {
       }
     }
   }
+  
+  for (auto alloc : devirtualizedDestroys) {
+    unsigned destroys = 0;
+    unsigned deallocs = 0;
+    SmallVector<SILInstruction *, 8> toRemove;
+    for (auto *use : alloc->getUses()) {
+      auto user = use->getUser();
+      if (isa<SetDeallocatingInst>(user))
+        destroys++;
+      else if (isa<DeallocRefInst>(user))
+        deallocs++;
+      if (isa<ReleaseValueInst>(user) || isa<StrongReleaseInst>(user) ||
+          isa<RetainValueInst>(user) || isa<StrongRetainInst>(user))
+        toRemove.push_back(user);
+    }
+    if (destroys == deallocs) {
+      for (auto *refCountInst : toRemove)
+        refCountInst->eraseFromParent();
+    }
+  }
+  
   if (Changed) {
     invalidateAnalysis(SILAnalysis::InvalidationKind::CallsAndInstructions);
   }

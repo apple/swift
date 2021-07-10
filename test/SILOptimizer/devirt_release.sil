@@ -26,6 +26,26 @@ bb0:
   return %r : $()
 }
 
+// CHECK-LABEL: sil @devirtualize_object_and_remove_refcounts
+// CHECK: [[A:%[0-9]+]] = alloc_ref
+// CHECK-NEXT: set_deallocating [[A]]
+// CHECK-NOT: strong_release
+// CHECK-NOT: strong_retain
+// CHECK: [[D:%[0-9]+]] = function_ref @$s4test1BCfD
+// CHECK-NEXT: apply [[D]]([[A]])
+// CHECK-NEXT: dealloc_ref [stack] [[A]]
+// CHECK: return
+sil @devirtualize_object_and_remove_refcounts : $@convention(thin) () -> () {
+bb0:
+  %1 = alloc_ref [stack] $B
+  strong_retain %1 : $B
+  strong_release %1 : $B
+  strong_release %1 : $B
+  dealloc_ref [stack] %1 : $B
+  %r = tuple ()
+  return %r : $()
+}
+
 // CHECK-LABEL: sil @dont_devirtualize_heap_allocated
 // CHECK: alloc_ref
 // CHECK-NEXT: strong_release
@@ -93,6 +113,51 @@ bb0:
   return %r : $()
 }
 
+// CHECK-LABEL: sil @multi_frontier
+// CHECK: [[A:%[0-9]+]] = alloc_ref
+// CHECK-NEXT: cond_br
+// CHECK-NOT: strong_retain
+// CHECK-NOT: strong_release
+
+// CHECK: bb1:
+// CHECK-NEXT: set_deallocating [[A]]
+// CHECK-NEXT: function_ref
+// CHECK-NEXT: [[D:%[0-9]+]] = function_ref @$s4test1BCfD
+// CHECK-NEXT: apply [[D]]([[A]])
+// CHECK-NEXT: dealloc_ref [stack] [[A]]
+
+// CHECK: bb2:
+// CHECK-NEXT: set_deallocating [[A]]
+// CHECK-NEXT: function_ref
+// CHECK-NEXT: [[D:%[0-9]+]] = function_ref @$s4test1BCfD
+// CHECK-NEXT: apply [[D]]([[A]])
+// CHECK-NEXT: dealloc_ref [stack] [[A]]
+
+// CHECK: return
+sil @multi_frontier : $@convention(thin) () -> Int {
+bb0:
+  %2 = alloc_ref [stack] $B
+  strong_retain %2 : $B
+  cond_br undef, bb1, bb2
+
+bb1:
+  strong_release %2 : $B
+  strong_release %2 : $B
+  dealloc_ref [stack] %2 : $B
+  %17 = integer_literal $Builtin.Int64, 1
+  br bb3(%17 : $Builtin.Int64)
+
+bb2:
+  strong_release %2 : $B
+  strong_release %2 : $B
+  dealloc_ref [stack] %2 : $B
+  %19 = integer_literal $Builtin.Int64, 2
+  br bb3(%19 : $Builtin.Int64)
+
+bb3(%21 : $Builtin.Int64):
+  %22 = struct $Int (%21 : $Builtin.Int64)
+  return %22 : $Int
+}
 
 sil @unknown_func : $@convention(thin) () -> ()
 
