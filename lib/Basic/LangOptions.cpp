@@ -291,6 +291,12 @@ std::pair<bool, bool> LangOptions::setTarget(llvm::Triple triple) {
   case llvm::Triple::WASI:
     addPlatformConditionValue(PlatformConditionKind::OS, "WASI");
     break;
+  case llvm::Triple::UnknownOS:
+    if (Target.getOSName() == "none") {
+      addPlatformConditionValue(PlatformConditionKind::OS, "none");
+      break;
+    }
+    LLVM_FALLTHROUGH;
   default:
     UnsupportedOS = true;
     break;

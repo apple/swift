@@ -80,8 +80,8 @@
 // RUN: %swift_driver -g -### %s 2>&1 | %FileCheck -check-prefix=OPTIONS_BEFORE_FILE %s
 // OPTIONS_BEFORE_FILE: -g
 
-// RUN: not %swift_driver -target abc -### %s 2>&1 | %FileCheck -check-prefix=BAD_TARGET %s
-// BAD_TARGET: error: unknown target 'abc'
+// RUN: not %swift_driver -target m68k-unknown-windows-msvc -### %s 2>&1 | %FileCheck -check-prefix=BAD_TARGET %s
+// BAD_TARGET: error: unknown target 'm68k-unknown-windows-msvc'
 
 // RUN: %swiftc_driver -incremental %s -### 2>&1 | %FileCheck -check-prefix=INCREMENTAL_WITHOUT_OFM %s
 // INCREMENTAL_WITHOUT_OFM: warning: ignoring -incremental (currently requires an output file map)
