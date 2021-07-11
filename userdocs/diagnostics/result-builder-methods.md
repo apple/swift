@@ -29,7 +29,7 @@ struct ExampleResultBuilder {
   /// expressions to translate them into partial results.
   static func buildExpression(_ expression: Expression) -> Component { ... }
 
-  /// Enables support for `if` statements that do not have an `else`.
+  /// Enables support for 'if' statements that do not have an 'else'.
   static func buildOptional(_ component: Component?) -> Component { ... }
 
   /// With buildEither(second:), enables support for 'if-else' and 'switch'
@@ -40,7 +40,7 @@ struct ExampleResultBuilder {
   /// statements by folding conditional results into a single result.
   static func buildEither(second component: Component) -> Component { ... }
 
-  /// Enables support for..in loops in a result builder by combining the
+  /// Enables support for 'for-in' loops in a result builder by combining the
   /// results of all iterations into a single result.
   static func buildArray(_ components: [Component]) -> Component { ... }
 
