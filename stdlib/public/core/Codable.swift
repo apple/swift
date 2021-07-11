@@ -472,6 +472,12 @@ public protocol KeyedEncodingContainerProtocol {
     forKey key: Key
   ) -> UnkeyedEncodingContainer
 
+  /// Skips the current value
+  ///
+  /// - throws: `DecodingError.valueNotFound` if `self` is already at the end and
+  /// there is no next value to skip to
+  mutating func skip() throws  
+
   /// Stores a new nested container for the default `super` key and returns a
   /// new encoder instance for encoding `super` into that container.
   ///
@@ -5912,6 +5918,15 @@ extension KeyedDecodingContainerProtocol {
     guard try self.contains(key) && !self.decodeNil(forKey: key)
       else { return nil }
     return try self.decode(T.self, forKey: key)
+  }
+}
+
+// Default implementation of skip() in terms of decoding an empty struct
+struct Empty: Decodable { }
+
+extension UnkeyedDecodingContainer {
+  public mutating func skip() throws {
+    _ = try decode(Empty.self)
   }
 }
 
