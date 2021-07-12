@@ -4826,9 +4826,9 @@ ParserResult<ImportDecl> Parser::parseDeclImport(ParseDeclOptions Flags,
 ///     'class'
 ///     type-identifier
 /// \endverbatim
-ParserStatus Parser::parseInheritance(SmallVectorImpl<TypeLoc> &Inherited,
-                                      bool allowClassRequirement,
-                                      bool allowAnyObject) {
+ParserStatus Parser::parseInheritance(
+    SmallVectorImpl<InheritedEntry> &Inherited,
+    bool allowClassRequirement, bool allowAnyObject) {
   SyntaxParsingContext InheritanceContext(SyntaxContext,
                                           SyntaxKind::TypeInheritanceClause);
 
@@ -4888,8 +4888,10 @@ ParserStatus Parser::parseInheritance(SmallVectorImpl<TypeLoc> &Inherited,
 
       // Add 'AnyObject' to the inherited list.
       Inherited.push_back(
-        new (Context) SimpleIdentTypeRepr(DeclNameLoc(classLoc), DeclNameRef(
-                                          Context.getIdentifier("AnyObject"))));
+        InheritedEntry(
+            new (Context) SimpleIdentTypeRepr(
+                DeclNameLoc(classLoc),
+                DeclNameRef(Context.getIdentifier("AnyObject")))));
       continue;
     }
 
@@ -4898,7 +4900,7 @@ ParserStatus Parser::parseInheritance(SmallVectorImpl<TypeLoc> &Inherited,
 
     // Record the type if its a single type.
     if (ParsedTypeResult.isNonNull())
-      Inherited.push_back(ParsedTypeResult.get());
+      Inherited.push_back(InheritedEntry(ParsedTypeResult.get()));
   } while (HasNextType);
 
   return Status;
@@ -5213,7 +5215,7 @@ Parser::parseDeclExtension(ParseDeclOptions Flags, DeclAttributes &Attributes) {
   status |= extendedType;
 
   // Parse optional inheritance clause.
-  SmallVector<TypeLoc, 2> Inherited;
+  SmallVector<InheritedEntry, 2> Inherited;
   if (Tok.is(tok::colon))
     status |= parseInheritance(Inherited,
                                /*allowClassRequirement=*/false,
@@ -5651,7 +5653,7 @@ ParserResult<TypeDecl> Parser::parseDeclAssociatedType(Parser::ParseDeclOptions 
   
   // Parse optional inheritance clause.
   // FIXME: Allow class requirements here.
-  SmallVector<TypeLoc, 2> Inherited;
+  SmallVector<InheritedEntry, 2> Inherited;
   if (Tok.is(tok::colon))
     Status |= parseInheritance(Inherited,
                                /*allowClassRequirement=*/false,
@@ -7237,7 +7239,7 @@ ParserResult<EnumDecl> Parser::parseDeclEnum(ParseDeclOptions Flags,
 
   // Parse optional inheritance clause within the context of the enum.
   if (Tok.is(tok::colon)) {
-    SmallVector<TypeLoc, 2> Inherited;
+    SmallVector<InheritedEntry, 2> Inherited;
     Status |= parseInheritance(Inherited,
                                /*allowClassRequirement=*/false,
                                /*allowAnyObject=*/false);
@@ -7512,7 +7514,7 @@ ParserResult<StructDecl> Parser::parseDeclStruct(ParseDeclOptions Flags,
 
   // Parse optional inheritance clause within the context of the struct.
   if (Tok.is(tok::colon)) {
-    SmallVector<TypeLoc, 2> Inherited;
+    SmallVector<InheritedEntry, 2> Inherited;
     Status |= parseInheritance(Inherited,
                                /*allowClassRequirement=*/false,
                                /*allowAnyObject=*/false);
@@ -7606,7 +7608,7 @@ ParserResult<ClassDecl> Parser::parseDeclClass(ParseDeclOptions Flags,
 
   // Parse optional inheritance clause within the context of the class.
   if (Tok.is(tok::colon)) {
-    SmallVector<TypeLoc, 2> Inherited;
+    SmallVector<InheritedEntry, 2> Inherited;
     Status |= parseInheritance(Inherited,
                                /*allowClassRequirement=*/false,
                                /*allowAnyObject=*/false);
@@ -7703,7 +7705,7 @@ parseDeclProtocol(ParseDeclOptions Flags, DeclAttributes &Attributes) {
   DebuggerContextChange DCC (*this);
   
   // Parse optional inheritance clause.
-  SmallVector<TypeLoc, 4> InheritedProtocols;
+  SmallVector<InheritedEntry, 4> InheritedProtocols;
   SourceLoc colonLoc;
   if (Tok.is(tok::colon)) {
     colonLoc = Tok.getLoc();

@@ -538,7 +538,7 @@ static void passConforms(const ValueDecl *D, DocInfoConsumer &Consumer) {
     return;
   Consumer.handleConformsToEntity(EntInfo);
 }
-static void passInherits(ArrayRef<TypeLoc> InheritedTypes,
+static void passInherits(ArrayRef<InheritedEntry> InheritedTypes,
                          DocInfoConsumer &Consumer) {
   for (auto Inherited : InheritedTypes) {
     if (!Inherited.getType())
@@ -552,7 +552,7 @@ static void passInherits(ArrayRef<TypeLoc> InheritedTypes,
     if (auto ProtoComposition
                = Inherited.getType()->getAs<ProtocolCompositionType>()) {
       for (auto T : ProtoComposition->getMembers())
-        passInherits(TypeLoc::withoutLoc(T), Consumer);
+        passInherits(InheritedEntry(TypeLoc::withoutLoc(T)), Consumer);
       continue;
     }
 
@@ -615,9 +615,9 @@ static void reportRelated(ASTContext &Ctx, const Decl *D,
     // Otherwise, report the inheritance of the type alias itself.
     passInheritsAndConformancesForValueDecl(TAD, Consumer);
   } else if (const auto *TD = dyn_cast<TypeDecl>(D)) {
-    llvm::SmallVector<TypeLoc, 4> AllInherits;
-    getInheritedForPrinting(TD, PrintOptions(), AllInherits);
-    passInherits(AllInherits, Consumer);
+    llvm::SmallVector<InheritedEntry, 4> AllInheritsForPrinting;
+    getInheritedForPrinting(TD, PrintOptions(), AllInheritsForPrinting);
+    passInherits(AllInheritsForPrinting, Consumer);
     passConforms(TD->getSatisfiedProtocolRequirements(/*Sorted=*/true),
                  Consumer);
   } else if (auto *VD = dyn_cast<ValueDecl>(D)) {

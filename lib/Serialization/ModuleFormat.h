@@ -56,7 +56,7 @@ const uint16_t SWIFTMODULE_VERSION_MAJOR = 0;
 /// describe what change you made. The content of this comment isn't important;
 /// it just ensures a conflict if two people change the module format.
 /// Don't worry about adhering to the 80-column limit for this line.
-const uint16_t SWIFTMODULE_VERSION_MINOR = 613; // createAsyncTask changed
+const uint16_t SWIFTMODULE_VERSION_MINOR = 618; // inherited entries
 
 /// A standard hash seed used for all string hashes in a serialized module.
 ///
@@ -1638,6 +1638,7 @@ namespace decls_block {
     BCVBR<5>, // type mapping count
     BCVBR<5>, // value mapping count
     BCVBR<5>, // requirement signature conformance count
+    BCFixed<1>, // unchecked
     BCArray<DeclIDField>
     // The array contains type witnesses, then value witnesses.
     // Requirement signature conformances follow, then the substitution records

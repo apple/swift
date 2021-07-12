@@ -141,7 +141,17 @@ void ConformanceLookupTable::destroy() {
 }
 
 namespace {
-  using ConformanceConstructionInfo = Located<ProtocolDecl *>;
+  struct ConformanceConstructionInfo : public Located<ProtocolDecl *> {
+    /// The location of the "unchecked" attribute, if this
+    const SourceLoc uncheckedLoc;
+
+    ConformanceConstructionInfo() { }
+
+    ConformanceConstructionInfo(
+      ProtocolDecl *item, SourceLoc loc,
+      SourceLoc uncheckedLoc
+    ) : Located(item, loc), uncheckedLoc(uncheckedLoc) { }
+  };
 }
 
 template<typename NominalFunc, typename ExtensionFunc>
@@ -195,14 +205,14 @@ void ConformanceLookupTable::forEachInStage(ConformanceStage stage,
       loader.first->loadAllConformances(next, loader.second, conformances);
       loadAllConformances(next, conformances);
       for (auto conf : conformances) {
-        protocols.push_back({conf->getProtocol(), SourceLoc()});
+        protocols.push_back({conf->getProtocol(), SourceLoc(), SourceLoc()});
       }
     } else if (next->getParentSourceFile()) {
       bool anyObject = false;
       for (const auto &found :
                getDirectlyInheritedNominalTypeDecls(next, anyObject)) {
         if (auto proto = dyn_cast<ProtocolDecl>(found.Item))
-          protocols.push_back({proto, found.Loc});
+          protocols.push_back({proto, found.Loc, found.uncheckedLoc});
       }
     }
 
@@ -282,7 +292,9 @@ void ConformanceLookupTable::updateLookupTable(NominalTypeDecl *nominal,
           // its inherited protocols directly.
           auto source = ConformanceSource::forExplicit(ext);
           for (auto locAndProto : protos)
-            addProtocol(locAndProto.Item, locAndProto.Loc, source);
+            addProtocol(
+              locAndProto.Item, locAndProto.Loc,
+              source.withUncheckedLoc(locAndProto.uncheckedLoc));
         });
     break;
 
@@ -471,8 +483,10 @@ void ConformanceLookupTable::addInheritedProtocols(
   bool anyObject = false;
   for (const auto &found :
           getDirectlyInheritedNominalTypeDecls(decl, anyObject)) {
-    if (auto proto = dyn_cast<ProtocolDecl>(found.Item))
-      addProtocol(proto, found.Loc, source);
+    if (auto proto = dyn_cast<ProtocolDecl>(found.Item)) {
+      addProtocol(
+        proto, found.Loc, source.withUncheckedLoc(found.uncheckedLoc));
+    }
   }
 }
 
@@ -843,7 +857,8 @@ ConformanceLookupTable::getConformance(NominalTypeDecl *nominal,
 
     auto normalConf =
         ctx.getConformance(conformingType, protocol, conformanceLoc,
-                           conformingDC, ProtocolConformanceState::Incomplete);
+                           conformingDC, ProtocolConformanceState::Incomplete,
+                           entry->Source.getUncheckedLoc().isValid());
     // Invalid code may cause the getConformance call below to loop, so break
     // the infinite recursion by setting this eagerly to shortcircuit with the
     // early return at the start of this function.

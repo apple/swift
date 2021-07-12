@@ -2048,7 +2048,7 @@ private:
   }
 
   Optional<IndentContext>
-  getIndentContextFromInherits(ArrayRef<TypeLoc> Inherits,
+  getIndentContextFromInherits(ArrayRef<InheritedEntry> Inherits,
                                SourceLoc ContextLoc) {
     if (Inherits.empty())
       return None;

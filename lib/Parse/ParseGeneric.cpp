@@ -78,7 +78,7 @@ Parser::parseGenericParametersBeforeWhere(SourceLoc LAngleLoc,
     }
 
     // Parse the ':' followed by a type.
-    SmallVector<TypeLoc, 1> Inherited;
+    SmallVector<InheritedEntry, 1> Inherited;
     if (Tok.is(tok::colon)) {
       (void)consumeToken();
       ParserResult<TypeRepr> Ty;
@@ -101,7 +101,7 @@ Parser::parseGenericParametersBeforeWhere(SourceLoc LAngleLoc,
         return makeParserCodeCompletionStatus();
 
       if (Ty.isNonNull())
-        Inherited.push_back(Ty.get());
+        Inherited.push_back({Ty.get()});
     }
 
     // We always create generic type parameters with an invalid depth.

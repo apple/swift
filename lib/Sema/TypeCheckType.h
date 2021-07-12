@@ -131,6 +131,9 @@ enum class TypeResolverContext : uint8_t {
 
   /// Whether this is the type of an editor placeholder.
   EditorPlaceholderExpr,
+
+  /// Whether this is an "inherited" type.
+  Inherited,
 };
 
 /// Options that determine how type resolution should work.
@@ -212,6 +215,7 @@ public:
     case Context::GenericRequirement:
     case Context::ImmediateOptionalTypeArgument:
     case Context::AbstractFunctionDecl:
+    case Context::Inherited:
       return false;
     }
     llvm_unreachable("unhandled kind");

@@ -1004,18 +1004,6 @@ public:
     ASTVisitor::visit(D);
 
     if (haveFeatureChecks) {
-      // If we guarded a marker protocol, print an alternative typealias
-      // for Any.
-      if (auto proto = dyn_cast<ProtocolDecl>(D)) {
-        if (proto->isMarkerProtocol()) {
-          Printer.printNewline();
-          Printer << "#else";
-          Printer.printNewline();
-          printAccess(proto);
-          Printer << "typealias " << proto->getName() << " = Any";
-        }
-      }
-
       printCompatibilityFeatureChecksPost(Printer);
     }
 
@@ -1824,7 +1812,7 @@ bool ShouldPrintChecker::shouldPrint(const Decl *D,
     auto Ext = cast<ExtensionDecl>(D);
     // If the extension doesn't add protocols or has no members that we should
     // print then skip printing it.
-    SmallVector<TypeLoc, 8> ProtocolsToPrint;
+    SmallVector<InheritedEntry, 8> ProtocolsToPrint;
     getInheritedForPrinting(Ext, Options, ProtocolsToPrint);
     if (ProtocolsToPrint.empty()) {
       bool HasMemberToPrint = false;
@@ -2242,15 +2230,18 @@ void PrintAST::printInherited(const Decl *decl) {
   if (!Options.PrintInherited) {
     return;
   }
-  SmallVector<TypeLoc, 6> TypesToPrint;
+  SmallVector<InheritedEntry, 6> TypesToPrint;
   getInheritedForPrinting(decl, Options, TypesToPrint);
   if (TypesToPrint.empty())
     return;
 
   Printer << " : ";
 
-  interleave(TypesToPrint, [&](TypeLoc TL) {
-    printTypeLoc(TL);
+  interleave(TypesToPrint, [&](InheritedEntry inherited) {
+    if (inherited.isUnchecked)
+      Printer << "@unchecked ";
+
+    printTypeLoc(inherited);
   }, [&]() {
     Printer << ", ";
   });
@@ -2520,60 +2511,6 @@ static bool usesFeatureAsyncAwait(Decl *decl) {
 }
 
 static bool usesFeatureMarkerProtocol(Decl *decl) {
-  // Check an inheritance clause for a marker protocol.
-  auto checkInherited = [&](ArrayRef<TypeLoc> inherited) -> bool {
-    for (const auto &inheritedEntry : inherited) {
-      if (auto inheritedType = inheritedEntry.getType()) {
-        if (inheritedType->isExistentialType()) {
-          auto layout = inheritedType->getExistentialLayout();
-          for (ProtocolType *protoTy : layout.getProtocols()) {
-            if (protoTy->getDecl()->isMarkerProtocol())
-              return true;
-          }
-        }
-      }
-    }
-
-    return false;
-  };
-
-  // Check generic requirements for a marker protocol.
-  auto checkRequirements = [&](ArrayRef<Requirement> requirements) -> bool {
-    for (const auto &req: requirements) {
-      if (req.getKind() == RequirementKind::Conformance &&
-          req.getSecondType()->castTo<ProtocolType>()->getDecl()
-              ->isMarkerProtocol())
-        return true;
-    }
-
-    return false;
-  };
-
-  if (auto proto = dyn_cast<ProtocolDecl>(decl)) {
-    if (proto->isMarkerProtocol())
-      return true;
-
-    // Swift.Error and Swift.CodingKey "don't" use the marker protocol.
-    if (proto->isSpecificProtocol(KnownProtocolKind::Error) ||
-        proto->isSpecificProtocol(KnownProtocolKind::CodingKey)) {
-      return false;
-    }
-
-    if (checkInherited(proto->getInherited()))
-      return true;
-
-    if (checkRequirements(proto->getRequirementSignature()))
-      return true;
-  }
-
-  if (auto ext = dyn_cast<ExtensionDecl>(decl)) {
-    if (checkRequirements(ext->getGenericRequirements()))
-      return true;
-
-    if (checkInherited(ext->getInherited()))
-      return true;
-  }
-
   return false;
 }
 
@@ -2650,7 +2587,7 @@ static bool usesFeatureRethrowsProtocol(
     return false;
 
   // Check an inheritance clause for a marker protocol.
-  auto checkInherited = [&](ArrayRef<TypeLoc> inherited) -> bool {
+  auto checkInherited = [&](ArrayRef<InheritedEntry> inherited) -> bool {
     for (const auto &inheritedEntry : inherited) {
       if (auto inheritedType = inheritedEntry.getType()) {
         if (inheritedType->isExistentialType()) {
@@ -5809,9 +5746,10 @@ void swift::printEnumElementsAsCases(
 }
 
 void
-swift::getInheritedForPrinting(const Decl *decl, const PrintOptions &options,
-                               llvm::SmallVectorImpl<TypeLoc> &Results) {
-  ArrayRef<TypeLoc> inherited;
+swift::getInheritedForPrinting(
+    const Decl *decl, const PrintOptions &options,
+    llvm::SmallVectorImpl<InheritedEntry> &Results) {
+  ArrayRef<InheritedEntry> inherited;
   if (auto td = dyn_cast<TypeDecl>(decl)) {
     inherited = td->getInherited();
   } else if (auto ed = dyn_cast<ExtensionDecl>(decl)) {
@@ -5819,29 +5757,22 @@ swift::getInheritedForPrinting(const Decl *decl, const PrintOptions &options,
   }
 
   // Collect explicit inherited types.
-  for (auto TL: inherited) {
-    if (auto ty = TL.getType()) {
+  for (auto entry: inherited) {
+    if (auto ty = entry.getType()) {
       bool foundUnprintable = ty.findIf([&](Type subTy) {
         if (auto aliasTy = dyn_cast<TypeAliasType>(subTy.getPointer()))
           return !options.shouldPrint(aliasTy->getDecl());
         if (auto NTD = subTy->getAnyNominal()) {
           if (!options.shouldPrint(NTD))
             return true;
-
-          if (auto PD = dyn_cast<ProtocolDecl>(NTD)) {
-            // Marker protocols are unprintable on concrete types, but they're
-            // okay on extension declarations and protocols.
-            if (PD->isMarkerProtocol() && !isa<ExtensionDecl>(decl) &&
-                !isa<ProtocolDecl>(decl))
-              return true;
-          }
         }
         return false;
       });
       if (foundUnprintable)
         continue;
     }
-    Results.push_back(TL);
+
+    Results.push_back(entry);
   }
 
   // Collect synthesized conformances.
@@ -5859,7 +5790,8 @@ swift::getInheritedForPrinting(const Decl *decl, const PrintOptions &options,
           isa<EnumDecl>(decl) &&
           cast<EnumDecl>(decl)->hasRawType())
         continue;
-      Results.push_back(TypeLoc::withoutLoc(proto->getDeclaredInterfaceType()));
+      Results.push_back({TypeLoc::withoutLoc(proto->getDeclaredInterfaceType()),
+                      /*isUnchecked=*/false});
     }
   }
 }

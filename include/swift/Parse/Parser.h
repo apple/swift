@@ -1119,7 +1119,7 @@ public:
 
   ParserResult<ImportDecl> parseDeclImport(ParseDeclOptions Flags,
                                            DeclAttributes &Attributes);
-  ParserStatus parseInheritance(SmallVectorImpl<TypeLoc> &Inherited,
+  ParserStatus parseInheritance(SmallVectorImpl<InheritedEntry> &Inherited,
                                 bool allowClassRequirement,
                                 bool allowAnyObject);
   ParserStatus parseDeclItem(bool &PreviousHadSemi,

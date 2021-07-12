@@ -341,7 +341,7 @@ static ValueDecl *deriveDifferentiable_move(DerivedConformance &derived) {
 ///
 /// Precondition: `decl` is a nominal type decl or an extension decl.
 void getInheritedProtocols(Decl *decl, SmallPtrSetImpl<ProtocolDecl *> &protos) {
-  ArrayRef<TypeLoc> inheritedTypeLocs;
+  ArrayRef<InheritedEntry> inheritedTypeLocs;
   if (auto *nominalDecl = dyn_cast<NominalTypeDecl>(decl))
     inheritedTypeLocs = nominalDecl->getInherited();
   else if (auto *extDecl = dyn_cast<ExtensionDecl>(decl))
@@ -424,10 +424,10 @@ getOrSynthesizeTangentVectorStruct(DerivedConformance &derived, Identifier id) {
       tvDesiredProtos.insert(req.getProtocolDecl());
     }
   }
-  SmallVector<TypeLoc, 4> tvDesiredProtoTypeLocs;
+  SmallVector<InheritedEntry, 4> tvDesiredProtoInherited;
   for (auto *p : tvDesiredProtos)
-    tvDesiredProtoTypeLocs.push_back(
-      TypeLoc::withoutLoc(p->getDeclaredInterfaceType()));
+    tvDesiredProtoInherited.push_back(
+      InheritedEntry(TypeLoc::withoutLoc(p->getDeclaredInterfaceType())));
 
   // Cache original members and their associated types for later use.
   SmallVector<VarDecl *, 8> diffProperties;
@@ -436,7 +436,7 @@ getOrSynthesizeTangentVectorStruct(DerivedConformance &derived, Identifier id) {
   auto synthesizedLoc = derived.ConformanceDecl->getEndLoc();
   auto *structDecl =
       new (C) StructDecl(synthesizedLoc, C.Id_TangentVector, synthesizedLoc,
-                         /*Inherited*/ C.AllocateCopy(tvDesiredProtoTypeLocs),
+                         /*Inherited*/ C.AllocateCopy(tvDesiredProtoInherited),
                          /*GenericParams*/ {}, parentDC);
   structDecl->setBraces({synthesizedLoc, synthesizedLoc});
   structDecl->setImplicit();

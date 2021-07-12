@@ -3276,7 +3276,7 @@ class AddEquatableContext {
   SourceLoc StartLoc;
 
   /// Array of all inherited protocols' locations
-  ArrayRef<TypeLoc> ProtocolsLocations;
+  ArrayRef<InheritedEntry> ProtocolsLocations;
 
   /// Array of all conformed protocols
   SmallVector<swift::ProtocolDecl *, 2> Protocols;

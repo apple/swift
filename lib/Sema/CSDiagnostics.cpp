@@ -3016,7 +3016,7 @@ bool ContextualFailure::tryProtocolConformanceFixIt(
     for (auto protocol : missingProtocols) {
       auto conformance = NormalProtocolConformance(
           nominal->getDeclaredType(), protocol, SourceLoc(), nominal,
-          ProtocolConformanceState::Incomplete);
+          ProtocolConformanceState::Incomplete, /*isUnchecked=*/false);
       ConformanceChecker checker(getASTContext(), &conformance,
                                  missingWitnesses);
       checker.resolveValueWitnesses();

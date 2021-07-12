@@ -1858,6 +1858,13 @@ static void diagnoseConformanceImpliedByConditionalConformance(
       .fixItInsert(loc, differentFixit);
 }
 
+/// Determine whether there are additional semantic checks for conformance
+/// to the given protocol. This should return true when @unchecked can be
+/// used to disable those semantic checks.
+static bool hasAdditionalSemanticChecks(ProtocolDecl *proto) {
+  return proto->isSpecificProtocol(KnownProtocolKind::Sendable);
+}
+
 /// Determine whether the type \c T conforms to the protocol \c Proto,
 /// recording the complete witness table if it does.
 ProtocolConformance *MultiConformanceChecker::
@@ -2058,6 +2065,13 @@ checkIndividualConformance(NormalProtocolConformance *conformance,
     }
     conformance->setInvalid();
     return conformance;
+  }
+
+  // Complain about the use of @unchecked for protocols that don't have
+  // additional semantic checks.
+  if (conformance->isUnchecked() && !hasAdditionalSemanticChecks(Proto)) {
+    C.Diags.diagnose(
+      ComplainLoc, diag::unchecked_conformance_not_special, ProtoType);
   }
 
   bool impliedDisablesMissingWitnessFixits = false;
@@ -5766,7 +5780,7 @@ void TypeChecker::checkConformancesInContext(IterableDeclContext *idc) {
   MultiConformanceChecker groupChecker(Context);
 
   ProtocolConformance *SendableConformance = nullptr;
-  ProtocolConformance *unsafeSendableConformance = nullptr;
+  bool sendableConformanceIsUnchecked = false;
   ProtocolConformance *errorConformance = nullptr;
   ProtocolConformance *codingKeyConformance = nullptr;
   bool anyInvalid = false;
@@ -5797,6 +5811,11 @@ void TypeChecker::checkConformancesInContext(IterableDeclContext *idc) {
       }
     } else if (proto->isSpecificProtocol(KnownProtocolKind::Sendable)) {
       SendableConformance = conformance;
+
+      if (auto normal = conformance->getRootNormalConformance()) {
+        if (normal->isUnchecked())
+          sendableConformanceIsUnchecked = true;
+      }
     } else if (proto->isSpecificProtocol(KnownProtocolKind::Actor)) {
       if (auto classDecl = dyn_cast<ClassDecl>(nominal)) {
         if (!classDecl->isExplicitActor()) {
@@ -5808,7 +5827,7 @@ void TypeChecker::checkConformancesInContext(IterableDeclContext *idc) {
       }
     } else if (proto->isSpecificProtocol(
                    KnownProtocolKind::UnsafeSendable)) {
-      unsafeSendableConformance = conformance;
+      sendableConformanceIsUnchecked = true;
     } else if (proto->isSpecificProtocol(KnownProtocolKind::Error)) {
       errorConformance = conformance;
     } else if (proto->isSpecificProtocol(KnownProtocolKind::CodingKey)) {
@@ -5817,7 +5836,7 @@ void TypeChecker::checkConformancesInContext(IterableDeclContext *idc) {
   }
 
   // Check constraints of Sendable.
-  if (SendableConformance && !unsafeSendableConformance) {
+  if (SendableConformance && !sendableConformanceIsUnchecked) {
     SendableCheck check = SendableCheck::Explicit;
     if (errorConformance || codingKeyConformance)
       check = SendableCheck::ImpliedByStandardProtocol;

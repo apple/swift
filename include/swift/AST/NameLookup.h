@@ -503,6 +503,19 @@ void filterForDiscriminator(SmallVectorImpl<Result> &results,
 
 } // end namespace namelookup
 
+/// Describes an inherited nominal entry.
+struct InheritedNominalEntry : Located<NominalTypeDecl *> {
+  /// The location of the "unchecked" attribute, if present.
+  SourceLoc uncheckedLoc;
+
+  InheritedNominalEntry() { }
+
+  InheritedNominalEntry(
+    NominalTypeDecl *item, SourceLoc loc,
+    SourceLoc uncheckedLoc
+  ) : Located(item, loc), uncheckedLoc(uncheckedLoc) { }
+};
+
 /// Retrieve the set of nominal type declarations that are directly
 /// "inherited" by the given declaration at a particular position in the
 /// list of "inherited" types.
@@ -511,7 +524,7 @@ void filterForDiscriminator(SmallVectorImpl<Result> &results,
 /// AnyObject type, set \c anyObject true.
 void getDirectlyInheritedNominalTypeDecls(
     llvm::PointerUnion<const TypeDecl *, const ExtensionDecl *> decl,
-    unsigned i, llvm::SmallVectorImpl<Located<NominalTypeDecl *>> &result,
+    unsigned i, llvm::SmallVectorImpl<InheritedNominalEntry> &result,
     bool &anyObject);
 
 /// Retrieve the set of nominal type declarations that are directly
@@ -519,7 +532,7 @@ void getDirectlyInheritedNominalTypeDecls(
 /// and splitting out the components of compositions.
 ///
 /// If we come across the AnyObject type, set \c anyObject true.
-SmallVector<Located<NominalTypeDecl *>, 4> getDirectlyInheritedNominalTypeDecls(
+SmallVector<InheritedNominalEntry, 4> getDirectlyInheritedNominalTypeDecls(
     llvm::PointerUnion<const TypeDecl *, const ExtensionDecl *> decl,
     bool &anyObject);
 

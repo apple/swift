@@ -7,7 +7,7 @@ actor MyActor { }
 class MyActorSubclass1: MyActor { }
 // expected-error@-1{{actor types do not support inheritance}}
 // expected-error@-2{{type 'MyActorSubclass1' cannot conform to the 'Actor' protocol}}
-// expected-error@-3{{non-final class 'MyActorSubclass1' cannot conform to `Sendable`; use `UnsafeSendable`}}
+// expected-error@-3{{non-final class 'MyActorSubclass1' cannot conform to `Sendable`; use `@unchecked Sendable`}}
 
 actor MyActorSubclass2: MyActor { } // expected-error{{actor types do not support inheritance}}
 

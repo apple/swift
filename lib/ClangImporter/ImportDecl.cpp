@@ -3080,8 +3080,9 @@ namespace {
                          Impl.importIdentifier(decl->getIdentifier()));
 
         // Add protocol declarations to the enum declaration.
-        SmallVector<TypeLoc, 2> inheritedTypes;
-        inheritedTypes.push_back(TypeLoc::withoutLoc(underlyingType));
+        SmallVector<InheritedEntry, 2> inheritedTypes;
+        inheritedTypes.push_back(
+            InheritedEntry(TypeLoc::withoutLoc(underlyingType)));
         enumDecl->setInherited(C.AllocateCopy(inheritedTypes));
 
         if (errorWrapper) {
@@ -5140,7 +5141,7 @@ namespace {
     // declaration.
     void importObjCProtocols(Decl *decl,
                              const clang::ObjCProtocolList &clangProtocols,
-                             SmallVectorImpl<TypeLoc> &inheritedTypes);
+                             SmallVectorImpl<InheritedEntry> &inheritedTypes);
 
     // Returns None on error. Returns nullptr if there is no type param list to
     // import or we suppress its import, as in the case of NSArray, NSSet, and
@@ -5210,7 +5211,7 @@ namespace {
       // Create the extension declaration and record it.
       objcClass->addExtension(result);
       Impl.ImportedDecls[{decl, getVersion()}] = result;
-      SmallVector<TypeLoc, 4> inheritedTypes;
+      SmallVector<InheritedEntry, 4> inheritedTypes;
       importObjCProtocols(result, decl->getReferencedProtocols(),
                           inheritedTypes);
       result->setInherited(Impl.SwiftContext.AllocateCopy(inheritedTypes));
@@ -5416,7 +5417,7 @@ namespace {
       Impl.ImportedDecls[{decl->getCanonicalDecl(), getVersion()}] = result;
 
       // Import protocols this protocol conforms to.
-      SmallVector<TypeLoc, 4> inheritedTypes;
+      SmallVector<InheritedEntry, 4> inheritedTypes;
       importObjCProtocols(result, decl->getReferencedProtocols(),
                           inheritedTypes);
       result->setInherited(Impl.SwiftContext.AllocateCopy(inheritedTypes));
@@ -5566,7 +5567,7 @@ namespace {
       }
 
       // If this Objective-C class has a supertype, import it.
-      SmallVector<TypeLoc, 4> inheritedTypes;
+      SmallVector<InheritedEntry, 4> inheritedTypes;
       Type superclassType;
       if (decl->getSuperClass()) {
         clang::QualType clangSuperclassType =
@@ -6007,7 +6008,7 @@ SwiftDeclConverter::importCFClassType(const clang::TypedefNameDecl *decl,
   addObjCAttribute(theClass, None);
 
   if (superclass) {
-    SmallVector<TypeLoc, 4> inheritedTypes;
+    SmallVector<InheritedEntry, 4> inheritedTypes;
     inheritedTypes.push_back(TypeLoc::withoutLoc(superclass));
     theClass->setInherited(Impl.SwiftContext.AllocateCopy(inheritedTypes));
   }
@@ -7777,7 +7778,7 @@ void SwiftDeclConverter::addProtocols(
 
 void SwiftDeclConverter::importObjCProtocols(
     Decl *decl, const clang::ObjCProtocolList &clangProtocols,
-    SmallVectorImpl<TypeLoc> &inheritedTypes) {
+    SmallVectorImpl<InheritedEntry> &inheritedTypes) {
   SmallVector<ProtocolDecl *, 4> protocols;
   llvm::SmallPtrSet<ProtocolDecl *, 4> knownProtocols;
   if (auto nominal = dyn_cast<NominalTypeDecl>(decl)) {
@@ -7791,7 +7792,9 @@ void SwiftDeclConverter::importObjCProtocols(
             Impl.importDecl(*cp, getActiveSwiftVersion()))) {
       addProtocols(proto, protocols, knownProtocols);
       inheritedTypes.push_back(
-        TypeLoc::withoutLoc(proto->getDeclaredInterfaceType()));
+        InheritedEntry(
+          TypeLoc::withoutLoc(proto->getDeclaredInterfaceType()),
+          /*isUnchecked=*/false));
     }
   }
 
@@ -7820,7 +7823,7 @@ Optional<GenericParamList *> SwiftDeclConverter::importObjCGenericParams(
     // nested.
 
     // Import parameter constraints.
-    SmallVector<TypeLoc, 1> inherited;
+    SmallVector<InheritedEntry, 1> inherited;
     if (objcGenericParam->hasExplicitBound()) {
       assert(!objcGenericParam->getUnderlyingType().isNull());
       auto clangBound = objcGenericParam->getUnderlyingType()
@@ -9915,7 +9918,8 @@ void ClangImporter::Implementation::loadAllConformances(
     auto conformance = SwiftContext.getConformance(
         dc->getDeclaredInterfaceType(),
         protocol, SourceLoc(), dc,
-        ProtocolConformanceState::Incomplete);
+        ProtocolConformanceState::Incomplete,
+        protocol->isSpecificProtocol(KnownProtocolKind::Sendable));
     conformance->setLazyLoader(this, /*context*/0);
     conformance->setState(ProtocolConformanceState::Complete);
     Conformances.push_back(conformance);

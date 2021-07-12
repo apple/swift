@@ -2461,7 +2461,7 @@ ClassDecl *IRGenModule::getObjCRuntimeBaseClass(Identifier name,
 
   // Make a really fake-looking class.
   auto SwiftRootClass = new (Context) ClassDecl(SourceLoc(), name, SourceLoc(),
-                                           ArrayRef<TypeLoc>(),
+                                           ArrayRef<InheritedEntry>(),
                                            /*generics*/ nullptr,
                                            Context.TheBuiltinModule,
                                            /*isActor*/false);

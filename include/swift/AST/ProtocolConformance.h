@@ -412,11 +412,20 @@ class NormalProtocolConformance : public RootProtocolConformance,
   /// The location of this protocol conformance in the source.
   SourceLoc Loc;
 
+  // Flag bits used in ContextAndBits.
+  enum {
+    /// The conformance is invalid.
+    InvalidFlag = 0x01,
+
+    /// The conformance was labeled with @unchecked.
+    UncheckedFlag = 0x02,
+  };
+
   /// The declaration context containing the ExtensionDecl or
   /// NominalTypeDecl that declared the conformance.
   ///
-  /// Also stores the "invalid" bit.
-  llvm::PointerIntPair<DeclContext *, 1, bool> ContextAndInvalid;
+  /// Also stores the "invalid" and "unchecked" bits.
+  llvm::PointerIntPair<DeclContext *, 2, unsigned> ContextAndBits;
 
   /// The reason that this conformance exists.
   ///
@@ -457,11 +466,12 @@ class NormalProtocolConformance : public RootProtocolConformance,
 public:
   NormalProtocolConformance(Type conformingType, ProtocolDecl *protocol,
                             SourceLoc loc, DeclContext *dc,
-                            ProtocolConformanceState state)
+                            ProtocolConformanceState state,
+                            bool isUnchecked)
       : RootProtocolConformance(ProtocolConformanceKind::Normal,
                                 conformingType),
         ProtocolAndState(protocol, state), Loc(loc),
-        ContextAndInvalid(dc, false) {
+        ContextAndBits(dc, isUnchecked ? UncheckedFlag : 0) {
     assert(!conformingType->hasArchetype() &&
            "ProtocolConformances should store interface types");
   }
@@ -475,7 +485,7 @@ public:
   /// Get the declaration context that contains the conforming extension or
   /// nominal type declaration.
   DeclContext *getDeclContext() const {
-    return ContextAndInvalid.getPointer();
+    return ContextAndBits.getPointer();
   }
 
   /// Get any additional requirements that are required for this conformance to
@@ -497,13 +507,18 @@ public:
 
   /// Determine whether this conformance is invalid.
   bool isInvalid() const {
-    return ContextAndInvalid.getInt();
+    return ContextAndBits.getInt() & InvalidFlag;
   }
 
   /// Mark this conformance as invalid.
   void setInvalid() {
-    ContextAndInvalid.setInt(true);
+    ContextAndBits.setInt(ContextAndBits.getInt() | InvalidFlag);
     SignatureConformances = {};
+  }
+
+  /// Whether this is an "unchecked" conformance.
+  bool isUnchecked() const {
+    return ContextAndBits.getInt() & UncheckedFlag;
   }
 
   /// Get the kind of source from which this conformance comes.

@@ -4166,8 +4166,9 @@ static ConstraintResult visitInherited(
   ASTContext &ctx = typeDecl ? typeDecl->getASTContext()
                              : extDecl->getASTContext();
   auto &evaluator = ctx.evaluator;
-  ArrayRef<TypeLoc> inheritedTypes = typeDecl ? typeDecl->getInherited()
-                                              : extDecl->getInherited();
+  ArrayRef<InheritedEntry> inheritedTypes =
+      typeDecl ? typeDecl->getInherited()
+               : extDecl->getInherited();
   for (unsigned index : indices(inheritedTypes)) {
     Type inheritedType
       = evaluateOrDefault(evaluator,

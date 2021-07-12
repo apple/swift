@@ -1350,6 +1350,9 @@ static ProtocolConformance *findSynthesizedSendableConformance(
   if (concrete->getDeclContext() != dc)
     return nullptr;
 
+  if (isa<InheritedProtocolConformance>(concrete))
+    return nullptr;
+
   auto normal = concrete->getRootNormalConformance();
   if (!normal || normal->getSourceKind() != ConformanceEntryKind::Synthesized)
     return nullptr;

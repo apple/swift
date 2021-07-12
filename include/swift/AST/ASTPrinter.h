@@ -17,6 +17,7 @@
 #include "swift/Basic/QuotedString.h"
 #include "swift/Basic/UUID.h"
 #include "swift/AST/Identifier.h"
+#include "swift/AST/Decl.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/DenseSet.h"
@@ -351,8 +352,9 @@ void printEnumElementsAsCases(
     llvm::DenseSet<EnumElementDecl *> &UnhandledElements,
     llvm::raw_ostream &OS);
 
-void getInheritedForPrinting(const Decl *decl, const PrintOptions &options,
-                             llvm::SmallVectorImpl<TypeLoc> &Results);
+void getInheritedForPrinting(
+  const Decl *decl, const PrintOptions &options,
+  llvm::SmallVectorImpl<InheritedEntry> &Results);
 
 StringRef getAccessorKindString(AccessorKind value);
 

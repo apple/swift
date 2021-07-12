@@ -2659,6 +2659,20 @@ TypeResolver::resolveAttributedType(TypeAttributes &attrs, TypeRepr *repr,
     }
   }
 
+  if (attrs.has(TAK_unchecked)) {
+    if (!options.is(TypeResolverContext::Inherited) ||
+        getDeclContext()->getSelfProtocolDecl()) {
+      diagnoseInvalid(repr, attrs.getLoc(TAK_unchecked),
+                      diag::unchecked_not_inheritance_clause);
+    } else if (!ty->isExistentialType()) {
+      diagnoseInvalid(repr, attrs.getLoc(TAK_unchecked),
+                      diag::unchecked_not_existential, ty);
+    }
+
+    // Nothing to record in the type. Just clear the attribute.
+    attrs.clearAttribute(TAK_unchecked);
+  }
+
   for (unsigned i = 0; i != TypeAttrKind::TAK_Count; ++i)
     if (attrs.has((TypeAttrKind)i)) {
       diagnoseInvalid(repr, attrs.getLoc((TypeAttrKind)i),
@@ -3677,6 +3691,7 @@ NeverNullType TypeResolver::resolveImplicitlyUnwrappedOptionalType(
   case TypeResolverContext::EditorPlaceholderExpr:
   case TypeResolverContext::AbstractFunctionDecl:
   case TypeResolverContext::ClosureExpr:
+  case TypeResolverContext::Inherited:
     doDiag = true;
     break;
   }

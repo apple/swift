@@ -45,13 +45,15 @@ Type InheritedTypeRequest::evaluate(
   switch (stage) {
   case TypeResolutionStage::Structural:
     resolution =
-        TypeResolution::forStructural(dc, None, /*unboundTyOpener*/ nullptr,
+        TypeResolution::forStructural(dc, TypeResolverContext::Inherited,
+                                      /*unboundTyOpener*/ nullptr,
                                       /*placeholderHandler*/ nullptr);
     break;
 
   case TypeResolutionStage::Interface:
     resolution =
-        TypeResolution::forInterface(dc, None, /*unboundTyOpener*/ nullptr,
+        TypeResolution::forInterface(dc, TypeResolverContext::Inherited,
+                                     /*unboundTyOpener*/ nullptr,
                                      /*placeholderHandler*/ nullptr);
     break;
 

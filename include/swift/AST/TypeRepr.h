@@ -135,6 +135,10 @@ public:
   SourceLoc getEndLoc() const;
   SourceRange getSourceRange() const;
 
+  /// Find an @unchecked attribute and return its source location, or return
+  /// an invalid source location if there is no such attribute.
+  SourceLoc findUncheckedAttrLoc() const;
+
   /// Is this type grammatically a type-simple?
   inline bool isSimple() const; // bottom of this file
 

@@ -237,7 +237,7 @@ enum class SendableCheck {
   /// protocols that added Sendable after-the-fact.
   ImpliedByStandardProtocol,
 
-  /// Implicit conformance to Sendable for structs and enums.
+  /// Implicit conformance to Sendable.
   Implicit,
 };
 

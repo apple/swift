@@ -73,7 +73,7 @@ using namespace swift;
 static void checkInheritanceClause(
     llvm::PointerUnion<const TypeDecl *, const ExtensionDecl *> declUnion) {
   const DeclContext *DC;
-  ArrayRef<TypeLoc> inheritedClause;
+  ArrayRef<InheritedEntry> inheritedClause;
   const ExtensionDecl *ext = nullptr;
   const TypeDecl *typeDecl = nullptr;
   const Decl *decl;

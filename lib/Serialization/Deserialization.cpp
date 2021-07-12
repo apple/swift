@@ -611,7 +611,7 @@ Expected<NormalProtocolConformance *> ModuleFile::readNormalConformanceChecked(
 
   DeclID protoID;
   DeclContextID contextID;
-  unsigned valueCount, typeCount, conformanceCount;
+  unsigned valueCount, typeCount, conformanceCount, isUnchecked;
   ArrayRef<uint64_t> rawIDs;
   SmallVector<uint64_t, 16> scratch;
 
@@ -623,6 +623,7 @@ Expected<NormalProtocolConformance *> ModuleFile::readNormalConformanceChecked(
   NormalProtocolConformanceLayout::readRecord(scratch, protoID,
                                               contextID, typeCount,
                                               valueCount, conformanceCount,
+                                              isUnchecked,
                                               rawIDs);
 
   ASTContext &ctx = getContext();
@@ -645,8 +646,8 @@ Expected<NormalProtocolConformance *> ModuleFile::readNormalConformanceChecked(
   ++NumNormalProtocolConformancesLoaded;
 
   auto conformance = ctx.getConformance(conformingType, proto, SourceLoc(), dc,
-                                        ProtocolConformanceState::Incomplete);
-
+                                        ProtocolConformanceState::Incomplete,
+                                        isUnchecked);
   // Record this conformance.
   if (conformanceEntry.isComplete())
     return conformance;
@@ -2452,14 +2453,19 @@ class DeclDeserializer {
 
   void handleInherited(llvm::PointerUnion<TypeDecl *, ExtensionDecl *> decl,
                        ArrayRef<uint64_t> rawInheritedIDs) {
-    SmallVector<TypeLoc, 2> inheritedTypes;
+    SmallVector<InheritedEntry, 2> inheritedTypes;
     for (auto rawID : rawInheritedIDs) {
-      auto maybeType = MF.getTypeChecked(rawID);
+      // The low bit indicates "@unchecked".
+      bool isUnchecked = rawID & 0x01;
+      TypeID typeID = rawID >> 1;
+
+      auto maybeType = MF.getTypeChecked(typeID);
       if (!maybeType) {
         llvm::consumeError(maybeType.takeError());
         continue;
       }
-      inheritedTypes.push_back(TypeLoc::withoutLoc(MF.getType(rawID)));
+      inheritedTypes.push_back(
+          InheritedEntry(TypeLoc::withoutLoc(maybeType.get()), isUnchecked));
     }
 
     auto inherited = ctx.AllocateCopy(inheritedTypes);
@@ -6300,7 +6306,7 @@ void ModuleFile::finishNormalConformance(NormalProtocolConformance *conformance,
 
   DeclID protoID;
   DeclContextID contextID;
-  unsigned valueCount, typeCount, conformanceCount;
+  unsigned valueCount, typeCount, conformanceCount, isUnchecked;
   ArrayRef<uint64_t> rawIDs;
   SmallVector<uint64_t, 16> scratch;
 
@@ -6312,7 +6318,7 @@ void ModuleFile::finishNormalConformance(NormalProtocolConformance *conformance,
   NormalProtocolConformanceLayout::readRecord(scratch, protoID,
                                               contextID, typeCount,
                                               valueCount, conformanceCount,
-                                              rawIDs);
+                                              isUnchecked, rawIDs);
 
   // Read requirement signature conformances.
   const ProtocolDecl *proto = conformance->getProtocol();

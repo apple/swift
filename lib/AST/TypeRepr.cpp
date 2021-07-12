@@ -80,6 +80,19 @@ void *TypeRepr::operator new(size_t Bytes, const ASTContext &C,
   return C.Allocate(Bytes, Alignment);
 }
 
+SourceLoc TypeRepr::findUncheckedAttrLoc() const {
+  auto typeRepr = this;
+  while (auto attrTypeRepr = dyn_cast<AttributedTypeRepr>(typeRepr)) {
+    if (attrTypeRepr->getAttrs().has(TAK_unchecked)) {
+      return attrTypeRepr->getAttrs().getLoc(TAK_unchecked);
+    }
+
+    typeRepr = attrTypeRepr->getTypeRepr();
+  }
+
+  return SourceLoc();
+}
+
 DeclNameRef ComponentIdentTypeRepr::getNameRef() const {
   if (IdOrDecl.is<DeclNameRef>())
     return IdOrDecl.get<DeclNameRef>();

@@ -85,6 +85,9 @@ class ConformanceLookupTable {
   class ConformanceSource {
     llvm::PointerIntPair<void *, 2, ConformanceEntryKind> Storage;
 
+    /// The location of the "unchecked" attribute, if there is one.
+    SourceLoc uncheckedLoc;
+
     ConformanceSource(void *ptr, ConformanceEntryKind kind) 
       : Storage(ptr, kind) { }
 
@@ -123,6 +126,14 @@ class ConformanceLookupTable {
       return ConformanceSource(typeDecl, ConformanceEntryKind::Synthesized);
     }
 
+    /// Return a new conformance source with the given location of "@unchecked".
+    ConformanceSource withUncheckedLoc(SourceLoc uncheckedLoc) {
+      ConformanceSource result(*this);
+      if (uncheckedLoc.isValid())
+        result.uncheckedLoc = uncheckedLoc;
+      return result;
+    }
+
     /// Retrieve the kind of conformance formed from this source.
     ConformanceEntryKind getKind() const { return Storage.getInt(); }
 
@@ -147,6 +158,11 @@ class ConformanceLookupTable {
       }
 
       llvm_unreachable("Unhandled ConformanceEntryKind in switch.");
+    }
+
+    /// The location of the @unchecked attribute, if any.
+    SourceLoc getUncheckedLoc() const {
+      return uncheckedLoc;
     }
 
     /// For an inherited conformance, retrieve the class declaration
