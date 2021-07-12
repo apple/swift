@@ -582,12 +582,21 @@ void EquivalenceClassMap::addProperty(
 void EquivalenceClassMap::concretizeNestedTypesFromConcreteParents(
     SmallVectorImpl<std::pair<MutableTerm, MutableTerm>> &inducedRules) const {
   for (const auto &equivClass : Map) {
-    if (equivClass->isConcreteType() &&
-        !equivClass->getConformsTo().empty()) {
-      if (DebugConcretizeNestedTypes) {
+    if (equivClass->getConformsTo().empty())
+      continue;
+
+    if (DebugConcretizeNestedTypes) {
+      if (equivClass->isConcreteType() ||
+          equivClass->hasSuperclassBound()) {
         llvm::dbgs() << "^ Concretizing nested types of ";
         equivClass->dump(llvm::dbgs());
         llvm::dbgs() << "\n";
+      }
+    }
+
+    if (equivClass->isConcreteType()) {
+      if (DebugConcretizeNestedTypes) {
+        llvm::dbgs() << "- via concrete type requirement\n";
       }
 
       concretizeNestedTypesFromConcreteParent(
@@ -597,14 +606,53 @@ void EquivalenceClassMap::concretizeNestedTypesFromConcreteParents(
           equivClass->getConformsTo(),
           inducedRules);
     }
+
+    if (equivClass->hasSuperclassBound()) {
+      if (DebugConcretizeNestedTypes) {
+        llvm::dbgs() << "- via superclass requirement\n";
+      }
+
+      concretizeNestedTypesFromConcreteParent(
+          equivClass->getKey(),
+          equivClass->Superclass->getSuperclass(),
+          equivClass->Superclass->getSubstitutions(),
+          equivClass->getConformsTo(),
+          inducedRules);
+    }
   }
 }
 
-/// If we have an equivalence class T => { conforms_to: [ P ], concrete: Foo },
-/// then for each associated type A of P, we generate a new rule:
+/// Suppose a same-type requirement merges two equivalence classes,
+/// one of which has a conformance requirement to P and the other
+/// one has a concrete type or superclass requirement.
 ///
-///   T.[P:A].[concrete: Foo.A] => T.[P:A]  (if Foo.A is concrete)
-///   T.[P:A] => T.(Foo.A)                  (if Foo.A is abstract)
+/// If the concrete type or superclass conforms to P and P has an
+/// associated type A, then we need to infer an equivalence between
+/// T.[P:A] and whatever the type witness for 'A' is in the
+/// concrete conformance.
+///
+/// For example, suppose we have a the following definitions,
+///
+///    protocol Q { associatedtype V }
+///    protocol P { associatedtype A; associatedtype C }
+///    struct Foo<A, B : Q> : P {
+///      typealias C = B.V
+///    }
+///
+/// together with the following equivalence class:
+///
+///    T => { conforms_to: [ P ], concrete: Foo<Int, τ_0_0> with <U> }
+///
+/// The type witness for A in the conformance Foo<Int, τ_0_0> : P is
+/// the concrete type 'Int', which induces the following rule:
+///
+///    T.[P:A].[concrete: Int] => T.[P:A]
+///
+/// Whereas the type witness for B in the same conformance is the
+/// abstract type 'τ_0_0.V', which via the substitutions <U> corresponds
+/// to the term 'U.V', and therefore induces the following rule:
+///
+///    T.[P:B] => U.V
 ///
 void EquivalenceClassMap::concretizeNestedTypesFromConcreteParent(
     const MutableTerm &key,

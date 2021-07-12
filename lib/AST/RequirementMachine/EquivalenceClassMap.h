@@ -82,6 +82,10 @@ public:
   const MutableTerm &getKey() const { return Key; }
   void dump(llvm::raw_ostream &out) const;
 
+  bool hasSuperclassBound() const {
+    return Superclass.hasValue();
+  }
+
   bool isConcreteType() const {
     return ConcreteType.hasValue();
   }
