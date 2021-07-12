@@ -43,6 +43,7 @@ class DeadEndBlocks;
 class ValueBaseUseIterator;
 class ConsumingUseIterator;
 class NonConsumingUseIterator;
+class NonTypeDependentUseIterator;
 class SILValue;
 
 /// An enumeration which contains values for all the concrete ValueBase
@@ -387,6 +388,9 @@ public:
   using consuming_use_range = iterator_range<consuming_use_iterator>;
   using non_consuming_use_iterator = NonConsumingUseIterator;
   using non_consuming_use_range = iterator_range<non_consuming_use_iterator>;
+  using non_typedependent_use_iterator = NonTypeDependentUseIterator;
+  using non_typedependent_use_range =
+      iterator_range<non_typedependent_use_iterator>;
 
   inline use_iterator use_begin() const;
   inline use_iterator use_end() const;
@@ -396,6 +400,9 @@ public:
 
   inline non_consuming_use_iterator non_consuming_use_begin() const;
   inline non_consuming_use_iterator non_consuming_use_end() const;
+
+  inline non_typedependent_use_iterator non_typedependent_use_begin() const;
+  inline non_typedependent_use_iterator non_typedependent_use_end() const;
 
   /// Returns a range of all uses, which is useful for iterating over all uses.
   /// To ignore debug-info instructions use swift::getNonDebugUses instead
@@ -420,6 +427,10 @@ public:
 
   /// Returns a range of all non consuming uses
   inline non_consuming_use_range getNonConsumingUses() const;
+
+  /// Returns a range of uses that are not classified as a type dependent
+  /// operand of the user.
+  inline non_typedependent_use_range getNonTypeDependentUses() const;
 
   template <class T>
   inline T *getSingleUserOfType() const;
@@ -1061,6 +1072,7 @@ private:
   friend class ValueBaseUseIterator;
   friend class ConsumingUseIterator;
   friend class NonConsumingUseIterator;
+  friend class NonTypeDependentUseIterator;
   template <unsigned N> friend class FixedOperandList;
   friend class TrailingOperandsList;
 };
@@ -1187,6 +1199,41 @@ ValueBase::non_consuming_use_end() const {
   return ValueBase::non_consuming_use_iterator(nullptr);
 }
 
+class NonTypeDependentUseIterator : public ValueBaseUseIterator {
+public:
+  explicit NonTypeDependentUseIterator(Operand *cur)
+      : ValueBaseUseIterator(cur) {}
+  NonTypeDependentUseIterator &operator++() {
+    assert(Cur && "incrementing past end()!");
+    assert(!Cur->isTypeDependent());
+    while ((Cur = Cur->NextUse)) {
+      if (!Cur->isTypeDependent())
+        break;
+    }
+    return *this;
+  }
+
+  NonTypeDependentUseIterator operator++(int unused) {
+    NonTypeDependentUseIterator copy = *this;
+    ++*this;
+    return copy;
+  }
+};
+
+inline ValueBase::non_typedependent_use_iterator
+ValueBase::non_typedependent_use_begin() const {
+  auto cur = FirstUse;
+  while (cur && cur->isTypeDependent()) {
+    cur = cur->NextUse;
+  }
+  return ValueBase::non_typedependent_use_iterator(cur);
+}
+
+inline ValueBase::non_typedependent_use_iterator
+ValueBase::non_typedependent_use_end() const {
+  return ValueBase::non_typedependent_use_iterator(nullptr);
+}
+
 inline bool ValueBase::hasOneUse() const {
   auto I = use_begin(), E = use_end();
   if (I == E) return false;
@@ -1230,6 +1277,11 @@ inline ValueBase::consuming_use_range ValueBase::getConsumingUses() const {
 inline ValueBase::non_consuming_use_range
 ValueBase::getNonConsumingUses() const {
   return {non_consuming_use_begin(), non_consuming_use_end()};
+}
+
+inline ValueBase::non_typedependent_use_range
+ValueBase::getNonTypeDependentUses() const {
+  return {non_typedependent_use_begin(), non_typedependent_use_end()};
 }
 
 inline bool ValueBase::hasTwoUses() const {

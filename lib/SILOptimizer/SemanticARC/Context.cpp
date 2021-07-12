@@ -38,16 +38,20 @@ void Context::verify() const {
 bool Context::constructCacheValue(
     SILValue initialValue,
     SmallVectorImpl<Operand *> &wellBehavedWriteAccumulator) {
-  SmallVector<Operand *, 8> worklist(initialValue->getUses());
+  SmallVector<Operand *, 8> worklist(initialValue->getNonTypeDependentUses());
 
   while (!worklist.empty()) {
     auto *op = worklist.pop_back_val();
+    assert(!op->isTypeDependent() &&
+           "Uses that are type dependent should have been filtered before "
+           "being inserted into the worklist");
     SILInstruction *user = op->getUser();
 
     if (Projection::isAddressProjection(user) ||
         isa<ProjectBlockStorageInst>(user)) {
       for (SILValue r : user->getResults()) {
-        llvm::copy(r->getUses(), std::back_inserter(worklist));
+        llvm::copy(r->getNonTypeDependentUses(),
+                   std::back_inserter(worklist));
       }
       continue;
     }
@@ -59,7 +63,8 @@ bool Context::constructCacheValue(
       }
 
       //  Otherwise, look through it and continue.
-      llvm::copy(oeai->getUses(), std::back_inserter(worklist));
+      llvm::copy(oeai->getNonTypeDependentUses(),
+                 std::back_inserter(worklist));
       continue;
     }
 
@@ -93,7 +98,8 @@ bool Context::constructCacheValue(
       }
 
       // And then add the users to the worklist and continue.
-      llvm::copy(bai->getUses(), std::back_inserter(worklist));
+      llvm::copy(bai->getNonTypeDependentUses(),
+                 std::back_inserter(worklist));
       continue;
     }
 

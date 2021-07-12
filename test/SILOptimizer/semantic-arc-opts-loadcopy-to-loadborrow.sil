@@ -13,6 +13,7 @@ import Builtin
 //////////////////
 
 typealias AnyObject = Builtin.AnyObject
+protocol Error {}
 
 enum MyNever {}
 enum FakeOptional<T> {
@@ -1449,4 +1450,52 @@ bb1:
 
 bb2:
   unreachable
+}
+
+// Make sure that we ignore type dependent operands when walking through the use
+// list to determine if we are writing to a piece of memory.
+protocol HasClassProperty {
+  var c: Klass { get set }
+}
+
+struct HasClassPropertyWrapper {
+  var h: HasClassProperty
+  var otherProperty: Builtin.NativeObject
+}
+
+sil @use_hasclassproperty : $@convention(method) <τ_0_0 where τ_0_0 : HasClassProperty> (@inout τ_0_0) -> (@owned Builtin.NativeObject, @error Error)
+
+// Make sure we don't crash on this code. We used to crash by not ignoring the
+// type dependent operand usage of %2.
+//
+// TODO: We should be able to convert %5 to a load_borrow since we know that %1
+// and %4 do not alias. When that is done, update the test case appropriately.
+//
+// CHECK-LABEL: sil [ossa] @use_class_property_wrapper : $@convention(thin) (@inout HasClassPropertyWrapper) -> () {
+// CHECK: load [copy]
+// CHECK: } //  end sil function 'use_class_property_wrapper'
+sil [ossa] @use_class_property_wrapper : $@convention(thin) (@inout HasClassPropertyWrapper) -> () {
+bb0(%0 : $*HasClassPropertyWrapper):
+  %1 = struct_element_addr %0 : $*HasClassPropertyWrapper, #HasClassPropertyWrapper.h
+  %2 = open_existential_addr mutable_access %1 : $*HasClassProperty to $*@opened("85AB1D00-DF62-11EB-A413-ACDE48001122") HasClassProperty
+  %3 = function_ref @use_hasclassproperty : $@convention(method) <τ_0_0 where τ_0_0 : HasClassProperty> (@inout τ_0_0) -> (@owned Builtin.NativeObject, @error Error)
+  %4 = struct_element_addr %0 : $*HasClassPropertyWrapper, #HasClassPropertyWrapper.otherProperty
+  %5 = load [copy] %4 : $*Builtin.NativeObject
+  %f2 = function_ref @guaranteed_user : $@convention(thin) (@guaranteed Builtin.NativeObject) -> ()
+  apply %f2(%5) : $@convention(thin) (@guaranteed Builtin.NativeObject) -> ()
+  try_apply %3<@opened("85AB1D00-DF62-11EB-A413-ACDE48001122") HasClassProperty>(%2) : $@convention(method) <τ_0_0 where τ_0_0 : HasClassProperty> (@inout τ_0_0) -> (@owned Builtin.NativeObject, @error Error), normal bb1, error bb2
+
+bb1(%str : @owned $Builtin.NativeObject):
+  destroy_value %str : $Builtin.NativeObject
+  destroy_value %5 : $Builtin.NativeObject
+  br bb3
+
+bb2(%error : @owned $Error):
+  destroy_value %error : $Error
+  destroy_value %5 : $Builtin.NativeObject
+  br bb3
+
+bb3:
+  %9999 = tuple()
+  return %9999 : $()
 }
