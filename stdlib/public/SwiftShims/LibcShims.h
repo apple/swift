@@ -70,7 +70,7 @@ static inline __swift_size_t _swift_stdlib_strlen_unsigned(const unsigned char *
 SWIFT_READONLY
 static inline int _swift_stdlib_memcmp(const void *s1, const void *s2,
                                        __swift_size_t n) {
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__ANDROID__)
   extern int memcmp(const void * _Nullable, const void * _Nullable, __swift_size_t);
 #else
   extern int memcmp(const void *, const void *, __swift_size_t);

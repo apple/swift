@@ -28,7 +28,6 @@ headers = [
   'tgmath.h',
   'time.h',
   'utmp.h',
-  'utmpx.h',
 
   # POSIX
   'aio.h',
