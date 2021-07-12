@@ -26,6 +26,25 @@ struct LargeCodesizeStruct {
   var s5: SmallCodesizeStruct
 }
 
+public enum NonTrivialEnum {
+  case some1(Klass)
+  case some2(NonTrivialStruct)
+}
+
+struct NonTrivialStruct {
+  var val:Klass
+}
+
+public enum FakeOptional<T> {
+  case some(T)
+  case none
+}
+
+sil [ossa] @get_nontrivialstruct : $@convention(thin) () -> @owned NonTrivialStruct
+sil [ossa] @get_nontrivialenum : $@convention(thin) () -> @owned NonTrivialEnum
+sil [ossa] @get_optionalnontrivialstruct : $@convention(thin) () -> @owned FakeOptional<NonTrivialStruct>
+sil [ossa] @take_nontrivialstruct : $@convention(thin) (@owned NonTrivialStruct) -> ()
+
 ///////////
 // Tests //
 ///////////
@@ -753,5 +772,344 @@ bb2:
 bbret(%new : @owned $Klass):
   dealloc_stack %stk1 : $*Klass
   return %new : $Klass
+}
+
+// CHECK-LABEL: sil [ossa] @test_dynamiclifetime1 :
+// CHECK: alloc_stack [dynamic_lifetime]
+// CHECK-LABEL: } // end sil function 'test_dynamiclifetime1'
+sil [ossa] @test_dynamiclifetime1 : $@convention(thin) () -> () {
+bb0:
+  %2 = alloc_stack $Builtin.Int1
+  %3 = alloc_stack [dynamic_lifetime] $NonTrivialStruct
+  %4 = integer_literal $Builtin.Int1, 0
+  store %4 to [trivial] %2 : $*Builtin.Int1
+  cond_br undef, bb1, bb2
+
+bb1:
+  br bb3
+
+bb2:
+  %func = function_ref @get_nontrivialstruct : $@convention(thin) () -> @owned NonTrivialStruct
+  %val = apply %func() : $@convention(thin) () -> @owned NonTrivialStruct
+  %27 = integer_literal $Builtin.Int1, -1
+  store %27 to [trivial] %2 : $*Builtin.Int1
+  store %val to [init] %3 : $*NonTrivialStruct
+  br bb3
+
+bb3:
+  %32 = load [trivial] %2 : $*Builtin.Int1
+  cond_br %32, bb4, bb5
+
+bb4:
+  %34 = load [take] %3 : $*NonTrivialStruct
+  destroy_value %34 : $NonTrivialStruct
+  br bb6
+
+bb5:
+  br bb6
+
+bb6:
+  dealloc_stack %3 : $*NonTrivialStruct
+  dealloc_stack %2 : $*Builtin.Int1
+  %res = tuple ()
+  return %res : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_dynamiclifetime2 :
+// CHECK: alloc_stack [dynamic_lifetime]
+// CHECK-LABEL: } // end sil function 'test_dynamiclifetime2'
+sil [ossa] @test_dynamiclifetime2 : $@convention(thin) () -> () {
+bb0:
+  %2 = alloc_stack $Builtin.Int1
+  %3 = alloc_stack [dynamic_lifetime] $NonTrivialStruct
+  %4 = integer_literal $Builtin.Int1, 0
+  store %4 to [trivial] %2 : $*Builtin.Int1
+  %func1 = function_ref @get_nontrivialstruct : $@convention(thin) () -> @owned NonTrivialStruct
+  %val1 = apply %func1() : $@convention(thin) () -> @owned NonTrivialStruct
+  store %val1 to [init] %3 : $*NonTrivialStruct
+  %ld1 = load [take] %3 : $*NonTrivialStruct
+  %func2 = function_ref @take_nontrivialstruct : $@convention(thin) (@owned NonTrivialStruct) -> ()
+  apply %func2(%ld1) : $@convention(thin) (@owned NonTrivialStruct) -> ()
+  cond_br undef, bb1, bb2
+
+bb1:
+  br bb3
+
+bb2:
+  %val = apply %func1() : $@convention(thin) () -> @owned NonTrivialStruct
+  %27 = integer_literal $Builtin.Int1, -1
+  store %27 to [trivial] %2 : $*Builtin.Int1
+  store %val to [init] %3 : $*NonTrivialStruct
+  br bb3
+
+bb3:
+  %32 = load [trivial] %2 : $*Builtin.Int1
+  cond_br %32, bb4, bb5
+
+bb4:
+  %ld2 = load [take] %3 : $*NonTrivialStruct
+  destroy_value %ld2 : $NonTrivialStruct
+  br bb6
+
+bb5:
+  br bb6
+
+bb6:
+  dealloc_stack %3 : $*NonTrivialStruct
+  dealloc_stack %2 : $*Builtin.Int1
+  %res = tuple ()
+  return %res : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_deadphi1 :
+// CHECK-NOT: alloc_stack
+// CHECK-LABEL: } // end sil function 'test_deadphi1'
+sil [ossa] @test_deadphi1 : $@convention(thin)  () -> () {
+bb0:
+  br bb1
+
+bb1:
+  cond_br undef, bb1a, bb6
+
+bb1a:
+  br bb2
+
+bb2:
+  %stk = alloc_stack $NonTrivialStruct
+  cond_br undef, bb3, bb4
+
+bb3:
+  %func = function_ref @get_nontrivialstruct : $@convention(thin) () -> @owned NonTrivialStruct
+  %val = apply %func() : $@convention(thin) () -> @owned NonTrivialStruct
+  store %val to [init] %stk : $*NonTrivialStruct
+  %lval1 = load [copy] %stk : $*NonTrivialStruct
+  destroy_value %lval1 : $NonTrivialStruct
+  %lval2 = load [take] %stk : $*NonTrivialStruct
+  destroy_value %lval2 : $NonTrivialStruct
+  dealloc_stack %stk : $*NonTrivialStruct
+  cond_br undef, bb3a, bb3b
+
+bb3a:
+  br bb1
+
+bb3b:
+  br bb5
+
+bb4:
+  dealloc_stack %stk : $*NonTrivialStruct
+  unreachable
+
+bb5:
+  br bb2
+
+bb6:
+  %res = tuple ()
+  return %res : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_deadphi2 :
+// CHECK-NOT: alloc_stack
+// CHECK-LABEL: } // end sil function 'test_deadphi2'
+sil [ossa] @test_deadphi2 : $@convention(thin) () -> () {
+bb0:
+  %0 = alloc_stack $NonTrivialStruct
+  br bb1
+
+bb1:
+  cond_br undef, bb2, bb3
+
+bb2:
+  %3 = function_ref @get_nontrivialstruct : $@convention(thin) () -> @owned NonTrivialStruct
+  %4 = apply %3() : $@convention(thin) () -> @owned NonTrivialStruct
+  store %4 to [init] %0 : $*NonTrivialStruct
+  cond_br undef, bb4, bb5
+
+bb3:
+  dealloc_stack %0 : $*NonTrivialStruct
+  br bb7
+
+bb4:
+  %lval1 = load [take] %0 : $*NonTrivialStruct
+  destroy_value %lval1 : $NonTrivialStruct
+  dealloc_stack %0 : $*NonTrivialStruct
+  br bb7
+
+bb5:
+  %lval2 = load [take] %0 : $*NonTrivialStruct
+  destroy_value %lval2 : $NonTrivialStruct
+  dealloc_stack %0 : $*NonTrivialStruct
+  br bb7
+
+bb6:
+  %17 = tuple ()
+  return %17 : $()
+
+bb7:
+  br bb6
+}
+
+// CHECK-LABEL: sil [ossa] @test_deadphi3 :
+// CHECK-NOT: alloc_stack
+// CHECK-LABEL: } // end sil function 'test_deadphi3'
+sil [ossa] @test_deadphi3 : $@convention(thin) (@owned NonTrivialEnum) -> () {
+bb0(%0 : @owned $NonTrivialEnum):
+  %1 = alloc_stack $NonTrivialStruct
+  switch_enum %0 : $NonTrivialEnum, case #NonTrivialEnum.some1!enumelt: bb1, case #NonTrivialEnum.some2!enumelt: bb5
+
+bb1(%3 : @owned $Klass):
+  destroy_value %3 : $Klass
+  %5 = function_ref @get_optionalnontrivialstruct : $@convention(thin) () -> @owned FakeOptional<NonTrivialStruct>
+  %6 = apply %5() : $@convention(thin) () -> @owned FakeOptional<NonTrivialStruct>
+  switch_enum %6 : $FakeOptional<NonTrivialStruct>, case #FakeOptional.some!enumelt: bb4, case #FakeOptional.none!enumelt: bb2
+
+bb2:
+  br bb3
+
+bb3:
+  unreachable
+
+bb4(%10 : @owned $NonTrivialStruct):
+  store %10 to [init] %1 : $*NonTrivialStruct
+  br bb9
+
+bb5(%13 : @owned $NonTrivialStruct):
+  destroy_value %13 : $NonTrivialStruct
+  %15 = function_ref @get_optionalnontrivialstruct : $@convention(thin) () -> @owned FakeOptional<NonTrivialStruct>
+  %16 = apply %15() : $@convention(thin) () -> @owned FakeOptional<NonTrivialStruct>
+  switch_enum %16 : $FakeOptional<NonTrivialStruct>, case #FakeOptional.some!enumelt: bb8, case #FakeOptional.none!enumelt: bb6
+
+bb6:
+  br bb7
+
+bb7:
+  unreachable
+
+bb8(%20 : @owned $NonTrivialStruct):
+  store %20 to [init] %1 : $*NonTrivialStruct
+  br bb9
+
+bb9:
+  %23 = function_ref @get_nontrivialenum : $@convention(thin) () -> @owned NonTrivialEnum
+  %24 = apply %23() : $@convention(thin) () -> @owned NonTrivialEnum
+  switch_enum %24 : $NonTrivialEnum, case #NonTrivialEnum.some1!enumelt: bb10, case #NonTrivialEnum.some2!enumelt: bb11
+
+bb10(%26 : @owned $Klass):
+  %27 = load [copy] %1 : $*NonTrivialStruct
+  destroy_value %27 : $NonTrivialStruct
+  destroy_value %26 : $Klass
+  br bb12
+
+bb11(%31 : @owned $NonTrivialStruct):
+  %32 = load [copy] %1 : $*NonTrivialStruct
+  destroy_value %32 : $NonTrivialStruct
+  destroy_value %31 : $NonTrivialStruct
+  br bb12
+
+bb12:
+  %36 = load [take] %1 : $*NonTrivialStruct
+  destroy_value %36 : $NonTrivialStruct
+  dealloc_stack %1 : $*NonTrivialStruct
+  %39 = tuple ()
+  return %39 : $()
+}
+
+enum KlassOptional {
+  case some(Klass)
+  case none
+}
+
+sil @return_optional_or_error : $@convention(thin) () -> (@owned KlassOptional, @error Error)
+
+// CHECK-LABEL: sil [ossa] @test_deadphi4 :
+// CHECK-NOT: alloc_stack
+// CHECK-LABEL: } // end sil function 'test_deadphi4'
+sil [ossa] @test_deadphi4 : $@convention(thin) (@owned KlassOptional) -> () {
+bb0(%0 : @owned $KlassOptional):
+  %stk = alloc_stack $KlassOptional
+  switch_enum %0 : $KlassOptional, case #KlassOptional.some!enumelt: bb2, case #KlassOptional.none!enumelt: bb1
+
+bb1:
+  dealloc_stack %stk : $*KlassOptional
+  br bb7
+
+bb2(%some : @owned $Klass):
+  destroy_value %some : $Klass
+  %19 = function_ref @return_optional_or_error : $@convention(thin) () -> (@owned KlassOptional, @error Error)
+  try_apply %19() : $@convention(thin) () -> (@owned KlassOptional, @error Error), normal bb3, error bb8
+
+bb3(%callresult : @owned $KlassOptional):
+  store %callresult to [init] %stk : $*KlassOptional
+  %29 = load [take] %stk : $*KlassOptional
+  switch_enum %29 : $KlassOptional, case #KlassOptional.some!enumelt: bb5, case #KlassOptional.none!enumelt: bb4
+
+bb4:
+  dealloc_stack %stk : $*KlassOptional
+  br bb7
+
+bb5(%33 : @owned $Klass):
+  destroy_value %33 : $Klass
+  dealloc_stack %stk : $*KlassOptional
+  br bb6
+
+bb6:
+  %39 = tuple ()
+  return %39 : $()
+
+bb7:
+  br bb6
+
+bb8(%err : @owned $Error):
+  unreachable
+}
+
+// CHECK-LABEL: sil [ossa] @test_deadphi5 :
+// CHECK-NOT: alloc_stack
+// CHECK-LABEL: } // end sil function 'test_deadphi5'
+sil [ossa] @test_deadphi5 : $@convention(thin) () -> () {
+bb0:
+  %stk = alloc_stack $NonTrivialStruct
+  cond_br undef, bb2, bb1
+
+bb1:
+  %func1 = function_ref @get_nontrivialstruct : $@convention(thin) () -> @owned NonTrivialStruct
+  %val1 = apply %func1() : $@convention(thin) () -> @owned NonTrivialStruct
+  store %val1 to [init] %stk : $*NonTrivialStruct
+  br bb5
+
+bb2:
+  %func2 = function_ref @get_nontrivialstruct : $@convention(thin) () -> @owned NonTrivialStruct
+  %val2 = apply %func2() : $@convention(thin) () -> @owned NonTrivialStruct
+  store %val2 to [init] %stk : $*NonTrivialStruct
+  cond_br undef, bb3, bb4
+
+bb3:
+  br bb5
+
+bb4:
+  %lval1 = load [take] %stk : $*NonTrivialStruct
+  destroy_value %lval1 : $NonTrivialStruct
+  dealloc_stack %stk : $*NonTrivialStruct
+  br bb9
+
+bb5:
+  cond_br undef, bb6, bb7
+
+bb6:
+  %lval2 = load [take] %stk : $*NonTrivialStruct
+  destroy_value %lval2 : $NonTrivialStruct
+  br bb8
+
+bb7:
+  %lval3 = load [take] %stk : $*NonTrivialStruct
+  destroy_value %lval3 : $NonTrivialStruct
+  br bb8
+
+bb8:
+  dealloc_stack %stk : $*NonTrivialStruct
+  br bb9
+
+bb9:
+  %res = tuple ()
+  return %res : $()
 }
 

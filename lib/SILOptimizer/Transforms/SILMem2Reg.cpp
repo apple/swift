@@ -226,7 +226,7 @@ namespace {
 
 /// Promotes a single AllocStackInst into registers..
 class StackAllocationPromoter {
-  using BlockSet = BasicBlockSetVector;
+  using BlockSetVector = BasicBlockSetVector;
   using BlockToInstMap = llvm::DenseMap<SILBasicBlock *, SILInstruction *>;
 
   // Use a priority queue keyed on dominator tree level so that inserted nodes
@@ -286,26 +286,40 @@ private:
   void promoteAllocationToPhi();
 
   /// Replace the dummy nodes with new block arguments.
-  void addBlockArguments(BlockSet &phiBlocks);
+  void addBlockArguments(BlockSetVector &phiBlocks);
+
+  /// Check if \p phi is a proactively added phi by SILMem2Reg
+  bool isProactivePhi(SILPhiArgument *phi, const BlockSetVector &phiBlocks);
+
+  /// Check if \p proactivePhi is live.
+  bool isNecessaryProactivePhi(SILPhiArgument *proactivePhi,
+                               const BlockSetVector &phiBlocks);
+
+  /// Given a \p proactivePhi that is live, backward propagate liveness to
+  /// other proactivePhis.
+  void propagateLiveness(SILPhiArgument *proactivePhi,
+                         const BlockSetVector &phiBlocks,
+                         SmallPtrSetImpl<SILPhiArgument *> &livePhis);
 
   /// Fix all of the branch instructions and the uses to use
   /// the AllocStack definitions (which include stores and Phis).
-  void fixBranchesAndUses(BlockSet &blocks);
+  void fixBranchesAndUses(BlockSetVector &blocks);
 
   /// update the branch instructions with the new Phi argument.
   /// The blocks in \p PhiBlocks are blocks that define a value, \p Dest is
   /// the branch destination, and \p Pred is the predecessors who's branch we
   /// modify.
-  void fixPhiPredBlock(BlockSet &phiBlocks, SILBasicBlock *dest,
+  void fixPhiPredBlock(BlockSetVector &phiBlocks, SILBasicBlock *dest,
                        SILBasicBlock *pred);
 
   /// Get the value for this AllocStack variable that is
   /// flowing out of StartBB.
-  SILValue getLiveOutValue(BlockSet &phiBlocks, SILBasicBlock *startBlock);
+  SILValue getLiveOutValue(BlockSetVector &phiBlocks,
+                           SILBasicBlock *startBlock);
 
   /// Get the value for this AllocStack variable that is
   /// flowing into BB.
-  SILValue getLiveInValue(BlockSet &phiBlocks, SILBasicBlock *block);
+  SILValue getLiveInValue(BlockSetVector &phiBlocks, SILBasicBlock *block);
 
   /// Prune AllocStacks usage in the function. Scan the function
   /// and remove in-block usage of the AllocStack. Leave only the first
@@ -445,14 +459,14 @@ StoreInst *StackAllocationPromoter::promoteAllocationInBlock(
   return lastStore;
 }
 
-void StackAllocationPromoter::addBlockArguments(BlockSet &phiBlocks) {
+void StackAllocationPromoter::addBlockArguments(BlockSetVector &phiBlocks) {
   LLVM_DEBUG(llvm::dbgs() << "*** Adding new block arguments.\n");
 
   for (auto *block : phiBlocks)
     block->createPhiArgument(asi->getElementType(), OwnershipKind::Owned);
 }
 
-SILValue StackAllocationPromoter::getLiveOutValue(BlockSet &phiBlocks,
+SILValue StackAllocationPromoter::getLiveOutValue(BlockSetVector &phiBlocks,
                                                   SILBasicBlock *startBlock) {
   LLVM_DEBUG(llvm::dbgs() << "*** Searching for a value definition.\n");
   // Walk the Dom tree in search of a defining value:
@@ -484,7 +498,7 @@ SILValue StackAllocationPromoter::getLiveOutValue(BlockSet &phiBlocks,
   return SILUndef::get(asi->getElementType(), *asi->getFunction());
 }
 
-SILValue StackAllocationPromoter::getLiveInValue(BlockSet &phiBlocks,
+SILValue StackAllocationPromoter::getLiveInValue(BlockSetVector &phiBlocks,
                                                  SILBasicBlock *block) {
   // First, check if there is a Phi value in the current block. We know that
   // our loads happen before stores, so we need to first check for Phi nodes
@@ -507,7 +521,7 @@ SILValue StackAllocationPromoter::getLiveInValue(BlockSet &phiBlocks,
   return getLiveOutValue(phiBlocks, iDom->getBlock());
 }
 
-void StackAllocationPromoter::fixPhiPredBlock(BlockSet &phiBlocks,
+void StackAllocationPromoter::fixPhiPredBlock(BlockSetVector &phiBlocks,
                                               SILBasicBlock *destBlock,
                                               SILBasicBlock *predBlock) {
   TermInst *ti = predBlock->getTerminator();
@@ -521,7 +535,53 @@ void StackAllocationPromoter::fixPhiPredBlock(BlockSet &phiBlocks,
   ti->eraseFromParent();
 }
 
-void StackAllocationPromoter::fixBranchesAndUses(BlockSet &phiBlocks) {
+bool StackAllocationPromoter::isProactivePhi(SILPhiArgument *phi,
+                                             const BlockSetVector &phiBlocks) {
+  auto *phiBlock = phi->getParentBlock();
+  return phiBlocks.contains(phiBlock) &&
+         phi == phiBlock->getArgument(phiBlock->getNumArguments() - 1);
+}
+
+bool StackAllocationPromoter::isNecessaryProactivePhi(
+    SILPhiArgument *proactivePhi, const BlockSetVector &phiBlocks) {
+  assert(isProactivePhi(proactivePhi, phiBlocks));
+  for (auto *use : proactivePhi->getUses()) {
+    auto *branch = dyn_cast<BranchInst>(use->getUser());
+    // A non-branch use is a necessary use
+    if (!branch)
+      return true;
+    auto *destBB = branch->getDestBB();
+    auto opNum = use->getOperandNumber();
+    // A phi has a necessary use if it is used as a branch op for a
+    // non-proactive phi
+    if (!phiBlocks.contains(destBB) || (opNum != branch->getNumArgs() - 1))
+      return true;
+  }
+  return false;
+}
+
+void StackAllocationPromoter::propagateLiveness(
+    SILPhiArgument *proactivePhi, const BlockSetVector &phiBlocks,
+    SmallPtrSetImpl<SILPhiArgument *> &livePhis) {
+  assert(isProactivePhi(proactivePhi, phiBlocks));
+  if (livePhis.contains(proactivePhi))
+    return;
+  // If liveness has not been propagated, go over the incoming operands and mark
+  // any operand values that are proactivePhis as live
+  livePhis.insert(proactivePhi);
+  SmallVector<SILValue> incomingPhiVals;
+  proactivePhi->getIncomingPhiValues(incomingPhiVals);
+  for (auto &inVal : incomingPhiVals) {
+    auto *inPhi = dyn_cast<SILPhiArgument>(inVal);
+    if (!inPhi)
+      continue;
+    if (!isProactivePhi(inPhi, phiBlocks))
+      continue;
+    propagateLiveness(inPhi, phiBlocks, livePhis);
+  }
+}
+
+void StackAllocationPromoter::fixBranchesAndUses(BlockSetVector &phiBlocks) {
   // First update uses of the value.
   SmallVector<LoadInst *, 4> collectedLoads;
 
@@ -576,7 +636,6 @@ void StackAllocationPromoter::fixBranchesAndUses(BlockSet &phiBlocks) {
 
   // Now that all of the uses are fixed we can fix the branches that point
   // to the blocks with the added arguments.
-
   // For each Block with a new Phi argument:
   for (auto *block : phiBlocks) {
     // Fix all predecessors.
@@ -590,21 +649,37 @@ void StackAllocationPromoter::fixBranchesAndUses(BlockSet &phiBlocks) {
     }
   }
 
-  // If the owned phi arg we added did not have any uses, create end_lifetime to
-  // end its lifetime. In asserts mode, make sure we have only undef incoming
-  // values for such phi args.
-  for (auto *block : phiBlocks) {
-    auto *phiArg =
-        cast<SILPhiArgument>(block->getArgument(block->getNumArguments() - 1));
-    if (phiArg->use_empty()) {
-      erasePhiArgument(block, block->getNumArguments() - 1);
+  // Fix ownership of proactively created non-trivial phis
+  if (asi->getFunction()->hasOwnership() &&
+      !asi->getType().isTrivial(*asi->getFunction())) {
+    SmallPtrSet<SILPhiArgument *, 4> livePhis;
+
+    for (auto *block : phiBlocks) {
+      auto *proactivePhi = cast<SILPhiArgument>(
+          block->getArgument(block->getNumArguments() - 1));
+      // First, check if the proactively added phi is necessary by looking at
+      // it's immediate uses.
+      if (isNecessaryProactivePhi(proactivePhi, phiBlocks)) {
+        // Backward propagate liveness to other dependent proactively added phis
+        propagateLiveness(proactivePhi, phiBlocks, livePhis);
+      }
+    }
+    // Go over all proactively added phis, and delete those that were not marked
+    // live above.
+    for (auto *block : phiBlocks) {
+      auto *proactivePhi = cast<SILPhiArgument>(
+          block->getArgument(block->getNumArguments() - 1));
+      if (!livePhis.contains(proactivePhi)) {
+        proactivePhi->replaceAllUsesWithUndef();
+        erasePhiArgument(block, block->getNumArguments() - 1);
+      }
     }
   }
 }
 
 void StackAllocationPromoter::pruneAllocStackUsage() {
   LLVM_DEBUG(llvm::dbgs() << "*** Pruning : " << *asi);
-  BlockSet functionBlocks(asi->getFunction());
+  BlockSetVector functionBlocks(asi->getFunction());
 
   // Insert all of the blocks that asi is live in.
   for (auto *use : asi->getUses())
@@ -625,7 +700,7 @@ void StackAllocationPromoter::promoteAllocationToPhi() {
   LLVM_DEBUG(llvm::dbgs() << "*** Placing Phis for : " << *asi);
 
   // A list of blocks that will require new Phi values.
-  BlockSet phiBlocks(asi->getFunction());
+  BlockSetVector phiBlocks(asi->getFunction());
 
   // The "piggy-bank" data-structure that we use for processing the dom-tree
   // bottom-up.
@@ -1027,6 +1102,12 @@ bool MemoryToRegisters::promoteSingleAllocation(
     AllocStackInst *alloc, DomTreeLevelMap &domTreeLevels) {
   LLVM_DEBUG(llvm::dbgs() << "*** Memory to register looking at: " << *alloc);
   ++NumAllocStackFound;
+
+  // In OSSA, don't do Mem2Reg on non-trivial alloc_stack with dynamic_lifetime.
+  if (alloc->hasDynamicLifetime() && f.hasOwnership() &&
+      !alloc->getType().isTrivial(f)) {
+    return false;
+  }
 
   // Don't handle captured AllocStacks.
   bool inSingleBlock = false;

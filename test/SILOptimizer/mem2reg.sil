@@ -466,11 +466,11 @@ bb0(%0 : $Optional<Klass>):
   return %4 : $()
 }
 
-// check no dead args are passed to bb3
+// dead args okay in non-ossa
 // CHECK-LABEL: sil @multi_basic_block_use_on_one_path :
 // CHECK-NOT: alloc_stack
-// CHECK: bb3:
-// CHECK-LABEL: } // end sil function 'multi_basic_block_use_on_one_path'
+// CHECK: br bb3(undef : $Klass)
+// CHECK: bb3([[dead_arg:%.*]]):
 sil @multi_basic_block_use_on_one_path : $@convention(thin) (@owned Klass) -> () {
 bb0(%0 : $Klass):
   %1 = alloc_stack $Klass
