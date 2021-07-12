@@ -565,6 +565,7 @@ EquivalenceClassMap::getOrCreateEquivalenceClass(const MutableTerm &key) {
 
 void EquivalenceClassMap::clear() {
   Map.clear();
+  ConcreteTypeInDomainMap.clear();
 }
 
 /// Record a protocol conformance, layout or superclass constraint on the given
@@ -576,6 +577,37 @@ void EquivalenceClassMap::addProperty(
   auto *equivClass = getOrCreateEquivalenceClass(key);
   equivClass->addProperty(property, Context,
                           inducedRules, DebugConcreteUnification);
+}
+
+/// For each fully-concrete type, find the shortest term having that concrete type.
+/// This is later used by computeConstraintTermForTypeWitness().
+void EquivalenceClassMap::computeConcreteTypeInDomainMap() {
+  for (const auto &equivClass : Map) {
+    if (!equivClass->isConcreteType())
+      continue;
+
+    auto concreteType = equivClass->ConcreteType->getConcreteType();
+    if (concreteType->hasTypeParameter())
+      continue;
+
+    assert(equivClass->ConcreteType->getSubstitutions().empty());
+
+    auto domain = equivClass->Key.getRootProtocols();
+    auto concreteTypeKey = std::make_pair(concreteType, domain);
+
+    auto found = ConcreteTypeInDomainMap.find(concreteTypeKey);
+    if (found != ConcreteTypeInDomainMap.end()) {
+      const auto &otherTerm = found->second;
+      assert(equivClass->Key.compare(otherTerm, Protos) > 0 &&
+             "Out-of-order keys?");
+      continue;
+    }
+
+    auto inserted = ConcreteTypeInDomainMap.insert(
+        std::make_pair(concreteTypeKey, equivClass->Key));
+    assert(inserted.second);
+    (void) inserted;
+  }
 }
 
 void EquivalenceClassMap::concretizeNestedTypesFromConcreteParents(
@@ -709,44 +741,13 @@ void EquivalenceClassMap::concretizeNestedTypesFromConcreteParent(
                      << " of " << concreteType << " is " << typeWitness << "\n";
       }
 
-      auto nestedType = Atom::forAssociatedType(proto, assocType->getName(),
-                                                Context);
-
       MutableTerm subjectType = key;
-      subjectType.add(nestedType);
+      subjectType.add(Atom::forAssociatedType(proto, assocType->getName(),
+                                              Context));
 
-      MutableTerm constraintType;
-
-      if (concreteType == typeWitness) {
-        if (DebugConcretizeNestedTypes) {
-          llvm::dbgs() << "^^ Type witness is the same as the concrete type\n";
-        }
-
-        // Add a rule T.[P:A] => T.
-        constraintType = key;
-
-      } else if (typeWitness->isTypeParameter()) {
-        // The type witness is a type parameter of the form τ_0_n.X.Y...Z,
-        // where 'n' is an index into the substitution array.
-        //
-        // Add a rule T => S.X.Y...Z, where S is the nth substitution term.
-        constraintType = getRelativeTermForType(typeWitness, substitutions,
-                                                Context);
-
-      } else {
-        // The type witness is a concrete type.
-        constraintType = subjectType;
-
-        SmallVector<Term, 3> result;
-        auto typeWitnessSchema =
-            remapConcreteSubstitutionSchema(typeWitness, substitutions,
-                                            Context, result);
-
-        // Add a rule T.[P:A].[concrete: Foo.A] => T.[P:A].
-        constraintType.add(
-            Atom::forConcreteType(
-                typeWitnessSchema, result, Context));
-      }
+      MutableTerm constraintType = computeConstraintTermForTypeWitness(
+          key, concreteType, typeWitness, subjectType,
+          substitutions);
 
       inducedRules.emplace_back(subjectType, constraintType);
       if (DebugConcretizeNestedTypes) {
@@ -755,6 +756,97 @@ void EquivalenceClassMap::concretizeNestedTypesFromConcreteParent(
       }
     }
   }
+}
+
+/// Given the key of an equivalence class known to have \p concreteType,
+/// together with a \p typeWitness from a conformance on that concrete
+/// type, return the right hand side of a rewrite rule to relate
+/// \p subjectType with a term representing the type witness.
+///
+/// Suppose the key is T and the subject type is T.[P:A].
+///
+/// If the type witness is an abstract type U, this produces a rewrite
+/// rule
+///
+///     T.[P:A] => U
+///
+/// If the type witness is a concrete type Foo, this produces a rewrite
+/// rule
+///
+///     T.[P:A].[concrete: Foo] => T.[P:A]
+///
+/// However, this also tries to tie off recursion first, using two
+/// heuristics:
+///
+/// 1) If the type witness is the same exact type as the concrete type,
+///    we instead produce a rewrite rule:
+///
+///        T.[P:A] => T
+///
+/// 2) If the type witness is fully concrete and we've already seen a
+///    shorter term V in the same domain with the same concrete type,
+///    we produce a rewrite rule:
+///
+///        T.[P:A] => V
+MutableTerm EquivalenceClassMap::computeConstraintTermForTypeWitness(
+    const MutableTerm &key,
+    CanType concreteType,
+    CanType typeWitness,
+    const MutableTerm &subjectType,
+    ArrayRef<Term> substitutions) const {
+  if (!typeWitness->hasTypeParameter()) {
+    // Check if we have a shorter representative we can use.
+    auto domain = key.getRootProtocols();
+    auto concreteTypeKey = std::make_pair(typeWitness, domain);
+
+    auto found = ConcreteTypeInDomainMap.find(concreteTypeKey);
+    if (found != ConcreteTypeInDomainMap.end()) {
+      if (found->second != subjectType) {
+        if (DebugConcretizeNestedTypes) {
+          llvm::dbgs() << "^^ Type witness can re-use equivalence class of "
+                       << found->second << "\n";
+        }
+        return found->second;
+      }
+    }
+  }
+
+  if (concreteType == typeWitness) {
+    // FIXME: This is wrong for the superclass case!
+    //
+    // FIXME: ConcreteTypeInDomainMap should support substitutions so
+    // that we can remove this.
+
+    if (DebugConcretizeNestedTypes) {
+      llvm::dbgs() << "^^ Type witness is the same as the concrete type\n";
+    }
+
+    // Add a rule T.[P:A] => T.
+    return key;
+  }
+
+  if (typeWitness->isTypeParameter()) {
+    // The type witness is a type parameter of the form τ_0_n.X.Y...Z,
+    // where 'n' is an index into the substitution array.
+    //
+    // Add a rule T => S.X.Y...Z, where S is the nth substitution term.
+    return getRelativeTermForType(typeWitness, substitutions, Context);
+  }
+
+  // The type witness is a concrete type.
+  MutableTerm constraintType = subjectType;
+
+  SmallVector<Term, 3> result;
+  auto typeWitnessSchema =
+      remapConcreteSubstitutionSchema(typeWitness, substitutions,
+                                      Context, result);
+
+  // Add a rule T.[P:A].[concrete: Foo.A] => T.[P:A].
+  constraintType.add(
+      Atom::forConcreteType(
+          typeWitnessSchema, result, Context));
+
+  return constraintType;
 }
 
 void EquivalenceClassMap::dump(llvm::raw_ostream &out) const {
@@ -827,8 +919,13 @@ RewriteSystem::buildEquivalenceClassMap(EquivalenceClassMap &map,
     map.addProperty(pair.first, pair.second, inducedRules);
   }
 
-  // We also need to merge concrete type rules with conformance rules, by
-  // concretizing the associated type witnesses of the concrete type.
+  // We collect equivalence classes with fully concrete types so that we can
+  // re-use them to tie off recursion in the next step.
+  map.computeConcreteTypeInDomainMap();
+
+  // Now, we merge concrete type rules with conformance rules, by adding
+  // relations between associated type members of type parameters with
+  // the concrete type witnesses in the concrete type's conformance.
   map.concretizeNestedTypesFromConcreteParents(inducedRules);
 
   // Some of the induced rules might be trivial; only count the induced rules
