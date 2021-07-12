@@ -572,19 +572,7 @@ void EquivalenceClassMap::concretizeNestedTypesFromConcreteParent(
 
     auto *concrete = conformance.getConcrete();
 
-    // We might have duplicates in the list due to diamond inheritance.
-    // FIXME: Filter those out further upstream?
-    // FIXME: This should actually be outside of the loop over the conforming protos...
-    llvm::SmallDenseSet<AssociatedTypeDecl *, 4> visited;
     for (auto *assocType : assocTypes) {
-      if (!visited.insert(assocType).second)
-        continue;
-
-      // Get the actual protocol in case we inherited this associated type.
-      auto *actualProto = assocType->getProtocol();
-      if (actualProto != proto)
-        continue;
-
       if (DebugConcretizeNestedTypes) {
         llvm::dbgs() << "^^ " << "Looking up type witness for "
                      << proto->getName() << ":" << assocType->getName()

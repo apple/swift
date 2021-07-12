@@ -34,10 +34,13 @@ struct ProtocolInfo {
   /// itself. Computed by ProtocolGraph::computeInheritedProtocols().
   llvm::TinyPtrVector<const ProtocolDecl *> AllInherited;
 
-  /// Transitive closure of inherited associated types together with all
-  /// associated types from the protocol itself. Computed by
-  /// ProtocolGraph::computeInheritedAssociatedTypes().
+  /// Associated types defined in the protocol itself.
   llvm::TinyPtrVector<AssociatedTypeDecl *> AssociatedTypes;
+
+  /// Associated types from all inherited protocols, not including duplicates or
+  /// those defined in the protocol itself. Computed by
+  /// ProtocolGraph::computeInheritedAssociatedTypes().
+  llvm::TinyPtrVector<AssociatedTypeDecl *> InheritedAssociatedTypes;
 
   /// The protocol's requirement signature.
   ArrayRef<Requirement> Requirements;
@@ -76,27 +79,35 @@ struct ProtocolInfo {
 /// referenced from a set of generic requirements.
 ///
 /// Out-of-line methods are documented in ProtocolGraph.cpp.
-struct ProtocolGraph {
+class ProtocolGraph {
   llvm::DenseMap<const ProtocolDecl *, ProtocolInfo> Info;
   std::vector<const ProtocolDecl *> Protocols;
   bool Debug = false;
 
+public:
   void visitRequirements(ArrayRef<Requirement> reqs);
 
   bool isKnownProtocol(const ProtocolDecl *proto) const;
 
+  /// Returns the sorted list of protocols, with the property
+  /// that (P refines Q) => P < Q. See compareProtocols()
+  /// for details.
+  ArrayRef<const ProtocolDecl *> getProtocols() const {
+    return Protocols;
+  }
+
   const ProtocolInfo &getProtocolInfo(
       const ProtocolDecl *proto) const;
 
+private:
   void addProtocol(const ProtocolDecl *proto);
-
   void computeTransitiveClosure();
-
   void computeLinearOrder();
-
   void computeInheritedAssociatedTypes();
-
   void computeInheritedProtocols();
+
+public:
+  void compute();
 
   int compareProtocols(const ProtocolDecl *lhs,
                        const ProtocolDecl *rhs) const;

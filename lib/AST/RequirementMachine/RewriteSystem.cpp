@@ -1051,7 +1051,7 @@ Type getTypeForAtomRange(Iter begin, Iter end, Type root,
       //
       for (auto *proto : atom.getProtocols()) {
         const auto &info = protos.getProtocolInfo(proto);
-        for (auto *otherAssocType : info.AssociatedTypes) {
+        auto checkOtherAssocType = [&](AssociatedTypeDecl *otherAssocType) {
           otherAssocType = otherAssocType->getAssociatedTypeAnchor();
 
           if (otherAssocType->getName() == name &&
@@ -1060,6 +1060,14 @@ Type getTypeForAtomRange(Iter begin, Iter end, Type root,
                                  assocType->getProtocol()) < 0)) {
             assocType = otherAssocType;
           }
+        };
+
+        for (auto *otherAssocType : info.AssociatedTypes) {
+          checkOtherAssocType(otherAssocType);
+        }
+
+        for (auto *otherAssocType : info.InheritedAssociatedTypes) {
+          checkOtherAssocType(otherAssocType);
         }
       }
     }
