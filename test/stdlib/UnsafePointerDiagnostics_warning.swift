@@ -201,10 +201,10 @@ func unsafePointerInitEphemeralConversions() {
   // expected-note@-2 {{use the 'withUnsafeMutableBytes' method on Array in order to explicitly convert argument to buffer pointer valid for a defined scope}}
 
   // FIXME: This is currently ambiguous.
-  _ = OpaquePointer(&foo) // expected-error {{no exact matches in call to initializer}}
+  _ = OpaquePointer(&foo) // expected-error {{ambiguous use of 'init(_:)'}}
 
   // FIXME: This is currently ambiguous.
-  _ = OpaquePointer(&arr) // expected-error {{no exact matches in call to initializer}}
+  _ = OpaquePointer(&arr) // expected-error {{ambiguous use of 'init(_:)'}}
 
   _ = OpaquePointer(arr) // expected-warning {{initialization of 'OpaquePointer' results in a dangling pointer}}
   // expected-note@-1 {{implicit argument conversion from '[Int]' to 'UnsafeRawPointer' produces a pointer valid only for the duration of the call to 'init(_:)'}}

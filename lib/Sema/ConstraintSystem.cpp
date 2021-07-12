@@ -3760,6 +3760,16 @@ bool ConstraintSystem::diagnoseAmbiguityWithFixes(
     }
   }
 
+  // If there either no fixes at all or all of the are warnings,
+  // let's diagnose this as regular ambiguity.
+  if (llvm::all_of(solutions, [](const Solution &solution) {
+        return llvm::all_of(solution.Fixes, [](const ConstraintFix *fix) {
+          return fix->isWarning();
+        });
+      })) {
+    return diagnoseAmbiguity(solutions);
+  }
+
   // Algorithm is as follows:
   //
   // a. Aggregate all of the available fixes based on callee locator;
