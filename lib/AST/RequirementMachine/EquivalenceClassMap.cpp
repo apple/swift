@@ -143,6 +143,67 @@ Type EquivalenceClass::getConcreteType(
                                        ctx);
 }
 
+/// Computes the term corresponding to a member type access on a substitution.
+///
+/// The type witness is a type parameter of the form τ_0_n.X.Y.Z,
+/// where 'n' is an index into the substitution array.
+///
+/// If the nth entry in the array is S, this will produce S.X.Y.Z.
+///
+/// There is a special behavior if the substitution is a term consisting of a
+/// single protocol atom [P]. If the innermost associated type in
+/// \p typeWitness is [Q:Foo], the result will be [P:Foo], not [P].[Q:Foo] or
+/// [Q:Foo].
+static MutableTerm getRelativeTermForType(CanType typeWitness,
+                                          ArrayRef<Term> substitutions,
+                                          RewriteContext &ctx) {
+  MutableTerm result;
+
+  // Get the substitution S corresponding to τ_0_n.
+  unsigned index = getGenericParamIndex(typeWitness->getRootGenericParam());
+  result = MutableTerm(substitutions[index]);
+
+  // If the substitution is a term consisting of a single protocol atom
+  // [P], save P for later.
+  const ProtocolDecl *proto = nullptr;
+  if (result.size() == 1 &&
+      result[0].getKind() == Atom::Kind::Protocol) {
+    proto = result[0].getProtocol();
+  }
+
+  // Collect zero or more member type names in reverse order.
+  SmallVector<Atom, 3> atoms;
+  while (auto memberType = dyn_cast<DependentMemberType>(typeWitness)) {
+    typeWitness = memberType.getBase();
+
+    auto *assocType = memberType->getAssocType();
+    assert(assocType != nullptr &&
+           "Conformance checking should not produce unresolved member types");
+
+    // If the substitution is a term consisting of a single protocol atom [P],
+    // produce [P:Foo] instead of [P].[Q:Foo] or [Q:Foo].
+    const auto *thisProto = assocType->getProtocol();
+    if (proto && isa<GenericTypeParamType>(typeWitness)) {
+      thisProto = proto;
+
+      assert(result.size() == 1);
+      assert(result[0].getKind() == Atom::Kind::Protocol);
+      assert(result[0].getProtocol() == proto);
+      result = MutableTerm();
+    }
+
+    atoms.push_back(Atom::forAssociatedType(thisProto,
+                                            assocType->getName(), ctx));
+  }
+
+  // Add the member type names.
+  std::reverse(atoms.begin(), atoms.end());
+  for (auto atom : atoms)
+    result.add(atom);
+
+  return result;
+}
+
 /// Given a concrete type that is a structural sub-component of a concrete
 /// type produced by RewriteSystemBuilder::getConcreteSubstitutionSchema(),
 /// collect the subset of referenced substitutions and renumber the generic
@@ -607,23 +668,9 @@ void EquivalenceClassMap::concretizeNestedTypesFromConcreteParent(
         // The type witness is a type parameter of the form τ_0_n.X.Y...Z,
         // where 'n' is an index into the substitution array.
         //
-        // Collect zero or more member type names in reverse order.
-        SmallVector<Atom, 3> atoms;
-        while (auto memberType = dyn_cast<DependentMemberType>(typeWitness)) {
-          atoms.push_back(Atom::forName(memberType->getName(), Context));
-          typeWitness = memberType.getBase();
-        }
-
-        // Get the substitution S corresponding to τ_0_n.
-        unsigned index = getGenericParamIndex(typeWitness);
-        constraintType = MutableTerm(substitutions[index]);
-
-        // Add the member type names.
-        std::reverse(atoms.begin(), atoms.end());
-        for (auto atom : atoms)
-          constraintType.add(atom);
-
-        // Add a rule T => S.X.Y...Z.
+        // Add a rule T => S.X.Y...Z, where S is the nth substitution term.
+        constraintType = getRelativeTermForType(typeWitness, substitutions,
+                                                Context);
 
       } else {
         // The type witness is a concrete type.
@@ -635,12 +682,11 @@ void EquivalenceClassMap::concretizeNestedTypesFromConcreteParent(
             remapConcreteSubstitutionSchema(typeWitness, substitutions,
                                             Context.getASTContext(),
                                             result);
+
+        // Add a rule T.[P:A].[concrete: Foo.A] => T.[P:A].
         constraintType.add(
             Atom::forConcreteType(
                 typeWitnessSchema, result, Context));
-
-        // Add a rule T.[P:A].[concrete: Foo.A] => T.[P:A].
-
       }
 
       inducedRules.emplace_back(subjectType, constraintType);
