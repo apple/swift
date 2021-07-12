@@ -13,4 +13,4 @@
 
 INSTALLED_TOOLCHAIN=$2
 
-ln -fs "${INSTALLED_TOOLCHAIN}" "${INSTALLED_TOOLCHAIN%/*}/swift-latest"
+ln -fs "${INSTALLED_TOOLCHAIN}" "${INSTALLED_TOOLCHAIN%/*}/swift-latest.xctoolchain"
