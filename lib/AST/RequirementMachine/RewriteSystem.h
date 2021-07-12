@@ -340,6 +340,8 @@ public:
 
   size_t size() const { return Atoms.size(); }
 
+  ArrayRef<const ProtocolDecl *> getRootProtocols() const;
+
   decltype(Atoms)::const_iterator begin() const { return Atoms.begin(); }
   decltype(Atoms)::const_iterator end() const { return Atoms.end(); }
 
