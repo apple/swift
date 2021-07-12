@@ -273,8 +273,8 @@ remapConcreteSubstitutionSchema(CanType concreteType,
 /// Returns the left hand side on success (it could also return the right hand
 /// side; since we unified the type constructor arguments, it doesn't matter).
 ///
-/// Returns the ErrorType concrete type atom on failure.
-static Atom unifyConcreteTypes(
+/// Returns true if a conflict was detected.
+static bool unifyConcreteTypes(
     Atom lhs, Atom rhs, RewriteContext &ctx,
     SmallVectorImpl<std::pair<MutableTerm, MutableTerm>> &inducedRules,
     bool debug) {
@@ -383,11 +383,10 @@ static Atom unifyConcreteTypes(
     if (debug) {
       llvm::dbgs() << "%% Concrete type conflict\n";
     }
-    return Atom::forConcreteType(CanType(ErrorType::get(ctx.getASTContext())),
-                                 {}, ctx);
+    return true;
   }
 
-  return lhs;
+  return false;
 }
 
 void EquivalenceClass::addProperty(
@@ -428,8 +427,8 @@ void EquivalenceClass::addProperty(
 
   case Atom::Kind::ConcreteType: {
     if (ConcreteType) {
-      ConcreteType = unifyConcreteTypes(*ConcreteType, property,
-                                        ctx, inducedRules, debug);
+      (void) unifyConcreteTypes(*ConcreteType, property,
+                                ctx, inducedRules, debug);
     } else {
       ConcreteType = property;
     }
