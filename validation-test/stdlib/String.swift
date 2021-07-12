@@ -2280,4 +2280,44 @@ StringTests.test("NormalizationCheck/Opaque")
 #endif
 }
 
+StringTests.test("StringRepeating/SingleAsciiCharacterCount10") {
+    expectEqual("xxxxxxxxxx", String(repeating: "x", count: 10))
+}
+
+StringTests.test("StringRepeating/SingleAsciiCharacterCount1") {
+    expectEqual("x", String(repeating: "x", count: 1))
+}
+
+StringTests.test("StringRepeating/EmptyStringCount10") {
+    expectEqual("", String(repeating: "", count: 10))
+}
+
+StringTests.test("StringRepeating/SingleAsciiCharacterCount0") {
+    expectEqual("", String(repeating: "x", count: 0))
+}
+
+StringTests.test("StringRepeating/MultipleAsciiCharactersCount2") {
+    expectEqual("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz",
+                String(repeating: "abcdefghijklmnopqrstuvwxyz", count: 2))
+}
+
+StringTests.test("StringRepeating/SingleCyrilicCharacterCount5") {
+    expectEqual("яяяяя", String(repeating: "я", count: 5))
+}
+
+StringTests.test("StringRepeating/MultipleCyrilicCharactersCount2") {
+    expectEqual("абвгґдеєжзиіїйклмнопрстуфхцчшщьюяабвгґдеєжзиіїйклмнопрстуфхцчшщьюя",
+                String(repeating: "абвгґдеєжзиіїйклмнопрстуфхцчшщьюя", count: 2))
+}
+
+StringTests.test("StringRepeating/\\u{1F1F8}\\u{1F1FA}Count2") {
+    expectEqual("\u{1F1F8}\u{1F1FA}\u{1F1F8}\u{1F1FA}" /* 🇸🇺🇸🇺 */,
+                String(repeating: "\u{1F1F8}\u{1F1FA}" /* 🇸🇺 */, count: 2))
+}
+
+StringTests.test("StringRepeating/\\u{301}cafeCount5") {
+    expectEqual("\u{301}cafécafécafécafécafe",
+                String(repeating: "\u{301}cafe", count: 5))
+}
+
 runAllTests()

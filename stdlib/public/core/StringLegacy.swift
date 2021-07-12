@@ -33,14 +33,27 @@ extension String {
       self = count == 0 ? "" : repeatedValue
       return
     }
-
-    // TODO(String performance): We can directly call appendInPlace
-    var result = String()
-    result.reserveCapacity(repeatedValue._guts.count &* count)
-    for _ in 0..<count {
-      result += repeatedValue
+    guard !repeatedValue.isEmpty else {
+      self = ""
+      return
     }
-    self = result
+
+    var repeatedValue = repeatedValue
+    self = repeatedValue.withUTF8 { repeatedUTF8 in
+      let uninitializedCapacity = repeatedUTF8.count * count
+      return String(_uninitializedCapacity: uninitializedCapacity) { buffer in
+        var initialized = 0
+        for i in 0..<count {
+          let offset = i &* repeatedUTF8.count
+          let range = offset ..< offset + repeatedUTF8.count
+          _ = UnsafeMutableBufferPointer(rebasing: buffer[range])
+            .initialize(from: repeatedUTF8)
+          initialized += range.count
+        }
+        _internalInvariant(initialized == uninitializedCapacity)
+        return initialized
+      }
+    }
   }
 
   /// A Boolean value indicating whether a string has no characters.
