@@ -1891,15 +1891,6 @@ void PreCheckExpression::resolveKeyPathExpr(KeyPathExpr *KPE) {
             UDE->getName(), UDE->getLoc()));
 
         expr = UDE->getBase();
-      } else if (auto CCE = dyn_cast<CodeCompletionExpr>(expr)) {
-        components.push_back(
-            KeyPathExpr::Component::forCodeCompletion(CCE->getLoc()));
-
-        expr = CCE->getBase();
-        if (!expr) {
-          // We are completing on the key path's base. Stop iterating.
-          return;
-        }
       } else if (auto SE = dyn_cast<SubscriptExpr>(expr)) {
         // .[0] or just plain [0]
         components.push_back(

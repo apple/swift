@@ -3122,7 +3122,6 @@ namespace {
         if (!rootObjectTy || rootObjectTy->hasError())
           return Type();
 
-        CS.setType(rootRepr, rootObjectTy);
         // Allow \Derived.property to be inferred as \Base.property to
         // simulate a sort of covariant conversion from
         // KeyPath<Derived, T> to KeyPath<Base, T>.
@@ -3144,13 +3143,7 @@ namespace {
         switch (auto kind = component.getKind()) {
         case KeyPathExpr::Component::Kind::Invalid:
           break;
-        case KeyPathExpr::Component::Kind::CodeCompletion:
-          // We don't know what the code completion might resolve to, so we are
-          // creating a new type variable for its result, which might be a hole.
-          base = CS.createTypeVariable(
-              resultLocator,
-              TVO_CanBindToLValue | TVO_CanBindToNoEscape | TVO_CanBindToHole);
-          break;
+        
         case KeyPathExpr::Component::Kind::UnresolvedProperty:
         // This should only appear in resolved ASTs, but we may need to
         // re-type-check the constraints during failure diagnosis.
@@ -3232,7 +3225,7 @@ namespace {
           break;
         }
         case KeyPathExpr::Component::Kind::Identity:
-          break;
+          continue;
         case KeyPathExpr::Component::Kind::DictionaryKey:
           llvm_unreachable("DictionaryKey only valid in #keyPath");
           break;
@@ -3246,8 +3239,7 @@ namespace {
       // If there was an optional chaining component, the end result must be
       // optional.
       if (didOptionalChain) {
-        auto objTy = CS.createTypeVariable(locator, TVO_CanBindToNoEscape |
-                                                        TVO_CanBindToHole);
+        auto objTy = CS.createTypeVariable(locator, TVO_CanBindToNoEscape);
         componentTypeVars.push_back(objTy);
 
         auto optTy = OptionalType::get(objTy);
@@ -3258,8 +3250,8 @@ namespace {
 
       auto baseLocator =
           CS.getConstraintLocator(E, ConstraintLocator::KeyPathValue);
-      auto rvalueBase = CS.createTypeVariable(
-          baseLocator, TVO_CanBindToNoEscape | TVO_CanBindToHole);
+      auto rvalueBase = CS.createTypeVariable(baseLocator,
+                                              TVO_CanBindToNoEscape);
       CS.addConstraint(ConstraintKind::Equal, base, rvalueBase, locator);
 
       // The result is a KeyPath from the root to the end component.

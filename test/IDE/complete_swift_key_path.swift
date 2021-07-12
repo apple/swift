@@ -32,13 +32,6 @@
 // RUN: %target-swift-ide-test -code-completion -source-filename %s -code-completion-token=CONTEXT_FUNC_INOUT | %FileCheck %s -check-prefix=PERSONTYPE-DOT
 // RUN: %target-swift-ide-test -code-completion -source-filename %s -code-completion-token=CONTEXT_FUNC_VARIADIC | %FileCheck %s -check-prefix=ARRAYTYPE-DOT
 
-// RUN: %target-swift-ide-test -code-completion -source-filename %s -code-completion-token=GENERIC_KEY_PATH_BASE | %FileCheck %s -check-prefix=PERSONTYPE-DOT
-// RUN: %target-swift-ide-test -code-completion -source-filename %s -code-completion-token=GENERIC_KEY_PATH_RESULT | %FileCheck %s -check-prefix=PERSONTYPE-DOT
-
-// RUN: %target-swift-ide-test -code-completion -source-filename %s -code-completion-token=COMPLETE_AFTER_SELF | %FileCheck %s -check-prefix=OBJ-NODOT
-// RUN: %target-swift-ide-test -code-completion -source-filename %s -code-completion-token=IN_RESULT_BUILDER | %FileCheck %s -check-prefix=PERSONTYPE-DOT
-// RUN: %target-swift-ide-test -code-completion -source-filename %s -code-completion-token=IN_MULTI_STMT_CLOSURE | %FileCheck %s -check-prefix=PERSONTYPE-DOT
-
 class Person {
     var name: String
     var friends: [Person] = []
@@ -184,47 +177,4 @@ func testKeyPathAsFunctions(wrapped: Wrap<Person>) {
   // Same as TYPE_DOT.
   let _ = wrapped.variadic(\.#^CONTEXT_FUNC_VARIADIC^#)
   // Same as ARRAYTYPE_DOT.
-}
-
-func genericKeyPathBase<Root>(to keyPath: ReferenceWritableKeyPath<Root, Person>, on object: Root) {
-  genericKeyPathBase(to: \.#^GENERIC_KEY_PATH_BASE^#, on: Person())
-  // Same as TYPE_DOT.
-}
-
-func genericKeyPathResult<KeyPathResult>(id: KeyPath<Person, KeyPathResult>) {
-  genericKeyPathResult(\.#^GENERIC_KEY_PATH_RESULT^#)
-  // Same as TYPE_DOT.
-}
-
-func completeAfterSelf(people: [Person]) {
-  people.map(\.self#^COMPLETE_AFTER_SELF^#)
-}
-
-func inResultBuilder() {
-  protocol View2 {}
-
-  @resultBuilder public struct ViewBuilder2 {
-    public static func buildBlock<Content>(_ content: Content) -> Content where Content : View2 { fatalError() }
-    public static func buildIf<Content>(_ content: Content?) -> Content? where Content : View2 { fatalError() }
-  }
-
-  struct VStack2<Content>: View2 {
-    init(@ViewBuilder2 view: () -> Content) {}
-  }
-
-  @ViewBuilder2 var body: some View2 {
-    VStack2 {
-      if true {
-        var people: [Person] = []
-        people.map(\.#^IN_RESULT_BUILDER^#)
-      }
-    }
-  }
-}
-
-func inMultiStmtClosure(closure: () -> Void) {
-  inMultiStmtClosure {
-    var people: [Person] = []
-    people.map(\.#^IN_MULTI_STMT_CLOSURE^#)
-  }
 }

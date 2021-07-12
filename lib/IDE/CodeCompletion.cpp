@@ -6727,28 +6727,6 @@ void deliverUnresolvedMemberResults(
   deliverCompletionResults(CompletionCtx, Lookup, DC, Consumer);
 }
 
-void deliverKeyPathResults(
-    ArrayRef<KeyPathTypeCheckCompletionCallback::Result> Results,
-    DeclContext *DC, SourceLoc DotLoc,
-    ide::CodeCompletionContext &CompletionCtx,
-    CodeCompletionConsumer &Consumer) {
-  ASTContext &Ctx = DC->getASTContext();
-  CompletionLookup Lookup(CompletionCtx.getResultSink(), Ctx, DC,
-                          &CompletionCtx);
-
-  if (DotLoc.isValid()) {
-    Lookup.setHaveDot(DotLoc);
-  }
-  Lookup.shouldCheckForDuplicates(Results.size() > 1);
-
-  for (auto &Result : Results) {
-    Lookup.setIsSwiftKeyPathExpr(Result.OnRoot);
-    Lookup.getValueExprCompletions(Result.BaseType);
-  }
-
-  deliverCompletionResults(CompletionCtx, Lookup, DC, Consumer);
-}
-
 void deliverDotExprResults(
     ArrayRef<DotExprTypeCheckCompletionCallback::Result> Results,
     Expr *BaseExpr, DeclContext *DC, SourceLoc DotLoc, bool IsInSelector,
@@ -6838,21 +6816,6 @@ bool CodeCompletionCallbacksImpl::trySolverCompletion(bool MaybeFuncBody) {
     addKeywords(CompletionContext.getResultSink(), MaybeFuncBody);
     deliverUnresolvedMemberResults(Lookup.getResults(), CurDeclContext, DotLoc,
                                    CompletionContext, Consumer);
-    return true;
-  }
-  case CompletionKind::KeyPathExprSwift: {
-    assert(CurDeclContext);
-
-    // CodeCompletionCallbacks::completeExprKeyPath takes a \c KeyPathExpr,
-    // so we can safely cast the \c ParsedExpr back to a \c KeyPathExpr.
-    auto KeyPath = cast<KeyPathExpr>(ParsedExpr);
-    KeyPathTypeCheckCompletionCallback Lookup(KeyPath);
-    llvm::SaveAndRestore<TypeCheckCompletionCallback *> CompletionCollector(
-        Context.CompletionCallback, &Lookup);
-    typeCheckContextAt(CurDeclContext, CompletionLoc);
-
-    deliverKeyPathResults(Lookup.getResults(), CurDeclContext, DotLoc,
-                          CompletionContext, Consumer);
     return true;
   }
   default:
@@ -6975,9 +6938,59 @@ void CodeCompletionCallbacksImpl::doneParsing() {
   case CompletionKind::None:
   case CompletionKind::DotExpr:
   case CompletionKind::UnresolvedMember:
-  case CompletionKind::KeyPathExprSwift:
     llvm_unreachable("should be already handled");
     return;
+
+  case CompletionKind::KeyPathExprSwift: {
+    auto KPE = dyn_cast<KeyPathExpr>(ParsedExpr);
+    auto BGT = (*ExprType)->getAs<BoundGenericType>();
+    if (!KPE || !BGT || BGT->getGenericArgs().size() != 2)
+      break;
+    assert(!KPE->isObjC());
+
+    if (DotLoc.isValid())
+      Lookup.setHaveDot(DotLoc);
+
+    bool OnRoot = !KPE->getComponents().front().isValid();
+    Lookup.setIsSwiftKeyPathExpr(OnRoot);
+
+    Type baseType = BGT->getGenericArgs()[OnRoot ? 0 : 1];
+    if (OnRoot && baseType->is<UnresolvedType>()) {
+      // Infer the root type of the keypath from the context type.
+      ExprContextInfo ContextInfo(CurDeclContext, ParsedExpr);
+      for (auto T : ContextInfo.getPossibleTypes()) {
+        if (auto unwrapped = T->getOptionalObjectType())
+          T = unwrapped;
+
+        // If the context type is any of the KeyPath types, use it.
+        if (T->getAnyNominal() && T->getAnyNominal()->getKeyPathTypeKind() &&
+            !T->hasUnresolvedType() && T->is<BoundGenericType>()) {
+          baseType = T->castTo<BoundGenericType>()->getGenericArgs()[0];
+          break;
+        }
+
+        // KeyPath can be used as a function that receives its root type.
+        if (T->is<AnyFunctionType>()) {
+          auto *fnType = T->castTo<AnyFunctionType>();
+          if (fnType->getNumParams() == 1) {
+            const AnyFunctionType::Param &param = fnType->getParams()[0];
+            baseType = param.getParameterType();
+            break;
+          }
+        }
+      }
+    }
+    if (!OnRoot && KPE->getComponents().back().getKind() ==
+                       KeyPathExpr::Component::Kind::OptionalWrap) {
+      // KeyPath expr with '?' (e.g. '\Ty.[0].prop?.another').
+      // Although expected type is optional, we should unwrap it because it's
+      // unwrapped.
+      baseType = baseType->getOptionalObjectType();
+    }
+
+    Lookup.getValueExprCompletions(baseType);
+    break;
+  }
 
   case CompletionKind::StmtOrExpr:
   case CompletionKind::ForEachSequence:

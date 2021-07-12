@@ -1293,10 +1293,6 @@ public:
 
   bool hasType(ASTNode node) const;
 
-  /// Returns \c true if the \p ComponentIndex-th component in \p KP has a type
-  /// associated with it.
-  bool hasType(const KeyPathExpr *KP, unsigned ComponentIndex) const;
-
   /// Retrieve the type of the given node, as recorded in this solution.
   Type getType(ASTNode node) const;
 

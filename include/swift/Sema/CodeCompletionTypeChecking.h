@@ -116,29 +116,6 @@ namespace swift {
     void sawSolution(const constraints::Solution &solution) override;
   };
 
-  class KeyPathTypeCheckCompletionCallback
-      : public TypeCheckCompletionCallback {
-  public:
-    struct Result {
-      /// The type on which completion should occur, i.e. a result type of the
-      /// previous component.
-      Type BaseType;
-      /// Whether code completion happens on the key path's root.
-      bool OnRoot;
-    };
-
-  private:
-    KeyPathExpr *KeyPath;
-    SmallVector<Result, 4> Results;
-
-  public:
-    KeyPathTypeCheckCompletionCallback(KeyPathExpr *KeyPath)
-        : KeyPath(KeyPath) {}
-
-    ArrayRef<Result> getResults() const { return Results; }
-
-    void sawSolution(const constraints::Solution &solution) override;
-  };
 }
 
 #endif

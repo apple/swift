@@ -1125,7 +1125,6 @@ class Traversal : public ASTVisitor<Traversal, Expr*, Stmt*,
       case KeyPathExpr::Component::Kind::Identity:
       case KeyPathExpr::Component::Kind::TupleElement:
       case KeyPathExpr::Component::Kind::DictionaryKey:
-      case KeyPathExpr::Component::Kind::CodeCompletion:
         // No subexpr to visit.
         break;
       }

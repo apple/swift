@@ -659,26 +659,21 @@ ParserResult<Expr> Parser::parseExprKeyPath() {
   if (rootResult.isNull() && pathResult.isNull())
     return nullptr;
 
+  auto keypath =
+      new (Context) KeyPathExpr(backslashLoc, rootResult.getPtrOrNull(),
+                                pathResult.getPtrOrNull(), hasLeadingDot);
+
   // Handle code completion.
   if ((Tok.is(tok::code_complete) && !Tok.isAtStartOfLine()) ||
       (Tok.is(tok::period) && peekToken().isAny(tok::code_complete))) {
     SourceLoc DotLoc;
     consumeIf(tok::period, DotLoc);
-
-    // Add the code completion expression to the path result.
-    CodeCompletionExpr *CC = new (Context)
-        CodeCompletionExpr(pathResult.getPtrOrNull(), Tok.getLoc());
-    auto keypath = new (Context)
-        KeyPathExpr(backslashLoc, rootResult.getPtrOrNull(), CC, hasLeadingDot);
     if (CodeCompletion)
       CodeCompletion->completeExprKeyPath(keypath, DotLoc);
     consumeToken(tok::code_complete);
     return makeParserCodeCompletionResult(keypath);
   }
 
-  auto keypath =
-      new (Context) KeyPathExpr(backslashLoc, rootResult.getPtrOrNull(),
-                                pathResult.getPtrOrNull(), hasLeadingDot);
   return makeParserResult(parseStatus, keypath);
 }
 

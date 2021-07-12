@@ -509,7 +509,6 @@ ConstraintLocator *ConstraintSystem::getCalleeLocator(
     case ComponentKind::OptionalWrap:
     case ComponentKind::Identity:
     case ComponentKind::DictionaryKey:
-    case ComponentKind::CodeCompletion:
       // These components don't have any callee associated, so just continue.
       break;
     }
