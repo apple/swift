@@ -204,23 +204,30 @@ static MutableTerm getRelativeTermForType(CanType typeWitness,
   return result;
 }
 
-/// Given a concrete type that is a structural sub-component of a concrete
-/// type produced by RewriteSystemBuilder::getConcreteSubstitutionSchema(),
-/// collect the subset of referenced substitutions and renumber the generic
-/// parameters in the type.
+/// This method takes a concrete type that was derived from a concrete type
+/// produced by RewriteSystemBuilder::getConcreteSubstitutionSchema(),
+/// either by extracting a structural sub-component or performing a (Swift AST)
+/// substitution using subst(). It returns a new concrete substitution schema
+/// and a new list of substitution terms.
 ///
 /// For example, suppose we start with the concrete type
 ///
 ///   Dictionary<τ_0_0, Array<τ_0_1>> with substitutions {X.Y, Z}
 ///
 /// We can extract out the structural sub-component Array<τ_0_1>. If we wish
-/// to turn this into a new concrete substitution schema, we call this method
-/// with Array<τ_0_1> and the original substitutions {X.Y, Z}. This will
-/// return the type Array<τ_0_0> and the substitutions {Z}.
-CanType
+/// to build a new concrete substitution schema, we call this method with
+/// Array<τ_0_1> and the original substitutions {X.Y, Z}. This will produce
+/// the new schema Array<τ_0_0> with substitutions {Z}.
+///
+/// As another example, consider we start with the schema Bar<τ_0_0> with
+/// original substitutions {X.Y}, and perform a Swift AST subst() to get
+/// Foo<τ_0_0.A.B>. We can then call this method with Foo<τ_0_0.A.B> and
+/// the original substitutions {X.Y} to produce the new schema Foo<τ_0_0>
+/// with substitutions {X.Y.A.B}.
+static CanType
 remapConcreteSubstitutionSchema(CanType concreteType,
                                 ArrayRef<Term> substitutions,
-                                ASTContext &ctx,
+                                RewriteContext &ctx,
                                 SmallVectorImpl<Term> &result) {
   assert(!concreteType->isTypeParameter() && "Must have a concrete type here");
 
@@ -229,16 +236,16 @@ remapConcreteSubstitutionSchema(CanType concreteType,
 
   return CanType(concreteType.transformRec(
     [&](Type t) -> Optional<Type> {
-      assert(!t->is<DependentMemberType>());
-
-      if (!t->is<GenericTypeParamType>())
+      if (!t->isTypeParameter())
         return None;
 
-      unsigned oldIndex = getGenericParamIndex(t);
-      unsigned newIndex = result.size();
-      result.push_back(substitutions[oldIndex]);
+      auto term = getRelativeTermForType(CanType(t), substitutions, ctx);
 
-      return CanGenericTypeParamType::get(/*depth=*/0, newIndex, ctx);
+      unsigned newIndex = result.size();
+      result.push_back(Term::get(term, ctx));
+
+      return CanGenericTypeParamType::get(/*depth=*/0, newIndex,
+                                          ctx.getASTContext());
     }));
 }
 
@@ -326,8 +333,7 @@ static Atom unifyConcreteTypes(
         SmallVector<Term, 3> result;
         auto concreteType = remapConcreteSubstitutionSchema(CanType(secondType),
                                                             rhsSubstitutions,
-                                                            ctx.getASTContext(),
-                                                            result);
+                                                            ctx, result);
 
         MutableTerm constraintTerm(subjectTerm);
         constraintTerm.add(Atom::forConcreteType(concreteType, result, ctx));
@@ -350,8 +356,7 @@ static Atom unifyConcreteTypes(
         SmallVector<Term, 3> result;
         auto concreteType = remapConcreteSubstitutionSchema(CanType(firstType),
                                                             lhsSubstitutions,
-                                                            ctx.getASTContext(),
-                                                            result);
+                                                            ctx, result);
 
         MutableTerm constraintTerm(subjectTerm);
         constraintTerm.add(Atom::forConcreteType(concreteType, result, ctx));
@@ -676,12 +681,10 @@ void EquivalenceClassMap::concretizeNestedTypesFromConcreteParent(
         // The type witness is a concrete type.
         constraintType = subjectType;
 
-        // FIXME: Handle dependent member types here
         SmallVector<Term, 3> result;
         auto typeWitnessSchema =
             remapConcreteSubstitutionSchema(typeWitness, substitutions,
-                                            Context.getASTContext(),
-                                            result);
+                                            Context, result);
 
         // Add a rule T.[P:A].[concrete: Foo.A] => T.[P:A].
         constraintType.add(
