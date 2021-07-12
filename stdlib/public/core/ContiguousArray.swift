@@ -526,14 +526,14 @@ extension ContiguousArray: RangeReplaceableCollection {
   /// `LazyMapCollection<Dictionary<String, Int>, Int>` to a simple
   /// `[String]`.
   ///
-  ///     func cacheImagesWithNames(names: [String]) {
+  ///     func cacheImages(withNames names: [String]) {
   ///         // custom image loading and caching
   ///      }
   ///
   ///     let namedHues: [String: Int] = ["Vermillion": 18, "Magenta": 302,
   ///             "Gold": 50, "Cerise": 320]
   ///     let colorNames = Array(namedHues.keys)
-  ///     cacheImagesWithNames(colorNames)
+  ///     cacheImages(withNames: colorNames)
   ///
   ///     print(colorNames)
   ///     // Prints "["Gold", "Cerise", "Magenta", "Vermillion"]"
@@ -684,7 +684,8 @@ extension ContiguousArray: RangeReplaceableCollection {
 
   /// Reserves enough space to store `minimumCapacity` elements.
   /// If a new buffer needs to be allocated and `growForAppend` is true,
-  /// the new capacity is calculated using `_growArrayCapacity`.
+  /// the new capacity is calculated using `_growArrayCapacity`, but at least
+  /// kept at `minimumCapacity`.
   @_alwaysEmitIntoClient
   internal mutating func _reserveCapacityImpl(
     minimumCapacity: Int, growForAppend: Bool
@@ -706,7 +707,7 @@ extension ContiguousArray: RangeReplaceableCollection {
   /// to the new buffer.
   /// The `minimumCapacity` is the lower bound for the new capacity.
   /// If `growForAppend` is true, the new capacity is calculated using
-  /// `_growArrayCapacity`.
+  /// `_growArrayCapacity`, but at least kept at `minimumCapacity`.
   @_alwaysEmitIntoClient
   @inline(never)
   internal mutating func _createNewBuffer(
@@ -1038,6 +1039,7 @@ extension ContiguousArray: CustomStringConvertible, CustomDebugStringConvertible
   /// A textual representation of the array and its elements, suitable for
   /// debugging.
   public var debugDescription: String {
+    // Always show sugared representation for Arrays.
     return _makeCollectionDescription(withTypeName: "ContiguousArray")
   }
 }
