@@ -180,7 +180,7 @@ void swift::donateThreadToGlobalExecutorUntil(bool (*condition)(void *),
   while (!condition(conditionContext)) {
     auto job = claimNextFromJobQueue();
     if (!job) return;
-    job->run(ExecutorRef::generic());
+    swift_job_run(job, ExecutorRef::generic());
   }
 }
 
