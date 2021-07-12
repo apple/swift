@@ -6,11 +6,11 @@ func doSomething<T>(_ t: T) {}
 
 func outerGeneric<T>(t: T, x: AnyObject) {
   // Simple case -- closure captures outer generic parameter
-  // CHECK: closure_expr type='() -> ()' {{.*}} discriminator=0 captures=(<generic> t<direct>) escaping  single-expression
+  // CHECK: closure_expr type='() -> ()' {{.*}} discriminator=0 captures=(<generic> t<direct>) escaping  single_expr
   _ = { doSomething(t) }
 
   // Special case -- closure does not capture outer generic parameters
-  // CHECK: closure_expr type='() -> ()' {{.*}} discriminator=1 captures=(x<direct>) escaping single-expression
+  // CHECK: closure_expr type='() -> ()' {{.*}} discriminator=1 captures=(x<direct>) escaping single_expr
   _ = { doSomething(x) }
 
   // Special case -- closure captures outer generic parameter, but it does not

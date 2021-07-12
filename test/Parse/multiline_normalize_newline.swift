@@ -1,38 +1,44 @@
 // RUN: %target-swift-frontend -dump-parse %s | %FileCheck %s
 
 // CR
-_ = """"""
-//CHECK: string_literal_expr {{.*}} value=""
-
-_ = """  test  """
-//CHECK: string_literal_expr {{.*}} value="test"
-
-// CR+LF
 _ = """
-    """
-//CHECK: string_literal_expr {{.*}} value=""
+"""
+//CHECK: string_literal_expr {{.*}} "" encoding=utf8
 
 _ = """
   test
   """
-//CHECK: string_literal_expr {{.*}} value="test"
+//CHECK: string_literal_expr {{.*}} "test" encoding=utf8
 
 // CR+LF
 _ = """
     """
-//CHECK: string_literal_expr {{.*}} value=""
+//CHECK: string_literal_expr {{.*}} "" encoding=utf8
+
+_ = """
+  test
+  """
+//CHECK: string_literal_expr {{.*}} "test" encoding=utf8
+
+// CR+LF
+_ = """
+    """
+//CHECK: string_literal_expr {{.*}} "" encoding=utf8
 _ = """
   test
   test
   """
-//CHECK: string_literal_expr {{.*}} value="test\ntest"
+//CHECK: string_literal_expr {{.*}} "test\ntest" encoding=utf8
 
 // LF+CR
 _ = """
-    foo
-    foo
-    """
-//CHECK: string_literal_expr {{.*}} value="\nfoo\n\nfoo\n"
+
+    foo
+
+    foo
+
+    """
+//CHECK: string_literal_expr {{.*}} "\nfoo\n\nfoo\n" encoding=utf8
 
 // LF+CR+LF
 _ = """
@@ -42,29 +48,32 @@ _ = """
     foo
 
     """
-//CHECK: string_literal_expr {{.*}} value="\nfoo\n\nfoo\n"
+//CHECK: string_literal_expr {{.*}} "\nfoo\n\nfoo\n" encoding=utf8
 
 // Mixed no-indent.
 _ = """
 <LF
-<LF<CR
+<LF
+<CR
 <CR+LF
 """
-//CHECK: string_literal_expr {{.*}} value="<LF\n<LF\n<CR\n<CR+LF"
+//CHECK: string_literal_expr {{.*}} "<LF\n<LF\n<CR\n<CR+LF" encoding=utf8
 
 // Mixed indent.
 _ = """
 	 <LF
-	 <LF	 <CR
+	 <LF
+	 <CR
 	 <CR+LF
 	 """
-//CHECK: string_literal_expr {{.*}} value="<LF\n<LF\n<CR\n<CR+LF"
+//CHECK: string_literal_expr {{.*}} "<LF\n<LF\n<CR\n<CR+LF" encoding=utf8
 
 // Empty line CR, CR+LF, LF.
 _ = """
    foo
-
+
+
 
    bar
    """
-//CHECK: string_literal_expr {{.*}} value="foo\n\n\n\nbar"
+//CHECK: string_literal_expr {{.*}} "foo\n\n\n\nbar" encoding=utf8

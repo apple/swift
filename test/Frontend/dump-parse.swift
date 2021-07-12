@@ -4,12 +4,12 @@
 // CHECK-LABEL: (func_decl{{.*}}"foo(_:)"
 // CHECK-AST-LABEL: (func_decl{{.*}}"foo(_:)"
 func foo(_ n: Int) -> Int {
-  // CHECK:   (brace_stmt
+  // CHECK:   (body=brace_stmt
   // CHECK:     (return_stmt
-  // CHECK:       (integer_literal_expr type='<null>' value=42 {{.*}})))
-  // CHECK-AST: (brace_stmt
+  // CHECK:       (integer_literal_expr type='<null type>'{{.*}} 42 {{.*}})))
+  // CHECK-AST: (body=brace_stmt
   // CHECK-AST:   (return_stmt
-  // CHECK-AST:     (integer_literal_expr type='{{[^']+}}' {{.*}} value=42 {{.*}})
+  // CHECK-AST:     (integer_literal_expr type='{{[^']+}}' {{.*}} 42 {{.*}})
     return 42
 }
 
@@ -17,14 +17,14 @@ func foo(_ n: Int) -> Int {
 // CHECK-LABEL: (func_decl{{.*}}"bar()"
 // CHECK-AST-LABEL: (func_decl{{.*}}"bar()"
 func bar() {
-  // CHECK: (brace_stmt
-  // CHECK-NEXT:   (unresolved_decl_ref_expr type='{{[^']+}}' name=foo
-  // CHECK-NEXT:   (unresolved_decl_ref_expr type='{{[^']+}}' name=foo
-  // CHECK-NEXT:   (unresolved_decl_ref_expr type='{{[^']+}}' name=foo
-  // CHECK-AST: (brace_stmt
-  // CHECK-AST-NEXT:   (declref_expr type='{{[^']+}}' {{.*}} decl=main.(file).foo
-  // CHECK-AST-NEXT:   (declref_expr type='{{[^']+}}' {{.*}} decl=main.(file).foo
-  // CHECK-AST-NEXT:   (declref_expr type='{{[^']+}}' {{.*}} decl=main.(file).foo
+  // CHECK: (body=brace_stmt
+  // CHECK-NEXT:   (unresolved_decl_ref_expr type='{{[^']+}}'{{.*}} "foo"
+  // CHECK-NEXT:   (unresolved_decl_ref_expr type='{{[^']+}}'{{.*}} "foo"
+  // CHECK-NEXT:   (unresolved_decl_ref_expr type='{{[^']+}}'{{.*}} "foo"
+  // CHECK-AST: (body=brace_stmt
+  // CHECK-AST-NEXT:   (declref_expr type='{{[^']+}}' {{.*}} decl='main.(file).foo@
+  // CHECK-AST-NEXT:   (declref_expr type='{{[^']+}}' {{.*}} decl='main.(file).foo@
+  // CHECK-AST-NEXT:   (declref_expr type='{{[^']+}}' {{.*}} decl='main.(file).foo@
   foo foo foo
 }
 
@@ -38,8 +38,8 @@ enum TrailingSemi {
   case A,B;
 
   // CHECK-LABEL: (subscript_decl{{.*}}trailing_semi
-  // CHECK-NOT:   (func_decl{{.*}}trailing_semi 'anonname={{.*}}' get_for=subscript(_:)
-  // CHECK:       (accessor_decl{{.*}}'anonname={{.*}}' get_for=subscript(_:)
+  // CHECK-NOT:   (func_decl{{.*}}trailing_semi get_for="subscript(_:)"
+  // CHECK:       (accessor_decl{{.*}} get_for="subscript(_:)"
   subscript(x: Int) -> Int {
     // CHECK-LABEL: (pattern_binding_decl{{.*}}trailing_semi
     // CHECK-NOT:   (var_decl{{.*}}trailing_semi "y"
@@ -58,68 +58,67 @@ enum TrailingSemi {
 // CHECK-AST-LABEL:   (func_decl{{.*}}"generic(_:)" <T : Hashable> interface type='<T where T : Hashable> (T) -> ()' access=internal captures=(<generic> )
 func generic<T: Hashable>(_: T) {}
 // CHECK-AST:       (pattern_binding_decl
-// CHECK-AST:         (declref_expr type='(Int) -> ()' location={{.*}} range={{.*}} decl=main.(file).generic@{{.*}} [with (substitution_map generic_signature=<T where T : Hashable> (substitution T -> Int))] function_ref=unapplied))
+// CHECK-AST:         (processed_init=declref_expr type='(Int) -> ()' location={{.*}} range={{.*}} decl='main.(file).generic@{{.*}} [with (substitution_map generic_signature=<T where T : Hashable> T='Int')]' function_ref=unapplied))
 let _: (Int) -> () = generic
 
 // Closures should be marked as escaping or not.
 func escaping(_: @escaping (Int) -> Int) {}
 escaping({ $0 })
-// CHECK-AST:        (declref_expr type='(@escaping (Int) -> Int) -> ()'
-// CHECK-AST-NEXT:        (paren_expr
-// CHECK-AST-NEXT:          (closure_expr type='(Int) -> Int' {{.*}} discriminator=0 escaping single-expression
+// CHECK-AST:        (fn=declref_expr type='(@escaping (Int) -> Int) -> ()'
+// CHECK-AST-NEXT:        (arg=paren_expr
+// CHECK-AST-NEXT:          (closure_expr type='(Int) -> Int' {{.*}} discriminator=0 escaping single_expr
 
 func nonescaping(_: (Int) -> Int) {}
 nonescaping({ $0 })
-// CHECK-AST:        (declref_expr type='((Int) -> Int) -> ()'
-// CHECK-AST-NEXT:        (paren_expr
-// CHECK-AST-NEXT:          (closure_expr type='(Int) -> Int' {{.*}} discriminator=1 single-expression
+// CHECK-AST:        (fn=declref_expr type='((Int) -> Int) -> ()'
+// CHECK-AST-NEXT:        (arg=paren_expr
+// CHECK-AST-NEXT:          (closure_expr type='(Int) -> Int' {{.*}} discriminator=1 single_expr
 
-// CHECK-LABEL: (struct_decl range=[{{.+}}] "MyStruct")
+// CHECK-LABEL: (struct_decl range='[{{.+}}]' "MyStruct")
 struct MyStruct {}
 
-// CHECK-LABEL: (enum_decl range=[{{.+}}] "MyEnum"
+// CHECK-LABEL: (enum_decl range='[{{.+}}]' "MyEnum"
 enum MyEnum {
 
-    // CHECK-LABEL: (enum_case_decl range=[{{.+}}]
-    // CHECK-NEXT:    (enum_element_decl range=[{{.+}}]  "foo(x:)"
-    // CHECK-NEXT:      (parameter_list range=[{{.+}}]
-    // CHECK-NEXT:         (parameter "x" apiName=x)))
-    // CHECK-NEXT:     (enum_element_decl range=[{{.+}}] "bar"))
-    // CHECK-NEXT:  (enum_element_decl range=[{{.+}}] "foo(x:)"
-    // CHECK-NEXT:    (parameter_list range=[{{.+}}]
-    // CHECK-NEXT:      (parameter "x" apiName=x)))
-    // CHECK-NEXT:  (enum_element_decl range=[{{.+}}] "bar"))
+    // CHECK-LABEL: (enum_case_decl range='[{{.+}}]'
+    // CHECK-NEXT:    (enum_element_decl range='[{{.+}}]' "foo(x:)"
+    // CHECK-NEXT:      (parameter_list range='[{{.+}}]'
+    // CHECK-NEXT:         (parameter range='[{{.+}}]' "x" type='<null type>' api_name="x")))
+    // CHECK-NEXT:     (enum_element_decl range='[{{.+}}]' "bar"))
+    // CHECK-NEXT:  (enum_element_decl range='[{{.+}}]' "foo(x:)"
+    // CHECK-NEXT:    (parameter_list range='[{{.+}}]'
+    // CHECK-NEXT:      (parameter range='[{{.+}}]' "x" type='<null type>' api_name="x")))
+    // CHECK-NEXT:  (enum_element_decl range='[{{.+}}]' "bar"))
     case foo(x: MyStruct), bar
 }
 
-// CHECK-LABEL: (top_level_code_decl range=[{{.+}}]
-// CHECK-NEXT:    (brace_stmt implicit range=[{{.+}}]
-// CHECK-NEXT:      (sequence_expr type='<null>'
-// CHECK-NEXT:        (discard_assignment_expr type='<null>')
-// CHECK-NEXT:        (assign_expr type='<null>'
-// CHECK-NEXT:          (**NULL EXPRESSION**)
-// CHECK-NEXT:          (**NULL EXPRESSION**))
-// CHECK-NEXT:        (closure_expr type='<null>' discriminator={{[0-9]+}}
-// CHECK-NEXT:          (parameter_list range=[{{.+}}]
-// CHECK-NEXT:            (parameter "v"))
-// CHECK-NEXT:          (brace_stmt range=[{{.+}}])))))
+// CHECK-LABEL: (top_level_code_decl range='[{{.+}}]'
+// CHECK-NEXT:    (brace_stmt implicit range='[{{.+}}]'
+// CHECK-NEXT:      (sequence_expr type='<null type>'
+// CHECK-NEXT:        (discard_assignment_expr type='<null type>'{{.*}})
+// CHECK-NEXT:        (assign_expr type='<null type>'
+// CHECK-NEXT:          (dest=<<null>>)
+// CHECK-NEXT:          (src=<<null>>))
+// CHECK-NEXT:        (closure_expr type='<null type>'{{.*}} discriminator={{[0-9]+}}
+// CHECK-NEXT:          (parameter_list range='[{{.+}}]'
+// CHECK-NEXT:            (parameter range='[{{.+}}]' "v" type='<null type>'))
+// CHECK-NEXT:          (body=brace_stmt range='[{{.+}}]')))))
 _ = { (v: MyEnum) in }
 
-// CHECK-LABEL: (struct_decl range=[{{.+}}] "SelfParam"
+// CHECK-LABEL: (struct_decl range='[{{.+}}]' "SelfParam"
 struct SelfParam {
 
-  // CHECK-LABEL: (func_decl range=[{{.+}}] "createOptional()" type
-  // CHECK-NEXT:    (parameter "self")
-  // CHECK-NEXT:    (parameter_list range=[{{.+}}])
-  // CHECK-NEXT:    (result
-  // CHECK-NEXT:      (type_optional
-  // CHECK-NEXT:        (type_ident
-  // CHECK-NEXT:          (component id='SelfParam' bind=none))))
+  // CHECK-LABEL: (func_decl range='[{{.+}}]' "createOptional()" type
+  // CHECK-NEXT:    (self=parameter implicit range='[{{.+}}]' "self" type='<null type>')
+  // CHECK-NEXT:    (parameter_list range='[{{.+}}]')
+  // CHECK-NEXT:    (result=type_optional
+  // CHECK-NEXT:      (type_ident
+  // CHECK-NEXT:        (component "SelfParam" unbound)))
   static func createOptional() -> SelfParam? {
 
-    // CHECK-LABEL: (call_expr type='<null>' arg_labels=
-    // CHECK-NEXT:    (unresolved_decl_ref_expr type='<null>' name=SelfParam function_ref=unapplied)
-    // CHECK-NEXT:    (tuple_expr type='()'{{.*}}))
+    // CHECK-LABEL: (single_expression_body=call_expr type='<null type>'{{.*}} arg_labels=
+    // CHECK-NEXT:    (fn=unresolved_decl_ref_expr type='<null type>'{{.*}} "SelfParam" function_ref=unapplied)
+    // CHECK-NEXT:    (arg=tuple_expr type='()'{{.*}}))
     SelfParam()
   }
 }

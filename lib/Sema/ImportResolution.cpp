@@ -812,29 +812,6 @@ static bool isNominalImportKind(ImportKind kind) {
   llvm_unreachable("unhandled kind");
 }
 
-static const char *getImportKindString(ImportKind kind) {
-  switch (kind) {
-  case ImportKind::Module:
-    llvm_unreachable("module imports do not bring in decls");
-  case ImportKind::Type:
-    return "typealias";
-  case ImportKind::Struct:
-    return "struct";
-  case ImportKind::Class:
-    return "class";
-  case ImportKind::Enum:
-    return "enum";
-  case ImportKind::Protocol:
-    return "protocol";
-  case ImportKind::Var:
-    return "var";
-  case ImportKind::Func:
-    return "func";
-  }
-
-  llvm_unreachable("Unhandled ImportKind in switch.");
-}
-
 ArrayRef<ValueDecl *>
 ScopedImportLookupRequest::evaluate(Evaluator &evaluator,
                                     ImportDecl *import) const {
@@ -903,16 +880,16 @@ ScopedImportLookupRequest::evaluate(Evaluator &evaluator,
           typealias->getDescriptiveKind(),
           TypeAliasType::get(typealias, Type(), SubstitutionMap(),
                              typealias->getUnderlyingType()),
-          getImportKindString(importKind)));
+          *getImportKindKeyword(importKind)));
     } else {
       emittedDiag.emplace(ctx.Diags.diagnose(
           importLoc, diag::imported_decl_is_wrong_kind,
-          accessPath.front().Item, getImportKindString(importKind),
+          accessPath.front().Item, *getImportKindKeyword(importKind),
           static_cast<unsigned>(*actualKind)));
     }
 
     emittedDiag->fixItReplace(SourceRange(import->getKindLoc()),
-                              getImportKindString(*actualKind));
+                              *getImportKindKeyword(*actualKind));
     emittedDiag->flush();
 
     if (decls.size() == 1)

@@ -51,7 +51,7 @@ func testDowncastOptionalObjectConditional(obj: AnyObject?!) -> [String]?? {
   // CHECK-NEXT: (optional_evaluation_expr implicit type='[String]?'
   // CHECK-NEXT: (inject_into_optional implicit type='[String]?'
   // CHECK-NEXT: (bind_optional_expr implicit type='[String]'
-  // CHECK-NEXT: (conditional_checked_cast_expr type='[String]?' {{.*value_cast}} writtenType='[String]?'
+  // CHECK-NEXT: (conditional_checked_cast_expr type='[String]?' {{.*value_cast}} written_type='[String]?'
   // CHECK-NEXT: (bind_optional_expr implicit type='AnyObject'
   // CHECK-NEXT: (bind_optional_expr implicit type='AnyObject?'
   // CHECK-NEXT: (declref_expr type='AnyObject??'

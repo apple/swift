@@ -2282,31 +2282,8 @@ void PrintAST::visitImportDecl(ImportDecl *decl) {
   printAttributes(decl);
   Printer << tok::kw_import << " ";
 
-  switch (decl->getImportKind()) {
-  case ImportKind::Module:
-    break;
-  case ImportKind::Type:
-    Printer << tok::kw_typealias << " ";
-    break;
-  case ImportKind::Struct:
-    Printer << tok::kw_struct << " ";
-    break;
-  case ImportKind::Class:
-    Printer << tok::kw_class << " ";
-    break;
-  case ImportKind::Enum:
-    Printer << tok::kw_enum << " ";
-    break;
-  case ImportKind::Protocol:
-    Printer << tok::kw_protocol << " ";
-    break;
-  case ImportKind::Var:
-    Printer << tok::kw_var << " ";
-    break;
-  case ImportKind::Func:
-    Printer << tok::kw_func << " ";
-    break;
-  }
+  if (auto kw = getImportKindKeyword(decl->getImportKind()))
+    Printer << *kw << " ";
 
   SmallVector<ModuleEntity, 4> ModuleEnts;
   getModuleEntities(decl, ModuleEnts);
@@ -3871,17 +3848,8 @@ void PrintAST::visitPrecedenceGroupDecl(PrecedenceGroupDecl *decl) {
         !decl->isNonAssociative()) {
       indent();
       Printer.printKeyword("associativity", Options, ": ");
-      switch (decl->getAssociativity()) {
-      case Associativity::None:
-        Printer.printKeyword("none", Options);
-        break;
-      case Associativity::Left:
-        Printer.printKeyword("left", Options);
-        break;
-      case Associativity::Right:
-        Printer.printKeyword("right", Options);
-        break;
-      }
+      Printer.printKeyword(getAssociativitySpelling(decl->getAssociativity()),
+                           Options);
       Printer.printNewline();
     }
     if (!decl->isAssignmentImplicit() ||
@@ -4654,11 +4622,7 @@ public:
 
   void visitAnyMetatypeType(AnyMetatypeType *T) {
     if (T->hasRepresentation()) {
-      switch (T->getRepresentation()) {
-      case MetatypeRepresentation::Thin:  Printer << "@thin ";  break;
-      case MetatypeRepresentation::Thick: Printer << "@thick "; break;
-      case MetatypeRepresentation::ObjC:  Printer << "@objc_metatype "; break;
-      }
+      Printer << "@" << getMetatypeRepresentationString(T->getRepresentation()) << " ";
     }
     printWithParensIfNotSimple(T->getInstanceType());
 
@@ -4755,33 +4719,24 @@ public:
       Printer.printAttrName("@convention");
       Printer << "(";
       // TODO: coalesce into a single convention attribute.
+      Printer <<
+          getSILFunctionTypeRepresentationString(info.getSILRepresentation());
       switch (info.getSILRepresentation()) {
-      case SILFunctionType::Representation::Thick:
-        llvm_unreachable("thick is not printed");
-      case SILFunctionType::Representation::Thin:
-        Printer << "thin";
-        break;
       case SILFunctionType::Representation::Block:
-        Printer << "block";
         if (printClangType && fnType->hasNonDerivableClangType())
           printCType(ctx, Printer, info);
         break;
       case SILFunctionType::Representation::CFunctionPointer:
-        Printer << "c";
         if (printClangType && fnType->hasNonDerivableClangType())
           printCType(ctx, Printer, info);
         break;
+      case SILFunctionType::Representation::Thick:
+        llvm_unreachable("thick is not printed");
+      case SILFunctionType::Representation::Thin:
       case SILFunctionType::Representation::Method:
-        Printer << "method";
-        break;
       case SILFunctionType::Representation::ObjCMethod:
-        Printer << "objc_method";
-        break;
       case SILFunctionType::Representation::WitnessMethod:
-        Printer << "witness_method";
-        break;
       case SILFunctionType::Representation::Closure:
-        Printer << "closure";
         break;
       }
       Printer << ")";

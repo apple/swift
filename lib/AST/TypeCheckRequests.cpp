@@ -500,18 +500,7 @@ void swift::simple_display(
 
 void swift::simple_display(
   llvm::raw_ostream &out, const CtorInitializerKind initKind) {
-  out << "{ ";
-  switch (initKind) {
-  case CtorInitializerKind::Designated:
-    out << "designated"; break;
-  case CtorInitializerKind::Convenience:
-    out << "convenience"; break;
-  case CtorInitializerKind::ConvenienceFactory:
-    out << "convenience_factory"; break;
-  case CtorInitializerKind::Factory:
-    out << "factory"; break;
-  }
-  out << " }";
+  out << "{ " << getCtorInitializerKindString(initKind) << " }";
 }
 
 void swift::simple_display(llvm::raw_ostream &os, PropertyWrapperMutability m) {

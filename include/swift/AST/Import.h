@@ -56,6 +56,9 @@ inline bool isScopedImportKind(ImportKind importKind) {
   return importKind != ImportKind::Module;
 }
 
+StringRef getImportKindString(ImportKind importKind);
+Optional<StringRef> getImportKindKeyword(ImportKind importKind);
+
 /// Possible attributes for imports in source files.
 enum class ImportFlags {
   /// The imported module is exposed to anyone who imports the parent module.

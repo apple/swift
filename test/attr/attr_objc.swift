@@ -2309,11 +2309,13 @@ class ClassThrows1 {
 @objc // access-note-move{{ImplicitClassThrows1}}
 class ImplicitClassThrows1 {
   // CHECK: @objc func methodReturnsVoid() throws
-  // CHECK-DUMP: func_decl{{.*}}"methodReturnsVoid()"{{.*}}foreign_error=ZeroResult,unowned,param=0,paramtype=Optional<AutoreleasingUnsafeMutablePointer<Optional<NSError>>>,resulttype=ObjCBool
+  // CHECK-DUMP: func_decl{{.*}}"methodReturnsVoid()"{{.*}}
+  // CHECK-DUMP-NEXT: (foreign_error kind=ZeroResult unowned param_index=0 param_type='Optional<AutoreleasingUnsafeMutablePointer<Optional<NSError>>>' result_type='ObjCBool')
   func methodReturnsVoid() throws { }
 
   // CHECK: @objc func methodReturnsObjCClass() throws -> Class_ObjC1
-  // CHECK-DUMP: func_decl{{.*}}"methodReturnsObjCClass()" {{.*}}foreign_error=NilResult,unowned,param=0,paramtype=Optional<AutoreleasingUnsafeMutablePointer<Optional<NSError>>>
+  // CHECK-DUMP: func_decl{{.*}}"methodReturnsObjCClass()" {{.*}}
+  // CHECK-DUMP-NEXT: (foreign_error kind=NilResult unowned param_index=0 param_type='Optional<AutoreleasingUnsafeMutablePointer<Optional<NSError>>>')
   func methodReturnsObjCClass() throws -> Class_ObjC1 {
     return Class_ObjC1()
   }
@@ -2328,11 +2330,13 @@ class ImplicitClassThrows1 {
   func methodReturnsOptionalObjCClass() throws -> Class_ObjC1? { return nil }
 
   // CHECK: @objc func methodWithTrailingClosures(_ s: String, fn1: @escaping ((Int) -> Int), fn2: @escaping (Int) -> Int, fn3: @escaping (Int) -> Int)
-  // CHECK-DUMP: func_decl{{.*}}"methodWithTrailingClosures(_:fn1:fn2:fn3:)"{{.*}}foreign_error=ZeroResult,unowned,param=1,paramtype=Optional<AutoreleasingUnsafeMutablePointer<Optional<NSError>>>,resulttype=ObjCBool
+  // CHECK-DUMP: func_decl{{.*}}"methodWithTrailingClosures(_:fn1:fn2:fn3:)"{{.*}}
+  // CHECK-DUMP-NEXT: (foreign_error kind=ZeroResult unowned param_index=1 param_type='Optional<AutoreleasingUnsafeMutablePointer<Optional<NSError>>>' result_type='ObjCBool')
   func methodWithTrailingClosures(_ s: String, fn1: (@escaping (Int) -> Int), fn2: @escaping (Int) -> Int, fn3: @escaping (Int) -> Int) throws { }
 
   // CHECK: @objc init(degrees: Double) throws
-  // CHECK-DUMP: constructor_decl{{.*}}"init(degrees:)"{{.*}}foreign_error=NilResult,unowned,param=1,paramtype=Optional<AutoreleasingUnsafeMutablePointer<Optional<NSError>>>
+  // CHECK-DUMP: constructor_decl{{.*}}"init(degrees:)"{{.*}}
+  // CHECK-DUMP-NEXT: (foreign_error kind=NilResult unowned param_index=1 param_type='Optional<AutoreleasingUnsafeMutablePointer<Optional<NSError>>>')
   init(degrees: Double) throws { }
 
   // CHECK: {{^}} func methodReturnsBridgedValueType() throws -> NSRange
@@ -2359,7 +2363,8 @@ class ImplicitClassThrows1 {
 @objc // access-note-move{{SubclassImplicitClassThrows1}}
 class SubclassImplicitClassThrows1 : ImplicitClassThrows1 {
   // CHECK: @objc override func methodWithTrailingClosures(_ s: String, fn1: @escaping ((Int) -> Int), fn2: @escaping ((Int) -> Int), fn3: @escaping ((Int) -> Int))
-  // CHECK-DUMP: func_decl{{.*}}"methodWithTrailingClosures(_:fn1:fn2:fn3:)"{{.*}}foreign_error=ZeroResult,unowned,param=1,paramtype=Optional<AutoreleasingUnsafeMutablePointer<Optional<NSError>>>,resulttype=ObjCBool
+  // CHECK-DUMP: func_decl{{.*}}"methodWithTrailingClosures(_:fn1:fn2:fn3:)"{{.*}}
+  // CHECK-DUMP-NEXT: (foreign_error kind=ZeroResult unowned param_index=1 param_type='Optional<AutoreleasingUnsafeMutablePointer<Optional<NSError>>>' result_type='ObjCBool')
   override func methodWithTrailingClosures(_ s: String, fn1: (@escaping (Int) -> Int), fn2: (@escaping (Int) -> Int), fn3: (@escaping (Int) -> Int)) throws { }
 }
 
@@ -2408,20 +2413,24 @@ class ThrowsObjCName {
   @objc(method7) // bad-access-note-move{{ThrowsObjCName.method7(x:)}} expected-error{{'@objc' method name provides names for 0 arguments, but method has 2 parameters (including the error parameter)}}
   func method7(x: Int) throws { }
 
-  // CHECK-DUMP: func_decl{{.*}}"method8(_:fn1:fn2:)"{{.*}}foreign_error=ZeroResult,unowned,param=2,paramtype=Optional<AutoreleasingUnsafeMutablePointer<Optional<NSError>>>,resulttype=ObjCBool
+  // CHECK-DUMP: func_decl{{.*}}"method8(_:fn1:fn2:)"{{.*}}
+  // CHECK-DUMP-NEXT: (foreign_error kind=ZeroResult unowned param_index=2 param_type='Optional<AutoreleasingUnsafeMutablePointer<Optional<NSError>>>' result_type='ObjCBool')
   @objc(method8:fn1:error:fn2:) // access-note-move{{ThrowsObjCName.method8(_:fn1:fn2:)}}
   func method8(_ s: String, fn1: (@escaping (Int) -> Int), fn2: @escaping (Int) -> Int) throws { }
 
-  // CHECK-DUMP: func_decl{{.*}}"method9(_:fn1:fn2:)"{{.*}}foreign_error=ZeroResult,unowned,param=0,paramtype=Optional<AutoreleasingUnsafeMutablePointer<Optional<NSError>>>,resulttype=ObjCBool
+  // CHECK-DUMP: func_decl{{.*}}"method9(_:fn1:fn2:)"{{.*}}
+  // CHECK-DUMP-NEXT: (foreign_error kind=ZeroResult unowned param_index=0 param_type='Optional<AutoreleasingUnsafeMutablePointer<Optional<NSError>>>' result_type='ObjCBool')
   @objc(method9AndReturnError:s:fn1:fn2:) // access-note-move{{ThrowsObjCName.method9(_:fn1:fn2:)}}
   func method9(_ s: String, fn1: (@escaping (Int) -> Int), fn2: @escaping (Int) -> Int) throws { }
 }
 
 class SubclassThrowsObjCName : ThrowsObjCName {
-  // CHECK-DUMP: func_decl{{.*}}"method8(_:fn1:fn2:)"{{.*}}foreign_error=ZeroResult,unowned,param=2,paramtype=Optional<AutoreleasingUnsafeMutablePointer<Optional<NSError>>>,resulttype=ObjCBool
+  // CHECK-DUMP: func_decl{{.*}}"method8(_:fn1:fn2:)"{{.*}}
+  // CHECK-DUMP-NEXT: (foreign_error kind=ZeroResult unowned param_index=2 param_type='Optional<AutoreleasingUnsafeMutablePointer<Optional<NSError>>>' result_type='ObjCBool')
   override func method8(_ s: String, fn1: (@escaping (Int) -> Int), fn2: @escaping (Int) -> Int) throws { }
 
-  // CHECK-DUMP: func_decl{{.*}}"method9(_:fn1:fn2:)"{{.*}}foreign_error=ZeroResult,unowned,param=0,paramtype=Optional<AutoreleasingUnsafeMutablePointer<Optional<NSError>>>,resulttype=ObjCBool
+  // CHECK-DUMP: func_decl{{.*}}"method9(_:fn1:fn2:)"{{.*}}
+  // CHECK-DUMP-NEXT: (foreign_error kind=ZeroResult unowned param_index=0 param_type='Optional<AutoreleasingUnsafeMutablePointer<Optional<NSError>>>' result_type='ObjCBool')
   override func method9(_ s: String, fn1: (@escaping (Int) -> Int), fn2: @escaping (Int) -> Int) throws { }
 }
 

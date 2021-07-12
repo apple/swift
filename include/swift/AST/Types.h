@@ -2555,6 +2555,8 @@ enum class MetatypeRepresentation : char {
   Last_MetatypeRepresentation = ObjC
 };
 
+StringRef getMetatypeRepresentationString(MetatypeRepresentation value);
+
 /// AnyMetatypeType - A common parent class of MetatypeType and
 /// ExistentialMetatypeType.
 class AnyMetatypeType : public TypeBase {

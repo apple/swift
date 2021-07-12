@@ -60,7 +60,7 @@ extension HasFooSub {
 func testHasFooSub(_ hfs: HasFooSub) -> Int {
   // CHECK: return_stmt
   // CHECK-NOT: func_decl
-  // CHECK: member_ref_expr{{.*}}decl=overload_vars.(file).HasFoo.foo
+  // CHECK: member_ref_expr{{.*}}decl='overload_vars.(file).HasFoo.foo [with
   return hfs.foo
 }
 
@@ -72,7 +72,7 @@ extension HasBar {
 func testHasBar(_ hb: HasBar) -> Int {
   // CHECK: return_stmt
   // CHECK-NOT: func_decl
-  // CHECK: member_ref_expr{{.*}}decl=overload_vars.(file).HasBar.bar
+  // CHECK: member_ref_expr{{.*}}decl='overload_vars.(file).HasBar.bar [with
   return hb.bar
 }
 

@@ -17,32 +17,32 @@ extension MyActor {
   func testClosureIsolation() async {
     // CHECK: acceptClosure
     // CHECK: closure_expr
-    // CHECK: actor-isolated
+    // CHECK: actor_isolated
     acceptClosure { self.syncMethod() }
 
     // CHECK: acceptSendableClosure
     // CHECK: closure_expr
-    // CHECK-NOT: actor-isolated
+    // CHECK-NOT: actor_isolated
     acceptSendableClosure { print(self) }
 
     // CHECK: acceptAsyncClosure
     // CHECK: closure_expr
-    // CHECK-SAME: actor-isolated=closure_isolation.(file).MyActor extension.testClosureIsolation().self
+    // CHECK-SAME: actor_isolated='closure_isolation.(file).MyActor extension.testClosureIsolation().self@
     acceptAsyncClosure { await method() }
 
     // CHECK: acceptAsyncClosure
     // CHECK: closure_expr
-    // CHECK-NOT: actor-isolated
+    // CHECK-NOT: actor_isolated
     acceptAsyncClosure { () async in print() }
 
     // CHECK: acceptEscapingAsyncClosure
     // CHECK: closure_expr
-    // CHECK: actor-isolated
+    // CHECK: actor_isolated
     acceptEscapingAsyncClosure { self.syncMethod() }
 
     // CHECK: acceptEscapingAsyncClosure
     // CHECK: closure_expr
-    // CHECK: actor-isolated
+    // CHECK: actor_isolated
     acceptEscapingAsyncClosure { () async in print(self) }
   }
 }
@@ -62,21 +62,21 @@ func someAsyncFunc() async { }
 @SomeGlobalActor func someGlobalActorFunc() async {
   // CHECK: acceptAsyncClosure
   // CHECK: closure_expr
-  // CHECK-SAME: global-actor-isolated=SomeGlobalActor
+  // CHECK-SAME: global_actor_isolated='SomeGlobalActor'
   acceptAsyncClosure { await someAsyncFunc() }
 
   // CHECK: acceptAsyncClosure
   // CHECK: closure_expr
-  // CHECK-SAME: global-actor-isolated=SomeGlobalActor
+  // CHECK-SAME: global_actor_isolated='SomeGlobalActor'
   acceptAsyncClosure { () async in print("hello") }
 
   // CHECK: acceptEscapingAsyncClosure
   // CHECK: closure_expr
-  // CHECK: actor-isolated
+  // CHECK: actor_isolated
   acceptEscapingAsyncClosure { await someAsyncFunc() }
 
   // CHECK: acceptEscapingAsyncClosure
   // CHECK: closure_expr
-  // CHECK: actor-isolated
+  // CHECK: actor_isolated
   acceptEscapingAsyncClosure { () async in print("hello") }
 }

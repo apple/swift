@@ -281,6 +281,9 @@ template <typename Repr> constexpr bool shouldStoreClangType(Repr repr) {
   llvm_unreachable("Unhandled SILFunctionTypeRepresentation.");
 }
 
+StringRef
+getSILFunctionTypeRepresentationString(SILFunctionTypeRepresentation value);
+
 // MARK: - ASTExtInfoBuilder
 /// A builder type for creating an \c ASTExtInfo.
 ///

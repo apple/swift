@@ -34,11 +34,11 @@ do {
     let x5 = pc.lotsOfSelfFunc
     let x6 = pc.lotsOfSelfProp
 
-    // CHECK: (pattern_named type='((P) -> Void, (P?) -> Void, ([P]) -> Void, ([Array<P>?]) -> Void) -> [String : () -> P]' 'x1')
-    // CHECK: (pattern_named type='((P) -> Void, (P?) -> Void, ([P]) -> Void, ([Array<P>?]) -> Void) -> [String : () -> P]' 'x2')
-    // CHECK: (pattern_named type='((P & Q) -> Void, ((P & Q)?) -> Void, ([P & Q]) -> Void, ([Array<P & Q>?]) -> Void) -> [String : () -> P & Q]' 'x3')
-    // CHECK: (pattern_named type='((P & Q) -> Void, ((P & Q)?) -> Void, ([P & Q]) -> Void, ([Array<P & Q>?]) -> Void) -> [String : () -> P & Q]' 'x4')
-    // CHECK: (pattern_named type='((C & P) -> Void, ((C & P)?) -> Void, ([C & P]) -> Void, ([Array<C & P>?]) -> Void) -> [String : () -> C & P]' 'x5')
-    // CHECK: (pattern_named type='((C & P) -> Void, ((C & P)?) -> Void, ([C & P]) -> Void, ([Array<C & P>?]) -> Void) -> [String : () -> C & P]' 'x6')
+    // CHECK: (pattern=pattern_named type='((P) -> Void, (P?) -> Void, ([P]) -> Void, ([Array<P>?]) -> Void) -> [String : () -> P]' "x1")
+    // CHECK: (pattern=pattern_named type='((P) -> Void, (P?) -> Void, ([P]) -> Void, ([Array<P>?]) -> Void) -> [String : () -> P]' "x2")
+    // CHECK: (pattern=pattern_named type='((P & Q) -> Void, ((P & Q)?) -> Void, ([P & Q]) -> Void, ([Array<P & Q>?]) -> Void) -> [String : () -> P & Q]' "x3")
+    // CHECK: (pattern=pattern_named type='((P & Q) -> Void, ((P & Q)?) -> Void, ([P & Q]) -> Void, ([Array<P & Q>?]) -> Void) -> [String : () -> P & Q]' "x4")
+    // CHECK: (pattern=pattern_named type='((C & P) -> Void, ((C & P)?) -> Void, ([C & P]) -> Void, ([Array<C & P>?]) -> Void) -> [String : () -> C & P]' "x5")
+    // CHECK: (pattern=pattern_named type='((C & P) -> Void, ((C & P)?) -> Void, ([C & P]) -> Void, ([Array<C & P>?]) -> Void) -> [String : () -> C & P]' "x6")
   }
 }
