@@ -174,23 +174,21 @@ int main(int argc, char **argv) {
         printf("(Builtin value not displayed)\n");
         break;
       case SWIFT_NO_PAYLOAD_ENUM:
-        {
-          int CaseNdx;
+      case SWIFT_SINGLE_PAYLOAD_ENUM:
+      case SWIFT_MULTI_PAYLOAD_ENUM: {
+        int CaseNdx;
 
-          if (swift_reflection_interop_projectEnumValue(Context,
-                                                        Obj + ChildInfo.Offset,
-                                                        ChildInfo.TR,
-                                                        &CaseNdx)) {
-            swift_childinfo_interop_t CaseInfo
-              = swift_reflection_interop_childOfTypeRef(Context, ChildInfo.TR,
-                                                        CaseNdx);
+        if (swift_reflection_interop_projectEnumValue(
+                Context, Obj + ChildInfo.Offset, ChildInfo.TR, &CaseNdx)) {
+          swift_childinfo_interop_t CaseInfo =
+              swift_reflection_interop_childOfTypeRef(Context, ChildInfo.TR,
+                                                      CaseNdx);
 
-            printf("Value: %s (%d)\n", CaseInfo.Name, CaseNdx);
-          } else {
-            printf("Value: unknown\n");
-          }
+          printf("Value: %s (%d)\n", CaseInfo.Name, CaseNdx);
+        } else {
+          printf("Value: unknown\n");
         }
-        break;
+      } break;
       default:
         printf("(Value not displayed)\n");
         break;
