@@ -175,15 +175,16 @@ public struct AsyncStream<Element> {
     let storage: _AsyncStreamCriticalStorage<Optional<() async -> Element?>>
       = .create(produce)
     self.produce = {
-      return await Task.withCancellationHandler {
-        storage.value = nil
-        onCancel?()
-      } operation: {
+      return await withTaskCancellationHandler  {
         guard let result = await storage.value?() else {
           storage.value = nil
           return nil
         }
         return result
+      }
+      onCancel: {
+        storage.value = nil
+        onCancel?()
       }
     }
   }

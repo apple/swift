@@ -14,7 +14,7 @@ set(SUPPORTED_TVOS_ARCHS "arm64")
 set(SUPPORTED_TVOS_SIMULATOR_ARCHS "x86_64;arm64")
 set(SUPPORTED_WATCHOS_ARCHS "armv7k;arm64_32")
 set(SUPPORTED_WATCHOS_SIMULATOR_ARCHS "i386;x86_64;arm64")
-set(SUPPORTED_OSX_ARCHS "x86_64;arm64;arm64e")
+set(SUPPORTED_OSX_ARCHS "x86_64;arm64")
 
 is_sdk_requested(OSX swift_build_osx)
 if(swift_build_osx)
