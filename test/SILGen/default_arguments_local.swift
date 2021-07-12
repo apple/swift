@@ -70,3 +70,16 @@ class ArtClass<T> {
 
   inner()
 }
+
+// CHECK-LABEL: sil hidden [ossa] @$s23default_arguments_local5outeryyxlF : $@convention(thin) <T> (@in_guaranteed T) -> ()
+func outer<T>(_: T) {
+  // CHECK-LABEL: sil private [ossa] @$s23default_arguments_local5outeryyxlF5innerL_yylF : $@convention(thin) <T> () -> ()
+  func inner() { print(T.self) }
+
+  // default argument 0 of hasDefault #1 <A>(x:) in outer<A>(_:)
+  // CHECK-LABEL: sil private [ossa] @$s23default_arguments_local5outeryyxlF10hasDefaultL_1xySi_tlFfA_ : $@convention(thin) <T> () -> Int
+
+  // CHECK-LABEL: sil private [ossa] @$s23default_arguments_local5outeryyxlF10hasDefaultL_1xySi_tlF : $@convention(thin) <T> (Int) -> ()
+  func hasDefault(x: Int = { inner(); return 3 }()) {}
+  hasDefault()
+}

@@ -5258,9 +5258,15 @@ RValue RValueEmitter::visitAppliedPropertyWrapperExpr(
     break;
   }
 
+  // The property wrapper generator function needs the same substitutions as the
+  // enclosing function or closure. If the parameter is declared in a function, take
+  // the substitutions from the concrete callee. Otherwise, forward the archetypes
+  // from the closure.
   SubstitutionMap subs;
   if (param->getDeclContext()->getAsDecl()) {
     subs = E->getCallee().getSubstitutions();
+  } else {
+    subs = SGF.getForwardingSubstitutionMap();
   }
 
   return SGF.emitApplyOfPropertyWrapperBackingInitializer(
