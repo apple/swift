@@ -632,6 +632,7 @@ void EquivalenceClassMap::concretizeNestedTypesFromConcreteParents(
 
       concretizeNestedTypesFromConcreteParent(
           equivClass->getKey(),
+          RequirementKind::SameType,
           equivClass->ConcreteType->getConcreteType(),
           equivClass->ConcreteType->getSubstitutions(),
           equivClass->getConformsTo(),
@@ -645,6 +646,7 @@ void EquivalenceClassMap::concretizeNestedTypesFromConcreteParents(
 
       concretizeNestedTypesFromConcreteParent(
           equivClass->getKey(),
+          RequirementKind::Superclass,
           equivClass->Superclass->getSuperclass(),
           equivClass->Superclass->getSubstitutions(),
           equivClass->getConformsTo(),
@@ -686,10 +688,13 @@ void EquivalenceClassMap::concretizeNestedTypesFromConcreteParents(
 ///    T.[P:B] => U.V
 ///
 void EquivalenceClassMap::concretizeNestedTypesFromConcreteParent(
-    const MutableTerm &key,
+    const MutableTerm &key, RequirementKind requirementKind,
     CanType concreteType, ArrayRef<Term> substitutions,
     ArrayRef<const ProtocolDecl *> conformsTo,
     SmallVectorImpl<std::pair<MutableTerm, MutableTerm>> &inducedRules) const {
+  assert(requirementKind == RequirementKind::SameType ||
+         requirementKind == RequirementKind::Superclass);
+
   for (auto *proto : conformsTo) {
     // FIXME: Either remove the ModuleDecl entirely from conformance lookup,
     // or pass the correct one down in here.
@@ -745,9 +750,24 @@ void EquivalenceClassMap::concretizeNestedTypesFromConcreteParent(
       subjectType.add(Atom::forAssociatedType(proto, assocType->getName(),
                                               Context));
 
-      MutableTerm constraintType = computeConstraintTermForTypeWitness(
-          key, concreteType, typeWitness, subjectType,
-          substitutions);
+      MutableTerm constraintType;
+
+      if (concreteType == typeWitness &&
+          requirementKind == RequirementKind::SameType) {
+        // FIXME: ConcreteTypeInDomainMap should support substitutions so
+        // that we can remove this.
+
+        if (DebugConcretizeNestedTypes) {
+          llvm::dbgs() << "^^ Type witness is the same as the concrete type\n";
+        }
+
+        // Add a rule T.[P:A] => T.
+        constraintType = key;
+      } else {
+        constraintType = computeConstraintTermForTypeWitness(
+            key, concreteType, typeWitness, subjectType,
+            substitutions);
+      }
 
       inducedRules.emplace_back(subjectType, constraintType);
       if (DebugConcretizeNestedTypes) {
@@ -775,25 +795,16 @@ void EquivalenceClassMap::concretizeNestedTypesFromConcreteParent(
 ///
 ///     T.[P:A].[concrete: Foo] => T.[P:A]
 ///
-/// However, this also tries to tie off recursion first, using two
-/// heuristics:
+/// However, this also tries to tie off recursion first using a heuristic.
 ///
-/// 1) If the type witness is the same exact type as the concrete type,
-///    we instead produce a rewrite rule:
-///
-///        T.[P:A] => T
-///
-/// 2) If the type witness is fully concrete and we've already seen a
-///    shorter term V in the same domain with the same concrete type,
-///    we produce a rewrite rule:
+/// If the type witness is fully concrete and we've already seen some
+/// term V in the same domain with the same concrete type, we produce a
+/// rewrite rule:
 ///
 ///        T.[P:A] => V
 MutableTerm EquivalenceClassMap::computeConstraintTermForTypeWitness(
-    const MutableTerm &key,
-    CanType concreteType,
-    CanType typeWitness,
-    const MutableTerm &subjectType,
-    ArrayRef<Term> substitutions) const {
+    const MutableTerm &key, CanType concreteType, CanType typeWitness,
+    const MutableTerm &subjectType, ArrayRef<Term> substitutions) const {
   if (!typeWitness->hasTypeParameter()) {
     // Check if we have a shorter representative we can use.
     auto domain = key.getRootProtocols();
@@ -809,20 +820,6 @@ MutableTerm EquivalenceClassMap::computeConstraintTermForTypeWitness(
         return found->second;
       }
     }
-  }
-
-  if (concreteType == typeWitness) {
-    // FIXME: This is wrong for the superclass case!
-    //
-    // FIXME: ConcreteTypeInDomainMap should support substitutions so
-    // that we can remove this.
-
-    if (DebugConcretizeNestedTypes) {
-      llvm::dbgs() << "^^ Type witness is the same as the concrete type\n";
-    }
-
-    // Add a rule T.[P:A] => T.
-    return key;
   }
 
   if (typeWitness->isTypeParameter()) {

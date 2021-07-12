@@ -36,6 +36,7 @@ namespace llvm {
 namespace swift {
 
 class ProtocolDecl;
+enum class RequirementKind : unsigned;
 
 namespace rewriting {
 
@@ -149,18 +150,14 @@ public:
 
 private:
   void concretizeNestedTypesFromConcreteParent(
-                   const MutableTerm &key,
-                   CanType concreteType,
-                   ArrayRef<Term> substitutions,
+                   const MutableTerm &key, RequirementKind requirementKind,
+                   CanType concreteType, ArrayRef<Term> substitutions,
                    ArrayRef<const ProtocolDecl *> conformsTo,
                    SmallVectorImpl<std::pair<MutableTerm, MutableTerm>> &inducedRules) const;
 
   MutableTerm computeConstraintTermForTypeWitness(
-      const MutableTerm &key,
-      CanType concreteType,
-      CanType typeWitness,
-      const MutableTerm &subjectType,
-      ArrayRef<Term> substitutions) const;
+      const MutableTerm &key, CanType concreteType, CanType typeWitness,
+      const MutableTerm &subjectType, ArrayRef<Term> substitutions) const;
 };
 
 } // end namespace rewriting
