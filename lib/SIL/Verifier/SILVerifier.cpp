@@ -2985,6 +2985,8 @@ public:
       requireSameType(loweredFieldTy, EI->getType(),
                       "result of struct_extract does not match type of field");
     }
+    require(EI->getFieldIndex() < sd->getStoredProperties().size(),
+        "invalid field index for struct_extract instruction");
   }
 
   void checkTupleElementAddrInst(TupleElementAddrInst *EI) {
@@ -3033,6 +3035,8 @@ public:
           loweredFieldTy, EI->getType(),
           "result of struct_element_addr does not match type of field");
     }
+    require(EI->getFieldIndex() < sd->getStoredProperties().size(),
+        "invalid field index for struct_element_addr instruction");
   }
 
   void checkRefElementAddrInst(RefElementAddrInst *EI) {
@@ -3060,7 +3064,8 @@ public:
           loweredFieldTy, EI->getType(),
           "result of ref_element_addr does not match type of field");
     }
-    EI->getFieldIndex();  // Make sure we can access the field without crashing.
+    require(EI->getFieldIndex() < cd->getStoredProperties().size(),
+            "invalid field index for ref_element_addr instruction");
   }
 
   void checkRefTailAddrInst(RefTailAddrInst *RTAI) {

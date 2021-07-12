@@ -1293,22 +1293,7 @@ bool TupleExtractInst::isEltOnlyNonTrivialElt() const {
 
 /// Get a unique index for a struct or class field in layout order.
 unsigned swift::getFieldIndex(NominalTypeDecl *decl, VarDecl *field) {
-  unsigned index = 0;
-  if (auto *classDecl = dyn_cast<ClassDecl>(decl)) {
-    for (auto *superDecl = classDecl->getSuperclassDecl(); superDecl != nullptr;
-         superDecl = superDecl->getSuperclassDecl()) {
-      index += superDecl->getStoredProperties().size();
-    }
-  }
-  for (VarDecl *property : decl->getStoredProperties()) {
-    if (field == property) {
-      return index;
-    }
-    ++index;
-  }
-  llvm_unreachable("The field decl for a struct_extract, struct_element_addr, "
-                   "or ref_element_addr must be an accessible stored "
-                   "property of the operand type");
+  return field->getFieldIndex();
 }
 
 unsigned swift::getCaseIndex(EnumElementDecl *enumElement) {

@@ -87,6 +87,20 @@ private:
                                       ASTLoweringDescriptor desc) const;
 };
 
+class ComputeFieldIndicesRequest :
+    public SimpleRequest<ComputeFieldIndicesRequest,
+                         std::tuple<>(NominalTypeDecl *),
+                         RequestFlags::Uncached> {
+public:
+  using SimpleRequest::SimpleRequest;
+
+private:
+  friend SimpleRequest;
+
+  // Evaluation.
+  std::tuple<> evaluate(Evaluator &evaluator, NominalTypeDecl *decl) const;
+};
+
 /// Report that a request of the given kind is being evaluated, so it
 /// can be recorded by the stats reporter.
 template <typename Request>

@@ -34,6 +34,7 @@
 #include "swift/AST/Module.h"
 #include "swift/AST/NameLookup.h"
 #include "swift/AST/NameLookupRequests.h"
+#include "swift/AST/SILOptimizerRequests.h"
 #include "swift/AST/ParameterList.h"
 #include "swift/AST/ParseRequests.h"
 #include "swift/AST/Pattern.h"
@@ -5571,6 +5572,16 @@ VarDecl::VarDecl(DeclKind kind, bool isStatic, VarDecl::Introducer introducer,
   Bits.VarDecl.IsLazyStorageProperty = false;
   Bits.VarDecl.IsPropertyWrapperBackingProperty = false;
   Bits.VarDecl.IsTopLevelGlobal = false;
+}
+
+int VarDecl::getFieldIndex() const {
+  if (fieldIndex < 0) {
+    NominalTypeDecl *parent = getDeclContext()->getSelfNominalTypeDecl();
+    evaluateOrDefault(getASTContext().evaluator,
+                      ComputeFieldIndicesRequest{parent}, {});
+    assert(fieldIndex >= 0);
+  }
+  return fieldIndex;
 }
 
 Type VarDecl::getType() const {

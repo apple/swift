@@ -356,12 +356,6 @@ protected:
     KeepUnique : 1
   );
 
-  SWIFT_INLINE_BITFIELD_FULL_TEMPLATE(FieldIndexCacheBase,
-                                      SingleValueInstruction, 32,
-    : NumPadBits,
-    FieldIndex : 32
-  );
-
   SWIFT_INLINE_BITFIELD_EMPTY(MethodInst, SingleValueInstruction);
   // Ensure that WitnessMethodInst bitfield does not overflow.
   IBWTO_BITFIELD_EMPTY(WitnessMethodInst, MethodInst);

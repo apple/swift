@@ -6276,89 +6276,29 @@ unsigned getCaseIndex(EnumElementDecl *enumElement);
 /// Precondition: \p decl must be a non-resilient struct or class.
 VarDecl *getIndexedField(NominalTypeDecl *decl, unsigned index);
 
-/// A common base for instructions that require a cached field index.
-///
-/// "Field" is a term used here to refer to the ordered, accessible stored
-/// properties of a class or struct.
-///
-/// The field's ordinal value is the basis of efficiently comparing and sorting
-/// access paths in SIL. For example, whenever a Projection object is created,
-/// it stores the field index. Finding the field index initially requires
-/// searching the type declaration's array of all stored properties. If this
-/// index is not cached, it will cause widespread quadratic complexity in any
-/// pass that queries projections, including the SIL verifier.
-///
-/// FIXME: This cache may not be necessary if the Decl TypeChecker instead
-/// caches a field index in the VarDecl itself. This solution would be superior
-/// because it would allow constant time lookup of either the VarDecl or the
-/// index from a single pointer without referring back to a projection
-/// instruction.
-template <typename ParentTy>
-class FieldIndexCacheBase : public ParentTy {
-  enum : unsigned { InvalidFieldIndex = ~unsigned(0) };
-
-  VarDecl *field;
-
-public:
-  template <typename... ArgTys>
-  FieldIndexCacheBase(SILInstructionKind kind, SILDebugLocation loc,
-                      SILType type, VarDecl *field, ArgTys &&... extraArgs)
-      : ParentTy(kind, loc, type, std::forward<ArgTys>(extraArgs)...),
-        field(field) {
-    SILNode::Bits.FieldIndexCacheBase.FieldIndex = InvalidFieldIndex;
-    // This needs to be a concrete class to hold bitfield information. However,
-    // it should only be extended by UnaryInstructions.
-    assert(ParentTy::getNumOperands() == 1);
-  }
-
-  VarDecl *getField() const { return field; }
-
-  unsigned getFieldIndex() const {
-    unsigned idx = SILNode::Bits.FieldIndexCacheBase.FieldIndex;
-    if (idx != InvalidFieldIndex)
-      return idx;
-
-    return const_cast<FieldIndexCacheBase *>(this)->cacheFieldIndex();
-  }
-
-  NominalTypeDecl *getParentDecl() const {
-    auto s =
-        ParentTy::getOperand(0)->getType().getNominalOrBoundGenericNominal();
-    assert(s);
-    return s;
-  }
-
-  static bool classof(SILNodePointer node) {
-    SILNodeKind kind = node->getKind();
-    return kind == SILNodeKind::StructExtractInst ||
-           kind == SILNodeKind::StructElementAddrInst ||
-           kind == SILNodeKind::RefElementAddrInst;
-  }
-
-private:
-  unsigned cacheFieldIndex() {
-    unsigned index = swift::getFieldIndex(getParentDecl(), getField());
-    SILNode::Bits.FieldIndexCacheBase.FieldIndex = index;
-    return index;
-  }
-};
-
 /// Extract a physical, fragile field out of a value of struct type.
 class StructExtractInst
     : public UnaryInstructionBase<
           SILInstructionKind::StructExtractInst,
-          FieldIndexCacheBase<GuaranteedFirstArgForwardingSingleValueInst>> {
+          GuaranteedFirstArgForwardingSingleValueInst> {
   friend SILBuilder;
+
+  VarDecl *field;
 
   StructExtractInst(SILDebugLocation DebugLoc, SILValue Operand, VarDecl *Field,
                     SILType ResultTy,
                     ValueOwnershipKind forwardingOwnershipKind)
-      : UnaryInstructionBase(DebugLoc, Operand, ResultTy, Field,
-                             forwardingOwnershipKind) {}
+      : UnaryInstructionBase(DebugLoc, Operand, ResultTy,
+                             forwardingOwnershipKind),
+        field(Field) {}
 
 public:
+  VarDecl *getField() const { return field; }
+
+  unsigned getFieldIndex() const { return getField()->getFieldIndex(); }
+
   StructDecl *getStructDecl() const {
-    return cast<StructDecl>(getParentDecl());
+    return getOperand()->getType().getStructOrBoundGenericStruct();
   }
 
   /// Returns true if this is a trivial result of a struct that is non-trivial
@@ -6374,16 +6314,22 @@ public:
 /// Derive the address of a physical field from the address of a struct.
 class StructElementAddrInst
     : public UnaryInstructionBase<SILInstructionKind::StructElementAddrInst,
-                                  FieldIndexCacheBase<SingleValueInstruction>> {
+                                  SingleValueInstruction> {
   friend SILBuilder;
+
+  VarDecl *field;
 
   StructElementAddrInst(SILDebugLocation DebugLoc, SILValue Operand,
                         VarDecl *Field, SILType ResultTy)
-      : UnaryInstructionBase(DebugLoc, Operand, ResultTy, Field) {}
+      : UnaryInstructionBase(DebugLoc, Operand, ResultTy), field(Field) {}
 
 public:
+  VarDecl *getField() const { return field; }
+
+  unsigned getFieldIndex() const { return getField()->getFieldIndex(); }
+
   StructDecl *getStructDecl() const {
-    return cast<StructDecl>(getParentDecl());
+    return getOperand()->getType().getStructOrBoundGenericStruct();
   }
 };
 
@@ -6391,17 +6337,25 @@ public:
 /// type instance.
 class RefElementAddrInst
     : public UnaryInstructionBase<SILInstructionKind::RefElementAddrInst,
-                                  FieldIndexCacheBase<SingleValueInstruction>> {
+                                  SingleValueInstruction> {
   friend SILBuilder;
+
+  VarDecl *field;
 
   RefElementAddrInst(SILDebugLocation DebugLoc, SILValue Operand,
                      VarDecl *Field, SILType ResultTy, bool IsImmutable)
-      : UnaryInstructionBase(DebugLoc, Operand, ResultTy, Field) {
+      : UnaryInstructionBase(DebugLoc, Operand, ResultTy), field(Field) {
     setImmutable(IsImmutable);
   }
 
 public:
-  ClassDecl *getClassDecl() const { return cast<ClassDecl>(getParentDecl()); }
+  VarDecl *getField() const { return field; }
+
+  unsigned getFieldIndex() const { return getField()->getFieldIndex(); }
+
+  ClassDecl *getClassDecl() const {
+    return getOperand()->getType().getClassOrBoundGenericClass();
+  }
 
   /// Returns true if all loads of the same instance variable from the same
   /// class reference operand are guaranteed to yield the same value.

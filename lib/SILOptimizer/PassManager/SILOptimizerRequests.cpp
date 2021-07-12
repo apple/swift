@@ -88,6 +88,22 @@ LoweredSILRequest::evaluate(Evaluator &evaluator,
   return silMod;
 }
 
+std::tuple<>
+ComputeFieldIndicesRequest::evaluate(Evaluator &evaluator, NominalTypeDecl *decl) const {
+  unsigned index = 0;
+  if (auto *classDecl = dyn_cast<ClassDecl>(decl)) {
+    for (auto *superDecl = classDecl->getSuperclassDecl(); superDecl != nullptr;
+         superDecl = superDecl->getSuperclassDecl()) {
+      index += superDecl->getStoredProperties().size();
+    }
+  }
+  for (VarDecl *property : decl->getStoredProperties()) {
+    assert(property->fieldIndex < 0);
+    property->fieldIndex = index++;
+  }
+  return {};
+}
+
 // Define request evaluation functions for each of the SILGen requests.
 static AbstractRequestFunction *silOptimizerRequestFunctions[] = {
 #define SWIFT_REQUEST(Zone, Name, Sig, Caching, LocOptions)                    \

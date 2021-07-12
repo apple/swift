@@ -20,3 +20,6 @@ SWIFT_REQUEST(SILOptimizer, ExecuteSILPipelineRequest,
 SWIFT_REQUEST(SILOptimizer, LoweredSILRequest,
               std::unique_ptr<SILModule>(ASTLoweringDescriptor),
               Uncached, NoLocationInfo)
+SWIFT_REQUEST(SILOptimizer, ComputeFieldIndicesRequest,
+              void(NominalTypeDecl *),
+              Cached, NoLocationInfo)
