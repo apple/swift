@@ -74,6 +74,16 @@ bool swift::runSILDiagnosticPasses(SILModule &Module) {
   return Ctx.hadError();
 }
 
+bool swift::runSILLowerHopToActorPass(SILModule &Module) {
+  auto &Ctx = Module.getASTContext();
+
+  auto &opts = Module.getOptions();
+  executePassPipelinePlan(
+      &Module, SILPassPipelinePlan::getLowerHopToActorPassPipeline(opts));
+
+  return Ctx.hadError();
+}
+
 bool swift::runSILOwnershipEliminatorPass(SILModule &Module) {
   auto &Ctx = Module.getASTContext();
 

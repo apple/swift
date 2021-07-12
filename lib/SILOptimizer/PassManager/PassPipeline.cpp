@@ -189,6 +189,14 @@ SILPassPipelinePlan::getDiagnosticPassPipeline(const SILOptions &Options) {
   return P;
 }
 
+SILPassPipelinePlan SILPassPipelinePlan::getLowerHopToActorPassPipeline(
+    const SILOptions &Options) {
+  SILPassPipelinePlan P(Options);
+  P.startPipeline("Lower Hop to Actor");
+  P.addLowerHopToActor();
+  return P;
+}
+
 //===----------------------------------------------------------------------===//
 //                       Ownership Eliminator Pipeline
 //===----------------------------------------------------------------------===//

@@ -23,6 +23,7 @@
 #endif
 
 PASSPIPELINE(Diagnostic, "Guaranteed Passes")
+PASSPIPELINE(LowerHopToActor, "Lower Hop to Actor")
 PASSPIPELINE(OwnershipEliminator, "Utility pass to just run the ownership eliminator pass")
 PASSPIPELINE(Performance, "Passes run at -O")
 PASSPIPELINE(Onone, "Passes run at -Onone")

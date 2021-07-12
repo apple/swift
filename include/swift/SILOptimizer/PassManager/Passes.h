@@ -39,7 +39,10 @@ namespace swift {
   /// Run all SIL passes for -Onone on module \p M.
   void runSILPassesForOnone(SILModule &M);
 
-  /// Run the SIL ownership eliminator pass on \p M.
+  /// Run the SIL lower hop-to-actor pass on \p M.
+  bool runSILLowerHopToActorPass(SILModule &M);
+
+/// Run the SIL ownership eliminator pass on \p M.
   bool runSILOwnershipEliminatorPass(SILModule &M);
 
   void runSILOptimizationPassesWithFileSpecification(SILModule &Module,
