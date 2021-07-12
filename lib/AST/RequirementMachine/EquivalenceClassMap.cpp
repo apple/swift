@@ -692,8 +692,17 @@ void EquivalenceClassMap::concretizeNestedTypesFromConcreteParent(
                      << " on " << concreteType << "\n";
       }
 
-      auto typeWitness = concrete->getTypeWitness(assocType)
-                                 ->getCanonicalType();
+      auto t = concrete->getTypeWitness(assocType);
+      if (!t) {
+        if (DebugConcretizeNestedTypes) {
+          llvm::dbgs() << "^^ " << "Type witness for " << assocType->getName()
+                       << " of " << concreteType << " could not be inferred\n";
+        }
+
+        t = ErrorType::get(concreteType);
+      }
+
+      auto typeWitness = t->getCanonicalType();
 
       if (DebugConcretizeNestedTypes) {
         llvm::dbgs() << "^^ " << "Type witness for " << assocType->getName()
