@@ -3507,11 +3507,9 @@ SILGenModule::emitKeyPathComponentForDecl(SILLocation loc,
   auto isSettableInComponent = [&]() -> bool {
     // For storage we reference by a property descriptor, the descriptor will
     // supply the settability if needed. We only reference it here if the
-    // setter is public.
-    if (shouldUseExternalKeyPathComponent())
-      return storage->isSettable(useDC)
-        && storage->isSetterAccessibleFrom(useDC);
-    return storage->isSettable(storage->getDeclContext());
+    // setter is accessible.
+    return storage->isSettable(useDC)
+      && storage->isSetterAccessibleFrom(useDC);
   };
 
   if (auto var = dyn_cast<VarDecl>(storage)) {

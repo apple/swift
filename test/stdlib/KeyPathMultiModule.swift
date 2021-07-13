@@ -55,7 +55,6 @@ keyPathMultiModule.test("identity across multiple modules") {
     expectEqualWithHashes(A_y_keypath(), \A.y)
     expectEqualWithHashes(A_z_keypath(), \A.z)
     expectEqualWithHashes(A_w_keypath(), \A.w)
-    expectEqualWithHashes(A_v_keypath(), \A.v)
     expectEqualWithHashes(A_immutable_keypath(), \A.immutable)
     expectEqualWithHashes(A_subscript_withGeneric_keypath(index: 0), \A.[withGeneric: 0])
     expectEqualWithHashes(A_subscript_withGeneric_keypath(index: "butt"),

@@ -122,12 +122,12 @@ public struct A {
     set { }
   }
 
-  // PRIVATEIMPORTS-LABEL: sil_property #A.privateSetter (settable_property
+  // PRIVATEIMPORTS-LABEL: sil_property #A.privateSetter (gettable_property
   public private(set) var privateSetter: Int {
     get { return 0 }
     set { }
   }
-  // PRIVATEIMPORTS-LABEL: sil_property #A.fileprivateSetter (settable_property
+  // PRIVATEIMPORTS-LABEL: sil_property #A.fileprivateSetter (gettable_property
   public fileprivate(set) var fileprivateSetter: Int {
     get { return 0 }
     set { }
@@ -158,7 +158,7 @@ public struct FixedLayout {
 public class Foo {}
 extension Array where Element == Foo {
   public class Bar {
-    // NONRESILIENT-LABEL: sil_property #Array.Bar.dontCrash<τ_0_0 where τ_0_0 == Foo> (settable_property $Int
+    // NONRESILIENT-LABEL: sil_property #Array.Bar.dontCrash<τ_0_0 where τ_0_0 == Foo> (gettable_property $Int
     public private(set) var dontCrash : Int {
       get {
         return 10
