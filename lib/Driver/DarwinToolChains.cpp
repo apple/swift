@@ -321,10 +321,29 @@ toolchains::Darwin::addArgsToLinkARCLite(ArgStringList &Arguments,
 
 void toolchains::Darwin::addLTOLibArgs(ArgStringList &Arguments,
                                        const JobContext &context) const {
-  llvm::SmallString<128> LTOLibPath;
-  if (findXcodeClangLibPath("libLTO.dylib", LTOLibPath)) {
+  if (!context.OI.LibLTOPath.empty()) {
+    // Check for user-specified LTO library.
     Arguments.push_back("-lto_library");
-    Arguments.push_back(context.Args.MakeArgString(LTOLibPath));
+    Arguments.push_back(context.Args.MakeArgString(context.OI.LibLTOPath));
+  } else {
+    // Check for relative libLTO.dylib. This would be the expected behavior in an
+    // Xcode toolchain.
+    StringRef P = llvm::sys::path::parent_path(getDriver().getSwiftProgramPath());
+    llvm::SmallString<128> LibLTOPath(P);
+    llvm::sys::path::remove_filename(LibLTOPath); // Remove '/bin'
+    llvm::sys::path::append(LibLTOPath, "lib");
+    llvm::sys::path::append(LibLTOPath, "libLTO.dylib");
+    if (llvm::sys::fs::exists(LibLTOPath)) {
+      Arguments.push_back("-lto_library");
+      Arguments.push_back(context.Args.MakeArgString(LibLTOPath));
+    } else {
+      // Use libLTO.dylib from the default toolchain if a relative one does not exist.
+      llvm::SmallString<128> LibLTOPath;
+      if (findXcodeClangLibPath("libLTO.dylib", LibLTOPath)) {
+        Arguments.push_back("-lto_library");
+        Arguments.push_back(context.Args.MakeArgString(LibLTOPath));
+      }
+    }
   }
 }
 

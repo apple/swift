@@ -1448,6 +1448,12 @@ void Driver::buildOutputInfo(const ToolChain &TC, const DerivedArgList &Args,
       Diags.diagnose(SourceLoc(), diag::error_invalid_arg_value,
                      A->getAsString(Args), A->getValue());
   }
+  
+  if (const Arg *A = Args.getLastArg(options::OPT_lto_library)) {
+    OI.LibLTOPath = A->getValue();
+  } else {
+    OI.LibLTOPath = "";
+  }
 
   auto CompilerOutputType = OI.LTOVariant != OutputInfo::LTOKind::None
                              ? file_types::TY_LLVM_BC

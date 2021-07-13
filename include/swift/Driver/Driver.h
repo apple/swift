@@ -109,6 +109,8 @@ public:
 
   LTOKind LTOVariant = LTOKind::None;
 
+  std::string LibLTOPath;
+  
   /// Describes if and how the output of compile actions should be
   /// linked together.
   LinkKind LinkAction = LinkKind::None;
