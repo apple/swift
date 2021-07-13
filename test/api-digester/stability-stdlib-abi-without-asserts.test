@@ -62,6 +62,13 @@ Func MutableCollection.moveSubranges(_:to:) has been removed
 Func MutableCollection.removeSubranges(_:) has been removed
 Func RangeReplaceableCollection.removeSubranges(_:) has been removed
 Struct AnyHashable has added a conformance to an existing protocol _HasCustomAnyHashableRepresentation
+Struct EnumeratedSequence has added a conformance to an existing protocol BidirectionalCollection
+Struct EnumeratedSequence has added a conformance to an existing protocol Collection
+Struct EnumeratedSequence has added a conformance to an existing protocol LazyCollectionProtocol
+Struct EnumeratedSequence has added a conformance to an existing protocol LazySequenceProtocol
+Struct EnumeratedSequence has added a conformance to an existing protocol RandomAccessCollection
+Struct Zip2Sequence has added a conformance to an existing protocol BidirectionalCollection
+Struct Zip2Sequence has added a conformance to an existing protocol Collection
 Struct DiscontiguousSlice has been removed
 Struct RangeSet has been removed
 Subscript Collection.subscript(_:) has been removed

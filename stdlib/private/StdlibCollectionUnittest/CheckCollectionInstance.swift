@@ -323,8 +323,8 @@ public func checkCollection<Expected: Collection, C : Collection>(
   showFrame: Bool = true,
   file: String = #file, line: UInt = #line,
   resiliencyChecks: CollectionMisuseResiliencyChecks = .all,
-  sameValue: (Expected.Element, Expected.Element) -> Bool
-) where C.Element == Expected.Element {
+  sameValue: (Expected.Element, C.Element) -> Bool
+) {
 
   checkForwardCollection(expected, collection, message(),
     stackTrace: stackTrace, showFrame: showFrame, file: file, line: line,
@@ -368,9 +368,8 @@ public func checkForwardCollection<
   showFrame: Bool = true,
   file: String = #file, line: UInt = #line,
   resiliencyChecks: CollectionMisuseResiliencyChecks = .all,
-  sameValue: (Expected.Element, Expected.Element) -> Bool
-) where
-  C.Element == Expected.Element {
+  sameValue: (Expected.Element, C.Element) -> Bool
+) {
 
   checkOneLevelOfForwardCollection(expected, collection, message(),
     stackTrace: stackTrace.pushIf(showFrame, file: file, line: line),
@@ -403,8 +402,8 @@ public func checkOneLevelOfForwardCollection<
   showFrame: Bool = true,
   file: String = #file, line: UInt = #line,
   resiliencyChecks: CollectionMisuseResiliencyChecks = .all,
-  sameValue: (Expected.Element, Expected.Element) -> Bool
-) where C.Element == Expected.Element {
+  sameValue: (Expected.Element, C.Element) -> Bool
+) {
 
   // A `Collection` is a multi-pass `Sequence`.
   for _ in 0..<3 {
@@ -522,9 +521,8 @@ Expected: Collection, S : Collection
   showFrame: Bool = true,
   file: String = #file, line: UInt = #line,
   resiliencyChecks: CollectionMisuseResiliencyChecks = .all,
-  sameValue: (Expected.Element, Expected.Element) -> Bool
-) where
-  S.Element == Expected.Element {
+  sameValue: (Expected.Element, S.Element) -> Bool
+) {
 
   let expectedArray = Array(expected)
 
@@ -592,9 +590,8 @@ public func checkBidirectionalCollection<
   showFrame: Bool = true,
   file: String = #file, line: UInt = #line,
   resiliencyChecks: CollectionMisuseResiliencyChecks = .all,
-  sameValue: (Expected.Element, Expected.Element) -> Bool
-) where
-  C.Element == Expected.Element {
+  sameValue: (Expected.Element, C.Element) -> Bool
+) {
 
   checkOneLevelOfBidirectionalCollection(expected, collection, message(),
     stackTrace: stackTrace.pushIf(showFrame, file: file, line: line),
@@ -627,8 +624,8 @@ public func checkOneLevelOfBidirectionalCollection<
   showFrame: Bool = true,
   file: String = #file, line: UInt = #line,
   resiliencyChecks: CollectionMisuseResiliencyChecks = .all,
-  sameValue: (Expected.Element, Expected.Element) -> Bool
-) where C.Element == Expected.Element {
+  sameValue: (Expected.Element, C.Element) -> Bool
+) {
 
   // A `Collection` is a multi-pass `Sequence`.
   for _ in 0..<3 {
@@ -772,9 +769,8 @@ Expected: Collection, S : BidirectionalCollection
   showFrame: Bool = true,
   file: String = #file, line: UInt = #line,
   resiliencyChecks: CollectionMisuseResiliencyChecks = .all,
-  sameValue: (Expected.Element, Expected.Element) -> Bool
-) where
-  S.Element == Expected.Element {
+  sameValue: (Expected.Element, S.Element) -> Bool
+) {
 
   let expectedArray = Array(expected)
 
@@ -855,9 +851,8 @@ public func checkRandomAccessCollection<
   showFrame: Bool = true,
   file: String = #file, line: UInt = #line,
   resiliencyChecks: CollectionMisuseResiliencyChecks = .all,
-  sameValue: (Expected.Element, Expected.Element) -> Bool
-) where
-  C.Element == Expected.Element {
+  sameValue: (Expected.Element, C.Element) -> Bool
+) {
 
   checkOneLevelOfRandomAccessCollection(expected, collection, message(),
     stackTrace: stackTrace.pushIf(showFrame, file: file, line: line),
@@ -890,8 +885,8 @@ public func checkOneLevelOfRandomAccessCollection<
   showFrame: Bool = true,
   file: String = #file, line: UInt = #line,
   resiliencyChecks: CollectionMisuseResiliencyChecks = .all,
-  sameValue: (Expected.Element, Expected.Element) -> Bool
-) where C.Element == Expected.Element {
+  sameValue: (Expected.Element, C.Element) -> Bool
+) {
 
   // A `Collection` is a multi-pass `Sequence`.
   for _ in 0..<3 {
@@ -1031,9 +1026,8 @@ Expected: Collection, S : RandomAccessCollection
   showFrame: Bool = true,
   file: String = #file, line: UInt = #line,
   resiliencyChecks: CollectionMisuseResiliencyChecks = .all,
-  sameValue: (Expected.Element, Expected.Element) -> Bool
-) where
-  S.Element == Expected.Element {
+  sameValue: (Expected.Element, S.Element) -> Bool
+) {
 
   let expectedArray = Array(expected)
 

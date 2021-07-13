@@ -283,7 +283,7 @@ LazyTestSuite.test("EmptyCollection/${name}/NoTrap") {
   var c = EmptyCollection<OpaqueValue<Int>>()
   let r: Range<Int> = 0..<0
   ${operation}
-  expectEqualSequence([], c[0..<0]) { $0.value == $1.value }
+  expectEqualSequence([] as [OpaqueValue<Int>], c[0..<0]) { $0.value == $1.value }
 }
 % end
 

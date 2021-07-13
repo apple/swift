@@ -88,6 +88,7 @@
       ],
       "Lazy Views": [
         "Algorithm.swift",
+        "Indexed.swift",
         "Flatten.swift",
         "FlatMap.swift",
         "Map.swift",

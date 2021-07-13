@@ -293,12 +293,12 @@ public func expectationFailure(
 // Renamed to avoid collision with expectEqual(_, _, TRACE).
 // See <rdar://26058520> Generic type constraints incorrectly applied to
 // functions with the same name
-public func expectEqualTest<T>(
-  _ expected: T, _ actual: T,
+public func expectEqualTest<T, U>(
+  _ expected: T, _ actual: U,
   _ message: @autoclosure () -> String = "",
   stackTrace: SourceLocStack = SourceLocStack(),
   showFrame: Bool = true,
-  file: String = #file, line: UInt = #line, sameValue equal: (T, T) -> Bool
+  file: String = #file, line: UInt = #line, sameValue equal: (T, U) -> Bool
 ) {
   if !equal(expected, actual) {
     expectationFailure(
@@ -3326,9 +3326,8 @@ public func expectEqualSequence<
   stackTrace: SourceLocStack = SourceLocStack(),
   showFrame: Bool = true,
   file: String = #file, line: UInt = #line,
-  sameValue: (Expected.Element, Expected.Element) -> Bool
-) where
-  Expected.Element == Actual.Element {
+  sameValue: (Expected.Element, Actual.Element) -> Bool
+) {
 
   if !expected.elementsEqual(actual, by: sameValue) {
     expectationFailure("expected elements: \"\(expected)\"\n"

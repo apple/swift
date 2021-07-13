@@ -249,7 +249,7 @@ extension EnumeratedSequence where Base : TestProtocol1 {
   }
 }
 
-SequenceTypeTests.test("enumerated()") {
+SequenceTypeTests.test("enumerated()/Sequence") {
   typealias Element = (offset: Int, element: OpaqueValue<Int>)
   func compareElements(_ lhs: Element, rhs: Element) -> Bool {
     return lhs.0 == rhs.0 && lhs.1.value == rhs.1.value
@@ -270,6 +270,136 @@ SequenceTypeTests.test("enumerated()") {
       result,
       resiliencyChecks: .none, sameValue: compareElements)
     expectEqual([], s.map { $0.value }, "sequence should be consumed")
+  }
+}
+
+SequenceTypeTests.test("enumerated()/Collection") {
+  guard #available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *) else { return }
+
+  typealias Element = (offset: Int, element: OpaqueValue<Int>)
+  func compareElements(_ lhs: Element, rhs: Element) -> Bool {
+    return lhs.0 == rhs.0 && lhs.1.value == rhs.1.value
+  }
+
+  for test in enumerateTests {
+    let s = MinimalCollection<OpaqueValue<Int>>(
+      elements: test.sequence.map(OpaqueValue.init))
+    var result = s.enumerated()
+    expectType(
+      EnumeratedSequence<MinimalCollection<OpaqueValue<Int>>>.self,
+      &result)
+
+    checkCollection(
+      test.expected.map {
+        (offset: $0.0, element: OpaqueValue($0.1))
+      } as [Element],
+      result,
+      resiliencyChecks: .none, sameValue: compareElements)
+  }
+}
+
+SequenceTypeTests.test("enumerated()/BidirectionalCollection") {
+  guard #available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *) else { return }
+
+  typealias Element = (offset: Int, element: OpaqueValue<Int>)
+  func compareElements(_ lhs: Element, rhs: Element) -> Bool {
+    return lhs.0 == rhs.0 && lhs.1.value == rhs.1.value
+  }
+
+  for test in enumerateTests {
+    let s = MinimalBidirectionalCollection<OpaqueValue<Int>>(
+      elements: test.sequence.map(OpaqueValue.init))
+    var result = s.enumerated()
+    expectType(
+      EnumeratedSequence<MinimalBidirectionalCollection<OpaqueValue<Int>>>.self,
+      &result)
+
+    checkBidirectionalCollection(
+      test.expected.map {
+        (offset: $0.0, element: OpaqueValue($0.1))
+      } as [Element],
+      result,
+      resiliencyChecks: .none, sameValue: compareElements)
+  }
+}
+
+SequenceTypeTests.test("enumerated()/RandomAccessCollection") {
+  guard #available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *) else { return }
+
+  typealias Element = (offset: Int, element: OpaqueValue<Int>)
+  func compareElements(_ lhs: Element, rhs: Element) -> Bool {
+    return lhs.0 == rhs.0 && lhs.1.value == rhs.1.value
+  }
+
+  for test in enumerateTests {
+    let s = MinimalRandomAccessCollection<OpaqueValue<Int>>(
+      elements: test.sequence.map(OpaqueValue.init))
+    var result = s.enumerated()
+    expectType(
+      EnumeratedSequence<MinimalRandomAccessCollection<OpaqueValue<Int>>>.self,
+      &result)
+
+    checkRandomAccessCollection(
+      test.expected.map {
+        (offset: $0.0, element: OpaqueValue($0.1))
+      } as [Element],
+      result,
+      resiliencyChecks: .none, sameValue: compareElements)
+  }
+}
+
+//===----------------------------------------------------------------------===//
+// indexed()
+//===----------------------------------------------------------------------===//
+
+SequenceTypeTests.test("indexed/Collection") {
+  guard #available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *) else { return }
+
+  for test in indexedTests {
+    let s = MinimalCollection<OpaqueValue<Int>>(
+      elements: test.sequence.map(OpaqueValue.init))
+    var result = s.indexed()
+    expectType(IndexedCollection<MinimalCollection<OpaqueValue<Int>>>.self, &result)
+    
+    checkCollection(
+      test.expected,
+      result,
+      resiliencyChecks: .none,
+      sameValue: { $0.0 == $1.0.position && $0.1 == $1.1.value })
+  }
+}
+
+SequenceTypeTests.test("indexed/BidirectionalCollection") {
+  guard #available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *) else { return }
+
+  for test in indexedTests {
+    let s = MinimalBidirectionalCollection<OpaqueValue<Int>>(
+      elements: test.sequence.map(OpaqueValue.init))
+    var result = s.indexed()
+    expectType(IndexedCollection<MinimalBidirectionalCollection<OpaqueValue<Int>>>.self, &result)
+    
+    checkBidirectionalCollection(
+      test.expected,
+      result,
+      resiliencyChecks: .none,
+      sameValue: { $0.0 == $1.0.position && $0.1 == $1.1.value })
+  }
+}
+
+SequenceTypeTests.test("indexed/RandomAccessCollection") {
+  guard #available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *) else { return }
+
+  for test in indexedTests {
+    let s = MinimalRandomAccessCollection<OpaqueValue<Int>>(
+      elements: test.sequence.map(OpaqueValue.init))
+    var result = s.indexed()
+    expectType(IndexedCollection<MinimalRandomAccessCollection<OpaqueValue<Int>>>.self, &result)
+    
+    checkRandomAccessCollection(
+      test.expected,
+      result,
+      resiliencyChecks: .none,
+      sameValue: { $0.0 == $1.0.position && $0.1 == $1.1.value })
   }
 }
 
@@ -950,7 +1080,7 @@ extension Zip2Sequence
   }
 }
 
-SequenceTypeTests.test("zip") {
+SequenceTypeTests.test("zip/Sequence") {
   typealias Element = (OpaqueValue<Int>, OpaqueValue<Int32>)
   func compareElements(_ lhs: Element, rhs: Element) -> Bool {
     return lhs.0.value == rhs.0.value && lhs.1.value == rhs.1.value
@@ -981,6 +1111,87 @@ SequenceTypeTests.test("zip") {
     expectEqual(
       test.expectedLeftoverOther, other.map { $0.value },
       stackTrace: SourceLocStack().with(test.loc))
+  }
+}
+
+SequenceTypeTests.test("zip/Collection") {
+  guard #available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *) else { return }
+
+  typealias Element = (OpaqueValue<Int>, OpaqueValue<Int32>)
+  func compareElements(_ lhs: Element, rhs: Element) -> Bool {
+    return lhs.0.value == rhs.0.value && lhs.1.value == rhs.1.value
+  }
+
+  for test in zipTests {
+    let s = MinimalCollection<OpaqueValue<Int>>(
+      elements: test.sequence.map(OpaqueValue.init))
+    let other = MinimalCollection<OpaqueValue<Int32>>(
+      elements: test.other.map(OpaqueValue.init))
+    var result = zip(s, other)
+    expectType(
+      Zip2Sequence<
+        MinimalCollection<OpaqueValue<Int>>,
+        MinimalCollection<OpaqueValue<Int32>>
+      >.self,
+      &result)
+    
+    checkCollection(
+      test.expected.map { (OpaqueValue($0), OpaqueValue($1)) }, result,
+      stackTrace: SourceLocStack().with(test.loc), sameValue: compareElements)
+  }
+}
+
+SequenceTypeTests.test("zip/BidirectionalCollection") {
+  guard #available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *) else { return }
+
+  typealias Element = (OpaqueValue<Int>, OpaqueValue<Int32>)
+  func compareElements(_ lhs: Element, rhs: Element) -> Bool {
+    return lhs.0.value == rhs.0.value && lhs.1.value == rhs.1.value
+  }
+
+  for test in zipTests {
+    let s = MinimalBidirectionalCollection<OpaqueValue<Int>>(
+      elements: test.sequence.map(OpaqueValue.init))
+    let other = MinimalBidirectionalCollection<OpaqueValue<Int32>>(
+      elements: test.other.map(OpaqueValue.init))
+    var result = zip(s, other)
+    expectType(
+      Zip2Sequence<
+        MinimalBidirectionalCollection<OpaqueValue<Int>>,
+        MinimalBidirectionalCollection<OpaqueValue<Int32>>
+      >.self,
+      &result)
+    
+    checkBidirectionalCollection(
+      test.expected.map { (OpaqueValue($0), OpaqueValue($1)) }, result,
+      stackTrace: SourceLocStack().with(test.loc), sameValue: compareElements)
+  }
+}
+
+SequenceTypeTests.test("zip/RandomAccessCollection") {
+  guard #available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *) else { return }
+
+  typealias Element = (OpaqueValue<Int>, OpaqueValue<Int32>)
+  func compareElements(_ lhs: Element, rhs: Element) -> Bool {
+    return lhs.0.value == rhs.0.value && lhs.1.value == rhs.1.value
+  }
+
+  for test in zipTests {
+    let s = MinimalRandomAccessCollection<OpaqueValue<Int>>(
+      elements: test.sequence.map(OpaqueValue.init))
+    let other = MinimalRandomAccessCollection<OpaqueValue<Int32>>(
+      elements: test.other.map(OpaqueValue.init))
+    var result = zip(s, other)
+    expectType(
+      Zip2RandomAccessCollection<
+        MinimalRandomAccessCollection<OpaqueValue<Int>>,
+        MinimalRandomAccessCollection<OpaqueValue<Int32>>
+      >.self,
+      &result)
+    
+    checkRandomAccessCollection(
+      test.expected.map { (OpaqueValue($0), OpaqueValue($1)) }, result,
+      stackTrace: SourceLocStack().with(test.loc), sameValue: compareElements)
   }
 }
 

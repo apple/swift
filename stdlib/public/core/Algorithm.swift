@@ -158,3 +158,131 @@ extension EnumeratedSequence: Sequence {
     return Iterator(_base: _base.makeIterator())
   }
 }
+
+@available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
+extension EnumeratedSequence: Collection where Base: Collection {
+  @frozen
+  public struct Index {
+    /// The position in the underlying collection.
+    public let base: Base.Index
+    
+    /// The offset corresponding to this index when `base` is not the end index,
+    /// `0` otherwise.
+    @usableFromInline
+    internal let offset: Int
+    
+    @inlinable
+    internal init(base: Base.Index, offset: Int) {
+      self.base = base
+      self.offset = offset
+    }
+  }
+  
+  @inlinable
+  public var startIndex: Index {
+    return Index(base: _base.startIndex, offset: 0)
+  }
+  
+  @inlinable
+  public var endIndex: Index {
+    return Index(base: _base.endIndex, offset: 0)
+  }
+  
+  /// Returns the offset corresponding to `index`.
+  ///
+  /// - Complexity: O(*n*) if `index == endIndex` and `Base` does not conform to
+  ///   `RandomAccessCollection`, O(1) otherwise.
+  @inlinable
+  internal func _offset(of index: Index) -> Int {
+    return index.base == _base.endIndex ? _base.count : index.offset
+  }
+  
+  @inlinable
+  public func index(after index: Index) -> Index {
+    precondition(index.base != _base.endIndex, "Cannot advance past endIndex")
+    return Index(base: _base.index(after: index.base), offset: index.offset + 1)
+  }
+  
+  @inlinable
+  public subscript(position: Index) -> Element {
+    (position.offset, _base[position.base])
+  }
+  
+  @inlinable
+  public func index(_ i: Index, offsetBy distance: Int) -> Index {
+    let index = _base.index(i.base, offsetBy: distance)
+    let offset = distance >= 0 ? i.offset : _offset(of: i)
+    return Index(base: index, offset: offset + distance)
+  }
+  
+  @inlinable
+  public func index(
+    _ i: Index,
+    offsetBy distance: Int,
+    limitedBy limit: Index
+  ) -> Index? {
+    guard let index = _base.index(
+      i.base,
+      offsetBy: distance,
+      limitedBy: limit.base
+    ) else { return nil }
+    let offset = distance >= 0 ? i.offset : _offset(of: i)
+    return Index(base: index, offset: offset + distance)
+  }
+  
+  @inlinable
+  public func distance(from start: Index, to end: Index) -> Int {
+    if start.base == _base.endIndex || end.base == _base.endIndex {
+      return _base.distance(from: start.base, to: end.base)
+    } else {
+      return end.offset - start.offset
+    }
+  }
+  
+  @inlinable
+  public var count: Int {
+    return _base.count
+  }
+  
+  @inlinable
+  public var isEmpty: Bool {
+    return _base.isEmpty
+  }
+}
+
+@available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
+extension EnumeratedSequence: BidirectionalCollection
+  where Base: BidirectionalCollection
+{
+  @inlinable
+  public func index(before index: Index) -> Index {
+    return Index(
+      base: _base.index(before: index.base),
+      offset: _offset(of: index) - 1)
+  }
+}
+
+@available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
+extension EnumeratedSequence: RandomAccessCollection
+  where Base: RandomAccessCollection {}
+
+@available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
+extension EnumeratedSequence: LazySequenceProtocol
+  where Base: LazySequenceProtocol {}
+
+@available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
+extension EnumeratedSequence: LazyCollectionProtocol
+  where Base: LazyCollectionProtocol {}
+
+@available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
+extension EnumeratedSequence.Index: Comparable {
+  @inlinable
+  public static func == (lhs: Self, rhs: Self) -> Bool {
+    return lhs.base == rhs.base
+  }
+  
+  @inlinable
+  public static func < (lhs: Self, rhs: Self) -> Bool {
+    return lhs.base < rhs.base
+  }
+}

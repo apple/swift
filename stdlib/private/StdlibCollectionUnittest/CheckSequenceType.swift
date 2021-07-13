@@ -121,6 +121,22 @@ public struct EnumerateTest {
   }
 }
 
+public struct IndexedTest {
+  public let expected: [(Int, Int)]
+  public let sequence: [Int]
+  public let loc: SourceLoc
+
+  public init(
+    expected: [(Int, Int)], sequence: [Int],
+    file: String = #file, line: UInt = #line,
+    comment: String = ""
+  ) {
+    self.expected = expected
+    self.sequence = sequence
+    self.loc = SourceLoc(file, line, comment: "test data" + comment)
+  }
+}
+
 public struct FilterTest {
   public let expected: [Int]
   public let sequence: [Int]
@@ -525,6 +541,13 @@ public let enumerateTests = [
   EnumerateTest([ (0, 10) ], [ 10 ]),
   EnumerateTest([ (0, 10), (1, 20) ], [ 10, 20 ]),
   EnumerateTest([ (0, 10), (1, 20), (2, 30) ], [ 10, 20, 30 ]),
+]
+
+public let indexedTests = [
+  IndexedTest(expected: [], sequence: []),
+  IndexedTest(expected: [ (0, 10) ], sequence: [ 10 ]),
+  IndexedTest(expected: [ (0, 10), (1, 20) ], sequence: [ 10, 20 ]),
+  IndexedTest(expected: [ (0, 10), (1, 20), (2, 30) ], sequence: [ 10, 20, 30 ]),
 ]
 
 public let filterTests = [

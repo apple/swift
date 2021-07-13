@@ -27,11 +27,11 @@ public func checkIterator<
   showFrame: Bool = true,
   file: String = #file, line: UInt = #line,
   resiliencyChecks: CollectionMisuseResiliencyChecks = .all,
-  sameValue: (Expected.Element, Expected.Element) -> Bool
-) where I.Element == Expected.Element {
+  sameValue: (Expected.Element, I.Element) -> Bool
+) {
   // Copying a `IteratorProtocol` is allowed.
   var mutableGen = iterator
-  var actual: [Expected.Element] = []
+  var actual: [I.Element] = []
   while let e = mutableGen.next() {
     actual.append(e)
   }
@@ -75,8 +75,8 @@ public func checkSequence<
   showFrame: Bool = true,
   file: String = #file, line: UInt = #line,
   resiliencyChecks: CollectionMisuseResiliencyChecks = .all,
-  sameValue: (Expected.Element, Expected.Element) -> Bool
-) where S.Element == Expected.Element {
+  sameValue: (Expected.Element, S.Element) -> Bool
+) {
   let expectedCount: Int = expected.count
   checkIterator(
     expected, sequence.makeIterator(), message(),
@@ -124,7 +124,7 @@ public func checkIterator<
 ) where I.Element == Element {
   // Copying a `IteratorProtocol` is allowed.
   var mutableGen = iterator
-  var actual: [Element] = []
+  var actual: [I.Element] = []
   while let e = mutableGen.next() {
     actual.append(e)
   }
