@@ -1,4 +1,5 @@
 // RUN: %target-typecheck-verify-swift -enable-infer-public-sendable
+// REQUIRES: concurrency
 
 func acceptCV<T: Sendable>(_: T) { }
 
