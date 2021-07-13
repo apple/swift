@@ -169,6 +169,7 @@ class Builder(object):
             "-DSWIFT_HOST_VARIANT=" + self.host,
             "-DSWIFT_HOST_VARIANT_SDK=" + host_sdk,
             "-DSWIFT_HOST_VARIANT_ARCH=" + self.arch,
+            "-DCMAKE_Swift_COMPILER_TARGET=" + host_triple,
             "-DCMAKE_C_FLAGS=" + llvm_c_flags,
             "-DCMAKE_CXX_FLAGS=" + llvm_c_flags,
         ]
