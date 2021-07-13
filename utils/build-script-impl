@@ -749,6 +749,7 @@ function set_build_options_for_host() {
             )
 
             lldb_cmake_options+=(
+                -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING="${cmake_osx_deployment_target}"
                 -DCMAKE_OSX_SYSROOT:PATH="${cmake_os_sysroot}"
                 -DCMAKE_OSX_ARCHITECTURES="${architecture}"
             )
