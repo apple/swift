@@ -662,7 +662,7 @@ func acceptsAnyObject(_ ref: inout Builtin.AnyObject?) {}
 // CHECK-NEXT: [[ADDR:%.+]] = getelementptr inbounds [[OPTIONAL_ANYOBJECT_TY]], [[OPTIONAL_ANYOBJECT_TY]]* %0, i32 0, i32 0
 // CHECK-NEXT: [[CASTED:%.+]] = bitcast {{.+}}* [[ADDR]] to [[UNKNOWN_OBJECT:%objc_object|%swift\.refcounted]]**
 // CHECK-NEXT: [[REF:%.+]] = load [[UNKNOWN_OBJECT]]*, [[UNKNOWN_OBJECT]]** [[CASTED]]
-// CHECK-objc-NEXT: [[RESULT:%.+]] = call i1 @swift_isUniquelyReferencedNonObjC([[UNKNOWN_OBJECT]]* [[REF]])
+// CHECK-objc-NEXT: [[RESULT:%.+]] = call i1 @swift_isUniquelyReferenced([[UNKNOWN_OBJECT]]* [[REF]])
 // CHECK-native-NEXT: [[RESULT:%.+]] = call i1 @swift_isUniquelyReferenced_native([[UNKNOWN_OBJECT]]* [[REF]])
 // CHECK-NEXT: ret i1 [[RESULT]]
 func isUnique(_ ref: inout Builtin.AnyObject?) -> Bool {
@@ -675,7 +675,7 @@ func isUnique(_ ref: inout Builtin.AnyObject?) -> Bool {
 // CHECK-NEXT: entry:
 // CHECK-NEXT: [[ADDR:%.+]] = getelementptr inbounds %AnyObject, %AnyObject* %0, i32 0, i32 0
 // CHECK-NEXT: [[REF:%.+]] = load [[UNKNOWN_OBJECT]]*, [[UNKNOWN_OBJECT]]** [[ADDR]]
-// CHECK-objc-NEXT: [[RESULT:%.+]] = call i1 @swift_isUniquelyReferencedNonObjC_nonNull([[UNKNOWN_OBJECT]]* [[REF]])
+// CHECK-objc-NEXT: [[RESULT:%.+]] = call i1 @swift_isUniquelyReferenced_nonNull([[UNKNOWN_OBJECT]]* [[REF]])
 // CHECK-native-NEXT: [[RESULT:%.+]] = call i1 @swift_isUniquelyReferenced_nonNull_native([[UNKNOWN_OBJECT]]* [[REF]])
 // CHECK-NEXT: ret i1 [[RESULT]]
 func isUnique(_ ref: inout Builtin.AnyObject) -> Bool {
@@ -686,7 +686,7 @@ func isUnique(_ ref: inout Builtin.AnyObject) -> Bool {
 // CHECK-LABEL: define hidden {{.*}}i1 @"$s8builtins8isUniqueyBi1_BbzF"(%swift.bridge** nocapture dereferenceable({{.*}}) %0) {{.*}} {
 // CHECK-NEXT: entry:
 // CHECK-NEXT: load %swift.bridge*, %swift.bridge** %0
-// CHECK-NEXT: call i1 @swift_isUniquelyReferencedNonObjC_nonNull_bridgeObject(%swift.bridge* %1)
+// CHECK-NEXT: call i1 @swift_isUniquelyReferenced_nonNull_bridgeObject(%swift.bridge* %1)
 // CHECK-NEXT: ret i1 %2
 func isUnique(_ ref: inout Builtin.BridgeObject) -> Bool {
   return Builtin.isUnique(&ref)

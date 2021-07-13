@@ -473,6 +473,30 @@ FUNCTION(IsUniquelyReferencedNonObjC_nonNull_bridgeObject,
          ARGS(BridgeObjectPtrTy),
          ATTRS(NoUnwind, ZExt))
 
+// bool swift_isUniquelyReferenced(const void *);
+FUNCTION(IsUniquelyReferenced, swift_isUniquelyReferenced,
+         C_CC, AlwaysAvailable,
+         RETURNS(Int1Ty),
+         ARGS(UnknownRefCountedPtrTy),
+         ATTRS(NoUnwind, ZExt))
+
+// bool swift_isUniquelyReferenced_nonNull(const void *);
+FUNCTION(IsUniquelyReferenced_nonNull,
+         swift_isUniquelyReferenced_nonNull,
+         C_CC, AlwaysAvailable,
+         RETURNS(Int1Ty),
+         ARGS(UnknownRefCountedPtrTy),
+         ATTRS(NoUnwind, ZExt))
+
+// bool swift_isUniquelyReferenced_nonNull_bridgeObject(
+//   uintptr_t bits);
+FUNCTION(IsUniquelyReferenced_nonNull_bridgeObject,
+         swift_isUniquelyReferenced_nonNull_bridgeObject,
+         C_CC, AlwaysAvailable,
+         RETURNS(Int1Ty),
+         ARGS(BridgeObjectPtrTy),
+         ATTRS(NoUnwind, ZExt))
+
 // bool swift_isUniquelyReferenced_native(const struct HeapObject *);
 FUNCTION(IsUniquelyReferenced_native, swift_isUniquelyReferenced_native,
          C_CC, AlwaysAvailable,

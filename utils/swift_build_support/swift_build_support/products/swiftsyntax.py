@@ -53,6 +53,16 @@ class SwiftSyntax(product.Product):
         llvm_build_dir = os.path.join(self.build_dir, '..', 'llvm-' + target)
         llvm_build_dir = os.path.realpath(llvm_build_dir)
 
+        host_os, host_arch = target.split('-')
+        swift_root = os.path.dirname(os.path.dirname(self.toolchain.swiftc))
+        swift_lib_dir = os.path.join(swift_root, 'lib', 'swift', host_os)
+
+        # ###FIXME: Remove this
+        shell.call(['/bin/ls', '-lR', swift_lib_dir])
+
+        # ###FIXME: Join this with the line above
+        swift_lib_dir = os.path.join(swift_lib_dir, host_arch)
+
         script_path = os.path.join(self.source_dir, 'build-script.py')
 
         build_cmd = [
@@ -75,7 +85,7 @@ class SwiftSyntax(product.Product):
         if self.args.verbose_build:
             build_cmd.append('--verbose')
 
-        shell.call(build_cmd)
+        shell.call(build_cmd, env={'DYLD_LIBRARY_PATH': swift_lib_dir})
 
     def should_build(self, host_target):
         return True
