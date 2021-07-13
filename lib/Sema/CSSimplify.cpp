@@ -339,6 +339,19 @@ static bool matchCallArgumentsImpl(
     if (numClaimedArgs == numArgs)
       return None;
 
+    // If the next arg is a code completion token with no label, and we're using
+    // the new solver-based code completion (to avoid affecting the AST used by
+    // unmigrated completion kinds) claim it without complaining about the
+    // missing label. Completion will suggest the label in such cases.
+    if (nextArgIdx < numArgs && args[nextArgIdx].getLabel().empty()) {
+      Type nextArgTy = args[nextArgIdx].getPlainType();
+      if (auto *TVT = nextArgTy->getAs<TypeVariableType>()) {
+        if (TVT->getImpl().isCodeCompletionToken() &&
+            TVT->getASTContext().CompletionCallback)
+          return claim(paramLabel, nextArgIdx, /*ignoreNameMismatch*/true);
+      }
+    }
+
     // Go hunting for an unclaimed argument whose name does match.
     Optional<unsigned> claimedWithSameName;
     for (unsigned i = nextArgIdx; i != numArgs; ++i) {
@@ -992,35 +1005,30 @@ constraints::matchCallArguments(
   };
 }
 
-struct CompletionArgInfo {
-  unsigned completionIdx;
-  Optional<unsigned> firstTrailingIdx;
+bool CompletionArgInfo::isAllowableMissingArg(unsigned argInsertIdx,
+                                              AnyFunctionType::Param param) {
+  // If the argument is before or at the index of the argument containing the
+  // completion, the user would likely have already written it if they
+  // intended this overload.
+  if (completionIdx >= argInsertIdx)
+    return false;
 
-  bool isAllowableMissingArg(unsigned argInsertIdx,
-                             AnyFunctionType::Param param) {
-    // If the argument is before or at the index of the argument containing the
-    // completion, the user would likely have already written it if they
-    // intended this overload.
-    if (completionIdx >= argInsertIdx)
+  // If the argument is after the first trailing closure, the user can only
+  // continue on to write more trailing arguments, so only allow this overload
+  // if the missing argument is of function type.
+  if (firstTrailingIdx && argInsertIdx > *firstTrailingIdx) {
+    if (param.isInOut())
       return false;
 
-    // If the argument is after the first trailing closure, the user can only
-    // continue on to write more trailing arguments, so only allow this overload
-    // if the missing argument is of function type.
-    if (firstTrailingIdx && argInsertIdx > *firstTrailingIdx) {
-      if (param.isInOut())
-        return false;
-
-      Type expectedTy = param.getPlainType()->lookThroughAllOptionalTypes();
-      return expectedTy->is<FunctionType>() || expectedTy->isAny() ||
-          expectedTy->isTypeVariableOrMember();
-    }
-    return true;
+    Type expectedTy = param.getPlainType()->lookThroughAllOptionalTypes();
+    return expectedTy->is<FunctionType>() || expectedTy->isAny() ||
+        expectedTy->isTypeVariableOrMember();
   }
-};
+  return true;
+}
 
-static Optional<CompletionArgInfo>
-getCompletionArgInfo(ASTNode anchor, ConstraintSystem &CS) {
+Optional<CompletionArgInfo>
+swift::getCompletionArgInfo(ASTNode anchor, ConstraintSystem &CS) {
   Expr *arg = nullptr;
   if (auto *CE = getAsExpr<CallExpr>(anchor))
     arg = CE->getArg();
@@ -1035,11 +1043,11 @@ getCompletionArgInfo(ASTNode anchor, ConstraintSystem &CS) {
   auto trailingIdx = arg->getUnlabeledTrailingClosureIndexOfPackedArgument();
   if (auto *PE = dyn_cast<ParenExpr>(arg)) {
     if (CS.containsCodeCompletionLoc(PE->getSubExpr()))
-      return CompletionArgInfo{ 0, trailingIdx };
+      return CompletionArgInfo{ 0, trailingIdx, 1};
   } else if (auto *TE = dyn_cast<TupleExpr>(arg)) {
     for (unsigned i: indices(TE->getElements())) {
       if (CS.containsCodeCompletionLoc(TE->getElement(i)))
-        return CompletionArgInfo{ i, trailingIdx };
+        return CompletionArgInfo{ i, trailingIdx, TE->getNumElements() };
     }
   }
   return None;
@@ -6993,7 +7001,8 @@ static bool isForKeyPathSubscriptWithoutLabel(ConstraintSystem &cs,
   if (auto *SE = getAsExpr<SubscriptExpr>(locator->getAnchor())) {
     auto *indexExpr = SE->getIndex();
     return isa<ParenExpr>(indexExpr) &&
-           isa<KeyPathExpr>(indexExpr->getSemanticsProvidingExpr());
+           (isa<KeyPathExpr>(indexExpr->getSemanticsProvidingExpr()) ||
+            isa<CodeCompletionExpr>(indexExpr->getSemanticsProvidingExpr()));
   }
   return false;
 }
@@ -9727,6 +9736,14 @@ ConstraintSystem::simplifyKeyPathApplicationConstraint(
     resultTy = OptionalType::get(resultTy);
     return matchTypes(resultTy, valueTy, ConstraintKind::Bind,
                       subflags, locator);
+  }
+
+  if (keyPathTy->isPlaceholder()) {
+    if (rootTy->hasTypeVariable())
+      recordAnyTypeVarAsPotentialHole(rootTy);
+    if (valueTy->hasTypeVariable())
+      recordAnyTypeVarAsPotentialHole(valueTy);
+    return SolutionKind::Solved;
   }
   
   if (auto bgt = keyPathTy->getAs<BoundGenericType>()) {

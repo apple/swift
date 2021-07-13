@@ -1165,6 +1165,26 @@ fallbackTypeCheck(DeclContext *DC) {
       [&](const Solution &S) { sawSolution(S); });
 }
 
+void ArgumentTypeCheckCompletionCallback::
+fallbackTypeCheck(DeclContext *DC) {
+  assert(!gotCallback());
+
+  CompletionContextFinder finder(DC);
+  if (!finder.hasCompletionExpr())
+    return;
+
+  auto fallback = finder.getFallbackCompletionExpr();
+  if (!fallback)
+    return;
+
+  SolutionApplicationTarget completionTarget(fallback->E, fallback->DC,
+                                             CTP_Unused, Type(),
+                                             /*isDiscarded=*/true);
+  TypeChecker::typeCheckForCodeCompletion(
+      completionTarget, /*needsPrecheck*/true,
+      [&](const Solution &S) { sawSolution(S); });
+}
+
 static Type getTypeForCompletion(const constraints::Solution &S, Expr *E) {
   auto &CS = S.getConstraintSystem();
 
@@ -1359,4 +1379,106 @@ void KeyPathTypeCheckCompletionCallback::sawSolution(
   if (BaseType) {
     Results.push_back({BaseType, /*OnRoot=*/(ComponentIndex == 0)});
   }
+}
+
+bool ArgumentTypeCheckCompletionCallback::Result::isSubscript() const {
+  return CallE && isa<SubscriptExpr>(CallE);
+}
+
+void ArgumentTypeCheckCompletionCallback::
+sawSolution(const constraints::Solution &S) {
+  GotCallback = true;
+
+  Type ExpectedTy = getTypeForCompletion(S, CompletionExpr);
+  if (!ExpectedTy)
+    return;
+
+  auto &CS = S.getConstraintSystem();
+
+  Expr *ParentCall = CompletionExpr;
+  while (ParentCall &&
+         !(isa<ApplyExpr>(ParentCall) || isa<SubscriptExpr>(ParentCall)))
+    ParentCall = CS.getParentExpr(ParentCall);
+
+  if (!ParentCall || ParentCall == CompletionExpr) {
+    assert(false && "no containing call?");
+    return;
+  }
+
+  auto *Locator = CS.getConstraintLocator(ParentCall);
+  auto *CalleeLocator = S.getCalleeLocator(Locator);
+  auto SelectedOverload = S.getOverloadChoiceIfAvailable(CalleeLocator);
+  if (!SelectedOverload)
+    return;
+
+  Type BaseTy = SelectedOverload->choice.getBaseType();
+  if (BaseTy)
+    BaseTy = S.simplifyType(BaseTy);
+
+  ValueDecl *FuncD = SelectedOverload->choice.getDeclOrNull();
+  Type FuncTy = S.simplifyType(SelectedOverload->openedType);
+
+  // For completion as the arg in a call to the implicit (keypath: _) method the
+  // solver can't know what kind of keypath is expected (e.g. KeyPath vs
+  // WritableKeyPath) so it ends up as a hole. Just assume KeyPath so we show
+  // the root type to users.
+  if (SelectedOverload->choice.getKind() == OverloadChoiceKind::KeyPathApplication) {
+    auto Params = FuncTy->getAs<AnyFunctionType>()->getParams();
+    if (Params.size() == 1 && Params[0].getPlainType()->is<UnresolvedType>()) {
+      auto *KPDecl = CS.getASTContext().getKeyPathDecl();
+      Type KPTy = KPDecl->mapTypeIntoContext(KPDecl->getDeclaredInterfaceType());
+      Type KPValueTy = KPTy->castTo<BoundGenericType>()->getGenericArgs()[1];
+      KPTy = BoundGenericType::get(KPDecl, Type(), {BaseTy, KPValueTy});
+      FuncTy = FunctionType::get({Params[0].withType(KPTy)}, KPValueTy);
+    }
+  }
+
+  auto ArgInfo = getCompletionArgInfo(ParentCall, CS);
+  auto ArgIdx = ArgInfo->completionIdx;
+  auto Bindings = S.argumentMatchingChoices.find(CS.getConstraintLocator(
+      Locator, ConstraintLocator::ApplyArgument))->second.parameterBindings;
+
+  // Find the parameter the completion was bound to (if any), as well as which
+  // parameters are already bound (so we don't suggest them even when the args
+  // are out of order).
+  Optional<unsigned> ParamIdx;
+  SmallVector<unsigned, 16> ClaimedParams;
+  bool IsNoninitialVariadic = false;
+
+  for (auto i: indices(Bindings)) {
+    bool Claimed = false;
+    for (auto j: Bindings[i]) {
+      if (j == ArgIdx) {
+        assert(!ParamIdx);
+        ParamIdx = i;
+        IsNoninitialVariadic = Bindings[i].size() > 1;
+      }
+      // Synthesized args don't count.
+      if (j < ArgInfo->argCount)
+        Claimed = true;
+    }
+    if (Claimed)
+      ClaimedParams.push_back(i);
+  }
+
+  if (!ParamIdx && Bindings.size()) {
+    if (ClaimedParams.empty()) {
+      // If no parameters were claimed, assume the completion arg corresponds to
+      // the first paramter.
+      assert(!ParamIdx);
+      ParamIdx = 0;
+    } else if (ClaimedParams.back() < Bindings.size() - 1) {
+      // Otherwise assume it's the param after the last claimed parameter.
+      ParamIdx = ClaimedParams.back() + 1;
+      IsNoninitialVariadic = Bindings[*ParamIdx].size() > 1;
+    }
+  }
+
+  bool HasLabel = false;
+  Expr *Arg = CS.getParentExpr(CompletionExpr);
+  if (TupleExpr *TE = dyn_cast<TupleExpr>(Arg))
+    HasLabel = !TE->getElementName(ArgIdx).empty();
+
+  Results.push_back({ExpectedTy, ParentCall, FuncD, FuncTy, ArgIdx, ParamIdx,
+      std::move(ClaimedParams), IsNoninitialVariadic, BaseTy, HasLabel});
 }

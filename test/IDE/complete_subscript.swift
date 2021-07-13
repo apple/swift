@@ -63,7 +63,7 @@ func test1() {
   let _ = MyStruct<Int>()[#^INSTANCE_INT_BRACKET^#
 // INSTANCE_INT_BRACKET: Begin completions
 // INSTANCE_INT_BRACKET-DAG: Decl[Subscript]/CurrNominal/Flair[ArgLabels]:        ['[']{#(x): Int#}, {#instance: Int#}[']'][#Int#];
-// INSTANCE_INT_BRACKET-DAG: Pattern/CurrModule/Flair[ArgLabels]:                 ['[']{#keyPath: KeyPath<MyStruct<Int>, Value>#}[']'][#Value#];
+// INSTANCE_INT_BRACKET-DAG: Pattern/CurrNominal/Flair[ArgLabels]:                ['[']{#keyPath: KeyPath<MyStruct<Int>, Value>#}[']'][#Value#];
 // INSTANCE_INT_BRACKET: End completions
 }
 func test2<U>(value: MyStruct<U>) {
@@ -89,7 +89,7 @@ func test2<U>(value: MyStruct<U>) {
   let _ = value[#^INSTANCE_ARCHETYPE_BRACKET^#
 // INSTANCE_ARCHETYPE_BRACKET: Begin completions
 // INSTANCE_ARCHETYPE_BRACKET-DAG: Decl[Subscript]/CurrNominal/Flair[ArgLabels]:        ['[']{#(x): Int#}, {#instance: U#}[']'][#Int#];
-// INSTANCE_ARCHETYPE_BRACKET-DAG: Pattern/CurrModule/Flair[ArgLabels]:                 ['[']{#keyPath: KeyPath<MyStruct<U>, Value>#}[']'][#Value#];
+// INSTANCE_ARCHETYPE_BRACKET-DAG: Pattern/CurrNominal/Flair[ArgLabels]:                ['[']{#keyPath: KeyPath<MyStruct<U>, Value>#}[']'][#Value#];
 // INSTANCE_ARCHETYPE_BRACKET: End completions
 
   let _ = MyStruct<U>[42, #^METATYPE_LABEL^#
@@ -116,26 +116,28 @@ class Derived: Base {
 // SELF_IN_INSTANCEMETHOD: Begin completions, 3 items
 // SELF_IN_INSTANCEMETHOD-DAG: Decl[Subscript]/CurrNominal/Flair[ArgLabels]: ['[']{#derivedInstance: Int#}[']'][#Int#];
 // SELF_IN_INSTANCEMETHOD-DAG: Decl[Subscript]/Super/Flair[ArgLabels]:       ['[']{#instance: Int#}[']'][#Int#];
-// SELF_IN_INSTANCEMETHOD-DAG: Pattern/CurrModule/Flair[ArgLabels]:          ['[']{#keyPath: KeyPath<Derived, Value>#}[']'][#Value#];
+// SELF_IN_INSTANCEMETHOD-DAG: Pattern/CurrNominal/Flair[ArgLabels]:         ['[']{#keyPath: KeyPath<Derived, Value>#}[']'][#Value#];
 // SELF_IN_INSTANCEMETHOD: End completions
 
     let _ = super[#^SUPER_IN_INSTANCEMETHOD^#]
 // SUPER_IN_INSTANCEMETHOD: Begin completions, 2 items
 // SUPER_IN_INSTANCEMETHOD-DAG: Decl[Subscript]/CurrNominal/Flair[ArgLabels]: ['[']{#instance: Int#}[']'][#Int#];
-// SUPER_IN_INSTANCEMETHOD-DAG: Pattern/CurrModule/Flair[ArgLabels]:          ['[']{#keyPath: KeyPath<Base, Value>#}[']'][#Value#];
+// SUPER_IN_INSTANCEMETHOD-DAG: Pattern/CurrNominal/Flair[ArgLabels]:         ['[']{#keyPath: KeyPath<Base, Value>#}[']'][#Value#];
 // SUPER_IN_INSTANCEMETHOD: End completions
   }
 
   static func testStatic() {
     let _ = self[#^SELF_IN_STATICMETHOD^#]
-// SELF_IN_STATICMETHOD: Begin completions, 2 items
+// SELF_IN_STATICMETHOD: Begin completions, 3 items
 // SELF_IN_STATICMETHOD-DAG: Decl[Subscript]/CurrNominal/Flair[ArgLabels]: ['[']{#derivedStatic: Int#}[']'][#Int#];
 // SELF_IN_STATICMETHOD-DAG: Decl[Subscript]/Super/Flair[ArgLabels]:       ['[']{#static: Int#}[']'][#Int#];
+// SELF_IN_STATICMETHOD-DAG: Pattern/CurrNominal/Flair[ArgLabels]:         ['[']{#keyPath: KeyPath<Derived.Type, Value>#}[']'][#Value#];
 // SELF_IN_STATICMETHOD: End completions
 
     let _ = super[#^SUPER_IN_STATICMETHOD^#]
-// SUPER_IN_STATICMETHOD: Begin completions, 1 items
+// SUPER_IN_STATICMETHOD: Begin completions, 2 items
 // SUPER_IN_STATICMETHOD-DAG: Decl[Subscript]/CurrNominal/Flair[ArgLabels]: ['[']{#static: Int#}[']'][#Int#];
+// SUPER_IN_STATICMETHOD-DAG: Pattern/CurrNominal/Flair[ArgLabels]:         ['[']{#keyPath: KeyPath<Base.Type, Value>#}[']'][#Value#];
 // SUPER_IN_STATICMETHOD: End completions
   }
 }
@@ -147,13 +149,13 @@ func testSubscriptCallSig<T>(val: MyStruct1<T>) {
   val[#^LABELED_SUBSCRIPT^#
 // LABELED_SUBSCRIPT: Begin completions, 2 items
 // LABELED_SUBSCRIPT-DAG: Decl[Subscript]/CurrNominal/Flair[ArgLabels]:        ['[']{#idx1: Int#}, {#idx2: Comparable#}[']'][#Int!#];
-// LABELED_SUBSCRIPT-DAG: Pattern/CurrModule/Flair[ArgLabels]:                 ['[']{#keyPath: KeyPath<MyStruct1<T>, Value>#}[']'][#Value#];
+// LABELED_SUBSCRIPT-DAG: Pattern/CurrNominal/Flair[ArgLabels]:                ['[']{#keyPath: KeyPath<MyStruct1<T>, Value>#}[']'][#Value#];
 // LABELED_SUBSCRIPT: End completions
 }
 
 func testSubcscriptTuple(val: (x: Int, String)) {
   val[#^TUPLE^#]
 // TUPLE: Begin completions, 1 items
-// TUPLE-DAG: Pattern/CurrModule/Flair[ArgLabels]:                 ['[']{#keyPath: KeyPath<(x: Int, String), Value>#}[']'][#Value#];
+// TUPLE-DAG: Pattern/CurrNominal/Flair[ArgLabels]:                 ['[']{#keyPath: KeyPath<(x: Int, String), Value>#}[']'][#Value#];
 // TUPLE: End completions
 }

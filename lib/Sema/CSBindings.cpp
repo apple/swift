@@ -1946,6 +1946,13 @@ bool TypeVariableBinding::attempt(ConstraintSystem &cs) const {
       auto argLoc = srcLocator->findLast<LocatorPathElt::SynthesizedArgument>();
       if (argLoc && argLoc->isAfterCodeCompletionLoc())
         return false;
+      // Don't penalize solutions with holes corresponding to the completion
+      // expression itself. This is needed to avoid filtering out keypath
+      // application subscripts currently.
+      if (srcLocator->directlyAt<CodeCompletionExpr>() &&
+          dstLocator->directlyAt<CodeCompletionExpr>()) {
+        return false;
+      }
     }
     // Reflect in the score that this type variable couldn't be
     // resolved and had to be bound to a placeholder "hole" type.

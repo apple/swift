@@ -73,6 +73,13 @@ struct PossibleParamInfo {
     assert((Param || !IsRequired) &&
            "nullptr with required flag is not allowed");
   };
+
+  friend bool operator==(const PossibleParamInfo &lhs,
+                         const PossibleParamInfo &rhs) {
+    if (*lhs.Param != *rhs.Param)
+      return false;
+    return lhs.IsRequired == rhs.IsRequired;
+  }
 };
 
 /// Given an expression and its decl context, the analyzer tries to figure out

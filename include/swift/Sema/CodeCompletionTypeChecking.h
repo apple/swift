@@ -139,6 +139,57 @@ namespace swift {
 
     void sawSolution(const constraints::Solution &solution) override;
   };
+
+class ArgumentTypeCheckCompletionCallback: public TypeCheckCompletionCallback {
+public:
+  struct Result {
+    /// The type associated with the code completion expression itself.
+    Type ExpectedType;
+    /// The innermost call expression containing the completion location.
+    Expr *CallE;
+    /// The FuncDecl or SubscriptDecl associated with the call.
+    Decl *FuncD;
+    /// The type of the function being called.
+    Type FuncTy;
+    /// The index of the argument containing the completion location
+    unsigned ArgIdx;
+    /// The index of the parameter corresponding to the completion argument.
+    Optional<unsigned> ParamIdx;
+    /// The indices of all params that were bound to non-synthesized arguments.
+    SmallVector<unsigned, 16> ClaimedParamIndices;
+    /// True if the completion is a noninitial term in a variadic argument.
+    bool IsNoninitialVariadic;
+    /// The base type of the call.
+    Type BaseType;
+    /// True if an argument label precedes the completion location.
+    bool HasLabel;
+
+    /// \returns true if the code completion is within a subscript.
+    bool isSubscript() const;
+  };
+
+private:
+  CodeCompletionExpr *CompletionExpr;
+  SmallVector<Result, 4> Results;
+  bool GotCallback = false;
+
+public:
+  ArgumentTypeCheckCompletionCallback(CodeCompletionExpr *CompletionExpr)
+  : CompletionExpr(CompletionExpr) {}
+
+  ArrayRef<Result> getResults() const { return Results; }
+
+  /// True if at least one solution was passed via the \c sawSolution
+  /// callback.
+  bool gotCallback() const { return GotCallback; }
+
+  /// Typecheck the code completion expression in its outermost expression
+  /// context, calling \c sawSolution for each solution formed.
+  void fallbackTypeCheck(DeclContext *DC);
+
+  void sawSolution(const constraints::Solution &solution) override;
+};
+
 }
 
 #endif

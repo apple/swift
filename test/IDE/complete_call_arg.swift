@@ -180,10 +180,10 @@ class C3 {
   var C1I = C1()
   var C2I = C2()
   func f1() {
-    foo2(C1I, #^OVERLOAD1?xfail=FIXME^#)
+    foo2(C1I, #^OVERLOAD1^#)
   }
   func f2() {
-    foo2(C2I, #^OVERLOAD2?xfail=FIXME^#)
+    foo2(C2I, #^OVERLOAD2^#)
   }
   func f3() {
     foo2(C1I, b1: #^OVERLOAD3^#)
@@ -207,11 +207,11 @@ class C3 {
 }
 
 // OVERLOAD1: Begin completions, 1 items
-// OVERLOAD1-NEXT: Keyword/ExprSpecific:               b1: [#Argument name#]; name=b1:
+// OVERLOAD1-NEXT: Pattern/Local/Flair[ArgLabels]: {#b1: C2#}[#C2#]; name=b1: C2
 // OVERLOAD1-NEXT: End completions
 
 // OVERLOAD2: Begin completions, 1 items
-// OVERLOAD2-NEXT: Keyword/ExprSpecific:               b2: [#Argument name#]; name=b2:
+// OVERLOAD2-NEXT: Pattern/Local/Flair[ArgLabels]: {#b2: C1#}[#C1#]; name=b2: C1
 // OVERLOAD2-NEXT: End completions
 
 // OVERLOAD3: Begin completions
@@ -253,8 +253,8 @@ extension C3 {
 
   func f7(obj: C3) {
     let _ = obj.hasError(#^HASERROR1^#
-    let _ = obj.hasError(a1: #^HASERROR2^#
-    let _ = obj.hasError(a1: IC1, #^HASERROR3^#
+    let _ = obj.hasError(a1: #^HASERROR2?xfail=FIXME^#
+    let _ = obj.hasError(a1: IC1, #^HASERROR3?xfail=FIXME^#
     let _ = obj.hasError(a1: IC1, b1: #^HASERROR4^#
   }
 }
@@ -992,8 +992,10 @@ struct Rdar77867723 {
   }
   func test2 {
     self.fn(eee: .up, #^OVERLOAD_LABEL2^#)
-// OVERLOAD_LABEL2: Begin completions, 2 items
+// OVERLOAD_LABEL2: Begin completions, 4 items
+// OVERLOAD_LABEL2-DAG: Pattern/Local/Flair[ArgLabels]:               {#aaa: Horizontal#}[#Horizontal#];
 // OVERLOAD_LABEL2-DAG: Pattern/Local/Flair[ArgLabels]:               {#bbb: Vertical#}[#Vertical#];
+// OVERLOAD_LABEL2-DAG: Pattern/Local/Flair[ArgLabels]:               {#ccc: Vertical#}[#Vertical#];
 // OVERLOAD_LABEL2-DAG: Pattern/Local/Flair[ArgLabels]:               {#ddd: Horizontal#}[#Horizontal#];
 // OVERLOAD_LABEL2: End completions
   }

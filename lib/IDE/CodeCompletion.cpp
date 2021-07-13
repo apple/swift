@@ -1547,32 +1547,6 @@ class CodeCompletionCallbacksImpl : public CodeCompletionCallbacks {
 
   std::vector<std::pair<std::string, bool>> SubModuleNameVisibilityPairs;
 
-  void addSuperKeyword(CodeCompletionResultSink &Sink) {
-    auto *DC = CurDeclContext->getInnermostTypeContext();
-    if (!DC)
-      return;
-    auto *CD = DC->getSelfClassDecl();
-    if (!CD)
-      return;
-    Type ST = CD->getSuperclass();
-    if (ST.isNull() || ST->is<ErrorType>())
-      return;
-
-    CodeCompletionResultBuilder Builder(Sink,
-                                        CodeCompletionResult::ResultKind::Keyword,
-                                        SemanticContextKind::CurrentNominal,
-                                        {});
-    if (auto *AFD = dyn_cast<AbstractFunctionDecl>(CurDeclContext)) {
-      if (AFD->getOverriddenDecl() != nullptr) {
-        Builder.addFlair(CodeCompletionFlairBit::CommonKeywordAtCurrentPosition);
-      }
-    }
-
-    Builder.setKeywordKind(CodeCompletionKeywordKind::kw_super);
-    Builder.addKeyword("super");
-    Builder.addTypeAnnotation(ST, PrintOptions());
-  }
-
   Optional<std::pair<Type, ConcreteDeclRef>> typeCheckParsedExpr() {
     assert(ParsedExpr && "should have an expression");
 
@@ -6264,6 +6238,34 @@ static void addExprKeywords(CodeCompletionResultSink &Sink, DeclContext *DC) {
              CodeCompletionResult::ExpectedTypeRelation::NotApplicable, flair);
 }
 
+static void addSuperKeyword(CodeCompletionResultSink &Sink, DeclContext *DC) {
+  if (!DC)
+    return;
+  auto *TC = DC->getInnermostTypeContext();
+  if (!TC)
+    return;
+  auto *CD = TC->getSelfClassDecl();
+  if (!CD)
+    return;
+  Type ST = CD->getSuperclass();
+  if (ST.isNull() || ST->is<ErrorType>())
+    return;
+
+  CodeCompletionResultBuilder Builder(Sink,
+                                      CodeCompletionResult::ResultKind::Keyword,
+                                      SemanticContextKind::CurrentNominal,
+                                      {});
+  if (auto *AFD = dyn_cast<AbstractFunctionDecl>(DC)) {
+    if (AFD->getOverriddenDecl() != nullptr) {
+      Builder.addFlair(CodeCompletionFlairBit::CommonKeywordAtCurrentPosition);
+    }
+  }
+
+  Builder.setKeywordKind(CodeCompletionKeywordKind::kw_super);
+  Builder.addKeyword("super");
+  Builder.addTypeAnnotation(ST, PrintOptions());
+}
+
 static void addOpaqueTypeKeyword(CodeCompletionResultSink &Sink) {
   addKeyword(Sink, "some", CodeCompletionKeywordKind::None, "some");
 }
@@ -6336,7 +6338,7 @@ void CodeCompletionCallbacksImpl::addKeywords(CodeCompletionResultSink &Sink,
   case CompletionKind::YieldStmtExpr:
   case CompletionKind::PostfixExprBeginning:
   case CompletionKind::ForEachSequence:
-    addSuperKeyword(Sink);
+    addSuperKeyword(Sink, CurDeclContext);
     addLetVarKeywords(Sink);
     addExprKeywords(Sink, CurDeclContext);
     addAnyTypeKeyword(Sink, CurDeclContext->getASTContext().TheAnyType);
@@ -6708,7 +6710,131 @@ static void deliverCompletionResults(CodeCompletionContext &CompletionContext,
   Consumer.handleResultsAndModules(CompletionContext, RequestedModules, DC);
 }
 
-void deliverUnresolvedMemberResults(
+/// Populates a vector of parameters to suggest along with a vector of types to
+/// match the lookup results against.
+///
+/// \Returns true if global lookup should be performed.
+static bool addPossibleParams(
+    const ArgumentTypeCheckCompletionCallback::Result &Ret,
+    SmallVectorImpl<PossibleParamInfo> &Params, SmallVectorImpl<Type> &Types) {
+  ArrayRef<AnyFunctionType::Param> ParamsToPass =
+      Ret.FuncTy->getAs<AnyFunctionType>()->getParams();
+  ParameterList *PL = nullptr;
+
+  if (auto *FD = dyn_cast<AbstractFunctionDecl>(Ret.FuncD)) {
+    PL = FD->getParameters();
+  } else if (auto *SD = dyn_cast<SubscriptDecl>(Ret.FuncD)) {
+    PL = SD->getIndices();
+  } else {
+    assert(false && "Unhandled decl type?");
+    return true;
+  }
+  assert(PL->size() == ParamsToPass.size());
+
+  if (!Ret.ParamIdx)
+    return true;
+
+  if (Ret.HasLabel) {
+    Types.push_back(Ret.ExpectedType);
+    return true;
+  }
+
+  bool showGlobalCompletions = false;
+  for (auto Idx: range(*Ret.ParamIdx, PL->size())) {
+    bool IsCompletion = Idx == Ret.ParamIdx;
+
+    // Stop at the first param claimed by other arguments.
+    if (!IsCompletion && llvm::is_contained(Ret.ClaimedParamIndices, Idx))
+      break;
+
+    const AnyFunctionType::Param *P = &ParamsToPass[Idx];
+    bool Defaulted = PL->get(Idx)->isDefaultArgument() || PL->get(Idx)->isVariadic();
+    PossibleParamInfo PP(P, Defaulted);
+    if (llvm::any_of(Params, [&](PossibleParamInfo &Existing){ return PP == Existing; }))
+      continue;
+
+    if (P->hasLabel() && !(IsCompletion && Ret.IsNoninitialVariadic)) {
+      Params.push_back(std::move(PP));
+    } else {
+      showGlobalCompletions = true;
+      Types.push_back(P->getPlainType());
+    }
+    if (!Defaulted)
+      break;
+  }
+  return showGlobalCompletions;
+}
+
+static void deliverArgumentResults(
+    ArrayRef<ArgumentTypeCheckCompletionCallback::Result> Results,
+    bool IncludeSignature, SourceLoc Loc, DeclContext *DC,
+    ide::CodeCompletionContext &CompletionCtx,
+    CodeCompletionConsumer &Consumer) {
+  ASTContext &Ctx = DC->getASTContext();
+  CompletionLookup Lookup(CompletionCtx.getResultSink(), Ctx, DC,
+                          &CompletionCtx);
+
+  bool shouldPerformGlobalCompletion = Results.empty();
+  SmallVector<Type, 8> ExpectedTypes;
+
+  if (IncludeSignature && !Results.empty()) {
+    Lookup.setHaveLParen(true);
+    for (auto &Result: Results) {
+      auto SemanticContext = SemanticContextKind::None;
+      NominalTypeDecl *BaseNominal = nullptr;
+      Type BaseTy = Result.BaseType;
+      if (BaseTy) {
+        if (auto InstanceTy = BaseTy->getMetatypeInstanceType())
+          BaseTy = InstanceTy;
+        if ((BaseNominal = BaseTy->getAnyNominal())) {
+          SemanticContext = SemanticContextKind::CurrentNominal;
+          if (Result.FuncD && Result.FuncD->getDeclContext()->getSelfNominalTypeDecl() != BaseNominal)
+            SemanticContext = SemanticContextKind::Super;
+        } else if (BaseTy->is<TupleType>()) {
+          SemanticContext = SemanticContextKind::CurrentNominal;
+        }
+      }
+      if (Result.isSubscript()) {
+        assert(SemanticContext != SemanticContextKind::None && BaseTy);
+        auto *SD = dyn_cast_or_null<SubscriptDecl>(Result.FuncD);
+        Lookup.addSubscriptCallPattern(Result.FuncTy->getAs<AnyFunctionType>(),
+                                       SD, SemanticContext);
+      } else {
+        auto *FD = dyn_cast_or_null<AbstractFunctionDecl>(Result.FuncD);
+        Lookup.addFunctionCallPattern(Result.FuncTy->getAs<AnyFunctionType>(),
+                                      FD, SemanticContext);
+      }
+    }
+    Lookup.setHaveLParen(false);
+
+    shouldPerformGlobalCompletion |=
+        !Lookup.FoundFunctionCalls || Lookup.FoundFunctionsWithoutFirstKeyword;
+  } else if (!Results.empty()) {
+    SmallVector<PossibleParamInfo, 8> Params;
+    for (auto &Ret: Results) {
+      shouldPerformGlobalCompletion |=
+          addPossibleParams(Ret, Params, ExpectedTypes);
+    }
+    Lookup.addCallArgumentCompletionResults(Params);
+  }
+
+  if (shouldPerformGlobalCompletion) {
+    for (auto &Result: Results) {
+      ExpectedTypes.push_back(Result.ExpectedType);
+    }
+    Lookup.setExpectedTypes(ExpectedTypes, false);
+    Lookup.getValueCompletionsInDeclContext(Loc);
+    Lookup.getSelfTypeCompletionInDeclContext(Loc, /*isForDeclResult=*/false);
+
+    // Add any keywords that can be used in an argument expr position.
+    addSuperKeyword(CompletionCtx.getResultSink(), DC);
+    addExprKeywords(CompletionCtx.getResultSink(), DC);
+  }
+
+  deliverCompletionResults(CompletionCtx, Lookup, DC, Consumer);
+}
+
+static void deliverUnresolvedMemberResults(
     ArrayRef<UnresolvedMemberTypeCheckCompletionCallback::Result> Results,
     DeclContext *DC, SourceLoc DotLoc,
     ide::CodeCompletionContext &CompletionCtx,
@@ -6747,7 +6873,7 @@ void deliverUnresolvedMemberResults(
   deliverCompletionResults(CompletionCtx, Lookup, DC, Consumer);
 }
 
-void deliverKeyPathResults(
+static void deliverKeyPathResults(
     ArrayRef<KeyPathTypeCheckCompletionCallback::Result> Results,
     DeclContext *DC, SourceLoc DotLoc,
     ide::CodeCompletionContext &CompletionCtx,
@@ -6769,7 +6895,7 @@ void deliverKeyPathResults(
   deliverCompletionResults(CompletionCtx, Lookup, DC, Consumer);
 }
 
-void deliverDotExprResults(
+static void deliverDotExprResults(
     ArrayRef<DotExprTypeCheckCompletionCallback::Result> Results,
     Expr *BaseExpr, DeclContext *DC, SourceLoc DotLoc, bool IsInSelector,
     ide::CodeCompletionContext &CompletionCtx,
@@ -6873,6 +6999,21 @@ bool CodeCompletionCallbacksImpl::trySolverCompletion(bool MaybeFuncBody) {
 
     deliverKeyPathResults(Lookup.getResults(), CurDeclContext, DotLoc,
                           CompletionContext, Consumer);
+    return true;
+  }
+  case CompletionKind::CallArg: {
+    assert(CodeCompleteTokenExpr);
+    assert(CurDeclContext);
+    ArgumentTypeCheckCompletionCallback Lookup(CodeCompleteTokenExpr);
+    llvm::SaveAndRestore<TypeCheckCompletionCallback*>
+      CompletionCollector(Context.CompletionCallback, &Lookup);
+    typeCheckContextAt(CurDeclContext, CompletionLoc);
+
+    if (!Lookup.gotCallback())
+      Lookup.fallbackTypeCheck(CurDeclContext);
+
+    deliverArgumentResults(Lookup.getResults(), ShouldCompleteCallPatternAfterParen,
+                           CompletionLoc, CurDeclContext, CompletionContext, Consumer);
     return true;
   }
   default:
@@ -6996,6 +7137,7 @@ void CodeCompletionCallbacksImpl::doneParsing() {
   case CompletionKind::DotExpr:
   case CompletionKind::UnresolvedMember:
   case CompletionKind::KeyPathExprSwift:
+  case CompletionKind::CallArg:
     llvm_unreachable("should be already handled");
     return;
 
@@ -7057,7 +7199,7 @@ void CodeCompletionCallbacksImpl::doneParsing() {
       Lookup.setHaveLParen(false);
 
       // Add any keywords that can be used in an argument expr position.
-      addSuperKeyword(CompletionContext.getResultSink());
+      addSuperKeyword(CompletionContext.getResultSink(), CurDeclContext);
       addExprKeywords(CompletionContext.getResultSink(), CurDeclContext);
 
       DoPostfixExprBeginning();
@@ -7159,58 +7301,6 @@ void CodeCompletionCallbacksImpl::doneParsing() {
       Lookup.addImportModuleNames();
     break;
   }
-  case CompletionKind::CallArg: {
-    ExprContextInfo ContextInfo(CurDeclContext, CodeCompleteTokenExpr);
-
-    bool shouldPerformGlobalCompletion = true;
-
-    if (ShouldCompleteCallPatternAfterParen &&
-        !ContextInfo.getPossibleCallees().empty()) {
-      Lookup.setHaveLParen(true);
-      for (auto &typeAndDecl : ContextInfo.getPossibleCallees()) {
-        auto apply = ContextInfo.getAnalyzedExpr();
-        if (apply && isa<SubscriptExpr>(apply)) {
-          Lookup.addSubscriptCallPattern(
-              typeAndDecl.Type,
-              dyn_cast_or_null<SubscriptDecl>(typeAndDecl.Decl),
-              typeAndDecl.SemanticContext);
-        } else {
-          Lookup.addFunctionCallPattern(
-              typeAndDecl.Type,
-              dyn_cast_or_null<AbstractFunctionDecl>(typeAndDecl.Decl),
-              typeAndDecl.SemanticContext);
-        }
-      }
-      Lookup.setHaveLParen(false);
-
-      shouldPerformGlobalCompletion =
-          !Lookup.FoundFunctionCalls ||
-          (Lookup.FoundFunctionCalls &&
-           Lookup.FoundFunctionsWithoutFirstKeyword);
-    } else if (!ContextInfo.getPossibleParams().empty()) {
-      auto params = ContextInfo.getPossibleParams();
-      Lookup.addCallArgumentCompletionResults(params);
-
-      shouldPerformGlobalCompletion = !ContextInfo.getPossibleTypes().empty();
-      // Fallback to global completion if the position is out of number. It's
-      // better than suggest nothing.
-      shouldPerformGlobalCompletion |= llvm::all_of(
-          params, [](const PossibleParamInfo &P) { return !P.Param; });
-    }
-
-    if (shouldPerformGlobalCompletion) {
-      Lookup.setExpectedTypes(ContextInfo.getPossibleTypes(),
-                              ContextInfo.isImplicitSingleExpressionReturn());
-
-      // Add any keywords that can be used in an argument expr position.
-      addSuperKeyword(CompletionContext.getResultSink());
-      addExprKeywords(CompletionContext.getResultSink(), CurDeclContext);
-
-      DoPostfixExprBeginning();
-    }
-    break;
-  }
-
   case CompletionKind::LabeledTrailingClosure: {
     ExprContextInfo ContextInfo(CurDeclContext, CodeCompleteTokenExpr);
 
@@ -7261,7 +7351,7 @@ void CodeCompletionCallbacksImpl::doneParsing() {
                           Context.LangOpts.EnableExperimentalConcurrency,
                           Context.LangOpts.EnableExperimentalDistributed);
           addStmtKeywords(Sink, CurDeclContext, MaybeFuncBody);
-          addSuperKeyword(Sink);
+          addSuperKeyword(Sink, CurDeclContext);
           addLetVarKeywords(Sink);
           addExprKeywords(Sink, CurDeclContext);
           addAnyTypeKeyword(Sink, Context.TheAnyType);
