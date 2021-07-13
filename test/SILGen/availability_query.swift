@@ -10,7 +10,19 @@
 // CHECK: [[PATCH:%.*]] = integer_literal $Builtin.Word, 8
 // CHECK: [[FUNC:%.*]] = function_ref @$ss26_stdlib_isOSVersionAtLeastyBi1_Bw_BwBwtF : $@convention(thin) (Builtin.Word, Builtin.Word, Builtin.Word) -> Builtin.Int1
 // CHECK: [[QUERY_RESULT:%.*]] = apply [[FUNC]]([[MAJOR]], [[MINOR]], [[PATCH]]) : $@convention(thin) (Builtin.Word, Builtin.Word, Builtin.Word) -> Builtin.Int1
+// CHECK-NOT: {{.*}}integer_literal $Builtin.Int1, -1
+// CHECK-NOT: builtin "xor_Int1"{{.*}}
 if #available(OSX 10.53.8, iOS 7.1, *) {
+}
+
+// CHECK: [[MAJOR:%.*]] = integer_literal $Builtin.Word, 10
+// CHECK: [[MINOR:%.*]] = integer_literal $Builtin.Word, 53
+// CHECK: [[PATCH:%.*]] = integer_literal $Builtin.Word, 8
+// CHECK: [[FUNC:%.*]] = function_ref @$ss26_stdlib_isOSVersionAtLeastyBi1_Bw_BwBwtF : $@convention(thin) (Builtin.Word, Builtin.Word, Builtin.Word) -> Builtin.Int1
+// CHECK: [[QUERY_RESULT:%.*]] = apply [[FUNC]]([[MAJOR]], [[MINOR]], [[PATCH]]) : $@convention(thin) (Builtin.Word, Builtin.Word, Builtin.Word) -> Builtin.Int1
+// CHECK: [[MINUSONE:%.*]] = integer_literal $Builtin.Int1, -1
+// CHECK: [[QUERY_INVERSION:%.*]] = builtin "xor_Int1"([[QUERY_RESULT]] : $Builtin.Int1, [[MINUSONE]] : $Builtin.Int1) : $Builtin.Int1
+if #unavailable(OSX 10.53.8, iOS 7.1) {
 }
 
 // CHECK: [[TRUE:%.*]] = integer_literal $Builtin.Int1, -1
@@ -20,12 +32,20 @@ if #available(OSX 10.53.8, iOS 7.1, *) {
 if #available(iOS 7.1, *) {
 }
 
+// CHECK: [[FALSE:%.*]] = integer_literal $Builtin.Int1, 0
+// CHECK: cond_br [[FALSE]]
+// Since we are compiling for an unmentioned platform (OS X), we check against the minimum
+// deployment target, which is 10.50
+if #unavailable(iOS 7.1) {
+}
 
 // CHECK: [[MAJOR:%.*]] = integer_literal $Builtin.Word, 10
 // CHECK: [[MINOR:%.*]] = integer_literal $Builtin.Word, 52
 // CHECK: [[PATCH:%.*]] = integer_literal $Builtin.Word, 0
 // CHECK: [[QUERY_FUNC:%.*]] = function_ref @$ss26_stdlib_isOSVersionAtLeastyBi1_Bw_BwBwtF : $@convention(thin) (Builtin.Word, Builtin.Word, Builtin.Word) -> Builtin.Int1
 // CHECK: [[QUERY_RESULT:%.*]] = apply [[QUERY_FUNC]]([[MAJOR]], [[MINOR]], [[PATCH]]) : $@convention(thin) (Builtin.Word, Builtin.Word, Builtin.Word) -> Builtin.Int1
+// CHECK-NOT: {{.*}}integer_literal $Builtin.Int1, -1
+// CHECK-NOT: builtin "xor_Int1"{{.*}}
 if #available(OSX 10.52, *) {
 }
 
@@ -34,7 +54,29 @@ if #available(OSX 10.52, *) {
 // CHECK: [[PATCH:%.*]] = integer_literal $Builtin.Word, 0
 // CHECK: [[QUERY_FUNC:%.*]] = function_ref @$ss26_stdlib_isOSVersionAtLeastyBi1_Bw_BwBwtF : $@convention(thin) (Builtin.Word, Builtin.Word, Builtin.Word) -> Builtin.Int1
 // CHECK: [[QUERY_RESULT:%.*]] = apply [[QUERY_FUNC]]([[MAJOR]], [[MINOR]], [[PATCH]]) : $@convention(thin) (Builtin.Word, Builtin.Word, Builtin.Word) -> Builtin.Int1
+// CHECK: [[MINUSONE:%.*]] = integer_literal $Builtin.Int1, -1
+// CHECK: [[QUERY_INVERSION:%.*]] = builtin "xor_Int1"([[QUERY_RESULT]] : $Builtin.Int1, [[MINUSONE]] : $Builtin.Int1) : $Builtin.Int1
+if #unavailable(OSX 10.52) {
+}
+
+// CHECK: [[MAJOR:%.*]] = integer_literal $Builtin.Word, 10
+// CHECK: [[MINOR:%.*]] = integer_literal $Builtin.Word, 52
+// CHECK: [[PATCH:%.*]] = integer_literal $Builtin.Word, 0
+// CHECK: [[QUERY_FUNC:%.*]] = function_ref @$ss26_stdlib_isOSVersionAtLeastyBi1_Bw_BwBwtF : $@convention(thin) (Builtin.Word, Builtin.Word, Builtin.Word) -> Builtin.Int1
+// CHECK: [[QUERY_RESULT:%.*]] = apply [[QUERY_FUNC]]([[MAJOR]], [[MINOR]], [[PATCH]]) : $@convention(thin) (Builtin.Word, Builtin.Word, Builtin.Word) -> Builtin.Int1
+// CHECK-NOT: {{.*}}integer_literal $Builtin.Int1, -1
+// CHECK-NOT: builtin "xor_Int1"{{.*}}
 if #available(macOS 10.52, *) {
+}
+
+// CHECK: [[MAJOR:%.*]] = integer_literal $Builtin.Word, 10
+// CHECK: [[MINOR:%.*]] = integer_literal $Builtin.Word, 52
+// CHECK: [[PATCH:%.*]] = integer_literal $Builtin.Word, 0
+// CHECK: [[QUERY_FUNC:%.*]] = function_ref @$ss26_stdlib_isOSVersionAtLeastyBi1_Bw_BwBwtF : $@convention(thin) (Builtin.Word, Builtin.Word, Builtin.Word) -> Builtin.Int1
+// CHECK: [[QUERY_RESULT:%.*]] = apply [[QUERY_FUNC]]([[MAJOR]], [[MINOR]], [[PATCH]]) : $@convention(thin) (Builtin.Word, Builtin.Word, Builtin.Word) -> Builtin.Int1
+// CHECK: [[MINUSONE:%.*]] = integer_literal $Builtin.Int1, -1
+// CHECK: [[QUERY_INVERSION:%.*]] = builtin "xor_Int1"([[QUERY_RESULT]] : $Builtin.Int1, [[MINUSONE]] : $Builtin.Int1) : $Builtin.Int1
+if #unavailable(macOS 10.52) {
 }
 
 // CHECK: [[MAJOR:%.*]] = integer_literal $Builtin.Word, 10
@@ -42,7 +84,19 @@ if #available(macOS 10.52, *) {
 // CHECK: [[PATCH:%.*]] = integer_literal $Builtin.Word, 0
 // CHECK: [[QUERY_FUNC:%.*]] = function_ref @$ss26_stdlib_isOSVersionAtLeastyBi1_Bw_BwBwtF : $@convention(thin) (Builtin.Word, Builtin.Word, Builtin.Word) -> Builtin.Int1
 // CHECK: [[QUERY_RESULT:%.*]] = apply [[QUERY_FUNC]]([[MAJOR]], [[MINOR]], [[PATCH]]) : $@convention(thin) (Builtin.Word, Builtin.Word, Builtin.Word) -> Builtin.Int1
+// CHECK-NOT: {{.*}}integer_literal $Builtin.Int1, -1
+// CHECK-NOT: builtin "xor_Int1"{{.*}}
 if #available(OSX 10, *) {
+}
+
+// CHECK: [[MAJOR:%.*]] = integer_literal $Builtin.Word, 10
+// CHECK: [[MINOR:%.*]] = integer_literal $Builtin.Word, 0
+// CHECK: [[PATCH:%.*]] = integer_literal $Builtin.Word, 0
+// CHECK: [[QUERY_FUNC:%.*]] = function_ref @$ss26_stdlib_isOSVersionAtLeastyBi1_Bw_BwBwtF : $@convention(thin) (Builtin.Word, Builtin.Word, Builtin.Word) -> Builtin.Int1
+// CHECK: [[QUERY_RESULT:%.*]] = apply [[QUERY_FUNC]]([[MAJOR]], [[MINOR]], [[PATCH]]) : $@convention(thin) (Builtin.Word, Builtin.Word, Builtin.Word) -> Builtin.Int1
+// CHECK: [[MINUSONE:%.*]] = integer_literal $Builtin.Int1, -1
+// CHECK: [[QUERY_INVERSION:%.*]] = builtin "xor_Int1"([[QUERY_RESULT]] : $Builtin.Int1, [[MINUSONE]] : $Builtin.Int1) : $Builtin.Int1
+if #unavailable(OSX 10) {
 }
 
 // CHECK: }
@@ -54,7 +108,14 @@ func testUnreachableVersionAvailable(condition: Bool) {
     doThing() // no-warning
     return
   } else {
-    doThing() // FIXME-warning {{will never be executed}}
+    doThing() // no-warning
+  }
+
+  if #unavailable(OSX 10.0) {
+    doThing() // no-warning
+  } else {
+    doThing() // no-warning
+    return
   }
 
   if true {
@@ -73,6 +134,13 @@ func testUnreachablePlatformAvailable(condition: Bool) {
     doThing() // no-warning
   }
 
+  if #unavailable(iOS 7.1) {
+    doThing() // no-warning
+  } else {
+    doThing() // no-warning
+    return
+  }
+
   if true {
     doThing() // no-warning
   }
@@ -83,6 +151,11 @@ func testUnreachablePlatformAvailable(condition: Bool) {
 
 func testUnreachablePlatformAvailableGuard() {
   guard #available(iOS 7.1, *) else {
+    doThing() // no-warning
+    return
+  }
+
+  guard #unavailable(iOS 7.1) else {
     doThing() // no-warning
     return
   }

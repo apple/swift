@@ -645,6 +645,9 @@ private:
 
     TypeRefinementContext *StartingTRC = getCurrentTRC();
 
+    // Tracks if we're refining for availability or unavailability.
+    Optional<bool> isUnavailability = None;
+
     for (StmtConditionElement Element : Cond) {
       TypeRefinementContext *CurrentTRC = getCurrentTRC();
       AvailabilityContext CurrentInfo = CurrentTRC->getAvailabilityInfo();
@@ -668,10 +671,25 @@ private:
       // condition elements following it.
       auto *Query = Element.getAvailability();
 
+      if (isUnavailability == None) {
+        isUnavailability = Query->isUnavailability();
+      } else if (isUnavailability != Query->isUnavailability()) {
+        // Mixing availability with unavailability in the same statement will
+        // cause the false flow's version range to be ambiguous. Report it.
+        //
+        // Technically we can support this by not refining ambiguous flows,
+        // but there are currently no legitimate cases where one would have
+        // to mix availability with unavailability.
+        Context.Diags.diagnose(Query->getLoc(),
+                               diag::availability_cannot_be_mixed);
+        break;
+      }
+
       // If this query expression has no queries, we will not introduce a new
       // refinement context. We do not diagnose here: a diagnostic will already
       // have been emitted by the parser.
-      if (Query->getQueries().empty())
+      // For #unavailable, empty queries are valid as wildcards are implied.
+      if (!Query->isUnavailability() && Query->getQueries().empty())
         continue;
 
       AvailabilitySpec *Spec = bestActiveSpecForQuery(Query);
@@ -680,10 +698,9 @@ private:
         // so rather than refining, emit a diagnostic and just use the current
         // TRC.
         Context.Diags.diagnose(
-            Query->getLoc(),
-            diag::availability_query_required_for_platform,
+            Query->getLoc(), diag::availability_query_required_for_platform,
             platformString(targetPlatform(Context.LangOpts)));
-        
+
         continue;
       }
 
@@ -717,6 +734,12 @@ private:
       // a version query can never be false, so the spec is useless.
       // If so, report this.
       if (CurrentExplicitInfo.isContainedIn(NewConstraint)) {
+        // Unavailability refinements are always "useless" from a symbol
+        // availability point of view, so only useless availability specs are
+        // reported.
+        if (isUnavailability.getValue()) {
+          continue;
+        }
         DiagnosticEngine &Diags = Context.Diags;
         if (CurrentTRC->getReason() != TypeRefinementContext::Reason::Root) {
           PlatformKind BestPlatform = targetPlatform(Context.LangOpts);
@@ -772,8 +795,18 @@ private:
       FalseRefinement = FalseFlow;
     }
 
+    auto makeResult =
+        [isUnavailability](Optional<AvailabilityContext> TrueRefinement,
+                           Optional<AvailabilityContext> FalseRefinement) {
+          if (isUnavailability.hasValue() && isUnavailability.getValue()) {
+            // If this is an unavailability check, invert the result.
+            return std::make_pair(FalseRefinement, TrueRefinement);
+          }
+          return std::make_pair(TrueRefinement, FalseRefinement);
+        };
+
     if (NestedCount == 0)
-      return std::make_pair(None, FalseRefinement);
+      return makeResult(None, FalseRefinement);
 
     TypeRefinementContext *NestedTRC = getCurrentTRC();
     while (NestedCount-- > 0)
@@ -781,7 +814,7 @@ private:
 
     assert(getCurrentTRC() == StartingTRC);
 
-    return std::make_pair(NestedTRC->getAvailabilityInfo(), FalseRefinement);
+    return makeResult(NestedTRC->getAvailabilityInfo(), FalseRefinement);
   }
 
   /// Return the best active spec for the target platform or nullptr if no
@@ -797,7 +830,8 @@ private:
         continue;
       }
 
-      auto *VersionSpec = dyn_cast<PlatformVersionConstraintAvailabilitySpec>(Spec);
+      auto *VersionSpec =
+          dyn_cast<PlatformVersionConstraintAvailabilitySpec>(Spec);
       if (!VersionSpec)
         continue;
 
@@ -820,7 +854,15 @@ private:
 
     // If we have reached this point, we found no spec for our target, so
     // we return the other spec ('*'), if we found it, or nullptr, if not.
-    return FoundOtherSpec;
+    if (FoundOtherSpec) {
+      return FoundOtherSpec;
+    } else if (available->isUnavailability()) {
+      // For #unavailable, imply the presence of a wildcard.
+      SourceLoc Loc = available->getRParenLoc();
+      return new (Context) OtherPlatformAvailabilitySpec(Loc);
+    } else {
+      return nullptr;
+    }
   }
 
   /// Return the availability context for the given spec.

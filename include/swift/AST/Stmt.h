@@ -341,11 +341,17 @@ class alignas(8) PoundAvailableInfo final :
   /// This is filled in by Sema.
   VersionRange VariantAvailableRange;
 
+  /// Indicates that the expression is checking if a version range 
+  /// is **not** available.
+  bool _isUnavailability;
+
   PoundAvailableInfo(SourceLoc PoundLoc, SourceLoc LParenLoc,
-                     ArrayRef<AvailabilitySpec *> queries, SourceLoc RParenLoc)
+                     ArrayRef<AvailabilitySpec *> queries, SourceLoc RParenLoc,
+                     bool isUnavailability)
    : PoundLoc(PoundLoc), LParenLoc(LParenLoc), RParenLoc(RParenLoc),
      NumQueries(queries.size()), AvailableRange(VersionRange::empty()),
-     VariantAvailableRange(VersionRange::empty()) {
+     VariantAvailableRange(VersionRange::empty()), 
+     _isUnavailability(isUnavailability) {
     std::uninitialized_copy(queries.begin(), queries.end(),
                             getTrailingObjects<AvailabilitySpec *>());
   }
@@ -354,7 +360,8 @@ public:
   static PoundAvailableInfo *create(ASTContext &ctx, SourceLoc PoundLoc,
                                     SourceLoc LParenLoc,
                                     ArrayRef<AvailabilitySpec *> queries,
-                                    SourceLoc RParenLoc);
+                                    SourceLoc RParenLoc,
+                                    bool isUnavailability);
   
   ArrayRef<AvailabilitySpec *> getQueries() const {
     return llvm::makeArrayRef(getTrailingObjects<AvailabilitySpec *>(),
@@ -379,6 +386,8 @@ public:
   void setVariantAvailableRange(const VersionRange &Range) {
     VariantAvailableRange = Range;
   }
+
+  bool isUnavailability() const { return _isUnavailability; }
 };
 
 

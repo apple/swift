@@ -56,6 +56,13 @@ func client() {
     onMacOS10_11()
   }
 
+  if #unavailable(_iOS9Aligned) {
+    onMacOS10_11() // expected-error {{is only available in macOS 10.11 or newer}}
+    // expected-note @-1 {{add 'if #available' version check}}
+  } else {
+    onMacOS10_11()
+  }
+
   if #available(_unknownMacro, *) { } // expected-error {{expected version number}}
 }
 
@@ -64,6 +71,9 @@ public func forbidMacrosInInlinableCode() {
   if #available(_iOS9Aligned, *) { } // expected-error {{availability macro cannot be used in inlinable global function}}
   if #available(_iOS9, _macOS10_11, *) { } // expected-error {{availability macro cannot be used in inlinable global function}}
   if #available(iOS 9.0, _macOS10_11, tvOS 9.0, *) { } // expected-error {{availability macro cannot be used in inlinable global function}}
+  if #unavailable(_iOS9Aligned) { } // expected-error {{availability macro cannot be used in inlinable global function}}
+  if #unavailable(_iOS9, _macOS10_11) { } // expected-error {{availability macro cannot be used in inlinable global function}}
+  if #unavailable(iOS 9.0, _macOS10_11, tvOS 9.0) { } // expected-error {{availability macro cannot be used in inlinable global function}}
 }
 
 @_alwaysEmitIntoClient
@@ -71,4 +81,7 @@ public func forbidMacrosInInlinableCode1() {
   if #available(_iOS9Aligned, *) { } // expected-error {{availability macro cannot be used in inlinable global function}}
   if #available(_iOS9, _macOS10_11, *) { } // expected-error {{availability macro cannot be used in inlinable global function}}
   if #available(iOS 9.0, _macOS10_11, tvOS 9.0, *) { } // expected-error {{availability macro cannot be used in inlinable global function}}
+  if #unavailable(_iOS9Aligned) { } // expected-error {{availability macro cannot be used in inlinable global function}}
+  if #unavailable(_iOS9, _macOS10_11) { } // expected-error {{availability macro cannot be used in inlinable global function}}
+  if #unavailable(iOS 9.0, _macOS10_11, tvOS 9.0) { } // expected-error {{availability macro cannot be used in inlinable global function}}
 }

@@ -12,9 +12,9 @@ let x = #available(OSX 10.51, *)  // expected-error {{#available may only be use
 
 (#available(OSX 10.51, *) ? 1 : 0) // expected-error {{#available may only be used as condition of an}}
 
-if !#available(OSX 10.52, *) { // expected-error {{#available may only be used as condition of an}}
+if !#available(OSX 10.52, *) { // expected-error {{#available cannot be used as an expression, did you mean to use '#unavailable'?}} {{4-15=#unavailable}}
 }
-if let _ = Optional(5), !#available(OSX 10.52, *) { // expected-error {{#available may only be used as condition}}
+if let _ = Optional(5), !#available(OSX 10.52, *) { // expected-error {{#available cannot be used as an expression, did you mean to use '#unavailable'?}} {{25-36=#unavailable}}
 }
 
 if #available(OSX 10.51, *) && #available(OSX 10.52, *) { // expected-error {{expected ',' joining parts of a multi-clause condition}} {{28-31=,}}
@@ -95,8 +95,6 @@ if #available(OSX 10.51 || iOS 8.0) {// expected-error {{'||' cannot be used in 
 
 if #available(OSX >= 10.51, *) { // expected-error {{version comparison not needed}} {{19-22=}}
 }
-
-// <rdar://problem/20904820> Following a "let" condition with #available is incorrectly rejected
 
 // Bool then #available.
 if 1 != 2, #available(iOS 8.0, *) {}

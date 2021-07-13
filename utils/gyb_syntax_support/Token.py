@@ -308,6 +308,8 @@ SYNTAX_TOKENS = [
 
     PoundConfig('PoundAvailable', 'available', text='#available',
                 serialization_code=60),
+    PoundConfig('PoundUnavailable', 'unavailable', text='#unavailable',
+                serialization_code=123),
 
     PoundObjectLiteral('PoundFileLiteral', 'fileLiteral',
                        text='#fileLiteral', serialization_code=76,

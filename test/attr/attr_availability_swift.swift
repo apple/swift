@@ -15,6 +15,12 @@ func baz() {
   } else {
     print("no")
   }
+
+  if #unavailable(swift 4) { // expected-error {{Swift language version checks not allowed in #unavailable}}
+    print("no")
+  } else {
+    print("yes")
+  }
 }
 
 @available(swift, introduced: 3.0.1, obsoleted: 3.0.2, message: "tiny bug")

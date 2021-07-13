@@ -1769,11 +1769,21 @@ public:
   //===--------------------------------------------------------------------===//
   // Availability Specification Parsing
 
+  /// The source of an availability spec list.
+  enum class AvailabilitySpecSource: uint8_t {
+    /// A spec from '@available(<spec>, ...)' or '#available(<spec>, ...)'.
+    Available,
+    /// A spec from '#unavailable(<spec>, ...)'.
+    Unavailable,
+    /// A spec from a '-define-availability "Name:<spec>, ..."' frontend arg.
+    Macro,
+  };
+
   /// Parse a comma-separated list of availability specifications. Try to
-  /// expand availability macros when /p ParsingMacroDefinition is false.
+  /// expand availability macros when /p Source is not a command line macro.
   ParserStatus
   parseAvailabilitySpecList(SmallVectorImpl<AvailabilitySpec *> &Specs,
-                            bool ParsingMacroDefinition = false);
+                            AvailabilitySpecSource Source);
 
   /// Does the current matches an argument macro name? Parsing compiler
   /// arguments as required without consuming tokens from the source file

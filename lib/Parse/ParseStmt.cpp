@@ -1169,18 +1169,18 @@ static void parseGuardedPattern(Parser &P, GuardedPattern &result,
   }
 }
 
-/// Validate availability spec list, emitting diagnostics if necessary and removing
-/// specs for unrecognized platforms.
+/// Validate availability spec list, emitting diagnostics if necessary and
+/// removing specs for unrecognized platforms.
 static void
 validateAvailabilitySpecList(Parser &P,
                              SmallVectorImpl<AvailabilitySpec *> &Specs,
-                             bool ParsingMacroDefinition) {
+                             Parser::AvailabilitySpecSource Source) {
   llvm::SmallSet<PlatformKind, 4> Platforms;
-  bool HasOtherPlatformSpec = false;
+  Optional<SourceLoc> OtherPlatformSpecLoc = None;
 
   if (Specs.size() == 1 &&
       isa<PlatformAgnosticVersionConstraintAvailabilitySpec>(Specs[0])) {
-    // @available(swift N) and @available(_PackageDescription N) are allowed 
+    // @available(swift N) and @available(_PackageDescription N) are allowed
     // only in isolation; they cannot be combined with other availability specs
     // in a single list.
     return;
@@ -1189,16 +1189,18 @@ validateAvailabilitySpecList(Parser &P,
   SmallVector<AvailabilitySpec *, 5> RecognizedSpecs;
   for (auto *Spec : Specs) {
     RecognizedSpecs.push_back(Spec);
-    if (isa<OtherPlatformAvailabilitySpec>(Spec)) {
-      HasOtherPlatformSpec = true;
+    if (auto *OtherPlatSpec = dyn_cast<OtherPlatformAvailabilitySpec>(Spec)) {
+      OtherPlatformSpecLoc = OtherPlatSpec->getStarLoc();
       continue;
     }
 
     if (auto *PlatformAgnosticSpec =
-        dyn_cast<PlatformAgnosticVersionConstraintAvailabilitySpec>(Spec)) {
+         dyn_cast<PlatformAgnosticVersionConstraintAvailabilitySpec>(Spec)) {
       P.diagnose(PlatformAgnosticSpec->getPlatformAgnosticNameLoc(),
                  diag::availability_must_occur_alone,
-                 PlatformAgnosticSpec->isLanguageVersionSpecific() ? "swift" : "_PackageDescription");
+                 PlatformAgnosticSpec->isLanguageVersionSpecific() 
+                   ? "swift" 
+                   : "_PackageDescription");
       continue;
     }
 
@@ -1222,25 +1224,58 @@ validateAvailabilitySpecList(Parser &P,
     }
   }
 
-  if (ParsingMacroDefinition) {
-    if (HasOtherPlatformSpec) {
+  switch (Source) {
+  case Parser::AvailabilitySpecSource::Available: {
+    if (OtherPlatformSpecLoc == None) {
       SourceLoc InsertWildcardLoc = P.PreviousLoc;
-      P.diagnose(InsertWildcardLoc, diag::attr_availability_wildcard_in_macro);
-    }
-  } else if (!HasOtherPlatformSpec) {
-    SourceLoc InsertWildcardLoc = P.PreviousLoc;
-    P.diagnose(InsertWildcardLoc, diag::availability_query_wildcard_required)
+      P.diagnose(InsertWildcardLoc, diag::availability_query_wildcard_required)
         .fixItInsertAfter(InsertWildcardLoc, ", *");
+    }
+    break;
+  }
+  case Parser::AvailabilitySpecSource::Unavailable: {
+    if (OtherPlatformSpecLoc != None) {
+      SourceLoc Loc = OtherPlatformSpecLoc.getValue();
+      P.diagnose(Loc, diag::unavailability_query_wildcard_not_required)
+        .fixItRemove(Loc);
+    }
+    break;
+  }
+  case Parser::AvailabilitySpecSource::Macro: {
+    if (OtherPlatformSpecLoc != None) {
+      SourceLoc Loc = OtherPlatformSpecLoc.getValue();
+      P.diagnose(Loc, diag::attr_availability_wildcard_in_macro);
+    }
+    break;
+  }
   }
 
   Specs = RecognizedSpecs;
 }
 
 // #available(...)
+// #unavailable(...)
 ParserResult<PoundAvailableInfo> Parser::parseStmtConditionPoundAvailable() {
-  SyntaxParsingContext ConditonCtxt(SyntaxContext,
-                                    SyntaxKind::AvailabilityCondition);
-  SourceLoc PoundLoc = consumeToken(tok::pound_available);
+  tok MainToken;
+  SyntaxKind Kind;
+  AvailabilitySpecSource Source;
+  bool isUnavailability;
+  if (Tok.is(tok::pound_available)) {
+    MainToken = tok::pound_available;
+    Kind = SyntaxKind::AvailabilityCondition;
+    Source = AvailabilitySpecSource::Available;
+    isUnavailability = false;
+  } else {
+    MainToken = tok::pound_unavailable;
+    Kind = SyntaxKind::UnavailabilityCondition;
+    Source = AvailabilitySpecSource::Unavailable;
+    isUnavailability = true;
+  }
+
+  SyntaxParsingContext ConditonCtxt(SyntaxContext, Kind);
+  SourceLoc PoundLoc;
+
+  PoundLoc = consumeToken(MainToken);
 
   if (!Tok.isFollowingLParen()) {
     diagnose(Tok, diag::avail_query_expected_condition);
@@ -1252,19 +1287,20 @@ ParserResult<PoundAvailableInfo> Parser::parseStmtConditionPoundAvailable() {
   if (ParsingAvailabilitySpecList.isFailed()) {
     return makeParserError();
   }
-    
+
   SourceLoc LParenLoc = consumeToken(tok::l_paren);
 
   SmallVector<AvailabilitySpec *, 5> Specs;
-  ParserStatus Status = parseAvailabilitySpecList(Specs);
+  ParserStatus Status = parseAvailabilitySpecList(Specs, Source);
 
   for (auto *Spec : Specs) {
     if (auto *PlatformAgnostic =
-        dyn_cast<PlatformAgnosticVersionConstraintAvailabilitySpec>(Spec)) {
-        diagnose(PlatformAgnostic->getPlatformAgnosticNameLoc(),
-                 PlatformAgnostic->isLanguageVersionSpecific() ?
-                   diag::pound_available_swift_not_allowed :
-                   diag::pound_available_package_description_not_allowed);
+          dyn_cast<PlatformAgnosticVersionConstraintAvailabilitySpec>(Spec)) {
+      diagnose(PlatformAgnostic->getPlatformAgnosticNameLoc(),
+               PlatformAgnostic->isLanguageVersionSpecific()
+                   ? diag::pound_available_swift_not_allowed
+                   : diag::pound_available_package_description_not_allowed,
+               getTokenText(MainToken));
       Status.setIsParseError();
     }
   }
@@ -1274,8 +1310,20 @@ ParserResult<PoundAvailableInfo> Parser::parseStmtConditionPoundAvailable() {
                          diag::avail_query_expected_rparen, LParenLoc))
     Status.setIsParseError();
 
+  // Diagnose #available == false as being a wrong spelling of #unavailable.
+  if (!isUnavailability && Tok.isAnyOperator() && Tok.getText() == "==" &&
+      peekToken().is(tok::kw_false)) {
+    diagnose(Tok, diag::false_available_is_called_unavailable)
+      .highlight(SourceRange(PoundLoc, peekToken().getLoc()))
+      .fixItReplace(PoundLoc, getTokenText(tok::pound_unavailable))
+      .fixItRemove(SourceRange(Tok.getLoc(), peekToken().getLoc()));
+    consumeToken();
+    consumeToken();
+    Status.setIsParseError();
+  }
+
   auto *result = PoundAvailableInfo::create(Context, PoundLoc, LParenLoc, Specs,
-                                            RParenLoc);
+                                            RParenLoc, isUnavailability);
   return makeParserResult(Status, result);
 }
 
@@ -1307,13 +1355,12 @@ Parser::parseAvailabilityMacroDefinition(AvailabilityMacroDefinition &Result) {
     return makeParserError();
   }
 
-  return parseAvailabilitySpecList(Result.Specs,
-                                   /*ParsingMacroDefinition=*/true);
+  return parseAvailabilitySpecList(Result.Specs, AvailabilitySpecSource::Macro);
 }
 
 ParserStatus
 Parser::parseAvailabilitySpecList(SmallVectorImpl<AvailabilitySpec *> &Specs,
-                                  bool ParsingMacroDefinition) {
+                                  AvailabilitySpecSource Source) {
   SyntaxParsingContext AvailabilitySpecContext(
       SyntaxContext, SyntaxKind::AvailabilitySpecList);
   ParserStatus Status = makeParserSuccess();
@@ -1326,19 +1373,26 @@ Parser::parseAvailabilitySpecList(SmallVectorImpl<AvailabilitySpec *> &Specs,
 
     // First look for a macro as we need Specs for the expansion.
     bool MatchedAMacro = false;
-    if (!ParsingMacroDefinition && Tok.is(tok::identifier)) {
-      SmallVector<AvailabilitySpec *, 4> MacroSpecs;
-      ParserStatus MacroStatus = parseAvailabilityMacro(MacroSpecs);
+    switch (Source) {
+    case AvailabilitySpecSource::Available:
+    case AvailabilitySpecSource::Unavailable:
+      if (Tok.is(tok::identifier)) {
+        SmallVector<AvailabilitySpec *, 4> MacroSpecs;
+        ParserStatus MacroStatus = parseAvailabilityMacro(MacroSpecs);
 
-      if (MacroStatus.isError()) {
-        // There's a parsing error if the platform name matches a macro
-        // but something goes wrong after.
-        Status.setIsParseError();
-        MatchedAMacro = true;
-      } else {
-        MatchedAMacro = !MacroSpecs.empty();
-        Specs.append(MacroSpecs.begin(), MacroSpecs.end());
+        if (MacroStatus.isError()) {
+          // There's a parsing error if the platform name matches a macro
+          // but something goes wrong after.
+          Status.setIsParseError();
+          MatchedAMacro = true;
+        } else {
+          MatchedAMacro = !MacroSpecs.empty();
+          Specs.append(MacroSpecs.begin(), MacroSpecs.end());
+        }
       }
+      break;
+    case AvailabilitySpecSource::Macro: 
+      break;
     }
 
     if (!MatchedAMacro) {
@@ -1410,7 +1464,7 @@ Parser::parseAvailabilitySpecList(SmallVectorImpl<AvailabilitySpec *> &Specs,
   }
 
   if (Status.isSuccess() && !Status.hasCodeCompletion())
-    validateAvailabilitySpecList(*this, Specs, ParsingMacroDefinition);
+    validateAvailabilitySpecList(*this, Specs, Source);
 
   return Status;
 }
@@ -1421,8 +1475,17 @@ Parser::parseStmtConditionElement(SmallVectorImpl<StmtConditionElement> &result,
                                   StringRef &BindingKindStr) {
   ParserStatus Status;
 
-  // Parse a leading #available condition if present.
-  if (Tok.is(tok::pound_available)) {
+  // Diagnose !#available as being a wrong spelling of #unavailable.
+  if (Tok.getText() == "!" && peekToken().is(tok::pound_available)) {
+    SourceRange Range = SourceRange(Tok.getLoc(), peekToken().getLoc());
+    diagnose(Tok, diag::false_available_is_called_unavailable)
+      .fixItReplace(Range, getTokenText(tok::pound_unavailable));
+    // For better error recovery, reject but allow parsing to continue.
+    consumeToken();
+  }
+
+  // Parse a leading #available/#unavailable condition if present.
+  if (Tok.isAny(tok::pound_available, tok::pound_unavailable)) {
     auto res = parseStmtConditionPoundAvailable();
     if (res.isNull() || res.hasCodeCompletion()) {
       Status |= res;

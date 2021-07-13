@@ -931,6 +931,12 @@ WARNING(parameter_unnamed_warn,none,
 ERROR(parameter_curry_syntax_removed,none,
       "cannot have more than one parameter list", ())
 
+ERROR(availability_cannot_be_mixed,none,
+      "#available and #unavailable cannot be in the same statement", ())
+
+ERROR(false_available_is_called_unavailable,none,
+      "#available cannot be used as an expression, did you mean to use '#unavailable'?", ())
+
 ERROR(initializer_as_typed_pattern,none,
       "unexpected initializer in pattern; did you mean to use '='?", ())
 
@@ -1223,8 +1229,8 @@ ERROR(invalid_float_literal_missing_leading_zero,none,
       "'.%0' is not a valid floating point literal; it must be written '0.%0'",
       (StringRef))
 ERROR(availability_query_outside_if_stmt_guard, none,
-      "#available may only be used as condition of an 'if', 'guard'"
-      " or 'while' statement", ())
+      "%0 may only be used as condition of an 'if', 'guard'"
+      " or 'while' statement", (StringRef))
 
 ERROR(empty_arg_label_underscore, none,
       "an empty argument label is spelled with '_'", ())
@@ -1812,14 +1818,17 @@ ERROR(avail_query_version_comparison_not_needed,
 ERROR(availability_query_wildcard_required, none,
       "must handle potential future platforms with '*'", ())
 
+ERROR(unavailability_query_wildcard_not_required, none,
+      "platform wildcard '*' is always implicit in #unavailable", ())
+
 ERROR(availability_must_occur_alone, none,
       "'%0' version-availability must be specified alone", (StringRef))
 
 ERROR(pound_available_swift_not_allowed, none,
-      "Swift language version checks not allowed in #available(...)", ())
+      "Swift language version checks not allowed in %0(...)", (StringRef))
 
 ERROR(pound_available_package_description_not_allowed, none,
-      "PackageDescription version checks not allowed in #available(...)", ())
+      "PackageDescription version checks not allowed in %0(...)", (StringRef))
 
 ERROR(availability_query_repeated_platform, none,
       "version for '%0' already specified", (StringRef))

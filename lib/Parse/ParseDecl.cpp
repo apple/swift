@@ -2294,7 +2294,8 @@ bool Parser::parseNewDeclAttribute(DeclAttributes &Attributes, SourceLoc AtLoc,
          peekAvailabilityMacroName())) {
       // We have the short form of available: @available(iOS 8.0.1, *)
       SmallVector<AvailabilitySpec *, 5> Specs;
-      ParserStatus Status = parseAvailabilitySpecList(Specs);
+      ParserStatus Status = parseAvailabilitySpecList(Specs, 
+                                    AvailabilitySpecSource::Available);
 
       if (Status.isErrorOrHasCompletion())
         return false;
