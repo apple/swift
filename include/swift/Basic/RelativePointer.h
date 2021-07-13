@@ -146,6 +146,12 @@ static inline uintptr_t applyRelativeOffset(BasePtrTy *basePtr, Offset offset) {
                 std::is_signed<Offset>::value,
                 "offset type should be signed integer");
 
+#if defined(__WASM__)
+  // WebAssembly target uses only absolute pointers.
+  // See https://forums.swift.org/t/wasm-support/16087/17 for more details.
+  return (uintptr_t)(intptr_t)offset;
+#endif
+
   auto base = reinterpret_cast<uintptr_t>(basePtr);
   // We want to do wrapping arithmetic, but with a sign-extended
   // offset. To do this in C, we need to do signed promotion to get
@@ -164,6 +170,14 @@ static inline Offset measureRelativeOffset(A *referent, B *base) {
   static_assert(std::is_integral<Offset>::value &&
                 std::is_signed<Offset>::value,
                 "offset type should be signed integer");
+
+#if defined(__WASM__)
+  // WebAssembly target uses only absolute pointers.
+  auto offset = (Offset)(uintptr_t)referent;
+  assert((intptr_t)offset == (intptr_t)(uintptr_t)referent
+         && "pointer too large to fit in offset type");
+  return offset;
+#endif
 
   auto distance = (uintptr_t)referent - (uintptr_t)base;
   // Truncate as unsigned, then wrap around to signed.
