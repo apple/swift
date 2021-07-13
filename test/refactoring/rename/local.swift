@@ -47,6 +47,14 @@ func test5(_ x: Int) {
   print(x)
 }
 
+func testCaputreVariable() {
+  let capturedVariable = 0
+
+  _ = { [capturedVariable] in
+    print(capturedVariable)
+  }
+}
+
 // RUN: %empty-directory(%t.result)
 // RUN: %refactor -rename -source-filename %s -pos=3:9 -new-name="xRenamed" >> %t.result/localvar_1.swift
 // RUN: %refactor -rename -source-filename %s -pos=7:11 -new-name="xRenamed" >> %t.result/localvar_2.swift
@@ -68,3 +76,5 @@ func test5(_ x: Int) {
 // RUN: %refactor -rename -source-filename %s -pos=47:9 -new-name="xRenamed" >> %t.result/param_2.swift
 // RUN: diff -u %S/Outputs/local/param_1.swift.expected %t.result/param_1.swift
 // RUN: diff -u %S/Outputs/local/param_2.swift.expected %t.result/param_2.swift
+// RUN: %refactor -rename -source-filename %s -pos=51:7 -new-name="capturedVariableRenamed" >> %t.result/captured_variable.swift
+// RUN: diff -u %S/Outputs/local/captured_variable.swift.expected %t.result/captured_variable.swift

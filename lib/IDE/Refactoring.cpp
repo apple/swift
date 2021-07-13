@@ -654,7 +654,22 @@ private:
   Action startSourceEntity(const IndexSymbol &symbol) override {
     if (symbol.USR == USR) {
       if (auto loc = indexSymbolToRenameLoc(symbol, newName)) {
-        locations.push_back(std::move(*loc));
+        // Inside capture lists like `{ [test] in }`, 'test' refers to both the
+        // newly declared, captured variable and the referenced variable it is
+        // initialized from. Make sure to only rename it once.
+        auto existingLoc = llvm::find_if(locations, [&](RenameLoc searchLoc) {
+          return searchLoc.Line == loc->Line && searchLoc.Column == loc->Column;
+        });
+        if (existingLoc == locations.end()) {
+          locations.push_back(std::move(*loc));
+        } else {
+          assert(existingLoc->OldName == loc->OldName &&
+                 existingLoc->NewName == loc->NewName &&
+                 existingLoc->IsFunctionLike == loc->IsFunctionLike &&
+                 existingLoc->IsNonProtocolType ==
+                     existingLoc->IsNonProtocolType &&
+                 "Asked to do a different rename for the same location?");
+        }
       }
     }
     return IndexDataConsumer::Continue;

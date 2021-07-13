@@ -47,3 +47,11 @@ func test5(_ x: Int) {
   print(x)
 }
 
+func testCaputreVariable() {
+  let capturedVariable = 0
+
+  _ = { [capturedVariable] in
+    print(capturedVariable)
+  }
+}
+

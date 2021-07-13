@@ -9,8 +9,8 @@ func test1() {
 }
 
 func test2(arg1: Int?, arg2: (Int, String)?) {
-  if let xRenamed = arg1 {
-    print(xRenamed)
+  if let x = arg1 {
+    print(x)
   } else if let (x, y) = arg2 {
     print(x, y)
   }
@@ -48,10 +48,10 @@ func test5(_ x: Int) {
 }
 
 func testCaputreVariable() {
-  let capturedVariable = 0
+  let capturedVariableRenamed = 0
 
-  _ = { [capturedVariable] in
-    print(capturedVariable)
+  _ = { [capturedVariableRenamed] in
+    print(capturedVariableRenamed)
   }
 }
 
