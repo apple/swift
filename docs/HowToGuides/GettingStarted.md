@@ -29,6 +29,7 @@ toolchain as a one-off, there are a couple of differences:
   - [Incremental builds with Ninja](#incremental-builds-with-ninja)
   - [Incremental builds with Xcode](#incremental-builds-with-xcode)
   - [Spot checking an incremental build](#spot-checking-an-incremental-build)
+  - [Code formatting](#code-formatting)
 - [Reproducing an issue](#reproducing-an-issue)
 - [Running tests](#running-tests)
 - [Debugging issues](#debugging-issues)
@@ -397,6 +398,31 @@ Now check if the version string has been updated:
 ```
 
 This should print your updated version string.
+
+### Code formatting
+First, install `clang-format` using your system's package manager (e.g. on a Mac you could use `brew install clang-format`).
+
+This should also install the `git-clang-format` script (try `git-clang-format --help` to verify this). In case it doesn't, you can replace `git-clang-format` in the following commands with `../llvm-project/clang/tools/clang-format/git-clang-format`.
+
+Start out at the tip of the branch where you want to reformat the commits.
+
+```
+# If there is only one commit that needs to be reformatted.
+git-clang-format HEAD~1
+git add .
+git commit --amend --no-edit
+
+# Say the last N commits need to be reformatted.
+# Mark them as 'edit' instead of 'pick'.
+git rebase -i HEAD~N
+# Re-run N times, reformatting each commit.
+git-clang-format HEAD~1
+git add .
+git commit --amend --no-edit
+git rebase --continue
+```
+
+You could also consider installing a git [pre-commit hook](https://git-scm.com/book/en/v2/Customizing-Git-Git-Hooks) to run the formatter before you commit, this is optional though.
 
 ## Reproducing an issue
 

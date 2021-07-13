@@ -106,31 +106,6 @@ HTML documentation for the standard library on Darwin platforms is hosted on the
 
 ## Pull Request Workflow
 
-### How do I format my changes?
-
-First, install `clang-format` using your system's package manager. This should
-also install the `git-clang-format` script (try `git-clang-format --help`).
-In case it doesn't, you can replace `git-clang-format` in the following
-commands with `../llvm-project/clang/tools/clang-format/git-clang-format`.
-
-Start out at the tip of the branch where you want to reformat the commits.
-
-```
-# If there is only one commit that needs to be reformatted.
-git-clang-format HEAD~1
-git add .
-git commit --amend --no-edit
-
-# Say the last N commits need to be reformatted.
-# Mark them as 'edit' instead of 'pick'.
-git rebase -i HEAD~N
-# Re-run N times, reformatting each commit.
-git-clang-format HEAD~1
-git add .
-git commit --amend --no-edit
-git rebase --continue
-```
-
 ### How do I clean up my git history?
 
 TODO: Link to a beginner-friendly external resource, or (less preferably)
