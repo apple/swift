@@ -258,6 +258,8 @@ BuiltinTypeInfo::readExtraInhabitantIndex(remote::MemoryReader &reader,
 bool RecordTypeInfo::readExtraInhabitantIndex(remote::MemoryReader &reader,
                                               remote::RemoteAddress address,
                                               int *extraInhabitantIndex) const {
+  *extraInhabitantIndex = -1;
+
   switch (SubKind) {
   case RecordKind::Invalid:
   case RecordKind::ClosureContext:
@@ -291,13 +293,18 @@ bool RecordTypeInfo::readExtraInhabitantIndex(remote::MemoryReader &reader,
   case RecordKind::ExistentialMetatype:
   case RecordKind::ErrorExistential:
   case RecordKind::ClassInstance: {
-    return false; // XXX TODO XXX
+    if (Fields.size() != 1) {
+      return true;
+    }
+    auto first = Fields[0];
+    auto firstFieldAddress = address + first.Offset;
+    return first.TI.readExtraInhabitantIndex(reader, firstFieldAddress,
+                                             extraInhabitantIndex);
   }
 
   case RecordKind::Tuple:
   case RecordKind::Struct: {
     if (Fields.size() == 0) {
-      *extraInhabitantIndex = -1;
       return true;
     }
     // Tuples and Structs inherit XIs from their most capacious member
