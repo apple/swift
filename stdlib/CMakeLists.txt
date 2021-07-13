@@ -83,6 +83,16 @@ set(SWIFT_STDLIB_ENABLE_LTO OFF CACHE STRING "Build Swift stdlib with LTO. One
     must specify the form of LTO by setting this to one of: 'full', 'thin'. This
     option only affects the standard library and runtime, not tools.")
 
+option(SWIFT_FOUNDATION_OVERLAYS_BUILD_FROM_SOURCE
+  "Whether to build Foundation overlays from swift-corelibs-foundation"
+  OFF)
+
+set(SWIFT_FOUNDATION_OVERLAYS_SUPPORTED_SDKS "IOS_SIMULATOR;OSX;TVOS_SIMULATOR;WATCHOS_SIMULATOR" CACHE STRING
+  "List of SDKs that allow Foundation overlays to be built from sources")
+
+set(SWIFT_FOUNDATION_OVERLAYS_SOURCE_PATH "${CMAKE_SOURCE_DIR}/../swift-corelibs-foundation/Darwin" CACHE STRING "Path to Foundation overlays sources")
+
+set(SWIFT_FOUNDATION_OVERLAYS_ADDITIONAL_XCODEBUILD_ARGS "" CACHE STRING "Additional build arguments to pass to Xcode when building the Foundation overlays")
 #
 # End of user-configurable options.
 #

@@ -953,6 +953,10 @@ def create_argument_parser():
     option('--build-swift-static-sdk-overlay', toggle_true,
            help='build static variants of the Swift SDK overlay')
 
+    option('--build-foundation-overlays-from-source', toggle_true,
+           help='build Foundation overlays using the code in '
+                'swift-corelibs-foundation repo. Darwin only')
+
     option('--build-swift-stdlib-unittest-extra', toggle_true,
            help='Build optional StdlibUnittest components')
 

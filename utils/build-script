@@ -745,6 +745,10 @@ class BuildScriptInvocation(object):
         if args.maccatalyst_ios_tests:
             impl_args += ["--darwin-test-maccatalyst-ios-like=1"]
 
+        args.extra_cmake_options.append(
+            "-DSWIFT_FOUNDATION_OVERLAYS_BUILD_FROM_SOURCE:BOOL=%s" %
+            ("ON" if args.build_foundation_overlays_from_source else "OFF"))
+
         # If we have extra_cmake_options, combine all of them together and then
         # add them as one command.
         if args.extra_cmake_options:

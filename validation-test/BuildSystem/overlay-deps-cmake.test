@@ -1,0 +1,52 @@
+# REQUIRES: standalone_build
+
+# targets are generated if SDKs and source dir are provided
+# RUN: %empty-directory(%t)
+# RUN: mkdir -p %t/build
+# RUN: mkdir -p %t/source
+# RUN: split-file %s %t/source
+# RUN: %{cmake-generate} -S %t/source -B %t/build -DCMAKE_MODULE_PATH=%swift_src_root/stdlib/cmake/modules -DTARGET_SDKS:STRING=OSX -DOVERLAY_DIR:STRING=%t/source/overlay -DSWIFTLIB_DIR:STRING=%t/build/lib 2>&1 | tee %t/cmake-output.txt 
+# RUN: %FileCheck --input-file=%t/cmake-output.txt %s
+# RUN: %FileCheck --input-file=%t/cmake-output.txt --check-prefixes=ADDITIONAL-DEP-CHECK %s
+
+# CHECK-LABEL: The final target dependency graph is:
+# CHECK-LABEL: target {{.}} is [sdk-overlay]
+# CHECK-DAG: depends on target{{.*}}[CoreFoundationOverlay-OSX]
+# CHECK-LABEL: {{target . is|Generating done}}
+
+# ADDITIONAL-DEP-CHECK-LABEL: The final target dependency graph is:
+# ADDITIONAL-DEP-CHECK-LABEL: target {{.}} is [swift-stdlib-OSX-arm64]
+# ADDITIONAL-DEP-CHECK-DAG: depends on target{{.*}}[CoreFoundationOverlay-OSX]
+# ADDITIONAL-DEP-CHECK-LABEL: {{target . is|Generating done}}
+
+#--- CMakeLists.txt
+cmake_minimum_required(VERSION 3.12.4)
+
+project(overlay)
+
+
+# This will print the dependency graph (and indirectly
+# the list of targets created in this run)
+set_property(GLOBAL PROPERTY GLOBAL_DEPENDS_DEBUG_MODE 1)
+
+# Those are needed to create the overlay targets properly
+set(SWIFT_SDK_OSX_LIB_SUBDIR OSX)
+set(SWIFT_SDK_OSX_ARCHITECTURES arm64)
+add_custom_target(swiftCore-OSX)
+
+# Test overlay target creation
+include(OverlayXcodeExternalProject)
+build_corefoundation_and_foundation_overlays(
+TARGET_SDKS ${TARGET_SDKS}
+FOUNDATION_OVERLAYS_SOURCE_DIR ${OVERLAY_DIR})
+
+# Test adding dependencies on overlay
+add_custom_target(sdk-overlay)
+add_custom_target(swift-stdlib-OSX-arm64)
+add_stdlib_dependencies_to(OVERLAYS CoreFoundation TARGET_SDKS ${TARGET_SDKS})
+
+#--- overlay/overlay.swift
+print("Overlay implementation")
+
+#--- hello.c
+int main() {}

@@ -1,0 +1,15 @@
+# REQUIRES: standalone_build
+
+# RUN: %empty-directory(%t)
+# RUN: SWIFT_BUILD_ROOT=%t %swift_src_root/utils/build-script --dry-run --cmake %cmake --build-foundation-overlays-from-source=0  2>&1 | %FileCheck --check-prefixes=NO-OPTION-CHECK %s
+# RUN: SWIFT_BUILD_ROOT=%t %swift_src_root/utils/build-script --dry-run --cmake %cmake 2>&1 | %FileCheck --check-prefixes=NO-OPTION-CHECK %s
+
+# NO-OPTION-CHECK: -DSWIFT_FOUNDATION_OVERLAYS_BUILD_FROM_SOURCE:BOOL=OFF
+
+# RUN: %empty-directory(%t)
+# RUN: SWIFT_BUILD_ROOT=%t %swift_src_root/utils/build-script --dry-run --cmake %cmake --build-foundation-overlays-from-source=1  2>&1 | %FileCheck %s
+
+# RUN: %empty-directory(%t)
+# RUN: SWIFT_BUILD_ROOT=%t %swift_src_root/utils/build-script --dry-run --cmake %cmake --build-foundation-overlays-from-source  2>&1 | %FileCheck %s
+
+# CHECK: -DSWIFT_FOUNDATION_OVERLAYS_BUILD_FROM_SOURCE:BOOL=ON 

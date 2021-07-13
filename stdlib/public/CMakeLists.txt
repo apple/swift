@@ -116,6 +116,19 @@ endif()
 if(SWIFT_BUILD_SDK_OVERLAY)
   # On Apple platforms, we aren't building any overlays (other than Darwin in
   # Platform above). Instead, we're picking them up from the SDK.
+  if(SWIFT_FOUNDATION_OVERLAYS_BUILD_FROM_SOURCE)
+    include(OverlayXcodeExternalProject)
+   
+    list_intersect("${SWIFT_SDKS}" "${SWIFT_FOUNDATION_OVERLAYS_SUPPORTED_SDKS}" SDKS_TO_BUILD_FOR)
+    message(STATUS "Building CoreFoundation and Foundation overlays for SDKs: " ${SDKS_TO_BUILD_FOR})
+    build_corefoundation_and_foundation_overlays(
+      TARGET_SDKS ${SDKS_TO_BUILD_FOR}
+      FOUNDATION_OVERLAYS_SOURCE_DIR ${SWIFT_FOUNDATION_OVERLAYS_SOURCE_REPO}
+      ADDITIONAL_XCODEBUILD_ARGUMENTS ${SWIFT_FOUNDATION_OVERLAYS_ADDITIONAL_XCODEBUILD_ARGS})
+    add_stdlib_dependencies_to(
+      OVERLAYS CoreFoundation
+      TARGET_SDKS ${SDKS_TO_BUILD_FOR})
+  endif()
 
   if(WINDOWS IN_LIST SWIFT_SDKS)
     add_subdirectory(Windows)
