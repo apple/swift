@@ -32,6 +32,8 @@
 #include "llvm/Object/Archive.h"
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Object/ELFObjectFile.h"
+#include "llvm/Object/Wasm.h"
+#include "llvm/BinaryFormat/Wasm.h"
 
 using namespace swift;
 using namespace llvm::opt;
@@ -145,6 +147,31 @@ extractLinkerFlagsFromObjectFile(const llvm::object::ObjectFile *ObjectFile,
   return false;
 }
 
+/// Look inside the object file 'WasmObjectFile' and append any linker flags found in
+/// its ".swift1_autolink_entries" section to 'LinkerFlags'.
+/// Return 'true' if there was an error, and 'false' otherwise.
+static bool
+extractLinkerFlagsFromObjectFile(const llvm::object::WasmObjectFile *ObjectFile,
+                                 std::vector<std::string> &LinkerFlags,
+                                 CompilerInstance &Instance) {
+
+  // Search for the data segment we hold autolink entries in
+  for (const llvm::object::WasmSegment &Segment : ObjectFile->dataSegments()) {
+    if (Segment.Data.Name == ".swift1_autolink_entries") {
+
+      StringRef SegmentData = llvm::toStringRef(Segment.Data.Content);
+      // entries are null-terminated, so extract them and push them into
+      // the set.
+      llvm::SmallVector<llvm::StringRef, 4> SplitFlags;
+      SegmentData.split(SplitFlags, llvm::StringRef("\0", 1), -1,
+                         /*KeepEmpty=*/false);
+      for (const auto &Flag : SplitFlags)
+        LinkerFlags.push_back(Flag);
+    }
+  }
+  return false;
+}
+
 /// Look inside the binary 'Bin' and append any linker flags found in its
 /// ".swift1_autolink_entries" section to 'LinkerFlags'. If 'Bin' is an archive,
 /// recursively look inside all children within the archive. Return 'true' if
@@ -154,6 +181,8 @@ static bool extractLinkerFlags(const llvm::object::Binary *Bin,
                                StringRef BinaryFileName,
                                std::vector<std::string> &LinkerFlags) {
   if (auto *ObjectFile = llvm::dyn_cast<llvm::object::ELFObjectFileBase>(Bin)) {
+    return extractLinkerFlagsFromObjectFile(ObjectFile, LinkerFlags, Instance);  
+  } else if (auto *ObjectFile = llvm::dyn_cast<llvm::object::WasmObjectFile>(Bin)) {
     return extractLinkerFlagsFromObjectFile(ObjectFile, LinkerFlags, Instance);
   } else if (auto *Archive = llvm::dyn_cast<llvm::object::Archive>(Bin)) {
     llvm::Error Error = llvm::Error::success();
