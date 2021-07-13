@@ -961,25 +961,33 @@ CastsTests.test("Do not overuse __SwiftValue") {
   // This used to succeed because of overeager __SwiftValue
   // boxing (and __SwiftValue does satisfy NSCopying)
   expectFalse(Bar() is NSCopying)
+  expectNil(runtimeCast(Bar(), to: NSCopying.self))
   expectFalse(Bar() as Any is NSCopying)
+  expectNil(runtimeCast(Bar() as Any, to: NSCopying.self))
 
-  // This seems unavoidable?
-  // `Bar() as! AnyObject` gets boxed as a __SwiftValue,
-  // and __SwiftValue does conform to NSCopying
-  expectTrue(Bar() as! AnyObject is NSCopying)
+  // `Bar() as! AnyObject` gets boxed as a __SwiftValue.
+  // __SwiftValue does conform to NSCopying, but that should
+  // not be visible here.
+  let anyBar = Bar() as! AnyObject
+  expectNil(runtimeCast(anyBar, to: NSCopying.self))
+  expectFalse(anyBar is NSCopying)
 
   class Foo {}
   // Foo does not conform to NSCopying
   // (This used to succeed due to over-eager __SwiftValue boxing)
   expectFalse(Foo() is NSCopying)
+  expectNil(runtimeCast(Foo(), to: NSCopying.self))
   expectFalse(Foo() as Any is NSCopying)
+  expectNil(runtimeCast(Foo() as Any, to: NSCopying.self))
 
   // A type that really does conform should cast to NSCopying
   class Foo2: NSCopying {
     func copy(with: NSZone?) -> Any { return self }
   }
   expectTrue(Foo2() is NSCopying)
+  expectNotNil(runtimeCast(Foo2(), to: NSCopying.self))
   expectTrue(Foo2() is AnyObject)
+  expectNotNil(runtimeCast(Foo2(), to: AnyObject.self))
 }
 #endif
 
@@ -998,10 +1006,21 @@ CastsTests.test("Do not overuse __SwiftValue (non-ObjC)") {
   // This should succeed because this is what __SwiftValue boxing is for
   expectTrue(Bar() is AnyObject)
   expectTrue(Bar() as Any is AnyObject)
+  let a = Bar() as Any as! AnyObject
+  expectTrue(a is Bar)
 
   class Foo {}
   // Any class type can be cast to AnyObject
   expectTrue(Foo() is AnyObject)
+  let b = Foo() as! AnyObject
+  expectTrue(b is Foo)
+
+  // As above, but force use of runtime casting
+  expectNotNil(runtimeCast(Bar(), to: AnyObject.self))
+  expectNotNil(runtimeCast(Bar() as Any, to: AnyObject.self))
+  expectNotNil(runtimeCast(a, to: Bar.self))
+  expectNotNil(runtimeCast(Foo(), to: AnyObject.self))
+  expectNotNil(runtimeCast(b, to: Foo.self))
 }
 
 runAllTests()
