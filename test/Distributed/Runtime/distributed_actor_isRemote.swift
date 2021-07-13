@@ -33,6 +33,14 @@ extension SomeSpecificDistributedActor {
 
 // ==== Fake Transport ---------------------------------------------------------
 
+struct FakeActorID: ActorIdentity {
+  let id: UInt64
+}
+
+enum FakeTransportError: ActorTransportError {
+  case unsupportedActorIdentity(ActorIdentity)
+}
+
 @available(SwiftStdlib 5.5, *)
 struct FakeTransport: ActorTransport {
   func resolve<Act>(address: ActorAddress, as actorType: Act.Type)
@@ -53,6 +61,24 @@ struct FakeTransport: ActorTransport {
   public func resignAddress(
     _ address: ActorAddress
   ) {}
+
+
+  public func encodeIdentity<Act>(_ actor: Act, to encoder: Encoder) throws
+      where Act: DistributedActor {
+    guard let knownID = actor.id as? FakeActorID else {
+      throw FakeTransportError.unsupportedActorIdentity(actor.id)
+    }
+
+    var container = encoder.singleValueContainer()
+    container.encode(knownID.id)
+  }
+
+  func decodeIdentity<Act>(type: Act.Type, from decoder: Decoder) throws -> AnyActorIdentity
+      where Act: DistributedActor
+
+  func hashIdentity(_ identity: ActorIdentity, into hasher: inout Hasher)
+
+  func compareIdentities(_ lhs: ActorIdentity, _ rhs:  ActorIdentity) -> Bool
 }
 
 // ==== Execute ----------------------------------------------------------------
