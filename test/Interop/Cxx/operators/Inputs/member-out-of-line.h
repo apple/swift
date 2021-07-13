@@ -31,7 +31,10 @@ public:
 
 struct NonTrivialIntArrayByVal {
   NonTrivialIntArrayByVal(int first) { values[0] = first; }
-  NonTrivialIntArrayByVal(const NonTrivialIntArrayByVal &other) {}
+  NonTrivialIntArrayByVal(const NonTrivialIntArrayByVal &other) {
+    for (int i = 0; i < 5; i++)
+      values[i] = other.values[i];
+  }
   int operator[](int x);
 
   // For testing purposes.
