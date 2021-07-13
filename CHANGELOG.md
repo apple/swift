@@ -208,7 +208,7 @@ Swift 5.5
 
 * [SE-0306][]:
 
-  Swift 5.5 includes support for actors, a new kind of type that isolates its instance data to protect it from concurrent access. Accesses to an actor's instance declarations from outside the must be asynchronous:
+  Swift 5.5 includes support for actors, a new kind of type that isolates its instance data to protect it from concurrent access. Accesses to an actor's instance declarations from the outside must be asynchronous:
 
   ```swift
   actor Counter {
