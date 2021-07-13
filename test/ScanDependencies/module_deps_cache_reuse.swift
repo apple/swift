@@ -111,7 +111,7 @@ import SubE
 // CHECK-NEXT: "-frontend"
 // CHECK-NEXT: "-only-use-extra-clang-opts"
 // CHECK-NEXT: "-Xcc"
-// CHECK-NEXT: "clang"
+// CHECK-NEXT: "BUILD_DIR/bin/clang"
 // CHECK-NEXT: "-Xcc"
 // CHECK-NEXT: "-fsyntax-only",
 // CHECK:      "-fsystem-module",

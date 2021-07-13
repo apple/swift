@@ -68,6 +68,11 @@ void CompilerInvocation::setMainExecutablePath(StringRef Path) {
       Path, FrontendOpts.UseSharedResourceFolder, LibPath);
   setRuntimeResourcePath(LibPath.str());
 
+  llvm::SmallString<128> clangPath(Path);
+  llvm::sys::path::remove_filename(clangPath);
+  llvm::sys::path::append(clangPath, "clang");
+  ClangImporterOpts.clangPath = std::string(clangPath);
+
   llvm::SmallString<128> DiagnosticDocsPath(Path);
   llvm::sys::path::remove_filename(DiagnosticDocsPath); // Remove /swift
   llvm::sys::path::remove_filename(DiagnosticDocsPath); // Remove /bin
@@ -956,6 +961,18 @@ static bool ParseClangImporterArgs(ClangImporterOptions &Opts,
                                    DiagnosticEngine &Diags,
                                    StringRef workingDirectory) {
   using namespace options;
+
+  if (const Arg *a = Args.getLastArg(OPT_tools_directory)) {
+    // If a custom tools directory is specified, try to find Clang there.
+    // This is useful when the Swift executable is located in a different
+    // directory than the Clang/LLVM executables, for example, when building
+    // the Swift project itself.
+    llvm::SmallString<128> clangPath(a->getValue());
+    llvm::sys::path::append(clangPath, "clang");
+    if (llvm::sys::fs::exists(clangPath)) {
+      Opts.clangPath = std::string(clangPath);
+    }
+  }
 
   if (const Arg *A = Args.getLastArg(OPT_module_cache_path)) {
     Opts.ModuleCachePath = A->getValue();

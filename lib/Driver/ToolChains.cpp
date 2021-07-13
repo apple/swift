@@ -263,6 +263,7 @@ void ToolChain::addCommonFrontendArgs(const OutputInfo &OI,
   inputArgs.AddLastArg(arguments, options::OPT_swift_version);
   inputArgs.AddLastArg(arguments, options::OPT_enforce_exclusivity_EQ);
   inputArgs.AddLastArg(arguments, options::OPT_stats_output_dir);
+  inputArgs.AddLastArg(arguments, options::OPT_tools_directory);
   inputArgs.AddLastArg(arguments, options::OPT_trace_stats_events);
   inputArgs.AddLastArg(arguments, options::OPT_profile_stats_events);
   inputArgs.AddLastArg(arguments, options::OPT_profile_stats_entities);

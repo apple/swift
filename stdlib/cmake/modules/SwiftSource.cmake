@@ -403,6 +403,10 @@ function(_compile_swift_files
   compute_library_subdir(library_subdir
     "${library_subdir_sdk}" "${SWIFTFILE_ARCHITECTURE}")
 
+  if(NOT "${SWIFT_NATIVE_CLANG_TOOLS_PATH}" STREQUAL "")
+    list(APPEND swift_flags "-tools-directory" "${SWIFT_NATIVE_CLANG_TOOLS_PATH}")
+  endif()
+
   # If we have a custom module cache path, use it.
   if (SWIFT_MODULE_CACHE_PATH)
     list(APPEND swift_flags "-module-cache-path" "${SWIFT_MODULE_CACHE_PATH}")
