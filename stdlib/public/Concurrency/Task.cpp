@@ -62,7 +62,7 @@ void FutureFragment::destroy() {
     break;
 
   case Status::Error:
-    swift_unknownObjectRelease(reinterpret_cast<OpaqueValue *>(getError()));
+    swift_errorRelease(getError());
     break;
   }
 }
@@ -432,6 +432,7 @@ static AsyncTaskAndContext swift_task_create_commonImpl(
   ExecutorRef executor = ExecutorRef::generic();
   TaskGroup *group = nullptr;
   AsyncLet *asyncLet = nullptr;
+  void *asyncLetResultBuffer = nullptr;
   for (auto option = options; option; option = option->getParent()) {
     switch (option->getKind()) {
     case TaskOptionRecordKind::Executor:
@@ -447,6 +448,16 @@ static AsyncTaskAndContext swift_task_create_commonImpl(
     case TaskOptionRecordKind::AsyncLet:
       asyncLet = cast<AsyncLetTaskOptionRecord>(option)->getAsyncLet();
       assert(asyncLet && "Missing async let storage");
+      jobFlags.task_setIsAsyncLetTask(true);
+      jobFlags.task_setIsChildTask(true);
+      break;
+
+    case TaskOptionRecordKind::AsyncLetWithBuffer:
+      auto *aletRecord = cast<AsyncLetWithBufferTaskOptionRecord>(option);
+      asyncLet = aletRecord->getAsyncLet();
+      asyncLetResultBuffer = aletRecord->getResultBuffer();
+      assert(asyncLet && "Missing async let storage");
+        
       jobFlags.task_setIsAsyncLetTask(true);
       jobFlags.task_setIsChildTask(true);
       break;
@@ -504,13 +515,24 @@ static AsyncTaskAndContext swift_task_create_commonImpl(
 
   assert(amountToAllocate % MaximumAlignment == 0);
 
-  constexpr unsigned initialSlabSize = 512;
+  unsigned initialSlabSize = 512;
 
   void *allocation = nullptr;
   if (asyncLet) {
     assert(parent);
-    allocation = _swift_task_alloc_specific(parent,
-                                        amountToAllocate + initialSlabSize);
+
+    // DEPRECATED. Handle an older async let ABI that did not provide
+    // space for the initial slab in the compiler-generated preallocation.
+    if (!asyncLetResultBuffer) {
+      allocation = _swift_task_alloc_specific(parent,
+                                          amountToAllocate + initialSlabSize);
+    } else {
+      allocation = asyncLet->getPreallocatedSpace();
+      assert(asyncLet->getSizeOfPreallocatedSpace() >= amountToAllocate
+             && "async let does not preallocate enough space for child task");
+      initialSlabSize = asyncLet->getSizeOfPreallocatedSpace()
+                          - amountToAllocate;
+    }
   } else {
     allocation = malloc(amountToAllocate);
   }

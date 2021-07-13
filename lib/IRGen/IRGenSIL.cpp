@@ -2522,6 +2522,14 @@ FunctionPointer::Kind irgen::classifyFunctionPointerKind(SILFunction *fn) {
     if (name.equals("swift_asyncLet_wait_throwing"))
       return SpecialKind::AsyncLetWaitThrowing;
 
+    if (name.equals("swift_asyncLet_get"))
+      return SpecialKind::AsyncLetGet;
+    if (name.equals("swift_asyncLet_get_throwing"))
+      return SpecialKind::AsyncLetGetThrowing;
+
+    if (name.equals("swift_asyncLet_finish"))
+      return SpecialKind::AsyncLetFinish;
+    
     if (name.equals("swift_taskGroup_wait_next_throwing"))
       return SpecialKind::TaskGroupWaitNext;
   }

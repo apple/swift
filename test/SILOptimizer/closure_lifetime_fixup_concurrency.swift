@@ -6,8 +6,8 @@
 // CHECK:   [[PA:%.*]] = partial_apply [callee_guaranteed] [on_stack]
 // CHECK:   [[MD:%.*]] = mark_dependence [[PA]]
 // CHECK:   [[CONV:%.*]] = convert_function [[MD]]
-// CHECK:   [[BAL:%.*]] = builtin "startAsyncLet"<String>([[OPT:%.+]] : $Optional<Builtin.RawPointer>, [[CONV]]
-// CHECK:   builtin "endAsyncLet"([[BAL]] : $Builtin.RawPointer, [[MD]]
+// CHECK:   [[BAL:%.*]] = builtin "startAsyncLetWithLocalBuffer"<String>([[OPT:%.+]] : $Optional<Builtin.RawPointer>, [[CONV]]
+// CHECK:   builtin "endAsyncLetLifetime"([[BAL]] : $Builtin.RawPointer, [[MD]]
 // CHECK: } // end sil function '$s34closure_lifetime_fixup_concurrency12testAsyncLetyS2SYaF'
 
 public func testAsyncLet(_ n: String) async -> String {

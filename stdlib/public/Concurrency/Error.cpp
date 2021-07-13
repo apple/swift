@@ -10,10 +10,14 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "Debug.h"
 #include "Error.h"
+#include <cstdarg>
+#include <cstdio>
 
 // swift::fatalError is not exported from libswiftCore and not shared, so define another
 // internal function instead.
 SWIFT_NORETURN void swift::swift_Concurrency_fatalError(uint32_t flags, const char *format, ...) {
+  swift_reportError(0, format);
   abort();
 }

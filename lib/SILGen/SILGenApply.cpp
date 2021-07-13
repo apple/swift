@@ -5793,7 +5793,8 @@ SILGenFunction::emitCoroutineAccessor(SILLocation loc, SILDeclRef accessor,
 ManagedValue SILGenFunction::emitAsyncLetStart(
     SILLocation loc,
     SILValue taskOptions,
-    Type functionType, ManagedValue taskFunction) {
+    Type functionType, ManagedValue taskFunction,
+    SILValue resultBuf) {
   ASTContext &ctx = getASTContext();
   Type resultType = functionType->castTo<FunctionType>()->getResult();
   Type replacementTypes[] = {resultType};
@@ -5815,9 +5816,9 @@ ManagedValue SILGenFunction::emitAsyncLetStart(
 
   auto apply = B.createBuiltin(
       loc,
-      ctx.getIdentifier(getBuiltinName(BuiltinValueKind::StartAsyncLet)),
+      ctx.getIdentifier(getBuiltinName(BuiltinValueKind::StartAsyncLetWithLocalBuffer)),
       getLoweredType(ctx.TheRawPointerType), subs,
-      { taskOptions, taskFunction.forward(*this) });
+      {taskOptions, taskFunction.forward(*this), resultBuf});
 
   return ManagedValue::forUnmanaged(apply);
 }
@@ -5833,43 +5834,121 @@ ManagedValue SILGenFunction::emitCancelAsyncTask(
   return ManagedValue::forUnmanaged(apply);
 }
 
-void SILGenFunction::completeAsyncLetChildTask(
-    PatternBindingDecl *patternBinding, unsigned index) {
-  SILValue asyncLet;
-  bool isThrowing;
-  std::tie(asyncLet, isThrowing)= AsyncLetChildTasks[{patternBinding, index}];
+ManagedValue SILGenFunction::emitReadAsyncLetBinding(SILLocation loc,
+                                                     VarDecl *var) {
+  auto patternBinding = var->getParentPatternBinding();
+  auto index = patternBinding->getPatternEntryIndexForVarDecl(var);
+  auto childTask = AsyncLetChildTasks[{patternBinding, index}];
 
-  Type childResultType = patternBinding->getPattern(index)->getType();
+  auto pattern = patternBinding->getPattern(index);
+  Type formalPatternType = pattern->getType();
+  // async let context stores the maximally-abstracted representation.
+  SILType loweredOpaquePatternType = getLoweredType(AbstractionPattern::getOpaque(),
+                                                    formalPatternType);
 
-  auto asyncLetGet = isThrowing
+  auto asyncLetGet = childTask.isThrowing
       ? SGM.getAsyncLetGetThrowing()
       : SGM.getAsyncLetGet();
 
-  // Get the result from the async-let future.
-  Type replacementTypes[] = {childResultType};
-  auto subs = SubstitutionMap::get(asyncLetGet->getGenericSignature(),
-                                   replacementTypes,
-                                   ArrayRef<ProtocolConformanceRef>{});
-  RValue childResult = emitApplyOfLibraryIntrinsic(
-      SILLocation(patternBinding), asyncLetGet, subs,
-      { ManagedValue::forTrivialObjectRValue(asyncLet) },
-      SGFContext());
+  // The intrinsic returns a pointer to the address of the result value inside
+  // the async let task context.
+  emitApplyOfLibraryIntrinsic(loc, asyncLetGet, {},
+                   {ManagedValue::forTrivialObjectRValue(childTask.asyncLet),
+                    ManagedValue::forTrivialObjectRValue(childTask.resultBuf)},
+                   SGFContext());
+  
+  auto resultAddr = B.createPointerToAddress(loc, childTask.resultBuf,
+                loweredOpaquePatternType.getAddressType(),
+                /*strict*/ true,
+                /*invariant*/ true);
+  
+  // Project the address of the variable within the pattern binding result.
+  struct ProjectResultVisitor: public PatternVisitor<ProjectResultVisitor>
+  {
+    SILGenFunction &SGF;
+    SILLocation loc;
+    VarDecl *var;
+    SILValue resultAddr, varAddr;
+    SmallVector<unsigned, 4> path;
+    
+    ProjectResultVisitor(SILGenFunction &SGF,
+                         SILLocation loc,
+                         VarDecl *var,
+                         SILValue resultAddr)
+      : SGF(SGF), loc(loc), var(var), resultAddr(resultAddr), varAddr() {}
 
-  // Write the child result into the pattern variables.
-  emitAssignToPatternVars(
-      SILLocation(patternBinding), patternBinding->getPattern(index),
-      std::move(childResult));
+    // Walk through non-binding patterns.
+    void visitParenPattern(ParenPattern *P) {
+      return visit(P->getSubPattern());
+    }
+    void visitTypedPattern(TypedPattern *P) {
+      return visit(P->getSubPattern());
+    }
+    void visitBindingPattern(BindingPattern *P) {
+      return visit(P->getSubPattern());
+    }
+    void visitTuplePattern(TuplePattern *P) {
+      path.push_back(0);
+      for (unsigned i : indices(P->getElements())) {
+        path.back() = i;
+        visit(P->getElement(i).getPattern());
+        // If we found the variable of interest, we're done.
+        if (varAddr)
+          return;
+      }
+      path.pop_back();
+    }
+    void visitAnyPattern(AnyPattern *P) {}
+
+    // When we see the variable binding, project it out of the aggregate.
+    void visitNamedPattern(NamedPattern *P) {
+      if (P->getDecl() != var)
+        return;
+      
+      assert(!varAddr && "var appears in pattern more than once?");
+      varAddr = resultAddr;
+      for (unsigned component : path) {
+        varAddr = SGF.B.createTupleElementAddr(loc, varAddr, component);
+      }
+    }
+
+  #define INVALID_PATTERN(Id, Parent) \
+    void visit##Id##Pattern(Id##Pattern *) { \
+      llvm_unreachable("pattern not valid in var binding"); \
+    }
+  #define PATTERN(Id, Parent)
+  #define REFUTABLE_PATTERN(Id, Parent) INVALID_PATTERN(Id, Parent)
+  #include "swift/AST/PatternNodes.def"
+  #undef INVALID_PATTERN
+  };
+
+  ProjectResultVisitor visitor(*this, loc, var, resultAddr);
+  visitor.visit(pattern);
+  assert(visitor.varAddr && "didn't find var in pattern?");
+  
+  // Load and reabstract the value if needed.
+  auto genericSig = F.getLoweredFunctionType()->getInvocationGenericSignature();
+  auto substVarTy = var->getType()->getCanonicalType(genericSig);
+  auto substAbstraction = AbstractionPattern(genericSig, substVarTy);
+  return emitLoad(loc, visitor.varAddr, substAbstraction, substVarTy,
+                  getTypeLowering(substAbstraction, substVarTy),
+                  SGFContext(), IsNotTake);
 }
 
-ManagedValue SILGenFunction::emitEndAsyncLet(
-    SILLocation loc, SILValue asyncLet) {
-  ASTContext &ctx = getASTContext();
-  auto apply = B.createBuiltin(
-      loc,
-      ctx.getIdentifier(getBuiltinName(BuiltinValueKind::EndAsyncLet)),
-      getLoweredType(ctx.TheEmptyTupleType), SubstitutionMap(),
-      { asyncLet });
-  return ManagedValue::forUnmanaged(apply);
+void SILGenFunction::emitFinishAsyncLet(
+    SILLocation loc, SILValue asyncLet, SILValue resultPtr) {
+  // This runtime function cancels the task, awaits its completion, and
+  // destroys the value in the result buffer if necessary.
+  emitApplyOfLibraryIntrinsic(loc, SGM.getFinishAsyncLet(), {},
+                             {ManagedValue::forTrivialObjectRValue(asyncLet),
+                              ManagedValue::forTrivialObjectRValue(resultPtr)},
+                             SGFContext());
+  // This builtin ends the lifetime of the allocation for the async let.
+  auto &ctx = getASTContext();
+  B.createBuiltin(loc,
+    ctx.getIdentifier(getBuiltinName(BuiltinValueKind::EndAsyncLetLifetime)),
+    getLoweredType(ctx.TheEmptyTupleType), {},
+    {asyncLet});
 }
 
 // Create a partial application of a dynamic method, applying bridging thunks

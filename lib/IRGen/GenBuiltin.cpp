@@ -236,6 +236,26 @@ void irgen::emitBuiltinCall(IRGenFunction &IGF, const BuiltinInfo &Builtin,
         taskOptions,
         taskFunction,
         taskContext,
+        nullptr,
+        substitutions
+        );
+
+    out.add(asyncLet);
+    return;
+  }
+
+  if (Builtin.ID == BuiltinValueKind::StartAsyncLetWithLocalBuffer) {
+    auto taskOptions = args.claimNext();
+    auto taskFunction = args.claimNext();
+    auto taskContext = args.claimNext();
+    auto localBuffer = args.claimNext();
+
+    auto asyncLet = emitBuiltinStartAsyncLet(
+        IGF,
+        taskOptions,
+        taskFunction,
+        taskContext,
+        localBuffer,
         substitutions
         );
 
@@ -245,6 +265,14 @@ void irgen::emitBuiltinCall(IRGenFunction &IGF, const BuiltinInfo &Builtin,
 
   if (Builtin.ID == BuiltinValueKind::EndAsyncLet) {
     emitEndAsyncLet(IGF, args.claimNext());
+    // Ignore a second operand which is inserted by ClosureLifetimeFixup and
+    // only used for dependency tracking.
+    (void)args.claimAll();
+    return;
+  }
+
+  if (Builtin.ID == BuiltinValueKind::EndAsyncLetLifetime) {
+    IGF.Builder.CreateLifetimeEnd(args.claimNext());
     // Ignore a second operand which is inserted by ClosureLifetimeFixup and
     // only used for dependency tracking.
     (void)args.claimAll();

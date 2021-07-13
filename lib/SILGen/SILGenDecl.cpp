@@ -1145,8 +1145,6 @@ SILGenFunction::emitInitializationForVarDecl(VarDecl *vd, bool forceImmutable) {
 void SILGenFunction::emitPatternBinding(PatternBindingDecl *PBD,
                                         unsigned idx) {
   auto &C = PBD->getASTContext();
-  auto initialization = emitPatternBindingInitialization(PBD->getPattern(idx),
-                                                         JumpDest::invalid());
 
   // If this is an async let, create a child task to compute the initializer
   // value.
@@ -1163,11 +1161,18 @@ void SILGenFunction::emitPatternBinding(PatternBindingDecl *PBD,
            "Could not find async let autoclosure");
     bool isThrowing = init->getType()->castTo<AnyFunctionType>()->isThrowing();
 
+    // Allocate space to receive the child task's result.
+    auto initLoweredTy = getLoweredType(AbstractionPattern::getOpaque(),
+                                        PBD->getPattern(idx)->getType());
+    SILLocation loc(PBD);
+    SILValue resultBuf = emitTemporaryAllocation(loc, initLoweredTy);
+    SILValue resultBufPtr = B.createAddressToPointer(loc, resultBuf,
+                          SILType::getPrimitiveObjectType(C.TheRawPointerType));
+    
     // Emit the closure for the child task.
     // Prepare the opaque `AsyncLet` representation.
     SILValue alet;
     {
-      SILLocation loc(PBD);
 
       // Currently we don't pass any task options here, so just grab a 'nil'.
 
@@ -1181,20 +1186,23 @@ void SILGenFunction::emitPatternBinding(PatternBindingDecl *PBD,
           loc,
           options.forward(*this), // options is B.createManagedOptionalNone
           init->getType(),
-          emitRValue(init).getScalarValue()
+          emitRValue(init).getScalarValue(),
+          resultBufPtr
         ).forward(*this);
     }
-
+    
     // Push a cleanup to destroy the AsyncLet along with the task and child record.
-    enterAsyncLetCleanup(alet);
+    enterAsyncLetCleanup(alet, resultBufPtr);
 
     // Save the child task so we can await it as needed.
-    AsyncLetChildTasks[{PBD, idx}] = { alet, isThrowing };
+    AsyncLetChildTasks[{PBD, idx}] = {alet, resultBufPtr, isThrowing};
+    return;
+  }
 
-    // Mark as uninitialized; actual initialization will occur when the
-    // variables are referenced.
-    initialization->finishUninitialized(*this);
-  } else if (auto *Init = PBD->getExecutableInit(idx)) {
+  auto initialization = emitPatternBindingInitialization(PBD->getPattern(idx),
+                                                         JumpDest::invalid());
+
+  if (auto *Init = PBD->getExecutableInit(idx)) {
     // If an initial value expression was specified by the decl, emit it into
     // the initialization.
     FullExpr Scope(Cleanups, CleanupLocation(Init));
@@ -1519,26 +1527,30 @@ namespace {
 /// A cleanup that destroys the AsyncLet along with the child task and record.
 class AsyncLetCleanup: public Cleanup {
   SILValue alet;
+  SILValue resultBuf;
 public:
-  AsyncLetCleanup(SILValue alet) : alet(alet) { }
+  AsyncLetCleanup(SILValue alet, SILValue resultBuf)
+    : alet(alet), resultBuf(resultBuf) { }
 
   void emit(SILGenFunction &SGF, CleanupLocation l,
             ForUnwind_t forUnwind) override {
-    SGF.emitEndAsyncLet(l, alet);
+    SGF.emitFinishAsyncLet(l, alet, resultBuf);
   }
 
   void dump(SILGenFunction &) const override {
 #ifndef NDEBUG
     llvm::errs() << "AsyncLetCleanup\n"
-                 << "AsyncLet:" << alet << "\n";
+                 << "AsyncLet:" << alet << "\n"
+                 << "result buffer:" << resultBuf << "\n";
 #endif
   }
 };
 } // end anonymous namespace
 
-CleanupHandle SILGenFunction::enterAsyncLetCleanup(SILValue alet) {
+CleanupHandle SILGenFunction::enterAsyncLetCleanup(SILValue alet,
+                                                   SILValue resultBuf) {
   Cleanups.pushCleanupInState<AsyncLetCleanup>(
-      CleanupState::Active, alet);
+      CleanupState::Active, alet, resultBuf);
   return Cleanups.getTopCleanup();
 }
 

@@ -2837,14 +2837,6 @@ SILGenFunction::maybeEmitValueOfLocalVarDecl(
   // For local decls, use the address we allocated or the value if we have it.
   auto It = VarLocs.find(var);
   if (It != VarLocs.end()) {
-    // If the variable is part of an async let, ensure that the child task
-    // has completed first.
-    if (var->isAsyncLet() && accessKind != AccessKind::Write) {
-      auto patternBinding = var->getParentPatternBinding();
-      unsigned index = patternBinding->getPatternEntryIndexForVarDecl(var);
-      completeAsyncLetChildTask(patternBinding, index);
-    }
-
     // If this has an address, return it.  By-value let's have no address.
     SILValue ptr = It->second.value;
     if (ptr->getType().isAddress())
@@ -2868,6 +2860,9 @@ SILGenFunction::emitAddressOfLocalVarDecl(SILLocation loc, VarDecl *var,
   assert(var->getDeclContext()->isLocalContext());
   assert(var->getImplInfo().isSimpleStored());
   AccessKind astAccessKind = mapAccessKind(accessKind);
+  
+  assert(!var->isAsyncLet() && "async let does not have an address");
+  
   auto address = maybeEmitValueOfLocalVarDecl(var, astAccessKind);
   assert(address);
   assert(address.isLValue());
@@ -2883,6 +2878,12 @@ RValue SILGenFunction::emitRValueForNonMemberVarDecl(SILLocation loc,
   FormalEvaluationScope scope(*this);
 
   auto *var = cast<VarDecl>(declRef.getDecl());
+  // If the variable is part of an async let, get the result from the child
+  // task.
+  if (var->isAsyncLet()) {
+    return RValue(*this, loc, formalRValueType,
+                  emitReadAsyncLetBinding(loc, var));
+  }
   auto localValue = maybeEmitValueOfLocalVarDecl(var, AccessKind::Read);
 
   // If this VarDecl is represented as an address, emit it as an lvalue, then

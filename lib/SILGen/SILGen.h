@@ -497,8 +497,8 @@ public:
   FuncDecl *getAsyncLetGet();
   /// Retrieve the _Concurrency._asyncLetGetThrowing intrinsic.
   FuncDecl *getAsyncLetGetThrowing();
-  /// Retrieve the _Concurrency._asyncLetEnd intrinsic.
-  FuncDecl *getEndAsyncLet();
+  /// Retrieve the _Concurrency._asyncLetFinish intrinsic.
+  FuncDecl *getFinishAsyncLet();
 
   /// Retrieve the _Concurrency._taskFutureGet intrinsic.
   FuncDecl *getTaskFutureGet();

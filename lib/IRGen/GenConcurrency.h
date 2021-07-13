@@ -62,6 +62,7 @@ llvm::Value *emitBuiltinStartAsyncLet(IRGenFunction &IGF,
                                       llvm::Value *taskOptions,
                                       llvm::Value *taskFunction,
                                       llvm::Value *localContextInfo,
+                                      llvm::Value *resultBuffer,
                                       SubstitutionMap subs);
 
 /// Emit the endAsyncLet builtin.

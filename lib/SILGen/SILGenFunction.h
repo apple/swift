@@ -376,11 +376,18 @@ public:
   /// a local variable.
   llvm::DenseMap<ValueDecl*, VarLoc> VarLocs;
 
+  // Context information for tracking an `async let` child task.
+  struct AsyncLetChildTask {
+    SILValue asyncLet; // RawPointer to the async let state
+    SILValue resultBuf; // RawPointer to the result buffer
+    bool isThrowing; // true if task can throw
+  };
+  
   /// Mapping from each async let clause to the AsyncLet repr that contains the
   /// AsyncTask that will produce the initializer value for that clause and a
   /// Boolean value indicating whether the task can throw.
   llvm::SmallDenseMap<std::pair<PatternBindingDecl *, unsigned>,
-                      std::pair<SILValue, bool /*isThrowing*/> >
+                      AsyncLetChildTask>
       AsyncLetChildTasks;
 
   /// When rebinding 'self' during an initializer delegation, we have to be
@@ -1380,16 +1387,14 @@ public:
 
   ManagedValue emitAsyncLetStart(SILLocation loc,
                                  SILValue taskOptions,
-                                 Type functionType, ManagedValue taskFunction);
+                                 Type functionType, ManagedValue taskFunction,
+                                 SILValue resultBuf);
 
-  ManagedValue emitAsyncLetGet(SILLocation loc, SILValue asyncLet);
+  void emitFinishAsyncLet(SILLocation loc, SILValue asyncLet, SILValue resultBuf);
 
-  ManagedValue emitEndAsyncLet(SILLocation loc, SILValue asyncLet);
-
+  ManagedValue emitReadAsyncLetBinding(SILLocation loc, VarDecl *var);
+  
   ManagedValue emitCancelAsyncTask(SILLocation loc, SILValue task);
-
-  void completeAsyncLetChildTask(
-      PatternBindingDecl *patternBinding, unsigned index);
 
   bool maybeEmitMaterializeForSetThunk(ProtocolConformanceRef conformance,
                                        SILLinkage linkage,
@@ -2108,7 +2113,7 @@ public:
   CleanupHandle enterCancelAsyncTaskCleanup(SILValue task);
 
   // Enter a cleanup to cancel and destroy an AsyncLet as it leaves the scope.
-  CleanupHandle enterAsyncLetCleanup(SILValue alet);
+  CleanupHandle enterAsyncLetCleanup(SILValue alet, SILValue resultBuf);
 
   /// Evaluate an Expr as an lvalue.
   LValue emitLValue(Expr *E, SGFAccessKind accessKind,

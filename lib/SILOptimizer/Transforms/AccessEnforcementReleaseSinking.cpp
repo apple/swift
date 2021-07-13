@@ -145,6 +145,7 @@ static bool isBarrier(SILInstruction *inst) {
     case BuiltinValueKind::GetCurrentExecutor:
     case BuiltinValueKind::AutoDiffCreateLinearMapContext:
     case BuiltinValueKind::EndAsyncLet:
+    case BuiltinValueKind::EndAsyncLetLifetime:
     case BuiltinValueKind::CreateTaskGroup:
     case BuiltinValueKind::DestroyTaskGroup:
       return false;
@@ -175,6 +176,7 @@ static bool isBarrier(SILInstruction *inst) {
     case BuiltinValueKind::StartAsyncLet:
     case BuiltinValueKind::CreateAsyncTask:
     case BuiltinValueKind::CreateAsyncTaskInGroup:
+    case BuiltinValueKind::StartAsyncLetWithLocalBuffer:
     case BuiltinValueKind::ConvertTaskToJob:
     case BuiltinValueKind::InitializeDefaultActor:
     case BuiltinValueKind::DestroyDefaultActor:

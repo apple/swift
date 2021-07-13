@@ -53,8 +53,8 @@ enum {
   /// The number of words in a task group.
   NumWords_TaskGroup = 32,
 
-  /// The number of words in an AsyncLet (flags + task pointer)
-  NumWords_AsyncLet = 8, // TODO: not sure how much is enough, these likely could be pretty small
+  /// The number of words in an AsyncLet (flags + child task context & allocation)
+  NumWords_AsyncLet = 80, // 640 bytes ought to be enough for anyone
 };
 
 struct InProcess;
@@ -2145,8 +2145,11 @@ enum class TaskOptionRecordKind : uint8_t {
   Executor  = 0,
   /// Request a child task to be part of a specific task group.
   TaskGroup = 1,
+  /// DEPRECATED. AsyncLetWithBuffer is used instead.
   /// Request a child task for an 'async let'.
   AsyncLet  = 2,
+  /// Request a child task for an 'async let'.
+  AsyncLetWithBuffer = 3,
 };
 
 /// Flags for cancellation records.

@@ -36,7 +36,6 @@ public:
   constexpr AsyncLet()
     : PrivateData{} {}
 
-  // FIXME: not sure how many words we should reserve
   void *PrivateData[NumWords_AsyncLet];
 
   // TODO: we could offer a "was awaited on" check here
@@ -44,7 +43,16 @@ public:
   /// Returns the child task that is associated with this async let.
   /// The tasks completion is used to fulfil the value represented by this async let.
   AsyncTask *getTask() const;
-
+  
+  // The compiler preallocates a large fixed space for the `async let`, with the
+  // intent that most of it be used for the child task context. The next two
+  // methods return the address and size of that space.
+  
+  /// Return a pointer to the unused space within the async let block.
+  void *getPreallocatedSpace();
+  
+  /// Return the size of the unused space within the async let block.
+  static size_t getSizeOfPreallocatedSpace();
 };
 
 } // end namespace swift

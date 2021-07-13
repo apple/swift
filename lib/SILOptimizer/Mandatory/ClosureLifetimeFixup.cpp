@@ -364,16 +364,16 @@ static SILValue insertMarkDependenceForCapturedArguments(PartialApplyInst *pai,
   return curr;
 }
 
-/// Returns the (single) "endAsyncLet" builtin if \p startAsyncLet is a
-/// "startAsyncLet" builtin.
+/// Returns the (single) "endAsyncLetLifetime" builtin if \p startAsyncLet is a
+/// "startAsyncLetWithLocalBuffer" builtin.
 static BuiltinInst *getEndAsyncLet(BuiltinInst *startAsyncLet) {
-  if (startAsyncLet->getBuiltinKind() != BuiltinValueKind::StartAsyncLet)
+  if (startAsyncLet->getBuiltinKind() != BuiltinValueKind::StartAsyncLetWithLocalBuffer)
     return nullptr;
 
   BuiltinInst *endAsyncLet = nullptr;
   for (Operand *op : startAsyncLet->getUses()) {
     auto *endBI = dyn_cast<BuiltinInst>(op->getUser());
-    if (endBI && endBI->getBuiltinKind() == BuiltinValueKind::EndAsyncLet) {
+    if (endBI && endBI->getBuiltinKind() == BuiltinValueKind::EndAsyncLetLifetime) {
       // At this stage of the pipeline, it's always the case that a
       // startAsyncLet has an endAsyncLet: that's how SILGen generates it.
       // Just to be on the safe side, do this check.
@@ -399,7 +399,8 @@ static void insertAfterClosureUser(SILInstruction *closureUser,
 
   if (auto *startAsyncLet = dyn_cast<BuiltinInst>(closureUser)) {
     BuiltinInst *endAsyncLet = getEndAsyncLet(startAsyncLet);
-    assert(endAsyncLet);
+    if (!endAsyncLet)
+      return;
     SILBuilderWithScope builder(std::next(endAsyncLet->getIterator()));
     insertAtNonUnreachable(builder);
     return;

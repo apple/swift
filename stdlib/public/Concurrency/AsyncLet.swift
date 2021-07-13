@@ -24,22 +24,37 @@ public func _asyncLetStart<T>(
   operation: @Sendable () async throws -> T
 )
 
-/// Similar to _taskFutureGet but for AsyncLet
+/// DEPRECATED. use _asyncLet_get instead
 @available(SwiftStdlib 5.5, *)
 @_silgen_name("swift_asyncLet_wait")
 public func _asyncLetGet<T>(asyncLet: Builtin.RawPointer) async -> T
 
-///// Similar to _taskFutureGetThrowing but for AsyncLet
+/// DEPRECATED. use _asyncLet_get_throwing instead
 @available(SwiftStdlib 5.5, *)
 @_silgen_name("swift_asyncLet_wait_throwing")
 public func _asyncLetGetThrowing<T>(asyncLet: Builtin.RawPointer) async throws -> T
 
+/// DEPRECATED. use _asyncLet_finish instead
 @available(SwiftStdlib 5.5, *)
 @_silgen_name("swift_asyncLet_end")
 public func _asyncLetEnd(
   asyncLet: Builtin.RawPointer // TODO: should this take __owned?
 )
 
+/// Wait if necessary and then project the result value of an async let
+@available(SwiftStdlib 5.5, *)
+@_silgen_name("swift_asyncLet_get")
+public func _asyncLet_get(_ asyncLet: Builtin.RawPointer, _ resultBuffer: Builtin.RawPointer) async -> Builtin.RawPointer
+
+/// Wait if necessary and then project the result value of an async let that throws
+@available(SwiftStdlib 5.5, *)
+@_silgen_name("swift_asyncLet_get_throwing")
+public func _asyncLet_get_throwing(_ asyncLet: Builtin.RawPointer, _ resultBuffer: Builtin.RawPointer) async throws -> Builtin.RawPointer
+
+/// Wait if necessary and then tear down the async let task
+@available(SwiftStdlib 5.5, *)
+@_silgen_name("swift_asyncLet_finish")
+public func _asyncLet_finish(_ asyncLet: Builtin.RawPointer, _ resultBuffer: Builtin.RawPointer) async
 
 @_silgen_name("swift_asyncLet_extractTask")
 func _asyncLetExtractTask(

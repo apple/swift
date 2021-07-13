@@ -1686,7 +1686,28 @@ FUNCTION(AsyncLetStart,
               SwiftTaskOptionRecordPtrTy, // options
               TypeMetadataPtrTy,          // futureResultType
               Int8PtrTy,                  // closureEntry
+              OpaquePtrTy                 // closureContext
+         ),
+         ATTRS(NoUnwind, ArgMemOnly))
+
+/// void swift_asyncLet_begin(
+///     AsyncLet *alet,
+///     TaskOptionRecord *options,
+///     const Metadata *futureResultType,
+///     void *closureEntryPoint,
+///     HeapObject *closureContext,
+///     void *resultBuffer
+/// );
+FUNCTION(AsyncLetBegin,
+         swift_asyncLet_begin, SwiftCC,
+         ConcurrencyAvailability,
+         RETURNS(VoidTy),
+         ARGS(SwiftAsyncLetPtrTy,         // AsyncLet*
+              SwiftTaskOptionRecordPtrTy, // options
+              TypeMetadataPtrTy,          // futureResultType
+              Int8PtrTy,                  // closureEntry
               OpaquePtrTy,                // closureContext
+              Int8PtrTy
          ),
          ATTRS(NoUnwind, ArgMemOnly))
 

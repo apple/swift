@@ -98,11 +98,12 @@ public:
   }
 };
 
+/// DEPRECATED. AsyncLetWithBufferTaskOptionRecord is used instead.
 /// Task option to specify that the created task is for an 'async let'.
 class AsyncLetTaskOptionRecord : public TaskOptionRecord {
   AsyncLet *asyncLet;
 
-  public:
+public:
   AsyncLetTaskOptionRecord(AsyncLet *asyncLet)
     : TaskOptionRecord(TaskOptionRecordKind::AsyncLet),
       asyncLet(asyncLet) {}
@@ -113,6 +114,30 @@ class AsyncLetTaskOptionRecord : public TaskOptionRecord {
 
   static bool classof(const TaskOptionRecord *record) {
     return record->getKind() == TaskOptionRecordKind::AsyncLet;
+  }
+};
+
+class AsyncLetWithBufferTaskOptionRecord : public TaskOptionRecord {
+  AsyncLet *asyncLet;
+  void *resultBuffer;
+
+public:
+  AsyncLetWithBufferTaskOptionRecord(AsyncLet *asyncLet,
+                                     void *resultBuffer)
+    : TaskOptionRecord(TaskOptionRecordKind::AsyncLetWithBuffer),
+      asyncLet(asyncLet),
+      resultBuffer(resultBuffer) {}
+
+  AsyncLet *getAsyncLet() const {
+    return asyncLet;
+  }
+  
+  void *getResultBuffer() const {
+    return resultBuffer;
+  }
+
+  static bool classof(const TaskOptionRecord *record) {
+    return record->getKind() == TaskOptionRecordKind::AsyncLetWithBuffer;
   }
 };
 

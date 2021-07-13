@@ -793,17 +793,42 @@ BUILTIN_MISC_OPERATION_WITH_SILGEN(CancelAsyncTask, "cancelAsyncTask", "", Speci
 ///     __owned @Sendable @escaping () async throws -> T
 /// ) -> Builtin.RawPointer
 ///
+/// DEPRECATED. startAsyncLetWithLocalBuffer is used instead.
+///
 /// Create, initialize and start a new async-let and associated task.
 /// Returns an AsyncLet* that must be passed to endAsyncLet for destruction.
 BUILTIN_MISC_OPERATION(StartAsyncLet, "startAsyncLet", "", Special)
 
-/// asyncLetEnd(): (Builtin.RawPointer) -> Void
+/// startAsyncLetWithLocalBuffer()<T>: (
+///     __owned @Sendable @escaping () async throws -> T,
+///     _ resultBuf: Builtin.RawPointer
+/// ) -> Builtin.RawPointer
+///
+/// Create, initialize and start a new async-let and associated task, with a
+/// locally-allocated buffer assigned to receive the result if the task
+/// completes.
+/// Returns an AsyncLet* that must be passed to endAsyncLetLifetime for
+/// destruction.
+BUILTIN_MISC_OPERATION(StartAsyncLetWithLocalBuffer, "startAsyncLetWithLocalBuffer", "", Special)
+
+/// endAsyncLet(): (Builtin.RawPointer) -> Void
+///
+/// DEPRECATED. The swift_asyncLet_finish intrinsic and endAsyncLetLifetime
+/// builtin are used instead.
 ///
 /// Ends and destroys an async-let.
 /// The ClosureLifetimeFixup pass adds a second operand to the builtin to
 /// ensure that optimizations keep the stack-allocated closure arguments alive
 /// until the endAsyncLet.
 BUILTIN_MISC_OPERATION_WITH_SILGEN(EndAsyncLet, "endAsyncLet", "", Special)
+
+/// endAsyncLetLifetime(): (Builtin.RawPointer) -> Void
+///
+/// Marks the end of an async-let's lifetime.
+/// The ClosureLifetimeFixup pass adds a second operand to the builtin to
+/// ensure that optimizations keep the stack-allocated closure arguments alive
+/// until the endAsyncLet.
+BUILTIN_MISC_OPERATION(EndAsyncLetLifetime, "endAsyncLetLifetime", "", Special)
 
 /// createAsyncTask(): (
 ///     Int,                            // task-creation flags

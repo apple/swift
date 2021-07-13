@@ -177,6 +177,7 @@ llvm::Value *irgen::emitBuiltinStartAsyncLet(IRGenFunction &IGF,
                                              llvm::Value *taskOptions,
                                              llvm::Value *taskFunction,
                                              llvm::Value *localContextInfo,
+                                             llvm::Value *localResultBuffer,
                                              SubstitutionMap subs) {
   // stack allocate AsyncLet, and begin lifetime for it (until EndAsyncLet)
   auto ty = llvm::ArrayType::get(IGF.IGM.Int8PtrTy, NumWords_AsyncLet);
@@ -190,14 +191,27 @@ llvm::Value *irgen::emitBuiltinStartAsyncLet(IRGenFunction &IGF,
   auto futureResultType = subs.getReplacementTypes()[0]->getCanonicalType();
   auto futureResultTypeMetadata = IGF.emitAbstractTypeMetadataRef(futureResultType);
 
-  // This is @_silgen_name("swift_asyncLet_start")
-  auto *call = IGF.Builder.CreateCall(IGF.IGM.getAsyncLetStartFn(),
+  llvm::CallInst *call;
+  if (localResultBuffer) {
+    // This is @_silgen_name("swift_asyncLet_begin")
+    call = IGF.Builder.CreateCall(IGF.IGM.getAsyncLetBeginFn(),
+                                      {alet,
+                                       taskOptions,
+                                       futureResultTypeMetadata,
+                                       taskFunction,
+                                       localContextInfo,
+                                       localResultBuffer
+                                      });
+  } else {
+    // This is @_silgen_name("swift_asyncLet_start")
+    call = IGF.Builder.CreateCall(IGF.IGM.getAsyncLetStartFn(),
                                       {alet,
                                        taskOptions,
                                        futureResultTypeMetadata,
                                        taskFunction,
                                        localContextInfo
                                       });
+  }
   call->setDoesNotThrow();
   call->setCallingConv(IGF.IGM.SwiftCC);
 

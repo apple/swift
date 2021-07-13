@@ -181,6 +181,51 @@ OVERRIDE_ASYNC_LET(asyncLet_end, void,
                    SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swift),
                    swift::, (AsyncLet *alet), (alet))
 
+OVERRIDE_ASYNC_LET(asyncLet_get, void,
+                   SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swiftasync),
+                   swift::,
+                   (SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
+                    AsyncLet *alet, void *resultBuffer,
+                    TaskContinuationFunction *resumeFn,
+                    AsyncContext *callContext),
+                   (callerContext, alet, resultBuffer, resumeFn, callContext))
+
+OVERRIDE_ASYNC_LET(asyncLet_get_throwing, void,
+                   SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swiftasync),
+                   swift::,
+                   (SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
+                    AsyncLet *alet, void *resultBuffer,
+                    ThrowingTaskFutureWaitContinuationFunction *resumeFn,
+                    AsyncContext *callContext),
+                   (callerContext, alet, resultBuffer, resumeFn, callContext))
+
+OVERRIDE_ASYNC_LET(asyncLet_consume, void,
+                   SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swiftasync),
+                   swift::,
+                   (SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
+                    AsyncLet *alet, void *resultBuffer,
+                    TaskContinuationFunction *resumeFn,
+                    AsyncContext *callContext),
+                   (callerContext, alet, resultBuffer, resumeFn, callContext))
+
+OVERRIDE_ASYNC_LET(asyncLet_consume_throwing, void,
+                   SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swiftasync),
+                   swift::,
+                   (SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
+                    AsyncLet *alet, void *resultBuffer,
+                    ThrowingTaskFutureWaitContinuationFunction *resumeFn,
+                    AsyncContext *callContext),
+                   (callerContext, alet, resultBuffer, resumeFn, callContext))
+
+OVERRIDE_ASYNC_LET(asyncLet_finish, void,
+                   SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swiftasync),
+                   swift::,
+                   (SWIFT_ASYNC_CONTEXT AsyncContext *callerContext,
+                    AsyncLet *alet, void *resultBuffer,
+                    TaskContinuationFunction *resumeFn,
+                    AsyncContext *callContext),
+                   (callerContext, alet, resultBuffer, resumeFn, callContext))
+
 OVERRIDE_TASK_GROUP(taskGroup_initialize, void,
                     SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swift),
                     swift::, (TaskGroup *group, const Metadata *T), (group, T))

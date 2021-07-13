@@ -172,6 +172,9 @@ namespace irgen {
       TaskFutureWaitThrowing,
       AsyncLetWait,
       AsyncLetWaitThrowing,
+      AsyncLetGet,
+      AsyncLetGetThrowing,
+      AsyncLetFinish,
       TaskGroupWaitNext,
     };
 
@@ -204,6 +207,25 @@ namespace irgen {
         assert(isSpecial());
         return SpecialKind(value - SpecialOffset);
       }
+      
+      bool isSpecialAsyncLet() const {
+        if (!isSpecial()) return false;
+        switch (getSpecialKind()) {
+        case SpecialKind::AsyncLetGet:
+        case SpecialKind::AsyncLetGetThrowing:
+        case SpecialKind::AsyncLetFinish:
+          return true;
+
+        case SpecialKind::TaskFutureWaitThrowing:
+        case SpecialKind::TaskFutureWait:
+        case SpecialKind::AsyncLetWait:
+        case SpecialKind::AsyncLetWaitThrowing:
+        case SpecialKind::TaskGroupWaitNext:
+          return false;
+        }
+        
+        return false;
+      }
 
       /// Should we suppress the generic signature from the given function?
       ///
@@ -213,10 +235,13 @@ namespace irgen {
         if (!isSpecial()) return false;
 
         switch (getSpecialKind()) {
-        case SpecialKind::AsyncLetWaitThrowing:
         case SpecialKind::TaskFutureWaitThrowing:
         case SpecialKind::TaskFutureWait:
         case SpecialKind::AsyncLetWait:
+        case SpecialKind::AsyncLetWaitThrowing:
+        case SpecialKind::AsyncLetGet:
+        case SpecialKind::AsyncLetGetThrowing:
+        case SpecialKind::AsyncLetFinish:
         case SpecialKind::TaskGroupWaitNext:
           return true;
         }
