@@ -7,6 +7,7 @@ set(swift_stubs_sources
     Stubs.cpp
     ThreadLocalStorage.cpp
     MathStubs.cpp
+    UnicodeGrapheme.cpp
 )
 set(swift_stubs_objc_sources
     Availability.mm

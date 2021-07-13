@@ -24,10 +24,7 @@
 extern "C" {
 
 // Types
-typedef struct UBreakIterator UBreakIterator;
-typedef struct UText UText;
 typedef struct UBreakIterator UNormalizer2;
-typedef enum UBreakIteratorType {} UBreakIteratorType;
 typedef enum UErrorCode {} UErrorCode;
 typedef enum UCharNameChoice {} UCharNameChoice;
 typedef uint16_t UChar;
@@ -37,18 +34,6 @@ typedef __swift_stdlib_UProperty UProperty;
 
 #define U_MAX_VERSION_LENGTH 4
 typedef uint8_t UVersionInfo[U_MAX_VERSION_LENGTH];
-
-// Grapheme breaking APIs
-void ubrk_close(UBreakIterator *);
-UBreakIterator *ubrk_open(UBreakIteratorType, const char *, const UChar *,
-                          int32_t, UErrorCode *);
-int32_t ubrk_preceding(UBreakIterator *, int32_t);
-int32_t ubrk_following(UBreakIterator *, int32_t);
-void ubrk_setText(UBreakIterator *, const UChar *, int32_t, UErrorCode *);
-void ubrk_setUText(UBreakIterator *, UText *, UErrorCode *);
-
-UText *utext_openUTF8(UText *, const char *, int64_t, UErrorCode *);
-UText *utext_openUChars(UText *, const UChar *, int64_t, UErrorCode *);
 
 // Comparison, normalization, and character property APIs
 int32_t unorm2_spanQuickCheckYes(const UNormalizer2 *, const UChar *, int32_t,
@@ -79,7 +64,6 @@ double u_getNumericValue(UChar32);
 #include <unicode/ucol.h>
 #include <unicode/ucoleitr.h>
 #include <unicode/uiter.h>
-#include <unicode/ubrk.h>
 #include <unicode/uchar.h>
 #include <unicode/ustring.h>
 #include <unicode/uvernum.h>
@@ -148,66 +132,6 @@ template <typename T, typename U> T *ptr_cast(U *p) {
 template <typename T, typename U> const T *ptr_cast(const U *p) {
   return static_cast<const T *>(static_cast<const void *>(p));
 }
-}
-
-void __swift_stdlib_ubrk_close(
-    __swift_stdlib_UBreakIterator *bi) {
-  ubrk_close(ptr_cast<UBreakIterator>(bi));
-}
-
-__swift_stdlib_UBreakIterator *__swift_stdlib_ubrk_open(
-    __swift_stdlib_UBreakIteratorType type, const char *locale,
-    const __swift_stdlib_UChar *text, int32_t textLength,
-    __swift_stdlib_UErrorCode *status) {
-  return ptr_cast<__swift_stdlib_UBreakIterator>(
-      ubrk_open(static_cast<UBreakIteratorType>(type), locale,
-                reinterpret_cast<const UChar *>(text), textLength,
-                ptr_cast<UErrorCode>(status)));
-}
-
-int32_t
-__swift_stdlib_ubrk_preceding(__swift_stdlib_UBreakIterator *bi,
-                                     int32_t offset) {
-  return ubrk_preceding(ptr_cast<UBreakIterator>(bi), offset);
-}
-
-int32_t
-__swift_stdlib_ubrk_following(__swift_stdlib_UBreakIterator *bi,
-                                     int32_t offset) {
-  return ubrk_following(ptr_cast<UBreakIterator>(bi), offset);
-}
-
-void __swift_stdlib_ubrk_setText(
-    __swift_stdlib_UBreakIterator *bi, const __swift_stdlib_UChar *text,
-    __swift_int32_t textLength, __swift_stdlib_UErrorCode *status) {
-  return ubrk_setText(ptr_cast<UBreakIterator>(bi), ptr_cast<UChar>(text),
-                      textLength, ptr_cast<UErrorCode>(status));
-}
-
-void __swift_stdlib_ubrk_setUText(
-    __swift_stdlib_UBreakIterator *bi, __swift_stdlib_UText *text,
-    __swift_stdlib_UErrorCode *status) {
-  return ubrk_setUText(ptr_cast<UBreakIterator>(bi), ptr_cast<UText>(text),
-                       ptr_cast<UErrorCode>(status));
-}
-
-SWIFT_RUNTIME_STDLIB_API __swift_stdlib_UText *
-__swift_stdlib_utext_openUTF8(__swift_stdlib_UText *ut,
-                              const char *s, int64_t len,
-                              __swift_stdlib_UErrorCode *status) {
-  return ptr_cast<__swift_stdlib_UText>(
-    utext_openUTF8(ptr_cast<UText>(ut), s, len,
-                   ptr_cast<UErrorCode>(status)));
-}
-
-SWIFT_RUNTIME_STDLIB_API __swift_stdlib_UText *
-__swift_stdlib_utext_openUChars(__swift_stdlib_UText *ut,
-                                       const __swift_stdlib_UChar *s,
-                                       int64_t len,
-                                       __swift_stdlib_UErrorCode *status) {
-  return ptr_cast<__swift_stdlib_UText>(
-    utext_openUChars(ptr_cast<UText>(ut), ptr_cast<UChar>(s), len,
-                     ptr_cast<UErrorCode>(status)));
 }
 
 __swift_stdlib_UBool __swift_stdlib_unorm2_hasBoundaryBefore(
