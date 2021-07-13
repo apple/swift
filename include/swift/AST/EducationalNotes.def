@@ -91,5 +91,8 @@ EDUCATIONAL_NOTES(result_builder_missing_build_either,
                   "result-builder-methods.md")
 EDUCATIONAL_NOTES(result_builder_missing_build_array,
                   "result-builder-methods.md")
-
+                  
+EDUCATIONAL_NOTES(multiple_inheritance,
+                  "multiple-class-inheritance.md")
+                  
 #undef EDUCATIONAL_NOTES
