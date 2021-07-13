@@ -163,8 +163,40 @@ int main(int argc, char **argv) {
     for (unsigned i = 0; i < TypeInfo.NumFields; ++i) {
       swift_childinfo_interop_t ChildInfo = swift_reflection_interop_childOfInstance(
         Context, Obj, i);
-      printf("  [%u]: %s Offset:%u Kind:%u\n", i,
-             ChildInfo.Name, ChildInfo.Offset, ChildInfo.Kind);
+      char *TypeName = swift_reflection_interop_copyDemangledNameForTypeRef(Context, ChildInfo.TR);
+
+      printf("  [%u]: %s Offset:%u Kind:%u Type:%s ", i,
+             ChildInfo.Name, ChildInfo.Offset, ChildInfo.Kind, TypeName);
+
+
+      switch (ChildInfo.Kind) {
+      case SWIFT_BUILTIN:
+        printf("(Builtin value not displayed)\n");
+        break;
+      case SWIFT_NO_PAYLOAD_ENUM:
+        {
+          int CaseNdx;
+
+          if (swift_reflection_interop_projectEnumValue(Context,
+                                                        Obj + ChildInfo.Offset,
+                                                        ChildInfo.TR,
+                                                        &CaseNdx)) {
+            swift_childinfo_interop_t CaseInfo
+              = swift_reflection_interop_childOfTypeRef(Context, ChildInfo.TR,
+                                                        CaseNdx);
+
+            printf("Value: %s (%d)\n", CaseInfo.Name, CaseNdx);
+          } else {
+            printf("Value: unknown\n");
+          }
+        }
+        break;
+      default:
+        printf("(Value not displayed)\n");
+        break;
+      }
+
+      free(TypeName);
     }
   } else {
     printf("Unknown typeinfo!\n");

@@ -149,6 +149,10 @@ swift_reflection_interop_projectExistential(SwiftReflectionInteropContextRef Con
                                             swift_typeref_interop_t *OutInstanceTypeRef,
                                             swift_addr_t *OutStartOfInstanceData);
 
+static inline int swift_reflection_interop_projectEnum(
+    SwiftReflectionInteropContextRef ContextRef, swift_addr_t EnumAddress,
+    swift_typeref_interop_t EnumTypeRef, int *CaseIndex);
+
 static inline void
 swift_reflection_interop_dumpTypeRef(SwiftReflectionInteropContextRef ContextRef,
                                      swift_typeref_interop_t OpaqueTypeRef);
@@ -288,6 +292,10 @@ struct SwiftReflectionFunctions {
                             swift_typeref_t ExistentialTypeRef,
                             swift_typeref_t *OutInstanceTypeRef,
                             swift_addr_t *OutStartOfInstanceData);
+
+  int (*projectEnumValue)(SwiftReflectionContextRef ContextRef,
+                          swift_addr_t EnumAddress, swift_typeref_t EnumTypeRef,
+                          int *CaseIndex);
 
   void (*dumpTypeRef)(swift_typeref_t OpaqueTypeRef);
 
@@ -482,6 +490,7 @@ swift_reflection_interop_loadFunctions(struct SwiftReflectionInteropContext *Con
   LOAD(genericArgumentCountOfTypeRef);
   LOAD(genericArgumentOfTypeRef);
   LOAD(projectExistential);
+  LOAD_OPT(projectEnumValue);
   LOAD(dumpTypeRef);
   LOAD(dumpInfoForTypeRef);
   
@@ -1111,6 +1120,15 @@ swift_reflection_interop_projectExistential(SwiftReflectionInteropContextRef Con
   
   OutInstanceTypeRef->Library = ExistentialTypeRef.Library;
   return 1;
+}
+
+static inline int swift_reflection_interop_projectEnumValue(
+    SwiftReflectionInteropContextRef ContextRef, swift_addr_t EnumAddress,
+    swift_typeref_interop_t EnumTypeRef, int *CaseIndex) {
+  DECLARE_LIBRARY(EnumTypeRef.Library);
+  return Library->Functions.projectEnumValue &&
+         Library->Functions.projectEnumValue(Library->Context, EnumAddress,
+                                             EnumTypeRef.Typeref, CaseIndex);
 }
 
 static inline void
