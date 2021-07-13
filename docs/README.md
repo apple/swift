@@ -177,7 +177,9 @@ documentation, please create a thread on the Swift forums under the
   <!-- NOTE: Outdated -->
 - [Lexicon.md](/docs/Lexicon.md):
   Canonical reference for terminology used throughout the project.
-  
+- [UnderscoredAttributes.md](/docs/ReferenceGuides/UnderscoredAttributes.md):
+  Documents semantics for underscored (unstable) attributes.
+
 ### ABI
 
 - [GenericSignature.md](/docs/ABI/GenericSignature.md):
