@@ -38,6 +38,7 @@ sil [readnone] @pure_func : $@convention(thin) () -> ()
 sil [releasenone] @releasenone_func : $@convention(thin) () -> ()
 sil [readonly] @readonly_owned : $@convention(thin) (@owned X) -> ()
 sil [readonly] @readonly_guaranteed : $@convention(thin) (@guaranteed X) -> ()
+sil [ossa] @get_object : $@convention(thin) () -> (@owned X)
 
 sil @unknown_func : $@convention(thin) () -> ()
 
@@ -547,6 +548,17 @@ sil @call_shared_external_func : $@convention(thin) () -> () {
 bb0:
   %u = function_ref @shared_external_func : $@convention(thin) () -> ()
   %a = apply %u() : $@convention(thin) () -> ()
+  %r = tuple ()
+  return %r : $()
+}
+
+// CHECK-LABEL: sil @readonly_and_store
+// CHECK: <func=r,param0=w>
+sil [readonly] [ossa] @readonly_and_store : $@convention(thin) () -> @out X {
+bb0(%0 : $*X):
+  %f = function_ref @get_object : $@convention(thin) () -> (@owned X)
+  %a = apply %f() : $@convention(thin) () -> (@owned X)
+  store %a to [init] %0  : $*X
   %r = tuple ()
   return %r : $()
 }

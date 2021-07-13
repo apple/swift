@@ -357,6 +357,10 @@ bool FunctionSideEffects::setDefinedEffects(SILFunction *F) {
     case EffectsKind::ReadNone:
       return true;
     case EffectsKind::ReadOnly:
+      for (auto i :
+           range(F->getLoweredFunctionType()->getNumIndirectFormalResults())) {
+        ParamEffects[i].Writes = true;
+      }
       // @_effects(readonly) is worthless if we have owned parameters, because
       // the release inside the callee may call a deinit, which itself can do
       // anything.
