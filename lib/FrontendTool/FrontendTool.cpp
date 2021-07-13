@@ -1560,7 +1560,8 @@ static bool performCompileStepsPostSILGen(CompilerInstance &Instance,
 
     const bool canEmitIncrementalInfoIntoModule =
         !serializationOpts.DisableCrossModuleIncrementalInfo &&
-        (Action == FrontendOptions::ActionType::MergeModules);
+        (Action == FrontendOptions::ActionType::MergeModules ||
+         Action == FrontendOptions::ActionType::EmitModuleOnly);
     if (canEmitIncrementalInfoIntoModule) {
       const auto alsoEmitDotFile =
           Instance.getInvocation()
