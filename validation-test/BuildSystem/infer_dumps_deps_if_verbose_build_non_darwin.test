@@ -1,6 +1,5 @@
 # RUN: %empty-directory(%t)
 # RUN: mkdir -p %t
-# REQUIRES: OS=macosx
 # RUN: SKIP_XCODE_VERSION_CHECK=1 SWIFT_BUILD_ROOT=%t %swift_src_root/utils/build-script --verbose-build --dry-run --infer --swiftpm --cmake %cmake 2>&1 | %FileCheck %s
 
 # REQUIRES: standalone_build
@@ -9,18 +8,12 @@
 #
 # CHECK: -- Build Graph Inference --
 # CHECK: Initial Product List:
-# CHECK:     earlyswiftdriver
 # CHECK:     llvm
 # CHECK:     swift
 # CHECK: Final Build Order:
-# CHECK:     earlyswiftdriver
 # CHECK:     cmark
 # CHECK:     llvm
 # CHECK:     swift
-
-# Ensure early SwiftDriver is built first
-#
-# CHECK: --- Building earlyswiftdriver ---
 
 # Build and install the SwiftPM dependencies first.
 #

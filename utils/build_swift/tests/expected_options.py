@@ -10,6 +10,7 @@
 from __future__ import absolute_import, unicode_literals
 
 import multiprocessing
+import platform
 
 from build_swift import argparse
 from build_swift import defaults
@@ -89,7 +90,7 @@ EXPECTED_DEFAULTS = {
     'build_swift_stdlib_unittest_extra': False,
     'build_swiftpm': False,
     'build_swift_driver': False,
-    'build_early_swift_driver': True,
+    'build_early_swift_driver': (platform.system() == "Darwin"),
     'build_swiftsyntax': False,
     'build_libparser_only': False,
     'build_skstresstester': False,

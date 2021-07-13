@@ -587,8 +587,12 @@ class TestDriverArgumentParser(unittest.TestCase):
         self.assertTrue(namespace.test)
 
     def test_implied_defaults_test_early_swift_driver(self):
-        namespace = self.parse_default_args(['--test'])
-        self.assertTrue(namespace.test_early_swift_driver)
+        if platform.system() == 'Darwin':
+            namespace = self.parse_default_args(['--test'])
+            self.assertTrue(namespace.test_early_swift_driver)
+        else:
+            namespace = self.parse_default_args(['--test'])
+            self.assertFalse(namespace.test_early_swift_driver)
 
     def test_implied_defaults_test_no_early_swift_driver(self):
         namespace = self.parse_default_args(['--test --skip-early-swift-driver'])

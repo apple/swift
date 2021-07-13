@@ -11,6 +11,7 @@ from __future__ import absolute_import, unicode_literals
 
 import multiprocessing
 import os
+import platform
 
 import android.adb.commands
 
@@ -193,6 +194,13 @@ def _apply_default_arguments(args):
         args.test_swiftformat = False
         args.test_swiftevolve = False
         args.test_toolchainbenchmarks = False
+
+    # `earlyswiftdriver` is only supported on Darwin, for now,
+    # because Linux toolchains are not yet able to build it because it depends
+    # on Foundation's .cmake files which are not shipped as a part of the Linux
+    # toolchain.
+    if platform.system() != 'Darwin':
+        args.build_early_swift_driver = False
 
     # --test implies --test-early-swift-driver
     # (unless explicitly skipped with `--skip-test-early-swift-driver`)
