@@ -43,7 +43,7 @@ library should be distributed alongside them.
 ### CMake Standalone (no build-script)
 
 To build the Swift benchmarks using only an Xcode installation: install an
-Xcode version with Swift support, install cmake 2.8.12, and ensure Xcode is
+Xcode version with Swift support, install cmake 3.19.6 or higher, and ensure Xcode is
 selected with xcode-select.
 
 The following build options are available:

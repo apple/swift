@@ -1,6 +1,6 @@
 # -*- mode: cmake -*-
 
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.19.6)
 
 # Add path for custom CMake modules.
 list(APPEND CMAKE_MODULE_PATH

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12.4)
+cmake_minimum_required(VERSION 3.19.6)
 
 # TODO: Fix RPATH usage to be CMP0068 compliant
 # Disable Policy CMP0068 for CMake 3.9
@@ -183,7 +183,7 @@ endif()
 set(SWIFT_USE_LINKER ${SWIFT_USE_LINKER_default} CACHE STRING
     "Build Swift with a non-default linker")
 
-option(SWIFT_DISABLE_DEAD_STRIPPING 
+option(SWIFT_DISABLE_DEAD_STRIPPING
       "Turn off Darwin-specific dead stripping for Swift host tools." FALSE)
 
 set(SWIFT_TOOLS_ENABLE_LTO OFF CACHE STRING "Build Swift tools with LTO. One

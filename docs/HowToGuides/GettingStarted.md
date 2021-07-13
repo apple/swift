@@ -158,7 +158,7 @@ Double-check that running `pwd` prints a path ending with `swift`.
    * [CentOS 7](https://github.com/apple/swift-docker/blob/main/swift-ci/master/centos/7/Dockerfile)
    * [CentOS 8](https://github.com/apple/swift-docker/blob/main/swift-ci/master/centos/8/Dockerfile)
    * [Amazon Linux 2](https://github.com/apple/swift-docker/blob/main/swift-ci/master/amazon-linux/2/Dockerfile)
-   
+
 2. To install sccache (optional):
    ```
    sudo snap install sccache --candidate --classic
@@ -170,7 +170,7 @@ Double-check that running `pwd` prints a path ending with `swift`.
 
 ### Spot check dependencies
 
-* Run `cmake --version`: This should be 3.18.1 or higher for macOS.
+* Run `cmake --version`: This should be 3.19.6 or higher.
 * Run `python3 --version`: Check that this succeeds.
 * Run `ninja --version`: Check that this succeeds.
 * Run `sccache --version`: Check that this succeeds.
