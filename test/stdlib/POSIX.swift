@@ -15,7 +15,12 @@ chdir(CommandLine.arguments[1])
 
 var POSIXTests = TestSuite("POSIXTests")
 
-let semaphoreName = "TestSem"
+// POSIX requires names that begin with `/` to work,
+// but lets implementations decide what to do with
+// names that don't. For better compatibility, we
+// use a name that starts with `/`.
+let semaphoreName = "/TestSem"
+
 #if os(Android)
 // In Android, the cwd is the root directory, which is not writable.
 let fn: String = {
@@ -134,9 +139,11 @@ POSIXTests.test("ioctl(CInt, UInt, CInt): fail") {
   expectEqual(-1, fd)
   expectEqual(ENOENT, errno)
 
+#if !os(FreeBSD)
   // A simple check to verify that ioctl is available
   let _ = ioctl(fd, 0, 0)
   expectEqual(EBADF, errno)
+#endif
 }
 
 #if os(Linux) || os(Android)

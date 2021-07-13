@@ -145,7 +145,7 @@ func test_varArgs6() {
   let  i8 = Int8(1)
   let f32 = Float(1.1)
   let f64 = Double(2.2)
-#if !os(Windows) && (arch(i386) || arch(x86_64))
+#if !(os(Windows) || os(FreeBSD)) && (arch(i386) || arch(x86_64))
   let f80 = Float80(4.5)
   my_printf("a %g %d %g %d %Lg %d %g a\n",            f32, i8, f64, i8, f80, i8, f32)
   my_printf("b %d %g %d %g %d %Lg %d %g b\n",     i8, f32, i8, f64, i8, f80, i8, f32)

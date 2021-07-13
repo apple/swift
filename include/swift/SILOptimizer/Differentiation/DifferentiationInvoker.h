@@ -71,8 +71,15 @@ private:
 
     /// The parent `apply` instruction and the witness associated with the
     /// `IndirectDifferentiation` case.
-    std::pair<ApplyInst *, SILDifferentiabilityWitness *>
-        indirectDifferentiation;
+    ///
+    /// Note: This used to be a std::pair, but on FreeBSD std::pair can't be
+    ///       used here, because it does not have a trivial copy constructor.
+    struct IndirectDifferentiation {
+        ApplyInst *applyInst;
+        SILDifferentiabilityWitness *witness;
+    };
+    IndirectDifferentiation indirectDifferentiation;
+
     Value(ApplyInst *applyInst, SILDifferentiabilityWitness *witness)
         : indirectDifferentiation({applyInst, witness}) {}
 
@@ -111,7 +118,8 @@ public:
   std::pair<ApplyInst *, SILDifferentiabilityWitness *>
   getIndirectDifferentiation() const {
     assert(kind == Kind::IndirectDifferentiation);
-    return value.indirectDifferentiation;
+    return std::make_pair(value.indirectDifferentiation.applyInst,
+                          value.indirectDifferentiation.witness);
   }
 
   SILDifferentiabilityWitness *getSILDifferentiabilityWitnessInvoker() const {

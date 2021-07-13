@@ -36,7 +36,7 @@ public let FLT_RADIX = Double.radix
 
 %for type, prefix in [('Float', 'FLT'), ('Double', 'DBL'), ('Float80', 'LDBL')]:
 % if type == "Float80":
-#if !os(Android) && (arch(i386) || arch(x86_64))
+#if !(os(Android) || os(FreeBSD)) && (arch(i386) || arch(x86_64))
 % end
 //  Where does the 1 come from? C counts the usually-implicit leading
 //  significand bit, but Swift does not. Neither is really right or wrong.

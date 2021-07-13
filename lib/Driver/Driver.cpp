@@ -342,7 +342,7 @@ Driver::buildToolChain(const llvm::opt::InputArgList &ArgList) {
       return std::make_unique<toolchains::Android>(*this, target);
     return std::make_unique<toolchains::GenericUnix>(*this, target);
   case llvm::Triple::FreeBSD:
-    return std::make_unique<toolchains::GenericUnix>(*this, target);
+    return std::make_unique<toolchains::FreeBSD>(*this, target);
   case llvm::Triple::OpenBSD:
     return std::make_unique<toolchains::OpenBSD>(*this, target);
   case llvm::Triple::Win32:

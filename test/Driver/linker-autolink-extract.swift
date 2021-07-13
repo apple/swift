@@ -1,6 +1,7 @@
 // RUN: %swiftc_driver -driver-print-jobs -target x86_64-unknown-linux-gnu -g %s | %FileCheck -check-prefix DEBUG_LINUX %s
 
 // REQUIRES: autolink-extract
+// UNSUPPORTED: freebsd
 
 // DEBUG_LINUX: bin/swift
 // DEBUG_LINUX-NEXT: bin/swift-autolink-extract

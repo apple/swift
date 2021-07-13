@@ -290,6 +290,10 @@ function(_add_target_variant_c_compile_flags)
     endif()
   endif()
 
+  if("${CFLAGS_SDK}" STREQUAL "FREEBSD")
+    list(APPEND result "-D_GNU_SOURCE")
+  endif()
+
   if("${CFLAGS_SDK}" STREQUAL "WASI")
     list(APPEND result "-D_WASI_EMULATED_MMAN")
   endif()
@@ -973,6 +977,10 @@ function(_add_swift_target_library_single target name)
       PROPERTIES
       INSTALL_NAME_DIR "${install_name_dir}")
   elseif("${SWIFTLIB_SINGLE_SDK}" STREQUAL "LINUX")
+    set_target_properties("${target}"
+      PROPERTIES
+      INSTALL_RPATH "$ORIGIN")
+  elseif("${SWIFTLIB_SINGLE_SDK}" STREQUAL "FREEBSD")
     set_target_properties("${target}"
       PROPERTIES
       INSTALL_RPATH "$ORIGIN")

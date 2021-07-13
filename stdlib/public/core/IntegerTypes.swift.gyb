@@ -1128,7 +1128,7 @@ public struct ${Self}
 %     (lower, upper) = getFtoIBounds(floatBits=FloatBits, intBits=int(bits), signed=signed)
 
 %     if FloatType == 'Float80':
-#if !(os(Windows) || os(Android)) && (arch(i386) || arch(x86_64))
+#if !(os(Windows) || os(Android) || os(FreeBSD)) && (arch(i386) || arch(x86_64))
 %     elif FloatType == 'Float16':
 #if !((os(macOS) || targetEnvironment(macCatalyst)) && arch(x86_64))
 %     end

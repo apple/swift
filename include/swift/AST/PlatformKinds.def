@@ -32,6 +32,7 @@ AVAILABILITY_PLATFORM(watchOSApplicationExtension, "application extensions for w
 AVAILABILITY_PLATFORM(macOSApplicationExtension, "application extensions for macOS")
 AVAILABILITY_PLATFORM(macCatalyst, "Mac Catalyst")
 AVAILABILITY_PLATFORM(macCatalystApplicationExtension, "application extensions for Mac Catalyst")
+AVAILABILITY_PLATFORM(FreeBSD, "FreeBSD")
 AVAILABILITY_PLATFORM(OpenBSD, "OpenBSD")
 AVAILABILITY_PLATFORM(Windows, "Windows")
 

@@ -1,4 +1,4 @@
-// XFAIL: linux, openbsd, windows
+// XFAIL: linux, freebsd, openbsd, windows
 
 // RUN: %empty-directory(%t)
 // RUN: cp -r %S/Inputs/only-skip-once/* %t

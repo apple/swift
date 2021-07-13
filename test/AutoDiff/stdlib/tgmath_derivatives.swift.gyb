@@ -11,7 +11,7 @@
 #error("Unsupported platform")
 #endif
 
-#if !(os(Windows) || os(Android)) && (arch(i386) || arch(x86_64))
+#if !(os(Windows) || os(Android) || os(FreeBSD)) && (arch(i386) || arch(x86_64))
   typealias TestLiteralType = Float80
 #else
   typealias TestLiteralType = Double
@@ -78,7 +78,7 @@ where T == T.TangentVector {
 %for T in ['Float', 'Float80']:
 
 %if T == 'Float80':
-#if !(os(Windows) || os(Android)) && (arch(i386) || arch(x86_64))
+#if !(os(Windows) || os(Android) || os(FreeBSD)) && (arch(i386) || arch(x86_64))
 %end
 
 DerivativeTests.test("${op}_${T}") {

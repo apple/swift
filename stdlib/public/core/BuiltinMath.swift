@@ -113,7 +113,7 @@ public func _rint(_ x: Double) -> Double {
 
 // Float80 Intrinsics (80 bits)
 
-#if !(os(Windows) || os(Android)) && (arch(i386) || arch(x86_64))
+#if !(os(Windows) || os(Android) || os(FreeBSD)) && (arch(i386) || arch(x86_64))
 @_transparent
 public func _cos(_ x: Float80) -> Float80 {
   return Float80(Builtin.int_cos_FPIEEE80(x._value))

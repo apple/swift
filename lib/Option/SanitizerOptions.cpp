@@ -162,7 +162,7 @@ OptionSet<SanitizerKind> swift::parseSanitizerArgValues(
   }
 
   // Check that we're one of the known supported targets for sanitizers.
-  if (!(Triple.isOSDarwin() || Triple.isOSLinux() || Triple.isOSWindows())) {
+  if (!(Triple.isOSDarwin() || Triple.isOSLinux() || Triple.isOSWindows() || Triple.isOSFreeBSD())) {
     SmallString<128> b;
     Diags.diagnose(SourceLoc(), diag::error_unsupported_opt_for_target,
       (A->getOption().getPrefixedName() +

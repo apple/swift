@@ -7,6 +7,7 @@
 
 // Windows does not support FP80
 // XFAIL: OS=windows-msvc
+// XFAIL: OS=freebsd
 
 enum Empty {}
 

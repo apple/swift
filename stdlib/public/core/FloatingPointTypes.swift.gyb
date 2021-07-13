@@ -64,7 +64,7 @@ else:
 }%
 
 % if bits == 80:
-#if !(os(Windows) || os(Android)) && (arch(i386) || arch(x86_64))
+#if !(os(Windows) || os(Android) || os(FreeBSD)) && (arch(i386) || arch(x86_64))
 % elif bits == 16:
 #if !((os(macOS) || targetEnvironment(macCatalyst)) && arch(x86_64))
 % end
@@ -915,7 +915,7 @@ extension ${Self}: _ExpressibleByBuiltinIntegerLiteral, ExpressibleByIntegerLite
 }
 
 % if bits != 80:
-#if !(os(Windows) || os(Android)) && (arch(i386) || arch(x86_64))
+#if !(os(Windows) || os(Android) || os(FreeBSD)) && (arch(i386) || arch(x86_64))
 % end
 
 % builtinFloatLiteralBits = 80
@@ -1121,7 +1121,7 @@ extension ${Self} {
 %   That = src_type.stdlib_name
 
 %   if srcBits == 80:
-#if !(os(Windows) || os(Android)) && (arch(i386) || arch(x86_64))
+#if !(os(Windows) || os(Android) || os(FreeBSD)) && (arch(i386) || arch(x86_64))
 %   elif srcBits == 16:
 #if !((os(macOS) || targetEnvironment(macCatalyst)) && arch(x86_64))
 %   end

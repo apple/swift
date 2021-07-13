@@ -1,7 +1,7 @@
 // RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -I %S/Inputs/abi %s -emit-ir -enable-objc-interop | %FileCheck -check-prefix=%target-cpu-%target-os-abi %s
 
 // FIXME: rdar://problem/19648117 Needs splitting objc parts out
-// XFAIL: linux, windows, openbsd
+// XFAIL: linux, windows, openbsd, freebsd
 
 import gadget
 import Foundation

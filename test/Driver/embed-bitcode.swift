@@ -1,3 +1,5 @@
+// UNSUPPORTED: freebsd
+
 // RUN: %target-swiftc_driver -driver-print-bindings -embed-bitcode %s 2>&1 | %FileCheck -check-prefix=CHECK-%target-object-format %s
 // CHECK-macho: "swift-frontend", inputs: ["{{.*}}embed-bitcode.swift"], output: {llvm-bc: "[[BC:.*\.bc]]"}
 // CHECK-macho: "swift-frontend", inputs: ["[[BC]]"], output: {object: "[[OBJECT:.*\.o]]"}

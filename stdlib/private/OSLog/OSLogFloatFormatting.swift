@@ -350,7 +350,7 @@ extension OSLogFloatFormatting {
     //   fprintf formatters promote Float to Double
     case is Float.Type: return ""
     case is Double.Type: return ""
-#if !os(Windows) && (arch(i386) || arch(x86_64))
+#if !(os(Windows) || os(FreeBSD)) && (arch(i386) || arch(x86_64))
     //   fprintf formatters use L for Float80
     case is Float80.Type: return "L"
 #endif

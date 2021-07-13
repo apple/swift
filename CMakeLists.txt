@@ -177,6 +177,8 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL Windows AND NOT CMAKE_HOST_SYSTEM_NAME STREQUA
   set(SWIFT_USE_LINKER_default "lld")
 elseif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
   set(SWIFT_USE_LINKER_default "")
+elseif(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
+  set(SWIFT_USE_LINKER_default "")
 else()
   set(SWIFT_USE_LINKER_default "gold")
 endif()

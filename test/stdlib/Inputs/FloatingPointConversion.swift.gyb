@@ -20,7 +20,7 @@ var FloatingPointConversionFailures = TestSuite("FloatingPointToFloatingPointCon
 #if !os(macOS) && !(os(iOS) && targetEnvironment(macCatalyst))
 %  end
 %  if Self == 'Float80':
-#if !os(Windows) && (arch(i386) || arch(x86_64))
+#if !(os(Windows) || os(FreeBSD)) && (arch(i386) || arch(x86_64))
 %  end
 
 %  for other_type in all_floating_point_types():
@@ -31,7 +31,7 @@ var FloatingPointConversionFailures = TestSuite("FloatingPointToFloatingPointCon
 #if !os(macOS) && !(os(iOS) && targetEnvironment(macCatalyst))
 %   end
 %   if OtherFloat == 'Float80':
-#if !os(Windows) && (arch(i386) || arch(x86_64))
+#if !(os(Windows) || os(FreeBSD)) && (arch(i386) || arch(x86_64))
 %   end
 
 %   if OtherSignificandBits <= SelfSignificandBits:

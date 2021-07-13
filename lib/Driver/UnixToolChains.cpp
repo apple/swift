@@ -410,3 +410,7 @@ std::string toolchains::Cygwin::getDefaultLinker() const {
 std::string toolchains::OpenBSD::getDefaultLinker() const {
   return "lld";
 }
+
+std::string toolchains::FreeBSD::getDefaultLinker() const {
+  return "lld";
+}

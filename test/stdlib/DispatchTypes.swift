@@ -4,6 +4,7 @@
 // UNSUPPORTED: OS=linux-gnu
 // UNSUPPORTED: OS=linux-android
 // UNSUPPORTED: OS=openbsd
+// UNSUPPORTED: OS=freebsd
 
 import Dispatch
 

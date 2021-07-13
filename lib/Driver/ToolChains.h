@@ -173,6 +173,16 @@ public:
   ~OpenBSD() = default;
 };
 
+class LLVM_LIBRARY_VISIBILITY FreeBSD : public GenericUnix {
+protected:
+  std::string getDefaultLinker() const override;
+
+public:
+  FreeBSD(const Driver &D, const llvm::Triple &Triple)
+      : GenericUnix(D, Triple) {}
+  ~FreeBSD() = default;
+};
+
 } // end namespace toolchains
 } // end namespace driver
 } // end namespace swift

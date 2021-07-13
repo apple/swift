@@ -2,6 +2,9 @@
 
 // REQUIRES: CPU=x86_64
 
+// fails on FreeBSD because T18static_initializer16TestArrayStorageC_tailelems1c is [1 x i64] instead of [2 x i64]
+// XFAIL: freebsd
+
 // Generated from
 // var x : Int32 = 2
 // public func f() -> Int32 { return x }

@@ -37,7 +37,7 @@ var tests = TestSuite("NumericParsing2")
 % for Self in 'Float', 'Double', 'Float80':
 
 % if Self == 'Float80':
-#if !os(Windows) && (arch(i386) || arch(x86_64))
+#if !(os(Windows) || os(FreeBSD)) && (arch(i386) || arch(x86_64))
 % end
 
 tests.test("${Self}/Overflow/Underflow") {

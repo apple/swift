@@ -84,6 +84,8 @@ foreach(sdk ${SWIFT_SDKS})
       set(glibc_modulemap_source "bionic.modulemap.gyb")
     elseif(${sdk} STREQUAL OPENBSD)
       set(glibc_modulemap_source "libc-openbsd.modulemap.gyb")
+    elseif(${sdk} STREQUAL FREEBSD)
+      set(glibc_modulemap_source "libc-freebsd.modulemap.gyb")
     else()
       set(glibc_modulemap_source "glibc.modulemap.gyb")
     endif()
@@ -119,12 +121,16 @@ foreach(sdk ${SWIFT_SDKS})
       list(APPEND glibc_modulemap_target_list ${copy_glibc_modulemap_static})
     endif()
 
-    set(glibc_header_out "${module_dir}/SwiftGlibc.h")
-    handle_gyb_source_single(glibc_header_target
-        SOURCE "SwiftGlibc.h.gyb"
-        OUTPUT "${glibc_header_out}"
-        FLAGS "-DCMAKE_SDK=${sdk}")
-    list(APPEND glibc_modulemap_target_list ${glibc_header_target})
+    # FreeBSD uses a different module map that does not use this header,
+    # so we don't generate it
+    if(NOT ${sdk} STREQUAL FREEBSD)
+      set(glibc_header_out "${module_dir}/SwiftGlibc.h")
+      handle_gyb_source_single(glibc_header_target
+          SOURCE "SwiftGlibc.h.gyb"
+          OUTPUT "${glibc_header_out}"
+          FLAGS "-DCMAKE_SDK=${sdk}")
+      list(APPEND glibc_modulemap_target_list ${glibc_header_target})
+    endif()
 
     # If this SDK is a target for a non-native host, except if it's for Android
     # with its own native sysroot, create a native modulemap without a sysroot

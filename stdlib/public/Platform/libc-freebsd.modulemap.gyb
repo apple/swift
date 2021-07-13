@@ -1,0 +1,311 @@
+//===--- libc-freebsd.modulemap.gyb ----------------------------------------------===//
+//
+// This source file is part of the Swift.org open source project
+//
+// Copyright (c) 2014 - 2021 Apple Inc. and the Swift project authors
+// Licensed under Apache License v2.0 with Runtime Library Exception
+//
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
+//
+//===----------------------------------------------------------------------===//
+
+/// Partial modulemap for libc on FreeBSD based on 13.0-RELEASE-p1.
+module SwiftGlibc [system] {
+  link "pthread"
+  link "util"
+
+  // C standard library
+  module C {
+    module complex {
+      header "${GLIBC_INCLUDE_PATH}/complex.h"
+      export *
+    }
+    module ctype {
+      header "${GLIBC_INCLUDE_PATH}/ctype.h"
+      export *
+    }
+    module errno {
+      header "${GLIBC_INCLUDE_PATH}/errno.h"
+      export *
+    }
+    module fenv {
+      header "${GLIBC_INCLUDE_PATH}/fenv.h"
+      export *
+    }
+    module inttypes {
+      header "${GLIBC_INCLUDE_PATH}/inttypes.h"
+      export *
+    }
+    module locale {
+      header "${GLIBC_INCLUDE_PATH}/locale.h"
+      export *
+    }
+    module math {
+      link "m"
+      header "${GLIBC_INCLUDE_PATH}/math.h"
+      export *
+    }
+    module setjmp {
+      header "${GLIBC_INCLUDE_PATH}/setjmp.h"
+      export *
+    }
+    module signal {
+      header "${GLIBC_INCLUDE_PATH}/signal.h"
+      export *
+    }
+
+    module stdio {
+      header "${GLIBC_INCLUDE_PATH}/stdio.h"
+      export *
+    }
+    module stdlib {
+      header "${GLIBC_INCLUDE_PATH}/stdlib.h"
+      export *
+      export stddef
+    }
+    module stdint {
+      header "${GLIBC_INCLUDE_PATH}/stdint.h"
+      export *
+    }
+    module string {
+      header "${GLIBC_INCLUDE_PATH}/string.h"
+      export *
+    }
+    module time {
+      header "${GLIBC_INCLUDE_PATH}/time.h"
+      export *
+    }
+  }
+
+  // POSIX
+  module POSIX {
+    module cpio {
+      header "${GLIBC_INCLUDE_PATH}/cpio.h"
+      export *
+    }
+    module nl_types {
+      header "${GLIBC_INCLUDE_PATH}/nl_types.h"
+      export *
+    }
+    module ftw {
+      header "${GLIBC_INCLUDE_PATH}/ftw.h"
+      export *
+    }
+    module glob {
+      header "${GLIBC_INCLUDE_PATH}/glob.h"
+      export *
+    }
+    module langinfo {
+      header "${GLIBC_INCLUDE_PATH}/langinfo.h"
+      export *
+    }
+    module netdb {
+      header "${GLIBC_INCLUDE_PATH}/netdb.h"
+      export *
+    }
+    module ifaddrs {
+      header "${GLIBC_INCLUDE_PATH}/ifaddrs.h"
+      export *
+    }
+    module search {
+      header "${GLIBC_INCLUDE_PATH}/search.h"
+      export *
+    }
+    module spawn {
+      header "${GLIBC_INCLUDE_PATH}/spawn.h"
+      export *
+    }
+    module syslog {
+      header "${GLIBC_INCLUDE_PATH}/syslog.h"
+      export *
+    }
+    module tar {
+      header "${GLIBC_INCLUDE_PATH}/tar.h"
+      export *
+    }
+    module arpa {
+      module inet {
+        header "${GLIBC_INCLUDE_PATH}/arpa/inet.h"
+        export *
+      }
+      export *
+    }
+    module dirent {
+      header "${GLIBC_INCLUDE_PATH}/dirent.h"
+      export *
+    }
+    module dl {
+      header "${GLIBC_INCLUDE_PATH}/link.h"
+      export *
+    }
+    module dlfcn {
+      header "${GLIBC_INCLUDE_PATH}/dlfcn.h"
+      export *
+    }
+    module fcntl {
+      header "${GLIBC_INCLUDE_PATH}/fcntl.h"
+      export *
+    }
+    module fnmatch {
+      header "${GLIBC_INCLUDE_PATH}/fnmatch.h"
+      export *
+    }
+    module grp {
+      header "${GLIBC_INCLUDE_PATH}/grp.h"
+      export *
+    }
+    module ioctl {
+      header "${GLIBC_ARCH_INCLUDE_PATH}/sys/ioctl.h"
+      export *
+    }
+    module libgen {
+      header "${GLIBC_INCLUDE_PATH}/libgen.h"
+      export *
+    }
+    module net {
+      module if {
+        header "${GLIBC_INCLUDE_PATH}/net/if.h"
+        export *
+      }
+    }
+    module netinet {
+      module in {
+        header "${GLIBC_INCLUDE_PATH}/netinet/in.h"
+        export *
+
+        exclude header "${GLIBC_INCLUDE_PATH}/netinet6/in6.h"
+      }
+      module tcp {
+        header "${GLIBC_INCLUDE_PATH}/netinet/tcp.h"
+        export *
+      }
+    }
+    module poll {
+      header "${GLIBC_INCLUDE_PATH}/poll.h"
+      export *
+    }
+    module pthread {
+      header "${GLIBC_INCLUDE_PATH}/pthread.h"
+      export *
+    }
+    module pwd {
+      header "${GLIBC_INCLUDE_PATH}/pwd.h"
+      export *
+    }
+    module regex {
+      header "${GLIBC_INCLUDE_PATH}/regex.h"
+      export *
+    }
+    module sched {
+      header "${GLIBC_INCLUDE_PATH}/sched.h"
+      export *
+    }
+    module semaphore {
+      header "${GLIBC_INCLUDE_PATH}/semaphore.h"
+      export *
+    }
+    module strings {
+      header "${GLIBC_INCLUDE_PATH}/strings.h"
+      export *
+    }
+
+    module sys {
+      export *
+
+      module file {
+        header "${GLIBC_ARCH_INCLUDE_PATH}/sys/file.h"
+        export *
+      }
+      module sem {
+        header "${GLIBC_ARCH_INCLUDE_PATH}/sys/sem.h"
+        export *
+      }
+      module shm {
+        header "${GLIBC_ARCH_INCLUDE_PATH}/sys/shm.h"
+        export *
+      }
+      module statvfs {
+        header "${GLIBC_ARCH_INCLUDE_PATH}/sys/statvfs.h"
+        export *
+      }
+      module ipc {
+        header "${GLIBC_ARCH_INCLUDE_PATH}/sys/ipc.h"
+        export *
+      }
+      module mman {
+        header "${GLIBC_ARCH_INCLUDE_PATH}/sys/mman.h"
+        export *
+      }
+      module msg {
+        header "${GLIBC_ARCH_INCLUDE_PATH}/sys/msg.h"
+        export *
+      }
+      module resource {
+        header "${GLIBC_ARCH_INCLUDE_PATH}/sys/resource.h"
+        export *
+      }
+      module select {
+        header "${GLIBC_ARCH_INCLUDE_PATH}/sys/select.h"
+        export *
+      }
+      module socket {
+        header "${GLIBC_ARCH_INCLUDE_PATH}/sys/socket.h"
+        export *
+      }
+      module stat {
+        header "${GLIBC_ARCH_INCLUDE_PATH}/sys/stat.h"
+        export *
+      }
+      module time {
+        header "${GLIBC_ARCH_INCLUDE_PATH}/sys/time.h"
+        export *
+      }
+      module times {
+        header "${GLIBC_ARCH_INCLUDE_PATH}/sys/times.h"
+        export *
+      }
+      module types {
+        header "${GLIBC_ARCH_INCLUDE_PATH}/sys/types.h"
+        export *
+      }
+      module event {
+        header "${GLIBC_ARCH_INCLUDE_PATH}/sys/event.h"
+        export *
+      }
+      module uio {
+        header "${GLIBC_ARCH_INCLUDE_PATH}/sys/uio.h"
+        export *
+      }
+      module un {
+        header "${GLIBC_ARCH_INCLUDE_PATH}/sys/un.h"
+        export *
+      }
+      module user {
+        header "${GLIBC_ARCH_INCLUDE_PATH}/sys/user.h"
+        export *
+      }
+      module utsname {
+        header "${GLIBC_ARCH_INCLUDE_PATH}/sys/utsname.h"
+        export *
+      }
+      module wait {
+        header "${GLIBC_ARCH_INCLUDE_PATH}/sys/wait.h"
+        export *
+      }
+    }
+    module termios {
+      header "${GLIBC_INCLUDE_PATH}/termios.h"
+      export *
+    }
+    module unistd {
+      header "${GLIBC_INCLUDE_PATH}/unistd.h"
+      export *
+    }
+  }
+}
+
+module CUUID [system] {
+  header "${GLIBC_INCLUDE_PATH}/uuid.h"
+  export *
+}

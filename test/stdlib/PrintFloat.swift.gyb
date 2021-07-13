@@ -292,7 +292,7 @@ fileprivate let generatedCases_Double: [(Double, String)] = [
   (0x1.63ed4a60c9c91p+324, "4.751595491707413e+97")
 ]
 
-#if !os(Windows) && (arch(i386) || arch(x86_64))
+#if !(os(Windows) || os(FreeBSD)) && (arch(i386) || arch(x86_64))
 // Float80 found via Errol technique.
 //
 // As with Double, except for Float80.  The original list in this
@@ -348,7 +348,7 @@ let PrintTests = TestSuite("FloatingPointPrinting")
 #if !((os(macOS) || targetEnvironment(macCatalyst)) && arch(x86_64))
 @available(macOS 11.0, iOS 14.0, watchOS 7.0, tvOS 14.0, *)
 % elif FloatType == 'Float80':
-#if !os(Windows) && (arch(i386) || arch(x86_64))
+#if !(os(Windows) || os(FreeBSD)) && (arch(i386) || arch(x86_64))
 % end
 
 // Verify that a particular value provides a specific description string.
@@ -545,7 +545,7 @@ PrintTests.test("CustomStringConvertible") {
 
   hasDescription(Float(1.0))
   hasDescription(Double(1.0))
-#if !os(Windows) && (arch(i386) || arch(x86_64))
+#if !(os(Windows) || os(FreeBSD)) && (arch(i386) || arch(x86_64))
   hasDescription(Float80(1.0))
 #endif
   hasDescription(CFloat(1.0))
@@ -561,7 +561,7 @@ PrintTests.test("CustomDebugStringConvertible") {
 
   hasDebugDescription(Float(1.0))
   hasDebugDescription(Double(1.0))
-#if !os(Windows) && (arch(i386) || arch(x86_64))
+#if !(os(Windows) || os(FreeBSD)) && (arch(i386) || arch(x86_64))
   hasDebugDescription(Float80(1.0))
 #endif
   hasDebugDescription(CFloat(1.0))
@@ -979,7 +979,7 @@ PrintTests.test("Printable_Double") {
 }
 
 PrintTests.test("Printable_Float80") {
-#if !os(Windows) && (arch(i386) || arch(x86_64))
+#if !(os(Windows) || os(FreeBSD)) && (arch(i386) || arch(x86_64))
   func asFloat80(_ f: Swift.Float80) -> Swift.Float80 { return f }
 
   // Sanity

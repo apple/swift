@@ -1,6 +1,8 @@
 // REQUIRES: shell
 // Check that 'swift' and 'swift repl' invoke the REPL.
 
+// UNSUPPORTED: freebsd
+
 // RUN: rm -rf %t.dir
 // RUN: mkdir -p %t.dir/usr/bin
 // RUN: %hardlink-or-copy(from: %swift_frontend_plain, to: %t.dir/usr/bin/swift)

@@ -135,7 +135,7 @@ func _${derivative_kind}Trunc<T: FloatingPoint & Differentiable> (
 %  linear_map_kind = 'differential' if derivative_kind == 'jvp' else 'pullback'
 %  for T in ['Float', 'Double', 'Float80']:
 %    if T == 'Float80':
-#if !(os(Windows) || os(Android)) && (arch(i386) || arch(x86_64))
+#if !(os(Windows) || os(Android) || os(FreeBSD)) && (arch(i386) || arch(x86_64))
 %    end
 @inlinable
 @derivative(of: exp)
@@ -276,7 +276,7 @@ func _${derivative_kind}Erfc(_ x: ${T}) -> (value: ${T}, ${linear_map_kind}: (${
 // Binary functions
 %for T in ['Float', 'Float80']:
 %  if T == 'Float80':
-#if !(os(Windows) || os(Android)) && (arch(i386) || arch(x86_64))
+#if !(os(Windows) || os(Android) || os(FreeBSD)) && (arch(i386) || arch(x86_64))
 %  end
 @inlinable
 @derivative(of: pow)

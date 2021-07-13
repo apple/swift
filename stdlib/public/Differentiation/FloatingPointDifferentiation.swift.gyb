@@ -26,7 +26,7 @@ def Availability(bits):
 }%
 
 % if bits == 80:
-#if !(os(Windows) || os(Android)) && (arch(i386) || arch(x86_64))
+#if !(os(Windows) || os(Android) || os(FreeBSD)) && (arch(i386) || arch(x86_64))
 % end
 % if bits == 16:
 #if !os(macOS) && !(os(iOS) && targetEnvironment(macCatalyst))

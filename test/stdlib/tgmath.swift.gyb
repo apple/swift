@@ -27,7 +27,7 @@
 #error("Unsupported platform")
 #endif
 
-#if (arch(i386) || arch(x86_64)) && !os(Windows)
+#if (arch(i386) || arch(x86_64)) && !(os(Windows) || os(FreeBSD))
   typealias TestLiteralType = Float80
 #else
   typealias TestLiteralType = Double
@@ -81,7 +81,7 @@ internal protocol TGMath: BinaryFloatingPoint {
 %end
   static func _remquo(_ x: Self, _ y: Self) -> (Self, Int)
   static func _fma(_ x: Self, _ y: Self, _ z: Self) -> Self
-#if !os(Windows) && !os(OpenBSD)
+#if !(os(Windows) || os(FreeBSD) || os(OpenBSD))
   static func _lgamma(_ x: Self) -> (Self, Int)
 #endif
   static func _modf(_ x: Self) -> (Self, Self)
@@ -122,7 +122,7 @@ internal extension TGMath {
     expectEqualWithTolerance(0.4041169094348222983238250859191217675, Self._erf(0.375))
     expectEqualWithTolerance(0.5958830905651777016761749140808782324, Self._erfc(0.375))
     expectEqualWithTolerance(2.3704361844166009086464735041766525098, Self._tgamma(0.375))
-#if !os(Windows) && !os(OpenBSD)
+#if !(os(Windows) || os(FreeBSD) || os(OpenBSD))
     expectEqualWithTolerance( -0.11775527074107877445136203331798850, Self._lgamma(1.375).0, ulps: 16)
     expectEqual(1, Self._lgamma(1.375).1)
 #endif
@@ -174,7 +174,7 @@ internal extension TGMath {
 %for T in ['Float', 'Double', 'CGFloat', 'Float80']:
 
 % if T == 'Float80':
-#if (arch(i386) || arch(x86_64)) && !os(Windows)
+#if (arch(i386) || arch(x86_64)) && !(os(Windows) || os(FreeBSD))
 % elif T == 'CGFloat':
 #if _runtime(_ObjC) && canImport(CoreGraphics)
   import CoreGraphics
@@ -189,7 +189,7 @@ extension ${T}: TGMath {
 %end
   static func _remquo(_ x: ${T}, _ y: ${T}) -> (${T}, Int) { return remquo(x, y) }
   static func _fma(_ x: ${T}, _ y: ${T}, _ z: ${T}) -> ${T} { return fma(x, y, z) }
-#if !os(Windows) && !os(OpenBSD)
+#if !(os(Windows) || os(FreeBSD) || os(OpenBSD))
   static func _lgamma(_ x: ${T}) -> (${T}, Int) { return lgamma(x) }
 #endif
   static func _modf(_ x: ${T}) -> (${T}, ${T}) { return modf(x) }

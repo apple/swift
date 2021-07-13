@@ -3,6 +3,7 @@
 
 // SR-12893
 // XFAIL: openbsd
+// XFAIL: freebsd
 
 // RUN: %empty-directory(%t)
 // RUN: %target-build-swift %s -emit-module -emit-library -module-name capture_descriptors -o %t/capture_descriptors%{target-shared-library-suffix} -L%t/../../.. -lBlocksRuntime

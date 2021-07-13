@@ -2,6 +2,7 @@
 
 // SR-12893
 // XFAIL: openbsd
+// XFAIL: freebsd
 
 // RUN: %empty-directory(%t)
 

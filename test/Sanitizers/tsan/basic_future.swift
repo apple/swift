@@ -6,6 +6,8 @@
 // REQUIRES: tsan_runtime
 // UNSUPPORTED: use_os_stdlib
 
+// XFAIL: freebsd
+
 import Dispatch
 
 #if canImport(Darwin)

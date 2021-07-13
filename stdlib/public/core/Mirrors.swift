@@ -250,7 +250,7 @@ extension Int: _CustomPlaygroundQuickLookable {
   }
 }
 
-#if !(os(Windows) || os(Android)) && (arch(i386) || arch(x86_64))
+#if !(os(Windows) || os(Android) || os(FreeBSD)) && (arch(i386) || arch(x86_64))
 extension Float80: CustomReflectable {
   /// A mirror that reflects the Float80 instance.
   public var customMirror: Mirror {

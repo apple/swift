@@ -775,6 +775,8 @@ static bool shouldImportConcurrencyByDefault(const llvm::Triple &target) {
 #if SWIFT_IMPLICIT_CONCURRENCY_IMPORT
   if (target.isOSOpenBSD())
     return true;
+  if (target.isOSFreeBSD())
+    return true;
 #endif
   return false;
 }

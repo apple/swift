@@ -347,11 +347,11 @@ macro(configure_sdk_unix name architectures)
           message(FATAL_ERROR "unsupported arch for FreeBSD: ${arch}")
         endif()
 
-        if(CMAKE_HOST_SYSTEM_NAME NOT STREQUAL FreeBSD)
+        if(NOT CMAKE_HOST_SYSTEM_NAME STREQUAL FreeBSD)
           message(WARNING "CMAKE_SYSTEM_VERSION will not match target")
         endif()
 
-        string(REPLACE "[-].*" "" freebsd_system_version ${CMAKE_SYSTEM_VERSION})
+        string(REGEX REPLACE "[-].*" "" freebsd_system_version ${CMAKE_SYSTEM_VERSION})
         message(STATUS "FreeBSD Version: ${freebsd_system_version}")
 
         set(SWIFT_SDK_FREEBSD_ARCH_x86_64_TRIPLE "x86_64-unknown-freebsd${freebsd_system_version}")

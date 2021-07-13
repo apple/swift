@@ -41,7 +41,7 @@ internal func _isspace_clocale(_ u: UTF16.CodeUnit) -> Bool {
 %   Self = floatName(bits)
 
 % if bits == 80:
-#if !(os(Windows) || os(Android)) && (arch(i386) || arch(x86_64))
+#if !(os(Windows) || os(Android) || os(FreeBSD)) && (arch(i386) || arch(x86_64))
 % elif bits == 16:
 #if !((os(macOS) || targetEnvironment(macCatalyst)) && arch(x86_64))
 % end

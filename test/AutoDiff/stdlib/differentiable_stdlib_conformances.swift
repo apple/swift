@@ -14,7 +14,7 @@ where T: Differentiable, T == T.TangentVector {}
 func testFloatingPointDifferentiableConformance() {
   assertSelfEqualsTangentVector(Float.self)
   assertSelfEqualsTangentVector(Double.self)
-  #if (arch(i386) || arch(x86_64)) && !(os(Windows) || os(Android))
+  #if (arch(i386) || arch(x86_64)) && !(os(Windows) || os(Android) || os(FreeBSD))
   assertSelfEqualsTangentVector(Float80.self)
   #endif
 }

@@ -7,6 +7,10 @@
 // UNSUPPORTED: use_os_stdlib
 // UNSUPPORTED: back_deployment_runtime
 
+// SR-12893
+// XFAIL: openbsd
+// XFAIL: freebsd
+
 // RUN: %empty-directory(%t)
 
 // RUN: %target-build-swift -Xfrontend -enable-anonymous-context-mangled-names %S/Inputs/ConcurrencyTypes.swift -parse-as-library -emit-module -emit-library -module-name TypesToReflect -o %t/%target-library-name(TypesToReflect)

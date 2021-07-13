@@ -30,7 +30,7 @@ using namespace fine_grained_dependencies;
 
 // This introduces a redefinition where ever std::is_same_t<size_t, uint64_t>
 // holds
-#if !(defined(__linux__) || defined(_WIN64))
+#if !(defined(__linux__) || defined(_WIN64) || defined(__FreeBSD__))
 LLVM_YAML_DECLARE_SCALAR_TRAITS(size_t, QuotingType::None)
 #endif
 LLVM_YAML_DECLARE_ENUM_TRAITS(swift::fine_grained_dependencies::NodeKind)
@@ -89,7 +89,7 @@ LLVM_YAML_DECLARE_MAPPING_TRAITS(
 namespace llvm {
 namespace yaml {
 // This introduces a redefinition for Linux.
-#if !(defined(__linux__) || defined(_WIN64))
+#if !(defined(__linux__) || defined(_WIN64) || defined(__FreeBSD__))
 void ScalarTraits<size_t>::output(const size_t &Val, void *, raw_ostream &out) {
   out << Val;
 }

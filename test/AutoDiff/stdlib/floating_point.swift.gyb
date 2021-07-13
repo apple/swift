@@ -1,7 +1,7 @@
 // RUN: %target-run-simple-swiftgyb(-Xfrontend -enable-experimental-forward-mode-differentiation)
 // REQUIRES: executable_test
 
-#if !(os(Windows) || os(Android)) && (arch(i386) || arch(x86_64))
+#if !(os(Windows) || os(Android) || os(FreeBSD)) && (arch(i386) || arch(x86_64))
   typealias TestLiteralType = Float80
 #else
   typealias TestLiteralType = Double
@@ -31,7 +31,7 @@ func expectEqualWithTolerance<T>(_ expected: TestLiteralType, _ actual: T,
 %for Self in ['Float', 'Double', 'Float80']:
 
 %if Self == 'Float80':
-#if !(os(Windows) || os(Android)) && (arch(i386) || arch(x86_64))
+#if !(os(Windows) || os(Android) || os(FreeBSD)) && (arch(i386) || arch(x86_64))
 %end
 
 FloatingPointDerivativeTests.test("${Self}.+") {

@@ -222,7 +222,7 @@ def TypedBinaryFunctions():
 // Note these do not have a corresponding LLVM intrinsic
 % for T, CT, f, ufunc in TypedUnaryFunctions():
 %  if T == 'Float80':
-#if (arch(i386) || arch(x86_64)) && !(os(Windows) || os(Android))
+#if (arch(i386) || arch(x86_64)) && !(os(Windows) || os(Android) || os(FreeBSD))
 %  end
 @_transparent
 public func ${ufunc}(_ x: ${T}) -> ${T} {
@@ -239,7 +239,7 @@ public func ${ufunc}(_ x: ${T}) -> ${T} {
 // Note these have a corresponding LLVM intrinsic
 % for T, ufunc in TypedUnaryIntrinsicFunctions():
 %  if T == 'Float80':
-#if (arch(i386) || arch(x86_64)) && !(os(Windows) || os(Android))
+#if (arch(i386) || arch(x86_64)) && !(os(Windows) || os(Android) || os(FreeBSD))
 %  end
 @_transparent
 public func ${ufunc}(_ x: ${T}) -> ${T} {
@@ -258,7 +258,7 @@ public func ${ufunc}(_ x: ${T}) -> ${T} {
 % for ufunc in UnaryIntrinsicFunctions:
 %  for T, CT, f in OverlayFloatTypes():
 %   if T == 'Float80':
-#if (arch(i386) || arch(x86_64)) && !(os(Windows) || os(Android))
+#if (arch(i386) || arch(x86_64)) && !(os(Windows) || os(Android) || os(FreeBSD))
 %   end
 @_transparent
 public func ${ufunc}(_ x: ${T}) -> ${T} {
@@ -275,7 +275,7 @@ public func ${ufunc}(_ x: ${T}) -> ${T} {
 
 % for T, CT, f, bfunc in TypedBinaryFunctions():
 %  if T == 'Float80':
-#if (arch(i386) || arch(x86_64)) && !(os(Windows) || os(Android))
+#if (arch(i386) || arch(x86_64)) && !(os(Windows) || os(Android) || os(FreeBSD))
 %  end
 @_transparent
 public func ${bfunc}(_ lhs: ${T}, _ rhs: ${T}) -> ${T} {
@@ -290,7 +290,7 @@ public func ${bfunc}(_ lhs: ${T}, _ rhs: ${T}) -> ${T} {
 % # This is AllFloatTypes not OverlayFloatTypes because of the tuple return.
 % for T, CT, f in AllFloatTypes():
 %  if T == 'Float80':
-#if (arch(i386) || arch(x86_64)) && !(os(Windows) || os(Android) || os(OpenBSD))
+#if (arch(i386) || arch(x86_64)) && !(os(Windows) || os(Android) || os(FreeBSD) || os(OpenBSD))
 %  else:
 //  lgamma not available on Windows, apparently?
 #if !os(Windows)
@@ -308,7 +308,7 @@ public func lgamma(_ x: ${T}) -> (${T}, Int) {
 % # This is AllFloatTypes not OverlayFloatTypes because of the tuple return.
 % for T, CT, f in AllFloatTypes():
 %  if T == 'Float80':
-#if (arch(i386) || arch(x86_64)) && !(os(Windows) || os(Android))
+#if (arch(i386) || arch(x86_64)) && !(os(Windows) || os(Android) || os(FreeBSD))
 %  end
 @_transparent
 public func remquo(_ x: ${T}, _ y: ${T}) -> (${T}, Int) {
@@ -324,7 +324,7 @@ public func remquo(_ x: ${T}, _ y: ${T}) -> (${T}, Int) {
 
 % for T, CT, f in OverlayFloatTypes():
 %  if T == 'Float80':
-#if (arch(i386) || arch(x86_64)) && !(os(Windows) || os(Android))
+#if (arch(i386) || arch(x86_64)) && !(os(Windows) || os(Android) || os(FreeBSD))
 %  end
 @available(swift, deprecated: 4.2/*, obsoleted: 5.1*/, message:
            "use ${T}(nan: ${T}.RawSignificand).")

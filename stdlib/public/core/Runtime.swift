@@ -367,7 +367,7 @@ internal func _float64ToString(
 }
 
 
-#if !(os(Windows) || os(Android)) && (arch(i386) || arch(x86_64))
+#if !(os(Windows) || os(Android) || os(FreeBSD)) && (arch(i386) || arch(x86_64))
 
 // Returns a UInt64, but that value is the length of the string, so it's
 // guaranteed to fit into an Int. This is part of the ABI, so we can't

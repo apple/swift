@@ -875,6 +875,9 @@ private:
       case PlatformKind::watchOSApplicationExtension:
         plat = "watchos_app_extension";
         break;
+      case PlatformKind::FreeBSD:
+        plat = "freebsd";
+        break;
       case PlatformKind::OpenBSD:
         plat = "openbsd";
         break;

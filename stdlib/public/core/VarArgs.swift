@@ -411,7 +411,7 @@ extension Double: _CVarArgPassedAsDouble, _CVarArgAligned {
   }
 }
 
-#if !(os(Windows) || os(Android)) && (arch(i386) || arch(x86_64))
+#if !(os(Windows) || os(Android) || os(FreeBSD)) && (arch(i386) || arch(x86_64))
 extension Float80: CVarArg, _CVarArgAligned {
   /// Transform `self` into a series of machine words that can be
   /// appropriately interpreted by C varargs.

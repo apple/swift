@@ -4,6 +4,7 @@
 
 // REQUIRES: CPU=i386 || CPU=x86_64
 // UNSUPPORTED: OS=windows-msvc
+// UNSUPPORTED: OS=freebsd
 
 var globalFloat80 : Float80 = 0.0
 
