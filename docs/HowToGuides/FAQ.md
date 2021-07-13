@@ -133,5 +133,4 @@ git rebase --continue
 
 ### How do I clean up my git history?
 
-TODO: Link to a beginner-friendly external resource, or (less preferably)
-describe basic usage of rebase here.
+[Link to the guide](https://medium.com/@catalinaturlea/clean-git-history-a-step-by-step-guide-eefc0ad8696d)
