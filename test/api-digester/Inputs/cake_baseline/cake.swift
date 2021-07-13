@@ -232,3 +232,7 @@ open class AddingNewDesignatedInit {
     print(foo)
   }
 }
+
+public class FutureActor {
+  public func foo(a:Int, b:Int, c: Int) {}
+}

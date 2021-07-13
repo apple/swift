@@ -252,3 +252,7 @@ public extension Float {
 }
 
 infix operator <==> : AssignmentPrecedence
+
+public actor FutureActor {
+  public func foo(a:Int, b:Int, c: Int) {}
+}
