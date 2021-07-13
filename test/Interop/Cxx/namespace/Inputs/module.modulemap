@@ -22,6 +22,15 @@ module FreeFunctionsSecondHeader {
   requires cplusplus
 }
 
+module Submodules {
+  module SubmoduleA {
+    header "submodule-a.h"
+  }
+  module SubmoduleB {
+    header "submodule-b.h"
+  }
+}
+
 module Templates {
   header "templates.h"
   requires cplusplus
