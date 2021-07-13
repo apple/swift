@@ -4365,8 +4365,6 @@ ERROR(async_objc_dynamic_self,none,
 
 ERROR(actor_inheritance,none,
       "actor types do not support inheritance", ())
-NOTE(actor_inheritance_nsobject,none,
-      "use '@objc' to expose actor %0 to Objective-C", (DeclName))
 
 ERROR(actor_protocol_illegal_inheritance,none,
       "non-actor type %0 cannot conform to the 'Actor' protocol",

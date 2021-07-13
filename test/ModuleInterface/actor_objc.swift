@@ -12,7 +12,7 @@
 
 import Foundation
 
-// CHECK-LABEL: @objc public actor SomeActor {
-// CHECK-NOT: @objc override public init()
-@objc public actor SomeActor {
+// CHECK-LABEL: @objc @_inheritsConvenienceInitializers public actor SomeActor : ObjectiveC.NSObject {
+// CHECK: @objc override public init()
+public actor SomeActor: NSObject {
 }
