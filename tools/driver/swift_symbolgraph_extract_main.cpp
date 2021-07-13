@@ -60,9 +60,7 @@ int swift_symbolgraph_extract_main(ArrayRef<const char *> Args,
   auto MainExecutablePath = llvm::sys::fs::getMainExecutable(Argv0, MainAddr);
 
   if (ParsedArgs.getLastArg(OPT_help) || Args.empty()) {
-    std::string ExecutableName =
-        llvm::sys::path::stem(MainExecutablePath).str();
-    Table->PrintHelp(llvm::outs(), ExecutableName.c_str(),
+    Table->PrintHelp(llvm::outs(), "swift symbolgraph-extract",
                      "Swift Symbol Graph Extractor",
                      SwiftSymbolGraphExtractOption, 0,
                      /*ShowAllAliases*/ false);
