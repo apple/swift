@@ -6610,6 +6610,10 @@ Expr *ExprRewriter::coerceToType(Expr *expr, Type toType,
       if (toType->hasUnresolvedType())
         break;
 
+      if (cs.toImmutablePossible(fromType->lookThroughAllOptionalTypes(),
+                                 toType->lookThroughAllOptionalTypes()))
+        break;
+
       // HACK: Fix problem related to Swift 4 mode (with assertions),
       // since Swift 4 mode allows passing arguments with extra parens
       // to parameters which don't expect them, it should be supported

@@ -46,7 +46,7 @@ struct Repeated {
       return UnsafePointer(base)
     }
     unsafeAddress { // expected-error {{subscript already has an addressor}}
-      return base // expected-error {{cannot convert return expression of type 'UnsafeMutablePointer<Int>' to return type 'UnsafePointer<Int>'}}
+      return base
     }
   }
 }

@@ -4967,7 +4967,29 @@ bool ConstraintSystem::repairFailures(
     break;
   }
 
+  // Accept mutable pointers in the place of immutables.
+  if (toImmutablePossible(lhs, rhs))
+    conversionsOrFixes.push_back(
+        ConversionRestrictionKind::PointerToPointer);
+
   return !conversionsOrFixes.empty();
+}
+
+bool ConstraintSystem::toImmutablePossible(Type lhs, Type rhs) {
+  if (rhs->isUnsafeRawPointer() && (lhs->isUnsafeMutableRawPointer() ||
+       lhs->isUnsafeMutablePointer() || lhs->isUnsafePointer()))
+    return true; // Unsafe[Mutable][Raw]Pointer -> UnsafeRawPointer
+
+  auto firstGenericArgument = [&](Type ty) -> CanType {
+    return dyn_cast<BoundGenericStructType>(ty->getCanonicalType())
+      ->getGenericArgs()[0]->getCanonicalType();
+  };
+
+  if (lhs->isUnsafeMutablePointer() && rhs->isUnsafePointer() &&
+      firstGenericArgument(lhs) == firstGenericArgument(rhs))
+    return true; // UnsafeMutablePointer<Pointee> -> UnsafePointer<Pointee>
+
+  return false;
 }
 
 ConstraintSystem::TypeMatchResult

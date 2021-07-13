@@ -4215,6 +4215,9 @@ public:
                       SmallVectorImpl<RestrictionOrFix> &conversionsOrFixes,
                       ConstraintLocatorBuilder locator);
 
+  /// Is a conversion from a Mutable to Immutable pointer possible.
+  bool toImmutablePossible(Type lhs, Type rhs);
+
   /// Subroutine of \c matchTypes(), which matches up two tuple types.
   ///
   /// \returns the result of performing the tuple-to-tuple conversion.
