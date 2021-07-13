@@ -39,6 +39,8 @@
 #elif _MSC_VER
 #include <intrin.h>
 #define get_return_address() _ReturnAddress()
+#elif defined(__wasi__)
+#define get_return_address() ((void*) 0)
 #else
 #error missing implementation for get_return_address
 #define get_return_address() ((void*) 0)
