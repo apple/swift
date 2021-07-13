@@ -221,6 +221,22 @@ namespace detail {
       }
     }
 
+    /// Parses \p text into elements separated by \p separator, with identifiers
+    /// from \p ctx starting at \p loc.
+    ///
+    /// \warning This is not very robust; for instance, it doesn't check the
+    /// validity of the identifiers.
+    ImportPathBuilder(ASTContext &ctx, StringRef text, char separator,
+                      SourceLoc loc)
+        : scratch() {
+      while (!text.empty()) {
+        StringRef next;
+        std::tie(next, text) = text.split(separator);
+        push_back({ImportPathBuilder_getIdentifierImpl(ctx, next), loc});
+        loc = loc.getAdvancedLocOrInvalid(next.size() + 1);
+      }
+    }
+
     void push_back(const ImportPathElement &elem) { scratch.push_back(elem); }
     void push_back(Identifier name, SourceLoc loc = SourceLoc()) {
       scratch.push_back({ name, loc });

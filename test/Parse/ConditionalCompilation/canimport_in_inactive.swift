@@ -21,7 +21,7 @@
 #endif
 
 #if canImport(SomeModule)
-// CHECK: :[[@LINE-1]]:5: error: could not find module 'SomeModule' for target '{{.*}}'; found: i386
+// CHECK: :[[@LINE-1]]:15: error: could not find module 'SomeModule' for target '{{.*}}'; found: i386
 #endif
 
 import SomeModule

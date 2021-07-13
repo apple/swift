@@ -1,0 +1,10 @@
+module A {
+    explicit module B {
+        explicit module CMissingRequirement {
+            requires missing
+        }
+    }
+    explicit module BMissingRequirement {
+        requires missing
+    }
+}

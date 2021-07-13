@@ -1775,14 +1775,14 @@ static std::string getScalaNodeText(llvm::yaml::Node *N) {
   return cast<llvm::yaml::ScalarNode>(N)->getValue(Buffer).str();
 }
 
-bool ClangImporter::canImportModule(ImportPath::Element moduleID,
+bool ClangImporter::canImportModule(ImportPath::Module modulePath,
                                     llvm::VersionTuple version,
                                     bool underlyingVersion) {
   // Look up the top-level module to see if it exists.
-  // FIXME: This only works with top-level modules.
   auto &clangHeaderSearch = Impl.getClangPreprocessor().getHeaderSearchInfo();
+  auto topModule = modulePath.front();
   clang::Module *clangModule =
-      clangHeaderSearch.lookupModule(moduleID.Item.str(), /*AllowSearch=*/true,
+      clangHeaderSearch.lookupModule(topModule.Item.str(), /*AllowSearch=*/true,
                                      /*AllowExtraModuleMapSearch=*/true);
   if (!clangModule) {
     return false;
@@ -1792,10 +1792,33 @@ bool ClangImporter::canImportModule(ImportPath::Element moduleID,
   clang::Module::UnresolvedHeaderDirective mh;
   clang::Module *m;
   auto &ctx = Impl.getClangASTContext();
-  auto available = clangModule->isAvailable(ctx.getLangOpts(), getTargetInfo(),
-                                            r, mh, m);
+  auto &lo = ctx.getLangOpts();
+  auto &ti = getTargetInfo();
+
+  auto available = clangModule->isAvailable(lo, ti, r, mh, m);
   if (!available)
     return false;
+
+  if (modulePath.hasSubmodule()) {
+    for (auto &component : modulePath.getSubmodulePath()) {
+      clangModule = clangModule->findSubmodule(component.Item.str());
+
+      // Special case: a submodule named "Foo.Private" can be moved to a
+      // top-level module named "Foo_Private". Clang has special support for
+      // this.
+      if (!clangModule && component.Item.str() == "Private" &&
+          (&component) == (&modulePath.getRaw()[1])) {
+        clangModule = clangHeaderSearch.lookupModule(
+            (topModule.Item.str() + "_Private").str(),
+            /*AllowSearch=*/true,
+            /*AllowExtraModuleMapSearch=*/true);
+      }
+      if (!clangModule || !clangModule->isAvailable(lo, ti, r, mh, m)) {
+        return false;
+      }
+    }
+  }
+
   if (version.empty())
     return true;
   assert(available);
@@ -1805,11 +1828,11 @@ bool ClangImporter::canImportModule(ImportPath::Element moduleID,
     .getFilename(clangModule->DefinitionLoc);
   // Look for the .tbd file inside .framework dir to get the project version
   // number.
-  std::string fwName = (llvm::Twine(moduleID.Item.str()) + ".framework").str();
+  std::string fwName = (llvm::Twine(topModule.Item.str()) + ".framework").str();
   auto pos = path.find(fwName);
   while (pos != StringRef::npos) {
     llvm::SmallString<256> buffer(path.substr(0, pos + fwName.size()));
-    llvm::sys::path::append(buffer, llvm::Twine(moduleID.Item.str()) + ".tbd");
+    llvm::sys::path::append(buffer, llvm::Twine(topModule.Item.str()) + ".tbd");
     auto tbdPath = buffer.str();
     llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> tbdBufOrErr =
       llvm::MemoryBuffer::getFile(tbdPath);
@@ -1844,8 +1867,8 @@ bool ClangImporter::canImportModule(ImportPath::Element moduleID,
   }
   // Diagnose unable to checking the current version.
   if (currentVersion.empty()) {
-    Impl.diagnose(moduleID.Loc, diag::cannot_find_project_version, "Clang",
-                  moduleID.Item.str());
+    Impl.diagnose(topModule.Loc, diag::cannot_find_project_version, "Clang",
+                  topModule.Item.str());
     return true;
   }
   assert(!currentVersion.empty());

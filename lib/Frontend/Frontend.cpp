@@ -828,8 +828,10 @@ void CompilerInstance::verifyImplicitConcurrencyImport() {
 }
 
 bool CompilerInstance::canImportSwiftConcurrency() const {
-  return getASTContext().canImportModule(
-      {getASTContext().getIdentifier(SWIFT_CONCURRENCY_NAME), SourceLoc()});
+  ImportPath::Module::Builder builder(
+      getASTContext().getIdentifier(SWIFT_CONCURRENCY_NAME));
+  auto modulePath = builder.get();
+  return getASTContext().canImportModule(modulePath);
 }
 
 ImplicitImportInfo CompilerInstance::getImplicitImportInfo() const {

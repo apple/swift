@@ -57,7 +57,7 @@ public:
   ///
   /// Note that even if this check succeeds, errors may still occur if the
   /// module is loaded in full.
-  virtual bool canImportModule(ImportPath::Element named,
+  virtual bool canImportModule(ImportPath::Module named,
                                llvm::VersionTuple version,
                                bool underlyingVersion) override;
 

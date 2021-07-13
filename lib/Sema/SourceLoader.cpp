@@ -62,9 +62,14 @@ void SourceLoader::collectVisibleTopLevelModuleNames(
   // TODO: Implement?
 }
 
-bool SourceLoader::canImportModule(ImportPath::Element ID,
+bool SourceLoader::canImportModule(ImportPath::Module path,
                                    llvm::VersionTuple version,
                                    bool underlyingVersion) {
+  // FIXME: Swift submodules?
+  if (path.size() > 1)
+    return false;
+
+  auto ID = path[0];
   // Search the memory buffers to see if we can find this file on disk.
   FileOrError inputFileOrError = findModule(Ctx, ID.Item.str(),
                                             ID.Loc);

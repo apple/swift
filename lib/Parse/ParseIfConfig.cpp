@@ -152,6 +152,17 @@ class ValidateIfConfigCondition :
     return UDRE->getName().getBaseIdentifier().str();
   }
 
+  /// True for expressions represeting either top level modules
+  /// or nested submodules.
+  bool isModulePath(Expr *E) {
+    auto UDE = dyn_cast<UnresolvedDotExpr>(E);
+    if (!UDE)
+      return getDeclRefStr(E, DeclRefKind::Ordinary).hasValue();
+
+    return UDE->getFunctionRefKind() == FunctionRefKind::Unapplied &&
+           isModulePath(UDE->getBase());
+  }
+
   Expr *diagnoseUnsupportedExpr(Expr *E) {
     D.diagnose(E->getLoc(),
                diag::unsupported_conditional_compilation_expression_type);
@@ -308,7 +319,16 @@ public:
       return E;
     }
 
-    // ( 'os' | 'arch' | '_endian' | '_runtime' | 'canImport') '(' identifier ')''
+    if (*KindName == "canImport") {
+      if (!isModulePath(Arg)) {
+        D.diagnose(E->getLoc(), diag::unsupported_platform_condition_argument,
+                   "module name");
+        return nullptr;
+      }
+      return E;
+    }
+
+    // ( 'os' | 'arch' | '_endian' | '_runtime' ) '(' identifier ')''
     auto Kind = getPlatformConditionKind(*KindName);
     if (!Kind.hasValue()) {
       D.diagnose(E->getLoc(), diag::unsupported_platform_condition_expression);
@@ -504,8 +524,9 @@ public:
       if (auto *te = dyn_cast<TupleExpr>(E->getArg())) {
         version = getCanImportVersion(te, nullptr, underlyingModule);
       }
-      return Ctx.canImportModule({ Ctx.getIdentifier(Str) , E->getLoc() },
-                                 version, underlyingModule);
+      ImportPath::Module::Builder builder(Ctx, Str, /*separator=*/'.',
+                                          Arg->getStartLoc());
+      return Ctx.canImportModule(builder.get(), version, underlyingModule);
     }
 
     auto Val = getDeclRefStr(Arg);

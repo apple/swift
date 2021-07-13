@@ -1,0 +1,5 @@
+module A_Private {
+    explicit module BP {
+        explicit module CP { }
+    }
+}

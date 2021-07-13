@@ -1778,8 +1778,11 @@ std::error_code ExplicitSwiftModuleLoader::findModuleFilesInDirectory(
   return std::make_error_code(std::errc::not_supported);
 }
 
-bool ExplicitSwiftModuleLoader::canImportModule(
-    ImportPath::Element mID, llvm::VersionTuple version, bool underlyingVersion) {
+bool ExplicitSwiftModuleLoader::canImportModule(ImportPath::Module path,
+                                                llvm::VersionTuple version,
+                                                bool underlyingVersion) {
+  // FIXME: Swift submodules?
+  ImportPath::Element mID = path.front();
   StringRef moduleName = mID.Item.str();
   auto it = Impl.ExplicitModuleMap.find(moduleName);
   // If no provided explicit module matches the name, then it cannot be imported.

@@ -150,7 +150,7 @@ class ExplicitSwiftModuleLoader: public SerializedModuleLoaderBase {
                   std::unique_ptr<llvm::MemoryBuffer> *ModuleSourceInfoBuffer,
                   bool IsFramework) override;
 
-  bool canImportModule(ImportPath::Element mID, llvm::VersionTuple version,
+  bool canImportModule(ImportPath::Module named, llvm::VersionTuple version,
                        bool underlyingVersion) override;
 
   bool isCached(StringRef DepPath) override { return false; };

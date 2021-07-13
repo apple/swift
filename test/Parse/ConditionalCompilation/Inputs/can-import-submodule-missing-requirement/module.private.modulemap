@@ -1,0 +1,10 @@
+module A_Private {
+    explicit module BP {
+        explicit module CPMissingRequirement {
+            requires missing
+        }
+    }
+    explicit module BPMissingRequirement {
+        requires missing
+    }
+}
