@@ -166,7 +166,7 @@ public:
 
   /// Returns the initializer if the memory use is 'self' and appears in an
   /// actor's designated initializer. Otherwise, returns nullptr.
-  ConstructorDecl *isActorInitSelf() const;
+  ConstructorDecl *getActorInitSelf() const;
 
   /// True if this memory object is the 'self' of a derived class initializer.
   bool isDerivedClassSelf() const { return MemoryInst->isDerivedClassSelf(); }

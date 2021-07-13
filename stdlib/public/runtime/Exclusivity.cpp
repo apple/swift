@@ -202,6 +202,7 @@ public:
   }
 
   void remove(Access *access) {
+    assert(Head && "removal from empty AccessSet");
     auto cur = Head;
     // Fast path: stack discipline.
     if (cur == access) {

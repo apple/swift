@@ -432,7 +432,7 @@ bool DIMemoryObjectInfo::isElementLetProperty(unsigned Element) const {
   return false;
 }
 
-ConstructorDecl *DIMemoryObjectInfo::isActorInitSelf() const {
+ConstructorDecl *DIMemoryObjectInfo::getActorInitSelf() const {
   // is it 'self'?
   if (!MemoryInst->isVar())
     if (auto decl =
