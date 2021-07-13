@@ -300,6 +300,38 @@ def default_stdlib_deployment_targets(args):
         # All other machines only configure their host stdlib by default.
         return [host_target]
 
+def default_stage2_stdlib_deployment_targets(args):
+    """
+    Return targets for the stage2 Swift stdlib, based on the build machine.
+    If the build machine is not one of the recognized ones, return None.
+    """
+
+    host_target = StdlibDeploymentTarget.host_target()
+    if host_target is None:
+        return None
+
+    # OS X build machines configure all Darwin platforms by default.
+    # Put iOS native targets last so that we test them last
+    # (it takes a long time).
+    if host_target == StdlibDeploymentTarget.OSX.x86_64:
+        targets = [host_target]
+        if args.build_stage2_ios and args.build_stage2_ios_simulator:
+            targets.extend(StdlibDeploymentTarget.iOSSimulator.targets)
+        if args.build_stage2_ios and args.build_stage2_ios_device:
+            targets.extend(StdlibDeploymentTarget.iOS.targets)
+        if args.build_stage2_tvos and args.build_stage2_tvos_simulator:
+            targets.extend(StdlibDeploymentTarget.AppleTVSimulator.targets)
+        if args.build_stage2_tvos and args.build_stage2_tvos_device:
+            targets.extend(StdlibDeploymentTarget.AppleTV.targets)
+        if args.build_stage2_watchos and args.build_stage2_watchos_simulator:
+            targets.extend(StdlibDeploymentTarget
+                           .AppleWatchSimulator.targets)
+        if args.build_stage2_watchos and args.build_stage2_watchos_device:
+            targets.extend(StdlibDeploymentTarget.AppleWatch.targets)
+        return targets
+    else:
+        # All other machines only configure their host stdlib by default.
+        return [host_target]
 
 def apply_default_arguments(toolchain, args):
     # Infer if ninja is required
@@ -316,6 +348,11 @@ def apply_default_arguments(toolchain, args):
     if args.stdlib_deployment_targets is None:
         stdlib_targets = default_stdlib_deployment_targets(args)
         args.stdlib_deployment_targets = [
+            target.name for target in stdlib_targets]
+
+    if args.stage2_stdlib_deployment_targets is None:
+        stdlib_targets = default_stage2_stdlib_deployment_targets(args)
+        args.stage2_stdlib_deployment_targets = [
             target.name for target in stdlib_targets]
 
     # SwiftPM and XCTest have a dependency on Foundation.
@@ -398,6 +435,13 @@ def apply_default_arguments(toolchain, args):
     targets = StdlibDeploymentTarget.get_targets_by_name(
         args.stdlib_deployment_targets)
     args.stdlib_deployment_targets = [
+        target.name
+        for target in targets
+        if (not target.platform.is_darwin or
+            target.platform.sdk_supports_architecture(
+                target.arch, args.darwin_xcrun_toolchain))
+    ]
+    args.stage2_stdlib_deployment_targets = [
         target.name
         for target in targets
         if (not target.platform.is_darwin or
@@ -944,6 +988,8 @@ class BuildScriptInvocation(object):
             product_classes.append(products.SwiftInspect)
         if self.args.tsan_libdispatch_test:
             product_classes.append(products.TSanLibDispatch)
+        if self.args.build_stage2_swift:
+            product_classes.append(products.Stage2Swift)
 
         # Keep SwiftDriver at last.
         # swift-driver's integration with the build scripts is not fully

@@ -18,10 +18,12 @@ from .. import shell
 
 
 class CMakeProduct(product.Product):
-    def build_with_cmake(self, build_targets, build_type, build_args):
+    def build_with_cmake(self, build_targets, build_type, build_args,
+                         prefer_just_built_toolchain = False):
         assert self.toolchain.cmake is not None
         cmake_build = []
-        _cmake = cmake.CMake(self.args, self.toolchain)
+        _cmake = cmake.CMake(self.args, self.toolchain,
+                             prefer_just_built_toolchain)
 
         if self.toolchain.distcc_pump:
             cmake_build.append(self.toolchain.distcc_pump)
@@ -52,7 +54,7 @@ class CMakeProduct(product.Product):
 
             with shell.pushd(self.build_dir):
                 shell.call([self.toolchain.cmake] + list(self.cmake_options) +
-                           list(_cmake.common_options()) +
+                           list(_cmake.common_options(self)) +
                            self.args.extra_cmake_options + [self.source_dir],
                            env=env)
 

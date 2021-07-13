@@ -90,11 +90,15 @@ class CMakeOptions(object):
 
 class CMake(object):
 
-    def __init__(self, args, toolchain):
+    def __init__(self, args, toolchain, prefer_just_built_toolchain = False):
+        """If prefer_just_built_toolchain is set to True, we set the clang, clang++,
+        and Swift compilers from the installed toolchain.
+        """
         self.args = args
         self.toolchain = toolchain
+        self.prefer_just_built_toolchain = prefer_just_built_toolchain
 
-    def common_options(self):
+    def common_options(self, product=None):
         """Return options used for all products, including LLVM/Clang
         """
         args = self.args
@@ -135,8 +139,15 @@ class CMake(object):
         if args.cmake_cxx_launcher:
             define("CMAKE_CXX_COMPILER_LAUNCHER:PATH", args.cmake_cxx_launcher)
 
-        define("CMAKE_C_COMPILER:PATH", toolchain.cc)
-        define("CMAKE_CXX_COMPILER:PATH", toolchain.cxx)
+        if self.prefer_just_built_toolchain and product:
+            toolchain_path = product.install_toolchain_path(args.host_target)
+            define("CMAKE_C_COMPILER:PATH", os.path.join(toolchain_path, 'bin', 'clang'))
+            define("CMAKE_CXX_COMPILER:PATH", os.path.join(toolchain_path, 'bin', 'clang++'))
+            define("CMAKE_Swift_COMPILER:PATH", os.path.join(toolchain_path, 'bin', 'swiftc'))
+        else:
+            define("CMAKE_C_COMPILER:PATH", toolchain.cc)
+            define("CMAKE_CXX_COMPILER:PATH", toolchain.cxx)
+            define("CMAKE_Swift_COMPILER:PATH", toolchain.swiftc)
         define("CMAKE_LIBTOOL:PATH", toolchain.libtool)
         define("CMAKE_AR:PATH", toolchain.ar)
 

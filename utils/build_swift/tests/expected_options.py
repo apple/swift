@@ -264,6 +264,7 @@ EXPECTED_DEFAULTS = {
     'watchos': False,
     'watchos_all': False,
     'llvm_install_components': defaults.llvm_install_components(),
+    'swift_install_components': defaults.swift_install_components(),
 }
 
 
@@ -594,6 +595,27 @@ EXPECTED_OPTIONS = [
                   dest='build_watchos_device'),
     DisableOption('--skip-build-watchos-simulator',
                   dest='build_watchos_simulator'),
+
+    DisableOption('--skip-build-stage2-android', dest='build_stage2_android'),
+    DisableOption('--skip-build-stage2-benchmarks', dest='build_stage2_benchmarks'),
+    DisableOption('--skip-build-stage2-cygwin', dest='build_stage2_cygwin'),
+    DisableOption('--skip-build-stage2-freebsd', dest='build_stage2_freebsd'),
+    DisableOption('--skip-build-stage2-ios', dest='build_stage2_ios'),
+    DisableOption('--skip-build-stage2-ios-device', dest='build_stage2_ios_device'),
+    DisableOption('--skip-build-stage2-ios-simulator',
+                  dest='build_stage2_ios_simulator'),
+    DisableOption('--skip-build-stage2-linux', dest='build_stage2_linux'),
+    DisableOption('--skip-build-stage2-osx', dest='build_stage2_osx'),
+    DisableOption('--skip-build-stage2-tvos', dest='build_stage2_tvos'),
+    DisableOption('--skip-build-stage2-tvos-device', dest='build_stage2_tvos_device'),
+    DisableOption('--skip-build-stage2-tvos-simulator',
+                  dest='build_stage2_tvos_simulator'),
+    DisableOption('--skip-build-stage2-watchos', dest='build_stage2_watchos'),
+    DisableOption('--skip-build-stage2-watchos-device',
+                  dest='build_stage2_watchos_device'),
+    DisableOption('--skip-build-stage2-watchos-simulator',
+                  dest='build_stage2_watchos_simulator'),
+
     DisableOption('--skip-clean-llbuild', dest='clean_llbuild'),
     DisableOption('--skip-early-swift-driver', dest='build_early_swift_driver'),
     DisableOption('--skip-clean-swiftpm', dest='clean_swiftpm'),

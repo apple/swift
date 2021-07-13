@@ -129,7 +129,6 @@ def llvm_install_components():
         components.extend(['lld'])
     return ';'.join(components)
 
-
 # Options that can only be "configured" by editing this file.
 #
 # These options are not exposed as command line options on purpose.  If you
