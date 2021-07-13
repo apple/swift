@@ -15,16 +15,40 @@
 //===----------------------------------------------------------------------===//
 // Standardized uninhabited type
 //===----------------------------------------------------------------------===//
-/// The return type of functions that do not return normally, that is, a type
-/// with no values.
+/// The return type of nonreturning functions.
+///
+/// Nonreturning functions and methods either cause an irrecoverable error
+/// or begin a sequence of work that continues indefinitely. This means that
+/// code that would otherwise run immediately after the call is never 
+/// executed.
+///
+///     // An infinite loop will never terminate.
+///     func forever() -> Never {
+///         while true {
+///             print("I will print forever and will not return.")
+///         }
+///     }
+///
+///     // Calling `fatalError` terminates the program.
+///     func crashAndBurn() -> Never {
+///         fatalError("Something very, very bad happened")
+///     }
+///
+/// As `Never` is a type with no values, it cannot be constructed. This allows
+/// you to represent a state in your program that is impossible to reach
+/// during its execution.
+///
+///     // The `.failure` case cannot be reached because it cannot be 
+///     // constructed; this makes the following switch exhaustive.
+///     let favoriteNumber: Result<Int, Never> = .success(42)
+///     switch favoriteNumber {
+///     case .success(let value):
+///         print("My favorite number is", value)
+///     }
 ///
 /// Use `Never` as the return type when declaring a closure, function, or
 /// method that unconditionally throws an error, traps, or otherwise does
 /// not terminate.
-///
-///     func crashAndBurn() -> Never {
-///         fatalError("Something very, very bad happened")
-///     }
 @frozen
 public enum Never {}
 
