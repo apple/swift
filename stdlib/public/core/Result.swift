@@ -170,6 +170,19 @@ public enum Result<Success, Failure: Error> {
       throw failure
     }
   }
+
+  @inlinable
+  @_alwaysEmitIntoClient
+  public var value: Success {
+    get throws {
+      switch self {
+      case let .success(success):
+        return success
+      case let .failure(failure):
+        throw failure
+      }
+    }
+  }
 }
 
 extension Result where Failure == Swift.Error {

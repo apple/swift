@@ -81,20 +81,36 @@ ResultTests.test("Throwing Initialization and Unwrapping") {
   } catch {
     expectUnreachable()
   }
-    
+
   do {
     let unwrapped = try result2.get()
     expectEqual(unwrapped, string)
   } catch {
     expectUnreachable()
   }
-    
+
   // Test unwrapping strongly typed error.
   let result3 = Result<String, Err>.failure(Err.err)
   do {
     _ = try result3.get()
   } catch let error as Err {
     expectEqual(error, Err.err)
+  } catch {
+    expectUnreachable()
+  }
+
+  // Test throwing value property
+  do {
+    _ = try result1.value
+  } catch let error as Err {
+    expectEqual(error, Err.err)
+  } catch {
+    expectUnreachable()
+  }
+
+  do {
+    let unwrapped = try result2.value
+    expectEqual(unwrapped, string)
   } catch {
     expectUnreachable()
   }
