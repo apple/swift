@@ -72,8 +72,16 @@ module SwiftGlibc [system] {
       header "${GLIBC_INCLUDE_PATH}/string.h"
       export *
     }
+    module sysexits {
+      header "${GLIBC_INCLUDE_PATH}/sysexits.h"
+      export *
+    }
     module time {
       header "${GLIBC_INCLUDE_PATH}/time.h"
+      export *
+    }
+    module util {
+      header "${GLIBC_INCLUDE_PATH}/util.h"
       export *
     }
   }
@@ -239,6 +247,10 @@ module SwiftGlibc [system] {
       }
       module mman {
         header "${GLIBC_ARCH_INCLUDE_PATH}/sys/mman.h"
+        export *
+      }
+      module mount {
+        header "${GLIBC_ARCH_INCLUDE_PATH}/sys/mount.h"
         export *
       }
       module msg {

@@ -682,4 +682,202 @@ public enum POSIXErrorCode : Int32 {
     case STRUNCATE      = 80
 }
 
+#elseif os(OpenBSD)
+
+/// Enumeration describing POSIX error codes.
+public enum POSIXErrorCode : Int32 {
+    /// Operation not permitted
+    case EPERM			= 1
+    /// No such file or directory
+    case ENOENT			= 2
+    /// No such process
+    case ESRCH			= 3
+    /// Interrupted system call
+    case EINTR			= 4
+    /// Input/output error
+    case EIO			= 5
+    /// Device not configured
+    case ENXIO			= 6
+    /// Argument list too long
+    case E2BIG			= 7
+    /// Exec format error
+    case ENOEXEC		= 8
+    /// Bad file descriptor
+    case EBADF			= 9
+    /// No child processes
+    case ECHILD			= 10
+    /// Resource deadlock avoided
+    case EDEADLK		= 11
+    /// Cannot allocate memory
+    case ENOMEM			= 12
+    /// Permission denied
+    case EACCES			= 13
+    /// Bad address
+    case EFAULT			= 14
+    /// Block device required
+    case ENOTBLK		= 15
+    /// Device busy
+    case EBUSY			= 16
+    /// File exists
+    case EEXIST			= 17
+    /// Cross-device link
+    case EXDEV			= 18
+    /// Operation not supported by device
+    case ENODEV			= 19
+    /// Not a directory
+    case ENOTDIR		= 20
+    /// Is a directory
+    case EISDIR			= 21
+    /// Invalid argument
+    case EINVAL			= 22
+    /// Too many open files in system
+    case ENFILE			= 23
+    /// Too many open files
+    case EMFILE			= 24
+    /// Inappropriate ioctl for device
+    case ENOTTY			= 25
+    /// Text file busy
+    case ETXTBSY		= 26
+    /// File too large
+    case EFBIG			= 27
+    /// No space left on device
+    case ENOSPC			= 28
+    /// Illegal seek
+    case ESPIPE			= 29
+    /// Read-only file system
+    case EROFS			= 30
+    /// Too many links
+    case EMLINK			= 31
+    /// Broken pipe
+    case EPIPE			= 32
+    /// Numerical argument out of domain
+    case EDOM			= 33
+    /// Result too large
+    case ERANGE			= 34
+    /// Resource temporarily unavailable
+    case EAGAIN			= 35
+    /// Operation would block
+    public static var EWOULDBLOCK: POSIXErrorCode { return .EAGAIN }
+    /// Operation now in progress
+    case EINPROGRESS		= 36
+    /// Operation already in progress
+    case EALREADY		= 37
+    /// Socket operation on non-socket
+    case ENOTSOCK		= 38
+    /// Destination address required
+    case EDESTADDRREQ		= 39
+    /// Message too long
+    case EMSGSIZE		= 40
+    /// Protocol wrong type for socket
+    case EPROTOTYPE		= 41
+    /// Protocol not available
+    case ENOPROTOOPT		= 42
+    /// Protocol not supported
+    case EPROTONOSUPPORT	= 43
+    /// Socket type not supported
+    case ESOCKTNOSUPPORT	= 44
+    /// Operation not supported
+    case EOPNOTSUPP		= 45
+    /// Protocol family not supported
+    case EPFNOSUPPORT		= 46
+    /// Address family not supported by protocol family
+    case EAFNOSUPPORT		= 47
+    /// Address already in use
+    case EADDRINUSE		= 48
+    /// Can't assign requested address
+    case EADDRNOTAVAIL		= 49
+    /// Network is down
+    case ENETDOWN		= 50
+    /// Network is unreachable
+    case ENETUNREACH		= 51
+    /// Network dropped connection on reset
+    case ENETRESET		= 52
+    /// Software caused connection abort
+    case ECONNABORTED		= 53
+    /// Connection reset by peer
+    case ECONNRESET		= 54
+    /// No buffer space available
+    case ENOBUFS		= 55
+    /// Socket is already connected
+    case EISCONN		= 56
+    /// Socket is not connected
+    case ENOTCONN		= 57
+    /// Can't send after socket shutdown
+    case ESHUTDOWN		= 58
+    /// Too many references: can't splice
+    case ETOOMANYREFS		= 59
+    /// Operation timed out
+    case ETIMEDOUT		= 60
+    /// Connection refused
+    case ECONNREFUSED		= 61
+    /// Too many levels of symbolic links
+    case ELOOP			= 62
+    /// File name too long
+    case ENAMETOOLONG		= 63
+    /// Host is down
+    case EHOSTDOWN		= 64
+    /// No route to host
+    case EHOSTUNREACH		= 65
+    /// Directory not empty
+    case ENOTEMPTY		= 66
+    /// Too many processes
+    case EPROCLIM		= 67
+    /// Too many users
+    case EUSERS			= 68
+    /// Disk quota exceeded
+    case EDQUOT			= 69
+    /// Stale NFS file handle
+    case ESTALE			= 70
+    /// Too many levels of remote in path
+    case EREMOTE		= 71
+    /// RPC struct is bad
+    case EBADRPC		= 72
+    /// RPC version wrong
+    case ERPCMISMATCH		= 73
+    /// RPC program not available
+    case EPROGUNAVAIL		= 74
+    /// Program version wrong
+    case EPROGMISMATCH		= 75
+    /// Bad procedure for program
+    case EPROCUNAVAIL		= 76
+    /// No locks available
+    case ENOLCK			= 77
+    /// Function not implemented
+    case ENOSYS			= 78
+    /// Inappropriate file type or format
+    case EFTYPE			= 79
+    /// Authentication error
+    case EAUTH			= 80
+    /// Need authenticator
+    case ENEEDAUTH		= 81
+    /// IPsec processing failure
+    case EIPSEC			= 82
+    /// Attribute not found
+    case ENOATTR		= 83
+    /// Illegal byte sequence
+    case EILSEQ			= 84
+    /// No medium found
+    case ENOMEDIUM		= 85
+    /// Wrong medium type
+    case EMEDIUMTYPE		= 86
+    /// Value too large to be stored in data type
+    case EOVERFLOW		= 87
+    /// Operation canceled
+    case ECANCELED		= 88
+    /// Identifier removed
+    case EIDRM			= 89
+    /// No message of desired type
+    case ENOMSG			= 90
+    /// Not supported
+    case ENOTSUP		= 91
+    /// Bad message
+    case EBADMSG		= 92
+    /// State not recoverable
+    case ENOTRECOVERABLE	= 93
+    /// Previous owner died
+    case EOWNERDEAD		= 94
+    /// Protocol error
+    case EPROTO			= 95
+}
+
 #endif
