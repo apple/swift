@@ -173,18 +173,6 @@ public:
     Decls->push_back(d);
   }
 
-  /// Prepends a declaration to the top-level decls list.
-  ///
-  /// FIXME: This entrypoint exists to support LLDB. Calls to this function are
-  /// always a mistake, and additional uses should not be added.
-  ///
-  /// See rdar://58355191
-  void prependTopLevelDecl(Decl *d) {
-    // Force decl parsing if we haven't already.
-    (void)getTopLevelDecls();
-    Decls->insert(Decls->begin(), d);
-  }
-
   /// Add a hoisted declaration. See Decl::isHoisted().
   void addHoistedDecl(Decl *d);
 

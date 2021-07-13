@@ -28,7 +28,7 @@ class SynthesizedFileUnit final : public FileUnit {
   SourceFile &SF;
 
   /// Synthesized top level declarations.
-  TinyPtrVector<ValueDecl *> TopLevelDecls;
+  llvm::SmallVector<Decl *, 4> TopLevelDecls;
 
   /// A unique identifier representing this file; used to mark private decls
   /// within the file to keep them from conflicting with other files in the
@@ -42,8 +42,18 @@ public:
   /// Returns the parent source file.
   SourceFile &getSourceFile() const { return SF; }
 
+  /// Prepends a declaration to the top-level decls list.
+  ///
+  /// FIXME: This entrypoint exists to support LLDB. Calls to this function are
+  /// always a mistake, and additional uses should not be added.
+  ///
+  /// See rdar://58355191
+  void prependTopLevelDecl(Decl *d) {
+    TopLevelDecls.insert(TopLevelDecls.begin(), d);
+  }
+
   /// Add a synthesized top-level declaration.
-  void addTopLevelDecl(ValueDecl *D) { TopLevelDecls.push_back(D); }
+  void addTopLevelDecl(Decl *D) { TopLevelDecls.push_back(D); }
 
   virtual void lookupValue(DeclName name, NLKind lookupKind,
                            SmallVectorImpl<ValueDecl *> &result) const override;
@@ -56,7 +66,7 @@ public:
 
   void getTopLevelDecls(SmallVectorImpl<Decl*> &results) const override;
 
-  ArrayRef<ValueDecl *> getTopLevelDecls() const {
+  ArrayRef<Decl *> getTopLevelDecls() const {
     return TopLevelDecls;
   };
 

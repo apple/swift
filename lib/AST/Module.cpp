@@ -2784,8 +2784,9 @@ void SynthesizedFileUnit::lookupValue(
     DeclName name, NLKind lookupKind,
     SmallVectorImpl<ValueDecl *> &result) const {
   for (auto *decl : TopLevelDecls) {
-    if (decl->getName().matchesRef(name))
-      result.push_back(decl);
+    if (auto *VD = dyn_cast<ValueDecl>(decl))
+      if (VD->getName().matchesRef(name))
+        result.push_back(VD);
   }
 }
 
