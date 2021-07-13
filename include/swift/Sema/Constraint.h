@@ -272,6 +272,10 @@ enum class ConversionRestrictionKind {
   /// Implicit conversion from a value of CGFloat type to a value of Double type
   /// via an implicit Double initializer call passing a CGFloat value.
   CGFloatToDouble,
+  /// Implicit conversion between Swift and C pointers:
+  //    - Unsafe[Mutable]RawPointer -> Unsafe[Mutable]Pointer<[U]Int>
+  //    - Unsafe[Mutable]Pointer<Int{8, 16, ...}> <-> Unsafe[Mutable]Pointer<UInt{8, 16, ...}>
+  PointerToCPointer,
 };
 
 /// Specifies whether a given conversion requires the creation of a temporary

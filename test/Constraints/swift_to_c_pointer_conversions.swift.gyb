@@ -1,0 +1,238 @@
+// %target-swift-frontend(mock-sdk: %clang-importer-sdk-nosource -I %t) -import-objc-header %S/Inputs/overloaded_async_method.h %s -typecheck -verify
+
+// RUN: %empty-directory(%t)
+
+// RUN: %gyb %s -o %t/swift_to_c_pointer_conversions.swift
+
+// RUN: %line-directive %t/swift_to_c_pointer_conversions.swift -- %target-swift-frontend(mock-sdk: %clang-importer-sdk-nosource -I %t) -import-objc-header %S/Inputs/c_pointer_conversions.h %t/swift_to_c_pointer_conversions.swift -typecheck -verify
+
+// REQUIRES: OS=macosx
+
+func test_raw_ptr(ptr: UnsafeRawPointer) {
+  char_ptr_func(ptr) // expected-error {{}}
+  unsigned_char_ptr_func(ptr) // expected-error {{}}
+
+  const_char_ptr_func(ptr) // Ok
+  const_unsigned_char_ptr_func(ptr) // Ok
+
+  % for Size in ['16', '32', '64']:
+    int_${Size}_ptr_func(ptr) // expected-error {{}}
+    uint_${Size}_ptr_func(ptr) // expected-error {{}}
+
+    const_int_${Size}_ptr_func(ptr) // expected-error {{}}
+    const_uint_${Size}_ptr_func(ptr) // expected-error {{}}
+  % end
+}
+
+func test_mutable_raw_pointer(ptr: UnsafeMutableRawPointer) {
+  char_ptr_func(ptr) // Ok
+  unsigned_char_ptr_func(ptr) // Ok
+
+  const_char_ptr_func(ptr) // Ok
+  const_unsigned_char_ptr_func(ptr) // Ok
+
+  % for Size in ['16', '32', '64']:
+    int_${Size}_ptr_func(ptr) // expected-error {{}}
+    uint_${Size}_ptr_func(ptr) // expected-error {{}}
+
+    const_int_${Size}_ptr_func(ptr) // expected-error {{}}
+    const_uint_${Size}_ptr_func(ptr) // expected-error {{}}
+  % end
+}
+
+%for TestPtrSize in ['16', '32', '64']:
+// Immutable pointers can be converted only to their immutable (regardless of sign) counterparts.
+func test_${TestPtrSize}_bit_ptrs(sptr: UnsafePointer<Int${TestPtrSize}>,
+                                  uptr: UnsafePointer<UInt${TestPtrSize}>,
+                                 osptr: UnsafePointer<Int${TestPtrSize}>?,
+                                 ouptr: UnsafePointer<UInt${TestPtrSize}>?) {
+  % for pointer in ['sptr', 'uptr']:
+    char_ptr_func(${pointer}) // expected-error {{}}
+    opt_char_ptr_func(${pointer}) // expected-error {{}}
+
+    const_char_ptr_func(${pointer}) // Ok
+    const_opt_char_ptr_func(${pointer}) // Ok
+
+    unsigned_char_ptr_func(${pointer}) // expected-error {{}}
+    unsigned_opt_char_ptr_func(${pointer}) // expected-error {{}}
+
+    const_unsigned_char_ptr_func(${pointer}) // Ok
+    const_opt_unsigned_char_ptr_func(${pointer}) // Ok
+  % end
+
+  % for pointer in ['osptr', 'ouptr']:
+    opt_char_ptr_func(${pointer}) // expected-error {{}}
+    const_opt_char_ptr_func(${pointer}) // Ok
+    unsigned_opt_char_ptr_func(${pointer}) // expected-error {{}}
+    const_opt_unsigned_char_ptr_func(${pointer}) // Ok
+  % end
+
+% for pointer in ['sptr', 'uptr']:
+  % for Size in ['16', '32', '64']:
+
+    % if Size == TestPtrSize:
+      int_${TestPtrSize}_ptr_func(${pointer}) // expected-error {{}}
+      uint_${TestPtrSize}_ptr_func(${pointer}) // expected-error {{}}
+      opt_int_${TestPtrSize}_ptr_func(${pointer}) // expected-error {{}}
+      opt_uint_${TestPtrSize}_ptr_func(${pointer}) // expected-error {{}}
+
+      const_int_${TestPtrSize}_ptr_func(${pointer}) // Ok
+      const_uint_${TestPtrSize}_ptr_func(${pointer}) // Ok
+      const_opt_int_${TestPtrSize}_ptr_func(${pointer}) // Ok
+      const_opt_uint_${TestPtrSize}_ptr_func(${pointer}) // Ok
+    % else:
+      int_${Size}_ptr_func(${pointer}) // expected-error {{}}
+      uint_${Size}_ptr_func(${pointer}) // expected-error {{}}
+      opt_int_${Size}_ptr_func(${pointer}) // expected-error {{}}
+      opt_uint_${Size}_ptr_func(${pointer}) // expected-error {{}}
+
+      const_int_${Size}_ptr_func(${pointer}) // expected-error {{}} expected-note {{}}
+      const_uint_${Size}_ptr_func(${pointer}) // expected-error {{}} expected-note {{}}
+      const_opt_int_${Size}_ptr_func(${pointer}) // expected-error {{}} expected-note {{}}
+      const_opt_uint_${Size}_ptr_func(${pointer}) // expected-error {{}} expected-note {{}}
+    % end
+  % end
+% end
+
+
+  % for pointer in ['osptr', 'ouptr']:
+    % for Size in ['16', '32', '64']:
+      % if Size == TestPtrSize:
+        opt_int_${TestPtrSize}_ptr_func(${pointer}) // expected-error {{}}
+        opt_uint_${TestPtrSize}_ptr_func(${pointer}) // expected-error {{}}
+        const_opt_int_${TestPtrSize}_ptr_func(${pointer}) // Ok
+        const_opt_uint_${TestPtrSize}_ptr_func(${pointer}) // Ok
+      % else:
+        opt_int_${Size}_ptr_func(${pointer}) // expected-error {{}}
+        opt_uint_${Size}_ptr_func(${pointer}) // expected-error {{}}
+        const_opt_int_${Size}_ptr_func(${pointer}) // expected-error {{}} expected-note {{}}
+        const_opt_uint_${Size}_ptr_func(${pointer}) // expected-error {{}} expected-note {{}}
+      % end
+    % end
+  % end
+}
+
+% end
+
+%for TestPtrSize in ['16', '32', '64']:
+// Mutable pointers can be converted to both immutable and mutable pointers when
+// passed to C/ObjC imported functions.
+func test_mutable_${TestPtrSize}_bit_ptrs(sptr: UnsafeMutablePointer<Int${TestPtrSize}>,
+                                          uptr: UnsafeMutablePointer<UInt${TestPtrSize}>,
+                                         osptr: UnsafeMutablePointer<Int${TestPtrSize}>?,
+                                         ouptr: UnsafeMutablePointer<UInt${TestPtrSize}>?) {
+  % for pointer in ['sptr', 'uptr']:
+    char_ptr_func(${pointer}) // Ok
+    opt_char_ptr_func(${pointer}) // Ok
+
+    const_char_ptr_func(${pointer}) // Ok
+    const_opt_char_ptr_func(${pointer}) // Ok
+
+    unsigned_char_ptr_func(${pointer}) // Ok
+    opt_unsigned_char_ptr_func(${pointer}) // Ok
+
+    const_unsigned_char_ptr_func(${pointer}) // Ok
+    const_opt_unsigned_char_ptr_func(${pointer}) // Ok
+  % end
+
+  % for pointer in ['osptr', 'ouptr']:
+    opt_char_ptr_func(${pointer}) // Ok
+    const_opt_char_ptr_func(${pointer}) // Ok
+    opt_unsigned_char_ptr_func(${pointer}) // Ok
+    const_opt_unsigned_char_ptr_func(${pointer}) // Ok
+  % end
+
+% for pointer in ['sptr', 'uptr']:
+  % for Size in ['16', '32', '64']:
+
+    % if Size == TestPtrSize:
+      int_${TestPtrSize}_ptr_func(${pointer}) // Ok
+      uint_${TestPtrSize}_ptr_func(${pointer}) // Ok
+      opt_int_${TestPtrSize}_ptr_func(${pointer}) // Ok
+      opt_uint_${TestPtrSize}_ptr_func(${pointer}) // Ok
+
+      const_int_${TestPtrSize}_ptr_func(${pointer}) // Ok
+      const_uint_${TestPtrSize}_ptr_func(${pointer}) // Ok
+      const_opt_int_${TestPtrSize}_ptr_func(${pointer}) // Ok
+      const_opt_uint_${TestPtrSize}_ptr_func(${pointer}) // Ok
+    % else:
+      int_${Size}_ptr_func(${pointer}) // expected-error {{}} expected-note {{}}
+      uint_${Size}_ptr_func(${pointer}) // expected-error {{}} expected-note {{}}
+      opt_int_${Size}_ptr_func(${pointer}) // expected-error {{}} expected-note {{}}
+      opt_uint_${Size}_ptr_func(${pointer}) // expected-error {{}} expected-note {{}}
+
+      const_int_${Size}_ptr_func(${pointer}) // expected-error {{}} expected-note {{}}
+      const_uint_${Size}_ptr_func(${pointer}) // expected-error {{}} expected-note {{}}
+      const_opt_int_${Size}_ptr_func(${pointer}) // expected-error {{}} expected-note {{}}
+      const_opt_uint_${Size}_ptr_func(${pointer}) // expected-error {{}} expected-note {{}}
+    % end
+  % end
+  % end
+
+  % for pointer in ['osptr', 'ouptr']:
+    % for Size in ['16', '32', '64']:
+      % if Size == TestPtrSize:
+        opt_int_${TestPtrSize}_ptr_func(${pointer}) // Ok
+        opt_uint_${TestPtrSize}_ptr_func(${pointer}) // Ok
+        const_opt_int_${TestPtrSize}_ptr_func(${pointer}) // Ok
+        const_opt_uint_${TestPtrSize}_ptr_func(${pointer}) // Ok
+      % else:
+        opt_int_${Size}_ptr_func(${pointer}) // expected-error {{}} expected-note {{}}
+        opt_uint_${Size}_ptr_func(${pointer}) // expected-error {{}} expected-note {{}}
+        const_opt_int_${Size}_ptr_func(${pointer}) // expected-error {{}} expected-note {{}}
+        const_opt_uint_${Size}_ptr_func(${pointer}) // expected-error {{}} expected-note {{}}
+     % end
+    % end
+  % end
+}
+
+% end
+
+func test_raw_ptr_value_to_optional_promotion(
+  riptr: UnsafeRawPointer,
+  rmptr: UnsafeMutableRawPointer) {
+  opt_char_ptr_func(riptr) // expected-error {{}}
+  const_opt_char_ptr_func(riptr) // Ok
+
+  opt_char_ptr_func(rmptr) // Ok
+  const_opt_char_ptr_func(rmptr) // Ok
+
+  opt_unsigned_char_ptr_func(riptr) // expected-error {{}}
+  const_opt_unsigned_char_ptr_func(riptr) // Ok
+
+  opt_unsigned_char_ptr_func(rmptr) // Ok
+  const_opt_unsigned_char_ptr_func(rmptr) // Ok
+
+  % for Ptr in ['riptr', 'rmptr']:
+    % for Size in ['16', '32', '64']:
+      opt_int_${Size}_ptr_func(${Ptr}) // expected-error {{}}
+      opt_uint_${Size}_ptr_func(${Ptr}) // expected-error {{}}
+
+      const_opt_int_${Size}_ptr_func(${Ptr}) // expected-error {{}}
+      const_opt_uint_${Size}_ptr_func(${Ptr}) // expected-error {{}}
+    % end
+  % end
+}
+
+func test_raw_ptr_optional_to_optional_conversion(
+  riptr: UnsafeRawPointer?,
+  rmptr: UnsafeMutableRawPointer?) {
+  opt_char_ptr_func(riptr) // expected-error {{}}
+  const_opt_char_ptr_func(riptr) // Ok
+
+  opt_char_ptr_func(rmptr) // Ok
+  const_opt_char_ptr_func(rmptr) // Ok
+
+  opt_unsigned_char_ptr_func(rmptr) // Ok
+  const_opt_unsigned_char_ptr_func(rmptr) // Ok
+
+  % for Ptr in ['riptr', 'rmptr']:
+    % for Size in ['16', '32', '64']:
+      opt_int_${Size}_ptr_func(${Ptr}) // expected-error {{}}
+      opt_uint_${Size}_ptr_func(${Ptr}) // expected-error {{}}
+
+      const_opt_int_${Size}_ptr_func(${Ptr}) // expected-error {{}}
+      const_opt_uint_${Size}_ptr_func(${Ptr}) // expected-error {{}}
+    % end
+  % end
+}

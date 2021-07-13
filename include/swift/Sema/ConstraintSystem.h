@@ -5025,6 +5025,10 @@ public:
   /// entire call and index `0`.
   Optional<std::pair<Expr *, unsigned>> isArgumentExpr(Expr *expr);
 
+  /// Determine whether given locator represents an argument to declaration
+  /// imported from C/ObjectiveC.
+  bool isArgumentOfImportedDecl(ConstraintLocatorBuilder locator);
+
   SWIFT_DEBUG_DUMP;
   SWIFT_DEBUG_DUMPER(dump(Expr *));
 

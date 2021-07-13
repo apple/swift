@@ -5813,6 +5813,43 @@ ConstraintSystem::matchTypes(Type type1, Type type2, ConstraintKind kind,
                                    ConversionRestrictionKind::PointerToPointer);
               }
             }
+
+            // If both sides are non-optional pointers let's check whether
+            // this argument supports Swift -> C pointer conversions.
+            //
+            // Do some light verification before recording restriction to
+            // avoid allocating constraints for obviously invalid cases.
+            if (type1IsPointer && optionalityMatches &&
+                isArgumentOfImportedDecl(locator)) {
+              // UnsafeRawPointer -> UnsafePointer<[U]Int8>
+              if (type1PointerKind == PTK_UnsafeRawPointer &&
+                  pointerKind == PTK_UnsafePointer) {
+                conversionsOrFixes.push_back(
+                    ConversionRestrictionKind::PointerToCPointer);
+              }
+
+              // UnsafeMutableRawPointer -> Unsafe[Mutable]Pointer<[U]Int8>
+              if (type1PointerKind == PTK_UnsafeMutableRawPointer &&
+                  (pointerKind == PTK_UnsafePointer ||
+                   pointerKind == PTK_UnsafeMutablePointer)) {
+                conversionsOrFixes.push_back(
+                    ConversionRestrictionKind::PointerToCPointer);
+              }
+
+              // Unsafe[Mutable]Ponter -> Unsafe[Mutable]Pointer
+              if (type1PointerKind == PTK_UnsafePointer &&
+                  pointerKind == PTK_UnsafePointer) {
+                conversionsOrFixes.push_back(
+                    ConversionRestrictionKind::PointerToCPointer);
+              }
+
+              if (type1PointerKind == PTK_UnsafeMutablePointer &&
+                  (pointerKind == PTK_UnsafePointer ||
+                   pointerKind == PTK_UnsafeMutablePointer)) {
+                conversionsOrFixes.push_back(
+                    ConversionRestrictionKind::PointerToCPointer);
+              }
+            }
           }
           break;
 
@@ -11019,7 +11056,85 @@ ConstraintSystem::simplifyRestrictedConstraintImpl(
 
     return matchPointerBaseTypes(ptr1, ptr2);
   }
-    
+
+  case ConversionRestrictionKind::PointerToCPointer: {
+    auto &ctx = getASTContext();
+
+    PointerTypeKind swiftPtrKind, cPtrKind;
+
+    auto swiftPtr =
+        type1->lookThroughAllOptionalTypes()->getAnyPointerElementType(
+            swiftPtrKind);
+
+    auto cPtr = type2->lookThroughAllOptionalTypes()->getAnyPointerElementType(
+        cPtrKind);
+
+    // Unsafe[Mutable]RawPointer -> Unsafe[Mutable]Pointer<[U]Int8>
+    if (swiftPtrKind == PTK_UnsafeRawPointer ||
+        swiftPtrKind == PTK_UnsafeMutableRawPointer) {
+      // Since it's a C pointer on parameter side it would always
+      // be fully resolved.
+      if (cPtr->isInt8() || cPtr->isUInt8())
+        return SolutionKind::Solved;
+    } else {
+      // Unsafe[Mutable]Pointer<T> -> Unsafe[Mutable]Pointer<[U]Int8>
+      if (cPtr->isInt8() || cPtr->isUInt8()) {
+        // <T> can default to the type of C pointer.
+        addConstraint(
+            ConstraintKind::Defaultable, swiftPtr, cPtr,
+            locator.withPathElement(LocatorPathElt::GenericArgument(0)));
+        return SolutionKind::Solved;
+      }
+
+      auto elementLoc =
+          locator.withPathElement(LocatorPathElt::GenericArgument(0));
+
+      // Unsafe[Mutable]Pointer<Int{8, 16, ...}> <->
+      // Unsafe[Mutable]Pointer<UInt{8, 16, ...}>
+
+      if (swiftPtr->isInt() || swiftPtr->isUInt()) {
+        addConstraint(ConstraintKind::Equal, cPtr,
+                      swiftPtr->isUInt() ? ctx.getIntType() : ctx.getUIntType(),
+                      elementLoc);
+        return SolutionKind::Solved;
+      }
+
+      if (swiftPtr->isInt8() || swiftPtr->isUInt8()) {
+        addConstraint(ConstraintKind::Equal, cPtr,
+                      swiftPtr->isUInt8() ? ctx.getInt8Type()
+                                          : ctx.getUInt8Type(),
+                      elementLoc);
+        return SolutionKind::Solved;
+      }
+
+      if (swiftPtr->isInt16() || swiftPtr->isUInt16()) {
+        addConstraint(ConstraintKind::Equal, cPtr,
+                      swiftPtr->isUInt16() ? ctx.getInt16Type()
+                                           : ctx.getUInt16Type(),
+                      elementLoc);
+        return SolutionKind::Solved;
+      }
+
+      if (swiftPtr->isInt32() || swiftPtr->isUInt32()) {
+        addConstraint(ConstraintKind::Equal, cPtr,
+                      swiftPtr->isUInt32() ? ctx.getInt32Type()
+                                           : ctx.getUInt32Type(),
+                      elementLoc);
+        return SolutionKind::Solved;
+      }
+
+      if (swiftPtr->isInt64() || swiftPtr->isUInt64()) {
+        addConstraint(ConstraintKind::Equal, cPtr,
+                      swiftPtr->isUInt64() ? ctx.getInt64Type()
+                                           : ctx.getUInt64Type(),
+                      elementLoc);
+        return SolutionKind::Solved;
+      }
+    }
+
+    return SolutionKind::Error;
+  }
+
   // T < U or T is bridged to V where V < U ===> Array<T> <c Array<U>
   case ConversionRestrictionKind::ArrayUpcast: {
     Type baseType1 = *isArrayType(type1);
