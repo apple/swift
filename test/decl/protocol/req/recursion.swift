@@ -49,12 +49,13 @@ public struct S<A: P> where A.T == S<A> { // expected-error {{circular reference
 // expected-note@-3 {{while resolving type 'S<A>'}}
   func f(a: A.T) {
     g(a: id(t: a)) // `a` has error type which is diagnosed as circular reference
+    // expected-error@-1 {{conflicting arguments to generic parameter 'T' ('A.T' (associated type of protocol 'P') vs. 'S<A>')}}
     _ = A.T.self
   }
 
   func g(a: S<A>) {
     f(a: id(t: a))
-    // expected-error@-1 {{cannot convert value of type 'S<A>' to expected argument type 'A.T'}}
+    // expected-error@-1 {{conflicting arguments to generic parameter 'T' ('S<A>' vs. 'A.T' (associated type of protocol 'P'))}}
     _ = S<A>.self
   }
 
