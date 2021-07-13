@@ -195,6 +195,20 @@ void swift::performLLVMOptimizations(const IRGenOptions &Opts,
   // Set up a pipeline.
   PassManagerBuilderWrapper PMBuilder(Opts);
 
+  // If we're generating a profile, add the lowering pass now.
+  if (Opts.GenerateProfile) {
+    // TODO: Surface the option to emit atomic profile counter increments at
+    // the driver level.
+    // Configure the module passes.
+    legacy::PassManager ModulePasses;
+    ModulePasses.add(createTargetTransformInfoWrapperPass(
+        TargetMachine->getTargetIRAnalysis()));
+    InstrProfOptions Options;
+    Options.Atomic = bool(Opts.Sanitizers & SanitizerKind::Thread);
+    ModulePasses.add(createInstrProfilingLegacyPass(Options));
+    ModulePasses.run(*Module);
+  }
+
   if (Opts.shouldOptimize() && !Opts.DisableLLVMOptzns) {
     PMBuilder.OptLevel = 2; // -Os
     PMBuilder.SizeLevel = 1; // -Os
@@ -287,15 +301,6 @@ void swift::performLLVMOptimizations(const IRGenOptions &Opts,
   legacy::PassManager ModulePasses;
   ModulePasses.add(createTargetTransformInfoWrapperPass(
       TargetMachine->getTargetIRAnalysis()));
-
-  // If we're generating a profile, add the lowering pass now.
-  if (Opts.GenerateProfile) {
-    // TODO: Surface the option to emit atomic profile counter increments at
-    // the driver level.
-    InstrProfOptions Options;
-    Options.Atomic = bool(Opts.Sanitizers & SanitizerKind::Thread);
-    ModulePasses.add(createInstrProfilingLegacyPass(Options));
-  }
 
   PMBuilder.populateModulePassManager(ModulePasses);
 
