@@ -77,9 +77,12 @@ extractEnumElement(DeclContext *DC, SourceLoc UseLoc,
 /// an arbitrary property to an enum element using extractEnumElement.
 static EnumElementDecl *
 filterForEnumElement(DeclContext *DC, SourceLoc UseLoc,
-                     bool unqualifiedLookup, LookupResult foundElements) {
+                     bool unqualifiedLookup, LookupResult foundElements,
+                     Pattern *filterPattern, ArrayRef<Identifier> *argumentNames) {
   EnumElementDecl *foundElement = nullptr;
   VarDecl *foundConstant = nullptr;
+
+  SmallVector<EnumElementDecl *, 4> candidates;
 
   for (const LookupResultEntry &result : foundElements) {
     ValueDecl *e = result.getValueDecl();
@@ -96,15 +99,112 @@ filterForEnumElement(DeclContext *DC, SourceLoc UseLoc,
     }
 
     if (auto *oe = dyn_cast<EnumElementDecl>(e)) {
-      // Ambiguities should be ruled out by parsing.
-      assert(!foundElement && "ambiguity in enum case name lookup?!");
-      foundElement = oe;
+      candidates.push_back(oe);
       continue;
     }
 
     if (auto *var = dyn_cast<VarDecl>(e)) {
       foundConstant = var;
       continue;
+    }
+  }
+
+  if (candidates.size() == 0) {
+    // foundElement = nullptr;
+  } else if (candidates.size() == 1) {
+    // this is not necessarilly an exact match, we allow it for backwards
+    // compatibility
+    foundElement = candidates.front();
+  } else if (filterPattern == nullptr && argumentNames == nullptr) {
+    // multiple candidates with nothing to use to disambiguate
+    // use last candidate for backwards compatibility (the method comment says
+    // first is used, but the implementation used the last)
+
+    // Ambiguities should be ruled out by parsing.
+    assert(candidates.size() == 1 && "ambiguity in enum case name lookup?!");
+
+    foundElement = candidates.back();
+  } else if (argumentNames != nullptr) {
+    SmallVector<EnumElementDecl *, 4> filteredCandidates;
+    for (auto candidate : candidates) {
+      auto candidateArgumentNames = candidate->getName().getArgumentNames();
+      if (candidateArgumentNames.size() != (*argumentNames).size()) {
+        continue;
+      }
+      auto match = true;
+      for (size_t i = 0; i < candidateArgumentNames.size() &&
+           i < (*argumentNames).size(); i++) {
+        if (candidateArgumentNames[i] !=
+            (*argumentNames)[i]) {
+          match = false;
+          break;
+        }
+      }
+      if (match) {
+        filteredCandidates.push_back(candidate);
+      }
+    }
+    // Ambiguities should be ruled out by parsing.
+    assert(filteredCandidates.size() < 2
+           && "ambiguity in enum case name lookup?!");
+
+    if (filteredCandidates.size() > 0) {
+      // filtering failed to disambiguate if there is more than 1 candidate
+      // use last candidate for backwards compatibility (the method comment says
+      // first is used, but the implementation used the last)
+      foundElement = filteredCandidates.back();
+    }
+  } else {
+    SmallVector<EnumElementDecl *, 4> filteredCandidates;
+    if (filterPattern->getKind() == PatternKind::Paren) {
+      // regardless of what the subpattern is, there is no label, so we should
+      // look for cases with one associated value and no label
+      for (auto candidate : candidates) {
+        auto argumentNames = candidate->getName().getArgumentNames();
+        if (argumentNames.size() == 1 && argumentNames.front().empty()) {
+          filteredCandidates.push_back(candidate);
+        }
+      }
+    } else if (filterPattern->getKind() == PatternKind::Tuple) {
+      // find the candidate that matches the labels in the tuple pattern
+      // we reach this point only when the search is ambiguous,
+      // therefore in previous versions of the compiler, it would have
+      // picked the last case and fail exhaustiveness check
+      // or behave unexpectedly
+      auto tuplePattern = cast<TuplePattern>(filterPattern);
+      auto expectedArgumentNames = tuplePattern->getElements();
+      for (auto candidate : candidates) {
+        auto candidateArgumentNames = candidate->getName().getArgumentNames();
+        if (candidateArgumentNames.size() != expectedArgumentNames.size()) {
+          continue;
+        }
+        auto match = true;
+        for (size_t i = 0; i < candidateArgumentNames.size() &&
+             i < expectedArgumentNames.size(); i++) {
+          if (candidateArgumentNames[i] !=
+              expectedArgumentNames[i].getLabel()) {
+            match = false;
+            break;
+          }
+        }
+        if (match) {
+          filteredCandidates.push_back(candidate);
+        }
+      }
+    } else {
+      // other patterns do not help to disambiguate
+      filteredCandidates = candidates;
+    }
+
+    // Ambiguities should be ruled out by parsing.
+    assert(filteredCandidates.size() < 2
+           && "ambiguity in enum case name lookup?!");
+
+    if (filteredCandidates.size() > 0) {
+      // filtering failed to disambiguate if there is more than 1 candidate
+      // use last candidate for backwards compatibility (the method comment says
+      // first is used, but the implementation used the last)
+      foundElement = filteredCandidates.back();
     }
   }
 
@@ -125,17 +225,21 @@ lookupUnqualifiedEnumMemberElement(DeclContext *DC, DeclNameRef name,
       TypeChecker::lookupUnqualified(DC, name, UseLoc,
                                      defaultUnqualifiedLookupOptions);
   return filterForEnumElement(DC, UseLoc,
-                              /*unqualifiedLookup=*/true, lookup);
+                              /*unqualifiedLookup=*/true, lookup, nullptr, nullptr);
 }
 
 /// Find an enum element in an enum type.
+/// the `filterPattern` is the subPattern of the enum that contains the labels of associated values
 static EnumElementDecl *
 lookupEnumMemberElement(DeclContext *DC, Type ty,
-                        DeclNameRef name, SourceLoc UseLoc) {
+                        DeclNameRef name, SourceLoc UseLoc,
+                        Pattern *filterPattern) {
   if (!ty->mayHaveMembers())
     return nullptr;
 
-  // FIXME: We should probably pay attention to argument labels someday.
+  auto isCompundName = name.isCompoundName();
+  auto argumentNames = name.getArgumentNames();
+  // Argument labels are handled using the `filterPattern` and `argumentNames`
   name = name.withoutArgumentLabels();
 
   // Look up the case inside the enum.
@@ -144,7 +248,8 @@ lookupEnumMemberElement(DeclContext *DC, Type ty,
   LookupResult foundElements =
       TypeChecker::lookupMember(DC, ty, name, lookupOptions);
   return filterForEnumElement(DC, UseLoc,
-                              /*unqualifiedLookup=*/false, foundElements);
+                              /*unqualifiedLookup=*/false, foundElements,
+                              filterPattern, isCompundName ? &argumentNames : nullptr);
 }
 
 namespace {
@@ -484,7 +589,7 @@ public:
       return nullptr;
 
     EnumElementDecl *referencedElement
-      = lookupEnumMemberElement(DC, ty, ude->getName(), ude->getLoc());
+      = lookupEnumMemberElement(DC, ty, ude->getName(), ude->getLoc(), nullptr);
     if (!referencedElement)
       return nullptr;
 
@@ -608,7 +713,7 @@ public:
       referencedElement
         = lookupEnumMemberElement(DC, enumTy,
                                   tailComponent->getNameRef(),
-                                  tailComponent->getLoc());
+                                  tailComponent->getLoc(), nullptr);
       if (!referencedElement)
         return nullptr;
 
@@ -1397,8 +1502,8 @@ Pattern *TypeChecker::coercePatternToType(ContextualPattern pattern,
     
     Type enumTy;
     if (!elt) {
-      elt = lookupEnumMemberElement(dc, type, EEP->getName(),
-                                    EEP->getLoc());
+      elt = lookupEnumMemberElement(dc, type, EEP->getName(), EEP->getLoc(),
+                                    EEP->getSubPattern());
       if (!elt) {
         if (!type->hasError()) {
           // If we have an optional type, let's try to see if the case
@@ -1409,7 +1514,8 @@ Pattern *TypeChecker::coercePatternToType(ContextualPattern pattern,
           if (auto baseType = type->getOptionalObjectType()) {
             if (lookupEnumMemberElement(dc,
                                         baseType->lookThroughAllOptionalTypes(),
-                                        EEP->getName(), EEP->getLoc())) {
+                                        EEP->getName(), EEP->getLoc(),
+                                        EEP->getSubPattern())) {
               P = new (Context)
                   OptionalSomePattern(EEP, EEP->getEndLoc());
               P->setImplicit();
@@ -1447,7 +1553,7 @@ Pattern *TypeChecker::coercePatternToType(ContextualPattern pattern,
         SmallVector<Type, 4> allOptionals;
         auto baseTyUnwrapped = type->lookThroughAllOptionalTypes(allOptionals);
         if (lookupEnumMemberElement(dc, baseTyUnwrapped, EEP->getName(),
-                                    EEP->getLoc())) {
+                                    EEP->getLoc(), nullptr)) {
           auto baseTyName = type->getCanonicalType().getString();
           auto baseTyUnwrappedName = baseTyUnwrapped->getString();
           diags.diagnoseWithNotes(
