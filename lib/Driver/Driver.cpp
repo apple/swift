@@ -14,7 +14,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "swift/Driver/Driver.h"
+#include "swift/Driver/Driver.h" // Cross-repo test
 
 #include "ToolChains.h"
 #include "swift/AST/DiagnosticEngine.h"
@@ -72,7 +72,7 @@ Driver::Driver(StringRef DriverExecutable,
   : Opts(createSwiftOptTable()), Diags(Diags),
     Name(Name), DriverExecutable(DriverExecutable),
     DefaultTargetTriple(llvm::sys::getDefaultTargetTriple()) {
-      
+
   // The driver kind must be parsed prior to parsing arguments, since that
   // affects how arguments are parsed.
   parseDriverKind(Args.slice(1));
@@ -894,7 +894,7 @@ Driver::buildCompilation(const ToolChain &TC,
       translateInputAndPathArgs(*ArgList, workingDirectory));
 
   validateArgs(Diags, *TranslatedArgList, TC.getTriple());
-    
+
   // Perform toolchain specific args validation.
   TC.validateArguments(Diags, *TranslatedArgList, DefaultTargetTriple);
 
@@ -991,7 +991,7 @@ Driver::buildCompilation(const ToolChain &TC,
       llvm_unreachable("Unknown OutputLevel argument!");
   }
 
-  
+
   // About to move argument list, so capture some flags that will be needed
   // later.
   const bool DriverPrintActions =
@@ -1485,7 +1485,7 @@ void Driver::buildOutputInfo(const ToolChain &TC, const DerivedArgList &Args,
       if (Args.hasArg(options::OPT_static))
         Diags.diagnose(SourceLoc(),
                        diag::error_static_emit_executable_disallowed);
-                       
+
       OI.LinkAction = LinkKind::Executable;
       OI.CompilerOutputType = CompilerOutputType;
       break;
@@ -2516,14 +2516,14 @@ static StringRef baseNameForImage(const JobAction *JA, const OutputInfo &OI,
                                   StringRef BaseInput, StringRef BaseName) {
   if (JA->size() == 1 && OI.ModuleNameIsFallback && BaseInput != "-")
     return llvm::sys::path::stem(BaseInput);
-  
+
   if (isa<StaticLinkJobAction>(JA)) {
     Buffer = "lib";
     Buffer.append(BaseName);
     Buffer.append(Triple.isOSWindows() ? ".lib" : ".a");
     return Buffer.str();
   }
-  
+
   auto link = dyn_cast<DynamicLinkJobAction>(JA);
   if (!link)
     return BaseName;
@@ -2979,7 +2979,7 @@ Job *Driver::buildJobsForAction(Compilation &C, const JobAction *JA,
 
   // 4. Construct a Job which produces the right CommandOutput.
   std::unique_ptr<Job> ownedJob = TC.constructJob(*JA, C, std::move(InputJobs),
-                                                  InputActions, 
+                                                  InputActions,
                                                   std::move(Output), OI);
   Job *J = C.addJob(std::move(ownedJob));
 
@@ -3543,7 +3543,7 @@ void Driver::printHelp(bool ShowHidden) const {
                       IncludedFlagsBitmask, ExcludedFlagsBitmask,
                       /*ShowAllAliases*/false);
 
-  // These strings match the descriptions found in the corresponding swiftpm 
+  // These strings match the descriptions found in the corresponding swiftpm
   // help pages
   if (driverKind == DriverKind::Interactive) {
     llvm::outs() << "\nSEE ALSO - PACKAGE MANAGER COMMANDS: \n"
@@ -3552,7 +3552,7 @@ void Driver::printHelp(bool ShowHidden) const {
         "\t\"swift run\" Build and run an executable product \n"
         "\t\"swift test\" Build and run tests \n";
   } else {
-    llvm::outs() << "\nSEE ALSO: swift build, swift run, swift package, " 
+    llvm::outs() << "\nSEE ALSO: swift build, swift run, swift package, "
                     "swift test \n";
   }
 
