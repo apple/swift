@@ -584,6 +584,11 @@ def create_argument_parser():
                 'module-only targets on Darwin platforms. These targets are '
                 'in addition to the full library targets.')
 
+    option(['--skip-build-stdlib-when-cross-compiling'],
+           toggle_false('build_stdlib_when_cross_compiling'),
+           help='Don\'t build the standard library when building '
+                'the Swift compiler for the cross compile hosts')
+
     # -------------------------------------------------------------------------
     in_group('Options to select projects')
 

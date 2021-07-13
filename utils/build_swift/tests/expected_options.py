@@ -91,6 +91,7 @@ EXPECTED_DEFAULTS = {
     'build_swift_driver': False,
     'build_early_swift_driver': True,
     'build_swiftsyntax': False,
+    'build_stdlib_when_cross_compiling': True,
     'build_libparser_only': False,
     'build_skstresstester': False,
     'build_swiftformat': False,
@@ -660,6 +661,8 @@ EXPECTED_OPTIONS = [
     StrOption('--stdlib-deployment-targets'),
     StrOption('--swift-darwin-module-archs'),
     StrOption('--swift-darwin-supported-archs'),
+    DisableOption('--skip-build-stdlib-when-cross-compiling',
+                  dest='build_stdlib_when_cross_compiling'),
 
     PathOption('--android-deploy-device-path'),
     PathOption('--android-icu-i18n'),
