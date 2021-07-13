@@ -14,6 +14,7 @@
 #define SWIFT_IRGEN_TYPE_LAYOUT_H
 
 #include "TypeInfo.h"
+#include "FixedTypeInfo.h"
 #include "swift/SIL/SILType.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/Support/Debug.h"
@@ -30,6 +31,25 @@ enum class TypeLayoutEntryKind : uint8_t {
   AlignedGroup,
   Resilient,
   Enum,
+  TypeInfoBased,
+};
+
+enum class ScalarKind : uint8_t {
+  POD,
+  Immovable,
+  ErrorReference,
+  NativeStrongReference,
+  NativeUnownedReference,
+  NativeWeakReference,
+  UnknownReference,
+  UnknownUnownedReference,
+  UnknownWeakReference,
+  BlockReference,
+  BridgeReference,
+  ObjCReference,
+  BlockStorage,
+  ThickFunc,
+  ExistentialReference,
 };
 
 class TypeLayoutEntry {
@@ -62,6 +82,18 @@ public:
 
   virtual llvm::Value *alignmentMask(IRGenFunction &IGF) const;
   virtual llvm::Value *size(IRGenFunction &IGF) const;
+
+  /// Return the size of the type if known statically
+  virtual llvm::Optional<Size> fixedSize(IRGenModule& IGM) const;
+
+  /// Return if the size of the type if known statically
+  virtual bool isFixedSize(IRGenModule& IGM) const;
+
+  /// Return the alignment of the type if known statically
+  virtual llvm::Optional<Alignment> fixedAlignment(IRGenModule& IGM) const;
+
+  /// Return the number of extra inhabitants if known statically
+  virtual llvm::Optional<uint32_t> fixedXICount(IRGenModule& IGM) const;
   virtual llvm::Value *extraInhabitantCount(IRGenFunction &IGF) const;
   virtual llvm::Value *isBitwiseTakable(IRGenFunction &IGF) const;
 
@@ -122,12 +154,15 @@ protected:
 class ScalarTypeLayoutEntry : public TypeLayoutEntry,
                               public llvm::FoldingSetNode {
 public:
-  const TypeInfo &typeInfo;
+  const FixedTypeInfo &typeInfo;
   SILType representative;
 
-  ScalarTypeLayoutEntry(const TypeInfo &ti, SILType representative)
+  ScalarKind scalarKind;
+
+  ScalarTypeLayoutEntry(const FixedTypeInfo &ti, SILType representative,
+                        ScalarKind scalarKind)
       : TypeLayoutEntry(TypeLayoutEntryKind::Scalar), typeInfo(ti),
-        representative(representative) {}
+        representative(representative), scalarKind(scalarKind) {}
 
   ~ScalarTypeLayoutEntry();
 
@@ -140,8 +175,13 @@ public:
 
   llvm::Value *alignmentMask(IRGenFunction &IGF) const override;
   llvm::Value *size(IRGenFunction &IGF) const override;
+  llvm::Optional<Size> fixedSize(IRGenModule& IGM) const override;
+  bool isFixedSize(IRGenModule& IGM) const override;
+  llvm::Optional<Alignment> fixedAlignment(IRGenModule& IGM) const override;
+  llvm::Optional<uint32_t> fixedXICount(IRGenModule& IGM) const override;
   llvm::Value *extraInhabitantCount(IRGenFunction &IGF) const override;
   llvm::Value *isBitwiseTakable(IRGenFunction &IGF) const override;
+  llvm::Type *getStorageType(IRGenFunction &IGF) const;
 
   void destroy(IRGenFunction &IGF, Address addr) const override;
 
@@ -162,6 +202,8 @@ public:
   void storeEnumTagSinglePayload(IRGenFunction &IGF, llvm::Value *tag,
                                  llvm::Value *numEmptyCases,
                                  Address enumAddr) const override;
+
+  static bool classof(const TypeLayoutEntry *entry);
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
   void dump() const override;
@@ -187,6 +229,10 @@ public:
 
   llvm::Value *alignmentMask(IRGenFunction &IGF) const override;
   llvm::Value *size(IRGenFunction &IGF) const override;
+  llvm::Optional<Size> fixedSize(IRGenModule& IGM) const override;
+  bool isFixedSize(IRGenModule& IGM) const override;
+  llvm::Optional<Alignment> fixedAlignment(IRGenModule& IGM) const override;
+  llvm::Optional<uint32_t> fixedXICount(IRGenModule& IGM) const override;
   llvm::Value *extraInhabitantCount(IRGenFunction &IGF) const override;
   llvm::Value *isBitwiseTakable(IRGenFunction &IGF) const override;
 
@@ -209,6 +255,8 @@ public:
   void storeEnumTagSinglePayload(IRGenFunction &IGF, llvm::Value *tag,
                                  llvm::Value *numEmptyCases,
                                  Address enumAddr) const override;
+
+  static bool classof(const TypeLayoutEntry *entry);
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
   void dump() const override;
@@ -233,6 +281,10 @@ public:
 
   llvm::Value *alignmentMask(IRGenFunction &IGF) const override;
   llvm::Value *size(IRGenFunction &IGF) const override;
+  llvm::Optional<Size> fixedSize(IRGenModule& IGM) const override;
+  bool isFixedSize(IRGenModule& IGM) const override;
+  llvm::Optional<Alignment> fixedAlignment(IRGenModule& IGM) const override;
+  llvm::Optional<uint32_t> fixedXICount(IRGenModule& IGM) const override;
   llvm::Value *extraInhabitantCount(IRGenFunction &IGF) const override;
   llvm::Value *isBitwiseTakable(IRGenFunction &IGF) const override;
 
@@ -255,6 +307,8 @@ public:
   void storeEnumTagSinglePayload(IRGenFunction &IGF, llvm::Value *tag,
                                  llvm::Value *numEmptyCases,
                                  Address enumAddr) const override;
+
+  static bool classof(const TypeLayoutEntry *entry);
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
   void dump() const override;
@@ -264,13 +318,12 @@ public:
 class AlignedGroupEntry : public TypeLayoutEntry, public llvm::FoldingSetNode {
   std::vector<TypeLayoutEntry *> entries;
   Alignment::int_type minimumAlignment;
-  bool isFixedSize;
 
 public:
-  AlignedGroupEntry(std::vector<TypeLayoutEntry *> &entries,
-                    Alignment::int_type minimumAlignment, bool isFixedSize)
+  AlignedGroupEntry(const std::vector<TypeLayoutEntry *> &entries,
+                    Alignment::int_type minimumAlignment)
       : TypeLayoutEntry(TypeLayoutEntryKind::AlignedGroup), entries(entries),
-        minimumAlignment(minimumAlignment), isFixedSize(isFixedSize) {}
+        minimumAlignment(minimumAlignment) {}
 
   ~AlignedGroupEntry();
 
@@ -280,10 +333,14 @@ public:
   void Profile(llvm::FoldingSetNodeID &id) const;
   static void Profile(llvm::FoldingSetNodeID &ID,
                       const std::vector<TypeLayoutEntry *> &entries,
-                      Alignment::int_type minimumAlignment, bool isFixedSize);
+                      Alignment::int_type minimumAlignment);
 
   llvm::Value *alignmentMask(IRGenFunction &IGF) const override;
   llvm::Value *size(IRGenFunction &IGF) const override;
+  llvm::Optional<Size> fixedSize(IRGenModule& IGM) const override;
+  bool isFixedSize(IRGenModule& IGM) const override;
+  llvm::Optional<Alignment> fixedAlignment(IRGenModule& IGM) const override;
+  llvm::Optional<uint32_t> fixedXICount(IRGenModule& IGM) const override;
   llvm::Value *extraInhabitantCount(IRGenFunction &IGF) const override;
   llvm::Value *isBitwiseTakable(IRGenFunction &IGF) const override;
 
@@ -306,6 +363,8 @@ public:
   void storeEnumTagSinglePayload(IRGenFunction &IGF, llvm::Value *tag,
                                  llvm::Value *numEmptyCases,
                                  Address enumAddr) const override;
+
+  static bool classof(const TypeLayoutEntry *entry);
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
   void dump() const override;
@@ -348,6 +407,10 @@ public:
 
   llvm::Value *alignmentMask(IRGenFunction &IGF) const override;
   llvm::Value *size(IRGenFunction &IGF) const override;
+  llvm::Optional<Size> fixedSize(IRGenModule& IGM) const override;
+  bool isFixedSize(IRGenModule& IGM) const override;
+  llvm::Optional<Alignment> fixedAlignment(IRGenModule& IGM) const override;
+  llvm::Optional<uint32_t> fixedXICount(IRGenModule& IGM) const override;
   llvm::Value *extraInhabitantCount(IRGenFunction &IGF) const override;
   llvm::Value *isBitwiseTakable(IRGenFunction &IGF) const override;
 
@@ -438,6 +501,65 @@ private:
       llvm::function_ref<void(TypeLayoutEntry *payload, llvm::Value *tagIndex)>
           payloadFunction,
       llvm::function_ref<void()> noPayloadFunction) const;
+
+  static bool classof(const TypeLayoutEntry *entry);
+};
+
+/// TypeLayouts that defer to the existing typeinfo infrastructure in cases that
+/// type layouts don't have the functionality implemented yet (e.g. multi enum
+/// extra inhabitants).
+class TypeInfoBasedTypeLayoutEntry : public TypeLayoutEntry,
+                                     public llvm::FoldingSetNode {
+public:
+  const FixedTypeInfo &typeInfo;
+  SILType representative;
+
+  TypeInfoBasedTypeLayoutEntry(const FixedTypeInfo &ti, SILType representative)
+      : TypeLayoutEntry(TypeLayoutEntryKind::TypeInfoBased), typeInfo(ti),
+        representative(representative) {}
+
+  ~TypeInfoBasedTypeLayoutEntry();
+
+  void computeProperties() override;
+
+  // Support for FoldingSet.
+  void Profile(llvm::FoldingSetNodeID &id) const;
+  static void Profile(llvm::FoldingSetNodeID &ID, const TypeInfo &ti,
+                      SILType ty);
+
+  llvm::Value *alignmentMask(IRGenFunction &IGF) const override;
+  llvm::Value *size(IRGenFunction &IGF) const override;
+  llvm::Value *extraInhabitantCount(IRGenFunction &IGF) const override;
+  llvm::Optional<Size> fixedSize(IRGenModule& IGM) const override;
+  bool isFixedSize(IRGenModule& IGM) const override;
+  llvm::Optional<Alignment> fixedAlignment(IRGenModule& IGM) const override;
+  llvm::Optional<uint32_t> fixedXICount(IRGenModule& IGM) const override;
+  llvm::Value *isBitwiseTakable(IRGenFunction &IGF) const override;
+  llvm::Type *getStorageType(IRGenFunction &IGF) const;
+
+  void destroy(IRGenFunction &IGF, Address addr) const override;
+
+  void assignWithCopy(IRGenFunction &IGF, Address dest,
+                      Address src) const override;
+  void assignWithTake(IRGenFunction &IGF, Address dest,
+                      Address src) const override;
+
+  void initWithCopy(IRGenFunction &IGF, Address dest,
+                    Address src) const override;
+  void initWithTake(IRGenFunction &IGF, Address dest,
+                    Address src) const override;
+
+  llvm::Value *getEnumTagSinglePayload(IRGenFunction &IGF,
+                                       llvm::Value *numEmptyCases,
+                                       Address addr) const override;
+
+  void storeEnumTagSinglePayload(IRGenFunction &IGF, llvm::Value *tag,
+                                 llvm::Value *numEmptyCases,
+                                 Address enumAddr) const override;
+
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+  void dump() const override;
+#endif
 };
 
 class TypeLayoutCache {
@@ -448,23 +570,27 @@ class TypeLayoutCache {
   llvm::FoldingSet<AlignedGroupEntry> alignedGroupEntries;
   llvm::FoldingSet<EnumTypeLayoutEntry> enumEntries;
   llvm::FoldingSet<ResilientTypeLayoutEntry> resilientEntries;
+  llvm::FoldingSet<TypeInfoBasedTypeLayoutEntry> typeInfoBasedEntries;
 
   TypeLayoutEntry emptyEntry;
 public:
   ~TypeLayoutCache();
   ScalarTypeLayoutEntry *getOrCreateScalarEntry(const TypeInfo &ti,
-                                                SILType representative);
+                                                SILType representative,
+                                                ScalarKind kind);
 
   ArchetypeLayoutEntry *getOrCreateArchetypeEntry(SILType archetype);
 
   AlignedGroupEntry *
-  getOrCreateAlignedGroupEntry(std::vector<TypeLayoutEntry *> &entries,
-                               Alignment::int_type minimumAlignment,
-                               bool isFixedSize);
+  getOrCreateAlignedGroupEntry(const std::vector<TypeLayoutEntry *> &entries,
+                               Alignment::int_type minimumAlignment);
 
   EnumTypeLayoutEntry *
   getOrCreateEnumEntry(unsigned numEmptyCase,
                        const std::vector<TypeLayoutEntry *> &nonEmptyCases);
+
+  TypeInfoBasedTypeLayoutEntry *
+  getOrCreateTypeInfoBasedEntry(const TypeInfo &ti, SILType representative);
 
   ResilientTypeLayoutEntry *getOrCreateResilientEntry(SILType ty);
 

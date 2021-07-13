@@ -95,6 +95,14 @@ namespace irgen {
   void emitDeallocateBoxedOpaqueExistentialBuffer(IRGenFunction &IGF,
                                                   SILType existentialType,
                                                   Address existentialContainer);
+
+  /// Free the storage for an opaque existential in the existential
+  /// container.
+  /// If the value is not stored inline, this will free the box for the
+  /// value.
+  void emitDestroyBoxedOpaqueExistentialBuffer(IRGenFunction &IGF,
+                                               SILType existentialType,
+                                               Address existentialContainer);
   Address emitOpaqueBoxedExistentialProjection(
       IRGenFunction &IGF, OpenedExistentialAccess accessKind, Address base,
       SILType existentialType, CanArchetypeType openedArchetype);

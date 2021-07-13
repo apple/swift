@@ -16,6 +16,7 @@
 
 #include "GenArchetype.h"
 
+#include "TypeLayout.h"
 #include "swift/AST/ASTContext.h"
 #include "swift/AST/Decl.h"
 #include "swift/AST/GenericEnvironment.h"
@@ -125,13 +126,11 @@ class ClassArchetypeTypeInfo
 {
   ReferenceCounting RefCount;
 
-  ClassArchetypeTypeInfo(llvm::PointerType *storageType,
-                         Size size, const SpareBitVector &spareBits,
-                         Alignment align,
+  ClassArchetypeTypeInfo(llvm::PointerType *storageType, Size size,
+                         const SpareBitVector &spareBits, Alignment align,
                          ReferenceCounting refCount)
-    : HeapTypeInfo(storageType, size, spareBits, align),
-      RefCount(refCount)
-  {}
+      : HeapTypeInfo(refCount, storageType, size, spareBits, align),
+        RefCount(refCount) {}
 
 public:
   static const ClassArchetypeTypeInfo *create(llvm::PointerType *storageType,

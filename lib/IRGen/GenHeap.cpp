@@ -23,11 +23,12 @@
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Intrinsics.h"
 
-#include "swift/Basic/SourceLoc.h"
+#include "TypeLayout.h"
 #include "swift/ABI/MetadataValues.h"
 #include "swift/AST/ASTContext.h"
 #include "swift/AST/GenericEnvironment.h"
 #include "swift/AST/IRGenOptions.h"
+#include "swift/Basic/SourceLoc.h"
 #include "swift/SIL/SILModule.h"
 
 #include "ConstantBuilder.h"
@@ -57,7 +58,7 @@ namespace {
   public: \
     TypeLayoutEntry *buildTypeLayoutEntry(IRGenModule &IGM, \
                                         SILType T) const override { \
-      return IGM.typeLayoutCache.getOrCreateScalarEntry(*this, T); \
+      return IGM.typeLayoutCache.getOrCreateScalarEntry(*this, T, ScalarKind::Nativeness##Name##Reference); \
     } \
     Nativeness##Name##ReferenceTypeInfo(llvm::Type *valueType, \
                                     llvm::Type *type, \
@@ -145,7 +146,7 @@ namespace {
     enum { IsScalarPOD = false }; \
     TypeLayoutEntry *buildTypeLayoutEntry(IRGenModule &IGM,                    \
                                           SILType T) const override {          \
-      return IGM.typeLayoutCache.getOrCreateScalarEntry(*this, T);             \
+      return IGM.typeLayoutCache.getOrCreateScalarEntry(*this, T, ScalarKind::Nativeness##Name##Reference);             \
     } \
     llvm::Type *getScalarType() const { \
       return ValueTypeAndIsOptional.getPointer(); \
@@ -548,26 +549,25 @@ llvm::Value *IRGenFunction::emitUnmanagedAlloc(const HeapLayout &layout,
 }
 
 namespace {
-  class BuiltinNativeObjectTypeInfo
-    : public HeapTypeInfo<BuiltinNativeObjectTypeInfo> {
-  public:
-    BuiltinNativeObjectTypeInfo(llvm::PointerType *storage,
-                                 Size size, SpareBitVector spareBits,
-                                 Alignment align)
-    : HeapTypeInfo(storage, size, spareBits, align) {}
+class BuiltinNativeReferenceTypeInfo
+    : public HeapTypeInfo<BuiltinNativeReferenceTypeInfo> {
+public:
+  BuiltinNativeReferenceTypeInfo(llvm::PointerType *storage, Size size,
+                                 SpareBitVector spareBits, Alignment align)
+      : HeapTypeInfo(ReferenceCounting::Native, storage, size, spareBits,
+                     align) {}
 
-    /// Builtin.NativeObject uses Swift native reference-counting.
-    ReferenceCounting getReferenceCounting() const {
-      return ReferenceCounting::Native;
-    }
-  };
+  /// Builtin.NativeReference uses Swift native reference-counting.
+  ReferenceCounting getReferenceCounting() const {
+    return ReferenceCounting::Native;
+  }
+};
 } // end anonymous namespace
 
 const LoadableTypeInfo *TypeConverter::convertBuiltinNativeObject() {
-  return new BuiltinNativeObjectTypeInfo(IGM.RefCountedPtrTy,
-                                      IGM.getPointerSize(),
-                                      IGM.getHeapObjectSpareBits(),
-                                      IGM.getPointerAlignment());
+  return new BuiltinNativeReferenceTypeInfo(
+      IGM.RefCountedPtrTy, IGM.getPointerSize(), IGM.getHeapObjectSpareBits(),
+      IGM.getPointerAlignment());
 }
 
 unsigned IRGenModule::getReferenceStorageExtraInhabitantCount(
@@ -1392,9 +1392,9 @@ namespace {
 class BoxTypeInfo : public HeapTypeInfo<BoxTypeInfo> {
 public:
   BoxTypeInfo(IRGenModule &IGM)
-    : HeapTypeInfo(IGM.RefCountedPtrTy, IGM.getPointerSize(),
-                   IGM.getHeapObjectSpareBits(), IGM.getPointerAlignment())
-  {}
+      : HeapTypeInfo(ReferenceCounting::Native, IGM.RefCountedPtrTy,
+                     IGM.getPointerSize(), IGM.getHeapObjectSpareBits(),
+                     IGM.getPointerAlignment()) {}
 
   ReferenceCounting getReferenceCounting() const {
     // Boxes are always native-refcounted.
@@ -1577,11 +1577,11 @@ const TypeInfo *TypeConverter::convertBoxType(SILBoxType *T) {
   // For fixed-sized types, we can emit concrete box metadata.
   auto &fixedTI = cast<FixedTypeInfo>(eltTI);
 
-  // Because we assume in enum's that payloads with a Builtin.NativeObject which
-  // is also the type for indirect enum cases have extra inhabitants of pointers
-  // we can't have a nil pointer as a representation for an empty box type --
-  // nil conflicts with the extra inhabitants. We return a static singleton
-  // empty box object instead.
+  // Because we assume in enum's that payloads with a Builtin.NativeReference
+  // which is also the type for indirect enum cases have extra inhabitants of
+  // pointers we can't have a nil pointer as a representation for an empty box
+  // type -- nil conflicts with the extra inhabitants. We return a static
+  // singleton empty box object instead.
   if (fixedTI.isKnownEmpty(ResilienceExpansion::Maximal)) {
     if (!EmptyBoxTI)
       EmptyBoxTI = new EmptyBoxTypeInfo(IGM);

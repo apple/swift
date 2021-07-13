@@ -240,8 +240,9 @@ class SingleScalarTypeInfoWithTypeLayout
     : public SingleScalarTypeInfo<Derived, Base> {
 protected:
   template <class... T>
-  SingleScalarTypeInfoWithTypeLayout(T &&... args)
-      : SingleScalarTypeInfo<Derived, Base>(::std::forward<T>(args)...) {}
+  SingleScalarTypeInfoWithTypeLayout(ScalarKind kind, T &&...args)
+      : SingleScalarTypeInfo<Derived, Base>(::std::forward<T>(args)...),
+        kind(kind) {}
 
   const Derived &asDerived() const {
     return static_cast<const Derived &>(*this);
@@ -252,8 +253,11 @@ public:
 
   TypeLayoutEntry *buildTypeLayoutEntry(IRGenModule &IGM,
                                         SILType T) const override {
-    return IGM.typeLayoutCache.getOrCreateScalarEntry(asDerived(), T);
+    return IGM.typeLayoutCache.getOrCreateScalarEntry(asDerived(), T, kind);
   }
+
+private:
+  ScalarKind kind;
 };
 
 /// PODSingleScalarTypeInfo - A further specialization of
@@ -289,7 +293,8 @@ private:
 
   TypeLayoutEntry *buildTypeLayoutEntry(IRGenModule &IGM,
                                         SILType T) const override {
-    return IGM.typeLayoutCache.getOrCreateScalarEntry(asDerived(), T);
+    return IGM.typeLayoutCache.getOrCreateScalarEntry(asDerived(), T,
+                                                      ScalarKind::POD);
   }
 
 };

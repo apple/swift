@@ -64,9 +64,20 @@ class HeapTypeInfo
 protected:
   using super::asDerived;
 public:
-  HeapTypeInfo(llvm::PointerType *storage, Size size, SpareBitVector spareBits,
-               Alignment align)
-    : super(storage, size, spareBits, align) {}
+  HeapTypeInfo(ReferenceCounting refcounting, llvm::PointerType *storage,
+               Size size, SpareBitVector spareBits, Alignment align)
+      : super(refcounting == ReferenceCounting::Native
+                  ? ScalarKind::NativeStrongReference
+              : refcounting == ReferenceCounting::Bridge
+                  ? ScalarKind::BridgeReference
+              : refcounting == ReferenceCounting::Block
+                  ? ScalarKind::BlockReference
+              : refcounting == ReferenceCounting::Error
+                  ? ScalarKind::ErrorReference
+              : refcounting == ReferenceCounting::Unknown
+                  ? ScalarKind::UnknownReference
+                  : ScalarKind::ObjCReference,
+              storage, size, spareBits, align) {}
 
   bool isSingleRetainablePointer(ResilienceExpansion expansion,
                                  ReferenceCounting *refcounting) const override {

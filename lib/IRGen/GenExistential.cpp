@@ -16,6 +16,7 @@
 
 #include "GenExistential.h"
 
+#include "TypeLayout.h"
 #include "swift/AST/ASTContext.h"
 #include "swift/AST/Decl.h"
 #include "swift/AST/ExistentialLayout.h"
@@ -28,6 +29,7 @@
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Module.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include "BitPatternBuilder.h"
@@ -683,7 +685,16 @@ namespace {
         IsOptional(isOptional) {} \
     TypeLayoutEntry *buildTypeLayoutEntry(IRGenModule &IGM, \
                                           SILType T) const override { \
-      return IGM.typeLayoutCache.getOrCreateScalarEntry(*this, T); \
+      ScalarKind kind; \
+      switch (Refcounting) { \
+        case ReferenceCounting::Native:  kind = ScalarKind::NativeStrongReference; break; \
+        case ReferenceCounting::ObjC:    kind = ScalarKind::ObjCReference; break; \
+        case ReferenceCounting::Block:   kind = ScalarKind::BlockReference; break; \
+        case ReferenceCounting::Unknown: kind = ScalarKind::UnknownReference; break; \
+        case ReferenceCounting::Bridge:  kind = ScalarKind::BridgeReference; break; \
+        case ReferenceCounting::Error:   kind = ScalarKind::ErrorReference; break; \
+      } \
+      return IGM.typeLayoutCache.getOrCreateScalarEntry(*this, T, kind); \
     } \
     void emitValueAssignWithCopy(IRGenFunction &IGF, \
                                  Address dest, Address src) const { \
@@ -731,7 +742,16 @@ namespace {
     } \
     TypeLayoutEntry *buildTypeLayoutEntry(IRGenModule &IGM, \
                                           SILType T) const override { \
-      return IGM.typeLayoutCache.getOrCreateScalarEntry(*this, T); \
+      ScalarKind kind; \
+      switch (Refcounting) { \
+        case ReferenceCounting::Native:  kind = ScalarKind::NativeStrongReference; break; \
+        case ReferenceCounting::ObjC:    kind = ScalarKind::ObjCReference; break; \
+        case ReferenceCounting::Block:   kind = ScalarKind::BlockReference; break; \
+        case ReferenceCounting::Unknown: kind = ScalarKind::UnknownReference; break; \
+        case ReferenceCounting::Bridge:  kind = ScalarKind::BridgeReference; break; \
+        case ReferenceCounting::Error:   kind = ScalarKind::ErrorReference; break; \
+      } \
+      return IGM.typeLayoutCache.getOrCreateScalarEntry(*this, T, kind); \
     } \
     llvm::Type *getValueType() const { \
       return ValueType; \
@@ -778,7 +798,7 @@ namespace {
                                       spareBits, align, IsPOD, IsFixedSize) {} \
     TypeLayoutEntry *buildTypeLayoutEntry(IRGenModule &IGM, \
                                           SILType T) const override { \
-      return IGM.typeLayoutCache.getOrCreateScalarEntry(*this, T); \
+      return IGM.typeLayoutCache.getOrCreateScalarEntry(*this, T, ScalarKind::POD); \
     } \
     const LoadableTypeInfo & \
     getValueTypeInfoForExtraInhabitants(IRGenModule &IGM) const { \
@@ -847,7 +867,8 @@ public:
 
   TypeLayoutEntry *buildTypeLayoutEntry(IRGenModule &IGM,
                                         SILType T) const override {
-    return IGM.typeLayoutCache.getOrCreateScalarEntry(*this, T);
+    return IGM.typeLayoutCache.getOrCreateScalarEntry(
+        *this, T, ScalarKind::ExistentialReference);
   }
 
   Address projectWitnessTable(IRGenFunction &IGF, Address obj,
@@ -995,7 +1016,21 @@ class ClassExistentialTypeInfo final
 
   TypeLayoutEntry *buildTypeLayoutEntry(IRGenModule &IGM,
                                         SILType T) const override {
-    return IGM.typeLayoutCache.getOrCreateScalarEntry(*this, T);
+    ScalarKind kind;
+    switch (Refcounting) {
+    case ReferenceCounting::Native:
+      kind = ScalarKind::NativeStrongReference;
+      break;
+    case ReferenceCounting::ObjC:
+      kind = ScalarKind::ObjCReference;
+      break;
+    case ReferenceCounting::Unknown:
+      kind = ScalarKind::UnknownReference;
+      break;
+    default:
+      llvm_unreachable("Unsupported refcounting style");
+    }
+    return IGM.typeLayoutCache.getOrCreateScalarEntry(*this, T, kind);
   }
 
   /// Given an explosion with multiple pointer elements in them, pack them
@@ -1327,7 +1362,8 @@ public:
 
   TypeLayoutEntry *buildTypeLayoutEntry(IRGenModule &IGM,
                                         SILType T) const override {
-    return IGM.typeLayoutCache.getOrCreateScalarEntry(*this, T);
+    return IGM.typeLayoutCache.getOrCreateScalarEntry(*this, T,
+                                                      ScalarKind::POD);
   }
 
   void emitValueRetain(IRGenFunction &IGF, llvm::Value *value,
@@ -1353,17 +1389,27 @@ class ErrorExistentialTypeInfo : public HeapTypeInfo<ErrorExistentialTypeInfo>
   ReferenceCounting Refcounting;
 
 public:
-  ErrorExistentialTypeInfo(llvm::PointerType *storage,
-                           Size size, SpareBitVector spareBits,
-                           Alignment align,
+  ErrorExistentialTypeInfo(llvm::PointerType *storage, Size size,
+                           SpareBitVector spareBits, Alignment align,
                            const ProtocolDecl *errorProto,
                            ReferenceCounting refcounting)
-    : HeapTypeInfo(storage, size, spareBits, align), ErrorProto(errorProto),
-      Refcounting(refcounting) {}
+      : HeapTypeInfo(refcounting, storage, size, spareBits, align),
+        ErrorProto(errorProto), Refcounting(refcounting) {}
 
   TypeLayoutEntry *buildTypeLayoutEntry(IRGenModule &IGM,
                                         SILType T) const override {
-    return IGM.typeLayoutCache.getOrCreateScalarEntry(*this, T);
+    ScalarKind kind;
+    switch (Refcounting) {
+    case ReferenceCounting::Native:
+      kind = ScalarKind::NativeStrongReference;
+      break;
+    case ReferenceCounting::Error:
+      kind = ScalarKind::ErrorReference;
+      break;
+    default:
+      llvm_unreachable("unsupported refcounting type");
+    }
+    return IGM.typeLayoutCache.getOrCreateScalarEntry(*this, T, kind);
   }
 
   ReferenceCounting getReferenceCounting() const {
@@ -2226,6 +2272,25 @@ void irgen::emitDeallocateBoxedOpaqueExistentialBuffer(
 
   auto *deallocateFun = getDeallocateBoxedOpaqueExistentialBufferFunction(
       IGF.IGM, existLayout);
+  auto *bufferAddr = IGF.Builder.CreateBitCast(
+      existentialContainer.getAddress(),
+      IGF.IGM.getExistentialPtrTy(existLayout.getNumTables()));
+  auto *call = IGF.Builder.CreateCall(deallocateFun, {bufferAddr});
+  call->setCallingConv(IGF.IGM.DefaultCC);
+  call->setDoesNotThrow();
+  return;
+}
+
+void irgen::emitDestroyBoxedOpaqueExistentialBuffer(
+    IRGenFunction &IGF, SILType existentialType, Address existentialContainer) {
+
+  // Project to the existential buffer in the existential container.
+  auto &existentialTI =
+      IGF.getTypeInfo(existentialType).as<OpaqueExistentialTypeInfo>();
+  OpaqueExistentialLayout existLayout = existentialTI.getLayout();
+
+  auto *deallocateFun =
+      getDestroyBoxedOpaqueExistentialBufferFunction(IGF.IGM, existLayout);
   auto *bufferAddr = IGF.Builder.CreateBitCast(
       existentialContainer.getAddress(),
       IGF.IGM.getExistentialPtrTy(existLayout.getNumTables()));

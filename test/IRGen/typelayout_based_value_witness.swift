@@ -12,6 +12,21 @@ public struct A<T> {
   var b:  B<T>
 }
 
+public class C<T> {
+  init(a: B<T>, b: B<T>) {
+    self.a = a
+    self.b = b
+  }
+  var a : B<T>
+  var b:  B<T>
+}
+
+public struct Fixed<T> {
+  var a : Int8
+  var b : Int16
+  var c : C<T>
+}
+
 // NOTL-LABEL: define{{.*}} %swift.opaque* @"$s30typelayout_based_value_witness1AVwCP"(
 // NOTL:   @"$s30typelayout_based_value_witness1BVMa"(
 // NOTL: }
@@ -87,6 +102,18 @@ public struct A<T> {
 // OPT:   tail call void [[DESTROY]](%swift.opaque* noalias [[ADDR_T4]], %swift.type* [[T]])
 // OPT:   ret void
 // CHECK: }
+
+// OPT: define{{.*}} void @"$s30typelayout_based_value_witness5FixedVwxx"(%swift.opaque* noalias nocapture readonly %object, %swift.type* nocapture readnone %"Fixed<T>")
+// For fixed types, we should expect a direct gep to the address instead of a
+// manual alignment computation
+// OPT:  [[T_PARAM:%.*]] = bitcast %swift.opaque* %object to i8*
+// OPT:  [[OFFSET:%.*]] = getelementptr inbounds i8, i8* [[T_PARAM]], i64 8
+// OPT:  [[CASTED:%.*]] = bitcast i8* [[OFFSET]] to %T30typelayout_based_value_witness1CC**
+// OPT:  [[TODESTROY:%.*]] = load %T30typelayout_based_value_witness1CC*, %T30typelayout_based_value_witness1CC** [[CASTED]], align 8
+// OPT:  [[FIELD:%.*]] = getelementptr %T30typelayout_based_value_witness1CC, %T30typelayout_based_value_witness1CC* [[TODESTROY]], i64 0, i32 0
+// OPT:  tail call void @swift_release(%swift.refcounted* [[FIELD]]) #6
+// OPT:  ret void
+// OPT:}
 
 // Let's not crash on the following example.
 public protocol P {}
