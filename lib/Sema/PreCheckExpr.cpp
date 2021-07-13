@@ -700,6 +700,17 @@ Expr *TypeChecker::resolveDeclRefExpr(UnresolvedDeclRefExpr *UDRE,
   }
 
   if (AllMemberRefs) {
+    if (Name.isSimpleName(Context.Id_self) &&
+        UDRE->getFunctionRefKind() == FunctionRefKind::Unapplied) {
+      auto baseType = DC->getInnermostTypeContext()->getDeclaredInterfaceType();
+      auto baseTypeString = baseType.getString();
+      Context.Diags.diagnose(Loc, diag::self_refers_to_method, baseTypeString);
+      Context.Diags
+          .diagnose(Loc, diag::fix_unqualified_access_member_named_self,
+                    baseTypeString)
+          .fixItInsert(Loc, diag::insert_type_qualification, baseType);
+    }
+
     Expr *BaseExpr;
     if (auto PD = dyn_cast<ProtocolDecl>(Base)) {
       auto selfParam = PD->getGenericParams()->getParams().front();

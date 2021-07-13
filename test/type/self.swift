@@ -377,3 +377,26 @@ protocol P {
   func foo() -> Self<Int>
   // expected-error@-1 {{cannot specialize non-generic type 'Self'}}
 }
+
+// https://bugs.swift.org/browse/SR-4559 - function called 'self' can be confused with regular 'self'
+struct TypeWithSelfMethod {
+    
+    let property = self // expected-warning {{'self' refers to the method 'TypeWithSelfMethod.self', which may be unexpected}} expected-note{{use 'TypeWithSelfMethod.self' to silence this warning}} {{20-20=TypeWithSelfMethod.}}
+    
+    // Existing warning expected, not confusable
+    let property2 = self() // expected-error {{cannot use instance member 'self' within property initializer; property initializers run before 'self' is available}}
+    
+    let propertyFromClosure: () = {
+        print(self) // expected-warning {{'self' refers to the method 'TypeWithSelfMethod.self', which may be unexpected}} expected-note{{use 'TypeWithSelfMethod.self' to silence this warning}} {{15-15=TypeWithSelfMethod.}}
+    }()
+    
+    let propertyFromFunc = f(self) // expected-warning {{'self' refers to the method 'TypeWithSelfMethod.self', which may be unexpected}} expected-note{{use 'TypeWithSelfMethod.self' to silence this warning}} {{30-30=TypeWithSelfMethod.}}
+    
+    func `self`() {
+        
+    }
+    
+    static func f(_ any: Any) -> Any {
+        any
+    }
+}

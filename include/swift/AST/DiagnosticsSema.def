@@ -3755,8 +3755,13 @@ NOTE(add_self_to_type,none,
 WARNING(warn_unqualified_access,none,
         "use of %0 treated as a reference to %1 in %2 %3",
         (Identifier, DescriptiveDeclKind, DescriptiveDeclKind, DeclName))
+WARNING(self_refers_to_method,none,
+       "'self' refers to the method '%0.self', which may be unexpected",
+       (StringRef))
 NOTE(fix_unqualified_access_member,none,
      "use 'self.' to silence this warning", ())
+NOTE(fix_unqualified_access_member_named_self,none,
+     "use '%0.self' to silence this warning", (StringRef))
 NOTE(fix_unqualified_access_top_level,none,
      "use '%0' to reference the %1",
      (StringRef, DescriptiveDeclKind, Identifier))
