@@ -670,6 +670,15 @@ if (Builtin.ID == BuiltinValueKind::id) { \
     return;
   }
 
+  if (Builtin.ID == BuiltinValueKind::StackAlloc) {
+    auto size = args.claimNext();
+    auto align = args.claimNext();
+    
+    auto result = IGF.emitStackAlloc(size, align);
+    out.add(result);
+    return;
+  }
+
   if (Builtin.ID == BuiltinValueKind::Fence) {
     SmallVector<Type, 4> Types;
     StringRef BuiltinName =

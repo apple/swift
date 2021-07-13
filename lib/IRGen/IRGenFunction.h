@@ -226,6 +226,8 @@ public:
                                  const llvm::Twine &name = "");
   void emitDeallocateDynamicAlloca(StackAddress address);
 
+  llvm::Value *emitStackAlloc(llvm::Value *size, llvm::Value *align);
+
   llvm::BasicBlock *createBasicBlock(const llvm::Twine &Name);
   const TypeInfo &getTypeInfoForUnlowered(Type subst);
   const TypeInfo &getTypeInfoForUnlowered(AbstractionPattern orig, Type subst);

@@ -182,6 +182,7 @@ set(SWIFTLIB_ESSENTIAL
   UnmanagedString.swift
   UnsafePointer.swift
   UnsafeRawPointer.swift
+  UnsafeUninitializedPointer.swift
   UTFEncoding.swift
   UTF8.swift
   UTF16.swift

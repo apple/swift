@@ -267,6 +267,11 @@ public:
   /// (includes alloc_stack allocations).
   unsigned StackPromotionSizeLimit = 1024;
 
+  /// The maximum number of bytes that will be allocated by a call to
+  /// Builtin.stackAlloc() without a subsequent callout to the Swift stdlib to
+  /// check memory conditions.
+  unsigned StackAllocSizeLimit = 1024;
+
   /// Emit code to verify that static and runtime type layout are consistent for
   /// the given type names.
   SmallVector<StringRef, 1> VerifyTypeLayoutNames;

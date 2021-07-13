@@ -1840,6 +1840,7 @@ static void visitBuiltinAddress(BuiltinInst *builtin,
     case BuiltinValueKind::CondFailMessage:
     case BuiltinValueKind::AllocRaw:
     case BuiltinValueKind::DeallocRaw:
+    case BuiltinValueKind::StackAlloc:
     case BuiltinValueKind::Fence:
     case BuiltinValueKind::StaticReport:
     case BuiltinValueKind::Once:

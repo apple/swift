@@ -629,6 +629,86 @@ void IRGenFunction::emitDeallocateDynamicAlloca(StackAddress address) {
   Builder.CreateCall(stackRestoreFn, savedSP);
 }
 
+/// Emit an alloca for the given size and alignment. For use by
+/// Builtin.stackAlloc only; other callers should probably prefer
+/// emitDynamicAlloca() or related.
+llvm::Value *IRGenFunction::emitStackAlloc(llvm::Value *size,
+                                           llvm::Value *align) {
+  auto returnType = IGM.Int8Ty;
+  auto returnPtrType = returnType->getPointerTo();
+  StackAddress stackPointer;
+  auto nullPointer = llvm::Constant::getNullValue(returnPtrType);
+
+  // Check that this function type can emit a stack allocation safely.
+  if (isAsync() || isCoroutine()) {
+    // These types of functions don't actually stack-allocate, and support for
+    // them is not needed at this time.
+    return nullPointer;
+  }
+
+  // Check that the caller-supplied alignment is usable. The current
+  // implementation is unable to provide a stack-allocated buffer if the
+  // alignment is not known at compile-time since the emitted instructions
+  // depend on the alignment value. In practice, it is expected that almost all
+  // callers will supply a compile-time constant value, either a power of 2 or
+  // MemoryLayout<T>.stride.
+  Alignment resolvedAlign;
+  if (auto alignConst = dyn_cast<llvm::ConstantInt>(align)) {
+    // Ensure the supplied alignment is itself a power of 2.
+    auto alignConstValue = llvm::PowerOf2Ceil(alignConst->getSExtValue());
+    if (alignConstValue > 0) {
+      resolvedAlign = Alignment(alignConstValue);
+
+    } else {
+      // The specified alignment is nonsensical (negative, zero, or too big.)
+      return nullPointer;
+    }
+
+  } else {
+    // The caller specified a non-constant alignment value (not an error.)
+    return nullPointer;
+  }
+
+  // Check that the requested size is small enough to fit on the stack. If size
+  // is constant, the compiler can optimize this away. If it is not constant,
+  // the check must be performed at runtime. Equivalent to:
+  //
+  // void *ptr;
+  // if (size <= stackLimit) {
+  //   ptr = alloca(...);
+  // } else {
+  //   ptr = nullptr;
+  // }
+  auto stackLimit = llvm::ConstantInt::getSigned(IGM.SizeTy,
+                                                 IGM.IRGen.Opts.StackAllocSizeLimit);
+  auto predSmallEnough = Builder.CreateICmpSLE(size, stackLimit);
+  auto smallEnoughBB = createBasicBlock("stack_alloc_ok");
+  auto tooBigBB = createBasicBlock("stack_alloc_too_big");
+  auto doneBB = createBasicBlock("stack_alloc_done");
+
+  Builder.CreateCondBr(predSmallEnough, smallEnoughBB, tooBigBB); {
+    Builder.emitBlock(smallEnoughBB); {
+      stackPointer = emitDynamicAlloca(returnType, size, resolvedAlign,
+                                       "stack_alloc");
+    } Builder.CreateBr(doneBB);
+
+    Builder.emitBlock(tooBigBB); {
+      // Here's where we might call out to the stdlib to ask for assistance.
+      // The stdlib could e.g. check thread conditions to determine if it's safe
+      // to issue an alloca, at which point we'd emit one.
+    } Builder.CreateBr(doneBB);
+  } Builder.emitBlock(doneBB);
+
+  auto result = Builder.CreatePHI(returnPtrType, 2);
+  result->addIncoming(stackPointer.getAddressPointer(), smallEnoughBB);
+  result->addIncoming(nullPointer, tooBigBB);
+
+  // FIXME: Box in an Optional. CreateBitCast?
+  // result = boxSomehow(result);
+
+  return result;
+}
+
 /// Emit a call to do an 'initializeArrayWithCopy' operation.
 void irgen::emitInitializeArrayWithCopyCall(IRGenFunction &IGF,
                                             SILType T,

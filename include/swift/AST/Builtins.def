@@ -600,6 +600,19 @@ BUILTIN_MISC_OPERATION(AllocRaw, "allocRaw", "", Special)
 /// was allocated.
 BUILTIN_MISC_OPERATION(DeallocRaw, "deallocRaw", "", Special)
 
+/// StackAlloc has type (Int, Int) -> Builtin.RawPointer?
+///
+/// Parameters: object size, object alignment.
+///
+/// The resulting pointer comes from the stack (as in the non-standard C
+/// extension `alloca()`.) It is at least as aligned as specified and is valid
+/// until the end of the calling scope.
+///
+/// The passed alignment must be a compile-time constant and may be rounded up
+/// to a power of 2. If a stack allocation with the specified size and alignment
+/// cannot be made, returns 0.
+BUILTIN_MISC_OPERATION(StackAlloc, "stackAlloc", "", Special)
+
 /// Fence has type () -> ().
 BUILTIN_MISC_OPERATION(Fence, "fence", "", None)
 
