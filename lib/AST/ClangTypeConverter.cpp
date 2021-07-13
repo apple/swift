@@ -865,6 +865,12 @@ ClangTypeConverter::getClangTemplateArguments(
     ArrayRef<Type> genericArgs,
     SmallVectorImpl<clang::TemplateArgument> &templateArgs) {
   assert(templateArgs.size() == 0);
+  // The types may not line up here if we have some template type parameters
+  // that are defaulted and unused in the function's signature. In this case,
+  // we don't have to convert anything, so this is a noop.
+  if (genericArgs.empty())
+    return nullptr;
+
   assert(genericArgs.size() == templateParams->size());
 
   // Keep track of the types we failed to convert so we can return a useful

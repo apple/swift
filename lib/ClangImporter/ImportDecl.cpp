@@ -4048,6 +4048,30 @@ namespace {
       DeclName name = accessorInfo ? DeclName() : importedName.getDeclName();
       auto selfIdx = importedName.getSelfIndex();
 
+      auto underlyingTypeIsSame = [](const clang::Type *a,
+                                     clang::TemplateTypeParmDecl *b) {
+        while (a->isPointerType() || a->isReferenceType())
+          a = a->getPointeeType().getTypePtr();
+        return a == b->getTypeForDecl();
+      };
+
+      auto templateParamTypeUsedInSignature =
+          [underlyingTypeIsSame,
+           decl](clang::TemplateTypeParmDecl *type) -> bool {
+        // TODO(SR-13809): we will want to update this to handle dependent
+        // types when those are supported.
+        if (underlyingTypeIsSame(decl->getReturnType().getTypePtr(), type))
+          return true;
+
+        for (unsigned i : range(0, decl->getNumParams())) {
+          if (underlyingTypeIsSame(
+                  decl->getParamDecl(i)->getType().getTypePtr(), type))
+            return true;
+        }
+
+        return false;
+      };
+
       ImportedType importedType;
       bool selfIsInOut = false;
       ParameterList *bodyParams = nullptr;
@@ -4056,6 +4080,22 @@ namespace {
       if (funcTemplate) {
         unsigned i = 0;
         for (auto param : *funcTemplate->getTemplateParameters()) {
+          auto templateTypeParam = cast<clang::TemplateTypeParmDecl>(param);
+          // If the template type parameter isn't used in the signature then we
+          // won't be able to deduce what it is when the function template is
+          // called in Swift code. This is OK if there's a defaulted type we can
+          // use (in which case we just don't add a correspond generic). This
+          // also means sometimes we will import a function template as a
+          // "normal" (non-generic) Swift function.
+          //
+          // If the defaulted template type parameter is used in the signature,
+          // then still add a generic so that it can be overrieded.
+          // TODO(SR-14837): in the future we might want to import two overloads
+          // in this case so that the default type could still be used.
+          if (templateTypeParam->hasDefaultArgument() &&
+              !templateParamTypeUsedInSignature(templateTypeParam))
+            continue;
+
           auto *typeParam = Impl.createDeclWithClangNode<GenericTypeParamDecl>(
               param, AccessLevel::Public, dc,
               Impl.SwiftContext.getIdentifier(param->getName()), SourceLoc(), 0,
@@ -4063,8 +4103,9 @@ namespace {
           templateParams.push_back(typeParam);
           (void)++i;
         }
-        genericParams = GenericParamList::create(Impl.SwiftContext, SourceLoc(),
-                                                 templateParams, SourceLoc());
+        if (!templateParams.empty())
+          genericParams = GenericParamList::create(
+              Impl.SwiftContext, SourceLoc(), templateParams, SourceLoc());
       }
 
       if (!dc->isModuleScopeContext() && !isa<clang::CXXMethodDecl>(decl)) {

@@ -112,10 +112,14 @@ Solution::computeSubstitutions(GenericSignature sig,
 static ConcreteDeclRef generateDeclRefForSpecializedCXXFunctionTemplate(
     ASTContext &ctx, AbstractFunctionDecl *oldDecl, SubstitutionMap subst,
     clang::FunctionDecl *specialized) {
+  FunctionType *newFnType = nullptr;
   // Create a new ParameterList with the substituted type.
-  auto oldFnType =
-      cast<GenericFunctionType>(oldDecl->getInterfaceType().getPointer());
-  auto newFnType = oldFnType->substGenericArgs(subst);
+  if (auto oldFnType = dyn_cast<GenericFunctionType>(
+          oldDecl->getInterfaceType().getPointer())) {
+    newFnType = oldFnType->substGenericArgs(subst);
+  } else {
+    newFnType = cast<FunctionType>(oldDecl->getInterfaceType().getPointer());
+  }
   // The constructor type is a function type as follows:
   //   (CType.Type) -> (Generic) -> CType
   // And a method's function type is as follows:
