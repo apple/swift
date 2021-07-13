@@ -175,27 +175,31 @@ static NodePointer applyParamLabels(NodePointer LabelList, NodePointer OrigType,
     auto ParamsType = Factory.createNode(Node::Kind::ArgumentTuple);
     auto Tuple = Factory.createNode(Node::Kind::Tuple);
 
-    auto OrigTuple = ArgTuple->getFirstChild()->getFirstChild();
-    assert(OrigTuple->getKind() == Node::Kind::Tuple);
-
-    for (unsigned i = 0, n = OrigTuple->getNumChildren(); i != n; ++i) {
-      const auto Label = LabelList->getChild(i);
+    auto processParameter = [&](NodePointer Label, NodePointer Param) {
       if (Label->getKind() == Node::Kind::FirstElementMarker) {
-        Tuple->addChild(OrigTuple->getChild(i), Factory);
-        continue;
+        Tuple->addChild(Param, Factory);
+        return;
       }
 
-      auto OrigElt = OrigTuple->getChild(i);
-      auto NewElt = Factory.createNode(Node::Kind::TupleElement);
-
-      NewElt->addChild(Factory.createNodeWithAllocatedText(
+      auto NewParam = Factory.createNode(Node::Kind::TupleElement);
+      NewParam->addChild(Factory.createNodeWithAllocatedText(
                            Node::Kind::TupleElementName, Label->getText()),
-                       Factory);
+                         Factory);
 
-      for (auto &Child : *OrigElt)
-        NewElt->addChild(Child, Factory);
+      for (auto &Child : *Param)
+        NewParam->addChild(Child, Factory);
 
-      Tuple->addChild(NewElt, Factory);
+      Tuple->addChild(NewParam, Factory);
+    };
+
+    auto OrigTuple = ArgTuple->getFirstChild()->getFirstChild();
+
+    if (OrigTuple->getKind() != Node::Kind::Tuple) {
+      processParameter(LabelList->getChild(0), OrigTuple);
+    } else {
+      for (unsigned i = 0, n = OrigTuple->getNumChildren(); i != n; ++i) {
+        processParameter(LabelList->getChild(i), OrigTuple->getChild(i));
+      }
     }
 
     auto Type = Factory.createNode(Node::Kind::Type);
