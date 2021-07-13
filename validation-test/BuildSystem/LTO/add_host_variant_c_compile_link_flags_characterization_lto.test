@@ -1,0 +1,81 @@
+# REQUIRES: standalone_build
+# REQUIRES: ninja
+
+# This test shows some of the suggested patterns to test CMake code --
+# the idea is to write a minimum CMakeList.txt that calls only the
+# functions we are interested in (faking if necessary any dependencies)
+# and running Ninja to assert that expected flags and/or target dependencies
+# are present
+# As an example, we will characterize the function responsible (among other things)
+# for adding the LTO flags, using a single CMakeList.txt to test the following scenarios
+# * configuration of ThinLTO
+# * configuration of FullLTO
+# * No LTO
+
+# Setup the environment for the tests
+# In this case we are using a single build system and calling
+# CMake with different arguments to test the expected behaviour
+# RUN: %empty-directory(%t)
+# RUN: mkdir -p %t/build
+# RUN: mkdir -p %t/source
+# RUN: split-file %s %t/source
+
+# First test: ThinLTO is properly configured
+# We lean on -D to set the variable that change for each test, and to find the modules where
+# the function under test is defined
+# RUN: %empty-directory(%t/build)
+# RUN: %{cmake-generate} -DSWIFT_TOOLS_ENABLE_LTO="thin" -DCMAKE_MODULE_PATH=%swift_src_root/cmake/modules -S %t/source -B %t/build
+# RUN: %{ninja-dryrun} -C %t/build 2>&1 | %FileCheck --check-prefix=THIN-CHECK %s
+
+# For now we are assuming that the flags are always set before the
+# inputs/outputs in the invocations
+# THIN-CHECK: -flto=thin
+# THIN-CHECK-SAME: source/hello.c
+# THIN-CHECK: -flto=thin
+# THIN-CHECK-SAME: placeholder
+
+# Second test: FullLTO is properly configured
+# RUN: %empty-directory(%t/build)
+# RUN: %{cmake-generate} -DSWIFT_TOOLS_ENABLE_LTO="full" -DCMAKE_MODULE_PATH=%swift_src_root/cmake/modules -S %t/source -B %t/build
+# RUN: %{ninja-dryrun} -C %t/build 2>&1 | %FileCheck --check-prefix=FULL-CHECK %s
+
+# FULL-CHECK: -flto=full
+# FULL-CHECK-SAME: source/hello.c
+# FULL-CHECK: -flto=full
+# FULL-CHECK-SAME: placeholder
+
+# Third test: LTO is not configured
+# RUN: %empty-directory(%t/build)
+# RUN: %{cmake-generate} -DSWIFT_TOOLS_ENABLE_LTO="" -DCMAKE_MODULE_PATH=%swift_src_root/cmake/modules -S %t/source -B %t/build
+# RUN: %{ninja-dryrun} -C %t/build 2>&1 | %FileCheck %s
+# RUN: %empty-directory(%t/build)
+# RUN: %{cmake-generate} -DCMAKE_MODULE_PATH=%swift_src_root/cmake/modules -S %t/source -B %t/build
+# RUN: %{ninja-dryrun} -C %t/build 2>&1 | %FileCheck %s
+
+# CHECK-NOT: -flto=
+
+#--- CMakeLists.txt
+cmake_minimum_required(VERSION ${MIN_VERSION})
+
+project(lto_characterization)
+
+# We are including only the module containing the function
+# we are interested in
+include(AddSwift)
+
+# Statically define the variables needed
+# _add_host_variant_c_compile_link_flags to work
+# and that do not change between executions
+set(SWIFT_HOST_VARIANT_SDK "OSX")
+set(SWIFT_HOST_VARIANT_ARCH "x86_64")
+set(DEPLOYMENT_VERSION "10.9")
+set(SWIFT_SDK_OSX_ARCH_X86_64_TRIPLE "x86_64-apple-macos")
+
+# This is the target we will use to sense the effects
+# of _add_host_variant_c_compile_link_flags
+add_executable(placeholder hello.c)
+
+_add_host_variant_c_compile_link_flags(placeholder)
+
+#--- hello.c
+int main(){}
