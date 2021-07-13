@@ -1,0 +1,4 @@
+module ImportCVAList {
+  header "va_list.h"
+  export *
+}

@@ -128,6 +128,7 @@ MAP_STDLIB_TYPE("u_int64_t", UnsignedInt, 64, "UInt64", false, DoNothing)
 // There's an explicit workaround in ImportType.cpp's VisitDecayedType for that.
 MAP_STDLIB_TYPE("va_list", VaList, 0, "CVaListPointer", false, DoNothing)
 MAP_STDLIB_TYPE("__gnuc_va_list", VaList, 0, "CVaListPointer", false, DoNothing)
+MAP_STDLIB_TYPE("__isoc_va_list", VaList, 0, "CVaListPointer", false, DoNothing)
 MAP_STDLIB_TYPE("__va_list", VaList, 0, "CVaListPointer", false, DoNothing)
 
 // libkern/OSTypes.h types.
