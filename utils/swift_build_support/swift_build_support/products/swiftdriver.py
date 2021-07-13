@@ -91,8 +91,10 @@ def run_build_script_helper(action, host_target, product, args):
         install_destdir = swiftpm.SwiftPM.get_install_destdir(args,
                                                               host_target,
                                                               product.build_dir)
-    toolchain_path = targets.toolchain_path(install_destdir,
-                                            args.install_prefix)
+    if args.native_swift_tools_path is not None:
+        toolchain_path = os.path.split(args.native_swift_tools_path)[0]
+    else:
+        toolchain_path = product.install_toolchain_path(host_target)
 
     # Pass Dispatch directory down if we built it
     dispatch_build_dir = os.path.join(
@@ -135,9 +137,26 @@ def run_build_script_helper(action, host_target, product, args):
     # Pass Cross compile host info
     if swiftpm.SwiftPM.has_cross_compile_hosts(args):
         helper_cmd += ['--cross-compile-hosts']
-        for cross_compile_host in args.cross_compile_hosts:
-            helper_cmd += [cross_compile_host]
+        if targets.StdlibDeploymentTarget.get_target_for_name(
+                host_target).platform.is_darwin:
+            for cross_compile_host in args.cross_compile_hosts:
+                helper_cmd += [cross_compile_host]
+        elif host_target != args.host_target:
+            helper_cmd += [host_target]
+            build_toolchain_path = install_destdir + args.install_prefix
+            resource_dir = '%s/lib/swift' % build_toolchain_path
+            helper_cmd += [
+                '--cross-compile-config',
+                targets.StdlibDeploymentTarget.get_target_for_name(
+                    host_target).platform.swiftpm_config(
+                    args, output_dir=build_toolchain_path,
+                    swift_toolchain=toolchain_path, resource_path=resource_dir)]
     if args.verbose_build:
         helper_cmd.append('--verbose')
+
+    if action == 'install':
+        helper_cmd += [
+            '--prefix', install_destdir + args.install_prefix
+        ]
 
     shell.call(helper_cmd)

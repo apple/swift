@@ -1075,9 +1075,14 @@ class BuildScriptInvocation(object):
         # Core Lipo...
         self._execute_merged_host_lipo_core_action()
 
+        non_darwin_cross_compile_hostnames = [
+            target for target in self.args.cross_compile_hosts if not
+            StdlibDeploymentTarget.get_target_for_name(target).platform.is_darwin]
         # Non-build-script-impl products...
-        # Note: currently only supports building for the host.
-        for host_target in [self.args.host_target]:
+        # Note: currently only supports cross-compiling for non-Darwin hosts.
+        for host_target in [self.args.host_target] + non_darwin_cross_compile_hostnames:
+            if self.args.skip_local_build and host_target == self.args.host_target:
+                continue
             for product_class in product_classes:
                 if product_class.is_build_script_impl_product():
                     continue

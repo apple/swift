@@ -195,15 +195,15 @@ class Product(object):
         """toolchain_path() -> string
 
         Returns the path to the toolchain that is being created as part of this
-        build, or to a native prebuilt toolchain that was passed in.
+        build
         """
-        if self.args.native_swift_tools_path is not None:
-            return os.path.split(self.args.native_swift_tools_path)[0]
-
         install_destdir = self.args.install_destdir
         if self.args.cross_compile_hosts:
-            build_root = os.path.dirname(self.build_dir)
-            install_destdir = '%s/intermediate-install/%s' % (build_root, host_target)
+            if targets.StdlibDeploymentTarget.get_target_for_name(
+                    host_target).platform.is_darwin:
+                build_root = os.path.dirname(self.build_dir)
+                install_destdir = '%s/intermediate-install/%s' % (build_root,
+                                                                  host_target)
         return targets.toolchain_path(install_destdir,
                                       self.args.install_prefix)
 

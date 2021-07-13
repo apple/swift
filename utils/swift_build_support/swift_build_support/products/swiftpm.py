@@ -23,6 +23,7 @@ from . import product
 from . import swift
 from . import xctest
 from .. import shell
+from ..targets import StdlibDeploymentTarget
 
 
 class SwiftPM(product.Product):
@@ -44,7 +45,11 @@ class SwiftPM(product.Product):
     def run_bootstrap_script(self, action, host_target, additional_params=[]):
         script_path = os.path.join(
             self.source_dir, 'Utilities', 'bootstrap')
-        toolchain_path = self.install_toolchain_path(host_target)
+
+        if self.args.native_swift_tools_path is not None:
+            toolchain_path = os.path.split(self.args.native_swift_tools_path)[0]
+        else:
+            toolchain_path = self.install_toolchain_path(host_target)
         swiftc = os.path.join(toolchain_path, "bin", "swiftc")
 
         # FIXME: We require llbuild build directory in order to build. Is
@@ -93,8 +98,22 @@ class SwiftPM(product.Product):
         # Pass Cross compile host info
         if self.has_cross_compile_hosts(self.args):
             helper_cmd += ['--cross-compile-hosts']
-            for cross_compile_host in self.args.cross_compile_hosts:
-                helper_cmd += [cross_compile_host]
+            if StdlibDeploymentTarget.get_target_for_name(
+                    host_target).platform.is_darwin:
+                for cross_compile_host in self.args.cross_compile_hosts:
+                    helper_cmd += [cross_compile_host]
+            elif host_target != self.args.host_target:
+                helper_cmd += [host_target]
+                helper_cmd.append("--skip-cmake-bootstrap")
+                build_toolchain_path = self.get_install_destdir(
+                    self.args, host_target, self.build_dir) + self.args.install_prefix
+                resource_dir = '%s/lib/swift' % build_toolchain_path
+                helper_cmd += [
+                    '--cross-compile-config',
+                    StdlibDeploymentTarget.get_target_for_name(host_target).platform
+                    .swiftpm_config(self.args, output_dir=build_toolchain_path,
+                                    swift_toolchain=toolchain_path,
+                                    resource_path=resource_dir)]
 
         helper_cmd.extend(additional_params)
 
@@ -126,8 +145,13 @@ class SwiftPM(product.Product):
     def get_install_destdir(self, args, host_target, build_dir):
         install_destdir = args.install_destdir
         if self.has_cross_compile_hosts(args):
-            build_root = os.path.dirname(build_dir)
-            install_destdir = '%s/intermediate-install/%s' % (build_root, host_target)
+            if StdlibDeploymentTarget.get_target_for_name(
+                    host_target).platform.is_darwin:
+                build_root = os.path.dirname(build_dir)
+                install_destdir = '%s/intermediate-install/%s' % (
+                                  build_root, host_target)
+            elif host_target != args.host_target:
+                install_destdir = os.path.join(install_destdir, host_target)
         return install_destdir
 
     def install(self, host_target):
