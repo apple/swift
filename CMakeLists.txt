@@ -538,6 +538,12 @@ else()
   set(SWIFT_PREBUILT_SWIFT TRUE)
 endif()
 
+if (SWIFT_BUILD_RUNTIME_WITH_HOST_COMPILER)
+  if ("${CMAKE_Swift_COMPILER}" STREQUAL "CMAKE_Swift_COMPILER-NOTFOUND" AND NOT SWIFT_PREBUILT_SWIFT)
+    message(ERROR "Swift Compiler not found and SWIFT_BUILD_RUNTIME_WITH_HOST_COMPILER is set")
+  endif()
+endif()
+
 include(SwiftSharedCMakeConfig)
 
 # NOTE: We include this before SwiftComponents as it relies on some LLVM CMake
