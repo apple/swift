@@ -998,3 +998,20 @@ struct Rdar77867723 {
 // OVERLOAD_LABEL2: End completions
   }
 }
+
+struct SR14737<T> {
+  init(arg1: T, arg2: Bool) {}
+}
+extension SR14737 where T == Int {
+  init(arg1: T, onlyInt: Bool) {}
+}
+func test_SR14737() {
+  invalidCallee {
+    SR14737(arg1: true, #^GENERIC_INIT_IN_INVALID^#)
+// FIXME: 'onlyInt' shouldn't be offered because 'arg1' is Bool.
+// GENERIC_INIT_IN_INVALID: Begin completions, 2 items
+// GENERIC_INIT_IN_INVALID-DAG: Pattern/Local/Flair[ArgLabels]:     {#arg2: Bool#}[#Bool#];
+// GENERIC_INIT_IN_INVALID-DAG: Pattern/Local/Flair[ArgLabels]:     {#onlyInt: Bool#}[#Bool#];
+// GENERIC_INIT_IN_INVALID: End completions
+  }
+}
