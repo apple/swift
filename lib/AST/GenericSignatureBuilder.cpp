@@ -8146,6 +8146,8 @@ void GenericSignatureBuilder::enumerateRequirements(
                                RequirementRHS rhs) {
     if (auto req = createRequirement(kind, depTy, rhs, genericParams))
       requirements.push_back(*req);
+    else
+      Impl->HadAnyError = true;
   };
 
   // Collect all non-same type requirements.
@@ -8489,6 +8491,8 @@ GenericSignature GenericSignatureBuilder::rebuildSignatureWithoutRedundantRequir
       auto newReq = stripBoundDependentMemberTypes(*optReq);
       newBuilder.addRequirement(newReq, getRebuiltSource(req.getSource()),
                                 nullptr);
+    } else {
+      Impl->HadAnyError = true;
     }
   }
 

@@ -109,24 +109,9 @@ void ProtocolGraph::computeInheritedAssociatedTypes() {
   for (const auto *proto : llvm::reverse(Protocols)) {
     auto &info = Info[proto];
 
-    // We might inherit the same associated type multiple times due to
-    // diamond inheritance, so make sure we only add each associated
-    // type once.
-    llvm::SmallDenseSet<const AssociatedTypeDecl *, 4> visited;
-
-    for (const auto *inherited : info.Inherited) {
-      if (inherited == proto)
-        continue;
-
+    for (const auto *inherited : info.AllInherited) {
       for (auto *inheritedType : getProtocolInfo(inherited).AssociatedTypes) {
-        if (!visited.insert(inheritedType).second)
-          continue;
-
-        // The 'if (inherited == proto)' above avoids a potential
-        // iterator invalidation here, because we're updating
-        // getProtocolInfo(proto).AssociatedTypes while iterating over
-        // getProtocolInfo(inherited).AssociatedTypes.
-        info.AssociatedTypes.push_back(inheritedType);
+        info.InheritedAssociatedTypes.push_back(inheritedType);
       }
     }
   }
@@ -188,6 +173,14 @@ unsigned ProtocolGraph::computeProtocolDepth(const ProtocolDecl *proto) {
 
   info.Depth = depth;
   return depth;
+}
+
+/// Compute everything in the right order.
+void ProtocolGraph::compute() {
+  computeTransitiveClosure();
+  computeLinearOrder();
+  computeInheritedProtocols();
+  computeInheritedAssociatedTypes();
 }
 
 /// Defines a linear order with the property that if a protocol P inherits

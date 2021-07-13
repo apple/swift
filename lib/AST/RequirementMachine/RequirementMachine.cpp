@@ -86,21 +86,21 @@ void RewriteSystemBuilder::addGenericSignature(CanGenericSignature sig) {
   // Collect all protocols transitively referenced from the generic signature's
   // requirements.
   Protocols.visitRequirements(sig->getRequirements());
-  Protocols.computeTransitiveClosure();
-  Protocols.computeLinearOrder();
-  Protocols.computeInheritedProtocols();
-  Protocols.computeInheritedAssociatedTypes();
+  Protocols.compute();
 
   // Add rewrite rules for each protocol.
-  for (auto *proto : Protocols.Protocols) {
+  for (auto *proto : Protocols.getProtocols()) {
     if (Debug) {
       llvm::dbgs() << "protocol " << proto->getName() << " {\n";
     }
 
     const auto &info = Protocols.getProtocolInfo(proto);
 
-    for (auto *type : info.AssociatedTypes)
-      addAssociatedType(type, proto);
+    for (auto *assocType : info.AssociatedTypes)
+      addAssociatedType(assocType, proto);
+
+    for (auto *assocType : info.InheritedAssociatedTypes)
+      addAssociatedType(assocType, proto);
 
     for (auto req : info.Requirements)
       addRequirement(req.getCanonical(), proto);

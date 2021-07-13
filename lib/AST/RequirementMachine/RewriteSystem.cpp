@@ -139,11 +139,16 @@ const ProtocolDecl *Atom::getProtocol() const {
   return Ptr->Proto;
 }
 
-/// Get the list of protocols associated with an associated type atom.
+/// Get the list of protocols associated with a protocol or associated type
+/// atom. Note that if this is a protocol atom, the return value will have
+/// exactly one element.
 ArrayRef<const ProtocolDecl *> Atom::getProtocols() const {
-  assert(getKind() == Kind::AssociatedType);
   auto protos = Ptr->getProtocols();
-  assert(!protos.empty());
+  if (protos.empty()) {
+    assert(getKind() == Kind::Protocol);
+    return {&Ptr->Proto, 1};
+  }
+  assert(getKind() == Kind::AssociatedType);
   return protos;
 }
 
@@ -687,12 +692,20 @@ struct Term::Storage final
 
 size_t Term::size() const { return Ptr->Size; }
 
-ArrayRef<Atom>::const_iterator Term::begin() const {
+ArrayRef<Atom>::iterator Term::begin() const {
   return Ptr->getElements().begin();
 }
 
-ArrayRef<Atom>::const_iterator Term::end() const {
+ArrayRef<Atom>::iterator Term::end() const {
   return Ptr->getElements().end();
+}
+
+ArrayRef<Atom>::reverse_iterator Term::rbegin() const {
+  return Ptr->getElements().rbegin();
+}
+
+ArrayRef<Atom>::reverse_iterator Term::rend() const {
+  return Ptr->getElements().rend();
 }
 
 Atom Term::back() const {
@@ -737,6 +750,35 @@ void Term::Storage::Profile(llvm::FoldingSetNodeID &id) const {
 
   for (auto atom : getElements())
     id.AddPointer(atom.getOpaquePointer());
+}
+
+/// Returns the "domain" of this term by looking at the first atom.
+///
+/// - If the first atom is a protocol atom [P], the domain is P.
+/// - If the first atom is an associated type atom [P1&...&Pn],
+///   the domain is {P1, ..., Pn}.
+/// - If the first atom is a generic parameter atom, the domain is
+///   the empty set {}.
+/// - Anything else will assert.
+ArrayRef<const ProtocolDecl *> MutableTerm::getRootProtocols() const {
+  auto atom = *begin();
+
+  switch (atom.getKind()) {
+  case Atom::Kind::Protocol:
+  case Atom::Kind::AssociatedType:
+    return atom.getProtocols();
+
+  case Atom::Kind::GenericParam:
+    return ArrayRef<const ProtocolDecl *>();
+
+  case Atom::Kind::Name:
+  case Atom::Kind::Layout:
+  case Atom::Kind::Superclass:
+  case Atom::Kind::ConcreteType:
+    break;
+  }
+
+  llvm_unreachable("Bad root atom");
 }
 
 /// Linear order on terms.
@@ -1043,7 +1085,7 @@ Type getTypeForAtomRange(Iter begin, Iter end, Type root,
       //
       for (auto *proto : atom.getProtocols()) {
         const auto &info = protos.getProtocolInfo(proto);
-        for (auto *otherAssocType : info.AssociatedTypes) {
+        auto checkOtherAssocType = [&](AssociatedTypeDecl *otherAssocType) {
           otherAssocType = otherAssocType->getAssociatedTypeAnchor();
 
           if (otherAssocType->getName() == name &&
@@ -1052,6 +1094,14 @@ Type getTypeForAtomRange(Iter begin, Iter end, Type root,
                                  assocType->getProtocol()) < 0)) {
             assocType = otherAssocType;
           }
+        };
+
+        for (auto *otherAssocType : info.AssociatedTypes) {
+          checkOtherAssocType(otherAssocType);
+        }
+
+        for (auto *otherAssocType : info.InheritedAssociatedTypes) {
+          checkOtherAssocType(otherAssocType);
         }
       }
     }
@@ -1237,7 +1287,8 @@ void RewriteSystem::simplifyRightHandSides() {
 
 #define ASSERT_RULE(expr) \
   if (!(expr)) { \
-    llvm::errs() << "&&& Malformed rewrite rule: " << rule << "\n\n"; \
+    llvm::errs() << "&&& Malformed rewrite rule: " << rule << "\n"; \
+    llvm::errs() << "&&& " << #expr << "\n\n"; \
     dump(llvm::errs()); \
     assert(expr); \
   }
@@ -1282,6 +1333,11 @@ void RewriteSystem::simplifyRightHandSides() {
         ASSERT_RULE(atom.getKind() != Atom::Kind::Protocol);
       }
     }
+
+    auto lhsDomain = lhs.getRootProtocols();
+    auto rhsDomain = rhs.getRootProtocols();
+
+    ASSERT_RULE(lhsDomain == rhsDomain);
   }
 
 #undef ASSERT_RULE
