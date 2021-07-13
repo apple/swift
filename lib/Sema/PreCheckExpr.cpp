@@ -238,6 +238,27 @@ static bool diagnoseRangeOperatorMisspell(DiagnosticEngine &Diags,
   return false;
 }
 
+static void diagnoseMisusedCarrotOperator(DiagnosticEngine &Diags,
+                                          UnresolvedDeclRefExpr *UDRE,
+                                          DeclContext *DC) {
+  auto name = UDRE->getName().getBaseIdentifier();
+  if (!(name.isOperator() && name.is("^")))
+    return;
+
+  DC = DC->getModuleScopeContext();
+
+  auto &ctx = DC->getASTContext();
+  DeclNameRef powerName(ctx.getIdentifier("pow"));
+
+  // Look if 'pow(_:_:)' exists within current context.
+  auto lookUp = TypeChecker::lookupUnqualified(DC, powerName, UDRE->getLoc(),
+                                               defaultUnqualifiedLookupOptions);
+  if (lookUp) {
+    Diags.diagnose(UDRE->getLoc(), diag::misused_carrot_operator)
+        .highlight(UDRE->getSourceRange());
+  }
+}
+
 static bool diagnoseNonexistentPowerOperator(DiagnosticEngine &Diags,
                                              UnresolvedDeclRefExpr *UDRE,
                                              DeclContext *DC) {
@@ -482,6 +503,8 @@ Expr *TypeChecker::resolveDeclRefExpr(UnresolvedDeclRefExpr *UDRE,
       }
     }
   }
+
+  diagnoseMisusedCarrotOperator(Context.Diags, UDRE, DC);
 
   if (!Lookup) {
     // If we failed lookup of an operator, check to see if this is a range

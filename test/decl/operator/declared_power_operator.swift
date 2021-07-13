@@ -9,6 +9,7 @@ func testDeclaredPowerOperator() {
   let y: Double = 3.0
   _ = 2.0**2.0 // no error
   _ = x**y // no error
+  _ = x^y // no error
 }
 
 func testDeclaredPowerOperatorWithIncompatibleType() { 

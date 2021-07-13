@@ -882,6 +882,9 @@ ERROR(unspaced_unary_operator,none,
 ERROR(nonexistent_power_operator,none,
       "no operator '**' is defined; did you mean 'pow(_:_:)'?",
       ())
+NOTE(misused_carrot_operator, none,
+      "did you mean to use 'pow(_:_:)'?",
+      ())
 
 ERROR(cannot_find_in_scope,none,
       "cannot %select{find|find operator}1 %0 in scope", (DeclNameRef, bool))
