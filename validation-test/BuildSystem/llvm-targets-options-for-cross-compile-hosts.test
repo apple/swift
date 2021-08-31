@@ -3,7 +3,7 @@
 
 # RUN: %empty-directory(%t)
 # RUN: mkdir -p %t
-# RUN: SWIFT_BUILD_ROOT=%t %swift_src_root/utils/build-script --dry-run --llvm-ninja-targets="lib/all clangDependencyScanning" --cross-compile-hosts=iphoneos-arm64e --cmake %cmake  2>&1 | %FileCheck --check-prefix=LLVM-NINJA-TARGETS-APPLY-TO-CROSS-COMPILE-HOSTS-TOO-CHECK %s
+# RUN: SKIP_XCODE_VERSION_CHECK=1 SWIFT_BUILD_ROOT=%t %swift_src_root/utils/build-script --dry-run --llvm-ninja-targets="lib/all clangDependencyScanning" --cross-compile-hosts=iphoneos-arm64e --cmake %cmake  2>&1 | %FileCheck --check-prefix=LLVM-NINJA-TARGETS-APPLY-TO-CROSS-COMPILE-HOSTS-TOO-CHECK %s
 
 # LLVM-NINJA-TARGETS-APPLY-TO-CROSS-COMPILE-HOSTS-TOO-CHECK: cmake --build {{.*}}/llvm-{{[^/]*}} lib/all clangDependencyScanning
 # LLVM-NINJA-TARGETS-APPLY-TO-CROSS-COMPILE-HOSTS-TOO-CHECK: cmake --build {{.*}}/llvm-iphoneos-arm64e {{.*}} lib/all clangDependencyScanning

@@ -138,14 +138,20 @@ class HostSpecificConfiguration(object):
                 #
                 # NOTE: We currently do not seperate testing options for
                 # stage1/stage2 compiler. This can change with time.
-                if stage_dependent_args.build_swift_stdlib_unittest_extra or \
-                        args.validation_test or args.long_test or \
-                        args.stress_test:
-                    self.swift_stdlib_build_targets.append(
-                        "swift-stdlib-" + name)
-                else:
-                    self.swift_stdlib_build_targets.append(
-                        "swift-test-stdlib-" + name)
+                #
+                # This matches the logic in test/CMakeLists.txt around if
+                # this target is meant to be generated.
+                if stage_dependent_args.swift_build_dynamic_stdlib:
+                    query = \
+                        stage_dependent_args.build_swift_stdlib_unittest_extra
+                    if query or \
+                       args.validation_test or args.long_test or \
+                       args.stress_test:
+                        self.swift_stdlib_build_targets.append(
+                            "swift-stdlib-" + name)
+                    else:
+                        self.swift_stdlib_build_targets.append(
+                            "swift-test-stdlib-" + name)
             if build_benchmarks:
                 self.swift_benchmark_build_targets.append(
                     "swift-benchmark-" + name)
@@ -160,6 +166,7 @@ class HostSpecificConfiguration(object):
                 if args.benchmark:
                     self.swift_benchmark_run_targets.append(
                         "check-swift-benchmark-{}-external".format(name))
+
             if test:
                 if test_host_only:
                     suffix = "-only_non_executable"
@@ -341,3 +348,43 @@ class HostSpecificConfiguration(object):
            not args.only_non_executable_test:
             platforms_to_skip_test_host.add(StdlibDeploymentTarget.AppleWatch)
         return platforms_to_skip_test_host
+
+    @classmethod
+    def default_stdlib_deployment_targets(cls, args, stage_dependent_args=None):
+        if not isinstance(args, compiler_stage.StageArgs):
+            args = compiler_stage.StageArgs(compiler_stage.Stage.STAGE_1, args)
+        if stage_dependent_args is None:
+            stage_dependent_args = args
+
+        host_target = StdlibDeploymentTarget.host_target()
+        if host_target is None:
+            return None
+
+        # OS X build machines configure all Darwin platforms by default.
+        # Put iOS native targets last so that we test them last
+        # (it takes a long time).
+        if host_target == StdlibDeploymentTarget.OSX.x86_64:
+            targets = [host_target]
+            if stage_dependent_args.build_ios and \
+               stage_dependent_args.build_ios_simulator:
+                targets.extend(StdlibDeploymentTarget.iOSSimulator.targets)
+            if stage_dependent_args.build_ios and \
+               stage_dependent_args.build_ios_device:
+                targets.extend(StdlibDeploymentTarget.iOS.targets)
+            if stage_dependent_args.build_tvos and \
+               stage_dependent_args.build_tvos_simulator:
+                targets.extend(StdlibDeploymentTarget.AppleTVSimulator.targets)
+            if stage_dependent_args.build_tvos and \
+               stage_dependent_args.build_tvos_device:
+                targets.extend(StdlibDeploymentTarget.AppleTV.targets)
+            if stage_dependent_args.build_watchos and \
+               stage_dependent_args.build_watchos_simulator:
+                targets.extend(StdlibDeploymentTarget
+                               .AppleWatchSimulator.targets)
+            if stage_dependent_args.build_watchos and \
+               stage_dependent_args.build_watchos_device:
+                targets.extend(StdlibDeploymentTarget.AppleWatch.targets)
+            return targets
+        else:
+            # All other machines only configure their host stdlib by default.
+            return [host_target]

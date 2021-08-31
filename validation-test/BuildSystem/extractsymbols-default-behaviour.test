@@ -21,7 +21,7 @@
 # RUN: chmod a+x %t/destdir/libswiftCompatibility51.a
 # RUN: mkdir -p %t/symroot/macosx-%target-cpu
 
-# RUN: SWIFT_BUILD_ROOT=%t %swift_src_root/utils/build-script-impl --dry-run --build-dir=%t/build --workspace=%swift_src_root/.. --cmake %cmake --only-execute macosx-%target-cpu-extractsymbols --host-cc /usr/bin/true --darwin-install-extract-symbols=1 --host-target=macosx-%target-cpu --install-symroot=%t/symroot --install-destdir=%t/destdir --build-jobs=1 > %t/build-script-impl-output.txt 2>&1
+# RUN: SKIP_XCODE_VERSION_CHECK=1 SWIFT_BUILD_ROOT=%t %swift_src_root/utils/build-script-impl --dry-run --enable-extract-symbol-dry-run-test=1 --build-dir=%t/build --workspace=%swift_src_root/.. --cmake %cmake --only-execute macosx-%target-cpu-extractsymbols --host-cc /usr/bin/true --darwin-install-extract-symbols=1 --host-target=macosx-%target-cpu --install-symroot=%t/symroot --install-destdir=%t/destdir --build-jobs=1 > %t/build-script-impl-output.txt 2>&1
 # RUN: %FileCheck --input-file=%t/build-script-impl-output.txt %s
 # RUN: %FileCheck --input-file=%t/build-script-impl-output.txt --check-prefixes CHECK-SKIPPED %s
 

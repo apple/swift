@@ -22,21 +22,21 @@
 # RUN: mkdir -p %t/symroot/macosx-%target-cpu
 
 # test build-script-impl on its own
-# RUN: SWIFT_BUILD_ROOT=%t %swift_src_root/utils/build-script-impl --dry-run --build-dir=%t/build --workspace=%swift_src_root/.. --cmake %cmake --only-execute macosx-%target-cpu-extractsymbols --host-cc /usr/bin/true --darwin-install-extract-symbols=1 --host-target=macosx-%target-cpu --install-symroot=%t/symroot --install-destdir=%t/destdir --build-jobs=1 --darwin-symroot-path-filters="/lib/ /swift-demangle"  2>&1 | tee %t/build-script-impl-output.txt
+# RUN: SWIFT_BUILD_ROOT=%t %swift_src_root/utils/build-script-impl --dry-run --enable-extract-symbol-dry-run-test=1 --build-dir=%t/build --workspace=%swift_src_root/.. --cmake %cmake --only-execute macosx-%target-cpu-extractsymbols --host-cc /usr/bin/true --darwin-install-extract-symbols=1 --host-target=macosx-%target-cpu --install-symroot=%t/symroot --install-destdir=%t/destdir --build-jobs=1 --darwin-symroot-path-filters="/lib/ /swift-demangle"  2>&1 | tee %t/build-script-impl-output.txt
 # RUN: %FileCheck --input-file=%t/build-script-impl-output.txt %s
 # RUN: %FileCheck --input-file=%t/build-script-impl-output.txt --check-prefixes CHECK-SKIPPED %s
 
 # ensure build-script pass the argument to build-script-impl
 # RUN: %empty-directory(%t/symroot)
 # RUN: mkdir -p %t/symroot/macosx-%target-cpu
-# RUN: SKIP_XCODE_VERSION_CHECK=1 SWIFT_BUILD_ROOT=%t %swift_src_root/utils/build-script --dry-run --cmake %cmake --darwin-install-extract-symbols=1 --install-destdir=%t/destdir --toolchain-prefix="" --install-symroot=%t/symroot --darwin-symroot-path-filters="/lib/ /swift-demangle" --jobs=1 --host-target=macosx-%target-cpu 2>&1 | tee %t/build-script-output.txt
+# RUN: SKIP_XCODE_VERSION_CHECK=1 SWIFT_BUILD_ROOT=%t %swift_src_root/utils/build-script --dry-run --enable-extract-symbol-dry-run-test=1 --cmake %cmake --darwin-install-extract-symbols=1 --install-destdir=%t/destdir --toolchain-prefix="" --install-symroot=%t/symroot --darwin-symroot-path-filters="/lib/ /swift-demangle" --jobs=1 --host-target=macosx-%target-cpu 2>&1 | tee %t/build-script-output.txt
 # RUN: %FileCheck --input-file=%t/build-script-output.txt %s
 # RUN: %FileCheck --input-file=%t/build-script-output.txt --check-prefixes CHECK-SKIPPED %s
 
 # ensure we get all the values if we specify the flag multiple times
 # RUN: %empty-directory(%t/symroot)
 # RUN: mkdir -p %t/symroot/macosx-%target-cpu
-# RUN: SKIP_XCODE_VERSION_CHECK=1 SWIFT_BUILD_ROOT=%t %swift_src_root/utils/build-script --dry-run --cmake %cmake --darwin-install-extract-symbols=1 --install-destdir=%t/destdir --toolchain-prefix="" --install-symroot=%t/symroot --darwin-symroot-path-filters="/lib/" --darwin-symroot-path-filters="/swift-demangle" --jobs=1 --host-target=macosx-%target-cpu 2>&1 | tee %t/build-script-output.txt
+# RUN: SKIP_XCODE_VERSION_CHECK=1 SWIFT_BUILD_ROOT=%t %swift_src_root/utils/build-script --dry-run --enable-extract-symbol-dry-run-test=1 --cmake %cmake --darwin-install-extract-symbols=1 --install-destdir=%t/destdir --toolchain-prefix="" --install-symroot=%t/symroot --darwin-symroot-path-filters="/lib/" --darwin-symroot-path-filters="/swift-demangle" --jobs=1 --host-target=macosx-%target-cpu 2>&1 | tee %t/build-script-output.txt
 # RUN: %FileCheck --input-file=%t/build-script-output.txt %s
 # RUN: %FileCheck --input-file=%t/build-script-output.txt --check-prefixes CHECK-SKIPPED %s
 

@@ -72,6 +72,12 @@ def _apply_default_arguments(args):
     if args.swift_stdlib_build_variant is None:
         args.swift_stdlib_build_variant = args.build_variant
 
+    if args.swift_build_variant_stdlib_stage2 is None:
+        args.swift_build_variant_stdlib_stage2 = args.build_variant
+
+    if args.swift_stdlib_build_variant_stdlib_stage2 is None:
+        args.swift_stdlib_build_variant_stdlib_stage2 = args.build_variant
+
     if args.cmark_build_variant is None:
         args.cmark_build_variant = args.swift_build_variant
 
@@ -106,6 +112,12 @@ def _apply_default_arguments(args):
 
     if args.swift_stdlib_assertions is None:
         args.swift_stdlib_assertions = args.assertions
+
+    if args.swift_assertions_stdlib_stage2 is None:
+        args.swift_assertions_stdlib_stage2 = args.assertions
+
+    if args.swift_stdlib_assertions_stdlib_stage2 is None:
+        args.swift_stdlib_assertions_stdlib_stage2 = args.assertions
 
     if args.llbuild_assertions is None:
         args.llbuild_assertions = args.assertions
@@ -147,6 +159,23 @@ def _apply_default_arguments(args):
     if not args.android or not args.build_android:
         args.build_android = False
 
+    # --skip-{ios,tvos,watchos} or --skip-build-{ios,tvos,watchos} are
+    # merely shorthands for --skip-build-{**os}-{device,simulator}
+    if not args.ios_stdlib_stage2 or not args.build_ios_stdlib_stage2:
+        args.build_ios_device_stdlib_stage2 = False
+        args.build_ios_simulator_stdlib_stage2 = False
+
+    if not args.tvos_stdlib_stage2 or not args.build_tvos_stdlib_stage2:
+        args.build_tvos_device_stdlib_stage2 = False
+        args.build_tvos_simulator_stdlib_stage2 = False
+
+    if not args.watchos_stdlib_stage2 or not args.build_watchos_stdlib_stage2:
+        args.build_watchos_device_stdlib_stage2 = False
+        args.build_watchos_simulator_stdlib_stage2 = False
+
+    if not args.android_stdlib_stage2 or not args.build_android_stdlib_stage2:
+        args.build_android_stdlib_stage2 = False
+
     # --test-paths implies --test and/or --validation-test
     # depending on what directories/files have been specified.
     if args.test_paths:
@@ -183,6 +212,17 @@ def _apply_default_arguments(args):
         args.test_tvos = False
         args.test_watchos = False
         args.test_android = False
+
+        args.test_swift_stdlib_stage2 = False
+        args.test_linux_stdlib_stage2 = False
+        args.test_freebsd_stdlib_stage2 = False
+        args.test_cygwin_stdlib_stage2 = False
+        args.test_osx_stdlib_stage2 = False
+        args.test_ios_stdlib_stage2 = False
+        args.test_tvos_stdlib_stage2 = False
+        args.test_watchos_stdlib_stage2 = False
+        args.test_android_stdlib_stage2 = False
+
         args.test_cmark = False
         args.test_swiftpm = False
         args.test_swift_driver = False
@@ -204,15 +244,28 @@ def _apply_default_arguments(args):
     if not args.test_ios:
         args.test_ios_host = False
         args.test_ios_simulator = False
+    # --skip-test-ios-stdlib-stage2 is merely a shorthand for host and simulator tests.
+    if not args.test_ios_stdlib_stage2:
+        args.test_ios_host_stdlib_stage2 = False
+        args.test_ios_simulator_stdlib_stage2 = False
     # --skip-test-tvos is merely a shorthand for host and simulator tests.
     if not args.test_tvos:
         args.test_tvos_host = False
         args.test_tvos_simulator = False
+    # --skip-test-tvos-stdlib-stage2 is merely a shorthand for host and simulator tests.
+    if not args.test_tvos_stdlib_stage2:
+        args.test_tvos_host_stdlib_stage2 = False
+        args.test_tvos_simulator_stdlib_stage2 = False
     # --skip-test-watchos is merely a shorthand for host and simulator
     # --tests.
     if not args.test_watchos:
         args.test_watchos_host = False
         args.test_watchos_simulator = False
+    # --skip-test-watchos-stdlib-stage2 is merely a shorthand for host and simulator
+    # --tests.
+    if not args.test_watchos_stdlib_stage2:
+        args.test_watchos_host_stdlib_stage2 = False
+        args.test_watchos_simulator_stdlib_stage2 = False
 
     # --skip-build-{ios,tvos,watchos}-{device,simulator} implies
     # --skip-test-{ios,tvos,watchos}-{host,simulator}
@@ -231,6 +284,23 @@ def _apply_default_arguments(args):
     if not args.build_watchos_simulator:
         args.test_watchos_simulator = False
 
+    # --skip-build-{ios,tvos,watchos}-{device,simulator}-stdlib-stage2 implies
+    # --skip-test-{ios,tvos,watchos}-{host,simulator}-stdlib-stage2
+    if not args.build_ios_device_stdlib_stage2:
+        args.test_ios_host_stdlib_stage2 = False
+    if not args.build_ios_simulator_stdlib_stage2:
+        args.test_ios_simulator_stdlib_stage2 = False
+
+    if not args.build_tvos_device_stdlib_stage2:
+        args.test_tvos_host_stdlib_stage2 = False
+    if not args.build_tvos_simulator_stdlib_stage2:
+        args.test_tvos_simulator_stdlib_stage2 = False
+
+    if not args.build_watchos_device_stdlib_stage2:
+        args.test_watchos_host_stdlib_stage2 = False
+    if not args.build_watchos_simulator_stdlib_stage2:
+        args.test_watchos_simulator_stdlib_stage2 = False
+
     if not args.build_android:
         # If building natively on an Android host, allow running the test suite
         # without the NDK config.
@@ -242,11 +312,26 @@ def _apply_default_arguments(args):
     if not args.test_android:
         args.test_android_host = False
 
+    if not args.build_android_stdlib_stage2:
+        # If building natively on an Android host, allow running the test suite
+        # without the NDK config.
+        if not StdlibDeploymentTarget.Android.contains(StdlibDeploymentTarget
+                                                       .host_target().name):
+            args.test_android_stdlib_stage2 = False
+        args.test_android_host_stdlib_stage2 = False
+
+    if not args.test_android_stdlib_stage2:
+        args.test_android_host_stdlib_stage2 = False
+
     if not args.host_test:
         args.test_ios_host = False
         args.test_tvos_host = False
         args.test_watchos_host = False
         args.test_android_host = False
+        args.test_ios_host_stdlib_stage2 = False
+        args.test_tvos_host_stdlib_stage2 = False
+        args.test_watchos_host_stdlib_stage2 = False
+        args.test_android_host_stdlib_stage2 = False
 
 
 def create_argument_parser():
@@ -302,6 +387,10 @@ def create_argument_parser():
     option(['-i', '--ios'], store_true,
            help='also build for iOS, but disallow tests that require an iOS '
                 'device')
+    option(['-i-s2', '--ios-stdlib-stage2'], store_true,
+           help='also build for iOS, but disallow tests that require an iOS '
+                'device')
+
     option(['-I', '--ios-all'], store_true('ios_all'),
            help='also build for iOS, and allow all iOS tests')
 
@@ -310,33 +399,57 @@ def create_argument_parser():
 
     option('--skip-ios', store_false('ios'),
            help='set to skip everything iOS-related')
+    option('--skip-ios-stdlib-stage2', store_false('ios_stdlib_stage2'),
+           help='set to skip everything iOS-related in stage2')
 
     option('--tvos', toggle_true,
            help='also build for tvOS, but disallow tests that require a tvos '
                 'device')
+    option('--tvos-stdlib-stage2', toggle_true,
+           help='also build for tvOS, but disallow tests that require a tvos '
+                'device')
     option('--tvos-all', toggle_true('tvos_all'),
            help='also build for tvOS, and allow all tvOS tests')
+    option('--tvos-all-stdlib-stage2', toggle_true('tvos_all_stdlib_stage2'),
+           help='also build for stage2 tvOS, and allow all tvOS tests ')
     option('--skip-tvos', store_false('tvos'),
            help='set to skip everything tvOS-related')
+    option('--skip-tvos-stdlib-stage2', store_false('tvos_stdlib_stage2'),
+           help='set to skip everything stage2 tvOS-related')
 
     option('--watchos', toggle_true,
            help='also build for watchOS, but disallow tests that require an '
                 'watchOS device')
+    option('--watchos-stdlib-stage2', toggle_true,
+           help='also build for stage2 watchOS, but disallow tests that require an '
+                'watchOS device')
     option('--watchos-all', toggle_true('watchos_all'),
            help='also build for Apple watchOS, and allow all Apple watchOS '
                 'tests')
+    option('--watchos-all-stdlib-stage2', toggle_true('watchos_all_stdlib_stage2'),
+           help='also build for stage2 Apple watchOS, and allow all Apple watchOS '
+                'tests')
     option('--skip-watchos', store_false('watchos'),
+           help='set to skip everything watchOS-related')
+    option('--skip-watchos-stdlib-stage2', store_false('watchos_stdlib_stage2'),
            help='set to skip everything watchOS-related')
 
     option('--maccatalyst', toggle_true,
            help='Enable building Swift with macCatalyst support')
+    option('--maccatalyst-stdlib-stage2', toggle_true,
+           help='Enable building stage2 Swift with macCatalyst support')
 
     option('--maccatalyst-ios-tests', toggle_true,
            help='When building for macCatalyst run tests with iOS-like '
                 'target triple')
+    option('--maccatalyst-ios-tests-stdlib-stage2', toggle_true,
+           help='When building for stage2 macCatalyst run tests with iOS-like '
+                'target triple')
 
     option('--android', toggle_true,
            help='also build for Android')
+    option('--android-stdlib-stage2', toggle_true,
+           help='also build stage2 for Android')
 
     option('--swift-analyze-code-coverage', store,
            choices=['false', 'not-merged', 'merged'],
@@ -585,6 +698,143 @@ def create_argument_parser():
                 'in addition to the full library targets.')
 
     # -------------------------------------------------------------------------
+
+    in_group('Stage 2 swift build configuration')
+
+    option('--debug-swift-stdlib-stage2', store('swift_build_variant_stdlib_stage2'),
+           const='Debug',
+           help='build the Debug variant of Swift host tools for stage2')
+
+    option('--debug-swift-stdlib-stdlib-stage2', store('swift_stdlib_build_variant_stdlib_stage2'),
+           const='Debug',
+           help='build the Debug variant of the Swift standard library and '
+                ' SDK overlay for stage2')
+
+    option('--swift-assertions-stdlib-stage2', store,
+           const=True,
+           help='enable assertions in stage2 Swift')
+    option('--no-swift-assertions-stdlib-stage2', store('swift_assertions_stdlib_stage2'),
+           const=False,
+           help='disable assertions in stage2 Swift')
+
+    option('--swift-stdlib-assertions-stdlib-stage2', store,
+           const=True,
+           help='enable assertions in the stage2 Swift standard library')
+    option('--no-swift-stdlib-assertions-stdlib-stage2',
+           store('swift_stdlib_assertions_stdlib_stage2'),
+           const=False,
+           help='disable assertions in the stage2 Swift standard library')
+
+    option('--swift-install-components-stdlib-stage2', store,
+           default='stdlib',
+           help='A semi-colon split list of swift components to install. '
+                'Default is to install the stdlib only')
+
+    option('--host-target-stdlib-stage2', store,
+           default=StdlibDeploymentTarget.host_target().name,
+           help='The host target. LLVM, Clang, and Swift will be built for '
+                'this target. The built LLVM and Clang will be used to '
+                'compile Swift for the cross-compilation targets.')
+
+    option('--cross-compile-hosts-stdlib-stage2', append,
+           type=argparse.ShellSplitType(),
+           default=[],
+           help='A space separated list of targets to cross-compile host '
+                'Swift tools for. Can be used multiple times.')
+
+    option('--stdlib-deployment-targets-stdlib-stage2', store,
+           type=argparse.ShellSplitType(),
+           default=None,
+           help='The targets to compile or cross-compile the Swift standard '
+                'library for. %(default)s by default.'
+                ' Comma separated list: {}'.format(
+                    ' '.join(StdlibDeploymentTarget.get_target_names())))
+
+    option('--build-stdlib-deployment-targets-stdlib-stage2', store,
+           type=argparse.ShellSplitType(),
+           default=['all'],
+           help='A space-separated list that filters which of the configured '
+                'targets to build the Swift standard library for, or "all".')
+
+    option('--swift-darwin-supported-archs-stdlib-stage2', store,
+           metavar='ARCHS',
+           help='Semicolon-separated list of architectures to configure on '
+                'Darwin platforms. If left empty all default architectures '
+                'are configured.')
+
+    option('--swift-darwin-module-archs-stdlib-stage2', store,
+           metavar='ARCHS',
+           help='Semicolon-separated list of architectures to configure Swift '
+                'module-only targets on Darwin platforms. These targets are '
+                'in addition to the full library targets.')
+
+    option('--swift-primary-variant-sdk-stdlib-stage2', store,
+           help='SDK for the primary variant stdlib that we will compile')
+
+    option('--swift-primary-variant-arch-stdlib-stage2', store, 
+           help='arch for the primary variant stdlib that we will compile')
+
+    option('--build-swift-dynamic-stdlib-stdlib-stage2', toggle_true,
+           default=True,
+           help='build dynamic variants of the Swift standard library')
+
+    option('--build-swift-static-stdlib-stdlib-stage2', toggle_true,
+           help='build static variants of the Swift standard library')
+
+    option('--build-swift-dynamic-sdk-overlay-stdlib-stage2', toggle_true,
+           default=True,
+           help='build dynamic variants of the Swift SDK overlay')
+
+    option('--build-swift-static-sdk-overlay-stdlib-stage2', toggle_true,
+           help='build static variants of the Swift SDK overlay')
+
+    option('--build-swift-stdlib-unittest-extra-stdlib-stage2', toggle_true,
+           help='Build optional StdlibUnittest components')
+
+    option('--skip-build-linux-stdlib-stage2', toggle_false('build_linux_stdlib_stage2'),
+           help='skip building stage2 Swift stdlibs for Linux')
+    option('--skip-build-freebsd-stdlib-stage2', toggle_false('build_freebsd_stdlib_stage2'),
+           help='skip building stage2 Swift stdlibs for FreeBSD')
+    option('--skip-build-cygwin-stdlib-stage2', toggle_false('build_cygwin_stdlib_stage2'),
+           help='skip building stage2 Swift stdlibs for Cygwin')
+    option('--skip-build-osx-stdlib-stage2', toggle_false('build_osx_stdlib_stage2'),
+           help='skip building Swift stdlibs for MacOSX')
+
+    option('--skip-build-ios-stdlib-stage2', toggle_false('build_ios_stdlib_stage2'),
+           help='skip building stage2 Swift stdlibs for iOS')
+    option('--skip-build-ios-device-stdlib-stage2', toggle_false('build_ios_device_stdlib_stage2'),
+           help='skip building stage2 Swift stdlibs for iOS devices '
+                '(i.e. build simulators only)')
+    option('--skip-build-ios-simulator-stdlib-stage2',
+           toggle_false('build_ios_simulator_stdlib_stage2'),
+           help='skip building stage2 Swift stdlibs for iOS simulator '
+                '(i.e. build devices only)')
+
+    option('--skip-build-tvos-stdlib-stage2', toggle_false('build_tvos_stdlib_stage2'),
+           help='skip building stage2 Swift stdlibs for tvOS')
+    option('--skip-build-tvos-device-stdlib-stage2', toggle_false('build_tvos_device_stdlib_stage2'),
+           help='skip building stage2 Swift stdlibs for tvOS devices '
+                '(i.e. build simulators only)')
+    option('--skip-build-tvos-simulator-stdlib-stage2',
+           toggle_false('build_tvos_simulator_stdlib_stage2'),
+           help='skip building stage2 Swift stdlibs for tvOS simulator '
+                '(i.e. build devices only)')
+
+    option('--skip-build-watchos-stdlib-stage2', toggle_false('build_watchos_stdlib_stage2'),
+           help='skip building stage2 Swift stdlibs for watchOS')
+    option('--skip-build-watchos-device-stdlib-stage2',
+           toggle_false('build_watchos_device_stdlib_stage2'),
+           help='skip building stage2 Swift stdlibs for watchOS devices '
+                '(i.e. build simulators only)')
+    option('--skip-build-watchos-simulator-stdlib-stage2',
+           toggle_false('build_watchos_simulator_stdlib_stage2'),
+           help='skip building stage2 Swift stdlibs for watchOS simulator '
+                '(i.e. build devices only)')
+
+    option('--skip-build-android-stdlib-stage2', toggle_false('build_android_stdlib_stage2'),
+           help='skip building stage2 Swift stdlibs for Android')
+
+    # -------------------------------------------------------------------------
     in_group('Options to select projects')
 
     option('--infer', toggle_true('infer_dependencies'),
@@ -629,6 +879,11 @@ def create_argument_parser():
 
     option(['--skip-early-swift-driver'], toggle_false('build_early_swift_driver'),
            help='skip building the early swift-driver')
+
+    option(['--swift-stdlib-stage2'], toggle_true('build_swift_stdlib_stage2'),
+           help='build the stdlib as a stage2 build')
+    option(['--install-swift-stdlib-stage2'], toggle_true('install_swift_stdlib_stage2'),
+           help='install a stdlib built by the stage2 build')
 
     option(['--indexstore-db'], toggle_true('build_indexstoredb'),
            help='build IndexStoreDB')
@@ -943,6 +1198,17 @@ def create_argument_parser():
     option('--skip-test-cygwin', toggle_false('test_cygwin'),
            help='skip testing Swift stdlibs for Cygwin')
 
+    option('--skip-test-swift-stdlib-stage2', toggle_false('test_swift_stdlib_stage2'),
+           help='skip testing the stage2 stdlib')
+    option('--skip-test-osx-stdlib-stage2', toggle_false('test_osx_stdlib_stage2'),
+           help='skip testing stage2 Swift stdlibs for Mac OS X')
+    option('--skip-test-linux-stdlib-stage2', toggle_false('test_linux_stdlib_stage2'),
+           help='skip testing stage2 Swift stdlibs for Linux')
+    option('--skip-test-freebsd-stdlib-stage2', toggle_false('test_freebsd_stdlib_stage2'),
+           help='skip testing stage2 Swift stdlibs for FreeBSD')
+    option('--skip-test-cygwin-stdlib-stage2', toggle_false('test_cygwin_stdlib_stage2'),
+           help='skip testing stage2 Swift stdlibs for Cygwin')
+
     # -------------------------------------------------------------------------
     in_group('Run build')
 
@@ -1035,6 +1301,26 @@ def create_argument_parser():
            help='skip testing iOS device targets on the host machine (the '
                 'phone itself)')
 
+    option('--skip-test-ios-stdlib-stage2',
+           toggle_false('test_ios_stdlib_stage2'),
+           help='skip testing all iOS targets. Equivalent to specifying both '
+                '--skip-test-ios-simulator and --skip-test-ios-host')
+    option('--skip-test-ios-simulator-stdlib-stage2',
+           toggle_false('test_ios_simulator_stdlib_stage2'),
+           help='skip testing iOS simulator targets')
+    option('--skip-test-ios-32bit-simulator-stdlib-stage2',
+           toggle_false('test_ios_32bit_simulator_stdlib_stage2'),
+           default=False,
+           help='skip testing iOS 32 bit simulator targets')
+    option('--skip-test-watchos-32bit-simulator-stdlib-stage2',
+           toggle_false('test_watchos_32bit_simulator_stdlib_stage2'),
+           default=True,
+           help='skip testing watchOS 32 bit simulator targets')
+    option('--skip-test-ios-host-stdlib-stage2',
+           toggle_false('test_ios_host_stdlib_stage2'),
+           help='skip testing iOS device targets on the host machine (the '
+                'phone itself)')
+
     option('--skip-test-tvos',
            toggle_false('test_tvos'),
            help='skip testing all tvOS targets. Equivalent to specifying both '
@@ -1044,6 +1330,18 @@ def create_argument_parser():
            help='skip testing tvOS simulator targets')
     option('--skip-test-tvos-host',
            toggle_false('test_tvos_host'),
+           help='skip testing tvOS device targets on the host machine (the '
+                'TV itself)')
+
+    option('--skip-test-tvos-stdlib-stage2',
+           toggle_false('test_tvos_stdlib_stage2'),
+           help='skip testing all tvOS targets. Equivalent to specifying both '
+                '--skip-test-tvos-simulator and --skip-test-tvos-host')
+    option('--skip-test-tvos-simulator-stdlib-stage2',
+           toggle_false('test_tvos_simulator_stdlib_stage2'),
+           help='skip testing tvOS simulator targets')
+    option('--skip-test-tvos-host-stdlib-stage2',
+           toggle_false('test_tvos_host_stdlib_stage2'),
            help='skip testing tvOS device targets on the host machine (the '
                 'TV itself)')
 
@@ -1059,6 +1357,18 @@ def create_argument_parser():
            help='skip testing watchOS device targets on the host machine (the '
                 'watch itself)')
 
+    option('--skip-test-watchos-stdlib-stage2',
+           toggle_false('test_watchos_stdlib_stage2'),
+           help='skip testing all tvOS targets. Equivalent to specifying both '
+                '--skip-test-watchos-simulator and --skip-test-watchos-host')
+    option('--skip-test-watchos-simulator-stdlib-stage2',
+           toggle_false('test_watchos_simulator_stdlib_stage2'),
+           help='skip testing watchOS simulator targets')
+    option('--skip-test-watchos-host-stdlib-stage2',
+           toggle_false('test_watchos_host_stdlib_stage2'),
+           help='skip testing watchOS device targets on the host machine (the '
+                'watch itself)')
+
     option('--skip-test-android',
            toggle_false('test_android'),
            help='skip testing all Android targets.')
@@ -1066,6 +1376,15 @@ def create_argument_parser():
            toggle_false('test_android_host'),
            help='skip testing Android device targets on the host machine (the '
                 'phone itself)')
+
+    option('--skip-test-android-stdlib-stage2',
+           toggle_false('test_android_stdlib_stage2'),
+           help='skip testing all Android targets.')
+    option('--skip-test-android-host-stdlib-stage2',
+           toggle_false('test_android_host_stdlib_stage2'),
+           help='skip testing Android device targets on the host machine (the '
+                'phone itself)')
+
     option('--skip-clean-libdispatch', toggle_false('clean_libdispatch'),
            help='skip cleaning up libdispatch')
     option('--skip-clean-foundation', toggle_false('clean_foundation'),
@@ -1215,6 +1534,8 @@ def create_argument_parser():
            help='skip building llvm')
     option('--skip-build-swift', toggle_false('build_swift'),
            help='skip building swift')
+    option('--skip-build-swift-stdlib-stage2', toggle_false('build_swift_stdlib_stage2'),
+           help='skip building the stage2 stdlib')
 
     # We need to list --skip-test-swift explicitly because otherwise argparse
     # will auto-expand arguments like --skip-test-swift to the only known

@@ -2,11 +2,11 @@
 
 # RUN: %empty-directory(%t)
 # RUN: mkdir -p %t
-# RUN: SWIFT_BUILD_ROOT=%t %swift_src_root/utils/build-script --dry-run --llbuild --cmake %cmake  2>&1 | %FileCheck --check-prefix=CLEAN-LLBUILD-CHECK %s
+# RUN: SKIP_XCODE_VERSION_CHECK=1 SWIFT_BUILD_ROOT=%t %swift_src_root/utils/build-script --dry-run --llbuild --cmake %cmake  2>&1 | %FileCheck --check-prefix=CLEAN-LLBUILD-CHECK %s
 
 # RUN: %empty-directory(%t)
 # RUN: mkdir -p %t
-# RUN: SWIFT_BUILD_ROOT=%t %swift_src_root/utils/build-script --dry-run --llbuild --skip-clean-llbuild --cmake %cmake  2>&1 | %FileCheck --check-prefix=SKIP-CLEAN-LLBUILD-CHECK %s
+# RUN: SKIP_XCODE_VERSION_CHECK=1 SWIFT_BUILD_ROOT=%t %swift_src_root/utils/build-script --dry-run --llbuild --skip-clean-llbuild --cmake %cmake  2>&1 | %FileCheck --check-prefix=SKIP-CLEAN-LLBUILD-CHECK %s
 
 # CLEAN-LLBUILD-CHECK: Cleaning the llbuild build directory
 # CLEAN-LLBUILD-CHECK-NEXT: rm -rf

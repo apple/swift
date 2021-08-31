@@ -6,5 +6,6 @@
 // UNSUPPORTED: OS=ios
 // UNSUPPORTED: OS=tvos
 // UNSUPPORTED: OS=watchos
+// REQUIRES: re-enable-just-testing
 
 // RUN: %{python} %utils/swift_build_support/run_tests.py

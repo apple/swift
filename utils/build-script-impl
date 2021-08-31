@@ -240,6 +240,7 @@ KNOWN_SETTINGS=(
     skip-merge-lipo-cross-compile-tools           ""                "set to skip running merge-lipo after installing cross-compiled host Swift tools"
     coverage-db                                   ""                "If set, coverage database to use when prioritizing testing"
     skip-local-host-install                       ""                "If we are cross-compiling multiple targets, skip an install pass locally if the hosts match"
+    enable-extract-symbol-dry-run-test            ""                "If we are dry-running, still run the extract symbol phase so that we can test it"
 )
 
 components=(
@@ -3267,40 +3268,45 @@ for host in "${ALL_HOSTS[@]}"; do
 
         # Copy executables and shared libraries from the `host_install_destdir` to
         # INSTALL_SYMROOT and run dsymutil on them.
-        (cd "${CURRENT_INSTALL_DIR}" &&
-         find ./"${CURRENT_PREFIX}" -perm -0111 -type f -print | \
-         filter_paths "${DARWIN_SYMROOT_PATH_FILTERS}" | \
-         cpio --insecure -pdm -v "${host_symroot}")
-
-        dsymutil_path=
-        if [[ -n "${DARWIN_INSTALL_EXTRACT_SYMBOLS_USE_JUST_BUILT_DSYMUTIL}" ]]; then
-            dsymutil_path=$(find_just_built_local_host_llvm_tool dsymutil)
+        if [[ -n "${DRY_RUN}" ]] && [[ -z "${ENABLE_EXTRACT_SYMBOL_DRY_RUN_TEST}" ]]; then
+            echo "DRY_RUN! Coping executables and shared libraries from the `host_install_destdir` to
+                  INSTALL_SYMROOT and runing dsymutil on them."
         else
-            dsymutil_path=$(xcrun_find_tool dsymutil)
+          (cd "${CURRENT_INSTALL_DIR}" &&
+           find ./"${CURRENT_PREFIX}" -perm -0111 -type f -print | \
+           filter_paths "${DARWIN_SYMROOT_PATH_FILTERS}" | \
+           cpio --insecure -pdm -v "${host_symroot}")
+
+            dsymutil_path=
+            if [[ -n "${DARWIN_INSTALL_EXTRACT_SYMBOLS_USE_JUST_BUILT_DSYMUTIL}" ]]; then
+                dsymutil_path=$(find_just_built_local_host_llvm_tool dsymutil)
+            else
+                dsymutil_path=$(xcrun_find_tool dsymutil)
+            fi
+
+            # Run dsymutil on executables and shared libraries.
+            #
+            # Exclude shell scripts and static archives.
+            # Tweak carefully the amount of parallelism -- dsymutil can be memory intensive and
+            # as such too many instance can exhaust the memory and slow down/panic the machine
+            printJSONStartTimestamp dsymutil
+            (cd "${host_symroot}" &&
+             find ./"${CURRENT_PREFIX}" -perm -0111 -type f -not -name "*.a" -not -name "*.py" -print | \
+               xargs -n 1 -P ${DSYMUTIL_JOBS} ${dsymutil_path})
+            printJSONEndTimestamp dsymutil
+
+            # Strip executables, shared libraries and static libraries in
+            # `host_install_destdir`.
+            find "${CURRENT_INSTALL_DIR}${CURRENT_PREFIX}/" \
+              '(' -perm -0111 -or -name "*.a" ')' -type f -print | \
+              xargs -n 1 -P ${BUILD_JOBS} $(xcrun_find_tool strip) -S
+
+            # Codesign dylibs after strip tool
+            # rdar://45388785
+            find "${CURRENT_INSTALL_DIR}${CURRENT_PREFIX}/" \
+              '(' -name "*.dylib" ')' -type f -print | \
+              xargs -n 1 -P ${BUILD_JOBS} $(xcrun_find_tool codesign) -f -s -
         fi
-
-        # Run dsymutil on executables and shared libraries.
-        #
-        # Exclude shell scripts and static archives.
-        # Tweak carefully the amount of parallelism -- dsymutil can be memory intensive and
-        # as such too many instance can exhaust the memory and slow down/panic the machine
-        printJSONStartTimestamp dsymutil
-        (cd "${host_symroot}" &&
-         find ./"${CURRENT_PREFIX}" -perm -0111 -type f -not -name "*.a" -not -name "*.py" -print | \
-           xargs -n 1 -P ${DSYMUTIL_JOBS} ${dsymutil_path})
-        printJSONEndTimestamp dsymutil
-
-        # Strip executables, shared libraries and static libraries in
-        # `host_install_destdir`.
-        find "${CURRENT_INSTALL_DIR}${CURRENT_PREFIX}/" \
-          '(' -perm -0111 -or -name "*.a" ')' -type f -print | \
-          xargs -n 1 -P ${BUILD_JOBS} $(xcrun_find_tool strip) -S
-
-        # Codesign dylibs after strip tool
-        # rdar://45388785
-        find "${CURRENT_INSTALL_DIR}${CURRENT_PREFIX}/" \
-          '(' -name "*.dylib" ')' -type f -print | \
-          xargs -n 1 -P ${BUILD_JOBS} $(xcrun_find_tool codesign) -f -s -
 
         { set +x; } 2>/dev/null
     fi

@@ -41,3 +41,4 @@ class Stage(object):
 
 STAGE_1 = Stage(1, "")
 STAGE_2 = Stage(2, "_stage2")
+STAGE_2_STDLIB = Stage(2, "_stdlib_stage2")

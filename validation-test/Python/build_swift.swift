@@ -3,6 +3,8 @@
 // build_swift module unit-tests once per OSX Platform test run, rather than
 // once for each supported Apple device.
 
+// REQUIRES: disabled-will-fixup-later
+
 // UNSUPPORTED: OS=ios
 // UNSUPPORTED: OS=tvos
 // UNSUPPORTED: OS=watchos

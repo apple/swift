@@ -26,6 +26,7 @@ from .ninja import Ninja
 from .playgroundsupport import PlaygroundSupport
 from .skstresstester import SKStressTester
 from .sourcekitlsp import SourceKitLSP
+from .stage_generic_swift import SwiftStdlibStage2
 from .swift import Swift
 from .swiftdriver import SwiftDriver
 from .swiftevolve import SwiftEvolve
@@ -63,4 +64,5 @@ __all__ = [
     'SourceKitLSP',
     'Benchmarks',
     'TSanLibDispatch',
+    'SwiftStdlibStage2',
 ]

@@ -71,6 +71,10 @@ class BuildScriptInvocation(object):
         ninja_build.build()
         self.toolchain.ninja = ninja_build.ninja_bin_path
 
+    def should_impl_test(self):
+        return (self.args.test or self.args.long_test) and \
+            not self.args.build_swift_stdlib_stage2
+
     def convert_to_impl_arguments(self):
         """convert_to_impl_arguments() -> (env, args)
 
@@ -228,8 +232,6 @@ class BuildScriptInvocation(object):
 
         if args.skip_build:
             impl_args += ["--skip-build"]
-        if not args.build_benchmarks:
-            impl_args += ["--skip-build-benchmarks"]
 
         if args.swift_disable_dead_stripping:
             args.extra_cmake_options.append('-DSWIFT_DISABLE_DEAD_STRIPPING:BOOL=TRUE')
@@ -258,25 +260,37 @@ class BuildScriptInvocation(object):
             elif self.install_all:
                 impl_args += ["--install-{}".format(string_name)]
 
-        if args.build_swift_dynamic_stdlib:
-            impl_args += ["--build-swift-dynamic-stdlib"]
-        if args.build_swift_static_stdlib:
-            impl_args += ["--build-swift-static-stdlib"]
-        if args.build_swift_stdlib_unittest_extra:
-            impl_args += ["--build-swift-stdlib-unittest-extra"]
-        if args.build_swift_dynamic_sdk_overlay:
-            impl_args += ["--build-swift-dynamic-sdk-overlay"]
-        if args.build_swift_static_sdk_overlay:
-            impl_args += ["--build-swift-static-sdk-overlay"]
+        if args.build_swift_stdlib_stage2:
+            # When we are performing a stage2 build, we not only do not build
+            # the stdlib, we always disable building tests and benchmarks. We
+            # will build those during stage2.
+            impl_args += ["--swift-include-tests=0"]
+            impl_args += ["--skip-build-benchmarks"]
+        else:
+            # When we are building a stage2 stdlib, we do not build the stdlib
+            # during a phase 1 compilation.
+            if args.build_swift_dynamic_stdlib:
+                impl_args += ["--build-swift-dynamic-stdlib"]
+            if args.build_swift_static_stdlib:
+                impl_args += ["--build-swift-static-stdlib"]
+            if args.build_swift_stdlib_unittest_extra:
+                impl_args += ["--build-swift-stdlib-unittest-extra"]
+            if args.build_swift_dynamic_sdk_overlay:
+                impl_args += ["--build-swift-dynamic-sdk-overlay"]
+            if args.build_swift_static_sdk_overlay:
+                impl_args += ["--build-swift-static-sdk-overlay"]
+            if not args.build_benchmarks:
+                impl_args += ["--skip-build-benchmarks"]
 
         if not args.build_android:
             impl_args += ["--skip-build-android"]
         if not args.build_clang_tools_extra:
             impl_args += ["--skip-build-clang-tools-extra"]
 
-        if not args.test and not args.long_test and not args.stress_test:
+        if not self.should_impl_test() and \
+           not args.stress_test:
             impl_args += ["--skip-test-swift"]
-        if not args.test:
+        if not self.should_impl_test():
             impl_args += [
                 "--skip-test-cmark",
                 "--skip-test-lldb",
@@ -288,18 +302,23 @@ class BuildScriptInvocation(object):
             ]
         if args.build_runtime_with_host_compiler:
             impl_args += ["--build-runtime-with-host-compiler"]
-        if args.validation_test:
-            impl_args += ["--validation-test"]
-        if args.long_test:
-            impl_args += ["--long-test"]
-        if args.stress_test:
-            impl_args += ["--stress-test"]
+
+        if not args.build_swift_stdlib_stage2:
+            # When we are performing a stage 1 build for a stage 2 compile, we
+            # do not run tests.
+            if args.validation_test:
+                impl_args += ["--validation-test"]
+            if args.long_test:
+                impl_args += ["--long-test"]
+            if args.stress_test:
+                impl_args += ["--stress-test"]
+            if args.only_executable_test:
+                impl_args += ["--only-executable-test"]
+            if not args.benchmark:
+                impl_args += ["--skip-test-benchmarks"]
+
         if args.skip_local_build:
             impl_args += ["--skip-local-build"]
-        if args.only_executable_test:
-            impl_args += ["--only-executable-test"]
-        if not args.benchmark:
-            impl_args += ["--skip-test-benchmarks"]
         if args.build_libparser_only:
             impl_args += ["--build-libparser-only"]
         if args.android:
@@ -560,6 +579,13 @@ class BuildScriptInvocation(object):
         builder.add_impl_product(products.LLDB,
                                  is_enabled=self.args.build_lldb)
 
+        # Create a new build-script pipeline for running normal build-script
+        # products as part of the toolchain build and before we ever try to
+        # build build-script-impl SDK bits.
+        builder.begin_pipeline()
+        builder.add_product(products.SwiftStdlibStage2,
+                            is_enabled=self.args.build_swift_stdlib_stage2)
+
         # Begin a new build-script-impl pipeline that builds libraries that we
         # build as part of build-script-impl but that we should eventually move
         # onto build-script products.
@@ -688,8 +714,7 @@ class BuildScriptInvocation(object):
                 exit_rejecting_arguments(six.text_type(e))
             print("Building the standard library for: {}".format(
                 " ".join(config.swift_stdlib_build_targets)))
-            if config.swift_test_run_targets and (
-                    self.args.test or self.args.long_test):
+            if config.swift_test_run_targets and self.should_impl_test():
                 print("Running Swift tests for: {}".format(
                     " ".join(config.swift_test_run_targets)))
             if config.swift_benchmark_run_targets and self.args.benchmark:
