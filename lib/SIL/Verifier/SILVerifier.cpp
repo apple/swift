@@ -3121,7 +3121,7 @@ public:
             "cannot get address of static property with struct_element_addr");
     require(EI->getField()->hasStorage(),
             "cannot get address of computed property with ref_element_addr");
-    SILType operandTy = EI->getOperand()->getType();
+    SILType operandTy = EI->getOperand()->getType().unwrapMoveOnlyType();
     ClassDecl *cd = operandTy.getClassOrBoundGenericClass();
     require(cd, "ref_element_addr operand must be a class instance");
     require(!cd->isResilient(F.getModule().getSwiftModule(),

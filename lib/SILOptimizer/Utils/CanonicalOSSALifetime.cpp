@@ -86,6 +86,24 @@ STATISTIC(NumUnknownUsers, "number of functions with unknown users");
 //                           MARK: General utilities
 //===----------------------------------------------------------------------===//
 
+template <typename... T, typename... U>
+static void diagnose(ASTContext &Context, SourceLoc loc, Diag<T...> diag,
+                     U &&...args) {
+  Context.Diags.diagnose(loc, diag, std::forward<U>(args)...);
+}
+
+static void copyLiveUseWrapper(Operand *use, InstModCallbacks &instModCallbacks,
+                               std::function<void(Operand *)> callback) {
+  if (callback) {
+    // We have a copy of a move only type?! Call the callback!
+    if (use->get()->getType().isMoveOnly()) {
+      callback(use);
+    }
+  }
+
+  return copyLiveUse(use, instModCallbacks);
+}
+
 /// The lifetime extends beyond given consuming use. Copy the value.
 ///
 /// This can set the operand value, but cannot invalidate the use iterator.
@@ -600,19 +618,32 @@ void CanonicalizeOSSALifetime::rewriteCopies() {
 
     // If this use was not marked as a final destroy *or* this is not the first
     // consumed operand we visited, then it needs a copy.
-    if (!consumes.claimConsume(user))
+    if (!consumes.claimConsume(user)) {
+      maybeNotifyMoveOnlyCopy(use);
       return false;
+    }
 
     // Final consumes that need poison, also need a copy.
-    if (consumes.needsPoison(user))
+    if (consumes.needsPoison(user)) {
+      maybeNotifyMoveOnlyCopy(use);
       return false;
+    }
 
     // If another destroy is reachable on this path, then this consume needs
     // poison even though findOrInsertDestroyInBlock didn't know that.
     if (remnantLiveOutBlocks.count(user->getParent())) {
       consumes.recordNeedsPoison(user);
+      maybeNotifyMoveOnlyCopy(use);
       return false;
     }
+
+    // Ok, this is a final user that isn't a destroy_value. Notify our caller if
+    // we were asked to.
+    //
+    // If we need this for diagnostics, we will only use it if we found actual
+    // uses that required copies.
+    maybeNotifyFinalConsumingUse(use);
+
     return true;
   };
 
@@ -621,7 +652,7 @@ void CanonicalizeOSSALifetime::rewriteCopies() {
        useIter != endIter;) {
     Operand *use = *useIter++;
     if (!visitUse(use)) {
-      copyLiveUse(use, getCallbacks());
+      ::copyLiveUseWrapper(use, getCallbacks(), moveOnlyCopyValueNotification);
     }
   }
   while (SILValue value = defUseWorklist.pop()) {
@@ -634,7 +665,8 @@ void CanonicalizeOSSALifetime::rewriteCopies() {
         if (!reusedCopyOp && srcCopy->getParent() == use->getParentBlock()) {
           reusedCopyOp = use;
         } else {
-          copyLiveUse(use, getCallbacks());
+          ::copyLiveUseWrapper(use, getCallbacks(),
+                               moveOnlyCopyValueNotification);
         }
       }
     }
@@ -750,6 +782,7 @@ bool CanonicalizeOSSALifetime::canonicalizeValueLifetime(SILValue def) {
   initDef(def);
   // Step 1: compute liveness
   if (!computeCanonicalLiveness()) {
+    LLVM_DEBUG(llvm::errs() << "Failed to compute canonical liveness?!\n");
     clearLiveness();
     return false;
   }

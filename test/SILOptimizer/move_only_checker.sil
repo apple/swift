@@ -1,0 +1,109 @@
+// RUN: %target-sil-opt -verify -sil-move-only-checker %s
+
+sil_stage raw
+
+import Builtin
+
+class Klass2 {}
+
+class Klass {
+  var k: Klass2
+}
+
+//////////////////
+// Declarations //
+//////////////////
+
+sil @use_move_only_value : $@convention(thin) (@guaranteed @_moveOnly Klass) -> ()
+sil @consume_move_only_value : $@convention(thin) (@owned @_moveOnly Klass) -> ()
+
+///////////
+// Tests //
+///////////
+
+// No diagnostics.
+sil [ossa] @simple_test : $@convention(thin) (@owned Klass) -> @owned @_moveOnly Klass {
+bb0(%0 : @owned $Klass):
+  %1 = move_value %0 : $Klass
+  return %1 : $@_moveOnly Klass
+}
+
+sil [ossa] @copies_before_move_only_are_ok : $@convention(thin) (@owned Klass) -> @owned @_moveOnly Klass {
+bb0(%0 : @owned $Klass):
+  %0a = copy_value %0 : $Klass
+  %1 = move_value %0 : $Klass
+  destroy_value %0a : $Klass
+  return %1 : $@_moveOnly Klass
+}
+
+sil [ossa] @destroy_move_only_with_destroy_value : $@convention(thin) (@owned Klass) -> () {
+bb0(%0 : @owned $Klass):
+  %0a = copy_value %0 : $Klass
+  %1 = move_value %0 : $Klass
+  destroy_value %0a : $Klass
+  destroy_value %1 : $@_moveOnly Klass
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+sil [ossa] @flag_double_consume_of_move_value : $@convention(thin) (@owned Klass) -> () {
+bb0(%0 : @owned $Klass):
+  %1 = move_value %0 : $Klass // expected-error {{'x' consumed more than once}}
+  debug_value %1 : $@_moveOnly Klass, let, name "x"
+  %2 = copy_value %1 : $@_moveOnly Klass
+  %f = function_ref @consume_move_only_value : $@convention(thin) (@owned @_moveOnly Klass) -> ()
+  apply %f(%2) : $@convention(thin) (@owned @_moveOnly Klass) -> () // expected-note {{consuming use}}
+  apply %f(%1) : $@convention(thin) (@owned @_moveOnly Klass) -> () // expected-note {{consuming use}}
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+sil [ossa] @only_instance_use : $@convention(thin) (@owned Klass) -> () {
+bb0(%0 : @owned $Klass):
+  %1 = move_value %0 : $Klass
+  debug_value %1 : $@_moveOnly Klass, let, name "x"
+  %f2 = function_ref @use_move_only_value : $@convention(thin) (@guaranteed @_moveOnly Klass) -> ()
+  apply %f2(%1) : $@convention(thin) (@guaranteed @_moveOnly Klass) -> ()
+  destroy_value %1 : $@_moveOnly Klass
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+sil [ossa] @only_instance_use_2 : $@convention(thin) (@owned Klass) -> () {
+bb0(%0 : @owned $Klass):
+  %1 = move_value %0 : $Klass
+  debug_value %1 : $@_moveOnly Klass, let, name "x"
+  %f2 = function_ref @use_move_only_value : $@convention(thin) (@guaranteed @_moveOnly Klass) -> ()
+  apply %f2(%1) : $@convention(thin) (@guaranteed @_moveOnly Klass) -> ()
+  %f = function_ref @consume_move_only_value : $@convention(thin) (@owned @_moveOnly Klass) -> ()
+  apply %f(%1) : $@convention(thin) (@owned @_moveOnly Klass) -> ()
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+//////////////////////////
+// Tests Around Borrows //
+//////////////////////////
+
+sil [ossa] @borrow_use_1 : $@convention(thin) (@owned Klass) -> () {
+bb0(%0 : @owned $Klass):
+  %1 = move_value %0 : $Klass
+  %1a = begin_borrow %1 : $@_moveOnly Klass
+  debug_value %1 : $@_moveOnly Klass, let, name "x"
+  end_borrow %1a : $@_moveOnly Klass
+  destroy_value %1 : $@_moveOnly Klass
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+sil [ossa] @borrow_use_2 : $@convention(thin) (@owned Klass) -> () {
+bb0(%0 : @owned $Klass):
+  %1 = move_value %0 : $Klass
+  %1a = begin_borrow %1 : $@_moveOnly Klass
+  debug_value %1 : $@_moveOnly Klass, let, name "x"
+  %2 = ref_element_addr %1a : $@_moveOnly Klass, #Klass.k
+  end_borrow %1a : $@_moveOnly Klass
+  destroy_value %1 : $@_moveOnly Klass
+  %9999 = tuple()
+  return %9999 : $()
+}

@@ -148,6 +148,9 @@ static void addMandatoryDiagnosticOptPipeline(SILPassPipelinePlan &P) {
   // dead allocations.
   P.addPredictableDeadAllocationElimination();
 
+  // Now perform move only checking.
+  P.addMoveOnlyChecker();
+
   P.addOptimizeHopToExecutor();
 
   P.addDiagnoseUnreachable();

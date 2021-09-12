@@ -6473,8 +6473,9 @@ public:
   }
 
   NominalTypeDecl *getParentDecl() const {
-    auto s =
-        ParentTy::getOperand(0)->getType().getNominalOrBoundGenericNominal();
+    auto t =
+      ParentTy::getOperand(0)->getType().unwrapMoveOnlyType();
+    auto s = t.getNominalOrBoundGenericNominal();
     assert(s);
     return s;
   }
