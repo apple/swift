@@ -5121,6 +5121,11 @@ public:
     printWithParensIfNotSimple(T->getCaptureType());
   }
 
+  void visitMoveOnlyType(MoveOnlyType *T) {
+    Printer << "@move_only ";
+    printWithParensIfNotSimple(T->getInnerType());
+  }
+
   void visitSILBoxType(SILBoxType *T) {
     {
       // A box layout has its own independent generic environment. Don't try

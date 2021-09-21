@@ -701,6 +701,10 @@ Type ASTBuilder::createSILBoxTypeWithLayout(
   return SILBoxType::get(Ctx, layout, substs);
 }
 
+Type ASTBuilder::createMoveOnlyType(Type base) {
+  return MoveOnlyType::get(base->getCanonicalType());
+}
+
 Type ASTBuilder::createObjCClassType(StringRef name) {
   auto typeDecl =
       findForeignTypeDecl(name, /*relatedEntityKind*/{},

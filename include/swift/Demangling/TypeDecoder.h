@@ -1074,6 +1074,9 @@ protected:
         return base;
       return Builder.createWeakStorageType(base.getType());
     }
+    case NodeKind::MoveOnlyType: {
+      llvm_unreachable("Unimplemented?!");
+    }
     case NodeKind::SILBoxType: {
       if (Node->getNumChildren() < 1)
         return MAKE_NODE_TYPE_ERROR0(Node, "no children");

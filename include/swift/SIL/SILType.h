@@ -165,6 +165,34 @@ public:
     return SILType(getASTType(), SILValueCategory::Object);
   }
 
+  /// Return true if this type is a MoveOnly type.
+  bool isMoveOnly() const { return getASTType()->is<MoveOnlyType>(); }
+
+  /// If this type is a move only type, return the move only inner
+  /// type. Otherwise just return the type.
+  SILType unwrapMoveOnlyType() const {
+    if (auto *moveType = getASTType()->getAs<MoveOnlyType>())
+      return getPrimitiveObjectType(moveType->getInnerType());
+    return *this;
+  }
+
+  /// If this type is a move only type, returned the unwrapped inner
+  /// type. Return SILType() otherwise.
+  SILType getMoveOnlyType() const {
+    if (auto *moveType = getASTType()->getAs<MoveOnlyType>())
+      return getPrimitiveObjectType(moveType->getInnerType());
+    return SILType();
+  }
+
+  /// If this type is already a move only type, return that type. Otherwise,
+  /// create a new move only type wrapper.
+  SILType makeMoveOnly() const {
+    if (isMoveOnly())
+      return *this;
+    auto newType = MoveOnlyType::get(getASTType())->getCanonicalType();
+    return getPrimitiveObjectType(newType);
+  }
+
   /// Returns the canonical AST type referenced by this SIL type.
   ///
   /// NOTE:

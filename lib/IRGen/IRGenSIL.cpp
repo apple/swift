@@ -1149,10 +1149,7 @@ public:
   void visitRetainValueInst(RetainValueInst *i);
   void visitRetainValueAddrInst(RetainValueAddrInst *i);
   void visitCopyValueInst(CopyValueInst *i);
-  void visitMoveValueInst(MoveValueInst *i) {
-    auto e = getLoweredExplosion(i->getOperand());
-    setLoweredExplosion(i, e);
-  }
+  void visitMoveValueInst(MoveValueInst *i);
   void visitReleaseValueInst(ReleaseValueInst *i);
   void visitReleaseValueAddrInst(ReleaseValueAddrInst *i);
   void visitDestroyValueInst(DestroyValueInst *i);
@@ -2440,6 +2437,11 @@ visitLinearFunctionInst(LinearFunctionInst *i) {
   assert(i->hasTransposeFunction());
   e.add(getLoweredExplosion(i->getTransposeFunction()).claimAll());
   setLoweredExplosion(i, e);
+}
+
+void IRGenSILFunction::visitMoveValueInst(MoveValueInst *mvi) {
+  auto origExp = getLoweredExplosion(mvi->getOperand());
+  setLoweredExplosion(mvi, origExp);
 }
 
 void IRGenSILFunction::visitDifferentiableFunctionExtractInst(

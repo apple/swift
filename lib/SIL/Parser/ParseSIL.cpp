@@ -4850,8 +4850,9 @@ bool SILParser::parseSpecificSILInstruction(SILBuilder &B,
         return true;
       }
       VarDecl *Field = cast<VarDecl>(FieldV);
-      auto ResultTy = Val->getType().getFieldType(Field, SILMod,
-                                                  B.getTypeExpansionContext());
+      auto Type = Val->getType().unwrapMoveOnlyType();
+      auto ResultTy = Type.getFieldType(Field, SILMod,
+                                        B.getTypeExpansionContext());
       ResultVal = B.createRefElementAddr(InstLoc, Val, Field, ResultTy,
                                          IsImmutable);
       break;

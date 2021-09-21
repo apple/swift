@@ -3873,6 +3873,13 @@ namespace {
       PrintWithColorRAII(OS, ParenthesisColor) << ')';
     }
 
+    void visitMoveOnlyType(MoveOnlyType *T, StringRef label) {
+      printCommon(label, "sil_move_only_type");
+      // FIXME: Print the structure of the type.
+      printField("type", T->getString());
+      PrintWithColorRAII(OS, ParenthesisColor) << ')';
+    }
+
     void visitArraySliceType(ArraySliceType *T, StringRef label) {
       printCommon(label, "array_slice_type");
       printRec(T->getBaseType());

@@ -497,6 +497,10 @@ const TypeInfo *TypeConverter::convertBlockStorageType(SILBlockStorageType *T) {
                                   pod, bt, captureOffset);
 }
 
+const TypeInfo *TypeConverter::convertMoveOnlyType(MoveOnlyType *T) {
+  return &IGM.getTypeInfo(SILType::getPrimitiveObjectType(T->getInnerType()));
+}
+
 Address irgen::projectBlockStorageCapture(IRGenFunction &IGF,
                                           Address storageAddr,
                                           CanSILBlockStorageType storageTy) {

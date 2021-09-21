@@ -7037,6 +7037,7 @@ Expr *ExprRewriter::coerceToType(Expr *expr, Type toType,
   case TypeKind::Error:
   case TypeKind::InOut:
   case TypeKind::Module:
+  case TypeKind::MoveOnly:
   case TypeKind::Enum:
   case TypeKind::Struct:
   case TypeKind::Protocol:
@@ -7114,6 +7115,7 @@ Expr *ExprRewriter::coerceToType(Expr *expr, Type toType,
   case TypeKind::GenericFunction:
   case TypeKind::LValue:
   case TypeKind::InOut:
+  case TypeKind::MoveOnly:
     break;
   }
 

@@ -216,6 +216,8 @@ class Traversal : public TypeVisitor<Traversal, bool>
     return false;
   }
 
+  bool visitMoveOnlyType(MoveOnlyType *ty) { return doIt(ty->getInnerType()); }
+
 public:
   explicit Traversal(TypeWalker &walker) : Walker(walker) {}
 

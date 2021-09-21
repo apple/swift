@@ -54,6 +54,8 @@ static bool isLeafTypeMetadata(CanType type) {
   case TypeKind::InOut:
   case TypeKind::DynamicSelf:
     llvm_unreachable("these types do not have metadata");
+  case TypeKind::MoveOnly:
+    llvm_unreachable("unimplemented");
 
   // All the builtin types are leaves.
 #define BUILTIN_TYPE(ID, SUPER) \

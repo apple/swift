@@ -1526,6 +1526,10 @@ void Remangler::mangleSILBoxType(Node *node, unsigned depth) {
   mangleSingleChildNode(node, depth + 1);
 }
 
+void Remangler::mangleMoveOnlyType(Node *node, unsigned depth) {
+  unreachable("Not implemented?!");
+}
+
 void Remangler::mangleMetatype(Node *node, unsigned depth) {
   if (node->getNumChildren() == 1) {
     Buffer << 'M';

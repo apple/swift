@@ -4484,6 +4484,11 @@ public:
         storageTy->getCaptureType());
   }
 
+  void visitMoveOnlyType(const MoveOnlyType *storageTy) {
+    using namespace decls_block;
+    serializeSimpleWrapper<MoveOnlyTypeLayout>(storageTy->getInnerType());
+  }
+
   void visitSILBoxType(const SILBoxType *boxTy) {
     using namespace decls_block;
     unsigned abbrCode = S.DeclTypeAbbrCodes[SILBoxTypeLayout::Code];

@@ -4867,6 +4867,38 @@ public:
 };
 DEFINE_EMPTY_CAN_TYPE_WRAPPER(SILBoxType, Type)
 
+class MoveOnlyType;
+class SILLayout; // From SIL
+class SILModule; // From SIL
+typedef CanTypeWrapper<MoveOnlyType> CanMoveOnlyType;
+
+/// A wrapper type that marks an inner type as being a move only value. Can not
+/// be written directly at the Swift level, instead it is triggered by adding
+/// the type attribute @_moveOnly to a different ype.
+class MoveOnlyType final : public TypeBase, public llvm::FoldingSetNode {
+  CanType innerType;
+
+  MoveOnlyType(CanType innerType)
+      : TypeBase(TypeKind::MoveOnly, &innerType->getASTContext(),
+                 innerType->getRecursiveProperties()),
+        innerType(innerType) {}
+
+public:
+  CanType getInnerType() const { return innerType; }
+
+  static CanMoveOnlyType get(CanType innerType);
+
+  static bool classof(const TypeBase *T) {
+    return T->getKind() == TypeKind::MoveOnly;
+  }
+
+  /// Produce a profile of this box, for use in a folding set.
+  void Profile(llvm::FoldingSetNodeID &id) {
+    id.AddPointer(innerType.getPointer());
+  }
+};
+DEFINE_EMPTY_CAN_TYPE_WRAPPER(MoveOnlyType, Type)
+
 class SILBlockStorageType;
 typedef CanTypeWrapper<SILBlockStorageType> CanSILBlockStorageType;
   

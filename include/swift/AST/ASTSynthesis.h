@@ -141,9 +141,8 @@ constexpr MoveOnlyTypeSynthesizer<S> _moveOnly(S sub) {
 }
 template <class S>
 Type synthesizeType(SynthesisContext &SC, const MoveOnlyTypeSynthesizer<S> &M) {
-  // Until we get the actual move only type, we just return the synthesized
-  // type.
-  return synthesizeType(SC, M.Sub);
+  auto innerType = synthesizeType(SC, M.Sub)->getCanonicalType();
+  return MoveOnlyType::get(innerType);
 }
 
 /// Helper types for variadic synthesis.

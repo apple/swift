@@ -5482,6 +5482,11 @@ ConstraintSystem::matchTypes(Type type1, Type type2, ConstraintKind kind,
       // Nothing to do here; try existential and user-defined conversions below.
       break;
 
+    case TypeKind::MoveOnly: {
+      auto lhs = cast<MoveOnlyType>(desugar1)->getInnerType();
+      auto rhs = cast<MoveOnlyType>(desugar2)->getInnerType();
+      return matchTypes(lhs, rhs, ConstraintKind::Bind, subflags, locator);
+    }
     case TypeKind::Metatype:
     case TypeKind::ExistentialMetatype: {
       auto meta1 = cast<AnyMetatypeType>(desugar1);
@@ -6144,6 +6149,7 @@ ConstraintSystem::simplifyConstructionConstraint(
   case TypeKind::Function:
   case TypeKind::LValue:
   case TypeKind::InOut:
+  case TypeKind::MoveOnly:
   case TypeKind::Module: {
     // If solver is in the diagnostic mode and this is an invalid base,
     // let's give solver a chance to repair it to produce a good diagnostic.

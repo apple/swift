@@ -267,6 +267,7 @@ class TypeMatcher {
     TRIVIAL_CASE(SILFunctionType)
     TRIVIAL_CASE(SILBlockStorageType)
     TRIVIAL_CASE(SILBoxType)
+    TRIVIAL_CASE(MoveOnlyType)
     TRIVIAL_CASE(ProtocolCompositionType)
 
     bool visitLValueType(CanLValueType firstLValue, Type secondType,

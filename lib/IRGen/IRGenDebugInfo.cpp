@@ -1675,6 +1675,7 @@ private:
     case TypeKind::Placeholder:
     case TypeKind::Module:
     case TypeKind::SILBlockStorage:
+    case TypeKind::MoveOnly:
     case TypeKind::SILToken:
     case TypeKind::BuiltinUnsafeValueBuffer:
     case TypeKind::BuiltinDefaultActorStorage:
@@ -1697,6 +1698,7 @@ private:
     switch (Ty->getKind()) {
     case TypeKind::GenericFunction: // Not yet supported.
     case TypeKind::SILBlockStorage: // Not supported at all.
+    case TypeKind::MoveOnly:        // Not yet supported
       return false;
     default:
       return true;

@@ -137,6 +137,8 @@ public:
                                   ArrayRef<BuiltSubstitution> Substitutions,
                                   ArrayRef<BuiltRequirement> Requirements);
 
+  Type createMoveOnlyType(Type base);
+
   bool isExistential(Type type) {
     return type->isExistentialType();
   }

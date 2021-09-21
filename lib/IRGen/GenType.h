@@ -156,6 +156,7 @@ private:
   const TypeInfo *convertNormalDifferentiableFunctionType(SILFunctionType *T);
   const TypeInfo *convertLinearDifferentiableFunctionType(SILFunctionType *T);
   const TypeInfo *convertBlockStorageType(SILBlockStorageType *T);
+  const TypeInfo *convertMoveOnlyType(MoveOnlyType *T);
   const TypeInfo *convertBoxType(SILBoxType *T);
   const TypeInfo *convertArchetypeType(ArchetypeType *T);
   const TypeInfo *convertInOutType(InOutType *T);

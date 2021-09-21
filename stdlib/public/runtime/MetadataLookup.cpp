@@ -1596,6 +1596,10 @@ public:
     return BuiltType();
   }
 
+  TypeLookupErrorOr<BuiltType> createMoveOnlyType(BuiltType base) const {
+    swift_unreachable("Not implemented?!");
+  }
+
   using BuiltSILBoxField = llvm::PointerIntPair<BuiltType, 1>;
   using BuiltSubstitution = std::pair<BuiltType, BuiltType>;
   struct BuiltLayoutConstraint {

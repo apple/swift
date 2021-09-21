@@ -174,6 +174,18 @@ inline SILInstruction *getSingleNonDebugUser(SILValue V) {
   return I->getUser();
 }
 
+/// If \p value has a single debug user, return the operand associated with that
+/// use. Otherwise, returns nullptr.
+inline Operand *getSingleDebugUse(SILValue value) {
+  auto range = getDebugUses(value);
+  auto ii = range.begin(), ie = range.end();
+  if (ii == ie)
+    return nullptr;
+  if (std::next(ii) != ie)
+    return nullptr;
+  return *ii;
+}
+
 /// Erases the instruction \p I from it's parent block and deletes it, including
 /// all debug instructions which use \p I.
 /// Precondition: The instruction may only have debug instructions as uses.

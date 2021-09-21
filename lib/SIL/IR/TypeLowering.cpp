@@ -80,6 +80,10 @@ namespace {
       return visit(type.getInstanceType());
     }
 
+    bool visitMoveOnlyType(CanMoveOnlyType type) {
+      return visit(type->getInnerType());
+    }
+
     /// Everything else is trivial.  Note that ordinary metatypes of
     /// existential types are still singleton.
     bool visitType(CanType type) {
@@ -634,6 +638,12 @@ namespace {
                           AbstractionPattern origType,
                           IsTypeExpansionSensitive_t isSensitive) {
       // Should not be loaded.
+      return asImpl().handleReference(
+          type, getReferenceRecursiveProperties(isSensitive));
+    }
+
+    RetTy visitMoveOnlyType(CanMoveOnlyType type, AbstractionPattern origType,
+                            IsTypeExpansionSensitive_t isSensitive) {
       return asImpl().handleReference(
           type, getReferenceRecursiveProperties(isSensitive));
     }

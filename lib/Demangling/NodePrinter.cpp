@@ -308,6 +308,7 @@ private:
     case Node::Kind::ProtocolSymbolicReference:
     case Node::Kind::ReturnType:
     case Node::Kind::SILBoxType:
+    case Node::Kind::MoveOnlyType:
     case Node::Kind::SILBoxTypeWithLayout:
     case Node::Kind::Structure:
     case Node::Kind::OtherNominalType:
@@ -2170,6 +2171,12 @@ NodePointer NodePrinter::print(NodePointer Node, unsigned depth,
     return nullptr;
   case Node::Kind::SILBoxType: {
     Printer << "@box ";
+    NodePointer type = Node->getChild(0);
+    print(type, depth + 1);
+    return nullptr;
+  }
+  case Node::Kind::MoveOnlyType: {
+    Printer << "@move_only ";
     NodePointer type = Node->getChild(0);
     print(type, depth + 1);
     return nullptr;

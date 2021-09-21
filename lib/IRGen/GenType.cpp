@@ -2136,6 +2136,8 @@ const TypeInfo *TypeConverter::convertType(CanType ty) {
     return convertBlockStorageType(cast<SILBlockStorageType>(ty));
   case TypeKind::SILBox:
     return convertBoxType(cast<SILBoxType>(ty));
+  case TypeKind::MoveOnly:
+    return convertMoveOnlyType(cast<MoveOnlyType>(ty));
   case TypeKind::SILToken:
     llvm_unreachable("should not be asking for representation of a SILToken");
   }

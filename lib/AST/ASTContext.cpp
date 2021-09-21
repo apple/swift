@@ -467,6 +467,7 @@ struct ASTContext::Implementation {
   llvm::FoldingSet<SILFunctionType> SILFunctionTypes;
   llvm::DenseMap<CanType, SILBlockStorageType *> SILBlockStorageTypes;
   llvm::FoldingSet<SILBoxType> SILBoxTypes;
+  llvm::FoldingSet<MoveOnlyType> SILMoveOnlyTypes;
   llvm::DenseMap<BuiltinIntegerWidth, BuiltinIntegerType*> IntegerTypes;
   llvm::FoldingSet<BuiltinVectorType> BuiltinVectorTypes;
   llvm::FoldingSet<DeclName::CompoundDeclName> CompoundNames;
@@ -5248,6 +5249,21 @@ CanSILBoxType SILBoxType::get(CanType boxedType) {
       },
       MakeAbstractConformanceForGenericType());
   return get(boxedType->getASTContext(), layout, subMap);
+}
+
+CanMoveOnlyType MoveOnlyType::get(CanType innerType) {
+  auto &C = innerType->getASTContext();
+  // Return an existing layout if there is one.
+  void *insertPos;
+  auto &SILMoveOnlyTypes = C.getImpl().SILMoveOnlyTypes;
+  llvm::FoldingSetNodeID id;
+  id.AddPointer(innerType.getPointer());
+  if (auto existing = SILMoveOnlyTypes.FindNodeOrInsertPos(id, insertPos))
+    return CanMoveOnlyType(existing);
+
+  auto newType = new (C, AllocationArena::Permanent) MoveOnlyType(innerType);
+  SILMoveOnlyTypes.InsertNode(newType, insertPos);
+  return CanMoveOnlyType(newType);
 }
 
 LayoutConstraint

@@ -2340,6 +2340,10 @@ void Remangler::mangleSILBoxType(Node *node, unsigned depth) {
   Buffer << "Xb";
 }
 
+void Remangler::mangleMoveOnlyType(Node *node, unsigned depth) {
+  unreachable("Not implemented!");
+}
+
 void Remangler::mangleSetter(Node *node, unsigned depth) {
   mangleAbstractStorage(node->getFirstChild(), "s", depth + 1);
 }
