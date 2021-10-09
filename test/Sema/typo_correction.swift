@@ -100,7 +100,7 @@ func takesSomeClassArchetype<T : SomeClass>(_ t: T) {
 }
 
 // Typo correction of unqualified lookup from generic context.
-struct Generic<T> { // expected-note {{'T' declared as parameter to type 'Generic'}}
+struct Generic<T> {
   func match1() {}
   // expected-note@-1 {{'match1' declared here}}
 
@@ -112,9 +112,10 @@ struct Generic<T> { // expected-note {{'T' declared as parameter to type 'Generi
   }
 }
 
-protocol P { // expected-note {{'P' previously declared here}}
+protocol P { // expected-note {{required by referencing type alias 'a' on 'P' where 'Self' = 'P'}}
   // expected-note@-1 2{{did you mean 'P'?}}
   // expected-note@-2 {{'P' declared here}}
+  // expected-note@-3 {{'P' previously declared here}}
   typealias a = Generic
 }
 
@@ -125,6 +126,8 @@ protocol P {} // expected-error {{invalid redeclaration of 'P'}}
 func hasTypo() {
   _ = P.a.a // expected-error {{type 'Generic<T>' has no member 'a'}}
   // expected-error@-1 {{generic parameter 'T' could not be inferred}}
+  // expected-error@-2 {{instance member 'a' cannot be used on type 'P'}}
+  // expected-error@-3 {{protocol 'P' as a type cannot conform to the protocol itself; only concrete types such as structs, enums and classes can conform to protocols}}
 }
 
 // Typo correction with AnyObject.

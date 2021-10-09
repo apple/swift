@@ -11,6 +11,7 @@ class C {
 }
 
 typealias t = t // expected-error {{type alias 't' references itself}} expected-note {{while resolving type 't'}} expected-note {{through reference here}}
+// expected-error@-1 {{circular reference}}
 
 extension Foo {
   convenience init() {} // expected-error{{invalid redeclaration of synthesized 'init()'}}
