@@ -31,11 +31,12 @@ enum class ARCTransformKind : uint64_t {
   RedundantCopyValueElimPeephole = 0x8,
   LifetimeJoiningPeephole = 0x10,
   OwnershipConversionElimPeephole = 0x20,
+  MoveValuePeepholes = 0x40,
 
   AllPeepholes = LoadCopyToLoadBorrowPeephole |
                  RedundantBorrowScopeElimPeephole |
                  RedundantCopyValueElimPeephole | LifetimeJoiningPeephole |
-                 OwnershipConversionElimPeephole,
+                 OwnershipConversionElimPeephole | MoveValuePeepholes,
   All = AllPeepholes | OwnedToGuaranteedPhi,
 };
 

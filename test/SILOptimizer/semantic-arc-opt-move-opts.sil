@@ -1,0 +1,21 @@
+// RUN: %target-sil-opt -module-name Swift -enable-sil-verify-all -semantic-arc-opts -sil-semantic-arc-peepholes-move-value-opts %s | %FileCheck %s
+
+sil_stage canonical
+
+class Klass {}
+
+sil [ossa] @consume_klass : $@convention(thin) (@owned Klass) -> ()
+
+// CHECK-LABEL: sil [ossa] @move_opt_removal : $@convention(thin) (@guaranteed Klass) -> () {
+// CHECK: copy_value
+// CHECK-NOT: move_value
+// CHECK: } // end sil function 'move_opt_removal'
+sil [ossa] @move_opt_removal : $@convention(thin) (@guaranteed Klass) -> () {
+bb0(%0 : @guaranteed $Klass):
+  %1 = copy_value %0 : $Klass
+  %2 = move_value %1 : $Klass
+  %f = function_ref @consume_klass : $@convention(thin) (@owned Klass) -> ()
+  apply %f(%2) : $@convention(thin) (@owned Klass) -> ()
+  %99999 = tuple()
+  return %99999 : $()
+}

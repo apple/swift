@@ -45,7 +45,7 @@ public:
   bool RemoveRuntimeAsserts = false;
 
   /// Enable experimental support for emitting defined borrow scopes.
-  bool EnableExperimentalLexicalLifetimes = false;
+  bool EnableExperimentalLexicalLifetimes = true;
 
   /// Force-run SIL copy propagation to shorten object lifetime in whatever
   /// optimization pipeline is currently used.

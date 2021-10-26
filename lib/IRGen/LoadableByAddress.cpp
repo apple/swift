@@ -1709,6 +1709,8 @@ private:
                          SmallVectorImpl<SILInstruction *> &Delete);
   bool fixStoreToBlockStorageInstr(SILInstruction &I,
                          SmallVectorImpl<SILInstruction *> &Delete);
+  bool deleteMoveValue(SILInstruction &I,
+                       SmallVectorImpl<SILInstruction *> &Delete);
 
   bool recreateDifferentiabilityWitnessFunction(
       SILInstruction &I, SmallVectorImpl<SILInstruction *> &Delete);
@@ -1723,6 +1725,7 @@ private:
       uncheckedTakeEnumDataAddrOfFunc;
   llvm::SetVector<StoreInst *> storeToBlockStorageInstrs;
   llvm::SetVector<SILInstruction *> modApplies;
+  llvm::SetVector<MoveValueInst *> movesToRAUW;
   llvm::MapVector<SILInstruction *, SILValue> allApplyRetToAllocMap;
   LargeSILTypeMapper MapperCache;
 };
@@ -2699,6 +2702,17 @@ bool LoadableByAddress::recreateUncheckedTakeEnumDataAddrInst(
   return true;
 }
 
+bool LoadableByAddress::deleteMoveValue(
+    SILInstruction &inputInst,
+    SmallVectorImpl<SILInstruction *> &instsToDelete) {
+  auto *mvi = dyn_cast<MoveValueInst>(&inputInst);
+  if (!mvi || !movesToRAUW.count(mvi))
+    return false;
+  mvi->replaceAllUsesWith(mvi->getOperand());
+  instsToDelete.push_back(mvi);
+  return true;
+}
+
 bool LoadableByAddress::fixStoreToBlockStorageInstr(
     SILInstruction &I, SmallVectorImpl<SILInstruction *> &Delete) {
   auto *instr = dyn_cast<StoreInst>(&I);
@@ -3030,6 +3044,8 @@ void LoadableByAddress::run() {
                    isa<DifferentiableFunctionExtractInst>(&I) ||
                    isa<LinearFunctionExtractInst>(&I)) {
           conversionInstrs.insert(cast<SingleValueInstruction>(&I));
+        } else if (auto *mvi = dyn_cast<MoveValueInst>(&I)) {
+          movesToRAUW.insert(mvi);
         }
       }
     }
@@ -3059,6 +3075,8 @@ void LoadableByAddress::run() {
     SmallVector<SILInstruction *, 32> Delete;
     for (SILBasicBlock &BB : CurrF) {
       for (SILInstruction &I : BB) {
+        if (deleteMoveValue(I, Delete))
+          continue;
         if (recreateTupleInstr(I, Delete))
           continue;
         else if (recreateConvInstr(I, Delete))

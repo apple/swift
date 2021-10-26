@@ -672,6 +672,13 @@ DECL_ATTR(_nonSendable, NonSendable,
   APIStableToAdd | APIBreakingToRemove,
   121)
 
+SIMPLE_DECL_ATTR(_noImplicitCopy, NoImplicitCopy,
+  UserInaccessible |
+  ABIStableToAdd | ABIBreakingToRemove |
+  APIStableToAdd | APIBreakingToRemove |
+  OnVar,
+  122)
+
 // If you're adding a new underscored attribute here, please document it in
 // docs/ReferenceGuides/UnderscoredAttributes.md.
 

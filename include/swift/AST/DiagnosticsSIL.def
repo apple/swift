@@ -686,5 +686,10 @@ NOTE(capturepromotion_concurrentcapture_capturinguse_here, none,
 NOTE(capturepromotion_variable_defined_here,none,
      "variable defined here", ())
 
+ERROR(sil_moveonlychecker_value_consumed_more_than_once, none,
+      "'%0' consumed more than once", (StringRef))
+NOTE(sil_moveonlychecker_consuming_use_here, none,
+     "consuming use", ())
+
 #define UNDEFINE_DIAGNOSTIC_MACROS
 #include "DefineDiagnosticMacros.h"

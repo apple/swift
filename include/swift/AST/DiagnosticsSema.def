@@ -6029,5 +6029,12 @@ ERROR(wrap_invalid_attr_added_by_access_note, none,
 
 #undef WHICH_ACCESS_NOTE
 
+// Move Only diagnostics
+
+ERROR(noimplicitcopy_attr_valid_only_on_local_let,
+      none, "'@_noImplicitCopy' attribute can only be applied to local lets", ())
+ERROR(noimplicitcopy_attr_invalid_in_generic_context,
+      none, "'@_noImplicitCopy' attribute cannot be applied to entities in generic contexts", ())
+
 #define UNDEFINE_DIAGNOSTIC_MACROS
 #include "DefineDiagnosticMacros.h"

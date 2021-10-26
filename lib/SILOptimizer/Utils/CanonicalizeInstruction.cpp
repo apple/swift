@@ -450,6 +450,12 @@ static SILBasicBlock::iterator
 eliminateSimpleBorrows(BeginBorrowInst *bbi, CanonicalizeInstruction &pass) {
   auto next = std::next(bbi->getIterator());
 
+  // Never eliminate lexical borrow scopes. This needs to be a semantic act
+  // since at -Onone this will cause us to lose the lexical scope that a
+  // specific debug_value is associated with.
+  if (bbi->isLexical())
+    return next;
+
   // We know that our borrow is completely within the lifetime of its base value
   // if the borrow is never reborrowed. We check for reborrows and do not
   // optimize such cases. Otherwise, we can eliminate our borrow and instead use

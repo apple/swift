@@ -22,6 +22,7 @@
 #include "TypeChecker.h"
 #include "swift/AST/ASTVisitor.h"
 #include "swift/AST/ClangModuleLoader.h"
+#include "swift/AST/Decl.h"
 #include "swift/AST/DiagnosticsParse.h"
 #include "swift/AST/Effects.h"
 #include "swift/AST/GenericEnvironment.h"
@@ -262,9 +263,29 @@ public:
 
   void visitReasyncAttr(ReasyncAttr *attr);
   void visitNonisolatedAttr(NonisolatedAttr *attr);
+
+  void visitNoImplicitCopyAttr(NoImplicitCopyAttr *attr);
 };
 
 } // end anonymous namespace
+
+void AttributeChecker::visitNoImplicitCopyAttr(NoImplicitCopyAttr *attr) {
+  auto *vd = dyn_cast<VarDecl>(D);
+  if (!vd) {
+    auto error = diag::noimplicitcopy_attr_valid_only_on_local_let;
+    diagnoseAndRemoveAttr(attr, error);
+  }
+
+  if (vd->getInterfaceType()->hasTypeParameter()) {
+    auto error = diag::noimplicitcopy_attr_invalid_in_generic_context;
+    diagnoseAndRemoveAttr(attr, error);
+  }
+
+  if (!vd->isLet()) {
+    auto error = diag::noimplicitcopy_attr_valid_only_on_local_let;
+    diagnoseAndRemoveAttr(attr, error);
+  }
+}
 
 void AttributeChecker::visitTransparentAttr(TransparentAttr *attr) {
   DeclContext *dc = D->getDeclContext();
