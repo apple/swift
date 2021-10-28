@@ -7321,8 +7321,19 @@ class MoveValueInst
                                   SingleValueInstruction> {
   friend class SILBuilder;
 
+  /// If set to true, the diagnostic move operator pass must check that the root
+  /// of the operand of this instruction is never used again along any path that
+  /// goes through this instruction.
+  bool needsVerification = false;
+
   MoveValueInst(SILDebugLocation DebugLoc, SILValue operand)
       : UnaryInstructionBase(DebugLoc, operand, operand->getType()) {}
+
+public:
+  bool requiresVerification() const { return needsVerification; }
+  void setRequiresVerification(bool newValue) {
+    needsVerification = newValue;
+  }
 };
 
 /// Given an object reference, return true iff it is non-nil and refers

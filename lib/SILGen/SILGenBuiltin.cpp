@@ -1584,7 +1584,9 @@ static ManagedValue emitBuiltinMove(SILGenFunction &SGF, SILLocation loc,
   assert(args.size() == 1 && "Move has a single argument");
   auto firstArg = args[0].ensurePlusOne(SGF, loc);
   CleanupCloner cloner(SGF, firstArg);
-  return cloner.clone(SGF.B.createMoveValue(loc, firstArg.forward(SGF)));
+  auto *v = SGF.B.createMoveValue(loc, firstArg.forward(SGF));
+  v->setRequiresVerification(true);
+  return cloner.clone(v);
 }
 
 static ManagedValue emitBuiltinAutoDiffCreateLinearMapContext(

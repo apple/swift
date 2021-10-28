@@ -686,5 +686,13 @@ NOTE(capturepromotion_concurrentcapture_capturinguse_here, none,
 NOTE(capturepromotion_variable_defined_here,none,
      "variable defined here", ())
 
+// Move operator check diagnostics
+ERROR(moveoperator_variablemoved_useaftermove, none,
+      "'%0' used after lifetime ended by move operator", (StringRef))
+NOTE(moveoperator_variable_defined_here, none,
+     "variable defined here", ())
+NOTE(moveoperator_useaftermove_here, none,
+     "use after move", ())
+
 #define UNDEFINE_DIAGNOSTIC_MACROS
 #include "DefineDiagnosticMacros.h"

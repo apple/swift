@@ -515,7 +515,8 @@ BUILTIN_SIL_OPERATION(WithUnsafeThrowingContinuation, "withUnsafeThrowingContinu
 /// Force the current task to be rescheduled on the specified actor.
 BUILTIN_SIL_OPERATION(HopToActor, "hopToActor", None)
 
-/// Generate a move_value instruction to convert a T to a @_moveOnly T.
+/// Generate a move_value instruction that ends the lifetime of its argument T
+/// and produces a new value of type T.
 BUILTIN_SIL_OPERATION(Move, "move", Special)
 
 #undef BUILTIN_SIL_OPERATION

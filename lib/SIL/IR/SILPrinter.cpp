@@ -1843,6 +1843,8 @@ public:
   }
 
   void visitMoveValueInst(MoveValueInst *I) {
+    if (I->requiresVerification())
+      *this << "[needs_verification] ";
     *this << getIDAndType(I->getOperand());
   }
 

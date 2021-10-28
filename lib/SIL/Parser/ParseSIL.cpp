@@ -3133,7 +3133,6 @@ bool SILParser::parseSpecificSILInstruction(SILBuilder &B,
     UNARY_INSTRUCTION(IsUnique)
     UNARY_INSTRUCTION(DestroyAddr)
     UNARY_INSTRUCTION(CopyValue)
-    UNARY_INSTRUCTION(MoveValue)
     UNARY_INSTRUCTION(EndBorrow)
     UNARY_INSTRUCTION(DestructureStruct)
     UNARY_INSTRUCTION(DestructureTuple)
@@ -4134,6 +4133,28 @@ bool SILParser::parseSpecificSILInstruction(SILBuilder &B,
   }
 #include "swift/AST/ReferenceStorage.def"
 
+    break;
+  }    
+  case SILInstructionKind::MoveValueInst: {
+    bool requiresVerification = false;
+    StringRef attributeName;
+    SourceLoc attributeLoc;
+    if (parseSILOptional(attributeName, attributeLoc, *this)) {
+      if (attributeName == "needs_verification") {
+        requiresVerification = true;
+      } else {
+        P.diagnose(attributeLoc, diag::sil_invalid_attribute_for_instruction,
+                   attributeName, "move_value");
+        return true;
+      }
+    }
+    if (parseTypedValueRef(Val, B))
+      return true;
+    if (parseSILDebugLocation(InstLoc, B))
+      return true;
+    MoveValueInst *mv = B.createMoveValue(InstLoc, Val);
+    mv->setRequiresVerification(requiresVerification);
+    ResultVal = mv;
     break;
   }
   case SILInstructionKind::AllocStackInst: {

@@ -1,0 +1,23 @@
+// RUN: %target-sil-opt -enable-sil-verify-all -move-operator-check %s
+
+sil_stage raw
+
+import Builtin
+
+sil @use_nativeobject : $@convention(thin) (@guaranteed Builtin.NativeObject) -> ()
+
+sil [ossa] @simple_test : $@convention(thin) (@owned Builtin.NativeObject) -> @owned Builtin.NativeObject {
+bb0(%0 : @owned $Builtin.NativeObject):
+  %1 = move_value [needs_verification] %0 : $Builtin.NativeObject
+  return %1 : $Builtin.NativeObject
+}
+
+sil [ossa] @simple_fail_test : $@convention(thin) (@owned Builtin.NativeObject) -> @owned Builtin.NativeObject {
+bb0(%0 : @owned $Builtin.NativeObject):
+  %02 = copy_value %0 : $Builtin.NativeObject
+  %1 = move_value [needs_verification] %0 : $Builtin.NativeObject
+  %f = function_ref @use_nativeobject : $@convention(thin) (@guaranteed Builtin.NativeObject) -> ()
+  apply %f(%02) : $@convention(thin) (@guaranteed Builtin.NativeObject) -> ()
+  destroy_value %02 : $Builtin.NativeObject
+  return %1 : $Builtin.NativeObject
+}
