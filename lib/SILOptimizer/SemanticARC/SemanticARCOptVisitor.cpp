@@ -17,6 +17,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#define DEBUG_TYPE "sil-semantic-arc-opts"
+
 #include "SemanticARCOptVisitor.h"
 #include "swift/Basic/Defer.h"
 #include "swift/SIL/DebugUtils.h"
@@ -107,6 +109,7 @@ bool SemanticARCOptVisitor::processWorklist() {
     // Otherwise, if we have a single value instruction (to be expanded later
     // perhaps), try to visit that value recursively.
     if (auto *svi = dyn_cast<SingleValueInstruction>(next)) {
+      LLVM_DEBUG(llvm::dbgs() << "Worklist Visiting: " << *svi);
       bool madeSingleChange = visit(svi);
       assert((!madeSingleChange || !ctx.assumingAtFixedPoint) &&
              "Assumed was at fixed point and modified state?!");

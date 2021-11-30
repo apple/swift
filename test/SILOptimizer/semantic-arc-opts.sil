@@ -57,7 +57,10 @@ final class Klass {
 extension Klass : MyFakeAnyObject {
   func myFakeMethod()
 }
+
+sil @guaranteed_klass_owned_result : $@convention(thin) (@guaranteed Klass) -> @owned Klass
 sil @guaranteed_klass_user : $@convention(thin) (@guaranteed Klass) -> ()
+sil @guaranteed_klass_user_product_owned : $@convention(thin) (@guaranteed Klass) -> ()
 sil @guaranteed_fakeoptional_klass_user : $@convention(thin) (@guaranteed FakeOptional<Klass>) -> ()
 sil @guaranteed_fakeoptional_classlet_user : $@convention(thin) (@guaranteed FakeOptional<ClassLet>) -> ()
 
@@ -69,6 +72,14 @@ struct StructWithDataAndOwner {
   var data : Builtin.Int32
   var owner : Klass
 }
+
+struct Struct2WithDataAndOwner {
+  var owner : StructWithDataAndOwner
+  var data : Builtin.Int64
+}
+
+sil @guaranteed_use_structwithdataowner : $@convention(thin) (@guaranteed StructWithDataAndOwner) -> ()
+sil @guaranteed_use_struct2withdataowner : $@convention(thin) (@guaranteed Struct2WithDataAndOwner) -> ()
 
 struct StructMemberTest {
   var c : Klass
@@ -1497,3 +1508,261 @@ bb3:
   return %9999 : $()
 }
 
+// Predictable Mem Opts (or PMO) tends to produce code that looks like the
+// following. Make sure that we can eliminate the begin_borrow below and only
+// hvae a single copy_value.
+//
+// CHECK-LABEL: sil [ossa] @pmoOutputExample : $@convention(method) (@owned Klass, Builtin.Int32) -> @owned StructWithDataAndOwner {
+// CHECK-NOT: begin_borrow
+// CHECK: copy_value
+// CHECK-NOT: begin_borrow
+// CHECK-NOT: copy_value
+// CHECK: } // end sil function 'pmoOutputExample'
+sil [ossa] @pmoOutputExample : $@convention(method) (@owned Klass, Builtin.Int32) -> @owned StructWithDataAndOwner {
+bb0(%0 : @owned $Klass, %1 : $Builtin.Int32):
+  %2 = alloc_stack $StructWithDataAndOwner, var, name "self"
+  debug_value %0 : $Klass, let, name "rawValue", argno 1
+  %4 = copy_value %0 : $Klass
+  %5 = function_ref @guaranteed_klass_owned_result : $@convention(thin) (@guaranteed Klass) -> @owned Klass
+  %6 = apply %5(%4) : $@convention(thin) (@guaranteed Klass) -> @owned Klass
+  %7 = begin_access [modify] [static] %2 : $*StructWithDataAndOwner
+  %8 = struct_element_addr %7 : $*StructWithDataAndOwner, #StructWithDataAndOwner.owner
+  %9 = copy_value %6 : $Klass
+  store %6 to [init] %8 : $*Klass
+  end_access %7 : $*StructWithDataAndOwner
+  destroy_value %4 : $Klass
+  %13 = begin_borrow %9 : $Klass
+  %14 = struct $StructWithDataAndOwner (%1 : $Builtin.Int32, %13 : $Klass)
+  %15 = copy_value %14 : $StructWithDataAndOwner
+  end_borrow %13 : $Klass
+  %17 = copy_value %15 : $StructWithDataAndOwner
+  destroy_value %15 : $StructWithDataAndOwner
+  destroy_value %9 : $Klass
+  destroy_value %0 : $Klass
+  destroy_addr %2 : $*StructWithDataAndOwner
+  dealloc_stack %2 : $*StructWithDataAndOwner
+  return %17 : $StructWithDataAndOwner
+}
+
+// CHECK-LABEL: sil [ossa] @pmoOutputExampleWithUnreachable : $@convention(method) (@owned Klass, Builtin.Int32) -> @owned StructWithDataAndOwner {
+// CHECK-NOT: begin_borrow
+// CHECK: } // end sil function 'pmoOutputExampleWithUnreachable'
+sil [ossa] @pmoOutputExampleWithUnreachable : $@convention(method) (@owned Klass, Builtin.Int32) -> @owned StructWithDataAndOwner {
+bb0(%0 : @owned $Klass, %1 : $Builtin.Int32):
+  %2 = alloc_stack $StructWithDataAndOwner, var, name "self"
+  debug_value %0 : $Klass, let, name "rawValue", argno 1
+  %4 = copy_value %0 : $Klass
+  %5 = function_ref @guaranteed_klass_owned_result : $@convention(thin) (@guaranteed Klass) -> @owned Klass
+  %6 = apply %5(%4) : $@convention(thin) (@guaranteed Klass) -> @owned Klass
+  %7 = begin_access [modify] [static] %2 : $*StructWithDataAndOwner
+  %8 = struct_element_addr %7 : $*StructWithDataAndOwner, #StructWithDataAndOwner.owner
+  %9 = copy_value %6 : $Klass
+  store %6 to [init] %8 : $*Klass
+  end_access %7 : $*StructWithDataAndOwner
+  destroy_value %4 : $Klass
+  %13 = begin_borrow %9 : $Klass
+  %14 = struct $StructWithDataAndOwner (%1 : $Builtin.Int32, %13 : $Klass)
+  cond_br undef, bb1, bb2
+
+bb1:
+  unreachable
+
+bb2:
+  %15 = copy_value %14 : $StructWithDataAndOwner
+  end_borrow %13 : $Klass
+  %17 = copy_value %15 : $StructWithDataAndOwner
+  destroy_value %15 : $StructWithDataAndOwner
+  destroy_value %9 : $Klass
+  destroy_value %0 : $Klass
+  destroy_addr %2 : $*StructWithDataAndOwner
+  dealloc_stack %2 : $*StructWithDataAndOwner
+  return %17 : $StructWithDataAndOwner
+}
+
+// CHECK-LABEL: sil [ossa] @pmoOutputExampleWithOtherBlocks : $@convention(method) (@owned Klass, Builtin.Int32) -> @owned StructWithDataAndOwner {
+// CHECK-NOT: begin_borrow
+// CHECK: } // end sil function 'pmoOutputExampleWithOtherBlocks'
+sil [ossa] @pmoOutputExampleWithOtherBlocks : $@convention(method) (@owned Klass, Builtin.Int32) -> @owned StructWithDataAndOwner {
+bb0(%0 : @owned $Klass, %1 : $Builtin.Int32):
+  %2 = alloc_stack $StructWithDataAndOwner, var, name "self"
+  debug_value %0 : $Klass, let, name "rawValue", argno 1
+  %4 = copy_value %0 : $Klass
+  %5 = function_ref @guaranteed_klass_owned_result : $@convention(thin) (@guaranteed Klass) -> @owned Klass
+  %6 = apply %5(%4) : $@convention(thin) (@guaranteed Klass) -> @owned Klass
+  %7 = begin_access [modify] [static] %2 : $*StructWithDataAndOwner
+  %8 = struct_element_addr %7 : $*StructWithDataAndOwner, #StructWithDataAndOwner.owner
+  %9 = copy_value %6 : $Klass
+  store %6 to [init] %8 : $*Klass
+  end_access %7 : $*StructWithDataAndOwner
+  destroy_value %4 : $Klass
+  %13 = begin_borrow %9 : $Klass
+  %14 = struct $StructWithDataAndOwner (%1 : $Builtin.Int32, %13 : $Klass)
+  cond_br undef, bb1, bb2
+
+bb1:
+  br bb3
+
+bb2:
+  br bb3
+
+bb3:
+  %15 = copy_value %14 : $StructWithDataAndOwner
+  end_borrow %13 : $Klass
+  %17 = copy_value %15 : $StructWithDataAndOwner
+  destroy_value %15 : $StructWithDataAndOwner
+  destroy_value %9 : $Klass
+  destroy_value %0 : $Klass
+  destroy_addr %2 : $*StructWithDataAndOwner
+  dealloc_stack %2 : $*StructWithDataAndOwner
+  return %17 : $StructWithDataAndOwner
+}
+
+// CHECK-LABEL: sil [ossa] @pmoOutputExampleChained : $@convention(method) (@owned Klass, Builtin.Int32, Builtin.Int64) -> @owned Struct2WithDataAndOwner {
+// CHECK-NOT: begin_borrow
+// CHECK: } // end sil function 'pmoOutputExampleChained'
+sil [ossa] @pmoOutputExampleChained : $@convention(method) (@owned Klass, Builtin.Int32, Builtin.Int64) -> @owned Struct2WithDataAndOwner {
+bb0(%0 : @owned $Klass, %1 : $Builtin.Int32, %arg2 : $Builtin.Int64):
+  %2 = alloc_stack $StructWithDataAndOwner, var, name "self"
+  debug_value %0 : $Klass, let, name "rawValue", argno 1
+  %4 = copy_value %0 : $Klass
+  %5 = function_ref @guaranteed_klass_owned_result : $@convention(thin) (@guaranteed Klass) -> @owned Klass
+  %6 = apply %5(%4) : $@convention(thin) (@guaranteed Klass) -> @owned Klass
+  %7 = begin_access [modify] [static] %2 : $*StructWithDataAndOwner
+  %8 = struct_element_addr %7 : $*StructWithDataAndOwner, #StructWithDataAndOwner.owner
+  %9 = copy_value %6 : $Klass
+  store %6 to [init] %8 : $*Klass
+  end_access %7 : $*StructWithDataAndOwner
+  destroy_value %4 : $Klass
+  %13 = begin_borrow %9 : $Klass
+  %14 = struct $StructWithDataAndOwner (%1 : $Builtin.Int32, %13 : $Klass)
+  cond_br undef, bb1, bb2
+
+bb1:
+  unreachable
+
+bb2:
+  %14a = struct $Struct2WithDataAndOwner (%14 : $StructWithDataAndOwner, %arg2 : $Builtin.Int64)
+  %15 = copy_value %14a : $Struct2WithDataAndOwner
+  end_borrow %13 : $Klass
+  %17 = copy_value %15 : $Struct2WithDataAndOwner
+  destroy_value %15 : $Struct2WithDataAndOwner
+  destroy_value %9 : $Klass
+  destroy_value %0 : $Klass
+  destroy_addr %2 : $*StructWithDataAndOwner
+  dealloc_stack %2 : $*StructWithDataAndOwner
+  return %17 : $Struct2WithDataAndOwner
+}
+
+// In this case, one of our structs has an additional use that isnt a copy and
+// isnt in the chain.
+//
+// CHECK-LABEL: sil [ossa] @pmoOutputExampleChainedFail : $@convention(method) (@owned Klass, Builtin.Int32, Builtin.Int64) -> @owned Struct2WithDataAndOwner {
+// CHECK: begin_borrow
+// CHECK: } // end sil function 'pmoOutputExampleChainedFail'
+sil [ossa] @pmoOutputExampleChainedFail : $@convention(method) (@owned Klass, Builtin.Int32, Builtin.Int64) -> @owned Struct2WithDataAndOwner {
+bb0(%0 : @owned $Klass, %1 : $Builtin.Int32, %arg2 : $Builtin.Int64):
+  %2 = alloc_stack $StructWithDataAndOwner, var, name "self"
+  debug_value %0 : $Klass, let, name "rawValue", argno 1
+  %4 = copy_value %0 : $Klass
+  %5 = function_ref @guaranteed_klass_owned_result : $@convention(thin) (@guaranteed Klass) -> @owned Klass
+  %6 = apply %5(%4) : $@convention(thin) (@guaranteed Klass) -> @owned Klass
+  %7 = begin_access [modify] [static] %2 : $*StructWithDataAndOwner
+  %8 = struct_element_addr %7 : $*StructWithDataAndOwner, #StructWithDataAndOwner.owner
+  %9 = copy_value %6 : $Klass
+  store %6 to [init] %8 : $*Klass
+  end_access %7 : $*StructWithDataAndOwner
+  destroy_value %4 : $Klass
+  %13 = begin_borrow %9 : $Klass
+  %14 = struct $StructWithDataAndOwner (%1 : $Builtin.Int32, %13 : $Klass)
+  cond_br undef, bb1, bb2
+
+bb1:
+  unreachable
+
+bb2:
+  %f = function_ref @guaranteed_use_structwithdataowner : $@convention(thin) (@guaranteed StructWithDataAndOwner) -> ()
+  apply %f(%14) : $@convention(thin) (@guaranteed StructWithDataAndOwner) -> ()
+  %14a = struct $Struct2WithDataAndOwner (%14 : $StructWithDataAndOwner, %arg2 : $Builtin.Int64)
+  %15 = copy_value %14a : $Struct2WithDataAndOwner
+  end_borrow %13 : $Klass
+  %17 = copy_value %15 : $Struct2WithDataAndOwner
+  destroy_value %15 : $Struct2WithDataAndOwner
+  destroy_value %9 : $Klass
+  destroy_value %0 : $Klass
+  destroy_addr %2 : $*StructWithDataAndOwner
+  dealloc_stack %2 : $*StructWithDataAndOwner
+  return %17 : $Struct2WithDataAndOwner
+}
+
+// CHECK-LABEL: sil [ossa] @pmoOutputExampleChainedFail1 : $@convention(method) (@owned Klass, Builtin.Int32, Builtin.Int64) -> @owned Struct2WithDataAndOwner {
+// CHECK: begin_borrow
+// CHECK: } // end sil function 'pmoOutputExampleChainedFail1'
+sil [ossa] @pmoOutputExampleChainedFail1 : $@convention(method) (@owned Klass, Builtin.Int32, Builtin.Int64) -> @owned Struct2WithDataAndOwner {
+bb0(%0 : @owned $Klass, %1 : $Builtin.Int32, %arg2 : $Builtin.Int64):
+  %2 = alloc_stack $StructWithDataAndOwner, var, name "self"
+  debug_value %0 : $Klass, let, name "rawValue", argno 1
+  %4 = copy_value %0 : $Klass
+  %5 = function_ref @guaranteed_klass_owned_result : $@convention(thin) (@guaranteed Klass) -> @owned Klass
+  %6 = apply %5(%4) : $@convention(thin) (@guaranteed Klass) -> @owned Klass
+  %7 = begin_access [modify] [static] %2 : $*StructWithDataAndOwner
+  %8 = struct_element_addr %7 : $*StructWithDataAndOwner, #StructWithDataAndOwner.owner
+  %9 = copy_value %6 : $Klass
+  store %6 to [init] %8 : $*Klass
+  end_access %7 : $*StructWithDataAndOwner
+  destroy_value %4 : $Klass
+  %13 = begin_borrow %9 : $Klass
+  %14 = struct $StructWithDataAndOwner (%1 : $Builtin.Int32, %13 : $Klass)
+  cond_br undef, bb1, bb2
+
+bb1:
+  unreachable
+
+bb2:
+  %14a = struct $Struct2WithDataAndOwner (%14 : $StructWithDataAndOwner, %arg2 : $Builtin.Int64)
+  %f = function_ref @guaranteed_use_struct2withdataowner : $@convention(thin) (@guaranteed Struct2WithDataAndOwner) -> ()
+  apply %f(%14a) : $@convention(thin) (@guaranteed Struct2WithDataAndOwner) -> ()
+  %15 = copy_value %14a : $Struct2WithDataAndOwner
+  end_borrow %13 : $Klass
+  %17 = copy_value %15 : $Struct2WithDataAndOwner
+  destroy_value %15 : $Struct2WithDataAndOwner
+  destroy_value %9 : $Klass
+  destroy_value %0 : $Klass
+  destroy_addr %2 : $*StructWithDataAndOwner
+  dealloc_stack %2 : $*StructWithDataAndOwner
+  return %17 : $Struct2WithDataAndOwner
+}
+
+// CHECK-LABEL: sil [ossa] @pmoOutputMultipleExample : $@convention(method) (@owned Klass, Builtin.Int32) -> @owned StructWithDataAndOwner {
+// CHECK-NOT: begin_borrow
+// CHECK: } // end sil function 'pmoOutputMultipleExample'
+sil [ossa] @pmoOutputMultipleExample : $@convention(method) (@owned Klass, Builtin.Int32) -> @owned StructWithDataAndOwner {
+bb0(%0 : @owned $Klass, %1 : $Builtin.Int32):
+  %2 = alloc_stack $StructWithDataAndOwner, var, name "self"
+  debug_value %0 : $Klass, let, name "rawValue", argno 1
+  %4 = copy_value %0 : $Klass
+  %5 = function_ref @guaranteed_klass_owned_result : $@convention(thin) (@guaranteed Klass) -> @owned Klass
+  %6 = apply %5(%4) : $@convention(thin) (@guaranteed Klass) -> @owned Klass
+  %7 = begin_access [modify] [static] %2 : $*StructWithDataAndOwner
+  %8 = struct_element_addr %7 : $*StructWithDataAndOwner, #StructWithDataAndOwner.owner
+  %9 = copy_value %6 : $Klass
+  store %6 to [init] %8 : $*Klass
+  end_access %7 : $*StructWithDataAndOwner
+  destroy_value %4 : $Klass
+  %13 = begin_borrow %9 : $Klass
+  %14 = struct $StructWithDataAndOwner (%1 : $Builtin.Int32, %13 : $Klass)
+  %15 = copy_value %14 : $StructWithDataAndOwner
+  end_borrow %13 : $Klass
+  %13a = begin_borrow %9 : $Klass
+  %14a = struct $StructWithDataAndOwner (%1 : $Builtin.Int32, %13a : $Klass)
+  %15a = copy_value %14a : $StructWithDataAndOwner
+  end_borrow %13a : $Klass
+
+  %17 = copy_value %15 : $StructWithDataAndOwner
+  destroy_value %15 : $StructWithDataAndOwner
+  destroy_value %15a : $StructWithDataAndOwner
+  destroy_value %9 : $Klass
+  destroy_value %0 : $Klass
+  destroy_addr %2 : $*StructWithDataAndOwner
+  dealloc_stack %2 : $*StructWithDataAndOwner
+  return %17 : $StructWithDataAndOwner
+}

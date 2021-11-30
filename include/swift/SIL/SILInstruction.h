@@ -1264,6 +1264,25 @@ public:
     }
   }
 
+  /// Returns true if this instruction only has a single non-trivial argument
+  /// that influences the resulting ownership.
+  ///
+  /// This is useful in a situation where one is trying to process structs with
+  /// a single "owning" non-trivial field.
+  bool forwardsSingleNonTrivialArgument() const {
+    bool foundNonTrivialArg = false;
+
+    for (auto opValue : getOperandValues()) {
+      if (!opValue->getType().isTrivial(*getFunction())) {
+        if (foundNonTrivialArg)
+          return false;
+        foundNonTrivialArg = true;
+      }
+    }
+
+    return foundNonTrivialArg;
+  }
+
   static bool classof(const SILInstruction *inst) {
     return classof(inst->getKind());
   }

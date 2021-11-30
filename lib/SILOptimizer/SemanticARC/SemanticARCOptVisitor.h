@@ -74,9 +74,7 @@ struct LLVM_LIBRARY_VISIBILITY SemanticARCOptVisitor
                                           SILValue newValue) {
     worklist.insert(newValue);
     for (auto *use : i->getUses()) {
-      for (SILValue result : use->getUser()->getResults()) {
-        worklist.insert(result);
-      }
+      addInstructionResultsToWorklist(use->getUser());
     }
     i->replaceAllUsesWith(newValue);
     eraseInstructionAndAddOperandsToWorklist(i);
@@ -86,10 +84,14 @@ struct LLVM_LIBRARY_VISIBILITY SemanticARCOptVisitor
   /// i. Assumes that the instruction doesnt have users.
   void eraseInstructionAndAddOperandsToWorklist(SILInstruction *i) {
     // Then copy all operands into the worklist for future processing.
+    addInstructionResultsToWorklist(i);
+    eraseInstruction(i);
+  }
+
+  void addInstructionResultsToWorklist(SILInstruction *i) {
     for (SILValue v : i->getOperandValues()) {
       worklist.insert(v);
     }
-    eraseInstruction(i);
   }
 
   /// Pop values off of visitedSinceLastMutation, adding .some values to the
