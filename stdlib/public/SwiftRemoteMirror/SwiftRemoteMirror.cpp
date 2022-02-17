@@ -490,7 +490,7 @@ static swift_childinfo_t convertChild(const TypeInfo *TI, unsigned Index) {
   if (!TI)
     return {};
 
-  const FieldInfo *FieldInfo;
+  const FieldInfo *FieldInfo = nullptr;
   if (auto *EnumTI = dyn_cast<EnumTypeInfo>(TI)) {
     FieldInfo = &(EnumTI->getCases()[Index]);
   } else if (auto *RecordTI = dyn_cast<RecordTypeInfo>(TI)) {

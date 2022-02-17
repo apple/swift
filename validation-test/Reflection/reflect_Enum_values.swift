@@ -1575,12 +1575,9 @@ reflect(enum: ManyCasesOneStringPayload.payload("hello, world"))
 // CHECK32-NEXT:   (case name=otherC index=3))
 
 // CHECKALL: Enum value:
-// CHECK64-NEXT: (enum_value name=payload index=0
-// CHECK64-NEXT: (struct Swift.String)
-// CHECK64-NEXT: )
-
-// XXX String on 32-bit currently uses a multi-payload enum that's not fully supported by Remote mirror library
-// CHECK32-NEXT: swift_reflection_projectEnumValue failed.
+// CHECKALL-NEXT: (enum_value name=payload index=0
+// CHECKALL-NEXT: (struct Swift.String)
+// CHECKALL-NEXT: )
 
 reflect(enum: ManyCasesOneStringPayload.otherB)
 
@@ -1646,8 +1643,7 @@ reflect(enum: ManyCasesOneStringPayload.otherB)
 
 
 // CHECKALL: Enum value:
-// CHECK64-NEXT: (enum_value name=otherB index=2)
-// CHECK32-NEXT: swift_reflection_projectEnumValue failed.
+// CHECKALL-NEXT: (enum_value name=otherB index=2)
 
 doneReflecting()
 

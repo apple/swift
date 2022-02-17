@@ -1522,6 +1522,12 @@ namespace {
     
     Size PayloadSizeOffset;
     const EnumImplStrategy &Strategy;
+
+    bool needsSpareBitMask() const {
+      // TODO: Fix this
+      return true;
+    }
+
     
   public:
     EnumContextDescriptorBuilder(IRGenModule &IGM, EnumDecl *Type,
@@ -1538,6 +1544,7 @@ namespace {
     void layout() {
       super::layout();
       maybeAddCanonicalMetadataPrespecializations();
+      maybeAddSpareBitMask();
     }
     
     ContextDescriptorKind getContextKind() {
@@ -1566,6 +1573,7 @@ namespace {
       TypeContextDescriptorFlags flags;
 
       setCommonFlags(flags);
+      flags.enum_setHasSpareBits(needsSpareBitMask());
       return flags.getOpaqueValue();
     }
 
@@ -1595,8 +1603,16 @@ namespace {
     void addVTableTypeMetadata(llvm::GlobalVariable *var) {
       // Enums don't have vtables.
     }
+
+    void maybeAddSpareBitMask() {
+      if (needsSpareBitMask()) {
+        // TODO: Add spare bit mask data
+	B.addInt32(4); // Number of bytes in mask
+	B.addInt32(0x11223300); // First 32 bits of mask
+      }
+    }
   };
-  
+
   class ClassContextDescriptorBuilder
     : public TypeContextDescriptorBuilderBase<ClassContextDescriptorBuilder,
                                               ClassDecl>,
@@ -4878,6 +4894,7 @@ namespace {
       if (hasTrailingFlags()) {
         init.addInt64(0);
       }
+      // TODO: Add spare bits if appropriate
       Size structSize = init.getNextOffsetFromGlobal();
 
       auto global = init.finishAndCreateGlobal("", IGM.getPointerAlignment(),

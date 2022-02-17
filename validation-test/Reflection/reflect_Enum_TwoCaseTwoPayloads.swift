@@ -269,6 +269,30 @@ reflect(object: ClassWithTwoCaseTwoPayloadsEnum())
 // CHECK-32:           (case name=none index=1)))
 // CHECK-32:       (case name=none index=1))))
 
+reflect(enumValue: TwoCaseTwoPayloadsEnum.valid(Marker()))
+
+// CHECK-64: Reflecting an enum value.
+// CHECK-64-NEXT: Type reference:
+// CHECK-64-NEXT: (enum reflect_Enum_TwoCaseTwoPayloads.TwoCaseTwoPayloadsEnum)
+// CHECK-64-NEXT: Value: .valid(_)
+
+// CHECK-32: Reflecting an enum value.
+// CHECK-32-NEXT: Type reference:
+// CHECK-32-NEXT: (enum reflect_Enum_TwoCaseTwoPayloads.TwoCaseTwoPayloadsEnum)
+// CHECK-32-NEXT: Value: .valid(_)
+
+reflect(enumValue: TwoCaseTwoPayloadsEnum.invalid(7))
+
+// CHECK-64: Reflecting an enum value.
+// CHECK-64-NEXT: Type reference:
+// CHECK-64-NEXT: (enum reflect_Enum_TwoCaseTwoPayloads.TwoCaseTwoPayloadsEnum)
+// CHECK-64-NEXT: Value: .invalid(_)
+
+// CHECK-32: Reflecting an enum value.
+// CHECK-32-NEXT: Type reference:
+// CHECK-32-NEXT: (enum reflect_Enum_TwoCaseTwoPayloads.TwoCaseTwoPayloadsEnum)
+// CHECK-32-NEXT: Value: .invalid(_)
+
 doneReflecting()
 
 // CHECK-64: Done.
