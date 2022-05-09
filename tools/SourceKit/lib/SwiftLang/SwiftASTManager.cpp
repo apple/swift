@@ -345,8 +345,12 @@ class ASTBuildOperation
 
   enum class State { Created, Queued, Running, Finished };
 
+  /// Mutex guarding \c OperationState.
+  llvm::sys::Mutex OperationStateMtx;
+
   /// The state the operation is in. Only used in assertions to verify no state
-  /// is skipped or executed twice.
+  /// is skipped or executed twice. Must only be accessed when 
+  /// \c OperationStateMtx is claimed.
   State OperationState = State::Created;
 
   /// Inform a consumer that the AST has been built or that the build failed
@@ -362,6 +366,7 @@ class ASTBuildOperation
   /// Transition the build operation to \p NewState, asserting that the current
   /// state is \p ExpectedOldState.
   void transitionToState(State NewState, State ExpectedOldState) {
+    llvm::sys::ScopedLock L(OperationStateMtx);
     assert(OperationState == ExpectedOldState);
     OperationState = NewState;
   }
@@ -383,6 +388,7 @@ public:
   }
 
   ~ASTBuildOperation() {
+    llvm::sys::ScopedLock L(OperationStateMtx);
     assert(OperationState == State::Finished &&
            "ASTBuildOperations should only be destructed once they have "
            "produced an AST or are finished. Otherwise, some consumers might "
@@ -1160,7 +1166,10 @@ bool ASTBuildOperation::addConsumer(SwiftASTConsumerRef Consumer) {
   if (Result) {
     informConsumer(Consumer);
   } else {
-    assert(OperationState != State::Finished);
+    {
+      llvm::sys::ScopedLock L(OperationStateMtx);
+      assert(OperationState != State::Finished);
+    }
     auto WeakThis = std::weak_ptr<ASTBuildOperation>(shared_from_this());
     Consumers.push_back(Consumer);
     Consumer->setCancellationRequestCallback(
