@@ -2250,7 +2250,7 @@ FUNCTION(GetTypeByMangledNameInContextInMetadataState2,
          EFFECT(MetaData),
          MEMEFFECTS(ArgMemOnly))
 
-// AsyncTask *swift_task_getCurrent();s
+// AsyncTask *swift_task_getCurrent();
 FUNCTION(GetCurrentTask,
          swift_task_getCurrent, SwiftCC,
          ConcurrencyAvailability,
@@ -2319,6 +2319,19 @@ FUNCTION(TaskSwitchFunc,
          ATTRS(NoUnwind),
          EFFECT(Concurrency),
          UNKNOWN_MEMEFFECTS)
+         
+// void swift_task_performOnExecutor(void *context,
+//                                   AdHocWorkFunction *work,
+//                                   SerialExecutorRef newExecutor);
+FUNCTION(PerformOnExecutorFunc,
+         swift_task_performOnExecutor, SwiftCC,
+         ConcurrencyAvailability,
+         RETURNS(VoidTy),
+         ARGS(Int8PtrTy, Int8PtrTy, ExecutorFirstTy, ExecutorSecondTy),
+         ATTRS(NoUnwind),
+         EFFECT(Concurrency),
+         UNKNOWN_MEMEFFECTS)
+
 
 // AsyncTask *swift_continuation_init(AsyncContext *continuationContext,
 //                                    AsyncContinuationFlags);

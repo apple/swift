@@ -186,6 +186,27 @@ public:
   }
 };
 
+/// Job that allows to use executor API to schedule a block of task-less
+/// synchronous code.
+class AdHocJob : public Job {
+
+private:
+  void *Context;
+  AdHocWorkFunction *Work;
+
+public:
+  AdHocJob(JobPriority priority, void *context, AdHocWorkFunction *work)
+      : Job({JobKind::AdHoc, priority}, &process), Context(context),
+        Work(work) {}
+
+  SWIFT_CC(swiftasync)
+  static void process(Job *job);
+
+  static bool classof(const Job *job) {
+    return job->Flags.getKind() == JobKind::AdHoc;
+  }
+};
+
 /// Descibes type information and offers value methods for an arbitrary concrete
 /// type in a way that's compatible with regular Swift and embedded Swift. In
 /// regular Swift, just holds a Metadata pointer and dispatches to the value

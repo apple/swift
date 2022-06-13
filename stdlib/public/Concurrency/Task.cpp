@@ -206,6 +206,14 @@ void NullaryContinuationJob::process(Job *_job) {
   swift_continuation_resume(continuation);
 }
 
+void AdHocJob::process(Job *_job) {
+  auto *job = cast<AdHocJob>(_job);
+  void *ctx = job->Context;
+  AdHocWorkFunction *work = job->Work;
+  delete job;
+  return work(ctx);
+}
+
 void AsyncTask::completeFuture(AsyncContext *context) {
   using Status = FutureFragment::Status;
   using WaitQueueItem = FutureFragment::WaitQueueItem;
@@ -1620,6 +1628,27 @@ swift_task_createNullaryContinuationJobImpl(
         static_cast<JobPriority>(priority), continuation);
 
   return job;
+}
+
+SWIFT_CC(swift)
+static void swift_task_performOnExecutorImpl(void *context,
+                                             AdHocWorkFunction *work,
+                                             SerialExecutorRef newExecutor) {
+  auto currentExecutor = swift_task_getCurrentExecutor();
+
+  // If the current executor is compatible with running the new executor,
+  // we can just immediately continue running with the resume function
+  // we were passed in.
+  if (!currentExecutor.mustSwitchToRun(newExecutor)) {
+    return work(context); // 'return' forces tail call
+  }
+
+  auto currentTask = swift_task_getCurrent();
+  auto priority = currentTask ? swift_task_currentPriority(currentTask)
+                              : swift_task_getCurrentThreadPriority();
+
+  auto job = new AdHocJob(priority, context, work);
+  swift_task_enqueue(job, newExecutor);
 }
 
 SWIFT_CC(swift)

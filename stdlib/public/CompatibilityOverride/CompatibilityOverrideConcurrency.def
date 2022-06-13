@@ -200,6 +200,11 @@ OVERRIDE_TASK(task_createNullaryContinuationJob, NullaryContinuationJob *,
               SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swift), swift::,
               (size_t priority,
                AsyncTask *continuation), (priority, continuation))
+               
+OVERRIDE_TASK(task_performOnExecutor, void,
+              SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swift), swift::,
+              (void *context, AdHocWorkFunction *work, SerialExecutorRef newExecutor),
+              (context, work, newExecutor))
 
 HOOKED_OVERRIDE_TASK_NORETURN(task_asyncMainDrainQueue,
               SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swift),
