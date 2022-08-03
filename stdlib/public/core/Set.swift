@@ -761,7 +761,7 @@ extension Set: SetAlgebra {
   /// - Returns: `true` if the set is a superset of `possibleSubset`;
   ///   otherwise, `false`.
   @inlinable
-  public func isSuperset<S: Sequence>(of possibleSubset: __owned S) -> Bool
+  public func isSuperset<S: Sequence>(@_eagerMove of possibleSubset: __owned S) -> Bool
   where S.Element == Element {
     if let s = possibleSubset as? Set<Element> {
       return isSuperset(of: s)
