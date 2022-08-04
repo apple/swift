@@ -1743,7 +1743,7 @@ extension Array {
   @_effects(notEscaping self.value**.class*.value**)
   public mutating func replaceSubrange<C>(
     _ subrange: Range<Int>,
-    with newElements: __owned C
+    @_eagerMove with newElements: __owned C
   ) where C: Collection, C.Element == Element {
     _precondition(subrange.lowerBound >= self._buffer.startIndex,
       "Array replace: subrange start is negative")
