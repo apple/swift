@@ -186,7 +186,7 @@ extension _ArrayBufferProtocol {
     else { // We're not growing the buffer
       // Assign all the new elements into the start of the subrange
       var i = subrange.lowerBound
-      var j = newValues.startIndex
+      @_eagerMove var j = newValues.startIndex
       for _ in 0..<newCount {
         elements[i] = newValues[j]
         i += 1
