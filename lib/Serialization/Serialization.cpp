@@ -3587,8 +3587,8 @@ public:
       // reason). However, we need a more robust handling of deserialization
       // dependencies that can handle circularities. rdar://problem/32359173
       collectDependenciesFromType(dependencyTypes,
-                                  nextElt->getArgumentInterfaceType(),
-                                  /*excluding*/theEnum->getParentModule());
+                                  nextElt->getAssociatedValueTuple(),
+                                  /*excluding*/ theEnum->getParentModule());
     }
     for (Requirement req : theEnum->getGenericRequirements()) {
       collectDependenciesFromRequirement(dependencyTypes, req,
@@ -4533,11 +4533,6 @@ public:
     llvm_unreachable("Unimplemented!");
   }
 
-  void visitParenType(const ParenType *parenTy) {
-    using namespace decls_block;
-    serializeSimpleWrapper<ParenTypeLayout>(parenTy->getUnderlyingType());
-  }
-
   void visitTupleType(const TupleType *tupleTy) {
     using namespace decls_block;
     unsigned abbrCode = S.DeclTypeAbbrCodes[TupleTypeLayout::Code];
@@ -5037,7 +5032,6 @@ void Serializer::writeAllDeclsAndTypes() {
   registerDeclTypeAbbr<GenericTypeParamDeclLayout>();
   registerDeclTypeAbbr<AssociatedTypeDeclLayout>();
   registerDeclTypeAbbr<NominalTypeLayout>();
-  registerDeclTypeAbbr<ParenTypeLayout>();
   registerDeclTypeAbbr<TupleTypeLayout>();
   registerDeclTypeAbbr<TupleTypeEltLayout>();
   registerDeclTypeAbbr<FunctionTypeLayout>();

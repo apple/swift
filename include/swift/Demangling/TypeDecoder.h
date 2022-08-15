@@ -1256,16 +1256,6 @@ return {}; // Not Implemented!
 
       return Builder.createDictionaryType(key.getType(), value.getType());
     }
-    case NodeKind::SugaredParen: {
-      if (Node->getNumChildren() < 1)
-        return MAKE_NODE_TYPE_ERROR0(Node, "no children");
-
-      auto base = decodeMangledType(Node->getChild(0), depth + 1);
-      if (base.isError())
-        return base;
-
-      return Builder.createParenType(base.getType());
-    }
     case NodeKind::OpaqueType: {
       if (Node->getNumChildren() < 3)
         return MAKE_NODE_TYPE_ERROR(Node,

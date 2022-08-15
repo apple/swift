@@ -448,7 +448,7 @@ class EscapingBase {
 class Escaping : EscapingBase {
   override func #^ESCAPING_1?keywords=false^#
 }
-// ESCAPING_1: Decl[InstanceMethod]/Super:         method(_ x: @escaping (@escaping () -> ()) -> (() -> ())) -> ((@escaping () -> ()) -> ()) {|};
+// ESCAPING_1: Decl[InstanceMethod]/Super:         method(_ x: @escaping (@escaping () -> ()) -> () -> ()) -> (@escaping () -> ()) -> () {|};
 // ESCAPING_1: Decl[InstanceMethod]/Super:         autoclosure(arg: @autoclosure () -> Bool) {|};
 class OverrideBase {
   static let staticLet = 0

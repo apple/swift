@@ -993,7 +993,7 @@ void EnumElementPatternInitialization::emitEnumMatch(
             value.getType()
                 .getASTType()
                 ->getTypeOfMember(SGF.SGM.M.getSwiftModule(), eltDecl,
-                                  eltDecl->getArgumentInterfaceType())
+                                  eltDecl->getAssociatedValueTuple())
                 ->getCanonicalType();
 
         AbstractionPattern origEltTy =

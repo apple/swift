@@ -3382,9 +3382,6 @@ NodePointer Demangler::demangleSpecialType() {
         return createType(createWithChildren(Node::Kind::SugaredDictionary,
                                              key, value));
       }
-      case 'p':
-        return createType(createWithChild(Node::Kind::SugaredParen,
-                                          popNode(Node::Kind::Type)));
       default:
         return nullptr;
       }

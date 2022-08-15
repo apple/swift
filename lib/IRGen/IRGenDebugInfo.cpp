@@ -887,11 +887,6 @@ private:
     // Strip off top level of type sugar (except for type aliases).
     // We don't want Optional<T> and T? to get different debug types.
     while (true) {
-      if (auto *ParenTy = dyn_cast<ParenType>(Ty.getPointer())) {
-        Ty = ParenTy->getUnderlyingType();
-        continue;
-      }
-
       if (auto *SugarTy = dyn_cast<SyntaxSugarType>(Ty.getPointer())) {
         Ty = SugarTy->getSinglyDesugaredType();
         continue;
@@ -1049,7 +1044,7 @@ private:
             DebugTypeInfo(Decl->getRawType(), DbgTy.getFragmentStorageType(),
                           DbgTy.getRawSize(), DbgTy.getAlignment(), true, false,
                           DbgTy.isSizeFragmentSize()));
-      else if (auto ArgTy = ElemDecl->getArgumentInterfaceType()) {
+      else if (auto ArgTy = ElemDecl->getAssociatedValueTuple()) {
         // A discriminated union. This should really be described as a
         // DW_TAG_variant_type. For now only describing the data.
         ArgTy = ElemDecl->getParentEnum()->mapTypeIntoContext(ArgTy);
@@ -1686,11 +1681,6 @@ private:
                                  DbgTy.isSizeFragmentSize());
       return DBuilder.createTypedef(getOrCreateType(AliasedDbgTy), MangledName,
                                     File, 0, Scope);
-    }
-
-    case TypeKind::Paren: {
-      auto Ty = cast<ParenType>(BaseTy)->getUnderlyingType();
-      return getOrCreateDesugaredType(Ty, DbgTy);
     }
 
     // SyntaxSugarType derivations.

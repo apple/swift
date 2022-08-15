@@ -80,8 +80,8 @@ var arrayOfEmptyTuples = [""].map { print($0) } // expected-warning {{variable '
 var maybeEmpty = Optional(arrayOfEmptyTuples) // expected-warning {{variable 'maybeEmpty' inferred to have type '[()]?'}} \
                                               // expected-note {{add an explicit type annotation to silence this warning}} {{15-15=: [()]?}}
 
-var shouldWarnWithoutSugar = (arrayOfEmptyTuples as Array<()>) // expected-warning {{variable 'shouldWarnWithoutSugar' inferred to have type 'Array<()>'}} \
-                                 // expected-note {{add an explicit type annotation to silence this warning}} {{27-27=: Array<()>}}
+var shouldWarnWithoutSugar = (arrayOfEmptyTuples as Array<()>) // expected-warning {{variable 'shouldWarnWithoutSugar' inferred to have type '[()]'}} \
+                                 // expected-note {{add an explicit type annotation to silence this warning}} {{27-27=: [()]}}
 
 class SomeClass {}
 

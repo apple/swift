@@ -264,7 +264,7 @@ func testWritePrefixIterator() {
   var a = Array(0..<10)
   
   var underflow = (1..<10).makeIterator()
-  var (writtenCount, afterLastWritten) = a.writePrefix(from: underflow) // expected-error {{passing value of type 'IndexingIterator<(Range<Int>)>' to an inout parameter requires explicit '&'}} {{62-62=&}}
+  var (writtenCount, afterLastWritten) = a.writePrefix(from: underflow) // expected-error {{passing value of type 'IndexingIterator<Range<Int>>' to an inout parameter requires explicit '&'}} {{62-62=&}}
 }
 
 // rdar://problem/71356981 - wrong error message for state passed as inout with ampersand within parentheses

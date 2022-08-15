@@ -16,7 +16,7 @@ SDK_CHANGE(Function, WrapOptional, "2:0", "s:12macrogenleft2S1V4foo91x1yySaySDyS
 SDK_CHANGE(Function, UnwrapOptional, "1:0:1", "s:12macrogenleft2S1V4foo91x1yySaySDySiSSSgGG_SaySiGtF", "", "", "", "macrogenleft")
 SDK_CHANGE(Function, WrapOptional, "1:1:1:1:1:0", "s:12macrogenleft2S1V5foo101xySSSi_SDySiSDySSSaySiGGGtXE_tF", "", "", "", "macrogenleft")
 SDK_CHANGE(Function, TypeRewritten, "1:1:1:1", "s:12macrogenleft2S1V5foo111xySSSi_SDySiSDySSSaySiGGGtXE_tF", "", "[String : [Int]]", "Int", "macrogenleft")
-SDK_CHANGE(Function, TypeRewritten, "1:1:1:1:1:0:0:0:0", "s:12macrogenleft2S1V5foo121xySSSi_SDySiSDySSSaySiGGGtXE_tF", "", "Int", "String", "macrogenleft")
+SDK_CHANGE(Function, TypeRewritten, "1:1:1:1:1:0", "s:12macrogenleft2S1V5foo121xySSSi_SDySiSDySSSaySiGGGtXE_tF", "", "Int", "String", "macrogenleft")
 SDK_CHANGE(Constructor, TypeRewritten, "1", "s:12macrogenleft2S1VyACSicfc", "", "Int", "Double", "macrogenleft")
 #undef SDK_CHANGE
 

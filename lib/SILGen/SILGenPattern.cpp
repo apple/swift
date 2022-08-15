@@ -1992,7 +1992,7 @@ void PatternMatchEmission::emitEnumElementObjectDispatch(
       CanType substEltTy =
           sourceType
               ->getTypeOfMember(SGF.SGM.M.getSwiftModule(), elt,
-                                elt->getArgumentInterfaceType())
+                                elt->getAssociatedValueTuple())
               ->getCanonicalType();
 
       AbstractionPattern origEltTy =
@@ -2234,9 +2234,10 @@ void PatternMatchEmission::emitEnumElementDispatch(
 
       // Reabstract to the substituted type, if needed.
       CanType substEltTy =
-        sourceType->getTypeOfMember(SGF.SGM.M.getSwiftModule(), eltDecl,
-                                    eltDecl->getArgumentInterfaceType())
-                  ->getCanonicalType();
+          sourceType
+              ->getTypeOfMember(SGF.SGM.M.getSwiftModule(), eltDecl,
+                                eltDecl->getAssociatedValueTuple())
+              ->getCanonicalType();
 
       AbstractionPattern origEltTy =
           (eltDecl->getParentEnum()->isOptionalDecl()

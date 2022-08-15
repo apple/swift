@@ -177,8 +177,6 @@ public:
 
   Type createDictionaryType(Type key, Type value);
 
-  Type createParenType(Type base);
-
   BuiltGenericSignature
   createGenericSignature(ArrayRef<BuiltType> params,
                          ArrayRef<BuiltRequirement> requirements);

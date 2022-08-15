@@ -830,7 +830,7 @@ Pattern *DerivedConformance::enumElementPayloadSubpattern(
   if (!enumElementDecl->hasAssociatedValues())
     return nullptr;
 
-  auto argumentType = enumElementDecl->getArgumentInterfaceType();
+  auto argumentType = enumElementDecl->getAssociatedValueTuple();
   if (auto tupleType = argumentType->getAs<TupleType>()) {
     // Either multiple (labeled or unlabeled) arguments, or one labeled
     // argument. Return a tuple pattern that matches the enum element in arity,
@@ -868,7 +868,7 @@ Pattern *DerivedConformance::enumElementPayloadSubpattern(
   // Otherwise, a one-argument unlabeled payload. Return a paren pattern whose
   // underlying type is the same as the payload. For example:
   // case a(Int) => (let a0)
-  auto underlyingType = argumentType->getWithoutParens();
+  auto underlyingType = argumentType;
   auto payloadVar = indexedVarDecl(varPrefix, 0, underlyingType, varContext);
   boundVars.push_back(payloadVar);
 

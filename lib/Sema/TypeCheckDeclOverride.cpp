@@ -375,8 +375,10 @@ diagnoseMismatchedOptionals(const ValueDecl *member,
       return;
 
     // Allow silencing this warning using parens.
-    if (paramTy->hasParenSugar())
-      return;
+    if (auto *TTR = dyn_cast<TupleTypeRepr>(repr)) {
+      if (TTR->isParenType())
+        return;
+    }
 
     diags
         .diagnose(decl->getStartLoc(), diag::override_unnecessary_IUO,
@@ -440,8 +442,10 @@ diagnoseMismatchedOptionals(const ValueDecl *member,
       return;
 
     // Allow silencing this warning using parens.
-    if (resultTy->hasParenSugar())
-      return;
+    if (auto *TTR = dyn_cast<TupleTypeRepr>(TR)) {
+      if (TTR->isParenType())
+        return;
+    }
 
     diags.diagnose(resultTL.getSourceRange().Start,
                    diag::override_unnecessary_result_IUO,

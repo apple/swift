@@ -8874,9 +8874,7 @@ static ConstraintFix *validateInitializerRef(ConstraintSystem &cs,
     baseExpr = UDE->getBase();
     baseType = getType(baseExpr);
     if (baseType->is<MetatypeType>()) {
-      auto instanceType = baseType->getAs<MetatypeType>()
-                              ->getInstanceType()
-                              ->getWithoutParens();
+      auto instanceType = baseType->getAs<MetatypeType>()->getInstanceType();
       if (!cs.isTypeReference(baseExpr) && instanceType->isExistentialType()) {
         return AllowInvalidInitRef::onProtocolMetatype(
             cs, baseType, init, /*isStaticallyDerived=*/true,
@@ -8894,7 +8892,7 @@ static ConstraintFix *validateInitializerRef(ConstraintSystem &cs,
       // If this is an initializer call without explicit mention
       // of `.init` on metatype value.
       if (auto *AMT = baseType->getAs<AnyMetatypeType>()) {
-        auto instanceType = AMT->getInstanceType()->getWithoutParens();
+        auto instanceType = AMT->getInstanceType();
         if (!cs.isTypeReference(baseExpr)) {
           if (baseType->is<MetatypeType>() &&
               instanceType->isAnyExistentialType()) {

@@ -2299,7 +2299,7 @@ namespace {
         if (!elt->hasAssociatedValues() || elt->isIndirect())
           continue;
 
-        if (visit(elt->getArgumentInterfaceType()->getCanonicalType()))
+        if (visit(elt->getAssociatedValueTuple()->getCanonicalType()))
           return true;
       }
       return false;

@@ -66,7 +66,7 @@ f1(
    )
 
 f3(
-   f2 // expected-error {{cannot convert value of type '(@escaping ((Int) -> Int)) -> Int' to expected argument type '(@escaping (Int) -> Float) -> Int'}}
+   f2 // expected-error {{cannot convert value of type '(@escaping (Int) -> Int) -> Int' to expected argument type '(@escaping (Int) -> Float) -> Int'}}
    )
 
 f4(i, d) // expected-error {{extra argument in call}}

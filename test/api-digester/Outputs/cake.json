@@ -581,21 +581,14 @@
                   },
                   {
                     "kind": "TypeNominal",
-                    "name": "Paren",
-                    "printedName": "(cake.Number.Type)",
+                    "name": "Metatype",
+                    "printedName": "cake.Number.Type",
                     "children": [
                       {
                         "kind": "TypeNominal",
-                        "name": "Metatype",
-                        "printedName": "cake.Number.Type",
-                        "children": [
-                          {
-                            "kind": "TypeNominal",
-                            "name": "Number",
-                            "printedName": "cake.Number",
-                            "usr": "s:4cake6NumberO"
-                          }
-                        ]
+                        "name": "Number",
+                        "printedName": "cake.Number",
+                        "usr": "s:4cake6NumberO"
                       }
                     ]
                   }

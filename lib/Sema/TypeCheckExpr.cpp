@@ -49,10 +49,6 @@ static Type getArgListUniqueSugarType(ArgumentList *args, CanType resultTy) {
         return Type();
     }
 
-    // If this type is parenthesized, remove the parens.  We don't want to
-    // propagate parens from arguments to the result type.
-    argTy = argTy->getWithoutParens();
-
     // If this is the first match against the sugar type we found, use it.
     if (!uniqueSugarTy) {
       uniqueSugarTy = argTy;

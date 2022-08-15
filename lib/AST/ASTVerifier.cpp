@@ -1968,16 +1968,6 @@ public:
       verifyCheckedBase(E);
     }
 
-    void verifyChecked(ParenExpr *E) {
-      PrettyStackTraceExpr debugStack(Ctx, "verifying ParenExpr", E);
-      auto ty = dyn_cast<ParenType>(E->getType().getPointer());
-      if (!ty) {
-        Out << "ParenExpr not of ParenType\n";
-        abort();
-      }
-      verifyCheckedBase(E);
-    }
-
     void verifyChecked(AnyTryExpr *E) {
       PrettyStackTraceExpr debugStack(Ctx, "verifying AnyTryExpr", E);
 

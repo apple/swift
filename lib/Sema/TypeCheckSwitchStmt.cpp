@@ -784,28 +784,11 @@ namespace {
         }
       }
 
-      /// Use this if you're doing getAs<TupleType> on a Type (and it succeeds)
-      /// to compute the spaces for it. Handy for disambiguating fields
-      /// that are tuples from associated values.
-      ///
-      ///    .e((a: X, b: X)) -> ((a: X, b: X))
-      /// vs .f(a: X, b: X)   -> (a: X, b: X)
-      static void getTupleTypeSpaces(Type &outerType,
-                                     TupleType *tty,
+      /// Splat a tuple type into a set of element type spaces.
+      static void getTupleTypeSpaces(TupleType *tty,
                                      SmallVectorImpl<Space> &spaces) {
-        ArrayRef<TupleTypeElt> ttyElts = tty->getElements();
-        if (isa<ParenType>(outerType.getPointer())) {
-          // We had an actual tuple!
-          SmallVector<Space, 4> innerSpaces;
-          for (auto &elt: ttyElts)
-            innerSpaces.push_back(Space::forType(elt.getType(), elt.getName()));
-          spaces.push_back(
-            Space::forConstructor(tty, Identifier(), innerSpaces));
-        } else {
-          // We're looking at the fields of a constructor here.
-          for (auto &elt: ttyElts)
-            spaces.push_back(Space::forType(elt.getType(), elt.getName()));
-        }
+        for (auto &elt : tty->getElements())
+          spaces.push_back(Space::forType(elt.getType(), elt.getName()));
       };
 
       // Decompose a type into its component spaces, ignoring any enum
@@ -842,18 +825,28 @@ namespace {
                   return Space();
                 }
 
-                // .e(a: X, b: X)   -> (a: X, b: X)
-                // .f((a: X, b: X)) -> ((a: X, b: X)
                 SmallVector<Space, 4> constElemSpaces;
-                if (auto payloadTy = eed->getArgumentInterfaceType()) {
-                  auto eedTy = tp->getCanonicalType()->getTypeOfMember(
-                      E->getModuleContext(), eed, payloadTy);
-                  if (auto *TTy = eedTy->getAs<TupleType>()) {
-                    Space::getTupleTypeSpaces(eedTy, TTy, constElemSpaces);
-                  } else if (auto *TTy =
-                                 dyn_cast<ParenType>(eedTy.getPointer())) {
+                auto params = eed->getAssociatedValueParams();
+                auto isParenLike = params.size() == 1 && !params[0].hasLabel();
+
+                // .e(a: X, b: X)   -> (a: X, b: X)
+                // .f((a: X, b: X)) -> ((a: X, b: X))
+                for (auto &param : params) {
+                  auto payloadTy = tp->getCanonicalType()->getTypeOfMember(
+                      E->getModuleContext(), eed, param.getParameterType());
+                  auto *tupleTy = payloadTy->getAs<TupleType>();
+                  if (tupleTy && isParenLike) {
+                    // A single tuple payload gets splatted into a constructor
+                    // space of its constituent elements. This allows the
+                    // deprecated ability to match using a .x(a, b, c) pattern
+                    // instead of a .x((a, b, c)) pattern.
+                    SmallVector<Space, 4> innerSpaces;
+                    Space::getTupleTypeSpaces(tupleTy, innerSpaces);
+                    constElemSpaces.push_back(Space::forConstructor(
+                        tupleTy, Identifier(), innerSpaces));
+                  } else {
                     constElemSpaces.push_back(
-                        Space::forType(TTy->getUnderlyingType(), Identifier()));
+                        Space::forType(payloadTy, param.getLabel()));
                   }
                 }
                 return Space::forConstructor(tp, eed->getName(),
@@ -869,11 +862,8 @@ namespace {
         } else if (auto *TTy = tp->castTo<TupleType>()) {
           // Decompose each of the elements into its component type space.
           SmallVector<Space, 4> constElemSpaces;
-          llvm::transform(TTy->getElements(),
-                          std::back_inserter(constElemSpaces),
-                          [&](TupleTypeElt elt) {
-            return Space::forType(elt.getType(), elt.getName());
-          });
+          Space::getTupleTypeSpaces(TTy, constElemSpaces);
+
           // Create an empty constructor head for the tuple space.
           arr.push_back(Space::forConstructor(tp, Identifier(),
                                               constElemSpaces));
@@ -1527,12 +1517,12 @@ namespace {
           // matched by a single var pattern.  Project it like the tuple it
           // really is.
           //
-          // FIXME: SE-0155 makes this case unreachable.
+          // FIXME: SE-0155 will eventually this case unreachable. For now it's
+          // permitted as a deprecated behavior.
           if (SP->getKind() == PatternKind::Named
               || SP->getKind() == PatternKind::Any) {
-            Type outerType = SP->getType();
-            if (auto *TTy = outerType->getAs<TupleType>())
-              Space::getTupleTypeSpaces(outerType, TTy, conArgSpace);
+            if (auto *TTy = SP->getType()->getAs<TupleType>())
+              Space::getTupleTypeSpaces(TTy, conArgSpace);
             else
               conArgSpace.push_back(projectPattern(SP));
           } else if (SP->getKind() == PatternKind::Tuple) {

@@ -1032,7 +1032,7 @@ class infer_instanceVar1 {
   // expected-note@-2 {{empty tuple type cannot be represented in Objective-C}}
 
   var var_tuple3: (Int)
-// CHECK-LABEL: @objc var var_tuple3: (Int)
+// CHECK-LABEL: @objc var var_tuple3: Int
 
   @objc // access-note-move{{infer_instanceVar1.var_tuple3_}}
   var var_tuple3_: (Int) // no-error
@@ -1266,10 +1266,10 @@ class infer_instanceVar1 {
   var var_ExistentialMetatype9: (Protocol_ObjC1 & Protocol_ObjC2).Type
 // CHECK-LABEL: {{^}}  var var_ExistentialMetatype0: Any.Type
 // CHECK-LABEL: {{^}}  var var_ExistentialMetatype1: PlainProtocol.Type
-// CHECK-LABEL: {{^}}  var var_ExistentialMetatype2: (PlainProtocol).Type
+// CHECK-LABEL: {{^}}  var var_ExistentialMetatype2: PlainProtocol.Type
 // CHECK-LABEL: {{^}}  var var_ExistentialMetatype3: (PlainProtocol & Protocol_Class1).Type
 // CHECK-LABEL: {{^}}  var var_ExistentialMetatype4: (PlainProtocol & Protocol_ObjC1).Type
-// CHECK-LABEL: {{^}}  var var_ExistentialMetatype5: (Protocol_Class1).Type
+// CHECK-LABEL: {{^}}  var var_ExistentialMetatype5: Protocol_Class1.Type
 // CHECK-LABEL: {{^}}  var var_ExistentialMetatype6: (Protocol_Class1 & Protocol_Class2).Type
 // CHECK-LABEL: {{^}}  var var_ExistentialMetatype7: (Protocol_Class1 & Protocol_ObjC1).Type
 // CHECK-LABEL: @objc var var_ExistentialMetatype8: Protocol_ObjC1.Type
@@ -1334,7 +1334,7 @@ class infer_instanceVar1 {
 // CHECK-LABEL: @objc @_hasInitialValue var var_Optional8: Protocol_ObjC1?
 // CHECK-LABEL: @objc @_hasInitialValue var var_Optional9: Protocol_ObjC1.Type?
 // CHECK-LABEL: @objc @_hasInitialValue var var_Optional10: (Protocol_ObjC1 & Protocol_ObjC2)?
-// CHECK-LABEL: @objc @_hasInitialValue var var_Optional11: (Protocol_ObjC1 & Protocol_ObjC2).Type?
+// CHECK-LABEL: @objc @_hasInitialValue var var_Optional11: ((Protocol_ObjC1 & Protocol_ObjC2).Type)?
 // CHECK-LABEL: @objc @_hasInitialValue var var_Optional12: OpaquePointer?
 // CHECK-LABEL: @objc @_hasInitialValue var var_Optional13: UnsafeMutablePointer<Int>?
 // CHECK-LABEL: @objc @_hasInitialValue var var_Optional14: UnsafeMutablePointer<Class_ObjC1>?
@@ -2329,7 +2329,7 @@ class ImplicitClassThrows1 {
   // CHECK: {{^}} func methodReturnsOptionalObjCClass() throws -> Class_ObjC1?
   func methodReturnsOptionalObjCClass() throws -> Class_ObjC1? { return nil }
 
-  // CHECK: @objc func methodWithTrailingClosures(_ s: String, fn1: @escaping ((Int) -> Int), fn2: @escaping (Int) -> Int, fn3: @escaping (Int) -> Int)
+  // CHECK: @objc func methodWithTrailingClosures(_ s: String, fn1: @escaping (Int) -> Int, fn2: @escaping (Int) -> Int, fn3: @escaping (Int) -> Int)
   // CHECK-DUMP: func_decl{{.*}}"methodWithTrailingClosures(_:fn1:fn2:fn3:)"{{.*}}foreign_error=ZeroResult,unowned,param=1,paramtype=Optional<AutoreleasingUnsafeMutablePointer<Optional<NSError>>>,resulttype=ObjCBool
   func methodWithTrailingClosures(_ s: String, fn1: (@escaping (Int) -> Int), fn2: @escaping (Int) -> Int, fn3: @escaping (Int) -> Int) throws { }
 
@@ -2349,7 +2349,7 @@ class ImplicitClassThrows1 {
   // CHECK: {{^}} @objc func methodReturnsError() throws -> Error
   func methodReturnsError() throws -> Error { return ErrorEnum.failed }
 
-  // CHECK: @objc func methodReturnStaticBridged() throws -> ((Int) -> (Int) -> Int)
+  // CHECK: @objc func methodReturnStaticBridged() throws -> (Int) -> (Int) -> Int
   func methodReturnStaticBridged() throws -> ((Int) -> (Int) -> Int) {
     func add(x: Int) -> (Int) -> Int { 
       return { x + $0 }
@@ -2360,7 +2360,7 @@ class ImplicitClassThrows1 {
 // CHECK-DUMP-LABEL: class_decl{{.*}}"SubclassImplicitClassThrows1"
 @objc // access-note-move{{SubclassImplicitClassThrows1}}
 class SubclassImplicitClassThrows1 : ImplicitClassThrows1 {
-  // CHECK: @objc override func methodWithTrailingClosures(_ s: String, fn1: @escaping ((Int) -> Int), fn2: @escaping ((Int) -> Int), fn3: @escaping ((Int) -> Int))
+  // CHECK: @objc override func methodWithTrailingClosures(_ s: String, fn1: @escaping (Int) -> Int, fn2: @escaping (Int) -> Int, fn3: @escaping (Int) -> Int)
   // CHECK-DUMP: func_decl{{.*}}"methodWithTrailingClosures(_:fn1:fn2:fn3:)"{{.*}}foreign_error=ZeroResult,unowned,param=1,paramtype=Optional<AutoreleasingUnsafeMutablePointer<Optional<NSError>>>,resulttype=ObjCBool
   override func methodWithTrailingClosures(_ s: String, fn1: (@escaping (Int) -> Int), fn2: (@escaping (Int) -> Int), fn3: (@escaping (Int) -> Int)) throws { }
 }

@@ -333,8 +333,8 @@ void SILGenModule::emitLazyConformancesForType(NominalTypeDecl *NTD) {
   if (auto *ED = dyn_cast<EnumDecl>(NTD)) {
     for (auto *EED : ED->getAllElements()) {
       if (EED->hasAssociatedValues()) {
-        useConformancesFromType(EED->getArgumentInterfaceType()
-                                   ->getReducedType(genericSig));
+        useConformancesFromType(
+            EED->getAssociatedValueTuple()->getReducedType(genericSig));
       }
     }
   }

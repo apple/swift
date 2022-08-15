@@ -84,8 +84,8 @@ func testFuncType4() -> MyInt {}
 // FULL:  FuncDecl '''testFuncType4''' () -> swift_ide_test.MyInt{{$}}
 
 func testFuncType5() -> (Int) {}
-// CHECK: FuncDecl '''testFuncType5''' () -> (Int){{$}}
-// FULL:  FuncDecl '''testFuncType5''' () -> (Swift.Int){{$}}
+// CHECK: FuncDecl '''testFuncType5''' () -> Int{{$}}
+// FULL:  FuncDecl '''testFuncType5''' () -> Swift.Int{{$}}
 
 func testFuncType6() -> (Int, Int) {}
 // CHECK: FuncDecl '''testFuncType6''' () -> (Int, Int){{$}}
