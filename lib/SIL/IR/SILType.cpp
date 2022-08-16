@@ -327,7 +327,7 @@ SILType SILType::getEnumElementType(EnumElementDecl *elt, TypeConverter &TC,
   }
 
   auto substEltTy = getASTType()->getTypeOfMember(
-      &TC.M, elt, elt->getArgumentInterfaceType());
+      &TC.M, elt, elt->getAssociatedValueTuple());
   auto loweredTy = TC.getLoweredRValueType(
       context, TC.getAbstractionPattern(elt), substEltTy);
 

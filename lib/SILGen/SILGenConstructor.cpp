@@ -579,7 +579,7 @@ void SILGenFunction::emitEnumConstructor(EnumElementDecl *element) {
   // Emit the exploded constructor argument.
   ArgumentSource payload;
   if (element->hasAssociatedValues()) {
-    auto eltArgTy = element->getArgumentInterfaceType()->getCanonicalType();
+    auto eltArgTy = element->getAssociatedValueTuple()->getCanonicalType();
     RValue arg = emitImplicitValueConstructorArg(*this, Loc, eltArgTy, element);
     payload = ArgumentSource(Loc, std::move(arg));
   }

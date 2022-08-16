@@ -1051,9 +1051,6 @@ static StringRef getPrintedName(SDKContext &Ctx, Type Ty,
 
 static StringRef getTypeName(SDKContext &Ctx, Type Ty,
                              bool IsImplicitlyUnwrappedOptional) {
-  if (Ty->getKind() == TypeKind::Paren) {
-    return Ctx.buffer("Paren");
-  }
   if (Ty->isVoid()) {
     return Ctx.buffer("Void");
   }
@@ -1609,12 +1606,6 @@ SwiftDeclCollector::constructTypeNode(Type T, TypeInitInfo Info) {
   }
 
   SDKNode* Root = SDKNodeInitInfo(Ctx, T, Info).createSDKNode(SDKNodeKind::TypeNominal);
-
-  // Keep paren type as a stand-alone level.
-  if (auto *PT = dyn_cast<ParenType>(T.getPointer())) {
-    Root->addChild(constructTypeNode(PT->getSinglyDesugaredType()));
-    return Root;
-  }
 
   // Handle the case where Type has sub-types.
   if (auto BGT = T->getAs<BoundGenericType>()) {

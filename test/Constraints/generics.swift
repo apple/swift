@@ -874,7 +874,7 @@ func test_ternary_operator_with_regular_conformance_to_literal_protocol() {
 // rdar://78623338 - crash due to leftover inactive constraints
 func rdar78623338() {
   func any<T : Sequence>(_ sequence: T) -> AnySequence<T.Element> {
-    // expected-note@-1 {{required by local function 'any' where 'T' = '() -> ReversedCollection<(ClosedRange<Int>)>'}}
+    // expected-note@-1 {{required by local function 'any' where 'T' = '() -> ReversedCollection<ClosedRange<Int>>'}}
     AnySequence(sequence.makeIterator)
   }
 
@@ -882,7 +882,7 @@ func rdar78623338() {
     any(0...3),
     // TODO: It should be possible to suggest making a call to `reserved` here but we don't have machinery to do so
     //       at the moment because there is no way to go from a requirement to the underlying argument/parameter location.
-    any((1...3).reversed) // expected-error {{type '() -> ReversedCollection<(ClosedRange<Int>)>' cannot conform to 'Sequence'}}
+    any((1...3).reversed) // expected-error {{type '() -> ReversedCollection<ClosedRange<Int>>' cannot conform to 'Sequence'}}
     // expected-note@-1 {{only concrete types such as structs, enums and classes can conform to protocols}}
   ]
 }

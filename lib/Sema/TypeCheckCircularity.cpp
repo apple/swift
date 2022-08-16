@@ -279,7 +279,7 @@ bool CircularityChecker::expandEnum(CanType type, EnumDecl *E,
     if (!elt->hasAssociatedValues())
       continue;
 
-    auto eltType = elt->getArgumentInterfaceType().subst(subMap);
+    auto eltType = elt->getAssociatedValueTuple().subst(subMap);
     if (addMember(type, elt, eltType, depth))
       return true;
   }
@@ -343,7 +343,7 @@ static size_t findCycleIndex(const Path &path) {
 
 static Type getMemberStorageInterfaceType(ValueDecl *member) {
   if (auto elt = dyn_cast<EnumElementDecl>(member)) {
-    return elt->getArgumentInterfaceType();
+    return elt->getAssociatedValueTuple();
   } else {
     return member->getInterfaceType();
   }
@@ -489,12 +489,6 @@ void CircularityChecker::addPathElement(Path &path, ValueDecl *member,
     elt.Ty = ref->getReferentType();
   }
 
-  // Strip outer parens from the type.  (This is especially common with
-  // enum elements.)
-  if (auto parens = dyn_cast<ParenType>(elt.Ty.getPointer())) {
-    elt.Ty = parens->getSinglyDesugaredType();
-  }
-
   path.push_back(elt);
 }
 
@@ -597,15 +591,15 @@ void CircularityChecker::diagnoseNonWellFoundedEnum(EnumDecl *E) {
       if (!elt->isIndirect() && !E->isIndirect())
         return false;
 
-      auto argTy = elt->getArgumentInterfaceType();
+      auto argTy = elt->getAssociatedValueTuple();
       if (!argTy)
         return false;
 
       if (auto tuple = argTy->getAs<TupleType>()) {
         if (!containsType(tuple, E->getSelfInterfaceType()))
           return false;
-      } else if (auto paren = dyn_cast<ParenType>(argTy.getPointer())) {
-        if (!E->getSelfInterfaceType()->isEqual(paren->getUnderlyingType()))
+      } else {
+        if (!E->getSelfInterfaceType()->isEqual(argTy))
           return false;
       }
     }

@@ -60,10 +60,6 @@ class Traversal : public TypeVisitor<Traversal, bool>
     return doIt(ty->getPatternType());
   }
 
-  bool visitParenType(ParenType *ty) {
-    return doIt(ty->getUnderlyingType());
-  }
-
   bool visitTupleType(TupleType *ty) {
     for (auto elementTy : ty->getElementTypes())
       if (doIt(elementTy))

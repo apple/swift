@@ -7282,7 +7282,9 @@ public:
     return hasName() ? getBaseIdentifier().str() : "_";
   }
 
-  Type getArgumentInterfaceType() const;
+  ArrayRef<AnyFunctionType::Param> getAssociatedValueParams() const;
+
+  Type getAssociatedValueTuple() const;
 
   void setParameterList(ParameterList *params);
   ParameterList *getParameterList() const { return Params; }

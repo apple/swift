@@ -795,7 +795,7 @@ private:
     if (hasPayload && (decl->isIndirect() || enumDecl->isIndirect()))
       flags.setIsIndirectCase();
 
-    addField(flags, decl->getArgumentInterfaceType(),
+    addField(flags, decl->getAssociatedValueTuple(),
              decl->getBaseIdentifier().str());
   }
 

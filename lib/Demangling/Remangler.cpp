@@ -3338,12 +3338,6 @@ ManglingError Remangler::mangleSugaredDictionary(Node *node, unsigned depth) {
   return ManglingError::Success;
 }
 
-ManglingError Remangler::mangleSugaredParen(Node *node, unsigned depth) {
-  RETURN_IF_ERROR(mangleType(node->getChild(0), depth + 1));
-  Buffer << "XSp";
-  return ManglingError::Success;
-}
-
 ManglingError Remangler::mangleOpaqueReturnType(Node *node, unsigned depth) {
   Buffer << "Qr";
   return ManglingError::Success;

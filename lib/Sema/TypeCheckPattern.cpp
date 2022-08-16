@@ -812,10 +812,7 @@ Type PatternTypeRequest::evaluate(Evaluator &evaluator,
     if (subType->hasError())
       return ErrorType::get(Context);
 
-    auto type = subType;
-    if (P->getKind() == PatternKind::Paren)
-      type = ParenType::get(Context, type);
-    return type;
+    return subType;
   }
 
   // If we see an explicit type annotation, coerce the sub-pattern to
@@ -952,15 +949,15 @@ void repairTupleOrAssociatedValuePatternIfApplicable(
     const EnumElementDecl *enumCase) {
   auto &DE = Ctx.Diags;
   bool addDeclNote = false;
-  if (auto *tupleType = dyn_cast<TupleType>(enumPayloadType.getPointer())) {
-    if (tupleType->getNumElements() >= 2
-        && enumElementInnerPat->getKind() == PatternKind::Paren) {
+  auto *payloadParams = enumCase->getParameterList();
+  if (payloadParams->size() >= 2) {
+    if (enumElementInnerPat->getKind() == PatternKind::Paren) {
       auto *semantic = enumElementInnerPat->getSemanticsProvidingPattern();
       if (auto *tuplePattern = dyn_cast<TuplePattern>(semantic)) {
         if (tuplePattern->getNumElements() >= 2) {
           auto diag = DE.diagnose(tuplePattern->getLoc(),
               diag::converting_tuple_into_several_associated_values,
-              enumCase->getNameStr(), tupleType->getNumElements());
+              enumCase->getNameStr(), payloadParams->size());
           auto subPattern =
             dyn_cast<ParenPattern>(enumElementInnerPat)->getSubPattern();
 
@@ -984,8 +981,7 @@ void repairTupleOrAssociatedValuePatternIfApplicable(
       } else {
         DE.diagnose(enumElementInnerPat->getLoc(),
           diag::found_one_pattern_for_several_associated_values,
-          enumCase->getNameStr(),
-          tupleType->getNumElements());
+          enumCase->getNameStr(), payloadParams->size());
         addDeclNote = true;
       }
     }
@@ -1169,7 +1165,7 @@ Pattern *TypeChecker::coercePatternToType(ContextualPattern pattern,
       diags.diagnose(NP->getLoc(), diag, NP->getDecl()->getName(), type,
                      NP->getDecl()->isLet());
       diags.diagnose(NP->getLoc(), diag::add_explicit_type_annotation_to_silence)
-          .fixItInsertAfter(var->getNameLoc(), ": " + type->getWithoutParens()->getString());
+          .fixItInsertAfter(var->getNameLoc(), ": " + type->getString());
     }
 
     return P;
@@ -1554,7 +1550,7 @@ Pattern *TypeChecker::coercePatternToType(ContextualPattern pattern,
     }
 
     // If there is a subpattern, push the enum element type down onto it.
-    auto argType = elt->getArgumentInterfaceType();
+    auto argType = elt->getAssociatedValueTuple();
     if (EEP->hasSubPattern()) {
       Pattern *sub = EEP->getSubPattern();
       if (!elt->hasAssociatedValues()) {
@@ -1601,10 +1597,6 @@ Pattern *TypeChecker::coercePatternToType(ContextualPattern pattern,
                                              subPattern));
         }
       } else {
-        auto parenTy = dyn_cast<ParenType>(elementType.getPointer());
-        assert(parenTy && "Associated value type is neither paren nor tuple?");
-        (void)parenTy;
-        
         auto *subPattern = AnyPattern::createImplicit(Context);
         elements.push_back(TuplePatternElt(Identifier(), SourceLoc(),
                                            subPattern));

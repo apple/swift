@@ -170,7 +170,6 @@ TYPE(Pack, Type)
 TYPE(PackExpansion, Type)
 UNCHECKED_TYPE(TypeVariable, Type)
 ABSTRACT_SUGARED_TYPE(Sugar, Type)
-  SUGARED_TYPE(Paren, SugarType)
   SUGARED_TYPE(TypeAlias, SugarType)
   ABSTRACT_SUGARED_TYPE(SyntaxSugar, SugarType)
     ABSTRACT_SUGARED_TYPE(UnarySyntaxSugar, SyntaxSugarType)
@@ -180,7 +179,7 @@ ABSTRACT_SUGARED_TYPE(Sugar, Type)
       TYPE_RANGE(UnarySyntaxSugar, ArraySlice, VariadicSequence)
     SUGARED_TYPE(Dictionary, SyntaxSugarType)
     TYPE_RANGE(SyntaxSugar, ArraySlice, Dictionary)
-  TYPE_RANGE(Sugar, Paren, Dictionary)
+  TYPE_RANGE(Sugar, TypeAlias, Dictionary)
 LAST_TYPE(Dictionary) // Sugared types are last to make isa<SugarType>() fast.
 
 #endif

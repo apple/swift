@@ -547,8 +547,8 @@ static bool typeSpellingIsAmbiguous(Type type,
   for (auto arg : Args) {
     if (arg.getKind() == DiagnosticArgumentKind::Type) {
       auto argType = arg.getAsType();
-      if (argType && argType->getWithoutParens().getPointer() != type.getPointer() &&
-          argType->getWithoutParens().getString(PO) == type.getString(PO)) {
+      if (argType && argType.getPointer() != type.getPointer() &&
+          argType.getString(PO) == type.getString(PO)) {
         // Currently, existential types are spelled the same way
         // as protocols and compositions. We can remove this once
         // existenials are printed with 'any'.
@@ -673,7 +673,7 @@ static void formatDiagnosticArgument(StringRef Modifier,
     // Compute the appropriate print options for this argument.
     auto printOptions = PrintOptions::forDiagnosticArguments();
     if (Arg.getKind() == DiagnosticArgumentKind::Type) {
-      type = Arg.getAsType()->getWithoutParens();
+      type = Arg.getAsType();
       if (type.isNull()) {
         // FIXME: We should never receive a nullptr here, but this is causing
         // crashes (rdar://75740683). Remove once ParenType never contains
@@ -687,7 +687,7 @@ static void formatDiagnosticArgument(StringRef Modifier,
       needsQualification = typeSpellingIsAmbiguous(type, Args, printOptions);
     } else {
       assert(Arg.getKind() == DiagnosticArgumentKind::FullyQualifiedType);
-      type = Arg.getAsFullyQualifiedType().getType()->getWithoutParens();
+      type = Arg.getAsFullyQualifiedType().getType();
       if (type.isNull()) {
         // FIXME: We should never receive a nullptr here, but this is causing
         // crashes (rdar://75740683). Remove once ParenType never contains

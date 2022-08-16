@@ -157,7 +157,7 @@
     "DiffItemKind": "CommonDiffItem",
     "NodeKind": "Function",
     "NodeAnnotation": "TypeRewritten",
-    "ChildIndex": "1:1:1:1:1:0:0:0:0",
+    "ChildIndex": "1:1:1:1:1:0",
     "LeftUsr": "s:12macrogenleft2S1V5foo121xySSSi_SDySiSDySSSaySiGGGtXE_tF",
     "LeftComment": "Int",
     "RightUsr": "",

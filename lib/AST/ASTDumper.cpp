@@ -3668,12 +3668,6 @@ namespace {
       PrintWithColorRAII(OS, ParenthesisColor) << ')';
     }
 
-    void visitParenType(ParenType *T, StringRef label) {
-      printCommon(label, "paren_type");
-      printRec(T->getUnderlyingType());
-      PrintWithColorRAII(OS, ParenthesisColor) << ')';
-    }
-
     void visitTupleType(TupleType *T, StringRef label) {
       printCommon(label, "tuple_type");
       printField("num_elements", T->getNumElements());
