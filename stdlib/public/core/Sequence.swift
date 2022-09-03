@@ -1201,6 +1201,7 @@ extension Sequence {
     return _copySequenceContents(initializing: buffer)
   }
 
+  @_eagerMove
   @_alwaysEmitIntoClient
   internal __consuming func _copySequenceContents(
     initializing buffer: UnsafeMutableBufferPointer<Element>
