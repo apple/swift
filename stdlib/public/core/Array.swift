@@ -1222,7 +1222,7 @@ extension Array: RangeReplaceableCollection {
   @inlinable
   @_semantics("array.append_contentsOf")
   @_effects(notEscaping self.value**)
-  public mutating func append<S: Sequence>(contentsOf newElements: __owned S)
+  public mutating func append<S: Sequence>(@_eagerMove contentsOf newElements: __owned S)
     where S.Element == Element {
 
     defer {
