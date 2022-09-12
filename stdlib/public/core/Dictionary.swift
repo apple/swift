@@ -525,7 +525,7 @@ public struct Dictionary<Key: Hashable, Value> {
   ///     the final dictionary.
   @inlinable
   public init<S: Sequence>(
-    _ keysAndValues: __owned S,
+    @_eagerMove _ keysAndValues: __owned S,
     uniquingKeysWith combine: (Value, Value) throws -> Value
   ) rethrows where S.Element == (Key, Value) {
     var native = _NativeDictionary<Key, Value>(
@@ -558,7 +558,7 @@ public struct Dictionary<Key: Hashable, Value> {
   ///     `values`.
   @inlinable
   public init<S: Sequence>(
-    grouping values: __owned S,
+    @_eagerMove grouping values: __owned S,
     by keyForValue: (S.Element) throws -> Key
   ) rethrows where Value == [S.Element] {
     try self.init(_native: _NativeDictionary(grouping: values, by: keyForValue))
@@ -1033,7 +1033,7 @@ extension Dictionary {
   ///     dictionary.
   @inlinable
   public mutating func merge<S: Sequence>(
-    _ other: __owned S,
+    @_eagerMove _ other: __owned S,
     uniquingKeysWith combine: (Value, Value) throws -> Value
   ) rethrows where S.Element == (Key, Value) {
     try _variant.merge(other, uniquingKeysWith: combine)
@@ -1104,8 +1104,9 @@ extension Dictionary {
   /// - Returns: A new dictionary with the combined keys and values of this
   ///   dictionary and `other`.
   @inlinable
+  @_eagerMove
   public __consuming func merging<S: Sequence>(
-    _ other: __owned S,
+    @_eagerMove _ other: __owned S,
     uniquingKeysWith combine: (Value, Value) throws -> Value
   ) rethrows -> [Key: Value] where S.Element == (Key, Value) {
     var result = self

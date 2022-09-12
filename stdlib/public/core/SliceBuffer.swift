@@ -140,7 +140,7 @@ internal struct _SliceBuffer<Element>
   internal mutating func replaceSubrange<C>(
     _ subrange: Range<Int>,
     with insertCount: Int,
-    elementsOf newValues: __owned C
+    @_eagerMove elementsOf newValues: __owned C
   ) where C: Collection, C.Element == Element {
 
     _invariantCheck()

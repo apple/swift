@@ -754,7 +754,7 @@ extension _NativeDictionary { // High-level operations
 
   @inlinable
   internal mutating func merge<S: Sequence>(
-    _ keysAndValues: __owned S,
+    @_eagerMove _ keysAndValues: __owned S,
     isUnique: Bool,
     uniquingKeysWith combine: (Value, Value) throws -> Value
   ) rethrows where S.Element == (Key, Value) {
@@ -778,7 +778,7 @@ extension _NativeDictionary { // High-level operations
   @inlinable
   @inline(__always)
   internal init<S: Sequence>(
-    grouping values: __owned S,
+    @_eagerMove grouping values: __owned S,
     by keyForValue: (S.Element) throws -> Key
   ) rethrows where Value == [S.Element] {
     self.init()

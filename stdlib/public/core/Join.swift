@@ -171,6 +171,7 @@ extension Sequence where Element: Sequence {
   ///   sequence's elements.
   /// - Returns: The joined sequence of elements.
   @inlinable // lazy-performance
+  @_eagerMove
   public __consuming func joined<Separator: Sequence>(
     separator: Separator
   ) -> JoinedSequence<Self>

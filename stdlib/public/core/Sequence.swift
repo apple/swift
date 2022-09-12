@@ -708,6 +708,7 @@ extension Sequence {
   ///
   /// - Complexity: O(*n*), where *n* is the length of the sequence.
   @inlinable
+  @_eagerMove
   public __consuming func filter(
     _ isIncluded: (Element) throws -> Bool
   ) rethrows -> [Element] {
@@ -875,6 +876,7 @@ extension Sequence where Element: Equatable {
   ///
   /// - Complexity: O(*n*), where *n* is the length of the sequence.
   @inlinable
+  @_eagerMove
   public __consuming func split(
     separator: Element,
     maxSplits: Int = Int.max,
@@ -939,6 +941,7 @@ extension Sequence {
   ///
   /// - Complexity: O(*n*), where *n* is the length of the sequence.
   @inlinable
+  @_eagerMove
   public __consuming func split(
     maxSplits: Int = Int.max,
     omittingEmptySubsequences: Bool = true,
@@ -970,6 +973,7 @@ extension Sequence {
   ///
   /// - Complexity: O(*n*), where *n* is the length of the sequence.
   @inlinable
+  @_eagerMove
   public __consuming func suffix(_ maxLength: Int) -> [Element] {
     _precondition(maxLength >= 0, "Can't take a suffix of negative length from a sequence")
     guard maxLength != 0 else { return [] }
@@ -1027,6 +1031,7 @@ extension Sequence {
   ///   where *k* is the number of elements to drop from the beginning of
   ///   the sequence.
   @inlinable
+  @_eagerMove
   public __consuming func dropFirst(_ k: Int = 1) -> DropFirstSequence<Self> {
     return DropFirstSequence(self, dropping: k)
   }
@@ -1050,6 +1055,7 @@ extension Sequence {
   ///
   /// - Complexity: O(*n*), where *n* is the length of the sequence.
   @inlinable
+  @_eagerMove
   public __consuming func dropLast(_ k: Int = 1) -> [Element] {
     _precondition(k >= 0, "Can't drop a negative number of elements from a sequence")
     guard k != 0 else { return Array(self) }
@@ -1103,6 +1109,7 @@ extension Sequence {
   /// - Complexity: O(*k*), where *k* is the number of elements to drop from
   ///   the beginning of the sequence.
   @inlinable
+  @_eagerMove
   public __consuming func drop(
     while predicate: (Element) throws -> Bool
   ) rethrows -> DropWhileSequence<Self> {
@@ -1128,6 +1135,7 @@ extension Sequence {
   ///
   /// - Complexity: O(1)
   @inlinable
+  @_eagerMove
   public __consuming func prefix(_ maxLength: Int) -> PrefixSequence<Self> {
     return PrefixSequence(self, maxLength: maxLength)
   }
@@ -1155,6 +1163,7 @@ extension Sequence {
   ///
   /// - Complexity: O(*k*), where *k* is the length of the result.
   @inlinable
+  @_eagerMove
   public __consuming func prefix(
     while predicate: (Element) throws -> Bool
   ) rethrows -> [Element] {
@@ -1195,6 +1204,7 @@ extension Sequence {
   ///    On return, the memory region in `buffer[0 ..< c]` is initialized to
   ///    the first `c` elements in the sequence.
   @inlinable
+  @_eagerMove
   public __consuming func _copyContents(
     initializing buffer: UnsafeMutableBufferPointer<Element>
   ) -> (Iterator, UnsafeMutableBufferPointer<Element>.Index) {

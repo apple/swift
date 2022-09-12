@@ -89,6 +89,7 @@ extension LazyFilterSequence: Sequence {
   ///
   /// - Complexity: O(1).
   @inlinable // lazy-performance
+  @_eagerMove
   public __consuming func makeIterator() -> Iterator {
     return Iterator(_base: _base.makeIterator(), _predicate)
   }
@@ -327,6 +328,7 @@ extension LazySequenceProtocol {
   ///   traversal step invokes `predicate` on one or more underlying
   ///   elements.
   @inlinable // lazy-performance
+  @_eagerMove
   public __consuming func filter(
     _ isIncluded: @escaping (Elements.Element) -> Bool
   ) -> LazyFilterSequence<Self.Elements> {
@@ -336,6 +338,7 @@ extension LazySequenceProtocol {
 
 extension LazyFilterSequence {
   @available(swift, introduced: 5)
+  @_eagerMove
   public __consuming func filter(
     _ isIncluded: @escaping (Element) -> Bool
   ) -> LazyFilterSequence<Base> {

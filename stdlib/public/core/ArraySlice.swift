@@ -1338,7 +1338,7 @@ extension ArraySlice {
   @_semantics("array.mutate_unknown")
   public mutating func replaceSubrange<C>(
     _ subrange: Range<Int>,
-    with newElements: __owned C
+    @_eagerMove with newElements: __owned C
   ) where C: Collection, C.Element == Element {
     _precondition(subrange.lowerBound >= _buffer.startIndex,
       "ArraySlice replace: subrange start is before the startIndex")
