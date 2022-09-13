@@ -512,3 +512,81 @@ extension String.Index: Hashable {
     hasher.combine(orderingValue)
   }
 }
+
+@available(SwiftStdlib 5.7, *)
+extension String.Index: CustomStringConvertible {
+  internal var _encodingDescription: String {
+    switch (_rawBits & Self.__utf8Bit != 0, _rawBits & Self.__utf16Bit != 0) {
+    case (false, false): return "unknown"
+    case (true, false): return "utf8"
+    case (false, true): return "utf16"
+    case (true, true): return "any"
+    }
+  }
+
+  @available(SwiftStdlib 5.7, *)
+  @inline(never)
+  public var description: String {
+    // For the regular `description`, we just print the offset value along with
+    // its encoding and the transcoded offset, in a compact form: `23.utf8+1`.
+    //
+    // This is intended to expose crucial positioning information in a form that
+    // remains relatively readable even when part of a larger printout, e.g., as
+    // with range expressions like `12[utf8]..<56[utf8]+1`.
+    var d = "\(_encodedOffset)[\(_encodingDescription)]"
+    if transcodedOffset != 0 {
+      d += "+\(transcodedOffset)"
+    }
+    return d
+  }
+}
+
+@available(SwiftStdlib 5.7, *)
+extension String.Index: CustomDebugStringConvertible {
+  @available(SwiftStdlib 5.7, *)
+  @inline(never)
+  public var debugDescription: String {
+    var d = "String.Index("
+    d += "offset: \(_encodedOffset)"
+    d += ", encoding: \(_encodingDescription)"
+    if transcodedOffset != 0 {
+      d += ", transcodedOffset: \(transcodedOffset)"
+    }
+    if _isCharacterAligned {
+      d += ", aligned: character"
+    } else if _isScalarAligned {
+      d += ", aligned: scalar"
+    }
+    if let stride = characterStride {
+      d += ", stride: \(stride)"
+    }
+    d += ")"
+    return d
+  }
+}
+
+#if SWIFT_ENABLE_REFLECTION
+@available(SwiftStdlib 5.7, *)
+extension String.Index: CustomReflectable {
+  @available(SwiftStdlib 5.7, *)
+  @inline(never)
+  public var customMirror: Mirror {
+    var children: [(label: String?, value: Any)] = []
+    children.reserveCapacity(5)
+    children.append(("_offset", _encodedOffset))
+    children.append(("_encoding", _encodingDescription))
+    if transcodedOffset > 0 {
+      children.append(("_transcodedOffset", transcodedOffset))
+    }
+    if _isCharacterAligned {
+      children.append(("_aligned", "character"))
+    } else if _isScalarAligned {
+      children.append(("_aligned", "scalar"))
+    }
+    if let stride = characterStride {
+      children.append(("_stride", stride))
+    }
+    return Mirror(self, children: children, displayStyle: .struct)
+  }
+}
+#endif

@@ -35,6 +35,258 @@ let simpleStrings: [String] = [
   "",
 ]
 
+suite.test("CustomStringConvertible/native") {
+  guard #available(SwiftStdlib 5.7, *) else { return }
+
+  let string = "a👉🏼b"
+
+  func check<S: Collection>(
+    _ s: S,
+    _ expected: [String],
+    file: String = #file, line: UInt = #line
+  ) where S.Index == String.Index {
+    let indices = Array(s.indices) + [s.endIndex]
+    expectEqual(
+      indices.count,
+      expected.count,
+      "count",
+      file: file, line: line)
+    for i in 0 ..< indices.count {
+      expectEqual(
+        "\(indices[i])",
+        expected[i],
+        "i: \(i)",
+        file: file, line: line)
+    }
+  }
+
+  check(string, [
+      "0[any]",
+      "1[utf8]",
+      "9[utf8]",
+      "10[utf8]",
+    ])
+  check(string.unicodeScalars, [
+      "0[any]",
+      "1[utf8]",
+      "5[utf8]",
+      "9[utf8]",
+      "10[utf8]",
+    ])
+  check(string.utf8, [
+      "0[any]",
+      "1[utf8]",
+      "2[utf8]",
+      "3[utf8]",
+      "4[utf8]",
+      "5[utf8]",
+      "6[utf8]",
+      "7[utf8]",
+      "8[utf8]",
+      "9[utf8]",
+      "10[utf8]",
+    ])
+  check(string.utf16, [
+      "0[any]",
+      "1[utf8]",
+      "1[utf8]+1",
+      "5[utf8]",
+      "5[utf8]+1",
+      "9[utf8]",
+      "10[utf8]",
+    ])
+}
+
+#if _runtime(_ObjC)
+suite.test("CustomStringConvertible/bridged") {
+  guard #available(SwiftStdlib 5.7, *) else { return }
+
+  let string = "a👉🏼b" as NSString as String
+
+  func check<S: Collection>(
+    _ s: S,
+    _ expected: [String],
+    file: String = #file, line: UInt = #line
+  ) where S.Index == String.Index {
+    let indices = Array(s.indices) + [s.endIndex]
+    expectEqual(
+      indices.count,
+      expected.count,
+      "count",
+      file: file, line: line)
+    for i in 0 ..< indices.count {
+      expectEqual(
+        "\(indices[i])",
+        expected[i],
+        "i: \(i)",
+        file: file, line: line)
+    }
+  }
+
+  check(string, [
+      "0[any]",
+      "1[utf16]",
+      "5[utf16]",
+      "6[utf16]",
+    ])
+  check(string.unicodeScalars, [
+      "0[any]",
+      "1[utf16]",
+      "3[utf16]",
+      "5[utf16]",
+      "6[utf16]",
+    ])
+  check(string.utf8, [
+      "0[any]",
+      "1[utf16]",
+      "1[utf16]+1",
+      "1[utf16]+2",
+      "1[utf16]+3",
+      "3[utf16]",
+      "3[utf16]+1",
+      "3[utf16]+2",
+      "3[utf16]+3",
+      "5[utf16]",
+      "6[utf16]",
+    ])
+  check(string.utf16, [
+      "0[any]",
+      "1[utf16]",
+      "2[utf16]",
+      "3[utf16]",
+      "4[utf16]",
+      "5[utf16]",
+      "6[utf16]",
+    ])
+}
+#endif
+
+suite.test("CustomDebugStringConvertible/native") {
+  guard #available(SwiftStdlib 5.7, *) else { return }
+
+  let string = "a👉🏼b"
+
+  func check<S: Collection>(
+    _ s: S,
+    _ expected: [String],
+    file: String = #file, line: UInt = #line
+  ) where S.Index == String.Index {
+    let indices = Array(s.indices) + [s.endIndex]
+    expectEqual(
+      indices.count,
+      expected.count,
+      "count",
+      file: file, line: line)
+    for i in 0 ..< indices.count {
+      expectEqual(
+        String(reflecting: indices[i]),
+        expected[i],
+        "i: \(i)",
+        file: file, line: line)
+    }
+  }
+
+  check(string, [
+      "String.Index(offset: 0, encoding: any, aligned: character)",
+      "String.Index(offset: 1, encoding: utf8, aligned: character, stride: 8)",
+      "String.Index(offset: 9, encoding: utf8, aligned: character, stride: 1)",
+      "String.Index(offset: 10, encoding: utf8, aligned: character)",
+    ])
+  check(string.unicodeScalars, [
+      "String.Index(offset: 0, encoding: any, aligned: character)",
+      "String.Index(offset: 1, encoding: utf8, aligned: scalar)",
+      "String.Index(offset: 5, encoding: utf8, aligned: scalar)",
+      "String.Index(offset: 9, encoding: utf8, aligned: scalar)",
+      "String.Index(offset: 10, encoding: utf8, aligned: character)",
+    ])
+  check(string.utf8, [
+      "String.Index(offset: 0, encoding: any, aligned: character)",
+      "String.Index(offset: 1, encoding: utf8)",
+      "String.Index(offset: 2, encoding: utf8)",
+      "String.Index(offset: 3, encoding: utf8)",
+      "String.Index(offset: 4, encoding: utf8)",
+      "String.Index(offset: 5, encoding: utf8)",
+      "String.Index(offset: 6, encoding: utf8)",
+      "String.Index(offset: 7, encoding: utf8)",
+      "String.Index(offset: 8, encoding: utf8)",
+      "String.Index(offset: 9, encoding: utf8)",
+      "String.Index(offset: 10, encoding: utf8, aligned: character)",
+    ])
+  check(string.utf16, [
+      "String.Index(offset: 0, encoding: any, aligned: character)",
+      "String.Index(offset: 1, encoding: utf8, aligned: scalar)",
+      "String.Index(offset: 1, encoding: utf8, transcodedOffset: 1)",
+      "String.Index(offset: 5, encoding: utf8, aligned: scalar)",
+      "String.Index(offset: 5, encoding: utf8, transcodedOffset: 1)",
+      "String.Index(offset: 9, encoding: utf8, aligned: scalar)",
+      "String.Index(offset: 10, encoding: utf8, aligned: character)",
+    ])
+}
+
+#if _runtime(_ObjC)
+suite.test("CustomDebugStringConvertible/bridged") {
+  guard #available(SwiftStdlib 5.7, *) else { return }
+
+  let string = "a👉🏼b" as NSString as String
+
+  func check<S: Collection>(
+    _ s: S,
+    _ expected: [String],
+    file: String = #file, line: UInt = #line
+  ) where S.Index == String.Index {
+    let indices = Array(s.indices) + [s.endIndex]
+    expectEqual(
+      indices.count,
+      expected.count,
+      "count",
+      file: file, line: line)
+    for i in 0 ..< indices.count {
+      expectEqual(
+        String(reflecting: indices[i]),
+        expected[i],
+        "i: \(i)",
+        file: file, line: line)
+    }
+  }
+
+  check(string, [
+      "String.Index(offset: 0, encoding: any, aligned: character)",
+      "String.Index(offset: 1, encoding: utf16, aligned: character, stride: 4)",
+      "String.Index(offset: 5, encoding: utf16, aligned: character, stride: 1)",
+      "String.Index(offset: 6, encoding: utf16, aligned: character)",
+    ])
+  check(string.unicodeScalars, [
+      "String.Index(offset: 0, encoding: any, aligned: character)",
+      "String.Index(offset: 1, encoding: utf16, aligned: scalar)",
+      "String.Index(offset: 3, encoding: utf16, aligned: scalar)",
+      "String.Index(offset: 5, encoding: utf16, aligned: scalar)",
+      "String.Index(offset: 6, encoding: utf16, aligned: character)",
+    ])
+  check(string.utf8, [
+      "String.Index(offset: 0, encoding: any, aligned: character)",
+      "String.Index(offset: 1, encoding: utf16, aligned: scalar)",
+      "String.Index(offset: 1, encoding: utf16, transcodedOffset: 1)",
+      "String.Index(offset: 1, encoding: utf16, transcodedOffset: 2)",
+      "String.Index(offset: 1, encoding: utf16, transcodedOffset: 3)",
+      "String.Index(offset: 3, encoding: utf16, aligned: scalar)",
+      "String.Index(offset: 3, encoding: utf16, transcodedOffset: 1)",
+      "String.Index(offset: 3, encoding: utf16, transcodedOffset: 2)",
+      "String.Index(offset: 3, encoding: utf16, transcodedOffset: 3)",
+      "String.Index(offset: 5, encoding: utf16, aligned: scalar)",
+      "String.Index(offset: 6, encoding: utf16, aligned: character)",
+    ])
+  check(string.utf16, [
+      "String.Index(offset: 0, encoding: any, aligned: character)",
+      "String.Index(offset: 1, encoding: utf16)",
+      "String.Index(offset: 2, encoding: utf16)",
+      "String.Index(offset: 3, encoding: utf16)",
+      "String.Index(offset: 4, encoding: utf16)",
+      "String.Index(offset: 5, encoding: utf16)",
+      "String.Index(offset: 6, encoding: utf16, aligned: character)",
+    ])
+}
+#endif
+
 suite.test("basic sanity checks")
 .forEach(in: simpleStrings) { s in
   let utf8 = Array(s.utf8)

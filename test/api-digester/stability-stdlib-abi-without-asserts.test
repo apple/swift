@@ -56,7 +56,6 @@ Func Collection.subranges(where:) has been removed
 Func MutableCollection.moveSubranges(_:to:) has been removed
 Func MutableCollection.removeSubranges(_:) has been removed
 Func RangeReplaceableCollection.removeSubranges(_:) has been removed
-Struct AnyHashable has added a conformance to an existing protocol _HasCustomAnyHashableRepresentation
 Struct DiscontiguousSlice has been removed
 Struct RangeSet has been removed
 Subscript Collection.subscript(_:) has been removed
@@ -68,6 +67,12 @@ Protocol Error has generic signature change from to <Self : Swift.Sendable>
 Constructor _SmallString.init(taggedCocoa:) has mangled name changing from 'Swift._SmallString.init(taggedCocoa: Swift.AnyObject) -> Swift._SmallString' to 'Swift._SmallString.init(taggedCocoa: Swift.AnyObject) -> Swift.Optional<Swift._SmallString>'
 Constructor _SmallString.init(taggedCocoa:) has return type change from Swift._SmallString to Swift._SmallString?
 Enum Never has added a conformance to an existing protocol Identifiable
+
+// The ABI checker doesn't understand protocol conformances with availability
+// yet.
+Struct AnyHashable has added a conformance to an existing protocol _HasCustomAnyHashableRepresentation
+Struct String.Index has added a conformance to an existing protocol CustomStringConvertible
+Struct String.Index has added a conformance to an existing protocol CustomDebugStringConvertible
 
 // These haven't actually been removed; they are simply marked unavailable.
 // This seems to be a false positive in the ABI checker. This is not an ABI
