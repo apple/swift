@@ -503,10 +503,6 @@ TypeChecker::typeCheckTarget(SyntacticElementTarget &target,
     // diagnostics and is a hint for various performance optimizations.
     cs.setContextualInfo(expr, target.getExprContextualTypeInfo());
 
-    // Try to shrink the system by reducing disjunction domains. This
-    // goes through every sub-expression and generate its own sub-system, to
-    // try to reduce the domains of those subexpressions.
-    cs.shrink(expr);
     target.setExpr(expr);
   }
 

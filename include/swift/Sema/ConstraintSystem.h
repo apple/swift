@@ -2372,75 +2372,6 @@ public:
       ImplicitCallAsFunctionRoots;
 
 private:
-  /// Describe the candidate expression for partial solving.
-  /// This class used by shrink & solve methods which apply
-  /// variation of directional path consistency algorithm in attempt
-  /// to reduce scopes of the overload sets (disjunctions) in the system.
-  class Candidate {
-    Expr *E;
-    DeclContext *DC;
-    llvm::BumpPtrAllocator &Allocator;
-
-    // Contextual Information.
-    Type CT;
-    ContextualTypePurpose CTP;
-
-  public:
-    Candidate(ConstraintSystem &cs, Expr *expr, Type ct = Type(),
-              ContextualTypePurpose ctp = ContextualTypePurpose::CTP_Unused)
-        : E(expr), DC(cs.DC), Allocator(cs.Allocator), CT(ct), CTP(ctp) {}
-
-    /// Return underlying expression.
-    Expr *getExpr() const { return E; }
-
-    /// Try to solve this candidate sub-expression
-    /// and re-write it's OSR domains afterwards.
-    ///
-    /// \param shrunkExprs The set of expressions which
-    /// domains have been successfully shrunk so far.
-    ///
-    /// \returns true on solver failure, false otherwise.
-    bool solve(llvm::SmallSetVector<OverloadSetRefExpr *, 4> &shrunkExprs);
-
-    /// Apply solutions found by solver as reduced OSR sets for
-    /// for current and all of it's sub-expressions.
-    ///
-    /// \param solutions The solutions found by running solver on the
-    /// this candidate expression.
-    ///
-    /// \param shrunkExprs The set of expressions which
-    /// domains have been successfully shrunk so far.
-    void applySolutions(
-        llvm::SmallVectorImpl<Solution> &solutions,
-        llvm::SmallSetVector<OverloadSetRefExpr *, 4> &shrunkExprs) const;
-
-    /// Check if attempt at solving of the candidate makes sense given
-    /// the current conditions - number of shrunk domains which is related
-    /// to the given candidate over the total number of disjunctions present.
-    static bool
-    isTooComplexGiven(ConstraintSystem *const cs,
-                      llvm::SmallSetVector<OverloadSetRefExpr *, 4> &shrunkExprs) {
-      SmallVector<Constraint *, 8> disjunctions;
-      cs->collectDisjunctions(disjunctions);
-
-      unsigned unsolvedDisjunctions = disjunctions.size();
-      for (auto *disjunction : disjunctions) {
-        auto *locator = disjunction->getLocator();
-        if (!locator)
-          continue;
-
-        if (auto *OSR = getAsExpr<OverloadSetRefExpr>(locator->getAnchor())) {
-          if (shrunkExprs.count(OSR) > 0)
-            --unsolvedDisjunctions;
-        }
-      }
-
-      unsigned threshold =
-          cs->getASTContext().TypeCheckerOpts.SolverShrinkUnsolvedThreshold;
-      return unsolvedDisjunctions >= threshold;
-    }
-  };
-
   /// Describes the current solver state.
   struct SolverState {
     SolverState(ConstraintSystem &cs,
@@ -5252,15 +5183,6 @@ private:
   ///
   /// \returns true if an error occurred, false otherwise.
   bool solveSimplified(SmallVectorImpl<Solution> &solutions);
-
-  /// Find reduced domains of disjunction constraints for given
-  /// expression, this is achieved to solving individual sub-expressions
-  /// and combining resolving types. Such algorithm is called directional
-  /// path consistency because it goes from children to parents for all
-  /// related sub-expressions taking union of their domains.
-  ///
-  /// \param expr The expression to find reductions for.
-  void shrink(Expr *expr);
 
   /// Pick a disjunction from the InactiveConstraints list.
   ///
