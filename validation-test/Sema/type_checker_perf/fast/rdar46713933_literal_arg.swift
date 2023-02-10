@@ -8,5 +8,4 @@ func wrap<T: ExpressibleByStringLiteral>(_ key: String, _ value: T) -> T { retur
 
 func wrapped() -> Int {
   return wrap("1", 1) + wrap("1", 1) + wrap("1", 1) + wrap("1", 1) + wrap("1", 1) + wrap("1", 1)
-  // expected-error@-1 {{the compiler is unable to type-check this expression in reasonable time}}
 }

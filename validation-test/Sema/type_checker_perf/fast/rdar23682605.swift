@@ -14,7 +14,6 @@ func memoize<T: Hashable, U>( body: @escaping ((T)->U, T)->U ) -> (T)->U {
 }
 
 let fibonacci = memoize {
-  // expected-error@-1 {{reasonable time}}
   fibonacci, n in
   n < 2 ? Double(n) : fibonacci(n - 1) + fibonacci(n - 2)
 }

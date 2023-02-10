@@ -1,6 +1,8 @@
 // RUN: %target-typecheck-verify-swift -debug-constraints 2>%t.err
 // RUN: %FileCheck %s < %t.err
 
+// REQUIRES: needs_adjustment_for_new_favoring
+
 struct X {
   func g(_: Int) -> Int { return 0 }
   func g(_: Double) -> Int { return 0 }

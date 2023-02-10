@@ -5127,11 +5127,6 @@ private:
   /// Collect the current inactive disjunction constraints.
   void collectDisjunctions(SmallVectorImpl<Constraint *> &disjunctions);
 
-  /// Based on the given set of disjunctions, attempt to determine
-  /// favored choices and perform other optimizations to help the
-  /// solver.
-  void optimizeDisjunctions(SmallVectorImpl<Constraint *> &disjunctions);
-
   /// Record a particular disjunction choice of
   void recordDisjunctionChoice(ConstraintLocator *disjunctionLocator,
                                unsigned index) {

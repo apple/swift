@@ -1327,63 +1327,6 @@ ConstraintSystem::filterDisjunction(
   }
 }
 
-// Attempt to find a disjunction of bind constraints where all options
-// in the disjunction are binding the same type variable.
-//
-// Prefer disjunctions where the bound type variable is also the
-// right-hand side of a conversion constraint, since having a concrete
-// type that we're converting to can make it possible to split the
-// constraint system into multiple ones.
-static Constraint *selectBestBindingDisjunction(
-    ConstraintSystem &cs, SmallVectorImpl<Constraint *> &disjunctions) {
-
-  if (disjunctions.empty())
-    return nullptr;
-
-  auto getAsTypeVar = [&cs](Type type) {
-    return cs.simplifyType(type)->getRValueType()->getAs<TypeVariableType>();
-  };
-
-  Constraint *firstBindDisjunction = nullptr;
-  for (auto *disjunction : disjunctions) {
-    auto choices = disjunction->getNestedConstraints();
-    assert(!choices.empty());
-
-    auto *choice = choices.front();
-    if (choice->getKind() != ConstraintKind::Bind)
-      continue;
-
-    // We can judge disjunction based on the single choice
-    // because all of choices (of bind overload set) should
-    // have the same left-hand side.
-    // Only do this for simple type variable bindings, not for
-    // bindings like: ($T1) -> $T2 bind String -> Int
-    auto *typeVar = getAsTypeVar(choice->getFirstType());
-    if (!typeVar)
-      continue;
-
-    if (!firstBindDisjunction)
-      firstBindDisjunction = disjunction;
-
-    auto constraints = cs.getConstraintGraph().gatherConstraints(
-        typeVar, ConstraintGraph::GatheringKind::EquivalenceClass,
-        [](Constraint *constraint) {
-          return constraint->getKind() == ConstraintKind::Conversion;
-        });
-
-    for (auto *constraint : constraints) {
-      if (typeVar == getAsTypeVar(constraint->getSecondType()))
-        return disjunction;
-    }
-  }
-
-  // If we had any binding disjunctions, return the first of
-  // those. These ensure that we attempt to bind types earlier than
-  // trying the elements of other disjunctions, which can often mean
-  // we fail faster.
-  return firstBindDisjunction;
-}
-
 llvm::Optional<std::pair<Constraint *, unsigned>>
 ConstraintSystem::findConstraintThroughOptionals(
     TypeVariableType *typeVar, OptionalWrappingDirection optionalDirection,
@@ -1832,63 +1775,6 @@ void DisjunctionChoiceProducer::partitionDisjunction(
   appendPartition(disabled);
 
   assert(Ordering.size() == Choices.size());
-}
-
-Constraint *ConstraintSystem::selectDisjunction() {
-  SmallVector<Constraint *, 4> disjunctions;
-
-  collectDisjunctions(disjunctions);
-  if (disjunctions.empty())
-    return nullptr;
-
-  optimizeDisjunctions(disjunctions);
-
-  if (auto *disjunction = selectBestBindingDisjunction(*this, disjunctions))
-    return disjunction;
-
-  // Pick the disjunction with the smallest number of favored, then active choices.
-  auto cs = this;
-  auto minDisjunction = std::min_element(disjunctions.begin(), disjunctions.end(),
-      [&](Constraint *first, Constraint *second) -> bool {
-        unsigned firstActive = first->countActiveNestedConstraints();
-        unsigned secondActive = second->countActiveNestedConstraints();
-        unsigned firstFavored = first->countFavoredNestedConstraints();
-        unsigned secondFavored = second->countFavoredNestedConstraints();
-
-        if (!isOperatorDisjunction(first) || !isOperatorDisjunction(second))
-          return firstActive < secondActive;
-
-        if (firstFavored == secondFavored) {
-          // Look for additional choices that are "favored"
-          SmallVector<unsigned, 4> firstExisting;
-          SmallVector<unsigned, 4> secondExisting;
-
-          existingOperatorBindingsForDisjunction(*cs, first->getNestedConstraints(), firstExisting);
-          firstFavored += firstExisting.size();
-          existingOperatorBindingsForDisjunction(*cs, second->getNestedConstraints(), secondExisting);
-          secondFavored += secondExisting.size();
-        }
-
-        // Everything else equal, choose the disjunction with the greatest
-        // number of resolved argument types. The number of resolved argument
-        // types is always zero for disjunctions that don't represent applied
-        // overloads.
-        if (firstFavored == secondFavored) {
-          if (firstActive != secondActive)
-            return firstActive < secondActive;
-
-          return (first->countResolvedArgumentTypes(*this) > second->countResolvedArgumentTypes(*this));
-        }
-
-        firstFavored = firstFavored ? firstFavored : firstActive;
-        secondFavored = secondFavored ? secondFavored : secondActive;
-        return firstFavored < secondFavored;
-      });
-
-  if (minDisjunction != disjunctions.end())
-    return *minDisjunction;
-
-  return nullptr;
 }
 
 Constraint *ConstraintSystem::selectConjunction() {
