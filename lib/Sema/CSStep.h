@@ -687,10 +687,17 @@ class DisjunctionStep final : public BindingStep<DisjunctionChoiceProducer> {
   llvm::Optional<std::pair<Constraint *, Score>> LastSolvedChoice;
 
 public:
+  DisjunctionStep(
+      ConstraintSystem &cs,
+      std::pair<Constraint *, llvm::TinyPtrVector<Constraint *>> &disjunction,
+      SmallVectorImpl<Solution> &solutions)
+      : DisjunctionStep(cs, disjunction.first, disjunction.second, solutions) {}
+
   DisjunctionStep(ConstraintSystem &cs, Constraint *disjunction,
+                  llvm::TinyPtrVector<Constraint *> &favoredChoices,
                   SmallVectorImpl<Solution> &solutions)
-      : BindingStep(cs, {cs, disjunction}, solutions), Disjunction(disjunction),
-        AfterDisjunction(erase(disjunction)) {
+      : BindingStep(cs, {cs, disjunction, favoredChoices}, solutions),
+        Disjunction(disjunction), AfterDisjunction(erase(disjunction)) {
     assert(Disjunction->getKind() == ConstraintKind::Disjunction);
     pruneOverloadSet(Disjunction);
     ++cs.solverState->NumDisjunctions;
