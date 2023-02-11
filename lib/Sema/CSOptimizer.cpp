@@ -208,15 +208,29 @@ static void determineBestChoicesInContext(
           if (!isViableOverload(decl))
             return;
 
-          if (overloadType->getNumParams() != argFuncType->getNumParams())
-            return;
+          ParameterListInfo paramListInfo(
+              overloadType->getParams(), decl,
+              hasAppliedSelf(cs, choice->getOverloadChoice()));
 
           double score = 0.0;
           for (unsigned i = 0, n = overloadType->getNumParams(); i != n; ++i) {
+            const auto &param = overloadType->getParams()[i];
+
+            if (i >= candidateArgumentTypes.size()) {
+              // If parameter has a default - continue matching,
+              // all of the subsequence parameters should have defaults
+              // as well, if they don't the overload choice in not viable.
+              if (paramListInfo.hasDefaultArgument(i))
+                continue;
+
+              // Early return because this overload choice is not viable
+              // without default value for the current parameter.
+              return;
+            }
+
             if (candidateArgumentTypes[i].empty())
               continue;
 
-            const auto &param = overloadType->getParams()[i];
             const auto paramFlags = param.getParameterFlags();
 
             // If parameter is variadic we cannot compare because we don't know
