@@ -112,6 +112,10 @@ static void determineBestChoicesInContext(
     auto argFuncType =
         applicableFn.get()->getFirstType()->getAs<FunctionType>();
 
+    auto argumentList = cs.getArgumentList(applicableFn.get()->getLocator());
+    if (!argumentList || cs.containsIDEInspectionTarget(argumentList))
+      return;
+
     SmallVector<SmallVector<std::pair<Type, /*fromLiteral=*/bool>, 2>, 2>
         candidateArgumentTypes;
     candidateArgumentTypes.resize(argFuncType->getNumParams());
