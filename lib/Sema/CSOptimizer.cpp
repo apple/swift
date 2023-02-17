@@ -15,13 +15,16 @@
 //===----------------------------------------------------------------------===//
 
 #include "TypeChecker.h"
+#include "swift/AST/ExistentialLayout.h"
 #include "swift/AST/GenericSignature.h"
+#include "swift/Basic/OptionSet.h"
 #include "swift/Sema/ConstraintGraph.h"
 #include "swift/Sema/ConstraintSystem.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/TinyPtrVector.h"
+#include "llvm/Support/SaveAndRestore.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cstddef>
 #include <functional>
@@ -187,6 +190,162 @@ static void determineBestChoicesInContext(
                                 /*allow fixes*/ false, listener, None);
     };
 
+    // Determine whether the candidate type is a subclass of the superclass
+    // type.
+    std::function<bool(Type, Type)> isSubclassOf = [&](Type candidateType,
+                                                       Type superclassType) {
+      // Conversion from a concrete type to its existential value.
+      if (superclassType->isExistentialType() && !superclassType->isAny()) {
+        auto layout = superclassType->getExistentialLayout();
+
+        if (auto layoutConstraint = layout.getLayoutConstraint()) {
+          if (layoutConstraint->isClass() &&
+              !(candidateType->isClassExistentialType() ||
+                candidateType->mayHaveSuperclass()))
+            return false;
+        }
+
+        if (layout.explicitSuperclass &&
+            !isSubclassOf(candidateType, layout.explicitSuperclass))
+          return false;
+
+        return llvm::all_of(layout.getProtocols(), [&](ProtocolDecl *P) {
+          if (auto superclass = P->getSuperclass()) {
+            if (!isSubclassOf(candidateType, superclass))
+              return false;
+          }
+
+          return bool(TypeChecker::containsProtocol(
+              candidateType, P, cs.DC->getParentModule(),
+              /*skipConditionalRequirements=*/true,
+              /*allowMissing=*/false));
+        });
+      }
+
+      auto *subclassDecl = candidateType->getClassOrBoundGenericClass();
+      auto *superclassDecl = superclassType->getClassOrBoundGenericClass();
+
+      if (!(subclassDecl && superclassDecl))
+        return false;
+
+      return superclassDecl->isSuperclassOf(subclassDecl);
+    };
+
+    enum class MatchFlag {
+      OnParam,
+      Literal,
+    };
+
+    using MatchOptions = OptionSet<MatchFlag>;
+
+    // Perform a limited set of checks to determine whether the candidate
+    // could possibly match the parameter type:
+    //
+    // - Equality
+    // - Protocol conformance(s)
+    // - Optional injection
+    // - Superclass conversion
+    // - Array-to-pointer conversion
+    // - Value to existential conversion
+    // - Exact match on top-level types
+    std::function<double(GenericSignature, Type, Type, MatchOptions)>
+        scoreCandidateMatch = [&](GenericSignature genericSig,
+                                  Type candidateType, Type paramType,
+                                  MatchOptions options) -> double {
+      // Dependent members cannot be handled here because
+      // they require substitution of the base type which
+      // could come from a different argument.
+      if (paramType->getAs<DependentMemberType>())
+        return 0;
+
+      // Exact match between candidate and parameter types.
+      if (candidateType->isEqual(paramType))
+        return options.contains(MatchFlag::Literal) ? 0.3 : 1;
+
+      if (options.contains(MatchFlag::Literal))
+        return 0;
+
+      // Check whether match would require optional injection.
+      {
+        SmallVector<Type, 2> candidateOptionals;
+        SmallVector<Type, 2> paramOptionals;
+
+        candidateType =
+            candidateType->lookThroughAllOptionalTypes(candidateOptionals);
+        paramType = paramType->lookThroughAllOptionalTypes(paramOptionals);
+
+        if (!candidateOptionals.empty() || !paramOptionals.empty()) {
+          if (paramOptionals.size() >= candidateOptionals.size())
+            return scoreCandidateMatch(genericSig, candidateType, paramType,
+                                       options);
+
+          // Optionality mismatch.
+          return 0;
+        }
+      }
+
+      // Candidate could be injected into optional parameter type
+      // or converted to a superclass.
+      if (isSubclassOf(candidateType, paramType))
+        return 1;
+
+      // Possible Array<T> -> Unsafe*Pointer conversion.
+      if (options.contains(MatchFlag::OnParam)) {
+        if (candidateType->isArrayType() &&
+            paramType->getAnyPointerElementType())
+          return 1;
+      }
+
+      // If both argument and parameter are tuples of the same arity,
+      // it's a match.
+      {
+        if (auto *candidateTuple = candidateType->getAs<TupleType>()) {
+          auto *paramTuple = paramType->getAs<TupleType>();
+          if (paramTuple &&
+              candidateTuple->getNumElements() == paramTuple->getNumElements())
+            return 1;
+        }
+      }
+
+      // Check protocol requirement(s) if this parameter is a
+      // generic parameter type.
+      GenericSignature::RequiredProtocols protocolRequirements;
+      if (genericSig) {
+        if (auto *GP = paramType->getAs<GenericTypeParamType>()) {
+          protocolRequirements = genericSig->getRequiredProtocols(GP);
+          // It's a generic parameter which might be connected via
+          // same-type constraints to other generic parameters but
+          // we cannot check that here, so let's add a tiny score
+          // just to acknowledge that it could possibly match.
+          if (protocolRequirements.empty()) {
+            return 0.01;
+          }
+
+          if (llvm::all_of(protocolRequirements, [&](ProtocolDecl *protocol) {
+                return TypeChecker::conformsToProtocol(candidateType, protocol,
+                                                       cs.DC->getParentModule(),
+                                                       /*allowMissing=*/false);
+              }))
+            return 0.7;
+        }
+      }
+
+      // Parameter is generic, let's check whether top-level
+      // types match i.e. Array<Element> as a parameter.
+      //
+      // This is slightly better than all of the conformances matching
+      // because the parameter is concrete and could split the graph.
+      if (paramType->hasTypeParameter()) {
+        auto *candidateDecl = candidateType->getAnyNominal();
+        auto *paramDecl = paramType->getAnyNominal();
+
+        if (candidateDecl && paramDecl && candidateDecl == paramDecl)
+          return 0.8;
+      }
+
+      return 0;
+    };
+
     // The choice with the best score.
     double bestScore = 0.0;
     SmallVector<std::pair<Constraint *, double>, 2> favoredChoices;
@@ -256,23 +415,6 @@ static void determineBestChoicesInContext(
             if (paramType->is<FunctionType>())
               continue;
 
-            // Check protocol requirement(s) if this parameter is a
-            // generic parameter type.
-            GenericSignature::RequiredProtocols protocolRequirements;
-            if (genericSig) {
-              if (auto *GP = paramType->getAs<GenericTypeParamType>()) {
-                protocolRequirements = genericSig->getRequiredProtocols(GP);
-                // It's a generic parameter which might be connected via
-                // same-type constraints to other generic parameters but
-                // we cannot check that here, so let's ignore it.
-                if (protocolRequirements.empty())
-                  continue;
-              }
-
-              if (paramType->getAs<DependentMemberType>())
-                return;
-            }
-
             // The idea here is to match the parameter type against
             // all of the argument candidate types and pick the best
             // match (i.e. exact equality one).
@@ -306,32 +448,14 @@ static void determineBestChoicesInContext(
               // The specifier only matters for `inout` check.
               candidateType = candidateType->getWithoutSpecifierType();
 
-              // We don't check generic requirements against literal default
-              // types because it creates more noise than signal for operators.
-              if (!protocolRequirements.empty() && !isLiteralDefault) {
-                if (llvm::all_of(
-                        protocolRequirements, [&](ProtocolDecl *protocol) {
-                          return TypeChecker::conformsToProtocol(
-                              candidateType, protocol, cs.DC->getParentModule(),
-                              /*allowMissing=*/false);
-                        })) {
-                  // Score is lower here because we still prefer concrete
-                  // overloads over the generic ones when possible.
-                  bestCandidateScore = std::max(bestCandidateScore, 0.7);
-                  continue;
-                }
-              } else if (paramType->hasTypeParameter()) {
-                // i.e. Array<Element> or Optional<Wrapped> as a parameter.
-                // This is slightly better than all of the conformances matching
-                // because the parameter is concrete and could split the graph.
-                if (paramType->getAnyNominal() == candidateType->getAnyNominal()) {
-                  bestCandidateScore = std::max(bestCandidateScore, 0.8);
-                  continue;
-                }
-              } else if (candidateType->isEqual(paramType)) {
-                // Exact match on one of the candidate bindings.
-                bestCandidateScore =
-                    std::max(bestCandidateScore, isLiteralDefault ? 0.3 : 1.0);
+              MatchOptions options(MatchFlag::OnParam);
+              if (isLiteralDefault)
+                options |= MatchFlag::Literal;
+
+              auto score = scoreCandidateMatch(genericSig, candidateType,
+                                               paramType, options);
+              if (score > 0) {
+                bestCandidateScore = std::max(bestCandidateScore, score);
                 continue;
               }
 
@@ -365,11 +489,12 @@ static void determineBestChoicesInContext(
           if (score > 0 ||
               (decl->isOperator() &&
                !decl->getBaseIdentifier().isStandardComparisonOperator())) {
-            if (llvm::any_of(
-                    resultTypes, [&overloadType](const Type candidateResultTy) {
-                      auto overloadResultTy = overloadType->getResult();
-                      return candidateResultTy->isEqual(overloadResultTy);
-                    })) {
+            if (llvm::any_of(resultTypes, [&](const Type candidateResultTy) {
+                  return scoreCandidateMatch(genericSig,
+                                             overloadType->getResult(),
+                                             candidateResultTy,
+                                             /*options=*/{}) > 0;
+                })) {
               score += 1.0;
             }
           }
