@@ -252,12 +252,6 @@ static void determineBestChoicesInContext(
         scoreCandidateMatch = [&](GenericSignature genericSig,
                                   Type candidateType, Type paramType,
                                   MatchOptions options) -> double {
-      // Dependent members cannot be handled here because
-      // they require substitution of the base type which
-      // could come from a different argument.
-      if (paramType->getAs<DependentMemberType>())
-        return 0;
-
       // Exact match between candidate and parameter types.
       if (candidateType->isEqual(paramType))
         return options.contains(MatchFlag::Literal) ? 0.3 : 1;
@@ -309,25 +303,22 @@ static void determineBestChoicesInContext(
 
       // Check protocol requirement(s) if this parameter is a
       // generic parameter type.
-      GenericSignature::RequiredProtocols protocolRequirements;
-      if (genericSig) {
-        if (auto *GP = paramType->getAs<GenericTypeParamType>()) {
-          protocolRequirements = genericSig->getRequiredProtocols(GP);
-          // It's a generic parameter which might be connected via
-          // same-type constraints to other generic parameters but
-          // we cannot check that here, so let's add a tiny score
-          // just to acknowledge that it could possibly match.
-          if (protocolRequirements.empty()) {
-            return 0.01;
-          }
+      if (genericSig && paramType->isTypeParameter()) {
+        auto protocolRequirements = genericSig->getRequiredProtocols(paramType);
+        // It's a generic parameter or dependent member which might
+        // be connected via ame-type constraints to other generic
+        // parameters or dependent member but we cannot check that here,
+        // so let's add a tiny score just to acknowledge that it could
+        // possibly match.
+        if (protocolRequirements.empty())
+          return 0.01;
 
-          if (llvm::all_of(protocolRequirements, [&](ProtocolDecl *protocol) {
-                return TypeChecker::conformsToProtocol(candidateType, protocol,
-                                                       cs.DC->getParentModule(),
-                                                       /*allowMissing=*/false);
-              }))
-            return 0.7;
-        }
+        if (llvm::all_of(protocolRequirements, [&](ProtocolDecl *protocol) {
+              return TypeChecker::conformsToProtocol(candidateType, protocol,
+                                                     cs.DC->getParentModule(),
+                                                     /*allowMissing=*/false);
+            }))
+          return 0.7;
       }
 
       // Parameter is generic, let's check whether top-level
