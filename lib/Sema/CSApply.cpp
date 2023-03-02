@@ -1600,13 +1600,18 @@ namespace {
         // pass it as an inout qualified type.
         auto selfParamTy = isDynamic ? selfTy : containerTy;
 
-        if (selfTy->isEqual(baseTy))
-          if (cs.getType(base)->is<LValueType>())
-            selfParamTy = InOutType::get(selfTy);
+        if (selfTy->isEqual(baseTy)) {
+          if (auto baseTy = cs.getType(base)->getAs<LValueType>()) {
+            if (baseTy->isMutable())
+              selfParamTy = InOutType::get(selfTy);
+          }
+        }
 
-        base = coerceSelfArgumentToType(
-                 base, selfParamTy, member,
-                 locator.withPathElement(ConstraintLocator::MemberRefBase));
+        if (selfParamTy->is<InOutType>()) {
+          base = coerceSelfArgumentToType(
+              base, selfParamTy, member,
+              locator.withPathElement(ConstraintLocator::MemberRefBase));
+        }
       } else {
         // The base of an unbound reference is unused, and thus a conversion
         // is not necessary.

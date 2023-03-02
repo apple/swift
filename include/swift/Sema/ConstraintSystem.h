@@ -334,6 +334,11 @@ enum TypeVariableOptions {
 
   /// Whether the type variable can be bound to a pack type or not.
   TVO_CanBindToPack = 0x20,
+
+  /// Whether the type variable should be bound to an immutable lvalue or not.
+  ///
+  /// Must be set with TVO_CanBindToLValue.
+  TVO_ShouldBindToImmutableLValue = 0x40,
 };
 
 /// The implementation object for a type variable used within the
@@ -389,6 +394,12 @@ public:
     getTypeVariable()->Bits.TypeVariableType.Options = bits;
     assert(getTypeVariable()->Bits.TypeVariableType.Options == bits
            && "Truncation");
+  }
+
+  /// Whether this type variable should bind to an immutable lvalue if it binds
+  /// to an lvalue.
+  bool shouldBindToImmutableLValue() const {
+    return getRawOptions() & TVO_ShouldBindToImmutableLValue;
   }
 
   /// Whether this type variable can bind to an LValueType.
@@ -644,6 +655,7 @@ private:
   #define ENTRY(Kind, String) case TypeVariableOptions::Kind: return String
     switch (TVO) {
     ENTRY(TVO_CanBindToLValue, "lvalue");
+    ENTRY(TVO_ShouldBindToImmutableLValue, "immutable_lvalue");
     ENTRY(TVO_CanBindToInOut, "inout");
     ENTRY(TVO_CanBindToNoEscape, "noescape");
     ENTRY(TVO_CanBindToHole, "hole");
@@ -4900,11 +4912,11 @@ public:
   /// \param decl The declarations whose type is being computed.
   ///
   /// \returns a description of the type of this declaration reference.
-  DeclReferenceType getTypeOfReference(
-                          ValueDecl *decl,
-                          FunctionRefKind functionRefKind,
-                          ConstraintLocatorBuilder locator,
-                          DeclContext *useDC);
+  DeclReferenceType getTypeOfReference(ValueDecl *decl,
+                                       FunctionRefKind functionRefKind,
+                                       ConstraintLocatorBuilder locator,
+                                       DeclContext *useDC,
+                                       bool accessViaBorrow = false);
 
   /// Return the type-of-reference of the given value.
   ///
@@ -4962,6 +4974,16 @@ public:
       bool isStaticMemberRefOnProtocol, bool isDynamicResult,
       OpenedTypeMap &replacements);
 
+  enum class GetTypeOfMemberReferenceFlags {
+    /// Indicates that this declaration was found via dynamic lookup.
+    isDynamicResult = 0x1,
+
+    /// Indicates that we should produce an immutable lvalue.
+    needsImmutableLValue = 0x2,
+  };
+  using GetTypeOfMemberReferenceOptions =
+      OptionSet<GetTypeOfMemberReferenceFlags>;
+
   /// Retrieve the type of a reference to the given value declaration,
   /// as a member with a base of the given type.
   ///
@@ -4969,16 +4991,11 @@ public:
   /// this routine "opens up" the type by replacing each instance of a generic
   /// parameter with a fresh type variable.
   ///
-  /// \param isDynamicResult Indicates that this declaration was found via
-  /// dynamic lookup.
-  ///
   /// \returns a description of the type of this declaration reference.
   DeclReferenceType getTypeOfMemberReference(
-                          Type baseTy, ValueDecl *decl, DeclContext *useDC,
-                          bool isDynamicResult,
-                          FunctionRefKind functionRefKind,
-                          ConstraintLocator *locator,
-                          OpenedTypeMap *replacements = nullptr);
+      Type baseTy, ValueDecl *decl, DeclContext *useDC,
+      GetTypeOfMemberReferenceOptions options, FunctionRefKind functionRefKind,
+      ConstraintLocator *locator, OpenedTypeMap *replacements = nullptr);
 
   /// Retrieve a list of generic parameter types solver has "opened" (replaced
   /// with a type variable) at the given location.

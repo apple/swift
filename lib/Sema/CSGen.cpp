@@ -860,6 +860,19 @@ namespace {
     /// A stack of pack expansions that can open pack elements.
     llvm::SmallVector<PackExpansionExpr *, 2> PackElementEnvironments;
 
+    /// A stack of expressions being walked, used to determine if a expression
+    /// being type checked is nested within another type.
+    llvm::SmallVector<Expr *, 8> ExprStack;
+
+  public:
+    void walkToExprPre(Expr *expr) { ExprStack.push_back(expr); }
+
+    Expr *walkToExprPost(Expr *expr) {
+      ExprStack.pop_back();
+      return expr;
+    }
+
+  private:
     /// Returns false and emits the specified diagnostic if the member reference
     /// base is a nil literal. Returns true otherwise.
     bool isValidBaseOfMemberRef(Expr *base, Diag<> diagnostic) {
@@ -923,9 +936,13 @@ namespace {
             CS.getConstraintLocator(expr, ConstraintLocator::Member),
             TVO_CanBindToHole);
       }
+      auto options = TVO_CanBindToLValue | TVO_CanBindToNoEscape;
+      if (auto lvalueType = baseTy->getAs<LValueType>()) {
+        if (!lvalueType->isMutable())
+          options |= TVO_ShouldBindToImmutableLValue;
+      }
       auto tv = CS.createTypeVariable(
-                  CS.getConstraintLocator(expr, ConstraintLocator::Member),
-                  TVO_CanBindToLValue | TVO_CanBindToNoEscape);
+          CS.getConstraintLocator(expr, ConstraintLocator::Member), options);
       SmallVector<OverloadChoice, 4> outerChoices;
       for (auto decl : outerAlternatives) {
         outerChoices.push_back(OverloadChoice(Type(), decl, functionRefKind));
@@ -1420,11 +1437,32 @@ namespace {
         return invalidateReference();
       }
 
+      auto options = TVO_CanBindToLValue | TVO_CanBindToNoEscape;
+
+      // Walk up the expr stack and see if we find a chain of paren_expr,
+      // member_ref_expr, ending in a borrow_expr. In such a case, we want an
+      // immutable lvalue.
+      auto stack = llvm::makeArrayRef(ExprStack).drop_back();
+      while (!stack.empty()) {
+        auto *next = stack.back();
+        stack = stack.drop_back();
+        if (isa<MemberRefExpr>(next) || isa<UnresolvedDotExpr>(next))
+          continue;
+        if (isa<BorrowExpr>(next)) {
+          options |= TVO_ShouldBindToImmutableLValue;
+          break;
+        }
+
+        if (next != next->getSemanticsProvidingExpr())
+          continue;
+
+        // Otherwise, break out.
+        break;
+      }
+
       // Create an overload choice referencing this declaration and immediately
       // resolve it. This records the overload for use later.
-      auto tv = CS.createTypeVariable(locator,
-                                      TVO_CanBindToLValue |
-                                      TVO_CanBindToNoEscape);
+      auto tv = CS.createTypeVariable(locator, options);
 
       OverloadChoice choice =
           OverloadChoice(Type(), E->getDecl(), E->getFunctionRefKind());
@@ -4155,6 +4193,7 @@ namespace {
         CG.addPackElementEnvironment(expansion);
       }
 
+      CG.walkToExprPre(expr);
       return Action::Continue(expr);
     }
 
@@ -4192,14 +4231,14 @@ namespace {
             DSE->setImplicit();
             CS.cacheType(DSE);
 
-            return Action::Continue(DSE);
+            return Action::Continue(CG.walkToExprPost(DSE));
           }
         }
       }
       if (auto type = CG.visit(expr)) {
         auto simplifiedType = CS.simplifyType(type);
         CS.setType(expr, simplifiedType);
-        return Action::Continue(expr);
+        return Action::Continue(CG.walkToExprPost(expr));
       }
       return Action::Stop();
     }

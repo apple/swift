@@ -4350,6 +4350,13 @@ ConstraintSystem::matchTypesBindTypeVar(
                : getTypeMatchFailure(locator);
   }
 
+  if (auto *lvalue = type->getAs<LValueType>()) {
+    if (lvalue->isMutable() &&
+        typeVar->getImpl().shouldBindToImmutableLValue()) {
+      type = LValueType::get(lvalue->getObjectType(), /*mutable=*/false);
+    }
+  }
+
   assignFixedType(typeVar, type, /*updateState=*/true,
                   /*notifyInference=*/!flags.contains(TMF_BindingTypeVariable));
 

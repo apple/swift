@@ -7,7 +7,7 @@ func testGlobal() {
 
 func testLet() {
     let t = String()
-    let _ = _borrow t
+    let _ = _borrow t // expected-error {{}}
 }
 
 func testVar() {

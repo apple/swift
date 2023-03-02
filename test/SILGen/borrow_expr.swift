@@ -1,10 +1,22 @@
 // RUN: %target-swift-frontend -enable-experimental-move-only -o - -emit-silgen %s | %FileCheck %s
 
 final class Klass {
+    var k = Klass()
     func useKlass() {}
 
     func doSomething() {}
     func doSomething(_ k: Klass) {}
+
+    var computedK : Klass {
+        return self
+    }
+
+    var computedK2 : Klass {
+        _read {
+            yield k
+        }
+        set {}
+    }
 }
 
 func useKlass(_ k: Klass) {}
@@ -15,7 +27,28 @@ struct Struct {
     func doSomething() {}
     func doSomething(_ k: Klass) {}
 
-    var computedK: Klass { Klass() }
+    var computedK: Klass {
+        Klass()
+    }
+    var computedK2: Klass {
+        get {
+            Klass()
+        }
+        set {}
+    }
+
+    var computedK3: Klass {
+        _read {
+            yield k
+        }
+    }
+
+    var computedK4: Klass {
+        _read {
+            yield k
+        }
+        set {}
+    }
 }
 
 func useStruct(_ s: Struct) {}
@@ -80,6 +113,195 @@ func simpleTestArgField() {
     useKlass(s.k)
     // With borrow.
     useKlass(_borrow s.k)
+}
+
+// CHECK-LABEL: sil hidden [ossa] @$s11borrow_expr27simpleTestArgComputedField1yyF : $@convention(thin) () -> () {
+// CHECK: bb0:
+// CHECK:   [[BOX:%.*]] = alloc_box
+// CHECK:   [[BORROW:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK:   [[PROJECT:%.*]] = project_box [[BORROW]]
+//
+// useKlass((_borrow s).computedK)
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[VALUE:%.*]] = load_borrow [[ACCESS]]
+// CHECK: [[VALUE2:%.*]] = apply {{%.*}}([[VALUE]])
+// CHECK: end_borrow [[VALUE]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: apply {{%.*}}([[VALUE2]])
+// CHECK: destroy_value [[VALUE2]]
+//
+// useKlass(_borrow s.computedK)
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[VALUE:%.*]] = load_borrow [[ACCESS]]
+// CHECK: [[VALUE2:%.*]] = apply {{%.*}}([[VALUE]])
+// CHECK: end_borrow [[VALUE]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: apply {{%.*}}([[VALUE2]])
+// CHECK: destroy_value [[VALUE2]]
+//
+// useKlass(_borrow (_borrow s).computedK2)
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[VALUE:%.*]] = load_borrow [[ACCESS]]
+// CHECK: [[VALUE2:%.*]] = apply {{%.*}}([[VALUE]])
+// CHECK: end_borrow [[VALUE]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: apply {{%.*}}([[VALUE2]])
+// CHECK: destroy_value [[VALUE2]]
+// CHECK: } // end sil function '$s11borrow_expr27simpleTestArgComputedField1yyF'
+func simpleTestArgComputedField1() {
+    var s = Struct()
+    s = Struct()
+
+    // computedK is a get without a setter, so we do need a copy and also do not
+    // nest our calls
+    useKlass((_borrow s).computedK)
+    useKlass(_borrow s.computedK)
+    useKlass(_borrow (_borrow s).computedK)
+}
+
+// CHECK-LABEL: sil hidden [ossa] @$s11borrow_expr27simpleTestArgComputedField2yyF : $@convention(thin) () -> () {
+// CHECK:   [[BOX:%.*]] = alloc_box
+// CHECK:   [[BORROW:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK:   [[PROJECT:%.*]] = project_box [[BORROW]]
+//
+// computedK2 is a get with a setter, so we do need a copy but can nest our
+// calls
+//
+// useKlass((_borrow s).computedK2)
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[VALUE:%.*]] = load_borrow [[ACCESS]]
+// CHECK: [[VALUE2:%.*]] = apply {{%.*}}([[VALUE]])
+// CHECK: end_borrow [[VALUE]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: apply {{%.*}}([[VALUE2]])
+// CHECK: destroy_value [[VALUE2]]
+//
+// useKlass(_borrow s.computedK2)
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[VALUE:%.*]] = load_borrow [[ACCESS]]
+// CHECK: [[VALUE2:%.*]] = apply {{%.*}}([[VALUE]])
+// CHECK: end_borrow [[VALUE]]
+// CHECK: [[BORROW_VALUE2:%.*]] = begin_borrow [[VALUE2]]
+// CHECK: apply {{%.*}}([[BORROW_VALUE2]])
+// CHECK: end_borrow [[BORROW_VALUE2]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: destroy_value [[VALUE2]]
+//
+// useKlass(_borrow (_borrow s).computedK2)
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[VALUE:%.*]] = load_borrow [[ACCESS]]
+// CHECK: [[VALUE2:%.*]] = apply {{%.*}}([[VALUE]])
+// CHECK: end_borrow [[VALUE]]
+// CHECK: [[BORROW_VALUE2:%.*]] = begin_borrow [[VALUE2]]
+// CHECK: apply {{%.*}}([[BORROW_VALUE2]])
+// CHECK: end_borrow [[BORROW_VALUE2]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: destroy_value [[VALUE2]]
+//
+// CHECK: } // end sil function '$s11borrow_expr27simpleTestArgComputedField2yyF'
+func simpleTestArgComputedField2() {
+    var s = Struct()
+    s = Struct()
+
+    // Since computedK2 is a _read, we can avoid any intermediate owned value.
+    useKlass((_borrow s).computedK2)
+    useKlass(_borrow s.computedK2)
+    useKlass(_borrow (_borrow s).computedK2)
+}
+
+// CHECK-LABEL: sil hidden [ossa] @$s11borrow_expr27simpleTestArgComputedField3yyF : $@convention(thin) () -> () {
+// CHECK: bb0:
+// CHECK:   [[BOX:%.*]] = alloc_box
+// CHECK:   [[BORROW:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK:   [[PROJECT:%.*]] = project_box [[BORROW]]
+//
+// useKlass((_borrow s).computedK3)
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[VALUE:%.*]] = load_borrow [[ACCESS]]
+// CHECK: ([[VALUE2:%.*]], [[TOKEN:%.*]]) = begin_apply {{%.*}}([[VALUE]])
+// CHECK: [[COPY_VALUE2:%.*]] = copy_value [[VALUE2]]
+// CHECK: end_apply [[TOKEN]]
+// CHECK: end_borrow [[VALUE]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: apply {{%.*}}([[COPY_VALUE2]])
+// CHECK: destroy_value [[COPY_VALUE2]]
+//
+// useKlass(_borrow s.computedK3)
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[VALUE:%.*]] = load_borrow [[ACCESS]]
+// CHECK: ([[VALUE2:%.*]], [[TOKEN:%.*]]) = begin_apply {{%.*}}([[VALUE]])
+// CHECK: [[COPY_VALUE2:%.*]] = copy_value [[VALUE2]]
+// CHECK: end_apply [[TOKEN]]
+// CHECK: end_borrow [[VALUE]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: apply {{%.*}}([[COPY_VALUE2]])
+// CHECK: destroy_value [[COPY_VALUE2]]
+//
+// useKlass(_borrow (_borrow s).computedK3)
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[VALUE:%.*]] = load_borrow [[ACCESS]]
+// CHECK: ([[VALUE2:%.*]], [[TOKEN:%.*]]) = begin_apply {{%.*}}([[VALUE]])
+// CHECK: [[COPY_VALUE2:%.*]] = copy_value [[VALUE2]]
+// CHECK: end_apply [[TOKEN]]
+// CHECK: end_borrow [[VALUE]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: apply {{%.*}}([[COPY_VALUE2]])
+// CHECK: destroy_value [[COPY_VALUE2]]
+// CHECK: } // end sil function '$s11borrow_expr27simpleTestArgComputedField3yyF'
+func simpleTestArgComputedField3() {
+    var s = Struct()
+    s = Struct()
+
+    useKlass((_borrow s).computedK3)
+    useKlass(_borrow s.computedK3)
+    useKlass(_borrow (_borrow s).computedK3)
+}
+
+// CHECK-LABEL: sil hidden [ossa] @$s11borrow_expr27simpleTestArgComputedField4yyF : $@convention(thin) () -> () {
+// CHECK:   [[BOX:%.*]] = alloc_box
+// CHECK:   [[BORROW:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK:   [[PROJECT:%.*]] = project_box [[BORROW]]
+//
+// computedK2 is a get with a setter, so we do need a copy but can nest our
+// calls
+//
+// useKlass((_borrow s).computedK4)
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[VALUE:%.*]] = load_borrow [[ACCESS]]
+// CHECK: ([[VALUE2:%.*]], [[TOKEN:%.*]]) = begin_apply {{%.*}}([[VALUE]])
+// CHECK: [[COPY_VALUE2:%.*]] = copy_value [[VALUE2]]
+// CHECK: end_apply [[TOKEN]]
+// CHECK: end_borrow [[VALUE]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: apply {{%.*}}([[COPY_VALUE2]])
+// CHECK: destroy_value [[COPY_VALUE2]]
+//
+// useKlass(_borrow s.computedK4)
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[VALUE:%.*]] = load_borrow [[ACCESS]]
+// CHECK: ([[VALUE2:%.*]], [[TOKEN:%.*]]) = begin_apply {{%.*}}([[VALUE]])
+// CHECK: apply {{%.*}}([[VALUE2]])
+// CHECK: end_apply [[TOKEN]]
+// CHECK: end_borrow [[VALUE]]
+// CHECK: end_access [[ACCESS]]
+//
+// useKlass(_borrow (_borrow s).computedK4)
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[VALUE:%.*]] = load_borrow [[ACCESS]]
+// CHECK: ([[VALUE2:%.*]], [[TOKEN:%.*]]) = begin_apply {{%.*}}([[VALUE]])
+// CHECK: apply {{%.*}}([[VALUE2]])
+// CHECK: end_apply [[TOKEN]]
+// CHECK: end_borrow [[VALUE]]
+// CHECK: end_access [[ACCESS]]
+//
+// CHECK: } // end sil function '$s11borrow_expr27simpleTestArgComputedField4yyF'
+func simpleTestArgComputedField4() {
+    var s = Struct()
+    s = Struct()
+
+    useKlass((_borrow s).computedK4)
+    useKlass(_borrow s.computedK4)
+    useKlass(_borrow (_borrow s).computedK4)
 }
 
 // CHECK-LABEL: sil hidden [ossa] @$s11borrow_expr14simpleTestSelfyyF : $@convention(thin) () -> () {

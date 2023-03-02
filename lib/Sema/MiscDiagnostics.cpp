@@ -455,11 +455,23 @@ static void diagSyntacticUseRestrictions(const Expr *E, const DeclContext *DC,
 
       // Allow for a chain of member_ref exprs that end in a decl_ref expr.
       auto *subExpr = borrowExpr->getSubExpr();
-      while (auto *memberRef = dyn_cast<MemberRefExpr>(subExpr))
-        subExpr = memberRef->getBase();
-      if (!isa<DeclRefExpr>(subExpr)) {
+      while (true) {
+        if (auto *memberRef = dyn_cast<MemberRefExpr>(subExpr)) {
+          subExpr = memberRef->getBase();
+          continue;
+        }
+
+        auto *semanticsExpr = subExpr->getSemanticsProvidingExpr();
+        if (semanticsExpr != subExpr) {
+          subExpr = semanticsExpr;
+          continue;
+        }
+        break;
+      }
+      auto *declRefExpr = dyn_cast<DeclRefExpr>(subExpr);
+      if (!declRefExpr || !declRefExpr->getType()->hasLValueType()) {
         Ctx.Diags.diagnose(borrowExpr->getLoc(),
-                           diag::borrow_expression_not_passed_lvalue);
+                           diag::borrow_expression_not_passed_var);
       }
     }
 

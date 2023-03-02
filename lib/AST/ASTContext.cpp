@@ -430,7 +430,7 @@ struct ASTContext::Implementation {
     llvm::DenseMap<Type, OptionalType*> OptionalTypes;
     llvm::DenseMap<Type, ParenType*> ParenTypes;
     llvm::DenseMap<uintptr_t, ReferenceStorageType*> ReferenceStorageTypes;
-    llvm::DenseMap<Type, LValueType*> LValueTypes;
+    llvm::DenseMap<std::pair<Type, void *>, LValueType *> LValueTypes;
     llvm::DenseMap<Type, InOutType*> InOutTypes;
     llvm::DenseMap<std::pair<Type, void*>, DependentMemberType *>
       DependentMemberTypes;
@@ -4716,21 +4716,22 @@ BuiltinTupleType::BuiltinTupleType(BuiltinTupleDecl *TheDecl,
   : NominalType(TypeKind::BuiltinTuple, &Ctx, TheDecl, Type(),
                 RecursiveTypeProperties()) { }
 
-LValueType *LValueType::get(Type objectTy) {
+LValueType *LValueType::get(Type objectTy, bool isMutable) {
   assert(!objectTy->is<LValueType>() && !objectTy->is<InOutType>() &&
          "cannot have 'inout' or @lvalue wrapped inside an @lvalue");
 
-  auto properties = objectTy->getRecursiveProperties()
-                    | RecursiveTypeProperties::IsLValue;
+  auto properties =
+      objectTy->getRecursiveProperties() | RecursiveTypeProperties::IsLValue;
   auto arena = getArena(properties);
 
   auto &C = objectTy->getASTContext();
-  auto &entry = C.getImpl().getArena(arena).LValueTypes[objectTy];
+  auto &entry =
+      C.getImpl().getArena(arena).LValueTypes[{objectTy, (void *)isMutable}];
   if (entry)
     return entry;
 
   const ASTContext *canonicalContext = objectTy->isCanonical() ? &C : nullptr;
-  return entry = new (C, arena) LValueType(objectTy, canonicalContext,
+  return entry = new (C, arena) LValueType(objectTy, isMutable, canonicalContext,
                                            properties);
 }
 

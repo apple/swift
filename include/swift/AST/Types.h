@@ -122,6 +122,7 @@ public:
   /// Note that the property polarities should be chosen so that 0 is
   /// the correct default value and bitwise-or correctly merges things.
   enum Property : unsigned {
+    // clang-format off
     /// This type expression contains a TypeVariableType.
     HasTypeVariable      = 0x01,
 
@@ -171,7 +172,8 @@ public:
     /// This type contains an ElementArchetype.
     HasElementArchetype = 0x4000,
 
-    Last_Property = HasElementArchetype
+    Last_Property = HasElementArchetype,
+    // clang-format on
   };
   enum { BitWidth = countBitsUsed(Property::Last_Property) };
 
@@ -278,9 +280,7 @@ public:
   }
 
   /// Test for a particular property in this set.
-  bool operator&(Property prop) const {
-    return Bits & prop;
-  }
+  bool operator&(Property prop) const { return Bits & prop; }
 };
 
 inline RecursiveTypeProperties operator~(RecursiveTypeProperties::Property P) {
@@ -358,6 +358,10 @@ protected:
   enum { NumSILExtInfoBits = 11 };
   union { uint64_t OpaqueBits;
 
+  // Turn off clang-format over all of our inline bitfield declarations.
+  //
+  // clang-format off
+
   SWIFT_INLINE_BITFIELD_BASE(TypeBase, bitmax(NumTypeKindBits,8) +
                              RecursiveTypeProperties::BitWidth + 1,
     /// Kind - The discriminator that indicates what subclass of type this is.
@@ -398,12 +402,12 @@ protected:
     NumProtocols : 16
   );
 
-  SWIFT_INLINE_BITFIELD_FULL(TypeVariableType, TypeBase, 6+32,
+  SWIFT_INLINE_BITFIELD_FULL(TypeVariableType, TypeBase, 7+31,
     /// Type variable options.
-    Options : 6,
+    Options : 7,
     : NumPadBits,
     /// The unique number assigned to this type variable.
-    ID : 32
+    ID : 31
   );
 
   SWIFT_INLINE_BITFIELD(SILFunctionType, TypeBase, NumSILExtInfoBits+1+4+1+2+1+1,
@@ -482,6 +486,7 @@ protected:
   );
 
   } Bits;
+  // clang-format on
 
 protected:
   TypeBase(TypeKind kind, const ASTContext *CanTypeCtx,
@@ -5761,16 +5766,20 @@ END_CAN_TYPE_WRAPPER(BuiltinTupleType, NominalType)
 /// to their object type.
 class LValueType : public TypeBase {
   Type ObjectTy;
+  bool IsMutable;
 
-  LValueType(Type objectTy, const ASTContext *canonicalContext,
+  LValueType(Type objectTy, bool isMutable,
+             const ASTContext *canonicalContext,
              RecursiveTypeProperties properties)
     : TypeBase(TypeKind::LValue, canonicalContext, properties),
-      ObjectTy(objectTy) {}
+      ObjectTy(objectTy), IsMutable(isMutable) {}
 
 public:
-  static LValueType *get(Type type);
+  static LValueType *get(Type type, bool isMutable = true);
 
   Type getObjectType() const { return ObjectTy; }
+
+  bool isMutable() const { return IsMutable; }
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const TypeBase *type) {
@@ -5779,11 +5788,11 @@ public:
 };
 BEGIN_CAN_TYPE_WRAPPER(LValueType, Type)
   PROXY_CAN_TYPE_SIMPLE_GETTER(getObjectType)
-  static CanLValueType get(CanType type) {
-    return CanLValueType(LValueType::get(type));
+  static CanLValueType get(CanType type, bool isMutable) {
+    return CanLValueType(LValueType::get(type, isMutable));
   }
 END_CAN_TYPE_WRAPPER(LValueType, Type)
-  
+
 /// InOutType - An inout qualified type is an argument to a function passed
 /// with an explicit "Address of" operator.  It is read in and then written back
 /// to after the callee function is done.  This also models the receiver of
