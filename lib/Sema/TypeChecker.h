@@ -141,6 +141,9 @@ enum class TypeCheckExprFlags {
 
   /// Don't expand macros.
   DisableMacroExpansions = 0x10,
+
+  /// Is this a local inout binding.
+  IsLocalInOutBinding = 0x20,
 };
 
 using TypeCheckExprOptions = OptionSet<TypeCheckExprFlags>;

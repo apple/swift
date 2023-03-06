@@ -5860,23 +5860,26 @@ private:
                              = FreeTypeVariableBinding::Disallow);
 
 public:
+  enum class PreCheckFlags : uint8_t {
+    /// Indicates whether it's allowed to replace any discovered invalid member
+    /// references with `ErrorExpr`.
+    ReplaceInvalidRefsWithErrors = 0x1,
+
+    LeaveClosureBodiesUnchecked = 0x2,
+
+    CheckingLocalInOutBinding = 0x4,
+  };
+  using PreCheckOptions = OptionSet<PreCheckFlags>;
+
   /// Pre-check the target, validating any types that occur in it
   /// and folding sequence expressions.
-  ///
-  /// \param replaceInvalidRefsWithErrors Indicates whether it's allowed
-  /// to replace any discovered invalid member references with `ErrorExpr`.
   static bool preCheckTarget(SolutionApplicationTarget &target,
-                             bool replaceInvalidRefsWithErrors,
-                             bool leaveClosureBodiesUnchecked);
+                             PreCheckOptions options);
 
   /// Pre-check the expression, validating any types that occur in the
   /// expression and folding sequence expressions.
-  ///
-  /// \param replaceInvalidRefsWithErrors Indicates whether it's allowed
-  /// to replace any discovered invalid member references with `ErrorExpr`.
   static bool preCheckExpression(Expr *&expr, DeclContext *dc,
-                                 bool replaceInvalidRefsWithErrors,
-                                 bool leaveClosureBodiesUnchecked);
+                                 PreCheckOptions options);
 
   /// Solve the system of constraints generated from provided target.
   ///

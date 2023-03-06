@@ -601,10 +601,13 @@ bool TypeChecker::typeCheckForCodeCompletion(
   if (needsPrecheck) {
     // First, pre-check the expression, validating any types that occur in the
     // expression and folding sequence expressions.
+    auto preCheckOptions = ConstraintSystem::PreCheckOptions();
+    preCheckOptions |=
+        ConstraintSystem::PreCheckFlags::ReplaceInvalidRefsWithErrors;
+    preCheckOptions |=
+        ConstraintSystem::PreCheckFlags::LeaveClosureBodiesUnchecked;
     auto failedPreCheck =
-        ConstraintSystem::preCheckTarget(target,
-                                         /*replaceInvalidRefsWithErrors=*/true,
-                                         /*leaveClosureBodiesUnchecked=*/true);
+        ConstraintSystem::preCheckTarget(target, preCheckOptions);
 
     if (failedPreCheck)
       return false;
@@ -679,10 +682,13 @@ static Optional<Type> getTypeOfCompletionContextExpr(
                         CompletionTypeCheckKind kind,
                         Expr *&parsedExpr,
                         ConcreteDeclRef &referencedDecl) {
-  if (constraints::ConstraintSystem::preCheckExpression(
-          parsedExpr, DC,
-          /*replaceInvalidRefsWithErrors=*/true,
-          /*leaveClosureBodiesUnchecked=*/true))
+  auto preCheckOptions = ConstraintSystem::PreCheckOptions();
+  preCheckOptions |=
+      ConstraintSystem::PreCheckFlags::ReplaceInvalidRefsWithErrors;
+  preCheckOptions |=
+      ConstraintSystem::PreCheckFlags::LeaveClosureBodiesUnchecked;
+  if (constraints::ConstraintSystem::preCheckExpression(parsedExpr, DC,
+                                                        preCheckOptions))
     return None;
 
   switch (kind) {

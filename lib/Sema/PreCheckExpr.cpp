@@ -907,11 +907,7 @@ namespace {
 
     Expr *ParentExpr;
 
-    /// Indicates whether pre-check is allowed to insert
-    /// implicit `ErrorExpr` in place of invalid references.
-    bool UseErrorExprs;
-
-    bool LeaveClosureBodiesUnchecked;
+    ConstraintSystem::PreCheckOptions Options;
 
     /// A stack of expressions being walked, used to determine where to
     /// insert RebindSelfInConstructorExpr nodes.
@@ -981,11 +977,9 @@ namespace {
 
   public:
     PreCheckExpression(DeclContext *dc, Expr *parent,
-                       bool replaceInvalidRefsWithErrors,
-                       bool leaveClosureBodiesUnchecked)
-        : Ctx(dc->getASTContext()), DC(dc),
-          ParentExpr(parent), UseErrorExprs(replaceInvalidRefsWithErrors),
-          LeaveClosureBodiesUnchecked(leaveClosureBodiesUnchecked) {}
+                       ConstraintSystem::PreCheckOptions options)
+        : Ctx(dc->getASTContext()), DC(dc), ParentExpr(parent),
+          Options(options) {}
 
     ASTContext &getASTContext() const { return Ctx; }
 
@@ -999,7 +993,7 @@ namespace {
 
     VarDecl *getImplicitSelfDeclForSuperContext(SourceLoc Loc) ;
 
-    PreWalkResult<Expr *> walkToExprPre(Expr *expr) override {
+    PreWalkResult<Expr *> walkToExprPre(Expr *expr) override __attribute__((optnone)) {
       // FIXME(diagnostics): `InOutType` could appear here as a result
       // of successful re-typecheck of the one of the sub-expressions e.g.
       // `let _: Int = { (s: inout S) in s.bar() }`. On the first
@@ -1066,8 +1060,11 @@ namespace {
       if (auto unresolved = dyn_cast<UnresolvedDeclRefExpr>(expr)) {
         TypeChecker::checkForForbiddenPrefix(
             getASTContext(), unresolved->getName().getBaseName());
-        return finish(true, TypeChecker::resolveDeclRefExpr(unresolved, DC,
-                                                            UseErrorExprs));
+        return finish(true,
+                      TypeChecker::resolveDeclRefExpr(
+                          unresolved, DC,
+                          Options.contains(ConstraintSystem::PreCheckFlags::
+                                               ReplaceInvalidRefsWithErrors)));
       }
 
       // Let's try to figure out if `InOutExpr` is out of place early
@@ -1121,6 +1118,12 @@ namespace {
                 diag::cannot_pass_inout_arg_to_subscript);
             return finish(false, nullptr);
           }
+        }
+
+        // If we are checking an inout binding, let it through.
+        if (Options.contains(
+                ConstraintSystem::PreCheckFlags::CheckingLocalInOutBinding)) {
+          return finish(true, expr);
         }
 
         getASTContext().Diags.diagnose(expr->getStartLoc(),
@@ -1368,7 +1371,8 @@ bool PreCheckExpression::walkToClosureExprPre(ClosureExpr *closure) {
 
   // If we won't be checking the body of the closure, don't walk into it here.
   if (!closure->hasSingleExpressionBody()) {
-    if (LeaveClosureBodiesUnchecked)
+    if (Options.contains(
+            ConstraintSystem::PreCheckFlags::LeaveClosureBodiesUnchecked))
       return false;
   }
 
@@ -2260,15 +2264,13 @@ Expr *PreCheckExpression::simplifyTypeConstructionWithLiteralArg(Expr *E) {
 }
 
 bool ConstraintSystem::preCheckTarget(SolutionApplicationTarget &target,
-                                      bool replaceInvalidRefsWithErrors,
-                                      bool leaveClosureBodiesUnchecked) {
+                                      PreCheckOptions options) {
   auto *DC = target.getDeclContext();
 
   bool hadErrors = false;
 
   if (auto *expr = target.getAsExpr()) {
-    hadErrors |= preCheckExpression(expr, DC, replaceInvalidRefsWithErrors,
-                                    leaveClosureBodiesUnchecked);
+    hadErrors |= preCheckExpression(expr, DC, options);
     // Even if the pre-check fails, expression still has to be re-set.
     target.setExpr(expr);
   }
@@ -2279,14 +2281,13 @@ bool ConstraintSystem::preCheckTarget(SolutionApplicationTarget &target,
     auto *sequenceExpr = stmt->getParsedSequence();
     auto *whereExpr = stmt->getWhere();
 
-    hadErrors |= preCheckExpression(sequenceExpr, DC,
-                                    /*replaceInvalidRefsWithErrors=*/true,
-                                    /*leaveClosureBodiesUnchecked=*/false);
+    auto preCheckOptions = ConstraintSystem::PreCheckOptions();
+    preCheckOptions |=
+        ConstraintSystem::PreCheckFlags::LeaveClosureBodiesUnchecked;
+    hadErrors |= preCheckExpression(sequenceExpr, DC, preCheckOptions);
 
     if (whereExpr) {
-      hadErrors |= preCheckExpression(whereExpr, DC,
-                                      /*replaceInvalidRefsWithErrors=*/true,
-                                      /*leaveClosureBodiesUnchecked=*/false);
+      hadErrors |= preCheckExpression(whereExpr, DC, preCheckOptions);
     }
 
     // Update sequence and where expressions to pre-checked versions.
@@ -2304,14 +2305,11 @@ bool ConstraintSystem::preCheckTarget(SolutionApplicationTarget &target,
 /// Pre-check the expression, validating any types that occur in the
 /// expression and folding sequence expressions.
 bool ConstraintSystem::preCheckExpression(Expr *&expr, DeclContext *dc,
-                                          bool replaceInvalidRefsWithErrors,
-                                          bool leaveClosureBodiesUnchecked) {
+                                          PreCheckOptions options) {
   auto &ctx = dc->getASTContext();
   FrontendStatsTracer StatsTracer(ctx.Stats, "precheck-expr", expr);
 
-  PreCheckExpression preCheck(dc, expr,
-                              replaceInvalidRefsWithErrors,
-                              leaveClosureBodiesUnchecked);
+  PreCheckExpression preCheck(dc, expr, options);
 
   // Perform the pre-check.
   if (auto result = expr->walk(preCheck)) {

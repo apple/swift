@@ -873,7 +873,7 @@ llvm::DenseMap<Expr *, Expr *> Expr::getParentMap() {
     explicit RecordingTraversal(llvm::DenseMap<Expr *, Expr *> &parentMap)
       : ParentMap(parentMap) { }
 
-    PreWalkResult<Expr *> walkToExprPre(Expr *E) override {
+    PreWalkResult<Expr *> walkToExprPre(Expr *E) override __attribute__((optnone)) {
       if (auto parent = Parent.getAsExpr())
         ParentMap[E] = parent;
 

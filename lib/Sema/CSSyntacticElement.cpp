@@ -698,9 +698,10 @@ private:
           index,
           /*bindPatternVarsOneWay=*/false);
 
-      if (ConstraintSystem::preCheckTarget(
-              target, /*replaceInvalidRefsWithErrors=*/true,
-              /*LeaveCLosureBodyUnchecked=*/false))
+      auto preCheckOptions = ConstraintSystem::PreCheckOptions();
+      preCheckOptions |=
+          ConstraintSystem::PreCheckFlags::ReplaceInvalidRefsWithErrors;
+      if (ConstraintSystem::preCheckTarget(target, preCheckOptions))
         return None;
 
       return target;

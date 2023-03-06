@@ -2392,7 +2392,7 @@ namespace {
        Type externalPatternType,
        bool bindPatternVarsOneWay,
        PatternBindingDecl *patternBinding = nullptr,
-       unsigned patternBindingIndex = 0) {
+       unsigned patternBindingIndex = 0) __attribute__((optnone)) {
       // If there's no pattern, then we have an unknown subpattern. Create a
       // type variable.
       if (!pattern) {
@@ -2489,29 +2489,44 @@ namespace {
           ROK = OA->get();
         auto optionality = optionalityOf(ROK);
 
-        // If we have a type from an initializer expression, and that
-        // expression does not produce an InOut type, use it.  This
-        // will avoid exponential typecheck behavior in the case of
-        // tuples, nested arrays, and dictionary literals.
+        // If we have a type from an initializer expression and we do not have
+        // an inout binding, and that expression does not produce an InOut type,
+        // use it. If we have an inout binding, we use that type as well. This
+        // will avoid exponential typecheck behavior in the case of tuples,
+        // nested arrays, and dictionary literals.
         //
         // FIXME: This should be handled in the solver, not here.
         //
         // Otherwise, create a new type variable.
+        bool isInOutDecl = false;
         if (var->getParentPatternBinding() &&
             !var->hasAttachedPropertyWrapper() &&
             optionality != ReferenceOwnershipOptionality::Required) {
           if (auto boundExpr = locator.trySimplifyToExpr()) {
             if (!boundExpr->isSemanticallyInOutExpr()) {
               varType = CS.getType(boundExpr)->getRValueType();
+            } else if (auto *singleVar = pattern->getSingleVar()) {
+              if (singleVar->getIntroducer() == VarDecl::Introducer::InOut) {
+                varType = CS.getType(boundExpr);
+                auto inout = varType->castTo<InOutType>();
+                varType = LValueType::get(inout->getInOutObjectType());
+                varType->dump();
+                isInOutDecl = true;
+                CS.setType(var, varType);
+                return varType;
+              }
             }
           }
         }
 
         if (!varType) {
+          auto options = TVO_CanBindToNoEscape | TVO_CanBindToHole;
+          if (isInOutDecl)
+            options |= TVO_CanBindToLValue;
           varType = CS.createTypeVariable(
               CS.getConstraintLocator(pattern,
                                       LocatorPathElt::NamedPatternDecl()),
-              TVO_CanBindToNoEscape | TVO_CanBindToHole);
+              options);
 
           // If this is either a `weak` declaration or capture e.g.
           // `weak var ...` or `[weak self]`. Let's wrap type variable
@@ -2551,6 +2566,8 @@ namespace {
         // constraint system.
         if (oneWayVarType) {
           CS.setType(var, oneWayVarType);
+        } else if (isInOutDecl) {
+          CS.setType(var, varType);
         } else if (externalPatternType) {
           // If there is an externally imposed type, that's what the
           // declaration is going to be bound to.

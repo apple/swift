@@ -2747,9 +2747,10 @@ public:
       // Suppress any diagnostics which could be produced by this expression.
       DiagnosticTransaction transaction(diagEngine);
 
-      HasError |= ConstraintSystem::preCheckExpression(
-          E, DC, /*replaceInvalidRefsWithErrors=*/true,
-          /*leaveClosureBodiesUnchecked=*/false);
+      auto preCheckOptions = ConstraintSystem::PreCheckOptions();
+      preCheckOptions |=
+          ConstraintSystem::PreCheckFlags::ReplaceInvalidRefsWithErrors;
+      HasError |= ConstraintSystem::preCheckExpression(E, DC, preCheckOptions);
 
       HasError |= transaction.hasErrors();
 
