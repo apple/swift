@@ -1667,7 +1667,7 @@ static void swift_task_performOnExecutorImpl(void *context,
   // we can just immediately continue running with the resume function
   // we were passed in.
   //
-  // Note that swift_task_isCurrentExecutor() return true for @MainActor
+  // Note that swift_task_isCurrentExecutor() returns true for @MainActor
   // when running on the main thread without any executor
   if (swift_task_isCurrentExecutor(newExecutor)) {
     return work(context); // 'return' forces tail call

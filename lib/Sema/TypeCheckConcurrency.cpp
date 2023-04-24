@@ -118,7 +118,8 @@ bool swift::usesFlowSensitiveIsolation(AbstractFunctionDecl const *fn) {
   if (!fn)
     return false;
 
-  // Only designated constructors use this kind of isolation.
+  // Only designated constructors or nonisolated destructors use this kind of
+  // isolation.
   if (auto const* ctor = dyn_cast<ConstructorDecl>(fn)) {
     if (!ctor->isDesignatedInit())
       return false;
@@ -4506,7 +4507,7 @@ static OverrideIsolationResult validOverrideIsolation(
 
   // Normally we are checking if overriding declaration can be called by calling
   // overriden declaration. But in case of destructors, overriden declaration is
-  // always callable by definition and we are checking that subclas deinit can
+  // always callable by definition and we are checking that subclass deinit can
   // call super deinit.
   bool isDtor = isa<DestructorDecl>(value);
 
@@ -4640,7 +4641,7 @@ ActorIsolation ActorIsolationRequest::evaluate(
       }
 
       if (hasIsolatedSelf && isolation.isUnspecified()) {
-        // Don't use 'unspecified' for actors, use 'nonisolated' instead
+        // Don't use 'unspecified' for actors, use 'nonisolated' instead.
         // To force generation of the 'nonisolated' attribute in SIL and
         // .swiftmodule
         isolation = ActorIsolation::forNonisolated(false);
@@ -4658,7 +4659,7 @@ ActorIsolation ActorIsolationRequest::evaluate(
     assert(actor && "could not find the actor that 'self' is isolated to");
 
     // Bootstrapping hack: force _Concurrency.MainActor.deinit() to be
-    // non-isolated even when importing from SDK's swiftmodule without
+    // non-isolated even when importing from host SDK's swiftmodule without
     // `nonisolated` attribute.
     if (isa<DestructorDecl>(value) && actor->getName().is("MainActor") &&
         actor->getDeclContext()->isModuleScopeContext() &&

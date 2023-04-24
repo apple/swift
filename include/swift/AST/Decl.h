@@ -8425,7 +8425,7 @@ public:
   /// Retrieve the Objective-C selector for destructors.
   ObjCSelector getObjCSelector() const;
 
-  /// Retrives destructor decl from the superclass, or nil if there is no
+  /// Retrieves destructor decl from the superclass, or nil if there is no
   /// superclass
   DestructorDecl *getSuperDeinit() const;
 

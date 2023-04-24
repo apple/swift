@@ -284,9 +284,9 @@ bool Lowering::needsIsolatingDestructor(DestructorDecl *dd) {
     firstIsolated = next;
   }
 
-  // If isolation was intoduced in ObjC code, then we assume that ObjC code also
-  // overrides retain/release to make sure that dealloc is called on the correct
-  // executor in the first place.
+  // If isolation was introduced in ObjC code, then we assume that ObjC code
+  // also overrides retain/release to make sure that dealloc is called on the
+  // correct executor in the first place.
   return firstIsolated->getClangNode().isNull();
 }
 
