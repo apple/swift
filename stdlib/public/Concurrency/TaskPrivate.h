@@ -1197,20 +1197,19 @@ inline void AsyncTask::flagAsDestroyed() {
 
 // ==== Task Local Values -----------------------------------------------------
 
-inline void AsyncTask::localValuePush(const HeapObject *key,
+inline void AsyncTask::localPushValue(const HeapObject *key,
                                       /* +1 */ OpaqueValue *value,
                                       const Metadata *valueType) {
   _private().Local.pushValue(this, key, value, valueType);
 }
 
-inline OpaqueValue *AsyncTask::localValueGet(const HeapObject *key) {
+inline void AsyncTask::localPushStop() { _private().Local.pushStop(this); }
+
+inline OpaqueValue *AsyncTask::localGetValue(const HeapObject *key) {
   return _private().Local.getValue(this, key);
 }
 
-/// Returns true if storage has still more bindings.
-inline bool AsyncTask::localValuePop() {
-  return _private().Local.popValue(this);
-}
+inline void AsyncTask::localPop() { _private().Local.pop(this); }
 
 } // end namespace swift
 

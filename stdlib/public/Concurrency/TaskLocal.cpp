@@ -56,6 +56,17 @@ class FallbackTaskLocalStorage {
 public:
   static void set(TaskLocal::Storage *task) { Value.set(task); }
   static TaskLocal::Storage *get() { return Value.get(); }
+
+  static TaskLocal::Storage *getOrCreate() {
+    if (auto storage = FallbackTaskLocalStorage::get()) {
+      return storage;
+    }
+    void *allocation = malloc(sizeof(TaskLocal::Storage));
+    auto *freshStorage = new (allocation) TaskLocal::Storage();
+
+    FallbackTaskLocalStorage::set(freshStorage);
+    return freshStorage;
+  }
 };
 
 /// Define the thread-locals.
@@ -70,22 +81,12 @@ static void swift_task_localValuePushImpl(const HeapObject *key,
                                               /* +1 */ OpaqueValue *value,
                                               const Metadata *valueType) {
   if (AsyncTask *task = swift_task_getCurrent()) {
-    task->localValuePush(key, value, valueType);
+    task->localPushValue(key, value, valueType);
     return;
   }
 
   // no AsyncTask available so we must check the fallback
-  TaskLocal::Storage *Local = nullptr;
-  if (auto storage = FallbackTaskLocalStorage::get()) {
-    Local = storage;
-  } else {
-    void *allocation = malloc(sizeof(TaskLocal::Storage));
-    auto *freshStorage = new(allocation) TaskLocal::Storage();
-
-    FallbackTaskLocalStorage::set(freshStorage);
-    Local = freshStorage;
-  }
-
+  TaskLocal::Storage *Local = FallbackTaskLocalStorage::getOrCreate();
   Local->pushValue(/*task=*/nullptr, key, value, valueType);
 }
 
@@ -93,7 +94,7 @@ SWIFT_CC(swift)
 static OpaqueValue* swift_task_localValueGetImpl(const HeapObject *key) {
   if (AsyncTask *task = swift_task_getCurrent()) {
     // we're in the context of a task and can use the task's storage
-    return task->localValueGet(key);
+    return task->localGetValue(key);
   }
 
   // no AsyncTask available so we must check the fallback
@@ -108,12 +109,12 @@ static OpaqueValue* swift_task_localValueGetImpl(const HeapObject *key) {
 SWIFT_CC(swift)
 static void swift_task_localValuePopImpl() {
   if (AsyncTask *task = swift_task_getCurrent()) {
-    task->localValuePop();
+    task->localPop();
     return;
   }
 
   if (TaskLocal::Storage *Local = FallbackTaskLocalStorage::get()) {
-    bool hasRemainingBindings = Local->popValue(nullptr);
+    bool hasRemainingBindings = Local->pop(nullptr);
     if (!hasRemainingBindings) {
       // We clean up eagerly, it may be that this non-swift-concurrency thread
       // never again will use task-locals, and as such we better remove the storage.
@@ -124,6 +125,35 @@ static void swift_task_localValuePopImpl() {
   }
 
   assert(false && "Attempted to pop value but no task or thread-local storage available!");
+}
+
+SWIFT_CC(swift)
+static bool swift_task_localStopPushImpl() {
+  if (AsyncTask *task = swift_task_getCurrent()) {
+    task->localPushStop();
+    return true;
+  }
+
+  // no AsyncTask available so we must check the fallback
+  if (TaskLocal::Storage *Local = FallbackTaskLocalStorage::get()) {
+    Local->pushStop(/*task=*/nullptr);
+    return true;
+  }
+
+  // We are outside of the task, and fallback storage does not exist
+  // Don't push anything for performance reasons, but return an indicator
+  // to validate stack consistency in swift_task_localStopPopImpl().
+  return false;
+}
+
+SWIFT_CC(swift)
+static void swift_task_localStopPopImpl(bool didPush) {
+  if (didPush) {
+    return swift_task_localValuePopImpl();
+  } else {
+    assert(swift_task_getCurrent() == nullptr &&
+           FallbackTaskLocalStorage::get() == nullptr);
+  }
 }
 
 SWIFT_CC(swift)
@@ -157,67 +187,50 @@ void TaskLocal::Storage::initializeLinkParent(AsyncTask* task,
   head = TaskLocal::Item::createParentLink(task, parent);
 }
 
-TaskLocal::Item*
-TaskLocal::Item::createParentLink(AsyncTask *task, AsyncTask *parent) {
-  size_t amountToAllocate = Item::itemSize(/*valueType*/nullptr);
-  void *allocation = _swift_task_alloc_specific(task, amountToAllocate);
-  Item *item = new(allocation) Item();
-
-  auto parentHead = parent->_private().Local.head;
-  if (parentHead) {
-    if (parentHead->isEmpty()) {
-      switch (parentHead->getNextLinkType()) {
-        case NextLinkType::IsParent:
-          // it has no values, and just points to its parent,
-          // therefore skip also skip pointing to that parent and point
-          // to whichever parent it was pointing to as well, it may be its
-          // immediate parent, or some super-parent.
-          item->next = reinterpret_cast<uintptr_t>(parentHead->getNext()) |
-                       static_cast<uintptr_t>(NextLinkType::IsParent);
-          break;
-        case NextLinkType::IsNext:
-          if (parentHead->getNext()) {
-            assert(false && "empty taskValue head in parent task, yet parent's 'head' is `IsNext`, "
-                            "this should not happen, as it implies the parent must have stored some value.");
-          } else {
-            // is terminal pointer
-            item->next = reinterpret_cast<uintptr_t>(parentHead->getNext());
-          }
-          break;
-      }
-    } else {
-      item->next = reinterpret_cast<uintptr_t>(parentHead) |
-                   static_cast<uintptr_t>(NextLinkType::IsParent);
-    }
-  } else {
-    item->next = reinterpret_cast<uintptr_t>(parentHead);
-  }
-
-  return item;
+void *TaskLocal::Item::allocate(size_t amountToAllocate, AsyncTask *task) {
+  return task ? _swift_task_alloc_specific(task, amountToAllocate)
+              : malloc(amountToAllocate);
 }
 
-TaskLocal::Item *TaskLocal::Item::createLink(TaskLocal::Item *next,
-                                             AsyncTask *task,
-                                             const HeapObject *key,
-                                             const Metadata *valueType) {
-  size_t amountToAllocate = Item::itemSize(valueType);
-  void *allocation = task ? _swift_task_alloc_specific(task, amountToAllocate)
-                          : malloc(amountToAllocate);
-  Item *item = ::new (allocation) Item(key, valueType);
-  item->next = reinterpret_cast<uintptr_t>(next) |
-      static_cast<uintptr_t>(NextLinkType::IsNext);
+TaskLocal::Item *TaskLocal::Item::createParentLink(AsyncTask *task,
+                                                   AsyncTask *parent) {
+  auto parentHead = parent->_private().Local.head;
+  if (!parentHead) {
+    return nullptr;
+  }
 
-  return item;
+  if (parentHead->getKind() == ItemKind::ParentLink) {
+    // it has no values, and just points to its parent,
+    // therefore skip also skip pointing to that parent and point
+    // to whichever parent it was pointing to as well, it may be its
+    // immediate parent, or some super-parent.
+    parentHead = parentHead->getNext();
+  }
+
+  size_t amountToAllocate = Item::itemSize(/*valueType*/ nullptr);
+  void *allocation = _swift_task_alloc_specific(task, amountToAllocate);
+  return ::new (allocation) Item(parentHead, ItemKind::ParentLink);
+}
+
+TaskLocal::Item *TaskLocal::Item::createValue(TaskLocal::Item *next,
+                                              AsyncTask *task,
+                                              const HeapObject *key,
+                                              const Metadata *valueType) {
+  size_t amountToAllocate = Item::itemSize(valueType);
+  void *allocation = allocate(amountToAllocate, task);
+  return ::new (allocation) Item(next, key, valueType);
+}
+
+TaskLocal::Item *TaskLocal::Item::createStop(TaskLocal::Item *next,
+                                             AsyncTask *task) {
+  size_t amountToAllocate = Item::itemSize(/*valueType*/ nullptr);
+  void *allocation = allocate(amountToAllocate, task);
+  return ::new (allocation) Item(next, ItemKind::Stop);
 }
 
 void TaskLocal::Item::copyTo(TaskLocal::Storage *target, AsyncTask *task) {
-  // 'parent' pointers are signified by null valueType.
-  // We must not copy parent pointers, but rather perform a deep copy of all values,
-  // as such, we skip parent pointers here entirely.
-  if (isParentPointer())
-    return;
-
-  auto item = Item::createLink(target->head, task, key, valueType);
+  assert(getKind() == ItemKind::Value);
+  auto item = Item::createValue(target->head, task, keyOrKind.key, valueType);
   valueType->vw_initializeWithCopy(item->getStoragePtr(), getStoragePtr());
 
   /// A `copyTo` may ONLY be invoked BEFORE the task is actually scheduled,
@@ -320,22 +333,15 @@ void TaskLocal::Item::destroy(AsyncTask *task) {
 void TaskLocal::Storage::destroy(AsyncTask *task) {
   auto item = head;
   head = nullptr;
-  TaskLocal::Item *next;
   while (item) {
-    auto linkType = item->getNextLinkType();
-    switch (linkType) {
-    case TaskLocal::NextLinkType::IsNext:
-        next = item->getNext();
-        item->destroy(task);
-        item = next;
-        break;
-
-      case TaskLocal::NextLinkType::IsParent:
-        // we're done here; as we must not proceed into the parent owned values.
-        // we do have to destroy the item pointing at the parent/edge itself though.
-        item->destroy(task);
-        return;
+    TaskLocal::Item *next = item->getNext();
+    auto kind = item->getKind();
+    item->destroy(task);
+    if (kind == ItemKind::ParentLink) {
+      // we're done here; as we must not proceed into the parent owned values.
+      break;
     }
+    item = next;
   }
 }
 
@@ -348,13 +354,17 @@ void TaskLocal::Storage::pushValue(AsyncTask *task,
                                    const Metadata *valueType) {
   assert(value && "Task local value must not be nil");
 
-  auto item = Item::createLink(head, task, key, valueType);
+  auto item = Item::createValue(head, task, key, valueType);
   valueType->vw_initializeWithTake(item->getStoragePtr(), value);
   head = item;
 }
 
-bool TaskLocal::Storage::popValue(AsyncTask *task) {
-  assert(head && "attempted to pop value off empty task-local stack");
+void TaskLocal::Storage::pushStop(AsyncTask *task) {
+  head = Item::createStop(head, task);
+}
+
+bool TaskLocal::Storage::pop(AsyncTask *task) {
+  assert(head && "attempted to pop item off empty task-local stack");
   auto old = head;
   head = head->getNext();
   old->destroy(task);
@@ -367,13 +377,18 @@ OpaqueValue* TaskLocal::Storage::getValue(AsyncTask *task,
                                           const HeapObject *key) {
   assert(key && "TaskLocal key must not be null.");
 
-  auto item = head;
-  while (item) {
-    if (item->key == key) {
-      return item->getStoragePtr();
+  for (auto item = head; item; item = item->getNext()) {
+    switch (item->getKind()) {
+    case ItemKind::Value:
+      if (item->getKey() == key) {
+        return item->getStoragePtr();
+      }
+      break;
+    case ItemKind::ParentLink:
+      continue;
+    case ItemKind::Stop:
+      return nullptr;
     }
-
-    item = item->getNext();
   }
 
   return nullptr;
@@ -392,15 +407,22 @@ void TaskLocal::Storage::copyTo(TaskLocal::Storage *target, AsyncTask *task) {
   // observe it.
   std::set<const HeapObject*> copied = {};
 
-  auto item = head;
-  while (item) {
-    // we only have to copy an item if it is the most recent binding of a key.
-    // i.e. if we've already seen an item for this key, we can skip it.
-    if (copied.emplace(item->key).second) {
-      item->copyTo(target, task);
+  for (auto item = head; item; item = item->getNext()) {
+    switch (item->getKind()) {
+    case ItemKind::Value:
+      // we only have to copy an item if it is the most recent binding of a key.
+      // i.e. if we've already seen an item for this key, we can skip it.
+      if (copied.emplace(item->getKey()).second) {
+        item->copyTo(target, task);
+      }
+      break;
+    case ItemKind::ParentLink:
+      // Parent links are not re-created when copying
+      // Just skip to the next item;
+      continue;
+    case ItemKind::Stop:
+      return;
     }
-
-    item = item->getNext();
   }
 }
 
@@ -413,6 +435,14 @@ TaskLocal::AdHocScope::AdHocScope(Storage *storage) {
 
 TaskLocal::AdHocScope::~AdHocScope() {
   FallbackTaskLocalStorage::set(oldStorage);
+}
+
+TaskLocal::WithResetValuesScope::WithResetValuesScope() {
+  didPush = swift_task_localStopPush();
+}
+
+TaskLocal::WithResetValuesScope::~WithResetValuesScope() {
+  swift_task_localStopPop(didPush);
 }
 
 #define OVERRIDE_TASK_LOCAL COMPATIBILITY_OVERRIDE

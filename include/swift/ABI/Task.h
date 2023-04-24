@@ -437,14 +437,14 @@ public:
 
   // ==== Task Local Values ----------------------------------------------------
 
-  void localValuePush(const HeapObject *key,
-                      /* +1 */ OpaqueValue *value,
-                      const Metadata *valueType);
+  void localPushValue(const HeapObject *key,
+                      /* +1 */ OpaqueValue *value, const Metadata *valueType);
 
-  OpaqueValue *localValueGet(const HeapObject *key);
+  void localPushStop();
 
-  /// Returns true if storage has still more bindings.
-  bool localValuePop();
+  OpaqueValue *localGetValue(const HeapObject *key);
+
+  void localPop();
 
   // ==== Child Fragment -------------------------------------------------------
 

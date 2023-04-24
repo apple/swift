@@ -34,62 +34,67 @@ class TaskLocal {
 public:
   class Storage;
 
-  /// Type of the pointed at `next` task local item.
-  enum class NextLinkType : uintptr_t {
-    /// The storage pointer points at the next TaskLocal::Item in this task.
-    IsNext = 0b00,
-    /// The storage pointer points at a item stored by another AsyncTask.
+  /// Type of item in the task local item linked list.
+  enum class ItemKind : intptr_t {
+    /// Regular value item.
+    /// Has @c valueType and @c key .
+    /// Value is stored in the trailing storage.
+    /// @c next pointer points to another item owned by the same task as current
+    /// item.
+    Value = -1,
+
+    /// Item that marks end of sequence of items owned by the current task.
+    /// @c next pointer points to an item owned by another AsyncTask.
     ///
     /// Note that this may not necessarily be the same as the task's parent
     /// task -- we may point to a super-parent if we know / that the parent
     /// does not "contribute" any task local values. This is to speed up
-    /// lookups by skipping empty parent tasks during get(), and explained
-    /// in depth in `createParentLink`.
-    IsParent = 0b01,
+    /// lookups by skipping empty parent tasks during @c get() , and explained
+    /// in depth in @c createParentLink() .
+    ParentLink = 0,
+
+    /// Stop-item that blocks further lookup.
+    /// Inserting stop-node allows to temporary disable all inserted task-local
+    /// values in O(1),
+    /// while maintaining immutable linked list nature of the task-local values
+    /// implementation.
+    Stop = 1,
   };
 
   class Item {
   private:
-    /// Mask used for the low status bits in a task local chain item.
-    static const uintptr_t statusMask = 0x03;
+    /// Pointer to the next item in the chain.
+    Item *const next;
 
-    /// Pointer to one of the following:
-    /// - next task local item as OpaqueValue* if it is task-local allocated
-    /// - next task local item as HeapObject* if it is heap allocated "heavy"
-    /// - the parent task's TaskLocal::Storage
-    ///
-    /// Low bits encode `NextLinkType`, based on which the type of the pointer
-    /// is determined.
-    uintptr_t next;
+    union KeyOrKind {
+      /// The type of the key with which this value is associated.
+      /// Set if valueType is not null
+      const HeapObject *key;
 
-  public:
-    /// The type of the key with which this value is associated.
-    const HeapObject *key;
+      /// Kind of the node
+      /// Set if valueType is null
+      ItemKind kind;
+
+      KeyOrKind(const HeapObject *key) : key(key) {}
+      KeyOrKind(ItemKind kind) : kind(kind) {}
+    } const keyOrKind;
+
     /// The type of the value stored by this item.
-    const Metadata *valueType;
+    const Metadata *const valueType;
 
-    // Trailing storage for the value itself. The storage will be
-    // uninitialized or contain an instance of \c valueType.
-
-    /// Returns true if this item is a 'parent pointer'.
-    ///
-    /// A parent pointer is special kind of `Item` is created when pointing at
-    /// the parent storage, forming a chain of task local items spanning multiple
-    /// tasks.
-    bool isParentPointer() const {
-      return !valueType;
-    }
+    // Trailing storage for an instance of \c valueType if kind is
+    // ItemKind::Value
 
   protected:
-    explicit Item()
-      : next(0),
-        key(nullptr),
-        valueType(nullptr) {}
+    explicit Item(Item *next, ItemKind kind)
+        : next(next), keyOrKind(kind), valueType(nullptr) {}
 
-    explicit Item(const HeapObject *key, const Metadata *valueType)
-      : next(0),
-        key(key),
-        valueType(valueType) {}
+    explicit Item(Item *next, const HeapObject *key, const Metadata *valueType)
+        : next(next), keyOrKind(key), valueType(valueType) {
+      assert(valueType != nullptr);
+    }
+
+    static void *allocate(size_t amountToAllocate, AsyncTask *task);
 
   public:
     /// Item which does not by itself store any value, but only points
@@ -103,29 +108,40 @@ public:
     /// the Item linked list into the appropriate parent.
     static Item *createParentLink(AsyncTask *task, AsyncTask *parent);
 
-    static Item *createLink(Item *next, AsyncTask *task, const HeapObject *key,
-                            const Metadata *valueType);
+    static Item *createValue(Item *next, AsyncTask *task, const HeapObject *key,
+                             const Metadata *valueType);
+
+    static Item *createStop(Item *next, AsyncTask *task);
 
     /// Destroys value and frees memory using specified task for deallocation.
     /// If task is null, then th
     void destroy(AsyncTask *task);
 
-    Item *getNext() {
-      return reinterpret_cast<Item *>(next & ~statusMask);
+    Item *getNext() { return next; }
+
+    /// Returns kind of this item.
+    ItemKind getKind() const {
+      return valueType ? ItemKind::Value : keyOrKind.kind;
     }
 
-    NextLinkType getNextLinkType() const {
-      return static_cast<NextLinkType>(next & statusMask);
+    /// Returns key of the value item.
+    /// Available only if @c getKind() is @c ItemKind::Value .
+    const HeapObject *getKey() const {
+      assert(getKind() == ItemKind::Value);
+      return keyOrKind.key;
     }
 
-    /// Item does not contain any actual value, and is only used to point at
-    /// a specific parent item.
-    bool isEmpty() const {
-      return !valueType;
+    /// Returns value type of the value item.
+    /// Available only if @c getKind() is @c ItemKind::Value .
+    const Metadata *getValueType() const {
+      assert(getKind() == ItemKind::Value);
+      return valueType;
     }
 
     /// Retrieve a pointer to the storage of the value.
+    /// Available only if @c getKind() is @c ItemKind::Value .
     OpaqueValue *getStoragePtr() {
+      assert(getKind() == ItemKind::Value);
       return reinterpret_cast<OpaqueValue *>(
         reinterpret_cast<char *>(this) + storageOffset(valueType));
     }
@@ -159,33 +175,35 @@ public:
   private:
     /// A stack (single-linked list) of task local values.
     ///
-    /// Once task local values within this task are traversed, the list continues
-    /// to the "next parent that contributes task local values," or if no such
-    /// parent exists it terminates with null.
+    /// Once task local values within this task are traversed, the list
+    /// continues to the "next parent that contributes task local values," or if
+    /// no such parent exists it terminates with null.
     ///
     /// If the TaskLocalValuesFragment was allocated, it is expected that this
     /// value should be NOT null; it either has own values, or at least one
     /// parent that has values. If this task does not have any values, the head
-    /// pointer MAY immediately point at this task's parent task which has values.
+    /// pointer MAY immediately point at this task's parent task which has
+    /// values.
     ///
     /// ### Concurrency
     /// Access to the head is only performed from the task itself, when it
     /// creates child tasks, the child during creation will inspect its parent's
-    /// task local value stack head, and point to it. This is done on the calling
-    /// task, and thus needs not to be synchronized. Subsequent traversal is
-    /// performed by child tasks concurrently, however they use their own
-    /// pointers/stack and can never mutate the parent's stack.
+    /// task local value stack head, and point to it. This is done on the
+    /// calling task, and thus needs not to be synchronized. Subsequent
+    /// traversal is performed by child tasks concurrently, however they use
+    /// their own pointers/stack and can never mutate the parent's stack.
     ///
     /// The stack is only pushed/popped by the owning task, at the beginning and
     /// end a `body` block of `withLocal(_:boundTo:body:)` respectively.
     ///
-    /// Correctness of the stack strongly relies on the guarantee that tasks
-    /// never outline a scope in which they are created. Thanks to this, if
-    /// tasks are created inside the `body` of `withLocal(_:,boundTo:body:)`
-    /// all tasks created inside the `withLocal` body must complete before it
-    /// returns, as such, any child tasks potentially accessing the value stack
-    /// are guaranteed to be completed by the time we pop values off the stack
-    /// (after the body has completed).
+    /// Correctness of the stack strongly relies on the guarantee that child
+    /// tasks never outlive a scope in which they are created. Thanks to this,
+    /// if child tasks are created inside the `body` of
+    /// `withLocal(_:,boundTo:body:)` all child tasks created inside the
+    /// `withLocal` body must complete before it returns, as such, any child
+    /// tasks potentially accessing the value stack are guaranteed to be
+    /// completed by the time we pop values off the stack (after the body has
+    /// completed).
     TaskLocal::Item *head = nullptr;
 
   public:
@@ -196,12 +214,14 @@ public:
                    const HeapObject *key,
                    /* +1 */ OpaqueValue *value, const Metadata *valueType);
 
+    void pushStop(AsyncTask *task);
+
     OpaqueValue* getValue(AsyncTask *task, const HeapObject *key);
 
-    /// Returns `true` of more bindings remain in this storage,
+    /// Returns `true` if more bindings remain in this storage,
     /// and `false` if the just popped value was the last one and the storage
     /// can be safely disposed of.
-    bool popValue(AsyncTask *task);
+    bool pop(AsyncTask *task);
 
     /// Copy all task-local bindings to the target task.
     ///
@@ -227,9 +247,10 @@ public:
   /// Copy all task locals from the current context to the target storage.
   /// To prevent data races, there should be no other accesses to the target
   /// storage, while copying. Target storage is asserted to be empty, as a proxy
-  /// for being not in use. If task is specified, it will be used for memory
-  /// management. If task is nil, items will be allocated using malloc(). The
-  /// same value of task should be passed to TaskLocal::Storage::destroy().
+  /// for being not in use. If @c task is specified, it will be used for memory
+  /// management. If @c task is nil, items will be allocated using malloc(). The
+  /// same value of @c task should be passed to @c TaskLocal::Storage::destroy()
+  /// .
   static void copyTo(Storage *target, AsyncTask *task);
 
   class AdHocScope {
@@ -238,6 +259,14 @@ public:
   public:
     AdHocScope(Storage *storage);
     ~AdHocScope();
+  };
+
+  class WithResetValuesScope {
+    bool didPush;
+
+  public:
+    WithResetValuesScope();
+    ~WithResetValuesScope();
   };
 };
 

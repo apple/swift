@@ -663,6 +663,35 @@ void swift_task_localValuePush(const HeapObject *key,
 SWIFT_EXPORT_FROM(swift_Concurrency) SWIFT_CC(swift)
 void swift_task_localValuePop();
 
+/// Bind a task local key to a value in the context of either the current
+/// AsyncTask if present, or in the thread-local fallback context if no task
+/// available.
+///
+/// Its Swift signature is
+///
+/// \code
+///  public func _taskLocalStopPush() -> Bool
+/// \endcode
+SWIFT_EXPORT_FROM(swift_Concurrency)
+SWIFT_CC(swift) bool swift_task_localStopPush();
+
+/// Pop a single task local binding from the binding stack of the current task,
+/// or the fallback thread-local storage if no task is available.
+///
+/// This operation must be paired up with a preceding "push" operation, as
+/// otherwise it may attempt to "pop" off an empty value stuck which will lead
+/// to a crash.
+///
+/// The Swift surface API ensures proper pairing of push and pop operations.
+///
+/// Its Swift signature is
+///
+/// \code
+///  public func _taskLocalStopPop()
+/// \endcode
+SWIFT_EXPORT_FROM(swift_Concurrency)
+SWIFT_CC(swift) void swift_task_localStopPop(bool didPush);
+
 /// Copy all task locals from the current context to the target task.
 ///
 /// Its Swift signature is

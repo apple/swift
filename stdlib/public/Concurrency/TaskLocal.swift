@@ -237,6 +237,36 @@ public final class TaskLocal<Value: Sendable>: Sendable, CustomStringConvertible
 
 }
 
+/// Resets task-local's to their default values for the duration of the asynchronous operation.
+///
+@available(SwiftStdlib 5.8, *)
+@discardableResult
+public func withResetTaskLocalValues<R>(operation: () async throws -> R,
+                         file: String = #fileID, line: UInt = #line) async rethrows -> R {
+  // check if we're not trying to bind a value from an illegal context; this may crash
+  _checkIllegalTaskLocalBindingWithinWithTaskGroup(file: file, line: line)
+
+  let didPush = _taskLocalStopPush()
+  defer { _taskLocalStopPop(didPush) }
+
+  return try await operation()
+}
+
+/// Resets task-local's to their default values for the duration of the asynchronous operation.
+///
+@available(SwiftStdlib 5.8, *)
+@discardableResult
+public func withResetTaskLocalValues<R>(operation: () throws -> R,
+                         file: String = #fileID, line: UInt = #line) rethrows -> R {
+  // check if we're not trying to bind a value from an illegal context; this may crash
+  _checkIllegalTaskLocalBindingWithinWithTaskGroup(file: file, line: line)
+
+  let didPush = _taskLocalStopPush()
+  defer { _taskLocalStopPop(didPush) }
+
+  return try operation()
+}
+
 // ==== ------------------------------------------------------------------------
 
 @available(SwiftStdlib 5.1, *)
@@ -251,6 +281,14 @@ func _taskLocalValuePush<Value>(
 @usableFromInline
 @_silgen_name("swift_task_localValuePop")
 func _taskLocalValuePop()
+
+@available(SwiftStdlib 5.8, *)
+@_silgen_name("swift_task_localStopPush")
+func _taskLocalStopPush() -> Bool
+
+@available(SwiftStdlib 5.8, *)
+@_silgen_name("swift_task_localStopPop")
+func _taskLocalStopPop(_ didPush: Bool)
 
 @available(SwiftStdlib 5.1, *)
 @_silgen_name("swift_task_localValueGet")
