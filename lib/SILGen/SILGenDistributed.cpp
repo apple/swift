@@ -87,30 +87,35 @@ static void initializeProperty(SILGenFunction &SGF, SILLocation loc,
 ///   <isLocalBB>
 /// }
 /// \endverbatim
-void SILGenFunction::emitDistributedIfRemoteBranch(SILLocation Loc,
-                                                   ManagedValue selfValue,
+void SILGenFunction::emitDistributedIfRemoteBranch(SILLocation loc,
+                                                   SILValue selfValue,
                                                    Type selfTy,
                                                    SILBasicBlock *isRemoteBB,
                                                    SILBasicBlock *isLocalBB) {
   ASTContext &ctx = getASTContext();
 
-  FuncDecl *isRemoteFn = ctx.getIsRemoteDistributedActor();
-  assert(isRemoteFn && "Could not find 'is remote' function, is the "
-                       "'Distributed' module available?");
+  SILValue isRemoteResultUnwrapped;
+  {
+    FullExpr CleanupScope(Cleanups, CleanupLocation(loc));
+    ManagedValue borrowedSelf = emitManagedBeginBorrow(loc, selfValue);
 
-  ManagedValue selfAnyObject = B.createInitExistentialRef(
-      Loc,
-      /*existentialType=*/getLoweredType(ctx.getAnyObjectType()),
-      /*formalConcreteType=*/selfValue.getType().getASTType(),
-      selfValue, {});
-  auto result = emitApplyOfLibraryIntrinsic(
-      Loc, isRemoteFn, SubstitutionMap(), {selfAnyObject}, SGFContext());
+    FuncDecl *isRemoteFn = ctx.getIsRemoteDistributedActor();
+    assert(isRemoteFn && "Could not find 'is remote' function, is the "
+                         "'Distributed' module available?");
 
-  SILValue isRemoteResult = std::move(result).forwardAsSingleValue(*this, Loc);
-  SILValue isRemoteResultUnwrapped =
-      emitUnwrapIntegerResult(Loc, isRemoteResult);
+    ManagedValue selfAnyObject = B.createInitExistentialRef(
+        loc,
+        /*existentialType=*/getLoweredType(ctx.getAnyObjectType()),
+        /*formalConcreteType=*/borrowedSelf.getType().getASTType(),
+        borrowedSelf, {});
+    auto result = emitApplyOfLibraryIntrinsic(
+        loc, isRemoteFn, SubstitutionMap(), {selfAnyObject}, SGFContext());
 
-  B.createCondBranch(Loc, isRemoteResultUnwrapped, isRemoteBB, isLocalBB);
+    SILValue isRemoteResult =
+        std::move(result).forwardAsSingleValue(*this, loc);
+    isRemoteResultUnwrapped = emitUnwrapIntegerResult(loc, isRemoteResult);
+  }
+  B.createCondBranch(loc, isRemoteResultUnwrapped, isRemoteBB, isLocalBB);
 }
 
 // ==== ------------------------------------------------------------------------

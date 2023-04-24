@@ -25,18 +25,9 @@ distributed actor MyDistActor {
 
 // MARK: distributed actor check
 
-// ===== -----------------------------------------------------------------------
-// CHECK-LABEL: sil hidden @$s14default_deinit11MyDistActorCfd : $@convention(method) (@guaranteed MyDistActor) -> @owned Builtin.NativeObject {
+// CHECK-LABEL: // MyDistActor.deinit
+// CHECK-NEXT: sil hidden{{.*}} @$s14default_deinit11MyDistActorCfd : $@convention(method) (@guaranteed MyDistActor) -> @owned Builtin.NativeObject {
 // CHECK: bb0([[SELF:%[0-9]+]] : $MyDistActor):
-// CHECK:  [[EXI_SELF:%[0-9]+]] = init_existential_ref [[SELF]] : $MyDistActor : $MyDistActor, $AnyObject
-// CHECK:  [[IS_REMOTE_FN:%[0-9]+]] = function_ref @swift_distributed_actor_is_remote : $@convention(thin) (@guaranteed AnyObject) -> Bool
-// CHECK:  [[IS_REMOTE:%[0-9]+]] = apply [[IS_REMOTE_FN]]([[EXI_SELF]])
-// CHECK:  [[RAW_BOOL:%[0-9]+]] = struct_extract [[IS_REMOTE]] : $Bool, #Bool._value
-// CHECK:  cond_br [[RAW_BOOL]], [[REMOTE_ACTOR_DEINIT_BB:bb[0-9]+]], [[DEINIT_BODY_BB:bb[0-9]+]]
-
-// ===== -----------------------------------------------------------------------
-// CHECK: // deinitBodyBB
-// CHECK: [[DEINIT_BODY_BB]]:
 
 // Resign the ID by calling actorSystem.resignID, before we destroy properties:
 // CHECK:  [[ID_REF:%[0-9]+]] = ref_element_addr [[SELF]] : $MyDistActor, #MyDistActor.id
@@ -64,14 +55,37 @@ distributed actor MyDistActor {
 // CHECK:  [[ACCESS:%[0-9]+]] = begin_access [deinit] [static] [[REF]] : $*SomeClass
 // CHECK:  destroy_addr [[ACCESS]] : $*SomeClass
 // CHECK:  end_access [[ACCESS]] : $*SomeClass
+
+// CHECK:  [[BUILTIN:%[0-9]+]] = builtin "destroyDefaultActor"([[SELF]] : $MyDistActor) : $()
+// CHECK:  [[CAST:%[0-9]+]] = unchecked_ref_cast [[SELF]] : $MyDistActor to $Builtin.NativeObject
+// CHECK:  return [[CAST]] : $Builtin.NativeObject
+
+// CHECK: } // end sil function '$s14default_deinit11MyDistActorCfd'
+
+// ===== -----------------------------------------------------------------------
+// CHECK-LABEL: MyDistActor.__deallocating_deinit
+// CHECK-NEXT: sil hidden @$s14default_deinit11MyDistActorCfD : $@convention(method) (@owned MyDistActor) -> () {
+// CHECK: bb0([[SELF:%[0-9]+]] : $MyDistActor):
+// CHECK:  [[EXI_SELF:%[0-9]+]] = init_existential_ref [[SELF]] : $MyDistActor : $MyDistActor, $AnyObject
+// CHECK:  [[IS_REMOTE_FN:%[0-9]+]] = function_ref @swift_distributed_actor_is_remote : $@convention(thin) (@guaranteed AnyObject) -> Bool
+// CHECK:  [[IS_REMOTE:%[0-9]+]] = apply [[IS_REMOTE_FN]]([[EXI_SELF]])
+// CHECK:  [[RAW_BOOL:%[0-9]+]] = struct_extract [[IS_REMOTE]] : $Bool, #Bool._value
+// CHECK:  cond_br [[RAW_BOOL]], [[REMOTE_ACTOR_DEINIT_BB:bb[0-9]+]], [[LOCAL_ACTOR_DEINIT_BB:bb[0-9]+]]
+
+// ===== -----------------------------------------------------------------------
+// CHECK: // localActorDeinitBB
+// CHECK: [[LOCAL_ACTOR_DEINIT_BB]]:
+// CHECK: [[DESTROYER_REF:%[0-9]+]] = function_ref @$s14default_deinit11MyDistActorCfd : $@convention(method) (@guaranteed MyDistActor) -> @owned Builtin.NativeObject
+// CHECK: [[UNTYPED_DESTOY_RESULT:%[0-9]+]] = apply [[DESTROYER_REF]]([[SELF]]) : $@convention(method) (@guaranteed MyDistActor) -> @owned Builtin.NativeObject
+// CHECK: [[TYPED_DESTOY_RESULT:%[0-9]+]] = unchecked_ref_cast [[UNTYPED_DESTOY_RESULT]] : $Builtin.NativeObject to $MyDistActor
+// CHECK: dealloc_ref [[TYPED_DESTOY_RESULT]] : $MyDistActor
 // CHECK:  br [[FINISH_DEINIT_BB:bb[0-9]+]]
 
 // ===== -----------------------------------------------------------------------
 // CHECK: // finishDeinitBB
 // CHECK: [[FINISH_DEINIT_BB]]:
-// CHECK:  [[BUILTIN:%[0-9]+]] = builtin "destroyDefaultActor"([[SELF]] : $MyDistActor) : $()
-// CHECK:  [[CAST:%[0-9]+]] = unchecked_ref_cast [[SELF]] : $MyDistActor to $Builtin.NativeObject
-// CHECK:  return [[CAST]] : $Builtin.NativeObject
+// CHECK:  [[RESULT:%[0-9]+]] = tuple ()
+// CHECK:  return [[RESULT]] : $()
 
 // ===== -----------------------------------------------------------------------
 // CHECK: // remoteActorDeinitBB
@@ -88,9 +102,20 @@ distributed actor MyDistActor {
 // CHECK:  [[ACCESS:%[0-9]+]] = begin_access [deinit] [static] [[REF]] : $*FakeActorSystem
 // CHECK:  destroy_addr [[ACCESS]] : $*FakeActorSystem
 // CHECK:  end_access [[ACCESS]] : $*FakeActorSystem
+
+// Destroy default actor implementation
+// CHECK:  [[BUILTIN:%[0-9]+]] = builtin "destroyDefaultActor"([[SELF]] : $MyDistActor) : $()
+
+// And deallocate the proxy
+// CHECK:  dealloc_ref [[SELF]] : $MyDistActor
+
+// Return
 // CHECK:  br [[FINISH_DEINIT_BB]]
 
-// CHECK: } // end sil function '$s14default_deinit11MyDistActorCfd'
+// CHECK: } // end sil function '$s14default_deinit11MyDistActorCfD'
+
+// ===== -----------------------------------------------------------------------
+
 
 // This test checks that we resign the identity for local deallocations,
 // destroy only the correct stored properties whether remote or local, and also
@@ -118,5 +143,3 @@ actor SimpleActor {
 // CHECK:   [[CAST:%[0-9]+]] = unchecked_ref_cast [[SELF]]
 // CHECK:   return [[CAST]] : $Builtin.NativeObject
 // CHECK: } // end sil function '$s14default_deinit11SimpleActorCfd'
-
-
