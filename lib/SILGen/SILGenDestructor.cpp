@@ -268,18 +268,6 @@ void SILGenFunction::emitDeallocatingMoveOnlyDestructor(DestructorDecl *dd) {
   B.createReturn(loc, emitEmptyTuple(loc));
 }
 
-// Copied from LowerHopToExecutor.cpp
-static AccessorDecl *getUnownedExecutorGetter(ASTContext &ctx,
-                                              ProtocolDecl *actorProtocol) {
-  for (auto member : actorProtocol->getAllMembers()) {
-    if (auto var = dyn_cast<VarDecl>(member)) {
-      if (var->getName() == ctx.Id_unownedExecutor)
-        return var->getAccessor(AccessorKind::Get);
-    }
-  }
-  return nullptr;
-}
-
 bool SILGenFunction::shouldEmitIsolatingDestructor(DestructorDecl *dd) {
   auto ai = swift::getActorIsolation(dd);
   if (!ai.isActorIsolated()) {
@@ -329,44 +317,7 @@ void SILGenFunction::emitIsolatingDestructor(DestructorDecl *dd) {
   {
     FullExpr CleanupScope(Cleanups, CleanupLocation(loc));
     auto actor = *emitExecutor(loc, ai, ManagedValue::forUnmanagedOwnedValue(selfValue));
-    // hop_to_executor allows actors to be used, which later are lowered to
-    // executors We don't have such luxury here, and need to lower to executor
-    // manually.
-    auto actorType = actor->getType().getASTType();
-    if (actorType.isExistentialType()) {
-      auto openedType = OpenedArchetypeType::get(actor->getType().getASTType(),
-                                                 F.getGenericSignature());
-      auto opened =
-          emitOpenExistential(loc, ManagedValue::forBorrowedObjectRValue(actor),
-                              getLoweredType(openedType), AccessKind::Read);
-
-      auto actorProtocol =
-          getASTContext().getProtocol(KnownProtocolKind::Actor);
-      auto executorAccessor =
-          getUnownedExecutorGetter(getASTContext(), actorProtocol);
-      SILDeclRef accessorRef(executorAccessor, SILDeclRef::Kind::Func);
-      auto conformance = getForwardingSubstitutionMap().lookupConformance(
-          opened.getType().getASTType(), actorProtocol);
-      auto constantInfo =
-          getConstantInfo(getTypeExpansionContext(), accessorRef);
-      B.createWitnessMethod(loc, openedType, conformance, accessorRef,
-                            constantInfo.getSILType());
-
-      executor = opened.getValue();
-    } else {
-      ClassDecl *actorClass = actorType.getClassOrBoundGenericClass();
-      AccessorDecl *unownedExecutorDecl =
-          actorClass->getUnownedExecutorProperty()->getAccessor(
-              AccessorKind::Get);
-      assert(unownedExecutorDecl &&
-             "no unownedExecutor property in global actor");
-      SILDeclRef accessorRef(unownedExecutorDecl, SILDeclRef::Kind::Func);
-      auto accessorFunc = SGM.getFunction(accessorRef, NotForDefinition);
-      auto accessorFuncRef = B.createFunctionRef(loc, accessorFunc);
-      SubstitutionMap subs =
-          actorType->getContextSubstitutionMap(SGM.SwiftModule, actorClass);
-      executor = B.createApply(loc, accessorFuncRef, subs, {actor});
-    }
+    executor = B.createExtractExecutor(loc, actor);
   }
 
   // Get performOnExecutor

@@ -28,7 +28,7 @@ distributed actor SomeSpecificDistributedActor {
     self.age = 42
   }
 
-  deinit {
+  nonisolated deinit {
     print("deinit \(self.id)")
   }
 

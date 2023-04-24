@@ -25,7 +25,7 @@ distributed actor DA_userDefined {
     self.actorSystem = system
   }
 
-  deinit {}
+  nonisolated deinit {}
 }
 
 distributed actor DA_userDefined2 {
@@ -33,7 +33,7 @@ distributed actor DA_userDefined2 {
     self.actorSystem = system
   }
 
-  deinit {
+  nonisolated deinit {
     print("Deinitializing \(self.id) remote:\(__isRemoteActor(self))")
   }
 }
@@ -46,7 +46,7 @@ distributed actor DA_state {
     self.actorSystem = system
   }
 
-  deinit {
+  nonisolated deinit {
     print("Deinitializing \(self.id) remote:\(__isRemoteActor(self))")
     return
   }

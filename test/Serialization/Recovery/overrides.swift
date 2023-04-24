@@ -103,11 +103,13 @@ public final class A_Sub3Final: Base {
 // CHECK-NEXT: var disappearingProperty: Int { get }
 // CHECK-NEXT: var disappearingPropertySetter: Int{{$}}
 // CHECK-NEXT: init()
+// CHECK-NEXT: deinit
 // CHECK-NEXT: {{^}$}}
 
 // CHECK-LABEL: class A_Sub2 : A_Sub {
 // CHECK-NEXT: func disappearingMethod()
 // CHECK-NEXT: init()
+// CHECK-NEXT: deinit
 // CHECK-NEXT: {{^}$}}
 
 // CHECK-LABEL: final class A_Sub3Final : Base {
@@ -118,6 +120,7 @@ public final class A_Sub3Final: Base {
 // CHECK-NEXT: var disappearingProperty: Int { get }
 // CHECK-NEXT: var disappearingPropertySetter: Int{{$}}
 // CHECK-NEXT: init()
+// CHECK-NEXT: deinit
 // CHECK-NEXT: {{^}$}}
 
 // CHECK-RECOVERY-LABEL: class A_Sub : Base {
@@ -128,11 +131,13 @@ public final class A_Sub3Final: Base {
 // CHECK-RECOVERY-NEXT: /* placeholder for disappearingProperty */
 // CHECK-RECOVERY-NEXT: var disappearingPropertySetter: Int{{$}}
 // CHECK-RECOVERY-NEXT: init()
+// CHECK-RECOVERY-NEXT: deinit
 // CHECK-RECOVERY-NEXT: {{^}$}}
 
 // CHECK-RECOVERY-LABEL: class A_Sub2 : A_Sub {
 // CHECK-RECOVERY-NEXT: func disappearingMethod()
 // CHECK-RECOVERY-NEXT: init()
+// CHECK-RECOVERY-NEXT: deinit
 // CHECK-RECOVERY-NEXT: {{^}$}}
 
 // CHECK-RECOVERY-LABEL: class A_Sub3Final : Base {
@@ -143,6 +148,7 @@ public final class A_Sub3Final: Base {
 // CHECK-RECOVERY-NEXT: /* placeholder for disappearingProperty */
 // CHECK-RECOVERY-NEXT: var disappearingPropertySetter: Int{{$}}
 // CHECK-RECOVERY-NEXT: init()
+// CHECK-RECOVERY-NEXT: deinit
 // CHECK-RECOVERY-NEXT: {{^}$}}
 
 extension Base {
@@ -160,6 +166,7 @@ public class B_GenericSub : GenericBase<Base> {
 // CHECK-NEXT: func nullabilityChangeMethod() -> Base?
 // CHECK-NEXT: func typeChangeMethod() -> Any
 // CHECK-NEXT: init()
+// CHECK-NEXT: deinit
 // CHECK-NEXT: {{^}$}}
 
 // CHECK-RECOVERY-LABEL: class B_GenericSub : GenericBase<Base> {
@@ -167,6 +174,7 @@ public class B_GenericSub : GenericBase<Base> {
 // CHECK-RECOVERY-NEXT: func nullabilityChangeMethod() -> Base?
 // CHECK-RECOVERY-NEXT: func typeChangeMethod() -> Any
 // CHECK-RECOVERY-NEXT: init()
+// CHECK-RECOVERY-NEXT: deinit
 // CHECK-RECOVERY-NEXT: {{^}$}}
 
 
@@ -177,11 +185,13 @@ public class C1_IndexedSubscriptDisappears : IndexedSubscriptDisappearsBase {
 // CHECK-LABEL: class C1_IndexedSubscriptDisappears : IndexedSubscriptDisappearsBase {
 // CHECK-NEXT: subscript(index: Int) -> Any { get }
 // CHECK-NEXT: init()
+// CHECK-NEXT: deinit
 // CHECK-NEXT: {{^}$}}
 
 // CHECK-RECOVERY-LABEL: class C1_IndexedSubscriptDisappears : IndexedSubscriptDisappearsBase {
 // CHECK-RECOVERY-NEXT: /* placeholder for subscript(_:) */
 // CHECK-RECOVERY-NEXT: init()
+// CHECK-RECOVERY-NEXT: deinit
 // CHECK-RECOVERY-NEXT: {{^}$}}
 
 
@@ -192,11 +202,13 @@ public class C2_KeyedSubscriptDisappears : KeyedSubscriptDisappearsBase {
 // CHECK-LABEL: class C2_KeyedSubscriptDisappears : KeyedSubscriptDisappearsBase {
 // CHECK-NEXT: subscript(key: Any) -> Any { get }
 // CHECK-NEXT: init()
+// CHECK-NEXT: deinit
 // CHECK-NEXT: {{^}$}}
 
 // CHECK-RECOVERY-LABEL: class C2_KeyedSubscriptDisappears : KeyedSubscriptDisappearsBase {
 // CHECK-RECOVERY-NEXT: /* placeholder for subscript(_:) */
 // CHECK-RECOVERY-NEXT: init()
+// CHECK-RECOVERY-NEXT: deinit
 // CHECK-RECOVERY-NEXT: {{^}$}}
 
 
@@ -207,11 +219,13 @@ public class C3_GenericIndexedSubscriptDisappears : GenericIndexedSubscriptDisap
 // CHECK-LABEL: class C3_GenericIndexedSubscriptDisappears : GenericIndexedSubscriptDisappearsBase<Base> {
 // CHECK-NEXT: subscript(index: Int) -> Base { get }
 // CHECK-NEXT: init()
+// CHECK-NEXT: deinit
 // CHECK-NEXT: {{^}$}}
 
 // CHECK-RECOVERY-LABEL: class C3_GenericIndexedSubscriptDisappears : GenericIndexedSubscriptDisappearsBase<Base> {
 // CHECK-RECOVERY-NEXT: /* placeholder for subscript(_:) */
 // CHECK-RECOVERY-NEXT: init()
+// CHECK-RECOVERY-NEXT: deinit
 // CHECK-RECOVERY-NEXT: {{^}$}}
 
 
@@ -222,11 +236,13 @@ public class C4_GenericKeyedSubscriptDisappears : GenericKeyedSubscriptDisappear
 // CHECK-LABEL: class C4_GenericKeyedSubscriptDisappears : GenericKeyedSubscriptDisappearsBase<Base> {
 // CHECK-NEXT: subscript(key: Any) -> Base { get }
 // CHECK-NEXT: init()
+// CHECK-NEXT: deinit
 // CHECK-NEXT: {{^}$}}
 
 // CHECK-RECOVERY-LABEL: class C4_GenericKeyedSubscriptDisappears : GenericKeyedSubscriptDisappearsBase<Base> {
 // CHECK-RECOVERY-NEXT: /* placeholder for subscript(_:) */
 // CHECK-RECOVERY-NEXT: init()
+// CHECK-RECOVERY-NEXT: deinit
 // CHECK-RECOVERY-NEXT: {{^}$}}
 
 
@@ -238,11 +254,13 @@ open class D1_DesignatedInitDisappears : DesignatedInitDisappearsBase {
 // CHECK-LABEL: class D1_DesignatedInitDisappears : DesignatedInitDisappearsBase {
 // CHECK-NEXT: init()
 // CHECK-NEXT: init(value: Int)
+// CHECK-NEXT: deinit
 // CHECK-NEXT: {{^}$}}
 
 // CHECK-RECOVERY-LABEL: class D1_DesignatedInitDisappears : DesignatedInitDisappearsBase {
 // CHECK-RECOVERY-NEXT: init()
 // CHECK-RECOVERY-NEXT: /* placeholder for init(value:) */
+// CHECK-RECOVERY-NEXT: deinit
 // CHECK-RECOVERY-NEXT: {{^}$}}
 
 
@@ -252,10 +270,12 @@ open class D2_OnlyDesignatedInitDisappears : OnlyDesignatedInitDisappearsBase {
 
 // CHECK-LABEL: class D2_OnlyDesignatedInitDisappears : OnlyDesignatedInitDisappearsBase {
 // CHECK-NEXT: init(value: Int)
+// CHECK-NEXT: deinit
 // CHECK-NEXT: {{^}$}}
 
 // CHECK-RECOVERY-LABEL: class D2_OnlyDesignatedInitDisappears : OnlyDesignatedInitDisappearsBase {
 // CHECK-RECOVERY-NEXT: /* placeholder for init(value:) */
+// CHECK-RECOVERY-NEXT: deinit
 // CHECK-RECOVERY-NEXT: {{^}$}}
 
 
@@ -265,10 +285,12 @@ open class D3_ConvenienceInitDisappears : ConvenienceInitDisappearsBase {
 
 // CHECK-LABEL: class D3_ConvenienceInitDisappears : ConvenienceInitDisappearsBase {
 // CHECK-NEXT: init()
+// CHECK-NEXT: deinit
 // CHECK-NEXT: {{^}$}}
 
 // CHECK-RECOVERY-LABEL: class D3_ConvenienceInitDisappears : ConvenienceInitDisappearsBase {
 // CHECK-RECOVERY-NEXT: init()
+// CHECK-RECOVERY-NEXT: deinit
 // CHECK-RECOVERY-NEXT: {{^}$}}
 
 
@@ -280,11 +302,13 @@ open class D4_UnknownInitDisappears : UnknownInitDisappearsBase {
 // CHECK-LABEL: class D4_UnknownInitDisappears : UnknownInitDisappearsBase {
 // CHECK-NEXT: init()
 // CHECK-NEXT: init(value: Int)
+// CHECK-NEXT: deinit
 // CHECK-NEXT: {{^}$}}
 
 // CHECK-RECOVERY-LABEL: class D4_UnknownInitDisappears : UnknownInitDisappearsBase {
 // CHECK-RECOVERY-NEXT: init()
 // CHECK-RECOVERY-NEXT: /* placeholder for init(value:) */
+// CHECK-RECOVERY-NEXT: deinit
 // CHECK-RECOVERY-NEXT: {{^}$}}
 
 
@@ -295,11 +319,13 @@ open class D5_OnlyUnknownInitDisappears : OnlyUnknownInitDisappearsBase {
 // CHECK-LABEL: class D5_OnlyUnknownInitDisappears : OnlyUnknownInitDisappearsBase {
 // CHECK-NEXT: init(value: Int)
 // CHECK-NEXT: init()
+// CHECK-NEXT: deinit
 // CHECK-NEXT: {{^}$}}
 
 // CHECK-RECOVERY-LABEL: class D5_OnlyUnknownInitDisappears : OnlyUnknownInitDisappearsBase {
 // CHECK-RECOVERY-NEXT: /* placeholder for init(value:) */
 // CHECK-RECOVERY-NEXT: init()
+// CHECK-RECOVERY-NEXT: deinit
 // CHECK-RECOVERY-NEXT: {{^}$}}
 
 open class D6_UnknownInitDisappearsGrandchild : D4_UnknownInitDisappears {
@@ -310,11 +336,13 @@ open class D6_UnknownInitDisappearsGrandchild : D4_UnknownInitDisappears {
 // CHECK-LABEL: class D6_UnknownInitDisappearsGrandchild : D4_UnknownInitDisappears {
 // CHECK-NEXT: init()
 // CHECK-NEXT: init(value: Int)
+// CHECK-NEXT: deinit
 // CHECK-NEXT: {{^}$}}
 
 // CHECK-RECOVERY-LABEL: class D6_UnknownInitDisappearsGrandchild : D4_UnknownInitDisappears {
 // CHECK-RECOVERY-NEXT: init()
 // CHECK-RECOVERY-NEXT: /* placeholder for init(value:) */
+// CHECK-RECOVERY-NEXT: deinit
 // CHECK-RECOVERY-NEXT: {{^}$}}
 
 open class D7_UnknownInitDisappearsGrandchildRequired : D4_UnknownInitDisappears {
@@ -325,11 +353,13 @@ open class D7_UnknownInitDisappearsGrandchildRequired : D4_UnknownInitDisappears
 // CHECK-LABEL: class D7_UnknownInitDisappearsGrandchildRequired : D4_UnknownInitDisappears {
 // CHECK-NEXT: init()
 // CHECK-NEXT: init(value: Int)
+// CHECK-NEXT: deinit
 // CHECK-NEXT: {{^}$}}
 
 // CHECK-RECOVERY-LABEL: class D7_UnknownInitDisappearsGrandchildRequired : D4_UnknownInitDisappears {
 // CHECK-RECOVERY-NEXT: init()
 // CHECK-RECOVERY-NEXT: /* placeholder for init(value:) */
+// CHECK-RECOVERY-NEXT: deinit
 // CHECK-RECOVERY-NEXT: {{^}$}}
 
 open class D8_UnknownInitDisappearsRequired : UnknownInitDisappearsBase {
@@ -340,11 +370,13 @@ open class D8_UnknownInitDisappearsRequired : UnknownInitDisappearsBase {
 // CHECK-LABEL: class D8_UnknownInitDisappearsRequired : UnknownInitDisappearsBase {
 // CHECK-NEXT: init()
 // CHECK-NEXT: init(value: Int)
+// CHECK-NEXT: deinit
 // CHECK-NEXT: {{^}$}}
 
 // CHECK-RECOVERY-LABEL: class D8_UnknownInitDisappearsRequired : UnknownInitDisappearsBase {
 // CHECK-RECOVERY-NEXT: init()
 // CHECK-RECOVERY-NEXT: /* placeholder for init(value:) */
+// CHECK-RECOVERY-NEXT: deinit
 // CHECK-RECOVERY-NEXT: {{^}$}}
 
 open class D9_UnknownInitDisappearsRequiredGrandchild : D8_UnknownInitDisappearsRequired {
@@ -355,11 +387,13 @@ open class D9_UnknownInitDisappearsRequiredGrandchild : D8_UnknownInitDisappears
 // CHECK-LABEL: class D9_UnknownInitDisappearsRequiredGrandchild : D8_UnknownInitDisappearsRequired {
 // CHECK-NEXT: init()
 // CHECK-NEXT: init(value: Int)
+// CHECK-NEXT: deinit
 // CHECK-NEXT: {{^}$}}
 
 // CHECK-RECOVERY-LABEL: class D9_UnknownInitDisappearsRequiredGrandchild : D8_UnknownInitDisappearsRequired {
 // CHECK-RECOVERY-NEXT: init()
 // CHECK-RECOVERY-NEXT: /* placeholder for init(value:) */
+// CHECK-RECOVERY-NEXT: deinit
 // CHECK-RECOVERY-NEXT: {{^}$}}
 
 public class E1_MethodWithDisappearingType : MethodWithDisappearingType {
@@ -369,11 +403,13 @@ public class E1_MethodWithDisappearingType : MethodWithDisappearingType {
 // CHECK-LABEL: class E1_MethodWithDisappearingType : MethodWithDisappearingType {
 // CHECK-NEXT: override func boxItUp() -> BoxedInt
 // CHECK-NEXT: init()
+// CHECK-NEXT: deinit
 // CHECK-NEXT: {{^}$}}
 
 // CHECK-RECOVERY-LABEL: class E1_MethodWithDisappearingType : MethodWithDisappearingType {
 // CHECK-RECOVERY-NEXT: /* placeholder for boxItUp() */
 // CHECK-RECOVERY-NEXT: init()
+// CHECK-RECOVERY-NEXT: deinit
 // CHECK-RECOVERY-NEXT: {{^}$}}
 
 public class E2_InitializerStub : InitializerWithDisappearingType {
@@ -384,12 +420,14 @@ public class E2_InitializerStub : InitializerWithDisappearingType {
 // CHECK-NEXT: init(unrelatedValue: Int)
 // CHECK-NEXT: init(boxedInt box: BoxedInt)
 // CHECK-NEXT: init()
+// CHECK-NEXT: deinit
 // CHECK-NEXT: {{^}$}}
 
 // CHECK-RECOVERY-LABEL: class E2_InitializerStub : InitializerWithDisappearingType {
 // CHECK-RECOVERY-NEXT: init(unrelatedValue: Int)
 // CHECK-RECOVERY-NEXT: /* placeholder for init(boxedInt:) */
 // CHECK-RECOVERY-NEXT: init()
+// CHECK-RECOVERY-NEXT: deinit
 // CHECK-RECOVERY-NEXT: {{^}$}}
 
 #endif // TEST

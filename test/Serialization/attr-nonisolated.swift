@@ -14,6 +14,7 @@
 // MODULE-CHECK:      actor UnsafeCounter {
 // MODULE-CHECK-NEXT:   var storage: Int
 // MODULE-CHECK-NEXT:   nonisolated var count: Int
+// MODULE-CHECK-NEXT:   deinit
 // MODULE-CHECK-NEXT:   init()
 // MODULE-CHECK-NEXT: }
 

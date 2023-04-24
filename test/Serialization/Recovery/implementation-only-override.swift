@@ -18,6 +18,7 @@ import FooKit
 //  CHECK-NEXT:   /* placeholder for rwPropSECRET */
 //  CHECK-NEXT:   /* placeholder for subscript(_:) */
 //  CHECK-NEXT:   @_implementationOnly override var redefinedPropSECRET: Parent?
+//  CHECK-NEXT:   deinit
 //  CHECK-NEXT: }
 public class GoodChild: Parent {
   public override init() { super.init() }
@@ -48,6 +49,7 @@ public class GoodChild: Parent {
 //  CHECK-NEXT:   /* placeholder for rwPropSECRET */
 //  CHECK-NEXT:   /* placeholder for subscript(_:) */
 //  CHECK-NEXT:   @_implementationOnly override var redefinedPropSECRET: Parent?
+//  CHECK-NEXT:   deinit
 //  CHECK-NEXT: }
 public class GoodGenericChild<Toy>: Parent {
   public override init() { super.init() }
@@ -72,6 +74,7 @@ public class GoodGenericChild<Toy>: Parent {
 // CHECK-LABEL: class QuietChild : Parent {
 //  CHECK-NEXT:   /* placeholder for init(SECRET:) */
 //  CHECK-NEXT:   /* placeholder for init(requiredSECRET:) */
+//  CHECK-NEXT:   deinit
 //  CHECK-NEXT: }
 public class QuietChild: Parent {
   internal override init() { super.init() }
@@ -109,6 +112,7 @@ internal class PrivateGrandchild: GoodChild {
 
 // CHECK-LABEL: class SubscriptChild : SubscriptParent {
 //  CHECK-NEXT:   @_implementationOnly override subscript(index: Int32) -> Parent?
+//  CHECK-NEXT:   deinit
 //  CHECK-NEXT: }
 public class SubscriptChild: SubscriptParent {
   @_implementationOnly public override subscript(_ index: Int32) -> Parent? {
