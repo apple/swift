@@ -17,10 +17,9 @@ distributed actor MyDistActor {
     self.actorSystem = system
   }
 
-  // CHECK-LABEL: sil hidden @$s13coverage_dist11MyDistActorCfd : $@convention(method) (@guaranteed MyDistActor) -> @owned Builtin.NativeObject
-  // CHECK:       cond_br {{%[0-9]+}}, {{bb[0-9]+}}, [[DEINITBODYBB:bb[0-9]+]]
-
-  // CHECK:       [[DEINITBODYBB]]:
+  // CHECK-LABEL: sil hidden @$s13coverage_dist11MyDistActorCfd : $@convention(method) (@guaranteed MyDistActor) -> @owned Builtin.Nativ
+  // CHECK:  bb0(%0 : $MyDistActor):
+  // CHECK-NEXT:  debug_value
   // CHECK-NEXT:  increment_profiler_counter 0
   // CHECK:       function_ref @$sSb6randomSbyFZ
   // CHECK:       cond_br {{%[0-9]+}}, [[TRUEBB:bb[0-9]+]], {{bb[0-9]+}}
