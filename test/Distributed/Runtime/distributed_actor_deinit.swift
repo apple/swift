@@ -39,7 +39,7 @@ func isMainThread() -> Bool {
 }
 
 @_silgen_name("swift_task_isCurrentExecutor")
-func isCurrentExecutor(_ executor: Builtin.Executor) -> Bool
+private func isCurrentExecutor(_ executor: Builtin.Executor) -> Bool
 
 func getExecutor(_ a: AnyActor) -> Builtin.Executor {
   let pack = (a, UnsafeRawPointer?.none)

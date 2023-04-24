@@ -114,6 +114,38 @@ void SILGenFunction::emitDestroyingDestructor(DestructorDecl *dd) {
 
   auto cd = cast<ClassDecl>(dd->getDeclContext());
   SILValue selfValue = emitSelfDeclForDestructor(dd->getImplicitSelfDecl());
+  ManagedValue managedSelf;
+  if (selfValue->getOwnershipKind() == OwnershipKind::Unowned) {
+    managedSelf = ManagedValue::forUnownedObjectValue(selfValue);
+  } else {
+    managedSelf = ManagedValue::forBorrowedRValue(selfValue);
+  }
+
+  auto ai = swift::getActorIsolation(dd);
+  auto actor = emitExecutor(Loc, ai, managedSelf);
+  if (actor) {
+    ExpectedExecutor = *actor;
+  } else if (dd->hasAsync()) {
+    // In async functions, the generic executor is our expected executor
+    // if we don't have any sort of isolation.
+    ExpectedExecutor = emitGenericExecutor(Loc);
+  }
+
+  // Jump to the expected executor.
+  if (ExpectedExecutor) {
+    if (F.isAsync()) {
+      // For an async function, hop to the executor.
+      B.createHopToExecutor(
+          RegularLocation::getDebugOnlyLocation(F.getLocation(), getModule()),
+          ExpectedExecutor,
+          /*mandatory*/ false);
+    } else {
+      // For a synchronous function, check that we're on the same executor.
+      // Note: if we "know" that the code is completely Sendable-safe, this
+      // is unnecessary. The type checker will need to make this determination.
+      emitPreconditionCheckExpectedExecutor(Loc, ExpectedExecutor);
+    }
+  }
 
   // Create a basic block to jump to for the implicit destruction behavior
   // of releasing the elements and calling the superclass destructor.
