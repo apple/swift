@@ -673,7 +673,8 @@ struct PrintOptions {
     result.SkipPrivateStdlibDecls = true;
     result.SkipUnderscoredStdlibProtocols = true;
     result.SkipUnsafeCXXMethods = true;
-    result.SkipDeinit = true;
+    result.SkipDeinit = false; // Deinit may have isolation attributes, which
+                               // are part of the interface
     result.EmptyLineBetweenMembers = true;
     result.CascadeDocComment = true;
     result.ShouldQualifyNestedDeclarations =

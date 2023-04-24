@@ -1,0 +1,6 @@
+framework module Beta {
+  umbrella header "Beta.h"
+
+  export *
+  module * { export * }
+}

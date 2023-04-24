@@ -1,0 +1,4 @@
+framework module Alpha [system] {
+  header "Alpha-Swift.h"
+  requires objc
+}
