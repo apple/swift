@@ -3999,6 +3999,12 @@ static bool hasExplicitIsolationAttribute(const Decl *decl) {
       return true;
   }
 
+  if (auto isolatedAttr = decl->getAttrs().getAttribute<IsolatedAttr>()) {
+    if (!isolatedAttr->isImplicit()) {
+      return true;
+    }
+  }
+
   if (auto globalActorAttr = decl->getGlobalActorAttr()) {
     if (!globalActorAttr->first->isImplicit())
       return true;
@@ -6515,6 +6521,115 @@ ActorReferenceResult ActorReferenceResult::forReference(
   }
 
   return forEntersActor(declIsolation, options);
+}
+
+namespace {
+class AwaitDetector : public ASTWalker {
+public:
+  bool hasAwait = false;
+  bool isInvalid = false;
+
+  PreWalkAction walkToDeclPre(Decl *D) override {
+    if (auto ICD = dyn_cast<IfConfigDecl>(D)) {
+      for (auto &clause : ICD->getClauses()) {
+        // Active clauses are handled by the normal AST walk.
+        if (clause.isActive)
+          continue;
+
+        for (auto elt : clause.Elements) {
+          if (hasAwait)
+            break;
+          elt.walk(*this);
+        }
+      }
+      if (hasAwait)
+        return Action::Stop();
+      return Action::Continue();
+    } else if (auto patternBinding = dyn_cast<PatternBindingDecl>(D)) {
+      if (patternBinding->isAsyncLet()) {
+        hasAwait = true;
+        return Action::Stop();
+      }
+    }
+    return Action::SkipChildren();
+  }
+
+  PreWalkResult<Expr *> walkToExprPre(Expr *E) override {
+    if (isa<ErrorExpr>(E)) {
+      isInvalid = true;
+      return Action::Continue(E);
+    } else if (auto closure = dyn_cast<ClosureExpr>(E)) {
+      return Action::SkipChildren(E);
+    } else if (auto autoclosure = dyn_cast<AutoClosureExpr>(E)) {
+      return Action::SkipChildren(E);
+    } else if (auto awaitExpr = dyn_cast<AwaitExpr>(E)) {
+      hasAwait = true;
+      return Action::Stop();
+    } else {
+      return Action::Continue(E);
+    }
+  }
+
+  PreWalkResult<Stmt *> walkToStmtPre(Stmt *S) override {
+    if (auto forEach = dyn_cast<ForEachStmt>(S)) {
+      if (forEach->getAwaitLoc().isValid()) {
+        hasAwait = true;
+        return Action::Stop();
+      }
+    }
+    return Action::Continue(S);
+  }
+};
+} // namespace
+
+void swift::checkAsyncDeinitUsage(DestructorDecl *dd) {
+  DestructorDecl *superDeinit = dd->getSuperDeinit();
+  bool superHasAsync = superDeinit && superDeinit->hasAsync();
+  if (!dd->hasAsync()) {
+    if (superHasAsync) {
+      dd->diagnose(diag::deinit_must_be_async)
+          .fixItInsertAfter(dd->getDestructorLoc(), " async");
+
+      // Skip superclasses with synthesized deinit
+      while (true) {
+        DestructorDecl *superSuperDeinit = superDeinit->getSuperDeinit();
+        if (!superSuperDeinit || !superSuperDeinit->hasAsync() ||
+            !superDeinit->isSynthesized()) {
+          break;
+        }
+        superDeinit = superSuperDeinit;
+      }
+
+      if (superDeinit) {
+        superDeinit->diagnose(diag::super_async_deinit_here);
+      }
+    }
+  } else {
+    if (!superHasAsync) {
+      if (auto body = dd->getBody()) {
+        AwaitDetector detector;
+        body->walk(detector);
+        // If deinit body contains errors, assume await will be added later, and
+        // don't produce a warning.
+        if (!detector.isInvalid && !detector.hasAwait) {
+          SourceLoc endOfAsync = Lexer::getLocForEndOfToken(
+              dd->getASTContext().SourceMgr, dd->getAsyncLoc());
+          if (hasExplicitIsolationAttribute(dd)) {
+            // There is already an isolation attribute, just remove the 'async'
+            SourceLoc endOfDeinit = Lexer::getLocForEndOfToken(
+                dd->getASTContext().SourceMgr, dd->getDestructorLoc());
+            dd->diagnose(diag::deinit_does_not_need_async)
+                .fixItRemoveChars(endOfDeinit, endOfAsync);
+          } else {
+            // Remove 'async' and insert 'isolated'
+            dd->diagnose(diag::deinit_does_not_need_async)
+                .fixItReplaceChars(dd->getDestructorLoc(), endOfAsync,
+                                   "isolated deinit");
+          }
+        }
+      }
+    }
+  }
 }
 
 llvm::Optional<ActorIsolation> swift::shouldHopForSuperDeinit(DestructorDecl *dd) {

@@ -43,7 +43,7 @@ func isolatedFunc() {}
 // CHECK-SYMB: } // end sil function '$s12async_deinit13ClassIsolatedCfD'
 @FirstActor
 class ClassIsolated {
-    deinit async {
+    deinit async { // expected-warning {{async deinit contains no await statements; consider using isolated sync deinit instead}} {{5-17=isolated deinit}}
         isolatedFunc()
     }
 }

@@ -5788,6 +5788,9 @@ ERROR(deinit_must_be_async,none,
 NOTE(super_async_deinit_here,none,
      "async deinit was introduced to class hierarchy here",
      ())
+WARNING(deinit_does_not_need_async,none,
+    "async deinit contains no await statements; consider using isolated sync deinit instead",
+    ())
 
 //------------------------------------------------------------------------------
 // MARK: String Processing
