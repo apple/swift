@@ -872,6 +872,11 @@ using AsyncVoidClosureEntryPoint =
   SWIFT_CC(swiftasync)
   void (SWIFT_ASYNC_CONTEXT AsyncContext *, SWIFT_CONTEXT void *);
 
+/// This matches the ABI of a thin function taking context as explicit parameter
+/// `@convention(thin) (AnyObject) async throws -> ()`
+using AsyncVoidFunctionEntryPoint =
+    SWIFT_CC(swiftasync) void(SWIFT_ASYNC_CONTEXT AsyncContext *, void *);
+
 /// This matches the ABI of a closure `<T>() async throws -> T`
 using AsyncGenericClosureEntryPoint =
     SWIFT_CC(swiftasync)

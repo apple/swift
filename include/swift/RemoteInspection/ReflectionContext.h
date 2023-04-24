@@ -132,6 +132,7 @@ class ReflectionContext
 
   bool setupTargetPointers = false;
   typename super::StoredPointer target_non_future_adapter = 0;
+  typename super::StoredPointer target_non_context_adapter = 0;
   typename super::StoredPointer target_future_adapter = 0;
   typename super::StoredPointer target_task_wait_throwing_resume_adapter = 0;
   typename super::StoredPointer target_task_future_wait_resume_adapter = 0;
@@ -1773,7 +1774,8 @@ private:
 
     loadTargetPointers();
     auto ResumeContextPtr = AsyncTaskObj->ResumeContextAndReserved[0];
-    if (target_non_future_adapter && Fptr == target_non_future_adapter) {
+    if ((target_non_future_adapter && Fptr == target_non_future_adapter) ||
+        (target_non_context_adapter && Fptr == target_non_context_adapter)) {
       using Prefix = AsyncContextPrefix<Runtime>;
       auto PrefixAddr = ResumeContextPtr - sizeof(Prefix);
       auto PrefixBytes =
@@ -1822,6 +1824,8 @@ private:
     };
     target_non_future_adapter =
         getFunc("_swift_concurrency_debug_non_future_adapter");
+    target_non_context_adapter =
+        getFunc("_swift_concurrency_debug_non_context_adapter");
     target_future_adapter = getFunc("_swift_concurrency_debug_future_adapter");
     target_task_wait_throwing_resume_adapter =
         getFunc("_swift_concurrency_debug_task_wait_throwing_resume_adapter");

@@ -39,6 +39,8 @@ const void *const _swift_concurrency_debug_asyncTaskSlabMetadata;
 SWIFT_EXPORT_FROM(swift_Concurrency)
 const void *const _swift_concurrency_debug_non_future_adapter;
 SWIFT_EXPORT_FROM(swift_Concurrency)
+const void *const _swift_concurrency_debug_non_context_adapter;
+SWIFT_EXPORT_FROM(swift_Concurrency)
 const void *const _swift_concurrency_debug_future_adapter;
 SWIFT_EXPORT_FROM(swift_Concurrency)
 const void *const _swift_concurrency_debug_task_wait_throwing_resume_adapter;
