@@ -4634,7 +4634,9 @@ ActorIsolation ActorIsolationRequest::evaluate(
     ActorIsolation isolation = ActorIsolation::forUnspecified();
     if (overriddenValue) {
       isolation = getOverriddenIsolationFor(value);
-    } else if (hasIsolatedSelf) {
+    }
+
+    if (hasIsolatedSelf && isolation.isUnspecified()) {
       // Don't use 'unspecified' for actors, use 'nonisolated' instead
       // To force generation of the 'nonisolated' attribute in SIL and
       // .swiftmodule
