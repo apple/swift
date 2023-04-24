@@ -2039,6 +2039,101 @@ static void swift_task_switchImpl(SWIFT_ASYNC_CONTEXT AsyncContext *resumeContex
   _swift_task_clearCurrent();
 }
 
+namespace {
+/// Job that allows to use executor API to schedule a block of task-less
+/// synchronous code.
+class AdHocJob : public Job {
+
+private:
+  void *Context;
+  AdHocWorkFunction *Work;
+  TaskLocal::Storage Local;
+
+public:
+  AdHocJob(JobPriority priority, void *context, AdHocWorkFunction *work)
+      : Job({JobKind::AdHoc, priority}, &process), Context(context),
+        Work(work) {
+    TaskLocal::copyTo(&Local, nullptr);
+  }
+
+  ~AdHocJob() { Local.destroy(nullptr); }
+
+  SWIFT_CC(swiftasync)
+  static void process(Job *_job) {
+    auto *job = cast<AdHocJob>(_job);
+    job->runWork();
+    delete job;
+  }
+
+  inline void runWork() {
+    TaskLocal::AdHocScope taskLocalScope(&Local);
+    Work(Context);
+  }
+
+  static bool classof(const Job *job) {
+    return job->Flags.getKind() == JobKind::AdHoc;
+  }
+};
+} // namespace
+
+SWIFT_CC(swift)
+static void swift_task_performOnExecutorImpl(void *context,
+                                             AdHocWorkFunction *work,
+                                             SerialExecutorRef newExecutor) {
+  // If the current executor is compatible with running the new executor,
+  // we can just immediately continue running with the resume function
+  // we were passed in.
+  //
+  // Note that swift_task_isCurrentExecutor() returns true for @MainActor
+  // when running on the main thread without any executor
+  if (swift_task_isCurrentExecutor(newExecutor)) {
+    return work(context); // 'return' forces tail call
+  }
+
+  // Optimize deallocation of the default actors
+  if (context == newExecutor.getIdentity() && newExecutor.isDefaultActor()) {
+    // Try to take the lock. This should always succeed, unless someone is
+    // running the actor using unsafe unowned reference.
+    if (asImpl(newExecutor.getDefaultActor())->tryLock(false)) {
+
+      // Don't unlock current executor, because we must preserve it when
+      // returning. If we release the lock, we might not be able to get it back.
+      // It cannot produce deadlocks, because:
+      //   * we use tryLock(), not lock()
+      //   * each object can be deinitialized only once, so call graph of
+      //   deinit's cannot have cycles.
+
+      // Function runOnAssumedThread() tries to reuse existing tracking info,
+      // but we don't have a tail call anyway, so this does not help much here.
+      // Always create new tracking info to keep code simple.
+      ExecutorTrackingInfo trackingInfo;
+      trackingInfo.enterAndShadow(newExecutor, TaskExecutorRef::undefined());
+
+      // Run the work.
+      work(context);
+
+      // `work` is a synchronous function, it cannot call swift_task_switch()
+      // If it calls any synchronous API that may change executor inside
+      // tracking info, that API is also responsible for changing it back.
+      assert(newExecutor == trackingInfo.getActiveExecutor());
+
+      // Leave the tracking frame
+      trackingInfo.leave();
+
+      // Give up the current actor.
+      asImpl(newExecutor.getDefaultActor())->unlock(true);
+      return;
+    }
+  }
+
+  auto currentTask = swift_task_getCurrent();
+  auto priority = currentTask ? swift_task_currentPriority(currentTask)
+                              : swift_task_getCurrentThreadPriority();
+
+  auto job = new AdHocJob(priority, context, work);
+  swift_task_enqueue(job, newExecutor);
+}
+
 /*****************************************************************************/
 /************************* GENERIC ACTOR INTERFACES **************************/
 /*****************************************************************************/
