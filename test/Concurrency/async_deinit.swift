@@ -18,7 +18,9 @@
 func isolatedFunc() {}
 
 class AsyncBase {
-    deinit async {} // expected-note 2{{async deinit was introduced to class hierarchy here}}
+    deinit async {  // expected-note 2{{async deinit was introduced to class hierarchy here}}
+        await Task.yield()
+    }
 }
 
 class ImplicitDerived: AsyncBase {}
@@ -32,3 +34,31 @@ class IndirectlySyncDerived: ImplicitDerived {
     deinit {} // expected-error {{deinit must be 'async' because parent class has 'async' deinit}}
 }
 #endif
+
+@FirstActor
+class GoodDerived: ImplicitDerived {
+    // expected-warning@-1 {{global actor 'FirstActor'-isolated class 'GoodDerived' has different actor isolation from nonisolated superclass 'ImplicitDerived'; this is an error in Swift 6}}
+
+    @SecondActor
+    var foo: Int = 42
+    
+    nonisolated func bar() async {
+#if !SILGEN
+        // expected-error@+2 {{expression is 'async' but is not marked with 'await'}}
+        // expected-note@+1 {{property access is 'async'}}
+        print(foo)
+#endif
+        // ok
+        print(await foo)
+    }
+    
+    deinit async {
+#if !SILGEN
+        // expected-error@+2 {{expression is 'async' but is not marked with 'await'}}
+        // expected-note@+1 {{property access is 'async'}}
+        print(foo)
+#endif
+        // ok
+        print(await foo)
+    }
+}

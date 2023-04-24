@@ -6449,7 +6449,7 @@ ActorReferenceResult ActorReferenceResult::forReference(
   if (actorInstance && actorInstance->isSelf() &&
       isNonInheritedStorage(declRef.getDecl(), fromDC) &&
       declIsolation.isGlobalActor() &&
-      (isa<ConstructorDecl>(fromDC) || isa<DestructorDecl>(fromDC)))
+      isa<ConstructorDecl>(fromDC))
     return forSameConcurrencyDomain(declIsolation, options);
 
   // At this point, we are accessing the target from outside the actor.
