@@ -38,6 +38,7 @@ public class MyCls {
 }
 
 public actor MyAct {
+  // CHECK-LABEL: sil [serialized] [ossa] @$s19inlinable_attribute5MyActCfZ : $@convention(thin) (@owned MyAct) -> ()
   // CHECK-LABEL: sil [serialized] [ossa] @$s19inlinable_attribute5MyActCfD : $@convention(method) (@owned MyAct) -> ()
   @inlinable deinit {}
 
