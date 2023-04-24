@@ -708,12 +708,19 @@ public:
       // But the non-deallocating one doesn't apply to some @objc classes.
       if (!Lowering::usesObjCAllocator(parentClass)) {
         addFunction(SILDeclRef(DD, SILDeclRef::Kind::Destroyer));
+        if (DD->hasAsync()) {
+          addAsyncFunctionPointer(SILDeclRef(DD, SILDeclRef::Kind::Destroyer));
+        }
       }
     }
 
     // And isolated also does not always exist
     if (Lowering::needsIsolatingDestructor(DD)) {
       addFunction(SILDeclRef(DD, SILDeclRef::Kind::IsolatedDeallocator));
+      if (DD->hasAsync()) {
+        addAsyncFunctionPointer(
+            SILDeclRef(DD, SILDeclRef::Kind::IsolatedDeallocator));
+      }
     }
   }
 
