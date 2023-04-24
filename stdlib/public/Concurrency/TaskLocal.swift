@@ -239,8 +239,10 @@ public final class TaskLocal<Value: Sendable>: Sendable, CustomStringConvertible
 
 /// Resets task-local's to their default values for the duration of the asynchronous operation.
 ///
-@available(SwiftStdlib 5.8, *)
+@inlinable
 @discardableResult
+@_unsafeInheritExecutor
+@available(SwiftStdlib 5.8, *)
 public func withResetTaskLocalValues<R>(operation: () async throws -> R,
                          file: String = #fileID, line: UInt = #line) async rethrows -> R {
   // check if we're not trying to bind a value from an illegal context; this may crash
@@ -283,10 +285,12 @@ func _taskLocalValuePush<Value>(
 func _taskLocalValuePop()
 
 @available(SwiftStdlib 5.8, *)
+@usableFromInline
 @_silgen_name("swift_task_localStopPush")
 func _taskLocalStopPush() -> Bool
 
 @available(SwiftStdlib 5.8, *)
+@usableFromInline
 @_silgen_name("swift_task_localStopPop")
 func _taskLocalStopPop(_ didPush: Bool)
 
