@@ -2939,6 +2939,10 @@ public:
   /// Retrieve the declaration that this declaration overrides, if any.
   ValueDecl *getOverriddenDecl() const;
 
+  /// Retrieve the declaration that this declaration overrides, including super
+  /// deinit.
+  ValueDecl *getOverriddenDeclOrSuperDeinit() const;
+
   /// Retrieve the declarations that this declaration overrides, if any.
   llvm::TinyPtrVector<ValueDecl *> getOverriddenDecls() const;
 

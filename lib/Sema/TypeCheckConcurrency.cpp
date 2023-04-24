@@ -4469,7 +4469,7 @@ namespace {
 /// Return the isolation of the declaration overridden by this declaration,
 /// in the context of the
 static ActorIsolation getOverriddenIsolationFor(ValueDecl *value) {
-  auto overridden = value->getOverriddenDecl();
+  auto overridden = value->getOverriddenDeclOrSuperDeinit();
   assert(overridden && "Doesn't have an overridden declaration");
 
   auto isolation = getActorIsolation(overridden);
@@ -4504,9 +4504,16 @@ static OverrideIsolationResult validOverrideIsolation(
   ConcreteDeclRef valueRef = getDeclRefInContext(value);
   auto declContext = value->getInnermostDeclContext();
 
+  // Normally we are checking if overriding declaration can be called by calling
+  // overriden declaration But in case of destructors, overriden declaration is
+  // always callable by definition and we are checking that subclas deinit can
+  // call super deinit.
+  bool isDtor = isa<DestructorDecl>(value);
+
   auto refResult = ActorReferenceResult::forReference(
-      valueRef, SourceLoc(), declContext, llvm::None, llvm::None, isolation,
-      overriddenIsolation);
+      valueRef, SourceLoc(), declContext, llvm::None, llvm::None,
+      isDtor ? overriddenIsolation : isolation,
+      isDtor ? isolation : overriddenIsolation);
   switch (refResult) {
   case ActorReferenceResult::SameConcurrencyDomain:
     return OverrideIsolationResult::Allowed;
@@ -5067,7 +5074,7 @@ void swift::checkOverrideActorIsolation(ValueDecl *value) {
   if (isa<TypeDecl>(value))
     return;
 
-  auto overridden = value->getOverriddenDecl();
+  auto overridden = value->getOverriddenDeclOrSuperDeinit();
   if (!overridden)
     return;
 
@@ -6087,12 +6094,12 @@ static bool isNonValueReference(const ValueDecl *value) {
   case DeclKind::PrecedenceGroup:
   case DeclKind::PrefixOperator:
   case DeclKind::TopLevelCode:
-  case DeclKind::Destructor:
   case DeclKind::MacroExpansion:
     return true;
 
   case DeclKind::EnumElement:
   case DeclKind::Constructor:
+  case DeclKind::Destructor:
   case DeclKind::Param:
   case DeclKind::Var:
   case DeclKind::Accessor:
