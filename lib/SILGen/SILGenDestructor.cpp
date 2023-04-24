@@ -778,10 +778,18 @@ void SILGenFunction::emitObjCDestructor(SILDeclRef dtor) {
   auto subMap = superclassTy->getContextSubstitutionMap(SGM.M.getSwiftModule(),
                                                         superclass);
 
-  // TODO: Emit hop to executor if parent deinit is sync but isolated
-  // Note that this also covers the case when deinit does not need isolating
-  // destructor because it was declared isolated in ObjC isolation logic is
-  // assume to be in the overridden release method.
+  if (auto ai = shouldHopForSuperDeinit(dd)) {
+    // Emit hop to executor if parent deinit is sync but isolated
+    // Note that this also covers the case when deinit does not need isolating
+    // destructor because it was declared isolated in ObjC and isolation is
+    // assumed to be implemented in overriden release method.
+    assert(dd->hasAsync() &&
+           "Sync destructor musth have the same isolation as super deinit");
+    FullExpr CleanupScope(Cleanups, CleanupLocation(loc));
+    auto actor = emitExecutor(loc, *ai, ManagedValue::forUnmanagedOwnedValue(selfValue));
+    assert(actor);
+    B.createHopToExecutor(loc, *actor, /*mandatory*/ false);
+  }
 
   if (Lowering::needsIsolatingDestructor(dd->getSuperDeinit())) {
     // If superclass (also) has async deinit, we don't want to call [super
