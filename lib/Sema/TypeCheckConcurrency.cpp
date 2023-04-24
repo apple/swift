@@ -4035,8 +4035,15 @@ getIsolationFromAttributes(const Decl *decl, bool shouldDiagnose = true,
                                (nonisolatedAttr ? 1 : 0) +
                                (globalActorAttr ? 1 : 0);
   if (numIsolationAttrs == 0) {
-    if (isa<DestructorDecl>(decl) && !decl->isImplicit()) {
-      return ActorIsolation::forNonisolated(false);
+    if (auto dd = dyn_cast<DestructorDecl>(decl)) {
+      // Explicit sync deinit without attributes is equivalent to being explicit
+      // marked as nonisolated. For implicit deinit absence of attributes does
+      // not mean anything - it should inherit isolation of the super deinit.
+      // Async deinit behaves like normal method and isolation of the class
+      // should propagate.
+      if (!dd->isImplicit() && !dd->hasAsync()) {
+        return ActorIsolation::forNonisolated(false);
+      }
     }
     return llvm::None;
   }
@@ -4406,7 +4413,13 @@ getMemberIsolationPropagation(const ValueDecl *value) {
     return MemberIsolationPropagation::AnyIsolation;
 
   case DeclKind::Destructor:
-    if (value->getAttrs().getAttribute<IsolatedAttr>()) {
+    // For backwards compatibility we don't want class isolation to propagate to
+    // sync deinit by default. The 'isolated' attribute acts as an opt-in. But
+    // for async deinit we don't want developers to insert 'await' for each
+    // individual property access, and we are not concerned about backwards
+    // compatibility. So for async deinit isolation is propagated.
+    if (value->getAttrs().getAttribute<IsolatedAttr>() ||
+        cast<DestructorDecl>(value)->hasAsync()) {
       return MemberIsolationPropagation::AnyIsolation;
     } else {
       return llvm::None;
@@ -4644,6 +4657,14 @@ static OverrideIsolationResult validOverrideIsolation(
     if (isAsyncDecl(isDtor ? value : overridden) ||
         isAccessibleAcrossActors(overridden, refResult.isolation,
                                  declContext)) {
+      return OverrideIsolationResult::Sendable;
+    }
+
+    // If super class deinit is async, this deinit also must be async
+    // If it is not - it is an error, and will be reported separately
+    // If we recover by adding missing async, we won't have an error here
+    // anymore.
+    if (isDtor && isAsyncDecl(overridden)) {
       return OverrideIsolationResult::Sendable;
     }
 

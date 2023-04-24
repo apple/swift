@@ -17,6 +17,93 @@
 @FirstActor
 func isolatedFunc() {}
 
+// CHECK-LABEL: @FirstActor class ClassIsolated {
+// CHECK: {{(@objc )?}} @FirstActor deinit async
+// CHECK: }
+
+// CHECK-SYMB: // ClassIsolated.deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s12async_deinit13ClassIsolatedCfd : $@convention(method) @async (@guaranteed ClassIsolated) -> @owned Builtin.NativeObject {
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $FirstActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[FUNC:%.*]] = function_ref @$s12async_deinit12isolatedFuncyyF : $@convention(thin) () -> ()
+// CHECK-SYMB-NEXT: apply [[FUNC]]() : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: } // end sil function '$s12async_deinit13ClassIsolatedCfd'
+
+// CHECK-SYMB: // ClassIsolated.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s12async_deinit13ClassIsolatedCfZ : $@convention(thin) @async (@owned ClassIsolated) -> () {
+
+// CHECK-SYMB: // ClassIsolated.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s12async_deinit13ClassIsolatedCfD : $@convention(method) (@owned ClassIsolated) -> () {
+// CHECK-SYMB: [[EXECUTOR:%.*]] = extract_executor {{%[0-9]+}} : $FirstActor
+// CHECK-SYMB: [[OPT_EXECUTOR:%.*]] = enum $Optional<Builtin.Executor>, #Optional.some!enumelt, [[EXECUTOR]] : $Builtin.Executor
+// CHECK-SYMB: [[DEINIT_ASYNC:%.*]] = function_ref @swift_task_deinitAsync : $@convention(thin) (@owned AnyObject, @convention(thin) @async (@owned AnyObject) -> (), Optional<Builtin.Executor>, Builtin.Word) -> ()
+// CHECK-SYMB: apply [[DEINIT_ASYNC]]({{%[0-9]+, %[0-9]+, }}[[OPT_EXECUTOR]]
+// CHECK-SYMB: } // end sil function '$s12async_deinit13ClassIsolatedCfD'
+@FirstActor
+class ClassIsolated {
+    deinit async {
+        isolatedFunc()
+    }
+}
+
+// CHECK-LABEL: actor ActorIsolated {
+// CHECK: {{(@objc )?}} deinit async
+// CHECK: }
+
+// CHECK-SYMB: // ActorIsolated.deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s12async_deinit13ActorIsolatedCfd : $@convention(method) @async (@guaranteed ActorIsolated) -> @owned Builtin.NativeObject {
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor %0 : $ActorIsolated
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[FOO_REF:%.*]] = ref_element_addr %0 : $ActorIsolated, #ActorIsolated.foo
+// CHECK-SYMB-NEXT: [[FOO_ACCESS:%.*]] = begin_access [read] [dynamic] [[FOO_REF]] : $*Int
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: end_access [[FOO_ACCESS]]
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[FUNC:%.*]] = function_ref @$s12async_deinit12isolatedFuncyyF : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $FirstActor
+// CHECK-SYMB-NEXT: apply [[FUNC]]() : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor %0 : $ActorIsolated
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[WOOF:%.*]] = class_method %0 : $ActorIsolated, #ActorIsolated.woof : (isolated ActorIsolated) -> () async -> (), $@convention(method) @async (@guaranteed ActorIsolated) -> ()
+// CHECK-SYMB-NEXT: apply [[WOOF]](%0) : $@convention(method) @async (@guaranteed ActorIsolated) -> ()
+// CHECK-SYMB-NEXT: hop_to_executor %0
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: } // end sil function '$s12async_deinit13ActorIsolatedCfd'
+
+// CHECK-SYMB: // ActorIsolated.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s12async_deinit13ActorIsolatedCfZ : $@convention(thin) @async (@owned ActorIsolated) -> () {
+
+// CHECK-SYMB: // ActorIsolated.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s12async_deinit13ActorIsolatedCfD : $@convention(method) (@owned ActorIsolated) -> () {
+// CHECK-SYMB: [[EXECUTOR:%.*]] = extract_executor {{%[0-9]+}} : $ActorIsolated
+// CHECK-SYMB: [[OPT_EXECUTOR:%.*]] = enum $Optional<Builtin.Executor>, #Optional.some!enumelt, [[EXECUTOR]] : $Builtin.Executor
+// CHECK-SYMB: [[DEINIT_ASYNC:%.*]] = function_ref @swift_task_deinitAsync : $@convention(thin) (@owned AnyObject, @convention(thin) @async (@owned AnyObject) -> (), Optional<Builtin.Executor>, Builtin.Word) -> ()
+// CHECK-SYMB: apply [[DEINIT_ASYNC]]({{%[0-9]+, %[0-9]+, }}[[OPT_EXECUTOR]]
+// CHECK-SYMB: } // end sil function '$s12async_deinit13ActorIsolatedCfD'
+actor ActorIsolated {
+    var foo: Int = 42
+    
+    func woof() async {}
+    
+    deinit async {
+#if !SILGEN
+        // expected-warning@+1 {{no 'async' operations occur within 'await' expression}}
+        print(await foo)
+#endif
+        // ok
+        print(foo)
+
+        await isolatedFunc()
+        
+        await woof()
+    }
+}
+
 // CHECK-LABEL: class AsyncBase {
 // CHECK: {{(@objc )?}} deinit async
 // CHECK: }
@@ -113,7 +200,7 @@ class GoodDerived: ImplicitDerived {
         print(await foo)
     }
     
-    deinit async {
+    nonisolated deinit async {
 #if !SILGEN
         // expected-error@+2 {{expression is 'async' but is not marked with 'await'}}
         // expected-note@+1 {{property access is 'async'}}

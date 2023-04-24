@@ -137,8 +137,7 @@ class ProbeImplicit_RoundtripAsync: RoundtripAsync {}
 
 #if !SILGEN
 class ProbeDefault_RoundtripAsync: RoundtripAsync {
-    // expected-error@+2 {{deinit must be 'async' because parent class has 'async' deinit}}
-    // expected-error@+1 {{nonisolated deinitializer 'deinit' has different actor isolation from main actor-isolated overridden declaration}}
+    // expected-error@+1 {{deinit must be 'async' because parent class has 'async' deinit}}
     deinit {}
 }
 #endif
@@ -155,8 +154,7 @@ class ProbeIsolated_RoundtripAsync: RoundtripAsync {
 
 #if !SILGEN
 class ProbeGlobal_RoundtripAsync: RoundtripAsync {
-    // expected-error@+2 {{deinit must be 'async' because parent class has 'async' deinit}}
-    // expected-error@+1 {{global actor 'AnotherActor'-isolated deinitializer 'deinit' has different actor isolation from main actor-isolated overridden declaration}}
+    // expected-error@+1 {{deinit must be 'async' because parent class has 'async' deinit}}
     @AnotherActor deinit {}
 }
 #endif
