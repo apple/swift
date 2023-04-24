@@ -4557,6 +4557,13 @@ static llvm::Optional<unsigned> getIsolatedParamIndex(ValueDecl *value) {
   return llvm::None;
 }
 
+static bool belongsToActor(ValueDecl *value) {
+  if (auto nominal = value->getDeclContext()->getSelfNominalTypeDecl()) {
+    return nominal->isAnyActor();
+  }
+  return false;
+}
+
 /// Verifies rules about `isolated` parameters for the given decl. There is more
 /// checking about these in TypeChecker::checkParameterList.
 ///
@@ -4590,71 +4597,48 @@ static void checkDeclWithIsolatedParameter(ValueDecl *value) {
   }
 }
 
-ActorIsolation ActorIsolationRequest::evaluate(
-    Evaluator &evaluator, ValueDecl *value) const {
-
-  const bool hasIsolatedSelf =
-      evaluateOrDefault(evaluator, HasIsolatedSelfRequest{value}, false);
-
-  auto addAttributesForActorIsolation = [&](ActorIsolation isolation) {
-    ASTContext &ctx = value->getASTContext();
-    switch (isolation) {
-    case ActorIsolation::Nonisolated:
-    case ActorIsolation::NonisolatedUnsafe: {
-      value->getAttrs().add(new (ctx) NonisolatedAttr(
-          isolation == ActorIsolation::NonisolatedUnsafe, /*implicit=*/true));
-      break;
-    }
-    case ActorIsolation::GlobalActorUnsafe:
-    case ActorIsolation::GlobalActor: {
-      auto typeExpr = TypeExpr::createImplicit(isolation.getGlobalActor(), ctx);
-      auto attr =
-          CustomAttr::create(ctx, SourceLoc(), typeExpr, /*implicit=*/true);
-      if (isolation == ActorIsolation::GlobalActorUnsafe)
-        attr->setArgIsUnsafe(true);
-      value->getAttrs().add(attr);
-      break;
-    }
-    case ActorIsolation::ActorInstance: {
-      // Nothing to do. Default value for actors.
-      assert(hasIsolatedSelf);
-      break;
-    }
-    case ActorIsolation::Unspecified: {
-      // Nothing to do. Default value for non-actors.
-      assert(!hasIsolatedSelf);
-      break;
-    }
-    }
-  };
-
-  auto isolationFromAttr = getIsolationFromAttributes(value);
-
-  // No need to isolate implicit deinit, unless there is already an isolated one
-  // in the superclass
-  if (isa<DestructorDecl>(value)) {
-    if (value->isImplicit() && !isolationFromAttr) {
-      ValueDecl *overriddenValue = value->getOverriddenDeclOrSuperDeinit();
-      ActorIsolation isolation = ActorIsolation::forUnspecified();
-      if (overriddenValue) {
-        isolation = getOverriddenIsolationFor(value);
-      }
-
-      if (hasIsolatedSelf && isolation.isUnspecified()) {
-        // Don't use 'unspecified' for actors, use 'nonisolated' instead.
-        // To force generation of the 'nonisolated' attribute in SIL and
-        // .swiftmodule
-        isolation = ActorIsolation::forNonisolated(false);
-      }
-
-      addAttributesForActorIsolation(isolation);
-      return isolation;
-    }
+static void addAttributesForActorIsolation(ValueDecl *value,
+                                           ActorIsolation isolation) {
+  ASTContext &ctx = value->getASTContext();
+  switch (isolation) {
+  case ActorIsolation::Nonisolated:
+  case ActorIsolation::NonisolatedUnsafe: {
+    value->getAttrs().add(new (ctx) NonisolatedAttr(
+        isolation == ActorIsolation::NonisolatedUnsafe, /*implicit=*/true));
+    break;
   }
+  case ActorIsolation::GlobalActorUnsafe:
+  case ActorIsolation::GlobalActor: {
+    auto typeExpr = TypeExpr::createImplicit(isolation.getGlobalActor(), ctx);
+    auto attr =
+        CustomAttr::create(ctx, SourceLoc(), typeExpr, /*implicit=*/true);
+    if (isolation == ActorIsolation::GlobalActorUnsafe)
+      attr->setArgIsUnsafe(true);
+    value->getAttrs().add(attr);
+    break;
+  }
+  case ActorIsolation::ActorInstance: {
+    // Nothing to do. Default value for actors.
+    assert(belongsToActor(value));
+    break;
+  }
+  case ActorIsolation::Unspecified: {
+    // Nothing to do. Default value for non-actors.
+    assert(!belongsToActor(value));
+    break;
+  }
+  }
+}
 
+static bool isImplicitDeinit(ValueDecl *value) {
+  return isa<DestructorDecl>(value) && value->isImplicit();
+}
+
+ActorIsolation ActorIsolationRequest::evaluate(Evaluator &evaluator,
+                                               ValueDecl *value) const {
   // If this declaration has actor-isolated "self", it's isolated to that
   // actor.
-  if (hasIsolatedSelf) {
+  if (evaluateOrDefault(evaluator, HasIsolatedSelfRequest{value}, false)) {
     auto actor = value->getDeclContext()->getSelfNominalTypeDecl();
     assert(actor && "could not find the actor that 'self' is isolated to");
 
@@ -4665,7 +4649,7 @@ ActorIsolation ActorIsolationRequest::evaluate(
         actor->getDeclContext()->isModuleScopeContext() &&
         actor->getDeclContext()->getParentModule()->getABIName().is("Swift")) {
       auto isolation = ActorIsolation::forNonisolated(false);
-      addAttributesForActorIsolation(isolation);
+      addAttributesForActorIsolation(value, isolation);
       return isolation;
     }
     return ActorIsolation::forActorInstanceSelf(actor);
@@ -4701,6 +4685,8 @@ ActorIsolation ActorIsolationRequest::evaluate(
     if (auto actor = paramType->getAnyActor())
       return ActorIsolation::forActorInstanceParameter(actor, *paramIdx);
   }
+
+  auto isolationFromAttr = getIsolationFromAttributes(value);
 
   // Diagnose global state that is not either immutable plus Sendable or
   // isolated to a global actor.
@@ -4830,7 +4816,7 @@ ActorIsolation ActorIsolationRequest::evaluate(
         }
 
         // Add nonisolated attribute
-        addAttributesForActorIsolation(inferred);
+        addAttributesForActorIsolation(value, inferred);
         break;
 
       case ActorIsolation::GlobalActorUnsafe:
@@ -4847,7 +4833,7 @@ ActorIsolation ActorIsolationRequest::evaluate(
                         inferred.preconcurrency());
 
         // Add global actor attribute
-        addAttributesForActorIsolation(inferred);
+        addAttributesForActorIsolation(value, inferred);
         break;
       }
 
@@ -4979,8 +4965,14 @@ ActorIsolation ActorIsolationRequest::evaluate(
     // If the declaration is in a nominal type (or extension thereof) that
     // has isolation, use that.
     if (auto selfTypeDecl = value->getDeclContext()->getSelfNominalTypeDecl()) {
-      if (auto selfTypeIsolation = getActorIsolation(selfTypeDecl))
-        return inferredIsolation(selfTypeIsolation, onlyGlobal);
+      if (auto selfTypeIsolation = getActorIsolation(selfTypeDecl)) {
+        if (isImplicitDeinit(value)) {
+          return inferredIsolation(ActorIsolation::forUnspecified(),
+                                   onlyGlobal);
+        } else {
+          return inferredIsolation(selfTypeIsolation, onlyGlobal);
+        }
+      }
     }
   }
 
@@ -5063,6 +5055,23 @@ bool HasIsolatedSelfRequest::evaluate(
     // then it is isolated only if it is async.
     if (!ctor->hasAsync())
       return false;
+  }
+
+  if (isImplicitDeinit(value)) {
+    // Actors don't have inheritance (except inheriting from NSObject),
+    // but check for it anyway, just in case it will be re-introduced later.
+    ValueDecl *overriddenValue = value->getOverriddenDeclOrSuperDeinit();
+    if (overriddenValue) {
+      ActorIsolation isolation = getOverriddenIsolationFor(value);
+      if (isolation.isActorIsolated()) {
+        return isolation.getKind() == ActorIsolation::ActorInstance;
+      }
+    }
+
+    // No need to isolate implicit deinit, unless there is already an isolated
+    // one in the superclass
+    addAttributesForActorIsolation(value, ActorIsolation::forNonisolated(false));
+    return false;
   }
 
   return true;
