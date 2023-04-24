@@ -513,9 +513,9 @@ Type swift::getExplicitGlobalActor(ClosureExpr *closure) {
 
 /// A 'let' declaration is safe across actors if it is either
 /// nonisolated or it is accessed from within the same module.
-static bool varIsSafeAcrossActors(const ModuleDecl *fromModule,
-                                  VarDecl *var,
+static bool varIsSafeAcrossActors(const ModuleDecl *fromModule, VarDecl *var,
                                   const ActorIsolation &varIsolation,
+                                  llvm::Optional<ReferencedActor> actorInstance,
                                   ActorReferenceResult::Options &options) {
   // must be immutable
   if (!var->isLet())
@@ -544,6 +544,10 @@ static bool varIsSafeAcrossActors(const ModuleDecl *fromModule,
       return false;
     }
 
+    // If it's distributed, but known to be local, it's ok
+    if (actorInstance && actorInstance->isKnownToBeLocal()) {
+      return true;
+    }
     // If it's distributed, generally variable access is not okay...
     if (auto nominalParent = var->getDeclContext()->getSelfNominalTypeDecl()) {
       if (nominalParent->isDistributedActor())
@@ -559,7 +563,7 @@ bool swift::isLetAccessibleAnywhere(const ModuleDecl *fromModule,
                                     VarDecl *let,
                                     ActorReferenceResult::Options &options) {
   auto isolation = getActorIsolation(let);
-  return varIsSafeAcrossActors(fromModule, let, isolation, options);
+  return varIsSafeAcrossActors(fromModule, let, isolation, llvm::None, options);
 }
 
 bool swift::isLetAccessibleAnywhere(const ModuleDecl *fromModule,
@@ -6273,8 +6277,8 @@ bool swift::isAccessibleAcrossActors(
   // 'let' declarations are immutable, so some of them can be accessed across
   // actors.
   if (auto var = dyn_cast<VarDecl>(value)) {
-    return varIsSafeAcrossActors(
-        fromDC->getParentModule(), var, isolation, options);
+    return varIsSafeAcrossActors(fromDC->getParentModule(), var, isolation,
+                                 actorInstance, options);
   }
 
   return false;
