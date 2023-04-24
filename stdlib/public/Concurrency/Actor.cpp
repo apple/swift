@@ -2047,17 +2047,12 @@ class IsolatedDeinitJob : public Job {
 private:
   void *Object;
   DeinitWorkFunction *Work;
-  TaskLocal::Storage Local;
 
 public:
   IsolatedDeinitJob(JobPriority priority, void *object,
                     DeinitWorkFunction *work)
       : Job({JobKind::IsolatedDeinit, priority}, &process), Object(object),
-        Work(work) {
-    TaskLocal::copyTo(&Local, nullptr);
-  }
-
-  ~IsolatedDeinitJob() { Local.destroy(nullptr); }
+        Work(work) {}
 
   SWIFT_CC(swiftasync)
   static void process(Job *_job) {
@@ -2067,7 +2062,7 @@ public:
   }
 
   inline void runWork() {
-    TaskLocal::AdHocScope taskLocalScope(&Local);
+    TaskLocal::WithResetValuesScope taskLocalResetScope;
     Work(Object);
   }
 
@@ -2088,7 +2083,8 @@ static void swift_task_deinitOnExecutorImpl(void *object,
   // Note that swift_task_isCurrentExecutor() returns true for @MainActor
   // when running on the main thread without any executor
   if (swift_task_isCurrentExecutor(newExecutor)) {
-    return work(object); // 'return' forces tail call
+    TaskLocal::WithResetValuesScope taskLocalResetScope;
+    return work(object);
   }
 
   // Optimize deallocation of the default actors
@@ -2111,7 +2107,10 @@ static void swift_task_deinitOnExecutorImpl(void *object,
       trackingInfo.enterAndShadow(newExecutor, TaskExecutorRef::undefined());
 
       // Run the work.
-      work(object);
+      {
+        TaskLocal::WithResetValuesScope taskLocalResetScope;
+        work(object);
+      }
 
       // `work` is a synchronous function, it cannot call swift_task_switch()
       // If it calls any synchronous API that may change executor inside

@@ -75,7 +75,7 @@ if #available(SwiftStdlib 5.1, *) {
     Task {
       await TL.$number.withValue(42) {
         await AnotherActor.shared.performTesting {
-          _ = ClassWithIsolatedDeinit(expectedNumber: 42, group: group)
+          _ = ClassWithIsolatedDeinit(expectedNumber: 0, group: group)
         }
       }
     }
@@ -88,10 +88,10 @@ if #available(SwiftStdlib 5.1, *) {
     group.enter()
     Task {
       TL.$number.withValue(37) {
-        _ = ActorWithIsolatedDeinit(expectedNumber: 37, group: group)
+        _ = ActorWithIsolatedDeinit(expectedNumber: 0, group: group)
       }
       TL.$number.withValue(99) {
-        _ = ClassWithIsolatedDeinit(expectedNumber: 99, group: group)
+        _ = ClassWithIsolatedDeinit(expectedNumber: 0, group: group)
       }
     }
     group.wait()
