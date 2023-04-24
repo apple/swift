@@ -1093,6 +1093,13 @@ public:
   /// inside an async actor-independent function. No hop-back is expected.
   void emitHopToActorValue(SILLocation loc, ManagedValue actor);
 
+  /// Emit hop to executor if parent deinit is sync but isolated
+  /// Note that this also covers the case when deinit does not need isolating
+  /// destructor because it was declared isolated in ObjC and isolation is
+  /// assumed to be implemented in overriden release method.
+  void emitHopToActorOfSuperDeinit(DestructorDecl *dd, SILValue selfValue,
+                                   SILLocation loc);
+
   /// Return true if the function being emitted is an async function
   /// that unsafely inherits its executor.
   bool unsafelyInheritsExecutor();

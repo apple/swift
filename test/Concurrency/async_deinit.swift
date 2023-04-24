@@ -131,6 +131,18 @@ class AsyncBase {
     }
 }
 
+class NonisolatedBase {
+    deinit {
+        print("Boom!")
+    }
+}
+
+class IsolatedBase {
+    @FirstActor deinit {
+        print("Boom!")
+    }
+}
+
 // CHECK-LABEL: @_inheritsConvenienceInitializers class ImplicitDerived : AsyncBase {
 // CHECK: {{(@objc )?}} deinit async
 // CHECK: }
@@ -285,5 +297,163 @@ class AnotherIsolated: IsolatedDerived {
     @SecondActor func woof() {}
     @SecondActor deinit async {
         woof()
+    }
+}
+
+// CHECK-LABEL: @_inheritsConvenienceInitializers @FirstActor class DerivedFromNonisolated : NonisolatedBase {
+// CHECK: {{(@objc )?}} @FirstActor deinit async
+// CHECK: }
+
+// CHECK-SYMB: // DerivedFromNonisolated.deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s12async_deinit22DerivedFromNonisolatedCfd : $@convention(method) @async (@guaranteed DerivedFromNonisolated) -> @owned Builtin.NativeObject {
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $FirstActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[YIELD:%.*]] = function_ref @$sScTss5NeverORszABRs_rlE5yieldyyYaFZ : $@convention(method) @async (@thin Task<Never, Never>.Type) -> ()
+// CHECK-SYMB-NEXT: apply [[YIELD]]({{%[0-9]+}}) : $@convention(method) @async (@thin Task<Never, Never>.Type) -> ()
+// CHECK-SYMB-NEXT: hop_to_executor {{%[0-9]+}} : $FirstActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[SUPER_DEINIT:%.*]] = function_ref @$s12async_deinit15NonisolatedBaseCfd : $@convention(method) (@guaranteed NonisolatedBase) -> @owned Builtin.NativeObject
+// CHECK-SYMB-NEXT: apply [[SUPER_DEINIT]](
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: } // end sil function '$s12async_deinit22DerivedFromNonisolatedCfd'
+
+// CHECK-SYMB: // DerivedFromNonisolated.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s12async_deinit22DerivedFromNonisolatedCfZ : $@convention(thin) @async (@owned DerivedFromNonisolated) -> () {
+
+// CHECK-SYMB: // DerivedFromNonisolated.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s12async_deinit22DerivedFromNonisolatedCfD : $@convention(method) (@owned DerivedFromNonisolated) -> () {
+// CHECK-SYMB: [[EXECUTOR:%.*]] = extract_executor {{%[0-9]+}} : $FirstActor
+// CHECK-SYMB: [[OPT_EXECUTOR:%.*]] = enum $Optional<Builtin.Executor>, #Optional.some!enumelt, [[EXECUTOR]] : $Builtin.Executor
+// CHECK-SYMB: [[DEINIT_ASYNC:%.*]] = function_ref @swift_task_deinitAsync : $@convention(thin) (@owned AnyObject, @convention(thin) @async (@owned AnyObject) -> (), Optional<Builtin.Executor>, Builtin.Word) -> ()
+// CHECK-SYMB: apply [[DEINIT_ASYNC]]({{%[0-9]+, %[0-9]+, }}[[OPT_EXECUTOR]]
+// CHECK-SYMB: } // end sil function '$s12async_deinit22DerivedFromNonisolatedCfD'
+@FirstActor
+class DerivedFromNonisolated: NonisolatedBase {
+    // expected-warning@-1 {{global actor 'FirstActor'-isolated class 'DerivedFromNonisolated' has different actor isolation from nonisolated superclass 'NonisolatedBase'; this is an error in Swift 6}}
+
+    deinit async {
+        isolatedFunc()
+        await Task.yield()
+    }
+}
+
+// CHECK-LABEL: @_inheritsConvenienceInitializers class DerivedFromIsolated : IsolatedBase {
+// CHECK: {{(@objc )?}} deinit async
+// CHECK: }
+
+// CHECK-SYMB: // DerivedFromIsolated.deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s12async_deinit19DerivedFromIsolatedCfd : $@convention(method) @async (@guaranteed DerivedFromIsolated) -> @owned Builtin.NativeObject {
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $FirstActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[YIELD:%.*]] = function_ref @$sScTss5NeverORszABRs_rlE5yieldyyYaFZ : $@convention(method) @async (@thin Task<Never, Never>.Type) -> ()
+// CHECK-SYMB-NEXT: apply [[YIELD]]({{%[0-9]+}}) : $@convention(method) @async (@thin Task<Never, Never>.Type) -> ()
+// CHECK-SYMB-NEXT: hop_to_executor {{%[0-9]+}} : $FirstActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[SUPER_DEINIT:%.*]] = function_ref @$s12async_deinit12IsolatedBaseCfd : $@convention(method) (@guaranteed IsolatedBase) -> @owned Builtin.NativeObject
+// CHECK-SYMB-NEXT: apply [[SUPER_DEINIT]](
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: } // end sil function '$s12async_deinit19DerivedFromIsolatedCfd'
+
+// CHECK-SYMB: // DerivedFromIsolated.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s12async_deinit19DerivedFromIsolatedCfZ : $@convention(thin) @async (@owned DerivedFromIsolated) -> () {
+
+// CHECK-SYMB: // DerivedFromIsolated.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s12async_deinit19DerivedFromIsolatedCfD : $@convention(method) (@owned DerivedFromIsolated) -> () {
+// CHECK-SYMB: [[EXECUTOR:%.*]] = extract_executor {{%[0-9]+}} : $FirstActor
+// CHECK-SYMB: [[OPT_EXECUTOR:%.*]] = enum $Optional<Builtin.Executor>, #Optional.some!enumelt, [[EXECUTOR]] : $Builtin.Executor
+// CHECK-SYMB: [[DEINIT_ASYNC:%.*]] = function_ref @swift_task_deinitAsync : $@convention(thin) (@owned AnyObject, @convention(thin) @async (@owned AnyObject) -> (), Optional<Builtin.Executor>, Builtin.Word) -> ()
+// CHECK-SYMB: apply [[DEINIT_ASYNC]]({{%[0-9]+, %[0-9]+, }}[[OPT_EXECUTOR]]
+// CHECK-SYMB: } // end sil function '$s12async_deinit19DerivedFromIsolatedCfD'
+class DerivedFromIsolated: IsolatedBase {
+    deinit async {
+        isolatedFunc()
+        await Task.yield()
+    }
+}
+
+// CHECK-LABEL: @_inheritsConvenienceInitializers class DerivedFromAnotherIsolated : IsolatedBase {
+// CHECK: {{(@objc )?}} @SecondActor deinit async
+// CHECK: }
+
+// CHECK-SYMB: // DerivedFromAnotherIsolated.deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s12async_deinit26DerivedFromAnotherIsolatedCfd : $@convention(method) @async (@guaranteed DerivedFromAnotherIsolated) -> @owned Builtin.NativeObject {
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $SecondActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[FUNC:%.*]] = function_ref @$s12async_deinit12isolatedFuncyyF : $@convention(thin) () -> ()
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $FirstActor
+// CHECK-SYMB: apply [[FUNC]]() : $@convention(thin) () -> ()
+// CHECK-SYMB: [[YIELD:%.*]] = function_ref @$sScTss5NeverORszABRs_rlE5yieldyyYaFZ : $@convention(method) @async (@thin Task<Never, Never>.Type) -> ()
+// CHECK-SYMB-NEXT: apply [[YIELD]]({{%[0-9]+}}) : $@convention(method) @async (@thin Task<Never, Never>.Type) -> ()
+// CHECK-SYMB-NEXT: hop_to_executor {{%[0-9]+}} : $SecondActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[SUPER_DEINIT:%.*]] = function_ref @$s12async_deinit12IsolatedBaseCfd : $@convention(method) (@guaranteed IsolatedBase) -> @owned Builtin.NativeObject
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $FirstActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: apply [[SUPER_DEINIT]]({{%[0-9]+}}) : $@convention(method) (@guaranteed IsolatedBase) -> @owned Builtin.NativeObject
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: } // end sil function '$s12async_deinit26DerivedFromAnotherIsolatedCfd'
+
+// CHECK-SYMB: // DerivedFromAnotherIsolated.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s12async_deinit26DerivedFromAnotherIsolatedCfZ : $@convention(thin) @async (@owned DerivedFromAnotherIsolated) -> () {
+
+// CHECK-SYMB: // DerivedFromAnotherIsolated.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s12async_deinit26DerivedFromAnotherIsolatedCfD : $@convention(method) (@owned DerivedFromAnotherIsolated) -> () {
+// CHECK-SYMB: [[EXECUTOR:%.*]] = extract_executor {{%[0-9]+}} : $SecondActor
+// CHECK-SYMB: [[OPT_EXECUTOR:%.*]] = enum $Optional<Builtin.Executor>, #Optional.some!enumelt, [[EXECUTOR]] : $Builtin.Executor
+// CHECK-SYMB: [[DEINIT_ASYNC:%.*]] = function_ref @swift_task_deinitAsync : $@convention(thin) (@owned AnyObject, @convention(thin) @async (@owned AnyObject) -> (), Optional<Builtin.Executor>, Builtin.Word) -> ()
+// CHECK-SYMB: apply [[DEINIT_ASYNC]]({{%[0-9]+, %[0-9]+, }}[[OPT_EXECUTOR]]
+// CHECK-SYMB: } // end sil function '$s12async_deinit26DerivedFromAnotherIsolatedCfD'
+class DerivedFromAnotherIsolated: IsolatedBase {
+    @SecondActor deinit async {
+        await isolatedFunc()
+        await Task.yield()
+    }
+}
+
+// CHECK-LABEL: @_inheritsConvenienceInitializers @SecondActor class DerivedPropagatedFromAnotherIsolated : IsolatedBase {
+// CHECK: {{(@objc )?}} @SecondActor deinit async
+// CHECK: }
+
+// CHECK-SYMB: // DerivedPropagatedFromAnotherIsolated.deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s12async_deinit36DerivedPropagatedFromAnotherIsolatedCfd : $@convention(method) @async (@guaranteed DerivedPropagatedFromAnotherIsolated) -> @owned Builtin.NativeObject {
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $SecondActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[FUNC:%.*]] = function_ref @$s12async_deinit12isolatedFuncyyF : $@convention(thin) () -> ()
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $FirstActor
+// CHECK-SYMB: apply [[FUNC]]() : $@convention(thin) () -> ()
+// CHECK-SYMB: [[YIELD:%.*]] = function_ref @$sScTss5NeverORszABRs_rlE5yieldyyYaFZ : $@convention(method) @async (@thin Task<Never, Never>.Type) -> ()
+// CHECK-SYMB-NEXT: apply [[YIELD]]({{%[0-9]+}}) : $@convention(method) @async (@thin Task<Never, Never>.Type) -> ()
+// CHECK-SYMB-NEXT: hop_to_executor {{%[0-9]+}} : $SecondActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[SUPER_DEINIT:%.*]] = function_ref @$s12async_deinit12IsolatedBaseCfd : $@convention(method) (@guaranteed IsolatedBase) -> @owned Builtin.NativeObject
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $FirstActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: apply [[SUPER_DEINIT]]({{%[0-9]+}}) : $@convention(method) (@guaranteed IsolatedBase) -> @owned Builtin.NativeObject
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: } // end sil function '$s12async_deinit36DerivedPropagatedFromAnotherIsolatedCfd'
+
+// CHECK-SYMB: // DerivedPropagatedFromAnotherIsolated.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s12async_deinit36DerivedPropagatedFromAnotherIsolatedCfZ : $@convention(thin) @async (@owned DerivedPropagatedFromAnotherIsolated) -> () {
+
+// CHECK-SYMB: // DerivedPropagatedFromAnotherIsolated.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s12async_deinit36DerivedPropagatedFromAnotherIsolatedCfD : $@convention(method) (@owned DerivedPropagatedFromAnotherIsolated) -> () {
+// CHECK-SYMB: [[EXECUTOR:%.*]] = extract_executor {{%[0-9]+}} : $SecondActor
+// CHECK-SYMB: [[OPT_EXECUTOR:%.*]] = enum $Optional<Builtin.Executor>, #Optional.some!enumelt, [[EXECUTOR]] : $Builtin.Executor
+// CHECK-SYMB: [[DEINIT_ASYNC:%.*]] = function_ref @swift_task_deinitAsync : $@convention(thin) (@owned AnyObject, @convention(thin) @async (@owned AnyObject) -> (), Optional<Builtin.Executor>, Builtin.Word) -> ()
+// CHECK-SYMB: apply [[DEINIT_ASYNC]]({{%[0-9]+, %[0-9]+, }}[[OPT_EXECUTOR]]
+// CHECK-SYMB: } // end sil function '$s12async_deinit36DerivedPropagatedFromAnotherIsolatedCfD'
+@SecondActor
+class DerivedPropagatedFromAnotherIsolated: IsolatedBase {
+    // expected-warning@-1 {{global actor 'SecondActor'-isolated class 'DerivedPropagatedFromAnotherIsolated' has different actor isolation from nonisolated superclass 'IsolatedBase'; this is an error in Swift 6}}
+
+    deinit async {
+        await isolatedFunc()
+        await Task.yield()
     }
 }
