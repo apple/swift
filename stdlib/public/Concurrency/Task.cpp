@@ -1666,7 +1666,10 @@ static void swift_task_performOnExecutorImpl(void *context,
   // If the current executor is compatible with running the new executor,
   // we can just immediately continue running with the resume function
   // we were passed in.
-  if (!currentExecutor.mustSwitchToRun(newExecutor)) {
+  //
+  // Note that swift_task_isCurrentExecutor() return true for @MainActor
+  // when running on the main thread without any executor
+  if (swift_task_isCurrentExecutor(newExecutor)) {
     return work(context); // 'return' forces tail call
   }
 
