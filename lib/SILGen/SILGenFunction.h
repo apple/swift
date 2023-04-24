@@ -792,9 +792,6 @@ public:
   /// and calls isolated deallocating destuctor on the right executor.
   void emitIsolatingDestructor(DestructorDecl *dd);
 
-  /// Checks if isolating destructor is needed.
-  static bool shouldEmitIsolatingDestructor(DestructorDecl *dd);
-
   /// Generates code for a struct constructor.
   /// This allocates the new 'self' value, emits the
   /// body code, then returns the final initialized 'self'.

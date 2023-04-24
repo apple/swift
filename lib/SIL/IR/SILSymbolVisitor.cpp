@@ -699,9 +699,9 @@ public:
   }
 
   void visitDestructorDecl(DestructorDecl *DD) {
-    // Destructors come in two forms (deallocating and non-deallocating), like
-    // constructors above. Classes use both but move only non-class nominal
-    // types only use the deallocating one. This is the deallocating one:
+    // Destructors come in three forms (non-deallocating, deallocating, isolated
+    // deallocating) Classes use all three but move only non-class nominal types
+    // only use the deallocating one. This is the deallocating one:
     visitAbstractFunctionDecl(DD);
 
     if (auto parentClass = DD->getParent()->getSelfClassDecl()) {
@@ -709,6 +709,11 @@ public:
       if (!Lowering::usesObjCAllocator(parentClass)) {
         addFunction(SILDeclRef(DD, SILDeclRef::Kind::Destroyer));
       }
+    }
+
+    // And isolated also does not always exist
+    if (Lowering::needsIsolatingDestructor(DD)) {
+      addFunction(SILDeclRef(DD, SILDeclRef::Kind::IsolatedDeallocator));
     }
   }
 

@@ -268,7 +268,7 @@ void SILGenFunction::emitDeallocatingMoveOnlyDestructor(DestructorDecl *dd) {
   B.createReturn(loc, emitEmptyTuple(loc));
 }
 
-bool SILGenFunction::shouldEmitIsolatingDestructor(DestructorDecl *dd) {
+bool Lowering::needsIsolatingDestructor(DestructorDecl *dd) {
   auto ai = swift::getActorIsolation(dd);
   if (!ai.isActorIsolated()) {
     return false;
