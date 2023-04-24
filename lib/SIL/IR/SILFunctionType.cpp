@@ -2762,8 +2762,8 @@ static CanSILFunctionType getNativeSILFunctionType(
       // with runtime function. The latter expects 'work' argument to be
       // SWIFT_CC(swift) aka @convention(thin). But the 'self' parameter must
       // remain owned.
-      return getSILFunctionTypeForConventions(DeallocatorConventions())
-          ->getWithExtInfo(SILFunctionType::ExtInfo::getThin());
+      return getSILFunctionTypeForConventions(
+          DefaultConventions(NormalParameterConvention::Owned));
     }
 
     case SILDeclRef::Kind::AsyncEntryPoint:
@@ -4086,6 +4086,7 @@ TypeConverter::getDeclRefRepresentation(SILDeclRef c) {
     case SILDeclRef::Kind::StoredPropertyInitializer:
     case SILDeclRef::Kind::PropertyWrapperBackingInitializer:
     case SILDeclRef::Kind::PropertyWrapperInitFromProjectedValue:
+    case SILDeclRef::Kind::IsolatedDeallocator:
       return SILFunctionTypeRepresentation::Thin;
 
     case SILDeclRef::Kind::Func:
@@ -4097,7 +4098,6 @@ TypeConverter::getDeclRefRepresentation(SILDeclRef c) {
 
     case SILDeclRef::Kind::Destroyer:
     case SILDeclRef::Kind::Deallocator:
-    case SILDeclRef::Kind::IsolatedDeallocator: // TODO: Double-check this
     case SILDeclRef::Kind::Allocator:
     case SILDeclRef::Kind::Initializer:
     case SILDeclRef::Kind::EnumElement:

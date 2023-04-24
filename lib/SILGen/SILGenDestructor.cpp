@@ -356,7 +356,6 @@ void SILGenFunction::emitIsolatingDestructor(DestructorDecl *dd) {
       B.createConvertFunction(loc, dtx, workFuncType, false);
 
   // Schedule isolated execution
-  // TODO: Make sure it is a tail call
   auto result = B.createApply(loc, swiftPerformOnExecutorFunc, {},
                               {castedSelf, castedDeallocator, executor});
   B.createReturn(loc, result);
