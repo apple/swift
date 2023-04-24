@@ -338,49 +338,63 @@ void SILGenFunction::emitIsolatingDestructor(DestructorDecl *dd) {
   // Remote actor proxies don't need isolation
   // Emit check for remote actor before performing isolation
   emitDistributedRemoteActorDeinit(selfValue, dd, false, [=] {
-    // Form a reference to the destroying destructor.
-    SILDeclRef dtorConstant(dd, SILDeclRef::Kind::IsolatedDeallocator);
-    auto classTy = selfValue->getType();
-    auto classDecl = classTy.getASTType()->getAnyNominal();
-    ManagedValue dtorValue;
-    SILType dtorTy;
-    auto subMap = classTy.getASTType()->getContextSubstitutionMap(
-        SGM.M.getSwiftModule(), classDecl);
-    std::tie(dtorValue, dtorTy) =
-        emitSiblingMethodRef(loc, selfValue, dtorConstant, subMap);
-
-    if (dd->hasAsync()) {
-      emitAsyncDestructorImpl(dd, selfValue, loc, dtorValue, dtorTy);
-    } else {
-      emitIsolatingDestructorImpl(dd, selfValue, loc, dtorValue, dtorTy);
-    }
+    emitIsolatingDestructorImpl(dd, selfValue, loc);
   });
 }
 
 void SILGenFunction::emitIsolatingDestructorImpl(DestructorDecl *dd,
                                                  SILValue selfValue,
-                                                 SILLocation loc,
-                                                 ManagedValue dtorValue,
-                                                 SILType dtorTy) {
+                                                 SILLocation loc) {
+  // Form a reference to the destroying destructor.
+  SILDeclRef dtorConstant(dd, SILDeclRef::Kind::IsolatedDeallocator);
+  auto classTy = selfValue->getType();
+  auto classDecl = classTy.getASTType()->getAnyNominal();
+  ManagedValue dtorValue;
+  SILType dtorTy;
+  auto subMap = classTy.getASTType()->getContextSubstitutionMap(
+      SGM.M.getSwiftModule(), classDecl);
+  std::tie(dtorValue, dtorTy) =
+      emitSiblingMethodRef(loc, selfValue, dtorConstant, subMap);
+
   // Get an executor
   auto ai = swift::getActorIsolation(dd);
   SILValue executor;
   {
     FullExpr CleanupScope(Cleanups, CleanupLocation(loc));
     auto actor =
-        *emitExecutor(loc, ai, ManagedValue::forUnmanagedOwnedValue(selfValue));
-    executor = B.createExtractExecutor(loc, actor);
+        emitExecutor(loc, ai, ManagedValue::forUnmanagedOwnedValue(selfValue));
+    if (actor) {
+      executor = B.createExtractExecutor(loc, *actor);
+      if (dd->hasAsync()) {
+        // Wrap into optional
+        auto ty = SILType::getOptionalType(
+            SILType::getPrimitiveObjectType(getASTContext().TheExecutorType));
+        executor = B.createOptionalSome(loc, executor, ty);
+      }
+    } else {
+      assert(dd->hasAsync() &&
+             "Only async deinit can execute on generic executor");
+      executor = emitGenericExecutor(loc);
+    }
   }
 
-  // Get deinitOnExecutor
-  FuncDecl *swiftDeinitOnExecutorDecl = SGM.getDeinitOnExecutor();
-  assert(swiftDeinitOnExecutorDecl &&
-         "Failed to find swift_task_deinitOnExecutor function decl");
-  SILFunction *swiftDeinitOnExecutorSILFunc = SGM.getFunction(
-      SILDeclRef(swiftDeinitOnExecutorDecl, SILDeclRef::Kind::Func),
+  // Get deinitOnExecutor or deinitAsync
+  FuncDecl *scheduleDeinitFuncDecl;
+  if (dd->hasAsync()) {
+    scheduleDeinitFuncDecl = SGM.getDeinitAsync();
+    assert(scheduleDeinitFuncDecl &&
+           "Failed to find swift_task_deinitAsync function decl");
+  } else {
+    scheduleDeinitFuncDecl = SGM.getDeinitOnExecutor();
+    assert(scheduleDeinitFuncDecl &&
+           "Failed to find swift_task_deinitOnExecutor function decl");
+  }
+
+  SILFunction *scheduleDeinitSILFunc = SGM.getFunction(
+      SILDeclRef(scheduleDeinitFuncDecl, SILDeclRef::Kind::Func),
       NotForDefinition);
-  SILValue swiftDeinitOnExecutorFunc =
-      B.createFunctionRefFor(loc, swiftDeinitOnExecutorSILFunc);
+  SILValue scheduleDeinitFunc =
+      B.createFunctionRefFor(loc, scheduleDeinitSILFunc);
 
   // Cast self to AnyObject preserving owned ownership
   // CanType selfType = selfValue->getType().getASTType();
@@ -391,65 +405,10 @@ void SILGenFunction::emitIsolatingDestructorImpl(DestructorDecl *dd,
       loc, anyObjectLoweredType, selfValue->getType().getASTType(), selfValue,
       {});
 
-  // Cast isolated deallocator to (__owned AnyObject) -> Void
-  auto workFuncType1 = SILFunctionType::get(
-      /*genericSig*/ nullptr, SILFunctionType::ExtInfo::getThin(),
-      SILCoroutineKind::None, ParameterConvention::Direct_Unowned,
-      {SILParameterInfo(anyObjectLoweredType.getASTType(),
-                        ParameterConvention::Direct_Owned)},
-      /*interfaceYields*/ {},
-      /* results */ {},
-      /*interfaceErrorResults*/ llvm::None,
-      /* patternSubs */ {},
-      /* invocationSubs */ {}, getASTContext());
-  SILType workFuncType = SILType::getPrimitiveObjectType(workFuncType1);
-  SILValue dtx = dtorValue.getValue();
-  auto castedDeallocator =
-      B.createConvertFunction(loc, dtx, workFuncType, false);
-
-  DeinitOnExecutorFlags flags;
-  // Other combinations are also supported by the runtime,
-  // but currently they are not used.
-  if (dd->shouldResetTaskLocals()) {
-    flags.setResetTaskLocalsOnNoHop(true);
-  } else {
-    flags.setCopyTaskLocalsOnHop(true);
-  }
-  auto wordTy = SILType::getBuiltinWordType(getASTContext());
-  auto *flagsInst = B.createIntegerLiteral(loc, wordTy, flags.getOpaqueValue());
-
-  // Schedule isolated execution
-  B.createApply(loc, swiftDeinitOnExecutorFunc, {},
-                {castedSelf, castedDeallocator, executor, flagsInst});
-}
-
-void SILGenFunction::emitAsyncDestructorImpl(DestructorDecl *dd,
-                                             SILValue selfValue,
-                                             SILLocation loc,
-                                             ManagedValue dtorValue,
-                                             SILType dtorTy) {
-  // Get deinitAsync
-  FuncDecl *swiftDeinitAsyncDecl = SGM.getDeinitAsync();
-  assert(swiftDeinitAsyncDecl &&
-         "Failed to find swift_task_deinitAsync function decl");
-  SILFunction *swiftDeinitAsyncSILFunc =
-      SGM.getFunction(SILDeclRef(swiftDeinitAsyncDecl, SILDeclRef::Kind::Func),
-                      NotForDefinition);
-  SILValue swiftDeinitAsyncFunc =
-      B.createFunctionRefFor(loc, swiftDeinitAsyncSILFunc);
-
-  // Cast self to AnyObject preserving owned ownership
-  // CanType selfType = selfValue->getType().getASTType();
-  Type anyObjectType = getASTContext().getAnyObjectType();
-  SILType anyObjectLoweredType =
-      getTypeLowering(anyObjectType).getLoweredType();
-  auto castedSelf =
-      B.createUncheckedValueCast(loc, selfValue, anyObjectLoweredType);
-
   // Cast isolated deallocator to (__owned AnyObject) async -> Void
   auto workFuncType1 = SILFunctionType::get(
       /*genericSig*/ nullptr,
-      SILFunctionType::ExtInfo::getThin().withAsync(true),
+      SILFunctionType::ExtInfo::getThin().withAsync(dd->hasAsync()),
       SILCoroutineKind::None, ParameterConvention::Direct_Unowned,
       {SILParameterInfo(anyObjectLoweredType.getASTType(),
                         ParameterConvention::Direct_Owned)},
@@ -467,6 +426,7 @@ void SILGenFunction::emitAsyncDestructorImpl(DestructorDecl *dd,
   // Other combinations are also supported by the runtime,
   // but currently they are not used.
   if (dd->shouldResetTaskLocals()) {
+    // Async deinit always hops, so this flag is ignored
     flags.setResetTaskLocalsOnNoHop(true);
   } else {
     flags.setCopyTaskLocalsOnHop(true);
@@ -475,8 +435,8 @@ void SILGenFunction::emitAsyncDestructorImpl(DestructorDecl *dd,
   auto *flagsInst = B.createIntegerLiteral(loc, wordTy, flags.getOpaqueValue());
 
   // Schedule isolated execution
-  B.createApply(loc, swiftDeinitAsyncFunc, {},
-                {castedSelf, castedDeallocator, flagsInst});
+  B.createApply(loc, scheduleDeinitFunc, {},
+                {castedSelf, castedDeallocator, executor, flagsInst});
 }
 
 void SILGenFunction::emitIVarDestroyer(SILDeclRef ivarDestroyer) {

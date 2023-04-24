@@ -149,8 +149,8 @@ OVERRIDE_ACTOR(task_deinitOnExecutor, void,
               
 OVERRIDE_ACTOR(task_deinitAsync, void,
               SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swift), swift::,
-              (void *object, void *work, size_t flags),
-              (object, work, flags))
+              (void *object, void *work, SerialExecutorRef newExecutor, size_t flags),
+              (object, work, newExecutor, flags))
 
 OVERRIDE_TASK(task_create_common, AsyncTaskAndContext,
               SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swift), swift::,

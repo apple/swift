@@ -659,6 +659,11 @@ swift_task_create_commonImpl(size_t rawTaskCreateFlags,
       jobFlags.task_setHasInitialTaskExecutorPreference(true);
       break;
 
+    case TaskOptionRecordKind::InitialSerialExecutor:
+      serialExecutor =
+          cast<InitialSerialExecutorTaskOptionRecord>(option)->getExecutorRef();
+      break;
+
     case TaskOptionRecordKind::TaskGroup:
       group = cast<TaskGroupTaskOptionRecord>(option)->getGroup();
       assert(group && "Missing group");

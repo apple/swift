@@ -454,4 +454,5 @@ internal func _deinitOnExecutor(_ object: __owned AnyObject,
 @usableFromInline
 internal func _deinitAsync(_ object: __owned AnyObject,
                            _ work: @convention(thin) (__owned AnyObject) async -> Void,
+                           _ executor: Builtin.Executor?,
                            _ flags: Builtin.Word)

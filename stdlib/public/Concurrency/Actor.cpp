@@ -22,6 +22,7 @@
 #include "../CompatibilityOverride/CompatibilityOverride.h"
 #include "swift/ABI/Actor.h"
 #include "swift/ABI/Task.h"
+#include "swift/ABI/TaskOptions.h"
 #include "swift/Basic/ListMerger.h"
 #include "swift/Concurrency/Actor.h"
 #include "swift/Runtime/AccessibleFunction.h"
@@ -2152,13 +2153,15 @@ static void swift_task_deinitOnExecutorImpl(void *object,
 
 SWIFT_CC(swift)
 static void swift_task_deinitAsyncImpl(void *object, void *work,
+                                       SerialExecutorRef newExecutor,
                                        size_t rawFlags) {
   DeinitOnExecutorFlags flags(rawFlags);
   TaskCreateFlags taskFlags;
   taskFlags.setCopyTaskLocals(flags.copyTaskLocalsOnHop());
   taskFlags.setEnqueueJob(true);
   taskFlags.setFunctionConsumesContext(true);
-  swift_task_create(taskFlags.getOpaqueValue(), nullptr, nullptr, work,
+  InitialSerialExecutorTaskOptionRecord executorOption(newExecutor);
+  swift_task_create(taskFlags.getOpaqueValue(), &executorOption, nullptr, work,
                     static_cast<HeapObject *>(object));
 }
 

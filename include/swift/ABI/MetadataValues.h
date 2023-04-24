@@ -2532,7 +2532,7 @@ enum class TaskStatusRecordKind : uint8_t {
 
 /// Kinds of option records that can be passed to creating asynchronous tasks.
 enum class TaskOptionRecordKind : uint8_t {
-  /// Request a task to be kicked off, or resumed, on a specific executor.
+  /// Request a task to be kicked off, or resumed, on a specific task executor.
   InitialTaskExecutor = 0,
   /// Request a child task to be part of a specific task group.
   TaskGroup = 1,
@@ -2543,6 +2543,9 @@ enum class TaskOptionRecordKind : uint8_t {
   AsyncLetWithBuffer = 3,
   /// Information about the result type of the task, used in embedded Swift.
   ResultTypeInfo = 4,
+  /// Request a task to be kicked off, or resumed, on a specific serial
+  /// executor.
+  InitialSerialExecutor = 5,
   /// Request a child task for swift_task_run_inline.
   RunInline = UINT8_MAX,
 };
