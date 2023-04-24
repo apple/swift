@@ -33,7 +33,7 @@ actor ActorWithIsolatedDeinit {
     self.group = group
   }
   
-  deinit {
+  isolated deinit {
     expectTrue(isCurrentExecutor(self.unownedExecutor))
     expectEqual(expectedNumber, TL.number)
     group.leave()

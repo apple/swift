@@ -17,7 +17,7 @@ actor EscapeLocked {
     k += 1
   }
   
-  deinit {
+  isolated deinit {
     let g = DispatchGroup()
     g.enter()
     Task.detached {
@@ -42,7 +42,7 @@ actor EscapeUnlocked {
     k += 1
   }
   
-  deinit {
+  isolated deinit {
     DispatchQueue.main.async {
       Task.detached {
         expectCrashLater(withMessage: "Assertion failed: (oldState.getMaxPriority() == JobPriority::Unspecified), function tryLock")

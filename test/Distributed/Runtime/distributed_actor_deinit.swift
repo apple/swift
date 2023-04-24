@@ -85,7 +85,7 @@ distributed actor DA_userDefined_isolated {
     self.actorSystem = system
   }
 
-  deinit {
+  isolated deinit {
     print("Deinitializing \(self.id) remote:\(__isRemoteActor(self)) isolated:\(isCurrent(self)) mainThread:\(isMainThread())")
   }
 }
@@ -116,7 +116,7 @@ distributed actor DA_state_isolated {
     self.actorSystem = system
   }
 
-  deinit {
+  isolated deinit {
     print("Deinitializing \(self.id) name=\(name) age=\(age) remote:\(__isRemoteActor(self)) isolated:\(isCurrent(self)) mainThread:\(isMainThread())")
     return
   }
@@ -127,8 +127,8 @@ distributed actor DA_state_isolated {
 }
 
 distributed actor DA_state_isolated_on_another {
-  var name: String
-  var age: Int
+  let name: String
+  let age: Int
 
   init(name: String, age: Int, system: FakeActorSystem) {
     self.name = name

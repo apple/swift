@@ -84,7 +84,7 @@ actor ActorWithSelfIsolatedDeinit {
     self.group = group
   }
   
-  deinit {
+  isolated deinit {
     expectTrue(isCurrentExecutor(self.unownedExecutor))
     let currentVoucher = voucher_copy()
     expectEqual(expectedVoucher, currentVoucher)

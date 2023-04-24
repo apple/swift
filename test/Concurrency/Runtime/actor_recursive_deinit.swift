@@ -56,7 +56,7 @@ actor Foo {
         self.child = child
     }
 
-    deinit {
+    isolated deinit {
         print("DEINIT: \(name) isolated:\(isCurrent(self)) mainThread:\(isMainThread())")
     }
 }

@@ -19,7 +19,7 @@
 }
 
 @FirstActor
-func isolatedFunc() {}  // expected-note 11{{calls to global function 'isolatedFunc()' from outside of its actor context are implicitly asynchronous}}
+func isolatedFunc() {}  // expected-note 15{{calls to global function 'isolatedFunc()' from outside of its actor context are implicitly asynchronous}}
 
 // CHECK-LABEL: class BaseWithNonisolatedDeinit {
 // CHECK: {{(@objc )?}}deinit
@@ -38,8 +38,14 @@ class BaseWithNonisolatedDeinit {}
 // CHECK-SYMB: BaseWithDeinitIsolatedOnFirstActor.__deallocating_deinit
 // CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation34BaseWithDeinitIsolatedOnFirstActorCfD : $@convention(method) (@owned BaseWithDeinitIsolatedOnFirstActor) -> () {
 class BaseWithDeinitIsolatedOnFirstActor {
-    @FirstActor deinit {} // expected-note 2{{overridden declaration is here}}
+    @FirstActor deinit {} // expected-note 3{{overridden declaration is here}}
 }
+
+@FirstActor
+class BaseIsolatedOnFirstActor {}
+
+@SecondActor
+class BaseIsolatedOnSecondActor {}
 
 // CHECK-LABEL: class BaseWithDeinitIsolatedOnSecondActor {
 // CHECK: {{(@objc )?}}@SecondActor deinit
@@ -49,13 +55,13 @@ class BaseWithDeinitIsolatedOnFirstActor {
 // CHECK-SYMB: BaseWithDeinitIsolatedOnSecondActor.__deallocating_deinit
 // CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation35BaseWithDeinitIsolatedOnSecondActorCfD : $@convention(method) (@owned BaseWithDeinitIsolatedOnSecondActor) -> () {
 class BaseWithDeinitIsolatedOnSecondActor {
-    @SecondActor deinit {} // expected-note 2{{overridden declaration is here}}
+    @SecondActor deinit {} // expected-note 3{{overridden declaration is here}}
 }
 
 // MARK: - Part 1 - Actors
 
 // CHECK-LABEL: actor ImplicitDeinitActor {
-// CHECK: {{(@objc )?}}nonisolated deinit
+// CHECK: {{(@objc )?}} deinit
 // CHECK: }
 // CHECK-SYMB-NOT: ImplicitDeinitActor.__isolated_deallocating_deinit
 // CHECK-SYMB-NOT: @$s16deinit_isolation19ImplicitDeinitActorCfZ
@@ -65,16 +71,32 @@ actor ImplicitDeinitActor {
     // nonisolated deinit
 }
 
-// CHECK-LABEL: actor ExplicitDeinitActor {
+// CHECK-LABEL: actor DefaultDeinitActor {
 // CHECK: {{(@objc )?}}deinit
 // CHECK: }
-// CHECK-SYMB: // ExplicitDeinitActor.__isolated_deallocating_deinit
-// CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation19ExplicitDeinitActorCfZ : $@convention(thin) (@owned ExplicitDeinitActor) -> () {
-// CHECK-SYMB: // ExplicitDeinitActor.__deallocating_deinit
-// CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation19ExplicitDeinitActorCfD : $@convention(method) (@owned ExplicitDeinitActor) -> () {
-actor ExplicitDeinitActor {
+// CHECK-SYMB-NOT: DefaultDeinitActor.__isolated_deallocating_deinit
+// CHECK-SYMB-NOT: @$s16deinit_isolation18DefaultDeinitActorCfZ
+// CHECK-SYMB: // DefaultDeinitActor.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation18DefaultDeinitActorCfD : $@convention(method) (@owned DefaultDeinitActor) -> () {
+actor DefaultDeinitActor {
     // self-isolated deinit
     deinit {
+#if !SILGEN
+        isolatedFunc() // expected-error {{call to global actor 'FirstActor'-isolated global function 'isolatedFunc()' in a synchronous nonisolated context}}
+#endif
+    }
+}
+
+// CHECK-LABEL: actor PropagatedDeinitActor {
+// CHECK: {{(@objc )?}}isolated deinit
+// CHECK: }
+// CHECK-SYMB: // PropagatedDeinitActor.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation21PropagatedDeinitActorCfZ : $@convention(thin) (@owned PropagatedDeinitActor) -> () {
+// CHECK-SYMB: // PropagatedDeinitActor.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation21PropagatedDeinitActorCfD : $@convention(method) (@owned PropagatedDeinitActor) -> () {
+actor PropagatedDeinitActor {
+    // self-isolated deinit
+    isolated deinit {
 #if !SILGEN
         isolatedFunc() // expected-error {{call to global actor 'FirstActor'-isolated global function 'isolatedFunc()' in a synchronous actor-isolated context}}
 #endif
@@ -126,20 +148,42 @@ class ImplicitDeinit {
     // nonisolated deinit
 }
 
-// CHECK-LABEL: @FirstActor class ExplicitDeinit {
-// CHECK: {{(@objc )?}}@FirstActor deinit
+// CHECK-LABEL: @FirstActor class DefaultDeinit {
+// CHECK: {{(@objc )?}} deinit
 // CHECK: }
-// CHECK-SYMB: // ExplicitDeinit.__isolated_deallocating_deinit
-// CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation14ExplicitDeinitCfZ : $@convention(thin) (@owned ExplicitDeinit) -> () {
-// CHECK-SYMB: // ExplicitDeinit.__deallocating_deinit
-// CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation14ExplicitDeinitCfD : $@convention(method) (@owned ExplicitDeinit) -> () {
+// CHECK-SYMB-NOT: DefaultDeinit.__isolated_deallocating_deinit
+// CHECK-SYMB-NOT: @$s16deinit_isolation13DefaultDeinitCfZ
+// CHECK-SYMB: // DefaultDeinit.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation13DefaultDeinitCfD : $@convention(method) (@owned DefaultDeinit) -> () {
 @FirstActor
-class ExplicitDeinit {
-    // FirstActor-isolated deinit
+class DefaultDeinit {
     deinit {
+#if !SILGEN
+        isolatedFunc() // expected-error {{call to global actor 'FirstActor'-isolated global function 'isolatedFunc()' in a synchronous nonisolated context}}
+#endif
+    }
+}
+
+// CHECK-LABEL: @FirstActor class PropagatedDeinit {
+// CHECK: {{(@objc )?}}isolated deinit
+// CHECK: }
+// CHECK-SYMB: // PropagatedDeinit.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation16PropagatedDeinitCfZ : $@convention(thin) (@owned PropagatedDeinit) -> () {
+// CHECK-SYMB: // PropagatedDeinit.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation16PropagatedDeinitCfD : $@convention(method) (@owned PropagatedDeinit) -> () {
+@FirstActor
+class PropagatedDeinit {
+    // FirstActor-isolated deinit
+    isolated deinit {
         isolatedFunc() // ok
     }
 }
+
+#if !SILGEN
+class BadPropagatedDeinit {
+    isolated deinit {} // expected-error {{deinit is marked isolated, but containing class 'BadPropagatedDeinit' is not isolated to an actor}}
+}
+#endif
 
 // CHECK-LABEL: @FirstActor class NonisolatedDeinit {
 // CHECK: {{(@objc )?}}nonisolated deinit
@@ -205,19 +249,44 @@ class ImplicitDeinitInheritNonisolated: BaseWithNonisolatedDeinit {
     // nonisolated deinit
 }
 
-// CHECK-LABEL: @_inheritsConvenienceInitializers @FirstActor class ExplicitDeinitInheritNonisolated : BaseWithNonisolatedDeinit {
-// CHECK: {{(@objc )?}}@FirstActor deinit
+// CHECK-LABEL: @_inheritsConvenienceInitializers @FirstActor class DefaultDeinitInheritNonisolated : BaseWithNonisolatedDeinit {
+// CHECK: {{(@objc )?}} deinit
 // CHECK: }
-// CHECK-SYMB: // ExplicitDeinitInheritNonisolated.__isolated_deallocating_deinit
-// CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation32ExplicitDeinitInheritNonisolatedCfZ : $@convention(thin) (@owned ExplicitDeinitInheritNonisolated) -> () {
-// CHECK-SYMB: // ExplicitDeinitInheritNonisolated.__deallocating_deinit
-// CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation32ExplicitDeinitInheritNonisolatedCfD : $@convention(method) (@owned ExplicitDeinitInheritNonisolated) -> () {
+// CHECK-SYMB-NOT: // DefaultDeinitInheritNonisolated.__isolated_deallocating_deinit
+// CHECK-SYMB-NOT: sil hidden [ossa] @$s16deinit_isolation31DefaultDeinitInheritNonisolatedCfZ : $@convention(thin) (@owned DefaultDeinitInheritNonisolated) -> () {
+// CHECK-SYMB: // DefaultDeinitInheritNonisolated.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation31DefaultDeinitInheritNonisolatedCfD : $@convention(method) (@owned DefaultDeinitInheritNonisolated) -> () {
 @FirstActor
-class ExplicitDeinitInheritNonisolated: BaseWithNonisolatedDeinit {
-    // expected-warning@-1 {{global actor 'FirstActor'-isolated class 'ExplicitDeinitInheritNonisolated' has different actor isolation from nonisolated superclass 'BaseWithNonisolatedDeinit'; this is an error in Swift 6}}
+class DefaultDeinitInheritNonisolated: BaseWithNonisolatedDeinit {
+    // expected-warning@-1 {{global actor 'FirstActor'-isolated class 'DefaultDeinitInheritNonisolated' has different actor isolation from nonisolated superclass 'BaseWithNonisolatedDeinit'; this is an error in Swift 6}}
+
+    // nonisolated deinit
+    deinit {
+#if !SILGEN
+        isolatedFunc() // expected-error {{call to global actor 'FirstActor'-isolated global function 'isolatedFunc()' in a synchronous nonisolated context}}
+#endif
+    }
+}
+
+#if !SILGEN
+class BadPropagatedDeinitInheritNonisolated: BaseWithNonisolatedDeinit {
+    isolated deinit {} // expected-error {{deinit is marked isolated, but containing class 'BadPropagatedDeinitInheritNonisolated' is not isolated to an actor}}
+}
+#endif
+
+// CHECK-LABEL: @_inheritsConvenienceInitializers @FirstActor class PropagatedDeinitInheritNonisolated : BaseWithNonisolatedDeinit {
+// CHECK: {{(@objc )?}}isolated deinit
+// CHECK: }
+// CHECK-SYMB: // PropagatedDeinitInheritNonisolated.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation34PropagatedDeinitInheritNonisolatedCfZ : $@convention(thin) (@owned PropagatedDeinitInheritNonisolated) -> () {
+// CHECK-SYMB: // PropagatedDeinitInheritNonisolated.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation34PropagatedDeinitInheritNonisolatedCfD : $@convention(method) (@owned PropagatedDeinitInheritNonisolated) -> () {
+@FirstActor
+class PropagatedDeinitInheritNonisolated: BaseWithNonisolatedDeinit {
+    // expected-warning@-1 {{global actor 'FirstActor'-isolated class 'PropagatedDeinitInheritNonisolated' has different actor isolation from nonisolated superclass 'BaseWithNonisolatedDeinit'; this is an error in Swift 6}}
 
     // FirstActor-isolated deinit
-    deinit {
+    isolated deinit {
         isolatedFunc() // ok
     }
 }
@@ -277,7 +346,7 @@ class DifferentIsolatedDeinitInheritNonisolated: BaseWithNonisolatedDeinit {
 // MARK: - Part 2.3 - Base class with isolated deinit
 
 // CHECK-LABEL: @_inheritsConvenienceInitializers @FirstActor class ImplicitDeinitInheritIsolated1 : BaseWithDeinitIsolatedOnFirstActor {
-// CHECK: {{(@objc )?}}@FirstActor deinit
+// CHECK: {{(@objc )?}}deinit
 // CHECK: }
 // CHECK-SYMB: // ImplicitDeinitInheritIsolated1.__isolated_deallocating_deinit
 // CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation30ImplicitDeinitInheritIsolated1CfZ : $@convention(thin) (@owned ImplicitDeinitInheritIsolated1) -> () {
@@ -290,19 +359,52 @@ class ImplicitDeinitInheritIsolated1: BaseWithDeinitIsolatedOnFirstActor {
     // FirstActor-isolated deinit
 }
 
-// CHECK-LABEL: @_inheritsConvenienceInitializers @FirstActor class ExplicitDeinitIsolated1 : BaseWithDeinitIsolatedOnFirstActor {
-// CHECK: {{(@objc )?}}@FirstActor deinit
-// CHECK: }
-// CHECK-SYMB: // ExplicitDeinitIsolated1.__isolated_deallocating_deinit
-// CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation23ExplicitDeinitIsolated1CfZ : $@convention(thin) (@owned ExplicitDeinitIsolated1) -> () {
-// CHECK-SYMB: // ExplicitDeinitIsolated1.__deallocating_deinit
-// CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation23ExplicitDeinitIsolated1CfD : $@convention(method) (@owned ExplicitDeinitIsolated1) -> () {
+#if !SILGEN
 @FirstActor
-class ExplicitDeinitIsolated1: BaseWithDeinitIsolatedOnFirstActor {
-    // expected-warning@-1 {{global actor 'FirstActor'-isolated class 'ExplicitDeinitIsolated1' has different actor isolation from nonisolated superclass 'BaseWithDeinitIsolatedOnFirstActor'; this is an error in Swift 6}}
+class DefaultDeinitIsolated1: BaseWithDeinitIsolatedOnFirstActor {
+    // expected-warning@-1 {{global actor 'FirstActor'-isolated class 'DefaultDeinitIsolated1' has different actor isolation from nonisolated superclass 'BaseWithDeinitIsolatedOnFirstActor'; this is an error in Swift 6}}
+
+    // nonisolated deinit
+    deinit { // expected-error {{nonisolated deinitializer 'deinit' has different actor isolation from global actor 'FirstActor'-isolated overridden declaration}}
+        isolatedFunc() // expected-error {{call to global actor 'FirstActor'-isolated global function 'isolatedFunc()' in a synchronous nonisolated context}}
+    }
+}
+#endif
+
+#if !SILGEN
+class BadPropagatedDeinitIsolated: BaseWithDeinitIsolatedOnFirstActor {
+    //unexpected error produced: nonisolated deinitializer 'deinit' has different actor isolation from global actor 'FirstActor'-isolated overridden declaration
+
+    isolated deinit {} // expected-error {{deinit is marked isolated, but containing class 'BadPropagatedDeinitIsolated' is not isolated to an actor}}
+}
+#endif
+
+// CHECK-LABEL: @_inheritsConvenienceInitializers @FirstActor class GoodPropagatedDeinitIsolated1 : BaseIsolatedOnFirstActor {
+// CHECK: {{(@objc )?}}isolated deinit
+// CHECK: }
+// CHECK-SYMB: // GoodPropagatedDeinitIsolated1.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation29GoodPropagatedDeinitIsolated1CfZ : $@convention(thin) (@owned GoodPropagatedDeinitIsolated1) -> () {
+// CHECK-SYMB: // GoodPropagatedDeinitIsolated1.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation29GoodPropagatedDeinitIsolated1CfD : $@convention(method) (@owned GoodPropagatedDeinitIsolated1) -> () {
+class GoodPropagatedDeinitIsolated1: BaseIsolatedOnFirstActor {
+    isolated deinit {
+        isolatedFunc() // ok
+    }
+}
+
+// CHECK-LABEL: @_inheritsConvenienceInitializers @FirstActor class PropagatedDeinitIsolated1 : BaseWithDeinitIsolatedOnFirstActor {
+// CHECK: {{(@objc )?}}isolated deinit
+// CHECK: }
+// CHECK-SYMB: // PropagatedDeinitIsolated1.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation25PropagatedDeinitIsolated1CfZ : $@convention(thin) (@owned PropagatedDeinitIsolated1) -> () {
+// CHECK-SYMB: // PropagatedDeinitIsolated1.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa]  @$s16deinit_isolation25PropagatedDeinitIsolated1CfD : $@convention(method) (@owned PropagatedDeinitIsolated1) -> () {
+@FirstActor
+class PropagatedDeinitIsolated1: BaseWithDeinitIsolatedOnFirstActor {
+    // expected-warning@-1 {{global actor 'FirstActor'-isolated class 'PropagatedDeinitIsolated1' has different actor isolation from nonisolated superclass 'BaseWithDeinitIsolatedOnFirstActor'; this is an error in Swift 6}}
 
     // FirstActor-isolated deinit
-    deinit {
+    isolated deinit {
         isolatedFunc() // ok
     }
 }
@@ -348,7 +450,7 @@ class DifferentIsolatedDeinitIsolated1: BaseWithDeinitIsolatedOnFirstActor {
 // MARK: - Part 2.4 - Base class with isolated deinit with different actor
 
 // CHECK-LABEL: @_inheritsConvenienceInitializers @FirstActor class ImplicitDeinitInheritIsolated2 : BaseWithDeinitIsolatedOnSecondActor {
-// CHECK: {{(@objc )?}}@SecondActor deinit
+// CHECK: {{(@objc )?}} deinit
 // CHECK: }
 // CHECK-SYMB: // ImplicitDeinitInheritIsolated2.__isolated_deallocating_deinit
 // CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation30ImplicitDeinitInheritIsolated2CfZ : $@convention(thin) (@owned ImplicitDeinitInheritIsolated2) -> () {
@@ -361,24 +463,32 @@ class ImplicitDeinitInheritIsolated2: BaseWithDeinitIsolatedOnSecondActor {
     // SecondActor-isolated deinit
 }
 
-// CHECK-LABEL: @_inheritsConvenienceInitializers @FirstActor class ExplicitDeinitIsolated2 : BaseWithDeinitIsolatedOnSecondActor {
-// CHECK: {{(@objc )?}}@SecondActor deinit
+// CHECK-LABEL: @_inheritsConvenienceInitializers @SecondActor class GoodPropagatedDeinitIsolated2 : BaseIsolatedOnSecondActor {
+// CHECK: {{(@objc )?}}isolated deinit
 // CHECK: }
-// CHECK-SYMB: // ExplicitDeinitIsolated2.__isolated_deallocating_deinit
-// CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation23ExplicitDeinitIsolated2CfZ : $@convention(thin) (@owned ExplicitDeinitIsolated2) -> () {
-// CHECK-SYMB: // ExplicitDeinitIsolated2.__deallocating_deinit
-// CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation23ExplicitDeinitIsolated2CfD : $@convention(method) (@owned ExplicitDeinitIsolated2) -> () {
-@FirstActor
-class ExplicitDeinitIsolated2: BaseWithDeinitIsolatedOnSecondActor {
-    // expected-warning@-1 {{global actor 'FirstActor'-isolated class 'ExplicitDeinitIsolated2' has different actor isolation from nonisolated superclass 'BaseWithDeinitIsolatedOnSecondActor'; this is an error in Swift 6}}
-
-    // SecondActor-isolated deinit
-    deinit {
+// CHECK-SYMB: // GoodPropagatedDeinitIsolated2.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation29GoodPropagatedDeinitIsolated2CfZ : $@convention(thin) (@owned GoodPropagatedDeinitIsolated2) -> () {
+// CHECK-SYMB: // GoodPropagatedDeinitIsolated2.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation29GoodPropagatedDeinitIsolated2CfD : $@convention(method) (@owned GoodPropagatedDeinitIsolated2) -> () {
+class GoodPropagatedDeinitIsolated2: BaseIsolatedOnSecondActor {
+    isolated deinit {
 #if !SILGEN
         isolatedFunc() // expected-error {{call to global actor 'FirstActor'-isolated global function 'isolatedFunc()' in a synchronous global actor 'SecondActor'-isolated context}}
 #endif
     }
 }
+
+#if !SILGEN
+@FirstActor
+class PropagatedDeinitIsolated2: BaseWithDeinitIsolatedOnSecondActor {
+    // expected-warning@-1 {{global actor 'FirstActor'-isolated class 'PropagatedDeinitIsolated2' has different actor isolation from nonisolated superclass 'BaseWithDeinitIsolatedOnSecondActor'; this is an error in Swift 6}}
+
+    // SecondActor-isolated deinit
+    isolated deinit { // expected-error {{global actor 'FirstActor'-isolated deinitializer 'deinit' has different actor isolation from global actor 'SecondActor'-isolated overridden declaration}}
+        isolatedFunc() // ok
+    }
+}
+#endif
 
 #if !SILGEN
 @FirstActor

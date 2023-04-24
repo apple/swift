@@ -491,7 +491,7 @@ CONTEXTUAL_SIMPLE_DECL_ATTR(indirect, Indirect,
   DeclModifier | OnEnum | OnEnumElement | ABIBreakingToAdd | ABIBreakingToRemove | APIStableToAdd | APIStableToRemove,
   60)
 CONTEXTUAL_SIMPLE_DECL_ATTR(isolated, Isolated,
-  DeclModifier | OnParam | ABIBreakingToAdd | ABIBreakingToRemove | APIBreakingToAdd | APIBreakingToRemove,
+  DeclModifier | OnParam | OnDestructor | ABIBreakingToAdd | ABIBreakingToRemove | APIBreakingToAdd | APIBreakingToRemove,
   103)
 CONTEXTUAL_SIMPLE_DECL_ATTR(async, Async,
   DeclModifier | OnVar | OnFunc | ABIBreakingToAdd | ABIBreakingToRemove | APIBreakingToAdd | APIBreakingToRemove,

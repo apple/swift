@@ -32,6 +32,8 @@
 
 using namespace swift;
 
+static ActorIsolation getOverriddenIsolationFor(const ValueDecl *value);
+
 /// Determine whether it makes sense to infer an attribute in the given
 /// context.
 static bool shouldInferAttributeInContext(const DeclContext *dc) {
@@ -1652,30 +1654,39 @@ static bool wasLegacyEscapingUseRestriction(AbstractFunctionDecl *fn) {
   assert(fn->getDeclContext()->getSelfClassDecl()->isAnyActor());
   assert(isa<ConstructorDecl>(fn) || isa<DestructorDecl>(fn));
 
-  // according to today's isolation, determine whether it use to have the
-  // escaping-use restriction
-  switch (getActorIsolation(fn).getKind()) {
+  auto isolationKind = getActorIsolation(fn).getKind();
+  if (isa<DestructorDecl>(fn)) {
+    switch (isolationKind) {
+    case ActorIsolation::GlobalActor:
+    case ActorIsolation::GlobalActorUnsafe:
+    case ActorIsolation::ActorInstance:
+      // Isolated deinits did not exist before
+      return false;
+    case ActorIsolation::Nonisolated:
+    case ActorIsolation::NonisolatedUnsafe:
+    case ActorIsolation::Unspecified:
+      assert(!fn->hasAsync());
+      return true;
+    }
+  } else if (auto *ctor = dyn_cast<ConstructorDecl>(fn)) {
+    switch (isolationKind) {
     case ActorIsolation::Nonisolated:
     case ActorIsolation::NonisolatedUnsafe:
     case ActorIsolation::GlobalActor:
     case ActorIsolation::GlobalActorUnsafe:
       // convenience inits did not have the restriction.
-      if (auto *ctor = dyn_cast<ConstructorDecl>(fn))
-        if (ctor->isConvenienceInit())
-          return false;
-
-      break; // goto basic case
-
+      if (ctor->isConvenienceInit())
+        return false;
+      break;
     case ActorIsolation::ActorInstance:
       // none of these had the restriction affect them.
       assert(fn->hasAsync());
       return false;
-
     case ActorIsolation::Unspecified:
       // this is basically just objc-marked inits.
       break;
-  };
-
+    }
+  }
   return !(fn->hasAsync()); // basic case: not async = had restriction.
 }
 
@@ -3996,6 +4007,7 @@ getIsolationFromAttributes(const Decl *decl, bool shouldDiagnose = true,
                            bool onlyExplicit = false) {
   // Look up attributes on the declaration that can affect its actor isolation.
   // If any of them are present, use that attribute.
+  auto isolatedAttr = decl->getAttrs().getAttribute<IsolatedAttr>();
   auto nonisolatedAttr = decl->getAttrs().getAttribute<NonisolatedAttr>();
   auto globalActorAttr = decl->getGlobalActorAttr();
 
@@ -4003,29 +4015,110 @@ getIsolationFromAttributes(const Decl *decl, bool shouldDiagnose = true,
   if (onlyExplicit) {
     if (nonisolatedAttr && nonisolatedAttr->isImplicit())
       nonisolatedAttr = nullptr;
+    if (isolatedAttr && isolatedAttr->isImplicit())
+      isolatedAttr = nullptr;
     if (globalActorAttr && globalActorAttr->first->isImplicit())
       globalActorAttr = llvm::None;
   }
 
-  unsigned numIsolationAttrs =
-    (nonisolatedAttr ? 1 : 0) + (globalActorAttr ? 1 : 0);
-  if (numIsolationAttrs == 0)
+  unsigned numIsolationAttrs = (isolatedAttr ? 1 : 0) +
+                               (nonisolatedAttr ? 1 : 0) +
+                               (globalActorAttr ? 1 : 0);
+  if (numIsolationAttrs == 0) {
+    if (isa<DestructorDecl>(decl) && !decl->isImplicit()) {
+      return ActorIsolation::forNonisolated(false);
+    }
     return llvm::None;
+  }
 
   // Only one such attribute is valid, but we only actually care of one of
   // them is a global actor.
   if (numIsolationAttrs > 1 && globalActorAttr && shouldDiagnose) {
-    decl->diagnose(diag::actor_isolation_multiple_attr, decl,
-                   nonisolatedAttr->getAttrName(),
-                   globalActorAttr->second->getName().str())
-      .highlight(nonisolatedAttr->getRangeWithAt())
-      .highlight(globalActorAttr->first->getRangeWithAt());
+    struct NameAndRange {
+      StringRef name;
+      SourceRange range;
+    };
+
+    llvm::SmallVector<NameAndRange, 3> attributes;
+    if (isolatedAttr) {
+      attributes.push_back({.name = isolatedAttr->getAttrName(),
+                            .range = isolatedAttr->getRangeWithAt()});
+    }
+    if (nonisolatedAttr) {
+      attributes.push_back({.name = nonisolatedAttr->getAttrName(),
+                            .range = nonisolatedAttr->getRangeWithAt()});
+    }
+    if (globalActorAttr) {
+      attributes.push_back({.name = globalActorAttr->second->getName().str(),
+                            .range = globalActorAttr->first->getRangeWithAt()});
+    }
+    if (attributes.size() == 3) {
+      decl->diagnose(diag::actor_isolation_multiple_attr_3, decl,
+                     attributes[0].name, attributes[1].name, attributes[2].name)
+          .highlight(attributes[0].range)
+          .highlight(attributes[1].range)
+          .highlight(attributes[2].range);
+    } else {
+      assert(attributes.size() == 2);
+      decl->diagnose(diag::actor_isolation_multiple_attr_2, decl,
+                     attributes[0].name, attributes[1].name)
+          .highlight(attributes[0].range)
+          .highlight(attributes[1].range);
+    }
   }
 
   // If the declaration is explicitly marked 'nonisolated', report it as
   // independent.
   if (nonisolatedAttr) {
     return ActorIsolation::forNonisolated(nonisolatedAttr->isUnsafe());
+  }
+
+  // If the declaration is explicitly marked 'isolated', infer actor isolation
+  // from the context. Currently applies only to DestructorDecl
+  if (isolatedAttr) {
+    assert(isa<DestructorDecl>(decl));
+
+    auto dc = decl->getDeclContext();
+    auto selfTypeDecl = dc->getSelfNominalTypeDecl();
+    llvm::Optional<ActorIsolation> result;
+    if (selfTypeDecl) {
+      if (selfTypeDecl->isAnyActor()) {
+        result = ActorIsolation::forActorInstanceSelf(selfTypeDecl);
+      } else {
+        // If the declaration is in an extension that has one of the isolation
+        // attributes, use that.
+        if (auto ext = dyn_cast<ExtensionDecl>(dc)) {
+          result = getIsolationFromAttributes(ext);
+        }
+
+        if (!result) {
+          result = getActorIsolation(selfTypeDecl);
+        }
+      }
+
+      if (!result || !result->isActorIsolated()) {
+        if (shouldDiagnose) {
+          ASTContext &ctx = decl->getASTContext();
+          ctx.Diags.diagnose(isolatedAttr->getLocation(),
+                             diag::isolated_deinit_no_isolation,
+                             selfTypeDecl->getName());
+        }
+        // Try to use isolation of the overridden decl as a recovery strategy.
+        // This prevents additions errors about mismatched isolation.
+        if (auto value = dyn_cast<ValueDecl>(decl)) {
+          ValueDecl *overriddenValue = value->getOverriddenDeclOrSuperDeinit();
+          if (overriddenValue) {
+            // use the overridden decl's iso as the default isolation for this
+            // decl.
+            auto overriddenIsolation = getOverriddenIsolationFor(value);
+            if (overriddenIsolation.isActorIsolated()) {
+              result = overriddenIsolation;
+            }
+          }
+        }
+      }
+    }
+    return result;
   }
 
   // If the declaration is marked with a global actor, report it as being
@@ -4300,8 +4393,14 @@ getMemberIsolationPropagation(const ValueDecl *value) {
     return MemberIsolationPropagation::GlobalActor;
 
   case DeclKind::Constructor:
-  case DeclKind::Destructor:
     return MemberIsolationPropagation::AnyIsolation;
+
+  case DeclKind::Destructor:
+    if (value->getAttrs().getAttribute<IsolatedAttr>()) {
+      return MemberIsolationPropagation::AnyIsolation;
+    } else {
+      return llvm::None;
+    }
 
   case DeclKind::Func:
   case DeclKind::Accessor:
@@ -4469,7 +4568,7 @@ namespace {
 
 /// Return the isolation of the declaration overridden by this declaration,
 /// in the context of the
-static ActorIsolation getOverriddenIsolationFor(ValueDecl *value) {
+static ActorIsolation getOverriddenIsolationFor(const ValueDecl *value) {
   auto overridden = value->getOverriddenDeclOrSuperDeinit();
   assert(overridden && "Doesn't have an overridden declaration");
 
@@ -4630,10 +4729,6 @@ static void addAttributesForActorIsolation(ValueDecl *value,
   }
 }
 
-static bool isImplicitDeinit(ValueDecl *value) {
-  return isa<DestructorDecl>(value) && value->isImplicit();
-}
-
 ActorIsolation ActorIsolationRequest::evaluate(Evaluator &evaluator,
                                                ValueDecl *value) const {
   // If this declaration has actor-isolated "self", it's isolated to that
@@ -4642,16 +4737,6 @@ ActorIsolation ActorIsolationRequest::evaluate(Evaluator &evaluator,
     auto actor = value->getDeclContext()->getSelfNominalTypeDecl();
     assert(actor && "could not find the actor that 'self' is isolated to");
 
-    // Bootstrapping hack: force _Concurrency.MainActor.deinit() to be
-    // non-isolated even when importing from host SDK's swiftmodule without
-    // `nonisolated` attribute.
-    if (isa<DestructorDecl>(value) && actor->getName().is("MainActor") &&
-        actor->getDeclContext()->isModuleScopeContext() &&
-        actor->getDeclContext()->getParentModule()->getABIName().is("Swift")) {
-      auto isolation = ActorIsolation::forNonisolated(false);
-      addAttributesForActorIsolation(value, isolation);
-      return isolation;
-    }
     return ActorIsolation::forActorInstanceSelf(actor);
   }
 
@@ -4966,12 +5051,7 @@ ActorIsolation ActorIsolationRequest::evaluate(Evaluator &evaluator,
     // has isolation, use that.
     if (auto selfTypeDecl = value->getDeclContext()->getSelfNominalTypeDecl()) {
       if (auto selfTypeIsolation = getActorIsolation(selfTypeDecl)) {
-        if (isImplicitDeinit(value)) {
-          return inferredIsolation(ActorIsolation::forUnspecified(),
-                                   onlyGlobal);
-        } else {
-          return inferredIsolation(selfTypeIsolation, onlyGlobal);
-        }
+        return inferredIsolation(selfTypeIsolation, onlyGlobal);
       }
     }
   }
@@ -5008,8 +5088,12 @@ bool HasIsolatedSelfRequest::evaluate(
 
   // Check whether this member can be isolated to an actor at all.
   auto memberIsolation = getMemberIsolationPropagation(value);
-  if (!memberIsolation)
+  if (!memberIsolation) {
+    // Actors don't have inheritance (except inheriting from NSObject),
+    // but if it were introduced, we would need to check for isolation
+    // of the deinit in the super class.
     return false;
+  }
 
   switch (*memberIsolation) {
   case MemberIsolationPropagation::GlobalActor:
@@ -5021,13 +5105,15 @@ bool HasIsolatedSelfRequest::evaluate(
 
   // Check whether the default isolation was overridden by any attributes on
   // this declaration.
-  if (getIsolationFromAttributes(value))
-    return false;
-
+  auto attrIsolation = getIsolationFromAttributes(value);
   // ... or its extension context.
-  if (auto ext = dyn_cast<ExtensionDecl>(dc)) {
-    if (getIsolationFromAttributes(ext))
-      return false;
+  if (!attrIsolation) {
+    if (auto ext = dyn_cast<ExtensionDecl>(dc)) {
+      attrIsolation = getIsolationFromAttributes(ext);
+    }
+  }
+  if (attrIsolation) {
+    return attrIsolation == ActorIsolation::forActorInstanceSelf(selfTypeDecl);
   }
 
   // If this is a variable, check for a property wrapper that alters its
@@ -5055,23 +5141,6 @@ bool HasIsolatedSelfRequest::evaluate(
     // then it is isolated only if it is async.
     if (!ctor->hasAsync())
       return false;
-  }
-
-  if (isImplicitDeinit(value)) {
-    // Actors don't have inheritance (except inheriting from NSObject),
-    // but check for it anyway, just in case it will be re-introduced later.
-    ValueDecl *overriddenValue = value->getOverriddenDeclOrSuperDeinit();
-    if (overriddenValue) {
-      ActorIsolation isolation = getOverriddenIsolationFor(value);
-      if (isolation.isActorIsolated()) {
-        return isolation.getKind() == ActorIsolation::ActorInstance;
-      }
-    }
-
-    // No need to isolate implicit deinit, unless there is already an isolated
-    // one in the superclass
-    addAttributesForActorIsolation(value, ActorIsolation::forNonisolated(false));
-    return false;
   }
 
   return true;

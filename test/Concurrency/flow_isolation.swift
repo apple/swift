@@ -665,7 +665,7 @@ actor NonIsolatedDeinitExceptionForSwift5 {
     x = 0
   }
 
-  nonisolated deinit {
+  deinit {
     // expected-warning@+2 {{actor-isolated instance method 'cleanup()' can not be referenced from a non-isolated context; this is an error in Swift 6}}
     // expected-note@+1 {{after calling instance method 'cleanup()', only non-isolated properties of 'self' can be accessed from a deinit}}
     cleanup()
@@ -675,19 +675,20 @@ actor NonIsolatedDeinitExceptionForSwift5 {
 }
 
 @available(SwiftStdlib 5.5, *)
-actor DeinitExceptionForSwift5 {
+actor IsolatedDeinitExceptionForSwift5 {
   var x: Int = 0
 
   func cleanup() {
     x = 0
   }
 
-  deinit {
+  isolated deinit {
     cleanup() // ok
 
     x = 1 // ok
   }
 }
+
 
 @available(SwiftStdlib 5.5, *)
 actor OhBrother {
@@ -730,7 +731,7 @@ actor OhBrother {
 @available(SwiftStdlib 5.1, *)
 class CheckDeinitFromClass: AwesomeUIView {
   var ns: NonSendableType?
-  nonisolated deinit {
+  deinit {
     ns?.f() // expected-warning {{cannot access property 'ns' with a non-sendable type 'NonSendableType?' from non-isolated deinit; this is an error in Swift 6}}
     ns = nil // expected-warning {{cannot access property 'ns' with a non-sendable type 'NonSendableType?' from non-isolated deinit; this is an error in Swift 6}}
   }
@@ -739,7 +740,7 @@ class CheckDeinitFromClass: AwesomeUIView {
 @available(SwiftStdlib 5.1, *)
 actor CheckDeinitFromActor {
   var ns: NonSendableType?
-  nonisolated deinit {
+  deinit {
     ns?.f() // expected-warning {{cannot access property 'ns' with a non-sendable type 'NonSendableType?' from non-isolated deinit; this is an error in Swift 6}}
     ns = nil // expected-warning {{cannot access property 'ns' with a non-sendable type 'NonSendableType?' from non-isolated deinit; this is an error in Swift 6}}
   }
