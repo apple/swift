@@ -1107,7 +1107,10 @@ void SILGenModule::emitFunctionDefinition(SILDeclRef constant, SILFunction *f) {
     return;
   }
 
+  case SILDeclRef::Kind::IsolatedDeallocator:
+    llvm_unreachable("TODO");
   case SILDeclRef::Kind::Deallocator: {
+    // TODO
     auto *dd = cast<DestructorDecl>(constant.getDecl());
     auto *nom = dd->getDeclContext()->getSelfNominalTypeDecl();
 

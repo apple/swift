@@ -34,6 +34,12 @@ class RootProtocolConformance;
 
 namespace Mangle {
 
+enum class DestructorKind {
+  NonDeallocating,
+  Deallocating,
+  IsolatedDeallocating
+};
+
 /// The mangler for AST declarations.
 class ASTMangler : public Mangler {
 protected:
@@ -188,7 +194,7 @@ public:
                            SymbolKind SKind = SymbolKind::Default);
 
   std::string mangleDestructorEntity(const DestructorDecl *decl,
-                                     bool isDeallocating,
+                                     DestructorKind kind,
                                      SymbolKind SKind = SymbolKind::Default);
 
   std::string mangleConstructorEntity(const ConstructorDecl *ctor,
@@ -556,8 +562,8 @@ protected:
   bool tryAppendStandardSubstitution(const GenericTypeDecl *type);
 
   void appendConstructorEntity(const ConstructorDecl *ctor, bool isAllocating);
-  
-  void appendDestructorEntity(const DestructorDecl *decl, bool isDeallocating);
+
+  void appendDestructorEntity(const DestructorDecl *decl, DestructorKind kind);
 
   /// \param accessorKindCode The code to describe the accessor and addressor
   /// kind. Usually retrieved using getCodeForAccessorKind.

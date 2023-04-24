@@ -959,6 +959,12 @@ ManglingError Remangler::mangleDeallocator(Node *node, unsigned depth) {
   return ManglingError::Success;
 }
 
+ManglingError Remangler::mangleIsolatedDeallocator(Node *node, unsigned depth) {
+  RETURN_IF_ERROR(mangleChildNodes(node, depth + 1));
+  Buffer << "fZ";
+  return ManglingError::Success;
+}
+
 ManglingError Remangler::mangleDeclContext(Node *node, unsigned depth) {
   return mangleSingleChildNode(node, depth + 1);
 }

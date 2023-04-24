@@ -372,6 +372,9 @@ void SILDeclRef::print(raw_ostream &OS) const {
   case SILDeclRef::Kind::Deallocator:
     OS << "!deallocator";
     break;
+  case SILDeclRef::Kind::IsolatedDeallocator:
+    OS << "!isolateddeallocator";
+    break;
   case SILDeclRef::Kind::IVarInitializer:
     OS << "!ivarinitializer";
     break;
@@ -3925,6 +3928,7 @@ void SILVTableEntry::print(llvm::raw_ostream &OS) const {
   case SILDeclRef::Kind::IVarDestroyer:
   case SILDeclRef::Kind::Destroyer:
   case SILDeclRef::Kind::Deallocator:
+  case SILDeclRef::Kind::IsolatedDeallocator:
     HasSingleImplementation = true;
   }
   // No need to emit the signature for methods that may have only

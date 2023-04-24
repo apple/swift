@@ -1213,6 +1213,9 @@ private:
     if (Mangled.nextIf('D')) {
       entityKind = Node::Kind::Deallocator;
       hasType = false;
+    } else if (Mangled.nextIf('Z')) {
+      entityKind = Node::Kind::IsolatedDeallocator;
+      hasType = false;
     } else if (Mangled.nextIf('d')) {
       entityKind = Node::Kind::Destructor;
       hasType = false;

@@ -3780,6 +3780,10 @@ NodePointer Demangler::demangleFunctionEntity() {
   switch (nextChar()) {
     case 'D': Args = None; Kind = Node::Kind::Deallocator; break;
     case 'd': Args = None; Kind = Node::Kind::Destructor; break;
+    case 'Z':
+      Args = None;
+      Kind = Node::Kind::IsolatedDeallocator;
+      break;
     case 'E': Args = None; Kind = Node::Kind::IVarDestroyer; break;
     case 'e': Args = None; Kind = Node::Kind::IVarInitializer; break;
     case 'i': Args = None; Kind = Node::Kind::Initializer; break;

@@ -2756,6 +2756,7 @@ static CanSILFunctionType getNativeSILFunctionType(
       return getSILFunctionTypeForConventions(
           DefaultConventions(NormalParameterConvention::Guaranteed));
     case SILDeclRef::Kind::Deallocator:
+    case SILDeclRef::Kind::IsolatedDeallocator:
       return getSILFunctionTypeForConventions(DeallocatorConventions());
 
     case SILDeclRef::Kind::AsyncEntryPoint:
@@ -3794,6 +3795,7 @@ static ObjCSelectorFamily getObjCSelectorFamily(SILDeclRef c) {
   /// These constants don't correspond to method families we care about yet.
   case SILDeclRef::Kind::Destroyer:
   case SILDeclRef::Kind::Deallocator:
+  case SILDeclRef::Kind::IsolatedDeallocator:
   case SILDeclRef::Kind::IVarDestroyer:
     return ObjCSelectorFamily::None;
 
@@ -4088,6 +4090,7 @@ TypeConverter::getDeclRefRepresentation(SILDeclRef c) {
 
     case SILDeclRef::Kind::Destroyer:
     case SILDeclRef::Kind::Deallocator:
+    case SILDeclRef::Kind::IsolatedDeallocator: // TODO: Double-check this
     case SILDeclRef::Kind::Allocator:
     case SILDeclRef::Kind::Initializer:
     case SILDeclRef::Kind::EnumElement:
@@ -4477,6 +4480,7 @@ static AbstractFunctionDecl *getBridgedFunction(SILDeclRef declRef) {
   case SILDeclRef::Kind::EnumElement:
   case SILDeclRef::Kind::Destroyer:
   case SILDeclRef::Kind::Deallocator:
+  case SILDeclRef::Kind::IsolatedDeallocator:
   case SILDeclRef::Kind::GlobalAccessor:
   case SILDeclRef::Kind::DefaultArgGenerator:
   case SILDeclRef::Kind::StoredPropertyInitializer:
