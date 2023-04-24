@@ -1143,6 +1143,8 @@ public:
   /// \returns a value which can be used with hop_to_executor
   SILValue emitLoadGlobalActorExecutor(Type globalActor);
 
+  void emitExpectedExecutor(ParamDecl *selfParam);
+
   //===--------------------------------------------------------------------===//
   // Memory management
   //===--------------------------------------------------------------------===//
