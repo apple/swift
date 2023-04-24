@@ -4591,9 +4591,63 @@ static void checkDeclWithIsolatedParameter(ValueDecl *value) {
 
 ActorIsolation ActorIsolationRequest::evaluate(
     Evaluator &evaluator, ValueDecl *value) const {
+
+  const bool hasIsolatedSelf =
+      evaluateOrDefault(evaluator, HasIsolatedSelfRequest{value}, false);
+
+  auto addAttributesForActorIsolation = [&](ActorIsolation isolation) {
+    ASTContext &ctx = value->getASTContext();
+    switch (isolation) {
+    case ActorIsolation::Nonisolated:
+    case ActorIsolation::NonisolatedUnsafe: {
+      value->getAttrs().add(new (ctx) NonisolatedAttr(
+          isolation == ActorIsolation::NonisolatedUnsafe, /*implicit=*/true));
+      break;
+    }
+    case ActorIsolation::GlobalActorUnsafe:
+    case ActorIsolation::GlobalActor: {
+      auto typeExpr = TypeExpr::createImplicit(isolation.getGlobalActor(), ctx);
+      auto attr =
+          CustomAttr::create(ctx, SourceLoc(), typeExpr, /*implicit=*/true);
+      if (isolation == ActorIsolation::GlobalActorUnsafe)
+        attr->setArgIsUnsafe(true);
+      value->getAttrs().add(attr);
+      break;
+    }
+    case ActorIsolation::ActorInstance: {
+      // Nothing to do. Default value for actors.
+      assert(hasIsolatedSelf);
+      break;
+    }
+    case ActorIsolation::Unspecified: {
+      // Nothing to do. Default value for non-actors.
+      assert(!hasIsolatedSelf);
+      break;
+    }
+    }
+  };
+
+  // No need to isolate implicit deinit, unless there is already an isolated one
+  // in the superclass
+  if (value->isImplicit() && isa<DestructorDecl>(value)) {
+    ValueDecl *overriddenValue = value->getOverriddenDeclOrSuperDeinit();
+    ActorIsolation isolation = ActorIsolation::forUnspecified();
+    if (overriddenValue) {
+      isolation = getOverriddenIsolationFor(value);
+    } else if (hasIsolatedSelf) {
+      // Don't use 'unspecified' for actors, use 'nonisolated' instead
+      // To force generation of the 'nonisolated' attribute in SIL and
+      // .swiftmodule
+      isolation = ActorIsolation::forNonisolated(false);
+    }
+
+    addAttributesForActorIsolation(isolation);
+    return isolation;
+  }
+
   // If this declaration has actor-isolated "self", it's isolated to that
   // actor.
-  if (evaluateOrDefault(evaluator, HasIsolatedSelfRequest{value}, false)) {
+  if (hasIsolatedSelf) {
     auto actor = value->getDeclContext()->getSelfNominalTypeDecl();
     assert(actor && "could not find the actor that 'self' is isolated to");
 
@@ -4718,7 +4772,7 @@ ActorIsolation ActorIsolationRequest::evaluate(
 
   // Look for and remember the overridden declaration's isolation.
   llvm::Optional<ActorIsolation> overriddenIso;
-  ValueDecl *overriddenValue = value->getOverriddenDecl();
+  ValueDecl *overriddenValue = value->getOverriddenDeclOrSuperDeinit();
   if (overriddenValue) {
     // use the overridden decl's iso as the default isolation for this decl.
     defaultIsolation = getOverriddenIsolationFor(value);
@@ -4765,8 +4819,8 @@ ActorIsolation ActorIsolationRequest::evaluate(
               inferred.preconcurrency());
         }
 
-        value->getAttrs().add(new (ctx) NonisolatedAttr(
-            inferred == ActorIsolation::NonisolatedUnsafe, /*implicit=*/true));
+        // Add nonisolated attribute
+        addAttributesForActorIsolation(inferred);
         break;
 
       case ActorIsolation::GlobalActorUnsafe:
@@ -4782,13 +4836,8 @@ ActorIsolation ActorIsolationRequest::evaluate(
                     return ActorIsolation::forUnspecified().withPreconcurrency(
                         inferred.preconcurrency());
 
-        auto typeExpr =
-            TypeExpr::createImplicit(inferred.getGlobalActor(), ctx);
-        auto attr =
-            CustomAttr::create(ctx, SourceLoc(), typeExpr, /*implicit=*/true);
-        if (inferred == ActorIsolation::GlobalActorUnsafe)
-          attr->setArgIsUnsafe(true);
-        value->getAttrs().add(attr);
+        // Add global actor attribute
+        addAttributesForActorIsolation(inferred);
         break;
       }
 
