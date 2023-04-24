@@ -280,6 +280,28 @@ static AccessorDecl *getUnownedExecutorGetter(ASTContext &ctx,
   return nullptr;
 }
 
+bool SILGenFunction::shouldEmitIsolatingDestructor(DestructorDecl *dd) {
+  auto ai = swift::getActorIsolation(dd);
+  if (!ai.isActorIsolated()) {
+    return false;
+  }
+  DestructorDecl *firstIsolated = dd;
+  while (true) {
+    DestructorDecl *next = firstIsolated->getSuperDeinit();
+    if (!next)
+      break;
+    auto ai = swift::getActorIsolation(next);
+    if (!ai.isActorIsolated())
+      break;
+    firstIsolated = next;
+  }
+
+  // If isolation was intoduced in ObjC code, then we assume that ObjC code also
+  // overrides retain/release to make sure that dealloc is called on the correct
+  // executor in the first place.
+  return firstIsolated->getClangNode().isNull();
+}
+
 void SILGenFunction::emitIsolatingDestructor(DestructorDecl *dd) {
   MagicFunctionName = DeclName(SGM.M.getASTContext().getIdentifier("deinit"));
 

@@ -3191,12 +3191,8 @@ ValueDecl *ValueDecl::getOverriddenDeclOrSuperDeinit() const {
   if (auto overridden = getOverriddenDecl()) {
     return overridden;
   }
-  if (isa<DestructorDecl>(this)) {
-    if (auto classDecl = dyn_cast<ClassDecl>(getDeclContext())) {
-      if (auto superclass = classDecl->getSuperclassDecl()) {
-        return superclass->getDestructor();
-      }
-    }
+  if (auto dtor = dyn_cast<DestructorDecl>(this)) {
+    return dtor->getSuperDeinit();
   }
   return nullptr;
 }
@@ -10407,6 +10403,16 @@ ObjCSelector DestructorDecl::getObjCSelector() const {
   // Deinitializers are always called "dealloc".
   auto &ctx = getASTContext();
   return ObjCSelector(ctx, 0, ctx.Id_dealloc);
+}
+
+DestructorDecl *DestructorDecl::getSuperDeinit() const {
+  auto declContext = getDeclContext()->getImplementedObjCContext();
+  if (auto classDecl = dyn_cast<ClassDecl>(declContext)) {
+    if (auto superclass = classDecl->getSuperclassDecl()) {
+      return superclass->getDestructor();
+    }
+  }
+  return nullptr;
 }
 
 SourceRange FuncDecl::getSourceRange() const {

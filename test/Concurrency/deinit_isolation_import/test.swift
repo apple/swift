@@ -20,6 +20,10 @@
 // Note: intentionally importing Alpha implicitly
 import Beta
 
+@globalActor final actor AnotherActor {
+  static let shared = AnotherActor()
+}
+
 @MainActor
 func isolatedFunc() {} // expected-note 3{{calls to global function 'isolatedFunc()' from outside of its actor context are implicitly asynchronous}}
 
@@ -165,8 +169,8 @@ class ProbeExplicit_DerivedIsolatedClass: DerivedIsolatedClass {
 // CHECK-LABEL: @objc @_inheritsConvenienceInitializers class ProbeImplicit_BaseIsolatedDealloc : BaseIsolatedDealloc {
 // CHECK: @objc @MainActor deinit
 // CHECK: }
-// CHECK-SYMB: // ProbeImplicit_BaseIsolatedDealloc.__isolated_deallocating_deinit
-// CHECK-SYMB: sil hidden [ossa] @$s4test33ProbeImplicit_BaseIsolatedDeallocCfZ : $@convention(thin) (@owned ProbeImplicit_BaseIsolatedDealloc) -> () {
+// CHECK-SYMB-NOT: ProbeImplicit_BaseIsolatedDealloc.__isolated_deallocating_deinit
+// CHECK-SYMB-NOT: @$s4test33ProbeImplicit_BaseIsolatedDeallocCfZ
 // CHECK-SYMB: // ProbeImplicit_BaseIsolatedDealloc.__deallocating_deinit
 // CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test33ProbeImplicit_BaseIsolatedDeallocCfD : $@convention(method) (@owned ProbeImplicit_BaseIsolatedDealloc) -> () {
 class ProbeImplicit_BaseIsolatedDealloc: BaseIsolatedDealloc {}
@@ -174,8 +178,8 @@ class ProbeImplicit_BaseIsolatedDealloc: BaseIsolatedDealloc {}
 // CHECK-LABEL: @objc @_inheritsConvenienceInitializers class ProbeExplicit_BaseIsolatedDealloc : BaseIsolatedDealloc {
 // CHECK: @objc deinit
 // CHECK: }
-// CHECK-SYMB: // ProbeExplicit_BaseIsolatedDealloc.__isolated_deallocating_deinit
-// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test33ProbeExplicit_BaseIsolatedDeallocCfZ : $@convention(thin) (@owned ProbeExplicit_BaseIsolatedDealloc) -> () {
+// CHECK-SYMB-NOT: ProbeExplicit_BaseIsolatedDealloc.__isolated_deallocating_deinit
+// CHECK-SYMB-NOT: @$s4test33ProbeExplicit_BaseIsolatedDeallocCfZ
 // CHECK-SYMB: // ProbeExplicit_BaseIsolatedDealloc.__deallocating_deinit
 // CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test33ProbeExplicit_BaseIsolatedDeallocCfD : $@convention(method) (@owned ProbeExplicit_BaseIsolatedDealloc) -> () {
 class ProbeExplicit_BaseIsolatedDealloc: BaseIsolatedDealloc {
@@ -184,11 +188,17 @@ class ProbeExplicit_BaseIsolatedDealloc: BaseIsolatedDealloc {
     }
 }
 
+#if !SILGEN
+class ProbeAnother_BaseIsolatedDealloc: BaseIsolatedDealloc{
+    @AnotherActor deinit {} // expected-error {{global actor 'AnotherActor'-isolated deinitializer 'deinit' has different actor isolation from main actor-isolated overridden declaration}}
+}
+#endif
+
 // CHECK-LABEL: @objc @_inheritsConvenienceInitializers class ProbeImplicit_DerivedIsolatedDealloc : DerivedIsolatedDealloc {
 // CHECK: @objc @MainActor deinit
 // CHECK: }
-// CHECK-SYMB: // ProbeImplicit_DerivedIsolatedDealloc.__isolated_deallocating_deinit
-// CHECK-SYMB: sil hidden [ossa] @$s4test36ProbeImplicit_DerivedIsolatedDeallocCfZ : $@convention(thin) (@owned ProbeImplicit_DerivedIsolatedDealloc) -> () {
+// CHECK-SYMB-NOT: ProbeImplicit_DerivedIsolatedDealloc.__isolated_deallocating_deinit
+// CHECK-SYMB-NOT: @$s4test36ProbeImplicit_DerivedIsolatedDeallocCfZ
 // CHECK-SYMB: // ProbeImplicit_DerivedIsolatedDealloc.__deallocating_deinit
 // CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test36ProbeImplicit_DerivedIsolatedDeallocCfD : $@convention(method) (@owned ProbeImplicit_DerivedIsolatedDealloc) -> () {
 class ProbeImplicit_DerivedIsolatedDealloc: DerivedIsolatedDealloc {}
@@ -196,8 +206,8 @@ class ProbeImplicit_DerivedIsolatedDealloc: DerivedIsolatedDealloc {}
 // CHECK-LABEL: @objc @_inheritsConvenienceInitializers class ProbeExplicit_DerivedIsolatedDealloc : DerivedIsolatedDealloc {
 // CHECK: @objc deinit
 // CHECK: }
-// CHECK-SYMB: // ProbeExplicit_DerivedIsolatedDealloc.__isolated_deallocating_deinit
-// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test36ProbeExplicit_DerivedIsolatedDeallocCfZ : $@convention(thin) (@owned ProbeExplicit_DerivedIsolatedDealloc) -> () {
+// CHECK-SYMB-NOT: ProbeExplicit_DerivedIsolatedDealloc.__isolated_deallocating_deinit
+// CHECK-SYMB-NOT: @$s4test36ProbeExplicit_DerivedIsolatedDeallocCfZ
 // CHECK-SYMB: // ProbeExplicit_DerivedIsolatedDealloc.__deallocating_deinit
 // CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test36ProbeExplicit_DerivedIsolatedDeallocCfD : $@convention(method) (@owned ProbeExplicit_DerivedIsolatedDealloc) -> () {
 class ProbeExplicit_DerivedIsolatedDealloc: DerivedIsolatedDealloc {
@@ -205,6 +215,12 @@ class ProbeExplicit_DerivedIsolatedDealloc: DerivedIsolatedDealloc {
         isolatedFunc() // ok
     }
 }
+
+#if !SILGEN
+class ProbeAnother_DerivedIsolatedDealloc: DerivedIsolatedDealloc{
+    @AnotherActor deinit {} // expected-error {{global actor 'AnotherActor'-isolated deinitializer 'deinit' has different actor isolation from main actor-isolated overridden declaration}}
+}
+#endif
 
 // CHECK-LABEL: @objc @_inheritsConvenienceInitializers class ProbeImplicit_DeallocIsolatedFromProtocol : DeallocIsolatedFromProtocol {
 // CHECK: @objc deinit
@@ -215,6 +231,10 @@ class ProbeExplicit_DerivedIsolatedDealloc: DerivedIsolatedDealloc {
 // CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test41ProbeImplicit_DeallocIsolatedFromProtocolCfD : $@convention(method) (@owned ProbeImplicit_DeallocIsolatedFromProtocol) -> () {
 class ProbeImplicit_DeallocIsolatedFromProtocol: DeallocIsolatedFromProtocol {}
 
+class ProbeAnother_DeallocIsolatedFromProtocol: DeallocIsolatedFromProtocol {
+    @AnotherActor deinit {} // ok, base is not isolated
+}
+
 // CHECK-LABEL: @objc @_inheritsConvenienceInitializers class ProbeImplicit_DeallocIsolatedFromCategory : DeallocIsolatedFromCategory {
 // CHECK: @objc deinit
 // CHECK: }
@@ -224,6 +244,10 @@ class ProbeImplicit_DeallocIsolatedFromProtocol: DeallocIsolatedFromProtocol {}
 // CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test41ProbeImplicit_DeallocIsolatedFromCategoryCfD : $@convention(method) (@owned ProbeImplicit_DeallocIsolatedFromCategory) -> () {
 class ProbeImplicit_DeallocIsolatedFromCategory: DeallocIsolatedFromCategory {}
 
+class ProbeAnother_DeallocIsolatedFromCategory: DeallocIsolatedFromCategory {
+    @AnotherActor deinit {} // ok, base is not isolated
+}
+
 // CHECK-LABEL: @objc @_inheritsConvenienceInitializers class ProbeImplicit_DeallocIsolatedFromExtension : DeallocIsolatedFromExtension {
 // CHECK: @objc deinit
 // CHECK: }
@@ -232,3 +256,7 @@ class ProbeImplicit_DeallocIsolatedFromCategory: DeallocIsolatedFromCategory {}
 // CHECK-SYMB: // ProbeImplicit_DeallocIsolatedFromExtension.__deallocating_deinit
 // CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test42ProbeImplicit_DeallocIsolatedFromExtensionCfD : $@convention(method) (@owned ProbeImplicit_DeallocIsolatedFromExtension) -> () {
 class ProbeImplicit_DeallocIsolatedFromExtension: DeallocIsolatedFromExtension {}
+
+class ProbeAnother_DeallocIsolatedFromExtension: DeallocIsolatedFromExtension {
+    @AnotherActor deinit {} // ok, base is not isolated
+}
