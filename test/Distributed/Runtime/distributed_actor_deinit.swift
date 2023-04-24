@@ -15,6 +15,28 @@ import _Concurrency
 import Distributed
 import Dispatch
 
+#if canImport(Darwin)
+import Darwin
+typealias ThreadID = pthread_t
+func getCurrentThreadID() -> ThreadID { pthread_self() }
+func equalThreadIDs(_ a: ThreadID, _ b: ThreadID) -> Bool { pthread_equal(a, b) != 0 }
+#elseif canImport(Glibc)
+import Glibc
+typealias ThreadID = pthread_t
+func getCurrentThreadID() -> ThreadID { pthread_self() }
+func equalThreadIDs(_ a: ThreadID, _ b: ThreadID) -> Bool { pthread_equal(a, b) != 0 }
+#elseif os(Windows)
+import WinSDK
+typealias ThreadID = UInt32
+func getCurrentThreadID() -> ThreadID { GetCurrentThreadId() }
+func equalThreadIDs(_ a: ThreadID, _ b: ThreadID) -> Bool { a == b }
+#endif
+
+var mainThread: ThreadID?
+func isMainThread() -> Bool {
+    return equalThreadIDs(getCurrentThreadID(), mainThread!)
+}
+
 @_silgen_name("swift_task_isCurrentExecutor")
 func isCurrentExecutor(_ executor: Builtin.Executor) -> Bool
 
@@ -27,7 +49,7 @@ func isCurrent(_ a: AnyActor) -> Bool {
   return isCurrentExecutor(getExecutor(a))
 }
 
-func isMainThread() -> Bool {
+func isMainExecutor() -> Bool {
   isCurrentExecutor(Builtin.buildMainActorExecutorRef())
 }
 
@@ -53,7 +75,7 @@ distributed actor DA_userDefined_nonisolated {
   }
 
   nonisolated deinit {
-    print("Deinitializing \(self.id) remote:\(__isRemoteActor(self)) isolated:\(isCurrent(self))")
+    print("Deinitializing \(self.id) remote:\(__isRemoteActor(self)) isolated:\(isCurrent(self)) mainThread:\(isMainThread())")
   }
 }
 
@@ -63,7 +85,7 @@ distributed actor DA_userDefined_isolated {
   }
 
   deinit {
-    print("Deinitializing \(self.id) remote:\(__isRemoteActor(self)) isolated:\(isCurrent(self))")
+    print("Deinitializing \(self.id) remote:\(__isRemoteActor(self)) isolated:\(isCurrent(self)) mainThread:\(isMainThread())")
   }
 }
 
@@ -78,7 +100,7 @@ distributed actor DA_state_nonisolated {
   }
 
   nonisolated deinit {
-    print("Deinitializing \(self.id) name=\(name) age=\(age) remote:\(__isRemoteActor(self)) isolated:\(isCurrent(self))")
+    print("Deinitializing \(self.id) name=\(name) age=\(age) remote:\(__isRemoteActor(self)) isolated:\(isCurrent(self)) mainThread:\(isMainThread())")
     return
   }
 }
@@ -94,7 +116,28 @@ distributed actor DA_state_isolated {
   }
 
   deinit {
-    print("Deinitializing \(self.id) name=\(name) age=\(age) remote:\(__isRemoteActor(self)) isolated:\(isCurrent(self))")
+    print("Deinitializing \(self.id) name=\(name) age=\(age) remote:\(__isRemoteActor(self)) isolated:\(isCurrent(self)) mainThread:\(isMainThread())")
+    return
+  }
+}
+
+@globalActor actor AnotherActor: GlobalActor {
+  static let shared = AnotherActor()
+}
+
+distributed actor DA_state_isolated_on_another {
+  var name: String
+  var age: Int
+
+  init(name: String, age: Int, system: FakeActorSystem) {
+    self.name = name
+    self.age = age
+    self.actorSystem = system
+  }
+
+  @AnotherActor
+  deinit {
+    print("Deinitializing \(self.id) name=\(name) age=\(age) remote:\(__isRemoteActor(self)) isolated-self:\(isCurrent(self)) isolated-other:\(isCurrent(AnotherActor.shared)) mainThread:\(isMainThread())")
     return
   }
 }
@@ -123,7 +166,7 @@ final class FakeActorSystem: @unchecked Sendable, DistributedActorSystem {
   }
   
   deinit {
-    print("Deinit ActorSystem: mainThread=\(isMainThread())")
+    print("Deinit ActorSystem: mainExecutor=\(isMainExecutor()) mainThread=\(isMainThread())")
     group.leave()
   }
 
@@ -248,7 +291,7 @@ func test() {
   // CHECK: assign type:DA, address:[[ADDRESS:.*]]
   // CHECK: ready actor:main.DA, address:ActorAddress(address: "[[ADDR1:addr-[0-9]]]")
   // CHECK: resign address:ActorAddress(address: "[[ADDR1]]")
-  // CHECK-NEXT: Deinit ActorSystem: mainThread=true
+  // CHECK-NEXT: Deinit ActorSystem: mainExecutor=true mainThread=true
 
   group.enter()
   _ = { () -> DA_userDefined in
@@ -258,7 +301,7 @@ func test() {
   // CHECK: assign type:DA_userDefined, address:[[ADDRESS:.*]]
   // CHECK: ready actor:main.DA_userDefined, address:ActorAddress(address: "[[ADDR2:addr-[0-9]]]")
   // CHECK: resign address:ActorAddress(address: "[[ADDR2]]")
-  // CHECK-NEXT: Deinit ActorSystem: mainThread=true
+  // CHECK-NEXT: Deinit ActorSystem: mainExecutor=true mainThread=true
 
   // resign must happen as the _last thing_ after user-deinit completed
   group.enter()
@@ -268,9 +311,9 @@ func test() {
   group.wait()
   // CHECK: assign type:DA_userDefined_nonisolated, address:[[ADDRESS:.*]]
   // CHECK: ready actor:main.DA_userDefined_nonisolated, address:ActorAddress(address: "[[ADDR3:addr-[0-9]]]")
-  // CHECK: Deinitializing ActorAddress(address: "[[ADDR3]]") remote:false isolated:false
+  // CHECK: Deinitializing ActorAddress(address: "[[ADDR3]]") remote:false isolated:false mainThread:true
   // CHECK-NEXT: resign address:ActorAddress(address: "[[ADDR3]]")
-  // CHECK-NEXT: Deinit ActorSystem: mainThread=true
+  // CHECK-NEXT: Deinit ActorSystem: mainExecutor=true mainThread=true
   
   // resign must happen as the _last thing_ after user-deinit completed
   group.enter()
@@ -280,9 +323,9 @@ func test() {
   group.wait()
   // CHECK: assign type:DA_userDefined_isolated, address:[[ADDRESS:.*]]
   // CHECK: ready actor:main.DA_userDefined_isolated, address:ActorAddress(address: "[[ADDR4:addr-[0-9]]]")
-  // CHECK: Deinitializing ActorAddress(address: "[[ADDR4]]") remote:false isolated:true
+  // CHECK: Deinitializing ActorAddress(address: "[[ADDR4]]") remote:false isolated:true mainThread:true
   // CHECK-NEXT: resign address:ActorAddress(address: "[[ADDR4]]")
-  // CHECK-NEXT: Deinit ActorSystem: mainThread=false
+  // CHECK-NEXT: Deinit ActorSystem: mainExecutor=false mainThread=true
 
   // resign must happen as the _last thing_ after user-deinit completed
   group.enter()
@@ -292,9 +335,9 @@ func test() {
   group.wait()
   // CHECK: assign type:DA_state_nonisolated, address:[[ADDRESS:.*]]
   // CHECK: ready actor:main.DA_state_nonisolated, address:ActorAddress(address: "[[ADDR5:addr-[0-9]]]")
-  // CHECK: Deinitializing ActorAddress(address: "[[ADDR5]]") name=Foo age=37 remote:false isolated:false
+  // CHECK: Deinitializing ActorAddress(address: "[[ADDR5]]") name=Foo age=37 remote:false isolated:false mainThread:true
   // CHECK-NEXT: resign address:ActorAddress(address: "[[ADDR5]]")
-  // CHECK-NEXT: Deinit ActorSystem: mainThread=true
+  // CHECK-NEXT: Deinit ActorSystem: mainExecutor=true mainThread=true
   
   // resign must happen as the _last thing_ after user-deinit completed
   group.enter()
@@ -304,9 +347,21 @@ func test() {
   group.wait()
   // CHECK: assign type:DA_state_isolated, address:[[ADDRESS:.*]]
   // CHECK: ready actor:main.DA_state_isolated, address:ActorAddress(address: "[[ADDR6:addr-[0-9]]]")
-  // CHECK: Deinitializing ActorAddress(address: "[[ADDR6]]") name=Bar age=42 remote:false isolated:true
+  // CHECK: Deinitializing ActorAddress(address: "[[ADDR6]]") name=Bar age=42 remote:false isolated:true mainThread:true
   // CHECK-NEXT: resign address:ActorAddress(address: "[[ADDR6]]")
-  // CHECK-NEXT: Deinit ActorSystem: mainThread=false
+  // CHECK-NEXT: Deinit ActorSystem: mainExecutor=false mainThread=true
+  
+  // resign must happen as the _last thing_ after user-deinit completed
+  group.enter()
+  _ = { () -> DA_state_isolated_on_another in
+    DA_state_isolated_on_another(name: "Baz", age:57, system: DefaultDistributedActorSystem(group: group))
+  }()
+  group.wait()
+  // CHECK: assign type:DA_state_isolated_on_another, address:[[ADDRESS:.*]]
+  // CHECK: ready actor:main.DA_state_isolated_on_another, address:ActorAddress(address: "[[ADDR6:addr-[0-9]]]")
+  // CHECK: Deinitializing ActorAddress(address: "[[ADDR6]]") name=Baz age=57 remote:false isolated-self:false isolated-other:true mainThread:false
+  // CHECK-NEXT: resign address:ActorAddress(address: "[[ADDR6]]")
+  // CHECK-NEXT: Deinit ActorSystem: mainExecutor=false mainThread=false
 
   // a remote actor should not resign it's address, it was never "assigned" it
   group.enter()
@@ -318,7 +373,7 @@ func test() {
   // CHECK-NEXT: resolve type:DA_userDefined_nonisolated, address:ActorAddress(address: "remote-1")
   // MUST NOT run deinit body for a remote distributed actor
   // CHECK-NOT: Deinitializing ActorAddress(address: "remote-1")
-  // CHECK-NEXT: Deinit ActorSystem: mainThread=true
+  // CHECK-NEXT: Deinit ActorSystem: mainExecutor=true mainThread=true
   
   // a remote actor should not resign it's address, it was never "assigned" it
   group.enter()
@@ -330,7 +385,19 @@ func test() {
   // CHECK-NEXT: resolve type:DA_userDefined_isolated, address:ActorAddress(address: "remote-2")
   // MUST NOT run deinit body for a remote distributed actor
   // CHECK-NOT: Deinitializing ActorAddress(address: "remote-2")
-  // CHECK-NEXT: Deinit ActorSystem: mainThread=true
+  // CHECK-NEXT: Deinit ActorSystem: mainExecutor=true mainThread=true
+  
+  // a remote actor should not resign it's address, it was never "assigned" it
+  group.enter()
+  _ = { () -> DA_state_isolated_on_another in
+    let address = ActorAddress(parse: "remote-3")
+    return try! DA_state_isolated_on_another.resolve(id: address, using: DefaultDistributedActorSystem(group: group))
+  }()
+  group.wait()
+  // CHECK-NEXT: resolve type:DA_state_isolated_on_another, address:ActorAddress(address: "remote-3")
+  // MUST NOT run deinit body for a remote distributed actor
+  // CHECK-NOT: Deinitializing ActorAddress(address: "remote-3")
+  // CHECK-NEXT: Deinit ActorSystem: mainExecutor=true mainThread=true
 
   print("DONE")
   // CHECK-NEXT: DONE
@@ -338,6 +405,7 @@ func test() {
 
 @main struct Main {
   static func main() async {
+    mainThread = getCurrentThreadID()
     test()
   }
 }

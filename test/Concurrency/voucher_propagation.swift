@@ -75,7 +75,7 @@ actor Counter {
   func get() -> Int { n }
 }
 
-actor ActorWithIsolatedDeinit {
+actor ActorWithSelfIsolatedDeinit {
   let expectedVoucher: voucher_t?
   let group: DispatchGroup
   
@@ -98,6 +98,25 @@ actor ActorWithIsolatedDeinit {
   
   func performTesting(_ work: @Sendable () -> Void) {
     work()
+  }
+}
+
+actor ActorWithDeinitIsolatedOnAnother {
+  let expectedVoucher: voucher_t?
+  let group: DispatchGroup
+  
+  init(expectedVoucher: voucher_t?, group: DispatchGroup) {
+    self.expectedVoucher = expectedVoucher
+    self.group = group
+  }
+  
+  @AnotherActor
+  deinit {
+    expectTrue(isCurrentExecutor(AnotherActor.shared.unownedExecutor))
+    let currentVoucher = voucher_copy()
+    expectEqual(expectedVoucher, currentVoucher)
+    os_release(currentVoucher)
+    group.leave()
   }
 }
 
@@ -412,10 +431,20 @@ if #available(SwiftStdlib 5.1, *) {
     withVouchers { v1, v2, v3 in
       let group = DispatchGroup()
       group.enter()
+      group.enter()
+      group.enter()
       Task {
         await AnotherActor.shared.performTesting {
           adopt(voucher: v1)
           _ = ClassWithIsolatedDeinit(expectedVoucher: v1, group: group)
+        }
+        await AnotherActor.shared.performTesting {
+          adopt(voucher: v2)
+          _ = ActorWithSelfIsolatedDeinit(expectedVoucher: v2, group: group)
+        }
+        await AnotherActor.shared.performTesting {
+          adopt(voucher: v3)
+          _ = ActorWithDeinitIsolatedOnAnother(expectedVoucher: v3, group: group)
         }
       }
       group.wait()
@@ -429,12 +458,12 @@ if #available(SwiftStdlib 5.1, *) {
       group.enter()
       Task {
         do {
-          adopt(voucher: v2)
-          _ = ActorWithIsolatedDeinit(expectedVoucher: v2, group: group)
+          adopt(voucher: v1)
+          _ = ActorWithDeinitIsolatedOnAnother(expectedVoucher: v1, group: group)
         }
         do {
-          adopt(voucher: v3)
-          _ = ClassWithIsolatedDeinit(expectedVoucher: v3, group: group)
+          adopt(voucher: v2)
+          _ = ClassWithIsolatedDeinit(expectedVoucher: v2, group: group)
         }
       }
       group.wait()
