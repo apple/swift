@@ -1547,6 +1547,17 @@ bool SILGenModule::requiresIVarDestroyer(ClassDecl *cd) {
 /// TODO: This needs a better name.
 void SILGenModule::emitObjCAllocatorDestructor(ClassDecl *cd,
                                                DestructorDecl *dd) {
+
+  const bool isActorIsolated = getActorIsolation(dd).isActorIsolated();
+
+  // Emit the isolated deallocating destructor.
+  // If emitted, it implements actual deallocating and deallocating destructor
+  // only switches executor
+  if (dd->hasBody() && isActorIsolated) {
+    SILDeclRef dealloc(dd, SILDeclRef::Kind::IsolatedDeallocator);
+    emitFunctionDefinition(dealloc, getFunction(dealloc, ForDefinition));
+  }
+
   // Emit the native deallocating destructor for -dealloc.
   // Destructors are a necessary part of class metadata, so can't be delayed.
   if (shouldEmitFunctionBody(dd)) {
@@ -1555,7 +1566,7 @@ void SILGenModule::emitObjCAllocatorDestructor(ClassDecl *cd,
 
     // Emit the Objective-C -dealloc entry point if it has
     // something to do beyond messaging the superclass's -dealloc.
-    if (!dd->getBody()->empty())
+    if (!dd->getBody()->empty() || isActorIsolated)
       emitObjCDestructorThunk(dd);
   }
 
@@ -1623,7 +1634,7 @@ void SILGenModule::emitDestructor(ClassDecl *cd, DestructorDecl *dd) {
     emitFunctionDefinition(destroyer, getFunction(destroyer, ForDefinition));
   }
 
-  // Emit the deallocating destructor.
+  // Emit the isolated deallocating destructor.
   // If emitted, it implements actual deallocating and deallocating destructor
   // only switches executor
   if (getActorIsolation(dd).isActorIsolated()) {
