@@ -90,6 +90,28 @@ distributed actor DA_userDefined_isolated {
   }
 }
 
+distributed actor DA_userDefined_async_nonisolated {
+  init(system: FakeActorSystem) {
+    self.actorSystem = system
+  }
+
+  nonisolated deinit async {
+    await Task.yield()
+    print("Deinitializing \(self.id) remote:\(__isRemoteActor(self)) isolated:\(isCurrent(self)) mainThread:\(isMainThread())")
+  }
+}
+
+distributed actor DA_userDefined_async_isolated {
+  init(system: FakeActorSystem) {
+    self.actorSystem = system
+  }
+
+  isolated deinit async {
+    await Task.yield()
+    print("Deinitializing \(self.id) remote:\(__isRemoteActor(self)) isolated:\(isCurrent(self)) mainThread:\(isMainThread())")
+  }
+}
+
 distributed actor DA_state_nonisolated {
   var name: String
   var age: Int
@@ -138,6 +160,57 @@ distributed actor DA_state_isolated_on_another {
 
   @AnotherActor
   deinit {
+    print("Deinitializing \(self.id) name=\(name) age=\(age) remote:\(__isRemoteActor(self)) isolated-self:\(isCurrent(self)) isolated-other:\(isCurrent(AnotherActor.shared)) mainThread:\(isMainThread())")
+    return
+  }
+}
+
+distributed actor DA_state_async_nonisolated {
+  var name: String
+  var age: Int
+
+  init(name: String, age: Int, system: FakeActorSystem) {
+    self.name = name
+    self.age = age
+    self.actorSystem = system
+  }
+
+  nonisolated deinit async {
+    await Task.yield()
+    print("Deinitializing \(self.id) name=\(await name) age=\(await age) remote:\(__isRemoteActor(self)) isolated:\(isCurrent(self)) mainThread:\(isMainThread())")
+    return
+  }
+}
+
+distributed actor DA_state_async_isolated {
+  var name: String
+  var age: Int
+
+  init(name: String, age: Int, system: FakeActorSystem) {
+    self.name = name
+    self.age = age
+    self.actorSystem = system
+  }
+
+  isolated deinit async {
+    await Task.yield()
+    print("Deinitializing \(self.id) name=\(name) age=\(age) remote:\(__isRemoteActor(self)) isolated:\(isCurrent(self)) mainThread:\(isMainThread())")
+    return
+  }
+}
+
+distributed actor DA_state_async_isolated_on_another {
+  let name: String
+  let age: Int
+
+  init(name: String, age: Int, system: FakeActorSystem) {
+    self.name = name
+    self.age = age
+    self.actorSystem = system
+  }
+
+  @AnotherActor deinit async {
+    await Task.yield()
     print("Deinitializing \(self.id) name=\(name) age=\(age) remote:\(__isRemoteActor(self)) isolated-self:\(isCurrent(self)) isolated-other:\(isCurrent(AnotherActor.shared)) mainThread:\(isMainThread())")
     return
   }
@@ -293,6 +366,8 @@ func test() {
   // CHECK: ready actor:main.DA, address:ActorAddress(address: "[[ADDR1:addr-[0-9]]]")
   // CHECK: resign address:ActorAddress(address: "[[ADDR1]]")
   // CHECK-NEXT: Deinit ActorSystem: mainExecutor=true mainThread=true
+  
+  // MARK: - sync local
 
   group.enter()
   _ = { () -> DA_userDefined in
@@ -359,10 +434,12 @@ func test() {
   }()
   group.wait()
   // CHECK: assign type:DA_state_isolated_on_another, address:[[ADDRESS:.*]]
-  // CHECK: ready actor:main.DA_state_isolated_on_another, address:ActorAddress(address: "[[ADDR6:addr-[0-9]]]")
-  // CHECK: Deinitializing ActorAddress(address: "[[ADDR6]]") name=Baz age=57 remote:false isolated-self:false isolated-other:true mainThread:false
-  // CHECK-NEXT: resign address:ActorAddress(address: "[[ADDR6]]")
+  // CHECK: ready actor:main.DA_state_isolated_on_another, address:ActorAddress(address: "[[ADDR7:addr-[0-9]]]")
+  // CHECK: Deinitializing ActorAddress(address: "[[ADDR7]]") name=Baz age=57 remote:false isolated-self:false isolated-other:true mainThread:false
+  // CHECK-NEXT: resign address:ActorAddress(address: "[[ADDR7]]")
   // CHECK-NEXT: Deinit ActorSystem: mainExecutor=false mainThread=false
+  
+  // MARK: - sync remote
 
   // a remote actor should not resign it's address, it was never "assigned" it
   group.enter()
@@ -398,6 +475,107 @@ func test() {
   // CHECK-NEXT: resolve type:DA_state_isolated_on_another, address:ActorAddress(address: "remote-3")
   // MUST NOT run deinit body for a remote distributed actor
   // CHECK-NOT: Deinitializing ActorAddress(address: "remote-3")
+  // CHECK-NEXT: Deinit ActorSystem: mainExecutor=true mainThread=true
+  
+  
+  // MARK: - async local
+  
+  // resign must happen as the _last thing_ after user-deinit completed
+  group.enter()
+  _ = { () -> DA_userDefined_async_nonisolated in
+    DA_userDefined_async_nonisolated(system: DefaultDistributedActorSystem(group: group))
+  }()
+  group.wait()
+  // CHECK: assign type:DA_userDefined_async_nonisolated, address:[[ADDRESS:.*]]
+  // CHECK: ready actor:main.DA_userDefined_async_nonisolated, address:ActorAddress(address: "[[ADDR8:addr-[0-9]]]")
+  // CHECK: Deinitializing ActorAddress(address: "[[ADDR8]]") remote:false isolated:false mainThread:false
+  // CHECK-NEXT: resign address:ActorAddress(address: "[[ADDR8]]")
+  // CHECK-NEXT: Deinit ActorSystem: mainExecutor=false mainThread=false
+  
+  // resign must happen as the _last thing_ after user-deinit completed
+  group.enter()
+  _ = { () -> DA_userDefined_async_isolated in
+    DA_userDefined_async_isolated(system: DefaultDistributedActorSystem(group: group))
+  }()
+  group.wait()
+  // CHECK: assign type:DA_userDefined_async_isolated, address:[[ADDRESS:.*]]
+  // CHECK: ready actor:main.DA_userDefined_async_isolated, address:ActorAddress(address: "[[ADDR9:addr-[0-9]]]")
+  // CHECK: Deinitializing ActorAddress(address: "[[ADDR9]]") remote:false isolated:true mainThread:false
+  // CHECK-NEXT: resign address:ActorAddress(address: "[[ADDR9]]")
+  // CHECK-NEXT: Deinit ActorSystem: mainExecutor=false mainThread=false
+  
+  // resign must happen as the _last thing_ after user-deinit completed
+  group.enter()
+  _ = { () -> DA_state_async_nonisolated in
+    DA_state_async_nonisolated(name: "Foo", age:37, system: DefaultDistributedActorSystem(group: group))
+  }()
+  group.wait()
+  // CHECK: assign type:DA_state_async_nonisolated, address:[[ADDRESS:.*]]
+  // CHECK: ready actor:main.DA_state_async_nonisolated, address:ActorAddress(address: "[[ADDR10:addr-[0-9]]]")
+  // CHECK: Deinitializing ActorAddress(address: "[[ADDR10]]") name=Foo age=37 remote:false isolated:false mainThread:false
+  // CHECK-NEXT: resign address:ActorAddress(address: "[[ADDR10]]")
+  // CHECK-NEXT: Deinit ActorSystem: mainExecutor=false mainThread=false
+  
+  // resign must happen as the _last thing_ after user-deinit completed
+  group.enter()
+  _ = { () -> DA_state_async_isolated in
+    DA_state_async_isolated(name: "Bar", age:42, system: DefaultDistributedActorSystem(group: group))
+  }()
+  group.wait()
+  // CHECK: assign type:DA_state_async_isolated, address:[[ADDRESS:.*]]
+  // CHECK: ready actor:main.DA_state_async_isolated, address:ActorAddress(address: "[[ADDR11:addr-[0-9]]]")
+  // CHECK: Deinitializing ActorAddress(address: "[[ADDR11]]") name=Bar age=42 remote:false isolated:true mainThread:false
+  // CHECK-NEXT: resign address:ActorAddress(address: "[[ADDR11]]")
+  // CHECK-NEXT: Deinit ActorSystem: mainExecutor=false mainThread=false
+  
+  // resign must happen as the _last thing_ after user-deinit completed
+  group.enter()
+  _ = { () -> DA_state_async_isolated_on_another in
+    DA_state_async_isolated_on_another(name: "Baz", age:57, system: DefaultDistributedActorSystem(group: group))
+  }()
+  group.wait()
+  // CHECK: assign type:DA_state_async_isolated_on_another, address:[[ADDRESS:.*]]
+  // CHECK: ready actor:main.DA_state_async_isolated_on_another, address:ActorAddress(address: "[[ADDR12:addr-[0-9]]]")
+  // CHECK: Deinitializing ActorAddress(address: "[[ADDR12]]") name=Baz age=57 remote:false isolated-self:false isolated-other:true mainThread:false
+  // CHECK-NEXT: resign address:ActorAddress(address: "[[ADDR12]]")
+  // CHECK-NEXT: Deinit ActorSystem: mainExecutor=false mainThread=false
+  
+  // MARK: - async remote
+
+  // a remote actor should not resign it's address, it was never "assigned" it
+  group.enter()
+  _ = { () -> DA_userDefined_async_nonisolated in
+    let address = ActorAddress(parse: "remote-4")
+    return try! DA_userDefined_async_nonisolated.resolve(id: address, using: DefaultDistributedActorSystem(group: group))
+  }()
+  group.wait()
+  // CHECK-NEXT: resolve type:DA_userDefined_async_nonisolated, address:ActorAddress(address: "remote-4")
+  // MUST NOT run deinit body for a remote distributed actor
+  // CHECK-NOT: Deinitializing ActorAddress(address: "remote-4")
+  // CHECK-NEXT: Deinit ActorSystem: mainExecutor=true mainThread=true
+  
+  // a remote actor should not resign it's address, it was never "assigned" it
+  group.enter()
+  _ = { () -> DA_userDefined_async_isolated in
+    let address = ActorAddress(parse: "remote-5")
+    return try! DA_userDefined_async_isolated.resolve(id: address, using: DefaultDistributedActorSystem(group: group))
+  }()
+  group.wait()
+  // CHECK-NEXT: resolve type:DA_userDefined_async_isolated, address:ActorAddress(address: "remote-5")
+  // MUST NOT run deinit body for a remote distributed actor
+  // CHECK-NOT: Deinitializing ActorAddress(address: "remote-5")
+  // CHECK-NEXT: Deinit ActorSystem: mainExecutor=true mainThread=true
+  
+  // a remote actor should not resign it's address, it was never "assigned" it
+  group.enter()
+  _ = { () -> DA_state_async_isolated_on_another in
+    let address = ActorAddress(parse: "remote-6")
+    return try! DA_state_async_isolated_on_another.resolve(id: address, using: DefaultDistributedActorSystem(group: group))
+  }()
+  group.wait()
+  // CHECK-NEXT: resolve type:DA_state_async_isolated_on_another, address:ActorAddress(address: "remote-6")
+  // MUST NOT run deinit body for a remote distributed actor
+  // CHECK-NOT: Deinitializing ActorAddress(address: "remote-6")
   // CHECK-NEXT: Deinit ActorSystem: mainExecutor=true mainThread=true
 
   print("DONE")

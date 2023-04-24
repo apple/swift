@@ -1663,6 +1663,10 @@ static bool wasLegacyEscapingUseRestriction(AbstractFunctionDecl *fn) {
 
   auto isolationKind = getActorIsolation(fn).getKind();
   if (isa<DestructorDecl>(fn)) {
+    if (fn->hasAsync()) {
+      // Async deinits did not exist before
+      return false;
+    }
     switch (isolationKind) {
     case ActorIsolation::GlobalActor:
     case ActorIsolation::GlobalActorUnsafe:
@@ -1672,7 +1676,6 @@ static bool wasLegacyEscapingUseRestriction(AbstractFunctionDecl *fn) {
     case ActorIsolation::Nonisolated:
     case ActorIsolation::NonisolatedUnsafe:
     case ActorIsolation::Unspecified:
-      assert(!fn->hasAsync());
       return true;
     }
   } else if (auto *ctor = dyn_cast<ConstructorDecl>(fn)) {
