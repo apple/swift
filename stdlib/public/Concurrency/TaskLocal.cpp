@@ -128,6 +128,11 @@ static void swift_task_localValuePopImpl() {
 
 SWIFT_CC(swift)
 static void swift_task_localsCopyToImpl(AsyncTask *task) {
+  assert(task && "TaskLocal item attempt to copy to null target task!");
+  TaskLocal::copyTo(&task->_private().Local, task);
+}
+
+void TaskLocal::copyTo(Storage *target, AsyncTask *task) {
   TaskLocal::Storage *Local = nullptr;
 
   if (AsyncTask *task = swift_task_getCurrent()) {
@@ -139,7 +144,7 @@ static void swift_task_localsCopyToImpl(AsyncTask *task) {
     return;
   }
 
-  Local->copyTo(task);
+  Local->copyTo(target, task);
 }
 
 // =============================================================================
@@ -191,40 +196,34 @@ TaskLocal::Item::createParentLink(AsyncTask *task, AsyncTask *parent) {
   return item;
 }
 
-TaskLocal::Item*
-TaskLocal::Item::createLink(AsyncTask *task,
-                            const HeapObject *key,
-                            const Metadata *valueType) {
+TaskLocal::Item *TaskLocal::Item::createLink(TaskLocal::Item *next,
+                                             AsyncTask *task,
+                                             const HeapObject *key,
+                                             const Metadata *valueType) {
   size_t amountToAllocate = Item::itemSize(valueType);
   void *allocation = task ? _swift_task_alloc_specific(task, amountToAllocate)
                           : malloc(amountToAllocate);
   Item *item = ::new (allocation) Item(key, valueType);
-
-  auto next = task ? task->_private().Local.head
-                   : FallbackTaskLocalStorage::get()->head;
   item->next = reinterpret_cast<uintptr_t>(next) |
       static_cast<uintptr_t>(NextLinkType::IsNext);
 
   return item;
 }
 
-
-void TaskLocal::Item::copyTo(AsyncTask *target) {
-  assert(target && "TaskLocal item attempt to copy to null target task!");
-
+void TaskLocal::Item::copyTo(TaskLocal::Storage *target, AsyncTask *task) {
   // 'parent' pointers are signified by null valueType.
   // We must not copy parent pointers, but rather perform a deep copy of all values,
   // as such, we skip parent pointers here entirely.
   if (isParentPointer())
     return;
 
-  auto item = Item::createLink(target, key, valueType);
+  auto item = Item::createLink(target->head, task, key, valueType);
   valueType->vw_initializeWithCopy(item->getStoragePtr(), getStoragePtr());
 
   /// A `copyTo` may ONLY be invoked BEFORE the task is actually scheduled,
   /// so right now we can safely copy the value into the task without additional
   /// synchronization.
-  target->_private().Local.head = item;
+  target->head = item;
 }
 
 // =============================================================================
@@ -349,7 +348,7 @@ void TaskLocal::Storage::pushValue(AsyncTask *task,
                                    const Metadata *valueType) {
   assert(value && "Task local value must not be nil");
 
-  auto item = Item::createLink(task, key, valueType);
+  auto item = Item::createLink(head, task, key, valueType);
   valueType->vw_initializeWithTake(item->getStoragePtr(), value);
   head = item;
 }
@@ -380,11 +379,11 @@ OpaqueValue* TaskLocal::Storage::getValue(AsyncTask *task,
   return nullptr;
 }
 
-
-void TaskLocal::Storage::copyTo(AsyncTask *target) {
-  assert(target && "task must not be null when copying values into it");
-  assert(!(target->_private().Local.head) &&
-      "Task must not have any task-local values bound before copying into it");
+void TaskLocal::Storage::copyTo(TaskLocal::Storage *target, AsyncTask *task) {
+  assert(target &&
+         "Task-local storage must not be null when copying values into it");
+  assert(!(target->head) &&
+         "Cannot copy to task-local storage when it is already in use");
 
   // Set of keys for which we already have copied to the new task.
   // We only ever need to copy the *first* encounter of any given key,
@@ -398,11 +397,22 @@ void TaskLocal::Storage::copyTo(AsyncTask *target) {
     // we only have to copy an item if it is the most recent binding of a key.
     // i.e. if we've already seen an item for this key, we can skip it.
     if (copied.emplace(item->key).second) {
-      item->copyTo(target);
+      item->copyTo(target, task);
     }
 
     item = item->getNext();
   }
+}
+
+TaskLocal::AdHocScope::AdHocScope(Storage *storage) {
+  assert(swift_task_getCurrent() == nullptr &&
+         "Cannot use ad-hoc scope with a task");
+  oldStorage = FallbackTaskLocalStorage::get();
+  FallbackTaskLocalStorage::set(storage);
+}
+
+TaskLocal::AdHocScope::~AdHocScope() {
+  FallbackTaskLocalStorage::set(oldStorage);
 }
 
 #define OVERRIDE_TASK_LOCAL COMPATIBILITY_OVERRIDE

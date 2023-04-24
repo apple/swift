@@ -32,6 +32,8 @@ class TaskGroup;
 
 class TaskLocal {
 public:
+  class Storage;
+
   /// Type of the pointed at `next` task local item.
   enum class NextLinkType : uintptr_t {
     /// The storage pointer points at the next TaskLocal::Item in this task.
@@ -101,10 +103,11 @@ public:
     /// the Item linked list into the appropriate parent.
     static Item *createParentLink(AsyncTask *task, AsyncTask *parent);
 
-    static Item *createLink(AsyncTask *task,
-                            const HeapObject *key,
+    static Item *createLink(Item *next, AsyncTask *task, const HeapObject *key,
                             const Metadata *valueType);
 
+    /// Destroys value and frees memory using specified task for deallocation.
+    /// If task is null, then th
     void destroy(AsyncTask *task);
 
     Item *getNext() {
@@ -127,7 +130,7 @@ public:
         reinterpret_cast<char *>(this) + storageOffset(valueType));
     }
 
-    void copyTo(AsyncTask *task);
+    void copyTo(Storage *target, AsyncTask *task);
 
     /// Compute the offset of the storage from the base of the item.
     static size_t storageOffset(const Metadata *valueType) {
@@ -210,12 +213,31 @@ public:
     /// This is safe and correct because the new task would never have a chance
     /// to observe the `A` value, because it semantically will never observe a
     /// "pop" of the `B` value - it was spawned from a scope where only B was observable.
-    void copyTo(AsyncTask *target);
+    void copyTo(Storage *target, AsyncTask *task);
 
     /// Destroy and deallocate all items stored by this specific task.
+    /// If @c task is null, then this is a task-less storage and items are
+    /// deallocated using free().
     ///
-    /// Items owned by a parent task are left untouched, since we do not own them.
+    /// Items owned by a parent task are left untouched, since we do not own
+    /// them.
     void destroy(AsyncTask *task);
+  };
+
+  /// Copy all task locals from the current context to the target storage.
+  /// To prevent data races, there should be no other accesses to the target
+  /// storage, while copying. Target storage is asserted to be empty, as a proxy
+  /// for being not in use. If task is specified, it will be used for memory
+  /// management. If task is nil, items will be allocated using malloc(). The
+  /// same value of task should be passed to TaskLocal::Storage::destroy().
+  static void copyTo(Storage *target, AsyncTask *task);
+
+  class AdHocScope {
+    Storage *oldStorage;
+
+  public:
+    AdHocScope(Storage *storage);
+    ~AdHocScope();
   };
 };
 

@@ -206,14 +206,6 @@ void NullaryContinuationJob::process(Job *_job) {
   swift_continuation_resume(continuation);
 }
 
-void AdHocJob::process(Job *_job) {
-  auto *job = cast<AdHocJob>(_job);
-  void *ctx = job->Context;
-  AdHocWorkFunction *work = job->Work;
-  delete job;
-  return work(ctx);
-}
-
 void AsyncTask::completeFuture(AsyncContext *context) {
   using Status = FutureFragment::Status;
   using WaitQueueItem = FutureFragment::WaitQueueItem;
@@ -1629,6 +1621,41 @@ swift_task_createNullaryContinuationJobImpl(
 
   return job;
 }
+
+/// Job that allows to use executor API to schedule a block of task-less
+/// synchronous code.
+class AdHocJob : public Job {
+
+private:
+  void *Context;
+  AdHocWorkFunction *Work;
+  TaskLocal::Storage Local;
+
+public:
+  AdHocJob(JobPriority priority, void *context, AdHocWorkFunction *work)
+      : Job({JobKind::AdHoc, priority}, &process), Context(context),
+        Work(work) {
+    TaskLocal::copyTo(&Local, nullptr);
+  }
+
+  ~AdHocJob() { Local.destroy(nullptr); }
+
+  SWIFT_CC(swiftasync)
+  static void process(Job *_job) {
+    auto *job = cast<AdHocJob>(_job);
+    job->runWork();
+    delete job;
+  }
+
+  inline void runWork() {
+    TaskLocal::AdHocScope taskLocalScope(&Local);
+    Work(Context);
+  }
+
+  static bool classof(const Job *job) {
+    return job->Flags.getKind() == JobKind::AdHoc;
+  }
+};
 
 SWIFT_CC(swift)
 static void swift_task_performOnExecutorImpl(void *context,
