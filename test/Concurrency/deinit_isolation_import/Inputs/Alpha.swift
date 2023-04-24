@@ -7,5 +7,10 @@ import ObjectiveC
 }
 
 @objc open class RoundtripAsync: NSObject {
-    @MainActor deinit async {}
+    @MainActor deinit async {
+        // Suppress warning about unnecessary async deinit
+        await noop()
+    }
 }
+
+private func noop() async {}

@@ -30,12 +30,6 @@ import Beta
 @MainActor
 func isolatedFunc() {} // expected-note 15{{calls to global function 'isolatedFunc()' from outside of its actor context are implicitly asynchronous}}
 
-class ProbeDefaultAsync_BaseIsolatedDealloc: BaseIsolatedDealloc {
-    nonisolated deinit async {
-        await isolatedFunc()
-    }
-}
-
 // CHECK-LABEL: @objc @_inheritsConvenienceInitializers class ProbeImplicit_RoundtripNonisolated : RoundtripNonisolated {
 // CHECK: @objc deinit
 // CHECK: }
@@ -83,6 +77,83 @@ class ProbeGlobal_RoundtripNonisolated: RoundtripNonisolated {
     }
 }
 
+// CHECK-LABEL: @objc @_inheritsConvenienceInitializers class ProbeDefaultAsync_RoundtripNonisolated : RoundtripNonisolated {
+// CHECK: @objc deinit async
+// CHECK: }
+
+// CHECK-SYMB: // ProbeDefaultAsync_RoundtripNonisolated.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test38ProbeDefaultAsync_RoundtripNonisolatedCfZ : $@convention(thin) @async (@owned ProbeDefaultAsync_RoundtripNonisolated) -> () {
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[GENERIC_EXEC:%.*]] = enum $Optional<Builtin.Executor>, #Optional.none
+// CHECK-SYMB-NEXT: hop_to_executor [[GENERIC_EXEC]] : $Optional<Builtin.Executor>
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[FUNC:%.*]] = function_ref @$s4test12isolatedFuncyyF : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $MainActor
+// CHECK-SYMB-NEXT: apply [[FUNC]]() : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor [[GENERIC_EXEC]]
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[SUPER_DEINIT:%.*]] = objc_super_method %0 : $ProbeDefaultAsync_RoundtripNonisolated, #RoundtripNonisolated.deinit!deallocator.foreign : (RoundtripNonisolated) -> () -> (), $@convention(objc_method) (RoundtripNonisolated) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: apply [[SUPER_DEINIT]]({{%[0-9]+}}) : $@convention(objc_method) (RoundtripNonisolated) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: } // end sil function '$s4test38ProbeDefaultAsync_RoundtripNonisolatedCfZ'
+
+// CHECK-SYMB: // ProbeDefaultAsync_RoundtripNonisolated.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test38ProbeDefaultAsync_RoundtripNonisolatedCfD : $@convention(method) (@owned ProbeDefaultAsync_RoundtripNonisolated) -> () {
+// CHECK-SYMB: [[GENERIC_EXEC:%.*]] = enum $Optional<Builtin.Executor>, #Optional.none
+// CHECK-SYMB: [[DEINIT_ASYNC:%.*]] = function_ref @swift_task_deinitAsync : $@convention(thin) (@owned AnyObject, @convention(thin) @async (@owned AnyObject) -> (), Optional<Builtin.Executor>, Builtin.Word) -> ()
+// CHECK-SYMB: apply [[DEINIT_ASYNC]]({{%[0-9]+, %[0-9]+, }}[[GENERIC_EXEC]]
+// CHECK-SYMB: } // end sil function '$s4test38ProbeDefaultAsync_RoundtripNonisolatedCfD'
+
+class ProbeDefaultAsync_RoundtripNonisolated: RoundtripNonisolated {
+    deinit async {
+        await isolatedFunc()
+    }
+}
+
+// CHECK-LABEL: @objc @_inheritsConvenienceInitializers class ProbeGlobalAsync_RoundtripNonisolated : RoundtripNonisolated {
+// CHECK: @objc @AnotherActor deinit async
+// CHECK: }
+
+// CHECK-SYMB: // ProbeGlobalAsync_RoundtripNonisolated.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test37ProbeGlobalAsync_RoundtripNonisolatedCfZ : $@convention(thin) @async (@owned ProbeGlobalAsync_RoundtripNonisolated) -> () {
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $AnotherActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[FUNC:%.*]] = function_ref @$s4test12isolatedFuncyyF : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $MainActor
+// CHECK-SYMB-NEXT: apply [[FUNC]]() : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $AnotherActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[SUPER_DEINIT:%.*]] = objc_super_method %0 : $ProbeGlobalAsync_RoundtripNonisolated, #RoundtripNonisolated.deinit!deallocator.foreign : (RoundtripNonisolated) -> () -> (), $@convention(objc_method) (RoundtripNonisolated) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: apply [[SUPER_DEINIT]]({{%[0-9]+}}) : $@convention(objc_method) (RoundtripNonisolated) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: } // end sil function '$s4test37ProbeGlobalAsync_RoundtripNonisolatedCfZ'
+
+// CHECK-SYMB: // ProbeGlobalAsync_RoundtripNonisolated.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test37ProbeGlobalAsync_RoundtripNonisolatedCfD : $@convention(method) (@owned ProbeGlobalAsync_RoundtripNonisolated) -> () {
+// CHECK-SYMB: [[EXECUTOR:%.*]] = extract_executor {{%[0-9]+}} : $AnotherActor
+// CHECK-SYMB: [[OPT_EXECUTOR:%.*]] = enum $Optional<Builtin.Executor>, #Optional.some!enumelt, [[EXECUTOR]] : $Builtin.Executor
+// CHECK-SYMB: [[DEINIT_ASYNC:%.*]] = function_ref @swift_task_deinitAsync : $@convention(thin) (@owned AnyObject, @convention(thin) @async (@owned AnyObject) -> (), Optional<Builtin.Executor>, Builtin.Word) -> ()
+// CHECK-SYMB: apply [[DEINIT_ASYNC]]({{%[0-9]+, %[0-9]+, }}[[OPT_EXECUTOR]]
+// CHECK-SYMB: } // end sil function '$s4test37ProbeGlobalAsync_RoundtripNonisolatedCfD'
+class ProbeGlobalAsync_RoundtripNonisolated: RoundtripNonisolated {
+    @AnotherActor deinit async {
+#if SILGEN
+        await isolatedFunc()
+#else
+        // expected-error@+2 {{expression is 'async' but is not marked with 'await'}}
+        // expected-note@+1 {{calls to global function 'isolatedFunc()' from outside of its actor context are implicitly asynchronous}}
+        isolatedFunc()
+#endif
+    }
+}
+
 // MARK: - RoundtripIsolated
 
 // CHECK-LABEL: @objc @_inheritsConvenienceInitializers class ProbeImplicit_RoundtripIsolated : RoundtripIsolated {
@@ -122,6 +193,117 @@ class ProbeGlobal_RoundtripIsolated: RoundtripIsolated {
 #else
     @MainActor deinit {}
 #endif
+}
+
+// CHECK-LABEL: @objc @_inheritsConvenienceInitializers class ProbeNonisolatedAsync_RoundtripIsolated : RoundtripIsolated {
+// CHECK: {{(@objc )?}} nonisolated deinit async
+// CHECK: }
+
+// CHECK-SYMB: // ProbeNonisolatedAsync_RoundtripIsolated.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test39ProbeNonisolatedAsync_RoundtripIsolatedCfZ : $@convention(thin) @async (@owned ProbeNonisolatedAsync_RoundtripIsolated) -> () {
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[GENERIC_EXEC:%.*]] = enum $Optional<Builtin.Executor>, #Optional.none
+// CHECK-SYMB-NEXT: hop_to_executor [[GENERIC_EXEC]] : $Optional<Builtin.Executor>
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[FUNC:%.*]] = function_ref @$s4test12isolatedFuncyyF : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $MainActor
+// CHECK-SYMB-NEXT: apply [[FUNC]]() : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor [[GENERIC_EXEC]] : $Optional<Builtin.Executor>
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $MainActor
+// CHECK-SYMB: [[SUPER_DEINIT:%.*]] = function_ref @$s5Alpha17RoundtripIsolatedCfZ : $@convention(thin) (@owned RoundtripIsolated) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: apply [[SUPER_DEINIT]]({{%[0-9]+}}) : $@convention(thin) (@owned RoundtripIsolated) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: } // end sil function '$s4test39ProbeNonisolatedAsync_RoundtripIsolatedCfZ'
+
+// CHECK-SYMB: // ProbeNonisolatedAsync_RoundtripIsolated.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test39ProbeNonisolatedAsync_RoundtripIsolatedCfD : $@convention(method) (@owned ProbeNonisolatedAsync_RoundtripIsolated) -> () {
+// CHECK-SYMB: [[GENERIC_EXEC:%.*]] = enum $Optional<Builtin.Executor>, #Optional.none
+// CHECK-SYMB: [[DEINIT_ASYNC:%.*]] = function_ref @swift_task_deinitAsync : $@convention(thin) (@owned AnyObject, @convention(thin) @async (@owned AnyObject) -> (), Optional<Builtin.Executor>, Builtin.Word) -> ()
+// CHECK-SYMB: apply [[DEINIT_ASYNC]]({{%[0-9]+, %[0-9]+, }}[[GENERIC_EXEC]]
+// CHECK-SYMB: } // end sil function '$s4test39ProbeNonisolatedAsync_RoundtripIsolatedCfD'
+class ProbeNonisolatedAsync_RoundtripIsolated: RoundtripIsolated {
+    nonisolated deinit async {
+        await isolatedFunc()
+    }
+}
+
+// CHECK-LABEL: @objc @_inheritsConvenienceInitializers class ProbeGlobalAsync_RoundtripIsolated : RoundtripIsolated {
+// CHECK: @objc @AnotherActor deinit async
+// CHECK: }
+
+// CHECK-SYMB: // ProbeGlobalAsync_RoundtripIsolated.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test34ProbeGlobalAsync_RoundtripIsolatedCfZ : $@convention(thin) @async (@owned ProbeGlobalAsync_RoundtripIsolated) -> () {
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $AnotherActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[FUNC:%.*]] = function_ref @$s4test12isolatedFuncyyF : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $MainActor
+// CHECK-SYMB-NEXT: apply [[FUNC]]() : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $AnotherActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $MainActor
+// CHECK-SYMB: [[SUPER_DEINIT:%.*]] = function_ref @$s5Alpha17RoundtripIsolatedCfZ : $@convention(thin) (@owned RoundtripIsolated) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: apply [[SUPER_DEINIT]]({{%[0-9]+}}) : $@convention(thin) (@owned RoundtripIsolated) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: } // end sil function '$s4test34ProbeGlobalAsync_RoundtripIsolatedCfZ'
+
+// CHECK-SYMB: // ProbeGlobalAsync_RoundtripIsolated.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test34ProbeGlobalAsync_RoundtripIsolatedCfD : $@convention(method) (@owned ProbeGlobalAsync_RoundtripIsolated) -> () {
+// CHECK-SYMB: [[EXECUTOR:%.*]] = extract_executor {{%[0-9]+}} : $AnotherActor
+// CHECK-SYMB: [[OPT_EXECUTOR:%.*]] = enum $Optional<Builtin.Executor>, #Optional.some!enumelt, [[EXECUTOR]] : $Builtin.Executor
+// CHECK-SYMB: [[DEINIT_ASYNC:%.*]] = function_ref @swift_task_deinitAsync : $@convention(thin) (@owned AnyObject, @convention(thin) @async (@owned AnyObject) -> (), Optional<Builtin.Executor>, Builtin.Word) -> ()
+// CHECK-SYMB: apply [[DEINIT_ASYNC]]({{%[0-9]+, %[0-9]+, }}[[OPT_EXECUTOR]]
+// CHECK-SYMB: } // end sil function '$s4test34ProbeGlobalAsync_RoundtripIsolatedCfD'
+class ProbeGlobalAsync_RoundtripIsolated: RoundtripIsolated {
+    @AnotherActor deinit async {
+#if SILGEN
+        await isolatedFunc()
+#else
+        // expected-error@+2 {{expression is 'async' but is not marked with 'await'}}
+        // expected-note@+1 {{calls to global function 'isolatedFunc()' from outside of its actor context are implicitly asynchronous}}
+        isolatedFunc()
+#endif
+    }
+}
+
+// CHECK-LABEL: @objc @_inheritsConvenienceInitializers class ProbeDefaultAsync_RoundtripIsolated : RoundtripIsolated {
+// CHECK: @objc deinit async
+// CHECK: }
+
+// CHECK-SYMB: // ProbeDefaultAsync_RoundtripIsolated.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test35ProbeDefaultAsync_RoundtripIsolatedCfZ : $@convention(thin) @async (@owned ProbeDefaultAsync_RoundtripIsolated) -> () {
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $MainActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[FUNC:%.*]] = function_ref @$s4test12isolatedFuncyyF : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB-NEXT: apply [[FUNC]]() : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[SUPER_DEINIT:%.*]] = function_ref @$s5Alpha17RoundtripIsolatedCfZ : $@convention(thin) (@owned RoundtripIsolated) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: apply [[SUPER_DEINIT]]({{%[0-9]+}}) : $@convention(thin) (@owned RoundtripIsolated) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: } // end sil function '$s4test35ProbeDefaultAsync_RoundtripIsolatedCfZ'
+
+// CHECK-SYMB: // ProbeDefaultAsync_RoundtripIsolated.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test35ProbeDefaultAsync_RoundtripIsolatedCfD : $@convention(method) (@owned ProbeDefaultAsync_RoundtripIsolated) -> () {
+// CHECK-SYMB: [[EXECUTOR:%.*]] = extract_executor {{%[0-9]+}} : $MainActor
+// CHECK-SYMB: [[OPT_EXECUTOR:%.*]] = enum $Optional<Builtin.Executor>, #Optional.some!enumelt, [[EXECUTOR]] : $Builtin.Executor
+// CHECK-SYMB: [[DEINIT_ASYNC:%.*]] = function_ref @swift_task_deinitAsync : $@convention(thin) (@owned AnyObject, @convention(thin) @async (@owned AnyObject) -> (), Optional<Builtin.Executor>, Builtin.Word) -> ()
+// CHECK-SYMB: apply [[DEINIT_ASYNC]]({{%[0-9]+, %[0-9]+, }}[[OPT_EXECUTOR]]
+// CHECK-SYMB: } // end sil function '$s4test35ProbeDefaultAsync_RoundtripIsolatedCfD'
+class ProbeDefaultAsync_RoundtripIsolated: RoundtripIsolated {
+    // expected-warning@+1 {{async deinit contains no await statements; consider using isolated sync deinit instead}}
+    deinit async {
+        isolatedFunc()
+    }
 }
 
 // MARK: - RoundtripAsync
@@ -186,6 +368,35 @@ class ProbePropagatedAsync_RoundtripAsync: RoundtripAsync {
     }
 }
 
+// CHECK-LABEL: @objc @_inheritsConvenienceInitializers class ProbeGlobalAsync_RoundtripAsync : RoundtripAsync {
+// CHECK: @objc @AnotherActor deinit async
+// CHECK: }
+
+// CHECK-SYMB: // ProbeGlobalAsync_RoundtripAsync.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test026ProbeGlobalAsync_RoundtripD0CfZ : $@convention(thin) @async (@owned ProbeGlobalAsync_RoundtripAsync) -> () {
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $AnotherActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[FUNC:%.*]] = function_ref @$s4test12isolatedFuncyyF : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $MainActor
+// CHECK-SYMB-NEXT: apply [[FUNC]]() : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $AnotherActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[SUPER_DEINIT:%.*]] = function_ref @$s5Alpha14RoundtripAsyncCfZ : $@convention(thin) @async (@owned RoundtripAsync) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: apply [[SUPER_DEINIT]]({{%[0-9]+}}) : $@convention(thin) @async (@owned RoundtripAsync) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: } // end sil function '$s4test026ProbeGlobalAsync_RoundtripD0CfZ'
+
+// CHECK-SYMB: // ProbeGlobalAsync_RoundtripAsync.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test026ProbeGlobalAsync_RoundtripD0CfD : $@convention(method) (@owned ProbeGlobalAsync_RoundtripAsync) -> () {
+// CHECK-SYMB: [[EXECUTOR:%.*]] = extract_executor {{%[0-9]+}} : $AnotherActor
+// CHECK-SYMB: [[OPT_EXECUTOR:%.*]] = enum $Optional<Builtin.Executor>, #Optional.some!enumelt, [[EXECUTOR]] : $Builtin.Executor
+// CHECK-SYMB: [[DEINIT_ASYNC:%.*]] = function_ref @swift_task_deinitAsync : $@convention(thin) (@owned AnyObject, @convention(thin) @async (@owned AnyObject) -> (), Optional<Builtin.Executor>, Builtin.Word) -> ()
+// CHECK-SYMB: apply [[DEINIT_ASYNC]]({{%[0-9]+, %[0-9]+, }}[[OPT_EXECUTOR]]
+// CHECK-SYMB: } // end sil function '$s4test026ProbeGlobalAsync_RoundtripD0CfD'
 class ProbeGlobalAsync_RoundtripAsync: RoundtripAsync {
     @AnotherActor deinit async {
 #if SILGEN
@@ -243,6 +454,46 @@ class ProbeGlobal_BaseNonisolated: BaseNonisolated {
     @AnotherActor deinit {
 #if !SILGEN
         isolatedFunc() // expected-error {{call to main actor-isolated global function 'isolatedFunc()' in a synchronous global actor 'AnotherActor'-isolated context}}
+#endif
+    }
+}
+
+// CHECK-LABEL: @_inheritsConvenienceInitializers class ProbeGlobalAsync_BaseNonisolated : BaseNonisolated {
+// CHECK: {{(@objc )?}} @AnotherActor deinit async
+// CHECK: }
+
+// CHECK-SYMB: // ProbeGlobalAsync_BaseNonisolated.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test32ProbeGlobalAsync_BaseNonisolatedCfZ : $@convention(thin) @async (@owned ProbeGlobalAsync_BaseNonisolated) -> () {
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $AnotherActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[FUNC:%.*]] = function_ref @$s4test12isolatedFuncyyF : $@convention(thin) () -> ()
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $MainActor
+// CHECK-SYMB: apply [[FUNC]]() : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $AnotherActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[SUPER_DEINIT:%.*]] = objc_super_method %0 : $ProbeGlobalAsync_BaseNonisolated, #BaseNonisolated.deinit!deallocator.foreign : (BaseNonisolated) -> () -> (), $@convention(objc_method) (BaseNonisolated) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: apply [[SUPER_DEINIT]]({{%[0-9]+}}) : $@convention(objc_method) (BaseNonisolated) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: } // end sil function '$s4test32ProbeGlobalAsync_BaseNonisolatedCfZ'
+
+// CHECK-SYMB: // ProbeGlobalAsync_BaseNonisolated.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test32ProbeGlobalAsync_BaseNonisolatedCfD : $@convention(method) (@owned ProbeGlobalAsync_BaseNonisolated) -> () {
+// CHECK-SYMB: [[EXECUTOR:%.*]] = extract_executor {{%[0-9]+}} : $AnotherActor
+// CHECK-SYMB: [[OPT_EXECUTOR:%.*]] = enum $Optional<Builtin.Executor>, #Optional.some!enumelt, [[EXECUTOR]] : $Builtin.Executor
+// CHECK-SYMB: [[DEINIT_ASYNC:%.*]] = function_ref @swift_task_deinitAsync : $@convention(thin) (@owned AnyObject, @convention(thin) @async (@owned AnyObject) -> (), Optional<Builtin.Executor>, Builtin.Word) -> ()
+// CHECK-SYMB: apply [[DEINIT_ASYNC]]({{%[0-9]+, %[0-9]+, }}[[OPT_EXECUTOR]]
+// CHECK-SYMB: } // end sil function '$s4test32ProbeGlobalAsync_BaseNonisolatedCfD'
+class ProbeGlobalAsync_BaseNonisolated: BaseNonisolated {
+    @AnotherActor deinit async {
+#if SILGEN
+        await isolatedFunc()
+#else
+        // expected-error@+2 {{expression is 'async' but is not marked with 'await'}}
+        // expected-note@+1 {{calls to global function 'isolatedFunc()' from outside of its actor context are implicitly asynchronous}}
+        isolatedFunc()
 #endif
     }
 }
@@ -350,6 +601,43 @@ class ProbeGlobal_BaseIsolatedClass: BaseIsolatedClass {
     }
 }
 
+// CHECK-LABEL: @objc @_inheritsConvenienceInitializers @MainActor class ProbePropagatedAsync_BaseIsolatedClass : BaseIsolatedClass {
+// CHECK: {{(@objc )?}} @MainActor deinit async
+// CHECK: }
+
+// CHECK-SYMB: // ProbePropagatedAsync_BaseIsolatedClass.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test38ProbePropagatedAsync_BaseIsolatedClassCfZ : $@convention(thin) @async (@owned ProbePropagatedAsync_BaseIsolatedClass) -> () {
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $MainActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[FUNC:%.*]] = function_ref @$s4test12isolatedFuncyyF : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: apply [[FUNC]]() : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[SUPER_DEINIT:%.*]] = objc_super_method %0 : $ProbePropagatedAsync_BaseIsolatedClass, #BaseIsolatedClass.deinit!deallocator.foreign : (BaseIsolatedClass) -> () -> (), $@convention(objc_method) (BaseIsolatedClass) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: apply [[SUPER_DEINIT]]({{%[0-9]+}}) : $@convention(objc_method) (BaseIsolatedClass) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: } // end sil function '$s4test38ProbePropagatedAsync_BaseIsolatedClassCfZ'
+
+// CHECK-SYMB: // ProbePropagatedAsync_BaseIsolatedClass.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test38ProbePropagatedAsync_BaseIsolatedClassCfD : $@convention(method) (@owned ProbePropagatedAsync_BaseIsolatedClass) -> () {
+// CHECK-SYMB: [[EXECUTOR:%.*]] = extract_executor {{%[0-9]+}} : $MainActor
+// CHECK-SYMB: [[OPT_EXECUTOR:%.*]] = enum $Optional<Builtin.Executor>, #Optional.some!enumelt, [[EXECUTOR]] : $Builtin.Executor
+// CHECK-SYMB: [[DEINIT_ASYNC:%.*]] = function_ref @swift_task_deinitAsync : $@convention(thin) (@owned AnyObject, @convention(thin) @async (@owned AnyObject) -> (), Optional<Builtin.Executor>, Builtin.Word) -> ()
+// CHECK-SYMB: apply [[DEINIT_ASYNC]]({{%[0-9]+, %[0-9]+, }}[[OPT_EXECUTOR]]
+// CHECK-SYMB: } // end sil function '$s4test38ProbePropagatedAsync_BaseIsolatedClassCfD'
+class ProbePropagatedAsync_BaseIsolatedClass: BaseIsolatedClass {
+    deinit async {
+#if SILGEN
+        isolatedFunc()
+#else
+        // expected-warning@+1 {{no 'async' operations occur within 'await' expression}}
+        await isolatedFunc()
+#endif
+    }
+}
+
 // MARK: - DerivedIsolatedClass
 
 // CHECK-LABEL: @objc @_inheritsConvenienceInitializers @MainActor class ProbeImplicit_DerivedIsolatedClass : DerivedIsolatedClass {
@@ -404,6 +692,43 @@ class ProbeGlobal_DerivedIsolatedClass: DerivedIsolatedClass {
     }
 }
 
+// CHECK-LABEL: @objc @_inheritsConvenienceInitializers @MainActor class ProbePropagatedAsync_DerivedIsolatedClass : DerivedIsolatedClass {
+// CHECK: {{(@objc )?}} @MainActor deinit async
+// CHECK: }
+
+// CHECK-SYMB: // ProbePropagatedAsync_DerivedIsolatedClass.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test41ProbePropagatedAsync_DerivedIsolatedClassCfZ : $@convention(thin) @async (@owned ProbePropagatedAsync_DerivedIsolatedClass) -> () {
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $MainActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[FUNC:%.*]] = function_ref @$s4test12isolatedFuncyyF : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: apply [[FUNC]]() : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[SUPER_DEINIT:%.*]] = objc_super_method %0 : $ProbePropagatedAsync_DerivedIsolatedClass, #DerivedIsolatedClass.deinit!deallocator.foreign : (DerivedIsolatedClass) -> () -> (), $@convention(objc_method) (DerivedIsolatedClass) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: apply [[SUPER_DEINIT]]({{%[0-9]+}}) : $@convention(objc_method) (DerivedIsolatedClass) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: } // end sil function '$s4test41ProbePropagatedAsync_DerivedIsolatedClassCfZ'
+
+// CHECK-SYMB: // ProbePropagatedAsync_DerivedIsolatedClass.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test41ProbePropagatedAsync_DerivedIsolatedClassCfD : $@convention(method) (@owned ProbePropagatedAsync_DerivedIsolatedClass) -> () {
+// CHECK-SYMB: [[EXECUTOR:%.*]] = extract_executor {{%[0-9]+}} : $MainActor
+// CHECK-SYMB: [[OPT_EXECUTOR:%.*]] = enum $Optional<Builtin.Executor>, #Optional.some!enumelt, [[EXECUTOR]] : $Builtin.Executor
+// CHECK-SYMB: [[DEINIT_ASYNC:%.*]] = function_ref @swift_task_deinitAsync : $@convention(thin) (@owned AnyObject, @convention(thin) @async (@owned AnyObject) -> (), Optional<Builtin.Executor>, Builtin.Word) -> ()
+// CHECK-SYMB: apply [[DEINIT_ASYNC]]({{%[0-9]+, %[0-9]+, }}[[OPT_EXECUTOR]]
+// CHECK-SYMB: } // end sil function '$s4test41ProbePropagatedAsync_DerivedIsolatedClassCfD'
+class ProbePropagatedAsync_DerivedIsolatedClass: DerivedIsolatedClass {
+    deinit async {
+#if SILGEN
+        isolatedFunc()
+#else
+        // expected-warning@+1 {{no 'async' operations occur within 'await' expression}}
+        await isolatedFunc()
+#endif
+    }
+}
+
 // MARK: - BaseIsolatedDealloc
 
 // If isolation was introduced in ObjC code, then we assume that ObjC code also
@@ -450,6 +775,122 @@ class ProbeGlobal_BaseIsolatedDealloc: BaseIsolatedDealloc {
 #endif
 }
 
+// CHECK-LABEL: @objc @_inheritsConvenienceInitializers class ProbeDefaultAsync_BaseIsolatedDealloc : BaseIsolatedDealloc {
+// CHECK: {{(@objc )?}} deinit async
+// CHECK: }
+
+// CHECK-SYMB: // ProbeDefaultAsync_BaseIsolatedDealloc.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test37ProbeDefaultAsync_BaseIsolatedDeallocCfZ : $@convention(thin) @async (@owned ProbeDefaultAsync_BaseIsolatedDealloc) -> () {
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $MainActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[FUNC:%.*]] = function_ref @$s4test12isolatedFuncyyF : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: apply [[FUNC]]() : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[SUPER_DEINIT:%.*]] = objc_super_method %0 : $ProbeDefaultAsync_BaseIsolatedDealloc, #BaseIsolatedDealloc.deinit!deallocator.foreign : (BaseIsolatedDealloc) -> () -> (), $@convention(objc_method) (BaseIsolatedDealloc) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: apply [[SUPER_DEINIT]]({{%[0-9]+}}) : $@convention(objc_method) (BaseIsolatedDealloc) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: } // end sil function '$s4test37ProbeDefaultAsync_BaseIsolatedDeallocCfZ'
+
+// CHECK-SYMB: // ProbeDefaultAsync_BaseIsolatedDealloc.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test37ProbeDefaultAsync_BaseIsolatedDeallocCfD : $@convention(method) (@owned ProbeDefaultAsync_BaseIsolatedDealloc) -> () {
+// CHECK-SYMB: [[EXECUTOR:%.*]] = extract_executor {{%[0-9]+}} : $MainActor
+// CHECK-SYMB: [[OPT_EXECUTOR:%.*]] = enum $Optional<Builtin.Executor>, #Optional.some!enumelt, [[EXECUTOR]] : $Builtin.Executor
+// CHECK-SYMB: [[DEINIT_ASYNC:%.*]] = function_ref @swift_task_deinitAsync : $@convention(thin) (@owned AnyObject, @convention(thin) @async (@owned AnyObject) -> (), Optional<Builtin.Executor>, Builtin.Word) -> ()
+// CHECK-SYMB: apply [[DEINIT_ASYNC]]({{%[0-9]+, %[0-9]+, }}[[OPT_EXECUTOR]]
+// CHECK-SYMB: } // end sil function '$s4test37ProbeDefaultAsync_BaseIsolatedDeallocCfD'
+class ProbeDefaultAsync_BaseIsolatedDealloc: BaseIsolatedDealloc {
+    // expected-warning@+1 {{async deinit contains no await statements; consider using isolated sync deinit instead}}
+    deinit async {
+        isolatedFunc()
+    }
+}
+
+// CHECK-LABEL: @objc @_inheritsConvenienceInitializers class ProbeNonisolatedAsync_BaseIsolatedDealloc : BaseIsolatedDealloc {
+// CHECK: {{(@objc )?}} nonisolated deinit async
+// CHECK: }
+
+// CHECK-SYMB: // ProbeNonisolatedAsync_BaseIsolatedDealloc.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test41ProbeNonisolatedAsync_BaseIsolatedDeallocCfZ : $@convention(thin) @async (@owned ProbeNonisolatedAsync_BaseIsolatedDealloc) -> () {
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[GENERIC_EXEC:%.*]] = enum $Optional<Builtin.Executor>, #Optional.none
+// CHECK-SYMB-NEXT: hop_to_executor [[GENERIC_EXEC]] : $Optional<Builtin.Executor>
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[FUNC:%.*]] = function_ref @$s4test12isolatedFuncyyF : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $MainActor
+// CHECK-SYMB-NEXT: apply [[FUNC]]() : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor [[GENERIC_EXEC]] : $Optional<Builtin.Executor>
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $MainActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[SUPER_DEINIT:%.*]] = objc_super_method %0 : $ProbeNonisolatedAsync_BaseIsolatedDealloc, #BaseIsolatedDealloc.deinit!deallocator.foreign : (BaseIsolatedDealloc) -> () -> (), $@convention(objc_method) (BaseIsolatedDealloc) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: apply [[SUPER_DEINIT]]({{%[0-9]+}}) : $@convention(objc_method) (BaseIsolatedDealloc) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: } // end sil function '$s4test41ProbeNonisolatedAsync_BaseIsolatedDeallocCfZ'
+
+// CHECK-SYMB: // ProbeNonisolatedAsync_BaseIsolatedDealloc.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test41ProbeNonisolatedAsync_BaseIsolatedDeallocCfD : $@convention(method) (@owned ProbeNonisolatedAsync_BaseIsolatedDealloc) -> () {
+// CHECK-SYMB: [[GENERIC_EXEC:%.*]] = enum $Optional<Builtin.Executor>, #Optional.none
+// CHECK-SYMB: [[DEINIT_ASYNC:%.*]] = function_ref @swift_task_deinitAsync : $@convention(thin) (@owned AnyObject, @convention(thin) @async (@owned AnyObject) -> (), Optional<Builtin.Executor>, Builtin.Word) -> ()
+// CHECK-SYMB: apply [[DEINIT_ASYNC]]({{%[0-9]+, %[0-9]+, }}[[GENERIC_EXEC]]
+// CHECK-SYMB: } // end sil function '$s4test41ProbeNonisolatedAsync_BaseIsolatedDeallocCfD'
+class ProbeNonisolatedAsync_BaseIsolatedDealloc: BaseIsolatedDealloc {
+    nonisolated deinit async {
+        await isolatedFunc()
+    }
+}
+
+// CHECK-LABEL: @objc @_inheritsConvenienceInitializers class ProbeGlobalAsync_Intermediate_BaseIsolatedDealloc : Intermediate {
+// CHECK: {{(@objc )?}} @AnotherActor deinit async
+// CHECK: }
+
+// CHECK-SYMB: // ProbeGlobalAsync_Intermediate_BaseIsolatedDealloc.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test49ProbeGlobalAsync_Intermediate_BaseIsolatedDeallocCfZ : $@convention(thin) @async (@owned ProbeGlobalAsync_Intermediate_BaseIsolatedDealloc) -> () {
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $AnotherActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[FUNC:%.*]] = function_ref @$s4test12isolatedFuncyyF : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $MainActor
+// CHECK-SYMB-NEXT: apply [[FUNC]]() : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $AnotherActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[SUPER_DEINIT:%.*]] = function_ref @$s4test12IntermediateCfZ : $@convention(thin) @async (@owned Intermediate) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: apply [[SUPER_DEINIT]]({{%[0-9]+}}) : $@convention(thin) @async (@owned Intermediate) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: } // end sil function '$s4test49ProbeGlobalAsync_Intermediate_BaseIsolatedDeallocCfZ'
+
+// CHECK-SYMB: // ProbeGlobalAsync_Intermediate_BaseIsolatedDealloc.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test49ProbeGlobalAsync_Intermediate_BaseIsolatedDeallocCfD : $@convention(method) (@owned ProbeGlobalAsync_Intermediate_BaseIsolatedDealloc) -> () {
+// CHECK-SYMB: [[EXECUTOR:%.*]] = extract_executor {{%[0-9]+}} : $AnotherActor
+// CHECK-SYMB: [[OPT_EXECUTOR:%.*]] = enum $Optional<Builtin.Executor>, #Optional.some!enumelt, [[EXECUTOR]] : $Builtin.Executor
+// CHECK-SYMB: [[DEINIT_ASYNC:%.*]] = function_ref @swift_task_deinitAsync : $@convention(thin) (@owned AnyObject, @convention(thin) @async (@owned AnyObject) -> (), Optional<Builtin.Executor>, Builtin.Word) -> ()
+// CHECK-SYMB: apply [[DEINIT_ASYNC]]({{%[0-9]+, %[0-9]+, }}[[OPT_EXECUTOR]]
+// CHECK-SYMB: } // end sil function '$s4test49ProbeGlobalAsync_Intermediate_BaseIsolatedDeallocCfD'
+class Intermediate: BaseIsolatedDealloc {
+    deinit async {
+        await Task.yield()
+    }
+}
+class ProbeGlobalAsync_Intermediate_BaseIsolatedDealloc: Intermediate {
+    @AnotherActor deinit async {
+#if SILGEN
+        await isolatedFunc()
+#else
+        // expected-error@+2 {{expression is 'async' but is not marked with 'await'}}
+        // expected-note@+1 {{calls to global function 'isolatedFunc()' from outside of its actor context are implicitly asynchronous}}
+        isolatedFunc()
+#endif
+    }
+}
+
 // MARK: - DerivedIsolatedDealloc
 
 // CHECK-LABEL: @objc @_inheritsConvenienceInitializers class ProbeImplicit_DerivedIsolatedDealloc : DerivedIsolatedDealloc {
@@ -491,6 +932,119 @@ class ProbeGlobal_DerivedIsolatedDealloc: DerivedIsolatedDealloc {
 #else
     @MainActor deinit {}
 #endif
+}
+
+// CHECK-LABEL: @objc @_inheritsConvenienceInitializers class ProbeDefaultAsync_DerivedIsolatedDealloc : DerivedIsolatedDealloc {
+// CHECK: {{(@objc )?}} deinit async
+// CHECK: }
+
+// CHECK-SYMB: // ProbeDefaultAsync_DerivedIsolatedDealloc.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test40ProbeDefaultAsync_DerivedIsolatedDeallocCfZ : $@convention(thin) @async (@owned ProbeDefaultAsync_DerivedIsolatedDealloc) -> () {
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $MainActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[FUNC:%.*]] = function_ref @$s4test12isolatedFuncyyF : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: apply [[FUNC]]() : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[SUPER_DEINIT:%.*]] = objc_super_method %0 : $ProbeDefaultAsync_DerivedIsolatedDealloc, #DerivedIsolatedDealloc.deinit!deallocator.foreign : (DerivedIsolatedDealloc) -> () -> (), $@convention(objc_method) (DerivedIsolatedDealloc) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: apply [[SUPER_DEINIT]]({{%[0-9]+}}) : $@convention(objc_method) (DerivedIsolatedDealloc) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: } // end sil function '$s4test40ProbeDefaultAsync_DerivedIsolatedDeallocCfZ'
+
+// CHECK-SYMB: // ProbeDefaultAsync_DerivedIsolatedDealloc.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test40ProbeDefaultAsync_DerivedIsolatedDeallocCfD : $@convention(method) (@owned ProbeDefaultAsync_DerivedIsolatedDealloc) -> () {
+// CHECK-SYMB: [[EXECUTOR:%.*]] = extract_executor {{%[0-9]+}} : $MainActor
+// CHECK-SYMB: [[OPT_EXECUTOR:%.*]] = enum $Optional<Builtin.Executor>, #Optional.some!enumelt, [[EXECUTOR]] : $Builtin.Executor
+// CHECK-SYMB: [[DEINIT_ASYNC:%.*]] = function_ref @swift_task_deinitAsync : $@convention(thin) (@owned AnyObject, @convention(thin) @async (@owned AnyObject) -> (), Optional<Builtin.Executor>, Builtin.Word) -> ()
+// CHECK-SYMB: apply [[DEINIT_ASYNC]]({{%[0-9]+, %[0-9]+, }}[[OPT_EXECUTOR]]
+// CHECK-SYMB: } // end sil function '$s4test40ProbeDefaultAsync_DerivedIsolatedDeallocCfD'
+class ProbeDefaultAsync_DerivedIsolatedDealloc: DerivedIsolatedDealloc {
+    // expected-warning@+1 {{async deinit contains no await statements; consider using isolated sync deinit instead}}
+    deinit async {
+        isolatedFunc()
+    }
+}
+
+// CHECK-LABEL: @objc @_inheritsConvenienceInitializers class ProbeNonisolatedAsync_DerivedIsolatedDealloc : DerivedIsolatedDealloc {
+// CHECK: {{(@objc )?}} nonisolated deinit async
+// CHECK: }
+
+// CHECK-SYMB: // ProbeNonisolatedAsync_DerivedIsolatedDealloc.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test44ProbeNonisolatedAsync_DerivedIsolatedDeallocCfZ : $@convention(thin) @async (@owned ProbeNonisolatedAsync_DerivedIsolatedDealloc) -> () {
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[GENERIC_EXEC:%.*]] = enum $Optional<Builtin.Executor>, #Optional.none
+// CHECK-SYMB-NEXT: hop_to_executor [[GENERIC_EXEC]] : $Optional<Builtin.Executor>
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[FUNC:%.*]] = function_ref @$s4test12isolatedFuncyyF : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $MainActor
+// CHECK-SYMB-NEXT: apply [[FUNC]]() : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor [[GENERIC_EXEC]] : $Optional<Builtin.Executor>
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $MainActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[SUPER_DEINIT:%.*]] = objc_super_method %0 : $ProbeNonisolatedAsync_DerivedIsolatedDealloc, #DerivedIsolatedDealloc.deinit!deallocator.foreign : (DerivedIsolatedDealloc) -> () -> (), $@convention(objc_method) (DerivedIsolatedDealloc) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: apply [[SUPER_DEINIT]]({{%[0-9]+}}) : $@convention(objc_method) (DerivedIsolatedDealloc) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: } // end sil function '$s4test44ProbeNonisolatedAsync_DerivedIsolatedDeallocCfZ'
+
+// CHECK-SYMB: // ProbeNonisolatedAsync_DerivedIsolatedDealloc.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test44ProbeNonisolatedAsync_DerivedIsolatedDeallocCfD : $@convention(method) (@owned ProbeNonisolatedAsync_DerivedIsolatedDealloc) -> () {
+// CHECK-SYMB: [[GENERIC_EXEC:%.*]] = enum $Optional<Builtin.Executor>, #Optional.none
+// CHECK-SYMB: [[DEINIT_ASYNC:%.*]] = function_ref @swift_task_deinitAsync : $@convention(thin) (@owned AnyObject, @convention(thin) @async (@owned AnyObject) -> (), Optional<Builtin.Executor>, Builtin.Word) -> ()
+// CHECK-SYMB: apply [[DEINIT_ASYNC]]({{%[0-9]+, %[0-9]+, }}[[GENERIC_EXEC]]
+// CHECK-SYMB: } // end sil function '$s4test44ProbeNonisolatedAsync_DerivedIsolatedDeallocCfD'
+class ProbeNonisolatedAsync_DerivedIsolatedDealloc: DerivedIsolatedDealloc {
+    nonisolated deinit async {
+        await isolatedFunc()
+    }
+}
+
+// CHECK-LABEL: @objc @_inheritsConvenienceInitializers class ProbeGlobalAsync_DerivedIsolatedDealloc : DerivedIsolatedDealloc {
+// CHECK: {{(@objc )?}} @AnotherActor deinit async
+// CHECK: }
+
+// CHECK-SYMB: // ProbeGlobalAsync_DerivedIsolatedDealloc.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test39ProbeGlobalAsync_DerivedIsolatedDeallocCfZ : $@convention(thin) @async (@owned ProbeGlobalAsync_DerivedIsolatedDealloc) -> () {
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $AnotherActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[FUNC:%.*]] = function_ref @$s4test12isolatedFuncyyF : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $MainActor
+// CHECK-SYMB-NEXT: apply [[FUNC]]() : $@convention(thin) () -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $AnotherActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: hop_to_executor {{%[0-9]+}} : $MainActor
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: [[SUPER_DEINIT:%.*]] = objc_super_method %0 : $ProbeGlobalAsync_DerivedIsolatedDealloc, #DerivedIsolatedDealloc.deinit!deallocator.foreign : (DerivedIsolatedDealloc) -> () -> (), $@convention(objc_method) (DerivedIsolatedDealloc) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: apply [[SUPER_DEINIT]]({{%[0-9]+}}) : $@convention(objc_method) (DerivedIsolatedDealloc) -> ()
+// CHECK-SYMB-NOT: hop_to_executor
+// CHECK-SYMB: } // end sil function '$s4test39ProbeGlobalAsync_DerivedIsolatedDeallocCfZ'
+
+// CHECK-SYMB: // ProbeGlobalAsync_DerivedIsolatedDealloc.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test39ProbeGlobalAsync_DerivedIsolatedDeallocCfD : $@convention(method) (@owned ProbeGlobalAsync_DerivedIsolatedDealloc) -> () {
+// CHECK-SYMB: [[EXECUTOR:%.*]] = extract_executor {{%[0-9]+}} : $AnotherActor
+// CHECK-SYMB: [[OPT_EXECUTOR:%.*]] = enum $Optional<Builtin.Executor>, #Optional.some!enumelt, [[EXECUTOR]] : $Builtin.Executor
+// CHECK-SYMB: [[DEINIT_ASYNC:%.*]] = function_ref @swift_task_deinitAsync : $@convention(thin) (@owned AnyObject, @convention(thin) @async (@owned AnyObject) -> (), Optional<Builtin.Executor>, Builtin.Word) -> ()
+// CHECK-SYMB: apply [[DEINIT_ASYNC]]({{%[0-9]+, %[0-9]+, }}[[OPT_EXECUTOR]]
+// CHECK-SYMB: } // end sil function '$s4test39ProbeGlobalAsync_DerivedIsolatedDeallocCfD'
+class ProbeGlobalAsync_DerivedIsolatedDealloc: DerivedIsolatedDealloc {
+    @AnotherActor deinit async {
+#if SILGEN
+        await isolatedFunc()
+#else
+        // expected-error@+2 {{expression is 'async' but is not marked with 'await'}}
+        // expected-note@+1 {{calls to global function 'isolatedFunc()' from outside of its actor context are implicitly asynchronous}}
+        isolatedFunc()
+#endif
+    }
 }
 
 // MARK: - Isolated dealloc outside main declaration
