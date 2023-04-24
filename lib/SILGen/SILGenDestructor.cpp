@@ -355,15 +355,15 @@ void SILGenFunction::emitIsolatingDestructor(DestructorDecl *dd) {
       executor = B.createExtractExecutor(loc, actor);
     }
 
-    // Get performOnExecutor
-    FuncDecl *swiftPerformOnExecutorDecl = SGM.getPerformOnExecutor();
-    assert(swiftPerformOnExecutorDecl &&
-           "Failed to find swift_task_performOnExecutor function decl");
-    SILFunction *swiftPerformOnExecutorSILFunc = SGM.getFunction(
-        SILDeclRef(swiftPerformOnExecutorDecl, SILDeclRef::Kind::Func),
+    // Get deinitOnExecutor
+    FuncDecl *swiftDeinitOnExecutorDecl = SGM.getDeinitOnExecutor();
+    assert(swiftDeinitOnExecutorDecl &&
+           "Failed to find swift_task_deinitOnExecutor function decl");
+    SILFunction *swiftDeinitOnExecutorSILFunc = SGM.getFunction(
+        SILDeclRef(swiftDeinitOnExecutorDecl, SILDeclRef::Kind::Func),
         NotForDefinition);
-    SILValue swiftPerformOnExecutorFunc =
-        B.createFunctionRefFor(loc, swiftPerformOnExecutorSILFunc);
+    SILValue swiftDeinitOnExecutorFunc =
+        B.createFunctionRefFor(loc, swiftDeinitOnExecutorSILFunc);
 
     // Cast self to AnyObject preserving owned ownership
     // CanType selfType = selfValue->getType().getASTType();
@@ -391,7 +391,7 @@ void SILGenFunction::emitIsolatingDestructor(DestructorDecl *dd) {
         B.createConvertFunction(loc, dtx, workFuncType, false);
 
     // Schedule isolated execution
-    B.createApply(loc, swiftPerformOnExecutorFunc, {},
+    B.createApply(loc, swiftDeinitOnExecutorFunc, {},
                   {castedSelf, castedDeallocator, executor});
   });
 }

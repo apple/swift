@@ -287,7 +287,7 @@ using ThrowingTaskFutureWaitContinuationFunction =
   SWIFT_CC(swiftasync)
   void (SWIFT_ASYNC_CONTEXT AsyncContext *, SWIFT_CONTEXT void *);
 
-using AdHocWorkFunction = SWIFT_CC(swift) void(void *);
+using DeinitWorkFunction = SWIFT_CC(swift) void(void *);
 
 template <class AsyncSignature>
 class AsyncFunctionPointer;

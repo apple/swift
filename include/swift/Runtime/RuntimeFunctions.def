@@ -2320,11 +2320,11 @@ FUNCTION(TaskSwitchFunc,
          EFFECT(Concurrency),
          UNKNOWN_MEMEFFECTS)
          
-// void swift_task_performOnExecutor(void *context,
-//                                   AdHocWorkFunction *work,
-//                                   SerialExecutorRef newExecutor);
-FUNCTION(PerformOnExecutorFunc,
-         swift_task_performOnExecutor, SwiftCC,
+// void swift_task_deinitOnExecutor(void *object,
+//                                  DeinitWorkFunction *work,
+//                                  SerialExecutorRef newExecutor);
+FUNCTION(DeinitOnExecutorFunc,
+         swift_task_deinitOnExecutor, SwiftCC,
          ConcurrencyAvailability,
          RETURNS(VoidTy),
          ARGS(Int8PtrTy, Int8PtrTy, ExecutorFirstTy, ExecutorSecondTy),

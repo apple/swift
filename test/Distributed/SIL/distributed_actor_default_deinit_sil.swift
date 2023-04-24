@@ -219,7 +219,7 @@ distributed actor MyDistActorIsolated {
 // CHECK: [[LOCAL_ACTOR_DEINIT_BB]]:
 // CHECK: [[ISOLATED_REF:%[0-9]+]] = function_ref @$s14default_deinit19MyDistActorIsolatedCfZ : $@convention(thin) (@owned MyDistActorIsolated) -> ()
 // CHECK: [[EXECUTOR:%[0-9]+]] = extract_executor [[SELF]] : $MyDistActorIsolated
-// CHECK: [[PERFORM_REF:%[0-9]+]] = function_ref @swift_task_performOnExecutor : $@convention(thin) (@owned AnyObject, @convention(thin) (@owned AnyObject) -> (), Builtin.Executor) -> ()
+// CHECK: [[PERFORM_REF:%[0-9]+]] = function_ref @swift_task_deinitOnExecutor : $@convention(thin) (@owned AnyObject, @convention(thin) (@owned AnyObject) -> (), Builtin.Executor) -> ()
 // CHECK: [[SELF_AS_ANY_OBJECT:%[0-9]+]] = unchecked_bitwise_cast [[SELF]] : $MyDistActorIsolated to $AnyObject
 // CHECK: [[ISOLATED_CASTED:%[0-9]+]] = convert_function [[ISOLATED_REF]] : $@convention(thin) (@owned MyDistActorIsolated) -> () to $@convention(thin) (@owned AnyObject) -> ()
 // CHECK: [[DROP:%[0-9]+]] = apply [[PERFORM_REF]]([[SELF_AS_ANY_OBJECT]], [[ISOLATED_CASTED]], [[EXECUTOR]]) : $@convention(thin) (@owned AnyObject, @convention(thin) (@owned AnyObject) -> (), Builtin.Executor) -> ()
@@ -355,7 +355,7 @@ actor SimpleActorIsolated {
 // CHECK: bb0([[SELF:%[0-9]+]] : $SimpleActorIsolated):
 // CHECK: [[ISOLATED_REF:%[0-9]+]] = function_ref @$s14default_deinit19SimpleActorIsolatedCfZ : $@convention(thin) (@owned SimpleActorIsolated) -> ()
 // CHECK: [[EXECUTOR:%[0-9]+]] = extract_executor [[SELF]] : $SimpleActorIsolated
-// CHECK: [[PERFORM_REF:%[0-9]+]] = function_ref @swift_task_performOnExecutor : $@convention(thin) (@owned AnyObject, @convention(thin) (@owned AnyObject) -> (), Builtin.Executor) -> ()
+// CHECK: [[PERFORM_REF:%[0-9]+]] = function_ref @swift_task_deinitOnExecutor : $@convention(thin) (@owned AnyObject, @convention(thin) (@owned AnyObject) -> (), Builtin.Executor) -> ()
 // CHECK: [[SELF_AS_ANY_OBJECT:%[0-9]+]] = unchecked_bitwise_cast [[SELF]] : $SimpleActorIsolated to $AnyObject
 // CHECK: [[ISOLATED_CASTED:%[0-9]+]] = convert_function [[ISOLATED_REF]] : $@convention(thin) (@owned SimpleActorIsolated) -> () to $@convention(thin) (@owned AnyObject) -> ()
 // CHECK: [[DROP:%[0-9]+]] = apply [[PERFORM_REF]]([[SELF_AS_ANY_OBJECT]], [[ISOLATED_CASTED]], [[EXECUTOR]]) : $@convention(thin) (@owned AnyObject, @convention(thin) (@owned AnyObject) -> (), Builtin.Executor) -> ()

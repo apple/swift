@@ -607,8 +607,8 @@ swift_task_createNullaryContinuationJob(
 
 SWIFT_EXPORT_FROM(swift_Concurrency)
 SWIFT_CC(swift)
-void swift_task_performOnExecutor(void *context, AdHocWorkFunction *work,
-                                  SerialExecutorRef newExecutor);
+void swift_task_deinitOnExecutor(void *object, DeinitWorkFunction *work,
+                                 SerialExecutorRef newExecutor);
 
 /// Report error about attempting to bind a task-local value from an illegal context.
 SWIFT_EXPORT_FROM(swift_Concurrency) SWIFT_CC(swift)

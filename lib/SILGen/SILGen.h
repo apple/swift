@@ -137,7 +137,7 @@ public:
   llvm::Optional<FuncDecl *> AsyncMainDrainQueue;
   llvm::Optional<FuncDecl *> GetMainExecutor;
   llvm::Optional<FuncDecl *> SwiftJobRun;
-  llvm::Optional<FuncDecl *> PerformOnExecutor;
+  llvm::Optional<FuncDecl *> DeinitOnExecutor;
   llvm::Optional<FuncDecl *> ExitFunc;
 
 public:
@@ -586,8 +586,8 @@ public:
   FuncDecl *getAsyncMainDrainQueue();
   /// Retrieve the _Concurrency._swiftJobRun intrinsic.
   FuncDecl *getSwiftJobRun();
-  /// Retrieve the _Concurrency._performOnExecutor intrinsic.
-  FuncDecl *getPerformOnExecutor();
+  /// Retrieve the _Concurrency._deinitOnExecutor intrinsic.
+  FuncDecl *getDeinitOnExecutor();
   // Retrieve the _SwiftConcurrencyShims.exit intrinsic.
   FuncDecl *getExit();
 

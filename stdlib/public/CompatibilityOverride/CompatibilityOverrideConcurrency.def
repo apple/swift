@@ -142,10 +142,10 @@ OVERRIDE_ACTOR(task_switch, void,
                TaskContinuationFunction *resumeFunction, SerialExecutorRef newExecutor),
                (resumeToContext, resumeFunction, newExecutor))
 
-OVERRIDE_ACTOR(task_performOnExecutor, void,
+OVERRIDE_ACTOR(task_deinitOnExecutor, void,
               SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swift), swift::,
-              (void *context, AdHocWorkFunction *work, SerialExecutorRef newExecutor),
-              (context, work, newExecutor))
+              (void *object, DeinitWorkFunction *work, SerialExecutorRef newExecutor),
+              (object, work, newExecutor))
 
 OVERRIDE_TASK(task_create_common, AsyncTaskAndContext,
               SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swift), swift::,

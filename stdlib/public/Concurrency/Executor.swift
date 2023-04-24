@@ -442,8 +442,8 @@ internal final class DispatchQueueShim: @unchecked Sendable, SerialExecutor {
 
 
 @available(SwiftStdlib 5.6, *) // TODO: Clarify version
-@_silgen_name("swift_task_performOnExecutor")
+@_silgen_name("swift_task_deinitOnExecutor")
 @usableFromInline
-internal func _performOnExecutor(_ ctx: __owned AnyObject,
-                               _ work: @convention(thin) (__owned AnyObject) -> Void,
-                               _ executor: Builtin.Executor)
+internal func _deinitOnExecutor(_ object: __owned AnyObject,
+                                _ work: @convention(thin) (__owned AnyObject) -> Void,
+                                _ executor: Builtin.Executor)
