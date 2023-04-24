@@ -80,7 +80,7 @@ struct Y {
 
 class SomeClass {
   @GA1 init() { }
-  @GA1 deinit { } // expected-error{{deinitializer cannot have a global actor}}
+  @GA1 deinit { }
 }
 
 @GA1 typealias Integer = Int // expected-error{{type alias cannot have a global actor}}

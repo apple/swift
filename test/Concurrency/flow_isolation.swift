@@ -618,7 +618,7 @@ actor Ahmad {
     prop += 1 // expected-warning {{cannot access property 'prop' here in non-isolated initializer; this is an error in Swift 6}}
   }
 
-  deinit {
+  nonisolated deinit {
     // expected-warning@+2 {{actor-isolated property 'computedProp' can not be referenced from a non-isolated context; this is an error in Swift 6}}
     // expected-note@+1 {{after accessing property 'computedProp', only non-isolated properties of 'self' can be accessed from a deinit}}
     let x = computedProp
@@ -658,19 +658,34 @@ actor Rain {
 }
 
 @available(SwiftStdlib 5.5, *)
-actor DeinitExceptionForSwift5 {
+actor NonIsolatedDeinitExceptionForSwift5 {
   var x: Int = 0
 
   func cleanup() { // expected-note {{calls to instance method 'cleanup()' from outside of its actor context are implicitly asynchronous}}
     x = 0
   }
 
-  deinit {
+  nonisolated deinit {
     // expected-warning@+2 {{actor-isolated instance method 'cleanup()' can not be referenced from a non-isolated context; this is an error in Swift 6}}
     // expected-note@+1 {{after calling instance method 'cleanup()', only non-isolated properties of 'self' can be accessed from a deinit}}
     cleanup()
 
     x = 1 // expected-warning {{cannot access property 'x' here in deinitializer; this is an error in Swift 6}}
+  }
+}
+
+@available(SwiftStdlib 5.5, *)
+actor DeinitExceptionForSwift5 {
+  var x: Int = 0
+
+  func cleanup() {
+    x = 0
+  }
+
+  deinit {
+    cleanup() // ok
+
+    x = 1 // ok
   }
 }
 
