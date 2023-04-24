@@ -5781,6 +5781,13 @@ ERROR(async_unavailable_decl,none,
 ERROR(isolated_deinit_no_isolation,none,
       "deinit is marked isolated, but containing class %0 is not isolated to an actor",
       (DeclName))
+      
+ERROR(deinit_must_be_async,none,
+      "deinit must be 'async' because parent class has 'async' deinit",
+      ())
+NOTE(super_async_deinit_here,none,
+     "async deinit was introduced to class hierarchy here",
+     ())
 
 //------------------------------------------------------------------------------
 // MARK: String Processing
