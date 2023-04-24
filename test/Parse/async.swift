@@ -30,7 +30,44 @@ func asyncGlobal8() async throws async -> async Int async {}
 class X {
   init() async { }
 
-  deinit async { } // expected-error{{deinitializers cannot have a name}}
+  deinit async { }
+  
+  class A {
+    deinit throws { } // expected-error{{deinitializers cannot throw}}
+  }
+  class B {
+    deinit async throws { } // expected-error{{deinitializers cannot throw}}
+  }
+  class C {
+    deinit name async { } // expected-error{{deinitializers cannot have a name}}
+  }
+  class D {
+    deinit name throws { }
+    // expected-error@-1{{deinitializers cannot have a name}}
+    // expected-error@-2{{deinitializers cannot throw}}
+  }
+  class E {
+    deinit name async throws { }
+    // expected-error@-1{{deinitializers cannot have a name}}
+    // expected-error@-2{{deinitializers cannot throw}}
+  }
+  class F {
+    deinit name(x: Int, y: Bool) async { }
+    // expected-error@-1{{deinitializers cannot have a name}}
+    // expected-error@-2{{no parameter clause allowed on deinitializer}}
+  }
+  class G {
+    deinit name(x: Int, y: Bool) throws { }
+    // expected-error@-1{{deinitializers cannot have a name}}
+    // expected-error@-2{{no parameter clause allowed on deinitializer}}
+    // expected-error@-3{{deinitializers cannot throw}}
+  }
+  class H {
+    deinit name(x: Int, y: Bool) async throws { }
+    // expected-error@-1{{deinitializers cannot have a name}}
+    // expected-error@-2{{no parameter clause allowed on deinitializer}}
+    // expected-error@-3{{deinitializers cannot throw}}
+  }
 
   func f() async { }
 

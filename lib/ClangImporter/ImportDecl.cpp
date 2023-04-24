@@ -5313,7 +5313,8 @@ namespace {
           if (deallocDecl->isInstanceMethod()) {
             auto loc = Impl.importSourceLoc(deallocDecl->getLocation());
             auto dtor = Impl.createDeclWithClangNode<DestructorDecl>(
-                deallocDecl, access, loc, result);
+                deallocDecl, access, loc, /*isAsync=*/false,
+                /*AsyncLoc=*/SourceLoc(), result);
             result->addMember(dtor);
           }
         }

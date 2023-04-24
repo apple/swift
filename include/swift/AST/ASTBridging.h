@@ -492,12 +492,11 @@ BridgedConstructorDecl BridgedConstructorDecl_createParsed(
     BridgedSourceLoc cThrowsLoc, BridgedNullableTypeRepr thrownType,
     BridgedNullableTrailingWhereClause genericWhereClause);
 
-SWIFT_NAME(
-    "BridgedDestructorDecl.createParsed(_:declContext:deinitKeywordLoc:)")
-BridgedDestructorDecl
-BridgedDestructorDecl_createParsed(BridgedASTContext cContext,
-                                   BridgedDeclContext cDeclContext,
-                                   BridgedSourceLoc cDeinitKeywordLoc);
+SWIFT_NAME("BridgedDestructorDecl.createParsed(_:declContext:deinitKeywordLoc:"
+           "asyncSpecifierLoc:)")
+BridgedDestructorDecl BridgedDestructorDecl_createParsed(
+    BridgedASTContext cContext, BridgedDeclContext cDeclContext,
+    BridgedSourceLoc cDeinitKeywordLoc, BridgedSourceLoc cAsyncLoc);
 
 SWIFT_NAME(
     "BridgedTypeAliasDecl.createParsed(_:declContext:typealiasKeywordLoc:name:"

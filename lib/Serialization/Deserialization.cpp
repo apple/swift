@@ -5027,18 +5027,18 @@ public:
   Expected<Decl *> deserializeDestructor(ArrayRef<uint64_t> scratch,
                                          StringRef blobData) {
     DeclContextID contextID;
-    bool isImplicit, isObjC;
+    bool isImplicit, isObjC, isAsync;
     GenericSignatureID genericSigID;
 
-    decls_block::DestructorLayout::readRecord(scratch, contextID,
-                                              isImplicit, isObjC,
-                                              genericSigID);
+    decls_block::DestructorLayout::readRecord(scratch, contextID, isImplicit,
+                                              isObjC, isAsync, genericSigID);
 
     DeclContext *DC = MF.getDeclContext(contextID);
     if (declOrOffset.isComplete())
       return declOrOffset;
 
-    auto dtor = MF.createDecl<DestructorDecl>(SourceLoc(), DC);
+    auto dtor =
+        MF.createDecl<DestructorDecl>(SourceLoc(), isAsync, SourceLoc(), DC);
     declOrOffset = dtor;
 
     if (auto bodyText = MF.maybeReadInlinableBodyText())
