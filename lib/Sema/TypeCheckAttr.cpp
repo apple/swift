@@ -166,6 +166,7 @@ public:
   IGNORED_ATTR(Documentation)
   IGNORED_ATTR(LexicalLifetimes)
   IGNORED_ATTR(ResultDependsOn)
+  IGNORED_ATTR(ResetTaskLocals)
 #undef IGNORED_ATTR
 
   void visitAlignmentAttr(AlignmentAttr *attr) {

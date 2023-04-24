@@ -253,6 +253,14 @@ public:
   /// .
   static void copyTo(Storage *target, AsyncTask *task);
 
+  class AdHocScope {
+    Storage *oldStorage;
+
+  public:
+    AdHocScope(Storage *storage);
+    ~AdHocScope();
+  };
+
   class WithResetValuesScope {
     bool didPush;
   public:

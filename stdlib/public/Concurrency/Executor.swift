@@ -446,4 +446,5 @@ internal final class DispatchQueueShim: @unchecked Sendable, SerialExecutor {
 @usableFromInline
 internal func _deinitOnExecutor(_ object: __owned AnyObject,
                                 _ work: @convention(thin) (__owned AnyObject) -> Void,
-                                _ executor: Builtin.Executor)
+                                _ executor: Builtin.Executor,
+                                _ flags: Builtin.Word)

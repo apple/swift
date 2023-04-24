@@ -2322,12 +2322,13 @@ FUNCTION(TaskSwitchFunc,
          
 // void swift_task_deinitOnExecutor(void *object,
 //                                  DeinitWorkFunction *work,
-//                                  SerialExecutorRef newExecutor);
+//                                  SerialExecutorRef newExecutor,
+//                                  size_t flags);
 FUNCTION(DeinitOnExecutorFunc,
          swift_task_deinitOnExecutor, SwiftCC,
          ConcurrencyAvailability,
          RETURNS(VoidTy),
-         ARGS(Int8PtrTy, Int8PtrTy, ExecutorFirstTy, ExecutorSecondTy),
+         ARGS(Int8PtrTy, Int8PtrTy, ExecutorFirstTy, ExecutorSecondTy, SizeTy),
          ATTRS(NoUnwind),
          EFFECT(Concurrency),
          UNKNOWN_MEMEFFECTS)

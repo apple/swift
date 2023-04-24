@@ -2047,12 +2047,19 @@ class IsolatedDeinitJob : public Job {
 private:
   void *Object;
   DeinitWorkFunction *Work;
+  TaskLocal::Storage Local;
 
 public:
   IsolatedDeinitJob(JobPriority priority, void *object,
-                    DeinitWorkFunction *work)
+                    DeinitWorkFunction *work, bool copyTaskLocals)
       : Job({JobKind::IsolatedDeinit, priority}, &process), Object(object),
-        Work(work) {}
+        Work(work) {
+    if (copyTaskLocals) {
+      TaskLocal::copyTo(&Local, nullptr);
+    }
+  }
+
+  ~IsolatedDeinitJob() { Local.destroy(nullptr); }
 
   SWIFT_CC(swiftasync)
   static void process(Job *_job) {
@@ -2062,7 +2069,7 @@ public:
   }
 
   inline void runWork() {
-    TaskLocal::WithResetValuesScope taskLocalResetScope;
+    TaskLocal::AdHocScope taskLocalScope(&Local);
     Work(Object);
   }
 
@@ -2075,7 +2082,19 @@ public:
 SWIFT_CC(swift)
 static void swift_task_deinitOnExecutorImpl(void *object,
                                             DeinitWorkFunction *work,
-                                            SerialExecutorRef newExecutor) {
+                                            SerialExecutorRef newExecutor,
+                                            size_t rawFlags) {
+  DeinitOnExecutorFlags flags(rawFlags);
+
+  auto doWorkWithoutHop = [=]() {
+    if (flags.resetTaskLocalsOnNoHop()) {
+      TaskLocal::WithResetValuesScope taskLocalResetScope;
+      return work(object);
+    } else {
+      return work(object);
+    }
+  };
+
   // If the current executor is compatible with running the new executor,
   // we can just immediately continue running with the resume function
   // we were passed in.
@@ -2083,8 +2102,7 @@ static void swift_task_deinitOnExecutorImpl(void *object,
   // Note that swift_task_isCurrentExecutor() returns true for @MainActor
   // when running on the main thread without any executor
   if (swift_task_isCurrentExecutor(newExecutor)) {
-    TaskLocal::WithResetValuesScope taskLocalResetScope;
-    return work(object);
+    return doWorkWithoutHop(); // 'return' forces tail call
   }
 
   // Optimize deallocation of the default actors
@@ -2107,10 +2125,7 @@ static void swift_task_deinitOnExecutorImpl(void *object,
       trackingInfo.enterAndShadow(newExecutor, TaskExecutorRef::undefined());
 
       // Run the work.
-      {
-        TaskLocal::WithResetValuesScope taskLocalResetScope;
-        work(object);
-      }
+      doWorkWithoutHop();
 
       // `work` is a synchronous function, it cannot call swift_task_switch()
       // If it calls any synchronous API that may change executor inside
@@ -2130,7 +2145,8 @@ static void swift_task_deinitOnExecutorImpl(void *object,
   auto priority = currentTask ? swift_task_currentPriority(currentTask)
                               : swift_task_getCurrentThreadPriority();
 
-  auto job = new IsolatedDeinitJob(priority, object, work);
+  auto job = new IsolatedDeinitJob(priority, object, work,
+                                   flags.copyTaskLocalsOnHop());
   swift_task_enqueue(job, newExecutor);
 }
 

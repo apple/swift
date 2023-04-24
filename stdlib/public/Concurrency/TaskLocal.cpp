@@ -426,6 +426,17 @@ void TaskLocal::Storage::copyTo(TaskLocal::Storage *target, AsyncTask *task) {
   }
 }
 
+TaskLocal::AdHocScope::AdHocScope(Storage *storage) {
+  assert(swift_task_getCurrent() == nullptr &&
+         "Cannot use ad-hoc scope with a task");
+  oldStorage = FallbackTaskLocalStorage::get();
+  FallbackTaskLocalStorage::set(storage);
+}
+
+TaskLocal::AdHocScope::~AdHocScope() {
+  FallbackTaskLocalStorage::set(oldStorage);
+}
+
 TaskLocal::WithResetValuesScope::WithResetValuesScope() {
   didPush = swift_task_localStopPush();
 }

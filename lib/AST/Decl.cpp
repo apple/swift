@@ -10415,6 +10415,10 @@ DestructorDecl *DestructorDecl::getSuperDeinit() const {
   return nullptr;
 }
 
+bool DestructorDecl::shouldResetTaskLocals() const {
+  return getAttrs().hasAttribute<ResetTaskLocalsAttr>();
+}
+
 SourceRange FuncDecl::getSourceRange() const {
   SourceLoc StartLoc = getStartLoc();
 

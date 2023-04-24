@@ -8429,6 +8429,8 @@ public:
   /// superclass
   DestructorDecl *getSuperDeinit() const;
 
+  bool shouldResetTaskLocals() const;
+
   static bool classof(const Decl *D) {
     return D->getKind() == DeclKind::Destructor;
   }

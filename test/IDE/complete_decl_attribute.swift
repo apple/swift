@@ -319,6 +319,7 @@ struct _S {
 // ON_MEMBER_LAST-DAG: Keyword/None:                       exclusivity[#Declaration Attribute#]; name=exclusivity
 // ON_MEMBER_LAST-DAG: Keyword/None:                       preconcurrency[#Declaration Attribute#]; name=preconcurrency
 // ON_MEMBER_LAST-DAG: Keyword/None:                       attached[#Declaration Attribute#]; name=attached
+// ON_MEMBER_LAST-DAG: Keyword/None:                       resetTaskLocals[#Declaration Attribute#]; name=resetTaskLocals
 // ON_MEMBER_LAST-DAG: Keyword/None:                       freestanding[#Declaration Attribute#]; name=freestanding
 // ON_MEMBER_LAST-DAG: Keyword/None:                       storageRestrictions[#Declaration Attribute#]; name=storageRestrictions
 // ON_MEMBER_LAST-NOT: Keyword
@@ -392,6 +393,7 @@ func dummy2() {}
 // KEYWORD_LAST-DAG: Keyword/None:                       preconcurrency[#Declaration Attribute#]; name=preconcurrency
 // KEYWORD_LAST-DAG: Keyword/None:                       attached[#Declaration Attribute#]; name=attached
 // KEYWORD_LAST-DAG: Keyword/None:                       storageRestrictions[#Declaration Attribute#]; name=storageRestrictions
+// KEYWORD_LAST-DAG: Keyword/None:                       resetTaskLocals[#Declaration Attribute#]; name=resetTaskLocals
 // KEYWORD_LAST-NOT: Keyword
 // KEYWORD_LAST-DAG: Decl[Struct]/CurrModule:            MyStruct[#MyStruct#]; name=MyStruct
 // KEYWORD_LAST-DAG: Decl[Struct]/CurrModule/TypeRelation[Convertible]: MyGenericPropertyWrapper[#Property Wrapper#]; name=MyGenericPropertyWrapper

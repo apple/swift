@@ -1636,6 +1636,8 @@ namespace  {
     UNINTERESTING_ATTR(NonEscapable)
     UNINTERESTING_ATTR(UnsafeNonEscapableResult)
     UNINTERESTING_ATTR(StaticExclusiveOnly)
+    
+    UNINTERESTING_ATTR(ResetTaskLocals)
 #undef UNINTERESTING_ATTR
 
     void visitAvailableAttr(AvailableAttr *attr) {

@@ -605,10 +605,27 @@ swift_task_createNullaryContinuationJob(
     size_t priority,
     AsyncTask *continuation);
 
+class DeinitOnExecutorFlags : public FlagSet<size_t> {
+public:
+  enum {
+    CopyTaskLocalsOnHop = 0,
+    ResetTaskLocalsOnNoHop = 1,
+  };
+
+  explicit DeinitOnExecutorFlags(size_t bits) : FlagSet(bits) {}
+  constexpr DeinitOnExecutorFlags() {}
+
+  FLAGSET_DEFINE_FLAG_ACCESSORS(CopyTaskLocalsOnHop, copyTaskLocalsOnHop,
+                                setCopyTaskLocalsOnHop)
+
+  FLAGSET_DEFINE_FLAG_ACCESSORS(ResetTaskLocalsOnNoHop, resetTaskLocalsOnNoHop,
+                                setResetTaskLocalsOnNoHop)
+};
+
 SWIFT_EXPORT_FROM(swift_Concurrency)
 SWIFT_CC(swift)
 void swift_task_deinitOnExecutor(void *object, DeinitWorkFunction *work,
-                                 SerialExecutorRef newExecutor);
+                                 SerialExecutorRef newExecutor, size_t flags);
 
 /// Report error about attempting to bind a task-local value from an illegal context.
 SWIFT_EXPORT_FROM(swift_Concurrency) SWIFT_CC(swift)
