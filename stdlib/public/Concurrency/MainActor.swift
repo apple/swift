@@ -70,8 +70,6 @@ import Swift
   public nonisolated func enqueue(_ job: UnownedJob) {
     _enqueueOnMain(job)
   }
-  
-  nonisolated deinit {}
 }
 #endif
 
