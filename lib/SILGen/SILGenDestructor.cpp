@@ -774,30 +774,58 @@ void SILGenFunction::emitObjCDestructor(SILDeclRef dtor) {
   assert(superclassTy && "Emitting Objective-C -dealloc without superclass?");
   ClassDecl *superclass = superclassTy->getClassOrBoundGenericClass();
   auto superclassDtorDecl = superclass->getDestructor();
-  auto superclassDtor = SILDeclRef(superclassDtorDecl,
-                                   SILDeclRef::Kind::Deallocator)
-    .asForeign();
-  auto superclassDtorType =
-      SGM.Types.getConstantType(getTypeExpansionContext(), superclassDtor);
-  SILValue superclassDtorValue = B.createObjCSuperMethod(
-                                   cleanupLoc, selfValue, superclassDtor,
-                                   superclassDtorType);
-
-  // Call the superclass's -dealloc.
   SILType superclassSILTy = getLoweredLoadableType(superclassTy);
-  SILValue superSelf = B.createUpcast(cleanupLoc, selfValue, superclassSILTy);
-  assert(superSelf->getOwnershipKind() == OwnershipKind::Owned);
+  auto subMap = superclassTy->getContextSubstitutionMap(SGM.M.getSwiftModule(),
+                                                        superclass);
 
-  auto subMap
-    = superclassTy->getContextSubstitutionMap(SGM.M.getSwiftModule(),
-                                              superclass);
+  // TODO: Emit hop to executor if parent deinit is sync but isolated
+  // Note that this also covers the case when deinit does not need isolating
+  // destructor because it was declared isolated in ObjC isolation logic is
+  // assume to be in the overridden release method.
 
-  B.createApply(cleanupLoc, superclassDtorValue, subMap, superSelf);
+  if (Lowering::needsIsolatingDestructor(dd->getSuperDeinit())) {
+    // If superclass (also) has async deinit, we don't want to call [super
+    // dealloc], because that would land in the sync isolating deinit, which
+    // would create another task We want to reuse the current task, so we call
+    // the isolated deinit directly.
+    //
+    // Note that superclass deinit being async implies that:
+    //  * this deinit is also async
+    //  * both are written in Swift
 
-  // We know that the given value came in at +1, but we pass the relevant value
-  // as unowned to the destructor. Create a fake balance for the verifier to be
-  // happy.
-  B.createEndLifetime(cleanupLoc, superSelf);
+    SILDeclRef dtorConstant =
+        SILDeclRef(superclassDtorDecl, SILDeclRef::Kind::IsolatedDeallocator);
+    SILValue dtorValue = emitGlobalFunctionRef(cleanupLoc, dtorConstant);
+
+    SILValue superSelf = B.createUpcast(cleanupLoc, selfValue, superclassSILTy);
+    assert(superSelf->getOwnershipKind() == OwnershipKind::Owned);
+
+    // This call consumes superSelf
+    B.createApply(cleanupLoc, dtorValue, subMap, superSelf);
+  } else {
+    // Use [super dealloc] as a common denominator between Swift and ObjC
+    // subclasses
+    auto superclassDtor =
+        SILDeclRef(superclassDtorDecl, SILDeclRef::Kind::Deallocator)
+            .asForeign();
+    auto superclassDtorType =
+        SGM.Types.getConstantType(getTypeExpansionContext(), superclassDtor);
+    SILValue superclassDtorValue = B.createObjCSuperMethod(
+        cleanupLoc, selfValue, superclassDtor, superclassDtorType);
+
+    // Emit upcast after objc_super_method, because objc_super_method uses
+    // selfValue, which upcast consumes
+    SILValue superSelf = B.createUpcast(cleanupLoc, selfValue, superclassSILTy);
+    assert(superSelf->getOwnershipKind() == OwnershipKind::Owned);
+
+    // Call the superclass's dealloc.
+    B.createApply(cleanupLoc, superclassDtorValue, subMap, superSelf);
+
+    // We know that the given value came in at +1, but we pass the relevant
+    // value as unowned to the destructor. Create a fake balance for the
+    // verifier to be happy.
+    B.createEndLifetime(cleanupLoc, superSelf);
+  }
 
   // Return.
   B.createReturn(returnLoc, emitEmptyTuple(cleanupLoc));

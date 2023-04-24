@@ -4,15 +4,16 @@
 // RUN: %empty-directory(%t/Frameworks/Alpha.framework/Modules/Alpha.swiftmodule)
 // RUN: %empty-directory(%t/Frameworks/Alpha.framework/Headers/)
 // RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -parse-as-library -module-name Alpha \
+// RUN:  -disable-implicit-string-processing-module-import \
 // RUN:  -emit-module -o %t/Frameworks/Alpha.framework/Modules/Alpha.swiftmodule/%module-target-triple.swiftmodule \
 // RUN:  -enable-objc-interop -disable-objc-attr-requires-foundation-module \
 // RUN:  -emit-objc-header -emit-objc-header-path %t/Frameworks/Alpha.framework/Headers/Alpha-Swift.h $INPUT_DIR/Alpha.swift
 // RUN: cp -R $INPUT_DIR/Beta.framework %t/Frameworks/
 // RUN: %empty-directory(%t/Frameworks/Beta.framework/Headers/)
 // RUN: cp $INPUT_DIR/Beta.h %t/Frameworks/Beta.framework/Headers/Beta.h
-// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -disable-availability-checking -typecheck -verify %s -F %t/Frameworks -F %clang-importer-sdk-path/frameworks
-// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -disable-availability-checking -parse-as-library -emit-silgen -DSILGEN %s -F %t/Frameworks -F %clang-importer-sdk-path/frameworks | %FileCheck %s
-// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -disable-availability-checking -parse-as-library -emit-silgen -DSILGEN %s -F %t/Frameworks -F %clang-importer-sdk-path/frameworks | %FileCheck -check-prefix=CHECK-SYMB %s
+// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -disable-availability-checking -disable-implicit-string-processing-module-import -typecheck -verify %s -F %t/Frameworks -F %clang-importer-sdk-path/frameworks
+// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -disable-availability-checking -disable-implicit-string-processing-module-import -parse-as-library -emit-silgen -DSILGEN %s -F %t/Frameworks -F %clang-importer-sdk-path/frameworks | %FileCheck %s
+// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -disable-availability-checking -disable-implicit-string-processing-module-import -parse-as-library -emit-silgen -DSILGEN %s -F %t/Frameworks -F %clang-importer-sdk-path/frameworks | %FileCheck -check-prefix=CHECK-SYMB %s
 
 // REQUIRES: concurrency
 // REQUIRES: objc_interop
@@ -28,6 +29,12 @@ import Beta
 
 @MainActor
 func isolatedFunc() {} // expected-note 15{{calls to global function 'isolatedFunc()' from outside of its actor context are implicitly asynchronous}}
+
+class ProbeDefaultAsync_BaseIsolatedDealloc: BaseIsolatedDealloc {
+    nonisolated deinit async {
+        await isolatedFunc()
+    }
+}
 
 // CHECK-LABEL: @objc @_inheritsConvenienceInitializers class ProbeImplicit_RoundtripNonisolated : RoundtripNonisolated {
 // CHECK: @objc deinit
@@ -115,6 +122,82 @@ class ProbeGlobal_RoundtripIsolated: RoundtripIsolated {
 #else
     @MainActor deinit {}
 #endif
+}
+
+// MARK: - RoundtripAsync
+
+// CHECK-LABEL: @objc @_inheritsConvenienceInitializers class ProbeImplicit_RoundtripAsync : RoundtripAsync {
+// CHECK: @objc deinit async
+// CHECK: }
+// CHECK-SYMB: ProbeImplicit_RoundtripAsync.__isolated_deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test28ProbeImplicit_RoundtripAsyncCfZ : $@convention(thin) @async (@owned ProbeImplicit_RoundtripAsync) -> () {
+// CHECK-SYMB: // ProbeImplicit_RoundtripAsync.__deallocating_deinit
+// CHECK-SYMB-NEXT: sil hidden [ossa] @$s4test28ProbeImplicit_RoundtripAsyncCfD : $@convention(method) (@owned ProbeImplicit_RoundtripAsync) -> () {
+class ProbeImplicit_RoundtripAsync: RoundtripAsync {}
+
+#if !SILGEN
+class ProbeDefault_RoundtripAsync: RoundtripAsync {
+    // expected-error@+2 {{deinit must be 'async' because parent class has 'async' deinit}}
+    // expected-error@+1 {{nonisolated deinitializer 'deinit' has different actor isolation from main actor-isolated overridden declaration}}
+    deinit {}
+}
+#endif
+
+#if !SILGEN
+class ProbeIsolated_RoundtripAsync: RoundtripAsync {
+    // expected-error@+2 {{deinit is marked isolated, but containing class 'ProbeIsolated_RoundtripAsync' is not isolated to an actor}}
+    // expected-error@+1 {{deinit must be 'async' because parent class has 'async' deinit}}
+    isolated deinit {
+        isolatedFunc() // ok, isolation of the overridden deinit is used as a recovery strategy
+    }
+}
+#endif
+
+#if !SILGEN
+class ProbeGlobal_RoundtripAsync: RoundtripAsync {
+    // expected-error@+2 {{deinit must be 'async' because parent class has 'async' deinit}}
+    // expected-error@+1 {{global actor 'AnotherActor'-isolated deinitializer 'deinit' has different actor isolation from main actor-isolated overridden declaration}}
+    @AnotherActor deinit {}
+}
+#endif
+
+class ProbeDefaultAsync_RoundtripAsync: RoundtripAsync {
+    deinit async {}
+}
+
+#if !SILGEN
+class ProbeIsolatedAsync_RoundtripAsync: RoundtripAsync {
+    isolated deinit async { // expected-error {{deinit is marked isolated, but containing class 'ProbeIsolatedAsync_RoundtripAsync' is not isolated to an actor}}
+        isolatedFunc() // ok, isolation of the overridden deinit is used as a recovery strategy
+    }
+}
+#endif
+
+@AnotherActor
+class ProbePropagatedAsync_RoundtripAsync: RoundtripAsync {
+    // expected-warning@-1 {{global actor 'AnotherActor'-isolated class 'ProbePropagatedAsync_RoundtripAsync' has different actor isolation from nonisolated superclass 'RoundtripAsync'; this is an error in Swift 6}}
+
+    isolated deinit async {
+#if SILGEN
+        await isolatedFunc()
+#else
+        // expected-error@+2 {{expression is 'async' but is not marked with 'await'}}
+        // expected-note@+1 {{calls to global function 'isolatedFunc()' from outside of its actor context are implicitly asynchronous}}
+        isolatedFunc()
+#endif
+    }
+}
+
+class ProbeGlobalAsync_RoundtripAsync: RoundtripAsync {
+    @AnotherActor deinit async {
+#if SILGEN
+        await isolatedFunc()
+#else
+        // expected-error@+2 {{expression is 'async' but is not marked with 'await'}}
+        // expected-note@+1 {{calls to global function 'isolatedFunc()' from outside of its actor context are implicitly asynchronous}}
+        isolatedFunc()
+#endif
+    }
 }
 
 // MARK: - BaseNonisolated
