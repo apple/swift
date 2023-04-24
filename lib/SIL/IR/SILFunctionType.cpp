@@ -2756,8 +2756,15 @@ static CanSILFunctionType getNativeSILFunctionType(
       return getSILFunctionTypeForConventions(
           DefaultConventions(NormalParameterConvention::Guaranteed));
     case SILDeclRef::Kind::Deallocator:
-    case SILDeclRef::Kind::IsolatedDeallocator:
       return getSILFunctionTypeForConventions(DeallocatorConventions());
+    case SILDeclRef::Kind::IsolatedDeallocator: {
+      // Use @convention(thin) instead of @convention(method) to properly bridge
+      // with runtime function. The latter expects 'work' argument to be
+      // SWIFT_CC(swift) aka @convention(thin). But the 'self' parameter must
+      // remain owned.
+      return getSILFunctionTypeForConventions(DeallocatorConventions())
+          ->getWithExtInfo(SILFunctionType::ExtInfo::getThin());
+    }
 
     case SILDeclRef::Kind::AsyncEntryPoint:
       return getSILFunctionTypeForConventions(

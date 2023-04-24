@@ -4589,6 +4589,14 @@ ActorIsolation ActorIsolationRequest::evaluate(
   if (evaluateOrDefault(evaluator, HasIsolatedSelfRequest{value}, false)) {
     auto actor = value->getDeclContext()->getSelfNominalTypeDecl();
     assert(actor && "could not find the actor that 'self' is isolated to");
+
+    // Bootstrapping hack: force _Concurrency.MainActor.deinit() to be
+    // non-isolated
+    if (isa<DestructorDecl>(value) && actor->getName().is("MainActor") &&
+        actor->getDeclContext()->isModuleScopeContext() &&
+        actor->getDeclContext()->getParentModule()->getABIName().is("Swift")) {
+      return ActorIsolation::forUnspecified();
+    }
     return ActorIsolation::forActorInstanceSelf(actor);
   }
 

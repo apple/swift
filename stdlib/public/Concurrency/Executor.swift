@@ -439,3 +439,11 @@ internal final class DispatchQueueShim: @unchecked Sendable, SerialExecutor {
   }
 }
 #endif // SWIFT_CONCURRENCY_USES_DISPATCH
+
+
+@available(SwiftStdlib 5.6, *) // TODO: Clarify version
+@_silgen_name("swift_task_performOnExecutor")
+@usableFromInline
+internal func _performOnExecutor(_ ctx: __owned AnyObject,
+                               _ work: @convention(thin) (__owned AnyObject) -> Void,
+                               _ executor: UnownedSerialExecutor)
