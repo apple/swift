@@ -138,6 +138,7 @@ public:
   llvm::Optional<FuncDecl *> GetMainExecutor;
   llvm::Optional<FuncDecl *> SwiftJobRun;
   llvm::Optional<FuncDecl *> DeinitOnExecutor;
+  llvm::Optional<FuncDecl *> DeinitAsync;
   llvm::Optional<FuncDecl *> ExitFunc;
 
 public:
@@ -588,6 +589,8 @@ public:
   FuncDecl *getSwiftJobRun();
   /// Retrieve the _Concurrency._deinitOnExecutor intrinsic.
   FuncDecl *getDeinitOnExecutor();
+  /// Retrieve the _Concurrency._deinitAsync intrinsic.
+  FuncDecl *getDeinitAsync();
   // Retrieve the _SwiftConcurrencyShims.exit intrinsic.
   FuncDecl *getExit();
 

@@ -789,8 +789,14 @@ public:
   void emitDeallocatingMoveOnlyDestructor(DestructorDecl *dd);
 
   /// Generates code for a class deallocating destructor that switches executor
-  /// and calls isolated deallocating destuctor on the right executor.
+  /// and calls isolated deallocating destructor on the right executor.
   void emitIsolatingDestructor(DestructorDecl *dd);
+  void emitIsolatingDestructorImpl(DestructorDecl *dd, SILValue selfValue,
+                                   SILLocation loc, ManagedValue dtorValue,
+                                   SILType dtorTy);
+  void emitAsyncDestructorImpl(DestructorDecl *dd, SILValue selfValue,
+                               SILLocation loc, ManagedValue dtorValue,
+                               SILType dtorTy);
 
   /// Generates code for a struct constructor.
   /// This allocates the new 'self' value, emits the

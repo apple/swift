@@ -949,13 +949,20 @@ swift_task_create_commonImpl(size_t rawTaskCreateFlags,
                        " with parent %p at base pri %zu",
                        task, task->getTaskId(), parent, basePriority);
 
+  initialContext->ResumeParent = [=]() -> TaskContinuationFunction * {
+    if (runInlineOption)
+      return &completeInlineTask;
+    if (asyncLet)
+      return reinterpret_cast<TaskContinuationFunction *>(&completeTask);
+    if (closureContext && !taskCreateFlags.functionConsumesContext()) {
+      return reinterpret_cast<TaskContinuationFunction *>(
+          &completeTaskWithClosure);
+    }
+    return reinterpret_cast<TaskContinuationFunction *>(
+        &completeTaskAndRelease);
+  }();
+
   // Initialize the task-local allocator.
-  initialContext->ResumeParent =
-      runInlineOption ? &completeInlineTask
-                      : reinterpret_cast<TaskContinuationFunction *>(
-                            asyncLet         ? &completeTask
-                            : closureContext ? &completeTaskWithClosure
-                                             : &completeTaskAndRelease);
   if ((asyncLet || (runInlineOption && runInlineOption->getAllocation())) &&
       initialSlabSize > 0) {
     assert(parent || (runInlineOption && runInlineOption->getAllocation()));

@@ -34,12 +34,6 @@ class RootProtocolConformance;
 
 namespace Mangle {
 
-enum class DestructorKind {
-  NonDeallocating,
-  Deallocating,
-  IsolatedDeallocating
-};
-
 /// The mangler for AST declarations.
 class ASTMangler : public Mangler {
 protected:

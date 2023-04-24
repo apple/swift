@@ -1173,16 +1173,15 @@ std::string SILDeclRef::mangle(ManglingKind MKind) const {
 
   case SILDeclRef::Kind::Deallocator:
     return mangler.mangleDestructorEntity(cast<DestructorDecl>(getDecl()),
-                                          DestructorKind::Deallocating, SKind);
+                                          DestructorKind::Deallocator, SKind);
 
   case SILDeclRef::Kind::Destroyer:
     return mangler.mangleDestructorEntity(cast<DestructorDecl>(getDecl()),
-                                          DestructorKind::NonDeallocating,
-                                          SKind);
+                                          DestructorKind::Destroyer, SKind);
 
   case SILDeclRef::Kind::IsolatedDeallocator:
     return mangler.mangleDestructorEntity(cast<DestructorDecl>(getDecl()),
-                                          DestructorKind::IsolatedDeallocating,
+                                          DestructorKind::IsolatedDeallocator,
                                           SKind);
 
   case SILDeclRef::Kind::Allocator:

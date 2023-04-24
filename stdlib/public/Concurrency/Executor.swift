@@ -448,3 +448,10 @@ internal func _deinitOnExecutor(_ object: __owned AnyObject,
                                 _ work: @convention(thin) (__owned AnyObject) -> Void,
                                 _ executor: Builtin.Executor,
                                 _ flags: Builtin.Word)
+
+@available(SwiftStdlib 5.6, *) // TODO: Clarify version
+@_silgen_name("swift_task_deinitAsync")
+@usableFromInline
+internal func _deinitAsync(_ object: __owned AnyObject,
+                           _ work: @convention(thin) (__owned AnyObject) async -> Void,
+                           _ flags: Builtin.Word)

@@ -2395,15 +2395,16 @@ public:
     RequestedPriority = 0,
     RequestedPriority_width = 8,
 
-    Task_IsChildTask                              = 8,
+    Task_IsChildTask = 8,
     // Should only be set in task-to-thread model where Task.runInline is
     // available
-    Task_IsInlineTask                             = 9,
-    Task_CopyTaskLocals                           = 10,
-    Task_InheritContext                           = 11,
-    Task_EnqueueJob                               = 12,
-    Task_AddPendingGroupTaskUnconditionally       = 13,
-    Task_IsDiscardingTask                         = 14,
+    Task_IsInlineTask = 9,
+    Task_CopyTaskLocals = 10,
+    Task_InheritContext = 11,
+    Task_EnqueueJob = 12,
+    Task_AddPendingGroupTaskUnconditionally = 13,
+    Task_IsDiscardingTask = 14,
+    Task_FunctionConsumesContext = 15,
   };
 
   explicit constexpr TaskCreateFlags(size_t bits) : FlagSet(bits) {}
@@ -2433,6 +2434,9 @@ public:
   FLAGSET_DEFINE_FLAG_ACCESSORS(Task_IsDiscardingTask,
                                 isDiscardingTask,
                                 setIsDiscardingTask)
+  FLAGSET_DEFINE_FLAG_ACCESSORS(Task_FunctionConsumesContext,
+                                functionConsumesContext,
+                                setFunctionConsumesContext)
 };
 
 /// Flags for schedulable jobs.

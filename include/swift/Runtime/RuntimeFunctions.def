@@ -2332,7 +2332,18 @@ FUNCTION(DeinitOnExecutorFunc,
          ATTRS(NoUnwind),
          EFFECT(Concurrency),
          UNKNOWN_MEMEFFECTS)
-
+         
+// void swift_task_deinitAsync(void *object,
+//                                  void *work,
+//                                  size_t flags);
+FUNCTION(DeinitAsyncFunc,
+         swift_task_deinitAsync, SwiftCC,
+         ConcurrencyAvailability,
+         RETURNS(VoidTy),
+         ARGS(Int8PtrTy, Int8PtrTy, SizeTy),
+         ATTRS(NoUnwind),
+         EFFECT(Concurrency),
+         MEMEFFECTS(ArgMemOnly))
 
 // AsyncTask *swift_continuation_init(AsyncContext *continuationContext,
 //                                    AsyncContinuationFlags);

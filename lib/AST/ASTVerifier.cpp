@@ -3219,17 +3219,24 @@ public:
         }
       }
 
-      // Asynchronous @objc methods must have a foreign async convention.
-      if (AFD->isObjC() &&
-          static_cast<bool>(AFD->getForeignAsyncConvention())
-            != AFD->hasAsync()) {
-        if (AFD->hasAsync())
-          Out << "@objc method async but does not have a foreign async "
-              << "convention";
-        else
-          Out << "@objc method has a foreign async convention but is not "
-              << "async";
-        abort();
+      if (isa<DestructorDecl>(AFD)) {
+        if (AFD->getForeignAsyncConvention()) {
+          Out << "deinit has a foreign async convention";
+          abort();
+        }
+      } else {
+        // Asynchronous @objc methods must have a foreign async convention.
+        if (AFD->isObjC() &&
+            static_cast<bool>(AFD->getForeignAsyncConvention()) !=
+                AFD->hasAsync()) {
+          if (AFD->hasAsync())
+            Out << "@objc method async but does not have a foreign async "
+                << "convention";
+          else
+            Out << "@objc method has a foreign async convention but is not "
+                << "async";
+          abort();
+        }
       }
 
       // Synchronous throwing @objc methods must have a foreign error

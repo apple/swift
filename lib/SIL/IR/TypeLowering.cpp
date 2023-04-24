@@ -3457,16 +3457,20 @@ static CanAnyFunctionType getPropertyWrapperBackingInitializerInterfaceType(
 
 /// Get the type of a destructor function.
 static CanAnyFunctionType getDestructorInterfaceType(DestructorDecl *dd,
-                                                     bool isDeallocating,
+                                                     DestructorKind kind,
                                                      bool isForeign) {
   auto classType = dd->getDeclContext()->getDeclaredInterfaceType()
     ->getReducedType(dd->getGenericSignatureOfContext());
 
-  assert((!isForeign || isDeallocating)
-         && "There are no foreign destroying destructors");
+  assert((!isForeign || kind == DestructorKind::Deallocator) &&
+         "There are no foreign destroying destructors");
   auto extInfoBuilder =
       AnyFunctionType::ExtInfoBuilder(FunctionType::Representation::Thin,
                                       /*throws*/ false, Type());
+
+  extInfoBuilder = extInfoBuilder.withAsync(
+      dd->hasAsync() && kind != DestructorKind::Deallocator);
+
   if (isForeign)
     extInfoBuilder = extInfoBuilder.withSILRepresentation(
         SILFunctionTypeRepresentation::ObjCMethod);
@@ -3476,9 +3480,9 @@ static CanAnyFunctionType getDestructorInterfaceType(DestructorDecl *dd,
   auto extInfo = extInfoBuilder.build();
 
   auto &C = dd->getASTContext();
-  CanType resultTy = (isDeallocating
-                      ? TupleType::getEmpty(C)
-                      : C.TheNativeObjectType);
+  CanType resultTy =
+      (kind == DestructorKind::Destroyer ? C.TheNativeObjectType
+                                         : TupleType::getEmpty(C));
   // FIXME: Verify ExtInfo state is correct, not working by accident.
   CanFunctionType::ExtInfo info;
   CanType methodTy = CanFunctionType::get({}, resultTy, info);
@@ -3660,10 +3664,14 @@ CanAnyFunctionType TypeConverter::makeConstantInterfaceType(SILDeclRef c) {
   }
 
   case SILDeclRef::Kind::Destroyer:
+    return getDestructorInterfaceType(cast<DestructorDecl>(vd),
+                                      DestructorKind::Destroyer, c.isForeign);
   case SILDeclRef::Kind::Deallocator:
+    return getDestructorInterfaceType(cast<DestructorDecl>(vd),
+                                      DestructorKind::Deallocator, c.isForeign);
   case SILDeclRef::Kind::IsolatedDeallocator:
     return getDestructorInterfaceType(cast<DestructorDecl>(vd),
-                                      c.kind != SILDeclRef::Kind::Destroyer,
+                                      DestructorKind::IsolatedDeallocator,
                                       c.isForeign);
 
   case SILDeclRef::Kind::GlobalAccessor: {

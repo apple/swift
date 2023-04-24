@@ -513,6 +513,11 @@ FuncDecl *SILGenModule::getDeinitOnExecutor() {
                                     "_deinitOnExecutor");
 }
 
+FuncDecl *SILGenModule::getDeinitAsync() {
+  return lookupConcurrencyIntrinsic(getASTContext(), DeinitAsync,
+                                    "_deinitAsync");
+}
+
 FuncDecl *SILGenModule::getExit() {
   if (ExitFunc)
     return *ExitFunc;

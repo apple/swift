@@ -126,6 +126,9 @@ bool swift::usesFlowSensitiveIsolation(AbstractFunctionDecl const *fn) {
     if (!ctor->isDesignatedInit())
       return false;
   } else if (auto const *dtor = dyn_cast<DestructorDecl>(fn)) {
+    if (dtor->hasAsync()) {
+      return false;
+    }
     if (getActorIsolation(const_cast<DestructorDecl *>(dtor))
             .isActorIsolated()) {
       return false;
