@@ -1,5 +1,6 @@
 // RUN: %target-run-simple-swift( -Xfrontend -disable-availability-checking -parse-stdlib -parse-as-library) | %FileCheck %s
 
+// REQUIRES: libdispatch
 // REQUIRES: executable_test
 // REQUIRES: concurrency
 // REQUIRES: distributed

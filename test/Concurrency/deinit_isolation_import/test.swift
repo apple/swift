@@ -10,9 +10,9 @@
 // RUN: cp -R $INPUT_DIR/Beta.framework %t/Frameworks/
 // RUN: %empty-directory(%t/Frameworks/Beta.framework/Headers/)
 // RUN: cp $INPUT_DIR/Beta.h %t/Frameworks/Beta.framework/Headers/Beta.h
-// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -typecheck -verify %s -F %t/Frameworks -F %clang-importer-sdk-path/frameworks
-// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -parse-as-library -emit-silgen -DSILGEN %s -F %t/Frameworks -F %clang-importer-sdk-path/frameworks | %FileCheck %s
-// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -parse-as-library -emit-silgen -DSILGEN %s -F %t/Frameworks -F %clang-importer-sdk-path/frameworks | %FileCheck -check-prefix=CHECK-SYMB %s
+// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -disable-availability-checking -typecheck -verify %s -F %t/Frameworks -F %clang-importer-sdk-path/frameworks
+// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -disable-availability-checking -parse-as-library -emit-silgen -DSILGEN %s -F %t/Frameworks -F %clang-importer-sdk-path/frameworks | %FileCheck %s
+// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -disable-availability-checking -parse-as-library -emit-silgen -DSILGEN %s -F %t/Frameworks -F %clang-importer-sdk-path/frameworks | %FileCheck -check-prefix=CHECK-SYMB %s
 
 // REQUIRES: concurrency
 // REQUIRES: objc_interop

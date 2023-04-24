@@ -1,7 +1,5 @@
 // RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -emit-ir %s | %FileCheck %s
 
-import Foundation
-
 public class Foo {
   @MainActor
   deinit {}

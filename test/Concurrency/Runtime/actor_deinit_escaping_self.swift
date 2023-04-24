@@ -1,6 +1,7 @@
 // RUN: %target-run-simple-swift( -Xfrontend -disable-availability-checking -parse-as-library)
 
 // REQUIRES: executable_test
+// REQUIRES: libdispatch
 // REQUIRES: concurrency
 // REQUIRES: concurrency_runtime
 // UNSUPPORTED: back_deployment_runtime
@@ -54,14 +55,20 @@ actor EscapeUnlocked {
 
 @main struct Main {
   static func main() async {
+    // Ideally these tests should be compile-time errors
     let tests = TestSuite("EscapingSelf")
     tests.test("escape while locked") {
       _ = EscapeLocked()
     }
 
-    tests.test("escape while unlocked") {
-      await withUnsafeContinuation { cont in
-        _ = EscapeUnlocked(cont)
+    // We cannot really reliably test access to deallocated memory
+    // To have a reliable test, crash must happen before memory is deallocated
+    // TODO: Re-enable this, when self escaping from deinit triggers a fatalError() before deallocating memory
+    if false {
+      tests.test("escape while unlocked") {
+        await withUnsafeContinuation { cont in
+          _ = EscapeUnlocked(cont)
+        }
       }
     }
     await runAllTestsAsync()

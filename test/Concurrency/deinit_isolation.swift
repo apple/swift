@@ -1,6 +1,6 @@
-// RUN: %target-swift-frontend -parse-as-library -emit-silgen -verify %s
-// RUN: %target-swift-frontend -parse-as-library -emit-silgen -DSILGEN %s | %FileCheck %s
-// RUN: %target-swift-frontend -parse-as-library -emit-silgen -DSILGEN %s | %FileCheck -check-prefix=CHECK-SYMB %s
+// RUN: %target-swift-frontend -disable-availability-checking -parse-as-library -emit-silgen -verify %s
+// RUN: %target-swift-frontend -disable-availability-checking -parse-as-library -emit-silgen -DSILGEN %s | %FileCheck %s
+// RUN: %target-swift-frontend -disable-availability-checking -parse-as-library -emit-silgen -DSILGEN %s | %FileCheck -check-prefix=CHECK-SYMB %s
 
 // REQUIRES: concurrency
 
@@ -22,7 +22,7 @@
 func isolatedFunc() {}  // expected-note 11{{calls to global function 'isolatedFunc()' from outside of its actor context are implicitly asynchronous}}
 
 // CHECK-LABEL: class BaseWithNonisolatedDeinit {
-// CHECK: @objc deinit
+// CHECK: {{(@objc )?}}deinit
 // CHECK: }
 // CHECK-SYMB-NOT: BaseWithNonisolatedDeinit.__isolated_deallocating_deinit
 // CHECK-SYMB-NOT: @$s16deinit_isolation25BaseWithNonisolatedDeinitCfZ
@@ -31,7 +31,7 @@ func isolatedFunc() {}  // expected-note 11{{calls to global function 'isolatedF
 class BaseWithNonisolatedDeinit {}
 
 // CHECK-LABEL: class BaseWithDeinitIsolatedOnFirstActor {
-// CHECK: @objc @FirstActor deinit
+// CHECK: {{(@objc )?}}@FirstActor deinit
 // CHECK: }
 // CHECK-SYMB: BaseWithDeinitIsolatedOnFirstActor.__isolated_deallocating_deinit
 // CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation34BaseWithDeinitIsolatedOnFirstActorCfZ : $@convention(thin) (@owned BaseWithDeinitIsolatedOnFirstActor) -> () {
@@ -42,7 +42,7 @@ class BaseWithDeinitIsolatedOnFirstActor {
 }
 
 // CHECK-LABEL: class BaseWithDeinitIsolatedOnSecondActor {
-// CHECK: @objc @SecondActor deinit
+// CHECK: {{(@objc )?}}@SecondActor deinit
 // CHECK: }
 // CHECK-SYMB: BaseWithDeinitIsolatedOnSecondActor.__isolated_deallocating_deinit
 // CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation35BaseWithDeinitIsolatedOnSecondActorCfZ : $@convention(thin) (@owned BaseWithDeinitIsolatedOnSecondActor) -> () {
@@ -55,7 +55,7 @@ class BaseWithDeinitIsolatedOnSecondActor {
 // MARK: - Part 1 - Actors
 
 // CHECK-LABEL: actor ImplicitDeinitActor {
-// CHECK: @objc nonisolated deinit
+// CHECK: {{(@objc )?}}nonisolated deinit
 // CHECK: }
 // CHECK-SYMB-NOT: ImplicitDeinitActor.__isolated_deallocating_deinit
 // CHECK-SYMB-NOT: @$s16deinit_isolation19ImplicitDeinitActorCfZ
@@ -66,7 +66,7 @@ actor ImplicitDeinitActor {
 }
 
 // CHECK-LABEL: actor ExplicitDeinitActor {
-// CHECK: @objc deinit
+// CHECK: {{(@objc )?}}deinit
 // CHECK: }
 // CHECK-SYMB: // ExplicitDeinitActor.__isolated_deallocating_deinit
 // CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation19ExplicitDeinitActorCfZ : $@convention(thin) (@owned ExplicitDeinitActor) -> () {
@@ -82,7 +82,7 @@ actor ExplicitDeinitActor {
 }
 
 // CHECK-LABEL: actor NonisolatedDeinitActor {
-// CHECK: @objc nonisolated deinit
+// CHECK: {{(@objc )?}}nonisolated deinit
 // CHECK: }
 // CHECK-SYMB-NOT: NonisolatedDeinitActor.__isolated_deallocating_deinit
 // CHECK-SYMB-NOT: @$s16deinit_isolation22NonisolatedDeinitActorCfZ
@@ -98,7 +98,7 @@ actor NonisolatedDeinitActor {
 }
 
 // CHECK-LABEL: actor IsolatedDeinitActor {
-// CHECK: @objc @FirstActor deinit
+// CHECK: {{(@objc )?}}@FirstActor deinit
 // CHECK: }
 // CHECK-SYMB: // IsolatedDeinitActor.__isolated_deallocating_deinit
 // CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation19IsolatedDeinitActorCfZ : $@convention(thin) (@owned IsolatedDeinitActor) -> () {
@@ -115,7 +115,7 @@ actor IsolatedDeinitActor {
 // MARK: - Part 2.1 - Without base class
 
 // CHECK-LABEL: @FirstActor class ImplicitDeinit {
-// CHECK: @objc deinit
+// CHECK: {{(@objc )?}}deinit
 // CHECK: }
 // CHECK-SYMB-NOT: ImplicitDeinit.__isolated_deallocating_deinit
 // CHECK-SYMB-NOT: @$s16deinit_isolation14ImplicitDeinitCfZ
@@ -127,7 +127,7 @@ class ImplicitDeinit {
 }
 
 // CHECK-LABEL: @FirstActor class ExplicitDeinit {
-// CHECK: @objc @FirstActor deinit
+// CHECK: {{(@objc )?}}@FirstActor deinit
 // CHECK: }
 // CHECK-SYMB: // ExplicitDeinit.__isolated_deallocating_deinit
 // CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation14ExplicitDeinitCfZ : $@convention(thin) (@owned ExplicitDeinit) -> () {
@@ -142,7 +142,7 @@ class ExplicitDeinit {
 }
 
 // CHECK-LABEL: @FirstActor class NonisolatedDeinit {
-// CHECK: @objc nonisolated deinit
+// CHECK: {{(@objc )?}}nonisolated deinit
 // CHECK: }
 // CHECK-SYMB-NOT: NonisolatedDeinit.__isolated_deallocating_deinit
 // CHECK-SYMB-NOT: @$s16deinit_isolation17NonisolatedDeinitCfZ
@@ -159,7 +159,7 @@ class NonisolatedDeinit {
 }
 
 // CHECK-LABEL: class IsolatedDeinit {
-// CHECK: @objc @FirstActor deinit
+// CHECK: {{(@objc )?}}@FirstActor deinit
 // CHECK: }
 // CHECK-SYMB: // IsolatedDeinit.__isolated_deallocating_deinit
 // CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation14IsolatedDeinitCfZ : $@convention(thin) (@owned IsolatedDeinit) -> () {
@@ -173,7 +173,7 @@ class IsolatedDeinit {
 }
 
 // CHECK-LABEL: @FirstActor class DifferentIsolatedDeinit {
-// CHECK: @objc @SecondActor deinit
+// CHECK: {{(@objc )?}}@SecondActor deinit
 // CHECK: }
 // CHECK-SYMB: // DifferentIsolatedDeinit.__isolated_deallocating_deinit
 // CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation23DifferentIsolatedDeinitCfZ : $@convention(thin) (@owned DifferentIsolatedDeinit) -> () {
@@ -192,7 +192,7 @@ class DifferentIsolatedDeinit {
 // MARK: - Part 2.2 - Base class with nonisolated deinit
 
 // CHECK-LABEL: @_inheritsConvenienceInitializers @FirstActor class ImplicitDeinitInheritNonisolated : BaseWithNonisolatedDeinit {
-// CHECK: @objc deinit
+// CHECK: {{(@objc )?}}deinit
 // CHECK: }
 // CHECK-SYMB-NOT: ImplicitDeinitInheritNonisolated.__isolated_deallocating_deinit
 // CHECK-SYMB-NOT: @$s16deinit_isolation32ImplicitDeinitInheritNonisolatedCfZ
@@ -206,7 +206,7 @@ class ImplicitDeinitInheritNonisolated: BaseWithNonisolatedDeinit {
 }
 
 // CHECK-LABEL: @_inheritsConvenienceInitializers @FirstActor class ExplicitDeinitInheritNonisolated : BaseWithNonisolatedDeinit {
-// CHECK: @objc @FirstActor deinit
+// CHECK: {{(@objc )?}}@FirstActor deinit
 // CHECK: }
 // CHECK-SYMB: // ExplicitDeinitInheritNonisolated.__isolated_deallocating_deinit
 // CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation32ExplicitDeinitInheritNonisolatedCfZ : $@convention(thin) (@owned ExplicitDeinitInheritNonisolated) -> () {
@@ -223,7 +223,7 @@ class ExplicitDeinitInheritNonisolated: BaseWithNonisolatedDeinit {
 }
 
 // CHECK-LABEL: @_inheritsConvenienceInitializers @FirstActor class NonisolatedDeinitInheritNonisolated : BaseWithNonisolatedDeinit {
-// CHECK: @objc nonisolated deinit
+// CHECK: {{(@objc )?}}nonisolated deinit
 // CHECK: }
 // CHECK-SYMB-NOT: NonisolatedDeinitInheritNonisolated.__isolated_deallocating_deinit
 // CHECK-SYMB-NOT: @$s16deinit_isolation024NonisolatedDeinitInheritC0CfZ
@@ -242,7 +242,7 @@ class NonisolatedDeinitInheritNonisolated: BaseWithNonisolatedDeinit {
 }
 
 // CHECK-LABEL: @_inheritsConvenienceInitializers class IsolatedDeinitInheritNonisolated : BaseWithNonisolatedDeinit {
-// CHECK: @objc @FirstActor deinit
+// CHECK: {{(@objc )?}}@FirstActor deinit
 // CHECK: }
 // CHECK-SYMB: // IsolatedDeinitInheritNonisolated.__isolated_deallocating_deinit
 // CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation32IsolatedDeinitInheritNonisolatedCfZ : $@convention(thin) (@owned IsolatedDeinitInheritNonisolated) -> () {
@@ -256,7 +256,7 @@ class IsolatedDeinitInheritNonisolated: BaseWithNonisolatedDeinit {
 }
 
 // CHECK-LABEL: @_inheritsConvenienceInitializers @FirstActor class DifferentIsolatedDeinitInheritNonisolated : BaseWithNonisolatedDeinit {
-// CHECK:   @objc @SecondActor deinit
+// CHECK: {{(@objc )?}}@SecondActor deinit
 // CHECK: }
 // CHECK-SYMB: // DifferentIsolatedDeinitInheritNonisolated.__isolated_deallocating_deinit
 // CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation41DifferentIsolatedDeinitInheritNonisolatedCfZ : $@convention(thin) (@owned DifferentIsolatedDeinitInheritNonisolated) -> () {
@@ -277,7 +277,7 @@ class DifferentIsolatedDeinitInheritNonisolated: BaseWithNonisolatedDeinit {
 // MARK: - Part 2.3 - Base class with isolated deinit
 
 // CHECK-LABEL: @_inheritsConvenienceInitializers @FirstActor class ImplicitDeinitInheritIsolated1 : BaseWithDeinitIsolatedOnFirstActor {
-// CHECK:   @objc @FirstActor deinit
+// CHECK: {{(@objc )?}}@FirstActor deinit
 // CHECK: }
 // CHECK-SYMB: // ImplicitDeinitInheritIsolated1.__isolated_deallocating_deinit
 // CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation30ImplicitDeinitInheritIsolated1CfZ : $@convention(thin) (@owned ImplicitDeinitInheritIsolated1) -> () {
@@ -291,7 +291,7 @@ class ImplicitDeinitInheritIsolated1: BaseWithDeinitIsolatedOnFirstActor {
 }
 
 // CHECK-LABEL: @_inheritsConvenienceInitializers @FirstActor class ExplicitDeinitIsolated1 : BaseWithDeinitIsolatedOnFirstActor {
-// CHECK:   @objc @FirstActor deinit
+// CHECK: {{(@objc )?}}@FirstActor deinit
 // CHECK: }
 // CHECK-SYMB: // ExplicitDeinitIsolated1.__isolated_deallocating_deinit
 // CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation23ExplicitDeinitIsolated1CfZ : $@convention(thin) (@owned ExplicitDeinitIsolated1) -> () {
@@ -320,7 +320,7 @@ class NonisolatedDeinitIsolated1: BaseWithDeinitIsolatedOnFirstActor {
 #endif
 
 // CHECK-LABEL: @_inheritsConvenienceInitializers class IsolatedDeinitIsolated1 : BaseWithDeinitIsolatedOnFirstActor {
-// CHECK:   @objc @FirstActor deinit
+// CHECK: {{(@objc )?}}@FirstActor deinit
 // CHECK: }
 // CHECK-SYMB: // IsolatedDeinitIsolated1.__isolated_deallocating_deinit
 // CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation23IsolatedDeinitIsolated1CfZ : $@convention(thin) (@owned IsolatedDeinitIsolated1) -> () {
@@ -348,7 +348,7 @@ class DifferentIsolatedDeinitIsolated1: BaseWithDeinitIsolatedOnFirstActor {
 // MARK: - Part 2.4 - Base class with isolated deinit with different actor
 
 // CHECK-LABEL: @_inheritsConvenienceInitializers @FirstActor class ImplicitDeinitInheritIsolated2 : BaseWithDeinitIsolatedOnSecondActor {
-// CHECK:   @objc @SecondActor deinit
+// CHECK: {{(@objc )?}}@SecondActor deinit
 // CHECK: }
 // CHECK-SYMB: // ImplicitDeinitInheritIsolated2.__isolated_deallocating_deinit
 // CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation30ImplicitDeinitInheritIsolated2CfZ : $@convention(thin) (@owned ImplicitDeinitInheritIsolated2) -> () {
@@ -362,7 +362,7 @@ class ImplicitDeinitInheritIsolated2: BaseWithDeinitIsolatedOnSecondActor {
 }
 
 // CHECK-LABEL: @_inheritsConvenienceInitializers @FirstActor class ExplicitDeinitIsolated2 : BaseWithDeinitIsolatedOnSecondActor {
-// CHECK:   @objc @SecondActor deinit
+// CHECK: {{(@objc )?}}@SecondActor deinit
 // CHECK: }
 // CHECK-SYMB: // ExplicitDeinitIsolated2.__isolated_deallocating_deinit
 // CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation23ExplicitDeinitIsolated2CfZ : $@convention(thin) (@owned ExplicitDeinitIsolated2) -> () {
@@ -402,7 +402,7 @@ class IsolatedDeinitIsolated2: BaseWithDeinitIsolatedOnSecondActor {
 #endif
 
 // CHECK-LABEL: @_inheritsConvenienceInitializers @FirstActor class DifferentIsolatedDeinitIsolated2 : BaseWithDeinitIsolatedOnSecondActor {
-// CHECK:   @objc @SecondActor deinit
+// CHECK: {{(@objc )?}}@SecondActor deinit
 // CHECK: }
 // CHECK-SYMB: // DifferentIsolatedDeinitIsolated2.__isolated_deallocating_deinit
 // CHECK-SYMB-NEXT: sil hidden [ossa] @$s16deinit_isolation32DifferentIsolatedDeinitIsolated2CfZ : $@convention(thin) (@owned DifferentIsolatedDeinitIsolated2) -> () {

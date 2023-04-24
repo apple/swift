@@ -6,7 +6,7 @@ func f(s : inout [Int]) {
 
 // RUN: %empty-directory(%t.mod)
 // RUN: %empty-directory(%t.mod/mcp)
-// RUN: %swift -emit-module -o %t.mod/swift_mod.swiftmodule %S/Inputs/swift_mod.swift -parse-as-library -disable-implicit-concurrency-module-import -disable-implicit-string-processing-module-import
+// RUN: %swift -emit-module -o %t.mod/swift_mod.swiftmodule %S/Inputs/swift_mod.swift -parse-as-library -disable-implicit-concurrency-module-import -disable-implicit-string-processing-module-import -disable-objc-interop
 // RUN: %sourcekitd-test -req=interface-gen -module swift_mod -- -Xfrontend -disable-implicit-concurrency-module-import -Xfrontend -disable-implicit-string-processing-module-import  -I %t.mod > %t.response
 // RUN: %diff -u %s.response %t.response
 
@@ -30,6 +30,6 @@ func f(s : inout [Int]) {
 // Test we can generate the interface of a module loaded via a .swiftinterface file correctly
 
 // RUN: %empty-directory(%t.mod)
-// RUN: %swift -emit-module -o /dev/null -emit-module-interface-path %t.mod/swift_mod.swiftinterface -O %S/Inputs/swift_mod.swift -parse-as-library -disable-implicit-concurrency-module-import -disable-implicit-string-processing-module-import
+// RUN: %swift -emit-module -o /dev/null -emit-module-interface-path %t.mod/swift_mod.swiftinterface -O %S/Inputs/swift_mod.swift -parse-as-library -disable-implicit-concurrency-module-import -disable-implicit-string-processing-module-import -disable-objc-interop
 // RUN: %sourcekitd-test -req=interface-gen -module swift_mod -- -Xfrontend -disable-implicit-concurrency-module-import -Xfrontend -disable-implicit-string-processing-module-import  -I %t.mod -module-cache-path %t.mod/mcp > %t.response
 // RUN: %diff -u %s.from_swiftinterface.response %t.response
