@@ -51,15 +51,144 @@ internal struct _${U}Int128 {
   internal static var one: Self { Self(high: 0, low: 1) }
 }
 
-extension _${U}Int128: CustomStringConvertible {
+extension _${U}Int128 {
+  /// Divides `x` by rⁿ where r is the `radix`. Returns the quotient,
+  /// remainder, and digits
+  private static func div (x: _UInt128, radix: Int) ->
+  (q:_UInt128, r:UInt64, digits:Int) {
+    let maxDivisor: UInt64
+    let digits: Int
+    switch radix {
+      case 2:  maxDivisor = UInt64(9_223_372_036_854_775_808); digits = 63
+      case 8:  maxDivisor = UInt64(9_223_372_036_854_775_808); digits = 21
+      case 16: maxDivisor = UInt64(1_152_921_504_606_846_976); digits = 15
+      case 10: maxDivisor = UInt64(10_000_000_000_000_000_000); digits = 19
+      default:
+        /// Note: Max radix = 36 so
+        ///          36¹² = 4_738_381_338_321_616_896 < UInt64.max
+        var power = radix*radix         // squared
+        power *= power                  // 4th power
+        power = power * power * power   // 12th power
+        maxDivisor = UInt64(power); digits = 12
+    }
+    let result = x.quotientAndRemainder(dividingBy: _UInt128(high: 0,
+                                                             low: maxDivisor))
+    return (result.quotient, result.remainder.low, digits)
+  }
+  
+  /// Converts the UInt128 `self` into a string with a given `radix`.  The
+  /// radix string can use uppercase characters if `uppercase` is true.
+  ///
+  /// Why convert numbers in chunks?  This approach reduces the number of
+  /// calls to division and modulo functions so is more efficient than a naïve
+  /// digit-based approach.  Ideally this code should be in the String module.
+  /// Further optimizations may be possible by using unchecked string buffers.
+  internal func string(withRadix radix:Int = 10, uppercase:Bool = false) ->
+  String {
+    guard 2...36 ~= radix else { return "0" }
+    if self == Self.zero { return "0" }
+    var result = (q:self.magnitude, r:UInt64(0), digits:0)
+    var str = ""
+    while result.q != Self.zero {
+      result = Self.div(x: result.q, radix: radix)
+      var temp = String(result.r, radix: radix, uppercase: uppercase)
+      if result.q != Self.zero {
+        temp = String(repeating: "0", count: result.digits-temp.count) + temp
+      }
+      str = temp + str
+    }
+    return str
+  }
+}
+
+extension _${U}Int128 : CustomStringConvertible {
   internal var description: String {
-    String(self, radix: 10)
+    string(withRadix: 10)
   }
 }
 
 extension _${U}Int128: CustomDebugStringConvertible {
   internal var debugDescription: String {
     description
+  }
+}
+
+extension _${U}Int128 {
+  public init?<S: StringProtocol>(_ text: S, radix: Int = 10) {
+    guard !text.isEmpty else { return nil }
+    guard 2...36 ~= radix else { return nil }
+    self.init()
+    if let x : _UInt128 = _UInt128.value(from: text, radix: radix) {
+      self = Self(x)
+    } else {
+      return nil
+    }
+  }
+  
+  public init?(_ description: String) {
+    self.init(description, radix:10)
+  }
+}
+
+extension _${U}Int128 {
+  /// This method breaks `string` into pieces to reduce overhead of the
+  /// multiplications and allow UInt64 to work in converting larger numbers.
+  fileprivate static func value<S: StringProtocol>(
+      from string: S, radix: Int = 10) -> Self? {
+    // Handles signs and leading zeros
+    let uradix = UInt64(radix)
+    var s = String(string)
+    % if signed:
+    var isNegative = false
+    if s.hasPrefix("-") { isNegative = true }
+    % else:
+    if s.hasPrefix("-") { return nil }
+    % end
+    if s.hasPrefix("+") { s.removeFirst() }
+    while s.hasPrefix("0") { s.removeFirst() }
+    
+    // Translate the string into a number
+    var r = zero
+    let _ = times(x: zero, timesRadix: uradix, toPower: 1) // initialize table
+    while !s.isEmpty {
+      // handle `chunk`-sized digits at a time
+      let chunk = s.prefix(powers.count)
+      let size = chunk.count; s.removeFirst(size)
+      if let uint = UInt64(chunk, radix: radix) {
+        if size != 0 {
+          r = times(x: r, timesRadix: uradix, toPower: size)
+        }
+        r += Self(high: 0, low: uint)
+      } else {
+        return nil
+      }
+    }
+    % if signed:
+    if isNegative {
+      return -r
+    }
+    % end
+    return r
+  }
+  
+  /// Computed powers of rⁿ up to UInt64.max where r is the radix
+  private static var powers = [UInt64]()
+  
+  /// Multiplies `x` by rⁿ where r is the `radix` and returns the product
+  private static func times<T:FixedWidthInteger>(
+    x: T, timesRadix radix: UInt64, toPower n: Int) -> T {
+    // calculate the powers of the radix and store in a table
+    if powers.isEmpty || powers.first! != radix {
+      powers = [UInt64](); powers.reserveCapacity(20)
+      var t = UInt64(1)
+      while t < UInt64.max / radix {
+        t &*= radix
+        powers.append(t)
+      }
+    }
+    let radixToPower = powers[n-1]
+    let result = x * T(radixToPower)
+    return result
   }
 }
 
