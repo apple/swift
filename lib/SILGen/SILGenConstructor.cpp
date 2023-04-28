@@ -401,7 +401,7 @@ static void emitImplicitValueConstructor(SILGenFunction &SGF,
         ++elti;
       } else {
         assert(field->getType()->getReferenceStorageReferent()->isEqual(
-                   field->getParentInitializer()->getType()) &&
+                   field->getParentExecutableInitializer()->getType()) &&
                "Initialization of field with mismatched type!");
 
         // Cleanup after this initialization.
@@ -422,7 +422,7 @@ static void emitImplicitValueConstructor(SILGenFunction &SGF,
           }
         }
 
-        SGF.emitExprInto(field->getParentInitializer(), init.get());
+        SGF.emitExprInto(field->getParentExecutableInitializer(), init.get());
       }
       if (SGF.getOptions().EnableImportPtrauthFieldFunctionPointers &&
           field->getPointerAuthQualifier().isPresent()) {
@@ -454,8 +454,8 @@ static void emitImplicitValueConstructor(SILGenFunction &SGF,
       ++elti;
     } else {
       // Otherwise, use its initializer.
-      assert(field->isParentInitialized());
-      Expr *init = field->getParentInitializer();
+      assert(field->isParentExecutabledInitialized());
+      Expr *init = field->getParentExecutableInitializer();
 
       // If this is a property wrapper backing storage var that isn't
       // memberwise initialized, use the original wrapped value if it exists.

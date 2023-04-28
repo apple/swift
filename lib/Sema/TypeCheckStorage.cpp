@@ -3293,10 +3293,10 @@ static void finishNSManagedImplInfo(VarDecl *var,
   if (info.isSimpleStored()) {
     // @NSManaged properties end up being computed; complain if there is
     // an initializer.
-    if (var->getParentInitializer()) {
+    if (var->getParentExecutableInitializer()) {
       auto &Diags = var->getASTContext().Diags;
       Diags.diagnose(attr->getLocation(), diag::attr_NSManaged_initial_value)
-           .highlight(var->getParentInitializer()->getSourceRange());
+           .highlight(var->getParentExecutableInitializer()->getSourceRange());
     }
 
     // Otherwise, ok.
@@ -3313,13 +3313,22 @@ static void finishNSManagedImplInfo(VarDecl *var,
   }
 }
 
+static Expr *getParentExecutableInitializer(VarDecl *var) {
+  if (auto *PBD = var->getParentPatternBinding()) {
+    const auto i = PBD->getPatternEntryIndexForVarDecl(var);
+    return PBD->getExecutableInit(i);
+  }
+
+  return nullptr;
+}
+
 static void finishStorageImplInfo(AbstractStorageDecl *storage,
                                   StorageImplInfo &info) {
   auto dc = storage->getDeclContext();
 
   if (auto var = dyn_cast<VarDecl>(storage)) {
     if (!info.hasStorage()) {
-      if (auto *init = var->getParentInitializer()) {
+      if (auto *init = var->getParentExecutableInitializer()) {
         auto &Diags = var->getASTContext().Diags;
         Diags.diagnose(init->getLoc(), diag::getset_init)
              .highlight(init->getSourceRange());

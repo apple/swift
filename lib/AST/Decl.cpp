@@ -6656,6 +6656,15 @@ bool VarDecl::isLazilyInitializedGlobal() const {
   return !isTopLevelGlobal();
 }
 
+Expr *VarDecl::getParentExecutableInitializer() const {
+  if (auto *PBD = getParentPatternBinding()) {
+    const auto i = PBD->getPatternEntryIndexForVarDecl(this);
+    return PBD->getExecutableInit(i);
+  }
+
+  return nullptr;
+}
+
 SourceRange VarDecl::getSourceRange() const {
   if (auto Param = dyn_cast<ParamDecl>(this))
     return Param->getSourceRange();

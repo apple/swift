@@ -5742,6 +5742,16 @@ public:
     return false;
   }
 
+  /// Return the initializer that will initializer this VarDecl at runtime.
+  /// This is equivalent to `getParentInitializer()`, but returns `null` if the
+  /// initializer itself was subsumed, e.g., by a macro or property wrapper.
+  Expr *getParentExecutableInitializer() const;
+
+  /// Whether this variable has an initializer that will be code-generated.
+  bool isParentExecutabledInitialized() const {
+    return getParentExecutableInitializer() != nullptr;
+  }
+
   // Return whether this VarDecl has an initial value, either by checking
   // if it has an initializer in its parent pattern binding or if it has
   // the @_hasInitialValue attribute.

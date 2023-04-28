@@ -1358,7 +1358,7 @@ void LifetimeChecker::handleStoreUse(unsigned UseID) {
                StringRef(PropertyName));
 
       if (auto *Var = dyn_cast<VarDecl>(VD)) {
-        if (Var->getParentInitializer())
+        if (Var->getParentExecutableInitializer())
           diagnose(Module, SILLocation(VD),
                    diag::initial_value_provided_in_let_decl);
         Var->emitLetToVarNoteIfSimple(nullptr);

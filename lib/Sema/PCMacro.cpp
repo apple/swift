@@ -468,7 +468,7 @@ public:
         if (auto *PBD = dyn_cast<PatternBindingDecl>(D)) {
           // FIXME: Should iterate all var decls
           if (VarDecl *VD = PBD->getSingleVar()) {
-            if (VD->getParentInitializer()) {
+            if (VD->getParentExecutableInitializer()) {
 
               SourceRange SR = PBD->getSourceRange();
               if (!SR.isValid()) {

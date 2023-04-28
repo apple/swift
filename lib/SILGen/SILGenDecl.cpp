@@ -646,7 +646,8 @@ public:
 
     assert(!isa<ParamDecl>(vd)
            && "should not bind function params on this path");
-    if (vd->getParentPatternBinding() && !vd->getParentInitializer()) {
+    if (vd->getParentPatternBinding() &&
+        !vd->getParentExecutableInitializer()) {
       // If this is a let-value without an initializer, then we need a temporary
       // buffer.  DI will make sure it is only assigned to once.
       needsTemporaryBuffer = true;
@@ -1433,8 +1434,8 @@ SILGenFunction::emitInitializationForVarDecl(VarDecl *vd, bool forceImmutable,
   // If the variable has no initial value, emit a mark_uninitialized instruction
   // so that DI tracks and enforces validity of it.
   bool isUninitialized =
-    vd->getParentPatternBinding() && !vd->getParentInitializer();
-  
+    vd->getParentPatternBinding() && !vd->getParentExecutableInitializer();
+
   // If this is a global variable, initialize it without allocations or
   // cleanups.
   InitializationPtr Result;

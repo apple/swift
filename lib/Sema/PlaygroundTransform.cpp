@@ -581,7 +581,7 @@ public:
         if (auto *PBD = dyn_cast<PatternBindingDecl>(D)) {
           if (!PBD->isAsyncLet()) {
             if (VarDecl *VD = PBD->getSingleVar()) {
-              if (VD->getParentInitializer()) {
+              if (VD->getParentExecutableInitializer()) {
                 Added<Stmt *> Log = logVarDecl(VD);
                 if (*Log) {
                   Elements.insert(Elements.begin() + (EI + 1), *Log);

@@ -12,6 +12,18 @@ import StdlibUnittest
 import _Observation
 import _Concurrency
 
+@available(SwiftStdlib 5.9, *)
+@MainActor @Observable
+final class StateMachine {
+  enum State {
+    case initializing
+    case running
+    case complete
+  }
+
+  var state: State = .initializing
+}
+
 @usableFromInline
 @inline(never)
 func _blackHole<T>(_ value: T) { }

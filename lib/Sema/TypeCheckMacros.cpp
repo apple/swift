@@ -1303,7 +1303,6 @@ evaluateAttachedMacro(MacroDecl *macro, Decl *attachedTo, CustomAttr *attr,
 Optional<unsigned> swift::expandAccessors(
     AbstractStorageDecl *storage, CustomAttr *attr, MacroDecl *macro
 ) {
-  (void)storage->getInterfaceType();
   // Evaluate the macro.
   auto macroSourceFile = evaluateAttachedMacro(macro, storage, attr,
                                                /*passParentContext*/false,
@@ -1325,12 +1324,12 @@ Optional<unsigned> swift::expandAccessors(
     if (accessor->isObservingAccessor())
       continue;
 
-    // If any non-observing accessor was added, remove the initializer if
-    // there is one.
+    // If any non-observing accessor was added, mark the initializer as
+    // subsumed.
     if (auto var = dyn_cast<VarDecl>(storage)) {
       if (auto binding = var->getParentPatternBinding()) {
         unsigned index = binding->getPatternEntryIndexForVarDecl(var);
-        binding->setInit(index, nullptr);
+        binding->setInitializerSubsumed(index);
         break;
       }
     }
