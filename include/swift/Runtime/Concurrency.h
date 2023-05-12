@@ -692,10 +692,10 @@ void swift_task_localValuePop();
 /// Its Swift signature is
 ///
 /// \code
-///  public func _taskLocalStopPush() -> Bool
+///  public func _taskLocalBarrierPush() -> Bool
 /// \endcode
 SWIFT_EXPORT_FROM(swift_Concurrency)
-SWIFT_CC(swift) bool swift_task_localStopPush();
+SWIFT_CC(swift) bool swift_task_localBarrierPush();
 
 /// Pop a single task local binding from the binding stack of the current task,
 /// or the fallback thread-local storage if no task is available.
@@ -709,10 +709,10 @@ SWIFT_CC(swift) bool swift_task_localStopPush();
 /// Its Swift signature is
 ///
 /// \code
-///  public func _taskLocalStopPop()
+///  public func _taskLocalBarrierPop()
 /// \endcode
 SWIFT_EXPORT_FROM(swift_Concurrency)
-SWIFT_CC(swift) void swift_task_localStopPop(bool didPush);
+SWIFT_CC(swift) void swift_task_localBarrierPop(bool didPush);
 
 /// Copy all task locals from the current context to the target task.
 ///

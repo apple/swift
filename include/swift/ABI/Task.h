@@ -437,10 +437,10 @@ public:
 
   // ==== Task Local Values ----------------------------------------------------
 
-  void localPushValue(const HeapObject *key,
+  void localValuePush(const HeapObject *key,
                       /* +1 */ OpaqueValue *value, const Metadata *valueType);
 
-  void localPushStop();
+  void localValuePushBarrier();
 
   OpaqueValue *localGetValue(const HeapObject *key);
 

@@ -53,12 +53,11 @@ public:
     /// in depth in @c createParentLink() .
     ParentLink = 0,
 
-    /// Stop-item that blocks further lookup.
-    /// Inserting stop-node allows to temporary disable all inserted task-local
-    /// values in O(1),
-    /// while maintaining immutable linked list nature of the task-local values
-    /// implementation.
-    Stop = 1,
+    /// Barrier item that blocks further lookup.
+    /// Inserting barrier node allows to temporary disable all inserted
+    /// task-local values in O(1), while maintaining immutable linked list
+    /// nature of the task-local values implementation.
+    Barrier = 1,
   };
 
   class Item {
@@ -214,7 +213,7 @@ public:
                    const HeapObject *key,
                    /* +1 */ OpaqueValue *value, const Metadata *valueType);
 
-    void pushStop(AsyncTask *task);
+    void pushBarrier(AsyncTask *task);
 
     OpaqueValue* getValue(AsyncTask *task, const HeapObject *key);
 

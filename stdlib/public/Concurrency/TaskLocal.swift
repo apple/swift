@@ -248,8 +248,8 @@ public func withResetTaskLocalValues<R>(operation: () async throws -> R,
   // check if we're not trying to bind a value from an illegal context; this may crash
   _checkIllegalTaskLocalBindingWithinWithTaskGroup(file: file, line: line)
 
-  let didPush = _taskLocalStopPush()
-  defer { _taskLocalStopPop(didPush) }
+  let didPush = _taskLocalBarrierPush()
+  defer { _taskLocalBarrierPop(didPush) }
 
   return try await operation()
 }
@@ -263,8 +263,8 @@ public func withResetTaskLocalValues<R>(operation: () throws -> R,
   // check if we're not trying to bind a value from an illegal context; this may crash
   _checkIllegalTaskLocalBindingWithinWithTaskGroup(file: file, line: line)
 
-  let didPush = _taskLocalStopPush()
-  defer { _taskLocalStopPop(didPush) }
+  let didPush = _taskLocalBarrierPush()
+  defer { _taskLocalBarrierPop(didPush) }
 
   return try operation()
 }
@@ -286,13 +286,13 @@ func _taskLocalValuePop()
 
 @available(SwiftStdlib 5.8, *)
 @usableFromInline
-@_silgen_name("swift_task_localStopPush")
-func _taskLocalStopPush() -> Bool
+@_silgen_name("swift_task_localBarrierPush")
+func _taskLocalBarrierPush() -> Bool
 
 @available(SwiftStdlib 5.8, *)
 @usableFromInline
-@_silgen_name("swift_task_localStopPop")
-func _taskLocalStopPop(_ didPush: Bool)
+@_silgen_name("swift_task_localBarrierPop")
+func _taskLocalBarrierPop(_ didPush: Bool)
 
 @available(SwiftStdlib 5.1, *)
 @_silgen_name("swift_task_localValueGet")

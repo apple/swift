@@ -81,7 +81,7 @@ static void swift_task_localValuePushImpl(const HeapObject *key,
                                               /* +1 */ OpaqueValue *value,
                                               const Metadata *valueType) {
   if (AsyncTask *task = swift_task_getCurrent()) {
-    task->localPushValue(key, value, valueType);
+    task->localValuePush(key, value, valueType);
     return;
   }
 
@@ -128,26 +128,26 @@ static void swift_task_localValuePopImpl() {
 }
 
 SWIFT_CC(swift)
-static bool swift_task_localStopPushImpl() {
+static bool swift_task_localBarrierPushImpl() {
   if (AsyncTask *task = swift_task_getCurrent()) {
-    task->localPushStop();
+    task->localValuePushBarrier();
     return true;
   }
 
   // no AsyncTask available so we must check the fallback
   if (TaskLocal::Storage *Local = FallbackTaskLocalStorage::get()) {
-    Local->pushStop(/*task=*/nullptr);
+    Local->pushBarrier(/*task=*/nullptr);
     return true;
   }
 
   // We are outside of the task, and fallback storage does not exist
   // Don't push anything for performance reasons, but return an indicator
-  // to validate stack consistency in swift_task_localStopPopImpl().
+  // to validate stack consistency in swift_task_localBarrierPopImpl().
   return false;
 }
 
 SWIFT_CC(swift)
-static void swift_task_localStopPopImpl(bool didPush) {
+static void swift_task_localBarrierPopImpl(bool didPush) {
   if (didPush) {
     return swift_task_localValuePopImpl();
   } else {
@@ -225,7 +225,7 @@ TaskLocal::Item *TaskLocal::Item::createStop(TaskLocal::Item *next,
                                              AsyncTask *task) {
   size_t amountToAllocate = Item::itemSize(/*valueType*/ nullptr);
   void *allocation = allocate(amountToAllocate, task);
-  return ::new (allocation) Item(next, ItemKind::Stop);
+  return ::new (allocation) Item(next, ItemKind::Barrier);
 }
 
 void TaskLocal::Item::copyTo(TaskLocal::Storage *target, AsyncTask *task) {
@@ -359,7 +359,7 @@ void TaskLocal::Storage::pushValue(AsyncTask *task,
   head = item;
 }
 
-void TaskLocal::Storage::pushStop(AsyncTask *task) {
+void TaskLocal::Storage::pushBarrier(AsyncTask *task) {
   head = Item::createStop(head, task);
 }
 
@@ -386,7 +386,7 @@ OpaqueValue* TaskLocal::Storage::getValue(AsyncTask *task,
       break;
     case ItemKind::ParentLink:
       continue;
-    case ItemKind::Stop:
+    case ItemKind::Barrier:
       return nullptr;
     }
   }
@@ -420,7 +420,7 @@ void TaskLocal::Storage::copyTo(TaskLocal::Storage *target, AsyncTask *task) {
       // Parent links are not re-created when copying
       // Just skip to the next item;
       continue;
-    case ItemKind::Stop:
+    case ItemKind::Barrier:
       return;
     }
   }
@@ -438,11 +438,11 @@ TaskLocal::AdHocScope::~AdHocScope() {
 }
 
 TaskLocal::WithResetValuesScope::WithResetValuesScope() {
-  didPush = swift_task_localStopPush();
+  didPush = swift_task_localBarrierPush();
 }
 
 TaskLocal::WithResetValuesScope::~WithResetValuesScope() {
-  swift_task_localStopPop(didPush);
+  swift_task_localBarrierPop(didPush);
 }
 
 #define OVERRIDE_TASK_LOCAL COMPATIBILITY_OVERRIDE

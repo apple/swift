@@ -1197,13 +1197,15 @@ inline void AsyncTask::flagAsDestroyed() {
 
 // ==== Task Local Values -----------------------------------------------------
 
-inline void AsyncTask::localPushValue(const HeapObject *key,
+inline void AsyncTask::localValuePush(const HeapObject *key,
                                       /* +1 */ OpaqueValue *value,
                                       const Metadata *valueType) {
   _private().Local.pushValue(this, key, value, valueType);
 }
 
-inline void AsyncTask::localPushStop() { _private().Local.pushStop(this); }
+inline void AsyncTask::localValuePushBarrier() {
+  _private().Local.pushBarrier(this);
+}
 
 inline OpaqueValue *AsyncTask::localGetValue(const HeapObject *key) {
   return _private().Local.getValue(this, key);

@@ -382,11 +382,11 @@ OVERRIDE_TASK_LOCAL(task_localValuePop, void,
                     SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swift),
                     swift::, ,)
 
-OVERRIDE_TASK_LOCAL(task_localStopPush, bool,
+OVERRIDE_TASK_LOCAL(task_localBarrierPush, bool,
                     SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swift),
                     swift::, ,)
 
-OVERRIDE_TASK_LOCAL(task_localStopPop, void,
+OVERRIDE_TASK_LOCAL(task_localBarrierPop, void,
                     SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swift),
                     swift::,
                     (bool didPush),
