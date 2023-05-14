@@ -960,6 +960,26 @@ llvm::Optional<CustomAttrNominalPair> Decl::getGlobalActorAttr() const {
       ctx.evaluator, GlobalActorAttributeRequest{mutableThis}, llvm::None);
 }
 
+bool Decl::hasExplicitIsolationAttribute() const {
+  if (auto nonisolatedAttr = getAttrs().getAttribute<NonisolatedAttr>()) {
+    if (!nonisolatedAttr->isImplicit())
+      return true;
+  }
+
+  if (auto isolatedAttr = getAttrs().getAttribute<IsolatedAttr>()) {
+    if (!isolatedAttr->isImplicit()) {
+      return true;
+    }
+  }
+
+  if (auto globalActorAttr = getGlobalActorAttr()) {
+    if (!globalActorAttr->first->isImplicit())
+      return true;
+  }
+
+  return false;
+}
+
 bool Decl::preconcurrency() const {
   if (getAttrs().hasAttribute<PreconcurrencyAttr>())
     return true;

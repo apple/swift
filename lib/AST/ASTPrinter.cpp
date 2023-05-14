@@ -75,6 +75,8 @@ using namespace swift;
 
 #pragma clang optimize off
 
+static bool usesFeatureIsolatedDeinit(const Decl *decl);
+
 // Defined here to avoid repeatedly paying the price of template instantiation.
 const std::function<bool(const ExtensionDecl *)>
     PrintOptions::defaultPrintExtensionContentAsMembers
@@ -171,6 +173,18 @@ static bool shouldPrintAllSemanticDetails(const PrintOptions &options) {
   if (options.IsForSwiftInterface)
     return true;
 
+  return false;
+}
+
+bool PrintOptions::excludeAttr(const DeclAttribute *DA) const {
+  if (excludeAttrKind(DA->getKind())) {
+    return true;
+  }
+  if (auto CA = dyn_cast<CustomAttr>(DA)) {
+    if (std::any_of(ExcludeCustomAttrList.begin(), ExcludeCustomAttrList.end(),
+                    [CA](CustomAttr *other) { return other == CA; }))
+      return true;
+  }
   return false;
 }
 
@@ -812,7 +826,13 @@ class PrintAST : public ASTVisitor<PrintAST> {
         !llvm::is_contained(Options.ExcludeAttrList, DAK_AccessControl))
       return;
 
-    printAccess(D->getFormalAccess());
+    if (Options.SuppressIsolatedDeinit &&
+        D->getFormalAccess() == AccessLevel::Open &&
+        usesFeatureIsolatedDeinit(D)) {
+      printAccess(AccessLevel::Public);
+    } else {
+      printAccess(D->getFormalAccess());
+    }
     bool shouldSkipSetterAccess =
       llvm::is_contained(Options.ExcludeAttrList, DAK_SetterAccess);
 
@@ -1196,6 +1216,10 @@ void PrintAST::printAttributes(const Decl *D) {
   // Save the current number of exclude attrs to restore once we're done.
   unsigned originalExcludeAttrCount = Options.ExcludeAttrList.size();
 
+  // ExcludeCustomAttrList stores instances of attributes, which are specific
+  // for each decl They cannot be shared across different decls.
+  assert(Options.ExcludeCustomAttrList.empty());
+
   if (Options.PrintImplicitAttrs) {
 
     // Don't print a redundant 'final' if we are printing a 'static' decl.
@@ -1278,9 +1302,19 @@ void PrintAST::printAttributes(const Decl *D) {
     Options.ExcludeAttrList.push_back(DAK_Borrowing);
   }
 
+  if (isa<DestructorDecl>(D) && Options.SuppressIsolatedDeinit) {
+    Options.ExcludeAttrList.push_back(DAK_Nonisolated);
+    Options.ExcludeAttrList.push_back(DAK_Isolated);
+    if (auto globalActor = D->getGlobalActorAttr()) {
+      Options.ExcludeCustomAttrList.push_back(globalActor->first);
+    }
+  }
+  
   attrs.print(Printer, Options, D);
 
+
   Options.ExcludeAttrList.resize(originalExcludeAttrCount);
+  Options.ExcludeCustomAttrList.clear();
 }
 
 void PrintAST::printTypedPattern(const TypedPattern *TP) {
@@ -2991,6 +3025,11 @@ static bool usesFeatureEffectfulProp(Decl *decl) {
 }
 
 static bool usesFeatureAsyncAwait(Decl *decl) {
+  if (isa<DestructorDecl>(decl)) {
+    // async destructors are covered by the IsolatedDeinit feature
+    return false;
+  }
+
   if (auto func = dyn_cast<AbstractFunctionDecl>(decl)) {
     if (func->hasAsync())
       return true;
@@ -3872,6 +3911,33 @@ static bool usesFeatureExtractConstantsFromMembers(Decl *decl) {
 static bool usesFeatureBitwiseCopyable(Decl *decl) { return false; }
 
 static bool usesFeatureTransferringArgsAndResults(Decl *decl) { return false; }
+
+static bool usesFeatureIsolatedDeinit(const Decl *decl) {
+  if (auto cd = dyn_cast<ClassDecl>(decl)) {
+    return cd->getFormalAccess() == AccessLevel::Open &&
+           usesFeatureIsolatedDeinit(cd->getDestructor());
+  } else if (auto dd = dyn_cast<DestructorDecl>(decl)) {
+    if (dd->hasAsync()) {
+      return true;
+    }
+    if (dd->hasExplicitIsolationAttribute()) {
+      return true;
+    }
+    if (auto superDD = dd->getSuperDeinit()) {
+      return usesFeatureIsolatedDeinit(superDD);
+    }
+    return false;
+  } else {
+    return false;
+  }
+}
+
+static void
+suppressingFeatureIsolatedDeinit(PrintOptions &options,
+                                 llvm::function_ref<void()> action) {
+  llvm::SaveAndRestore<bool> scope(options.SuppressIsolatedDeinit, true);
+  action();
+}
 
 /// Suppress the printing of a particular feature.
 static void suppressingFeature(PrintOptions &options, Feature feature,
@@ -4757,7 +4823,8 @@ void PrintAST::printFunctionParameters(AbstractFunctionDecl *AFD) {
 }
 
 void PrintAST::printFunctionEffects(AbstractFunctionDecl *AFD) {
-  if (AFD->hasAsync() || AFD->hasThrows()) {
+  if ((AFD->hasAsync() || AFD->hasThrows()) &&
+      !(Options.SuppressIsolatedDeinit && isa<DestructorDecl>(AFD))) {
     Printer.printStructurePre(PrintStructureKind::EffectsSpecifiers);
     SWIFT_DEFER {
       Printer.printStructurePost(PrintStructureKind::EffectsSpecifiers);

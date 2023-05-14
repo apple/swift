@@ -3990,29 +3990,6 @@ ActorIsolation swift::determineClosureActorIsolation(
   return checker.determineClosureIsolation(closure);
 }
 
-/// Determine whethere there is an explicit isolation attribute
-/// of any kind.
-static bool hasExplicitIsolationAttribute(const Decl *decl) {
-  if (auto nonisolatedAttr =
-      decl->getAttrs().getAttribute<NonisolatedAttr>()) {
-    if (!nonisolatedAttr->isImplicit())
-      return true;
-  }
-
-  if (auto isolatedAttr = decl->getAttrs().getAttribute<IsolatedAttr>()) {
-    if (!isolatedAttr->isImplicit()) {
-      return true;
-    }
-  }
-
-  if (auto globalActorAttr = decl->getGlobalActorAttr()) {
-    if (!globalActorAttr->first->isImplicit())
-      return true;
-  }
-
-  return false;
-}
-
 /// Determine actor isolation solely from attributes.
 ///
 /// \returns the actor isolation determined from attributes alone (with no
@@ -5346,14 +5323,14 @@ bool swift::contextRequiresStrictConcurrencyChecking(
     } else if (auto decl = dc->getAsDecl()) {
       // If any isolation attributes are present, we're using concurrency
       // features.
-      if (hasExplicitIsolationAttribute(decl))
+      if (decl->hasExplicitIsolationAttribute())
         return true;
 
       // Extensions of explicitly isolated types are using concurrency
       // features.
       if (auto *extension = dyn_cast<ExtensionDecl>(decl)) {
         auto *nominal = extension->getExtendedNominal();
-        if (nominal && hasExplicitIsolationAttribute(nominal) &&
+        if (nominal && nominal->hasExplicitIsolationAttribute() &&
             !getActorIsolation(nominal).preconcurrency())
           return true;
       }
@@ -5366,7 +5343,7 @@ bool swift::contextRequiresStrictConcurrencyChecking(
         // If we're in an accessor declaration, also check the storage
         // declaration.
         if (auto accessor = dyn_cast<AccessorDecl>(decl)) {
-          if (hasExplicitIsolationAttribute(accessor->getStorage()))
+          if (accessor->getStorage()->hasExplicitIsolationAttribute())
             return true;
         }
       }
@@ -6614,7 +6591,7 @@ void swift::checkAsyncDeinitUsage(DestructorDecl *dd) {
         if (!detector.isInvalid && !detector.hasAwait) {
           SourceLoc endOfAsync = Lexer::getLocForEndOfToken(
               dd->getASTContext().SourceMgr, dd->getAsyncLoc());
-          if (hasExplicitIsolationAttribute(dd)) {
+          if (dd->hasExplicitIsolationAttribute()) {
             // There is already an isolation attribute, just remove the 'async'
             SourceLoc endOfDeinit = Lexer::getLocForEndOfToken(
                 dd->getASTContext().SourceMgr, dd->getDestructorLoc());

@@ -1262,6 +1262,10 @@ public:
   llvm::Optional<std::pair<CustomAttr *, NominalTypeDecl *>>
   getGlobalActorAttr() const;
 
+  /// Determine whether there is an explicit isolation attribute
+  /// of any kind.
+  bool hasExplicitIsolationAttribute() const;
+
   /// If an alternative module name is specified for this decl, e.g. using
   /// @_originalDefinedIn attribute, this function returns this module name.
   StringRef getAlternateModuleName() const;
