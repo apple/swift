@@ -11,14 +11,14 @@ struct Response: Codable {
         case title
       }
 
-      init(from decoder: Decoder) throws {
+      init(from decoder: any Decoder) throws {
         let container: KeyedDecodingContainer<Response.Page.Result.CodingKeys> = try decoder.container(keyedBy: Response.Page.Result.CodingKeys.self)
 
         self.title = try container.decode(String.self, forKey: Response.Page.Result.CodingKeys.title)
 
       }
 
-      func encode(to encoder: Encoder) throws {
+      func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: Response.Page.Result.CodingKeys.self)
 
         try container.encode(self.title, forKey: Response.Page.Result.CodingKeys.title)

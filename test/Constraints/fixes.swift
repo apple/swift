@@ -363,5 +363,4 @@ func testKeyPathSubscriptArgFixes(_ fn: @escaping () -> Int) {
 // https://github.com/apple/swift/issues/54865
 func f_54865(a: Any, _ str: String?) {
   a == str // expected-error {{binary operator '==' cannot be applied to operands of type 'Any' and 'String?'}}
-  // expected-note@-1 {{overloads for '==' exist with these partially matching parameter lists: (String, String)}}
 }

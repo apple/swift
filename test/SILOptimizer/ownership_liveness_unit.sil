@@ -153,7 +153,7 @@ bb3(%outer : @guaranteed $C, %inner : @guaranteed $C):
 // CHECK:   [[BORROW1:%[^,]+]] = begin_borrow %1
 // CHECK:   [[BORROW2:%[^,]+]] = begin_borrow %1
 // CHECK:   br [[EXIT:bb[0-9]+]]([[C]] : $C, [[BORROW1]] : $C, [[BORROW2]] :
-// CHECK: [[EXIT]]({{%[^,]+}} : @owned $C, [[GUARANTEED1:%[^,]+]] : @guaranteed $C, [[GUARANTEED2:%[^,]+]] :
+// CHECK: [[EXIT]]({{%[^,]+}} : @owned $C, [[GUARANTEED1:%[^,]+]] : @reborrow @guaranteed $C, [[GUARANTEED2:%[^,]+]] :
 // CHECK: } // end sil function 'pay_the_phi'
 //
 // CHECK:[[GUARANTEED1]] = argument of [[EXIT]]
@@ -180,7 +180,7 @@ exit(%owned : @owned $C, %guaranteed_1 : @guaranteed $C, %guaranteed_2 : @guaran
 }
 
 // CHECK-LABEL: begin running test 1 of 1 on pay_the_phi_forward: visit-inner-adjacent-phis with: @trace[0]
-// CHECK: bb1(%{{.*}} : @guaranteed $C, [[INNER:%.*]] : @guaranteed $D):    // Preds: bb0
+// CHECK: bb1(%{{.*}} : @reborrow @guaranteed $C, [[INNER:%.*]] : @guaranteed $D):    // Preds: bb0
 // CHECK: } // end sil function 'pay_the_phi_forward'
 // CHECK: [[INNER]] = argument of bb1 : $D
 // CHECK: end running test 1 of 1 on pay_the_phi_forward: visit-inner-adjacent-phis with: @trace[0]

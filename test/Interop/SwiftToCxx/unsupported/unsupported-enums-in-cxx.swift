@@ -5,7 +5,7 @@
 // RUN: %target-swift-frontend %t/clean.swift -typecheck -module-name Functions -clang-header-expose-decls=all-public -disable-availability-checking -emit-clang-header-path %t/header.h
 // RUN: %FileCheck %s < %t/header.h
 
-// CHECK-NOT: unsupported
+// RUN: %check-interop-cxx-header-in-clang(%t/header.h)
 
 public typealias FnType = () -> ()
 
@@ -32,3 +32,11 @@ public enum unsupportedEnumProtocolType {
     case A
     case B(Error)
 }
+
+// CHECK: class unsupportedEnumAssociatedValueType { } SWIFT_UNAVAILABLE_MSG("enum 'unsupportedEnumAssociatedValueType' can not be represented in C++ as one of its cases has an associated value with type that can't be represented in C++");
+// CHECK-EMPTY:
+// CHECK-NEXT: class unsupportedEnumIndirect { } SWIFT_UNAVAILABLE_MSG("indirect enum 'unsupportedEnumIndirect' can not yet be represented in C++");
+// CHECK-EMPTY:
+// CHECK-NEXT: class unsupportedEnumMultipleAssociatedValues { } SWIFT_UNAVAILABLE_MSG("enum 'unsupportedEnumMultipleAssociatedValues' can not yet be represented in C++ as one of its cases has multiple associated values");
+// CHECK-EMPTY:
+// CHECK-NEXT: class unsupportedEnumProtocolType { } SWIFT_UNAVAILABLE_MSG("enum 'unsupportedEnumProtocolType' can not be represented in C++ as one of its cases has an associated value with type that can't be represented in C++");

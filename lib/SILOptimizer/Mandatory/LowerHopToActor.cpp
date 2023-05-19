@@ -50,7 +50,6 @@ namespace {
 class LowerHopToActor {
   SILFunction *F;
   DominanceInfo *Dominance;
-  SILOptFunctionBuilder &functionBuilder;
 
   /// A map from an actor value to the executor we've derived for it.
   llvm::ScopedHashTable<SILValue, SILValue> ExecutorForActor;
@@ -64,11 +63,9 @@ class LowerHopToActor {
 
 public:
   LowerHopToActor(SILFunction *f,
-                  SILOptFunctionBuilder &FunctionBuilder,
                   DominanceInfo *dominance)
     : F(f),
-      Dominance(dominance),
-      functionBuilder(FunctionBuilder)
+      Dominance(dominance)
       { }
 
   /// The entry point to the transformation.
@@ -250,8 +247,7 @@ class LowerHopToActorPass : public SILFunctionTransform {
   void run() override {
     auto fn = getFunction();
     auto domTree = getAnalysis<DominanceAnalysis>()->get(fn);
-    auto functionBuilder = SILOptFunctionBuilder(*this);
-    LowerHopToActor pass(getFunction(), functionBuilder, domTree);
+    LowerHopToActor pass(getFunction(), domTree);
     if (pass.run())
       invalidateAnalysis(SILAnalysis::InvalidationKind::Instructions);
   }

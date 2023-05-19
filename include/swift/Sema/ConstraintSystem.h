@@ -335,6 +335,9 @@ enum TypeVariableOptions {
 
   /// Whether the type variable can be bound to a pack type or not.
   TVO_CanBindToPack = 0x20,
+
+  /// Whether the type variable can be bound only to a pack expansion type.
+  TVO_PackExpansion = 0x40,
 };
 
 /// The implementation object for a type variable used within the
@@ -406,6 +409,9 @@ public:
 
   /// Whether this type variable can bind to a PackType.
   bool canBindToPack() const { return getRawOptions() & TVO_CanBindToPack; }
+
+  /// Whether this type variable can bind only to PackExpansionType.
+  bool isPackExpansion() const { return getRawOptions() & TVO_PackExpansion; }
 
   /// Whether this type variable prefers a subtype binding over a supertype
   /// binding.
@@ -650,6 +656,7 @@ private:
     ENTRY(TVO_CanBindToHole, "hole");
     ENTRY(TVO_PrefersSubtypeBinding, "");
     ENTRY(TVO_CanBindToPack, "pack");
+    ENTRY(TVO_PackExpansion, "pack expansion");
     }
   #undef ENTRY
   }
@@ -1460,6 +1467,9 @@ public:
   llvm::DenseMap<ConstraintLocator *, OpenedArchetypeType *>
     OpenedExistentialTypes;
 
+  llvm::DenseMap<PackExpansionType *, TypeVariableType *>
+      OpenedPackExpansionTypes;
+
   /// The pack expansion environment that can open pack elements for
   /// a given locator.
   llvm::DenseMap<ConstraintLocator *, std::pair<UUID, Type>>
@@ -2212,6 +2222,9 @@ private:
   llvm::SmallMapVector<ConstraintLocator *, OpenedArchetypeType *, 4>
       OpenedExistentialTypes;
 
+  llvm::SmallMapVector<PackExpansionType *, TypeVariableType *, 4>
+      OpenedPackExpansionTypes;
+
   llvm::SmallMapVector<ConstraintLocator *, std::pair<UUID, Type>, 4>
       PackExpansionEnvironments;
 
@@ -2695,6 +2708,9 @@ public:
     /// The length of \c OpenedExistentialTypes.
     unsigned numOpenedExistentialTypes;
 
+    /// The length of \c OpenedPackExpansionsTypes.
+    unsigned numOpenedPackExpansionTypes;
+
     /// The length of \c PackExpansionEnvironments.
     unsigned numPackExpansionEnvironments;
 
@@ -2909,7 +2925,7 @@ public:
   /// Whether the argument \p Arg occurs after the code completion token and
   /// thus should be ignored and not generate any fixes.
   bool isArgumentIgnoredForCodeCompletion(Expr *Arg) const {
-    return IgnoredArguments.count(Arg) > 0;
+    return IgnoredArguments.count(Arg) > 0 && isForCodeCompletion();
   }
 
   /// Whether the constraint system has ignored any arguments for code
@@ -3872,6 +3888,16 @@ public:
   bool resolveClosure(TypeVariableType *typeVar, Type contextualType,
                       ConstraintLocatorBuilder locator);
 
+  /// Given the fact that contextual type is now available for the type
+  /// variable representing a pack expansion type, let's resolve the expansion.
+  ///
+  /// \param typeVar The type variable representing pack expansion type.
+  /// \param contextualType The contextual type this pack expansion variable
+  /// would be bound/equated to.
+  ///
+  /// \returns `true` if pack expansion has been resolved, `false` otherwise.
+  bool resolvePackExpansion(TypeVariableType *typeVar, Type contextualType);
+
   /// Assign a fixed type to the given type variable.
   ///
   /// \param typeVar The type variable to bind.
@@ -3959,12 +3985,20 @@ public:
   ///                     corresponding opened type variables.
   ///
   /// \returns The opened type, or \c type if there are no archetypes in it.
-  Type openType(Type type, OpenedTypeMap &replacements);
+  Type openType(Type type, OpenedTypeMap &replacements,
+                ConstraintLocatorBuilder locator);
 
 private:
   /// "Open" an opaque archetype type, similar to \c openType.
   Type openOpaqueType(OpaqueTypeArchetypeType *type,
                       ConstraintLocatorBuilder locator);
+
+  /// "Open" a pack expansion type by replacing it with a type variable,
+  /// opening its pattern and shape types and connecting them to the
+  /// aforementioned variable via special constraints.
+  Type openPackExpansionType(PackExpansionType *expansion,
+                             OpenedTypeMap &replacements,
+                             ConstraintLocatorBuilder locator);
 
 public:
   /// Recurse over the given type and open any opaque archetype types.
@@ -4036,9 +4070,9 @@ public:
   /// Wrapper over swift::adjustFunctionTypeForConcurrency that passes along
   /// the appropriate closure-type and opening extraction functions.
   AnyFunctionType *adjustFunctionTypeForConcurrency(
-    AnyFunctionType *fnType, ValueDecl *decl, DeclContext *dc,
-    unsigned numApplies, bool isMainDispatchQueue,
-    OpenedTypeMap &replacements);
+      AnyFunctionType *fnType, ValueDecl *decl, DeclContext *dc,
+      unsigned numApplies, bool isMainDispatchQueue,
+      OpenedTypeMap &replacements, ConstraintLocatorBuilder locator);
 
   /// Retrieve the type of a reference to the given value declaration.
   ///
@@ -4824,10 +4858,10 @@ private:
       ASTNode element, ContextualTypeInfo context, bool isDiscarded,
       TypeMatchOptions flags, ConstraintLocatorBuilder locator);
 
-  /// Simplify a shape constraint by binding the reduced shape of the
-  /// left hand side to the right hand side.
+  /// Simplify a shape constraint by binding the left-hand side to the
+  /// reduced shape of the right-hand side.
   SolutionKind simplifyShapeOfConstraint(
-      Type type1, Type type2, TypeMatchOptions flags,
+      Type shapeTy, Type packTy, TypeMatchOptions flags,
       ConstraintLocatorBuilder locator);
 
   /// Simplify an explicit generic argument constraint by equating the
@@ -4836,6 +4870,12 @@ private:
   SolutionKind simplifyExplicitGenericArgumentsConstraint(
       Type type1, Type type2, TypeMatchOptions flags,
       ConstraintLocatorBuilder locator);
+
+  /// Simplify a same-shape constraint by comparing the reduced shape of the
+  /// left hand side to the right hand side.
+  SolutionKind simplifySameShapeConstraint(Type type1, Type type2,
+                                           TypeMatchOptions flags,
+                                           ConstraintLocatorBuilder locator);
 
 public: // FIXME: Public for use by static functions.
   /// Simplify a conversion constraint with a fix applied to it.

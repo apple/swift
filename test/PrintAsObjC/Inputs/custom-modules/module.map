@@ -63,3 +63,8 @@ module objc_implementation {
   header "objc_implementation/objc_implementation.h"
   export *
 }
+
+module bridging_header {
+  header "bridging_header/bridging_header.h"
+  export *
+}

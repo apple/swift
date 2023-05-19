@@ -45,7 +45,15 @@ public struct UnownedJob: Sendable {
   #if !SWIFT_STDLIB_TASK_TO_THREAD_MODEL_CONCURRENCY
   /// Create an `UnownedJob` whose lifetime must be managed carefully until it is run exactly once.
   @available(SwiftStdlib 5.9, *)
-  public init(_ job: __owned ExecutorJob) {
+  public init(_ job: __owned Job) { // must remain '__owned' in order to not break ABI
+    self.context = job.context
+  }
+  #endif // !SWIFT_STDLIB_TASK_TO_THREAD_MODEL_CONCURRENCY
+
+  #if !SWIFT_STDLIB_TASK_TO_THREAD_MODEL_CONCURRENCY
+  /// Create an `UnownedJob` whose lifetime must be managed carefully until it is run exactly once.
+  @available(SwiftStdlib 5.9, *)
+  public init(_ job: __owned ExecutorJob) { // must remain '__owned' in order to not break ABI
     self.context = job.context
   }
   #endif // !SWIFT_STDLIB_TASK_TO_THREAD_MODEL_CONCURRENCY
@@ -106,9 +114,76 @@ extension UnownedJob: CustomStringConvertible {
 
 #if !SWIFT_STDLIB_TASK_TO_THREAD_MODEL_CONCURRENCY
 
-@available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
+/// Deprecated equivalent of ``ExecutorJob``.
+///
+/// A unit of scheduleable work.
+///
+/// Unless you're implementing a scheduler,
+/// you don't generally interact with jobs directly.
+@available(SwiftStdlib 5.9, *)
 @available(*, deprecated, renamed: "ExecutorJob")
-public typealias Job = ExecutorJob
+@frozen
+@_moveOnly
+public struct Job: Sendable {
+  internal var context: Builtin.Job
+
+  @usableFromInline
+  internal init(context: __owned Builtin.Job) {
+    self.context = context
+  }
+
+  public init(_ job: UnownedJob) {
+    self.context = job._context
+  }
+
+  public init(_ job: __owned ExecutorJob) {
+    self.context = job.context
+  }
+
+  public var priority: JobPriority {
+    let raw = _swift_concurrency_jobPriority(UnownedJob(context: self.context))
+    return JobPriority(rawValue: raw)
+  }
+
+  // TODO: move only types cannot conform to protocols, so we can't conform to CustomStringConvertible;
+  //       we can still offer a description to be called explicitly though.
+  public var description: String {
+    let id = _getJobTaskId(UnownedJob(context: self.context))
+    /// Tasks are always assigned an unique ID, however some jobs may not have it set,
+    /// and it appearing as 0 for _different_ jobs may lead to misunderstanding it as
+    /// being "the same 0 id job", we specifically print 0 (id not set) as nil.
+    if (id > 0) {
+      return "Job(id: \(id))"
+    } else {
+      return "Job(id: nil)"
+    }
+  }
+}
+
+@available(SwiftStdlib 5.9, *)
+extension Job {
+
+  /// Run this job on the passed in executor.
+  ///
+  /// This operation runs the job on the calling thread and *blocks* until the job completes.
+  /// The intended use of this method is for an executor to determine when and where it
+  /// wants to run the job and then call this method on it.
+  ///
+  /// The passed in executor reference is used to establish the executor context for the job,
+  /// and should be the same executor as the one semantically calling the `runSynchronously` method.
+  ///
+  /// This operation consumes the job, preventing it accidental use after it has ben run.
+  ///
+  /// Converting a `ExecutorJob` to an ``UnownedJob`` and invoking ``UnownedJob/runSynchronously(_:)` on it multiple times is undefined behavior,
+  /// as a job can only ever be run once, and must not be accessed after it has been run.
+  ///
+  /// - Parameter executor: the executor this job will be semantically running on.
+  @_alwaysEmitIntoClient
+  @inlinable
+  __consuming public func runSynchronously(on executor: UnownedSerialExecutor) {
+    _swiftJobRun(UnownedJob(self), executor)
+  }
+}
 
 /// A unit of scheduleable work.
 ///
@@ -129,6 +204,10 @@ public struct ExecutorJob: Sendable {
     self.context = job._context
   }
 
+  public init(_ job: __owned Job) {
+    self.context = job.context
+  }
+
   public var priority: JobPriority {
     let raw = _swift_concurrency_jobPriority(UnownedJob(context: self.context))
     return JobPriority(rawValue: raw)
@@ -142,9 +221,9 @@ public struct ExecutorJob: Sendable {
     /// and it appearing as 0 for _different_ jobs may lead to misunderstanding it as
     /// being "the same 0 id job", we specifically print 0 (id not set) as nil.
     if (id > 0) {
-      return "\(Self.self)(id: \(id))"
+      return "ExecutorJob(id: \(id))"
     } else {
-      return "\(Self.self)(id: nil)"
+      return "ExecutorJob(id: nil)"
     }
   }
 }

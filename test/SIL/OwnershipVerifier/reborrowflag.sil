@@ -1,0 +1,30 @@
+// RUN: %target-sil-opt %s -disable-populate-ownership-flags -verify-continue-on-failure=true -sil-ownership-verifier-enable-testing  -o /dev/null 2>&1 | %FileCheck %s
+sil_stage canonical
+
+class Klass {}
+
+// CHECK: Begin Error in function reborrowTest
+// CHECK: SIL verification failed: Stale reborrow flag: !arg->getFunction()->hasOwnership() || computeIsReborrow(arg) == arg->isReborrow()
+// CHECK: Verifying argument:
+// CHECK: -> %6 = argument of bb3 : $Klass
+// CHECK:      end_borrow %6 : $Klass
+// CHECK: End Error in function reborrowTest
+sil [ossa] @reborrowTest : $@convention(thin) (@owned Klass) -> () {
+bb0(%0 : @owned $Klass):
+  cond_br undef, bb1, bb2
+
+bb1:
+  %b1 = begin_borrow %0 : $Klass
+  br bb3(%b1 : $Klass)
+
+bb2:
+  %b2 = begin_borrow %0 : $Klass
+  br bb3(%b2 : $Klass)
+
+bb3(%r : @guaranteed $Klass):
+  end_borrow %r : $Klass
+  destroy_value %0 : $Klass
+  %9999 = tuple()
+  return %9999 : $()
+}
+

@@ -1041,7 +1041,7 @@ specializeApplySite(SILOptFunctionBuilder &FuncBuilder, ApplySite Apply,
         auto boxType = F->getArgument(index)->getType().castTo<SILBoxType>();
         bool isMutable = boxType->getLayout()->getFields()[0].isMutable();
         auto checkKind =
-            isMutable ? MarkMustCheckInst::CheckKind::AssignableButNotConsumable
+            isMutable ? MarkMustCheckInst::CheckKind::ConsumableAndAssignable
                       : MarkMustCheckInst::CheckKind::NoConsumeOrAssign;
         hoistMarkMustCheckInsts(ClonedFn->getArgument(index), checkKind);
       }

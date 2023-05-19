@@ -219,7 +219,9 @@ func rdar46459603() {
   var arr = ["key": e]
 
   _ = arr.values == [e]
-  // expected-error@-1 {{binary operator '==' cannot be applied to operands of type 'Dictionary<String, E>.Values' and '[E]'}}
+  // expected-error@-1 {{referencing operator function '==' on 'Equatable' requires that 'Dictionary<String, E>.Values' conform to 'Equatable'}}
+  // expected-error@-2 {{cannot convert value of type '[E]' to expected argument type 'Dictionary<String, E>.Values'}}
+
   _ = [arr.values] == [[e]]
   // expected-error@-1 {{referencing operator function '==' on 'Array' requires that 'E' conform to 'Equatable'}} expected-note@-1 {{binary operator '==' cannot be synthesized for enums with associated values}}
   // expected-error@-2 {{cannot convert value of type 'Dictionary<String, E>.Values' to expected element type '[E]'}}

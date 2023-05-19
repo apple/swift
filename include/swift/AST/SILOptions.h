@@ -125,9 +125,6 @@ public:
   /// Controls whether cross module optimization is enabled.
   CrossModuleOptimizationMode CMOMode = CrossModuleOptimizationMode::Off;
 
-  /// Enables experimental performance annotations.
-  bool EnablePerformanceAnnotations = false;
-
   /// Enables the emission of stack protectors in functions.
   bool EnableStackProtection = true;
 

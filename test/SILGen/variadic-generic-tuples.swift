@@ -1,7 +1,4 @@
-// RUN: %target-swift-emit-silgen -enable-experimental-feature VariadicGenerics %s | %FileCheck %s
-
-// Because of -enable-experimental-feature VariadicGenerics
-// REQUIRES: asserts
+// RUN: %target-swift-emit-silgen -disable-availability-checking %s | %FileCheck %s
 
 func takeAny(_ arg: Any) {}
 

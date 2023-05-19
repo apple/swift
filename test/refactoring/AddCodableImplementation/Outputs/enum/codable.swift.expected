@@ -15,7 +15,7 @@ enum Payload: Codable {
     case value
   }
 
-  init(from decoder: Decoder) throws {
+  init(from decoder: any Decoder) throws {
     let container = try decoder.container(keyedBy: Payload.CodingKeys.self)
 
     var allKeys = ArraySlice(container.allKeys)
@@ -37,7 +37,7 @@ enum Payload: Codable {
     }
   }
 
-  func encode(to encoder: Encoder) throws {
+  func encode(to encoder: any Encoder) throws {
     var container = encoder.container(keyedBy: Payload.CodingKeys.self)
 
     switch self {

@@ -2853,12 +2853,12 @@ static AllocationInst *getOptimizableAllocation(SILInstruction *i) {
   return alloc;
 }
 
-bool swift::optimizeMemoryAccesses(SILFunction &fn) {
+bool swift::optimizeMemoryAccesses(SILFunction *fn) {
   bool changed = false;
-  DeadEndBlocks deadEndBlocks(&fn);
+  DeadEndBlocks deadEndBlocks(fn);
 
   InstructionDeleter deleter;
-  for (auto &bb : fn) {
+  for (auto &bb : *fn) {
     for (SILInstruction &inst : bb.deletableInstructions()) {
       // First see if i is an allocation that we can optimize. If not, skip it.
       AllocationInst *alloc = getOptimizableAllocation(&inst);
@@ -2894,14 +2894,14 @@ bool swift::optimizeMemoryAccesses(SILFunction &fn) {
   return changed;
 }
 
-bool swift::eliminateDeadAllocations(SILFunction &fn) {
-  if (!fn.hasOwnership())
+bool swift::eliminateDeadAllocations(SILFunction *fn) {
+  if (!fn->hasOwnership())
     return false;
 
   bool changed = false;
-  DeadEndBlocks deadEndBlocks(&fn);
+  DeadEndBlocks deadEndBlocks(fn);
 
-  for (auto &bb : fn) {
+  for (auto &bb : *fn) {
     InstructionDeleter deleter;
     for (SILInstruction &inst : bb.deletableInstructions()) {
       // First see if i is an allocation that we can optimize. If not, skip it.
@@ -2949,7 +2949,7 @@ class PredictableMemoryAccessOptimizations : public SILFunctionTransform {
   /// or has a pass order dependency on other early passes.
   void run() override {
     // TODO: Can we invalidate here just instructions?
-    if (optimizeMemoryAccesses(*getFunction()))
+    if (optimizeMemoryAccesses(getFunction()))
       invalidateAnalysis(SILAnalysis::InvalidationKind::FunctionBody);
   }
 };
@@ -2960,7 +2960,7 @@ class PredictableDeadAllocationElimination : public SILFunctionTransform {
     if (getFunction()->wasDeserializedCanonical() ||
         !getFunction()->hasOwnership())
       return;
-    if (eliminateDeadAllocations(*getFunction()))
+    if (eliminateDeadAllocations(getFunction()))
       invalidateAnalysis(SILAnalysis::InvalidationKind::FunctionBody);
   }
 };

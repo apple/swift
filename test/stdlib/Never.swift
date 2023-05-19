@@ -11,3 +11,13 @@ _ = ConformsToComparable<Never>()
 
 struct ConformsToHashable<T: Hashable> {}
 _ = ConformsToHashable<Never>()
+
+if #available(SwiftStdlib 5.5, *) {
+  struct ConformsToIdentifiable<T: Identifiable> {}
+  _ = ConformsToIdentifiable<Never>()
+}
+
+if #available(SwiftStdlib 5.9, *) {
+  struct ConformsToCodable<T: Codable> {}
+  _ = ConformsToCodable<Never>()
+}

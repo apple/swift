@@ -569,13 +569,16 @@ IntegerLiteralInst *optimizeBuiltinCanBeObjCClass(BuiltinInst *bi,
 /// Performs "predictable" memory access optimizations.
 ///
 /// See the PredictableMemoryAccessOptimizations pass.
-bool optimizeMemoryAccesses(SILFunction &fn);
+bool optimizeMemoryAccesses(SILFunction *fn);
 
 /// Performs "predictable" dead allocation optimizations.
 ///
 /// See the PredictableDeadAllocationElimination pass.
-bool eliminateDeadAllocations(SILFunction &fn);
+bool eliminateDeadAllocations(SILFunction *fn);
 
+bool specializeAppliesInFunction(SILFunction &F,
+                                 SILTransform *transform,
+                                 bool isMandatory);
 } // end namespace swift
 
 #endif // SWIFT_SILOPTIMIZER_UTILS_INSTOPTUTILS_H

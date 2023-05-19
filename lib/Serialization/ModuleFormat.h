@@ -58,7 +58,7 @@ const uint16_t SWIFTMODULE_VERSION_MAJOR = 0;
 /// describe what change you made. The content of this comment isn't important;
 /// it just ensures a conflict if two people change the module format.
 /// Don't worry about adhering to the 80-column limit for this line.
-const uint16_t SWIFTMODULE_VERSION_MINOR = 781; // compound introduced names
+const uint16_t SWIFTMODULE_VERSION_MINOR = 782; // reborrow, escaped SIL flags
 
 /// A standard hash seed used for all string hashes in a serialized module.
 ///
@@ -883,6 +883,10 @@ namespace options_block {
     IS_CONCURRENCY_CHECKED,
     MODULE_PACKAGE_NAME,
     MODULE_EXPORT_AS_NAME,
+    PLUGIN_SEARCH_PATH,
+    EXTERNAL_SEARCH_PLUGIN_PATH,
+    COMPILER_PLUGIN_LIBRARY_PATH,
+    COMPILER_PLUGIN_EXECUTABLE_PATH,
   };
 
   using SDKPathLayout = BCRecordLayout<
@@ -893,6 +897,26 @@ namespace options_block {
   using XCCLayout = BCRecordLayout<
     XCC,
     BCBlob // -Xcc flag, as string
+  >;
+
+  using PluginSearchPathLayout = BCRecordLayout<
+    PLUGIN_SEARCH_PATH,
+    BCBlob // -plugin-path value
+  >;
+
+  using ExternalPluginSearchPathLayout = BCRecordLayout<
+    EXTERNAL_SEARCH_PLUGIN_PATH,
+    BCBlob // -external-plugin-path value
+  >;
+
+  using CompilerPluginLibraryPathLayout = BCRecordLayout<
+    COMPILER_PLUGIN_LIBRARY_PATH,
+    BCBlob // -load-plugin-library value
+  >;
+
+  using CompilerPluginExecutablePathLayout = BCRecordLayout<
+    COMPILER_PLUGIN_EXECUTABLE_PATH,
+    BCBlob // -load-plugin-executable value
   >;
 
   using IsSIBLayout = BCRecordLayout<

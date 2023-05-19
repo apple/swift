@@ -1,6 +1,4 @@
-// RUN: %target-typecheck-verify-swift -enable-experimental-feature VariadicGenerics
-
-// REQUIRES: asserts
+// RUN: %target-typecheck-verify-swift -disable-availability-checking
 
 func f1<each T>() -> repeat each T {}
 // expected-error@-1 {{pack expansion 'repeat each T' can only appear in a function parameter list, tuple element, or generic argument list}}
@@ -30,7 +28,7 @@ func f5<each T>() -> () -> (repeat each T) {}
 
 func f6<each T>() -> (repeat each T) -> () {}
 
-enum E<each T> {
+enum E<each T> { // expected-error {{enums cannot declare a type pack}}
   case f1(_: repeat each T)
 
   case f2(_: G<repeat each T>)

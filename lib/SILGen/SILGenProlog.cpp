@@ -39,8 +39,12 @@ static void diagnose(ASTContext &Context, SourceLoc loc, Diag<T...> diag,
 }
 
 SILValue SILGenFunction::emitSelfDeclForDestructor(VarDecl *selfDecl) {
+  SILFunctionConventions conventions = F.getConventionsInContext();
+
   // Emit the implicit 'self' argument.
-  SILType selfType = getLoweredType(selfDecl->getType());
+  SILType selfType = conventions.getSILArgumentType(
+      conventions.getNumSILArguments() - 1, F.getTypeExpansionContext());
+  selfType = F.mapTypeIntoContext(selfType);
   SILValue selfValue = F.begin()->createFunctionArgument(selfType, selfDecl);
 
   // If we have a move only type, then mark it with mark_must_check so we can't
@@ -295,7 +299,7 @@ public:
     }
 
     if (emitInto) {
-      if (mv.isPlusOne(SGF))
+      if (mv.isPlusOneOrTrivial(SGF))
         mv.forwardInto(SGF, loc, emitInto);
       else
         mv.copyInto(SGF, loc, emitInto);
@@ -748,7 +752,6 @@ private:
   /// if not null.
   void makeArgumentIntoBinding(SILLocation loc, ParamDecl *pd) {
     ManagedValue argrv = makeArgument(loc, pd);
-
     SILValue value = argrv.getValue();
     if (pd->isInOut()) {
       assert(argrv.getType().isAddress() && "expected inout to be address");
@@ -768,18 +771,52 @@ private:
     if (!argrv.getType().isAddress()) {
       // NOTE: We setup SGF.VarLocs[pd] in updateArgumentValueForBinding.
       updateArgumentValueForBinding(argrv, loc, pd, value, varinfo);
-    } else {
-      if (auto *allocStack = dyn_cast<AllocStackInst>(value)) {
-        allocStack->setArgNo(ArgNo);
-        if (SGF.getASTContext().SILOpts.supportsLexicalLifetimes(
-                SGF.getModule()) &&
-            SGF.F.getLifetime(pd, value->getType()).isLexical())
-          allocStack->setIsLexical();
-      } else {
-        SGF.B.createDebugValueAddr(loc, value, varinfo);
-      }
-      SGF.VarLocs[pd] = SILGenFunction::VarLoc::get(value);
+      return;
     }
+
+    if (auto *allocStack = dyn_cast<AllocStackInst>(value)) {
+      allocStack->setArgNo(ArgNo);
+      if (SGF.getASTContext().SILOpts.supportsLexicalLifetimes(
+              SGF.getModule()) &&
+          SGF.F.getLifetime(pd, value->getType()).isLexical())
+        allocStack->setIsLexical();
+      SGF.VarLocs[pd] = SILGenFunction::VarLoc::get(value);
+      return;
+    }
+
+    if (value->getType().isMoveOnly()) {
+      switch (pd->getValueOwnership()) {
+      case ValueOwnership::Default:
+        if (pd->isSelfParameter()) {
+          assert(!isa<MarkMustCheckInst>(value) &&
+                 "Should not have inserted mark must check inst in EmitBBArgs");
+          if (!pd->isInOut()) {
+            value = SGF.B.createMarkMustCheckInst(
+                loc, value, MarkMustCheckInst::CheckKind::NoConsumeOrAssign);
+          }
+        } else {
+          assert(isa<MarkMustCheckInst>(value) &&
+                 "Should have inserted mark must check inst in EmitBBArgs");
+        }
+        break;
+      case ValueOwnership::InOut:
+        assert(isa<MarkMustCheckInst>(value) &&
+               "Expected mark must check inst with inout to be handled in "
+               "emitBBArgs earlier");
+        break;
+      case ValueOwnership::Owned:
+        value = SGF.B.createMarkMustCheckInst(
+            loc, value, MarkMustCheckInst::CheckKind::ConsumableAndAssignable);
+        break;
+      case ValueOwnership::Shared:
+        value = SGF.B.createMarkMustCheckInst(
+            loc, value, MarkMustCheckInst::CheckKind::NoConsumeOrAssign);
+        break;
+      }
+    }
+
+    SGF.B.createDebugValueAddr(loc, value, varinfo);
+    SGF.VarLocs[pd] = SILGenFunction::VarLoc::get(value);
   }
 
   void emitParam(ParamDecl *PD) {
@@ -869,26 +906,45 @@ static void emitCaptureArguments(SILGenFunction &SGF,
   SILLocation Loc(VD);
   Loc.markAsPrologue();
 
+  auto interfaceType = VD->getInterfaceType()->getReducedType(
+      origGenericSig);
+
+  // If we're capturing a parameter pack, wrap it in a tuple.
+  bool isPack = false;
+  if (isa<PackExpansionType>(interfaceType)) {
+    assert(!VD->supportsMutation() &&
+           "Cannot capture a pack as an lvalue");
+
+    SmallVector<TupleTypeElt, 1> elts;
+    elts.push_back(interfaceType);
+    interfaceType = CanTupleType(TupleType::get(elts, SGF.getASTContext()));
+    isPack = true;
+  }
+
   // Local function to get the captured variable type within the capturing
   // context.
   auto getVarTypeInCaptureContext = [&]() -> Type {
-    auto interfaceType = VD->getInterfaceType()->getReducedType(
-        origGenericSig);
     return SGF.F.mapTypeIntoContext(interfaceType);
   };
+
+  auto type = getVarTypeInCaptureContext();
+  auto &lowering = SGF.getTypeLowering(getVarTypeInCaptureContext());
+  SILType ty = lowering.getLoweredType();
+
+  SILValue arg;
+  SILFunctionArgument *box = nullptr;
 
   auto expansion = SGF.getTypeExpansionContext();
   auto captureKind = SGF.SGM.Types.getDeclCaptureKind(capture, expansion);
   switch (captureKind) {
   case CaptureKind::Constant: {
-    auto type = getVarTypeInCaptureContext();
-    auto &lowering = SGF.getTypeLowering(type);
-    // Constant decls are captured by value.
-    SILType ty = lowering.getLoweredType();
-    auto *arg = SGF.F.begin()->createFunctionArgument(ty, VD);
-    arg->setClosureCapture(true);
+    assert(!isPack);
 
-    ManagedValue val = ManagedValue::forUnmanaged(arg);
+    // Constant decls are captured by value.
+    auto *fArg = SGF.F.begin()->createFunctionArgument(ty, VD);
+    fArg->setClosureCapture(true);
+
+    ManagedValue val = ManagedValue::forUnmanaged(fArg);
 
     // If the original variable was settable, then Sema will have treated the
     // VarDecl as an lvalue, even in the closure's use.  As such, we need to
@@ -920,44 +976,36 @@ static void emitCaptureArguments(SILGenFunction &SGF,
           Loc, val, MarkMustCheckInst::CheckKind::NoConsumeOrAssign);
     }
 
-    SGF.VarLocs[VD] = SILGenFunction::VarLoc::get(val.getValue());
-    if (auto *AllocStack = dyn_cast<AllocStackInst>(val.getValue())) {
-      AllocStack->setArgNo(ArgNo);
-    } else {
-      SILDebugVariable DbgVar(VD->isLet(), ArgNo);
-      SGF.B.createDebugValue(Loc, val.getValue(), DbgVar);
-    }
-
+    arg = val.getValue();
     break;
   }
 
   case CaptureKind::ImmutableBox:
   case CaptureKind::Box: {
+    assert(!isPack);
+
     // LValues are captured as a retained @box that owns
     // the captured value.
     bool isMutable = captureKind == CaptureKind::Box;
-    auto type = getVarTypeInCaptureContext();
     // Get the content for the box in the minimal  resilience domain because we
     // are declaring a type.
+    ty = SGF.SGM.Types.getLoweredType(type, TypeExpansionContext::minimal());
     auto boxTy = SGF.SGM.Types.getContextBoxTypeForCapture(
-        VD,
-        SGF.SGM.Types.getLoweredRValueType(TypeExpansionContext::minimal(),
-                                           type),
-        SGF.F.getGenericEnvironment(), /*mutable*/ isMutable);
-    auto *box = SGF.F.begin()->createFunctionArgument(
+        VD, ty.getASTType(), SGF.F.getGenericEnvironment(),
+        /*mutable*/ isMutable);
+    box = SGF.F.begin()->createFunctionArgument(
         SILType::getPrimitiveObjectType(boxTy), VD);
     box->setClosureCapture(true);
-    SILValue addr = SGF.B.createProjectBox(VD, box, 0);
-    SGF.VarLocs[VD] = SILGenFunction::VarLoc::get(addr, box);
-    SILDebugVariable DbgVar(VD->isLet(), ArgNo);
-    SGF.B.createDebugValueAddr(Loc, addr, DbgVar);
+    arg = SGF.B.createProjectBox(VD, box, 0);
     break;
   }
-  case CaptureKind::Immutable:
-  case CaptureKind::StorageAddress: {
+  case CaptureKind::StorageAddress:
+    assert(!isPack);
+
+    LLVM_FALLTHROUGH;
+
+  case CaptureKind::Immutable: {
     // Non-escaping stored decls are captured as the address of the value.
-    auto type = getVarTypeInCaptureContext();
-    SILType ty = SGF.getLoweredType(type);
     auto argConv = SGF.F.getConventions().getSILArgumentConvention(
         SGF.F.begin()->getNumArguments());
     bool isInOut = (argConv == SILArgumentConvention::Indirect_Inout ||
@@ -967,7 +1015,7 @@ static void emitCaptureArguments(SILGenFunction &SGF,
     }
     auto *fArg = SGF.F.begin()->createFunctionArgument(ty, VD);
     fArg->setClosureCapture(true);
-    SILValue arg = SILValue(fArg);
+    arg = SILValue(fArg);
 
     // If our capture is no escape and we have a noncopyable value, insert a
     // consumable and assignable. If we have an escaping closure, we are going
@@ -977,15 +1025,38 @@ static void emitCaptureArguments(SILGenFunction &SGF,
       arg = SGF.B.createMarkMustCheckInst(
           Loc, arg, MarkMustCheckInst::CheckKind::ConsumableAndAssignable);
     }
-    SGF.VarLocs[VD] = SILGenFunction::VarLoc::get(arg);
-    SILDebugVariable DbgVar(VD->isLet(), ArgNo);
-    if (ty.isAddress()) {
-      SGF.B.createDebugValueAddr(Loc, arg, DbgVar);
-    } else {
-      SGF.B.createDebugValue(Loc, arg, DbgVar);
-    }
     break;
   }
+  }
+
+  // If we captured a pack as a tuple, create a pack from the elements
+  // of the tuple.
+  if (isPack) {
+    auto tupleType = ty.castTo<TupleType>();
+    assert(tupleType->getNumElements() == 1);
+
+    auto packType =
+        SILPackType::get(SGF.getASTContext(),
+                         SILPackType::ExtInfo(/*indirect=*/true),
+                         {tupleType.getElementType(0)});
+    auto packValue = SGF.emitTemporaryPackAllocation(
+        Loc, SILType::getPrimitiveObjectType(packType));
+
+    auto formalPackType = cast<TupleType>(type->getCanonicalType())
+        .getInducedPackType();
+    SGF.projectTupleElementsToPack(Loc, arg, packValue, formalPackType);
+
+    arg = packValue;
+  }
+
+  SGF.VarLocs[VD] = SILGenFunction::VarLoc::get(arg, box);
+  SILDebugVariable DbgVar(VD->isLet(), ArgNo);
+  if (auto *AllocStack = dyn_cast<AllocStackInst>(arg)) {
+    AllocStack->setArgNo(ArgNo);
+  } else if (box || ty.isAddress()) {
+    SGF.B.createDebugValueAddr(Loc, arg, DbgVar);
+  } else {
+    SGF.B.createDebugValue(Loc, arg, DbgVar);
   }
 }
 

@@ -1140,7 +1140,7 @@ static bool isNonGenericThunkOfGenericExternalFunction(SILFunction *thunk) {
   return false;
 }
 
-static bool canDevirtualizeWitnessMethod(ApplySite applySite) {
+static bool canDevirtualizeWitnessMethod(ApplySite applySite, bool isMandatory) {
   SILFunction *f;
   SILWitnessTable *wt;
 
@@ -1183,7 +1183,7 @@ static bool canDevirtualizeWitnessMethod(ApplySite applySite) {
   // ```
   // In the defining module, the generic conformance can be specialized (which is not
   // possible in the client module, because it's not inlinable).
-  if (isNonGenericThunkOfGenericExternalFunction(f)) {
+  if (!isMandatory && isNonGenericThunkOfGenericExternalFunction(f)) {
     return false;
   }
 
@@ -1237,8 +1237,9 @@ static bool canDevirtualizeWitnessMethod(ApplySite applySite) {
 /// of a function_ref, returning the new apply.
 std::pair<ApplySite, bool>
 swift::tryDevirtualizeWitnessMethod(ApplySite applySite,
-                                    OptRemark::Emitter *ore) {
-  if (!canDevirtualizeWitnessMethod(applySite))
+                                    OptRemark::Emitter *ore,
+                                    bool isMandatory) {
+  if (!canDevirtualizeWitnessMethod(applySite, isMandatory))
     return {ApplySite(), false};
 
   SILFunction *f;
@@ -1262,7 +1263,7 @@ swift::tryDevirtualizeWitnessMethod(ApplySite applySite,
 /// Return the new apply and true if the CFG was also modified.
 std::pair<ApplySite, bool>
 swift::tryDevirtualizeApply(ApplySite applySite, ClassHierarchyAnalysis *cha,
-                            OptRemark::Emitter *ore) {
+                            OptRemark::Emitter *ore, bool isMandatory) {
   LLVM_DEBUG(llvm::dbgs() << "    Trying to devirtualize: "
                           << *applySite.getInstruction());
 
@@ -1272,7 +1273,7 @@ swift::tryDevirtualizeApply(ApplySite applySite, ClassHierarchyAnalysis *cha,
   //   %9 = apply %8<Self = CodeUnit?>(%6#1) : ...
   //
   if (isa<WitnessMethodInst>(applySite.getCallee()))
-    return tryDevirtualizeWitnessMethod(applySite, ore);
+    return tryDevirtualizeWitnessMethod(applySite, ore, isMandatory);
 
   // TODO: check if we can also de-virtualize partial applies of class methods.
   FullApplySite fas = FullApplySite::isa(applySite.getInstruction());
@@ -1344,7 +1345,7 @@ bool swift::canDevirtualizeApply(FullApplySite applySite,
   //   %9 = apply %8<Self = CodeUnit?>(%6#1) : ...
   //
   if (isa<WitnessMethodInst>(applySite.getCallee()))
-    return canDevirtualizeWitnessMethod(applySite);
+    return canDevirtualizeWitnessMethod(applySite, /*isMandatory*/ false);
 
   /// Optimize a class_method and alloc_ref pair into a direct function
   /// reference:

@@ -753,7 +753,7 @@ SILFunction *swift::getEligibleFunction(FullApplySite AI,
   // Don't inline functions that are marked with the @_semantics or @_effects
   // attribute if the inliner is asked not to inline them.
   if (Callee->hasSemanticsAttrs() || Callee->hasEffectsKind()) {
-    if (WhatToInline >= InlineSelection::NoSemanticsAndGlobalInit) {
+    if (WhatToInline >= InlineSelection::NoSemanticsAndEffects) {
       // TODO: for stable optimization of semantics, prevent inlining whenever
       // isOptimizableSemanticFunction(Callee) is true.
       if (getSemanticFunctionLevel(Callee) == SemanticFunctionLevel::Fundamental
@@ -775,11 +775,6 @@ SILFunction *swift::getEligibleFunction(FullApplySite AI,
       if (Callee->hasSemanticsAttrThatStartsWith("inline_late") && IsInStdlib) {
         return nullptr;
       }
-    }
-
-  } else if (Callee->isGlobalInit()) {
-    if (WhatToInline != InlineSelection::Everything) {
-      return nullptr;
     }
   }
 

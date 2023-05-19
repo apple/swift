@@ -19,6 +19,7 @@
 #include "swift/SILOptimizer/Analysis/BasicCalleeAnalysis.h"
 #include "swift/SILOptimizer/Analysis/DeadEndBlocksAnalysis.h"
 #include "swift/SILOptimizer/Analysis/DominanceAnalysis.h"
+#include "swift/SILOptimizer/Utils/InstOptUtils.h"
 
 SWIFT_BEGIN_NULLABILITY_ANNOTATIONS
 
@@ -62,7 +63,7 @@ struct BridgedCalleeAnalysis {
 
   typedef bool (* _Nonnull IsDeinitBarrierFn)(BridgedInstruction, BridgedCalleeAnalysis bca);
   typedef swift::MemoryBehavior (* _Nonnull GetMemBehvaiorFn)(
-        BridgedPassContext context, BridgedInstruction apply, bool observeRetains);
+        BridgedInstruction apply, bool observeRetains, BridgedCalleeAnalysis bca);
 
   static void registerAnalysis(IsDeinitBarrierFn isDeinitBarrierFn,
                                GetMemBehvaiorFn getEffectsFn);
@@ -149,6 +150,8 @@ struct BridgedPostDomTree {
 struct BridgedPassContext {
   swift::SwiftPassInvocation * _Nonnull invocation;
 
+  std::string getModuleDescription() const;
+
   SWIFT_IMPORT_UNSAFE
   BridgedChangeNotificationHandler asNotificationHandler() const {
     return {invocation};
@@ -200,7 +203,34 @@ struct BridgedPassContext {
     block.getBlock()->eraseFromParent();
   }
 
-  bool tryDeleteDeadClosure(BridgedInstruction closure) const;
+  bool tryOptimizeApplyOfPartialApply(BridgedInstruction closure) const;
+
+  bool tryDeleteDeadClosure(BridgedInstruction closure, bool needKeepArgsAlive) const;
+
+  struct DevirtResult {
+    OptionalBridgedInstruction newApply;
+    bool cfgChanged;
+  };
+
+  SWIFT_IMPORT_UNSAFE
+  DevirtResult tryDevirtualizeApply(BridgedInstruction apply, bool isMandatory) const;
+
+  SWIFT_IMPORT_UNSAFE
+  OptionalBridgedValue constantFoldBuiltin(BridgedInstruction builtin) const;
+
+  bool specializeAppliesInFunction(BridgedFunction function, bool isMandatory) const;
+
+  void createStaticInitializer(BridgedGlobalVar global, BridgedInstruction initValue) const;
+
+  struct StaticInitCloneResult {
+    OptionalBridgedInstruction firstClonedInst;
+    OptionalBridgedValue clonedInitValue;
+  };
+
+  SWIFT_IMPORT_UNSAFE
+  StaticInitCloneResult copyStaticInitializer(BridgedValue initValue, BridgedBuilder b) const;
+
+  void inlineFunction(BridgedInstruction apply, bool mandatoryInline) const;
 
   SWIFT_IMPORT_UNSAFE
   BridgedValue getSILUndef(swift::SILType type) const {
@@ -301,6 +331,23 @@ struct BridgedPassContext {
     return {&*nextIter};
   }
 
+  SWIFT_IMPORT_UNSAFE
+  OptionalBridgedGlobalVar getFirstGlobalInModule() const {
+    swift::SILModule *mod = invocation->getPassManager()->getModule();
+    if (mod->getSILGlobals().empty())
+      return {nullptr};
+    return {&*mod->getSILGlobals().begin()};
+  }
+
+  SWIFT_IMPORT_UNSAFE
+  static OptionalBridgedGlobalVar getNextGlobalInModule(BridgedGlobalVar global) {
+    auto *g = global.getGlobal();
+    auto nextIter = std::next(g->getIterator());
+    if (nextIter == g->getModule().getSILGlobals().end())
+      return {nullptr};
+    return {&*nextIter};
+  }
+
   struct VTableArray {
     swift::SILVTable * const _Nonnull * _Nullable base;
     SwiftInt count;
@@ -348,9 +395,18 @@ struct BridgedPassContext {
   }
 
   SWIFT_IMPORT_UNSAFE
-  OptionalBridgedFunction loadFunction(llvm::StringRef name) const {
+  OptionalBridgedFunction loadFunction(llvm::StringRef name, bool loadCalleesRecursively) const {
     swift::SILModule *mod = invocation->getPassManager()->getModule();
-    return {mod->loadFunction(name, swift::SILModule::LinkingMode::LinkNormal)};
+    return {mod->loadFunction(name, loadCalleesRecursively ? swift::SILModule::LinkingMode::LinkAll
+                                                           : swift::SILModule::LinkingMode::LinkNormal)};
+  }
+
+  SWIFT_IMPORT_UNSAFE
+  void loadFunction(BridgedFunction function, bool loadCalleesRecursively) const {
+    swift::SILModule *mod = invocation->getPassManager()->getModule();
+    mod->loadFunction(function.getFunction(),
+                      loadCalleesRecursively ? swift::SILModule::LinkingMode::LinkAll
+                                             : swift::SILModule::LinkingMode::LinkNormal);
   }
 
   SWIFT_IMPORT_UNSAFE
@@ -387,6 +443,17 @@ struct BridgedPassContext {
   bool enableMoveInoutStackProtection() const {
     swift::SILModule *mod = invocation->getPassManager()->getModule();
     return mod->getOptions().EnableMoveInoutStackProtection;
+  }
+
+  enum class AssertConfiguration {
+    Debug = swift::SILOptions::Debug,
+    Release = swift::SILOptions::Release,
+    Unchecked = swift::SILOptions::Unchecked
+  };
+
+  AssertConfiguration getAssertConfiguration() const {
+    swift::SILModule *mod = invocation->getPassManager()->getModule();
+    return (AssertConfiguration)mod->getOptions().AssertConfig;
   }
 
   bool enableSimplificationFor(BridgedInstruction inst) const;

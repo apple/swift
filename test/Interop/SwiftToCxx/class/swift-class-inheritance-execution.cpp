@@ -96,5 +96,16 @@ int main() {
 // CHECK-NEXT: destroy DerivedDerivedClass
 // CHECK-NEXT: destroy DerivedClass
 // CHECK-NEXT: destroy BaseClass
+
+  {
+    BaseClass x = returnDerivedClass();
+    assert(getRetainCount(x) == 1);
+    useBaseClass(x);
+  }
+// CHECK-NEXT: init BaseClass
+// CHECK-NEXT: init DerivedClass
+// CHECK-NEXT: useBaseClass, type=Class.DerivedClass
+// CHECK-NEXT: destroy DerivedClass
+// CHECK-NEXT: destroy BaseClass
   return 0;
 }

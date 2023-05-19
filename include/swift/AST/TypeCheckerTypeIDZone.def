@@ -439,6 +439,9 @@ SWIFT_REQUEST(TypeChecker, ExternalMacroDefinitionRequest,
 SWIFT_REQUEST(TypeChecker, ExpandMacroExpansionDeclRequest,
               ArrayRef<Decl *>(MacroExpansionDecl *),
               Cached, NoLocationInfo)
+SWIFT_REQUEST(TypeChecker, ExpandMacroExpansionExprRequest,
+              ArrayRef<Decl *>(MacroExpansionExpr *),
+              Cached, NoLocationInfo)
 SWIFT_REQUEST(TypeChecker, ExpandMemberAttributeMacros,
               ArrayRef<unsigned>(Decl *),
               Cached, NoLocationInfo)

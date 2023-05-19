@@ -531,7 +531,7 @@ entry(%i : $*ResilientInt, %c : $SwiftClass):
 // Make sure that we use the heap header size (16) for the initial offset.
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swift{{(tail)?}}cc void @test_initial_offset(
 
-sil @test_initial_offset : $@async @convention(thin) (@in_guaranteed ResilientInt, @guaranteed SwiftClass) -> () {
+sil @test_initial_offset : $@async @convention(thin) (@in ResilientInt, @guaranteed SwiftClass) -> () {
 bb0(%x : $*ResilientInt, %y : $SwiftClass):
   %f = function_ref @closure : $@async @convention(thin) (@in_guaranteed ResilientInt, @guaranteed SwiftClass) -> ()
   %p = partial_apply [callee_guaranteed] %f(%x, %y) : $@async @convention(thin) (@in_guaranteed ResilientInt, @guaranteed SwiftClass) -> ()

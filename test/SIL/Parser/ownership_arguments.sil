@@ -6,7 +6,7 @@ import Builtin
 
 // CHECK-LABEL: sil [ossa] @simple : $@convention(thin) (@owned Builtin.NativeObject, Builtin.NativeObject, @guaranteed Builtin.NativeObject, Builtin.Int32) -> () {
 // CHECK: bb0({{%.*}} : @owned $Builtin.NativeObject, {{%.*}} : @unowned $Builtin.NativeObject, {{%.*}} : @guaranteed $Builtin.NativeObject, {{%.*}} : $Builtin.Int32):
-// CHECK: bb1({{%[0-9][0-9]*}} : @owned $Builtin.NativeObject, {{%[0-9][0-9]*}} : @unowned $Builtin.NativeObject, {{%[0-9][0-9]*}} : @guaranteed $Builtin.NativeObject, {{%[0-9][0-9]*}} : $Builtin.Int32):
+// CHECK: bb1({{%[0-9][0-9]*}} : @owned $Builtin.NativeObject, {{%[0-9][0-9]*}} : @unowned $Builtin.NativeObject, {{%[0-9][0-9]*}} : @reborrow @guaranteed $Builtin.NativeObject, {{%[0-9][0-9]*}} : $Builtin.Int32):
 
 sil [ossa] @simple : $@convention(thin) (@owned Builtin.NativeObject, Builtin.NativeObject, @guaranteed Builtin.NativeObject, Builtin.Int32) -> () {
 bb0(%0 : @owned $Builtin.NativeObject, %1 : @unowned $Builtin.NativeObject, %2 : @guaranteed $Builtin.NativeObject, %3 : $Builtin.Int32):

@@ -1,8 +1,10 @@
 // RUN: %empty-directory(%t)
 // RUN: %target-swift-frontend -emit-module -enable-library-evolution -emit-module-path=%t/resilient_struct.swiftmodule -module-name=resilient_struct %S/../Inputs/resilient_struct.swift
-// RUN: %target-swift-frontend -I %t -emit-ir %s | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize
+// RUN: %target-swift-frontend -Xllvm -sil-disable-pass=OnoneSimplification -I %t -emit-ir %s | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize
 
-// REQUIRES: CPU=x86_64
+// UNSUPPORTED: CPU=arm64e
+
+// REQUIRES: PTRSIZE=64
 
 import Builtin
 import Swift
@@ -743,7 +745,7 @@ sil public_external @closure : $@convention(thin) (@in_guaranteed ResilientInt, 
 // CHECK:   = xor i64 [[ALIGNMASK]], -1
 // CHECK:   = add i64 16, [[ALIGNMASK]]
 
-sil @test_initial_offset : $@convention(thin) (@in_guaranteed ResilientInt, @guaranteed SwiftClass) -> () {
+sil @test_initial_offset : $@convention(thin) (@in ResilientInt, @guaranteed SwiftClass) -> () {
 bb0(%x : $*ResilientInt, %y : $SwiftClass):
   %f = function_ref @closure : $@convention(thin) (@in_guaranteed ResilientInt, @guaranteed SwiftClass) -> ()
   %p = partial_apply [callee_guaranteed] %f(%x, %y) : $@convention(thin) (@in_guaranteed ResilientInt, @guaranteed SwiftClass) -> ()

@@ -307,4 +307,23 @@ tests.test("_isConcrete") {
   expectFalse(isConcrete_false(Int.self))
 }
 
+tests.test("_specialize") {
+  func something<T>(with x: some Collection<T>) -> Int {
+    if let y = _specialize(x, for: [Int].self) {
+      return y[0]
+    } else {
+      return 1234567890
+    }
+  }
+
+  let x = [0987654321, 1, 2]
+  expectEqual(something(with: x), 0987654321)
+
+  let y = CollectionOfOne<String>("hello world")
+  expectEqual(something(with: y), 1234567890)
+
+  let z: Any = [0, 1, 2, 3]
+  expectNil(_specialize(z, for: [Int].self))
+}
+
 runAllTests()

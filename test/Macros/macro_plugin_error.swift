@@ -23,12 +23,12 @@
 
 // CHECK: ->(plugin:[[#PID1:]]) {"getCapability":{}}
 // CHECK-NEXT: <-(plugin:[[#PID1]]) {"getCapabilityResult":{"capability":{"protocolVersion":1}}}
-// CHECK-NEXT: ->(plugin:[[#PID1]]) {"expandFreestandingMacro":{"discriminator":"$s{{.+}}","macro":{"moduleName":"TestPlugin","name":"fooMacro","typeName":"FooMacro"},"syntax":{"kind":"expression","location":{"column":19,"fileID":"MyApp/test.swift","fileName":"BUILD_DIR{{.+}}test.swift","line":6,"offset":200},"source":"#fooMacro(1)"}}}
+// CHECK-NEXT: ->(plugin:[[#PID1]]) {"expandFreestandingMacro":{"discriminator":"$s{{.+}}","macro":{"moduleName":"TestPlugin","name":"fooMacro","typeName":"FooMacro"},"syntax":{"kind":"expression","location":{"column":19,"fileID":"MyApp/test.swift","fileName":"BUILD_DIR{{.+}}test.swift","line":6,"offset":[[#]]},"source":"#fooMacro(1)"}}}
 // CHECK-NEXT: <-(plugin:[[#PID1]]) {"invalidResponse":{}}
-// CHECK-NEXT: ->(plugin:[[#PID1]]) {"expandFreestandingMacro":{"discriminator":"$s{{.+}}","macro":{"moduleName":"TestPlugin","name":"fooMacro","typeName":"FooMacro"},"syntax":{"kind":"expression","location":{"column":19,"fileID":"MyApp/test.swift","fileName":"BUILD_DIR{{.+}}test.swift","line":8,"offset":304},"source":"#fooMacro(2)"}}}
+// CHECK-NEXT: ->(plugin:[[#PID1]]) {"expandFreestandingMacro":{"discriminator":"$s{{.+}}","macro":{"moduleName":"TestPlugin","name":"fooMacro","typeName":"FooMacro"},"syntax":{"kind":"expression","location":{"column":19,"fileID":"MyApp/test.swift","fileName":"BUILD_DIR{{.+}}test.swift","line":8,"offset":[[#]]},"source":"#fooMacro(2)"}}}
 // ^ This messages causes the mock plugin exit because there's no matching expected message.
 
-// CHECK: ->(plugin:[[#PID2:]]) {"expandFreestandingMacro":{"discriminator":"$s{{.+}}","macro":{"moduleName":"TestPlugin","name":"fooMacro","typeName":"FooMacro"},"syntax":{"kind":"expression","location":{"column":19,"fileID":"MyApp/test.swift","fileName":"BUILD_DIR{{.+}}test.swift","line":10,"offset":386},"source":"#fooMacro(3)"}}}
+// CHECK: ->(plugin:[[#PID2:]]) {"expandFreestandingMacro":{"discriminator":"$s{{.+}}","macro":{"moduleName":"TestPlugin","name":"fooMacro","typeName":"FooMacro"},"syntax":{"kind":"expression","location":{"column":19,"fileID":"MyApp/test.swift","fileName":"BUILD_DIR{{.+}}test.swift","line":10,"offset":[[#]]},"source":"#fooMacro(3)"}}}
 // CHECK-NEXT: <-(plugin:[[#PID2:]]) {"expandFreestandingMacroResult":{"diagnostics":[],"expandedSource":"3.description"}}
 
 //--- test.swift
@@ -40,7 +40,7 @@ func test() {
   let _: String = #fooMacro(1)
   // expected-error @-1 {{typeMismatch(swiftASTGen.PluginToHostMessage}}
   let _: String = #fooMacro(2)
-  // expected-error @-1 {{failedToReceiveMessage}}
+  // expected-error @-1 {{failed to receive result from plugin (from macro 'fooMacro')}}
   let _: String = #fooMacro(3)
   // ^ This should succeed.
 }

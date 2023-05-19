@@ -1170,41 +1170,112 @@ static llvm::Constant *emitEmptyTupleTypeMetadataRef(IRGenModule &IGM) {
       IGM.FullExistentialTypeMetadataStructTy, fullMetadata, indices);
 }
 
+/// Emit metadata for a tuple type containing one or more pack expansions, eg
+/// (T, repeat each U, v: V, repeat each W).
 static MetadataResponse emitDynamicTupleTypeMetadataRef(IRGenFunction &IGF,
                                                         CanTupleType type,
                                                         DynamicMetadataRequest request) {
-  SmallVector<CanType, 2> types;
-  types.append(type.getElementTypes().begin(),
-               type.getElementTypes().end());
+  CanPackType packType = type.getInducedPackType();
 
-  CanPackType packType = CanPackType::get(IGF.IGM.Context, types);
-
+  // Begin by computing the number of elements in the tuple type.
   auto *shapeExpression = IGF.emitPackShapeExpression(packType);
-  auto addr = emitTypeMetadataPack(IGF, packType, MetadataState::Abstract);
+  llvm::BasicBlock *trueBB = nullptr, *falseBB = nullptr, *restBB = nullptr;
+  llvm::BasicBlock *unwrappedBB = nullptr;
+  llvm::Value *unwrapped = nullptr;
 
-  auto *pointerToFirst = IGF.Builder.CreatePointerCast(
-      addr.getAddressPointer(), IGF.IGM.TypeMetadataPtrPtrTy);
+  // A tuple type containing zero or one non-pack-expansions might contain
+  // exactly one element after substitution, in which case the tuple
+  // "vanishes" and gets unwrapped. This behavior is implemented in both
+  // compile-time type substitution, and runtime type metadata instantiation,
+  // ensuring consistent behavior.
+  if (type->getNumScalarElements() <= 1) {
+    ConditionalDominanceScope scope(IGF);
 
-  llvm::Value *args[] = {
-    request.get(IGF),
-    shapeExpression,
-    pointerToFirst,
-    getTupleLabelsString(IGF.IGM, type),
-    llvm::ConstantPointerNull::get(IGF.IGM.WitnessTablePtrTy) // proposed
-  };
+    // Test if the runtime length of the pack type is exactly 1.
+    auto *one = llvm::ConstantInt::get(IGF.IGM.SizeTy, 1);
+    auto *isOne = IGF.Builder.CreateICmpEQ(shapeExpression, one);
 
-  auto call = IGF.Builder.CreateCall(
-      IGF.IGM.getGetTupleMetadataFunctionPointer(), args);
-  call->setCallingConv(IGF.IGM.SwiftCC);
-  call->setDoesNotThrow();
+    trueBB = IGF.createBasicBlock("vanishing-tuple");
+    falseBB = IGF.createBasicBlock("actual-tuple");
 
-  Optional<unsigned> elementCount = 0;
-  if (auto *constant = dyn_cast<llvm::ConstantInt>(shapeExpression))
-    elementCount = constant->getValue().getZExtValue();
+    IGF.Builder.CreateCondBr(isOne, trueBB, falseBB);
 
-  cleanupTypeMetadataPack(IGF, addr, elementCount);
+    IGF.Builder.emitBlock(trueBB);
 
-  return MetadataResponse::handle(IGF, request, call);
+    // If the length is 1, directly emit the metadata for the first pack element.
+    ArrayRef<ProtocolConformanceRef> conformances;
+    llvm::SmallVector<llvm::Value *, 2> wtables;
+
+    auto *index = llvm::ConstantInt::get(IGF.IGM.SizeTy, 0);
+    auto *value = emitTypeMetadataPackElementRef(
+        IGF, packType, conformances, index, request, wtables);
+
+    // FIXME: Should emitTypeMetadataPackElementRef() preserve the dynamic state?
+    auto response = MetadataResponse::forBounded(
+        value, request.getStaticLowerBoundOnResponseState());
+    response.ensureDynamicState(IGF);
+
+    unwrapped = response.combine(IGF);
+    unwrappedBB = IGF.Builder.GetInsertBlock();
+
+    assert(wtables.empty());
+
+    restBB = IGF.createBasicBlock("tuple-rest");
+    IGF.Builder.CreateBr(restBB);
+
+    IGF.Builder.emitBlock(falseBB);
+  }
+
+  llvm::CallInst *call = nullptr;
+
+  {
+    ConditionalDominanceScope scope(IGF);
+
+    // Otherwise, we know that either statically or dynamically, we have more than
+    // one element. Emit the pack.
+    auto addr = emitTypeMetadataPack(IGF, packType, MetadataState::Abstract);
+
+    auto *pointerToFirst = IGF.Builder.CreatePointerCast(
+        addr.getAddressPointer(), IGF.IGM.TypeMetadataPtrPtrTy);
+
+    // Call swift_getTupleMetadata().
+    llvm::Value *args[] = {
+      request.get(IGF),
+      shapeExpression,
+      pointerToFirst,
+      getTupleLabelsString(IGF.IGM, type),
+      llvm::ConstantPointerNull::get(IGF.IGM.WitnessTablePtrTy) // proposed
+    };
+
+    call = IGF.Builder.CreateCall(
+        IGF.IGM.getGetTupleMetadataFunctionPointer(), args);
+    call->setCallingConv(IGF.IGM.SwiftCC);
+    call->setDoesNotThrow();
+
+    // Clean up the pack.
+    Optional<unsigned> elementCount = 0;
+    if (auto *constant = dyn_cast<llvm::ConstantInt>(shapeExpression))
+      elementCount = constant->getValue().getZExtValue();
+
+    cleanupTypeMetadataPack(IGF, addr, elementCount);
+  }
+
+  // Control flow join with the one-element case.
+  llvm::Value *result = nullptr;
+  if (unwrapped != nullptr) {
+    IGF.Builder.CreateBr(restBB);
+    IGF.Builder.emitBlock(restBB);
+
+    auto *phi = IGF.Builder.CreatePHI(IGF.IGM.TypeMetadataResponseTy, 2);
+    phi->addIncoming(unwrapped, unwrappedBB);
+    phi->addIncoming(call, call->getParent());
+
+    result = phi;
+  } else {
+    result = call;
+  }
+
+  return MetadataResponse::handle(IGF, request, result);
 }
 
 static MetadataResponse emitTupleTypeMetadataRef(IRGenFunction &IGF,

@@ -669,9 +669,14 @@ importer::getNormalInvocationArguments(
   }
 
   const std::string &moduleCachePath = importerOpts.ModuleCachePath;
-  if (!moduleCachePath.empty()) {
+  if (!moduleCachePath.empty() && !importerOpts.DisableImplicitClangModules) {
     invocationArgStrs.push_back("-fmodules-cache-path=");
     invocationArgStrs.back().append(moduleCachePath);
+  }
+
+  if (importerOpts.DisableImplicitClangModules) {
+    invocationArgStrs.push_back("-fno-implicit-modules");
+    invocationArgStrs.push_back("-fno-implicit-module-maps");
   }
 
   if (ctx.SearchPathOpts.DisableModulesValidateSystemDependencies) {
@@ -718,11 +723,11 @@ getEmbedBitcodeInvocationArguments(std::vector<std::string> &invocationArgStrs,
 void
 importer::addCommonInvocationArguments(
     std::vector<std::string> &invocationArgStrs,
-    ASTContext &ctx) {
+    ASTContext &ctx, bool ignoreClangTarget) {
   using ImporterImpl = ClangImporter::Implementation;
   llvm::Triple triple = ctx.LangOpts.Target;
   // Use clang specific target triple if given.
-  if (ctx.LangOpts.ClangTarget.has_value()) {
+  if (ctx.LangOpts.ClangTarget.has_value() && !ignoreClangTarget) {
     triple = ctx.LangOpts.ClangTarget.value();
   }
   SearchPathOptions &searchPathOpts = ctx.SearchPathOpts;
@@ -915,6 +920,12 @@ bool ClangImporter::canReadPCH(StringRef PCHFilename) {
   llvm_unreachable("unhandled result");
 }
 
+std::string ClangImporter::getOriginalSourceFile(StringRef PCHFilename) {
+  return clang::ASTReader::getOriginalSourceFile(
+      PCHFilename.str(), Impl.Instance->getFileManager(),
+      Impl.Instance->getPCHContainerReader(), Impl.Instance->getDiagnostics());
+}
+
 Optional<std::string>
 ClangImporter::getPCHFilename(const ClangImporterOptions &ImporterOptions,
                               StringRef SwiftPCHHash, bool &isExplicit) {
@@ -970,7 +981,7 @@ Optional<std::string> ClangImporter::getOrCreatePCH(
 }
 
 std::vector<std::string>
-ClangImporter::getClangArguments(ASTContext &ctx) {
+ClangImporter::getClangArguments(ASTContext &ctx, bool ignoreClangTarget) {
   std::vector<std::string> invocationArgStrs;
   // Clang expects this to be like an actual command line. So we need to pass in
   // "clang" for argv[0]
@@ -991,7 +1002,7 @@ ClangImporter::getClangArguments(ASTContext &ctx) {
     getEmbedBitcodeInvocationArguments(invocationArgStrs, ctx);
     break;
   }
-  addCommonInvocationArguments(invocationArgStrs, ctx);
+  addCommonInvocationArguments(invocationArgStrs, ctx, ignoreClangTarget);
   return invocationArgStrs;
 }
 
@@ -1094,15 +1105,6 @@ ClangImporter::create(ASTContext &ctx,
   std::unique_ptr<ClangImporter> importer{
       new ClangImporter(ctx, tracker, dwarfImporterDelegate)};
   auto &importerOpts = ctx.ClangImporterOpts;
-  importer->Impl.ClangArgs = getClangArguments(ctx);
-  ArrayRef<std::string> invocationArgStrs = importer->Impl.ClangArgs;
-  if (importerOpts.DumpClangDiagnostics) {
-    llvm::errs() << "'";
-    llvm::interleave(
-                     invocationArgStrs, [](StringRef arg) { llvm::errs() << arg; },
-                     [] { llvm::errs() << "' '"; });
-    llvm::errs() << "'\n";
-  }
 
   if (isPCHFilenameExtension(importerOpts.BridgingHeader)) {
     importer->Impl.setSinglePCHImport(importerOpts.BridgingHeader);
@@ -1142,6 +1144,15 @@ ClangImporter::create(ASTContext &ctx,
 
   // Create a new Clang compiler invocation.
   {
+    importer->Impl.ClangArgs = getClangArguments(ctx);
+    ArrayRef<std::string> invocationArgStrs = importer->Impl.ClangArgs;
+    if (importerOpts.DumpClangDiagnostics) {
+      llvm::errs() << "'";
+      llvm::interleave(
+                       invocationArgStrs, [](StringRef arg) { llvm::errs() << arg; },
+                       [] { llvm::errs() << "' '"; });
+      llvm::errs() << "'\n";
+    }
     importer->Impl.Invocation = createClangInvocation(
         importer.get(), importerOpts, VFS, invocationArgStrs);
     if (!importer->Impl.Invocation)
@@ -1217,6 +1228,27 @@ ClangImporter::create(ASTContext &ctx,
                          clang::SourceLocation());
   clangDiags.setFatalsAsError(ctx.Diags.getShowDiagnosticsAfterFatalError());
 
+  // Use Clang to configure/save options for Swift IRGen/CodeGen
+  if (ctx.LangOpts.ClangTarget.has_value()) {
+    // If '-clang-target' is set, create a mock invocation with the Swift triple
+    // to configure CodeGen and Target options for Swift compilation.
+    auto swiftTargetClangArgs = getClangArguments(ctx, true);
+    ArrayRef<std::string> invocationArgStrs = swiftTargetClangArgs;
+    auto swiftTargetClangInvocation = createClangInvocation(
+        importer.get(), importerOpts, VFS, invocationArgStrs);
+    if (!swiftTargetClangInvocation)
+      return nullptr;
+    importer->Impl.setSwiftTargetInfo(clang::TargetInfo::CreateTargetInfo(
+        clangDiags, swiftTargetClangInvocation->TargetOpts));
+    importer->Impl.setSwiftCodeGenOptions(new clang::CodeGenOptions(
+        swiftTargetClangInvocation->getCodeGenOpts()));
+  } else {
+    // Just use the existing Invocation's directly
+    importer->Impl.setSwiftTargetInfo(clang::TargetInfo::CreateTargetInfo(
+        clangDiags, importer->Impl.Invocation->TargetOpts));
+    importer->Impl.setSwiftCodeGenOptions(
+        new clang::CodeGenOptions(importer->Impl.Invocation->getCodeGenOpts()));
+  }
 
   // Create the associated action.
   importer->Impl.Action.reset(new ParsingAction(ctx, *importer,
@@ -1254,6 +1286,9 @@ ClangImporter::create(ASTContext &ctx,
   // the compiler instance used to emit PCMs incompatible with the one used to
   // read them later.
   instance.getLangOpts().NeededByPCHOrCompilationUsesPCH = true;
+
+  // Clang implicitly enables this by default in C++20 mode.
+  instance.getLangOpts().ModulesLocalVisibility = false;
 
   if (importerOpts.Mode == ClangImporterOptions::Modes::PrecompiledModule)
     return importer;
@@ -1872,7 +1907,7 @@ bool ClangImporter::canImportModule(ImportPath::Module modulePath,
   clang::Module *m;
   auto &ctx = Impl.getClangASTContext();
   auto &lo = ctx.getLangOpts();
-  auto &ti = getTargetInfo();
+  auto &ti = getModuleAvailabilityTarget();
 
   auto available = clangModule->isAvailable(lo, ti, r, mh, m);
   if (!available)
@@ -3029,33 +3064,26 @@ bool ClangImporter::lookupDeclsFromHeader(StringRef Filename,
     }
 
     // Macros.
-    if (auto *ppRec = ClangPP.getPreprocessingRecord()) {
-      clang::SourceLocation B = ClangSM.getLocForStartOfFile(FID);
-      clang::SourceLocation E = ClangSM.getLocForEndOfFile(FID);
-      clang::SourceRange R(B, E);
-      const auto &Entities = ppRec->getPreprocessedEntitiesInRange(R);
-      for (auto I = Entities.begin(), E = Entities.end(); I != E; ++I) {
-        if (!ppRec->isEntityInFileID(I, FID))
-          continue;
-        clang::PreprocessedEntity *PPE = *I;
-        if (!PPE)
-          continue;
-        if (auto *MDR = dyn_cast<clang::MacroDefinitionRecord>(PPE)) {
-          auto *II = const_cast<clang::IdentifierInfo*>(MDR->getName());
-          auto MD = ClangPP.getMacroDefinition(II);
-          if (auto macroNode = getClangNodeForMacroDefinition(MD)) {
-            if (filter(macroNode)) {
-              auto MI = macroNode.getAsMacro();
-              Identifier Name = Impl.getNameImporter().importMacroName(II, MI);
-              if (Decl *imported = Impl.importMacro(Name, macroNode))
-                receiver(imported);
-            }
-          }
-        }
-      }
+    for (const auto &Iter : ClangPP.macros()) {
+      auto *II = Iter.first;
+      auto MD = ClangPP.getMacroDefinition(II);
+      MD.forAllDefinitions([&](clang::MacroInfo *Info) {
+        if (Info->isBuiltinMacro())
+          return;
 
-      // FIXME: Module imports inside that header.
+        auto Loc = Info->getDefinitionLoc();
+        if (Loc.isInvalid() || ClangSM.getFileID(Loc) != FID)
+          return;
+
+        ClangNode MacroNode = Info;
+        if (filter(MacroNode)) {
+          auto Name = Impl.getNameImporter().importMacroName(II, Info);
+          if (auto *Imported = Impl.importMacro(Name, MacroNode))
+            receiver(Imported);
+        }
+      });
     }
+    // FIXME: Module imports inside that header.
     return false;
   }
 
@@ -3687,8 +3715,12 @@ StringRef ClangModuleUnit::getLoadedFilename() const {
   return StringRef();
 }
 
-clang::TargetInfo &ClangImporter::getTargetInfo() const {
+clang::TargetInfo &ClangImporter::getModuleAvailabilityTarget() const {
   return Impl.Instance->getTarget();
+}
+
+clang::TargetInfo &ClangImporter::getTargetInfo() const {
+  return *Impl.getSwiftTargetInfo();
 }
 
 clang::ASTContext &ClangImporter::getClangASTContext() const {
@@ -3720,8 +3752,8 @@ clang::Sema &ClangImporter::getClangSema() const {
   return Impl.getClangSema();
 }
 
-clang::CodeGenOptions &ClangImporter::getClangCodeGenOpts() const {
-  return Impl.getClangCodeGenOpts();
+clang::CodeGenOptions &ClangImporter::getCodeGenOpts() const {
+  return *Impl.getSwiftCodeGenOptions();
 }
 
 std::string ClangImporter::getClangModuleHash() const {
@@ -6390,9 +6422,7 @@ static bool hasIteratorAPIAttr(const clang::Decl *decl) {
 static bool hasPointerInSubobjects(const clang::CXXRecordDecl *decl) {
   // Probably a class template that has not yet been specialized:
   if (!decl->getDefinition())
-    // If the definition is unknown, there is no way to determine if the type
-    // stores pointers. Stay on the safe side and assume that it does.
-    return true;
+    return false;
 
   auto checkType = [](clang::QualType t) {
     if (t->isPointerType())
@@ -6562,7 +6592,6 @@ CxxRecordSemanticsKind
 CxxRecordSemantics::evaluate(Evaluator &evaluator,
                              CxxRecordSemanticsDescriptor desc) const {
   const auto *decl = desc.decl;
-  auto &clangSema = desc.ctx.getClangModuleLoader()->getClangSema();
 
   if (hasImportAsRefAttr(decl)) {
     return CxxRecordSemanticsKind::Reference;
@@ -6687,10 +6716,9 @@ bool IsSafeUseOfCxxDecl::evaluate(Evaluator &evaluator,
           return false;
         }
 
+        // Mark this as safe to help our diganostics down the road.
         if (!cxxRecordReturnType->getDefinition()) {
-          // This is a templated type that has not been instantiated yet. We do
-          // not know if it is safe. Assume that it isn't.
-          return false;
+          return true;
         }
 
         if (!cxxRecordReturnType->hasUserDeclaredCopyConstructor() &&
@@ -6764,8 +6792,10 @@ CustomRefCountingOperationResult CustomRefCountingOperation::evaluate(
     return {CustomRefCountingOperationResult::immortal, nullptr, name};
 
   llvm::SmallVector<ValueDecl *, 1> results;
-  auto parentModule = ctx.getClangModuleLoader()->getWrapperForModule(
-      swiftDecl->getClangDecl()->getOwningModule());
+  auto *clangMod = swiftDecl->getClangDecl()->getOwningModule();
+  if (clangMod && clangMod->isSubModule())
+    clangMod = clangMod->getTopLevelModule();
+  auto parentModule = ctx.getClangModuleLoader()->getWrapperForModule(clangMod);
   ctx.lookupInModule(parentModule, name, results);
 
   if (results.size() == 1)
@@ -6834,4 +6864,16 @@ bool importer::requiresCPlusPlus(const clang::Module *module) {
   return llvm::any_of(module->Requirements, [](clang::Module::Requirement req) {
     return req.first == "cplusplus";
   });
+}
+
+llvm::Optional<clang::QualType>
+importer::getCxxReferencePointeeTypeOrNone(const clang::Type *type) {
+  if (type->isReferenceType())
+    return type->getPointeeType();
+  return {};
+}
+
+bool importer::isCxxConstReferenceType(const clang::Type *type) {
+  auto pointeeType = getCxxReferencePointeeTypeOrNone(type);
+  return pointeeType && pointeeType->isConstQualified();
 }

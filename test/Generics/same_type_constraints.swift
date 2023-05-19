@@ -158,7 +158,7 @@ protocol P {
 }
 
 struct S<A: P> {
-	init<Q: P>(_ q: Q) where Q.T == A {}
+	init<Q: P>(_ q: Q) where Q.T == A {} // expected-warning {{redundant conformance constraint 'A' : 'P'}}
 }
 
 // rdar://problem/19371678
@@ -177,7 +177,7 @@ struct SpecificAnimal<F:Food> : Animal {
     typealias EdibleFood=F
     let _eat:(_ f:F) -> ()
 
-    init<A:Animal>(_ selfie:A) where A.EdibleFood == F {
+    init<A:Animal>(_ selfie:A) where A.EdibleFood == F { // expected-warning {{redundant conformance constraint 'F' : 'Food'}}
         _eat = { selfie.eat($0) }
     }
     func eat(_ f:F) {

@@ -126,6 +126,18 @@ static bool readOptionsBlock(llvm::BitstreamCursor &cursor,
     case options_block::XCC:
       extendedInfo.addExtraClangImporterOption(blobData);
       break;
+    case options_block::PLUGIN_SEARCH_PATH:
+      extendedInfo.addPluginSearchPath(blobData);
+      break;
+    case options_block::EXTERNAL_SEARCH_PLUGIN_PATH:
+      extendedInfo.addExternalPluginSearchPath(blobData);
+      break;
+    case options_block::COMPILER_PLUGIN_LIBRARY_PATH:
+      extendedInfo.addCompilerPluginLibraryPath(blobData);
+      break;
+    case options_block::COMPILER_PLUGIN_EXECUTABLE_PATH:
+      extendedInfo.addCompilerPluginExecutablePath(blobData);
+      break;
     case options_block::IS_SIB:
       bool IsSIB;
       options_block::IsSIBLayout::readRecord(scratch, IsSIB);

@@ -16,6 +16,7 @@
 #include "SourceKit/Core/LangSupport.h"
 #include "swift/AST/DiagnosticConsumer.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/MapVector.h"
 
 namespace SourceKit {
 
@@ -26,7 +27,8 @@ class EditorDiagConsumer : public swift::DiagnosticConsumer {
   llvm::DenseMap<unsigned, DiagnosticsTy> BufferDiagnostics;
   DiagnosticsTy InvalidLocDiagnostics;
 
-  SmallVector<unsigned, 8> InputBufIDs;
+  llvm::MapVector<StringRef, BufferInfoSharedPtr> BufferInfos;
+
   int LastDiagBufferID = -1;
   unsigned LastDiagIndex = 0;
 
@@ -43,16 +45,11 @@ class EditorDiagConsumer : public swift::DiagnosticConsumer {
 
   bool HadAnyError = false;
 
+  BufferInfoSharedPtr getBufferInfo(StringRef FileName,
+                                    Optional<unsigned> BufferID,
+                                    swift::SourceManager &SM);
+
 public:
-  void setInputBufferIDs(ArrayRef<unsigned> BufferIDs) {
-    InputBufIDs.append(BufferIDs.begin(), BufferIDs.end());
-    std::sort(InputBufIDs.begin(), InputBufIDs.end());
-  }
-
-  bool isInputBufferID(unsigned BufferID) const {
-    return std::binary_search(InputBufIDs.begin(), InputBufIDs.end(), BufferID);
-  }
-
   /// The diagnostics are returned in source-order.
   ArrayRef<DiagnosticEntryInfo> getDiagnosticsForBuffer(unsigned BufferID) const {
     ArrayRef<DiagnosticEntryInfo> Diags;

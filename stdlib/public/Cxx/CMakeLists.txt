@@ -32,5 +32,6 @@ add_swift_target_library(swiftCxx ${SWIFT_CXX_LIBRARY_KIND} NO_LINK_NAME IS_STDL
     INSTALL_IN_COMPONENT compiler
     INSTALL_WITH_SHARED)
 
+add_subdirectory(libstdcxx)
 add_subdirectory(std)
 add_subdirectory(cxxshim)

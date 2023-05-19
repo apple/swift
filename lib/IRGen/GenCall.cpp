@@ -5145,7 +5145,8 @@ Callee irgen::getSwiftFunctionPointerCallee(
     PointerAuthInfo::forFunctionPointer(IGF.IGM, calleeInfo.OrigFnType);
 
   auto fn = isClosure ? FunctionPointer::createSignedClosure(calleeInfo.OrigFnType, fnPtr, authInfo, sig) :
-    FunctionPointer::createSigned(calleeInfo.OrigFnType, fnPtr, authInfo, sig);
+    FunctionPointer::createSigned(calleeInfo.OrigFnType, fnPtr, authInfo, sig,
+                                  true);
   if (castOpaqueToRefcountedContext) {
     assert(dataPtr && dataPtr->getType() == IGF.IGM.OpaquePtrTy &&
            "Expecting trivial closure context");

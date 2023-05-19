@@ -93,6 +93,21 @@ extern "C" void *_Nonnull swift_retain(void *_Nonnull) noexcept;
 
 extern "C" void swift_release(void *_Nonnull) noexcept;
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wreserved-identifier"
+
+extern "C" void _swift_stdlib_reportFatalError(const char *_Nonnull prefix,
+                                               int prefixLength,
+                                               const char *_Nonnull message,
+                                               int messageLength,
+                                               uint32_t flags) noexcept;
+
+// A dummy symbol that forces a linker error when
+// C++ tries to invoke a move of a Swift value type.
+extern "C" void _fatalError_Cxx_move_of_Swift_value_type_not_supported_yet();
+
+#pragma clang diagnostic pop
+
 SWIFT_INLINE_THUNK void *_Nonnull opaqueAlloc(size_t size,
                                               size_t align) noexcept {
 #if defined(_WIN32)
@@ -159,6 +174,14 @@ public:
       : _opaquePointer(other._opaquePointer) {
     swift_retain(_opaquePointer);
   }
+  SWIFT_INLINE_THUNK RefCountedClass(RefCountedClass &&other) noexcept
+      : _opaquePointer(other._opaquePointer) {
+    // Moving a Swift class reference is a copy
+    // in C++. This allows C++ to avoid liveness
+    // checks to see if the pointer is `null` or not,
+    // as C++'s move is not consuming, unlike Swift's.
+    swift_retain(_opaquePointer);
+  }
   SWIFT_INLINE_THUNK RefCountedClass &
   operator=(const RefCountedClass &other) noexcept {
     swift_retain(other._opaquePointer);
@@ -166,11 +189,13 @@ public:
     _opaquePointer = other._opaquePointer;
     return *this;
   }
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wmissing-noreturn"
-  // FIXME: implement 'move'?
-  SWIFT_INLINE_THUNK RefCountedClass(RefCountedClass &&) noexcept { abort(); }
-#pragma clang diagnostic pop
+  SWIFT_INLINE_THUNK RefCountedClass &
+  operator=(RefCountedClass &&other) noexcept {
+    swift_retain(other._opaquePointer);
+    swift_release(_opaquePointer);
+    _opaquePointer = other._opaquePointer;
+    return *this;
+  }
 
 protected:
   SWIFT_INLINE_THUNK RefCountedClass(void *_Nonnull ptr) noexcept

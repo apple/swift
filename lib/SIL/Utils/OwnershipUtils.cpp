@@ -147,6 +147,63 @@ bool swift::canOpcodeForwardOwnedValues(Operand *use) {
   return false;
 }
 
+bool swift::computeIsReborrow(SILArgument *arg) {
+  if (arg->getOwnershipKind() != OwnershipKind::Guaranteed) {
+    return false;
+  }
+  if (isa<SILFunctionArgument>(arg)) {
+    return false;
+  }
+  return !computeIsGuaranteedForwarding(arg);
+}
+
+bool swift::computeIsScoped(SILArgument *arg) {
+  if (arg->getOwnershipKind() == OwnershipKind::Owned) {
+    return true;
+  }
+  return computeIsReborrow(arg);
+}
+
+// This is the use-def equivalent of use->getOperandOwnership() ==
+// OperandOwnership::GuaranteedForwarding.
+bool swift::computeIsGuaranteedForwarding(SILValue value) {
+  if (value->getOwnershipKind() != OwnershipKind::Guaranteed) {
+    return false;
+  }
+  // NOTE: canOpcodeForwardInnerGuaranteedValues returns true for transformation
+  // terminator results.
+  if (canOpcodeForwardInnerGuaranteedValues(value) ||
+      isa<SILFunctionArgument>(value)) {
+    return true;
+  }
+  // If not a phi, return false
+  auto *phi = dyn_cast<SILPhiArgument>(value);
+  if (!phi || !phi->isPhi()) {
+    return false;
+  }
+  // For a phi, if we find GuaranteedForwarding phi operand on any incoming
+  // path, we return true. Additional verification is added to ensure
+  // GuaranteedForwarding phi operands are found on zero or all paths in the
+  // OwnershipVerifier.
+  bool isGuaranteedForwardingPhi = false;
+  phi->visitTransitiveIncomingPhiOperands([&](auto *, auto *op) -> bool {
+    auto opValue = op->get();
+    assert(opValue->getOwnershipKind().isCompatibleWith(
+        OwnershipKind::Guaranteed));
+    if (canOpcodeForwardInnerGuaranteedValues(opValue) ||
+        isa<SILFunctionArgument>(opValue)) {
+      isGuaranteedForwardingPhi = true;
+      return false;
+    }
+    auto *phi = dyn_cast<SILPhiArgument>(opValue);
+    if (!phi || !phi->isPhi()) {
+      return false;
+    }
+    return true;
+  });
+  return isGuaranteedForwardingPhi;
+}
+
 //===----------------------------------------------------------------------===//
 //                 Guaranteed Use-Point (Lifetime) Discovery
 //===----------------------------------------------------------------------===//
@@ -1132,7 +1189,7 @@ bool swift::getAllBorrowIntroducingValues(SILValue inputValue,
 
     // Otherwise if v is an ownership forwarding value, add its defining
     // instruction
-    if (isGuaranteedForwarding(value)) {
+    if (value->isGuaranteedForwarding()) {
       if (auto *i = value->getDefiningInstruction()) {
         for (SILValue opValue : i->getNonTypeDependentOperandValues()) {
           worklist.insert(opValue);
@@ -1181,7 +1238,7 @@ BorrowedValue swift::getSingleBorrowIntroducingValue(SILValue inputValue) {
 
     // Otherwise if v is an ownership forwarding value, add its defining
     // instruction
-    if (isGuaranteedForwarding(currentValue)) {
+    if (currentValue->isGuaranteedForwarding()) {
       if (auto *i = currentValue->getDefiningInstructionOrTerminator()) {
         auto instOps = i->getNonTypeDependentOperandValues();
         // If we have multiple incoming values, return .None. We can't handle

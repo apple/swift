@@ -178,7 +178,8 @@ LoadedExecutablePlugin::PluginProcess::~PluginProcess() {
 
 LoadedExecutablePlugin::~LoadedExecutablePlugin() {
   // Let ASTGen to cleanup things.
-  this->cleanup();
+  if (this->cleanup)
+    this->cleanup();
 }
 
 ssize_t LoadedExecutablePlugin::PluginProcess::read(void *buf,

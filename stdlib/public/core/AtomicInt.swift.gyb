@@ -65,12 +65,14 @@ internal func _swift_stdlib_atomicCompareExchangeStrongInt(
   object target: UnsafeMutablePointer<Int>,
   expected: UnsafeMutablePointer<Int>,
   desired: Int) -> Bool {
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32) || arch(powerpc)
-  let (oldValue, won) = Builtin.cmpxchg_seqcst_seqcst_Int32(
-    target._rawValue, expected.pointee._value, desired._value)
-#elseif arch(x86_64) || arch(arm64) || arch(powerpc64) || arch(powerpc64le) || arch(s390x) || arch(riscv64)
+#if _pointerBitWidth(_64)
   let (oldValue, won) = Builtin.cmpxchg_seqcst_seqcst_Int64(
     target._rawValue, expected.pointee._value, desired._value)
+#elseif _pointerBitWidth(_32)
+  let (oldValue, won) = Builtin.cmpxchg_seqcst_seqcst_Int32(
+    target._rawValue, expected.pointee._value, desired._value)
+#else
+#error("Unknown platform")
 #endif
   expected.pointee._value = oldValue
   return Bool(won)
@@ -82,12 +84,14 @@ internal func _swift_stdlib_atomicCompareExchangeStrongInt(
 public // Existing uses outside stdlib
 func _swift_stdlib_atomicLoadInt(
   object target: UnsafeMutablePointer<Int>) -> Int {
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32) || arch(powerpc)
-  let value = Builtin.atomicload_seqcst_Int32(target._rawValue)
-  return Int(value)
-#elseif arch(x86_64) || arch(arm64) || arch(powerpc64) || arch(powerpc64le) || arch(s390x) || arch(riscv64)
+#if _pointerBitWidth(_64)
   let value = Builtin.atomicload_seqcst_Int64(target._rawValue)
   return Int(value)
+#elseif _pointerBitWidth(_32)
+  let value = Builtin.atomicload_seqcst_Int32(target._rawValue)
+  return Int(value)
+#else
+#error("Unknown platform")
 #endif
 }
 
@@ -95,10 +99,12 @@ func _swift_stdlib_atomicLoadInt(
 internal func _swift_stdlib_atomicStoreInt(
   object target: UnsafeMutablePointer<Int>,
   desired: Int) {
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32) || arch(powerpc)
-  Builtin.atomicstore_seqcst_Int32(target._rawValue, desired._value)
-#elseif arch(x86_64) || arch(arm64) || arch(powerpc64) || arch(powerpc64le) || arch(s390x) || arch(riscv64)
+#if _pointerBitWidth(_64)
   Builtin.atomicstore_seqcst_Int64(target._rawValue, desired._value)
+#elseif _pointerBitWidth(_32)
+  Builtin.atomicstore_seqcst_Int32(target._rawValue, desired._value)
+#else
+#error("Unknown platform")
 #endif
 }
 
@@ -111,14 +117,16 @@ func _swift_stdlib_atomicFetch${operation}Int(
   object target: UnsafeMutablePointer<Int>,
   operand: Int) -> Int {
   let rawTarget = UnsafeMutableRawPointer(target)
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32) || arch(powerpc)
-  let value = _swift_stdlib_atomicFetch${operation}Int32(
-    object: rawTarget.assumingMemoryBound(to: Int32.self),
-    operand: Int32(operand))
-#elseif arch(x86_64) || arch(arm64) || arch(powerpc64) || arch(powerpc64le) || arch(s390x) || arch(riscv64)
+#if _pointerBitWidth(_64)
   let value = _swift_stdlib_atomicFetch${operation}Int64(
     object: rawTarget.assumingMemoryBound(to: Int64.self),
     operand: Int64(operand))
+#elseif _pointerBitWidth(_32)
+  let value = _swift_stdlib_atomicFetch${operation}Int32(
+    object: rawTarget.assumingMemoryBound(to: Int32.self),
+    operand: Int32(operand))
+#else
+#error("Unknown platform")
 #endif
   return Int(value)
 }

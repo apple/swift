@@ -1,7 +1,4 @@
-// RUN: %target-swift-emit-silgen -module-name parameterized -disable-availability-checking %s -enable-experimental-feature VariadicGenerics | %FileCheck %s
-
-// Because of -enable-experimental-feature VariadicGenerics
-// REQUIRES: asserts
+// RUN: %target-swift-emit-silgen -module-name parameterized -disable-availability-checking %s | %FileCheck %s
 
 protocol P<A> {
   associatedtype A

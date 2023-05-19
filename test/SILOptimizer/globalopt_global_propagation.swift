@@ -1,7 +1,6 @@
-// RUN: %target-swift-frontend -O -emit-sil %s | %FileCheck %s
-// RUN: %target-swift-frontend -O -wmo -emit-sil %s | %FileCheck -check-prefix=CHECK-WMO %s
 // RUN: %target-swift-frontend -parse-as-library -O -emit-sil %s | %FileCheck %s
-// RUN: %target-swift-frontend -parse-as-library -O -wmo -emit-sil %s | %FileCheck -check-prefix=CHECK-WMO %s
+
+// REQUIRES: swift_in_compiler
 
 // Check that values of internal and private global variables, which are provably assigned only 
 // once, are propagated into their uses and enable further optimizations like constant

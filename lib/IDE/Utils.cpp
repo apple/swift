@@ -849,8 +849,11 @@ bool swift::ide::isBeingCalled(ArrayRef<Expr *> ExprStack) {
     auto *AE = dyn_cast<ApplyExpr>(E);
     if (!AE || AE->isImplicit())
       continue;
-    if (auto *CRCE = dyn_cast<ConstructorRefCallExpr>(AE)) {
-      if (CRCE->getBase() == Target)
+    if (auto *CRCE = dyn_cast<ConstructorRefCallExpr>(AE->getFn())) {
+      auto *Base = CRCE->getBase();
+      while (auto *ICE = dyn_cast<ImplicitConversionExpr>(Base))
+        Base = ICE->getSubExpr();
+      if (Base == Target)
         return true;
     }
     if (isa<SelfApplyExpr>(AE))

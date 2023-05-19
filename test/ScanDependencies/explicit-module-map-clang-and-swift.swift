@@ -1,9 +1,12 @@
+// UNSUPPORTED: OS=windows-msvc
 // RUN: %empty-directory(%t)
 // RUN: mkdir -p %t/clang-module-cache
 // RUN: mkdir -p %t/inputs
 // RUN: echo "public func anotherFuncA() {}" > %t/A.swift
 // RUN: %target-swift-frontend -emit-module -emit-module-path %t/inputs/A.swiftmodule -emit-module-doc-path %t/inputs/A.swiftdoc -emit-module-source-info -emit-module-source-info-path %t/inputs/A.swiftsourceinfo -import-underlying-module -I%S/Inputs/CHeaders -module-cache-path %t.module-cache %t/A.swift -module-name A
 // RUN: %target-swift-emit-pcm -module-name A -o %t/inputs/A.pcm %S/Inputs/CHeaders/module.modulemap
+// RUN: %target-swift-emit-pcm -module-name SwiftShims %swift_obj_root/lib/swift/shims/module.modulemap -o %t/inputs/SwiftShims.pcm
+// RUN: %target-swift-emit-pcm -module-name _SwiftConcurrencyShims %swift_obj_root/lib/swift/shims/module.modulemap -o %t/inputs/_SwiftConcurrencyShims.pcm
 
 // RUN: echo "[{" > %/t/inputs/map.json
 // RUN: echo "\"moduleName\": \"A\"," >> %/t/inputs/map.json
@@ -31,6 +34,18 @@
 // RUN: echo "\"moduleName\": \"_Concurrency\"," >> %/t/inputs/map.json
 // RUN: echo "\"modulePath\": \"%/concurrency_module\"," >> %/t/inputs/map.json
 // RUN: echo "\"isFramework\": false" >> %/t/inputs/map.json
+// RUN: echo "}," >> %/t/inputs/map.json
+// RUN: echo "{" >> %/t/inputs/map.json
+// RUN: echo "\"moduleName\": \"SwiftShims\"," >> %/t/inputs/map.json
+// RUN: echo "\"isFramework\": false," >> %/t/inputs/map.json
+// RUN: echo "\"clangModuleMapPath\": \"%swift_obj_root/lib/swift/shims/module.modulemap\"," >> %/t/inputs/map.json
+// RUN: echo "\"clangModulePath\": \"%t/inputs/SwiftShims.pcm\"" >> %/t/inputs/map.json
+// RUN: echo "}," >> %/t/inputs/map.json
+// RUN: echo "{" >> %/t/inputs/map.json
+// RUN: echo "\"moduleName\": \"_SwiftConcurrencyShims\"," >> %/t/inputs/map.json
+// RUN: echo "\"isFramework\": false," >> %/t/inputs/map.json
+// RUN: echo "\"clangModuleMapPath\": \"%swift_obj_root/lib/swift/shims/module.modulemap\"," >> %/t/inputs/map.json
+// RUN: echo "\"clangModulePath\": \"%t/inputs/_SwiftConcurrencyShims.pcm\"" >> %/t/inputs/map.json
 // RUN: echo "}," >> %/t/inputs/map.json
 // RUN: echo "{" >> %/t/inputs/map.json
 // RUN: echo "\"moduleName\": \"_StringProcessing\"," >> %/t/inputs/map.json

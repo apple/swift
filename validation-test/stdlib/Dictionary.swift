@@ -61,7 +61,7 @@ DictionaryTestSuite.test("AssociatedTypes") {
 
 DictionaryTestSuite.test("sizeof") {
   var dict = [1: "meow", 2: "meow"]
-#if arch(i386) || arch(arm) || arch(arm64_32)
+#if _pointerBitWidth(_32)
   expectEqual(4, MemoryLayout.size(ofValue: dict))
 #else
   expectEqual(8, MemoryLayout.size(ofValue: dict))

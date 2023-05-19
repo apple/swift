@@ -4,21 +4,21 @@
 public struct G<T: P1, U: P1> {
   // CHECK-LABEL: .f1()@
   // CHECK-NEXT: Generic signature: <T, U where T : P1, T == U>
-  public func f1() where T == U {}
+  public func f1() where T == U {} // expected-warning {{redundant conformance constraint 'U' : 'P1'}}
 
   // CHECK-LABEL: .f2()@
   // CHECK-NEXT: Generic signature: <T, U where T : P1, T == U>
-  public func f2() where T == U, T.A.B == T {}
+  public func f2() where T == U, T.A.B == T {} // expected-warning {{redundant conformance constraint 'U' : 'P1'}}
   // expected-warning@-1 {{redundant same-type constraint 'T.A.B' == 'T'}}
 
   // CHECK-LABEL: .f3()@
   // CHECK-NEXT: Generic signature: <T, U where T : P1, T == U>
-  public func f3() where T.A.B == T, T == U {}
+  public func f3() where T.A.B == T, T == U {} // expected-warning {{redundant conformance constraint 'U' : 'P1'}}
   // expected-warning@-1 {{redundant same-type constraint 'T.A.B' == 'T'}}
 
   // CHECK-LABEL: .f4()@
   // CHECK-NEXT: Generic signature: <T, U where T : P1, T == U>
-  public func f4() where U.A.B == U, T == U {}
+  public func f4() where U.A.B == U, T == U {} // expected-warning {{redundant conformance constraint 'U' : 'P1'}}
   // expected-warning@-1 {{redundant same-type constraint 'U.A.B' == 'U'}}
 }
 

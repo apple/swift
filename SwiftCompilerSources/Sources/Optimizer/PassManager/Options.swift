@@ -27,4 +27,18 @@ struct Options {
   func enableSimplification(for inst: Instruction) -> Bool {
     _bridged.enableSimplificationFor(inst.bridged)
   }
+
+  enum AssertConfiguration {
+    case enabled
+    case disabled
+    case unknown
+  }
+
+  var assertConfiguration: AssertConfiguration {
+    switch _bridged.getAssertConfiguration() {
+      case .Debug:               return .enabled
+      case .Release, .Unchecked: return .disabled
+      default:                   return .unknown
+    }
+  }
 }

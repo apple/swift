@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 // RUN: %target-run-simple-swift
+// RUN: %target-run-simple-swift(-Xfrontend -disable-reflection-names -DNO_FIELD_NAMES)
 // REQUIRES: executable_test
 // REQUIRES: reflection
 
@@ -150,6 +151,14 @@ func checkFields<T>(
     count += 1
 
     let fieldName = String(cString: charPtr)
+    if fieldName == "" {
+#if NO_FIELD_NAMES
+      expectTrue(fields.values.contains{ $0 == offset && $1 == type })
+#else
+      expectTrue(false, "Empty field name")
+#endif
+      return true
+    }
     guard let (checkOffset, checkType) = fields[fieldName] else {
       expectTrue(false, "Unexpected field '\(fieldName)'")
       return true
@@ -176,6 +185,14 @@ func checkFieldsWithKeyPath<T>(
     count += 1
 
     let fieldName = String(cString: charPtr)
+    if fieldName == "" {
+#if NO_FIELD_NAMES
+      expectTrue(fields.values.contains{ $0 == keyPath })
+#else
+      expectTrue(false, "Empty field name")
+#endif
+      return true
+    }
     guard let checkKeyPath = fields[fieldName] else {
       expectTrue(false, "Unexpected field '\(fieldName)'")
       return true
@@ -450,8 +467,13 @@ if #available(SwiftStdlib 5.2, *) {
       charPtr, _, type, _ in
 
       let fieldName = String(cString: charPtr)
+    #if NO_FIELD_NAMES
+      return type == (Double, Double).self
+        && fieldName == ""
+    #else
       return type == (Double, Double).self
         && fieldName == "point"
+    #endif
     })
 
     expectTrue(_forEachField(of: EmptyNSObject.self, options: .classType) {

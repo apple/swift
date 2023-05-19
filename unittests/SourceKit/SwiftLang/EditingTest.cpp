@@ -100,10 +100,10 @@ private:
 
   bool diagnosticsEnabled() override { return true; }
 
-  void setDiagnosticStage(UIdent diagStage) override { DiagStage = diagStage; }
-  void handleDiagnostic(const DiagnosticEntryInfo &Info,
-                        UIdent DiagStage) override {
-    Diags.push_back(Info);
+  void handleDiagnostics(ArrayRef<DiagnosticEntryInfo> DiagInfos,
+                         UIdent DiagStage) override {
+    this->DiagStage = DiagStage;
+    Diags.insert(Diags.end(), DiagInfos.begin(), DiagInfos.end());
   }
 
   void handleSourceText(StringRef Text) override {}

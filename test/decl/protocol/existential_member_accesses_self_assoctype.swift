@@ -918,12 +918,24 @@ do {
   let _: Class2Base = exist.method5()
   let _: any Class2Base & CovariantAssocTypeErasure = exist.method6()
   let _: any Class2Base & CovariantAssocTypeErasure = exist.method7()
-
   let _: Any? = exist.method8()
   let _: (AnyObject, Bool) = exist.method9()
   let _: any CovariantAssocTypeErasure.Type = exist.method10()
   let _: Array<Class2Base> = exist.method11()
   let _: Dictionary<String, Class2Base> = exist.method12()
+
+  let _ = exist.method1()
+  let _ = exist.method2()
+  let _ = exist.method3()
+  let _ = exist.method4()
+  let _ = exist.method5()
+  let _ = exist.method6()
+  let _ = exist.method7()
+  let _ = exist.method8()
+  let _ = exist.method9()
+  let _ = exist.method10()
+  let _ = exist.method11()
+  let _ = exist.method12()
 }
 do {
   let exist: any CovariantAssocTypeErasureDerived

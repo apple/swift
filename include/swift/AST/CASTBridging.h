@@ -313,6 +313,9 @@ void Plugin_setCapability(PluginHandle handle, PluginCapabilityPtr data);
 /// Get a capability data set by \c Plugin_setCapability .
 PluginCapabilityPtr _Nullable Plugin_getCapability(PluginHandle handle);
 
+/// Get the executable file path of the plugin.
+const char *Plugin_getExecutableFilePath(PluginHandle handle);
+
 /// Lock the plugin. Clients should lock it during sending and recving the
 /// response.
 void Plugin_lock(PluginHandle handle);

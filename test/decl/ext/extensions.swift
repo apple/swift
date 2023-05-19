@@ -143,7 +143,7 @@ class JustAClass: DoesNotImposeClassReq_1 {
   var property: String = ""
 }
 
-extension DoesNotImposeClassReq_1 where Self: JustAClass {
+extension DoesNotImposeClassReq_1 where Self: JustAClass { // expected-warning{{redundant conformance constraint 'JustAClass' : 'DoesNotImposeClassReq_1'}}
   var wrappingProperty1: String {
     get { return property }
     set { property = newValue } // Okay
@@ -244,7 +244,7 @@ class JustAClass1: DoesNotImposeClassReq_3 {
   var someProperty = 0
 }
 
-extension DoesNotImposeClassReq_3 where Self: JustAClass1 {
+extension DoesNotImposeClassReq_3 where Self: JustAClass1 { // expected-warning {{redundant conformance constraint 'JustAClass1' : 'DoesNotImposeClassReq_3'}}
   var anotherProperty1: Int {
     get { return someProperty }
     set { someProperty = newValue } // Okay

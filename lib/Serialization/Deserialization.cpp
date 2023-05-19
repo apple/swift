@@ -158,6 +158,8 @@ const char InvalidRecordKindError::ID = '\0';
 void InvalidRecordKindError::anchor() {}
 const char UnsafeDeserializationError::ID = '\0';
 void UnsafeDeserializationError::anchor() {}
+const char ModularizationError::ID = '\0';
+void ModularizationError::anchor() {}
 
 static llvm::Error consumeErrorIfXRefNonLoadedModule(llvm::Error &&error);
 
@@ -180,18 +182,108 @@ void ModuleFile::fatal(llvm::Error error) const {
   Core->fatal(diagnoseFatal(std::move(error)));
 }
 
+SourceLoc ModuleFile::getSourceLoc() const {
+  auto &SourceMgr = getContext().Diags.SourceMgr;
+  auto filename = getModuleFilename();
+  auto bufferID = SourceMgr.getIDForBufferIdentifier(filename);
+  if (!bufferID)
+    bufferID = SourceMgr.addMemBufferCopy(StringRef(), filename);
+  return SourceMgr.getLocForBufferStart(*bufferID);
+}
+
+void
+ModularizationError::diagnose(const ModuleFile *MF,
+                              DiagnosticBehavior limit) const {
+  auto &ctx = MF->getContext();
+
+  auto diagnoseError = [&](Kind errorKind) {
+    switch (errorKind) {
+    case Kind::DeclMoved:
+      return ctx.Diags.diagnose(MF->getSourceLoc(), diag::modularization_issue_decl_moved,
+                                declIsType, name, expectedModuleName,
+                                foundModuleName);
+    case Kind::DeclKindChanged:
+      return
+        ctx.Diags.diagnose(MF->getSourceLoc(), diag::modularization_issue_decl_type_changed,
+                           declIsType, name, expectedModuleName,
+                           referencedFromModuleName, foundModuleName,
+                           foundModuleName != expectedModuleName);
+    case Kind::DeclNotFound:
+      return ctx.Diags.diagnose(MF->getSourceLoc(), diag::modularization_issue_decl_not_found,
+                                declIsType, name, expectedModuleName);
+    }
+    llvm_unreachable("Unhandled ModularizationError::Kind in switch.");
+  };
+
+  auto inFlight = diagnoseError(errorKind);
+  inFlight.limitBehavior(limit);
+  inFlight.flush();
+
+  // We could pass along the `path` information through notes.
+  // However, for a top-level decl a path would just duplicate the
+  // expected module name and the decl name from the diagnostic.
+}
+
+void TypeError::diagnose(const ModuleFile *MF) const {
+  MF->getContext().Diags.diagnose(MF->getSourceLoc(),
+                                  diag::modularization_issue_side_effect_type_error,
+                                  name);
+}
+
+void ExtensionError::diagnose(const ModuleFile *MF) const {
+  MF->getContext().Diags.diagnose(MF->getSourceLoc(),
+                       diag::modularization_issue_side_effect_extension_error);
+}
+
 llvm::Error ModuleFile::diagnoseFatal(llvm::Error error) const {
-  if (FileContext)
-    getContext().Diags.diagnose(SourceLoc(), diag::serialization_fatal,
-                                Core->Name);
+
+  auto &ctx = getContext();
+  if (FileContext) {
+    if (ctx.LangOpts.EnableDeserializationRecovery) {
+      // Attempt to report relevant errors as diagnostics.
+      // At this time, only ModularizationErrors are reported directly. They
+      // can get here either directly or as underlying causes to a TypeError or
+      // and ExtensionError.
+      auto handleModularizationError =
+        [&](const ModularizationError &modularError) -> llvm::Error {
+          modularError.diagnose(this);
+          return llvm::Error::success();
+        };
+      error = llvm::handleErrors(std::move(error),
+        handleModularizationError,
+        [&](TypeError &typeError) -> llvm::Error {
+          if (typeError.diagnoseUnderlyingReason(handleModularizationError)) {
+            typeError.diagnose(this);
+            return llvm::Error::success();
+          }
+          return llvm::make_error<TypeError>(std::move(typeError));
+        },
+        [&](ExtensionError &extError) -> llvm::Error {
+          if (extError.diagnoseUnderlyingReason(handleModularizationError)) {
+            extError.diagnose(this);
+            return llvm::Error::success();
+          }
+          return llvm::make_error<ExtensionError>(std::move(extError));
+        });
+
+      // If no error is left, it was reported as a diagnostic. There's no
+      // need to crash.
+      if (!error)
+        return llvm::Error::success();
+    }
+
+    // General deserialization failure message.
+    ctx.Diags.diagnose(getSourceLoc(), diag::serialization_fatal, Core->Name);
+  }
   // Unless in the debugger, crash. ModuleFileSharedCore::fatal() calls abort().
   // This allows aggregation of crash logs for compiler development, but in a
   // long-running process like LLDB this is undesirable. Only abort() if not in
   // the debugger.
-  if (!getContext().LangOpts.DebuggerSupport)
+  if (!ctx.LangOpts.DebuggerSupport)
     Core->fatal(std::move(error));
 
-  // Otherwise, augment the error with contextual information and pass it back.
+  // Otherwise, augment the error with contextual information at this point
+  // of failure and pass it back to be reported later.
   std::string msg;
   {
     llvm::raw_string_ostream os(msg);
@@ -1860,18 +1952,21 @@ ModuleFile::resolveCrossReference(ModuleID MID, uint32_t pathLen) {
     // is mostly for compiler engineers to understand a likely solution at a
     // quick glance.
     SmallVector<char, 64> strScratch;
-    SmallVector<std::string, 2> notes;
-    auto declName = getXRefDeclNameForError();
+
+    auto errorKind = ModularizationError::Kind::DeclNotFound;
+    Identifier foundIn;
+    bool isType = false;
+
     if (recordID == XREF_TYPE_PATH_PIECE ||
         recordID == XREF_VALUE_PATH_PIECE) {
       auto &ctx = getContext();
       for (auto nameAndModule : ctx.getLoadedModules()) {
-        auto baseModule = nameAndModule.second;
+        auto otherModule = nameAndModule.second;
 
         IdentifierID IID;
         IdentifierID privateDiscriminator = 0;
         TypeID TID = 0;
-        bool isType = (recordID == XREF_TYPE_PATH_PIECE);
+        isType = (recordID == XREF_TYPE_PATH_PIECE);
         bool inProtocolExt = false;
         bool importedFromClang = false;
         bool isStatic = false;
@@ -1895,10 +1990,10 @@ ModuleFile::resolveCrossReference(ModuleID MID, uint32_t pathLen) {
 
         values.clear();
         if (privateDiscriminator) {
-          baseModule->lookupMember(values, baseModule, name,
+          otherModule->lookupMember(values, otherModule, name,
                                    getIdentifier(privateDiscriminator));
         } else {
-          baseModule->lookupQualified(baseModule, DeclNameRef(name),
+          otherModule->lookupQualified(otherModule, DeclNameRef(name),
                                       NL_QualifiedDefault,
                                       values);
         }
@@ -1912,30 +2007,31 @@ ModuleFile::resolveCrossReference(ModuleID MID, uint32_t pathLen) {
           // Found a full match in a different module. It should be a different
           // one because otherwise it would have succeeded on the first search.
           // This is usually caused by the use of poorly modularized headers.
-          auto line = "There is a matching '" +
-                      declName.getString(strScratch).str() +
-                      "' in module '" +
-                      std::string(nameAndModule.first.str()) +
-                      "'. If this is imported from clang, please make sure " +
-                      "the header is part of a single clang module.";
-          notes.emplace_back(line);
+          errorKind = ModularizationError::Kind::DeclMoved;
+          foundIn = otherModule->getName();
+          break;
         } else if (hadAMatchBeforeFiltering) {
           // Found a match that was filtered out. This may be from the same
           // expected module if there's a type difference. This can be caused
           // by the use of different Swift language versions between a library
           // with serialized SIL and a client.
-          auto line = "'" +
-                      declName.getString(strScratch).str() +
-                      "' in module '" +
-                      std::string(nameAndModule.first.str()) +
-                      "' was filtered out.";
-          notes.emplace_back(line);
+          errorKind = ModularizationError::Kind::DeclKindChanged;
+          foundIn = otherModule->getName();
+          break;
         }
       }
     }
 
-    return llvm::make_error<XRefError>("top-level value not found", pathTrace,
-                                       declName, notes);
+    auto declName = getXRefDeclNameForError();
+    auto expectedIn = baseModule->getName();
+    auto referencedFrom = getName();
+    return llvm::make_error<ModularizationError>(declName,
+                                                 isType,
+                                                 errorKind,
+                                                 expectedIn,
+                                                 referencedFrom,
+                                                 foundIn,
+                                                 pathTrace);
   }
 
   // Filters for values discovered in the remaining path pieces.
@@ -7340,7 +7436,8 @@ static llvm::Error consumeErrorIfXRefNonLoadedModule(llvm::Error &&error) {
     // implementation-only import hiding types and decls.
     // rdar://problem/60291019
     if (error.isA<XRefNonLoadedModuleError>() ||
-        error.isA<UnsafeDeserializationError>()) {
+        error.isA<UnsafeDeserializationError>() ||
+        error.isA<ModularizationError>()) {
       consumeError(std::move(error));
       return llvm::Error::success();
     }
@@ -7353,7 +7450,8 @@ static llvm::Error consumeErrorIfXRefNonLoadedModule(llvm::Error &&error) {
       auto *TE = static_cast<TypeError*>(errorInfo.get());
 
       if (TE->underlyingReasonIsA<XRefNonLoadedModuleError>() ||
-          TE->underlyingReasonIsA<UnsafeDeserializationError>()) {
+          TE->underlyingReasonIsA<UnsafeDeserializationError>() ||
+          TE->underlyingReasonIsA<ModularizationError>()) {
         consumeError(std::move(errorInfo));
         return llvm::Error::success();
       }

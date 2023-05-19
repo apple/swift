@@ -109,6 +109,20 @@ public func _identityCast<T, U>(_ x: T, to expectedType: U.Type) -> U {
   return Builtin.reinterpretCast(x)
 }
 
+/// Returns `x` as its concrete type `U`, or `nil` if `x` has a different
+/// concrete type.
+///
+/// This cast can be useful for dispatching to specializations of generic
+/// functions.
+@_alwaysEmitIntoClient
+public func _specialize<T, U>(_ x: T, for: U.Type) -> U? {
+  guard T.self == U.self else {
+    return nil
+  }
+
+  return Builtin.reinterpretCast(x)
+}
+
 /// `unsafeBitCast` something to `AnyObject`.
 @usableFromInline @_transparent
 internal func _reinterpretCastToAnyObject<T>(_ x: T) -> AnyObject {
@@ -406,18 +420,18 @@ internal var _objectPointerLowSpareBitShift: UInt {
     }
 }
 
-#if arch(i386) || arch(arm) || arch(wasm32) || arch(powerpc) || arch(powerpc64) || arch(
-  powerpc64le) || arch(s390x) || arch(arm64_32)
 @inlinable
 internal var _objectPointerIsObjCBit: UInt {
-    @inline(__always) get { return 0x0000_0002 }
-}
+  @inline(__always) get {
+#if _pointerBitWidth(_64)
+    return 0x4000_0000_0000_0000
+#elseif _pointerBitWidth(_32)
+    return 0x0000_0002
 #else
-@inlinable
-internal var _objectPointerIsObjCBit: UInt {
-  @inline(__always) get { return 0x4000_0000_0000_0000 }
-}
+#error("Unknown platform")
 #endif
+  }
+}
 
 /// Extract the raw bits of `x`.
 @inlinable

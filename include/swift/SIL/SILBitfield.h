@@ -181,13 +181,16 @@ template <typename BitfieldContainer> struct BitfieldRef {
     return ref;
   }
 
+  explicit operator bool() { return ref; }
+
   // Stack-allocated state must be nested relative to other node bitfields.
   struct StackState {
     BitfieldRef &ref;
     BitfieldContainer container;
 
-    StackState(BitfieldRef &ref, SILFunction *function)
-        : ref(ref), container(function) {
+    template <typename... ArgTypes>
+    StackState(BitfieldRef &ref, ArgTypes &&...Args)
+        : ref(ref), container(std::forward<ArgTypes>(Args)...) {
       ref.ref = &container;
     }
 

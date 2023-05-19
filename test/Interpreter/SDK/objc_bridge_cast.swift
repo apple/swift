@@ -255,7 +255,7 @@ func testValueToObjectBridgingInSwitch() {
     }
   }
 
-#if !(arch(i386) || arch(arm) || arch(arm64_32))
+#if _pointerBitWidth(_64)
   // Small strings should be immortal on new enough 64-bit Apple platforms.
   if #available(macOS 10.10, *) {
     autoreleasepool {

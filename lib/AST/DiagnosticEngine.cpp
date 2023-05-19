@@ -1272,9 +1272,8 @@ DiagnosticEngine::diagnosticInfoForDiagnostic(const Diagnostic &diagnostic) {
       diagnostic.isChildNote());
 }
 
-std::vector<Diagnostic> DiagnosticEngine::getGeneratedSourceBufferNotes(
-    SourceLoc loc, Optional<unsigned> &lastBufferID
-) {
+std::vector<Diagnostic>
+DiagnosticEngine::getGeneratedSourceBufferNotes(SourceLoc loc) {
   // The set of child notes we're building up.
   std::vector<Diagnostic> childNotes;
 
@@ -1285,12 +1284,6 @@ std::vector<Diagnostic> DiagnosticEngine::getGeneratedSourceBufferNotes(
   // If we already emitted these notes for a prior part of the diagnostic,
   // don't do so again.
   auto currentBufferID = SourceMgr.findBufferContainingLoc(loc);
-  if (currentBufferID == lastBufferID)
-    return childNotes;
-
-  // Keep track of the last buffer ID we considered.
-  lastBufferID = currentBufferID;
-
   SourceLoc currentLoc = loc;
   do {
     auto generatedInfo = SourceMgr.getGeneratedSourceInfo(currentBufferID);
@@ -1337,7 +1330,6 @@ std::vector<Diagnostic> DiagnosticEngine::getGeneratedSourceBufferNotes(
 }
 
 void DiagnosticEngine::emitDiagnostic(const Diagnostic &diagnostic) {
-  Optional<unsigned> lastBufferID;
 
   ArrayRef<Diagnostic> childNotes = diagnostic.getChildNotes();
   std::vector<Diagnostic> extendedChildNotes;
@@ -1345,7 +1337,11 @@ void DiagnosticEngine::emitDiagnostic(const Diagnostic &diagnostic) {
   if (auto info = diagnosticInfoForDiagnostic(diagnostic)) {
     // If the diagnostic location is within a buffer containing generated
     // source code, add child notes showing where the generation occurred.
-    extendedChildNotes = getGeneratedSourceBufferNotes(info->Loc, lastBufferID);
+    // We need to avoid doing this if this is itself a child note, as otherwise
+    // we'd end up doubling up on notes.
+    if (!info->IsChildNote) {
+      extendedChildNotes = getGeneratedSourceBufferNotes(info->Loc);
+    }
     if (!extendedChildNotes.empty()) {
       extendedChildNotes.insert(extendedChildNotes.end(),
                                 childNotes.begin(), childNotes.end());

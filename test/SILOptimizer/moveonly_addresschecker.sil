@@ -526,7 +526,7 @@ sil [ossa] @test_in_use : $@convention(thin) () -> () {
   %9 = function_ref @getNonTrivialStruct : $@convention(thin) () -> @owned NonTrivialStruct
   %10 = apply %9() : $@convention(thin) () -> @owned NonTrivialStruct
   %0 = alloc_stack [moveable_value_debuginfo] $NonTrivialStruct
-  %2 = mark_must_check [assignable_but_not_consumable] %0 : $*NonTrivialStruct
+  %2 = mark_must_check [consumable_and_assignable] %0 : $*NonTrivialStruct
   store %10 to [init] %2 : $*NonTrivialStruct
   %f2 = function_ref @consumeNonTrivialStructAddr : $@convention(thin) (@in NonTrivialStruct) -> ()
   apply %f2(%2) : $@convention(thin) (@in NonTrivialStruct) -> ()

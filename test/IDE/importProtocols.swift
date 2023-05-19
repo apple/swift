@@ -5,11 +5,11 @@
 
 // CHECK: protocol ImportedProtocolBase : NSObjectProtocol {
 // CHECK: }
-// CHECK: typealias ImportedProtocolBase_t = ImportedProtocolBase
+// CHECK: typealias ImportedProtocolBase_t = any ImportedProtocolBase
 // CHECK: protocol IPSub : ImportedProtocolBase {
 // CHECK: }
-// CHECK: typealias IPSub_t = IPSub
-// CHECK: typealias Dummy = IPSub
+// CHECK: typealias IPSub_t = any IPSub
+// CHECK: typealias Dummy = any IPSub
 // CHECK: func takesIPSub(_ in: IPSub_t!)
 
 import ImportedProtocols

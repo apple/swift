@@ -186,7 +186,7 @@ exit:
 // CHECK:       {{bb[0-9]+}}([[INSTANCE:%[^,]+]] : @owned $C):
 // CHECK:         [[LIFETIME:%[^,]+]] = begin_borrow [[INSTANCE]]
 // CHECK:         br [[WORK:bb[0-9]+]]([[LIFETIME]] : $C)
-// CHECK:       [[WORK]]([[LIFETIME_2:%[^,]+]] : @guaranteed $C):
+// CHECK:       [[WORK]]([[LIFETIME_2:%[^,]+]] : @reborrow @guaranteed $C):
 // CHECK:         end_borrow [[LIFETIME_2]]
 // CHECK:         tuple ()
 // CHECK:         destroy_value [[INSTANCE]]

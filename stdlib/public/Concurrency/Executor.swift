@@ -16,17 +16,25 @@ import Swift
 @available(SwiftStdlib 5.1, *)
 public protocol Executor: AnyObject, Sendable {
 
+  // Since lack move-only type support in the SWIFT_STDLIB_TASK_TO_THREAD_MODEL_CONCURRENCY configuration
+  // Do not deprecate the UnownedJob enqueue in that configuration just yet - as we cannot introduce the replacements.
   #if !SWIFT_STDLIB_TASK_TO_THREAD_MODEL_CONCURRENCY
-  @available(macOS, introduced: 10.15, deprecated: 9999, message: "Implement 'enqueue(_: __owned ExecutorJob)' instead")
-  @available(iOS, introduced: 13.0, deprecated: 9999, message: "Implement 'enqueue(_: __owned ExecutorJob)' instead")
-  @available(watchOS, introduced: 6.0, deprecated: 9999, message: "Implement 'enqueue(_: __owned ExecutorJob)' instead")
-  @available(tvOS, introduced: 13.0, deprecated: 9999, message: "Implement 'enqueue(_: __owned ExecutorJob)' instead")
+  @available(SwiftStdlib 5.1, *)
+  @available(*, deprecated, message: "Implement 'enqueue(_: __owned ExecutorJob)' instead")
   #endif // !SWIFT_STDLIB_TASK_TO_THREAD_MODEL_CONCURRENCY
   func enqueue(_ job: UnownedJob)
 
+  // Cannot introduce these methods in SWIFT_STDLIB_TASK_TO_THREAD_MODEL_CONCURRENCY
+  // since it lacks move-only type support.
   #if !SWIFT_STDLIB_TASK_TO_THREAD_MODEL_CONCURRENCY
   @available(SwiftStdlib 5.9, *)
-  func enqueue(_ job: __owned ExecutorJob)
+  @available(*, deprecated, message: "Implement 'enqueue(_: __owned ExecutorJob)' instead")
+  func enqueue(_ job: consuming Job)
+  #endif // !SWIFT_STDLIB_TASK_TO_THREAD_MODEL_CONCURRENCY
+
+  #if !SWIFT_STDLIB_TASK_TO_THREAD_MODEL_CONCURRENCY
+  @available(SwiftStdlib 5.9, *)
+  func enqueue(_ job: consuming ExecutorJob)
   #endif // !SWIFT_STDLIB_TASK_TO_THREAD_MODEL_CONCURRENCY
 }
 
@@ -39,10 +47,8 @@ public protocol SerialExecutor: Executor {
   // work-scheduling operation.
   @_nonoverride
   #if !SWIFT_STDLIB_TASK_TO_THREAD_MODEL_CONCURRENCY
-  @available(macOS, introduced: 10.15, deprecated: 9999, message: "Implement 'enqueue(_: __owned ExecutorJob)' instead")
-  @available(iOS, introduced: 13.0, deprecated: 9999, message: "Implement 'enqueue(_: __owned ExecutorJob)' instead")
-  @available(watchOS, introduced: 6.0, deprecated: 9999, message: "Implement 'enqueue(_: __owned ExecutorJob)' instead")
-  @available(tvOS, introduced: 13.0, deprecated: 9999, message: "Implement 'enqueue(_: __owned ExecutorJob)' instead")
+  @available(SwiftStdlib 5.1, *)
+  @available(*, deprecated, message: "Implement 'enqueue(_: __owned ExecutorJob)' instead")
   #endif // !SWIFT_STDLIB_TASK_TO_THREAD_MODEL_CONCURRENCY
   func enqueue(_ job: UnownedJob)
 
@@ -53,7 +59,18 @@ public protocol SerialExecutor: Executor {
   // work-scheduling operation.
   @_nonoverride
   @available(SwiftStdlib 5.9, *)
-  func enqueue(_ job: __owned ExecutorJob)
+  @available(*, deprecated, message: "Implement 'enqueue(_: __owned ExecutorJob)' instead")
+  func enqueue(_ job: consuming Job)
+  #endif // !SWIFT_STDLIB_TASK_TO_THREAD_MODEL_CONCURRENCY
+
+  #if !SWIFT_STDLIB_TASK_TO_THREAD_MODEL_CONCURRENCY
+  // This requirement is repeated here as a non-override so that we
+  // get a redundant witness-table entry for it.  This allows us to
+  // avoid drilling down to the base conformance just for the basic
+  // work-scheduling operation.
+  @_nonoverride
+  @available(SwiftStdlib 5.9, *)
+  func enqueue(_ job: consuming ExecutorJob)
   #endif // !SWIFT_STDLIB_TASK_TO_THREAD_MODEL_CONCURRENCY
 
   /// Convert this executor value to the optimized form of borrowed
@@ -85,11 +102,19 @@ public protocol SerialExecutor: Executor {
 #if !SWIFT_STDLIB_TASK_TO_THREAD_MODEL_CONCURRENCY
 @available(SwiftStdlib 5.9, *)
 extension Executor {
+
+  // Delegation goes like this:
+  // Unowned Job -> Executor Job -> Job -> ---||---
+
   public func enqueue(_ job: UnownedJob) {
     self.enqueue(ExecutorJob(job))
   }
 
-  public func enqueue(_ job: __owned ExecutorJob) {
+  public func enqueue(_ job: consuming ExecutorJob) {
+    self.enqueue(Job(job))
+  }
+
+  public func enqueue(_ job: consuming Job) {
     self.enqueue(UnownedJob(job))
   }
 }

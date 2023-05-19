@@ -22,9 +22,16 @@ extension BuiltinInst : OnoneSimplifyable {
         optimizeIsConcrete(allowArchetypes: false, context)
       case .IsSameMetatype:
         optimizeIsSameMetatype(context)
+      case .Once:
+        optimizeBuiltinOnce(context)
+      case .CanBeObjCClass:
+        optimizeCanBeClass(context)
+      case .AssertConf:
+        optimizeAssertConfig(context)
       default:
-        // TODO: handle other builtin types
-        break
+        if let literal = constantFold(context) {
+          uses.replaceAll(with: literal, context)
+        }
     }
   }
 }
@@ -63,6 +70,66 @@ private extension BuiltinInst {
     let result = builder.createIntegerLiteral(equal ? 1 : 0, type: type)
 
     uses.replaceAll(with: result, context)
+  }
+
+  func optimizeBuiltinOnce(_ context: SimplifyContext) {
+    guard let callee = calleeOfOnce, callee.isDefinition else {
+      return
+    }
+    // If the callee is side effect-free we can remove the whole builtin "once".
+    // We don't use the callee's memory effects but instead look at all callee instructions
+    // because memory effects are not computed in the Onone pipeline, yet.
+    // This is no problem because the callee (usually a global init function )is mostly very small,
+    // or contains the side-effect instruction `alloc_global` right at the beginning.
+    if callee.instructions.contains(where: { $0.mayReadOrWriteMemory || $0.hasUnspecifiedSideEffects }) {
+      return
+    }
+    context.erase(instruction: self)
+  }
+
+  var calleeOfOnce: Function? {
+    let callee = operands[1].value
+    if let fri = callee as? FunctionRefInst {
+      return fri.referencedFunction
+    }
+    return nil
+  }
+
+  func optimizeCanBeClass(_ context: SimplifyContext) {
+    guard let ty = substitutionMap.replacementTypes[0] else {
+      return
+    }
+    let literal: IntegerLiteralInst
+    switch ty.canBeClass {
+    case .IsNot:
+      let builder = Builder(before: self, context)
+      literal = builder.createIntegerLiteral(0,  type: type)
+    case .Is:
+      let builder = Builder(before: self, context)
+      literal = builder.createIntegerLiteral(1,  type: type)
+    case .CanBe:
+      return
+    default:
+      fatalError()
+    }
+    uses.replaceAll(with: literal, context)
+    context.erase(instruction: self)
+  }
+
+  func optimizeAssertConfig(_ context: SimplifyContext) {
+    let literal: IntegerLiteralInst
+    switch context.options.assertConfiguration {
+    case .enabled:
+      let builder = Builder(before: self, context)
+      literal = builder.createIntegerLiteral(1,  type: type)
+    case .disabled:
+      let builder = Builder(before: self, context)
+      literal = builder.createIntegerLiteral(0,  type: type)
+    default:
+      return
+    }
+    uses.replaceAll(with: literal, context)
+    context.erase(instruction: self)
   }
 }
 

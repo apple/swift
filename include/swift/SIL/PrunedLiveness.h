@@ -202,10 +202,6 @@ public:
 
   bool isInitialized() const { return initializedFlag; }
 
-  void invalidate() {
-    initializedFlag = false;
-  }
-
   void initializeDiscoveredBlocks(
       SmallVectorImpl<SILBasicBlock *> *discoveredBlocks) {
     assert(!isInitialized() && "cannot reinitialize after blocks are live");
@@ -370,11 +366,6 @@ public:
   bool isInitialized() const { return liveBlocks.isInitialized(); }
 
   bool empty() const { return users.empty(); }
-
-  void invalidate() {
-    liveBlocks.invalidate();
-    users.clear();
-  }
 
   void initializeDiscoveredBlocks(
       SmallVectorImpl<SILBasicBlock *> *discoveredBlocks) {
@@ -639,12 +630,6 @@ public:
 
   SILValue getDef() const { return def; }
 
-  void invalidate() {
-    def = SILValue();
-    defInst = nullptr;
-    PrunedLiveRange::invalidate();
-  }
-
   void initializeDef(SILValue def) {
     assert(!this->def && "reinitialization");
 
@@ -709,10 +694,6 @@ public:
       SmallVectorImpl<SILBasicBlock *> *discoveredBlocks = nullptr)
       : PrunedLiveRange(function, discoveredBlocks), defs(function),
         defBlocks(function) {}
-
-  void invalidate() {
-    PrunedLiveRange::invalidate();
-  }
 
   void initializeDef(SILInstruction *defInst) {
     initializeDefNode(cast<SILNode>(defInst));
@@ -799,12 +780,6 @@ public:
           nullptr)
       : SSAPrunedLiveness(function, discoveredBlocks),
         nonLifetimeEndingUsesInLiveOut(nonLifetimeEndingUsesInLiveOut) {}
-
-  void invalidate() {
-    SSAPrunedLiveness::invalidate();
-    if (nonLifetimeEndingUsesInLiveOut)
-      nonLifetimeEndingUsesInLiveOut->clear();
-  }
 
   void updateForUse(SILInstruction *user, bool lifetimeEnding);
 

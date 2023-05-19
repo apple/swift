@@ -313,7 +313,7 @@ swift::getVariableOfStaticInitializer(SILFunction *InitFunc,
     // Make sure we have a single GlobalAddrInst and a single StoreInst.
     // And the StoreInst writes to the GlobalAddrInst.
     if (isa<AllocGlobalInst>(&I) || isa<ReturnInst>(&I)
-        || isa<DebugValueInst>(&I)) {
+        || isa<DebugValueInst>(&I) || isa<DebugStepInst>(&I)) {
       continue;
     } else if (auto *sga = dyn_cast<GlobalAddrInst>(&I)) {
       if (SGA)

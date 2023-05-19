@@ -499,3 +499,13 @@ protocol WithPrimary<Assoc> {
 // CHECK: [[@LINE-1]]:18 | type-alias/associated-type/Swift | Assoc | {{.*}} | Def,RelChild | rel: 1
 // CHECK-NEXT: RelChild | protocol/Swift | WithPrimary | {{.*}}
 }
+
+struct Root {} // CHECK: [[@LINE]]:8 | struct/Swift | Root | [[Root_USR:.*]] | Def | rel: 0
+
+typealias Alias = Root // CHECK: [[@LINE]]:11 | type-alias/Swift | Alias | [[Alias_USR:.*]] | Def | rel: 0
+
+extension Alias {
+  // CHECK: [[@LINE-1]]:11 | type-alias/Swift | Alias | [[Alias_USR]] | Ref | rel: 0
+  // CHECK: [[@LINE-2]]:11 | struct/Swift | Root | [[Root_USR]] | Ref,Impl,RelExt | rel: 1
+  func empty() {}
+}

@@ -153,36 +153,6 @@ extractLinkerFlagsFromObjectFile(const llvm::object::ObjectFile *ObjectFile,
   return false;
 }
 
-/// Look inside the object file 'WasmObjectFile' and append any linker flags
-/// found in its ".swift1_autolink_entries" section to 'LinkerFlags'. Return
-/// 'true' if there was an error, and 'false' otherwise.
-static bool
-extractLinkerFlagsFromObjectFile(const llvm::object::WasmObjectFile *ObjectFile,
-                                 std::vector<std::string> &LinkerFlags,
-                                 std::unordered_map<std::string, bool> &SwiftRuntimeLibraries,
-                                 CompilerInstance &Instance) {
-  // Search for the data segment we hold autolink entries in
-  for (const llvm::object::WasmSegment &Segment : ObjectFile->dataSegments()) {
-    if (Segment.Data.Name == ".swift1_autolink_entries") {
-
-      StringRef SegmentData = llvm::toStringRef(Segment.Data.Content);
-      // entries are null-terminated, so extract them and push them into
-      // the set.
-      llvm::SmallVector<llvm::StringRef, 4> SplitFlags;
-      SegmentData.split(SplitFlags, llvm::StringRef("\0", 1), -1,
-                        /*KeepEmpty=*/false);
-      for (const auto &Flag : SplitFlags) {
-        auto RuntimeLibEntry = SwiftRuntimeLibraries.find(Flag.str());
-        if (RuntimeLibEntry == SwiftRuntimeLibraries.end())
-          LinkerFlags.emplace_back(Flag.str());
-        else
-          RuntimeLibEntry->second = true;
-      }
-    }
-  }
-  return false;
-}
-
 /// Look inside the binary 'Bin' and append any linker flags found in its
 /// ".swift1_autolink_entries" section to 'LinkerFlags'. If 'Bin' is an archive,
 /// recursively look inside all children within the archive. Return 'true' if

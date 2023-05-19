@@ -44,13 +44,14 @@ func foo() {
   _ = s3
 }
 
-@_moveOnly struct MoveOnly {}
+struct MoveOnly: ~Copyable {}
 
-@_eagerMove @_moveOnly struct MoveOnlyEagerly {} // expected-error {{@_eagerMove cannot be applied to NonCopyable types}}
+@_eagerMove struct MoveOnlyEagerly: ~Copyable {} // expected-error {{@_eagerMove cannot be applied to NonCopyable types}}
 
 func zoo(@_eagerMove _ : consuming MoveOnly) {} // expected-error {{@_eagerMove cannot be applied to NonCopyable types}}
 
-func zooo(@_noEagerMove  _ : consuming C) {} // ok, only way to spell this behavior
+// TODO: Copyable types can't be consuming right now (rdar://108383660)
+//func zooo(@_noEagerMove  _ : consuming C) {} // ok, only way to spell this behavior
 
 extension MoveOnly {
   @_eagerMove // expected-error {{@_eagerMove cannot be applied to NonCopyable types}}

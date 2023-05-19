@@ -386,7 +386,7 @@ extension _${U}Int128: FixedWidthInteger {
     by rhs: Self
   ) -> (partialValue: Self, overflow: Bool) {
     % if signed:
-    let isNegative = (self._isNegative != rhs._isNegative)
+    let isNegative = (self._isNegative != rhs._isNegative && self != .zero && rhs != .zero)
     let (p, overflow) = self.magnitude.multipliedReportingOverflow(
       by: rhs.magnitude)
     let r = _Int128(bitPattern: isNegative ? p._twosComplement : p)
@@ -410,7 +410,7 @@ extension _${U}Int128: FixedWidthInteger {
     by other: UInt64
   ) -> (partialValue: Self, overflow: Bool) {
     % if signed:
-    let isNegative = self._isNegative
+    let isNegative = self._isNegative && self != .zero && other != .zero
     let (p, overflow) = self.magnitude.multipliedReportingOverflow(by: other)
     let r = _Int128(bitPattern: isNegative ? p._twosComplement : p)
     return (r, overflow || (isNegative != r._isNegative))

@@ -485,19 +485,11 @@ bool OwnershipModelEliminatorVisitor::visitDestroyValueInst(
     DestroyValueInst *dvi) {
   // Nonescaping closures are represented ultimately as trivial pointers to
   // their context, but we use ownership to do borrow checking of their captures
-  // in OSSA. Now that we're eliminating ownership, fold away destroys, unless
-  // we're destroying the original partial_apply, in which case this is where
-  // we dealloc_stack the context.
+  // in OSSA. Now that we're eliminating ownership, fold away destroys.
   auto operand = dvi->getOperand();
   auto operandTy = operand->getType();
   if (auto operandFnTy = operandTy.getAs<SILFunctionType>()){
     if (operandFnTy->isTrivialNoEscape()) {
-      if (auto origPA = dvi->getNonescapingClosureAllocation()) {
-        withBuilder<void>(dvi, [&](SILBuilder &b, SILLocation loc) {
-          b.createDeallocStack(loc, origPA);
-        });
-      }
-      
       eraseInstruction(dvi);
       return true;
     }
@@ -627,8 +619,40 @@ static bool stripOwnership(SILFunction &func) {
   if (func.isExternalDeclaration())
     return false;
 
+  llvm::DenseMap<PartialApplyInst *, SmallVector<SILInstruction *>>
+      lifetimeEnds;
+
+  // Nonescaping closures are represented ultimately as trivial pointers to
+  // their context, but we use ownership to do borrow checking of their captures
+  // in OSSA. Now that we're eliminating ownership, we need to dealloc_stack the
+  // context at its lifetime ends.
+  // partial_apply's lifetime ends has to be gathered before we begin to leave
+  // OSSA, but no dealloc_stack can be emitted until after we leave OSSA.
+  for (auto &block : func) {
+    for (auto &ii : block) {
+      auto *pai = dyn_cast<PartialApplyInst>(&ii);
+      if (!pai || !pai->isOnStack()) {
+        continue;
+      }
+      pai->visitOnStackLifetimeEnds([&](Operand *op) {
+        lifetimeEnds[pai].push_back(op->getUser());
+        return true;
+      });
+    }
+  }
+
   // Set F to have unqualified ownership.
   func.setOwnershipEliminated();
+
+  // Now that we are in non-ossa, create dealloc_stack at partial_apply's
+  // lifetime ends
+  for (auto &it : lifetimeEnds) {
+    auto *pai = it.first;
+    for (auto *lifetimeEnd : it.second) {
+      SILBuilderWithScope(lifetimeEnd->getNextInstruction())
+          .createDeallocStack(lifetimeEnd->getLoc(), pai);
+    }
+  }
 
   bool madeChange = false;
   SmallVector<SILInstruction *, 32> createdInsts;
@@ -751,7 +775,7 @@ struct OwnershipModelEliminator : SILFunctionTransform {
           "Found verification error when verifying before lowering "
           "ownership. Please re-run with -sil-verify-all to identify the "
           "actual pass that introduced the verification error.");
-      f->verify();
+      f->verify(getPassManager());
     }
 
     if (stripOwnership(*f)) {

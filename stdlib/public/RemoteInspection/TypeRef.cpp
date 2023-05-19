@@ -852,11 +852,28 @@ public:
 
   Demangle::NodePointer
   visitDependentMemberTypeRef(const DependentMemberTypeRef *DM) {
-    assert(DM->getProtocol().empty() && "not implemented");
+
     auto node = Dem.createNode(Node::Kind::DependentMemberType);
-    node->addChild(visit(DM->getBase()), Dem);
-    node->addChild(Dem.createNode(Node::Kind::Identifier, DM->getMember()),
-                   Dem);
+    auto Base = visit(DM->getBase());
+    node->addChild(Base, Dem);
+
+    auto MemberId = Dem.createNode(Node::Kind::Identifier, DM->getMember());
+
+    auto MangledProtocol = DM->getProtocol();
+    if (MangledProtocol.empty()) {
+      // If there's no protocol, add the Member as an Identifier node
+      node->addChild(MemberId, Dem);
+    } else {
+      // Otherwise, build up a DependentAssociatedTR node with
+      // the member Identifer and protocol
+      auto AssocTy = Dem.createNode(Node::Kind::DependentAssociatedTypeRef);
+      AssocTy->addChild(MemberId, Dem);
+      auto Proto = Dem.demangleType(MangledProtocol);
+      assert(Proto && "Failed to demangle");
+      assert(Proto->getKind() == Node::Kind::Type && "Protocol type is not a type?!");
+      AssocTy->addChild(Proto, Dem);
+      node->addChild(AssocTy, Dem);
+    }
     return node;
   }
 

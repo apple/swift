@@ -28,6 +28,9 @@
 #include "swift/AST/SourceFile.h"
 #include "swift/AST/TypeCheckRequests.h"
 #include "swift/Basic/StringExtras.h"
+
+#include "clang/AST/DeclObjC.h"
+
 using namespace swift;
 
 #pragma mark Determine whether an entity is representable in Objective-C.
@@ -3326,9 +3329,25 @@ private:
     return Identifier();
   }
 
+  /// Is this member an `@optional` ObjC protocol requirement?
+  static bool isOptionalObjCProtocolRequirement(ValueDecl *vd) {
+    if (auto clangDecl = vd->getClangDecl()) {
+      if (auto method = dyn_cast<clang::ObjCMethodDecl>(clangDecl))
+        return method->isOptional();
+      if (auto property = dyn_cast<clang::ObjCPropertyDecl>(clangDecl))
+        return property->isOptional();
+    }
+
+    return false;
+  }
+
 public:
   void diagnoseUnmatchedRequirements() {
     for (auto req : unmatchedRequirements) {
+      // Ignore `@optional` protocol requirements.
+      if (isOptionalObjCProtocolRequirement(req))
+        continue;
+
       auto ext = cast<IterableDeclContext>(req->getDeclContext()->getAsDecl())
                         ->getImplementationContext();
 

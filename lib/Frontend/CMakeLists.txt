@@ -3,6 +3,7 @@ add_swift_host_library(swiftFrontend STATIC
   ArgsToFrontendInputsConverter.cpp
   ArgsToFrontendOptionsConverter.cpp
   ArgsToFrontendOutputsConverter.cpp
+  CachedDiagnostics.cpp
   CachingUtils.cpp
   CompileJobCacheKey.cpp
   CompilerInvocation.cpp

@@ -1,9 +1,6 @@
 // RUN: %empty-directory(%t)
-// RUN: %target-swift-emit-module-interface(%t/PackExpansionType.swiftinterface) %s -module-name PackExpansionType -enable-experimental-feature VariadicGenerics
+// RUN: %target-swift-emit-module-interface(%t/PackExpansionType.swiftinterface) %s -module-name PackExpansionType -disable-availability-checking
 // RUN: %FileCheck %s < %t/PackExpansionType.swiftinterface
-
-// Experimental features require an asserts compiler
-// REQUIRES: asserts
 
 // CHECK: #if compiler(>=5.3) && $ParameterPacks
 // CHECK-NEXT: public func variadicFunction<each T, each U>(t: repeat each T, u: repeat each U) -> (repeat (each T, each U)) where (repeat (each T, each U)) : Any

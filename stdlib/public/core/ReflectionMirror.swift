@@ -284,8 +284,14 @@ public func _forEachField(
     defer { field.freeFunc?(field.name) }
     let kind = _MetadataKind(childType)
 
-    if !body(field.name!, offset, childType, kind) {
-      return false
+    if let name = field.name {
+      if !body(name, offset, childType, kind) {
+        return false
+      }
+    } else {
+      if !body("", offset, childType, kind) {
+        return false
+      }
     }
   }
 
@@ -362,8 +368,14 @@ public func _forEachFieldWithKeyPath<Root>(
         endOfReferencePrefix: false)
     }
 
-    if !body(field.name!, partialKeyPath) {
-      return false
+    if let name = field.name {
+      if !body(name, partialKeyPath) {
+        return false
+      }
+    } else {
+      if !body("", partialKeyPath) {
+        return false
+      }
     }
   }
 

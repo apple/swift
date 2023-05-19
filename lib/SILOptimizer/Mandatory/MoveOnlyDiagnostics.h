@@ -52,6 +52,23 @@ class DiagnosticEmitter {
 
   bool emittedCheckerDoesntUnderstandDiagnostic = false;
 
+  /// This is incremented every time that the checker determines that an earlier
+  /// pass emitted a diagnostic while processing a mark_must_check. In such a
+  /// case, we want to suppress:
+  ///
+  /// 1. Emitting the compiler doesn't understand how to check error for the
+  ///    specific mark_must_check.
+  ///
+  /// 2. The "copy of noncopyable type" error over the entire function since us
+  ///    stopping processing at some point may have left copies.
+  ///
+  /// We use a counter rather than a boolean here so that a caller that is
+  /// processing an individual mark_must_check can determine if the checker
+  /// identified such an earlier pass diagnostic for the specific allocation so
+  /// that we can still emit "compiler doesn't understand" errors for other
+  /// allocations.
+  unsigned diagnosticEmittedByEarlierPassCount = 0;
+
 public:
   DiagnosticEmitter(SILFunction *inputFn) : fn(inputFn) {}
 
@@ -67,9 +84,35 @@ public:
     return *canonicalizer.get();
   }
 
+  /// Returns true if when processing any allocation in the current function:
+  ///
+  /// 1. This diagnostic emitter emitted a diagnostic.
+  /// 2. The user of the diagnostic emitter signaled to the diagnostic emitter
+  ///    that it detected an earlier diagnostic was emitted that prevented it
+  ///    from performing checking.
+  ///
+  /// DISCUSSION: This is used by the checker to decide whether or not it should
+  /// emit "found copy of a noncopyable type" error. If the checker emitted one
+  /// of these diagnostics, then the checker may have stopped processing early
+  /// and left copies since it was no longer able to check. In such a case, we
+  /// want the user to fix the pre-existing errors and re-run.
+  bool emittedDiagnostic() const {
+    return getDiagnosticCount() || getDiagnosticEmittedByEarlierPassCount();
+  }
+
   unsigned getDiagnosticCount() const { return diagnosticCount; }
+
   bool didEmitCheckerDoesntUnderstandDiagnostic() const {
     return emittedCheckerDoesntUnderstandDiagnostic;
+  }
+
+  bool getDiagnosticEmittedByEarlierPassCount() const {
+    return diagnosticEmittedByEarlierPassCount;
+  }
+
+  void emitEarlierPassEmittedDiagnostic(MarkMustCheckInst *mmci) {
+    ++diagnosticEmittedByEarlierPassCount;
+    registerDiagnosticEmitted(mmci);
   }
 
   /// Used at the end of the MoveOnlyAddressChecker to tell the user in a nice

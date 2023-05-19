@@ -268,3 +268,8 @@ do {
   for (x, y, z) in [] { // expected-error {{tuple pattern cannot match values of non-tuple type 'Any'}}
   }
 }
+
+do {
+  // https://github.com/apple/swift/issues/65650 - Make sure we say 'String', not 'Any'.
+  for (x, y) in [""] {} // expected-error {{tuple pattern cannot match values of non-tuple type 'String'}}
+}

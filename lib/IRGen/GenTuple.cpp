@@ -562,9 +562,66 @@ Address irgen::projectTupleElementAddressByDynamicIndex(IRGenFunction &IGF,
                                                         SILType elementType) {
   auto *metadata = IGF.emitTypeMetadataRefForLayout(tupleType);
 
-  llvm::Value *offset = loadTupleOffsetFromMetadata(IGF, metadata, index);
+
+  llvm::BasicBlock *trueBB = nullptr, *falseBB = nullptr, *restBB = nullptr;
+  llvm::BasicBlock *unwrappedBB = nullptr;
+  llvm::Value *unwrappedOffset = nullptr;
+
+  auto loweredTupleType = tupleType.castTo<TupleType>();
+  if (loweredTupleType->getNumScalarElements() <= 1) {
+    ConditionalDominanceScope scope(IGF);
+
+    // Test if the runtime length of the pack type is exactly 1.
+    CanPackType packType = loweredTupleType.getInducedPackType();
+    auto *shapeExpression = IGF.emitPackShapeExpression(packType);
+  
+    auto *one = llvm::ConstantInt::get(IGF.IGM.SizeTy, 1);
+    auto *isOne = IGF.Builder.CreateICmpEQ(shapeExpression, one);
+
+    trueBB = IGF.createBasicBlock("vanishing-tuple");
+    falseBB = IGF.createBasicBlock("actual-tuple");
+
+    IGF.Builder.CreateCondBr(isOne, trueBB, falseBB);
+
+    IGF.Builder.emitBlock(trueBB);
+
+    // If the length is 1, the offset is just zero.
+    unwrappedBB = IGF.Builder.GetInsertBlock();
+    unwrappedOffset = llvm::ConstantInt::get(IGF.IGM.Int32Ty, 0);
+
+    restBB = IGF.createBasicBlock("tuple-rest");
+    IGF.Builder.CreateBr(restBB);
+
+    IGF.Builder.emitBlock(falseBB);
+  }
+
+  llvm::Value *tupleOffset = nullptr;
+  llvm::BasicBlock *tupleBB = nullptr;
+
+  {
+    ConditionalDominanceScope scope(IGF);
+    tupleOffset = loadTupleOffsetFromMetadata(IGF, metadata, index);
+
+    tupleBB = IGF.Builder.GetInsertBlock();
+  }
+
+  // Control flow join with the one-element case.
+  llvm::Value *result = nullptr;
+  if (unwrappedOffset != nullptr) {
+    IGF.Builder.CreateBr(restBB);
+    IGF.Builder.emitBlock(restBB);
+
+    auto *phi = IGF.Builder.CreatePHI(IGF.IGM.Int32Ty, 2);
+    phi->addIncoming(unwrappedOffset, unwrappedBB);
+    phi->addIncoming(tupleOffset, tupleBB);
+
+    result = phi;
+  } else {
+    result = tupleOffset;
+  }
+
   auto *gep =
-      IGF.emitByteOffsetGEP(tuple.getAddress(), offset, IGF.IGM.OpaqueTy);
+      IGF.emitByteOffsetGEP(tuple.getAddress(), result, IGF.IGM.OpaqueTy);
   auto elementAddress = Address(gep, IGF.IGM.OpaqueTy,
                                 IGF.IGM.getPointerAlignment());
   return IGF.Builder.CreateElementBitCast(elementAddress,

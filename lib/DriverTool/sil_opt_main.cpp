@@ -638,7 +638,6 @@ int sil_opt_main(ArrayRef<const char *> argv, void *MainAddr) {
   SILOpts.OptRecordFile = options.RemarksFilename;
   SILOpts.OptRecordPasses = options.RemarksPasses;
   SILOpts.checkSILModuleLeaks = true;
-  SILOpts.EnablePerformanceAnnotations = true;
   SILOpts.EnableStackProtection = true;
   SILOpts.EnableMoveInoutStackProtection = options.EnableMoveInoutStackProtection;
 

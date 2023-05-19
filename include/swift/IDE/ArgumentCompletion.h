@@ -50,6 +50,13 @@ class ArgumentTypeCheckCompletionCallback : public TypeCheckCompletionCallback {
     /// Whether the surrounding context is async and thus calling async
     /// functions is supported.
     bool IsInAsyncContext;
+    /// A bitfield to mark whether the parameter at a given index is optional.
+    /// Parameters can be optional if they have a default argument or belong to
+    /// a parameter pack.
+    /// Indices are based on the parameters in \c FuncTy. Note that the number
+    /// of parameters in \c FuncTy and \c FuncD is different when a parameter
+    /// pack has been exploded.
+    llvm::BitVector DeclParamIsOptional;
 
     /// Types of variables that were determined in the solution that produced
     /// this result. This in particular includes parameters of closures that

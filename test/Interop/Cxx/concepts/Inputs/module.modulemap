@@ -1,0 +1,4 @@
+module MethodRequires {
+  header "method-requires.h"
+  export *
+}

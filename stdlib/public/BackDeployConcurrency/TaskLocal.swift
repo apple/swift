@@ -135,10 +135,10 @@ public final class TaskLocal<Value: Sendable>: Sendable, CustomStringConvertible
   ///
   /// If the value is a reference type, it will be retained for the duration of
   /// the operation closure.
+  @inlinable
   @discardableResult
   @_unsafeInheritExecutor
-  @available(SwiftStdlib 5.1, *) // back deploy requires we declare the availability explicitly on this method
-  @_backDeploy(before: SwiftStdlib 5.8)
+  @backDeployed(before: SwiftStdlib 5.8)
   public func withValue<R>(_ valueDuringOperation: Value, operation: () async throws -> R,
                            file: String = #file, line: UInt = #line) async rethrows -> R {
     return try await withValueImpl(valueDuringOperation, operation: operation, file: file, line: line)
@@ -165,14 +165,13 @@ public final class TaskLocal<Value: Sendable>: Sendable, CustomStringConvertible
   @inlinable
   @discardableResult
   @_unsafeInheritExecutor
-  @available(SwiftStdlib 5.1, *) // back deploy requires we declare the availability explicitly on this method
-  @_backDeploy(before: SwiftStdlib 5.9)
+  @backDeployed(before: SwiftStdlib 5.9)
   internal func withValueImpl<R>(_ valueDuringOperation: __owned Value, operation: () async throws -> R,
                                  file: String = #fileID, line: UInt = #line) async rethrows -> R {
     // check if we're not trying to bind a value from an illegal context; this may crash
     _checkIllegalTaskLocalBindingWithinWithTaskGroup(file: file, line: line)
 
-    _taskLocalValuePush(key: key, value: consume valueDuringOperation)
+    _taskLocalValuePush(key: key, value: valueDuringOperation)
     defer { _taskLocalValuePop() }
 
     return try await operation()

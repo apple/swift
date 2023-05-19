@@ -222,6 +222,18 @@ static bool diagnoseValueDeclRefExportability(SourceLoc loc, const ValueDecl *D,
   if (originKind == DisallowedOriginKind::None)
     return false;
 
+  auto diagName = D->getName();
+  if (auto accessor = dyn_cast<AccessorDecl>(D)) {
+    // Only diagnose accessors if their disallowed origin kind differs from
+    // that of their storage.
+    if (getDisallowedOriginKind(accessor->getStorage(), where) == originKind)
+      return false;
+
+    // For accessors, diagnose with the name of the storage instead of the
+    // implicit '_'.
+    diagName = accessor->getStorage()->getName();
+  }
+
   ASTContext &ctx = where.getDeclContext()->getASTContext();
 
   auto fragileKind = where.getFragileFunctionKind();
@@ -233,7 +245,7 @@ static bool diagnoseValueDeclRefExportability(SourceLoc loc, const ValueDecl *D,
                               diag::decl_from_hidden_module;
     ctx.Diags.diagnose(loc, errorOrWarning,
                        D->getDescriptiveKind(),
-                       D->getName(),
+                       diagName,
                        static_cast<unsigned>(*reason),
                        definingModule->getName(),
                        static_cast<unsigned>(originKind));
@@ -250,7 +262,7 @@ static bool diagnoseValueDeclRefExportability(SourceLoc loc, const ValueDecl *D,
                               diag::inlinable_decl_ref_from_hidden_module;
 
     ctx.Diags.diagnose(loc, errorOrWarning,
-                       D->getDescriptiveKind(), D->getName(),
+                       D->getDescriptiveKind(), diagName,
                        fragileKind.getSelector(), definingModule->getName(),
                        static_cast<unsigned>(originKind));
 
@@ -265,11 +277,6 @@ static bool diagnoseValueDeclRefExportability(SourceLoc loc, const ValueDecl *D,
 bool TypeChecker::diagnoseDeclRefExportability(SourceLoc loc,
                                                const ValueDecl *D,
                                                const ExportContext &where) {
-  // Accessors cannot have exportability that's different than the storage,
-  // so skip them for now.
-  if (isa<AccessorDecl>(D))
-    return false;
-
   if (!where.mustOnlyReferenceExportedDecls())
     return false;
 

@@ -1,6 +1,6 @@
 #import <Foundation/Foundation.h>
 
-@interface ImplClass: NSObject
+@interface ImplClass: NSObject <NSCopying>
 
 - (nonnull instancetype)init;
 

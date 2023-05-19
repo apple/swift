@@ -61,7 +61,7 @@ internal struct _BridgeStorage<NativeClass: AnyObject> {
     rawValue = Builtin.reinterpretCast(native)
   }
 
-#if !(arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32))
+#if _pointerBitWidth(_64)
   @inlinable
   @inline(__always)
   internal init(taggedPayload: UInt) {

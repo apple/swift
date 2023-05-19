@@ -1,8 +1,6 @@
 // FIXME: rdar://problem/19648117 Needs splitting objc parts out
 // REQUIRES: objc_interop
 
-// REQUIRES: rdar102151774
-
 // RUN: echo '#include "header-to-print.h"' > %t.m
 // RUN: %target-swift-ide-test(mock-sdk: %clang-importer-sdk) -source-filename %s -print-header -header-to-print %S/Inputs/print_clang_header/header-to-print.h -print-regular-comments -enable-objc-interop -disable-objc-attr-requires-foundation-module --cc-args %target-cc-options -isysroot %clang-importer-sdk-path -fsyntax-only %t.m -I %S/Inputs/print_clang_header > %t.txt
 // RUN: diff -u %S/Inputs/print_clang_header/header-to-print.h.printed.txt %t.txt
@@ -19,9 +17,6 @@
 // RUN: %target-swift-ide-test(mock-sdk: %clang-importer-sdk) -source-filename %s -print-header -header-to-print %S/Inputs/print_clang_header/header-to-print.h -print-regular-comments -enable-objc-interop -disable-objc-attr-requires-foundation-module --cc-args %target-cc-options -isysroot %clang-importer-sdk-path -fsyntax-only %t.framework.m -F %t -ivfsoverlay %t.yaml -Xclang -fmodule-name=Foo > %t.framework.txt
 // RUN: diff -u %S/Inputs/print_clang_header/header-to-print.h.printed.txt %t.framework.txt
 
-// Test header interface printing from a clang module, with the preprocessing record enabled before the CC args.
-// RUN: %target-swift-ide-test(mock-sdk: %clang-importer-sdk) -source-filename %s -print-header -header-to-print %S/Inputs/print_clang_header/header-to-print.h -print-regular-comments -Xcc -Xclang -Xcc -detailed-preprocessing-record -enable-objc-interop -disable-objc-attr-requires-foundation-module --cc-args %target-cc-options -isysroot %clang-importer-sdk-path -fsyntax-only %t.framework.m -F %t -ivfsoverlay %t.yaml > %t.module.txt
+// Test header interface printing from a clang module.
+// RUN: %target-swift-ide-test(mock-sdk: %clang-importer-sdk) -source-filename %s -print-header -header-to-print %S/Inputs/print_clang_header/header-to-print.h -print-regular-comments -enable-objc-interop -disable-objc-attr-requires-foundation-module --cc-args %target-cc-options -isysroot %clang-importer-sdk-path -fsyntax-only %t.framework.m -F %t -ivfsoverlay %t.yaml > %t.module.txt
 // RUN: diff -u %S/Inputs/print_clang_header/header-to-print.h.module.printed.txt %t.module.txt
-// Test header interface printing from a clang module, with the preprocessing record enabled by the CC args.
-// RUN: %target-swift-ide-test(mock-sdk: %clang-importer-sdk) -source-filename %s -print-header -header-to-print %S/Inputs/print_clang_header/header-to-print.h -print-regular-comments -enable-objc-interop -disable-objc-attr-requires-foundation-module --cc-args %target-cc-options -isysroot %clang-importer-sdk-path -fsyntax-only %t.framework.m -F %t -ivfsoverlay %t.yaml -Xclang -detailed-preprocessing-record > %t.module2.txt
-// RUN: diff -u %S/Inputs/print_clang_header/header-to-print.h.module.printed.txt %t.module2.txt

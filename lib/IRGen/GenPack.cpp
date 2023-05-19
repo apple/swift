@@ -899,11 +899,11 @@ llvm::Value *irgen::emitTypeMetadataPackElementRef(
         wtables.push_back(wtable);
       }
     }
-    metadataPhi->addIncoming(metadata, materialize);
+    metadataPhi->addIncoming(metadata, IGF.Builder.GetInsertBlock());
     for (auto i : indices(wtables)) {
       auto *wtable = wtables[i];
       auto *wtablePhi = wtablePhis[i];
-      wtablePhi->addIncoming(wtable, materialize);
+      wtablePhi->addIncoming(wtable, IGF.Builder.GetInsertBlock());
     }
     IGF.Builder.CreateBr(exit);
     // }} Finished emitting emit_i.

@@ -34,3 +34,7 @@ func testArg2Name3() {
 // LABELED_FIRSTARG-DAG: Pattern/Local/Flair[ArgLabels]: {#arg1: Int#}[#Int#];
 // LABELED_FIRSTARG-NOT: ['(']{#arg1: Int#}, {#arg2: Int#}[')'][#Void#];
 
+func subscriptAccess(info: [String: Int]) {
+  info[#^SUBSCRIPT_ACCESS^#]
+// SUBSCRIPT_ACCESS: Pattern/Local/Flair[ArgLabels]:     {#keyPath: KeyPath<[String : Int], Value>#}[#KeyPath<[String : Int], Value>#]; name=keyPath:
+}

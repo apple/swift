@@ -18,8 +18,13 @@ import OptimizerBridging
 /// It provides access to all functions, v-tables and witness tables of a module,
 /// but it doesn't provide any APIs to modify functions.
 /// In order to modify a function, a module pass must use `transform(function:)`.
-struct ModulePassContext : Context {
+struct ModulePassContext : Context, CustomStringConvertible {
   let _bridged: BridgedPassContext
+
+  public var description: String {
+    let stdString = _bridged.getModuleDescription()
+    return String(_cxxString: stdString)
+  }
 
   struct FunctionList : CollectionLikeSequence, IteratorProtocol {
     private var currentFunction: Function?
@@ -30,6 +35,20 @@ struct ModulePassContext : Context {
       if let f = currentFunction {
         currentFunction = BridgedPassContext.getNextFunctionInModule(f.bridged).function
         return f
+      }
+      return nil
+    }
+  }
+
+  struct GlobalVariableList : CollectionLikeSequence, IteratorProtocol {
+    private var currentGlobal: GlobalVariable?
+
+    fileprivate init(first: GlobalVariable?) { currentGlobal = first }
+
+    mutating func next() -> GlobalVariable? {
+      if let g = currentGlobal {
+        currentGlobal = BridgedPassContext.getNextGlobalInModule(g.bridged).globalVar
+        return g
       }
       return nil
     }
@@ -79,6 +98,10 @@ struct ModulePassContext : Context {
     FunctionList(first: _bridged.getFirstFunctionInModule().function)
   }
   
+  var globalVariables: GlobalVariableList {
+    GlobalVariableList(first: _bridged.getFirstGlobalInModule().globalVar)
+  }
+
   var vTables: VTableArray {
     VTableArray(bridged: _bridged.getVTables())
   }
@@ -99,5 +122,11 @@ struct ModulePassContext : Context {
     _bridged.beginTransformFunction(function.bridged)
     runOnFunction(FunctionPassContext(_bridged: _bridged))
     _bridged.endTransformFunction();
+  }
+}
+
+extension GlobalVariable {
+  func setIsLet(to value: Bool, _ context: ModulePassContext) {
+    bridged.setLet(value)
   }
 }

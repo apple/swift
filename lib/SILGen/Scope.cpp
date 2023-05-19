@@ -77,7 +77,8 @@ static void lifetimeExtendAddressOnlyRValueSubValues(
 
 RValue Scope::popPreservingValue(RValue &&rv) {
   auto &SGF = cleanups.SGF;
-  assert(rv.isPlusOne(SGF) && "Can only push plus one rvalues through a scope");
+  assert(rv.isPlusOneOrTrivial(SGF) &&
+         "Can only push plus one rvalues through a scope");
 
   // Perform a quick check if we have an incontext value. If so, just pop and
   // return rv.

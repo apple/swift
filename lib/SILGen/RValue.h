@@ -242,17 +242,23 @@ public:
     return value;
   }
 
-  /// Returns true if this is an rvalue that can be used safely as a +1 rvalue.
+  /// Returns true if this rvalue can be consumed.
   ///
-  /// This returns true iff:
+  /// This is true if each element either has a cleanup or is an SSA value
+  /// without ownership.
   ///
-  /// 1. All sub-values are trivially typed.
-  /// 2. There exists at least one non-trivial typed sub-value and all such
-  /// sub-values all have cleanups.
-  ///
-  /// *NOTE* Due to 1. isPlusOne and isPlusZero both return true for rvalues
-  /// consisting of only trivial values.
+  /// When an SSA value does not have ownership, it can be used by a consuming
+  /// operation without destroying it. Consuming a value by address, however,
+  /// deinitializes the memory regardless of whether the value has ownership.
   bool isPlusOne(SILGenFunction &SGF) const &;
+
+  /// Returns true if this rvalue can be forwarded without necessarilly
+  /// destroying the original.
+  ///
+  /// This is true if either isPlusOne is true or the value is trivial. A
+  /// trivial value in memory can be forwarded as a +1 value without
+  /// deinitializing the memory.
+  bool isPlusOneOrTrivial(SILGenFunction &SGF) const &;
 
   /// Returns true if this is an rvalue that can be used safely as a +0 rvalue.
   ///

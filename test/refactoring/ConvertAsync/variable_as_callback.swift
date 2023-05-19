@@ -117,7 +117,7 @@ func testMultipleResultsVariableCompletionHandler(completionHandler: @escaping (
 func testNonOptionalErrorVariableCompletionHandler(completionHandler: @escaping (String, Error) -> Void) {
   nonOptionalError(completion: completionHandler)
 }
-// NON-OPTIONAL-ERROR-FUNC: func testNonOptionalErrorVariableCompletionHandler() async -> (String, Error) {
+// NON-OPTIONAL-ERROR-FUNC: func testNonOptionalErrorVariableCompletionHandler() async -> (String, any Error) {
 // NON-OPTIONAL-ERROR-FUNC-NEXT:  return await nonOptionalError()
 // NON-OPTIONAL-ERROR-FUNC-NEXT: }
 

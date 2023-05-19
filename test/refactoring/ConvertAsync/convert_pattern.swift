@@ -113,7 +113,7 @@ func testPatterns() async throws {
   }
 
   // FALLBACK:      var strs: (String, String)? = nil
-  // FALLBACK-NEXT: var err: Error? = nil
+  // FALLBACK-NEXT: var err: (any Error)? = nil
   // FALLBACK-NEXT: do {
   // FALLBACK-NEXT:   strs = try await stringTupleParam()
   // FALLBACK-NEXT: } catch {

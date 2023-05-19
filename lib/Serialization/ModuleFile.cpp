@@ -91,6 +91,16 @@ static bool isTargetTooNew(const llvm::Triple &moduleTarget,
   return ctxTarget.isOSVersionLT(moduleTarget);
 }
 
+namespace swift {
+namespace serialization {
+bool areCompatible(const llvm::Triple &moduleTarget,
+                   const llvm::Triple &ctxTarget) {
+  return areCompatibleArchitectures(moduleTarget, ctxTarget) &&
+         areCompatibleOSs(moduleTarget, ctxTarget);
+}
+} // namespace serialization
+} // namespace swift
+
 ModuleFile::ModuleFile(std::shared_ptr<const ModuleFileSharedCore> core)
     : Core(core) {
   assert(!core->hasError());
@@ -249,8 +259,7 @@ Status ModuleFile::associateWithFileContext(FileUnit *file, SourceLoc diagLoc,
   ASTContext &ctx = getContext();
 
   llvm::Triple moduleTarget(llvm::Triple::normalize(Core->TargetTriple));
-  if (!areCompatibleArchitectures(moduleTarget, ctx.LangOpts.Target) ||
-      !areCompatibleOSs(moduleTarget, ctx.LangOpts.Target)) {
+  if (!areCompatible(moduleTarget, ctx.LangOpts.Target)) {
     status = Status::TargetIncompatible;
     if (!recoverFromIncompatibility)
       return error(status);

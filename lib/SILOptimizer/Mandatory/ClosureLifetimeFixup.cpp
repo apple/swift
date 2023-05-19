@@ -1251,7 +1251,7 @@ class ClosureLifetimeFixup : public SILFunctionTransform {
       }
       invalidateAnalysis(analysisInvalidationKind(modifiedCFG));
     }
-    LLVM_DEBUG(getFunction()->verify());
+    LLVM_DEBUG(getFunction()->verify(getPassManager()));
 
   }
 

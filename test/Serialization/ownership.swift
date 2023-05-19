@@ -8,7 +8,7 @@ import Foundation
 
 // CHECK-LABEL: class PropertyOwnership {
 class PropertyOwnership {
-  // CHECK-NEXT:  @NSCopying var copying: NSCopying?
+  // CHECK-NEXT:  @NSCopying var copying: (any NSCopying)?
   @NSCopying var copying: NSCopying?
   // CHECK-NEXT:  weak var weakVar: @sil_weak AnyObject?
   weak var weakVar: AnyObject?

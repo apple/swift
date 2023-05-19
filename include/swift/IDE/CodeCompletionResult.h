@@ -228,6 +228,9 @@ enum class CompletionKind : uint8_t {
   ForEachPatternBeginning,
   TypeAttrBeginning,
   OptionalBinding,
+
+  /// Completion after `~` in an inheritance clause.
+  WithoutConstraintType
 };
 
 enum class CodeCompletionDiagnosticSeverity : uint8_t {
@@ -549,6 +552,14 @@ public:
     return NotRecommended;
   }
 
+  ContextualNotRecommendedReason calculateContextualNotRecommendedReason(
+      ContextualNotRecommendedReason explicitReason,
+      bool canCurrDeclContextHandleAsync) const;
+
+  CodeCompletionResultTypeRelation calculateContextualTypeRelation(
+      const DeclContext *dc, const ExpectedTypeContext *typeContext,
+      const USRBasedTypeContext *usrTypeContext) const;
+
   CodeCompletionDiagnosticSeverity getDiagnosticSeverity() const {
     return DiagnosticSeverity;
   }
@@ -611,6 +622,7 @@ private:
   CodeCompletionResultTypeRelation TypeDistance : 3;
   static_assert(int(CodeCompletionResultTypeRelation::MAX_VALUE) < 1 << 3, "");
 
+public:
   /// Memberwise initializer
   /// The \c ContextFree result must outlive this result. Typically, this is
   /// done by allocating the two in the same sink or adopting the context free
@@ -623,25 +635,6 @@ private:
       : ContextFree(ContextFree), SemanticContext(SemanticContext),
         Flair(Flair.toRaw()), NotRecommended(NotRecommended),
         NumBytesToErase(NumBytesToErase), TypeDistance(TypeDistance) {}
-
-public:
-  /// Enrich a \c ContextFreeCodeCompletionResult with the following contextual
-  /// information.
-  /// This computes the type relation between the completion item and its
-  /// expected type context.
-  /// See \c CodeCompletionResultType::calculateTypeRelation for documentation
-  /// on \p USRTypeContext.
-  /// The \c ContextFree result must outlive this result. Typically, this is
-  /// done by allocating the two in the same sink or adopting the context free
-  /// sink in the sink that allocates this result.
-  CodeCompletionResult(const ContextFreeCodeCompletionResult &ContextFree,
-                       SemanticContextKind SemanticContext,
-                       CodeCompletionFlair Flair, uint8_t NumBytesToErase,
-                       const ExpectedTypeContext *TypeContext,
-                       const DeclContext *DC,
-                       const USRBasedTypeContext *USRTypeContext,
-                       bool CanCurrDeclContextHandleAsync,
-                       ContextualNotRecommendedReason NotRecommended);
 
   const ContextFreeCodeCompletionResult &getContextFreeResult() const {
     return ContextFree;

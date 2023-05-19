@@ -10,31 +10,36 @@
 //===----------------------------------------------------------------------===//
 
 @available(SwiftStdlib 5.9, *)
+@_spi(SwiftUI)
 public struct ObservationTracking {
   struct Entry: @unchecked Sendable {
-    let emit: @Sendable (Set<AnyKeyPath>, @Sendable @escaping () -> Void) -> Int
-    let remove: @Sendable (Int) -> Void
-    var rawKeyPaths = Set<AnyKeyPath>()
+    let registerTracking: @Sendable (Set<AnyKeyPath>, @Sendable @escaping () -> Void) -> Int
+    let cancel: @Sendable (Int) -> Void
+    var properties = Set<AnyKeyPath>()
     
-    init<Subject: Observable>(_ context: ObservationRegistrar<Subject>.Context) {
-      emit = { rawKeyPaths, observer in
-        context.nextTracking(for: TrackedProperties(raw: rawKeyPaths), observer)
+    init(_ context: ObservationRegistrar.Context) {
+      registerTracking = { properties, observer in
+        context.registerTracking(for: properties, observer: observer)
       }
-      remove = { generation in
-        context.cancel(generation)
+      cancel = { id in
+        context.cancel(id)
       }
     }
     
     func addObserver(_ changed: @Sendable @escaping () -> Void) -> Int {
-      return emit(rawKeyPaths, changed)
+      return registerTracking(properties, changed)
     }
     
     func removeObserver(_ token: Int) {
-      remove(token)
+      cancel(token)
     }
     
     mutating func insert(_ keyPath: AnyKeyPath) {
-      rawKeyPaths.insert(keyPath)
+      properties.insert(keyPath)
+    }
+    
+    mutating func formUnion(_ properties: Set<AnyKeyPath>) {
+      self.properties.formUnion(properties)
     }
   }
   
@@ -46,35 +51,16 @@ public struct ObservationTracking {
     
     internal mutating func addAccess<Subject: Observable>(
       keyPath: PartialKeyPath<Subject>,
-      context: ObservationRegistrar<Subject>.Context
+      context: ObservationRegistrar.Context
     ) {
       entries[context.id, default: Entry(context)].insert(keyPath)
     }
-  }
-  
-  public static func withTracking<T>(
-    _ apply: () -> T,
-    onChange: @autoclosure () -> @Sendable () -> Void
-  ) -> T {
-    var _AccessList: _AccessList?
-    let result = withUnsafeMutablePointer(to: &_AccessList) { ptr in
-      _ThreadLocal.value = UnsafeMutableRawPointer(ptr)
-      defer { _ThreadLocal.value = nil }
-      return apply()
+    
+    internal mutating func merge(_ other: _AccessList) {
+      for (identifier, entry) in other.entries {
+        entries[identifier, default: entry].formUnion(entry.properties)
+      }
     }
-    if let list = _AccessList {
-      let state = _ManagedCriticalState([ObjectIdentifier: Int]())
-      let onChange = onChange()
-      let values = list.entries.mapValues { $0.addObserver {
-        onChange()
-        let values = state.withCriticalRegion { $0 }
-        for (id, token) in values {
-          list.entries[id]?.removeObserver(token)
-        }
-      }}
-      state.withCriticalRegion { $0 = values }
-    }
-    return result
   }
 
   @_spi(SwiftUI)
@@ -92,4 +78,41 @@ public struct ObservationTracking {
     }}
     state.withCriticalRegion { $0 = values }
   }
+}
+
+@available(SwiftStdlib 5.9, *)
+public func withObservationTracking<T>(
+  _ apply: () -> T,
+  onChange: @autoclosure () -> @Sendable () -> Void
+) -> T {
+  var accessList: ObservationTracking._AccessList?
+  let result = withUnsafeMutablePointer(to: &accessList) { ptr in
+    let previous = _ThreadLocal.value
+    _ThreadLocal.value = UnsafeMutableRawPointer(ptr)
+    defer {
+      if let scoped = ptr.pointee, let previous {
+        if var prevList = previous.assumingMemoryBound(to: ObservationTracking._AccessList?.self).pointee {
+          prevList.merge(scoped)
+          previous.assumingMemoryBound(to: ObservationTracking._AccessList?.self).pointee = prevList
+        } else {
+          previous.assumingMemoryBound(to: ObservationTracking._AccessList?.self).pointee = scoped
+        }
+      }
+      _ThreadLocal.value = previous
+    }
+    return apply()
+  }
+  if let list = accessList {
+    let state = _ManagedCriticalState([ObjectIdentifier: Int]())
+    let onChange = onChange()
+    let values = list.entries.mapValues { $0.addObserver {
+      onChange()
+      let values = state.withCriticalRegion { $0 }
+      for (id, token) in values {
+        list.entries[id]?.removeObserver(token)
+      }
+    }}
+    state.withCriticalRegion { $0 = values }
+  }
+  return result
 }

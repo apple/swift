@@ -3258,7 +3258,7 @@ void simple_display(llvm::raw_ostream &out,
 class ResolveMacroRequest
     : public SimpleRequest<ResolveMacroRequest,
                            ConcreteDeclRef(UnresolvedMacroReference,
-                                           const Decl *),
+                                           DeclContext *),
                            RequestFlags::Cached> {
 public:
   using SimpleRequest::SimpleRequest;
@@ -3266,9 +3266,9 @@ public:
 private:
   friend SimpleRequest;
 
-  ConcreteDeclRef
-  evaluate(Evaluator &evaluator, UnresolvedMacroReference macroRef,
-           const Decl *decl) const;
+  ConcreteDeclRef evaluate(Evaluator &evaluator,
+                           UnresolvedMacroReference macroRef,
+                           DeclContext *decl) const;
 
 public:
   bool isCached() const { return true; }
@@ -3923,6 +3923,26 @@ private:
 
   Optional<unsigned>
   evaluate(Evaluator &evaluator, MacroExpansionDecl *med) const;
+
+public:
+  bool isCached() const { return true; }
+  void diagnoseCycle(DiagnosticEngine &diags) const;
+  void noteCycleStep(DiagnosticEngine &diags) const;
+};
+
+/// Expand a 'MacroExpansionExpr',
+class ExpandMacroExpansionExprRequest
+    : public SimpleRequest<ExpandMacroExpansionExprRequest,
+                           Optional<unsigned>(MacroExpansionExpr *),
+                           RequestFlags::Cached> {
+public:
+  using SimpleRequest::SimpleRequest;
+
+private:
+  friend SimpleRequest;
+
+  Optional<unsigned>
+  evaluate(Evaluator &evaluator, MacroExpansionExpr *mee) const;
 
 public:
   bool isCached() const { return true; }

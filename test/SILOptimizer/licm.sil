@@ -1474,3 +1474,59 @@ bb3:
   %21 = tuple ()
   return %21 : $()
 }
+
+sil_global private @g_token : $Builtin.Word
+sil_global @gi : $Int
+
+sil @g_init : $@convention(c) () -> ()
+
+// CHECK-LABEL: sil @hoist_builtin_once :
+// CHECK:         function_ref
+// CHECK:         builtin "once"
+// CHECK:         br bb1
+// CHECK:       bb1:
+// CHECK-NOT:     builtin
+// CHECK:         cond_br
+// CHECK:       } // end sil function 'hoist_builtin_once'
+sil @hoist_builtin_once : $@convention(thin) () -> () {
+bb0:
+  br bb1
+
+bb1:
+  %1 = global_addr @g_token : $*Builtin.Word
+  %2 = address_to_pointer %1 : $*Builtin.Word to $Builtin.RawPointer
+  %3 = function_ref @g_init : $@convention(c) () -> ()
+  %4 = builtin "once"(%2 : $Builtin.RawPointer, %3 : $@convention(c) () -> ()) : $()
+  cond_br undef, bb1, bb2
+
+bb2:
+  %r1 = tuple ()
+  return %r1 : $()
+}
+
+// CHECK-LABEL: sil @dont_hoist_builtin_once_memory_conflict :
+// CHECK:         function_ref
+// CHECK:         br bb1
+// CHECK:       bb1:
+// CHECK:         builtin "once"
+// CHECK:         cond_br
+// CHECK:       } // end sil function 'dont_hoist_builtin_once_memory_conflict'
+sil @dont_hoist_builtin_once_memory_conflict : $@convention(thin) (Int) -> () {
+bb0(%0 : $Int):
+  br bb1
+
+bb1:
+  %1 = global_addr @gi : $*Int
+  store %0 to %1 : $*Int
+  %3 = global_addr @g_token : $*Builtin.Word
+  %4 = address_to_pointer %3 : $*Builtin.Word to $Builtin.RawPointer
+  %5 = function_ref @g_init : $@convention(c) () -> ()
+  %6 = builtin "once"(%4 : $Builtin.RawPointer, %5 : $@convention(c) () -> ()) : $()
+  cond_br undef, bb1, bb2
+
+bb2:
+  %r1 = tuple ()
+  return %r1 : $()
+}
+
+

@@ -1097,9 +1097,9 @@ static char getParamConvention(ParameterConvention conv) {
     case ParameterConvention::Direct_Owned: return 'x';
     case ParameterConvention::Direct_Unowned: return 'y';
     case ParameterConvention::Direct_Guaranteed: return 'g';
-    case ParameterConvention::Pack_Owned: return 'x';
-    case ParameterConvention::Pack_Inout: return 'y';
-    case ParameterConvention::Pack_Guaranteed: return 'g';
+    case ParameterConvention::Pack_Owned: return 'v';
+    case ParameterConvention::Pack_Inout: return 'm';
+    case ParameterConvention::Pack_Guaranteed: return 'p';
   }
   llvm_unreachable("bad parameter convention");
 }
@@ -4062,7 +4062,42 @@ std::string ASTMangler::mangleAttachedMacroExpansion(
   // dependencies.
   const Decl *attachedTo = decl;
   DeclBaseName attachedToName;
-  if (auto valueDecl = dyn_cast<ValueDecl>(decl)) {
+  if (auto accessor = dyn_cast<AccessorDecl>(decl)) {
+    auto storage = accessor->getStorage();
+    appendContextOf(storage);
+
+    // Introduce an identifier mangling that includes var/subscript, accessor
+    // kind, and static.
+    // FIXME: THIS IS A HACK. We need something different.
+    {
+      llvm::SmallString<16> name;
+      {
+        llvm::raw_svector_ostream out(name);
+        out << storage->getName().getBaseName().userFacingName()
+            << "__";
+        if (isa<VarDecl>(storage)) {
+          out << "v";
+        } else {
+          assert(isa<SubscriptDecl>(storage));
+          out << "i";
+        }
+
+        out << getCodeForAccessorKind(accessor->getAccessorKind());
+        if (storage->isStatic())
+          out << "Z";
+      }
+
+      attachedToName = decl->getASTContext().getIdentifier(name);
+    }
+
+    appendDeclName(storage, attachedToName);
+
+    // For member attribute macros, the attribute is attached to the enclosing
+    // declaration.
+    if (role == MacroRole::MemberAttribute) {
+      attachedTo = storage->getDeclContext()->getAsDecl();
+    }
+  } else if (auto valueDecl = dyn_cast<ValueDecl>(decl)) {
     appendContextOf(valueDecl);
 
     // Mangle the name, replacing special names with their user-facing names.

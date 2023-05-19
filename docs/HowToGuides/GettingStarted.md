@@ -463,25 +463,34 @@ Now that you have made some changes, you will need to rebuild...
 
 ### Incremental builds with Ninja
 
-To rebuild the compiler:
+Subsequent steps in this and the next subsections are specific to the platform you're building on, so we'll try to detect it first and reuse as a shell variable:
+
 ```sh
-ninja -C ../build/Ninja-RelWithDebInfoAssert/swift-macosx-$(uname -m) bin/swift-frontend
+platform=$([[ $(uname) == Darwin ]] && echo macosx || echo linux)
 ```
 
-To rebuild everything, including the standard library:
+After setting that variable you can rebuild the compiler incrementally with this command:
 ```sh
-ninja -C ../build/Ninja-RelWithDebInfoAssert/swift-macosx-$(uname -m)
+ninja -C ../build/Ninja-RelWithDebInfoAssert/swift-${platform}-$(uname -m) bin/swift-frontend
 ```
+
+To rebuild everything that has its sources located in the `swift` repository, including the standard library:
+```sh
+ninja -C ../build/Ninja-RelWithDebInfoAssert/swift-${platform}-$(uname -m)
+```
+
+Similarly, you can rebuild other projects like Foundation or Dispatch by substituting their respective subdirectories in the commands above.
 
 ### Spot checking an incremental build
 
 As a quick test, go to `lib/Basic/Version.cpp` and tweak the version
 printing code slightly. Next, do an incremental build as above. This incremental
 build should be much faster than the from-scratch build at the beginning.
-Now check if the version string has been updated:
+Now check if the version string has been updated (assumes you have `platform` shell variable
+defined as specified in the previous subsection:
 
 ```sh
-../build/Ninja-RelWithDebInfoAssert/swift-macosx-$(uname -m)/bin/swift-frontend --version
+../build/Ninja-RelWithDebInfoAssert/swift-$(platform)-$(uname -m)/bin/swift-frontend --version
 ```
 
 This should print your updated version string.

@@ -67,7 +67,7 @@ import Swift
 /// use the `withThrowingDiscardingTaskGroup(returning:body:)` method instead.
 ///
 /// - SeeAlso: ``withThrowingDiscardingTaskGroup(returning:body:)
-@available(SwiftStdlib 5.8, *)
+@available(SwiftStdlib 5.9, *)
 @inlinable
 @_unsafeInheritExecutor
 public func withDiscardingTaskGroup<GroupResult>(
@@ -139,7 +139,7 @@ public func withDiscardingTaskGroup<GroupResult>(
 /// - SeeAlso: ``TaskGroup``
 /// - SeeAlso: ``ThrowingTaskGroup``
 /// - SeeAlso: ``ThrowingDiscardingTaskGroup``
-@available(SwiftStdlib 5.8, *)
+@available(SwiftStdlib 5.9, *)
 @frozen
 public struct DiscardingTaskGroup {
 
@@ -331,7 +331,7 @@ public struct DiscardingTaskGroup {
   }
 }
 
-@available(SwiftStdlib 5.8, *)
+@available(SwiftStdlib 5.9, *)
 @available(*, unavailable)
 extension DiscardingTaskGroup: Sendable { }
 
@@ -428,7 +428,7 @@ extension DiscardingTaskGroup: Sendable { }
 /// However,
 /// throwing out of the `body` of the `withThrowingTaskGroup` method does cancel
 /// the group, and all of its child tasks.
-@available(SwiftStdlib 5.8, *)
+@available(SwiftStdlib 5.9, *)
 @inlinable
 @_unsafeInheritExecutor
 public func withThrowingDiscardingTaskGroup<GroupResult>(
@@ -524,7 +524,7 @@ public func withThrowingDiscardingTaskGroup<GroupResult>(
 /// - SeeAlso: ``TaskGroup``
 /// - SeeAlso: ``ThrowingTaskGroup``
 /// - SeeAlso: ``DiscardingTaskGroup``
-@available(SwiftStdlib 5.8, *)
+@available(SwiftStdlib 5.9, *)
 @frozen
 public struct ThrowingDiscardingTaskGroup<Failure: Error> {
 
@@ -641,7 +641,7 @@ public struct ThrowingDiscardingTaskGroup<Failure: Error> {
   }
 }
 
-@available(SwiftStdlib 5.8, *)
+@available(SwiftStdlib 5.9, *)
 @available(*, unavailable)
 extension ThrowingDiscardingTaskGroup: Sendable { }
 
@@ -649,7 +649,7 @@ extension ThrowingDiscardingTaskGroup: Sendable { }
 // MARK: Runtime functions
 
 /// Always returns `nil`.
-@available(SwiftStdlib 5.8, *)
+@available(SwiftStdlib 5.9, *)
 @usableFromInline
 @discardableResult
 @_silgen_name("swift_taskGroup_waitAll")

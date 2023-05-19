@@ -38,3 +38,6 @@ public macro addCompletionHandler() = #externalMacro(module: "MacroDefinition", 
 
 @attached(peer, names: suffixed(Builder))
 public macro AddClassReferencingSelf() = #externalMacro(module: "MacroDefinition", type: "AddClassReferencingSelfMacro")
+
+@attached(peer, names: named(value))
+public macro declareVarValuePeer() = #externalMacro(module: "MacroDefinition", type: "VarValueMacro")

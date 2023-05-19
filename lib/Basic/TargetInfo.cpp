@@ -23,8 +23,8 @@ using namespace swift;
 /// Print information about a
 static void printCompatibilityLibrary(
     llvm::VersionTuple runtimeVersion, llvm::VersionTuple maxVersion,
-    StringRef filter, StringRef libraryName, bool &printedAny,
-    llvm::raw_ostream &out) {
+    StringRef filter, StringRef libraryName, bool forceLoad,
+    bool &printedAny, llvm::raw_ostream &out) {
   if (runtimeVersion > maxVersion)
     return;
 
@@ -33,16 +33,21 @@ static void printCompatibilityLibrary(
   }
 
   out << "\n";
-  out << "      {\n";
+  out << "      {";
 
-  out << "        \"libraryName\": \"";
+  out << "\n        \"libraryName\": \"";
   swift::writeEscaped(libraryName, out);
-  out << "\",\n";
+  out << "\",";
 
-  out << "        \"filter\": \"";
+  out << "\n        \"filter\": \"";
   swift::writeEscaped(filter, out);
-  out << "\"\n";
-  out << "      }";
+  out << "\"";
+
+  if (!forceLoad) {
+    out << ",\n        \"forceLoad\": false";
+  }
+
+  out << "\n      }";
 
   printedAny = true;
 }
@@ -132,10 +137,10 @@ void targetinfo::printTripleInfo(const llvm::Triple &triple,
     // Compatibility libraries that need to be linked.
     out << "    \"compatibilityLibraries\": [";
     bool printedAnyCompatibilityLibrary = false;
-    #define BACK_DEPLOYMENT_LIB(Version, Filter, LibraryName)           \
-      printCompatibilityLibrary(                                        \
+    #define BACK_DEPLOYMENT_LIB(Version, Filter, LibraryName, ForceLoad)   \
+      printCompatibilityLibrary(                                           \
         *runtimeVersion, llvm::VersionTuple Version, #Filter, LibraryName, \
-        printedAnyCompatibilityLibrary, out);
+        ForceLoad, printedAnyCompatibilityLibrary, out);
     #include "swift/Frontend/BackDeploymentLibs.def"
 
     if (printedAnyCompatibilityLibrary) {

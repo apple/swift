@@ -111,3 +111,15 @@ struct OldStorage {
 // The deprecation warning below comes from the deprecation attribute
 // introduced by @wrapStoredProperties on OldStorage.
 _ = OldStorage(x: 5).x   // expected-warning{{'x' is deprecated: hands off my data}}
+
+@wrapStoredProperties(#"available(*, deprecated, message: "hands off my data")"#)
+class C2: P {
+  var x: Int = 0
+  var y: Int = 0
+
+  var squareOfLength: Int {
+    return x*x + y*y // expected-warning 4{{hands off my data}}
+  }
+
+  var blah: Int { squareOfLength }
+}

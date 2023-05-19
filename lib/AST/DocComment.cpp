@@ -577,7 +577,7 @@ StringRef SemanticBriefCommentRequest::evaluate(Evaluator &evaluator,
                                                 const Decl *D) const {
   // Perform a walk over the potential providers of the brief comment,
   // retrieving the first one we come across.
-  CommentProviderFinder finder(getDirectBriefComment);
+  CommentProviderFinder<StringRef> finder(getDirectBriefComment);
   auto result = finder.findCommentProvider(D);
   return result ? result->first : StringRef();
 }

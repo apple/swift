@@ -13,7 +13,7 @@ class C {
   deinit { print("deallocated") }
 }
 
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(powerpc)
+#if _pointerBitWidth(_32)
 
 // We have no ObjC tagged pointers, and two low spare bits due to alignment.
 let NATIVE_SPARE_BITS: UInt = 0x0000_0003

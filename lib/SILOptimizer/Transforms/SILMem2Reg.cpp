@@ -938,7 +938,7 @@ public:
 
 private:
   /// Promote AllocStacks into SSA.
-  void promoteAllocationToPhi();
+  void promoteAllocationToPhi(BlockSetVector &livePhiBlocks);
 
   /// Replace the dummy nodes with new block arguments.
   void addBlockArguments(BlockSetVector &phiBlocks);
@@ -1685,7 +1685,8 @@ void StackAllocationPromoter::pruneAllocStackUsage() {
   LLVM_DEBUG(llvm::dbgs() << "*** Finished pruning : " << *asi);
 }
 
-void StackAllocationPromoter::promoteAllocationToPhi() {
+void StackAllocationPromoter::promoteAllocationToPhi(
+    BlockSetVector &livePhiBlocks) {
   LLVM_DEBUG(llvm::dbgs() << "*** Placing Phis for : " << *asi);
 
   // A list of blocks that will require new Phi values.
@@ -1781,10 +1782,6 @@ void StackAllocationPromoter::promoteAllocationToPhi() {
   // Replace the dummy values with new block arguments.
   addBlockArguments(phiBlocks);
 
-  // The blocks which still have new phis after fixBranchesAndUses runs.  These
-  // are not necessarily the same as phiBlocks because fixBranchesAndUses
-  // removes superfluous proactive phis.
-  BlockSetVector livePhiBlocks(asi->getFunction());
   // Hook up the Phi nodes, loads, and debug_value_addr with incoming values.
   fixBranchesAndUses(phiBlocks, livePhiBlocks);
 
@@ -1801,8 +1798,13 @@ void StackAllocationPromoter::run() {
   // per block and the last store is recorded.
   pruneAllocStackUsage();
 
+  // The blocks which still have new phis after fixBranchesAndUses runs.  These
+  // are not necessarily the same as phiBlocks because fixBranchesAndUses
+  // removes superfluous proactive phis.
+  BlockSetVector livePhiBlocks(asi->getFunction());
+
   // Replace AllocStacks with Phi-nodes.
-  promoteAllocationToPhi();
+  promoteAllocationToPhi(livePhiBlocks);
 
   // Make sure that all of the allocations were promoted into registers.
   assert(isWriteOnlyAllocation(asi) && "Non-write uses left behind");
@@ -1814,14 +1816,18 @@ void StackAllocationPromoter::run() {
   // Use the lifetime completion utility to complete such lifetimes.
   // First, collect the stored values to complete.
   if (asi->getType().isOrHasEnum()) {
+    for (auto *block : livePhiBlocks) {
+      SILPhiArgument *argument = cast<SILPhiArgument>(
+          block->getArgument(block->getNumArguments() - 1));
+      assert(argument->isPhi());
+      valuesToComplete.push_back(argument);
+    }
     for (auto it : initializationPoints) {
       auto *si = it.second;
       auto stored = si->getOperand(CopyLikeInstruction::Src);
       valuesToComplete.push_back(stored);
-      if (lexicalLifetimeEnsured(asi)) {
-        if (auto lexical = getLexicalValueForStore(si, asi)) {
-          valuesToComplete.push_back(lexical);
-        }
+      if (auto lexical = getLexicalValueForStore(si, asi)) {
+        valuesToComplete.push_back(lexical);
       }
     }
   }

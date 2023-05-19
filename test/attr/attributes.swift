@@ -348,3 +348,21 @@ enum E1 {
 }
 
 @_custom func testCustomAttribute() {} // expected-error {{unknown attribute '_custom'}}
+
+// https://github.com/apple/swift/issues/65705
+struct GI65705<A> {}
+struct I65705 {
+  let m1: @discardableResult () -> Int // expected-error {{attribute can only be applied to declarations, not types}} {{11-30=}} {{none}}
+  var m2: @discardableResult () -> Int // expected-error {{attribute can only be applied to declarations, not types}} {{11-30=}} {{none}}
+  let m3: GI65705<@discardableResult () -> Int> // expected-error{{attribute can only be applied to declarations, not types}} {{19-37=}} {{none}}
+
+  func f1(_: inout @discardableResult Int) {} // expected-error {{attribute can only be applied to declarations, not types}} {{20-39=}} {{3-3=@discardableResult }} {{none}}
+  func f2(_: @discardableResult Int) {} // expected-error {{attribute can only be applied to declarations, not types}} {{14-33=}} {{3-3=@discardableResult }} {{none}}
+
+  func stmt(_ a: Int?) {
+    if let _: @discardableResult Int = a { // expected-error {{attribute can only be applied to declarations, not types}} {{15-34=}} 
+    }
+    if var _: @discardableResult Int = a { // expected-error {{attribute can only be applied to declarations, not types}} {{15-34=}}
+    }
+  }
+}

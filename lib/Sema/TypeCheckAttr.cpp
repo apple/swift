@@ -466,7 +466,7 @@ void AttributeChecker::visitMutationAttr(DeclAttribute *attr) {
   }
 
   auto DC = FD->getDeclContext();
-  // mutation attributes may only appear in type context.
+  // self-ownership attributes may only appear in type context.
   if (auto contextTy = DC->getDeclaredInterfaceType()) {
     // 'mutating' and 'nonmutating' are not valid on types
     // with reference semantics.
@@ -487,6 +487,27 @@ void AttributeChecker::visitMutationAttr(DeclAttribute *attr) {
         break;
       }
     }
+
+    // Unless we have the experimental no-implicit-copy feature enabled, Copyable
+    // types can't use 'consuming' or 'borrowing' ownership specifiers.
+    if (!Ctx.LangOpts.hasFeature(Feature::NoImplicitCopy)) {
+      if (!contextTy->isPureMoveOnly()) {
+        switch (attrModifier) { // check the modifier for the Copyable type.
+        case SelfAccessKind::NonMutating:
+        case SelfAccessKind::Mutating:
+        case SelfAccessKind::LegacyConsuming:
+          // already checked
+          break;
+
+        case SelfAccessKind::Consuming:
+        case SelfAccessKind::Borrowing:
+          diagnoseAndRemoveAttr(attr, diag::self_ownership_specifier_copyable,
+                                attrModifier, FD->getDescriptiveKind());
+          break;
+        }
+      }
+    }
+
   } else {
     diagnoseAndRemoveAttr(attr, diag::mutating_invalid_global_scope,
                           attrModifier);
@@ -2034,50 +2055,9 @@ void AttributeChecker::visitExposeAttr(ExposeAttr *attr) {
 
   // Verify that the declaration is exposable.
   auto repr = cxx_translation::getDeclRepresentation(VD);
-  if (repr.isUnsupported()) {
-    using namespace cxx_translation;
-    switch (*repr.error) {
-    case UnrepresentableObjC:
-      diagnose(attr->getLocation(), diag::expose_unsupported_objc_decl_to_cxx,
-               VD->getDescriptiveKind(), VD);
-      break;
-    case UnrepresentableAsync:
-      diagnose(attr->getLocation(), diag::expose_unsupported_async_decl_to_cxx,
-               VD->getDescriptiveKind(), VD);
-      break;
-    case UnrepresentableIsolatedInActor:
-      diagnose(attr->getLocation(),
-               diag::expose_unsupported_actor_isolated_to_cxx,
-               VD->getDescriptiveKind(), VD);
-      break;
-    case UnrepresentableRequiresClientEmission:
-      diagnose(attr->getLocation(),
-               diag::expose_unsupported_client_emission_to_cxx,
-               VD->getDescriptiveKind(), VD);
-      break;
-    case UnrepresentableGeneric:
-      diagnose(attr->getLocation(), diag::expose_generic_decl_to_cxx,
-               VD->getDescriptiveKind(), VD);
-      break;
-    case UnrepresentableGenericRequirements:
-      diagnose(attr->getLocation(), diag::expose_generic_requirement_to_cxx,
-               VD->getDescriptiveKind(), VD);
-      break;
-    case UnrepresentableThrows:
-      diagnose(attr->getLocation(), diag::expose_throwing_to_cxx,
-               VD->getDescriptiveKind(), VD);
-      break;
-    case UnrepresentableIndirectEnum:
-      diagnose(attr->getLocation(), diag::expose_indirect_enum_cxx, VD);
-      break;
-    case UnrepresentableEnumCaseType:
-      diagnose(attr->getLocation(), diag::expose_enum_case_type_to_cxx, VD);
-      break;
-    case UnrepresentableEnumCaseTuple:
-      diagnose(attr->getLocation(), diag::expose_enum_case_tuple_to_cxx, VD);
-      break;
-    }
-  }
+  if (repr.isUnsupported())
+    diagnose(attr->getLocation(),
+             cxx_translation::diagnoseRepresenationError(*repr.error, VD));
 
   // Verify that the name mentioned in the expose
   // attribute matches the supported name pattern.

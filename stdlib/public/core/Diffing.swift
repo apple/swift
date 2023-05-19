@@ -349,9 +349,9 @@ private func _myers<C,D>(
    * necessary) is significantly less than the worst-case n² memory use of the
    * descent algorithm.
    */
-  func _withContiguousStorage<C: Collection, R>(
-    for values: C,
-    _ body: (UnsafeBufferPointer<C.Element>) throws -> R
+  func _withContiguousStorage<Col: Collection, R>(
+    for values: Col,
+    _ body: (UnsafeBufferPointer<Col.Element>) throws -> R
   ) rethrows -> R {
     if let result = try values.withContiguousStorageIfAvailable(body) { return result }
     let array = ContiguousArray(values)

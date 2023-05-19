@@ -225,6 +225,7 @@
 #include "swift/AST/AccessScope.h"
 #include "swift/AST/DiagnosticEngine.h"
 #include "swift/AST/DiagnosticsSIL.h"
+#include "swift/AST/SemanticAttrs.h"
 #include "swift/Basic/Debug.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/FrozenMultiMap.h"
@@ -433,7 +434,7 @@ static bool memInstMustConsume(Operand *memOper) {
       return false;
     ApplySite applySite(pai);
     auto convention = applySite.getArgumentConvention(*memOper);
-    return convention.isInoutConvention();
+    return !convention.isInoutConvention();
   }
   case SILInstructionKind::DestroyAddrInst:
     return true;
@@ -490,6 +491,92 @@ static bool isInOutDefThatNeedsEndOfFunctionLiveness(MarkMustCheckInst *markedAd
 
 
   return false;
+}
+
+//===----------------------------------------------------------------------===//
+//                       MARK: Partial Apply Utilities
+//===----------------------------------------------------------------------===//
+
+static bool findNonEscapingPartialApplyUses(
+    PartialApplyInst *pai, TypeTreeLeafTypeRange leafRange,
+    llvm::SmallMapVector<SILInstruction *, TypeTreeLeafTypeRange, 4>
+        &livenessUses) {
+  StackList<Operand *> worklist(pai->getFunction());
+  for (auto *use : pai->getUses())
+    worklist.push_back(use);
+
+  LLVM_DEBUG(llvm::dbgs() << "Searching for partial apply uses!\n");
+  while (!worklist.empty()) {
+    auto *use = worklist.pop_back_val();
+
+    if (use->isTypeDependent())
+      continue;
+
+    auto *user = use->getUser();
+
+    // These instructions do not cause us to escape.
+    if (isIncidentalUse(user) || isa<DestroyValueInst>(user))
+      continue;
+
+    // Look through these instructions.
+    if (isa<BeginBorrowInst>(user) || isa<CopyValueInst>(user) ||
+        isa<MoveValueInst>(user) ||
+        // If we capture this partial_apply in another partial_apply, then we
+        // know that said partial_apply must not have escaped the value since
+        // otherwise we could not have an inout_aliasable argument or be
+        // on_stack. Process it recursively so that we treat uses of that
+        // partial_apply and applies of that partial_apply as uses of our
+        // partial_apply.
+        //
+        // We have this separately from the other look through sections so that
+        // we can make it clearer what we are doing here.
+        isa<PartialApplyInst>(user)) {
+      for (auto *use : cast<SingleValueInstruction>(user)->getUses())
+        worklist.push_back(use);
+      continue;
+    }
+
+    // If we have a mark_dependence and are the value, look through the
+    // mark_dependence.
+    if (auto *mdi = dyn_cast<MarkDependenceInst>(user)) {
+      if (mdi->getValue() == use->get()) {
+        for (auto *use : mdi->getUses())
+          worklist.push_back(use);
+        continue;
+      }
+    }
+
+    if (auto apply = FullApplySite::isa(user)) {
+      // If we apply the function or pass the function off to an apply, then we
+      // need to treat the function application as a liveness use of the
+      // variable since if the partial_apply is invoked within the function
+      // application, we may access the captured variable.
+      livenessUses.insert({user, leafRange});
+      if (apply.beginsCoroutineEvaluation()) {
+        // If we have a coroutine, we need to treat the abort_apply and
+        // end_apply as liveness uses since once we execute one of those
+        // instructions, we have returned control to the coroutine which means
+        // that we could then access the captured variable again.
+        auto *bai = cast<BeginApplyInst>(user);
+        SmallVector<EndApplyInst *, 4> endApplies;
+        SmallVector<AbortApplyInst *, 4> abortApplies;
+        bai->getCoroutineEndPoints(endApplies, abortApplies);
+        for (auto *eai : endApplies)
+          livenessUses.insert({eai, leafRange});
+        for (auto *aai : abortApplies)
+          livenessUses.insert({aai, leafRange});
+      }
+      continue;
+    }
+
+    LLVM_DEBUG(
+        llvm::dbgs()
+        << "Found instruction we did not understand... returning false!\n");
+    LLVM_DEBUG(llvm::dbgs() << "Instruction: " << *user);
+    return false;
+  }
+
+  return true;
 }
 
 //===----------------------------------------------------------------------===//
@@ -1354,7 +1441,6 @@ struct GatherUsesVisitor final : public TransitiveAddressWalker {
   MoveOnlyAddressCheckerPImpl &moveChecker;
   UseState &useState;
   MarkMustCheckInst *markedValue;
-  bool emittedEarlyDiagnostic = false;
   DiagnosticEmitter &diagnosticEmitter;
 
   // Pruned liveness used to validate that load [take]/load [copy] can be
@@ -1511,25 +1597,38 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
     assert(op->getOperandNumber() == CopyAddrInst::Src &&
            "Should have dest above in memInstMust{Rei,I}nitialize");
 
-    if (markedValue->getCheckKind() ==
-        MarkMustCheckInst::CheckKind::NoConsumeOrAssign) {
-      LLVM_DEBUG(llvm::dbgs()
-                 << "Found mark must check [nocopy] error: " << *user);
-      diagnosticEmitter.emitAddressDiagnosticNoCopy(markedValue, copyAddr);
-      emittedEarlyDiagnostic = true;
-      return true;
-    }
-
     auto leafRange = TypeTreeLeafTypeRange::get(op->get(), getRootAddress());
     if (!leafRange)
       return false;
+
+    // If we have a non-move only type, just treat this as a liveness use.
+    if (!copyAddr->getSrc()->getType().isMoveOnly()) {
+      LLVM_DEBUG(llvm::dbgs()
+                 << "Found copy of copyable type. Treating as liveness use! "
+                 << *user);
+      useState.livenessUses.insert({user, *leafRange});
+      return true;
+    }
+
+    if (markedValue->getCheckKind() ==
+        MarkMustCheckInst::CheckKind::NoConsumeOrAssign) {
+      if (isa<ProjectBoxInst>(stripAccessMarkers(markedValue->getOperand()))) {
+        LLVM_DEBUG(llvm::dbgs()
+                   << "Found mark must check [nocopy] use of escaping box: " << *user);
+        diagnosticEmitter.emitAddressEscapingClosureCaptureLoadedAndConsumed(
+            markedValue);
+        return true;
+      }
+      LLVM_DEBUG(llvm::dbgs()
+                 << "Found mark must check [nocopy] error: " << *user);
+      diagnosticEmitter.emitAddressDiagnosticNoCopy(markedValue, copyAddr);
+      return true;
+    }
 
     // TODO: Add borrow checking here like below.
 
     // TODO: Add destructure deinit checking here once address only checking is
     // completely brought up.
-
-    // TODO: Add check here that we don't error on trivial/copyable types.
 
     if (copyAddr->isTakeOfSrc()) {
       LLVM_DEBUG(llvm::dbgs() << "Found take: " << *user);
@@ -1578,7 +1677,6 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
                  .didEmitCheckerDoesntUnderstandDiagnostic());
       LLVM_DEBUG(llvm::dbgs()
                  << "Failed to perform borrow to destructure transform!\n");
-      emittedEarlyDiagnostic = true;
       return false;
     }
 
@@ -1586,7 +1684,6 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
     // mark that we emitted an early diagnostic and return true.
     if (numDiagnostics != moveChecker.diagnosticEmitter.getDiagnosticCount()) {
       LLVM_DEBUG(llvm::dbgs() << "Emitting borrow to destructure error!\n");
-      emittedEarlyDiagnostic = true;
       return true;
     }
 
@@ -1607,7 +1704,6 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
     if (numDiagnostics != moveChecker.diagnosticEmitter.getDiagnosticCount()) {
       LLVM_DEBUG(llvm::dbgs()
                  << "Emitting destructure through deinit error!\n");
-      emittedEarlyDiagnostic = true;
       return true;
     }
 
@@ -1625,14 +1721,18 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
                    << "Found mark must check [nocopy] error: " << *user);
         auto *fArg = dyn_cast<SILFunctionArgument>(
             stripAccessMarkers(markedValue->getOperand()));
-        if (fArg && fArg->isClosureCapture() && fArg->getType().isAddress()) {
-          moveChecker.diagnosticEmitter.emitPromotedBoxArgumentError(
-              markedValue, fArg);
+        // If we have a closure captured that we specialized, we should have a
+        // no consume or assign and should emit a normal guaranteed diagnostic.
+        if (fArg && fArg->isClosureCapture() &&
+            fArg->getArgumentConvention().isInoutConvention()) {
+          assert(checkKind == MarkMustCheckInst::CheckKind::NoConsumeOrAssign);
+          moveChecker.diagnosticEmitter.emitObjectGuaranteedDiagnostic(
+              markedValue);
         } else {
+          // Otherwise, we need to emit an escaping closure error.
           moveChecker.diagnosticEmitter
               .emitAddressEscapingClosureCaptureLoadedAndConsumed(markedValue);
         }
-        emittedEarlyDiagnostic = true;
         return true;
       }
 
@@ -1646,7 +1746,6 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
 
       if (checkForExclusivityHazards(li)) {
         LLVM_DEBUG(llvm::dbgs() << "Found exclusivity violation?!\n");
-        emittedEarlyDiagnostic = true;
         return true;
       }
 
@@ -1679,7 +1778,6 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
       // succeeded.
       // Otherwise, emit the diagnostic.
       moveChecker.diagnosticEmitter.emitObjectOwnedDiagnostic(markedValue);
-      emittedEarlyDiagnostic = true;
       LLVM_DEBUG(llvm::dbgs() << "Emitted early object level diagnostic.\n");
       return true;
     }
@@ -1688,7 +1786,6 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
       LLVM_DEBUG(llvm::dbgs() << "Found potential borrow inst: " << *user);
       if (checkForExclusivityHazards(li)) {
         LLVM_DEBUG(llvm::dbgs() << "Found exclusivity violation?!\n");
-        emittedEarlyDiagnostic = true;
         return true;
       }
 
@@ -1721,9 +1818,29 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
   // Now that we have handled or loadTakeOrCopy, we need to now track our
   // additional pure takes.
   if (::memInstMustConsume(op)) {
+    // If we don't have a consumeable and assignable check kind, then we can't
+    // consume. Emit an error.
+    //
+    // NOTE: Since SILGen eagerly loads loadable types from memory, this
+    // generally will only handle address only types.
+    if (markedValue->getCheckKind() !=
+        MarkMustCheckInst::CheckKind::ConsumableAndAssignable) {
+      auto *fArg = dyn_cast<SILFunctionArgument>(
+          stripAccessMarkers(markedValue->getOperand()));
+      if (fArg && fArg->isClosureCapture() && fArg->getType().isAddress()) {
+        moveChecker.diagnosticEmitter.emitPromotedBoxArgumentError(markedValue,
+                                                                   fArg);
+      } else {
+        moveChecker.diagnosticEmitter
+            .emitAddressEscapingClosureCaptureLoadedAndConsumed(markedValue);
+      }
+      return true;
+    }
+
     auto leafRange = TypeTreeLeafTypeRange::get(op->get(), getRootAddress());
     if (!leafRange)
       return false;
+
     LLVM_DEBUG(llvm::dbgs() << "Pure consuming use: " << *user);
     useState.takeInsts.insert({user, *leafRange});
     return true;
@@ -1767,8 +1884,22 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
   }
 
   if (auto *pas = dyn_cast<PartialApplyInst>(user)) {
-    if (pas->isOnStack()) {
-      LLVM_DEBUG(llvm::dbgs() << "Found on stack partial apply!\n");
+    if (auto *fArg = dyn_cast<SILFunctionArgument>(
+            stripAccessMarkers(markedValue->getOperand()))) {
+      // If we are processing an inout convention and we emitted an error on the
+      // partial_apply, we shouldn't process this mark_must_check, but squelch
+      // the compiler doesn't understand error.
+      if (fArg->getArgumentConvention().isInoutConvention() &&
+          pas->getCalleeFunction()->hasSemanticsAttr(
+              semantics::NO_MOVEONLY_DIAGNOSTICS)) {
+        diagnosticEmitter.emitEarlierPassEmittedDiagnostic(markedValue);
+        return false;
+      }
+    }
+
+    if (pas->isOnStack() ||
+        ApplySite(pas).getArgumentConvention(*op).isInoutConvention()) {
+      LLVM_DEBUG(llvm::dbgs() << "Found on stack partial apply or inout usage!\n");
       // On-stack partial applications and their final consumes are always a
       // liveness use of their captures.
       auto leafRange = TypeTreeLeafTypeRange::get(op->get(), getRootAddress());
@@ -1777,13 +1908,18 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
         return false;
       }
 
-      useState.livenessUses.insert({user, *leafRange});
-      for (auto *use : pas->getConsumingUses()) {
-        LLVM_DEBUG(llvm::dbgs()
-                   << "Adding consuming use of partial apply as liveness use: "
-                   << *use->getUser());
-        useState.livenessUses.insert({use->getUser(), *leafRange});
+      // Attempt to find calls of the non-escaping partial apply and places
+      // where the partial apply is passed to a function. We treat those as
+      // liveness uses. If we find a use we don't understand, we return false
+      // here.
+      if (!findNonEscapingPartialApplyUses(pas, *leafRange,
+                                           useState.livenessUses)) {
+        LLVM_DEBUG(
+            llvm::dbgs()
+            << "Failed to understand use of a non-escaping partial apply?!\n");
+        return false;
       }
+
       return true;
     }
   }
@@ -2423,7 +2559,6 @@ bool MoveOnlyAddressCheckerPImpl::performSingleCheck(
     LLVM_DEBUG(llvm::dbgs() << "Failed access path visit: " << *markedAddress);
     return false;
   }
-  addressUseState.initializeInOutTermUsers();
 
   // If we found a load [copy] or copy_addr that requires multiple copies or an
   // exclusivity error, then we emitted an early error. Bail now and allow the
@@ -2438,9 +2573,14 @@ bool MoveOnlyAddressCheckerPImpl::performSingleCheck(
   if (diagCount != diagnosticEmitter.getDiagnosticCount())
     return true;
 
-  // Then check if we emitted an error. If we did not, return true.
-  if (diagCount != diagnosticEmitter.getDiagnosticCount())
-    return true;
+  // Now that we know that we have run our visitor and did not emit any errors
+  // and successfully visited everything, see if have any
+  // assignable_but_not_consumable of address only types that are consumed.
+  //
+  // DISCUSSION: For non address only types, this is not an issue since we
+  // eagerly load
+
+  addressUseState.initializeInOutTermUsers();
 
   //===---
   // Liveness Checking
@@ -2504,9 +2644,19 @@ bool MoveOnlyAddressChecker::check(
     LLVM_DEBUG(llvm::dbgs() << "Visiting: " << *markedValue);
 
     // Perform our address check.
+    unsigned diagnosticEmittedByEarlierPassCount =
+      diagnosticEmitter.getDiagnosticEmittedByEarlierPassCount();
     if (!pimpl.performSingleCheck(markedValue)) {
-      LLVM_DEBUG(llvm::dbgs()
-                 << "Failed to perform single check! Emitting error!\n");
+      if (diagnosticEmittedByEarlierPassCount !=
+          diagnosticEmitter.getDiagnosticEmittedByEarlierPassCount()) {
+        LLVM_DEBUG(
+            llvm::dbgs()
+            << "Failed to perform single check but found earlier emitted "
+               "error. Not emitting checker doesn't understand diagnostic!\n");
+        continue;
+      }
+      LLVM_DEBUG(llvm::dbgs() << "Failed to perform single check! Emitting "
+                                 "compiler doesn't understand diagnostic!\n");
       // If we fail the address check in some way, set the diagnose!
       diagnosticEmitter.emitCheckerDoesntUnderstandDiagnostic(markedValue);
     }

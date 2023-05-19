@@ -43,6 +43,10 @@ namespace swift {
     StringRef ModuleLinkName;
     StringRef ModuleInterface;
     std::vector<std::string> ExtraClangOptions;
+    std::vector<std::string> PluginSearchPaths;
+    std::vector<std::string> ExternalPluginSearchPaths;
+    std::vector<std::string> CompilerPluginLibraryPaths;
+    std::vector<std::string> CompilerPluginExecutablePaths;
 
     /// Path prefixes that should be rewritten in debug info.
     PathRemapper DebuggingOptionsPrefixMap;

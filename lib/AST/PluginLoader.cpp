@@ -47,9 +47,7 @@ PluginRegistry *PluginLoader::getRegistry() {
 }
 
 llvm::Optional<std::string>
-PluginLoader::lookupLibraryPluginByModuleName(Identifier moduleName) {
-  auto fs = Ctx.SourceMgr.getFileSystem();
-
+PluginLoader::lookupExplicitLibraryPluginByModuleName(Identifier moduleName) {
   // Look for 'lib${module name}(.dylib|.so)'.
   SmallString<64> expectedBasename;
   expectedBasename.append("lib");
@@ -63,8 +61,20 @@ PluginLoader::lookupLibraryPluginByModuleName(Identifier moduleName) {
       return libPath;
     }
   }
+  return None;
+}
+
+llvm::Optional<std::string>
+PluginLoader::lookupLibraryPluginInSearchPathByModuleName(
+    Identifier moduleName) {
+  // Look for 'lib${module name}(.dylib|.so)'.
+  SmallString<64> expectedBasename;
+  expectedBasename.append("lib");
+  expectedBasename.append(moduleName.str());
+  expectedBasename.append(LTDL_SHLIB_EXT);
 
   // Try '-plugin-path'.
+  auto fs = Ctx.SourceMgr.getFileSystem();
   for (const auto &searchPath : Ctx.SearchPathOpts.PluginSearchPaths) {
     SmallString<128> fullPath(searchPath);
     llvm::sys::path::append(fullPath, expectedBasename);

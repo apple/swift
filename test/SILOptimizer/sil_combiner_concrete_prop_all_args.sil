@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -wmo -enable-sil-verify-all %s -inline -sil-combine -generic-specializer  -allocbox-to-stack -copy-forwarding -lower-aggregate-instrs -mem2reg -devirtualizer -late-inline -dead-arg-signature-opt -dce | %FileCheck %s
+// RUN: %target-sil-opt -wmo -enable-sil-verify-all %s -inline -sil-combine -generic-specializer  -allocbox-to-stack -copy-forwarding -lower-aggregate-instrs -mem2reg -devirtualizer -inline -dead-arg-signature-opt -dce | %FileCheck %s
 import Builtin
 import Swift
 import SwiftShims

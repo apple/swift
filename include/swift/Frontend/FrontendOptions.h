@@ -322,8 +322,8 @@ public:
   /// By default, we include ImplicitObjCHeaderPath directly.
   llvm::Optional<std::string> BridgingHeaderDirForPrint;
 
-  /// Disable implicitly built Swift modules because they are explicitly
-  /// built and given to the compiler invocation.
+  /// Disable implicitly-built Swift modules because they are explicitly
+  /// built and provided to the compiler invocation.
   bool DisableImplicitModules = false;
 
   /// Disable building Swift modules from textual interfaces. This should be

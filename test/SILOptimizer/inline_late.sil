@@ -1,6 +1,6 @@
 // RUN: %target-sil-opt -enable-sil-verify-all %s -early-inline -sil-inline-threshold=50 | %FileCheck %s
-// RUN: %target-sil-opt -enable-sil-verify-all %s -late-inline -sil-inline-threshold=50 | %FileCheck %s --check-prefix=LATE
-// RUN: %target-sil-opt -enable-sil-verify-all %s -late-inline -sil-inline-threshold=50 -module-name Swift | %FileCheck %s --check-prefix=STDLIBLATE
+// RUN: %target-sil-opt -enable-sil-verify-all %s -inline -sil-inline-threshold=50 | %FileCheck %s --check-prefix=LATE
+// RUN: %target-sil-opt -enable-sil-verify-all %s -inline -sil-inline-threshold=50 -module-name Swift | %FileCheck %s --check-prefix=STDLIBLATE
 
 sil_stage canonical
 

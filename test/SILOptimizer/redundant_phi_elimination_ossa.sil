@@ -188,7 +188,7 @@ bb3(%1 : @guaranteed $FakeOptional<Klass>, %2 : @guaranteed $FakeOptional<Klass>
 }
 
 // CHECK-LABEL: sil [ossa] @test_redundantguaranteedphiarg2 :
-// CHECK: bb3([[ARG1:%.*]] : @owned $FakeOptional<Klass>, [[ARG2:%.*]] : @guaranteed $FakeOptional<Klass>):
+// CHECK: bb3([[ARG1:%.*]] : @owned $FakeOptional<Klass>, [[ARG2:%.*]] : @reborrow @guaranteed $FakeOptional<Klass>):
 // CHECK-LABEL: } // end sil function 'test_redundantguaranteedphiarg2'
 sil [ossa] @test_redundantguaranteedphiarg2 : $@convention(thin) () -> () {
 bb0:
@@ -210,7 +210,7 @@ bb3(%1 : @owned $FakeOptional<Klass>, %2 : @guaranteed $FakeOptional<Klass>):
 }
 
 // CHECK-LABEL: sil [ossa] @test_redundantguaranteedphiarg3 :
-// CHECK: bb3([[ARG3:%.*]] : @guaranteed $FakeOptional<Klass>, [[ARG2:%.*]] : @guaranteed $FakeOptional<Klass>):
+// CHECK: bb3([[ARG3:%.*]] : @reborrow @guaranteed $FakeOptional<Klass>, [[ARG2:%.*]] : @reborrow @guaranteed $FakeOptional<Klass>):
 // CHECK-LABEL: } // end sil function 'test_redundantguaranteedphiarg3'
 sil [ossa] @test_redundantguaranteedphiarg3 : $@convention(thin) () -> () {
 bb0:

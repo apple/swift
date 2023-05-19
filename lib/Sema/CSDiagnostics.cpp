@@ -24,6 +24,7 @@
 #include "swift/AST/DiagnosticsClangImporter.h"
 #include "swift/AST/ExistentialLayout.h"
 #include "swift/AST/Expr.h"
+#include "swift/AST/GenericEnvironment.h"
 #include "swift/AST/GenericSignature.h"
 #include "swift/AST/ImportCache.h"
 #include "swift/AST/Initializer.h"
@@ -86,6 +87,54 @@ Type FailureDiagnostic::getType(ASTNode node, bool wantRValue) const {
 
 Type FailureDiagnostic::getRawType(ASTNode node) const {
   return S.getType(node);
+}
+
+Type FailureDiagnostic::resolveType(Type rawType, bool reconstituteSugar,
+                                    bool wantRValue) const {
+  rawType = rawType.transform([&](Type type) -> Type {
+    if (auto *typeVar = type->getAs<TypeVariableType>()) {
+      auto resolvedType = S.simplifyType(typeVar);
+
+      if (!resolvedType->hasUnresolvedType())
+        return resolvedType;
+
+      // If type variable was simplified to an unresolved pack expansion
+      // type, let's examine its original pattern type because it could
+      // contain type variables replaceable with their generic parameter
+      // types.
+      if (auto *expansion = resolvedType->getAs<PackExpansionType>()) {
+        auto *locator = typeVar->getImpl().getLocator();
+        auto *openedExpansionTy =
+            locator->castLastElementTo<LocatorPathElt::PackExpansionType>()
+                .getOpenedType();
+        auto patternType = resolveType(openedExpansionTy->getPatternType());
+        return PackExpansionType::get(patternType, expansion->getCountType());
+      }
+
+      Type GP = typeVar->getImpl().getGenericParameter();
+      return resolvedType->is<UnresolvedType>() && GP ? GP : resolvedType;
+    }
+
+    if (type->hasElementArchetype()) {
+      auto *env = getDC()->getGenericEnvironmentOfContext();
+      return env->mapElementTypeIntoPackContext(type);
+    }
+
+    if (auto *packType = type->getAs<PackType>()) {
+      if (packType->getNumElements() == 1) {
+        auto eltType = resolveType(packType->getElementType(0));
+        if (auto expansion = eltType->getAs<PackExpansionType>())
+          return expansion->getPatternType();
+      }
+    }
+
+    return type->isPlaceholder() ? Type(type->getASTContext().TheUnresolvedType)
+                                 : type;
+  });
+
+  if (reconstituteSugar)
+    rawType = rawType->reconstituteSugar(/*recursive*/ true);
+  return wantRValue ? rawType->getRValueType() : rawType;
 }
 
 template <typename... ArgTypes>
@@ -513,7 +562,10 @@ bool MissingConformanceFailure::diagnoseAsError() {
       llvm::SmallPtrSet<Expr *, 4> anchors;
       for (const auto *fix : getSolution().Fixes) {
         if (auto anchor = fix->getAnchor()) {
-          if (anchor.is<Expr *>())
+          auto path = fix->getLocator()->getPath();
+          SourceRange range;
+          simplifyLocator(anchor, path, range);
+          if (anchor && anchor.is<Expr *>())
             anchors.insert(getAsExpr(anchor));
         }
       }
@@ -654,10 +706,15 @@ bool MissingConformanceFailure::diagnoseAsAmbiguousOperatorRef() {
   if (!ODRE)
     return false;
 
-  auto name = ODRE->getDecls().front()->getBaseName();
-  if (!(name.isOperator() && getLHS()->isStdlibType() && getRHS()->isStdlibType()))
-    return false;
+  auto isStandardType = [](Type ty) {
+    return ty->isStdlibType() || ty->is<TupleType>();
+  };
 
+  auto name = ODRE->getDecls().front()->getBaseName();
+  if (!(name.isOperator() && isStandardType(getLHS()) &&
+        isStandardType(getRHS()))) {
+    return false;
+  }
   // If this is an operator reference and both types are from stdlib,
   // let's produce a generic diagnostic about invocation and a note
   // about missing conformance just in case.
@@ -704,8 +761,8 @@ Optional<Diag<Type, Type>> GenericArgumentsMismatchFailure::getDiagnosticFor(
     return diag::cannot_convert_default_arg_value;
   case CTP_YieldByValue:
     return diag::cannot_convert_yield_value;
-  case CTP_ForgetStmt:
-    return diag::cannot_convert_forget_value;
+  case CTP_DiscardStmt:
+    return diag::cannot_convert_discard_value;
   case CTP_CallArgument:
     return diag::cannot_convert_argument_value;
   case CTP_ClosureResult:
@@ -2448,9 +2505,6 @@ bool ContextualFailure::diagnoseAsError() {
     return false;
   }
 
-  if (diagnoseExtraneousAssociatedValues())
-    return true;
-
   // Special case of some common conversions involving Swift.String
   // indexes, catching cases where people attempt to index them with an integer.
   if (isIntegerToStringIndexConversion()) {
@@ -2577,7 +2631,6 @@ bool ContextualFailure::diagnoseAsError() {
     }
     return false;
   }
-
   case ConstraintLocator::UnresolvedMemberChainResult: {
     auto &solution = getSolution();
 
@@ -2717,7 +2770,7 @@ getContextualNilDiagnostic(ContextualTypePurpose CTP) {
 
   case CTP_CaseStmt:
   case CTP_ThrowStmt:
-  case CTP_ForgetStmt:
+  case CTP_DiscardStmt:
   case CTP_ForEachStmt:
   case CTP_ForEachSequence:
   case CTP_YieldByReference:
@@ -2889,24 +2942,6 @@ void ContextualFailure::tryFixIts(InFlightDiagnostic &diagnostic) const {
 
   if (tryTypeCoercionFixIt(diagnostic))
     return;
-}
-
-bool ContextualFailure::diagnoseExtraneousAssociatedValues() const {
-  if (auto match =
-          getLocator()->getLastElementAs<LocatorPathElt::PatternMatch>()) {
-    if (auto enumElementPattern =
-            dyn_cast<EnumElementPattern>(match->getPattern())) {
-      emitDiagnosticAt(enumElementPattern->getNameLoc(),
-                       diag::enum_element_pattern_assoc_values_mismatch,
-                       enumElementPattern->getName());
-      emitDiagnosticAt(enumElementPattern->getNameLoc(),
-                       diag::enum_element_pattern_assoc_values_remove)
-          .fixItRemove(enumElementPattern->getSubPattern()->getSourceRange());
-      return true;
-    }
-  }
-
-  return false;
 }
 
 bool ContextualFailure::diagnoseCoercionToUnrelatedType() const {
@@ -3510,8 +3545,8 @@ ContextualFailure::getDiagnosticFor(ContextualTypePurpose context,
   case CTP_SingleValueStmtBranch:
     return diag::cannot_convert_initializer_value;
 
-  case CTP_ForgetStmt:
-    return diag::cannot_convert_forget_value;
+  case CTP_DiscardStmt:
+    return diag::cannot_convert_discard_value;
 
   case CTP_CaseStmt:
   case CTP_ThrowStmt:
@@ -3526,6 +3561,66 @@ ContextualFailure::getDiagnosticFor(ContextualTypePurpose context,
     break;
   }
   return None;
+}
+
+bool NonClassTypeToAnyObjectConversionFailure::diagnoseAsError() {
+  auto locator = getLocator();
+  if (locator->isForContextualType()) {
+    return ContextualFailure::diagnoseAsError();
+  }
+
+  auto fromType = getFromType();
+  auto toType = getToType();
+  assert(fromType);
+  assert(toType);
+  if (locator->isLastElement<LocatorPathElt::ApplyArgToParam>()) {
+    ArgumentMismatchFailure failure(getSolution(), fromType, toType, locator);
+    return failure.diagnoseAsError();
+  }
+
+  Optional<Diag<Type, Type>> diagnostic;
+
+  bool forProtocol = toType->isConstraintType();
+  auto rawAnchor = getRawAnchor();
+
+  if (isExpr<ArrayExpr>(rawAnchor)) {
+    diagnostic = forProtocol ? diag::cannot_convert_array_element_protocol
+                             : diag::cannot_convert_array_element;
+  } else if (isExpr<DictionaryExpr>(rawAnchor)) {
+    auto lastElem = locator->getLastElementAs<LocatorPathElt::TupleElement>();
+    if (lastElem && lastElem->getIndex() == 0) {
+      diagnostic = forProtocol ? diag::cannot_convert_dict_key_protocol
+                               : diag::cannot_convert_dict_key;
+    } else {
+      diagnostic = forProtocol ? diag::cannot_convert_dict_value_protocol
+                               : diag::cannot_convert_dict_value;
+    }
+  } else if (toType->isAnyObject()) {
+    diagnostic = diag::cannot_convert_initializer_value_anyobject;
+  }
+
+  if (diagnostic.hasValue()) {
+    emitDiagnostic(*diagnostic, fromType, toType);
+    return true;
+  }
+
+  return false;
+}
+
+bool NonClassTypeToAnyObjectConversionFailure::diagnoseAsNote() {
+  auto *locator = getLocator();
+
+  if (locator->isForContextualType()) {
+    return ContextualFailure::diagnoseAsNote();
+  }
+
+  if (locator->isLastElement<LocatorPathElt::ApplyArgToParam>()) {
+    ArgumentMismatchFailure failure(getSolution(), getFromType(), getToType(),
+                                    getLocator());
+    return failure.diagnoseAsNote();
+  }
+
+  return false;
 }
 
 bool TupleContextualFailure::diagnoseAsError() {
@@ -3877,7 +3972,7 @@ void MissingMemberFailure::diagnoseUnsafeCxxMethod(SourceLoc loc,
       if (conformsToRACollection(baseType)) {
         ctx.Diags.diagnose(loc, diag::iterator_method_unavailable,
                            name.getBaseIdentifier().str());
-        ctx.Diags.diagnose(loc, diag::get_swift_iterator)
+        ctx.Diags.diagnose(loc, diag::use_collection_apis)
             .fixItReplaceChars(
                 loc, loc.getAdvancedLoc(name.getBaseIdentifier().str().size()),
                 "makeIterator");
@@ -5232,9 +5327,6 @@ bool MissingArgumentsFailure::diagnoseInvalidTupleDestructuring() const {
   if (!locator->isLastElement<LocatorPathElt::ApplyArgument>())
     return false;
 
-  if (SynthesizedArgs.size() < 2)
-    return false;
-
   auto *args = getArgumentListFor(locator);
   if (!args)
     return false;
@@ -5251,11 +5343,16 @@ bool MissingArgumentsFailure::diagnoseInvalidTupleDestructuring() const {
   if (!decl)
     return false;
 
+  auto *funcType =
+      resolveType(selectedOverload->openedType)->getAs<FunctionType>();
+  if (!funcType)
+    return false;
+
   auto name = decl->getBaseName();
   auto diagnostic =
       emitDiagnostic(diag::cannot_convert_single_tuple_into_multiple_arguments,
                      decl->getDescriptiveKind(), name, name.isSpecial(),
-                     SynthesizedArgs.size(), isa<TupleExpr>(argExpr));
+                     funcType->getNumParams(), isa<TupleExpr>(argExpr));
 
   // If argument is a literal tuple, let's suggest removal of parentheses.
   if (auto *TE = dyn_cast<TupleExpr>(argExpr)) {
@@ -8682,6 +8779,19 @@ bool TupleLabelMismatchWarning::diagnoseAsError() {
   return true;
 }
 
+bool AssociatedValueMismatchFailure::diagnoseAsError() {
+  auto match = getLocator()->castLastElementTo<LocatorPathElt::PatternMatch>();
+  auto *enumElementPattern = dyn_cast<EnumElementPattern>(match.getPattern());
+
+  emitDiagnosticAt(enumElementPattern->getNameLoc(),
+                   diag::enum_element_pattern_assoc_values_mismatch,
+                   enumElementPattern->getName());
+  emitDiagnosticAt(enumElementPattern->getNameLoc(),
+                   diag::enum_element_pattern_assoc_values_remove)
+      .fixItRemove(enumElementPattern->getSubPattern()->getSourceRange());
+  return true;
+}
+
 bool SwiftToCPointerConversionInInvalidContext::diagnoseAsError() {
   auto argInfo = getFunctionArgApplyInfo(getLocator());
   if (!argInfo)
@@ -8758,6 +8868,10 @@ bool MissingExplicitExistentialCoercion::fixItRequiresParens() const {
 
 void MissingExplicitExistentialCoercion::fixIt(
     InFlightDiagnostic &diagnostic) const {
+
+  if (ErasedResultType->hasTypeParameter())
+    return;
+
   bool requiresParens = fixItRequiresParens();
 
   auto callRange = getSourceRange();
@@ -8855,5 +8969,74 @@ bool GlobalActorFunctionMismatchFailure::diagnoseAsError() {
 
   const auto message = getDiagnosticMessage();
   emitDiagnostic(message, getFromType(), getToType());
+  return true;
+}
+
+bool DestructureTupleToUseWithPackExpansionParameter::diagnoseAsError() {
+  auto *locator = getLocator();
+  auto argLoc = locator->castLastElementTo<LocatorPathElt::ApplyArgToParam>();
+
+  {
+    auto diagnostic =
+        emitDiagnostic(diag::cannot_convert_tuple_into_pack_expansion_parameter,
+                       argLoc.getParamIdx(), ParamShape->getNumElements(),
+                       isExpr<TupleExpr>(getAnchor()));
+
+    if (auto *tupleExpr = getAsExpr<TupleExpr>(getAnchor())) {
+      diagnostic.fixItRemove(tupleExpr->getLParenLoc());
+      diagnostic.fixItRemove(tupleExpr->getRParenLoc());
+    }
+  }
+
+  auto selectedOverload = getCalleeOverloadChoiceIfAvailable(getLocator());
+  if (!selectedOverload)
+    return true;
+
+  if (auto *decl = selectedOverload->choice.getDeclOrNull()) {
+    emitDiagnosticAt(decl, diag::decl_declared_here, decl->getName());
+  }
+
+  return true;
+}
+
+bool DestructureTupleToUseWithPackExpansionParameter::diagnoseAsNote() {
+  auto selectedOverload = getCalleeOverloadChoiceIfAvailable(getLocator());
+  if (!selectedOverload || !selectedOverload->choice.isDecl())
+    return false;
+
+  auto *choice = selectedOverload->choice.getDecl();
+  auto argLoc =
+      getLocator()->castLastElementTo<LocatorPathElt::ApplyArgToParam>();
+
+  emitDiagnosticAt(
+      choice, diag::cannot_convert_tuple_into_pack_expansion_parameter_note,
+      argLoc.getParamIdx(), ParamShape->getNumElements());
+  return true;
+}
+
+bool ValuePackExpansionWithoutPackReferences::diagnoseAsError() {
+  emitDiagnostic(diag::value_expansion_not_variadic);
+  return true;
+}
+
+bool MissingEachForValuePackReference::diagnoseAsError() {
+  bool fixItNeedsParens = false;
+  // If 'each' is missing form a base of a member reference
+  // it has to be wrapped in parens.
+  if (auto anchor = getAsExpr(getAnchor())) {
+    fixItNeedsParens = isExpr<UnresolvedDotExpr>(findParentExpr(anchor));
+  }
+
+  {
+    auto diagnostic = emitDiagnostic(diag::value_pack_requires_keyword_each, ValuePackType);
+    if (fixItNeedsParens) {
+      auto range = getSourceRange();
+      diagnostic.fixItInsert(range.Start, "(each ")
+          .fixItInsertAfter(range.End, ")");
+    } else {
+      diagnostic.fixItInsert(getLoc(), "each ");
+    }
+  }
+
   return true;
 }

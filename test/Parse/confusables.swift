@@ -18,12 +18,8 @@ if (true ꝸꝸꝸ false) {} // expected-note {{identifier 'ꝸꝸꝸ' contains 
 
 // expected-error @+3 {{invalid character in source file}}
 // expected-error @+2 {{expected ',' separator}}
-// expected-error @+1 {{type '(Int, Int)' cannot conform to 'BinaryInteger'}}
+// expected-error @+1 {{binary operator '==' cannot be applied to operands of type '(Int, Int)' and 'Int'}}
 if (5 ‒ 5) == 0 {} // expected-note {{unicode character '‒' (Figure Dash) looks similar to '-' (Hyphen Minus); did you mean to use '-' (Hyphen Minus)?}} {{7-10=-}}
-// expected-note @-1 {{operator function '=='}}
-// expected-note @-2 {{only concrete types such as structs, enums and classes can conform to protocols}}
-
-// FIXME(rdar://61028087): The above note should read "required by referencing operator function '==' on 'BinaryInteger' where 'Self' = '(Int, Int)'".
 
 // GREEK QUESTION MARK (which looks like a semicolon) 
 print("A"); print("B")

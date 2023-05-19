@@ -57,5 +57,5 @@
 // RUN: %target-swift-ide-test -print-module -source-filename %s -module-to-print=Foundation.NSCoder -function-definitions=false > %t/Foundation.NSCoder.printed.txt
 // RUN: %FileCheck -input-file %t/Foundation.NSCoder.printed.txt -check-prefix=CHECK_NSCODER %s
 
-// CHECK_NSCODER: func failWithError(_ error: Error)
-// CHECK_NSCODER: {{^}}  var error: Error? { get }
+// CHECK_NSCODER: func failWithError(_ error: any Error)
+// CHECK_NSCODER: {{^}}  var error: (any Error)? { get }

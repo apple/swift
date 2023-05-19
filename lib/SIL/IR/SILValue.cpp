@@ -154,6 +154,25 @@ bool ValueBase::isLexical() const {
   return false;
 }
 
+bool ValueBase::isGuaranteedForwarding() const {
+  if (getOwnershipKind() != OwnershipKind::Guaranteed) {
+    return false;
+  }
+  // NOTE: canOpcodeForwardInnerGuaranteedValues returns true for transformation
+  // terminator results.
+  if (canOpcodeForwardInnerGuaranteedValues(this) ||
+      isa<SILFunctionArgument>(this)) {
+    return true;
+  }
+  // If not a phi, return false
+  auto *phi = dyn_cast<SILPhiArgument>(this);
+  if (!phi || !phi->isPhi()) {
+    return false;
+  }
+
+  return phi->isGuaranteedForwarding();
+}
+
 bool ValueBase::hasDebugTrace() const {
   for (auto *op : getUses()) {
     if (auto *debugValue = dyn_cast<DebugValueInst>(op->getUser())) {

@@ -311,7 +311,7 @@ private:
     auto Locator = CS.getConstraintLocator(ResolveExpr);
     auto CalleeLocator = S.getCalleeLocator(Locator);
     auto OverloadInfo = getSelectedOverloadInfo(S, CalleeLocator);
-    if (!OverloadInfo.Value) {
+    if (!OverloadInfo.ValueRef) {
       // We could not resolve the referenced declaration. Skip the solution.
       return;
     }
@@ -322,11 +322,12 @@ private:
     if (auto BaseExpr =
             simplifyLocatorToAnchor(BaseLocator).dyn_cast<Expr *>()) {
       IsDynamicRef =
-          ide::isDynamicRef(BaseExpr, OverloadInfo.Value,
+          ide::isDynamicRef(BaseExpr, OverloadInfo.getValue(),
                             [&S](Expr *E) { return S.getResolvedType(E); });
     }
 
-    Results.push_back({OverloadInfo.BaseTy, IsDynamicRef, OverloadInfo.Value});
+    Results.push_back(
+        {OverloadInfo.BaseTy, IsDynamicRef, OverloadInfo.getValue()});
   }
 
 public:

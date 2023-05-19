@@ -324,6 +324,12 @@ public:
 
   bool isUnresolvedMemberIdealType(Type Ty);
 
+  /// Creates a \c CodeCompletionResultBuilder in this lookup’s sink and sets
+  /// the current expected type context in it
+  CodeCompletionResultBuilder
+  makeResultBuilder(CodeCompletionResultKind kind,
+                    SemanticContextKind semanticContext) const;
+
   void addValueBaseName(CodeCompletionResultBuilder &Builder,
                         DeclBaseName Name);
 
@@ -449,8 +455,8 @@ public:
       CodeCompletionKeywordKind KeyKind = CodeCompletionKeywordKind::None,
       CodeCompletionFlair flair = {});
 
-  void addDeclAttrParamKeyword(StringRef Name, StringRef Annotation,
-                               bool NeedSpecify);
+  void addDeclAttrParamKeyword(StringRef Name, ArrayRef<StringRef> Parameters,
+                               StringRef Annotation, bool NeedSpecify);
 
   void addDeclAttrKeyword(StringRef Name, StringRef Annotation);
 
@@ -585,7 +591,8 @@ public:
 
   void getAttributeDeclCompletions(bool IsInSil, Optional<DeclKind> DK);
 
-  void getAttributeDeclParamCompletions(DeclAttrKind AttrKind, int ParamIndex);
+  void getAttributeDeclParamCompletions(CustomSyntaxAttributeKind AttrKind,
+                                        int ParamIndex, bool HasLabel);
 
   void getTypeAttributeKeywordCompletions();
 
@@ -613,6 +620,8 @@ public:
   void getStmtLabelCompletions(SourceLoc Loc, bool isContinue);
 
   void getOptionalBindingCompletions(SourceLoc Loc);
+
+  void getWithoutConstraintTypes();
 };
 
 } // end namespace ide

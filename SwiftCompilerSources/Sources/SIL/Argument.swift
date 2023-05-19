@@ -42,6 +42,10 @@ final public class FunctionArgument : Argument {
   public var convention: ArgumentConvention {
     bridged.getConvention().convention
   }
+
+  public var isIndirectResult: Bool {
+    return index < parentFunction.numIndirectResultArguments
+  }
 }
 
 final public class BlockArgument : Argument {

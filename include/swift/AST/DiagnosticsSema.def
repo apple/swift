@@ -493,8 +493,8 @@ ERROR(cannot_convert_yield_value_protocol,none,
 ERROR(cannot_convert_yield_value_nil,none,
       "nil is not compatible with expected yield type %0", (Type))
 
-ERROR(cannot_convert_forget_value,none,
-      "cannot convert value of type %0 to expected forget type %1",
+ERROR(cannot_convert_discard_value,none,
+      "cannot convert value of type %0 to expected discard type %1",
       (Type,Type))
 
 ERROR(cannot_convert_closure_result,none,
@@ -871,6 +871,27 @@ ERROR(need_hermetic_seal_to_import_module,none,
       "module %0 was built with -experimental-hermetic-seal-at-link, but "
       "current compilation does not have -experimental-hermetic-seal-at-link",
       (Identifier))
+
+ERROR(modularization_issue_decl_moved,Fatal,
+      "reference to %select{top-level|type}0 %1 broken by a context change; "
+      "%1 was expected to be in %2, but now a candidate is found only in %3",
+      (bool, DeclName, Identifier, Identifier))
+ERROR(modularization_issue_decl_type_changed,Fatal,
+      "reference to %select{top-level|type}0 %1 broken by a context change; "
+      "the details of %1 %select{from %2|}5 changed since building '%3'"
+      "%select{|, it was in %2 and is now found in %4}5",
+      (bool, DeclName, Identifier, StringRef, Identifier, bool))
+ERROR(modularization_issue_decl_not_found,Fatal,
+      "reference to %select{top-level|type}0 %1 broken by a context change; "
+      "%1 is not found, it was expected to be in %2",
+      (bool, DeclName, Identifier))
+
+NOTE(modularization_issue_side_effect_extension_error,none,
+     "could not deserialize extension",
+     ())
+NOTE(modularization_issue_side_effect_type_error,none,
+     "could not deserialize type for %0",
+     (DeclName))
 
 ERROR(reserved_member_name,none,
       "type member must not be named %0, since it would conflict with the"
@@ -1694,6 +1715,14 @@ ERROR(expose_enum_case_type_to_cxx,none,
       "enum %0 can not be represented in C++ as one of its cases has an associated value with type that can't be represented in C++", (ValueDecl *))
 ERROR(expose_enum_case_tuple_to_cxx,none,
       "enum %0 can not yet be represented in C++ as one of its cases has multiple associated values", (ValueDecl *))
+ERROR(expose_protocol_to_cxx_unsupported,none,
+      "protocol %0 can not yet be represented in C++", (ValueDecl *))
+ERROR(expose_move_only_to_cxx,none,
+      "move-only %0 %1 can not yet be represented in C++", (DescriptiveDeclKind, ValueDecl *))
+ERROR(unexposed_other_decl_in_cxx,none,
+      "%0 %1 is not yet exposed to C++", (DescriptiveDeclKind, ValueDecl *))
+ERROR(unsupported_other_decl_in_cxx,none,
+      "Swift %0 %1 cannot be represented in C++", (DescriptiveDeclKind, ValueDecl *))
 
 ERROR(attr_methods_only,none,
       "only methods can be declared %0", (DeclAttribute))
@@ -2152,10 +2181,10 @@ NOTE(decl_import_via_here,none,
 
 // Opaque return types
 ERROR(opaque_type_invalid_constraint,none,
-      "an 'opaque' type must specify only 'Any', 'AnyObject', protocols, "
+      "a 'some' type must specify only 'Any', 'AnyObject', protocols, "
       "and/or a base class", ())
 NOTE(opaque_of_optional_rewrite,none,
-      "did you mean to write an optional of an 'opaque' type?", ())
+      "did you mean to write an optional of an 'some' type?", ())
 ERROR(inferred_opaque_type,none,
       "property definition has inferred type %0, involving the 'some' "
       "return type of another declaration", (Type))
@@ -4599,25 +4628,32 @@ ERROR(opaque_type_var_no_underlying_type,none,
       "property declares an opaque return type, but cannot infer the "
       "underlying type from its initializer expression", ())
 
-ERROR(forget_wrong_context_decl,none,
-      "'forget' statement cannot appear in %0",
+
+//------------------------------------------------------------------------------
+// MARK: Discard Statement
+//------------------------------------------------------------------------------
+ERROR(discard_wrong_context_decl,none,
+      "'discard' statement cannot appear in %0",
       (DescriptiveDeclKind))
-ERROR(forget_wrong_context_closure,none,
-      "'forget' statement cannot appear in closure",
+ERROR(discard_no_deinit,none,
+      "'discard' has no effect for type %0 unless it has a deinitializer",
+      (Type))
+ERROR(discard_wrong_context_closure,none,
+      "'discard' statement cannot appear in closure",
       ())
-ERROR(forget_wrong_context_misc,none,
-      "'forget' statement cannot appear in this context",
+ERROR(discard_wrong_context_misc,none,
+      "'discard' statement cannot appear in this context",
       ())
-ERROR(forget_wrong_context_copyable,none,
-      "'forget' statement can only appear in noncopyable type's member",
+ERROR(discard_wrong_context_copyable,none,
+      "'discard' statement can only appear in noncopyable type's member",
       (DescriptiveDeclKind))
-ERROR(forget_wrong_context_nonconsuming,none,
-      "'forget' statement can only appear in consuming %0",
+ERROR(discard_wrong_context_nonconsuming,none,
+      "'discard' statement can only appear in consuming %0",
       (DescriptiveDeclKind))
-ERROR(forget_wrong_not_self,none,
-      "you can only forget 'self'", ())
-ERROR(forget_wrong_module,none,
-      "can only 'forget' from the same module defining type %0",
+ERROR(discard_wrong_not_self,none,
+      "you can only discard 'self'", ())
+ERROR(discard_wrong_module,none,
+      "can only 'discard' from the same module defining type %0",
       (Type))
 
 //------------------------------------------------------------------------------
@@ -5393,9 +5429,12 @@ ERROR(vararg_not_allowed,none,
       "variadic parameter cannot appear outside of a function parameter list",
       ())
 
-ERROR(experimental_type_with_parameter_pack,none,
-      "generic types with parameter packs are experimental",
-      ())
+ERROR(more_than_one_pack_in_type,none,
+      "generic type cannot declare more than one type pack", ())
+ERROR(enum_with_pack,none,
+      "enums cannot declare a type pack", ())
+ERROR(superclass_with_pack,none,
+      "cannot inherit from a generic class that declares a type pack", ())
 ERROR(expansion_not_allowed,none,
       "pack expansion %0 can only appear in a function parameter list, "
       "tuple element, or generic argument list", (Type))
@@ -5417,12 +5456,24 @@ ERROR(pack_reference_must_be_in_expansion,none,
       "pack reference %0 requires expansion using keyword 'repeat'",
       (TypeRepr*))
 ERROR(pack_type_requires_keyword_each,none,
-      "pack type %0 must be referenced with 'each'",
+      "type pack %0 must be referenced with 'each'",
       (TypeRepr*))
+ERROR(value_pack_requires_keyword_each,none,
+      "value pack %0 must be referenced with 'each'",
+      (Type))
 ERROR(tuple_duplicate_label,none,
       "cannot create a tuple with a duplicate element label", ())
 ERROR(multiple_ellipsis_in_tuple,none,
       "only a single element can be variadic", ())
+ERROR(cannot_convert_tuple_into_pack_expansion_parameter,none,
+      "value pack expansion at parameter #%0 expects %1 separate arguments"
+      "%select{|; remove extra parentheses to change tuple into separate arguments}2",
+      (unsigned, unsigned, bool))
+NOTE(cannot_convert_tuple_into_pack_expansion_parameter_note,none,
+     "value pack expansion at parameter #%0 expects %1 separate arguments",
+     (unsigned, unsigned))
+ERROR(value_expansion_not_variadic,none,
+      "value pack expansion must contain at least one pack reference", ())
 
 ERROR(expansion_not_same_shape,none,
       "pack expansion %0 requires that %1 and %2 have the same shape",
@@ -6118,6 +6169,10 @@ ERROR(availability_parameterized_protocol_only_version_newer, none,
       "%0 %1 or newer",
       (StringRef, llvm::VersionTuple))
 
+ERROR(availability_variadic_type_only_version_newer, none,
+      "parameter packs in generic types are only available in %0 %1 or newer",
+      (StringRef, llvm::VersionTuple))
+
 NOTE(availability_guard_with_version_check, none,
      "add 'if #available' version check", ())
 
@@ -6517,7 +6572,11 @@ WARNING(hashvalue_implementation,Deprecation,
 
 WARNING(executor_enqueue_unowned_implementation,Deprecation,
         "'Executor.enqueue(UnownedJob)' is deprecated as a protocol requirement; "
-        "conform type %0 to 'Executor' by implementing 'func enqueue(Job)' instead",
+        "conform type %0 to 'Executor' by implementing 'func enqueue(ExecutorJob)' instead",
+        (Type))
+WARNING(executor_enqueue_deprecated_owned_job_implementation,Deprecation,
+        "'Executor.enqueue(Job)' is deprecated as a protocol requirement; "
+        "conform type %0 to 'Executor' by implementing 'func enqueue(ExecutorJob)' instead",
         (Type))
 
 //------------------------------------------------------------------------------
@@ -7005,8 +7064,9 @@ ERROR(macro_undefined,PointsToFirstBadToken,
       "no macro named %0", (Identifier))
 ERROR(external_macro_not_found,none,
       "external macro implementation type '%0.%1' could not be found for "
-      "macro %2; the type must be public and provided via "
-      "'-load-plugin-library'", (StringRef, StringRef, DeclName))
+      "macro %2; the type must be public and provided by a macro target in a "
+      "Swift package, or via '-plugin-path' or '-load-plugin-library'",
+      (StringRef, StringRef, DeclName))
 ERROR(macro_must_be_defined,none,
       "macro %0 requires a definition", (DeclName))
 ERROR(external_macro_outside_macro_definition,none,
@@ -7108,8 +7168,17 @@ ERROR(moveonly_cannot_conform_to_type, none,
      (DescriptiveDeclKind, DeclName, Type))
 ERROR(moveonly_parameter_missing_ownership, none,
       "noncopyable parameter must specify its ownership", ())
+ERROR(moveonly_parameter_subscript_unsupported, none,
+      "subscripts cannot have noncopyable parameters yet", ())
 NOTE(moveonly_parameter_ownership_suggestion, none,
       "add '%0' %1", (StringRef, StringRef))
+ERROR(ownership_specifier_copyable,none,
+      "Copyable types cannot be 'consuming' or 'borrowing' yet", ())
+ERROR(self_ownership_specifier_copyable,none,
+      "%0 is not yet valid on %1s in a Copyable type",
+      (SelfAccessKind, DescriptiveDeclKind))
+ERROR(ownership_specifier_nonescaping_closure,none,
+      "'%0' cannot be applied to nonescaping closure", (StringRef))
 
 //------------------------------------------------------------------------------
 // MARK: Runtime discoverable attributes (@runtimeMetadata)

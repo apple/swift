@@ -1187,11 +1187,17 @@ bool CSE::canHandle(SILInstruction *Inst) {
     return false;
   }
   if (auto *BI = dyn_cast<BuiltinInst>(Inst)) {
-    // Although the onFastPath builtin has no side-effects we don't want to
-    // (re-)move it.
-    if (BI->getBuiltinInfo().ID == BuiltinValueKind::OnFastPath)
+    switch (BI->getBuiltinInfo().ID) {
+    case BuiltinValueKind::OnFastPath:
+      // Although the onFastPath builtin has no side-effects we don't want to
+      // (re-)move it.
       return false;
-    return !BI->mayReadOrWriteMemory();
+    case BuiltinValueKind::Once:
+    case BuiltinValueKind::OnceWithContext:
+      return true;
+    default:
+      return !BI->mayReadOrWriteMemory();
+    }
   }
   if (auto *EMI = dyn_cast<ExistentialMetatypeInst>(Inst)) {
     return !EMI->getOperand()->getType().isAddress();

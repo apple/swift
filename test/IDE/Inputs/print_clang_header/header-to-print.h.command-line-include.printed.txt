@@ -4,6 +4,8 @@ import Dispatch
 
 var MY_MACRO: Int32 { get }
 
+var MACRO_DUP: Int32 { get }
+
 func doSomethingInHead(_ arg: Int32)
 
 class BaseInHead {

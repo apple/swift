@@ -896,8 +896,8 @@ private:
         locator);
   }
 
-  void visitForgetStmt(ForgetStmt *forgetStmt) {
-    auto *fn = forgetStmt->getInnermostMethodContext();
+  void visitDiscardStmt(DiscardStmt *discardStmt) {
+    auto *fn = discardStmt->getInnermostMethodContext();
     if (!fn) {
       hadError = true;
       return;
@@ -910,7 +910,7 @@ private:
       return;
     }
 
-    auto *selfExpr = forgetStmt->getSubExpr();
+    auto *selfExpr = discardStmt->getSubExpr();
 
     createConjunction(
         cs,
@@ -918,7 +918,7 @@ private:
             selfExpr,
             cs.getConstraintLocator(
                 locator, LocatorPathElt::SyntacticElement(selfExpr)),
-            {nominalType, CTP_ForgetStmt})},
+            {nominalType, CTP_DiscardStmt})},
         locator);
   }
 
@@ -1759,17 +1759,17 @@ private:
     return throwStmt;
   }
 
-  ASTNode visitForgetStmt(ForgetStmt *forgetStmt) {
+  ASTNode visitDiscardStmt(DiscardStmt *discardStmt) {
     auto &cs = solution.getConstraintSystem();
 
-    // Rewrite the `forget` expression.
-    auto target = *cs.getTargetFor(forgetStmt->getSubExpr());
+    // Rewrite the `discard` expression.
+    auto target = *cs.getTargetFor(discardStmt->getSubExpr());
     if (auto result = rewriteTarget(target))
-      forgetStmt->setSubExpr(result->getAsExpr());
+      discardStmt->setSubExpr(result->getAsExpr());
     else
       hadError = true;
 
-    return forgetStmt;
+    return discardStmt;
   }
 
   ASTNode visitForEachStmt(ForEachStmt *forEachStmt) {

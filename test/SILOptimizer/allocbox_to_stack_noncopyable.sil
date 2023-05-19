@@ -160,3 +160,36 @@ bb3:
   %30 = tuple ()
   return %30 : $()
 }
+
+// CHECK: sil hidden [ossa] @earlyallocbox_to_stack_partial_apply_test_caller : $@convention(thin) (@owned NonTrivialStruct) -> () {
+// CHECK: alloc_stack [lexical] $NonTrivialStruct, var, name "x"
+// CHECK: } // end sil function 'earlyallocbox_to_stack_partial_apply_test_caller'
+sil hidden [ossa] @earlyallocbox_to_stack_partial_apply_test_caller : $@convention(thin) (@owned NonTrivialStruct) -> () {
+bb0(%arg : @owned $NonTrivialStruct):
+  %0 = alloc_box ${ var NonTrivialStruct }, var, name "x"
+  %1 = begin_borrow [lexical] %0 : ${ var NonTrivialStruct }
+  %2 = project_box %1 : ${ var NonTrivialStruct }, 0
+  store %arg to [init] %2 : $*NonTrivialStruct
+  %15 = function_ref @earlyallocbox_to_stack_partial_apply_test_callee : $@convention(thin) (@guaranteed { var NonTrivialStruct }) -> ()
+  %16 = copy_value %1 : ${ var NonTrivialStruct }
+  %18 = partial_apply [callee_guaranteed] %15(%16) : $@convention(thin) (@guaranteed { var NonTrivialStruct }) -> ()
+  destroy_value %18 : $@callee_guaranteed () -> ()
+  end_borrow %1 : ${ var NonTrivialStruct }
+  destroy_value %0 : ${ var NonTrivialStruct }
+  %24 = tuple ()
+  return %24 : $()
+}
+
+sil private [ossa] @earlyallocbox_to_stack_partial_apply_test_callee : $@convention(thin) (@guaranteed { var NonTrivialStruct }) -> () {
+bb0(%0 : @closureCapture @guaranteed ${ var NonTrivialStruct }):
+  %1 = project_box %0 : ${ var NonTrivialStruct }, 0
+  debug_value %1 : $*NonTrivialStruct, var, name "x", argno 1, expr op_deref
+  %3 = begin_access [read] [unknown] %1 : $*NonTrivialStruct
+  %4 = mark_must_check [no_consume_or_assign] %3 : $*NonTrivialStruct
+  %5 = load [copy] %4 : $*NonTrivialStruct
+  end_access %3 : $*NonTrivialStruct
+  %7 = move_value %5 : $NonTrivialStruct
+  destroy_value %7 : $NonTrivialStruct
+  %9 = tuple ()
+  return %9 : $()
+}

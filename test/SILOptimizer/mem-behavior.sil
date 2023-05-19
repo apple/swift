@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt %s -aa-kind=basic-aa -mem-behavior-dump -o /dev/null | %FileCheck %s
+// RUN: %target-sil-opt %s -aa-kind=basic-aa -dump-mem-behavior -o /dev/null | %FileCheck %s
 
 // REQUIRES: asserts
 // REQUIRES: swift_in_compiler
@@ -980,3 +980,25 @@ bb0(%0 : $Builtin.Int32):
   return %r : $()
 }
 
+sil_global @gi : $Int
+sil @g_init : $@convention(c) () -> ()
+
+// CHECK-LABEL: @test_builtin_once
+// CHECK:       PAIR #0.
+// CHECK-NEXT:      %4 = builtin "once"(%0 : $Builtin.RawPointer, %3 : $@convention(c) () -> ()) : $()
+// CHECK-NEXT:      %1 = global_addr @gi : $*Int
+// CHECK-NEXT:    r=1,w=1
+// CHECK:       PAIR #1.
+// CHECK-NEXT:      %4 = builtin "once"(%0 : $Builtin.RawPointer, %3 : $@convention(c) () -> ()) : $()
+// CHECK-NEXT:      %2 = alloc_stack $Int
+// CHECK-NEXT:    r=0,w=0
+sil @test_builtin_once : $@convention(thin) (Builtin.RawPointer) -> () {
+bb0(%0 : $Builtin.RawPointer):
+  %1 = global_addr @gi : $*Int
+  %2 = alloc_stack $Int
+  %3 = function_ref @g_init : $@convention(c) () -> ()
+  %4 = builtin "once"(%0 : $Builtin.RawPointer, %3 : $@convention(c) () -> ()) : $()
+  dealloc_stack %2 : $*Int
+  %6 = tuple ()
+  return %6 : $()
+}

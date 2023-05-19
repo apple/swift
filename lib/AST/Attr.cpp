@@ -548,8 +548,7 @@ static void printShortFormBackDeployed(ArrayRef<const DeclAttribute *> Attrs,
                                        ASTPrinter &Printer,
                                        const PrintOptions &Options) {
   assert(!Attrs.empty());
-  // TODO: Print `@backDeployed` in swiftinterfaces (rdar://104920183)
-  Printer << "@_backDeploy(before: ";
+  Printer << "@backDeployed(before: ";
   bool isFirst = true;
 
   for (auto *DA : Attrs) {
@@ -856,7 +855,7 @@ OrigDeclAttrFilter::operator()(const DeclAttribute *Attr) const {
   auto declLoc = decl->getStartLoc();
   auto *mod = decl->getModuleContext();
   auto *declFile = mod->getSourceFileContainingLocation(declLoc);
-  auto *attrFile = mod->getSourceFileContainingLocation(Attr->AtLoc);
+  auto *attrFile = mod->getSourceFileContainingLocation(Attr->getLocation());
   if (!declFile || !attrFile)
     return Attr;
 
@@ -1344,8 +1343,7 @@ bool DeclAttribute::printImpl(ASTPrinter &Printer, const PrintOptions &Options,
   }
 
   case DAK_BackDeployed: {
-    // TODO: Print `@backDeployed` in swiftinterfaces (rdar://104920183)
-    Printer.printAttrName("@_backDeploy");
+    Printer.printAttrName("@backDeployed");
     Printer << "(before: ";
     auto Attr = cast<BackDeployedAttr>(this);
     Printer << platformString(Attr->Platform) << " " <<
@@ -1356,14 +1354,6 @@ bool DeclAttribute::printImpl(ASTPrinter &Printer, const PrintOptions &Options,
 
   case DAK_MacroRole: {
     auto Attr = cast<MacroRoleAttr>(this);
-
-    if (Options.SuppressingFreestandingExpression &&
-        Attr->getMacroSyntax() == MacroSyntax::Freestanding &&
-        Attr->getMacroRole() == MacroRole::Expression) {
-      Printer.printAttrName("@expression");
-      break;
-    }
-
     switch (Attr->getMacroSyntax()) {
     case MacroSyntax::Freestanding:
       Printer.printAttrName("@freestanding");
@@ -1384,7 +1374,9 @@ bool DeclAttribute::printImpl(ASTPrinter &Printer, const PrintOptions &Options,
             if (macroIntroducedNameRequiresArgument(name.getKind())) {
               SmallString<32> buffer;
               StringRef nameText = name.getName().getString(buffer);
-              bool shouldEscape = nameText == "$";
+              bool shouldEscape =
+                  escapeKeywordInContext(nameText, PrintNameContext::Normal) ||
+                  nameText == "$";
               Printer << "(";
               if (shouldEscape)
                 Printer << "`";

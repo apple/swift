@@ -1,0 +1,36 @@
+// swift-interface-format-version: 1.0
+// swift-compiler-version: Swift version 5.0
+// swift-module-flags:
+
+// RUN: %empty-directory(%t)
+// RUN: not %target-swift-frontend -typecheck-module-from-interface -module-name Broken %s 2>%t/interface-verification-errors.txt
+// RUN: %FileCheck %s < %t/interface-verification-errors.txt
+
+import Swift
+
+// This type is meant to shadow the name of the module, creating an ambiguity.
+public struct Broken {}
+
+public struct BrokenOptions : Swift.OptionSet {
+	public let rawValue: Swift.Int
+	public static let none: Broken.BrokenOptions
+	public static let anOption: Broken.BrokenOptions
+	public init(rawValue: Swift.Int)
+	public typealias ArrayLiteralElement = Broken.BrokenOptions
+	public typealias Element = Broken.BrokenOptions
+	public typealias RawValue = Swift.Int
+}
+
+// CHECK: error: 'BrokenOptions' is not a member type of struct 'Broken.Broken'
+// CHECK: error: 'BrokenOptions' is not a member type of struct 'Broken.Broken'
+// CHECK: error: 'BrokenOptions' is not a member type of struct 'Broken.Broken'
+// CHECK: error: 'BrokenOptions' is not a member type of struct 'Broken.Broken'
+
+// CHECK: error: type 'BrokenOptions' does not conform to protocol 'OptionSet'
+// CHECK: error: type 'BrokenOptions' does not conform to protocol 'SetAlgebra'
+// CHECK: note: candidate would match if 'BrokenOptions.Element' was the same type as 'τ_0_0.Element'
+// CHECK: error: type 'BrokenOptions' does not conform to protocol 'ExpressibleByArrayLiteral'
+// CHECK: note: protocol requires nested type 'Element'; do you want to add it?
+// CHECK: note: protocol requires initializer 'init(_:)' with type 'S'
+// CHECK: note: protocol requires nested type 'ArrayLiteralElement'; do you want to add it?
+// CHECK: error: failed to verify module interface of 'Broken' due to the errors above; the textual interface may be broken by project issues, differences between compilers

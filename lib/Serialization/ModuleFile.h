@@ -355,7 +355,11 @@ public:
   }
 
   /// Enrich \c error with contextual information, emits a fatal diagnostic in
-  ///  the ASTContext's DignosticsEngine, and return the augmented error.
+  /// the ASTContext's DiagnosticsEngine, and return the augmented error.
+  ///
+  /// The `diagnoseFatal` methods return only in LLDB where high error
+  /// tolerance is expected, or when hitting a project error. During normal
+  /// compilation, most calls won't return and lead to a compiler crash.
   llvm::Error diagnoseFatal(llvm::Error error) const;
 
   /// Emit a generic deserialization error via \c diagnoseFatal().
@@ -669,6 +673,9 @@ public:
   ModuleLoadingBehavior
   getTransitiveLoadingBehavior(const Dependency &dependency,
                                bool forTestable) const;
+
+  /// Generate a \c SourceLoc pointing at the loaded swiftmodule file.
+  SourceLoc getSourceLoc() const;
 
   /// Returns `true` if there is a buffer that might contain source code where
   /// other parts of the compiler could have emitted diagnostics, to indicate

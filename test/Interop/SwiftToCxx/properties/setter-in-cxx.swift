@@ -10,7 +10,8 @@ public struct FirstSmallStruct {
 
 // CHECK: class SWIFT_SYMBOL({{.*}}) FirstSmallStruct final {
 // CHECK: public:
-// CHECK:   SWIFT_INLINE_THUNK FirstSmallStruct(FirstSmallStruct &&)
+// CHECK:   SWIFT_INLINE_PRIVATE_HELPER FirstSmallStruct(FirstSmallStruct &&)
+// CHECK: }
 // CHECK-NEXT:   SWIFT_INLINE_THUNK uint32_t getX() const SWIFT_SYMBOL({{.*}});
 // CHECK-NEXT:   SWIFT_INLINE_THUNK void setX(uint32_t value) SWIFT_SYMBOL({{.*}});
 // CHECK-NEXT:   private:
@@ -31,7 +32,8 @@ public struct LargeStruct {
 
 // CHECK: class SWIFT_SYMBOL({{.*}}) LargeStruct final {
 // CHECK: public:
-// CHECK: SWIFT_INLINE_THUNK LargeStruct(LargeStruct &&)
+// CHECK: SWIFT_INLINE_PRIVATE_HELPER LargeStruct(LargeStruct &&)
+// CHECK: }
 // CHECK-NEXT: SWIFT_INLINE_THUNK swift::Int getX1() const SWIFT_SYMBOL({{.*}});
 // CHECK-NEXT: SWIFT_INLINE_THUNK void setX1(swift::Int value) SWIFT_SYMBOL({{.*}});
 // CHECK-NEXT: SWIFT_INLINE_THUNK swift::Int getX2() const SWIFT_SYMBOL({{.*}});
@@ -109,7 +111,8 @@ public struct SmallStructWithProps {
 
 // CHECK: class SWIFT_SYMBOL({{.*}}) SmallStructWithProps final {
 // CHECK: public:
-// CHECK:   SWIFT_INLINE_THUNK SmallStructWithProps(SmallStructWithProps &&)
+// CHECK:   SWIFT_INLINE_PRIVATE_HELPER SmallStructWithProps(SmallStructWithProps &&)
+// CHECK: }
 // CHECK-NEXT:    SWIFT_INLINE_THUNK uint32_t getStoredInt() const SWIFT_SYMBOL({{.*}});
 // CHECK-NEXT:    SWIFT_INLINE_THUNK void setStoredInt(uint32_t value) SWIFT_SYMBOL({{.*}});
 // CHECK-NEXT:    SWIFT_INLINE_THUNK swift::Int getComputedInt() const SWIFT_SYMBOL({{.*}});

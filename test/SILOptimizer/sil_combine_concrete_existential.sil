@@ -670,7 +670,7 @@ sil @callee2 : $@convention(thin) <τ_0_0 where τ_0_0 : SubscriptionViewControl
 // CHECK:   [[T5:%.*]] = function_ref @callee2 : $@convention(thin) <τ_0_0 where τ_0_0 : SubscriptionViewControllerDelegate> (@in τ_0_0, @thick SubscriptionViewControllerBuilder.Type) -> @owned SubscriptionViewControllerBuilder
 // CHECK:   [[T6:%.*]] = alloc_stack $@opened("E4D92D2A-8893-11EA-9C89-ACDE48001122", any ResourceKitProtocol) Self
 // CHECK:   copy_addr [[T4]] to [init] [[T6]] : $*@opened("E4D92D2A-8893-11EA-9C89-ACDE48001122", any ResourceKitProtocol) Self
-// CHECK: Generic specialization information for call-site callee2 <ResourceKitProtocol> conformances <(inherited_conformance type=ResourceKitProtocol protocol=SubscriptionViewControllerDelegate
+// CHECK: Generic specialization information for call-site callee2 <any ResourceKitProtocol> conformances <(inherited_conformance type=any ResourceKitProtocol protocol=SubscriptionViewControllerDelegate
 // CHECK:  (normal_conformance type=MyObject protocol=SubscriptionViewControllerDelegate))>:
 // CHECK:   apply [[T5]]<@opened("E4D92D2A-8893-11EA-9C89-ACDE48001122", any ResourceKitProtocol) Self>([[T6]], [[T1]])
 

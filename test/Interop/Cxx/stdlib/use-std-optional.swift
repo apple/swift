@@ -29,10 +29,11 @@ StdOptionalTestSuite.test("std::optional => Swift.Optional") {
 StdOptionalTestSuite.test("std::optional hasValue/value") {
   let nonNilOpt = getNonNilOptional()
   expectTrue(nonNilOpt.hasValue)
-  expectEqual(123, nonNilOpt.value)
+  expectEqual(123, nonNilOpt.value!)
 
   let nilOpt = getNilOptional()
   expectFalse(nilOpt.hasValue)
+  expectNil(nilOpt.value)
 }
 
 runAllTests()

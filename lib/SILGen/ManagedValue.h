@@ -217,18 +217,33 @@ public:
     return !hasCleanup();
   }
 
-  /// Returns true if this is an managed value that can be used safely as a +1
-  /// managed value.
+  /// Returns true if this managed value can be consumed.
   ///
-  /// This returns true iff:
+  /// This is true if either this value has a cleanup or if it is a trivial
+  /// object value. For address values, this returns true only if the value has
+  /// a cleanup regardless of whether the type is trivial.
   ///
-  /// 1. All sub-values are trivially typed.
-  /// 2. There exists at least one non-trivial typed sub-value and all such
-  /// sub-values all have cleanups.
+  /// When an object value is trivial, it can be passed to a consuming operation
+  /// without destroying it. Consuming a value by address, however, always
+  /// deinitializes the memory regardless of whether or not it is trivial.
   ///
-  /// *NOTE* Due to 1. isPlusOne and isPlusZero both return true for managed
-  /// values consisting of only trivial values.
+  /// Use this before emitting an operation that "takes" this value or passing
+  /// this value to a call that consumes the argument.
   bool isPlusOne(SILGenFunction &SGF) const;
+
+  /// Returns true if this managed value can be forwarded without necessarilly
+  /// destroying the original.
+  ///
+  /// This is true if either isPlusOne is true or the value is trivial. Unlike
+  /// isPlusOne(), this returns true for trivial address values regardless of
+  /// whether the value has a cleanup. A +1 value can be created from a trivial
+  /// value without consuming the original.
+  ///
+  /// Use this when storing this value into a new location simply by forwarding
+  /// the cleanup without destroying the original value. If it's necessary to
+  /// "take" or otherwise immediately consume the original value, then use
+  /// isPlusOne() instead.
+  bool isPlusOneOrTrivial(SILGenFunction &SGF) const;
 
   /// Returns true if this is an ManagedValue that can be used safely as a +0
   /// ManagedValue.

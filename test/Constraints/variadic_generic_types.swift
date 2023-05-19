@@ -1,6 +1,4 @@
-// RUN: %target-typecheck-verify-swift -enable-experimental-feature VariadicGenerics
-
-// REQUIRES: asserts
+// RUN: %target-typecheck-verify-swift -disable-availability-checking
 
 // Parsing an UnresolvedSpecializeExpr containing a PackExpansionType
 struct G<each T> {}

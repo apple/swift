@@ -27,8 +27,9 @@ extension CxxOptional {
   }
 
   @inlinable
-  public var value: Wrapped {
+  public var value: Wrapped? {
     get {
+      guard hasValue else { return nil }
       return pointee
     }
   }

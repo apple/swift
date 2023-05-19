@@ -53,6 +53,7 @@ public struct ContiguousArray<Element>: _DestructorSafeContainer {
 //===--- private helpers---------------------------------------------------===//
 extension ContiguousArray {
   @inlinable
+  @inline(__always)
   @_semantics("array.get_count")
   internal func _getCount() -> Int {
     return _buffer.immutableCount
@@ -204,6 +205,7 @@ extension ContiguousArray: RandomAccessCollection, MutableCollection {
   /// If the array is empty, `endIndex` is equal to `startIndex`.
   public var endIndex: Int {
     @inlinable
+    @inline(__always)
     get {
       return _getCount()
     }

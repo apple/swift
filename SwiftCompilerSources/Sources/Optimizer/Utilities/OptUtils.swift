@@ -78,7 +78,7 @@ extension Value {
   }
 }
 
-private extension Instruction {
+extension Instruction {
   var isTriviallyDead: Bool {
     if results.contains(where: { !$0.uses.isEmpty }) {
       return false
@@ -253,3 +253,16 @@ private struct EscapesToValueVisitor : EscapeVisitor {
   var followTrivialTypes: Bool { true }
   var followLoads: Bool { false }
 }
+
+extension Function {
+  var globalOfGlobalInitFunction: GlobalVariable? {
+    if isGlobalInitFunction,
+       let ret = returnInstruction,
+       let atp = ret.returnedValue as? AddressToPointerInst,
+       let ga = atp.address as? GlobalAddrInst {
+      return ga.global
+    }
+    return nil
+  }
+}
+

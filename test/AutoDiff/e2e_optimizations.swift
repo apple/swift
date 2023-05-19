@@ -1,5 +1,10 @@
 // RUN: %target-swift-frontend -emit-sil -O %s | %FileCheck %s
 // REQUIRES: swift_in_compiler
+
+// Checks for inlining depends on code-size but cow check adds some
+// amount of extra code
+// UNSUPPORTED: array_cow_checks
+
 import _Differentiation
 
 @_silgen_name("blackHole")

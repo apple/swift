@@ -920,8 +920,7 @@ static void transformAndForwardResults(
         *contextFreeResult, SemanticContextKind::CurrentNominal,
         CodeCompletionFlairBit::ExpressionSpecific,
         exactMatch ? exactMatch->getNumBytesToErase() : 0,
-        /*TypeContext=*/nullptr, /*DC=*/nullptr, /*USRTypeContext=*/nullptr,
-        /*CanCurrDeclContextHandleAsync=*/false,
+        CodeCompletionResultTypeRelation::Unrelated,
         ContextualNotRecommendedReason::None);
 
     SwiftCompletionInfo info;

@@ -350,24 +350,31 @@ public:
   /// replacePhiArgumentAndRAUW.
   SILPhiArgument *replacePhiArgument(unsigned i, SILType type,
                                      ValueOwnershipKind kind,
-                                     const ValueDecl *decl = nullptr);
+                                     const ValueDecl *decl = nullptr,
+                                     bool isReborrow = false,
+                                     bool isEscaping = false);
 
   /// Replace phi argument \p i and RAUW all uses.
-  SILPhiArgument *
-  replacePhiArgumentAndReplaceAllUses(unsigned i, SILType type,
-                                      ValueOwnershipKind kind,
-                                      const ValueDecl *decl = nullptr);
+  SILPhiArgument *replacePhiArgumentAndReplaceAllUses(
+      unsigned i, SILType type, ValueOwnershipKind kind,
+      const ValueDecl *decl = nullptr, bool isReborrow = false,
+      bool isEscaping = false);
 
   /// Allocate a new argument of type \p Ty and append it to the argument
-  /// list. Optionally you can pass in a value decl parameter.
+  /// list. Optionally you can pass in a value decl parameter, reborrow flag and
+  /// escaping flag.
   SILPhiArgument *createPhiArgument(SILType Ty, ValueOwnershipKind Kind,
-                                    const ValueDecl *D = nullptr);
+                                    const ValueDecl *D = nullptr,
+                                    bool isReborrow = false,
+                                    bool isEscaping = false);
 
   /// Insert a new SILPhiArgument with type \p Ty and \p Decl at position \p
   /// AtArgPos.
   SILPhiArgument *insertPhiArgument(unsigned AtArgPos, SILType Ty,
                                     ValueOwnershipKind Kind,
-                                    const ValueDecl *D = nullptr);
+                                    const ValueDecl *D = nullptr,
+                                    bool isReborrow = false,
+                                    bool isEscaping = false);
 
   /// Remove all block arguments.
   void dropAllArguments();

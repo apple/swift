@@ -21,6 +21,7 @@
 
 namespace llvm {
   class Value;
+  class BasicBlock;
 }
 
 namespace swift {
@@ -56,10 +57,10 @@ namespace irgen {
                              GenericSignature fnSig,
                              Explosion &out);
 
-  llvm::Value *emitFastClassCastIfPossible(IRGenFunction &IGF,
-                                           llvm::Value *instance,
-                                           CanType sourceFormalType,
-                                           CanType targetFormalType);
+  llvm::Value *emitFastClassCastIfPossible(
+      IRGenFunction &IGF, llvm::Value *instance, CanType sourceFormalType,
+      CanType targetFormalType, bool sourceWrappedInOptional,
+      llvm::BasicBlock *&nilCheckBB, llvm::BasicBlock *&nilMergeBB);
 
   /// Convert a class object to the given destination type,
   /// using a runtime-checked cast.

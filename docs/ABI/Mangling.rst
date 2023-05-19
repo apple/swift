@@ -301,6 +301,8 @@ are always non-polymorphic ``<impl-function-type>`` types.
   VALUE-WITNESS-KIND ::= 'ug'           // getEnumTag
   VALUE-WITNESS-KIND ::= 'up'           // destructiveProjectEnumData
   VALUE-WITNESS-KIND ::= 'ui'           // destructiveInjectEnumTag
+  VALUE-WITNESS-KIND ::= 'et'           // getEnumTagSinglePayload
+  VALUE-WITNESS-KIND ::= 'st'           // storeEnumTagSinglePayload
 
 ``<VALUE-WITNESS-KIND>`` differentiates the kinds of value
 witness functions for a type.

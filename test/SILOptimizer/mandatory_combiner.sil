@@ -269,9 +269,9 @@ bb0:
 // All generic arguments.  Partial apply arguments.  Apply arguments.
 // CHECK-LABEL: sil hidden @generic_capture_args : $@convention(thin) <A where A : Addable> () -> @out A {
 // CHECK: [[FUNCTION_REF:%.*]] = function_ref @first_of_three_addables
-// CHECK: [[PARTIAL_APPLY_RESULT:%.*]] = partial_apply [callee_guaranteed] [[FUNCTION_REF]]<A>
+// CHECK:  = partial_apply [callee_guaranteed] [[FUNCTION_REF]]<A>
 // Use %0 explicitly because that is the out parameter.
-// CHECK: apply [[PARTIAL_APPLY_RESULT]](%0, {{%.*}})
+// CHECK: apply [[FUNCTION_REF]]<A>(%0, {{%.*}})
 // CHECK: [[RESULT:%.*]] = tuple ()
 // CHECK: return [[RESULT]] : $()
 // CHECK: } // end sil function 'generic_capture_args'
@@ -302,6 +302,7 @@ bb0(%0 : $*A):
   %23 = apply %16(%0, %20) : $@callee_guaranteed (@in_guaranteed A) -> @out A
   destroy_addr %20 : $*A
   dealloc_stack %20 : $*A
+  debug_value %16 : $@callee_guaranteed (@in_guaranteed A) -> @out A, let, name "x"
   strong_release %16 : $@callee_guaranteed (@in_guaranteed A) -> @out A
   strong_release %16 : $@callee_guaranteed (@in_guaranteed A) -> @out A
   destroy_addr %5 : $*A
@@ -320,8 +321,8 @@ bb0(%0 : $*A):
 // All class arguments.  Partial apply arguments.  Apply arguments.
 // CHECK-LABEL: sil hidden @class_capture_args : $@convention(thin) () -> @owned Klass {
 // CHECK: [[FUNCTION_REF:%.*]] = function_ref @first_of_three_klasses
-// CHECK: [[PARTIAL_APPLY_RESULT:%.*]] = partial_apply [callee_guaranteed] [[FUNCTION_REF]]({{%.*}}, {{%.*}}) :
-// CHECK: [[RESULT:%.*]] = apply [[PARTIAL_APPLY_RESULT]]({{%.*}})
+// CHECK-NOT: partial_apply
+// CHECK: [[RESULT:%.*]] = apply [[FUNCTION_REF]]({{%.*}})
 // CHECK: return [[RESULT]]
 // CHECK: } // end sil function 'class_capture_args'
 sil hidden @class_capture_args : $@convention(thin) () -> @owned Klass {
@@ -352,9 +353,9 @@ bb0:
 // All existential arguments.  Partial apply arguments.  Apply arguments.
 // CHECK-LABEL: sil hidden @existential_capture_args : $@convention(thin) () -> @out any Proto {
 // CHECK: [[FUNCTION_REF:%.*]] = function_ref @first_of_three_protos
-// CHECK: [[PARTIAL_APPLY_RESULT:%.*]] = partial_apply [callee_guaranteed] [[FUNCTION_REF]]({{%.*}}, {{%.*}}) :
+// CHECK-NOT:  partial_apply
 // Use %0 explicitly because that is the out parameter.
-// CHECK: apply [[PARTIAL_APPLY_RESULT]](%0, {{%.*}})
+// CHECK: apply [[FUNCTION_REF]](%0, {{%.*}})
 // CHECK: [[RESULT:%.*]] = tuple ()
 // CHECK: return [[RESULT]] : $()
 // CHECK: } // end sil function 'existential_capture_args'
@@ -396,9 +397,9 @@ bb0(%0 : $*Proto):
 // Mixed arguments.  Trivial partial apply argument.  Existential argument.
 // CHECK-LABEL: sil hidden @mixed_trivialcapture_existentialarg : $@convention(thin) () -> @out any Proto {
 // CHECK: [[FUNCTION_REF:%.*]] = function_ref @proto_from_proto_and_myint
-// CHECK: [[PARTIAL_APPLY_RESULT:%.*]] = partial_apply [callee_guaranteed] [[FUNCTION_REF]]({{%.*}}) :
+// CHECK-NOT: partial_apply
 // Use %0 explicitly because that is the out parameter.
-// CHECK: apply [[PARTIAL_APPLY_RESULT]](%0, {{%.*}})
+// CHECK: apply [[FUNCTION_REF]](%0, {{%.*}})
 // CHECK: [[RESULT:%.*]] = tuple ()
 // CHECK: return [[RESULT]] : $()
 // CHECK: } // end sil function 'mixed_trivialcapture_existentialarg'
@@ -424,8 +425,8 @@ bb0(%0 : $*Proto):
 // Mixed arguments.  Existential partial apply argument.  Trivial argument.
 // CHECK-LABEL: sil hidden @mixed_existentialcapture_trivialarg : $@convention(thin) () -> MyInt {
 // CHECK: [[FUNCTION_REF:%.*]] = function_ref @myint_from_myint_and_proto
-// CHECK: [[PARTIAL_APPLY_RESULT:%.*]] = partial_apply [callee_guaranteed] [[FUNCTION_REF]]({{%.*}}) :
-// CHECK: [[RESULT:%.*]] = apply [[PARTIAL_APPLY_RESULT]]({{%.*}})
+// CHECK-NOT: partial_apply
+// CHECK: [[RESULT:%.*]] = apply [[FUNCTION_REF]]({{%.*}})
 // CHECK: return [[RESULT]]
 // CHECK: } // end sil function 'mixed_existentialcapture_trivialarg'
 sil hidden @mixed_existentialcapture_trivialarg : $@convention(thin) () -> MyInt {
@@ -452,8 +453,8 @@ bb0:
 // Mixed arguments.  Mixed partial apply arguments.  No arguments.
 // CHECK-LABEL: sil hidden @mixed_mixedcapture_noargs : $@convention(thin) () -> MyInt {
 // CHECK: [[FUNCTION_REF:%.*]] = function_ref @myint_from_proto_and_myint
-// CHECK: [[PARTIAL_APPLY_RESULT:%.*]] = partial_apply [callee_guaranteed] [[FUNCTION_REF]]({{%.*}}, {{%.*}}) :
-// CHECK: [[RESULT:%.*]] = apply [[PARTIAL_APPLY_RESULT]]()
+// CHECK-NOT: partial_apply
+// CHECK: [[RESULT:%.*]] = apply [[FUNCTION_REF]]({{.*}})
 // CHECK: return [[RESULT]]
 // CHECK: } // end sil function 'mixed_mixedcapture_noargs'
 sil hidden @mixed_mixedcapture_noargs : $@convention(thin) () -> MyInt {
@@ -480,8 +481,8 @@ bb0:
 // Mixed arguments.  No partial apply arguments.  Mixed arguments.
 // CHECK-LABEL: sil hidden @mixed_nocapture_mixedargs : $@convention(thin) () -> MyInt {
 // CHECK: [[FUNCTION_REF:%.*]] = function_ref @myint_from_proto_and_myint
-// CHECK: [[PARTIAL_APPLY_RESULT:%.*]] = partial_apply [callee_guaranteed] [[FUNCTION_REF]]() :
-// CHECK: [[RESULT:%.*]] = apply [[PARTIAL_APPLY_RESULT]]({{%.*}}, {{%.*}})
+// CHECK-NOT: partial_apply
+// CHECK: [[RESULT:%.*]] = apply [[FUNCTION_REF]]({{%.*}}, {{%.*}})
 // CHECK: return [[RESULT]]
 // CHECK: } // end sil function 'mixed_nocapture_mixedargs'
 sil hidden @mixed_nocapture_mixedargs : $@convention(thin) () -> MyInt {
@@ -674,9 +675,9 @@ bb0:
 // All generic arguments.  Partial apply arguments.  Apply arguments.  OSSA.
 // CHECK-LABEL: sil [ossa] @generic_capture_args_ossa : $@convention(thin) <A where A : Addable> () -> @out A {
 // CHECK: [[FUNCTION_REF:%.*]] = function_ref @first_of_three_addables
-// CHECK: [[PARTIAL_APPLY_RESULT:%.*]] = partial_apply [callee_guaranteed] [[FUNCTION_REF]]<A>
+// CHECK-NOT: partial_apply
 // Use %0 explicitly because that is the out parameter.
-// CHECK: apply [[PARTIAL_APPLY_RESULT]](%0, {{%.*}})
+// CHECK: apply [[FUNCTION_REF]]<A>(%0, {{%.*}})
 // CHECK: [[RESULT:%.*]] = tuple ()
 // CHECK: return [[RESULT]] : $()
 // CHECK: } // end sil function 'generic_capture_args_ossa'
@@ -722,8 +723,8 @@ bb0(%0 : $*A):
 // All class arguments.  Partial apply arguments.  Apply arguments.  OSSA.
 // CHECK-LABEL: sil [ossa] @class_capture_args_ossa : $@convention(thin) () -> @owned Klass {
 // CHECK: [[FUNCTION_REF:%.*]] = function_ref @first_of_three_klasses
-// CHECK: [[PARTIAL_APPLY_RESULT:%.*]] = partial_apply [callee_guaranteed] [[FUNCTION_REF]]({{%.*}}, {{%.*}}) :
-// CHECK: [[RESULT:%.*]] = apply [[PARTIAL_APPLY_RESULT]]({{%.*}})
+// CHECK-NOT: partial_apply
+// CHECK: [[RESULT:%.*]] = apply [[FUNCTION_REF]]({{%.*}})
 // CHECK: return [[RESULT]]
 // CHECK: } // end sil function 'class_capture_args_ossa'
 sil [ossa] @class_capture_args_ossa : $@convention(thin) () -> @owned Klass {
@@ -752,9 +753,9 @@ bb0:
 // All existential arguments.  Partial apply arguments.  Apply arguments.  OSSA.
 // CHECK-LABEL: sil [ossa] @existential_capture_args_ossa : $@convention(thin) () -> @out any Proto {
 // CHECK: [[FUNCTION_REF:%.*]] = function_ref @first_of_three_protos
-// CHECK: [[PARTIAL_APPLY_RESULT:%.*]] = partial_apply [callee_guaranteed] [[FUNCTION_REF]]({{%.*}}, {{%.*}}) :
+// CHECK-NOT: partial_apply
 // Use %0 explicitly because that is the out parameter.
-// CHECK: apply [[PARTIAL_APPLY_RESULT]](%0, {{%.*}})
+// CHECK: apply [[FUNCTION_REF]](%0, {{%.*}})
 // CHECK: [[RESULT:%.*]] = tuple ()
 // CHECK: return [[RESULT]] : $()
 // CHECK: } // end sil function 'existential_capture_args_ossa'
@@ -794,9 +795,9 @@ bb0(%0 : $*Proto):
 // Mixed arguments.  Trivial partial apply argument.  Existential argument.  OSSA.
 // CHECK-LABEL: sil [ossa] @mixed_trivialcapture_existentialarg_ossa : $@convention(thin) () -> @out any Proto {
 // CHECK: [[FUNCTION_REF:%.*]] = function_ref @proto_from_proto_and_myint
-// CHECK: [[PARTIAL_APPLY_RESULT:%.*]] = partial_apply [callee_guaranteed] [[FUNCTION_REF]]({{%.*}}) :
+// CHECK-NOT: partial_apply
 // Use %0 explicitly because that is the out parameter.
-// CHECK: apply [[PARTIAL_APPLY_RESULT]](%0, {{%.*}})
+// CHECK: apply [[FUNCTION_REF]](%0, {{%.*}})
 // CHECK: [[RESULT:%.*]] = tuple ()
 // CHECK: return [[RESULT]] : $()
 // CHECK: } // end sil function 'mixed_trivialcapture_existentialarg_ossa'
@@ -820,8 +821,8 @@ bb0(%0 : $*Proto):
 // Mixed arguments.  Existential partial apply argument.  Trivial argument.  OSSA.
 // CHECK-LABEL: sil [ossa] @mixed_existentialcapture_trivialarg_ossa : $@convention(thin) () -> MyInt {
 // CHECK: [[FUNCTION_REF:%.*]] = function_ref @myint_from_myint_and_proto
-// CHECK: [[PARTIAL_APPLY_RESULT:%.*]] = partial_apply [callee_guaranteed] [[FUNCTION_REF]]({{%.*}}) :
-// CHECK: [[RESULT:%.*]] = apply [[PARTIAL_APPLY_RESULT]]({{%.*}})
+// CHECK-NOT: partial_apply
+// CHECK: [[RESULT:%.*]] = apply [[FUNCTION_REF]]({{%.*}})
 // CHECK: return [[RESULT]]
 // CHECK: } // end sil function 'mixed_existentialcapture_trivialarg_ossa'
 sil [ossa] @mixed_existentialcapture_trivialarg_ossa : $@convention(thin) () -> MyInt {
@@ -846,8 +847,8 @@ bb0:
 // Mixed arguments.  Mixed partial apply arguments.  No arguments.  OSSA.
 // CHECK-LABEL: sil [ossa] @mixed_mixedcapture_noargs_ossa : $@convention(thin) () -> MyInt {
 // CHECK: [[FUNCTION_REF:%.*]] = function_ref @myint_from_proto_and_myint
-// CHECK: [[PARTIAL_APPLY_RESULT:%.*]] = partial_apply [callee_guaranteed] [[FUNCTION_REF]]({{%.*}}, {{%.*}}) :
-// CHECK: [[RESULT:%.*]] = apply [[PARTIAL_APPLY_RESULT]]()
+// CHECK-NOT: partial_apply
+// CHECK: [[RESULT:%.*]] = apply [[FUNCTION_REF]]({{.*}})
 // CHECK: return [[RESULT]]
 // CHECK: } // end sil function 'mixed_mixedcapture_noargs_ossa'
 sil [ossa] @mixed_mixedcapture_noargs_ossa : $@convention(thin) () -> MyInt {
@@ -872,8 +873,8 @@ bb0:
 // Mixed arguments.  No partial apply arguments.  Mixed arguments.  OSSA.
 // CHECK-LABEL: sil [ossa] @mixed_nocapture_mixedargs_ossa : $@convention(thin) () -> MyInt {
 // CHECK: [[FUNCTION_REF:%.*]] = function_ref @myint_from_proto_and_myint
-// CHECK: [[PARTIAL_APPLY_RESULT:%.*]] = partial_apply [callee_guaranteed] [[FUNCTION_REF]]() :
-// CHECK: [[RESULT:%.*]] = apply [[PARTIAL_APPLY_RESULT]]({{%.*}}, {{%.*}})
+// CHECK-NOT: partial_apply
+// CHECK: [[RESULT:%.*]] = apply [[FUNCTION_REF]]({{%.*}}, {{%.*}})
 // CHECK: return [[RESULT]]
 // CHECK: } // end sil function 'mixed_nocapture_mixedargs_ossa'
 sil [ossa] @mixed_nocapture_mixedargs_ossa : $@convention(thin) () -> MyInt {

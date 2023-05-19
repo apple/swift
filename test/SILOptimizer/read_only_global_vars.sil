@@ -1,0 +1,45 @@
+// RUN: %target-sil-opt -enable-sil-verify-all %s -read-only-global-variables | %FileCheck %s
+
+// REQUIRES: swift_in_compiler
+
+import Builtin
+import Swift
+
+// CHECK-LABEL: sil_global private [let] @read_only_var : $Int32 = {
+sil_global private @read_only_var : $Int32 = {
+  %0 = integer_literal $Builtin.Int32, 27
+  %initval = struct $Int32 (%0 : $Builtin.Int32)
+}
+
+// CHECK-LABEL: sil_global private @written_var : $Int32 = {
+sil_global private @written_var : $Int32 = {
+  %0 = integer_literal $Builtin.Int32, 27
+  %initval = struct $Int32 (%0 : $Builtin.Int32)
+}
+
+// CHECK-LABEL: sil_global @public_var : $Int32 = {
+sil_global @public_var : $Int32 = {
+  %0 = integer_literal $Builtin.Int32, 27
+  %initval = struct $Int32 (%0 : $Builtin.Int32)
+}
+
+sil @unknown_read_func : $@convention(thin) (@in Int32) -> ()
+
+sil @read_var : $@convention(thin) (@inout Int32) -> Int32 {
+bb0(%0 : $*Int32):
+  %1 = global_addr @read_only_var : $*Int32
+  %2 = load %1 : $*Int32
+  copy_addr %1 to %0 : $*Int32
+  %4 = function_ref @unknown_read_func : $@convention(thin) (@in Int32) -> ()
+  %5 = apply %4(%1) : $@convention(thin) (@in Int32) -> ()
+  return %2 : $Int32
+}
+
+sil @write_var : $@convention(thin) (Int32) -> () {
+bb0(%0 : $Int32):
+  %1 = global_addr @written_var : $*Int32
+  store %0 to %1 : $*Int32
+  %r = tuple ()
+  return %r : $()
+}
+

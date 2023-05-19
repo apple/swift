@@ -23,10 +23,12 @@
 
 // RUN: %empty-directory(%t)
 // RUN: cp %s %t
-// RUN: cd %t && %target-build-swift %t/EmitWhileBuilding.swift -module-name EmitWhileBuilding -c -emit-module -emit-module-path %t/EmitWhileBuilding.swiftmodule -emit-dependencies -incremental -output-file-map=%S/Inputs/EmitWhileBuilding.output.json -working-directory %t -v -driver-show-incremental
-// RUN: cd %t && %target-build-swift %t/EmitWhileBuilding.swift -module-name EmitWhileBuilding -c -emit-module -emit-module-path %t/EmitWhileBuilding.swiftmodule -emit-dependencies -incremental -output-file-map=%S/Inputs/EmitWhileBuilding.output.json -working-directory %t -v -driver-show-incremental -emit-symbol-graph -emit-symbol-graph-dir %t
+// RUN: pushd %t
+// RUN: %target-build-swift %t/EmitWhileBuilding.swift -module-name EmitWhileBuilding -c -emit-module -emit-module-path %t/EmitWhileBuilding.swiftmodule -emit-dependencies -incremental -output-file-map=%S/Inputs/EmitWhileBuilding.output.json -working-directory %t -v -driver-show-incremental
+// RUN: %target-build-swift %t/EmitWhileBuilding.swift -module-name EmitWhileBuilding -c -emit-module -emit-module-path %t/EmitWhileBuilding.swiftmodule -emit-dependencies -incremental -output-file-map=%S/Inputs/EmitWhileBuilding.output.json -working-directory %t -v -driver-show-incremental -emit-symbol-graph -emit-symbol-graph-dir %t
 // RUN: %FileCheck %s --input-file %t/EmitWhileBuilding.symbols.json
 // RUN: %FileCheck %s --input-file %t/EmitWhileBuilding.symbols.json --check-prefix PUB
+// RUN: popd
 
 // now run with -symbol-graph-minimum-access-level to change the available symbols
 

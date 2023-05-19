@@ -1,0 +1,39 @@
+// RUN: %target-sil-opt -enable-sil-verify-all %s -onone-simplification -simplify-instruction=tuple_extract | %FileCheck %s
+
+// REQUIRES: swift_in_compiler
+
+import Swift
+import Builtin
+
+// CHECK-LABEL: sil @tuple_extract_first_field
+// CHECK:         return %0
+// CHECK:       } // end sil function 'tuple_extract_first_field'
+sil @tuple_extract_first_field : $@convention(thin) (@owned String, @guaranteed String) -> @owned String {
+bb0(%0 : $String, %1 : $String):
+  %2 = tuple (%0 : $String, %1 : $String)
+  %3 = tuple_extract %2 : $(String, String), 0
+  return %3 : $String
+}
+
+// CHECK-LABEL: sil @tuple_extract_second_field
+// CHECK:         return %1
+// CHECK:       } // end sil function 'tuple_extract_second_field'
+sil @tuple_extract_second_field : $@convention(thin) (@guaranteed String, @owned String) -> @owned String {
+bb0(%0 : $String, %1 : $String):
+  %2 = tuple (%0 : $String, %1 : $String)
+  %3 = tuple_extract %2 : $(String, String), 1
+  return %3 : $String
+}
+
+// CHECK-LABEL: sil [ossa] @tuple_extract_ossa
+// CHECK:         %2 = copy_value %0
+// CHECK:         return %2
+// CHECK:       } // end sil function 'tuple_extract_ossa'
+sil [ossa] @tuple_extract_ossa : $@convention(thin) (@guaranteed String, @guaranteed String) -> @owned String {
+bb0(%0 : @guaranteed $String, %1 : @guaranteed $String):
+  %2 = tuple (%0 : $String, %1 : $String)
+  %3 = tuple_extract %2 : $(String, String), 0
+  %4 = copy_value %3 : $String
+  return %4 : $String
+}
+

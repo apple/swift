@@ -41,7 +41,7 @@ HashingTestSuite.test("Hasher/CustomKeys") {
   checkHash(for: 1, withSeed: 0xFFFFFFFF, expected: 0xd7da861471fc35dc)
   checkHash(for: .max, withSeed: 0xFFFFFFFF, expected: 0xf6e3047fc114dbc0)
 
-#if !(arch(i386) || arch(arm) || arch(arm64_32))
+#if _pointerBitWidth(_64)
   checkHash(for: 0, withSeed: 0xFFFFFFFF_FFFFFFFF, expected: 0x8d0ea5ad8d6a55c7)
   checkHash(for: 1, withSeed: 0xFFFFFFFF_FFFFFFFF, expected: 0x2899f60d6b5bc847)
   checkHash(for: .max, withSeed: 0xFFFFFFFF_FFFFFFFF, expected: 0xc4d7726fff5e65a0)

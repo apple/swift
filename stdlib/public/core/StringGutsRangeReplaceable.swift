@@ -100,14 +100,28 @@ extension _StringGuts {
   // Grow to accommodate at least `n` code units
   @usableFromInline
   internal mutating func grow(_ n: Int) {
-    defer { self._invariantCheck() }
+    defer {
+      self._invariantCheck()
+      _internalInvariant(
+        self.uniqueNativeCapacity != nil && self.uniqueNativeCapacity! >= n)
+    }
 
     _internalInvariant(
       self.uniqueNativeCapacity == nil || self.uniqueNativeCapacity! < n)
 
+    // If unique and native, apply a 2x growth factor to avoid problematic
+    // performance when used in a loop. If one if those doesn't apply, we
+    // can just use the requested capacity (at least the current utf-8 count).
     // TODO: Don't do this! Growth should only happen for append...
-    let growthTarget = Swift.max(n, (self.uniqueNativeCapacity ?? 0) * 2)
+    let growthTarget: Int
+    if let capacity = self.uniqueNativeCapacity {
+      growthTarget = Swift.max(n, capacity * 2)
+    } else {
+      growthTarget = Swift.max(n, self.utf8Count)
+    }
 
+    // `isFastUTF8` is not the same as `isNative`. It can include small
+    // strings or foreign strings that provide contiguous UTF-8 access.
     if _fastPath(isFastUTF8) {
       let isASCII = self.isASCII
       let storage = self.withFastUTF8 {

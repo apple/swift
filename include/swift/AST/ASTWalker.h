@@ -48,6 +48,7 @@ struct ReferenceMetaData {
   SemaReferenceKind Kind;
   llvm::Optional<AccessKind> AccKind;
   bool isImplicit = false;
+  bool isImplicitCtorType = false;
 
   /// When non-none, this is a custom attribute reference.
   Optional<std::pair<const CustomAttr *, Decl *>> CustomAttrRef;

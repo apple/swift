@@ -6,6 +6,12 @@
 // Diagnostics testing
 // RUN: %target-typecheck-verify-swift -swift-version 5 -enable-experimental-feature FreestandingMacros -load-plugin-library %t/%target-library-name(MacroDefinition) -module-name MacroUser -DTEST_DIAGNOSTICS
 
+// Diagnostics testing by importing macros from a module
+// RUN: %target-swift-frontend -swift-version 5 -emit-module -o %t/freestanding_macro_library.swiftmodule %S/Inputs/freestanding_macro_library.swift -module-name freestanding_macro_library -load-plugin-library %t/%target-library-name(MacroDefinition)
+// RUN: %target-swift-frontend -swift-version 5 -emit-module -o %t/freestanding_macro_library_2.swiftmodule %S/Inputs/freestanding_macro_library_2.swift -module-name freestanding_macro_library_2 -load-plugin-library %t/%target-library-name(MacroDefinition) -I %t
+
+// RUN: %target-typecheck-verify-swift -swift-version 5 -enable-experimental-feature FreestandingMacros -load-plugin-library %t/%target-library-name(MacroDefinition) -module-name MacroUser -DTEST_DIAGNOSTICS -I %t -DIMPORT_MACRO_LIBRARY
+
 // RUN: not %target-swift-frontend -swift-version 5 -typecheck -enable-experimental-feature FreestandingMacros -load-plugin-library %t/%target-library-name(MacroDefinition) -module-name MacroUser -DTEST_DIAGNOSTICS -serialize-diagnostics-path %t/macro_expand.dia %s -emit-macro-expansion-files no-diagnostics > %t/macro-printing.txt
 // RUN: c-index-test -read-diagnostics %t/macro_expand.dia 2>&1 | %FileCheck -check-prefix CHECK-DIAGS %s
 
@@ -27,6 +33,26 @@
 // RUN: %FileCheck -check-prefix=CHECK-MODULE-TRACE %s < %t/loaded_module_trace.trace.json
 
 // CHECK-MODULE-TRACE: {{libMacroDefinition.dylib|libMacroDefinition.so|MacroDefinition.dll}}
+
+#if IMPORT_MACRO_LIBRARY
+import freestanding_macro_library
+import freestanding_macro_library_2
+#else
+@freestanding(declaration, names: named(StructWithUnqualifiedLookup))
+macro structWithUnqualifiedLookup() = #externalMacro(module: "MacroDefinition", type: "DefineStructWithUnqualifiedLookupMacro")
+
+@freestanding(declaration)
+macro anonymousTypes(_: () -> String) = #externalMacro(module: "MacroDefinition", type: "DefineAnonymousTypesMacro")
+
+@freestanding(declaration)
+macro freestandingWithClosure<T>(_ value: T, body: (T) -> T) = #externalMacro(module: "MacroDefinition", type: "EmptyDeclarationMacro")
+
+@freestanding(declaration, names: arbitrary) macro bitwidthNumberedStructs(_ baseName: String) = #externalMacro(module: "MacroDefinition", type: "DefineBitwidthNumberedStructsMacro")
+
+@freestanding(expression) macro stringify<T>(_ value: T) -> (T, String) = #externalMacro(module: "MacroDefinition", type: "StringifyMacro")
+
+@freestanding(declaration, names: arbitrary) macro bitwidthNumberedStructs(_ baseName: String, blah: Bool) = #externalMacro(module: "MacroDefinition", type: "DefineBitwidthNumberedStructsMacro")
+#endif
 
 #if TEST_DIAGNOSTICS
 @freestanding(declaration)
@@ -71,10 +97,12 @@ struct Bad {}
 // CHECK-DIAGS: import Swift
 // CHECK-DIAGS: precedencegroup MyPrecedence {}
 // CHECK-DIAGS: @attached(member) macro myMacro()
-// CHECK-DIAGS: extension Int {}
+// CHECK-DIAGS: extension Int {
+// CHECK-DIAGS: }
 // CHECK-DIAGS: @main
 // CHECK-DIAGS: struct MyMain {
-// CHECK-DIAGS:   static func main() {}
+// CHECK-DIAGS:   static func main() {
+// CHECK-DIAGS:   }
 // CHECK-DIAGS: }
 // CHECK-DIAGS: typealias Array = Void
 // CHECK-DIAGS: typealias Dictionary = Void
@@ -91,7 +119,6 @@ struct Bad {}
 #endif
 
 @freestanding(expression) macro customFileID() -> String = #externalMacro(module: "MacroDefinition", type: "FileIDMacro")
-@freestanding(expression) macro stringify<T>(_ value: T) -> (T, String) = #externalMacro(module: "MacroDefinition", type: "StringifyMacro")
 @freestanding(expression) macro fileID<T: ExpressibleByStringLiteral>() -> T = #externalMacro(module: "MacroDefinition", type: "FileIDMacro")
 @freestanding(expression) macro recurse(_: Bool) = #externalMacro(module: "MacroDefinition", type: "RecursiveMacro")
 @freestanding(expression) macro assert(_: Bool) = #externalMacro(module: "MacroDefinition", type: "AssertMacro")
@@ -179,6 +206,20 @@ func testDiscardableStringify(x: Int) {
 }
 #endif
 
+#if TEST_DIAGNOSTICS
+// This causes an error when non-'Bool' value is passed.
+@freestanding(expression) macro assertAny<T>(_ value: T) = #externalMacro(module: "MacroDefinition", type: "AssertMacro")
+
+func testNested() {
+  struct Nested { }
+  _ = #stringify(#assertAny(Nested()))
+  // expected-note@-1 {{in expansion of macro 'stringify' here}}
+// CHECK-DIAGS-NOT: error: cannot convert value of type 'Nested' to expected argument type 'Bool'
+// CHECK-DIAGS: @__swiftmacro_9MacroUser10testNestedyyF9stringifyfMf_9assertAnyfMf_.swift:1:8: error: cannot convert value of type 'Nested' to expected argument type 'Bool'
+// CHECK-DIAGS-NOT: error: cannot convert value of type 'Nested' to expected argument type 'Bool'
+}
+#endif
+
 func testStringifyWithThrows() throws {
   // Okay, we can put the try inside or outside
   _ = try #stringify(maybeThrowing())
@@ -251,15 +292,12 @@ func testNestedDeclInExpr() {
   let _: () -> Void = #nestedDeclInExpr
 }
 
-@freestanding(declaration, names: arbitrary) macro bitwidthNumberedStructs(_ baseName: String) = #externalMacro(module: "MacroDefinition", type: "DefineBitwidthNumberedStructsMacro")
-// Test overload
-@freestanding(declaration, names: arbitrary) macro bitwidthNumberedStructs(_ baseName: String, blah: Bool) = #externalMacro(module: "MacroDefinition", type: "DefineBitwidthNumberedStructsMacro")
 // Test non-arbitrary names
 @freestanding(declaration, names: named(A), named(B), named(foo), named(addOne))
 macro defineDeclsWithKnownNames() = #externalMacro(module: "MacroDefinition", type: "DefineDeclsWithKnownNamesMacro")
 
 // Freestanding macros are not in inlined scopes.
-// CHECK-SIL: sil_scope {{.*}} { loc "@__swiftmacro_9MacroUser016testFreestandingA9ExpansionyyF4Foo2L_V25defineDeclsWithKnownNamesfMf0_.swift":9:14 {{.*}} -> Int }
+// CHECK-SIL: sil_scope {{.*}} { loc "@__swiftmacro_9MacroUser016testFreestandingA9ExpansionyyF4Foo2L_V25defineDeclsWithKnownNamesfMf0_.swift"{{.*}} -> Int }
 
 // FIXME: Macros producing arbitrary names are not supported yet
 #if false
@@ -272,12 +310,6 @@ let blah = false
 #endif
 
 // Test unqualified lookup from within a macro expansion
-@freestanding(declaration, names: named(StructWithUnqualifiedLookup))
-macro structWithUnqualifiedLookup() = #externalMacro(module: "MacroDefinition", type: "DefineStructWithUnqualifiedLookupMacro")
-
-@freestanding(declaration)
-macro anonymousTypes(_: () -> String) = #externalMacro(module: "MacroDefinition", type: "DefineAnonymousTypesMacro")
-
 // FIXME: Global freestanding macros not yet supported in script mode.
 #if false
 let world = 3 // to be used by the macro expansion below
@@ -360,9 +392,6 @@ struct ContainerOfNumberedStructs {
 }
 
 // Avoid re-type-checking declaration macro arguments.
-@freestanding(declaration)
-macro freestandingWithClosure<T>(_ value: T, body: (T) -> T) = #externalMacro(module: "MacroDefinition", type: "EmptyDeclarationMacro")
-
 func testFreestandingWithClosure(i: Int) {
   #freestandingWithClosure(i) { x in x }
 

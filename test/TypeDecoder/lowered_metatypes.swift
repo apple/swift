@@ -2,7 +2,7 @@
 
 // RUN: %target-build-swift -emit-executable %s -g -o %t/lowered_metatypes -emit-module
 // RUN: sed -ne '/\/\/ *DEMANGLE: /s/\/\/ *DEMANGLE: *//p' < %s > %t/input
-// RUN: %lldb-moduleimport-test %t/lowered_metatypes -type-from-mangled=%t/input | %FileCheck %s
+// RUN: %lldb-moduleimport-test %t/lowered_metatypes -type-from-mangled=%t/input | %FileCheck %s --match-full-lines
 
 struct Struct {}
 class Class {}
@@ -19,5 +19,5 @@ protocol Proto {}
 // DEMANGLE: $s17lowered_metatypes5ProtoPXmT
 // DEMANGLE: $s17lowered_metatypes5ProtoPXmo
 
-// CHECK: @thick Proto.Type
-// CHECK: @objc_metatype Proto.Type
+// CHECK: @thick any Proto.Type
+// CHECK: @objc_metatype any Proto.Type

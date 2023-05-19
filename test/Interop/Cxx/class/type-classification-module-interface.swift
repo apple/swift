@@ -35,18 +35,3 @@
 // CHECK:   func __getIteratorBoxUnsafe() -> IteratorBox
 // CHECK-SKIP-UNSAFE-NOT: func __getIteratorBoxUnsafe() -> IteratorBox
 // CHECK: }
-
-// CHECK: struct HasMethodThatReturnsTemplatedPointerBox {
-// CHECK:   func __getTemplatedPointerBoxUnsafe() -> TemplatedPointerBox<Int32>
-// CHECK-SKIP-UNSAFE-NOT: func __getTemplatedPointerBoxUnsafe() -> TemplatedPointerBox<Int32>
-// CHECK: }
-
-// CHECK: struct HasMethodThatReturnsTemplatedBox {
-// FIXME: This is unfortunate, we should be able to recognize that TemplatedBox<Int32> does not store any pointers as fields.
-// CHECK:   func __getIntBoxUnsafe() -> TemplatedBox<Int32>
-// CHECK:   func __getIntPtrBoxUnsafe()
-// CHECK: }
-
-// CHECK: struct HasMethodThatReturnsTemplatedIterator {
-// CHECK:   func __getIteratorUnsafe()
-// CHECK: }

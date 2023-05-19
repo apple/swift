@@ -6,8 +6,6 @@
 // UNSUPPORTED: use_os_stdlib
 // UNSUPPORTED: back_deployment_runtime
 
-// REQUIRES: rdar102912772
-
 import StdlibUnittest
 
 // A class that can provider a retainable pointer and determine whether it's

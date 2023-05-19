@@ -120,9 +120,9 @@ func testDocumentCoercion(_ doc: inout Document, ip1: IsPrintable1, l: Lackey) {
 func refCoercion(_ p: inout MyPrintable) { }
 var p : MyPrintable = IsPrintable1()
 var fp : FormattedPrintable = IsPrintable1()
-// expected-note@-1{{change variable type to 'any MyPrintable' if it doesn't need to be declared as 'any FormattedPrintable'}} {{10-28=MyPrintable}}
+// expected-note@-1{{change variable type to 'any MyPrintable' if it doesn't need to be declared as 'any FormattedPrintable'}} {{10-28=any MyPrintable}}
 var ip1 : IsPrintable1
-// expected-note@-1{{change variable type to 'any MyPrintable' if it doesn't need to be declared as 'IsPrintable1'}} {{11-23=MyPrintable}}
+// expected-note@-1{{change variable type to 'any MyPrintable' if it doesn't need to be declared as 'IsPrintable1'}} {{11-23=any MyPrintable}}
 
 refCoercion(&p)
 refCoercion(&fp)
@@ -132,9 +132,9 @@ refCoercion(&ip1)
 
 do {
   var fp_2 = fp
-  // expected-note@-1{{change variable type to 'any MyPrintable' if it doesn't need to be declared as 'any FormattedPrintable'}} {{11-11=: MyPrintable}}
+  // expected-note@-1{{change variable type to 'any MyPrintable' if it doesn't need to be declared as 'any FormattedPrintable'}} {{11-11=: any MyPrintable}}
   var ip1_2 = ip1
-  // expected-note@-1{{change variable type to 'any MyPrintable' if it doesn't need to be declared as 'IsPrintable1'}} {{12-12=: MyPrintable}}
+  // expected-note@-1{{change variable type to 'any MyPrintable' if it doesn't need to be declared as 'IsPrintable1'}} {{12-12=: any MyPrintable}}
   refCoercion(&fp_2)
   // expected-error@-1{{inout argument could be set to a value with a type other than 'any FormattedPrintable'; use a value declared as type 'any MyPrintable' instead}}
   refCoercion(&ip1_2)
@@ -143,8 +143,8 @@ do {
 
 do {
   var fp_2 : FormattedPrintable = fp, ip1_2 = ip1
-  // expected-note@-1{{change variable type to 'any MyPrintable' if it doesn't need to be declared as 'any FormattedPrintable'}} {{14-32=MyPrintable}}
-  // expected-note@-2{{change variable type to 'any MyPrintable' if it doesn't need to be declared as 'IsPrintable1'}} {{44-44=: MyPrintable}}
+  // expected-note@-1{{change variable type to 'any MyPrintable' if it doesn't need to be declared as 'any FormattedPrintable'}} {{14-32=any MyPrintable}}
+  // expected-note@-2{{change variable type to 'any MyPrintable' if it doesn't need to be declared as 'IsPrintable1'}} {{44-44=: any MyPrintable}}
   refCoercion(&fp_2)
   // expected-error@-1{{inout argument could be set to a value with a type other than 'any FormattedPrintable'; use a value declared as type 'any MyPrintable' instead}}
   refCoercion(&ip1_2)
@@ -153,8 +153,8 @@ do {
 
 do {
   var fp_2, fp_3 : FormattedPrintable
-  // expected-note@-1{{change variable type to 'any MyPrintable' if it doesn't need to be declared as 'any FormattedPrintable'}} {{20-38=MyPrintable}}
-  // expected-note@-2{{change variable type to 'any MyPrintable' if it doesn't need to be declared as 'any FormattedPrintable'}} {{20-38=MyPrintable}}
+  // expected-note@-1{{change variable type to 'any MyPrintable' if it doesn't need to be declared as 'any FormattedPrintable'}} {{20-38=any MyPrintable}}
+  // expected-note@-2{{change variable type to 'any MyPrintable' if it doesn't need to be declared as 'any FormattedPrintable'}} {{20-38=any MyPrintable}}
   fp_2 = fp
   fp_3 = fp
   refCoercion(&fp_2)
@@ -166,8 +166,8 @@ do {
 do {
   func wrapRefCoercion1(fp_2: inout FormattedPrintable,
                         ip1_2: inout IsPrintable1) {
-    // expected-note@-2{{change variable type to 'any MyPrintable' if it doesn't need to be declared as 'any FormattedPrintable'}} {{31-55=MyPrintable}}
-    // expected-note@-2{{change variable type to 'any MyPrintable' if it doesn't need to be declared as 'IsPrintable1'}} {{32-50=MyPrintable}}
+    // expected-note@-2{{change variable type to 'any MyPrintable' if it doesn't need to be declared as 'any FormattedPrintable'}} {{31-55=any MyPrintable}}
+    // expected-note@-2{{change variable type to 'any MyPrintable' if it doesn't need to be declared as 'IsPrintable1'}} {{32-50=any MyPrintable}}
     refCoercion(&fp_2)
     // expected-error@-1{{inout argument could be set to a value with a type other than 'any FormattedPrintable'; use a value declared as type 'any MyPrintable' instead}}
     refCoercion(&ip1_2)

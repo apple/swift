@@ -25,7 +25,7 @@ enum Payload_E: Encodable {
     case value
   }
 
-  func encode(to encoder: Encoder) throws {
+  func encode(to encoder: any Encoder) throws {
     var container = encoder.container(keyedBy: Payload_E.CodingKeys.self)
 
     switch self {

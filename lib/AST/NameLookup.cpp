@@ -1620,7 +1620,6 @@ populateLookupTableEntryFromMacroExpansions(ASTContext &ctx,
                                             MemberLookupTable &table,
                                             DeclName name,
                                             TypeOrExtensionDecl container) {
-
   // Trigger the expansion of member macros on the container, if any of the
   // names match.
   {
@@ -1645,7 +1644,7 @@ populateLookupTableEntryFromMacroExpansions(ASTContext &ctx,
     MacroIntroducedNameTracker nameTracker;
     if (auto *med = dyn_cast<MacroExpansionDecl>(member)) {
       forEachPotentialResolvedMacro(
-          member->getModuleContext(), med->getMacroName(),
+          dc->getModuleScopeContext(), med->getMacroName(),
           MacroRole::Declaration, nameTracker);
     } else if (auto *vd = dyn_cast<ValueDecl>(member)) {
       nameTracker.attachedTo = dyn_cast<ValueDecl>(member);

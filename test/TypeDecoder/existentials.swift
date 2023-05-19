@@ -2,7 +2,7 @@
 
 // RUN: %target-build-swift -emit-executable %s -g -o %t/existentials -emit-module
 // RUN: sed -ne '/\/\/ *DEMANGLE: /s/\/\/ *DEMANGLE: *//p' < %s > %t/input
-// RUN: %lldb-moduleimport-test %t/existentials -type-from-mangled=%t/input | %FileCheck %s
+// RUN: %lldb-moduleimport-test %t/existentials -type-from-mangled=%t/input | %FileCheck %s --match-full-lines
 
 func blackHole(_: Any...) {}
 
@@ -66,6 +66,7 @@ do {
 // DEMANGLE: $s12existentials1P_AA1QAA1CCXcD
 // DEMANGLE: $s12existentials1P_AA1QXlD
 
+// FIXME(https://github.com/apple/swift/issues/65879): All of these should be existentials, i.e., prefixed with 'any'
 // CHECK: Any
 // CHECK: AnyObject
 // CHECK: P
@@ -84,14 +85,14 @@ do {
 // DEMANGLE: $s12existentials1P_AA1QAA1CCXcXpD
 // DEMANGLE: $s12existentials1P_AA1QXlXpD
 
-// CHECK: Any.Type
-// CHECK: AnyObject.Type
-// CHECK: P.Type
-// CHECK: (P & AnyObject).Type
-// CHECK: (C & P).Type
-// CHECK: (P & Q).Type
-// CHECK: (C & P & Q).Type
-// CHECK: (P & Q & AnyObject).Type
+// CHECK: any Any.Type
+// CHECK: any AnyObject.Type
+// CHECK: any P.Type
+// CHECK: any (P & AnyObject).Type
+// CHECK: any (C & P).Type
+// CHECK: any (P & Q).Type
+// CHECK: any (C & P & Q).Type
+// CHECK: any (P & Q & AnyObject).Type
 
 // DEMANGLE: $sypmD
 // DEMANGLE: $syXlmD
@@ -102,11 +103,12 @@ do {
 // DEMANGLE: $s12existentials1P_AA1QAA1CCXcmD
 // DEMANGLE: $s12existentials1P_AA1QXlmD
 
-// CHECK: Any.Protocol
-// CHECK: AnyObject.Protocol
-// CHECK: P.Protocol
-// CHECK: (C & P).Protocol
-// CHECK: (P & AnyObject).Protocol
-// CHECK: (P & Q).Protocol
-// CHECK: (C & P & Q).Protocol
-// CHECK: (P & Q & AnyObject).Protocol
+// FIXME(https://github.com/apple/swift/issues/65880): All of these should be of the form (any <existential>).Type
+// CHECK: Any.Type
+// CHECK: AnyObject.Type
+// CHECK: P.Type
+// CHECK: (C & P).Type
+// CHECK: (P & AnyObject).Type
+// CHECK: (P & Q).Type
+// CHECK: (C & P & Q).Type
+// CHECK: (P & Q & AnyObject).Type

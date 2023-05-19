@@ -15,7 +15,10 @@
 
 // RUN: %check-interop-cxx-header-in-clang(%t/full-cxx-swift-cxx-bridging.h -Wno-reserved-identifier)
 
-// FIXME: test in C++ with modules (but libc++ modularization is preventing this)
+// Check that the generated header can be
+// built with Clang modules enabled in C++.
+
+// RUN: %target-interop-build-clangxx -fsyntax-only -x c++-header %t/full-cxx-swift-cxx-bridging.h -std=gnu++20 -c -fmodules -fcxx-modules -I %t
 
 //--- header.h
 
@@ -149,7 +152,7 @@ public func takeTrivialInout(_ x: inout Trivial) {
 // CHECK-NEXT: #if __has_warning("-Watimport-in-framework-header")
 // CHECK-NEXT: #pragma clang diagnostic ignored "-Watimport-in-framework-header"
 // CHECK-NEXT:#endif
-// CHECK-NEXT: #pragma clang module import CxxTest;
+// CHECK-NEXT: #pragma clang module import CxxTest
 // CHECK-NEXT: #endif
 
 

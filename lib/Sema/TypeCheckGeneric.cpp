@@ -85,19 +85,11 @@ OpaqueResultTypeRequest::evaluate(Evaluator &evaluator,
   }
 
   // Check the availability of the opaque type runtime support.
-  if (!ctx.LangOpts.DisableAvailabilityChecking) {
-    auto runningOS =
-      TypeChecker::overApproximateAvailabilityAtLocation(
-        repr->getLoc(),
-        originatingDecl->getInnermostDeclContext());
-    auto availability = ctx.getOpaqueTypeAvailability();
-    if (!runningOS.isContainedIn(availability)) {
-      TypeChecker::diagnosePotentialOpaqueTypeUnavailability(
-        repr->getSourceRange(),
-        originatingDecl->getInnermostDeclContext(),
-        UnavailabilityReason::requiresVersionRange(availability.getOSVersion()));
-    }
-  }
+  TypeChecker::checkAvailability(
+      repr->getSourceRange(),
+      ctx.getOpaqueTypeAvailability(),
+      diag::availability_opaque_types_only_version_newer,
+      originatingDecl->getInnermostDeclContext());
 
   // Create a generic signature for the opaque environment. This is the outer
   // generic signature with an added generic parameters representing the opaque

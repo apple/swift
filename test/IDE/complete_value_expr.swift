@@ -673,7 +673,7 @@ func testLookInProtoNoDot1() {
 // PROTO_MEMBERS_NO_DOT_1-DAG: Decl[InstanceMethod]/CurrNominal: .fooInstanceFunc0()[#Double#]{{; name=.+$}}
 // PROTO_MEMBERS_NO_DOT_1-DAG: Decl[InstanceMethod]/CurrNominal: .fooInstanceFunc1({#(a): Int#})[#Double#]{{; name=.+$}}
 // PROTO_MEMBERS_NO_DOT_1-DAG: Decl[Subscript]/CurrNominal:      [{#(i): Int#}][#Double#]{{; name=.+$}}
-// PROTO_MEMBERS_NO_DOT_1-DAG: Keyword[self]/CurrNominal:        .self[#FooProtocol#]; name=self
+// PROTO_MEMBERS_NO_DOT_1-DAG: Keyword[self]/CurrNominal:        .self[#any FooProtocol#]; name=self
 }
 
 func testLookInProtoNoDot2() {
@@ -686,7 +686,7 @@ func testLookInProtoNoDot2() {
 // PROTO_MEMBERS_NO_DOT_2-DAG: Decl[InstanceMethod]/CurrNominal: .fooInstanceFunc0()[#Double#]{{; name=.+$}}
 // PROTO_MEMBERS_NO_DOT_2-DAG: Decl[InstanceMethod]/CurrNominal: .fooInstanceFunc1({#(a): Int#})[#Double#]{{; name=.+$}}
 // PROTO_MEMBERS_NO_DOT_2-DAG: Decl[Subscript]/CurrNominal:      [{#(i): Int#}][#Double#]{{; name=.+$}}
-// PROTO_MEMBERS_NO_DOT_2-DAG: Keyword[self]/CurrNominal: .self[#BarProtocol & FooProtocol#]; name=self
+// PROTO_MEMBERS_NO_DOT_2-DAG: Keyword[self]/CurrNominal: .self[#any BarProtocol & FooProtocol#]; name=self
 }
 
 func testLookInProtoNoDot3() {
@@ -701,12 +701,12 @@ func testLookInProtoNoDot3() {
 // PROTO_MEMBERS_NO_DOT_3-DAG: Decl[InstanceMethod]/Super:       .fooInstanceFunc0()[#Double#]{{; name=.+$}}
 // PROTO_MEMBERS_NO_DOT_3-DAG: Decl[InstanceMethod]/Super:       .fooInstanceFunc1({#(a): Int#})[#Double#]{{; name=.+$}}
 // PROTO_MEMBERS_NO_DOT_3-DAG: Decl[Subscript]/Super:            [{#(i): Int#}][#Double#]{{; name=.+$}}
-// PROTO_MEMBERS_NO_DOT_3-DAG: Keyword[self]/CurrNominal: .self[#BarExProtocol & FooExProtocol#]; name=self
+// PROTO_MEMBERS_NO_DOT_3-DAG: Keyword[self]/CurrNominal: .self[#any BarExProtocol & FooExProtocol#]; name=self
 }
 
 func testLookInProto1() {
   fooProtocolInstance.#^PROTO_MEMBERS_1^#
-// PROTO_MEMBERS_1-DAG: Keyword[self]/CurrNominal: self[#FooProtocol#]; name=self
+// PROTO_MEMBERS_1-DAG: Keyword[self]/CurrNominal: self[#any FooProtocol#]; name=self
 // PROTO_MEMBERS_1-DAG: Decl[InstanceVar]/CurrNominal:    fooInstanceVar1[#Int#]{{; name=.+$}}
 // PROTO_MEMBERS_1-DAG: Decl[InstanceVar]/CurrNominal:    fooInstanceVar2[#Int#]{{; name=.+$}}
 // PROTO_MEMBERS_1-DAG: Decl[InstanceMethod]/CurrNominal: fooInstanceFunc0()[#Double#]{{; name=.+$}}
@@ -715,7 +715,7 @@ func testLookInProto1() {
 
 func testLookInProto2() {
   fooBarProtocolInstance.#^PROTO_MEMBERS_2^#
-// PROTO_MEMBERS_2-DAG: Keyword[self]/CurrNominal: self[#BarProtocol & FooProtocol#]; name=self
+// PROTO_MEMBERS_2-DAG: Keyword[self]/CurrNominal: self[#any BarProtocol & FooProtocol#]; name=self
 // PROTO_MEMBERS_2-DAG: Decl[InstanceVar]/CurrNominal:    barInstanceVar[#Int#]{{; name=.+$}}
 // PROTO_MEMBERS_2-DAG: Decl[InstanceMethod]/CurrNominal: barInstanceFunc0()[#Double#]{{; name=.+$}}
 // PROTO_MEMBERS_2-DAG: Decl[InstanceMethod]/CurrNominal: barInstanceFunc1({#(a): Int#})[#Double#]{{; name=.+$}}
@@ -727,7 +727,7 @@ func testLookInProto2() {
 
 func testLookInProto3() {
   fooExBarExProtocolInstance.#^PROTO_MEMBERS_3^#
-// PROTO_MEMBERS_3-DAG: Keyword[self]/CurrNominal: self[#BarExProtocol & FooExProtocol#]; name=self
+// PROTO_MEMBERS_3-DAG: Keyword[self]/CurrNominal: self[#any BarExProtocol & FooExProtocol#]; name=self
 // PROTO_MEMBERS_3-DAG: Decl[InstanceMethod]/CurrNominal: barExInstanceFunc0()[#Double#]{{; name=.+$}}
 // PROTO_MEMBERS_3-DAG: Decl[InstanceVar]/Super:          barInstanceVar[#Int#]{{; name=.+$}}
 // PROTO_MEMBERS_3-DAG: Decl[InstanceMethod]/Super:       barInstanceFunc0()[#Double#]{{; name=.+$}}
@@ -1504,13 +1504,12 @@ extension PWithT {
   }
 }
 
-// Note: PWithT cannot actually be used as an existential type because it has
-// an associated type.  But we should still be able to give code completions.
 func testUnusableProtExt(_ x: PWithT) {
   x.#^PROTOCOL_EXT_UNUSABLE_EXISTENTIAL^#
 }
-// PROTOCOL_EXT_UNUSABLE_EXISTENTIAL: Decl[InstanceMethod]/CurrNominal:   foo({#(x): PWithT.T#})[#PWithT.T#]{{; name=.+}}
-// PROTOCOL_EXT_UNUSABLE_EXISTENTIAL: Decl[InstanceMethod]/CurrNominal:   bar({#(x): PWithT.T#})[#PWithT.T#]{{; name=.+}}
+// FIXME(https://github.com/apple/swift/issues/65696): We should not be showing these because (1) they cannot be accessed on the existential (2) we don't have the syntax and features to represent the projected type sigs anyway.
+// PROTOCOL_EXT_UNUSABLE_EXISTENTIAL: Decl[InstanceMethod]/CurrNominal:   foo({#(x): any PWithT.T#})[#any PWithT.T#]{{; name=.+}}
+// PROTOCOL_EXT_UNUSABLE_EXISTENTIAL: Decl[InstanceMethod]/CurrNominal:   bar({#(x): any PWithT.T#})[#any PWithT.T#]{{; name=.+}}
 
 protocol dedupP {
   associatedtype T
@@ -1545,10 +1544,11 @@ func testDeDuped(_ x: dedupS) {
 func testDeDuped2(_ x: dedupP) {
   x#^PROTOCOL_EXT_DEDUP_2^#
 // PROTOCOL_EXT_DEDUP_2: Begin completions, 5 items
-// PROTOCOL_EXT_DEDUP_2-DAG: Decl[InstanceMethod]/CurrNominal:   .foo()[#dedupP.T#]; name=foo()
-// PROTOCOL_EXT_DEDUP_2-DAG: Decl[InstanceVar]/CurrNominal:      .bar[#dedupP.T#]; name=bar
-// PROTOCOL_EXT_DEDUP_2-DAG: Decl[Subscript]/CurrNominal:        [{#(x): dedupP.T#}][#dedupP.T#]; name=[:]
-// PROTOCOL_EXT_DEDUP_2-DAG: Keyword[self]/CurrNominal:          .self[#dedupP#]; name=self
+// PROTOCOL_EXT_DEDUP_2-DAG: Decl[InstanceMethod]/CurrNominal:   .foo()[#any dedupP.T#]; name=foo()
+// PROTOCOL_EXT_DEDUP_2-DAG: Decl[InstanceVar]/CurrNominal:      .bar[#any dedupP.T#]; name=bar
+// FIXME(https://github.com/apple/swift/issues/65696): We should not be showing this because (1) it cannot be accessed on the existential (2) we don't have the syntax and features to represent the projected type sig anyway.
+// PROTOCOL_EXT_DEDUP_2-DAG: Decl[Subscript]/CurrNominal:        [{#(x): any dedupP.T#}][#any dedupP.T#]; name=[:]
+// PROTOCOL_EXT_DEDUP_2-DAG: Keyword[self]/CurrNominal:          .self[#any dedupP#]; name=self
 }
 func testDeDuped3<T : dedupP where T.T == Int>(_ x: T) {
   x#^PROTOCOL_EXT_DEDUP_3^#
@@ -1700,20 +1700,20 @@ protocol ExistentialProto {
 func testExistential() {
   let _ = ExistentialProto.#^PROTOCOLTYPE_DOT_1^#
 // PROTOCOLTYPE_DOT_1: Begin completions, 3 items
-// PROTOCOLTYPE_DOT_1-DAG: Keyword[self]/CurrNominal:          self[#ExistentialProto.Protocol#]; name=self
-// PROTOCOLTYPE_DOT_1-DAG: Keyword/CurrNominal:                Protocol[#ExistentialProto.Protocol#]; name=Protocol
-// PROTOCOLTYPE_DOT_1-DAG: Keyword/CurrNominal:                Type[#ExistentialProto.Type#]; name=Type
+// PROTOCOLTYPE_DOT_1-DAG: Keyword[self]/CurrNominal:          self[#(any ExistentialProto).Type#]; name=self
+// PROTOCOLTYPE_DOT_1-DAG: Keyword/CurrNominal:                Protocol[#(any ExistentialProto).Type#]; name=Protocol
+// PROTOCOLTYPE_DOT_1-DAG: Keyword/CurrNominal:                Type[#any ExistentialProto.Type#]; name=Type
 
   let _ = ExistentialProto.Type.#^PROTOCOLTYPE_DOT_2^#
 // PROTOCOLTYPE_DOT_2: Begin completions, 3 items
-// PROTOCOLTYPE_DOT_2-DAG: Keyword[self]/CurrNominal:          self[#ExistentialProto.Type.Protocol#]; name=self
-// PROTOCOLTYPE_DOT_2-DAG: Keyword/CurrNominal:                Protocol[#ExistentialProto.Type.Protocol#]; name=Protocol
-// PROTOCOLTYPE_DOT_2-DAG: Keyword/CurrNominal:                Type[#ExistentialProto.Type.Type#]; name=Type
+// PROTOCOLTYPE_DOT_2-DAG: Keyword[self]/CurrNominal:          self[#(any ExistentialProto.Type).Type#]; name=self
+// PROTOCOLTYPE_DOT_2-DAG: Keyword/CurrNominal:                Protocol[#(any ExistentialProto.Type).Type#]; name=Protocol
+// PROTOCOLTYPE_DOT_2-DAG: Keyword/CurrNominal:                Type[#any ExistentialProto.Type.Type#]; name=Type
 
   let _ = ExistentialProto.Protocol.#^PROTOCOLTYPE_DOT_3^#
 // PROTOCOLTYPE_DOT_3: Begin completions, 2 items
-// PROTOCOLTYPE_DOT_3-DAG: Keyword[self]/CurrNominal:          self[#ExistentialProto.Protocol.Type#]; name=self
-// PROTOCOLTYPE_DOT_3-DAG: Keyword/CurrNominal:                Type[#ExistentialProto.Protocol.Type#]; name=Type
+// PROTOCOLTYPE_DOT_3-DAG: Keyword[self]/CurrNominal:          self[#(any ExistentialProto).Type.Type#]; name=self
+// PROTOCOLTYPE_DOT_3-DAG: Keyword/CurrNominal:                Type[#(any ExistentialProto).Type.Type#]; name=Type
 }
 
 // rdar://problem/48141174
@@ -1822,15 +1822,15 @@ extension MetaProto {
 func testProtocolMetatype(protoProto: MetaProto.Protocol, protoType: MetaProto.Type) {
     let _ = BrokenConformanceP.#^PROTOCOLMETA_1^#
 // PROTOCOLMETA_1: Begin completions, 3 items
-// PROTOCOLMETA_1-DAG: Keyword[self]/CurrNominal:          self[#BrokenConformanceP.Protocol#]; name=self
-// PROTOCOLMETA_1-DAG: Keyword/CurrNominal:                Protocol[#BrokenConformanceP.Protocol#]; name=Protocol
-// PROTOCOLMETA_1-DAG: Keyword/CurrNominal:                Type[#BrokenConformanceP.Type#]; name=Type
+// PROTOCOLMETA_1-DAG: Keyword[self]/CurrNominal:          self[#(any BrokenConformanceP).Type#]; name=self
+// PROTOCOLMETA_1-DAG: Keyword/CurrNominal:                Protocol[#(any BrokenConformanceP).Type#]; name=Protocol
+// PROTOCOLMETA_1-DAG: Keyword/CurrNominal:                Type[#any BrokenConformanceP.Type#]; name=Type
     let _ = protoProto.#^PROTOCOLMETA_2^#
 // PROTOCOLMETA_2: Begin completions, 1 items
-// PROTOCOLMETA_2-DAG: Keyword[self]/CurrNominal:          self[#MetaProto.Protocol#]; name=self
+// PROTOCOLMETA_2-DAG: Keyword[self]/CurrNominal:          self[#(any MetaProto).Type#]; name=self
     let _ = protoType.#^PROTOCOLMETA_3^#
 // PROTOCOLMETA_3: Begin completions, 7 items
-// PROTOCOLMETA_3-DAG: Keyword[self]/CurrNominal:          self[#MetaProto.Type#]; name=self
+// PROTOCOLMETA_3-DAG: Keyword[self]/CurrNominal:          self[#any MetaProto.Type#]; name=self
 // PROTOCOLMETA_3-DAG: Decl[StaticMethod]/CurrNominal:     staticFunc()[#Int#]; name=staticFunc()
 // PROTOCOLMETA_3-DAG: Decl[StaticVar]/CurrNominal:        staticVar[#Int#]; name=staticVar
 // PROTOCOLMETA_3-DAG: Decl[InstanceMethod]/CurrNominal:   instanceFunc({#(self): MetaProto#})[#() -> Int#]; name=instanceFunc(:)

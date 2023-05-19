@@ -210,7 +210,11 @@ void irgen::emitBuiltinCall(IRGenFunction &IGF, const BuiltinInfo &Builtin,
   // getCurrentAsyncTask has no arguments.
   if (Builtin.ID == BuiltinValueKind::GetCurrentAsyncTask) {
     auto task = IGF.getAsyncTask();
-    out.add(IGF.Builder.CreateBitCast(task, IGF.IGM.RefCountedPtrTy));
+    if (!task->getType()->isPointerTy()) {
+      out.add(IGF.Builder.CreateIntToPtr(task, IGF.IGM.RefCountedPtrTy));
+    } else {
+      out.add(IGF.Builder.CreateBitCast(task, IGF.IGM.RefCountedPtrTy));
+    }
     return;
   }
 

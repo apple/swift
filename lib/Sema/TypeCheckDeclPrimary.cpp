@@ -471,14 +471,26 @@ static void checkGenericParams(GenericContext *ownerCtx) {
   if (!genericParams)
     return;
 
+  auto *decl = ownerCtx->getAsDecl();
+  bool isGenericType = isa<GenericTypeDecl>(decl);
+  bool hasPack = false;
+
   for (auto gp : *genericParams) {
     // Diagnose generic types with a parameter packs if VariadicGenerics
     // is not enabled.
-    auto *decl = ownerCtx->getAsDecl();
     auto &ctx = decl->getASTContext();
-    if (gp->isParameterPack() && isa<GenericTypeDecl>(decl) &&
-        !ctx.LangOpts.hasFeature(Feature::VariadicGenerics)) {
-      decl->diagnose(diag::experimental_type_with_parameter_pack);
+    if (gp->isParameterPack() && isGenericType) {
+      TypeChecker::checkAvailability(
+          gp->getSourceRange(),
+          ownerCtx->getASTContext().getVariadicGenericTypeAvailability(),
+          diag::availability_variadic_type_only_version_newer,
+          ownerCtx);
+
+      if (hasPack) {
+        gp->diagnose(diag::more_than_one_pack_in_type);
+      }
+
+      hasPack = true;
     }
 
     TypeChecker::checkDeclAttributes(gp);
@@ -2545,6 +2557,17 @@ public:
   void visitEnumDecl(EnumDecl *ED) {
     checkUnsupportedNestedType(ED);
 
+    // Temporary restriction until we figure out pattern matching and
+    // enum case construction with packs.
+    if (auto genericSig = ED->getGenericSignature()) {
+      for (auto paramTy : genericSig.getGenericParams()) {
+        if (paramTy->isParameterPack()) {
+          ED->diagnose(diag::enum_with_pack);
+          break;
+        }
+      }
+    }
+
     // FIXME: Remove this once we clean up the mess involving raw values.
     (void) ED->getInterfaceType();
 
@@ -2754,10 +2777,14 @@ public:
   /// check to see if a move-only type can ever conform to the given type.
   /// \returns true iff a diagnostic was emitted because it was not compatible
   static bool diagnoseIncompatibleWithMoveOnlyType(SourceLoc loc,
-                                                 NominalTypeDecl *moveonlyType,
-                                                 Type type) {
+                                                   NominalTypeDecl *moveonlyType,
+                                                   Type type) {
     assert(type && "got an empty type?");
     assert(moveonlyType->isMoveOnly());
+
+    // no need to emit a diagnostic if the type itself is already problematic.
+    if (type->hasError())
+      return false;
 
     auto canType = type->getCanonicalType();
     if (auto prot = canType->getAs<ProtocolType>()) {
@@ -2820,6 +2847,18 @@ public:
       else if (superclass->isActor())
         CD->diagnose(diag::actor_inheritance,
                      /*distributed=*/CD->isDistributedActor());
+
+      // Enforce a temporary restriction on inheriting from a superclass
+      // type with a pack, until we figure out the semantics of method
+      // overrides in these situations.
+      if (auto genericSig = superclass->getGenericSignature()) {
+        for (auto paramTy : genericSig.getGenericParams()) {
+          if (paramTy->isParameterPack()) {
+            CD->diagnose(diag::superclass_with_pack);
+            break;
+          }
+        }
+      }
     }
 
     if (CD->isDistributedActor()) {
@@ -3794,9 +3833,8 @@ ExpandMacroExpansionDeclRequest::evaluate(Evaluator &evaluator,
   auto *dc = MED->getDeclContext();
 
   // Resolve macro candidates.
-  auto macro = evaluateOrDefault(
-      ctx.evaluator, ResolveMacroRequest{MED, MED},
-      ConcreteDeclRef());
+  auto macro = evaluateOrDefault(ctx.evaluator, ResolveMacroRequest{MED, dc},
+                                 ConcreteDeclRef());
   if (!macro)
     return None;
   MED->setMacroRef(macro);

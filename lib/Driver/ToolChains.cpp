@@ -377,8 +377,6 @@ void ToolChain::addCommonFrontendArgs(const OutputInfo &OI,
   }
 
   // Add plugin path options.
-  inputArgs.AddAllArgs(arguments, options::OPT_plugin_path);
-
   {
     SmallString<64> pluginPath;
     auto programPath = getDriver().getSwiftProgramPath();

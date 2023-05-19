@@ -1,5 +1,6 @@
 // RUN: %target-swift-frontend -experimental-performance-annotations -emit-sil %s -o /dev/null -verify
 // REQUIRES: swift_stdlib_no_asserts,optimized_stdlib
+// REQUIRES: swift_in_compiler
 
 protocol P {
   func protoMethod(_ a: Int) -> Int
@@ -236,5 +237,38 @@ struct Buffer {
   func callBind() -> UnsafeMutableBufferPointer<Int> {
     return bind(of: Int.self)
   }
+}
+
+@_noLocks
+func testBitShift(_ x: Int) -> Int {
+    return x << 1
+}
+
+@_noLocks
+func testUintIntConversion() -> Int {
+    let u: UInt32 = 5
+    return Int(u)
+}
+
+struct OptSet: OptionSet {
+    let rawValue: Int
+
+    public static var a: OptSet { return OptSet(rawValue: 1) }
+    public static var b: OptSet { return OptSet(rawValue: 2) }
+    public static var c: OptSet { return OptSet(rawValue: 4) }
+    public static var d: OptSet { return OptSet(rawValue: 8) }
+}
+
+@_noLocks
+func testOptionSet(_ options: OptSet) -> Bool {
+    return options.contains(.b)
+}
+
+let globalA = 0xff
+let globalB = UInt32(globalA)
+
+@_noLocks
+func testGlobalsWithConversion() -> UInt32 {
+    return globalB
 }
 

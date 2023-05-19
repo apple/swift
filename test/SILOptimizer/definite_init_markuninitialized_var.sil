@@ -11,7 +11,7 @@ import Swift
 sil @takes_Int_inout : $@convention(thin) (@inout Int) -> ()
 sil @makesInt : $@convention(thin) () -> Int
 
-// CHECK-LABEL: sil [ossa] @use_before_init
+// CHECK-LABEL: sil [_semantics "sil.optimizer.moveonly.diagnostic.ignore"] [ossa] @use_before_init
 sil [ossa] @use_before_init : $@convention(thin) () -> Int {
 bb0:
   %0 = alloc_box $<τ_0_0> { var τ_0_0 } <Int>
@@ -85,7 +85,7 @@ bb0:
   return %5 : $Int
 }
 
-// CHECK-LABEL: sil [ossa] @tuple_elements1
+// CHECK-LABEL: sil [_semantics "sil.optimizer.moveonly.diagnostic.ignore"] [ossa] @tuple_elements1
 sil [ossa] @tuple_elements1 : $@convention(thin) (Int) -> () {
 bb0(%0 : $Int):
   %2 = alloc_box $<τ_0_0> { var τ_0_0 } <(Int, Int)>
@@ -101,7 +101,7 @@ bb0(%0 : $Int):
   return %99 : $()
 }
 
-// CHECK-LABEL: sil [ossa] @tuple_elements2
+// CHECK-LABEL: sil [_semantics "sil.optimizer.moveonly.diagnostic.ignore"] [ossa] @tuple_elements2
 sil [ossa] @tuple_elements2 : $@convention(thin) (Int) -> (Int, Int) {
 bb0(%0 : $Int):
   %2 = alloc_box $<τ_0_0> { var τ_0_0 } <(Int, Int)>
@@ -130,7 +130,7 @@ bb0(%0 : $*T, %1 : $*T):
   return %9 : $()
 }
 
-// CHECK-LABEL: sil [ossa] @copy_addr2
+// CHECK-LABEL: sil [_semantics "sil.optimizer.moveonly.diagnostic.ignore"] [ossa] @copy_addr2
 sil [ossa] @copy_addr2 : $@convention(thin) <T> (@in_guaranteed T) -> @out T {
 bb0(%0 : $*T, %1 : $*T):
   %3 = alloc_box $<τ_0_0> { var τ_0_0 } <T>
@@ -145,7 +145,7 @@ bb0(%0 : $*T, %1 : $*T):
 sil [ossa] @takes_closure : $@convention(thin) (@owned @callee_owned () -> ()) -> ()
 sil [ossa] @closure0 : $@convention(thin) (@owned <τ_0_0> { var τ_0_0 } <Int>) -> ()
 
-// CHECK-LABEL: sil [ossa] @closure_test
+// CHECK-LABEL: sil [_semantics "sil.optimizer.moveonly.diagnostic.ignore"] [ossa] @closure_test
 sil [ossa] @closure_test : $@convention(thin) () -> () {
 bb0:
   %1 = alloc_box $<τ_0_0> { var τ_0_0 } <Int>

@@ -7,7 +7,7 @@ var BitsetTests = TestSuite("Bitset")
 
 BitsetTests.test("_UnsafeBitset.wordCount(forCapacity:)") {
   expectEqual(0, _UnsafeBitset.wordCount(forCapacity: 0))
-#if arch(i386) || arch(arm) || arch(arm64_32)
+#if _pointerBitWidth(_32)
   for i in 1...32 {
     expectEqual(1, _UnsafeBitset.wordCount(forCapacity: i), "i=\(i)")
   }
@@ -20,7 +20,7 @@ BitsetTests.test("_UnsafeBitset.wordCount(forCapacity:)") {
   for i in 97...128 {
     expectEqual(4, _UnsafeBitset.wordCount(forCapacity: i), "i=\(i)")
   }
-#elseif arch(x86_64) || arch(arm64) || arch(powerpc64) || arch(powerpc64le) || arch(s390x) || arch(riscv64)
+#elseif _pointerBitWidth(_64)
   for i in 1...64 {
     expectEqual(1, _UnsafeBitset.wordCount(forCapacity: i), "i=\(i)")
   }
@@ -36,7 +36,7 @@ BitsetTests.test("_UnsafeBitset.wordCount(forCapacity:)") {
 }
 
 BitsetTests.test("_UnsafeBitset.split(_:)") {
-#if arch(i386) || arch(arm) || arch(arm64_32)
+#if _pointerBitWidth(_32)
   for i in 0...31 {
     let comps = _UnsafeBitset.split(i)
     expectEqual(0, comps.word, "i=\(i)")
@@ -57,7 +57,7 @@ BitsetTests.test("_UnsafeBitset.split(_:)") {
     expectEqual(3, comps.word, "i=\(i)")
     expectEqual(i - 96, comps.bit, "i=\(i)")
   }
-#elseif arch(x86_64) || arch(arm64) || arch(powerpc64) || arch(powerpc64le) || arch(s390x) || arch(riscv64)
+#elseif _pointerBitWidth(_64)
   for i in 0...63 {
     let comps = _UnsafeBitset.split(i)
     expectEqual(0, comps.word, "i=\(i)")

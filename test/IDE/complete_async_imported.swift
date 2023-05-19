@@ -36,13 +36,13 @@ func test(obj: MyObjCClass) async throws {
 // COMPLETE-NOT: method4()
 // COMPLETE-NOT: method5()
 // COMPLETE-DAG: Keyword[self]/CurrNominal:          self[#MyObjCClass#]; name=self
-// COMPLETE-DAG: Decl[InstanceMethod]/CurrNominal/NotRecommended:   method1({#completionHandler: (Error?) -> Void##(Error?) -> Void#})[#Void#]; name=method1(completionHandler:); diagnostics=warning:'method1(completionHandler:)' has an async alternative that should be preferred in an async context
+// COMPLETE-DAG: Decl[InstanceMethod]/CurrNominal/NotRecommended:   method1({#completionHandler: ((any Error)?) -> Void##((any Error)?) -> Void#})[#Void#]; name=method1(completionHandler:); diagnostics=warning:'method1(completionHandler:)' has an async alternative that should be preferred in an async context
 // COMPLETE-DAG: Decl[InstanceMethod]/CurrNominal:   method1()[' async'][' throws'][#Void#];
 // COMPLETE-DAG: Decl[InstanceMethod]/CurrNominal:   named3()[' async'][' throws'][#Void#];
-// COMPLETE-DAG: Decl[InstanceMethod]/CurrNominal:   method4({#completionHandler: (Error?) -> Void##(Error?) -> Void#})[#Void#];
-// COMPLETE-DAG: Decl[InstanceMethod]/CurrNominal:   method5({#completionHandler: (Error?) -> Void##(Error?) -> Void#})[#Void#];
-// COMPLETE-DAG: Decl[InstanceMethod]/CurrNominal/NotRecommended:   method6({#completionHandler: (Error?) -> Void##(Error?) -> Void#})[#Void#]; name=method6(completionHandler:); diagnostics=warning:'method6(completionHandler:)' has an async alternative that should be preferred in an async context
+// COMPLETE-DAG: Decl[InstanceMethod]/CurrNominal:   method4({#completionHandler: ((any Error)?) -> Void##((any Error)?) -> Void#})[#Void#];
+// COMPLETE-DAG: Decl[InstanceMethod]/CurrNominal:   method5({#completionHandler: ((any Error)?) -> Void##((any Error)?) -> Void#})[#Void#];
+// COMPLETE-DAG: Decl[InstanceMethod]/CurrNominal/NotRecommended:   method6({#completionHandler: ((any Error)?) -> Void##((any Error)?) -> Void#})[#Void#]; name=method6(completionHandler:); diagnostics=warning:'method6(completionHandler:)' has an async alternative that should be preferred in an async context
 // COMPLETE-DAG: Decl[InstanceMethod]/CurrNominal:   method6()[' async'][' throws'][#Void#];
-// COMPLETE-DAG: Decl[InstanceMethod]/CurrNominal/NotRecommended:   method7({#completionHandler: (Error?) -> Void##(Error?) -> Void#})[#Void#]; name=method7(completionHandler:); diagnostics=warning:'method7(completionHandler:)' has an async alternative that should be preferred in an async context
+// COMPLETE-DAG: Decl[InstanceMethod]/CurrNominal/NotRecommended:   method7({#completionHandler: ((any Error)?) -> Void##((any Error)?) -> Void#})[#Void#]; name=method7(completionHandler:); diagnostics=warning:'method7(completionHandler:)' has an async alternative that should be preferred in an async context
 // COMPLETE-DAG: Decl[InstanceMethod]/CurrNominal:   named7()[' async'][' throws'][#Void#];
 }

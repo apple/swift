@@ -55,19 +55,19 @@
               {
                 "kind": "TypeNominal",
                 "name": "P1",
-                "printedName": "cake.P1",
+                "printedName": "any cake.P1",
                 "usr": "s:4cake2P1P"
               },
               {
                 "kind": "TypeNominal",
                 "name": "P1",
-                "printedName": "cake.P1",
+                "printedName": "any cake.P1",
                 "usr": "s:4cake2P1P"
               },
               {
                 "kind": "TypeNominal",
                 "name": "P1",
-                "printedName": "cake.P1",
+                "printedName": "any cake.P1",
                 "usr": "s:4cake2P1P"
               }
             ],

@@ -1,0 +1,132 @@
+// RUN: %target-sil-opt -enable-sil-verify-all %s -mandatory-performance-optimizations | %FileCheck %s
+
+// REQUIRES: swift_in_compiler
+
+sil_stage canonical
+
+import Builtin
+import Swift
+import SwiftShims
+
+
+sil @paable : $@convention(thin) (Builtin.Int64) -> ()
+sil @moved_pai_callee : $@convention(thin) (@inout_aliasable Builtin.Int64) -> ()
+sil @use_closure : $@convention(thin) (@noescape @callee_guaranteed () -> ()) -> ()
+
+sil [ossa] [transparent] @partial_apply_on_stack_nesting_violator : $@convention(thin) <T> () -> () {
+    %paable = function_ref @paable : $@convention(thin) (Builtin.Int64) -> ()
+    %one = integer_literal $Builtin.Int64, 1
+    %first = partial_apply [callee_guaranteed] [on_stack] %paable(%one) : $@convention(thin) (Builtin.Int64) -> ()
+    %two = integer_literal $Builtin.Int64, 2
+    %second = partial_apply [callee_guaranteed] [on_stack] %paable(%two) : $@convention(thin) (Builtin.Int64) -> ()
+    %f = function_ref @use_closure : $@convention(thin) (@noescape @callee_guaranteed () -> ()) -> ()
+    apply %f(%first) : $@convention(thin) (@noescape @callee_guaranteed () -> ()) -> ()
+    apply %f(%second) : $@convention(thin) (@noescape @callee_guaranteed () -> ()) -> ()
+    // Note that the destroy_values do not occur in an order which coincides
+    // with stack disciplined dealloc_stacks.
+    destroy_value %first : $@noescape @callee_guaranteed () -> ()
+    destroy_value %second : $@noescape @callee_guaranteed () -> ()
+    %retval = tuple ()
+    return %retval : $()
+}
+
+// Verify that when inlining partial_apply_on_stack_nesting_violator, the stack
+// nesting of the on_stack closures is fixed.
+// CHECK-LABEL: sil [no_locks] @test_inline_stack_violating_ossa_func : {{.*}} {
+// CHECK:         [[PAABLE:%[^,]+]] = function_ref @paable
+// CHECK:         [[FIRST:%[^,]+]] = partial_apply [callee_guaranteed] [on_stack] [[PAABLE]]
+// CHECK:         [[SECOND:%[^,]+]] = partial_apply [callee_guaranteed] [on_stack] [[PAABLE]]
+// CHECK:         dealloc_stack [[SECOND]]
+// CHECK:         dealloc_stack [[FIRST]]
+// CHECK-LABEL: } // end sil function 'test_inline_stack_violating_ossa_func'
+sil [no_locks] @test_inline_stack_violating_ossa_func : $@convention(thin) () -> () {
+    %callee = function_ref @partial_apply_on_stack_nesting_violator : $@convention(thin) <T> () -> ()
+    apply %callee<Builtin.Int64>() : $@convention(thin) <T> () -> ()
+    %retval = tuple ()
+    return %retval : $()
+}
+
+// CHECK-LABEL: sil hidden [no_allocation] [ossa] @moved_pai : {{.*}} {
+// CHECK-NOT:     partial_apply
+// CHECK-LABEL: } // end sil function 'moved_pai'
+sil hidden [no_allocation] [ossa] @moved_pai : $@convention(thin) () -> Builtin.Int64 {
+bb0:
+  %addr = alloc_stack $Builtin.Int64
+  %42 = integer_literal $Builtin.Int64, 42
+  store %42 to [trivial] %addr : $*Builtin.Int64
+  %callee = function_ref @moved_pai_callee : $@convention(thin) (@inout_aliasable Builtin.Int64) -> ()
+  %closure = partial_apply [callee_guaranteed] %callee(%addr) : $@convention(thin) (@inout_aliasable Builtin.Int64) -> ()
+  %closure_lifetime = move_value [lexical] %closure : $@callee_guaranteed () -> ()
+  debug_value %closure_lifetime : $@callee_guaranteed () -> ()
+  %copy = copy_value %closure_lifetime : $@callee_guaranteed () -> ()
+  apply %copy() : $@callee_guaranteed () -> ()
+  destroy_value %copy : $@callee_guaranteed () -> ()
+  %retval = load [trivial] %addr : $*Builtin.Int64
+  destroy_value %closure_lifetime : $@callee_guaranteed () -> ()
+  dealloc_stack %addr : $*Builtin.Int64
+  return %retval : $Builtin.Int64
+}
+
+// CHECK-LABEL: sil [no_allocation] @deserialize_and_inline_after_devirtualize
+// CHECK-NOT:     apply
+// CHECK:       } // end sil function 'deserialize_and_inline_after_devirtualize'
+sil [no_allocation] @deserialize_and_inline_after_devirtualize : $@convention(thin) (@in Int) -> () {
+bb0(%0 : $*Int):
+  %1 = metatype $@thick Int.Type
+  %2 = witness_method $Int, #Comparable."<" : <Self where Self : Comparable> (Self.Type) -> (Self, Self) -> Bool : $@convention(witness_method: Comparable) <τ_0_0 where τ_0_0 : Comparable> (@in_guaranteed τ_0_0, @in_guaranteed τ_0_0, @thick τ_0_0.Type) -> Bool
+  %3 = apply %2<Int>(%0, %0, %1) : $@convention(witness_method: Comparable) <τ_0_0 where τ_0_0 : Comparable> (@in_guaranteed τ_0_0, @in_guaranteed τ_0_0, @thick τ_0_0.Type) -> Bool
+  %4 = tuple()
+  return %4 : $()
+}
+
+// CHECK-LABEL: sil [no_allocation] [ossa] @memopt_and_dead_alloc
+// CHECK-NOT:         alloc_stack
+// CHECK-NOT:     load
+// CHECK:         return %0
+// CHECK:       } // end sil function 'memopt_and_dead_alloc'
+sil [no_allocation] [ossa] @memopt_and_dead_alloc : $@convention(thin) (Builtin.Int32) -> Builtin.Int32 {
+bb0(%0 : $Builtin.Int32):
+  %1 = alloc_stack $Builtin.Int32
+  store %0 to [trivial] %1 : $*Builtin.Int32
+  %2 = load [trivial] %1 : $*Builtin.Int32
+  dealloc_stack %1 : $*Builtin.Int32
+  return %2 : $Builtin.Int32
+}
+
+// CHECK-LABEL: sil [no_allocation] @dont_do_dead_alloc_elimination_on_non_ossa
+// CHECK:         alloc_stack
+// CHECK-NOT:     load
+// CHECK:         return %0
+// CHECK:       } // end sil function 'dont_do_dead_alloc_elimination_on_non_ossa'
+sil [no_allocation] @dont_do_dead_alloc_elimination_on_non_ossa : $@convention(thin) (Builtin.Int32) -> Builtin.Int32 {
+bb0(%0 : $Builtin.Int32):
+  %1 = alloc_stack $Builtin.Int32
+  store %0 to %1 : $*Builtin.Int32
+  %2 = load %1 : $*Builtin.Int32
+  dealloc_stack %1 : $*Builtin.Int32
+  return %2 : $Builtin.Int32
+}
+
+// CHECK-LABEL: sil [no_allocation] @dead_metatype :
+// CHECK-NOT:     metatype
+// CHECK-NOT:     debug_value
+// CHECK:       } // end sil function 'dead_metatype'
+sil [no_allocation] @dead_metatype : $@convention(thin) () -> () {
+bb0:
+  %0 = metatype $@thick Int.Type
+  debug_value %0 : $@thick Int.Type
+  %2 = tuple ()
+  return %2 : $()
+}
+sil shared [transparent] [serialized] [thunk] [canonical] @$sSiSLsSL1loiySbx_xtFZTW : $@convention(witness_method: Comparable) (@in_guaranteed Int, @in_guaranteed Int, @thick Int.Type) -> Bool {
+bb0(%0 : $*Int, %1 : $*Int, %2 : $@thick Int.Type):
+  %3 = integer_literal $Builtin.Int1, 0
+  %4 = struct $Bool (%3 : $Builtin.Int1)
+  return %4 : $Bool
+}
+
+sil_witness_table public_external [serialized] Int: Comparable module Swift {
+  base_protocol Equatable: Int: Equatable module Swift
+  method #Comparable."<": <Self where Self : Comparable> (Self.Type) -> (Self, Self) -> Bool : @$sSiSLsSL1loiySbx_xtFZTW
+}
+

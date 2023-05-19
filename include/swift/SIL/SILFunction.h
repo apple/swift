@@ -38,6 +38,7 @@ class SILFunctionBuilder;
 class SILProfiler;
 class BasicBlockBitfield;
 class NodeBitfield;
+class SILPassManager;
 
 namespace Lowering {
 class TypeLowering;
@@ -1410,18 +1411,19 @@ public:
 
   /// verify - Run the SIL verifier to make sure that the SILFunction follows
   /// invariants.
-  void verify(bool SingleFunction = true,
+  void verify(SILPassManager *passManager = nullptr,
+              bool SingleFunction = true,
               bool isCompleteOSSA = true,
               bool checkLinearLifetime = true) const;
 
   /// Run the SIL verifier without assuming OSSA lifetimes end at dead end
   /// blocks.
   void verifyIncompleteOSSA() const {
-    verify(/*SingleFunction=*/true, /*completeOSSALifetimes=*/false);
+    verify(/*passManager*/nullptr, /*SingleFunction=*/true, /*completeOSSALifetimes=*/false);
   }
 
   /// Verifies the lifetime of memory locations in the function.
-  void verifyMemoryLifetime();
+  void verifyMemoryLifetime(SILPassManager *passManager);
 
   /// Run the SIL ownership verifier to check that all values with ownership
   /// have a linear lifetime. Regular OSSA invariants are checked separately in

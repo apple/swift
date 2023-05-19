@@ -18,6 +18,7 @@ if (SWIFT_SWIFT_PARSER)
       $<TARGET_OBJECTS:_swiftCSwiftPluginServer>
     SWIFT_DEPENDENCIES
       SwiftSyntax::SwiftSyntaxMacros
+      SwiftSyntax::SwiftSyntaxMacroExpansion
       SwiftSyntax::SwiftCompilerPluginMessageHandling
       swiftLLVMJSON
   )

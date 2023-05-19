@@ -1269,8 +1269,9 @@ void swift::tryDiagnoseExecutorConformance(ASTContext &C,
   // enqueue(_:)
   auto enqueueDeclName = DeclName(C, DeclBaseName(C.Id_enqueue), { Identifier() });
 
-  FuncDecl *unownedEnqueueRequirement = nullptr;
   FuncDecl *moveOnlyEnqueueRequirement = nullptr;
+  FuncDecl *legacyMoveOnlyEnqueueRequirement = nullptr; // TODO: preferably we'd want to remove handling of `enqueue(Job)` when able to
+  FuncDecl *unownedEnqueueRequirement = nullptr;
   for (auto req: proto->getProtocolRequirements()) {
     auto *funcDecl = dyn_cast<FuncDecl>(req);
     if (!funcDecl)
@@ -1282,61 +1283,83 @@ void swift::tryDiagnoseExecutorConformance(ASTContext &C,
     // look for the first parameter being a Job or UnownedJob
     if (funcDecl->getParameters()->size() != 1)
       continue;
-    if (auto param = funcDecl->getParameters()->front()) {
-      StructDecl *unownedJobDecl = C.getUnownedJobDecl();
-      StructDecl *jobDecl = nullptr;
-      if (auto executorJobDecl = C.getExecutorJobDecl()) {
-        jobDecl = executorJobDecl;
-      } else if (auto plainJobDecl = C.getJobDecl()) {
-        // old standard library, before we introduced the `typealias Job = ExecutorJob`
-        jobDecl = plainJobDecl;
-      }
 
-      if (jobDecl &&
-          param->getType()->isEqual(jobDecl->getDeclaredInterfaceType())) {
+    if (auto param = funcDecl->getParameters()->front()) {
+      StructDecl *executorJobDecl = C.getExecutorJobDecl();
+      StructDecl *legacyJobDecl = C.getJobDecl();
+      StructDecl *unownedJobDecl = C.getUnownedJobDecl();
+
+      if (executorJobDecl && param->getType()->isEqual(executorJobDecl->getDeclaredInterfaceType())) {
         assert(moveOnlyEnqueueRequirement == nullptr);
         moveOnlyEnqueueRequirement = funcDecl;
-      } else if (unownedJobDecl &&
-                 param->getType()->isEqual(unownedJobDecl->getDeclaredInterfaceType())) {
+      } else if (legacyJobDecl && param->getType()->isEqual(legacyJobDecl->getDeclaredInterfaceType())) {
+        assert(legacyMoveOnlyEnqueueRequirement == nullptr);
+        legacyMoveOnlyEnqueueRequirement = funcDecl;
+      } else if (unownedJobDecl && param->getType()->isEqual(unownedJobDecl->getDeclaredInterfaceType())) {
         assert(unownedEnqueueRequirement == nullptr);
         unownedEnqueueRequirement = funcDecl;
       }
     }
 
-    // if we found both, we're done here and break out of the loop
-    if (unownedEnqueueRequirement && moveOnlyEnqueueRequirement)
+    // if we found all potential requirements, we're done here and break out of the loop
+    if (unownedEnqueueRequirement &&
+        moveOnlyEnqueueRequirement &&
+        legacyMoveOnlyEnqueueRequirement)
       break; // we're done looking for the requirements
   }
 
   auto conformance = module->lookupConformance(nominalTy, proto);
   auto concreteConformance = conformance.getConcrete();
   assert(unownedEnqueueRequirement && "could not find the enqueue(UnownedJob) requirement, which should be always there");
-  ConcreteDeclRef unownedEnqueueWitness = concreteConformance->getWitnessDeclRef(unownedEnqueueRequirement);
 
-  if (auto enqueueUnownedDecl = unownedEnqueueWitness.getDecl()) {
-    // Old UnownedJob based impl is present, warn about it suggesting the new protocol requirement.
-    if (enqueueUnownedDecl->getLoc().isValid()) {
-      diags.diagnose(enqueueUnownedDecl->getLoc(), diag::executor_enqueue_unowned_implementation, nominalTy);
-    }
+  // try to find at least a single implementations of enqueue(_:)
+  ConcreteDeclRef unownedEnqueueWitness = concreteConformance->getWitnessDeclRef(unownedEnqueueRequirement);
+  ValueDecl *unownedEnqueueWitnessDecl = unownedEnqueueWitness.getDecl();
+  ValueDecl *moveOnlyEnqueueWitnessDecl = nullptr;
+  ValueDecl *legacyMoveOnlyEnqueueWitnessDecl = nullptr;
+
+  if (moveOnlyEnqueueRequirement) {
+    moveOnlyEnqueueWitnessDecl = concreteConformance->getWitnessDeclRef(
+        moveOnlyEnqueueRequirement).getDecl();
+  }
+  if (legacyMoveOnlyEnqueueRequirement) {
+    legacyMoveOnlyEnqueueWitnessDecl = concreteConformance->getWitnessDeclRef(
+        legacyMoveOnlyEnqueueRequirement).getDecl();
   }
 
-  if (auto unownedEnqueueDecl = unownedEnqueueWitness.getDecl()) {
-    if (moveOnlyEnqueueRequirement) {
-      ConcreteDeclRef moveOnlyEnqueueWitness = concreteConformance->getWitnessDeclRef(moveOnlyEnqueueRequirement);
-      if (auto moveOnlyEnqueueDecl = moveOnlyEnqueueWitness.getDecl()) {
-        if (unownedEnqueueDecl && unownedEnqueueDecl->getLoc().isInvalid() &&
-            moveOnlyEnqueueDecl && moveOnlyEnqueueDecl->getLoc().isInvalid()) {
-          // Neither old nor new implementation have been found, but we provide default impls for them
-          // that are mutually recursive, so we must error and suggest implementing the right requirement.
-          auto ownedRequirement = C.getExecutorDecl()->getExecutorOwnedEnqueueFunction();
-          nominal->diagnose(diag::type_does_not_conform, nominalTy, proto->getDeclaredInterfaceType());
-          ownedRequirement->diagnose(diag::no_witnesses,
-                                     getProtocolRequirementKind(ownedRequirement),
-                                     ownedRequirement->getName(),
-                                     proto->getDeclaredInterfaceType(),
-                                     /*AddFixIt=*/true);
-        }
-      }
+  // --- Diagnose warnings and errors
+
+  // Old UnownedJob based impl is present, warn about it suggesting the new protocol requirement.
+  if (unownedEnqueueWitnessDecl && unownedEnqueueWitnessDecl->getLoc().isValid()) {
+    diags.diagnose(unownedEnqueueWitnessDecl->getLoc(), diag::executor_enqueue_unowned_implementation, nominalTy);
+  }
+  // Old Job based impl is present, warn about it suggesting the new protocol requirement.
+  if (legacyMoveOnlyEnqueueWitnessDecl && legacyMoveOnlyEnqueueWitnessDecl->getLoc().isValid()) {
+    diags.diagnose(legacyMoveOnlyEnqueueWitnessDecl->getLoc(), diag::executor_enqueue_deprecated_owned_job_implementation, nominalTy);
+  }
+
+  if ((!unownedEnqueueWitnessDecl || unownedEnqueueWitnessDecl->getLoc().isInvalid()) &&
+      (!moveOnlyEnqueueWitnessDecl || moveOnlyEnqueueWitnessDecl->getLoc().isInvalid()) &&
+      (!legacyMoveOnlyEnqueueWitnessDecl || legacyMoveOnlyEnqueueWitnessDecl->getLoc().isInvalid())) {
+    // Neither old nor new implementation have been found, but we provide default impls for them
+    // that are mutually recursive, so we must error and suggest implementing the right requirement.
+    //
+    // If we're running against an SDK that does not have the ExecutorJob enqueue function,
+    // try to diagnose using the next-best one available.
+    auto missingRequirement = C.getExecutorDecl()->getExecutorOwnedEnqueueFunction();
+    if (!missingRequirement)
+      missingRequirement = C.getExecutorDecl()->getExecutorLegacyOwnedEnqueueFunction();
+    if (!missingRequirement)
+      missingRequirement = C.getExecutorDecl()->getExecutorLegacyUnownedEnqueueFunction();
+
+    if (missingRequirement) {
+      nominal->diagnose(diag::type_does_not_conform, nominalTy, proto->getDeclaredInterfaceType());
+      missingRequirement->diagnose(diag::no_witnesses,
+                                   getProtocolRequirementKind(missingRequirement),
+                                   missingRequirement->getName(),
+                                   missingRequirement->getParameters()->get(0)->getInterfaceType(),
+                                   /*AddFixIt=*/true);
+      return;
     }
   }
 }

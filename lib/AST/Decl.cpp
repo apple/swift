@@ -17,6 +17,7 @@
 #include "swift/AST/Decl.h"
 #include "swift/AST/ASTContext.h"
 #include "swift/AST/ASTMangler.h"
+#include "swift/AST/ASTPrinter.h"
 #include "swift/AST/ASTWalker.h"
 #include "swift/AST/AccessRequests.h"
 #include "swift/AST/AccessScope.h"
@@ -445,8 +446,7 @@ void Decl::forEachAttachedMacro(MacroRole role,
 MacroDecl *Decl::getResolvedMacro(CustomAttr *customAttr) const {
   auto declRef = evaluateOrDefault(
       getASTContext().evaluator,
-      ResolveMacroRequest{customAttr, this},
-      ConcreteDeclRef());
+      ResolveMacroRequest{customAttr, getDeclContext()}, ConcreteDeclRef());
 
   return dyn_cast_or_null<MacroDecl>(declRef.getDecl());
 }
@@ -5318,6 +5318,9 @@ VarDecl *NominalTypeDecl::getGlobalActorInstance() const {
 AbstractFunctionDecl *
 NominalTypeDecl::getExecutorOwnedEnqueueFunction() const {
   auto &C = getASTContext();
+  StructDecl *executorJobDecl = C.getExecutorJobDecl();
+  if (!executorJobDecl)
+    return nullptr;
 
   auto proto = dyn_cast<ProtocolDecl>(this);
   if (!proto)
@@ -5335,11 +5338,91 @@ NominalTypeDecl::getExecutorOwnedEnqueueFunction() const {
       continue;
 
     if (auto *funcDecl = dyn_cast<AbstractFunctionDecl>(candidate)) {
-      if (funcDecl->getParameters()->size() != 1)
+      auto params = funcDecl->getParameters();
+
+      if (params->size() != 1)
         continue;
 
+      if ((params->get(0)->getSpecifier() == ParamSpecifier::LegacyOwned ||
+           params->get(0)->getSpecifier() == ParamSpecifier::Consuming) &&
+          params->get(0)->getInterfaceType()->isEqual(executorJobDecl->getDeclaredInterfaceType())) {
+        return funcDecl;
+      }
+    }
+  }
+
+  return nullptr;
+}
+
+AbstractFunctionDecl *
+NominalTypeDecl::getExecutorLegacyOwnedEnqueueFunction() const {
+  auto &C = getASTContext();
+  StructDecl *legacyJobDecl = C.getJobDecl();
+  if (!legacyJobDecl)
+    return nullptr;
+
+  auto proto = dyn_cast<ProtocolDecl>(this);
+  if (!proto)
+    return nullptr;
+
+  llvm::SmallVector<ValueDecl *, 2> results;
+  lookupQualified(getSelfNominalTypeDecl(),
+                  DeclNameRef(C.Id_enqueue),
+                  NL_ProtocolMembers,
+                  results);
+
+  for (auto candidate: results) {
+    // we're specifically looking for the Executor protocol requirement
+    if (!isa<ProtocolDecl>(candidate->getDeclContext()))
+      continue;
+
+    if (auto *funcDecl = dyn_cast<AbstractFunctionDecl>(candidate)) {
       auto params = funcDecl->getParameters();
-      if (params->get(0)->getSpecifier() == ParamSpecifier::LegacyOwned) { // TODO: make this Consuming
+
+      if (params->size() != 1)
+        continue;
+
+      if ((params->get(0)->getSpecifier() == ParamSpecifier::LegacyOwned ||
+          params->get(0)->getSpecifier() == ParamSpecifier::Consuming) &&
+          params->get(0)->getType()->isEqual(legacyJobDecl->getDeclaredInterfaceType())) {
+        return funcDecl;
+      }
+    }
+  }
+
+  return nullptr;
+}
+
+AbstractFunctionDecl *
+NominalTypeDecl::getExecutorLegacyUnownedEnqueueFunction() const {
+  auto &C = getASTContext();
+  StructDecl *unownedJobDecl = C.getUnownedJobDecl();
+  if (!unownedJobDecl)
+    return nullptr;
+
+  auto proto = dyn_cast<ProtocolDecl>(this);
+  if (!proto)
+    return nullptr;
+
+  llvm::SmallVector<ValueDecl *, 2> results;
+  lookupQualified(getSelfNominalTypeDecl(),
+                  DeclNameRef(C.Id_enqueue),
+                  NL_ProtocolMembers,
+                  results);
+
+  for (auto candidate: results) {
+    // we're specifically looking for the Executor protocol requirement
+    if (!isa<ProtocolDecl>(candidate->getDeclContext()))
+      continue;
+
+    if (auto *funcDecl = dyn_cast<AbstractFunctionDecl>(candidate)) {
+      auto params = funcDecl->getParameters();
+      if (params->size() != 1)
+        continue;
+
+      auto param = params->get(0);
+      if (param->getSpecifier() == ParamSpecifier::LegacyOwned ||
+          param->getSpecifier() == ParamSpecifier::Consuming) {
         return funcDecl;
       }
     }
@@ -8281,6 +8364,14 @@ const ParamDecl *swift::getParameterAt(const ValueDecl *source,
   return nullptr;
 }
 
+const ParamDecl *swift::getParameterAt(const DeclContext *source,
+                                       unsigned index) {
+  if (auto *params = getParameterList(const_cast<DeclContext *>(source))) {
+    return index < params->size() ? params->get(index) : nullptr;
+  }
+  return nullptr;
+}
+
 Type AbstractFunctionDecl::getMethodInterfaceType() const {
   assert(getDeclContext()->isTypeContext());
   auto Ty = getInterfaceType();
@@ -9988,6 +10079,13 @@ void swift::simple_display(llvm::raw_ostream &out, const Decl *decl) {
       typeRepr->print(out);
     else
       ext->getSelfNominalTypeDecl()->dumpRef(out);
+  } else if (auto med = dyn_cast<MacroExpansionDecl>(decl)) {
+    out << '#' << med->getMacroName() << " in ";
+    printContext(out, med->getDeclContext());
+    if (med->getLoc().isValid()) {
+      out << '@';
+      med->getLoc().print(out, med->getASTContext().SourceMgr);
+    }
   } else {
     out << "(unknown decl)";
   }
@@ -10113,6 +10211,14 @@ BuiltinTupleDecl::BuiltinTupleDecl(Identifier Name, DeclContext *Parent)
     : NominalTypeDecl(DeclKind::BuiltinTuple, Parent, Name, SourceLoc(),
                       ArrayRef<InheritedEntry>(), nullptr) {}
 
+std::vector<MacroRole> swift::getAllMacroRoles() {
+  return {
+      MacroRole::Expression,      MacroRole::Declaration, MacroRole::Accessor,
+      MacroRole::MemberAttribute, MacroRole::Member,      MacroRole::Peer,
+      MacroRole::Conformance,     MacroRole::CodeItem,
+  };
+}
+
 StringRef swift::getMacroRoleString(MacroRole role) {
   switch (role) {
   case MacroRole::Expression:
@@ -10139,6 +10245,17 @@ StringRef swift::getMacroRoleString(MacroRole role) {
   case MacroRole::CodeItem:
     return "codeItem";
   }
+}
+
+std::vector<MacroIntroducedDeclNameKind>
+swift::getAllMacroIntroducedDeclNameKinds() {
+  return {
+      MacroIntroducedDeclNameKind::Named,
+      MacroIntroducedDeclNameKind::Overloaded,
+      MacroIntroducedDeclNameKind::Prefixed,
+      MacroIntroducedDeclNameKind::Suffixed,
+      MacroIntroducedDeclNameKind::Arbitrary,
+  };
 }
 
 bool swift::macroIntroducedNameRequiresArgument(
@@ -10204,14 +10321,32 @@ MacroRoles swift::getAttachedMacroRoles() {
   return attachedMacroRoles;
 }
 
+bool swift::isMacroSupported(MacroRole role, ASTContext &ctx) {
+  switch (role) {
+  case MacroRole::Expression:
+  case MacroRole::Declaration:
+  case MacroRole::Accessor:
+  case MacroRole::MemberAttribute:
+  case MacroRole::Member:
+  case MacroRole::Peer:
+  case MacroRole::Conformance:
+    return true;
+  case MacroRole::CodeItem:
+    return ctx.LangOpts.hasFeature(Feature::CodeItemMacros);
+  }
+}
+
 void MissingDecl::forEachMacroExpandedDecl(MacroExpandedDeclCallback callback) {
   auto macroRef = unexpandedMacro.macroRef;
   auto *baseDecl = unexpandedMacro.baseDecl;
   if (!macroRef || !baseDecl)
     return;
+  auto *module = getModuleContext();
 
   baseDecl->visitAuxiliaryDecls([&](Decl *auxiliaryDecl) {
-    auto *sf = auxiliaryDecl->getInnermostDeclContext()->getParentSourceFile();
+    SourceFile *sf = auxiliaryDecl->getLoc()
+        ? module->getSourceFileContainingLocation(auxiliaryDecl->getLoc())
+        : auxiliaryDecl->getInnermostDeclContext()->getParentSourceFile();
     // We only visit auxiliary decls that are macro expansions associated with
     // this macro reference.
     if (auto *med = macroRef.dyn_cast<MacroExpansionDecl *>()) {
@@ -10518,6 +10653,9 @@ DeclContext *
 MacroDiscriminatorContext::getInnermostMacroContext(DeclContext *dc) {
   switch (dc->getContextKind()) {
   case DeclContextKind::SubscriptDecl:
+    // For a subscript, return its parent context.
+    return getInnermostMacroContext(dc->getParent());
+
   case DeclContextKind::EnumElementDecl:
   case DeclContextKind::AbstractFunctionDecl:
   case DeclContextKind::SerializedLocal:

@@ -1,10 +1,7 @@
-// RUN: %target-swift-emit-silgen -enable-experimental-feature VariadicGenerics %s | %FileCheck %s
+// RUN: %target-swift-emit-silgen -disable-availability-checking %s | %FileCheck %s
 
 // rdar://107459964
 // rdar://107478603
-
-// Because of -enable-experimental-feature VariadicGenerics
-// REQUIRES: asserts
 
 public struct G<Value> {
   public let id: Int

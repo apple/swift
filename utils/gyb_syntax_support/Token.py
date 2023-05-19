@@ -300,7 +300,8 @@ SYNTAX_TOKENS = [
     Misc('StringSegment', 'string_segment'),
     Misc('StringInterpolationAnchor', 'string_interpolation_anchor', text=')'),
     Misc('Yield', 'kw_yield', text='yield'),
-    Misc('Forget', 'kw_forget', text='_forget'),
+    Misc('Forget', 'kw_forget', text='_forget'),  # NOTE: support for deprecated _forget
+    Misc('Discard', 'kw_discard', text='discard'),
 
 ]
 

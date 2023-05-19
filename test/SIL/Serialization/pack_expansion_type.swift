@@ -1,9 +1,6 @@
 // RUN: %empty-directory(%t)
-// RUN: %target-swift-frontend -emit-module %s -emit-module-path %t/pack_expansion_type.swiftmodule -DLIB -enable-experimental-feature VariadicGenerics
-// RUN: %target-swift-frontend -emit-ir %s -I %t -DAPP -module-name main -enable-experimental-feature VariadicGenerics
-
-// Because of -enable-experimental-feature VariadicGenerics
-// REQUIRES: asserts
+// RUN: %target-swift-frontend -emit-module %s -emit-module-path %t/pack_expansion_type.swiftmodule -DLIB
+// RUN: %target-swift-frontend -emit-ir %s -I %t -DAPP -module-name main
 
 #if LIB
 

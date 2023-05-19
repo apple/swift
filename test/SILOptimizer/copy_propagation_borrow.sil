@@ -564,7 +564,7 @@ bb0(%0 : @guaranteed $HasObject):
 // CHECK:   br bb3([[CP]] : $C, [[BORROW]] : $C)
 // CHECK: bb2:
 // CHECK:   br bb3([[CP]] : $C, [[BORROW]] : $C)
-// CHECK: bb3([[OWNEDPHI:%.*]] : @owned $C, [[BORROWPHI:%.*]] @guaranteed $C
+// CHECK: bb3([[OWNEDPHI:%.*]] : @owned $C, [[BORROWPHI:%.*]] @reborrow @guaranteed $C
 // CHECK:   end_borrow [[BORROWPHI]]
 // CHECK:   destroy_value [[OWNEDPHI]] : $C
 // CHECK:   destroy_value %0 : $C
@@ -603,7 +603,7 @@ bb3(%phi : @owned $C, %borrowphi : @guaranteed $C):
 //
 // CHECK-LABEL: sil [ossa] @testLiveCopyAfterReborrow : $@convention(thin) () -> () {
 // CHECK: [[ALLOC:%.*]] = alloc_ref $C
-// CHECK: bb3([[BORROWPHI:%.*]] : @guaranteed $C):
+// CHECK: bb3([[BORROWPHI:%.*]] : @reborrow @guaranteed $C):
 // CHECK: [[COPY:%.*]] = copy_value [[BORROWPHI]]
 // CHECK: end_borrow [[BORROWPHI]] : $C
 // CHECK-NOT: copy_value
@@ -651,7 +651,7 @@ bb3(%borrowphi : @guaranteed $C):
 //
 // CHECK-LABEL: sil [ossa] @testDeadCopyAfterReborrow : $@convention(thin) () -> () {
 // CHECK: [[ALLOC:%.*]] = alloc_ref $C
-// CHECK: bb3([[BORROWPHI:%.*]] : @guaranteed $C):
+// CHECK: bb3([[BORROWPHI:%.*]] : @reborrow @guaranteed $C):
 // CHECK-NOT: copy_value
 // CHECK: end_borrow [[BORROWPHI]] : $C
 // CHECK-NOT: copy_value
@@ -691,7 +691,7 @@ bb3(%borrowphi : @guaranteed $C):
 //
 // CHECK-LABEL: sil [ossa] @testNestedReborrowOutsideUse : $@convention(thin) () -> () {
 // CHECK:        [[ALLOC:%.*]] = alloc_ref $C
-// CHECK:      bb3([[BORROWPHI:%.*]] : @guaranteed $C):
+// CHECK:      bb3([[BORROWPHI:%.*]] : @reborrow @guaranteed $C):
 // CHECK-NOT:    copy
 // CHECK:        end_borrow [[BORROWPHI]]
 // CHECK-NEXT:   destroy_value [[ALLOC]] : $C
@@ -737,7 +737,7 @@ bb3(%borrowphi : @guaranteed $C):
 // CHECK: bb2:
 // CHECK:   begin_borrow %0 : $C
 // CHECK:   br bb3(%{{.*}} : $C, %0 : $C)
-// CHECK: bb3(%{{.*}} : @guaranteed $C, [[COPYPHI:%.*]] : @owned $C):
+// CHECK: bb3(%{{.*}} : @reborrow @guaranteed $C, [[COPYPHI:%.*]] : @owned $C):
 // CHECK:   end_borrow
 // CHECK:   destroy_value [[COPYPHI]] : $C
 // CHECK-LABEL: } // end sil function 'testOwnedReborrow'

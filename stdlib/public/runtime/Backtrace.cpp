@@ -271,17 +271,6 @@ BacktraceInitializer::BacktraceInitializer() {
   if (backtracing)
     _swift_parseBacktracingSettings(backtracing);
 
-#if TARGET_OS_OSX || TARGET_OS_MACCATALYST
-  // Make sure that all fds are closed except for stdin/stdout/stderr.
-  posix_spawnattr_init(&backtraceSpawnAttrs);
-  posix_spawnattr_setflags(&backtraceSpawnAttrs, POSIX_SPAWN_CLOEXEC_DEFAULT);
-
-  posix_spawn_file_actions_init(&backtraceFileActions);
-  posix_spawn_file_actions_addinherit_np(&backtraceFileActions, STDIN_FILENO);
-  posix_spawn_file_actions_addinherit_np(&backtraceFileActions, STDOUT_FILENO);
-  posix_spawn_file_actions_addinherit_np(&backtraceFileActions, STDERR_FILENO);
-#endif
-
 #if !SWIFT_BACKTRACE_ON_CRASH_SUPPORTED
   if (_swift_backtraceSettings.enabled != OnOffTty::Off) {
     swift::warning(0,
@@ -439,6 +428,17 @@ BacktraceInitializer::BacktraceInitializer() {
   }
 
   if (_swift_backtraceSettings.enabled == OnOffTty::On) {
+#if TARGET_OS_OSX || TARGET_OS_MACCATALYST
+    // Make sure that all fds are closed except for stdin/stdout/stderr.
+    posix_spawnattr_init(&backtraceSpawnAttrs);
+    posix_spawnattr_setflags(&backtraceSpawnAttrs, POSIX_SPAWN_CLOEXEC_DEFAULT);
+
+    posix_spawn_file_actions_init(&backtraceFileActions);
+    posix_spawn_file_actions_addinherit_np(&backtraceFileActions, STDIN_FILENO);
+    posix_spawn_file_actions_addinherit_np(&backtraceFileActions, STDOUT_FILENO);
+    posix_spawn_file_actions_addinherit_np(&backtraceFileActions, STDERR_FILENO);
+#endif
+
     ErrorCode err = _swift_installCrashHandler();
     if (err != 0) {
       swift::warning(0,

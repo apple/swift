@@ -672,8 +672,8 @@ struct SynthesizedConformance1: Codable {
   let foo: Int
   #^OVERRIDE_SYNTHESIZED_1?keywords=false^#
 // OVERRIDE_SYNTHESIZED_1: Begin completions,  2 items
-// OVERRIDE_SYNTHESIZED_1-DAG: Decl[Constructor]/Super/IsSystem:       init(from decoder: Decoder) throws {|};
-// OVERRIDE_SYNTHESIZED_1-DAG: Decl[InstanceMethod]/Super/IsSystem:    func encode(to encoder: Encoder) throws {|};
+// OVERRIDE_SYNTHESIZED_1-DAG: Decl[Constructor]/Super/IsSystem:       init(from decoder: any Decoder) throws {|};
+// OVERRIDE_SYNTHESIZED_1-DAG: Decl[InstanceMethod]/Super/IsSystem:    func encode(to encoder: any Encoder) throws {|};
 }
 
 open class SynthesizedConformance2: Codable {
@@ -681,7 +681,7 @@ open class SynthesizedConformance2: Codable {
   func encode(to encoder: Encoder) throws {}
   #^OVERRIDE_SYNTHESIZED_2?keywords=false^#
 // OVERRIDE_SYNTHESIZED_2: Begin completions, 1 items
-// OVERRIDE_SYNTHESIZED_2: Decl[Constructor]/Super/IsSystem:           public required init(from decoder: Decoder) throws {|};
+// OVERRIDE_SYNTHESIZED_2: Decl[Constructor]/Super/IsSystem:           public required init(from decoder: any Decoder) throws {|};
 }
 
 struct SynthesizedConformance3: Hashable {
@@ -705,9 +705,9 @@ enum SynthesizedConformance4: CaseIterable {
 class SynthesizedConformance5: SynthesizedConformance2 {
   #^OVERRIDE_SYNTHESIZED_5?keywords=false^#
 // OVERRIDE_SYNTHESIZED_5: Begin completions, 3 items
-// OVERRIDE_SYNTHESIZED_5-DAG: Decl[InstanceMethod]/Super:             override func encode(to encoder: Encoder) throws {|};
-// OVERRIDE_SYNTHESIZED_5-DAG: Decl[Constructor]/Super/IsSystem:       required init(from decoder: Decoder) throws {|};
-// OVERRIDE_SYNTHESIZED_5-DAG: Decl[Constructor]/Super:                required init(from decoder: Decoder) throws {|};
+// OVERRIDE_SYNTHESIZED_5-DAG: Decl[InstanceMethod]/Super:             override func encode(to encoder: any Encoder) throws {|};
+// OVERRIDE_SYNTHESIZED_5-DAG: Decl[Constructor]/Super/IsSystem:       required init(from decoder: any Decoder) throws {|};
+// OVERRIDE_SYNTHESIZED_5-DAG: Decl[Constructor]/Super:                required init(from decoder: any Decoder) throws {|};
 // FIXME: 'required init(from decoder: Decoder)' is suggested twice
 }
 

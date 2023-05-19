@@ -177,7 +177,7 @@ test_combo(.genericFn(42)) // expected-error {{global function 'test_combo' requ
 
 extension P { // expected-note 13 {{missing same-type requirement on 'Self'}} {{12-12= where Self == <#Type#>}}
   static func generic<T>(_: T) -> T { fatalError() }
-  static func genericWithReqs<T: Collection, Q>(_: T) -> Q where T.Element == Q { // expected-note {{in call to function 'genericWithReqs'}} expected-note {{required by static method 'genericWithReqs' where 'T' = '()'}}
+  static func genericWithReqs<T: Collection, Q>(_: T) -> Q where T.Element == Q { // expected-note {{required by static method 'genericWithReqs' where 'T' = '()'}}
     fatalError()
   }
 }
@@ -217,7 +217,6 @@ _ = P.genericWithReqs([42])
 _ = P.genericWithReqs(())
 // expected-error@-1 {{type '()' cannot conform to 'Collection'}} expected-note@-1 {{only concrete types such as structs, enums and classes can conform to protocols}}
 // expected-error@-2 {{static member 'genericWithReqs' cannot be used on protocol metatype '(any P).Type'}}
-// expected-error@-3 {{generic parameter 'Q' could not be inferred}}
 _ = P[q: ""]
 // expected-error@-1 {{static member 'subscript' cannot be used on protocol metatype '(any P).Type'}}
 _ = P[q: ""].other

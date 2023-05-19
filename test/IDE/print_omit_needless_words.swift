@@ -48,7 +48,7 @@
 
 // Note: Objective-C type parameter names.
 // CHECK-FOUNDATION: func object(forKey: Any) -> Any?
-// CHECK-FOUNDATION: func removeObject(forKey: NSCopying)
+// CHECK-FOUNDATION: func removeObject(forKey: any NSCopying)
 
 // Note: Don't drop the name of the first parameter in an initializer entirely.
 // CHECK-FOUNDATION: init(array: [Any])
@@ -141,10 +141,10 @@
 // CHECK-FOUNDATION: func enumerateObjectsRandomly(block: (@Sendable (Any?, Int, UnsafeMutablePointer<ObjCBool>?) -> Void)? = nil)
 
 // Note: id<Proto> treated as "Proto".
-// CHECK-FOUNDATION: func doSomething(with: NSCopying)
+// CHECK-FOUNDATION: func doSomething(with: any NSCopying)
 
 // Note: NSObject<Proto> treated as "Proto".
-// CHECK-FOUNDATION: func doSomethingElse(with: NSCopying & NSObjectProtocol)
+// CHECK-FOUNDATION: func doSomethingElse(with: any NSCopying & NSObjectProtocol)
 
 // Note: Function type -> "Function".
 // CHECK-FOUNDATION: func sort(_: @convention(c) (Any, Any) -> Int)

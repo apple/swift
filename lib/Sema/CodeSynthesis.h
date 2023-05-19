@@ -89,6 +89,10 @@ bool hasLetStoredPropertyWithInitialValue(NominalTypeDecl *nominal);
 /// if an attribute was added.
 bool addNonIsolatedToSynthesized(NominalTypeDecl *nominal, ValueDecl *value);
 
+/// Adds the `@_spi` groups from \p inferredFromDecl to \p decl.
+void applyInferredSPIAccessControlAttr(Decl *decl, const Decl *inferredFromDecl,
+                                       ASTContext &ctx);
+
 } // end namespace swift
 
 #endif

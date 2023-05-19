@@ -15,3 +15,5 @@ sil @foo : $@convention(thin) () -> () {
 bb0:
   return undef : $(), scope 4 // id: %1
 }
+
+sil @bar : $@convention(thin) () -> ()

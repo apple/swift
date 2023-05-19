@@ -37,10 +37,12 @@ func testAnonEnum() {
   a = AnonConst2
 #if os(Windows)
   verifyIsInt(&a)
-#elseif arch(i386) || arch(arm) || arch(arm64_32)
+#elseif _pointerBitWidth(_32)
   verifyIsUInt64(&a)
-#elseif arch(x86_64) || arch(arm64) || arch(powerpc64) || arch(powerpc64le) || arch(s390x) || arch(riscv64)
+#elseif _pointerBitWidth(_64)
   verifyIsUInt(&a)
+#else
+#error("Unknown platform")
 #endif
 }
 

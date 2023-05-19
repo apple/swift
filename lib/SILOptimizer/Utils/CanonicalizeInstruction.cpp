@@ -21,13 +21,13 @@
 #include "swift/SILOptimizer/Utils/CanonicalizeInstruction.h"
 #include "swift/SIL/DebugUtils.h"
 #include "swift/SIL/InstructionUtils.h"
+#include "swift/SIL/OwnershipUtils.h"
 #include "swift/SIL/Projection.h"
 #include "swift/SIL/SILBuilder.h"
 #include "swift/SIL/SILFunction.h"
 #include "swift/SIL/SILInstruction.h"
 #include "swift/SILOptimizer/Analysis/SimplifyInstruction.h"
 #include "swift/SILOptimizer/Utils/DebugOptUtils.h"
-#include "swift/SILOptimizer/Utils/OwnershipOptUtils.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Support/Debug.h"
 
@@ -35,10 +35,6 @@ using namespace swift;
 
 // Tracing within the implementation can also be activated by the pass.
 #define DEBUG_TYPE pass.debugType
-
-llvm::cl::opt<bool> EnableLoadSplittingDebugInfo(
-    "sil-load-splitting-debug-info", llvm::cl::init(false),
-    llvm::cl::desc("Create debug fragments at -O for partial loads"));
 
 // Vtable anchor.
 CanonicalizeInstruction::~CanonicalizeInstruction() {}
@@ -301,19 +297,6 @@ splitAggregateLoad(LoadOperation loadInst, CanonicalizeInstruction &pass) {
     }
     pass.notifyNewInstruction(**lastNewLoad);
 
-    // FIXME: This drops debug info at -Onone load-splitting is required at
-    // -Onone for exclusivity diagnostics. Fix this by
-    // 
-    // 1. At -Onone, preserve the original load when pass.preserveDebugInfo is
-    // true, but moving it out of its current access scope and into an "unknown"
-    // access scope, which won't be enforced as an exclusivity violation.
-    //
-    // 2. At -O, create "debug fragments" recover as much debug info as possible
-    // by creating debug_value fragments for each new partial load. Currently
-    // disabled because of LLVM back-end crashes.
-    if (!pass.preserveDebugInfo && EnableLoadSplittingDebugInfo) {
-      createDebugFragments(*loadInst, proj, lastNewLoad->getLoadInst());
-    }
     if (loadOwnership) {
       if (*loadOwnership == LoadOwnershipQualifier::Copy) {
         // Destroy the loaded value wherever the aggregate load was destroyed.
@@ -336,6 +319,10 @@ splitAggregateLoad(LoadOperation loadInst, CanonicalizeInstruction &pass) {
     nextII = killInstruction(extract, nextII, pass);
   }
 
+  // Preserve the original load's debug information.
+  if (pass.preserveDebugInfo) {
+    swift::salvageLoadDebugInfo(loadInst);
+  }
   // Remove the now unused borrows.
   for (auto *borrow : borrows)
     nextII = killInstAndIncidentalUses(borrow, nextII, pass);
@@ -344,9 +331,8 @@ splitAggregateLoad(LoadOperation loadInst, CanonicalizeInstruction &pass) {
   for (auto *destroy : lifetimeEndingInsts)
     nextII = killInstruction(destroy, nextII, pass);
 
-  // FIXME: remove this temporary hack to advance the iterator beyond
-  // debug_value. A soon-to-be merged commit migrates CanonicalizeInstruction to
-  // use InstructionDeleter.
+  // TODO: remove this hack to advance the iterator beyond debug_value and check
+  // SILInstruction::isDeleted() in the caller instead.
   while (nextII != loadInst->getParent()->end()
          && nextII->isDebugInstruction()) {
     ++nextII;

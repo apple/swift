@@ -47,5 +47,9 @@ public func printBreak(_ x: Int) {
 // CHECK-NEXT: #endif
 // CHECK-NEXT:     vwTable->initializeWithCopy(_getOpaquePointer(), const_cast<char *>(other._getOpaquePointer()), metadata._0);
 // CHECK-NEXT:   }
-// CHECK-NEXT:   SWIFT_INLINE_THUNK StructWithRefcountedMember(StructWithRefcountedMember &&) noexcept { abort(); }
+// CHECK-NEXT:   SWIFT_INLINE_PRIVATE_HELPER StructWithRefcountedMember(StructWithRefcountedMember &&) noexcept {
+// CHECK-NEXT:  swift::_impl::_fatalError_Cxx_move_of_Swift_value_type_not_supported_yet();
+// CHECK-NEXT:  swift::_impl::_swift_stdlib_reportFatalError("swift", 5, "C++ does not support moving a Swift value yet", 45, 0);
+// CHECK-NEXT:  abort();
+// CHECK-NEXT: }
 // CHECK-NEXT: private:

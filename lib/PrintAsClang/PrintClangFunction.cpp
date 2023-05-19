@@ -1369,16 +1369,6 @@ void DeclAndTypeClangFunctionPrinter::printCxxThunkBody(
   }
 }
 
-static StringRef getConstructorName(const AbstractFunctionDecl *FD) {
-  auto name = cxx_translation::getNameForCxx(
-      FD, cxx_translation::CustomNamesOnly_t::CustomNamesOnly);
-  if (!name.empty()) {
-    assert(name.startswith("init"));
-    return name;
-  }
-  return "init";
-}
-
 void DeclAndTypeClangFunctionPrinter::printCxxMethod(
     DeclAndTypePrinter &declAndTypePrinter,
     const NominalTypeDecl *typeDeclContext, const AbstractFunctionDecl *FD,
@@ -1399,10 +1389,8 @@ void DeclAndTypeClangFunctionPrinter::printCxxMethod(
                       !isConstructor && !isStatic;
   modifiers.hasSymbolUSR = !isDefinition;
   auto result = printFunctionSignature(
-      FD, signature,
-      isConstructor ? getConstructorName(FD)
-                    : cxx_translation::getNameForCxx(FD),
-      resultTy, FunctionSignatureKind::CxxInlineThunk, modifiers);
+      FD, signature, cxx_translation::getNameForCxx(FD), resultTy,
+      FunctionSignatureKind::CxxInlineThunk, modifiers);
   assert(!result.isUnsupported() && "C signature should be unsupported too");
 
   declAndTypePrinter.printAvailability(os, FD);

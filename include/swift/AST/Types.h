@@ -173,7 +173,13 @@ public:
     /// This type contains an ElementArchetype.
     HasElementArchetype = 0x4000,
 
-    Last_Property = HasElementArchetype
+    /// Whether the type is allocated in the constraint solver arena. This can
+    /// differ from \c HasTypeVariable for types such as placeholders, which do
+    /// not have type variables, but we still want to allocate in the solver if
+    /// they have a type variable originator.
+    SolverAllocated = 0x8000,
+
+    Last_Property = SolverAllocated
   };
   enum { BitWidth = countBitsUsed(Property::Last_Property) };
 
@@ -223,6 +229,12 @@ public:
   /// Does a type with these properties structurally contain an
   /// opened element archetype?
   bool hasElementArchetype() const { return Bits & HasElementArchetype; }
+
+  /// Whether the type is allocated in the constraint solver arena. This can
+  /// differ from \c hasTypeVariable() for types such as placeholders, which
+  /// do not have type variables, but we still want to allocate in the solver if
+  /// they have a type variable originator.
+  bool isSolverAllocated() const { return Bits & SolverAllocated; }
 
   /// Does a type with these properties structurally contain a local
   /// archetype?
@@ -400,12 +412,12 @@ protected:
     NumProtocols : 16
   );
 
-  SWIFT_INLINE_BITFIELD_FULL(TypeVariableType, TypeBase, 6+32,
+  SWIFT_INLINE_BITFIELD_FULL(TypeVariableType, TypeBase, 7+31,
     /// Type variable options.
-    Options : 6,
+    Options : 7,
     : NumPadBits,
     /// The unique number assigned to this type variable.
-    ID : 32
+    ID : 31
   );
 
   SWIFT_INLINE_BITFIELD(SILFunctionType, TypeBase, NumSILExtInfoBits+1+4+1+2+1+1,
@@ -501,6 +513,8 @@ protected:
   }
 
   void setRecursiveProperties(RecursiveTypeProperties properties) {
+    assert(!(properties.hasTypeVariable() && !properties.isSolverAllocated()) &&
+           "type variables must be solver allocated!");
     Bits.TypeBase.Properties = properties.getBits();
     assert(Bits.TypeBase.Properties == properties.getBits() && "Bits dropped!");
   }
@@ -2458,6 +2472,10 @@ public:
                       ArrayRef<TupleTypeElt> Elements);
   
   bool containsPackExpansionType() const;
+
+  /// Check whether this tuple consists of a single unlabeled element
+  /// of \c PackExpansionType.
+  bool isSingleUnlabeledPackExpansion() const;
 
 private:
   TupleType(ArrayRef<TupleTypeElt> elements, const ASTContext *CanCtx,
@@ -6710,8 +6728,9 @@ TypeVariableType : public TypeBase {
   // type is opaque.
 
   TypeVariableType(const ASTContext &C, unsigned ID)
-    : TypeBase(TypeKind::TypeVariable, &C,
-               RecursiveTypeProperties::HasTypeVariable) {
+      : TypeBase(TypeKind::TypeVariable, &C,
+                 RecursiveTypeProperties::HasTypeVariable |
+                     RecursiveTypeProperties::SolverAllocated) {
     // Note: the ID may overflow (current limit is 2^20 - 1).
     Bits.TypeVariableType.ID = ID;
     if (Bits.TypeVariableType.ID != ID) {
@@ -6770,6 +6789,8 @@ DEFINE_EMPTY_CAN_TYPE_WRAPPER(TypeVariableType, Type)
 /// because the expression is ambiguous. This type is only used by the
 /// constraint solver and transformed into UnresolvedType to be used in AST.
 class PlaceholderType : public TypeBase {
+  // NOTE: If you add a new Type-based originator, you'll need to update the
+  // recursive property logic in PlaceholderType::get.
   using Originator =
       llvm::PointerUnion<TypeVariableType *, DependentMemberType *, VarDecl *,
                          ErrorExpr *, PlaceholderTypeRepr *>;

@@ -59,12 +59,31 @@ public struct AggStruct {
     var pair: KlassPair
 }
 
+protocol P {
+    static var value: Self { get }
+    static var value2: any P { get }
+}
+
+@_moveOnly
+public struct AddressOnlyGeneric<T : P> {
+    var copyable: T
+    var moveOnly: NonTrivialStruct
+
+    init()
+    init(_ input1: T)
+}
+
 sil @get_aggstruct : $@convention(thin) () -> @owned AggStruct
 sil @nonConsumingUseKlass : $@convention(thin) (@guaranteed Klass) -> ()
 sil @nonConsumingUseNonTrivialStruct : $@convention(thin) (@guaranteed NonTrivialStruct) -> ()
+sil @consumingUseNonTrivialStruct : $@convention(thin) (@owned NonTrivialStruct) -> ()
 sil @classConsume : $@convention(thin) (@owned Klass) -> () // user: %18
 sil @copyableClassConsume : $@convention(thin) (@owned CopyableKlass) -> () // user: %24
 sil @copyableClassUseMoveOnlyWithoutEscaping : $@convention(thin) (@guaranteed CopyableKlass) -> () // user: %16
+sil @getAddressOnlyGeneric : $@convention(thin) <τ_0_0 where τ_0_0 : P> () -> @out AddressOnlyGeneric<τ_0_0>
+sil @addressOnlyGenericInOutUse : $@convention(thin) <τ_0_0 where τ_0_0 : P> (@inout AddressOnlyGeneric<τ_0_0>) -> ()
+sil @addressOnlyGenericConsume : $@convention(thin) <τ_0_0 where τ_0_0 : P> (@in AddressOnlyGeneric<τ_0_0>) -> ()
+sil @addressOnlyGenericUse : $@convention(thin) <τ_0_0 where τ_0_0 : P> (@in_guaranteed AddressOnlyGeneric<τ_0_0>) -> ()
 
 ///////////
 // Tests //
@@ -315,4 +334,176 @@ bb0(%0 : $*Klass):
   dealloc_stack %3 : $*Klass
   %27 = tuple ()
   return %27 : $()
+}
+
+////////////////////////
+// Address Only Tests //
+////////////////////////
+
+sil [ossa] @inoutCaptureTestAddressOnlyGenericClosure2 : $@convention(thin) <T where T : P> (@guaranteed <τ_0_0 where τ_0_0 : P> { var AddressOnlyGeneric<τ_0_0> } <T>) -> () {
+bb0(%0 : @closureCapture @guaranteed $<τ_0_0 where τ_0_0 : P> { var AddressOnlyGeneric<τ_0_0> } <T>):
+  %1 = project_box %0 : $<τ_0_0 where τ_0_0 : P> { var AddressOnlyGeneric<τ_0_0> } <T>, 0
+  debug_value %1 : $*AddressOnlyGeneric<T>, var, name "x", argno 1, expr op_deref
+  %3 = alloc_stack $AddressOnlyGeneric<T>
+  %5 = function_ref @getAddressOnlyGeneric : $@convention(thin) <τ_0_0 where τ_0_0 : P> () -> @out AddressOnlyGeneric<τ_0_0>
+  %6 = apply %5<T>(%3) : $@convention(thin) <τ_0_0 where τ_0_0 : P> () -> @out AddressOnlyGeneric<τ_0_0>
+  %7 = begin_access [modify] [dynamic] %1 : $*AddressOnlyGeneric<T>
+  %8 = mark_must_check [assignable_but_not_consumable] %7 : $*AddressOnlyGeneric<T>
+  copy_addr [take] %3 to %8 : $*AddressOnlyGeneric<T>
+  end_access %7 : $*AddressOnlyGeneric<T>
+  dealloc_stack %3 : $*AddressOnlyGeneric<T>
+  %12 = begin_access [modify] [dynamic] %1 : $*AddressOnlyGeneric<T>
+  %13 = mark_must_check [assignable_but_not_consumable] %12 : $*AddressOnlyGeneric<T>
+  %14 = function_ref @addressOnlyGenericInOutUse : $@convention(thin) <τ_0_0 where τ_0_0 : P> (@inout AddressOnlyGeneric<τ_0_0>) -> ()
+  %15 = apply %14<T>(%13) : $@convention(thin) <τ_0_0 where τ_0_0 : P> (@inout AddressOnlyGeneric<τ_0_0>) -> ()
+  end_access %12 : $*AddressOnlyGeneric<T>
+  %17 = begin_access [deinit] [dynamic] %1 : $*AddressOnlyGeneric<T>
+  %18 = mark_must_check [assignable_but_not_consumable] %17 : $*AddressOnlyGeneric<T>
+  // expected-error @-1 {{'x' was consumed but it is illegal to consume a noncopyable mutable capture of an escaping closure. One can only read from it or assign over it}}
+  %19 = function_ref @addressOnlyGenericConsume : $@convention(thin) <τ_0_0 where τ_0_0 : P> (@in AddressOnlyGeneric<τ_0_0>) -> ()
+  %20 = apply %19<T>(%18) : $@convention(thin) <τ_0_0 where τ_0_0 : P> (@in AddressOnlyGeneric<τ_0_0>) -> ()
+  end_access %17 : $*AddressOnlyGeneric<T>
+  %22 = tuple ()
+  return %22 : $()
+}
+
+//////////////////////////
+// MARK: Coroutine Test //
+//////////////////////////
+
+sil [ossa] @coroutine_callee_uses_partial_apply : $@yield_once @convention(thin) (@guaranteed @callee_guaranteed () -> ()) -> @yields () {
+bb0(%0 : @guaranteed $@callee_guaranteed () -> ()):
+  %1 = tuple ()
+  yield %1 : $(), resume bb1, unwind bb2
+
+bb1:
+  return %1 : $()
+
+bb2:
+  unwind
+}
+
+sil private [ossa] @$s23coroutine_partial_applyTf0s_n : $@convention(thin) (@inout_aliasable NonTrivialStruct) -> () {
+bb0(%0 : @closureCapture $*NonTrivialStruct):
+  %1 = mark_must_check [no_consume_or_assign] %0 : $*NonTrivialStruct
+  debug_value %1 : $*NonTrivialStruct, let, name "e", argno 1, expr op_deref
+  %3 = load_borrow %1 : $*NonTrivialStruct
+  end_borrow %3 : $NonTrivialStruct
+  %5 = tuple ()
+  return %5 : $()
+}
+
+sil [ossa] @coroutine_caller_uses_partial_apply : $@convention(thin) (@owned NonTrivialStruct) -> () {
+bb0(%0 : @owned $NonTrivialStruct):
+  %1 = alloc_stack $NonTrivialStruct, let, name "e"
+  %2 = mark_must_check [consumable_and_assignable] %1 : $*NonTrivialStruct // expected-error {{'e' used after consume}}
+  store %0 to [init] %2 : $*NonTrivialStruct
+  mark_function_escape %2 : $*NonTrivialStruct
+
+  %5 = function_ref @$s23coroutine_partial_applyTf0s_n : $@convention(thin) (@inout_aliasable NonTrivialStruct) -> ()
+  %6 = partial_apply [callee_guaranteed] %5(%2) : $@convention(thin) (@inout_aliasable NonTrivialStruct) -> ()
+
+  %7 = function_ref @consumingUseNonTrivialStruct : $@convention(thin) (@owned NonTrivialStruct) -> ()
+
+  %8 = function_ref @coroutine_callee_uses_partial_apply : $@yield_once @convention(thin) (@guaranteed @callee_guaranteed () -> ()) -> @yields ()
+  (%9, %10) = begin_apply %8(%6) : $@yield_once @convention(thin) (@guaranteed @callee_guaranteed () -> ()) -> @yields ()
+  %11 = load [copy] %2 : $*NonTrivialStruct // expected-note {{consuming use here}}
+  %12 = apply %7(%11) : $@convention(thin) (@owned NonTrivialStruct) -> ()
+  end_apply %10 // expected-note {{non-consuming use here}}
+  destroy_value %6 : $@callee_guaranteed () -> ()
+  destroy_addr %2 : $*NonTrivialStruct
+  dealloc_stack %1 : $*NonTrivialStruct
+  %17 = tuple ()
+  return %17 : $()
+}
+
+sil [ossa] @coroutine_caller_uses_partial_apply2 : $@convention(thin) (@owned NonTrivialStruct) -> () {
+bb0(%0 : @owned $NonTrivialStruct):
+  %1 = alloc_stack $NonTrivialStruct, let, name "e"
+  %2 = mark_must_check [consumable_and_assignable] %1 : $*NonTrivialStruct // expected-error {{'e' used after consume}}
+  store %0 to [init] %2 : $*NonTrivialStruct
+  mark_function_escape %2 : $*NonTrivialStruct
+
+  %5 = function_ref @$s23coroutine_partial_applyTf0s_n : $@convention(thin) (@inout_aliasable NonTrivialStruct) -> ()
+  %6 = partial_apply [callee_guaranteed] %5(%2) : $@convention(thin) (@inout_aliasable NonTrivialStruct) -> ()
+
+  %7 = function_ref @consumingUseNonTrivialStruct : $@convention(thin) (@owned NonTrivialStruct) -> ()
+
+  %8 = function_ref @coroutine_callee_uses_partial_apply : $@yield_once @convention(thin) (@guaranteed @callee_guaranteed () -> ()) -> @yields ()
+  (%9, %10) = begin_apply %8(%6) : $@yield_once @convention(thin) (@guaranteed @callee_guaranteed () -> ()) -> @yields ()
+  %11 = load [copy] %2 : $*NonTrivialStruct // expected-note {{consuming use here}}
+  %12 = apply %7(%11) : $@convention(thin) (@owned NonTrivialStruct) -> ()
+  abort_apply %10 // expected-note {{non-consuming use here}}
+  destroy_value %6 : $@callee_guaranteed () -> ()
+  destroy_addr %2 : $*NonTrivialStruct
+  dealloc_stack %1 : $*NonTrivialStruct
+  %17 = tuple ()
+  return %17 : $()
+}
+
+// This test has some copy_value that are eliminated by the object checker. We
+// are just testing the address checker here so we get a copy of noncopyable
+// typed value error since we do not run the object checker. But it is ok since
+// it doesn't effect the underlying test case.
+sil [ossa] @coroutine_caller_uses_partial_apply_reinit : $@convention(thin) (@guaranteed NonTrivialStruct) -> () {
+bb0(%0 : @guaranteed $NonTrivialStruct):
+  %1 = copy_value %0 : $NonTrivialStruct // expected-error {{copy of noncopyable typed value. This is a compiler bug. Please file a bug with a small example of the bug}}
+  %2 = mark_must_check [no_consume_or_assign] %1 : $NonTrivialStruct
+  debug_value %2 : $NonTrivialStruct, let, name "x", argno 1
+  %4 = alloc_stack $NonTrivialStruct, let, name "e"
+  %5 = mark_must_check [consumable_and_assignable] %4 : $*NonTrivialStruct
+  %6 = copy_value %2 : $NonTrivialStruct // expected-error {{copy of noncopyable typed value. This is a compiler bug. Please file a bug with a small example of the bug}}
+  store %6 to [init] %5 : $*NonTrivialStruct
+  mark_function_escape %5 : $*NonTrivialStruct
+  %9 = function_ref @$s23coroutine_partial_applyTf0s_n : $@convention(thin) (@inout_aliasable NonTrivialStruct) -> ()
+  %10 = partial_apply [callee_guaranteed] %9(%5) : $@convention(thin) (@inout_aliasable NonTrivialStruct) -> ()
+  %11 = function_ref @consumingUseNonTrivialStruct : $@convention(thin) (@owned NonTrivialStruct) -> ()
+  %12 = function_ref @coroutine_callee_uses_partial_apply : $@yield_once @convention(thin) (@guaranteed @callee_guaranteed () -> ()) -> @yields ()
+  (%13, %14) = begin_apply %12(%10) : $@yield_once @convention(thin) (@guaranteed @callee_guaranteed () -> ()) -> @yields ()
+  %15 = load [copy] %5 : $*NonTrivialStruct
+  %16 = apply %11(%15) : $@convention(thin) (@owned NonTrivialStruct) -> ()
+  %17 = copy_value %2 : $NonTrivialStruct // expected-error {{copy of noncopyable typed value. This is a compiler bug. Please file a bug with a small example of the bug}}
+  store %17 to [init] %5 : $*NonTrivialStruct
+  abort_apply %14
+  destroy_value %2 : $NonTrivialStruct
+  destroy_value %10 : $@callee_guaranteed () -> ()
+  destroy_addr %5 : $*NonTrivialStruct
+  dealloc_stack %4 : $*NonTrivialStruct
+  %24 = tuple ()
+  return %24 : $()
+}
+
+sil [ossa] @coroutine_caller_uses_partial_apply_different_cfg : $@convention(thin) (@owned NonTrivialStruct) -> () {
+bb0(%0 : @owned $NonTrivialStruct):
+  %1 = alloc_stack $NonTrivialStruct, let, name "e"
+  %2 = mark_must_check [consumable_and_assignable] %1 : $*NonTrivialStruct
+  // expected-error @-1 {{'e' used after consume}}
+  // expected-error @-2 {{'e' used after consume}}
+  store %0 to [init] %2 : $*NonTrivialStruct
+  mark_function_escape %2 : $*NonTrivialStruct
+  %5 = function_ref @$s23coroutine_partial_applyTf0s_n : $@convention(thin) (@inout_aliasable NonTrivialStruct) -> ()
+  %6 = partial_apply [callee_guaranteed] %5(%2) : $@convention(thin) (@inout_aliasable NonTrivialStruct) -> ()
+  %7 = function_ref @consumingUseNonTrivialStruct : $@convention(thin) (@owned NonTrivialStruct) -> ()
+  %8 = function_ref @coroutine_callee_uses_partial_apply : $@yield_once @convention(thin) (@guaranteed @callee_guaranteed () -> ()) -> @yields ()
+  (%9, %10) = begin_apply %8(%6) : $@yield_once @convention(thin) (@guaranteed @callee_guaranteed () -> ()) -> @yields ()
+  cond_br undef, bb1, bb2
+
+bb1:
+  %12 = load [copy] %2 : $*NonTrivialStruct // expected-note {{consuming use here}}
+  %13 = apply %7(%12) : $@convention(thin) (@owned NonTrivialStruct) -> ()
+  abort_apply %10 // expected-note {{non-consuming use here}}
+  br bb3
+
+bb2:
+  %16 = load [copy] %2 : $*NonTrivialStruct // expected-note {{consuming use here}}
+  %17 = apply %7(%16) : $@convention(thin) (@owned NonTrivialStruct) -> ()
+  end_apply %10 // expected-note {{non-consuming use here}}
+  br bb3
+
+bb3:
+  destroy_value %6 : $@callee_guaranteed () -> ()
+  destroy_addr %2 : $*NonTrivialStruct
+  dealloc_stack %1 : $*NonTrivialStruct
+  %23 = tuple ()
+  return %23 : $()
 }

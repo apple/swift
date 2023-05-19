@@ -275,7 +275,6 @@ func rdar19831698() {
   var v71 = true + 1.0 // expected-error{{binary operator '+' cannot be applied to operands of type 'Bool' and 'Double'}}
 // expected-note@-1{{overloads for '+'}}
   var v72 = true + true // expected-error{{binary operator '+' cannot be applied to two 'Bool' operands}}
-  // expected-note@-1{{overloads for '+'}}
   var v73 = true + [] // expected-error@:13 {{cannot convert value of type 'Bool' to expected argument type 'Array<Bool>'}}
   var v75 = true + "str" // expected-error@:13 {{cannot convert value of type 'Bool' to expected argument type 'String'}}
 }

@@ -4,10 +4,12 @@ protocol _CFObject: Hashable {}
 
 #if CGFLOAT_IN_COREFOUNDATION
 public struct CGFloat {
-#if arch(i386) || arch(arm) || arch(arm64_32)
+#if _pointerBitWidth(_32)
   public typealias UnderlyingType = Float
-#elseif arch(x86_64) || arch(arm64) || arch(powerpc64le) || arch(s390x) || arch(riscv64)
+#elseif _pointerBitWidth(_64)
   public typealias UnderlyingType = Double
+#else
+#error("Unknown platform")
 #endif
 
   public init() { 

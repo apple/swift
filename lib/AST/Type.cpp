@@ -189,7 +189,7 @@ bool TypeBase::isMarkerExistential() {
 }
 
 bool TypeBase::isPureMoveOnly() {
-  if (auto *nom = getNominalOrBoundGenericNominal())
+  if (auto *nom = getAnyNominal())
     return nom->isMoveOnly();
 
   // if any components of the tuple are move-only, then the tuple is move-only.

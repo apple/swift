@@ -207,7 +207,7 @@ PASS(OnonePrespecializations, "onone-prespecializer",
      "Pre specialization via @_specialize")
 PASS(EarlyCodeMotion, "early-codemotion",
      "Early Code Motion without Release Hoisting")
-PASS(EarlyInliner, "early-inline",
+PASS(EarlyPerfInliner, "early-inline",
      "Early Inlining Preserving Semantic Functions")
 PASS(EmitDFDiagnostics, "dataflow-diagnostics",
      "Emit SIL Diagnostics")
@@ -225,6 +225,8 @@ SWIFT_FUNCTION_PASS(ComputeSideEffects, "compute-side-effects",
      "Computes function side effects")
 SWIFT_FUNCTION_PASS(TestInstructionIteration, "test-instruction-iteration",
      "Tests instruction iteration")
+SWIFT_FUNCTION_PASS(InitializeStaticGlobals, "initialize-static-globals",
+     "Initializes static global variables")
 PASS(FlowIsolation, "flow-isolation",
      "Enforces flow-sensitive actor isolation rules")
 PASS(FunctionOrderPrinter, "function-order-printer",
@@ -243,8 +245,6 @@ PASS(RedundantLoadElimination, "redundant-load-elim",
      "Redundant Load Elimination")
 PASS(DeadStoreElimination, "dead-store-elim",
      "Dead Store Elimination")
-PASS(MandatoryGenericSpecializer, "mandatory-generic-specializer",
-     "Mandatory Generic Function Specialization on Static Types")
 PASS(GenericSpecializer, "generic-specializer",
      "Generic Function Specialization on Static Types")
 PASS(ExistentialSpecializer, "existential-specializer",
@@ -252,8 +252,6 @@ PASS(ExistentialSpecializer, "existential-specializer",
 PASS(SILSkippingChecker, "check-sil-skipping",
      "Utility pass to ensure -experimental-skip-*-function-bodies skip "
      "SIL generation of not-to-be-serialized functions entirely")
-PASS(GlobalOpt, "global-opt",
-     "SIL Global Optimization")
 PASS(GlobalPropertyOpt, "global-property-opt",
      "Global Property Optimization")
 PASS(MandatoryARCOpts, "mandatory-arc-opts",
@@ -280,8 +278,6 @@ PASS(LateCodeMotion, "late-codemotion",
      "Late Code Motion with Release Hoisting")
 PASS(LateDeadFunctionAndGlobalElimination, "late-deadfuncelim",
      "Late Dead Function and Global Elimination")
-PASS(LateInliner, "late-inline",
-     "Late Function Inlining")
 PASS(LoopCanonicalizer, "loop-canonicalizer",
      "Loop Canonicalization")
 PASS(LoopInfoPrinter, "loop-info-printer",
@@ -300,7 +296,7 @@ PASS(MandatoryInlining, "mandatory-inlining",
      "Mandatory Inlining of Transparent Functions")
 PASS(Mem2Reg, "mem2reg",
      "Memory to SSA Value Conversion to Remove Stack Allocation")
-PASS(MemBehaviorDumper, "mem-behavior-dump",
+SWIFT_FUNCTION_PASS(MemBehaviorDumper, "dump-mem-behavior",
      "Print SIL Instruction MemBehavior from Alias Analysis over all Pairs")
 PASS(LSLocationPrinter, "lslocation-dump",
      "Print Load-Store Location Results Covering all Accesses")
@@ -381,6 +377,10 @@ SWIFT_FUNCTION_PASS(SILPrinter, "sil-printer",
      "Test pass which prints the SIL of a function")
 SWIFT_MODULE_PASS(FunctionUsesDumper, "dump-function-uses",
      "Dump the results of FunctionUses")
+SWIFT_MODULE_PASS(MandatoryPerformanceOptimizations, "mandatory-performance-optimizations",
+     "Performs optimizations for performance-annotated functions")
+SWIFT_MODULE_PASS(ReadOnlyGlobalVariablesPass, "read-only-global-variables",
+     "Converts read-only var-globals to let-globals")
 SWIFT_MODULE_PASS(StackProtection, "stack-protection",
      "Decides which functions need stack protectors")
 SWIFT_FUNCTION_PASS(FunctionStackProtection, "function-stack-protection",
@@ -397,6 +397,8 @@ SWIFT_FUNCTION_PASS(LateOnoneSimplification, "late-onone-simplification",
     "Peephole simplifications which can only run late in the -Onone pipeline")
 SWIFT_FUNCTION_PASS(CleanupDebugSteps, "cleanup-debug-steps",
     "Cleanup debug_step instructions for Onone")
+SWIFT_FUNCTION_PASS(NamedReturnValueOptimization, "named-return-value-optimization",
+    "Optimize copies to an indirect return value")
 PASS(SimplifyBBArgs, "simplify-bb-args",
      "SIL Block Argument Simplification")
 PASS(SimplifyCFG, "simplify-cfg",

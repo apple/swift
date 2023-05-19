@@ -95,13 +95,43 @@ public final class PassStructInClassMethod {
 // CHECK-NEXT:   static SWIFT_INLINE_THUNK LargeStruct staticFinalClassMethod(swift::Int x) SWIFT_SYMBOL("s:7Methods09ClassWithA0C011staticFinalB6Method1xAA11LargeStructVSi_tFZ");
 
 // CHECK: class SWIFT_SYMBOL("s:7Methods11LargeStructV") LargeStruct final {
-// CHECK: SWIFT_INLINE_THUNK LargeStruct(LargeStruct &&)
+// CHECK: SWIFT_INLINE_PRIVATE_HELPER LargeStruct(LargeStruct &&)
+// CHECK: }
 // CHECK-NEXT: SWIFT_INLINE_THUNK LargeStruct doubled() const SWIFT_SYMBOL("s:7Methods11LargeStructV7doubledACyF");
 // CHECK-NEXT: SWIFT_INLINE_THUNK void dump() const SWIFT_SYMBOL("s:7Methods11LargeStructV4dumpyyF");
 // CHECK-NEXT: SWIFT_INLINE_THUNK LargeStruct scaled(swift::Int x, swift::Int y) const SWIFT_SYMBOL("s:7Methods11LargeStructV6scaledyACSi_SitF");
 // CHECK-NEXT: SWIFT_INLINE_THUNK LargeStruct added(const LargeStruct& x) const SWIFT_SYMBOL("s:7Methods11LargeStructV5addedyA2CF");
 // CHECK-NEXT: static SWIFT_INLINE_THUNK void staticMethod() SWIFT_SYMBOL("s:7Methods11LargeStructV12staticMethodyyFZ");
 // CHECK-NEXT: private
+
+public struct WrapOverloadedMethods {
+    let x: Int
+
+    public func method(_ x: Int) {
+    }
+    public func method(_ x: Float) {
+    }
+    public func method(argLabel y: Int64) {
+    }
+}
+
+// CHECK: WrapOverloadedMethods final {
+// CHECK: SWIFT_INLINE_THUNK void method
+// CHECK-SAME: (swift::Int x) const SWIFT_SYMBOL("s:7Methods014WrapOverloadedA0V6methodyySiF");
+// CHECK-NEXT: private:
+
+public struct WrapOverloadedMethodsSibling {
+    let x: Int
+
+    // Sibling method with same name should be emitted.
+    public func method(_ x: Int) {
+    }
+}
+
+// CHECK: WrapOverloadedMethodsSibling final {
+// CHECK: SWIFT_INLINE_THUNK void method
+// CHECK-SAME: (swift::Int x) const SWIFT_SYMBOL("s:7Methods014WrapOverloadedA7SiblingV6methodyySiF");
+// CHECK-NEXT: private:
 
 public func createClassWithMethods(_ x: Int) -> ClassWithMethods {
     return ClassWithMethods(x)

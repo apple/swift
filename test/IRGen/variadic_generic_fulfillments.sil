@@ -1,7 +1,4 @@
-// RUN: %target-swift-frontend -emit-ir -primary-file %s -enable-experimental-feature VariadicGenerics | %IRGenFileCheck %s
-
-// Because of -enable-experimental-feature VariadicGenerics
-// REQUIRES: asserts
+// RUN: %target-swift-frontend -emit-ir -primary-file %s | %IRGenFileCheck %s
 
 import Builtin
 import Swift

@@ -965,3 +965,13 @@ bool Lowering::shouldSkipLowering(Decl *D) {
   // -unavailable-decl-optimization=complete is specified.
   return D->getSemanticUnavailableAttr() != None;
 }
+
+bool Lowering::shouldLowerToUnavailableCodeStub(Decl *D) {
+  if (D->getASTContext().LangOpts.UnavailableDeclOptimizationMode !=
+      UnavailableDeclOptimization::Stub)
+    return false;
+
+  // Unavailable declarations should trap at runtime if
+  // -unavailable-decl-optimization=stub is specified.
+  return D->getSemanticUnavailableAttr() != None;
+}

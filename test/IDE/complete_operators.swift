@@ -190,9 +190,9 @@ func testInfix12() {
 }
 // INFIX_12: Begin completions, 4 items
 // INFIX_12-DAG: Decl[AssociatedType]/CurrNominal:   .T; name=T
-// INFIX_12-DAG: Keyword[self]/CurrNominal:          .self[#P.Protocol#]; name=self
-// INFIX_12-DAG: Keyword/CurrNominal:                .Protocol[#P.Protocol#]; name=Protocol
-// INFIX_12-DAG: Keyword/CurrNominal:                .Type[#P.Type#]; name=Type
+// INFIX_12-DAG: Keyword[self]/CurrNominal:          .self[#(any P).Type#]; name=self
+// INFIX_12-DAG: Keyword/CurrNominal:                .Protocol[#(any P).Type#]; name=Protocol
+// INFIX_12-DAG: Keyword/CurrNominal:                .Type[#any P.Type#]; name=Type
 
 func testInfix13() {
   P.foo#^INFIX_13?check=NO_OPERATORS^#

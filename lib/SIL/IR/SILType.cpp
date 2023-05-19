@@ -1148,7 +1148,6 @@ std::string SILType::getDebugDescription() const {
     std::string str;
     llvm::raw_string_ostream os(str);
     print(os);
-    str.pop_back(); // Remove trailing newline.
     return str;
   }
 

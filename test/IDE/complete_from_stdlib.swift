@@ -21,14 +21,15 @@ func protocolExtCollection1a<C : Collection>(_ a: C) {
 }
 
 // PRIVATE_NOMINAL_MEMBERS_2A-DAG: Decl[InstanceMethod]/CurrNominal/IsSystem: map({#(transform): (C.Element) throws -> T##(C.Element) throws -> T#})[' rethrows'][#[T]#];
-// NEGATIVE_PRIVATE_NOMINAL_MEMBERS_2A-NOT: Decl{{.*}}: index({#before: Comparable#})
+// NEGATIVE_PRIVATE_NOMINAL_MEMBERS_2A-NOT: Decl{{.*}}: index({#before: any Comparable#})
 
 func protocolExtCollection1b(_ a: Collection) {
   a.#^PRIVATE_NOMINAL_MEMBERS_2B?check=PRIVATE_NOMINAL_MEMBERS_2B;check=NEGATIVE_PRIVATE_NOMINAL_MEMBERS_2B;check=NO_STDLIB_PRIVATE^#
 }
 
-// PRIVATE_NOMINAL_MEMBERS_2B-DAG: map({#(transform): (Collection.Element) throws -> T##(Collection.Element) throws -> T#})[' rethrows'][#[T]#]{{; name=.+}}
-// NEGATIVE_PRIVATE_NOMINAL_MEMBERS_2B-NOT: Decl{{.*}}: index({#before: Comparable#})
+// FIXME(https://github.com/apple/swift/issues/65696): We should not be showing this because (1) it cannot be accessed on the existential (2) we don't have the syntax and features to represent the projected type sig anyway.
+// PRIVATE_NOMINAL_MEMBERS_2B-DAG: map({#(transform): (any Collection.Element) throws -> T##(any Collection.Element) throws -> T#})[' rethrows'][#[T]#]{{; name=.+}}
+// NEGATIVE_PRIVATE_NOMINAL_MEMBERS_2B-NOT: Decl{{.*}}: index({#before: any Comparable#})
 
 func protocolExtCollection2<C : Collection where C.Index : BidirectionalIndex>(_ a: C) {
   a.#^PRIVATE_NOMINAL_MEMBERS_3?check=PRIVATE_NOMINAL_MEMBERS_3;check=NEGATIVE_PRIVATE_NOMINAL_MEMBERS_3;check=NO_STDLIB_PRIVATE^#

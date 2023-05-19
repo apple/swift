@@ -119,7 +119,7 @@ reflect(enum: B<Int>.a(1))
 // X64-NEXT:   (case name=c index=2 offset=0
 // X64-NEXT:     (tuple size=0 alignment=1 stride=1 num_extra_inhabitants=0 bitwise_takable=1)))
 
-// CHECK-NEXT: Mangled name: $s34reflect_Enum_MultiPayload_generic71BOySiG
+// CHECK: Mangled name: $s34reflect_Enum_MultiPayload_generic71BOySiG
 // CHECK-NEXT: Demangled name: reflect_Enum_MultiPayload_generic7.B<Swift.Int>
 
 // CHECK: Enum value:
@@ -160,7 +160,7 @@ reflect(enum: B<Void>.a(8))
 // X64-NEXT:   (case name=c index=2 offset=0
 // X64-NEXT:     (tuple size=0 alignment=1 stride=1 num_extra_inhabitants=0 bitwise_takable=1)))
 
-// CHECK-NEXT: Mangled name: $s34reflect_Enum_MultiPayload_generic71BOyytG
+// CHECK: Mangled name: $s34reflect_Enum_MultiPayload_generic71BOyytG
 // CHECK-NEXT: Demangled name: reflect_Enum_MultiPayload_generic7.B<()>
 
 // CHECK: Enum value:

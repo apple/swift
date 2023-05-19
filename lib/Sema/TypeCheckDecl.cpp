@@ -912,8 +912,9 @@ IsFinalRequest::evaluate(Evaluator &evaluator, ValueDecl *decl) const {
 }
 
 bool IsMoveOnlyRequest::evaluate(Evaluator &evaluator, ValueDecl *decl) const {
-  // For now only do this for nominal type decls.
-  if (isa<NominalTypeDecl>(decl)) {
+  // TODO: isPureMoveOnly and isMoveOnly and other checks are all spread out
+  // and need to be merged together.
+  if (isa<ClassDecl>(decl) || isa<StructDecl>(decl) || isa<EnumDecl>(decl)) {
       if (decl->getAttrs().hasAttribute<MoveOnlyAttr>()) {
         if (!decl->getASTContext().supportsMoveOnlyTypes())
             decl->diagnose(diag::moveOnly_requires_lexical_lifetimes);
@@ -2406,6 +2407,7 @@ InterfaceTypeRequest::evaluate(Evaluator &eval, ValueDecl *D) const {
   case DeclKind::Protocol: {
     auto nominal = cast<NominalTypeDecl>(D);
     Type declaredInterfaceTy = nominal->getDeclaredInterfaceType();
+    // FIXME: For a protocol, this returns a MetatypeType wrapping a ProtocolType, but should be a MetatypeType wrapping an ExistentialType ('(any P).Type', not 'P.Type').
     return MetatypeType::get(declaredInterfaceTy, Context);
   }
 

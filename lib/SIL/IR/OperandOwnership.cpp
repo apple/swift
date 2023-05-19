@@ -435,11 +435,11 @@ OperandOwnershipClassifier::visitSelectEnumInst(SelectEnumInst *i) {
 }
 
 OperandOwnership OperandOwnershipClassifier::visitBranchInst(BranchInst *bi) {
-  ValueOwnershipKind destBlockArgOwnershipKind =
-      bi->getDestBB()->getArgument(getOperandIndex())->getOwnershipKind();
+  auto *destArg = bi->getDestBB()->getArgument(getOperandIndex());
+  ValueOwnershipKind destBlockArgOwnershipKind = destArg->getOwnershipKind();
 
   if (destBlockArgOwnershipKind == OwnershipKind::Guaranteed) {
-    return isGuaranteedForwarding(getValue())
+    return destArg->isGuaranteedForwarding()
                ? OperandOwnership::GuaranteedForwarding
                : OperandOwnership::Reborrow;
   }

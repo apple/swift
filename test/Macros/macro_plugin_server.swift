@@ -56,7 +56,7 @@ func testStringify(a: Int, b: Int) {
   let s1: String = #stringify(a + b).1
   print(s1)
 
-  // expected-error @+1 {{failedToReceiveMessage (from macro 'evil')}}
+  // expected-error @+1 {{failed to receive result from plugin (from macro 'evil')}}
   let s2: String = #evil(42)
   print(s2)
 

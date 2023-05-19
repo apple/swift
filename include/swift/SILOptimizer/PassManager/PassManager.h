@@ -203,6 +203,8 @@ class SILPassManager {
   /// Set to true when a pass invalidates an analysis.
   bool CurrentPassHasInvalidated = false;
 
+  bool currentPassDependsOnCalleeBodies = false;
+
   /// True if we need to stop running passes and restart again on the
   /// same function.
   bool RestartPipeline = false;
@@ -221,12 +223,11 @@ class SILPassManager {
 
   std::chrono::nanoseconds totalPassRuntime = std::chrono::nanoseconds(0);
 
+public:
   /// C'tor. It creates and registers all analysis passes, which are defined
-  /// in Analysis.def. This is private as it should only be used by
-  /// ExecuteSILPipelineRequest.
+  /// in Analysis.def.
   SILPassManager(SILModule *M, bool isMandatory, irgen::IRGenModule *IRMod);
 
-public:
   const SILOptions &getOptions() const;
 
   /// Searches for an analysis of type T in the list of registered
@@ -336,6 +337,10 @@ public:
     CurrentPassHasInvalidated = true;
     // Any change let all passes run again.
     CompletedPassesMap[F].reset();
+  }
+
+  void setDependingOnCalleeBodies() {
+    currentPassDependsOnCalleeBodies = true;
   }
 
   /// Reset the state of the pass manager and remove all transformation

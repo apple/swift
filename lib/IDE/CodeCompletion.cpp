@@ -113,7 +113,7 @@ class CodeCompletionCallbacksImpl : public CodeCompletionCallbacks,
   SourceLoc DotLoc;
   TypeLoc ParsedTypeLoc;
   DeclContext *CurDeclContext = nullptr;
-  DeclAttrKind AttrKind;
+  CustomSyntaxAttributeKind AttrKind;
 
   /// When the code completion token occurs in a custom attribute, the attribute
   /// it occurs in. Used so we can complete inside the attribute even if it's
@@ -127,6 +127,7 @@ class CodeCompletionCallbacksImpl : public CodeCompletionCallbacks,
   CodeCompletionCallbacks::PrecedenceGroupCompletionKind SyntxKind;
 
   int AttrParamIndex;
+  bool AttrParamHasLabel;
   bool IsInSil = false;
   bool HasSpace = false;
   bool ShouldCompleteCallPatternAfterParen = true;
@@ -270,7 +271,8 @@ public:
   void completeCaseStmtKeyword() override;
   void completeCaseStmtBeginning(CodeCompletionExpr *E) override;
   void completeDeclAttrBeginning(bool Sil, bool isIndependent) override;
-  void completeDeclAttrParam(DeclAttrKind DK, int Index) override;
+  void completeDeclAttrParam(CustomSyntaxAttributeKind DK, int Index,
+                             bool HasLabel) override;
   void completeEffectsSpecifier(bool hasAsync, bool hasThrows) override;
   void completeInPrecedenceGroup(
       CodeCompletionCallbacks::PrecedenceGroupCompletionKind SK) override;
@@ -303,6 +305,7 @@ public:
   void completeForEachPatternBeginning(bool hasTry, bool hasAwait) override;
   void completeTypeAttrBeginning() override;
   void completeOptionalBinding() override;
+  void completeWithoutConstraintType() override;
 
   void doneParsing(SourceFile *SrcFile) override;
 
@@ -456,11 +459,12 @@ void CodeCompletionCallbacksImpl::completeTypeSimpleBeginning() {
   CurDeclContext = P.CurDeclContext;
 }
 
-void CodeCompletionCallbacksImpl::completeDeclAttrParam(DeclAttrKind DK,
-                                                        int Index) {
+void CodeCompletionCallbacksImpl::completeDeclAttrParam(
+    CustomSyntaxAttributeKind DK, int Index, bool HasLabel) {
   Kind = CompletionKind::AttributeDeclParen;
   AttrKind = DK;
   AttrParamIndex = Index;
+  AttrParamHasLabel = HasLabel;
   CurDeclContext = P.CurDeclContext;
 }
 
@@ -659,6 +663,11 @@ void CodeCompletionCallbacksImpl::completeForEachPatternBeginning(
 void CodeCompletionCallbacksImpl::completeOptionalBinding() {
   CurDeclContext = P.CurDeclContext;
   Kind = CompletionKind::OptionalBinding;
+}
+
+void CodeCompletionCallbacksImpl::completeWithoutConstraintType() {
+  CurDeclContext = P.CurDeclContext;
+  Kind = CompletionKind::WithoutConstraintType;
 }
 
 void CodeCompletionCallbacksImpl::completeTypeAttrBeginning() {
@@ -972,6 +981,7 @@ void CodeCompletionCallbacksImpl::addKeywords(CodeCompletionResultSink &Sink,
   case CompletionKind::StmtLabel:
   case CompletionKind::TypeAttrBeginning:
   case CompletionKind::OptionalBinding:
+  case CompletionKind::WithoutConstraintType:
     break;
 
   case CompletionKind::EffectsSpecifier:
@@ -1416,14 +1426,25 @@ bool CodeCompletionCallbacksImpl::trySolverCompletion(bool MaybeFuncBody) {
     llvm::SaveAndRestore<TypeCheckCompletionCallback*>
       CompletionCollector(Context.CompletionCallback, &Lookup);
     if (AttrWithCompletion) {
-      /// The attribute might not be attached to the AST if there is no var decl
-      /// it could be attached to. Type check it standalone.
-      ASTNode Call = CallExpr::create(
-          CurDeclContext->getASTContext(), AttrWithCompletion->getTypeExpr(),
-          AttrWithCompletion->getArgs(), /*implicit=*/true);
-      typeCheckContextAt(
-          TypeCheckASTNodeAtLocContext::node(CurDeclContext, Call),
-          CompletionLoc);
+      /// The attribute might not be attached to the AST if there is no var
+      /// decl it could be attached to. Type check it standalone.
+
+      // First try to check it as an attached macro.
+      auto resolvedMacro = evaluateOrDefault(
+          CurDeclContext->getASTContext().evaluator,
+          ResolveMacroRequest{AttrWithCompletion, CurDeclContext},
+          ConcreteDeclRef());
+
+      // If that fails, type check as a call to the attribute's type. This is
+      // how, e.g., property wrappers are modelled.
+      if (!resolvedMacro) {
+        ASTNode Call = CallExpr::create(
+            CurDeclContext->getASTContext(), AttrWithCompletion->getTypeExpr(),
+            AttrWithCompletion->getArgs(), /*implicit=*/true);
+        typeCheckContextAt(
+            TypeCheckASTNodeAtLocContext::node(CurDeclContext, Call),
+            CompletionLoc);
+      }
     } else {
       typeCheckContextAt(
           TypeCheckASTNodeAtLocContext::declContext(CurDeclContext),
@@ -1844,7 +1865,8 @@ void CodeCompletionCallbacksImpl::doneParsing(SourceFile *SrcFile) {
     break;
   }
   case CompletionKind::AttributeDeclParen: {
-    Lookup.getAttributeDeclParamCompletions(AttrKind, AttrParamIndex);
+    Lookup.getAttributeDeclParamCompletions(AttrKind, AttrParamIndex,
+                                            AttrParamHasLabel);
     break;
   }
   case CompletionKind::PoundAvailablePlatform: {
@@ -2039,6 +2061,11 @@ void CodeCompletionCallbacksImpl::doneParsing(SourceFile *SrcFile) {
   case CompletionKind::OptionalBinding: {
     SourceLoc Loc = P.Context.SourceMgr.getIDEInspectionTargetLoc();
     Lookup.getOptionalBindingCompletions(Loc);
+    break;
+  }
+
+  case CompletionKind::WithoutConstraintType: {
+    Lookup.getWithoutConstraintTypes();
     break;
   }
 

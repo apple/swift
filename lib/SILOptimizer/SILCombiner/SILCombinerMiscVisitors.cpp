@@ -996,7 +996,7 @@ SILInstruction *SILCombiner::visitLoadInst(LoadInst *LI) {
   if (SingleValueInstruction *initVal = getValueFromStaticLet(LI->getOperand())) {
     StaticInitCloner cloner(LI);
     if (cloner.add(initVal)) {
-      return cloner.clone(initVal);
+      return cloner.clone(initVal).getDefiningInstruction();
     }
   }
 

@@ -21,6 +21,7 @@ sil @partial_apply_test : $@convention(thin) (@in Error) -> () {
 entry(%0 : $*Error):
   %take = function_ref @take_any_error : $@convention(thin) <T: Error> (@in T) -> ()
   %fn = partial_apply %take<Error>(%0) : $@convention(thin) <T: Error> (@in T) -> ()
+  release_value %fn : $@callee_owned () ->()
   %ret = tuple ()
   return %ret : $()
 }

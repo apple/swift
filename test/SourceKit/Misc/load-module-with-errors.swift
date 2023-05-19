@@ -50,7 +50,7 @@ func testInvalidTopLevelCompletion() {
   // INVALID-TOP-DAG: Decl[GlobalVar]/OtherModule[errors]: invalidGlobalMissingInit[#String#];
   // INVALID-TOP-DAG: Decl[Struct]/OtherModule[errors]:   InvalidGenericStruct[#InvalidGenericStruct#];
   // INVALID-TOP-DAG: Decl[Struct]/OtherModule[errors]:   InvalidStruct[#InvalidStruct#];
-  // INVALID-TOP-DAG: Decl[FreeFunction]/OtherModule[errors]: typeUsesFunc({#pe: InvalidEnum#}, {#pa: <<error type>>#}, {#pp: InvalidProtocol#}, {#ps: InvalidStruct#}, {#pg: <<error type>>#}, {#pc: InvalidClass#})[#Int#];
+  // INVALID-TOP-DAG: Decl[FreeFunction]/OtherModule[errors]: typeUsesFunc({#pe: InvalidEnum#}, {#pa: <<error type>>#}, {#pp: any InvalidProtocol#}, {#ps: InvalidStruct#}, {#pg: <<error type>>#}, {#pc: InvalidClass#})[#Int#];
   // INVALID-TOP-DAG: Decl[GlobalVar]/OtherModule[errors]: invalidGlobalKeypath[#InvalidStruct.Type#];
   // INVALID-TOP-DAG: Decl[TypeAlias]/OtherModule[errors]: InvalidAlias[#InvalidAlias#];
   // INVALID-TOP-DAG: Decl[FreeFunction]/OtherModule[errors]: invalidGenericFuncType({#param: T#})[#<<error type>>#];

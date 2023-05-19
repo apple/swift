@@ -550,7 +550,7 @@ SILValue RValue::forwardAsSingleStorageValue(SILGenFunction &SGF,
 void RValue::forwardInto(SILGenFunction &SGF, SILLocation loc, 
                          Initialization *I) && {
   assert(isComplete() && "rvalue is not complete");
-  assert(isPlusOne(SGF) && "Can not forward borrowed RValues");
+  assert(isPlusOneOrTrivial(SGF) && "Can not forward borrowed RValues");
   ArrayRef<ManagedValue> elts = values;
   copyOrInitValuesInto<ImplodeKind::Forward>(I, elts, type, loc, SGF);
 }
@@ -588,7 +588,7 @@ static void assignRecursive(SILGenFunction &SGF, SILLocation loc,
 void RValue::assignInto(SILGenFunction &SGF, SILLocation loc,
                         SILValue destAddr) && {
   assert(isComplete() && "rvalue is not complete");
-  assert(isPlusOne(SGF) && "Can not assign borrowed RValues");
+  assert(isPlusOneOrTrivial(SGF) && "Can not assign borrowed RValues");
   ArrayRef<ManagedValue> srcValues = values;
   assignRecursive(SGF, loc, type, srcValues, destAddr);
   assert(srcValues.empty() && "didn't claim all elements!");
@@ -734,7 +734,7 @@ RValue RValue::copy(SILGenFunction &SGF, SILLocation loc) const & {
 }
 
 RValue RValue::ensurePlusOne(SILGenFunction &SGF, SILLocation loc) && {
-  if (!isPlusOne(SGF))
+  if (!isPlusOneOrTrivial(SGF))
     return copy(SGF, loc);
   return std::move(*this);
 }
@@ -751,7 +751,8 @@ RValue RValue::borrow(SILGenFunction &SGF, SILLocation loc) const & {
 }
 
 ManagedValue RValue::materialize(SILGenFunction &SGF, SILLocation loc) && {
-  assert(isPlusOne(SGF) && "Can not materialize a non-plus one RValue");
+  assert(isPlusOneOrTrivial(SGF) &&
+         "Can not materialize a non-plus one RValue");
   auto &paramTL = SGF.getTypeLowering(getType());
 
   // If we're already materialized, we're done.
@@ -821,6 +822,13 @@ void RValue::verify(SILGenFunction &SGF) const & {
 bool RValue::isPlusOne(SILGenFunction &SGF) const & {
   return llvm::all_of(
       values, [&SGF](ManagedValue mv) -> bool { return mv.isPlusOne(SGF); });
+}
+
+bool RValue::isPlusOneOrTrivial(SILGenFunction &SGF) const & {
+  return llvm::all_of(
+      values, [&SGF](ManagedValue mv) -> bool {
+        return mv.isPlusOneOrTrivial(SGF);
+      });
 }
 
 bool RValue::isPlusZero(SILGenFunction &SGF) const & {

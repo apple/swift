@@ -1,5 +1,6 @@
-// RUN: %target-swift-frontend -O -emit-sil -primary-file %s | %FileCheck %s
 // RUN: %target-swift-frontend -parse-as-library -O -emit-sil -primary-file %s | %FileCheck -check-prefix=CHECK -check-prefix=CHECK-LIB %s
+
+// REQUIRES: swift_in_compiler
 
 // Check that values of static let and global let variables are propagated into their uses
 // and enable further optimizations like constant propagation, simplifications, etc.

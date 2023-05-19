@@ -2937,13 +2937,14 @@ namespace {
 
         auto macro = cast<MacroDecl>(overload.choice.getDecl());
         ConcreteDeclRef macroRef = resolveConcreteDeclRef(macro, locator);
-        if (auto newExpr = expandMacroExpr(dc, expr, macroRef, expandedType)) {
-          auto expansion = new (ctx) MacroExpansionExpr(
-              dc, expr->getStartLoc(), DeclNameRef(macro->getName()),
-              DeclNameLoc(expr->getLoc()), SourceLoc(), { }, SourceLoc(),
-              nullptr, MacroRole::Expression, /*isImplicit=*/true, expandedType);
-          expansion->setMacroRef(macroRef);
-          expansion->setRewritten(newExpr);
+        auto expansion = new (ctx) MacroExpansionExpr(
+            dc, expr->getStartLoc(), DeclNameRef(macro->getName()),
+            DeclNameLoc(expr->getLoc()), SourceLoc(), {}, SourceLoc(), nullptr,
+            MacroRole::Expression, /*isImplicit=*/true, expandedType);
+        expansion->setMacroRef(macroRef);
+        (void)evaluateOrDefault(
+            ctx.evaluator, ExpandMacroExpansionExprRequest{expansion}, None);
+        if (expansion->getRewritten()) {
           cs.cacheExprTypes(expansion);
           return expansion;
         }
@@ -5386,23 +5387,19 @@ namespace {
       auto macro = cast<MacroDecl>(overload.choice.getDecl());
       ConcreteDeclRef macroRef = resolveConcreteDeclRef(macro, locator);
       E->setMacroRef(macroRef);
+      E->setType(expandedType);
 
-      if (!cs.Options.contains(ConstraintSystemFlags::DisableMacroExpansions)) {
-        if (macro->getMacroRoles().contains(MacroRole::Expression)) {
-          if (auto newExpr = expandMacroExpr(dc, E, macroRef, expandedType)) {
-            E->setRewritten(newExpr);
-          }
-        }
-        // For a non-expression macro, expand it as a declaration.
-        else if (macro->getMacroRoles().contains(MacroRole::Declaration) ||
-                 macro->getMacroRoles().contains(MacroRole::CodeItem)) {
-          if (!E->getSubstituteDecl()) {
-            auto *med = E->createSubstituteDecl();
-            TypeChecker::typeCheckDecl(med);
-          }
-        }
-        // Other macro roles may also be encountered here, as they use
-        // `MacroExpansionExpr` for resolution. In those cases, do not expand.
+      // FIXME: Expansion should be lazy.
+      // i.e. 'ExpandMacroExpansionExprRequest' should be sinked into
+      // 'getRewritten()', and performed on-demand.
+      if (!cs.Options.contains(ConstraintSystemFlags::DisableMacroExpansions) &&
+          // Do not expand macros inside macro arguments. For example for
+          // '#stringify(#assert(foo))' when typechecking `#assert(foo)`,
+          // we don't want to expand it.
+          llvm::none_of(makeArrayRef(ExprStack).drop_back(1),
+                       [](Expr *E) { return isa<MacroExpansionExpr>(E); })) {
+        (void)evaluateOrDefault(cs.getASTContext().evaluator,
+                                ExpandMacroExpansionExprRequest{E}, None);
       }
 
       cs.cacheExprTypes(E);
@@ -8478,8 +8475,8 @@ namespace {
       exprType = solution.simplifyType(exprType);
       // assert((!expr->getType() || expr->getType()->isEqual(exprType)) &&
       //       "Mismatched types!");
-      assert(!exprType->hasTypeVariable() &&
-             "Should not write type variable into expression!");
+      assert(!exprType->getRecursiveProperties().isSolverAllocated() &&
+             "Should not write solver allocated type into expression!");
       assert(!exprType->hasPlaceholder() &&
              "Should not write type placeholders into expression!");
       expr->setType(exprType);
@@ -8489,8 +8486,10 @@ namespace {
           Type componentType;
           if (cs.hasType(kp, i)) {
             componentType = solution.simplifyType(cs.getType(kp, i));
-            assert(!componentType->hasTypeVariable() &&
-                   "Should not write type variable into key-path component");
+            assert(
+                !componentType->getRecursiveProperties().isSolverAllocated() &&
+                "Should not write solver allocated type into key-path "
+                "component!");
             assert(!componentType->hasPlaceholder() &&
                    "Should not write type placeholder into key-path component");
             kp->getMutableComponents()[i].setComponentType(componentType);
@@ -9222,7 +9221,7 @@ ExprWalker::rewriteTarget(SyntacticElementTarget target) {
     case CTP_YieldByValue:
     case CTP_YieldByReference:
     case CTP_ThrowStmt:
-    case CTP_ForgetStmt:
+    case CTP_DiscardStmt:
     case CTP_EnumCaseRawValue:
     case CTP_DefaultParameter:
     case CTP_AutoclosureDefaultParameter:

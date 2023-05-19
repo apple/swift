@@ -470,14 +470,17 @@ extension AddressDefUseWalker {
       } else {
         return unmatchedPath(address: operand, path: path)
       }
-    case is InitExistentialAddrInst, is OpenExistentialAddrInst, is BeginAccessInst,
-         is IndexAddrInst, is MarkMustCheckInst:
+    case is InitExistentialAddrInst, is OpenExistentialAddrInst,
+      is IndexAddrInst, is MarkMustCheckInst:
       // FIXME: for now `index_addr` is treated as a forwarding instruction since
       // SmallProjectionPath does not track indices.
       // This is ok since `index_addr` is eventually preceeded by a `tail_addr`
       // which has pushed a `"ct"` component on the path that matches any
       // `index_addr` address.
       return walkDownUses(ofAddress: instruction as! SingleValueInstruction, path: path)
+    case let ba as BeginAccessInst:
+      // Don't treat `end_access` as leaf-use. Just ignore it.
+      return walkDownNonEndAccessUses(of: ba, path: path)
     case let mdi as MarkDependenceInst:
       if operand.index == 0 {
         return walkDownUses(ofAddress: mdi, path: path)
@@ -492,6 +495,16 @@ extension AddressDefUseWalker {
   mutating func walkDownUses(ofAddress: Value, path: Path) -> WalkResult {
     for operand in ofAddress.uses where !operand.isTypeDependent {
       if walkDown(address: operand, path: path) == .abortWalk {
+        return .abortWalk
+      }
+    }
+    return .continueWalk
+  }
+
+  private mutating func walkDownNonEndAccessUses(of beginAccess: BeginAccessInst, path: Path) -> WalkResult {
+    for operand in beginAccess.uses where !operand.isTypeDependent {
+      if !(operand.instruction is EndAccessInst),
+         walkDown(address: operand, path: path) == .abortWalk {
         return .abortWalk
       }
     }

@@ -59,7 +59,9 @@ final class Dog: Observable {
   var isHappy: Bool = true
   // CHECK-DUMP: get {
   // CHECK-DUMP:   _registrar.beginAccess(\.isHappy)
-  // CHECK-DUMP:   defer { _registrar.endAccess() }
+  // CHECK-DUMP:   defer {
+  // CHECK-DUMP:     _registrar.endAccess()
+  // CHECK-DUMP:   }
   // CHECK-DUMP:   return _storage.isHappy
   // CHECK-DUMP: }
   // CHECK-DUMP: set {

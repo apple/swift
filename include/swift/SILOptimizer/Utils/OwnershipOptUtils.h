@@ -115,13 +115,6 @@ public:
     : deleter(deleter), deBlocks(deBlocks),
       guaranteedLiveness(function), ownedLifetime(function) {}
 
-  void invalidate() {
-    guaranteedLiveness.invalidate();
-    ownedLifetime.invalidate();
-    ownedConsumeBlocks.clear();
-    beginBorrow = nullptr;
-  }
-
   /// Invalid indicates that the current guaranteed scope is insufficient, and
   /// it does not meet the precondition for scope extension.
   ///
@@ -353,58 +346,6 @@ private:
   void invalidate() {
     ctx->clear();
     ctx = nullptr;
-  }
-};
-
-/// An abstraction over LoadInst/LoadBorrowInst so one can handle both types of
-/// load using common code.
-struct LoadOperation {
-  llvm::PointerUnion<LoadInst *, LoadBorrowInst *> value;
-
-  LoadOperation() : value() {}
-  LoadOperation(SILInstruction *input) : value(nullptr) {
-    if (auto *li = dyn_cast<LoadInst>(input)) {
-      value = li;
-      return;
-    }
-
-    if (auto *lbi = dyn_cast<LoadBorrowInst>(input)) {
-      value = lbi;
-      return;
-    }
-  }
-
-  explicit operator bool() const { return !value.isNull(); }
-
-  SingleValueInstruction *getLoadInst() const {
-    if (value.is<LoadInst *>())
-      return value.get<LoadInst *>();
-    return value.get<LoadBorrowInst *>();
-  }
-
-  SingleValueInstruction *operator*() const { return getLoadInst(); }
-
-  const SingleValueInstruction *operator->() const { return getLoadInst(); }
-
-  SingleValueInstruction *operator->() { return getLoadInst(); }
-
-  SILValue getOperand() const {
-    if (value.is<LoadInst *>())
-      return value.get<LoadInst *>()->getOperand();
-    return value.get<LoadBorrowInst *>()->getOperand();
-  }
-
-  /// Return the ownership qualifier of the underlying load if we have a load or
-  /// None if we have a load_borrow.
-  ///
-  /// TODO: Rather than use an optional here, we should include an invalid
-  /// representation in LoadOwnershipQualifier.
-  Optional<LoadOwnershipQualifier> getOwnershipQualifier() const {
-    if (auto *lbi = value.dyn_cast<LoadBorrowInst *>()) {
-      return None;
-    }
-
-    return value.get<LoadInst *>()->getOwnershipQualifier();
   }
 };
 

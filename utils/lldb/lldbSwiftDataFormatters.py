@@ -14,7 +14,7 @@ def __lldb_init_module(debugger, internal_dict):
     tName = 'lldbSwiftDataFormatters.SmallBitVectorSummaryProvider'
     debugger.HandleCommand('type summary add -w llvm '
                            '-F %s -x "^llvm::SmallBitVector$"' % tName)
-    debugger.HandleCommand('type summary add --skip-references -w swift '
+    debugger.HandleCommand('type summary add --expand --skip-references -w swift '
                            '-F lldbSwiftDataFormatters.DemangleNodeSummaryProvider '
                            '-x "^swift::Demangle::Node$"')
     debugger.HandleCommand('type synthetic add --skip-references -w swift '

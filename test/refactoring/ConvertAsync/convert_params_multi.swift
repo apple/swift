@@ -108,7 +108,7 @@ func testParamsMulti() async throws {
   }
   // MIXED-CONDELSE: var res1: String? = nil
   // MIXED-CONDELSE-NEXT: var res2: Int? = nil
-  // MIXED-CONDELSE-NEXT: var err: Error? = nil
+  // MIXED-CONDELSE-NEXT: var err: (any Error)? = nil
   // MIXED-CONDELSE-NEXT: do {
   // MIXED-CONDELSE-NEXT: (res1, res2) = try await manyWithError()
   // MIXED-CONDELSE-NEXT: } catch {

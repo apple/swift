@@ -13,7 +13,7 @@ extension G1 where T == S {}
 
 // CHECK: ExtensionDecl line={{.*}} base=G1
 // CHECK-NEXT: Generic signature: <T where T == C>
-extension G1 where T == C {}
+extension G1 where T == C {} // expected-warning {{redundant constraint 'T' : 'AnyObject'}}
 
 struct G2<U> {}
 

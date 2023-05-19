@@ -69,6 +69,8 @@
 /include/swift/PrintAsClang                        @zoecarver @hyp @egorzhdan
 # TODO: /include/swift/SIL/
 # TODO: /include/swift/SILOptimizer/
+/include/swift/SIL/*Coverage*                      @hamishknight
+/include/swift/SIL/SILProfiler.h                   @hamishknight
 /include/swift/SIL/SILDebug*                       @adrian-prantl
 /include/swift/SILOptimizer/Utils/Distributed*     @ktoso
 /include/swift/Sema/                               @hborla @slavapestov @xedin
@@ -94,6 +96,7 @@
 /lib/ClangImporter/DWARFImporter*                   @adrian-prantl
 /lib/DependencyScan                                 @artemcm
 /lib/Driver                                         @artemcm
+/lib/DriverTool/autolink_extract_main.cpp           @MaxDesiatov @etcwilde
 /lib/DriverTool/swift_symbolgraph_extract_main.cpp  @QuietMisdreavus
 /lib/Frontend/*ModuleInterface*                     @artemcm @tshortli
 # TODO: /lib/IRGen/
@@ -101,16 +104,20 @@
 /lib/IDETool/                                       @ahoppen @bnbarham @rintaro
 /lib/Index/                                         @bnbarham
 /lib/Refactoring/                                   @ahoppen @bnbarham
+/lib/IRGen/*Coverage*                               @hamishknight
 /lib/IRGen/*Debug*                                  @adrian-prantl
 /lib/IRGen/*Distributed*                            @ktoso
 /lib/Parse/                                         @ahoppen @bnbarham @CodaFi @DougGregor @rintaro
 /lib/PrintAsClang                                   @zoecarver @hyp @egorzhdan
 # TODO: /lib/SIL/
+/lib/SIL/IR/*Coverage*                              @hamishknight
+/lib/SIL/IR/SILProfiler.cpp                         @hamishknight
 /lib/SIL/IR/SILDebug*                               @adrian-prantl
 /lib/SIL/IR/SILLocation*                            @adrian-prantl
 # TODO: /lib/SILGen/
 /lib/SILGen/*Distributed*                           @ktoso
 # TODO: /lib/SILOptimizer/
+/lib/SILOptimizer/Mandatory/FlowIsolation.cpp       @kavon
 /lib/SILOptimizer/Utils/Distributed*                @ktoso
 /lib/Sema/                                          @hborla @slavapestov @xedin
 /lib/Sema/*Availability*                            @tshortli
@@ -143,6 +150,7 @@
 /test/DebugInfo/                                    @adrian-prantl
 /test/Distributed/                                  @ktoso
 /test/Driver/                                       @artemcm
+/test/Driver/static*                                @MaxDesiatov @etcwilde
 /test/Generics/                                     @hborla @slavapestov
 # TODO: /test/IRGen/
 /test/IDE/                                          @ahoppen @bnbarham @rintaro
@@ -151,6 +159,7 @@
 /test/SourceKit/                                    @ahoppen @bnbarham @rintaro
 /test/Interop/                                      @zoecarver @hyp @egorzhdan
 /test/Parse/                                        @ahoppen @bnbarham @CodaFi @DougGregor @rintaro
+/test/Profiler                                      @hamishknight
 # TODO: /test/SIL/
 # TODO: /test/SILGen/
 # TODO: /test/SILOptimizer/

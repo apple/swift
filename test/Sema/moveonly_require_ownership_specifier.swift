@@ -84,3 +84,12 @@ func takeInstantiated(_ x: NoncopyableWrapper<Int>) {}
 // expected-note@-2 {{add 'borrowing' for an immutable reference}}{{28-28=borrowing }}
 // expected-note@-3 {{add 'inout' for a mutable reference}}{{28-28=inout }}
 // expected-note@-4 {{add 'consuming' to take the value from the caller}}{{28-28=consuming }}
+
+struct O: ~Copyable {}
+
+public struct M: ~Copyable {
+  subscript(_ i: O) -> Int { // expected-error {{subscripts cannot have noncopyable parameters}}
+    get { fatalError() }
+    set { }
+  }
+}

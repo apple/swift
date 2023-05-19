@@ -6,11 +6,25 @@
 // RUN: %target-codesign %t/main
 // RUN: %target-run %t/main | %FileCheck %s
 
+
+// Debug info SIL testing
+// RUN: %target-swift-frontend -swift-version 5 -emit-sil -enable-experimental-feature FreestandingMacros -load-plugin-library %t/%target-library-name(MacroDefinition) %s -module-name MacroUser -o - -g | %FileCheck --check-prefix CHECK-SIL %s
+
+
 @freestanding(expression) public macro multiStatement() -> Int = #externalMacro(module: "MacroDefinition", type: "MultiStatementClosure")
 
 func multiStatementInference() -> Int {
   #multiStatement()
 }
+
+// The closure intruduced by the macro expansion should not contain any inline
+// locations, but instead point directly into the macro buffer.
+// CHECK-SIL: sil_scope [[S0:[0-9]+]] { loc "@__swiftmacro_9MacroUser23multiStatementInferenceSiyF0cD0fMf_.swift":1:1 parent @$s9MacroUser23multiStatementInferenceSiyFSiyXEfU_
+// CHECK-SIL: sil_scope [[S2:[0-9]+]] { loc "@__swiftmacro_9MacroUser23multiStatementInferenceSiyF0cD0fMf_.swift":2:14 parent [[S0]] }
+
+// CHECK-SIL: sil {{.*}} @$s9MacroUser23multiStatementInferenceSiyFSiyXEfU_
+// CHECK-SIL-NOT: return
+// CHECK-SIL: %0 = integer_literal $Builtin.Int{{64|32}}, 10, loc "@__swiftmacro_9MacroUser23multiStatementInferenceSiyF0cD0fMf_.swift":2:14, scope [[S2]]
 
 // CHECK: 10
 print(multiStatementInference())

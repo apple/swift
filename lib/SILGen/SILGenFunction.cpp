@@ -32,6 +32,7 @@
 #include "swift/AST/PropertyWrappers.h"
 #include "swift/AST/SourceFile.h"
 #include "swift/AST/Types.h"
+#include "swift/Basic/Defer.h"
 #include "swift/SIL/SILArgument.h"
 #include "swift/SIL/SILProfiler.h"
 #include "swift/SIL/SILUndef.h"
@@ -201,7 +202,17 @@ const SILDebugScope *SILGenFunction::getScopeOrNull(SILLocation Loc,
   SourceLoc SLoc = Loc.getSourceLoc();
   if (!SF || LastSourceLoc == SLoc)
     return nullptr;
-  return getOrCreateScope(SLoc);
+  // Prime VarDeclScopeMap.
+  auto Scope = getOrCreateScope(SLoc);
+  if (ForMetaInstruction)
+    if (ValueDecl *ValDecl = Loc.getAsASTNode<ValueDecl>()) {
+      // The source location of a VarDecl isn't necessarily in the same scope
+      // that the variable resides in for name lookup purposes.
+      auto ValueScope = VarDeclScopeMap.find(ValDecl);
+      if (ValueScope != VarDeclScopeMap.end())
+        return getOrCreateScope(ValueScope->second, F.getDebugScope());
+    }
+  return Scope;
 }
 
 const SILDebugScope *SILGenFunction::getOrCreateScope(SourceLoc SLoc) {
@@ -232,8 +243,16 @@ struct MacroInfo {
 };
 }
 
+static DeclContext *getInnermostFunctionContext(DeclContext *DC) {
+  for (; DC; DC = DC->getParent())
+    if (DC->getContextKind() == DeclContextKind::AbstractFunctionDecl)
+      return DC;
+  return nullptr;
+}
+
 /// Return location of the macro expansion and the macro name.
-static MacroInfo getMacroInfo(GeneratedSourceInfo &Info) {
+static MacroInfo getMacroInfo(GeneratedSourceInfo &Info,
+                              DeclContext *FunctionDC) {
   MacroInfo Result(Info.generatedSourceRange.getStart(),
                    Info.originalSourceRange.getStart());
   if (!Info.astNode)
@@ -252,6 +271,13 @@ static MacroInfo getMacroInfo(GeneratedSourceInfo &Info) {
       Result.ExpansionLoc = RegularLocation(decl);
       Result.Name = mangler.mangleMacroExpansion(decl);
     }
+    // If the parent function of the macro expansion expression is not the
+    // current function, then the macro expanded to a closure or nested
+    // function. As far as the generated SIL is concerned this is the same as a
+    // function generated from a freestanding macro expansion.
+    DeclContext *MacroContext = getInnermostFunctionContext(Info.declContext);
+    if (MacroContext != FunctionDC)
+      Result.Freestanding = true;
     break;
   }
   case GeneratedSourceInfo::FreestandingDeclMacroExpansion: {
@@ -295,7 +321,7 @@ const SILDebugScope *SILGenFunction::getMacroScope(SourceLoc SLoc) {
   // declaration that isn't part of a real function. By not handling them here,
   // source locations will still point into the macro expansion buffer, but
   // debug info doesn't know what macro that buffer was expanded from.
-  auto Macro = getMacroInfo(*GeneratedSourceInfo);
+  auto Macro = getMacroInfo(*GeneratedSourceInfo, FunctionDC);
   if (Macro.Freestanding)
     return nullptr;
   
@@ -363,34 +389,54 @@ SILGenFunction::getOrCreateScope(const ast_scope::ASTScopeImpl *ASTScope,
   if (It != ScopeMap.end())
     return It->second;
 
-  LLVM_DEBUG( ASTScope->print(llvm::errs(), 0, false, false) );
+  LLVM_DEBUG(ASTScope->print(llvm::errs(), 0, false, false));
 
-  SILDebugScope *SILScope = nullptr;
+  auto cache = [&](const SILDebugScope *SILScope) {
+    ScopeMap.insert({{ASTScope, InlinedAt}, SILScope});
+    assert(SILScope->getParentFunction() == &F &&
+           "inlinedAt points to other function");
+    return SILScope;
+  };
 
   // Decide whether to pick a parent scope instead.
   if (ASTScope->ignoreInDebugInfo()) {
     LLVM_DEBUG(llvm::dbgs() << "ignored\n");
-    // FIXME: it would be more deterministic to use
-    //        getOrCreateScope(ASTScope->getParent().getPtrOrNull());
-    //        here. Unfortunately property wrappers rearrange AST
-    //        nodes without marking them as implicit, e.g.:
-    //
-    //           @Wrapper(a) var v = b
-    //        ->
-    //           let _tmp = Constructor(a, b); var v = _tmp
-    //
-    //        Since the arguments to Constructor aren't marked as implicit,
-    //        argument b is in the scope of v, but the call to Constructor
-    //        isn't, which correctly triggers the scope hole verifier.
-    auto *CurScope = B.getCurrentDebugScope();
-    return CurScope->InlinedCallSite != InlinedAt ? FnScope : CurScope;
+    auto *ParentScope = getOrCreateScope(ASTScope->getParent().getPtrOrNull(),
+                                         FnScope, InlinedAt);
+    return ParentScope->InlinedCallSite != InlinedAt ? FnScope : ParentScope;
   }
+
+  // Collect all variable declarations in this scope.
+  struct Consumer : public namelookup::AbstractASTScopeDeclConsumer {
+    const ast_scope::ASTScopeImpl *ASTScope;
+    VarDeclScopeMapTy &VarDeclScopeMap;
+    Consumer(const ast_scope::ASTScopeImpl *ASTScope,
+             VarDeclScopeMapTy &VarDeclScopeMap)
+        : ASTScope(ASTScope), VarDeclScopeMap(VarDeclScopeMap) {}
+
+    bool consume(ArrayRef<ValueDecl *> values,
+                 NullablePtr<DeclContext> baseDC) override {
+      for (auto &value : values) {
+        assert(VarDeclScopeMap.count(value) == 0 && "VarDecl appears twice");
+        VarDeclScopeMap.insert({value, ASTScope});
+      }
+      return false;
+    }
+    bool lookInMembers(const DeclContext *) const override { return false; }
+#ifndef NDEBUG
+    void startingNextLookupStep() override {}
+    void finishingLookup(std::string) const override {}
+    bool isTargetLookup() const override { return false; }
+#endif
+  };
+  Consumer consumer(ASTScope, VarDeclScopeMap);
+  ASTScope->lookupLocalsOrMembers(consumer);
 
   // Collapse BraceStmtScopes whose parent is a .*BodyScope.
   if (auto Parent = ASTScope->getParent().getPtrOrNull())
     if (Parent->getSourceRangeOfThisASTNode() ==
         ASTScope->getSourceRangeOfThisASTNode())
-      return getOrCreateScope(Parent, FnScope, InlinedAt);
+      return cache(getOrCreateScope(Parent, FnScope, InlinedAt));
 
   // The calls to defer closures have cleanup source locations pointing to the
   // defer. Reparent them into the current debug scope.
@@ -398,32 +444,30 @@ SILGenFunction::getOrCreateScope(const ast_scope::ASTScopeImpl *ASTScope,
   while (AncestorScope && AncestorScope != FnASTScope &&
          !ScopeMap.count({AncestorScope, InlinedAt})) {
     if (auto *FD = dyn_cast_or_null<FuncDecl>(
-          AncestorScope->getDeclIfAny().getPtrOrNull())) {
+            AncestorScope->getDeclIfAny().getPtrOrNull())) {
       if (cast<DeclContext>(FD) != FunctionDC)
-        return B.getCurrentDebugScope();
+        return cache(B.getCurrentDebugScope());
 
       // This is this function's own scope.
       // If this is the outermost BraceStmt scope, ignore it.
       if (AncestorScope == ASTScope->getParent().getPtrOrNull())
-        return FnScope;
+        return cache(FnScope);
       break;
     }
 
     AncestorScope = AncestorScope->getParent().getPtrOrNull();
   };
 
+  // Create the scope and recursively its parents.  getLookupParent implements a
+  // special case for GuardBlockStmt, which is nested incorrectly.
+  auto *ParentScope = ASTScope->getLookupParent().getPtrOrNull();
   const SILDebugScope *Parent =
-    getOrCreateScope(ASTScope->getParent().getPtrOrNull(), FnScope, InlinedAt);
+      getOrCreateScope(ParentScope, FnScope, InlinedAt);
   SourceLoc SLoc = ASTScope->getSourceRangeOfThisASTNode().Start;
   RegularLocation Loc(SLoc);
-  SILScope = new (SGM.M)
+  auto *SILScope = new (SGM.M)
       SILDebugScope(Loc, FnScope->getParentFunction(), Parent, InlinedAt);
-  ScopeMap.insert({{ASTScope, InlinedAt}, SILScope});
-
-  assert(SILScope->getParentFunction() == &F &&
-         "inlinedAt points to other function");
-
-  return SILScope;
+  return cache(SILScope);
 }
 
 void SILGenFunction::enterDebugScope(SILLocation Loc, bool isBindingScope) {
@@ -516,10 +560,24 @@ void SILGenFunction::emitCaptures(SILLocation loc,
     }
 
     auto *vd = cast<VarDecl>(capture.getDecl());
-    auto type = FunctionDC->mapTypeIntoContext(
-      vd->getInterfaceType());
+
+    auto interfaceType = vd->getInterfaceType();
+
+    bool isPack = false;
+    if (interfaceType->is<PackExpansionType>()) {
+      assert(!vd->supportsMutation() &&
+             "Cannot capture a pack as an lvalue");
+
+      SmallVector<TupleTypeElt, 1> elts;
+      elts.push_back(interfaceType);
+      interfaceType = TupleType::get(elts, getASTContext());
+
+      isPack = true;
+    }
+
+    auto type = FunctionDC->mapTypeIntoContext(interfaceType);
     auto valueType = FunctionDC->mapTypeIntoContext(
-      vd->getValueInterfaceType());
+      interfaceType->getReferenceStorageReferent());
 
     //
     // If we haven't emitted the captured value yet, we're forming a closure
@@ -582,8 +640,7 @@ void SILGenFunction::emitCaptures(SILLocation loc,
 
     // Get an address value for a SILValue if it is address only in an type
     // expansion context without opaque archetype substitution.
-    auto getAddressValue = [&](VarLoc entryVarLoc) -> SILValue {
-      SILValue entryValue = entryVarLoc.value;
+    auto getAddressValue = [&](SILValue entryValue, bool forceCopy) -> SILValue {
       if (SGM.M.useLoweredAddresses()
           && SGM.Types
                  .getTypeLowering(
@@ -593,32 +650,62 @@ void SILGenFunction::emitCaptures(SILLocation loc,
                  .isAddressOnly()
           && !entryValue->getType().isAddress()) {
 
+        assert(!isPack);
+
         auto addr = emitTemporaryAllocation(vd, entryValue->getType(), false,
                                             false, /*generateDebugInfo*/ false);
         auto val = B.emitCopyValueOperation(loc, entryValue);
         auto &lowering = getTypeLowering(entryValue->getType());
         lowering.emitStore(B, loc, val, addr, StoreOwnershipQualifier::Init);
-        entryValue = addr;
-        enterDestroyCleanup(addr);
+
+        if (!forceCopy)
+          enterDestroyCleanup(addr);
+        return addr;
+
+      } else if (isPack) {
+        SILType ty = getLoweredType(valueType).getObjectType();
+        auto addr = B.createAllocStack(loc, ty);
+        enterDeallocStackCleanup(addr);
+
+        auto formalPackType = cast<TupleType>(valueType->getCanonicalType())
+            .getInducedPackType();
+        copyPackElementsToTuple(loc, addr, entryValue, formalPackType);
+
+        if (!forceCopy)
+          enterDestroyCleanup(addr);
+        return addr;
+
+      } else if (forceCopy) {
+        // We cannot pass a valid SILDebugVariable while creating the temp here
+        // See rdar://60425582
+        auto addr = B.createAllocStack(loc, entryValue->getType().getObjectType());
+        enterDeallocStackCleanup(addr);
+        B.createCopyAddr(loc, entryValue, addr, IsNotTake, IsInitialization);
+        return addr;
+
+      } else {
+        return entryValue;
       }
-      return entryValue;
     };
 
     auto Entry = found->second;
+    auto val = Entry.value;
+
     switch (SGM.Types.getDeclCaptureKind(capture, expansion)) {
     case CaptureKind::Constant: {
+      assert(!isPack);
+
       // let declarations.
       auto &tl = getTypeLowering(valueType);
-      SILValue Val = Entry.value;
       bool eliminateMoveOnlyWrapper =
-          Val->getType().isMoveOnlyWrapped() &&
-          !vd->getInterfaceType()->is<SILMoveOnlyWrappedType>();
+          val->getType().isMoveOnlyWrapped() &&
+          !interfaceType->is<SILMoveOnlyWrappedType>();
 
-      if (!Val->getType().isAddress()) {
+      if (!val->getType().isAddress()) {
         // Our 'let' binding can guarantee the lifetime for the callee,
         // if we don't need to do anything more to it.
         if (canGuarantee && !vd->getInterfaceType()->is<ReferenceStorageType>()) {
-          auto guaranteed = ManagedValue::forUnmanaged(Val).borrow(*this, loc);
+          auto guaranteed = ManagedValue::forUnmanaged(val).borrow(*this, loc);
           if (eliminateMoveOnlyWrapper)
             guaranteed = B.createGuaranteedMoveOnlyWrapperToCopyableValue(
                 loc, guaranteed);
@@ -627,64 +714,63 @@ void SILGenFunction::emitCaptures(SILLocation loc,
         }
 
         // Just copy a by-val let.
-        Val = B.emitCopyValueOperation(loc, Val);
+        val = B.emitCopyValueOperation(loc, val);
         // If we need to unwrap a moveonlywrapped value, do so now but in an
         // owned way to ensure that the partial apply is viewed as a semantic
         // use of the value.
         if (eliminateMoveOnlyWrapper)
-          Val = B.createOwnedMoveOnlyWrapperToCopyableValue(loc, Val);
+          val = B.createOwnedMoveOnlyWrapperToCopyableValue(loc, val);
       } else {
         // If we have a mutable binding for a 'let', such as 'self' in an
         // 'init' method, load it.
-        if (Val->getType().isMoveOnly()) {
-          Val = B.createMarkMustCheckInst(
-              loc, Val,
+        if (val->getType().isMoveOnly()) {
+          val = B.createMarkMustCheckInst(
+              loc, val,
               MarkMustCheckInst::CheckKind::AssignableButNotConsumable);
         }
-        Val = emitLoad(loc, Val, tl, SGFContext(), IsNotTake).forward(*this);
+        val = emitLoad(loc, val, tl, SGFContext(), IsNotTake).forward(*this);
       }
 
       // If we're capturing an unowned pointer by value, we will have just
       // loaded it into a normal retained class pointer, but we capture it as
       // an unowned pointer.  Convert back now.
-      if (vd->getInterfaceType()->is<ReferenceStorageType>())
-        Val = emitConversionFromSemanticValue(loc, Val, getLoweredType(type));
+      if (interfaceType->is<ReferenceStorageType>())
+        val = emitConversionFromSemanticValue(loc, val, getLoweredType(type));
 
-      capturedArgs.push_back(emitManagedRValueWithCleanup(Val));
+      capturedArgs.push_back(emitManagedRValueWithCleanup(val));
       break;
     }
     case CaptureKind::Immutable: {
       if (canGuarantee) {
         // No-escaping stored declarations are captured as the
         // address of the value.
-        auto entryValue = getAddressValue(Entry);
-        capturedArgs.push_back(ManagedValue::forBorrowedRValue(entryValue));
+        auto addr = getAddressValue(val, /*forceCopy=*/false);
+        capturedArgs.push_back(ManagedValue::forBorrowedRValue(addr));
       }
       else if (!silConv.useLoweredAddresses()) {
         capturedArgs.push_back(
-          B.createCopyValue(loc, ManagedValue::forUnmanaged(Entry.value)));
+          B.createCopyValue(loc, ManagedValue::forUnmanaged(val)));
       } else {
-        auto entryValue = getAddressValue(Entry);
-        // We cannot pass a valid SILDebugVariable while creating the temp here
-        // See rdar://60425582
-        auto addr = B.createAllocStack(loc, entryValue->getType().getObjectType());
-        enterDeallocStackCleanup(addr);
-        B.createCopyAddr(loc, entryValue, addr, IsNotTake, IsInitialization);
+        auto addr = getAddressValue(val, /*forceCopy=*/true);
         capturedArgs.push_back(ManagedValue::forLValue(addr));
       }
       break;
     }
     case CaptureKind::StorageAddress: {
-      auto entryValue = getAddressValue(Entry);
+      assert(!isPack);
+
+      auto addr = getAddressValue(val, /*forceCopy=*/false);
       // No-escaping stored declarations are captured as the
       // address of the value.
-      assert(entryValue->getType().isAddress() && "no address for captured var!");
-      capturedArgs.push_back(ManagedValue::forLValue(entryValue));
+      assert(addr->getType().isAddress() && "no address for captured var!");
+      capturedArgs.push_back(ManagedValue::forLValue(addr));
       break;
     }
 
     case CaptureKind::Box: {
-      auto entryValue = getAddressValue(Entry);
+      assert(!isPack);
+
+      auto entryValue = getAddressValue(val, /*forceCopy=*/false);
       // LValues are captured as both the box owning the value and the
       // address of the value.
       assert(entryValue->getType().isAddress() && "no address for captured var!");
@@ -733,7 +819,9 @@ void SILGenFunction::emitCaptures(SILLocation loc,
       break;
     }
     case CaptureKind::ImmutableBox: {
-      auto entryValue = getAddressValue(Entry);
+      assert(!isPack);
+
+      auto entryValue = getAddressValue(val, /*forceCopy=*/false);
       // LValues are captured as both the box owning the value and the
       // address of the value.
       assert(entryValue->getType().isAddress() &&
@@ -892,6 +980,9 @@ void SILGenFunction::emitFunction(FuncDecl *fd) {
   } else {
     prepareEpilog(fd->getResultInterfaceType(),
                   fd->hasThrows(), CleanupLocation(fd));
+
+    if (shouldLowerToUnavailableCodeStub(fd))
+      emitApplyOfUnavailableCodeReached();
 
     emitProfilerIncrement(fd->getTypecheckedBody());
 

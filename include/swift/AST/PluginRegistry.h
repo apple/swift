@@ -12,6 +12,7 @@
 #ifndef SWIFT_PLUGIN_REGISTRY_H
 #define SWIFT_PLUGIN_REGISTRY_H
 
+#include "swift/Basic/StringExtras.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
@@ -138,6 +139,10 @@ public:
   }
 
   llvm::sys::procid_t getPid() { return Process->pid; }
+
+  NullTerminatedStringRef getExecutablePath() {
+    return {ExecutablePath.c_str(), ExecutablePath.size()};
+  }
 
   const void *getCapability() { return capability; };
   void setCapability(const void *newValue) { capability = newValue; };

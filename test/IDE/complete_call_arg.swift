@@ -1118,8 +1118,8 @@ func testLValueBaseTyOfSubscript() {
   var cache: [String: Codable] = [:]
   if let cached = cache[#^LVALUEBASETY^#
 
-  // LVALUEBASETY-DAG: Decl[Subscript]/CurrNominal/Flair[ArgLabels]/IsSystem: ['[']{#(position): Dictionary<String, Codable>.Index#}[']'][#(key: String, value: Codable)#];
-  // LVALUEBASETY-DAG: Decl[Subscript]/CurrNominal/Flair[ArgLabels]/IsSystem: ['[']{#(key): String#}[']'][#@lvalue Codable?#];
+  // LVALUEBASETY-DAG: Decl[Subscript]/CurrNominal/Flair[ArgLabels]/IsSystem: ['[']{#(position): Dictionary<String, any Codable>.Index#}[']'][#(key: String, value: any Codable)#];
+  // LVALUEBASETY-DAG: Decl[Subscript]/CurrNominal/Flair[ArgLabels]/IsSystem: ['[']{#(key): String#}[']'][#@lvalue (any Codable)?#];
 }
 
 func testSkippedCallArgInInvalidResultBuilderBody() {
@@ -1302,4 +1302,11 @@ func testMacroArg() {
 // MACRO_CALL_ARG-DAG: Literal[Integer]/None/TypeRelation[Convertible]: 0[#Int#]; name=0
 // MACRO_CALL_ARG-DAG: Literal[Boolean]/None:              true[#Bool#]; name=true
 // MACRO_CALL_ARG: End completions
+}
+
+func testParameterPack(intArray: [Int]) {
+  func myZip<each S>(_ sequence: repeat each S, otherParam: Int) where repeat each S: Sequence {}
+  myZip([1], #^PARAMETER_PACK_ARG^#)
+  // PARAMETER_PACK_ARG: Pattern/Local/Flair[ArgLabels]:     {#otherParam: Int#}[#Int#]; name=otherParam:
+  // PARAMETER_PACK_ARG: Decl[LocalVar]/Local/TypeRelation[Convertible]: intArray[#[Int]#]; name=intArray
 }

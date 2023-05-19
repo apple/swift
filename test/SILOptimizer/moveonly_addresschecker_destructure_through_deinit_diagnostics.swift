@@ -1,4 +1,4 @@
-// RUN: %target-swift-emit-sil -sil-verify-all -verify -enable-experimental-feature MoveOnlyClasses -enable-experimental-feature MoveOnlyTuples %s
+// RUN: %target-swift-emit-sil -sil-verify-all -verify -enable-experimental-feature NoImplicitCopy -enable-experimental-feature MoveOnlyClasses -enable-experimental-feature MoveOnlyTuples %s
 
 // This test validates that we properly emit errors if we partially invalidate
 // through a type with a deinit.

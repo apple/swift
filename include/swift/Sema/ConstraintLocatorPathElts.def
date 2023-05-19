@@ -202,6 +202,9 @@ CUSTOM_LOCATOR_PATH_ELT(PackElement)
 /// The shape of a parameter pack.
 SIMPLE_LOCATOR_PATH_ELT(PackShape)
 
+/// The type of an "opened" pack expansion
+CUSTOM_LOCATOR_PATH_ELT(PackExpansionType)
+
 /// The pattern  of a pack expansion.
 SIMPLE_LOCATOR_PATH_ELT(PackExpansionPattern)
 

@@ -1,0 +1,94 @@
+// RUN: %target-sil-opt -enable-sil-verify-all %s -onone-simplification -simplify-instruction=load | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-ONONE
+
+// REQUIRES: swift_in_compiler
+
+import Swift
+import Builtin
+
+struct Str {
+  @_hasStorage let x: Int64
+  @_hasStorage let y: (Int64, Int64)
+}
+
+sil_global [let] @gstr : $Str = {
+  %0 = integer_literal $Builtin.Int64, 10
+  %1 = struct $Int64 (%0 : $Builtin.Int64)
+  %2 = integer_literal $Builtin.Int64, 27
+  %3 = struct $Int64 (%2 : $Builtin.Int64)
+  %4 = tuple (%1 : $Int64, %3 : $Int64)
+  %initval = struct $Str (%1 : $Int64, %4 : $(Int64, Int64))
+}
+
+sil [global_init] @gstr_addressor : $@convention(thin) () -> Builtin.RawPointer {
+bb0:
+  %0 = global_addr @gstr : $*Str
+  %1 = address_to_pointer %0 : $*Str to $Builtin.RawPointer
+  return %1 : $Builtin.RawPointer
+}
+
+// CHECK-LABEL: sil @load_global_simple
+// CHECK-DAG:     [[L27:%.*]] = integer_literal $Builtin.Int64, 27
+// CHECK-DAG:     [[I27:%.*]] = struct $Int64 ([[L27]] : $Builtin.Int64)
+// CHECK-DAG:     [[L10:%.*]] = integer_literal $Builtin.Int64, 10
+// CHECK-DAG:     [[I10:%.*]] = struct $Int64 ([[L10]] : $Builtin.Int64)
+// CHECK-DAG:     [[T:%.*]] = tuple ([[I10]] : $Int64, [[I27]] : $Int64)
+// CHECK:         [[STR:%.*]] = struct $Str ([[I10]] : $Int64, [[T]] : $(Int64, Int64))
+// CHECK:         return [[STR]]
+// CHECK:       } // end sil function 'load_global_simple'
+sil @load_global_simple : $@convention(thin) () -> Str {
+bb0:
+  %0 = global_addr @gstr : $*Str
+  %1 = begin_access [read] [static] %0 : $*Str
+  %2 = load %1 : $*Str
+  end_access %1 : $*Str
+  return %2 : $Str
+}
+
+// CHECK-LABEL: sil @load_global_via_addressor
+// CHECK-NOT:     apply
+// CHECK-DAG:     [[L27:%.*]] = integer_literal $Builtin.Int64, 27
+// CHECK-DAG:     [[I27:%.*]] = struct $Int64 ([[L27]] : $Builtin.Int64)
+// CHECK-DAG:     [[L10:%.*]] = integer_literal $Builtin.Int64, 10
+// CHECK-DAG:     [[I10:%.*]] = struct $Int64 ([[L10]] : $Builtin.Int64)
+// CHECK-DAG:     [[T:%.*]] = tuple ([[I10]] : $Int64, [[I27]] : $Int64)
+// CHECK:         [[STR:%.*]] = struct $Str ([[I10]] : $Int64, [[T]] : $(Int64, Int64))
+// CHECK:         return [[STR]]
+// CHECK:       } // end sil function 'load_global_via_addressor'
+sil @load_global_via_addressor : $@convention(thin) () -> Str {
+bb0:
+  %0 = function_ref @gstr_addressor : $@convention(thin) () -> Builtin.RawPointer
+  %1 = apply %0() : $@convention(thin) () -> Builtin.RawPointer
+  %2 = pointer_to_address %1 : $Builtin.RawPointer to [strict] $*Str
+  %3 = load %2 : $*Str
+  return %3 : $Str
+}
+
+// CHECK-LABEL: sil @load_global_struct_element
+// CHECK-NOT:     global_addr
+// CHECK-DAG:     [[L10:%.*]] = integer_literal $Builtin.Int64, 10
+// CHECK-DAG:     [[I10:%.*]] = struct $Int64 ([[L10]] : $Builtin.Int64)
+// CHECK:         return [[I10]]
+// CHECK:       } // end sil function 'load_global_struct_element'
+sil @load_global_struct_element : $@convention(thin) () -> Int64 {
+bb0:
+  %0 = global_addr @gstr : $*Str
+  %1 = struct_element_addr %0 : $*Str, #Str.x
+  %2 = load %1 : $*Int64
+  return %2 : $Int64
+}
+
+// CHECK-LABEL: sil @load_global_struct_tuple
+// CHECK-NOT:     global_addr
+// CHECK-DAG:     [[L27:%.*]] = integer_literal $Builtin.Int64, 27
+// CHECK-DAG:     [[I27:%.*]] = struct $Int64 ([[L27]] : $Builtin.Int64)
+// CHECK:         return [[I27]]
+// CHECK:       } // end sil function 'load_global_struct_tuple'
+sil @load_global_struct_tuple : $@convention(thin) () -> Int64 {
+bb0:
+  %0 = global_addr @gstr : $*Str
+  %1 = struct_element_addr %0 : $*Str, #Str.y
+  %2 = tuple_element_addr %1 : $*(Int64, Int64), 1
+  %3 = load %2 : $*Int64
+  return %3 : $Int64
+}
+

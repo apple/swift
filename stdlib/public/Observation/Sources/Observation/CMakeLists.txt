@@ -15,16 +15,11 @@ list(APPEND swift_runtime_library_compile_flags -I${SWIFT_SOURCE_DIR}/stdlib/inc
 add_swift_target_library(swift_Observation ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_STDLIB
   Locking.cpp
   Locking.swift
-  Macros.swift
   Observable.swift
   ObservationRegistrar.swift
-  ObservationRegistrarStateMachine.swift
   ObservationTracking.swift
-  ObservedChanges.swift
-  ObservedValues.swift
   ThreadLocal.cpp
   ThreadLocal.swift
-  TrackedProperties.swift
 
   SWIFT_COMPILE_FLAGS
     ${SWIFT_STANDARD_LIBRARY_SWIFT_FLAGS}

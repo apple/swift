@@ -112,6 +112,12 @@ namespace swift {
     /// resulting binary by default in this mode.
     None,
 
+    /// Stub out code associated with unavailable declarations.
+    ///
+    /// For example, the bodies of unavailable functions should be compiled as
+    /// if they just contained a call to fatalError().
+    Stub,
+
     /// Avoid generating any code for unavailable declarations.
     ///
     /// NOTE: This optimization can be ABI breaking for a library evolution
@@ -871,6 +877,10 @@ namespace swift {
     /// to build the Clang module via Clang frontend directly,
     /// and completely bypass the Clang driver.
     bool DirectClangCC1ModuleBuild = false;
+
+    /// Disable implicitly-built Clang modules because they are explicitly
+    /// built and provided to the compiler invocation.
+    bool DisableImplicitClangModules = false;
 
     /// Return a hash code of any components from these options that should
     /// contribute to a Swift Bridging PCH hash.

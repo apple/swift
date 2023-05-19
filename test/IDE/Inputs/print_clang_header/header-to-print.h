@@ -7,6 +7,9 @@
 #undef MACRO_GOT_UNDEFINED
 #define MY_MACRO 1
 
+#define MACRO_DUP 2
+#define MACRO_DUP 3
+
 void doSomethingInHead(int arg);
 
 @interface BaseInHead

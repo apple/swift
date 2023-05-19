@@ -57,9 +57,9 @@ bb0(%0 : @owned $String):
 }
 
 // CHECK-LABEL: sil [ossa] @dont_forward_owned_enum_data_with_uses :
-// CHECK          %1 = enum
-// CHECK          %4 = unchecked_enum_data %1
-// CHECK          return %4
+// CHECK:         %1 = enum
+// CHECK:         %4 = unchecked_enum_data %1
+// CHECK:         return %4
 // CHECK:       } // end sil function 'dont_forward_owned_enum_data_with_uses'
 sil [ossa] @dont_forward_owned_enum_data_with_uses : $@convention(thin) (@owned String) -> @owned String {
 bb0(%0 : @owned $String):

@@ -581,25 +581,43 @@ StringOptimization::getStringFromStaticLet(SILValue value) {
   auto *load = dyn_cast<LoadInst>(value);
   if (!load)
     return StringInfo::unknown();
- 
-  auto *pta = dyn_cast<PointerToAddressInst>(load->getOperand());
-  if (!pta)
+
+  SILFunction *initializer = nullptr;
+  auto *globalAddr = dyn_cast<GlobalAddrInst>(load->getOperand());
+  if (globalAddr) {
+    // The global accessor is inlined.
+
+    // Usually the global_addr is immediately preceeded by a call to
+    // `builtin "once"` which initializes the global.
+    SILInstruction *prev = globalAddr->getPreviousInstruction();
+    if (!prev)
+      return StringInfo::unknown();
+    auto *bi = dyn_cast<BuiltinInst>(prev);
+    if (!bi || bi->getBuiltinInfo().ID != BuiltinValueKind::Once)
+      return StringInfo::unknown();
+    initializer = getCalleeOfOnceCall(bi);
+  } else {
+    // The global accessor is not inlined, yet.
+
+    auto *pta = dyn_cast<PointerToAddressInst>(load->getOperand());
+    if (!pta)
+      return StringInfo::unknown();
+
+    auto *addressorCall = dyn_cast<ApplyInst>(pta->getOperand());
+    if (!addressorCall)
+      return StringInfo::unknown();
+
+    SILFunction *addressorFunc = addressorCall->getReferencedFunctionOrNull();
+    if (!addressorFunc)
+      return StringInfo::unknown();
+
+    // The addressor function has a builtin.once call to the initializer.
+    BuiltinInst *onceCall = nullptr;
+    initializer = findInitializer(addressorFunc, onceCall);
+  }
+  if (!initializer || !initializer->isGlobalInitOnceFunction())
     return StringInfo::unknown();
-    
-  auto *addressorCall = dyn_cast<ApplyInst>(pta->getOperand());
-  if (!addressorCall)
-    return StringInfo::unknown();
-    
-  SILFunction *addressorFunc = addressorCall->getReferencedFunctionOrNull();
-  if (!addressorFunc)
-    return StringInfo::unknown();
-    
-  // The addressor function has a builtin.once call to the initializer.
-  BuiltinInst *onceCall = nullptr;
-  SILFunction *initializer = findInitializer(addressorFunc, onceCall);
-  if (!initializer)
-    return StringInfo::unknown();
-  
+
   if (initializer->size() != 1)
     return StringInfo::unknown();
 
@@ -618,7 +636,10 @@ StringOptimization::getStringFromStaticLet(SILValue value) {
   }
   if (!gAddr || !gAddr->getReferencedGlobal()->isLet())
     return StringInfo::unknown();
-  
+
+  if (globalAddr && globalAddr->getReferencedGlobal() != gAddr->getReferencedGlobal())
+    return StringInfo::unknown();
+
   Operand *gUse = gAddr->getSingleUse();
   auto *store = dyn_cast<StoreInst>(gUse->getUser());
   if (!store || store->getDest() != gAddr)

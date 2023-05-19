@@ -38,7 +38,7 @@ import Swift
 /// the operation gets to run.
 @_unsafeInheritExecutor // the operation runs on the same executor as we start out with
 @available(SwiftStdlib 5.1, *)
-@_backDeploy(before: SwiftStdlib 5.8)
+@backDeployed(before: SwiftStdlib 5.8)
 public func withTaskCancellationHandler<T>(
   operation: () async throws -> T,
   onCancel handler: @Sendable () -> Void
@@ -46,14 +46,9 @@ public func withTaskCancellationHandler<T>(
   // unconditionally add the cancellation record to the task.
   // if the task was already cancelled, it will be executed right away.
   let record = _taskAddCancellationHandler(handler: handler)
-  do {
-    let result = try await operation()
-    _taskRemoveCancellationHandler(record: record)
-    return result
-  } catch {
-    _taskRemoveCancellationHandler(record: record)
-    throw error
-  }
+  defer { _taskRemoveCancellationHandler(record: record) }
+
+  return try await operation()
 }
 
 @available(SwiftStdlib 5.1, *)

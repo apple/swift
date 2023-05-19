@@ -148,6 +148,12 @@ bool BindingSet::isDelayed() const {
 }
 
 bool BindingSet::involvesTypeVariables() const {
+  // This type variable always depends on a pack expansion variable
+  // which should be inferred first if possible.
+  if (TypeVar->getImpl().getGenericParameter() &&
+      TypeVar->getImpl().canBindToPack())
+    return true;
+
   // This is effectively O(1) right now since bindings are re-computed
   // on each step of the solver, but once bindings are computed
   // incrementally it becomes more important to double-check that
@@ -1474,55 +1480,10 @@ void PotentialBindings::infer(Constraint *constraint) {
   case ConstraintKind::BindTupleOfFunctionParams:
   case ConstraintKind::ShapeOf:
   case ConstraintKind::ExplicitGenericArguments:
+  case ConstraintKind::PackElementOf:
+  case ConstraintKind::SameShape:
     // Constraints from which we can't do anything.
     break;
-
-  case ConstraintKind::PackElementOf: {
-    auto elementType = CS.simplifyType(constraint->getFirstType());
-    auto packType = CS.simplifyType(constraint->getSecondType());
-
-    if (elementType->isTypeVariableOrMember() && packType->isTypeVariableOrMember())
-      break;
-
-    auto *elementVar = elementType->getAs<TypeVariableType>();
-    auto *packVar = packType->getAs<TypeVariableType>();
-
-    if (elementVar == TypeVar && !packVar) {
-      // Produce a potential binding to the opened element archetype corresponding
-      // to the pack type.
-      auto shapeClass = packType->getReducedShape();
-      packType = packType->mapTypeOutOfContext();
-      auto *elementEnv = CS.getPackElementEnvironment(constraint->getLocator(),
-                                                      shapeClass);
-
-      // Without an opened element environment, we cannot derive the
-      // element binding.
-      if (!elementEnv)
-        break;
-
-      auto elementType = elementEnv->mapPackTypeIntoElementContext(packType);
-      assert(!elementType->is<PackType>());
-      addPotentialBinding({elementType, AllowedBindingKind::Exact, constraint});
-
-      break;
-    } else if (packVar == TypeVar && !elementVar) {
-      // Produce a potential binding to the pack archetype corresponding to
-      // the opened element type.
-      Type patternType;
-      auto *packEnv = CS.DC->getGenericEnvironmentOfContext();
-      if (!elementType->hasElementArchetype()) {
-        patternType = elementType;
-      } else {
-        patternType = packEnv->mapElementTypeIntoPackContext(elementType);
-      }
-
-      addPotentialBinding({patternType, AllowedBindingKind::Exact, constraint});
-
-      break;
-    }
-
-    break;
-  }
 
   // For now let's avoid inferring protocol requirements from
   // this constraint, but in the future we could do that to
@@ -2243,18 +2204,34 @@ TypeVariableBinding::fixForHole(ConstraintSystem &cs) const {
     return std::make_pair(fix, /*impact=*/(unsigned)10);
   }
 
-  if (auto pattern = getAsPattern(dstLocator->getAnchor())) {
-    if (dstLocator->getPath().size() == 1 &&
-        dstLocator->isLastElement<LocatorPathElt::PatternDecl>()) {
+  if (auto pattern = dstLocator->getPatternMatch()) {
+    if (dstLocator->isLastElement<LocatorPathElt::PatternDecl>()) {
+      // If this is the pattern in a for loop, and we have a mismatch of the
+      // element type, then we don't have any useful contextual information
+      // for the pattern, and can just bind to a hole without needing to penalize
+      // the solution further.
+      auto *seqLoc = cs.getConstraintLocator(
+          dstLocator->getAnchor(), ConstraintLocator::SequenceElementType);
+      if (cs.hasFixFor(seqLoc,
+                       FixKind::IgnoreCollectionElementContextualMismatch)) {
+        return None;
+      }
       // Not being able to infer the type of a variable in a pattern binding
       // decl is more dramatic than anything that could happen inside the
       // expression because we want to preferrably point the diagnostic to a
       // part of the expression that caused us to be unable to infer the
       // variable's type.
       ConstraintFix *fix =
-          IgnoreUnresolvedPatternVar::create(cs, pattern, dstLocator);
+          IgnoreUnresolvedPatternVar::create(cs, pattern.get(), dstLocator);
       return std::make_pair(fix, /*impact=*/(unsigned)100);
     }
+  }
+
+  if (srcLocator->isLastElement<LocatorPathElt::MemberRefBase>()) {
+    auto *baseExpr = castToExpr<UnresolvedMemberExpr>(srcLocator->getAnchor());
+    ConstraintFix *fix = SpecifyBaseTypeForContextualMember::create(
+        cs, baseExpr->getName(), srcLocator);
+    return std::make_pair(fix, defaultImpact);
   }
 
   return None;

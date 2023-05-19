@@ -28,10 +28,13 @@ using namespace swift;
 
 bool swift::parseASTSection(MemoryBufferSerializedModuleLoader &Loader,
                             StringRef buf,
+                            const llvm::Triple &filter,
                             SmallVectorImpl<std::string> &foundModules) {
   if (!serialization::isSerializedAST(buf))
     return false;
 
+  bool haveFilter = filter.getOS() != llvm::Triple::UnknownOS &&
+                   filter.getArch() != llvm::Triple::UnknownArch;
   // An AST section consists of one or more AST modules, optionally with
   // headers. Iterate over all AST modules.
   while (!buf.empty()) {
@@ -43,10 +46,15 @@ bool swift::parseASTSection(MemoryBufferSerializedModuleLoader &Loader,
 
     if (info.status == serialization::Status::Valid) {
       assert(info.bytes != 0);
-      if (!info.name.empty()) {
+      bool selected = true;
+      if (haveFilter) {
+        llvm::Triple moduleTriple(info.targetTriple);
+        selected = serialization::areCompatible(moduleTriple, filter);
+      }
+      if (!info.name.empty() && selected) {
         StringRef moduleData = buf.substr(0, info.bytes);
         std::unique_ptr<llvm::MemoryBuffer> bitstream(
-          llvm::MemoryBuffer::getMemBuffer(moduleData, info.name, false));
+            llvm::MemoryBuffer::getMemBuffer(moduleData, info.name, false));
 
         // Register the memory buffer.
         Loader.registerMemoryBuffer(info.name, std::move(bitstream),

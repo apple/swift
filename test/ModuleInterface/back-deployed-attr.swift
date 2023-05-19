@@ -8,18 +8,17 @@
 // REQUIRES: OS=macosx
 
 public struct TopLevelStruct {
-  // TODO: Print `@backDeployed` in swiftinterfaces (rdar://104920183)
-  // CHECK: @_backDeploy(before: macOS 12.0)
+  // CHECK: @backDeployed(before: macOS 12.0)
   // CHECK: public func backDeployedFunc_SinglePlatform() -> Swift.Int { return 41 }
   @backDeployed(before: macOS 12.0)
   public func backDeployedFunc_SinglePlatform() -> Int { return 41 }
   
-  // CHECK: @_backDeploy(before: macOS 12.0, iOS 15.0)
+  // CHECK: @backDeployed(before: macOS 12.0, iOS 15.0)
   // CHECK: public func backDeployedFunc_MultiPlatform() -> Swift.Int { return 42 }
   @backDeployed(before: macOS 12.0, iOS 15.0)
   public func backDeployedFunc_MultiPlatform() -> Int { return 42 }
 
-  // CHECK: @_backDeploy(before: macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0)
+  // CHECK: @backDeployed(before: macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0)
   // CHECK: public func backDeployedFunc_MultiPlatformSeparate() -> Swift.Int { return 43 }
   @backDeployed(before: macOS 12.0)
   @backDeployed(before: iOS 15.0)
@@ -27,14 +26,14 @@ public struct TopLevelStruct {
   @backDeployed(before: tvOS 15.0)
   public func backDeployedFunc_MultiPlatformSeparate() -> Int { return 43 }
 
-  // CHECK: @_backDeploy(before: macOS 12.0)
+  // CHECK: @backDeployed(before: macOS 12.0)
   // CHECK: public var backDeployedComputedProperty: Swift.Int {
   // CHECK-NEXT:   get { 44 }
   // CHECK-NEXT: }
   @backDeployed(before: macOS 12.0)
   public var backDeployedComputedProperty: Int { 44 }
 
-  // CHECK: @_backDeploy(before: macOS 12.0)
+  // CHECK: @backDeployed(before: macOS 12.0)
   // CHECK: public var backDeployedPropertyWithAccessors: Swift.Int {
   // CHECK-NEXT:   get { 45 }
   // CHECK-NEXT: }
@@ -43,7 +42,7 @@ public struct TopLevelStruct {
     get { 45 }
   }
 
-  // CHECK: @_backDeploy(before: macOS 12.0)
+  // CHECK: @backDeployed(before: macOS 12.0)
   // CHECK: public subscript(index: Swift.Int) -> Swift.Int {
   // CHECK-NEXT:   get { 46 }
   // CHECK-NEXT: }
@@ -53,13 +52,13 @@ public struct TopLevelStruct {
   }
 }
 
-// CHECK: @_backDeploy(before: iOS 15.0)
+// CHECK: @backDeployed(before: iOS 15.0)
 // CHECK: public func backDeployedFunc_iOSOnly() -> Swift.Int
 // CHECK-NOT: return 99
 @backDeployed(before: iOS 15.0)
 public func backDeployedFunc_iOSOnly() -> Int { return 99 }
 
-// CHECK: @_backDeploy(before: macOS 12.0)
+// CHECK: @backDeployed(before: macOS 12.0)
 // CHECK: public func backDeployTopLevelFunc_macOS() -> Swift.Int {
 // CHECK-NEXT:   return 47
 // CHECK-NEXT: }
@@ -75,12 +74,12 @@ public func backDeployTopLevelFunc_macOS() -> Int {
 
 // MARK: - Availability macros
 
-// CHECK: @_backDeploy(before: macOS 12.1)
+// CHECK: @backDeployed(before: macOS 12.1)
 // CHECK: public func backDeployTopLevelFunc_macOS12_1() -> Swift.Int { return 48 }
 @backDeployed(before: _macOS12_1)
 public func backDeployTopLevelFunc_macOS12_1() -> Int { return 48 }
 
-// CHECK: @_backDeploy(before: macOS 12.1, iOS 15.1)
+// CHECK: @backDeployed(before: macOS 12.1, iOS 15.1)
 // CHECK: public func backDeployTopLevelFunc_myProject() -> Swift.Int { return 49 }
 @backDeployed(before: _myProject 1.0)
 public func backDeployTopLevelFunc_myProject() -> Int { return 49 }

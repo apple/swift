@@ -1279,46 +1279,6 @@ PackExpansionExpr::create(ASTContext &ctx, SourceLoc repeatLoc,
                                      implicit, type);
 }
 
-void PackExpansionExpr::getExpandedPacks(SmallVectorImpl<ASTNode> &packs) {
-  struct PackCollector : public ASTWalker {
-    llvm::SmallVector<ASTNode, 2> packs;
-
-    /// Walk everything that's available.
-    MacroWalking getMacroWalkingBehavior() const override {
-      return MacroWalking::ArgumentsAndExpansion;
-    }
-
-    virtual PreWalkResult<Expr *> walkToExprPre(Expr *E) override {
-      // Don't walk into nested pack expansions
-      if (isa<PackExpansionExpr>(E)) {
-        return Action::SkipChildren(E);
-      }
-
-      if (isa<PackElementExpr>(E)) {
-        packs.push_back(E);
-      }
-
-      return Action::Continue(E);
-    }
-
-    virtual PreWalkAction walkToTypeReprPre(TypeRepr *T) override {
-      // Don't walk into nested pack expansions
-      if (isa<PackExpansionTypeRepr>(T)) {
-        return Action::SkipChildren();
-      }
-
-      if (isa<PackElementTypeRepr>(T)) {
-        packs.push_back(T);
-      }
-
-      return Action::Continue();
-    }
-  } packCollector;
-
-  getPatternExpr()->walk(packCollector);
-  packs.append(packCollector.packs.begin(), packCollector.packs.end());
-}
-
 PackElementExpr *
 PackElementExpr::create(ASTContext &ctx, SourceLoc eachLoc, Expr *packRefExpr,
                         bool implicit, Type type) {

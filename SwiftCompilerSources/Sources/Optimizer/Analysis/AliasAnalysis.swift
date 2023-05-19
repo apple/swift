@@ -68,19 +68,17 @@ struct AliasAnalysis {
         let inst = bridgedInst.instruction
         let val = bridgedVal.value
         let path = AliasAnalysis.getPtrOrAddressPath(for: val)
-        if let apply = inst as? ApplySite {
-          let effect = getMemoryEffect(of: apply, for: val, path: path, context)
-          switch (effect.read, effect.write) {
-            case (false, false): return .None
-            case (true, false):  return .MayRead
-            case (false, true):  return .MayWrite
-            case (true, true):   return .MayReadWrite
+        switch inst {
+        case let apply as ApplySite:
+          return getMemoryEffect(ofApply: apply, for: val, path: path, context).bridged
+        case let builtin as BuiltinInst:
+          return getMemoryEffect(ofBuiltin: builtin, for: val, path: path, context).bridged
+        default:
+          if val.at(path).isEscaping(using: EscapesToInstructionVisitor(target: inst, isAddress: true), context) {
+            return .MayReadWrite
           }
+          return .None
         }
-        if val.at(path).isEscaping(using: EscapesToInstructionVisitor(target: inst, isAddress: true), context) {
-          return .MayReadWrite
-        }
-        return .None
       },
 
       // isObjReleasedFn
@@ -121,7 +119,7 @@ struct AliasAnalysis {
   }
 }
 
-private func getMemoryEffect(of apply: ApplySite, for address: Value, path: SmallProjectionPath, _ context: FunctionPassContext) -> SideEffects.Memory {
+private func getMemoryEffect(ofApply apply: ApplySite, for address: Value, path: SmallProjectionPath, _ context: FunctionPassContext) -> SideEffects.Memory {
   let calleeAnalysis = context.calleeAnalysis
   let visitor = SideEffectsVisitor(apply: apply, calleeAnalysis: calleeAnalysis, isAddress: true)
   let memoryEffects: SideEffects.Memory
@@ -132,7 +130,7 @@ private func getMemoryEffect(of apply: ApplySite, for address: Value, path: Smal
     memoryEffects = result.memory
   } else {
     // `address` has unknown escapes. So we have to take the global effects of the called function(s).
-    memoryEffects = calleeAnalysis.getSideEffects(of: apply).memory
+    memoryEffects = calleeAnalysis.getSideEffects(ofApply: apply).memory
   }
   // Do some magic for `let` variables. Function calls cannot modify let variables.
   // The only exception is that the let variable is directly passed to an indirect out of the
@@ -144,6 +142,20 @@ private func getMemoryEffect(of apply: ApplySite, for address: Value, path: Smal
   return memoryEffects
 }
 
+private func getMemoryEffect(ofBuiltin builtin: BuiltinInst, for address: Value, path: SmallProjectionPath, _ context: FunctionPassContext) -> SideEffects.Memory {
+
+  switch builtin.id {
+  case .Once, .OnceWithContext:
+    if !address.at(path).isEscaping(using: AddressVisibleByBuiltinOnceVisitor(), context) {
+      return SideEffects.Memory()
+    }
+    let callee = builtin.operands[1].value
+    return context.calleeAnalysis.getSideEffects(ofCallee: callee).memory
+  default:
+    return builtin.memoryEffects
+  }
+}
+
 private func getOwnershipEffect(of apply: ApplySite, for value: Value, path: SmallProjectionPath, _ context: FunctionPassContext) -> SideEffects.Ownership {
   let visitor = SideEffectsVisitor(apply: apply, calleeAnalysis: context.calleeAnalysis, isAddress: false)
   if let result = value.at(path).visit(using: visitor, context) {
@@ -151,7 +163,7 @@ private func getOwnershipEffect(of apply: ApplySite, for value: Value, path: Sma
     return result.ownership
   } else {
     // `value` has unknown escapes. So we have to take the global effects of the called function(s).
-    return visitor.calleeAnalysis.getSideEffects(of: apply).ownership
+    return visitor.calleeAnalysis.getSideEffects(ofApply: apply).ownership
   }
 }
 
@@ -178,6 +190,11 @@ private struct SideEffectsVisitor : EscapeVisitorWithResult {
 
   var followTrivialTypes: Bool { isAddress }
   var followLoads: Bool { !isAddress }
+}
+
+private struct AddressVisibleByBuiltinOnceVisitor : EscapeVisitor {
+  var followTrivialTypes: Bool { true }
+  var followLoads: Bool { false }
 }
 
 /// Lets `ProjectedValue.isEscaping` return true if the value is "escaping" to the `target` instruction.
@@ -229,3 +246,13 @@ private struct IsIndirectResultWalker: AddressDefUseWalker {
   }
 }
 
+private extension SideEffects.Memory {
+  var bridged: swift.MemoryBehavior {
+    switch (read, write) {
+      case (false, false): return .None
+      case (true, false):  return .MayRead
+      case (false, true):  return .MayWrite
+      case (true, true):   return .MayReadWrite
+    }
+  }
+}

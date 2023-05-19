@@ -392,39 +392,41 @@ bool ContextFreeCodeCompletionResult::getDeclIsSystem(const Decl *D) {
   return D->getModuleContext()->isNonUserModule();
 }
 
-// MARK: - CodeCompletionResult
-
-static ContextualNotRecommendedReason
-getNotRecommenedReason(const ContextFreeCodeCompletionResult &ContextFree,
-                       bool CanCurrDeclContextHandleAsync,
-                       ContextualNotRecommendedReason ExplicitReason) {
-  if (ExplicitReason != ContextualNotRecommendedReason::None) {
-    return ExplicitReason;
+ContextualNotRecommendedReason
+ContextFreeCodeCompletionResult::calculateContextualNotRecommendedReason(
+    ContextualNotRecommendedReason explicitReason,
+    bool canCurrDeclContextHandleAsync) const {
+  if (explicitReason != ContextualNotRecommendedReason::None) {
+    return explicitReason;
   }
-  if (ContextFree.isAsync() && !CanCurrDeclContextHandleAsync) {
+  if (IsAsync && !canCurrDeclContextHandleAsync) {
     return ContextualNotRecommendedReason::InvalidAsyncContext;
   }
-  if (ContextFree.hasAsyncAlternative() && CanCurrDeclContextHandleAsync) {
+  if (HasAsyncAlternative && canCurrDeclContextHandleAsync) {
     return ContextualNotRecommendedReason::
         NonAsyncAlternativeUsedInAsyncContext;
   }
   return ContextualNotRecommendedReason::None;
 }
 
-CodeCompletionResult::CodeCompletionResult(
-    const ContextFreeCodeCompletionResult &ContextFree,
-    SemanticContextKind SemanticContext, CodeCompletionFlair Flair,
-    uint8_t NumBytesToErase, const ExpectedTypeContext *TypeContext,
-    const DeclContext *DC, const USRBasedTypeContext *USRTypeContext,
-    bool CanCurrDeclContextHandleAsync,
-    ContextualNotRecommendedReason NotRecommended)
-    : ContextFree(ContextFree), SemanticContext(SemanticContext),
-      Flair(Flair.toRaw()),
-      NotRecommended(getNotRecommenedReason(
-          ContextFree, CanCurrDeclContextHandleAsync, NotRecommended)),
-      NumBytesToErase(NumBytesToErase),
-      TypeDistance(ContextFree.getResultType().calculateTypeRelation(
-          TypeContext, DC, USRTypeContext)) {}
+CodeCompletionResultTypeRelation
+ContextFreeCodeCompletionResult::calculateContextualTypeRelation(
+    const DeclContext *dc, const ExpectedTypeContext *typeContext,
+    const USRBasedTypeContext *usrTypeContext) const {
+  CodeCompletionResultTypeRelation typeRelation =
+      getResultType().calculateTypeRelation(typeContext, dc, usrTypeContext);
+  if (typeRelation >= CodeCompletionResultTypeRelation::Convertible ||
+      !typeContext)
+    return typeRelation;
+
+  CodeCompletionMacroRoles expectedRoles =
+      getCompletionMacroRoles(typeContext->getExpectedCustomAttributeKinds());
+  if (MacroRoles & expectedRoles)
+    return CodeCompletionResultTypeRelation::Convertible;
+  return typeRelation;
+}
+
+// MARK: - CodeCompletionResult
 
 CodeCompletionResult *
 CodeCompletionResult::withFlair(CodeCompletionFlair NewFlair,

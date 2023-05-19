@@ -39,7 +39,8 @@ public struct FirstSmallStruct {
 
 // CHECK: class SWIFT_SYMBOL("s:4Init16FirstSmallStructV") FirstSmallStruct final {
 // CHECK-NEXT: public:
-// CHECK:   SWIFT_INLINE_THUNK FirstSmallStruct(FirstSmallStruct &&)
+// CHECK:   SWIFT_INLINE_PRIVATE_HELPER FirstSmallStruct(FirstSmallStruct &&)
+// CHECK: }
 // CHECK-NEXT:   SWIFT_INLINE_THUNK uint32_t getX() const SWIFT_SYMBOL("s:4Init16FirstSmallStructV1xs6UInt32Vvp");
 // CHECK-NEXT:   static SWIFT_INLINE_THUNK FirstSmallStruct init() SWIFT_SYMBOL("s:4Init16FirstSmallStructVACycfc");
 // CHECK-NEXT:   static SWIFT_INLINE_THUNK FirstSmallStruct init(swift::Int x) SWIFT_SYMBOL("s:4Init16FirstSmallStructVyACSicfc");
@@ -125,6 +126,21 @@ public class DerivedClass: BaseClass {
 
 public class DerivedClassTwo: BaseClass {
 }
+
+public struct WrapOverloadedInits {
+    let x: Int
+
+    public init(_ x: Int) {
+        self.x = x
+    }
+    public init(_ x: Float) {
+        self.x = Int(x)
+    }
+}
+
+// CHECK: static SWIFT_INLINE_THUNK WrapOverloadedInits init
+// CHECK-SAME: (swift::Int x) SWIFT_SYMBOL("s:4Init19WrapOverloadedInitsVyACSicfc");
+// CHECK-NOT: WrapOverloadedInits init(
 
 // CHECK: BaseClass BaseClass::init(swift::Int x, swift::Int y) {
 // CHECK-NEXT: return _impl::_impl_BaseClass::makeRetained(_impl::$s4Init9BaseClassCyACSi_SitcfC(x, y, swift::TypeMetadataTrait<BaseClass>::getTypeMetadata()));

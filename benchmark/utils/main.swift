@@ -112,6 +112,7 @@ import Memset
 import MirrorTest
 import MonteCarloE
 import MonteCarloPi
+import NaiveRangeReplaceableCollectionConformance
 import NibbleSort
 import NIOChannelPipeline
 import NSDictionaryCastToSwift
@@ -303,6 +304,7 @@ register(Memset.benchmarks)
 register(MirrorTest.benchmarks)
 register(MonteCarloE.benchmarks)
 register(MonteCarloPi.benchmarks)
+register(NaiveRangeReplaceableCollectionConformance.benchmarks)
 register(NSDictionaryCastToSwift.benchmarks)
 register(NSErrorTest.benchmarks)
 #if canImport(Darwin)

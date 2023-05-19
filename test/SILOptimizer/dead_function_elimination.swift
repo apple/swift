@@ -198,7 +198,6 @@ public func keepPtrAlive() {
 // CHECK-TESTING: sil {{.*}}publicClassMethod
 // CHECK-TESTING: sil {{.*}}DeadWitness
 
-// CHECK-LABEL: sil_global {{.*}}@$s25dead_function_elimination5GFStrV12aliveFuncPtryycvpZ
 // CHECK-LABEL: @$s25dead_function_elimination14donotEliminateyyF
 // CHECK-LABEL: sil @$s25dead_function_elimination12keepPtrAliveyyF
 

@@ -64,15 +64,94 @@ extension MutatingContext {
   func erase(instructionIncludingDebugUses inst: Instruction) {
     for result in inst.results {
       for use in result.uses {
-        assert(use.instruction is DebugValueInst)
+        assert(use.instruction is DebugValueInst, "instruction to delete may only have debug_value uses")
         erase(instruction: use.instruction)
       }
     }
     erase(instruction: inst)
   }
 
-  func tryDeleteDeadClosure(closure: SingleValueInstruction) -> Bool {
-    _bridged.tryDeleteDeadClosure(closure.bridged)
+  func tryOptimizeApplyOfPartialApply(closure: PartialApplyInst) -> Bool {
+    if _bridged.tryOptimizeApplyOfPartialApply(closure.bridged) {
+      notifyInstructionsChanged()
+      notifyCallsChanged()
+
+      for use in closure.callee.uses {
+        if use.instruction is FullApplySite {
+          notifyInstructionChanged(use.instruction)
+        }
+      }
+      return true
+    }
+    return false
+  }
+
+  func tryDeleteDeadClosure(closure: SingleValueInstruction, needKeepArgsAlive: Bool = true) -> Bool {
+    if _bridged.tryDeleteDeadClosure(closure.bridged, needKeepArgsAlive) {
+      notifyInstructionsChanged()
+      return true
+    }
+    return false
+  }
+
+  func tryDevirtualize(apply: FullApplySite, isMandatory: Bool) -> ApplySite? {
+    let result = _bridged.tryDevirtualizeApply(apply.bridged, isMandatory)
+    if let newApply = result.newApply.instruction {
+      erase(instruction: apply)
+      notifyInstructionsChanged()
+      notifyCallsChanged()
+      if result.cfgChanged {
+        notifyBranchesChanged()
+      }
+      notifyInstructionChanged(newApply)
+      return newApply as! FullApplySite
+    }
+    return nil
+  }
+
+  func inlineFunction(apply: FullApplySite, mandatoryInline: Bool) {
+    let instAfterInling: Instruction?
+    switch apply {
+    case is ApplyInst, is BeginApplyInst:
+      instAfterInling = apply.next
+    case is TryApplyInst:
+      instAfterInling = apply.parentBlock.next?.instructions.first
+    default:
+      instAfterInling = nil
+    }
+
+    _bridged.inlineFunction(apply.bridged, mandatoryInline)
+
+    if let instAfterInling = instAfterInling {
+      notifyNewInstructions(from: apply, to: instAfterInling)
+    }
+  }
+
+  /// Copies all instructions of a static init value of a global to the insertion point of `builder`.
+  func copyStaticInitializer(fromInitValue: Value, to builder: Builder) -> Value? {
+    let range = _bridged.copyStaticInitializer(fromInitValue.bridged, builder.bridged)
+    guard let result = range.clonedInitValue.value,
+          let firstClonedInst = range.firstClonedInst.instruction else {
+      return nil
+    }
+    let resultInst = result.definingInstruction!
+    notifyNewInstructions(from: firstClonedInst, to: resultInst)
+    notifyInstructionChanged(resultInst)
+    return result
+  }
+
+  private func notifyNewInstructions(from: Instruction, to: Instruction) {
+    var inst = from
+    while inst != to {
+      if !inst.isDeleted {
+        notifyInstructionChanged(inst)
+      }
+      if let next = inst.next {
+        inst = next
+      } else {
+        inst = inst.parentBlock.next!.instructions.first!
+      }
+    }
   }
 
   func getContextSubstitutionMap(for type: Type) -> SubstitutionMap {
@@ -130,10 +209,19 @@ struct FunctionPassContext : MutatingContext {
     return PostDominatorTree(bridged: bridgedPDT)
   }
 
-  func loadFunction(name: StaticString) -> Function? {
+  func loadFunction(name: StaticString, loadCalleesRecursively: Bool) -> Function? {
     return name.withUTF8Buffer { (nameBuffer: UnsafeBufferPointer<UInt8>) in
-      _bridged.loadFunction(llvm.StringRef(nameBuffer.baseAddress, nameBuffer.count)).function
+      let nameStr = llvm.StringRef(nameBuffer.baseAddress, nameBuffer.count)
+      return _bridged.loadFunction(nameStr, loadCalleesRecursively).function
     }
+  }
+
+  func loadFunction(function: Function, loadCalleesRecursively: Bool) -> Bool {
+    if function.isDefinition {
+      return true
+    }
+    _bridged.loadFunction(function.bridged, loadCalleesRecursively)
+    return function.isDefinition
   }
 
   func erase(block: BasicBlock) {
@@ -147,6 +235,37 @@ struct FunctionPassContext : MutatingContext {
 
   fileprivate func notifyEffectsChanged() {
     _bridged.asNotificationHandler().notifyChanges(.effectsChanged)
+  }
+
+  func optimizeMemoryAccesses(in function: Function) -> Bool {
+    if swift.optimizeMemoryAccesses(function.bridged.getFunction()) {
+      notifyInstructionsChanged()
+      return true
+    }
+    return false
+  }
+
+  func eliminateDeadAllocations(in function: Function) -> Bool {
+    if swift.eliminateDeadAllocations(function.bridged.getFunction()) {
+      notifyInstructionsChanged()
+      return true
+    }
+    return false
+  }
+
+  func specializeApplies(in function: Function, isMandatory: Bool) -> Bool {
+    if _bridged.specializeAppliesInFunction(function.bridged, isMandatory) {
+      notifyInstructionsChanged()
+      notifyCallsChanged()
+      return true
+    }
+    return false
+  }
+
+  /// Copies `initValue` (including all operand instructions, transitively) to the
+  /// static init value of `global`.
+  func createStaticInitializer(for global: GlobalVariable, initValue: SingleValueInstruction) {
+    _bridged.createStaticInitializer(global.bridged, initValue.bridged)
   }
 }
 
@@ -267,8 +386,14 @@ extension AllocRefInstBase {
 extension UseList {
   func replaceAll(with replacement: Value, _ context: some MutatingContext) {
     for use in self {
-      use.instruction.setOperand(at: use.index, to: replacement, context)
+      use.set(to: replacement, context)
     }
+  }
+}
+
+extension Operand {
+  func set(to value: Value, _ context: some MutatingContext) {
+    instruction.setOperand(at: index, to: value, context)
   }
 }
 
@@ -280,6 +405,12 @@ extension Instruction {
     context.notifyInstructionsChanged()
     bridged.setOperand(index, value.bridged)
     context.notifyInstructionChanged(self)
+  }
+}
+
+extension BuiltinInst {
+  func constantFold(_ context: some MutatingContext) -> Value? {
+    context._bridged.constantFoldBuiltin(bridged).value
   }
 }
 

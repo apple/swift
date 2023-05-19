@@ -21,13 +21,14 @@
 //===----------------------------------------------------------------------===//
 
 #ifndef BACK_DEPLOYMENT_LIB
-#  error "Must define BACK_DEPLOYMENT_LIB(Version, Filter, Library)"
+#  error "Must define BACK_DEPLOYMENT_LIB(Version, Filter, Library, ForceLoad)"
 #endif
 
-BACK_DEPLOYMENT_LIB((5, 0), all, "swiftCompatibility50")
-BACK_DEPLOYMENT_LIB((5, 1), all, "swiftCompatibility51")
-BACK_DEPLOYMENT_LIB((5, 0), executable, "swiftCompatibilityDynamicReplacements")
-BACK_DEPLOYMENT_LIB((5, 4), all, "swiftCompatibilityConcurrency")
-BACK_DEPLOYMENT_LIB((5, 6), all, "swiftCompatibility56")
+BACK_DEPLOYMENT_LIB((5, 0), all, "swiftCompatibility50", true)
+BACK_DEPLOYMENT_LIB((5, 1), all, "swiftCompatibility51", true)
+BACK_DEPLOYMENT_LIB((5, 0), executable, "swiftCompatibilityDynamicReplacements", true)
+BACK_DEPLOYMENT_LIB((5, 4), all, "swiftCompatibilityConcurrency", true)
+BACK_DEPLOYMENT_LIB((5, 6), all, "swiftCompatibility56", true)
+BACK_DEPLOYMENT_LIB((5, 8), all, "swiftCompatibilityPacks", false)
                     
 #undef BACK_DEPLOYMENT_LIB

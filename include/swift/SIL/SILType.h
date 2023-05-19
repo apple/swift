@@ -414,6 +414,10 @@ public:
     return getASTType()->hasOpenedExistential();
   }
 
+  TypeTraitResult canBeClass() const {
+    return getASTType()->canBeClass();
+  }
+
   /// Returns true if the referenced type is expressed in terms of one
   /// or more local archetypes.
   bool hasLocalArchetype() const {
@@ -467,6 +471,13 @@ public:
   bool isFunctionTypeWithContext() const {
     if (auto *fTy = getASTType()->getAs<SILFunctionType>()) {
       return fTy->getExtInfo().hasContext();
+    }
+    return false;
+  }
+
+  bool isNoEscapeFunction() const {
+    if (auto *fTy = getASTType()->getAs<SILFunctionType>()) {
+      return fTy->isNoEscape();
     }
     return false;
   }

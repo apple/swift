@@ -20,7 +20,7 @@ enum Payload_D: Decodable {
     case value
   }
 
-  init(from decoder: Decoder) throws {
+  init(from decoder: any Decoder) throws {
     let container = try decoder.container(keyedBy: Payload_D.CodingKeys.self)
 
     var allKeys = ArraySlice(container.allKeys)

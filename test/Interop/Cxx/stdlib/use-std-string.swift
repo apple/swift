@@ -4,12 +4,7 @@
 
 import StdlibUnittest
 import StdString
-#if os(Linux)
 import CxxStdlib
-// FIXME: import CxxStdlib.string once libstdc++ is split into submodules.
-#else
-import CxxStdlib.string
-#endif
 
 var StdStringTestSuite = TestSuite("StdString")
 

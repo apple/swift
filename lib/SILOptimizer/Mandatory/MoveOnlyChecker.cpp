@@ -179,7 +179,7 @@ class MoveOnlyCheckerPass : public SILFunctionTransform {
     // remain. If we emitted a diagnostic, we just want to rewrite all of the
     // non-copyable copies into explicit variants below and let the user
     // recompile.
-    if (!checker.diagnosticEmitter.getDiagnosticCount()) {
+    if (!checker.diagnosticEmitter.emittedDiagnostic()) {
       emitCheckerMissedCopyOfNonCopyableTypeErrors(getFunction(),
                                                    checker.diagnosticEmitter);
     }

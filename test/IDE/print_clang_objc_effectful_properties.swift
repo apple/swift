@@ -13,7 +13,7 @@
 // CHECK:       var doggo: NSObject { get async }
 
 // CHECK:       @available(*, renamed: "getter:catto()")
-// CHECK-NEXT:  func obtainCat(_ completionHandler: @escaping @Sendable (NSObject?, Error?) -> Void)
+// CHECK-NEXT:  func obtainCat(_ completionHandler: @escaping @Sendable (NSObject?, (any Error)?) -> Void)
 // CHECK-NEXT:  var catto: NSObject? { get async throws }
 
 // CHECK:       @available(*, renamed: "getter:available()")

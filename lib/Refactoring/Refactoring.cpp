@@ -8622,11 +8622,9 @@ bool RefactoringActionAddAsyncWrapper::performChange() {
 /// expression.
 static Optional<unsigned> getMacroExpansionBuffer(
     SourceManager &sourceMgr, MacroExpansionExpr *expansion) {
-  if (auto rewritten = expansion->getRewritten()) {
-    return sourceMgr.findBufferContainingLoc(rewritten->getStartLoc());
-  }
-
-  return None;
+  return evaluateOrDefault(
+      expansion->getDeclContext()->getASTContext().evaluator,
+      ExpandMacroExpansionExprRequest{expansion}, {});
 }
 
 /// Retrieve the macro expansion buffer for the given macro expansion
@@ -8756,18 +8754,53 @@ getMacroExpansionBuffers(SourceManager &sourceMgr, ResolvedCursorInfoPtr Info) {
   return {};
 }
 
-bool RefactoringActionExpandMacro::isApplicable(ResolvedCursorInfoPtr Info,
-                                                DiagnosticEngine &Diag) {
-  return !getMacroExpansionBuffers(Diag.SourceMgr, Info).empty();
+/// Given the expanded code for a particular macro, perform whitespace
+/// adjustments to make the refactoring more suitable for inline insertion.
+static StringRef adjustMacroExpansionWhitespace(
+    GeneratedSourceInfo::Kind kind, StringRef expandedCode,
+    llvm::SmallString<64> &scratch) {
+  scratch.clear();
+
+  switch (kind) {
+  case GeneratedSourceInfo::MemberAttributeMacroExpansion:
+    // Attributes are added to the beginning, add a space to separate from
+    // any existing.
+    scratch += expandedCode;
+    scratch += " ";
+    return scratch;
+
+  case GeneratedSourceInfo::MemberMacroExpansion:
+  case GeneratedSourceInfo::PeerMacroExpansion:
+  case GeneratedSourceInfo::ConformanceMacroExpansion:
+    // All added to the end. Note that conformances are always expanded as
+    // extensions, hence treating them the same as peer.
+    scratch += "\n\n";
+    scratch += expandedCode;
+    scratch += "\n";
+    return scratch;
+
+  case GeneratedSourceInfo::ExpressionMacroExpansion:
+  case GeneratedSourceInfo::FreestandingDeclMacroExpansion:
+  case GeneratedSourceInfo::AccessorMacroExpansion:
+  case GeneratedSourceInfo::ReplacedFunctionBody:
+  case GeneratedSourceInfo::PrettyPrinted:
+    return expandedCode;
+  }
 }
 
-bool RefactoringActionExpandMacro::performChange() {
-  auto bufferIDs = getMacroExpansionBuffers(SM, CursorInfo);
+static bool expandMacro(SourceManager &SM, ResolvedCursorInfoPtr cursorInfo,
+                        SourceEditConsumer &editConsumer, bool adjustExpansion) {
+  auto bufferIDs = getMacroExpansionBuffers(SM, cursorInfo);
   if (bufferIDs.empty())
+    return true;
+
+  SourceFile *containingSF = cursorInfo->getSourceFile();
+  if (!containingSF)
     return true;
 
   // Send all of the rewritten buffer snippets.
   CustomAttr *attachedMacroAttr = nullptr;
+  SmallString<64> scratchBuffer;
   for (auto bufferID: bufferIDs) {
     auto generatedInfo = SM.getGeneratedSourceInfo(bufferID);
     if (!generatedInfo || generatedInfo->originalSourceRange.isInvalid())
@@ -8781,8 +8814,12 @@ bool RefactoringActionExpandMacro::performChange() {
         rewrittenBuffer.empty())
       continue;
 
-    // `TheFile` is the file of the actual expansion site, where as
-    // `OriginalFile` is the possibly enclosing buffer. Concretely:
+    if (adjustExpansion) {
+      rewrittenBuffer = adjustMacroExpansionWhitespace(generatedInfo->kind, rewrittenBuffer, scratchBuffer);
+    }
+
+    // `containingFile` is the file of the actual expansion site, where as
+    // `originalFile` is the possibly enclosing buffer. Concretely:
     // ```
     // // m.swift
     // @AddMemberAttributes
@@ -8801,14 +8838,14 @@ bool RefactoringActionExpandMacro::performChange() {
     // expansion.
     auto originalSourceRange = generatedInfo->originalSourceRange;
     SourceFile *originalFile =
-        MD->getSourceFileContainingLocation(originalSourceRange.getStart());
+        containingSF->getParentModule()->getSourceFileContainingLocation(originalSourceRange.getStart());
     StringRef originalPath;
     if (originalFile->getBufferID().hasValue() &&
-        TheFile->getBufferID() != originalFile->getBufferID()) {
+        containingSF->getBufferID() != originalFile->getBufferID()) {
       originalPath = SM.getIdentifierForBuffer(*originalFile->getBufferID());
     }
 
-    EditConsumer.accept(SM, {originalPath,
+    editConsumer.accept(SM, {originalPath,
                              originalSourceRange,
                              SM.getIdentifierForBuffer(bufferID),
                              rewrittenBuffer,
@@ -8823,10 +8860,29 @@ bool RefactoringActionExpandMacro::performChange() {
   if (attachedMacroAttr) {
     SourceRange range = attachedMacroAttr->getRangeWithAt();
     auto charRange = Lexer::getCharSourceRangeFromSourceRange(SM, range);
-    EditConsumer.accept(SM, charRange, StringRef());
+    editConsumer.accept(SM, charRange, StringRef());
   }
 
   return false;
+}
+
+bool RefactoringActionExpandMacro::isApplicable(ResolvedCursorInfoPtr Info,
+                                                DiagnosticEngine &Diag) {
+  // Never list in available refactorings. Only allow requesting directly.
+  return false;
+}
+
+bool RefactoringActionExpandMacro::performChange() {
+  return expandMacro(SM, CursorInfo, EditConsumer, /*adjustExpansion=*/false);
+}
+
+bool RefactoringActionInlineMacro::isApplicable(ResolvedCursorInfoPtr Info,
+                                                DiagnosticEngine &Diag) {
+  return !getMacroExpansionBuffers(Diag.SourceMgr, Info).empty();
+}
+
+bool RefactoringActionInlineMacro::performChange() {
+  return expandMacro(SM, CursorInfo, EditConsumer, /*adjustExpansion=*/true);
 }
 
 } // end of anonymous namespace
@@ -8940,8 +8996,8 @@ swift::ide::collectRefactorings(ResolvedCursorInfoPtr CursorInfo,
 
   // Only macro expansion is available within generated buffers
   if (CursorInfo->getSourceFile()->Kind == SourceFileKind::MacroExpansion) {
-    if (RefactoringActionExpandMacro::isApplicable(CursorInfo, DiagEngine)) {
-      Infos.emplace_back(RefactoringKind::ExpandMacro,
+    if (RefactoringActionInlineMacro::isApplicable(CursorInfo, DiagEngine)) {
+      Infos.emplace_back(RefactoringKind::InlineMacro,
                          RefactorAvailableKind::Available);
     }
     return Infos;
@@ -9019,6 +9075,7 @@ refactorSwiftModule(ModuleDecl *M, RefactoringOptions Opts,
 case RefactoringKind::KIND: {                                                  \
       RefactoringAction##KIND Action(M, Opts, EditConsumer, DiagConsumer);     \
       if (RefactoringKind::KIND == RefactoringKind::LocalRename ||             \
+          RefactoringKind::KIND == RefactoringKind::ExpandMacro ||             \
           Action.isApplicable())                                               \
         return Action.performChange();                                         \
       return true;                                                             \

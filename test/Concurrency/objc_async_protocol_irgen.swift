@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk)  -disable-availability-checking -import-objc-header %S/Inputs/Delegate.h %s -emit-ir -o - | %FileCheck %s -DALIGNMENT=%target-alignment --check-prefix=CHECK-%is-darwin
+// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk)  -disable-availability-checking -target %target-swift-abi-5.8-triple -import-objc-header %S/Inputs/Delegate.h %s -emit-ir -o - | %FileCheck %s -DALIGNMENT=%target-alignment --check-prefix=CHECK-%is-darwin
 // REQUIRES: concurrency
 // REQUIRES: objc_interop
 

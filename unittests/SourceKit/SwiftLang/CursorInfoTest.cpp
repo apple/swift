@@ -86,9 +86,8 @@ class NullEditorConsumer : public EditorConsumer {
 
   bool diagnosticsEnabled() override { return false; }
 
-  void setDiagnosticStage(UIdent DiagStage) override {}
-  void handleDiagnostic(const DiagnosticEntryInfo &Info,
-                        UIdent DiagStage) override {}
+  void handleDiagnostics(ArrayRef<DiagnosticEntryInfo> DiagInfos,
+                         UIdent DiagStage) override {}
   void recordFormattedText(StringRef Text) override {}
 
   void handleSourceText(StringRef Text) override {}

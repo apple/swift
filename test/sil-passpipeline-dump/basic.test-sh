@@ -7,8 +7,7 @@
 
 // CHECK: ---
 // CHECK: name:            Non-Diagnostic Mandatory Optimizations
-// CHECK: passes:          [ "for-each-loop-unroll", "onone-simplification", "mandatory-arc-opts",
-// CHECK:                     "onone-prespecializer" ]
+// CHECK: passes:          [ "for-each-loop-unroll", "mandatory-arc-opts", "onone-prespecializer" ]
 // CHECK: ---
 // CHECK: name:            Serialization
 // CHECK: passes:          [ "serialize-sil", "sil-moved-async-var-dbginfo-propagator",

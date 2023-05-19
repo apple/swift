@@ -1,0 +1,41 @@
+// RUN: %target-sil-opt -enable-sil-verify-all %s -onone-simplification -simplify-instruction=try_apply | %FileCheck %s
+
+// REQUIRES: swift_in_compiler
+
+sil_stage canonical
+
+import Builtin
+import Swift
+import SwiftShims
+
+class Bar {
+  init()
+  func foo() throws -> Int 
+}
+
+// CHECK-LABEL: sil @devirt_class_method :
+// CHECK:         [[F:%.*]] = function_ref @bar_foo
+// CHECK:         try_apply [[F]]
+// CHECK:       } // end sil function 'devirt_class_method'
+sil @devirt_class_method : $@convention(thin) () -> (Int, @error any Error) {
+bb0:
+  %0 = alloc_ref $Bar
+  %1 = class_method %0 : $Bar, #Bar.foo : (Bar) -> () throws -> Int, $@convention(method) (@guaranteed Bar) -> (Int, @error any Error)
+  try_apply %1(%0) : $@convention(method) (@guaranteed Bar) -> (Int, @error any Error), normal bb1, error bb2
+
+bb1(%3 : $Int):
+  strong_release %0 : $Bar
+  return %3 : $Int
+
+bb2(%6 : $Error):
+  strong_release %0 : $Bar
+  throw %6 : $Error
+}
+
+sil @bar_foo : $@convention(method) (@guaranteed Bar) -> (Int, @error any Error)
+
+sil_vtable Bar {
+  #Bar.foo: @bar_foo
+}
+
+

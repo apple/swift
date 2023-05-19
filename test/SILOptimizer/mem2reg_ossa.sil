@@ -1,11 +1,29 @@
 // RUN: %target-sil-opt -enable-sil-verify-all %s -mem2reg | %FileCheck %s
 
 import Builtin
-import Swift
 
 //////////////////
 // Declarations //
 //////////////////
+
+typealias AnyObject = Builtin.AnyObject
+
+struct Int64 {
+  var _value : Builtin.Int64
+}
+
+struct Int {
+  var _value : Builtin.Int64
+}
+
+struct Bool {
+  var _value : Builtin.Int1
+}
+
+enum FakeOptional<T> {
+case some(T)
+case none
+}
 
 class Klass {}
 
@@ -492,22 +510,22 @@ bb0:
 // CHECK-LABEL: sil [ossa] @test_optional_in_multiple_blocks :
 // CHECK-NOT:         alloc_stack
 // CHECK:       } // end sil function 'test_optional_in_multiple_blocks'
-sil [ossa] @test_optional_in_multiple_blocks : $@convention(method) (@guaranteed Optional<Klass>) -> () {
-bb0(%0 : @guaranteed $Optional<Klass>):
-  %1 = copy_value %0 : $Optional<Klass>
-  %32 = alloc_stack $Optional<Klass>
-  store %1 to [init] %32 : $*Optional<Klass>
-  switch_enum %0 : $Optional<Klass>, case #Optional.some!enumelt: bb6, case #Optional.none!enumelt: bb5
+sil [ossa] @test_optional_in_multiple_blocks : $@convention(method) (@guaranteed FakeOptional<Klass>) -> () {
+bb0(%0 : @guaranteed $FakeOptional<Klass>):
+  %1 = copy_value %0 : $FakeOptional<Klass>
+  %32 = alloc_stack $FakeOptional<Klass>
+  store %1 to [init] %32 : $*FakeOptional<Klass>
+  switch_enum %0 : $FakeOptional<Klass>, case #FakeOptional.some!enumelt: bb6, case #FakeOptional.none!enumelt: bb5
 
 bb5:
-  dealloc_stack %32 : $*Optional<Klass>
+  dealloc_stack %32 : $*FakeOptional<Klass>
   br bb7
 
 bb6(%50 : @guaranteed $Klass):
-  %53 = load [copy] %32 : $*Optional<Klass>
-  destroy_value %53 : $Optional<Klass>
-  destroy_addr %32 : $*Optional<Klass>
-  dealloc_stack %32 : $*Optional<Klass>
+  %53 = load [copy] %32 : $*FakeOptional<Klass>
+  destroy_value %53 : $FakeOptional<Klass>
+  destroy_addr %32 : $*FakeOptional<Klass>
+  dealloc_stack %32 : $*FakeOptional<Klass>
   br bb7
 
 bb7:
@@ -518,22 +536,22 @@ bb7:
 // CHECK-LABEL: sil [ossa] @test_optional_in_multiple_blocks_lexical :
 // CHECK-NOT:         alloc_stack
 // CHECK:       } // end sil function 'test_optional_in_multiple_blocks_lexical'
-sil [ossa] @test_optional_in_multiple_blocks_lexical : $@convention(method) (@guaranteed Optional<Klass>) -> () {
-bb0(%0 : @guaranteed $Optional<Klass>):
-  %1 = copy_value %0 : $Optional<Klass>
-  %32 = alloc_stack [lexical] $Optional<Klass>
-  store %1 to [init] %32 : $*Optional<Klass>
-  switch_enum %0 : $Optional<Klass>, case #Optional.some!enumelt: bb6, case #Optional.none!enumelt: bb5
+sil [ossa] @test_optional_in_multiple_blocks_lexical : $@convention(method) (@guaranteed FakeOptional<Klass>) -> () {
+bb0(%0 : @guaranteed $FakeOptional<Klass>):
+  %1 = copy_value %0 : $FakeOptional<Klass>
+  %32 = alloc_stack [lexical] $FakeOptional<Klass>
+  store %1 to [init] %32 : $*FakeOptional<Klass>
+  switch_enum %0 : $FakeOptional<Klass>, case #FakeOptional.some!enumelt: bb6, case #FakeOptional.none!enumelt: bb5
 
 bb5:
-  dealloc_stack %32 : $*Optional<Klass>
+  dealloc_stack %32 : $*FakeOptional<Klass>
   br bb7
 
 bb6(%50 : @guaranteed $Klass):
-  %53 = load [copy] %32 : $*Optional<Klass>
-  destroy_value %53 : $Optional<Klass>
-  destroy_addr %32 : $*Optional<Klass>
-  dealloc_stack %32 : $*Optional<Klass>
+  %53 = load [copy] %32 : $*FakeOptional<Klass>
+  destroy_value %53 : $FakeOptional<Klass>
+  destroy_addr %32 : $*FakeOptional<Klass>
+  dealloc_stack %32 : $*FakeOptional<Klass>
   br bb7
 
 bb7:
@@ -544,23 +562,23 @@ bb7:
 // CHECK-LABEL: sil [ossa] @test_optional_in_multiple_blocks_lexical_storedvalue :
 // CHECK-NOT:         alloc_stack
 // CHECK:       } // end sil function 'test_optional_in_multiple_blocks_lexical_storedvalue'
-sil [ossa] @test_optional_in_multiple_blocks_lexical_storedvalue : $@convention(method) (@owned Optional<Klass>) -> () {
-bb0(%0 : @owned $Optional<Klass>):
-  %1 = copy_value %0 : $Optional<Klass>
-  %32 = alloc_stack $Optional<Klass>
-  store %0 to [init] %32 : $*Optional<Klass>
-  switch_enum %1 : $Optional<Klass>, case #Optional.some!enumelt: bb6, case #Optional.none!enumelt: bb5
+sil [ossa] @test_optional_in_multiple_blocks_lexical_storedvalue : $@convention(method) (@owned FakeOptional<Klass>) -> () {
+bb0(%0 : @owned $FakeOptional<Klass>):
+  %1 = copy_value %0 : $FakeOptional<Klass>
+  %32 = alloc_stack $FakeOptional<Klass>
+  store %0 to [init] %32 : $*FakeOptional<Klass>
+  switch_enum %1 : $FakeOptional<Klass>, case #FakeOptional.some!enumelt: bb6, case #FakeOptional.none!enumelt: bb5
 
 bb5:
-  dealloc_stack %32 : $*Optional<Klass>
+  dealloc_stack %32 : $*FakeOptional<Klass>
   br bb7
 
 bb6(%50 : @owned $Klass):
-  %53 = load [copy] %32 : $*Optional<Klass>
-  destroy_value %53 : $Optional<Klass>
+  %53 = load [copy] %32 : $*FakeOptional<Klass>
+  destroy_value %53 : $FakeOptional<Klass>
   destroy_value %50 : $Klass
-  destroy_addr %32 : $*Optional<Klass>
-  dealloc_stack %32 : $*Optional<Klass>
+  destroy_addr %32 : $*FakeOptional<Klass>
+  dealloc_stack %32 : $*FakeOptional<Klass>
   br bb7
 
 bb7:
@@ -571,20 +589,20 @@ bb7:
 // CHECK-LABEL: sil [ossa] @optimize_optional_in_single_block :
 // CHECK-NOT:     alloc_stack
 // CHECK:       } // end sil function 'optimize_optional_in_single_block'
-sil [ossa] @optimize_optional_in_single_block : $@convention(method) (@guaranteed Optional<Klass>) -> () {
-bb0(%0 : @guaranteed $Optional<Klass>):
-  switch_enum %0 : $Optional<Klass>, case #Optional.some!enumelt: bb6, case #Optional.none!enumelt: bb5
+sil [ossa] @optimize_optional_in_single_block : $@convention(method) (@guaranteed FakeOptional<Klass>) -> () {
+bb0(%0 : @guaranteed $FakeOptional<Klass>):
+  switch_enum %0 : $FakeOptional<Klass>, case #FakeOptional.some!enumelt: bb6, case #FakeOptional.none!enumelt: bb5
 
 bb5:
   br bb7
 
 bb6(%50 : @guaranteed $Klass):
-  %32 = alloc_stack $Optional<Klass>
-  %1 = copy_value %0 : $Optional<Klass>
-  store %1 to [init] %32 : $*Optional<Klass>
-  %53 = load [take] %32 : $*Optional<Klass>
-  destroy_value %53 : $Optional<Klass>
-  dealloc_stack %32 : $*Optional<Klass>
+  %32 = alloc_stack $FakeOptional<Klass>
+  %1 = copy_value %0 : $FakeOptional<Klass>
+  store %1 to [init] %32 : $*FakeOptional<Klass>
+  %53 = load [take] %32 : $*FakeOptional<Klass>
+  destroy_value %53 : $FakeOptional<Klass>
+  dealloc_stack %32 : $*FakeOptional<Klass>
   br bb7
 
 bb7:
@@ -592,3 +610,50 @@ bb7:
   return %r : $()
 }
 
+// CHECK-LABEL: sil [ossa] @switch_enum_out_of_new_phi_block : {{.*}} {
+// CHECK-NOT:     alloc_stack
+// CHECK:       } // end sil function 'switch_enum_out_of_new_phi_block'
+sil [ossa] @switch_enum_out_of_new_phi_block : $() -> () {
+entry:
+  %addr = alloc_stack $FakeOptional<Klass>
+  cond_br undef, store_none, agg_either
+
+store_none:
+  %none1 = enum $FakeOptional<Klass>, #FakeOptional.none!enumelt
+  store %none1 to [init] %addr : $*FakeOptional<Klass>
+  br switcheroo
+
+agg_either:
+  cond_br undef, agg_some, agg_none
+
+agg_some:
+  %Klass = apply undef() : $@convention(thin) () -> (@owned Klass)
+  %some = enum $FakeOptional<Klass>, #FakeOptional.some!enumelt, %Klass : $Klass
+  br store_maybe(%some : $FakeOptional<Klass>)
+
+agg_none:
+  %none2 = enum $FakeOptional<Klass>, #FakeOptional.none!enumelt
+  br store_maybe(%none2 : $FakeOptional<Klass>)
+
+store_maybe(%maybe : @owned $FakeOptional<Klass>):
+  store %maybe to [init] %addr : $*FakeOptional<Klass>
+  br switcheroo
+
+switcheroo:
+  %borrow = load_borrow %addr : $*FakeOptional<Klass>
+  switch_enum %borrow : $FakeOptional<Klass>, case #FakeOptional.some!enumelt: bb14, case #FakeOptional.none!enumelt: bb15
+
+bb14(%some_borrowed : @guaranteed $Klass):
+  end_borrow %borrow : $FakeOptional<Klass>
+  destroy_addr %addr : $*FakeOptional<Klass>
+  br bb16
+
+bb15:
+  end_borrow %borrow : $FakeOptional<Klass>
+  br bb16
+
+bb16:
+  dealloc_stack %addr : $*FakeOptional<Klass>
+  %retval = tuple ()
+  return %retval : $()
+}

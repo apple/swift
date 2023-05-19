@@ -86,3 +86,82 @@ extension Wrapper2.NonGenericWrapped where Wrapper2Param: P1 {
 extension MyUnknownType where Wrapper2Param: P1 {
   func foo(x: Wrapper2Param) {}
 }
+
+// MARK: - Test indexing a generic initializer
+
+struct A<T> { // CHECK: [[@LINE]]:8 | struct/Swift | A | [[A_USR:.*]] | Def | rel: 0
+  init(value: T) {} // CHECK: [[@LINE]]:3 | constructor/Swift | init(value:) | [[A_init_USR:.*]] | Def,RelChild | rel: 1
+}
+
+// CHECK: [[@LINE+2]]:5 | struct/Swift | A | [[A_USR]] | Ref | rel: 0
+// CHECK-NEXT: [[@LINE+1]]:5 | constructor/Swift | init(value:) | [[A_init_USR]] | Ref,Call | rel: 0
+_ = A(value: 1)
+// CHECK: [[@LINE+2]]:5 | struct/Swift | A | [[A_USR]] | Ref | rel: 0
+// CHECK-NEXT: [[@LINE+1]]:7 | constructor/Swift | init(value:) | [[A_init_USR]] | Ref,Call | rel: 0
+_ = A.init(value: 1)
+// CHECK: [[@LINE+3]]:5 | struct/Swift | A | [[A_USR]] | Ref | rel: 0
+// CHECK-NEXT: [[@LINE+2]]:5 | constructor/Swift | init(value:) | [[A_init_USR]] | Ref,Call | rel: 0
+// CHECK-NEXT: [[@LINE+1]]:7 | struct/Swift | Int | s:Si | Ref | rel: 0
+_ = A<Int>(value: 1)
+// CHECK: [[@LINE+3]]:5 | struct/Swift | A | [[A_USR]] | Ref | rel: 0
+// CHECK-NEXT: [[@LINE+2]]:7 | struct/Swift | Int | s:Si | Ref | rel: 0
+// CHECK-NEXT: [[@LINE+1]]:12 | constructor/Swift | init(value:) | [[A_init_USR]] | Ref,Call | rel: 0
+_ = A<Int>.init(value: 1)
+
+// CHECK: [[@LINE+2]]:6 | struct/Swift | A | [[A_USR]] | Ref | rel: 0
+// CHECK-NEXT: [[@LINE+1]]:6 | constructor/Swift | init(value:) | [[A_init_USR]] | Ref,Call | rel: 0
+_ = (A)(value: 1)
+// CHECK: [[@LINE+2]]:7 | struct/Swift | A | [[A_USR]] | Ref | rel: 0
+// CHECK-NEXT: [[@LINE+1]]:7 | constructor/Swift | init(value:) | [[A_init_USR]] | Ref,Call | rel: 0
+_ = ((A))(value: 1)
+// CHECK: [[@LINE+2]]:7 | struct/Swift | A | [[A_USR]] | Ref | rel: 0
+// CHECK-NEXT: [[@LINE+1]]:11 | constructor/Swift | init(value:) | [[A_init_USR]] | Ref,Call | rel: 0
+_ = ((A)).init(value: 1)
+
+enum B { // CHECK: [[@LINE]]:6 | enum/Swift | B | [[B_USR:.*]] | Def | rel: 0
+  struct Nested<T> { // CHECK: [[@LINE]]:10 | struct/Swift | Nested | [[B_Nested_USR:.*]] | Def,RelChild | rel: 1
+    init(value: T) {} // CHECK: [[@LINE]]:5 | constructor/Swift | init(value:) | [[B_Nested_init_USR:.*]] | Def,RelChild | rel: 1
+  }
+}
+
+// CHECK: [[@LINE+3]]:5 | enum/Swift | B | [[B_USR]] | Ref | rel: 0
+// CHECK: [[@LINE+2]]:7 | struct/Swift | Nested | [[B_Nested_USR]] | Ref | rel: 0
+// CHECK: [[@LINE+1]]:7 | constructor/Swift | init(value:) | [[B_Nested_init_USR]] | Ref,Call | rel: 0
+_ = B.Nested(value: 1)
+// CHECK-NEXT: [[@LINE+4]]:5 | enum/Swift | B | [[B_USR]] | Ref | rel: 0
+// CHECK-NEXT: [[@LINE+3]]:7 | struct/Swift | Nested | [[B_Nested_USR]] | Ref | rel: 0
+// CHECK-NEXT: [[@LINE+2]]:7 | constructor/Swift | init(value:) | [[B_Nested_init_USR]] | Ref,Call | rel: 0
+// CHECK-NEXT: [[@LINE+1]]:14 | struct/Swift | Int | s:Si | Ref | rel: 0
+_ = B.Nested<Int>(value: 1)
+// CHECK-NEXT: [[@LINE+4]]:5 | enum/Swift | B | [[B_USR]] | Ref | rel: 0
+// CHECK-NEXT: [[@LINE+3]]:7 | struct/Swift | Nested | [[B_Nested_USR]] | Ref | rel: 0
+// CHECK-NEXT: [[@LINE+2]]:14 | struct/Swift | Int | s:Si | Ref | rel: 0
+// CHECK-NEXT: [[@LINE+1]]:19 | constructor/Swift | init(value:) | [[B_Nested_init_USR]] | Ref,Call | rel: 0
+_ = B.Nested<Int>.init(value: 1)
+
+// CHECK-NEXT: [[@LINE+4]]:7 | enum/Swift | B | [[B_USR]] | Ref | rel: 0
+// CHECK-NEXT: [[@LINE+3]]:9 | struct/Swift | Nested | [[B_Nested_USR]] | Ref | rel: 0
+// CHECK-NEXT: [[@LINE+2]]:9 | constructor/Swift | init(value:) | [[B_Nested_init_USR]] | Ref,Call | rel: 0
+// CHECK-NEXT: [[@LINE+1]]:16 | struct/Swift | Int | s:Si | Ref | rel: 0
+_ = ((B.Nested<Int>))(value: 1)
+// CHECK-NEXT: [[@LINE+4]]:7 | enum/Swift | B | [[B_USR]] | Ref | rel: 0
+// CHECK-NEXT: [[@LINE+3]]:9 | struct/Swift | Nested | [[B_Nested_USR]] | Ref | rel: 0
+// CHECK-NEXT: [[@LINE+2]]:16 | struct/Swift | Int | s:Si | Ref | rel: 0
+// CHECK-NEXT: [[@LINE+1]]:23 | constructor/Swift | init(value:) | [[B_Nested_init_USR]] | Ref,Call | rel: 0
+_ = ((B.Nested<Int>)).init(value: 1)
+
+enum C { // CHECK: [[@LINE]]:6 | enum/Swift | C | [[C_USR:.*]] | Def | rel: 0
+  struct Nested { // CHECK: [[@LINE]]:10 | struct/Swift | Nested | [[C_Nested_USR:.*]] | Def,RelChild | rel: 1
+    init(value: Int) {} // CHECK: [[@LINE]]:5 | constructor/Swift | init(value:) | [[C_Nested_init_USR:.*]] | Def,RelChild | rel: 1
+  }
+}
+
+// CHECK: [[@LINE+3]]:5 | enum/Swift | C | [[C_USR]] | Ref | rel: 0
+// CHECK-NEXT: [[@LINE+2]]:7 | struct/Swift | Nested | [[C_Nested_USR]] | Ref | rel: 0
+// CHECK-NEXT: [[@LINE+1]]:7 | constructor/Swift | init(value:) | [[C_Nested_init_USR]] | Ref,Call | rel: 0
+_ = C.Nested(value: 1)
+
+// CHECK: [[@LINE+3]]:5 | enum/Swift | C | [[C_USR]] | Ref | rel: 0
+// CHECK-NEXT: [[@LINE+2]]:7 | struct/Swift | Nested | [[C_Nested_USR]] | Ref | rel: 0
+// CHECK-NEXT: [[@LINE+1]]:14 | constructor/Swift | init(value:) | [[C_Nested_init_USR]] | Ref,Call | rel: 0
+_ = C.Nested.init(value: 1)

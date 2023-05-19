@@ -179,16 +179,18 @@ extension _StringGuts {
   #else
   @usableFromInline @inline(never) @_effects(releasenone)
   internal func _invariantCheck() {
-    #if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32)
+    #if _pointerBitWidth(_64)
+    _internalInvariant(MemoryLayout<String>.size == 16, """
+    the runtime is depending on this, update Reflection.mm and \
+    this if you change it
+    """)
+    #elseif _pointerBitWidth(_32)
     _internalInvariant(MemoryLayout<String>.size == 12, """
     the runtime is depending on this, update Reflection.mm and \
     this if you change it
     """)
     #else
-    _internalInvariant(MemoryLayout<String>.size == 16, """
-    the runtime is depending on this, update Reflection.mm and \
-    this if you change it
-    """)
+    #error("Unknown platform")
     #endif
   }
   #endif // INTERNAL_CHECKS_ENABLED

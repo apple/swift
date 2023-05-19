@@ -67,7 +67,7 @@ extension String: Foo {}
 // CHECK-NEXT:      },
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "array2",
-// CHECK-NEXT:        "type": "Swift.Array<ExtractGroups.Foo>",
+// CHECK-NEXT:        "type": "Swift.Array<any ExtractGroups.Foo>",
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "false",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractGroups.swift",
@@ -209,7 +209,7 @@ extension String: Foo {}
 // CHECK-NEXT:      },
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "dict3",
-// CHECK-NEXT:        "type": "Swift.Dictionary<Swift.String, ExtractGroups.Foo>",
+// CHECK-NEXT:        "type": "Swift.Dictionary<Swift.String, any ExtractGroups.Foo>",
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "false",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractGroups.swift",

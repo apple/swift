@@ -641,15 +641,17 @@ void SILSerializer::writeSILBasicBlock(const SILBasicBlock &BB) {
                   "Expected an underlying uint8_t type");
     // This is 31 bits in size.
     unsigned packedMetadata = 0;
-    packedMetadata |= unsigned(SA->getType().getCategory());  // 8 bits
-    packedMetadata |= unsigned(SA->getOwnershipKind()) << 8;  // 8 bits
+    packedMetadata |= unsigned(SA->getType().getCategory()); // 8 bits
+    packedMetadata |= unsigned(SA->getOwnershipKind()) << 8; // 3 bits
+    packedMetadata |= unsigned(SA->isReborrow()) << 11;      // 1 bit
+    packedMetadata |= unsigned(SA->isEscaping()) << 12;      // 1 bit
     if (auto *SFA = dyn_cast<SILFunctionArgument>(SA)) {
-      packedMetadata |= unsigned(SFA->isNoImplicitCopy()) << 16; // 1 bit
-      packedMetadata |= unsigned(SFA->getLifetimeAnnotation()) << 17; // 2 bits
-      packedMetadata |= unsigned(SFA->isClosureCapture()) << 19;      // 1 bit
-      packedMetadata |= unsigned(SFA->isFormalParameterPack()) << 20; // 1 bit
+      packedMetadata |= unsigned(SFA->isNoImplicitCopy()) << 13;      // 1 bit
+      packedMetadata |= unsigned(SFA->getLifetimeAnnotation()) << 14; // 2 bits
+      packedMetadata |= unsigned(SFA->isClosureCapture()) << 16;      // 1 bit
+      packedMetadata |= unsigned(SFA->isFormalParameterPack()) << 17; // 1 bit
     }
-    // Used: 19 bits. Free: 13.
+    // Used: 17 bits. Free: 15.
     //
     // TODO: We should be able to shrink the packed metadata of the first two.
     Args.push_back(packedMetadata);

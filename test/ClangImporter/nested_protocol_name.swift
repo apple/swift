@@ -11,9 +11,9 @@
 
 // HEADER: class Trunk {
 // HEADER:   init!()
-// HEADER:   class func addLimb(_ limb: Trunk.Branch!)
-// HEADER:   func addLimb(_ limb: Trunk.Branch!)
-// HEADER:   func addLimbs(_ limbs: [Trunk.Branch]!)
+// HEADER:   class func addLimb(_ limb: (any Trunk.Branch)!)
+// HEADER:   func addLimb(_ limb: (any Trunk.Branch)!)
+// HEADER:   func addLimbs(_ limbs: [any Trunk.Branch]!)
 // HEADER: }
 // HEADER: // NS_SWIFT_NAME(Trunk.Branch)
 // HEADER: protocol Branch {

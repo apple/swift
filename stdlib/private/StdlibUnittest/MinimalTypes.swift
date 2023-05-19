@@ -242,7 +242,7 @@ public struct GenericMinimalHashableValue<Wrapped> : Equatable, Hashable {
     self.identity = identity
   }
 
-  public static func == <Wrapped>(
+  public static func ==(
     lhs: GenericMinimalHashableValue<Wrapped>,
     rhs: GenericMinimalHashableValue<Wrapped>
   ) -> Bool {
@@ -298,7 +298,7 @@ public class GenericMinimalHashableClass<Wrapped> : Equatable, Hashable {
     self.identity = identity
   }
 
-  public static func == <Wrapped>(
+  public static func ==(
     lhs: GenericMinimalHashableClass<Wrapped>,
     rhs: GenericMinimalHashableClass<Wrapped>
   ) -> Bool {

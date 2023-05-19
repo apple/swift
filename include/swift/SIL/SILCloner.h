@@ -734,7 +734,8 @@ void SILCloner<ImplClass>::clonePhiArgs(SILBasicBlock *oldBB) {
   // Create new arguments for each of the original block's arguments.
   for (auto *Arg : oldBB->getSILPhiArguments()) {
     SILValue mappedArg = mappedBB->createPhiArgument(
-      getOpType(Arg->getType()), Arg->getOwnershipKind());
+        getOpType(Arg->getType()), Arg->getOwnershipKind(), Arg->getDecl(),
+        Arg->isReborrow(), Arg->isEscaping());
 
     asImpl().mapValue(Arg, mappedArg);
   }

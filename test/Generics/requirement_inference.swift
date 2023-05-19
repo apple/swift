@@ -178,8 +178,11 @@ extension RangeReplaceableCollection
 // CHECK: Generic signature: <T, V where T == Range<Int>>
 // CHECK-NEXT: Canonical generic signature: <τ_0_0, τ_1_0 where τ_0_0 == Range<Int>>
 struct X14<T> where T.Iterator == IndexingIterator<T> {
-	func recursiveConcreteSameType<V>(_: V) where T == Range<Int> { }
-  // expected-warning@-1 {{redundant same-type constraint 'T' == 'Range<Int>'}}
+	func recursiveConcreteSameType<V>(_: V) where T == Range<Int> { } // expected-warning {{redundant conformance constraint 'Range<Int>' : 'Collection'}}
+  // expected-warning@-1 {{redundant conformance constraint 'Int' : 'Strideable'}}
+  // expected-warning@-2 {{redundant conformance constraint 'Int' : 'SignedInteger'}}
+  // expected-warning@-3 {{redundant same-type constraint 'Range<Int>.Iterator' (aka 'IndexingIterator<Range<Int>>') == 'IndexingIterator<T>'}}
+  // expected-warning@-4 {{redundant same-type constraint 'T' == 'Range<Int>'}}
 }
 
 // rdar://problem/30478915
@@ -205,7 +208,7 @@ struct X9<T: P12, U: P12> where T.B == U.B {
   // CHECK-LABEL: X9.upperSameTypeConstraint
 	// CHECK: Generic signature: <T, U, V where T == X8, U : P12, U.[P12]B == X7>
   // CHECK: Canonical generic signature: <τ_0_0, τ_0_1, τ_1_0 where τ_0_0 == X8, τ_0_1 : P12, τ_0_1.[P12]B == X7>
-	func upperSameTypeConstraint<V>(_: V) where T == X8 { }
+	func upperSameTypeConstraint<V>(_: V) where T == X8 { } // expected-warning {{redundant conformance constraint 'X8' : 'P12'}}
 }
 
 protocol P13 {
@@ -221,25 +224,8 @@ struct X11<T: P12, U: P12> where T.B == U.B.A {
 	// CHECK-LABEL: X11.upperSameTypeConstraint
 	// CHECK: Generic signature: <T, U, V where T : P12, U == X10, T.[P12]B == X10>
 	// CHECK: Canonical generic signature: <τ_0_0, τ_0_1, τ_1_0 where τ_0_0 : P12, τ_0_1 == X10, τ_0_0.[P12]B == X10>
-	func upperSameTypeConstraint<V>(_: V) where U == X10 { }
+	func upperSameTypeConstraint<V>(_: V) where U == X10 { } // expected-warning {{redundant conformance constraint 'X10' : 'P12'}}
 }
-
-#if _runtime(_ObjC)
-// rdar://problem/30610428
-@objc protocol P14 { }
-
-class X12<S: AnyObject> {
-  func bar<V>(v: V) where S == P14 {
-  }
-}
-
-@objc protocol P15: P14 { }
-
-class X13<S: P14> {
-  func bar<V>(v: V) where S == P15 {
-  }
-}
-#endif
 
 protocol P16 {
 	associatedtype A
@@ -254,7 +240,8 @@ struct X16<X, Y> : P16 {
 // CHECK-LABEL: .X17.bar@
 // CHECK: Generic signature: <S, T, U, V where S == X16<X3, X15>, T == X3, U == X15>
 struct X17<S: P16, T, U> where S.A == (T, U) {
-	func bar<V>(_: V) where S == X16<X3, X15> { }
+	func bar<V>(_: V) where S == X16<X3, X15> { } // expected-warning {{redundant conformance constraint 'X16<X3, X15>' : 'P16'}}
+  // expected-warning@-1 {{redundant same-type constraint 'X16<X3, X15>.A' (aka '(X3, X15)') == '(T, U)'}}
 }
 
 // Same-type constraints that are self-derived via a parent need to be
@@ -274,7 +261,7 @@ struct X18: P18, P17 {
 // CHECK-LABEL: .X19.foo@
 // CHECK: Generic signature: <T, U where T == X18>
 struct X19<T: P18> where T == T.A {
-  func foo<U>(_: U) where T == X18 { }
+  func foo<U>(_: U) where T == X18 { } // expected-warning {{redundant conformance constraint 'X18' : 'P18'}}
   // expected-warning@-1 {{redundant same-type constraint 'T' == 'X18'}}
 }
 

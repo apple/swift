@@ -16,6 +16,14 @@ void setConstStaticIntRvalueRef(const int &&);
 auto getFuncRef() -> int (&)();
 auto getFuncRvalueRef() -> int (&&)();
 
+using ConstIntRefTypealias = const int &;
+
+void setConstStaticIntRefTypealias(ConstIntRefTypealias ref);
+
+using IntRefTypealias = int &;
+
+void setStaticIntRefTypealias(IntRefTypealias ref);
+
 template<class T>
 struct ClassTemplate {};
 

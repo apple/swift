@@ -119,6 +119,8 @@ public:
     return true;
   }
 
+  bool TraverseRequiresExpr(clang::RequiresExpr *RE) { return true; }
+
   // Do not traverse type locs, as they might contain expressions that reference
   // code that should not be instantiated and/or emitted.
   bool TraverseTypeLoc(clang::TypeLoc TL) { return true; }

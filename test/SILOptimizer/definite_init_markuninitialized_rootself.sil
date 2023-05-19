@@ -50,7 +50,7 @@ bb0(%0 : @owned $RootClassWithIVars, %1 : $Int):
   return %3 : $RootClassWithIVars
 }
 
-// CHECK-LABEL: sil [ossa] @rootclass_test2
+// CHECK-LABEL: sil [_semantics "sil.optimizer.moveonly.diagnostic.ignore"] [ossa] @rootclass_test2
 sil [ossa] @rootclass_test2 : $@convention(method) (@owned RootClassWithIVars, Int) -> @owned RootClassWithIVars {
 bb0(%0 : @owned $RootClassWithIVars, %1 : $Int):
   %3 = mark_uninitialized [rootself] %0 : $RootClassWithIVars
@@ -74,7 +74,7 @@ bb0(%0 : @owned $RootClassWithIVars, %1 : $Int):
   return %3 : $RootClassWithIVars  // expected-error {{return from initializer without initializing all stored properties}}
 }
 
-// CHECK-LABEL: sil [ossa] @rootclass_test3
+// CHECK-LABEL: sil [_semantics "sil.optimizer.moveonly.diagnostic.ignore"] [ossa] @rootclass_test3
 sil [ossa] @rootclass_test3 : $@convention(method) (@owned RootClassWithIVars, Int) -> @owned RootClassWithIVars {
 bb0(%0 : @owned $RootClassWithIVars, %1 : $Int):
   %3 = mark_uninitialized [rootself] %0 : $RootClassWithIVars

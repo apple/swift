@@ -42,7 +42,8 @@ enum class SwiftCacheToolAction {
   Invalid,
   PrintBaseKey,
   PrintOutputKeys,
-  ValidateOutputs
+  ValidateOutputs,
+  RenderDiags
 };
 
 struct OutputEntry {
@@ -134,11 +135,13 @@ public:
               .Case("print-base-key", SwiftCacheToolAction::PrintBaseKey)
               .Case("print-output-keys", SwiftCacheToolAction::PrintOutputKeys)
               .Case("validate-outputs", SwiftCacheToolAction::ValidateOutputs)
+              .Case("render-diags", SwiftCacheToolAction::RenderDiags)
               .Default(SwiftCacheToolAction::Invalid);
 
     if (ActionKind == SwiftCacheToolAction::Invalid) {
-      llvm::errs() << "Invalid option specified for -cache-tool-action: "
-                   << "use print-base-key|print-output-keys|validate-outputs\n";
+      llvm::errs()
+          << "Invalid option specified for -cache-tool-action: "
+          << "print-base-key|print-output-keys|validate-outputs|render-diags\n";
       return 1;
     }
 
@@ -153,6 +156,8 @@ public:
       return printOutputKeys();
     case SwiftCacheToolAction::ValidateOutputs:
       return validateOutputs();
+    case SwiftCacheToolAction::RenderDiags:
+      return renderDiags();
     case SwiftCacheToolAction::Invalid:
       return 0; // No action. Probably just print help. Return.
     }
@@ -202,6 +207,10 @@ private:
       return true;
     }
 
+    // Disable diagnostic caching from this fake instance.
+    if (auto *CDP = Instance.getCachingDiagnosticsProcessor())
+      CDP->endDiagnosticCapture();
+
     return false;
   }
 
@@ -233,6 +242,7 @@ private:
 
   int printOutputKeys();
   int validateOutputs();
+  int renderDiags();
 };
 
 } // end anonymous namespace
@@ -283,6 +293,10 @@ int SwiftCacheToolInvocation::printOutputKeys() {
       Invocation.getFrontendOptions().InputsAndOutputs.getAllInputs(),
       addFromInputFile);
 
+  // Add diagnostics file.
+  addOutputKey("<cached-diagnostics>", file_types::ID::TY_CachedDiagnostics,
+               "<cached-diagnostics>");
+
   if (hasError)
     return 1;
 
@@ -301,6 +315,26 @@ int SwiftCacheToolInvocation::printOutputKeys() {
   return 0;
 }
 
+static llvm::Expected<llvm::json::Array>
+readOutputEntriesFromFile(StringRef Path) {
+  auto JSONContent = llvm::MemoryBuffer::getFile(Path);
+  if (!JSONContent)
+    return llvm::createStringError(JSONContent.getError(),
+                                   "failed to read input file");
+
+  auto JSONValue = llvm::json::parse((*JSONContent)->getBuffer());
+  if (!JSONValue)
+    return llvm::createStringError(llvm::inconvertibleErrorCode(),
+                                   "failed to parse input file as JSON");
+
+  auto Keys = JSONValue->getAsArray();
+  if (!Keys)
+    return llvm::createStringError(llvm::inconvertibleErrorCode(),
+                                   "invalid JSON format for input file");
+
+  return *Keys;
+}
+
 int SwiftCacheToolInvocation::validateOutputs() {
   auto DB = llvm::cas::createOnDiskUnifiedCASDatabases(CASPath);
   if (!DB)
@@ -310,22 +344,10 @@ int SwiftCacheToolInvocation::validateOutputs() {
   Instance.getDiags().addConsumer(PDC);
 
   auto validateCacheKeysFromFile = [&](const std::string &Path) {
-    auto JSONContent = llvm::MemoryBuffer::getFile(Path);
-    if (!JSONContent) {
-      llvm::errs() << "failed to read " << Path << ": "
-                   << JSONContent.getError().message() << "\n";
-      return true;
-    }
-    auto JSONValue = llvm::json::parse((*JSONContent)->getBuffer());
-    if (!JSONValue) {
-      llvm::errs() << "failed to parse " << Path << ": "
-                   << toString(JSONValue.takeError()) << "\n";
-      return true;
-    }
-
-    auto Keys = JSONValue->getAsArray();
+    auto Keys = readOutputEntriesFromFile(Path);
     if (!Keys) {
-      llvm::errs() << "invalid keys format in " << Path << "\n";
+      llvm::errs() << "cannot read file " << Path << ": "
+                   << toString(Keys.takeError()) << "\n";
       return true;
     }
 
@@ -348,6 +370,51 @@ int SwiftCacheToolInvocation::validateOutputs() {
   };
 
   return llvm::any_of(Inputs, validateCacheKeysFromFile);
+}
+
+int SwiftCacheToolInvocation::renderDiags() {
+  if (setupCompiler())
+    return 1;
+
+  auto *CDP = Instance.getCachingDiagnosticsProcessor();
+  if (!CDP) {
+    llvm::errs() << "provided commandline doesn't support cached diagnostics\n";
+    return 1;
+  }
+
+  auto renderDiagsFromFile = [&](const std::string &Path) {
+    auto Keys = readOutputEntriesFromFile(Path);
+    if (!Keys) {
+      llvm::errs() << "cannot read file " << Path << ": "
+                   << toString(Keys.takeError()) << "\n";
+      return true;
+    }
+
+    for (const auto& Entry : *Keys) {
+      if (auto *Obj = Entry.getAsObject()) {
+        if (auto Kind = Obj->getString("OutputKind")) {
+          if (*Kind != "cached-diagnostics")
+            continue;
+        }
+        if (auto Key = Obj->getString("CacheKey")) {
+          if (auto Buffer = loadCachedCompileResultFromCacheKey(
+                  Instance.getObjectStore(), Instance.getActionCache(),
+                  Instance.getDiags(), *Key)) {
+            if (auto E = CDP->replayCachedDiagnostics(Buffer->getBuffer())) {
+              llvm::errs() << "failed to replay cache: "
+                           << toString(std::move(E)) << "\n";
+              return true;
+            }
+            return false;
+          }
+        }
+      }
+    }
+    llvm::errs() << "cannot locate cached diagnostics in file\n";
+    return true;
+  };
+
+  return llvm::any_of(Inputs, renderDiagsFromFile);
 }
 
 int swift_cache_tool_main(ArrayRef<const char *> Args, const char *Argv0,

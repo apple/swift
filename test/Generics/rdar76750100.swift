@@ -8,7 +8,7 @@ class G<X : P1, Y : AnyObject> {}
 
 class C {}
 
-// CHECK-LABEL: Generic signature: <X, Y where X == P2, Y == C>
+// CHECK-LABEL: Generic signature: <X, Y where X == any P2, Y == C>
 extension G where X == P2, Y == C {
   func foo() {}
 }

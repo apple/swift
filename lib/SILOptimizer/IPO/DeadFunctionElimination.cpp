@@ -362,6 +362,8 @@ class DeadFunctionAndGlobalElimination {
             ensureKeyPathComponentIsAlive(component);
         } else if (auto *GA = dyn_cast<GlobalAddrInst>(&I)) {
           ensureAlive(GA->getReferencedGlobal());
+        } else if (auto *agi = dyn_cast<AllocGlobalInst>(&I)) {
+          ensureAlive(agi->getReferencedGlobal());
         } else if (auto *GV = dyn_cast<GlobalValueInst>(&I)) {
           ensureAlive(GV->getReferencedGlobal());
         } else if (auto *HSI = dyn_cast<HasSymbolInst>(&I)) {

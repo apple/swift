@@ -19,7 +19,9 @@
 // CHECK-SECOND-NOT: Handled
 
 // Don't change the .priors mod time
-// RUN: touch -t 201401240005 %t/*{swift,swiftdeps,json}
+// RUN: touch -t 201401240005 %t/*.swift
+// RUN: touch -t 201401240005 %t/*.swiftdeps
+// RUN: touch -t 201401240005 %t/*.json
 // RUN: touch -t 201401240006 %t/*.o
 // RUN: touch -t 201401240004 %t/*-external
 // RUN: touch -t 203704010005 %t/other1-external
@@ -29,7 +31,9 @@
 // CHECK-THIRD-DAG: Handled main.swift
 
 // Don't change the .priors mod time
-// RUN: touch -t 201401240005 %t/*{swift,swiftdeps,json}
+// RUN: touch -t 201401240005 %t/*.swift
+// RUN: touch -t 201401240005 %t/*.swiftdeps
+// RUN: touch -t 201401240005 %t/*.json
 // RUN: touch -t 201401240006 %t/*.o
 // RUN: touch -t 201401240004 %t/*-external
 // RUN: touch -t 203704010005 %t/other2-external
@@ -37,7 +41,9 @@
 
 
 // Don't change the .priors mod time
-// RUN: touch -t 201401240005 %t/*{swift,swiftdeps,json}
+// RUN: touch -t 201401240005 %t/*.swift
+// RUN: touch -t 201401240005 %t/*.swiftdeps
+// RUN: touch -t 201401240005 %t/*.json
 // RUN: touch -t 201401240006 %t/*.o
 // RUN: touch -t 201401240004 %t/*-external
 // RUN: touch -t 203704010005 %t/main1-external
@@ -48,7 +54,9 @@
 // CHECK-FOURTH-NOT: Handled other.swift
 
 // Don't change the .priors mod time
-// RUN: touch -t 201401240005 %t/*{swift,swiftdeps,json}
+// RUN: touch -t 201401240005 %t/*.swift
+// RUN: touch -t 201401240005 %t/*.swiftdeps
+// RUN: touch -t 201401240005 %t/*.json
 // RUN: touch -t 201401240006 %t/*.o
 // RUN: touch -t 201401240004 %t/*-external
 // RUN: touch -t 203704010005 %t/main2-external

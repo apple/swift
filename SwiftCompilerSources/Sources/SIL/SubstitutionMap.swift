@@ -24,4 +24,9 @@ public struct SubstitutionMap {
   }
 
   public var isEmpty: Bool { bridged.empty() }
+
+  public var replacementTypes: OptionalTypeArray {
+    let types = BridgedTypeArray.fromReplacementTypes(bridged)
+    return OptionalTypeArray(bridged: types)
+  }
 }

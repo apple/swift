@@ -18,11 +18,12 @@
 #ifndef SWIFT_SEMA_CONSTRAINTLOCATOR_H
 #define SWIFT_SEMA_CONSTRAINTLOCATOR_H
 
-#include "swift/Basic/Debug.h"
-#include "swift/Basic/LLVM.h"
 #include "swift/AST/ASTNode.h"
 #include "swift/AST/Type.h"
 #include "swift/AST/Types.h"
+#include "swift/Basic/Debug.h"
+#include "swift/Basic/LLVM.h"
+#include "swift/Basic/NullablePtr.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/PointerIntPair.h"
@@ -53,7 +54,7 @@ enum ContextualTypePurpose : uint8_t {
   CTP_YieldByValue,     ///< By-value yield operand.
   CTP_YieldByReference, ///< By-reference yield operand.
   CTP_ThrowStmt,        ///< Value specified to a 'throw' statement.
-  CTP_ForgetStmt,        ///< Value specified to a 'forget' statement.
+  CTP_DiscardStmt,      ///< Value specified to a 'discard' statement.
   CTP_EnumCaseRawValue, ///< Raw value specified for "case X = 42" in enum.
   CTP_DefaultParameter, ///< Default value in parameter 'foo(a : Int = 42)'.
 
@@ -312,6 +313,10 @@ public:
   /// Whether this locator identifies a conversion for a SingleValueStmtExpr
   /// branch, and if so, the kind of branch.
   Optional<SingleValueStmtBranchKind> isForSingleValueStmtBranch() const;
+
+  /// If the locator in question is for a pattern match, returns the pattern,
+  /// otherwise \c nullptr.
+  NullablePtr<Pattern> getPatternMatch() const;
 
   /// Returns true if \p locator is ending with either of the following
   ///  - Member
@@ -1174,6 +1179,22 @@ public:
 
   static bool classof(const LocatorPathElt *elt) {
     return elt->getKind() == ConstraintLocator::AnyPatternDecl;
+  }
+};
+
+class LocatorPathElt::PackExpansionType final
+    : public StoredPointerElement<swift::PackExpansionType> {
+public:
+  PackExpansionType(swift::PackExpansionType *openedPackExpansionTy)
+      : StoredPointerElement(PathElementKind::PackExpansionType,
+                             openedPackExpansionTy) {
+    assert(openedPackExpansionTy);
+  }
+
+  swift::PackExpansionType *getOpenedType() const { return getStoredPointer(); }
+
+  static bool classof(const LocatorPathElt *elt) {
+    return elt->getKind() == PathElementKind::PackExpansionType;
   }
 };
 

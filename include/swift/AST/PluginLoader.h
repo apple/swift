@@ -53,10 +53,16 @@ public:
   PluginRegistry *getRegistry();
 
   /// Lookup a library plugin that can handle \p moduleName and return the path
-  /// to it from `-plugin-path` or `-load-plugin-library`.
+  /// to it from `-load-plugin-library`.
   /// The path returned can be loaded by 'loadLibraryPlugin' method.
   llvm::Optional<std::string>
-  lookupLibraryPluginByModuleName(Identifier moduleName);
+  lookupExplicitLibraryPluginByModuleName(Identifier moduleName);
+
+  /// Lookup a library plugin that can handle \p moduleName and return the path
+  /// to it from `-plugin-path`.
+  /// The path returned can be loaded by 'loadLibraryPlugin' method.
+  llvm::Optional<std::string>
+  lookupLibraryPluginInSearchPathByModuleName(Identifier moduleName);
 
   /// Lookup an executable plugin that is declared to handle \p moduleName
   /// module by '-load-plugin-executable'.

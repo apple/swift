@@ -35,7 +35,8 @@ func test(value: S) {
 // PROTO_AFTER_SOME-NEXT: Proto
 // PROTO_AFTER_SOME-NEXT: s:4Test5ProtoP
 // PROTO_AFTER_SOME-NEXT: source.lang.swift
-// PROTO_AFTER_SOME-NEXT: Proto.Protocol
+// FIXME: This should be '(any Proto).Type', but InterfaceTypeRequest returns a MetatypeType wrapping a ProtocolType, which is not a sensible type.
+// PROTO_AFTER_SOME-NEXT: Proto.Type
 // PROTO_AFTER_SOME-NEXT: $s4Test5Proto_pmD
 // PROTO_AFTER_SOME-NEXT: Test{{$}}
 // PROTO_AFTER_SOME-NEXT: <Declaration>public protocol Proto</Declaration>

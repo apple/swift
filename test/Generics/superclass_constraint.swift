@@ -204,7 +204,7 @@ func g<T : Init & Derived>(_: T.Type) {
 // Binding a class-constrained generic parameter to a subclass existential is
 // not sound.
 struct G<T : Base> {}
-// expected-note@-1 2 {{requirement specified as 'T' : 'Base' [with T = Base & P]}}
+// expected-note@-1 2 {{requirement specified as 'T' : 'Base' [with T = any Base & P]}}
 
 _ = G<Base & P>() // expected-error {{'G' requires that 'any Base & P' inherit from 'Base'}}
 

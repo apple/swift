@@ -37,10 +37,10 @@ let package = Package(
         .product(name: "SwiftOperators", package: "swift-syntax"),
         .product(name: "SwiftParser", package: "swift-syntax"),
         .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
+        .product(name: "SwiftSyntaxMacroExpansion", package: "swift-syntax"),
         "swiftLLVMJSON"
       ],
       path: "Sources/ASTGen",
-      exclude: ["CMakeLists.txt"],
       swiftSettings: swiftSetttings
     ),
     .target(

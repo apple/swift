@@ -79,12 +79,14 @@ internal struct _SmallString {
 extension _SmallString {
   @inlinable @inline(__always)
   internal static var capacity: Int {
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32)
+#if _pointerBitWidth(_32)
     return 10
 #elseif os(Android) && arch(arm64)
     return 14
-#else
+#elseif _pointerBitWidth(_64)
     return 15
+#else
+#error("Unknown platform")
 #endif
   }
 
@@ -346,7 +348,7 @@ extension _SmallString {
   }
 }
 
-#if _runtime(_ObjC) && !(arch(i386) || arch(arm) || arch(arm64_32))
+#if _runtime(_ObjC) && _pointerBitWidth(_64)
 // Cocoa interop
 extension _SmallString {
   // Resiliently create from a tagged cocoa string

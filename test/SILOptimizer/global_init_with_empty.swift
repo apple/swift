@@ -6,6 +6,7 @@
 // RUN: %target-codesign %t/a.out
 // RUN: %target-run %t/a.out | %FileCheck %s -check-prefix=CHECK-OUTPUT
 // REQUIRES: executable_test,optimized_stdlib
+// REQUIRES: swift_in_compiler
 
 struct Empty { }
 

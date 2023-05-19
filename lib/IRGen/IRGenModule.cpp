@@ -86,7 +86,7 @@ static llvm::StructType *createStructType(IRGenModule &IGM,
 }
 
 static clang::CodeGenerator *createClangCodeGenerator(ASTContext &Context,
-                                                 llvm::LLVMContext &LLVMContext,
+                                                      llvm::LLVMContext &LLVMContext,
                                                       const IRGenOptions &Opts,
                                                       StringRef ModuleName,
                                                       StringRef PD) {
@@ -95,7 +95,7 @@ static clang::CodeGenerator *createClangCodeGenerator(ASTContext &Context,
   assert(Importer && "No clang module loader!");
   auto &ClangContext = Importer->getClangASTContext();
 
-  auto &CGO = Importer->getClangCodeGenOpts();
+  auto &CGO = Importer->getCodeGenOpts();
   if (CGO.OpaquePointers) {
     LLVMContext.setOpaquePointers(true);
   } else {

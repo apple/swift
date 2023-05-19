@@ -16,7 +16,5 @@ let _: () -> Void = {
 let _: () -> Void = {
   for case (0)? in [a] {}
   for case (0, 0) in [a] {}
-  // expected-error@-1 {{conflicting arguments to generic parameter 'Elements' ('[Any]' vs. '[Any?]')}}
-  // expected-error@-2 {{conflicting arguments to generic parameter 'Element' ('Any' vs. 'Any?')}}
-  // expected-error@-3 {{conflicting arguments to generic parameter 'Self' ('[Any]' vs. '[Any?]')}}
+  // expected-error@-1 {{cannot convert value of type 'Any?' to expected element type '(_, _)'}}
 }

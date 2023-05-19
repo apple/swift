@@ -231,6 +231,8 @@ unsigned SerializedDiagnosticConsumer::getEmitFile(
   // NOTE: Using Filename.data() here relies on SourceMgr using
   // const char* as buffer identifiers.  This is fast, but may
   // be brittle.  We can always switch over to using a StringMap.
+  // Note that the logic in EditorDiagConsumer::getBufferInfo
+  // will also need changing.
   unsigned &existingEntry = State->Files[Filename.data()];
   if (existingEntry)
     return existingEntry;

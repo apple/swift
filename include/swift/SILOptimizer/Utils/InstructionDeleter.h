@@ -159,6 +159,7 @@ public:
   ///
   /// Calls callbacks.notifyWillBeDeleted().
   bool deleteIfDead(SILInstruction *inst);
+  bool deleteIfDead(SILInstruction *inst, bool fixLifetime);
 
   /// Delete the instruction \p inst, ignoring its side effects. If any operand
   /// definitions will become dead after deleting this instruction, track them

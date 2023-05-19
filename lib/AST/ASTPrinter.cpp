@@ -178,7 +178,6 @@ PrintOptions PrintOptions::printSwiftInterfaceFile(ModuleDecl *ModuleToPrint,
       PrintOptions::FunctionRepresentationMode::Full;
   result.AlwaysTryPrintParameterLabels = true;
   result.PrintSPIs = printSPIs;
-  result.PrintExplicitAny = true;
   result.DesugarExistentialConstraint = true;
 
   // We should print __consuming, __owned, etc for the module interface file.
@@ -3340,12 +3339,21 @@ static bool usesFeatureFreestandingExpressionMacros(Decl *decl) {
   return macro->getMacroRoles().contains(MacroRole::Expression);
 }
 
+static bool usesFeatureLexicalLifetimes(Decl *decl) {
+  return decl->getAttrs().hasAttribute<EagerMoveAttr>()
+         || decl->getAttrs().hasAttribute<NoEagerMoveAttr>()
+         || decl->getAttrs().hasAttribute<LexicalLifetimesAttr>();
+}
+
 static void
-suppressingFeatureFreestandingExpressionMacros(PrintOptions &options,
-                                        llvm::function_ref<void()> action) {
-  llvm::SaveAndRestore<PrintOptions> originalOptions(options);
-  options.SuppressingFreestandingExpression = true;
+suppressingFeatureLexicalLifetimes(PrintOptions &options,
+                                   llvm::function_ref<void()> action) {
+  unsigned originalExcludeAttrCount = options.ExcludeAttrList.size();
+  options.ExcludeAttrList.push_back(DAK_EagerMove);
+  options.ExcludeAttrList.push_back(DAK_NoEagerMove);
+  options.ExcludeAttrList.push_back(DAK_LexicalLifetimes);
   action();
+  options.ExcludeAttrList.resize(originalExcludeAttrCount);
 }
 
 static void
@@ -5411,8 +5419,8 @@ void PrintAST::visitThrowStmt(ThrowStmt *stmt) {
   visit(stmt->getSubExpr());
 }
 
-void PrintAST::visitForgetStmt(ForgetStmt *stmt) {
-  Printer << "_forget" << " ";
+void PrintAST::visitDiscardStmt(DiscardStmt *stmt) {
+  Printer << "discard" << " ";
   visit(stmt->getSubExpr());
 }
 
@@ -5703,16 +5711,15 @@ class TypePrinter : public TypeVisitor<TypePrinter> {
           return opaque->getDecl()->hasExplicitGenericParams();
         case PrintOptions::OpaqueReturnTypePrintingMode::WithoutOpaqueKeyword:
           return opaque->getDecl()->hasExplicitGenericParams() ||
-              isSimpleUnderPrintOptions(opaque->getExistentialType());
+                 isSimpleUnderPrintOptions(opaque->getExistentialType()
+                                               ->castTo<ExistentialType>()
+                                               ->getConstraintType());
         }
         llvm_unreachable("bad opaque-return-type printing mode");
       }
     } else if (auto existential = dyn_cast<ExistentialType>(T.getPointer())) {
-      if (!Options.PrintExplicitAny || !existential->shouldPrintWithAny())
+      if (!existential->shouldPrintWithAny())
         return isSimpleUnderPrintOptions(existential->getConstraintType());
-    } else if (auto existential = dyn_cast<ExistentialMetatypeType>(T.getPointer())) {
-      if (!Options.PrintExplicitAny)
-        return isSimpleUnderPrintOptions(existential->getInstanceType());
     } else if (auto param = dyn_cast<GenericTypeParamType>(T.getPointer())) {
       if (param->isParameterPack())
         return false;
@@ -6184,7 +6191,7 @@ public:
     }
 
     Type instanceType = T->getInstanceType();
-    if (Options.PrintExplicitAny && T->is<ExistentialMetatypeType>()) {
+    if (T->is<ExistentialMetatypeType>()) {
       Printer << "any ";
 
       // FIXME: We need to replace nested existential metatypes so that
@@ -6196,27 +6203,23 @@ public:
 
         return type;
       }));
-    } else if (T->is<MetatypeType>() && instanceType->is<ExistentialType>()) {
-      // The 'any' keyword is needed to distinguish between existential
-      // metatypes and singleton metatypes. However, 'any' usually isn't
-      // printed for Any and AnyObject, because it's unnecessary to write
-      // 'any' with these specific constraints. Force printing with 'any'
-      // for the existential instance type in this case.
-      instanceType->getAs<ExistentialType>()->forcePrintWithAny([&](Type ty) {
-        printWithParensIfNotSimple(ty);
-      });
     } else {
-      printWithParensIfNotSimple(instanceType);
+      assert(T->is<MetatypeType>());
+      if (instanceType->is<ExistentialType>()) {
+        // The 'any' keyword is needed to distinguish between existential
+        // metatypes and singleton metatypes. However, 'any' usually isn't
+        // printed for Any and AnyObject, because it's unnecessary to write
+        // 'any' with these specific constraints. Force printing with 'any'
+        // for the existential instance type in this case.
+        instanceType->getAs<ExistentialType>()->forcePrintWithAny([&](Type ty) {
+          printWithParensIfNotSimple(ty);
+        });
+      } else {
+        printWithParensIfNotSimple(instanceType);
+      }
     }
 
-    // We spell normal metatypes of existential types as .Protocol.
-    if (isa<MetatypeType>(T) &&
-        T->getInstanceType()->isAnyExistentialType() &&
-        !Options.PrintExplicitAny) {
-      Printer << ".Protocol";
-    } else {
-      Printer << ".Type";
-    }
+    Printer << ".Type";
   }
 
   void visitModuleType(ModuleType *T) {
@@ -6843,7 +6846,7 @@ public:
   }
 
   void visitExistentialType(ExistentialType *T) {
-    if (Options.PrintExplicitAny && T->shouldPrintWithAny())
+    if (T->shouldPrintWithAny())
       Printer << "any ";
 
     // FIXME: The desugared type is used here only to support

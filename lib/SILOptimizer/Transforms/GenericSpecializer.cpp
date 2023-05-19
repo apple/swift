@@ -74,8 +74,9 @@ static void transferSpecializeAttributeTargets(SILModule &M,
     }
   }
 }
+} // end anonymous namespace
 
-static bool specializeAppliesInFunction(SILFunction &F,
+bool swift::specializeAppliesInFunction(SILFunction &F,
                                         SILTransform *transform,
                                         bool isMandatory) {
   SILOptFunctionBuilder FunctionBuilder(*transform);
@@ -172,6 +173,8 @@ static bool specializeAppliesInFunction(SILFunction &F,
   return Changed;
 }
 
+namespace {
+
 /// The generic specializer, used in the optimization pipeline.
 class GenericSpecializer : public SILFunctionTransform {
 
@@ -188,210 +191,8 @@ class GenericSpecializer : public SILFunctionTransform {
   }
 };
 
-/// The mandatory specializer, which runs in the mandatory pipeline.
-///
-/// It specializes functions, called from performance-annotated functions
-/// (@_noLocks, @_noAllocation).
-class MandatoryGenericSpecializer : public SILModuleTransform {
-
-  void run() override;
-
-  bool optimize(SILFunction *func, ClassHierarchyAnalysis *cha,
-                bool &invalidatedStackNesting);
-
-  bool optimizeInst(SILInstruction *inst, SILOptFunctionBuilder &funcBuilder,
-                    InstructionDeleter &deleter, ClassHierarchyAnalysis *cha,
-                    bool &invalidatedStackNesting);
-};
-
-
-void MandatoryGenericSpecializer::run() {
-  SILModule *module = getModule();
-
-  if (!module->getOptions().EnablePerformanceAnnotations)
-    return;
-
-  ClassHierarchyAnalysis *cha = getAnalysis<ClassHierarchyAnalysis>();
-  
-  llvm::SmallVector<SILFunction *, 8> workList;
-  llvm::SmallPtrSet<SILFunction *, 16> visited;
-  
-  // Look for performance-annotated functions.
-  for (SILFunction &function : *module) {
-    if (function.getPerfConstraints() != PerformanceConstraints::None) {
-      workList.push_back(&function);
-      visited.insert(&function);
-    }
-  }
-
-  while (!workList.empty()) {
-    SILFunction *func = workList.pop_back_val();
-    module->linkFunction(func, SILModule::LinkingMode::LinkAll);
-    if (!func->isDefinition())
-      continue;
-
-    // Perform generic specialization and other related optimization.
-
-    bool invalidatedStackNesting = false;
-
-    // To avoid phase ordering problems of the involved optimizations, iterate
-    // until we reach a fixed point.
-    // This should always happen, but to be on the safe side, limit the number
-    // of iterations to 10 (which is more than enough - usually the loop runs
-    // 1 to 3 times).
-    for (int i = 0; i < 10; i++) {
-      bool changed = optimize(func, cha, invalidatedStackNesting);
-      if (changed) {
-        invalidateAnalysis(func, SILAnalysis::InvalidationKind::FunctionBody);
-      } else {
-        break;
-      }
-    }
-
-    if (invalidatedStackNesting) {
-      StackNesting::fixNesting(func);
-    }
-
-    // Continue specializing called functions.
-    for (SILBasicBlock &block : *func) {
-      for (SILInstruction &inst : block) {
-        if (auto as = ApplySite::isa(&inst)) {
-          if (SILFunction *callee = as.getReferencedFunctionOrNull()) {
-            if (visited.insert(callee).second)
-              workList.push_back(callee);
-          }
-        }
-      }
-    }
-  }
-}
-
-/// Specialize generic calls in \p func and do some other related optimizations:
-/// devirtualization and constant-folding of the Builtin.canBeClass.
-bool MandatoryGenericSpecializer::optimize(SILFunction *func,
-                                           ClassHierarchyAnalysis *cha,
-                                           bool &invalidatedStackNesting) {
-  bool changed = false;
-  SILOptFunctionBuilder funcBuilder(*this);
-  InstructionDeleter deleter;
-  ReachingReturnBlocks rrBlocks(func);
-  NonErrorHandlingBlocks neBlocks(func);
-
-  // If this is a just specialized function, try to optimize copy_addr, etc.
-  // instructions.
-  if (optimizeMemoryAccesses(*func)) {
-    eliminateDeadAllocations(*func);
-    changed = true;
-  }
-
-  // Visiting blocks in reverse order avoids revisiting instructions after block
-  // splitting, which would be quadratic.
-  for (SILBasicBlock &block : llvm::reverse(*func)) {
-    // Only consider blocks which are not on a "throw" path.
-    if (!rrBlocks.reachesReturn(&block) || !neBlocks.isNonErrorHandling(&block))
-      continue;
-  
-    for (SILInstruction &inst : block.reverseDeletableInstructions()) {
-      changed |= optimizeInst(&inst, funcBuilder, deleter, cha, invalidatedStackNesting);
-    }
-  }
-  deleter.cleanupDeadInstructions();
-
-  if (specializeAppliesInFunction(*func, this, /*isMandatory*/ true))
-    changed = true;
-
-  return changed;
-}
-
-bool MandatoryGenericSpecializer::
-optimizeInst(SILInstruction *inst, SILOptFunctionBuilder &funcBuilder,
-             InstructionDeleter &deleter, ClassHierarchyAnalysis *cha,
-             bool &invalidatedStackNesting) {
-  if (auto as = ApplySite::isa(inst)) {
-
-    bool changed = false;
-
-    // Specialization opens opportunities to devirtualize method calls.
-    if (ApplySite newAS = tryDevirtualizeApply(as, cha).first) {
-      deleter.forceDelete(as.getInstruction());
-      changed = true;
-      as = newAS;
-    }
-
-    if (auto *pai = dyn_cast<PartialApplyInst>(as)) {
-      SILBuilderContext builderCtxt(funcBuilder.getModule());
-      if (tryOptimizeApplyOfPartialApply(pai, builderCtxt, deleter.getCallbacks())) {
-        // Try to delete the partial_apply.
-        // We don't need to copy all arguments again (to extend their lifetimes),
-        // because it was already done in tryOptimizeApplyOfPartialApply.
-        tryDeleteDeadClosure(pai, deleter.getCallbacks(), /*needKeepArgsAlive=*/ false);
-        invalidatedStackNesting = true;
-        return true;
-      }
-      return changed;
-    }
-
-    auto fas = FullApplySite::isa(as.getInstruction());
-    assert(fas);
-
-    SILFunction *callee = fas.getReferencedFunctionOrNull();
-    if (!callee)
-      return changed;
-      
-    if (callee->isTransparent() == IsNotTransparent &&
-        // Force inlining of co-routines, because co-routines may allocate
-        // memory.
-        !isa<BeginApplyInst>(fas.getInstruction()))
-      return changed;
-
-    if (callee->isExternalDeclaration())
-      getModule()->loadFunction(callee, SILModule::LinkingMode::LinkAll);
-
-    if (callee->isExternalDeclaration())
-      return changed;
-
-    // If the de-virtualized callee is a transparent function, inline it.
-    SILInliner::inlineFullApply(fas, SILInliner::InlineKind::MandatoryInline,
-                                funcBuilder, deleter);
-    if (callee->hasOwnership() && !inst->getFunction()->hasOwnership())
-      invalidatedStackNesting = true;
-    return true;
-  }
-  if (auto *bi = dyn_cast<BuiltinInst>(inst)) {
-    // Constant-fold the Builtin.canBeClass. This is essential for Array code.
-    if (bi->getBuiltinInfo().ID != BuiltinValueKind::CanBeObjCClass)
-      return false;
-
-    SILBuilderWithScope builder(bi);
-    IntegerLiteralInst *lit = optimizeBuiltinCanBeObjCClass(bi, builder);
-    if (!lit)
-      return false;
-
-    bi->replaceAllUsesWith(lit);
-    ConstantFolder constFolder(funcBuilder, getOptions().AssertConfig,
-                               /*EnableDiagnostics*/ false);
-    constFolder.addToWorklist(lit);
-    constFolder.processWorkList();
-    deleter.forceDelete(bi);
-    return true;
-  }
-  if (auto *mti = dyn_cast<MetatypeInst>(inst)) {
-    // Remove dead `metatype` instructions which only have `debug_value` uses.
-    // We lose debug info for such type variables, but this is a compromise we
-    // need to accept to get allocation/lock free code.
-    if (onlyHaveDebugUses(mti)) {
-      deleter.forceDeleteWithUsers(mti);
-    }
-  }
-  return false;
-}
-
 } // end anonymous namespace
 
 SILTransform *swift::createGenericSpecializer() {
   return new GenericSpecializer();
-}
-
-SILTransform *swift::createMandatoryGenericSpecializer() {
-  return new MandatoryGenericSpecializer();
 }

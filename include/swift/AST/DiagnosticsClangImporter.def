@@ -156,6 +156,7 @@ NOTE(macro_not_imported, none, "macro '%0' unavailable (cannot import)", (String
 
 NOTE(return_type_not_imported, none, "return type unavailable (cannot import)", ())
 NOTE(parameter_type_not_imported, none, "parameter %0 unavailable (cannot import)", (const clang::NamedDecl*))
+NOTE(rvalue_ref_params_not_imported, none, "C++ functions with rvalue reference parameters are unavailable in Swift", ())
 NOTE(incomplete_interface, none, "interface %0 is incomplete", (const clang::NamedDecl*))
 NOTE(incomplete_protocol, none, "protocol %0 is incomplete", (const clang::NamedDecl*))
 NOTE(incomplete_record, none, "record '%0' is not defined (incomplete)", (StringRef))
@@ -195,7 +196,7 @@ NOTE(mark_safe_to_import, none, "annotate method '%0' with 'SWIFT_RETURNS_INDEPE
 NOTE(at_to_subscript, none, "do you want to replace it with a call "
                             "to the subscript operator?",
      ())
-NOTE(get_swift_iterator, none, "do you want to make a Swift iterator instead?",
+NOTE(use_collection_apis, none, "do you want to use a for-in loop instead?",
      ())
 NOTE(replace_with_nil, none, "do you want to compare against 'nil' instead?",
      ())

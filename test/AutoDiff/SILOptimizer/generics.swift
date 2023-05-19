@@ -52,11 +52,13 @@ func foo<T>(_ x: Wrapper<T>) {
 // Test case where associated derivative function's requirements are met.
 extension Wrapper where Scalar : Numeric {
   @differentiable(reverse, wrt: self where Scalar : Differentiable & FloatingPoint) // expected-warning {{redundant conformance constraint 'Scalar' : 'Differentiable'}}
+  // expected-warning@-1 {{redundant conformance constraint 'Scalar' : 'Numeric'}}
   func mean() -> Wrapper {
     return self
   }
 
   @differentiable(reverse, wrt: self where Scalar : Differentiable & FloatingPoint) // expected-warning {{redundant conformance constraint 'Scalar' : 'Differentiable'}}
+  // expected-warning@-1 {{redundant conformance constraint 'Scalar' : 'Numeric'}}
   func variance() -> Wrapper {
     return mean() // ok
   }
@@ -217,7 +219,7 @@ let _: @differentiable(reverse) (Float, Float) -> TF_546<Float> = { r, i in
 struct TF_652<Scalar> {}
 extension TF_652 : Differentiable where Scalar : FloatingPoint {}
 
-@differentiable(reverse, wrt: x where Scalar: FloatingPoint)
+@differentiable(reverse, wrt: x where Scalar: FloatingPoint) // expected-warning {{redundant conformance constraint 'Scalar' : 'Numeric'}}
 func test<Scalar: Numeric>(x: TF_652<Scalar>) -> TF_652<Scalar> {
   for _ in 0..<10 {
     let _ = x
@@ -293,7 +295,7 @@ struct TF_697_Sequential<Layer1: TF_697_Module, Layer2: TF_697_Layer>: TF_697_Mo
         layer2.callLayer(layer1.callModule(input))
     }
 }
-extension TF_697_Sequential: TF_697_Layer where Layer1: TF_697_Layer {
+extension TF_697_Sequential: TF_697_Layer where Layer1: TF_697_Layer { // expected-warning {{redundant conformance constraint 'Layer1' : 'TF_697_Module'}}
     @differentiable(reverse)
     func callLayer(_ input: Layer1.Input) -> Layer2.Output {
         layer2.callLayer(layer1.callLayer(input))

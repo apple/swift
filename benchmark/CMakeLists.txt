@@ -121,6 +121,7 @@ set(SWIFT_BENCH_MODULES
     single-source/NSDictionaryCastToSwift
     single-source/NSErrorTest
     single-source/NSStringConversion
+    single-source/NaiveRangeReplaceableCollectionConformance
     single-source/NibbleSort
     single-source/NIOChannelPipeline
     single-source/NopDeinit

@@ -360,6 +360,8 @@ public:
   /// Determine whether the given dependent type is required to be a class.
   bool requiresClass(Type type) const;
 
+  Type getUpperBound(Type type, bool wantDependentUpperBound = false) const;
+
   /// Determine the superclass bound on the given dependent type.
   Type getSuperclassBound(Type type) const;
 

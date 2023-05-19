@@ -361,10 +361,6 @@ fileprivate struct EscapeWalker<V: EscapeVisitor> : ValueDefUseWalker,
     case is ApplyInst, is TryApplyInst, is BeginApplyInst:
       return walkDownCallee(argOp: operand, apply: instruction as! FullApplySite, path: path)
     case let pai as PartialApplyInst:
-      // This is a non-stack closure.
-      // For `stack` closures, `hasRelevantType` in `walkDown` will return false
-      // stopping the walk since they don't escape.
-      
       // Check whether the partially applied argument can escape in the body.
       if walkDownCallee(argOp: operand, apply: pai, path: path.with(knownType: nil)) == .abortWalk {
         return .abortWalk
@@ -376,8 +372,9 @@ fileprivate struct EscapeWalker<V: EscapeVisitor> : ValueDefUseWalker,
       // 2. something can escape in a destructor when the context is destroyed
       return walkDownUses(ofValue: pai, path: path.with(knownType: nil))
     case let pta as PointerToAddressInst:
-      assert(operand.index == 0)
       return walkDownUses(ofAddress: pta, path: path.with(knownType: nil))
+    case let cv as ConvertFunctionInst:
+      return walkDownUses(ofValue: cv, path: path.with(knownType: nil))
     case let bi as BuiltinInst:
       switch bi.id {
       case .DestroyArray:
@@ -558,6 +555,12 @@ fileprivate struct EscapeWalker<V: EscapeVisitor> : ValueDefUseWalker,
     if !followLoads(at: path.projectionPath) &&
        // Except for begin_apply: it can yield an address value.
        !apply.isBeginApplyWithIndirectResults {
+      return .continueWalk
+    }
+
+    if argOp.value.type.isNoEscapeFunction {
+      // Per definition a `partial_apply [on_stack]` cannot escape the callee.
+      // Potential escapes of its captured values are already handled when visiting the `partial_apply`.
       return .continueWalk
     }
 

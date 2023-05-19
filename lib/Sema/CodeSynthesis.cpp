@@ -1494,3 +1494,15 @@ bool swift::addNonIsolatedToSynthesized(NominalTypeDecl *nominal,
   value->getAttrs().add(new (ctx) NonisolatedAttr(/*isImplicit=*/true));
   return true;
 }
+
+void swift::applyInferredSPIAccessControlAttr(Decl *decl,
+                                              const Decl *inferredFromDecl,
+                                              ASTContext &ctx) {
+  auto spiGroups = inferredFromDecl->getSPIGroups();
+  if (spiGroups.empty())
+    return;
+
+  auto spiAttr =
+      SPIAccessControlAttr::create(ctx, SourceLoc(), SourceRange(), spiGroups);
+  decl->getAttrs().add(spiAttr);
+}

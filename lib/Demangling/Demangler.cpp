@@ -2068,7 +2068,7 @@ NodePointer Demangler::demangleImplParamConvention(Node::Kind ConvKind) {
     case 'y': attr = "@unowned"; break;
     case 'v': attr = "@pack_owned"; break;
     case 'p': attr = "@pack_guaranteed"; break;
-    case 'm': attr = "@pack_guaranteed"; break;
+    case 'm': attr = "@pack_inout"; break;
     default:
       pushBack();
       return nullptr;

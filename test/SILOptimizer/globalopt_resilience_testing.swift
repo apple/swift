@@ -1,6 +1,8 @@
 // RUN: %target-swift-frontend -emit-sil -O -enable-library-evolution -primary-file %s | %FileCheck %s
 // RUN: %target-swift-frontend -emit-sil -O -enable-library-evolution -enable-testing -primary-file %s | %FileCheck %s --check-prefix=CHECK-TESTING
 
+// REQUIRES: swift_in_compiler
+
 // If a global variable with a resilient type has public linkage, we have to
 // allocate a buffer for it even if the type has a fixed size in its
 // defining module.

@@ -30,8 +30,7 @@
   macro(25)                                                                    \
   macro(26)                                                                    \
   macro(27)                                                                    \
-  macro(28)                                                                    \
-  macro(29)
+  macro(28)
 
 // Apply `macro` with the given parameters to all registers that have
 // specialized entrypoints. That's the same as ALL_REGS, minus x0 (the standard

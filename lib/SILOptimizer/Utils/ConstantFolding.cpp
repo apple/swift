@@ -566,7 +566,7 @@ static SILValue constantFoldBinary(BuiltinInst *BI,
                                    Optional<bool> &ResultsInError) {
   switch (ID) {
   default:
-    llvm_unreachable("Not all BUILTIN_BINARY_OPERATIONs are covered!");
+    return nullptr;
 
   // Not supported yet (not easily computable for APInt).
   case BuiltinValueKind::ExactSDiv:
@@ -1134,7 +1134,7 @@ static SILValue constantFoldIsConcrete(BuiltinInst *BI) {
   return inst;
 }
 
-static SILValue constantFoldBuiltin(BuiltinInst *BI,
+SILValue swift::constantFoldBuiltin(BuiltinInst *BI,
                                     Optional<bool> &ResultsInError) {
   const IntrinsicInfo &Intrinsic = BI->getIntrinsicInfo();
   SILModule &M = BI->getModule();

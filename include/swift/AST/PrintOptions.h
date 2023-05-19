@@ -293,10 +293,6 @@ struct PrintOptions {
 
   bool PrintImplicitAttrs = true;
 
-  /// Whether to print the \c any keyword for existential
-  /// types.
-  bool PrintExplicitAny = false;
-
   /// Whether to desugar the constraint for an existential type.
   bool DesugarExistentialConstraint = false;
 
@@ -319,9 +315,6 @@ struct PrintOptions {
   /// Whether to print the real layout name instead of AnyObject
   /// for class layout
   bool PrintClassLayoutName = false;
-
-  /// Replace @freestanding(expression) with @expression.
-  bool SuppressingFreestandingExpression = false;
 
   /// Suppress emitting @available(*, noasync)
   bool SuppressNoAsyncAvailabilityAttr = false;
@@ -610,7 +603,6 @@ struct PrintOptions {
   /// The print options used for formatting diagnostic arguments.
   static PrintOptions forDiagnosticArguments() {
     PrintOptions result;
-    result.PrintExplicitAny = true;
     return result;
   }
 
@@ -728,7 +720,6 @@ struct PrintOptions {
   static PrintOptions printQualifiedSILType() {
     PrintOptions result = PrintOptions::printSIL();
     result.FullyQualifiedTypesIfAmbiguous = true;
-    result.PrintExplicitAny = true;
     return result;
   }
 

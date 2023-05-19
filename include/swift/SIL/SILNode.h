@@ -181,7 +181,6 @@ protected:
     SHARED_TEMPLATE_FIELD(typename, SwitchEnumInstBase, bool hasDefault);
     SHARED_TEMPLATE_FIELD(SILInstructionKind, LoadReferenceInstBase, bool isTake);
     SHARED_TEMPLATE_FIELD(SILInstructionKind, StoreReferenceInstBase, bool isInitializationOfDest);
-    SHARED_FIELD(SILArgument, uint8_t valueOwnershipKind);
     SHARED_FIELD(MultipleValueInstructionResult, uint8_t valueOwnershipKind);
     SHARED_FIELD(UncheckedOwnershipConversionInst, uint8_t valueOwnershipKind);
     SHARED_FIELD(StoreInst, uint8_t ownershipQualifier);
@@ -202,6 +201,11 @@ protected:
     SHARED_FIELD(EndCOWMutationInst, bool keepUnique);
     SHARED_FIELD(ConvertFunctionInst, bool withoutActuallyEscaping);
     SHARED_FIELD(BeginCOWMutationInst, bool native);
+
+    SHARED_FIELD(SILArgument, uint8_t
+                 valueOwnershipKind : NumVOKindBits,
+                 reborrow : 1,
+                 escaping : 1);
 
     SHARED_FIELD(DebugValueInst, uint8_t
                  poisonRefs : 1,

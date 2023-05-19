@@ -30,7 +30,7 @@ if platform.system() == 'Windows':
 
     for path in sys.argv[1:]:
         subprocess.call(['icacls', path, '/deny',
-                         '{}:(R)'.format(user_name)])
+                         '{}:(RD)'.format(user_name)])
 else:
     for path in sys.argv[1:]:
         subprocess.call(['chmod', 'a-r', path])

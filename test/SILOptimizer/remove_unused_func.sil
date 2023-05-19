@@ -6,6 +6,9 @@ sil_stage canonical
 import Builtin
 import Swift
 
+// CHECK-LABEL: sil_global private @privateGlobal
+sil_global private @privateGlobal : $Int64
+
 // This function needs to be removed.
 // KEEP-NOT: @remove_me
 
@@ -25,6 +28,7 @@ sil_global @globalFunctionPointer : $@callee_guaranteed () -> () = {
 // CHECK-LABEL: sil private @alivePrivateFunc
 sil private @alivePrivateFunc : $@convention(thin) () -> () {
 bb0:
+  alloc_global @privateGlobal
   %0 = tuple ()
   return %0 : $()
 }

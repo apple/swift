@@ -4,7 +4,6 @@
 // REQUIRES: CPU=arm64e
 // REQUIRES: OS=ios
 
-// CHECK: @"$sTa.ptrauth" = private constant { i8*, i32, i64, i64 } { i8* bitcast (void (%swift.refcounted*)* @"$sTa" to i8*), i32 0, i64 0, i64 {{.*}} }, section "llvm.ptrauth"
 
 @objc class A {
   @objc func foo() {}
@@ -21,9 +20,11 @@ bb0(%0 : $A):
   unreachable
 }
 
-//   It would also be reasonable to not apply ptrauth here, but as long as we're partial_apply
+// The partial apply was optimized.
 // CHECK-LABEL: define swiftcc void @test0(
-// CHECK:         call swiftcc void bitcast ({ i8*, i32, i64, i64 }* @"$sTa.ptrauth" to void (%swift.refcounted*)*)(%swift.refcounted* swiftself {{%.*}}) [ "ptrauth"(i32 0, i64 {{.*}}) ]
+// CHECK:  %1 = load i8*, i8** @"\01L_selector(foo)"
+// CHECK:  %2 = bitcast %T4test1AC* %0
+// CHECK:  call void bitcast (void ()* @objc_msgSend to void (%0*, i8*)*)(%0* %2, i8* %1)
 sil @test0 : $@convention(thin) (@guaranteed A) -> () {
 bb0(%0: $A):
   %method = objc_method %0 : $A, #A.foo!foreign, $@convention(objc_method) (A) -> ()

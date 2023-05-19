@@ -407,9 +407,9 @@ ${SelfName}TestSuite.test("customMirror") {
   let ptr = ${SelfType}(bitPattern: reallyBigInt)!
   let mirror = ptr.customMirror
   expectEqual(1, mirror.children.count)
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32)
+#if _pointerBitWidth(_32)
   expectEqual("18446744071562067968", String(describing: mirror.children.first!.1))
-#elseif arch(x86_64) || arch(arm64) || arch(powerpc64) || arch(powerpc64le) || arch(s390x) || arch(riscv64)
+#elseif _pointerBitWidth(_64)
   expectEqual("9223372036854775808", String(describing: mirror.children.first!.1))
 #else
   fatalError("Unimplemented")
@@ -422,9 +422,9 @@ ${SelfName}TestSuite.test("customPlaygroundQuickLook") {
   let reallyBigInt: UInt = UInt(Int.max) + 1
   let ptr = ${SelfType}(bitPattern: reallyBigInt)!
   if case let .text(desc) = ptr.customPlaygroundQuickLook {
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32)
+#if _pointerBitWidth(_32)
     expectEqual("${SelfName}(0xFFFFFFFF80000000)", desc)
-#elseif arch(x86_64) || arch(arm64) || arch(powerpc64) || arch(powerpc64le) || arch(s390x) || arch(riscv64)
+#elseif _pointerBitWidth(_64)
     expectEqual("${SelfName}(0x8000000000000000)", desc)
 #else
     fatalError("Unimplemented")

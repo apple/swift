@@ -109,6 +109,10 @@ public:
 
   ArrayRef<Operand *> getDestroyingUses() const { return destroyingUses; }
 
+  ArrayRef<Operand *> getUnknownConsumingUses() const {
+    return unknownConsumingUses;
+  }
+
 private:
   struct OperandToUser;
 

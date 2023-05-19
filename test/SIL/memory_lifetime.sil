@@ -1,5 +1,6 @@
 // RUN: %target-sil-opt -o /dev/null %s
 // REQUIRES: asserts
+// REQUIRES: swift_in_compiler
 
 sil_stage canonical
 
@@ -709,20 +710,18 @@ entry:
   return %retval : $()
 }
 
-// CHECK: SIL memory lifetime failure in @begin_apply_inout_destroy: memory is not initialized, but should be
-sil [ossa] @begin_apply_inout_no_destroy : $@convention(thin) () -> () {
-entry:
-  (%instance, %token) = begin_apply undef<Inner>() : $@yield_once @convention(thin) <U> () -> @yields @inout U
-  end_apply %token
-  %retval = tuple ()
-  return %retval : $()
+sil @read_inner_b : $@convention(thin) (@in_guaranteed Inner) -> () {
+[%0: read s1]
 }
 
-// CHECK: SIL memory lifetime failure in @begin_apply_inout_aliasable_destroy: memory is not initialized, but should be
-sil [ossa] @begin_apply_inout_aliasable_no_destroy : $@convention(thin) () -> () {
-entry:
-  (%instance, %token) = begin_apply undef<Inner>() : $@yield_once @convention(thin) <U> () -> @yields @inout_aliasable U
-  end_apply %token
-  %retval = tuple ()
-  return %retval : $()
+sil [ossa] @test_partial_read_in_argument : $@convention(thin) (@in Inner) -> () {
+bb0(%0: $*Inner):
+  %1 = struct_element_addr %0 : $*Inner, #Inner.a
+  destroy_addr %1 : $*T
+  %3 = function_ref @read_inner_b : $@convention(thin) (@in_guaranteed Inner) -> ()
+  %4 = apply %3(%0) : $@convention(thin) (@in_guaranteed Inner) -> ()
+  %5 = struct_element_addr %0 : $*Inner, #Inner.b
+  destroy_addr %5 : $*T
+  %r = tuple ()
+  return %r : $()
 }

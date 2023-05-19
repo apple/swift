@@ -1,0 +1,36 @@
+// RUN: %target-sil-opt -enable-sil-verify-all %s -onone-simplification -simplify-instruction=begin_apply | %FileCheck %s
+
+// REQUIRES: swift_in_compiler
+
+sil_stage canonical
+
+import Builtin
+import Swift
+import SwiftShims
+
+class Bar {
+  init()
+  @_borrowed @_hasStorage var field: Int { get set }
+}
+
+// CHECK-LABEL: sil @devirt_class_method :
+// CHECK:         [[F:%.*]] = function_ref @bar_field_read
+// CHECK:         begin_apply [[F]]
+// CHECK:       } // end sil function 'devirt_class_method'
+sil @devirt_class_method : $@convention(thin) () -> (Int, @error any Error) {
+bb0:
+  %0 = alloc_ref $Bar
+  %1 = class_method %0 : $Bar, #Bar.field!read : (Bar) -> () -> (), $@yield_once @convention(method) (@guaranteed Bar) -> @yields Int
+  (%2, %3) = begin_apply %1(%0) : $@yield_once @convention(method) (@guaranteed Bar) -> @yields Int
+  end_apply %3
+  return %2 : $Int
+}
+
+sil @bar_field_read : $@yield_once @convention(method) (@guaranteed Bar) -> @yields Int
+
+sil_vtable Bar {
+  #Bar.field!read: @bar_field_read
+}
+
+
+

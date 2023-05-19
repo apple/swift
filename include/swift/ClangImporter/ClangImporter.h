@@ -50,6 +50,7 @@ namespace clang {
   class VisibleDeclConsumer;
   class DeclarationName;
   class CompilerInvocation;
+  class TargetOptions;
 namespace tooling {
 namespace dependencies {
   struct ModuleDeps;
@@ -173,7 +174,7 @@ public:
          DWARFImporterDelegate *dwarfImporterDelegate = nullptr);
 
   static std::vector<std::string>
-  getClangArguments(ASTContext &ctx);
+  getClangArguments(ASTContext &ctx, bool ignoreClangTarget = false);
 
   static std::unique_ptr<clang::CompilerInvocation>
   createClangInvocation(ClangImporter *importer,
@@ -403,6 +404,9 @@ public:
   /// if we need to persist a PCH for later reuse.
   bool canReadPCH(StringRef PCHFilename);
 
+  /// Reads the original source file name from PCH.
+  std::string getOriginalSourceFile(StringRef PCHFilename);
+
   /// Makes a temporary replica of the ClangImporter's CompilerInstance, reads a
   /// module map into the replica and emits a PCM file for one of the modules it
   /// declares. Delegates to clang for everything except construction of the
@@ -445,13 +449,33 @@ public:
       StringRef moduleName,
       ModuleDependencyKind moduleKind,
       ModuleDependenciesCache &cache);
-
-  clang::TargetInfo &getTargetInfo() const override;
+  clang::TargetInfo &getModuleAvailabilityTarget() const override;
   clang::ASTContext &getClangASTContext() const override;
   clang::Preprocessor &getClangPreprocessor() const override;
   clang::Sema &getClangSema() const override;
   const clang::CompilerInstance &getClangInstance() const override;
-  clang::CodeGenOptions &getClangCodeGenOpts() const;
+
+  /// ClangImporter's Clang instance may be configured with a different
+  /// (higher) OS version than the compilation target itself in order to be able
+  /// to load pre-compiled Clang modules that are aligned with the broader SDK,
+  /// and match the SDK deployment target against which Swift modules are also
+  /// built.
+  ///
+  /// In this case, we must use the Swift compiler's OS version triple when
+  /// performing codegen, and the importer's Clang instance OS version triple
+  /// during module loading.
+  ///
+  /// `ClangImporter`'s `Implementation` keeps track of a distinct `TargetInfo`
+  /// and `CodeGenOpts` containers that are meant to be used by clients in
+  /// IRGen. When a separate `-clang-target` is not set, they are defined to be
+  /// copies of the `ClangImporter`'s built-in module-loading Clang instance.
+  /// When `-clang-target` is set, they are configured with the Swift
+  /// compilation's target triple and OS version (but otherwise identical)
+  /// instead. To distinguish IRGen clients from module loading clients,
+  /// `getModuleAvailabilityTarget` should be used instead by module-loading
+  /// clients.
+  clang::TargetInfo &getTargetInfo() const;
+  clang::CodeGenOptions &getCodeGenOpts() const;
 
   std::string getClangModuleHash() const;
 
@@ -587,6 +611,14 @@ namespace importer {
 
 /// Returns true if the given module has a 'cplusplus' requirement.
 bool requiresCPlusPlus(const clang::Module *module);
+
+/// Returns the pointee type if the given type is a C++ `const`
+/// reference type, `None` otherwise.
+llvm::Optional<clang::QualType>
+getCxxReferencePointeeTypeOrNone(const clang::Type *type);
+
+/// Returns true if the given type is a C++ `const` reference type.
+bool isCxxConstReferenceType(const clang::Type *type);
 
 } // namespace importer
 

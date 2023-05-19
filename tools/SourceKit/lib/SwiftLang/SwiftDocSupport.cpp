@@ -1249,7 +1249,6 @@ static bool reportSourceDocInfo(CompilerInvocation Invocation,
     Consumer.failed(InstanceSetupError);
     return true;
   }
-  DiagConsumer.setInputBufferIDs(CI.getInputBufferIDs());
 
   ASTContext &Ctx = CI.getASTContext();
   CloseClangModuleFiles scopedCloseFiles(*Ctx.getClangModuleLoader());
@@ -1262,10 +1261,9 @@ static bool reportSourceDocInfo(CompilerInvocation Invocation,
 
   reportDocEntities(Ctx, SourceInfo.TopEntities, Consumer);
   reportSourceAnnotations(SourceInfo, CI, Consumer);
-  for (auto &Diag : DiagConsumer.getDiagnosticsForBuffer(
-                                                CI.getInputBufferIDs().back()))
-    Consumer.handleDiagnostic(Diag);
 
+  auto BufferID = CI.getInputBufferIDs().back();
+  Consumer.handleDiagnostics(DiagConsumer.getDiagnosticsForBuffer(BufferID));
   return false;
 }
 

@@ -724,6 +724,14 @@ static SILInstruction *getPrecedingCallToNoReturn(SILBasicBlock &BB) {
   return first;
 }
 
+static bool isUnavailableCodeReachedCall(SILInstruction *I) {
+  if (auto *AI = dyn_cast<ApplyInst>(I))
+    if (AI->hasSemantics(SEMANTICS_UNAVAILABLE_CODE_REACHED))
+      return true;
+
+  return false;
+}
+
 static bool simplifyBlocksWithCallsToNoReturn(SILBasicBlock &BB,
                                      UnreachableUserCodeReportingState *State) {
   auto I = BB.begin(), E = BB.end();
@@ -764,6 +772,13 @@ static bool simplifyBlocksWithCallsToNoReturn(SILBasicBlock &BB,
     // it's an explicit cast, skip it.
     if (!noReturnCall->getLoc().is<RegularLocation>() ||
         noReturnCall->getLoc().isASTNode<ExplicitCastExpr>())
+      return false;
+
+    // If the no-return instruction is a call to the unavailable code reached
+    // diagnostic function then we assume that the call was inserted by the
+    // compiler because the function is semantically unavailable. Diagnosing the
+    // user written body of the function as unreachable would be redundant.
+    if (isUnavailableCodeReachedCall(noReturnCall))
       return false;
 
     diagnose(BB.getModule().getASTContext(), currInst->getLoc().getSourceLoc(),

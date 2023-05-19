@@ -94,7 +94,7 @@ func id<T>(_ a: T) -> T { a }
 StringDeconstructTests.test("deconstruct") {
   let smallASCII = "abcd"
 
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32)
+#if _pointerBitWidth(_32)
   let smallUTF8 = "ジッパ"
 #else
   let smallUTF8 = "ジッパー"
@@ -119,10 +119,12 @@ StringDeconstructTests.test("deconstruct cocoa") {
   let largeASCIICocoa: NSString = "the quick fox jumped over the lazy brown dog"
   let largeCocoa: NSString = "the quick 🧟‍♀️ ate the slow 🧠"
 
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32)
+#if _pointerBitWidth(_32)
   expectDeconstruct(smallCocoa as String, .interiorPointer)
-#else
+#elseif _pointerBitWidth(_64)
   expectDeconstruct(smallCocoa as String, .scratchIfAvailable)
+#else
+#error("Unknown platform")
 #endif
 
   expectDeconstruct(largeASCIICocoa as String, .interiorPointer)

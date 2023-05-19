@@ -19,6 +19,10 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 
+namespace llvm {
+class Triple;
+}
+
 namespace swift {
 
 class ModuleFile;
@@ -106,6 +110,12 @@ struct ValidationInfo {
 /// \sa validateSerializedAST()
 class ExtendedValidationInfo {
   SmallVector<StringRef, 4> ExtraClangImporterOpts;
+
+  SmallVector<StringRef, 1> PluginSearchPaths;
+  SmallVector<StringRef, 1> ExternalPluginSearchPaths;
+  SmallVector<StringRef, 1> CompilerPluginLibraryPaths;
+  SmallVector<StringRef, 1> CompilerPluginExecutablePaths;
+
   std::string SDKPath;
   StringRef ModuleABIName;
   StringRef ModulePackageName;
@@ -136,6 +146,34 @@ public:
   }
   void addExtraClangImporterOption(StringRef option) {
     ExtraClangImporterOpts.push_back(option);
+  }
+
+  ArrayRef<StringRef> getPluginSearchPaths() const {
+    return PluginSearchPaths;
+  }
+  void addPluginSearchPath(StringRef path) {
+    PluginSearchPaths.push_back(path);
+  }
+
+  ArrayRef<StringRef> getExternalPluginSearchPaths() const {
+    return ExternalPluginSearchPaths;
+  }
+  void addExternalPluginSearchPath(StringRef path) {
+    ExternalPluginSearchPaths.push_back(path);
+  }
+
+  ArrayRef<StringRef> getCompilerPluginLibraryPaths() const {
+    return CompilerPluginLibraryPaths;
+  }
+  void addCompilerPluginLibraryPath(StringRef path) {
+    CompilerPluginLibraryPaths.push_back(path);
+  }
+
+  ArrayRef<StringRef> getCompilerPluginExecutablePaths() const {
+    return CompilerPluginExecutablePaths;
+  }
+  void addCompilerPluginExecutablePath(StringRef path) {
+    CompilerPluginExecutablePaths.push_back(path);
   }
 
   bool isSIB() const { return Bits.IsSIB; }
@@ -267,6 +305,11 @@ void diagnoseSerializedASTLoadFailure(
 void diagnoseSerializedASTLoadFailureTransitive(
     ASTContext &Ctx, SourceLoc diagLoc, const serialization::Status status,
     ModuleFile *loadedModuleFile, Identifier ModuleName, bool forTestable);
+
+/// Determine whether two triples are considered to be compatible for module
+/// serialization purposes.
+bool areCompatible(const llvm::Triple &moduleTarget,
+                   const llvm::Triple &ctxTarget);
 
 } // end namespace serialization
 } // end namespace swift

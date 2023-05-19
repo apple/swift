@@ -310,8 +310,6 @@ WARNING(warn_dead_weak_store,none,
         "deallocated here", ())
 
 // performance diagnostics
-ERROR(performance_annotations_not_enabled,none,
-      "use -experimental-performance-annotations to enable performance annotations", ())
 ERROR(performance_dynamic_casting,none,
       "dynamic casting can lock or allocate", ())
 ERROR(performance_metadata,none,
@@ -734,6 +732,18 @@ ERROR(copy_operator_used_on_generic_or_existential_value, none,
 ERROR(noimplicitcopy_used_on_generic_or_existential, none,
       "@_noImplicitCopy can not be used on a generic or existential typed "
       "binding or a nominal type containing such typed things", ())
+
+// discard statement
+ERROR(discard_nontrivial_storage,none,
+      "can only 'discard' type %0 if it contains trivially-destroyed "
+      "stored properties at this time",
+      (Type))
+NOTE(discard_nontrivial_storage_note,none,
+      "type %0 cannot be trivially destroyed",
+      (Type))
+NOTE(discard_nontrivial_implicit_storage_note,none,
+     "type %0 implicitly contains %1 which cannot be trivially destroyed",
+     (Type, Type))
 
 // move only checker diagnostics
 ERROR(sil_moveonlychecker_owned_value_consumed_more_than_once, none,

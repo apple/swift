@@ -10,279 +10,356 @@
 
 import StdlibUnittest
 import _Observation
-import _Concurrency
-
-@available(SwiftStdlib 5.9, *)
-@MainActor @Observable
-final class StateMachine {
-  enum State {
-    case initializing
-    case running
-    case complete
-  }
-
-  var state: State = .initializing
-}
 
 @usableFromInline
 @inline(never)
 func _blackHole<T>(_ value: T) { }
 
-final class UnsafeBox<Contents>: @unchecked Sendable {
-  var contents: Contents
+@Observable
+class ContainsNothing { }
 
-  init(_ contents: Contents) {
-    self.contents = contents
+@Observable
+struct Structure {
+  var field: Int = 0
+}
+
+@Observable
+class ContainsWeak {
+  weak var obj: AnyObject? = nil
+}
+
+@Observable
+public class PublicContainsWeak {
+  public weak var obj: AnyObject? = nil
+}
+
+@Observable
+class ContainsUnowned {
+  unowned var obj: AnyObject? = nil
+}
+
+@Observable
+class ContainsIUO {
+  var obj: Int! = nil
+}
+
+class NonObservable {
+  
+}
+
+@Observable
+class InheritsFromNonObservable: NonObservable {
+  
+}
+
+protocol NonObservableProtocol {
+  
+}
+
+@Observable
+class ConformsToNonObservableProtocol: NonObservableProtocol {
+  
+}
+
+struct NonObservableContainer {
+  @Observable
+  class ObservableContents {
+    var field: Int = 3
   }
 }
 
-@available(SwiftStdlib 5.9, *)
-final class TestWithoutMacro: Observable {
-  let _registrar = ObservationRegistrar<TestWithoutMacro>()
-
-  nonisolated func changes<Isolation>(
-    for properties: TrackedProperties<TestWithoutMacro>, 
-    isolatedTo isolation: Isolation
-  ) -> ObservedChanges<TestWithoutMacro, Isolation> where Isolation: Actor {
-    _registrar.changes(for: properties, isolatedTo: isolation)
+@Observable
+class ImplementsAccessAndMutation {
+  var field = 3
+  let accessCalled: (PartialKeyPath<ImplementsAccessAndMutation>) -> Void
+  let withMutationCalled: (PartialKeyPath<ImplementsAccessAndMutation>) -> Void
+  
+  init(accessCalled: @escaping (PartialKeyPath<ImplementsAccessAndMutation>) -> Void, withMutationCalled: @escaping (PartialKeyPath<ImplementsAccessAndMutation>) -> Void) {
+    self.accessCalled = accessCalled
+    self.withMutationCalled = withMutationCalled
   }
-
-  nonisolated func values<Member>(
-    for keyPath: KeyPath<TestWithoutMacro, Member>
-  ) -> ObservedValues<TestWithoutMacro, Member> where Member : Sendable {
-    _registrar.values(for: keyPath)
+  
+  internal func access<Member>(
+      keyPath: KeyPath<ImplementsAccessAndMutation , Member>
+  ) {
+    accessCalled(keyPath)
+    _$observationRegistrar.access(self, keyPath: keyPath)
   }
-
-  private struct _Storage {
-    var field1 = "test"
-    var field2 = "test"
-    var field3 = 0
-  }
-
-  private var _storage = _Storage()
-
-  var field1: String {
-    get {
-      _registrar.access(self, keyPath: \.field1)
-      return _storage.field1
-    }
-    set {
-      _registrar.withMutation(of: self, keyPath: \.field1) {
-        _storage.field1 = newValue
-      }
-    }
-  }
-
-  var field2: String {
-    get {
-      _registrar.access(self, keyPath: \.field2)
-      return _storage.field2
-    }
-    set {
-      _registrar.withMutation(of: self, keyPath: \.field2) {
-        _storage.field2 = newValue
-      }
-    }
-  }
-
-  var field3: Int {
-    get {
-      _registrar.access(self, keyPath: \.field3)
-      return _storage.field3
-    }
-    set {
-      _registrar.withMutation(of: self, keyPath: \.field3) {
-        _storage.field3 = newValue
-      }
-    }
+  
+  internal func withMutation<Member, T>(
+    keyPath: KeyPath<ImplementsAccessAndMutation , Member>,
+    _ mutation: () throws -> T
+  ) rethrows -> T {
+    withMutationCalled(keyPath)
+    return try _$observationRegistrar.withMutation(of: self, keyPath: keyPath, mutation)
   }
 }
 
-@available(SwiftStdlib 5.9, *)
-@Observable final class TestWithMacro {
-  var field1 = "test"
-  var field2 = "test"
-  var field3 = 0
+@Observable
+class HasIgnoredProperty {
+  var field = 3
+  @ObservationIgnored var ignored = 4
 }
 
-extension AsyncSequence {
-  func triggerIteration(
-    _ continuation: UnsafeContinuation<Void, Never>
-  ) -> TriggerSequence<Self> {
-    TriggerSequence(self, continuation: continuation)
+@Observable
+class Entity {
+  var age: Int = 0
+}
+
+@Observable
+class Person : Entity {
+  var firstName = ""
+  var lastName = ""
+  
+  var friends = [Person]()
+
+  var fullName: String { firstName + " " + lastName }
+}
+
+@Observable
+class MiddleNamePerson: Person {
+  var middleName = ""
+
+  override var fullName: String { firstName + " " + middleName + " " + lastName }
+}
+
+@Observable
+class IsolatedClass {
+  @MainActor var test = "hello"
+}
+
+@MainActor
+@Observable
+class IsolatedInstance {
+  var test = "hello"
+}
+
+@Observable
+struct StructHasExistingConformance: Observable { }
+
+@Observable
+class ClassHasExistingConformance: Observable { }
+
+protocol Intermediary: Observable { }
+
+@Observable
+class HasIntermediaryConformance: Intermediary { }
+
+class CapturedState<State>: @unchecked Sendable {
+  var state: State
+  
+  init(state: State) {
+    self.state = state
   }
 }
 
-struct TriggerSequence<Base: AsyncSequence> {
-  let base: Base
-  let continuation: UnsafeContinuation<Void, Never>
-
-  init(_ base: Base, continuation: UnsafeContinuation<Void, Never>) {
-    self.base = base
-    self.continuation = continuation
-  }
-}
-
-extension TriggerSequence: AsyncSequence {
-  typealias Element = Base.Element
-
-  struct Iterator: AsyncIteratorProtocol {
-    var continuation: UnsafeContinuation<Void, Never>?
-    var base: Base.AsyncIterator
-
-    init(
-      _ base: Base.AsyncIterator, 
-      continuation: UnsafeContinuation<Void, Never>
-    ) {
-      self.base = base
-      self.continuation = continuation
-    }
-
-    mutating func next() async rethrows -> Base.Element? {
-      if let continuation {
-        self.continuation = nil
-        continuation.resume()
-      }
-      return try await base.next()
-    }
-  }
-
-  func makeAsyncIterator() -> Iterator {
-    Iterator(base.makeAsyncIterator(), continuation: continuation)
-  }
-}
-
-@main struct Main {
+@main
+struct Validator {
   @MainActor
-  static func main() async {
+  static func main() {
+
+    
     let suite = TestSuite("Observable")
-
-    suite.test("unobserved value changes (macro)") {
-      let subject = TestWithMacro()
+    
+    suite.test("unobserved value changes") {
+      let test = MiddleNamePerson()
       for i in 0..<100 {
-        subject.field3 = i
+        test.firstName = "\(i)"
       }
     }
-
-    suite.test("unobserved value changes (nonmacro)") {
-      let subject = TestWithoutMacro()
-      for i in 0..<100 {
-        subject.field3 = i
-      }
-    }
-
-    suite.test("changes emit values (macro)") { @MainActor in
-      let subject = TestWithMacro()
-      var t: Task<String?, Never>?
-      await withUnsafeContinuation { continuation in
-        t = Task { @MainActor in
-          // Note: this must be fully established 
-          // so we must await the trigger to fire
-          let values = subject.values(for: \.field1)
-            .triggerIteration(continuation)
-          for await value in values {
-            return value
-          }
-          return nil
-        }
-      }
-      subject.field1 = "a"
-      let value = await t!.value
-      expectEqual(value, "a")
-    }
-
-    suite.test("changes emit values (nonmacro)") { @MainActor in
-      let subject = TestWithoutMacro()
-      var t: Task<String?, Never>?
-      await withUnsafeContinuation { continuation in
-        t = Task { @MainActor in
-          // Note: this must be fully established 
-          // so we must await the trigger to fire
-          let values = subject.values(for: \.field1)
-            .triggerIteration(continuation)
-          for await value in values {
-            return value
-          }
-          return nil
-        }
-      }
-      subject.field1 = "a"
-      let value = await t!.value
-      expectEqual(value, "a")
-    }
-
-
-    suite.test("changes cancellation terminates") { @MainActor in
-      let subject = TestWithMacro()
-      var finished = false
-      let t = Task { @MainActor in
-        for await _ in subject.changes(for: \.field1) {
-
-        }
-        finished = true
-      }
-      try? await Task.sleep(for: .seconds(0.1))
-      expectEqual(finished, false)
-      t.cancel()
-      try? await Task.sleep(for: .seconds(0.1))
-      expectEqual(finished, true)
-    }
-
-    suite.test("emit values (macro)") { @MainActor in
-      let subject = TestWithMacro()
-      var t: Task<String?, Never>?
-      await withUnsafeContinuation { continuation in
-        t = Task { @MainActor in
-          // Note: this must be fully established 
-          // so we must await the trigger to fire
-          let values = subject.values(for: \.field1)
-            .triggerIteration(continuation)
-          for await value in values {
-            return value
-          }
-          return nil
-        }
-      }
-      subject.field1 = "a"
-      let value = await t!.value
-      expectEqual(value, "a")
-    }
-
-    suite.test("emit values (nonmacro)") { @MainActor in
-      let subject = TestWithoutMacro()
-      var t: Task<String?, Never>?
-      await withUnsafeContinuation { continuation in
-        t = Task { @MainActor in
-          // Note: this must be fully established 
-          // so we must await the trigger to fire
-          let values = subject.values(for: \.field1)
-            .triggerIteration(continuation)
-          for await value in values {
-            return value
-          }
-          return nil
-        }
-      }
-      subject.field1 = "a"
-      let value = await t!.value
-      expectEqual(value, "a")
-    }
-
-    suite.test("tracking") { @MainActor in
-      let subject = TestWithMacro()
-      let changed = UnsafeBox(false)
-      ObservationTracking.withTracking {
-        _blackHole(subject.field1)
+    
+    suite.test("tracking changes") {
+      let changed = CapturedState(state: false)
+      
+      let test = MiddleNamePerson()
+      withObservationTracking {
+        _blackHole(test.firstName)
       } onChange: {
-        changed.contents = true
+        changed.state = true
       }
-      expectEqual(changed.contents, false)
-      subject.field2 = "asdf"
-      expectEqual(changed.contents, false)
-      subject.field1 = "asdf"
-      expectEqual(changed.contents, true)
+      
+      test.firstName = "c"
+      expectEqual(changed.state, true)
+      changed.state = false
+      test.firstName = "c"
+      expectEqual(changed.state, false)
     }
 
-    await runAllTestsAsync()
+    suite.test("tracking structure changes") {
+      let changed = CapturedState(state: false)
+      
+      var test = Structure()
+      withObservationTracking {
+        _blackHole(test.field)
+      } onChange: {
+        changed.state = true
+      }
+      
+      test.field = 4
+      expectEqual(changed.state, true)
+      changed.state = false
+      test.field = 5
+      expectEqual(changed.state, false)
+    }
+
+    suite.test("conformance") {
+      func testConformance<O: Observable>(_ o: O) -> Bool {
+        return true
+      }
+      
+      func testConformance<O>(_ o: O) -> Bool {
+        return false
+      }
+      
+      let test = Person()
+      expectEqual(testConformance(test), true)
+    }
+    
+    suite.test("tracking nonchanged") {
+      let changed = CapturedState(state: false)
+      
+      let test = MiddleNamePerson()
+      withObservationTracking {
+        _blackHole(test.lastName)
+      } onChange: {
+        changed.state = true
+      }
+      
+      test.firstName = "c"
+      expectEqual(changed.state, false)
+    }
+    
+    suite.test("tracking computed") {
+      let changed = CapturedState(state: false)
+      
+      let test = MiddleNamePerson()
+      withObservationTracking {
+        _blackHole(test.fullName)
+      } onChange: {
+        changed.state = true
+      }
+      
+      test.middleName = "c"
+      expectEqual(changed.state, true)
+      changed.state = false
+      test.middleName = "c"
+      expectEqual(changed.state, false)
+    }
+    
+    suite.test("graph changes") {
+      let changed = CapturedState(state: false)
+      
+      let test = MiddleNamePerson()
+      let friend = MiddleNamePerson()
+      test.friends.append(friend)
+      withObservationTracking {
+        _blackHole(test.friends.first?.fullName)
+      } onChange: {
+        changed.state = true
+      }
+
+      test.middleName = "c"
+      expectEqual(changed.state, false)
+      friend.middleName = "c"
+      expectEqual(changed.state, true)
+    }
+    
+    suite.test("nesting") {
+      let changedOuter = CapturedState(state: false)
+      let changedInner = CapturedState(state: false)
+      
+      let test = MiddleNamePerson()
+      withObservationTracking {
+        withObservationTracking {
+          _blackHole(test.firstName)
+        } onChange: {
+          changedInner.state = true
+        }
+      } onChange: {
+        changedOuter.state = true
+      }
+      
+      test.firstName = "c"
+      expectEqual(changedInner.state, true)
+      expectEqual(changedOuter.state, true)
+      changedOuter.state = false
+      test.firstName = "c"
+      expectEqual(changedOuter.state, false)
+    }
+    
+    suite.test("access and mutation") {
+      let accessKeyPath = CapturedState<PartialKeyPath<ImplementsAccessAndMutation>?>(state: nil)
+      let mutationKeyPath = CapturedState<PartialKeyPath<ImplementsAccessAndMutation>?>(state: nil)
+      let test = ImplementsAccessAndMutation { keyPath in
+        accessKeyPath.state = keyPath
+      } withMutationCalled: { keyPath in
+        mutationKeyPath.state = keyPath
+      }
+      
+      expectEqual(accessKeyPath.state, nil)
+      _blackHole(test.field)
+      expectEqual(accessKeyPath.state, \.field)
+      expectEqual(mutationKeyPath.state, nil)
+      accessKeyPath.state = nil
+      test.field = 123
+      expectEqual(accessKeyPath.state, nil)
+      expectEqual(mutationKeyPath.state, \.field)
+    }
+    
+    suite.test("ignores no change") {
+      let changed = CapturedState(state: false)
+      
+      let test = HasIgnoredProperty()
+      withObservationTracking {
+        _blackHole(test.ignored)
+      } onChange: {
+        changed.state = true
+      }
+      
+      test.ignored = 122112
+      expectEqual(changed.state, false)
+      changed.state = false
+      test.field = 3429
+      expectEqual(changed.state, false)
+    }
+    
+    suite.test("ignores change") {
+      let changed = CapturedState(state: false)
+      
+      let test = HasIgnoredProperty()
+      withObservationTracking {
+        _blackHole(test.ignored)
+        _blackHole(test.field)
+      } onChange: {
+        changed.state = true
+      }
+      
+      test.ignored = 122112
+      expectEqual(changed.state, false)
+      changed.state = false
+      test.field = 3429
+      expectEqual(changed.state, true)
+    }
+
+    suite.test("isolated class") { @MainActor in
+      let changed = CapturedState(state: false)
+      
+      let test = IsolatedClass()
+      withObservationTracking {
+        _blackHole(test.test)
+      } onChange: {
+        changed.state = true
+      }
+      
+      test.test = "c"
+      expectEqual(changed.state, true)
+      changed.state = false
+      test.test = "c"
+      expectEqual(changed.state, false)
+    }
+    
+    runAllTests()
   }
 }
+
+

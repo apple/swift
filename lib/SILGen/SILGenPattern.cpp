@@ -1679,7 +1679,7 @@ emitCastOperand(SILGenFunction &SGF, SILLocation loc,
     finalValue =
         SGF.emitSubstToOrigValue(loc, finalValue, abstraction, sourceType, ctx);
   }
-  assert(finalValue.isPlusOne(SGF));
+  assert(finalValue.isPlusOneOrTrivial(SGF));
 
   // If we at this point do not require an address, return final value. We know
   // that it is a +1 take always value.

@@ -180,11 +180,17 @@ bb2(%phi : @guaranteed $SuperKlass):
   return %9999 : $()
 }
 
-// CHECK: Error#: 0. Begin Error in Function: 'test7'
+// Error#: 0. Begin Error in Function: 'test7'
+// Invalid End Borrow!
+// Original Value: %0 = argument of bb0 : $Klass
+// End Borrow:   br bb3(%3 : $SuperKlass)
+//
+// Error#: 0. End Error in Function: 'test7'
+// CHECK: Error#: 1. Begin Error in Function: 'test7'
 // CHECK: Malformed @guaranteed phi!
 // CHECK: Phi: %7 = argument of bb3 : $SuperKlass
 // CHECK: Guaranteed forwarding operands not found on all paths!
-// CHECK: Error#: 0. End Error in Function: 'test7'
+// CHECK: Error#: 1. End Error in Function: 'test7'
 sil [ossa] @test7 : $@convention(thin) (@guaranteed Klass, @owned SuperKlass) -> () {
 bb0(%0 : @guaranteed $Klass, %1 : @owned $SuperKlass):
   cond_br undef, bb1, bb2

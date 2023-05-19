@@ -42,7 +42,7 @@
       key.name: "self",
       key.sourcetext: "self",
       key.description: "self",
-      key.typename: "FooProtocol",
+      key.typename: "any FooProtocol",
       key.context: source.codecompletion.context.thisclass,
       key.typerelation: source.codecompletion.typerelation.unknown,
       key.num_bytes_to_erase: 0

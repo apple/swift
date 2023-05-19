@@ -9,11 +9,9 @@
 // CHECK:       namespace Functions SWIFT_PRIVATE_ATTR SWIFT_SYMBOL_MODULE("Functions") {
 // CHECK-EMPTY:
 // CHECK-EMPTY:
+// CHECK: // Unavailable in C++: Swift global function 'asyncFunc(_:)'.
+// CHECK-EMPTY:
 // CHECK-NEXT:  } // namespace Functions
-
-// CHECK-NOT: SWIFT_INLINE_THUNK double asyncFunc(double x) noexcept {{.*}}{
-// CHECK-NOT:   return _impl::$s9Functions9asyncFuncyS2dYaF(x);
-// CHECK-NOT: }
 
 // REQUIRES: concurrency
 

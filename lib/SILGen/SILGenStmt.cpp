@@ -751,8 +751,8 @@ void StmtEmitter::visitThrowStmt(ThrowStmt *S) {
   SGF.emitThrow(S, exn, /* emit a call to willThrow */ true);
 }
 
-void StmtEmitter::visitForgetStmt(ForgetStmt *S) {
-  // A 'forget' simply triggers the memberwise, consuming destruction of 'self'.
+void StmtEmitter::visitDiscardStmt(DiscardStmt *S) {
+  // A 'discard' simply triggers the memberwise, consuming destruction of 'self'.
   ManagedValue selfValue = SGF.emitRValueAsSingleValue(S->getSubExpr());
   CleanupLocation loc(S);
 
@@ -760,10 +760,40 @@ void StmtEmitter::visitForgetStmt(ForgetStmt *S) {
   // we somehow got to SILGen when errors were emitted!
   auto *fn = S->getInnermostMethodContext();
   if (!fn)
-    llvm_unreachable("internal compiler error with forget statement");
+    llvm_unreachable("internal compiler error with discard statement");
 
   auto *nominal = fn->getDeclContext()->getSelfNominalTypeDecl();
   assert(nominal);
+
+  // Check if the nominal's contents are trivial. This is a temporary
+  // restriction until we get discard implemented the way we want.
+  for (auto *varDecl : nominal->getStoredProperties()) {
+    assert(varDecl->hasStorage());
+    auto varType = varDecl->getType();
+    auto &varTypeLowering = SGF.getTypeLowering(varType);
+    if (!varTypeLowering.isTrivial()) {
+      diagnose(getASTContext(),
+               S->getStartLoc(),
+               diag::discard_nontrivial_storage,
+               nominal->getDeclaredInterfaceType());
+
+      // emit a note pointing out the problematic storage type
+      if (auto varLoc = varDecl->getLoc()) {
+        diagnose(getASTContext(),
+                 varLoc,
+                 diag::discard_nontrivial_storage_note,
+                 varType);
+      } else {
+        diagnose(getASTContext(),
+                 nominal->getLoc(),
+                 diag::discard_nontrivial_implicit_storage_note,
+                 nominal->getDeclaredInterfaceType(),
+                 varType);
+      }
+
+      break; // only one diagnostic is needed per discard
+    }
+  }
 
   SGF.emitMoveOnlyMemberDestruction(selfValue.forward(SGF), nominal, loc,
                                     nullptr);

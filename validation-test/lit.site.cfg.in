@@ -34,6 +34,7 @@ config.host_sdkroot = "@SWIFT_HOST_SDKROOT@"
 
 config.swift_driver_test_options = "@SWIFT_DRIVER_TEST_OPTIONS@"
 config.swift_frontend_test_options = "@SWIFT_FRONTEND_TEST_OPTIONS@"
+config.swift_ide_test_test_options = "@SWIFT_IDE_TEST_TEST_OPTIONS@"
 
 # --- Darwin Configuration ---
 config.darwin_xcrun_toolchain = "@SWIFT_DARWIN_XCRUN_TOOLCHAIN@"

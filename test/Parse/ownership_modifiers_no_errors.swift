@@ -1,4 +1,4 @@
-// RUN: %target-typecheck-verify-swift
+// RUN: %target-typecheck-verify-swift -enable-experimental-feature NoImplicitCopy
 
 // This is a variation of `ownership_modifiers.swift` with the expected error
 // lines removed, so that the file is parsed by the SwiftSyntax parser

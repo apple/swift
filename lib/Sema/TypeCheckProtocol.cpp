@@ -1196,8 +1196,12 @@ swift::matchWitness(WitnessChecker::RequirementEnvironmentCache &reqEnvCache,
       matchKind = MatchKind::RenamedMatch;
     else if (requiresNonSendable)
       matchKind = MatchKind::RequiresNonSendable;
-    else if (getEffects(witness).containsOnly(getEffects(req)))
+    else if (getEffects(req) - getEffects(witness))
+      // when the difference is non-empty, the witness has fewer effects.
       matchKind = MatchKind::FewerEffects;
+
+    assert(getEffects(req).contains(getEffects(witness))
+               && "witness has more effects than requirement?");
 
     // Success. Form the match result.
     RequirementMatch result(witness,
@@ -1504,11 +1508,12 @@ bool WitnessChecker::findBestWitness(
         if (SF->Kind == SourceFileKind::Interface) {
           auto match = matchWitness(ReqEnvironmentCache, Proto,
                                     conformance, DC, requirement, requirement);
-          assert(match.isViable());
-          numViable = 1;
-          bestIdx = matches.size();
-          matches.push_back(std::move(match));
-          return true;
+          if (match.isViable()) {
+            numViable = 1;
+            bestIdx = matches.size();
+            matches.push_back(std::move(match));
+            return true;
+          }
         }
       }
     }

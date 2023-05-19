@@ -1,6 +1,7 @@
 // RUN: %target-swift-frontend -primary-file %s -emit-ir | %FileCheck %s
 
-// REQUIRES: CPU=x86_64
+// REQUIRES: swift_in_compiler
+// REQUIRES: PTRSIZE=64
 
 var g0 : Int = 1
 var g1 : (Void, Int, Void)

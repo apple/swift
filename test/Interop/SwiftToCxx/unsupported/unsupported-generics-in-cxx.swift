@@ -5,8 +5,7 @@
 // RUN: %target-swift-frontend %t/clean.swift -typecheck -module-name Decls -clang-header-expose-decls=all-public -disable-availability-checking -emit-clang-header-path %t/decls.h
 // RUN: %FileCheck %s < %t/decls.h
 
-// CHECK-NOT: unsupported
-// CHECK: supported
+// RUN: %check-interop-cxx-header-in-clang(%t/decls.h)
 
 public protocol Proto { init() }
 
@@ -35,3 +34,13 @@ public enum unsupportedGenericEnum<T: Proto> {
     case A
     case B(T)
 }
+
+// CHECK: supported
+
+// CHECK: // Unavailable in C++: Swift global function 'unsupportedFunc(_:)'.
+
+// CHECK: class unsupportedGenericClass { } SWIFT_UNAVAILABLE_MSG("generic generic class 'unsupportedGenericClass' can not yet be exposed to C++");
+// CHECK-EMPTY:
+// CHECK-NEXT: class unsupportedGenericEnum { } SWIFT_UNAVAILABLE_MSG("generic requirements for generic enum 'unsupportedGenericEnum' can not yet be represented in C++");
+// CHECK-EMPTY:
+// CHECK-NEXT: class unsupportedGenericStruct { } SWIFT_UNAVAILABLE_MSG("generic requirements for generic struct 'unsupportedGenericStruct' can not yet be represented in C++");

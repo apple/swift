@@ -443,10 +443,10 @@ SWIFT_CLASS("_TtC8comments13UnorderedList")
 @end
 
 #endif
-#if defined(__cplusplus)
-#endif
 #if __has_attribute(external_source_symbol)
 # pragma clang attribute pop
+#endif
+#if defined(__cplusplus)
 #endif
 #pragma clang diagnostic pop
 #endif

@@ -358,7 +358,7 @@ func testParamsSingle() async throws {
     print("after")
   }
   // UNKNOWN-CONDELSE: var res: String? = nil
-  // UNKNOWN-CONDELSE-NEXT: var err: Error? = nil
+  // UNKNOWN-CONDELSE-NEXT: var err: (any Error)? = nil
   // UNKNOWN-CONDELSE-NEXT: do {
   // UNKNOWN-CONDELSE-NEXT: res = try await withError()
   // UNKNOWN-CONDELSE-NEXT: } catch {

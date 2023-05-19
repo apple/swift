@@ -642,6 +642,11 @@ void Plugin_setCapability(PluginHandle handle, PluginCapabilityPtr data) {
   plugin->setCapability(data);
 }
 
+const char *Plugin_getExecutableFilePath(PluginHandle handle) {
+  auto *plugin = static_cast<LoadedExecutablePlugin *>(handle);
+  return plugin->getExecutablePath().data();
+}
+
 void Plugin_lock(PluginHandle handle) {
   auto *plugin = static_cast<LoadedExecutablePlugin *>(handle);
   plugin->lock();

@@ -196,6 +196,18 @@ std::string BridgedGlobalVar::getDebugDescription() const {
   return str;
 }
 
+bool BridgedGlobalVar::canBeInitializedStatically() const {
+  SILGlobalVariable *global = getGlobal();
+  auto expansion = ResilienceExpansion::Maximal;
+  if (hasPublicVisibility(global->getLinkage()))
+    expansion = ResilienceExpansion::Minimal;
+
+  auto &tl = global->getModule().Types.getTypeLowering(
+      global->getLoweredType(),
+      TypeExpansionContext::noOpaqueTypeArchetypesSubstitution(expansion));
+  return tl.isLoadable();
+}
+
 //===----------------------------------------------------------------------===//
 //                            SILVTable
 //===----------------------------------------------------------------------===//

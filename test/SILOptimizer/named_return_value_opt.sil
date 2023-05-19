@@ -1,0 +1,146 @@
+// RUN: %target-sil-opt  -enable-sil-verify-all %s -named-return-value-optimization | %FileCheck %s
+
+// REQUIRES: swift_in_compiler
+
+sil_stage canonical
+
+import Builtin
+import Swift
+
+class AClass {}
+
+protocol P {
+  init()
+};
+
+// CHECK-LABEL: sil [ossa] @nrvo_simple :
+// CHECK:         copy_addr %1 to [init] %0
+// CHECK-NOT:     copy_addr
+// CHECK-LABEL: } // end sil function 'nrvo_simple'
+sil [ossa] @nrvo_simple : $@convention(thin) <T> (@in_guaranteed T) -> @out T {
+bb0(%0 : $*T, %1 : $*T):
+  %2 = alloc_stack $T
+  copy_addr %1 to [init] %2 : $*T
+  copy_addr [take] %2 to [init] %0 : $*T
+  dealloc_stack %2 : $*T
+  %18 = tuple ()
+  return %18 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @nrvo_multi_block :
+// CHECK:         apply {{%[0-9]+}}<T>(%0
+// CHECK:         apply {{%[0-9]+}}<T>(%0
+// CHECK-NOT:     copy_addr
+// CHECK-LABEL: } // end sil function 'nrvo_multi_block'
+sil [ossa] @nrvo_multi_block : $@convention(thin) <T where T : P> () -> @out T {
+bb0(%0 : $*T):
+  %2 = alloc_stack $T, var, name "ro"
+  %3 = metatype $@thick T.Type
+  %4 = witness_method $T, #P.init!allocator : $@convention(witness_method: P) <τ_0_0 where τ_0_0 : P> (@thick τ_0_0.Type) -> @out τ_0_0
+  cond_br undef, bb1, bb2
+
+bb1:
+  %6 = apply %4<T>(%2, %3) : $@convention(witness_method: P) <τ_0_0 where τ_0_0 : P> (@thick τ_0_0.Type) -> @out τ_0_0
+  br bb3
+
+bb2:
+  %7 = apply %4<T>(%2, %3) : $@convention(witness_method: P) <τ_0_0 where τ_0_0 : P> (@thick τ_0_0.Type) -> @out τ_0_0
+  br bb3
+
+bb3:
+  copy_addr [take] %2 to [init] %0 : $*T
+  dealloc_stack %2 : $*T
+  %18 = tuple ()
+  return %18 : $()
+}
+
+// CHECK-LABEL: sil @no_nrvo_no_take :
+// CHECK:         [[S:%[0-9]+]] = alloc_stack $T
+// CHECK:         copy_addr [[S]] to [init] %0
+// CHECK-LABEL: } // end sil function 'no_nrvo_no_take'
+sil @no_nrvo_no_take : $@convention(thin) <T> (@in_guaranteed T) -> @out T {
+bb0(%0 : $*T, %1 : $*T):
+  %2 = alloc_stack $T
+  copy_addr %1 to [init] %2 : $*T
+  copy_addr %2 to [init] %0 : $*T
+  dealloc_stack %2 : $*T
+  %18 = tuple ()
+  return %18 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @no_nrvo_write_after_copy :
+// CHECK:         [[S:%[0-9]+]] = alloc_stack $T
+// CHECK:         copy_addr [take] [[S]] to [init] %0
+// CHECK-LABEL: } // end sil function 'no_nrvo_write_after_copy'
+sil [ossa] @no_nrvo_write_after_copy : $@convention(thin) <T> (@in_guaranteed T, @in_guaranteed T) -> @out T {
+bb0(%0 : $*T, %1 : $*T, %2 : $*T):
+  %3 = alloc_stack $T
+  copy_addr %1 to [init] %3 : $*T
+  copy_addr [take] %3 to [init] %0 : $*T
+  copy_addr %2 to [init] %3 : $*T
+  destroy_addr %3 : $*T
+  dealloc_stack %3 : $*T
+  %18 = tuple ()
+  return %18 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @no_nrvo_copy_not_in_return_block :
+// CHECK:         [[S:%[0-9]+]] = alloc_stack $T
+// CHECK:         copy_addr [take] [[S]] to [init] %0
+// CHECK-LABEL: } // end sil function 'no_nrvo_copy_not_in_return_block'
+sil [ossa] @no_nrvo_copy_not_in_return_block : $@convention(thin) <T> (@in_guaranteed T, @in_guaranteed T) -> @out T {
+bb0(%0 : $*T, %1 : $*T, %2 : $*T):
+  %3 = alloc_stack $T
+  copy_addr %1 to [init] %3 : $*T
+  copy_addr [take] %3 to [init] %0 : $*T
+  br bb1
+bb1:
+  copy_addr %2 to [init] %3 : $*T
+  destroy_addr %3 : $*T
+  dealloc_stack %3 : $*T
+  %18 = tuple ()
+  return %18 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @no_nrvo_dynamic_lifetime :
+// CHECK:         [[S:%[0-9]+]] = alloc_stack [dynamic_lifetime] $T
+// CHECK:         copy_addr [take] [[S]] to [init] %0
+// CHECK-LABEL: } // end sil function 'no_nrvo_dynamic_lifetime'
+sil [ossa] @no_nrvo_dynamic_lifetime : $@convention(thin) <T> (@in_guaranteed T) -> @out T {
+bb0(%0 : $*T, %1 : $*T):
+  %2 = alloc_stack [dynamic_lifetime] $T
+  copy_addr %1 to [init] %2 : $*T
+  copy_addr [take] %2 to [init] %0 : $*T
+  dealloc_stack %2 : $*T
+  %18 = tuple ()
+  return %18 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @no_nrvo_no_alloc_stack :
+// CHECK:         copy_addr [take] %1 to [init] %0
+// CHECK-LABEL: } // end sil function 'no_nrvo_no_alloc_stack'
+sil [ossa] @no_nrvo_no_alloc_stack : $@convention(thin) <T> (@in T) -> @out T {
+bb0(%0 : $*T, %1 : $*T):
+  copy_addr [take] %1 to [init] %0 : $*T
+  %18 = tuple ()
+  return %18 : $()
+}
+
+// CHECK-LABEL: sil hidden [ossa] @forward_unchecked_ref_cast_addr :
+// CHECK: unchecked_ref_cast_addr
+// CHECK-NOT: copy_addr
+// CHECK-LABEL: } // end sil function 'forward_unchecked_ref_cast_addr'
+sil hidden [ossa] @forward_unchecked_ref_cast_addr : $@convention(thin) (@in AnyObject) -> @out AClass {
+bb0(%0 : $*AClass, %1 : $*AnyObject):
+  %3 = alloc_stack $AnyObject                     // user: %10
+  %4 = alloc_stack $AnyObject                     // user: %9
+  %5 = alloc_stack $AClass                        // users: %6, %7, %8
+  unchecked_ref_cast_addr  AnyObject in %1 : $*AnyObject to AClass in %5 : $*AClass // id: %6
+  copy_addr [take] %5 to [init] %0 : $*AClass // id: %7
+  dealloc_stack %5 : $*AClass    // id: %8
+  dealloc_stack %4 : $*AnyObject // id: %9
+  dealloc_stack %3 : $*AnyObject // id: %10
+  %11 = tuple ()                                  // user: %12
+  return %11 : $()                                // id: %12
+}
+

@@ -2018,26 +2018,51 @@ void SwiftLangSupport::getCursorInfo(
     return;
   }
 
-  bool SolverBasedProducedResult = false;
   // Solver based cursor info cannot handle generated buffers or range based
   // cursor info.
-  std::unique_ptr<llvm::MemoryBuffer> InputBuffer;
+  std::shared_ptr<llvm::MemoryBuffer> InputBuffer;
   if (InputBufferName.empty() && Length == 0) {
     std::string InputFileError;
     llvm::SmallString<128> RealInputFilePath;
     fileSystem->getRealPath(PrimaryFilePath, RealInputFilePath);
-    InputBuffer = getASTManager()->getMemoryBuffer(RealInputFilePath,
-                                                   fileSystem, InputFileError);
+    InputBuffer =
+        std::shared_ptr<llvm::MemoryBuffer>(getASTManager()->getMemoryBuffer(
+            RealInputFilePath, fileSystem, InputFileError));
   }
 
-  if (InputBuffer) {
-    auto SolverBasedReceiver = [&](const RequestResult<CursorInfoData> &Res) {
-      SolverBasedProducedResult = true;
+  // Receiver is async, so be careful about captured values. This is all
+  // fairly hacky in order to run AST based cursor info before solver based.
+  // ie. we shouldn't need to apply the compiler invocation again or copy any
+  // arguments. We could possibly sink this down into `resolveCursor`. Or
+  // improve the solver based so we don't need to run the old.
+  auto ASTBasedReceiver = [this, CancellationToken, Invok, InputBuffer,
+                           fileSystem, Receiver, Offset, Actionables,
+                           SymbolGraph](
+                              const RequestResult<CursorInfoData> &Res) {
+    // AST based completion *always* produces a result
+    bool NoResults = Res.isError() || Res.isCancelled();
+    if (Res.isValue()) {
+      NoResults = Res.value().Symbols.empty();
+    }
+    if (!NoResults || !InputBuffer) {
       Receiver(Res);
-    };
+      return;
+    }
 
     CompilerInvocation CompInvok;
     Invok->applyTo(CompInvok);
+
+    SmallVector<const char *, 0> Args;
+    Args.reserve(Invok->getArgs().size());
+    for (const std::string &Arg : Invok->getArgs()) {
+      Args.push_back(Arg.c_str());
+    }
+
+    bool SolverProducedResults = false;
+    auto SolverBasedReceiver = [&](const RequestResult<CursorInfoData> &Res) {
+      SolverProducedResults = true;
+      Receiver(Res);
+    };
 
     performWithParamsToCompletionLikeOperation(
         InputBuffer.get(), Offset,
@@ -2056,14 +2081,18 @@ void SwiftLangSupport::getCursorInfo(
                                          CompInvok, Actionables, SymbolGraph);
               });
         });
-  }
 
-  if (!SolverBasedProducedResult) {
-    resolveCursor(*this, InputBufferName, Offset, Length, Actionables,
-                  SymbolGraph, Invok, /*TryExistingAST=*/true,
-                  CancelOnSubsequentRequest, fileSystem, CancellationToken,
-                  Receiver);
-  }
+    // If the solver based cursor info produced no results, fallback to the
+    // original AST based.
+    if (!SolverProducedResults) {
+      Receiver(Res);
+    }
+  };
+
+  resolveCursor(*this, InputBufferName, Offset, Length, Actionables,
+                SymbolGraph, Invok, /*TryExistingAST=*/true,
+                CancelOnSubsequentRequest, fileSystem, CancellationToken,
+                ASTBasedReceiver);
 }
 
 void SwiftLangSupport::getDiagnostics(

@@ -15,16 +15,18 @@
 //===----------------------------------------------------------------------===//
 
 #include "TypeCheckMacros.h"
+#include "../AST/InlinableText.h"
 #include "TypeChecker.h"
 #include "swift/ABI/MetadataValues.h"
 #include "swift/AST/ASTContext.h"
 #include "swift/AST/ASTMangler.h"
 #include "swift/AST/ASTNode.h"
 #include "swift/AST/CASTBridging.h"
+#include "swift/AST/DiagnosticsFrontend.h"
 #include "swift/AST/Expr.h"
-#include "../AST/InlinableText.h"
 #include "swift/AST/MacroDefinition.h"
 #include "swift/AST/NameLookupRequests.h"
+#include "swift/AST/PluginLoader.h"
 #include "swift/AST/PluginRegistry.h"
 #include "swift/AST/PrettyStackTrace.h"
 #include "swift/AST/SourceFile.h"
@@ -75,7 +77,7 @@ extern "C" ptrdiff_t swift_ASTGen_expandAttachedMacro(
     void *parentDeclSourceFile, const void *parentDeclSourceLocation,
     const char **evaluatedSource, ptrdiff_t *evaluatedSourceLength);
 
-extern "C" void swift_ASTGen_initializePlugin(void *handle);
+extern "C" bool swift_ASTGen_initializePlugin(void *handle, void *diagEngine);
 extern "C" void swift_ASTGen_deinitializePlugin(void *handle);
 extern "C" bool swift_ASTGen_pluginServerLoadLibraryPlugin(
     void *handle, const char *libraryPath, const char *moduleName,
@@ -193,6 +195,13 @@ MacroDefinition MacroDefinitionRequest::evaluate(
     free(replacements);
   };
 
+  if (checkResult < 0 && ctx.CompletionCallback) {
+    // If the macro failed to check and we are in code completion mode, pretend
+    // it's an arbitrary macro. This allows us to get call argument completions
+    // inside `#externalMacro`.
+    checkResult = BridgedMacroDefinitionKind::BridgedExpandedMacro;
+  }
+
   if (checkResult < 0)
     return MacroDefinition::forInvalid();
 
@@ -264,42 +273,10 @@ MacroDefinition MacroDefinitionRequest::evaluate(
 #endif
 }
 
-/// Load a plugin library based on a module name.
-static LoadedLibraryPlugin *loadLibraryPluginByName(ASTContext &ctx,
-                                                    Identifier moduleName) {
-  std::string libraryPath;
-  if (auto found = ctx.lookupLibraryPluginByModuleName(moduleName)) {
-    libraryPath = *found;
-  } else {
-    return nullptr;
-  }
-
-  // Load the plugin.
-  return ctx.loadLibraryPlugin(libraryPath);
-}
-
 static LoadedExecutablePlugin *
-loadExecutablePluginByName(ASTContext &ctx, Identifier moduleName) {
-  // Find an executable plugin.
-  std::string libraryPath;
-  std::string executablePluginPath;
-
-  if (auto found = ctx.lookupExternalLibraryPluginByModuleName(moduleName)) {
-    // Found in '-external-plugin-path'.
-    std::tie(libraryPath, executablePluginPath) = found.value();
-  } else if (auto found = ctx.lookupExecutablePluginByModuleName(moduleName)) {
-    // Found in '-load-plugin-executable'.
-    executablePluginPath = found->str();
-  }
-  if (executablePluginPath.empty())
-    return nullptr;
-
-  // Launch the plugin.
-  LoadedExecutablePlugin *executablePlugin =
-      ctx.loadExecutablePlugin(executablePluginPath);
-  if (!executablePlugin)
-    return nullptr;
-
+initializeExecutablePlugin(ASTContext &ctx,
+                           LoadedExecutablePlugin *executablePlugin,
+                           StringRef libraryPath, Identifier moduleName) {
   // Lock the plugin while initializing.
   // Note that'executablePlugn' can be shared between multiple ASTContext.
   executablePlugin->lock();
@@ -309,7 +286,9 @@ loadExecutablePluginByName(ASTContext &ctx, Identifier moduleName) {
   // But plugin loading is in libAST and it can't link ASTGen symbols.
   if (!executablePlugin->isInitialized()) {
 #if SWIFT_SWIFT_PARSER
-    swift_ASTGen_initializePlugin(executablePlugin);
+    if (!swift_ASTGen_initializePlugin(executablePlugin, &ctx.Diags)) {
+      return nullptr;
+    }
     executablePlugin->setCleanup([executablePlugin] {
       swift_ASTGen_deinitializePlugin(executablePlugin);
     });
@@ -321,7 +300,9 @@ loadExecutablePluginByName(ASTContext &ctx, Identifier moduleName) {
 #if SWIFT_SWIFT_PARSER
     llvm::SmallString<128> resolvedLibraryPath;
     auto fs = ctx.SourceMgr.getFileSystem();
-    if (fs->getRealPath(libraryPath, resolvedLibraryPath)) {
+    if (auto err = fs->getRealPath(libraryPath, resolvedLibraryPath)) {
+      ctx.Diags.diagnose(SourceLoc(), diag::compiler_plugin_not_loaded,
+                         executablePlugin->getExecutablePath(), err.message());
       return nullptr;
     }
     std::string resolvedLibraryPathStr(resolvedLibraryPath);
@@ -357,16 +338,41 @@ loadExecutablePluginByName(ASTContext &ctx, Identifier moduleName) {
 LoadedCompilerPlugin
 CompilerPluginLoadRequest::evaluate(Evaluator &evaluator, ASTContext *ctx,
                                     Identifier moduleName) const {
-  // Check dynamic link library plugins.
-  // i.e. '-plugin-path', and '-load-plugin-library'.
-  if (auto found = loadLibraryPluginByName(*ctx, moduleName)) {
-    return found;
+  PluginLoader &loader = ctx->getPluginLoader();
+
+  std::string libraryPath;
+  std::string executablePath;
+
+  // '-load-plugin-libarary'.
+  if (auto found = loader.lookupExplicitLibraryPluginByModuleName(moduleName)) {
+    libraryPath = found.value();
+  }
+  // '-load-plugin-executable'.
+  else if (auto found = loader.lookupExecutablePluginByModuleName(moduleName)) {
+    executablePath = found->str();
+  }
+  // '-plugin-path'.
+  else if (auto found =
+               loader.lookupLibraryPluginInSearchPathByModuleName(moduleName)) {
+    libraryPath = found.value();
+  }
+  // '-external-plugin-path'.
+  else if (auto found =
+               loader.lookupExternalLibraryPluginByModuleName(moduleName)) {
+    std::tie(libraryPath, executablePath) = found.value();
   }
 
-  // Fall back to executable plugins.
-  // i.e. '-external-plugin-path', and '-load-plugin-executable'.
-  if (auto *found = loadExecutablePluginByName(*ctx, moduleName)) {
-    return found;
+  if (!executablePath.empty()) {
+    if (LoadedExecutablePlugin *executablePlugin =
+            loader.loadExecutablePlugin(executablePath)) {
+      return initializeExecutablePlugin(*ctx, executablePlugin, libraryPath,
+                                        moduleName);
+    }
+  } else if (!libraryPath.empty()) {
+    if (LoadedLibraryPlugin *libraryPlugin =
+            loader.loadLibraryPlugin(libraryPath)) {
+      return libraryPlugin;
+    }
   }
 
   return nullptr;
@@ -454,6 +460,35 @@ static std::string adjustMacroExpansionBufferName(StringRef name) {
   result += name;
   result += ".swift";
   return result;
+}
+
+Optional<unsigned>
+ExpandMacroExpansionExprRequest::evaluate(Evaluator &evaluator,
+                                          MacroExpansionExpr *mee) const {
+  ConcreteDeclRef macroRef = mee->getMacroRef();
+  assert(macroRef && isa<MacroDecl>(macroRef.getDecl()) &&
+         "MacroRef should be set before expansion");
+
+  auto *macro = cast<MacroDecl>(macroRef.getDecl());
+  if (macro->getMacroRoles().contains(MacroRole::Expression)) {
+    return expandMacroExpr(mee);
+  }
+  // For a non-expression macro, expand it as a declaration.
+  else if (macro->getMacroRoles().contains(MacroRole::Declaration) ||
+           macro->getMacroRoles().contains(MacroRole::CodeItem)) {
+    if (!mee->getSubstituteDecl()) {
+      auto *med = mee->createSubstituteDecl();
+      TypeChecker::typeCheckDecl(med);
+    }
+    // Return the expanded buffer ID.
+    return evaluateOrDefault(
+        evaluator, ExpandMacroExpansionDeclRequest(mee->getSubstituteDecl()),
+        None);
+  }
+
+  // Other macro roles may also be encountered here, as they use
+  // `MacroExpansionExpr` for resolution. In those cases, do not expand.
+  return None;
 }
 
 ArrayRef<unsigned> ExpandMemberAttributeMacros::evaluate(Evaluator &evaluator,
@@ -666,22 +701,24 @@ static std::string expandMacroDefinition(
   return expandedResult;
 }
 
-Expr *swift::expandMacroExpr(
-    DeclContext *dc, Expr *expr, ConcreteDeclRef macroRef, Type expandedType
-) {
+Optional<unsigned>
+swift::expandMacroExpr(MacroExpansionExpr *mee) {
+  DeclContext *dc = mee->getDeclContext();
   ASTContext &ctx = dc->getASTContext();
   SourceManager &sourceMgr = ctx.SourceMgr;
+  ConcreteDeclRef macroRef = mee->getMacroRef();
+  Type expandedType = mee->getType();
 
   auto moduleDecl = dc->getParentModule();
-  auto sourceFile = moduleDecl->getSourceFileContainingLocation(expr->getLoc());
+  auto sourceFile = moduleDecl->getSourceFileContainingLocation(mee->getLoc());
   if (!sourceFile)
-    return nullptr;
+    return None;
 
   MacroDecl *macro = cast<MacroDecl>(macroRef.getDecl());
 
   if (isFromExpansionOfMacro(sourceFile, macro, MacroRole::Expression)) {
-    ctx.Diags.diagnose(expr->getLoc(), diag::macro_recursive, macro->getName());
-    return nullptr;
+    ctx.Diags.diagnose(mee->getLoc(), diag::macro_recursive, macro->getName());
+    return None;
   }
 
   // Evaluate the macro.
@@ -690,12 +727,11 @@ Expr *swift::expandMacroExpr(
   /// The discriminator used for the macro.
   LazyValue<std::string> discriminator([&]() -> std::string {
 #if SWIFT_SWIFT_PARSER
-    if (auto expansionExpr = dyn_cast<MacroExpansionExpr>(expr)) {
-      Mangle::ASTMangler mangler;
-      return mangler.mangleMacroExpansion(expansionExpr);
-    }
-#endif
+    Mangle::ASTMangler mangler;
+    return mangler.mangleMacroExpansion(mee);
+#else
     return "";
+#endif
   });
 
   auto macroDef = macro->getDefinition();
@@ -703,21 +739,21 @@ Expr *swift::expandMacroExpr(
   case MacroDefinition::Kind::Undefined:
   case MacroDefinition::Kind::Invalid:
     // Already diagnosed as an error elsewhere.
-    return nullptr;
+    return None;
 
   case MacroDefinition::Kind::Builtin: {
     switch (macroDef.getBuiltinKind()) {
     case BuiltinMacroKind::ExternalMacro:
       ctx.Diags.diagnose(
-          expr->getLoc(), diag::external_macro_outside_macro_definition);
-      return nullptr;
+          mee->getLoc(), diag::external_macro_outside_macro_definition);
+      return None;
     }
   }
 
   case MacroDefinition::Kind::Expanded: {
     // Expand the definition with the given arguments.
     auto result = expandMacroDefinition(
-        macroDef.getExpanded(), macro, expr->getArgs());
+        macroDef.getExpanded(), macro, mee->getArgs());
     evaluatedSource = llvm::MemoryBuffer::getMemBufferCopy(
         result, adjustMacroExpansionBufferName(*discriminator));
     break;
@@ -732,22 +768,22 @@ Expr *swift::expandMacroExpr(
     auto externalDef = evaluateOrDefault(ctx.evaluator, request, None);
     if (!externalDef) {
       ctx.Diags.diagnose(
-          expr->getLoc(), diag::external_macro_not_found,
+          mee->getLoc(), diag::external_macro_not_found,
           external.moduleName.str(),
           external.macroTypeName.str(),
           macro->getName()
       );
       macro->diagnose(diag::decl_declared_here, macro->getName());
-      return nullptr;
+      return None;
     }
 
 #if SWIFT_SWIFT_PARSER
-    PrettyStackTraceExpr debugStack(ctx, "expanding macro", expr);
+    PrettyStackTraceExpr debugStack(ctx, "expanding macro", mee);
 
     // Builtin macros are handled via ASTGen.
     auto astGenSourceFile = sourceFile->exportedSourceFile;
     if (!astGenSourceFile)
-      return nullptr;
+      return None;
 
     const char *evaluatedSourceAddress;
     ptrdiff_t evaluatedSourceLength;
@@ -755,18 +791,18 @@ Expr *swift::expandMacroExpr(
         &ctx.Diags, externalDef->opaqueHandle,
         static_cast<uint32_t>(externalDef->kind), discriminator->data(),
         discriminator->size(), astGenSourceFile,
-        expr->getStartLoc().getOpaquePointerValue(), &evaluatedSourceAddress,
+        mee->getStartLoc().getOpaquePointerValue(), &evaluatedSourceAddress,
         &evaluatedSourceLength);
     if (!evaluatedSourceAddress)
-      return nullptr;
+      return None;
     evaluatedSource = llvm::MemoryBuffer::getMemBufferCopy(
         {evaluatedSourceAddress, (size_t)evaluatedSourceLength},
         adjustMacroExpansionBufferName(*discriminator));
     free((void *)evaluatedSourceAddress);
     break;
 #else
-    ctx.Diags.diagnose(expr->getLoc(), diag::macro_unsupported);
-    return nullptr;
+    ctx.Diags.diagnose(mee->getLoc(), diag::macro_unsupported);
+    return None;
 #endif
   }
   }
@@ -787,9 +823,9 @@ Expr *swift::expandMacroExpr(
   GeneratedSourceInfo sourceInfo{
     GeneratedSourceInfo::ExpressionMacroExpansion,
     Lexer::getCharSourceRangeFromSourceRange(
-      sourceMgr, expr->getSourceRange()),
+      sourceMgr, mee->getSourceRange()),
     macroBufferRange,
-    ASTNode(expr).getOpaqueValue(),
+    ASTNode(mee).getOpaqueValue(),
     dc
   };
   sourceMgr.setGeneratedSourceInfo(macroBufferID, sourceInfo);
@@ -807,7 +843,7 @@ Expr *swift::expandMacroExpr(
   if (topLevelItems.size() != 1) {
     ctx.Diags.diagnose(
         macroBufferRange.getStart(), diag::expected_macro_expansion_expr);
-    return nullptr;
+    return macroBufferID;
   }
 
   auto codeItem = topLevelItems.front();
@@ -817,7 +853,7 @@ Expr *swift::expandMacroExpr(
   if (!expandedExpr) {
     ctx.Diags.diagnose(
         macroBufferRange.getStart(), diag::expected_macro_expansion_expr);
-    return nullptr;
+    return macroBufferID;
   }
 
   // Type-check the expanded expression.
@@ -834,12 +870,15 @@ Expr *swift::expandMacroExpr(
   Type realExpandedType = TypeChecker::typeCheckExpression(
       expandedExpr, dc, contextualType);
   if (!realExpandedType)
-    return nullptr;
+    return macroBufferID;
 
   assert((expandedType->isEqual(realExpandedType) ||
           realExpandedType->hasError()) &&
          "Type checking changed the result type?");
-  return expandedExpr;
+
+  mee->setRewritten(expandedExpr);
+
+  return macroBufferID;
 }
 
 /// Expands the given macro expansion declaration.
@@ -1111,7 +1150,6 @@ evaluateAttachedMacro(MacroDecl *macro, Decl *attachedTo, CustomAttr *attr,
     // Expand the definition with the given arguments.
     auto result = expandMacroDefinition(
         macroDef.getExpanded(), macro, attr->getArgs());
-    llvm::MallocAllocator allocator;
     evaluatedSource = llvm::MemoryBuffer::getMemBufferCopy(
         result, adjustMacroExpansionBufferName(*discriminator));
     break;
@@ -1463,12 +1501,9 @@ swift::expandConformances(CustomAttr *attr, MacroDecl *macro,
   return macroSourceFile->getBufferID();
 }
 
-ConcreteDeclRef
-ResolveMacroRequest::evaluate(Evaluator &evaluator,
-                              UnresolvedMacroReference macroRef,
-                              const Decl *decl) const {
-  auto dc = decl->getDeclContext();
-
+ConcreteDeclRef ResolveMacroRequest::evaluate(Evaluator &evaluator,
+                                              UnresolvedMacroReference macroRef,
+                                              DeclContext *dc) const {
   // Macro expressions and declarations have their own stored macro
   // reference. Use it if it's there.
   if (auto *expr = macroRef.getExpr()) {

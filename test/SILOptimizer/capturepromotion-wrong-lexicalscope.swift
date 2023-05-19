@@ -19,12 +19,12 @@
 // CHECK:   destroy_value [[BOX_COPY]] : ${ var Int }, loc {{.*}}:33:11, scope 4
 // CHECK:   [[CLOSURE:%[^,]+]] = partial_apply [callee_guaranteed] [[SPECIALIZED_F]]([[REGISTER_11]]) : $@convention(thin) (Int) -> Int, loc {{.*}}:33:11, scope 4
 // CHECK:   [[BORROW:%.*]] = begin_borrow [lexical] [[CLOSURE]]
-// CHECK:   debug_value [[BORROW]] : $@callee_guaranteed () -> Int, let, name "f", loc {{.*}}:33:7, scope 5
-// CHECK:   [[CLOSURE_COPY:%[^,]+]] = copy_value [[BORROW]] : $@callee_guaranteed () -> Int, loc {{.*}}:34:10, scope 5
+// CHECK:   debug_value [[BORROW]] : $@callee_guaranteed () -> Int, let, name "f", loc {{.*}}:33:7, scope 6
+// CHECK:   [[CLOSURE_COPY:%[^,]+]] = copy_value [[BORROW]] : $@callee_guaranteed () -> Int, loc {{.*}}:34:10, scope 6
 // There used to be an end_borrow here. We leave an emptyline here to preserve line numbers.
-// CHECK:   destroy_value [[CLOSURE]] : $@callee_guaranteed () -> Int, loc {{.*}}:35:1, scope 5
-// CHECK:   destroy_value [[BOX]] : ${ var Int }, loc {{.*}}:35:1, scope 5
-// CHECK:   return [[CLOSURE_COPY]] : $@callee_guaranteed () -> Int, loc {{.*}}:34:3, scope 5
+// CHECK:   destroy_value [[CLOSURE]] : $@callee_guaranteed () -> Int, loc {{.*}}:35:1, scope 6
+// CHECK:   destroy_value [[BOX]] : ${ var Int }, loc {{.*}}:35:1, scope 6
+// CHECK:   return [[CLOSURE_COPY]] : $@callee_guaranteed () -> Int, loc {{.*}}:34:3, scope 6
 // CHECK: }
 
 

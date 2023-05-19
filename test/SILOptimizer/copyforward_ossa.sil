@@ -20,44 +20,6 @@ sil @f_in_guaranteed : $@convention(thin) <T> (@in_guaranteed T) -> ()
 sil @f_out : $@convention(thin) <T> () -> @out T
 sil @f_owned : $@convention(thin) <T> (@owned T) -> ()
 
-protocol P {
-  init(_ i : Int32)
-  mutating func poke()
-};
-
-// CHECK-LABEL: sil hidden [ossa] @nrvo :
-// CHECK-NOT: copy_addr
-// CHECK-LABEL: } // end sil function 'nrvo'
-sil hidden [ossa] @nrvo : $@convention(thin) <T where T : P> (Bool) -> @out T {
-bb0(%0 : $*T, %1 : $Bool):
-  %2 = alloc_stack $T, var, name "ro"                 // users: %9, %15, %17, %19
-  %3 = struct_extract %1 : $Bool, #Bool._value     // user: %4
-  cond_br %3, bb1, bb2                            // id: %4
-
-bb1:                                              // Preds: bb0
-  %5 = metatype $@thick T.Type                    // user: %9
-  %6 = witness_method $T, #P.init!allocator : $@convention(witness_method: P) <τ_0_0 where τ_0_0 : P> (Int32, @thick τ_0_0.Type) -> @out τ_0_0 // user: %9
-  %7 = integer_literal $Builtin.Int32, 10          // user: %8
-  %8 = struct $Int32 (%7 : $Builtin.Int32)           // user: %9
-  %9 = apply %6<T>(%2, %8, %5) : $@convention(witness_method: P) <τ_0_0 where τ_0_0 : P> (Int32, @thick τ_0_0.Type) -> @out τ_0_0
-  br bb3                                          // id: %10
-
-bb2:                                              // Preds: bb0
-  %11 = metatype $@thick T.Type                   // user: %15
-  %12 = witness_method $T, #P.init!allocator : $@convention(witness_method: P) <τ_0_0 where τ_0_0 : P> (Int32, @thick τ_0_0.Type) -> @out τ_0_0 // user: %15
-  %13 = integer_literal $Builtin.Int32, 1          // user: %14
-  %14 = struct $Int32 (%13 : $Builtin.Int32)         // user: %15
-  %15 = apply %12<T>(%2, %14, %11) : $@convention(witness_method: P) <τ_0_0 where τ_0_0 : P> (Int32, @thick τ_0_0.Type) -> @out τ_0_0
-  br bb3                                          // id: %16
-
-bb3:                                              // Preds: bb1 bb2
-  copy_addr [take] %2 to [init] %0 : $*T // id: %17
-  %18 = tuple ()                                  // user: %20
-  debug_value %0 : $*T, expr op_deref
-  dealloc_stack %2 : $*T         // id: %19
-  return %18 : $()                                // id: %20
-}
-
 // CHECK-LABEL: sil hidden [ossa] @forward_takeinit :
 // CHECK-NOT: copy_addr
 // CHECK-NOT: destroy_addr
@@ -310,24 +272,6 @@ bb3:
   dealloc_stack %4 : $*Optional<T>
   %13 = tuple()
   return %13 : $()
-}
-
-// CHECK-LABEL: sil hidden [ossa] @forward_unchecked_ref_cast_addr :
-// CHECK: unchecked_ref_cast_addr
-// CHECK-NOT: copy_addr
-// CHECK-LABEL: } // end sil function 'forward_unchecked_ref_cast_addr'
-sil hidden [ossa] @forward_unchecked_ref_cast_addr : $@convention(thin) (@in AnyObject) -> @out AClass {
-bb0(%0 : $*AClass, %1 : $*AnyObject):
-  %3 = alloc_stack $AnyObject                     // user: %10
-  %4 = alloc_stack $AnyObject                     // user: %9
-  %5 = alloc_stack $AClass                        // users: %6, %7, %8
-  unchecked_ref_cast_addr  AnyObject in %1 : $*AnyObject to AClass in %5 : $*AClass // id: %6
-  copy_addr [take] %5 to [init] %0 : $*AClass // id: %7
-  dealloc_stack %5 : $*AClass    // id: %8
-  dealloc_stack %4 : $*AnyObject // id: %9
-  dealloc_stack %3 : $*AnyObject // id: %10
-  %11 = tuple ()                                  // user: %12
-  return %11 : $()                                // id: %12
 }
 
 public struct S<T> {

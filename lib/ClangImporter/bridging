@@ -1,3 +1,4 @@
+// -*- C++ -*-
 //===------------------ bridging - C++ and Swift Interop --------*- C++ -*-===//
 //
 // This source file is part of the Swift.org open source project
@@ -16,6 +17,14 @@
 //===----------------------------------------------------------------------===//
 #ifndef SWIFT_CLANGIMPORTER_SWIFT_INTEROP_SUPPORT_H
 #define SWIFT_CLANGIMPORTER_SWIFT_INTEROP_SUPPORT_H
+
+#ifdef __has_attribute
+#define _CXX_INTEROP_HAS_ATTRIBUTE(x) __has_attribute(x)
+#else
+#define _CXX_INTEROP_HAS_ATTRIBUTE(x) 0
+#endif
+
+#if _CXX_INTEROP_HAS_ATTRIBUTE(swift_attr)
 
 /// Specifies that a C++ `class` or `struct` owns and controls the lifetime of all
 /// of the objects it references. Such type should not reference any objects whose
@@ -123,5 +132,21 @@
 /// Will be imported as `var x: CInt {...}`.
 #define SWIFT_COMPUTED_PROPERTY \
   __attribute__((swift_attr("import_computed_property")))
+
+#else  // #if _CXX_INTEROP_HAS_ATTRIBUTE(swift_attr)
+
+// Empty defines for compilers that don't support `attribute(swift_attr)`.
+#define SWIFT_SELF_CONTAINED
+#define SWIFT_RETURNS_INDEPENDENT_VALUE
+#define SWIFT_SHARED_REFERENCE(_retain, _release)
+#define SWIFT_IMMORTAL_REFERENCE
+#define SWIFT_UNSAFE_REFERENCE
+#define SWIFT_NAME(_name)
+#define SWIFT_CONFORMS_TO_PROTOCOL(_moduleName_protocolName)
+#define SWIFT_COMPUTED_PROPERTY
+
+#endif // #if _CXX_INTEROP_HAS_ATTRIBUTE(swift_attr)
+
+#undef _CXX_INTEROP_HAS_ATTRIBUTE
 
 #endif // SWIFT_CLANGIMPORTER_SWIFT_INTEROP_SUPPORT_H

@@ -25,7 +25,7 @@ class GenericDelegateProxy<P : AnyObject, D> {
 
   // CHECK-LABEL: .GenericDelegateProxy.init(_:)@
   // CHECK-NEXT: <P, D, Proxy where P == Proxy.[DelegateProxyType]Parent, D == Proxy.[DelegateProxyType]Delegate, Proxy : GenericDelegateProxy<P, D>, Proxy : DelegateProxyType>
-  init<Proxy: DelegateProxyType>(_: Proxy.Type)
+  init<Proxy: DelegateProxyType>(_: Proxy.Type) // expected-warning {{redundant constraint 'P' : 'AnyObject'}}
     where Proxy: GenericDelegateProxy<P, D>,
           Proxy.Parent == P, // expected-warning {{redundant same-type constraint 'GenericDelegateProxy<P, D>.Parent' (aka 'P') == 'P'}}
           Proxy.Delegate == D {} // expected-warning {{redundant same-type constraint 'GenericDelegateProxy<P, D>.Delegate' (aka 'D') == 'D'}}

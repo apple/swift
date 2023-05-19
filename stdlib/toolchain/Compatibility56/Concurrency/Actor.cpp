@@ -8,6 +8,9 @@
 #include "swift/Runtime/Casting.h"
 #include "Runtime/Threading/ThreadLocal.h"
 
+#include <Availability.h>
+#include <TargetConditionals.h>
+
 #include <atomic>
 #include <new>
 
@@ -145,4 +148,48 @@ void swift::adoptTaskVoucher(AsyncTask *task) {
 
 void swift::restoreTaskVoucher(AsyncTask *task) {
   ExecutorTrackingInfo::current()->restoreVoucher(task);
+}
+
+static swift_once_t voucherDisableCheckOnce;
+static bool vouchersDisabled;
+
+namespace {
+  struct _SwiftNSOperatingSystemVersion{
+    intptr_t majorVersion;
+    intptr_t minorVersion;
+    intptr_t patchVersion;
+  };
+}
+
+extern "C"
+_SwiftNSOperatingSystemVersion
+_swift_stdlib_operatingSystemVersion() __attribute__((const));
+
+static void _initializeVouchersDisabled(void *ctxt) {
+  auto osVersion = _swift_stdlib_operatingSystemVersion();
+  #if TARGET_OS_WATCH
+  vouchersDisabled = (
+    osVersion.majorVersion == 8 &&
+    osVersion.minorVersion >= 0 && osVersion.minorVersion < 3
+  );
+  #elif TARGET_OS_IPHONE
+  vouchersDisabled = (
+    osVersion.majorVersion == 15 &&
+    osVersion.minorVersion >= 0 && osVersion.minorVersion < 2
+  );
+  #elif TARGET_OS_OSX
+  vouchersDisabled = (
+    osVersion.majorVersion == 12 &&
+    osVersion.minorVersion >= 0 && osVersion.minorVersion < 1
+  );
+  #else
+  vouchersDisabled = false;
+  #endif
+}
+
+bool VoucherManager::vouchersAreDisabled() {
+  swift_once(&voucherDisableCheckOnce,
+             &_initializeVouchersDisabled,
+             nullptr);
+  return vouchersDisabled;
 }

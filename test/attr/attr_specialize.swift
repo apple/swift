@@ -1,4 +1,4 @@
-// RUN: %target-typecheck-verify-swift -warn-redundant-requirements
+// RUN: %target-typecheck-verify-swift
 // RUN: %target-swift-ide-test -print-ast-typechecked -source-filename=%s -disable-objc-attr-requires-foundation-module -define-availability 'SwiftStdlib 5.1:macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0' | %FileCheck %s
 
 struct S<T> {}
@@ -10,6 +10,7 @@ extension Int: P {
 
 public protocol ProtocolWithDep {
   associatedtype Element
+  func getElement() -> Element
 }
 
 public class C1 {
@@ -48,9 +49,8 @@ func nonGenericParam(x: Int) {}
 class G<T> {
   // CHECK: @_specialize(exported: false, kind: full, where T == Int)
   @_specialize(where T == Int)
-  @_specialize(where T == T) // expected-warning{{redundant same-type constraint 'T' == 'T'}}
-  // expected-error@-1 {{too few generic parameters are specified in '_specialize' attribute (got 0, but expected 1)}}
-  // expected-note@-2 {{missing constraint for 'T' in '_specialize' attribute}}
+  @_specialize(where T == T) // expected-error{{too few generic parameters are specified in '_specialize' attribute (got 0, but expected 1)}}
+  // expected-note@-1 {{missing constraint for 'T' in '_specialize' attribute}}
   @_specialize(where T == S<T>)
   // expected-error@-1 {{cannot build rewrite system for generic signature; concrete nesting limit exceeded}}
   // expected-note@-2 {{failed rewrite rule is τ_0_0.[concrete: S<S<S<S<S<S<S<S<S<S<S<S<S<S<S<S<S<S<S<S<S<S<S<S<S<S<S<S<S<S<τ_0_0>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>] => τ_0_0}}
@@ -95,7 +95,7 @@ struct FloatElement : HasElt {
   typealias Element = Float
 }
 @_specialize(where T == FloatElement)
-@_specialize(where T == IntElement) // FIXME e/xpected-error{{'T.Element' cannot be equal to both 'IntElement.Element' (aka 'Int') and 'Float'}}
+@_specialize(where T == IntElement) // expected-error{{generic signature requires types 'IntElement.Element' (aka 'Int') and 'Float' to be the same}}
 func sameTypeRequirement<T : HasElt>(_ t: T) where T.Element == Float {}
 
 @_specialize(where T == Sub)
@@ -125,7 +125,6 @@ public func funcWithEmptySpecializeAttr<X: P, Y>(x: X, y: Y) {
 @_specialize(where X:_Trivial(8), Y == Int)
 @_specialize(where X == Int, Y == Int)
 @_specialize(where X == Int, X == Int) // expected-error{{too few generic parameters are specified in '_specialize' attribute (got 1, but expected 2)}} expected-note{{missing constraint for 'Y' in '_specialize' attribute}}
-// expected-warning@-1{{redundant same-type constraint 'X' == 'Int'}}
 @_specialize(where Y:_Trivial(32), X == Float)
 @_specialize(where X1 == Int, Y1 == Int) // expected-error{{cannot find type 'X1' in scope}} expected-error{{cannot find type 'Y1' in scope}} expected-error{{too few generic parameters are specified in '_specialize' attribute (got 0, but expected 2)}} expected-note{{missing constraint for 'X' in '_specialize' attribute}} expected-note{{missing constraint for 'Y' in '_specialize' attribute}}
 public func funcWithTwoGenericParameters<X, Y>(x: X, y: Y) {
@@ -165,20 +164,17 @@ public func anotherFuncWithTwoGenericParameters<X: P, Y>(x: X, y: Y) {
 // expected-error@-1 {{too few generic parameters are specified in '_specialize' attribute (got 0, but expected 1)}}
 // expected-note@-2 {{missing constraint for 'T' in '_specialize' attribute}}
 @_specialize(where T: C1) // expected-error{{only same-type and layout requirements are supported by '_specialize' attribute}}
-@_specialize(where Int: P) // expected-warning{{redundant conformance constraint 'Int' : 'P'}} expected-error{{too few generic parameters are specified in '_specialize' attribute (got 0, but expected 1)}} expected-note{{missing constraint for 'T' in '_specialize' attribute}}
+@_specialize(where Int: P) // expected-error{{too few generic parameters are specified in '_specialize' attribute (got 0, but expected 1)}} expected-note{{missing constraint for 'T' in '_specialize' attribute}}
 func funcWithForbiddenSpecializeRequirement<T>(_ t: T) {
 }
 
 @_specialize(where T: _Trivial(32), T: _Trivial(64), T: _Trivial, T: _RefCountedObject)
 // expected-error@-1{{no type for 'T' can satisfy both 'T : _RefCountedObject' and 'T : _Trivial(32)'}}
 // expected-error@-2{{no type for 'T' can satisfy both 'T : _Trivial(64)' and 'T : _Trivial(32)'}}
-// expected-warning@-3{{redundant constraint 'T' : '_Trivial'}}
-// expected-error@-4 {{too few generic parameters are specified in '_specialize' attribute (got 0, but expected 1)}}
-// expected-note@-5 {{missing constraint for 'T' in '_specialize' attribute}}
+// expected-error@-3 {{too few generic parameters are specified in '_specialize' attribute (got 0, but expected 1)}}
+// expected-note@-4 {{missing constraint for 'T' in '_specialize' attribute}}
 @_specialize(where T: _Trivial, T: _Trivial(64))
-// expected-warning@-1{{redundant constraint 'T' : '_Trivial'}}
 @_specialize(where T: _RefCountedObject, T: _NativeRefCountedObject)
-// expected-warning@-1{{redundant constraint 'T' : '_RefCountedObject'}}
 @_specialize(where Array<T> == Int) // expected-error{{generic signature requires types 'Array<T>' and 'Int' to be the same}}
 // expected-error@-1 {{too few generic parameters are specified in '_specialize' attribute (got 0, but expected 1)}}
 // expected-note@-2 {{missing constraint for 'T' in '_specialize' attribute}}
@@ -191,9 +187,8 @@ public protocol Proto: class {
 }
 
 @_specialize(where T: _RefCountedObject)
-// expected-warning@-1 {{redundant constraint 'T' : '_RefCountedObject'}}
-// expected-error@-2 {{too few generic parameters are specified in '_specialize' attribute (got 0, but expected 1)}}
-// expected-note@-3 {{missing constraint for 'T' in '_specialize' attribute}}
+// expected-error@-1 {{too few generic parameters are specified in '_specialize' attribute (got 0, but expected 1)}}
+// expected-note@-2 {{missing constraint for 'T' in '_specialize' attribute}}
 @_specialize(where T: _Trivial)
 // expected-error@-1{{no type for 'T' can satisfy both 'T : _NativeClass' and 'T : _Trivial'}}
 // expected-error@-2 {{too few generic parameters are specified in '_specialize' attribute (got 0, but expected 1)}}
@@ -339,3 +334,26 @@ public func testAvailability3<T>(_ t: T) {}
 // CHECK: public func testAvailability4<T>(_ t: T)
 @_specialize(exported: true, availability: SwiftStdlib 5.1, *; where T == Int)
 public func testAvailability4<T>(_ t: T) {}
+
+public struct ExpectedElement {
+  @inline(never)
+  public func hello() {}
+}
+
+public struct ConformerElement {}
+
+public struct Conformer : ProtocolWithDep {
+  public typealias Element = ConformerElement
+  public func getElement() -> ConformerElement { return ConformerElement() }
+}
+
+@inline(never)
+@_specialize(where T == Conformer) // expected-error{{generic signature requires types 'Conformer.Element' (aka 'ConformerElement') and 'ExpectedElement' to be the same}}
+public func foo<T : ProtocolWithDep>(_ t: T) where T.Element == ExpectedElement {
+  t.getElement().hello()
+}
+
+@_specialize(where T == Conformer) // expected-error{{generic signature requires types 'Conformer.Element' (aka 'ConformerElement') and 'ExpectedElement' to be the same}}
+public func bar<T : ProtocolWithDep>(_ t: T) where T.Element == ExpectedElement {
+  foo(t)
+}

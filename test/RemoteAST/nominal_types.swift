@@ -84,9 +84,10 @@ protocol J {}
 printType(J.self)
 // CHECK: found type: J
 printType(J.Protocol.self)
-// CHECK: found type: J.Protocol
-printType(J.Type.self)
+// FIXME: Should be (any J).Type
 // CHECK: found type: J.Type
+printType(J.Type.self)
+// CHECK: found type: any J.Type
 
 protocol K {}
 typealias JK = J & K

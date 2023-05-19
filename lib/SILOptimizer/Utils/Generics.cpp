@@ -1025,12 +1025,16 @@ createSpecializedType(CanSILFunctionType SubstFTy, SILModule &M) const {
     SpecializedResults.push_back(RI);
   }
   unsigned idx = 0;
+  bool removedSelfParam = false;
   for (SILParameterInfo PI : SubstFTy->getParameters()) {
     unsigned paramIdx = idx++;
     PI = PI.getUnsubstituted(M, SubstFTy, context);
 
-    if (isDroppedMetatypeArg(param2ArgIndex(paramIdx)))
+    if (isDroppedMetatypeArg(param2ArgIndex(paramIdx))) {
+      if (SubstFTy->hasSelfParam() && paramIdx == SubstFTy->getParameters().size() - 1)
+        removedSelfParam = true;
       continue;
+    }
 
     bool isTrivial = TrivialArgs.test(param2ArgIndex(paramIdx));
     if (!isParamConverted(paramIdx)) {
@@ -1061,8 +1065,15 @@ createSpecializedType(CanSILFunctionType SubstFTy, SILModule &M) const {
   auto Signature = SubstFTy->isPolymorphic()
                      ? SubstFTy->getInvocationGenericSignature()
                      : CanGenericSignature();
+
+  SILFunctionType::ExtInfo extInfo = SubstFTy->getExtInfo();
+  if (extInfo.hasSelfParam() && removedSelfParam) {
+    extInfo = extInfo.withRepresentation(SILFunctionTypeRepresentation::Thin);
+    assert(!extInfo.hasSelfParam());
+  }
+
   return SILFunctionType::get(
-      Signature, SubstFTy->getExtInfo(),
+      Signature, extInfo,
       SubstFTy->getCoroutineKind(), SubstFTy->getCalleeConvention(),
       SpecializedParams, SpecializedYields, SpecializedResults,
       SubstFTy->getOptionalErrorResult(), SubstitutionMap(), SubstitutionMap(),

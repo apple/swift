@@ -1749,6 +1749,9 @@ bool SimplifyCFG::simplifySwitchEnumUnreachableBlocks(SwitchEnumInst *SEI) {
   if (!Dest) {
     addToWorklist(SEI->getParent());
     SILBuilderWithScope(SEI).createUnreachable(SEI->getLoc());
+    for (auto &succ : SEI->getSuccessors()) {
+      removeDeadBlock(succ.getBB());
+    }
     SEI->eraseFromParent();
     return true;
   }
@@ -1773,9 +1776,11 @@ bool SimplifyCFG::simplifySwitchEnumUnreachableBlocks(SwitchEnumInst *SEI) {
     .createUncheckedEnumData(SEI->getLoc(), SEI->getOperand(), Element, Ty);
 
   assert(Dest->args_size() == 1 && "Expected only one argument!");
-  SmallVector<SILValue, 1> Args;
-  Args.push_back(UED);
-  SILBuilderWithScope(SEI).createBranch(SEI->getLoc(), Dest, Args);
+  auto *DestArg = Dest->getArgument(0);
+  DestArg->replaceAllUsesWith(UED);
+  Dest->eraseArgument(0);
+
+  SILBuilderWithScope(SEI).createBranch(SEI->getLoc(), Dest);
 
   addToWorklist(SEI->getParent());
   addToWorklist(Dest);

@@ -72,7 +72,7 @@ func foo4(_ completion: @escaping (Error?) -> Void) {}
 // RUN: %refactor-check-compiles -add-async-wrapper -dump-text -source-filename %s -pos=%(line+1):1 | %FileCheck -check-prefix=FOO5 %s
 func foo5(_ completion: @escaping (Error) -> Void) {}
 
-// FOO5:      func foo5() async -> Error {
+// FOO5:      func foo5() async -> any Error {
 // FOO5-NEXT:   return await withCheckedContinuation { continuation in
 // FOO5-NEXT:     foo5() { result in
 // FOO5-NEXT:       continuation.resume(returning: result)

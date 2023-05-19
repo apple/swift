@@ -1601,3 +1601,39 @@ bb0:
   %retval = tuple ()
   return %retval : $()
 }
+
+// CHECK-LABEL: sil [ossa] @load_take_between_load_copy_and_move_inout : {{.*}} {
+// CHECK:         load [copy]
+// CHECK-LABEL: } // end sil function 'load_take_between_load_copy_and_move_inout'
+sil [ossa] @load_take_between_load_copy_and_move_inout : $@convention(thin) (@inout C) -> () {
+entry(%addr : $*C):
+    %v1 = load [copy] %addr : $*C
+    %v2 = load [take] %addr : $*C
+    %m1 = move_value [lexical] %v1 : $C
+    destroy_value %m1 : $C
+    store %v2 to [init] %addr : $*C
+    %retval = tuple ()
+    return %retval : $()
+}
+
+// CHECK-LABEL: sil [ossa] @load_take_between_load_copy_and_move_stack : {{.*}} {
+// CHECK:         load [copy]
+// CHECK-LABEL: } // end sil function 'load_take_between_load_copy_and_move_stack'
+sil [ossa] @load_take_between_load_copy_and_move_stack : $@convention(thin) () -> () {
+entry:
+    %addr = alloc_stack $C
+    %getC = function_ref @getC : $@convention(thin) () -> (@owned C)
+    %stored = apply %getC() : $@convention(thin) () -> (@owned C)
+    store %stored to [init] %addr : $*C
+
+    %v1 = load [copy] %addr : $*C
+    %v2 = load [take] %addr : $*C
+    %m1 = move_value [lexical] %v1 : $C
+    destroy_value %m1 : $C
+    store %v2 to [init] %addr : $*C
+
+    destroy_addr %addr : $*C
+    dealloc_stack %addr : $*C
+    %retval = tuple ()
+    return %retval : $()
+}

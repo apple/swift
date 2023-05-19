@@ -82,20 +82,38 @@ bool StackNesting::solve() {
   bool isNested = false;
   BitVector Bits(StackLocs.size());
 
+  StackList<SILBasicBlock *> deadEndWorklist(BlockInfos.getFunction());
+
   // Initialize all bit fields to 1s, expect 0s for the entry block.
   bool initVal = false;
   for (auto bd : BlockInfos) {
     bd.data.AliveStackLocsAtEntry.resize(StackLocs.size(), initVal);
     initVal = true;
+
+    bd.data.isDeadEnd = !bd.block.getTerminator()->isFunctionExiting();
+    if (!bd.data.isDeadEnd)
+      deadEndWorklist.push_back(&bd.block);
+  }
+
+  // Calculate the isDeadEnd block flags.
+  while (!deadEndWorklist.empty()) {
+    SILBasicBlock *b = deadEndWorklist.pop_back_val();
+    for (SILBasicBlock *pred : b->getPredecessorBlocks()) {
+      BlockInfo &bi = BlockInfos[pred];
+      if (bi.isDeadEnd) {
+        bi.isDeadEnd = false;
+        deadEndWorklist.push_back(pred);
+      }
+    }
   }
 
   // First step: do a forward dataflow analysis to get the live stack locations
   // at the block exits.
-  // This is necessary to get the live locations at blocks which end in
-  // unreachable instructions (otherwise the backward data flow would be
-  // sufficient). The special thing about unreachable-blocks is that it's
-  // okay to have alive locations at that point, i.e. locations which are never
-  // dealloced. We cannot get such locations with a purly backward dataflow.
+  // This is necessary to get the live locations at dead-end blocks (otherwise
+  // the backward data flow would be sufficient).
+  // The special thing about dead-end blocks is that it's okay to have alive
+  // locations at that point (e.g. at an `unreachable`) i.e. locations which are
+  // never dealloced. We cannot get such locations with a purly backward dataflow.
   do {
     changed = false;
 
@@ -124,7 +142,7 @@ bool StackNesting::solve() {
   do {
     changed = false;
 
-   for (auto bd : llvm::reverse(BlockInfos)) {
+    for (auto bd : llvm::reverse(BlockInfos)) {
       // Collect the alive-bits (at the block exit) from the successor blocks.
       for (SILBasicBlock *SuccBB : bd.block.getSuccessorBlocks()) {
         bd.data.AliveStackLocsAtExit |= BlockInfos[SuccBB].AliveStackLocsAtEntry;
@@ -134,14 +152,18 @@ bool StackNesting::solve() {
                && Bits.any())
              && "stack location is missing dealloc");
 
-      if (isa<UnreachableInst>(bd.block.getTerminator())) {
-        // We treat unreachable as an implicit deallocation for all locations
-        // which are still alive at this point.
+      if (bd.data.isDeadEnd) {
+        // We treat `unreachable` as an implicit deallocation for all locations
+        // which are still alive at this point. The same is true for dead-end
+        // CFG regions due to an infinite loop.
         for (int BitNr = Bits.find_first(); BitNr >= 0;
              BitNr = Bits.find_next(BitNr)) {
           // For each alive location extend the lifetime of all locations which
           // are alive at the allocation point. This is the same as we do for
           // a "real" deallocation instruction (see below).
+          // In dead-end CFG regions we have to do that for all blocks (because
+          // of potential infinite loops), whereas in "normal" CFG regions it's
+          // sufficient to do it at deallocation instructions.
           Bits |= StackLocs[BitNr].AliveLocs;
         }
         bd.data.AliveStackLocsAtExit = Bits;
@@ -193,6 +215,8 @@ static SILInstruction *createDealloc(SingleValueInstruction *Alloc,
     case SILInstructionKind::AllocRefInst:
       assert(cast<AllocRefInstBase>(Alloc)->canAllocOnStack());
       return B.createDeallocStackRef(Location, Alloc);
+    case SILInstructionKind::AllocPackInst:
+      return B.createDeallocPack(Location, Alloc);
     default:
       llvm_unreachable("unknown stack allocation");
   }
@@ -334,6 +358,8 @@ StackNesting::Changes StackNesting::fixNesting(SILFunction *F) {
 void StackNesting::dump() const {
   for (auto bd : BlockInfos) {
     llvm::dbgs() << "Block " << bd.block.getDebugID();
+    if (bd.data.isDeadEnd)
+      llvm::dbgs() << "(deadend)";
     llvm::dbgs() << ": entry-bits=";
     dumpBits(bd.data.AliveStackLocsAtEntry);
     llvm::dbgs() << ": exit-bits=";

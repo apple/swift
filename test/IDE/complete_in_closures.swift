@@ -316,7 +316,7 @@ class C {
     do {
     } catch {
       error.#^ERROR_IN_CLOSURE_IN_INITIALIZER^#
-// ERROR_IN_CLOSURE_IN_INITIALIZER-DAG: Keyword[self]/CurrNominal:          self[#Error#]; name=self
+// ERROR_IN_CLOSURE_IN_INITIALIZER-DAG: Keyword[self]/CurrNominal:          self[#any Error#]; name=self
 // ERROR_IN_CLOSURE_IN_INITIALIZER-DAG: Decl[InstanceVar]/CurrNominal:      myErrorNumber[#Int#]; name=myErrorNumber
     }
     return ""

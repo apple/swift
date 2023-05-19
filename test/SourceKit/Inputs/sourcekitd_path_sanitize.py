@@ -12,21 +12,35 @@
 import re
 import sys
 
-SWIFTMODULE_BUNDLE_RE = re.compile(
-    r'key.filepath: ".*[/\\](.*)\.swiftmodule[/\\].*\.swiftmodule"')
-SWIFTMODULE_RE = re.compile(r'key.filepath: ".*[/\\](.*)\.swiftmodule"')
-SWIFT_RE = re.compile(r'key.filepath: ".*[/\\](.*)\.swift"')
-PCM_RE = re.compile(r'key.filepath: ".*[/\\](.*)-[0-9A-Z]*\.pcm"')
-HEADER_RE = re.compile(r' file=\\".*[/\\](.*)\.h\\"')
+# I'm sorry dear reader, unfortunately my knowledge of regex trumps my knowledge of
+# Python. This pattern allows us to clean up file paths by stripping them down to
+# just the relevant file name.
+RE = re.compile(
+    # The key can either be 'filepath' or 'buffer_name'. Also apply this logic to
+    # the file name in XML, which is written 'file=\"...\"'.
+    r'(key\.(?:filepath|buffer_name): |file=)'
+
+    # Open delimiter with optional escape.
+    r'\\?"'
+
+    # Lazily match characters until we hit a slash, then match any non-slash that
+    # ends in the right file extension, capturing the result.
+    r'.*?[/\\]+([^/\\]*\.(?:swiftmodule|swift|pcm|h))'
+
+    # For swiftmodule bundles, we want to match against the directory name, so
+    # optionally match the .swiftmodule filename here. The lazy matching of the
+    # previous logic means we'll prefer to match the previous '.swiftmodule' as the
+    # directory.
+    r'(?:[/\\]+[^/\\]*\.swiftmodule)?'
+
+    # Close delimiter with optional escape.
+    r'\\?"'
+)
 
 try:
     for line in sys.stdin.readlines():
-        line = re.sub(SWIFTMODULE_BUNDLE_RE,
-                      r'key.filepath: \1.swiftmodule', line)
-        line = re.sub(SWIFTMODULE_RE, r'key.filepath: \1.swiftmodule', line)
-        line = re.sub(SWIFT_RE, r'key.filepath: \1.swift', line)
-        line = re.sub(PCM_RE, r'key.filepath: \1.pcm', line)
-        line = re.sub(HEADER_RE, r' file=\1.h', line)
+        # We substitute in both the key and the matched filename.
+        line = re.sub(RE, r'\1\2', line)
         sys.stdout.write(line)
 except KeyboardInterrupt:
     sys.stdout.flush()

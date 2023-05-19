@@ -19,6 +19,6 @@ func cast(_ a: Any) {
   let forced = a as! Archivable
 }
 // CHECK: internal func cast(_ a: Any) {
-// CHECK:   @_hasInitialValue private let conditional: Archivable? = a as? Archivable
-// CHECK:   @_hasInitialValue private let forced: Archivable = a as! Archivable
+// CHECK:   @_hasInitialValue private let conditional: (any Archivable)? = a as? any Archivable
+// CHECK:   @_hasInitialValue private let forced: any Archivable = a as! any Archivable
 // CHECK: }

@@ -66,7 +66,7 @@ STMT(Continue, Stmt)
 STMT(Fallthrough, Stmt)
 STMT(Fail, Stmt)
 STMT(Throw, Stmt)
-STMT(Forget, Stmt)
+STMT(Discard, Stmt)
 STMT(PoundAssert, Stmt)
 LAST_STMT(PoundAssert)
 

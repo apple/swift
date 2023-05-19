@@ -1,4 +1,6 @@
 // RUN: %target-run-simple-swift(-I %S/Inputs -Xfrontend -enable-experimental-cxx-interop)
+// FIXME: also run in C++20 mode when conformance works properly on UBI platform (rdar://109366764):
+// %target-run-simple-swift(-I %S/Inputs -Xfrontend -enable-experimental-cxx-interop -Xcc -std=gnu++20)
 //
 // REQUIRES: executable_test
 //
@@ -19,33 +21,30 @@ StdVectorTestSuite.test("init") {
 
 StdVectorTestSuite.test("push back") {
     var v = Vector()
-    var _42: CInt = 42
-    v.push_back(&_42)
+    let _42: CInt = 42
+    v.push_back(_42)
     expectEqual(v.size(), 1)
     expectFalse(v.empty())
     expectEqual(v[0], 42)
 }
 
 func fill(vector v: inout Vector) {
-    var _1: CInt = 1, _2: CInt = 2, _3: CInt = 3
-    v.push_back(&_1)
-    v.push_back(&_2)
-    v.push_back(&_3)
+    v.push_back(1)
+    v.push_back(2)
+    v.push_back(CInt(3))
 }
 
-// TODO: in some configurations the stdlib emits a "initializeWithCopy" where the arguments
-// have incorrect indirection: rdar://87728422 and rdar://87805795
-// StdVectorTestSuite.test("for loop") {
-//     var v = Vector()
-//     fill(vector: &v)
-//
-//     var count: CInt = 1
-//     for e in v {
-//         expectEqual(e, count)
-//         count += 1
-//     }
-//     expectEqual(count, 4)
-// }
+StdVectorTestSuite.test("for loop") {
+    var v = Vector()
+    fill(vector: &v)
+
+    var count: CInt = 1
+    for e in v {
+        expectEqual(e, count)
+        count += 1
+    }
+    expectEqual(count, 4)
+}
 
 StdVectorTestSuite.test("map") {
     var v = Vector()

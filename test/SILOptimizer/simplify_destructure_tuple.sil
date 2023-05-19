@@ -1,0 +1,67 @@
+// RUN: %target-sil-opt -enable-sil-verify-all %s -onone-simplification -simplify-instruction=destructure_tuple | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-ONONE
+// RUN: %target-sil-opt -enable-sil-verify-all %s -simplification -simplify-instruction=destructure_tuple | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-O
+
+// REQUIRES: swift_in_compiler
+
+import Swift
+import Builtin
+
+// CHECK-LABEL: sil [ossa] @forward_owned :
+// CHECK-NOT:     destructure_tuple
+// CHECK:         fix_lifetime %1
+// CHECK:         return %0
+// CHECK:       } // end sil function 'forward_owned'
+sil [ossa] @forward_owned : $@convention(thin) (@owned String, Int) -> @owned String {
+bb0(%0 : @owned $String, %1 : $Int):
+  %2 = tuple (%0 : $String, %1 : $Int)
+  (%3, %4) = destructure_tuple %2 : $(String, Int)
+  fix_lifetime %4 : $Int
+  return %3 : $String
+}
+
+// CHECK-LABEL: sil [ossa] @forward_borrowed :
+// CHECK-NOT:     destructure_tuple
+// CHECK:         fix_lifetime %0
+// CHECK:         fix_lifetime %1
+// CHECK:       } // end sil function 'forward_borrowed'
+sil [ossa] @forward_borrowed : $@convention(thin) (@guaranteed String, Int) -> () {
+bb0(%0 : @guaranteed $String, %1 : $Int):
+  %2 = tuple (%0 : $String, %1 : $Int)
+  (%3, %4) = destructure_tuple %2 : $(String, Int)
+  fix_lifetime %3 : $String
+  fix_lifetime %4 : $Int
+   %7 = tuple ()
+  return %7 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @dont_forward_owned_with_uses :
+// CHECK:         (%5, %6) = destructure_tuple %2 : $(String, Int)
+// CHECK:         fix_lifetime %6
+// CHECK:         return %5
+// CHECK:       } // end sil function 'dont_forward_owned_with_uses'
+sil [ossa] @dont_forward_owned_with_uses : $@convention(thin) (@owned String, Int) -> @owned String {
+bb0(%0 : @owned $String, %1 : $Int):
+  %2 = tuple (%0 : $String, %1 : $Int)
+  %3 = begin_borrow %2 : $(String, Int)
+  end_borrow %3 : $(String, Int)
+  (%5, %6) = destructure_tuple %2 : $(String, Int)
+  fix_lifetime %6 : $Int
+  return %5 : $String
+}
+
+// CHECK-LABEL: sil [ossa] @forward_owned_with_debug_use :
+// CHECK-ONONE:   (%4, %5) = destructure_tuple %2 : $(String, Int)
+// CHECK-ONONE:   fix_lifetime %5
+// CHECK-ONONE:   return %4
+// CHECK-O:       fix_lifetime %1
+// CHECK-O:       return %0
+// CHECK:       } // end sil function 'forward_owned_with_debug_use'
+sil [ossa] @forward_owned_with_debug_use : $@convention(thin) (@owned String, Int) -> @owned String {
+bb0(%0 : @owned $String, %1 : $Int):
+  %2 = tuple (%0 : $String, %1 : $Int)
+  debug_value %2 : $(String, Int), let, name "t"
+  (%4, %5) = destructure_tuple %2 : $(String, Int)
+  fix_lifetime %5 : $Int
+  return %4 : $String
+}
+

@@ -5,6 +5,39 @@
 
 ## Swift 5.9
 
+* [SE-0380][]:
+
+  `if` and `switch` statements may now be used as expressions to:
+
+  * Return values from functions, properties, and closures (either with
+    implicit or explicit `return`)
+  * Throw errors using `throw`
+  * Assign values to variables
+  * Declare variables
+
+  Each branch of the `if` or `switch` must be a single expression, the value
+  of which becomes the value of the overall expression when that branch is
+  chosen.
+
+  ```swift
+  let bullet =
+    if isRoot && (count == 0 || !willExpand) { "" }
+    else if count == 0 { "- " }
+    else if maxDepth <= 0 { "▹ " }
+    else { "▿ " }
+  ```
+
+  ```swift
+  public static func width(_ x: Unicode.Scalar) -> Int {
+    switch x.value {
+      case 0..<0x80: 1
+      case 0x80..<0x0800: 2
+      case 0x0800..<0x1_0000: 3
+      default: 4
+    }
+  }
+  ```
+
 * [#64927][]:
 
   Swift 5.9 introduces warnings that catch conversions from an inout
@@ -9732,6 +9765,7 @@ using the `.dynamicType` member to retrieve the type of an expression should mig
 [SE-0370]: <https://github.com/apple/swift-evolution/blob/main/proposals/0370-pointer-family-initialization-improvements.md>
 [SE-0376]: <https://github.com/apple/swift-evolution/blob/main/proposals/0376-function-back-deployment.md>
 [SE-0377]: <https://github.com/apple/swift-evolution/blob/main/proposals/0377-parameter-ownership-modifiers.md>
+[SE-0380]: <https://github.com/apple/swift-evolution/blob/main/proposals/0380-if-switch-expressions.md>
 
 [#64927]: <https://github.com/apple/swift/issues/64927>
 [#42697]: <https://github.com/apple/swift/issues/42697>

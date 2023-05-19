@@ -241,6 +241,12 @@ public:
     FOREACH_IMPL_RETURN(isCalleeKnownProgramTerminationPoint());
   }
 
+  /// Returns true if the callee function is annotated with
+  /// @_semantics("unavailable_code_reached")
+  bool isCalleeUnavailableCodeReached() const {
+    FOREACH_IMPL_RETURN(isCalleeUnavailableCodeReached());
+  }
+
   /// Check if this is a call of a never-returning function.
   bool isCalleeNoReturn() const { FOREACH_IMPL_RETURN(isCalleeNoReturn()); }
 

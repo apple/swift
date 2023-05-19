@@ -13,7 +13,7 @@ struct User_D: Decodable {
     case lastName
   }
 
-  init(from decoder: Decoder) throws {
+  init(from decoder: any Decoder) throws {
     let container: KeyedDecodingContainer<User_D.CodingKeys> = try decoder.container(keyedBy: User_D.CodingKeys.self)
 
     self.firstName = try container.decode(String.self, forKey: User_D.CodingKeys.firstName)

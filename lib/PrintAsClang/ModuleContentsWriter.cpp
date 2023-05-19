@@ -20,12 +20,14 @@
 #include "PrintSwiftToClangCoreScaffold.h"
 #include "SwiftToClangInteropContext.h"
 
+#include "swift/AST/DiagnosticsSema.h"
 #include "swift/AST/ExistentialLayout.h"
 #include "swift/AST/Module.h"
 #include "swift/AST/PrettyStackTrace.h"
 #include "swift/AST/ProtocolConformance.h"
 #include "swift/AST/SwiftNameTranslation.h"
 #include "swift/AST/TypeDeclFinder.h"
+#include "swift/Basic/SourceManager.h"
 #include "swift/ClangImporter/ClangImporter.h"
 #include "swift/Strings.h"
 
@@ -129,6 +131,7 @@ class ModuleWriter {
   llvm::DenseSet<const clang::Type *> seenClangTypes;
   std::vector<const Decl *> declsToWrite;
   DelayedMemberSet delayedMembers;
+  CxxDeclEmissionScope topLevelEmissionScope;
   PrimitiveTypeMapping typeMapping;
   std::string outOfLineDefinitions;
   llvm::raw_string_ostream outOfLineDefinitionsOS;
@@ -145,8 +148,8 @@ public:
       : os(os), imports(imports), M(mod),
         outOfLineDefinitionsOS(outOfLineDefinitions),
         printer(M, os, prologueOS, outOfLineDefinitionsOS, delayedMembers,
-                typeMapping, interopContext, access, requiresExposedAttribute,
-                exposedModules, outputLang),
+                topLevelEmissionScope, typeMapping, interopContext, access,
+                requiresExposedAttribute, exposedModules, outputLang),
         outputLangMode(outputLang) {}
 
   PrimitiveTypeMapping &getTypeMapping() { return typeMapping; }
@@ -602,21 +605,28 @@ public:
   void write() {
     SmallVector<Decl *, 64> decls;
     M.getTopLevelDecls(decls);
+    llvm::DenseSet<const ValueDecl *> removedValueDecls;
 
-    auto newEnd = std::remove_if(decls.begin(), decls.end(),
-                                 [this](const Decl *D) -> bool {
-      if (auto VD = dyn_cast<ValueDecl>(D))
-        return !printer.shouldInclude(VD);
+    auto newEnd =
+        std::remove_if(decls.begin(), decls.end(),
+                       [this, &removedValueDecls](const Decl *D) -> bool {
+                         if (auto VD = dyn_cast<ValueDecl>(D)) {
+                           auto shouldRemove = !printer.shouldInclude(VD);
+                           if (shouldRemove)
+                             removedValueDecls.insert(VD);
+                           return shouldRemove;
+                         }
 
-      if (auto ED = dyn_cast<ExtensionDecl>(D)) {
-        if (outputLangMode == OutputLanguageMode::Cxx)
-          return false;
-        auto baseClass = ED->getSelfClassDecl();
-        return !baseClass || !printer.shouldInclude(baseClass) ||
-               baseClass->isForeign();
-      }
-      return true;
-    });
+                         if (auto ED = dyn_cast<ExtensionDecl>(D)) {
+                           if (outputLangMode == OutputLanguageMode::Cxx)
+                             return false;
+                           auto baseClass = ED->getSelfClassDecl();
+                           return !baseClass ||
+                                  !printer.shouldInclude(baseClass) ||
+                                  baseClass->isForeign();
+                         }
+                         return true;
+                       });
     decls.erase(newEnd, decls.end());
 
     if (M.isStdlibModule()) {
@@ -667,8 +677,26 @@ public:
       if (result != 0)
         return result;
       // Two overloaded functions can have the same name when emitting C++.
-      if (isa<AbstractFunctionDecl>(*rhs) && isa<AbstractFunctionDecl>(*lhs))
+      if (isa<AbstractFunctionDecl>(*rhs) && isa<AbstractFunctionDecl>(*lhs)) {
+        // Sort top level functions with the same C++ name by their location to
+        // have stable sorting that depends on users source but not on the
+        // compiler invocation.
+        if ((*rhs)->getLoc().isValid() && (*lhs)->getLoc().isValid()) {
+          std::string rhsLoc, lhsLoc;
+          auto getLocText = [](const AbstractFunctionDecl *afd) {
+            std::string res;
+            llvm::raw_string_ostream os(res);
+            afd->getLoc().print(os, afd->getASTContext().SourceMgr);
+            return std::move(os.str());
+          };
+          if (getLocText(cast<AbstractFunctionDecl>(*lhs)) <
+              getLocText(cast<AbstractFunctionDecl>(*rhs)))
+            return Descending;
+          return Ascending;
+        }
         return result;
+      }
+
       // A function and a global variable can have the same name in C++,
       // even when the variable might not actually be emitted by the emitter.
       // In that case, order the function before the variable.
@@ -740,9 +768,11 @@ public:
       } else if (outputLangMode == OutputLanguageMode::Cxx) {
         if (auto FD = dyn_cast<FuncDecl>(D))
           success = writeFunc(FD);
-        if (auto SD = dyn_cast<StructDecl>(D))
+        else if (auto SD = dyn_cast<StructDecl>(D))
           success = writeStruct(SD);
-        // FIXME: Warn on unsupported exported decl.
+        else if (auto *vd = dyn_cast<ValueDecl>(D))
+          topLevelEmissionScope.additionalUnrepresentableDeclarations.push_back(
+              vd);
       } else if (isa<ValueDecl>(D)) {
         if (auto PD = dyn_cast<ProtocolDecl>(D))
           success = writeProtocol(PD);
@@ -778,6 +808,98 @@ public:
 
     // Print any out of line definitions.
     os << outOfLineDefinitionsOS.str();
+
+    // In C++ section, emit unavailable stubs for top value level
+    // declarations that couldn't be represented in C++.
+    if (outputLangMode != OutputLanguageMode::Cxx)
+      return;
+    auto &emissionScope = topLevelEmissionScope;
+    auto removedVDList = std::vector<const ValueDecl *>(
+        removedValueDecls.begin(), removedValueDecls.end());
+    for (const auto *removedVD :
+         emissionScope.additionalUnrepresentableDeclarations)
+      removedVDList.push_back(removedVD);
+
+    // Do not report internal/private decls as unavailable.
+    // @objc declarations are emitted in the Objective-C section, so do not
+    // report them as unavailable. Also skip underscored decls from the standard
+    // library. Also skip structs from the standard library, they can cause
+    // ambiguities because of the arithmetic types that conflict with types we
+    // already have in `swift::` namespace. Also skip `Error` protocol from
+    // stdlib, we have experimental support for it.
+    removedVDList.erase(
+        llvm::remove_if(
+            removedVDList,
+            [&](const ValueDecl *vd) {
+              return !printer.isVisible(vd) || vd->isObjC() ||
+                     (vd->isStdlibDecl() && !vd->getName().isSpecial() &&
+                      vd->getBaseIdentifier().str().startswith("_")) ||
+                     (vd->isStdlibDecl() && isa<StructDecl>(vd)) ||
+                     (vd->isStdlibDecl() &&
+                      vd->getASTContext().getErrorDecl() == vd);
+            }),
+        removedVDList.end());
+    // Sort the unavaiable decls by their name and kind.
+    llvm::sort(removedVDList, [](const ValueDecl *lhs, const ValueDecl *rhs) {
+      auto getSortKey = [](const ValueDecl *vd) {
+        std::string sortKey;
+        llvm::raw_string_ostream os(sortKey);
+        vd->getName().print(os);
+        os << ' ' << (unsigned)vd->getDescriptiveKind();
+        return std::move(os.str());
+      };
+      return getSortKey(lhs) < getSortKey(rhs);
+    });
+
+    for (const auto *vd : removedVDList) {
+      assert(!vd->isObjC());
+      os << "\n";
+      auto emitStubComment = [&]() {
+        // Emit a generic comment for an handled declaration.
+        os << "// Unavailable in C++: Swift "
+           << vd->getDescriptiveKindName(vd->getDescriptiveKind()) << " '";
+        vd->getName().print(os);
+        os << "'.\n";
+      };
+
+      // Do not emit a C++ declaration with a specific C++ name more than once.
+      auto cxxName = cxx_translation::getNameForCxx(vd);
+      if (emissionScope.emittedDeclarationNames.contains(cxxName)) {
+        emitStubComment();
+        continue;
+      }
+      emissionScope.emittedDeclarationNames.insert(cxxName);
+
+      // Emit an unavailable stub for a Swift type.
+      if (auto *nmtd = dyn_cast<NominalTypeDecl>(vd)) {
+        auto representation = cxx_translation::getDeclRepresentation(vd);
+        os << "class ";
+        ClangSyntaxPrinter(os).printBaseName(vd);
+        os << " { } SWIFT_UNAVAILABLE_MSG(\"";
+
+        auto diag =
+            representation.isUnsupported() && representation.error.hasValue()
+                ? cxx_translation::diagnoseRepresenationError(
+                      *representation.error, const_cast<ValueDecl *>(vd))
+                : Diagnostic(
+                      vd->isStdlibDecl() ? diag::unexposed_other_decl_in_cxx
+                                         : diag::unsupported_other_decl_in_cxx,
+                      vd->getDescriptiveKind(), const_cast<ValueDecl *>(vd));
+        // Emit a specific unavailable message when we know why a decl can't be
+        // exposed, or a generic message otherwise.
+        auto diagString = M.getASTContext().Diags.diagnosticStringFor(
+            diag.getID(), /*PrintDiagnosticNames=*/false);
+        DiagnosticEngine::formatDiagnosticText(os, diagString, diag.getArgs(),
+                                               DiagnosticFormatOptions());
+        os << "\");\n";
+        continue;
+      }
+
+      // FIXME: Emit an unavailable stub for a function / function overload set
+      // / variable.
+      // FIXME: Note unrepresented type aliases too.
+      emitStubComment();
+    }
   }
 };
 } // end anonymous namespace

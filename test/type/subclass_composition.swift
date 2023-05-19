@@ -555,7 +555,7 @@ func passesBaseIntAndPArray() {
 //
 
 struct DerivedBox<T : Derived> {}
-// expected-note@-1 {{requirement specified as 'T' : 'Derived' [with T = Derived & P3]}}
+// expected-note@-1 {{requirement specified as 'T' : 'Derived' [with T = any Derived & P3]}}
 
 func takesBoxWithP3(_: DerivedBox<Derived & P3>) {}
 // expected-error@-1 {{'DerivedBox' requires that 'any Derived & P3' inherit from 'Derived'}}

@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "definite-init"
+
 #include "DIMemoryUseCollector.h"
 #include "swift/AST/DiagnosticEngine.h"
 #include "swift/AST/DiagnosticsSIL.h"
@@ -18,6 +19,7 @@
 #include "swift/AST/Stmt.h"
 #include "swift/ClangImporter/ClangModule.h"
 #include "swift/SIL/BasicBlockBits.h"
+#include "swift/AST/SemanticAttrs.h"
 #include "swift/SIL/BasicBlockData.h"
 #include "swift/SIL/InstructionUtils.h"
 #include "swift/SIL/MemAccessUtils.h"
@@ -1140,7 +1142,15 @@ void LifetimeChecker::doIt() {
   }
 
   // If we emitted an error, there is no reason to proceed with load promotion.
-  if (!EmittedErrorLocs.empty()) return;
+  if (!EmittedErrorLocs.empty()) {
+    // Since we failed DI, for now, turn off the move checker on the entire
+    // function. With time, we should be able to allow for move checker checks
+    // to be emitted on unrelated allocations, but given where we are this is a
+    // good enough fix.
+    TheMemory.getFunction().addSemanticsAttr(
+        semantics::NO_MOVEONLY_DIAGNOSTICS);
+    return;
+  }
 
   // If the memory object has nontrivial type, then any destroy/release of the
   // memory object will destruct the memory.  If the memory (or some element

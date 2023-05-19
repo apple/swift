@@ -1,7 +1,4 @@
-// RUN: %target-swift-emit-silgen %s -enable-experimental-feature VariadicGenerics
-
-// Because of -enable-experimental-feature VariadicGenerics
-// REQUIRES: asserts
+// RUN: %target-swift-emit-silgen %s -disable-availability-checking
 
 struct Variadic<each T> where repeat each T: Equatable {}
 

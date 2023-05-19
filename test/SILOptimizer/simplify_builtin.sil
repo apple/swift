@@ -1,5 +1,7 @@
-// RUN: %target-sil-opt -enable-sil-verify-all %s -onone-simplification -simplify-instruction=builtin | %FileCheck %s --check-prefix=CHECK --check-prefix=EARLY
-// RUN: %target-sil-opt -enable-sil-verify-all %s -late-onone-simplification -simplify-instruction=builtin | %FileCheck %s --check-prefix=CHECK --check-prefix=LATE
+// RUN: %target-sil-opt -enable-sil-verify-all %s -onone-simplification -simplify-instruction=builtin | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-EARLY
+// RUN: %target-sil-opt -enable-sil-verify-all %s -late-onone-simplification -simplify-instruction=builtin | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-LATE
+// RUN: %target-sil-opt -enable-sil-verify-all %s -assert-conf-id=1 -onone-simplification -simplify-instruction=builtin | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-NOASSERTS
+// RUN: %target-sil-opt -enable-sil-verify-all %s -assert-conf-id=2 -onone-simplification -simplify-instruction=builtin | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-NOASSERTS
 
 // REQUIRES: swift_in_compiler
 
@@ -24,6 +26,23 @@ class C1<T> {
 class C2<T> : C1<T> {
 }
 
+// CHECK-LABEL: sil @constantFoldAdd
+// CHECK:         [[A:%.*]] = integer_literal $Builtin.Int64, 12
+// CHECK:         [[C:%.*]] = integer_literal $Builtin.Int1, 0
+// CHECK:         [[T:%.*]] = tuple ([[A]] : $Builtin.Int64, [[C]] : $Builtin.Int1)
+// CHECK:         [[R:%.*]] = tuple_extract [[T]] : $(Builtin.Int64, Builtin.Int1), 0
+// CHECK:         return [[R]]
+// CHECK:       } // end sil function 'constantFoldAdd'
+sil @constantFoldAdd : $@convention(thin) () -> Builtin.Int64 {
+bb0:
+  %0 = integer_literal $Builtin.Int64, 10
+  %1 = integer_literal $Builtin.Int64, 2
+  %2 = integer_literal $Builtin.Int1, 1
+  %3 = builtin "sadd_with_overflow_Int64"(%0 : $Builtin.Int64, %1 : $Builtin.Int64, %2 : $Builtin.Int1) : $(Builtin.Int64, Builtin.Int1)
+  %4 = tuple_extract %3 : $(Builtin.Int64, Builtin.Int1), 0
+  return %4 : $Builtin.Int64
+}
+
 // CHECK-LABEL: sil @isConcrete_true
 // CHECK:       bb0(%0 : $@thin Int.Type):
 // CHECK:         [[R:%.*]] = integer_literal $Builtin.Int1, -1
@@ -38,7 +57,7 @@ bb0(%0 : $@thin Int.Type):
 // CHECK-LABEL: sil @isConcrete_false
 // CHECK:       bb0(%0 : $@thin T.Type):
 // CHECK-EARLY:   [[R:%.*]] = builtin "isConcrete"<T>(%0 : $@thin T.Type) : $Builtin.Int1
-// CHECK-LATE:    [[R:%.*]] = integer_literal $Builtin.Int1, -1
+// CHECK-LATE:    [[R:%.*]] = integer_literal $Builtin.Int1, 0
 // CHECK:         return [[R]]
 // CHECK:       } // end sil function 'isConcrete_false'
 sil @isConcrete_false : $@convention(thin) <T> (@thin T.Type) -> Builtin.Int1 {
@@ -247,3 +266,118 @@ bb0:
   %4 = builtin "is_same_metatype"(%2 : $@thick Any.Type, %3 : $@thick Any.Type) : $Builtin.Int1
   return %4 : $Builtin.Int1
 }
+
+sil_global hidden [let] @g : $Int32
+
+sil [global_init_once_fn] @side_effect_free_init : $@convention(c) () -> () {
+bb0:
+  %1 = global_addr @g : $*Int32
+  %2 = integer_literal $Builtin.Int32, 10
+  %3 = struct $Int32 (%2 : $Builtin.Int32)
+  %6 = tuple ()
+  return %6 : $()
+}
+
+sil [global_init_once_fn] @init_with_side_effect : $@convention(c) () -> () {
+bb0:
+  alloc_global @g
+  %1 = global_addr @g : $*Int32
+  %2 = integer_literal $Builtin.Int32, 10
+  %3 = struct $Int32 (%2 : $Builtin.Int32)
+  store %3 to %1 : $*Int32
+  %6 = tuple ()
+  return %6 : $()
+}
+
+sil [global_init_once_fn] @unknown_init : $@convention(c) () -> ()
+
+// CHECK-LABEL: sil @remove_builtin_once :
+// CHECK-NOT:     builtin
+// CHECK:       } // end sil function 'remove_builtin_once'
+sil @remove_builtin_once : $@convention(thin) (Builtin.RawPointer) -> () {
+bb0(%0 : $Builtin.RawPointer):
+  %1 = function_ref @side_effect_free_init : $@convention(c) () -> ()
+  %2 = builtin "once"(%0 : $Builtin.RawPointer, %1 : $@convention(c) () -> ()) : $()
+  %3 = tuple ()
+  return %3 : $()
+}
+
+// CHECK-LABEL: sil @dont_remove_builtin_once_side_effect :
+// CHECK:         builtin
+// CHECK:       } // end sil function 'dont_remove_builtin_once_side_effect'
+sil @dont_remove_builtin_once_side_effect : $@convention(thin) (Builtin.RawPointer) -> () {
+bb0(%0 : $Builtin.RawPointer):
+  %1 = function_ref @init_with_side_effect : $@convention(c) () -> ()
+  %2 = builtin "once"(%0 : $Builtin.RawPointer, %1 : $@convention(c) () -> ()) : $()
+  %3 = tuple ()
+  return %3 : $()
+}
+
+// CHECK-LABEL: sil @dont_remove_builtin_once_unknown :
+// CHECK:         builtin
+// CHECK:       } // end sil function 'dont_remove_builtin_once_unknown'
+sil @dont_remove_builtin_once_unknown : $@convention(thin) (Builtin.RawPointer) -> () {
+bb0(%0 : $Builtin.RawPointer):
+  %1 = function_ref @unknown_init : $@convention(c) () -> ()
+  %2 = builtin "once"(%0 : $Builtin.RawPointer, %1 : $@convention(c) () -> ()) : $()
+  %3 = tuple ()
+  return %3 : $()
+}
+
+// CHECK-LABEL: sil @generic_canBeClass
+// CHECK:         [[TYPE:%.*]] = metatype $@thick T.Type
+// CHECK:         [[B:%.*]] = builtin "canBeClass"<T>([[TYPE]] : $@thick T.Type)
+// CHECK:         [[R:%.*]] = struct $Int8 ([[B]] : $Builtin.Int8)
+// CHECK:         return [[R]]
+// CHECK:       } // end sil function 'generic_canBeClass'
+sil @generic_canBeClass : $@convention(thin) <T> (@in T) -> Int8 {
+bb0(%0 : $*T):
+  %1 = metatype $@thick T.Type
+  %3 = builtin "canBeClass"<T>(%1 : $@thick T.Type) : $Builtin.Int8
+  %4 = struct $Int8 (%3 : $Builtin.Int8)
+  destroy_addr %0 : $*T
+  return %4 : $Int8
+}
+
+// CHECK-LABEL: sil @int_canBeClass
+// CHECK-NOT:     builtin "canBeClass"
+// CHECK:         [[L:%.*]] = integer_literal $Builtin.Int8, 0
+// CHECK:         [[R:%.*]] = struct $Int8 ([[L]] : $Builtin.Int8)
+// CHECK:         return [[R]]
+// CHECK:       } // end sil function 'int_canBeClass'
+sil @int_canBeClass : $@convention(thin) () -> Int8 {
+bb0:
+  %1 = metatype $@thick Int.Type
+  %3 = builtin "canBeClass"<Int>(%1 : $@thick Int.Type) : $Builtin.Int8
+  %4 = struct $Int8 (%3 : $Builtin.Int8)
+  return %4 : $Int8
+}
+
+// CHECK-LABEL: sil @class_canBeClass
+// CHECK-NOT:     builtin "canBeClass"
+// CHECK:         [[L:%.*]] = integer_literal $Builtin.Int8, 1
+// CHECK:         [[R:%.*]] = struct $Int8 ([[L]] : $Builtin.Int8)
+// CHECK:         return [[R]]
+// CHECK:       } // end sil function 'class_canBeClass'
+sil @class_canBeClass : $@convention(thin) () -> Int8 {
+bb0:
+  %1 = metatype $@thick C1<Int>.Type
+  %3 = builtin "canBeClass"<C1<Int>>(%1 : $@thick C1<Int>.Type) : $Builtin.Int8
+  %4 = struct $Int8 (%3 : $Builtin.Int8)
+  return %4 : $Int8
+}
+
+// CHECK-LABEL: sil @remove_assert_configuration
+// CHECK-NOT:     builtin "assert_configuration"
+// CHECK-EARLY:     [[L:%.*]] = integer_literal $Builtin.Int8, 1
+// CHECK-NOASSERTS: [[L:%.*]] = integer_literal $Builtin.Int8, 0
+// CHECK:         [[R:%.*]] = struct $Int8 ([[L]] : $Builtin.Int8)
+// CHECK:         return [[R]]
+// CHECK:       } // end sil function 'remove_assert_configuration'
+sil @remove_assert_configuration : $@convention(thin) () -> Int8 {
+bb0:
+  %3 = builtin "assert_configuration"() : $Builtin.Int8
+  %4 = struct $Int8 (%3 : $Builtin.Int8)
+  return %4 : $Int8
+}
+

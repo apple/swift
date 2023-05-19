@@ -16,12 +16,12 @@ import _Concurrency
 // CHECK-NEXT: func doSomethingSlow(_ operation: String) async -> Int
 
 // CHECK: @available(*, renamed: "doSomethingDangerous(_:)")
-// CHECK-NEXT: func doSomethingDangerous(_ operation: String, completionHandler handler: (@Sendable (String?, Error?) -> Void)? = nil)
+// CHECK-NEXT: func doSomethingDangerous(_ operation: String, completionHandler handler: (@Sendable (String?, (any Error)?) -> Void)? = nil)
 // CHECK-NEXT: @discardableResult
 // CHECK-NEXT: func doSomethingDangerous(_ operation: String) async throws -> String
 
 // CHECK: @available(*, renamed: "doSomethingReckless(_:)")
-// CHECK-NEXT: func doSomethingReckless(_ operation: String, completionHandler handler: ((String?, Error?) -> Void)? = nil)
+// CHECK-NEXT: func doSomethingReckless(_ operation: String, completionHandler handler: ((String?, (any Error)?) -> Void)? = nil)
 // CHECK-NEXT: @discardableResult
 // CHECK-NEXT: func doSomethingReckless(_ operation: String) async throws -> String
 
@@ -46,17 +46,17 @@ import _Concurrency
 // CHECK-NEXT: func replyingOperation(_ operation: String) async -> String
 
 // CHECK: @available(*, renamed: "findAnswer()")
-// CHECK-NEXT: func findAnswer(completionHandler handler: @escaping @Sendable (String?, Error?) -> Void)
+// CHECK-NEXT: func findAnswer(completionHandler handler: @escaping @Sendable (String?, (any Error)?) -> Void)
 // CHECK-NEXT: @discardableResult
 // CHECK-NEXT: func findAnswer() async throws -> String
 
 // CHECK: @available(*, renamed: "findAnswerFailingly()")
-// CHECK-NEXT: func findAnswerFailingly(completionHandler handler: @escaping @Sendable (String?, Error?) -> Void) throws
+// CHECK-NEXT: func findAnswerFailingly(completionHandler handler: @escaping @Sendable (String?, (any Error)?) -> Void) throws
 // CHECK-NEXT: @discardableResult
 // CHECK-NEXT: func findAnswerFailingly() async throws -> String
 
 // CHECK: @available(*, renamed: "findQAndA()")
-// CHECK-NEXT: func findQAndA(completionHandler handler: @escaping @Sendable (String?, String?, Error?) -> Void)
+// CHECK-NEXT: func findQAndA(completionHandler handler: @escaping @Sendable (String?, String?, (any Error)?) -> Void)
 // CHECK-NEXT: @discardableResult
 // CHECK-NEXT: func findQAndA() async throws -> (String?, String)
 
@@ -66,7 +66,7 @@ import _Concurrency
 // CHECK-NEXT: func findQuestionableAnswers() async throws -> (String, String?)
 
 // CHECK: @available(*, renamed: "findAnswerableQuestions()")
-// CHECK-NEXT: func findAnswerableQuestions(completionHandler handler: @escaping @Sendable (String?, String?, Error?) -> Void)
+// CHECK-NEXT: func findAnswerableQuestions(completionHandler handler: @escaping @Sendable (String?, String?, (any Error)?) -> Void)
 // CHECK-NEXT: @discardableResult
 // CHECK-NEXT: func findAnswerableQuestions() async throws -> (String, String?)
 
@@ -127,30 +127,31 @@ import _Concurrency
 // CHECK: @MainActor @objc protocol TripleMainActor {
 
 // CHECK-LABEL: class NXSender :
-// CHECK: func sendAny(_ obj: Sendable) -> Sendable
-// CHECK: func sendOptionalAny(_ obj: Sendable?) -> Sendable?
+// CHECK: func sendAny(_ obj: any Sendable) -> any Sendable
+// CHECK: func sendOptionalAny(_ obj: (any Sendable)?) -> (any Sendable)?
+// FIXME(https://github.com/apple/swift/issues/65730): Compositions not wrappped in existentials
 // CHECK: func sendSendable(_ sendable: SendableClass & Sendable) -> SendableClass & Sendable
 // CHECK: func sendSendableSubclasses(_ sendableSubclass: NonSendableClass & Sendable) -> NonSendableClass & Sendable
-// CHECK: func sendProto(_ obj: LabellyProtocol & Sendable) -> LabellyProtocol & Sendable
-// CHECK: func sendProtos(_ obj: LabellyProtocol & ObjCClub & Sendable) -> LabellyProtocol & ObjCClub & Sendable
-// CHECK: func sendAnyArray(_ array: [Sendable]) -> [Sendable]
+// CHECK: func sendProto(_ obj: any LabellyProtocol & Sendable) -> any LabellyProtocol & Sendable
+// CHECK: func sendProtos(_ obj: any LabellyProtocol & ObjCClub & Sendable) -> any LabellyProtocol & ObjCClub & Sendable
+// CHECK: func sendAnyArray(_ array: [any Sendable]) -> [any Sendable]
 // CHECK: func sendGeneric(_ generic: GenericObject<SendableClass> & Sendable) -> GenericObject<SendableClass> & Sendable
 // CHECK: func sendPtr(_ val: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer
 // CHECK: func sendStringArray(_ obj: [String]) -> [String]
-// CHECK: func sendAnyTypedef(_ obj: Sendable) -> Sendable
-// CHECK: func sendAnyTypedefs(_ objs: [Sendable]) -> [Sendable]
+// CHECK: func sendAnyTypedef(_ obj: any Sendable) -> any Sendable
+// CHECK: func sendAnyTypedefs(_ objs: [any Sendable]) -> [any Sendable]
 // CHECK: func sendBlockTypedef(_ block: @escaping @Sendable (Any) -> Void) -> @Sendable (Any) -> Void
 // CHECK: func sendBlockTypedefs(_ blocks: [@Sendable @convention(block) (Any) -> Void]) -> [@Sendable @convention(block) (Any) -> Void]
-// CHECK: func sendUnbound(_ array: [Sendable]) -> [Sendable]
-// CHECK: var sendableProp: Sendable
+// CHECK: func sendUnbound(_ array: [any Sendable]) -> [any Sendable]
+// CHECK: var sendableProp: any Sendable
 // CHECK: }
 
-// CHECK: func NXSendFunc(_ arg: Sendable) -> Sendable
-// CHECK: var NXSendGlobal: Sendable
+// CHECK: func NXSendFunc(_ arg: any Sendable) -> any Sendable
+// CHECK: var NXSendGlobal: any Sendable
 
 // CHECK-LABEL: struct StructWithSendableContents
 // FIXME: `Unmanaged` should support `AnyObject & Sendable`.
 // CHECK: var sendableField: Unmanaged<AnyObject>
 // FIXME: Should be imported as Unmanaged!
-// CHECK: var sendableIndirectField: Sendable & AnyObject
-// CHECK: var sendableComputed: Sendable { get }
+// CHECK: var sendableIndirectField: any Sendable & AnyObject
+// CHECK: var sendableComputed: any Sendable { get }

@@ -34,8 +34,17 @@ int main() {
   {
     auto s = String("hello world");
     printString(s);
+    swift::String s2 = "Hello literal";
+    printString(s2);
+    const char *literal = "Test literal via ptr";
+    printString(literal);
+    swift::String s3 = nullptr;
+    printString(s3);
   }
 // CHECK: '''hello world'''
+// CHECK-NEXT: '''Hello literal'''
+// CHECK-NEXT: '''Test literal via ptr'''
+// CHECK-NEXT: ''''''
 
   {
     std::string str = "test std::string";

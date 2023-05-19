@@ -358,3 +358,250 @@ func nestedType() throws -> Int {
     0
   }
 }
+
+// MARK: Bindings
+
+enum F {
+  case e(Int)
+}
+
+struct S {
+  var i: Int
+  var opt: Int?
+
+  var computed: Int {
+    get { i }
+    set { i = newValue }
+  }
+  var coroutined: Int {
+    _read { yield i }
+    _modify { yield &i }
+  }
+
+  subscript(x: Int) -> Int {
+    get { i }
+    set { i = newValue }
+  }
+
+  mutating func testAssign1(_ x: F) {
+    i = switch x {
+    case .e(let y): y
+    }
+  }
+
+  mutating func testAssign2(_ x: F) {
+    i = switch x {
+    case .e(let y): Int(y)
+    }
+  }
+
+  func testAssign3(_ x: F) {
+    var i = 0
+    i = switch x {
+    case .e(let y): y
+    }
+    _ = i
+  }
+
+  func testAssign4(_ x: F) {
+    var i = 0
+    let _ = {
+      i = switch x {
+      case .e(let y): y
+      }
+    }
+    _ = i
+  }
+
+  mutating func testAssign5(_ x: F) {
+    i = switch Bool.random() {
+    case true:
+      switch x {
+      case .e(let y): y
+      }
+    case let z:
+      z ? 0 : 1
+    }
+  }
+
+  mutating func testAssign6(_ x: F) {
+    i = switch x {
+    case .e(let y):
+      switch Bool.random() {
+      case true: y
+      case false: y
+      }
+    }
+  }
+
+  func testReturn1(_ x: F) -> Int {
+    switch x {
+    case .e(let y): y
+    }
+  }
+
+  func testReturn2(_ x: F) -> Int {
+    return switch x {
+    case .e(let y): y
+    }
+  }
+
+  func testReturn3(_ x: F) -> Int {
+    {
+      switch x {
+      case .e(let y): y
+      }
+    }()
+  }
+
+  func testReturn4(_ x: F) -> Int {
+    return {
+      switch x {
+      case .e(let y): y
+      }
+    }()
+  }
+
+  func testBinding1(_ x: F) -> Int {
+    let i = switch x {
+    case .e(let y): y
+    }
+    return i
+  }
+
+  func testBinding2(_ x: F) -> Int {
+    let i = {
+      switch x {
+      case .e(let y): y
+      }
+    }()
+    return i
+  }
+}
+
+enum G {
+  case e(Int)
+  case f
+}
+
+struct TestLValues {
+  var s: S
+  var opt: S?
+  var optopt: S??
+
+  mutating func testOptPromote1() {
+    opt = switch Bool.random() { case true: s case false: s }
+  }
+
+  mutating func testOptPromote2() {
+    optopt = switch Bool.random() { case true: s case false: s }
+  }
+
+  mutating func testStored1() {
+    s.i = switch Bool.random() { case true: 1 case false: 0 }
+  }
+
+  mutating func testStored2() throws {
+    s.i = switch Bool.random() { case true: 1 case false: throw Err() }
+  }
+
+  mutating func testComputed1() {
+    s.computed = switch Bool.random() { case true: 1 case false: 0 }
+  }
+
+  mutating func testComputed2() throws {
+    s.computed = switch Bool.random() { case true: 1 case false: throw Err() }
+  }
+
+  mutating func testCoroutined1() {
+    s.coroutined = switch Bool.random() { case true: 1 case false: 0 }
+  }
+
+  mutating func testCoroutined2() throws {
+    s.coroutined = switch Bool.random() { case true: 1 case false: throw Err() }
+  }
+
+  mutating func testOptionalChain1() {
+    opt?.i = switch Bool.random() { case true: 1 case false: 0 }
+  }
+
+  mutating func testOptionalChain2() throws {
+    opt?.i = switch Bool.random() { case true: throw Err() case false: 0 }
+  }
+
+  mutating func testOptionalChain3(_ g: G) {
+    opt?.i = switch g { case .e(let i): i default: 0 }
+  }
+
+  mutating func testOptionalChain4(_ g: G) throws {
+    opt?.i = switch g { case .e(let i): i default: throw Err() }
+  }
+
+  mutating func testOptionalChain5(_ g: G) throws {
+    opt?.computed = switch g { case .e(let i): i default: throw Err() }
+  }
+
+  mutating func testOptionalChain6(_ g: G) throws {
+    opt?.coroutined = switch g { case .e(let i): i default: throw Err() }
+  }
+
+  mutating func testOptionalChain7() throws {
+    optopt??.i = switch Bool.random() { case true: 1 case false: throw Err() }
+  }
+
+  mutating func testOptionalChain8() throws {
+    optopt??.opt = switch Bool.random() { case true: 1 case false: throw Err() }
+  }
+
+  mutating func testOptionalChain9() throws {
+    optopt??.opt? = switch Bool.random() { case true: 1 case false: throw Err() }
+  }
+
+  mutating func testOptionalForce1() throws {
+    opt!.i = switch Bool.random() { case true: throw Err() case false: 0 }
+  }
+
+  mutating func testOptionalForce2() throws {
+    opt!.computed = switch Bool.random() { case true: throw Err() case false: 0 }
+  }
+
+  mutating func testOptionalForce3(_ g: G) throws {
+    opt!.coroutined = switch g { case .e(let i): i default: throw Err() }
+  }
+
+  mutating func testOptionalForce4() throws {
+    optopt!!.i = switch Bool.random() { case true: 1 case false: throw Err() }
+  }
+
+  mutating func testOptionalForce5() throws {
+    optopt!!.opt = switch Bool.random() { case true: 1 case false: throw Err() }
+  }
+
+  mutating func testOptionalForce6() throws {
+    optopt!!.opt! = switch Bool.random() { case true: 1 case false: throw Err() }
+  }
+
+  mutating func testSubscript1() throws {
+    s[5] = switch Bool.random() { case true: 1 case false: throw Err() }
+  }
+
+  mutating func testSubscript2() throws {
+    opt?[5] = switch Bool.random() { case true: 1 case false: throw Err() }
+  }
+
+  mutating func testSubscript3() throws {
+    opt![5] = switch Bool.random() { case true: 1 case false: throw Err() }
+  }
+
+  mutating func testKeyPath1(_ kp: WritableKeyPath<S, Int>) throws {
+    s[keyPath: kp] = switch Bool.random() { case true: 1 case false: throw Err() }
+  }
+
+  mutating func testKeyPath2(_ kp: WritableKeyPath<S, Int>) throws {
+    opt?[keyPath: kp] = switch Bool.random() { case true: 1 case false: throw Err() }
+  }
+
+  mutating func testKeyPath3(_ kp: WritableKeyPath<S, Int>) throws {
+    opt![keyPath: kp] = switch Bool.random() { case true: 1 case false: throw Err() }
+  }
+}

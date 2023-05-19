@@ -53,13 +53,13 @@ func forwardAndReabstractFunctionPack<each T>(functions: repeat (each T) -> Bool
 
 // CHECK-LABEL: sil{{.*}} @$s4main22passConcreteToVariadic2fnyS2i_SStXE_tF :
 // CHECK:         [[COPY:%.*]] = copy_value %0 : $@noescape @callee_guaranteed (Int, @guaranteed String) -> Int
-// CHECK:         [[THUNK:%.*]] = function_ref @$sSiSSSiIgygd_Si_SSQSiSiIeggd_TR
+// CHECK:         [[THUNK:%.*]] = function_ref @$sSiSSSiIgygd_Si_SSQSiSiIegpd_TR
 // CHECK:         partial_apply [callee_guaranteed] [[THUNK]]([[COPY]])
 func passConcreteToVariadic(fn: (Int, String) -> Int) {
   takesVariadicFunction(function: fn)
 }
 
-// CHECK-LABEL: sil{{.*}} @$sSiSSSiIgygd_Si_SSQSiSiIeggd_TR :
+// CHECK-LABEL: sil{{.*}} @$sSiSSSiIgygd_Si_SSQSiSiIegpd_TR :
 // CHECK:       bb0(%0 : $*Pack{Int, String}, %1 : @guaranteed $@noescape @callee_guaranteed (Int, @guaranteed String) -> Int):
 // CHECK-NEXT:    [[INT_INDEX:%.*]] = scalar_pack_index 0 of $Pack{Int, String}
 // CHECK-NEXT:    [[INT_ADDR:%.*]] = pack_element_get [[INT_INDEX]] of %0 : $*Pack{Int, String}
@@ -74,7 +74,7 @@ func passConcreteToVariadic(fn: (Int, String) -> Int) {
 //   FIXME: we aren't preserving that the argument is owned
 // CHECK-LABEL: sil{{.*}} @$s4main27passConcreteToOwnedVariadic2fnyS2i_SStXE_tF :
 // CHECK:         [[COPY:%.*]] = copy_value %0 : $@noescape @callee_guaranteed (Int, @guaranteed String) -> Int
-// CHECK:         [[THUNK:%.*]] = function_ref @$sSiSSSiIgygd_Si_SSQSiSiIeggd_TR
+// CHECK:         [[THUNK:%.*]] = function_ref @$sSiSSSiIgygd_Si_SSQSiSiIegpd_TR
 // CHECK:         partial_apply [callee_guaranteed] [[THUNK]]([[COPY]])
 func passConcreteToOwnedVariadic(fn: (Int, String) -> Int) {
   takesVariadicOwnedFunction(function: fn)

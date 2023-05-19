@@ -40,6 +40,7 @@ config.libdispatch_build_path = "@SWIFT_PATH_TO_LIBDISPATCH_BUILD@"
 config.libdispatch_static_build_path = "@SWIFT_PATH_TO_LIBDISPATCH_STATIC_BUILD@"
 config.swift_driver_test_options = "@SWIFT_DRIVER_TEST_OPTIONS@"
 config.swift_frontend_test_options = "@SWIFT_FRONTEND_TEST_OPTIONS@"
+config.swift_ide_test_test_options = "@SWIFT_IDE_TEST_TEST_OPTIONS@"
 
 # --- Darwin ---
 config.darwin_xcrun_toolchain = "@SWIFT_DARWIN_XCRUN_TOOLCHAIN@"

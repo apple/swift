@@ -3959,7 +3959,8 @@ TypeConverter::getLoweredLocalCaptures(SILDeclRef fn) {
                                         fn.getAsRegularLocation(), Context);
       
       if (auto *afd = dyn_cast<AbstractFunctionDecl>(curFn.getDecl())) {
-        auto *param = getParameterAt(afd, curFn.defaultArgIndex);
+        auto *param = getParameterAt(static_cast<ValueDecl *>(afd),
+                                     curFn.defaultArgIndex);
         if (param->hasDefaultExpr()) {
           auto dc = afd->getInnermostDeclContext();
           collectCaptures(param->getDefaultArgumentCaptureInfo(), dc);

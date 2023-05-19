@@ -63,7 +63,7 @@ cake: Accessor ClassWithOpenMember.property.Get() is no longer open for subclass
 
 /* Class Inheritance Change */
 cake: Class C4 has changed its super class from APINotesTest.OldType to APINotesTest.NewType
-cake: Class SubGenericClass has changed its super class from cake.GenericClass<cake.P1> to cake.GenericClass<cake.P2>
+cake: Class SubGenericClass has changed its super class from cake.GenericClass<any cake.P1> to cake.GenericClass<any cake.P2>
 cake: Class SuperClassRemoval has removed its super class cake.C3
 cake: Class SuperClassRemoval no longer inherits convenience inits from its superclass
 cake: Constructor AddingNewDesignatedInit.init(_:) has been added as a designated initializer to an open class

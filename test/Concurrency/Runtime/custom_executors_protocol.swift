@@ -35,7 +35,7 @@ final class NaiveQueueExecutor: SpecifiedExecutor, CustomStringConvertible {
     self.queue = queue
   }
 
-  public func enqueue(_ job: __owned ExecutorJob) {
+  public func enqueue(_ job: consuming ExecutorJob) {
     print("\(self): enqueue")
     let unowned = UnownedJob(job)
     queue.sync {

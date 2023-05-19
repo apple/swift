@@ -42,7 +42,7 @@ public func A_renameAllTheThings(
 // CHECK-SAME: c: RenamedTypedef
 // CHECK-SAME: d: RenamedStruct
 // CHECK-SAME: e: RenamedEnum
-// CHECK-SAME: f: RenamedProtocol
+// CHECK-SAME: f: any RenamedProtocol
 // CHECK-SAME: g: RenamedWrappedTypedef
 // CHECK-SAME: )
 

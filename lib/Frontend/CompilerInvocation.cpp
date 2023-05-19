@@ -614,6 +614,7 @@ static bool ParseLangArgs(LangOptions &Opts, ArgList &Args,
     auto value =
         llvm::StringSwitch<Optional<UnavailableDeclOptimization>>(A->getValue())
             .Case("none", UnavailableDeclOptimization::None)
+            .Case("stub", UnavailableDeclOptimization::Stub)
             .Case("complete", UnavailableDeclOptimization::Complete)
             .Default(None);
 
@@ -1459,6 +1460,9 @@ static bool ParseClangImporterArgs(ClangImporterOptions &Opts,
     Opts.PCHDisableValidation |= Args.hasArg(OPT_pch_disable_validation);
   }
 
+  if (FrontendOpts.DisableImplicitModules)
+    Opts.DisableImplicitClangModules = true;
+
   Opts.ValidateModulesOnce |= Args.hasArg(OPT_validate_clang_modules_once);
   if (auto *A = Args.getLastArg(OPT_clang_build_session_file))
     Opts.BuildSessionFilePath = A->getValue();
@@ -2057,8 +2061,6 @@ static bool ParseSILArgs(SILOptions &Opts, ArgList &Args,
   } else if (Args.hasArg(OPT_EnbaleDefaultCMO)) {
     Opts.CMOMode = CrossModuleOptimizationMode::Default;  
   }
-  Opts.EnablePerformanceAnnotations |=
-      Args.hasArg(OPT_ExperimentalPerformanceAnnotations);
   Opts.EnableStackProtection =
       Args.hasFlag(OPT_enable_stack_protector, OPT_disable_stack_protector,
                    Opts.EnableStackProtection);
@@ -2608,6 +2610,8 @@ static bool ParseIRGenArgs(IRGenOptions &Opts, ArgList &Args,
         runtimeCompatibilityVersion = llvm::VersionTuple(5, 5);
       } else if (version.equals("5.6")) {
         runtimeCompatibilityVersion = llvm::VersionTuple(5, 6);
+      } else if (version.equals("5.8")) {
+        runtimeCompatibilityVersion = llvm::VersionTuple(5, 8);
       } else {
         Diags.diagnose(SourceLoc(), diag::error_invalid_arg_value,
                        versionArg->getAsString(Args), version);

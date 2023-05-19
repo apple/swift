@@ -77,6 +77,11 @@ private:
 
     /// Used in the setup function to walk over the CFG.
     bool visited = false;
+
+    /// True for dead-end blocks, i.e. blocks from which there is no path to
+    /// a function exit, e.g. blocks which end with `unreachable` or an
+    /// infinite loop.
+    bool isDeadEnd = false;
   };
 
   /// Data stored for each stack location (= allocation).

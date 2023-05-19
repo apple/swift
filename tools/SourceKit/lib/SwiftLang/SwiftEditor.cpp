@@ -64,13 +64,73 @@ void EditorDiagConsumer::getAllDiagnostics(
 
   Result.append(InvalidLocDiagnostics.begin(), InvalidLocDiagnostics.end());
 
-  // Note: we cannot reuse InputBufIds because there may be diagnostics outside
-  // the inputs.  Instead, sort the extant buffers.
+  // Note: We cannot use the input buffer IDs because there may be diagnostics
+  // outside the inputs. Instead, sort the extant buffers.
   auto bufferIDs = getSortedBufferIDs(BufferDiagnostics);
   for (unsigned bufferID : bufferIDs) {
     const auto &diags = BufferDiagnostics[bufferID];
     Result.append(diags.begin(), diags.end());
   }
+}
+
+/// Retrieve the raw range from a range, if it exists in the provided buffer.
+/// Otherwise returns \c None.
+static Optional<RawCharSourceRange> getRawRangeInBuffer(CharSourceRange range,
+                                                        unsigned bufferID,
+                                                        SourceManager &SM) {
+  if (!range.isValid() ||
+      SM.findBufferContainingLoc(range.getStart()) != bufferID) {
+    return None;
+  }
+  unsigned offset = SM.getLocOffsetInBuffer(range.getStart(), bufferID);
+  unsigned length = range.getByteLength();
+  return {{offset, length}};
+}
+
+BufferInfoSharedPtr EditorDiagConsumer::getBufferInfo(
+    StringRef FileName, Optional<unsigned> BufferID, swift::SourceManager &SM) {
+  // NOTE: Using StringRef as a key here relies on SourceMgr using const char*
+  // as buffer identifiers. This is fast, but may be brittle.  We can always
+  // switch over to using a StringMap. Note that the logic in
+  // SerializedDiagnosticConsumer::getEmitFile will also need changing.
+  auto Result = BufferInfos.find(FileName);
+  if (Result != BufferInfos.end())
+    return Result->second;
+
+  Optional<std::string> GeneratedFileText;
+  Optional<BufferInfo::OriginalLocation> OriginalLocInfo;
+
+  // If we have a generated buffer, we need to include the source text, as
+  // clients otherwise won't be able to access to it.
+  if (BufferID) {
+    if (auto Info = SM.getGeneratedSourceInfo(*BufferID)) {
+      // Don't include this information for replaced function body buffers, as
+      // they'll just be referencing the original file.
+      // FIXME: Does this mean that the location information we'll be giving
+      // will be wrong? Seems like we may need to adjust it to correspond to the
+      // original file.
+      if (Info->kind != GeneratedSourceInfo::ReplacedFunctionBody) {
+        GeneratedFileText.emplace(SM.getEntireTextForBuffer(*BufferID));
+
+        auto OrigRange = Info->originalSourceRange;
+        if (OrigRange.isValid()) {
+          auto OrigLoc = OrigRange.getStart();
+          auto OrigBuffer = SM.findBufferContainingLoc(OrigLoc);
+
+          auto OrigRawRange = getRawRangeInBuffer(OrigRange, OrigBuffer, SM);
+          assert(OrigRawRange);
+
+          auto OrigFileName = SM.getDisplayNameForLoc(OrigLoc);
+          auto OrigInfo = getBufferInfo(OrigFileName, OrigBuffer, SM);
+          OriginalLocInfo.emplace(OrigInfo, OrigBuffer, *OrigRawRange);
+        }
+      }
+    }
+  }
+  auto Info = std::make_shared<BufferInfo>(FileName.str(), GeneratedFileText,
+                                           OriginalLocInfo);
+  BufferInfos.insert({FileName, Info});
+  return Info;
 }
 
 void EditorDiagConsumer::handleDiagnostic(SourceManager &SM,
@@ -119,7 +179,7 @@ void EditorDiagConsumer::handleDiagnostic(SourceManager &SM,
     DiagnosticEngine::formatDiagnosticText(Out, Info.FormatString,
                                            Info.FormatArgs);
   }
-  SKInfo.Description = std::string(Text.str());
+  SKInfo.Description = Text.str();
 
   for (auto notePath : Info.EducationalNotePaths)
     SKInfo.EducationalNotePaths.push_back(notePath);
@@ -129,60 +189,49 @@ void EditorDiagConsumer::handleDiagnostic(SourceManager &SM,
     BufferIDOpt = SM.findBufferContainingLoc(Info.Loc);
   }
 
-  if (BufferIDOpt && !isInputBufferID(*BufferIDOpt)) {
-    if (Info.ID == diag::error_from_clang.ID ||
-        Info.ID == diag::warning_from_clang.ID ||
-        Info.ID == diag::note_from_clang.ID ||
-        !IsNote) {
-      // Handle it as other diagnostics.
-    } else {
-      // FIXME: This is a note pointing to a synthesized declaration buffer for
-      // a declaration coming from a module.
-      // We should include the Decl* in the DiagnosticInfo and have a way for
-      // Xcode to handle this "points-at-a-decl-from-module" location.
-      //
-      // For now instead of ignoring it, pick up the declaration name from the
-      // buffer identifier and append it to the diagnostic message.
-      auto &LastDiag = getLastDiag();
-      SKInfo.Description += " (";
-      SKInfo.Description += SM.getIdentifierForBuffer(*BufferIDOpt);
-      SKInfo.Description += ")";
-      SKInfo.Offset = LastDiag.Offset;
-      SKInfo.Line = LastDiag.Line;
-      SKInfo.Column = LastDiag.Column;
-      SKInfo.Filename = LastDiag.Filename;
-      LastDiag.Notes.push_back(std::move(SKInfo));
-      return;
-    }
-  }
-
   if (BufferIDOpt.has_value()) {
     unsigned BufferID = *BufferIDOpt;
+
+    if (auto info = SM.getGeneratedSourceInfo(BufferID)) {
+      if (IsNote && info->kind == GeneratedSourceInfo::PrettyPrinted) {
+        // FIXME: This is a note pointing to a synthesized declaration buffer
+        // for a declaration coming from a module. We should be able to remove
+        // this check once clients have been updated to deal with the buffer contents
+        // that we'll include in the response once this check is removed.
+        //
+        // For now instead of ignoring it, pick up the declaration name from the
+        // buffer identifier and append it to the diagnostic message.
+        auto &LastDiag = getLastDiag();
+        SKInfo.Description += " (";
+        SKInfo.Description += SM.getIdentifierForBuffer(*BufferIDOpt);
+        SKInfo.Description += ")";
+        SKInfo.Offset = LastDiag.Offset;
+        SKInfo.Line = LastDiag.Line;
+        SKInfo.Column = LastDiag.Column;
+        SKInfo.FileInfo = LastDiag.FileInfo;
+        LastDiag.Notes.push_back(std::move(SKInfo));
+        return;
+      }
+    }
 
     SKInfo.Offset = SM.getLocOffsetInBuffer(Info.Loc, BufferID);
     std::tie(SKInfo.Line, SKInfo.Column) =
         SM.getPresumedLineAndColumnForLoc(Info.Loc, BufferID);
-    SKInfo.Filename = SM.getDisplayNameForLoc(Info.Loc).str();
+
+    auto Filename = SM.getDisplayNameForLoc(Info.Loc);
+    SKInfo.FileInfo = getBufferInfo(Filename, BufferID, SM);
 
     for (auto R : Info.Ranges) {
-      if (R.isInvalid() || SM.findBufferContainingLoc(R.getStart()) != BufferID)
-        continue;
-      unsigned Offset = SM.getLocOffsetInBuffer(R.getStart(), BufferID);
-      unsigned Length = R.getByteLength();
-      SKInfo.Ranges.push_back({Offset, Length});
+      if (auto Raw = getRawRangeInBuffer(R, BufferID, SM))
+        SKInfo.Ranges.push_back(*Raw);
     }
 
     for (auto F : Info.FixIts) {
-      if (F.getRange().isInvalid() ||
-          SM.findBufferContainingLoc(F.getRange().getStart()) != BufferID)
-        continue;
-      unsigned Offset =
-          SM.getLocOffsetInBuffer(F.getRange().getStart(), BufferID);
-      unsigned Length = F.getRange().getByteLength();
-      SKInfo.Fixits.push_back({Offset, Length, F.getText().str()});
+      if (auto Range = getRawRangeInBuffer(F.getRange(), BufferID, SM))
+        SKInfo.Fixits.emplace_back(*Range, F.getText().str());
     }
   } else {
-    SKInfo.Filename = "<unknown>";
+    SKInfo.FileInfo = getBufferInfo("<unknown>", /*BufferID*/ None, SM);
   }
 
   if (IsNote) {
@@ -208,12 +257,22 @@ void EditorDiagConsumer::handleDiagnostic(SourceManager &SM,
     return;
   }
 
-  unsigned BufferID = *BufferIDOpt;
-  DiagnosticsTy &Diagnostics = BufferDiagnostics[BufferID];
+  // Look through to the original buffer, so we produce diagnostics that are
+  // present in generated buffers that originated there.
+  unsigned OrigBufferID = *BufferIDOpt;
+  {
+    auto BufferInfo = SKInfo.FileInfo;
+    while (auto &OrigLocation = BufferInfo->OrigLocation) {
+      OrigBufferID = OrigLocation->OrigBufferID;
+      BufferInfo = OrigLocation->OrigBufferInfo;
+    }
+  }
+
+  DiagnosticsTy &Diagnostics = BufferDiagnostics[OrigBufferID];
 
   if (Diagnostics.empty() || Diagnostics.back().Offset <= SKInfo.Offset) {
     Diagnostics.push_back(std::move(SKInfo));
-    LastDiagBufferID = BufferID;
+    LastDiagBufferID = OrigBufferID;
     LastDiagIndex = Diagnostics.size() - 1;
     return;
   }
@@ -223,7 +282,7 @@ void EditorDiagConsumer::handleDiagnostic(SourceManager &SM,
     [&](const DiagnosticEntryInfo &LHS, unsigned Offset) -> bool {
       return LHS.Offset < Offset;
     });
-  LastDiagBufferID = BufferID;
+  LastDiagBufferID = OrigBufferID;
   LastDiagIndex = Pos - Diagnostics.begin();
   Diagnostics.insert(Pos, std::move(SKInfo));
 }
@@ -710,7 +769,6 @@ public:
         Snapshot->getBuffer()->getText(), FilePath);
 
     BufferID = SM.addNewSourceBuffer(std::move(BufCopy));
-    DiagConsumer.setInputBufferIDs(BufferID);
 
     Parser.reset(new ParserUnit(
         SM, SourceFileKind::Main, BufferID, CompInv.getLangOptions(),
@@ -858,8 +916,8 @@ SwiftDocumentSemanticInfo::getSemanticDiagnostics(
 
   auto orderDiagnosticEntryInfos = [](const DiagnosticEntryInfo &LHS,
                                       const DiagnosticEntryInfo &RHS) -> bool {
-    if (LHS.Filename != RHS.Filename)
-      return LHS.Filename < RHS.Filename;
+    if (LHS.FileInfo->BufferName != RHS.FileInfo->BufferName)
+      return LHS.FileInfo->BufferName < RHS.FileInfo->BufferName;
     if (LHS.Offset != RHS.Offset)
       return LHS.Offset < RHS.Offset;
     return LHS.Description < RHS.Description;
@@ -2042,9 +2100,7 @@ void SwiftEditorDocument::readSyntaxInfo(EditorConsumer &Consumer, bool ReportDi
 
   Impl.ParserDiagnostics = Impl.SyntaxInfo->getDiagnostics();
   if (ReportDiags) {
-    Consumer.setDiagnosticStage(ParseDiagStage);
-    for (auto &Diag : Impl.ParserDiagnostics)
-      Consumer.handleDiagnostic(Diag, ParseDiagStage);
+    Consumer.handleDiagnostics(Impl.ParserDiagnostics, ParseDiagStage);
   }
 
   SwiftSyntaxMap NewMap = SwiftSyntaxMap(Impl.SyntaxMap.Tokens.size() + 16);
@@ -2099,14 +2155,10 @@ void SwiftEditorDocument::readSemanticInfo(ImmutableTextSnapshotRef Snapshot,
 
   // If there's no value returned for diagnostics it means they are out-of-date
   // (based on a different snapshot).
-  if (SemaDiags.has_value()) {
-    Consumer.setDiagnosticStage(SemaDiagStage);
-    for (auto &Diag : SemaDiags.value())
-      Consumer.handleDiagnostic(Diag, SemaDiagStage);
+  if (SemaDiags) {
+    Consumer.handleDiagnostics(*SemaDiags, SemaDiagStage);
   } else {
-    Consumer.setDiagnosticStage(ParseDiagStage);
-    for (auto &Diag : Impl.ParserDiagnostics)
-      Consumer.handleDiagnostic(Diag, ParseDiagStage);
+    Consumer.handleDiagnostics(Impl.ParserDiagnostics, ParseDiagStage);
   }
 }
 
@@ -2413,9 +2465,9 @@ void SwiftLangSupport::editorReplaceText(StringRef Name,
       return;
     }
 
-    // If client doesn't need any information, we doesn't need to parse it.
     EditorDoc->resetSyntaxInfo(Snapshot, *this);
 
+    // If client doesn't need any information, we doesn't need to parse it.
     if (!Consumer.documentStructureEnabled() &&
         !Consumer.syntaxMapEnabled() &&
         !Consumer.diagnosticsEnabled()) {

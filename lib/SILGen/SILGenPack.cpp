@@ -521,6 +521,49 @@ void SILGenFunction::emitPartialDestroyRemainingTuple(SILLocation loc,
   });
 }
 
+void SILGenFunction::copyPackElementsToTuple(SILLocation loc,
+                                             SILValue tupleAddr,
+                                             SILValue pack,
+                                             CanPackType formalPackType) {
+  auto pair = createOpenedElementValueEnvironment(
+    tupleAddr->getType().getTupleElementType(/*componentIndex=*/0));
+  auto elementEnv = pair.first;
+  auto elementTy = pair.second;
+
+  emitDynamicPackLoop(
+    loc, formalPackType, /*componentIndex=*/0, elementEnv,
+    [&](SILValue indexWithinComponent,
+        SILValue packExpansionIndex,
+        SILValue packIndex) {
+      auto packEltAddr = B.createPackElementGet(
+          loc, packIndex, pack, elementTy);
+      auto tupleEltAddr = B.createTuplePackElementAddr(
+          loc, packIndex, tupleAddr, elementTy);
+      B.createCopyAddr(loc, packEltAddr, tupleEltAddr,
+                       IsNotTake, IsInitialization);
+  });
+}
+
+void SILGenFunction::projectTupleElementsToPack(SILLocation loc,
+                                                SILValue tupleAddr,
+                                                SILValue pack,
+                                                CanPackType formalPackType) {
+  auto pair = createOpenedElementValueEnvironment(
+    tupleAddr->getType().getTupleElementType(/*componentIndex=*/0));
+  auto elementEnv = pair.first;
+  auto elementTy = pair.second;
+
+  emitDynamicPackLoop(
+    loc, formalPackType, /*componentIndex=*/0, elementEnv,
+    [&](SILValue indexWithinComponent,
+        SILValue packExpansionIndex,
+        SILValue packIndex) {
+      auto tupleEltAddr = B.createTuplePackElementAddr(
+          loc, packIndex, tupleAddr, elementTy);
+      B.createPackElementSet(loc, tupleEltAddr, packIndex, pack);
+  });
+}
+
 void SILGenFunction::emitDynamicPackLoop(SILLocation loc,
                                          CanPackType formalPackType,
                                          unsigned componentIndex,
@@ -860,14 +903,14 @@ SILGenFunction::emitPackTransform(SILLocation loc,
                                   CanPackType outputFormalPackType,
                                   unsigned outputComponentIndex,
                                   bool isSimpleProjection,
-                                  bool outputIsPlusOne,
+                                  bool canForwardOutput,
                llvm::function_ref<ManagedValue(ManagedValue input,
                                                SILType outputEltTy,
                                                SGFContext context)> emitBody) {
 
   // This is an inherent limitation of the representation; we need pack
   // coroutines to get around it.
-  assert((isSimpleProjection || outputIsPlusOne) &&
+  assert((isSimpleProjection || canForwardOutput) &&
          "we cannot support complex transformations that yield borrows");
 
   CleanupCloner inputCloner(*this, inputPackMV);
@@ -890,7 +933,7 @@ SILGenFunction::emitPackTransform(SILLocation loc,
                       {&inputEltTy, &outputEltTy});
 
   auto &outputEltTL = getTypeLowering(outputEltTy);
-  bool outputNeedsCleanup = (outputIsPlusOne && !outputEltTL.isTrivial());
+  bool outputNeedsCleanup = (canForwardOutput && !outputEltTL.isTrivial());
 
   // If the transformation is not a simple projection, we need to
   // create a tuple to hold the transformed values.
@@ -947,10 +990,10 @@ SILGenFunction::emitPackTransform(SILLocation loc,
     // Apply the transform.
     ManagedValue outputElt =
       emitBody(inputElt, outputEltTy,
-               outputIsPlusOne ? SGFContext(outputEltInit.get())
+               canForwardOutput ? SGFContext(outputEltInit.get())
                                : SGFContext::AllowGuaranteedPlusZero);
-    assert(outputIsPlusOne == (outputElt.isInContext() ||
-                               outputElt.isPlusOne(*this)) &&
+    assert(canForwardOutput == (outputElt.isInContext() ||
+                               outputElt.isPlusOneOrTrivial(*this)) &&
            "transformation produced a value of the wrong ownership");
     assert((outputElt.isInContext() ||
             outputElt.getType() == outputEltTy) &&
@@ -991,7 +1034,7 @@ SILGenFunction::emitPackTransform(SILLocation loc,
                                                   outputComponentIndex,
                                                   /*limit*/ SILValue());
     return ManagedValue::forOwnedAddressRValue(outputPackAddr, cleanup);
-  } else if (outputIsPlusOne) {
+  } else if (canForwardOutput) {
     return ManagedValue::forTrivialAddressRValue(outputPackAddr);
   } else {
     return ManagedValue::forBorrowedAddressRValue(outputPackAddr);

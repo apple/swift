@@ -1804,8 +1804,8 @@ public:
     PrintWithColorRAII(OS, ParenthesisColor) << ')';
   }
 
-  void visitForgetStmt(ForgetStmt *S) {
-    printCommon(S, "forget_stmt") << '\n';
+  void visitDiscardStmt(DiscardStmt *S) {
+    printCommon(S, "discard_stmt") << '\n';
     printRec(S->getSubExpr());
     PrintWithColorRAII(OS, ParenthesisColor) << ')';
   }

@@ -4966,6 +4966,9 @@ void SILGenFunction::emitProtocolWitness(
   SmallVector<ManagedValue, 8> origParams;
   collectThunkParams(loc, origParams);
 
+  if (shouldLowerToUnavailableCodeStub(witness.getDecl()))
+    emitApplyOfUnavailableCodeReached();
+
   if (enterIsolation) {
     // If we are supposed to enter the actor, do so now by hopping to the
     // actor.

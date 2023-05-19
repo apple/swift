@@ -748,8 +748,29 @@ InferredGenericSignatureRequest::evaluate(
 
   SmallVector<StructuralRequirement, 4> requirements;
   SmallVector<RequirementError, 4> errors;
+
+  SourceLoc loc = [&]() {
+    if (genericParamList) {
+      auto loc = genericParamList->getLAngleLoc();
+      if (loc.isValid())
+        return loc;
+    }
+    if (whereClause) {
+      auto loc = whereClause.getLoc();
+      if (loc.isValid())
+        return loc;
+    }
+    for (auto sourcePair : inferenceSources) {
+      auto *typeRepr = sourcePair.getTypeRepr();
+      auto loc = typeRepr ? typeRepr->getStartLoc() : SourceLoc();
+      if (loc.isValid())
+        return loc;
+    }
+    return SourceLoc();
+  }();
+
   for (const auto &req : parentSig.getRequirements())
-    requirements.push_back({req, SourceLoc(), /*wasInferred=*/false});
+    requirements.push_back({req, loc, /*wasInferred=*/false});
 
   DeclContext *lookupDC = nullptr;
 
@@ -760,10 +781,7 @@ InferredGenericSignatureRequest::evaluate(
     return false;
   };
 
-  SourceLoc loc;
   if (genericParamList) {
-    loc = genericParamList->getLAngleLoc();
-
     // Extensions never have a parent signature.
     assert(genericParamList->getOuterParameters() == nullptr || !parentSig);
 
@@ -810,9 +828,6 @@ InferredGenericSignatureRequest::evaluate(
   if (whereClause) {
     lookupDC = whereClause.dc;
 
-    if (loc.isInvalid())
-      loc = whereClause.getLoc();
-
     std::move(whereClause).visitRequirements(
         TypeResolutionStage::Structural,
         visitRequirement);
@@ -825,8 +840,6 @@ InferredGenericSignatureRequest::evaluate(
   for (auto sourcePair : inferenceSources) {
     auto *typeRepr = sourcePair.getTypeRepr();
     auto typeLoc = typeRepr ? typeRepr->getStartLoc() : SourceLoc();
-    if (loc.isInvalid())
-      loc = typeLoc;
 
     inferRequirements(sourcePair.getType(), typeLoc, moduleForInference,
                       lookupDC, requirements);

@@ -39,15 +39,26 @@ void BottomUpFunctionOrder::DFS(SILFunction *Start) {
   // Visit all the instructions, looking for apply sites.
   for (auto &B : *Start) {
     for (auto &I : B) {
-      auto FAS = FullApplySite::isa(&I);
-      if (!FAS && !isa<StrongReleaseInst>(&I) && !isa<ReleaseValueInst>(&I) &&
-                  !isa<DestroyValueInst>(&I))
+      CalleeList callees;
+      if (auto FAS = FullApplySite::isa(&I)) {
+        callees = BCA->getCalleeList(FAS);
+      } else if (isa<StrongReleaseInst>(&I) || isa<ReleaseValueInst>(&I) ||
+                 isa<DestroyValueInst>(&I)) {
+        callees = BCA->getDestructors(I.getOperand(0)->getType(), /*isExactType*/ false);
+      } else if (auto *bi = dyn_cast<BuiltinInst>(&I)) {
+        switch (bi->getBuiltinInfo().ID) {
+          case BuiltinValueKind::Once:
+          case BuiltinValueKind::OnceWithContext:
+            callees = BCA->getCalleeListOfValue(bi->getArguments()[1]);
+            break;
+          default:
+            continue;
+        }
+      } else {
         continue;
+      }
 
-      auto Callees = FAS ? BCA->getCalleeList(FAS)
-                         : BCA->getDestructors(I.getOperand(0)->getType(),
-                                               /*isExactType*/ false);
-      for (auto *CalleeFn : Callees) {
+      for (auto *CalleeFn : callees) {
         // If not yet visited, visit the callee.
         if (DFSNum.find(CalleeFn) == DFSNum.end()) {
           DFS(CalleeFn);

@@ -468,7 +468,7 @@ func testConvertBool() async throws {
   // OBJC-BOOL-WITH-ERR-FALLBACK:      var str: String? = nil
   // OBJC-BOOL-WITH-ERR-FALLBACK-NEXT: let success: Bool
   // OBJC-BOOL-WITH-ERR-FALLBACK-NEXT: var unrelated: Bool? = nil
-  // OBJC-BOOL-WITH-ERR-FALLBACK-NEXT: var err: Error? = nil
+  // OBJC-BOOL-WITH-ERR-FALLBACK-NEXT: var err: (any Error)? = nil
   // OBJC-BOOL-WITH-ERR-FALLBACK-NEXT: do {
   // OBJC-BOOL-WITH-ERR-FALLBACK-NEXT:   (str, unrelated) = try await ClassWithHandlerMethods.firstBoolFlagSuccess("")
   // OBJC-BOOL-WITH-ERR-FALLBACK-NEXT:   success = true
@@ -488,7 +488,7 @@ func testConvertBool() async throws {
   // OBJC-BOOL-WITH-ERR-FALLBACK2:      var str: String? = nil
   // OBJC-BOOL-WITH-ERR-FALLBACK2-NEXT: var unrelated: Bool? = nil
   // OBJC-BOOL-WITH-ERR-FALLBACK2-NEXT: let failure: Bool
-  // OBJC-BOOL-WITH-ERR-FALLBACK2-NEXT: var err: Error? = nil
+  // OBJC-BOOL-WITH-ERR-FALLBACK2-NEXT: var err: (any Error)? = nil
   // OBJC-BOOL-WITH-ERR-FALLBACK2-NEXT: do {
   // OBJC-BOOL-WITH-ERR-FALLBACK2-NEXT:   (str, unrelated) = try await ClassWithHandlerMethods.secondBoolFlagFailure("")
   // OBJC-BOOL-WITH-ERR-FALLBACK2-NEXT:   failure = false

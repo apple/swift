@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend -primary-file %s -O -module-name=test -emit-sil | %FileCheck %s
+// RUN: %target-swift-frontend -parse-as-library -primary-file %s -O -module-name=test -emit-sil | %FileCheck %s
 
 import SwiftShims
 
@@ -16,8 +16,8 @@ struct Foo {
 private let unused1 = 0
 // CHECK-NOT: sil_global private {{.*}}unused2{{.*}}
 private var unused2 = 42
-// CHECK: sil_global private [let] @${{.*}}used1{{.*}} : $Int
-private let used1 = 0
+// CHECK: sil_global private @${{.*}}used1{{.*}} : $Int
+private var used1 = 0
 // CHECK: sil_global private @${{.*}}used2{{.*}} : $Int
 private var used2 = 0
 
@@ -48,8 +48,6 @@ var unused6 = 0
 
 // CHECK-LABEL: sil [Onone] @${{.*}}test{{.*}}
 @_optimize(none) public func test(x: Int) -> Int {
-  // CHECK: %{{[0-9]+}} = global_addr @${{.*}}used2{{.*}}
-  // CHECK: %{{[0-9]+}} = global_addr @${{.*}}used1{{.*}}
   return used1 + used2 + x
 }
 

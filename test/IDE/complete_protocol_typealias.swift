@@ -7,8 +7,8 @@ protocol MyProto {
 func testSimpleInTypeCompletion() -> MyProto.#^SIMPLE_IN_TYPE_COMPLETION^# {}
 // SIMPLE_IN_TYPE_COMPLETION: Begin completions, 3 items
 // SIMPLE_IN_TYPE_COMPLETION-DAG: Decl[TypeAlias]/CurrNominal:        Content[#Int#];
-// SIMPLE_IN_TYPE_COMPLETION-DAG: Keyword/None:                       Protocol[#MyProto.Protocol#];
-// SIMPLE_IN_TYPE_COMPLETION-DAG: Keyword/None:                       Type[#MyProto.Type#];
+// SIMPLE_IN_TYPE_COMPLETION-DAG: Keyword/None:                       Protocol[#(any MyProto).Type#];
+// SIMPLE_IN_TYPE_COMPLETION-DAG: Keyword/None:                       Type[#any MyProto.Type#];
 
 func testUnconstrainedUnresolvedMember() {
   let _: MyProto = .#^UNCONSTRAINED_UNRESOLVED_MEMBER^#
@@ -27,8 +27,8 @@ extension MyOtherProto where MyAssocType == String {
 func testConstrainedInTypeCompletion() -> MyOtherProto.#^CONSTRAINED_IN_TYPE_COMPLETION^# {}
 // CONSTRAINED_IN_TYPE_COMPLETION: Begin completions, 3 items
 // CONSTRAINED_IN_TYPE_COMPLETION-DAG: Decl[AssociatedType]/CurrNominal:   MyAssocType;
-// CONSTRAINED_IN_TYPE_COMPLETION-DAG: Keyword/None:                       Protocol[#MyOtherProto.Protocol#];
-// CONSTRAINED_IN_TYPE_COMPLETION-DAG: Keyword/None:                       Type[#MyOtherProto.Type#];
+// CONSTRAINED_IN_TYPE_COMPLETION-DAG: Keyword/None:                       Protocol[#(any MyOtherProto).Type#];
+// CONSTRAINED_IN_TYPE_COMPLETION-DAG: Keyword/None:                       Type[#any MyOtherProto.Type#];
 
 func testConstrainedUnresolvedMember() {
   let _: MyOtherProto = .#^CONSTRAINED_UNRESOLVED_MEMBER^#
@@ -42,8 +42,8 @@ protocol ProtoWithGenericTypealias {
 func testGenericInTypeCompletion() -> ProtoWithGenericTypealias.#^GENERIC_IN_TYPE_COMPLETION^# {}
 // GENERIC_IN_TYPE_COMPLETION: Begin completions, 3 items
 // GENERIC_IN_TYPE_COMPLETION-DAG: Decl[TypeAlias]/CurrNominal:        Storage[#Array<T>#];
-// GENERIC_IN_TYPE_COMPLETION-DAG: Keyword/None:                       Protocol[#ProtoWithGenericTypealias.Protocol#];
-// GENERIC_IN_TYPE_COMPLETION-DAG: Keyword/None:                       Type[#ProtoWithGenericTypealias.Type#];
+// GENERIC_IN_TYPE_COMPLETION-DAG: Keyword/None:                       Protocol[#(any ProtoWithGenericTypealias).Type#];
+// GENERIC_IN_TYPE_COMPLETION-DAG: Keyword/None:                       Type[#any ProtoWithGenericTypealias.Type#];
 
 func testGenericUnresolvedMember() {
   let _: ProtoWithGenericTypealias = .#^GENERIC_UNRESOLVED_MEMBER^#

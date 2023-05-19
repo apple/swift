@@ -27,10 +27,13 @@ using namespace swift;
 SILArgument::SILArgument(ValueKind subClassKind,
                          SILBasicBlock *inputParentBlock, SILType type,
                          ValueOwnershipKind ownershipKind,
-                         const ValueDecl *inputDecl)
-    : ValueBase(subClassKind, type),
-      parentBlock(inputParentBlock), decl(inputDecl) {
+                         const ValueDecl *inputDecl, bool reborrow,
+                         bool escaping)
+    : ValueBase(subClassKind, type), parentBlock(inputParentBlock),
+      decl(inputDecl) {
   sharedUInt8().SILArgument.valueOwnershipKind = uint8_t(ownershipKind);
+  sharedUInt8().SILArgument.reborrow = reborrow;
+  sharedUInt8().SILArgument.escaping = escaping;
   inputParentBlock->insertArgument(inputParentBlock->args_end(), this);
 }
 

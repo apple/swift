@@ -18,6 +18,7 @@
 // RUN: %target-run %t/a.out | %FileCheck %s -check-prefix=CHECK-OUTPUT
 
 // REQUIRES: executable_test
+// REQUIRES: swift_in_compiler
 
 // Second test: check if CMO really imports the SIL of functions in other modules.
 

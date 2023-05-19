@@ -38,7 +38,7 @@ struct SkipNestedType {
 
   // We select the macro, not the property wrapper.
   @m1 var x: Int = 0
-  // expected-error@-1{{external macro implementation type 'MyMacros.Macro1' could not be found for macro 'm1()'; the type must be public and provided via '-load-plugin-library'}}
+  // expected-error@-1{{external macro implementation type 'MyMacros.Macro1' could not be found for macro 'm1()'}}
 }
 
 struct TestMacroArgs {

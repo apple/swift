@@ -109,6 +109,10 @@ SwiftInvocation::~SwiftInvocation() {
   delete &Impl;
 }
 
+ArrayRef<std::string> SwiftInvocation::getArgs() const {
+  return ArrayRef(Impl.Opts.Args);
+}
+
 void SwiftInvocation::applyTo(swift::CompilerInvocation &CompInvok) const {
   return Impl.Opts.applyTo(CompInvok);
 }
@@ -1088,7 +1092,6 @@ ASTUnitRef ASTBuildOperation::buildASTUnit(std::string &Error) {
 
   CloseClangModuleFiles scopedCloseFiles(
       *CompIns.getASTContext().getClangModuleLoader());
-  Consumer.setInputBufferIDs(ASTRef->getCompilerInstance().getInputBufferIDs());
   CompIns.performSema();
 
   llvm::SmallPtrSet<ModuleDecl *, 16> Visited;

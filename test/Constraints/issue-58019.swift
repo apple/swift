@@ -4,7 +4,7 @@
 
 func fetch() {
   // CHECK: open_existential_expr implicit type='Void'
-  // CHECK: opaque_value_expr implicit type='MyError'
+  // CHECK: opaque_value_expr implicit type='any MyError'
   // CHECK-NOT: type='SryMap<$T{{.*}}>.Failure'
   sryMap { return "" }
   .napError{ $0.abc() }

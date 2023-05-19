@@ -28,14 +28,14 @@ do {
   let _: Any.#^MEMBER_ANY_DOT^#
 
   // MEMBER_ANY_DOT-LABEL: Begin completions, 2 items
-  // MEMBER_ANY_DOT-NEXT: Keyword/None: Protocol[#Any.Protocol#]; name=Protocol
-  // MEMBER_ANY_DOT-NEXT: Keyword/None: Type[#Any.Type#]; name=Type
+  // MEMBER_ANY_DOT-NEXT: Keyword/None: Protocol[#(any Any).Type#]; name=Protocol
+  // MEMBER_ANY_DOT-NEXT: Keyword/None: Type[#any Any.Type#]; name=Type
 
   let _: Any#^MEMBER_ANY_NO_DOT^#
 
   // MEMBER_ANY_NO_DOT-LABEL: Begin completions, 2 items
-  // MEMBER_ANY_NO_DOT-NEXT: Keyword/None: .Protocol[#Any.Protocol#]; name=Protocol
-  // MEMBER_ANY_NO_DOT-NEXT: Keyword/None: .Type[#Any.Type#]; name=Type
+  // MEMBER_ANY_NO_DOT-NEXT: Keyword/None: .Protocol[#(any Any).Type#]; name=Protocol
+  // MEMBER_ANY_NO_DOT-NEXT: Keyword/None: .Type[#any Any.Type#]; name=Type
 }
 
 do {
@@ -73,12 +73,12 @@ do {
   let _: Sequence.Protocol.#^MEMBER_PROTOCOL_META_DOT^#
 
   // MEMBER_PROTOCOL_META_DOT-LABEL: Begin completions, 1 items
-  // MEMBER_PROTOCOL_META_DOT-NEXT: Keyword/None: Type[#Sequence.Protocol.Type#]; name=Type
+  // MEMBER_PROTOCOL_META_DOT-NEXT: Keyword/None: Type[#(any Sequence).Type.Type#]; name=Type
 
   let _: Sequence.Protocol#^MEMBER_PROTOCOL_META_NO_DOT^#
 
   // MEMBER_PROTOCOL_META_NO_DOT-LABEL: Begin completions, 1 items
-  // MEMBER_PROTOCOL_META_NO_DOT-NEXT: Keyword/None: .Type[#Sequence.Protocol.Type#]; name=Type
+  // MEMBER_PROTOCOL_META_NO_DOT-NEXT: Keyword/None: .Type[#(any Sequence).Type.Type#]; name=Type
 }
 
 extension Optional {
@@ -146,8 +146,8 @@ do {
   // MEMBER_EXISTENTIAL_DOT-LABEL: Begin completions, 4 items
   // MEMBER_EXISTENTIAL_DOT-NEXT: Decl[AssociatedType]/CurrNominal/IsSystem: Element; name=Element
   // MEMBER_EXISTENTIAL_DOT-NEXT: Decl[AssociatedType]/CurrNominal/IsSystem: Iterator; name=Iterator
-  // MEMBER_EXISTENTIAL_DOT-NEXT: Keyword/None: Protocol[#Sequence.Protocol#]; name=Protocol
-  // MEMBER_EXISTENTIAL_DOT-NEXT: Keyword/None: Type[#Sequence.Type#]; name=Type
+  // MEMBER_EXISTENTIAL_DOT-NEXT: Keyword/None: Protocol[#(any Sequence).Type#]; name=Protocol
+  // MEMBER_EXISTENTIAL_DOT-NEXT: Keyword/None: Type[#any Sequence.Type#]; name=Type
 
   let _: (any Sequence)#^MEMBER_EXISTENTIAL_NO_DOT^#
 
@@ -157,6 +157,6 @@ do {
   // MEMBER_EXISTENTIAL_NO_DOT-NEXT: Keyword[throws]/None: throws; name=throws
   // MEMBER_EXISTENTIAL_NO_DOT-NEXT: Decl[AssociatedType]/CurrNominal/IsSystem: .Element; name=Element
   // MEMBER_EXISTENTIAL_NO_DOT-NEXT: Decl[AssociatedType]/CurrNominal/IsSystem: .Iterator; name=Iterator
-  // MEMBER_EXISTENTIAL_NO_DOT-NEXT: Keyword/None: .Protocol[#Sequence.Protocol#]; name=Protocol
-  // MEMBER_EXISTENTIAL_NO_DOT-NEXT: Keyword/None: .Type[#Sequence.Type#]; name=Type
+  // MEMBER_EXISTENTIAL_NO_DOT-NEXT: Keyword/None: .Protocol[#(any Sequence).Type#]; name=Protocol
+  // MEMBER_EXISTENTIAL_NO_DOT-NEXT: Keyword/None: .Type[#any Sequence.Type#]; name=Type
 }

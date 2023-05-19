@@ -25,11 +25,13 @@ add_pure_swift_host_library(swiftASTGen STATIC
   DEPENDENCIES
     swiftAST
   SWIFT_DEPENDENCIES
+    SwiftSyntax::SwiftBasicFormat
     SwiftSyntax::SwiftDiagnostics
     SwiftSyntax::SwiftOperators
     SwiftSyntax::SwiftParser
     SwiftSyntax::SwiftParserDiagnostics
     SwiftSyntax::SwiftSyntax
     SwiftSyntax::SwiftSyntaxMacros
+    SwiftSyntax::SwiftSyntaxMacroExpansion
     swiftLLVMJSON
 )

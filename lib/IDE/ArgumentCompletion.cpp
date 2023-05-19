@@ -38,12 +38,6 @@ bool ArgumentTypeCheckCompletionCallback::addPossibleParams(
 
   ArrayRef<AnyFunctionType::Param> ParamsToPass = Res.FuncTy->getParams();
 
-  ParameterList *PL = nullptr;
-  if (Res.FuncD) {
-    PL = swift::getParameterList(Res.FuncD);
-  }
-  assert(!PL || PL->size() == ParamsToPass.size());
-
   bool ShowGlobalCompletions = false;
   for (auto Idx : range(*Res.ParamIdx, ParamsToPass.size())) {
     bool IsCompletion = (Idx == Res.ParamIdx);
@@ -53,14 +47,13 @@ bool ArgumentTypeCheckCompletionCallback::addPossibleParams(
       break;
     }
 
-    const AnyFunctionType::Param *P = &ParamsToPass[Idx];
-    bool Required =
-        !(PL && PL->get(Idx)->isDefaultArgument()) && !P->isVariadic();
+    const AnyFunctionType::Param *TypeParam = &ParamsToPass[Idx];
+    bool Required = !Res.DeclParamIsOptional[Idx];
 
-    if (P->hasLabel() && !(IsCompletion && Res.IsNoninitialVariadic)) {
+    if (TypeParam->hasLabel() && !(IsCompletion && Res.IsNoninitialVariadic)) {
       // Suggest parameter label if parameter has label, we are completing in it
       // and it is not a variadic parameter that already has arguments
-      PossibleParamInfo PP(P, Required);
+      PossibleParamInfo PP(TypeParam, Required);
       if (!llvm::is_contained(Params, PP)) {
         Params.push_back(std::move(PP));
       }
@@ -68,7 +61,7 @@ bool ArgumentTypeCheckCompletionCallback::addPossibleParams(
       // We have a parameter that doesn't require a label. Suggest global
       // results for that type.
       ShowGlobalCompletions = true;
-      Types.push_back(P->getPlainType());
+      Types.push_back(TypeParam->getPlainType());
     }
     if (Required) {
       // The user should only be suggested the first required param. Stop.
@@ -157,7 +150,7 @@ void ArgumentTypeCheckCompletionCallback::sawSolutionImpl(const Solution &S) {
   auto *CalleeLocator = S.getCalleeLocator(CallLocator);
 
   auto Info = getSelectedOverloadInfo(S, CalleeLocator);
-  if (Info.Value && Info.Value->shouldHideFromEditor()) {
+  if (Info.getValue() && Info.getValue()->shouldHideFromEditor()) {
     return;
   }
   // Disallow invalid initializer references
@@ -215,7 +208,7 @@ void ArgumentTypeCheckCompletionCallback::sawSolutionImpl(const Solution &S) {
 
   // If this is a duplicate of any other result, ignore this solution.
   if (llvm::any_of(Results, [&](const Result &R) {
-        return R.FuncD == Info.Value &&
+        return R.FuncD == Info.getValue() &&
                nullableTypesEqual(R.FuncTy, Info.ValueTy) &&
                nullableTypesEqual(R.BaseType, Info.BaseTy) &&
                R.ParamIdx == ParamIdx &&
@@ -231,10 +224,34 @@ void ArgumentTypeCheckCompletionCallback::sawSolutionImpl(const Solution &S) {
   if (Info.ValueTy) {
     FuncTy = Info.ValueTy->lookThroughAllOptionalTypes()->getAs<AnyFunctionType>();
   }
+
+  // Determine which parameters are optional. We need to do this in
+  // `sawSolutionImpl` because it accesses the substitution map in
+  // `Info.ValueRef`. This substitution map might contain type variables that
+  // are allocated in the constraint system's arena and are freed once we reach
+  // `deliverResults`.
+  llvm::BitVector DeclParamIsOptional;
+  if (FuncTy) {
+    ArrayRef<AnyFunctionType::Param> ParamsToPass = FuncTy->getParams();
+    for (auto Idx : range(0, ParamsToPass.size())) {
+      bool Optional = false;
+      if (Info.ValueRef) {
+        if (const ParamDecl *DeclParam = getParameterAt(Info.ValueRef, Idx)) {
+          Optional |= DeclParam->isDefaultArgument();
+          Optional |= DeclParam->getType()->is<PackExpansionType>();
+        }
+      }
+      const AnyFunctionType::Param *TypeParam = &ParamsToPass[Idx];
+      Optional |= TypeParam->isVariadic();
+      DeclParamIsOptional.push_back(Optional);
+    }
+  }
+
   Results.push_back({ExpectedTy, ExpectedCallType,
-                     isa<SubscriptExpr>(ParentCall), Info.Value, FuncTy, ArgIdx,
-                     ParamIdx, std::move(ClaimedParams), IsNoninitialVariadic,
-                     Info.BaseTy, HasLabel, IsAsync, SolutionSpecificVarTypes});
+                     isa<SubscriptExpr>(ParentCall), Info.getValue(), FuncTy,
+                     ArgIdx, ParamIdx, std::move(ClaimedParams),
+                     IsNoninitialVariadic, Info.BaseTy, HasLabel, IsAsync,
+                     DeclParamIsOptional, SolutionSpecificVarTypes});
 }
 
 void ArgumentTypeCheckCompletionCallback::computeShadowedDecls(
@@ -243,7 +260,8 @@ void ArgumentTypeCheckCompletionCallback::computeShadowedDecls(
     auto &ResultA = Results[i];
     for (size_t j = i + 1; j < Results.size(); ++j) {
       auto &ResultB = Results[j];
-      if (!ResultA.FuncD || !ResultB.FuncD || !ResultA.FuncTy || !ResultB.FuncTy) {
+      if (!ResultA.FuncD || !ResultB.FuncD || !ResultA.FuncTy ||
+          !ResultB.FuncTy) {
         continue;
       }
       if (ResultA.FuncD->getName() != ResultB.FuncD->getName()) {

@@ -25,13 +25,15 @@ using namespace swift::constraints;
 /// \c SelectedOverload.
 struct SelectedOverloadInfo {
   /// The function that is being called or the value that is being accessed.
-  ValueDecl *Value = nullptr;
+  ConcreteDeclRef ValueRef;
   /// For a function, type of the called function itself (not its result type),
   /// for an arbitrary value the type of that value.
   Type ValueTy;
   /// The type on which the overload is being accessed. \c null if it does not
   /// have a base type, e.g. for a free function.
   Type BaseTy;
+
+  ValueDecl *getValue() const { return ValueRef.getDecl(); }
 };
 
 /// Extract additional information about the overload that is being called by

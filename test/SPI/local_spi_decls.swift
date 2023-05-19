@@ -26,11 +26,18 @@ public func useOfSPITypeInvalid() -> SPIClass { fatalError() } // expected-error
 @_spi(S) public func spiUseOfInternalType() -> InternalClass { fatalError() } // expected-error{{function cannot be declared public because its result uses an internal type}}
 @_spi(S) public func spiUseOfPrivateType(_ a: PrivateClass)  { fatalError() } // expected-error{{function cannot be declared public because its parameter uses a private type}}
 
+public var globalArrayWithSPISetter: [Int] {
+  get { fatalError() }
+  @_spi(S) set {}
+}
+
 @inlinable
 func inlinable() -> SPIClass { // expected-error {{class 'SPIClass' cannot be used in an '@inlinable' function because it is SPI}}
   spiFunc() // expected-error {{global function 'spiFunc()' cannot be used in an '@inlinable' function because it is SPI}}
   _ = SPIClass() // expected-error {{class 'SPIClass' cannot be used in an '@inlinable' function because it is SPI}}
   // expected-error@-1 {{initializer 'init()' cannot be used in an '@inlinable' function because it is SPI}}
+  globalArrayWithSPISetter = [] // expected-error {{setter 'globalArrayWithSPISetter' cannot be used in an '@inlinable' function because it is SPI}}
+  globalArrayWithSPISetter.append(0) // expected-error {{setter 'globalArrayWithSPISetter' cannot be used in an '@inlinable' function because it is SPI}}
 }
 
 @_spi(S) public struct SPIStruct {

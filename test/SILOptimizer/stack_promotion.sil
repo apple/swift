@@ -1156,3 +1156,24 @@ bb0(%0 : $UnownedLink):
   %r = tuple ()
   return %r : $()
 }
+
+// CHECK-LABEL: sil @dont_crash_with_wrong_stacknesting_with_infinite_loop
+// CHECK:         alloc_ref [stack] $XX
+// CHECK-LABEL: } // end sil function 'dont_crash_with_wrong_stacknesting_with_infinite_loop'
+sil @dont_crash_with_wrong_stacknesting_with_infinite_loop : $@convention(thin) () -> () {
+bb0:
+  %0 = alloc_stack $Int
+  %1 = alloc_ref $XX
+  dealloc_stack %0 : $*Int
+  cond_br undef, bb1, bb2
+bb1:
+  strong_release %1 : $XX
+  %4 = tuple ()
+  return %4 : $()
+
+bb2:
+  br bb3
+bb3:
+  br bb3
+}
+

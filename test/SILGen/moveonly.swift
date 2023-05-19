@@ -1,4 +1,4 @@
-// RUN: %target-swift-emit-silgen %s | %FileCheck %s
+// RUN: %target-swift-emit-silgen -enable-experimental-feature NoImplicitCopy %s | %FileCheck %s
 
 //////////////////
 // Declarations //
@@ -44,6 +44,18 @@ public enum NonTrivialEnum {
     case third(NonTrivialStruct)
 }
 
+@_moveOnly
+public struct AddressOnlyGeneric<T> {
+    var t: T
+}
+
+public protocol P {}
+
+@_moveOnly
+public struct AddressOnlyProtocol {
+    var t: P
+}
+
 var varGlobal = NonTrivialStruct()
 let letGlobal = NonTrivialStruct()
 
@@ -54,6 +66,8 @@ public func borrowVal(_ k: borrowing NonTrivialCopyableStruct) {}
 public func borrowVal(_ k: borrowing NonTrivialCopyableStruct2) {}
 public func borrowVal(_ s: borrowing NonTrivialStruct) {}
 public func borrowVal(_ s: borrowing NonTrivialStruct2) {}
+public func borrowVal<T>(_ s: borrowing AddressOnlyGeneric<T>) {}
+public func borrowVal(_ s: borrowing AddressOnlyProtocol) {}
 
 public func consumeVal(_ e : __owned NonTrivialEnum) {}
 public func consumeVal(_ e : __owned FD) {}
@@ -62,6 +76,8 @@ public func consumeVal(_ k: __owned NonTrivialCopyableStruct) {}
 public func consumeVal(_ k: __owned NonTrivialCopyableStruct2) {}
 public func consumeVal(_ s: __owned NonTrivialStruct) {}
 public func consumeVal(_ s: __owned NonTrivialStruct2) {}
+public func consumeVal<T>(_ s: __owned AddressOnlyGeneric<T>) {}
+public func consumeVal(_ s: __owned AddressOnlyProtocol) {}
 
 var bool: Bool { false }
 
@@ -137,6 +153,58 @@ public func useNonTrivialOwnedEnum(_ s: __owned NonTrivialEnum) {
     let _ = s2
 }
 
+// CHECK-LABEL: sil [ossa] @$s8moveonly21useAddressOnlyGenericyyAA0cdE0VyxGhlF : $@convention(thin) <T> (@in_guaranteed AddressOnlyGeneric<T>) -> () {
+// CHECK: bb0([[ARG:%.*]] :
+// CHECK:   mark_must_check [no_consume_or_assign] [[ARG]]
+// CHECK: } // end sil function '$s8moveonly21useAddressOnlyGenericyyAA0cdE0VyxGhlF'
+public func useAddressOnlyGeneric<T>(_ s: __shared AddressOnlyGeneric<T>) {
+    borrowVal(s)
+    let s2 = s
+    let k = s.t
+    let _ = k
+    borrowVal(s)
+    let _ = s2
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly26useOwnedAddressOnlyGenericyyAA0deF0VyxGnlF : $@convention(thin) <T> (@in AddressOnlyGeneric<T>) -> () {
+// CHECK: bb0([[ARG:%.*]] :
+// CHECK:   mark_must_check [consumable_and_assignable] [[ARG]]
+// CHECK: } // end sil function '$s8moveonly26useOwnedAddressOnlyGenericyyAA0deF0VyxGnlF'
+public func useOwnedAddressOnlyGeneric<T>(_ s: __owned AddressOnlyGeneric<T>) {
+    borrowVal(s)
+    let s2 = s
+    let k = s.t
+    let _ = k
+    borrowVal(s)
+    let _ = s2
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly22useAddressOnlyProtocolyyAA0cdE0VhF : $@convention(thin) (@in_guaranteed AddressOnlyProtocol) -> () {
+// CHECK: bb0([[ARG:%.*]] :
+// CHECK:   mark_must_check [no_consume_or_assign] [[ARG]]
+// CHECK: } // end sil function '$s8moveonly22useAddressOnlyProtocolyyAA0cdE0VhF'
+public func useAddressOnlyProtocol(_ s: __shared AddressOnlyProtocol) {
+    borrowVal(s)
+    let s2 = s
+    let k = s.t
+    let _ = k
+    borrowVal(s)
+    let _ = s2
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly27useOwnedAddressOnlyProtocolyyAA0deF0VnF : $@convention(thin) (@in AddressOnlyProtocol) -> () {
+// CHECK: bb0([[ARG:%.*]] :
+// CHECK:   mark_must_check [consumable_and_assignable] [[ARG]]
+// CHECK: } // end sil function '$s8moveonly27useOwnedAddressOnlyProtocolyyAA0deF0VnF'
+public func useOwnedAddressOnlyProtocol(_ s: __owned AddressOnlyProtocol) {
+    borrowVal(s)
+    let s2 = s
+    let k = s.t
+    let _ = k
+    borrowVal(s)
+    let _ = s2
+}
+
 //===---
 // Self in Init
 //
@@ -166,6 +234,73 @@ extension NonTrivialEnum {
     func testNoUseSelf() {
         let x = self
         let _ = x
+    }
+}
+
+extension AddressOnlyGeneric {
+    // CHECK-LABEL: sil hidden [ossa] @$s8moveonly18AddressOnlyGenericV13testNoUseSelfyyF : $@convention(method) <T> (@in_guaranteed AddressOnlyGeneric<T>) -> () {
+    // CHECK: bb0([[ARG_IN:%.*]] :
+    // CHECK:   [[ARG:%.*]] = mark_must_check [no_consume_or_assign] [[ARG_IN]] :
+    //
+    // CHECK:   [[ALLOC_X:%.*]] = alloc_box $<τ_0_0> { let AddressOnlyGeneric<τ_0_0> } <T>, let, name "x"
+    // CHECK:   [[X:%.*]] = begin_borrow [lexical] [[ALLOC_X]]
+    // CHECK:   [[PROJECT_X:%.*]] = project_box [[X]]
+    // CHECK:   copy_addr [[ARG]] to [init] [[PROJECT_X]]
+    // CHECK:   [[MARKED_X:%.*]] = mark_must_check [no_consume_or_assign] [[PROJECT_X]]
+    // CHECK:   [[BLACKHOLE_ADDR:%.*]] = alloc_stack $AddressOnlyGeneric<T>
+    // CHECK:   copy_addr [[MARKED_X]] to [init] [[BLACKHOLE_ADDR]]
+    // CHECK:   destroy_addr [[BLACKHOLE_ADDR]]
+    // CHECK:   dealloc_stack [[BLACKHOLE_ADDR]]
+    //
+    // CHECK:   [[ALLOC_Y:%.*]] = alloc_box $<τ_0_0> { let AddressOnlyGeneric<τ_0_0> } <T>, let, name "y"
+    // CHECK:   [[Y:%.*]] = begin_borrow [lexical] [[ALLOC_Y]]
+    // CHECK:   [[PROJECT_Y:%.*]] = project_box [[Y]]
+    // CHECK:   copy_addr [[ARG]] to [init] [[PROJECT_Y]]
+    // CHECK:   [[MARKED_Y:%.*]] = mark_must_check [no_consume_or_assign] [[PROJECT_Y]]
+    // CHECK:   [[BLACKHOLE_ADDR:%.*]] = alloc_stack $AddressOnlyGeneric<T>
+    // CHECK:   copy_addr [[MARKED_Y]] to [init] [[BLACKHOLE_ADDR]]
+    // CHECK:   destroy_addr [[BLACKHOLE_ADDR]]
+    // CHECK:   dealloc_stack [[BLACKHOLE_ADDR]]
+    //
+    // CHECK: } // end sil function '$s8moveonly18AddressOnlyGenericV13testNoUseSelfyyF'
+    func testNoUseSelf() {
+        let x = self
+        let _ = x
+        let y = self
+        let _ = y
+    }
+}
+
+extension AddressOnlyProtocol {
+    // CHECK-LABEL: sil hidden [ossa] @$s8moveonly19AddressOnlyProtocolV13testNoUseSelfyyF : $@convention(method) (@in_guaranteed AddressOnlyProtocol) -> () {
+    // CHECK: bb0([[ARG_IN:%.*]] :
+    // CHECK:   [[ARG:%.*]] = mark_must_check [no_consume_or_assign] [[ARG_IN]] :
+    //
+    // CHECK:   [[ALLOC_X:%.*]] = alloc_box ${ let AddressOnlyProtocol }, let, name "x"
+    // CHECK:   [[X:%.*]] = begin_borrow [lexical] [[ALLOC_X]]
+    // CHECK:   [[PROJECT_X:%.*]] = project_box [[X]]
+    // CHECK:   copy_addr [[ARG]] to [init] [[PROJECT_X]]
+    // CHECK:   [[MARKED_X:%.*]] = mark_must_check [no_consume_or_assign] [[PROJECT_X]]
+    // CHECK:   [[BLACKHOLE_ADDR:%.*]] = alloc_stack $AddressOnlyProtocol
+    // CHECK:   copy_addr [[MARKED_X]] to [init] [[BLACKHOLE_ADDR]]
+    // CHECK:   destroy_addr [[BLACKHOLE_ADDR]]
+    // CHECK:   dealloc_stack [[BLACKHOLE_ADDR]]
+    //
+    // CHECK:   [[ALLOC_Y:%.*]] = alloc_box ${ let AddressOnlyProtocol }, let, name "y"
+    // CHECK:   [[Y:%.*]] = begin_borrow [lexical] [[ALLOC_Y]]
+    // CHECK:   [[PROJECT_Y:%.*]] = project_box [[Y]]
+    // CHECK:   copy_addr [[ARG]] to [init] [[PROJECT_Y]]
+    // CHECK:   [[MARKED_Y:%.*]] = mark_must_check [no_consume_or_assign] [[PROJECT_Y]]
+    // CHECK:   [[BLACKHOLE_ADDR:%.*]] = alloc_stack $AddressOnlyProtocol
+    // CHECK:   copy_addr [[MARKED_Y]] to [init] [[BLACKHOLE_ADDR]]
+    // CHECK:   destroy_addr [[BLACKHOLE_ADDR]]
+    // CHECK:   dealloc_stack [[BLACKHOLE_ADDR]]
+    // CHECK: } // end sil function '$s8moveonly19AddressOnlyProtocolV13testNoUseSelfyyF'
+    func testNoUseSelf() {
+        let x = self
+        let _ = x
+        let y = self
+        let _ = y
     }
 }
 

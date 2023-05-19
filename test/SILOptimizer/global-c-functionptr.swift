@@ -12,6 +12,7 @@
 // RUN: %target-build-swift -O -module-name=Test %s -emit-sil | %FileCheck %s -check-prefix=CHECK-SIL
 
 // REQUIRES: executable_test
+// REQUIRES: swift_in_compiler
 
 
 internal func cFn(_ i: Int) -> Int {

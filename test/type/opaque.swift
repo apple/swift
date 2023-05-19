@@ -85,7 +85,7 @@ typealias Foo = some P // expected-error{{'some' types are only permitted}}
 
 func blibble(blobble: some P) {}
 func blib() -> P & some Q { return 1 } // expected-error{{'some' should appear at the beginning}}
-func blab() -> some P? { return 1 } // expected-error{{must specify only}} expected-note{{did you mean to write an optional of an 'opaque' type?}}
+func blab() -> some P? { return 1 } // expected-error{{must specify only}} expected-note{{did you mean to write an optional of an 'some' type?}}
 func blorb<T: some P>(_: T) { } // expected-error{{'some' types are only permitted}}
 func blub<T>() -> T where T == some P { return 1 } // expected-error{{'some' types are only permitted}}
 

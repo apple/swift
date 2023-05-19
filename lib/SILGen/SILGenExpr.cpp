@@ -1060,15 +1060,6 @@ SILValue SILGenFunction::emitTemporaryAllocation(SILLocation loc, SILType ty,
   if (generateDebugInfo)
     if (auto *VD = loc.getAsASTNode<VarDecl>())
       DbgVar = SILDebugVariable(VD->isLet(), 0);
-  // Recognize "catch let errorvar" bindings.
-  if (auto *DRE = loc.getAsASTNode<DeclRefExpr>())
-    if (auto *VD = dyn_cast<VarDecl>(DRE->getDecl()))
-      if (!isa<ParamDecl>(VD) && VD->isImplicit() &&
-          VD->getType()->isExistentialType() &&
-          VD->getType()->getExistentialLayout().isErrorExistential()) {
-        DbgVar = SILDebugVariable(VD->isLet(), 0);
-        loc = SILLocation(VD);
-      }
   auto *alloc =
       B.createAllocStack(loc, ty, DbgVar, hasDynamicLifetime, isLexical, false
 #ifndef NDEBUG

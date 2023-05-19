@@ -147,14 +147,14 @@ func test006() {
   } catch {
     #^INSIDE_CATCH1^#
   }
-// IMPLICIT_ERROR: Decl[LocalVar]/Local:  error[#Error#]; name=error
+// IMPLICIT_ERROR: Decl[LocalVar]/Local:  error[#any Error#]; name=error
 }
 func test007() {
   do {
   } catch let e {
     #^INSIDE_CATCH2^#
   }
-// EXPLICIT_ERROR_E: Decl[LocalVar]/Local: e[#Error#]; name=e
+// EXPLICIT_ERROR_E: Decl[LocalVar]/Local: e[#any Error#]; name=e
 }
 func test008() {
   do {
@@ -195,7 +195,7 @@ func test012() {
     error.#^INSIDE_CATCH_ERR_DOT1^#
   }
 }
-// ERROR_DOT: Keyword[self]/CurrNominal: self[#Error#]; name=self
+// ERROR_DOT: Keyword[self]/CurrNominal: self[#any Error#]; name=self
 func test013() {
   do {
   } catch let e {

@@ -275,3 +275,18 @@ internal func _diagnoseUnexpectedEnumCase<SwitchedValue>(
     "unexpected enum case while switching on value of type '\(type)'",
     flags: _fatalErrorFlags())
 }
+
+/// Called when a function marked `unavailable` with `@available` is invoked
+/// and the module containing the unavailable function was compiled with
+/// `-unavailable-decl-optimization=stub`.
+///
+/// This function should not be inlined because it is cold and inlining just
+/// bloats code.
+@backDeployed(before: SwiftStdlib 5.9)
+@inline(never)
+@_semantics("unavailable_code_reached")
+@usableFromInline // COMPILER_INTRINSIC
+internal func _diagnoseUnavailableCodeReached() -> Never {
+  _assertionFailure(
+    "Fatal error", "Unavailable code reached", flags: _fatalErrorFlags())
+}

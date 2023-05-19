@@ -1556,6 +1556,11 @@ void SILGenFunction::emitNativeToForeignThunk(SILDeclRef thunk) {
   assert(thunk.isForeign);
   SILDeclRef native = thunk.asForeign(false);
 
+  if (thunk.hasDecl()) {
+    if (shouldLowerToUnavailableCodeStub(thunk.getDecl()))
+      emitApplyOfUnavailableCodeReached();
+  }
+
   // If we're calling a native non-designated class initializer, we have to
   // discard the `self` object we were given, since
   // Swift convenience initializers only have allocating entry points that
@@ -2066,6 +2071,9 @@ void SILGenFunction::emitForeignToNativeThunk(SILDeclRef thunk) {
   auto nativeCI = getConstantInfo(getTypeExpansionContext(), thunk);
   auto nativeFnTy = F.getLoweredFunctionType();
   assert(nativeFnTy == nativeCI.SILFnType);
+
+  if (shouldLowerToUnavailableCodeStub(fd))
+    emitApplyOfUnavailableCodeReached();
 
   // Use the same generic environment as the native entry point.
   F.setGenericEnvironment(SGM.Types.getConstantGenericEnvironment(thunk));

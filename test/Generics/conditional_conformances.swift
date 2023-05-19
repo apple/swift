@@ -64,6 +64,7 @@ struct OverlappingSub<T: P1> {}
 // CHECK-NEXT: (normal_conformance type=OverlappingSub<T> protocol=P2
 // CHECK-NEXT:   conforms_to: T P4)
 extension OverlappingSub: P2 where T: P4 {} // expected-note {{requirement from conditional conformance of 'OverlappingSub<U>' to 'P2'}}
+// expected-warning@-1 {{redundant conformance constraint 'T' : 'P1'}}
 func overlapping_sub_good<U: P4>(_: U) {
     takes_P2(OverlappingSub<U>())
 }
@@ -175,6 +176,7 @@ struct ClassMoreSpecific<T: C1> {}
 // CHECK-NEXT: (normal_conformance type=ClassMoreSpecific<T> protocol=P2
 // CHECK-NEXT:   superclass: T C3)
 extension ClassMoreSpecific: P2 where T: C3 {} // expected-note {{requirement from conditional conformance of 'ClassMoreSpecific<U>' to 'P2'}}
+// expected-warning@-1 {{redundant superclass constraint 'T' : 'C1'}}
 func class_more_specific_good<U: C3>(_: U) {
     takes_P2(ClassMoreSpecific<U>())
 }
@@ -343,7 +345,7 @@ struct RedundancyOrderDependenceBad<T, U: P1> {}
 // CHECK-NEXT: (normal_conformance type=RedundancyOrderDependenceBad<T, U> protocol=P2
 // CHECK-NEXT:   conforms_to: T P1
 // CHECK-NEXT:   same_type: T U)
-extension RedundancyOrderDependenceBad: P2 where T: P1, T == U {}
+extension RedundancyOrderDependenceBad: P2 where T: P1, T == U {} // expected-warning {{redundant conformance constraint 'U' : 'P1'}}
 
 // Checking of conditional requirements for existential conversions.
 func existential_good<T: P1>(_: T.Type) {

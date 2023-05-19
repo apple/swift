@@ -139,6 +139,22 @@ public class SomeClass {
 }
 
 public struct PublicStruct {
+  @_spi(S) public var spiVar: SomeClass
+  // CHECK-PRIVATE: @_spi(S) public var spiVar: {{.*}}.SomeClass
+  // CHECK-PUBLIC-NOT: spiVar
+
+  public var publicVarWithSPISet: SomeClass {
+    get { SomeClass() }
+    @_spi(S) set {}
+  }
+  // CHECK-PRIVATE: public var publicVarWithSPISet: {{.*}}.SomeClass {
+  // CHECK-PRIVATE-NEXT:   get
+  // CHECK-PRIVATE-NEXT:   @_spi(S) set
+  // CHECK-PRIVATE-NEXT: }
+  // CHECK-PUBLIC: public var publicVarWithSPISet: {{.*}}.SomeClass {
+  // CHECK-PUBLIC-NEXT:   get
+  // CHECK-PUBLIC-NEXT: }
+
   @_spi(S) @Wrapper public var spiWrappedSimple: SomeClass
   // CHECK-PRIVATE: @_spi(S) @{{.*}}.Wrapper public var spiWrappedSimple: {{.*}}.SomeClass
   // CHECK-PUBLIC-NOT: spiWrappedSimple

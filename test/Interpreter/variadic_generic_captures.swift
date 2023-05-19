@@ -3,9 +3,6 @@
 
 // REQUIRES: executable_test
 
-// UNSUPPORTED: use_os_stdlib
-// UNSUPPORTED: back_deployment_runtime
-
 import StdlibUnittest
 
 var types = TestSuite("VariadicGenericCaptures")
@@ -51,6 +48,38 @@ types.test("Lifetime") {
   let fn2 = lifetimeTest2()
   expectEqual((String, Set<Int>).self, fn1())
   expectEqual((Int, Double).self, fn2())
+}
+
+// Test captured parameter packs
+func testEscapingCapture<each T: Hashable>(_ t: repeat each T) -> () -> [AnyHashable] {
+  return {
+    var result = [AnyHashable]()
+    repeat result.append(each t)
+    return result
+  }
+}
+
+func callNonEscaping(_ fn: () -> [AnyHashable]) -> [AnyHashable] {
+  return fn()
+}
+
+func testNonEscapingCapture<each T: Hashable>(_ t: repeat each T) -> [AnyHashable] {
+  return callNonEscaping {
+    var result = [AnyHashable]()
+    repeat result.append(each t)
+    return result
+  }
+}
+
+types.test("CapturedValue") {
+  let fn1 = testEscapingCapture(1, "hi")
+  let fn2 = testEscapingCapture(5.0, false)
+
+  expectEqual([1, "hi"], fn1())
+  expectEqual([5.0, false], fn2())
+
+  expectEqual(["bye", 3.0], testNonEscapingCapture("bye", 3.0))
+  expectEqual([true, 7], testNonEscapingCapture(true, 7))
 }
 
 runAllTests()

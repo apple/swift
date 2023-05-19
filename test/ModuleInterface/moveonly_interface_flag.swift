@@ -8,8 +8,14 @@
 // CHECK:       #if compiler(>=5.3) && $MoveOnly
 // CHECK-NEXT:    @_moveOnly public struct MoveOnlyStruct {
 
+// CHECK:       #if compiler(>=5.3) && $MoveOnly
+// CHECK-NEXT:    @_moveOnly public struct MoveOnlyStructSupp {
+
 // CHECK:      #if compiler(>=5.3) && $MoveOnly
 // CHECK-NEXT:   @_moveOnly public enum MoveOnlyEnum {
+
+// CHECK:      #if compiler(>=5.3) && $MoveOnly
+// CHECK-NEXT:   @_moveOnly public enum MoveOnlyEnumSupp {
 
 // CHECK:      #if compiler(>=5.3) && $MoveOnly
 // CHECK-NEXT:   public func someFn() -> Library.MoveOnlyEnum
@@ -25,7 +31,15 @@
   let x = 0
 }
 
+public struct MoveOnlyStructSupp: ~Copyable {
+  let x = 0
+}
+
 @_moveOnly public enum MoveOnlyEnum {
+  case depth
+}
+
+public enum MoveOnlyEnumSupp: ~Copyable {
   case depth
 }
 

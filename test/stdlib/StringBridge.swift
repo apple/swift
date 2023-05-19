@@ -23,8 +23,7 @@ extension String {
 
 StringBridgeTests.test("Tagged NSString") {
   guard #available(macOS 10.13, iOS 11.0, tvOS 11.0, *) else { return }
-#if arch(i386) || arch(arm) || arch(arm64_32)
-#else
+#if _pointerBitWidth(_64)
   // Bridge tagged strings as small
   expectSmall((("0123456" as NSString) as String))
   expectSmall((("012345678" as NSString) as String))
@@ -75,8 +74,7 @@ StringBridgeTests.test("Bridging") {
 
   // Pass tests
 
-  #if arch(i386) || arch(arm) || arch(arm64_32)
-  #else
+  #if _pointerBitWidth(_64)
   if #available(macOS 10.15, iOS 13, *) {
     expectDoesNotThrow({ try runTestSmall("abc") })
     expectDoesNotThrow({ try runTestSmall("defghijk") })

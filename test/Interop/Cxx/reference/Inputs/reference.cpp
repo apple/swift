@@ -20,3 +20,11 @@ auto getFuncRvalueRef() -> int (&&)() { return getStaticInt; }
 void takeConstRef(const int &value) {
   staticInt = value;
 }
+
+void setConstStaticIntRefTypealias(ConstIntRefTypealias ref) {
+  staticInt = ref;
+}
+
+void setStaticIntRefTypealias(IntRefTypealias ref) {
+  staticInt = ref;
+}

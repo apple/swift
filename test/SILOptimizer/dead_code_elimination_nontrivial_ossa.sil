@@ -378,7 +378,7 @@ bb0(%0 : @owned $TestStruct):
 }
 
 // CHECK-LABEL: sil [ossa] @dce_borrowlifetime1 :
-// CHECK: bb1([[ARG1:%.*]] : @owned $NonTrivialStruct, [[ARG2:%.*]] : @guaranteed $NonTrivialStruct):
+// CHECK: bb1([[ARG1:%.*]] : @owned $NonTrivialStruct, [[ARG2:%.*]] : @reborrow @guaranteed $NonTrivialStruct):
 // CHECK-LABEL: } // end sil function 'dce_borrowlifetime1'
 sil [ossa] @dce_borrowlifetime1 : $@convention(thin) (@guaranteed NonTrivialStruct) -> @owned NonTrivialStruct {
 bb0(%0 : @guaranteed $NonTrivialStruct):
@@ -592,7 +592,7 @@ bb4:
 }
 
 // CHECK-LABEL: sil [ossa] @dce_reborrow_with_different_basevalues :
-// CHECK: bb3([[ARG1:%.*]] : @guaranteed $NonTrivialStruct, [[ARG2:%.*]] : @owned $NonTrivialStruct, [[ARG3:%.*]] : @owned $NonTrivialStruct):
+// CHECK: bb3([[ARG1:%.*]] : @reborrow @guaranteed $NonTrivialStruct, [[ARG2:%.*]] : @owned $NonTrivialStruct, [[ARG3:%.*]] : @owned $NonTrivialStruct):
 // CHECK-LABEL: } // end sil function 'dce_reborrow_with_different_basevalues'
 sil [ossa] @dce_reborrow_with_different_basevalues : $@convention(thin) (@guaranteed NonTrivialStruct, @guaranteed NonTrivialStruct) -> @owned NonTrivialStruct {
 bb0(%0 : @guaranteed $NonTrivialStruct, %1 : @guaranteed $NonTrivialStruct):
@@ -802,7 +802,7 @@ exit:
 // CHECK:       {{bb[0-9]+}}([[INSTANCE:%[^,]+]] : @owned $Klass):
 // CHECK:         [[OUTER_LIFETIME_1:%[^,]+]] = begin_borrow [[INSTANCE]]
 // CHECK:         br [[EXIT:bb[0-9]+]]([[OUTER_LIFETIME_1]] : $Klass)
-// CHECK:       [[EXIT]]([[OUTER_LIFETIME_2:%[^,]+]] : @guaranteed $Klass):
+// CHECK:       [[EXIT]]([[OUTER_LIFETIME_2:%[^,]+]] : @reborrow @guaranteed $Klass):
 // CHECK:         end_borrow [[OUTER_LIFETIME_2]]
 // CHECK:         destroy_value [[INSTANCE]]
 // CHECK:         [[RETVAL:%[^,]+]] = tuple ()
@@ -825,9 +825,9 @@ exit(%outer_lifetime_2 : @guaranteed $Klass, %inner_lifetime_2 : @guaranteed $Kl
 // CHECK:       {{bb[0-9]+}}([[INSTANCE:%[^,]+]] : @owned $Klass):
 // CHECK:         [[LIFETIME:%[^,]+]] = begin_borrow [[INSTANCE]]
 // CHECK:         br [[WORK:bb[0-9]+]]([[LIFETIME]] : $Klass)
-// CHECK:       [[WORK]]([[LIFETIME_1:%[^,]+]] : @guaranteed $Klass):
+// CHECK:       [[WORK]]([[LIFETIME_1:%[^,]+]] : @reborrow @guaranteed $Klass):
 // CHECK:         br [[EXIT:bb[0-9]+]]([[LIFETIME_1]] : $Klass)
-// CHECK:       [[EXIT]]([[LIFETIME_2:%[^,]+]] : @guaranteed $Klass):
+// CHECK:       [[EXIT]]([[LIFETIME_2:%[^,]+]] : @reborrow @guaranteed $Klass):
 // CHECK:         end_borrow [[LIFETIME_2]]
 // CHECK:         destroy_value [[INSTANCE]]
 // CHECK:         [[RETVAL:%[^,]+]] = tuple ()
@@ -907,7 +907,7 @@ exit(%inner_lifetime_2 : @guaranteed $Klass):
 // CHECK:       {{bb[0-9]+}}([[INSTANCE:%[^,]+]] : $*Klass):
 // CHECK:         [[LIFETIME:%[^,]+]] = load_borrow [[INSTANCE]]
 // CHECK:         br [[BASIC_BLOCK1:bb[0-9]+]]([[LIFETIME]] : $Klass)
-// CHECK:       [[BASIC_BLOCK1]]([[LIFETIME_2:%[^,]+]] : @guaranteed $Klass):
+// CHECK:       [[BASIC_BLOCK1]]([[LIFETIME_2:%[^,]+]] : @reborrow @guaranteed $Klass):
 // CHECK:         end_borrow [[LIFETIME_2]]
 // CHECK:         [[RETVAL:%[^,]+]] = tuple ()
 // CHECK:         return [[RETVAL]]
@@ -928,7 +928,7 @@ bb1(%4 : @guaranteed $Klass, %5 : @guaranteed $Klass):
 // CHECK:       {{bb[0-9]+}}([[ADDR:%[^,]+]] : $*Klass):
 // CHECK:         [[LIFETIME:%[^,]+]] = load_borrow [[ADDR]] : $*Klass
 // CHECK:         br [[EXIT:bb[0-9]+]]([[LIFETIME]] : $Klass)
-// CHECK:       [[EXIT]]([[LIFETIME_2:%[^,]+]] : @guaranteed $Klass):
+// CHECK:       [[EXIT]]([[LIFETIME_2:%[^,]+]] : @reborrow @guaranteed $Klass):
 // CHECK:         end_borrow [[LIFETIME_2]] : $Klass
 // CHECK:         [[EXIT:%[^,]+]] = tuple ()
 // CHECK:         return [[EXIT]] : $()

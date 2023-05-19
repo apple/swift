@@ -1,7 +1,4 @@
-// RUN: %target-swift-emit-silgen %s -enable-experimental-feature VariadicGenerics | %FileCheck %s
-
-// Experimental features require an asserts compiler
-// REQUIRES: asserts
+// RUN: %target-swift-emit-silgen %s -disable-availability-checking | %FileCheck %s
 
 // CHECK-LABEL: sil [ossa] @$s19pack_expansion_type16variadicFunction1t1ux_q_txQp_txxQp_q_xQptRvzRv_q_Rhzr0_lF : $@convention(thin) <each T, each U where (repeat (each T, each U)) : Any> (@pack_guaranteed Pack{repeat each T}, @pack_guaranteed Pack{repeat each U}) -> @pack_out Pack{repeat (each T, each U)} {
 // CHECK: bb0(%0 : $*Pack{repeat (each T, each U)}, %1 : $*Pack{repeat each T}, %2 : $*Pack{repeat each U}):

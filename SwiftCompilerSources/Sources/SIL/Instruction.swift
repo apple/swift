@@ -73,32 +73,24 @@ public class Instruction : CustomStringConvertible, Hashable {
     return mayTrap || mayWriteToMemory
   }
 
-  final public var mayReadFromMemory: Bool {
+  final public var memoryEffects: SideEffects.Memory {
     switch bridged.getMemBehavior() {
-      case .MayRead, .MayReadWrite, .MayHaveSideEffects:
-        return true
-      default:
-        return false
+    case .None:
+      return SideEffects.Memory()
+    case .MayRead:
+      return SideEffects.Memory(read: true)
+    case .MayWrite:
+      return SideEffects.Memory(write: true)
+    case .MayReadWrite, .MayHaveSideEffects:
+      return SideEffects.Memory(read: true, write: true)
+    default:
+      fatalError("invalid memory behavior")
     }
   }
 
-  final public var mayWriteToMemory: Bool {
-    switch bridged.getMemBehavior() {
-      case .MayWrite, .MayReadWrite, .MayHaveSideEffects:
-        return true
-      default:
-        return false
-    }
-  }
-
-  final public var mayReadOrWriteMemory: Bool {
-    switch bridged.getMemBehavior() {
-      case .MayRead, .MayWrite, .MayReadWrite, .MayHaveSideEffects:
-        return true
-      default:
-        return false
-    }
-  }
+  final public var mayReadFromMemory: Bool { memoryEffects.read }
+  final public var mayWriteToMemory: Bool { memoryEffects.write }
+  final public var mayReadOrWriteMemory: Bool { memoryEffects.read || memoryEffects.write }
 
   public final var mayRelease: Bool {
     return bridged.mayRelease()
@@ -149,7 +141,7 @@ extension BridgedInstruction {
 }
 
 extension OptionalBridgedInstruction {
-  var instruction: Instruction? { obj.getAs(Instruction.self) }
+  public var instruction: Instruction? { obj.getAs(Instruction.self) }
 }
 
 public class SingleValueInstruction : Instruction, Value {
@@ -244,10 +236,10 @@ final public class CopyAddrInst : Instruction {
   public var destination: Value { return destinationOperand.value }
   
   public var isTakeOfSrc: Bool {
-    bridged.CopyAddrInst_isTakeOfSrc() != 0
+    bridged.CopyAddrInst_isTakeOfSrc()
   }
   public var isInitializationOfDest: Bool {
-    bridged.CopyAddrInst_isInitializationOfDest() != 0
+    bridged.CopyAddrInst_isInitializationOfDest()
   }
 }
 
@@ -258,16 +250,6 @@ final public class EndAccessInst : Instruction, UnaryInstruction {
 }
 
 final public class EndBorrowInst : Instruction, UnaryInstruction {}
-
-final public class DeallocStackInst : Instruction, UnaryInstruction {
-  public var allocstack: AllocStackInst {
-    return operand.value as! AllocStackInst
-  }
-}
-
-final public class DeallocStackRefInst : Instruction, UnaryInstruction {
-  public var allocRef: AllocRefInstBase { operand.value as! AllocRefInstBase }
-}
 
 final public class MarkUninitializedInst : SingleValueInstruction, UnaryInstruction {
 }
@@ -293,8 +275,6 @@ final public class EndApplyInst : Instruction, UnaryInstruction {}
 final public class AbortApplyInst : Instruction, UnaryInstruction {}
 
 final public class SetDeallocatingInst : Instruction, UnaryInstruction {}
-
-final public class DeallocRefInst : Instruction, UnaryInstruction {}
 
 public class RefCountingInst : Instruction, UnaryInstruction {
   public var isAtomic: Bool { bridged.RefCountingInst_getIsAtomic() }
@@ -329,6 +309,32 @@ final public class InjectEnumAddrInst : Instruction, UnaryInstruction, EnumInstr
 final public class UnimplementedRefCountingInst : RefCountingInst {}
 
 //===----------------------------------------------------------------------===//
+//                      no-value deallocation instructions
+//===----------------------------------------------------------------------===//
+
+public protocol Deallocation : Instruction { }
+
+final public class DeallocStackInst : Instruction, UnaryInstruction, Deallocation {
+  public var allocstack: AllocStackInst {
+    return operand.value as! AllocStackInst
+  }
+}
+
+final public class DeallocPackInst : Instruction, UnaryInstruction, Deallocation {}
+
+final public class DeallocStackRefInst : Instruction, UnaryInstruction, Deallocation {
+  public var allocRef: AllocRefInstBase { operand.value as! AllocRefInstBase }
+}
+
+final public class DeallocRefInst : Instruction, UnaryInstruction, Deallocation {}
+
+final public class DeallocPartialRefInst : Instruction, Deallocation {}
+
+final public class DeallocBoxInst : Instruction, UnaryInstruction, Deallocation {}
+
+final public class DeallocExistentialBoxInst : Instruction, UnaryInstruction, Deallocation {}
+
+//===----------------------------------------------------------------------===//
 //                           single-value instructions
 //===----------------------------------------------------------------------===//
 
@@ -358,6 +364,10 @@ final public class BuiltinInst : SingleValueInstruction {
 
   public var id: ID {
     return bridged.BuiltinInst_getID()
+  }
+
+  public var substitutionMap: SubstitutionMap {
+    SubstitutionMap(bridged.BuiltinInst_getSubstitutionMap())
   }
 }
 
@@ -470,6 +480,12 @@ final public class GlobalAddrInst : GlobalAccessInst {}
 
 final public class GlobalValueInst : GlobalAccessInst {}
 
+final public class AllocGlobalInst : Instruction {
+  public var global: GlobalVariable {
+    bridged.AllocGlobalInst_getGlobal().globalVar
+  }
+}
+
 final public class IntegerLiteralInst : SingleValueInstruction {
   public var value: llvm.APInt { bridged.IntegerLiteralInst_getValue() }
 }
@@ -536,7 +552,7 @@ final public class RefElementAddrInst : SingleValueInstruction, UnaryInstruction
   public var instance: Value { operand.value }
   public var fieldIndex: Int { bridged.RefElementAddrInst_fieldIndex() }
 
-  public var fieldIsLet: Bool { bridged.RefElementAddrInst_fieldIsLet() != 0 }
+  public var fieldIsLet: Bool { bridged.RefElementAddrInst_fieldIsLet() }
 }
 
 final public class RefTailAddrInst : SingleValueInstruction, UnaryInstruction {
@@ -607,6 +623,8 @@ final public class BeginAccessInst : SingleValueInstruction, UnaryInstruction {
   public var accessKind: AccessKind { bridged.BeginAccessInst_getAccessKind() }
 
   public var isStatic: Bool { bridged.BeginAccessInst_isStatic() }
+
+  public var address: Value { operand.value }
 }
 
 // An instruction that is always paired with a scope ending instruction
@@ -664,7 +682,7 @@ class ClassifyBridgeObjectInst : SingleValueInstruction, UnaryInstruction {}
 
 final public class PartialApplyInst : SingleValueInstruction, ApplySite {
   public var numArguments: Int { bridged.PartialApplyInst_numArguments() }
-  public var isOnStack: Bool { bridged.PartialApplyInst_isOnStack() != 0 }
+  public var isOnStack: Bool { bridged.PartialApplyInst_isOnStack() }
 
   public func calleeArgIndex(callerArgIndex: Int) -> Int {
     bridged.PartialApply_getCalleeArgIndexOfFirstAppliedArg() + callerArgIndex
@@ -719,13 +737,14 @@ class MarkMustCheckInst : SingleValueInstruction, UnaryInstruction {}
 public protocol Allocation : SingleValueInstruction { }
 
 final public class AllocStackInst : SingleValueInstruction, Allocation {
+  public var hasDynamicLifetime: Bool { bridged.AllocStackInst_hasDynamicLifetime() }
 }
 
 public class AllocRefInstBase : SingleValueInstruction, Allocation {
-  final public var isObjC: Bool { bridged.AllocRefInstBase_isObjc() != 0 }
+  final public var isObjC: Bool { bridged.AllocRefInstBase_isObjc() }
 
   final public var canAllocOnStack: Bool {
-    bridged.AllocRefInstBase_canAllocOnStack() != 0
+    bridged.AllocRefInstBase_canAllocOnStack()
   }
 }
 

@@ -162,7 +162,7 @@ exit:
 // paths, but should only appear in the introducer list once.
 //
 // CHECK-LABEL: introducer_revisit_reborrow: find-borrow-introducers with: @trace[0]
-// CHECK: bb1([[REBORROW:%.*]] : @guaranteed $C
+// CHECK: bb1([[REBORROW:%.*]] : @reborrow @guaranteed $C
 // CHECK: } // end sil function 'introducer_revisit_reborrow'
 // CHECK: Introducers:
 // CHECK-NEXT: [[REBORROW]] = argument of bb1 : $C
@@ -194,7 +194,7 @@ exit:
 // CHECK-LABEL: introducer_multiple_borrow: find-borrow-introducers with: @trace[0]
 // CHECK: begin_borrow %0 : $C  
 // CHECK: [[BORROW2:%.*]] = begin_borrow %0 : $C
-// CHECK: bb1([[REBORROW:%.*]] : @guaranteed $C
+// CHECK: bb1([[REBORROW:%.*]] : @reborrow @guaranteed $C
 // CHECK: } // end sil function 'introducer_multiple_borrow'
 // CHECK: Introducers:
 // CHECK-NEXT: [[REBORROW]] = argument of bb1 : $C

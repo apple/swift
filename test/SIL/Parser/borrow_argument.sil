@@ -5,7 +5,7 @@ sil_stage canonical
 import Builtin
 
 // CHECK-LABEL: sil [ossa] @borrow_argument_test : $@convention(thin) (@guaranteed Builtin.NativeObject) -> () {
-// CHECK: bb1([[PHIBBARG:%.*]] : @guaranteed $Builtin.NativeObject):
+// CHECK: bb1([[PHIBBARG:%.*]] : @reborrow @guaranteed $Builtin.NativeObject):
 // CHECK: end_borrow [[PHIBBARG]] : $Builtin.NativeObject
 sil [ossa] @borrow_argument_test : $@convention(thin) (@guaranteed Builtin.NativeObject) -> () {
 bb0(%0 : @guaranteed $Builtin.NativeObject):

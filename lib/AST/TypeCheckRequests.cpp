@@ -1833,6 +1833,22 @@ void ExpandMacroExpansionDeclRequest::noteCycleStep(DiagnosticEngine &diags) con
                  decl->getMacroName().getFullName());
 }
 
+void ExpandMacroExpansionExprRequest::diagnoseCycle(DiagnosticEngine &diags) const {
+  auto expr = std::get<0>(getStorage());
+  diags.diagnose(expr->getStartLoc(),
+                 diag::macro_expand_circular_reference,
+                 "freestanding",
+                 expr->getMacroName().getFullName());
+}
+
+void ExpandMacroExpansionExprRequest::noteCycleStep(DiagnosticEngine &diags) const {
+  auto expr = std::get<0>(getStorage());
+  diags.diagnose(expr->getStartLoc(),
+                 diag::macro_expand_circular_reference_through,
+                 "freestanding",
+                 expr->getMacroName().getFullName());
+}
+
 void ExpandAccessorMacros::diagnoseCycle(DiagnosticEngine &diags) const {
   auto decl = std::get<0>(getStorage());
   diags.diagnose(decl->getLoc(),

@@ -152,6 +152,58 @@ RuntimeEffect getRuntimeEffect(SILInstruction *inst, SILType &impactType);
 void findClosuresForFunctionValue(SILValue V,
                                   TinyPtrVector<PartialApplyInst *> &results);
 
+/// An abstraction over LoadInst/LoadBorrowInst so one can handle both types of
+/// load using common code.
+struct LoadOperation {
+  llvm::PointerUnion<LoadInst *, LoadBorrowInst *> value;
+
+  LoadOperation() : value() {}
+  LoadOperation(SILInstruction *input) : value(nullptr) {
+    if (auto *li = dyn_cast<LoadInst>(input)) {
+      value = li;
+      return;
+    }
+
+    if (auto *lbi = dyn_cast<LoadBorrowInst>(input)) {
+      value = lbi;
+      return;
+    }
+  }
+
+  explicit operator bool() const { return !value.isNull(); }
+
+  SingleValueInstruction *getLoadInst() const {
+    if (value.is<LoadInst *>())
+      return value.get<LoadInst *>();
+    return value.get<LoadBorrowInst *>();
+  }
+
+  SingleValueInstruction *operator*() const { return getLoadInst(); }
+
+  const SingleValueInstruction *operator->() const { return getLoadInst(); }
+
+  SingleValueInstruction *operator->() { return getLoadInst(); }
+
+  SILValue getOperand() const {
+    if (value.is<LoadInst *>())
+      return value.get<LoadInst *>()->getOperand();
+    return value.get<LoadBorrowInst *>()->getOperand();
+  }
+
+  /// Return the ownership qualifier of the underlying load if we have a load or
+  /// None if we have a load_borrow.
+  ///
+  /// TODO: Rather than use an optional here, we should include an invalid
+  /// representation in LoadOwnershipQualifier.
+  Optional<LoadOwnershipQualifier> getOwnershipQualifier() const {
+    if (auto *lbi = value.dyn_cast<LoadBorrowInst *>()) {
+      return None;
+    }
+
+    return value.get<LoadInst *>()->getOwnershipQualifier();
+  }
+};
+
 /// Given a polymorphic builtin \p bi that may be generic and thus have in/out
 /// params, stash all of the information needed for either specializing while
 /// inlining or propagating the type in constant propagation.

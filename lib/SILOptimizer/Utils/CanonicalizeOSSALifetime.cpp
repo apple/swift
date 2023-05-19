@@ -1108,7 +1108,7 @@ bool CanonicalizeOSSALifetime::computeLiveness() {
   // Step 1: compute liveness
   if (!computeCanonicalLiveness()) {
     LLVM_DEBUG(llvm::errs() << "Failed to compute canonical liveness?!\n");
-    invalidateLiveness();
+    clear();
     return false;
   }
   if (currentDef->isLexical()) {
@@ -1145,7 +1145,7 @@ void CanonicalizeOSSALifetime::rewriteLifetimes() {
   // Step 6: rewrite copies and delete extra destroys
   rewriteCopies();
 
-  invalidateLiveness();
+  clear();
   consumes.clear();
 }
 

@@ -155,14 +155,14 @@ SILValue ManagedValue::forward(SILGenFunction &SGF) const {
 
 void ManagedValue::forwardInto(SILGenFunction &SGF, SILLocation loc,
                                SILValue address) {
-  assert(isPlusOne(SGF));
+  assert(isPlusOneOrTrivial(SGF));
   auto &addrTL = SGF.getTypeLowering(address->getType());
   SGF.emitSemanticStore(loc, forward(SGF), address, addrTL, IsInitialization);
 }
 
 void ManagedValue::assignInto(SILGenFunction &SGF, SILLocation loc,
                               SILValue address) {
-  assert(isPlusOne(SGF));
+  assert(isPlusOneOrTrivial(SGF));
   auto &addrTL = SGF.getTypeLowering(address->getType());
   SGF.emitSemanticStore(loc, forward(SGF), address, addrTL,
                         IsNotInitialization);
@@ -170,7 +170,7 @@ void ManagedValue::assignInto(SILGenFunction &SGF, SILLocation loc,
 
 void ManagedValue::forwardInto(SILGenFunction &SGF, SILLocation loc,
                                Initialization *dest) {
-  assert(isPlusOne(SGF));
+  assert(isPlusOneOrTrivial(SGF));
   dest->copyOrInitValueInto(SGF, loc, *this, /*isInit*/ true);
   dest->finishInitialization(SGF);
 }
@@ -281,7 +281,7 @@ ManagedValue ManagedValue::ensurePlusOne(SILGenFunction &SGF,
   if (isa<SILUndef>(getValue()))
     return *this;
 
-  if (!isPlusOne(SGF)) {
+  if (!isPlusOneOrTrivial(SGF)) {
     return copy(SGF, loc);
   }
   return *this;
@@ -293,17 +293,18 @@ bool ManagedValue::isPlusOne(SILGenFunction &SGF) const {
   if (isa<SILUndef>(getValue()))
     return true;
 
-  // Ignore trivial values since for our purposes they are always at +1 since
-  // they can always be passed to +1 APIs.
-  if (getType().isTrivial(SGF.F))
-    return true;
-
-  // If we have an object and the object has any ownership, the same
-  // property applies.
+  // A value without ownership can always be passed to +1 APIs.
+  //
+  // This is not true for address types because deinitializing an in-memory
+  // value invalidates the storage.
   if (getType().isObject() && getOwnershipKind() == OwnershipKind::None)
     return true;
 
   return hasCleanup();
+}
+
+bool ManagedValue::isPlusOneOrTrivial(SILGenFunction &SGF) const {
+  return getType().isTrivial(SGF.F) || isPlusOne(SGF);
 }
 
 bool ManagedValue::isPlusZero() const {

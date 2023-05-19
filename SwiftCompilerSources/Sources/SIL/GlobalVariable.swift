@@ -27,7 +27,23 @@ final public class GlobalVariable : CustomStringConvertible, HasShortDescription
 
   public var isLet: Bool { bridged.isLet() }
 
-  // TODO: initializer instructions
+  /// True, if the linkage of the global variable indicates that it is visible outside the current
+  /// compilation unit and therefore not all of its uses are known.
+  ///
+  /// For example, `public` linkage.
+  public var isPossiblyUsedExternally: Bool {
+    return bridged.isPossiblyUsedExternally()
+  }
+
+  public var staticInitValue: SingleValueInstruction? {
+    bridged.getStaticInitializerValue().instruction as? SingleValueInstruction
+  }
+
+  /// True if the global's linkage and resilience expansion allow the global
+  /// to be initialized statically.
+  public var canBeInitializedStatically: Bool {
+    return bridged.canBeInitializedStatically()
+  }
 
   public static func ==(lhs: GlobalVariable, rhs: GlobalVariable) -> Bool {
     lhs === rhs
@@ -37,11 +53,21 @@ final public class GlobalVariable : CustomStringConvertible, HasShortDescription
     hasher.combine(ObjectIdentifier(self))
   }
 
-  var bridged: BridgedGlobalVar { BridgedGlobalVar(obj: SwiftObject(self)) }
+  public var bridged: BridgedGlobalVar { BridgedGlobalVar(obj: SwiftObject(self)) }
+}
+
+extension Instruction {
+  public var isValidInStaticInitializerOfGlobal: Bool {
+    return BridgedGlobalVar.isValidStaticInitializer(bridged)
+  }
 }
 
 // Bridging utilities
 
 extension BridgedGlobalVar {
   var globalVar: GlobalVariable { obj.getAs(GlobalVariable.self) }
+}
+
+extension OptionalBridgedGlobalVar {
+  public var globalVar: GlobalVariable? { obj.getAs(GlobalVariable.self) }
 }

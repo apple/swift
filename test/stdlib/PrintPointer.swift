@@ -10,12 +10,12 @@ PrintTests.test("Printable") {
   let lowUP = UnsafeMutablePointer<Float>(bitPattern: 0x1)!
   let fourByteUP = UnsafeMutablePointer<Float>(bitPattern: 0xabcd1234 as UInt)!
   
-#if !(arch(i386) || arch(arm) || arch(wasm32) || arch(arm64_32))
+#if _pointerBitWidth(_64)
   let eightByteAddr: UInt = 0xabcddcba12344321
   let eightByteUP = UnsafeMutablePointer<Float>(bitPattern: eightByteAddr)!
 #endif
   
-#if arch(i386) || arch(arm) || arch(wasm32) || arch(arm64_32)
+#if _pointerBitWidth(_32)
   let expectedLow = "0x00000001"
   expectPrinted("0xabcd1234", fourByteUP)
 #else

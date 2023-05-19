@@ -45,19 +45,3 @@ public func setCxxConstRef() {
 
 // CHECK: define {{(protected |dllexport )?}}swiftcc void @"$s4main14setCxxConstRefyyF"()
 // CHECK: call void @{{_Z20setConstStaticIntRefRKi|"\?setConstStaticIntRef@@YAXAEBH@Z"}}(i32* %{{.*}})
-
-public func setCxxRvalueRef() {
-  var val: CInt = 21
-  setStaticIntRvalueRef(&val)
-}
-
-// CHECK: define {{(protected |dllexport )?}}swiftcc void @"$s4main15setCxxRvalueRefyyF"()
-// CHECK: call void @{{_Z21setStaticIntRvalueRefOi|"\?setStaticIntRvalueRef@@YAX\$\$QEAH@Z"}}(i32* %{{.*}})
-
-public func setCxxConstRvalueRef() {
-  let val: CInt = 21
-  setConstStaticIntRvalueRef(val)
-}
-
-// CHECK: define {{(protected |dllexport )?}}swiftcc void @"$s4main20setCxxConstRvalueRefyyF"()
-// CHECK: call void @{{_Z26setConstStaticIntRvalueRefOKi|"\?setConstStaticIntRvalueRef@@YAX\$\$QEBH@Z"}}(i32* %{{.*}})

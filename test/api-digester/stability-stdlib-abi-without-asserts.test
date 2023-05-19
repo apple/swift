@@ -49,6 +49,7 @@
 
 Func _prespecialize() is a new API without @available attribute
 Func _stdlib_isOSVersionAtLeastOrVariantVersionAtLeast(_:_:_:_:_:_:) is a new API without @available attribute
+Func _diagnoseUnavailableCodeReached() is a new API without @available attribute
 
 Func Collection.removingSubranges(_:) has been removed
 Func Collection.subranges(of:) has been removed
@@ -72,6 +73,8 @@ Protocol Error has added inherited protocol Sendable
 Protocol Error has generic signature change from to <Self : Swift.Sendable>
 Constructor _SmallString.init(taggedCocoa:) has mangled name changing from 'Swift._SmallString.init(taggedCocoa: Swift.AnyObject) -> Swift._SmallString' to 'Swift._SmallString.init(taggedCocoa: Swift.AnyObject) -> Swift.Optional<Swift._SmallString>'
 Constructor _SmallString.init(taggedCocoa:) has return type change from Swift._SmallString to Swift._SmallString?
+Enum Never has added a conformance to an existing protocol Decodable
+Enum Never has added a conformance to an existing protocol Encodable
 Enum Never has added a conformance to an existing protocol Identifiable
 
 // These haven't actually been removed; they are simply marked unavailable.

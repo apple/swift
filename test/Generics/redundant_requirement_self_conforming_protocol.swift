@@ -3,6 +3,6 @@
 
 struct G<T> {}
 
-// CHECK-LABEL: Generic signature: <T where T == Error>
+// CHECK-LABEL: Generic signature: <T where T == any Error>
 extension G where T : Error, T == Error {}
 // expected-warning@-1 {{redundant conformance constraint 'any Error' : 'Error'}}

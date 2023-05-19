@@ -54,10 +54,13 @@ class TypeListPackMatcher {
   ArrayRef<Element> lhsElements;
   ArrayRef<Element> rhsElements;
 
+  std::function<bool(Type)> IsPackExpansionType;
 protected:
   TypeListPackMatcher(ASTContext &ctx, ArrayRef<Element> lhs,
-                      ArrayRef<Element> rhs)
-      : ctx(ctx), lhsElements(lhs), rhsElements(rhs) {}
+                      ArrayRef<Element> rhs,
+                      std::function<bool(Type)> isPackExpansionType)
+      : ctx(ctx), lhsElements(lhs), rhsElements(rhs),
+        IsPackExpansionType(isPackExpansionType) {}
 
 public:
   SmallVector<MatchedPair, 4> pairs;
@@ -86,8 +89,8 @@ public:
       auto lhsType = getElementType(lhsElt);
       auto rhsType = getElementType(rhsElt);
 
-      if (lhsType->template is<PackExpansionType>() ||
-          rhsType->template is<PackExpansionType>()) {
+      if (IsPackExpansionType(lhsType) ||
+          IsPackExpansionType(rhsType)) {
         break;
       }
 
@@ -115,8 +118,8 @@ public:
       auto lhsType = getElementType(lhsElt);
       auto rhsType = getElementType(rhsElt);
 
-      if (lhsType->template is<PackExpansionType>() ||
-          rhsType->template is<PackExpansionType>()) {
+      if (IsPackExpansionType(lhsType) ||
+          IsPackExpansionType(rhsType)) {
         break;
       }
 
@@ -139,7 +142,7 @@ public:
     // to what remains of the right hand side.
     if (lhsElts.size() == 1) {
       auto lhsType = getElementType(lhsElts[0]);
-      if (auto *lhsExpansion = lhsType->template getAs<PackExpansionType>()) {
+      if (IsPackExpansionType(lhsType)) {
         unsigned lhsIdx = prefixLength;
         unsigned rhsIdx = prefixLength;
 
@@ -154,7 +157,7 @@ public:
         auto rhs = createPackBinding(rhsTypes);
 
         // FIXME: Check lhs flags
-        pairs.emplace_back(lhsExpansion, rhs, lhsIdx, rhsIdx);
+        pairs.emplace_back(lhsType, rhs, lhsIdx, rhsIdx);
         return false;
       }
     }
@@ -163,7 +166,7 @@ public:
     // to what remains of the left hand side.
     if (rhsElts.size() == 1) {
       auto rhsType = getElementType(rhsElts[0]);
-      if (auto *rhsExpansion = rhsType->template getAs<PackExpansionType>()) {
+      if (IsPackExpansionType(rhsType)) {
         unsigned lhsIdx = prefixLength;
         unsigned rhsIdx = prefixLength;
 
@@ -178,7 +181,7 @@ public:
         auto lhs = createPackBinding(lhsTypes);
 
         // FIXME: Check rhs flags
-        pairs.emplace_back(lhs, rhsExpansion, lhsIdx, rhsIdx);
+        pairs.emplace_back(lhs, rhsType, lhsIdx, rhsIdx);
         return false;
       }
     }
@@ -197,14 +200,11 @@ private:
   Type getElementType(const Element &) const;
   ParameterTypeFlags getElementFlags(const Element &) const;
 
-  PackExpansionType *createPackBinding(ArrayRef<Type> types) const {
+  Type createPackBinding(ArrayRef<Type> types) const {
     // If there is only one element and it's a PackExpansionType,
     // return it directly.
-    if (types.size() == 1) {
-      if (auto *expansionType = types.front()->getAs<PackExpansionType>()) {
-        return expansionType;
-      }
-    }
+    if (types.size() == 1 && IsPackExpansionType(types.front()))
+      return types.front();
 
     // Otherwise, wrap the elements in PackExpansionType(PackType(...)).
     auto *packType = PackType::get(ctx, types);
@@ -220,10 +220,12 @@ private:
 /// other side.
 class TuplePackMatcher : public TypeListPackMatcher<TupleTypeElt> {
 public:
-  TuplePackMatcher(TupleType *lhsTuple, TupleType *rhsTuple)
-      : TypeListPackMatcher(lhsTuple->getASTContext(),
-                            lhsTuple->getElements(),
-                            rhsTuple->getElements()) {}
+  TuplePackMatcher(
+      TupleType *lhsTuple, TupleType *rhsTuple,
+      std::function<bool(Type)> isPackExpansionType =
+          [](Type T) { return T->is<PackExpansionType>(); })
+      : TypeListPackMatcher(lhsTuple->getASTContext(), lhsTuple->getElements(),
+                            rhsTuple->getElements(), isPackExpansionType) {}
 };
 
 /// Performs a structural match of two lists of (unlabeled) function
@@ -235,9 +237,12 @@ public:
 /// other side.
 class ParamPackMatcher : public TypeListPackMatcher<AnyFunctionType::Param> {
 public:
-  ParamPackMatcher(ArrayRef<AnyFunctionType::Param> lhsParams,
-                   ArrayRef<AnyFunctionType::Param> rhsParams, ASTContext &ctx)
-      : TypeListPackMatcher(ctx, lhsParams, rhsParams) {}
+  ParamPackMatcher(
+      ArrayRef<AnyFunctionType::Param> lhsParams,
+      ArrayRef<AnyFunctionType::Param> rhsParams, ASTContext &ctx,
+      std::function<bool(Type)> isPackExpansionType =
+          [](Type T) { return T->is<PackExpansionType>(); })
+      : TypeListPackMatcher(ctx, lhsParams, rhsParams, isPackExpansionType) {}
 };
 
 /// Performs a structural match of two lists of types.
@@ -248,8 +253,11 @@ public:
 /// other side.
 class PackMatcher : public TypeListPackMatcher<Type> {
 public:
-  PackMatcher(ArrayRef<Type> lhsTypes, ArrayRef<Type> rhsTypes, ASTContext &ctx)
-      : TypeListPackMatcher(ctx, lhsTypes, rhsTypes) {}
+  PackMatcher(
+      ArrayRef<Type> lhsTypes, ArrayRef<Type> rhsTypes, ASTContext &ctx,
+      std::function<bool(Type)> isPackExpansionType =
+          [](Type T) { return T->is<PackExpansionType>(); })
+      : TypeListPackMatcher(ctx, lhsTypes, rhsTypes, isPackExpansionType) {}
 };
 
 } // end namespace swift

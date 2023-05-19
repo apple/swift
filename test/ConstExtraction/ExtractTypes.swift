@@ -20,7 +20,7 @@ public struct Types : MyProto {
 }
 
 // CHECK:       "label": "types1",
-// CHECK-NEXT:  "type": "Swift.Array<ExtractTypes.ContainerType.Type>",
+// CHECK-NEXT:  "type": "Swift.Array<any ExtractTypes.ContainerType.Type>",
 // CHECK:       "valueKind": "Array",
 // CHECK-NEXT:  "value": [
 // CHECK-NEXT:    {

@@ -745,8 +745,49 @@ func testContravariantAssocMethod1Concrete(p3: any P3) {
 // CHECK: [[WITNESS:%[0-9]+]] = witness_method $@opened([[OPENED_ID]], any P3) Self, #P3.invariantAssocMethod1 : <Self where Self : P3> (Self) -> () -> GenericStruct<Self.A>
 // CHECK: [[RESULT:%[0-9]+]] = apply [[WITNESS]]<@opened([[OPENED_ID]], any P3) Self>([[OPENED]]) : $@convention(witness_method: P3) <τ_0_0 where τ_0_0 : P3> (@in_guaranteed τ_0_0) -> GenericStruct<Bool>
 // CHECK: debug_value [[RESULT]] : $GenericStruct<Bool>, let, name "x"
+// CHECK: } // end sil function '$s42existential_member_accesses_self_assoctype33testInvariantAssocMethod1Concrete2p3yAA2P3_p_tF'
 func testInvariantAssocMethod1Concrete(p3: any P3) {
   let x = p3.invariantAssocMethod1()
+}
+
+// --------------------------------------------------------------------------------------------------------
+//  Covariant dependent member type erasure in concrete dependent member type as primary associated type
+// --------------------------------------------------------------------------------------------------------
+
+class C {}
+class GenericClass<T> {}
+class GenericSubClass<T> : C {}
+
+protocol P5<A>{
+  associatedtype A
+  associatedtype B : GenericClass<A>
+  associatedtype C : GenericSubClass<A>
+  
+  func returnAssocTypeB() -> B
+  
+  func returnAssocTypeC() -> C
+}
+
+// CHECK-LABEL: sil hidden [ossa] @$s42existential_member_accesses_self_assoctype30testCovariantAssocGenericClass2p5AA0iJ0CySiGAA2P5_pSi1AAaGPRts_XP_tF
+// CHECK: [[OPENED:%[0-9]+]] = open_existential_addr immutable_access %0 : $*any P5<Int> to $*@opened([[OPENED_ID:"[0-9A-F-]+"]], any P5<Int>) Self
+// CHECK: [[APPLY:%[0-9]+]] = apply [[WITNESS]]<@opened([[OPENED_ID]], any P5<Int>) Self>([[OPENED]]) : $@convention(witness_method: P5) <τ_0_0 where τ_0_0 : P5> (@in_guaranteed τ_0_0) -> @owned τ_0_0.B
+// CHECK: [[UPCAST:%[0-9]+]] = upcast [[APPLY]] : $@opened([[OPENED_ID]], any P5<Int>) Self.B to $GenericClass<Int>
+// CHECK: return %{{[0-9]+}} : $GenericClass<Int>
+// CHECK: } // end sil function '$s42existential_member_accesses_self_assoctype30testCovariantAssocGenericClass2p5AA0iJ0CySiGAA2P5_pSi1AAaGPRts_XP_tF'
+func testCovariantAssocGenericClass(p5: any P5<Int>) -> GenericClass<Int> {
+  let x = p5.returnAssocTypeB()
+  return x
+}
+
+// CHECK-LABEL: sil hidden [ossa] @$s42existential_member_accesses_self_assoctype33testCovariantAssocGenericSubClass2p5AA0ijK0CySbGAA2P5_pSb1AAaGPRts_XP_tF
+// CHECK: [[OPENED:%[0-9]+]] = open_existential_addr immutable_access %0 : $*any P5<Bool> to $*@opened([[OPENED_ID:"[0-9A-F-]+"]], any P5<Bool>) Self
+// CHECK: apply %3<@opened([[OPENED_ID]], any P5<Bool>) Self>([[OPENED]]) : $@convention(witness_method: P5) <τ_0_0 where τ_0_0 : P5> (@in_guaranteed τ_0_0) -> @owned τ_0_0.C
+// CHECK: [[UPCAST:%[0-9]+]] = upcast [[APPLY:%[0-9]+]] : $@opened([[OPENED_ID]], any P5<Bool>) Self.C to $GenericSubClass<Bool>
+// CHECK: return %{{[0-9]+}} : $GenericSubClass<Bool>
+// CHECK: } // end sil function '$s42existential_member_accesses_self_assoctype33testCovariantAssocGenericSubClass2p5AA0ijK0CySbGAA2P5_pSb1AAaGPRts_XP_tF'
+func testCovariantAssocGenericSubClass(p5: any P5<Bool>) -> GenericSubClass<Bool> {
+  let y = p5.returnAssocTypeC()
+  return y
 }
 
 // -----------------------------------------------------------------------------

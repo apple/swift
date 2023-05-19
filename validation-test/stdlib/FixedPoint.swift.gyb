@@ -62,14 +62,14 @@ def prepare_bit_pattern(bit_pattern, dst_bits, dst_signed):
 //===----------------------------------------------------------------------===//
 
 FixedPoint.test("Integers.Stride") {
-#if arch(i386) || arch(arm) || arch(arm64_32)
+#if _pointerBitWidth(_32)
 
 % for self_ty in all_integer_types(32):
 %   Self = self_ty.stdlib_name
   expectEqualType(Int.self, ${Self}.Stride.self)
 % end
 
-#elseif arch(x86_64) || arch(arm64) || arch(powerpc64) || arch(powerpc64le) || arch(s390x) || arch(riscv64)
+#elseif _pointerBitWidth(_64)
 
 % for self_ty in all_integer_types(64):
 %   Self = self_ty.stdlib_name
@@ -130,7 +130,7 @@ FixedPoint.test("${Dst}(truncatingIfNeeded:) from ${Src}(${bit_pattern})") {
 
 }%
 
-#if arch(i386) || arch(arm) || arch(arm64_32)
+#if _pointerBitWidth(_32)
 
   ${gyb.execute_template(
       truncating_bit_pattern_test_template,
@@ -138,7 +138,7 @@ FixedPoint.test("${Dst}(truncatingIfNeeded:) from ${Src}(${bit_pattern})") {
       test_bit_patterns=test_bit_patterns,
       word_bits=32)}
 
-#elseif arch(x86_64) || arch(arm64) || arch(powerpc64) || arch(powerpc64le) || arch(s390x) || arch(riscv64)
+#elseif _pointerBitWidth(_64)
 
   ${gyb.execute_template(
       truncating_bit_pattern_test_template,
@@ -202,7 +202,7 @@ FixedPoint.test("${Dst}(bitPattern:) from ${Src}(${bit_pattern})") {
 
 }%
 
-#if arch(i386) || arch(arm) || arch(arm64_32)
+#if _pointerBitWidth(_32)
 
   ${gyb.execute_template(
       bit_pattern_test_template,
@@ -210,7 +210,7 @@ FixedPoint.test("${Dst}(bitPattern:) from ${Src}(${bit_pattern})") {
       test_bit_patterns=test_bit_patterns,
       word_bits=32)}
 
-#elseif arch(x86_64) || arch(arm64) || arch(powerpc64) || arch(powerpc64le) || arch(s390x) || arch(riscv64)
+#elseif _pointerBitWidth(_64)
 
   ${gyb.execute_template(
       bit_pattern_test_template,
@@ -267,7 +267,7 @@ FixedPoint.test("${Self}.hash(into:)") {
 
 }%
 
-#if arch(i386) || arch(arm) || arch(arm64_32)
+#if _pointerBitWidth(_32)
 
   ${gyb.execute_template(
       hash_value_test_template,
@@ -275,7 +275,7 @@ FixedPoint.test("${Self}.hash(into:)") {
       test_bit_patterns=test_bit_patterns,
       word_bits=32)}
 
-#elseif arch(x86_64) || arch(arm64) || arch(powerpc64) || arch(powerpc64le) || arch(s390x) || arch(riscv64)
+#elseif _pointerBitWidth(_64)
 
   ${gyb.execute_template(
       hash_value_test_template,

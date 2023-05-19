@@ -2,77 +2,33 @@
 
 // REQUIRES: swift_in_compiler
 
-import Swift
+sil_stage canonical
+
 import Builtin
+import Swift
+import SwiftShims
 
-sil @closure_with_args : $@convention(thin) (Int, Bool) -> ()
-sil @closure2_with_args : $@convention(thin) (Int, String) -> ()
-sil @closure3_with_args : $@convention(thin) (String, Bool) -> ()
-sil @generic_callee_inguaranteed : $@convention(thin) <T, U> (@in_guaranteed T, @in_guaranteed U) -> ()
-
-// CHECK-LABEL: sil @test_apply_of_partial_apply
-// CHECK:         [[F:%.*]] = function_ref @closure_with_args
-// CHECK-NOT:     partial_apply
-// CHECK:         apply [[F]](%0, %1)
-// CHECK:       } // end sil function 'test_apply_of_partial_apply'
-sil @test_apply_of_partial_apply : $@convention(thin) (Int, Bool) -> () {
-bb0(%0 : $Int, %1 : $Bool):
-  %2 = function_ref @closure_with_args : $@convention(thin) (Int, Bool) -> ()
-  %3 = partial_apply %2(%1) : $@convention(thin) (Int, Bool) -> ()
-  apply %3(%0) : $@callee_owned (Int) -> ()
-  %r = tuple()
-  return %r : $()
+class Bar {
+  init()
+  func foo() -> Int
 }
 
-// Currently this is not optimized by the simplification passes.
-// TODO: change the check lines if we can handle generic closures
-
-// CHECK-LABEL: sil @test_generic_partial_apply_apply_inguaranteed
-// CHECK:         [[F:%.*]] = function_ref @generic_callee_inguaranteed
-// CHECK:         [[PA:%.*]] = partial_apply [[F]]
-// CHECK:         apply [[PA]]
-// CHECK:       } // end sil function 'test_generic_partial_apply_apply_inguaranteed'
-sil @test_generic_partial_apply_apply_inguaranteed : $@convention(thin) <T> (@in T, @in T) -> () {
-bb0(%0 : $*T, %1 : $*T):
-  %f1 = function_ref @generic_callee_inguaranteed : $@convention(thin) <T, U> (@in_guaranteed T, @in_guaranteed U) -> ()
-  %pa = partial_apply %f1<T, T>(%1) : $@convention(thin) <T, U> (@in_guaranteed T, @in_guaranteed U) -> ()
-  %a1 = apply %pa(%0) : $@callee_owned (@in_guaranteed T) -> ()
-  destroy_addr %0 : $*T
-  %r = tuple ()
-  return %r : $()
+// CHECK-LABEL: sil @devirt_class_method :
+// CHECK:         [[F:%.*]] = function_ref @bar_foo
+// CHECK:         apply [[F]]
+// CHECK:       } // end sil function 'devirt_class_method'
+sil @devirt_class_method : $@convention(thin) () -> Int {
+bb0:
+  %0 = alloc_ref $Bar
+  %1 = class_method %0 : $Bar, #Bar.foo : (Bar) -> () -> Int, $@convention(method) (@guaranteed Bar) -> Int
+  %2 = apply %1(%0) : $@convention(method) (@guaranteed Bar) -> Int
+  strong_release %0 : $Bar
+  return %2 : $Int
 }
 
-// Currently this is not optimized by the simplification passes.
-// TODO: change the check lines if we can handle non-trivial arguments
+sil @bar_foo : $@convention(method) (@guaranteed Bar) -> Int
 
-// CHECK-LABEL: sil @dont_handle_non_trivial_pa_args
-// CHECK:         [[F:%.*]] = function_ref @closure2_with_args
-// CHECK:         [[PA:%.*]] = partial_apply [[F]]
-// CHECK:         apply [[PA]]
-// CHECK:       } // end sil function 'dont_handle_non_trivial_pa_args'
-sil @dont_handle_non_trivial_pa_args : $@convention(thin) (Int, String) -> () {
-bb0(%0 : $Int, %1 : $String):
-  %2 = function_ref @closure2_with_args : $@convention(thin) (Int, String) -> ()
-  %3 = partial_apply %2(%1) : $@convention(thin) (Int, String) -> ()
-  apply %3(%0) : $@callee_owned (Int) -> ()
-  %r = tuple()
-  return %r : $()
-}
-
-// Currently this is not optimized by the simplification passes.
-// TODO: change the check lines if we can handle non-trivial arguments
-
-// CHECK-LABEL: sil @dont_handle_non_trivial_apply_args
-// CHECK:         [[F:%.*]] = function_ref @closure3_with_args
-// CHECK:         [[PA:%.*]] = partial_apply [[F]]
-// CHECK:         apply [[PA]]
-// CHECK:       } // end sil function 'dont_handle_non_trivial_apply_args'
-sil @dont_handle_non_trivial_apply_args : $@convention(thin) (String, Bool) -> () {
-bb0(%0 : $String, %1 : $Bool):
-  %2 = function_ref @closure3_with_args : $@convention(thin) (String, Bool) -> ()
-  %3 = partial_apply %2(%1) : $@convention(thin) (String, Bool) -> ()
-  apply %3(%0) : $@callee_owned (String) -> ()
-  %r = tuple()
-  return %r : $()
+sil_vtable Bar {
+  #Bar.foo: @bar_foo
 }
 

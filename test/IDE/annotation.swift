@@ -129,7 +129,7 @@ class GenCls<T> {
 }
 
 func test2() {
-  // CHECK: <Class@[[@LINE-19]]:7>GenCls</Class><<iStruct@>Int</iStruct>>()
+  // CHECK: <Ctor@[[@LINE-17]]:3-Class@[[@LINE-19]]:7>GenCls</Ctor><<iStruct@>Int</iStruct>>()
   GenCls<Int>()
 }
 

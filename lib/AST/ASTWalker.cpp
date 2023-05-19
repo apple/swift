@@ -1482,7 +1482,7 @@ public:
   
   bool shouldSkip(Decl *D) {
     if (!Walker.shouldWalkMacroArgumentsAndExpansion().second &&
-        D->isInMacroExpansionInContext())
+        D->isInMacroExpansionInContext() && !Walker.Parent.isNull())
       return true;
 
     if (auto *VD = dyn_cast<VarDecl>(D)) {
@@ -1655,10 +1655,10 @@ Stmt *Traversal::visitThrowStmt(ThrowStmt *TS) {
   return nullptr;
 }
 
-Stmt *Traversal::visitForgetStmt(ForgetStmt *FS) {
-  if (Expr *E = doIt(FS->getSubExpr())) {
-    FS->setSubExpr(E);
-    return FS;
+Stmt *Traversal::visitDiscardStmt(DiscardStmt *DS) {
+  if (Expr *E = doIt(DS->getSubExpr())) {
+    DS->setSubExpr(E);
+    return DS;
   }
   return nullptr;
 }

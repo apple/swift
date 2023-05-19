@@ -134,9 +134,9 @@ FloatingPointConversionFailures.test("${OtherFloat}To${Self}Conversion/AlwaysSuc
 
 %  end # for in all_floating_point_types (Other)
 
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(powerpc)
+#if _pointerBitWidth(_32)
 % int_types = all_integer_types(32)
-#elseif arch(x86_64) || arch(arm64) || arch(powerpc64) || arch(powerpc64le) || arch(s390x) || arch(riscv64)
+#elseif _pointerBitWidth(_64)
 % int_types = all_integer_types(64)
 #else
 _UnimplementedError()

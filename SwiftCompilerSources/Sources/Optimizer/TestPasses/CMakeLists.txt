@@ -11,6 +11,7 @@ swift_compiler_sources(Optimizer
   AccessDumper.swift
   DeadEndBlockDumper.swift
   EscapeInfoDumper.swift
+  MemBehaviorDumper.swift
   SILPrinter.swift
   RangeDumper.swift
   RunUnitTests.swift

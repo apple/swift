@@ -1,0 +1,19 @@
+// RUN: %target-sil-opt -enable-sil-verify-all %s -onone-simplification -simplify-instruction=debug_step | %FileCheck %s --check-prefix=CHECK-ONONE --check-prefix=CHECK
+// RUN: %target-sil-opt -enable-sil-verify-all %s -simplification -simplify-instruction=debug_step | %FileCheck %s --check-prefix=CHECK-O --check-prefix=CHECK
+
+// REQUIRES: swift_in_compiler
+
+import Swift
+import Builtin
+
+// CHECK-LABEL: sil @testit
+// CHECK-O-NOT:   debug_step
+// CHECK-ONONE:   debug_step
+// CHECK:       } // end sil function 'testit'
+sil @testit : $@convention(thin) () -> () {
+bb0:
+  debug_step
+  %r = tuple ()
+  return %r : $()
+}
+

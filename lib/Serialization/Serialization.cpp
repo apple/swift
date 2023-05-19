@@ -844,6 +844,11 @@ void Serializer::writeBlockInfoBlock() {
   BLOCK_RECORD(options_block, MODULE_ABI_NAME);
   BLOCK_RECORD(options_block, IS_CONCURRENCY_CHECKED);
   BLOCK_RECORD(options_block, MODULE_PACKAGE_NAME);
+  BLOCK_RECORD(options_block, MODULE_EXPORT_AS_NAME);
+  BLOCK_RECORD(options_block, PLUGIN_SEARCH_PATH);
+  BLOCK_RECORD(options_block, EXTERNAL_SEARCH_PLUGIN_PATH);
+  BLOCK_RECORD(options_block, COMPILER_PLUGIN_LIBRARY_PATH);
+  BLOCK_RECORD(options_block, COMPILER_PLUGIN_EXECUTABLE_PATH);
 
   BLOCK(INPUT_BLOCK);
   BLOCK_RECORD(input_block, IMPORTED_MODULE);
@@ -1123,6 +1128,30 @@ void Serializer::writeHeader(const SerializationOptions &options) {
             continue;
           }
           XCC.emit(ScratchRecord, arg);
+        }
+
+        // Macro plugins
+        options_block::PluginSearchPathLayout PluginSearchPath(Out);
+        for (auto Arg : options.PluginSearchPaths) {
+          PluginSearchPath.emit(ScratchRecord, Arg);
+        }
+
+        options_block::ExternalPluginSearchPathLayout
+          ExternalPluginSearchPath(Out);
+        for (auto Arg : options.ExternalPluginSearchPaths) {
+          ExternalPluginSearchPath.emit(ScratchRecord, Arg);
+        }
+
+        options_block::CompilerPluginLibraryPathLayout
+          CompilerPluginLibraryPath(Out);
+        for (auto Arg : options.CompilerPluginLibraryPaths) {
+          CompilerPluginLibraryPath.emit(ScratchRecord, Arg);
+        }
+
+        options_block::CompilerPluginExecutablePathLayout
+          CompilerPluginExecutablePath(Out);
+        for (auto Arg : options.CompilerPluginLibraryPaths) {
+          CompilerPluginExecutablePath.emit(ScratchRecord, Arg);
         }
       }
     }
@@ -6201,7 +6230,12 @@ void Serializer::writeAST(ModuleOrSourceFile DC) {
       Scratch.push_back(synthesizedFile);
     files = llvm::makeArrayRef(Scratch);
   } else {
-    files = M->getFiles();
+    for (auto file : M->getFiles()) {
+      Scratch.push_back(file);
+      if (auto *synthesizedFile = file->getSynthesizedFile())
+        Scratch.push_back(synthesizedFile);
+    }
+    files = llvm::makeArrayRef(Scratch);
   }
   for (auto nextFile : files) {
     if (nextFile->hasEntryPoint())

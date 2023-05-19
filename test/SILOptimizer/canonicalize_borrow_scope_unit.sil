@@ -6,9 +6,14 @@ typealias AnyObject = Builtin.AnyObject
 
 class C {}
 class D : C {}
+struct S {
+  @_hasStorage var guts: SGuts
+}
+class SGuts {}
 
 sil @getD : $() -> (@owned D)
 sil @takeC : $(@owned C) -> ()
+sil [ossa] @sink : $@convention(thin) <τ_0_0> (@owned τ_0_0) -> ()
 
 struct Unmanaged<Instance> where Instance : AnyObject {
   unowned(unsafe) var _value: @sil_unmanaged Instance
@@ -70,10 +75,8 @@ bb0(%instance : @guaranteed $Instance):
 // CHECK:         [[TAKE_C:%[^,]+]] = function_ref @takeC
 // CHECK:         [[C:%[^,]+]] = apply [[GET_C]]()
 // CHECK:         [[OUTER_COPY:%[^,]+]] = copy_value [[C]]
-// CHECK:         [[OUTER_UPCAST:%[^,]+]] = upcast [[OUTER_COPY]]
 // CHECK:         [[B:%[^,]+]] = begin_borrow [[C]]
-// CHECK:         [[DEAD_INNER_COPY:%[^,]+]] = copy_value [[B]]
-// CHECK:         destroy_value [[DEAD_INNER_COPY]]
+// CHECK:         [[OUTER_UPCAST:%[^,]+]] = upcast [[OUTER_COPY]]
 // CHECK:         [[U:%[^,]+]] = upcast [[B]]
 // CHECK:         [[C1:%[^,]+]] = copy_value [[U]]
 // CHECK:         apply [[TAKE_C]]([[C1]])
@@ -96,4 +99,53 @@ sil [ossa] @dont_rewrite_inner_forwarding_user : $@convention(thin) () -> (@owne
     end_borrow %b : $D
     destroy_value %d : $D
     return %u2 : $C
+}
+
+// CHECK-LABEL: begin running test {{.*}} on dont_hoist_inner_destructure: canonicalize-borrow-scope
+// CHECK-LABEL: sil [ossa] @dont_hoist_inner_destructure : {{.*}} {
+// CHECK:       {{bb[0-9]+}}([[S:%[^,]+]] :
+// CHECK:         [[OUTER_COPY:%[^,]+]] = copy_value [[S]]
+// CHECK:         [[S_BORROW:%[^,]+]] = begin_borrow [[S]]
+// CHECK:         cond_br undef, [[LEFT:bb[0-9]+]], [[RIGHT:bb[0-9]+]]                         
+// CHECK:       [[LEFT]]:                                              
+// CHECK:         [[INNARDS:%[^,]+]] = destructure_struct [[OUTER_COPY]]
+// CHECK:         end_borrow [[S_BORROW]]
+// CHECK:         destroy_value [[INNARDS]]
+// CHECK:         destroy_value [[S]]
+// CHECK:         br [[EXIT:bb[0-9]+]]                                          
+// CHECK:       [[RIGHT]]:                                              
+// CHECK:         destroy_value [[OUTER_COPY]]
+// CHECK:         [[SINK:%[^,]+]] = function_ref @sink
+// CHECK:         [[INNER_COPY:%[^,]+]] = copy_value [[S_BORROW]]
+// CHECK:         apply [[SINK]]<S>([[INNER_COPY]])
+// CHECK:         end_borrow [[S_BORROW]]
+// CHECK:         destroy_value [[S]]
+// CHECK:         br [[EXIT]]                                          
+// CHECK:       [[EXIT]]:                                              
+// CHECK-LABEL: } // end sil function 'dont_hoist_inner_destructure'
+// CHECK-LABEL: end running test {{.*}} on dont_hoist_inner_destructure: canonicalize-borrow-scope
+sil [ossa] @dont_hoist_inner_destructure : $@convention(thin) (@owned S) -> () {
+entry(%s : @owned $S):
+  test_specification "canonicalize-borrow-scope @instruction"
+  %s_borrow = begin_borrow %s : $S
+  %s_copy = copy_value %s_borrow : $S
+  cond_br undef, left, right
+
+left:
+  %innards = destructure_struct %s_copy : $S
+  end_borrow %s_borrow : $S
+  destroy_value %innards : $SGuts
+  destroy_value %s : $S
+  br exit
+
+right:
+  %sink = function_ref @sink : $@convention(thin) <τ_0_0> (@owned τ_0_0) -> ()
+  apply %sink<S>(%s_copy) : $@convention(thin) <τ_0_0> (@owned τ_0_0) -> ()
+  end_borrow %s_borrow : $S
+  destroy_value %s : $S
+  br exit
+
+exit:
+  %retval = tuple ()
+  return %retval : $()
 }

@@ -98,29 +98,7 @@ public:
 
   /// Resolve type variables present in the raw type, if any.
   Type resolveType(Type rawType, bool reconstituteSugar = false,
-                   bool wantRValue = true) const {
-    auto &cs = getConstraintSystem();
-
-    if (rawType->hasTypeVariable() || rawType->hasPlaceholder()) {
-      rawType = rawType.transform([&](Type type) {
-        if (auto *typeVar = type->getAs<TypeVariableType>()) {
-          auto resolvedType = S.simplifyType(typeVar);
-          Type GP = typeVar->getImpl().getGenericParameter();
-          return resolvedType->is<UnresolvedType>() && GP
-                     ? GP
-                     : resolvedType;
-        }
-
-        return type->isPlaceholder()
-                   ? Type(cs.getASTContext().TheUnresolvedType)
-                   : type;
-      });
-    }
-
-    if (reconstituteSugar)
-      rawType = rawType->reconstituteSugar(/*recursive*/ true);
-    return wantRValue ? rawType->getRValueType() : rawType;
-  }
+                   bool wantRValue = true) const;
 
   template <typename... ArgTypes>
   InFlightDiagnostic emitDiagnostic(ArgTypes &&... Args) const;
@@ -696,10 +674,6 @@ public:
   /// Diagnose failed conversion in a `CoerceExpr`.
   bool diagnoseCoercionToUnrelatedType() const;
 
-  /// Diagnose cases where a pattern tried to match associated values but
-  /// the enum case had none.
-  bool diagnoseExtraneousAssociatedValues() const;
-
   /// Produce a specialized diagnostic if this is an invalid conversion to Bool.
   bool diagnoseConversionToBool() const;
 
@@ -783,6 +757,19 @@ protected:
         DC, const_cast<Expr *>(expr), asPG,
         [&](auto *E) { return findParentExpr(E); });
   }
+};
+
+class NonClassTypeToAnyObjectConversionFailure final
+    : public ContextualFailure {
+
+public:
+  NonClassTypeToAnyObjectConversionFailure(const Solution &solution, Type lhs,
+                                           Type rhs, ConstraintLocator *locator)
+      : ContextualFailure(solution, lhs, rhs, locator, FixBehavior::Error) {}
+
+  bool diagnoseAsError() override;
+
+  bool diagnoseAsNote() override;
 };
 
 /// Diagnose errors related to using an array literal where a
@@ -2794,6 +2781,15 @@ public:
   bool diagnoseAsError() override;
 };
 
+class AssociatedValueMismatchFailure final : public ContextualFailure {
+public:
+  AssociatedValueMismatchFailure(const Solution &solution, Type fromType,
+                                 Type toType, ConstraintLocator *locator)
+      : ContextualFailure(solution, fromType, toType, locator) {}
+
+  bool diagnoseAsError() override;
+};
+
 /// Diagnose situations where Swift -> C pointer implicit conversion
 /// is attempted on a Swift function instead of one imported from C header.
 ///
@@ -2955,6 +2951,68 @@ public:
 private:
   Diag<Type, Type> getDiagnosticMessage() const;
   bool diagnoseTupleElement();
+};
+
+/// Diagnose situation when a single argument to tuple type is passed to
+/// a value pack expansion parameter that expects distinct N elements:
+///
+/// ```swift
+/// struct S<each T> {
+///   func test(x: Int, _: repeat each T) {}
+/// }
+///
+/// S<Int, String>().test(x: 42, (2, "b"))
+/// ```
+class DestructureTupleToUseWithPackExpansionParameter final
+    : public FailureDiagnostic {
+  PackType *ParamShape;
+
+public:
+  DestructureTupleToUseWithPackExpansionParameter(const Solution &solution,
+                                                  PackType *paramShape,
+                                                  ConstraintLocator *locator)
+      : FailureDiagnostic(solution, locator), ParamShape(paramShape) {}
+
+  bool diagnoseAsError() override;
+  bool diagnoseAsNote() override;
+};
+
+/// Diagnose situations when value pack expansion doesn't have any pack
+/// references i.e.:
+///
+/// ```swift
+/// func test(x: Int) {
+///   repeat x
+/// }
+/// ```
+class ValuePackExpansionWithoutPackReferences final : public FailureDiagnostic {
+public:
+  ValuePackExpansionWithoutPackReferences(const Solution &solution,
+                                          ConstraintLocator *locator)
+      : FailureDiagnostic(solution, locator) {}
+
+  bool diagnoseAsError() override;
+};
+
+/// Diagnose situations where value pack is referenced without explicit 'each':
+///
+/// \code
+/// func compute<each T>(_: repeat each T) {}
+///
+/// func test<each T>(v: repeat each T) {
+///   repeat compute(v) // should be `repeat compute(each v)`
+/// }
+/// \endcode
+class MissingEachForValuePackReference final : public FailureDiagnostic {
+  Type ValuePackType;
+
+public:
+  MissingEachForValuePackReference(const Solution &solution, Type valuePackTy,
+                                   ConstraintLocator *locator)
+      : FailureDiagnostic(solution, locator),
+        ValuePackType(resolveType(valuePackTy)) {}
+
+  bool diagnoseAsError() override;
 };
 
 } // end namespace constraints

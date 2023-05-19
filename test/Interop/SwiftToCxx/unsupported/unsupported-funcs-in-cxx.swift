@@ -5,10 +5,7 @@
 // RUN: %target-swift-frontend %t/clean.swift -typecheck -module-name Functions -clang-header-expose-decls=all-public -disable-availability-checking -emit-clang-header-path %t/header.h
 // RUN: %FileCheck %s < %t/header.h
 
-// CHECK-NOT: unsupported
-// CHECK: HasMethods
-// CHECK: supported
-// CHECK-NOT: unsupported
+// RUN: %check-interop-cxx-header-in-clang(%t/header.h)
 
 public func supported() {}
 
@@ -44,3 +41,10 @@ public struct HasMethods {
         return false
     }
 }
+
+// CHECK: HasMethods
+// CHECK: supported
+
+// CHECK: // Unavailable in C++: Swift global function 'unsupportedAEIC()'.
+// CHECK-EMPTY:
+// CHECK-NEXT: // Unavailable in C++: Swift global function 'unsupportedThrows()'.

@@ -69,6 +69,8 @@ void TypeVariableType::Implementation::print(llvm::raw_ostream &OS) {
     bindingOptions.push_back(TypeVariableOptions::TVO_CanBindToHole);
   if (canBindToPack())
     bindingOptions.push_back(TypeVariableOptions::TVO_CanBindToPack);
+  if (isPackExpansion())
+    bindingOptions.push_back(TypeVariableOptions::TVO_PackExpansion);
   if (!bindingOptions.empty()) {
     OS << " [allows bindings to: ";
     interleave(bindingOptions, OS,
@@ -656,7 +658,8 @@ Type TypeChecker::typeCheckParameterDefault(Expr *&defaultValue,
       cs.openGenericRequirement(DC->getParent(), index, requirement,
                                 /*skipSelfProtocolConstraint=*/false, locator,
                                 [&](Type type) -> Type {
-                                  return cs.openType(type, genericParameters);
+                                  return cs.openType(type, genericParameters,
+                                                     locator);
                                 });
     };
 
@@ -1588,6 +1591,16 @@ void ConstraintSystem::print(raw_ostream &out) const {
     }
   }
 
+  if (!OpenedPackExpansionTypes.empty()) {
+    out.indent(indent) << "Opened pack expansion types:\n";
+    for (const auto &expansion : OpenedPackExpansionTypes) {
+      out.indent(indent + 2);
+      out << expansion.first->getString(PO);
+      out << " opens to " << expansion.second->getString(PO);
+      out << "\n";
+    }
+  }
+
   if (!DefaultedConstraints.empty()) {
     out.indent(indent) << "Defaulted constraints:\n";
     interleave(DefaultedConstraints, [&](ConstraintLocator *locator) {
@@ -1629,12 +1642,12 @@ TypeChecker::typeCheckCheckedCast(Type fromType, Type toType,
   }
 
   // Since move-only types currently cannot conform to protocols, nor be a class
-  // type, the subtyping hierarchy is a bit bizarre as of now:
+  // type, the subtyping hierarchy looks a bit like this:
   //
-  //              noncopyable
-  //           structs and enums
-  //                   |
-  //       +--------- Any
+  //                  ~Copyable
+  //                    /  \
+  //                   /    \
+  //       +--------- Any    noncopyable structs/enums
   //       |           |
   //   AnyObject    protocol
   //       |       existentials
@@ -1646,7 +1659,9 @@ TypeChecker::typeCheckCheckedCast(Type fromType, Type toType,
   //
   //
   // Thus, right now, a move-only type is only a subtype of itself.
-  if (fromType->isPureMoveOnly() || toType->isPureMoveOnly())
+  // We also want to prevent conversions of a move-only type's metatype.
+  if (fromType->getMetatypeInstanceType()->isPureMoveOnly()
+      || toType->getMetatypeInstanceType()->isPureMoveOnly())
     return CheckedCastKind::Unresolved;
   
   // Check for a bridging conversion.

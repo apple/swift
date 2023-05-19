@@ -990,6 +990,14 @@ static bool keepArgsOfPartialApplyAlive(PartialApplyInst *pai,
     return false;
   }
 
+  // We must not introduce copies for move only types.
+  // TODO: in OSSA, instead of bailing, it's possible to destroy the arguments
+  //       without the need of copies.
+  for (Operand *argOp : argsToHandle) {
+    if (argOp->get()->getType().isMoveOnly())
+      return false;
+  }
+
   for (Operand *argOp : argsToHandle) {
     SILValue arg = argOp->get();
 
@@ -1024,11 +1032,14 @@ bool swift::tryDeleteDeadClosure(SingleValueInstruction *closure,
   if (pa && pa->isOnStack()) {
     SmallVector<SILInstruction *, 8> deleteInsts;
     for (auto *use : pa->getUses()) {
-      if (isa<DeallocStackInst>(use->getUser())
-          || isa<DebugValueInst>(use->getUser()))
-        deleteInsts.push_back(use->getUser());
-      else if (!deadMarkDependenceUser(use->getUser(), deleteInsts))
+      SILInstruction *user = use->getUser();
+      if (isa<DeallocStackInst>(user)
+          || isa<DebugValueInst>(user)
+          || isa<DestroyValueInst>(user)) {
+        deleteInsts.push_back(user);
+      } else if (!deadMarkDependenceUser(user, deleteInsts)) {
         return false;
+      }
     }
     for (auto *inst : reverse(deleteInsts))
       callbacks.deleteInst(inst);
@@ -1826,6 +1837,10 @@ void swift::endLifetimeAtLeakingBlocks(SILValue value,
 }
 
 // TODO: this currently fails to notify the pass with notifyNewInstruction.
+//
+// TODO: whenever a debug_value is inserted at a new location, check that no
+// other debug_value instructions exist between the old and new location for
+// the same variable.
 void swift::salvageDebugInfo(SILInstruction *I) {
   if (!I)
     return;
@@ -1845,7 +1860,6 @@ void swift::salvageDebugInfo(SILInstruction *I) {
         }
       }
   }
-
   // If a `struct` SIL instruction is "unwrapped" and removed,
   // for instance, in favor of using its enclosed value directly,
   // we need to make sure any of its related `debug_value` instruction
@@ -1907,6 +1921,23 @@ void swift::salvageDebugInfo(SILInstruction *I) {
             .createDebugValue(DbgInst->getLoc(), Base, *VarInfo);
         }
       }
+  }
+}
+
+void swift::salvageLoadDebugInfo(LoadOperation load) {
+  for (Operand *debugUse : getDebugUses(load.getLoadInst())) {
+    // Create a new debug_value rather than reusing the old one so the
+    // SILBuilder adds 'expr(deref)' to account for the indirection.
+    auto *debugInst = cast<DebugValueInst>(debugUse->getUser());
+    auto varInfo = debugInst->getVarInfo();
+    if (!varInfo)
+      continue;
+
+    // The new debug_value must be "hoisted" to the load to ensure that the
+    // address is still valid.
+    SILBuilder(load.getLoadInst(), debugInst->getDebugScope())
+      .createDebugValueAddr(debugInst->getLoc(), load.getOperand(),
+                            varInfo.value());
   }
 }
 

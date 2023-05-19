@@ -314,34 +314,11 @@ MemBehavior MemoryBehaviorVisitor::visitMarkUnresolvedMoveAddrInst(
 }
 
 MemBehavior MemoryBehaviorVisitor::visitBuiltinInst(BuiltinInst *BI) {
-  // If our callee is not a builtin, be conservative and return may have side
-  // effects.
-  if (!BI) {
-    return MemBehavior::MayHaveSideEffects;
+  MemBehavior mb = BI->getMemoryBehavior();
+  if (mb != MemBehavior::None) {
+    return AA->getMemoryBehaviorOfInst(V, BI);
   }
-
-  // If the builtin is read none, it does not read or write memory.
-  if (!BI->mayReadOrWriteMemory()) {
-    LLVM_DEBUG(llvm::dbgs() << "  Found apply of read none builtin. Returning"
-                               " None.\n");
-    return MemBehavior::None;
-  }
-
-  // If the builtin is side effect free, then it can only read memory.
-  if (!BI->mayHaveSideEffects()) {
-    LLVM_DEBUG(llvm::dbgs() << "  Found apply of side effect free builtin. "
-                               "Returning MayRead.\n");
-    return MemBehavior::MayRead;
-  }
-
-  // FIXME: If the value (or any other values from the instruction that the
-  // value comes from) that we are tracking does not escape and we don't alias
-  // any of the arguments of the apply inst, we should be ok.
-
-  // Otherwise be conservative and return that we may have side effects.
-  LLVM_DEBUG(llvm::dbgs() << "  Found apply of side effect builtin. "
-                             "Returning MayHaveSideEffects.\n");
-  return MemBehavior::MayHaveSideEffects;
+  return MemBehavior::None;
 }
 
 MemBehavior MemoryBehaviorVisitor::visitTryApplyInst(TryApplyInst *AI) {

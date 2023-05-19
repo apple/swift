@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk-concurrency-without-job) -typecheck -parse-as-library %s -verify
+// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk-concurrency-without-job) -emit-sil -parse-as-library %s -verify
 
 // REQUIRES: concurrency
 // REQUIRES: libdispatch

@@ -34,8 +34,7 @@ class BasicCalleeAnalysis;
 // global_init attributes.
 enum class InlineSelection {
   Everything,
-  NoGlobalInit, // and no availability semantics calls
-  NoSemanticsAndGlobalInit,
+  NoSemanticsAndEffects,
   OnlyInlineAlways,
 };
 

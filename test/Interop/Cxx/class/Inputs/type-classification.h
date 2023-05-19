@@ -213,32 +213,4 @@ struct HasMethodThatReturnsIteratorBox {
   IteratorBox getIteratorBox() const;
 };
 
-template <typename T>
-struct TemplatedPointerBox {
-  T *ptr;
-};
-
-struct HasMethodThatReturnsTemplatedPointerBox {
-  TemplatedPointerBox<int> getTemplatedPointerBox() const;
-};
-
-template <typename T>
-struct TemplatedBox {
-  T value;
-};
-
-struct HasMethodThatReturnsTemplatedBox {
-  TemplatedBox<int> getIntBox() const;
-  TemplatedBox<int *> getIntPtrBox() const;
-};
-
-template <typename T>
-struct __attribute__((swift_attr("import_iterator"))) TemplatedIterator {
-  T idx;
-};
-
-struct HasMethodThatReturnsTemplatedIterator {
-  TemplatedIterator<int *> getIterator() const;
-};
-
 #endif // TEST_INTEROP_CXX_CLASS_INPUTS_TYPE_CLASSIFICATION_H

@@ -494,6 +494,9 @@ ERROR(error_create_cas, none, "failed to create CAS '%0' (%1)", (StringRef, Stri
 ERROR(error_invalid_cas_id, none, "invalid CASID '%0' (%1)", (StringRef, StringRef))
 ERROR(error_cas, none, "CAS error encountered: %0", (StringRef))
 
+ERROR(error_failed_cached_diag, none, "failed to serialize cached diagnostics: %0", (StringRef))
+ERROR(error_replay_cached_diag, none, "failed to replay cached diagnostics: %0", (StringRef))
+
 // Dependency Verifier Diagnostics
 ERROR(missing_member_dependency,none,
       "expected "

@@ -140,9 +140,15 @@ public:
       SmallVector<BeginAccessInst *, 16> foundBeginAccess;
       LinearLifetimeChecker checker(&ctx.getDeadEndBlocks());
       SILValue introducerValue = liveRange.getIntroducer().value;
-      if (!checker.usesNotContainedWithinLifetime(introducerValue,
-                                                  liveRange.getDestroyingUses(),
-                                                  *wellBehavedWrites)) {
+      SmallVector<Operand *, 4> consumingUses;
+      for (auto *op : liveRange.getDestroyingUses()) {
+        consumingUses.push_back(op);
+      }
+      for (auto *op : liveRange.getUnknownConsumingUses()) {
+        consumingUses.push_back(op);
+      }
+      if (!checker.usesNotContainedWithinLifetime(
+              introducerValue, consumingUses, *wellBehavedWrites)) {
         return answer(true);
       }
 
@@ -368,7 +374,8 @@ bool SemanticARCOptVisitor::performLoadCopyToLoadBorrowOptimization(
   // Then check if our address is ever written to. If it is, then we cannot use
   // the load_borrow because the stored value may be released during the loaded
   // value's live range.
-  if (isWrittenTo(ctx, li, lr))
+  if (isWrittenTo(ctx, li, lr) ||
+      (li != original && isWrittenTo(ctx, li, OwnershipLiveRange(li))))
     return false;
 
   // Ok, we can perform our optimization. Convert the load [copy] into a

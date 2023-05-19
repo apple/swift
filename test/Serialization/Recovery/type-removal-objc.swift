@@ -21,16 +21,16 @@ public let someObject: Base? = nil
 // CHECK-DAG: let someGenericObject: Generic<AnyObject>?
 // CHECK-RECOVERY-NEGATIVE-NOT: let someGenericObject:
 public let someGenericObject: Generic<AnyObject>? = nil
-// CHECK-DAG: let someProtoValue: SomeProto?
+// CHECK-DAG: let someProtoValue: (any SomeProto)?
 // CHECK-RECOVERY-NEGATIVE-NOT: let someProtoValue:
 public let someProtoValue: SomeProto? = nil
-// CHECK-DAG: let someProtoType: SomeProto.Type?
+// CHECK-DAG: let someProtoType: (any SomeProto.Type)?
 // CHECK-RECOVERY-NEGATIVE-NOT: let someProtoType:
 public let someProtoType: SomeProto.Type? = nil
-// CHECK-DAG: let someProtoCompositionValue: (AProto & SomeProto)?
+// CHECK-DAG: let someProtoCompositionValue: (any AProto & SomeProto)?
 // CHECK-RECOVERY-NEGATIVE-NOT: let someProtoCompositionValue:
 public let someProtoCompositionValue: (AProto & SomeProto)? = nil
-// CHECK-DAG: let someProtoCompositionValue2: (SomeProto & ZProto)?
+// CHECK-DAG: let someProtoCompositionValue2: (any SomeProto & ZProto)?
 // CHECK-RECOVERY-NEGATIVE-NOT: let someProtoCompositionValue2:
 public let someProtoCompositionValue2: (SomeProto & ZProto)? = nil
 

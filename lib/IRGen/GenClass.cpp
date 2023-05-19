@@ -1228,7 +1228,7 @@ namespace {
         const ClassLayout &fieldLayout)
         : IGM(IGM), TheEntity(theUnion), TheExtension(nullptr),
           FieldLayout(&fieldLayout) {
-      visitConformances(getClass()->getImplementationContext());
+      visitConformances(getClass());
 
       if (getClass()->isRootDefaultActor()) {
         Ivars.push_back(Field::DefaultActorStorage);
@@ -1249,7 +1249,7 @@ namespace {
           FieldLayout(nullptr) {
       buildCategoryName(CategoryName);
 
-      visitConformances(theExtension->getImplementationContext());
+      visitConformances(theExtension);
 
       for (Decl *member : TheExtension->getImplementationContext()->getMembers())
         visit(member);
@@ -1295,6 +1295,15 @@ namespace {
     /// Gather protocol records for all of the explicitly-specified Objective-C
     /// protocol conformances.
     void visitConformances(const IterableDeclContext *idc) {
+      auto dc = idc->getAsGenericContext();
+      if (dc->getImplementedObjCContext() != dc) {
+        // We want to use the conformance list imported from the ObjC header.
+        auto importedIDC = cast<IterableDeclContext>(
+                                 dc->getImplementedObjCContext()->getAsDecl());
+        visitConformances(importedIDC);
+        return;
+      }
+
       llvm::SmallSetVector<ProtocolDecl *, 2> protocols;
       for (auto conformance : idc->getLocalConformances(
                                 ConformanceLookupKind::OnlyExplicit)) {
@@ -2719,7 +2728,17 @@ llvm::Constant *irgen::emitObjCProtocolData(IRGenModule &IGM,
                                             ProtocolDecl *proto) {
   assert(proto->isObjC() && "not an objc protocol");
   PrettyStackTraceDecl stackTraceRAII("emitting ObjC metadata for", proto);
-  if (llvm::Triple(IGM.Module.getTargetTriple()).isOSDarwin()) {
+
+  // The linker on older deployment targets does not gracefully handle the
+  // situation when both an objective c object and a swift object define the
+  // protocol under the same symbol name.
+  auto deploymentAvailability =
+      AvailabilityContext::forDeploymentTarget(IGM.Context);
+  bool canUseClangEmission = deploymentAvailability.isContainedIn(
+    IGM.Context.getSwift58Availability());
+
+  if (llvm::Triple(IGM.Module.getTargetTriple()).isOSDarwin() &&
+      canUseClangEmission) {
     // Use the clang to generate the protocol metadata if there is a clang node.
     if (auto clangDecl = proto->getClangDecl()) {
       if (auto objcMethodDecl = dyn_cast<clang::ObjCProtocolDecl>(clangDecl)) {

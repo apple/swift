@@ -223,7 +223,7 @@ ERROR(unknown_attribute,none,
 NOTE(in_macro_expansion,none,
      "in expansion of macro %0 here", (DeclName))
 ERROR(macro_experimental,none,
-      "%0 macros are an experimental feature that is not enabled (%1)",
+      "%0 macros are an experimental feature that is not enabled %select{|(%1)}1",
       (StringRef, StringRef))
 ERROR(ambiguous_macro_reference,none,
       "ambiguous reference to macro %0", (DeclName))

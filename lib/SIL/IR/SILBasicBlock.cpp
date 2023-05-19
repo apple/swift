@@ -203,7 +203,9 @@ SILFunctionArgument *SILBasicBlock::replaceFunctionArgument(
 /// ValueDecl D).
 SILPhiArgument *SILBasicBlock::replacePhiArgument(unsigned i, SILType Ty,
                                                   ValueOwnershipKind Kind,
-                                                  const ValueDecl *D) {
+                                                  const ValueDecl *D,
+                                                  bool isReborrow,
+                                                  bool isEscaping) {
   assert(!isEntry() && "PHI Arguments can not be in the entry block");
   SILFunction *F = getParent();
   SILModule &M = F->getModule();
@@ -212,7 +214,8 @@ SILPhiArgument *SILBasicBlock::replacePhiArgument(unsigned i, SILType Ty,
 
   assert(ArgumentList[i]->use_empty() && "Expected no uses of the old BB arg!");
 
-  SILPhiArgument *NewArg = new (M) SILPhiArgument(Ty, Kind, D);
+  SILPhiArgument *NewArg =
+      new (M) SILPhiArgument(Ty, Kind, D, isReborrow, isEscaping);
   NewArg->setParent(this);
   ArgumentList[i]->parentBlock = nullptr;
 
@@ -224,7 +227,8 @@ SILPhiArgument *SILBasicBlock::replacePhiArgument(unsigned i, SILType Ty,
 }
 
 SILPhiArgument *SILBasicBlock::replacePhiArgumentAndReplaceAllUses(
-    unsigned i, SILType ty, ValueOwnershipKind kind, const ValueDecl *d) {
+    unsigned i, SILType ty, ValueOwnershipKind kind, const ValueDecl *d,
+    bool isReborrow, bool isEscaping) {
   // Put in an undef placeholder before we do the replacement since
   // replacePhiArgument() expects the replaced argument to not have
   // any uses.
@@ -238,7 +242,7 @@ SILPhiArgument *SILBasicBlock::replacePhiArgumentAndReplaceAllUses(
   }
 
   // Perform the replacement.
-  auto *newArg = replacePhiArgument(i, ty, kind, d);
+  auto *newArg = replacePhiArgument(i, ty, kind, d, isReborrow, isEscaping);
 
   // Wire back up the uses.
   while (!operands.empty()) {
@@ -250,20 +254,26 @@ SILPhiArgument *SILBasicBlock::replacePhiArgumentAndReplaceAllUses(
 
 SILPhiArgument *SILBasicBlock::createPhiArgument(SILType Ty,
                                                  ValueOwnershipKind Kind,
-                                                 const ValueDecl *D) {
+                                                 const ValueDecl *D,
+                                                 bool isReborrow,
+                                                 bool isEscaping) {
   assert(!isEntry() && "PHI Arguments can not be in the entry block");
   if (Ty.isTrivial(*getParent()))
     Kind = OwnershipKind::None;
-  return new (getModule()) SILPhiArgument(this, Ty, Kind, D);
+  return new (getModule())
+      SILPhiArgument(this, Ty, Kind, D, isReborrow, isEscaping);
 }
 
 SILPhiArgument *SILBasicBlock::insertPhiArgument(unsigned AtArgPos, SILType Ty,
                                                  ValueOwnershipKind Kind,
-                                                 const ValueDecl *D) {
+                                                 const ValueDecl *D,
+                                                 bool isReborrow,
+                                                 bool isEscaping) {
   assert(!isEntry() && "PHI Arguments can not be in the entry block");
   if (Ty.isTrivial(*getParent()))
     Kind = OwnershipKind::None;
-  auto *arg = new (getModule()) SILPhiArgument(Ty, Kind, D);
+  auto *arg =
+      new (getModule()) SILPhiArgument(Ty, Kind, D, isReborrow, isEscaping);
   arg->parentBlock = this;
   insertArgument(ArgumentList.begin() + AtArgPos, arg);
   return arg;

@@ -1,7 +1,28 @@
-// RUN: %target-typecheck-verify-swift -enable-experimental-feature VariadicGenerics
+// RUN: %target-typecheck-verify-swift -disable-availability-checking
 
-// REQUIRES: asserts
+// Disallowed cases
+struct MultiplePack<each T, each U> {} // expected-error {{generic type cannot declare more than one type pack}}
+typealias MultiplePackAlias<each T, each U> = (repeat each T, repeat each U) // expected-error {{generic type cannot declare more than one type pack}}
 
+// Temporary limitations
+enum EnumWithPack<each T> { // expected-error {{enums cannot declare a type pack}}
+  case cheddar
+}
+
+class ClassWithPack<each T> {}
+
+struct OuterStruct<each T> {
+  enum NestedEnum { // expected-error {{enums cannot declare a type pack}}
+    case smokedGouda
+  }
+
+  class NestedClass {}
+}
+
+class BadInheritance1: ClassWithPack<Int> {} // expected-error {{cannot inherit from a generic class that declares a type pack}}
+class BadInheritance2: OuterStruct<Int>.NestedClass {} // expected-error {{cannot inherit from a generic class that declares a type pack}}
+
+// Type resolution of variadic type aliases
 func bindAll() {
   struct Bind<each U> {}
 

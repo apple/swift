@@ -310,9 +310,11 @@ bool SinkAddressProjections::cloneProjections() {
   return true;
 }
 
-bool StaticInitCloner::add(SILInstruction *initVal) {
+bool StaticInitCloner::add(SILValue initVal) {
+  SILInstruction *initInst = initVal->getDefiningInstruction();
+
   // Don't schedule an instruction twice for cloning.
-  if (numOpsToClone.count(initVal) != 0)
+  if (numOpsToClone.count(initInst) != 0)
     return true;
 
   if (auto *funcRef = dyn_cast<FunctionRefInst>(initVal)) {
@@ -324,25 +326,25 @@ bool StaticInitCloner::add(SILInstruction *initVal) {
     }
   }
 
-  ArrayRef<Operand> operands = initVal->getAllOperands();
-  numOpsToClone[initVal] = operands.size();
+  ArrayRef<Operand> operands = initInst->getAllOperands();
+  numOpsToClone[initInst] = operands.size();
   if (operands.empty()) {
     // It's an instruction without operands, e.g. a literal. It's ready to be
     // cloned first.
-    readyToClone.push_back(initVal);
+    readyToClone.push_back(initInst);
   } else {
     // Recursively add all operands.
     for (const Operand &operand : operands) {
-      if (!add(cast<SingleValueInstruction>(operand.get())))
+      if (!add(operand.get()))
         return false;
     }
   }
   return true;
 }
 
-SingleValueInstruction *
-StaticInitCloner::clone(SingleValueInstruction *initVal) {
-  assert(numOpsToClone.count(initVal) != 0 && "initVal was not added");
+SILValue StaticInitCloner::clone(SILValue initVal) {
+  SILInstruction *initInst = initVal->getDefiningInstruction();
+  assert(numOpsToClone.count(initInst) != 0 && "initVal was not added");
   
   if (!isValueCloned(initVal)) {
     // Find the right order to clone: all operands of an instruction must be
@@ -361,9 +363,9 @@ StaticInitCloner::clone(SingleValueInstruction *initVal) {
             readyToClone.push_back(user);
         }
       }
-      if (inst == initVal)
+      if (inst == initInst)
         break;
     }
   }
-  return cast<SingleValueInstruction>(getMappedValue(initVal));
+  return getMappedValue(initVal);
 }

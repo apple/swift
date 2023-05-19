@@ -1,12 +1,9 @@
 // RUN: %empty-directory(%t)
 
-// RUN: %target-build-swift -emit-executable %s -g -o %t/variadic_nominal_types -emit-module -enable-experimental-feature VariadicGenerics
+// RUN: %target-build-swift -emit-executable %s -g -o %t/variadic_nominal_types -emit-module -Xfrontend -disable-availability-checking
 
 // RUN: sed -ne '/\/\/ *DEMANGLE-TYPE: /s/\/\/ *DEMANGLE-TYPE: *//p' < %s > %t/input
 // RUN: %lldb-moduleimport-test-with-sdk %t/variadic_nominal_types -type-from-mangled=%t/input | %FileCheck %s --check-prefix=CHECK-TYPE
-
-// Because of -enable-experimental-feature VariadicGenerics
-// REQUIRES: asserts
 
 struct Variadic<each T, U> {
   struct Inner<each V, W> {}

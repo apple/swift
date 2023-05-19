@@ -108,6 +108,14 @@ bool PartialApplyCombiner::copyArgsToTemporaries(
     return false;
   }
 
+  // We must not introduce copies for move only types.
+  // TODO: in OSSA, instead of bailing, it's possible to keep the arguments
+  //       alive without the need of copies.
+  for (Operand *argOp : argsToHandle) {
+    if (argOp->get()->getType().isMoveOnly())
+      return false;
+  }
+
   for (Operand *argOp : argsToHandle) {
     SILValue arg = argOp->get();
     SILValue tmp = arg;

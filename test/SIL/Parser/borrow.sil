@@ -44,3 +44,26 @@ sil [ossa] @foo : $@convention(thin) () -> () {
   %res = tuple ()
   return %res : $()
 }
+
+// CHECK-LABEL: sil [ossa] @reborrowTest : $@convention(thin) (@owned C) -> () {
+// CHECK: bb3([[ARG:%.*]] : @reborrow @guaranteed $C):
+// CHECK: } // end sil function 'reborrowTest'
+sil [ossa] @reborrowTest : $@convention(thin) (@owned C) -> () {
+bb0(%0 : @owned $C):
+  cond_br undef, bb1, bb2
+
+bb1:
+  %b1 = begin_borrow %0 : $C
+  br bb3(%b1 : $C)
+
+bb2:
+  %b2 = begin_borrow %0 : $C
+  br bb3(%b2 : $C)
+
+bb3(%r : @reborrow @guaranteed $C):
+  end_borrow %r : $C
+  destroy_value %0 : $C
+  %9999 = tuple()
+  return %9999 : $()
+}
+

@@ -1515,7 +1515,7 @@ ${assignmentOperatorComment(x.operator, True)}
 
 %   dbits = bits*2
 %   if bits == 64:
-  #if !(arch(arm) || arch(i386) || arch(wasm32))
+  #if _pointerBitWidth(_64) || arch(arm64_32)
   //  On 32b architectures we fall back on the generic implementation,
   //  because LLVM doesn't know how to codegen the 128b multiply we use.
   //

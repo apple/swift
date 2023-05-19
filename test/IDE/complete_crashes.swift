@@ -31,7 +31,7 @@ func badMembers2(_ a: BadMembers2) {
 // BAD_MEMBERS_2: Begin completions, 3 items
 // BAD_MEMBERS_2-DAG: Decl[InstanceVar]/CurrNominal: .prop[#Int#]{{; name=.+$}}
 // BAD_MEMBERS_2-DAG: Decl[Subscript]/CurrNominal:   [{#(i): Int#}][#Double#]{{; name=.+$}}
-// BAD_MEMBERS_2-DAG: Keyword[self]/CurrNominal:     .self[#BadMembers2#]; name=self
+// BAD_MEMBERS_2-DAG: Keyword[self]/CurrNominal:     .self[#any BadMembers2#]; name=self
 
 func globalFunc() {}
 

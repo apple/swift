@@ -63,4 +63,4 @@ struct G<X : Base, Y> {}
 
 // CHECK-LABEL: ExtensionDecl line={{.*}} base=G
 // CHECK-NEXT: Generic signature: <X, Y where X == Derived<Y>, Y : C>
-extension G where X == Derived<Y> {}
+extension G where X == Derived<Y> {} // expected-warning {{redundant superclass constraint 'X' : 'Base'}}

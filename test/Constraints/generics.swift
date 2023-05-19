@@ -1017,6 +1017,7 @@ func test_requirement_failures_in_ambiguous_context() {
   func f1<T: Equatable>(_: T, _: T) {} // expected-note {{where 'T' = 'A'}}
 
   f1(A(), B()) // expected-error {{local function 'f1' requires that 'A' conform to 'Equatable'}}
+  // expected-error@-1 {{cannot convert value of type 'B' to expected argument type 'A'}}
 
   func f2<T: P_56173, U: P_56173>(_: T, _: U) {}
   // expected-note@-1 {{candidate requires that 'B' conform to 'P_56173' (requirement specified as 'U' : 'P_56173')}}

@@ -180,7 +180,7 @@ bool CanonicalizeBorrowScope::computeBorrowLiveness() {
   // the reborrowed value will not be rewritten when canonicalizing the current
   // borrow scope because they are "hidden" behind the reborrow.
   borrowedValue.visitLocalScopeEndingUses([this](Operand *use) {
-    liveness.updateForUse(use->getUser(), /*lifetimeEnding*/ true);
+    liveness->updateForUse(use->getUser(), /*lifetimeEnding*/ true);
     return true;
   });
   return true;
@@ -601,7 +601,7 @@ public:
     }
     // If it's not already dead, update this operand bypassing any copies.
     SILValue innerValue = use->get();
-    if (scope.getDeleter().deleteIfDead(user)) {
+    if (scope.getDeleter().deleteIfDead(user, /*fixLifetime=*/false)) {
       LLVM_DEBUG(llvm::dbgs() << "  Deleted " << *user);
     } else {
       use->set(scope.findDefInBorrowScope(use->get()));
@@ -692,7 +692,7 @@ SILValue RewriteOuterBorrowUses::createOuterValues(SILValue innerValue) {
 
   auto incomingOuterVal = createOuterValues(incomingInnerVal);
 
-  auto *insertPt = incomingOuterVal->getNextInstruction();
+  auto *insertPt = innerValue->getDefiningInsertionPoint();
   auto *clone = innerInst->clone(insertPt);
   scope.getCallbacks().createdNewInst(clone);
   Operand *use = &clone->getOperandRef(0);
@@ -824,8 +824,6 @@ bool CanonicalizeBorrowScope::canonicalizeFunctionArgument(
 
   LLVM_DEBUG(llvm::dbgs() << "*** Canonicalize Borrow: " << borrowedValue);
 
-  SWIFT_DEFER { liveness.invalidate(); };
-
   RewriteInnerBorrowUses innerRewriter(*this);
   beginVisitBorrowScopeUses(); // reset the def/use worklist
 
@@ -839,11 +837,12 @@ bool CanonicalizeBorrowScope::canonicalizeFunctionArgument(
 /// forwarding operations.
 bool CanonicalizeBorrowScope::
 canonicalizeBorrowScope(BorrowedValue borrowedValue) {
+  BitfieldRef<SSAPrunedLiveness>::StackState livenessBitfieldContainer(
+      liveness, function);
+
   LLVM_DEBUG(llvm::dbgs() << "*** Canonicalize Borrow: " << borrowedValue);
 
   initBorrow(borrowedValue);
-
-  SWIFT_DEFER { liveness.invalidate(); };
 
   if (!computeBorrowLiveness())
     return false;

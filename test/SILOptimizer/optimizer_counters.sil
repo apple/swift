@@ -19,9 +19,8 @@ sil @fatalError : $@convention(thin) () -> Never
 
 // Check that module level statistics are produced.
 //
-// CHECK-SIL-STATS-MODULES: module, inst, HighLevel,Function+EarlyLoopOpt, PerformanceConstantPropagation, {{.*}}, 14, 11
-// CHECK-SIL-STATS-MODULES: module, block, HighLevel,Function+EarlyLoopOpt, SimplifyCFG, {{.*}}, 5, 3
-// CHECK-SIL-STATS-MODULES: module, inst, HighLevel,Function+EarlyLoopOpt, SimplifyCFG, {{.*}}, 11, 6
+// CHECK-SIL-STATS-MODULES: module, block, PrepareOptimizationPasses, Simplification, {{.*}}, 6, 3
+// CHECK-SIL-STATS-MODULES: module, inst, PrepareOptimizationPasses, Simplification, {{.*}}, 15, 6
 
 // Check that module level statistics are produced.
 //

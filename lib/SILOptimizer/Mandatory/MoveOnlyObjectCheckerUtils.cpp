@@ -110,6 +110,21 @@ bool swift::siloptimizer::searchForCandidateObjectMarkMustChecks(
             }
           }
 
+          // In the case we have a resilient argument, we may have the following pattern:
+          //
+          // bb0(%0 : $*Type): // in_guaranteed
+          //   %1 = load_borrow %0
+          //   %2 = copy_value
+          //   %3 = mark_must_check [no_copy_or_assign]
+          if (auto *lbi = dyn_cast<LoadBorrowInst>(cvi->getOperand())) {
+            if (auto *arg = dyn_cast<SILFunctionArgument>(lbi->getOperand())) {
+              if (arg->getKnownParameterInfo().isIndirectInGuaranteed()) {
+                moveIntroducersToProcess.insert(mmci);
+                continue;
+              }
+            }
+          }
+
           if (auto *bbi = dyn_cast<BeginBorrowInst>(cvi->getOperand())) {
             if (bbi->isLexical()) {
               moveIntroducersToProcess.insert(mmci);
@@ -656,6 +671,11 @@ void MoveOnlyObjectCheckerPImpl::check(DominanceInfo *domTree,
             i = copyToMoveOnly;
           }
 
+          // Handle:
+          //
+          // bb0(%0 : @guaranteed $Type):
+          //   %1 = copy_value %0
+          //   %2 = mark_must_check [no_consume_or_assign] %1
           if (auto *arg = dyn_cast<SILFunctionArgument>(i->getOperand(0))) {
             if (arg->getOwnershipKind() == OwnershipKind::Guaranteed) {
               for (auto *use : markedInst->getConsumingUses()) {
@@ -667,6 +687,28 @@ void MoveOnlyObjectCheckerPImpl::check(DominanceInfo *domTree,
               markedInst->eraseFromParent();
               cvi->eraseFromParent();
               continue;
+            }
+          }
+
+          // Handle:
+          //
+          // bb0(%0 : $*Type): // in_guaranteed
+          //   %1 = load_borrow %0
+          //   %2 = copy_value %1
+          //   %3 = mark_must_check [no_consume_or_assign] %2
+          if (auto *lbi = dyn_cast<LoadBorrowInst>(i->getOperand(0))) {
+            if (auto *arg = dyn_cast<SILFunctionArgument>(lbi->getOperand())) {
+              if (arg->getKnownParameterInfo().isIndirectInGuaranteed()) {
+                for (auto *use : markedInst->getConsumingUses()) {
+                  destroys.push_back(cast<DestroyValueInst>(use->getUser()));
+                }
+                while (!destroys.empty())
+                  destroys.pop_back_val()->eraseFromParent();
+                markedInst->replaceAllUsesWith(lbi);
+                markedInst->eraseFromParent();
+                cvi->eraseFromParent();
+                continue;
+              }
             }
           }
         }

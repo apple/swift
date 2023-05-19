@@ -224,7 +224,7 @@ static bool mayWriteTo(AliasAnalysis *AA, BasicCalleeAnalysis *BCA,
 /// Returns true if \p sideEffectInst cannot be reordered with a call to a
 /// global initializer.
 static bool mayConflictWithGlobalInit(AliasAnalysis *AA,
-                    SILInstruction *sideEffectInst, ApplyInst *globalInitCall) {
+                    SILInstruction *sideEffectInst, SILInstruction *globalInitCall) {
   if (auto *SI = dyn_cast<StoreInst>(sideEffectInst)) {
     return AA->mayReadOrWriteMemory(globalInitCall, SI->getDest());
   }
@@ -239,7 +239,7 @@ static bool mayConflictWithGlobalInit(AliasAnalysis *AA,
 /// the call.
 static bool mayConflictWithGlobalInit(AliasAnalysis *AA,
                        InstSet &sideEffectInsts,
-                       ApplyInst *globalInitCall,
+                       SILInstruction *globalInitCall,
                        SILBasicBlock *preHeader, PostDominanceInfo *PD) {
   if (!PD->dominates(globalInitCall->getParent(), preHeader))
     return true;
@@ -263,7 +263,7 @@ static bool mayConflictWithGlobalInit(AliasAnalysis *AA,
 /// block).
 static bool mayConflictWithGlobalInit(AliasAnalysis *AA,
                        ArrayRef<SILInstruction *> sideEffectInsts,
-                       ApplyInst *globalInitCall) {
+                       SILInstruction *globalInitCall) {
   for (auto *seInst : sideEffectInsts) {
     assert(seInst->getParent() == globalInitCall->getParent());
     if (mayConflictWithGlobalInit(AA, seInst, globalInitCall))
@@ -864,7 +864,12 @@ void LoopTreeOptimization::analyzeCurrentLoop(
 
   // Interesting instructions in the loop:
   SmallVector<ApplyInst *, 8> ReadOnlyApplies;
-  SmallVector<ApplyInst *, 8> globalInitCalls;
+
+  // Contains either:
+  // * an apply to the addressor of the global
+  // * a builtin "once" of the global initializer
+  SmallVector<SILInstruction *, 8> globalInitCalls;
+
   SmallVector<LoadInst *, 8> Loads;
   SmallVector<StoreInst *, 8> Stores;
   SmallVector<FixLifetimeInst *, 8> FixLifetimes;
@@ -918,8 +923,8 @@ void LoopTreeOptimization::analyzeCurrentLoop(
               // Check against side-effects within the same block.
               // Side-effects in other blocks are checked later (after we
               // scanned all blocks of the loop).
-              !mayConflictWithGlobalInit(AA, sideEffectsInBlock, AI))
-            globalInitCalls.push_back(AI);
+              !mayConflictWithGlobalInit(AA, sideEffectsInBlock, &Inst))
+            globalInitCalls.push_back(&Inst);
         }
         // check for array semantics and side effects - same as default
         LLVM_FALLTHROUGH;
@@ -927,7 +932,18 @@ void LoopTreeOptimization::analyzeCurrentLoop(
       default:
         if (auto fullApply = FullApplySite::isa(&Inst)) {
           fullApplies.push_back(fullApply);
+        } else if (auto *bi = dyn_cast<BuiltinInst>(&Inst)) {
+          switch (bi->getBuiltinInfo().ID) {
+            case BuiltinValueKind::Once:
+            case BuiltinValueKind::OnceWithContext:
+              if (!mayConflictWithGlobalInit(AA, sideEffectsInBlock, &Inst))
+                globalInitCalls.push_back(&Inst);
+              break;
+            default:
+              break;
+          }
         }
+
         checkSideEffects(Inst, sideEffects, sideEffectsInBlock);
         if (canHoistUpDefault(&Inst, Loop, DomTree, RunsOnHighLevelSIL)) {
           HoistUp.insert(&Inst);
@@ -959,7 +975,7 @@ void LoopTreeOptimization::analyzeCurrentLoop(
       postDomTree = PDA->get(Preheader->getParent());
     }
     if (postDomTree->getRootNode()) {
-      for (ApplyInst *ginitCall : globalInitCalls) {
+      for (SILInstruction *ginitCall : globalInitCalls) {
         // Check against side effects which are "before" (i.e. post-dominated
         // by) the global initializer call.
         if (!mayConflictWithGlobalInit(AA, sideEffects, ginitCall, Preheader,

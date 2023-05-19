@@ -1022,6 +1022,9 @@ sil [ossa] @closure6 : $@convention(thin) (@guaranteed Y, @guaranteed Y) -> @own
 [%1: escape c*.v** => %r.c*.v**]
 }
 
+sil @take_noescape_closure : $@convention(thin) (@guaranteed @noescape @callee_guaranteed (@guaranteed Y) -> ()) -> ()
+sil @take_escaping_closure : $@convention(thin) (@owned @callee_guaranteed (@guaranteed Y) -> ()) -> ()
+
 // CHECK-LABEL: Escape information for callClosure1:
 // CHECK:  -    :   %0 = alloc_ref $Y
 // CHECK: global:   %1 = alloc_ref $Y
@@ -1332,8 +1335,8 @@ sil @test_debug_value : $@convention(thin) () -> () {
 }
 
 // CHECK-LABEL: Escape information for test_walk_up_partial_apply_argument:
-// CHECK: global:   %0 = alloc_ref $Y                               // users: %3, %2
-// CHECK: global:   %6 = alloc_ref $X                               // user: %7
+// CHECK: global:   %0 = alloc_ref $Y
+// CHECK: global:   %6 = alloc_ref $X
 // CHECK: End function test_walk_up_partial_apply_argument
 sil @test_walk_up_partial_apply_argument : $@convention(thin) () -> () {
 bb0:
@@ -1346,6 +1349,36 @@ bb0:
 
   %11 = alloc_ref $X
   store %11 to %10 : $*X
+  %13 = tuple ()
+  return %13 : $()
+}
+
+// CHECK-LABEL: Escape information for test_escaping_closure:
+// CHECK: global:   %0 = alloc_ref $Y
+// CHECK: End function test_escaping_closure
+sil @test_escaping_closure : $@convention(thin) () -> () {
+bb0:
+  %0 = alloc_ref $Y
+  %1 = function_ref @closure1 : $@convention(thin) (@guaranteed Y, @guaranteed Y) -> ()
+  %2 = partial_apply [callee_guaranteed] %1(%0) : $@convention(thin) (@guaranteed Y, @guaranteed Y) -> ()
+  %3 = function_ref @take_escaping_closure : $@convention(thin) (@owned @callee_guaranteed (@guaranteed Y) -> ()) -> ()
+  %5 = apply %3(%2) : $@convention(thin) (@owned @callee_guaranteed (@guaranteed Y) -> ()) -> ()
+  %13 = tuple ()
+  return %13 : $()
+}
+
+// CHECK-LABEL: Escape information for test_noescape_partial_apply_and_convert_function:
+// CHECK:  -    :   %0 = alloc_ref $Y
+// CHECK: End function test_noescape_partial_apply_and_convert_function
+sil @test_noescape_partial_apply_and_convert_function : $@convention(thin) () -> () {
+bb0:
+  %0 = alloc_ref $Y
+  %1 = function_ref @closure1 : $@convention(thin) (@guaranteed Y, @guaranteed Y) -> ()
+  %2 = partial_apply [callee_guaranteed] [on_stack] %1(%0) : $@convention(thin) (@guaranteed Y, @guaranteed Y) -> ()
+  %3 = convert_function %2 : $@noescape @callee_guaranteed (@guaranteed Y) -> () to $@noescape @callee_guaranteed (@guaranteed Y) -> ()
+  %4 = function_ref @take_noescape_closure : $@convention(thin) (@guaranteed @noescape @callee_guaranteed (@guaranteed Y) -> ()) -> ()
+  %5 = apply %4(%3) : $@convention(thin) (@guaranteed @noescape @callee_guaranteed (@guaranteed Y) -> ()) -> ()
+  dealloc_stack %2 : $@noescape @callee_guaranteed (@guaranteed Y) -> ()
   %13 = tuple ()
   return %13 : $()
 }

@@ -71,9 +71,9 @@ let lateOnoneSimplificationPass = FunctionPass(name: "late-onone-simplification"
 //===--------------------------------------------------------------------===//
 
 
-private func runSimplification(on function: Function, _ context: FunctionPassContext,
-                               preserveDebugInfo: Bool,
-                               _ simplify: (Instruction, SimplifyContext) -> ()) {
+func runSimplification(on function: Function, _ context: FunctionPassContext,
+                       preserveDebugInfo: Bool,
+                       _ simplify: (Instruction, SimplifyContext) -> ()) {
   var worklist = InstructionWorklist(context)
   defer { worklist.deinitialize() }
 

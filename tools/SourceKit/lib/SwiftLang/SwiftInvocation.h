@@ -33,6 +33,7 @@ public:
   struct Implementation;
   Implementation &Impl;
 
+  ArrayRef<std::string> getArgs() const;
   void applyTo(swift::CompilerInvocation &CompInvok) const;
   void raw(std::vector<std::string> &Args, std::string &PrimaryFile) const;
 

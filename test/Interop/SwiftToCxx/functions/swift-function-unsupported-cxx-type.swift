@@ -13,4 +13,4 @@ public func c() {}
 
 // CHECK: SWIFT_INLINE_THUNK void a() noexcept SWIFT_SYMBOL("s:9Functions1ayyF") {
 // CHECK: SWIFT_INLINE_THUNK void c() noexcept SWIFT_SYMBOL("s:9Functions1cyyF") {
-// CHECK-NOT: b(
+// CHECK: // Unavailable in C++: Swift global function 'b(_:)'.

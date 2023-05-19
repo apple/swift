@@ -669,6 +669,20 @@ class TestCodable : TestCodableSuper {
         }
     }
 
+    // MARK: - Never
+    @available(SwiftStdlib 5.9, *)
+    func test_Never() {
+        struct Nope: Codable {
+            var no: Never
+        }
+      
+        do {
+            let neverJSON = Data(#"{"no":"never"}"#.utf8)
+            _ = try JSONDecoder().decode(Nope.self, from: neverJSON)
+            fatalError("Incorrectly decoded `Never` instance.")
+        } catch {}
+    }
+
     // MARK: - NSRange
     lazy var nsrangeValues: [Int : NSRange] = [
         #line : NSRange(),
@@ -1056,6 +1070,10 @@ if #available(macOS 10.12, iOS 10.0, watchOS 3.0, tvOS 10.0, *) {
 
 if #available(SwiftStdlib 5.6, *) {
     tests["test_Dictionary_JSON"] = TestCodable.test_Dictionary_JSON
+}
+
+if #available(SwiftStdlib 5.9, *) {
+    tests["test_Never"] = TestCodable.test_Never
 }
 
 var CodableTests = TestSuite("TestCodable")

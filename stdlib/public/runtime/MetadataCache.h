@@ -23,7 +23,7 @@
 #include "llvm/ADT/STLExtras.h"
 
 #include <condition_variable>
-#include <thread>
+#include <atomic>
 
 #ifndef SWIFT_DEBUG_RUNTIME
 #define SWIFT_DEBUG_RUNTIME 0

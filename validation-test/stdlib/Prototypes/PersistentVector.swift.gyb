@@ -193,9 +193,9 @@ struct _${name}Bitmap {
 
   var setBitCount: Int {
 %   if underlyingType == 'UInt':
-#if arch(i386) || arch(arm) || arch(arm64_32)
+#if _pointerBitWidth(_32)
     return Int(Builtin.int_ctpop_Int32(_bits._value))
-#elseif arch(x86_64) || arch(arm64) || arch(powerpc64) || arch(powerpc64le) || arch(s390x) || arch(riscv64)
+#elseif _pointerBitWidth(_64)
     return Int(Builtin.int_ctpop_Int64(_bits._value))
 #endif
 %   elif underlyingType == 'UInt32':

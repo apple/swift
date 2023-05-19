@@ -88,8 +88,8 @@ func testBasic(_ mo: borrowing MO) {
   genericVarArg(5)
   genericVarArg(mo) // expected-error {{move-only type 'MO' cannot be used with generics yet}}
 
-  takeGeneric( (mo, 5) ) // expected-error {{global function 'takeGeneric' requires that 'MO' conform to '_Copyable'}}
-  takeGenericSendable((mo, mo)) // expected-error 2{{global function 'takeGenericSendable' requires that 'MO' conform to '_Copyable'}}
+  takeGeneric( (mo, 5) ) // expected-error {{move-only type 'MO' cannot be used with generics yet}}
+  takeGenericSendable((mo, mo)) // expected-error 2{{move-only type 'MO' cannot be used with generics yet}}
 
   let singleton : (MO) = (mo)
   takeGeneric(singleton) // expected-error {{move-only type 'MO' cannot be used with generics yet}}
@@ -147,6 +147,11 @@ func checkCasting(_ b: any Box, _ mo: borrowing MO, _ a: Any) {
 
   let _: MO = dup.get()
   let _: MO = dup.val
+
+  let _: Any = MO.self // expected-error {{move-only type 'MO.Type' cannot be used with generics yet}}
+  let _: AnyObject = MO.self // expected-error {{move-only type 'MO.Type' cannot be used with generics yet}}
+  let _ = MO.self as Any // expected-error {{move-only type 'MO.Type' cannot be used with generics yet}}
+  let _ = MO.self is Any // expected-warning {{cast from 'MO.Type' to unrelated type 'Any' always fails}}
 
   let _: Sendable = (MO(), MO()) // expected-error {{move-only type '(MO, MO)' cannot be used with generics yet}}
   let _: Sendable = MO() // expected-error {{move-only type 'MO' cannot be used with generics yet}}
@@ -265,4 +270,15 @@ protocol Gives: HasType {
 struct GenerousGuy: Gives { // expected-error {{type 'GenerousGuy' does not conform to protocol 'HasType'}}
   typealias Ty = MO // expected-note {{possibly intended match 'GenerousGuy.Ty' (aka 'MO') does not conform to '_Copyable'}}
   func give() -> Ty {}
+}
+
+func doBadMetatypeStuff<T>(_ t: T) {
+  let y = t as! Any.Type
+  if let MO_MetaType = y as? MO.Type { // expected-warning {{cast from 'any Any.Type' to unrelated type 'MO.Type' always fails}}
+    let x = MO_MetaType.init()
+    let _ = x
+  }
+}
+func tryToDoBadMetatypeStuff() {
+  doBadMetatypeStuff(MO.self) // expected-error {{move-only type 'MO.Type' cannot be used with generics yet}}
 }

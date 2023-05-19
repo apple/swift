@@ -202,5 +202,5 @@ final class PlaceholderValue : Value {
 }
 
 extension OptionalBridgedValue {
-  var value: Value? { obj.getAs(AnyObject.self) as? Value }
+  public var value: Value? { obj.getAs(AnyObject.self) as? Value }
 }

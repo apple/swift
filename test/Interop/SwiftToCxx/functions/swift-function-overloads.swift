@@ -4,15 +4,15 @@
 
 // RUN: %check-interop-cxx-header-in-clang(%t/functions.h)
 
-
-
 public func overloadedFunc(_ x: Int) { }
 public func overloadedFunc(_ y: Float) { }
 
 public func overloadedFuncArgLabel(x _: Int) { }
 public func overloadedFuncArgLabel(y _: Float) { }
 
-// CHECK-DAG: void overloadedFunc(float y) noexcept
-// CHECK-DAG: void overloadedFunc(swift::Int x) noexcept
-// CHECK-DAG: void overloadedFuncArgLabel(float _1) noexcept
-// CHECK-DAG: void overloadedFuncArgLabel(swift::Int _1) noexcept
+// CHECK: void overloadedFunc(swift::Int x) noexcept
+// CHECK: void overloadedFuncArgLabel(swift::Int  _1) noexcept
+
+// CHECK: // Unavailable in C++: Swift global function 'overloadedFunc(_:)'.
+
+// CHECK: // Unavailable in C++: Swift global function 'overloadedFuncArgLabel(y:)'.

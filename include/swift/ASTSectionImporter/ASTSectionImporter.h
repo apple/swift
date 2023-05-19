@@ -20,6 +20,9 @@
 #include "swift/Basic/LLVM.h"
 #include <string>
 
+namespace llvm {
+class Triple;
+}
 namespace swift {
   class MemoryBufferSerializedModuleLoader;
 
@@ -28,9 +31,10 @@ namespace swift {
   /// registers them using registerMemoryBuffer() so they can be found by
   /// loadModule(). The access path of all modules found in the section is
   /// appended to the vector foundModules.
+  /// \param filter  If fully specified, only matching modules are registered.
   /// \return true if successful.
   bool parseASTSection(MemoryBufferSerializedModuleLoader &Loader,
-                       StringRef Data,
+                       StringRef Data, const llvm::Triple &filter,
                        SmallVectorImpl<std::string> &foundModules);
 }
 #endif

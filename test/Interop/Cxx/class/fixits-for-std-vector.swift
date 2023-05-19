@@ -22,7 +22,7 @@ import CxxStdlib
 
 public func test(v: V) {
   // CHECK: note: C++ method 'begin' that returns an iterator is unavailable
-  // CHECK: note: do you want to make a Swift iterator instead?
+  // CHECK: note: do you want to use a for-in loop instead?
   // CHECK: ^~~~~
   // CHECK: makeIterator
   _ = v.begin()

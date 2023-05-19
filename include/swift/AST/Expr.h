@@ -3627,8 +3627,6 @@ public:
     PatternExpr = patternExpr;
   }
 
-  void getExpandedPacks(SmallVectorImpl<ASTNode> &packs);
-
   GenericEnvironment *getGenericEnvironment() {
     return Environment;
   }

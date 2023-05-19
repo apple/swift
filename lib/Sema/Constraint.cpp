@@ -82,6 +82,7 @@ Constraint::Constraint(ConstraintKind Kind, Type First, Type Second,
   case ConstraintKind::PackElementOf:
   case ConstraintKind::ShapeOf:
   case ConstraintKind::ExplicitGenericArguments:
+  case ConstraintKind::SameShape:
     assert(!First.isNull());
     assert(!Second.isNull());
     break;
@@ -171,6 +172,7 @@ Constraint::Constraint(ConstraintKind Kind, Type First, Type Second, Type Third,
   case ConstraintKind::PackElementOf:
   case ConstraintKind::ShapeOf:
   case ConstraintKind::ExplicitGenericArguments:
+  case ConstraintKind::SameShape:
     llvm_unreachable("Wrong constructor");
 
   case ConstraintKind::KeyPath:
@@ -319,6 +321,7 @@ Constraint *Constraint::clone(ConstraintSystem &cs) const {
   case ConstraintKind::PackElementOf:
   case ConstraintKind::ShapeOf:
   case ConstraintKind::ExplicitGenericArguments:
+  case ConstraintKind::SameShape:
     return create(cs, getKind(), getFirstType(), getSecondType(), getLocator());
 
   case ConstraintKind::ApplicableFunction:
@@ -568,6 +571,10 @@ void Constraint::print(llvm::raw_ostream &Out, SourceManager *sm,
     Out << " shape of ";
     break;
 
+  case ConstraintKind::SameShape:
+    Out << " same-shape ";
+    break;
+
   case ConstraintKind::ExplicitGenericArguments:
     Out << " explicit generic argument binding ";
     break;
@@ -740,6 +747,7 @@ gatherReferencedTypeVars(Constraint *constraint,
   case ConstraintKind::PackElementOf:
   case ConstraintKind::ShapeOf:
   case ConstraintKind::ExplicitGenericArguments:
+  case ConstraintKind::SameShape:
     constraint->getFirstType()->getTypeVariables(typeVars);
     constraint->getSecondType()->getTypeVariables(typeVars);
     break;

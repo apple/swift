@@ -1,8 +1,10 @@
 // RUN: %empty-directory(%t)
 // RUN: %build-irgen-test-overlays
 // RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) -emit-module -o %t %S/Inputs/objc_protocols_Bas.swift
-// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) -primary-file %s -emit-ir -disable-objc-attr-requires-foundation-module > %t/out.ir
+// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) -primary-file %s -emit-ir -disable-objc-attr-requires-foundation-module -target %target-swift-abi-5.8-triple > %t/out.ir
+// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) -primary-file %s -emit-ir -disable-objc-attr-requires-foundation-module -target %target-swift-abi-5.7-triple > %t/out.old.ir
 // RUN: %FileCheck --input-file=%t/out.ir %s --check-prefix=CHECK --check-prefix=CHECK-%target-os
+// RUN: %FileCheck --input-file=%t/out.old.ir %s --check-prefix=CHECK-OLD --check-prefix=CHECK-%target-os-OLD
 
 // REQUIRES: PTRSIZE=64
 // REQUIRES: objc_interop
@@ -123,6 +125,8 @@ class ImplementingClass : InheritingProtocol { }
 
 // CHECK-linux: @_PROTOCOL_PROTOCOLS_NSDoubleInheritedFunging = weak hidden constant{{.*}}i64 2{{.*}} @_PROTOCOL_NSFungingAndRuncing {{.*}}@_PROTOCOL_NSFunging
 // CHECK-macosx: @"_OBJC_$_PROTOCOL_REFS_NSDoubleInheritedFunging" = internal global{{.*}}i64 2{{.*}} @"_OBJC_PROTOCOL_$_NSFungingAndRuncing"{{.*}} @"_OBJC_PROTOCOL_$_NSFunging"
+// CHECK-linux-OLD: @_PROTOCOL_PROTOCOLS_NSDoubleInheritedFunging = weak hidden constant{{.*}}i64 2{{.*}} @_PROTOCOL_NSFungingAndRuncing {{.*}}@_PROTOCOL_NSFunging
+// CHECK-macosx-OLD: @_PROTOCOL_PROTOCOLS_NSDoubleInheritedFunging = weak hidden constant{{.*}} @_PROTOCOL_NSFungingAndRuncing
 
 // -- Force generation of witness for Zim.
 // CHECK: define hidden swiftcc { %objc_object*, i8** } @"$s14objc_protocols22mixed_heritage_erasure{{[_0-9a-zA-Z]*}}F"
@@ -132,6 +136,7 @@ func mixed_heritage_erasure(_ x: Zim) -> Frungible {
   // CHECK: insertvalue { %objc_object*, i8** } [[T0]], i8** getelementptr inbounds ([2 x i8*], [2 x i8*]* [[ZIM_FRUNGIBLE_WITNESS]], i32 0, i32 0), 1
 }
 
+// CHECK-OLD-LABEL: define hidden swiftcc void @"$s14objc_protocols0A8_generic{{[_0-9a-zA-Z]*}}F"(%objc_object* %0, %swift.type* %T) {{.*}} {
 // CHECK-LABEL: define hidden swiftcc void @"$s14objc_protocols0A8_generic{{[_0-9a-zA-Z]*}}F"(%objc_object* %0, %swift.type* %T) {{.*}} {
 func objc_generic<T : NSRuncing>(_ x: T) {
   x.runce()

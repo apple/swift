@@ -68,6 +68,7 @@ FUNC_DECL(DiagnoseUnexpectedError, "_unexpectedError")
 FUNC_DECL(DiagnoseUnexpectedNilOptional, "_diagnoseUnexpectedNilOptional")
 FUNC_DECL(DiagnoseUnexpectedEnumCase, "_diagnoseUnexpectedEnumCase")
 FUNC_DECL(DiagnoseUnexpectedEnumCaseValue, "_diagnoseUnexpectedEnumCaseValue")
+FUNC_DECL(DiagnoseUnavailableCodeReached, "_diagnoseUnavailableCodeReached")
 
 FUNC_DECL(GetErrorEmbeddedNSError, "_getErrorEmbeddedNSError")
 

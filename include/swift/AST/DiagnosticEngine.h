@@ -1169,8 +1169,7 @@ namespace swift {
 
     /// Retrieve the set of child notes that describe how the generated
     /// source buffer was derived, e.g., a macro expansion backtrace.
-    std::vector<Diagnostic> getGeneratedSourceBufferNotes(
-        SourceLoc loc, Optional<unsigned> &lastBufferID);
+    std::vector<Diagnostic> getGeneratedSourceBufferNotes(SourceLoc loc);
 
     /// Handle a new diagnostic, which will either be emitted, or added to an
     /// active transaction.

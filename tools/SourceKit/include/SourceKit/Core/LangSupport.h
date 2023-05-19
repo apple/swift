@@ -215,11 +215,43 @@ enum class DiagnosticCategory {
   NoUsage
 };
 
+struct RawCharSourceRange {
+  unsigned Offset;
+  unsigned Length;
+};
+
+/// Stores information about a given buffer, including its name and, if
+/// generated, its source text and original location.
+struct BufferInfo {
+  struct OriginalLocation {
+    std::shared_ptr<const BufferInfo> OrigBufferInfo;
+    unsigned OrigBufferID;
+    RawCharSourceRange Range;
+
+    OriginalLocation(std::shared_ptr<const BufferInfo> OrigBufferInfo,
+                     unsigned OrigBufferID, RawCharSourceRange Range)
+        : OrigBufferInfo(std::move(OrigBufferInfo)), OrigBufferID(OrigBufferID),
+          Range(Range) {}
+  };
+
+  std::string BufferName;
+  Optional<std::string> Contents;
+  Optional<OriginalLocation> OrigLocation;
+
+  BufferInfo(std::string BufferName, Optional<std::string> Contents,
+             Optional<OriginalLocation> OrigLocation)
+      : BufferName(std::move(BufferName)), Contents(std::move(Contents)),
+        OrigLocation(std::move(OrigLocation)) {}
+};
+using BufferInfoSharedPtr = std::shared_ptr<const BufferInfo>;
+
 struct DiagnosticEntryInfoBase {
   struct Fixit {
-    unsigned Offset;
-    unsigned Length;
+    RawCharSourceRange Range;
     std::string Text;
+
+    Fixit(RawCharSourceRange Range, std::string Text)
+        : Range(Range), Text(std::move(Text)) {}
   };
 
   std::string ID;
@@ -227,9 +259,9 @@ struct DiagnosticEntryInfoBase {
   unsigned Offset = 0;
   unsigned Line = 0;
   unsigned Column = 0;
-  std::string Filename;
+  BufferInfoSharedPtr FileInfo;
   SmallVector<DiagnosticCategory, 1> Categories;
-  SmallVector<std::pair<unsigned, unsigned>, 2> Ranges;
+  SmallVector<RawCharSourceRange, 2> Ranges;
   SmallVector<Fixit, 2> Fixits;
   SmallVector<std::string, 1> EducationalNotePaths;
 };
@@ -293,9 +325,8 @@ public:
 
   virtual bool diagnosticsEnabled() = 0;
 
-  virtual void setDiagnosticStage(UIdent DiagStage) = 0;
-  virtual void handleDiagnostic(const DiagnosticEntryInfo &Info,
-                                UIdent DiagStage) = 0;
+  virtual void handleDiagnostics(ArrayRef<DiagnosticEntryInfo> DiagInfos,
+                                 UIdent DiagStage) = 0;
 
   virtual void handleSourceText(StringRef Text) = 0;
 
@@ -810,7 +841,7 @@ public:
 
   virtual bool finishSourceEntity(UIdent Kind) = 0;
 
-  virtual bool handleDiagnostic(const DiagnosticEntryInfo &Info) = 0;
+  virtual bool handleDiagnostics(ArrayRef<DiagnosticEntryInfo> Diags) = 0;
 };
 
 struct TypeContextInfoItem {

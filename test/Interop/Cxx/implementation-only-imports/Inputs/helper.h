@@ -11,10 +11,17 @@ public:
   MagicWrapper operator - (MagicWrapper other) {
       return MagicWrapper{_number - other._number};
   }
+
+  int baseMethod() const { return 42; }
 };
 
 inline MagicWrapper operator + (MagicWrapper lhs, MagicWrapper rhs) {
   return MagicWrapper{lhs._number + rhs._number};
 }
+
+class MagicWrapperDerived: public MagicWrapper {
+public:
+  MagicWrapperDerived() { };
+};
 
 #endif // TEST_INTEROP_CXX_IMPLEMENTATION_ONLY_IMPORTS_INPUTS_HELPER_H

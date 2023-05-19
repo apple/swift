@@ -60,6 +60,9 @@ constexpr static const StringLiteral SEMANTICS_PROGRAMTERMINATION_POINT =
 constexpr static const StringLiteral SEMANTICS_DEFAULT_ACTOR =
     "defaultActor";
 
+constexpr static const StringLiteral SEMANTICS_UNAVAILABLE_CODE_REACHED =
+    "unavailable_code_reached";
+
 constexpr static const StringLiteral DEFAULT_ACTOR_STORAGE_FIELD_NAME =
     "$defaultActor";
 

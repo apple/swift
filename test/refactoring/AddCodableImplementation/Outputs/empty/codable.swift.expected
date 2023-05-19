@@ -4,11 +4,11 @@ struct User: Codable {
     enum CodingKeys: CodingKey {
     }
 
-    init(from decoder: Decoder) throws {
+    init(from decoder: any Decoder) throws {
 
     }
 
-    func encode(to encoder: Encoder) throws {
+    func encode(to encoder: any Encoder) throws {
       var container = encoder.container(keyedBy: User.CodingKeys.self)
 
     }

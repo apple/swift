@@ -689,9 +689,9 @@ Reflection.test("multiprotocolTypes") {
 var BitTwiddlingTestSuite = TestSuite("BitTwiddling")
 
 BitTwiddlingTestSuite.test("_pointerSize") {
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32) || arch(powerpc)
+#if _pointerBitWidth(_32)
   expectEqual(4, MemoryLayout<Optional<AnyObject>>.size)
-#elseif arch(x86_64) || arch(arm64) || arch(powerpc64) || arch(powerpc64le) || arch(s390x) || arch(riscv64)
+#elseif _pointerBitWidth(_64)
   expectEqual(8, MemoryLayout<Optional<AnyObject>>.size)
 #else
   fatalError("implement")
@@ -713,9 +713,9 @@ BitTwiddlingTestSuite.test("_isPowerOf2/Int") {
   expectTrue(_isPowerOf2(asInt(2)))
   expectFalse(_isPowerOf2(asInt(3)))
   expectTrue(_isPowerOf2(asInt(1024)))
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32) || arch(powerpc)
+#if _pointerBitWidth(_32)
   // Not applicable to 32-bit architectures.
-#elseif arch(x86_64) || arch(arm64) || arch(powerpc64) || arch(powerpc64le) || arch(s390x) || arch(riscv64)
+#elseif _pointerBitWidth(_64)
   expectTrue(_isPowerOf2(asInt(0x8000_0000)))
 #else
   fatalError("implement")

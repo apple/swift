@@ -999,7 +999,7 @@ ManagedValue SILGenFunction::manageOpaqueValue(ManagedValue value,
                                                SGFContext C) {
   // If the opaque value is consumable, we can just return the
   // value with a cleanup. There is no need to retain it separately.
-  if (value.isPlusOne(*this))
+  if (value.isPlusOneOrTrivial(*this))
     return value;
 
   // If the context wants a +0 value, guaranteed or immediate, we can

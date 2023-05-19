@@ -82,7 +82,27 @@ internal struct _StringObject {
     internal init(zero: ()) { self._storage = 0 }
   }
 
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32)
+#if _pointerBitWidth(_64)
+
+  //
+  // Laid out as (_countAndFlags, _object), which allows small string contents
+  // to naturally start on vector-alignment.
+  //
+
+  @usableFromInline
+  internal var _countAndFlagsBits: UInt64
+
+  @usableFromInline
+  internal var _object: Builtin.BridgeObject
+
+  @inlinable @inline(__always)
+  internal init(zero: ()) {
+    self._countAndFlagsBits = 0
+    self._object = Builtin.valueToBridgeObject(UInt64(0)._value)
+  }
+
+#elseif _pointerBitWidth(_32)
+
   @usableFromInline @frozen
   internal enum Variant {
     case immortal(UInt)
@@ -146,25 +166,9 @@ internal struct _StringObject {
                 | UInt64(truncatingIfNeeded: _count)
     return rawBits
   }
+
 #else
-
-  //
-  // Laid out as (_countAndFlags, _object), which allows small string contents
-  // to naturally start on vector-alignment.
-  //
-
-  @usableFromInline
-  internal var _countAndFlagsBits: UInt64
-
-  @usableFromInline
-  internal var _object: Builtin.BridgeObject
-
-  @inlinable @inline(__always)
-  internal init(zero: ()) {
-    self._countAndFlagsBits = 0
-    self._object = Builtin.valueToBridgeObject(UInt64(0)._value)
-  }
-
+#error("Unknown platform")
 #endif
 
   @inlinable @inline(__always)
@@ -176,11 +180,13 @@ internal struct _StringObject {
   // FIXME: This ought to be the setter for property `_countAndFlags`.
   @_alwaysEmitIntoClient
   internal mutating func _setCountAndFlags(to value: CountAndFlags) {
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32)
+#if _pointerBitWidth(_64)
+    self._countAndFlagsBits = value._storage
+#elseif _pointerBitWidth(_32)
     self._count = value.count
     self._flags = value.flags
 #else
-    self._countAndFlagsBits = value._storage
+#error("Unknown platform")
 #endif
   }
 }
@@ -190,26 +196,7 @@ extension _StringObject {
   @usableFromInline
   internal typealias RawBitPattern = (UInt64, UInt64)
 
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32)
-  // On 32-bit platforms, raw bit conversion is one-way only and uses the same
-  // layout as on 64-bit platforms.
-  @usableFromInline
-  internal var rawBits: RawBitPattern {
-    @inline(__always) get {
-      let count = UInt64(truncatingIfNeeded: UInt(bitPattern: _count))
-      let payload = UInt64(truncatingIfNeeded: discriminatedObjectRawBits)
-                  & _StringObject.Nibbles.largeAddressMask
-      let flags = UInt64(truncatingIfNeeded: _flags)
-      let discr = UInt64(truncatingIfNeeded: _discriminator)
-      if isSmall {
-        // Rearrange small strings in a different way, compacting bytes into a
-        // contiguous sequence. See comment on small string layout below.
-        return (count | (payload &<< 32), flags | (discr &<< 56))
-      }
-      return (count | (flags &<< 48), payload | (discr &<< 56))
-    }
-  }
-#else
+#if _pointerBitWidth(_64)
   @inlinable @inline(__always)
   internal var rawBits: RawBitPattern {
     return (_countAndFlagsBits, discriminatedObjectRawBits)
@@ -263,11 +250,34 @@ extension _StringObject {
     self.init(rawUncheckedValue: bits)
     _invariantCheck()
   }
+#elseif _pointerBitWidth(_32)
+  // On 32-bit platforms, raw bit conversion is one-way only and uses the same
+  // layout as on 64-bit platforms.
+  @usableFromInline
+  internal var rawBits: RawBitPattern {
+    @inline(__always) get {
+      let count = UInt64(truncatingIfNeeded: UInt(bitPattern: _count))
+      let payload = UInt64(truncatingIfNeeded: discriminatedObjectRawBits)
+                  & _StringObject.Nibbles.largeAddressMask
+      let flags = UInt64(truncatingIfNeeded: _flags)
+      let discr = UInt64(truncatingIfNeeded: _discriminator)
+      if isSmall {
+        // Rearrange small strings in a different way, compacting bytes into a
+        // contiguous sequence. See comment on small string layout below.
+        return (count | (payload &<< 32), flags | (discr &<< 56))
+      }
+      return (count | (flags &<< 48), payload | (discr &<< 56))
+    }
+  }
+#else
+#error("Unknown platform")
 #endif
 
   @inlinable @_transparent
   internal var discriminatedObjectRawBits: UInt64 {
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32)
+#if _pointerBitWidth(_64)
+    return Builtin.reinterpretCast(_object)
+#elseif _pointerBitWidth(_32)
     let low32: UInt
     switch _variant {
     case .immortal(let bitPattern):
@@ -281,7 +291,7 @@ extension _StringObject {
     return UInt64(truncatingIfNeeded: _discriminator) &<< 56
          | UInt64(truncatingIfNeeded: low32)
 #else
-    return Builtin.reinterpretCast(_object)
+#error("Unknown platform")
 #endif
   }
 }
@@ -427,10 +437,12 @@ extension _StringObject.Nibbles {
 extension _StringObject {
   @inlinable @inline(__always)
   internal static var nativeBias: UInt {
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32)
+#if _pointerBitWidth(_64)
+    return 32
+#elseif _pointerBitWidth(_32)
     return 20
 #else
-    return 32
+#error("Unknown platform")
 #endif
   }
 
@@ -578,7 +590,10 @@ extension _StringObject {
     // spare bits (the most significant nibble) in a pointer.
     let word1 = small.rawBits.0.littleEndian
     let word2 = small.rawBits.1.littleEndian
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32)
+#if _pointerBitWidth(_64)
+    // On 64-bit, we copy the raw bits (to host byte order).
+    self.init(rawValue: (word1, word2))
+#elseif _pointerBitWidth(_32)
     // On 32-bit, we need to unpack the small string.
     let smallStringDiscriminatorAndCount: UInt64 = 0xFF00_0000_0000_0000
 
@@ -592,8 +607,7 @@ extension _StringObject {
       discriminator: smallDiscriminatorAndCount,
       flags: trailingTwo)
 #else
-    // On 64-bit, we copy the raw bits (to host byte order).
-    self.init(rawValue: (word1, word2))
+#error("Unknown platform")
 #endif
     _internalInvariant(isSmall)
   }
@@ -630,15 +644,17 @@ extension _StringObject {
   @inlinable @inline(__always)
   internal init(empty:()) {
     // Canonical empty pattern: small zero-length string
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32)
+#if _pointerBitWidth(_64)
+    self._countAndFlagsBits = 0
+    self._object = Builtin.valueToBridgeObject(Nibbles.emptyString._value)
+#elseif _pointerBitWidth(_32)
     self.init(
       count: 0,
       variant: .immortal(0),
       discriminator: Nibbles.emptyString,
       flags: 0)
 #else
-    self._countAndFlagsBits = 0
-    self._object = Builtin.valueToBridgeObject(Nibbles.emptyString._value)
+#error("Unknown platform")
 #endif
     _internalInvariant(self.smallCount == 0)
     _invariantCheck()
@@ -952,15 +968,17 @@ extension _StringObject {
 
   @inline(__always)
   internal var nativeStorage: __StringStorage {
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32)
+#if _pointerBitWidth(_64)
+    _internalInvariant(hasNativeStorage)
+    let unmanaged = Unmanaged<__StringStorage>.fromOpaque(largeAddress)
+    return unmanaged.takeUnretainedValue()
+#elseif _pointerBitWidth(_32)
     guard case .native(let storage) = _variant else {
       _internalInvariantFailure()
     }
     return _unsafeUncheckedDowncast(storage, to: __StringStorage.self)
 #else
-    _internalInvariant(hasNativeStorage)
-    let unmanaged = Unmanaged<__StringStorage>.fromOpaque(largeAddress)
-    return unmanaged.takeUnretainedValue()
+#error("Unknown platform")
 #endif
   }
 
@@ -970,28 +988,32 @@ extension _StringObject {
   internal func withNativeStorage<R>(
     _ body: (__StringStorage) -> R
   ) -> R {
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32)
-    // FIXME: Do this properly.
-    return body(nativeStorage)
-#else
+#if _pointerBitWidth(_64)
     _internalInvariant(hasNativeStorage)
     let unmanaged = Unmanaged<__StringStorage>.fromOpaque(largeAddress)
     return unmanaged._withUnsafeGuaranteedRef { body($0) }
+#elseif _pointerBitWidth(_32)
+    // FIXME: Do this properly.
+    return body(nativeStorage)
+#else
+#error("Unknown platform")
 #endif
   }
 
   @inline(__always)
   internal var sharedStorage: __SharedStringStorage {
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32)
+#if _pointerBitWidth(_64)
+    _internalInvariant(largeFastIsShared && !largeIsCocoa)
+    _internalInvariant(hasSharedStorage)
+    let unmanaged = Unmanaged<__SharedStringStorage>.fromOpaque(largeAddress)
+    return unmanaged.takeUnretainedValue()
+#elseif _pointerBitWidth(_32)
     guard case .native(let storage) = _variant else {
       _internalInvariantFailure()
     }
     return _unsafeUncheckedDowncast(storage, to: __SharedStringStorage.self)
 #else
-    _internalInvariant(largeFastIsShared && !largeIsCocoa)
-    _internalInvariant(hasSharedStorage)
-    let unmanaged = Unmanaged<__SharedStringStorage>.fromOpaque(largeAddress)
-    return unmanaged.takeUnretainedValue()
+#error("Unknown platform")
 #endif
   }
 
@@ -999,28 +1021,32 @@ extension _StringObject {
   internal func withSharedStorage<R>(
     _ body: (__SharedStringStorage) -> R
   ) -> R {
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32)
-    // FIXME: Do this properly.
-    return body(sharedStorage)
-#else
+#if _pointerBitWidth(_64)
     _internalInvariant(largeFastIsShared && !largeIsCocoa)
     _internalInvariant(hasSharedStorage)
     let unmanaged = Unmanaged<__SharedStringStorage>.fromOpaque(largeAddress)
     return unmanaged._withUnsafeGuaranteedRef { body($0) }
+#elseif _pointerBitWidth(_32)
+    // FIXME: Do this properly.
+    return body(sharedStorage)
+#else
+#error("Unknown platform")
 #endif
   }
 
   @inline(__always)
   internal var cocoaObject: AnyObject {
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32)
+#if _pointerBitWidth(_64)
+    _internalInvariant(largeIsCocoa && !isImmortal)
+    let unmanaged = Unmanaged<AnyObject>.fromOpaque(largeAddress)
+    return unmanaged.takeUnretainedValue()
+#elseif _pointerBitWidth(_32)
     guard case .bridged(let object) = _variant else {
       _internalInvariantFailure()
     }
     return object
 #else
-    _internalInvariant(largeIsCocoa && !isImmortal)
-    let unmanaged = Unmanaged<AnyObject>.fromOpaque(largeAddress)
-    return unmanaged.takeUnretainedValue()
+#error("Unknown platform")
 #endif
   }
 
@@ -1030,13 +1056,15 @@ extension _StringObject {
   internal func withCocoaObject<R>(
     _ body: (AnyObject) -> R
   ) -> R {
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32)
-    // FIXME: Do this properly.
-    return body(cocoaObject)
-#else
+#if _pointerBitWidth(_64)
     _internalInvariant(largeIsCocoa && !isImmortal)
     let unmanaged = Unmanaged<AnyObject>.fromOpaque(largeAddress)
     return unmanaged._withUnsafeGuaranteedRef { body($0) }
+#elseif _pointerBitWidth(_32)
+    // FIXME: Do this properly.
+    return body(cocoaObject)
+#else
+#error("Unknown platform")
 #endif
   }
 
@@ -1151,12 +1179,7 @@ extension _StringObject {
   internal init(immortal bufPtr: UnsafeBufferPointer<UInt8>, isASCII: Bool) {
     let countAndFlags = CountAndFlags(
       immortalCount: bufPtr.count, isASCII: isASCII)
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32)
-    self.init(
-      variant: .immortal(start: bufPtr.baseAddress._unsafelyUnwrappedUnchecked),
-      discriminator: Nibbles.largeImmortal(),
-      countAndFlags: countAndFlags)
-#else
+#if _pointerBitWidth(_64)
     // We bias to align code paths for mortal and immortal strings
     let biasedAddress = UInt(
       bitPattern: bufPtr.baseAddress._unsafelyUnwrappedUnchecked
@@ -1166,35 +1189,46 @@ extension _StringObject {
       pointerBits: UInt64(truncatingIfNeeded: biasedAddress),
       discriminator: Nibbles.largeImmortal(),
       countAndFlags: countAndFlags)
+#elseif _pointerBitWidth(_32)
+    self.init(
+      variant: .immortal(start: bufPtr.baseAddress._unsafelyUnwrappedUnchecked),
+      discriminator: Nibbles.largeImmortal(),
+      countAndFlags: countAndFlags)
+#else
+#error("Unknown platform")
 #endif
   }
 
   @inline(__always)
   internal init(_ storage: __StringStorage) {
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32)
+#if _pointerBitWidth(_64)
+    self.init(
+      object: storage,
+      discriminator: Nibbles.largeMortal(),
+      countAndFlags: storage._countAndFlags)
+#elseif _pointerBitWidth(_32)
     self.init(
       variant: .native(storage),
       discriminator: Nibbles.largeMortal(),
       countAndFlags: storage._countAndFlags)
 #else
-    self.init(
-      object: storage,
-      discriminator: Nibbles.largeMortal(),
-      countAndFlags: storage._countAndFlags)
+#error("Unknown platform")
 #endif
   }
 
   internal init(_ storage: __SharedStringStorage) {
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32)
+#if _pointerBitWidth(_64)
+    self.init(
+      object: storage,
+      discriminator: Nibbles.largeMortal(),
+      countAndFlags: storage._countAndFlags)
+#elseif _pointerBitWidth(_32)
     self.init(
       variant: .native(storage),
       discriminator: Nibbles.largeMortal(),
       countAndFlags: storage._countAndFlags)
 #else
-    self.init(
-      object: storage,
-      discriminator: Nibbles.largeMortal(),
-      countAndFlags: storage._countAndFlags)
+#error("Unknown platform")
 #endif
   }
 
@@ -1203,17 +1237,19 @@ extension _StringObject {
   ) {
     let countAndFlags = CountAndFlags(sharedCount: length, isASCII: isASCII)
     let discriminator = Nibbles.largeCocoa(providesFastUTF8: providesFastUTF8)
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32)
-    self.init(
-      variant: .bridged(cocoa),
-      discriminator: discriminator,
-      countAndFlags: countAndFlags)
-#else
+#if _pointerBitWidth(_64)
     self.init(
       object: cocoa, discriminator: discriminator, countAndFlags: countAndFlags)
     _internalInvariant(self.largeAddressBits == Builtin.reinterpretCast(cocoa))
     _internalInvariant(self.providesFastUTF8 == providesFastUTF8)
     _internalInvariant(self.largeCount == length)
+#elseif _pointerBitWidth(_32)
+    self.init(
+      variant: .bridged(cocoa),
+      discriminator: discriminator,
+      countAndFlags: countAndFlags)
+#else
+#error("Unknown platform")
 #endif
   }
 }
@@ -1225,7 +1261,11 @@ extension _StringObject {
   #else
   @usableFromInline @inline(never) @_effects(releasenone)
   internal func _invariantCheck() {
-    #if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32)
+    #if _pointerBitWidth(_64)
+    _internalInvariant(MemoryLayout<_StringObject>.size == 16)
+
+    _internalInvariant(MemoryLayout<_StringObject?>.size == 16)
+    #elseif _pointerBitWidth(_32)
     _internalInvariant(MemoryLayout<_StringObject>.size == 12)
     _internalInvariant(MemoryLayout<_StringObject>.stride == 12)
     _internalInvariant(MemoryLayout<_StringObject>.alignment == 4)
@@ -1241,11 +1281,8 @@ extension _StringObject {
     } else {
       _internalInvariant(_discriminator & 0x0F == 0)
     }
-
     #else
-    _internalInvariant(MemoryLayout<_StringObject>.size == 16)
-
-    _internalInvariant(MemoryLayout<_StringObject?>.size == 16)
+    #error("Unknown platform")
     #endif
 
     if isForeign {
@@ -1296,7 +1333,7 @@ extension _StringObject {
       }
     }
 
-    #if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32)
+    #if _pointerBitWidth(_32)
     switch _variant {
     case .immortal:
       _internalInvariant(isImmortal)
@@ -1316,7 +1353,9 @@ extension _StringObject {
     let raw = self.rawBits
     let word0 = ("0000000000000000" + String(raw.0, radix: 16)).suffix(16)
     let word1 = ("0000000000000000" + String(raw.1, radix: 16)).suffix(16)
-#if arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32)
+#if _pointerBitWidth(_64)
+    print("StringObject(<\(word0) \(word1)>)")
+#elseif _pointerBitWidth(_32)
     print("""
       StringObject(\
       <\(word0) \(word1)> \
@@ -1326,7 +1365,7 @@ extension _StringObject {
       flags: \(_flags))
       """)
 #else
-    print("StringObject(<\(word0) \(word1)>)")
+#error("Unknown platform")
 #endif
     let repr = _StringGuts(self)._classify()
     switch repr._form {

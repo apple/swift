@@ -53,8 +53,8 @@ class B: A {
 
 func testOnExistential(arg: P & A) {
   // FIXME: This could be a single conversion.
-  // CHECK: function_conversion_expr implicit type='() -> A & P' location={{.*}}.swift:[[@LINE+2]]
-  // CHECK-NEXT: covariant_function_conversion_expr implicit type='() -> A & P' location={{.*}}.swift:[[@LINE+1]]
+  // CHECK: function_conversion_expr implicit type='() -> any A & P' location={{.*}}.swift:[[@LINE+2]]
+  // CHECK-NEXT: covariant_function_conversion_expr implicit type='() -> any A & P' location={{.*}}.swift:[[@LINE+1]]
   _ = arg.method
 }
 

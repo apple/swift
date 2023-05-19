@@ -1,5 +1,4 @@
 // RUN: %target-swift-frontend -O -emit-sil %s | %FileCheck %s
-// RUN: %target-swift-frontend -Xllvm -sil-disable-pass=FunctionSignatureOpts -Xllvm -sil-disable-pass=PerfInliner -O -emit-sil %s | %FileCheck %s
 
 // We want to check two things here:
 // - Correctness
@@ -528,10 +527,10 @@ func test18_2() -> Bool {
 
 
 // CHECK-LABEL: sil hidden [noinline] @$s12cast_folding6test19SbyF : $@convention(thin) () -> Bool
-// CHECK: bb0
-// CHECK-NEXT: %0 = integer_literal $Builtin.Int1, -1
-// CHECK-NEXT: %1 = struct $Bool
-// CHECK-NEXT: return %1
+// CHECK:         [[I1:%.*]] = integer_literal $Builtin.Int1, -1
+// CHECK:         [[B:%.*]] = struct $Bool ([[I1]]
+// CHECK:         return [[B]]
+// CHECK:       } // end sil function '$s12cast_folding6test19SbyF'
 @inline(never)
 func test19() -> Bool {
     let t: Any.Type = type(of: 1 as Any)
@@ -596,10 +595,10 @@ func test22_2() -> Bool {
 }
 
 // CHECK-LABEL: sil hidden [noinline] @$s12cast_folding6test23SbyF : $@convention(thin) () -> Bool
-// CHECK: bb0
-// CHECK-NEXT: %0 = integer_literal $Builtin.Int1, 0
-// CHECK-NEXT: %1 = struct $Bool
-// CHECK-NEXT: return %1
+// CHECK:         [[I0:%.*]] = integer_literal $Builtin.Int1, 0
+// CHECK:         [[B:%.*]] = struct $Bool ([[I0]]
+// CHECK:         return [[B]]
+// CHECK:       } // end sil function '$s12cast_folding6test23SbyF'
 @inline(never)
 func test23() -> Bool {
     return cast23(P.self)
@@ -627,10 +626,10 @@ func test24_2() -> Bool {
 
 
 // CHECK-LABEL: sil hidden [noinline] @$s12cast_folding6test25SbyF : $@convention(thin) () -> Bool
-// CHECK: bb0
-// CHECK-NEXT: %0 = integer_literal $Builtin.Int1, 0
-// CHECK-NEXT: %1 = struct $Bool
-// CHECK-NEXT: return %1
+// CHECK:         [[I0:%.*]] = integer_literal $Builtin.Int1, 0
+// CHECK:         [[B:%.*]] = struct $Bool ([[I0]]
+// CHECK:         return [[B]]
+// CHECK:       } // end sil function '$s12cast_folding6test25SbyF'
 @inline(never)
 func test25() -> Bool {
     return cast25(P.self)
@@ -648,10 +647,10 @@ func test26() -> Bool {
 
 
 // CHECK-LABEL: sil hidden [noinline] @$s12cast_folding6test27SbyF
-// CHECK: bb0
-// CHECK-NEXT: %0 = integer_literal $Builtin.Int1, 0
-// CHECK-NEXT: %1 = struct $Bool
-// CHECK-NEXT: return %1
+// CHECK:         [[I0:%.*]] = integer_literal $Builtin.Int1, 0
+// CHECK:         [[B:%.*]] = struct $Bool ([[I0]]
+// CHECK:         return [[B]]
+// CHECK:       } // end sil function '$s12cast_folding6test27SbyF'
 @inline(never)
 func test27() -> Bool {
     return cast27(D.self)
@@ -956,61 +955,61 @@ public func test42(_ p: P) -> Bool {
     return cast42(p)
 }
 
-// CHECK-LABEL: sil [noinline] @{{.*}}test43{{.*}}
-// CHECK: bb0
-// CHECK-NEXT: %0 = integer_literal $Builtin.Int1, -1
-// CHECK-NEXT: %1 = struct $Bool
-// CHECK-NEXT: return %1
+// CHECK-LABEL: sil [noinline] @$s12cast_folding6test43SbyF
+// CHECK:         [[I1:%.*]] = integer_literal $Builtin.Int1, -1
+// CHECK:         [[B:%.*]] = struct $Bool ([[I1]]
+// CHECK:         return [[B]]
+// CHECK:       } // end sil function '$s12cast_folding6test43SbyF'
 @inline(never)
 public func test43() -> Bool {
   return P.self is Any.Type
 }
 
-// CHECK-LABEL: sil [noinline] @{{.*}}test44{{.*}}
-// CHECK: bb0
-// CHECK-NEXT: %0 = integer_literal $Builtin.Int1, -1
-// CHECK-NEXT: %1 = struct $Bool
-// CHECK-NEXT: return %1
+// CHECK-LABEL: sil [noinline] @$s12cast_folding6test44SbyF
+// CHECK:         [[I1:%.*]] = integer_literal $Builtin.Int1, -1
+// CHECK:         [[B:%.*]] = struct $Bool ([[I1]]
+// CHECK:         return [[B]]
+// CHECK:       } // end sil function '$s12cast_folding6test44SbyF'
 @inline(never)
 public func test44() -> Bool {
   return Any.self is Any.Type
 }
 
-// CHECK-LABEL: sil [noinline] @{{.*}}test45{{.*}}
-// CHECK: bb0
-// CHECK-NEXT: %0 = integer_literal $Builtin.Int1, -1
-// CHECK-NEXT: %1 = struct $Bool
-// CHECK-NEXT: return %1
+// CHECK-LABEL: sil [noinline] @$s12cast_folding6test45SbyF
+// CHECK:         [[I1:%.*]] = integer_literal $Builtin.Int1, -1
+// CHECK:         [[B:%.*]] = struct $Bool ([[I1]]
+// CHECK:         return [[B]]
+// CHECK:       } // end sil function '$s12cast_folding6test45SbyF'
 @inline(never)
 public func test45() -> Bool {
   return (P & R).self is Any.Type
 }
 
-// CHECK-LABEL: sil [noinline] @{{.*}}test46{{.*}}
-// CHECK: bb0
-// CHECK-NEXT: %0 = integer_literal $Builtin.Int1, -1
-// CHECK-NEXT: %1 = struct $Bool
-// CHECK-NEXT: return %1
+// CHECK-LABEL: sil [noinline] @$s12cast_folding6test46SbyF
+// CHECK:         [[I1:%.*]] = integer_literal $Builtin.Int1, -1
+// CHECK:         [[B:%.*]] = struct $Bool ([[I1]]
+// CHECK:         return [[B]]
+// CHECK:       } // end sil function '$s12cast_folding6test46SbyF'
 @inline(never)
 public func test46() -> Bool {
   return AnyObject.self is Any.Type
 }
 
-// CHECK-LABEL: sil [noinline] @{{.*}}test47{{.*}}
-// CHECK: bb0
-// CHECK-NEXT: %0 = integer_literal $Builtin.Int1, -1
-// CHECK-NEXT: %1 = struct $Bool
-// CHECK-NEXT: return %1
+// CHECK-LABEL: sil [noinline] @$s12cast_folding6test47SbyF
+// CHECK:         [[I1:%.*]] = integer_literal $Builtin.Int1, -1
+// CHECK:         [[B:%.*]] = struct $Bool ([[I1]]
+// CHECK:         return [[B]]
+// CHECK:       } // end sil function '$s12cast_folding6test47SbyF'
 @inline(never)
 public func test47() -> Bool {
   return Any.Type.self is Any.Type
 }
 
-// CHECK-LABEL: sil [noinline] @{{.*}}test48{{.*}}
-// CHECK: bb0
-// CHECK-NEXT: %0 = integer_literal $Builtin.Int1, 0
-// CHECK-NEXT: %1 = struct $Bool
-// CHECK-NEXT: return %1
+// CHECK-LABEL: sil [noinline] @$s12cast_folding6test48SbyF
+// CHECK:         [[I0:%.*]] = integer_literal $Builtin.Int1, 0
+// CHECK:         [[B:%.*]] = struct $Bool ([[I0]]
+// CHECK:         return [[B]]
+// CHECK:       } // end sil function '$s12cast_folding6test48SbyF'
 @inline(never)
 public func test48() -> Bool {
   return Any.Type.self is Any.Type.Type
@@ -1028,10 +1027,10 @@ public func testCastAnyObjectProtocolToAnyObjectType() -> AnyObject.Type? {
   return cast(AnyObject.self)
 }
 
-// CHECK-LABEL: // testCastProtocolTypeProtocolToProtocolTypeType
-// CHECK: sil [noinline] @{{.*}}testCastProtocol{{.*}}$@convention(thin) () -> Optional<@thick any P.Type.Type>
-// CHECK: %0 = enum $Optional{{.*}}, #Optional.none!enumelt
-// CHECK-NEXT: return %0
+// CHECK-LABEL: sil [noinline] @$s12cast_folding020testCastProtocolTypee2ToefF0AA1P_pXpXpSgyF :
+// CHECK:         [[E:%.*]] = enum $Optional{{.*}}, #Optional.none!enumelt
+// CHECK:         return [[E]]
+// CHECK:       } // end sil function '$s12cast_folding020testCastProtocolTypee2ToefF0AA1P_pXpXpSgyF'
 @inline(never)
 public func testCastProtocolTypeProtocolToProtocolTypeType() -> P.Type.Type? {
   return P.Type.self as? P.Type.Type

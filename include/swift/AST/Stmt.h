@@ -1510,25 +1510,26 @@ public:
   }
 };
 
-/// ForgetStmt - Consumes a noncopyable value and performs memberwise
+/// DiscardStmt - Consumes a noncopyable value and performs memberwise
 /// destruction of unconsumed fields, without invoking its deinit. Only
-/// supported form is "forget self".
-class ForgetStmt : public Stmt {
+/// supported form is "discard self".
+class DiscardStmt : public Stmt {
   Expr *SubExpr;
-  SourceLoc ForgetLoc;
+  SourceLoc DiscardLoc;
   AbstractFunctionDecl *InnermostMethod;
 
 public:
-  explicit ForgetStmt(SourceLoc forgetLoc, Expr *subExpr)
-      : Stmt(StmtKind::Forget, /*Implicit=*/false),
-        SubExpr(subExpr), ForgetLoc(forgetLoc), InnermostMethod(nullptr) {}
+  explicit DiscardStmt(SourceLoc discardLoc, Expr *subExpr)
+      : Stmt(StmtKind::Discard, /*Implicit=*/false),
+        SubExpr(subExpr), DiscardLoc(discardLoc), InnermostMethod(nullptr) {}
 
-  SourceLoc getForgetLoc() const { return ForgetLoc; }
+  /// Location of the 'discard' keyword.
+  SourceLoc getDiscardLoc() const { return DiscardLoc; }
 
-  SourceLoc getStartLoc() const { return ForgetLoc; }
+  SourceLoc getStartLoc() const { return DiscardLoc; }
   SourceLoc getEndLoc() const;
   SourceRange getSourceRange() const {
-    return SourceRange(ForgetLoc, getEndLoc());
+    return SourceRange(DiscardLoc, getEndLoc());
   }
 
   Expr *getSubExpr() const { return SubExpr; }
@@ -1544,7 +1545,7 @@ public:
   }
 
   static bool classof(const Stmt *S) {
-    return S->getKind() == StmtKind::Forget;
+    return S->getKind() == StmtKind::Discard;
   }
 };
 

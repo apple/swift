@@ -143,7 +143,7 @@ func test001() {
 protocol P1 {}
 
 func foo1(p: P1) {
-// CHECK: type: (P1) -> ()
+// CHECK: type: (any P1) -> ()
   foo1(p: p)
 }
 

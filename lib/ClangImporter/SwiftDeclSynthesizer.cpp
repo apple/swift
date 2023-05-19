@@ -877,7 +877,7 @@ synthesizeUnionFieldSetterBody(AbstractFunctionDecl *afd, void *context) {
   newValueRef->setType(newValueDecl->getInterfaceType());
 
   auto addressofFn =
-      cast<FuncDecl>(getBuiltinValueDecl(ctx, ctx.getIdentifier("addressof")));
+      cast<FuncDecl>(getBuiltinValueDecl(ctx, ctx.getIdentifier("unprotectedAddressOf")));
   ConcreteDeclRef addressofFnRef(
       addressofFn, SubstitutionMap::get(addressofFn->getGenericSignature(),
                                         {inoutSelfDecl->getInterfaceType()},

@@ -18,6 +18,7 @@ import Foundation
 // arm64-tvos: [[ARM64_MYRECT:%.*]] = type { float, float, float, float }
 // armv7k-watchos: [[ARMV7K_MYRECT:%.*]] = type { float, float, float, float }
 // arm64_32-watchos: [[ARM64_MYRECT:%.*]] = type { float, float, float, float }
+// arm64-watchos: [[ARM64_MYRECT:%.*]] = type { float, float, float, float }
 // arm64-macosx: [[ARM64_MYRECT:%.*]] = type { float, float, float, float }
 
 class Foo {
@@ -43,6 +44,8 @@ class Foo {
   // armv7k-watchos: define internal [[ARMV7K_MYRECT]] @"$s8abitypes3FooC3bar{{[_0-9a-zA-Z]*}}FTo"(i8* %0, i8* %1) {{[#0-9]*}} {
   // armv64_32-watchos: define hidden swiftcc { float, float, float, float } @"$s8abitypes3FooC3bar{{[_0-9a-zA-Z]*}}F"(%T8abitypes3FooC* swiftself %0) {{.*}} {
   // armv64_32-watchos: define internal [[ARMV7K_MYRECT]] @"$s8abitypes3FooC3bar{{[_0-9a-zA-Z]*}}FTo"(i8* %0, i8* %1) {{[#0-9]*}} {
+  // arm64-watchos: define hidden swiftcc { float, float, float, float }  @"$s8abitypes3FooC3bar{{[_0-9a-zA-Z]*}}F"(%T8abitypes3FooC* swiftself %0) {{.*}} {
+  // arm64-watchos: define internal [[ARM64_MYRECT]] @"$s8abitypes3FooC3bar{{[_0-9a-zA-Z]*}}FTo"(i8* %0, i8* %1) {{[#0-9]*}} {
   // x86_64-watchos: define hidden swiftcc { float, float, float, float } @"$s8abitypes3FooC3bar{{[_0-9a-zA-Z]*}}F"(%T8abitypes3FooC* swiftself %0) {{.*}} {
   // x86_64-watchos: define internal { <2 x float>, <2 x float> } @"$s8abitypes3FooC3bar{{[_0-9a-zA-Z]*}}FTo"(i8* %0, i8* %1) {{[#0-9]*}} {
   @objc dynamic func bar() -> MyRect {
@@ -323,6 +326,11 @@ class Foo {
   // i386-watchos:  [[R2:%[0-9]+]] = call swiftcc i1 @"$s8abitypes3FooC6negate{{[_0-9a-zA-Z]*}}F"(i1 [[R1]]
   // i386-watchos:  [[R3:%[0-9]+]] = call swiftcc i1 @"$s10ObjectiveC22_convertBoolToObjCBoolyAA0eF0VSbF"(i1 [[R2]])
   // i386-watchos:  ret i1 [[R3]]
+  //
+  // arm64-watchos-fixme:     define hidden i1 @"$s8abitypes3FooC6negate{{[_0-9a-zA-Z]*}}F"(i1, %T8abitypes3FooC*) {{.*}} {
+  // arm64-watchos-fixme:     define internal zeroext i1 @"$s8abitypes3FooC6negate{{[_0-9a-zA-Z]*}}FTo"
+  // arm64-watchos-fixme:     [[R2:%[0-9]+]] = call i1 @"$s8abitypes3FooC6negate{{[_0-9a-zA-Z]*}}F"
+  // arm64-watchos-fixme:     ret i1 [[R2]]
 
   @objc dynamic func negate(_ b: Bool) -> Bool {
     return !b
@@ -445,7 +453,16 @@ class Foo {
   // armv7k-watchos: [[TOOBJCBOOL:%[0-9]+]] = call swiftcc i1 @"$s10ObjectiveC22_convertBoolToObjCBool{{[_0-9a-zA-Z]*}}F"(i1 [[NEG]])
   // armv7k-watchos: ret i1 [[TOOBJCBOOL]]
   //
-
+  // arm64-watchos: define hidden swiftcc i1 @"$s8abitypes3FooC7negate2{{[_0-9a-zA-Z]*}}F"(i1 %0, %T8abitypes3FooC* swiftself %1) {{.*}} {
+  // arm64-watchos: [[SEL:%[0-9]+]] = load i8*, i8** @"\01L_selector(negate:)", align 8
+  // arm64-watchos: [[NEG:%[0-9]+]] = call zeroext i1 bitcast (void ()* @objc_msgSend to i1 ([[RECEIVER:.*]]*, i8*, i1)*)([[RECEIVER]]* {{%[0-9]+}}, i8* [[SEL]], i1 zeroext %0)
+  // arm64-watchos: ret i1 [[NEG]]
+  //
+  // arm64-watchos: define internal zeroext i1 @"$s8abitypes3FooC7negate2{{[_0-9a-zA-Z]*}}FTo"(i8* %0, i8* %1, i1 zeroext %2)
+  // arm64-watchos: [[NEG:%[0-9]+]] = call swiftcc i1 @"$s8abitypes3FooC7negate2{{[_0-9a-zA-Z]*}}F"(i1
+  // arm64-watchos: [[TOOBJCBOOL:%[0-9]+]] = call swiftcc i1 @"$s10ObjectiveC22_convertBoolToObjCBool{{[_0-9a-zA-Z]*}}F"(i1 [[NEG]])
+  // arm64-watchos: ret i1 [[TOOBJCBOOL]]
+  //
   // arm64-macosx: define internal zeroext i1 @"$s8abitypes3FooC7negate2{{[_0-9a-zA-Z]*}}FTo"(i8* %0, i8* %1, i1 zeroext %2)
   // arm64-macosx: [[NEG:%[0-9]+]] = call swiftcc i1 @"$s8abitypes3FooC7negate2{{[_0-9a-zA-Z]*}}F"(i1
   // arm64-macosx: [[TOOBJCBOOL:%[0-9]+]] = call swiftcc i1 @"$s10ObjectiveC22_convertBoolToObjCBool{{[_0-9a-zA-Z]*}}F"(i1 [[NEG]])
@@ -556,6 +573,9 @@ class Foo {
   // arm64-tvos: define internal void @"$s8abitypes3FooC14callJustReturn{{[_0-9a-zA-Z]*}}FTo"(%TSo9BigStructV* noalias nocapture sret({{.*}}) %0, i8* %1, i8* %2, [[OPAQUE:.*]]* %3, %TSo9BigStructV* %4) {{[#0-9]*}} {
   // arm64-macosx: define hidden swiftcc { i64, i64, i64, i64 } @"$s8abitypes3FooC14callJustReturn{{[_0-9a-zA-Z]*}}F"(%TSo13StructReturnsC* %0, i64 %1, i64 %2, i64 %3, i64 %4, %T8abitypes3FooC* swiftself %5) {{.*}} {
   // arm64-macosx: define internal void @"$s8abitypes3FooC14callJustReturn{{[_0-9a-zA-Z]*}}FTo"(%TSo9BigStructV* noalias nocapture sret({{.*}}) %0, i8* %1, i8* %2, [[OPAQUE:.*]]* %3, %TSo9BigStructV* %4) {{.*}} {
+  //
+  // arm64-watchos: define hidden swiftcc { i64, i64, i64, i64 } @"$s8abitypes3FooC14callJustReturn{{[_0-9a-zA-Z]*}}F"(%TSo13StructReturnsC* %0, i64 %1, i64 %2, i64 %3, i64 %4, %T8abitypes3FooC* swiftself %5) {{.*}} {
+  // arm64-watchos: define internal void @"$s8abitypes3FooC14callJustReturn{{[_0-9a-zA-Z]*}}FTo"(%TSo9BigStructV* noalias nocapture sret({{.*}}) %0, i8* %1, i8* %2, [[OPAQUE:.*]]* %3, %TSo9BigStructV* %4) {{[#0-9]*}} {
   @objc dynamic func callJustReturn(_ r: StructReturns, with v: BigStruct) -> BigStruct {
     return r.justReturn(v)
   }
@@ -621,6 +641,17 @@ public func testInlineAgg(_ rect: MyRect) -> Float {
 // arm64-macosx:  store i8 0, i8* [[BYTE_ADDR]], align 8
 // arm64-macosx:  [[ARG:%.*]] = load i64, i64* [[COERCED]]
 // arm64-macosx:  call void bitcast (void ()* @objc_msgSend to void (i8*, i8*, i64)*)(i8* {{.*}}, i8* {{.*}}, i64 [[ARG]])
+//
+// arm64-watchos: define swiftcc void @"$s8abitypes14testBOOLStructyyF"()
+// arm64-watchos:  [[COERCED:%.*]] = alloca i64
+// arm64-watchos:  [[STRUCTPTR:%.*]] = bitcast i64* [[COERCED]] to %TSo14FiveByteStructV
+// arm64-watchos:  [[PTR0:%.*]] = getelementptr inbounds %TSo14FiveByteStructV, %TSo14FiveByteStructV* [[STRUCTPTR]], {{i.*}} 0, {{i.*}} 0
+// arm64-watchos:  [[PTR1:%.*]] = getelementptr inbounds %T10ObjectiveC8ObjCBoolV, %T10ObjectiveC8ObjCBoolV* [[PTR0]], {{i.*}} 0, {{i.*}} 0
+// arm64-watchos:  [[PTR2:%.*]] = getelementptr inbounds %TSb, %TSb* [[PTR1]], {{i.*}} 0, {{i.*}} 0
+// arm64-watchos:  [[BYTE_ADDR:%.*]] = bitcast i1* [[PTR2]] to i8*
+// arm64-watchos:  store i8 0, i8* [[BYTE_ADDR]], align 8
+// arm64-watchos:  [[ARG:%.*]] = load i64, i64* [[COERCED]]
+// arm64-watchos:  call void bitcast (void ()* @objc_msgSend to void (i8*, i8*, i64)*)(i8* {{.*}}, i8* {{.*}}, i64 [[ARG]])
 public func testBOOLStruct() {
   let s = FiveByteStruct()
   MyClass.mymethod(s)

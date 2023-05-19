@@ -27,9 +27,9 @@
 #include "swift/Parse/Lexer.h"
 #include "swift/Parse/ParseSILSupport.h"
 #include "swift/Parse/Parser.h"
-#include "swift/Sema/SILTypeResolutionContext.h"
 #include "swift/SIL/AbstractionPattern.h"
 #include "swift/SIL/InstructionUtils.h"
+#include "swift/SIL/OwnershipUtils.h"
 #include "swift/SIL/SILArgument.h"
 #include "swift/SIL/SILBuilder.h"
 #include "swift/SIL/SILDebugScope.h"
@@ -37,6 +37,7 @@
 #include "swift/SIL/SILMoveOnlyDeinit.h"
 #include "swift/SIL/SILUndef.h"
 #include "swift/SIL/TypeLowering.h"
+#include "swift/Sema/SILTypeResolutionContext.h"
 #include "swift/Subsystems.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/CommandLine.h"
@@ -57,6 +58,11 @@ static llvm::cl::opt<bool>
 static llvm::cl::opt<bool>
 ParseIncompleteOSSA("parse-incomplete-ossa",
                     llvm::cl::desc("Parse OSSA with incomplete lifetimes"));
+
+static llvm::cl::opt<bool> DisablePopulateOwnershipFlags(
+    "disable-populate-ownership-flags",
+    llvm::cl::desc("Disable populating ownership flags"),
+    llvm::cl::init(false));
 
 //===----------------------------------------------------------------------===//
 // SILParserState implementation
@@ -117,6 +123,11 @@ ParseSILModuleRequest::evaluate(Evaluator &evaluator,
            "Failed to parse SIL but did not emit any errors!");
     return SILModule::createEmptyModule(desc.context, desc.conv, desc.opts);
   }
+  // If SIL parsing succeeded, verify the generated SIL.
+  if (!parser.Diags.hadAnyError() && !DisableInputVerify) {
+    silMod->verify(/*SingleFunction=*/true, !ParseIncompleteOSSA);
+  }
+
   return silMod;
 }
 
@@ -6779,9 +6790,11 @@ bool SILParser::parseSILBasicBlock(SILBuilder &B) {
         bool foundClosureCapture = false;
         bool foundLexical = false;
         bool foundEagerMove = false;
-        while (auto attributeName =
-                   parseOptionalAttribute({"noImplicitCopy", "_lexical",
-                                           "_eagerMove", "closureCapture"})) {
+        bool foundReborrow = false;
+        bool foundEscaping = false;
+        while (auto attributeName = parseOptionalAttribute(
+                   {"noImplicitCopy", "_lexical", "_eagerMove",
+                    "closureCapture", "reborrow", "escaping"})) {
           if (*attributeName == "noImplicitCopy")
             foundNoImplicitCopy = true;
           else if (*attributeName == "_lexical")
@@ -6790,6 +6803,10 @@ bool SILParser::parseSILBasicBlock(SILBuilder &B) {
             foundEagerMove = true;
           else if (*attributeName == "closureCapture")
             foundClosureCapture = true;
+          else if (*attributeName == "reborrow")
+            foundReborrow = true;
+          else if (*attributeName == "escaping")
+            foundEscaping = true;
           else {
             llvm_unreachable("Unexpected attribute!");
           }
@@ -6820,6 +6837,8 @@ bool SILParser::parseSILBasicBlock(SILBuilder &B) {
           fArg->setNoImplicitCopy(foundNoImplicitCopy);
           fArg->setClosureCapture(foundClosureCapture);
           fArg->setLifetimeAnnotation(lifetime);
+          fArg->setReborrow(foundReborrow);
+          fArg->setEscaping(foundEscaping);
           Arg = fArg;
 
           // Today, we construct the ownership kind straight from the function
@@ -6835,7 +6854,8 @@ bool SILParser::parseSILBasicBlock(SILBuilder &B) {
             return true;
           }
         } else {
-          Arg = BB->createPhiArgument(Ty, OwnershipKind);
+          Arg = BB->createPhiArgument(Ty, OwnershipKind, /*decl*/ nullptr,
+                                      foundReborrow, foundEscaping);
         }
         setLocalValue(Arg, Name, NameLoc);
       } while (P.consumeIf(tok::comma));
@@ -6859,6 +6879,16 @@ bool SILParser::parseSILBasicBlock(SILBuilder &B) {
   } while (isStartOfSILInstruction());
 
   return false;
+}
+
+static void populateOwnershipFlags(SILFunction *func) {
+  for (auto &bb : *func) {
+    for (auto &arg : bb.getArguments()) {
+      if (computeIsReborrow(arg)) {
+        arg->setReborrow(true);
+      }
+    }
+  }
 }
 
 ///   decl-sil:   [[only in SIL mode]]
@@ -7028,6 +7058,13 @@ bool SILParserState::parseDeclSIL(Parser &P) {
             return true;
         } while (P.Tok.isNot(tok::r_brace) && P.Tok.isNot(tok::eof));
 
+        // OSSA uses flags to represent "reborrow", "escaping" etc.
+        // These flags are populated here as a shortcut to rewriting all
+        // existing OSSA tests with flags.
+        if (!DisablePopulateOwnershipFlags) {
+          populateOwnershipFlags(FunctionState.F);
+        }
+
         SourceLoc RBraceLoc;
         P.parseMatchingToken(tok::r_brace, RBraceLoc, diag::expected_sil_rbrace,
                              LBraceLoc);
@@ -7045,10 +7082,6 @@ bool SILParserState::parseDeclSIL(Parser &P) {
 
   if (FunctionState.diagnoseProblems())
     return true;
-
-  // If SIL parsing succeeded, verify the generated SIL.
-  if (!P.Diags.hadAnyError() && !DisableInputVerify)
-    FunctionState.F->verify(/*SingleFunction=*/true, !ParseIncompleteOSSA);
 
   return false;
 }

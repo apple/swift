@@ -8,7 +8,7 @@ struct User: Codable {
     case lastName
   }
 
-  init(from decoder: Decoder) throws {
+  init(from decoder: any Decoder) throws {
     let container: KeyedDecodingContainer<User.CodingKeys> = try decoder.container(keyedBy: User.CodingKeys.self)
 
     self.firstName = try container.decode(String.self, forKey: User.CodingKeys.firstName)
@@ -16,7 +16,7 @@ struct User: Codable {
 
   }
 
-  func encode(to encoder: Encoder) throws {
+  func encode(to encoder: any Encoder) throws {
     var container = encoder.container(keyedBy: User.CodingKeys.self)
 
     try container.encode(self.firstName, forKey: User.CodingKeys.firstName)

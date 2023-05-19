@@ -1934,18 +1934,10 @@ bool AllowNonClassTypeToConvertToAnyObject::diagnose(const Solution &solution,
                                                      bool asNote) const {
   auto *locator = getLocator();
 
-  if (locator->isForContextualType()) {
-    ContextualFailure failure(solution, getFromType(), getToType(), locator);
-    return failure.diagnose(asNote);
-  }
+  NonClassTypeToAnyObjectConversionFailure failure(solution, getFromType(),
+                                                   getToType(), locator);
 
-  if (locator->isLastElement<LocatorPathElt::ApplyArgToParam>()) {
-    ArgumentMismatchFailure failure(solution, getFromType(), getToType(),
-                                    locator);
-    return failure.diagnose(asNote);
-  }
-
-  return false;
+  return failure.diagnose(asNote);
 }
 
 AllowNonClassTypeToConvertToAnyObject *
@@ -2139,9 +2131,10 @@ IgnoreResultBuilderWithReturnStmts::create(ConstraintSystem &cs, Type builderTy,
 
 bool IgnoreUnresolvedPatternVar::diagnose(const Solution &solution,
                                           bool asNote) const {
-  // Not being able to infer the type of a pattern should already have been
-  // diagnosed on the pattern's initializer or as a structural issue of the AST.
-  return true;
+  // An unresolved AnyPatternDecl means there was some issue in the match
+  // that means we couldn't infer the pattern. We don't have a diagnostic to
+  // emit here, the failure should be diagnosed by the fix for expression.
+  return false;
 }
 
 IgnoreUnresolvedPatternVar *
@@ -2426,6 +2419,20 @@ bool AllowTupleLabelMismatch::diagnose(const Solution &solution,
   return warning.diagnose(asNote);
 }
 
+AllowAssociatedValueMismatch *
+AllowAssociatedValueMismatch::create(ConstraintSystem &cs, Type fromType,
+                                     Type toType, ConstraintLocator *locator) {
+  return new (cs.getAllocator())
+      AllowAssociatedValueMismatch(cs, fromType, toType, locator);
+}
+
+bool AllowAssociatedValueMismatch::diagnose(const Solution &solution,
+                                            bool asNote) const {
+  AssociatedValueMismatchFailure failure(solution, getFromType(), getToType(),
+                                         getLocator());
+  return failure.diagnose(asNote);
+}
+
 bool AllowSwiftToCPointerConversion::diagnose(const Solution &solution,
                                               bool asNote) const {
   SwiftToCPointerConversionInInvalidContext failure(solution, getLocator());
@@ -2503,6 +2510,12 @@ bool AddExplicitExistentialCoercion::isRequired(
         // associated with its associated types, the call needs a coercion.
         if (erasedMemberTy->isExistentialType() &&
             hasConstrainedAssociatedTypes(member, *existentialType)) {
+          RequiresCoercion = true;
+          return Action::Stop;
+        }
+
+        if (erasedMemberTy->isExistentialType() &&
+             erasedMemberTy->hasTypeParameter()) {
           RequiresCoercion = true;
           return Action::Stop;
         }
@@ -2741,4 +2754,45 @@ AllowGlobalActorMismatch::create(ConstraintSystem &cs, Type fromType,
                                  Type toType, ConstraintLocator *locator) {
   return new (cs.getAllocator())
       AllowGlobalActorMismatch(cs, fromType, toType, locator);
+}
+
+bool DestructureTupleToMatchPackExpansionParameter::diagnose(
+    const Solution &solution, bool asNote) const {
+  DestructureTupleToUseWithPackExpansionParameter failure(solution, ParamShape,
+                                                          getLocator());
+  return failure.diagnose(asNote);
+}
+
+DestructureTupleToMatchPackExpansionParameter *
+DestructureTupleToMatchPackExpansionParameter::create(
+    ConstraintSystem &cs, PackType *paramShapeTy, ConstraintLocator *locator) {
+  return new (cs.getAllocator())
+      DestructureTupleToMatchPackExpansionParameter(cs, paramShapeTy, locator);
+}
+
+bool AllowValueExpansionWithoutPackReferences::diagnose(
+    const Solution &solution, bool asNote) const {
+  ValuePackExpansionWithoutPackReferences failure(solution, getLocator());
+  return failure.diagnose(asNote);
+}
+
+AllowValueExpansionWithoutPackReferences *
+AllowValueExpansionWithoutPackReferences::create(ConstraintSystem &cs,
+                                                 ConstraintLocator *locator) {
+  return new (cs.getAllocator())
+      AllowValueExpansionWithoutPackReferences(cs, locator);
+}
+
+bool IgnoreMissingEachKeyword::diagnose(const Solution &solution,
+                                        bool asNote) const {
+  MissingEachForValuePackReference failure(solution, ValuePackType,
+                                           getLocator());
+  return failure.diagnose(asNote);
+}
+
+IgnoreMissingEachKeyword *
+IgnoreMissingEachKeyword::create(ConstraintSystem &cs, Type valuePackTy,
+                                 ConstraintLocator *locator) {
+  return new (cs.getAllocator())
+      IgnoreMissingEachKeyword(cs, valuePackTy, locator);
 }

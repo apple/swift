@@ -209,6 +209,32 @@ SerializationOptions CompilerInvocation::computeSerializationOptions(
     serializationOpts.ExtraClangOptions = getClangImporterOptions().ExtraArgs;
   }
 
+  // '-plugin-path' options.
+  for (const auto &path : getSearchPathOptions().PluginSearchPaths) {
+    serializationOpts.PluginSearchPaths.push_back(path);
+  }
+  // '-external-plugin-path' options.
+  for (const ExternalPluginSearchPathAndServerPath &pair :
+       getSearchPathOptions().ExternalPluginSearchPaths) {
+    serializationOpts.ExternalPluginSearchPaths.push_back(
+        pair.SearchPath + "#" +
+        pair.ServerPath);
+  }
+  // '-load-plugin-library' options.
+  for (const auto &path :
+       getSearchPathOptions().getCompilerPluginLibraryPaths()) {
+    serializationOpts.CompilerPluginLibraryPaths.push_back(path);
+  }
+  // '-load-plugin-executable' options.
+  for (const PluginExecutablePathAndModuleNames &pair :
+       getSearchPathOptions().getCompilerPluginExecutablePaths()) {
+    std::string optStr = pair.ExecutablePath + "#";
+    llvm::interleave(
+        pair.ModuleNames, [&](auto &name) { optStr += name; },
+        [&]() { optStr += ","; });
+    serializationOpts.CompilerPluginLibraryPaths.push_back(optStr);
+  }
+
   serializationOpts.DisableCrossModuleIncrementalInfo =
       opts.DisableCrossModuleIncrementalBuild;
 
@@ -467,6 +493,15 @@ void CompilerInstance::setupOutputBackend() {
   }
 }
 
+void CompilerInstance::setupCachingDiagnosticsProcessorIfNeeded() {
+  if (!supportCaching())
+    return;
+
+  // Only setup if using CAS.
+  CDP = std::make_unique<CachingDiagnosticsProcessor>(*this);
+  CDP->startDiagnosticCapture();
+}
+
 bool CompilerInstance::setup(const CompilerInvocation &Invoke,
                              std::string &Error, ArrayRef<const char *> Args) {
   Invocation = Invoke;
@@ -506,6 +541,10 @@ bool CompilerInstance::setup(const CompilerInvocation &Invoke,
     Error = "Setting up diagnostics verified failed";
     return true;
   }
+
+  // Setup caching diagnostics processor. It should be setup after all other
+  // DiagConsumers are added.
+  setupCachingDiagnosticsProcessorIfNeeded();
 
   // If we expect an implicit stdlib import, load in the standard library. If we
   // either fail to find it or encounter an error while loading it, bail early. Continuing will at best
@@ -777,6 +816,26 @@ SourceFile *CompilerInstance::getIDEInspectionFile() const {
   auto *mod = getMainModule();
   auto &eval = mod->getASTContext().evaluator;
   return evaluateOrDefault(eval, IDEInspectionFileRequest{mod}, nullptr);
+}
+
+static inline bool isPCHFilenameExtension(StringRef path) {
+  return llvm::sys::path::extension(path)
+    .endswith(file_types::getExtension(file_types::TY_PCH));
+}
+
+std::string CompilerInstance::getBridgingHeaderPath() const {
+  const FrontendOptions &opts = Invocation.getFrontendOptions();
+  if (!isPCHFilenameExtension(opts.ImplicitObjCHeaderPath))
+    return opts.ImplicitObjCHeaderPath;
+
+  auto clangImporter =
+      static_cast<ClangImporter *>(getASTContext().getClangModuleLoader());
+
+  // No clang importer created. Report error?
+  if (!clangImporter)
+    return std::string();
+
+  return clangImporter->getOriginalSourceFile(opts.ImplicitObjCHeaderPath);
 }
 
 bool CompilerInstance::setUpInputs() {
@@ -1137,7 +1196,7 @@ ImplicitImportInfo CompilerInstance::getImplicitImportInfo() const {
   }
 
   if (Invocation.getLangOptions().EnableCXXInterop && canImportCxxShim()) {
-    pushImport(CXX_SHIM_NAME);
+    pushImport(CXX_SHIM_NAME, {ImportFlags::ImplementationOnly});
   }
 
   imports.ShouldImportUnderlyingModule = frontendOpts.ImportUnderlyingModule;

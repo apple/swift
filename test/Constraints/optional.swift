@@ -435,8 +435,7 @@ func test_force_unwrap_not_being_too_eager() {
 // rdar://problem/57097401
 func invalidOptionalChaining(a: Any) {
   a == "="? // expected-error {{cannot use optional chaining on non-optional value of type 'String'}}
-  // expected-error@-1 {{type 'Any' cannot conform to 'Equatable'}}
-  // expected-note@-2 {{requirement from conditional conformance of 'Any?' to 'Equatable'}} expected-note@-2 {{only concrete types such as structs, enums and classes can conform to protocols}}
+  // expected-error@-1 {{binary operator '==' cannot be applied to operands of type 'Any' and 'String?'}}
 }
 
 /// https://github.com/apple/swift/issues/54739

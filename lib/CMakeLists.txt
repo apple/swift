@@ -28,6 +28,7 @@ if (SWIFT_SWIFT_PARSER)
     SwiftOperators
     SwiftSyntaxBuilder
     SwiftSyntaxMacros
+    SwiftSyntaxMacroExpansion
     SwiftCompilerPluginMessageHandling
   )
 

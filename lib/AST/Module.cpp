@@ -1768,10 +1768,18 @@ static ProtocolConformanceRef getBuiltinFunctionTypeConformance(
 /// appropriate.
 static ProtocolConformanceRef getBuiltinMetaTypeTypeConformance(
     Type type, const AnyMetatypeType *metatypeType, ProtocolDecl *protocol) {
-  // All metatypes are Sendable and Copyable
-  if (protocol->isSpecificProtocol(KnownProtocolKind::Sendable) ||
-      protocol->isSpecificProtocol(KnownProtocolKind::Copyable)) {
-    ASTContext &ctx = protocol->getASTContext();
+  ASTContext &ctx = protocol->getASTContext();
+
+  // Only metatypes of Copyable types are Copyable.
+  if (protocol->isSpecificProtocol(KnownProtocolKind::Copyable) &&
+      !metatypeType->getInstanceType()->isPureMoveOnly()) {
+    return ProtocolConformanceRef(
+        ctx.getBuiltinConformance(type, protocol, GenericSignature(), { },
+                                  BuiltinConformanceKind::Synthesized));
+  }
+
+  // All metatypes are Sendable
+  if (protocol->isSpecificProtocol(KnownProtocolKind::Sendable)) {
     return ProtocolConformanceRef(
         ctx.getBuiltinConformance(type, protocol, GenericSignature(), { },
                                   BuiltinConformanceKind::Synthesized));

@@ -34,6 +34,7 @@
 SWIFT_BEGIN_NULLABILITY_ANNOTATIONS
 
 struct BridgedInstruction;
+struct OptionalBridgedInstruction;
 struct OptionalBridgedOperand;
 struct OptionalBridgedSuccessor;
 struct BridgedBasicBlock;
@@ -236,12 +237,38 @@ struct BridgedFunction {
     return getFunction()->isAvailableExternally();
   }
 
+  bool isTransparent() const {
+    return getFunction()->isTransparent() == swift::IsTransparent;
+  }
+
+  bool isGlobalInitFunction() const {
+    return getFunction()->isGlobalInit();
+  }
+
+  bool isGlobalInitOnceFunction() const {
+    return getFunction()->isGlobalInitOnceFunction();
+  }
+
   bool hasSemanticsAttr(llvm::StringRef attrName) const {
-    return getFunction()->hasSemanticsAttr(attrName) ? 1 : 0;
+    return getFunction()->hasSemanticsAttr(attrName);
   }
 
   swift::EffectsKind getEffectAttribute() const {
     return getFunction()->getEffectsKind();
+  }
+
+  swift::PerformanceConstraints getPerformanceConstraints() const {
+    return getFunction()->getPerfConstraints();
+  }
+
+  enum class InlineStrategy {
+    InlineDefault = swift::InlineDefault,
+    NoInline = swift::NoInline,
+    AlwaysInline = swift::AlwaysInline
+  };
+
+  InlineStrategy getInlineStrategy() const {
+    return (InlineStrategy)getFunction()->getInlineStrategy();
   }
 
   bool needsStackProtection() const {
@@ -307,6 +334,23 @@ struct BridgedGlobalVar {
   llvm::StringRef getName() const { return getGlobal()->getName(); }
 
   bool isLet() const { return getGlobal()->isLet(); }
+
+  void setLet(bool value) const { getGlobal()->setLet(value); }
+
+  bool isPossiblyUsedExternally() const {
+    return getGlobal()->isPossiblyUsedExternally();
+  }
+
+  SWIFT_IMPORT_UNSAFE
+  inline OptionalBridgedInstruction getStaticInitializerValue() const;
+
+  bool canBeInitializedStatically() const;
+
+  static inline bool isValidStaticInitializer(BridgedInstruction inst);
+};
+
+struct OptionalBridgedGlobalVar {
+  OptionalSwiftObject obj;
 };
 
 struct BridgedMultiValueResult {
@@ -335,6 +379,25 @@ struct OptionalBridgedInstruction {
     if (!obj)
       return nullptr;
     return llvm::cast<swift::SILInstruction>(static_cast<swift::SILNode *>(obj)->castToInstruction());
+  }
+};
+
+struct BridgedTypeArray {
+  llvm::ArrayRef<swift::Type> typeArray;
+
+  SWIFT_IMPORT_UNSAFE
+  static BridgedTypeArray fromReplacementTypes(swift::SubstitutionMap substMap) {
+    return {substMap.getReplacementTypes()};
+  }
+
+  SwiftInt getCount() const { return SwiftInt(typeArray.size()); }
+
+  SWIFT_IMPORT_UNSAFE
+  swift::SILType getAt(SwiftInt index) const {
+    auto ty = swift::CanType(typeArray[index]);
+    if (ty->isLegalSILType())
+      return swift::SILType::getPrimitiveObjectType(ty);
+    return swift::SILType();
   }
 };
 
@@ -431,6 +494,12 @@ struct BridgedInstruction {
     return getAs<swift::BuiltinInst>()->getBuiltinInfo().ID;
   }
 
+  SWIFT_IMPORT_UNSAFE
+  swift::SubstitutionMap BuiltinInst_getSubstitutionMap() const {
+    return getAs<swift::BuiltinInst>()->getSubstitutions();
+  }
+
+
   bool AddressToPointerInst_needsStackProtection() const {
     return getAs<swift::AddressToPointerInst>()->needsStackProtection();
   }
@@ -442,6 +511,11 @@ struct BridgedInstruction {
   SWIFT_IMPORT_UNSAFE
   BridgedGlobalVar GlobalAccessInst_getGlobal() const {
     return {getAs<swift::GlobalAccessInst>()->getReferencedGlobal()};
+  }
+
+  SWIFT_IMPORT_UNSAFE
+  BridgedGlobalVar AllocGlobalInst_getGlobal() const {
+    return {getAs<swift::AllocGlobalInst>()->getReferencedGlobal()};
   }
 
   SWIFT_IMPORT_UNSAFE
@@ -507,7 +581,7 @@ struct BridgedInstruction {
     return getAs<swift::RefElementAddrInst>()->getFieldIndex();
   }
 
-  SwiftInt RefElementAddrInst_fieldIsLet() const {
+  bool RefElementAddrInst_fieldIsLet() const {
     return getAs<swift::RefElementAddrInst>()->getField()->isLet();
   }
 
@@ -538,15 +612,19 @@ struct BridgedInstruction {
     return swift::ApplySite(getInst()).getCalleeArgIndexOfFirstAppliedArg();
   }
 
-  SwiftInt PartialApplyInst_isOnStack() const {
-    return getAs<swift::PartialApplyInst>()->isOnStack() ? 1 : 0;
+  bool PartialApplyInst_isOnStack() const {
+    return getAs<swift::PartialApplyInst>()->isOnStack();
   }
 
-  SwiftInt AllocRefInstBase_isObjc() const {
+  bool AllocStackInst_hasDynamicLifetime() const {
+    return getAs<swift::AllocStackInst>()->hasDynamicLifetime();
+  }
+
+  bool AllocRefInstBase_isObjc() const {
     return getAs<swift::AllocRefInstBase>()->isObjC();
   }
 
-  SwiftInt AllocRefInstBase_canAllocOnStack() const {
+  bool AllocRefInstBase_canAllocOnStack() const {
     return getAs<swift::AllocRefInstBase>()->canAllocOnStack();
   }
 
@@ -582,12 +660,12 @@ struct BridgedInstruction {
     return getAs<swift::BeginAccessInst>()->getEnforcement() == swift::SILAccessEnforcement::Static;
   }
 
-  SwiftInt CopyAddrInst_isTakeOfSrc() const {
-    return getAs<swift::CopyAddrInst>()->isTakeOfSrc() ? 1 : 0;
+  bool CopyAddrInst_isTakeOfSrc() const {
+    return getAs<swift::CopyAddrInst>()->isTakeOfSrc();
   }
 
-  SwiftInt CopyAddrInst_isInitializationOfDest() const {
-    return getAs<swift::CopyAddrInst>()->isInitializationOfDest() ? 1 : 0;
+  bool CopyAddrInst_isInitializationOfDest() const {
+    return getAs<swift::CopyAddrInst>()->isInitializationOfDest();
   }
 
   void RefCountingInst_setIsAtomic(bool isAtomic) const {
@@ -1098,6 +1176,18 @@ OptionalBridgedBasicBlock BridgedFunction::getFirstBlock() const {
 
 OptionalBridgedBasicBlock BridgedFunction::getLastBlock() const {
   return {getFunction()->empty() ? nullptr : &*getFunction()->rbegin()};
+}
+
+OptionalBridgedInstruction BridgedGlobalVar::getStaticInitializerValue() const {
+  if (swift::SILInstruction *inst = getGlobal()->getStaticInitializerValue()) {
+    return {inst->asSILNode()};
+  }
+  return {nullptr};
+}
+
+bool BridgedGlobalVar::isValidStaticInitializer(BridgedInstruction inst) {
+  swift::SILInstruction *i = inst.getInst();
+  return swift::SILGlobalVariable::isValidStaticInitializerInst(i, i->getModule());
 }
 
 BridgedInstruction BridgedMultiValueResult::getParent() const {

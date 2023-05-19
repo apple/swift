@@ -24,4 +24,4 @@ public func unavailableInHeaderFunc(_ x: StructSeveralI64) -> StructSeveralI64 {
     return Structs.passThroughStructSeveralI64(i: 0, x, j: 2)
 }
 
-// CHECK-NOT: unavailableInHeaderFunc
+// CHECK: // Unavailable in C++: Swift global function 'unavailableInHeaderFunc(_:)'.

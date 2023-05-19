@@ -123,8 +123,9 @@ undefinedFunc() // expected-error {{cannot find 'undefinedFunc' in scope}}
 // expected-warning@-3 {{unknown operating system for build configuration 'os'}}
 // expected-note@-4 {{did you mean 'OSX'?}} {{27-32=OSX}}
 // expected-note@-5 {{did you mean 'PS4'?}} {{27-32=PS4}}
-// expected-warning@-6 {{unknown endianness for build configuration '_endian'}}
-// expected-note@-7 {{did you mean 'big'?}} {{46-50=big}}
+// expected-note@-6 {{did you mean 'none'?}} {{27-32=none}}
+// expected-warning@-7 {{unknown endianness for build configuration '_endian'}}
+// expected-note@-8 {{did you mean 'big'?}} {{46-50=big}}
 func fn_k() {}
 #endif
 fn_k()

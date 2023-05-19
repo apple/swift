@@ -1117,15 +1117,21 @@ void diagnosePotentialUnavailability(const RootProtocolConformance *rootConf,
                                      const UnavailabilityReason &reason);
 
 void
-diagnosePotentialOpaqueTypeUnavailability(SourceRange ReferenceRange,
-                                          const DeclContext *ReferenceDC,
-                                          const UnavailabilityReason &Reason);
+diagnosePotentialUnavailability(SourceRange ReferenceRange,
+                                Diag<StringRef, llvm::VersionTuple> Diag,
+                                const DeclContext *ReferenceDC,
+                                const UnavailabilityReason &Reason);
 
 /// Type check a 'distributed actor' declaration.
 void checkDistributedActor(SourceFile *SF, NominalTypeDecl *decl);
 
 /// Type check a single 'distributed func' declaration.
 void checkDistributedFunc(FuncDecl *func);
+
+bool checkAvailability(SourceRange ReferenceRange,
+                       AvailabilityContext Availability,
+                       Diag<StringRef, llvm::VersionTuple> Diag,
+                       const DeclContext *ReferenceDC);
 
 void checkConcurrencyAvailability(SourceRange ReferenceRange,
                                   const DeclContext *ReferenceDC);

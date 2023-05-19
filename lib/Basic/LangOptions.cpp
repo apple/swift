@@ -63,6 +63,7 @@ static const SupportedConditionalValue SupportedConditionalCompilationOSs[] = {
   "Cygwin",
   "Haiku",
   "WASI",
+  "none",
 };
 
 static const SupportedConditionalValue SupportedConditionalCompilationArches[] = {

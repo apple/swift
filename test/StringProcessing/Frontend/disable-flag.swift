@@ -9,6 +9,6 @@ _ = /x/
 // expected-error@-2 {{cannot find 'x' in scope}}
 // expected-error@-3 {{'/' is not a postfix unary operator}}
 
-_ = #/x/# // expected-error 2 {{expected a macro identifier}}
+_ = #/x/# // expected-error {{expected a macro identifier}}
 
 func foo(_ x: Regex<Substring>) {} // expected-error {{cannot find type 'Regex' in scope}}

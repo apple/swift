@@ -1,0 +1,153 @@
+// RUN: %target-sil-opt -enable-sil-verify-all %s -initialize-static-globals | %FileCheck %s
+
+// REQUIRES: swift_in_compiler
+
+sil_stage canonical
+
+import Builtin
+import Swift
+import SwiftShims
+
+public struct TStruct {
+  let x: Int32
+  init(x: Int32)
+}
+
+struct Outer {
+  let a: Int32
+  let b: TStruct
+  let c: Int32
+}
+
+let trivialglobal: TStruct
+
+public class TClass {
+  final let x: Int32
+  init(x: Int32)
+  deinit
+}
+
+struct GenericStruct<T> {
+  var x: T
+}
+
+let nontrivialglobal: TClass
+
+// CHECK-LABEL: sil_global hidden [let] @$trivialglobal : $TStruct = {
+// CHECK:  [[CONST:%.*]] = integer_literal $Builtin.Int32, 10
+// CHECK:  [[INT:%.*]] = struct $Int32 ([[CONST]] : $Builtin.Int32)
+// CHECK:  %initval = struct $TStruct ([[INT]] : $Int32)
+sil_global hidden [let] @$trivialglobal : $TStruct
+sil_global private @globalinit_trivialglobal_token : $Builtin.Word
+
+
+// CHECK-LABEL: sil_global hidden [let] @$nontrivialglobal : $TClass{{$}}
+sil_global hidden [let] @$nontrivialglobal : $TClass
+sil_global private @globalinit_nontrivialglobal_token : $Builtin.Word
+
+// CHECK-LABEL: sil_global hidden [let] @empty_global : $GenericStruct<()>{{$}}
+sil_global hidden [let] @empty_global : $GenericStruct<()>
+sil_global private @empty_global_token : $Builtin.Word
+
+// CHECK: sil_global @go : $Outer = {
+// CHECK-NEXT:   %0 = integer_literal $Builtin.Int32, 2
+// CHECK-NEXT:   %1 = struct $Int32 (%0 : $Builtin.Int32)
+// CHECK-NEXT:   %2 = struct $TStruct (%1 : $Int32)
+// CHECK-NEXT:   %initval = struct $Outer (%1 : $Int32, %2 : $TStruct, %1 : $Int32)
+// CHECK-NEXT: }
+sil_global @go : $Outer
+sil_global private @globalinit_token0 : $Builtin.Word
+
+// CHECK-LABEL: sil_global [let] @g1 : $Int32{{$}}
+sil_global [let] @g1 : $Int32
+sil_global private @g1_token : $Builtin.Word
+
+// CHECK-LABEL: sil_global [let] @g2 : $Int32{{$}}
+sil_global [let] @g2 : $Int32
+sil_global private @g2_token : $Builtin.Word
+
+
+// CHECK-LABEL: sil [global_init_once_fn] [ossa] @globalinit_trivialglobal_func :
+// CHECK-NOT:     alloc_global
+// CHECK-NOT:     store
+// CHECK:       } // end sil function 'globalinit_trivialglobal_func'
+sil [global_init_once_fn] [ossa] @globalinit_trivialglobal_func : $@convention(c) () -> () {
+bb0:
+  alloc_global @$trivialglobal
+  %1 = global_addr @$trivialglobal : $*TStruct
+  %2 = integer_literal $Builtin.Int32, 10
+  %3 = struct $Int32 (%2 : $Builtin.Int32)
+  %4 = struct $TStruct (%3 : $Int32)
+  store %4 to [trivial] %1 : $*TStruct
+  %6 = tuple ()
+  return %6 : $()
+}
+
+// CHECK-LABEL: sil [global_init_once_fn] [ossa] @globalinit_nontrivialglobal_func :
+// CHECK:         alloc_global
+// CHECK:         store
+// CHECK:       } // end sil function 'globalinit_nontrivialglobal_func'
+sil [global_init_once_fn] [ossa] @globalinit_nontrivialglobal_func : $@convention(c) () -> () {
+bb0:
+  alloc_global @$nontrivialglobal
+  %1 = global_addr @$nontrivialglobal : $*TClass
+  %2 = integer_literal $Builtin.Int32, 10
+  %3 = struct $Int32 (%2 : $Builtin.Int32)
+  %4 = alloc_ref $TClass
+  %5 = begin_borrow %4 : $TClass
+  %6 = ref_element_addr %5 : $TClass, #TClass.x
+  store %3 to [trivial] %6 : $*Int32
+  end_borrow %5 : $TClass
+  store %4 to [init] %1 : $*TClass
+  %10 = tuple ()
+  return %10 : $()
+}
+
+// Check that we don't crash on an initializer struct with an "undef" operand.
+
+// CHECK-LABEL: sil [global_init_once_fn] [ossa] @globalinit_with_undef :
+// CHECK:         alloc_global
+// CHECK:         store
+// CHECK:       } // end sil function 'globalinit_with_undef'
+sil [global_init_once_fn] [ossa] @globalinit_with_undef : $@convention(c) () -> () {
+bb0:
+  alloc_global @empty_global
+  %1 = global_addr @empty_global : $*GenericStruct<()>
+  %2 = struct $GenericStruct<()> (undef : $())
+  store %2 to [trivial] %1 : $*GenericStruct<()>
+  %4 = tuple ()
+  return %4 : $()
+}
+
+// CHECK-LABEL: sil [global_init_once_fn] @globalinit_nested_struct :
+// CHECK-NOT:     alloc_global
+// CHECK-NOT:     store
+// CHECK:       } // end sil function 'globalinit_nested_struct'
+sil [global_init_once_fn] @globalinit_nested_struct : $@convention(c) () -> () {
+bb0:
+  alloc_global @go
+  %0 = global_addr @go : $*Outer
+  %1 = integer_literal $Builtin.Int32, 2
+  %2 = struct $Int32 (%1 : $Builtin.Int32)
+  %3 = struct $TStruct (%2 : $Int32)
+  %4 = struct $Outer (%2 : $Int32, %3 : $TStruct, %2 : $Int32)
+  store %4 to %0 : $*Outer
+  %r = tuple ()
+  return %r : $()
+}
+
+// CHECK-LABEL: sil [global_init_once_fn] @globalinit_mismatching_global :
+// CHECK:         alloc_global
+// CHECK:         store
+// CHECK:       } // end sil function 'globalinit_mismatching_global'
+sil [global_init_once_fn] @globalinit_mismatching_global : $@convention(c) () -> () {
+bb0:
+  alloc_global @g1
+  %1 = global_addr @g2 : $*Int32
+  %2 = integer_literal $Builtin.Int32, 10
+  %3 = struct $Int32 (%2 : $Builtin.Int32)
+  store %3 to %1 : $*Int32
+  %6 = tuple ()
+  return %6 : $()
+}
+

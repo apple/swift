@@ -30,8 +30,8 @@ public struct S {
 // expected-error@+5{{operators must have one or two arguments}}
 // expected-error@+4{{member operator '/()' must have at least one argument of type 'S'}}
 // expected-error@+3{{expected '{' in body of function declaration}}
-// expected-error@+2 2 {{consecutive declarations on a line must be separated by ';}}
-// expected-error@+1 2 {{expected a macro identifier}}
+// expected-error@+2 {{consecutive declarations on a line must be separated by ';}}
+// expected-error@+1 {{expected a macro identifier}}
 / ###line 25 "line-directive.swift"
 }
 // expected-error@+1{{#line directive was renamed to #sourceLocation}}

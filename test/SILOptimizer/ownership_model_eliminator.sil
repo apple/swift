@@ -394,3 +394,20 @@ bb0(%0 : $*C):
   %9999 = tuple()
   return %9999 : $()
 }
+
+sil @closure1: $@convention(thin) (@guaranteed C, @inout_aliasable C) -> ()
+sil @closure2 : $@convention(thin) (@guaranteed @noescape @callee_guaranteed () -> ()) -> ()
+
+// Ensure no assertion about missing dealloc_stack for partial_apply [on_stack] after OME
+sil [ossa] @test_partial_apply_on_stack: $@convention(thin) (@guaranteed C, @inout C) -> () {
+bb0(%0 : @guaranteed $C, %1 : $*C):
+  %f1 = function_ref @closure1: $@convention(thin) (@guaranteed C, @inout_aliasable C) -> ()
+  %pa1 = partial_apply [callee_guaranteed] [on_stack] %f1(%0, %1) : $@convention(thin) (@guaranteed C, @inout_aliasable C) -> ()
+  %md = mark_dependence %pa1 : $@noescape @callee_guaranteed () -> () on %1 : $*C
+  %f2 = function_ref @closure2 : $@convention(thin) (@guaranteed @noescape @callee_guaranteed () -> ()) -> ()
+  %pa2 = partial_apply [callee_guaranteed] %f2(%md) : $@convention(thin) (@guaranteed @noescape @callee_guaranteed () -> ()) -> ()
+  destroy_value %pa2 : $@callee_guaranteed () -> ()
+  %t = tuple ()
+  return %t : $()
+}
+

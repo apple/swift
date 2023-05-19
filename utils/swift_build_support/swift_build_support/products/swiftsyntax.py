@@ -80,6 +80,16 @@ class SwiftSyntax(product.Product):
         return True
 
     def build(self, host_target):
+        if self.args.swiftsyntax_verify_generated_files:
+            build_cmd = [
+                os.path.join(self.source_dir, 'build-script.py'),
+                'verify-source-code',
+                '--toolchain', self.install_toolchain_path(host_target)
+            ]
+            if self.args.verbose_build:
+                build_cmd.append('--verbose')
+            shell.call(build_cmd)
+
         self.run_swiftsyntax_build_script(target=host_target,
                                           command='build')
 

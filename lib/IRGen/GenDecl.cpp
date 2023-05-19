@@ -511,7 +511,8 @@ void IRGenModule::emitSourceFile(SourceFile &SF) {
   // harmless aside from code size.
   if (!IRGen.Opts.UseJIT) {
     auto addBackDeployLib = [&](llvm::VersionTuple version,
-                                StringRef libraryName) {
+                                StringRef libraryName,
+                                bool forceLoad) {
       Optional<llvm::VersionTuple> compatibilityVersion;
       if (libraryName == "swiftCompatibilityDynamicReplacements") {
         compatibilityVersion = IRGen.Opts.
@@ -532,11 +533,11 @@ void IRGenModule::emitSourceFile(SourceFile &SF) {
 
       this->addLinkLibrary(LinkLibrary(libraryName,
                                        LibraryKind::Library,
-                                       /*forceLoad*/ true));
+                                       forceLoad));
     };
 
-    #define BACK_DEPLOYMENT_LIB(Version, Filter, LibraryName)         \
-      addBackDeployLib(llvm::VersionTuple Version, LibraryName);
+    #define BACK_DEPLOYMENT_LIB(Version, Filter, LibraryName, ForceLoad) \
+      addBackDeployLib(llvm::VersionTuple Version, LibraryName, ForceLoad);
     #include "swift/Frontend/BackDeploymentLibs.def"
   }
 }
@@ -2102,8 +2103,20 @@ void IRGenModule::emitVTableStubs() {
     }
 
     // For each eliminated method symbol create an alias to the stub.
-    auto *alias = llvm::GlobalAlias::create(llvm::GlobalValue::ExternalLinkage,
-                                            F.getName(), stub);
+    llvm::GlobalValue *alias = nullptr;
+    if (F.isAsync()) {
+      // TODO: We cannot directly create a pointer to `swift_deletedAsyncMethodError`
+      // to workaround a linker crash.
+      // Instead use the stub, which calls swift_deletedMethodError. This works because
+      // swift_deletedMethodError takes no parameters and simply aborts the program.
+      auto asyncLayout = getAsyncContextLayout(*this, const_cast<SILFunction *>(&F));
+      auto entity = LinkEntity::forSILFunction(const_cast<SILFunction *>(&F));
+      auto *fnPtr = emitAsyncFunctionPointer(*this, stub, entity, asyncLayout.getSize());
+      alias = fnPtr;
+    } else {
+      alias = llvm::GlobalAlias::create(llvm::GlobalValue::ExternalLinkage,
+                                        F.getName(), stub);
+    }
 
     if (F.getEffectiveSymbolLinkage() == SILLinkage::Hidden)
       alias->setVisibility(llvm::GlobalValue::HiddenVisibility);

@@ -92,6 +92,9 @@
 
 // CHECK-LABEL: #if defined(__OBJC__)
 // CHECK-NEXT:  #endif
+// CHECK-NEXT:  #if __has_attribute(external_source_symbol)
+// CHECK-NEXT:  # pragma clang attribute pop
+// CHECK-NEXT:  #endif
 // CHECK-NEXT:  #if defined(__cplusplus)
 // CHECK-NEXT:  #pragma clang diagnostic push
 // CHECK-NEXT:  #pragma clang diagnostic ignored "-Wnon-modular-include-in-framework-module"

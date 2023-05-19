@@ -91,6 +91,21 @@
 - (void)doSomethingFunAndAsynchronousWithCompletionHandler:(void (^ _Nonnull)(id _Nullable result, NSError * _Nullable error))completionHandler;
 @end
 
+@protocol PartiallyOptionalProtocol
+
+- (void)requiredMethod1;
+- (void)requiredMethod2;
+
+@optional
+- (void)optionalMethod1;
+- (void)optionalMethod2;
+
+@end
+
+@interface ObjCClass (Conformance) <PartiallyOptionalProtocol>
+
+@end
+
 @interface ObjCSubclass : ObjCClass
 
 - (void)subclassMethodFromHeader1:(int)param;

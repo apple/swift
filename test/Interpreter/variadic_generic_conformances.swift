@@ -1,9 +1,6 @@
-// RUN: %target-run-simple-swift(-enable-experimental-feature VariadicGenerics)
+// RUN: %target-run-simple-swift(-Xfrontend -disable-availability-checking)
 
 // REQUIRES: executable_test
-
-// Because of -enable-experimental-feature VariadicGenerics
-// REQUIRES: asserts
 
 // UNSUPPORTED: use_os_stdlib
 // UNSUPPORTED: back_deployment_runtime

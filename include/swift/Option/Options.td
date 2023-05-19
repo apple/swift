@@ -709,8 +709,7 @@ def enable_experimental_cxx_interop :
 def cxx_interoperability_mode :
   Joined<["-"], "cxx-interoperability-mode=">,
   Flags<[FrontendOption, ModuleInterfaceOption]>,
-  HelpText<"Enables C++ interoperability; requires compatbility version to be "
-  "specified.">;
+  HelpText<"Enables C++ interoperability; pass 'default' to enable or 'off' to disable">;
 
 def experimental_c_foreign_reference_types :
   Flag<["-"], "experimental-c-foreign-reference-types">,
@@ -935,7 +934,7 @@ def disableCrossModuleOptimization : Flag<["-"], "disable-cmo">,
 
 def ExperimentalPerformanceAnnotations : Flag<["-"], "experimental-performance-annotations">,
   Flags<[HelpHidden, FrontendOption]>,
-  HelpText<"Enable experimental performance annotations">;
+  HelpText<"Deprecated, has no effect">;
 
 def RemoveRuntimeAsserts : Flag<["-"], "remove-runtime-asserts">,
   Flags<[FrontendOption]>,

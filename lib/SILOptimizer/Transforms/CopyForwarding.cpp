@@ -75,7 +75,6 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 
-STATISTIC(NumCopyNRVO, "Number of copies removed via named return value opt.");
 STATISTIC(NumCopyForward, "Number of copies removed via forward propagation");
 STATISTIC(NumCopyBackward,
           "Number of copies removed via backward propagation");
@@ -1214,114 +1213,6 @@ void CopyForwarding::forwardCopiesOf(SILValue Def, SILFunction *F) {
 }
 
 //===----------------------------------------------------------------------===//
-//                    Named Return Value Optimization
-//===----------------------------------------------------------------------===//
-
-/// Return true if this copy can be eliminated through Named Return Value
-/// Optimization (NRVO).
-///
-/// Simple NRVO cases are handled naturally via backwardPropagateCopy. However,
-/// general NRVO is not handled via local propagation without global data
-/// flow. Nonetheless, NRVO is a simple pattern that can be detected using a
-/// different technique from propagation.
-///
-/// Example:
-/// func nrvo<T : P>(z : Bool) -> T {
-///   var rvo : T
-///   if (z) {
-///     rvo = T(10)
-///   }
-///   else {
-///     rvo = T(1)
-///   }
-///   return rvo
-/// }
-///
-/// Because of the control flow, backward propagation with a block will fail to
-/// find the initializer for the copy at "return rvo". Instead, we directly
-/// check for an NRVO pattern by observing a copy in a return block that is the
-/// only use of the copy's dest, which must be an @out arg. If there are no
-/// instructions between the copy and the return that may write to the copy's
-/// source, we simply replace the source's local stack address with the @out
-/// address.
-///
-/// The following SIL pattern will be detected:
-///
-/// sil @foo : $@convention(thin) <T> (@out T) -> () {
-/// bb0(%0 : $*T):
-///   %2 = alloc_stack $T
-/// ... // arbitrary control flow, but no other uses of %0
-/// bbN:
-///   copy_addr [take] %2 to [init] %0 : $*T
-///   ... // no writes
-///   return
-static bool canNRVO(CopyAddrInst *CopyInst) {
-  // Don't perform NRVO unless the copy is a [take]. This is the easiest way
-  // to determine that the local variable has ownership of its value and ensures
-  // that removing a copy is a reference count neutral operation. For example,
-  // this copy can't be trivially eliminated without adding a retain.
-  //   sil @f : $@convention(thin) (@guaranteed T) -> @out T
-  //   bb0(%in : $*T, %out : $T):
-  //     %local = alloc_stack $T
-  //     store %in to %local : $*T
-  //     copy_addr %local to [init] %out : $*T
-  if (!CopyInst->isTakeOfSrc())
-    return false;
-
-  auto *asi = dyn_cast<AllocStackInst>(CopyInst->getSrc());
-  if (!asi || asi->hasDynamicLifetime())
-    return false;
-
-  // The copy's dest must be an indirect SIL argument. Otherwise, it may not
-  // dominate all uses of the source. Worse, it may be aliased. This
-  // optimization will early-initialize the copy dest, so we can't allow aliases
-  // to be accessed between the initialization and the return.
-  auto OutArg = dyn_cast<SILFunctionArgument>(CopyInst->getDest());
-  if (!OutArg)
-    return false;
-
-  if (!OutArg->isIndirectResult())
-    return false;
-
-  SILBasicBlock *BB = CopyInst->getParent();
-  if (!isa<ReturnInst>(BB->getTerminator()))
-    return false;
-
-  SILValue CopyDest = CopyInst->getDest();
-  if (!hasOneNonDebugUse(CopyDest))
-    return false;
-
-  auto SI = CopyInst->getIterator(), SE = BB->end();
-  for (++SI; SI != SE; ++SI) {
-    if (SI->mayWriteToMemory() && !isa<DeallocationInst>(SI))
-      return false;
-  }
-  return true;
-}
-
-/// Replace all uses of \p ASI by \p RHS, except the dealloc_stack.
-static void replaceAllUsesExceptDealloc(AllocStackInst *ASI, ValueBase *RHS) {
-  llvm::SmallVector<Operand *, 8> Uses;
-  for (Operand *Use : ASI->getUses()) {
-    if (!isa<DeallocStackInst>(Use->getUser()))
-      Uses.push_back(Use);
-  }
-  for (Operand *Use : Uses) {
-    Use->set(RHS);
-  }
-}
-
-/// Remove a copy for which canNRVO returned true.
-static void performNRVO(CopyAddrInst *CopyInst) {
-  LLVM_DEBUG(llvm::dbgs() << "NRVO eliminates copy" << *CopyInst);
-  ++NumCopyNRVO;
-  replaceAllUsesExceptDealloc(cast<AllocStackInst>(CopyInst->getSrc()),
-                              CopyInst->getDest());
-  assert(CopyInst->getSrc() == CopyInst->getDest() && "bad NRVO");
-  CopyInst->eraseFromParent();
-}
-
-//===----------------------------------------------------------------------===//
 //                         CopyForwardingPass
 //===----------------------------------------------------------------------===//
 
@@ -1361,16 +1252,10 @@ class CopyForwardingPass : public SILFunctionTransform
 
     // Collect a set of identified objects (@in arg or alloc_stack) that are
     // copied in this function.
-    // Collect a separate set of copies that can be removed via NRVO.
     llvm::SmallSetVector<SILValue, 16> CopiedDefs;
-    llvm::SmallVector<CopyAddrInst*, 4> NRVOCopies;
     for (auto &BB : *getFunction())
       for (auto II = BB.begin(), IE = BB.end(); II != IE; ++II) {
         if (auto *CopyInst = dyn_cast<CopyAddrInst>(&*II)) {
-          if (canNRVO(CopyInst)) {
-            NRVOCopies.push_back(CopyInst);
-            continue;
-          }
           SILValue Def = CopyInst->getSrc();
           if (isIdentifiedSourceValue(Def))
             CopiedDefs.insert(Def);
@@ -1380,12 +1265,6 @@ class CopyForwardingPass : public SILFunctionTransform
           }
         }
       }
-
-    // Perform NRVO
-    for (auto Copy : NRVOCopies) {
-      performNRVO(Copy);
-      invalidateAnalysis(SILAnalysis::InvalidationKind::CallsAndInstructions);
-    }
 
     // Perform Copy Forwarding.
     if (CopiedDefs.empty())

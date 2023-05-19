@@ -174,7 +174,7 @@ bb3:
 }
 
 // CHECK-LABEL: sil [ossa] @guaranteed_phi_argument : $@convention(thin) (@owned Klass) -> () {
-// CHECK:         {{bb[0-9]+}}({{%[^,]+}} : @guaranteed $Klass):
+// CHECK:         {{bb[0-9]+}}({{%[^,]+}} : @reborrow @guaranteed $Klass):
 // CHECK-LABEL: } // end sil function 'guaranteed_phi_argument'
 sil [ossa] @guaranteed_phi_argument : $@convention(thin) (@owned Klass) -> () {
 entry(%instance : @owned $Klass):
@@ -203,7 +203,7 @@ exit:
 // A guaranteed value whose ownership has been forwarded must not be reborrowed. 
 //
 // CHECK-LABEL: sil [ossa] @forwarded_borrow_cant_be_reborrowed : $@convention(thin) (@owned BoxStruct) -> () {
-// CHECK:   {{bb[0-9]+}}({{%[^,]+}} : @guaranteed $BoxStruct, {{%[^,]+}} : @guaranteed $Klass):
+// CHECK:   {{bb[0-9]+}}({{%[^,]+}} : @reborrow @guaranteed $BoxStruct, {{%[^,]+}} : @guaranteed $Klass):
 // CHECK-LABEL: } // end sil function 'forwarded_borrow_cant_be_reborrowed'
 sil [ossa] @forwarded_borrow_cant_be_reborrowed : $@convention(thin) (@owned BoxStruct) -> () {
 bb0(%0 : @owned $BoxStruct):

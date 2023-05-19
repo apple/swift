@@ -1040,7 +1040,10 @@ void IterableDeclContext::addMemberSilently(Decl *member, Decl *hint,
       return;
 
     // Synthesized member macros can add new members in a macro expansion buffer.
-    auto *memberSourceFile = member->getInnermostDeclContext()->getParentSourceFile();
+    SourceFile *memberSourceFile = member->getLoc()
+        ? member->getModuleContext()
+                ->getSourceFileContainingLocation(member->getLoc())
+        : member->getInnermostDeclContext()->getParentSourceFile();
     if (memberSourceFile->getFulfilledMacroRole() == MacroRole::Member ||
         memberSourceFile->getFulfilledMacroRole() == MacroRole::Peer)
       return;

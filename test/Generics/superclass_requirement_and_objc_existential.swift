@@ -15,7 +15,7 @@ protocol Q {
 /// This is allowed, even though it's not fully sound.
 
 // CHECK-LABEL: .f1@
-// CHECK-NEXT: Generic signature: <T where T : Q, T.[Q]A == C & P1>
+// CHECK-NEXT: Generic signature: <T where T : Q, T.[Q]A == any C & P1>
 func f1<T : Q>(_: T) where T.A : C, T.A == any (C & P1) {}
 // expected-warning@-1 {{redundant superclass constraint 'T.A' : 'C'}}
 

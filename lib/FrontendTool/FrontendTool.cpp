@@ -912,17 +912,14 @@ static bool emitAnyWholeModulePostTypeCheckSupplementaryOutputs(
 
   if ((!Context.hadError() || opts.AllowModuleWithCompilerErrors) &&
       opts.InputsAndOutputs.hasClangHeaderOutputPath()) {
-    std::string BridgingHeaderPathForPrint;
-    if (!opts.ImplicitObjCHeaderPath.empty()) {
+    std::string BridgingHeaderPathForPrint = Instance.getBridgingHeaderPath();
+    if (!BridgingHeaderPathForPrint.empty()) {
       if (opts.BridgingHeaderDirForPrint.has_value()) {
         // User specified preferred directory for including, use that dir.
         llvm::SmallString<32> Buffer(*opts.BridgingHeaderDirForPrint);
         llvm::sys::path::append(Buffer,
-          llvm::sys::path::filename(opts.ImplicitObjCHeaderPath));
+          llvm::sys::path::filename(BridgingHeaderPathForPrint));
         BridgingHeaderPathForPrint = (std::string)Buffer;
-      } else {
-        // By default, include the given bridging header path directly.
-        BridgingHeaderPathForPrint = opts.ImplicitObjCHeaderPath;
       }
     }
     hadAnyError |= printAsClangHeaderIfNeeded(

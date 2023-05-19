@@ -9,49 +9,28 @@
 //
 //===----------------------------------------------------------------------===//
 
-import _Concurrency
 
 @available(SwiftStdlib 5.9, *)
-public protocol Observable {
-  nonisolated func changes<Isolation: Actor>(
-    for properties: TrackedProperties<Self>,
-    isolatedTo isolation: Isolation
-  ) -> ObservedChanges<Self, Isolation>
-  
-  nonisolated func values<Member: Sendable>(
-    for keyPath: KeyPath<Self, Member>
-  ) -> ObservedValues<Self, Member>
-  
-  nonisolated static func dependencies(
-    of keyPath: PartialKeyPath<Self>
-  ) -> TrackedProperties<Self>
-}
+@_marker public protocol Observable { }
 
+#if $Macros && hasAttribute(attached)
 
 @available(SwiftStdlib 5.9, *)
-extension Observable {
-  public nonisolated func changes<Member, Isolation: Actor>(
-    for keyPath: KeyPath<Self, Member>,
-    isolatedTo isolation: Isolation
-  ) -> ObservedChanges<Self, Isolation> {
-    changes(for: [keyPath], isolatedTo: isolation)
-  }
-  
-  public nonisolated func changes(
-    for properties: TrackedProperties<Self>
-  ) -> ObservedChanges<Self, MainActor.ActorType> {
-    changes(for: properties, isolatedTo: MainActor.shared)
-  }
-  
-  public nonisolated func changes<Member>(
-    for keyPath: KeyPath<Self, Member>
-  ) -> ObservedChanges<Self, MainActor.ActorType> {
-    changes(for: [keyPath], isolatedTo: MainActor.shared)
-  }
-  
-  public nonisolated static func dependencies(
-    of keyPath: PartialKeyPath<Self>
-  ) -> TrackedProperties<Self> {
-    return [keyPath]
-  }
-}
+@attached(member, names: named(_$observationRegistrar), named(access), named(withMutation), arbitrary)
+@attached(memberAttribute)
+@attached(conformance)
+public macro Observable() = 
+  #externalMacro(module: "ObservationMacros", type: "ObservableMacro")
+
+@available(SwiftStdlib 5.9, *)
+@attached(accessor)
+// @attached(peer, names: prefixed(_))
+public macro ObservationTracked() =
+  #externalMacro(module: "ObservationMacros", type: "ObservationTrackedMacro")
+
+@available(SwiftStdlib 5.9, *)
+@attached(accessor)
+public macro ObservationIgnored() =
+  #externalMacro(module: "ObservationMacros", type: "ObservationIgnoredMacro")
+
+#endif

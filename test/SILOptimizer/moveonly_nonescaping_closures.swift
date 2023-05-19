@@ -1,4 +1,6 @@
 // RUN: %target-swift-frontend -emit-sil -verify %s
+// RUN: %target-swift-frontend -DNONTRIVIAL -emit-sil -verify %s
+// RUN: %target-swift-frontend -DNONTRIVIAL -DREABSTRACT -emit-sil -verify %s
 // TODO: test with (-DNONTRIVIAL | -DADDRESS_ONLY) * (REABSTRACT)
 
 protocol P {}
@@ -52,13 +54,35 @@ func b(x: __owned M) { // expected-error {{'x' used after consume}}
     // expected-note @-2:37 {{consuming use here}}
 }
 
+// We have a use after free here since we treat the passing of borrow to clodger
+// to be a read use of x. So we consume x as part of preparing arguments and
+// then have a read via the application of clodger.
+func b2(x: consuming M) {
+    // expected-error @-1 {{'x' used after consume}}
+    clodger({ borrow(x) }, // expected-note {{conflicting access is here}}
+            // expected-note @-1 {{non-consuming use here}}
+            consume: x) // expected-error {{overlapping accesses to 'x', but deinitialization requires exclusive access}}
+            // expected-note @-1 {{consuming use here}}
+}
+
 func c(x: __owned M) {
     clodger({ borrow(x) })
     borrow(x)
     consume(x)
 }
 
+func c2(x: consuming M) {
+    clodger({ borrow(x) })
+    borrow(x)
+    consume(x)
+}
+
 func d(x: __owned M) { // expected-error {{'x' consumed in closure. This is illegal since if the closure is invoked more than once the binding will be uninitialized on later invocations}}
+    clodger({ consume(x) })
+    // expected-note @-1 {{consuming use here}}
+}
+
+func d2(x: consuming M) { // expected-error {{'x' consumed in closure but not reinitialized before end of closure}}
     clodger({ consume(x) })
     // expected-note @-1 {{consuming use here}}
 }
@@ -76,16 +100,21 @@ func f(x: borrowing M) {
 }
 
 func g(x: inout M) {
-    clodger({ mutate(&x) }, borrow: x) // expected-error{{}} // expected-note{{}}
+    clodger({ mutate(&x) }, // expected-error {{overlapping accesses to 'x', but modification requires exclusive access}}}
+            borrow: x)      // expected-note {{conflicting access is here}}
 }
 
-func h(x: inout M) {
-    clodger({ mutate(&x) }, consume: x) // expected-error{{}} // expected-note{{}}
+func h(x: inout M) { // expected-error {{'x' used after consume}}
+    clodger({ mutate(&x) }, // expected-note {{conflicting access is here}}
+            // expected-note @-1 {{non-consuming use here}}
+            consume: x) // expected-error {{overlapping accesses to 'x', but deinitialization requires exclusive access}}}
+    // expected-note @-1 {{consuming use here}}
     x = M()
 }
 
 func i(x: inout M) {
-    clodger({ mutate(&x) }, mutate: &x) // expected-error{{}} // expected-note{{}}
+    clodger({ mutate(&x) }, // expected-note {{conflicting access is here}}
+            mutate: &x) // expected-error {{overlapping accesses to 'x', but modification requires exclusive access}}}
 }
 
 // Multiple closures are allowed to capture the same inout binding concurrently.
@@ -100,20 +129,18 @@ func k(x: borrowing M) {
 }
 
 
-func l(x: inout M) { // expected-error{{}}
-    clodger({ consume(x) }) // expected-note{{}}
+func l(x: inout M) { // expected-error {{'x' consumed in closure but not reinitialized before end of closure}}
+    clodger({ consume(x) }) // expected-note {{consuming use here}}
 }
 
-func m(x: inout M) { // expected-error{{}}
-    consume(x) // expected-note{{}}
-
-    clodger({ borrow(x) }) // expected-note{{}}
+func m(x: inout M) { // expected-error {{'x' used after consume}}
+    consume(x) // expected-note {{consuming use here}}
+    clodger({ borrow(x) }) // expected-note {{non-consuming use here}}
 }
 
-func n(x: inout M) { // expected-error{{}}
-    consume(x) // expected-note{{}}
-
-    clodger({ // expected-note{{}}
+func n(x: inout M) { // expected-error {{'x' used after consume}}
+    consume(x) // expected-note {{consuming use here}}
+    clodger({ // expected-note {{non-consuming use here}}
         mutate(&x)
     })
 }

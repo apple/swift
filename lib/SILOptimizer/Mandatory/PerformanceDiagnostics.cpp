@@ -335,7 +335,7 @@ bool PerformanceDiagnostics::visitInst(SILInstruction *inst,
     }
     case SILInstructionKind::MetatypeInst:
       if (metatypeUsesAreNotRelevant(cast<MetatypeInst>(inst)))
-        break;
+        return false;
       LLVM_FALLTHROUGH;
     default:
       // We didn't recognize the instruction, so try to give an error message
@@ -485,13 +485,6 @@ private:
         // Don't rerun diagnostics on deserialized functions.
         if (function.wasDeserializedCanonical())
           continue;
-
-        if (!module->getOptions().EnablePerformanceAnnotations) {
-          module->getASTContext().Diags.diagnose(
-            function.getLocation().getSourceLoc(),
-            diag::performance_annotations_not_enabled);
-          return;
-        }
 
         diagnoser.visitFunction(&function, function.getPerfConstraints());
       }

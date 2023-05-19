@@ -26,7 +26,9 @@
 #include "swift/Runtime/Config.h"
 #include <mach-o/dyld.h>
 #include <mach-o/getsect.h>
+#if SWIFT_OBJC_INTEROP
 #include <objc/runtime.h>
+#endif
 #include <assert.h>
 #include <dlfcn.h>
 

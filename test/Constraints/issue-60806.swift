@@ -18,7 +18,7 @@ enum NonBarBaz {
 
 let _: Foo<Bar> = Foo<Bar> { (a: Bar) -> Void in
   switch a {
-  // CHECK: (pattern_is type='Bar' value_cast Baz
+  // CHECK: (pattern_is type='any Bar' value_cast Baz
   // CHECK-NEXT: (pattern_enum_element type='Baz' Baz.someCase
   case let .someCase(value) as Baz:
     print(value)

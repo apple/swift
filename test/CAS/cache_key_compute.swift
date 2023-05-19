@@ -49,3 +49,8 @@
 // CHECK-NEXT: "OutputKind": "tbd"
 // CHECK-NEXT: "Input"
 // CHECK-NEXT: "CacheKey"
+
+// CHECK: <cached-diagnostics>
+// CHECK-NEXT: "OutputKind": "cached-diagnostics"
+// CHECK-NEXT: "Input": "<cached-diagnostics>"
+// CHECK-NEXT: "CacheKey"

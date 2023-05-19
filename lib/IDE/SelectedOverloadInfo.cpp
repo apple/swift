@@ -40,7 +40,9 @@ swift::ide::getSelectedOverloadInfo(const Solution &S,
       Result.BaseTy = nullptr;
     }
 
-    Result.Value = SelectedOverload->choice.getDeclOrNull();
+    if (auto ReferencedDecl = SelectedOverload->choice.getDeclOrNull()) {
+      Result.ValueRef = S.resolveConcreteDeclRef(ReferencedDecl, CalleeLocator);
+    }
     Result.ValueTy =
         S.simplifyTypeForCodeCompletion(SelectedOverload->adjustedOpenedType);
 

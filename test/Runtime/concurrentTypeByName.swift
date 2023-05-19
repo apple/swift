@@ -3,6 +3,7 @@
 
 // UNSUPPORTED: use_os_stdlib
 // UNSUPPORTED: back_deployment_runtime
+// UNSUPPORTED: single_threaded_concurrency
 
 import StdlibUnittest
 import SwiftPrivateThreadExtras

@@ -357,16 +357,27 @@ class StaticInitCloner : public SILCloner<StaticInitCloner> {
   /// don't have any operands).
   llvm::SmallVector<SILInstruction *, 8> readyToClone;
 
-  SILInstruction *insertionPoint = nullptr;
+  SILDebugLocation insertLoc;
+
+  SILInstruction *firstClonedInst = nullptr;
 
 public:
   StaticInitCloner(SILGlobalVariable *gVar)
-      : SILCloner<StaticInitCloner>(gVar) {}
+      : SILCloner<StaticInitCloner>(gVar),
+        insertLoc(ArtificialUnreachableLocation(), nullptr) {}
 
   StaticInitCloner(SILInstruction *insertionPoint)
       : SILCloner<StaticInitCloner>(*insertionPoint->getFunction()),
-        insertionPoint(insertionPoint) {
+        insertLoc(insertionPoint->getDebugLocation()) {
     Builder.setInsertionPoint(insertionPoint);
+  }
+
+  StaticInitCloner(const SILBuilder &builder)
+    : SILCloner<StaticInitCloner>(builder.getFunction()),
+      insertLoc(ArtificialUnreachableLocation(), nullptr) {
+    Builder.setInsertionPoint(builder.getInsertionBB(), builder.getInsertionPoint());
+    if (builder.getInsertionPoint() != builder.getInsertionBB()->end())
+      insertLoc = builder.getInsertionPoint()->getDebugLocation();
   }
 
   /// Add \p InitVal and all its operands (transitively) for cloning.
@@ -374,13 +385,15 @@ public:
   /// Note: all init values must are added, before calling clone().
   /// Returns false if cloning is not possible, e.g. if we would end up cloning
   /// a reference to a private function into a function which is serialized.
-  bool add(SILInstruction *initVal);
+  bool add(SILValue initVal);
 
   /// Clone \p InitVal and all its operands into the initializer of the
   /// SILGlobalVariable.
   ///
   /// \return Returns the cloned instruction in the SILGlobalVariable.
-  SingleValueInstruction *clone(SingleValueInstruction *initVal);
+  SILValue clone(SILValue initVal);
+
+  SILInstruction *getFirstClonedInst() const { return firstClonedInst; }
 
   /// Convenience function to clone a single \p InitVal.
   static void appendToInitializer(SILGlobalVariable *gVar,
@@ -393,16 +406,19 @@ public:
   }
 
 protected:
+
+  void postProcess(SILInstruction *Orig, SILInstruction *Cloned) {
+    if (!firstClonedInst)
+      firstClonedInst = Cloned;
+    SILCloner<StaticInitCloner>::postProcess(Orig, Cloned);
+  }
+
   SILLocation remapLocation(SILLocation loc) {
-    if (insertionPoint)
-      return insertionPoint->getLoc();
-    return ArtificialUnreachableLocation();
+    return insertLoc.getLocation();
   }
 
   const SILDebugScope *remapScope(const SILDebugScope *DS) {
-    if (insertionPoint)
-      return insertionPoint->getDebugScope();
-    return nullptr;
+    return insertLoc.getScope();
   }
 };
 

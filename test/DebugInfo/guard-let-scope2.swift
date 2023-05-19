@@ -18,7 +18,7 @@ public func f(x: String?) throws {
   }
   // CHECK: sil_scope [[S1:[0-9]+]] { {{.*}} parent @{{.*}}1f
   // CHECK: sil_scope [[S2:[0-9]+]] { {{.*}} parent [[S1]] }
-  // CHECK: sil_scope [[S3:[0-9]+]] { {{.*}} parent [[S2]] }
+  // CHECK: sil_scope [[S3:[0-9]+]] { {{.*}} parent [[S1]] }
   // CHECK: sil_scope [[S4:[0-9]+]] { {{.*}} parent [[S2]] }
   // CHECK: alloc_stack {{.*}} $SomeObject, let, name "s", {{.*}} scope [[S4]]
   guard let s = s else {

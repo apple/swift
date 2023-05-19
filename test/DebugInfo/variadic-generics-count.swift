@@ -1,5 +1,5 @@
 // RUN: %target-swift-frontend -emit-ir %s -g -o - \
-// RUN:    -parse-as-library -module-name a | %FileCheck %s
+// RUN:    -parse-as-library -module-name a -disable-availability-checking | %FileCheck %s
 
 public func f1<each T>(ts: repeat each T) {
   // CHECK: define {{.*}} @"$s1a2f12tsyxxQp_tRvzlF"(%swift.opaque** {{.*}}, i{{32|64}} [[COUNT1_1:.*]], %swift.type** {{.*}})
@@ -31,10 +31,24 @@ public func f4<each U, each V>(us: repeat (each U, each V)) {
   // CHECK-LABEL: ret void
 }
 
+public struct S<each T> {
+    let vals: (repeat each T)
+
+    public func f5() {
+    // CHECK: define {{.*}} @"$s1a1SV2f5yyF"(%swift.type* {{.*}}, %T1a1SV* {{.*}} %0)
+    }
+}
+
+public func f6<each T>(s: S<repeat each T>) {
+  // CHECK: define {{.*}} @"$s1a2f61syAA1SVyxxQp_QPG_tRvzlF"(%T1a1SV* {{.*}}, i{{32|64}} [[COUNT6_1:.*]], %swift.type** {{.*}})
+  // CHECK-DAG: store i{{32|64}} [[COUNT6_1]], i{{32|64}}* %[[COUNT6_1_A:.*]], align
+  // CHECK-DAG: call void @llvm.dbg.declare({{.*}}[[COUNT6_1_A]], metadata ![[COUNT6_1_VAR:[0-9]+]], metadata !DIExpression())
+}
+
 // CHECK-LABEL: !DICompileUnit
 // CHECK-DAG: [[COUNT1_1_VAR]] = !DILocalVariable(name: "$pack_count_0",{{.*}} flags: DIFlagArtificial)
 // CHECK-DAG: [[COUNT2_1_VAR]] = !DILocalVariable(name: "$pack_count_0",{{.*}} flags: DIFlagArtificial)
 // CHECK-DAG: [[COUNT2_2_VAR]] = !DILocalVariable(name: "$pack_count_1",{{.*}} flags: DIFlagArtificial)
 // CHECK-DAG: [[COUNT3_1_VAR]] = !DILocalVariable(name: "$pack_count_0",{{.*}} flags: DIFlagArtificial)
 // CHECK-DAG: [[COUNT4_1_VAR]] = !DILocalVariable(name: "$pack_count_0",{{.*}} flags: DIFlagArtificial)
-
+// CHECK-DAG: [[COUNT6_1_VAR]] = !DILocalVariable(name: "$pack_count_0",{{.*}} flags: DIFlagArtificial)

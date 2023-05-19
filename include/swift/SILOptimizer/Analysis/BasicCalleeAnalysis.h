@@ -183,7 +183,6 @@ private:
 
 class BasicCalleeAnalysis : public SILAnalysis {
   SILModule &M;
-  SILPassManager *pm = nullptr;
   std::unique_ptr<CalleeCache> Cache;
 
 public:
@@ -196,8 +195,6 @@ public:
   static bool classof(const SILAnalysis *S) {
     return S->getKind() == SILAnalysisKind::BasicCallee;
   }
-
-  virtual void initialize(SILPassManager *pm) override { this->pm = pm; }
 
   /// Invalidate all information in this analysis.
   virtual void invalidate() override {

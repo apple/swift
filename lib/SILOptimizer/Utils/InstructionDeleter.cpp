@@ -276,6 +276,10 @@ void InstructionDeleter::cleanupDeadInstructions() {
 
 bool InstructionDeleter::deleteIfDead(SILInstruction *inst) {
   bool fixLifetime = inst->getFunction()->hasOwnership();
+  return deleteIfDead(inst, fixLifetime);
+}
+
+bool InstructionDeleter::deleteIfDead(SILInstruction *inst, bool fixLifetime) {
   if (isInstructionTriviallyDead(inst)
       || isScopeAffectingInstructionDead(inst, fixLifetime)) {
     getCallbacks().notifyWillBeDeleted(inst);

@@ -20,12 +20,12 @@ public protocol A { }
 public protocol B { }
 public protocol C { }
 
-// CHECK: error: unexpected error produced: could not generate C++ types from the generic Swift types provided; the following Swift type(s) provided to 'passThrough' could not be converted: A & B
+// CHECK: error: unexpected error produced: could not generate C++ types from the generic Swift types provided; the following Swift type(s) provided to 'passThrough' could not be converted: any A & B
 public func caller1(x: A & B) -> A & B {
   return passThrough(x)
 }
 
-// CHECK: error: unexpected error produced: could not generate C++ types from the generic Swift types provided; the following Swift type(s) provided to 'addMixedTypeParams' could not be converted: A & B, A & C
+// CHECK: error: unexpected error produced: could not generate C++ types from the generic Swift types provided; the following Swift type(s) provided to 'addMixedTypeParams' could not be converted: any A & B, any A & C
 public func caller2(x: A & B, y: A & C) -> A & B {
   return addMixedTypeParams(x, y)
 }

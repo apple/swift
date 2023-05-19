@@ -26,7 +26,7 @@ public struct Builder {
   private let notificationHandler: BridgedChangeNotificationHandler
   private let notifyNewInstruction: (Instruction) -> ()
 
-  private var bridged: BridgedBuilder {
+  public var bridged: BridgedBuilder {
     switch insertAt {
     case .before(let inst):
       return BridgedBuilder(insertBefore: inst.bridged.optional,

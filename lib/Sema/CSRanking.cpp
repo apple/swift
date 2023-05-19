@@ -473,7 +473,7 @@ bool CompareDeclSpecializationRequest::evaluate(
     cs.openGeneric(outerDC, innerDC->getGenericSignatureOfContext(), locator,
                    replacements);
 
-    return cs.openType(type, replacements);
+    return cs.openType(type, replacements, locator);
   };
 
   bool knownNonSubtype = false;

@@ -945,6 +945,19 @@ ERROR(layout_constraints_only_inside_specialize_attr,none,
       "layout constraints are only allowed inside '_specialize' attributes", ())
 
 //------------------------------------------------------------------------------
+// MARK: Conformance suppression diagnostics
+//------------------------------------------------------------------------------
+
+ERROR(cannot_suppress_here,none,
+      "cannot suppress conformances here", ())
+
+ERROR(only_suppress_copyable,none,
+      "can only suppress 'Copyable'", ())
+
+ERROR(already_suppressed,none,
+      "duplicate suppression of %0", (Identifier))
+
+//------------------------------------------------------------------------------
 // MARK: Pattern parsing diagnostics
 //------------------------------------------------------------------------------
 
@@ -1079,9 +1092,13 @@ NOTE(indent_expression_to_silence,none,
 ERROR(expected_expr_throw,PointsToFirstBadToken,
       "expected expression in 'throw' statement", ())
 
-// Forget Statement
-ERROR(expected_expr_forget,PointsToFirstBadToken,
-      "expected expression in 'forget' statement", ())
+// Discard Statement
+ERROR(expected_expr_discard,PointsToFirstBadToken,
+      "expected expression in 'discard' statement", ())
+WARNING(forget_is_deprecated,PointsToFirstBadToken,
+      "'_forget' keyword is deprecated and will be removed soon; "
+      "use 'discard' instead",
+      ())
 
 // Await/Async
 ERROR(expected_await_not_async,none,
@@ -2072,10 +2089,10 @@ WARNING(macro_expression_attribute_removed,PointsToFirstBadToken,
       "@expression has been removed in favor of @freestanding(expression)", ())
 
 ERROR(unexpected_attribute_expansion,PointsToFirstBadToken,
-      "unexpected token '%0' in expanded attribute list'",
+      "unexpected token '%0' in expanded attribute list",
       (StringRef))
 ERROR(unexpected_member_expansion,PointsToFirstBadToken,
-      "unexpected token '%0' in expanded member list'",
+      "unexpected token '%0' in expanded member list",
       (StringRef))
 
 ERROR(parser_round_trip_error,none,

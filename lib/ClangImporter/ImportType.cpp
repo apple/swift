@@ -2346,6 +2346,12 @@ ClangImporter::Implementation::importParameterType(
       return None;
   } else if (isa<clang::ReferenceType>(paramTy) &&
              isa<clang::TemplateTypeParmType>(paramTy->getPointeeType())) {
+    // We don't support rvalue reference / universal perfect ref, bail.
+    if (paramTy->isRValueReferenceType()) {
+      addImportDiagnosticFn(Diagnostic(diag::rvalue_ref_params_not_imported));
+      return None;
+    }
+
     auto templateParamType =
         cast<clang::TemplateTypeParmType>(paramTy->getPointeeType());
     swiftParamTy = findGenericTypeInGenericDecls(
@@ -2356,15 +2362,32 @@ ClangImporter::Implementation::importParameterType(
                  dyn_cast<clang::TemplateTypeParmType>(paramTy)) {
     swiftParamTy = findGenericTypeInGenericDecls(
         *this, templateParamType, genericParams, attrs, addImportDiagnosticFn);
-  } else if (auto refType = dyn_cast<clang::ReferenceType>(paramTy)) {
-    // We don't support reference type to a dependent type, just bail.
-    if (refType->getPointeeType()->isDependentType()) {
-      return None;
-    }
+  }
 
-    paramTy = refType->getPointeeType();
-    if (!paramTy.isConstQualified())
-      isInOut = true;
+  if (!swiftParamTy) {
+    // C++ reference types are brought in as direct
+    // types most commonly.
+    auto refPointeeType =
+        importer::getCxxReferencePointeeTypeOrNone(paramTy.getTypePtr());
+    if (refPointeeType) {
+      // We don't support reference type to a dependent type, just bail.
+      if ((*refPointeeType)->isDependentType()) {
+        return None;
+      }
+
+      // We don't support rvalue reference types, just bail.
+      if (paramTy->isRValueReferenceType()) {
+        addImportDiagnosticFn(Diagnostic(diag::rvalue_ref_params_not_imported));
+        return None;
+      }
+
+      // A C++ parameter of type `const <type> &` or `<type> &` becomes `<type>`
+      // or `inout <type>` in Swift. Note that SILGen will use the indirect
+      // parameter convention for such a type.
+      paramTy = *refPointeeType;
+      if (!paramTy.isConstQualified())
+        isInOut = true;
+    }
   }
 
   // Special case for NSDictionary's subscript.
@@ -2850,12 +2873,16 @@ ImportedType ClangImporter::Implementation::importEffectfulPropertyType(
 
   // Import the parameter list and result type.
   ParameterList *bodyParams = nullptr;
-  ImportedType importedType;
-
   auto methodReturnType = importMethodParamsAndReturnType(
       dc, decl, decl->parameters(), false,
       isFromSystemModule, &bodyParams, name,
       asyncConvention, errorConvention, kind);
+
+  // was there a problem during import?
+  if (!methodReturnType)
+    return ImportedType();
+
+  assert(bodyParams);
 
   // getter mustn't have any parameters!
   if (bodyParams->size() != 0) {

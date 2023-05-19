@@ -430,6 +430,7 @@ struct ASTContext::Implementation {
     llvm::DenseMap<Type, InOutType*> InOutTypes;
     llvm::DenseMap<std::pair<Type, void*>, DependentMemberType *>
       DependentMemberTypes;
+    llvm::DenseMap<void *, PlaceholderType *> PlaceholderTypes;
     llvm::DenseMap<Type, DynamicSelfType *> DynamicSelfTypes;
     llvm::DenseMap<std::pair<EnumDecl*, Type>, EnumType*> EnumTypes;
     llvm::DenseMap<std::pair<StructDecl*, Type>, StructType*> StructTypes;
@@ -1811,9 +1812,8 @@ bool ASTContext::hadError() const {
 
 /// Retrieve the arena from which we should allocate storage for a type.
 static AllocationArena getArena(RecursiveTypeProperties properties) {
-  bool hasTypeVariable = properties.hasTypeVariable();
-  return hasTypeVariable ? AllocationArena::ConstraintSolver
-                         : AllocationArena::Permanent;
+  return properties.isSolverAllocated() ? AllocationArena::ConstraintSolver
+                                        : AllocationArena::Permanent;
 }
 
 void ASTContext::addSearchPath(StringRef searchPath, bool isFramework,
@@ -3117,15 +3117,43 @@ Type ErrorType::get(Type originalType) {
   void *mem = ctx.Allocate(sizeof(ErrorType) + sizeof(Type),
                            alignof(ErrorType), arena);
   RecursiveTypeProperties properties = RecursiveTypeProperties::HasError;
-  if (originalProperties.hasTypeVariable())
-    properties |= RecursiveTypeProperties::HasTypeVariable;
+
+  // We need to preserve the solver allocated bit, to ensure any wrapping
+  // types are solver allocated too.
+  if (originalProperties.isSolverAllocated())
+    properties |= RecursiveTypeProperties::SolverAllocated;
+
   return entry = new (mem) ErrorType(ctx, originalType, properties);
 }
 
 Type PlaceholderType::get(ASTContext &ctx, Originator originator) {
   assert(originator);
-  return new (ctx, AllocationArena::Permanent)
-      PlaceholderType(ctx, originator, RecursiveTypeProperties::HasPlaceholder);
+
+  auto originatorProps = [&]() -> RecursiveTypeProperties {
+    if (auto *tv = originator.dyn_cast<TypeVariableType *>())
+      return tv->getRecursiveProperties();
+
+    if (auto *depTy = originator.dyn_cast<DependentMemberType *>())
+      return depTy->getRecursiveProperties();
+
+    return RecursiveTypeProperties();
+  }();
+  auto arena = getArena(originatorProps);
+
+  auto &cache = ctx.getImpl().getArena(arena).PlaceholderTypes;
+  auto &entry = cache[originator.getOpaqueValue()];
+  if (entry)
+    return entry;
+
+  RecursiveTypeProperties properties = RecursiveTypeProperties::HasPlaceholder;
+
+  // We need to preserve the solver allocated bit, to ensure any wrapping
+  // types are solver allocated too.
+  if (originatorProps.isSolverAllocated())
+    properties |= RecursiveTypeProperties::SolverAllocated;
+
+  entry = new (ctx, arena) PlaceholderType(ctx, originator, properties);
+  return entry;
 }
 
 BuiltinIntegerType *BuiltinIntegerType::get(BuiltinIntegerWidth BitWidth,
@@ -3943,7 +3971,7 @@ isAnyFunctionTypeCanonical(ArrayRef<AnyFunctionType::Param> params,
 static RecursiveTypeProperties
 getGenericFunctionRecursiveProperties(ArrayRef<AnyFunctionType::Param> params,
                                       Type result) {
-  static_assert(RecursiveTypeProperties::BitWidth == 15,
+  static_assert(RecursiveTypeProperties::BitWidth == 16,
                 "revisit this if you add new recursive type properties");
   RecursiveTypeProperties properties;
 
@@ -4604,7 +4632,7 @@ CanSILFunctionType SILFunctionType::get(
   void *mem = ctx.Allocate(bytes, alignof(SILFunctionType));
 
   RecursiveTypeProperties properties;
-  static_assert(RecursiveTypeProperties::BitWidth == 15,
+  static_assert(RecursiveTypeProperties::BitWidth == 16,
                 "revisit this if you add new recursive type properties");
   for (auto &param : params)
     properties |= param.getInterfaceType()->getRecursiveProperties();
@@ -6241,29 +6269,9 @@ void ASTContext::setPluginLoader(std::unique_ptr<PluginLoader> loader) {
   getImpl().Plugins = std::move(loader);
 }
 
-PluginLoader &ASTContext::getPluginLoader() { return *getImpl().Plugins; }
-
-Optional<std::string>
-ASTContext::lookupLibraryPluginByModuleName(Identifier moduleName) {
-  return getImpl().Plugins->lookupLibraryPluginByModuleName(moduleName);
-}
-
-Optional<StringRef>
-ASTContext::lookupExecutablePluginByModuleName(Identifier moduleName) {
-  return getImpl().Plugins->lookupExecutablePluginByModuleName(moduleName);
-}
-
-Optional<std::pair<std::string, std::string>>
-ASTContext::lookupExternalLibraryPluginByModuleName(Identifier moduleName) {
-  return getImpl().Plugins->lookupExternalLibraryPluginByModuleName(moduleName);
-}
-
-LoadedLibraryPlugin *ASTContext::loadLibraryPlugin(StringRef path) {
-  return getImpl().Plugins->loadLibraryPlugin(path);
-}
-
-LoadedExecutablePlugin *ASTContext::loadExecutablePlugin(StringRef path) {
-  return getImpl().Plugins->loadExecutablePlugin(path);
+PluginLoader &ASTContext::getPluginLoader() {
+  assert(getImpl().Plugins && "PluginLoader must be setup before using");
+  return *getImpl().Plugins;
 }
 
 Type ASTContext::getNamedSwiftType(ModuleDecl *module, StringRef name) {

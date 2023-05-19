@@ -76,7 +76,7 @@ def read_sizes(sect_sizes, seg_sizes, file_name, function_details,
         if arch_match:
             if arch is None:
                 arch = arch_match.group(1)
-            if "arm64" in arch:
+            if "arm64" == arch:
                 arch = "arm64"
     if arch is not None:
         cmd = ["otool", "-arch", arch]

@@ -14,6 +14,8 @@
 
 // FIXME(distributed): Distributed actors currently have some issues on windows rdar://82593574
 // UNSUPPORTED: OS=windows-msvc
+// https://github.com/apple/swift/issues/65529
+// UNSUPPORTED: single_threaded_concurrency
 
 
 import Distributed

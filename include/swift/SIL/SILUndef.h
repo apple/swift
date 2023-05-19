@@ -30,6 +30,12 @@ public:
   void operator delete(void *, size_t) = delete;
 
   static SILUndef *get(SILType ty, SILModule &m);
+
+  /// Return a SILUndef with the same type as the passed in value.
+  static SILUndef *get(SILValue value) {
+    return SILUndef::get(value->getType(), *value->getModule());
+  }
+
   static SILUndef *get(SILType ty, const SILFunction &f);
 
   template <class OwnerTy>

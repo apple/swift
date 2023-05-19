@@ -313,7 +313,7 @@ internal enum _KnownCocoaString {
   case storage
   case shared
   case cocoa
-#if !(arch(i386) || arch(arm) || arch(arm64_32) || arch(wasm32))
+#if _pointerBitWidth(_64)
   case tagged
 #endif
 #if arch(arm64)
@@ -323,7 +323,7 @@ internal enum _KnownCocoaString {
   @inline(__always)
   init(_ str: _CocoaString) {
 
-#if !(arch(i386) || arch(arm) || arch(arm64_32))
+#if _pointerBitWidth(_64)
     if _isObjCTaggedPointer(str) {
 #if arch(arm64)
       if let _ = getConstantTaggedCocoaContents(str) {
@@ -349,8 +349,7 @@ internal enum _KnownCocoaString {
   }
 }
 
-#if !(arch(i386) || arch(arm) || arch(arm64_32))
-
+#if _pointerBitWidth(_64)
 // Resiliently write a tagged _CocoaString's contents into a buffer.
 // The Foundation overlay takes care of bridging tagged pointer strings before
 // they reach us, but this may still be called by older code, or by strings
@@ -393,7 +392,7 @@ private func _withCocoaASCIIPointer<R>(
   requireStableAddress: Bool,
   work: (UnsafePointer<UInt8>) -> R?
 ) -> R? {
-  #if !(arch(i386) || arch(arm) || arch(arm64_32))
+  #if _pointerBitWidth(_64)
   if _isObjCTaggedPointer(str) {
     if let ptr = getConstantTaggedCocoaContents(str)?.asciiContentsPointer {
       return work(ptr)
@@ -421,7 +420,7 @@ private func _withCocoaUTF8Pointer<R>(
   requireStableAddress: Bool,
   work: (UnsafePointer<UInt8>) -> R?
 ) -> R? {
-  #if !(arch(i386) || arch(arm) || arch(arm64_32))
+  #if _pointerBitWidth(_64)
   if _isObjCTaggedPointer(str) {
     if let ptr = getConstantTaggedCocoaContents(str)?.asciiContentsPointer {
       return work(ptr)
@@ -577,7 +576,7 @@ internal func _bridgeCocoaString(_ cocoaString: _CocoaString) -> _StringGuts {
   case .shared:
     return _unsafeUncheckedDowncast(
       cocoaString, to: __SharedStringStorage.self).asString._guts
-#if !(arch(i386) || arch(arm) || arch(arm64_32))
+#if _pointerBitWidth(_64)
   case .tagged:
     // Foundation should be taking care of tagged pointer strings before they
     // reach here, so the only ones reaching this point should be back deployed,
@@ -608,7 +607,7 @@ internal func _bridgeCocoaString(_ cocoaString: _CocoaString) -> _StringGuts {
     let immutableCopy
       = _stdlib_binary_CFStringCreateCopy(cocoaString)
 
-#if !(arch(i386) || arch(arm) || arch(arm64_32))
+#if _pointerBitWidth(_64)
     if _isObjCTaggedPointer(immutableCopy) {
       // Copying a tagged pointer can produce a tagged pointer, but only if it's
       // small enough to definitely fit in a _SmallString

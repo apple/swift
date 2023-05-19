@@ -145,7 +145,8 @@ void TupleInitialization::copyOrInitValueInto(SILGenFunction &SGF,
     // In the address case, we forward the underlying value and store it
     // into memory and then create a +1 cleanup. since we assume here
     // that we have a +1 value since we are forwarding into memory.
-    assert(value.isPlusOne(SGF) && "Can not store a +0 value into memory?!");
+    assert(value.isPlusOneOrTrivial(SGF) &&
+           "Can not store a +0 value into memory?!");
     CleanupCloner cloner(SGF, value);
     SILValue v = value.forward(SGF);
 

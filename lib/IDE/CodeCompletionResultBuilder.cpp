@@ -162,22 +162,27 @@ CodeCompletionResult *CodeCompletionResultBuilder::takeResult() {
     // we don't need to compute any contextual properties.
     return new (Allocator) CodeCompletionResult(
         *ContextFreeResult, SemanticContextKind::None, CodeCompletionFlair(),
-        /*NumBytesToErase=*/0, /*TypeContext=*/nullptr,
-        /*DC=*/nullptr, /*USRTypeContext=*/nullptr,
-        /*CanCurrDeclContextHandleAsync=*/false,
+        /*NumBytesToErase=*/0, CodeCompletionResultTypeRelation::Unrelated,
         ContextualNotRecommendedReason::None);
   } else {
     assert(
         ContextFreeResult != nullptr &&
         "ContextFreeResult should have been constructed by the switch above");
+
     // We know that the ContextFreeResult has an AST-based type because it was
     // just computed and not read from the cache and
     // Sink.shouldProduceContextFreeResults() is false. So we can pass nullptr
     // for USRTypeContext.
+    CodeCompletionResultTypeRelation typeRelation =
+        ContextFreeResult->calculateContextualTypeRelation(
+            DC, TypeContext, /*usrTypeContext=*/nullptr);
+    ContextualNotRecommendedReason notRecommendedReason =
+        ContextFreeResult->calculateContextualNotRecommendedReason(
+            ContextualNotRecReason, CanCurrDeclContextHandleAsync);
+
     return new (Allocator) CodeCompletionResult(
         *ContextFreeResult, SemanticContext, Flair, NumBytesToErase,
-        TypeContext, DC, /*USRTypeContext=*/nullptr,
-        CanCurrDeclContextHandleAsync, ContextualNotRecReason);
+        typeRelation, notRecommendedReason);
   }
 }
 

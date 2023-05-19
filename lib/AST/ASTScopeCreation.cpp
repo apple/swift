@@ -100,13 +100,14 @@ public:
     ASTScopeAssert(expr,
                  "If looking for closures, must have an expression to search.");
 
-    /// AST walker that finds top-level closures in an expression.
-    class ClosureFinder : public ASTWalker {
+    /// AST walker that finds nested scopes in expressions. This handles both
+    /// closures and if/switch expressions.
+    class NestedExprScopeFinder : public ASTWalker {
       ScopeCreator &scopeCreator;
       ASTScopeImpl *parent;
 
     public:
-      ClosureFinder(ScopeCreator &scopeCreator, ASTScopeImpl *parent)
+      NestedExprScopeFinder(ScopeCreator &scopeCreator, ASTScopeImpl *parent)
           : scopeCreator(scopeCreator), parent(parent) {}
 
       PreWalkResult<Expr *> walkToExprPre(Expr *E) override {
@@ -120,6 +121,13 @@ public:
           scopeCreator
               .constructExpandAndInsert<CaptureListScope>(
                   parent, capture);
+          return Action::SkipChildren(E);
+        }
+
+        // If we have a single value statement expression, we need to add any
+        // scopes in the underlying statement.
+        if (auto *SVE = dyn_cast<SingleValueStmtExpr>(E)) {
+          scopeCreator.addToScopeTree(SVE->getStmt(), parent);
           return Action::SkipChildren(E);
         }
         return Action::Continue(E);
@@ -148,7 +156,7 @@ public:
       }
     };
 
-    expr->walk(ClosureFinder(*this, parent));
+    expr->walk(NestedExprScopeFinder(*this, parent));
   }
 
 public:
@@ -500,9 +508,9 @@ public:
     return p;
   }
 
-  ASTScopeImpl *visitForgetStmt(ForgetStmt *fs, ASTScopeImpl *p,
-                               ScopeCreator &scopeCreator) {
-    visitExpr(fs->getSubExpr(), p, scopeCreator);
+  ASTScopeImpl *visitDiscardStmt(DiscardStmt *ds, ASTScopeImpl *p,
+                                 ScopeCreator &scopeCreator) {
+    visitExpr(ds->getSubExpr(), p, scopeCreator);
     return p;
   }
 
@@ -517,11 +525,6 @@ public:
                           ScopeCreator &scopeCreator) {
     if (!expr)
       return p;
-
-    // If we have a single value statement expression, we expand scopes based
-    // on the underlying statement.
-    if (auto *SVE = dyn_cast<SingleValueStmtExpr>(expr))
-      return visit(SVE->getStmt(), p, scopeCreator);
 
     scopeCreator.addExprToScopeTree(expr, p);
     return p;

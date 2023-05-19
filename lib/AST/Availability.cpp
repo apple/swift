@@ -22,6 +22,7 @@
 #include "swift/AST/TypeCheckRequests.h"
 #include "swift/AST/TypeWalker.h"
 #include "swift/AST/Types.h"
+#include "swift/Basic/Platform.h"
 #include <map>
 
 using namespace swift;
@@ -517,6 +518,11 @@ ASTContext::getImmortalRefCountSymbolsAvailability() {
   return getSwiftFutureAvailability();
 }
 
+AvailabilityContext
+ASTContext::getVariadicGenericTypeAvailability() {
+  return getSwift59Availability();
+}
+
 AvailabilityContext ASTContext::getSwift52Availability() {
   auto target = LangOpts.Target;
 
@@ -705,4 +711,8 @@ ASTContext::getSwift5PlusAvailability(llvm::VersionTuple swiftVersion) {
   llvm::report_fatal_error(
       Twine("Missing call to getSwiftXYAvailability for Swift ") +
       swiftVersion.getAsString());
+}
+
+bool ASTContext::supportsVersionedAvailability() const {
+  return minimumAvailableOSVersionForTriple(LangOpts.Target).has_value();
 }

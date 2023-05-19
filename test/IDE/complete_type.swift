@@ -689,8 +689,8 @@ func testProtocol() {
   let _: FooProtocol.#^PROTOCOL_DOT_1^#
 // PROTOCOL_DOT_1: Begin completions, 3 items
 // PROTOCOL_DOT_1-DAG: Decl[AssociatedType]/CurrNominal:   FooTypeAlias1; name=FooTypeAlias1
-// PROTOCOL_DOT_1-DAG: Keyword/None:                       Protocol[#FooProtocol.Protocol#]; name=Protocol
-// PROTOCOL_DOT_1-DAG: Keyword/None:                       Type[#FooProtocol.Type#]; name=Type
+// PROTOCOL_DOT_1-DAG: Keyword/None:                       Protocol[#(any FooProtocol).Type#]; name=Protocol
+// PROTOCOL_DOT_1-DAG: Keyword/None:                       Type[#any FooProtocol.Type#]; name=Type
 }
 
 //===---

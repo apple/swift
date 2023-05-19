@@ -80,11 +80,19 @@ static MutableArrayRef<CodeCompletionResult *> copyCodeCompletionResults(
     if (!shouldIncludeResult(contextFreeResult)) {
       continue;
     }
+
+    CodeCompletionResultTypeRelation typeRelation =
+        contextFreeResult->calculateContextualTypeRelation(DC, TypeContext,
+                                                           &USRTypeContext);
+    ContextualNotRecommendedReason notRecommendedReason =
+        contextFreeResult->calculateContextualNotRecommendedReason(
+            ContextualNotRecommendedReason::None,
+            CanCurrDeclContextHandleAsync);
+
     auto contextualResult = new (*targetSink.Allocator) CodeCompletionResult(
         *contextFreeResult, SemanticContextKind::OtherModule,
         CodeCompletionFlair(),
-        /*numBytesToErase=*/0, TypeContext, DC, &USRTypeContext,
-        CanCurrDeclContextHandleAsync, ContextualNotRecommendedReason::None);
+        /*numBytesToErase=*/0, typeRelation, notRecommendedReason);
     targetSink.Results.push_back(contextualResult);
   }
 

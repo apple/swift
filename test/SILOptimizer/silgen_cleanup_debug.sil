@@ -1,0 +1,69 @@
+// RUN: %target-sil-opt -opt-mode=none -silgen-cleanup -sil-print-debuginfo -sil-verify-all %s | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECKDEB
+
+// TODO: add -opt-mode=speed after calling salvageLoadDebugInfo() from salvageDebugInfo().
+
+import Builtin
+
+sil_stage raw
+
+struct Int {
+  var _value : Builtin.Int32
+}
+
+// rdar://104700920 (At -Onone preserve debug info after splitting loads)
+//
+// loadFromArg checks that a new debug_value is inserted with "expr op_deref".
+//
+// loadFromStack checks that a new debug_value is insert without op_deref.
+
+sil_scope 10 { loc "./loadFromArg.swift":1:1 parent @loadFromArg : $@convention(thin) (@inout Int) -> Builtin.Int32 }
+sil_scope 11 { loc "./loadFromArg.swift":1:1 parent 10 }
+// CHECK: sil_scope [[ARGSCOPE1:[0-9]+]] { loc "./loadFromArg.swift":1:1 parent @loadFromArg : $@convention(thin) (@inout Int) -> Builtin.Int32 }
+// CHECK: sil_scope [[ARGSCOPE2:[0-9]+]] { loc "./loadFromArg.swift":1:1 parent [[ARGSCOPE1]] }
+
+// CHECK-LABEL: sil [ossa] @loadFromArg : $@convention(thin) (@inout Int) -> Builtin.Int32 {
+// CHECK: bb0(%0 : $*Int):
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] %0 : $*Int
+// CHECK: struct_element_addr [[ACCESS]] : $*Int, #Int._value
+// CHECK: load [trivial] %{{.*}} : $*Builtin.Int32, loc "./loadFromArg.swift":2:1, scope [[ARGSCOPE1]]
+// CHECK: debug_value [[ACCESS]] : $*Int, let, name "sVar", expr op_deref, loc "./loadFromArg.swift":3:1, scope [[ARGSCOPE2]]
+// CHECK-LABEL: } // end sil function 'loadFromArg'
+sil [ossa] @loadFromArg : $@convention(thin) (@inout Int) -> Builtin.Int32 {
+bb0(%0 : $*Int):
+  %2 = begin_access [read] [unknown] %0 : $*Int
+  %3 = load [trivial] %2 : $*Int, loc "./loadFromArg.swift":2:1, scope 10
+  end_access %2 : $*Int
+  debug_value %3 : $Int, let, name "sVar", loc "./loadFromArg.swift":3:1, scope 11
+  %6 = struct_extract %3 : $Int, #Int._value
+  return %6 : $Builtin.Int32
+}
+
+sil @storeToStack : $@convention(thin) <τ_0_0> (@in_guaranteed τ_0_0) -> @out τ_0_0
+
+sil_scope 20 { loc "./loadFromStack.swift":1:1 parent @loadFromStack : $@convention(thin) (Int) -> Builtin.Int32 }
+sil_scope 21 { loc "./loadFromStack.swift":1:1 parent 20 }
+// CHECK: sil_scope [[STACKSCOPE1:[0-9]+]] { loc "./loadFromStack.swift":1:1 parent @loadFromStack : $@convention(thin) (Int) -> Builtin.Int32 }
+// CHECK: sil_scope [[STACKSCOPE2:[0-9]+]] { loc "./loadFromStack.swift":1:1 parent [[STACKSCOPE1]] }
+
+// CHECK-LABEL: sil [ossa] @loadFromStack : $@convention(thin) (Int) -> Builtin.Int32 {
+// CHECK: bb0(%0 : $Int):
+// CHECK:   [[STACK:%.*]] = alloc_stack $Int
+// CHECK:   struct_element_addr [[STACK]] : $*Int, #Int._value
+// CHECK:   load [trivial] %{{.*}} : $*Builtin.Int32, loc "./loadFromStack.swift":2:1, scope [[STACKSCOPE1]]
+// CHECK:   debug_value [[STACK]] : $*Int, let, name "sVar", loc "./loadFromStack.swift":3:1, scope [[STACKSCOPE2]]
+// CHECK-LABEL: } // end sil function 'loadFromStack'
+sil [ossa] @loadFromStack : $@convention(thin) (Int) -> Builtin.Int32 {
+bb0(%0 : $Int):
+  debug_value %0 : $Int, let, name "s", argno 1
+  %2 = alloc_stack $Int
+  %3 = alloc_stack $Int
+  store %0 to [trivial] %3 : $*Int
+  %5 = function_ref @storeToStack : $@convention(thin) <τ_0_0> (@in_guaranteed τ_0_0) -> @out τ_0_0
+  %6 = apply %5<Int>(%2, %3) : $@convention(thin) <τ_0_0> (@in_guaranteed τ_0_0) -> @out τ_0_0
+  dealloc_stack %3 : $*Int
+  %8 = load [trivial] %2 : $*Int, loc "./loadFromStack.swift":2:1, scope 20
+  debug_value %8 : $Int, let, name "sVar", loc "./loadFromStack.swift":3:1, scope 21
+  dealloc_stack %2 : $*Int
+  %11 = struct_extract %8 : $Int, #Int._value
+  return %11 : $Builtin.Int32
+}

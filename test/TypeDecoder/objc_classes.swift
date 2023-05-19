@@ -3,10 +3,10 @@
 // RUN: %target-build-swift -emit-executable %s -g -o %t/objc_classes -emit-module
 
 // RUN: sed -ne '/\/\/ *DEMANGLE-TYPE: /s/\/\/ *DEMANGLE-TYPE: *//p' < %s > %t/input
-// RUN: %lldb-moduleimport-test-with-sdk %t/objc_classes -type-from-mangled=%t/input | %FileCheck %s --check-prefix=CHECK-TYPE
+// RUN: %lldb-moduleimport-test-with-sdk %t/objc_classes -type-from-mangled=%t/input | %FileCheck %s --check-prefix=CHECK-TYPE --match-full-lines
 
 // RUN: sed -ne '/\/\/ *DEMANGLE-DECL: /s/\/\/ *DEMANGLE-DECL: *//p' < %s > %t/input
-// RUN: %lldb-moduleimport-test-with-sdk %t/objc_classes -decl-from-mangled=%t/input | %FileCheck %s --check-prefix=CHECK-DECL
+// RUN: %lldb-moduleimport-test-with-sdk %t/objc_classes -decl-from-mangled=%t/input | %FileCheck %s --check-prefix=CHECK-DECL --match-full-lines
 
 // REQUIRES: objc_interop
 
@@ -51,7 +51,9 @@ do {
 // DEMANGLE-TYPE: $sSo26NSPropertyListWriteOptionsaD
 
 // CHECK-TYPE: NSSet
+// FIXME(https://github.com/apple/swift/issues/65879): Should be 'any NSFastEnumeration'
 // CHECK-TYPE: NSFastEnumeration
+// FIXME(https://github.com/apple/swift/issues/65879): Should be 'any OurObjCProtocol'
 // CHECK-TYPE: OurObjCProtocol
 // CHECK-TYPE: NSCache<NSNumber, NSString>
 // CHECK-TYPE: PropertyListSerialization.WriteOptions
@@ -65,16 +67,18 @@ do {
 
 // CHECK-TYPE: NSSet.Type
 // CHECK-TYPE: @thick NSSet.Type
-// CHECK-TYPE: NSFastEnumeration.Type
-// CHECK-TYPE: OurObjCProtocol.Type
+// CHECK-TYPE: any NSFastEnumeration.Type
+// CHECK-TYPE: any OurObjCProtocol.Type
 // CHECK-TYPE: NSCache<NSNumber, NSString>.Type
 // CHECK-TYPE: PropertyListSerialization.WriteOptions.Type
 
 // DEMANGLE-TYPE: $sSo17NSFastEnumeration_pmD
 // DEMANGLE-TYPE: $s12objc_classes15OurObjCProtocol_pmD
 
-// CHECK-TYPE: NSFastEnumeration.Protocol
-// CHECK-TYPE: OurObjCProtocol.Protocol
+// FIXME(https://github.com/apple/swift/issues/65880): Should be '(any NSFastEnumeration).Type'
+// CHECK-TYPE: NSFastEnumeration.Type
+// FIXME(https://github.com/apple/swift/issues/65880): Should be '(any OurObjCProtocol).Type'
+// CHECK-TYPE: OurObjCProtocol.Type
 
 
 // DEMANGLE-DECL: $sSo5NSSetC

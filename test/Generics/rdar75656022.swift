@@ -45,7 +45,7 @@ struct UnresolvedWithConcreteBase<A, B> {
 // produces two warnings about redundant requirements.
 struct OriginalExampleWithWarning<A, B> where A : P2, B : P2, A.T == B.T {
   // CHECK-LABEL: Generic signature: <A, B, C, D, E where A == S1<C, E, S2<D>>, B : P2, C : P1, D == B.[P2]T, E == D.[P1]T, B.[P2]T == C.[P1]T>
-  init<C, D, E>(_: C)
+  init<C, D, E>(_: C) // expected-warning {{redundant conformance constraint 'S1<C, C.T.T, S2<C.T>>' : 'P2'}}
     where C : P1,
           D : P1, // expected-warning {{redundant conformance constraint 'D' : 'P1'}}
           C.T : P1, // expected-warning {{redundant conformance constraint 'C.T' : 'P1'}}
@@ -57,7 +57,7 @@ struct OriginalExampleWithWarning<A, B> where A : P2, B : P2, A.T == B.T {
 // Same as above but without the warnings.
 struct OriginalExampleWithoutWarning<A, B> where A : P2, B : P2, A.T == B.T {
   // CHECK-LABEL: Generic signature: <A, B, C, D, E where A == S1<C, E, S2<D>>, B : P2, C : P1, D == B.[P2]T, E == D.[P1]T, B.[P2]T == C.[P1]T>
-  init<C, D, E>(_: C)
+  init<C, D, E>(_: C) // expected-warning {{redundant conformance constraint 'S1<C, C.T.T, S2<C.T>>' : 'P2'}}
     where C : P1,
           A == S1<C, C.T.T, S2<C.T>>,
           C.T == D,
@@ -67,7 +67,7 @@ struct OriginalExampleWithoutWarning<A, B> where A : P2, B : P2, A.T == B.T {
 // Same as above but without unnecessary generic parameters.
 struct WithoutBogusGenericParametersWithWarning<A, B> where A : P2, B : P2, A.T == B.T {
   // CHECK-LABEL: Generic signature: <A, B, C where A == S1<C, B.[P2]T.[P1]T, S2<B.[P2]T>>, B : P2, C : P1, B.[P2]T == C.[P1]T>
-  init<C>(_: C)
+  init<C>(_: C) // expected-warning {{redundant conformance constraint 'S1<C, C.T.T, S2<C.T>>' : 'P2'}}
     where C : P1,
           C.T : P1, // expected-warning {{redundant conformance constraint 'C.T' : 'P1'}}
           A == S1<C, C.T.T, S2<C.T>> {}
@@ -77,7 +77,7 @@ struct WithoutBogusGenericParametersWithWarning<A, B> where A : P2, B : P2, A.T 
 // or the warning.
 struct WithoutBogusGenericParametersWithoutWarning<A, B> where A : P2, B : P2, A.T == B.T {
   // CHECK-LABEL: Generic signature: <A, B, C where A == S1<C, B.[P2]T.[P1]T, S2<B.[P2]T>>, B : P2, C : P1, B.[P2]T == C.[P1]T>
-  init<C>(_: C)
+  init<C>(_: C) // expected-warning {{redundant conformance constraint 'S1<C, C.T.T, S2<C.T>>' : 'P2'}}
     where C : P1,
           A == S1<C, C.T.T, S2<C.T>> {}
 }

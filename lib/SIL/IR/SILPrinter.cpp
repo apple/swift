@@ -161,6 +161,8 @@ struct SILValuePrinterInfo {
   bool IsNoImplicitCopy = false;
   LifetimeAnnotation Lifetime = LifetimeAnnotation::None;
   bool IsCapture = false;
+  bool IsReborrow = false;
+  bool IsEscaping = false;
 
   SILValuePrinterInfo(ID ValueID) : ValueID(ValueID), Type(), OwnershipKind() {}
   SILValuePrinterInfo(ID ValueID, SILType Type)
@@ -170,15 +172,22 @@ struct SILValuePrinterInfo {
       : ValueID(ValueID), Type(Type), OwnershipKind(OwnershipKind) {}
   SILValuePrinterInfo(ID ValueID, SILType Type,
                       ValueOwnershipKind OwnershipKind, bool IsNoImplicitCopy,
-                      LifetimeAnnotation Lifetime, bool IsCapture)
+                      LifetimeAnnotation Lifetime, bool IsCapture,
+                      bool IsReborrow, bool IsEscaping)
       : ValueID(ValueID), Type(Type), OwnershipKind(OwnershipKind),
         IsNoImplicitCopy(IsNoImplicitCopy), Lifetime(Lifetime),
-        IsCapture(IsCapture) {}
+        IsCapture(IsCapture), IsReborrow(IsReborrow), IsEscaping(IsEscaping) {}
   SILValuePrinterInfo(ID ValueID, SILType Type, bool IsNoImplicitCopy,
-                      LifetimeAnnotation Lifetime, bool IsCapture)
+                      LifetimeAnnotation Lifetime, bool IsCapture,
+                      bool IsReborrow, bool IsEscaping)
       : ValueID(ValueID), Type(Type), OwnershipKind(),
         IsNoImplicitCopy(IsNoImplicitCopy), Lifetime(Lifetime),
-        IsCapture(IsCapture) {}
+        IsCapture(IsCapture), IsReborrow(IsReborrow), IsEscaping(IsEscaping) {}
+  SILValuePrinterInfo(ID ValueID, SILType Type,
+                      ValueOwnershipKind OwnershipKind, bool IsReborrow,
+                      bool IsEscaping)
+      : ValueID(ValueID), Type(Type), OwnershipKind(OwnershipKind),
+        IsReborrow(IsReborrow), IsEscaping(IsEscaping) {}
 };
 
 /// Return the fully qualified dotted path for DeclContext.
@@ -671,6 +680,10 @@ class SILPrinter : public SILInstructionVisitor<SILPrinter> {
     }
     if (i.IsCapture)
       *this << "@closureCapture ";
+    if (i.IsReborrow)
+      *this << "@reborrow ";
+    if (i.IsEscaping)
+      *this << "@escaping ";
     if (i.OwnershipKind && *i.OwnershipKind != OwnershipKind::None) {
       *this << "@" << i.OwnershipKind.value() << " ";
     }
@@ -704,9 +717,12 @@ public:
     return {Ctx.getID(V), V ? V->getType() : SILType()};
   }
   SILValuePrinterInfo getIDAndType(SILFunctionArgument *arg) {
-    return {Ctx.getID(arg), arg->getType(), arg->isNoImplicitCopy(),
-            arg->getLifetimeAnnotation(), arg->isClosureCapture()};
+    return {Ctx.getID(arg),          arg->getType(),
+            arg->isNoImplicitCopy(), arg->getLifetimeAnnotation(),
+            arg->isClosureCapture(), arg->isReborrow(),
+            arg->isEscaping()};
   }
+
   SILValuePrinterInfo getIDAndTypeAndOwnership(SILValue V) {
     return {Ctx.getID(V), V ? V->getType() : SILType(), V->getOwnershipKind()};
   }
@@ -716,7 +732,13 @@ public:
             arg->getOwnershipKind(),
             arg->isNoImplicitCopy(),
             arg->getLifetimeAnnotation(),
-            arg->isClosureCapture()};
+            arg->isClosureCapture(),
+            arg->isReborrow(),
+            arg->isEscaping()};
+  }
+  SILValuePrinterInfo getIDAndTypeAndOwnership(SILArgument *arg) {
+    return {Ctx.getID(arg), arg->getType(), arg->getOwnershipKind(),
+            arg->isReborrow(), arg->isEscaping()};
   }
 
   //===--------------------------------------------------------------------===//
@@ -4287,7 +4309,6 @@ PrintOptions PrintOptions::printSIL(const SILPrintContext *ctx) {
   result.PrintInSILBody = true;
   result.PreferTypeRepr = false;
   result.PrintIfConfig = false;
-  result.PrintExplicitAny = true;
   result.OpaqueReturnTypePrinting =
      OpaqueReturnTypePrintingMode::StableReference;
   if (ctx && ctx->printFullConvention())

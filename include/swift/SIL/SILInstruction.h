@@ -2777,6 +2777,14 @@ public:
     return calleeFn->hasSemanticsAttr(SEMANTICS_PROGRAMTERMINATION_POINT);
   }
 
+  /// Returns true if the callee function is annotated with
+  /// @_semantics("unavailable_code_reached")
+  bool isCalleeUnavailableCodeReached() const {
+    auto calleeFn = getCalleeFunction();
+    if (!calleeFn) return false;
+    return calleeFn->hasSemanticsAttr(SEMANTICS_UNAVAILABLE_CODE_REACHED);
+  }
+
   /// True if this application has generic substitutions.
   bool hasSubstitutions() const {
     return Substitutions.hasAnySubstitutableParams();

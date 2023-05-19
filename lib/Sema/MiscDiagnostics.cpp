@@ -3834,6 +3834,23 @@ private:
     return MacroWalking::Expansion;
   }
 
+  AssignExpr *findAssignment(Expr *E) const {
+    // Don't consider assignments if we have a parent expression (as otherwise
+    // this would be effectively allowing it in an arbitrary expression
+    // position).
+    if (Parent.getAsExpr())
+      return nullptr;
+
+    // Look through optional exprs, which are present for e.g x?.y = z, as
+    // we wrap the entire assign in the optional evaluation of the destination.
+    if (auto *OEE = dyn_cast<OptionalEvaluationExpr>(E)) {
+      E = OEE->getSubExpr();
+      while (auto *IIO = dyn_cast<InjectIntoOptionalExpr>(E))
+        E = IIO->getSubExpr();
+    }
+    return dyn_cast<AssignExpr>(E);
+  }
+
   PreWalkResult<Expr *> walkToExprPre(Expr *E) override {
     if (auto *SVE = dyn_cast<SingleValueStmtExpr>(E)) {
       // Diagnose a SingleValueStmtExpr in a context that we do not currently
@@ -3909,13 +3926,9 @@ private:
       return Action::Continue(E);
     }
 
-    // Valid as the source of an assignment, as long as it's not a nested
-    // expression (as otherwise this would be effectively allowing it in an
-    // arbitrary expression position).
-    if (auto *AE = dyn_cast<AssignExpr>(E)) {
-      if (!Parent.getAsExpr())
-        markValidSingleValueStmt(AE->getSrc());
-    }
+    // Valid as the source of an assignment.
+    if (auto *AE = findAssignment(E))
+      markValidSingleValueStmt(AE->getSrc());
 
     // Valid as a single expression body of a closure. This is needed in
     // addition to ReturnStmt checking, as we will remove the return if the

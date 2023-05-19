@@ -2214,8 +2214,9 @@ public:
   }
 };
 
-/// The @_backDeploy(...) attribute, used to make function declarations available
-/// for back deployment to older OSes via emission into the client binary.
+/// The `@backDeployed(...)` attribute, used to make function declarations
+/// available for back deployment to older OSes via emission into the client
+/// binary.
 class BackDeployedAttr : public DeclAttribute {
 public:
   BackDeployedAttr(SourceLoc AtLoc, SourceRange Range, PlatformKind Platform,

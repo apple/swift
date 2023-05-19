@@ -31,8 +31,7 @@
 // false positives, or if you have special permission to break things.) You can
 // find a diff of what needs to be added in the output of the failed test run.
 // The order of lines doesn't matter, and you can also include comments to refer
-// to any bugs you filed. Remember that in almost all cases you'll want to edit
-// the stability-stdlib-abi-without-asserts.test file instead of this one.
+// to any bugs you filed.
 //
 // Thank you for your help ensuring the stdlib remains compatible with its past!
 //                                            -- Your friendly stdlib engineers
@@ -71,5 +70,8 @@ Func SerialExecutor.enqueue(_:) has been added as a protocol requirement
 // The ABI checker seems to be confused by this case.
 // rdar://106833284 (ABI checker confused with overload getting deprecated)
 Func Executor.enqueue(_:) is a new API without @available attribute
+
+// This function correctly inherits its availability from the TaskLocal struct.
+Func TaskLocal.withValueImpl(_:operation:file:line:) is a new API without @available attribute
 
 // *** DO NOT DISABLE OR XFAIL THIS TEST. *** (See comment above.)
