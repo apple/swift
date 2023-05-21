@@ -125,6 +125,13 @@ public:
   ManagedValue createFormalAccessCopyValue(SILLocation loc,
                                            ManagedValue originalValue);
 
+  using SILBuilder::createExplicitCopyValue;
+
+  /// A copy_value operation that to the move checker looks like just a normal
+  /// liveness use. Used to implement an explicit copy for no implicit copy
+  /// values.
+  ManagedValue createExplicitCopyValue(SILLocation Loc, ManagedValue operand);
+
 #define ALWAYS_OR_SOMETIMES_LOADABLE_CHECKED_REF_STORAGE(Name, ...)            \
   using SILBuilder::createStrongCopy##Name##Value;                             \
   ManagedValue createStrongCopy##Name##Value(SILLocation loc,                  \

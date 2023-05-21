@@ -1050,3 +1050,9 @@ void SILGenBuilder::emitCopyAddrOperation(SILLocation loc, SILValue srcAddr,
   auto &lowering = getTypeLowering(srcAddr->getType());
   lowering.emitCopyInto(*this, loc, srcAddr, destAddr, isTake, isInitialize);
 }
+
+ManagedValue SILGenBuilder::createExplicitCopyValue(SILLocation loc,
+                                                    ManagedValue operand) {
+  auto cvi = SILBuilder::createExplicitCopyValue(loc, operand.getValue());
+  return SGF.emitManagedRValueWithCleanup(cvi);
+}

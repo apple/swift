@@ -226,6 +226,10 @@ public final class FakeRoundtripActorSystem: DistributedActorSystem, @unchecked 
 
   public init() {}
 
+  public func shutdown() {
+    self.activeActors = [:]
+  }
+
   public func resolve<Act>(id: ActorID, as actorType: Act.Type)
     throws -> Act? where Act: DistributedActor {
     print("| resolve \(id) as remote // this system always resolves as remote")
@@ -394,7 +398,14 @@ public struct FakeInvocationEncoder : DistributedTargetInvocationEncoder {
     print(" > done recording")
   }
 
-  public func makeDecoder() -> FakeInvocationDecoder {
+  public mutating func makeDecoder() -> FakeInvocationDecoder {
+    defer {
+      // reset the decoder; we don't want to keep these values retained by accident here
+      genericSubs = []
+      arguments = []
+      returnType = nil
+      errorType = nil
+    }
     return .init(
       args: arguments,
       substitutions: genericSubs,

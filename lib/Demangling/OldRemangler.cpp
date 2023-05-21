@@ -1079,7 +1079,7 @@ ManglingError Remangler::mangleAccessorAttachedMacroExpansion(
 
 ManglingError Remangler::mangleMemberAttributeAttachedMacroExpansion(
     Node *node, unsigned depth) {
-  Buffer << "fMA";
+  Buffer << "fMr";
   RETURN_IF_ERROR(mangleIndex(node, depth + 1));
   return mangleChildNodes(node, depth + 1);
 }

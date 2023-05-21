@@ -81,3 +81,22 @@ struct Foo {
         _ = consume $wrapperTest // expected-error{{can only be applied to lvalues}}
     }
 }
+
+func testParseConsumeWithDollarIdentifier() {
+  class Klass {}
+  let f: (Klass) -> () = {
+    let _ = consume $0
+  }
+  _ = f
+}
+
+class ParentKlass {}
+class ChildKlass : ParentKlass {}
+
+func testAsBindingVariableInSwitch(_ x: ChildKlass) {
+  switch x {
+  case let consume as ParentKlass:
+    _ = consume
+    break
+  }
+}

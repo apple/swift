@@ -7013,10 +7013,14 @@ ERROR(concurrency_task_to_thread_model_global_actor_annotation,none,
 
 ERROR(moveOnly_not_allowed_here,none,
       "'moveOnly' only applies to structs or enums", ())
-ERROR(move_expression_not_passed_lvalue,none,
+ERROR(consume_expression_not_passed_lvalue,none,
       "'consume' can only be applied to lvalues", ())
 ERROR(borrow_expression_not_passed_lvalue,none,
       "'borrow' can only be applied to lvalues", ())
+ERROR(copy_expression_not_passed_lvalue,none,
+      "'copy' can only be applied to lvalues", ())
+ERROR(copy_expression_cannot_be_used_with_noncopyable_types,none,
+      "'copy' cannot be applied to noncopyable types", ())
 
 ERROR(moveOnly_requires_lexical_lifetimes,none,
       "noncopyable types require lexical borrow scopes "

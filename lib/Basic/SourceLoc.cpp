@@ -394,6 +394,10 @@ void SourceManager::setGeneratedSourceInfo(
   }
 }
 
+bool SourceManager::hasGeneratedSourceInfo(unsigned bufferID) {
+  return GeneratedSourceInfos.count(bufferID);
+}
+
 Optional<GeneratedSourceInfo> SourceManager::getGeneratedSourceInfo(
     unsigned bufferID
 ) const {

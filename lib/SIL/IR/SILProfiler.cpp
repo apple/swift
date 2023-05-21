@@ -86,18 +86,35 @@ static NodeToProfile getNodeToProfile(SILDeclRef Constant) {
 /// Check whether we should profile a given SILDeclRef.
 static bool shouldProfile(SILDeclRef Constant) {
   auto Root = getNodeToProfile(Constant);
+  auto *DC = Constant.getInnermostDeclContext();
 
-  // Do not profile AST nodes with invalid source locations.
   if (auto N = Root.getAsNode()) {
+    // Do not profile AST nodes with invalid source locations.
     if (N.getStartLoc().isInvalid() || N.getEndLoc().isInvalid()) {
       LLVM_DEBUG(llvm::dbgs()
                  << "Skipping ASTNode: invalid start/end locations\n");
       return false;
     }
+
+    // Do not profile generated code. This includes macro expansions, which we
+    // otherwise consider to be "written by the user", because they wrote the
+    // macro attribute or expr. We may want to revist this in the future. We'll
+    // need to figure out how we'll be writing out the macro expansions though,
+    // such that they can be referenced by llvm-cov.
+    // Note we check `getSourceFileContainingLocation` instead of
+    // `getParentSourceFile` to make sure initializer exprs are correctly
+    // handled.
+    auto *M = DC->getParentModule();
+    if (auto *SF = M->getSourceFileContainingLocation(N.getStartLoc())) {
+      auto &SM = M->getASTContext().SourceMgr;
+      if (SM.hasGeneratedSourceInfo(*SF->getBufferID())) {
+        LLVM_DEBUG(llvm::dbgs() << "Skipping ASTNode: generated code\n");
+        return false;
+      }
+    }
   }
 
   // Do not profile AST nodes in unavailable contexts.
-  auto *DC = Constant.getInnermostDeclContext();
   if (auto *D = DC->getInnermostDeclarationDeclContext()) {
     if (D->getSemanticUnavailableAttr()) {
       LLVM_DEBUG(llvm::dbgs() << "Skipping ASTNode: unavailable context\n");

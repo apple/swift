@@ -1386,6 +1386,8 @@ ERROR(expected_expr_after_await, none,
       "expected expression after 'await'", ())
 ERROR(expected_expr_after_move, none,
       "expected expression after 'consume'", ())
+ERROR(expected_expr_after_copy, none,
+      "expected expression after 'copy'", ())
 ERROR(expected_expr_after_borrow, none,
       "expected expression after '_borrow'", ())
 
@@ -2057,6 +2059,8 @@ ERROR(macro_expansion_expr_expected_macro_identifier,PointsToFirstBadToken,
       "expected a macro identifier for a pound literal expression", ())
 ERROR(macro_expansion_decl_expected_macro_identifier,PointsToFirstBadToken,
       "expected a macro identifier for a pound literal declaration", ())
+ERROR(extra_whitespace_macro_expansion_identifier,PointsToFirstBadToken,
+      "extraneous whitespace between '#' and macro name is not permitted", ())
 
 ERROR(macro_role_attr_expected_kind,PointsToFirstBadToken,
       "expected %select{a freestanding|an attached}0 macro role such as "

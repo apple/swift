@@ -23,6 +23,12 @@ sil_global @public_var : $Int32 = {
   %initval = struct $Int32 (%0 : $Builtin.Int32)
 }
 
+// CHECK-LABEL: sil_global public_external @external_var : $Int32 = {
+sil_global public_external @external_var : $Int32 = {
+  %0 = integer_literal $Builtin.Int32, 27
+  %initval = struct $Int32 (%0 : $Builtin.Int32)
+}
+
 sil @unknown_read_func : $@convention(thin) (@in Int32) -> ()
 
 sil @read_var : $@convention(thin) (@inout Int32) -> Int32 {

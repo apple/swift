@@ -3977,7 +3977,7 @@ void ASTMangler::appendMacroExpansionOperator(
     break;
 
   case MacroRole::MemberAttribute:
-    appendOperator("fMA", Index(discriminator));
+    appendOperator("fMr", Index(discriminator));
     break;
 
   case MacroRole::Member:

@@ -35,7 +35,8 @@ let readOnlyGlobalVariablesPass = ModulePass(name: "read-only-global-variables")
   }
 
   for g in moduleContext.globalVariables {
-    if !g.isPossiblyUsedExternally,
+    if !g.isAvailableExternally,
+       !g.isPossiblyUsedExternally,
        !g.isLet,
        !writtenGlobals.contains(g) {
       g.setIsLet(to: true, moduleContext)

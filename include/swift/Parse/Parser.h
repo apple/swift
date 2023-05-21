@@ -1751,6 +1751,16 @@ public:
   DeclNameRef parseDeclNameRef(DeclNameLoc &loc, const Diagnostic &diag,
                                DeclNameOptions flags);
 
+  /// Parse macro expansion.
+  ///
+  ///   macro-expansion:
+  ///     '#' identifier generic-arguments? expr-paren? trailing-closure?
+  ParserStatus parseFreestandingMacroExpansion(
+      SourceLoc &poundLoc, DeclNameLoc &macroNameLoc, DeclNameRef &macroNameRef,
+      SourceLoc &leftAngleLoc, SmallVectorImpl<TypeRepr *> &genericArgs,
+      SourceLoc &rightAngleLoc, ArgumentList *&argList, bool isExprBasic,
+      const Diagnostic &diag);
+
   ParserResult<Expr> parseExprIdentifier();
   Expr *parseExprEditorPlaceholder(Token PlaceholderTok,
                                    Identifier PlaceholderId);

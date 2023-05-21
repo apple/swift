@@ -341,6 +341,10 @@ struct BridgedGlobalVar {
     return getGlobal()->isPossiblyUsedExternally();
   }
 
+  bool isAvailableExternally() const {
+    return swift::isAvailableExternally(getGlobal()->getLinkage());
+  }
+
   SWIFT_IMPORT_UNSAFE
   inline OptionalBridgedInstruction getStaticInitializerValue() const;
 

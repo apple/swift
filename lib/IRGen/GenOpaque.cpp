@@ -578,8 +578,11 @@ StackAddress IRGenFunction::emitDynamicAlloca(llvm::Type *eltTy,
     // MaximumAlignment.
     byteCount = alignUpToMaximumAlignment(IGM.SizeTy, byteCount);
     auto address = emitTaskAlloc(byteCount, align);
-    return {address, address.getAddress()};
-  // In coroutines, call llvm.coro.alloca.alloc.
+    auto stackAddress = StackAddress{address, address.getAddress()};
+    stackAddress = stackAddress.withAddress(
+        Builder.CreateElementBitCast(stackAddress.getAddress(), eltTy));
+    return stackAddress;
+    // In coroutines, call llvm.coro.alloca.alloc.
   } else if (isCoroutine()) {
     // NOTE: llvm does not support dynamic allocas in coroutines.
 
@@ -603,7 +606,11 @@ StackAddress IRGenFunction::emitDynamicAlloca(llvm::Type *eltTy,
     auto ptr = Builder.CreateIntrinsicCall(llvm::Intrinsic::coro_alloca_get,
                                            {allocToken});
 
-    return {Address(ptr, IGM.Int8Ty, align), allocToken};
+    auto stackAddress =
+        StackAddress{Address(ptr, IGM.Int8Ty, align), allocToken};
+    stackAddress = stackAddress.withAddress(
+        Builder.CreateElementBitCast(stackAddress.getAddress(), eltTy));
+    return stackAddress;
   }
 
   // Otherwise, use a dynamic alloca.

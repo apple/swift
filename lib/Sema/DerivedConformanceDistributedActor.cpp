@@ -51,6 +51,15 @@ bool DerivedConformance::canDeriveDistributedActor(
 bool DerivedConformance::canDeriveDistributedActorSystem(
     NominalTypeDecl *nominal, DeclContext *dc) {
   auto &C = nominal->getASTContext();
+
+  // Make sure ad-hoc requirements that we'll use in synthesis are present, before we try to use them.
+  // This leads to better error reporting because we already have errors happening (missing witnesses).
+  if (auto handlerType = getDistributedActorSystemResultHandlerType(nominal)) {
+    if (!C.getOnReturnOnDistributedTargetInvocationResultHandler(
+        handlerType->getAnyNominal()))
+      return false;
+  }
+
   return C.getLoadedModule(C.Id_Distributed);
 }
 

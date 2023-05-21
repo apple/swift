@@ -35,6 +35,14 @@ final public class GlobalVariable : CustomStringConvertible, HasShortDescription
     return bridged.isPossiblyUsedExternally()
   }
 
+  /// True, if the linkage of the global indicates that it has a definition outside the
+  /// current compilation unit.
+  ///
+  /// For example, `public_external` linkage.
+  public var isAvailableExternally: Bool {
+    return bridged.isAvailableExternally()
+  }
+
   public var staticInitValue: SingleValueInstruction? {
     bridged.getStaticInitializerValue().instruction as? SingleValueInstruction
   }

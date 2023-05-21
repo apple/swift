@@ -172,16 +172,16 @@ macro anonymousTypes(_: () -> String) = #externalMacro(module: "MacroDefinition"
 // RUN: %sourcekitd-test -req=refactoring.expand.macro -pos=21:1 %s -- ${COMPILER_ARGS[@]} | %FileCheck -check-prefix=ATTACHED_EXPAND %s
 // RUN: %sourcekitd-test -req=refactoring.expand.macro -pos=21:2 %s -- ${COMPILER_ARGS[@]} | %FileCheck -check-prefix=ATTACHED_EXPAND %s
 // ATTACHED_EXPAND: source.edit.kind.active:
-// ATTACHED_EXPAND-NEXT: 23:3-23:3 (@__swiftmacro_9MacroUser1SV1x13myTypeWrapperfMA_.swift) "@accessViaStorage"
+// ATTACHED_EXPAND-NEXT: 23:3-23:3 (@__swiftmacro_9MacroUser1SV1x13myTypeWrapperfMr_.swift) "@accessViaStorage"
 // ATTACHED_EXPAND-NEXT: source.edit.kind.active:
-// ATTACHED_EXPAND-NEXT: 24:3-24:3 (@__swiftmacro_9MacroUser1SV1y13myTypeWrapperfMA0_.swift) "@accessViaStorage"
+// ATTACHED_EXPAND-NEXT: 24:3-24:3 (@__swiftmacro_9MacroUser1SV1y13myTypeWrapperfMr0_.swift) "@accessViaStorage"
 // ATTACHED_EXPAND-NEXT: source.edit.kind.active:
 // ATTACHED_EXPAND-NEXT: 25:1-25:1 (@__swiftmacro_9MacroUser1S13myTypeWrapperfMm_.swift) "private var _storage = _Storage()"
 // ATTACHED_EXPAND-NEXT: source.edit.kind.active:
 // ATTACHED_EXPAND-NEXT: 21:1-21:15 ""
 
 //##-- Cursor info on the attribute expanded by @myTypeWrapper
-// RUN: %sourcekitd-test -req=cursor -cursor-action -req-opts=retrieve_symbol_graph=1 -offset=1 @__swiftmacro_9MacroUser1SV1x13myTypeWrapperfMA_.swift -primary-file %s -- ${COMPILER_ARGS[@]} | %FileCheck -check-prefix=NESTED_ATTACHED_CURSOR %s
+// RUN: %sourcekitd-test -req=cursor -cursor-action -req-opts=retrieve_symbol_graph=1 -offset=1 @__swiftmacro_9MacroUser1SV1x13myTypeWrapperfMr_.swift -primary-file %s -- ${COMPILER_ARGS[@]} | %FileCheck -check-prefix=NESTED_ATTACHED_CURSOR %s
 // NESTED_ATTACHED_CURSOR: source.lang.swift.ref.macro
 // NESTED_ATTACHED_CURSOR-SAME: macro_basic.swift:10:27-10:43
 // NESTED_ATTACHED_CURSOR-LABEL: SYMBOL GRAPH BEGIN
@@ -200,7 +200,7 @@ macro anonymousTypes(_: () -> String) = #externalMacro(module: "MacroDefinition"
 // NESTED_ATTACHED_CURSOR-NEXT: ACTIONS END
 
 //##-- Expansion on the attribute expanded by @myTypeWrapper
-// RUN: %sourcekitd-test -req=refactoring.expand.macro -pos=1:1 @__swiftmacro_9MacroUser1SV1x13myTypeWrapperfMA_.swift -primary-file %s -- ${COMPILER_ARGS[@]} | %FileCheck -check-prefix=NESTED_ATTACHED_EXPAND %s
+// RUN: %sourcekitd-test -req=refactoring.expand.macro -pos=1:1 @__swiftmacro_9MacroUser1SV1x13myTypeWrapperfMr_.swift -primary-file %s -- ${COMPILER_ARGS[@]} | %FileCheck -check-prefix=NESTED_ATTACHED_EXPAND %s
 // NESTED_ATTACHED_EXPAND: source.edit.kind.active:
 // NESTED_ATTACHED_EXPAND-NEXT: Macros/macro_basic.swift 23:13-23:13 (@__swiftmacro_9MacroUser1SV1x16accessViaStoragefMa_.swift) "{
 // NESTED_ATTACHED_EXPAND-NEXT:  get {

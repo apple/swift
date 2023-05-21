@@ -2194,8 +2194,14 @@ public:
     printRec(E->getSubExpr());
     PrintWithColorRAII(OS, ParenthesisColor) << ')';
   }
-  void visitMoveExpr(MoveExpr *E) {
-    printCommon(E, "move_expr");
+  void visitConsumeExpr(ConsumeExpr *E) {
+    printCommon(E, "consume_expr");
+    OS << '\n';
+    printRec(E->getSubExpr());
+    PrintWithColorRAII(OS, ParenthesisColor) << ')';
+  }
+  void visitCopyExpr(CopyExpr *E) {
+    printCommon(E, "copy_expr");
     OS << '\n';
     printRec(E->getSubExpr());
     PrintWithColorRAII(OS, ParenthesisColor) << ')';

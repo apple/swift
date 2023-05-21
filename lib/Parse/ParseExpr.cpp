@@ -409,15 +409,31 @@ ParserResult<Expr> Parser::parseExprSequenceElement(Diag<> message,
   }
 
   if (Tok.isContextualKeyword("consume")
-      && peekToken().isAny(tok::identifier, tok::kw_self)
+      && peekToken().isAny(tok::identifier, tok::kw_self, tok::dollarident,
+                           tok::code_complete)
       && !peekToken().isAtStartOfLine()) {
     Tok.setKind(tok::contextual_keyword);
 
     SourceLoc consumeLoc = consumeToken();
     ParserResult<Expr> sub =
         parseExprSequenceElement(diag::expected_expr_after_move, isExprBasic);
-    if (!sub.hasCodeCompletion() && !sub.isNull()) {
-      sub = makeParserResult(new (Context) MoveExpr(consumeLoc, sub.get()));
+    if (!sub.isNull()) {
+      sub = makeParserResult(new (Context) ConsumeExpr(consumeLoc, sub.get()));
+    }
+    return sub;
+  }
+
+  if (Tok.isContextualKeyword("copy") &&
+      peekToken().isAny(tok::identifier, tok::kw_self, tok::dollarident,
+                        tok::code_complete) &&
+      !peekToken().isAtStartOfLine()) {
+    Tok.setKind(tok::contextual_keyword);
+
+    SourceLoc copyLoc = consumeToken();
+    ParserResult<Expr> sub =
+        parseExprSequenceElement(diag::expected_expr_after_copy, isExprBasic);
+    if (!sub.isNull()) {
+      sub = makeParserResult(new (Context) CopyExpr(copyLoc, sub.get()));
     }
     return sub;
   }
@@ -432,7 +448,7 @@ ParserResult<Expr> Parser::parseExprSequenceElement(Diag<> message,
       ParserResult<Expr> sub =
           parseExprSequenceElement(diag::expected_expr_after_move, isExprBasic);
       if (!sub.hasCodeCompletion() && !sub.isNull()) {
-        sub = makeParserResult(new (Context) MoveExpr(awaitLoc, sub.get()));
+        sub = makeParserResult(new (Context) ConsumeExpr(awaitLoc, sub.get()));
       }
       return sub;
     }
@@ -2269,6 +2285,71 @@ DeclNameRef Parser::parseDeclNameRef(DeclNameLoc &loc,
   return DeclNameRef({ Context, baseName, argumentLabels });
 }
 
+ParserStatus Parser::parseFreestandingMacroExpansion(
+    SourceLoc &poundLoc, DeclNameLoc &macroNameLoc, DeclNameRef &macroNameRef,
+    SourceLoc &leftAngleLoc, SmallVectorImpl<TypeRepr *> &genericArgs,
+    SourceLoc &rightAngleLoc, ArgumentList *&argList, bool isExprBasic,
+    const Diagnostic &diag) {
+  SourceLoc poundEndLoc = Tok.getRange().getEnd();
+  poundLoc = consumeToken(tok::pound);
+
+  if (Tok.isAtStartOfLine()) {
+    // Diagnose and bail out if there's no macro name on the same line.
+    diagnose(poundEndLoc, diag);
+    return makeParserError();
+  }
+
+  bool hasWhitespaceBeforeName = poundEndLoc != Tok.getLoc();
+
+  // Diagnose and parse keyword right after `#`.
+  if (Tok.isKeyword() && !hasWhitespaceBeforeName) {
+    diagnose(Tok, diag::keyword_cant_be_identifier, Tok.getText());
+    diagnose(Tok, diag::backticks_to_escape)
+        .fixItReplace(Tok.getLoc(), "`" + Tok.getText().str() + "`");
+
+    // Let 'parseDeclNameRef' to parse this as an identifier.
+    Tok.setKind(tok::identifier);
+  }
+  macroNameRef = parseDeclNameRef(macroNameLoc, diag, DeclNameOptions());
+  if (!macroNameRef)
+    return makeParserError();
+
+  // Diagnose whitespace between '#' and the macro name, and continue parsing.
+  if (hasWhitespaceBeforeName) {
+    diagnose(poundEndLoc, diag::extra_whitespace_macro_expansion_identifier)
+        .fixItRemoveChars(poundEndLoc, macroNameLoc.getStartLoc());
+  }
+
+  ParserStatus status;
+  if (canParseAsGenericArgumentList()) {
+    auto genericArgsStatus =
+        parseGenericArguments(genericArgs, leftAngleLoc, rightAngleLoc);
+    status |= genericArgsStatus;
+    if (genericArgsStatus.isErrorOrHasCompletion())
+      diagnose(leftAngleLoc, diag::while_parsing_as_left_angle_bracket);
+  }
+
+  if (Tok.isFollowingLParen()) {
+    auto result = parseArgumentList(tok::l_paren, tok::r_paren, isExprBasic,
+                                    /*allowTrailingClosure*/ true);
+    status |= result;
+    argList = result.getPtrOrNull();
+  } else if (Tok.is(tok::l_brace)) {
+    SmallVector<Argument, 2> trailingClosures;
+    auto closuresStatus = parseTrailingClosures(
+        isExprBasic, macroNameLoc.getSourceRange(), trailingClosures);
+    status |= closuresStatus;
+
+    if (!trailingClosures.empty()) {
+      argList = ArgumentList::createParsed(Context, SourceLoc(),
+                                           trailingClosures, SourceLoc(),
+                                           /*trailingClosureIdx*/ 0);
+    }
+  }
+
+  return status;
+}
+
 ///   expr-identifier:
 ///     unqualified-decl-name generic-args?
 ParserResult<Expr> Parser::parseExprIdentifier() {
@@ -3376,45 +3457,18 @@ Parser::parseExprCallSuffix(ParserResult<Expr> fn, bool isExprBasic) {
 }
 
 ParserResult<Expr> Parser::parseExprMacroExpansion(bool isExprBasic) {
-  SourceLoc poundLoc = consumeToken(tok::pound);
+  SourceLoc poundLoc;
   DeclNameLoc macroNameLoc;
-  DeclNameRef macroNameRef = parseDeclNameRef(
-      macroNameLoc, diag::macro_expansion_expr_expected_macro_identifier,
-      DeclNameOptions());
-  if (!macroNameRef)
-    return makeParserError();
-
-  ParserStatus status;
+  DeclNameRef macroNameRef;
   SourceLoc leftAngleLoc, rightAngleLoc;
-  SmallVector<TypeRepr *, 8> genericArgs;
-  if (canParseAsGenericArgumentList()) {
-    auto genericArgsStatus = parseGenericArguments(
-        genericArgs, leftAngleLoc, rightAngleLoc);
-    status |= genericArgsStatus;
-    if (genericArgsStatus.isErrorOrHasCompletion())
-      diagnose(leftAngleLoc, diag::while_parsing_as_left_angle_bracket);
-  }
-
+  SmallVector<TypeRepr *, 4> genericArgs;
   ArgumentList *argList = nullptr;
-  if (Tok.isFollowingLParen()) {
-    auto result = parseArgumentList(tok::l_paren, tok::r_paren, isExprBasic,
-                                /*allowTrailingClosure*/ true);
-    argList = result.getPtrOrNull();
-    status |= result;
-  } else if (Tok.is(tok::l_brace) &&
-             isValidTrailingClosure(isExprBasic, *this)) {
-    SmallVector<Argument, 2> trailingClosures;
-    auto closureStatus = parseTrailingClosures(isExprBasic,
-                                               macroNameLoc.getSourceRange(),
-                                               trailingClosures);
-    status |= closureStatus;
-
-    if (!trailingClosures.empty()) {
-      argList = ArgumentList::createParsed(Context, SourceLoc(),
-                                           trailingClosures, SourceLoc(),
-                                           /*trailingClosureIdx*/ 0);
-    }
-  }
+  ParserStatus status = parseFreestandingMacroExpansion(
+      poundLoc, macroNameLoc, macroNameRef, leftAngleLoc, genericArgs,
+      rightAngleLoc, argList, isExprBasic,
+      diag::macro_expansion_expr_expected_macro_identifier);
+  if (!macroNameRef)
+    return status;
 
   return makeParserResult(
       status,

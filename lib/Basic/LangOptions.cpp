@@ -429,6 +429,7 @@ std::pair<bool, bool> LangOptions::setTarget(llvm::Triple triple) {
   case llvm::Triple::ArchType::ppc64le:
   case llvm::Triple::ArchType::x86_64:
   case llvm::Triple::ArchType::systemz:
+  case llvm::Triple::ArchType::riscv64:
     addPlatformConditionValue(PlatformConditionKind::PointerBitWidth, "_64");
     break;
   }

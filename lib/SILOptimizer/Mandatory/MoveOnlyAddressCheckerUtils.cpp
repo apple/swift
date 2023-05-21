@@ -383,7 +383,25 @@ static bool isReinitToInitConvertibleInst(SILInstruction *memInst) {
   }
 }
 
-static void convertMemoryReinitToInitForm(SILInstruction *memInst) {
+static void insertDebugValueBefore(SILInstruction *insertPt,
+                                   DebugVarCarryingInst debugVar,
+                                   SILValue operand) {
+  if (!debugVar) {
+    return;
+  }
+  auto varInfo = debugVar.getVarInfo();
+  if (!varInfo) {
+    return;
+  }
+  SILBuilderWithScope debugInfoBuilder(insertPt);
+  debugInfoBuilder.setCurrentDebugScope(debugVar->getDebugScope());
+  debugInfoBuilder.createDebugValue(debugVar->getLoc(), operand,
+                                    *varInfo, false, true);
+}
+
+static void convertMemoryReinitToInitForm(SILInstruction *memInst,
+                                          DebugVarCarryingInst debugVar) {
+  SILValue dest;
   switch (memInst->getKind()) {
   default:
     llvm_unreachable("unsupported?!");
@@ -391,14 +409,21 @@ static void convertMemoryReinitToInitForm(SILInstruction *memInst) {
   case SILInstructionKind::CopyAddrInst: {
     auto *cai = cast<CopyAddrInst>(memInst);
     cai->setIsInitializationOfDest(IsInitialization_t::IsInitialization);
-    return;
+    dest = cai->getDest();
+    break;
   }
   case SILInstructionKind::StoreInst: {
     auto *si = cast<StoreInst>(memInst);
     si->setOwnershipQualifier(StoreOwnershipQualifier::Init);
-    return;
+    dest = si->getDest();
+    break;
   }
   }
+  
+  // Insert a new debug_value instruction after the reinitialization, so that
+  // the debugger knows that the variable is in a usable form again.
+  insertDebugValueBefore(memInst->getNextInstruction(), debugVar,
+                         stripAccessMarkers(dest));
 }
 
 static bool memInstMustConsume(Operand *memOper) {
@@ -1238,7 +1263,8 @@ struct MoveOnlyAddressCheckerPImpl {
                                 FieldSensitiveMultiDefPrunedLiveRange &liveness,
                                 FieldSensitivePrunedLivenessBoundary &boundary);
 
-  void rewriteUses(FieldSensitiveMultiDefPrunedLiveRange &liveness,
+  void rewriteUses(MarkMustCheckInst *markedValue,
+                   FieldSensitiveMultiDefPrunedLiveRange &liveness,
                    const FieldSensitivePrunedLivenessBoundary &boundary);
 
   void handleSingleBlockDestroy(SILInstruction *destroy, bool isReinit);
@@ -2310,17 +2336,9 @@ void MoveOnlyAddressCheckerPImpl::insertDestroysOnBoundary(
     if (!debugVar) {
       return;
     }
-    auto varInfo = debugVar.getVarInfo();
-    if (!varInfo) {
-      return;
-    }
-    SILBuilderWithScope debugInfoBuilder(insertPt);
-    debugInfoBuilder.setCurrentDebugScope(debugVar->getDebugScope());
-    debugInfoBuilder.createDebugValue(
-        debugVar->getLoc(),
-        SILUndef::get(debugVar.getOperandForDebugValueClone()->getType(),
-                      insertPt->getModule()),
-        *varInfo, false, true);
+    insertDebugValueBefore(insertPt, debugVar,
+      SILUndef::get(debugVar.getOperandForDebugValueClone()->getType(),
+                    insertPt->getModule()));
   };
 
   for (auto &pair : boundary.getLastUsers()) {
@@ -2426,6 +2444,7 @@ void MoveOnlyAddressCheckerPImpl::insertDestroysOnBoundary(
 }
 
 void MoveOnlyAddressCheckerPImpl::rewriteUses(
+    MarkMustCheckInst *markedValue,
     FieldSensitiveMultiDefPrunedLiveRange &liveness,
     const FieldSensitivePrunedLivenessBoundary &boundary) {
   LLVM_DEBUG(llvm::dbgs() << "MoveOnlyAddressChecker Rewrite Uses!\n");
@@ -2436,12 +2455,15 @@ void MoveOnlyAddressCheckerPImpl::rewriteUses(
     }
   }
 
+  auto debugVar = DebugVarCarryingInst::getFromValue(
+    stripAccessMarkers(markedValue->getOperand()));
+
   // Then convert all claimed reinits to inits.
   for (auto reinitPair : addressUseState.reinitInsts) {
     if (!isReinitToInitConvertibleInst(reinitPair.first))
       continue;
     if (!consumes.claimConsume(reinitPair.first, reinitPair.second))
-      convertMemoryReinitToInitForm(reinitPair.first);
+      convertMemoryReinitToInitForm(reinitPair.first, debugVar);
   }
 
   // Check all takes.
@@ -2624,7 +2646,7 @@ bool MoveOnlyAddressCheckerPImpl::performSingleCheck(
   FieldSensitivePrunedLivenessBoundary boundary(liveness.getNumSubElements());
   liveness.computeBoundary(boundary);
   insertDestroysOnBoundary(markedAddress, liveness, boundary);
-  rewriteUses(liveness, boundary);
+  rewriteUses(markedAddress, liveness, boundary);
 
   return true;
 }

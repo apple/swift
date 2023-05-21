@@ -399,7 +399,7 @@ Entities
   macro-discriminator-list ::= macro-discriminator-list? file-discriminator? macro-expansion-operator INDEX
 
   macro-expansion-operator ::= decl-name identifier 'fMa' // attached accessor macro
-  macro-expansion-operator ::= decl-name identifier 'fMA' // attached member-attribute macro
+  macro-expansion-operator ::= decl-name identifier 'fMr' // attached member-attribute macro
   macro-expansion-operator ::= identifier 'fMf' // freestanding macro
   macro-expansion-operator ::= decl-name identifier 'fMm' // attached member macro
   macro-expansion-operator ::= decl-name identifier 'fMp' // attached peer macro

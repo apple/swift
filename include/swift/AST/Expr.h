@@ -2050,31 +2050,61 @@ public:
   }
 };
 
-/// MoveExpr - A 'move' surrounding an lvalue expression marking the lvalue as
-/// needing to be moved.
-///
-/// getSemanticsProvidingExpr() looks through this because it doesn't
-/// provide the value and only very specific clients care where the
-/// 'move' was written.
-class MoveExpr final : public IdentityExpr {
-  SourceLoc MoveLoc;
+/// ConsumeExpr - A 'consume' surrounding an lvalue expression marking the
+/// lvalue as needing to be moved.
+class ConsumeExpr final : public Expr {
+  Expr *SubExpr;
+  SourceLoc ConsumeLoc;
 
 public:
-  MoveExpr(SourceLoc moveLoc, Expr *sub, Type type = Type(),
-           bool implicit = false)
-      : IdentityExpr(ExprKind::Move, sub, type, implicit), MoveLoc(moveLoc) {}
+  ConsumeExpr(SourceLoc consumeLoc, Expr *sub, Type type = Type(),
+              bool implicit = false)
+      : Expr(ExprKind::Consume, implicit, type), SubExpr(sub),
+        ConsumeLoc(consumeLoc) {}
 
-  static MoveExpr *createImplicit(ASTContext &ctx, SourceLoc moveLoc, Expr *sub,
-                                  Type type = Type()) {
-    return new (ctx) MoveExpr(moveLoc, sub, type, /*implicit=*/true);
+  static ConsumeExpr *createImplicit(ASTContext &ctx, SourceLoc moveLoc,
+                                     Expr *sub, Type type = Type()) {
+    return new (ctx) ConsumeExpr(moveLoc, sub, type, /*implicit=*/true);
   }
 
-  SourceLoc getLoc() const { return MoveLoc; }
+  SourceLoc getLoc() const { return ConsumeLoc; }
 
-  SourceLoc getStartLoc() const { return MoveLoc; }
+  Expr *getSubExpr() const { return SubExpr; }
+  void setSubExpr(Expr *E) { SubExpr = E; }
+
+  SourceLoc getStartLoc() const { return getLoc(); }
   SourceLoc getEndLoc() const { return getSubExpr()->getEndLoc(); }
 
-  static bool classof(const Expr *e) { return e->getKind() == ExprKind::Move; }
+  static bool classof(const Expr *e) {
+    return e->getKind() == ExprKind::Consume;
+  }
+};
+
+/// CopyExpr - A 'copy' surrounding an lvalue expression marking the lvalue as
+/// needing a semantic copy. Used to force a copy of a no implicit copy type.
+class CopyExpr final : public Expr {
+  Expr *SubExpr;
+  SourceLoc CopyLoc;
+
+public:
+  CopyExpr(SourceLoc copyLoc, Expr *sub, Type type = Type(),
+           bool implicit = false)
+      : Expr(ExprKind::Copy, implicit, type), SubExpr(sub), CopyLoc(copyLoc) {}
+
+  static CopyExpr *createImplicit(ASTContext &ctx, SourceLoc copyLoc, Expr *sub,
+                                  Type type = Type()) {
+    return new (ctx) CopyExpr(copyLoc, sub, type, /*implicit=*/true);
+  }
+
+  SourceLoc getLoc() const { return CopyLoc; }
+
+  Expr *getSubExpr() const { return SubExpr; }
+  void setSubExpr(Expr *E) { SubExpr = E; }
+
+  SourceLoc getStartLoc() const { return CopyLoc; }
+  SourceLoc getEndLoc() const { return getSubExpr()->getEndLoc(); }
+
+  static bool classof(const Expr *e) { return e->getKind() == ExprKind::Copy; }
 };
 
 /// BorrowExpr - A 'borrow' surrounding an lvalue/accessor expression at an

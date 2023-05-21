@@ -25,18 +25,20 @@ struct S<T> : Codable {
 
 distributed actor Greeter {
   // CHECK-LABEL: define linkonce_odr hidden swifttailcc void @"$s15no_to_arg_leaks7GreeterC5test1yyAA9SomeClassCyxGYaKlFTETF"
-  // CHECK: [[ARG_ADDR:%.*]] = bitcast i8* {{.*}} to %T15no_to_arg_leaks9SomeClassC**
+  // CHECK: [[ARG_ADDR:%.*]] = bitcast i8* [[PARAM:%.*]] to %T15no_to_arg_leaks9SomeClassC**
   // CHECK: %destroy = bitcast i8* {{.*}} to void (%swift.opaque*, %swift.type*)*
   // CHECK-NEXT: [[OPAQUE_ARG_ADDR:%.*]] = bitcast %T15no_to_arg_leaks9SomeClassC** [[ARG_ADDR]] to %swift.opaque*
   // CHECK-NEXT: call void %destroy(%swift.opaque* noalias [[OPAQUE_ARG_ADDR]], %swift.type* %arg_type)
+  // CHECK-NEXT: call swiftcc void @swift_task_dealloc(i8* [[PARAM]])
   distributed func test1<T>(_: SomeClass<T>) {
   }
 
   // CHECK-LABEL: define linkonce_odr hidden swifttailcc void @"$s15no_to_arg_leaks7GreeterC5test2yyAA1SVyxGYaKlFTETF"
-  // CHECK: [[ARG_ADDR:%.*]] = bitcast i8* {{.*}} to %T15no_to_arg_leaks1SV*
+  // CHECK: [[ARG_ADDR:%.*]] = bitcast i8* [[PARAM:%.*]] to %T15no_to_arg_leaks1SV*
   // CHECK: %destroy = bitcast i8* {{.*}} to void (%swift.opaque*, %swift.type*)*
   // CHECK-NEXT: [[OPAQUE_ARG_ADDR:%.*]] = bitcast %T15no_to_arg_leaks1SV* [[ARG_ADDR]] to %swift.opaque*
   // CHECK-NEXT: call void %destroy(%swift.opaque* noalias [[OPAQUE_ARG_ADDR]], %swift.type* %arg_type)
+  // CHECK-NEXT: call swiftcc void @swift_task_dealloc(i8* [[PARAM]])
   distributed func test2<T>(_: S<T>) {}
 }
 

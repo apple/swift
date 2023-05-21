@@ -191,6 +191,9 @@ public:
   /// Set the generated source information associated with a given buffer.
   void setGeneratedSourceInfo(unsigned bufferID, GeneratedSourceInfo);
 
+  /// Checks whether the given buffer has generated source information.
+  bool hasGeneratedSourceInfo(unsigned bufferID);
+
   /// Retrieve the generated source information for the given buffer.
   Optional<GeneratedSourceInfo> getGeneratedSourceInfo(unsigned bufferID) const;
 

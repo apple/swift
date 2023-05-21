@@ -3749,6 +3749,13 @@ func moveOperatorTest2(_ k: consuming Klass) {
     let _ = k3
 }
 
+// No diagnostics here.
+func moveOperatorTestSuccess() {
+  var k = Klass()
+  k = Klass()
+  let _ = consume k
+}
+
 /////////////////////////////////////////
 // Black hole initialization test case//
 /////////////////////////////////////////

@@ -4070,7 +4070,7 @@ NodePointer Demangler::demangleMacroExpansion() {
     isFreestanding = false;
     break;
 
-  case 'A':
+  case 'r':
     kind = Node::Kind::MemberAttributeAttachedMacroExpansion;
     isAttached = true;
     isFreestanding = false;

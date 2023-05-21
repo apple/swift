@@ -534,29 +534,6 @@ struct DebugVarCarryingInst : VarDeclCarryingInst {
   }
 };
 
-inline DebugVarCarryingInst DebugVarCarryingInst::getFromValue(SILValue value) {
-  if (auto *svi = dyn_cast<SingleValueInstruction>(value)) {
-    if (auto result = VarDeclCarryingInst(svi)) {
-      switch (result.getKind()) {
-      case VarDeclCarryingInst::Kind::Invalid:
-        llvm_unreachable("ShouldKind have never seen this");
-      case VarDeclCarryingInst::Kind::DebugValue:
-      case VarDeclCarryingInst::Kind::AllocStack:
-      case VarDeclCarryingInst::Kind::AllocBox:
-        return DebugVarCarryingInst(svi);
-      case VarDeclCarryingInst::Kind::GlobalAddr:
-      case VarDeclCarryingInst::Kind::RefElementAddr:
-        return DebugVarCarryingInst();
-      }
-    }
-  }
-
-  if (auto *use = getSingleDebugUse(value))
-    return DebugVarCarryingInst(use->getUser());
-
-  return DebugVarCarryingInst();
-}
-
 static_assert(sizeof(DebugVarCarryingInst) == sizeof(VarDeclCarryingInst) &&
                   alignof(DebugVarCarryingInst) == alignof(VarDeclCarryingInst),
               "Expected debug var carrying inst to have the same "

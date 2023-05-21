@@ -2918,7 +2918,7 @@ ManglingError Remangler::mangleMemberAttributeAttachedMacroExpansion(
   RETURN_IF_ERROR(mangleChildNode(node, 0, depth + 1));
   RETURN_IF_ERROR(mangleChildNode(node, 1, depth + 1));
   RETURN_IF_ERROR(mangleChildNode(node, 2, depth + 1));
-  Buffer << "fMA";
+  Buffer << "fMr";
   return mangleChildNode(node, 3, depth + 1);
 }
 

@@ -12,18 +12,16 @@
 import Module
 import ModuleTBD
 
-// CHECK-LABEL: sil_global public_external [let] @$s6Module0A6StructV22privateFunctionPointeryS2icvpZ : $@callee_guaranteed (Int) -> Int{{$}}
+// CHECK-LABEL: sil_global public_external @$s6Module0A6StructV22privateFunctionPointeryS2icvpZ : $@callee_guaranteed (Int) -> Int{{$}}
 
 public func callPublicFunctionPointer(_ x: Int) -> Int {
   return Module.ModuleStruct.publicFunctionPointer(x)
 }
 
 // CHECK-LABEL: sil @$s4Main25callPublicFunctionPointeryS2iF :
-// CHECK-NOT:     global_addr
-// CHECK-NOT:     apply
-// CHECK:         builtin "sadd
-// CHECK-NOT:     global_addr
-// CHECK-NOT:     apply
+// CHECK:         global_addr
+// CHECK:         load
+// CHECK:         apply
 // CHECK:       } // end sil function '$s4Main25callPublicFunctionPointeryS2iF'
 public func callPrivateFunctionPointer(_ x: Int) -> Int {
   return Module.ModuleStruct.privateFunctionPointer(x)

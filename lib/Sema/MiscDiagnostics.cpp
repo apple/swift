@@ -340,8 +340,14 @@ static void diagSyntacticUseRestrictions(const Expr *E, const DeclContext *DC,
 
       // Diagnose move expression uses where the sub expression is not a declref
       // expr.
-      if (auto *moveExpr = dyn_cast<MoveExpr>(E)) {
-        checkMoveExpr(moveExpr);
+      if (auto *consumeExpr = dyn_cast<ConsumeExpr>(E)) {
+        checkConsumeExpr(consumeExpr);
+      }
+
+      // Diagnose copy expression uses where the sub expression is not a declref
+      // expr.
+      if (auto *copyExpr = dyn_cast<CopyExpr>(E)) {
+        checkCopyExpr(copyExpr);
       }
 
       // Diagnose move expression uses where the sub expression is not a declref expr
@@ -415,10 +421,33 @@ static void diagSyntacticUseRestrictions(const Expr *E, const DeclContext *DC,
       }
     }
 
-    void checkMoveExpr(MoveExpr *moveExpr) {
-      if (!isa<DeclRefExpr>(moveExpr->getSubExpr())) {
-        Ctx.Diags.diagnose(moveExpr->getLoc(),
-                           diag::move_expression_not_passed_lvalue);
+    void checkConsumeExpr(ConsumeExpr *consumeExpr) {
+      auto *subExpr = consumeExpr->getSubExpr();
+      if (auto *li = dyn_cast<LoadExpr>(subExpr))
+        subExpr = li->getSubExpr();
+      if (!isa<DeclRefExpr>(subExpr)) {
+        Ctx.Diags.diagnose(consumeExpr->getLoc(),
+                           diag::consume_expression_not_passed_lvalue);
+      }
+    }
+
+    void checkCopyExpr(CopyExpr *copyExpr) {
+      // Do not allow for copy_expr to be used with pure move only types. We
+      // /do/ allow it to be used with no implicit copy types though.
+      if (copyExpr->getType()->isPureMoveOnly()) {
+        Ctx.Diags.diagnose(
+            copyExpr->getLoc(),
+            diag::copy_expression_cannot_be_used_with_noncopyable_types);
+      }
+
+      // We only allow for copy_expr to be applied directly to lvalues. We do
+      // not allow currently for it to be applied to fields.
+      auto *subExpr = copyExpr->getSubExpr();
+      if (auto *li = dyn_cast<LoadExpr>(subExpr))
+        subExpr = li->getSubExpr();
+      if (!isa<DeclRefExpr>(subExpr)) {
+        Ctx.Diags.diagnose(copyExpr->getLoc(),
+                           diag::copy_expression_not_passed_lvalue);
       }
     }
 

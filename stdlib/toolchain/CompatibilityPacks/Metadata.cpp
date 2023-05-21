@@ -140,7 +140,6 @@ swift_allocateMetadataPack(const Metadata * const *ptr, size_t count) {
   auto bytes = MetadataPacks.getOrInsert(key).first->getElements();
 
   MetadataPackPointer pack(bytes, PackLifetime::OnHeap);
-  assert(pack.getNumElements() == count);
   return pack.getPointer();
 }
 
@@ -159,6 +158,5 @@ swift_allocateWitnessTablePack(const WitnessTable * const *ptr, size_t count) {
   auto bytes = WitnessTablePacks.getOrInsert(key).first->getElements();
 
   WitnessTablePackPointer pack(bytes, PackLifetime::OnHeap);
-  assert(pack.getNumElements() == count);
   return pack.getPointer();
 }

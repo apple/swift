@@ -819,8 +819,11 @@ void swift::swift_deallocClassInstance(HeapObject *object,
     auto descriptor = object->metadata->getTypeContextDescriptor();
 
     swift::fatalError(0,
-                      "Object %p of class %s deallocated with retain count %zd, "
-                      "reference may have escaped from deinit.\n",
+                      "Object %p of class %s deallocated with non-zero retain "
+                      "count %zd. This object's deinit, or something called "
+                      "from it, may have created a strong reference to self "
+                      "which outlived deinit, resulting in a dangling "
+                      "reference.\n",
                       object,
                       descriptor ? descriptor->Name.get() : "<unknown>",
                       retainCount);
