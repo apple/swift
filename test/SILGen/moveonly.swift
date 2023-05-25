@@ -983,3 +983,20 @@ func testConditionallyInitializedLet() {
     borrowVal(x)
     consumeVal(x)
 }
+
+/////////////////////////////
+// MARK: AddressOnlySetter //
+/////////////////////////////
+
+struct AddressOnlySetterTester : ~Copyable {
+    var a: AddressOnlyProtocol {
+        get { fatalError() }
+
+        // CHECK-LABEL: sil hidden [ossa] @$s8moveonly23AddressOnlySetterTesterV1aAA0bC8ProtocolVvs : $@convention(method) (@in AddressOnlyProtocol, @inout AddressOnlySetterTester) -> () {
+        // CHECK: bb0([[IN_ARG:%.*]] : $*AddressOnlyProtocol, [[SELF_INOUT_ARG:%.*]] : $*AddressOnlySetterTester):
+        // CHECK: mark_must_check [consumable_and_assignable] [[IN_ARG]]
+        // CHECK: mark_must_check [consumable_and_assignable] [[SELF_INOUT_ARG]]
+        // CHECK: } // end sil function '$s8moveonly23AddressOnlySetterTesterV1aAA0bC8ProtocolVvs'
+        set { fatalError() }
+    }
+}

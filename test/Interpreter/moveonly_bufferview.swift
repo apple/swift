@@ -1,14 +1,9 @@
-// TODO: re-enable the simplification passes once rdar://104875010 is fixed
-// RUN: %target-run-simple-swift(-Xllvm -sil-disable-pass=simplification) | %FileCheck %s
+// RUN: %target-run-simple-swift(-Xfrontend -sil-verify-all) | %FileCheck %s
+// RUN: %target-run-simple-swift(-O -Xfrontend -sil-verify-all) | %FileCheck %s
 
 // REQUIRES: executable_test
-// REQUIRES: swift_test_mode_optimize_none
 
-// Until we get support for emitting value witnesses for deinits, do not run
-// this with optimizations.
-
-@_moveOnly
-public struct BufferView<T> {
+public struct BufferView<T>: ~Copyable {
     var ptr: UnsafeBufferPointer<T>
 
     var count: Int {

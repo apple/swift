@@ -68,6 +68,8 @@ public:
 
   ArrayRef<ProtocolConformanceRef> getPatternConformances() const;
 
+  bool isInvalid() const;
+
   bool isCanonical() const;
 
   PackConformance *getCanonicalConformance() const;
@@ -103,4 +105,4 @@ void simple_display(llvm::raw_ostream &out, PackConformance *conformance);
 
 } // end namespace swift
 
-#endif  // SWIFT_AST_PACKCONFORMANCE_H
+#endif // SWIFT_AST_PACKCONFORMANCE_H

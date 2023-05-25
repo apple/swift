@@ -12,6 +12,7 @@ swift_compiler_sources(Optimizer
   ComputeEscapeEffects.swift
   ComputeSideEffects.swift
   InitializeStaticGlobals.swift
+  ObjectOutliner.swift
   ObjCBridgingOptimization.swift
   MergeCondFails.swift
   NamedReturnValueOptimization.swift

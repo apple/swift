@@ -185,9 +185,9 @@ MacroDefinition MacroDefinitionRequest::evaluate(
   ptrdiff_t *replacements;
   ptrdiff_t numReplacements;
   auto checkResult = swift_ASTGen_checkMacroDefinition(
-      &ctx.Diags, sourceFile->exportedSourceFile, macro->getLoc().getOpaquePointerValue(),
-      &externalMacroNamePtr, &externalMacroNameLength,
-      &replacements, &numReplacements);
+      &ctx.Diags, sourceFile->getExportedSourceFile(),
+      macro->getLoc().getOpaquePointerValue(), &externalMacroNamePtr,
+      &externalMacroNameLength, &replacements, &numReplacements);
 
   // Clean up after the call.
   SWIFT_DEFER {
@@ -781,7 +781,7 @@ swift::expandMacroExpr(MacroExpansionExpr *mee) {
     PrettyStackTraceExpr debugStack(ctx, "expanding macro", mee);
 
     // Builtin macros are handled via ASTGen.
-    auto astGenSourceFile = sourceFile->exportedSourceFile;
+    auto *astGenSourceFile = sourceFile->getExportedSourceFile();
     if (!astGenSourceFile)
       return None;
 
@@ -963,11 +963,6 @@ swift::expandFreestandingMacro(MacroExpansionDecl *med) {
     // macros need the `FreestandingMacros` feature flag, and code item macros
     // need both `FreestandingMacros` and `CodeItemMacros`.
     if (!macroRoles.contains(MacroRole::Expression)) {
-      if (!ctx.LangOpts.hasFeature(Feature::FreestandingMacros)) {
-        med->diagnose(diag::macro_experimental, "freestanding",
-                      "FreestandingMacros");
-        return None;
-      }
       if (!macroRoles.contains(MacroRole::Declaration) &&
           !ctx.LangOpts.hasFeature(Feature::CodeItemMacros)) {
         med->diagnose(diag::macro_experimental, "code item", "CodeItemMacros");
@@ -979,7 +974,7 @@ swift::expandFreestandingMacro(MacroExpansionDecl *med) {
     PrettyStackTraceDecl debugStack("expanding declaration macro", med);
 
     // Builtin macros are handled via ASTGen.
-    auto astGenSourceFile = sourceFile->exportedSourceFile;
+    auto *astGenSourceFile = sourceFile->getExportedSourceFile();
     if (!astGenSourceFile)
       return None;
 
@@ -1175,18 +1170,19 @@ evaluateAttachedMacro(MacroDecl *macro, Decl *attachedTo, CustomAttr *attr,
 #if SWIFT_SWIFT_PARSER
     PrettyStackTraceDecl debugStack("expanding attached macro", attachedTo);
 
-    auto astGenAttrSourceFile = attrSourceFile->exportedSourceFile;
+    auto *astGenAttrSourceFile = attrSourceFile->getExportedSourceFile();
     if (!astGenAttrSourceFile)
       return nullptr;
 
-    auto astGenDeclSourceFile = declSourceFile->exportedSourceFile;
+    auto *astGenDeclSourceFile = declSourceFile->getExportedSourceFile();
     if (!astGenDeclSourceFile)
       return nullptr;
 
     void *astGenParentDeclSourceFile = nullptr;
     const void *parentDeclLoc = nullptr;
     if (passParentContext) {
-      astGenParentDeclSourceFile = parentDeclSourceFile->exportedSourceFile;
+      astGenParentDeclSourceFile =
+          parentDeclSourceFile->getExportedSourceFile();
       if (!astGenParentDeclSourceFile)
         return nullptr;
 

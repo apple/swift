@@ -114,6 +114,23 @@ extension Duration {
     return Duration(_attoseconds:
       _Int128(seconds).multiplied(by: 1_000_000_000_000_000_000 as UInt64))
   }
+  
+  /// Construct a `Duration` given a duration and scale, taking care so that
+  /// exact integer durations are preserved exactly.
+  internal init(_ duration: Double, scale: UInt64) {
+    // Split the duration into integral and fractional parts, as we need to
+    // handle them slightly differently to ensure that integer values are
+    // never rounded if `scale` is representable as Double.
+    let integralPart = duration.rounded(.towardZero)
+    let fractionalPart = integralPart - duration
+    self.init(_attoseconds:
+      // This term may trap due to overflow, but it cannot round, so if the
+      // input `seconds` is an exact integer, we get an exact integer result.
+      _Int128(integralPart).multiplied(by: scale) +
+      // This term may round, but cannot overflow.
+      _Int128((fractionalPart * Double(scale)).rounded())
+    )
+  }
 
   /// Construct a `Duration` given a number of seconds represented as a 
   /// `Double` by converting the value into the closest attosecond scale value.
@@ -123,7 +140,7 @@ extension Duration {
   /// - Returns: A `Duration` representing a given number of seconds.
   @available(SwiftStdlib 5.7, *)
   public static func seconds(_ seconds: Double) -> Duration {
-    return Duration(_attoseconds: _Int128(seconds * 1_000_000_000_000_000_000))
+    Duration(seconds, scale: 1_000_000_000_000_000_000)
   }
 
   /// Construct a `Duration` given a number of milliseconds represented as a 
@@ -148,8 +165,7 @@ extension Duration {
   /// - Returns: A `Duration` representing a given number of milliseconds.
   @available(SwiftStdlib 5.7, *)
   public static func milliseconds(_ milliseconds: Double) -> Duration {
-    return Duration(_attoseconds:
-      _Int128(milliseconds * 1_000_000_000_000_000))
+    Duration(milliseconds, scale: 1_000_000_000_000_000)
   }
 
   /// Construct a `Duration` given a number of microseconds represented as a 
@@ -174,8 +190,7 @@ extension Duration {
   /// - Returns: A `Duration` representing a given number of microseconds.
   @available(SwiftStdlib 5.7, *)
   public static func microseconds(_ microseconds: Double) -> Duration {
-    return Duration(_attoseconds:
-      _Int128(microseconds * 1_000_000_000_000))
+    Duration(microseconds, scale: 1_000_000_000_000)
   }
 
   /// Construct a `Duration` given a number of nanoseconds represented as a 

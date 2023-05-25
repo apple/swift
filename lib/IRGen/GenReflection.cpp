@@ -854,8 +854,11 @@ private:
     if (hasPayload && (decl->isIndirect() || enumDecl->isIndirect()))
       flags.setIsIndirectCase();
 
-    addField(flags, decl->getArgumentInterfaceType(),
-             decl->getBaseIdentifier().str());
+    Type interfaceType = Lowering::shouldSkipLowering(decl)
+                             ? nullptr
+                             : decl->getArgumentInterfaceType();
+
+    addField(flags, interfaceType, decl->getBaseIdentifier().str());
   }
 
   void layoutEnum() {

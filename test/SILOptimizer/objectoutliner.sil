@@ -1,5 +1,6 @@
 // RUN: %target-sil-opt -enable-sil-verify-all %s -object-outliner | %FileCheck %s
-//
+
+// REQUIRES: swift_in_compiler
 
 sil_stage canonical
 
@@ -19,13 +20,31 @@ class Obj : Base {
 // CHECK-NEXT:  }
 
 // CHECK-LABEL: sil_global private @outline_global_tailelemsTv_ : $Obj = {
-// CHECK-NEXT:    %0 = integer_literal $Builtin.Int64, 3
+// CHECK-NEXT:    %0 = integer_literal $Builtin.Int64, 1
 // CHECK-NEXT:    %1 = struct $Int64 (%0 : $Builtin.Int64)
 // CHECK-NEXT:    %2 = integer_literal $Builtin.Int64, 2
 // CHECK-NEXT:    %3 = struct $Int64 (%2 : $Builtin.Int64)
-// CHECK-NEXT:    %4 = integer_literal $Builtin.Int64, 1
+// CHECK-NEXT:    %4 = integer_literal $Builtin.Int64, 3
 // CHECK-NEXT:    %5 = struct $Int64 (%4 : $Builtin.Int64)
-// CHECK-NEXT:    %initval = object $Obj (%5 : $Int64, [tail_elems] %3 : $Int64, %1 : $Int64)
+// CHECK-NEXT:    %initval = object $Obj (%1 : $Int64, [tail_elems] %3 : $Int64, %5 : $Int64)
+// CHECK-NEXT:  }
+
+// CHECK-LABEL: sil_global private @tuple_tailelemsTv_ : $Obj = {
+// CHECK-NEXT:    %0 = integer_literal $Builtin.Int64, 27
+// CHECK-NEXT:    %1 = struct $Int64 (%0 : $Builtin.Int64)
+// CHECK-NEXT:    %2 = integer_literal $Builtin.Int64, 1
+// CHECK-NEXT:    %3 = struct $Int64 (%2 : $Builtin.Int64)
+// CHECK-NEXT:    %4 = integer_literal $Builtin.Int1, 0
+// CHECK-NEXT:    %5 = struct $Bool (%4 : $Builtin.Int1)
+// CHECK-NEXT:    %6 = tuple (%3 : $Int64, %5 : $Bool)
+// CHECK-NEXT:    %7 = integer_literal $Builtin.Int64, 2
+// CHECK-NEXT:    %8 = struct $Int64 (%7 : $Builtin.Int64)
+// CHECK-NEXT:    %9 = integer_literal $Builtin.Int1, -1
+// CHECK-NEXT:    %10 = struct $Bool (%9 : $Builtin.Int1)
+// CHECK-NEXT:    %11 = tuple (%8 : $Int64, %10 : $Bool)
+// CHECK-NEXT:    %12 = struct $Int64 (%7 : $Builtin.Int64)
+// CHECK-NEXT:    %13 = tuple (%12 : $Int64, %5 : $Bool)
+// CHECK-NEXT:    %initval = object $Obj (%1 : $Int64, [tail_elems] %6 : $(Int64, Bool), %11 : $(Int64, Bool), %13 : $(Int64, Bool))
 // CHECK-NEXT:  }
 
 // CHECK-LABEL: sil @outline_global_simple
@@ -278,3 +297,49 @@ bb0:
   %r = tuple ()
   return %r : $()
 }
+
+// CHECK-LABEL: sil @tuple_tailelems :
+// CHECK:         [[G:%[0-9]+]] = global_value @tuple_tailelemsTv_ : $Obj
+// CHECK:         strong_retain [[G]] : $Obj
+// CHECK-NOT:     store
+// CHECK:         return [[G]] : $Obj
+// CHECK:       } // end sil function 'tuple_tailelems'
+sil @tuple_tailelems : $@convention(thin) () -> @owned Obj {
+bb0:
+  %0 = integer_literal $Builtin.Word, 3
+  %1 = integer_literal $Builtin.Int64, 27
+  %2 = struct $Int64 (%1 : $Builtin.Int64)
+  %3 = alloc_ref [tail_elems $(Int64, Bool) * %0 : $Builtin.Word] $Obj
+  %4 = ref_element_addr %3 : $Obj, #Obj.value
+  store %2 to %4 : $*Int64
+  %6 = ref_tail_addr %3 : $Obj, $(Int64, Bool)
+  %7 = tuple_element_addr %6 : $*(Int64, Bool), 0
+  %8 = tuple_element_addr %6 : $*(Int64, Bool), 1
+  %9 = integer_literal $Builtin.Int64, 1
+  %10 = struct $Int64 (%9 : $Builtin.Int64)
+  store %10 to %7 : $*Int64
+  %12 = integer_literal $Builtin.Int1, 0
+  %13 = struct $Bool (%12 : $Builtin.Int1)
+  store %13 to %8 : $*Bool
+  %15 = integer_literal $Builtin.Word, 1
+  %16 = index_addr %6 : $*(Int64, Bool), %15 : $Builtin.Word
+  %17 = tuple_element_addr %16 : $*(Int64, Bool), 0
+  %18 = tuple_element_addr %16 : $*(Int64, Bool), 1
+  %19 = integer_literal $Builtin.Int64, 2
+  %20 = struct $Int64 (%19 : $Builtin.Int64)
+  store %20 to %17 : $*Int64
+  %22 = integer_literal $Builtin.Int1, -1
+  %23 = struct $Bool (%22 : $Builtin.Int1)
+  store %23 to %18 : $*Bool
+  %25 = integer_literal $Builtin.Word, 2
+  %26 = index_addr %6 : $*(Int64, Bool), %25 : $Builtin.Word
+  %27 = tuple_element_addr %26 : $*(Int64, Bool), 0
+  %28 = tuple_element_addr %26 : $*(Int64, Bool), 1
+  %29 = integer_literal $Builtin.Int64, 3
+  %30 = struct $Int64 (%19 : $Builtin.Int64)
+  store %30 to %27 : $*Int64
+  store %13 to %28 : $*Bool
+  %33 = end_cow_mutation %3 : $Obj
+  return %33 : $Obj
+}
+

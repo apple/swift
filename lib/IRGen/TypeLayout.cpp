@@ -75,7 +75,7 @@ public:
 
     Existential = 0x0e,
     Resilient = 0x0f,
-    SinglePayloadEnum = 0x10,
+    SinglePayloadEnumSimple = 0x10,
 
     Skip = 0x80,
     // We may use the MSB as flag that a count follows,
@@ -84,13 +84,24 @@ public:
   };
 
 private:
+  struct SinglePayloadEnumSimple {
+    uint64_t zeroTagValue;
+    unsigned xiTagValues;
+    unsigned extraTagByteCount;
+    unsigned xiByteCount;
+    unsigned xiOffset;
+    const TypeLayoutEntry *payload;
+  };
 
   struct RefCounting {
     RefCountingKind kind;
     union {
       size_t size;
       llvm::Function* metaTypeRef;
+      SinglePayloadEnumSimple singlePayloadEnumSimple;
     };
+
+    RefCounting() = default;
   };
 
   std::vector<RefCounting> refCountings;
@@ -103,6 +114,21 @@ public:
     RefCounting op;
     op.kind = kind;
     op.size = size;
+    refCountings.push_back(op);
+  }
+
+  void addSinglePayloadEnumSimple(uint64_t zeroTagValue, unsigned xiTagValues,
+                                  unsigned extraTagByteCount,
+                                  unsigned xiByteCount, unsigned xiOffset,
+                                  const TypeLayoutEntry *payload) {
+    RefCounting op;
+    op.kind = RefCountingKind::SinglePayloadEnumSimple;
+    op.singlePayloadEnumSimple.zeroTagValue = zeroTagValue;
+    op.singlePayloadEnumSimple.xiTagValues = xiTagValues;
+    op.singlePayloadEnumSimple.extraTagByteCount = extraTagByteCount;
+    op.singlePayloadEnumSimple.xiByteCount = xiByteCount;
+    op.singlePayloadEnumSimple.xiOffset = xiOffset;
+    op.singlePayloadEnumSimple.payload = payload;
     refCountings.push_back(op);
   }
 
@@ -129,14 +155,12 @@ public:
   }
 
 public:
-
-  void result(IRGenModule &IGM, ConstantStructBuilder &B) const {
-    auto flagsPlaceholder = B.addPlaceholderWithSize(IGM.Int64Ty);
-    auto sizePlaceholder = B.addPlaceholderWithSize(IGM.SizeTy);
-    size_t skip = 0;
-    size_t refCountBytes = 0;
-    LayoutStringFlags flags = LayoutStringFlags::Empty;
-    for (auto &refCounting : refCountings) {
+  void addRefCountings(IRGenModule &IGM, ConstantStructBuilder &B,
+                       GenericSignature genericSig,
+                       const std::vector<RefCounting> &_refCountings,
+                       size_t &skip, size_t &refCountBytes,
+                       LayoutStringFlags &flags) const {
+    for (auto &refCounting : _refCountings) {
       switch (refCounting.kind) {
       case RefCountingKind::Skip:
         skip += refCounting.size;
@@ -157,6 +181,49 @@ public:
         break;
       }
 
+      case RefCountingKind::SinglePayloadEnumSimple: {
+        uint64_t op = (static_cast<uint64_t>(refCounting.kind) << 56) | skip;
+        B.addInt64(op);
+
+        skip = 0;
+        size_t nestedRefCountBytes = 0;
+
+        auto enumData = refCounting.singlePayloadEnumSimple;
+        assert(enumData.extraTagByteCount <= 4);
+
+        // We use power of 2 sizes, so we compact them to save space
+        // Formula to read the actual size: x == 0 ? 0 : 1 << (x - 1);
+        uint64_t compactExtraTagByteCount =
+            std::min(enumData.extraTagByteCount, 3u);
+        uint64_t compactXIByteCount =
+            enumData.xiByteCount == 8 ? 4 : std::min(enumData.xiByteCount, 3u);
+        uint64_t byteCountsAndOffset = compactExtraTagByteCount << 62 |
+                                       compactXIByteCount << 59 |
+                                       enumData.xiOffset;
+        B.addInt64(byteCountsAndOffset);
+        B.addSize(enumData.payload->fixedSize(IGM).getValue());
+        B.addInt64(enumData.zeroTagValue);
+        B.addSize(Size(enumData.xiTagValues));
+        auto nestedRefCountBytesPlaceholder =
+            B.addPlaceholderWithSize(IGM.SizeTy);
+        auto skipBytesPlaceholder = B.addPlaceholderWithSize(IGM.SizeTy);
+
+        LayoutStringBuilder nestedBuilder{};
+        enumData.payload->refCountString(IGM, nestedBuilder, genericSig);
+        addRefCountings(IGM, B, genericSig, nestedBuilder.refCountings, skip,
+                        nestedRefCountBytes, flags);
+
+        auto nestedSkip = enumData.payload->fixedSize(IGM)->getValue() - skip;
+        B.fillPlaceholderWithInt(nestedRefCountBytesPlaceholder, IGM.SizeTy,
+                                 nestedRefCountBytes);
+        B.fillPlaceholderWithInt(skipBytesPlaceholder, IGM.SizeTy, nestedSkip);
+
+        refCountBytes += (4 * sizeof(uint64_t)) +
+                         (3 * IGM.getPointerSize().getValue()) +
+                         nestedRefCountBytes;
+        break;
+      }
+
       default: {
         uint64_t op = (static_cast<uint64_t>(refCounting.kind) << 56) | skip;
         B.addInt64(op);
@@ -167,6 +234,18 @@ public:
       }
       }
     }
+  }
+
+  void result(IRGenModule &IGM, ConstantStructBuilder &B,
+              GenericSignature genericSig) const {
+    auto flagsPlaceholder = B.addPlaceholderWithSize(IGM.Int64Ty);
+    auto sizePlaceholder = B.addPlaceholderWithSize(IGM.SizeTy);
+    size_t skip = 0;
+    size_t refCountBytes = 0;
+    LayoutStringFlags flags = LayoutStringFlags::Empty;
+
+    addRefCountings(IGM, B, genericSig, refCountings, skip, refCountBytes,
+                    flags);
 
     // size of ref counting ops in bytes
     B.fillPlaceholderWithInt(flagsPlaceholder, IGM.Int64Ty,
@@ -303,6 +382,11 @@ const EnumTypeLayoutEntry *TypeLayoutEntry::getAsEnum() const {
 
 bool TypeLayoutEntry::isAlignedGroup() const {
   return getKind() == TypeLayoutEntryKind::AlignedGroup;
+}
+
+llvm::Optional<const FixedTypeInfo *>
+TypeLayoutEntry::getFixedTypeInfo() const {
+  return None;
 }
 
 llvm::Value *TypeLayoutEntry::alignmentMask(IRGenFunction &IGF) const {
@@ -1009,26 +1093,6 @@ llvm::Constant *
 ScalarTypeLayoutEntry::layoutString(IRGenModule &IGM,
                                     GenericSignature genericSig) const {
   return nullptr;
-  // if (_layoutString) {
-  //   return *_layoutString;
-  // }
-
-  // LayoutStringBuilder B{};
-
-  // if (!refCountString(IGM, B, genericSig)) {
-  //   return *(_layoutString = llvm::Optional<llvm::Constant *>(nullptr));
-  // }
-
-  // ConstantInitBuilder IB(IGM);
-  // auto SB = IB.beginStruct();
-  // SB.setPacked(true);
-
-  // B.result(IGM, SB);
-
-  // _layoutString = SB.finishAndCreateGlobal("", IGM.getPointerAlignment(),
-  //                                          /*constant*/ true);
-
-  // return *_layoutString;
 }
 
 bool ScalarTypeLayoutEntry::refCountString(IRGenModule &IGM,
@@ -1277,6 +1341,11 @@ bool ScalarTypeLayoutEntry::classof(const TypeLayoutEntry *entry) {
   return entry->kind == TypeLayoutEntryKind::Scalar;
 }
 
+llvm::Optional<const FixedTypeInfo *>
+ScalarTypeLayoutEntry::getFixedTypeInfo() const {
+  return &typeInfo;
+}
+
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 LLVM_DUMP_METHOD void ScalarTypeLayoutEntry::dump() const {
   if (typeInfo.isFixedSize())
@@ -1487,7 +1556,7 @@ AlignedGroupEntry::layoutString(IRGenModule &IGM,
   auto SB = IB.beginStruct();
   SB.setPacked(true);
 
-  B.result(IGM, SB);
+  B.result(IGM, SB, genericSig);
 
   IRGenMangler mangler;
   std::string symbolName =
@@ -1505,35 +1574,25 @@ AlignedGroupEntry::layoutString(IRGenModule &IGM,
 
 bool AlignedGroupEntry::refCountString(IRGenModule &IGM, LayoutStringBuilder &B,
                                        GenericSignature genericSig) const {
-  if (isFixedSize(IGM)) {
-    uint64_t offset = 0;
-    for (auto *entry : entries) {
-      if (offset) {
-        uint64_t alignmentMask = entry->fixedAlignment(IGM)->getMaskValue();
-        uint64_t alignedOffset = offset + alignmentMask;
-        alignedOffset &= ~alignmentMask;
-        if (alignedOffset > offset) {
-          B.addSkip(alignedOffset - offset);
-          offset = alignedOffset;
-        }
-      }
-      if (!entry->refCountString(IGM, B, genericSig)) {
-        return false;
-      }
-      offset += entry->fixedSize(IGM)->getValue();
-    }
-  } else {
+  if (!isFixedSize(IGM)) {
     return false;
-    // B.startDynamicAlignment();
-    // for (auto *entry : entries) {
-    //   if (entry->isFixedSize(IGM)) {
-    //     B.addAlignment(entry->fixedAlignment(IGM)->getValue());
-    //   }
-    //   if (!entry->refCountString(IGM, B, genericSig)) {
-    //     return false;
-    //   }
-    // }
-    // B.endDynamicAlignment();
+  }
+
+  uint64_t offset = 0;
+  for (auto *entry : entries) {
+    if (offset) {
+      uint64_t alignmentMask = entry->fixedAlignment(IGM)->getMaskValue();
+      uint64_t alignedOffset = offset + alignmentMask;
+      alignedOffset &= ~alignmentMask;
+      if (alignedOffset > offset) {
+        B.addSkip(alignedOffset - offset);
+        offset = alignedOffset;
+      }
+    }
+    if (!entry->refCountString(IGM, B, genericSig)) {
+      return false;
+    }
+    offset += entry->fixedSize(IGM)->getValue();
   }
 
   return true;
@@ -1805,6 +1864,11 @@ bool AlignedGroupEntry::classof(const TypeLayoutEntry *entry) {
   return entry->kind == TypeLayoutEntryKind::AlignedGroup;
 }
 
+llvm::Optional<const FixedTypeInfo *>
+AlignedGroupEntry::getFixedTypeInfo() const {
+  return fixedTypeInfo;
+}
+
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 LLVM_DUMP_METHOD void AlignedGroupEntry::dump() const {
     llvm::dbgs() << "{ aligned group:\n";
@@ -1991,6 +2055,73 @@ llvm::Value *EnumTypeLayoutEntry::isBitwiseTakable(IRGenFunction &IGF) const {
   return isBitwiseTakable;
 }
 
+bool EnumTypeLayoutEntry::buildSinglePayloadRefCountString(
+    IRGenModule &IGM, LayoutStringBuilder &B,
+    GenericSignature genericSig) const {
+  if (!isFixedSize(IGM))
+    return false;
+
+  unsigned xiTagValues = 0;
+  unsigned extraTagByteCount = 0;
+  uint64_t zeroTagValue = 0;
+  unsigned xiBitCount = 0;
+  unsigned xiOffset = 0;
+
+  auto &payloadTI = **cases[0]->getFixedTypeInfo();
+
+  if (payloadTI.mayHaveExtraInhabitants(IGM)) {
+    xiTagValues =
+        std::min(numEmptyCases, payloadTI.getFixedExtraInhabitantCount(IGM));
+
+    if (xiTagValues) {
+      unsigned bitWidth = payloadTI.getFixedSize().getValueInBits();
+      auto lowValue = payloadTI.getFixedExtraInhabitantValue(IGM, bitWidth, 0);
+      auto mask = payloadTI.getFixedExtraInhabitantMask(IGM);
+
+      auto tzCount = mask.countTrailingZeros();
+      auto shiftedMask = mask.lshr(tzCount);
+      auto toCount = shiftedMask.countTrailingOnes();
+      if (mask.countPopulation() > 64 || toCount != mask.countPopulation() ||
+          (tzCount % toCount != 0)) {
+        // We currently don't handle cases with non-contiguous or > 64 bits of
+        // extra inhabitants
+        return false;
+      }
+
+      xiBitCount = std::min(64u, mask.countPopulation());
+      xiOffset = mask.countTrailingZeros();
+      zeroTagValue = lowValue.extractBitsAsZExtValue(xiBitCount, xiOffset);
+    }
+  }
+
+  if (xiTagValues < numEmptyCases) {
+    if (payloadTI.getFixedSize() >= Size(4)) {
+      extraTagByteCount = 1;
+    } else {
+      auto tagsWithoutInhabitants = numEmptyCases - xiTagValues;
+
+      unsigned tagsPerTagBitValue =
+          1 << payloadTI.getFixedSize().getValueInBits();
+      auto numExtraTagValues =
+          (tagsWithoutInhabitants + (tagsPerTagBitValue - 1)) /
+              tagsPerTagBitValue +
+          1;
+      auto extraTagBitCount = llvm::Log2_32(numExtraTagValues - 1) + 1;
+      extraTagByteCount = (extraTagBitCount + 7U) / 8U;
+    }
+  }
+
+  LayoutStringBuilder payloadBuilder{};
+  if (!cases[0]->refCountString(IGM, payloadBuilder, genericSig)) {
+    return false;
+  }
+
+  B.addSinglePayloadEnumSimple(zeroTagValue, xiTagValues, extraTagByteCount,
+                               xiBitCount / 8, xiOffset, cases[0]);
+
+  return true;
+}
+
 llvm::Constant *
 EnumTypeLayoutEntry::layoutString(IRGenModule &IGM,
                                   GenericSignature genericSig) const {
@@ -1998,25 +2129,12 @@ EnumTypeLayoutEntry::layoutString(IRGenModule &IGM,
     return *_layoutString;
   }
 
-  switch (copyDestroyKind(IGM)) {
-  case CopyDestroyStrategy::TriviallyDestroyable:
-  case CopyDestroyStrategy::Normal: {
-    return nullptr;
-  }
-  case CopyDestroyStrategy::ForwardToPayload:
-  case CopyDestroyStrategy::NullableRefcounted: {
-    LayoutStringBuilder B{};
-
-    if (containsArchetypeField() || containsResilientField() ||
-        isMultiPayloadEnum() || !refCountString(IGM, B, genericSig)) {
-      return *(_layoutString = llvm::Optional<llvm::Constant *>(nullptr));
-    }
-
+  auto createConstant = [&](const LayoutStringBuilder &B) {
     ConstantInitBuilder IB(IGM);
     auto SB = IB.beginStruct();
     SB.setPacked(true);
 
-    B.result(IGM, SB);
+    B.result(IGM, SB, genericSig);
 
     IRGenMangler mangler;
     std::string symbolName =
@@ -2030,7 +2148,33 @@ EnumTypeLayoutEntry::layoutString(IRGenModule &IGM,
     IGM.setTrueConstGlobal(global);
 
     _layoutString = global;
+
     return global;
+  };
+
+  LayoutStringBuilder B{};
+
+  switch (copyDestroyKind(IGM)) {
+  case CopyDestroyStrategy::TriviallyDestroyable:
+    return nullptr;
+
+  case CopyDestroyStrategy::Normal: {
+    if (!isFixedSize(IGM) || isMultiPayloadEnum() ||
+        !buildSinglePayloadRefCountString(IGM, B, genericSig)) {
+      return *(_layoutString = llvm::Optional<llvm::Constant *>(nullptr));
+    }
+
+    return createConstant(B);
+  }
+
+  case CopyDestroyStrategy::ForwardToPayload:
+  case CopyDestroyStrategy::NullableRefcounted: {
+    if (!isFixedSize(IGM) || isMultiPayloadEnum() ||
+        !refCountString(IGM, B, genericSig)) {
+      return *(_layoutString = llvm::Optional<llvm::Constant *>(nullptr));
+    }
+
+    return createConstant(B);
   }
   }
 }
@@ -2051,6 +2195,11 @@ bool EnumTypeLayoutEntry::refCountString(IRGenModule &IGM,
   case CopyDestroyStrategy::ForwardToPayload:
     return cases[0]->refCountString(IGM, B, genericSig);
   case CopyDestroyStrategy::Normal: {
+    if (!isMultiPayloadEnum() &&
+        buildSinglePayloadRefCountString(IGM, B, genericSig)) {
+      return true;
+    }
+
     // TODO: this is only relevant until we properly support enums.
     if (!ty.getASTType()->isLegalFormalType() ||
         !IGM.getSILModule().isTypeMetadataAccessible(ty.getASTType())) {
@@ -3138,6 +3287,11 @@ bool EnumTypeLayoutEntry::classof(const TypeLayoutEntry *entry) {
   return entry->kind == TypeLayoutEntryKind::Enum;
 }
 
+llvm::Optional<const FixedTypeInfo *>
+EnumTypeLayoutEntry::getFixedTypeInfo() const {
+  return fixedTypeInfo;
+}
+
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 LLVM_DUMP_METHOD void EnumTypeLayoutEntry::dump() const {
     llvm::dbgs() << "{ enum emptycases: " << numEmptyCases << "\n";
@@ -3462,9 +3616,12 @@ TypeInfoBasedTypeLayoutEntry::layoutString(IRGenModule &IGM,
 bool TypeInfoBasedTypeLayoutEntry::refCountString(
     IRGenModule &IGM, LayoutStringBuilder &B,
     GenericSignature genericSig) const {
-  // auto *accessor = createMetatypeAccessorFunction(IGM, representative);
-  // B.addResilientRefCount(accessor);
   return false;
+}
+
+llvm::Optional<const FixedTypeInfo *>
+TypeInfoBasedTypeLayoutEntry::getFixedTypeInfo() const {
+  return &typeInfo;
 }
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
@@ -3522,9 +3679,8 @@ TypeLayoutCache::getOrCreateArchetypeEntry(SILType archetype) {
 }
 
 AlignedGroupEntry *TypeLayoutCache::getOrCreateAlignedGroupEntry(
-    const std::vector<TypeLayoutEntry *> &entries,
-    SILType ty,
-    Alignment::int_type minimumAlignment) {
+    const std::vector<TypeLayoutEntry *> &entries, SILType ty,
+    Alignment::int_type minimumAlignment, const TypeInfo &ti) {
   llvm::FoldingSetNodeID id;
   AlignedGroupEntry::Profile(id, entries, minimumAlignment);
   void *insertPos;
@@ -3533,7 +3689,14 @@ AlignedGroupEntry *TypeLayoutCache::getOrCreateAlignedGroupEntry(
   }
   auto bytes = sizeof(AlignedGroupEntry);
   auto mem = bumpAllocator.Allocate(bytes, alignof(AlignedGroupEntry));
-  auto newEntry = new (mem) AlignedGroupEntry(entries, ty, minimumAlignment);
+
+  llvm::Optional<const FixedTypeInfo *> fixedTypeInfo;
+  if (const auto *fixedTI = dyn_cast<const FixedTypeInfo>(&ti)) {
+    fixedTypeInfo = fixedTI;
+  }
+
+  auto newEntry =
+      new (mem) AlignedGroupEntry(entries, ty, minimumAlignment, fixedTypeInfo);
   alignedGroupEntries.InsertNode(newEntry, insertPos);
   newEntry->computeProperties();
   return newEntry;
@@ -3555,13 +3718,15 @@ EnumTypeLayoutEntry *TypeLayoutCache::getOrCreateEnumEntry(
   auto mem = bumpAllocator.Allocate(bytes, alignof(EnumTypeLayoutEntry));
 
   llvm::Optional<Size> fixedSize;
+  llvm::Optional<const FixedTypeInfo *> fixedTypeInfo;
   if (const auto *fixedTI = dyn_cast<const FixedTypeInfo>(&ti)) {
     fixedSize = fixedTI->getFixedSize();
+    fixedTypeInfo = fixedTI;
   }
 
-  auto newEntry =
-      new (mem) EnumTypeLayoutEntry(numEmptyCases, nonEmptyCases, ty,
-        ti.getBestKnownAlignment().getValue(), fixedSize);
+  auto newEntry = new (mem)
+      EnumTypeLayoutEntry(numEmptyCases, nonEmptyCases, ty, fixedTypeInfo,
+                          ti.getBestKnownAlignment().getValue(), fixedSize);
   enumEntries.InsertNode(newEntry, insertPos);
   newEntry->computeProperties();
   return newEntry;

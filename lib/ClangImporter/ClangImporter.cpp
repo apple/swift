@@ -194,7 +194,8 @@ namespace {
         Importer.addSearchPath(path, /*isFramework*/false, /*isSystem=*/false);
       }
 
-      auto PCH = Importer.getOrCreatePCH(ImporterOpts, SwiftPCHHash);
+      auto PCH =
+          Importer.getOrCreatePCH(ImporterOpts, SwiftPCHHash, /*Cached=*/true);
       if (PCH.has_value()) {
         Impl.getClangInstance()->getPreprocessorOpts().ImplicitPCHInclude =
             PCH.value();
@@ -546,8 +547,10 @@ importer::getNormalInvocationArguments(
     });
   }
 
-  if (auto path = getCxxShimModuleMapPath(searchPathOpts, triple)) {
-    invocationArgStrs.push_back((Twine("-fmodule-map-file=") + *path).str());
+  if (LangOpts.EnableCXXInterop) {
+    if (auto path = getCxxShimModuleMapPath(searchPathOpts, triple)) {
+      invocationArgStrs.push_back((Twine("-fmodule-map-file=") + *path).str());
+    }
   }
 
   // Set C language options.
@@ -953,8 +956,9 @@ ClangImporter::getPCHFilename(const ClangImporterOptions &ImporterOptions,
   return PCHFilename.str().str();
 }
 
-Optional<std::string> ClangImporter::getOrCreatePCH(
-    const ClangImporterOptions &ImporterOptions, StringRef SwiftPCHHash) {
+Optional<std::string>
+ClangImporter::getOrCreatePCH(const ClangImporterOptions &ImporterOptions,
+                              StringRef SwiftPCHHash, bool Cached) {
   bool isExplicit;
   auto PCHFilename = getPCHFilename(ImporterOptions, SwiftPCHHash,
                                     isExplicit);
@@ -970,8 +974,8 @@ Optional<std::string> ClangImporter::getOrCreatePCH(
         << EC.message();
       return None;
     }
-    auto FailedToEmit =
-        emitBridgingPCH(ImporterOptions.BridgingHeader, PCHFilename.value());
+    auto FailedToEmit = emitBridgingPCH(ImporterOptions.BridgingHeader,
+                                        PCHFilename.value(), Cached);
     if (FailedToEmit) {
       return None;
     }
@@ -983,9 +987,10 @@ Optional<std::string> ClangImporter::getOrCreatePCH(
 std::vector<std::string>
 ClangImporter::getClangArguments(ASTContext &ctx, bool ignoreClangTarget) {
   std::vector<std::string> invocationArgStrs;
-  // Clang expects this to be like an actual command line. So we need to pass in
-  // "clang" for argv[0]
-  invocationArgStrs.push_back(ctx.ClangImporterOpts.clangPath);
+  // When creating from driver commands, clang expects this to be like an actual
+  // command line. So we need to pass in "clang" for argv[0]
+  if (!ctx.ClangImporterOpts.DirectClangCC1ModuleBuild)
+    invocationArgStrs.push_back(ctx.ClangImporterOpts.clangPath);
   if (ctx.ClangImporterOpts.ExtraArgsOnly) {
     invocationArgStrs.insert(invocationArgStrs.end(),
                              ctx.ClangImporterOpts.ExtraArgs.begin(),
@@ -1734,13 +1739,13 @@ ClangImporter::cloneCompilerInstanceForPrecompiling() {
 }
 
 bool ClangImporter::emitBridgingPCH(
-    StringRef headerPath, StringRef outputPCHPath) {
+    StringRef headerPath, StringRef outputPCHPath, bool cached) {
   auto emitInstance = cloneCompilerInstanceForPrecompiling();
   auto &invocation = emitInstance->getInvocation();
 
   auto LangOpts = invocation.getLangOpts();
   LangOpts->NeededByPCHOrCompilationUsesPCH = true;
-  LangOpts->CacheGeneratedPCH = true;
+  LangOpts->CacheGeneratedPCH = cached;
 
   auto language = getLanguageFromOptions(LangOpts);
   auto inputFile = clang::FrontendInputFile(headerPath, language);
@@ -1991,12 +1996,16 @@ ModuleDecl *ClangImporter::Implementation::loadModuleClang(
   auto &clangHeaderSearch = getClangPreprocessor().getHeaderSearchInfo();
   auto realModuleName = SwiftContext.getRealModuleName(path.front().Item).str();
 
-  // Look up the top-level module first, to see if it exists at all.
-  clang::Module *clangModule = clangHeaderSearch.lookupModule(
-      realModuleName, /*ImportLoc=*/clang::SourceLocation(),
-      /*AllowSearch=*/true, /*AllowExtraModuleMapSearch=*/true);
-  if (!clangModule)
-    return nullptr;
+  // For explicit module build, module should always exist but module map might
+  // not be exist. Go straight to module loader.
+  if (Instance->getInvocation().getLangOpts()->ImplicitModules) {
+    // Look up the top-level module first, to see if it exists at all.
+    clang::Module *clangModule = clangHeaderSearch.lookupModule(
+        realModuleName, /*ImportLoc=*/clang::SourceLocation(),
+        /*AllowSearch=*/true, /*AllowExtraModuleMapSearch=*/true);
+    if (!clangModule)
+      return nullptr;
+  }
 
   // Convert the Swift import path over to a Clang import path.
   SmallVector<std::pair<clang::IdentifierInfo *, clang::SourceLocation>, 4>
@@ -2051,7 +2060,7 @@ ModuleDecl *ClangImporter::Implementation::loadModuleClang(
 
   // Now load the top-level module, so that we can check if the submodule
   // exists without triggering a fatal error.
-  clangModule = loadModule(clangPath.front(), clang::Module::AllVisible);
+  auto clangModule = loadModule(clangPath.front(), clang::Module::AllVisible);
   if (!clangModule)
     return nullptr;
 

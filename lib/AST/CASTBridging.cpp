@@ -119,6 +119,15 @@ void SwiftDiagnostic_finish(BridgedDiagnostic diagPtr) {
 BridgedIdentifier
 SwiftASTContext_getIdentifier(void *ctx, const unsigned char *_Nullable str,
                               long len) {
+  if (len == 1 && str[0] == '_')
+    return BridgedIdentifier();
+
+  // If this was a back-ticked identifier, drop the back-ticks.
+  if (len >= 2 && str[0] == '`' && str[len-1] == '`') {
+    ++str;
+    len -= 2;
+  }
+
   return const_cast<void *>(
       static_cast<ASTContext *>(ctx)
           ->getIdentifier(
@@ -484,6 +493,87 @@ void *PackExpansionTypeRepr_create(void *ctx, void *base, void *repeatLoc) {
       getSourceLocFromPointer(repeatLoc), (TypeRepr *)base);
 }
 
+static BridgedTypeAttrKind bridgeTypeAttrKind(TypeAttrKind kind) {
+  switch (kind) {
+#define TYPE_ATTR(X) case TAK_##X: return BridgedTypeAttrKind_##X;
+#include "swift/AST/Attr.def"
+    case TAK_Count: return BridgedTypeAttrKind_Count;
+  }
+}
+
+static TypeAttrKind bridgeTypeAttrKind(BridgedTypeAttrKind kind) {
+  switch (kind) {
+#define TYPE_ATTR(X) case BridgedTypeAttrKind_##X: return TAK_##X;
+#include "swift/AST/Attr.def"
+    case BridgedTypeAttrKind_Count: return TAK_Count;
+  }
+}
+
+BridgedTypeAttrKind getBridgedTypeAttrKindFromString(
+    const unsigned char *str, intptr_t len) {
+  return bridgeTypeAttrKind(
+      TypeAttributes::getAttrKindFromString(StringRef((const char *)str, len)));
+}
+
+BridgedTypeAttributes BridgedTypeAttributes_create() {
+  return new TypeAttributes();
+}
+
+void BridgedTypeAttributes_addSimpleAttr(
+    BridgedTypeAttributes typeAttributesPtr, BridgedTypeAttrKind kind,
+    void *atLoc, void *attrLoc
+) {
+  TypeAttributes *typeAttributes = (TypeAttributes *)typeAttributesPtr;
+  typeAttributes->setAttr(
+      bridgeTypeAttrKind(kind), getSourceLocFromPointer(attrLoc));
+  if (typeAttributes->AtLoc.isInvalid())
+    typeAttributes->AtLoc = getSourceLocFromPointer(atLoc);
+}
+
+void *AttributedTypeRepr_create(
+    void *ctx, void *base, BridgedTypeAttributes typeAttributesPtr) {
+  TypeAttributes *typeAttributes = (TypeAttributes *)typeAttributesPtr;
+  if (typeAttributes->empty())
+    return base;
+
+  ASTContext &Context = *static_cast<ASTContext *>(ctx);
+  auto attributedType =
+    new (Context) AttributedTypeRepr(*typeAttributes, (TypeRepr *)base);
+  delete typeAttributes;
+  return attributedType;
+}
+
+void *AttributedTypeSpecifierRepr_create(
+    void *ctx, void *base, BridgedAttributedTypeSpecifier specifier, void *specifierLoc
+) {
+  ASTContext &Context = *static_cast<ASTContext *>(ctx);
+  SourceLoc loc = getSourceLocFromPointer(specifierLoc);
+  TypeRepr *baseType = (TypeRepr *)base;
+  switch (specifier) {
+  case BridgedAttributedTypeSpecifierInOut:
+    return new (Context) OwnershipTypeRepr(baseType, ParamSpecifier::InOut, loc);
+  case BridgedAttributedTypeSpecifierBorrowing:
+    return new (Context) OwnershipTypeRepr(baseType, ParamSpecifier::Borrowing, loc);
+  case BridgedAttributedTypeSpecifierConsuming:
+    return new (Context) OwnershipTypeRepr(baseType, ParamSpecifier::Consuming, loc);
+  case BridgedAttributedTypeSpecifierLegacyShared:
+    return new (Context) OwnershipTypeRepr(baseType, ParamSpecifier::LegacyShared, loc);
+  case BridgedAttributedTypeSpecifierLegacyOwned:
+    return new (Context) OwnershipTypeRepr(baseType, ParamSpecifier::LegacyOwned, loc);
+  case BridgedAttributedTypeSpecifierConst:
+    return new (Context) CompileTimeConstTypeRepr(baseType, loc);
+  case BridgedAttributedTypeSpecifierIsolated:
+    return new (Context) IsolatedTypeRepr(baseType, loc);
+  }
+}
+
+void *VarargTypeRepr_create(void *ctx, void *base, void *ellipsisLocPtr) {
+  ASTContext &Context = *static_cast<ASTContext *>(ctx);
+  SourceLoc ellipsisLoc = getSourceLocFromPointer(ellipsisLocPtr);
+  TypeRepr *baseType = (TypeRepr *)base;
+  return new (Context) VarargTypeRepr(baseType, ellipsisLoc);
+}
+
 void *TupleTypeRepr_create(void *ctx, BridgedArrayRef elements, void *lParenLoc,
                            void *rParenLoc) {
   ASTContext &Context = *static_cast<ASTContext *>(ctx);
@@ -518,12 +608,21 @@ void *MemberTypeRepr_create(void *ctx, void *baseComponent,
                                 memberComponents);
 }
 
-void *CompositionTypeRepr_create(void *ctx, BridgedArrayRef types,
-                                 void *firstTypeLoc) {
+void *EmptyCompositionTypeRepr_create(void *ctx, void *anyLocPtr) {
+  ASTContext &Context = *static_cast<ASTContext *>(ctx);
+  SourceLoc anyLoc = getSourceLocFromPointer(anyLocPtr);
+  return CompositionTypeRepr::createEmptyComposition(Context, anyLoc);
+}
+
+void *CompositionTypeRepr_create(void *ctx, BridgedArrayRef typesPtr,
+                                 void *firstTypeLoc, void *firstAmpLocPtr) {
   ASTContext &Context = *static_cast<ASTContext *>(ctx);
   SourceLoc firstType = getSourceLocFromPointer(firstTypeLoc);
-  return CompositionTypeRepr::create(Context, getArrayRef<TypeRepr *>(types),
-                                     firstType, SourceRange{});
+  SourceLoc firstAmpLoc = getSourceLocFromPointer(firstAmpLocPtr);
+  auto types = getArrayRef<TypeRepr *>(typesPtr);
+  return CompositionTypeRepr::create(
+      Context, types, firstType,
+      SourceRange{firstAmpLoc, types.back()->getEndLoc()});
 }
 
 void *FunctionTypeRepr_create(void *ctx, void *argsTy, void *_Nullable asyncLoc,

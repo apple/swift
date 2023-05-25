@@ -42,7 +42,7 @@ func testSimple() {
 
         // CHECK-NEXT: Before deinit
         print("Before deinit")
-        
+
         // CHECK-NEXT: SimpleClass deinitialized!
         testAssign(ptr, from: y)
     }
@@ -52,11 +52,11 @@ func testSimple() {
 
     // CHECK-NEXT: Before deinit
     print("Before deinit")
-        
+
 
     // CHECK-NEXT: SimpleClass deinitialized!
     testDestroy(ptr)
-    
+
     ptr.deallocate()
 }
 
@@ -85,9 +85,9 @@ func testWeakNative() {
 
     do {
         let ref = SimpleClass(x: 34)
-        
+
         withExtendedLifetime(ref) {
-            
+
             // CHECK-NEXT: SimpleClass deinitialized!
             testAssign(ptr, from: WeakNativeWrapper(x: ref))
 
@@ -131,7 +131,7 @@ func testUnownedNative() {
 
     do {
         let ref = SimpleClass(x: 34)
-        
+
         withExtendedLifetime(ref) {
             // CHECK-NEXT: SimpleClass deinitialized!
             testAssign(ptr, from: UnownedNativeWrapper(x: ref))
@@ -230,7 +230,7 @@ class ClassWithSomeClassProtocol: SomeClassProtocol {
 
 func testExistentialReference() {
     let ptr = UnsafeMutablePointer<ExistentialRefWrapper>.allocate(capacity: 1)
-    
+
     do {
         let x = ClassWithSomeClassProtocol()
         testInit(ptr, to: ExistentialRefWrapper(x: x))
@@ -257,6 +257,142 @@ func testExistentialReference() {
 
 testExistentialReference()
 
+func testSinglePayloadSimpleClassEnum() {
+    let ptr = UnsafeMutablePointer<SinglePayloadSimpleClassEnum>.allocate(capacity: 1)
+
+    do {
+        let x = SinglePayloadSimpleClassEnum.nonEmpty(SimpleClass(x: 23))
+        testInit(ptr, to: x)
+    }
+
+    do {
+        // CHECK: Value: 23
+        if case .nonEmpty(let c) = ptr.pointee {
+            print("Value: \(c.x)")
+        }
+
+        let y = SinglePayloadSimpleClassEnum.nonEmpty(SimpleClass(x: 28))
+
+        // CHECK: Before deinit
+        print("Before deinit")
+
+        // CHECK-NEXT: SimpleClass deinitialized!
+        testAssign(ptr, from: y)
+    }
+
+    // CHECK-NEXT: Value: 28
+    if case .nonEmpty(let c) = ptr.pointee {
+        print("Value: \(c.x)")
+    }
+
+    // CHECK-NEXT: Before deinit
+    print("Before deinit")
+
+    // CHECK-NEXT: SimpleClass deinitialized!
+    testDestroy(ptr)
+
+    ptr.deallocate()
+}
+
+testSinglePayloadSimpleClassEnum()
+
+func testSinglePayloadSimpleClassEnumEmpty() {
+    let ptr = UnsafeMutablePointer<SinglePayloadSimpleClassEnum>.allocate(capacity: 1)
+
+    do {
+        let x = SinglePayloadSimpleClassEnum.empty0
+        testInit(ptr, to: x)
+    }
+
+    do {
+        let y = SinglePayloadSimpleClassEnum.empty1
+
+        // CHECK: Before deinit
+        print("Before deinit")
+
+        testAssign(ptr, from: y)
+    }
+
+    // CHECK-NEXT: Before deinit
+    print("Before deinit")
+
+    testDestroy(ptr)
+
+    ptr.deallocate()
+}
+
+testSinglePayloadSimpleClassEnumEmpty()
+
+func testContainsSinglePayloadSimpleClassEnum() {
+    let ptr = UnsafeMutablePointer<ContainsSinglePayloadSimpleClassEnum>.allocate(capacity: 1)
+
+    do {
+        let x = ContainsSinglePayloadSimpleClassEnum(x: SinglePayloadSimpleClassEnum.nonEmpty(SimpleClass(x: 23)), y: TestClass())
+        testInit(ptr, to: x)
+    }
+
+    do {
+        // CHECK: Value: 23
+        if case .nonEmpty(let c) = ptr.pointee.x {
+            print("Value: \(c.x)")
+        }
+
+        let y = ContainsSinglePayloadSimpleClassEnum(x: SinglePayloadSimpleClassEnum.nonEmpty(SimpleClass(x: 28)), y: TestClass())
+
+        // CHECK-NEXT: Before deinit
+        print("Before deinit")
+
+        // CHECK-NEXT: SimpleClass deinitialized!
+        // CHECK-NEXT: TestClass deinitialized!
+        testAssign(ptr, from: y)
+    }
+
+    // CHECK-NEXT: Value: 28
+    if case .nonEmpty(let c) = ptr.pointee.x {
+        print("Value: \(c.x)")
+    }
+
+    // CHECK-NEXT: Before deinit
+    print("Before deinit")
+
+    // CHECK-NEXT: SimpleClass deinitialized!
+    // CHECK-NEXT: TestClass deinitialized!
+    testDestroy(ptr)
+
+    ptr.deallocate()
+}
+
+testContainsSinglePayloadSimpleClassEnum()
+
+func testContainsSinglePayloadSimpleClassEnumEmpty() {
+    let ptr = UnsafeMutablePointer<ContainsSinglePayloadSimpleClassEnum>.allocate(capacity: 1)
+
+    do {
+        let x = ContainsSinglePayloadSimpleClassEnum(x: SinglePayloadSimpleClassEnum.empty0, y: TestClass())
+        testInit(ptr, to: x)
+    }
+
+    do {
+        let y = ContainsSinglePayloadSimpleClassEnum(x: SinglePayloadSimpleClassEnum.empty1, y: TestClass())
+
+        // CHECK: Before deinit
+        print("Before deinit")
+
+        // CHECK-NEXT: TestClass deinitialized!
+        testAssign(ptr, from: y)
+    }
+
+    // CHECK-NEXT: Before deinit
+    print("Before deinit")
+
+    // CHECK-NEXT: TestClass deinitialized!
+    testDestroy(ptr)
+
+    ptr.deallocate()
+}
+
+testContainsSinglePayloadSimpleClassEnumEmpty()
+
 func testMultiPayloadEnum() {
     let ptr = UnsafeMutablePointer<MultiPayloadEnumWrapper>.allocate(capacity: 1)
 
@@ -270,7 +406,7 @@ func testMultiPayloadEnum() {
 
         // CHECK: Before deinit
         print("Before deinit")
-        
+
         // CHECK-NEXT: SimpleClass deinitialized!
         testAssign(ptr, from: y)
     }
@@ -482,7 +618,7 @@ func testUnownedObjc() {
 
     do {
         let ref = ObjcClass(x: 34)
-        
+
         withExtendedLifetime(ref) {
             // CHECK-macosx-NEXT: ObjcClass deinitialized!
             testAssign(ptr, from: UnownedObjcWrapper(x: ref))

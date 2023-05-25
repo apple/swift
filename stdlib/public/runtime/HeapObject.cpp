@@ -35,7 +35,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <new>
-#include <thread>
 #if SWIFT_OBJC_INTEROP
 # include <objc/NSObject.h>
 # include <objc/runtime.h>

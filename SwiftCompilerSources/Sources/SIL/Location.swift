@@ -37,4 +37,8 @@ public struct Location: Equatable, CustomStringConvertible {
   public func hasSameSourceLocation(as other: Location) -> Bool {
     bridged.hasSameSourceLocation(other.bridged)
   }
+
+  public static var artificialUnreachableLocation: Location {
+    Location(bridged: swift.SILDebugLocation.getArtificialUnreachableLocation())
+  }
 }

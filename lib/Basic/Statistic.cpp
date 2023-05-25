@@ -419,11 +419,14 @@ UnifiedStatsReporter::noteCurrentProcessExitStatus(int status) {
 
 void
 UnifiedStatsReporter::publishAlwaysOnStatsToLLVM() {
+  // NOTE: We do `Stat = 0` below to force LLVM to register the statistic,
+  // ensuring we print counters, even if 0.
   if (FrontendCounters) {
     auto &C = getFrontendCounters();
 #define FRONTEND_STATISTIC(TY, NAME)                            \
     do {                                                        \
       static Statistic Stat = {#TY, #NAME, #NAME};              \
+      Stat = 0;                                                 \
       Stat += (C).NAME;                                         \
     } while (0);
 #include "swift/Basic/Statistics.def"
@@ -434,6 +437,7 @@ UnifiedStatsReporter::publishAlwaysOnStatsToLLVM() {
 #define DRIVER_STATISTIC(NAME)                                       \
     do {                                                             \
       static Statistic Stat = {"Driver", #NAME, #NAME};              \
+      Stat = 0;                                                      \
       Stat += (C).NAME;                                              \
     } while (0);
 #include "swift/Basic/Statistics.def"

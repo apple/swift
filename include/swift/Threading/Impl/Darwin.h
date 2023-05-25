@@ -21,6 +21,12 @@
 #include <os/lock.h>
 #include <pthread.h>
 
+#if __has_include(<sys/errno.h>)
+#include <sys/errno.h>
+#else
+#include <errno.h>
+#endif
+
 #include "chrono_utils.h"
 
 #include "llvm/ADT/Optional.h"

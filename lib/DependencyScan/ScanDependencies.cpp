@@ -306,7 +306,7 @@ resolveExplicitModuleInputs(ModuleDependencyID moduleID,
 }
 
 /// Resolve the direct dependencies of the given module.
-static ArrayRef<ModuleDependencyID>
+static std::vector<ModuleDependencyID>
 resolveDirectDependencies(CompilerInstance &instance, ModuleDependencyID moduleID,
                           ModuleDependenciesCache &cache,
                           InterfaceSubContextDelegate &ASTDelegate) {
@@ -326,7 +326,8 @@ resolveDirectDependencies(CompilerInstance &instance, ModuleDependencyID moduleI
   auto isSwift =
       isSwiftInterfaceOrSource || knownDependencies->isSwiftBinaryModule();
   // Find the dependencies of every module this module directly depends on.
-  ModuleDependencyIDSetVector result;
+  ModuleDependencyIDSetVector directDependencies;
+  ModuleDependencyIDSetVector swiftOverlayDependencies;
   for (auto dependsOn : knownDependencies->getModuleImports()) {
     // Figure out what kind of module we need.
     bool onlyClangModule = !isSwift || moduleID.first == dependsOn;
@@ -335,14 +336,14 @@ resolveDirectDependencies(CompilerInstance &instance, ModuleDependencyID moduleI
     if (onlyClangModule) {
       if (auto found =
               ctx.getClangModuleDependencies(dependsOn, cache, ASTDelegate))
-        result.insert({dependsOn, ModuleDependencyKind::Clang});
+        directDependencies.insert({dependsOn, ModuleDependencyKind::Clang});
     } else {
       if (auto found =
               ctx.getModuleDependencies(dependsOn, cache, ASTDelegate,
                                         /* optionalDependencyLookup */ false,
                                         isTestable,
                                         moduleID))
-        result.insert({dependsOn, found.value()->getKind()});
+        directDependencies.insert({dependsOn, found.value()->getKind()});
     }
   }
 
@@ -355,7 +356,7 @@ resolveDirectDependencies(CompilerInstance &instance, ModuleDependencyID moduleI
                                       /* optionalDependencyLookup */ true,
                                       /* isTestableDependency */ false,
                                       moduleID))
-      result.insert({optionallyDependsOn, found.value()->getKind()});
+      directDependencies.insert({optionallyDependsOn, found.value()->getKind()});
   }
 
   if (isSwiftInterfaceOrSource) {
@@ -385,7 +386,9 @@ resolveDirectDependencies(CompilerInstance &instance, ModuleDependencyID moduleI
 
         assert(bridgingModuleDependencies);
         for (const auto &clangDep : *bridgingModuleDependencies) {
-          result.insert({clangDep, ModuleDependencyKind::Clang});
+          /// TODO: separate this out of here as well into a separate entry in
+          /// `CommonSwiftTextualModuleDependencyDetails`
+          directDependencies.insert({clangDep, ModuleDependencyKind::Clang});
           findAllImportedClangModules(ctx, clangDep, cache, allClangModules,
                                       knownModules);
         }
@@ -393,7 +396,7 @@ resolveDirectDependencies(CompilerInstance &instance, ModuleDependencyID moduleI
     }
 
     // Find all of the Clang modules this Swift module depends on.
-    for (const auto &dep : result) {
+    for (const auto &dep : directDependencies) {
       if (dep.second != ModuleDependencyKind::Clang)
         continue;
 
@@ -406,15 +409,26 @@ resolveDirectDependencies(CompilerInstance &instance, ModuleDependencyID moduleI
     for (const auto &clangDep : allClangModules) {
       if (auto found =
               ctx.getSwiftModuleDependencies(clangDep, cache, ASTDelegate)) {
-        if (clangDep != moduleID.first)
-          result.insert({clangDep, found.value()->getKind()});
+        if (clangDep != moduleID.first) {
+          swiftOverlayDependencies.insert({clangDep, found.value()->getKind()});
+          // FIXME: Once all clients know to fetch these dependencies from
+          // `swiftOverlayDependencies`, the goal is to no longer have them in
+          // `directDependencies` so the following will need to go away.
+          directDependencies.insert({clangDep, found.value()->getKind()});
+        }
       }
     }
   }
 
   // Resolve the dependnecy info
-  cache.resolveDependencyImports(moduleID, result.takeVector());
-  return cache.findDependency(moduleID.first, moduleID.second).value()->getModuleDependencies();
+  cache.resolveDependencyImports(moduleID, directDependencies.getArrayRef());
+  // Resolve swift Overlay dependencies
+  if (!swiftOverlayDependencies.empty())
+    cache.setSwiftOverlayDependencues(moduleID, swiftOverlayDependencies.getArrayRef());
+
+  ModuleDependencyIDSetVector result = directDependencies;
+  result.insert(swiftOverlayDependencies.begin(), swiftOverlayDependencies.end());
+  return result.takeVector();
 }
 
 static void discoverCrossImportOverlayDependencies(
@@ -665,11 +679,12 @@ void writeJSONSingleField(llvm::raw_ostream &out, StringRef fieldName,
   out << "\n";
 }
 
-void writeDirectDependencies(llvm::raw_ostream &out,
-                             const swiftscan_string_set_t *dependencies,
-                             unsigned indentLevel, bool trailingComma) {
+void writeDependencies(llvm::raw_ostream &out,
+                       const swiftscan_string_set_t *dependencies,
+                       std::string dependenciesKind,
+                       unsigned indentLevel, bool trailingComma) {
   out.indent(indentLevel * 2);
-  out << "\"directDependencies\": ";
+  out << "\"" + dependenciesKind + "\": ";
   out << "[\n";
 
   for (size_t i = 0; i < dependencies->count; ++i) {
@@ -783,8 +798,9 @@ static void writeJSON(llvm::raw_ostream &out,
 
     // Direct dependencies.
     if (swiftTextualDeps || swiftBinaryDeps || clangDeps)
-      writeDirectDependencies(out, directDependencies, 3,
-                              /*trailingComma=*/true);
+      writeDependencies(out, directDependencies,
+                        "directDependencies", 3,
+                        /*trailingComma=*/true);
     // Swift and Clang-specific details.
     out.indent(3 * 2);
     out << "\"details\": {\n";
@@ -836,6 +852,9 @@ static void writeJSON(llvm::raw_ostream &out,
       bool hasBridgingHeaderPath =
           swiftTextualDeps->bridging_header_path.data &&
           get_C_string(swiftTextualDeps->bridging_header_path)[0] != '\0';
+      bool hasOverlayDependencies =
+          swiftTextualDeps->swift_overlay_module_dependencies &&
+          swiftTextualDeps->swift_overlay_module_dependencies->count > 0;
       bool commaAfterFramework =
           swiftTextualDeps->extra_pcm_args->count != 0 || hasBridgingHeaderPath;
 
@@ -871,7 +890,12 @@ static void writeJSON(llvm::raw_ostream &out,
                              swiftTextualDeps->bridging_module_dependencies, 6,
                              /*trailingComma=*/false);
         out.indent(5 * 2);
-        out << "}\n";
+        out << (hasOverlayDependencies ? "},\n" : "}\n");
+      }
+      if (hasOverlayDependencies) {
+        writeDependencies(out, swiftTextualDeps->swift_overlay_module_dependencies,
+                          "swiftOverlayDependencies", 5,
+                          /*trailingComma=*/true);
       }
     } else if (swiftPlaceholderDeps) {
       out << "\"swiftPlaceholder\": {\n";
@@ -972,6 +996,33 @@ static bool writeJSONToOutput(DiagnosticEngine &diags,
   });
 }
 
+static void bridgeDependencyIDs(const ArrayRef<ModuleDependencyID> dependencies,
+                                std::vector<std::string> &bridgedDependencyNames) {
+  for (const auto &dep : dependencies) {
+    std::string dependencyKindAndName;
+    switch (dep.second) {
+    case ModuleDependencyKind::SwiftInterface:
+    case ModuleDependencyKind::SwiftSource:
+      dependencyKindAndName = "swiftTextual";
+      break;
+    case ModuleDependencyKind::SwiftBinary:
+      dependencyKindAndName = "swiftBinary";
+      break;
+    case ModuleDependencyKind::SwiftPlaceholder:
+      dependencyKindAndName = "swiftPlaceholder";
+      break;
+    case ModuleDependencyKind::Clang:
+      dependencyKindAndName = "clang";
+      break;
+    default:
+      llvm_unreachable("Unhandled dependency kind.");
+    }
+    dependencyKindAndName += ":";
+    dependencyKindAndName += dep.first;
+    bridgedDependencyNames.push_back(dependencyKindAndName);
+  }
+}
+
 static swiftscan_dependency_graph_t
 generateFullDependencyGraph(CompilerInstance &instance,
                             ModuleDependenciesCache &cache,
@@ -1043,8 +1094,11 @@ generateFullDependencyGraph(CompilerInstance &instance,
                 ? create_clone(
                       swiftTextualDeps->textualModuleDetails.bridgingHeaderFile.value().c_str())
                 : create_null();
-
         details->kind = SWIFTSCAN_DEPENDENCY_INFO_SWIFT_TEXTUAL;
+        // Create an overlay dependencies set according to the output format
+        std::vector<std::string> bridgedOverlayDependencyNames;
+        bridgeDependencyIDs(swiftTextualDeps->textualModuleDetails.swiftOverlayDependencies,
+                            bridgedOverlayDependencyNames);
 
         details->swift_textual_details = {
             moduleInterfacePath,
@@ -1052,6 +1106,7 @@ generateFullDependencyGraph(CompilerInstance &instance,
             bridgingHeaderPath,
             create_set(swiftTextualDeps->textualModuleDetails.bridgingSourceFiles),
             create_set(swiftTextualDeps->textualModuleDetails.bridgingModuleDependencies),
+            create_set(bridgedOverlayDependencyNames),
             create_set(swiftTextualDeps->buildCommandLine),
             create_set(swiftTextualDeps->textualModuleDetails.extraPCMArgs),
             create_clone(swiftTextualDeps->contextHash.c_str()),
@@ -1063,15 +1118,19 @@ generateFullDependencyGraph(CompilerInstance &instance,
                 ? create_clone(
                            swiftSourceDeps->textualModuleDetails.bridgingHeaderFile.value().c_str())
                 : create_null();
-        // TODO: Once the clients are taught about the new dependency kind,
-        // switch to using a bespoke kind here.
         details->kind = SWIFTSCAN_DEPENDENCY_INFO_SWIFT_TEXTUAL;
+        // Create an overlay dependencies set according to the output format
+        std::vector<std::string> bridgedOverlayDependencyNames;
+        bridgeDependencyIDs(swiftSourceDeps->textualModuleDetails.swiftOverlayDependencies,
+                            bridgedOverlayDependencyNames);
+
         details->swift_textual_details = {
             moduleInterfacePath,
             create_empty_set(),
             bridgingHeaderPath,
             create_set(swiftSourceDeps->textualModuleDetails.bridgingSourceFiles),
             create_set(swiftSourceDeps->textualModuleDetails.bridgingModuleDependencies),
+            create_set(bridgedOverlayDependencyNames),
             create_empty_set(),
             create_set(swiftSourceDeps->textualModuleDetails.extraPCMArgs),
             /*contextHash*/create_null(),
@@ -1113,30 +1172,7 @@ generateFullDependencyGraph(CompilerInstance &instance,
 
     // Create a direct dependencies set according to the output format
     std::vector<std::string> bridgedDependencyNames;
-    for (const auto &dep : directDependencies) {
-      std::string dependencyKindAndName;
-      switch (dep.second) {
-      case ModuleDependencyKind::SwiftInterface:
-      case ModuleDependencyKind::SwiftSource:
-        dependencyKindAndName = "swiftTextual";
-        break;
-      case ModuleDependencyKind::SwiftBinary:
-        dependencyKindAndName = "swiftBinary";
-        break;
-      case ModuleDependencyKind::SwiftPlaceholder:
-        dependencyKindAndName = "swiftPlaceholder";
-        break;
-      case ModuleDependencyKind::Clang:
-        dependencyKindAndName = "clang";
-        break;
-      default:
-        llvm_unreachable("Unhandled dependency kind.");
-      }
-      dependencyKindAndName += ":";
-      dependencyKindAndName += dep.first;
-      bridgedDependencyNames.push_back(dependencyKindAndName);
-    }
-
+    bridgeDependencyIDs(directDependencies, bridgedDependencyNames);
     moduleInfo->direct_dependencies = create_set(bridgedDependencyNames);
     moduleInfo->details = getModuleDetails();
   }

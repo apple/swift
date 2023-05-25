@@ -56,8 +56,11 @@ let initializeStaticGlobalsPass = FunctionPass(name: "initialize-static-globals"
     return
   }
 
-  context.createStaticInitializer(for: allocInst.global,
-                                  initValue: storeToGlobal.source as! SingleValueInstruction)
+  var cloner = StaticInitCloner(cloneTo: allocInst.global, context)
+  defer { cloner.deinitialize() }
+
+  _ = cloner.clone(storeToGlobal.source)
+
   context.erase(instruction: allocInst)
   context.erase(instruction: storeToGlobal)
 }

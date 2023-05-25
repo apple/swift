@@ -416,7 +416,8 @@ namespace {
       //   return fields[0];
       // }
 
-      return IGM.typeLayoutCache.getOrCreateAlignedGroupEntry(fields, T, getBestKnownAlignment().getValue());
+      return IGM.typeLayoutCache.getOrCreateAlignedGroupEntry(
+          fields, T, getBestKnownAlignment().getValue(), *this);
     }
 
     void initializeFromParams(IRGenFunction &IGF, Explosion &params,
@@ -765,7 +766,8 @@ namespace {
         return fields[0];
       }
 
-      return IGM.typeLayoutCache.getOrCreateAlignedGroupEntry(fields, T, getBestKnownAlignment().getValue());
+      return IGM.typeLayoutCache.getOrCreateAlignedGroupEntry(
+          fields, T, getBestKnownAlignment().getValue(), *this);
     }
 
     void initializeFromParams(IRGenFunction &IGF, Explosion &params,
@@ -921,7 +923,8 @@ namespace {
         return fields[0];
       }
 
-      return IGM.typeLayoutCache.getOrCreateAlignedGroupEntry(fields, T, getBestKnownAlignment().getValue());
+      return IGM.typeLayoutCache.getOrCreateAlignedGroupEntry(
+          fields, T, getBestKnownAlignment().getValue(), *this);
     }
 
     void initializeFromParams(IRGenFunction &IGF, Explosion &params,
@@ -999,7 +1002,8 @@ namespace {
       //   return fields[0];
       // }
 
-      return IGM.typeLayoutCache.getOrCreateAlignedGroupEntry(fields, T, getBestKnownAlignment().getValue());
+      return IGM.typeLayoutCache.getOrCreateAlignedGroupEntry(
+          fields, T, getBestKnownAlignment().getValue(), *this);
     }
 
     llvm::NoneType getNonFixedOffsets(IRGenFunction &IGF) const {
@@ -1090,7 +1094,8 @@ namespace {
       //   return fields[0];
       // }
 
-      return IGM.typeLayoutCache.getOrCreateAlignedGroupEntry(fields, T, getBestKnownAlignment().getValue());
+      return IGM.typeLayoutCache.getOrCreateAlignedGroupEntry(
+          fields, T, getBestKnownAlignment().getValue(), *this);
     }
 
     // We have an indirect schema.

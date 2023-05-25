@@ -73,8 +73,6 @@ target_link_libraries(swift-frontend
 
 add_swift_parser_link_libraries(swift-frontend)
 
-_add_swift_runtime_link_flags(swift-frontend "../../lib" "")
-
 # Create a `swift-driver` executable adjacent to the `swift-frontend` executable
 # to ensure that `swiftc` forwards to the standalone driver when invoked.
 swift_create_early_driver_copies(swift-frontend)

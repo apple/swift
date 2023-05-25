@@ -142,6 +142,10 @@ extension BridgedInstruction {
 
 extension OptionalBridgedInstruction {
   public var instruction: Instruction? { obj.getAs(Instruction.self) }
+
+  public static var none: OptionalBridgedInstruction {
+    OptionalBridgedInstruction()
+  }
 }
 
 public class SingleValueInstruction : Instruction, Value {
@@ -380,6 +384,10 @@ class UncheckedRefCastInst : SingleValueInstruction, UnaryInstruction {
   public var fromInstance: Value { operand.value }
 }
 
+final public class UncheckedAddrCastInst : SingleValueInstruction, UnaryInstruction {
+  public var fromAddress: Value { operand.value }
+}
+
 final public
 class RawPointerToRefInst : SingleValueInstruction, UnaryInstruction {
   public var pointer: Value { operand.value }
@@ -490,8 +498,28 @@ final public class IntegerLiteralInst : SingleValueInstruction {
   public var value: llvm.APInt { bridged.IntegerLiteralInst_getValue() }
 }
 
+final public class FloatLiteralInst : SingleValueInstruction {
+  public var value: llvm.APFloat { bridged.FloatLiteralInst_getValue() }
+}
+
 final public class StringLiteralInst : SingleValueInstruction {
-  public var string: String { bridged.StringLiteralInst_getValue().string }
+  public enum Encoding {
+    case Bytes
+    case UTF8
+    /// UTF-8 encoding of an Objective-C selector.
+    case ObjCSelector
+  }
+
+  public var value: StringRef { StringRef(bridged: bridged.StringLiteralInst_getValue()) }
+
+  public var encoding: Encoding {
+    switch bridged.StringLiteralInst_getEncoding() {
+    case 0: return .Bytes
+    case 1: return .UTF8
+    case 2: return .ObjCSelector
+    default: fatalError("invalid encoding in StringLiteralInst")
+    }
+  }
 }
 
 final public class TupleInst : SingleValueInstruction {
@@ -675,6 +703,7 @@ final public class StrongCopyUnmanagedValueInst : SingleValueInstruction, UnaryI
 
 final public class EndCOWMutationInst : SingleValueInstruction, UnaryInstruction {
   public var instance: Value { operand.value }
+  public var doKeepUnique: Bool { bridged.EndCOWMutationInst_doKeepUnique() }
 }
 
 final public
@@ -730,6 +759,17 @@ final public class IsEscapingClosureInst : SingleValueInstruction, UnaryInstruct
 final public
 class MarkMustCheckInst : SingleValueInstruction, UnaryInstruction {}
 
+final public class ObjectInst : SingleValueInstruction {
+  public var baseOperands: OperandArray {
+    operands[0..<bridged.ObjectInst_getNumBaseElements()]
+  }
+
+  public var tailOperands: OperandArray {
+    let ops = operands
+    return ops[bridged.ObjectInst_getNumBaseElements()..<ops.endIndex]
+  }
+}
+
 //===----------------------------------------------------------------------===//
 //                      single-value allocation instructions
 //===----------------------------------------------------------------------===//
@@ -746,12 +786,24 @@ public class AllocRefInstBase : SingleValueInstruction, Allocation {
   final public var canAllocOnStack: Bool {
     bridged.AllocRefInstBase_canAllocOnStack()
   }
+
+  final public var tailAllocatedCounts: OperandArray {
+    let numTailTypes = bridged.AllocRefInstBase_getNumTailTypes()
+    return operands[0..<numTailTypes]
+  }
+
+  final public var tailAllocatedTypes: TypeArray {
+    TypeArray(bridged: bridged.AllocRefInstBase_getTailAllocatedTypes())
+  }
 }
 
 final public class AllocRefInst : AllocRefInstBase {
 }
 
 final public class AllocRefDynamicInst : AllocRefInstBase {
+  public var isDynamicTypeDeinitAndSizeKnownEquivalentToBaseType: Bool {
+    bridged.AllocRefDynamicInst_isDynamicTypeDeinitAndSizeKnownEquivalentToBaseType()
+  }
 }
 
 final public class AllocBoxInst : SingleValueInstruction, Allocation {

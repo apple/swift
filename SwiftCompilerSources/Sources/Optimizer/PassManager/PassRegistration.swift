@@ -71,6 +71,7 @@ private func registerSwiftPasses() {
   registerPass(computeSideEffects, { computeSideEffects.run($0) })
   registerPass(initializeStaticGlobalsPass, { initializeStaticGlobalsPass.run($0) })
   registerPass(objCBridgingOptimization, { objCBridgingOptimization.run($0) })
+  registerPass(objectOutliner, { objectOutliner.run($0) })
   registerPass(stackPromotion, { stackPromotion.run($0) })
   registerPass(functionStackProtection, { functionStackProtection.run($0) })
   registerPass(assumeSingleThreadedPass, { assumeSingleThreadedPass.run($0) })
@@ -86,6 +87,7 @@ private func registerSwiftPasses() {
   registerForSILCombine(GlobalValueInst.self,      { run(GlobalValueInst.self, $0) })
   registerForSILCombine(StrongRetainInst.self,     { run(StrongRetainInst.self, $0) })
   registerForSILCombine(StrongReleaseInst.self,    { run(StrongReleaseInst.self, $0) })
+  registerForSILCombine(LoadInst.self,             { run(LoadInst.self, $0) })
 
   // Test passes
   registerPass(functionUsesDumper, { functionUsesDumper.run($0) })

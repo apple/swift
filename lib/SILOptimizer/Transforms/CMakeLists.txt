@@ -21,7 +21,6 @@ target_sources(swiftSILOptimizer PRIVATE
   EagerSpecializer.cpp
   GenericSpecializer.cpp
   Outliner.cpp
-  ObjectOutliner.cpp
   AssemblyVisionRemarkGenerator.cpp
   PartialApplySimplification.cpp
   PerformanceInliner.cpp

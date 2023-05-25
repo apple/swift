@@ -1,4 +1,5 @@
 // RUN: %target-sil-opt -enable-sil-verify-all %s -onone-simplification -simplify-instruction=load | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-ONONE
+// RUN: %target-sil-opt -enable-sil-verify-all %s -simplification -simplify-instruction=load | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-O
 
 // REQUIRES: swift_in_compiler
 
@@ -18,6 +19,9 @@ sil_global [let] @gstr : $Str = {
   %4 = tuple (%1 : $Int64, %3 : $Int64)
   %initval = struct $Str (%1 : $Int64, %4 : $(Int64, Int64))
 }
+
+class B { }
+class E : B { }
 
 sil [global_init] @gstr_addressor : $@convention(thin) () -> Builtin.RawPointer {
 bb0:
@@ -90,5 +94,258 @@ bb0:
   %2 = tuple_element_addr %1 : $*(Int64, Int64), 1
   %3 = load %2 : $*Int64
   return %3 : $Int64
+}
+
+// CHECK-LABEL: sil @load_first_char_from_string_literal
+// CHECK:       bb0:
+// CHECK-NEXT:    %0 = integer_literal $Builtin.Int8, 97
+// CHECK-NEXT:    return %0
+// CHECK:       } // end sil function 'load_first_char_from_string_literal'
+sil @load_first_char_from_string_literal : $@convention(thin) () -> Builtin.Int8 {
+bb0:
+  %0 = string_literal utf8 "abc123a"
+  %1 = pointer_to_address %0 : $Builtin.RawPointer to [strict] $*UInt8
+  %2 = struct_element_addr %1 : $*UInt8, #UInt8._value
+  %3 = load %2 : $*Builtin.Int8
+  return %3 : $Builtin.Int8
+}
+
+// CHECK-LABEL: sil @load_from_string_literal
+// CHECK:       bb0:
+// CHECK-NEXT:    %0 = integer_literal $Builtin.Int8, 49
+// CHECK-NEXT:    return %0
+// CHECK:       } // end sil function 'load_from_string_literal'
+sil @load_from_string_literal : $@convention(thin) () -> Builtin.Int8 {
+bb0:
+  %0 = string_literal utf8 "abc123a"
+  %1 = integer_literal $Builtin.Word, 3
+  %2 = pointer_to_address %0 : $Builtin.RawPointer to [strict] $*UInt8
+  %3 = index_addr %2 : $*UInt8, %1 : $Builtin.Word
+  %4 = struct_element_addr %3 : $*UInt8, #UInt8._value
+  %5 = load %4 : $*Builtin.Int8
+  return %5 : $Builtin.Int8
+}
+
+// CHECK-LABEL: sil @load_addrcast_to_upcast :
+// CHECK:       bb0(%0 : $*E):
+// CHECK-NEXT:    %1 = load %0
+// CHECK-NEXT:    %2 = upcast %1 : $E to $B
+// CHECK-NEXT:    return %2
+// CHECK:       } // end sil function 'load_addrcast_to_upcast'
+sil @load_addrcast_to_upcast : $@convention(thin) (@inout E) -> B {
+bb0(%0 : $*E):
+  %1 = unchecked_addr_cast %0 : $*E to $*B
+  %2 = load %1 : $*B
+  return %2 : $B
+}
+
+struct _SwiftEmptyArrayStorage {
+}
+
+class __EmptyArrayStorage {
+}
+
+class __ContiguousArrayStorageBase : __EmptyArrayStorage {
+  @_hasStorage let countAndCapacity: _ArrayBody
+}
+
+struct _ArrayBody {
+  @_hasStorage let _storage: _SwiftArrayBodyStorage
+}
+
+struct _SwiftArrayBodyStorage {
+  @_hasStorage let count: Int64
+  @_hasStorage let _capacityAndFlags: Int64
+}
+
+struct _SwiftEmptySetSingleton {
+}
+
+class __EmptySetSingleton {
+}
+
+class __RawSetStorage : __EmptySetSingleton {
+  @_hasStorage let _count: Int64
+  @_hasStorage let _capacity: Int64
+}
+
+struct _SwiftEmptyDictionarySingleton {
+}
+
+class __EmptyDictionarySingleton {
+}
+
+class __RawDictionaryStorage : __EmptyDictionarySingleton {
+  @_hasStorage let _count: Int64
+  @_hasStorage let _capacity: Int64
+}
+
+sil_global @_swiftEmptyArrayStorage : $_SwiftEmptyArrayStorage
+sil_global @_swiftEmptySetSingleton : $_SwiftEmptySetSingleton
+sil_global @_swiftEmptyDictionarySingleton : $_SwiftEmptyDictionarySingleton
+
+// CHECK-LABEL: sil @load_count_from_empty_array :
+// CHECK:         %0 = integer_literal $Builtin.Int64, 0
+// CHECK-NEXT:    %1 = struct $Int64 (%0 : $Builtin.Int64)
+// CHECK-NEXT:    return %1
+// CHECK:       } // end sil function 'load_count_from_empty_array'
+sil @load_count_from_empty_array : $@convention(thin) () -> Int64 {
+bb0:
+  %3 = global_addr @_swiftEmptyArrayStorage : $*_SwiftEmptyArrayStorage
+  %4 = address_to_pointer [stack_protection] %3 : $*_SwiftEmptyArrayStorage to $Builtin.RawPointer
+  %5 = raw_pointer_to_ref %4 : $Builtin.RawPointer to $__EmptyArrayStorage
+  %6 = unchecked_ref_cast %5 : $__EmptyArrayStorage to $__ContiguousArrayStorageBase
+  %8 = ref_element_addr [immutable] %6 : $__ContiguousArrayStorageBase, #__ContiguousArrayStorageBase.countAndCapacity
+  %9 = struct_element_addr %8 : $*_ArrayBody, #_ArrayBody._storage
+  %10 = struct_element_addr %9 : $*_SwiftArrayBodyStorage, #_SwiftArrayBodyStorage.count
+  %11 = struct_element_addr %10 : $*Int64, #Int64._value
+  %12 = load %11 : $*Builtin.Int64
+  %15 = struct $Int64 (%12 : $Builtin.Int64)
+  return %15 : $Int64
+}
+
+// CHECK-LABEL: sil @load_capacity_from_empty_array :
+// CHECK:         %0 = integer_literal $Builtin.Int64, 0
+// CHECK-NEXT:    %1 = integer_literal $Builtin.Int64, 1
+// CHECK-NEXT:    %2 = builtin "lshr_Int64"(%0 : $Builtin.Int64, %1 : $Builtin.Int64)
+// CHECK-NEXT:    %3 = struct $Int64 (%2 : $Builtin.Int64)
+// CHECK-NEXT:    return %3
+// CHECK:       } // end sil function 'load_capacity_from_empty_array'
+sil @load_capacity_from_empty_array : $@convention(thin) () -> Int64 {
+bb0:
+  %3 = global_addr @_swiftEmptyArrayStorage : $*_SwiftEmptyArrayStorage
+  %4 = address_to_pointer [stack_protection] %3 : $*_SwiftEmptyArrayStorage to $Builtin.RawPointer
+  %5 = raw_pointer_to_ref %4 : $Builtin.RawPointer to $__EmptyArrayStorage
+  %6 = unchecked_ref_cast %5 : $__EmptyArrayStorage to $__ContiguousArrayStorageBase
+  %8 = ref_element_addr [immutable] %6 : $__ContiguousArrayStorageBase, #__ContiguousArrayStorageBase.countAndCapacity
+  %9 = struct_element_addr %8 : $*_ArrayBody, #_ArrayBody._storage
+  %10 = struct_element_addr %9 : $*_SwiftArrayBodyStorage, #_SwiftArrayBodyStorage._capacityAndFlags
+  %11 = struct_element_addr %10 : $*Int64, #Int64._value
+  %12 = load %11 : $*Builtin.Int64
+  %13 = integer_literal $Builtin.Int64, 1
+  %14 = builtin "lshr_Int64"(%12 : $Builtin.Int64, %13 : $Builtin.Int64) : $Builtin.Int64
+  %15 = struct $Int64 (%14 : $Builtin.Int64)
+  return %15 : $Int64
+}
+
+// CHECK-LABEL: sil @dont_load_capacity_and_flags_from_empty_array :
+// CHECK:         [[X:%.*]] = load
+// CHECK:         [[I:%.*]] = struct $Int64 ([[X]]
+// CHECK:         return [[I]]
+// CHECK:       } // end sil function 'dont_load_capacity_and_flags_from_empty_array'
+sil @dont_load_capacity_and_flags_from_empty_array : $@convention(thin) () -> Int64 {
+bb0:
+  %3 = global_addr @_swiftEmptyArrayStorage : $*_SwiftEmptyArrayStorage
+  %4 = address_to_pointer [stack_protection] %3 : $*_SwiftEmptyArrayStorage to $Builtin.RawPointer
+  %5 = raw_pointer_to_ref %4 : $Builtin.RawPointer to $__EmptyArrayStorage
+  %6 = unchecked_ref_cast %5 : $__EmptyArrayStorage to $__ContiguousArrayStorageBase
+  %8 = ref_element_addr [immutable] %6 : $__ContiguousArrayStorageBase, #__ContiguousArrayStorageBase.countAndCapacity
+  %9 = struct_element_addr %8 : $*_ArrayBody, #_ArrayBody._storage
+  %10 = struct_element_addr %9 : $*_SwiftArrayBodyStorage, #_SwiftArrayBodyStorage._capacityAndFlags
+  %11 = struct_element_addr %10 : $*Int64, #Int64._value
+  %12 = load %11 : $*Builtin.Int64
+  %15 = struct $Int64 (%12 : $Builtin.Int64)
+  return %15 : $Int64
+}
+
+// CHECK-LABEL: sil @load_count_from_empty_set :
+// CHECK:         %0 = integer_literal $Builtin.Int64, 0
+// CHECK-NEXT:    %1 = struct $Int64 (%0 : $Builtin.Int64)
+// CHECK-NEXT:    return %1
+// CHECK:       } // end sil function 'load_count_from_empty_set'
+sil @load_count_from_empty_set : $@convention(thin) () -> Int64 {
+bb0:
+  %0 = global_addr @_swiftEmptySetSingleton : $*_SwiftEmptySetSingleton
+  %1 = address_to_pointer [stack_protection] %0 : $*_SwiftEmptySetSingleton to $Builtin.RawPointer
+  %2 = raw_pointer_to_ref %1 : $Builtin.RawPointer to $__EmptySetSingleton
+  %3 = unchecked_ref_cast %2 : $__EmptySetSingleton to $__RawSetStorage
+  %5 = ref_element_addr %3 : $__RawSetStorage, #__RawSetStorage._count
+  %6 = struct_element_addr %5 : $*Int64, #Int64._value
+  %7 = load %6 : $*Builtin.Int64
+  %9 = struct $Int64 (%7 : $Builtin.Int64)
+  return %9 : $Int64
+}
+
+// CHECK-LABEL: sil @load_capacity_from_empty_set :
+// CHECK:         %0 = integer_literal $Builtin.Int64, 0
+// CHECK-NEXT:    %1 = struct $Int64 (%0 : $Builtin.Int64)
+// CHECK-NEXT:    return %1
+// CHECK:       } // end sil function 'load_capacity_from_empty_set'
+sil @load_capacity_from_empty_set : $@convention(thin) () -> Int64 {
+bb0:
+  %0 = global_addr @_swiftEmptySetSingleton : $*_SwiftEmptySetSingleton
+  %1 = address_to_pointer [stack_protection] %0 : $*_SwiftEmptySetSingleton to $Builtin.RawPointer
+  %2 = raw_pointer_to_ref %1 : $Builtin.RawPointer to $__EmptySetSingleton
+  %3 = unchecked_ref_cast %2 : $__EmptySetSingleton to $__RawSetStorage
+  %5 = ref_element_addr %3 : $__RawSetStorage, #__RawSetStorage._capacity
+  %6 = struct_element_addr %5 : $*Int64, #Int64._value
+  %7 = load %6 : $*Builtin.Int64
+  %9 = struct $Int64 (%7 : $Builtin.Int64)
+  return %9 : $Int64
+}
+
+// CHECK-LABEL: sil @load_count_from_empty_dictionary :
+// CHECK:         %0 = integer_literal $Builtin.Int64, 0
+// CHECK-NEXT:    %1 = struct $Int64 (%0 : $Builtin.Int64)
+// CHECK-NEXT:    return %1
+// CHECK:       } // end sil function 'load_count_from_empty_dictionary'
+sil @load_count_from_empty_dictionary : $@convention(thin) () -> Int64 {
+bb0:
+  %0 = global_addr @_swiftEmptyDictionarySingleton : $*_SwiftEmptyDictionarySingleton
+  %1 = address_to_pointer [stack_protection] %0 : $*_SwiftEmptyDictionarySingleton to $Builtin.RawPointer
+  %2 = raw_pointer_to_ref %1 : $Builtin.RawPointer to $__EmptyDictionarySingleton
+  %3 = unchecked_ref_cast %2 : $__EmptyDictionarySingleton to $Builtin.BridgeObject
+  %4 = unchecked_ref_cast %3 : $Builtin.BridgeObject to $__RawDictionaryStorage
+  %5 = ref_element_addr %4 : $__RawDictionaryStorage, #__RawDictionaryStorage._count
+  %6 = struct_element_addr %5 : $*Int64, #Int64._value
+  %7 = load %6 : $*Builtin.Int64
+  %9 = struct $Int64 (%7 : $Builtin.Int64)
+  return %9 : $Int64
+}
+
+// CHECK-LABEL: sil @load_capacity_from_empty_dictionary :
+// CHECK:         %0 = integer_literal $Builtin.Int64, 0
+// CHECK-NEXT:    %1 = struct $Int64 (%0 : $Builtin.Int64)
+// CHECK-NEXT:    return %1
+// CHECK:       } // end sil function 'load_capacity_from_empty_dictionary'
+sil @load_capacity_from_empty_dictionary : $@convention(thin) () -> Int64 {
+bb0:
+  %0 = global_addr @_swiftEmptyDictionarySingleton : $*_SwiftEmptyDictionarySingleton
+  %1 = address_to_pointer [stack_protection] %0 : $*_SwiftEmptyDictionarySingleton to $Builtin.RawPointer
+  %2 = raw_pointer_to_ref %1 : $Builtin.RawPointer to $__EmptyDictionarySingleton
+  %3 = unchecked_ref_cast %2 : $__EmptyDictionarySingleton to $Builtin.BridgeObject
+  %4 = unchecked_ref_cast %3 : $Builtin.BridgeObject to $__RawDictionaryStorage
+  %5 = ref_element_addr %4 : $__RawDictionaryStorage, #__RawDictionaryStorage._capacity
+  %6 = struct_element_addr %5 : $*Int64, #Int64._value
+  %7 = load %6 : $*Builtin.Int64
+  %9 = struct $Int64 (%7 : $Builtin.Int64)
+  return %9 : $Int64
+}
+
+// CHECK-LABEL: sil [ossa] @remove_dead_load :
+// CHECK-NOT:     load
+// CHECK-NOT:     destroy_value
+// CHECK:       } // end sil function 'remove_dead_load'
+sil [ossa] @remove_dead_load : $@convention(thin) (@in_guaranteed B) -> () {
+bb0(%0 : $*B):
+  %1 = load [copy] %0 : $*B
+  destroy_value %1 : $B
+  %3 = tuple ()
+  return %3 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @remove_dead_load_with_debug_value :
+// CHECK-ONONE:     load
+// CHECK-ONONE:     destroy_value
+// CHECK-O-NOT:     load
+// CHECK-O-NOT:     destroy_value
+// CHECK:       } // end sil function 'remove_dead_load_with_debug_value'
+sil [ossa] @remove_dead_load_with_debug_value : $@convention(thin) (@in_guaranteed B) -> () {
+bb0(%0 : $*B):
+  %1 = load [copy] %0 : $*B
+  debug_value %1 : $B, let, name "x"
+  destroy_value %1 : $B
+  %3 = tuple ()
+  return %3 : $()
 }
 

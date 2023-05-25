@@ -167,10 +167,7 @@ ErrorOr<ModuleDependencyInfo> ModuleDependencyScanner::scanInterfaceFile(
     unsigned bufferID = Ctx.SourceMgr.addNewSourceBuffer(std::move(interfaceBuf.get()));
     auto moduleDecl = ModuleDecl::create(realModuleName, Ctx);
 
-    // Dependency scanning does not require an AST, so disable Swift Parser
-    // ASTGen parsing completely.
     SourceFile::ParsingOptions parsingOpts;
-    parsingOpts |= SourceFile::ParsingFlags::DisableSwiftParserASTGen;
     auto sourceFile = new (Ctx) SourceFile(
         *moduleDecl, SourceFileKind::Interface, bufferID, parsingOpts);
     moduleDecl->addAuxiliaryFile(*sourceFile);

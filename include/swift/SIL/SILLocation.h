@@ -743,6 +743,10 @@ public:
     return getLocation().hasSameSourceLocation(rhs.getLocation()) &&
            getScope() == rhs.getScope();
   }
+
+  static SILDebugLocation getArtificialUnreachableLocation() {
+    return SILDebugLocation(ArtificialUnreachableLocation(), nullptr);
+  }
 };
 
 } // end swift namespace

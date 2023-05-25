@@ -4547,8 +4547,13 @@ operator()(CanType dependentType, Type conformingReplacementType,
         (*this)(dependentType, conformingPackElt, conformedProtocol);
       conformances.push_back(conformance);
     }
-    return ProtocolConformanceRef(
-        PackConformance::get(conformingPack, conformedProtocol, conformances));
+
+    auto *conformance =
+        PackConformance::get(conformingPack, conformedProtocol, conformances);
+    if (conformance->isInvalid())
+      return ProtocolConformanceRef::forInvalid();
+
+    return ProtocolConformanceRef(conformance);
   }
 
   assert((conformingReplacementType->is<ErrorType>() ||

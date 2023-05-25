@@ -127,19 +127,6 @@ extension MutatingContext {
     }
   }
 
-  /// Copies all instructions of a static init value of a global to the insertion point of `builder`.
-  func copyStaticInitializer(fromInitValue: Value, to builder: Builder) -> Value? {
-    let range = _bridged.copyStaticInitializer(fromInitValue.bridged, builder.bridged)
-    guard let result = range.clonedInitValue.value,
-          let firstClonedInst = range.firstClonedInst.instruction else {
-      return nil
-    }
-    let resultInst = result.definingInstruction!
-    notifyNewInstructions(from: firstClonedInst, to: resultInst)
-    notifyInstructionChanged(resultInst)
-    return result
-  }
-
   private func notifyNewInstructions(from: Instruction, to: Instruction) {
     var inst = from
     while inst != to {
@@ -224,6 +211,16 @@ struct FunctionPassContext : MutatingContext {
     return function.isDefinition
   }
 
+  /// Looks up a function in the `Swift` module.
+  /// The `name` is the source name of the function and not the mangled name.
+  /// Returns nil if no such function or multiple matching functions are found.
+  func lookupStdlibFunction(name: StaticString) -> Function? {
+    return name.withUTF8Buffer { (nameBuffer: UnsafeBufferPointer<UInt8>) in
+      let nameStr = llvm.StringRef(nameBuffer.baseAddress, nameBuffer.count)
+      return _bridged.lookupStdlibFunction(nameStr).function
+    }
+  }
+
   func erase(block: BasicBlock) {
     _bridged.eraseBlock(block.bridged)
   }
@@ -262,10 +259,16 @@ struct FunctionPassContext : MutatingContext {
     return false
   }
 
-  /// Copies `initValue` (including all operand instructions, transitively) to the
-  /// static init value of `global`.
-  func createStaticInitializer(for global: GlobalVariable, initValue: SingleValueInstruction) {
-    _bridged.createStaticInitializer(global.bridged, initValue.bridged)
+  func mangleOutlinedVariable(from function: Function) -> String {
+    let stdString = _bridged.mangleOutlinedVariable(function.bridged)
+    return String(_cxxString: stdString)
+  }
+
+  func createGlobalVariable(name: String, type: Type, isPrivate: Bool) -> GlobalVariable {
+    let gv = name._withStringRef {
+      _bridged.createGlobalVariable($0, type.bridged, isPrivate)
+    }
+    return gv.globalVar
   }
 }
 
@@ -327,6 +330,12 @@ extension Builder {
     let firstInst = block.instructions.first!
     self.init(insertAt: .before(firstInst), location: firstInst.location,
               context.notifyInstructionChanged, context._bridged.asNotificationHandler())
+  }
+
+  init(staticInitializerOf global: GlobalVariable, _ context: some MutatingContext) {
+    self.init(insertAt: .staticInitializer(global),
+              location: Location.artificialUnreachableLocation,
+              { _ in }, context._bridged.asNotificationHandler())
   }
 }
 

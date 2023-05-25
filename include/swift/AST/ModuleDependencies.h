@@ -137,6 +137,10 @@ struct CommonSwiftTextualModuleDependencyDetails {
 
   /// (Clang) modules on which the bridging header depends.
   std::vector<std::string> bridgingModuleDependencies;
+
+  /// Dependencies comprised of Swift overlay modules of direct and
+  /// transitive Clang dependencies.
+  std::vector<ModuleDependencyID> swiftOverlayDependencies;
 };
 
 /// Describes the dependencies of a Swift module described by an Swift interface file.
@@ -450,10 +454,24 @@ public:
   }
 
   /// Resolve a dependency's set of `imports` with qualified Module IDs
-  void resolveDependencies(const std::vector<ModuleDependencyID> &dependencyIDs) {
+  void resolveDependencies(const ArrayRef<ModuleDependencyID> dependencyIDs) {
     assert(!storage->resolved && "Resolving an already-resolved dependency");
     storage->resolved = true;
     storage->resolvedModuleDependencies.assign(dependencyIDs.begin(), dependencyIDs.end());
+  }
+
+  /// Set this module's set of Swift Overlay dependencies
+  void setOverlayDependencies(const ArrayRef<ModuleDependencyID> dependencyIDs) {
+    assert(isSwiftSourceModule() || isSwiftInterfaceModule());
+    CommonSwiftTextualModuleDependencyDetails *textualModuleDetails;
+    if (auto sourceDetailsStorage = dyn_cast<SwiftSourceModuleDependenciesStorage>(storage.get())) {
+      textualModuleDetails = &sourceDetailsStorage->textualModuleDetails;
+    } else if (auto interfaceDetailsStorage = dyn_cast<SwiftInterfaceModuleDependenciesStorage>(storage.get())) {
+      textualModuleDetails = &interfaceDetailsStorage->textualModuleDetails;
+    } else {
+      llvm_unreachable("Unknown kind of dependency module info.");
+    }
+    textualModuleDetails->swiftOverlayDependencies.assign(dependencyIDs.begin(), dependencyIDs.end());
   }
 
   void updateCommandLine(const std::vector<std::string> &newCommandLine) {
@@ -762,7 +780,12 @@ public:
   /// Resolve a dependency module's set of imports
   /// to a kind-qualified set of module IDs.
   void resolveDependencyImports(ModuleDependencyID moduleID,
-                                const std::vector<ModuleDependencyID> &dependencyIDs);
+                                const ArrayRef<ModuleDependencyID> dependencyIDs);
+
+  /// Resolve a dependency module's set of Swift module dependencies
+  /// that are Swift overlays of Clang module dependencies.
+  void setSwiftOverlayDependencues(ModuleDependencyID moduleID,
+                                   const ArrayRef<ModuleDependencyID> dependencyIDs);
   
   StringRef getMainModuleName() const {
     return mainScanModuleName;

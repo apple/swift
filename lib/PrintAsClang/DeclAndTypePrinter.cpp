@@ -959,6 +959,9 @@ private:
 
   /// Returns true if \p clangTy is the typedef for NSUInteger.
   bool isNSUInteger(clang::QualType clangTy) {
+    if (const auto* elaboratedTy = dyn_cast<clang::ElaboratedType>(clangTy)) {
+      clangTy = elaboratedTy->desugar();
+    }
     const auto *typedefTy = dyn_cast<clang::TypedefType>(clangTy);
     if (!typedefTy)
       return false;

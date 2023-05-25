@@ -956,7 +956,7 @@ bool Lowering::usesObjCAllocator(ClassDecl *theClass) {
   return theClass->getObjectModel() == ReferenceCounting::ObjC;
 }
 
-bool Lowering::shouldSkipLowering(Decl *D) {
+bool Lowering::shouldSkipLowering(const Decl *D) {
   if (D->getASTContext().LangOpts.UnavailableDeclOptimizationMode !=
       UnavailableDeclOptimization::Complete)
     return false;
@@ -966,7 +966,7 @@ bool Lowering::shouldSkipLowering(Decl *D) {
   return D->getSemanticUnavailableAttr() != None;
 }
 
-bool Lowering::shouldLowerToUnavailableCodeStub(Decl *D) {
+bool Lowering::shouldLowerToUnavailableCodeStub(const Decl *D) {
   if (D->getASTContext().LangOpts.UnavailableDeclOptimizationMode !=
       UnavailableDeclOptimization::Stub)
     return false;

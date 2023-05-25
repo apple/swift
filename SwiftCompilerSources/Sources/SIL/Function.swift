@@ -126,6 +126,8 @@ final public class Function : CustomStringConvertible, HasShortDescription, Hash
 
   public var isTransparent: Bool { bridged.isTransparent() }
 
+  public var isAsync: Bool { bridged.isAsync() }
+
   /// True if this is a `[global_init]` function.
   ///
   /// Such a function is typically a global addressor which calls the global's
@@ -221,6 +223,9 @@ final public class Function : CustomStringConvertible, HasShortDescription, Hash
         fatalError()
     }
   }
+
+  public var isSerialized: Bool { bridged.isSerialized() }
+  public var hasValidLinkageForFragileRef: Bool { bridged.hasValidLinkageForFragileRef() }
 
   /// True, if the function runs with a swift 5.1 runtime.
   /// Note that this is function specific, because inlinable functions are de-serialized

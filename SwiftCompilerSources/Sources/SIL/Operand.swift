@@ -107,6 +107,19 @@ public struct UseList : CollectionLikeSequence {
     return nil
   }
 
+  public func getSingleUser<I: Instruction>(ofType: I.Type) -> I? {
+    var result: I? = nil
+    for use in self {
+      if let user = use.instruction as? I {
+        if result != nil {
+          return nil
+        }
+        result = user
+      }
+    }
+    return result
+  }
+
   public var isSingleUse: Bool { singleUse != nil }
 
   public func makeIterator() -> Iterator {

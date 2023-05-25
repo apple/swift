@@ -19,6 +19,7 @@ public struct Builder {
   public enum InsertionPoint {
     case before(Instruction)
     case atEndOf(BasicBlock)
+    case staticInitializer(GlobalVariable)
   }
 
   let insertAt: InsertionPoint
@@ -29,12 +30,13 @@ public struct Builder {
   public var bridged: BridgedBuilder {
     switch insertAt {
     case .before(let inst):
-      return BridgedBuilder(insertBefore: inst.bridged.optional,
-                            insertAtEnd: OptionalBridgedBasicBlock.none,
+      return BridgedBuilder(insertAt: .beforeInst, insertionObj: inst.bridged.obj,
                             loc: location.bridged)
     case .atEndOf(let block):
-      return BridgedBuilder(insertBefore: OptionalBridgedInstruction(),
-                            insertAtEnd: block.bridged.optional,
+      return BridgedBuilder(insertAt: .endOfBlock, insertionObj: block.bridged.obj,
+                            loc: location.bridged)
+    case .staticInitializer(let global):
+      return BridgedBuilder(insertAt: .intoGlobal, insertionObj: global.bridged.obj,
                             loc: location.bridged)
     }
   }
@@ -101,15 +103,37 @@ public struct Builder {
     return notifyNew(dr.getAs(DeallocStackRefInst.self))
   }
 
-  public func createUncheckedRefCast(object: Value, type: Type) -> UncheckedRefCastInst {
-    let object = bridged.createUncheckedRefCast(object.bridged, type.bridged)
-    return notifyNew(object.getAs(UncheckedRefCastInst.self))
+  public func createUncheckedRefCast(from value: Value, to type: Type) -> UncheckedRefCastInst {
+    let cast = bridged.createUncheckedRefCast(value.bridged, type.bridged)
+    return notifyNew(cast.getAs(UncheckedRefCastInst.self))
+  }
+
+  public func createUpcast(from value: Value, to type: Type) -> UpcastInst {
+    let cast = bridged.createUpcast(value.bridged, type.bridged)
+    return notifyNew(cast.getAs(UpcastInst.self))
+  }
+
+  public func createLoad(fromAddress: Value, ownership: LoadInst.LoadOwnership) -> LoadInst {
+    let load = bridged.createLoad(fromAddress.bridged, ownership.rawValue)
+    return notifyNew(load.getAs(LoadInst.self))
   }
 
   @discardableResult
   public func createSetDeallocating(operand: Value, isAtomic: Bool) -> SetDeallocatingInst {
     let setDeallocating = bridged.createSetDeallocating(operand.bridged, isAtomic)
     return notifyNew(setDeallocating.getAs(SetDeallocatingInst.self))
+  }
+
+  @discardableResult
+  public func createStrongRetain(operand: Value) -> StrongRetainInst {
+    let retain = bridged.createStrongRetain(operand.bridged)
+    return notifyNew(retain.getAs(StrongRetainInst.self))
+  }
+
+  @discardableResult
+  public func createStrongRelease(operand: Value) -> StrongReleaseInst {
+    let release = bridged.createStrongRelease(operand.bridged)
+    return notifyNew(release.getAs(StrongReleaseInst.self))
   }
 
   public func createFunctionRef(_ function: Function) -> FunctionRefInst {
@@ -184,4 +208,37 @@ public struct Builder {
     let ui = bridged.createUnreachable()
     return notifyNew(ui.getAs(UnreachableInst.self))
   }
+
+  @discardableResult
+  public func createObject(type: Type, arguments: [Value], numBaseElements: Int) -> ObjectInst {
+    let objectInst = arguments.withBridgedValues { valuesRef in
+      return bridged.createObject(type.bridged, valuesRef, numBaseElements)
+    }
+    return notifyNew(objectInst.getAs(ObjectInst.self))
+  }
+
+  public func createGlobalAddr(global: GlobalVariable) -> GlobalAddrInst {
+    return notifyNew(bridged.createGlobalAddr(global.bridged).getAs(GlobalAddrInst.self))
+  }
+
+  public func createGlobalValue(global: GlobalVariable) -> GlobalValueInst {
+    return notifyNew(bridged.createGlobalValue(global.bridged).getAs(GlobalValueInst.self))
+  }
+
+  @discardableResult
+  public func createStruct(type: Type, elements: [Value]) -> StructInst {
+    let structInst = elements.withBridgedValues { valuesRef in
+      return bridged.createStruct(type.bridged, valuesRef)
+    }
+    return notifyNew(structInst.getAs(StructInst.self))
+  }
+
+  @discardableResult
+  public func createTuple(type: Type, elements: [Value]) -> TupleInst {
+    let tuple = elements.withBridgedValues { valuesRef in
+      return bridged.createTuple(type.bridged, valuesRef)
+    }
+    return notifyNew(tuple.getAs(TupleInst.self))
+  }
+
 }

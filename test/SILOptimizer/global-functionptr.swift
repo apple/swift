@@ -16,6 +16,7 @@
 
 // REQUIRES: executable_test
 // REQUIRES: swift_stdlib_no_asserts,optimized_stdlib
+// REQUIRES: swift_in_compiler
 
 internal protocol P {
   init()
@@ -36,7 +37,7 @@ public struct S: P {
 }
 
 // CHECK-SIL-LABEL: sil_global private @$s4Test8funcPtrs{{.*}}_WZTv_ : $_ContiguousArrayStorage<FuncPtr> = {
-// CHECK-SIL: %0 = function_ref @$s4Test7FuncPtr{{.*}}Tg5 : $@convention(thin) () -> ()
+// CHECK-SIL: %{{[0-9]+}} = function_ref @$s4Test7FuncPtr{{.*}}Tg5 : $@convention(thin) () -> ()
 // CHECK-SIL: %initval = object $_ContiguousArrayStorage<FuncPtr> ({{%[0-9]+}} : $_ArrayBody, [tail_elems] {{%[0-9]+}} : $FuncPtr, {{%[0-9]+}} : $FuncPtr)
 private let funcPtrs = [
   FuncPtr(S.self),

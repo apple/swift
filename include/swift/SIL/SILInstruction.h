@@ -2294,11 +2294,11 @@ protected:
     return const_cast<AllocRefInstBase*>(this)->getTypeStorage();
   }
 
+public:
   unsigned getNumTailTypes() const {
     return sharedUInt8().AllocRefInstBase.numTailTypes;
   }
 
-public:
   bool canAllocOnStack() const {
     return sharedUInt8().AllocRefInstBase.onStack;
   }
@@ -4246,10 +4246,10 @@ class StringLiteralInst final
 
 public:
   enum class Encoding {
-    Bytes,
-    UTF8,
+    Bytes = 0,
+    UTF8 = 1,
     /// UTF-8 encoding of an Objective-C selector.
-    ObjCSelector,
+    ObjCSelector = 2,
   };
 
 private:
@@ -6232,6 +6232,8 @@ class ObjectInst final : public InstructionBaseWithTrailingOperands<
                             ValueOwnershipKind forwardingOwnershipKind);
 
 public:
+  unsigned getNumBaseElements() const { return numBaseElements; }
+
   /// All elements referenced by this ObjectInst.
   MutableArrayRef<Operand> getElementOperands() {
     return getAllOperands();

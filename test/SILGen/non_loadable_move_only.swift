@@ -1,4 +1,5 @@
 // RUN: %target-swift-emit-silgen -module-name=test -primary-file %s | %FileCheck %s
+// RUN: %target-swift-emit-sil -O -sil-verify-all %s
 
 @_moveOnly
 public struct GenericMoveOnly<T> {

@@ -267,6 +267,29 @@ public:
     });
   }
 
+  bool isBuiltinInteger() const {
+    return is<BuiltinIntegerType>();
+  }
+
+  bool isBuiltinFixedWidthInteger(unsigned width) const {
+    BuiltinIntegerType *bi = getAs<BuiltinIntegerType>();
+    return bi && bi->isFixedWidth(width);
+  }
+
+  bool isBuiltinFloat() const {
+    return is<BuiltinFloatType>();
+  }
+
+  bool isBuiltinVector() const {
+    return is<BuiltinVectorType>();
+  }
+
+  SWIFT_IMPORT_UNSAFE
+  SILType getBuiltinVectorElementType() const {
+    auto vector = castTo<BuiltinVectorType>();
+    return getPrimitiveObjectType(vector.getElementType());
+  }
+
   /// Retrieve the NominalTypeDecl for a type that maps to a Swift
   /// nominal or bound generic nominal type.
   SWIFT_IMPORT_UNSAFE

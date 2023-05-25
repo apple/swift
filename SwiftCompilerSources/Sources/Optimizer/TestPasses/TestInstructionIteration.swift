@@ -53,7 +53,7 @@ let testInstructionIteration = FunctionPass(name: "test-instruction-iteration") 
 private func handle(instruction: Instruction, _ context: FunctionPassContext) {
   print(instruction)
   if let sl = instruction as? StringLiteralInst {
-    switch sl.string {
+    switch sl.value {
       case "delete_strings":
         deleteAllInstructions(ofType: StringLiteralInst.self, in: instruction.parentBlock, context)
       case "delete_ints":

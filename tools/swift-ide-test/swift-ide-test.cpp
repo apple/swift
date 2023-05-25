@@ -2007,7 +2007,6 @@ static int doSyntaxColoring(const CompilerInvocation &InitInvok,
         Invocation.getTypeCheckerOptions(), Invocation.getSILOptions(),
         Invocation.getModuleName());
 
-    registerParseRequestFunctions(Parser.getParser().Context.evaluator);
     registerTypeCheckerRequestFunctions(Parser.getParser().Context.evaluator);
     registerClangImporterRequestFunctions(Parser.getParser().Context.evaluator);
 
@@ -2236,7 +2235,6 @@ static int doStructureAnnotation(const CompilerInvocation &InitInvok,
                     Invocation.getTypeCheckerOptions(),
                     Invocation.getSILOptions(), Invocation.getModuleName());
 
-  registerParseRequestFunctions(Parser.getParser().Context.evaluator);
   registerTypeCheckerRequestFunctions(
       Parser.getParser().Context.evaluator);
   registerClangImporterRequestFunctions(Parser.getParser().Context.evaluator);

@@ -1709,7 +1709,7 @@ for host in "${ALL_HOSTS[@]}"; do
             libcxx)
                 build_targets=(cxx)
                 cmake_options=(
-                    -DLLVM_ENABLE_RUNTIMES="libcxx" -DLIBCXX_INSTALL_LIBRARY=OFF
+                    -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi" -DLIBCXX_INSTALL_LIBRARY=OFF
                     "${cmake_options[@]}"
                     "${llvm_cmake_options[@]}"
                 )
@@ -2126,6 +2126,7 @@ for host in "${ALL_HOSTS[@]}"; do
                 cmark_build_dir=$(build_directory ${host} cmark)
                 lldb_build_dir=$(build_directory ${host} lldb)
                 swift_build_dir=$(build_directory ${host} swift)
+                libcxx_build_dir=$(build_directory ${host} libcxx)
 
                 # Add any lldb extra cmake arguments here.
 
@@ -2205,6 +2206,7 @@ for host in "${ALL_HOSTS[@]}"; do
                     -DLLDB_ENABLE_LZMA=OFF
                     -DLLDB_ENABLE_LUA=OFF
                     -DLLDB_INCLUDE_TESTS:BOOL=$(false_true ${BUILD_TOOLCHAIN_ONLY})
+                    -DLLDB_TEST_LIBCXX_ROOT_DIR:STRING="${libcxx_build_dir}"
                     -DLLDB_TEST_USER_ARGS="${DOTEST_ARGS}"
                 )
 
@@ -2648,10 +2650,6 @@ for host in "${ALL_HOSTS[@]}"; do
             fi
             with_pushd "${build_dir}" \
                 call env "${EXTRA_DISTCC_OPTIONS[@]}" "${CMAKE}" "${cmake_options[@]}" "${EXTRA_CMAKE_OPTIONS[@]}" "${source_dir}"
-        fi
-
-        if [[ "${product}" == "libcxx" ]]; then
-            continue
         fi
 
         # Build.

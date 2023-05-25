@@ -28,6 +28,14 @@ import objc_implementation_private
     // OK
   }
 
+  func methodFromHeader5() -> CInt {
+    return 1 // OK
+  }
+
+  func method(fromHeader6: CInt) {
+    // OK
+  }
+
   @objc fileprivate func methodNot(fromHeader1: CInt) {
     // OK, declares a new @objc dynamic method.
   }
@@ -54,21 +62,25 @@ import objc_implementation_private
     set {}
   }
 
-  @objc let propertyFromHeader5: CInt
-  // FIXME: bad, needs to be settable
+  @objc var propertyFromHeader5: CInt
 
   @objc var propertyFromHeader6: CInt {
-    // FIXME: bad, needs a setter
     get { return 1 }
+    set {}
   }
 
   @objc var propertyFromHeader7: CInt {
     get { return 1 }
+    set {}
   }
 
   var propertyFromHeader8: CInt
 
   @objc var propertyFromHeader9: CInt
+
+  @objc var propertyFromHeader10: CInt
+
+  @objc var propertyFromHeader11: CInt
 
   @objc var readonlyPropertyFromHeader1: CInt
   // OK, provides an implementation with a stored property that's nonpublicly settable
@@ -136,6 +148,7 @@ import objc_implementation_private
 
   class func classMethod1(_: CInt) {}
   class func classMethod2(_: CInt) {}
+  class func classMethod3(_: CInt) {}
 
   func instanceMethod1(_: CInt) {}
   func instanceMethod2(_: CInt) {}

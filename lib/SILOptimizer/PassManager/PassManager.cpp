@@ -13,10 +13,12 @@
 #define DEBUG_TYPE "sil-passmanager"
 
 #include "swift/SILOptimizer/PassManager/PassManager.h"
+#include "swift/AST/ASTMangler.h"
 #include "swift/AST/SILOptimizerRequests.h"
 #include "swift/Basic/BridgingUtils.h"
 #include "swift/Demangling/Demangle.h"
 #include "swift/SIL/ApplySite.h"
+#include "swift/SIL/SILCloner.h"
 #include "swift/SIL/SILFunction.h"
 #include "swift/SIL/SILModule.h"
 #include "swift/SILOptimizer/Analysis/AliasAnalysis.h"
@@ -1380,6 +1382,7 @@ void SwiftPassInvocation::endPassRunChecks() {
   assert(allocatedSlabs.empty() && "StackList is leaking slabs");
   assert(numBlockSetsAllocated == 0 && "Not all BasicBlockSets deallocated");
   assert(numNodeSetsAllocated == 0 && "Not all NodeSets deallocated");
+  assert(numClonersAllocated == 0 && "Not all cloners deallocated");
   assert(!needFixStackNesting && "Stack nesting not fixed");
 }
 
@@ -1471,19 +1474,41 @@ bool BridgedPassContext::specializeAppliesInFunction(BridgedFunction function, b
   return ::specializeAppliesInFunction(*function.getFunction(), invocation->getTransform(), isMandatory);
 }
 
-void BridgedPassContext::createStaticInitializer(BridgedGlobalVar global, BridgedInstruction initValue) const {
-  StaticInitCloner::appendToInitializer(global.getGlobal(), initValue.getAs<SingleValueInstruction>());
+namespace  {
+class GlobalVariableMangler : public Mangle::ASTMangler {
+public:
+  std::string mangleOutlinedVariable(SILFunction *F, int &uniqueIdx) {
+    std::string GlobName;
+    do {
+      beginManglingWithoutPrefix();
+      appendOperator(F->getName());
+      appendOperator("Tv", Index(uniqueIdx++));
+      GlobName = finalize();
+    } while (F->getModule().lookUpGlobalVariable(GlobName));
+
+    return GlobName;
+  }
+};
+} // namespace
+
+std::string BridgedPassContext::mangleOutlinedVariable(BridgedFunction function) const {
+  int idx = 0;
+  SILFunction *f = function.getFunction();
+  SILModule &mod = f->getModule();
+  while (true) {
+    GlobalVariableMangler mangler;
+    std::string name = mangler.mangleOutlinedVariable(f, idx);
+    if (!mod.lookUpGlobalVariable(name))
+      return name;
+    idx++;
+  }
 }
 
-BridgedPassContext::StaticInitCloneResult BridgedPassContext::
-copyStaticInitializer(BridgedValue initValue, BridgedBuilder b) const {
-  swift::SILBuilder builder(b.insertBefore.getInst(), b.insertAtEnd.getBlock(), b.loc.getScope());
-  StaticInitCloner cloner(builder);
-  if (!cloner.add(initValue.getSILValue())) {
-    return {{nullptr}, {nullptr}};
-  }
-  SILValue result = cloner.clone(initValue.getSILValue());
-  return {{cloner.getFirstClonedInst()->asSILNode()}, {result}};
+BridgedGlobalVar BridgedPassContext::createGlobalVariable(StringRef name, SILType type, bool isPrivate) const {
+  return {SILGlobalVariable::create(*invocation->getPassManager()->getModule(),
+                                    isPrivate ? SILLinkage::Private : SILLinkage::Public,
+                                    IsNotSerialized,
+                                    name, type)};
 }
 
 void BridgedPassContext::fixStackNesting(BridgedFunction function) const {
@@ -1498,6 +1523,22 @@ void BridgedPassContext::fixStackNesting(BridgedFunction function) const {
       break;
   }
   invocation->setNeedFixStackNesting(false);
+}
+
+OptionalBridgedFunction BridgedPassContext::lookupStdlibFunction(llvm::StringRef name) const {
+  swift::SILModule *mod = invocation->getPassManager()->getModule();
+  SmallVector<ValueDecl *, 1> results;
+  mod->getASTContext().lookupInSwiftModule(name, results);
+  if (results.size() != 1)
+    return {nullptr};
+
+  auto *decl = dyn_cast<FuncDecl>(results.front());
+  if (!decl)
+    return {nullptr};
+
+  SILDeclRef declRef(decl, SILDeclRef::Kind::Func);
+  SILOptFunctionBuilder funcBuilder(*invocation->getTransform());
+  return {funcBuilder.getOrCreateFunction(SILLocation(decl), declRef, NotForDefinition)};
 }
 
 bool BridgedPassContext::enableSimplificationFor(BridgedInstruction inst) const {
@@ -1528,4 +1569,74 @@ CalleeList BridgedCalleeAnalysis::getCallees(BridgedValue callee) const {
 // TODO: can't be inlined to work around https://github.com/apple/swift/issues/64502
 CalleeList BridgedCalleeAnalysis::getDestructors(SILType type, bool isExactType) const {
   return ca->getDestructors(type, isExactType);
+}
+
+// Need to put ClonerWithFixedLocation into namespace swift to forward reference
+// it in OptimizerBridging.h.
+namespace swift {
+
+class ClonerWithFixedLocation : public SILCloner<ClonerWithFixedLocation> {
+  friend class SILInstructionVisitor<ClonerWithFixedLocation>;
+  friend class SILCloner<ClonerWithFixedLocation>;
+
+  SILDebugLocation insertLoc;
+
+public:
+  ClonerWithFixedLocation(SILGlobalVariable *gVar)
+  : SILCloner<ClonerWithFixedLocation>(gVar),
+  insertLoc(ArtificialUnreachableLocation(), nullptr) {}
+
+  ClonerWithFixedLocation(SILInstruction *insertionPoint)
+  : SILCloner<ClonerWithFixedLocation>(*insertionPoint->getFunction()),
+  insertLoc(insertionPoint->getDebugLocation()) {
+    Builder.setInsertionPoint(insertionPoint);
+  }
+
+  SILValue getClonedValue(SILValue v) {
+    return getMappedValue(v);
+  }
+
+  void cloneInst(SILInstruction *inst) {
+    visit(inst);
+  }
+
+protected:
+
+  SILLocation remapLocation(SILLocation loc) {
+    return insertLoc.getLocation();
+  }
+
+  const SILDebugScope *remapScope(const SILDebugScope *DS) {
+    return insertLoc.getScope();
+  }
+};
+
+} // namespace swift
+
+BridgedCloner::BridgedCloner(BridgedGlobalVar var, BridgedPassContext context)
+  : cloner(new ClonerWithFixedLocation(var.getGlobal())) {
+  context.invocation->notifyNewCloner();
+}
+
+BridgedCloner::BridgedCloner(BridgedInstruction inst, BridgedPassContext context)
+  : cloner(new ClonerWithFixedLocation(inst.getInst())) {
+  context.invocation->notifyNewCloner();
+}
+
+void BridgedCloner::destroy(BridgedPassContext context) {
+  delete cloner;
+  cloner = nullptr;
+  context.invocation->notifyClonerDestroyed();
+}
+
+BridgedValue BridgedCloner::getClonedValue(BridgedValue v) {
+  return {cloner->getClonedValue(v.getSILValue())};
+}
+
+bool BridgedCloner::isValueCloned(BridgedValue v) const {
+  return cloner->isValueCloned(v.getSILValue());
+}
+
+void BridgedCloner::clone(BridgedInstruction inst) {
+  cloner->cloneInst(inst.getInst());
 }

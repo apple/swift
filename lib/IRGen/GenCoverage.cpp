@@ -84,15 +84,19 @@ void IRGenModule::emitCoverageMaps(ArrayRef<const SILCoverageMap *> Mappings) {
                              llvm::getCoverageUnusedNamesVarName());
   }
 
-  std::vector<StringRef> Files;
+  llvm::DenseMap<StringRef, unsigned> RawFileIndices;
+  llvm::SmallVector<StringRef, 8> RawFiles;
   for (const auto &M : Mappings) {
-    if (std::find(Files.begin(), Files.end(), M->getFilename()) == Files.end())
-      Files.push_back(M->getFilename());
+    auto Filename = M->getFilename();
+    auto Inserted = RawFileIndices.insert({Filename, RawFiles.size()}).second;
+    if (!Inserted)
+      continue;
+    RawFiles.push_back(Filename);
   }
   const auto &Remapper = getOptions().CoveragePrefixMap;
 
   llvm::SmallVector<std::string, 8> FilenameStrs;
-  FilenameStrs.reserve(Files.size() + 1);
+  FilenameStrs.reserve(RawFiles.size() + 1);
 
   // First element needs to be the current working directory. Note if this
   // scheme ever changes, the FileID computation below will need updating.
@@ -103,7 +107,7 @@ void IRGenModule::emitCoverageMaps(ArrayRef<const SILCoverageMap *> Mappings) {
   // Following elements are the filenames present. We use their relative path,
   // which llvm-cov will turn back into absolute paths using the working
   // directory element.
-  for (auto Name : Files)
+  for (auto Name : RawFiles)
     FilenameStrs.emplace_back(Remapper.remapPath(Name));
 
   // Encode the filenames.
@@ -130,9 +134,11 @@ void IRGenModule::emitCoverageMaps(ArrayRef<const SILCoverageMap *> Mappings) {
 
     // The file ID needs to be bumped by 1 to account for the working directory
     // as the first element.
-    unsigned FileID = 1 +
-                      std::find(Files.begin(), Files.end(), M->getFilename()) -
-                      Files.begin();
+    unsigned FileID = [&]() {
+      auto Result = RawFileIndices.find(M->getFilename());
+      assert(Result != RawFileIndices.end());
+      return Result->second + 1;
+    }();
     assert(FileID < FilenameStrs.size());
 
     std::vector<CounterMappingRegion> Regions;

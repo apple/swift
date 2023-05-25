@@ -507,11 +507,11 @@ void FieldSensitivePrunedLiveBlocks::updateForUse(
 
   auto *bb = user->getParent();
   getBlockLiveness(bb, startBitNo, endBitNo, resultingLivenessInfo);
+  assert(resultingLivenessInfo.size() == (endBitNo - startBitNo));
 
-  for (auto pair : llvm::enumerate(resultingLivenessInfo)) {
-    unsigned index = pair.index();
+  for (unsigned index : indices(resultingLivenessInfo)) {
     unsigned specificBitNo = startBitNo + index;
-    switch (pair.value()) {
+    switch (resultingLivenessInfo[index]) {
     case LiveOut:
     case LiveWithin:
       continue;
@@ -519,7 +519,7 @@ void FieldSensitivePrunedLiveBlocks::updateForUse(
       // This use block has not yet been marked live. Mark it and its
       // predecessor blocks live.
       computeScalarUseBlockLiveness(bb, specificBitNo);
-      resultingLivenessInfo.push_back(getBlockLiveness(bb, specificBitNo));
+      resultingLivenessInfo[index] = getBlockLiveness(bb, specificBitNo);
       continue;
     }
     }
@@ -537,6 +537,7 @@ FieldSensitivePrunedLiveBlocks::getStringRef(IsLive isLive) const {
   case LiveOut:
     return "LiveOut";
   }
+  llvm_unreachable("Covered switch?!");
 }
 
 void FieldSensitivePrunedLiveBlocks::print(llvm::raw_ostream &OS) const {

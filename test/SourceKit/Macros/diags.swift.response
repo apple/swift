@@ -44,6 +44,15 @@
         key.buffer_name: diags.swift
       },
       key.buffer_name: "@__swiftmacro_9MacroUser3Bad7InvalidfMp_.swift"
+    },
+    {
+      key.buffer_text: "func foo() {\n  var x = 0\n  _ = x\n}",
+      key.original_location: {
+        key.offset: 748,
+        key.length: 0,
+        key.buffer_name: diags.swift
+      },
+      key.buffer_name: "@__swiftmacro_9MacroUser1S18addMemberWithFixItfMm_.swift"
     }
   ],
   key.diagnostics: [
@@ -170,6 +179,30 @@
             {
               key.offset: 486,
               key.length: 13
+            }
+          ]
+        }
+      ]
+    },
+    {
+      key.line: 2,
+      key.column: 7,
+      key.filepath: "@__swiftmacro_9MacroUser1S18addMemberWithFixItfMm_.swift",
+      key.severity: source.diagnostic.severity.warning,
+      key.id: "variable_never_mutated",
+      key.description: "variable 'x' was never mutated; consider changing to 'let' constant",
+      key.diagnostics: [
+        {
+          key.line: 24,
+          key.column: 1,
+          key.filepath: diags.swift,
+          key.severity: source.diagnostic.severity.note,
+          key.id: "in_macro_expansion",
+          key.description: "in expansion of macro 'addMemberWithFixIt' here",
+          key.ranges: [
+            {
+              key.offset: 738,
+              key.length: 11
             }
           ]
         }

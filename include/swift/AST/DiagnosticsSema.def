@@ -1645,6 +1645,20 @@ ERROR(objc_implementation_wrong_category,none,
       "%select{main class interface|category %3}3",
       (DescriptiveDeclKind, ValueDecl *, Identifier, Identifier))
 
+ERROR(objc_implementation_wrong_decl_kind,none,
+      "%0 %1 does not match the %2 declared by the header",
+      (DescriptiveDeclKind, ValueDecl *, DescriptiveDeclKind))
+
+ERROR(objc_implementation_must_be_settable,none,
+      "%0 %1 should be settable to match the settable %2 declared by the "
+      "header",
+      (DescriptiveDeclKind, ValueDecl *, DescriptiveDeclKind))
+
+ERROR(objc_implementation_type_mismatch,none,
+      "%0 %1 of type %2 does not match type %3 declared by the "
+      "header",
+      (DescriptiveDeclKind, ValueDecl *, Type, Type))
+
 ERROR(objc_implementation_wrong_objc_name,none,
       "selector %0 for %1 %2 not found in header; did you mean %3?",
       (ObjCSelector, DescriptiveDeclKind, ValueDecl *, ObjCSelector))

@@ -165,6 +165,16 @@ func arrayWithEmptyElements() -> [Empty] {
   return [Empty()]
 }
 
+// CHECK-LABEL: sil hidden [noinline] @$s4test13arrayOfTuplesSaySi_SbtGyF :
+// CHECK:         global_value @$s4test13arrayOfTuplesSaySi_SbtGyFTv_ :
+// CHECK-NOT:     store
+// CHECK-NOT:     apply
+// CHECK:       } // end sil function '$s4test13arrayOfTuplesSaySi_SbtGyF'
+@inline(never)
+func arrayOfTuples() -> [(Int, Bool)] {
+  return [(1, false), (2, true), (3, false)]
+}
+
 // CHECK-LABEL: sil {{.*}}returnDictionary{{.*}} : $@convention(thin) () -> @owned Dictionary<Int, Int> {
 // CHECK:   global_value @{{.*}}returnDictionary{{.*}}
 // CHECK:   return
@@ -215,6 +225,10 @@ print(gg!)
 print(functionArray()[0](100) + functionArray()[1](100) + functionArray()[2](100))
 // CHECK-OUTPUT-NEXT: 27
 print(FStr.globalFunc(27))
+
+let tuples = arrayOfTuples()
+// CHECK-OUTPUT-NEXT: tuples [(1, false), (2, true), (3, false)]
+print("tuples \(tuples)")
 
 let dict = returnDictionary()
 // CHECK-OUTPUT-NEXT: dict 3: 2, 4, 6

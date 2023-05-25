@@ -79,6 +79,10 @@ typedef struct {
   /// (Clang) modules on which the bridging header depends.
   swiftscan_string_set_t *bridging_module_dependencies;
 
+  /// (Swift) module dependencies by means of being overlays of
+  /// Clang module dependencies
+  swiftscan_string_set_t *swift_overlay_module_dependencies;
+
   /// Options to the compile command required to build this module interface
   swiftscan_string_set_t *command_line;
 

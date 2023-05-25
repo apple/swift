@@ -64,11 +64,21 @@ public struct StringRef : CustomStringConvertible, NoReflectionChildren {
 
   public var string: String { _bridged.string }
   public var description: String { string }
-  
+
+  public var count: Int {
+    Int(_bridged.__bytes_endUnsafe() - _bridged.__bytes_beginUnsafe())
+  }
+
+  public subscript(index: Int) -> UInt8 {
+    let buffer = UnsafeBufferPointer<UInt8>(start: _bridged.__bytes_beginUnsafe(),
+                                            count: count)
+    return buffer[index]
+  }
+
   public static func ==(lhs: StringRef, rhs: StaticString) -> Bool {
     let lhsBuffer = UnsafeBufferPointer<UInt8>(
       start: lhs._bridged.__bytes_beginUnsafe(),
-      count: Int(lhs._bridged.__bytes_endUnsafe() - lhs._bridged.__bytes_beginUnsafe()))
+      count: lhs.count)
     return rhs.withUTF8Buffer { (rhsBuffer: UnsafeBufferPointer<UInt8>) in
       if lhsBuffer.count != rhsBuffer.count { return false }
       return lhsBuffer.elementsEqual(rhsBuffer, by: ==)

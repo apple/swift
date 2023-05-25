@@ -28,3 +28,6 @@ SWIFT_REQUEST(Parse, ParseSourceFileRequest,
 SWIFT_REQUEST(Parse, ParseTopLevelDeclsRequest,
               ArrayRef<Decl *>(SourceFile *), Cached,
               NoLocationInfo)
+SWIFT_REQUEST(Parse, ExportedSourceFileRequest,
+              void *(const SourceFile *), Cached,
+              NoLocationInfo)

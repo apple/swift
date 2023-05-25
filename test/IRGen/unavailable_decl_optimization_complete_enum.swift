@@ -10,6 +10,8 @@
 // CHECK-NO-STRIP: private constant [25 x i8] c"unavailableEnumFirstCase\00"
 // CHECK-STRIP-NOT: private constant [25 x i8] c"unavailableEnumFirstCase\00"
 
+@available(*, unavailable)
+public struct UnavailableStruct {}
 
 public enum AvailableEnum {
   case availableEnumAvailableCase
@@ -17,15 +19,17 @@ public enum AvailableEnum {
   @available(*, unavailable)
   case availableEnumUnavailableCase
 
+  @available(*, unavailable)
+  case availableEnumUnavailableCaseWithAssociatedValue(UnavailableStruct)
+
   // CHECK-NO-STRIP: s4Test13AvailableEnumO17unavailableMethodyyF
   // CHECK-STRIP-NOT: s4Test13AvailableEnumO17unavailableMethodyyF
   @available(*, unavailable)
   public func unavailableMethod() {}
-
-  // CHECK: s4Test13AvailableEnumO21__derived_enum_equalsySbAC_ACtFZ
-  // CHECK: s4Test13AvailableEnumO4hash4intoys6HasherVz_tF
-  // CHECK: s4Test13AvailableEnumO9hashValueSivg
 }
+
+// CHECK-NO-STRIP: s4Test17UnavailableStructVMa
+// CHECK-STRIP-NOT: s4Test17UnavailableStructVMa
 
 @available(*, unavailable)
 public enum UnavailableEnum {

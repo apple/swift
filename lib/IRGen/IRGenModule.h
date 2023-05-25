@@ -36,6 +36,7 @@
 #include "swift/IRGen/ValueWitness.h"
 #include "swift/SIL/RuntimeEffect.h"
 #include "swift/SIL/SILFunction.h"
+#include "swift/SIL/SILModule.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/Hashing.h"
@@ -455,6 +456,7 @@ public:
   }
 
   void noteLazyReemissionOfNominalTypeDescriptor(NominalTypeDecl *decl) {
+    assert(!Lowering::shouldSkipLowering(decl));
     LazilyReemittedTypeContextDescriptors.insert(decl);
   }
 
@@ -464,6 +466,7 @@ public:
   }
 
   void noteUseOfMetadataAccessor(NominalTypeDecl *decl) {
+    assert(!Lowering::shouldSkipLowering(decl));
     if (LazyMetadataAccessors.count(decl) == 0) {
       LazyMetadataAccessors.insert(decl);
     }

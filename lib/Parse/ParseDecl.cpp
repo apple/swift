@@ -209,9 +209,7 @@ extern "C" void swift_ASTGen_buildTopLevelASTNodes(void *sourceFile,
 void Parser::parseTopLevelItems(SmallVectorImpl<ASTNode> &items) {
 #if SWIFT_SWIFT_PARSER
   Optional<DiagnosticTransaction> existingParsingTransaction;
-  if (!SF.getParsingOptions()
-      .contains(SourceFile::ParsingFlags::DisableSwiftParserASTGen))
-    parseSourceFileViaASTGen(items, existingParsingTransaction);
+  parseSourceFileViaASTGen(items, existingParsingTransaction);
 #endif
 
   // Prime the lexer.
@@ -261,42 +259,83 @@ void Parser::parseTopLevelItems(SmallVectorImpl<ASTNode> &items) {
   }
 
 #if SWIFT_SWIFT_PARSER
-  if (!SF.getParsingOptions().contains(
-          SourceFile::ParsingFlags::DisableSwiftParserASTGen)) {
-    if (existingParsingTransaction)
-      existingParsingTransaction->abort();
+  if (existingParsingTransaction)
+    existingParsingTransaction->abort();
 
-    // Perform round-trip and/or validation checking.
-    if ((Context.LangOpts.hasFeature(Feature::ParserRoundTrip) ||
-         Context.LangOpts.hasFeature(Feature::ParserValidation)) &&
-        SF.exportedSourceFile &&
-        !SourceMgr.hasIDEInspectionTargetBuffer()) {
-      if (Context.LangOpts.hasFeature(Feature::ParserRoundTrip) &&
-          swift_ASTGen_roundTripCheck(SF.exportedSourceFile)) {
-        SourceLoc loc;
-        if (auto bufferID = SF.getBufferID()) {
+  using ParsingFlags = SourceFile::ParsingFlags;
+  const auto parsingOpts = SF.getParsingOptions();
+
+  // If we don't need to validate anything, we're done.
+  if (!parsingOpts.contains(ParsingFlags::RoundTrip) &&
+      !parsingOpts.contains(ParsingFlags::ValidateNewParserDiagnostics)) {
+    return;
+  }
+
+  auto *exportedSourceFile = SF.getExportedSourceFile();
+  if (!exportedSourceFile)
+    return;
+
+  // Perform round-trip and/or validation checking.
+  if (parsingOpts.contains(ParsingFlags::RoundTrip) &&
+      swift_ASTGen_roundTripCheck(exportedSourceFile)) {
+    SourceLoc loc;
+    if (auto bufferID = SF.getBufferID()) {
+      loc = Context.SourceMgr.getLocForBufferStart(*bufferID);
+    }
+    diagnose(loc, diag::parser_round_trip_error);
+    return;
+  }
+  if (parsingOpts.contains(ParsingFlags::ValidateNewParserDiagnostics) &&
+      !Context.Diags.hadAnyError()) {
+    auto hadSyntaxError = swift_ASTGen_emitParserDiagnostics(
+        &Context.Diags, exportedSourceFile,
+        /*emitOnlyErrors=*/true,
+        /*downgradePlaceholderErrorsToWarnings=*/
+        Context.LangOpts.Playground ||
+            Context.LangOpts.WarnOnEditorPlaceholder);
+    if (hadSyntaxError) {
+      // We might have emitted warnings in the C++ parser but no errors, in
+      // which case we still have `hadAnyError() == false`. To avoid
+      // emitting the same warnings from SwiftParser, only emit errors from
+      // SwiftParser
+      SourceLoc loc;
+      if (auto bufferID = SF.getBufferID()) {
           loc = Context.SourceMgr.getLocForBufferStart(*bufferID);
-        }
-        diagnose(loc, diag::parser_round_trip_error);
-      } else if (Context.LangOpts.hasFeature(Feature::ParserValidation) &&
-                 !Context.Diags.hadAnyError() &&
-                 swift_ASTGen_emitParserDiagnostics(
-                     &Context.Diags, SF.exportedSourceFile,
-                     /*emitOnlyErrors=*/true,
-                     /*downgradePlaceholderErrorsToWarnings=*/
-                     Context.LangOpts.Playground ||
-                         Context.LangOpts.WarnOnEditorPlaceholder)) {
-        // We might have emitted warnings in the C++ parser but no errors, in
-        // which case we still have `hadAnyError() == false`. To avoid emitting
-        // the same warnings from SwiftParser, only emit errors from SwiftParser
-        SourceLoc loc;
-        if (auto bufferID = SF.getBufferID()) {
-          loc = Context.SourceMgr.getLocForBufferStart(*bufferID);
-        }
-        diagnose(loc, diag::parser_new_parser_errors);
       }
+      diagnose(loc, diag::parser_new_parser_errors);
     }
   }
+#endif
+}
+
+void *ExportedSourceFileRequest::evaluate(Evaluator &evaluator,
+                                          const SourceFile *SF) const {
+#if SWIFT_SWIFT_PARSER
+  // The SwiftSyntax parser doesn't (yet?) handle SIL.
+  if (SF->Kind == SourceFileKind::SIL)
+    return nullptr;
+
+  auto &ctx = SF->getASTContext();
+  auto &SM = ctx.SourceMgr;
+
+  auto bufferID = SF->getBufferID();
+  if (!bufferID)
+    return nullptr;
+
+  StringRef contents = SM.extractText(SM.getRangeForBuffer(*bufferID));
+
+  // Parse the source file.
+  auto exportedSourceFile = swift_ASTGen_parseSourceFile(
+      contents.begin(), contents.size(),
+      SF->getParentModule()->getName().str().str().c_str(),
+      SF->getFilename().str().c_str());
+
+  ctx.addCleanup([exportedSourceFile] {
+    swift_ASTGen_destroySourceFile(exportedSourceFile);
+  });
+  return exportedSourceFile;
+#else
+  return nullptr;
 #endif
 }
 
@@ -305,48 +344,48 @@ Parser::parseSourceFileViaASTGen(SmallVectorImpl<ASTNode> &items,
                                  Optional<DiagnosticTransaction> &transaction,
                                  bool suppressDiagnostics) {
 #if SWIFT_SWIFT_PARSER
-  Optional<DiagnosticTransaction> existingParsingTransaction;
-  if (SF.Kind != SourceFileKind::SIL) {
-    StringRef contents =
-        SourceMgr.extractText(SourceMgr.getRangeForBuffer(L->getBufferID()));
+  const auto &langOpts = Context.LangOpts;
 
-    // Parse the source file.
-    auto exportedSourceFile = swift_ASTGen_parseSourceFile(
-        contents.begin(), contents.size(),
-        SF.getParentModule()->getName().str().str().c_str(),
-        SF.getFilename().str().c_str());
-    SF.exportedSourceFile = exportedSourceFile;
-    Context.addCleanup([exportedSourceFile] {
-      swift_ASTGen_destroySourceFile(exportedSourceFile);
-    });
+  // We only need to do parsing if we either have ASTGen enabled, or want the
+  // new parser diagnostics.
+  auto needToParse = [&]() {
+    if (langOpts.hasFeature(Feature::ParserASTGen))
+      return true;
+    if (!suppressDiagnostics &&
+        langOpts.hasFeature(Feature::ParserDiagnostics)) {
+      return true;
+    }
+    return false;
+  }();
+  if (!needToParse)
+    return;
 
-    // If we're supposed to emit diagnostics from the parser, do so now.
-    if ((Context.LangOpts.hasFeature(Feature::ParserDiagnostics) ||
-         Context.LangOpts.hasFeature(Feature::ParserASTGen)) &&
-        !suppressDiagnostics &&
-        swift_ASTGen_emitParserDiagnostics(
-            &Context.Diags, SF.exportedSourceFile, /*emitOnlyErrors=*/false,
-            /*downgradePlaceholderErrorsToWarnings=*/
-                Context.LangOpts.Playground ||
-                Context.LangOpts.WarnOnEditorPlaceholder) &&
-        Context.Diags.hadAnyError() &&
-        !Context.LangOpts.hasFeature(Feature::ParserASTGen)) {
+  auto *exportedSourceFile = SF.getExportedSourceFile();
+  if (!exportedSourceFile)
+    return;
+
+  // If we're supposed to emit diagnostics from the parser, do so now.
+  if (!suppressDiagnostics) {
+    auto hadSyntaxError = swift_ASTGen_emitParserDiagnostics(
+        &Context.Diags, exportedSourceFile, /*emitOnlyErrors=*/false,
+        /*downgradePlaceholderErrorsToWarnings=*/langOpts.Playground ||
+            langOpts.WarnOnEditorPlaceholder);
+    if (hadSyntaxError && Context.Diags.hadAnyError() &&
+        !langOpts.hasFeature(Feature::ParserASTGen)) {
       // Errors were emitted, and we're still using the C++ parser, so
       // disable diagnostics from the C++ parser.
       transaction.emplace(Context.Diags);
     }
+  }
 
-    // If we want to do ASTGen, do so now.
-    if (Context.LangOpts.hasFeature(Feature::ParserASTGen)) {
-      swift_ASTGen_buildTopLevelASTNodes(
-          exportedSourceFile, CurDeclContext, &Context, &items, appendToVector);
+  // If we want to do ASTGen, do so now.
+  if (langOpts.hasFeature(Feature::ParserASTGen)) {
+    swift_ASTGen_buildTopLevelASTNodes(exportedSourceFile, CurDeclContext,
+                                       &Context, &items, appendToVector);
 
-      // Spin the C++ parser to the end; we won't be using it.
-      while (!Tok.is(tok::eof)) {
-        consumeToken();
-      }
-
-      return;
+    // Spin the C++ parser to the end; we won't be using it.
+    while (!Tok.is(tok::eof)) {
+      consumeToken();
     }
   }
 #endif

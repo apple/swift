@@ -37,6 +37,7 @@ set(SWIFT_BENCH_MODULES
     single-source/ArrayOfGenericRef
     single-source/ArrayOfPOD
     single-source/ArrayOfRef
+    single-source/ArrayRemoveAll
     single-source/ArraySetElement
     single-source/ArraySubscript
     single-source/BinaryFloatingPointConversionFromBinaryInteger

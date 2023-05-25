@@ -447,11 +447,21 @@ void ModuleDependenciesCache::updateDependency(
 }
 
 void ModuleDependenciesCache::resolveDependencyImports(ModuleDependencyID moduleID,
-                                                       const std::vector<ModuleDependencyID> &dependencyIDs) {
+                                                       const ArrayRef<ModuleDependencyID> dependencyIDs) {
   auto optionalDependencyInfo = findDependency(moduleID.first, moduleID.second);
   assert(optionalDependencyInfo.has_value() && "Resolving unknown dependency");
   // Copy the existing info to a mutable one we can then replace it with, after resolving its dependencies.
   auto dependencyInfo = *(optionalDependencyInfo.value());
   dependencyInfo.resolveDependencies(dependencyIDs);
+  updateDependency(moduleID, dependencyInfo);
+}
+
+void ModuleDependenciesCache::setSwiftOverlayDependencues(ModuleDependencyID moduleID,
+                                                          const ArrayRef<ModuleDependencyID> dependencyIDs) {
+  auto optionalDependencyInfo = findDependency(moduleID.first, moduleID.second);
+  assert(optionalDependencyInfo.has_value() && "Resolving unknown dependency");
+  // Copy the existing info to a mutable one we can then replace it with, after setting its overlay dependencies.
+  auto dependencyInfo = *(optionalDependencyInfo.value());
+  dependencyInfo.setOverlayDependencies(dependencyIDs);
   updateDependency(moduleID, dependencyInfo);
 }

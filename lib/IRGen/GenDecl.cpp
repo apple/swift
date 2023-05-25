@@ -1568,7 +1568,9 @@ void IRGenerator::noteUseOfTypeGlobals(NominalTypeDecl *type,
                                        RequireMetadata_t requireMetadata) {
   if (!type)
     return;
-  
+
+  assert(!Lowering::shouldSkipLowering(type));
+
   // Force emission of ObjC protocol descriptors used by type refs.
   if (auto proto = dyn_cast<ProtocolDecl>(type)) {
     if (proto->isObjC()) {

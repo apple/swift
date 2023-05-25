@@ -86,12 +86,6 @@ struct SwiftModuleDetails: Codable {
   /// The paths of potentially ready-to-use compiled modules for the interface.
   var compiledModuleCandidates: [String]?
 
-  /// The bridging header, if any.
-  var bridgingHeaderPath: String?
-
-  /// The source files referenced by the bridging header.
-  var bridgingSourceFiles: [String]? = []
-
   /// Options to the compile command
   var commandLine: [String]? = []
 
@@ -102,6 +96,12 @@ struct SwiftModuleDetails: Codable {
 
   /// A flag to indicate whether or not this module is a framework.
   var isFramework: Bool
+
+   /// The bridging header info, if any.
+  var bridgingHeader: BridgingHeader?  
+
+  /// A set of Swift Overlays of Clang Module Dependencies
+  var swiftOverlayDependencies: [ModuleDependencyId]?
 }
 
 /// Details specific to Swift placeholder dependencies.

@@ -150,6 +150,10 @@ swiftscan_swift_textual_detail_get_context_hash(
 SWIFTSCAN_PUBLIC bool swiftscan_swift_textual_detail_get_is_framework(
     swiftscan_module_details_t details);
 
+SWIFTSCAN_PUBLIC swiftscan_string_set_t *
+swiftscan_swift_textual_detail_get_swift_overlay_dependencies(
+    swiftscan_module_details_t details);
+
 //=== Swift Binary Module Details query APIs ------------------------------===//
 
 SWIFTSCAN_PUBLIC swiftscan_string_ref_t

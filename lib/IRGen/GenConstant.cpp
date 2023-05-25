@@ -155,6 +155,32 @@ llvm::Constant *emitConstantStructOrTuple(IRGenModule &IGM, InstTy inst,
 }
 } // end anonymous namespace
 
+/// Returns the usub_with_overflow builtin if \p TE extracts the result of
+/// such a subtraction, which is required to have an integer_literal as right
+/// operand.
+static BuiltinInst *getOffsetSubtract(const TupleExtractInst *TE, SILModule &M) {
+  // Match the pattern:
+  // tuple_extract(usub_with_overflow(x, integer_literal, integer_literal 0), 0)
+
+  if (TE->getFieldIndex() != 0)
+    return nullptr;
+
+  auto *BI = dyn_cast<BuiltinInst>(TE->getOperand());
+  if (!BI)
+    return nullptr;
+  if (M.getBuiltinInfo(BI->getName()).ID != BuiltinValueKind::USubOver)
+    return nullptr;
+
+  if (!isa<IntegerLiteralInst>(BI->getArguments()[1]))
+    return nullptr;
+
+  auto *overflowFlag = dyn_cast<IntegerLiteralInst>(BI->getArguments()[2]);
+  if (!overflowFlag || !overflowFlag->getValue().isNullValue())
+    return nullptr;
+
+  return BI;
+}
+
 llvm::Constant *irgen::emitConstantValue(IRGenModule &IGM, SILValue operand) {
   if (auto *SI = dyn_cast<StructInst>(operand)) {
     // The only way to get a struct's stored properties (which we need to map to
@@ -200,8 +226,7 @@ llvm::Constant *irgen::emitConstantValue(IRGenModule &IGM, SILValue operand) {
           // Handle StringObjectOr(tuple_extract(usub_with_overflow(x, offset)), bits)
           // This pattern appears in UTF8 String literal construction.
           // Generate the equivalent: add(x, sub(bits - offset)
-          BuiltinInst *SubtrBI =
-            SILGlobalVariable::getOffsetSubtract(TE, IGM.getSILModule());
+          BuiltinInst *SubtrBI = getOffsetSubtract(TE, IGM.getSILModule());
           assert(SubtrBI && "unsupported argument of StringObjectOr");
           auto *ptr = emitConstantValue(IGM, SubtrBI->getArguments()[0]);
           auto *offset = emitConstantValue(IGM, SubtrBI->getArguments()[1]);

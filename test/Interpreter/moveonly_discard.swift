@@ -1,4 +1,5 @@
 // RUN: %target-run-simple-swift(-Xfrontend -enable-experimental-feature -Xfrontend MoveOnlyEnumDeinits -Xfrontend -sil-verify-all) | %FileCheck %s --implicit-check-not closing
+// RUN: %target-run-simple-swift(-O -Xfrontend -enable-experimental-feature -Xfrontend MoveOnlyEnumDeinits -Xfrontend -sil-verify-all) | %FileCheck %s --implicit-check-not closing
 
 // REQUIRES: executable_test
 

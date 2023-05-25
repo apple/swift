@@ -8,7 +8,7 @@
 
 
 // Debug info SIL testing
-// RUN: %target-swift-frontend -swift-version 5 -emit-sil -enable-experimental-feature FreestandingMacros -load-plugin-library %t/%target-library-name(MacroDefinition) %s -module-name MacroUser -o - -g | %FileCheck --check-prefix CHECK-SIL %s
+// RUN: %target-swift-frontend -swift-version 5 -emit-sil -load-plugin-library %t/%target-library-name(MacroDefinition) %s -module-name MacroUser -o - -g | %FileCheck --check-prefix CHECK-SIL %s
 
 
 @freestanding(expression) public macro multiStatement() -> Int = #externalMacro(module: "MacroDefinition", type: "MultiStatementClosure")

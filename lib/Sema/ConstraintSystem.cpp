@@ -6284,11 +6284,18 @@ Solution::getFunctionArgApplyInfo(ConstraintLocator *locator) const {
             *choice, [this](Type type) -> Type { return simplifyType(type); }))
       fnInterfaceType = fnInterfaceType->castTo<AnyFunctionType>()->getResult();
 
+#ifndef NDEBUG
+    // If variadic generics are not involved, interface type should
+    // always match applied type.
     if (auto *fn = fnInterfaceType->getAs<AnyFunctionType>()) {
-      assert(fn->getNumParams() == fnType->getNumParams() &&
-             "Parameter mismatch?");
-      (void)fn;
+      if (llvm::none_of(fn->getParams(), [&](const auto &param) {
+            return param.getPlainType()->hasParameterPack();
+          })) {
+        assert(fn->getNumParams() == fnType->getNumParams() &&
+               "Parameter mismatch?");
+      }
     }
+#endif
   } else {
     fnInterfaceType = resolveInterfaceType(rawFnType);
   }

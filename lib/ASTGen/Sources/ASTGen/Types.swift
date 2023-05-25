@@ -6,6 +6,11 @@ extension ASTGenVisitor {
   public func visit(_ node: SimpleTypeIdentifierSyntax) -> ASTNode {
     let loc = self.base.advanced(by: node.position.utf8Offset).raw
 
+    // If this is the bare 'Any' keyword, produce an empty composition type.
+    if node.name.tokenKind == .keyword(.Any) && node.genericArgumentClause == nil {
+      return .type(EmptyCompositionTypeRepr_create(self.ctx, loc))
+    }
+
     var text = node.name.text
     let id = text.withUTF8 { buf in
       return SwiftASTContext_getIdentifier(ctx, buf.baseAddress, buf.count)
@@ -19,7 +24,7 @@ extension ASTGenVisitor {
     let rAngle = self.base.advanced(by: generics.rightAngleBracket.position.utf8Offset).raw
     return .type(
       generics.arguments.map({
-        self.visit($0.argumentType)
+        self.visit($0.argumentType).rawValue
       }).withBridgedArrayRef {
           genericArgs in
           GenericIdentTypeRepr_create(
@@ -46,7 +51,7 @@ extension ASTGenVisitor {
         let lAngle = self.base.advanced(by: generics.leftAngleBracket.position.utf8Offset).raw
         let rAngle = self.base.advanced(by: generics.rightAngleBracket.position.utf8Offset).raw
         reverseMemberComponents.append(
-          generics.arguments.map({ self.visit($0.argumentType) }).withBridgedArrayRef {
+          generics.arguments.map({ self.visit($0.argumentType).rawValue }).withBridgedArrayRef {
             genericArgs in
             GenericIdentTypeRepr_create(self.ctx, name, nameLoc, genericArgs, lAngle, rAngle)
           })
@@ -123,9 +128,11 @@ extension ASTGenVisitor {
     assert(node.elements.count > 1)
     let types = node.elements.map { visit($0.type) }.map { $0.rawValue }
     let firstTypeLoc = self.base.advanced(by: node.elements.first!.type.position.utf8Offset).raw
+    let firstAmpOffset = node.elements.first?.ampersand.map { $0.position.utf8Offset } ?? 0
+    let firstAmpLoc = self.base.advanced(by: firstAmpOffset).raw
     return .type(
       types.withBridgedArrayRef { types in
-        return CompositionTypeRepr_create(self.ctx, types, firstTypeLoc)
+        return CompositionTypeRepr_create(self.ctx, types, firstTypeLoc, firstAmpLoc)
       })
   }
 
@@ -161,8 +168,77 @@ extension ASTGenVisitor {
   }
 
   public func visit(_ node: AttributedTypeSyntax) -> ASTNode {
-    // FIXME: Respect the attributes
-    return visit(node.baseType)
+    var type = visit(node.baseType)
+
+    // Handle specifiers.
+    if let specifier = node.specifier {
+      let specifierLoc = self.base.advanced(by: specifier.position.utf8Offset).raw
+
+      let kind: BridgedAttributedTypeSpecifier
+      switch specifier.tokenKind {
+        case .keyword(.inout): kind = .inOut
+        case .keyword(.borrowing): kind = .borrowing
+        case .keyword(.consuming): kind = .consuming
+        case .keyword(.__shared): kind = .legacyShared
+        case .keyword(.__owned): kind = .legacyOwned
+        case .keyword(._const): kind = .const
+        case .keyword(.isolated): kind = .isolated
+        default: fatalError("unhandled specifier \(specifier.debugDescription)")
+      }
+
+      type = .type(AttributedTypeSpecifierRepr_create(self.ctx, type.rawValue, kind, specifierLoc))
+    }
+
+    // Handle type attributes.
+    if let attributes = node.attributes {
+      let typeAttributes = BridgedTypeAttributes_create()
+      for attributeElt in attributes {
+        // FIXME: Ignoring #ifs entirely. We want to provide a filtered view,
+        // but we don't have that ability right now.
+        guard case let .attribute(attribute) = attributeElt else {
+          continue
+        }
+
+        // Only handle simple attribute names right now.
+        guard let identType = attribute.attributeName.as(SimpleTypeIdentifierSyntax.self) else {
+          continue
+        }
+
+        let nameSyntax = identType.name
+        var name = nameSyntax.text
+        let typeAttrKind = name.withUTF8 { buf in
+          getBridgedTypeAttrKindFromString(buf.baseAddress, buf.count)
+        }
+        let atLoc = self.base.advanced(by: attribute.atSignToken.position.utf8Offset).raw
+        let attrLoc = self.base.advanced(by: nameSyntax.position.utf8Offset).raw
+        switch typeAttrKind {
+          // SIL attributes
+          // FIXME: Diagnose if not in SIL mode? Or should that move to the
+          // type checker?
+          case .out, .in, .owned, .unowned_inner_pointer, .guaranteed,
+               .autoreleased, .callee_owned, .callee_guaranteed, .objc_metatype,
+               .sil_weak, .sil_unowned, .inout, .block_storage, .box,
+               .dynamic_self, .sil_unmanaged, .error, .direct, .inout_aliasable,
+               .in_guaranteed, .in_constant, .captures_generics, .moveOnly:
+            fallthrough
+
+          case .autoclosure, .escaping, .noescape, .noDerivative, .async,
+            .sendable, .unchecked, ._local, ._noMetadata, .pack_owned,
+            .pack_guaranteed, .pack_inout, .pack_out, .pseudogeneric,
+            .yields, .yield_once, .yield_many, .thin, .thick, .count:
+            BridgedTypeAttributes_addSimpleAttr(typeAttributes, typeAttrKind, atLoc, attrLoc)
+
+          case .opened, .pack_element, .differentiable, .convention,
+            ._opaqueReturnTypeOf:
+            // FIXME: These require more complicated checks
+            break
+        }
+      }
+
+      type = .type(AttributedTypeRepr_create(self.ctx, type.rawValue, typeAttributes))
+    }
+
+    return type
   }
 }
 
@@ -186,7 +262,13 @@ extension ASTGenVisitor {
         self.base.advanced(by: $0.position.utf8Offset).raw
       }
       let colonLoc = element.colon.map { self.base.advanced(by: $0.position.utf8Offset).raw }
-      let type = visit(element.type).rawValue
+
+      var type = visit(element.type).rawValue
+      if let ellipsis = element.ellipsis {
+        let ellipsisLoc = self.base.advanced(by: ellipsis.positionAfterSkippingLeadingTrivia.utf8Offset).raw
+        type = VarargTypeRepr_create(self.ctx, type, ellipsisLoc)
+      }
+
       let trailingCommaLoc = element.trailingComma.map {
         self.base.advanced(by: $0.position.utf8Offset).raw
       }
@@ -206,4 +288,38 @@ extension ASTGenVisitor {
       return action(elements)
     }
   }
+}
+
+@_cdecl("swift_ASTGen_buildTypeRepr")
+@usableFromInline
+func buildTypeRepr(
+  sourceFilePtr: UnsafeRawPointer,
+  typeLocPtr: UnsafePointer<UInt8>,
+  dc: UnsafeMutableRawPointer,
+  ctx: UnsafeMutableRawPointer,
+  endTypeLocPtr: UnsafeMutablePointer<UnsafePointer<UInt8>?>
+) -> UnsafeMutableRawPointer? {
+  let sourceFile = sourceFilePtr.bindMemory(
+    to: ExportedSourceFile.self, capacity: 1
+  )
+
+  // Find the type syntax node.
+  guard let typeSyntax = findSyntaxNodeInSourceFile(
+    sourceFilePtr: sourceFilePtr,
+    sourceLocationPtr: typeLocPtr,
+    type: TypeSyntax.self,
+    wantOutermost: true
+  ) else {
+    // FIXME: Produce an error
+    return nil
+  }
+
+  // Fill in the end location.
+  endTypeLocPtr.pointee = sourceFile.pointee.buffer.baseAddress!.advanced(by: typeSyntax.endPosition.utf8Offset)
+
+  // Convert the type syntax node.
+  let typeReprNode = ASTGenVisitor(ctx: ctx, base: sourceFile.pointee.buffer.baseAddress!, declContext: dc)
+    .visit(typeSyntax)
+
+  return typeReprNode.rawValue
 }

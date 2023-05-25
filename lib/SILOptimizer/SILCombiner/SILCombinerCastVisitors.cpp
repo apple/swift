@@ -484,13 +484,6 @@ SILCombiner::visitUncheckedAddrCastInst(UncheckedAddrCastInst *UADCI) {
     return Builder.createUncheckedAddrCast(UADCI->getLoc(),
                                            OtherUADCI->getOperand(),
                                            UADCI->getType());
-
-  // (unchecked_addr_cast cls->superclass) -> (upcast cls->superclass)
-  if (UADCI->getType() != UADCI->getOperand()->getType() &&
-      UADCI->getType().isExactSuperclassOf(UADCI->getOperand()->getType()))
-    return Builder.createUpcast(UADCI->getLoc(), UADCI->getOperand(),
-                                UADCI->getType());
-
   return nullptr;
 }
 

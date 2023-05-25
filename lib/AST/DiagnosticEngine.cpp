@@ -1264,11 +1264,36 @@ DiagnosticEngine::diagnosticInfoForDiagnostic(const Diagnostic &diagnostic) {
   else if (isNoUsageDiagnostic(diagnostic.getID()))
     Category = "no-usage";
 
+  auto fixIts = diagnostic.getFixIts();
+  if (loc.isValid()) {
+    // If the diagnostic is being emitted in a generated buffer, drop the
+    // fix-its, as the user will have no way of applying them.
+    auto bufferID = SourceMgr.findBufferContainingLoc(loc);
+    if (auto generatedInfo = SourceMgr.getGeneratedSourceInfo(bufferID)) {
+      switch (generatedInfo->kind) {
+      case GeneratedSourceInfo::ExpressionMacroExpansion:
+      case GeneratedSourceInfo::FreestandingDeclMacroExpansion:
+      case GeneratedSourceInfo::AccessorMacroExpansion:
+      case GeneratedSourceInfo::MemberAttributeMacroExpansion:
+      case GeneratedSourceInfo::MemberMacroExpansion:
+      case GeneratedSourceInfo::PeerMacroExpansion:
+      case GeneratedSourceInfo::ConformanceMacroExpansion:
+      case GeneratedSourceInfo::PrettyPrinted:
+        fixIts = {};
+        break;
+      case GeneratedSourceInfo::ReplacedFunctionBody:
+        // A replaced function body is for user-written code, so fix-its are
+        // still valid.
+        break;
+      }
+    }
+  }
+
   return DiagnosticInfo(
       diagnostic.getID(), loc, toDiagnosticKind(behavior),
       diagnosticStringFor(diagnostic.getID(), getPrintDiagnosticNames()),
       diagnostic.getArgs(), Category, getDefaultDiagnosticLoc(),
-      /*child note info*/ {}, diagnostic.getRanges(), diagnostic.getFixIts(),
+      /*child note info*/ {}, diagnostic.getRanges(), fixIts,
       diagnostic.isChildNote());
 }
 

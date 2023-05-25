@@ -9,8 +9,8 @@
 // CHECK-DUMP:   Module map file: {{.*[/\\]}}Inputs{{/|\\}}custom-modules{{/|\\}}module.map
 
 // Verify that the clang command-line used is cc1
-// RUN: %FileCheck -check-prefix CHECK-CLANG %s < %t.diags.txt
-// CHECK-CLANG: '{{.*[/\\]}}clang'{{.*}}'-fmodules'
+// RUN: %FileCheck -check-prefix CHECK-CLANG -DTRIPLE=%target-triple %s < %t.diags.txt
+// CHECK-CLANG: '{{.*[/\\]}}module.map' '-o' '{{.*[/\\]}}script.pcm' '-fmodules' '-triple' '[[TRIPLE]]' '-x' 'objective-c'
 
 import script
 var _ : ScriptTy

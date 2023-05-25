@@ -17,14 +17,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "BytecodeLayouts.h"
-#include "WeakReference.h"
 #include "../SwiftShims/swift/shims/HeapObject.h"
+#include "WeakReference.h"
 #include "swift/ABI/MetadataValues.h"
 #include "swift/ABI/System.h"
 #include "swift/Runtime/Error.h"
 #include "swift/Runtime/HeapObject.h"
 #include "llvm/Support/SwapByteOrder.h"
 #include <cstdint>
+#include <limits>
 #if SWIFT_OBJC_INTEROP
 #include "swift/Runtime/ObjCBridge.h"
 #include <Block.h>
@@ -119,6 +120,65 @@ const DestroyFuncAndMask destroyTable[] = {
   {(DestrFn)&existential_destroy, false},
 };
 
+uint64_t readTagBytes(uint8_t *addr, uint8_t byteCount) {
+  switch (byteCount) {
+  case 1:
+    return addr[0];
+  case 2:
+    return ((uint16_t *)addr)[0];
+  case 4:
+    return ((uint32_t *)addr)[0];
+  case 8:
+    return ((uint64_t *)addr)[0];
+  default:
+    swift_unreachable("Unsupported tag byte length.");
+  }
+}
+
+void handleSinglePayloadEnumSimple(const uint8_t *typeLayout, size_t &offset,
+                                   uint8_t *addr, size_t &addrOffset) {
+  auto byteCountsAndOffset = readBytes<uint64_t>(typeLayout, offset);
+  auto extraTagBytesPattern = (uint8_t)(byteCountsAndOffset >> 62);
+  auto xiTagBytesPattern = ((uint8_t)(byteCountsAndOffset >> 59)) & 0x7;
+  auto xiTagBytesOffset =
+      byteCountsAndOffset & std::numeric_limits<uint32_t>::max();
+
+  if (extraTagBytesPattern) {
+    auto extraTagBytes = 1 << (extraTagBytesPattern - 1);
+    auto payloadSize = readBytes<size_t>(typeLayout, offset);
+    auto tagBytes =
+        readTagBytes(addr + addrOffset + payloadSize, extraTagBytes);
+    if (tagBytes) {
+      offset += sizeof(uint64_t) + sizeof(size_t);
+      goto noPayload;
+    }
+  } else {
+    offset += sizeof(size_t);
+  }
+
+  if (xiTagBytesPattern) {
+    auto zeroTagValue = readBytes<uint64_t>(typeLayout, offset);
+    auto xiTagValues = readBytes<size_t>(typeLayout, offset);
+
+    auto xiTagBytes = 1 << (xiTagBytesPattern - 1);
+    uint64_t tagBytes =
+        readTagBytes(addr + addrOffset + xiTagBytesOffset, xiTagBytes) -
+        zeroTagValue;
+    if (tagBytes >= xiTagValues) {
+      offset += sizeof(size_t) * 2;
+      return;
+    }
+  } else {
+    offset += sizeof(uint64_t) + sizeof(size_t);
+  }
+
+noPayload:
+  auto refCountBytes = readBytes<size_t>(typeLayout, offset);
+  auto skip = readBytes<size_t>(typeLayout, offset);
+  offset += refCountBytes;
+  addrOffset += skip;
+}
+
 extern "C" void
 swift_generic_destroy(swift::OpaqueValue *address, const Metadata *metadata) {
   uint8_t *addr = (uint8_t *)address;
@@ -142,6 +202,9 @@ swift_generic_destroy(swift::OpaqueValue *address, const Metadata *metadata) {
     } else if (SWIFT_UNLIKELY(tag == RefCountingKind::Resilient)) {
       auto *type = getResilientTypeMetadata(metadata, typeLayout, offset);
       type->vw_destroy((OpaqueValue *)(addr + addrOffset));
+    } else if (SWIFT_UNLIKELY(tag ==
+                              RefCountingKind::SinglePayloadEnumSimple)) {
+      handleSinglePayloadEnumSimple(typeLayout, offset, addr, addrOffset);
     } else {
       const auto &destroyFunc = destroyTable[static_cast<uint8_t>(tag)];
       if (SWIFT_LIKELY(destroyFunc.isIndirect)) {
@@ -228,6 +291,10 @@ swift_generic_initWithCopy(swift::OpaqueValue *dest, swift::OpaqueValue *src,
       auto *type = getResilientTypeMetadata(metadata, typeLayout, offset);
       type->vw_initializeWithCopy((OpaqueValue*)((uintptr_t)dest + addrOffset),
                                   (OpaqueValue*)((uintptr_t)src + addrOffset));
+    } else if (SWIFT_UNLIKELY(tag ==
+                              RefCountingKind::SinglePayloadEnumSimple)) {
+      handleSinglePayloadEnumSimple(typeLayout, offset, (uint8_t *)src,
+                                    addrOffset);
     } else {
       const auto &retainFunc = retainTable[static_cast<uint8_t>(tag)];
       if (SWIFT_LIKELY(retainFunc.isSingle)) {
@@ -294,6 +361,13 @@ swift_generic_initWithTake(swift::OpaqueValue *dest, swift::OpaqueValue *src,
       }
       break;
     }
+
+    case RefCountingKind::SinglePayloadEnumSimple: {
+      handleSinglePayloadEnumSimple(typeLayout, offset, (uint8_t *)src,
+                                    addrOffset);
+      break;
+    }
+
     case RefCountingKind::End:
       return dest;
     default:

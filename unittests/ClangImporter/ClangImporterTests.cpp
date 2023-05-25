@@ -86,7 +86,7 @@ TEST(ClangImporterTest, emitPCHInMemory) {
 
   std::string PCH = createFilename(cache, "bridging.h.pch");
   ASSERT_FALSE(importer->canReadPCH(PCH));
-  ASSERT_FALSE(importer->emitBridgingPCH(options.BridgingHeader, PCH));
+  ASSERT_FALSE(importer->emitBridgingPCH(options.BridgingHeader, PCH, true));
   ASSERT_TRUE(importer->canReadPCH(PCH));
 
   // Overwrite the PCH with garbage.  We should still be able to read it from

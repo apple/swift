@@ -62,6 +62,11 @@
                       langOpts.hasFeature(#FeatureName))
 #endif
 
+#ifndef EXPERIMENTAL_FEATURE_EXCLUDED_FROM_MODULE_INTERFACE
+#  define EXPERIMENTAL_FEATURE_EXCLUDED_FROM_MODULE_INTERFACE(FeatureName, AvailableInProd) \
+     EXPERIMENTAL_FEATURE(FeatureName, AvailableInProd)
+#endif
+
 LANGUAGE_FEATURE(AsyncAwait, 296, "async/await", true)
 LANGUAGE_FEATURE(EffectfulProp, 310, "Effectful properties", true)
 LANGUAGE_FEATURE(MarkerProtocol, 0, "@_marker protocol", true)
@@ -102,6 +107,7 @@ LANGUAGE_FEATURE(AttachedMacros, 389, "Attached macros", hasSwiftSwiftParser)
 LANGUAGE_FEATURE(MoveOnly, 390, "noncopyable types", true)
 LANGUAGE_FEATURE(ParameterPacks, 393, "Value and type parameter packs", true)
 SUPPRESSIBLE_LANGUAGE_FEATURE(LexicalLifetimes, 0, "@_eagerMove/@_noEagerMove/@_lexicalLifetimes annotations", true)
+LANGUAGE_FEATURE(FreestandingMacros, 397, "freestanding declaration macros", true)
 
 UPCOMING_FEATURE(ConciseMagicFile, 274, 6)
 UPCOMING_FEATURE(ForwardTrailingClosures, 286, 6)
@@ -113,7 +119,6 @@ EXPERIMENTAL_FEATURE(StaticAssert, false)
 EXPERIMENTAL_FEATURE(VariadicGenerics, false)
 EXPERIMENTAL_FEATURE(NamedOpaqueTypes, false)
 EXPERIMENTAL_FEATURE(FlowSensitiveConcurrencyCaptures, false)
-EXPERIMENTAL_FEATURE(FreestandingMacros, true)
 EXPERIMENTAL_FEATURE(CodeItemMacros, true)
 EXPERIMENTAL_FEATURE(TupleConformances, false)
 
@@ -134,8 +139,8 @@ EXPERIMENTAL_FEATURE(ModuleInterfaceExportAs, true)
 EXPERIMENTAL_FEATURE(AccessLevelOnImport, true)
 
 /// Whether to enable experimental layout string value witnesses
-EXPERIMENTAL_FEATURE(LayoutStringValueWitnesses, true)
-EXPERIMENTAL_FEATURE(LayoutStringValueWitnessesInstantiation, true)
+EXPERIMENTAL_FEATURE_EXCLUDED_FROM_MODULE_INTERFACE(LayoutStringValueWitnesses, true)
+EXPERIMENTAL_FEATURE_EXCLUDED_FROM_MODULE_INTERFACE(LayoutStringValueWitnessesInstantiation, true)
 
 /// Whether to enable experimental differentiable programming features:
 /// `@differentiable` declaration attribute, etc.
@@ -174,6 +179,10 @@ EXPERIMENTAL_FEATURE(ImplicitSome, false)
 /// corresponding syntax tree.
 EXPERIMENTAL_FEATURE(ParserASTGen, false)
 
+/// Use the syntax tree produced by the Swift (swift-syntax) parser for type
+/// parsing, using ASTGen to translate them into AST nodes.
+EXPERIMENTAL_FEATURE(ASTGenTypes, false)
+
 /// Parse using the Swift (swift-syntax) parser and use ASTGen to generate the
 /// corresponding syntax tree.
 EXPERIMENTAL_FEATURE(BuiltinMacros, false)
@@ -196,6 +205,7 @@ EXPERIMENTAL_FEATURE(ReferenceBindings, false)
 /// Enable the explicit 'import Builtin' and allow Builtin usage.
 EXPERIMENTAL_FEATURE(BuiltinModule, true)
 
+#undef EXPERIMENTAL_FEATURE_EXCLUDED_FROM_MODULE_INTERFACE
 #undef EXPERIMENTAL_FEATURE
 #undef UPCOMING_FEATURE
 #undef SUPPRESSIBLE_LANGUAGE_FEATURE

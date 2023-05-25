@@ -2,6 +2,8 @@
 // RUN: %target-swift-frontend -Osize -emit-ir  %s | %FileCheck %s
 // REQUIRES: swift_stdlib_no_asserts,optimized_stdlib
 
+// REQUIRES: swift_in_compiler
+
 // We have a separate test for 32-bit architectures.
 // REQUIRES: PTRSIZE=64
 

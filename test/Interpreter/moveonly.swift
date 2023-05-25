@@ -1,4 +1,5 @@
-// RUN: %target-run-simple-swift(-Xfrontend -sil-verify-all)
+// RUN: %target-run-simple-swift(-O -Xfrontend -sil-verify-all)
+// this test takes a long time, so run this once with optimizations on.
 
 // REQUIRES: executable_test
 

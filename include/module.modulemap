@@ -1,0 +1,48 @@
+module BasicBridging {
+  header "swift/Basic/BridgedSwiftObject.h"
+  header "swift/Basic/BasicBridging.h"
+  header "swift/Basic/SourceLoc.h"
+  requires cplusplus
+  export *
+}
+
+module CBasicBridging {
+  header "swift/Basic/CBasicBridging.h"
+}
+
+module ASTBridging {
+  header "swift/AST/AnyFunctionRef.h"
+  header "swift/AST/ASTBridging.h"
+  header "swift/AST/Builtins.h"
+  header "swift/AST/DiagnosticEngine.h"
+  header "swift/AST/DiagnosticConsumer.h"
+  header "swift/AST/ForeignAsyncConvention.h"
+  header "swift/AST/ForeignErrorConvention.h"
+  header "swift/AST/SubstitutionMap.h"
+
+  textual header "swift/AST/Builtins.def"
+
+  requires cplusplus
+  export *
+}
+
+module CASTBridging {
+  header "swift/AST/CASTBridging.h"
+}
+
+module SILBridging {
+  header "swift/SIL/SILBridging.h"
+  header "swift/SIL/SILLocation.h"
+  requires cplusplus
+  export *
+}
+
+module OptimizerBridging {
+  header "swift/SILOptimizer/OptimizerBridging.h"
+  export *
+}
+
+module _RegexParserBridging {
+  header "swift/Parse/RegexParserBridging.h"
+  export *
+}

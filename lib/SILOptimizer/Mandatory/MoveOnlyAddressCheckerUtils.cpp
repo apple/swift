@@ -1867,6 +1867,18 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
     if (!leafRange)
       return false;
 
+    // Now check if we have a destructure through deinit. If we do, emit an
+    // error.
+    unsigned numDiagnostics =
+        moveChecker.diagnosticEmitter.getDiagnosticCount();
+    checkForDestructureThroughDeinit(markedValue, op, *leafRange,
+                                     diagnosticEmitter);
+    if (numDiagnostics != moveChecker.diagnosticEmitter.getDiagnosticCount()) {
+      LLVM_DEBUG(llvm::dbgs()
+                 << "Emitting destructure through deinit error!\n");
+      return true;
+    }
+
     LLVM_DEBUG(llvm::dbgs() << "Pure consuming use: " << *user);
     useState.takeInsts.insert({user, *leafRange});
     return true;

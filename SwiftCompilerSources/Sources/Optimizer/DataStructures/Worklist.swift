@@ -74,3 +74,4 @@ struct Worklist<Set: IntrusiveSet> : CustomStringConvertible, NoReflectionChildr
 
 typealias BasicBlockWorklist = Worklist<BasicBlockSet>
 typealias InstructionWorklist = Worklist<InstructionSet>
+typealias ValueWorklist = Worklist<ValueSet>

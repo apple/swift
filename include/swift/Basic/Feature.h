@@ -66,6 +66,10 @@ llvm::Optional<Feature> getExperimentalFeature(llvm::StringRef name);
 /// \c None if it does not have such a version.
 llvm::Optional<unsigned> getFeatureLanguageVersion(Feature feature);
 
+/// Determine whether this feature should be included in the
+/// module interface
+bool includeInModuleInterface(Feature feature);
+
 }
 
 #endif // SWIFT_BASIC_FEATURES_H

@@ -115,6 +115,13 @@ extension ApplySite {
     }
     return nil
   }
+
+  public func hasSemanticsAttribute(_ attr: StaticString) -> Bool {
+    if let callee = referencedFunction {
+      return callee.hasSemanticsAttribute(attr)
+    }
+    return false
+  }
 }
 
 public protocol FullApplySite : ApplySite {

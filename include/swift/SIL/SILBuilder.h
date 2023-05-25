@@ -133,19 +133,6 @@ public:
     setInsertionPoint(I);
   }
 
-  // Used by swift bridging.
-  explicit SILBuilder(SILInstruction *I, SILBasicBlock *BB,
-                      const SILDebugScope *debugScope)
-      : TempContext((BB ? BB->getParent() : I->getFunction())->getModule()),
-        C(TempContext), F(BB ? BB->getParent() : I->getFunction()),
-        CurDebugScope(debugScope) {
-    if (I) {
-      setInsertionPoint(I);
-    } else {
-      setInsertionPoint(BB);
-    }
-  }
-
   explicit SILBuilder(SILBasicBlock::iterator I,
                       SmallVectorImpl<SILInstruction *> *InsertedInstrs = 0)
       : SILBuilder(&*I, InsertedInstrs) {}
@@ -154,6 +141,12 @@ public:
                       SmallVectorImpl<SILInstruction *> *InsertedInstrs = 0)
       : TempContext(BB->getParent()->getModule(), InsertedInstrs),
         C(TempContext), F(BB->getParent()) {
+    setInsertionPoint(BB);
+  }
+
+  explicit SILBuilder(SILBasicBlock *BB, const SILDebugScope *debugScope)
+      : TempContext(BB->getParent()->getModule()),
+        C(TempContext), F(BB->getParent()), CurDebugScope(debugScope) {
     setInsertionPoint(BB);
   }
 
@@ -1155,6 +1148,7 @@ public:
 
   UpcastInst *createUpcast(SILLocation Loc, SILValue Op, SILType Ty,
                            ValueOwnershipKind forwardingOwnershipKind) {
+    assert(Ty.isObject());
     return insert(UpcastInst::create(getSILDebugLocation(Loc), Op, Ty,
                                      getFunction(), forwardingOwnershipKind));
   }

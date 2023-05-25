@@ -135,7 +135,7 @@ in the following ``C.array1`` and ``D.array1`` will be accessed directly
 
   func usingC(_ c: C) {
     c.array1[i] = ... // Can directly access C.array without going through dynamic dispatch.
-    c.doSomething() = ... // Can directly call C.doSomething without going through virtual dispatch.
+    c.doSomething()   // Can directly call C.doSomething without going through virtual dispatch.
   }
 
   func usingD(_ d: D) {

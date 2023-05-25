@@ -1827,8 +1827,11 @@ static ProtocolConformanceRef getPackTypeConformance(
     patternConformances.push_back(patternConformance);
   }
 
-  return ProtocolConformanceRef(
-      PackConformance::get(type, protocol, patternConformances));
+  auto *conformance = PackConformance::get(type, protocol, patternConformances);
+  if (conformance->isInvalid())
+    return ProtocolConformanceRef::forInvalid();
+
+  return ProtocolConformanceRef(conformance);
 }
 
 ProtocolConformanceRef
@@ -3687,6 +3690,10 @@ SourceFile::getDefaultParsingOptions(const LangOptions &langOpts) {
     opts |= ParsingFlags::DisablePoundIfEvaluation;
   if (langOpts.CollectParsedToken)
     opts |= ParsingFlags::CollectParsedTokens;
+  if (langOpts.hasFeature(Feature::ParserRoundTrip))
+    opts |= ParsingFlags::RoundTrip;
+  if (langOpts.hasFeature(Feature::ParserValidation))
+    opts |= ParsingFlags::ValidateNewParserDiagnostics;
   return opts;
 }
 
@@ -3760,6 +3767,11 @@ ArrayRef<ASTNode> SourceFile::getTopLevelItems() const {
 
 ArrayRef<Decl *> SourceFile::getHoistedDecls() const {
   return Hoisted;
+}
+
+void *SourceFile::getExportedSourceFile() const {
+  auto &eval = getASTContext().evaluator;
+  return evaluateOrDefault(eval, ExportedSourceFileRequest{this}, nullptr);
 }
 
 void SourceFile::addDeclWithRuntimeDiscoverableAttrs(ValueDecl *decl) {

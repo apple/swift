@@ -1087,7 +1087,8 @@ class ClassExistentialTypeInfo final
           ScalarKind::TriviallyDestroyable));
     }
 
-    return IGM.typeLayoutCache.getOrCreateAlignedGroupEntry(alignedGroup, T, getBestKnownAlignment().getValue());
+    return IGM.typeLayoutCache.getOrCreateAlignedGroupEntry(
+        alignedGroup, T, getBestKnownAlignment().getValue(), *this);
   }
 
   /// Given an explosion with multiple pointer elements in them, pack them

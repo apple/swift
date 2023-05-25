@@ -1,6 +1,6 @@
 // REQUIRES: swift_swift_parser
 
-// RUN: %target-typecheck-verify-swift -swift-version 5 -enable-experimental-feature FreestandingMacros -parse-as-library -module-name MacrosTest
+// RUN: %target-typecheck-verify-swift -swift-version 5 -parse-as-library -module-name MacrosTest
 
 // We need this test because top-level freestanding macro expansions are parsed
 // differently in library mode.

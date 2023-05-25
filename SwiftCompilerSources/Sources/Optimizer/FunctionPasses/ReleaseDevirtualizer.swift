@@ -92,7 +92,7 @@ private func tryDevirtualizeReleaseOfObject(
 
   var object: Value = allocRefInstruction
   if object.type != type {
-    object = builder.createUncheckedRefCast(object: object, type: type)
+    object = builder.createUncheckedRefCast(from: object, to: type)
   }
 
   // Do what a release would do before calling the deallocator: set the object

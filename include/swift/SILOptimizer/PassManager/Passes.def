@@ -308,7 +308,7 @@ PASS(NoReturnFolding, "noreturn-folding",
      "Prune Control Flow at No-Return Calls Using SIL unreachable")
 SWIFT_FUNCTION_PASS(ObjCBridgingOptimization, "objc-bridging-opt",
      "Optimize ObjectiveC briging operations")
-PASS(ObjectOutliner, "object-outliner",
+SWIFT_FUNCTION_PASS(ObjectOutliner, "object-outliner",
      "Outlining of Global Objects")
 PASS(Outliner, "outliner",
      "Function Outlining Optimization")
@@ -480,6 +480,7 @@ SWIFT_SILCOMBINE_PASS(BeginCOWMutationInst)
 SWIFT_SILCOMBINE_PASS(GlobalValueInst)
 SWIFT_SILCOMBINE_PASS(StrongRetainInst)
 SWIFT_SILCOMBINE_PASS(StrongReleaseInst)
+SWIFT_SILCOMBINE_PASS(LoadInst)
 
 #undef IRGEN_PASS
 #undef SWIFT_MODULE_PASS

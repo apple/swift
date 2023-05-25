@@ -43,6 +43,8 @@ enum class RefCountingKind : uint8_t {
   Existential = 0x0e,
   Resilient = 0x0f,
 
+  SinglePayloadEnumSimple = 0x10,
+
   Skip = 0x80,
   // We may use the MSB as flag that a count follows,
   // so all following values are reserved

@@ -6040,6 +6040,13 @@ EnumImplStrategy::get(TypeConverter &TC, SILType type, EnumDecl *theEnum) {
       continue;
     }
 
+    // For the purposes of memory layout, treat unavailable cases as if they do
+    // not have a payload.
+    if (Lowering::shouldSkipLowering(elt)) {
+      elementsWithNoPayload.push_back({elt, nullptr, nullptr});
+      continue;
+    }
+
     // If the payload is indirect, we can use the NativeObject type metadata
     // without recurring. The box won't affect loadability or fixed-ness.
     if (elt->isIndirect() || theEnum->isIndirect()) {

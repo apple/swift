@@ -8356,6 +8356,13 @@ ConstraintSystem::SolutionKind ConstraintSystem::simplifyConformsToConstraint(
     if (path.back().is<LocatorPathElt::PackElement>())
       path.pop_back();
 
+    // This is similar to `PackElement` but locator points to the requirement
+    // associted with pack expansion pattern (i.e. `repeat each T: P`) where
+    // the path is something like:
+    // `... -> type req # -> pack expansion pattern`.
+    if (path.back().is<LocatorPathElt::PackExpansionPattern>())
+      path.pop_back();
+
     if (auto req = path.back().getAs<LocatorPathElt::AnyRequirement>()) {
       // If this is a requirement associated with `Self` which is bound
       // to `Any`, let's consider this "too incorrect" to continue.

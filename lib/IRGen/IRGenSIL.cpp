@@ -6813,17 +6813,6 @@ void IRGenSILFunction::visitKeyPathInst(swift::KeyPathInst *I) {
 
 void IRGenSILFunction::visitUpcastInst(swift::UpcastInst *i) {
   auto toTy = getTypeInfo(i->getType()).getSchema()[0].getScalarType();
-
-  // If we have an address, just bitcast, don't explode.
-  if (i->getOperand()->getType().isAddress()) {
-    Address fromAddr = getLoweredAddress(i->getOperand());
-    llvm::Value *toValue = Builder.CreateBitCast(
-      fromAddr.getAddress(), toTy->getPointerTo());
-    Address Addr(toValue, toTy, fromAddr.getAlignment());
-    setLoweredAddress(i, Addr);
-    return;
-  }
-
   Explosion from = getLoweredExplosion(i->getOperand());
   Explosion to;
   assert(from.size() == 1 && "class should explode to single value");

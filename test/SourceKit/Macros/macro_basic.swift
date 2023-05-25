@@ -109,8 +109,8 @@ macro anonymousTypes(_: () -> String) = #externalMacro(module: "MacroDefinition"
 // EXPAND-NEXT: 4:7-4:24 (@__swiftmacro_9MacroUser13testStringify1a1bySi_SitF9stringifyfMf_.swift) "(a + b, "a + b")"
 
 //##-- cursor-info on macro declaration
-// RUN: %sourcekitd-test -req=cursor -pos=57:1 -cursor-action -req-opts=retrieve_symbol_graph=1 %s -- ${COMPILER_ARGS[@]} -parse-as-library -enable-experimental-feature FreestandingMacros | %FileCheck -check-prefix=CURSOR_MACRO_DECL %s
-// RUN: %sourcekitd-test -req=cursor -pos=57:2 -cursor-action -req-opts=retrieve_symbol_graph=1 %s -- ${COMPILER_ARGS[@]} -parse-as-library -enable-experimental-feature FreestandingMacros | %FileCheck -check-prefix=CURSOR_MACRO_DECL %s
+// RUN: %sourcekitd-test -req=cursor -pos=57:1 -cursor-action -req-opts=retrieve_symbol_graph=1 %s -- ${COMPILER_ARGS[@]} -parse-as-library | %FileCheck -check-prefix=CURSOR_MACRO_DECL %s
+// RUN: %sourcekitd-test -req=cursor -pos=57:2 -cursor-action -req-opts=retrieve_symbol_graph=1 %s -- ${COMPILER_ARGS[@]} -parse-as-library | %FileCheck -check-prefix=CURSOR_MACRO_DECL %s
 // CURSOR_MACRO_DECL: source.lang.swift.ref.macro (55:7-55:21)
 // CURSOR_MACRO_DECL-LABEL: SYMBOL GRAPH BEGIN
 // CURSOR_MACRO_DECL: "identifier": {
@@ -128,8 +128,8 @@ macro anonymousTypes(_: () -> String) = #externalMacro(module: "MacroDefinition"
 // CURSOR_MACRO_DECL: ACTIONS END
 
 //##-- Expansion on macro declaration
-// RUN: %sourcekitd-test -req=refactoring.expand.macro -pos=57:1 %s -- ${COMPILER_ARGS[@]} -parse-as-library -enable-experimental-feature FreestandingMacros | %FileCheck -check-prefix=EXPAND_MACRO_DECL %s
-// RUN: %sourcekitd-test -req=refactoring.expand.macro -pos=57:2 %s -- ${COMPILER_ARGS[@]} -parse-as-library -enable-experimental-feature FreestandingMacros | %FileCheck -check-prefix=EXPAND_MACRO_DECL %s
+// RUN: %sourcekitd-test -req=refactoring.expand.macro -pos=57:1 %s -- ${COMPILER_ARGS[@]} -parse-as-library | %FileCheck -check-prefix=EXPAND_MACRO_DECL %s
+// RUN: %sourcekitd-test -req=refactoring.expand.macro -pos=57:2 %s -- ${COMPILER_ARGS[@]} -parse-as-library | %FileCheck -check-prefix=EXPAND_MACRO_DECL %s
 // EXPAND_MACRO_DECL: source.edit.kind.active:
 // EXPAND_MACRO_DECL-NEXT: 57:1-57:28 (@__swiftmacro_9MacroUser33_70D4178875715FB9B8B50C58F66F8D53Ll14anonymousTypesfMf0_.swift) "class $s9MacroUser33_70D4178875715FB9B8B50C58F66F8D53Ll14anonymousTypesfMf0_4namefMu_ {
 // EXPAND_MACRO_DECL-NEXT:   func hello() -> String {

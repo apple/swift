@@ -10,6 +10,6 @@
 //
 // ABSOLUTE: @__llvm_coverage_mapping = {{.*"\\02.*root[^/\\]*nested[/\\]*coverage_relative_path\.swift}}
 
-// RUN: %target-swift-frontend -profile-generate -profile-coverage-mapping -Xllvm -enable-name-compression=false -coverage-prefix-map %/t/root=. -emit-ir %/t/root/nested/coverage_relative_path.swift | %FileCheck -check-prefix=RELATIVE %s
+// RUN: %target-swift-frontend -profile-generate -profile-coverage-mapping -Xllvm -enable-name-compression=false -coverage-prefix-map %t/root=. -emit-ir %t/root/nested/coverage_relative_path.swift | %FileCheck -check-prefix=RELATIVE %s
 //
 // RELATIVE: @__llvm_coverage_mapping = {{.*"\\02.*\\01[^/]*\.[/\\]*nested[/\\]*coverage_relative_path\.swift}}

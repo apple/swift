@@ -25,6 +25,7 @@ import ArrayOfGenericPOD
 import ArrayOfGenericRef
 import ArrayOfPOD
 import ArrayOfRef
+import ArrayRemoveAll
 import ArraySetElement
 import ArraySubscript
 import BinaryFloatingPointConversionFromBinaryInteger
@@ -217,6 +218,7 @@ register(ArrayOfGenericPOD.benchmarks)
 register(ArrayOfGenericRef.benchmarks)
 register(ArrayOfPOD.benchmarks)
 register(ArrayOfRef.benchmarks)
+register(ArrayRemoveAll.benchmarks)
 register(ArraySetElement.benchmarks)
 register(ArraySubscript.benchmarks)
 register(BinaryFloatingPointConversionFromBinaryInteger.benchmarks)

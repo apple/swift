@@ -2729,8 +2729,8 @@ void swift::swift_initStructMetadataWithLayoutString(
   const size_t fixedLayoutStringSize = layoutStringHeaderSize +
                                        sizeof(uint64_t) * 2;
 
-  uint8_t *layoutStr = (uint8_t *)malloc(fixedLayoutStringSize +
-                                         refCountBytes);
+  uint8_t *layoutStr = (uint8_t *)MetadataAllocator(LayoutStringTag)
+      .Allocate(fixedLayoutStringSize + refCountBytes, alignof(uint8_t));
 
   *((size_t*)(layoutStr + sizeof(uint64_t))) = refCountBytes;
 

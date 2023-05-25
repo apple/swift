@@ -4,6 +4,8 @@
 // FIXME: check copy-propagation output instead once it is the default mode
 // RUN: %target-sil-opt -enable-objc-interop -enforce-exclusivity=none -enable-sil-verify-all %s -sil-combine -enable-copy-propagation -enable-lexical-lifetimes=false | %FileCheck %s --check-prefix=CHECK_COPYPROP
 
+// REQUIRES: swift_in_compiler
+
 // Declare this SIL to be canonical because some tests break raw SIL
 // conventions. e.g. address-type block args. -enforce-exclusivity=none is also
 // required to allow address-type block args in canonical SIL.
@@ -1480,38 +1482,6 @@ bb0(%0 : @owned $E):
   destroy_value %3 : $NativeObjectStruct
   %res = tuple ()
   return %res : $()
-}
-
-// (load (upcast-addr %x)) -> (upcast-ref (load %x))
-//
-// CHECK-LABEL: sil [ossa] @load_upcast_addr_to_upcast_ref_load_canonicalization : $@convention(thin) (@inout E) -> @owned B {
-// CHECK: bb0
-// CHECK-NEXT: load
-// CHECK-NEXT: upcast
-// CHECK-NEXT: return
-sil [ossa] @load_upcast_addr_to_upcast_ref_load_canonicalization : $@convention(thin) (@inout E) -> @owned B {
-bb0(%0 : $*E):
-  %1 = upcast %0 : $*E to $*B
-  %2 = load [copy] %1 : $*B
-  return %2 : $B
-}
-
-// (load (upcast-addr %x)) -> (upcast-ref (load %x))
-//
-// CHECK-LABEL: sil [ossa] @loadborrow_upcast_addr_to_upcast_ref_load_canonicalization : $@convention(thin) (@inout E) -> @owned B {
-// CHECK: bb0
-// CHECK-NEXT: load_borrow
-// CHECK-NEXT: upcast
-// CHECK-NEXT: copy_value
-// CHECK-NEXT: end_borrow
-// CHECK-NEXT: return
-sil [ossa] @loadborrow_upcast_addr_to_upcast_ref_load_canonicalization : $@convention(thin) (@inout E) -> @owned B {
-bb0(%0 : $*E):
-  %1 = upcast %0 : $*E to $*B
-  %2 = load_borrow %1 : $*B
-  %3 = copy_value %2 : $B
-  end_borrow %2 : $B
-  return %3 : $B
 }
 
 // CHECK-LABEL: sil [ossa] @unchecked_enum_data_of_enum : $@convention(thin) () -> Builtin.Int1 {

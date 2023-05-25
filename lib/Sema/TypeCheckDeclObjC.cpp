@@ -2885,15 +2885,6 @@ class ObjCImplementationChecker {
   /// Candidates with their explicit ObjC names, if any.
   llvm::SmallDenseMap<ValueDecl *, ObjCSelector, 16> unmatchedCandidates;
 
-  /// Key that can be used to uniquely identify a particular Objective-C
-  /// method.
-  using ObjCMethodKey = std::pair<ObjCSelector, char>;
-
-  /// Mapping from Objective-C methods to the set of requirements within this
-  /// protocol that have the same selector and instance/class designation.
-  llvm::SmallDenseMap<ObjCMethodKey, TinyPtrVector<AbstractFunctionDecl *>, 4>
-    objcMethodRequirements;
-
 public:
   ObjCImplementationChecker(ExtensionDecl *ext)
       : diags(ext->getASTContext().Diags)
@@ -2915,8 +2906,30 @@ public:
   }
 
 private:
-  auto getObjCMethodKey(AbstractFunctionDecl *func) const -> ObjCMethodKey {
-    return ObjCMethodKey(func->getObjCSelector(), func->isInstanceMember());
+  static bool hasAsync(ValueDecl *member) {
+    if (!member)
+      return false;
+
+    if (auto func = dyn_cast<AbstractFunctionDecl>(member))
+      return func->hasAsync();
+
+    if (auto storage = dyn_cast<AbstractStorageDecl>(member))
+      return hasAsync(storage->getEffectfulGetAccessor());
+
+    return false;
+  }
+
+  static ValueDecl *getAsyncAlternative(ValueDecl *req) {
+    if (auto func = dyn_cast<AbstractFunctionDecl>(req)) {
+      auto asyncFunc = func->getAsyncAlternative();
+
+      if (auto asyncAccessor = dyn_cast<AccessorDecl>(asyncFunc))
+        return asyncAccessor->getStorage();
+
+      return asyncFunc;
+    }
+
+    return nullptr;
   }
 
   void addRequirements(IterableDeclContext *idc) {
@@ -2932,12 +2945,13 @@ private:
       if (member->getAttrs().isUnavailable(member->getASTContext()))
         continue;
 
+      // Skip async versions of members. We'll match against the completion
+      // handler versions, hopping over to `getAsyncAlternative()` if needed.
+      if (hasAsync(member))
+        continue;
+
       auto inserted = unmatchedRequirements.insert(member);
       assert(inserted && "objc interface member added twice?");
-
-      if (auto func = dyn_cast<AbstractFunctionDecl>(member)) {
-        objcMethodRequirements[getObjCMethodKey(func)].push_back(func);
-      }
     }
   }
 
@@ -2998,6 +3012,9 @@ private:
     WrongImplicitObjCName,
     WrongStaticness,
     WrongCategory,
+    WrongDeclKind,
+    WrongType,
+    WrongWritability,
 
     Match,
     MatchWithExplicitObjCName,
@@ -3030,19 +3047,6 @@ private:
         matches.push_back(newMatch);
     }
   };
-
-  /// Determine whether the set of matched requirements are ambiguous for the
-  /// given candidate.
-  bool areRequirementsAmbiguous(const BestMatchList &reqs, ValueDecl *cand) {
-    if (reqs.matches.size() != 2)
-      return reqs.matches.size() > 2;
-
-    bool firstIsAsyncAlternative =
-      matchesAsyncAlternative(reqs.matches[0], cand);
-    bool secondIsAsyncAlternative =
-      matchesAsyncAlternative(reqs.matches[1], cand);
-    return firstIsAsyncAlternative == secondIsAsyncAlternative;
-  }
 
   void matchRequirementsAtThreshold(MatchOutcome threshold) {
     SmallString<32> scratch;
@@ -3103,14 +3107,11 @@ private:
       // removing them.
       requirementsToRemove.set_union(matchedRequirements.matches);
 
-      if (!areRequirementsAmbiguous(matchedRequirements, cand)) {
+      if (matchedRequirements.matches.size() == 1) {
         // Note that this is BestMatchList::insert(), so it'll only keep the
         // matches with the best outcomes.
-        for (auto req : matchedRequirements.matches) {
-          matchesByRequirement[req]
-            .insert(cand, matchedRequirements.currentOutcome);
-        }
-
+        matchesByRequirement[matchedRequirements.matches.front()]
+          .insert(cand, matchedRequirements.currentOutcome);
         continue;
       }
 
@@ -3192,40 +3193,89 @@ private:
       unmatchedCandidates.erase(cand);
   }
 
-  /// Whether the candidate matches the async alternative of the given
-  /// requirement.
-  bool matchesAsyncAlternative(ValueDecl *req, ValueDecl *cand) const {
-    auto reqFunc = dyn_cast<AbstractFunctionDecl>(req);
-    if (!reqFunc)
-      return false;
+  static bool areSwiftNamesEqual(DeclName lhs, DeclName rhs) {
+    // Conflate `foo()` and `foo`. This allows us to diagnose
+    // method-vs.-property mistakes more nicely.
 
-    auto candFunc = dyn_cast<AbstractFunctionDecl>(cand);
-    if (!candFunc)
-      return false;
+    if (lhs.isCompoundName() && lhs.getArgumentNames().empty())
+      lhs = lhs.getBaseName();
 
-    if (reqFunc->hasAsync() == candFunc->hasAsync())
-      return false;
+    if (rhs.isCompoundName() && rhs.getArgumentNames().empty())
+      rhs = rhs.getBaseName();
 
-    auto otherReqFuncs =
-      objcMethodRequirements.find(getObjCMethodKey(reqFunc));
-    if (otherReqFuncs == objcMethodRequirements.end())
-      return false;
+    return lhs == rhs;
+  }
 
-    for (auto otherReqFunc : otherReqFuncs->second) {
-      if (otherReqFunc->getName() == cand->getName() &&
-          otherReqFunc->hasAsync() == candFunc->hasAsync() &&
-          req->getObjCRuntimeName() == cand->getObjCRuntimeName())
-        return true;
-    }
+  static bool matchParamTypes(Type reqTy, Type implTy, ValueDecl *implDecl) {
+    TypeMatchOptions matchOpts = {};
+
+    // Try a plain type match.
+    if (implTy->matchesParameter(reqTy, matchOpts))
+      return true;
+
+    // If the implementation type is IUO, try unwrapping it.
+    if (auto unwrappedImplTy = implTy->getOptionalObjectType())
+      return implDecl->isImplicitlyUnwrappedOptional()
+                && unwrappedImplTy->matchesParameter(reqTy, matchOpts);
 
     return false;
   }
 
-  MatchOutcome matches(ValueDecl *req, ValueDecl *cand,
-                       ObjCSelector explicitObjCName) const {
+  static bool matchTypes(Type reqTy, Type implTy, ValueDecl *implDecl) {
+    TypeMatchOptions matchOpts = {};
+
+    // Try a plain type match.
+    if (reqTy->matches(implTy, matchOpts))
+      return true;
+
+    // If the implementation type is optional, try unwrapping it.
+    if (auto unwrappedImplTy = implTy->getOptionalObjectType())
+      return implDecl->isImplicitlyUnwrappedOptional()
+                  && reqTy->matches(unwrappedImplTy, matchOpts);
+
+    // Apply these rules to the result type and parameters if it's a function
+    // type.
+    if (auto funcReqTy = reqTy->getAs<AnyFunctionType>())
+      if (auto funcImplTy = implTy->getAs<AnyFunctionType>())
+        return funcReqTy->matchesFunctionType(funcImplTy, matchOpts,
+                                              [=]() -> bool {
+          auto reqParams = funcReqTy->getParams();
+          auto implParams = funcImplTy->getParams();
+          if (reqParams.size() != implParams.size())
+            return false;
+
+          auto implParamList =
+              cast<AbstractFunctionDecl>(implDecl)->getParameters();
+
+          for (auto i : indices(reqParams)) {
+            const auto &reqParam = reqParams[i];
+            const auto &implParam = implParams[i];
+            ParamDecl *implParamDecl = implParamList->get(i);
+
+            if (!matchParamTypes(reqParam.getOldType(), implParam.getOldType(),
+                                 implParamDecl))
+              return false;
+          }
+
+          return matchTypes(funcReqTy->getResult(), funcImplTy->getResult(),
+                            implDecl);
+        });
+
+    return false;
+  }
+
+  static Type getMemberType(ValueDecl *decl) {
+    if (isa<AbstractFunctionDecl>(decl))
+      // Strip off the uncurried `self` parameter.
+      return decl->getInterfaceType()->getAs<AnyFunctionType>()->getResult();
+    return decl->getInterfaceType();
+  }
+
+  MatchOutcome matchesImpl(ValueDecl *req, ValueDecl *cand,
+                           ObjCSelector explicitObjCName) const {
     bool hasObjCNameMatch =
         req->getObjCRuntimeName() == cand->getObjCRuntimeName();
-    bool hasSwiftNameMatch = req->getName() == cand->getName();
+    bool hasSwiftNameMatch = areSwiftNamesEqual(req->getName(), cand->getName());
 
     // If neither the ObjC nor Swift names match, there's absolutely no reason
     // to think these two methods are related.
@@ -3238,10 +3288,7 @@ private:
           && req->getObjCRuntimeName() != explicitObjCName)
       return MatchOutcome::WrongExplicitObjCName;
 
-    // If the ObjC selectors matched but the Swift names do not, and these are
-    // functions with mismatched 'async', check whether the "other" requirement
-    // (the completion-handler or async version)'s Swift name matches.
-    if (!hasSwiftNameMatch && !matchesAsyncAlternative(req, cand))
+    if (!hasSwiftNameMatch)
       return MatchOutcome::WrongSwiftName;
 
     if (!hasObjCNameMatch)
@@ -3254,15 +3301,33 @@ private:
           != req->getDeclContext())
       return MatchOutcome::WrongCategory;
 
-    // FIXME: Diagnose candidate without a required setter
-    // FIXME: Diagnose declaration kind mismatches
-    // FIXME: Diagnose type mismatches (with allowance for extra optionality)
+    if (cand->getKind() != req->getKind())
+      return MatchOutcome::WrongDeclKind;
+
+    if (!matchTypes(getMemberType(req), getMemberType(cand), cand))
+      return MatchOutcome::WrongType;
+
+    if (auto reqVar = dyn_cast<AbstractStorageDecl>(req))
+      if (reqVar->isSettable(nullptr) &&
+            !cast<AbstractStorageDecl>(cand)->isSettable(nullptr))
+        return MatchOutcome::WrongWritability;
 
     // If we got here, everything matched. But at what quality?
     if (explicitObjCName)
       return MatchOutcome::MatchWithExplicitObjCName;
 
     return MatchOutcome::Match;
+  }
+
+  MatchOutcome matches(ValueDecl *req, ValueDecl *cand,
+                       ObjCSelector explicitObjCName) const {
+    // If the candidate we're considering is async, see if the requirement has
+    // an async alternate and try to match against that instead.
+    if (hasAsync(cand))
+      if (auto asyncAltReq = getAsyncAlternative(req))
+        return matchesImpl(asyncAltReq, cand, explicitObjCName);
+
+    return matchesImpl(req, cand, explicitObjCName);
   }
 
   void diagnoseOutcome(MatchOutcome outcome, ValueDecl *req, ValueDecl *cand,
@@ -3317,6 +3382,22 @@ private:
                getCategoryName(req->getDeclContext()),
                getCategoryName(cand->getDeclContext()->
                                  getImplementedObjCContext()));
+      return;
+
+    case MatchOutcome::WrongDeclKind:
+      diagnose(cand, diag::objc_implementation_wrong_decl_kind,
+               cand->getDescriptiveKind(), cand, req->getDescriptiveKind());
+      return;
+
+    case MatchOutcome::WrongType:
+      diagnose(cand, diag::objc_implementation_type_mismatch,
+               cand->getDescriptiveKind(), cand,
+               getMemberType(cand), getMemberType(req));
+      return;
+
+    case MatchOutcome::WrongWritability:
+      diagnose(cand, diag::objc_implementation_must_be_settable,
+               cand->getDescriptiveKind(), cand, req->getDescriptiveKind());
       return;
     }
 

@@ -112,6 +112,70 @@ typedef enum ENUM_EXTENSIBILITY_ATTR(open) BridgedMacroDefinitionKind : long {
   BridgedBuiltinExternalMacro
 } BridgedMacroDefinitionKind;
 
+/// Bridged parameter specifiers
+typedef enum ENUM_EXTENSIBILITY_ATTR(open) BridgedAttributedTypeSpecifier : long {
+  BridgedAttributedTypeSpecifierInOut,
+  BridgedAttributedTypeSpecifierBorrowing,
+  BridgedAttributedTypeSpecifierConsuming,
+  BridgedAttributedTypeSpecifierLegacyShared,
+  BridgedAttributedTypeSpecifierLegacyOwned,
+  BridgedAttributedTypeSpecifierConst,
+  BridgedAttributedTypeSpecifierIsolated,
+} BridgedAttributedTypeSpecifier;
+
+
+// Bridged type attribute kinds, which mirror TypeAttrKind exactly.
+typedef enum ENUM_EXTENSIBILITY_ATTR(closed) BridgedTypeAttrKind : long {
+  BridgedTypeAttrKind_autoclosure,
+  BridgedTypeAttrKind_convention,
+  BridgedTypeAttrKind_noescape,
+  BridgedTypeAttrKind_escaping,
+  BridgedTypeAttrKind_differentiable,
+  BridgedTypeAttrKind_noDerivative,
+  BridgedTypeAttrKind_async,
+  BridgedTypeAttrKind_Sendable,
+  BridgedTypeAttrKind_unchecked,
+  BridgedTypeAttrKind__local,
+  BridgedTypeAttrKind__noMetadata,
+  BridgedTypeAttrKind__opaqueReturnTypeOf,
+  BridgedTypeAttrKind_block_storage,
+  BridgedTypeAttrKind_box,
+  BridgedTypeAttrKind_dynamic_self,
+  BridgedTypeAttrKind_sil_weak,
+  BridgedTypeAttrKind_sil_unowned,
+  BridgedTypeAttrKind_sil_unmanaged,
+  BridgedTypeAttrKind_error,
+  BridgedTypeAttrKind_out,
+  BridgedTypeAttrKind_direct,
+  BridgedTypeAttrKind_in,
+  BridgedTypeAttrKind_inout,
+  BridgedTypeAttrKind_inout_aliasable,
+  BridgedTypeAttrKind_in_guaranteed,
+  BridgedTypeAttrKind_in_constant,
+  BridgedTypeAttrKind_pack_owned,
+  BridgedTypeAttrKind_pack_guaranteed,
+  BridgedTypeAttrKind_pack_inout,
+  BridgedTypeAttrKind_pack_out,
+  BridgedTypeAttrKind_owned,
+  BridgedTypeAttrKind_unowned_inner_pointer,
+  BridgedTypeAttrKind_guaranteed,
+  BridgedTypeAttrKind_autoreleased,
+  BridgedTypeAttrKind_callee_owned,
+  BridgedTypeAttrKind_callee_guaranteed,
+  BridgedTypeAttrKind_objc_metatype,
+  BridgedTypeAttrKind_opened,
+  BridgedTypeAttrKind_pack_element,
+  BridgedTypeAttrKind_pseudogeneric,
+  BridgedTypeAttrKind_yields,
+  BridgedTypeAttrKind_yield_once,
+  BridgedTypeAttrKind_yield_many,
+  BridgedTypeAttrKind_captures_generics,
+  BridgedTypeAttrKind_moveOnly,
+  BridgedTypeAttrKind_thin,
+  BridgedTypeAttrKind_thick,
+  BridgedTypeAttrKind_Count
+} BridgedTypeAttrKind;
+
 #ifdef __cplusplus
 extern "C" {
 
@@ -261,6 +325,19 @@ void *ImplicitlyUnwrappedOptionalTypeRepr_create(void *ctx, void *base,
                                                  void *exclamationLoc);
 void *MetatypeTypeRepr_create(void *ctx, void *baseType, void *typeLoc);
 void *ProtocolTypeRepr_create(void *ctx, void *baseType, void *protoLoc);
+
+BridgedTypeAttrKind getBridgedTypeAttrKindFromString(
+    const unsigned char * _Nullable str, long len);
+
+typedef void *BridgedTypeAttributes;
+BridgedTypeAttributes BridgedTypeAttributes_create(void);
+void BridgedTypeAttributes_addSimpleAttr(
+    BridgedTypeAttributes typeAttributes, BridgedTypeAttrKind kind, void *atLoc, void *attrLoc);
+void *AttributedTypeRepr_create(void *ctx, void *base, BridgedTypeAttributes typeAttributes);
+
+void *AttributedTypeSpecifierRepr_create(
+    void *ctx, void *base, BridgedAttributedTypeSpecifier specifier, void *specifierLoc);
+void *VarargTypeRepr_create(void *ctx, void *base, void *ellipsisLocPtr);
 void *PackExpansionTypeRepr_create(void *ctx, void *base, void *repeatLoc);
 void *TupleTypeRepr_create(void *ctx, BridgedArrayRef elements, void *lParenLoc,
                            void *rParenLoc);
@@ -269,8 +346,9 @@ void *MemberTypeRepr_create(void *ctx, void *baseComponent,
 void *GenericIdentTypeRepr_create(void *ctx, BridgedIdentifier name,
                                   void *nameLoc, BridgedArrayRef genericArgs,
                                   void *lAngle, void *rAngle);
+void *EmptyCompositionTypeRepr_create(void *ctx, void *anyLoc);
 void *CompositionTypeRepr_create(void *ctx, BridgedArrayRef types,
-                                 void *firstTypeLoc);
+                                 void *firstTypeLoc, void *firstAmpLoc);
 void *FunctionTypeRepr_create(void *ctx, void *argsTy, void *_Nullable asyncLoc,
                               void *_Nullable throwsLoc, void *arrowLoc,
                               void *returnType);

@@ -1291,6 +1291,25 @@ public struct DefineStructWithUnqualifiedLookupMacro: DeclarationMacro {
   }
 }
 
+public struct AddMemberWithFixIt: MemberMacro {
+  public static func expansion<
+    Declaration: DeclGroupSyntax, Context: MacroExpansionContext
+  >(
+    of node: AttributeSyntax,
+    providingMembersOf declaration: Declaration,
+    in context: Context
+  ) throws -> [DeclSyntax] {
+    [
+      """
+      func foo() {
+        var x = 0
+        _ = x
+      }
+      """
+    ]
+  }
+}
+
 extension TupleExprElementListSyntax {
   /// Retrieve the first element with the given label.
   func first(labeled name: String) -> Element? {

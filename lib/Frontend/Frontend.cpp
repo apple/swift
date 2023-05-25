@@ -1513,6 +1513,9 @@ void CompilerInstance::finishTypeChecking() {
 
 SourceFile::ParsingOptions
 CompilerInstance::getSourceFileParsingOptions(bool forPrimary) const {
+  using ActionType = FrontendOptions::ActionType;
+  using ParsingFlags = SourceFile::ParsingFlags;
+
   const auto &frontendOpts = Invocation.getFrontendOptions();
   const auto action = frontendOpts.RequestedAction;
 
@@ -1521,34 +1524,37 @@ CompilerInstance::getSourceFileParsingOptions(bool forPrimary) const {
     // Generally in a parse-only invocation, we want to disable #if evaluation.
     // However, there are a couple of modes where we need to know which clauses
     // are active.
-    if (action != FrontendOptions::ActionType::EmitImportedModules &&
-        action != FrontendOptions::ActionType::ScanDependencies) {
-      opts |= SourceFile::ParsingFlags::DisablePoundIfEvaluation;
+    if (action != ActionType::EmitImportedModules &&
+        action != ActionType::ScanDependencies) {
+      opts |= ParsingFlags::DisablePoundIfEvaluation;
     }
 
     // If we need to dump the parse tree, disable delayed bodies as we want to
     // show everything.
-    if (action == FrontendOptions::ActionType::DumpParse)
-      opts |= SourceFile::ParsingFlags::DisableDelayedBodies;
+    if (action == ActionType::DumpParse)
+      opts |= ParsingFlags::DisableDelayedBodies;
   }
 
-  auto typeOpts = getASTContext().TypeCheckerOpts;
-  if (forPrimary || isWholeModuleCompilation()) {
+  const auto &typeOpts = getASTContext().TypeCheckerOpts;
+  const auto isEffectivelyPrimary = forPrimary || isWholeModuleCompilation();
+  if (isEffectivelyPrimary) {
     // Disable delayed body parsing for primaries and in WMO, unless
     // forcefully skipping function bodies
     if (typeOpts.SkipFunctionBodies == FunctionBodySkipping::None)
-      opts |= SourceFile::ParsingFlags::DisableDelayedBodies;
+      opts |= ParsingFlags::DisableDelayedBodies;
   } else {
     // Suppress parse warnings for non-primaries, as they'll get parsed multiple
     // times.
-    opts |= SourceFile::ParsingFlags::SuppressWarnings;
+    opts |= ParsingFlags::SuppressWarnings;
   }
 
-  // Dependency scanning does not require an AST, so disable Swift Parser
-  // ASTGen parsing completely.
-  if (frontendOpts.RequestedAction ==
-      FrontendOptions::ActionType::ScanDependencies)
-    opts |= SourceFile::ParsingFlags::DisableSwiftParserASTGen;
+  // Turn off round-trip checking for secondary files, and for dependency
+  // scanning and IDE inspection.
+  if (!isEffectivelyPrimary || SourceMgr.hasIDEInspectionTargetBuffer() ||
+      frontendOpts.RequestedAction == ActionType::ScanDependencies) {
+    opts -= ParsingFlags::RoundTrip;
+    opts -= ParsingFlags::ValidateNewParserDiagnostics;
+  }
 
   // Enable interface hash computation for primaries or emit-module-separately,
   // but not in WMO, as it's only currently needed for incremental mode.
@@ -1556,7 +1562,7 @@ CompilerInstance::getSourceFileParsingOptions(bool forPrimary) const {
       typeOpts.SkipFunctionBodies ==
           FunctionBodySkipping::NonInlinableWithoutTypes ||
       frontendOpts.ReuseFrontendForMultipleCompilations) {
-    opts |= SourceFile::ParsingFlags::EnableInterfaceHash;
+    opts |= ParsingFlags::EnableInterfaceHash;
   }
   return opts;
 }

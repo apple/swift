@@ -139,7 +139,8 @@ public:
     //   return fields[0];
     // }
 
-    return IGM.typeLayoutCache.getOrCreateAlignedGroupEntry(fields, T, getBestKnownAlignment().getValue());
+    return IGM.typeLayoutCache.getOrCreateAlignedGroupEntry(
+        fields, T, getBestKnownAlignment().getValue(), *this);
   }
 
   llvm::NoneType getNonFixedOffsets(IRGenFunction &IGF) const { return None; }
@@ -313,7 +314,8 @@ public:
     //   return fields[0];
     // }
 
-    return IGM.typeLayoutCache.getOrCreateAlignedGroupEntry(fields, T, getBestKnownAlignment().getValue());
+    return IGM.typeLayoutCache.getOrCreateAlignedGroupEntry(
+        fields, T, getBestKnownAlignment().getValue(), *this);
   }
 
   llvm::NoneType getNonFixedOffsets(IRGenFunction &IGF) const { return None; }

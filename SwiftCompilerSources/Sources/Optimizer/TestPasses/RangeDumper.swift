@@ -27,7 +27,7 @@ let rangeDumper = FunctionPass(name: "dump-ranges", {
 
   for inst in function.instructions {
     if let sli = inst as? StringLiteralInst {
-      switch sli.string {
+      switch sli.value {
         case "begin":
           assert(begin == nil, "more than one begin instruction")
           begin = sli

@@ -13,6 +13,7 @@
 #include "llvm/ADT/StringSwitch.h"
 #include "swift/AST/Decl.h"
 #include "swift/AST/Module.h"
+#include "swift/AST/ProtocolConformance.h"
 #include "swift/Serialization/SerializedModuleLoader.h"
 #include "swift/SymbolGraphGen/SymbolGraphGen.h"
 
@@ -181,79 +182,33 @@ bool SymbolGraphASTWalker::walkToDeclPre(Decl *D, CharSourceRange Range) {
       // We want to add conformsTo relationships for all protocols implicitly
       // implied by those explicitly stated on the extension.
       //
-      // Thus, we have to expand two syntactic constructs:
-      //  * `protocol A: B, C { ... }` declarations, where those that still have
-      //    to be expanded are stored in `UnexpandedProtocols`
-      //    that still have to be expanded
-      //  * `typealias A = B & C` declarations, which are directly expanded to
-      //    unexpanded protocols in `HandleProtocolOrComposition`
-      //
-      // The expansion adds the base protocol to `Protocols` and calls
-      // `HandleProtocolOrComposition` for the implied protocols. This process
-      // continues until there is nothing left to expand (`UnexpandedProtocols`
-      // is empty), because `HandleProtocolOrComposition` didn't add any new
-      // unexpanded protocols. At that point, all direct and indirect
-      // conformances are stored in `Protocols`.
+      // We start by collecting the conformances declared on the extension with
+      // `getLocalConformances`. From there, we inspect each protocol for any
+      // other protocols it inherits (whether stated explicitly or via a
+      // composed protocol type alias) with `getInheritedProtocols`. Each new
+      // protocol is added to `UnexpandedProtocols` until there are no new
+      // protocols to add. At that point, all direct and indirect conformances
+      // are stored in `Protocols`.
 
-      SmallVector<const ProtocolDecl *, 4> Protocols;
+      SmallPtrSet<const ProtocolDecl *, 4> Protocols;
       SmallVector<const ProtocolDecl *, 4> UnexpandedProtocols;
-
-      // Unwrap `UnexpandedCompositions` and add all unexpanded protocols to the
-      // `UnexpandedProtocols` list for expansion.
-      auto HandleProtocolOrComposition = [&](Type Ty) {
-        if (const auto *Proto =
-                dyn_cast_or_null<ProtocolDecl>(Ty->getAnyNominal())) {
-          UnexpandedProtocols.push_back(Proto);
-          return;
-        }
-
-        SmallVector<const ProtocolCompositionType *, 4> UnexpandedCompositions;
-
-        if (const auto *Comp = Ty->getAs<ProtocolCompositionType>()) {
-          UnexpandedCompositions.push_back(Comp);
-        } else {
-          llvm_unreachable("Expected ProtocolDecl or ProtocolCompositionType");
-        }
-
-        while (!UnexpandedCompositions.empty()) {
-          const auto *Comp = UnexpandedCompositions.pop_back_val();
-          for (const auto &Member : Comp->getMembers()) {
-            if (const auto *Proto =
-                    dyn_cast_or_null<ProtocolDecl>(Member->getAnyNominal())) {
-              Protocols.push_back(Proto);
-              UnexpandedProtocols.push_back(Proto);
-            } else if (const auto *Comp =
-                           Member->getAs<ProtocolCompositionType>()) {
-              UnexpandedCompositions.push_back(Comp);
-            } else {
-              abort();
-            }
-          }
-        }
-      };
 
       // Start the process with the conformances stated
       // explicitly on the extension.
-      for (const auto &InheritedLoc : Extension->getInherited()) {
-        auto InheritedTy = InheritedLoc.getType();
-        if (!InheritedTy) {
-          continue;
-        }
-        HandleProtocolOrComposition(InheritedTy);
+      for (const auto *Conformance : Extension->getLocalConformances()) {
+        UnexpandedProtocols.push_back(Conformance->getProtocol());
       }
 
       // "Recursively" expand the unexpanded list and populate
       // the expanded `Protocols` list (in an iterative manner).
       while (!UnexpandedProtocols.empty()) {
         const auto *Proto = UnexpandedProtocols.pop_back_val();
-        for (const auto &InheritedEntry : Proto->getInherited()) {
-          auto InheritedTy = InheritedEntry.getType();
-          if (!InheritedTy) {
-            continue;
+        if (!Protocols.contains(Proto)) {
+          for (const auto *InheritedProtocol : Proto->getInheritedProtocols()) {
+            UnexpandedProtocols.push_back(InheritedProtocol);
           }
-          HandleProtocolOrComposition(InheritedTy);
+          Protocols.insert(Proto);
         }
-        Protocols.push_back(Proto);
       }
 
       // Record the expanded list of protocols.

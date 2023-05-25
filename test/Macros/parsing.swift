@@ -1,6 +1,6 @@
 // REQUIRES: swift_swift_parser
 
-// RUN: %target-typecheck-verify-swift -swift-version 5 -enable-experimental-feature FreestandingMacros
+// RUN: %target-typecheck-verify-swift -swift-version 5
 
 protocol P { }
 protocol Q { associatedtype Assoc }

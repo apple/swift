@@ -48,5 +48,6 @@ TAG(ExtendedExistentialTypes, 22)
 TAG(ExtendedExistentialTypeShapes, 23)
 TAG(MetadataPack, 24)
 TAG(WitnessTablePack, 25)
+TAG(LayoutString, 26)
 
 #undef TAG

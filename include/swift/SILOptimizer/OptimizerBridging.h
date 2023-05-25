@@ -139,6 +139,27 @@ struct BridgedNodeSet {
   }
 };
 
+namespace swift {
+class ClonerWithFixedLocation;
+}
+
+struct BridgedCloner {
+  swift::ClonerWithFixedLocation * _Nonnull cloner;
+
+  BridgedCloner(BridgedGlobalVar var, BridgedPassContext context);
+
+  BridgedCloner(BridgedInstruction inst, BridgedPassContext context);
+
+  void destroy(BridgedPassContext context);
+
+  SWIFT_IMPORT_UNSAFE
+  BridgedValue getClonedValue(BridgedValue v);
+
+  bool isValueCloned(BridgedValue v) const;
+
+  void clone(BridgedInstruction inst);
+};
+
 struct BridgedPostDomTree {
   swift::PostDominanceInfo * _Nonnull pdi;
 
@@ -220,15 +241,10 @@ struct BridgedPassContext {
 
   bool specializeAppliesInFunction(BridgedFunction function, bool isMandatory) const;
 
-  void createStaticInitializer(BridgedGlobalVar global, BridgedInstruction initValue) const;
-
-  struct StaticInitCloneResult {
-    OptionalBridgedInstruction firstClonedInst;
-    OptionalBridgedValue clonedInitValue;
-  };
+  std::string mangleOutlinedVariable(BridgedFunction function) const;
 
   SWIFT_IMPORT_UNSAFE
-  StaticInitCloneResult copyStaticInitializer(BridgedValue initValue, BridgedBuilder b) const;
+  BridgedGlobalVar createGlobalVariable(llvm::StringRef name, swift::SILType type, bool isPrivate) const;
 
   void inlineFunction(BridgedInstruction apply, bool mandatoryInline) const;
 
@@ -408,6 +424,9 @@ struct BridgedPassContext {
                       loadCalleesRecursively ? swift::SILModule::LinkingMode::LinkAll
                                              : swift::SILModule::LinkingMode::LinkNormal);
   }
+
+  SWIFT_IMPORT_UNSAFE
+  OptionalBridgedFunction lookupStdlibFunction(llvm::StringRef name) const;
 
   SWIFT_IMPORT_UNSAFE
   swift::SubstitutionMap getContextSubstitutionMap(swift::SILType type) const {

@@ -291,6 +291,11 @@ bool swiftscan_swift_textual_detail_get_is_framework(
   return details->swift_textual_details.is_framework;
 }
 
+swiftscan_string_set_t *swiftscan_swift_textual_detail_get_swift_overlay_dependencies(
+    swiftscan_module_details_t details) {
+  return details->swift_textual_details.swift_overlay_module_dependencies;
+}
+
 //=== Swift Binary Module Details query APIs ------------------------------===//
 
 swiftscan_string_ref_t swiftscan_swift_binary_detail_get_compiled_module_path(

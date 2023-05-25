@@ -1,4 +1,5 @@
 // RUN: %target-swift-frontend -emit-silgen %s | %FileCheck %s
+// RUN: %target-swift-frontend -emit-sil -O -sil-verify-all %s
 
 // This test makes sure that we properly setup enums when we construct moveonly
 // enums from literals.

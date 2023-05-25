@@ -65,7 +65,7 @@ final public class BasicBlock : CustomStringConvertible, HasShortDescription {
  
   public var name: String { "bb\(index)" }
 
-  public var bridged: BridgedBasicBlock { BridgedBasicBlock(obj: SwiftObject(self)) }
+  public var bridged: BridgedBasicBlock { BridgedBasicBlock(SwiftObject(self)) }
 }
 
 public func == (lhs: BasicBlock, rhs: BasicBlock) -> Bool { lhs === rhs }

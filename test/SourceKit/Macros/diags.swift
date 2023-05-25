@@ -16,6 +16,13 @@ func foo() {
 @Invalid
 struct Bad {}
 
+@attached(member, names: arbitrary)
+public macro addMemberWithFixIt() = #externalMacro(module: "MacroDefinition", type: "AddMemberWithFixIt")
+
+// Make sure we don't emit the fix-it for the member added by this macro.
+@addMemberWithFixIt
+struct S {}
+
 // REQUIRES: swift_swift_parser
 
 // RUN: %empty-directory(%t)

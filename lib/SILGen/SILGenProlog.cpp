@@ -552,8 +552,12 @@ public:
         substFormalParams.push_back(
           pd->toFunctionParam(pd->getType()).getCanonical(nullptr));
       };
-      for (auto paramDecl : *paramList) { addParamDecl(paramDecl); }
-      if (selfParam) { addParamDecl(selfParam); }
+      for (auto paramDecl : *paramList) {
+        addParamDecl(paramDecl);
+      }
+      if (selfParam) {
+        addParamDecl(selfParam);
+      }
 
       // Initialize the formal parameter generator.  Note that this can
       // immediately claim lowered parameters.
@@ -795,8 +799,32 @@ private:
                 loc, value, MarkMustCheckInst::CheckKind::NoConsumeOrAssign);
           }
         } else {
-          assert(isa<MarkMustCheckInst>(value) &&
-                 "Should have inserted mark must check inst in EmitBBArgs");
+          if (auto *fArg = dyn_cast<SILFunctionArgument>(value)) {
+            switch (fArg->getArgumentConvention()) {
+            case SILArgumentConvention::Direct_Guaranteed:
+            case SILArgumentConvention::Direct_Owned:
+            case SILArgumentConvention::Direct_Unowned:
+            case SILArgumentConvention::Indirect_Inout:
+            case SILArgumentConvention::Indirect_Out:
+            case SILArgumentConvention::Indirect_InoutAliasable:
+            case SILArgumentConvention::Pack_Inout:
+            case SILArgumentConvention::Pack_Guaranteed:
+            case SILArgumentConvention::Pack_Owned:
+            case SILArgumentConvention::Pack_Out:
+              llvm_unreachable("Should have been handled elsewhere");
+            case SILArgumentConvention::Indirect_In:
+              value = SGF.B.createMarkMustCheckInst(
+                  loc, value,
+                  MarkMustCheckInst::CheckKind::ConsumableAndAssignable);
+              break;
+            case SILArgumentConvention::Indirect_In_Guaranteed:
+              value = SGF.B.createMarkMustCheckInst(
+                  loc, value, MarkMustCheckInst::CheckKind::NoConsumeOrAssign);
+            }
+          } else {
+            assert(isa<MarkMustCheckInst>(value) &&
+                   "Should have inserted mark must check inst in EmitBBArgs");
+          }
         }
         break;
       case ValueOwnership::InOut:

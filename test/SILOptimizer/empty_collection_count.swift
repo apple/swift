@@ -2,6 +2,7 @@
 // RUN: %target-swift-frontend -emit-sil -Osize %s | %FileCheck %s
 
 // REQUIRES: swift_stdlib_no_asserts,optimized_stdlib
+// REQUIRES: swift_in_compiler
 
 // This is an end-to-end test if the count and/or capacity from empty
 // array/set/dictionary singletons can be propagated.

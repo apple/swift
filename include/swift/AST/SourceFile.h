@@ -91,9 +91,11 @@ public:
     /// files, as they get parsed multiple times.
     SuppressWarnings = 1 << 4,
 
-    /// Whether to disable the Swift Parser ASTGen
-    /// e.g. in dependency scanning, where an AST is not needed.
-    DisableSwiftParserASTGen = 1 << 5,
+    /// Ensure that the SwiftSyntax tree round trips correctly.
+    RoundTrip = 1 << 5,
+
+    /// Validate the new SwiftSyntax parser diagnostics.
+    ValidateNewParserDiagnostics = 1 << 6,
   };
   using ParsingOptions = OptionSet<ParsingFlags>;
 
@@ -262,6 +264,10 @@ public:
   /// code for it. Note this method returns \c false in WMO.
   bool isPrimary() const { return IsPrimary; }
 
+  /// Retrieve the \c ExportedSourceFile instance produced by ASTGen, which
+  /// includes the SourceFileSyntax node corresponding to this source file.
+  void *getExportedSourceFile() const;
+
   /// The list of local type declarations in the source file.
   llvm::SetVector<TypeDecl *> LocalTypeDecls;
 
@@ -333,10 +339,6 @@ public:
   /// Virtual file paths declared by \c #sourceLocation(file:) declarations in
   /// this source file.
   llvm::SmallVector<Located<StringRef>, 0> VirtualFilePaths;
-
-  /// The \c ExportedSourceFile instance produced by ASTGen, which includes
-  /// the SourceFileSyntax node corresponding to this source file.
-  void *exportedSourceFile = nullptr;
 
   /// Returns information about the file paths used for diagnostics and magic
   /// identifiers in this source file, including virtual filenames introduced by

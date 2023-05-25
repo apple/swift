@@ -1285,6 +1285,10 @@ def disable_clang_target : Flag<["-"], "disable-clang-target">,
   Flags<[NewDriverOnlyOption]>,
   HelpText<"Disable a separately specified target triple for Clang instance to use">;
 
+def explain_module_dependency : Separate<["-"], "explain-module-dependency">,
+  Flags<[NewDriverOnlyOption]>,
+  HelpText<"Emit remark/notes describing why compilaiton may depend on a module with a given name.">;
+
 def min_inlining_target_version : Separate<["-"], "target-min-inlining-version">,
   Flags<[FrontendOption, ModuleInterfaceOptionIgnorable]>,
   HelpText<"Require inlinable code with no '@available' attribute to back-deploy "

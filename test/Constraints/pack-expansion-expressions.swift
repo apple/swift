@@ -528,3 +528,14 @@ func test_pack_expansion_to_void_conv_for_closure_result<each T>(x: repeat each 
   let _: (Int) -> Void = { repeat ($0, print(each x)) } // expected-warning {{'repeat (Int, ())' is unused}}
   let _: (Int, String) -> Void = { ($0, repeat ($1, print(each x))) } // expected-warning {{'(Int, repeat (String, ()))' is unused}}
 }
+
+// rdar://109539394 - crash on passing multiple variadic lists to singly variadic callee
+do {
+  func test1<each T>(_: repeat each T) {}
+  func test2<each T>(_: repeat each T) where repeat each T: RawRepresentable {} // expected-note {{where 'each T' = 'each T2'}}
+
+  func caller<each T1, each T2>(t1: repeat each T1, t2: repeat each T2) {
+    test1(repeat each t1, repeat each t2) // Ok
+    test2(repeat each t2, repeat each t1) // expected-error {{local function 'test2' requires that 'each T2' conform to 'RawRepresentable'}}
+  }
+}

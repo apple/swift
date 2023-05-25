@@ -78,6 +78,8 @@ class SwiftPassInvocation {
   bool aliveNodeSets[NodeSetCapacity];
   int numNodeSetsAllocated = 0;
 
+  int numClonersAllocated = 0;
+
   bool needFixStackNesting = false;
 
   void endPassRunChecks();
@@ -135,6 +137,9 @@ public:
   void beginTransformFunction(SILFunction *function);
 
   void endTransformFunction();
+
+  void notifyNewCloner() { numClonersAllocated++; }
+  void notifyClonerDestroyed() { numClonersAllocated--; }
 
   void setNeedFixStackNesting(bool newValue) { needFixStackNesting = newValue; }
   bool getNeedFixStackNesting() const { return needFixStackNesting; }

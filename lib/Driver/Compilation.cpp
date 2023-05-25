@@ -49,6 +49,10 @@
 
 #include <fstream>
 #include <signal.h>
+#if defined(_WIN32)
+#include <fcntl.h>
+#include <io.h>
+#endif
 
 #define DEBUG_TYPE "batch-mode"
 
@@ -727,6 +731,23 @@ namespace driver {
                  : TaskFinishedResponse::StopExecution;
     }
 
+#if defined(_WIN32)
+    struct FileBinaryModeRAII {
+      FileBinaryModeRAII(FILE *F) : F(F) {
+        PrevMode = _setmode(_fileno(F), _O_BINARY);
+      }
+      ~FileBinaryModeRAII() {
+        _setmode(_fileno(F), PrevMode);
+      }
+      FILE *F;
+      int PrevMode;
+    };
+#else
+    struct FileBinaryModeRAII {
+      FileBinaryModeRAII(FILE *) {}
+    };
+#endif
+
     void processOutputOfFinishedProcess(ProcessId Pid, int ReturnCode,
                                         const Job *const FinishedCmd,
                                         StringRef Output,
@@ -739,8 +760,14 @@ namespace driver {
       case OutputLevel::Verbose:
         // Send the buffered output to stderr, though only if we
         // support getting buffered output.
-        if (TaskQueue::supportsBufferingOutput())
+        if (TaskQueue::supportsBufferingOutput()) {
+          // Temporarily change stderr to binary mode to avoid double
+          // LF -> CR LF conversions on the outputs from child
+          // processes, which have already this conversion appplied.
+          // This makes a difference only for Windows.
+          FileBinaryModeRAII F(stderr);
           llvm::errs() << Output;
+        }
         break;
       case OutputLevel::Parseable:
         emitParseableOutputForEachFinishedJob(Pid, ReturnCode, Output,

@@ -297,7 +297,8 @@ namespace {
       // if (fields.size() == 1) {
       //   return fields[0];
       // }
-      return IGM.typeLayoutCache.getOrCreateAlignedGroupEntry(fields, T, getBestKnownAlignment().getValue());
+      return IGM.typeLayoutCache.getOrCreateAlignedGroupEntry(
+          fields, T, getBestKnownAlignment().getValue(), *this);
     }
 
     llvm::NoneType getNonFixedOffsets(IRGenFunction &IGF) const {
@@ -348,7 +349,8 @@ namespace {
       //   return fields[0];
       // }
 
-      return IGM.typeLayoutCache.getOrCreateAlignedGroupEntry(fields, T, getBestKnownAlignment().getValue());
+      return IGM.typeLayoutCache.getOrCreateAlignedGroupEntry(
+          fields, T, getBestKnownAlignment().getValue(), *this);
     }
 
     llvm::NoneType getNonFixedOffsets(IRGenFunction &IGF) const {
@@ -422,7 +424,8 @@ namespace {
       //   return fields[0];
       // }
 
-      return IGM.typeLayoutCache.getOrCreateAlignedGroupEntry(fields, T, getBestKnownAlignment().getValue());
+      return IGM.typeLayoutCache.getOrCreateAlignedGroupEntry(
+          fields, T, getBestKnownAlignment().getValue(), *this);
     }
 
     llvm::Value *getEnumTagSinglePayload(IRGenFunction &IGF,

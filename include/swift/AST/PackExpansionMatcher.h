@@ -186,6 +186,29 @@ public:
       }
     }
 
+    // If both sides have the same number of elements and all of
+    // them are pack expansions there is not going to be any
+    // expansion "absorption" and it's okay to match per-index.
+    //
+    // Like in all previous cases the callers are responsible
+    // to check whether the element types actually line up,
+    // this is a purely structural match.
+    if (lhsElts.size() == rhsElts.size()) {
+      for (unsigned i = 0, n = lhsElts.size(); i != n; ++i) {
+        auto lhsType = getElementType(lhsElts[i]);
+        auto rhsType = getElementType(rhsElts[i]);
+
+        if (IsPackExpansionType(lhsType) && IsPackExpansionType(rhsType)) {
+          pairs.emplace_back(lhsType, rhsType, i, i);
+        } else {
+          pairs.clear();
+          return true;
+        }
+      }
+
+      return false;
+    }
+
     // Otherwise, all remaining possibilities are invalid:
     // - Neither side has any pack expansions, and they have different lengths.
     // - One side has a pack expansion but the other side is too short, eg

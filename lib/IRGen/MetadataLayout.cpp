@@ -34,6 +34,7 @@
 #include "TupleMetadataVisitor.h"
 
 #include "swift/Basic/LLVM.h"
+#include "swift/SIL/SILModule.h"
 #include "llvm/ADT/Optional.h"
 
 using namespace swift;

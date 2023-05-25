@@ -181,16 +181,6 @@ public:
   const_iterator begin() const { return StaticInitializerBlock.begin(); }
   const_iterator end() const { return StaticInitializerBlock.end(); }
 
-  /// Returns true if \p I is a valid instruction to be contained in the
-  /// static initializer.
-  static bool isValidStaticInitializerInst(const SILInstruction *I,
-                                           SILModule &M);
-
-  /// Returns the usub_with_overflow builtin if \p TE extracts the result of
-  /// such a subtraction, which is required to have an integer_literal as right
-  /// operand.
-  static BuiltinInst *getOffsetSubtract(const TupleExtractInst *TE, SILModule &M);
-
   void dropAllReferences() {
     StaticInitializerBlock.dropAllReferences();
   }
@@ -290,10 +280,8 @@ SILFunction *findInitializer(SILFunction *AddrF, BuiltinInst *&CallToOnce);
 ///
 /// Given a global initializer, InitFunc, return the GlobalVariable that it
 /// statically initializes or return nullptr if it isn't an obvious static
-/// initializer. If a global variable is returned, InitVal is initialized to the
-/// the instruction producing the global's initial value.
-SILGlobalVariable *getVariableOfStaticInitializer(
-  SILFunction *InitFunc, SingleValueInstruction *&InitVal);
+/// initializer.
+SILGlobalVariable *getVariableOfStaticInitializer(SILFunction *InitFunc);
 
 } // namespace swift
 

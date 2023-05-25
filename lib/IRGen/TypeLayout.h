@@ -152,6 +152,8 @@ public:
 
   bool isAlignedGroup() const;
 
+  virtual llvm::Optional<const FixedTypeInfo *> getFixedTypeInfo() const;
+
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
   LLVM_DUMP_METHOD virtual void dump() const {
     assert(isEmpty() && "Missing subclass implementation?");
@@ -235,6 +237,8 @@ public:
                                  Address enumAddr) const override;
 
   static bool classof(const TypeLayoutEntry *entry);
+
+  llvm::Optional<const FixedTypeInfo *> getFixedTypeInfo() const override;
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
   void dump() const override;
@@ -367,11 +371,15 @@ class AlignedGroupEntry : public TypeLayoutEntry, public llvm::FoldingSetNode {
   SILType ty;
   Alignment::int_type minimumAlignment;
 
+  llvm::Optional<const FixedTypeInfo *> fixedTypeInfo;
+
 public:
-  AlignedGroupEntry(const std::vector<TypeLayoutEntry *> &entries,
-                    SILType ty, Alignment::int_type minimumAlignment)
+  AlignedGroupEntry(const std::vector<TypeLayoutEntry *> &entries, SILType ty,
+                    Alignment::int_type minimumAlignment,
+                    llvm::Optional<const FixedTypeInfo *> fixedTypeInfo)
       : TypeLayoutEntry(TypeLayoutEntryKind::AlignedGroup), entries(entries),
-        ty(ty), minimumAlignment(minimumAlignment) {}
+        ty(ty), minimumAlignment(minimumAlignment),
+        fixedTypeInfo(fixedTypeInfo) {}
 
   ~AlignedGroupEntry();
 
@@ -421,6 +429,8 @@ public:
                                  Address enumAddr) const override;
 
   static bool classof(const TypeLayoutEntry *entry);
+
+  llvm::Optional<const FixedTypeInfo *> getFixedTypeInfo() const override;
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
   void dump() const override;
@@ -484,17 +494,20 @@ public:
   unsigned minimumAlignment;
   std::vector<TypeLayoutEntry *> cases;
   SILType ty;
+  llvm::Optional<const FixedTypeInfo *> fixedTypeInfo;
 
   EnumTypeLayoutEntry(unsigned numEmptyCases,
                       const std::vector<TypeLayoutEntry *> &cases, SILType ty,
-                      Alignment::int_type minimumAlignment, llvm::Optional<Size> fixedSize)
+                      llvm::Optional<const FixedTypeInfo *> fixedTypeInfo,
+                      Alignment::int_type minimumAlignment,
+                      llvm::Optional<Size> fixedSize)
       : TypeLayoutEntry(TypeLayoutEntryKind::Enum),
-        numEmptyCases(numEmptyCases), minimumAlignment(minimumAlignment), cases(cases),
-        ty(ty) {
-          if (fixedSize) {
-            _fixedSize = fixedSize;
-          }
-        }
+        numEmptyCases(numEmptyCases), minimumAlignment(minimumAlignment),
+        cases(cases), ty(ty), fixedTypeInfo(fixedTypeInfo) {
+    if (fixedSize) {
+      _fixedSize = fixedSize;
+    }
+  }
 
   ~EnumTypeLayoutEntry();
 
@@ -552,6 +565,8 @@ public:
 
   bool isMultiPayloadEnum() const;
   bool isSingleton() const;
+
+  llvm::Optional<const FixedTypeInfo *> getFixedTypeInfo() const override;
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
   void dump() const override;
@@ -632,6 +647,10 @@ private:
           payloadFunction,
       llvm::function_ref<void()> noPayloadFunction) const;
 
+  bool buildSinglePayloadRefCountString(IRGenModule &IGM,
+                                        LayoutStringBuilder &B,
+                                        GenericSignature genericSig) const;
+
   static bool classof(const TypeLayoutEntry *entry);
 };
 
@@ -696,6 +715,8 @@ public:
   bool refCountString(IRGenModule &IGM, LayoutStringBuilder &B,
                       GenericSignature genericSig) const override;
 
+  llvm::Optional<const FixedTypeInfo *> getFixedTypeInfo() const override;
+
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
   void dump() const override;
 #endif
@@ -722,8 +743,8 @@ public:
 
   AlignedGroupEntry *
   getOrCreateAlignedGroupEntry(const std::vector<TypeLayoutEntry *> &entries,
-                               SILType ty,
-                               Alignment::int_type minimumAlignment);
+                               SILType ty, Alignment::int_type minimumAlignment,
+                               const TypeInfo &ti);
 
   EnumTypeLayoutEntry *
   getOrCreateEnumEntry(unsigned numEmptyCase,

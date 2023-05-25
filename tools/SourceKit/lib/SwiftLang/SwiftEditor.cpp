@@ -775,7 +775,6 @@ public:
         CompInv.getTypeCheckerOptions(), CompInv.getSILOptions(),
         CompInv.getModuleName()));
 
-    registerParseRequestFunctions(Parser->getParser().Context.evaluator);
     registerTypeCheckerRequestFunctions(
         Parser->getParser().Context.evaluator);
     registerClangImporterRequestFunctions(Parser->getParser().Context.evaluator);
