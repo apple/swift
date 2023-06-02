@@ -266,6 +266,9 @@ setIRGenOutputOptsFromFrontendOptions(IRGenOptions &IRGenOpts,
     }
   }(FrontendOpts.RequestedAction);
 
+  IRGenOpts.UseCASBackend = FrontendOpts.UseCASBackend;
+  IRGenOpts.CASObjMode = FrontendOpts.CASObjMode;
+
   // If we're in JIT mode, set the requisite flags.
   if (FrontendOpts.RequestedAction == FrontendOptions::ActionType::Immediate) {
     IRGenOpts.UseJIT = true;

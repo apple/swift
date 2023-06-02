@@ -477,6 +477,12 @@ public:
   /// function instead of to trap instructions.
   std::string TrapFuncName = "";
 
+  /// Use CAS based object format as the output.
+  bool UseCASBackend;
+
+  /// The output mode for the CAS Backend.
+  llvm::CASBackendMode CASObjMode;
+
   IRGenOptions()
       : DWARFVersion(2),
         OutputKind(IRGenOutputKind::LLVMAssemblyAfterOptimization),
@@ -488,9 +494,9 @@ public:
         DebugInfoFormat(IRGenDebugInfoFormat::None),
         DisableClangModuleSkeletonCUs(false), UseJIT(false),
         DisableLLVMOptzns(false), DisableSwiftSpecificLLVMOptzns(false),
-        Playground(false),
-        EmitStackPromotionChecks(false), UseSingleModuleLLVMEmission(false),
-        FunctionSections(false), PrintInlineTree(false), AlwaysCompile(false),
+        Playground(false), EmitStackPromotionChecks(false),
+        UseSingleModuleLLVMEmission(false), FunctionSections(false),
+        PrintInlineTree(false), AlwaysCompile(false),
         EmbedMode(IRGenEmbedMode::None), LLVMLTOKind(IRGenLLVMLTOKind::None),
         SwiftAsyncFramePointer(SwiftAsyncFramePointerKind::Auto),
         HasValueNamesSetting(false), ValueNames(false),
@@ -512,12 +518,11 @@ public:
         WitnessMethodElimination(false), ConditionalRuntimeRecords(false),
         InternalizeAtLink(false), InternalizeSymbols(false),
         EmitGenericRODatas(false), NoPreallocatedInstantiationCaches(false),
-        DisableReadonlyStaticObjects(false),
-        CollocatedMetadataFunctions(false),
-        ColocateTypeDescriptors(true),
-        UseRelativeProtocolWitnessTables(false), CmdArgs(),
-        SanitizeCoverage(llvm::SanitizerCoverageOptions()),
-        TypeInfoFilter(TypeInfoDumpFilter::All) {
+        DisableReadonlyStaticObjects(false), CollocatedMetadataFunctions(false),
+        ColocateTypeDescriptors(true), UseRelativeProtocolWitnessTables(false),
+        CmdArgs(), SanitizeCoverage(llvm::SanitizerCoverageOptions()),
+        TypeInfoFilter(TypeInfoDumpFilter::All), UseCASBackend(false),
+        CASObjMode(llvm::CASBackendMode::Native) {
 #ifndef NDEBUG
     DisableRoundTripDebugTypes = false;
 #else

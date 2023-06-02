@@ -1838,6 +1838,15 @@ def enable_cas: Flag<["-"], "enable-cas">,
 def cas_fs: Separate<["-"], "cas-fs">,
   Flags<[FrontendOption, NoDriverOption]>,
   HelpText<"Root CASID for CAS FileSystem">, MetaVarName<"<cas-id>">;
+  
+def cas_backend: Flag<["-"], "cas-backend">,
+  Flags<[FrontendOption, NoDriverOption]>,
+  HelpText<"Enable using CASBackend for object file output">;
+
+def cas_backend_mode: Joined<["-"], "cas-backend-mode=">,
+  Flags<[FrontendOption, NoDriverOption]>,
+  HelpText<"CASBackendMode for output kind">,
+  MetaVarName<"native|casid|varify">;
 
 def load_plugin_library:
   Separate<["-"], "load-plugin-library">,

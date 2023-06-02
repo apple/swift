@@ -355,6 +355,17 @@ bool ArgsToFrontendOptionsConverter::convert(
   Opts.CASPath =
       Args.getLastArgValue(OPT_cas_path, llvm::cas::getDefaultOnDiskCASPath());
   Opts.CASFSRootID = Args.getLastArgValue(OPT_cas_fs);
+
+  if (Arg *A = Args.getLastArg(OPT_cas_backend_mode)) {
+    Opts.CASObjMode = llvm::StringSwitch<llvm::CASBackendMode>(A->getValue())
+                          .Case("native", llvm::CASBackendMode::Native)
+                          .Case("casid", llvm::CASBackendMode::CASID)
+                          .Case("verify", llvm::CASBackendMode::Verify)
+                          .Default(llvm::CASBackendMode::Native);
+  }
+  if (Opts.EnableCAS)
+    Opts.UseCASBackend = Args.hasArg(OPT_cas_backend);
+
   if (Opts.EnableCAS && Opts.CASFSRootID.empty() &&
       FrontendOptions::supportCompilationCaching(Opts.RequestedAction)) {
     if (!Args.hasArg(OPT_allow_unstable_cache_key_for_testing)) {
