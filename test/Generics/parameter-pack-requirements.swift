@@ -2,6 +2,7 @@
 
 protocol P {
   associatedtype A: P
+  associatedtype B
 }
 
 // CHECK-LABEL: inferSameShape(ts:us:)
@@ -126,3 +127,34 @@ func sameTypeMatch1<T: PP, each U: PP, each V: PP>(t: T, u: repeat each U, v: re
 // CHECK-NEXT: <T, each U, each V where T : PP, repeat each U : PP, (repeat (each U, each V)) : Any, repeat each V : PP, T.[PP]A == (/* shape: each U */ repeat ())>
 func sameTypeMatch2<T: PP, each U: PP, each V: PP>(t: T, u: repeat each U, v: repeat each V)
   where T.A == Shape<repeat each U>, T.A == Shape<repeat each V> {}
+
+
+//////
+///
+/// Same-element requirements.
+///
+//////
+
+// CHECK-LABEL: sameElementConcrete
+// CHECK-NEXT: Generic signature: <each T where repeat each T == Int>
+func sameElementConcrete<each T>(
+  _: repeat each T
+) where repeat each T == Int {}
+
+// CHECK-LABEL: sameElementGeneric
+// CHECK-NEXT: Generic signature: <each T, U where repeat U == each T>
+func sameElementGeneric<each T, U>(
+  _: repeat each T
+) where repeat each T == U {}
+
+// CHECK-LABEL: dependentSameElementConcrete
+// CHECK-NEXT: Generic signature: <each C where repeat each C : Collection, repeat (each C).[Sequence]Element == Int>
+func dependentSameElementConcrete<each C: Collection>(
+  _: repeat each C
+) where repeat (each C).Element == Int {}
+
+// CHECK-LABEL: dependentSameElementGeneric
+// CHECK-NEXT: Generic signature: <each C, Element where repeat Element == (each C).[Sequence]Element, repeat each C : Collection>
+func dependentSameElementGeneric<each C: Collection, Element>(
+  _: repeat each C
+) where repeat (each C).Element == Element {}

@@ -286,6 +286,7 @@ static const ProtocolDecl *getParentConformanceForTerm(Term lhs) {
   case Symbol::Kind::ConcreteType:
   case Symbol::Kind::ConcreteConformance:
   case Symbol::Kind::Shape:
+  case Symbol::Kind::PackElement:
     break;
   }
 
@@ -552,6 +553,7 @@ void RewriteSystem::computeCandidateConformancePaths(
         //
         // where Y is the simplified form of X.W.
         } else if (rhs.isAnyConformanceRule() &&
+                   !lhs.isSameElementRule() &&
                    (unsigned)(lhs.getLHS().end() - from) < rhs.getLHS().size()) {
           if (Debug.contains(DebugFlags::MinimalConformancesDetail)) {
             llvm::dbgs() << "Case 2: same-type suffix\n";

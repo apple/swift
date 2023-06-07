@@ -117,6 +117,10 @@ public:
     /// generic parameter.
     Shape,
 
+    /// A pack element [element].(each T) where 'each T' is a type
+    /// parameter pack.
+    PackElement,
+
     //////
     ////// "Property-like" symbol kinds:
     //////
@@ -205,6 +209,8 @@ public:
                                 RewriteContext &ctx);
 
   static Symbol forShape(RewriteContext &ctx);
+
+  static Symbol forPackElement(RewriteContext &Ctx);
 
   static Symbol forLayout(LayoutConstraint layout,
                           RewriteContext &ctx);

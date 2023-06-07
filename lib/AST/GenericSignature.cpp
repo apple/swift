@@ -842,6 +842,10 @@ int swift::compareDependentTypes(Type type1, Type type2) {
   // Fast-path check for equality.
   if (type1->isEqual(type2)) return 0;
 
+  // Packs are always ordered after scalar type parameters.
+  if (type1->isParameterPack() != type2->isParameterPack())
+    return type2->isParameterPack() ? -1 : +1;
+
   // Ordering is as follows:
   // - Generic params
   auto gp1 = type1->getAs<GenericTypeParamType>();

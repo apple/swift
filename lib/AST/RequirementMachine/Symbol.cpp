@@ -81,6 +81,14 @@ struct Symbol::Storage final
     Kind = Kind::Shape;
   }
 
+  /// A dummy type for overload resolution of the
+  /// 'pack element' constructor for Storage.
+  struct ForPackElement {};
+
+  explicit Storage(ForPackElement shape) {
+    Kind = Kind::PackElement;
+  }
+
   Storage(const ProtocolDecl *proto, Identifier name) {
     Kind = Symbol::Kind::AssociatedType;
     Proto = proto;
@@ -317,6 +325,16 @@ Symbol Symbol::forShape(RewriteContext &ctx) {
   return (ctx.TheShapeSymbol = symbol);
 }
 
+Symbol Symbol::forPackElement(RewriteContext &ctx) {
+  if (auto *symbol = ctx.ThePackElementSymbol)
+    return symbol;
+
+  unsigned size = Storage::totalSizeToAlloc<unsigned, Term>(0, 0);
+  void *mem = ctx.Allocator.Allocate(size, alignof(Storage));
+  auto *symbol = new (mem) Storage(Storage::ForPackElement());
+  return (ctx.ThePackElementSymbol = symbol);
+}
+
 /// Creates a layout symbol, representing a layout constraint.
 Symbol Symbol::forLayout(LayoutConstraint layout,
                          RewriteContext &ctx) {
@@ -456,6 +474,7 @@ const ProtocolDecl *Symbol::getRootProtocol() const {
     return getProtocol();
 
   case Symbol::Kind::GenericParam:
+  case Symbol::Kind::PackElement:
     return nullptr;
 
   case Symbol::Kind::Name:
@@ -480,6 +499,8 @@ const ProtocolDecl *Symbol::getRootProtocol() const {
 /// - AssociatedType
 /// - GenericParam
 /// - Name
+/// - Shape
+/// - PackElement
 /// - Layout
 /// - Superclass
 /// - ConcreteType
@@ -536,6 +557,7 @@ llvm::Optional<int> Symbol::compare(Symbol other, RewriteContext &ctx) const {
   }
 
   case Kind::Shape:
+  case Kind::PackElement:
   case Kind::GenericParam: {
     auto *param = getGenericParam();
     auto *otherParam = other.getGenericParam();
@@ -618,6 +640,7 @@ Symbol Symbol::withConcreteSubstitutions(
   case Kind::Protocol:
   case Kind::AssociatedType:
   case Kind::Shape:
+  case Kind::PackElement:
   case Kind::Layout:
     break;
   }
@@ -735,6 +758,11 @@ void Symbol::dump(llvm::raw_ostream &out) const {
     out << "[shape]";
     return;
   }
+
+  case Kind::PackElement: {
+    out << "[element]";
+    return;
+  }
   }
 
   llvm_unreachable("Bad symbol kind");
@@ -757,6 +785,7 @@ void Symbol::Storage::Profile(llvm::FoldingSetNodeID &id) const {
     return;
 
   case Symbol::Kind::GenericParam:
+  case Symbol::Kind::PackElement:
     id.AddPointer(GenericParam);
     return;
 

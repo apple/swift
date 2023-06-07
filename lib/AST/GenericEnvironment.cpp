@@ -180,16 +180,16 @@ struct FindElementArchetypeForOpenedPackParam {
     : findElementParam(env, openedPacks), getElementArchetype(env) {}
 
 
-  ElementArchetypeType *operator()(Type interfaceType) {
+  Type operator()(Type interfaceType) {
     assert(interfaceType->isTypeParameter());
     if (auto member = interfaceType->getAs<DependentMemberType>()) {
-      auto baseArchetype = (*this)(member->getBase());
+      auto baseArchetype = (*this)(member->getBase())
+             ->castTo<ElementArchetypeType>();
       return baseArchetype->getNestedType(member->getAssocType())
                ->castTo<ElementArchetypeType>();
     }
     assert(interfaceType->is<GenericTypeParamType>());
-    return getElementArchetype(findElementParam(interfaceType))
-             ->castTo<ElementArchetypeType>();
+    return getElementArchetype(findElementParam(interfaceType));
   }
 };
 

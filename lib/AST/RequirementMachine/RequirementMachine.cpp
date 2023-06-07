@@ -550,7 +550,7 @@ void RequirementMachine::dump(llvm::raw_ostream &out) const {
     for (auto paramTy : Params) {
       out << " " << Type(paramTy);
       if (paramTy->isParameterPack())
-        out << "…";
+        out << " " << paramTy;
     }
     out << " >";
   }

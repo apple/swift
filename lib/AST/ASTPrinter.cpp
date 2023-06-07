@@ -1968,6 +1968,9 @@ void PrintAST::printRequirement(const Requirement &req) {
   SmallVector<Type, 2> rootParameterPacks;
   getTransformedType(req.getFirstType())
       ->getTypeParameterPacks(rootParameterPacks);
+  if (req.getKind() != RequirementKind::Layout)
+    getTransformedType(req.getSecondType())
+        ->getTypeParameterPacks(rootParameterPacks);
   bool isPackRequirement = !rootParameterPacks.empty();
 
   switch (req.getKind()) {

@@ -278,6 +278,7 @@ RequirementMachine::getLongestValidPrefix(const MutableTerm &term) const {
     case Symbol::Kind::ConcreteType:
     case Symbol::Kind::ConcreteConformance:
     case Symbol::Kind::Shape:
+    case Symbol::Kind::PackElement:
       llvm::errs() <<"Invalid symbol in a type term: " << term << "\n";
       abort();
     }
@@ -306,6 +307,20 @@ bool RequirementMachine::isReducedType(Type type) const {
     Action walkToTypePre(Type component) override {
       if (!component->hasTypeParameter())
         return Action::SkipChildren;
+
+      if (auto *expansion = component->getAs<PackExpansionType>()) {
+        auto pattern = expansion->getPatternType();
+        auto shape = expansion->getCountType();
+        if (!Self.isReducedType(pattern))
+          return Action::Stop;
+
+        auto reducedShape =
+            Self.getReducedShape(shape, Self.getGenericParams());
+        if (reducedShape->getCanonicalType() != CanType(shape))
+          return Action::Stop;
+
+        return Action::SkipChildren;
+      }
 
       if (!component->isTypeParameter())
         return Action::Continue;
@@ -789,6 +804,7 @@ void RequirementMachine::verify(const MutableTerm &term) const {
       switch (symbol.getKind()) {
       case Symbol::Kind::Protocol:
       case Symbol::Kind::GenericParam:
+      case Symbol::Kind::PackElement:
         erased.add(symbol);
         continue;
 
@@ -828,6 +844,7 @@ void RequirementMachine::verify(const MutableTerm &term) const {
     case Symbol::Kind::Superclass:
     case Symbol::Kind::ConcreteType:
     case Symbol::Kind::ConcreteConformance:
+    case Symbol::Kind::PackElement:
       llvm::errs() << "Bad interior symbol " << symbol << " in " << term << "\n";
       abort();
       break;

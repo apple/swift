@@ -389,6 +389,21 @@ void RuleBuilder::addRequirement(const Requirement &req,
                             otherType, *substitutions)
                       : Context.getMutableTermForType(
                             otherType, proto));
+
+    if (subjectType->isParameterPack() != otherType->isParameterPack()) {
+      // This is a same-element requirement.
+      auto elementSymbol = Symbol::forPackElement(Context);
+      llvm::SmallVector<Symbol, 3> symbols{elementSymbol};
+
+      if (subjectType->isParameterPack()) {
+        symbols.append(subjectTerm.begin(), subjectTerm.end());
+        subjectTerm = MutableTerm(std::move(symbols));
+      } else {
+        symbols.append(constraintTerm.begin(), constraintTerm.end());
+        constraintTerm = MutableTerm(std::move(symbols));
+      }
+    }
+
     break;
   }
   }
