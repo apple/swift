@@ -1,0 +1,75 @@
+// RUN: %target-sil-opt -enable-sil-verify-all %s -onone-simplification -simplify-instruction=init_enum_data_addr | %FileCheck %s
+
+// REQUIRES: swift_in_compiler
+
+import Swift
+import Builtin
+
+enum E {
+  case A(Int)
+  case B(AnyObject)
+}
+
+enum GenE<T> {
+  case A(Int)
+  case B(T)
+}
+// CHECK-LABEL: sil @optional_int
+// CHECK:         %2 = enum $Optional<Int>, #Optional.some!enumelt, %1 : $Int
+// CHECK:         store %2 to %0 : $*Optional<Int>
+// CHECK:         %4 = tuple ()
+// CHECK:         return %4
+// CHECK:       } // end sil function 'optional_int'
+sil @optional_int : $@convention(thin) (Int) -> @out Optional<Int> {
+bb0(%0 : $*Optional<Int>, %1 : $Int):
+  %2 = init_enum_data_addr %0 : $*Optional<Int>, #Optional.some!enumelt
+  store %1 to %2 : $*Int
+  inject_enum_addr %0 : $*Optional<Int>, #Optional.some!enumelt
+  %5 = tuple ()
+  return %5 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @ossa_trivial
+// CHECK:         %2 = enum $Optional<Int>, #Optional.some!enumelt, %1 : $Int
+// CHECK:         store %2 to [trivial] %0 : $*Optional<Int>
+// CHECK:         %4 = tuple ()
+// CHECK:         return %4
+// CHECK:       } // end sil function 'ossa_trivial'
+sil [ossa] @ossa_trivial : $@convention(thin) (Int) -> @out Optional<Int> {
+bb0(%0 : $*Optional<Int>, %1 : $Int):
+  %2 = init_enum_data_addr %0 : $*Optional<Int>, #Optional.some!enumelt
+  store %1 to [trivial] %2 : $*Int
+  inject_enum_addr %0 : $*Optional<Int>, #Optional.some!enumelt
+  %5 = tuple ()
+  return %5 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @ossa_nontrivial
+// CHECK:         %2 = enum $E, #E.A!enumelt, %1 : $Int
+// CHECK:         store %2 to [init] %0 : $*E
+// CHECK:         %4 = tuple ()
+// CHECK:         return %4
+// CHECK:       } // end sil function 'ossa_nontrivial'
+sil [ossa] @ossa_nontrivial : $@convention(thin) (Int) -> @out E {
+bb0(%0 : $*E, %1 : $Int):
+  %2 = init_enum_data_addr %0 : $*E, #E.A!enumelt
+  store %1 to [trivial] %2 : $*Int
+  inject_enum_addr %0 : $*E, #E.A!enumelt
+  %5 = tuple ()
+  return %5 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @not_loadable
+// CHECK:         %2 = init_enum_data_addr
+// CHECK:         store %1 to [trivial] %2
+// CHECK:         inject_enum_addr
+// CHECK:       } // end sil function 'not_loadable'
+sil [ossa] @not_loadable : $@convention(thin) <T> (Int) -> @out GenE<T> {
+bb0(%0 : $*GenE<T>, %1 : $Int):
+  %2 = init_enum_data_addr %0 : $*GenE<T>, #GenE.A!enumelt
+  store %1 to [trivial] %2 : $*Int
+  inject_enum_addr %0 : $*GenE<T>, #GenE.A!enumelt
+  %5 = tuple ()
+  return %5 : $()
+}
+

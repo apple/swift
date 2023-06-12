@@ -59,6 +59,7 @@ add_swift_host_library(swiftIRGen STATIC
   MetadataLayout.cpp
   MetadataRequest.cpp
   Outlining.cpp
+  PackMetadataMarkerInserter.cpp
   StructLayout.cpp
   SwiftTargetInfo.cpp
   TBDGen.cpp

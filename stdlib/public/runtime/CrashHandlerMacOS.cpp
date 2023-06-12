@@ -57,7 +57,7 @@ void suspend_other_threads();
 void resume_other_threads();
 bool run_backtracer(void);
 
-swift::CrashInfo crashInfo;
+CrashInfo crashInfo;
 
 os_unfair_lock crashLock = OS_UNFAIR_LOCK_INIT;
 
@@ -428,6 +428,7 @@ run_backtracer()
   case OutputTo::Stdout:
     backtracer_argv[30] = "stdout";
     break;
+  case OutputTo::Auto: // Shouldn't happen, but if it does pick stderr
   case OutputTo::Stderr:
     backtracer_argv[30] = "stderr";
     break;

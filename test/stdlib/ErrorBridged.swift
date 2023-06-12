@@ -863,6 +863,11 @@ struct SwiftError2: Error, CustomStringConvertible {
   var description: String
 }
 
+struct SwiftErrorLarge: Error, CustomStringConvertible {
+  var description: String
+  var makeItLarge = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+}
+
 ErrorBridgingTests.test("Swift Error description memory management") {
   func checkDescription() {
     // Generate a non-small, non-constant NSString bridged to String.
@@ -881,6 +886,15 @@ ErrorBridgingTests.test("Swift Error description memory management") {
     for _ in 0 ..< 10 {
       autoreleasepool {
         expectEqual(str, bridgedError.description)
+      }
+    }
+
+    // Make sure large structs also work.
+    let largeError = SwiftErrorLarge(description: str)
+    let largeBridgedError = largeError as NSError
+    for _ in 0 ..< 10 {
+      autoreleasepool {
+        expectEqual(str, largeBridgedError.description)
       }
     }
   }

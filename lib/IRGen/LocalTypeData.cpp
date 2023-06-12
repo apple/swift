@@ -19,6 +19,7 @@
 #include "Fulfillment.h"
 #include "GenMeta.h"
 #include "GenOpaque.h"
+#include "GenPack.h"
 #include "GenProto.h"
 #include "IRGenDebugInfo.h"
 #include "IRGenFunction.h"
@@ -349,6 +350,9 @@ static void maybeEmitDebugInfoForLocalTypeData(IRGenFunction &IGF,
   auto name = typeParam->getName().str();
 
   llvm::Value *data = value.getMetadata();
+
+  if (key.Type->is<PackArchetypeType>())
+    data = maskMetadataPackPointer(IGF, data);
 
   // At -O0, create an alloca to keep the type alive. Not for async functions
   // though; see the comment in IRGenFunctionSIL::emitShadowCopyIfNeeded().

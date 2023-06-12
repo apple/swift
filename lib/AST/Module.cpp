@@ -249,7 +249,7 @@ void SourceLookupCache::addToUnqualifiedLookupCache(Range decls,
         // Cache the value under both its compound name and its full name.
         TopLevelValues.add(VD);
 
-        if (VD->getAttrs().hasAttribute<CustomAttr>()) {
+        if (!onlyOperators && VD->getAttrs().hasAttribute<CustomAttr>()) {
           MayHaveAuxiliaryDecls.push_back(VD);
         }
       }
@@ -279,8 +279,10 @@ void SourceLookupCache::addToUnqualifiedLookupCache(Range decls,
     else if (auto *PG = dyn_cast<PrecedenceGroupDecl>(D))
       PrecedenceGroups[PG->getName()].push_back(PG);
 
-    else if (auto *MED = dyn_cast<MacroExpansionDecl>(D))
-      MayHaveAuxiliaryDecls.push_back(MED);
+    else if (auto *MED = dyn_cast<MacroExpansionDecl>(D)) {
+      if (!onlyOperators)
+        MayHaveAuxiliaryDecls.push_back(MED);
+    }
   }
 }
 
@@ -644,6 +646,7 @@ ModuleDecl::ModuleDecl(Identifier name, ASTContext &ctx,
   Bits.ModuleDecl.HasHermeticSealAtLink = 0;
   Bits.ModuleDecl.IsConcurrencyChecked = 0;
   Bits.ModuleDecl.ObjCNameLookupCachePopulated = 0;
+  Bits.ModuleDecl.HasCxxInteroperability = 0;
 }
 
 void ModuleDecl::setIsSystemModule(bool flag) {
@@ -1827,11 +1830,8 @@ static ProtocolConformanceRef getPackTypeConformance(
     patternConformances.push_back(patternConformance);
   }
 
-  auto *conformance = PackConformance::get(type, protocol, patternConformances);
-  if (conformance->isInvalid())
-    return ProtocolConformanceRef::forInvalid();
-
-  return ProtocolConformanceRef(conformance);
+  return ProtocolConformanceRef(
+      PackConformance::get(type, protocol, patternConformances));
 }
 
 ProtocolConformanceRef
@@ -3307,6 +3307,14 @@ void SourceFile::lookupImportedSPIGroups(
   }
 }
 
+bool shouldImplicitImportAsSPI(ArrayRef<Identifier> spiGroups) {
+  for (auto group : spiGroups) {
+    if (group.empty())
+      return true;
+  }
+  return false;
+}
+
 bool SourceFile::isImportedAsSPI(const ValueDecl *targetDecl) const {
   auto targetModule = targetDecl->getModuleContext();
   llvm::SmallSetVector<Identifier, 4> importedSPIGroups;
@@ -3314,6 +3322,8 @@ bool SourceFile::isImportedAsSPI(const ValueDecl *targetDecl) const {
   // Objective-C SPIs are always imported implicitly.
   if (targetDecl->hasClangNode())
     return !targetDecl->getSPIGroups().empty();
+  if (shouldImplicitImportAsSPI(targetDecl->getSPIGroups()))
+    return true;
 
   lookupImportedSPIGroups(targetModule, importedSPIGroups);
   if (importedSPIGroups.empty())
@@ -3348,12 +3358,14 @@ bool SourceFile::importsModuleAsWeakLinked(const ModuleDecl *module) const {
 
 bool ModuleDecl::isImportedAsSPI(const SpecializeAttr *attr,
                                  const ValueDecl *targetDecl) const {
+  auto declSPIGroups = attr->getSPIGroups();
+  if (shouldImplicitImportAsSPI(declSPIGroups))
+    return true;
+
   auto targetModule = targetDecl->getModuleContext();
   llvm::SmallSetVector<Identifier, 4> importedSPIGroups;
   lookupImportedSPIGroups(targetModule, importedSPIGroups);
   if (importedSPIGroups.empty()) return false;
-
-  auto declSPIGroups = attr->getSPIGroups();
 
   for (auto declSPI : declSPIGroups)
     if (importedSPIGroups.count(declSPI))
@@ -3364,6 +3376,9 @@ bool ModuleDecl::isImportedAsSPI(const SpecializeAttr *attr,
 
 bool ModuleDecl::isImportedAsSPI(Identifier spiGroup,
                                  const ModuleDecl *fromModule) const {
+  if (shouldImplicitImportAsSPI({spiGroup}))
+    return true;
+
   llvm::SmallSetVector<Identifier, 4> importedSPIGroups;
   lookupImportedSPIGroups(fromModule, importedSPIGroups);
   if (importedSPIGroups.empty())

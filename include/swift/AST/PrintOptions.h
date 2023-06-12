@@ -346,6 +346,9 @@ struct PrintOptions {
   /// prevent printing from doing "extra" work.
   bool PrintCurrentMembersOnly = false;
 
+  /// Whether to suppress printing of custom attributes that are expanded macros.
+  bool SuppressExpandedMacros = true;
+
   /// List of attribute kinds that should not be printed.
   std::vector<AnyAttrKind> ExcludeAttrList = {DAK_Transparent, DAK_Effects,
                                               DAK_FixedLayout,
@@ -653,6 +656,7 @@ struct PrintOptions {
     result.EnumRawValues = EnumRawValueMode::PrintObjCOnly;
     result.MapCrossImportOverlaysToDeclaringModule = true;
     result.PrintCurrentMembersOnly = false;
+    result.SuppressExpandedMacros = true;
     return result;
   }
 

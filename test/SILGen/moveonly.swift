@@ -1,4 +1,4 @@
-// RUN: %target-swift-emit-silgen -enable-experimental-feature NoImplicitCopy %s | %FileCheck %s
+// RUN: %target-swift-emit-silgen %s | %FileCheck %s
 
 //////////////////
 // Declarations //
@@ -44,16 +44,20 @@ public enum NonTrivialEnum {
     case third(NonTrivialStruct)
 }
 
-@_moveOnly
-public struct AddressOnlyGeneric<T> {
+public struct AddressOnlyGeneric<T> : ~Copyable {
     var t: T
 }
 
-public protocol P {}
+public protocol P {
+}
+extension CopyableKlass : P {}
 
 @_moveOnly
 public struct AddressOnlyProtocol {
-    var t: P
+    var t: P = CopyableKlass()
+
+    func nonMutatingFunc() {}
+    mutating func mutatingFunc() {}
 }
 
 var varGlobal = NonTrivialStruct()
@@ -984,9 +988,9 @@ func testConditionallyInitializedLet() {
     consumeVal(x)
 }
 
-/////////////////////////////
-// MARK: AddressOnlySetter //
-/////////////////////////////
+////////////////////////
+// MARK: Setter Tests //
+////////////////////////
 
 struct AddressOnlySetterTester : ~Copyable {
     var a: AddressOnlyProtocol {
@@ -1000,3 +1004,2089 @@ struct AddressOnlySetterTester : ~Copyable {
         set { fatalError() }
     }
 }
+
+public class NonFinalClassTest {
+    // CHECK: sil hidden [transparent] [ossa] @$s8moveonly17NonFinalClassTestC1xAA19AddressOnlyProtocolVvs : $@convention(method) (@in AddressOnlyProtocol, @guaranteed NonFinalClassTest) -> () {
+    // CHECK: bb0([[INPUT:%.*]] : $*AddressOnlyProtocol, [[SELF:%.*]] : @guaranteed
+    // CHECK:   [[MARK:%.*]] = mark_must_check [consumable_and_assignable] [[INPUT]]
+    // CHECK:   [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+    // CHECK:   copy_addr [[MARK]] to [init] [[TEMP]]
+    // CHECK:   [[REF:%.*]] = ref_element_addr [[SELF]]
+    // CHECK:   [[ACCESS:%.*]] = begin_access [modify] [dynamic] [[REF]]
+    // CHECK:   [[MARK2:%.*]] = mark_must_check [assignable_but_not_consumable] [[ACCESS]]
+    // CHECK:   copy_addr [take] [[TEMP]] to [[MARK2]]
+    // CHECK:   end_access [[ACCESS]]
+    // CHECK:   dealloc_stack [[TEMP]]
+    // CHECK:   destroy_addr [[MARK]]
+    // CHECK: } // end sil function '$s8moveonly17NonFinalClassTestC1xAA19AddressOnlyProtocolVvs'
+    var x: AddressOnlyProtocol
+    init(y: consuming AddressOnlyProtocol) { self.x = y }
+}
+
+/////////////////////
+// MARK: Subscript //
+/////////////////////
+
+// MARK: Getter Only
+
+public struct LoadableSubscriptGetOnlyTester : ~Copyable {
+    subscript(_ i: Int) -> AddressOnlyProtocol {
+        get {
+            fatalError()
+        }
+    }
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly047testSubscriptGetOnly_BaseLoadable_ResultAddressE4_VaryyF : $@convention(thin) () -> () {
+// CHECK: [[BOX:%.*]] = alloc_box $
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+//
+// The get call
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[ACCESS]]
+// CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[MARK]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[TEMP_MARK:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[TEMP_MARK]], {{%.*}}, [[LOAD_BORROW]])
+// CHECK: end_borrow [[LOAD_BORROW]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: apply {{%.*}}([[TEMP_MARK]])
+// CHECK: destroy_addr [[TEMP_MARK]]
+//
+// Test the assignment
+// CHECK: [[M2_BOX:%.*]] = alloc_box ${
+// CHECK: [[M2_BORROW:%.*]] = begin_borrow [lexical] [[M2_BOX]]
+// CHECK: [[M2_PROJECT:%.*]] = project_box [[M2_BORROW]]
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[ACCESS]]
+// CHECK: [[LOAD:%.*]] = load_borrow [[MARK]]
+// CHECK: apply {{%.*}}([[M2_PROJECT]], {{%.*}}, [[LOAD]])
+// CHECK: end_borrow [[LOAD]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[M2_MARK:%.*]] = mark_must_check [no_consume_or_assign] [[M2_PROJECT]]
+// CHECK: end_borrow [[M2_BORROW]]
+// CHECK: destroy_value [[M2_BOX]]
+// CHECK: } // end sil function '$s8moveonly047testSubscriptGetOnly_BaseLoadable_ResultAddressE4_VaryyF'
+public func testSubscriptGetOnly_BaseLoadable_ResultAddressOnly_Var() {
+    var m = LoadableSubscriptGetOnlyTester()
+    m = LoadableSubscriptGetOnlyTester()
+    m[0].nonMutatingFunc()
+    let m2 = m[0]
+    _ = m2
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly047testSubscriptGetOnly_BaseLoadable_ResultAddressE4_LetyyF : $@convention(thin) () -> () {
+// CHECK: [[BOX:%.*]] = alloc_box $
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+//
+// The get call
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[PROJECT]]
+// CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[MARK]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[TEMP_MARK:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[TEMP_MARK]], {{%.*}}, [[LOAD_BORROW]])
+// CHECK: apply {{%.*}}([[TEMP_MARK]])
+// CHECK: destroy_addr [[TEMP_MARK]]
+// CHECK: end_borrow [[LOAD_BORROW]]
+// CHECK: } // end sil function '$s8moveonly047testSubscriptGetOnly_BaseLoadable_ResultAddressE4_LetyyF'
+public func testSubscriptGetOnly_BaseLoadable_ResultAddressOnly_Let() {
+    let m = LoadableSubscriptGetOnlyTester()
+    m[0].nonMutatingFunc()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly047testSubscriptGetOnly_BaseLoadable_ResultAddressE6_InOut1myAA0gcdE6TesterVz_tF : $@convention(thin) (@inout LoadableSubscriptGetOnlyTester) -> () {
+// CHECK: bb0([[ARG:%.*]] : $*
+// CHECK:   [[MARK:%.*]] = mark_must_check [consumable_and_assignable] [[ARG]]
+//
+// CHECK:   [[ACCESS:%.*]] = begin_access [read] [unknown] [[MARK]]
+// CHECK:   [[LOAD_BORROW:%.*]] = load_borrow [[ACCESS]]
+// CHECK:   [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK:   [[TEMP_MARK:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK:   apply {{%.*}}([[TEMP_MARK]], {{%.*}}, [[LOAD_BORROW]])
+// CHECK:   end_borrow [[LOAD_BORROW]]
+// CHECK:   end_access [[ACCESS]]
+// CHECK:   apply {{%.*}}([[TEMP_MARK]])
+// CHECK:   destroy_addr [[TEMP_MARK]]
+// CHECK: } // end sil function '$s8moveonly047testSubscriptGetOnly_BaseLoadable_ResultAddressE6_InOut1myAA0gcdE6TesterVz_tF'
+public func testSubscriptGetOnly_BaseLoadable_ResultAddressOnly_InOut(m: inout LoadableSubscriptGetOnlyTester) {
+    m[0].nonMutatingFunc()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly047testSubscriptGetOnly_BaseLoadable_ResultAddressE7_GlobalyyF : $@convention(thin) () -> () {
+// CHECK: [[GLOBAL_ADDR:%.*]] = global_addr @$s8moveonly36globalLoadableSubscriptGetOnlyTesterAA0cdefG0Vvp :
+//
+// The get call
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [dynamic] [[GLOBAL_ADDR]]
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[ACCESS]]
+// CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[MARK]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[TEMP_MARK:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[TEMP_MARK]], {{%.*}}, [[LOAD_BORROW]])
+// CHECK: end_borrow [[LOAD_BORROW]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: apply {{%.*}}([[TEMP_MARK]])
+// CHECK: destroy_addr [[TEMP_MARK]]
+// CHECK: } // end sil function '$s8moveonly047testSubscriptGetOnly_BaseLoadable_ResultAddressE7_GlobalyyF'
+var globalLoadableSubscriptGetOnlyTester = LoadableSubscriptGetOnlyTester()
+public func testSubscriptGetOnly_BaseLoadable_ResultAddressOnly_Global() {
+    globalLoadableSubscriptGetOnlyTester[0].nonMutatingFunc()
+}
+
+// Make sure that we get the same behavior when we access through another noncopyable struct.
+public struct LoadableSubscriptGetOnlyTesterNonCopyableStructParent : ~Copyable {
+    var tester = LoadableSubscriptGetOnlyTester()
+    var computedTester: LoadableSubscriptGetOnlyTester { fatalError() }
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly077testSubscriptGetOnlyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressE4_VaryyF : $@convention(thin) () -> () {
+// CHECK: [[BOX:%.*]] = alloc_box $
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+//
+// The first get call
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[ACCESS]]
+// CHECK: [[GEP:%.*]] = struct_element_addr [[MARK]]
+// CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[GEP]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[TEMP_MARK:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[TEMP_MARK]], {{%.*}}, [[LOAD_BORROW]])
+// CHECK: end_borrow [[LOAD_BORROW]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: apply {{%.*}}([[TEMP_MARK]])
+// CHECK: destroy_addr [[TEMP_MARK]]
+//
+// The second get call.
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[ACCESS]]
+// CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[MARK]]
+// CHECK: [[VALUE:%.*]] = apply {{%.*}}([[LOAD_BORROW]])
+// CHECK: end_borrow [[LOAD_BORROW]]
+// CHECK: end_access [[ACCESS]]
+//
+// CHECK: [[BORROWED_VALUE:%.*]] = begin_borrow [[VALUE]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[TEMP_MARK:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[TEMP_MARK]], {{%.*}}, [[BORROWED_VALUE]])
+// CHECK: end_borrow [[BORROWED_VALUE]]
+// CHECK: destroy_value [[VALUE]]
+// CHECK: apply {{%.*}}([[TEMP_MARK]])
+// CHECK: destroy_addr [[TEMP_MARK]]
+// } // end sil function '$s8moveonly077testSubscriptGetOnlyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressE4_VaryyF'
+public func testSubscriptGetOnlyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_Var() {
+    var m = LoadableSubscriptGetOnlyTesterNonCopyableStructParent()
+    m = LoadableSubscriptGetOnlyTesterNonCopyableStructParent()
+    m.tester[0].nonMutatingFunc()
+    m.computedTester[0].nonMutatingFunc()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly077testSubscriptGetOnlyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressE4_LetyyF : $@convention(thin) () -> () {
+// CHECK: [[BOX:%.*]] = alloc_box ${ let L
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+//
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[PROJECT]]
+// CHECK: [[LOAD:%.*]] = load_borrow [[MARK]]
+// CHECK: [[EXT:%.*]] = struct_extract [[LOAD]]
+// CHECK: [[COPY:%.*]] = copy_value [[EXT]]
+// CHECK: [[BORROW:%.*]] = begin_borrow [[COPY]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[TEMP_MARK:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[TEMP_MARK]], {{%.*}}, [[BORROW]])
+// CHECK: end_borrow [[BORROW]]
+// CHECK: destroy_value [[COPY]]
+// CHECK: apply {{%.*}}([[TEMP_MARK]])
+// CHECK: destroy_addr [[TEMP_MARK]]
+// CHECK: end_borrow [[LOAD]]
+// CHECK: } // end sil function '$s8moveonly077testSubscriptGetOnlyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressE4_LetyyF'
+public func testSubscriptGetOnlyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_Let() {
+    let m = LoadableSubscriptGetOnlyTesterNonCopyableStructParent()
+    m.tester[0].nonMutatingFunc()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly077testSubscriptGetOnlyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressE6_InOut1myAA0lcde6TesterghjI0Vz_tF : $@convention(thin) (@inout LoadableSubscriptGetOnlyTesterNonCopyableStructParent) -> () {
+// CHECK: bb0([[ARG:%.*]] :
+// CHECK:   [[MARK:%.*]] = mark_must_check [consumable_and_assignable] [[ARG]]
+//
+// CHECK:   [[ACCESS:%.*]] = begin_access [read] [unknown] [[MARK]]
+// CHECK:   [[GEP:%.*]] = struct_element_addr [[ACCESS]]
+// CHECK:   [[LOAD:%.*]] = load_borrow [[GEP]]
+// CHECK:   [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK:   [[TEMP_MARK:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK:   apply {{%.*}}([[TEMP_MARK]], {{%.*}}, [[LOAD]])
+// CHECK:   end_borrow [[LOAD]]
+// CHECK:   end_access [[ACCESS]]
+// CHECK:   apply {{%.*}}([[TEMP_MARK]])
+// CHECK:   destroy_addr [[TEMP_MARK]]
+// CHECK: } // end sil function '$s8moveonly077testSubscriptGetOnlyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressE6_InOut1myAA0lcde6TesterghjI0Vz_tF'
+public func testSubscriptGetOnlyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_InOut(m: inout LoadableSubscriptGetOnlyTesterNonCopyableStructParent) {
+    m.tester[0].nonMutatingFunc()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly077testSubscriptGetOnlyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressE7_GlobalyyF : $@convention(thin) () -> () {
+// CHECK: [[GLOBAL:%.*]] = global_addr @$s8moveonly59globalLoadableSubscriptGetOnlyTesterNonCopyableStructParentAA0cdefghijK0Vvp
+// CHECK:   [[ACCESS:%.*]] = begin_access [read] [dynamic] [[GLOBAL]]
+// CHECK:   [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[ACCESS]]
+// CHECK:   [[GEP:%.*]] = struct_element_addr [[MARK]]
+// CHECK:   [[LOAD:%.*]] = load_borrow [[GEP]]
+// CHECK:   [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK:   [[TEMP_MARK:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK:   apply {{%.*}}([[TEMP_MARK]], {{%.*}}, [[LOAD]])
+// CHECK:   end_borrow [[LOAD]]
+// CHECK:   end_access [[ACCESS]]
+// CHECK:   apply {{%.*}}([[TEMP_MARK]])
+// CHECK:   destroy_addr [[TEMP_MARK]]
+// CHECK: } // end sil function '$s8moveonly077testSubscriptGetOnlyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressE7_GlobalyyF'
+var globalLoadableSubscriptGetOnlyTesterNonCopyableStructParent = LoadableSubscriptGetOnlyTesterNonCopyableStructParent()
+public func testSubscriptGetOnlyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_Global() {
+    globalLoadableSubscriptGetOnlyTesterNonCopyableStructParent.tester[0].nonMutatingFunc()
+}
+
+public class LoadableSubscriptGetOnlyTesterClassParent {
+    var tester = LoadableSubscriptGetOnlyTester()
+    var computedTester: LoadableSubscriptGetOnlyTester { fatalError() }
+    var testerParent = LoadableSubscriptGetOnlyTesterNonCopyableStructParent()
+}
+
+// TODO(MG): I am preparing a small pass that cleans up the copy_value
+// below. The code in SILGen is in some very generic code that changing could
+// have other unintentional side-effects, so it makes sense to instead just add
+// a small cleanup transform before we do move checking to cleanup this pattern.
+//
+// CHECK-LABEL: sil [ossa] @$s8moveonly065testSubscriptGetOnlyThroughParentClass_BaseLoadable_ResultAddressE4_VaryyF : $@convention(thin) () -> () {
+// CHECK: [[BOX:%.*]] = alloc_box $
+// CHECK: [[BORROW:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK: [[PROJECT:%.*]] = project_box [[BORROW]]
+//
+// First read.
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: [[TEMP:%.*]] = alloc_stack $LoadableSubscriptGetOnlyTester
+// CHECK: [[TEMP_MARK:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: [[CORO_RESULT_COPY:%.*]] = copy_value [[CORO_RESULT]]
+// CHECK: store [[CORO_RESULT_COPY]] to [init] [[TEMP_MARK]]
+// CHECK: [[LOAD:%.*]] = load_borrow [[TEMP_MARK]]
+// CHECK: [[TEMP2:%.*]] = alloc_stack $
+// CHECK: [[TEMP2_MARK:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP2]]
+// CHECK: apply {{%.*}}([[TEMP2_MARK]], {{%.*}}, [[LOAD]])
+// CHECK: end_borrow [[LOAD]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: apply {{%.*}}([[TEMP2_MARK]])
+// CHECK: destroy_addr [[TEMP2_MARK]]
+//
+// Second read.
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: [[TEMP:%.*]] = alloc_stack $LoadableSubscriptGetOnlyTester
+// CHECK: [[TEMP_MARK:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: [[CORO_RESULT_COPY:%.*]] = copy_value [[CORO_RESULT]]
+// CHECK: store [[CORO_RESULT_COPY]] to [init] [[TEMP_MARK]]
+// CHECK: [[GEP:%.*]] = struct_element_addr [[TEMP_MARK]]
+// CHECK: [[LOAD:%.*]] = load_borrow [[GEP]]
+// CHECK: [[TEMP2:%.*]] = alloc_stack $
+// CHECK: [[TEMP2_MARK:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP2]]
+// CHECK: apply {{%.*}}([[TEMP2_MARK]], {{%.*}}, [[LOAD]])
+// CHECK: end_borrow [[LOAD]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: apply {{%.*}}([[TEMP2_MARK]])
+// CHECK: destroy_addr [[TEMP2_MARK]]
+//
+// Third read. This is a case that we can't handle today due to the way the AST
+// looks:
+//
+// (subscript_expr type='AddressOnlyProtocol'
+//   (member_ref_expr type='LoadableSubscriptGetOnlyTester'
+//     (load_expr implicit type='LoadableSubscriptGetOnlyTesterClassParent'
+//       (declref_expr type='@lvalue LoadableSubscriptGetOnlyTesterClassParent'
+//   (argument_list
+//     (argument
+//       (integer_literal_expr type='Int'
+//
+// due to the load_expr in the subscript base, SILGen emits a base rvalue for
+// the load_expr and copies it, ending the coroutine. What we need is the
+// ability to have an lvalue pseudo-component that treats the declref_expr (and
+// any member_ref_expr) as a base and allows for a load_expr to be followed by N
+// member_ref_expr.
+//
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: [[CORO_RESULT_COPY:%.*]] = copy_value [[CORO_RESULT]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: [[BORROW:%.*]] = begin_borrow [[CORO_RESULT_COPY]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $
+// CHECK: [[TEMP_MARK:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[TEMP_MARK]], {{%.*}}, [[BORROW]])
+// CHECK: destroy_addr [[TEMP_MARK]]
+
+// CHECK: } // end sil function '$s8moveonly065testSubscriptGetOnlyThroughParentClass_BaseLoadable_ResultAddressE4_VaryyF'
+public func testSubscriptGetOnlyThroughParentClass_BaseLoadable_ResultAddressOnly_Var() {
+    var m = LoadableSubscriptGetOnlyTesterClassParent()
+    m = LoadableSubscriptGetOnlyTesterClassParent()
+    m.tester[0].nonMutatingFunc()
+    m.testerParent.tester[0].nonMutatingFunc()
+    m.computedTester[0].nonMutatingFunc()
+}
+
+// MARK: Getter + Setter.
+// This is different since adding a setter changes how we codegen.
+
+public struct LoadableSubscriptGetSetTester : ~Copyable {
+    subscript(_ i: Int) -> AddressOnlyProtocol {
+        get {
+            fatalError()
+        }
+        set {
+            fatalError()
+        }
+    }
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly54testSubscriptGetSet_BaseLoadable_ResultAddressOnly_VaryyF : $@convention(thin) () -> () {
+// CHECK: [[BOX:%.*]] = alloc_box $
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+//
+// The get call
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[ACCESS]]
+// CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[MARK]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[TEMP_MARK:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[TEMP_MARK]], {{%.*}}, [[LOAD_BORROW]])
+// CHECK: end_borrow [[LOAD_BORROW]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: apply {{%.*}}([[TEMP_MARK]])
+// CHECK: destroy_addr [[TEMP_MARK]]
+//
+// The assignment:
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}) : $@convention(method) (@thin AddressOnlyProtocol.Type) -> @out AddressOnlyProtocol
+// CHECK: [[ACCESS:%.*]] = begin_access [modify] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [assignable_but_not_consumable] [[ACCESS]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[MARK]])
+// CHECK: end_access [[ACCESS]]
+//
+// The mutating function call.
+// CHECK: [[ACCESS:%.*]] = begin_access [modify] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [assignable_but_not_consumable] [[ACCESS]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[MARK]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[LOAD_BORROW]])
+// CHECK: end_borrow [[LOAD_BORROW]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[MARK]])
+// CHECK: end_access [[ACCESS]]
+//
+// CHECK: } // end sil function '$s8moveonly54testSubscriptGetSet_BaseLoadable_ResultAddressOnly_VaryyF'
+public func testSubscriptGetSet_BaseLoadable_ResultAddressOnly_Var() {
+    var m = LoadableSubscriptGetSetTester()
+    m = LoadableSubscriptGetSetTester()
+    m[0].nonMutatingFunc()
+    m[0] = AddressOnlyProtocol()
+    m[0].mutatingFunc()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly54testSubscriptGetSet_BaseLoadable_ResultAddressOnly_LetyyF : $@convention(thin) () -> () {
+// CHECK: [[BOX:%.*]] = alloc_box $
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+//
+// The get call
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[PROJECT]]
+// CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[MARK]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[LOAD_BORROW]])
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// CHECK: destroy_addr [[MARK_TEMP]]
+// CHECK: end_borrow [[LOAD_BORROW]]
+// CHECK: } // end sil function '$s8moveonly54testSubscriptGetSet_BaseLoadable_ResultAddressOnly_LetyyF'
+public func testSubscriptGetSet_BaseLoadable_ResultAddressOnly_Let() {
+    let m = LoadableSubscriptGetSetTester()
+    m[0].nonMutatingFunc()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly56testSubscriptGetSet_BaseLoadable_ResultAddressOnly_InOut1myAA0gcdE6TesterVz_tF : $@convention(thin) (@inout LoadableSubscriptGetSetTester) -> () {
+// CHECK: bb0([[ARG:%.*]] : $*
+// CHECK:   [[MARK:%.*]] = mark_must_check [consumable_and_assignable] [[ARG]]
+//
+// CHECK:   [[ACCESS:%.*]] = begin_access [read] [unknown] [[MARK]]
+// CHECK:   [[LOAD_BORROW:%.*]] = load_borrow [[ACCESS]]
+// CHECK:   [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK:   [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK:   apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[LOAD_BORROW]])
+// CHECK:   end_borrow [[LOAD_BORROW]]
+// CHECK:   end_access [[ACCESS]]
+// CHECK:   apply {{%.*}}([[MARK_TEMP]])
+// CHECK:   destroy_addr [[MARK_TEMP]]
+//
+// The assignment:
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}) : $@convention(method) (@thin AddressOnlyProtocol.Type) -> @out AddressOnlyProtocol
+// CHECK: [[ACCESS:%.*]] = begin_access [modify] [unknown] [[MARK]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[ACCESS]])
+// CHECK: end_access [[ACCESS]]
+//
+// The mutating function call.
+// CHECK: [[ACCESS:%.*]] = begin_access [modify] [unknown] [[MARK]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[ACCESS]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[LOAD_BORROW]])
+// CHECK: end_borrow [[LOAD_BORROW]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[ACCESS]])
+// CHECK: end_access [[ACCESS]]
+//
+// CHECK: } // end sil function '$s8moveonly56testSubscriptGetSet_BaseLoadable_ResultAddressOnly_InOut1myAA0gcdE6TesterVz_tF'
+public func testSubscriptGetSet_BaseLoadable_ResultAddressOnly_InOut(m: inout LoadableSubscriptGetSetTester) {
+    m[0].nonMutatingFunc()
+    m[0] = AddressOnlyProtocol()
+    m[0].mutatingFunc()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly57testSubscriptGetSet_BaseLoadable_ResultAddressOnly_GlobalyyF : $@convention(thin) () -> () {
+// CHECK: [[GLOBAL_ADDR:%.*]] = global_addr @$s8moveonly35globalLoadableSubscriptGetSetTesterAA0cdefG0Vvp
+//
+// The get call
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [dynamic] [[GLOBAL_ADDR]]
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[ACCESS]]
+// CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[MARK]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[LOAD_BORROW]])
+// CHECK: end_borrow [[LOAD_BORROW]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// CHECK: destroy_addr [[MARK_TEMP]]
+//
+// The assignment:
+// CHECK: [[GLOBAL_ADDR:%.*]] = global_addr @$s8moveonly35globalLoadableSubscriptGetSetTesterAA0cdefG0Vvp
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}) : $@convention(method) (@thin AddressOnlyProtocol.Type) -> @out AddressOnlyProtocol
+// CHECK: [[ACCESS:%.*]] = begin_access [modify] [dynamic] [[GLOBAL_ADDR]]
+// CHECK: [[MARK:%.*]] = mark_must_check [assignable_but_not_consumable] [[ACCESS]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[MARK]])
+// CHECK: end_access [[ACCESS]]
+//
+// The mutating function call.
+// CHECK: [[GLOBAL_ADDR:%.*]] = global_addr @$s8moveonly35globalLoadableSubscriptGetSetTesterAA0cdefG0Vvp
+// CHECK: [[ACCESS:%.*]] = begin_access [modify] [dynamic] [[GLOBAL_ADDR]]
+// CHECK: [[MARK:%.*]] = mark_must_check [assignable_but_not_consumable] [[ACCESS]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[MARK]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[LOAD_BORROW]])
+// CHECK: end_borrow [[LOAD_BORROW]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[MARK]])
+// CHECK: end_access [[ACCESS]]
+//
+// CHECK: } // end sil function '$s8moveonly57testSubscriptGetSet_BaseLoadable_ResultAddressOnly_GlobalyyF'
+var globalLoadableSubscriptGetSetTester = LoadableSubscriptGetSetTester()
+public func testSubscriptGetSet_BaseLoadable_ResultAddressOnly_Global() {
+    globalLoadableSubscriptGetSetTester[0].nonMutatingFunc()
+    globalLoadableSubscriptGetSetTester[0] = AddressOnlyProtocol()
+    globalLoadableSubscriptGetSetTester[0].mutatingFunc()
+}
+
+// Make sure that we get the same behavior when we access through another noncopyable struct.
+public struct LoadableSubscriptGetSetTesterNonCopyableStructParent : ~Copyable {
+    var tester = LoadableSubscriptGetSetTester()
+    var computedTester: LoadableSubscriptGetSetTester { fatalError() }
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly84testSubscriptGetSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_VaryyF : $@convention(thin) () -> () {
+// CHECK: [[BOX:%.*]] = alloc_box $
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+//
+// The first get call
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[ACCESS]]
+// CHECK: [[GEP:%.*]] = struct_element_addr [[MARK]]
+// CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[GEP]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[LOAD_BORROW]])
+// CHECK: end_borrow [[LOAD_BORROW]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// CHECK: destroy_addr [[MARK_TEMP]]
+//
+// The mutating call.
+// CHECK: [[ACCESS:%.*]] = begin_access [modify] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [assignable_but_not_consumable] [[ACCESS]]
+// CHECK: [[GEP:%.*]] = struct_element_addr [[MARK]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: [[LOAD:%.*]] = load_borrow [[GEP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[LOAD]])
+// CHECK: end_borrow [[LOAD]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[GEP]])
+// CHECK: end_access [[ACCESS]]
+//
+// The second get call.
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[ACCESS]]
+// CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[MARK]]
+// CHECK: [[VALUE:%.*]] = apply {{%.*}}([[LOAD_BORROW]])
+// CHECK: end_borrow [[LOAD_BORROW]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROWED_VALUE:%.*]] = begin_borrow [[VALUE]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[BORROWED_VALUE]])
+// CHECK: end_borrow [[BORROWED_VALUE]]
+// CHECK: destroy_value [[VALUE]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// CHECK: destroy_addr [[MARK_TEMP]]
+// } // end sil function '$s8moveonly077testSubscriptGetSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressE4_VaryyF'
+public func testSubscriptGetSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_Var() {
+    var m = LoadableSubscriptGetSetTesterNonCopyableStructParent()
+    m = LoadableSubscriptGetSetTesterNonCopyableStructParent()
+    m.tester[0].nonMutatingFunc()
+    m.tester[0].mutatingFunc()
+    m.computedTester[0].nonMutatingFunc()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly84testSubscriptGetSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_LetyyF : $@convention(thin) () -> () {
+// CHECK: [[BOX:%.*]] = alloc_box ${ let L
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+//
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[PROJECT]]
+// CHECK: [[LOAD:%.*]] = load_borrow [[MARK]]
+// CHECK: [[EXT:%.*]] = struct_extract [[LOAD]]
+// CHECK: [[COPY:%.*]] = copy_value [[EXT]]
+// CHECK: [[BORROW:%.*]] = begin_borrow [[COPY]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[BORROW]])
+// CHECK: end_borrow [[BORROW]]
+// CHECK: destroy_value [[COPY]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// CHECK: destroy_addr [[MARK_TEMP]]
+// CHECK: end_borrow [[LOAD]]
+// CHECK: } // end sil function '$s8moveonly84testSubscriptGetSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_LetyyF'
+public func testSubscriptGetSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_Let() {
+    let m = LoadableSubscriptGetSetTesterNonCopyableStructParent()
+    m.tester[0].nonMutatingFunc()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly86testSubscriptGetSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_InOut1myAA0lcde6TesterghjI0Vz_tF : $@convention(thin) (@inout LoadableSubscriptGetSetTesterNonCopyableStructParent) -> () {
+// CHECK: bb0([[ARG:%.*]] :
+// CHECK:   [[MARK:%.*]] = mark_must_check [consumable_and_assignable] [[ARG]]
+//
+// CHECK:   [[ACCESS:%.*]] = begin_access [read] [unknown] [[MARK]]
+// CHECK:   [[GEP:%.*]] = struct_element_addr [[ACCESS]]
+// CHECK:   [[LOAD:%.*]] = load_borrow [[GEP]]
+// CHECK:   [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK:   [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK:   apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[LOAD]])
+// CHECK:   end_borrow [[LOAD]]
+// CHECK:   end_access [[ACCESS]]
+// CHECK:   apply {{%.*}}([[MARK_TEMP]])
+// CHECK:   destroy_addr [[MARK_TEMP]]
+//
+// CHECK:   [[ACCESS:%.*]] = begin_access [modify] [unknown] [[MARK]]
+// CHECK:   [[GEP:%.*]] = struct_element_addr [[ACCESS]]
+// CHECK:   [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK:   [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK:   [[LOAD:%.*]] = load_borrow [[GEP]]
+// CHECK:   apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[LOAD]])
+// CHECK:   end_borrow [[LOAD]]
+// CHECK:   apply {{%.*}}([[MARK_TEMP]])
+// CHECK:   apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[GEP]])
+// CHECK: } // end sil function '$s8moveonly86testSubscriptGetSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_InOut1myAA0lcde6TesterghjI0Vz_tF'
+public func testSubscriptGetSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_InOut(m: inout LoadableSubscriptGetSetTesterNonCopyableStructParent) {
+    m.tester[0].nonMutatingFunc()
+    m.tester[0].mutatingFunc()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly87testSubscriptGetSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_GlobalyyF : $@convention(thin) () -> () {
+// CHECK:   [[GLOBAL:%.*]] = global_addr @$s8moveonly58globalLoadableSubscriptGetSetTesterNonCopyableStructParentAA0cdefghijK0Vvp
+// CHECK:   [[ACCESS:%.*]] = begin_access [read] [dynamic] [[GLOBAL]]
+// CHECK:   [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[ACCESS]]
+// CHECK:   [[GEP:%.*]] = struct_element_addr [[MARK]]
+// CHECK:   [[LOAD:%.*]] = load_borrow [[GEP]]
+// CHECK:   [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK:   [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK:   apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[LOAD]])
+// CHECK:   end_borrow [[LOAD]]
+// CHECK:   end_access [[ACCESS]]
+// CHECK:   apply {{%.*}}([[MARK_TEMP]])
+// CHECK:   destroy_addr [[MARK_TEMP]]
+//
+// CHECK:   [[GLOBAL:%.*]] = global_addr @$s8moveonly58globalLoadableSubscriptGetSetTesterNonCopyableStructParentAA0cdefghijK0Vvp
+// CHECK:   [[ACCESS:%.*]] = begin_access [modify] [dynamic] [[GLOBAL]]
+// CHECK:   [[MARK:%.*]] = mark_must_check [assignable_but_not_consumable] [[ACCESS]]
+// CHECK:   [[GEP:%.*]] = struct_element_addr [[MARK]]
+// CHECK:   [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK:   [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK:   [[LOAD:%.*]] = load_borrow [[GEP]]
+// CHECK:   apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[LOAD]])
+// CHECK:   end_borrow [[LOAD]]
+// CHECK:   apply {{%.*}}([[MARK_TEMP]])
+// CHECK:   apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[GEP]])
+// CHECK:   end_access [[ACCESS]]
+// CHECK: } // end sil function '$s8moveonly87testSubscriptGetSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_GlobalyyF'
+var globalLoadableSubscriptGetSetTesterNonCopyableStructParent = LoadableSubscriptGetSetTesterNonCopyableStructParent()
+public func testSubscriptGetSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_Global() {
+    globalLoadableSubscriptGetSetTesterNonCopyableStructParent.tester[0].nonMutatingFunc()
+    globalLoadableSubscriptGetSetTesterNonCopyableStructParent.tester[0].mutatingFunc()
+}
+
+public class LoadableSubscriptGetSetTesterClassParent {
+    var tester = LoadableSubscriptGetSetTester()
+    var computedTester: LoadableSubscriptGetSetTester { fatalError() }
+    var computedTester2: LoadableSubscriptGetSetTester {
+        get { fatalError() }
+        set { fatalError() }
+    }
+    var testerParent = LoadableSubscriptGetSetTesterNonCopyableStructParent()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly72testSubscriptGetSetThroughParentClass_BaseLoadable_ResultAddressOnly_VaryyF : $@convention(thin) () -> () {
+// CHECK: [[BOX:%.*]] = alloc_box $
+// CHECK: [[BORROW:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK: [[PROJECT:%.*]] = project_box [[BORROW]]
+//
+// First read.
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: [[TEMP:%.*]] = alloc_stack $
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[CORO_RESULT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_borrow [[BORROW_COPYABLE_CLASS]]
+// CHECK: destroy_value [[COPYABLE_CLASS]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// CHECK: destroy_addr [[MARK_TEMP]]
+//
+// First mutation.
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: [[TEMP:%.*]] = alloc_stack $
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: [[LOAD:%.*]] = load_borrow [[CORO_RESULT]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[LOAD]])
+// CHECK: end_borrow [[LOAD]]
+// Mutating Func
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// Setter
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[CORO_RESULT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+//
+// Second read.
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: [[EXT:%.*]] = struct_extract [[CORO_RESULT]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[EXT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_borrow [[BORROW_COPYABLE_CLASS]]
+// CHECK: destroy_value [[COPYABLE_CLASS]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// CHECK: destroy_addr [[MARK_TEMP]]
+//
+// Second mutate
+//
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: [[GEP:%.*]] = struct_element_addr [[CORO_RESULT]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: [[LOAD:%.*]] = load_borrow [[GEP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[LOAD]])
+// CHECK: end_borrow [[LOAD]]
+// Mutating func
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// Setter func
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[GEP]])
+// CHECK: end_apply [[CORO_TOKEN]]
+//
+// Third read. This is a case that we can't handle today due to the way the AST
+// looks:
+//
+// (subscript_expr type='AddressOnlyProtocol'
+//   (member_ref_expr type='LoadableSubscriptGetSetTester'
+//     (load_expr implicit type='LoadableSubscriptGetSetTesterClassParent'
+//       (declref_expr type='@lvalue LoadableSubscriptGetSetTesterClassParent'
+//   (argument_list
+//     (argument
+//       (integer_literal_expr type='Int'
+//
+// due to the load_expr in the subscript base, SILGen emits a base rvalue for
+// the load_expr and copies it, ending the coroutine. What we need is the
+// ability to have an lvalue pseudo-component that treats the declref_expr (and
+// any member_ref_expr) as a base and allows for a load_expr to be followed by N
+// member_ref_expr.
+//
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: [[CORO_RESULT_COPY:%.*]] = copy_value [[CORO_RESULT]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: [[BORROW:%.*]] = begin_borrow [[CORO_RESULT_COPY]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[BORROW]])
+// CHECK: end_borrow [[BORROW]]
+// CHECK: destroy_value [[CORO_RESULT_COPY]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// CHECK: destroy_addr [[MARK_TEMP]]
+//
+// First read
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: [[TEMP:%.*]] = alloc_stack $
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// Getter
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[CORO_RESULT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// CHECK: destroy_addr [[MARK_TEMP]]
+//
+// Mutation
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: [[TEMP:%.*]] = alloc_stack $
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: [[LOAD:%.*]] = load_borrow [[CORO_RESULT]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[LOAD]])
+// CHECK: end_borrow [[LOAD]]
+// Mutating Func
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// Setter
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[CORO_RESULT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: } // end sil function '$s8moveonly72testSubscriptGetSetThroughParentClass_BaseLoadable_ResultAddressOnly_VaryyF'
+public func testSubscriptGetSetThroughParentClass_BaseLoadable_ResultAddressOnly_Var() {
+    var m = LoadableSubscriptGetSetTesterClassParent()
+    m = LoadableSubscriptGetSetTesterClassParent()
+    m.tester[0].nonMutatingFunc()
+    m.tester[0].mutatingFunc()
+    m.testerParent.tester[0].nonMutatingFunc()
+    m.testerParent.tester[0].mutatingFunc()
+    m.computedTester[0].nonMutatingFunc()
+    m.computedTester2[0].nonMutatingFunc()
+    m.computedTester2[0].mutatingFunc()
+}
+
+// MARK: read and setter
+// This is different since adding a setter changes how we codegen.
+
+public struct LoadableSubscriptReadSetTester : ~Copyable {
+    subscript(_ i: Int) -> AddressOnlyProtocol {
+        _read {
+            fatalError()
+        }
+        set {
+            fatalError()
+        }
+    }
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly55testSubscriptReadSet_BaseLoadable_ResultAddressOnly_VaryyF : $@convention(thin) () -> () {
+// CHECK: [[BOX:%.*]] = alloc_box $
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+//
+// The read call
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[ACCESS]]
+// CHECK: [[LOAD:%.*]] = load_borrow [[MARK]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[LOAD]])
+// CHECK: apply {{%.*}}([[CORO_RESULT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_borrow [[LOAD]]
+// CHECK: end_access [[ACCESS]]
+//
+// The assignment:
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}) : $@convention(method) (@thin AddressOnlyProtocol.Type) -> @out AddressOnlyProtocol
+// CHECK: [[ACCESS:%.*]] = begin_access [modify] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [assignable_but_not_consumable] [[ACCESS]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[MARK]])
+// CHECK: end_access [[ACCESS]]
+//
+// The mutating function call.
+// CHECK: [[ACCESS:%.*]] = begin_access [modify] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [assignable_but_not_consumable] [[ACCESS]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: [[LOAD:%.*]] = load_borrow [[MARK]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[LOAD]])
+// CHECK: copy_addr [[CORO_RESULT]] to [init] [[MARK_TEMP]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_borrow [[LOAD]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[MARK]])
+// CHECK: end_access [[ACCESS]]
+//
+// CHECK: } // end sil function '$s8moveonly55testSubscriptReadSet_BaseLoadable_ResultAddressOnly_VaryyF'
+public func testSubscriptReadSet_BaseLoadable_ResultAddressOnly_Var() {
+    var m = LoadableSubscriptReadSetTester()
+    m = LoadableSubscriptReadSetTester()
+    m[0].nonMutatingFunc()
+    m[0] = AddressOnlyProtocol()
+    m[0].mutatingFunc()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly55testSubscriptReadSet_BaseLoadable_ResultAddressOnly_LetyyF : $@convention(thin) () -> () {
+// CHECK: [[BOX:%.*]] = alloc_box $
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+//
+// The get call
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[PROJECT]]
+// CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[MARK]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[LOAD_BORROW]])
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: copy_addr [[CORO_RESULT]] to [init] [[TEMP]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: apply {{%.*}}([[TEMP]])
+// CHECK: destroy_addr [[TEMP]]
+// CHECK: end_borrow [[LOAD_BORROW]]
+// CHECK: } // end sil function '$s8moveonly55testSubscriptReadSet_BaseLoadable_ResultAddressOnly_LetyyF'
+public func testSubscriptReadSet_BaseLoadable_ResultAddressOnly_Let() {
+    let m = LoadableSubscriptReadSetTester()
+    m[0].nonMutatingFunc()
+}
+
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly57testSubscriptReadSet_BaseLoadable_ResultAddressOnly_InOut1myAA0gcdE6TesterVz_tF : $@convention(thin) (@inout LoadableSubscriptReadSetTester) -> () {
+// CHECK: bb0([[ARG:%.*]] : $*
+// CHECK:   [[MARK:%.*]] = mark_must_check [consumable_and_assignable] [[ARG]]
+//
+// CHECK:   [[ACCESS:%.*]] = begin_access [read] [unknown] [[MARK]]
+// CHECK:   [[LOAD_BORROW:%.*]] = load_borrow [[ACCESS]]
+// CHECK:   ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[LOAD_BORROW]])
+// CHECK:   apply {{%.*}}([[CORO_RESULT]])
+// CHECK:   end_apply [[CORO_TOKEN]]
+// CHECK:   end_borrow [[LOAD_BORROW]]
+// CHECK:   end_access [[ACCESS]]
+//
+// The assignment:
+// CHECK:   [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK:   [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK:   [[ACCESS:%.*]] = begin_access [modify] [unknown] [[MARK]]
+// CHECK:   apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[ACCESS]])
+// CHECK:   end_access [[ACCESS]]
+//
+// The mutating function call.
+// Getter
+// CHECK: [[ACCESS:%.*]] = begin_access [modify] [unknown] [[MARK]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: [[LOAD:%.*]] = load_borrow [[ACCESS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[LOAD]])
+// CHECK: copy_addr [[CORO_RESULT]] to [init] [[MARK_TEMP]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// Mutating Func
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// Setter
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[ACCESS]])
+// CHECK: end_access [[ACCESS]]
+//
+// CHECK: } // end sil function '$s8moveonly57testSubscriptReadSet_BaseLoadable_ResultAddressOnly_InOut1myAA0gcdE6TesterVz_tF
+public func testSubscriptReadSet_BaseLoadable_ResultAddressOnly_InOut(m: inout LoadableSubscriptReadSetTester) {
+    m[0].nonMutatingFunc()
+    m[0] = AddressOnlyProtocol()
+    m[0].mutatingFunc()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly58testSubscriptReadSet_BaseLoadable_ResultAddressOnly_GlobalyyF : $@convention(thin) () -> () {
+// CHECK: [[GLOBAL_ADDR:%.*]] = global_addr @$s8moveonly36globalLoadableSubscriptReadSetTesterAA0cdefG0Vvp
+//
+// The get call
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [dynamic] [[GLOBAL_ADDR]]
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[ACCESS]]
+// CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[MARK]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[LOAD_BORROW]])
+// CHECK: apply {{%.*}}([[CORO_RESULT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_borrow [[LOAD_BORROW]]
+// CHECK: end_access [[ACCESS]]
+//
+// The assignment:
+// CHECK: [[GLOBAL_ADDR:%.*]] = global_addr @$s8moveonly36globalLoadableSubscriptReadSetTesterAA0cdefG0Vvp
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}) : $@convention(method) (@thin AddressOnlyProtocol.Type) -> @out AddressOnlyProtocol
+// CHECK: [[ACCESS:%.*]] = begin_access [modify] [dynamic] [[GLOBAL_ADDR]]
+// CHECK: [[MARK:%.*]] = mark_must_check [assignable_but_not_consumable] [[ACCESS]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[MARK]])
+// CHECK: end_access [[ACCESS]]
+//
+// The mutating function call.
+// CHECK: [[GLOBAL_ADDR:%.*]] = global_addr @$s8moveonly36globalLoadableSubscriptReadSetTesterAA0cdefG0Vvp
+// CHECK: [[ACCESS:%.*]] = begin_access [modify] [dynamic] [[GLOBAL_ADDR]]
+// CHECK: [[MARK:%.*]] = mark_must_check [assignable_but_not_consumable] [[ACCESS]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[MARK]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[LOAD_BORROW]])
+// CHECK: copy_addr [[CORO_RESULT]] to [init] [[MARK_TEMP]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_borrow [[LOAD_BORROW]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[MARK]])
+// CHECK: end_access [[ACCESS]]
+//
+// CHECK: } // end sil function '$s8moveonly58testSubscriptReadSet_BaseLoadable_ResultAddressOnly_GlobalyyF'
+var globalLoadableSubscriptReadSetTester = LoadableSubscriptReadSetTester()
+public func testSubscriptReadSet_BaseLoadable_ResultAddressOnly_Global() {
+    globalLoadableSubscriptReadSetTester[0].nonMutatingFunc()
+    globalLoadableSubscriptReadSetTester[0] = AddressOnlyProtocol()
+    globalLoadableSubscriptReadSetTester[0].mutatingFunc()
+}
+
+// Make sure that we get the same behavior when we access through another noncopyable struct.
+public struct LoadableSubscriptReadSetTesterNonCopyableStructParent : ~Copyable {
+    var tester = LoadableSubscriptReadSetTester()
+    var computedTester: LoadableSubscriptReadSetTester { fatalError() }
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly85testSubscriptReadSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_VaryyF : $@convention(thin) () -> () {
+// CHECK: [[BOX:%.*]] = alloc_box $
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+//
+// The first get call
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[ACCESS]]
+// CHECK: [[GEP:%.*]] = struct_element_addr [[MARK]]
+// CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[GEP]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[LOAD_BORROW]])
+// CHECK: apply {{%.*}}([[CORO_RESULT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_borrow [[LOAD_BORROW]]
+// CHECK: end_access [[ACCESS]]
+//
+// The mutating call.
+// CHECK: [[ACCESS:%.*]] = begin_access [modify] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [assignable_but_not_consumable] [[ACCESS]]
+// CHECK: [[GEP:%.*]] = struct_element_addr [[MARK]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: [[LOAD:%.*]] = load_borrow [[GEP]]
+// TODO: Another case where we need to expand coroutines
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[LOAD]])
+// CHECK: copy_addr [[CORO_RESULT]] to [init] [[MARK_TEMP]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_borrow [[LOAD]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[GEP]])
+// CHECK: end_access [[ACCESS]]
+//
+// The second get call.
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[ACCESS]]
+// CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[MARK]]
+// CHECK: [[TESTER:%.*]] = apply {{%.*}}([[LOAD_BORROW]])
+// CHECK: end_borrow [[LOAD_BORROW]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROWED_TESTER:%.*]] = begin_borrow [[TESTER]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[BORROWED_TESTER]])
+// CHECK: apply {{%.*}}([[CORO_RESULT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_borrow [[BORROWED_TESTER]]
+// } // end sil function '$s8moveonly077testSubscriptReadSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressE4_VaryyF'
+public func testSubscriptReadSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_Var() {
+    var m = LoadableSubscriptReadSetTesterNonCopyableStructParent()
+    m = LoadableSubscriptReadSetTesterNonCopyableStructParent()
+    m.tester[0].nonMutatingFunc()
+    m.tester[0].mutatingFunc()
+    m.computedTester[0].nonMutatingFunc()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly85testSubscriptReadSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_LetyyF : $@convention(thin) () -> () {
+// CHECK: [[BOX:%.*]] = alloc_box ${ let L
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+//
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[PROJECT]]
+// CHECK: [[LOAD:%.*]] = load_borrow [[MARK]]
+// CHECK: [[EXT:%.*]] = struct_extract [[LOAD]]
+// CHECK: [[COPY:%.*]] = copy_value [[EXT]]
+// CHECK: [[BORROW:%.*]] = begin_borrow [[COPY]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[BORROW]])
+// CHECK: apply {{%.*}}([[CORO_RESULT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: } // end sil function '$s8moveonly85testSubscriptReadSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_LetyyF'
+public func testSubscriptReadSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_Let() {
+    let m = LoadableSubscriptReadSetTesterNonCopyableStructParent()
+    m.tester[0].nonMutatingFunc()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly87testSubscriptReadSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_InOut1myAA0lcde6TesterghjI0Vz_tF : $@convention(thin) (@inout LoadableSubscriptReadSetTesterNonCopyableStructParent) -> () {
+// CHECK: bb0([[ARG:%.*]] :
+// CHECK:   [[MARK:%.*]] = mark_must_check [consumable_and_assignable] [[ARG]]
+//
+// Call to non_mutating
+// CHECK:   [[ACCESS:%.*]] = begin_access [read] [unknown] [[MARK]]
+// CHECK:   [[GEP:%.*]] = struct_element_addr [[ACCESS]]
+// CHECK:   [[LOAD_BORROW:%.*]] = load_borrow [[GEP]]
+// CHECK:   ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[LOAD_BORROW]])
+// CHECK:   apply {{%.*}}([[CORO_RESULT]])
+// CHECK:   end_apply [[CORO_TOKEN]]
+// CHECK:   end_borrow [[LOAD_BORROW]]
+// CHECK:   end_access [[ACCESS]]
+//
+// Modify
+// CHECK:   [[ACCESS:%.*]] = begin_access [modify] [unknown] [[MARK]]
+// CHECK:   [[GEP:%.*]] = struct_element_addr [[ACCESS]]
+// CHECK:   [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK:   [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK:   [[LOAD:%.*]] = load_borrow [[GEP]]
+// CHECK:   ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[LOAD]])
+// CHECK:   copy_addr [[CORO_RESULT]] to [init] [[MARK_TEMP]]
+// CHECK:   end_apply [[CORO_TOKEN]]
+// CHECK:   end_borrow [[LOAD]]
+// CHECK:   apply {{%.*}}([[MARK_TEMP]])
+// CHECK:   apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[GEP]])
+// CHECK:   end_access [[ACCESS]]
+// CHECK: } // end sil function '$s8moveonly87testSubscriptReadSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_InOut1myAA0lcde6TesterghjI0Vz_tF'
+public func testSubscriptReadSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_InOut(m: inout LoadableSubscriptReadSetTesterNonCopyableStructParent) {
+    m.tester[0].nonMutatingFunc()
+    m.tester[0].mutatingFunc()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly88testSubscriptReadSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_GlobalyyF : $@convention(thin) () -> () {
+// CHECK:   [[GLOBAL:%.*]] = global_addr @$s8moveonly59globalLoadableSubscriptReadSetTesterNonCopyableStructParentAA0cdefghijK0Vvp :
+// CHECK:   [[ACCESS:%.*]] = begin_access [read] [dynamic] [[GLOBAL]]
+// CHECK:   [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[ACCESS]]
+// CHECK:   [[GEP:%.*]] = struct_element_addr [[MARK]]
+// CHECK:   [[LOAD:%.*]] = load_borrow [[GEP]]
+// CHECK:   ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[LOAD]])
+// CHECK:   apply {{%.*}}([[CORO_RESULT]])
+// CHECK:   end_apply [[CORO_TOKEN]]
+// CHECK:   end_borrow [[LOAD]]
+// CHECK:   end_access [[ACCESS]]
+//
+// CHECK:   [[GLOBAL:%.*]] = global_addr @$s8moveonly59globalLoadableSubscriptReadSetTesterNonCopyableStructParentAA0cdefghijK0Vvp :
+// CHECK:   [[ACCESS:%.*]] = begin_access [modify] [dynamic] [[GLOBAL]]
+// CHECK:   [[MARK:%.*]] = mark_must_check [assignable_but_not_consumable] [[ACCESS]]
+// CHECK:   [[GEP:%.*]] = struct_element_addr [[MARK]]
+// CHECK:   [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK:   [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK:   [[LOAD:%.*]] = load_borrow [[GEP]]
+// CHECK:   ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[LOAD]])
+// CHECK:   copy_addr [[CORO_RESULT]] to [init] [[MARK_TEMP]]
+// CHECK:   end_apply [[CORO_TOKEN]]
+// CHECK:   end_borrow [[LOAD]]
+// CHECK:   apply {{%.*}}([[MARK_TEMP]])
+// CHECK:   apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[GEP]])
+// CHECK:   end_access [[ACCESS]]
+// CHECK: } // end sil function '$s8moveonly88testSubscriptReadSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_GlobalyyF'
+var globalLoadableSubscriptReadSetTesterNonCopyableStructParent = LoadableSubscriptReadSetTesterNonCopyableStructParent()
+public func testSubscriptReadSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_Global() {
+    globalLoadableSubscriptReadSetTesterNonCopyableStructParent.tester[0].nonMutatingFunc()
+    globalLoadableSubscriptReadSetTesterNonCopyableStructParent.tester[0].mutatingFunc()
+}
+
+public class LoadableSubscriptReadSetTesterClassParent {
+    var tester = LoadableSubscriptReadSetTester()
+    var computedTester: LoadableSubscriptReadSetTester { fatalError() }
+    var computedTester2: LoadableSubscriptReadSetTester {
+        get { fatalError() }
+        set { fatalError() }
+    }
+    var testerParent = LoadableSubscriptReadSetTesterNonCopyableStructParent()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly73testSubscriptReadSetThroughParentClass_BaseLoadable_ResultAddressOnly_VaryyF : $@convention(thin) () -> () {
+// CHECK: [[BOX:%.*]] = alloc_box $
+// CHECK: [[BORROW:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK: [[PROJECT:%.*]] = project_box [[BORROW]]
+//
+// First read.
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: ([[CORO_RESULT_2:%.*]], [[CORO_TOKEN_2:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[CORO_RESULT]])
+// CHECK: apply {{%.*}}([[CORO_RESULT_2]])
+// CHECK: end_apply [[CORO_TOKEN_2]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_borrow [[BORROW_COPYABLE_CLASS]]
+// CHECK: destroy_value [[COPYABLE_CLASS]]
+//
+// First mutation.
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: [[TEMP:%.*]] = alloc_stack $
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: [[LOAD:%.*]] = load_borrow [[CORO_RESULT]]
+// CHECK: ([[CORO_RESULT_2:%.*]], [[CORO_TOKEN_2:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[LOAD]])
+// CHECK: copy_addr [[CORO_RESULT_2]] to [init] [[MARK_TEMP]]
+// CHECK: end_apply [[CORO_TOKEN_2]]
+// Mutating Func
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// Setter
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[CORO_RESULT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_borrow [[BORROW_COPYABLE_CLASS]]
+// CHECK: destroy_value [[COPYABLE_CLASS]]
+//
+// Second read.
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: [[EXT:%.*]] = struct_extract [[CORO_RESULT]]
+// CHECK: ([[CORO_RESULT_2:%.*]], [[CORO_TOKEN_2:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[EXT]])
+// CHECK: apply {{%.*}}([[CORO_RESULT_2]])
+// CHECK: end_apply [[CORO_TOKEN_2]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_borrow [[BORROW_COPYABLE_CLASS]]
+// CHECK: destroy_value [[COPYABLE_CLASS]]
+//
+// Second mutate
+//
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: [[GEP:%.*]] = struct_element_addr [[CORO_RESULT]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: [[LOAD:%.*]] = load_borrow [[GEP]]
+// CHECK: ([[CORO_RESULT_2:%.*]], [[CORO_TOKEN_2:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[LOAD]])
+// CHECK: copy_addr [[CORO_RESULT_2]] to [init] [[MARK_TEMP]]
+// CHECK: end_apply [[CORO_TOKEN_2]]
+// Mutating Func
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// Setter
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[GEP]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_borrow [[BORROW_COPYABLE_CLASS]]
+// CHECK: destroy_value [[COPYABLE_CLASS]]
+//
+// Third read. This is a case that we can't handle today due to the way the AST
+// looks:
+//
+// (subscript_expr type='AddressOnlyProtocol'
+//   (member_ref_expr type='LoadableSubscriptReadSetTester'
+//     (load_expr implicit type='LoadableSubscriptReadSetTesterClassParent'
+//       (declref_expr type='@lvalue LoadableSubscriptReadSetTesterClassParent'
+//   (argument_list
+//     (argument
+//       (integer_literal_expr type='Int'
+//
+// due to the load_expr in the subscript base, SILGen emits a base rvalue for
+// the load_expr and copies it, ending the coroutine. What we need is the
+// ability to have an lvalue pseudo-component that treats the declref_expr (and
+// any member_ref_expr) as a base and allows for a load_expr to be followed by N
+// member_ref_expr.
+//
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: [[CORO_RESULT_COPY:%.*]] = copy_value [[CORO_RESULT]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: [[BORROW:%.*]] = begin_borrow [[CORO_RESULT_COPY]]
+// CHECK: ([[CORO_RESULT_2:%.*]], [[CORO_TOKEN_2:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[BORROW]])
+// CHECK: apply {{%.*}}([[CORO_RESULT_2]])
+// CHECK: end_apply [[CORO_TOKEN_2]]
+//
+// Fourth read
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: ([[CORO_RESULT_2:%.*]], [[CORO_TOKEN_2:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[CORO_RESULT]])
+// CHECK: apply {{%.*}}([[CORO_RESULT_2]])
+// CHECK: end_apply [[CORO_TOKEN_2]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_borrow [[BORROW_COPYABLE_CLASS]]
+// CHECK: destroy_value [[COPYABLE_CLASS]]
+//
+// Fourth Mutation
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: [[TEMP:%.*]] = alloc_stack $
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: [[LOAD:%.*]] = load_borrow [[CORO_RESULT]]
+// CHECK: ([[CORO_RESULT_2:%.*]], [[CORO_TOKEN_2:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[LOAD]])
+// CHECK: copy_addr [[CORO_RESULT_2]] to [init] [[MARK_TEMP]]
+// CHECK: end_apply [[CORO_TOKEN_2]]
+// CHECK: end_borrow [[LOAD]]
+// Mutating Func
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// Setter
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[CORO_RESULT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: } // end sil function '$s8moveonly73testSubscriptReadSetThroughParentClass_BaseLoadable_ResultAddressOnly_VaryyF'
+public func testSubscriptReadSetThroughParentClass_BaseLoadable_ResultAddressOnly_Var() {
+    var m = LoadableSubscriptReadSetTesterClassParent()
+    m = LoadableSubscriptReadSetTesterClassParent()
+    m.tester[0].nonMutatingFunc()
+    m.tester[0].mutatingFunc()
+    m.testerParent.tester[0].nonMutatingFunc()
+    m.testerParent.tester[0].mutatingFunc()
+    m.computedTester[0].nonMutatingFunc()
+    m.computedTester2[0].nonMutatingFunc()
+    m.computedTester2[0].mutatingFunc()
+}
+
+// MARK: _read and _modify
+
+public struct LoadableSubscriptReadModifyTester : ~Copyable {
+    subscript(_ i: Int) -> AddressOnlyProtocol {
+        _read {
+            fatalError()
+        }
+        _modify {
+            fatalError()
+        }
+    }
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly58testSubscriptReadModify_BaseLoadable_ResultAddressOnly_VaryyF : $@convention(thin) () -> () {
+// CHECK: [[BOX:%.*]] = alloc_box $
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+//
+// The read call
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[ACCESS]]
+// CHECK: [[LOAD:%.*]] = load_borrow [[MARK]]
+// Eventually, we need this end_apply to be around the nonMutatingFunc.
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[LOAD]])
+// CHECK: apply {{%.*}}([[CORO_RESULT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_borrow [[LOAD]]
+// CHECK: end_access [[ACCESS]]
+//
+// The assignment:
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}) : $@convention(method) (@thin AddressOnlyProtocol.Type) -> @out AddressOnlyProtocol
+// CHECK: [[ACCESS:%.*]] = begin_access [modify] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [assignable_but_not_consumable] [[ACCESS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[MARK]])
+// CHECK: copy_addr [take] [[MARK_TEMP]] to [[CORO_RESULT]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_access [[ACCESS]]
+//
+// The mutating function call.
+// CHECK: [[ACCESS:%.*]] = begin_access [modify] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [assignable_but_not_consumable] [[ACCESS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[MARK]])
+// CHECK: apply {{%.*}}([[CORO_RESULT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_access [[ACCESS]]
+//
+// CHECK: } // end sil function '$s8moveonly58testSubscriptReadModify_BaseLoadable_ResultAddressOnly_VaryyF'
+public func testSubscriptReadModify_BaseLoadable_ResultAddressOnly_Var() {
+    var m = LoadableSubscriptReadModifyTester()
+    m = LoadableSubscriptReadModifyTester()
+    m[0].nonMutatingFunc()
+    m[0] = AddressOnlyProtocol()
+    m[0].mutatingFunc()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly58testSubscriptReadModify_BaseLoadable_ResultAddressOnly_LetyyF : $@convention(thin) () -> () {
+// CHECK: [[BOX:%.*]] = alloc_box $
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+//
+// The get call
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[PROJECT]]
+// CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[MARK]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[LOAD_BORROW]])
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: copy_addr [[CORO_RESULT]] to [init] [[TEMP]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: apply {{%.*}}([[TEMP]])
+// CHECK: destroy_addr [[TEMP]]
+// CHECK: end_borrow [[LOAD_BORROW]]
+// CHECK: } // end sil function '$s8moveonly58testSubscriptReadModify_BaseLoadable_ResultAddressOnly_LetyyF'
+public func testSubscriptReadModify_BaseLoadable_ResultAddressOnly_Let() {
+    let m = LoadableSubscriptReadModifyTester()
+    m[0].nonMutatingFunc()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly60testSubscriptReadModify_BaseLoadable_ResultAddressOnly_InOut1myAA0gcdE6TesterVz_tF : $@convention(thin) (@inout LoadableSubscriptReadModifyTester) -> () {
+// CHECK: bb0([[ARG:%.*]] : $*
+// CHECK:   [[MARK:%.*]] = mark_must_check [consumable_and_assignable] [[ARG]]
+//
+// CHECK:   [[ACCESS:%.*]] = begin_access [read] [unknown] [[MARK]]
+// CHECK:   [[LOAD_BORROW:%.*]] = load_borrow [[ACCESS]]
+// CHECK:   ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[LOAD_BORROW]])
+// CHECK:   apply {{%.*}}([[CORO_RESULT]])
+// CHECK:   end_apply [[CORO_TOKEN]]
+// CHECK:   end_borrow [[LOAD_BORROW]]
+// CHECK:   end_access [[ACCESS]]
+//
+// The assignment:
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: [[ACCESS:%.*]] = begin_access [modify] [unknown] [[MARK]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[ACCESS]])
+// CHECK: copy_addr [take] [[MARK_TEMP]] to [[CORO_RESULT]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_access [[ACCESS]]
+//
+// The mutating function call.
+// CHECK: [[ACCESS:%.*]] = begin_access [modify] [unknown] [[MARK]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[ACCESS]])
+// CHECK: apply {{%.*}}([[CORO_RESULT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_access [[ACCESS]]
+//
+// CHECK: } // end sil function '$s8moveonly60testSubscriptReadModify_BaseLoadable_ResultAddressOnly_InOut1myAA0gcdE6TesterVz_tF'
+public func testSubscriptReadModify_BaseLoadable_ResultAddressOnly_InOut(m: inout LoadableSubscriptReadModifyTester) {
+    m[0].nonMutatingFunc()
+    m[0] = AddressOnlyProtocol()
+    m[0].mutatingFunc()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly61testSubscriptReadModify_BaseLoadable_ResultAddressOnly_GlobalyyF : $@convention(thin) () -> () {
+// CHECK: [[GLOBAL_ADDR:%.*]] = global_addr @$s8moveonly39globalLoadableSubscriptReadModifyTesterAA0cdefG0Vvp : 
+//
+// The get call
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [dynamic] [[GLOBAL_ADDR]]
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[ACCESS]]
+// CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[MARK]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[LOAD_BORROW]])
+// CHECK: apply {{%.*}}([[CORO_RESULT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_borrow [[LOAD_BORROW]]
+// CHECK: end_access [[ACCESS]]
+//
+// The assignment:
+// CHECK: [[GLOBAL_ADDR:%.*]] = global_addr @$s8moveonly39globalLoadableSubscriptReadModifyTesterAA0cdefG0Vvp :
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}) : $@convention(method) (@thin AddressOnlyProtocol.Type) -> @out AddressOnlyProtocol
+// CHECK: [[ACCESS:%.*]] = begin_access [modify] [dynamic] [[GLOBAL_ADDR]]
+// CHECK: [[MARK:%.*]] = mark_must_check [assignable_but_not_consumable] [[ACCESS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[MARK]])
+// CHECK: copy_addr [take] [[MARK_TEMP]] to [[CORO_RESULT]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_access [[ACCESS]]
+//
+// The mutating function call.
+// CHECK: [[GLOBAL_ADDR:%.*]] = global_addr @$s8moveonly39globalLoadableSubscriptReadModifyTesterAA0cdefG0Vvp :
+// CHECK: [[ACCESS:%.*]] = begin_access [modify] [dynamic] [[GLOBAL_ADDR]]
+// CHECK: [[MARK:%.*]] = mark_must_check [assignable_but_not_consumable] [[ACCESS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[MARK]])
+// CHECK: apply {{%.*}}([[CORO_RESULT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_access [[ACCESS]]
+//
+// CHECK: } // end sil function '$s8moveonly61testSubscriptReadModify_BaseLoadable_ResultAddressOnly_GlobalyyF'
+var globalLoadableSubscriptReadModifyTester = LoadableSubscriptReadModifyTester()
+public func testSubscriptReadModify_BaseLoadable_ResultAddressOnly_Global() {
+    globalLoadableSubscriptReadModifyTester[0].nonMutatingFunc()
+    globalLoadableSubscriptReadModifyTester[0] = AddressOnlyProtocol()
+    globalLoadableSubscriptReadModifyTester[0].mutatingFunc()
+}
+
+// Make sure that we get the same behavior when we access through another noncopyable struct.
+public struct LoadableSubscriptReadModifyTesterNonCopyableStructParent : ~Copyable {
+    var tester = LoadableSubscriptReadModifyTester()
+    var computedTester: LoadableSubscriptReadModifyTester { fatalError() }
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly88testSubscriptReadModifyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_VaryyF : $@convention(thin) () -> () {
+// CHECK: [[BOX:%.*]] = alloc_box $
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+//
+// The first get call
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[ACCESS]]
+// CHECK: [[GEP:%.*]] = struct_element_addr [[MARK]]
+// CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[GEP]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[LOAD_BORROW]])
+// CHECK: apply {{%.*}}([[CORO_RESULT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_borrow [[LOAD_BORROW]]
+// CHECK: end_access [[ACCESS]]
+//
+// The mutating call.
+// CHECK: [[ACCESS:%.*]] = begin_access [modify] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [assignable_but_not_consumable] [[ACCESS]]
+// CHECK: [[GEP:%.*]] = struct_element_addr [[MARK]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[GEP]])
+// CHECK: apply {{%.*}}([[CORO_RESULT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_access [[ACCESS]]
+//
+// The second get call.
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[ACCESS]]
+// CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[MARK]]
+// CHECK: [[VALUE:%.*]] = apply {{%.*}}([[LOAD_BORROW]])
+// CHECK: end_borrow [[LOAD_BORROW]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROWED_VALUE:%.*]] = begin_borrow [[VALUE]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[BORROWED_VALUE]])
+// CHECK: apply {{%.*}}([[CORO_RESULT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_borrow [[BORROWED_VALUE]]
+// } // end sil function '$s8moveonly077testSubscriptReadModifyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressE4_VaryyF'
+public func testSubscriptReadModifyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_Var() {
+    var m = LoadableSubscriptReadModifyTesterNonCopyableStructParent()
+    m = LoadableSubscriptReadModifyTesterNonCopyableStructParent()
+    m.tester[0].nonMutatingFunc()
+    m.tester[0].mutatingFunc()
+    m.computedTester[0].nonMutatingFunc()
+}
+
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly88testSubscriptReadModifyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_LetyyF : $@convention(thin) () -> () {
+// CHECK: [[BOX:%.*]] = alloc_box ${ let L
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+//
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[PROJECT]]
+// CHECK: [[LOAD:%.*]] = load_borrow [[MARK]]
+// CHECK: [[EXT:%.*]] = struct_extract [[LOAD]]
+// CHECK: [[COPY:%.*]] = copy_value [[EXT]]
+// CHECK: [[BORROW:%.*]] = begin_borrow [[COPY]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[BORROW]])
+// CHECK: apply {{%.*}}([[CORO_RESULT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_borrow [[BORROW]]
+// CHECK: destroy_value [[COPY]]
+// CHECK: end_borrow [[LOAD]]
+// CHECK: } // end sil function '$s8moveonly88testSubscriptReadModifyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_LetyyF'
+public func testSubscriptReadModifyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_Let() {
+    let m = LoadableSubscriptReadModifyTesterNonCopyableStructParent()
+    m.tester[0].nonMutatingFunc()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly90testSubscriptReadModifyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_InOut1myAA0lcde6TesterghjI0Vz_tF : $@convention(thin) (@inout LoadableSubscriptReadModifyTesterNonCopyableStructParent) -> () {
+// CHECK: bb0([[ARG:%.*]] :
+// CHECK:   [[MARK:%.*]] = mark_must_check [consumable_and_assignable] [[ARG]]
+//
+// CHECK:   [[ACCESS:%.*]] = begin_access [read] [unknown] [[MARK]]
+// CHECK:   [[GEP:%.*]] = struct_element_addr [[ACCESS]]
+// CHECK:   [[LOAD:%.*]] = load_borrow [[GEP]]
+// CHECK:   ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[LOAD]])
+// CHECK:   apply {{%.*}}([[CORO_RESULT]])
+// CHECK:   end_apply [[CORO_TOKEN]]
+// CHECK:   end_borrow [[LOAD]]
+// CHECK:   end_access [[ACCESS]]
+//
+// CHECK:   [[ACCESS:%.*]] = begin_access [modify] [unknown] [[MARK]]
+// CHECK:   [[GEP:%.*]] = struct_element_addr [[ACCESS]]
+// CHECK:   ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[GEP]])
+// CHECK:   apply {{%.*}}([[CORO_RESULT]])
+// CHECK:   end_apply [[CORO_TOKEN]]
+// CHECK:   end_access [[ACCESS]]
+// CHECK: } // end sil function '$s8moveonly90testSubscriptReadModifyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_InOut1myAA0lcde6TesterghjI0Vz_tF'
+public func testSubscriptReadModifyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_InOut(m: inout LoadableSubscriptReadModifyTesterNonCopyableStructParent) {
+    m.tester[0].nonMutatingFunc()
+    m.tester[0].mutatingFunc()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly91testSubscriptReadModifyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_GlobalyyF : $@convention(thin) () -> () {
+// CHECK:   [[GLOBAL:%.*]] = global_addr @$s8moveonly62globalLoadableSubscriptReadModifyTesterNonCopyableStructParentAA0cdefghijK0Vvp :
+// CHECK:   [[ACCESS:%.*]] = begin_access [read] [dynamic] [[GLOBAL]]
+// CHECK:   [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[ACCESS]]
+// CHECK:   [[GEP:%.*]] = struct_element_addr [[MARK]]
+// CHECK:   [[LOAD:%.*]] = load_borrow [[GEP]]
+// CHECK:   ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[LOAD]])
+// CHECK:   apply {{%.*}}([[CORO_RESULT]])
+// CHECK:   end_apply [[CORO_TOKEN]]
+// CHECK:   end_borrow [[LOAD]]
+// CHECK:   end_access [[ACCESS]]
+//
+// CHECK:   [[GLOBAL:%.*]] = global_addr @$s8moveonly62globalLoadableSubscriptReadModifyTesterNonCopyableStructParentAA0cdefghijK0Vvp :
+// CHECK:   [[ACCESS:%.*]] = begin_access [modify] [dynamic] [[GLOBAL]]
+// CHECK:   [[MARK:%.*]] = mark_must_check [assignable_but_not_consumable] [[ACCESS]]
+// CHECK:   [[GEP:%.*]] = struct_element_addr [[MARK]]
+// CHECK:   ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[GEP]])
+// CHECK:   apply {{%.*}}([[CORO_RESULT]])
+// CHECK:   end_apply [[CORO_TOKEN]]
+// CHECK:   end_access [[ACCESS]]
+// CHECK: } // end sil function '$s8moveonly91testSubscriptReadModifyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_GlobalyyF'
+var globalLoadableSubscriptReadModifyTesterNonCopyableStructParent = LoadableSubscriptReadModifyTesterNonCopyableStructParent()
+public func testSubscriptReadModifyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_Global() {
+    globalLoadableSubscriptReadModifyTesterNonCopyableStructParent.tester[0].nonMutatingFunc()
+    globalLoadableSubscriptReadModifyTesterNonCopyableStructParent.tester[0].mutatingFunc()
+}
+
+public class LoadableSubscriptReadModifyTesterClassParent {
+    var tester = LoadableSubscriptReadModifyTester()
+    var computedTester: LoadableSubscriptReadModifyTester { fatalError() }
+    var computedTester2: LoadableSubscriptReadModifyTester {
+        get { fatalError() }
+        set { fatalError() }
+    }
+    var testerParent = LoadableSubscriptReadModifyTesterNonCopyableStructParent()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly76testSubscriptReadModifyThroughParentClass_BaseLoadable_ResultAddressOnly_VaryyF : $@convention(thin) () -> () {
+// CHECK: [[BOX:%.*]] = alloc_box $
+// CHECK: [[BORROW:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK: [[PROJECT:%.*]] = project_box [[BORROW]]
+//
+// First read.
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: ([[CORO_RESULT_2:%.*]], [[CORO_TOKEN_2:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[CORO_RESULT]])
+// CHECK: apply {{%.*}}([[CORO_RESULT_2]])
+// CHECK: end_apply [[CORO_TOKEN_2]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_borrow [[BORROW_COPYABLE_CLASS]]
+// CHECK: destroy_value [[COPYABLE_CLASS]]
+//
+// First mutation.
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: ([[CORO_RESULT_2:%.*]], [[CORO_TOKEN_2:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[CORO_RESULT]])
+// CHECK: apply {{%.*}}([[CORO_RESULT_2]])
+// CHECK: end_apply [[CORO_TOKEN_2]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_borrow [[BORROW_COPYABLE_CLASS]]
+// CHECK: destroy_value [[COPYABLE_CLASS]]
+//
+// Second read.
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: [[EXT:%.*]] = struct_extract [[CORO_RESULT]]
+// CHECK: ([[CORO_RESULT_2:%.*]], [[CORO_TOKEN_2:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[EXT]])
+// CHECK: apply {{%.*}}([[CORO_RESULT_2]])
+// CHECK: end_apply [[CORO_TOKEN_2]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_borrow [[BORROW_COPYABLE_CLASS]]
+// CHECK: destroy_value [[COPYABLE_CLASS]]
+//
+// Second mutate
+//
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: [[GEP:%.*]] = struct_element_addr [[CORO_RESULT]]
+// CHECK: ([[CORO_RESULT_2:%.*]], [[CORO_TOKEN_2:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[GEP]])
+// Mutating func
+// CHECK: apply {{%.*}}([[CORO_RESULT_2]])
+// CHECK: end_apply [[CORO_TOKEN_2]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_borrow [[BORROW_COPYABLE_CLASS]]
+// CHECK: destroy_value [[COPYABLE_CLASS]]
+//
+// Third read. This is a case that we can't handle today due to the way the AST
+// looks:
+//
+// (subscript_expr type='AddressOnlyProtocol'
+//   (member_ref_expr type='LoadableSubscriptReadModifyTester'
+//     (load_expr implicit type='LoadableSubscriptReadModifyTesterClassParent'
+//       (declref_expr type='@lvalue LoadableSubscriptReadModifyTesterClassParent'
+//   (argument_list
+//     (argument
+//       (integer_literal_expr type='Int'
+//
+// due to the load_expr in the subscript base, SILGen emits a base rvalue for
+// the load_expr and copies it, ending the coroutine. What we need is the
+// ability to have an lvalue pseudo-component that treats the declref_expr (and
+// any member_ref_expr) as a base and allows for a load_expr to be followed by N
+// member_ref_expr.
+//
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: [[CORO_RESULT_COPY:%.*]] = copy_value [[CORO_RESULT]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: [[BORROW:%.*]] = begin_borrow [[CORO_RESULT_COPY]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[BORROW]])
+// CHECK: apply {{%.*}}([[CORO_RESULT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_borrow [[BORROW]]
+// CHECK: destroy_value [[CORO_RESULT_COPY]]
+//
+// First read
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: ([[CORO_RESULT_2:%.*]], [[CORO_TOKEN_2:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[CORO_RESULT]])
+// CHECK: apply {{%.*}}([[CORO_RESULT_2]])
+// CHECK: end_apply [[CORO_TOKEN_2]]
+// CHECK: end_apply [[CORO_TOKEN]]
+//
+// Mutation
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: ([[CORO_RESULT_2:%.*]], [[CORO_TOKEN_2:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[CORO_RESULT]])
+// CHECK: apply {{%.*}}([[CORO_RESULT_2]])
+// CHECK: end_apply [[CORO_TOKEN_2]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: } // end sil function '$s8moveonly76testSubscriptReadModifyThroughParentClass_BaseLoadable_ResultAddressOnly_VaryyF'
+public func testSubscriptReadModifyThroughParentClass_BaseLoadable_ResultAddressOnly_Var() {
+    var m = LoadableSubscriptReadModifyTesterClassParent()
+    m = LoadableSubscriptReadModifyTesterClassParent()
+    m.tester[0].nonMutatingFunc()
+    m.tester[0].mutatingFunc()
+    m.testerParent.tester[0].nonMutatingFunc()
+    m.testerParent.tester[0].mutatingFunc()
+    m.computedTester[0].nonMutatingFunc()
+    m.computedTester2[0].nonMutatingFunc()
+    m.computedTester2[0].mutatingFunc()
+}
+
+// MARK: get and _modify
+
+public struct LoadableSubscriptGetModifyTester : ~Copyable {
+    subscript(_ i: Int) -> AddressOnlyProtocol {
+        get {
+            fatalError()
+        }
+        _modify {
+            fatalError()
+        }
+    }
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly57testSubscriptGetModify_BaseLoadable_ResultAddressOnly_VaryyF : $@convention(thin) () -> () {
+// CHECK: [[BOX:%.*]] = alloc_box $
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+//
+// The get call
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[ACCESS]]
+// CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[MARK]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[LOAD_BORROW]])
+// CHECK: end_borrow [[LOAD_BORROW]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// CHECK: destroy_addr [[MARK_TEMP]]
+//
+// The assignment:
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}) : $@convention(method) (@thin AddressOnlyProtocol.Type) -> @out AddressOnlyProtocol
+// CHECK: [[ACCESS:%.*]] = begin_access [modify] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [assignable_but_not_consumable] [[ACCESS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[MARK]])
+// CHECK: copy_addr [take] [[MARK_TEMP]] to [[CORO_RESULT]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_access [[ACCESS]]
+//
+// The mutating function call.
+// CHECK: [[ACCESS:%.*]] = begin_access [modify] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [assignable_but_not_consumable] [[ACCESS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[MARK]])
+// CHECK: apply {{%.*}}([[CORO_RESULT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_access [[ACCESS]]
+//
+// CHECK: } // end sil function '$s8moveonly57testSubscriptGetModify_BaseLoadable_ResultAddressOnly_VaryyF'
+public func testSubscriptGetModify_BaseLoadable_ResultAddressOnly_Var() {
+    var m = LoadableSubscriptGetModifyTester()
+    m = LoadableSubscriptGetModifyTester()
+    m[0].nonMutatingFunc()
+    m[0] = AddressOnlyProtocol()
+    m[0].mutatingFunc()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly57testSubscriptGetModify_BaseLoadable_ResultAddressOnly_LetyyF : $@convention(thin) () -> () {
+// CHECK: [[BOX:%.*]] = alloc_box $
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+//
+// The get call
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[PROJECT]]
+// CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[MARK]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[LOAD_BORROW]])
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// CHECK: destroy_addr [[MARK_TEMP]]
+// CHECK: end_borrow [[LOAD_BORROW]]
+// CHECK: } // end sil function '$s8moveonly57testSubscriptGetModify_BaseLoadable_ResultAddressOnly_LetyyF'
+public func testSubscriptGetModify_BaseLoadable_ResultAddressOnly_Let() {
+    let m = LoadableSubscriptGetModifyTester()
+    m[0].nonMutatingFunc()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly59testSubscriptGetModify_BaseLoadable_ResultAddressOnly_InOut1myAA0gcdE6TesterVz_tF : $@convention(thin) (@inout LoadableSubscriptGetModifyTester) -> () {
+// CHECK: bb0([[ARG:%.*]] : $*
+// CHECK:   [[MARK:%.*]] = mark_must_check [consumable_and_assignable] [[ARG]]
+//
+// CHECK:   [[ACCESS:%.*]] = begin_access [read] [unknown] [[MARK]]
+// CHECK:   [[LOAD_BORROW:%.*]] = load_borrow [[ACCESS]]
+// CHECK:   [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK:   [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK:   apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[LOAD_BORROW]])
+// CHECK:   end_borrow [[LOAD_BORROW]]
+// CHECK:   end_access [[ACCESS]]
+// CHECK:   apply {{%.*}}([[MARK_TEMP]])
+// CHECK:   destroy_addr [[MARK_TEMP]]
+//
+// The assignment:
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}) : $@convention(method) (@thin AddressOnlyProtocol.Type) -> @out AddressOnlyProtocol
+// CHECK: [[ACCESS:%.*]] = begin_access [modify] [unknown] [[MARK]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[ACCESS]])
+// CHECK: copy_addr [take] [[MARK_TEMP]] to [[CORO_RESULT]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_access [[ACCESS]]
+//
+// The mutating function call.
+// CHECK: [[ACCESS:%.*]] = begin_access [modify] [unknown] [[MARK]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[ACCESS]])
+// CHECK: apply {{%.*}}([[CORO_RESULT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_access [[ACCESS]]
+//
+// CHECK: } // end sil function '$s8moveonly59testSubscriptGetModify_BaseLoadable_ResultAddressOnly_InOut1myAA0gcdE6TesterVz_tF'
+public func testSubscriptGetModify_BaseLoadable_ResultAddressOnly_InOut(m: inout LoadableSubscriptGetModifyTester) {
+    m[0].nonMutatingFunc()
+    m[0] = AddressOnlyProtocol()
+    m[0].mutatingFunc()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly60testSubscriptGetModify_BaseLoadable_ResultAddressOnly_GlobalyyF : $@convention(thin) () -> () {
+// CHECK: [[GLOBAL_ADDR:%.*]] = global_addr @$s8moveonly38globalLoadableSubscriptGetModifyTesterAA0cdefG0Vvp :
+//
+// The get call
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [dynamic] [[GLOBAL_ADDR]]
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[ACCESS]]
+// CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[MARK]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[LOAD_BORROW]])
+// CHECK: end_borrow [[LOAD_BORROW]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// CHECK: destroy_addr [[MARK_TEMP]]
+//
+// The assignment:
+// CHECK: [[GLOBAL_ADDR:%.*]] = global_addr @$s8moveonly38globalLoadableSubscriptGetModifyTesterAA0cdefG0Vvp :
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}) : $@convention(method) (@thin AddressOnlyProtocol.Type) -> @out AddressOnlyProtocol
+// CHECK: [[ACCESS:%.*]] = begin_access [modify] [dynamic] [[GLOBAL_ADDR]]
+// CHECK: [[MARK:%.*]] = mark_must_check [assignable_but_not_consumable] [[ACCESS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[MARK]])
+// CHECK: copy_addr [take] [[MARK_TEMP]] to [[CORO_RESULT]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_access [[ACCESS]]
+//
+// The mutating function call.
+// CHECK: [[GLOBAL_ADDR:%.*]] = global_addr @$s8moveonly38globalLoadableSubscriptGetModifyTesterAA0cdefG0Vvp :
+// CHECK: [[ACCESS:%.*]] = begin_access [modify] [dynamic] [[GLOBAL_ADDR]]
+// CHECK: [[MARK:%.*]] = mark_must_check [assignable_but_not_consumable] [[ACCESS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[MARK]])
+// CHECK: apply {{%.*}}([[CORO_RESULT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_access [[ACCESS]]
+//
+// CHECK: } // end sil function '$s8moveonly60testSubscriptGetModify_BaseLoadable_ResultAddressOnly_GlobalyyF'
+var globalLoadableSubscriptGetModifyTester = LoadableSubscriptGetModifyTester()
+public func testSubscriptGetModify_BaseLoadable_ResultAddressOnly_Global() {
+    globalLoadableSubscriptGetModifyTester[0].nonMutatingFunc()
+    globalLoadableSubscriptGetModifyTester[0] = AddressOnlyProtocol()
+    globalLoadableSubscriptGetModifyTester[0].mutatingFunc()
+}
+
+// Make sure that we get the same behavior when we access through another noncopyable struct.
+public struct LoadableSubscriptGetModifyTesterNonCopyableStructParent : ~Copyable {
+    var tester = LoadableSubscriptGetModifyTester()
+    var computedTester: LoadableSubscriptGetModifyTester { fatalError() }
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly87testSubscriptGetModifyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_VaryyF : $@convention(thin) () -> () {
+// CHECK: [[BOX:%.*]] = alloc_box $
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+//
+// The first get call
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[ACCESS]]
+// CHECK: [[GEP:%.*]] = struct_element_addr [[MARK]]
+// CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[GEP]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[LOAD_BORROW]])
+// CHECK: end_borrow [[LOAD_BORROW]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// CHECK: destroy_addr [[MARK_TEMP]]
+//
+// The mutating call.
+// CHECK: [[ACCESS:%.*]] = begin_access [modify] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [assignable_but_not_consumable] [[ACCESS]]
+// CHECK: [[GEP:%.*]] = struct_element_addr [[MARK]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[GEP]])
+// CHECK: apply {{%.*}}([[CORO_RESULT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_access [[ACCESS]]
+//
+// The second get call.
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[ACCESS]]
+// CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[MARK]]
+// CHECK: [[VALUE:%.*]] = apply {{%.*}}([[LOAD_BORROW]])
+// CHECK: end_borrow [[LOAD_BORROW]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROWED_VALUE:%.*]] = begin_borrow [[VALUE]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[BORROWED_VALUE]])
+// CHECK: end_borrow [[BORROWED_VALUE]]
+// CHECK: destroy_value [[VALUE]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// CHECK: destroy_addr [[MARK_TEMP]]
+// } // end sil function '$s8moveonly077testSubscriptGetModifyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressE4_VaryyF'
+public func testSubscriptGetModifyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_Var() {
+    var m = LoadableSubscriptGetModifyTesterNonCopyableStructParent()
+    m = LoadableSubscriptGetModifyTesterNonCopyableStructParent()
+    m.tester[0].nonMutatingFunc()
+    m.tester[0].mutatingFunc()
+    m.computedTester[0].nonMutatingFunc()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly87testSubscriptGetModifyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_LetyyF : $@convention(thin) () -> () {
+// CHECK: [[BOX:%.*]] = alloc_box ${ let L
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+//
+// CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[PROJECT]]
+// CHECK: [[LOAD:%.*]] = load_borrow [[MARK]]
+// CHECK: [[EXT:%.*]] = struct_extract [[LOAD]]
+// CHECK: [[COPY:%.*]] = copy_value [[EXT]]
+// CHECK: [[BORROW:%.*]] = begin_borrow [[COPY]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[BORROW]])
+// CHECK: end_borrow [[BORROW]]
+// CHECK: destroy_value [[COPY]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// CHECK: destroy_addr [[MARK_TEMP]]
+// CHECK: end_borrow [[LOAD]]
+// CHECK: } // end sil function '$s8moveonly87testSubscriptGetModifyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_LetyyF'
+public func testSubscriptGetModifyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_Let() {
+    let m = LoadableSubscriptGetModifyTesterNonCopyableStructParent()
+    m.tester[0].nonMutatingFunc()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly90testSubscriptGetModifyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_GlobalyyF : $@convention(thin) () -> () {
+// CHECK:   [[GLOBAL:%.*]] = global_addr @$s8moveonly61globalLoadableSubscriptGetModifyTesterNonCopyableStructParentAA0cdefghijK0Vvp :
+// CHECK:   [[ACCESS:%.*]] = begin_access [read] [dynamic] [[GLOBAL]]
+// CHECK:   [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[ACCESS]]
+// CHECK:   [[GEP:%.*]] = struct_element_addr [[MARK]]
+// CHECK:   [[LOAD:%.*]] = load_borrow [[GEP]]
+// CHECK:   [[TEMP:%.*]] = alloc_stack $AddressOnlyProtocol
+// CHECK:   [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK:   apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[LOAD]])
+// CHECK:   end_borrow [[LOAD]]
+// CHECK:   end_access [[ACCESS]]
+// CHECK:   apply {{%.*}}([[MARK_TEMP]])
+// CHECK:   destroy_addr [[MARK_TEMP]]
+//
+// CHECK:   [[GLOBAL:%.*]] = global_addr @$s8moveonly61globalLoadableSubscriptGetModifyTesterNonCopyableStructParentAA0cdefghijK0Vvp :
+// CHECK:   [[ACCESS:%.*]] = begin_access [modify] [dynamic] [[GLOBAL]]
+// CHECK:   [[MARK:%.*]] = mark_must_check [assignable_but_not_consumable] [[ACCESS]]
+// CHECK:   [[GEP:%.*]] = struct_element_addr [[MARK]]
+// CHECK:   ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[GEP]])
+// CHECK:   apply {{%.*}}([[CORO_RESULT]])
+// CHECK:   end_apply [[CORO_TOKEN]]
+// CHECK:   end_access [[ACCESS]]
+// CHECK: } // end sil function '$s8moveonly90testSubscriptGetModifyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_GlobalyyF'
+var globalLoadableSubscriptGetModifyTesterNonCopyableStructParent = LoadableSubscriptGetModifyTesterNonCopyableStructParent()
+public func testSubscriptGetModifyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_Global() {
+    globalLoadableSubscriptGetModifyTesterNonCopyableStructParent.tester[0].nonMutatingFunc()
+    globalLoadableSubscriptGetModifyTesterNonCopyableStructParent.tester[0].mutatingFunc()
+}
+
+public class LoadableSubscriptGetModifyTesterClassParent {
+    var tester = LoadableSubscriptGetModifyTester()
+    var computedTester: LoadableSubscriptGetModifyTester { fatalError() }
+    var computedTester2: LoadableSubscriptGetModifyTester {
+        get { fatalError() }
+        set { fatalError() }
+    }
+    var testerParent = LoadableSubscriptGetModifyTesterNonCopyableStructParent()
+}
+
+// CHECK-LABEL: sil [ossa] @$s8moveonly75testSubscriptGetModifyThroughParentClass_BaseLoadable_ResultAddressOnly_VaryyF : $@convention(thin) () -> () {
+// CHECK: [[BOX:%.*]] = alloc_box $
+// CHECK: [[BORROW:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK: [[PROJECT:%.*]] = project_box [[BORROW]]
+//
+// First read.
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: [[TEMP:%.*]] = alloc_stack $
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[CORO_RESULT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_borrow [[BORROW_COPYABLE_CLASS]]
+// CHECK: destroy_value [[COPYABLE_CLASS]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// CHECK: destroy_addr [[MARK_TEMP]]
+//
+// First mutation.
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: ([[CORO_RESULT_2:%.*]], [[CORO_TOKEN_2:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[CORO_RESULT]])
+// CHECK: apply {{%.*}}([[CORO_RESULT_2]])
+// CHECK: end_apply [[CORO_TOKEN_2]]
+// CHECK: end_apply [[CORO_TOKEN]]
+//
+// Second read.
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: [[EXT:%.*]] = struct_extract [[CORO_RESULT]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[EXT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: end_borrow [[BORROW_COPYABLE_CLASS]]
+// CHECK: destroy_value [[COPYABLE_CLASS]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// CHECK: destroy_addr [[MARK_TEMP]]
+//
+// Second mutate
+//
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: [[GEP:%.*]] = struct_element_addr [[CORO_RESULT]]
+// CHECK: ([[CORO_RESULT_2:%.*]], [[CORO_TOKEN_2:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[GEP]])
+// CHECK: apply {{%.*}}([[CORO_RESULT_2]])
+// CHECK: end_apply [[CORO_TOKEN_2]]
+// CHECK: end_apply [[CORO_TOKEN]]
+//
+// Third read. This is a case that we can't handle today due to the way the AST
+// looks:
+//
+// (subscript_expr type='AddressOnlyProtocol'
+//   (member_ref_expr type='LoadableSubscriptGetModifyTester'
+//     (load_expr implicit type='LoadableSubscriptGetModifyTesterClassParent'
+//       (declref_expr type='@lvalue LoadableSubscriptGetModifyTesterClassParent'
+//   (argument_list
+//     (argument
+//       (integer_literal_expr type='Int'
+//
+// due to the load_expr in the subscript base, SILGen emits a base rvalue for
+// the load_expr and copies it, ending the coroutine. What we need is the
+// ability to have an lvalue pseudo-component that treats the declref_expr (and
+// any member_ref_expr) as a base and allows for a load_expr to be followed by N
+// member_ref_expr.
+//
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: [[CORO_RESULT_COPY:%.*]] = copy_value [[CORO_RESULT]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: [[BORROW:%.*]] = begin_borrow [[CORO_RESULT_COPY]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[BORROW]])
+// CHECK: end_borrow [[BORROW]]
+// CHECK: destroy_value [[CORO_RESULT_COPY]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// CHECK: destroy_addr [[MARK_TEMP]]
+//
+// First read
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: [[TEMP:%.*]] = alloc_stack $
+// CHECK: [[MARK_TEMP:%.*]] = mark_must_check [consumable_and_assignable] [[TEMP]]
+// Getter
+// CHECK: apply {{%.*}}([[MARK_TEMP]], {{%.*}}, [[CORO_RESULT]])
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: apply {{%.*}}([[MARK_TEMP]])
+// CHECK: destroy_addr [[MARK_TEMP]]
+//
+// Mutation
+// CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
+// CHECK: [[COPYABLE_CLASS:%.*]] = load [copy] [[ACCESS]]
+// CHECK: end_access [[ACCESS]]
+// CHECK: [[BORROW_COPYABLE_CLASS:%.*]] = begin_borrow [[COPYABLE_CLASS]]
+// CHECK: ([[CORO_RESULT:%.*]], [[CORO_TOKEN:%.*]]) = begin_apply {{%.*}}([[BORROW_COPYABLE_CLASS]])
+// CHECK: ([[CORO_RESULT_2:%.*]], [[CORO_TOKEN_2:%.*]]) = begin_apply {{%.*}}({{%.*}}, [[CORO_RESULT]])
+// CHECK: apply {{%.*}}([[CORO_RESULT_2]])
+// CHECK: end_apply [[CORO_TOKEN_2]]
+// CHECK: end_apply [[CORO_TOKEN]]
+// CHECK: } // end sil function '$s8moveonly75testSubscriptGetModifyThroughParentClass_BaseLoadable_ResultAddressOnly_VaryyF'
+public func testSubscriptGetModifyThroughParentClass_BaseLoadable_ResultAddressOnly_Var() {
+    var m = LoadableSubscriptGetModifyTesterClassParent()
+    m = LoadableSubscriptGetModifyTesterClassParent()
+    m.tester[0].nonMutatingFunc()
+    m.tester[0].mutatingFunc()
+    m.testerParent.tester[0].nonMutatingFunc()
+    m.testerParent.tester[0].mutatingFunc()
+    m.computedTester[0].nonMutatingFunc()
+    m.computedTester2[0].nonMutatingFunc()
+    m.computedTester2[0].mutatingFunc()
+}
+

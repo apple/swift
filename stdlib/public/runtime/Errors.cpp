@@ -404,6 +404,12 @@ swift::warning(uint32_t flags, const char *format, ...)
   warningv(flags, format, args);
 }
 
+/// Report a warning to the system console and stderr.  This is exported,
+/// unlike the swift::warning() function above.
+void swift::swift_reportWarning(uint32_t flags, const char *message) {
+  warning(flags, "%s", message);
+}
+
 // Crash when a deleted method is called by accident.
 SWIFT_RUNTIME_EXPORT SWIFT_NORETURN void swift_deletedMethodError() {
   swift::fatalError(/* flags = */ 0,

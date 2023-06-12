@@ -659,8 +659,6 @@ struct MyView {
   }
 
   @TupleBuilder var invalidCaseWithoutDot: some P {
-  // expected-error@-1 {{return type of property 'invalidCaseWithoutDot' requires that 'Either<Int, Int>' conform to 'P'}}
-  // expected-note@-2 {{opaque return type declared here}}
     switch Optional.some(1) {
     case none: 42 // expected-error {{cannot find 'none' in scope}}
     case .some(let x):

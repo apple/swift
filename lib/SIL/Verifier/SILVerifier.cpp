@@ -669,12 +669,15 @@ struct ImmutableAddressUseVerifier {
             OpenedExistentialAccess::Immutable)
           return true;
         LLVM_FALLTHROUGH;
+      case SILInstructionKind::MoveOnlyWrapperToCopyableAddrInst:
+      case SILInstructionKind::CopyableToMoveOnlyWrapperAddrInst:
       case SILInstructionKind::StructElementAddrInst:
       case SILInstructionKind::TupleElementAddrInst:
       case SILInstructionKind::IndexAddrInst:
       case SILInstructionKind::TailAddrInst:
       case SILInstructionKind::IndexRawPointerInst:
       case SILInstructionKind::MarkMustCheckInst:
+      case SILInstructionKind::CopyableToMoveOnlyWrapperValueInst:
       case SILInstructionKind::PackElementGetInst:
         // Add these to our worklist.
         for (auto result : inst->getResults()) {
@@ -2719,6 +2722,46 @@ public:
     checkAssignByWrapperArgs(Src->getType(), setterConv);
   }
 
+  void checkAssigOrInitInstAccessorArgs(SILType argTy,
+                                        SILFunctionConventions &conv) {
+    unsigned argIdx = conv.getSILArgIndexOfFirstParam();
+    checkAssignByWrapperArgsRecursively(argTy, conv, argIdx);
+  }
+
+  void checkAssignOrInitInst(AssignOrInitInst *AI) {
+    SILValue Src = AI->getSrc();
+    require(AI->getModule().getStage() == SILStage::Raw,
+            "assign_or_init can only exist in raw SIL");
+
+    SILValue initFn = AI->getInitializer();
+    SILValue setterFn = AI->getSetter();
+
+    CanSILFunctionType initTy = initFn->getType().castTo<SILFunctionType>();
+    // Check init - it's an unapplied reference that takes property addresses
+    // and `initialValue`.
+    {
+      // We need to map un-applied function reference into context before
+      // check `initialValue` argument.
+      auto subs = cast<PartialApplyInst>(setterFn)->getSubstitutionMap();
+      initTy = initTy->substGenericArgs(F.getModule(), subs,
+                                        F.getTypeExpansionContext());
+
+      SILFunctionConventions initConv(initTy, AI->getModule());
+      require(initConv.getNumIndirectSILResults() ==
+                  AI->getInitializedProperties().size(),
+              "init function has invalid number of indirect results");
+      checkAssigOrInitInstAccessorArgs(Src->getType(), initConv);
+    }
+
+    // Check setter - it's a partially applied reference which takes
+    // `initialValue`.
+    CanSILFunctionType setterTy = setterFn->getType().castTo<SILFunctionType>();
+    SILFunctionConventions setterConv(setterTy, AI->getModule());
+    require(setterConv.getNumIndirectSILResults() == 0,
+            "set function has indirect results");
+    checkAssignByWrapperArgs(Src->getType(), setterConv);
+  };
+
 #define NEVER_LOADABLE_CHECKED_REF_STORAGE(Name, name, ...)                    \
   void checkLoad##Name##Inst(Load##Name##Inst *LWI) {                          \
     require(LWI->getType().isObject(), "Result of load must be an object");    \
@@ -3555,6 +3598,13 @@ public:
                     result.getOwnershipKind() == OwnershipKind::None,
                 "destructure with none ownership kind operand and non-none "
                 "ownership kind result?!");
+      }
+      if (operandTy.getNominalOrBoundGenericNominal()
+          ->getValueTypeDestructor()) {
+        require(
+          isa<DropDeinitInst>(lookThroughOwnershipInsts(DSI->getOperand())),
+            "a destructure of a move-only-type-with-deinit requires a "
+            "drop_deinit");
       }
     }
   }
@@ -4500,6 +4550,9 @@ public:
     require(UI->getType() != UI->getOperand()->getType(),
             "can't upcast to same type");
     require(UI->getType().isObject(), "cannot upcast address types");
+    require(UI->getOperand()->getType().isMoveOnlyWrapped() ==
+                UI->getType().isMoveOnlyWrapped(),
+            "cast cannot be used to remove move only wrapped?!");
     checkNoTrivialToReferenceCast(UI);
     if (UI->getType().is<MetatypeType>()) {
       CanType instTy(UI->getType().castTo<MetatypeType>()->getInstanceType());
@@ -4593,6 +4646,9 @@ public:
             "unchecked_addr_cast operand must be an address");
     require(AI->getType().isAddress(),
             "unchecked_addr_cast result must be an address");
+    require(AI->getOperand()->getType().isMoveOnlyWrapped() ==
+                AI->getType().isMoveOnlyWrapped(),
+            "Unchecked addr cast cannot be used to remove move only wrapped?!");
   }
   
   void checkUncheckedTrivialBitCastInst(UncheckedTrivialBitCastInst *BI) {
@@ -4603,6 +4659,9 @@ public:
             "unchecked_trivial_bit_cast must produce a value");
     require(BI->getType().isTrivial(F),
             "unchecked_trivial_bit_cast must produce a value of trivial type");
+    require(BI->getOperand()->getType().isMoveOnlyWrapped() ==
+                BI->getType().isMoveOnlyWrapped(),
+            "cast cannot be used to remove move only wrapped?!");
   }
 
   void checkUncheckedBitwiseCastInst(UncheckedBitwiseCastInst *BI) {
@@ -4611,6 +4670,9 @@ public:
             "unchecked_bitwise_cast must operate on a value");
     require(BI->getType().isObject(),
             "unchecked_bitwise_cast must produce a value");
+    require(BI->getOperand()->getType().isMoveOnlyWrapped() ==
+                BI->getType().isMoveOnlyWrapped(),
+            "cast cannot be used to remove move only wrapped?!");
   }
 
   void checkRefToRawPointerInst(RefToRawPointerInst *AI) {
@@ -5767,8 +5829,15 @@ public:
       // Provide substitution functions that replace the pack archetypes
       // we found above with the corresponding lane of the pack substitution.
       auto substTypes = [&](SubstitutableType *type) -> Type {
+        auto archetype = dyn_cast<ElementArchetypeType>(type);
+        if (!archetype)
+          return type;
+        if (!archetype->isRoot())
+          return Type();
+
         auto it = allOpened.find(type->getCanonicalType());
-        if (it == allOpened.end()) return Type();
+        assert(it != allOpened.end());
+
         auto pack = it->second;
         auto packElementType = pack.getElementType(componentIndex);
         if (auto exp = dyn_cast<PackExpansionType>(packElementType)) {
@@ -5978,12 +6047,40 @@ public:
             "Result and operand must have the same type, today.");
   }
 
+  // check that a drop_deinit can only ever be destroyed or destructured
+  void checkDropDeinitUses(DropDeinitInst *ddi) {
+    // Address-type drop_deinit has no special structural requirements. It just
+    // sits there and blocks optimization on the allocation and downstream uses
+    // of the address. If we want to optimize around address-type drop_deinit,
+    // then we need a seperate verifier for its requirements.
+    if (ddi->getType().isAddress())
+      return;
+
+    visitNonOwnershipUses(ddi, [&](Operand *use) {
+      auto *user = use->getUser();
+      require(isa<DestroyValueInst>(user)
+              || isa<EndLifetimeInst>(user)
+              || isa<DestructureStructInst>(user)
+              || isa<SwitchEnumInst>(user),
+              "A drop_deinit can only be destroyed or destructured");
+      return true;
+    });
+  }
+
   void checkDropDeinitInst(DropDeinitInst *ddi) {
-    require(ddi->getType() == ddi->getOperand()->getType(),
-            "Result and operand must have the same type.");
-    require(ddi->getType().isMoveOnlyNominalType(),
-            "drop_deinit only allowed for move-only types");
     require(F.hasOwnership(), "drop_deinit only allowed in OSSA");
+
+    auto type = ddi->getType();
+    require(type == ddi->getOperand()->getType(),
+            "Result and operand must have the same type.");
+    require(type.isMoveOnlyNominalType(),
+            "drop_deinit only allowed for move-only types");
+    require(type.getNominalOrBoundGenericNominal()
+            ->getValueTypeDestructor(), "drop_deinit only allowed for "
+            "struct/enum types that define a deinit");
+    assert(!type.isTrivial(F) && "a type with a deinit is nontrivial");
+
+    checkDropDeinitUses(ddi);
   }
 
   void checkMarkMustCheckInst(MarkMustCheckInst *i) {
@@ -6005,9 +6102,21 @@ public:
       MoveOnlyWrapperToCopyableValueInst *cvt) {
     require(cvt->getOperand()->getType().isObject(),
             "Operand value should be an object");
-    require(!cvt->getType().isMoveOnlyWrapped(), "Output should not move only");
+    require(cvt->getOperand()->getType().isMoveOnlyWrapped(),
+            "Operand should be move only wrapped");
     require(cvt->getType() ==
                 cvt->getOperand()->getType().removingMoveOnlyWrapper(),
+            "Result and operand must have the same type, today.");
+  }
+
+  void checkMoveOnlyWrapperToCopyableBoxInst(
+      MoveOnlyWrapperToCopyableBoxInst *cvt) {
+    require(cvt->getOperand()->getType().isObject(),
+            "Operand value should be an object");
+    require(cvt->getOperand()->getType().isBoxedMoveOnlyWrappedType(cvt->getFunction()),
+            "Operand should be move only wrapped");
+    require(cvt->getType() ==
+            cvt->getOperand()->getType().removingMoveOnlyWrapperToBoxedType(cvt->getFunction()),
             "Result and operand must have the same type, today.");
   }
 
@@ -6024,6 +6133,40 @@ public:
     require(cvt->getType() ==
                 cvt->getOperand()->getType().addingMoveOnlyWrapper(),
             "Result and operand must have the same type, today.");
+  }
+
+  void checkAllocPackMetadataInst(AllocPackMetadataInst *apmi) {
+    require(apmi->getIntroducer()->mayRequirePackMetadata(),
+            "Introduces instruction of kind which cannot emit on-stack pack "
+            "metadata");
+  }
+
+  void checkDeallocPackMetadataInst(DeallocPackMetadataInst *dpmi) {
+    auto *apmi = dpmi->getOperand()->getDefiningInstruction();
+    require(apmi, "Must have instruction operand.");
+    require(isa<AllocPackMetadataInst>(apmi),
+            "Must have alloc_pack_metadata operand");
+  }
+
+  void checkMoveOnlyWrapperToCopyableAddrInst(
+      MoveOnlyWrapperToCopyableAddrInst *cvt) {
+    require(cvt->getType().isAddress(), "Output should be an address");
+    require(cvt->getOperand()->getType().isMoveOnlyWrapped(),
+            "Input should be move only");
+    require(cvt->getType() ==
+                cvt->getOperand()->getType().removingMoveOnlyWrapper(),
+            "Result and operand must have the same type.");
+  }
+
+  void checkCopyableToMoveOnlyWrapperAddrInst(
+      CopyableToMoveOnlyWrapperAddrInst *cvt) {
+    require(cvt->getType().isAddress(), "Output should be an address");
+    require(!cvt->getOperand()->getType().isMoveOnlyWrapped(),
+            "Input should not be move only wrapped");
+    require(cvt->getType() ==
+                cvt->getOperand()->getType().addingMoveOnlyWrapper(),
+            "Result and operand must have the same underlying type ignoring "
+            "move only wrappedness.");
   }
 
   void verifyEpilogBlocks(SILFunction *F) {

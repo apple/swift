@@ -33,3 +33,10 @@ func testFreestandingMacroExpansion() {
   #codeItems
 }
 testFreestandingMacroExpansion()
+
+@freestanding(codeItem) macro varDecl() = #externalMacro(module: "MacroDefinition", type: "VarDeclMacro")
+
+func testVarDecl() {
+  func use<T>(_ t: T) {}
+  #varDecl()
+}

@@ -1244,6 +1244,11 @@ ManglingError Remangler::mangleDidSet(Node *node, EntityContext &ctx,
   return mangleAccessor(node->getFirstChild(), "W", ctx, depth + 1);
 }
 
+ManglingError Remangler::mangleInitAccessor(Node *node, EntityContext &ctx,
+                                            unsigned depth) {
+  return mangleAccessor(node->getFirstChild(), "i", ctx, depth + 1);
+}
+
 ManglingError Remangler::mangleOwningMutableAddressor(Node *node,
                                                       EntityContext &ctx,
                                                       unsigned depth) {
@@ -1927,6 +1932,14 @@ ManglingError Remangler::mangleSILPackIndirect(Node *node, unsigned depth) {
 }
 
 ManglingError Remangler::manglePackExpansion(Node *node, unsigned depth) {
+  return MANGLING_ERROR(ManglingError::UnsupportedNodeKind, node);
+}
+
+ManglingError Remangler::manglePackElement(Node *node, unsigned depth) {
+  return MANGLING_ERROR(ManglingError::UnsupportedNodeKind, node);
+}
+
+ManglingError Remangler::manglePackElementLevel(Node *node, unsigned depth) {
   return MANGLING_ERROR(ManglingError::UnsupportedNodeKind, node);
 }
 

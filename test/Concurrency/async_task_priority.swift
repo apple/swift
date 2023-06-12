@@ -18,6 +18,9 @@
 // UNSUPPORTED: DARWIN_SIMULATOR=ios
 // UNSUPPORTED: DARWIN_SIMULATOR=tvos
 
+// rdar://107390341 - Temporarily disable for arm64e
+// UNSUPPORTED: CPU=arm64e
+
 import Darwin
 @preconcurrency import Dispatch
 import StdlibUnittest

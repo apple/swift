@@ -123,6 +123,7 @@ extension Instruction {
       return !fri.referencedFunction.isAsync
     case is StructInst,
          is TupleInst,
+         is EnumInst,
          is IntegerLiteralInst,
          is FloatLiteralInst,
          is ObjectInst,

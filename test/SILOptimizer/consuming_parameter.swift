@@ -1,9 +1,9 @@
-// RUN: %target-swift-frontend -c -enable-experimental-feature NoImplicitCopy -disable-availability-checking -Xllvm --sil-print-final-ossa-module -O -module-name=main -o /dev/null %s 2>&1 | %FileCheck %s
+// RUN: %target-swift-frontend -c -disable-availability-checking -Xllvm --sil-print-final-ossa-module -O -module-name=main -o /dev/null %s 2>&1 | %FileCheck %s
  
 // REQUIRES: concurrency
 
 // CHECK-LABEL: sil [ossa] @async_dead_arg_call : {{.*}} {
-// CHECK:       {{bb[0-9]+}}([[INSTANCE:%[^,]+]] : @_eagerMove @owned
+// CHECK:       {{bb[0-9]+}}([[INSTANCE:%[^,]+]] : @noImplicitCopy @_eagerMove @owned
 // CHECK:         destroy_value [[INSTANCE]]
 // CHECK:         [[EXECUTOR:%[^,]+]] = enum $Optional<Builtin.Executor>, #Optional.none!enumelt 
 // CHECK:         [[CALLEE:%[^,]+]] = function_ref @async_callee
@@ -17,7 +17,7 @@ public func async_dead_arg_call(o: consuming AnyObject) async {
 }
  
 // CHECK-LABEL: sil [ossa] @async_dead_arg_call_lexical : {{.*}} {
-// CHECK:       {{bb[0-9]+}}([[INSTANCE:%[^,]+]] : @_lexical @owned
+// CHECK:       {{bb[0-9]+}}([[INSTANCE:%[^,]+]] : @noImplicitCopy @_lexical @owned
 // CHECK:         [[MOVE:%[^,]+]] = move_value [lexical] [[INSTANCE]]
 // CHECK:         [[EXECUTOR:%[^,]+]] = enum $Optional<Builtin.Executor>, #Optional.none!enumelt 
 // CHECK:         [[CALLEE:%[^,]+]] = function_ref @async_callee
@@ -33,7 +33,7 @@ public func async_dead_arg_call_lexical(@_noEagerMove o: consuming AnyObject) as
 
 extension C {
   // CHECK-LABEL: sil [ossa] @async_dead_arg_call_lexical_method : {{.*}} {
-  // CHECK:       {{bb[0-9]+}}([[INSTANCE:%[^,]+]] : @_lexical @owned
+  // CHECK:       {{bb[0-9]+}}([[INSTANCE:%[^,]+]] : @noImplicitCopy @_lexical @owned
   // CHECK-LABEL: } // end sil function 'async_dead_arg_call_lexical_method'
   @_silgen_name("async_dead_arg_call_lexical_method")
   @_noEagerMove
@@ -46,7 +46,7 @@ extension C {
 
 public class C {
   // CHECK-LABEL: sil [ossa] @async_dead_arg_call_method : {{.*}} {
-  // CHECK:       {{bb[0-9]+}}([[INSTANCE:%[^,]+]] : @_eagerMove @owned
+  // CHECK:       {{bb[0-9]+}}([[INSTANCE:%[^,]+]] : @noImplicitCopy @_eagerMove @owned
   // CHECK:         destroy_value [[INSTANCE]]
   // CHECK:         [[EXECUTOR:%[^,]+]] = enum $Optional<Builtin.Executor>, #Optional.none!enumelt 
   // CHECK:         [[CALLEE:%[^,]+]] = function_ref @async_callee : $@convention(thin) @async () -> () 
@@ -66,7 +66,7 @@ public class C {
 func bar() async {}
 
 // CHECK-LABEL: sil [ossa] @write_to_pointer : {{.*}} {
-// CHECK:       {{bb[0-9]+}}([[CONSUMED_INSTANCE:%[^,]+]] : @_eagerMove @owned $AnyObject, [[UMP:%[^,]+]] :
+// CHECK:       {{bb[0-9]+}}([[CONSUMED_INSTANCE:%[^,]+]] : @noImplicitCopy @_eagerMove @owned $AnyObject, [[UMP:%[^,]+]] :
 // CHECK:         [[PTR:%[^,]+]] = struct_extract [[UMP]]
 // CHECK:         [[ADDR:%[^,]+]] = pointer_to_address [[PTR]]
 // CHECK:         store [[CONSUMED_INSTANCE]] to [assign] [[ADDR]]
@@ -84,7 +84,7 @@ public func write_to_pointer(o: consuming AnyObject, p: UnsafeMutablePointer<Any
 
 extension C {
   // CHECK-LABEL: sil [ossa] @write_to_pointer_method : {{.*}} {
-  // CHECK:       {{bb[0-9]+}}([[UMP:%[^,]+]] : $UnsafeMutablePointer<C>, [[INSTANCE:%[^,]+]] : @_eagerMove @owned
+  // CHECK:       {{bb[0-9]+}}([[UMP:%[^,]+]] : $UnsafeMutablePointer<C>, [[INSTANCE:%[^,]+]] : @noImplicitCopy @_eagerMove @owned
   // CHECK:         [[PTR:%[^,]+]] = struct_extract [[UMP]]
   // CHECK:         [[ADDR:%[^,]+]] = pointer_to_address [[PTR]]
   // CHECK:         store [[INSTANCE]] to [assign] [[ADDR]]

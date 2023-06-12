@@ -45,6 +45,21 @@ void cancelRequest(SourceKitCancellationToken CancellationToken);
 
 void disposeCancellationToken(SourceKitCancellationToken CancellationToken);
 
+/// Returns \c true if \p Request is of a request kind that should be issued as
+/// a dispatch barrier of the message handling queue. In practice, this returns
+/// \c true for open, edit and close requets.
+///
+/// This does not check if dispatch barriers have been enabled by the sourckitd
+/// client.
+bool requestIsBarrier(sourcekitd_object_t Request);
+
+/// Returns \c true if this is a request to enable dispatch barriers in
+/// sourcekitd.
+bool requestIsEnableBarriers(sourcekitd_object_t Request);
+
+/// Send the response that request barriers have been enabled to \p Receiver.
+void sendBarriersEnabledResponse(ResponseReceiver Receiver);
+
 } // namespace sourcekitd
 
 #endif // LLVM_SOURCEKITD_SERVICE_H

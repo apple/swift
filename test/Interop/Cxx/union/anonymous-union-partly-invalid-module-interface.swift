@@ -3,6 +3,8 @@
 // CHECK: class C {
 // CHECK-NEXT: }
 // CHECK-NEXT: struct S {
+// CHECK-NEXT:   @available(*, deprecated, message
+// CHECK-NEXT:   init()
 // CHECK-NEXT:   mutating func f() -> Int32
 // CHECK-NEXT: }
 // CHECK-NEXT: func getSPtr() -> UnsafeMutablePointer<S>!

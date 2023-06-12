@@ -183,6 +183,7 @@ bool isUseOfSelfInInitializer(Operand *oper) {
     if (auto *MUI = dyn_cast<MarkUninitializedInst>(value)) {
       switch (MUI->getMarkUninitializedKind()) {
       case MarkUninitializedInst::Kind::Var:
+      case MarkUninitializedInst::Kind::Out:
         return false;
       case MarkUninitializedInst::Kind::RootSelf:
       case MarkUninitializedInst::Kind::CrossModuleRootSelf:

@@ -44,24 +44,24 @@ struct StructWithField {
 
 func testLetStructAccessField() {
     let t = StructWithField()
-    let _ = consume t.k  // expected-error {{'consume' can only be applied to lvalues}}
+    let _ = consume t.k  // expected-error {{'consume' can only be applied to a local binding ('let', 'var', or parameter)}}
 }
 
 func testVarStructAccessField() {
     var t = StructWithField()
     t = StructWithField()
-    let _ = consume t.k // expected-error {{'consume' can only be applied to lvalues}}
+    let _ = consume t.k // expected-error {{'consume' can only be applied to a local binding ('let', 'var', or parameter)}}
 }
 
 func testLetClassAccessField() {
     let t = Klass()
-    let _ = consume t.k  // expected-error {{'consume' can only be applied to lvalues}}
+    let _ = consume t.k  // expected-error {{'consume' can only be applied to a local binding ('let', 'var', or parameter)}}
 }
 
 func testVarClassAccessField() {
     var t = Klass()
     t = Klass()
-    let _ = consume t.k // expected-error {{'consume' can only be applied to lvalues}}
+    let _ = consume t.k // expected-error {{'consume' can only be applied to a local binding ('let', 'var', or parameter)}}
 }
 
 func testConsumeResultImmutable() {
@@ -76,7 +76,7 @@ func testConsumeResultImmutable() {
 
   var t = Test()
   t.mutatingTest()
-  consume t.borrowingTest() // expected-error {{'consume' can only be applied to lvalues}}
+  consume t.borrowingTest() // expected-error {{'consume' can only be applied to a local binding ('let', 'var', or parameter)}}
   (consume t).borrowingTest()
   (consume t).consumingTest()
   (consume t).mutatingTest() // expected-error {{cannot use mutating member on immutable value of type 'Test'}}

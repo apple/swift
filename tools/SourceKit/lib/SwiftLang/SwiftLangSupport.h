@@ -55,6 +55,7 @@ namespace ide {
   class IDEInspectionInstance;
   class OnDiskCodeCompletionCache;
   class SourceEditConsumer;
+  class SyntacticMacroExpansion;
   enum class CodeCompletionDeclKind : uint8_t;
   enum class SyntaxNodeKind : uint8_t;
   enum class SyntaxStructureKind : uint8_t;
@@ -366,6 +367,7 @@ class SwiftLangSupport : public LangSupport {
   llvm::StringMap<std::unique_ptr<FileSystemProvider>> FileSystemProviders;
   std::shared_ptr<swift::ide::IDEInspectionInstance> IDEInspectionInst;
   std::shared_ptr<compile::SessionManager> CompileManager;
+  std::shared_ptr<swift::ide::SyntacticMacroExpansion> SyntacticMacroExpansions;
 
 public:
   explicit SwiftLangSupport(SourceKit::Context &SKCtx);
@@ -755,6 +757,11 @@ public:
                                SourceKitCancellationToken CancellationToken,
                                ConformingMethodListConsumer &Consumer,
                                Optional<VFSOptions> vfsOptions) override;
+
+  void expandMacroSyntactically(llvm::MemoryBuffer *inputBuf,
+                                ArrayRef<const char *> args,
+                                ArrayRef<MacroExpansionInfo> expansions,
+                                CategorizedEditsReceiver receiver) override;
 
   void
   performCompile(StringRef Name, ArrayRef<const char *> Args,

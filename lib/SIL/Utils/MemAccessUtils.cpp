@@ -1349,7 +1349,12 @@ public:
              // as such when it operates on unchecked_take_enum_data_addr.
              || isa<ProjectBoxInst>(projectedAddr)
              // Ignore mark_must_check, we just look through it when we see it.
-             || isa<MarkMustCheckInst>(projectedAddr));
+             || isa<MarkMustCheckInst>(projectedAddr)
+             // Ignore moveonlywrapper_to_copyable_addr and
+             // copyable_to_moveonlywrapper_addr, we just look through it when
+             // we see it
+             || isa<MoveOnlyWrapperToCopyableAddrInst>(projectedAddr) ||
+             isa<CopyableToMoveOnlyWrapperAddrInst>(projectedAddr));
     }
     return sourceAddr->get();
   }
@@ -1873,6 +1878,12 @@ AccessPathDefUseTraversal::visitSingleValueUser(SingleValueInstruction *svi,
     pushUsers(svi, dfs);
     return IgnoredUse;
   }
+
+  // Look through both of these.
+  case SILInstructionKind::MoveOnlyWrapperToCopyableAddrInst:
+  case SILInstructionKind::CopyableToMoveOnlyWrapperAddrInst:
+    pushUsers(svi, dfs);
+    return IgnoredUse;
 
     // MARK: Access projections
 
@@ -2613,6 +2624,7 @@ void swift::visitAccessedAddress(SILInstruction *I,
 
   case SILInstructionKind::AssignInst:
   case SILInstructionKind::AssignByWrapperInst:
+  case SILInstructionKind::AssignOrInitInst:
     visitor(&I->getAllOperands()[AssignInst::Dest]);
     return;
 
@@ -2698,6 +2710,7 @@ void swift::visitAccessedAddress(SILInstruction *I,
   case SILInstructionKind::DeinitExistentialValueInst:
   case SILInstructionKind::DestroyAddrInst:
   case SILInstructionKind::DestroyValueInst:
+  case SILInstructionKind::DropDeinitInst:
   case SILInstructionKind::EndAccessInst:
   case SILInstructionKind::EndApplyInst:
   case SILInstructionKind::EndBorrowInst:

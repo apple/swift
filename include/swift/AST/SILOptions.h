@@ -173,6 +173,12 @@ public:
   /// Require linear OSSA lifetimes after SILGen
   bool OSSACompleteLifetimes = false;
 
+  /// Enable pack metadata stack "promotion".
+  ///
+  /// More accurately, enable skipping mandatory heapification of pack metadata
+  /// when possible.
+  bool EnablePackMetadataStackPromotion = true;
+
   // The kind of function bodies to skip emitting.
   FunctionBodySkipping SkipFunctionBodies = FunctionBodySkipping::None;
 

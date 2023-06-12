@@ -938,10 +938,9 @@ public:
     case Kind::Discard: {
       auto type = getType();
       if (isa<DependentMemberType>(type) ||
-          isa<GenericTypeParamType>(type)) {
-        return true;
-      }
-      if (isa<ArchetypeType>(type)) {
+          isa<GenericTypeParamType>(type) ||
+          isa<PackElementType>(type) ||
+          isa<ArchetypeType>(type)) {
         return true;
       }
       return false;
@@ -960,7 +959,8 @@ public:
     case Kind::Discard: {
       auto type = getType();
       if (isa<DependentMemberType>(type) ||
-          isa<GenericTypeParamType>(type)) {
+          isa<GenericTypeParamType>(type) ||
+          isa<PackElementType>(type)) {
         return true;
       }
       if (auto archetype = dyn_cast<ArchetypeType>(type)) {
@@ -1447,6 +1447,10 @@ public:
   /// Given that the value being abstracted is a tuple type, return
   /// the abstraction pattern for an element type.
   AbstractionPattern getTupleElementType(unsigned index) const;
+
+  /// Given that the value being abstracted is a pack element type, return
+  /// the abstraction pattern for its pack type.
+  AbstractionPattern getPackElementPackType() const;
 
   /// Given that the value being abstracted is a pack type, return
   /// the abstraction pattern for an element type.

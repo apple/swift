@@ -1,14 +1,14 @@
 // RUN: %empty-directory(%t)
 // RUN: %target-build-swift %s -parse-as-library -Onone -g -o %t/Overflow
 // RUN: %target-codesign %t/Overflow
-// RUN: (env SWIFT_BACKTRACE=enable=yes,cache=no %target-run %t/Overflow || true) | %FileCheck %s
-// RUN: (env SWIFT_BACKTRACE=preset=friendly,enable=yes,cache=no %target-run %t/Overflow || true) | %FileCheck %s --check-prefix FRIENDLY
+// RUN: (env SWIFT_BACKTRACE=enable=yes,cache=no %target-run %t/Overflow 2>&1 || true) | %FileCheck %s
+// RUN: (env SWIFT_BACKTRACE=preset=friendly,enable=yes,cache=no %target-run %t/Overflow 2>&1 || true) | %FileCheck %s --check-prefix FRIENDLY
 
 // UNSUPPORTED: use_os_stdlib
 // UNSUPPORTED: back_deployment_runtime
 // REQUIRES: executable_test
 // REQUIRES: backtracing
-// REQUIRES: OS=macosx
+// REQUIRES: OS=macosx || OS=linux-gnu
 var x: UInt = 0
 
 func level1() {
@@ -42,7 +42,7 @@ struct Overflow {
 
 // CHECK: *** Swift runtime failure: arithmetic overflow ***
 
-// CHECK: Thread 0 crashed:
+// CHECK: Thread 0 {{(".*" )?}}crashed:
 
 // CHECK:      0 [inlined] [system] 0x{{[0-9a-f]+}} Swift runtime failure: arithmetic overflow in Overflow at {{.*}}/<compiler-generated>
 // CHECK-NEXT: 1                    0x{{[0-9a-f]+}} level5() + {{[0-9]+}} in Overflow at {{.*}}/Overflow.swift:33:5
@@ -58,11 +58,11 @@ struct Overflow {
 
 // CHECK: Images ({{[0-9]+}} omitted):
 
-// CHECK: {{0x[0-9a-f]+}}–{{0x[0-9a-f]+}}{{ +}}{{[0-9a-f]+}}{{ +}}Overflow{{ +}}{{.*}}/Overflow
+// CHECK: {{0x[0-9a-f]+}}–{{0x[0-9a-f]+}}{{ +}}{{[0-9a-f]+|<no build ID>}}{{ +}}Overflow{{ +}}{{.*}}/Overflow
 
 // FRIENDLY: *** Swift runtime failure: arithmetic overflow ***
 
-// FRIENDLY: Thread 0 crashed:
+// FRIENDLY: Thread 0 {{(".*" )?}}crashed:
 
 // FRIENDLY: 0 level5() + {{[0-9]+}} in Overflow at {{.*}}/Overflow.swift:33:5
 

@@ -63,6 +63,7 @@ class alignas(8) Stmt : public ASTAllocated<Stmt> {
   Stmt& operator=(const Stmt&) = delete;
 
 protected:
+  // clang-format off
   union { uint64_t OpaqueBits;
 
   SWIFT_INLINE_BITFIELD_BASE(Stmt, bitmax(NumStmtKindBits,8) + 1,
@@ -101,6 +102,7 @@ protected:
   );
 
   } Bits;
+  // clang-format on
 
   /// Return the given value for the 'implicit' flag if present, or if None,
   /// return true if the location is invalid.

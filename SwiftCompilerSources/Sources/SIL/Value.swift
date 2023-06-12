@@ -204,3 +204,9 @@ final class PlaceholderValue : Value {
 extension OptionalBridgedValue {
   public var value: Value? { obj.getAs(AnyObject.self) as? Value }
 }
+
+extension Optional where Wrapped == Value {
+  public var bridged: OptionalBridgedValue {
+    OptionalBridgedValue(obj: self?.bridged.obj)
+  }
+}

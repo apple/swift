@@ -38,14 +38,14 @@ enum ASTNode {
     }
   }
 
-  func bridged() -> ASTNodeBridged {
+  var bridged: BridgedASTNode {
     switch self {
     case .expr(let e):
-      return ASTNodeBridged(ptr: e, kind: .expr)
+      return BridgedASTNode(ptr: e, kind: .expr)
     case .stmt(let s):
-      return ASTNodeBridged(ptr: s, kind: .stmt)
+      return BridgedASTNode(ptr: s, kind: .stmt)
     case .decl(let d):
-      return ASTNodeBridged(ptr: d, kind: .decl)
+      return BridgedASTNode(ptr: d, kind: .decl)
     default:
       fatalError("Must be expr, stmt, or decl.")
     }
@@ -66,10 +66,10 @@ class Boxed<Value> {
 struct ASTGenVisitor: SyntaxTransformVisitor {
   typealias ResultType = ASTNode
 
-  let ctx: UnsafeMutableRawPointer
-  let base: UnsafePointer<UInt8>
+  let ctx: BridgedASTContext
+  let base: UnsafeBufferPointer<UInt8>
 
-  @Boxed var declContext: UnsafeMutableRawPointer
+  @Boxed var declContext: BridgedDeclContext
 
   // TODO: this some how messes up the witness table when I uncomment it locally :/
   //  public func visit<T>(_ node: T?) -> [UnsafeMutableRawPointer]? {
@@ -90,15 +90,15 @@ struct ASTGenVisitor: SyntaxTransformVisitor {
     var out = [UnsafeMutableRawPointer]()
 
     for element in node.statements {
-      let loc = self.base.advanced(by: element.position.utf8Offset).raw
+      let loc = bridgedSourceLoc(for: element)
       let swiftASTNodes = visit(element)
       switch swiftASTNodes {
       case .decl(let d):
         out.append(d)
       case .stmt(let s):
-        out.append(SwiftTopLevelCodeDecl_createStmt(ctx, declContext, loc, s, loc))
+        out.append(TopLevelCodeDecl_createStmt(ctx, declContext, loc, s, loc))
       case .expr(let e):
-        out.append(SwiftTopLevelCodeDecl_createExpr(ctx, declContext, loc, e, loc))
+        out.append(TopLevelCodeDecl_createExpr(ctx, declContext, loc, e, loc))
       default:
         fatalError("Top level nodes must be decls, stmts, or exprs.")
       }
@@ -118,7 +118,7 @@ public func buildTopLevelASTNodes(
   callback: @convention(c) (UnsafeMutableRawPointer, UnsafeMutableRawPointer) -> Void
 ) {
   sourceFilePtr.withMemoryRebound(to: ExportedSourceFile.self, capacity: 1) { sourceFile in
-    ASTGenVisitor(ctx: ctx, base: sourceFile.pointee.buffer.baseAddress!, declContext: dc)
+    ASTGenVisitor(ctx: BridgedASTContext(raw: ctx), base: sourceFile.pointee.buffer, declContext: BridgedDeclContext(raw: dc))
       .visit(sourceFile.pointee.syntax)
       .forEach { callback($0, outputContext) }
   }

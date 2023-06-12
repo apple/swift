@@ -578,6 +578,9 @@ public:
   void insertAfter(SourceManager &SM, SourceLoc Loc, StringRef Text, ArrayRef<NoteRegion> SubRegions = {});
   void accept(SourceManager &SM, Replacement Replacement) { accept(SM, RegionType::ActiveCode, {Replacement}); }
   void remove(SourceManager &SM, CharSourceRange Range);
+  void acceptMacroExpansionBuffer(SourceManager &SM, unsigned bufferID,
+                                  SourceFile *containingSF,
+                                  bool adjustExpansion, bool includeBufferName);
 };
 
 /// This helper stream inserts text into a SourceLoc by calling functions in

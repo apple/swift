@@ -225,6 +225,10 @@ CUSTOM_LOCATOR_PATH_ELT(TernaryBranch)
 /// Performing a pattern patch.
 CUSTOM_LOCATOR_PATH_ELT(PatternMatch)
 
+/// The constraint that models the allowed implicit casts for
+/// an EnumElementPattern.
+SIMPLE_LOCATOR_PATH_ELT(EnumPatternImplicitCastMatch)
+
 /// Points to a particular attribute associated with one of
 /// the arguments e.g. `inout` or its type e.g. `@escaping`.
 ///

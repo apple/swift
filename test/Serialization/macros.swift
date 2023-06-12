@@ -21,6 +21,7 @@ func test(a: Int, b: Int) {
 
 struct TestStruct {
   @myWrapper var x: Int
+  // expected-error@-1{{expansion of macro 'myWrapper()' did not produce a non-observing accessor}}
 }
 
 @ArbitraryMembers

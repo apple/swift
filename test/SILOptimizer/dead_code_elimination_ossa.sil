@@ -18,6 +18,11 @@ struct CAndBit {
     var bit: Int1
 }
 
+@_moveOnly
+struct MO {
+    deinit
+}
+
 sil @dummy : $@convention(thin) () -> ()
 
 // CHECK-LABEL: sil [ossa] @dead1 :
@@ -406,4 +411,24 @@ exit:
   destroy_value %instance : $C
   %retval = tuple ()
   return %retval : $()
+}
+
+// Test that DCE does not eliminate a drop_deinit.
+//
+// rdar://109863801 ([move-only] DCE removes drop_deinit, so
+// user-defined deinitializers call themselves recursively at -O)
+//
+// CHECK-LABEL: sil hidden [ossa] @testDropDeinit : $@convention(method) (@owned MO) -> () {
+// CHECK: [[DROP:%.*]] = drop_deinit %0 : $MO
+// CHECK: end_lifetime [[DROP]] : $MO
+// CHECK-LABEL: } // end sil function 'testDropDeinit'
+//
+// MO.deinit
+sil hidden [ossa] @testDropDeinit : $@convention(method) (@owned MO) -> () {
+bb0(%0 : @owned $MO):
+  debug_value %0 : $MO, let, name "self", argno 1, implicit
+  %61 = drop_deinit %0 : $MO
+  end_lifetime %61 : $MO
+  %63 = tuple ()
+  return %63 : $()
 }

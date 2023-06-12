@@ -785,10 +785,10 @@ public:
     return ExplosionSize;
   }
 
-  void reexplode(IRGenFunction &IGF, Explosion &src,
+  void reexplode(Explosion &src,
                  Explosion &dest) const override {
     for (auto &field : getFields())
-      cast<LoadableTypeInfo>(field.getTypeInfo()).reexplode(IGF, src, dest);
+      cast<LoadableTypeInfo>(field.getTypeInfo()).reexplode(src, dest);
   }
 
   void copy(IRGenFunction &IGF, Explosion &src,
@@ -811,7 +811,8 @@ public:
       cast<LoadableTypeInfo>(field.getTypeInfo()).fixLifetime(IGF, src);
   }
   
-  void packIntoEnumPayload(IRGenFunction &IGF,
+  void packIntoEnumPayload(IRGenModule &IGM,
+                           IRBuilder &builder,
                            EnumPayload &payload,
                            Explosion &src,
                            unsigned startOffset) const override {
@@ -820,7 +821,7 @@ public:
         unsigned offset = field.getFixedByteOffset().getValueInBits()
           + startOffset;
         cast<LoadableTypeInfo>(field.getTypeInfo())
-          .packIntoEnumPayload(IGF, payload, src, offset);
+          .packIntoEnumPayload(IGM, builder, payload, src, offset);
       }
     }
   }

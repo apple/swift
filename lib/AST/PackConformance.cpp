@@ -249,9 +249,6 @@ PackConformance::subst(InFlightSubstitution &IFS) const {
 
   auto substConformance = PackConformance::get(substConformingType, Protocol,
                                                expander.substConformances);
-  if (substConformance->isInvalid())
-    return ProtocolConformanceRef::forInvalid();
-
   return ProtocolConformanceRef(substConformance);
 }
 

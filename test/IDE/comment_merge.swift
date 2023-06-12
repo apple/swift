@@ -50,13 +50,13 @@ func is_doc10() {}
 /// Bbb.  is_doc11 IS_DOC_SINGLE
 func is_doc11() {}
 
-/// This comment is attached in Doxygen, but not in Swift.  not_doc12 IS_DOC_NOT_ATTACHED
+/// is_doc12 IS_DOC_SINGLE
 // Not a Doxygen comment.  NOT_DOC
-func not_doc12() {}
+func is_doc12() {}
 
-/** This comment is attached in Doxygen, but not in Swift.  not_doc13 IS_DOC_NOT_ATTACHED */
+/** is_doc13 IS_DOC_SINGLE */
 /* Not a Doxygen comment.  not_doc13  NOT_DOC */
-func not_doc13() {}
+func is_doc13() {}
 
 /// is_doc14 IS_DOC_START
 /// IS_DOC_END
@@ -131,13 +131,22 @@ func priorSingleLineMixedComment() {}
 /// Bbb. IS_DOC_END
 func priorBlockMultiLineMixedComment() {}
 
+/// priorCommentBlankLineBeforeDecl IS_DOC_SINGLE
+
+func priorCommentBlankLineBeforeDecl() {}
+
+/// priorCommentBrokenLineBeforeLineComment IS_DOC_SINGLE
+
+// NOT_DOC
+func priorCommentBrokenBeforeLineComment() {}
+
 // Aaa. NOT_DOC
-/// allTheThings IS_DOC_NOT_ATTACHED
-/** Bbb IS_DOC_NOT_ATTACHED
+/// IS_DOC_START allTheThings
+/** Bbb
  *
  * Ccc. */
 // Ddd. NOT_DOC
-/// IS_DOC_START Eee
+/// Eee
 /**
  * Fff. IS_DOC_END
  */
@@ -168,8 +177,8 @@ func allTheThings() {}
 // CHECK-NEXT: comment_merge.swift:44:6: Func/is_doc9 RawComment=[/**\n * is_doc9\n * IS_DOC_SINGLE\n */]
 // CHECK-NEXT: comment_merge.swift:47:6: Func/is_doc10 RawComment=[/// is_doc10 IS_DOC_SINGLE\n]
 // CHECK-NEXT: comment_merge.swift:51:6: Func/is_doc11 RawComment=[/// Bbb.  is_doc11 IS_DOC_SINGLE\n]
-// CHECK-NEXT: comment_merge.swift:55:6: Func/not_doc12 RawComment=none
-// CHECK-NEXT: comment_merge.swift:59:6: Func/not_doc13 RawComment=none
+// CHECK-NEXT: comment_merge.swift:55:6: Func/is_doc12 RawComment=[/// is_doc12 IS_DOC_SINGLE\n]
+// CHECK-NEXT: comment_merge.swift:59:6: Func/is_doc13 RawComment=[/** is_doc13 IS_DOC_SINGLE */]
 // CHECK-NEXT: comment_merge.swift:63:6: Func/is_doc14 RawComment=[/// is_doc14 IS_DOC_START\n/// IS_DOC_END\n]
 // CHECK-NEXT: comment_merge.swift:68:6: Func/is_doc15 RawComment=[/// is_doc15 IS_DOC_START\n/// Aaa bbb ccc.\n/// IS_DOC_END\n]
 // CHECK-NEXT: comment_merge.swift:77:6: Func/priorCommentOneLineGap RawComment=[/// IS_DOC_START priorCommentOneLineGap Aaa.\n///\n/// Bbb. IS_DOC_END\n]
@@ -181,4 +190,6 @@ func allTheThings() {}
 // CHECK-NEXT: comment_merge.swift:120:6: Func/priorLineMixedComment RawComment=[/// IS_DOC_START priorLineMixedComment Aaa.\n/// Multiline.\n/**  Bbb. IS_DOC_END */]
 // CHECK-NEXT: comment_merge.swift:126:6: Func/priorSingleLineMixedComment RawComment=[/// IS_DOC_START priorSingleLineMixedComment Aaa.\n/**\n  Bbb. IS_DOC_END\n */]
 // CHECK-NEXT: comment_merge.swift:132:6: Func/priorBlockMultiLineMixedComment RawComment=[/**\n  IS_DOC_START priorBlockMultiLineMixedComment Aaa.\n *//// Bbb. IS_DOC_END\n]
-// CHECK-NEXT: comment_merge.swift:144:6: Func/allTheThings RawComment=[/// IS_DOC_START Eee\n/**\n * Fff. IS_DOC_END\n */]
+// CHECK-NEXT: comment_merge.swift:136:6: Func/priorCommentBlankLineBeforeDecl RawComment=[/// priorCommentBlankLineBeforeDecl IS_DOC_SINGLE\n]
+// CHECK-NEXT: comment_merge.swift:141:6: Func/priorCommentBrokenBeforeLineComment RawComment=[/// priorCommentBrokenLineBeforeLineComment IS_DOC_SINGLE\n]
+// CHECK-NEXT: comment_merge.swift:153:6: Func/allTheThings RawComment=[/// IS_DOC_START allTheThings\n/** Bbb\n *\n * Ccc. *//// Eee\n/**\n * Fff. IS_DOC_END\n */]

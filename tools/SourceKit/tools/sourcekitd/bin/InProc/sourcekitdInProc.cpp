@@ -34,6 +34,15 @@
 
 using namespace SourceKit;
 
+/// The queue on which the all incoming requests will be handled. If barriers
+/// are enabled, open/edit/close requests will be dispatched as barriers on this
+/// queue.
+WorkQueue *msgHandlingQueue = nullptr;
+
+/// Whether request barriers have been enabled, i.e. whether open/edit/close
+/// requests should be dispatched as barriers.
+static bool RequestBarriersEnabled = false;
+
 static void postNotification(sourcekitd_response_t Notification);
 
 static void getToolchainPrefixPath(llvm::SmallVectorImpl<char> &Path) {
@@ -96,6 +105,9 @@ static std::string getDiagnosticDocumentationPath() {
 }
 
 void sourcekitd_initialize(void) {
+  assert(msgHandlingQueue == nullptr && "Cannot initialize service twice");
+  msgHandlingQueue = new WorkQueue(WorkQueue::Dequeuing::Concurrent,
+                                   "sourcekitdInProc.msgHandlingQueue");
   if (sourcekitd::initializeClient()) {
     LOG_INFO_FUNC(High, "initializing");
     sourcekitd::initializeService(getSwiftExecutablePath(), getRuntimeLibPath(),
@@ -154,7 +166,7 @@ void sourcekitd_send_request(sourcekitd_object_t req,
 
   sourcekitd_request_retain(req);
   receiver = Block_copy(receiver);
-  WorkQueue::dispatchConcurrent([=] {
+  auto handler = [=] {
     sourcekitd::handleRequest(req, /*CancellationToken=*/request_handle,
                               [=](sourcekitd_response_t resp) {
                                 // The receiver accepts ownership of the
@@ -163,7 +175,20 @@ void sourcekitd_send_request(sourcekitd_object_t req,
                                 Block_release(receiver);
                               });
     sourcekitd_request_release(req);
-  });
+  };
+
+  if (sourcekitd::requestIsEnableBarriers(req)) {
+    RequestBarriersEnabled = true;
+    sourcekitd::sendBarriersEnabledResponse([=](sourcekitd_response_t resp) {
+      // The receiver accepts ownership of the response.
+      receiver(resp);
+      Block_release(receiver);
+    });
+  } else if (RequestBarriersEnabled && sourcekitd::requestIsBarrier(req)) {
+    msgHandlingQueue->dispatchBarrier(handler);
+  } else {
+    msgHandlingQueue->dispatchConcurrent(handler);
+  }
 }
 
 void sourcekitd_cancel_request(sourcekitd_request_handle_t handle) {

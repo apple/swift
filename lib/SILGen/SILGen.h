@@ -459,6 +459,9 @@ public:
                                     SILFunction *jvp, SILFunction *vjp,
                                     const DeclAttribute *diffAttr);
 
+  /// Emit a deinit table for a noncopyable type.
+  void emitNonCopyableTypeDeinitTable(NominalTypeDecl *decl);
+
   /// Known functions for bridging.
   SILDeclRef getStringToNSStringFn();
   SILDeclRef getNSStringToStringFn();

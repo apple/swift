@@ -1847,3 +1847,21 @@ bb0:
   dealloc_stack %src : $*MOS
   return %instance_3 : $MOS
 }
+
+// CHECK-LABEL: sil [ossa] @dont_optimize_use_before_copy :
+// CHECK: copy_addr
+// CHECK-LABEL: } // end sil function 'dont_optimize_use_before_copy'
+sil [ossa] @dont_optimize_use_before_copy : $@convention(thin) <B> (@in_guaranteed GS<B>, @inout GS<B>) -> () {
+bb0(%0 : $*GS<B>, %1 : $*GS<B>):
+  %2 = alloc_stack $GS<B>
+  %3 = struct_element_addr %2 : $*GS<B>, #GS._value
+  copy_addr %1 to [init] %2 : $*GS<B>
+  %5 = load [trivial] %3 : $*Builtin.Int64
+  %6 = builtin "cmp_slt_Int64"(%5 : $Builtin.Int64, %5 : $Builtin.Int64) : $Builtin.Int1
+  copy_addr %2 to %1 : $*GS<B>
+  destroy_addr %2 : $*GS<B>
+  dealloc_stack %2 : $*GS<B>
+  %10 = tuple ()
+  return %10 : $()
+}
+

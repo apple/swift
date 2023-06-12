@@ -1135,7 +1135,7 @@ ScopedImportLookupRequest::evaluate(Evaluator &evaluator,
   lookupInModule(topLevelModule, accessPath.front().Item, decls,
                  NLKind::QualifiedLookup, ResolutionKind::Overloadable,
                  import->getDeclContext()->getModuleScopeContext(),
-                 NL_QualifiedDefault);
+                 import->getLoc(), NL_QualifiedDefault);
 
   auto importLoc = import->getLoc();
   if (decls.empty()) {

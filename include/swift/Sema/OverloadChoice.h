@@ -54,8 +54,7 @@ enum class OverloadChoiceKind : int {
   /// The overload choice selects a particular declaration that
   /// was found by unwrapping an optional context type.
   DeclViaUnwrappedOptional,
-  /// The overload choice materializes a pack from a tuple using
-  /// the \c .element syntax.
+  /// The overload choice materializes a pack from a tuple.
   MaterializePack,
   /// The overload choice indexes into a tuple. Index zero will
   /// have the value of this enumerator, index one will have the value of this

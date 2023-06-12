@@ -438,10 +438,6 @@ synthesizeStructDefaultConstructorBody(AbstractFunctionDecl *afd,
   ASTContext &ctx = constructor->getASTContext();
   auto structDecl = static_cast<StructDecl *>(context);
 
-  // We should call into C++ constructors directly.
-  assert(!isa<clang::CXXRecordDecl>(structDecl->getClangDecl()) &&
-         "Should not synthesize a C++ object constructor.");
-
   // Use a builtin to produce a zero initializer, and assign it to self.
 
   // Construct the left-hand reference to self.

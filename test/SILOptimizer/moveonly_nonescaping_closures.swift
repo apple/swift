@@ -50,8 +50,8 @@ func a(x: borrowing M) {
 
 func b(x: __owned M) { // expected-error {{'x' used after consume}}
     clodger({ borrow(x) }, consume: x)
-    // expected-note @-1:25 {{non-consuming use here}}
-    // expected-note @-2:37 {{consuming use here}}
+    // expected-note @-1:25 {{used here}}
+    // expected-note @-2:37 {{consumed here}}
 }
 
 // We have a use after free here since we treat the passing of borrow to clodger
@@ -60,9 +60,9 @@ func b(x: __owned M) { // expected-error {{'x' used after consume}}
 func b2(x: consuming M) {
     // expected-error @-1 {{'x' used after consume}}
     clodger({ borrow(x) }, // expected-note {{conflicting access is here}}
-            // expected-note @-1 {{non-consuming use here}}
+            // expected-note @-1 {{used here}}
             consume: x) // expected-error {{overlapping accesses to 'x', but deinitialization requires exclusive access}}
-            // expected-note @-1 {{consuming use here}}
+            // expected-note @-1 {{consumed here}}
 }
 
 func c(x: __owned M) {
@@ -77,14 +77,14 @@ func c2(x: consuming M) {
     consume(x)
 }
 
-func d(x: __owned M) { // expected-error {{'x' consumed in closure. This is illegal since if the closure is invoked more than once the binding will be uninitialized on later invocations}}
+func d(x: __owned M) { // expected-error {{noncopyable 'x' cannot be consumed when captured by a closure}}
     clodger({ consume(x) })
-    // expected-note @-1 {{consuming use here}}
+    // expected-note @-1 {{consumed here}}
 }
 
-func d2(x: consuming M) { // expected-error {{'x' consumed in closure but not reinitialized before end of closure}}
+func d2(x: consuming M) { // expected-error {{missing reinitialization of inout parameter 'x' after consume}}
     clodger({ consume(x) })
-    // expected-note @-1 {{consuming use here}}
+    // expected-note @-1 {{consumed here}}
 }
 
 func e(x: inout M) {
@@ -106,9 +106,9 @@ func g(x: inout M) {
 
 func h(x: inout M) { // expected-error {{'x' used after consume}}
     clodger({ mutate(&x) }, // expected-note {{conflicting access is here}}
-            // expected-note @-1 {{non-consuming use here}}
+            // expected-note @-1 {{used here}}
             consume: x) // expected-error {{overlapping accesses to 'x', but deinitialization requires exclusive access}}}
-    // expected-note @-1 {{consuming use here}}
+    // expected-note @-1 {{consumed here}}
     x = M()
 }
 
@@ -129,18 +129,18 @@ func k(x: borrowing M) {
 }
 
 
-func l(x: inout M) { // expected-error {{'x' consumed in closure but not reinitialized before end of closure}}
-    clodger({ consume(x) }) // expected-note {{consuming use here}}
+func l(x: inout M) { // expected-error {{missing reinitialization of inout parameter 'x' after consume}}
+    clodger({ consume(x) }) // expected-note {{consumed here}}
 }
 
 func m(x: inout M) { // expected-error {{'x' used after consume}}
-    consume(x) // expected-note {{consuming use here}}
-    clodger({ borrow(x) }) // expected-note {{non-consuming use here}}
+    consume(x) // expected-note {{consumed here}}
+    clodger({ borrow(x) }) // expected-note {{used here}}
 }
 
 func n(x: inout M) { // expected-error {{'x' used after consume}}
-    consume(x) // expected-note {{consuming use here}}
-    clodger({ // expected-note {{non-consuming use here}}
+    consume(x) // expected-note {{consumed here}}
+    clodger({ // expected-note {{used here}}
         mutate(&x)
     })
 }

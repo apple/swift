@@ -204,12 +204,14 @@ void SILFunction::init(
   this->InlineStrategy = inlineStrategy;
   this->Linkage = unsigned(Linkage);
   this->HasCReferences = false;
+  this->MarkedAsUsed = false;
   this->IsAlwaysWeakImported = false;
   this->IsDynamicReplaceable = isDynamic;
   this->ExactSelfClass = isExactSelfClass;
   this->IsDistributed = isDistributed;
   this->IsRuntimeAccessible = isRuntimeAccessible;
   this->ForceEnableLexicalLifetimes = DoNotForceEnableLexicalLifetimes;
+  this->UseStackForPackMetadata = DoUseStackForPackMetadata;
   this->stackProtection = false;
   this->Inlined = false;
   this->Zombie = false;
@@ -280,11 +282,13 @@ void SILFunction::createSnapshot(int id) {
   newSnapshot->ObjCReplacementFor = ObjCReplacementFor;
   newSnapshot->SemanticsAttrSet = SemanticsAttrSet;
   newSnapshot->SpecializeAttrSet = SpecializeAttrSet;
+  newSnapshot->Section = Section;
   newSnapshot->Availability = Availability;
   newSnapshot->specialPurpose = specialPurpose;
   newSnapshot->perfConstraints = perfConstraints;
   newSnapshot->GlobalInitFlag = GlobalInitFlag;
   newSnapshot->HasCReferences = HasCReferences;
+  newSnapshot->MarkedAsUsed = MarkedAsUsed;
   newSnapshot->IsAlwaysWeakImported = IsAlwaysWeakImported;
   newSnapshot->HasOwnership = HasOwnership;
   newSnapshot->IsWithoutActuallyEscapingThunk = IsWithoutActuallyEscapingThunk;
@@ -448,7 +452,8 @@ SILType GenericEnvironment::mapTypeIntoContext(SILModule &M,
   return type.subst(M,
                     QueryInterfaceTypeSubstitutions(this),
                     LookUpConformanceInSignature(genericSig.getPointer()),
-                    genericSig);
+                    genericSig,
+                    SubstFlags::PreservePackExpansionLevel);
 }
 
 bool SILFunction::isNoReturnFunction(TypeExpansionContext context) const {
@@ -856,6 +861,9 @@ SILFunction::isPossiblyUsedExternally() const {
     return true;
 
   if (isRuntimeAccessible())
+    return true;
+
+  if (markedAsUsed())
     return true;
 
   // Declaration marked as `@_alwaysEmitIntoClient` that

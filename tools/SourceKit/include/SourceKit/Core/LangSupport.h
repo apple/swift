@@ -220,6 +220,64 @@ struct RawCharSourceRange {
   unsigned Length;
 };
 
+enum class MacroRole : uint8_t {
+  // This should align with 'swift::MacroRole'.
+  Expression = 0x01,
+  Declaration = 0x02,
+  Accessor = 0x04,
+  MemberAttribute = 0x08,
+  Member = 0x10,
+  Peer = 0x20,
+  Conformance = 0x40,
+  CodeItem = 0x80,
+};
+using MacroRoles = swift::OptionSet<MacroRole>;
+
+struct MacroExpansionInfo {
+  // See swift::ExternalMacroReference.
+  struct ExternalMacroReference {
+    std::string moduleName;
+    std::string typeName;
+
+    ExternalMacroReference(StringRef moduleName, StringRef typeName)
+        : moduleName(moduleName), typeName(typeName){};
+  };
+  // See swift::ExpandedMacroDefinition.
+  struct ExpandedMacroDefinition {
+    // 'Replacement.range' references some part of code in 'expansionText'.
+    // 'expansionText' will be replaced by the 'parameterIndex'-th argument of
+    // the macro.
+    struct Replacement {
+      RawCharSourceRange range;
+      unsigned parameterIndex;
+      Replacement(RawCharSourceRange range, unsigned parameterIndex)
+          : range(range), parameterIndex(parameterIndex) {}
+    };
+    std::string expansionText;
+    std::vector<Replacement> replacements;
+
+    ExpandedMacroDefinition(StringRef expansionText)
+        : expansionText(expansionText), replacements(){};
+  };
+
+  // Offset of the macro expansion syntax (i.e. attribute or #<macro name>) from
+  // the start of the source file.
+  unsigned offset;
+
+  // Macro roles.
+  MacroRoles roles;
+
+  // Tagged union of macro definition.
+  std::variant<ExternalMacroReference, ExpandedMacroDefinition> macroDefinition;
+
+  MacroExpansionInfo(unsigned offset, MacroRoles roles,
+                     ExternalMacroReference macroRef)
+      : offset(offset), roles(roles), macroDefinition(macroRef) {}
+  MacroExpansionInfo(unsigned offset, MacroRoles roles,
+                     ExpandedMacroDefinition definition)
+      : offset(offset), roles(roles), macroDefinition(definition) {}
+};
+
 /// Stores information about a given buffer, including its name and, if
 /// generated, its source text and original location.
 struct BufferInfo {
@@ -1127,6 +1185,11 @@ public:
       SourceKitCancellationToken CancellationToken,
       ConformingMethodListConsumer &Consumer,
       Optional<VFSOptions> vfsOptions) = 0;
+
+  virtual void expandMacroSyntactically(llvm::MemoryBuffer *inputBuf,
+                                        ArrayRef<const char *> args,
+                                        ArrayRef<MacroExpansionInfo> expansions,
+                                        CategorizedEditsReceiver receiver) = 0;
 
   virtual void
   performCompile(StringRef Name, ArrayRef<const char *> Args,

@@ -56,7 +56,7 @@ extension RangeReplaceableCollection {
   ///   be true for certain C++ types, e.g. those with a custom copy
   ///   constructor that performs additional logic.
   @inlinable
-  public init<C: CxxConvertibleToCollection>(_ elements: C)
+  public init<C: CxxConvertibleToCollection>(_ elements: __shared C)
     where C.RawIterator.Pointee == Element {
 
     self.init()
@@ -74,7 +74,7 @@ extension SetAlgebra {
   ///   be true for certain C++ types, e.g. those with a custom copy
   ///   constructor that performs additional logic.
   @inlinable
-  public init<C: CxxConvertibleToCollection>(_ elements: C)
+  public init<C: CxxConvertibleToCollection>(_ elements: __shared C)
     where C.RawIterator.Pointee == Element {
 
     self.init()

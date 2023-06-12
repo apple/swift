@@ -386,8 +386,11 @@ private:
     /// \c true if this module was built with complete checking for concurrency.
     unsigned IsConcurrencyChecked: 1;
 
+    /// Whether this module is built with C++ interoperability enabled.
+    unsigned HasCxxInteroperability : 1;
+
     // Explicitly pad out to the next word boundary.
-    unsigned : 4;
+    unsigned : 3;
   } Bits = {};
   static_assert(sizeof(ModuleBits) <= 8, "The bit set should be small");
 

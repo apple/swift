@@ -32,6 +32,7 @@ using namespace SourceKit;
 using namespace sourcekitd;
 
 static xpc_connection_t MainConnection = nullptr;
+static bool RequestBarriersEnabled = false;
 
 static void postNotification(sourcekitd_response_t Notification) {
   xpc_connection_t peer = MainConnection;
@@ -231,6 +232,7 @@ static std::string getDiagnosticDocumentationPath() {
 }
 
 static dispatch_queue_t msgHandlingQueue;
+static dispatch_queue_t requestQueue;
 
 static void sourcekitdServer_peer_event_handler(xpc_connection_t peer,
                                                 xpc_object_t event) {
@@ -258,18 +260,36 @@ static void sourcekitdServer_peer_event_handler(xpc_connection_t peer,
     dispatch_async(msgHandlingQueue, ^{
       if (xpc_object_t contents =
               xpc_dictionary_get_value(event, xpc::KeyMsg)) {
-        SourceKitCancellationToken cancelToken =
-            reinterpret_cast<SourceKitCancellationToken>(
-                xpc_dictionary_get_uint64(event, xpc::KeyCancelToken));
-        auto Responder = std::make_shared<XPCResponder>(event, peer);
-        xpc_release(event);
-
         assert(xpc_get_type(contents) == XPC_TYPE_ARRAY);
         sourcekitd_object_t req = xpc_array_get_value(contents, 0);
-        sourcekitd::handleRequest(req, /*CancellationToken=*/cancelToken,
-                                  [Responder](sourcekitd_response_t response) {
-                                    Responder->sendReply(response);
-                                  });
+
+        void (^handler)(void) = ^{
+          SourceKitCancellationToken cancelToken =
+              reinterpret_cast<SourceKitCancellationToken>(
+                  xpc_dictionary_get_uint64(event, xpc::KeyCancelToken));
+          auto Responder = std::make_shared<XPCResponder>(event, peer);
+          xpc_release(event);
+
+          sourcekitd::handleRequest(req, /*CancellationToken=*/cancelToken,
+                                    [Responder](sourcekitd_response_t response) {
+                                      Responder->sendReply(response);
+                                    });
+        };
+
+        if (sourcekitd::requestIsEnableBarriers(req)) {
+          dispatch_barrier_async(requestQueue, ^{
+            auto Responder = std::make_shared<XPCResponder>(event, peer);
+            xpc_release(event);
+            RequestBarriersEnabled = true;
+            sourcekitd::sendBarriersEnabledResponse([Responder](sourcekitd_response_t response) {
+              Responder->sendReply(response);
+            });
+          });
+        } else if (RequestBarriersEnabled && sourcekitd::requestIsBarrier(req)) {
+          dispatch_barrier_async(requestQueue, handler);
+        } else {
+          dispatch_async(requestQueue, handler);
+        }
       } else if (xpc_object_t contents =
                      xpc_dictionary_get_value(event, "ping")) {
         // Ping back.
@@ -282,7 +302,11 @@ static void sourcekitdServer_peer_event_handler(xpc_connection_t peer,
                      reinterpret_cast<SourceKitCancellationToken>(
                          xpc_dictionary_get_uint64(event,
                                                    xpc::KeyCancelRequest))) {
-        sourcekitd::cancelRequest(/*CancellationToken=*/cancelToken);
+        // Execute cancellation on a queue other than `msgHandling` so that we
+        // don’t block the cancellation of a request with a barrier
+        dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+          sourcekitd::cancelRequest(/*CancellationToken=*/cancelToken);
+        });
       } else if (SourceKitCancellationToken cancelToken =
                      reinterpret_cast<SourceKitCancellationToken>(
                          xpc_dictionary_get_uint64(
@@ -391,9 +415,13 @@ int main(int argc, const char *argv[]) {
     LOG_WARN_FUNC("getrlimit failed: " << llvm::sys::StrError());
   }
 
-  auto attr = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_CONCURRENT,
+  auto msgHandlingQueueAttr = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,
                                                       QOS_CLASS_DEFAULT, 0);
-  msgHandlingQueue = dispatch_queue_create("request-handling", attr);
+  msgHandlingQueue = dispatch_queue_create("message-handling", msgHandlingQueueAttr);
+
+  auto requestQueueAttr = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_CONCURRENT,
+                                                      QOS_CLASS_DEFAULT, 0);
+  requestQueue = dispatch_queue_create("request-handling", requestQueueAttr);
 
   xpc_main(sourcekitdServer_event_handler);
   return 0;

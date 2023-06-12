@@ -20,11 +20,15 @@
 #include "swift/DependencyScan/DependencyScanImpl.h"
 #include "swift/DependencyScan/DependencyScanningTool.h"
 #include "swift/DependencyScan/StringUtils.h"
+#include "swift/Frontend/CachingUtils.h"
 #include "swift/Option/Options.h"
+#include "llvm/CAS/ObjectStore.h"
 
 using namespace swift::dependencies;
+using namespace swift::cas;
 
 DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DependencyScanningTool, swiftscan_scanner_t)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(CachingTool, swiftscan_cas_t)
 
 //=== Private Cleanup Functions -------------------------------------------===//
 
@@ -48,6 +52,12 @@ void swiftscan_dependency_info_details_dispose(
     swiftscan_string_set_dispose(
         details_impl->swift_textual_details.extra_pcm_args);
     swiftscan_string_dispose(details_impl->swift_textual_details.context_hash);
+    swiftscan_string_dispose(
+        details_impl->swift_textual_details.cas_fs_root_id);
+    swiftscan_string_dispose(
+        details_impl->swift_textual_details.bridging_header_include_tree);
+    swiftscan_string_dispose(
+        details_impl->swift_textual_details.module_cache_key);
     break;
   case SWIFTSCAN_DEPENDENCY_INFO_SWIFT_BINARY:
     swiftscan_string_dispose(
@@ -56,6 +66,8 @@ void swiftscan_dependency_info_details_dispose(
         details_impl->swift_binary_details.module_doc_path);
     swiftscan_string_dispose(
         details_impl->swift_binary_details.module_source_info_path);
+    swiftscan_string_dispose(
+        details_impl->swift_binary_details.module_cache_key);
     break;
   case SWIFTSCAN_DEPENDENCY_INFO_SWIFT_PLACEHOLDER:
     swiftscan_string_dispose(
@@ -70,6 +82,8 @@ void swiftscan_dependency_info_details_dispose(
     swiftscan_string_dispose(details_impl->clang_details.context_hash);
     swiftscan_string_set_dispose(details_impl->clang_details.command_line);
     swiftscan_string_set_dispose(details_impl->clang_details.captured_pcm_args);
+    swiftscan_string_dispose(details_impl->clang_details.cas_fs_root_id);
+    swiftscan_string_dispose(details_impl->clang_details.module_cache_key);
     break;
   }
   delete details_impl;
@@ -276,6 +290,12 @@ swiftscan_string_set_t *swiftscan_swift_textual_detail_get_command_line(
   return details->swift_textual_details.command_line;
 }
 
+swiftscan_string_set_t *
+swiftscan_swift_textual_detail_get_bridging_pch_command_line(
+    swiftscan_module_details_t details) {
+  return details->swift_textual_details.bridging_pch_command_line;
+}
+
 swiftscan_string_set_t *swiftscan_swift_textual_detail_get_extra_pcm_args(
     swiftscan_module_details_t details) {
   return details->swift_textual_details.extra_pcm_args;
@@ -294,6 +314,16 @@ bool swiftscan_swift_textual_detail_get_is_framework(
 swiftscan_string_set_t *swiftscan_swift_textual_detail_get_swift_overlay_dependencies(
     swiftscan_module_details_t details) {
   return details->swift_textual_details.swift_overlay_module_dependencies;
+}
+
+swiftscan_string_ref_t swiftscan_swift_textual_detail_get_cas_fs_root_id(
+    swiftscan_module_details_t details) {
+  return details->swift_textual_details.cas_fs_root_id;
+}
+
+swiftscan_string_ref_t swiftscan_swift_textual_detail_get_module_cache_key(
+    swiftscan_module_details_t details) {
+  return details->swift_textual_details.module_cache_key;
 }
 
 //=== Swift Binary Module Details query APIs ------------------------------===//
@@ -318,6 +348,12 @@ bool swiftscan_swift_binary_detail_get_is_framework(
     swiftscan_module_details_t details) {
   return details->swift_binary_details.is_framework;
 }
+
+swiftscan_string_ref_t swiftscan_swift_binary_detail_get_module_cache_key(
+    swiftscan_module_details_t details) {
+  return details->swift_binary_details.module_cache_key;
+}
+
 
 //=== Swift Placeholder Module Details query APIs -------------------------===//
 
@@ -358,6 +394,16 @@ swiftscan_clang_detail_get_command_line(swiftscan_module_details_t details) {
 swiftscan_string_set_t *
 swiftscan_clang_detail_get_captured_pcm_args(swiftscan_module_details_t details) {
   return details->clang_details.captured_pcm_args;
+}
+
+swiftscan_string_ref_t
+swiftscan_clang_detail_get_cas_fs_root_id(swiftscan_module_details_t details) {
+  return details->clang_details.cas_fs_root_id;
+}
+
+swiftscan_string_ref_t swiftscan_clang_detail_get_module_cache_key(
+    swiftscan_module_details_t details) {
+  return details->clang_details.module_cache_key;
 }
 
 //=== Batch Scan Input Functions ------------------------------------------===//
@@ -615,6 +661,60 @@ swiftscan_diagnostics_set_dispose(swiftscan_diagnostic_set_t* diagnostics){
   }
   delete[] diagnostics->diagnostics;
   delete diagnostics;
+}
+
+//=== CAS Functions ----------------------------------------------------------//
+
+swiftscan_cas_t swiftscan_cas_create(const char *path) {
+  std::string CASPath(path);
+  if (CASPath.empty())
+    CASPath = llvm::cas::getDefaultOnDiskCASPath();
+
+  CachingTool *tool = new CachingTool(CASPath);
+  if (!tool->isValid()) {
+    delete tool;
+    return nullptr;
+  }
+  return wrap(tool);
+}
+
+void swiftscan_cas_dispose(swiftscan_cas_t cas) { delete unwrap(cas); }
+
+swiftscan_string_ref_t
+swiftscan_cas_store(swiftscan_cas_t cas, uint8_t *data, unsigned size) {
+  llvm::StringRef StrContent((char*)data, size);
+  auto ID = unwrap(cas)->storeContent(StrContent);
+  return swift::c_string_utils::create_clone(ID.c_str());
+}
+
+static swift::file_types::ID
+getFileTypeFromScanOutputKind(swiftscan_output_kind_t kind) {
+  switch (kind) {
+  case SWIFTSCAN_OUTPUT_TYPE_OBJECT:
+    return swift::file_types::ID::TY_Object;
+  case SWIFTSCAN_OUTPUT_TYPE_SWIFTMODULE:
+    return swift::file_types::ID::TY_SwiftModuleFile;
+  case SWIFTSCAN_OUTPUT_TYPE_SWIFTINTERFACE:
+    return swift::file_types::ID::TY_SwiftModuleInterfaceFile;
+  case SWIFTSCAN_OUTPUT_TYPE_SWIFTPRIAVEINTERFACE:
+    return swift::file_types::ID::TY_PrivateSwiftModuleInterfaceFile;
+  case SWIFTSCAN_OUTPUT_TYPE_CLANG_MODULE:
+    return swift::file_types::ID::TY_ClangModuleFile;
+  case SWIFTSCAN_OUTPUT_TYPE_CLANG_PCH:
+    return swift::file_types::ID::TY_PCH;
+  }
+}
+
+swiftscan_string_ref_t
+swiftscan_compute_cache_key(swiftscan_cas_t cas, int argc, const char **argv,
+                            const char *input, swiftscan_output_kind_t kind) {
+  std::vector<const char *> Compilation;
+  for (int i = 0; i < argc; ++i)
+    Compilation.push_back(argv[i]);
+
+  auto ID = unwrap(cas)->computeCacheKey(Compilation, input,
+                                         getFileTypeFromScanOutputKind(kind));
+  return swift::c_string_utils::create_clone(ID.c_str());
 }
 
 //=== Experimental Compiler Invocation Functions ------------------------===//

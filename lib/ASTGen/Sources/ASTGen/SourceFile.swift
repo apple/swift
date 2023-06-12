@@ -110,8 +110,7 @@ public func emitParserDiagnostics(
 
       emitDiagnostic(
         diagEnginePtr: diagEnginePtr,
-        sourceFileBuffer: UnsafeMutableBufferPointer(
-          mutating: sourceFile.pointee.buffer),
+        sourceFileBuffer: sourceFile.pointee.buffer,
         diagnostic: diag,
         diagnosticSeverity: diagnosticSeverity
       )

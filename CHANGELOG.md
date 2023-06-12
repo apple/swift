@@ -5,6 +5,69 @@
 
 ## Swift 5.9
 
+* [SE-0382][], [SE-0389][], [SE-0394][], [SE-0397][]:
+
+  Swift 5.9 includes a new macro system that can be used to eliminate boilerplate and provide new forms of expressive APIs. Macros are declared with the new `macro` introducer:
+
+  ```swift
+  @freestanding(expression)
+  macro assert(_ condition: Bool) = #externalMacro(module: "PowerAssertMacros", type: "AssertMacro")
+  ```
+
+  Macros have parameter and result types, like functions, but are defined as separate programs that operate on syntax trees (using [swift-syntax][]) and produce new syntax trees that are incorporated into the program. Freestanding macros, indicated with the `@freestanding` attribute, are expanded in source code with a leading `#`:
+
+  ```swift
+  #assert(x + y == z) // expands to check the result of x + y == z and report failure if it's false
+  ```
+
+  Macros can also be marked as `@attached`, in which case they will be meaning that they will be expanded using custom attribute syntax. For example:
+
+  ```swift
+  @attached(peer, names: overloaded)
+  macro AddCompletionHandler() = #externalMacro(
+    module: "ConcurrencyHelperMacros",
+    type: "AddCompletionHandlerMacro"
+  )
+  
+  @AddCompletionHandler
+  func fetchAvatar(from url: URL) throws -> Image { ... }
+  
+  // expands to...
+  func fetchAvatar(from url: URL, completionHandler: @escaping (Result<Image, Error>) -> Void) {
+    Task.detached {
+      do {
+        let result = try await fetchAvatar(from: url)
+        completionHandler(.success(result))
+      } catch {
+        completionHandler(.failure(error))
+      }
+    }
+  }
+  ```
+
+  Macros are implemented in separate programs, which are executed by the Swift compiler. The Swift Package Manager's manifest provides a new `macro` target type to describe macros:
+
+  ```swift
+  import PackageDescription
+  import CompilerPluginSupport
+  
+  let package = Package(
+      name: "ConcurrencyHelpers",
+      dependencies: [
+          .package(url: "https://github.com/apple/swift-syntax", from: "509.0.0"),
+      ],
+      targets: [
+          .macro(name: "ConcurrencyHelperMacros",
+                 dependencies: [
+                     .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
+                     .product(name: "SwiftCompilerPlugin", package: "swift-syntax")
+                 ]),
+          .target(name: "ConcurrencyHelpers", dependencies: ["ConcurrencyHelperMacros"]),
+          .testTarget(name: "ConcurrencyHelperMacroTests", dependencies: ["ConcurrencyHelperMacros"]),
+      ]
+  )
+  ```
+
 * [SE-0380][]:
 
   `if` and `switch` statements may now be used as expressions to:
@@ -9766,7 +9829,10 @@ using the `.dynamicType` member to retrieve the type of an expression should mig
 [SE-0376]: <https://github.com/apple/swift-evolution/blob/main/proposals/0376-function-back-deployment.md>
 [SE-0377]: <https://github.com/apple/swift-evolution/blob/main/proposals/0377-parameter-ownership-modifiers.md>
 [SE-0380]: <https://github.com/apple/swift-evolution/blob/main/proposals/0380-if-switch-expressions.md>
-
+[SE-0382]: https://github.com/apple/swift-evolution/blob/main/proposals/0382-expression-macros.md
+[SE-0389]: https://github.com/apple/swift-evolution/blob/main/proposals/0389-attached-macros.md
+[SE-0394]: https://github.com/apple/swift-evolution/blob/main/proposals/0394-swiftpm-expression-macros.md
+[SE-0397]: https://github.com/apple/swift-evolution/blob/main/proposals/0397-freestanding-declaration-macros.md
 [#64927]: <https://github.com/apple/swift/issues/64927>
 [#42697]: <https://github.com/apple/swift/issues/42697>
 [#42728]: <https://github.com/apple/swift/issues/42728>
@@ -9808,3 +9874,4 @@ using the `.dynamicType` member to retrieve the type of an expression should mig
 [#57081]: <https://github.com/apple/swift/issues/57081>
 [#57225]: <https://github.com/apple/swift/issues/57225>
 [#56139]: <https://github.com/apple/swift/issues/56139>
+[swift-syntax]: https://github.com/apple/swift-syntax

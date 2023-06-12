@@ -307,7 +307,7 @@ func test_pattern_matches_only_cases() {
   }
 }
 
-// rdar://91225620 - type of expression is ambiguous without more context in closure
+// rdar://91225620 - type of expression is ambiguous without a type annotation in closure
 func test_wrapped_var_without_initializer() {
   @propertyWrapper
   struct Wrapper {

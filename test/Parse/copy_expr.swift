@@ -76,9 +76,9 @@ struct Foo {
 
     func copyPropertyWrapper() {
         // Make sure that we can parse.
-        _ = copy wrapperTest // expected-error {{'copy' can only be applied to lvalues}}
-        _ = copy _wrapperTest // expected-error {{'copy' can only be applied to lvalues}}
-        _ = copy $wrapperTest // expected-error {{'copy' can only be applied to lvalues}}
+        _ = copy wrapperTest // expected-error {{'copy' can only be applied to a local binding ('let', 'var', or parameter)}}
+        _ = copy _wrapperTest // expected-error {{'copy' can only be applied to a local binding ('let', 'var', or parameter)}}
+        _ = copy $wrapperTest // expected-error {{'copy' can only be applied to a local binding ('let', 'var', or parameter)}}
     }
 }
 

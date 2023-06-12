@@ -20,7 +20,7 @@
 // RUN: %swiftc_driver -sdk "" -driver-print-jobs -profile-generate -target x86_64-unknown-linux-gnu %s | %FileCheck -check-prefix=CHECK -check-prefix=LINUX %s
 // RUN: %swiftc_driver -sdk "" -driver-print-jobs -profile-generate -target x86_64-unknown-windows-msvc %s | %FileCheck -check-prefix=CHECK -check-prefix=WINDOWS %s
 
-// RUN: %swiftc_driver -sdk "" -driver-print-jobs -profile-generate -target wasm32-unknown-wasi %s | %FileCheck -check-prefix CHECK -check-prefix WASI %s
+// RUN: %swiftc_driver -sdk "" -driver-print-jobs -profile-generate -target wasm32-unknown-wasi -resource-dir %S/Inputs/fake-resource-dir/lib/swift_static %s | %FileCheck -check-prefix CHECK -check-prefix WASI %s
 
 // CHECK: swift
 // CHECK: -profile-generate
@@ -55,7 +55,7 @@
 // WINDOWS: -lclang_rt.profile
 
 // WASI: clang{{(\.exe)?"? }}
-// WASI: lib{{(\\\\|/)}}swift{{(\\\\|/)}}clang{{(\\\\|/)}}lib{{(\\\\|/)}}wasi{{(\\\\|/)}}libclang_rt.profile-wasm32.a
+// WASI: lib{{(\\\\|/)}}{{swift|swift_static}}{{(\\\\|/)}}clang{{(\\\\|/)}}lib{{(\\\\|/)}}wasi{{(\\\\|/)}}libclang_rt.profile-wasm32.a
 // WASI: -u__llvm_profile_runtime
 
 // RUN: not %swiftc_driver -sdk "" -driver-print-jobs -profile-generate -profile-use=/dev/null %s 2>&1 | %FileCheck -check-prefix=MIX_GEN_USE %s

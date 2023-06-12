@@ -463,7 +463,9 @@ struct GenericSignatureLayout {
       }
     }
 
+#ifndef NDEBUG
     assert(packIdx == NumPacks);
+#endif
   }
 
   size_t sizeInWords() const {

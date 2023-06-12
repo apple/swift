@@ -412,23 +412,15 @@ namespace sil_block {
   >;
 
   // SIL instructions with one type. (alloc_stack)
-  using SILOneTypeLayout = BCRecordLayout<
-    SIL_ONE_TYPE,
-    SILInstOpCodeField,
-    BCFixed<3>,          // Optional attributes
-    TypeIDField,
-    SILTypeCategoryField
-  >;
+  using SILOneTypeLayout = BCRecordLayout<SIL_ONE_TYPE, SILInstOpCodeField,
+                                          BCFixed<4>, // Optional attributes
+                                          TypeIDField, SILTypeCategoryField>;
 
   // SIL instructions with one typed valueref. (dealloc_stack, return)
-  using SILOneOperandLayout = BCRecordLayout<
-    SIL_ONE_OPERAND,
-    SILInstOpCodeField,
-    BCFixed<2>,          // Optional attributes
-    TypeIDField,
-    SILTypeCategoryField,
-    ValueIDField
-  >;
+  using SILOneOperandLayout =
+      BCRecordLayout<SIL_ONE_OPERAND, SILInstOpCodeField,
+                     BCFixed<3>, // Optional attributes
+                     TypeIDField, SILTypeCategoryField, ValueIDField>;
 
   using SILOneOperandExtraAttributeLayout = BCRecordLayout<
     SIL_ONE_OPERAND_EXTRA_ATTR,

@@ -154,7 +154,7 @@ extension S3 {
 let s3b = S3(maybe: s3a)
 
 // https://github.com/apple/swift/issues/47820
-// Erroneous diagnostic: type of expression is ambiguous without more context
+// Erroneous diagnostic: type of expression is ambiguous without a type annotation
 do {
   class C {
       struct S {

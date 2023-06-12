@@ -129,7 +129,10 @@ struct SILMoveOnlyWrappedTypeEliminatorVisitor
     return eraseFromParent(inst);                                              \
   }
   RAUW_ALWAYS(MoveOnlyWrapperToCopyableValue)
+  RAUW_ALWAYS(MoveOnlyWrapperToCopyableBox)
+  RAUW_ALWAYS(MoveOnlyWrapperToCopyableAddr)
   RAUW_ALWAYS(CopyableToMoveOnlyWrapperValue)
+  RAUW_ALWAYS(CopyableToMoveOnlyWrapperAddr)
 #undef RAUW_ALWAYS
 
 #define DELETE_IF_TRIVIAL_OP(CLS)                                              \
@@ -171,6 +174,8 @@ struct SILMoveOnlyWrappedTypeEliminatorVisitor
 #define NO_UPDATE_NEEDED(CLS)                                                  \
   bool visit##CLS##Inst(CLS##Inst *inst) { return false; }
   NO_UPDATE_NEEDED(AllocStack)
+  NO_UPDATE_NEEDED(AllocBox)
+  NO_UPDATE_NEEDED(ProjectBox)
   NO_UPDATE_NEEDED(DebugValue)
   NO_UPDATE_NEEDED(StructElementAddr)
   NO_UPDATE_NEEDED(TupleElementAddr)
@@ -183,6 +188,8 @@ struct SILMoveOnlyWrappedTypeEliminatorVisitor
   NO_UPDATE_NEEDED(DestroyAddr)
   NO_UPDATE_NEEDED(DeallocStack)
   NO_UPDATE_NEEDED(Branch)
+  NO_UPDATE_NEEDED(ExplicitCopyAddr)
+  NO_UPDATE_NEEDED(CopyAddr)
   NO_UPDATE_NEEDED(RefElementAddr)
   NO_UPDATE_NEEDED(CheckedCastBranch)
   NO_UPDATE_NEEDED(Object)
@@ -190,6 +197,8 @@ struct SILMoveOnlyWrappedTypeEliminatorVisitor
   NO_UPDATE_NEEDED(ConvertFunction)
   NO_UPDATE_NEEDED(RefToBridgeObject)
   NO_UPDATE_NEEDED(BridgeObjectToRef)
+  NO_UPDATE_NEEDED(BeginAccess)
+  NO_UPDATE_NEEDED(EndAccess)
   NO_UPDATE_NEEDED(ClassMethod)
 #undef NO_UPDATE_NEEDED
 
@@ -270,6 +279,18 @@ struct SILMoveOnlyWrappedTypeEliminator {
 
 } // namespace
 
+/// Returns true if this is a moveonlywrapped type whose underlying type is a
+/// trivial type /or/ if this is a boxed type of that sort.
+static bool isMoveOnlyWrappedTrivial(SILValue value) {
+  auto *fn = value->getFunction();
+  SILType type = value->getType();
+  if (type.removingMoveOnlyWrapper().isTrivial(fn))
+    return true;
+  if (type.isBoxedMoveOnlyWrappedType(fn))
+    return type.getSILBoxFieldType(fn).removingMoveOnlyWrapper().isTrivial(fn);
+  return false;
+}
+
 bool SILMoveOnlyWrappedTypeEliminator::process() {
   bool madeChange = true;
 
@@ -278,7 +299,8 @@ bool SILMoveOnlyWrappedTypeEliminator::process() {
 
   for (auto &bb : *fn) {
     for (auto *arg : bb.getArguments()) {
-      if (!arg->getType().isMoveOnlyWrapped())
+      if (!arg->getType().isMoveOnlyWrapped() &&
+          !arg->getType().isBoxedMoveOnlyWrappedType(fn))
         continue;
 
       // If we are looking at trivial only, skip non-trivial function args.
@@ -286,7 +308,7 @@ bool SILMoveOnlyWrappedTypeEliminator::process() {
           !arg->getType().removingMoveOnlyWrapper().isTrivial(*fn))
         continue;
 
-      arg->unsafelyEliminateMoveOnlyWrapper();
+      arg->unsafelyEliminateMoveOnlyWrapper(fn);
 
       // If our new type is trivial, convert the arguments ownership to
       // None. Otherwise, preserve the ownership kind of the argument.
@@ -299,14 +321,15 @@ bool SILMoveOnlyWrappedTypeEliminator::process() {
 
     for (auto &ii : bb) {
       for (SILValue v : ii.getResults()) {
-        if (!v->getType().isMoveOnlyWrapped())
+        if (!v->getType().isMoveOnlyWrapped() &&
+            !v->getType().isBoxedMoveOnlyWrappedType(fn))
           continue;
 
         if (trivialOnly &&
-            !v->getType().removingMoveOnlyWrapper().isTrivial(*fn))
+            !isMoveOnlyWrappedTrivial(v))
           continue;
 
-        v->unsafelyEliminateMoveOnlyWrapper();
+        v->unsafelyEliminateMoveOnlyWrapper(fn);
         touchedInsts.insert(&ii);
 
         // Add all users as well. This ensures we visit things like

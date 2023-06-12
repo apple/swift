@@ -148,6 +148,12 @@ extension OptionalBridgedInstruction {
   }
 }
 
+extension Optional where Wrapped == Instruction {
+  public var bridged: OptionalBridgedInstruction {
+    OptionalBridgedInstruction(self?.bridged.obj)
+  }
+}
+
 public class SingleValueInstruction : Instruction, Value {
   final public var definingInstruction: Instruction? { self }
 
@@ -191,7 +197,7 @@ public class MultipleValueInstruction : Instruction {
 }
 
 /// Instructions, which have a single operand.
-public protocol UnaryInstruction : AnyObject {
+public protocol UnaryInstruction : Instruction {
   var operands: OperandArray { get }
   var operand: Operand { get }
 }
@@ -222,11 +228,23 @@ extension StoringInstruction {
 
 final public class StoreInst : Instruction, StoringInstruction {
   // must match with enum class StoreOwnershipQualifier
-  public enum StoreOwnership: Int {
+  public enum Ownership: Int {
     case unqualified = 0, initialize = 1, assign = 2, trivial = 3
+
+    public init(for type: Type, in function: Function, initialize: Bool) {
+      if function.hasOwnership {
+        if type.isTrivial(in: function) {
+          self = .trivial
+        } else {
+          self = initialize ? .initialize : .assign
+        }
+      } else {
+        self = .unqualified
+      }
+    }
   }
-  public var destinationOwnership: StoreOwnership {
-    StoreOwnership(rawValue: bridged.StoreInst_getStoreOwnership())!
+  public var destinationOwnership: Ownership {
+    Ownership(rawValue: bridged.StoreInst_getStoreOwnership())!
   }
 }
 
@@ -288,14 +306,24 @@ final public class StrongRetainInst : RefCountingInst {
   public var instance: Value { operand.value }
 }
 
+final public class UnownedRetainInst : RefCountingInst {
+  public var instance: Value { operand.value }
+}
+
 final public class RetainValueInst : RefCountingInst {
+  public var value: Value { return operand.value }
 }
 
 final public class StrongReleaseInst : RefCountingInst {
   public var instance: Value { operand.value }
 }
 
+final public class UnownedReleaseInst : RefCountingInst {
+  public var instance: Value { operand.value }
+}
+
 final public class ReleaseValueInst : RefCountingInst {
+  public var value: Value { return operand.value }
 }
 
 final public class DestroyValueInst : Instruction, UnaryInstruction {
@@ -307,6 +335,7 @@ final public class DestroyAddrInst : Instruction, UnaryInstruction {
 }
 
 final public class InjectEnumAddrInst : Instruction, UnaryInstruction, EnumInstruction {
+  public var `enum`: Value { operand.value }
   public var caseIndex: Int { bridged.InjectEnumAddrInst_caseIndex() }
 }
 
@@ -351,11 +380,11 @@ final public class LoadInst : SingleValueInstruction, UnaryInstruction {
   public var address: Value { operand.value }
 
   // must match with enum class LoadOwnershipQualifier
-  public enum LoadOwnership: Int {
+  public enum Ownership: Int {
     case unqualified = 0, take = 1, copy = 2, trivial = 3
   }
-  public var ownership: LoadOwnership {
-    LoadOwnership(rawValue: bridged.LoadInst_getLoadOwnership())!
+  public var ownership: Ownership {
+    Ownership(rawValue: bridged.LoadInst_getLoadOwnership())!
   }
 }
 
@@ -386,6 +415,10 @@ class UncheckedRefCastInst : SingleValueInstruction, UnaryInstruction {
 
 final public class UncheckedAddrCastInst : SingleValueInstruction, UnaryInstruction {
   public var fromAddress: Value { operand.value }
+}
+
+final public class UncheckedTrivialBitCastInst : SingleValueInstruction, UnaryInstruction {
+  public var fromValue: Value { operand.value }
 }
 
 final public
@@ -626,7 +659,9 @@ final public
 class ObjCMetatypeToObjectInst : SingleValueInstruction, UnaryInstruction {}
 
 final public
-class ValueToBridgeObjectInst : SingleValueInstruction, UnaryInstruction {}
+class ValueToBridgeObjectInst : SingleValueInstruction, UnaryInstruction {
+  public var value: Value { return operand.value }
+}
 
 final public
 class MarkDependenceInst : SingleValueInstruction {

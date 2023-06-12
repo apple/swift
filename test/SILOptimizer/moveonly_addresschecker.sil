@@ -29,6 +29,7 @@ public struct NonTrivialStruct {
 sil @useNonTrivialStruct : $@convention(thin) (@guaranteed NonTrivialStruct) -> ()
 sil @getNonTrivialStruct : $@convention(thin) () -> @owned NonTrivialStruct
 sil @consumeNonTrivialStructAddr : $@convention(thin) (@in NonTrivialStruct) -> ()
+sil @consumeNonTrivialStruct : $@convention(thin) (@owned NonTrivialStruct) -> ()
 
 @_moveOnly
 public struct NonTrivialStructPair {
@@ -533,5 +534,44 @@ sil [ossa] @test_in_use : $@convention(thin) () -> () {
   destroy_addr %2 : $*NonTrivialStruct
   dealloc_stack %0 : $*NonTrivialStruct
   %9999 = tuple ()
+  return %9999 : $()
+}
+
+//////////////////////////////////////////
+// MARK: Load Take As Borrow/Copy Tests //
+//////////////////////////////////////////
+
+// CHECK-LABEL: sil [ossa] @load_take_as_load_borrow : $@convention(thin) (@owned NonTrivialStruct) -> () {
+// CHECK: [[ALLOC:%.*]] = alloc_stack $NonTrivialStruct
+// CHECK: [[BORROW:%.*]] = load_borrow [[ALLOC]]
+// CHECK: end_borrow [[BORROW]]
+// CHECK: } // end sil function 'load_take_as_load_borrow'
+sil [ossa] @load_take_as_load_borrow : $@convention(thin) (@owned NonTrivialStruct) -> () {
+bb0(%0 : @owned $NonTrivialStruct):
+  %1 = alloc_stack $NonTrivialStruct
+  %1a = mark_must_check [consumable_and_assignable] %1 : $*NonTrivialStruct
+  store %0 to [init] %1a : $*NonTrivialStruct
+  %2 = load [take] %1a : $*NonTrivialStruct
+  destroy_value %2 : $NonTrivialStruct
+  dealloc_stack %1 : $*NonTrivialStruct
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @load_take_as_load_take : $@convention(thin) (@owned NonTrivialStruct) -> () {
+// CHECK: [[ALLOC:%.*]] = alloc_stack $NonTrivialStruct
+// CHECK: [[LOAD:%.*]] = load [take] [[ALLOC]]
+// CHECK: apply {{%.*}}([[LOAD]])
+// CHECK: } // end sil function 'load_take_as_load_take'
+sil [ossa] @load_take_as_load_take : $@convention(thin) (@owned NonTrivialStruct) -> () {
+bb0(%0 : @owned $NonTrivialStruct):
+  %1 = alloc_stack $NonTrivialStruct
+  %1a = mark_must_check [consumable_and_assignable] %1 : $*NonTrivialStruct
+  store %0 to [init] %1a : $*NonTrivialStruct
+  %2 = load [take] %1a : $*NonTrivialStruct
+  %f = function_ref @consumeNonTrivialStruct : $@convention(thin) (@owned NonTrivialStruct) -> ()
+  apply %f(%2) : $@convention(thin) (@owned NonTrivialStruct) -> ()
+  dealloc_stack %1 : $*NonTrivialStruct
+  %9999 = tuple()
   return %9999 : $()
 }

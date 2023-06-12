@@ -500,3 +500,11 @@ struct TestLValues {
     opt![keyPath: kp] = if .random() { 1 } else { throw Err() }
   }
 }
+
+func testNever1() -> Never {
+  if case let x = fatalError() { x } else { fatalError() }
+}
+
+func testNever2() -> Never {
+  if .random() { fatalError() } else { fatalError() }
+}

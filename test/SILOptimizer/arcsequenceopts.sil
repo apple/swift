@@ -49,6 +49,17 @@ class C {
   var w : FakeOptional<Builtin.NativeObject>
 }
 
+enum E {
+  case A(C)
+  case B
+}
+
+struct StructWithEnum {
+  @_hasStorage var e: E { get }
+  init(e: E)
+}
+
+
 sil @cls_use : $@convention(thin) (@owned Cls) -> ()
 
 class Container {
@@ -2391,3 +2402,43 @@ bb0:
   %15 = tuple ()
   return %15 : $()
 }
+
+sil @closure : $@convention(thin) (@inout E, @guaranteed C) -> ()
+sil @call_closure : $@convention(method) (@guaranteed @noescape @callee_guaranteed (@inout E) -> (), @inout StructWithEnum) -> @out S2
+
+// CHECK-LABEL: sil @test_apply_with_out_arg :
+// CHECK:         retain_value
+// CHECK:         strong_release
+// CHECK:         release_value
+// CHECK:       } // end sil function 'test_apply_with_out_arg'
+sil @test_apply_with_out_arg : $@convention(method) (@guaranteed StructWithEnum) -> () {
+bb0(%0 : $StructWithEnum):
+  %1 = alloc_stack $StructWithEnum
+  store %0 to %1 : $*StructWithEnum
+  %3 = struct_element_addr %1 : $*StructWithEnum, #StructWithEnum.e
+  %4 = load %3 : $*E
+  retain_value %4 : $E
+  switch_enum %4 : $E, case #E.A!enumelt: bb1, default bb2
+
+
+bb1(%7 : $C):
+  %8 = alloc_stack $S2
+  %9 = function_ref @closure : $@convention(thin) (@inout E, @guaranteed C) -> ()
+  %10 = partial_apply [callee_guaranteed] [on_stack] %9(%7) : $@convention(thin) (@inout E, @guaranteed C) -> ()
+  %11 = function_ref @call_closure : $@convention(method) (@guaranteed @noescape @callee_guaranteed (@inout E) -> (), @inout StructWithEnum) -> @out S2
+  %12 = apply %11(%8, %10, %1) : $@convention(method) (@guaranteed @noescape @callee_guaranteed (@inout E) -> (), @inout StructWithEnum) -> @out S2
+  dealloc_stack %10 : $@noescape @callee_guaranteed (@inout E) -> ()
+  strong_release %7 : $C
+  dealloc_stack %8 : $*S2
+  br bb3
+
+bb2:
+  release_value %4 : $E
+  br bb3
+
+bb3:
+  dealloc_stack %1 : $*StructWithEnum
+  %21 = tuple ()
+  return %21 : $()
+}
+

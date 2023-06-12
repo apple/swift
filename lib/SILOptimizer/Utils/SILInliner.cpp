@@ -882,6 +882,9 @@ InlineCost swift::instructionInlineCost(SILInstruction &I) {
   case SILInstructionKind::CopyableToMoveOnlyWrapperValueInst:
   case SILInstructionKind::MoveOnlyWrapperToCopyableValueInst:
   case SILInstructionKind::TestSpecificationInst:
+  case SILInstructionKind::MoveOnlyWrapperToCopyableAddrInst:
+  case SILInstructionKind::CopyableToMoveOnlyWrapperAddrInst:
+  case SILInstructionKind::MoveOnlyWrapperToCopyableBoxInst:
     return InlineCost::Free;
 
   // Typed GEPs are free.
@@ -1020,11 +1023,13 @@ InlineCost swift::instructionInlineCost(SILInstruction &I) {
   case SILInstructionKind::AllocRefDynamicInst:
   case SILInstructionKind::AllocStackInst:
   case SILInstructionKind::AllocPackInst:
+  case SILInstructionKind::AllocPackMetadataInst:
   case SILInstructionKind::BeginApplyInst:
   case SILInstructionKind::ValueMetatypeInst:
   case SILInstructionKind::WitnessMethodInst:
   case SILInstructionKind::AssignInst:
   case SILInstructionKind::AssignByWrapperInst:
+  case SILInstructionKind::AssignOrInitInst:
   case SILInstructionKind::CheckedCastBranchInst:
   case SILInstructionKind::CheckedCastAddrBranchInst:
   case SILInstructionKind::ClassMethodInst:
@@ -1048,6 +1053,7 @@ InlineCost swift::instructionInlineCost(SILInstruction &I) {
   case SILInstructionKind::DeallocPartialRefInst:
   case SILInstructionKind::DeallocStackInst:
   case SILInstructionKind::DeallocPackInst:
+  case SILInstructionKind::DeallocPackMetadataInst:
   case SILInstructionKind::DeinitExistentialAddrInst:
   case SILInstructionKind::DeinitExistentialValueInst:
   case SILInstructionKind::DestroyAddrInst:

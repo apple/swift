@@ -14,19 +14,19 @@ sil hidden [ossa] @$s4test3fooyyAA5KlassCnF : $@convention(thin) (@owned Klass) 
 bb0(%0 : @owned $Klass):
   %1 = begin_borrow [lexical] %0 : $Klass
   debug_value %1 : $Klass, let, name "k", argno 1
-  %3 = alloc_stack [lexical] $Klass, var, name "k2" // expected-error {{'k2' used after being consumed}}
+  %3 = alloc_stack [lexical] $Klass, var, name "k2" // expected-error {{'k2' used after consume}}
   %4 = copy_value %1 : $Klass
   %5 = move_value [allows_diagnostics] %4 : $Klass
   store %5 to [init] %3 : $*Klass
   %7 = begin_access [modify] [static] %3 : $*Klass
   %8 = alloc_stack $Klass
-  mark_unresolved_move_addr %7 to %8 : $*Klass // expected-note {{consume here}}
+  mark_unresolved_move_addr %7 to %8 : $*Klass // expected-note {{consumed here}}
   %10 = load [copy] %8 : $*Klass
   destroy_addr %8 : $*Klass
   end_access %7 : $*Klass
   %13 = begin_access [modify] [static] %3 : $*Klass
   %14 = function_ref @useTwice : $@convention(thin) (@guaranteed Klass, @inout Klass) -> ()
-  %15 = apply %14(%10, %13) : $@convention(thin) (@guaranteed Klass, @inout Klass) -> () // expected-note {{use here}}
+  %15 = apply %14(%10, %13) : $@convention(thin) (@guaranteed Klass, @inout Klass) -> () // expected-note {{used here}}
   end_access %13 : $*Klass
   destroy_value %10 : $Klass
   dealloc_stack %8 : $*Klass

@@ -259,16 +259,12 @@ deriveComparable_lt(
   // Add the @_implements(Comparable, < (_:_:)) attribute
   if (generatedIdentifier != C.Id_LessThanOperator) {
     auto comparable = C.getProtocol(KnownProtocolKind::Comparable);
-    auto comparableType = comparable->getDeclaredInterfaceType();
-    auto comparableTypeExpr = TypeExpr::createImplicit(comparableType, C);
     SmallVector<Identifier, 2> argumentLabels = { Identifier(), Identifier() };
     auto comparableDeclName = DeclName(C, DeclBaseName(C.Id_LessThanOperator),
                                    argumentLabels);
-    comparableDecl->getAttrs().add(new (C) ImplementsAttr(SourceLoc(),
-                                                          SourceRange(),
-                                                          comparableTypeExpr,
-                                                          comparableDeclName,
-                                                          DeclNameLoc()));
+    comparableDecl->getAttrs().add(ImplementsAttr::create(parentDC,
+                                                          comparable,
+                                                          comparableDeclName));
   }
 
   if (!C.getLessThanIntDecl()) {

@@ -23,9 +23,9 @@ func nonConsumingUse(_ k: Klass) {}
 //
 
 public func simpleLinearUse(_ x: __owned Klass) {
-    let y = x // expected-error {{'y' used after being consumed}}
-    let _ = consume y // expected-note {{consume here}}
-    nonConsumingUse(y) // expected-note {{use here}}
+    let y = x // expected-error {{'y' used after consume}}
+    let _ = consume y // expected-note {{consumed here}}
+    nonConsumingUse(y) // expected-note {{used here}}
 }
 
 public func conditionalUse1(_ x: Klass) {
@@ -38,10 +38,10 @@ public func conditionalUse1(_ x: Klass) {
 }
 
 public func loopUse1(_ x: Klass) {
-    let y = x  // expected-error {{'y' used after being consumed}}
-    let _ = consume y // expected-note {{consume here}}
+    let y = x  // expected-error {{'y' used after consume}}
+    let _ = consume y // expected-note {{consumed here}}
     for _ in 0..<1024 {
-        nonConsumingUse(y) // expected-note {{use here}}
+        nonConsumingUse(y) // expected-note {{used here}}
     }
 }
 
@@ -50,9 +50,9 @@ public func loopUse1(_ x: Klass) {
 //
 
 public func simpleLinearUseAssignment(_ x: __owned Klass) {
-    let y = x // expected-error {{'y' used after being consumed}}
-    let _ = consume y // expected-note {{consume here}}
-    let m = y // expected-note {{use here}}
+    let y = x // expected-error {{'y' used after consume}}
+    let _ = consume y // expected-note {{consumed here}}
+    let m = y // expected-note {{used here}}
     let _ = m
 }
 
@@ -67,10 +67,10 @@ public func conditionalUse1Assignment(_ x: Klass) {
 }
 
 public func loopUse1Assignment(_ x: Klass) {
-    let y = x  // expected-error {{'y' used after being consumed}}
-    let _ = consume y // expected-note {{consume here}}
+    let y = x  // expected-error {{'y' used after consume}}
+    let _ = consume y // expected-note {{consumed here}}
     for _ in 0..<1024 {
-        let m = y // expected-note {{use here}}
+        let m = y // expected-note {{used here}}
         let _ = m
     }
 }
@@ -80,9 +80,9 @@ public func loopUse1Assignment(_ x: Klass) {
 //
 
 public func simpleLinearConsumingUse(_ x: Klass) {
-    let y = x // expected-error {{'y' used after being consumed}}
-    let _ = consume y // expected-note {{consume here}}
-    consumingUse(y) // expected-note {{use here}}
+    let y = x // expected-error {{'y' used after consume}}
+    let _ = consume y // expected-note {{consumed here}}
+    consumingUse(y) // expected-note {{used here}}
 }
 
 public func conditionalUseOk1(_ x: Klass) {
@@ -97,9 +97,9 @@ public func conditionalUseOk1(_ x: Klass) {
 // This test makes sure that in the case where we have two consuming uses, with
 // different first level copies, we emit a single diagnostic.
 public func conditionalBadConsumingUse(_ x: Klass) {
-    let y = x // expected-error {{'y' used after being consumed}}
+    let y = x // expected-error {{'y' used after consume}}
     if booleanValue {
-        let _ = consume y // expected-note {{consume here}}
+        let _ = consume y // expected-note {{consumed here}}
         // TODO: We should be able to also emit a note on the line
         // below. Without this the user will have to compile multiple times to
         // work through the errors. But this makes it simpler to implement a
@@ -111,16 +111,16 @@ public func conditionalBadConsumingUse(_ x: Klass) {
     }
 
     // But this one and the first consumingUse should get a diagnostic.
-    consumingUse(y) // expected-note {{use here}}
+    consumingUse(y) // expected-note {{used here}}
 }
 
 
 // This test makes sure that in the case where we have two consuming uses, with
 // different first level copies, we emit a single diagnostic.
 public func conditionalBadConsumingUseLoop(_ x: Klass) {
-    let y = x // expected-error {{'y' used after being consumed}}
+    let y = x // expected-error {{'y' used after consume}}
     if booleanValue {
-        let _ = consume y // expected-note {{consume here}}
+        let _ = consume y // expected-note {{consumed here}}
         // TODO: We should be able to also emit a note on the line
         // below. Without this the user will have to compile multiple times to
         // work through the errors. But this makes it simpler to implement a
@@ -133,7 +133,7 @@ public func conditionalBadConsumingUseLoop(_ x: Klass) {
 
     // But this one and the first consumingUse should get a diagnostic.
     for _ in 0..<1024 {
-        consumingUse(y) // expected-note {{use here}}
+        consumingUse(y) // expected-note {{used here}}
     }
 }
 
@@ -144,58 +144,58 @@ public func simpleMoveOfParameter(_ x: __owned Klass) -> () {
     let _ = consume x
 }
 
-public func errorSimpleMoveOfParameter(_ x: __owned Klass) -> () { // expected-error {{'x' used after being consumed}}
-    let _ = consume x // expected-note {{consume here}}
-    let _ = consume x // expected-note {{use here}}
+public func errorSimpleMoveOfParameter(_ x: __owned Klass) -> () { // expected-error {{'x' used after consume}}
+    let _ = consume x // expected-note {{consumed here}}
+    let _ = consume x // expected-note {{used here}}
 }
 
-public func errorSimple2MoveOfParameter(_ x: __owned Klass) -> () { // expected-error {{'x' used after being consumed}}
-    let _ = consume x // expected-note {{consume here}}
-    let _ = consumingUse(x) // expected-note {{use here}}
+public func errorSimple2MoveOfParameter(_ x: __owned Klass) -> () { // expected-error {{'x' used after consume}}
+    let _ = consume x // expected-note {{consumed here}}
+    let _ = consumingUse(x) // expected-note {{used here}}
 }
 
 // TODO: I wonder if we could do better for the 2nd error. At least we tell the
 // user it is due to the loop.
-public func errorLoopMultipleMove(_ x: __owned Klass) -> () { // expected-error {{'x' used after being consumed}}
-                                                      // expected-error @-1 {{'x' used after being consumed}}
-    let _ = consume x // expected-note {{consume here}}
+public func errorLoopMultipleMove(_ x: __owned Klass) -> () { // expected-error {{'x' used after consume}}
+                                                      // expected-error @-1 {{'x' used after consume}}
+    let _ = consume x // expected-note {{consumed here}}
     for _ in 0..<1024 {
-        let _ = consume x // expected-note {{consume here}}
-                         // expected-note @-1 {{consume here would occur multiple times in loop}}
-                         // expected-note @-2 {{use here}}
+        let _ = consume x // expected-note {{consumed here}}
+                         // expected-note @-1 {{consumed in loop here}}
+                         // expected-note @-2 {{used here}}
     }
 }
 
-public func errorLoopMultipleMove1(_ x: __owned Klass) -> () { // expected-error {{'x' used after being consumed}}
+public func errorLoopMultipleMove1(_ x: __owned Klass) -> () { // expected-error {{'x' used after consume}}
     for _ in 0..<1024 {
-        let _ = consume x // expected-note {{consume here}}
-                         // expected-note @-1 {{consume here would occur multiple times in loop}}
+        let _ = consume x // expected-note {{consumed here}}
+                         // expected-note @-1 {{consumed in loop here}}
     }
 }
 
-public func errorLoopMoveOfParameter(_ x: __owned Klass) -> () { // expected-error {{'x' used after being consumed}}
-    let _ = consume x // expected-note {{consume here}}
+public func errorLoopMoveOfParameter(_ x: __owned Klass) -> () { // expected-error {{'x' used after consume}}
+    let _ = consume x // expected-note {{consumed here}}
     for _ in 0..<1024 {
-        consumingUse(x) // expected-note {{use here}}
+        consumingUse(x) // expected-note {{used here}}
     }
 }
 
-public func errorLoop2MoveOfParameter(_ x: __owned Klass) -> () { // expected-error {{'x' used after being consumed}}
-    let _ = consume x // expected-note {{consume here}}
+public func errorLoop2MoveOfParameter(_ x: __owned Klass) -> () { // expected-error {{'x' used after consume}}
+    let _ = consume x // expected-note {{consumed here}}
     for _ in 0..<1024 {
-        nonConsumingUse(x) // expected-note {{use here}}
+        nonConsumingUse(x) // expected-note {{used here}}
     }
 }
 
-public func errorSimple2MoveOfParameterNonConsume(_ x: __owned Klass) -> () { // expected-error {{'x' used after being consumed}}
-    let _ = consume x // expected-note {{consume here}}
-    let _ = nonConsumingUse(x) // expected-note {{use here}}
+public func errorSimple2MoveOfParameterNonConsume(_ x: __owned Klass) -> () { // expected-error {{'x' used after consume}}
+    let _ = consume x // expected-note {{consumed here}}
+    let _ = nonConsumingUse(x) // expected-note {{used here}}
 }
 
-public func errorLoopMoveOfParameterNonConsume(_ x: __owned Klass) -> () { // expected-error {{'x' used after being consumed}}
-    let _ = consume x // expected-note {{consume here}}
+public func errorLoopMoveOfParameterNonConsume(_ x: __owned Klass) -> () { // expected-error {{'x' used after consume}}
+    let _ = consume x // expected-note {{consumed here}}
     for _ in 0..<1024 {
-        nonConsumingUse(x) // expected-note {{use here}}
+        nonConsumingUse(x) // expected-note {{used here}}
     }
 }
 
@@ -204,9 +204,9 @@ public func errorLoopMoveOfParameterNonConsume(_ x: __owned Klass) -> () { // ex
 ////////////////////////
 
 public func patternMatchIfCaseLet(_ x: __owned Klass?) {
-    if case let .some(y) = x { // expected-error {{'y' used after being consumed}}
-        let _ = consume y // expected-note {{consume here}}
-        nonConsumingUse(y) // expected-note {{use here}}
+    if case let .some(y) = x { // expected-error {{'y' used after consume}}
+        let _ = consume y // expected-note {{consumed here}}
+        nonConsumingUse(y) // expected-note {{used here}}
     }
 }
 
@@ -214,31 +214,31 @@ public func patternMatchSwitchLet(_ x: __owned Klass?) {
     switch x {
     case .none:
         break
-    case .some(let y): // expected-error {{'y' used after being consumed}}
-        let _ = consume y // expected-note {{consume here}}
-        nonConsumingUse(y) // expected-note {{use here}}
+    case .some(let y): // expected-error {{'y' used after consume}}
+        let _ = consume y // expected-note {{consumed here}}
+        nonConsumingUse(y) // expected-note {{used here}}
     }
 }
 
 public func patternMatchSwitchLet2(_ x: __owned (Klass?, Klass?)?) {
     switch x {
-    case .some((.some(let y), _)): // expected-error {{'y' used after being consumed}}
-        let _ = consume y // expected-note {{consume here}}
-        nonConsumingUse(y) // expected-note {{use here}}
+    case .some((.some(let y), _)): // expected-error {{'y' used after consume}}
+        let _ = consume y // expected-note {{consumed here}}
+        nonConsumingUse(y) // expected-note {{used here}}
     default:
         break
     }
 }
 
-public func patternMatchSwitchLet3(_ x: __owned (Klass?, Klass?)?) { // expected-error {{'x' used after being consumed}}
-    let _ = consume x // expected-note {{consume here}}
+public func patternMatchSwitchLet3(_ x: __owned (Klass?, Klass?)?) { // expected-error {{'x' used after consume}}
+    let _ = consume x // expected-note {{consumed here}}
     switch x {
-    case .some((.some(_), .some(let z))): // expected-error {{'z' used after being consumed}}
-        let _ = consume z // expected-note {{consume here}}
-        nonConsumingUse(z) // expected-note {{use here}}
+    case .some((.some(_), .some(let z))): // expected-error {{'z' used after consume}}
+        let _ = consume z // expected-note {{consumed here}}
+        nonConsumingUse(z) // expected-note {{used here}}
     default:
         break
-    } // expected-note {{use here}} expected-note {{use here}}
+    } // expected-note {{used here}} expected-note {{used here}}
 }
 
 ////////////////
@@ -260,11 +260,11 @@ let myLetGlobal = Klass()
 var myVarGlobal = Klass()
 
 public func performMoveOnVarGlobalError() {
-    let _ = consume myVarGlobal // expected-error {{'consume' applied to value that the compiler does not support checking}}
+    let _ = consume myVarGlobal // expected-error {{'consume' applied to value that the compiler does not support}}
 }
 
 public func performMoveOnLetGlobalError() {
-    let _ = consume myVarGlobal // expected-error {{'consume' applied to value that the compiler does not support checking}}
+    let _ = consume myVarGlobal // expected-error {{'consume' applied to value that the compiler does not support}}
 }
 
 public func multipleVarsWithSubsequentBorrows() -> Bool {
@@ -278,33 +278,33 @@ public func multipleVarsWithSubsequentBorrows() -> Bool {
 // Cast Tests //
 ////////////////
 
-public func castTest0(_ x: __owned SubKlass1) -> Klass { // expected-error {{'x' used after being consumed}}
-    let _ = consume x // expected-note {{consume here}}
-    return x as Klass // expected-note {{use here}}
+public func castTest0(_ x: __owned SubKlass1) -> Klass { // expected-error {{'x' used after consume}}
+    let _ = consume x // expected-note {{consumed here}}
+    return x as Klass // expected-note {{used here}}
 }
 
-public func castTest1(_ x: __owned Klass) -> SubKlass1 { // expected-error {{'x' used after being consumed}}
-    let _ = consume x // expected-note {{consume here}}
-    return x as! SubKlass1 // expected-note {{use here}}
+public func castTest1(_ x: __owned Klass) -> SubKlass1 { // expected-error {{'x' used after consume}}
+    let _ = consume x // expected-note {{consumed here}}
+    return x as! SubKlass1 // expected-note {{used here}}
 }
 
-public func castTest2(_ x: __owned Klass) -> SubKlass1? { // expected-error {{'x' used after being consumed}}
-    let _ = consume x // expected-note {{consume here}}
-    return x as? SubKlass1 // expected-note {{use here}}
+public func castTest2(_ x: __owned Klass) -> SubKlass1? { // expected-error {{'x' used after consume}}
+    let _ = consume x // expected-note {{consumed here}}
+    return x as? SubKlass1 // expected-note {{used here}}
 }
 
-public func castTestSwitch1(_ x : __owned Klass) { // expected-error {{'x' used after being consumed}}
-    let _ = consume x // expected-note {{consume here}}
+public func castTestSwitch1(_ x : __owned Klass) { // expected-error {{'x' used after consume}}
+    let _ = consume x // expected-note {{consumed here}}
     switch x {
     case let k as SubKlass1:
         print(k)
     default:
         print("Nope")
-    } // expected-note {{use here}} expected-note {{use here}}
+    } // expected-note {{used here}} expected-note {{used here}}
 }
 
-public func castTestSwitch2(_ x : __owned Klass) { // expected-error {{'x' used after being consumed}}
-    let _ = consume x // expected-note {{consume here}}
+public func castTestSwitch2(_ x : __owned Klass) { // expected-error {{'x' used after consume}}
+    let _ = consume x // expected-note {{consumed here}}
     switch x {
     case let k as SubKlass1:
         print(k)
@@ -312,11 +312,11 @@ public func castTestSwitch2(_ x : __owned Klass) { // expected-error {{'x' used 
         print(k)
     default:
         print("Nope")
-    } // expected-note {{use here}} expected-note {{use here}} expected-note {{use here}}
+    } // expected-note {{used here}} expected-note {{used here}} expected-note {{used here}}
 }
 
-public func castTestSwitchInLoop(_ x : __owned Klass) { // expected-error {{'x' used after being consumed}}
-    let _ = consume x // expected-note {{consume here}}
+public func castTestSwitchInLoop(_ x : __owned Klass) { // expected-error {{'x' used after consume}}
+    let _ = consume x // expected-note {{consumed here}}
 
     for _ in 0..<1024 {
         switch x {
@@ -328,19 +328,19 @@ public func castTestSwitchInLoop(_ x : __owned Klass) { // expected-error {{'x' 
     }
 }
 
-public func castTestIfLet(_ x : __owned Klass) { // expected-error {{'x' used after being consumed}}
-    let _ = consume x // expected-note {{consume here}}
-    if case let k as SubKlass1 = x { // expected-note {{use here}}
+public func castTestIfLet(_ x : __owned Klass) { // expected-error {{'x' used after consume}}
+    let _ = consume x // expected-note {{consumed here}}
+    if case let k as SubKlass1 = x { // expected-note {{used here}}
         print(k)
     } else {
         print("no")
     }
 }
 
-public func castTestIfLetInLoop(_ x : __owned Klass) { // expected-error {{'x' used after being consumed}}
-    let _ = consume x // expected-note {{consume here}}
+public func castTestIfLetInLoop(_ x : __owned Klass) { // expected-error {{'x' used after consume}}
+    let _ = consume x // expected-note {{consumed here}}
     for _ in 0..<1024 {
-        if case let k as SubKlass1 = x { // expected-note {{use here}}
+        if case let k as SubKlass1 = x { // expected-note {{used here}}
             print(k)
         } else {
             print("no")
@@ -353,9 +353,9 @@ public enum EnumWithKlass {
     case klass(Klass)
 }
 
-public func castTestIfLet2(_ x : __owned EnumWithKlass) { // expected-error {{'x' used after being consumed}}
-    let _ = consume x // expected-note {{consume here}}
-    if case let .klass(k as SubKlass1) = x { // expected-note {{use here}}
+public func castTestIfLet2(_ x : __owned EnumWithKlass) { // expected-error {{'x' used after consume}}
+    let _ = consume x // expected-note {{consumed here}}
+    if case let .klass(k as SubKlass1) = x { // expected-note {{used here}}
         print(k)
     } else {
         print("no")
@@ -367,9 +367,9 @@ public func castTestIfLet2(_ x : __owned EnumWithKlass) { // expected-error {{'x
 /////////////////////////
 
 // Emit a better error here. At least we properly error.
-public func partialApplyTest(_ x: __owned Klass) { // expected-error {{'x' used after being consumed}}
-    let _ = consume x // expected-note {{consume here}}
-    let f = { // expected-note {{use here}}
+public func partialApplyTest(_ x: __owned Klass) { // expected-error {{'x' used after consume}}
+    let _ = consume x // expected-note {{consumed here}}
+    let f = { // expected-note {{used here}}
         print(x)
     }
     f()
@@ -383,9 +383,9 @@ public func partialApplyTest(_ x: __owned Klass) { // expected-error {{'x' used 
 //
 // NOTE: This will require adding knowledge about captured defer arguments for
 // values. This at least prevents the error from happening.
-public func deferTest(_ x: __owned Klass) { // expected-error {{'x' used after being consumed}}
-    let _ = consume x // expected-note {{consume here}}
-    defer { // expected-note {{use here}}
+public func deferTest(_ x: __owned Klass) { // expected-error {{'x' used after consume}}
+    let _ = consume x // expected-note {{consumed here}}
+    defer { // expected-note {{used here}}
         nonConsumingUse(x)
     }
     print("do Something")

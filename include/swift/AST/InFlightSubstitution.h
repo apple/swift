@@ -49,27 +49,15 @@ public:
   InFlightSubstitution(const InFlightSubstitution &) = delete;
   InFlightSubstitution &operator=(const InFlightSubstitution &) = delete;
 
-  // TODO: when we add PackElementType, we should recognize it during
-  // substitution and either call different methods on this class or
-  // pass an extra argument for the pack-expansion depth D.  We should
-  // be able to rely on that to mark a pack-element reference instead
-  // of checking whether the original type was a pack.  Substitution
-  // should use the D'th entry from the end of ActivePackExpansions to
-  // guide the element substitution:
-  //   - project the given index of the pack substitution
-  //   - wrap it in a PackElementType if it's a subst expansion
-  //   - the depth of that PackElementType is the number of subst
-  //     expansions between the depth entry and the end of
-  //     ActivePackExpansions
-
   /// Perform primitive substitution on the given type.  Returns Type()
   /// if the type should not be substituted as a whole.
-  Type substType(SubstitutableType *origType);
+  Type substType(SubstitutableType *origType, unsigned level);
 
   /// Perform primitive conformance lookup on the given type.
   ProtocolConformanceRef lookupConformance(CanType dependentType,
                                            Type conformingReplacementType,
-                                           ProtocolDecl *conformedProtocol);
+                                           ProtocolDecl *conformedProtocol,
+                                           unsigned level);
 
   /// Given the shape type of a pack expansion, invoke the given callback
   /// for each expanded component of it.  If the substituted component

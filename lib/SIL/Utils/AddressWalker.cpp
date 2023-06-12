@@ -125,7 +125,8 @@ AddressUseKind TransitiveAddressWalker::walk(SILValue projectedAddress) && {
         isa<AssignInst>(user) || isa<LoadUnownedInst>(user) ||
         isa<StoreUnownedInst>(user) || isa<EndApplyInst>(user) ||
         isa<LoadWeakInst>(user) || isa<StoreWeakInst>(user) ||
-        isa<AssignByWrapperInst>(user) || isa<BeginUnpairedAccessInst>(user) ||
+        isa<AssignByWrapperInst>(user) || isa<AssignOrInitInst>(user) ||
+        isa<BeginUnpairedAccessInst>(user) ||
         isa<EndUnpairedAccessInst>(user) || isa<WitnessMethodInst>(user) ||
         isa<SelectEnumAddrInst>(user) || isa<InjectEnumAddrInst>(user) ||
         isa<IsUniqueInst>(user) || isa<ValueMetatypeInst>(user) ||
@@ -159,7 +160,9 @@ AddressUseKind TransitiveAddressWalker::walk(SILValue projectedAddress) && {
         isa<UncheckedAddrCastInst>(user) || isa<MarkMustCheckInst>(user) ||
         isa<MarkUninitializedInst>(user) || isa<DropDeinitInst>(user) ||
         isa<ProjectBlockStorageInst>(user) || isa<UpcastInst>(user) ||
-        isa<TuplePackElementAddrInst>(user)) {
+        isa<TuplePackElementAddrInst>(user) ||
+        isa<CopyableToMoveOnlyWrapperAddrInst>(user) ||
+        isa<MoveOnlyWrapperToCopyableAddrInst>(user)) {
       transitiveResultUses(op);
       continue;
     }

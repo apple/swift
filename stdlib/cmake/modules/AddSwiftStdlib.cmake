@@ -323,7 +323,7 @@ function(_add_target_variant_c_compile_flags)
   endif()
 
   if("${CFLAGS_SDK}" STREQUAL "WASI")
-    list(APPEND result "-D_WASI_EMULATED_MMAN")
+    list(APPEND result "-D_WASI_EMULATED_MMAN" "-D_WASI_EMULATED_PROCESS_CLOCKS")
   endif()
 
   if(NOT SWIFT_STDLIB_ENABLE_OBJC_INTEROP)

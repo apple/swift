@@ -26,6 +26,7 @@
 #include "swift/AST/DefaultArgumentKind.h"
 #include "swift/AST/DiagnosticConsumer.h"
 #include "swift/AST/DiagnosticEngine.h"
+#include "swift/AST/FreestandingMacroExpansion.h"
 #include "swift/AST/GenericParamKey.h"
 #include "swift/AST/IfConfigClause.h"
 #include "swift/AST/LayoutConstraint.h"
@@ -46,6 +47,7 @@
 #include "swift/Basic/Range.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/Support/TrailingObjects.h"
+#include <map>
 #include <type_traits>
 
 namespace swift {
@@ -183,6 +185,7 @@ enum class DescriptiveDeclKind : uint8_t {
   DistributedMethod,
   Getter,
   Setter,
+  InitAccessor,
   Addressor,
   MutableAddressor,
   ReadAccessor,
@@ -223,6 +226,26 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &OS, StaticSpellingKind SSK);
 
 /// Diagnostic printing of \c ReferenceOwnership.
 llvm::raw_ostream &operator<<(llvm::raw_ostream &OS, ReferenceOwnership RO);
+
+enum class SelfAccessKind : uint8_t {
+  NonMutating,
+  Mutating,
+  LegacyConsuming,
+  Consuming,
+  Borrowing,
+  LastSelfAccessKind = Borrowing,
+};
+enum : unsigned {
+  NumSelfAccessKindBits =
+      countBitsUsed(static_cast<unsigned>(SelfAccessKind::LastSelfAccessKind))
+};
+static_assert(uint8_t(SelfAccessKind::LastSelfAccessKind) <
+                  (NumSelfAccessKindBits << 1),
+              "Self Access Kind is too small to fit in SelfAccess kind bits. "
+              "Please expand ");
+
+/// Diagnostic printing of \c SelfAccessKind.
+llvm::raw_ostream &operator<<(llvm::raw_ostream &OS, SelfAccessKind SAK);
 
 /// Encapsulation of the overload signature of a given declaration,
 /// which is used to determine uniqueness of a declaration within a
@@ -315,6 +338,10 @@ enum class ArtificialMainKind : uint8_t {
 /// Decl - Base class for all declarations in Swift.
 class alignas(1 << DeclAlignInBits) Decl : public ASTAllocated<Decl> {
 protected:
+  // clang-format off
+  //
+  // We format these different than clang-format wishes us to... so turn if off
+  // for the inline bitfields.
   union { uint64_t OpaqueBits;
 
   SWIFT_INLINE_BITFIELD_BASE(Decl, bitmax(NumDeclKindBits,8)+1+1+1+1+1,
@@ -456,7 +483,8 @@ protected:
     DistributedThunk: 1
   );
 
-  SWIFT_INLINE_BITFIELD(FuncDecl, AbstractFunctionDecl, 1+1+2+1+1+2+1,
+  SWIFT_INLINE_BITFIELD(FuncDecl, AbstractFunctionDecl,
+                        1+1+2+1+1+NumSelfAccessKindBits+1,
     /// Whether we've computed the 'static' flag yet.
     IsStaticComputed : 1,
 
@@ -473,7 +501,7 @@ protected:
     SelfAccessComputed : 1,
 
     /// Backing bits for 'self' access kind.
-    SelfAccess : 2,
+    SelfAccess : NumSelfAccessKindBits,
 
     /// Whether this is a top-level function which should be treated
     /// as if it were in local context for the purposes of capture
@@ -631,7 +659,7 @@ protected:
     HasAnyUnavailableValues : 1
   );
 
-  SWIFT_INLINE_BITFIELD(ModuleDecl, TypeDecl, 1+1+1+1+1+1+1+1+1+1+1+1+1+1+1,
+  SWIFT_INLINE_BITFIELD(ModuleDecl, TypeDecl, 1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1,
     /// If the module is compiled as static library.
     StaticLibrary : 1,
 
@@ -681,7 +709,10 @@ protected:
 
     /// If the map from @objc provided name to top level swift::Decl in this
     /// module is populated
-    ObjCNameLookupCachePopulated : 1
+    ObjCNameLookupCachePopulated : 1,
+
+    /// Whether this module has been built with C++ interoperability enabled.
+    HasCxxInteroperability : 1
   );
 
   SWIFT_INLINE_BITFIELD(PrecedenceGroupDecl, Decl, 1+2,
@@ -735,6 +766,8 @@ protected:
   );
 
   } Bits;
+  // Turn back on clang-format now that we have defined our inline bitfields.
+  // clang-format on
 
   // Storage for the declaration attributes.
   DeclAttributes Attrs;
@@ -883,7 +916,13 @@ public:
   ///
   /// Auxiliary declarations can be property wrapper backing variables,
   /// backing variables for 'lazy' vars, or peer macro expansions.
-  void visitAuxiliaryDecls(AuxiliaryDeclCallback callback) const;
+  ///
+  /// When \p visitFreestandingExpanded is true (the default), this will also
+  /// visit the declarations produced by a freestanding macro expansion.
+  void visitAuxiliaryDecls(
+      AuxiliaryDeclCallback callback,
+      bool visitFreestandingExpanded = true
+  ) const;
 
   using MacroCallback = llvm::function_ref<void(CustomAttr *, MacroDecl *)>;
 
@@ -3863,7 +3902,7 @@ public:
   /// protocols to which the nominal type conforms. Furthermore, the resulting
   /// set of declarations has not been filtered for visibility, nor have
   /// overridden declarations been removed.
-  TinyPtrVector<ValueDecl *> lookupDirect(DeclName name,
+  TinyPtrVector<ValueDecl *> lookupDirect(DeclName name, SourceLoc loc = SourceLoc(),
                                           OptionSet<LookupDirectFlags> flags =
                                           OptionSet<LookupDirectFlags>());
 
@@ -3951,6 +3990,16 @@ public:
 
   /// Return a collection of the stored member variables of this type.
   ArrayRef<VarDecl *> getStoredProperties() const;
+
+  /// Return a collection of all properties with init accessors in
+  /// this type.
+  ArrayRef<VarDecl *> getInitAccessorProperties() const;
+
+  /// Establish a mapping between properties that could be iniitalized
+  /// via other properties by means of init accessors. This mapping is
+  /// one-to-many because we allow intersecting `initializes(...)`.
+  void collectPropertiesInitializableByInitAccessors(
+      std::multimap<VarDecl *, VarDecl *> &result) const;
 
   /// Return a collection of the stored member variables of this type, along
   /// with placeholders for unimportable stored properties.
@@ -4408,7 +4457,8 @@ class ClassDecl final : public NominalTypeDecl {
       // Force loading all the members, which will add this attribute if any of
       // members are determined to be missing while loading.
       auto mutableThis = const_cast<ClassDecl *>(this);
-      (void)mutableThis->lookupDirect(DeclBaseName::createConstructor());
+      (void)mutableThis->lookupDirect(DeclBaseName::createConstructor(),
+                                      getStartLoc());
     }
 
     if (Bits.ClassDecl.ComputedHasMissingDesignatedInitializers)
@@ -5247,10 +5297,10 @@ public:
 
   /// Overwrite the registered implementation-info.  This should be
   /// used carefully.
-  void setImplInfo(StorageImplInfo implInfo) {
-    LazySemanticInfo.ImplInfoComputed = 1;
-    ImplInfo = implInfo;
-  }
+  void setImplInfo(StorageImplInfo implInfo);
+
+  /// Cache the implementation-info, for use by the request-evaluator.
+  void cacheImplInfo(StorageImplInfo implInfo);
 
   ReadImplKind getReadImpl() const {
     return getImplInfo().getReadImpl();
@@ -5265,9 +5315,7 @@ public:
 
   /// Return true if this is a VarDecl that has storage associated with
   /// it.
-  bool hasStorage() const {
-    return getImplInfo().hasStorage();
-  }
+  bool hasStorage() const;
 
   /// Return true if this storage has the basic accessors/capability
   /// to be mutated.  This is generally constant after the accessors are
@@ -7232,17 +7280,6 @@ public:
 
 class OperatorDecl;
 
-enum class SelfAccessKind : uint8_t {
-  NonMutating,
-  Mutating,
-  LegacyConsuming,
-  Consuming,
-  Borrowing,
-};
-
-/// Diagnostic printing of \c SelfAccessKind.
-llvm::raw_ostream &operator<<(llvm::raw_ostream &OS, SelfAccessKind SAK);
-  
 /// FuncDecl - 'func' declaration.
 class FuncDecl : public AbstractFunctionDecl {
   friend class AbstractFunctionDecl;
@@ -7544,6 +7581,10 @@ public:
 #include "swift/AST/AccessorKinds.def"
     }
     llvm_unreachable("bad accessor kind");
+  }
+
+  bool isInitAccessor() const {
+    return (getAccessorKind() == AccessorKind::Init);
   }
 
   /// \returns true if this is non-mutating due to applying a 'mutating'
@@ -8562,6 +8603,9 @@ public:
   /// Retrieve the definition of this macro.
   MacroDefinition getDefinition() const;
 
+  /// Set the definition of this macro
+  void setDefinition(MacroDefinition definition);
+
   /// Retrieve the parameter list of this macro.
   ParameterList *getParameterList() const { return parameterList; }
 
@@ -8584,69 +8628,29 @@ public:
   using Decl::getASTContext;
 };
 
-/// Information about a macro expansion that is common between macro
-/// expansion declarations and expressions.
-///
-/// Instances of these types will be shared among paired macro expansion
-/// declaration/expression nodes.
-struct MacroExpansionInfo : ASTAllocated<MacroExpansionInfo> {
-  SourceLoc SigilLoc;
-  DeclNameRef MacroName;
-  DeclNameLoc MacroNameLoc;
-  SourceLoc LeftAngleLoc, RightAngleLoc;
-  ArrayRef<TypeRepr *> GenericArgs;
-  ArgumentList *ArgList;
-
-  /// The referenced macro.
-  ConcreteDeclRef macroRef;
-
-  MacroExpansionInfo(SourceLoc sigilLoc,
-                     DeclNameRef macroName,
-                     DeclNameLoc macroNameLoc,
-                     SourceLoc leftAngleLoc, SourceLoc rightAngleLoc,
-                     ArrayRef<TypeRepr *> genericArgs,
-                     ArgumentList *argList)
-    : SigilLoc(sigilLoc), MacroName(macroName), MacroNameLoc(macroNameLoc),
-      LeftAngleLoc(leftAngleLoc), RightAngleLoc(rightAngleLoc),
-      GenericArgs(genericArgs), ArgList(argList) { }
-};
-
-class MacroExpansionDecl : public Decl {
-  MacroExpansionInfo *info;
+class MacroExpansionDecl : public Decl, public FreestandingMacroExpansion {
 
 public:
   enum : unsigned { InvalidDiscriminator = 0xFFFF };
 
   MacroExpansionDecl(DeclContext *dc, MacroExpansionInfo *info);
 
-  MacroExpansionDecl(DeclContext *dc, SourceLoc poundLoc, DeclNameRef macro,
-                     DeclNameLoc macroLoc,
-                     SourceLoc leftAngleLoc,
-                     ArrayRef<TypeRepr *> genericArgs,
-                     SourceLoc rightAngleLoc,
-                     ArgumentList *args);
+  static MacroExpansionDecl *create(DeclContext *dc, SourceLoc poundLoc,
+                                    DeclNameRef macro, DeclNameLoc macroLoc,
+                                    SourceLoc leftAngleLoc,
+                                    ArrayRef<TypeRepr *> genericArgs,
+                                    SourceLoc rightAngleLoc,
+                                    ArgumentList *args);
 
-  ArrayRef<TypeRepr *> getGenericArgs() const {
-    return info->GenericArgs;
+  DeclContext *getDeclContext() const { return Decl::getDeclContext(); }
+
+  SourceRange getSourceRange() const {
+    return getExpansionInfo()->getSourceRange();
   }
+  SourceLoc getLocFromSource() const { return getExpansionInfo()->SigilLoc; }
 
-  SourceRange getGenericArgsRange() const {
-    return SourceRange(info->LeftAngleLoc, info->RightAngleLoc);
-  }
-
-  SourceRange getSourceRange() const;
-  SourceLoc getLocFromSource() const { return info->SigilLoc; }
-  SourceLoc getPoundLoc() const { return info->SigilLoc; }
-  DeclNameLoc getMacroNameLoc() const { return info->MacroNameLoc; }
-  DeclNameRef getMacroName() const { return info->MacroName; }
-  ArgumentList *getArgs() const { return info->ArgList; }
-  void setArgs(ArgumentList *args) { info->ArgList = args; }
-  using ExprOrStmtExpansionCallback = llvm::function_ref<void(ASTNode)>;
-  void forEachExpandedExprOrStmt(ExprOrStmtExpansionCallback) const;
-  ConcreteDeclRef getMacroRef() const { return info->macroRef; }
-  void setMacroRef(ConcreteDeclRef ref) { info->macroRef = ref; }
-
-  MacroExpansionInfo *getExpansionInfo() const { return info; }
+  /// Enumerate the nodes produced by expanding this macro expansion.
+  void forEachExpandedNode(llvm::function_ref<void(ASTNode)> callback) const;
 
   /// Returns a discriminator which determines this macro expansion's index
   /// in the sequence of macro expansions within the current function.
@@ -8668,6 +8672,9 @@ public:
 
   static bool classof(const Decl *D) {
     return D->getKind() == DeclKind::MacroExpansion;
+  }
+  static bool classof(const FreestandingMacroExpansion *expansion) {
+    return expansion->getFreestandingMacroKind() == FreestandingMacroKind::Decl;
   }
 };
 

@@ -49,8 +49,15 @@ static llvm::cl::opt<bool> EnableExpandAll("sil-lower-agg-instrs-expand-all",
 /// unnecessary IR. At the same time for testing purposes, we want to provide a
 /// way even with ownership enabled to expand so we can check correctness.
 static bool shouldExpandShim(SILFunction *fn, SILType type) {
-  return EnableExpandAll ||
-         (!fn->hasOwnership() && shouldExpand(fn->getModule(), type));
+  // shouldExpand returns false for struct-with-deinit types, so bypassing it is
+  // incorrect for move-only types
+  if (EnableExpandAll) {
+    assert(!type.isPureMoveOnly()
+           && "sil-lower-agg-instrs-expand-all is incompatible with move-only "
+              "types");
+    return true;
+  }
+  return !fn->hasOwnership() && shouldExpand(fn->getModule(), type);
 }
 
 //===----------------------------------------------------------------------===//

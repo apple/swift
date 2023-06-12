@@ -46,3 +46,7 @@ func variadicMetatypes<each T>(_: repeat each T) {
 // CHECK-LABEL: sil [ossa] @$s19pack_expansion_type18sameExpansionTwice2us05more_G02vsyxxQp_xxQpq_q_QptRvzRv_r0_lF : $@convention(thin) <each U, each V> (@pack_guaranteed Pack{repeat each U}, @pack_guaranteed Pack{repeat each U}, @pack_guaranteed Pack{repeat each V}) -> () {
 public func sameExpansionTwice<each U, each V>(us: repeat each U, more_us: repeat each U, vs: repeat each V) {}
 
+// SILVerifier bug
+public func nonPackAndPackParameterInExpansion<each T, U, V>(t: repeat each T, u: U, v: V) -> (repeat (each T, U, V)) {
+  return (repeat (each t, u, v))
+}

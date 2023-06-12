@@ -6,7 +6,7 @@ struct S: ~U, // expected-error {{can only suppress 'Copyable'}}
               // expected-error@-1 {{inheritance from non-protocol type 'U'}}
           ~Copyable {}
 
-struct U: // expected-error {{move-only struct 'U' cannot conform to 'Sando'}}
+struct U: // expected-error {{noncopyable struct 'U' cannot conform to 'Sando'}}
           // expected-error@-1 {{type 'U' does not conform to protocol 'Sando'}}
           ~Copyable,
           Sando,

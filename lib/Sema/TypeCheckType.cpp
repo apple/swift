@@ -1006,7 +1006,7 @@ static bool didDiagnoseMoveOnlyGenericArgs(ASTContext &ctx,
     if (!t->isPureMoveOnly())
       continue;
 
-    ctx.Diags.diagnose(loc, diag::moveonly_generics, t);
+    ctx.Diags.diagnose(loc, diag::noncopyable_generics, t);
     didEmitDiag = true;
   }
 
@@ -1412,7 +1412,8 @@ static Type diagnoseUnknownType(TypeResolution resolution,
   NameLookupOptions relookupOptions = lookupOptions;
   relookupOptions |= NameLookupFlags::IgnoreAccessControl;
   auto inaccessibleMembers = TypeChecker::lookupMemberType(
-      dc, parentType, repr->getNameRef(), relookupOptions);
+      dc, parentType, repr->getNameRef(),
+      repr->getLoc(), relookupOptions);
   if (inaccessibleMembers) {
     // FIXME: What if the unviable candidates have different levels of access?
     const TypeDecl *first = inaccessibleMembers.front().Member;
@@ -1443,8 +1444,8 @@ static Type diagnoseUnknownType(TypeResolution resolution,
     NLOptions memberLookupOptions = (NL_QualifiedDefault |
                                      NL_IgnoreAccessControl);
     SmallVector<ValueDecl *, 2> results;
-    dc->lookupQualified(parentType, repr->getNameRef(), memberLookupOptions,
-                        results);
+    dc->lookupQualified(parentType, repr->getNameRef(), repr->getLoc(),
+                        memberLookupOptions, results);
 
     // Looks like this is not a member type, but simply a member of parent type.
     if (!results.empty()) {
@@ -1834,7 +1835,7 @@ static Type resolveQualifiedIdentTypeRepr(TypeResolution resolution,
   LookupTypeResult memberTypes;
   if (parentTy->mayHaveMembers())
     memberTypes = TypeChecker::lookupMemberType(
-        DC, parentTy, repr->getNameRef(), lookupOptions);
+        DC, parentTy, repr->getNameRef(), repr->getLoc(), lookupOptions);
 
   // Name lookup was ambiguous. Complain.
   // FIXME: Could try to apply generic arguments first, and see whether
@@ -2278,7 +2279,7 @@ bool TypeResolver::diagnoseInvalidPlaceHolder(OpaqueReturnTypeRepr *repr) {
 /// returns true if an error diagnostic was emitted
 bool TypeResolver::diagnoseMoveOnly(TypeRepr *repr, Type genericArgTy) {
   if (genericArgTy->isPureMoveOnly()) {
-    diagnoseInvalid(repr, repr->getLoc(), diag::moveonly_generics,
+    diagnoseInvalid(repr, repr->getLoc(), diag::noncopyable_generics,
                     genericArgTy);
     return true;
   }
@@ -2319,21 +2320,21 @@ bool TypeResolver::diagnoseMoveOnlyMissingOwnership(
   // decls, give a tailored error message saying you simply can't use a
   // noncopyable type here.
   if (options.hasBase(TypeResolverContext::SubscriptDecl)) {
-    diagnose(repr->getLoc(), diag::moveonly_parameter_subscript_unsupported);
+    diagnose(repr->getLoc(), diag::noncopyable_parameter_subscript_unsupported);
   } else {
     // general error diagnostic
     diagnose(repr->getLoc(),
-             diag::moveonly_parameter_missing_ownership);
+             diag::noncopyable_parameter_requires_ownership);
 
-    diagnose(repr->getLoc(), diag::moveonly_parameter_ownership_suggestion,
+    diagnose(repr->getLoc(), diag::noncopyable_parameter_ownership_suggestion,
              "borrowing", "for an immutable reference")
         .fixItInsert(repr->getStartLoc(), "borrowing ");
 
-    diagnose(repr->getLoc(), diag::moveonly_parameter_ownership_suggestion,
+    diagnose(repr->getLoc(), diag::noncopyable_parameter_ownership_suggestion,
              "inout", "for a mutable reference")
         .fixItInsert(repr->getStartLoc(), "inout ");
 
-    diagnose(repr->getLoc(), diag::moveonly_parameter_ownership_suggestion,
+    diagnose(repr->getLoc(), diag::noncopyable_parameter_ownership_suggestion,
              "consuming", "to take the value from the caller")
         .fixItInsert(repr->getStartLoc(), "consuming ");
   }
@@ -4298,30 +4299,18 @@ TypeResolver::resolveOwnershipTypeRepr(OwnershipTypeRepr *repr,
   case ParamSpecifier::InOut:
   case ParamSpecifier::LegacyShared:
   case ParamSpecifier::LegacyOwned:
+  case ParamSpecifier::Borrowing:
     break;
-
   case ParamSpecifier::Consuming:
     if (auto *fnTy = result->getAs<FunctionType>()) {
       if (fnTy->isNoEscape()) {
-        diagnoseInvalid(ownershipRepr,
-                        ownershipRepr->getLoc(),
+        diagnoseInvalid(ownershipRepr, ownershipRepr->getLoc(),
                         diag::ownership_specifier_nonescaping_closure,
                         ownershipRepr->getSpecifierSpelling());
         return ErrorType::get(getASTContext());
       }
     }
-  SWIFT_FALLTHROUGH;
-  case ParamSpecifier::Borrowing:
-    // Unless we have the experimental no-implicit-copy feature enabled, Copyable
-    // types can't use 'consuming' or 'borrowing' ownership specifiers.
-    if (!getASTContext().LangOpts.hasFeature(Feature::NoImplicitCopy)) {
-      if (!result->isPureMoveOnly()) {
-        diagnoseInvalid(ownershipRepr,
-                        ownershipRepr->getLoc(),
-                        diag::ownership_specifier_copyable);
-        return ErrorType::get(getASTContext());
-      }
-    }
+    break;
   }
 
   return result;
@@ -5343,9 +5332,15 @@ void TypeChecker::checkExistentialTypes(Decl *decl) {
   } else if (auto *macroDecl = dyn_cast<MacroDecl>(decl)) {
     checkExistentialTypes(ctx, macroDecl->getGenericParams());
     checkExistentialTypes(ctx, macroDecl->getTrailingWhereClause());
+  } else if (auto *macroExpansionDecl = dyn_cast<MacroExpansionDecl>(decl)) {
+    ExistentialTypeVisitor visitor(ctx, /*checkStatements=*/false);
+    macroExpansionDecl->getArgs()->walk(visitor);
+    for (auto *genArg : macroExpansionDecl->getGenericArgs())
+      genArg->walk(visitor);
   }
 
-  if (isa<TypeDecl>(decl) || isa<ExtensionDecl>(decl))
+  if (isa<TypeDecl>(decl) || isa<ExtensionDecl>(decl) ||
+      isa<MacroExpansionDecl>(decl))
     return;
 
   ExistentialTypeVisitor visitor(ctx, /*checkStatements=*/false);

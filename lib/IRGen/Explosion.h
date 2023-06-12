@@ -60,6 +60,10 @@ public:
     return *this;
   }
 
+  Explosion(llvm::Value *singleValue) : NextValue(0) {
+    add(singleValue);
+  }
+
   ~Explosion() {
     assert(empty() && "explosion had values remaining when destroyed!");
   }
@@ -131,6 +135,10 @@ public:
   llvm::Value *claimNext() {
     assert(NextValue < Values.size());
     return Values[NextValue++];
+  }
+
+  llvm::Constant *claimNextConstant() {
+    return cast<llvm::Constant>(claimNext());
   }
 
   /// Claim and return the next N values in this explosion.

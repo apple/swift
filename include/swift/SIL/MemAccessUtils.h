@@ -1592,6 +1592,9 @@ inline bool isAccessStorageTypeCast(SingleValueInstruction *svi) {
   default:
     return false;
   // Simply pass-thru the incoming address.  But change its type!
+  case SILInstructionKind::MoveOnlyWrapperToCopyableAddrInst:
+  case SILInstructionKind::CopyableToMoveOnlyWrapperAddrInst:
+  // Simply pass-thru the incoming address.  But change its type!
   case SILInstructionKind::UncheckedAddrCastInst:
   // Casting to RawPointer does not affect the AccessPath. When converting
   // between address types, they must be layout compatible (with truncation).

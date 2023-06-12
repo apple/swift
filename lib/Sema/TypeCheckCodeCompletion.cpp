@@ -574,15 +574,12 @@ bool TypeChecker::typeCheckForCodeCompletion(
       return false;
   }
 
-  auto node = target.getAsASTNode();
-  if (!node)
-    return false;
-
-  if (auto *expr = getAsExpr(node)) {
-    node = expr->walk(SanitizeExpr(Context));
+  if (getAsExpr(target.getAsASTNode())) {
+    SanitizeExpr sanitizer(Context);
+    target = *target.walk(sanitizer);
   }
 
-  CompletionContextFinder contextAnalyzer(node, DC);
+  CompletionContextFinder contextAnalyzer(target, DC);
 
   // If there was no completion expr (e.g. if the code completion location was
   // among tokens that were skipped over during parser error recovery) bail.
@@ -770,6 +767,7 @@ bool swift::typeCheckExpression(DeclContext *DC, Expr *&parsedExpr) {
 
 LookupResult
 swift::lookupSemanticMember(DeclContext *DC, Type ty, DeclName name) {
-  return TypeChecker::lookupMember(DC, ty, DeclNameRef(name), None);
+  return TypeChecker::lookupMember(DC, ty, DeclNameRef(name),
+                                   SourceLoc(), None);
 }
 

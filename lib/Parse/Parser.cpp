@@ -154,6 +154,9 @@ void Parser::performIDEInspectionSecondPassImpl(
   // discriminators.
   Context.evaluator.clearCachedOutput(LocalDiscriminatorsRequest{DC});
 
+  // Clear any ASTScopes that were expanded.
+  SF.clearScope();
+
   switch (info.Kind) {
   case IDEInspectionDelayedDeclKind::TopLevelCodeDecl: {
     // Re-enter the top-level code decl context.

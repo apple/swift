@@ -21,8 +21,13 @@
 #include "swift/AST/TypeAlignments.h"
 #include "llvm/ADT/PointerUnion.h"
 
+namespace llvm {
+class raw_ostream;
+}
+
 namespace swift {
 
+class SourceLoc;
 class DeclContext;
 class IterableDeclContext;
 
@@ -51,10 +56,22 @@ struct TypeOrExtensionDecl {
   bool isNull() const;
   explicit operator bool() const { return !isNull(); }
 
-  bool operator==(TypeOrExtensionDecl rhs) { return Decl == rhs.Decl; }
-  bool operator!=(TypeOrExtensionDecl rhs) { return Decl != rhs.Decl; }
-  bool operator<(TypeOrExtensionDecl rhs) { return Decl < rhs.Decl; }
+  friend bool operator==(TypeOrExtensionDecl lhs, TypeOrExtensionDecl rhs) {
+    return lhs.Decl == rhs.Decl;
+  }
+  friend bool operator!=(TypeOrExtensionDecl lhs, TypeOrExtensionDecl rhs) {
+    return lhs.Decl != rhs.Decl;
+  }
+  friend bool operator<(TypeOrExtensionDecl lhs, TypeOrExtensionDecl rhs) {
+    return lhs.Decl < rhs.Decl;
+  }
+  friend llvm::hash_code hash_value(TypeOrExtensionDecl decl) {
+    return llvm::hash_value(decl.getAsDecl());
+  }
 };
+
+void simple_display(llvm::raw_ostream &out, TypeOrExtensionDecl container);
+SourceLoc extractNearestSourceLoc(TypeOrExtensionDecl container);
 
 } // end namespace swift
 

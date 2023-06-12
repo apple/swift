@@ -7,7 +7,7 @@
 
 // RUN: split-file %s %t/src
 
-//#-- Prepare the macro dylib plugin.
+//#-- Prepare the macro shared library plugin.
 // RUN: %host-build-swift \
 // RUN:   -swift-version 5 \
 // RUN:   -emit-library -o %t/plugin/%target-library-name(MacroDefinition) \
@@ -76,7 +76,7 @@
 // RUN: %FileCheck --check-prefix WITHOUT_PLUGIN %s < %t/with_macro_nonprimary.swiftdeps.processed
 
 // WITH_PLUGIN: externalDepend interface '' 'BUILD_DIR{{.*}}mock-plugin' false
-// WITH_PLUGIN: externalDepend interface '' 'BUILD_DIR{{.*}}libMacroDefinition.dylib' false
+// WITH_PLUGIN: externalDepend interface '' 'BUILD_DIR{{.*}}libMacroDefinition.{{(dylib|so|dll)}}' false
 
 // WITHOUT_PLUGIN-NOT:  MacroDefinition
 // WITHOUT_PLUGIN-NOT:  mock-plugin

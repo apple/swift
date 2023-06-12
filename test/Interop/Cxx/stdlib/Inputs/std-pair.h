@@ -23,3 +23,17 @@ using PairStructInt = std::pair<StructInPair, int>;
 inline PairStructInt getPairStructInt(int x) {
     return { { x * 2, -x}, x };
 }
+
+struct UnsafeStruct {
+    int *ptr;
+};
+
+struct __attribute__((swift_attr("import_iterator"))) Iterator {};
+
+using PairUnsafeStructInt = std::pair<UnsafeStruct, int>;
+using PairIteratorInt = std::pair<Iterator, int>;
+
+struct HasMethodThatReturnsUnsafePair {
+    PairUnsafeStructInt getUnsafePair() const { return {}; }
+    PairIteratorInt getIteratorPair() const { return {}; }
+};

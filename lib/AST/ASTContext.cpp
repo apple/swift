@@ -403,6 +403,9 @@ struct ASTContext::Implementation {
   llvm::DenseMap<std::pair<const void *, Identifier>, unsigned>
       NextMacroDiscriminator;
 
+  /// Local and closure discriminators per context.
+  llvm::DenseMap<const DeclContext *, unsigned> NextDiscriminator;
+
   /// Structure that captures data that is segregated into different
   /// arenas.
   struct Arena {
@@ -416,6 +419,7 @@ struct ASTContext::Implementation {
     llvm::FoldingSet<TupleType> TupleTypes;
     llvm::FoldingSet<PackType> PackTypes;
     llvm::FoldingSet<PackExpansionType> PackExpansionTypes;
+    llvm::FoldingSet<PackElementType> PackElementTypes;
     llvm::DenseMap<llvm::PointerIntPair<TypeBase*, 3, unsigned>,
                    MetatypeType*> MetatypeTypes;
     llvm::DenseMap<llvm::PointerIntPair<TypeBase*, 3, unsigned>,
@@ -1068,8 +1072,8 @@ DECLTYPE *ASTContext::get##NAME##Decl() const { \
       /* Note: lookupQualified() will search both the Swift overlay \
        * and the Clang module it imports. */ \
       SmallVector<ValueDecl *, 1> decls; \
-      M->lookupQualified(M, DeclNameRef(getIdentifier(#NAME)), NL_OnlyTypes, \
-                         decls); \
+      M->lookupQualified(M, DeclNameRef(getIdentifier(#NAME)), SourceLoc(), \
+                         NL_OnlyTypes, decls); \
       if (decls.size() == 1 && isa<DECLTYPE>(decls[0])) { \
         auto decl = cast<DECLTYPE>(decls[0]); \
         if (isa<ProtocolDecl>(decl) \
@@ -1332,7 +1336,8 @@ ConcreteDeclRef ASTContext::getRegexInitDecl(Type regexType) const {
                 {Id_regexString, Id_version});
   SmallVector<ValueDecl *, 1> results;
   spModule->lookupQualified(getRegexType(), DeclNameRef(name),
-                            NL_IncludeUsableFromInline, results);
+                            SourceLoc(), NL_IncludeUsableFromInline,
+                            results);
   assert(results.size() == 1);
   auto *foundDecl = cast<ConstructorDecl>(results[0]);
   auto subs = regexType->getMemberSubstitutionMap(spModule, foundDecl);
@@ -2182,6 +2187,18 @@ unsigned ASTContext::getNextMacroDiscriminator(
   std::pair<const void *, Identifier> key(
       context.getOpaqueValue(), baseName.getIdentifier());
   return getImpl().NextMacroDiscriminator[key]++;
+}
+
+/// Get the next discriminator within the given declaration context.
+unsigned ASTContext::getNextDiscriminator(const DeclContext *dc) {
+  return getImpl().NextDiscriminator[dc];
+}
+
+/// Set the maximum assigned discriminator within the given declaration context.
+void ASTContext::setMaxAssignedDiscriminator(
+    const DeclContext *dc, unsigned discriminator) {
+  assert(discriminator >= getImpl().NextDiscriminator[dc]);
+  getImpl().NextDiscriminator[dc] = discriminator;
 }
 
 void ASTContext::verifyAllLoadedModules() const {
@@ -3317,6 +3334,47 @@ PackType *PackType::getEmpty(const ASTContext &C) {
   return cast<PackType>(CanType(C.TheEmptyPackType));
 }
 
+PackElementType::PackElementType(Type packType, unsigned level,
+                                 RecursiveTypeProperties properties,
+                                 const ASTContext *canCtx)
+  : TypeBase(TypeKind::PackElement, canCtx, properties),
+    packType(packType), level(level) {
+  assert(packType->isParameterPack() ||
+         packType->is<PackArchetypeType>() ||
+         packType->is<TypeVariableType>());
+  assert(level > 0);
+}
+
+PackElementType *PackElementType::get(Type packType, unsigned level) {
+  auto properties = packType->getRecursiveProperties();
+  auto arena = getArena(properties);
+
+  auto &context = packType->getASTContext();
+  llvm::FoldingSetNodeID id;
+  PackElementType::Profile(id, packType, level);
+
+  void *insertPos;
+  if (PackElementType *elementType =
+        context.getImpl().getArena(arena)
+          .PackElementTypes.FindNodeOrInsertPos(id, insertPos))
+    return elementType;
+
+  const ASTContext *canCtx = packType->isCanonical()
+      ? &context : nullptr;
+  PackElementType *elementType =
+      new (context, arena) PackElementType(packType, level, properties,
+                                           canCtx);
+  context.getImpl().getArena(arena).PackElementTypes.InsertNode(elementType,
+                                                                insertPos);
+  return elementType;
+}
+
+void PackElementType::Profile(llvm::FoldingSetNodeID &ID,
+                              Type packType, unsigned level) {
+  ID.AddPointer(packType.getPointer());
+  ID.AddInteger(level);
+}
+
 CanPackType CanPackType::get(const ASTContext &C, ArrayRef<CanType> elements) {
   SmallVector<Type, 8> ncElements(elements.begin(), elements.end());
   return CanPackType(PackType::get(C, ncElements));
@@ -3339,7 +3397,7 @@ CanPackType CanPackType::get(const ASTContext &C,
 }
 
 PackType *PackType::get(const ASTContext &C, ArrayRef<Type> elements) {
-  RecursiveTypeProperties properties;
+  RecursiveTypeProperties properties = RecursiveTypeProperties::HasConcretePack;
   bool isCanonical = true;
   for (Type eltTy : elements) {
     assert(!eltTy->is<PackType>() &&
@@ -3379,7 +3437,7 @@ void PackType::Profile(llvm::FoldingSetNodeID &ID, ArrayRef<Type> Elements) {
 
 CanSILPackType SILPackType::get(const ASTContext &C, ExtInfo info,
                                 ArrayRef<CanType> elements) {
-  RecursiveTypeProperties properties;
+  RecursiveTypeProperties properties = RecursiveTypeProperties::HasConcretePack;
   for (CanType eltTy : elements) {
     assert(!isa<SILPackType>(eltTy) &&
            "Cannot have pack directly inside another pack");
@@ -3971,7 +4029,7 @@ isAnyFunctionTypeCanonical(ArrayRef<AnyFunctionType::Param> params,
 static RecursiveTypeProperties
 getGenericFunctionRecursiveProperties(ArrayRef<AnyFunctionType::Param> params,
                                       Type result) {
-  static_assert(RecursiveTypeProperties::BitWidth == 16,
+  static_assert(RecursiveTypeProperties::BitWidth == 17,
                 "revisit this if you add new recursive type properties");
   RecursiveTypeProperties properties;
 
@@ -4632,7 +4690,7 @@ CanSILFunctionType SILFunctionType::get(
   void *mem = ctx.Allocate(bytes, alignof(SILFunctionType));
 
   RecursiveTypeProperties properties;
-  static_assert(RecursiveTypeProperties::BitWidth == 16,
+  static_assert(RecursiveTypeProperties::BitWidth == 17,
                 "revisit this if you add new recursive type properties");
   for (auto &param : params)
     properties |= param.getInterfaceType()->getRecursiveProperties();

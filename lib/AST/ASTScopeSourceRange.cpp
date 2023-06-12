@@ -360,7 +360,7 @@ SourceRange ClosureParametersScope::getSourceRangeOfThisASTNode(
   return explicitClosureExpr->getSourceRange();
 }
 
-SourceRange AttachedPropertyWrapperScope::getSourceRangeOfThisASTNode(
+SourceRange CustomAttributeScope::getSourceRangeOfThisASTNode(
     const bool omitAssertions) const {
   return attr->getRange();
 }

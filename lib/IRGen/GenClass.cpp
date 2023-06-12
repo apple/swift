@@ -1831,6 +1831,9 @@ namespace {
 
     void buildMethod(ConstantArrayBuilder &descriptors,
                      AbstractFunctionDecl *method) {
+      if (Lowering::shouldSkipLowering(method))
+        return;
+
       auto accessor = dyn_cast<AccessorDecl>(method);
       if (!accessor)
         return emitObjCMethodDescriptor(IGM, descriptors, method);

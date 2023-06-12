@@ -266,7 +266,8 @@ VarDecl *GlobalActorInstanceRequest::evaluate(
   // conformance to the 'GlobalActor' protocol.
   SmallVector<ValueDecl *, 4> decls;
   nominal->lookupQualified(
-      nominal, DeclNameRef(ctx.Id_shared), NL_QualifiedDefault, decls);
+      nominal, DeclNameRef(ctx.Id_shared),
+      nominal->getLoc(), NL_QualifiedDefault, decls);
   for (auto decl : decls) {
     auto var = dyn_cast<VarDecl>(decl);
     if (!var)

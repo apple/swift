@@ -54,6 +54,7 @@ static bool isLeafTypeMetadata(CanType type) {
   case TypeKind::InOut:
   case TypeKind::DynamicSelf:
   case TypeKind::PackExpansion:
+  case TypeKind::PackElement:
   case TypeKind::BuiltinTuple:
     llvm_unreachable("these types do not have metadata");
 

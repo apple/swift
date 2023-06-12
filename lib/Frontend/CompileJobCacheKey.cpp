@@ -48,6 +48,13 @@ llvm::Expected<llvm::cas::ObjectRef> swift::createCompileJobBaseCacheKey(
       SkipNext = true;
       continue;
     }
+    // FIXME: Use a heuristic to remove all the flags that affect output paths.
+    // Those should not affect compile cache key.
+    if (Arg.startswith("-emit-")) {
+      if (Arg.endswith("-path"))
+        SkipNext = true;
+      continue;
+    }
     CommandLine.append(Arg);
     CommandLine.push_back(0);
   }

@@ -416,6 +416,46 @@ static bool readPopularAPIList(StringRef filename,
   return false;
 }
 
+/// Read '-req-opts' for syntactic macro expansion request and apply it to 'req'
+/// object.
+/// The format of the argument is '-req-opts={line}:{column}:{path}'
+/// where {path} is a path to a JSON file that has macro roles and definition.
+/// {line} and {column} is resolved to 'offset' using \p inputBuf .
+static bool setSyntacticMacroExpansions(sourcekitd_object_t req,
+                                        TestOptions &opts,
+                                        llvm::MemoryBuffer *inputBuf) {
+  SmallVector<sourcekitd_object_t, 4> expansions;
+  for (std::string &opt : opts.RequestOptions) {
+    SmallVector<StringRef, 3> args;
+    StringRef(opt).split(args, ":");
+    unsigned line, column;
+
+    if (args.size() != 3 || args[0].getAsInteger(10, line) ||
+        args[1].getAsInteger(10, column)) {
+      llvm::errs() << "-req-opts should be {line}:{column}:{json-path}";
+      return true;
+    }
+    unsigned offset = resolveFromLineCol(line, column, inputBuf);
+
+    auto Buffer = getBufferForFilename(args[2], opts.VFSFiles)->getBuffer();
+    char *Err = nullptr;
+    auto expansion = sourcekitd_request_create_from_yaml(Buffer.data(), &Err);
+    if (!expansion) {
+      assert(Err);
+      llvm::errs() << Err;
+      free(Err);
+      return true;
+    }
+    sourcekitd_request_dictionary_set_int64(expansion, KeyOffset,
+                                            int64_t(offset));
+    expansions.push_back(expansion);
+  }
+  sourcekitd_request_dictionary_set_value(
+      req, KeyExpansions,
+      sourcekitd_request_array_create(expansions.data(), expansions.size()));
+  return false;
+}
+
 namespace {
 class PrintingTimer {
   std::string desc;
@@ -1107,6 +1147,12 @@ static int handleTestInvocation(TestOptions Opts, TestOptions &InitOpts) {
     sourcekitd_request_dictionary_set_string(Req, KeyName, SemaName.c_str());
     sourcekitd_request_dictionary_set_uid(Req, KeyRequest, RequestCompileClose);
     break;
+
+  case SourceKitRequest::SyntacticMacroExpansion:
+    sourcekitd_request_dictionary_set_uid(Req, KeyRequest,
+                                          RequestSyntacticMacroExpansion);
+    setSyntacticMacroExpansions(Req, Opts, SourceBuf.get());
+    break;
   }
 
   if (!Opts.SourceFile.empty()) {
@@ -1521,6 +1567,7 @@ static bool handleResponse(sourcekitd_response_t Resp, const TestOptions &Opts,
 #define SEMANTIC_REFACTORING(KIND, NAME, ID) case SourceKitRequest::KIND:
 #include "swift/Refactoring/RefactoringKinds.def"
       case SourceKitRequest::SyntacticRename:
+      case SourceKitRequest::SyntacticMacroExpansion:
         printSyntacticRenameEdits(Info, llvm::outs());
         break;
       case SourceKitRequest::FindRenameRanges:

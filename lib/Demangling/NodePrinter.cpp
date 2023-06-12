@@ -340,6 +340,8 @@ private:
       return Node->getChild(0)->getChild(0)->getNumChildren() == 0;
 
     case Node::Kind::ConstrainedExistential:
+    case Node::Kind::PackElement:
+    case Node::Kind::PackElementLevel:
     case Node::Kind::PackExpansion:
     case Node::Kind::ProtocolListWithClass:
     case Node::Kind::AccessorAttachedMacroExpansion:
@@ -413,6 +415,7 @@ private:
     case Node::Kind::GlobalGetter:
     case Node::Kind::Identifier:
     case Node::Kind::Index:
+    case Node::Kind::InitAccessor:
     case Node::Kind::IVarInitializer:
     case Node::Kind::IVarDestroyer:
     case Node::Kind::ImplDifferentiabilityKind:
@@ -1628,6 +1631,15 @@ NodePointer NodePrinter::print(NodePointer Node, unsigned depth,
     print(Node->getChild(0), depth + 1);
     return nullptr;
   }
+  case Node::Kind::PackElement: {
+    Printer << "/* level: " << Node->getChild(1)->getIndex() << " */ ";
+    Printer << "each ";
+    print(Node->getChild(0), depth + 1);
+    return nullptr;
+  }
+  case Node::Kind::PackElementLevel:
+    printer_unreachable("should be handled in Node::Kind::PackElement");
+
   case Node::Kind::ReturnType:
     if (Node->getNumChildren() == 0)
       Printer << " -> " << Node->getText();
@@ -2586,6 +2598,9 @@ NodePointer NodePrinter::print(NodePointer Node, unsigned depth,
   case Node::Kind::ModifyAccessor:
     return printAbstractStorage(Node->getFirstChild(), depth, asPrefixContext,
                                 "modify");
+  case Node::Kind::InitAccessor:
+    return printAbstractStorage(Node->getFirstChild(), depth, asPrefixContext,
+                                "init");
   case Node::Kind::Allocator:
     return printEntity(
         Node, depth, asPrefixContext, TypePrinting::FunctionStyle,

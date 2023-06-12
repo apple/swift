@@ -38,7 +38,9 @@ static VarDecl *findValueProperty(ASTContext &ctx, NominalTypeDecl *nominal,
   SmallVector<VarDecl *, 2> vars;
   {
     SmallVector<ValueDecl *, 2> decls;
-    nominal->lookupQualified(nominal, DeclNameRef(name), NL_QualifiedDefault,
+    nominal->lookupQualified(nominal, DeclNameRef(name),
+                             nominal->getStartLoc(),
+                             NL_QualifiedDefault,
                              decls);
     for (const auto &foundDecl : decls) {
       auto foundVar = dyn_cast<VarDecl>(foundDecl);
@@ -348,6 +350,7 @@ PropertyWrapperTypeInfoRequest::evaluate(
 
   SmallVector<ValueDecl *, 2> decls;
   nominal->lookupQualified(nominal, DeclNameRef::createConstructor(),
+                           nominal->getStartLoc(),
                            NL_QualifiedDefault, decls);
 
   PropertyWrapperTypeInfo result;

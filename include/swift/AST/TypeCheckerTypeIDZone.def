@@ -302,10 +302,16 @@ SWIFT_REQUEST(TypeChecker, SelfAccessKindRequest, SelfAccessKind(FuncDecl *),
 SWIFT_REQUEST(TypeChecker, StorageImplInfoRequest,
               StorageImplInfo(AbstractStorageDecl *), SeparatelyCached,
               NoLocationInfo)
+SWIFT_REQUEST(TypeChecker, HasStorageRequest,
+              bool(AbstractStorageDecl *), Cached,
+              NoLocationInfo)
 SWIFT_REQUEST(TypeChecker, StoredPropertiesAndMissingMembersRequest,
               ArrayRef<Decl *>(NominalTypeDecl *), Cached, NoLocationInfo)
 SWIFT_REQUEST(TypeChecker, StoredPropertiesRequest,
               ArrayRef<VarDecl *>(NominalTypeDecl *), Cached, NoLocationInfo)
+SWIFT_REQUEST(TypeChecker, InitAccessorPropertiesRequest,
+              ArrayRef<VarDecl *>(NominalTypeDecl *),
+              Cached, NoLocationInfo)
 SWIFT_REQUEST(TypeChecker, StructuralTypeRequest, Type(TypeAliasDecl *), Cached,
               NoLocationInfo)
 SWIFT_REQUEST(TypeChecker, SuperclassTypeRequest,
@@ -480,4 +486,8 @@ SWIFT_REQUEST(TypeChecker, IsNonUserModuleRequest,
               Cached, NoLocationInfo)
 SWIFT_REQUEST(TypeChecker, TypeCheckObjCImplementationRequest,
               unsigned(ExtensionDecl *),
+              Cached, NoLocationInfo)
+SWIFT_REQUEST(TypeChecker, InitAccessorReferencedVariablesRequest,
+              ArrayRef<VarDecl *>(DeclAttribute *, AccessorDecl *,
+                                  ArrayRef<Identifier>),
               Cached, NoLocationInfo)

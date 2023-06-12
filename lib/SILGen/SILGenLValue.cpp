@@ -366,6 +366,7 @@ LogicalPathComponent::projectForRead(SILGenFunction &SGF, SILLocation loc,
   }
 
   TemporaryInitializationPtr tempInit;
+  ManagedValue result;
   RValue rvalue;
 
   // If the RValue type has an openedExistential, then the RValue must be
@@ -377,9 +378,11 @@ LogicalPathComponent::projectForRead(SILGenFunction &SGF, SILLocation loc,
 
     // Create a temporary, whose type may depend on the 'get'.
     tempInit = SGF.emitFormalAccessTemporary(loc, RValueTL);
+    result = tempInit->getManagedAddress();
   } else {
     // Create a temporary for a static (non-dependent) RValue type.
     tempInit = SGF.emitFormalAccessTemporary(loc, RValueTL);
+    result = tempInit->getManagedAddress();
 
     // Emit a 'get' directly into the temporary.
     rvalue = std::move(*this).get(SGF, loc, base, SGFContext(tempInit.get()));
@@ -390,7 +393,8 @@ LogicalPathComponent::projectForRead(SILGenFunction &SGF, SILLocation loc,
   if (!rvalue.isInContext())
     std::move(rvalue).forwardInto(SGF, loc, tempInit.get());
 
-  return tempInit->getManagedAddress();
+  assert(result);
+  return result;
 }
 
 ManagedValue LogicalPathComponent::project(SILGenFunction &SGF,
@@ -875,6 +879,12 @@ namespace {
         return SGF.B.createStructExtract(loc, base, Field);
       }
 
+      // If we have a moveonlywrapped type, unwrap it. The reason why is that
+      // any fields that we access we want to be treated as copyable.
+      if (base.getType().isMoveOnlyWrapped())
+        base = ManagedValue::forLValue(
+            SGF.B.createMoveOnlyWrapperToCopyableAddr(loc, base.getValue()));
+
       // TODO: if the base is +1, break apart its cleanup.
       auto Res = SGF.B.createStructElementAddr(loc, base.getValue(),
                                                Field, SubstFieldType);
@@ -1161,6 +1171,11 @@ namespace {
       assert(base
              && base.getType().isAddress()
              && "should have an address base to borrow from");
+      // If the base value is address-only then we can borrow from the
+      // address in-place.
+      if (!base.getType().isLoadable(SGF.F)) {
+        return base;
+      }
       auto result = SGF.B.createLoadBorrow(loc, base.getValue());
       return SGF.emitFormalEvaluationManagedBorrowedRValueWithCleanup(loc,
          base.getValue(), result);
@@ -1499,6 +1514,33 @@ namespace {
       return false;
     }
 
+    /// Whether an assignment 'x = y' can be re-written as a call to an
+    /// init accessor declared by 'x'.
+    bool canRewriteSetAsInitAccessor(SILGenFunction &SGF) const {
+      auto *varDecl = dyn_cast<VarDecl>(Storage);
+      if (!varDecl || varDecl->isStatic() ||
+          varDecl->getDeclContext()->isLocalContext())
+        return false;
+
+      auto *fnDecl = SGF.FunctionDC->getAsDecl();
+      bool isAssignmentToSelfParamInInit =
+          IsOnSelfParameter && isa<ConstructorDecl>(fnDecl) &&
+          // Convenience initializers only contain assignments and not
+          // initializations.
+          !(cast<ConstructorDecl>(fnDecl)->isConvenienceInit());
+
+      // Assignment to a wrapped property can only be re-written to initialization for
+      // members of `self` in an initializer, and for local variables.
+      if (!isAssignmentToSelfParamInInit)
+        return false;
+
+      auto *initAccessor = varDecl->getAccessor(AccessorKind::Init);
+      if (!initAccessor)
+        return false;
+
+      return true;
+    }
+
     void emitAssignWithSetter(SILGenFunction &SGF, SILLocation loc,
                               LValue &&dest, ArgumentSource &&value) {
       assert(getAccessorDecl()->isSetter());
@@ -1664,6 +1706,36 @@ namespace {
 
         return Mval;
       };
+
+      if (canRewriteSetAsInitAccessor(SGF)) {
+        // Emit an assign_or_init with the allocating initializer function and the
+        // setter function as arguments. DefiniteInitialization will then decide
+        // between the two functions, depending if it's an init call or a
+        // set call.
+        VarDecl *field = cast<VarDecl>(Storage);
+        auto FieldType = field->getValueInterfaceType();
+        if (!Substitutions.empty()) {
+          FieldType = FieldType.subst(Substitutions);
+        }
+
+        // Emit the init accessor function partially applied to the base.
+        auto *initAccessor = field->getOpaqueAccessor(AccessorKind::Init);
+        auto initConstant = SGF.getAccessorDeclRef(initAccessor);
+        SILValue initFRef = SGF.emitGlobalFunctionRef(loc, initConstant);
+
+        // Emit the set accessor function partially applied to the base.
+        auto setterFRef = getSetterFRef();
+        auto setterTy = getSetterType(setterFRef);
+        SILFunctionConventions setterConv(setterTy, SGF.SGM.M);
+        auto setterFn = emitPartialSetterApply(setterFRef, setterConv);
+
+        // Create the assign_or_init with the initializer and setter.
+        auto value = emitValue(field, FieldType, setterTy, setterConv);
+        SGF.B.createAssignOrInit(loc, value.forward(SGF), initFRef,
+                                 setterFn.getValue(),
+                                 AssignOrInitInst::Unknown);
+        return;
+      }
 
       if (canRewriteSetAsPropertyWrapperInit(SGF) &&
           !Storage->isStatic() &&
@@ -2933,7 +3005,11 @@ namespace {
       case AccessorKind::WillSet:
       case AccessorKind::DidSet:
         llvm_unreachable("cannot use accessor directly to perform an access");
+
+      case AccessorKind::Init:
+        llvm_unreachable("init accessor not yet implemented");
       }
+
       llvm_unreachable("bad kind");
     }
   };
@@ -3488,11 +3564,12 @@ static bool isCallToSelfOfCurrentFunction(SILGenFunction &SGF, LookupExpr *e) {
              cast<AbstractFunctionDecl>(SGF.FunctionDC->getAsDecl()), false);
 }
 
-static bool isCurrentFunctionReadAccess(SILGenFunction &SGF) {
+static bool isCurrentFunctionAccessor(SILGenFunction &SGF,
+                                      AccessorKind accessorKind) {
   auto *contextAccessorDecl =
       dyn_cast_or_null<AccessorDecl>(SGF.FunctionDC->getAsDecl());
   return contextAccessorDecl &&
-         contextAccessorDecl->getAccessorKind() == AccessorKind::Read;
+         contextAccessorDecl->getAccessorKind() == accessorKind;
 }
 
 LValue SILGenLValue::visitMemberRefExpr(MemberRefExpr *e,
@@ -3501,6 +3578,19 @@ LValue SILGenLValue::visitMemberRefExpr(MemberRefExpr *e,
   // MemberRefExpr can refer to type and function members, but the only case
   // that can be an lvalue is a VarDecl.
   VarDecl *var = cast<VarDecl>(e->getMember().getDecl());
+
+  // A reference to an instance property in init accessor body
+  // has to be remapped into an argument reference because all
+  // of the properties from initialized/accesses lists are passed
+  // to init accessors individually via arguments.
+  if (isCurrentFunctionAccessor(SGF, AccessorKind::Init)) {
+    if (auto *arg = SGF.isMappedToInitAccessorArgument(var)) {
+      auto subs = e->getMember().getSubstitutions();
+      return emitLValueForNonMemberVarDecl(
+          SGF, e, ConcreteDeclRef(arg, subs), getSubstFormalRValueType(e),
+          accessKind, options, AccessSemantics::Ordinary, None);
+    }
+  }
 
   auto accessSemantics = e->getAccessSemantics();
   AccessStrategy strategy =
@@ -3511,7 +3601,7 @@ LValue SILGenLValue::visitMemberRefExpr(MemberRefExpr *e,
 
   bool isOnSelfParameter = isCallToSelfOfCurrentFunction(SGF, e);
 
-  bool isContextRead = isCurrentFunctionReadAccess(SGF);
+  bool isContextRead = isCurrentFunctionAccessor(SGF, AccessorKind::Read);
 
   // If we are inside _read, calling self.get, and the _read we are inside of is
   // the same as the as self's variable and the current function is a
@@ -3712,7 +3802,7 @@ LValue SILGenLValue::visitSubscriptExpr(SubscriptExpr *e,
                             SGF.F.getResilienceExpansion());
 
   bool isOnSelfParameter = isCallToSelfOfCurrentFunction(SGF, e);
-  bool isContextRead = isCurrentFunctionReadAccess(SGF);
+  bool isContextRead = isCurrentFunctionAccessor(SGF, AccessorKind::Read);
 
   // If we are inside _read, calling self.get, and the _read we are inside of is
   // the same as the as self's variable and the current function is a
@@ -4170,8 +4260,17 @@ ManagedValue SILGenFunction::emitLoad(SILLocation loc, SILValue addr,
     // If the client is cool with a +0 rvalue, the decl has an address-only
     // type, and there are no conversions, then we can return this as a +0
     // address RValue.
-    if (isPlusZeroOk && rvalueTL.getLoweredType() == addrTL.getLoweredType())
-      return ManagedValue::forUnmanaged(addr);
+    if (isPlusZeroOk) {
+      SILType rvalueType = rvalueTL.getLoweredType();
+      SILType addrType = addrTL.getLoweredType();
+      if (!rvalueType.isMoveOnlyWrapped() && addrType.isMoveOnlyWrapped()) {
+        SILValue value = B.createMoveOnlyWrapperToCopyableAddr(loc, addr);
+        return ManagedValue::forUnmanaged(value);
+      }
+      if (rvalueTL.getLoweredType() == addrTL.getLoweredType()) {
+        return ManagedValue::forUnmanaged(addr);
+      }
+    }
 
     // Copy the address-only value.
     return B.bufferForExpr(
@@ -4510,19 +4609,29 @@ void SILGenFunction::emitSemanticLoadInto(SILLocation loc,
     return;
   }
 
-  // Then see if our source address was a move only type and our dest was
+  // Then see if our source address was a moveonlywrapped type and our dest was
   // not. In such a case, just cast away the move only and perform a
   // copy_addr. We are going to error on this later after SILGen.
   if (srcTL.getLoweredType().removingMoveOnlyWrapper() ==
       destTL.getLoweredType().removingMoveOnlyWrapper()) {
     // In such a case, for now emit B.createCopyAddr. In the future, insert the
     // address version of moveonly_to_copyable.
-    if (src->getType().isMoveOnlyWrapped())
-      src = B.createUncheckedAddrCast(
-          loc, src, srcTL.getLoweredType().removingMoveOnlyWrapper());
-    if (dest->getType().isMoveOnlyWrapped())
-      dest = B.createUncheckedAddrCast(
-          loc, dest, destTL.getLoweredType().removingMoveOnlyWrapper());
+    if (src->getType().isMoveOnlyWrapped()) {
+      // If we have a take, we are performing an owned usage of our src addr. If
+      // we aren't taking, then we can use guaranteed.
+      if (isTake) {
+        src = B.createMoveOnlyWrapperToCopyableAddr(loc, src);
+      } else {
+        src = B.createMoveOnlyWrapperToCopyableAddr(loc, src);
+      }
+    }
+    if (dest->getType().isMoveOnlyWrapped()) {
+      if (isInit) {
+        dest = B.createMoveOnlyWrapperToCopyableAddr(loc, dest);
+      } else {
+        dest = B.createMoveOnlyWrapperToCopyableAddr(loc, dest);
+      }
+    }
     B.createCopyAddr(loc, src, dest, isTake, isInit);
     return;
   }
@@ -4539,24 +4648,27 @@ void SILGenFunction::emitSemanticStore(SILLocation loc,
                                        IsInitialization_t isInit) {
   assert(destTL.getLoweredType().getAddressType() == dest->getType());
 
-  // If our rvalue is a move only value, insert a moveonly_to_copyable
-  // instruction. This type must have come from the usage of an @_noImplicitCopy
-  // or @_isNoEscape. We rely on the relevant checkers at the SIL level to
-  // validate that this is safe to do. SILGen is just leaving in crumbs to be
-  // checked.
-  //
-  // TODO: For now we are only supporting objects since we are setup to handle
-  // lets when opaque values are enabled. We may also in the future support
-  // vars. If we do that before opaque values are enabled, we will use it to
-  // also handle address only lets.
-  if (rvalue->getType().isMoveOnlyWrapped() && rvalue->getType().isObject()) {
-    rvalue = B.createOwnedMoveOnlyWrapperToCopyableValue(loc, rvalue);
+  if (rvalue->getType().isMoveOnlyWrapped()) {
+
+    // If our rvalue is a moveonlywrapped value, insert a moveonly_to_copyable
+    // instruction. We rely on the relevant checkers at the SIL level to
+    // validate that this is safe to do. SILGen is just leaving in crumbs to be
+    // checked.
+    if (rvalue->getType().isObject())
+      rvalue = B.createOwnedMoveOnlyWrapperToCopyableValue(loc, rvalue);
+    else
+      rvalue = B.createMoveOnlyWrapperToCopyableAddr(loc, rvalue);
+  }
+
+  // If our dest is a moveonlywrapped address, unwrap it.
+  if (dest->getType().isMoveOnlyWrapped()) {
+    dest = B.createMoveOnlyWrapperToCopyableAddr(loc, dest);
   }
 
   // Easy case: the types match.
-  if (rvalue->getType() == destTL.getLoweredType()) {
-    assert(!silConv.useLoweredAddresses()
-           || (destTL.isAddressOnly() == rvalue->getType().isAddress()));
+  if (rvalue->getType().getObjectType() == dest->getType().getObjectType()) {
+    assert(!silConv.useLoweredAddresses() ||
+           (dest->getType().isAddressOnly(F) == rvalue->getType().isAddress()));
     if (rvalue->getType().isAddress()) {
       B.createCopyAddr(loc, rvalue, dest, IsTake, isInit);
     } else {
@@ -4995,7 +5107,8 @@ static bool trySetterPeephole(SILGenFunction &SGF, SILLocation loc,
   }
 
   auto &setterComponent = static_cast<GetterSetterComponent&>(component);
-  if (setterComponent.canRewriteSetAsPropertyWrapperInit(SGF))
+  if (setterComponent.canRewriteSetAsPropertyWrapperInit(SGF) ||
+      setterComponent.canRewriteSetAsInitAccessor(SGF))
     return false;
 
   setterComponent.emitAssignWithSetter(SGF, loc, std::move(dest),
@@ -5098,6 +5211,12 @@ void SILGenFunction::emitCopyLValueInto(SILLocation loc, LValue &&src,
   UnenforcedAccess access;
   SILValue accessAddress =
     access.beginAccess(*this, loc, destAddr, SILAccessKind::Modify);
+
+  if (srcAddr->getType().isMoveOnlyWrapped())
+    srcAddr = B.createMoveOnlyWrapperToCopyableAddr(loc, srcAddr);
+  if (accessAddress->getType().isMoveOnlyWrapped())
+    accessAddress = B.createMoveOnlyWrapperToCopyableAddr(loc, accessAddress);
+
   B.createCopyAddr(loc, srcAddr, accessAddress, IsNotTake, IsInitialization);
   access.endAccess(*this);
 

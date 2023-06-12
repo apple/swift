@@ -182,8 +182,12 @@ AvailabilityInference::parentDeclForInferredAvailability(const Decl *D) {
       return NTD;
   }
 
-  if (auto *PBD = dyn_cast<PatternBindingDecl>(D))
+  if (auto *PBD = dyn_cast<PatternBindingDecl>(D)) {
+    if (PBD->getNumPatternEntries() < 1)
+      return nullptr;
+
     return PBD->getAnchoringVarDecl(0);
+  }
 
   if (auto *OTD = dyn_cast<OpaqueTypeDecl>(D))
     return OTD->getNamingDecl();

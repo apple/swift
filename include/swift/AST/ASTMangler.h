@@ -16,6 +16,7 @@
 #include "swift/Basic/Mangler.h"
 #include "swift/AST/Types.h"
 #include "swift/AST/Decl.h"
+#include "swift/AST/FreestandingMacroExpansion.h"
 #include "swift/Basic/TaggedUnion.h"
 
 namespace clang {
@@ -367,8 +368,7 @@ public:
   mangleRuntimeAttributeGeneratorEntity(const ValueDecl *decl, CustomAttr *attr,
                                         SymbolKind SKind = SymbolKind::Default);
 
-  std::string mangleMacroExpansion(const MacroExpansionExpr *expansion);
-  std::string mangleMacroExpansion(const MacroExpansionDecl *expansion);
+  std::string mangleMacroExpansion(const FreestandingMacroExpansion *expansion);
   std::string mangleAttachedMacroExpansion(
       const Decl *decl, CustomAttr *attr, MacroRole role);
 

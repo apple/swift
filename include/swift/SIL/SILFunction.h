@@ -76,6 +76,11 @@ enum ForceEnableLexicalLifetimes_t {
   DoForceEnableLexicalLifetimes
 };
 
+enum UseStackForPackMetadata_t {
+  DoNotUseStackForPackMetadata,
+  DoUseStackForPackMetadata,
+};
+
 enum class PerformanceConstraints : uint8_t {
   None = 0,
   NoAllocation = 1,
@@ -291,6 +296,9 @@ private:
   /// The function's remaining set of specialize attributes.
   std::vector<SILSpecializeAttr*> SpecializeAttrSet;
 
+  /// Name of a section if @_section attribute was used, otherwise empty.
+  StringRef Section;
+
   /// Has value if there's a profile for this function
   /// Contains Function Entry Count
   ProfileCounter EntryCount;
@@ -345,6 +353,9 @@ private:
   /// preserved and exported more widely than its Swift linkage and usage
   /// would indicate.
   unsigned HasCReferences : 1;
+
+  /// Whether attribute @_used was present
+  unsigned MarkedAsUsed : 1;
 
   /// Whether cross-module references to this function should always use weak
   /// linking.
@@ -411,6 +422,10 @@ private:
 
   /// If true, the function has lexical lifetimes even if the module does not.
   unsigned ForceEnableLexicalLifetimes : 1;
+
+  /// If true, the function contains an instruction that prevents stack nesting
+  /// from running with pack metadata markers in place.
+  unsigned UseStackForPackMetadata : 1;
 
   static void
   validateSubclassScope(SubclassScope scope, IsThunk_t isThunk,
@@ -685,6 +700,14 @@ public:
 
   void setForceEnableLexicalLifetimes(ForceEnableLexicalLifetimes_t value) {
     ForceEnableLexicalLifetimes = value;
+  }
+
+  UseStackForPackMetadata_t useStackForPackMetadata() const {
+    return UseStackForPackMetadata_t(UseStackForPackMetadata);
+  }
+
+  void setUseStackForPackMetadata(UseStackForPackMetadata_t value) {
+    UseStackForPackMetadata = value;
   }
 
   /// Returns true if this is a reabstraction thunk of escaping function type
@@ -1233,6 +1256,14 @@ public:
     auto *V = getLocation().getAsASTNode<ValueDecl>();
     return V && V->getAttrs().hasAttribute<AlwaysEmitIntoClientAttr>();
   }
+
+  /// Return whether this function has attribute @_used on it
+  bool markedAsUsed() const { return MarkedAsUsed; }
+  void setMarkedAsUsed(bool value) { MarkedAsUsed = value; }
+
+  /// Return custom section name if @_section was used, otherwise empty
+  StringRef section() const { return Section; }
+  void setSection(StringRef value) { Section = value; }
 
   /// Returns true if this function belongs to a declaration that returns
   /// an opaque result type with one or more availability conditions that are

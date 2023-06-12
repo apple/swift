@@ -244,6 +244,9 @@ namespace swift {
     /// Emit a remark after loading a module.
     bool EnableModuleLoadingRemarks = false;
 
+    /// Emit remarks about contextual inconsistencies in loaded modules.
+    bool EnableModuleRecoveryRemarks = false;
+
     /// Emit a remark when indexing a system module.
     bool EnableIndexingSystemModuleRemarks = false;
     
@@ -310,6 +313,10 @@ namespace swift {
     /// Imports getters and setters as computed properties.
     bool CxxInteropGettersSettersAsProperties = false;
 
+    /// Should the compiler require C++ interoperability to be enabled
+    /// when importing Swift modules that enable C++ interoperability.
+    bool RequireCxxInteropToImportCxxInteropModule = true;
+
     /// On Darwin platforms, use the pre-stable ABI's mark bit for Swift
     /// classes instead of the stable ABI's bit. This is needed when
     /// targeting OSes prior to macOS 10.14.4 and iOS 12.2, where
@@ -330,9 +337,6 @@ namespace swift {
     /// Flags for developers
     ///
 
-    /// Enable named lazy member loading.
-    bool NamedLazyMemberLoading = true;
-    
     /// Whether to record request references for incremental builds.
     bool RecordRequestReferences = true;
 
@@ -395,6 +399,11 @@ namespace swift {
     /// unsafe to read.
     bool EnableDeserializationSafety =
       ::getenv("SWIFT_ENABLE_DESERIALIZATION_SAFETY");
+
+    /// Attempt to recover for imported modules with broken modularization
+    /// in an unsafe way. Currently applies only to xrefs where the target
+    /// decl moved to a different module that is already loaded.
+    bool ForceWorkaroundBrokenModules = false;
 
     /// Whether to enable the new operator decl and precedencegroup lookup
     /// behavior. This is a staging flag, and will be removed in the future.
@@ -813,6 +822,9 @@ namespace swift {
     /// clang CASOptions.
     std::string CASPath;
 
+    /// Cache key for imported bridging header.
+    std::string BridgingHeaderPCHCacheKey;
+
     /// Disable validating the persistent PCH.
     bool PCHDisableValidation = false;
 
@@ -881,6 +893,9 @@ namespace swift {
     /// Disable implicitly-built Clang modules because they are explicitly
     /// built and provided to the compiler invocation.
     bool DisableImplicitClangModules = false;
+
+    /// Enable ClangIncludeTree for explicit module builds.
+    bool UseClangIncludeTree = false;
 
     /// Return a hash code of any components from these options that should
     /// contribute to a Swift Bridging PCH hash.

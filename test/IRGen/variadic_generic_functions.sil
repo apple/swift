@@ -34,8 +34,8 @@ struct Gen2<Fwd : Q> : Q {}
 // CHECK:         [[METADATA_PACK_PTR:%[^,]+]] = bitcast [1 x %swift.type*]* [[METADATA_PACK]] to %swift.type**
 // CHECK:         [[WTABLE_ELEMENT_0:%[^,]+]] = getelementptr inbounds [1 x i8**], [1 x i8**]* [[WTABLE_PACK]]
 // CHECK:         store i8** getelementptr inbounds {{.*}}$s26variadic_generic_functions3S_2VAA1PAAWP{{.*}}, i8*** [[WTABLE_ELEMENT_0]]
-// CHECK:         [[WTABLE_PACK_ADDR:%[^,]+]] = bitcast [1 x i8**]* [[WTABLE_PACK]] to i8***
-// CHECK:         call swiftcc void @g([[INT]] 1, %swift.type** [[METADATA_PACK_PTR]], i8*** [[WTABLE_PACK_ADDR]])
+// CHECK:         [[WTABLE_PACK_PTR:%[^,]+]] = bitcast [1 x i8**]* [[WTABLE_PACK]] to i8***
+// CHECK:         call swiftcc void @g([[INT]] 1, %swift.type** [[METADATA_PACK_PTR]], i8*** [[WTABLE_PACK_PTR]])
 sil @c : $() -> () {
   %g = function_ref @g : $@convention(thin) <each T : P> () -> ()
   apply %g<Pack{S_2}>() : $@convention(thin) <each T : P> () -> ()
@@ -127,11 +127,13 @@ sil @associatedtype_with_added_conformance_2_callee : $<each T : R> () -> () {}
 // CHECK-SAME:        %swift.type** %"each T",
 // CHECK-SAME:        i8*** %"each T.Q")
 // CHECK:             [[GEN2_TYPES:%[^,]+]] = alloca %swift.type*, [[INT]] [[SHAPE]]
+// CHECK:             [[STORED_STACK_LOC:%[^,]+]] = call i8* @llvm.stacksave()
 // CHECK:             [[GEN2_CONFORMANCES_TO_Q:%[^,]+]] = alloca i8**, [[INT]] [[SHAPE]]
 // CHECK:             call swiftcc void @associatedtype_with_forwarded_conformance_1_callee(
 // CHECK-SAME:            [[INT]] [[SHAPE]],
 // CHECK-SAME:            %swift.type** [[GEN2_TYPES]],
 // CHECK-SAME:            i8*** [[GEN2_CONFORMANCES_TO_Q]])
+// CHECK:             call void @llvm.stackrestore(i8* [[STORED_STACK_LOC]])
 sil @associatedtype_with_forwarded_conformance_1 : $<each T : Q> () -> () {
     %i = function_ref @associatedtype_with_forwarded_conformance_1_callee : $@convention(thin) <each T : Q> () -> ()
     apply %i<Pack{repeat Gen2<each T>}>() : $@convention(thin) <each T : Q> () -> ()
@@ -148,12 +150,14 @@ sil @associatedtype_with_forwarded_conformance_1_callee : $<each T : Q> () -> ()
 // CHECK-SAME:        i8*** %"each T.PA",
 // CHECK-SAME:        i8*** %"each T.A.Q")
 // CHECK:         [[GEN1_TYPES:%[^,]+]] = alloca %swift.type*, [[INT]] [[SHAPE]]
+// CHECK:         [[STORED_STACK_LOC:%[^,]+]] = call i8* @llvm.stacksave()
 // CHECK:         [[GEN1_CONFORMANCES_TO_PA:%[^,]+]] = alloca i8**, [[INT]] [[SHAPE]]
 // CHECK:         call swiftcc void @generictype_with_forwarded_conformance_2_callee(
 // CHECK-SAME:        [[INT]] [[SHAPE]],
 // CHECK-SAME:        %swift.type** [[GEN1_TYPES]],
 // CHECK-SAME:        i8*** [[GEN1_CONFORMANCES_TO_PA]],
 // CHECK-SAME:        i8*** %"each T.A.Q")
+// CHECK:         call void @llvm.stackrestore(i8* [[STORED_STACK_LOC]])
 sil @generictype_with_forwarded_conformance_2 : $<each T : PA where repeat each T.A : Q>() -> () {
     %callee = function_ref @generictype_with_forwarded_conformance_2_callee : $@convention(thin) <each T : PA where repeat each T.A : Q> () -> ()
     apply %callee<Pack{repeat Gen1<each T>}>() : $@convention(thin) <each T : PA where repeat each T.A : Q> () -> ()
@@ -169,12 +173,14 @@ sil @generictype_with_forwarded_conformance_2_callee : $<each T : PA where repea
 // CHECK-SAME:        i8*** %"each T.PA",
 // CHECK-SAME:        i8*** %"each T.A.Q")
 // CHECK:         [[GEN1_GEN1_TYPES:%[^,]+]] = alloca %swift.type*, [[INT]] [[SHAPE]]
+// CHECK:         [[STORED_STACK_LOC:%[^,]+]] = call i8* @llvm.stacksave()
 // CHECK:         [[GEN1_GEN1_CONFORMANCES_TO_PA:%[^,]+]] = alloca i8**, [[INT]] [[SHAPE]]
 // CHECK:         call swiftcc void @generic_with_forwarded_conformance_3_callee(
 // CHECK-SAME:        [[INT]] [[SHAPE]],
 // CHECK-SAME:        %swift.type** [[GEN1_GEN1_TYPES]],
 // CHECK-SAME:        i8*** [[GEN1_GEN1_CONFORMANCES_TO_PA]],
 // CHECK-SAME:        i8*** %"each T.A.Q")
+// CHECK:         call void @llvm.stackrestore(i8* [[STORED_STACK_LOC]])
 sil @generic_with_forwarded_conformance_3 : $<each T : PA where repeat each T.A : Q> () -> () {
     %callee = function_ref @generic_with_forwarded_conformance_3_callee : $@convention(thin) <each T : PA where repeat each T.A : Q> () -> ()
     apply %callee<Pack{repeat Gen1<Gen1<each T>>}>() : $@convention(thin) <each T : PA where repeat each T.A : Q> () -> ()

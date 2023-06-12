@@ -36,7 +36,7 @@ void StackNesting::setup() {
     BlockInfo &BI = BlockInfos[Block];
     for (SILInstruction &I : *Block) {
       if (I.isAllocatingStack()) {
-        auto Alloc = cast<SingleValueInstruction>(&I);
+        auto Alloc = &I;
         // Register this stack location.
         unsigned CurrentBitNumber = StackLocs.size();
         StackLoc2BitNumbers[Alloc] = CurrentBitNumber;
@@ -44,7 +44,7 @@ void StackNesting::setup() {
 
         BI.StackInsts.push_back(Alloc);
       } else if (I.isDeallocatingStack()) {
-        auto *AllocInst = cast<SingleValueInstruction>(I.getOperand(0));
+        auto *AllocInst = getAllocForDealloc(&I);
         if (!BI.StackInsts.empty() && BI.StackInsts.back() == AllocInst) {
           // As an optimization, we ignore perfectly nested alloc-dealloc pairs
           // inside a basic block.
@@ -113,7 +113,8 @@ bool StackNesting::solve() {
   // the backward data flow would be sufficient).
   // The special thing about dead-end blocks is that it's okay to have alive
   // locations at that point (e.g. at an `unreachable`) i.e. locations which are
-  // never dealloced. We cannot get such locations with a purly backward dataflow.
+  // never dealloced. We cannot get such locations with a purely backward
+  // dataflow.
   do {
     changed = false;
 
@@ -138,7 +139,7 @@ bool StackNesting::solve() {
   } while (changed);
 
   // Second step: do a backward dataflow analysis to extend the lifetimes of
-  // no properly nested allocations.
+  // not properly nested allocations.
   do {
     changed = false;
 
@@ -173,7 +174,7 @@ bool StackNesting::solve() {
           int BitNr = bitNumberForAlloc(StackInst);
           if (Bits != StackLocs[BitNr].AliveLocs) {
             // More locations are alive around the StackInst's location.
-            // Update the AlivaLocs bitset, which contains all those alive
+            // Update the AliveLocs bitset, which contains all those alive
             // locations.
             assert(Bits.test(BitNr) && "no dealloc found for alloc stack");
             StackLocs[BitNr].AliveLocs = Bits;
@@ -200,7 +201,7 @@ bool StackNesting::solve() {
   return isNested;
 }
 
-static SILInstruction *createDealloc(SingleValueInstruction *Alloc,
+static SILInstruction *createDealloc(SILInstruction *Alloc,
                                      SILInstruction *InsertionPoint,
                                      SILLocation Location) {
   SILBuilderWithScope B(InsertionPoint);
@@ -210,13 +211,28 @@ static SILInstruction *createDealloc(SingleValueInstruction *Alloc,
       assert((isa<AllocStackInst>(Alloc) ||
               cast<PartialApplyInst>(Alloc)->isOnStack()) &&
              "wrong instruction");
-      return B.createDeallocStack(Location, Alloc);
+      return B.createDeallocStack(Location,
+                                  cast<SingleValueInstruction>(Alloc));
     case SILInstructionKind::AllocRefDynamicInst:
     case SILInstructionKind::AllocRefInst:
       assert(cast<AllocRefInstBase>(Alloc)->canAllocOnStack());
-      return B.createDeallocStackRef(Location, Alloc);
+      return B.createDeallocStackRef(Location, cast<AllocRefInstBase>(Alloc));
     case SILInstructionKind::AllocPackInst:
-      return B.createDeallocPack(Location, Alloc);
+      return B.createDeallocPack(Location, cast<AllocPackInst>(Alloc));
+    case SILInstructionKind::BuiltinInst: {
+      auto *bi = cast<BuiltinInst>(Alloc);
+      assert(bi->getBuiltinKind() == BuiltinValueKind::StackAlloc ||
+             bi->getBuiltinKind() == BuiltinValueKind::UnprotectedStackAlloc);
+      auto &context = Alloc->getFunction()->getModule().getASTContext();
+      auto identifier =
+          context.getIdentifier(getBuiltinName(BuiltinValueKind::StackDealloc));
+      return B.createBuiltin(Location, identifier,
+                             SILType::getEmptyTupleType(context),
+                             SubstitutionMap(), {bi});
+    }
+    case SILInstructionKind::AllocPackMetadataInst:
+      return B.createDeallocPackMetadata(Location,
+                                         cast<AllocPackMetadataInst>(Alloc));
     default:
       llvm_unreachable("unknown stack allocation");
   }
@@ -339,7 +355,7 @@ StackNesting::Changes StackNesting::fixNesting(SILFunction *F) {
       return Changes::None;
 
     // Insert deallocs at block boundaries. This might be necessary in CFG sub
-    // graphs which don't  reach a function exit, but only an unreachable.
+    // graphs which don't reach a function exit, but only an unreachable.
     changes = SN.insertDeallocsAtBlockBoundaries();
     if (changes == Changes::None) {
       // Do the real work: extend lifetimes by moving deallocs.
@@ -367,13 +383,13 @@ void StackNesting::dump() const {
     llvm::dbgs() << '\n';
     for (SILInstruction *StackInst : bd.data.StackInsts) {
       if (StackInst->isAllocatingStack()) {
-        auto AllocInst = cast<SingleValueInstruction>(StackInst);
+        auto AllocInst = StackInst;
         int BitNr = StackLoc2BitNumbers.lookup(AllocInst);
         llvm::dbgs() << "  alloc #" << BitNr << ": alive=";
         dumpBits(StackLocs[BitNr].AliveLocs);
         llvm::dbgs() << ",     " << *StackInst;
       } else if (StackInst->isDeallocatingStack()) {
-        auto *AllocInst = cast<SingleValueInstruction>(StackInst->getOperand(0));
+        auto *AllocInst = getAllocForDealloc(StackInst);
         int BitNr = StackLoc2BitNumbers.lookup(AllocInst);
         llvm::dbgs() << "  dealloc for #" << BitNr << "\n"
                         "    " << *StackInst;

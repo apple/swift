@@ -3,6 +3,7 @@
 
 // REQUIRES: objc_interop
 // REQUIRES: optimized_stdlib
+// REQUIRES: swift_in_compiler
 
 import Foundation
 

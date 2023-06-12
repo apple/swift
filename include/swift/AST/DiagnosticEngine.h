@@ -143,7 +143,7 @@ namespace swift {
       StringRef StringVal;
       DeclNameRef IdentifierVal;
       ObjCSelector ObjCSelectorVal;
-      ValueDecl *TheValueDecl;
+      const ValueDecl *TheValueDecl;
       Type TypeVal;
       TypeRepr *TyR;
       FullyQualified<Type> FullyQualifiedTypeVal;
@@ -194,7 +194,7 @@ namespace swift {
       : Kind(DiagnosticArgumentKind::ObjCSelector), ObjCSelectorVal(S) {
     }
 
-    DiagnosticArgument(ValueDecl *VD)
+    DiagnosticArgument(const ValueDecl *VD)
       : Kind(DiagnosticArgumentKind::ValueDecl), TheValueDecl(VD) {
     }
 
@@ -305,7 +305,7 @@ namespace swift {
       return ObjCSelectorVal;
     }
 
-    ValueDecl *getAsValueDecl() const {
+    const ValueDecl *getAsValueDecl() const {
       assert(Kind == DiagnosticArgumentKind::ValueDecl);
       return TheValueDecl;
     }

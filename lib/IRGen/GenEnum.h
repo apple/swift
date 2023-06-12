@@ -33,6 +33,12 @@ namespace swiftcall {
 }
 
 namespace swift {
+namespace irgen {
+  class IRBuilder;
+}
+}
+
+namespace swift {
   class EnumElementDecl;
   enum IsInitialization_t : bool;
   enum IsTake_t : bool;
@@ -109,7 +115,8 @@ llvm::APInt gatherBits(const llvm::APInt &mask,
 /// move them to the bit positions indicated by the mask.
 /// Equivalent to a parallel bit deposit instruction (PDEP),
 /// although we don't currently emit PDEP directly.
-llvm::Value *emitScatterBits(IRGenFunction &IGF,
+llvm::Value *emitScatterBits(IRGenModule &IGM,
+                             IRBuilder &builder,
                              llvm::APInt mask,
                              llvm::Value *packedBits,
                              unsigned packedLowBit);
@@ -321,7 +328,8 @@ public:
   
   /// Emit the construction sequence for an enum case into an explosion.
   /// Corresponds to the SIL 'enum' instruction.
-  virtual void emitValueInjection(IRGenFunction &IGF,
+  virtual void emitValueInjection(IRGenModule &IGM,
+                                  IRBuilder &builder,
                                   EnumElementDecl *elt,
                                   Explosion &params,
                                   Explosion &out) const = 0;
@@ -424,14 +432,15 @@ public:
                       bool isOutlined, SILType T) const = 0;
   virtual void initialize(IRGenFunction &IGF, Explosion &e, Address addr,
                           bool isOutlined) const = 0;
-  virtual void reexplode(IRGenFunction &IGF, Explosion &src,
+  virtual void reexplode(Explosion &src,
                          Explosion &dest) const = 0;
   virtual void copy(IRGenFunction &IGF, Explosion &src,
                     Explosion &dest, Atomicity atomicity) const = 0;
   virtual void consume(IRGenFunction &IGF, Explosion &src,
                        Atomicity atomicity, SILType T) const = 0;
   virtual void fixLifetime(IRGenFunction &IGF, Explosion &src) const = 0;
-  virtual void packIntoEnumPayload(IRGenFunction &IGF,
+  virtual void packIntoEnumPayload(IRGenModule &IGM,
+                                   IRBuilder &builder,
                                    EnumPayload &payload,
                                    Explosion &in,
                                    unsigned offset) const = 0;

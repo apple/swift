@@ -128,7 +128,7 @@ extension Unicode._InternalNFC.Iterator: IteratorProtocol {
       // already NFD, so the last scalar in the buffer will have the highest
       // CCC value in this normalization segment.
       guard let lastBufferedNormData = buffer.last?.normData else {
-        // If we do not any have scalars in our buffer yet, then this step is
+        // If we do not have any scalars in our buffer yet, then this step is
         // trivial. Attempt to compose our current scalar with whatever composee
         // we're currently building up.
 

@@ -483,7 +483,14 @@ static ManagedValue createInputFunctionArgument(
   assert((F.isBare() || isFormalParameterPack || decl) &&
          "Function arguments of non-bare functions must have a decl");
   auto *arg = F.begin()->createFunctionArgument(type, decl);
-  arg->setNoImplicitCopy(isNoImplicitCopy);
+  if (auto *pd = dyn_cast_or_null<ParamDecl>(decl)) {
+    if (!arg->getType().isPureMoveOnly()) {
+      isNoImplicitCopy |= pd->getSpecifier() == ParamSpecifier::Borrowing;
+      isNoImplicitCopy |= pd->getSpecifier() == ParamSpecifier::Consuming;
+    }
+  }
+  if (isNoImplicitCopy)
+    arg->setNoImplicitCopy(isNoImplicitCopy);
   arg->setClosureCapture(isClosureCapture);
   arg->setLifetimeAnnotation(lifetimeAnnotation);
   arg->setFormalParameterPack(isFormalParameterPack);
@@ -980,11 +987,12 @@ ManagedValue SILGenBuilder::createBeginBorrow(SILLocation loc,
   return ManagedValue::forUnmanaged(newValue);
 }
 
-ManagedValue SILGenBuilder::createMoveValue(SILLocation loc,
-                                            ManagedValue value) {
+ManagedValue SILGenBuilder::createMoveValue(SILLocation loc, ManagedValue value,
+                                            bool isLexical) {
   assert(value.isPlusOne(SGF) && "Must be +1 to be moved!");
   CleanupCloner cloner(*this, value);
-  auto *mdi = createMoveValue(loc, value.forward(getSILGenFunction()));
+  auto *mdi =
+      createMoveValue(loc, value.forward(getSILGenFunction()), isLexical);
   return cloner.clone(mdi);
 }
 
@@ -1027,8 +1035,9 @@ ManagedValue SILGenBuilder::createGuaranteedCopyableToMoveOnlyWrapperValue(
 ManagedValue
 SILGenBuilder::createMarkMustCheckInst(SILLocation loc, ManagedValue value,
                                        MarkMustCheckInst::CheckKind kind) {
-  assert((value.isPlusOne(SGF) || value.isLValue()) &&
-         "Argument must be at +1 or be an inout!");
+  assert((value.isPlusOne(SGF) || value.isLValue() ||
+          value.getType().isAddress()) &&
+         "Argument must be at +1 or be an address!");
   CleanupCloner cloner(*this, value);
   auto *mdi = SILBuilder::createMarkMustCheckInst(
       loc, value.forward(getSILGenFunction()), kind);

@@ -736,6 +736,16 @@ AbstractFunctionDecl *SILDeclRef::getAbstractFunctionDecl() const {
   return dyn_cast<AbstractFunctionDecl>(getDecl());
 }
 
+bool SILDeclRef::isInitAccessor() const {
+  if (kind != Kind::Func || !hasDecl())
+    return false;
+
+  if (auto accessor = dyn_cast<AccessorDecl>(getDecl()))
+    return accessor->getAccessorKind() == AccessorKind::Init;
+
+  return false;
+}
+
 /// True if the function should be treated as transparent.
 bool SILDeclRef::isTransparent() const {
   if (isEnumElement())

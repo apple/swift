@@ -107,6 +107,7 @@ add_swift_target_library(swift_Concurrency ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} I
   GlobalActor.swift
   MainActor.swift
   PartialAsyncTask.swift
+  Setup.cpp
   SourceCompatibilityShims.swift
   Task.cpp
   Task.swift

@@ -1,10 +1,10 @@
 // RUN: %empty-directory(%t)
-// RUN: %target-swift-frontend -prespecialize-generic-metadata -enable-experimental-feature LayoutStringValueWitnesses -enable-experimental-feature LayoutStringValueWitnessesInstantiation -enable-layout-string-value-witnesses -enable-layout-string-value-witnesses-instantiation -enable-type-layout -enable-autolinking-runtime-compatibility-bytecode-layouts -emit-module -emit-module-path=%t/layout_string_witnesses_types.swiftmodule %S/Inputs/layout_string_witnesses_types.swift
+// RUN: %target-swift-frontend -prespecialize-generic-metadata -enable-experimental-feature LayoutStringValueWitnesses -enable-experimental-feature LayoutStringValueWitnessesInstantiation -enable-layout-string-value-witnesses -enable-layout-string-value-witnesses-instantiation -enable-type-layout -enable-autolinking-runtime-compatibility-bytecode-layouts -parse-stdlib -emit-module -emit-module-path=%t/layout_string_witnesses_types.swiftmodule %S/Inputs/layout_string_witnesses_types.swift
 // RUN: %target-build-swift-dylib(%t/%target-library-name(layout_string_witnesses_types)) -Xfrontend -enable-experimental-feature -Xfrontend LayoutStringValueWitnesses -Xfrontend -enable-experimental-feature -Xfrontend LayoutStringValueWitnessesInstantiation -Xfrontend -enable-layout-string-value-witnesses -Xfrontend -enable-layout-string-value-witnesses-instantiation -Xfrontend -enable-type-layout -Xfrontend -parse-stdlib -parse-as-library %S/Inputs/layout_string_witnesses_types.swift
 // RUN: %target-codesign %t/%target-library-name(layout_string_witnesses_types)
 // RUN: %target-swift-frontend -enable-experimental-feature LayoutStringValueWitnesses -enable-experimental-feature LayoutStringValueWitnessesInstantiation -enable-layout-string-value-witnesses -enable-layout-string-value-witnesses-instantiation -enable-library-evolution -enable-autolinking-runtime-compatibility-bytecode-layouts -emit-module -emit-module-path=%t/layout_string_witnesses_types_resilient.swiftmodule %S/Inputs/layout_string_witnesses_types_resilient.swift
 // RUN: %target-build-swift -g -Xfrontend -enable-experimental-feature -Xfrontend LayoutStringValueWitnesses -Xfrontend -enable-experimental-feature -Xfrontend LayoutStringValueWitnessesInstantiation -Xfrontend -enable-layout-string-value-witnesses -Xfrontend -enable-layout-string-value-witnesses-instantiation -Xfrontend -enable-library-evolution -c -parse-as-library -o %t/layout_string_witnesses_types_resilient.o %S/Inputs/layout_string_witnesses_types_resilient.swift
-// RUN: %target-build-swift -g -Xfrontend -enable-experimental-feature -Xfrontend LayoutStringValueWitnesses -Xfrontend -enable-experimental-feature -Xfrontend LayoutStringValueWitnessesInstantiation -Xfrontend -enable-layout-string-value-witnesses -Xfrontend -enable-layout-string-value-witnesses-instantiation -Xfrontend -enable-type-layout -Xfrontend -enable-autolinking-runtime-compatibility-bytecode-layouts -module-name layout_string_witnesses_dynamic -llayout_string_witnesses_types -L%t %t/layout_string_witnesses_types_resilient.o -I %t -o %t/main %s %target-rpath(%t)
+// RUN: %target-build-swift -g -Xfrontend -enable-experimental-feature -Xfrontend LayoutStringValueWitnesses -Xfrontend -enable-experimental-feature -Xfrontend LayoutStringValueWitnessesInstantiation -Xfrontend -enable-layout-string-value-witnesses -Xfrontend -enable-layout-string-value-witnesses-instantiation -Xfrontend -enable-type-layout -parse-stdlib -module-name layout_string_witnesses_dynamic -llayout_string_witnesses_types -L%t %t/layout_string_witnesses_types_resilient.o -I %t -o %t/main %s %target-rpath(%t)
 // RUN: %target-codesign %t/main
 // RUN: %target-run %t/main %t/%target-library-name(layout_string_witnesses_types) | %FileCheck %s --check-prefix=CHECK -check-prefix=CHECK-%target-os
 
@@ -12,6 +12,7 @@
 
 // UNSUPPORTED: back_deployment_runtime
 
+import Swift
 import layout_string_witnesses_types
 import layout_string_witnesses_types_resilient
 
@@ -394,6 +395,70 @@ func testGenericResilient() {
 }
 
 testGenericResilient()
+
+func testMixedEnumWrapperWrapperGeneric() {
+    let ptr = allocateInternalGenericPtr(of: MixedEnumWrapperWrapperGeneric<TestClass>.self)
+
+    do {
+        let x = MixedEnumWrapperWrapperGeneric(x: MixedEnumWrapper(x: .nonEmpty(SimpleClass(x: 23)),
+                                                                   y: .e(SimpleClass(x: 32))),
+                                               y: TestClass())
+        testGenericInit(ptr, to: x)
+    }
+
+    do {
+        let y = MixedEnumWrapperWrapperGeneric(x: MixedEnumWrapper(x: .nonEmpty(SimpleClass(x: 28)),
+                                                                   y: .e(SimpleClass(x: 82))),
+                                               y: TestClass())
+        // CHECK: Before deinit
+        print("Before deinit")
+
+        // CHECK-NEXT: SimpleClass deinitialized!
+        // CHECK-NEXT: SimpleClass deinitialized!
+        // CHECK-NEXT: TestClass deinitialized!
+        testGenericAssign(ptr, from: y)
+    }
+
+    // CHECK-NEXT: Before deinit
+    print("Before deinit")
+
+    // CHECK-NEXT: SimpleClass deinitialized!
+    // CHECK-NEXT: SimpleClass deinitialized!
+    // CHECK-NEXT: TestClass deinitialized!
+    testGenericDestroy(ptr, of: MixedEnumWrapperWrapperGeneric<TestClass>.self)
+
+    ptr.deallocate()
+}
+
+testMixedEnumWrapperWrapperGeneric()
+
+func testGenericSinglePayloadEnumManyXI() {
+    let ptr = allocateInternalGenericPtr(of: SinglePayloadEnumManyXI.self)
+
+    do {
+        let x = SinglePayloadEnumManyXI.nonEmpty(Builtin.zeroInitializer(), SimpleClass(x: 23))
+        testGenericInit(ptr, to: x)
+    }
+
+    do {
+        let y = SinglePayloadEnumManyXI.nonEmpty(Builtin.zeroInitializer(), SimpleClass(x: 23))
+        // CHECK: Before deinit
+        print("Before deinit")
+
+        // CHECK-NEXT: SimpleClass deinitialized!
+        testGenericAssign(ptr, from: y)
+    }
+
+    // CHECK-NEXT: Before deinit
+    print("Before deinit")
+
+    // CHECK-NEXT: SimpleClass deinitialized!
+    testGenericDestroy(ptr, of: SinglePayloadEnumManyXI.self)
+
+    ptr.deallocate()
+}
+
+testGenericSinglePayloadEnumManyXI()
 
 #if os(macOS)
 

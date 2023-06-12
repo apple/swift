@@ -45,29 +45,29 @@ struct StructWithField {
 
 func testLetStructAccessField() {
   let t = StructWithField()
-  let _ = copy t.k // expected-error {{'copy' can only be applied to lvalues}}
+  let _ = copy t.k // expected-error {{'copy' can only be applied to a local binding ('let', 'var', or parameter)}}
 }
 
 func testLetStructAccessComputedField() {
     let t = StructWithField()
-    let _ = copy t.computedK  // expected-error {{'copy' can only be applied to lvalues}}
+    let _ = copy t.computedK  // expected-error {{'copy' can only be applied to a local binding ('let', 'var', or parameter)}}
 }
 
 func testVarStructAccessField() {
     var t = StructWithField()
     t = StructWithField()
-    let _ = copy t.k // expected-error {{'copy' can only be applied to lvalues}}
+    let _ = copy t.k // expected-error {{'copy' can only be applied to a local binding ('let', 'var', or parameter)}}
 }
 
 func testLetClassAccessField() {
     let t = Klass()
-    let _ = copy t.k  // expected-error {{'copy' can only be applied to lvalues}}
+    let _ = copy t.k  // expected-error {{'copy' can only be applied to a local binding ('let', 'var', or parameter)}}
 }
 
 func testVarClassAccessField() {
     var t = Klass()
     t = Klass()
-    let _ = copy t.k // expected-error {{'copy' can only be applied to lvalues}}
+    let _ = copy t.k // expected-error {{'copy' can only be applied to a local binding ('let', 'var', or parameter)}}
 }
 
 struct MoveOnly : ~Copyable {}
@@ -88,7 +88,7 @@ func testCopyResultImmutable() {
 
   var t = Test()
   t.mutatingTest()
-  copy t.borrowingTest() // expected-error {{'copy' can only be applied to lvalues}}
+  copy t.borrowingTest() // expected-error {{'copy' can only be applied to a local binding ('let', 'var', or parameter)}}
   (copy t).borrowingTest()
   (copy t).consumingTest()
   (copy t).mutatingTest() // expected-error {{cannot use mutating member on immutable value of type 'Test'}}

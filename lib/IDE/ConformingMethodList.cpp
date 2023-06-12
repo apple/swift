@@ -166,7 +166,8 @@ void ConformingMethodListCallbacks::getMatchingMethods(
 
   } LocalConsumer(CurDeclContext, T, expectedTypes, result);
 
-  lookupVisibleMemberDecls(LocalConsumer, MetatypeType::get(T), CurDeclContext,
+  lookupVisibleMemberDecls(LocalConsumer, MetatypeType::get(T),
+                           Loc, CurDeclContext,
                            /*includeInstanceMembers=*/false,
                            /*includeDerivedRequirements*/false,
                            /*includeProtocolExtensionMembers*/true);

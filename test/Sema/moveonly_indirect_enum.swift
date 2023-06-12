@@ -17,7 +17,7 @@ enum E1 {
 }
 
 @_moveOnly
-indirect enum E2 { // expected-error {{move-only enum 'E2' cannot be marked indirect or have indirect cases yet}}
+indirect enum E2 { // expected-error {{noncopyable enum 'E2' cannot be marked indirect or have indirect cases yet}}
     case first
     case second(S)
 }
@@ -25,5 +25,5 @@ indirect enum E2 { // expected-error {{move-only enum 'E2' cannot be marked indi
 @_moveOnly
 enum E3 {
     case first
-    indirect case second(S) // expected-error {{move-only enum 'E3' cannot be marked indirect or have indirect cases yet}}
+    indirect case second(S) // expected-error {{noncopyable enum 'E3' cannot be marked indirect or have indirect cases yet}}
 }

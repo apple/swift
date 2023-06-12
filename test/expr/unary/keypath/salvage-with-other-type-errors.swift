@@ -44,7 +44,7 @@ struct B {
     }
 }
 func f3() {
-    B(v: "").f1(block: { _ in }).f2(keyPath: \B.v) // expected-error{{unable to infer type of a closure parameter '_' in the current context}}
+    B(v: "").f1(block: { _ in }).f2(keyPath: \B.v) // expected-error{{cannot infer type of closure parameter '_' without a type annotation}}
 }
 
 // https://github.com/apple/swift/issues/47949

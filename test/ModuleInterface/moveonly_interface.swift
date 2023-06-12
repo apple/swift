@@ -4,6 +4,6 @@
 // RUN: %target-swift-frontend -DSYNTHESIZE_ACCESSORS -enable-library-evolution -module-name Hello -emit-module -o %t/Hello.swiftmodule -emit-module-interface-path %t/Hello.swiftinterface %S/Inputs/moveonly_simple.swift
 
 // rdar://106164128
-// XFAIL: *
+// REQUIRES: rdar106164128
 
 // TODO: finish this test by verifying the interface with FileCheck

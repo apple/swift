@@ -516,7 +516,7 @@ do {
   func set_via_closure<T, U>(_ closure: (inout T, U) -> ()) {} // expected-note {{in call to function 'set_via_closure'}}
   set_via_closure({ $0.number1 = $1 })
   // expected-error@-1 {{generic parameter 'T' could not be inferred}}
-  // expected-error@-2 {{unable to infer type of a closure parameter '$1' in the current context}}
+  // expected-error@-2 {{cannot infer type of closure parameter '$1' without a type annotation}}
 
   func f2<T>(_ item: T, _ update: (inout T) -> Void) {
     var x = item
@@ -1052,12 +1052,12 @@ overloaded_with_default_and_autoclosure { 42 } // Ok
 overloaded_with_default_and_autoclosure(42) // Ok
 
 /// https://github.com/apple/swift/issues/55261
-/// "error: type of expression is ambiguous without more context" in many cases
+/// "error: type of expression is ambiguous without a type annotation" in many cases
 /// where methods are missing.
 do {
   let _ = { a, b in }
-  // expected-error@-1 {{unable to infer type of a closure parameter 'a' in the current context}}
-  // expected-error@-2 {{unable to infer type of a closure parameter 'b' in the current context}}
+  // expected-error@-1 {{cannot infer type of closure parameter 'a' without a type annotation}}
+  // expected-error@-2 {{cannot infer type of closure parameter 'b' without a type annotation}}
 
   _ = .a { b in } // expected-error {{cannot infer contextual base in reference to member 'a'}}
 
@@ -1078,7 +1078,7 @@ let explicitUnboundResult2: (Array<Bool>) -> Array<Int> = {
 }
 // FIXME: Should we prioritize the contextual result type and infer Array<Int>
 // rather than using a type variable in these cases?
-// expected-error@+1 {{unable to infer closure type in the current context}}
+// expected-error@+1 {{unable to infer closure type without a type annotation}}
 let explicitUnboundResult3: (Array<Bool>) -> Array<Int> = {
   (arr: Array) -> Array in [true]
 }

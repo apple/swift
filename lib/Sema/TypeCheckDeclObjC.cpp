@@ -717,6 +717,13 @@ bool swift::isRepresentableInObjC(
           .limitBehavior(behavior);
       Reason.describe(accessor);
       return false;
+
+    case AccessorKind::Init:
+      diagnoseAndRemoveAttr(accessor, Reason.getAttr(),
+                            diag::objc_init_accessor)
+          .limitBehavior(behavior);
+      Reason.describe(accessor);
+      return false;
     }
     llvm_unreachable("bad kind");
   }
@@ -1402,6 +1409,7 @@ Optional<ObjCReason> shouldMarkAsObjC(const ValueDecl *VD, bool allowImplicit) {
       case AccessorKind::Modify:
       case AccessorKind::Read:
       case AccessorKind::WillSet:
+      case AccessorKind::Init:
         return false;
 
       case AccessorKind::MutableAddress:
@@ -3116,13 +3124,13 @@ private:
       }
 
       // Ambiguous match (many requirements match one candidate)
-      cand->diagnose(diag::objc_implementation_multiple_matching_requirements,
+      diagnose(cand, diag::objc_implementation_multiple_matching_requirements,
                      cand->getDescriptiveKind(), cand);
 
       bool shouldOfferFix = !candExplicitObjCName;
       for (auto req : matchedRequirements.matches) {
         auto diag =
-            cand->diagnose(diag::objc_implementation_one_matched_requirement,
+            diagnose(cand, diag::objc_implementation_one_matched_requirement,
                            req->getDescriptiveKind(), req,
                            *req->getObjCRuntimeName(), shouldOfferFix,
                            req->getObjCRuntimeName()->getString(scratch));
@@ -3165,14 +3173,14 @@ private:
           cast<IterableDeclContext>(req->getDeclContext()->getAsDecl());
       auto ext =
           cast<ExtensionDecl>(reqIDC->getImplementationContext());
-      ext->diagnose(diag::objc_implementation_multiple_matching_candidates,
+      diagnose(ext, diag::objc_implementation_multiple_matching_candidates,
                     req->getDescriptiveKind(), req,
                     *req->getObjCRuntimeName());
 
       for (auto cand : cands.matches) {
         bool shouldOfferFix = !unmatchedCandidates[cand];
         auto diag =
-            cand->diagnose(diag::objc_implementation_candidate_impl_here,
+            diagnose(cand, diag::objc_implementation_candidate_impl_here,
                            cand->getDescriptiveKind(), cand, shouldOfferFix,
                            req->getObjCRuntimeName()->getString(scratch));
 
@@ -3183,7 +3191,7 @@ private:
         }
       }
 
-      req->diagnose(diag::objc_implementation_requirement_here,
+      diagnose(req, diag::objc_implementation_requirement_here,
                     req->getDescriptiveKind(), req);
     }
 

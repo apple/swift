@@ -371,6 +371,11 @@ public:
     return getNumIndirectSILResults();
   }
 
+  /// Returns the index of self.
+  unsigned getSILArgIndexOfSelf() const {
+    return getSILArgIndexOfFirstParam() + getNumParameters() - 1;
+  }
+
   /// Get the index into formal indirect results corresponding to the given SIL
   /// indirect result argument index.
   unsigned getIndirectFormalResultIndexForSILArg(unsigned argIdx) const {

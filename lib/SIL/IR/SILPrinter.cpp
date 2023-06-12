@@ -341,6 +341,9 @@ void SILDeclRef::print(raw_ostream &OS) const {
     case AccessorKind::Modify:
       OS << "!modify";
       break;
+    case AccessorKind::Init:
+      OS << "!init";
+      break;
     }
     break;
   }
@@ -683,7 +686,7 @@ class SILPrinter : public SILInstructionVisitor<SILPrinter> {
     if (i.IsReborrow)
       *this << "@reborrow ";
     if (i.IsEscaping)
-      *this << "@escaping ";
+      *this << "@pointer_escape ";
     if (i.OwnershipKind && *i.OwnershipKind != OwnershipKind::None) {
       *this << "@" << i.OwnershipKind.value() << " ";
     }
@@ -720,7 +723,7 @@ public:
     return {Ctx.getID(arg),          arg->getType(),
             arg->isNoImplicitCopy(), arg->getLifetimeAnnotation(),
             arg->isClosureCapture(), arg->isReborrow(),
-            arg->isEscaping()};
+            arg->hasPointerEscape()};
   }
 
   SILValuePrinterInfo getIDAndTypeAndOwnership(SILValue V) {
@@ -734,11 +737,11 @@ public:
             arg->getLifetimeAnnotation(),
             arg->isClosureCapture(),
             arg->isReborrow(),
-            arg->isEscaping()};
+            arg->hasPointerEscape()};
   }
   SILValuePrinterInfo getIDAndTypeAndOwnership(SILArgument *arg) {
     return {Ctx.getID(arg), arg->getType(), arg->getOwnershipKind(),
-            arg->isReborrow(), arg->isEscaping()};
+            arg->isReborrow(), arg->hasPointerEscape()};
   }
 
   //===--------------------------------------------------------------------===//
@@ -1424,6 +1427,9 @@ public:
   void visitAllocPackInst(AllocPackInst *API) {
     *this << API->getType().getObjectType();
   }
+  void visitAllocPackMetadataInst(AllocPackMetadataInst *APMI) {
+    *this << APMI->getType().getObjectType();
+  }
 
   void printAllocRefInstBase(AllocRefInstBase *ARI) {
     if (ARI->isObjC())
@@ -1455,6 +1461,10 @@ public:
     
     if (ABI->emitReflectionMetadata()) {
       *this << "[reflection] ";
+    }
+
+    if (ABI->hasPointerEscape()) {
+      *this << "[pointer_escape] ";
     }
 
     if (ABI->getUsesMoveableValueDebugInfo() &&
@@ -1673,11 +1683,14 @@ public:
     *this << getIDAndType(LBI->getOperand());
   }
 
-  void visitBeginBorrowInst(BeginBorrowInst *LBI) {
-    if (LBI->isLexical()) {
+  void visitBeginBorrowInst(BeginBorrowInst *BBI) {
+    if (BBI->isLexical()) {
       *this << "[lexical] ";
     }
-    *this << getIDAndType(LBI->getOperand());
+    if (BBI->hasPointerEscape()) {
+      *this << "[pointer_escape] ";
+    }
+    *this << getIDAndType(BBI->getOperand());
   }
 
   void printStoreOwnershipQualifier(StoreOwnershipQualifier Qualifier) {
@@ -1758,8 +1771,33 @@ public:
       *this << "[assign_wrapped_value] ";
       break;
     }
+
     *this << getIDAndType(AI->getDest())
           << ", init " << getIDAndType(AI->getInitializer())
+          << ", set " << getIDAndType(AI->getSetter());
+  }
+
+  void visitAssignOrInitInst(AssignOrInitInst *AI) {
+    switch (AI->getMode()) {
+    case AssignOrInitInst::Unknown:
+      break;
+    case AssignOrInitInst::Init:
+      *this << "[init] ";
+      break;
+    case AssignOrInitInst::Set:
+      *this << "[set] ";
+      break;
+    }
+
+    // Print all of the properties that have been previously initialized.
+    for (unsigned i = 0, n = AI->getNumInitializedProperties(); i != n; ++i) {
+      if (AI->isPropertyAlreadyInitialized(i)) {
+        *this << "[assign=" << i << "] ";
+      }
+    }
+
+    *this << getIDAndType(AI->getSrc());
+    *this << ", init " << getIDAndType(AI->getInitializer())
           << ", set " << getIDAndType(AI->getSetter());
   }
 
@@ -1777,6 +1815,9 @@ public:
     case MarkUninitializedInst::DelegatingSelf: *this << "[delegatingself] ";break;
     case MarkUninitializedInst::DelegatingSelfAllocated:
       *this << "[delegatingselfallocated] ";
+      break;
+    case MarkUninitializedInst::Out:
+      *this << "[out] ";
       break;
     }
     *this << getIDAndType(MU->getOperand());
@@ -2015,6 +2056,8 @@ public:
       *this << "[allows_diagnostics] ";
     if (I->isLexical())
       *this << "[lexical] ";
+    if (I->hasPointerEscape())
+      *this << "[pointer_escape] ";
     *this << getIDAndType(I->getOperand());
   }
 
@@ -2444,6 +2487,9 @@ public:
   void visitDeallocPackInst(DeallocPackInst *DI) {
     *this << getIDAndType(DI->getOperand());
   }
+  void visitDeallocPackMetadataInst(DeallocPackMetadataInst *DPMI) {
+    *this << getIDAndType(DPMI->getOperand());
+  }
   void visitDeallocStackRefInst(DeallocStackRefInst *ESRL) {
     *this << getIDAndType(ESRL->getOperand());
   }
@@ -2474,6 +2520,18 @@ public:
           << (BAI->hasNoNestedConflict() ? "[no_nested_conflict] " : "")
           << (BAI->isFromBuiltin() ? "[builtin] " : "")
           << getIDAndType(BAI->getOperand());
+  }
+  void visitMoveOnlyWrapperToCopyableAddrInst(
+      MoveOnlyWrapperToCopyableAddrInst *BAI) {
+    *this << getIDAndType(BAI->getOperand());
+  }
+  void
+  visitMoveOnlyWrapperToCopyableBoxInst(MoveOnlyWrapperToCopyableBoxInst *BAI) {
+    *this << getIDAndType(BAI->getOperand());
+  }
+  void visitCopyableToMoveOnlyWrapperAddrInst(
+      CopyableToMoveOnlyWrapperAddrInst *BAI) {
+    *this << getIDAndType(BAI->getOperand());
   }
   void visitEndAccessInst(EndAccessInst *EAI) {
     *this << (EAI->isAborting() ? "[abort] " : "")
@@ -3154,6 +3212,9 @@ void SILFunction::print(SILPrintContext &PrintCtx) const {
   if (forceEnableLexicalLifetimes()) {
     OS << "[lexical_lifetimes] ";
   }
+  if (!useStackForPackMetadata()) {
+    OS << "[no_onstack_pack_metadata] ";
+  }
 
   if (isExactSelfClass()) {
     OS << "[exact_self_class] ";
@@ -3235,6 +3296,12 @@ void SILFunction::print(SILPrintContext &PrintCtx) const {
   for (auto *Attr : getSpecializeAttrs()) {
     OS << "[_specialize "; Attr->print(OS); OS << "] ";
   }
+
+  if (markedAsUsed())
+    OS << "[used] ";
+
+  if (!section().empty())
+    OS << "[section \"" << section() << "\"] ";
 
   // TODO: Handle clang node owners which don't have a name.
   if (hasClangNode() && getClangNodeOwner()->hasName()) {

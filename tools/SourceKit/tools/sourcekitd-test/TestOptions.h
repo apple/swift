@@ -70,6 +70,7 @@ enum class SourceKitRequest {
   Diagnostics,
   Compile,
   CompileClose,
+  SyntacticMacroExpansion,
 #define SEMANTIC_REFACTORING(KIND, NAME, ID) KIND,
 #include "swift/Refactoring/RefactoringKinds.def"
 };

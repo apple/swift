@@ -1,0 +1,207 @@
+// RUN: %target-sil-opt -enable-experimental-feature MoveOnlyEnumDeinits -enable-sil-verify-all %s -simplification -simplify-instruction=release_value | %FileCheck %s
+
+// REQUIRES: swift_in_compiler
+
+import Swift
+import Builtin
+
+class C {}
+
+enum U {
+  init()
+  case X
+  case Y(Builtin.Int64)
+  case Z(C)
+}
+
+enum EnumWithPayload {
+  case A(UInt64)
+  case B(AnyObject)
+  case C
+}
+
+struct WithDeinit : ~Copyable {
+  deinit
+}
+
+struct Outer : ~Copyable {
+  var wd: WithDeinit
+}
+
+enum EnumWithDeinit: ~Copyable {
+  case A(Int64)
+  case B
+
+  deinit
+}
+
+struct TwoEnums {
+  var u1: U
+  var u2: U
+}
+
+struct MyStringObj {
+  @_hasStorage var a: UInt64
+  @_hasStorage var b: Builtin.BridgeObject
+}
+
+struct MyStringGuts {
+  @_hasStorage var o: MyStringObj
+}
+
+struct MyString {
+  @_hasStorage var g: MyStringGuts
+}
+
+
+// CHECK-LABEL: sil @release_value_test
+// CHECK:       bb0({{%[0-9]+}} : $Builtin.Int8, [[RELEASE_TARGET:%[0-9]+]] : $Builtin.NativeObject):
+// CHECK-NEXT:    strong_release [[RELEASE_TARGET]] : $Builtin.NativeObject
+// CHECK-NEXT:    tuple ()
+// CHECK-NEXT:    return
+// CHECK:       } // end sil function 'release_value_test'
+sil @release_value_test : $@convention(thin) (Builtin.Int8, Builtin.NativeObject) -> () {
+bb0(%0 : $Builtin.Int8, %1 : $Builtin.NativeObject):
+  release_value %0 : $Builtin.Int8
+  release_value %1 : $Builtin.NativeObject
+  %2 = tuple()
+  return %2 : $()
+}
+
+// CHECK-LABEL: sil @dont_remove_struct_with_deinit_field
+// CHECK:         release_value %0
+// CHECK:       } // end sil function 'dont_remove_struct_with_deinit_field'
+sil @dont_remove_struct_with_deinit_field : $@convention(thin) (Outer) -> () {
+bb0(%0 : $Outer):
+  release_value %0 : $Outer
+  %2 = tuple ()
+  return %2 : $()
+}
+
+// CHECK-LABEL: sil @struct_with_two_trivial_enums
+// CHECK-NOT:     release_value
+// CHECK:       } // end sil function 'struct_with_two_trivial_enums'
+sil @struct_with_two_trivial_enums : $@convention(thin) (Builtin.Int64) -> () {
+bb0(%0 : $Builtin.Int64):
+  %1 = enum $U, #U.X!enumelt
+  %2 = enum $U, #U.Y!enumelt, %0 : $Builtin.Int64
+  %3 = struct $TwoEnums (%1 : $U, %2 : $U)
+  release_value %3 : $TwoEnums
+  %5 = tuple ()
+  return %5 : $()
+}
+
+// CHECK-LABEL: sil @struct_with_non_trivial_enums
+// CHECK:         release_value
+// CHECK:       } // end sil function 'struct_with_non_trivial_enums'
+sil @struct_with_non_trivial_enums : $@convention(thin) (@guaranteed C) -> () {
+bb0(%0 : $C):
+  %1 = enum $U, #U.X!enumelt
+  %2 = enum $U, #U.Z!enumelt, %0 : $C
+  %3 = struct $TwoEnums (%1 : $U, %2 : $U)
+  release_value %3 : $TwoEnums
+  %5 = tuple ()
+  return %5 : $()
+}
+
+// CHECK-LABEL: sil @remove_value_to_bridge_object
+// CHECK:      bb0(%0 : $UInt64):
+// CHECK-NEXT:   tuple
+// CHECK-NEXT:   return
+// CHECK:      } // end sil function 'remove_value_to_bridge_object'
+sil @remove_value_to_bridge_object : $@convention(thin) (UInt64) -> () {
+bb0(%0 : $UInt64):
+  %1 = integer_literal $Builtin.Int64, -1945555039024054272
+  %2 = value_to_bridge_object %1 : $Builtin.Int64
+  %3 = struct $MyStringObj (%0 : $UInt64, %2 : $Builtin.BridgeObject)
+  %4 = struct $MyStringGuts (%3 : $MyStringObj)
+  %5 = struct $MyString (%4 : $MyStringGuts)
+  release_value %5 : $MyString
+  %7 = tuple ()
+  return %7 : $()
+}
+
+// CHECK-LABEL: sil @sil_destroyvalue_of_enum
+// CHECK:       bb0([[TYPE_ARG:%[0-9]+]] : $@thin U.Type, [[CLASS_ARG:%[0-9]+]] : $C):
+// CHECK-NEXT:    enum $U, #U.X!enumelt
+// CHECK-NEXT:    integer_literal $Builtin.Int64, 32
+// CHECK-NEXT:    enum $U, #U.Y!enumelt, {{%[0-9]+}} : $Builtin.Int64
+// CHECK-NEXT:    [[INVALID_CASE:%[0-9]+]] = enum $U, #U.Z!enumelt, {{%[0-9]+}} : $C
+// CHECK-NEXT:    strong_release [[CLASS_ARG]] : $C
+// CHECK-NEXT:    tuple ({{%[0-9]+}} : $U, {{%[0-9]+}} : $U, [[INVALID_CASE]] : $U)
+// CHECK-NEXT:    return
+// CHECK:       } // end sil function 'sil_destroyvalue_of_enum'
+sil @sil_destroyvalue_of_enum : $@convention(thin) (@thin U.Type, C) -> (U, U, U) {
+bb0(%0 : $@thin U.Type, %1 : $C):
+  %2 = enum $U, #U.X!enumelt
+  release_value %2 : $U
+  %3 = integer_literal $Builtin.Int64, 32
+  %4 = enum $U, #U.Y!enumelt, %3 : $Builtin.Int64
+  release_value %4 : $U
+  %5 = enum $U, #U.Z!enumelt, %1 : $C
+  release_value %5 : $U
+  %6 = tuple(%2 : $U, %4 : $U, %5 : $U)
+  return %6 : $(U, U, U)
+}
+
+// CHECK-LABEL: sil @ref_ops_of_enum_is_equivalent_to_ref_ops_of_payload :
+// CHECK:       bb0
+// CHECK-NEXT:    enum
+// CHECK-NEXT:    strong_release %0
+// CHECK-NEXT:    return
+// CHECK:       } // end sil function 'ref_ops_of_enum_is_equivalent_to_ref_ops_of_payload'
+sil @ref_ops_of_enum_is_equivalent_to_ref_ops_of_payload : $@convention(thin) (Builtin.NativeObject) -> Optional<Builtin.NativeObject> {
+bb0(%0 : $Builtin.NativeObject):
+  %1 = enum $Optional<Builtin.NativeObject>, #Optional.some!enumelt, %0 : $Builtin.NativeObject
+  release_value %1 : $Optional<Builtin.NativeObject>
+  return %1 : $Optional<Builtin.NativeObject>
+}
+
+// CHECK-LABEL: sil @lower_retainrelease_value_of_unowned_to_unowned_retainrelease :
+// CHECK:         unowned_release
+// CHECK:       } // end sil function 'lower_retainrelease_value_of_unowned_to_unowned_retainrelease'
+sil @lower_retainrelease_value_of_unowned_to_unowned_retainrelease : $@convention(thin) (@owned @sil_unowned C) -> () {
+bb0(%0 : $@sil_unowned C):
+  release_value %0 : $@sil_unowned C
+  %r = tuple ()
+  return %r : $()
+}
+
+// CHECK-LABEL: sil @optimize_arc_with_trivial_payload_enum
+// CHECK:       bb0(%0 : $UInt64):
+// CHECK-NEXT:    tuple
+// CHECK-NEXT:    return
+// CHECK:       } // end sil function 'optimize_arc_with_trivial_payload_enum'
+sil @optimize_arc_with_trivial_payload_enum : $@convention(thin) (UInt64) -> () {
+bb0(%0 : $UInt64):
+  %1 = enum $EnumWithPayload, #EnumWithPayload.A!enumelt, %0 : $UInt64
+  release_value %1 : $EnumWithPayload
+  %7 = tuple ()
+  return %7 : $()
+}
+
+// CHECK-LABEL: sil @optimize_arc_with_trivial_enum
+// CHECK:       bb0:
+// CHECK-NEXT:    tuple
+// CHECK-NEXT:    return
+// CHECK:       } // end sil function 'optimize_arc_with_trivial_enum'
+sil @optimize_arc_with_trivial_enum : $@convention(thin) () -> () {
+bb0:
+  %1 = enum $EnumWithPayload, #EnumWithPayload.C!enumelt
+  release_value %1 : $EnumWithPayload
+  %7 = tuple ()
+  return %7 : $()
+}
+
+// CHECK-LABEL: sil @dont_remove_release_of_nontrivial_enum
+// CHECK:         strong_release %0
+// CHECK:       } // end sil function 'dont_remove_release_of_nontrivial_enum'
+sil @dont_remove_release_of_nontrivial_enum : $@convention(thin) (@guaranteed AnyObject) -> () {
+bb0(%0 : $AnyObject):
+  %1 = enum $EnumWithPayload, #EnumWithPayload.B!enumelt, %0 : $AnyObject
+  release_value %1 : $EnumWithPayload
+  %7 = tuple ()
+  return %7 : $()
+}
+
+

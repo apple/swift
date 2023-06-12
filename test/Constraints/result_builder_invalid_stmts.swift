@@ -15,7 +15,6 @@ func foo(_ x: String) -> Int {
   if .random() {
     switch x {
     case 1: // expected-error {{expression pattern of type 'Int' cannot match values of type 'String'}}
-      // expected-note@-1 {{overloads for '~=' exist with these partially matching parameter lists}}
       0
     default:
       1
@@ -29,7 +28,6 @@ func bar(_ x: String) -> Int {
   case 0:
     switch x {
     case 1: // expected-error {{expression pattern of type 'Int' cannot match values of type 'String'}}
-    // expected-note@-1 {{overloads for '~=' exist with these partially matching parameter lists}}
       0
     default:
       1
@@ -44,7 +42,6 @@ func baz(_ x: String) -> Int {
   do {
     switch x {
     case 1: // expected-error {{expression pattern of type 'Int' cannot match values of type 'String'}}
-    // expected-note@-1 {{overloads for '~=' exist with these partially matching parameter lists}}
       0
     default:
       1
@@ -57,7 +54,6 @@ func qux(_ x: String) -> Int {
   for _ in 0 ... 0 {
     switch x {
     case 1: // expected-error {{expression pattern of type 'Int' cannot match values of type 'String'}}
-    // expected-note@-1 {{overloads for '~=' exist with these partially matching parameter lists}}
       0
     default:
       1

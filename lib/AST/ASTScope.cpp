@@ -60,6 +60,12 @@ std::pair<CaseStmt *, CaseStmt *> ASTScope::lookupFallthroughSourceAndDest(
   return ASTScopeImpl::lookupFallthroughSourceAndDest(sourceFile, loc);
 }
 
+void ASTScope::lookupEnclosingMacroScope(
+    SourceFile *sourceFile, SourceLoc loc,
+    llvm::function_ref<bool(PotentialMacro)> body) {
+  return ASTScopeImpl::lookupEnclosingMacroScope(sourceFile, loc, body);
+}
+
 #if SWIFT_COMPILER_IS_MSVC
 #pragma warning(push)
 #pragma warning(disable : 4996)
@@ -138,7 +144,7 @@ DEFINE_GET_CLASS_NAME(AbstractFunctionDeclScope)
 DEFINE_GET_CLASS_NAME(ParameterListScope)
 DEFINE_GET_CLASS_NAME(FunctionBodyScope)
 DEFINE_GET_CLASS_NAME(DefaultArgumentInitializerScope)
-DEFINE_GET_CLASS_NAME(AttachedPropertyWrapperScope)
+DEFINE_GET_CLASS_NAME(CustomAttributeScope)
 DEFINE_GET_CLASS_NAME(PatternEntryDeclScope)
 DEFINE_GET_CLASS_NAME(PatternEntryInitializerScope)
 DEFINE_GET_CLASS_NAME(ConditionalClausePatternUseScope)

@@ -55,6 +55,7 @@ class Decl;
 class AbstractFunctionDecl;
 class FuncDecl;
 class ClassDecl;
+class AccessorDecl;
 class GenericFunctionType;
 class LazyConformanceLoader;
 class LazyMemberLoader;
@@ -100,6 +101,7 @@ class DeclAttribute : public AttributeBase {
   friend class TypeAttributes;
 
 protected:
+  // clang-format off
   union {
     uint64_t OpaqueBits;
 
@@ -177,6 +179,7 @@ protected:
       isCategoryNameInvalid : 1
     );
   } Bits;
+  // clang-format on
 
   DeclAttribute *Next = nullptr;
 
@@ -499,6 +502,24 @@ public:
 
   static bool classof(const DeclAttribute *DA) {
     return DA->getKind() == DAK_SILGenName;
+  }
+};
+
+/// Defines the @_section attribute.
+class SectionAttr : public DeclAttribute {
+public:
+  SectionAttr(StringRef Name, SourceLoc AtLoc, SourceRange Range, bool Implicit)
+    : DeclAttribute(DAK_Section, AtLoc, Range, Implicit),
+      Name(Name) {}
+
+  SectionAttr(StringRef Name, bool Implicit)
+    : SectionAttr(Name, SourceLoc(), SourceRange(), Implicit) {}
+
+  /// The section name.
+  const StringRef Name;
+
+  static bool classof(const DeclAttribute *DA) {
+    return DA->getKind() == DAK_Section;
   }
 };
 
@@ -1530,28 +1551,93 @@ public:
   }
 };
 
+class InitializesAttr final
+    : public DeclAttribute,
+      private llvm::TrailingObjects<InitializesAttr, Identifier> {
+  friend TrailingObjects;
+
+  size_t numProperties;
+
+  InitializesAttr(SourceLoc atLoc, SourceRange range,
+                  ArrayRef<Identifier> properties);
+
+public:
+  static InitializesAttr *create(ASTContext &ctx,
+                                 SourceLoc atLoc, SourceRange range,
+                                 ArrayRef<Identifier> properties);
+
+  size_t numTrailingObjects(OverloadToken<Identifier>) const {
+    return numProperties;
+  }
+
+  unsigned getNumProperties() const { return numProperties; }
+
+  ArrayRef<Identifier> getProperties() const {
+    return {getTrailingObjects<Identifier>(), numProperties};
+  }
+
+  ArrayRef<VarDecl *> getPropertyDecls(AccessorDecl *attachedTo) const;
+
+  static bool classof(const DeclAttribute *DA) {
+    return DA->getKind() == DAK_Initializes;
+  }
+};
+
+class AccessesAttr final
+    : public DeclAttribute,
+      private llvm::TrailingObjects<AccessesAttr, Identifier> {
+  friend TrailingObjects;
+
+  size_t numProperties;
+
+  AccessesAttr(SourceLoc atLoc, SourceRange range,
+               ArrayRef<Identifier> properties);
+
+public:
+  static AccessesAttr *create(ASTContext &ctx,
+                              SourceLoc atLoc, SourceRange range,
+                              ArrayRef<Identifier> properties);
+
+  size_t numTrailingObjects(OverloadToken<Identifier>) const {
+    return numProperties;
+  }
+
+  ArrayRef<Identifier> getProperties() const {
+    return {getTrailingObjects<Identifier>(), numProperties};
+  }
+
+  ArrayRef<VarDecl *> getPropertyDecls(AccessorDecl *attachedTo) const;
+
+  static bool classof(const DeclAttribute *DA) {
+    return DA->getKind() == DAK_Accesses;
+  }
+};
+
 /// The @_implements attribute, which treats a decl as the implementation for
 /// some named protocol requirement (but otherwise not-visible by that name).
 class ImplementsAttr : public DeclAttribute {
-  TypeExpr *ProtocolType;
+  TypeRepr *TyR;
   DeclName MemberName;
   DeclNameLoc MemberNameLoc;
 
-public:
   ImplementsAttr(SourceLoc atLoc, SourceRange Range,
-                 TypeExpr *ProtocolType,
+                 TypeRepr *TyR,
                  DeclName MemberName,
                  DeclNameLoc MemberNameLoc);
 
+public:
   static ImplementsAttr *create(ASTContext &Ctx, SourceLoc atLoc,
                                 SourceRange Range,
-                                TypeExpr *ProtocolType,
+                                TypeRepr *TyR,
                                 DeclName MemberName,
                                 DeclNameLoc MemberNameLoc);
 
-  void setProtocolType(Type ty);
-  Type getProtocolType() const;
-  TypeRepr *getProtocolTypeRepr() const;
+  static ImplementsAttr *create(DeclContext *DC,
+                                ProtocolDecl *Proto,
+                                DeclName MemberName);
+
+  ProtocolDecl *getProtocol(DeclContext *dc) const;
+  TypeRepr *getProtocolTypeRepr() const { return TyR; }
 
   DeclName getMemberName() const { return MemberName; }
   DeclNameLoc getMemberNameLoc() const { return MemberNameLoc; }

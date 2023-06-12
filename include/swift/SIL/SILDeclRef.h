@@ -382,6 +382,9 @@ struct SILDeclRef {
     return kind == Kind::Initializer || kind == Kind::Destroyer;
   }
 
+  /// True if the SILDeclRef references an init accessor declaration.
+  bool isInitAccessor() const;
+
   /// True if the function should be treated as transparent.
   bool isTransparent() const;
   /// True if the function should have its body serialized.

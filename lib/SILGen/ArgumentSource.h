@@ -280,7 +280,7 @@ public:
 
   ArgumentSource copyForDiagnostics() const;
 
-  void dump() const;
+  LLVM_DUMP_METHOD void dump() const;
   void dump(raw_ostream &os, unsigned indent = 0) const;
 
 private:

@@ -76,6 +76,10 @@ public struct OperandArray : RandomAccessCollection, CustomReflectable {
       base: OptionalBridgedOperand(op: base.advancedBy(bounds.lowerBound).op),
       count: bounds.upperBound - bounds.lowerBound)
   }
+
+  public var values: LazyMapSequence<LazySequence<OperandArray>.Elements, Value> {
+    self.lazy.map { $0.value }
+  }
 }
 
 public struct UseList : CollectionLikeSequence {

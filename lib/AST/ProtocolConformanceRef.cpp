@@ -42,6 +42,16 @@ ProtocolConformanceRef::ProtocolConformanceRef(ProtocolDecl *protocol,
   }
 }
 
+bool ProtocolConformanceRef::isInvalid() const {
+  if (!Union)
+    return true;
+
+  if (auto pack = Union.dyn_cast<PackConformance *>())
+    return pack->isInvalid();
+
+  return false;
+}
+
 ProtocolDecl *ProtocolConformanceRef::getRequirement() const {
   assert(!isInvalid());
 
@@ -109,7 +119,9 @@ ProtocolConformanceRef::subst(Type origType, InFlightSubstitution &IFS) const {
   }
 
   // Check the conformance map.
-  return IFS.lookupConformance(origType->getCanonicalType(), substType, proto);
+  // FIXME: Pack element level?
+  return IFS.lookupConformance(origType->getCanonicalType(), substType, proto,
+                               /*level=*/0);
 }
 
 ProtocolConformanceRef ProtocolConformanceRef::mapConformanceOutOfContext() const {
@@ -120,7 +132,8 @@ ProtocolConformanceRef ProtocolConformanceRef::mapConformanceOutOfContext() cons
             return archetypeType->getInterfaceType();
           return type;
         },
-        MakeAbstractConformanceForGenericType());
+        MakeAbstractConformanceForGenericType(),
+        SubstFlags::PreservePackExpansionLevel);
     return ProtocolConformanceRef(concrete);
   } else if (isPack()) {
     return getPack()->subst(
@@ -129,7 +142,8 @@ ProtocolConformanceRef ProtocolConformanceRef::mapConformanceOutOfContext() cons
             return archetypeType->getInterfaceType();
           return type;
         },
-        MakeAbstractConformanceForGenericType());
+        MakeAbstractConformanceForGenericType(),
+        SubstFlags::PreservePackExpansionLevel);
   }
 
   return *this;

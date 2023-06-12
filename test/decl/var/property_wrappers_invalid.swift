@@ -3,9 +3,9 @@
 // FIXME: This should produce a diagnostic with a proper
 // source location. Right now, we just get three useless errors:
 
-// <unknown>:0: error: type of expression is ambiguous without more context
-// <unknown>:0: error: type of expression is ambiguous without more context
-// <unknown>:0: error: type of expression is ambiguous without more context
+// <unknown>:0: error: type of expression is ambiguous without a type annotation
+// <unknown>:0: error: type of expression is ambiguous without a type annotation
+// <unknown>:0: error: type of expression is ambiguous without a type annotation
 
 // The actual problem is the type of the subscript declaration is wrong.
 

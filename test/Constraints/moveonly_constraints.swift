@@ -61,185 +61,185 @@ var globalMO: MO = MO()
 
 // some top-level tests
 let _: MO = globalMO
-takeGeneric(globalMO) // expected-error {{move-only type 'MO' cannot be used with generics yet}}
+takeGeneric(globalMO) // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
 
 
 
 
 func testAny() {
-  let _: Any = MO() // expected-error {{move-only type 'MO' cannot be used with generics yet}}
-  takeAny(MO()) // expected-error {{move-only type 'MO' cannot be used with generics yet}}
+  let _: Any = MO() // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+  takeAny(MO()) // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
 }
 
 func testBasic(_ mo: borrowing MO) {
   takeConcrete(globalMO)
   takeConcrete(MO())
 
-  takeGeneric(globalMO) // expected-error {{move-only type 'MO' cannot be used with generics yet}}
-  takeGeneric(MO()) // expected-error {{move-only type 'MO' cannot be used with generics yet}}
-  takeGeneric(mo) // expected-error {{move-only type 'MO' cannot be used with generics yet}}
+  takeGeneric(globalMO) // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+  takeGeneric(MO()) // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+  takeGeneric(mo) // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
 
-  takeAny(mo) // expected-error {{move-only type 'MO' cannot be used with generics yet}}
-  print(mo) // expected-error {{move-only type 'MO' cannot be used with generics yet}}
-  _ = "\(mo)" // expected-error {{move-only type 'MO' cannot be used with generics yet}}
-  let _: String = String(describing: mo) // expected-error {{move-only type 'MO' cannot be used with generics yet}}
+  takeAny(mo) // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+  print(mo) // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+  _ = "\(mo)" // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+  let _: String = String(describing: mo) // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
 
   takeGeneric { () -> Int? in mo.x }
   genericVarArg(5)
-  genericVarArg(mo) // expected-error {{move-only type 'MO' cannot be used with generics yet}}
+  genericVarArg(mo) // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
 
-  takeGeneric( (mo, 5) ) // expected-error {{move-only type 'MO' cannot be used with generics yet}}
-  takeGenericSendable((mo, mo)) // expected-error 2{{move-only type 'MO' cannot be used with generics yet}}
+  takeGeneric( (mo, 5) ) // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+  takeGenericSendable((mo, mo)) // expected-error 2{{noncopyable type 'MO' cannot be used with generics yet}}
 
   let singleton : (MO) = (mo)
-  takeGeneric(singleton) // expected-error {{move-only type 'MO' cannot be used with generics yet}}
+  takeGeneric(singleton) // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
 
-  takeAny((mo)) // expected-error {{move-only type 'MO' cannot be used with generics yet}}
-  takeAny((mo, mo)) // expected-error {{move-only type '(MO, MO)' cannot be used with generics yet}}
+  takeAny((mo)) // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+  takeAny((mo, mo)) // expected-error {{noncopyable type '(MO, MO)' cannot be used with generics yet}}
 }
 
 func checkBasicBoxes() {
   let mo = MO()
 
-  let vb = ValBox(consume mo) // expected-error 2{{move-only type 'MO' cannot be used with generics yet}}
+  let vb = ValBox(consume mo) // expected-error 2{{noncopyable type 'MO' cannot be used with generics yet}}
   _ = vb.get()
   _ = vb.val
 
-  let rb = RefBox(MO())  // expected-error 2{{move-only type 'MO' cannot be used with generics yet}}
+  let rb = RefBox(MO())  // expected-error 2{{noncopyable type 'MO' cannot be used with generics yet}}
   _ = rb.get()
   _ = rb.val
 
-  let vb2: ValBox<MO> = .init(MO())  // expected-error {{move-only type 'MO' cannot be used with generics yet}}
+  let vb2: ValBox<MO> = .init(MO())  // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
 }
 
 func checkExistential() {
-  takeAnyBox( // expected-error {{move-only type 'MO' cannot be used with generics yet}}
-      RefBox(MO())) // expected-error 2{{move-only type 'MO' cannot be used with generics yet}}
+  takeAnyBox( // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+      RefBox(MO())) // expected-error 2{{noncopyable type 'MO' cannot be used with generics yet}}
 
-  takeAnyBox( // expected-error {{move-only type 'MO' cannot be used with generics yet}}
-      ValBox(globalMO)) // expected-error 2{{move-only type 'MO' cannot be used with generics yet}}
-
-  takeAnyBoxErased(
-      RefBox(MO())) // expected-error 2{{move-only type 'MO' cannot be used with generics yet}}
+  takeAnyBox( // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+      ValBox(globalMO)) // expected-error 2{{noncopyable type 'MO' cannot be used with generics yet}}
 
   takeAnyBoxErased(
-      ValBox(globalMO)) // expected-error 2{{move-only type 'MO' cannot be used with generics yet}}
+      RefBox(MO())) // expected-error 2{{noncopyable type 'MO' cannot be used with generics yet}}
+
+  takeAnyBoxErased(
+      ValBox(globalMO)) // expected-error 2{{noncopyable type 'MO' cannot be used with generics yet}}
 }
 
 func checkMethodCalls() {
-  let tg: NotStoredGenerically<MO> = NotStoredGenerically() // expected-error {{move-only type 'MO' cannot be used with generics yet}}
+  let tg: NotStoredGenerically<MO> = NotStoredGenerically() // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
   tg.take(MO())
   tg.give()
 
-  let _: Maybe<MO> = .none // expected-error {{move-only type 'MO' cannot be used with generics yet}}
-  let _ = Maybe<MO>.just(MO()) // expected-error {{move-only type 'MO' cannot be used with generics yet}}
-  let _: Maybe<MO> = .just(MO()) // expected-error {{move-only type 'MO' cannot be used with generics yet}}
-  takeMaybe(.just(MO())) // expected-error 2{{move-only type 'MO' cannot be used with generics yet}}
+  let _: Maybe<MO> = .none // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+  let _ = Maybe<MO>.just(MO()) // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+  let _: Maybe<MO> = .just(MO()) // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+  takeMaybe(.just(MO())) // expected-error 2{{noncopyable type 'MO' cannot be used with generics yet}}
 
-  takeMaybe(true ? .none : .just(MO())) // expected-error 3{{move-only type 'MO' cannot be used with generics yet}}
+  takeMaybe(true ? .none : .just(MO())) // expected-error 3{{noncopyable type 'MO' cannot be used with generics yet}}
 }
 
 func checkCasting(_ b: any Box, _ mo: borrowing MO, _ a: Any) {
   // casting dynamically is allowed, but should always fail since you can't
   // construct such a type.
-  let box = b as! ValBox<MO> // expected-error {{move-only type 'MO' cannot be used with generics yet}}
+  let box = b as! ValBox<MO> // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
   let dup = box
 
   let _: MO = dup.get()
   let _: MO = dup.val
 
-  let _: Any = MO.self // expected-error {{move-only type 'MO.Type' cannot be used with generics yet}}
-  let _: AnyObject = MO.self // expected-error {{move-only type 'MO.Type' cannot be used with generics yet}}
-  let _ = MO.self as Any // expected-error {{move-only type 'MO.Type' cannot be used with generics yet}}
+  let _: Any = MO.self // expected-error {{noncopyable type 'MO.Type' cannot be used with generics yet}}
+  let _: AnyObject = MO.self // expected-error {{noncopyable type 'MO.Type' cannot be used with generics yet}}
+  let _ = MO.self as Any // expected-error {{noncopyable type 'MO.Type' cannot be used with generics yet}}
   let _ = MO.self is Any // expected-warning {{cast from 'MO.Type' to unrelated type 'Any' always fails}}
 
-  let _: Sendable = (MO(), MO()) // expected-error {{move-only type '(MO, MO)' cannot be used with generics yet}}
-  let _: Sendable = MO() // expected-error {{move-only type 'MO' cannot be used with generics yet}}
+  let _: Sendable = (MO(), MO()) // expected-error {{noncopyable type '(MO, MO)' cannot be used with generics yet}}
+  let _: Sendable = MO() // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
   let _: _Copyable = mo // expected-error {{'_Copyable' is unavailable}}
-                        // expected-error@-1 {{move-only type 'MO' cannot be used with generics yet}}
-  let _: AnyObject = MO() // expected-error {{move-only type 'MO' cannot be used with generics yet}}
-  let _: Any = mo // expected-error {{move-only type 'MO' cannot be used with generics yet}}
+                        // expected-error@-1 {{noncopyable type 'MO' cannot be used with generics yet}}
+  let _: AnyObject = MO() // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+  let _: Any = mo // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
 
-  _ = MO() as P // expected-error {{move-only type 'MO' cannot be used with generics yet}}
-  _ = MO() as any P // expected-error {{move-only type 'MO' cannot be used with generics yet}}
-  _ = MO() as Any // expected-error {{move-only type 'MO' cannot be used with generics yet}}
+  _ = MO() as P // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+  _ = MO() as any P // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+  _ = MO() as Any // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
   _ = MO() as MO
-  _ = MO() as AnyObject // expected-error {{move-only type 'MO' cannot be used with generics yet}}
+  _ = MO() as AnyObject // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
   _ = 5 as MO // expected-error {{cannot convert value of type 'Int' to type 'MO' in coercion}}
   _ = a as MO // expected-error {{cannot convert value of type 'Any' to type 'MO' in coercion}}
   _ = b as MO // expected-error {{cannot convert value of type 'any Box' to type 'MO' in coercion}}
 
   _ = MO() is AnyHashable // expected-warning {{cast from 'MO' to unrelated type 'AnyHashable' always fails}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
   _ = MO() is AnyObject // expected-warning {{cast from 'MO' to unrelated type 'AnyObject' always fails}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
   _ = MO() is Any // expected-warning {{cast from 'MO' to unrelated type 'Any' always fails}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
   _ = MO() is P // expected-warning {{cast from 'MO' to unrelated type 'any P' always fails}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
   _ = MO() is MO // expected-warning {{'is' test is always true}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
 
   _ = 5 is MO // expected-warning {{cast from 'Int' to unrelated type 'MO' always fails}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
   _ = a is MO // expected-warning {{cast from 'Any' to unrelated type 'MO' always fails}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
   _ = b is MO // expected-warning {{cast from 'any Box' to unrelated type 'MO' always fails}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
 
   _ = MO() as! AnyHashable // expected-warning {{cast from 'MO' to unrelated type 'AnyHashable' always fails}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
   _ = MO() as! AnyObject // expected-warning {{cast from 'MO' to unrelated type 'AnyObject' always fails}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
   _ = MO() as! Any // expected-warning {{cast from 'MO' to unrelated type 'Any' always fails}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
   _ = MO() as! P // expected-warning {{cast from 'MO' to unrelated type 'any P' always fails}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
   _ = MO() as! MO // expected-warning {{forced cast of 'MO' to same type has no effect}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
 
   _ = 5 as! MO // expected-warning {{cast from 'Int' to unrelated type 'MO' always fails}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
   _ = a as! MO // expected-warning {{cast from 'Any' to unrelated type 'MO' always fails}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
   _ = b as! MO // expected-warning {{cast from 'any Box' to unrelated type 'MO' always fails}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
 
   _ = MO() as? AnyHashable // expected-warning {{cast from 'MO' to unrelated type 'AnyHashable' always fails}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
   _ = MO() as? AnyObject // expected-warning {{cast from 'MO' to unrelated type 'AnyObject' always fails}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
   _ = MO() as? Any // expected-warning {{cast from 'MO' to unrelated type 'Any' always fails}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
   _ = MO() as? P // expected-warning {{cast from 'MO' to unrelated type 'any P' always fails}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
   _ = MO() as? MO // expected-warning {{conditional cast from 'MO' to 'MO' always succeeds}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
 
   _ = 5 as? MO // expected-warning {{cast from 'Int' to unrelated type 'MO' always fails}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
   _ = a as? MO // expected-warning {{cast from 'Any' to unrelated type 'MO' always fails}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
   _ = b as? MO // expected-warning {{cast from 'any Box' to unrelated type 'MO' always fails}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
 
 }
 
 func checkStdlibTypes(_ mo: borrowing MO) {
-  let _: [MO] = // expected-error {{move-only type 'MO' cannot be used with generics yet}}
+  let _: [MO] = // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
       [MO(), MO()]
-  let _: [MO] = // expected-error {{move-only type 'MO' cannot be used with generics yet}}
+  let _: [MO] = // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
       []
-  let _: [String: MO] = // expected-error {{move-only type 'MO' cannot be used with generics yet}}
+  let _: [String: MO] = // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
       ["hello" : MO()]  // expected-error{{tuples with noncopyable elements are not supported}}
 
   // i think this one's only caught b/c of the 'Any' change
-  _ = [MO()] // expected-error {{move-only type 'MO' cannot be used with generics yet}}
+  _ = [MO()] // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
 
-  let _: Array<MO> = .init() // expected-error {{move-only type 'MO' cannot be used with generics yet}}
-  _ = [MO]() // expected-error {{move-only type 'MO' cannot be used with generics yet}}
+  let _: Array<MO> = .init() // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+  _ = [MO]() // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
 
-  let s: String = "hello \(mo)" // expected-error {{move-only type 'MO' cannot be used with generics yet}}
+  let s: String = "hello \(mo)" // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
 }
 
 func copyableExistentials(_ a: Any, _ e1: Error, _ e2: any Error, _ ah: AnyHashable) {
@@ -280,5 +280,5 @@ func doBadMetatypeStuff<T>(_ t: T) {
   }
 }
 func tryToDoBadMetatypeStuff() {
-  doBadMetatypeStuff(MO.self) // expected-error {{move-only type 'MO.Type' cannot be used with generics yet}}
+  doBadMetatypeStuff(MO.self) // expected-error {{noncopyable type 'MO.Type' cannot be used with generics yet}}
 }

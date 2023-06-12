@@ -76,9 +76,9 @@ struct Foo {
 
     func consumePropertyWrapper() {
         // should still parse, even if it doesn't semantically work out
-        _ = consume wrapperTest // expected-error{{can only be applied to lvalues}}
-        _ = consume _wrapperTest // expected-error{{can only be applied to lvalues}}
-        _ = consume $wrapperTest // expected-error{{can only be applied to lvalues}}
+        _ = consume wrapperTest // expected-error{{can only be applied to a local binding ('let', 'var', or parameter)}}
+        _ = consume _wrapperTest // expected-error{{can only be applied to a local binding ('let', 'var', or parameter)}}
+        _ = consume $wrapperTest // expected-error{{can only be applied to a local binding ('let', 'var', or parameter)}}
     }
 }
 

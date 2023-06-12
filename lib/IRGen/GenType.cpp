@@ -947,11 +947,11 @@ FixedTypeInfo::storeSpareBitExtraInhabitant(IRGenFunction &IGF,
   
   // Scatter the occupied bits.
   auto OccupiedBits = ~SpareBits.asAPInt();
-  llvm::Value *occupied = emitScatterBits(IGF, OccupiedBits,
+  llvm::Value *occupied = emitScatterBits(IGF.IGM, IGF.Builder, OccupiedBits,
                                           occupiedIndex, 0);
   
   // Scatter the spare bits.
-  llvm::Value *spare = emitScatterBits(IGF, SpareBits.asAPInt(),
+  llvm::Value *spare = emitScatterBits(IGF.IGM, IGF.Builder, SpareBits.asAPInt(),
                                        spareIndex, 0);
   
   // Combine the values and store to the destination.
@@ -988,7 +988,8 @@ namespace {
     void fixLifetime(IRGenFunction &IGF, Explosion &src) const override {}
     void destroy(IRGenFunction &IGF, Address addr, SILType T,
                  bool isOutlined) const override {}
-    void packIntoEnumPayload(IRGenFunction &IGF, EnumPayload &payload,
+    void packIntoEnumPayload(IRGenModule &IGM,
+                             IRBuilder &builder, EnumPayload &payload,
                              Explosion &src, unsigned offset) const override {}
     void unpackFromEnumPayload(IRGenFunction &IGF,
                                const EnumPayload &payload,
@@ -1200,7 +1201,7 @@ namespace {
       }
     }
     
-    void reexplode(IRGenFunction &IGF, Explosion &sourceExplosion,
+    void reexplode(Explosion &sourceExplosion,
                    Explosion &targetExplosion) const override {
       for (auto scalarTy : ScalarTypes) {
         (void)scalarTy;
@@ -1210,7 +1211,7 @@ namespace {
     
     void copy(IRGenFunction &IGF, Explosion &sourceExplosion,
               Explosion &targetExplosion, Atomicity atomicity) const override {
-      reexplode(IGF, sourceExplosion, targetExplosion);
+      reexplode(sourceExplosion, targetExplosion);
     }
 
     void consume(IRGenFunction &IGF, Explosion &explosion,
@@ -1245,12 +1246,13 @@ namespace {
                              (offset + getFixedSize()).asCharUnits());
     }
     
-    void packIntoEnumPayload(IRGenFunction &IGF,
+    void packIntoEnumPayload(IRGenModule &IGM,
+                             IRBuilder &builder,
                              EnumPayload &payload,
                              Explosion &source,
                              unsigned offset) const override {
       for (auto scalarTy: ScalarTypes) {
-        payload.insertValue(IGF, source.claimNext(), offset);
+        payload.insertValue(IGM, builder, source.claimNext(), offset);
         offset += scalarTy->getIntegerBitWidth();
       }
     }
@@ -2008,7 +2010,8 @@ CanType TypeConverter::getExemplarType(CanType contextTy) {
         return type;
       },
       MakeAbstractConformanceForGenericType(),
-      SubstFlags::AllowLoweredTypes);
+      SubstFlags::AllowLoweredTypes |
+      SubstFlags::PreservePackExpansionLevel);
     return CanType(exemplified);
   }
 }
@@ -2354,6 +2357,7 @@ const TypeInfo *TypeConverter::convertType(CanType ty) {
     return convertPackType(cast<SILPackType>(ty));
   case TypeKind::PackArchetype:
   case TypeKind::PackExpansion:
+  case TypeKind::PackElement:
     llvm_unreachable("pack archetypes and expansions should not be seen in "
                      " arbitrary type positions");
   case TypeKind::SILToken:
@@ -2887,19 +2891,28 @@ static bool tryEmitDeinitCall(IRGenFunction &IGF,
                           llvm::function_ref<void ()> indirectCleanup) {
   auto ty = T.getASTType();
   auto nominal = ty->getAnyNominal();
+
   // We are only concerned with move-only type deinits here.
   if (!nominal || !nominal->getValueTypeDestructor()) {
     return false;
   }
-  
-  auto deinit = IGF.getSILModule().lookUpMoveOnlyDeinit(nominal);
-  assert(deinit && "type has a deinit declared in AST but SIL deinit record is not present!");
-    
+
+  auto deinitTable = IGF.getSILModule().lookUpMoveOnlyDeinit(
+      nominal, false /*deserialize lazily*/);
+
+  // If we do not have a deinit table already deserialized, call the value
+  // witness instead.
+  if (!deinitTable) {
+    irgen::emitDestroyCall(IGF, T, indirect());
+    indirectCleanup();
+    return true;
+  }
+
   // The deinit should take a single value parameter of the nominal type, either
   // by @owned or indirect @in convention.
-  auto deinitFn = IGF.IGM.getAddrOfSILFunction(deinit->getImplementation(),
+  auto deinitFn = IGF.IGM.getAddrOfSILFunction(deinitTable->getImplementation(),
                                                NotForDefinition);
-  auto deinitTy = deinit->getImplementation()->getLoweredFunctionType();
+  auto deinitTy = deinitTable->getImplementation()->getLoweredFunctionType();
   auto deinitFP = FunctionPointer::forDirect(IGF.IGM, deinitFn,
                                              nullptr, deinitTy);
   assert(deinitTy->getNumParameters() == 1
@@ -2975,7 +2988,7 @@ bool irgen::tryEmitConsumeUsingDeinit(IRGenFunction &IGF, Explosion &explosion,
   return tryEmitDeinitCall(IGF, T,
     // Direct parameter case
     [&](Explosion &arg) {
-      ti->reexplode(IGF, explosion, arg);
+      ti->reexplode(explosion, arg);
     },
     // Indirect parameter setup
     [&]() -> Address {

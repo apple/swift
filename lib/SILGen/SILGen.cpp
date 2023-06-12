@@ -371,7 +371,7 @@ static FuncDecl *lookupIntrinsic(ModuleDecl &module,
     return *cache;
 
   SmallVector<ValueDecl *, 1> decls;
-  module.lookupQualified(&module, DeclNameRef(name),
+  module.lookupQualified(&module, DeclNameRef(name), SourceLoc(),
                          NL_QualifiedDefault | NL_IncludeUsableFromInline,
                          decls);
   if (decls.size() != 1) {
@@ -875,6 +875,16 @@ void SILGenModule::emitFunctionDefinition(SILDeclRef constant, SILFunction *f) {
       break;
     }
 
+    if (constant.isInitAccessor()) {
+      auto *accessor = cast<AccessorDecl>(constant.getDecl());
+      preEmitFunction(constant, f, accessor);
+      PrettyStackTraceSILFunction X("silgen init accessor", f);
+      f->createProfiler(constant);
+      SILGenFunction(*this, *f, accessor).emitInitAccessor(accessor);
+      postEmitFunction(constant, f);
+      break;
+    }
+
     auto *fd = cast<FuncDecl>(constant.getDecl());
 
     preEmitFunction(constant, f, fd);
@@ -1079,11 +1089,6 @@ void SILGenModule::emitFunctionDefinition(SILDeclRef constant, SILFunction *f) {
     preEmitFunction(constant, f, loc);
     PrettyStackTraceSILFunction X("silgen emitDeallocatingDestructor", f);
     SILGenFunction(*this, *f, dd).emitDeallocatingDestructor(dd);
-
-    // If we have a move only type, create the table for this type.
-    if (nom->isMoveOnly())
-      SILMoveOnlyDeinit::create(f->getModule(), nom, IsNotSerialized, f);
-
     postEmitFunction(constant, f);
     return;
   }

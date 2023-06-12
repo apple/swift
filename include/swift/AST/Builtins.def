@@ -986,7 +986,7 @@ BUILTIN_MISC_OPERATION_WITH_SILGEN(CreateAsyncTaskInGroup,
 BUILTIN_MISC_OPERATION_WITH_SILGEN(GlobalStringTablePointer, "globalStringTablePointer", "n", Special)
 
 // autoDiffCreateLinearMapContext: (Builtin.Word) -> Builtin.NativeObject
-BUILTIN_MISC_OPERATION_WITH_SILGEN(AutoDiffCreateLinearMapContext, "autoDiffCreateLinearMapContext", "n", Special)
+BUILTIN_MISC_OPERATION_WITH_SILGEN(AutoDiffCreateLinearMapContext, "autoDiffCreateLinearMapContext", "", Special)
 
 // autoDiffProjectTopLevelSubcontext: (Builtin.NativeObject) -> Builtin.RawPointer
 BUILTIN_MISC_OPERATION_WITH_SILGEN(AutoDiffProjectTopLevelSubcontext, "autoDiffProjectTopLevelSubcontext", "n", Special)

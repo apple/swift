@@ -4,6 +4,7 @@ add_swift_host_library(swiftIDETool STATIC
   CompilerInvocation.cpp
   IDEInspectionInstance.cpp
   DependencyChecking.cpp
+  SyntacticMacroExpansion.cpp
   )
 
 target_link_libraries(swiftIDETool PRIVATE

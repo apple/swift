@@ -94,7 +94,7 @@ public:
 
 /// Compute a single block's dominance frontier.
 ///
-/// Precondition: no critical edges (OSSA)
+/// Precondition: no critical edges
 ///
 /// Postcondition: each block in \p boundary is dominated by \p root and either
 /// exits the function or has a single successor which has a predecessor that is

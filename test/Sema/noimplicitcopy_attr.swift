@@ -144,11 +144,11 @@ struct MoveOnly {
     var k = Klass()
 }
 
-func useMoveOnly(@_noImplicitCopy _ x: __shared MoveOnly) -> MoveOnly { // expected-error {{'@_noImplicitCopy' has no effect when applied to a move only type}}
+func useMoveOnly(@_noImplicitCopy _ x: __shared MoveOnly) -> MoveOnly { // expected-error {{'@_noImplicitCopy' has no effect when applied to a noncopyable type}}
     return x
 }
 
 func useMoveOnly2(_ x: __shared MoveOnly) {
-    @_noImplicitCopy let y = x // expected-error {{'@_noImplicitCopy' has no effect when applied to a move only type}}
+    @_noImplicitCopy let y = x // expected-error {{'@_noImplicitCopy' has no effect when applied to a noncopyable type}}
     let _ = y
 }

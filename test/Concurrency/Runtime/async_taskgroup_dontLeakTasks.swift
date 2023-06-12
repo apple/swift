@@ -1,52 +1,49 @@
-// RUN: %target-run-simple-swift( -Xfrontend -disable-availability-checking -parse-as-library) 2>&1 | %FileCheck %s --dump-input=always
+// RUN: %target-run-simple-swift( -Xfrontend -disable-availability-checking -parse-as-library) | %FileCheck %s
+// TODO: move to target-run-simple-leaks-swift once CI is using at least Xcode 14.3
+
+// Task group addTask is not supported in freestanding mode
+// UNSUPPORTED: freestanding
+
 // REQUIRES: executable_test
 // REQUIRES: concurrency
-// REQUIRES: swift_task_debug_log
 
 // REQUIRES: concurrency_runtime
 // UNSUPPORTED: back_deployment_runtime
 
-#if os(Linux)
-import Glibc
-#elseif os(Windows)
-import MSVCRT
-#else
-import Darwin
-#endif
+final class Something {
+  let int: Int
+  init(int: Int) {
+    self.int = int
+  }
+
+  deinit {
+    print("deinit, Something, int: \(self.int)")
+  }
+}
 
 func test_taskGroup_next() async {
-  // CHECK: creating task [[MAIN_TASK:0x.*]] with parent 0x0
-  // CHECK: creating task [[GROUP_TASK_1:0x.*]] with parent [[MAIN_TASK]]
-  // CHECK: creating task [[GROUP_TASK_2:0x.*]] with parent [[MAIN_TASK]]
-  // CHECK: creating task [[GROUP_TASK_3:0x.*]] with parent [[MAIN_TASK]]
-  // CHECK: creating task [[GROUP_TASK_4:0x.*]] with parent [[MAIN_TASK]]
-  // CHECK: creating task [[GROUP_TASK_5:0x.*]] with parent [[MAIN_TASK]]
-
-  _ = await withTaskGroup(of: Int.self, returning: Int.self) { group in
-    for n in 0..<5 {
-      group.spawn {
-        return n
+  let tasks = 5
+  _ = await withTaskGroup(of: Something.self, returning: Int.self) { group in
+    for n in 0..<tasks {
+      group.addTask {
+        Something(int: n)
       }
     }
-    await Task.sleep(2_000_000)
 
     var sum = 0
     for await value in group {
-      sum += 1
+      sum += value.int
     }
+
+
+    // CHECK-DAG: deinit, Something, int: 0
+    // CHECK-DAG: deinit, Something, int: 1
+    // CHECK-DAG: deinit, Something, int: 2
+    // CHECK-DAG: deinit, Something, int: 3
+    // CHECK-DAG: deinit, Something, int: 4
 
     return sum
   }
-  // as we exit the group, it must be guaranteed that its child tasks were destroyed
-  //
-  // NOTE: there is no great way to express "any of GROUP_TASK_n",
-  //       so we just check that 5 tasks were destroyed
-  //
-  // CHECK: destroy task [[DESTROY_GROUP_TASK_1:0x.*]]
-  // CHECK: destroy task [[DESTROY_GROUP_TASK_2:0x.*]]
-  // CHECK: destroy task [[DESTROY_GROUP_TASK_3:0x.*]]
-  // CHECK: destroy task [[DESTROY_GROUP_TASK_4:0x.*]]
-  // CHECK: destroy task [[DESTROY_GROUP_TASK_5:0x.*]]
 }
 
 @main struct Main {

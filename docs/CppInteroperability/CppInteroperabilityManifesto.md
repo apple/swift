@@ -2,7 +2,9 @@
 
 # ⚠️ Warning: document is out of date. ⚠️
 
-**This document has not had significant updates in the last three years. The goals and design outlined here do not necessarily reflect those established by the C++ Interop Work Group. For an up-to-date document, please see [the Forward Vision which is being developed here](https://github.com/zoecarver/swift/blob/docs/interop-roadmap/docs/CppInteroperability/ForwardVision.md).**
+**This document has not had significant updates in the last three years. The goals and design outlined here do not necessarily reflect those established by the C++ Interop Work Group. For an up-to-date document, please see [the Forward Vision document](https://github.com/apple/swift-evolution/blob/main/visions/using-swift-from-c%2B%2B.md).**
+
+[** ‼️ Additionally, the official C++ interoperability documentation is live at Swift.org and provides an up-to-date guide for mixing Swift and C++ ‼️ **](https://www.swift.org/documentation/cxx-interop/)
 
 This document discusses the design and tradeoffs for bidirectional API-level
 interoperability between Swift and C++.

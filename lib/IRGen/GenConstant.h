@@ -38,7 +38,8 @@ llvm::Constant *emitAddrOfConstantString(IRGenModule &IGM,
                                          StringLiteralInst *SLI);
 
 /// Construct a constant from a SILValue containing constant values.
-llvm::Constant *emitConstantValue(IRGenModule &IGM, SILValue value);
+Explosion emitConstantValue(IRGenModule &IGM, SILValue value,
+                            bool flatten = false);
 
 /// Construct an object (with a HeapObject header) from an ObjectInst
 /// containing constant values.

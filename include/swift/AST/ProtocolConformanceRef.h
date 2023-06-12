@@ -89,9 +89,7 @@ public:
   static ProtocolConformanceRef forMissingOrInvalid(
       Type type, ProtocolDecl *proto);
 
-  bool isInvalid() const {
-    return !Union;
-  }
+  bool isInvalid() const;
 
   explicit operator bool() const { return !isInvalid(); }
 

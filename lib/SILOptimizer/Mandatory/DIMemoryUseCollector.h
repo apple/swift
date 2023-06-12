@@ -116,7 +116,9 @@ public:
   unsigned getNumElements() const { return NumElements; }
 
   /// Return true if this is 'self' in any kind of initializer.
-  bool isAnyInitSelf() const { return !MemoryInst->isVar(); }
+  bool isAnyInitSelf() const {
+    return !MemoryInst->isVar() && !MemoryInst->isOut();
+  }
 
   /// Return uninitialized value of 'self' if current memory object
   /// is located in an initializer (of any kind).
@@ -150,7 +152,7 @@ public:
     if (MemoryInst->isDelegatingSelf())
       return false;
 
-    if (!MemoryInst->isVar()) {
+    if (!MemoryInst->isVar() && !MemoryInst->isOut()) {
       if (auto decl = getASTType()->getAnyNominal()) {
         if (isa<ClassDecl>(decl)) {
           return true;
@@ -200,6 +202,7 @@ public:
   bool isNonDelegatingInit() const {
     switch (MemoryInst->getMarkUninitializedKind()) {
     case MarkUninitializedInst::Var:
+    case MarkUninitializedInst::Out:
       return false;
     case MarkUninitializedInst::RootSelf:
     case MarkUninitializedInst::CrossModuleRootSelf:
@@ -221,6 +224,8 @@ public:
   bool isDelegatingSelfAllocated() const {
     return MemoryInst->isDelegatingSelfAllocated();
   }
+
+  bool isOut() const { return MemoryInst->isOut(); }
 
   enum class EndScopeKind { Borrow, Access };
 
@@ -259,9 +264,10 @@ enum DIUseKind {
   /// value.
   Assign,
 
-  /// The instruction is an assignment of a wrapped value with an already initialized
-  /// backing property wrapper.
-  AssignWrappedValue,
+  /// The instruction is a setter call for a computed property after all of
+  /// self is initialized. This is used for property wrappers and for init
+  /// accessors.
+  Set,
 
   /// The instruction is a store to a member of a larger struct value.
   PartialStore,
@@ -308,9 +314,12 @@ struct DIMemoryUse {
   /// track of which tuple elements are affected.
   unsigned FirstElement, NumElements;
 
-  DIMemoryUse(SILInstruction *Inst, DIUseKind Kind, unsigned FE, unsigned NE)
-      : Inst(Inst), Kind(Kind), FirstElement(FE), NumElements(NE) {
-  }
+  NullablePtr<VarDecl> Field;
+
+  DIMemoryUse(SILInstruction *Inst, DIUseKind Kind, unsigned FE, unsigned NE,
+              NullablePtr<VarDecl> Field = 0)
+      : Inst(Inst), Kind(Kind), FirstElement(FE), NumElements(NE),
+        Field(Field) {}
 
   DIMemoryUse() : Inst(nullptr) {}
 

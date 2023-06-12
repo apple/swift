@@ -18,11 +18,12 @@
 #ifndef SWIFT_PRETTYSTACKTRACE_H
 #define SWIFT_PRETTYSTACKTRACE_H
 
-#include "llvm/Support/PrettyStackTrace.h"
-#include "swift/Basic/SourceLoc.h"
 #include "swift/AST/AnyFunctionRef.h"
+#include "swift/AST/FreestandingMacroExpansion.h"
 #include "swift/AST/Identifier.h"
 #include "swift/AST/Type.h"
+#include "swift/Basic/SourceLoc.h"
+#include "llvm/Support/PrettyStackTrace.h"
 
 namespace clang {
   class Type;
@@ -93,7 +94,21 @@ public:
   virtual void print(llvm::raw_ostream &OS) const override;
 };
 
-void printExprDescription(llvm::raw_ostream &out, Expr *E,
+/// PrettyStackTraceFreestandingMacroExpansion -  Observe that we are
+/// processing a specific freestanding macro expansion.
+class PrettyStackTraceFreestandingMacroExpansion
+    : public llvm::PrettyStackTraceEntry {
+  const FreestandingMacroExpansion *Expansion;
+  const char *Action;
+
+public:
+  PrettyStackTraceFreestandingMacroExpansion(
+      const char *action, const FreestandingMacroExpansion *expansion)
+      : Expansion(expansion), Action(action) {}
+  virtual void print(llvm::raw_ostream &OS) const override;
+};
+
+void printExprDescription(llvm::raw_ostream &out, const Expr *E,
                           const ASTContext &Context, bool addNewline = true);
 
 /// PrettyStackTraceExpr - Observe that we are processing a specific

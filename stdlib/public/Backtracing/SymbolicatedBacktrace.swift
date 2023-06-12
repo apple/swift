@@ -17,12 +17,12 @@
 
 import Swift
 
-@_implementationOnly import _SwiftBacktracingShims
+#if os(macOS) || os(iOS) || os(watchOS) || os(tvOS)
+@_implementationOnly import OS.Darwin
+#endif
 
-@_silgen_name("_swift_isThunkFunction")
-func _swift_isThunkFunction(
-  _ rawName: UnsafePointer<CChar>?
-) -> CBool
+@_implementationOnly import OS.Libc
+@_implementationOnly import Runtime
 
 /// A symbolicated backtrace
 public struct SymbolicatedBacktrace: CustomStringConvertible {
@@ -84,14 +84,19 @@ public struct SymbolicatedBacktrace: CustomStringConvertible {
     }
 
     /// A textual description of this frame.
-    public var description: String {
+    public func description(width: Int) -> String {
       if let symbol = symbol {
         let isInlined = inlined ? " [inlined]" : ""
         let isThunk = isSwiftThunk ? " [thunk]" : ""
-        return "\(captured)\(isInlined)\(isThunk) \(symbol)"
+        return "\(captured.description(width: width))\(isInlined)\(isThunk) \(symbol)"
       } else {
-        return captured.description
+        return captured.description(width: width)
       }
+    }
+
+    /// A textual description of this frame.
+    public var description: String {
+      return description(width: MemoryLayout<Backtrace.Address>.size * 2)
     }
   }
 
@@ -136,7 +141,23 @@ public struct SymbolicatedBacktrace: CustomStringConvertible {
 
     /// True if this symbol is a Swift thunk function.
     public var isSwiftThunk: Bool {
-      return _swift_isThunkFunction(rawName)
+      return _swift_backtrace_isThunkFunction(rawName)
+    }
+
+    private func maybeUnderscore(_ sym: String) -> String {
+      #if os(macOS) || os(iOS) || os(watchOS) || os(tvOS)
+      return "_" + sym
+      #else
+      return sym
+      #endif
+    }
+
+    private func dylibName(_ dylib: String) -> String {
+      #if os(macOS) || os(iOS) || os(watchOS) || os(tvOS)
+      return dylib + ".dylib"
+      #else
+      return dylib + ".so"
+      #endif
     }
 
     /// True if this symbol represents a system function.
@@ -148,20 +169,21 @@ public struct SymbolicatedBacktrace: CustomStringConvertible {
       if rawName == "start" && imageName == "dyld" {
         return true
       }
+      #endif
       if rawName.hasSuffix("5$mainyyFZ")
            || rawName.hasSuffix("5$mainyyYaFZTQ0_")
-           || rawName == "_async_MainTQ0_" {
+           || rawName == maybeUnderscore("async_MainTQ0_") {
         return true
       }
-      if rawName == "__ZL23completeTaskWithClosurePN5swift12AsyncContextEPNS_10SwiftErrorE" && imageName == "libswift_Concurrency.dylib" {
+      if rawName == maybeUnderscore("_ZL23completeTaskWithClosurePN5swift12AsyncContextEPNS_10SwiftErrorE") && imageName == dylibName("libswift_Concurrency") {
         return true
       }
       if let location = sourceLocation,
-         location.line == 0 && location.column == 0
-           && !_swift_isThunkFunction(rawName) {
+         ((location.line == 0 && location.column == 0)
+            || location.path.hasSuffix("<compiler-generated>"))
+           && !_swift_backtrace_isThunkFunction(rawName) {
         return true
       }
-      #endif
       return false
     }
 
@@ -177,9 +199,23 @@ public struct SymbolicatedBacktrace: CustomStringConvertible {
 
     /// Demangle the raw name, if possible.
     private func demangleRawName() -> String {
-      // We don't actually need this function on macOS because we're using
-      // CoreSymbolication, which demangles the name when it does the lookup
-      // anyway.  We will need it for Linux and Windows though.
+      var length: size_t = 0
+      if let demangled = _swift_backtrace_demangle(rawName, rawName.utf8.count,
+                                                   nil, &length) {
+        defer { free(demangled) }
+
+        // length is the size of the buffer that was allocated, *not* the
+        // length of the string.
+        let stringLen = strlen(demangled)
+        if stringLen > 0 {
+          return demangled.withMemoryRebound(to: UInt8.self,
+                                             capacity: stringLen) {
+            let demangledBytes = UnsafeBufferPointer(start: $0,
+                                                     count: stringLen)
+            return String(decoding: demangledBytes, as: UTF8.self)
+          }
+        }
+      }
       return rawName
     }
 
@@ -204,6 +240,11 @@ public struct SymbolicatedBacktrace: CustomStringConvertible {
 
       return "[\(imageIndex)] \(imageName) \(symPlusOffset)\(location)"
     }
+  }
+
+  /// The width, in bits, of an address in this backtrace.
+  public var addressWidth: Int {
+    return backtrace.addressWidth
   }
 
   /// A list of captured frame information.
@@ -246,8 +287,8 @@ public struct SymbolicatedBacktrace: CustomStringConvertible {
   #if os(macOS) || os(iOS) || os(watchOS) || os(tvOS)
   /// Convert a build ID to a CFUUIDBytes.
   private static func uuidBytesFromBuildID(_ buildID: [UInt8])
-    -> __swift_backtrace_CFUUIDBytes {
-    return withUnsafeTemporaryAllocation(of: __swift_backtrace_CFUUIDBytes.self,
+    -> CFUUIDBytes {
+    return withUnsafeTemporaryAllocation(of: CFUUIDBytes.self,
                                          capacity: 1) { buf in
       buf.withMemoryRebound(to: UInt8.self) {
         _ = $0.initialize(from: buildID)
@@ -263,15 +304,15 @@ public struct SymbolicatedBacktrace: CustomStringConvertible {
                                           fn: (CSSymbolicatorRef) throws -> T) rethrows -> T {
     let binaryImageList = images.map{ image in
       BinaryImageInformation(
-        base: __swift_vm_address_t(image.baseAddress),
-        extent: __swift_vm_address_t(image.endOfText),
+        base: vm_address_t(image.baseAddress),
+        extent: vm_address_t(image.endOfText),
         uuid: uuidBytesFromBuildID(image.buildID!),
         arch: HostContext.coreSymbolicationArchitecture,
         path: image.path,
         relocations: [
           BinaryRelocationInformation(
-            base: __swift_vm_address_t(image.baseAddress),
-            extent: __swift_vm_address_t(image.endOfText),
+            base: vm_address_t(image.baseAddress),
+            extent: vm_address_t(image.endOfText),
             name: "__TEXT"
           )
         ],
@@ -336,7 +377,7 @@ public struct SymbolicatedBacktrace: CustomStringConvertible {
     let theSymbol = Symbol(imageIndex: imageIndex,
                            imageName: imageName,
                            rawName: rawName,
-                           offset: Int(address - UInt(range.location)),
+                           offset: Int(address - UInt64(range.location)),
                            sourceLocation: location)
     theSymbol.name = name
 
@@ -381,7 +422,7 @@ public struct SymbolicatedBacktrace: CustomStringConvertible {
           case .omittedFrames(_), .truncated:
             frames.append(Frame(captured: frame, symbol: nil))
           default:
-            let address = __swift_vm_address_t(frame.adjustedProgramCounter)
+            let address = vm_address_t(frame.adjustedProgramCounter)
             let owner
               = CSSymbolicatorGetSymbolOwnerWithAddressAtTime(symbolicator,
                                                               address,
@@ -423,6 +464,101 @@ public struct SymbolicatedBacktrace: CustomStringConvertible {
         }
       }
     }
+    #elseif os(Linux)
+    var elf32Cache: [Int:Elf32Image<FileImageSource>] = [:]
+    var elf64Cache: [Int:Elf64Image<FileImageSource>] = [:]
+
+    // This could be more efficient; at the moment we execute the line
+    // number programs once per frame, whereas we could just run them once
+    // for all the addresses we're interested in.
+
+    for frame in backtrace.frames {
+      let address = FileImageSource.Address(frame.adjustedProgramCounter)
+      if let imageNdx = theImages.firstIndex(
+           where: { address >= $0.baseAddress
+                      && address < $0.endOfText }
+         ) {
+        let relativeAddress = address - FileImageSource.Address(theImages[imageNdx].baseAddress)
+        var symbol: Symbol = Symbol(imageIndex: imageNdx,
+                                    imageName: theImages[imageNdx].name,
+                                    rawName: "<unknown>",
+                                    offset: 0,
+                                    sourceLocation: nil)
+        var elf32Image = elf32Cache[imageNdx]
+        var elf64Image = elf64Cache[imageNdx]
+
+        if elf32Image == nil && elf64Image == nil {
+          if let source = try? FileImageSource(path: theImages[imageNdx].path) {
+            if let elfImage = try? Elf32Image(source: source) {
+              elf32Image = elfImage
+              elf32Cache[imageNdx] = elfImage
+            } else if let elfImage = try? Elf64Image(source: source) {
+              elf64Image = elfImage
+              elf64Cache[imageNdx] = elfImage
+            }
+          }
+        }
+
+        if let theSymbol = elf32Image?.lookupSymbol(address: relativeAddress) {
+          var location = try? elf32Image!.sourceLocation(for: relativeAddress)
+
+          for inline in elf32Image!.inlineCallSites(at: relativeAddress) {
+            let fakeSymbol = Symbol(imageIndex: imageNdx,
+                                    imageName: theImages[imageNdx].name,
+                                    rawName: inline.rawName ?? "<unknown>",
+                                    offset: 0,
+                                    sourceLocation: location)
+            frames.append(Frame(captured: frame,
+                                symbol: fakeSymbol,
+                                inlined: true))
+
+            location = SourceLocation(path: inline.filename,
+                                      line: inline.line,
+                                      column: inline.column)
+          }
+
+          symbol = Symbol(imageIndex: imageNdx,
+                          imageName: theImages[imageNdx].name,
+                          rawName: theSymbol.name,
+                          offset: theSymbol.offset,
+                          sourceLocation: location)
+        } else if let theSymbol = elf64Image?.lookupSymbol(address: relativeAddress) {
+          var location = try? elf64Image!.sourceLocation(for: relativeAddress)
+
+          for inline in elf64Image!.inlineCallSites(at: relativeAddress) {
+            let fakeSymbol = Symbol(imageIndex: imageNdx,
+                                    imageName: theImages[imageNdx].name,
+                                    rawName: inline.rawName ?? "<unknown>",
+                                    offset: 0,
+                                    sourceLocation: location)
+            frames.append(Frame(captured: frame,
+                                symbol: fakeSymbol,
+                                inlined: true))
+
+            location = SourceLocation(path: inline.filename,
+                                      line: inline.line,
+                                      column: inline.column)
+          }
+
+          symbol = Symbol(imageIndex: imageNdx,
+                          imageName: theImages[imageNdx].name,
+                          rawName: theSymbol.name,
+                          offset: theSymbol.offset,
+                          sourceLocation: location)
+        } else {
+          symbol = Symbol(imageIndex: imageNdx,
+                          imageName: theImages[imageNdx].name,
+                          rawName: "<unknown>",
+                          offset: 0,
+                          sourceLocation: nil)
+        }
+
+        frames.append(Frame(captured: frame, symbol: symbol))
+        continue
+      }
+
+      frames.append(Frame(captured: frame, symbol: nil))
+    }
     #else
     frames = backtrace.frames.map{ Frame(captured: $0, symbol: nil) }
     #endif
@@ -436,10 +572,11 @@ public struct SymbolicatedBacktrace: CustomStringConvertible {
   /// Provide a textual version of the backtrace.
   public var description: String {
     var lines: [String] = []
+    let addressChars = (backtrace.addressWidth + 3) / 4
 
     var n = 0
     for frame in frames {
-      lines.append("\(n)\t\(frame)")
+      lines.append("\(n)\t\(frame.description(width: addressChars))")
       switch frame.captured {
         case let .omittedFrames(count):
           n += count
@@ -452,7 +589,7 @@ public struct SymbolicatedBacktrace: CustomStringConvertible {
     lines.append("Images:")
     lines.append("")
     for (n, image) in images.enumerated() {
-      lines.append("\(n)\t\(image)")
+      lines.append("\(n)\t\(image.description(width: addressChars))")
     }
 
     if let sharedCacheInfo = sharedCacheInfo {
@@ -460,7 +597,7 @@ public struct SymbolicatedBacktrace: CustomStringConvertible {
       lines.append("Shared Cache:")
       lines.append("")
       lines.append("    UUID: \(hex(sharedCacheInfo.uuid))")
-      lines.append("    Base: \(hex(sharedCacheInfo.baseAddress))")
+      lines.append("    Base: \(hex(sharedCacheInfo.baseAddress, width: addressChars))")
       lines.append("  Active: \(!sharedCacheInfo.noCache)")
     }
 

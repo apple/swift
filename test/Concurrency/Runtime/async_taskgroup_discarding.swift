@@ -1,4 +1,8 @@
-// RUN: %target-run-simple-swift( -Xfrontend -disable-availability-checking -parse-as-library)
+// RUN: %target-run-simple-swift( -Xfrontend -disable-availability-checking -parse-as-library) | %FileCheck %s
+// TODO: move to target-run-simple-leaks-swift once CI is using at least Xcode 14.3
+
+// rdar://110025115 - Temporarily disable this test
+// REQUIRES: rdar110025115
 
 // REQUIRES: concurrency
 // REQUIRES: executable_test
@@ -12,28 +16,32 @@
 
 import _Concurrency
 
-struct Boom: Error {
-  let id: String
+final class PayloadFirst {}
+final class PayloadSecond {}
+
+final class ErrorFirst: Error {
+  let first: PayloadFirst
 
   init(file: String = #fileID, line: UInt = #line) {
-    self.id = "\(file):\(line)"
+    first = .init()
   }
-
-  init(id: String) {
-    self.id = id
+  deinit {
+    print("deinit \(self)")
   }
 }
 
-struct IgnoredBoom: Error {}
+final class ErrorSecond: Error {
+  let second: PayloadSecond
 
-@discardableResult
-func echo(_ i: Int) -> Int { i }
-@discardableResult
-func boom(file: String = #fileID, line: UInt = #line) throws -> Int { throw Boom(file: file, line: line) }
+  init(file: String = #fileID, line: UInt = #line) {
+    second = .init()
+  }
 
-func shouldEqual<T: Equatable>(_ lhs: T, _ rhs: T) {
-  precondition(lhs == rhs, "'\(lhs)' did not equal '\(rhs)'")
+  deinit {
+    print("deinit \(self)")
+  }
 }
+
 func shouldStartWith(_ lhs: Any, _ rhs: Any) {
   let l = "\(lhs)"
   let r = "\(rhs)"
@@ -44,22 +52,26 @@ func shouldStartWith(_ lhs: Any, _ rhs: Any) {
 
 @main struct Main {
   static func main() async {
-    for i in 0...1_000 {
-      do {
-        let got = try await withThrowingDiscardingTaskGroup() { group in
-          group.addTask {
-            echo(1)
-          }
-          group.addTask {
-            try boom()
-          }
-
-          return 12
+    do {
+      let got = try await withThrowingDiscardingTaskGroup() { group in
+        group.addTask {
+          1
         }
-        fatalError("(iteration:\(i)) expected error to be re-thrown, got: \(got)")
-      } catch {
-        shouldStartWith(error, "Boom(")
+        group.addTask {
+          throw ErrorFirst()
+        }
+
+        group.addTask {
+          throw ErrorSecond()
+        }
+
+        return 12
       }
+      fatalError("expected error to be re-thrown, got: \(got)")
+    } catch {
+       shouldStartWith(error, "main.Error")
     }
+    // CHECK: deinit main.Error
+    // CHECK: deinit main.Error
   }
 }

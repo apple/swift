@@ -145,8 +145,6 @@ void PostDominanceInfo::verify() const {
 void swift::computeDominatedBoundaryBlocks(
     SILBasicBlock *root, DominanceInfo *domTree,
     SmallVectorImpl<SILBasicBlock *> &boundary) {
-  auto *function = root->getParent();
-  assert(function->hasOwnership());
   assert(boundary.empty());
 
   DominanceOrder domOrder(root, domTree);

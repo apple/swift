@@ -10,7 +10,6 @@ struct ContentView: View {
   var body: some View {
     switch currentPage {
     case 1: // expected-error {{expression pattern of type 'Int' cannot match values of type 'String'}}
-            // expected-note@-1 {{overloads for '~=' exist with these partially matching parameter lists: (Substring, String)}}
       Text("1")
     default:
       Text("default")

@@ -1,4 +1,4 @@
-// RUN: %target-swift-emit-silgen -enable-experimental-feature NoImplicitCopy %s | %FileCheck %s
+// RUN: %target-swift-emit-silgen %s | %FileCheck %s
 
 // The internal `__shared` and `__owned` modifiers would always affect
 // symbol mangling, even if they don't have a concrete impact on ABI. The

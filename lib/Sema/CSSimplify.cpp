@@ -127,6 +127,14 @@ static bool isPackExpansionType(Type type) {
   return false;
 }
 
+bool constraints::isSingleUnlabeledPackExpansionTuple(Type type) {
+  auto *tuple = type->getRValueType()->getAs<TupleType>();
+  // TODO: drop no name requirement
+  return tuple && (tuple->getNumElements() == 1) &&
+         isPackExpansionType(tuple->getElementType(0)) &&
+         !tuple->getElement(0).hasName();
+}
+
 static bool containsPackExpansionType(ArrayRef<AnyFunctionType::Param> params) {
   return llvm::any_of(params, [&](const auto &param) {
     return isPackExpansionType(param.getPlainType());
@@ -2157,7 +2165,9 @@ private:
       const auto &elt2 = tuple2->getElement(i);
 
       if (inPatternMatchingContext) {
-        if (elt1.hasName() && elt1.getName() != elt2.getName())
+        // FIXME: The fact that this isn't symmetric is wrong since this logic
+        // is called for bind and equal constraints...
+        if (elt2.hasName() && elt1.getName() != elt2.getName())
           return true;
       } else {
         // If the names don't match, we have a conflict.
@@ -2335,30 +2345,6 @@ ConstraintSystem::matchPackTypes(PackType *pack1, PackType *pack2,
   return getTypeMatchSuccess();
 }
 
-namespace {
-
-/// Collects all unique pack type variables referenced from the pattern type,
-/// skipping those captured by nested pack expansion types.
-///
-/// FIXME: This could probably be a common utility method somewhere.
-struct PackTypeVariableCollector: TypeWalker {
-  llvm::SetVector<TypeVariableType *> typeVars;
-
-  Action walkToTypePre(Type t) override {
-    if (t->is<PackExpansionType>())
-      return Action::SkipChildren;
-
-    if (auto *typeVar = t->getAs<TypeVariableType>()) {
-      if (typeVar->getImpl().canBindToPack())
-        typeVars.insert(typeVar);
-    }
-
-    return Action::Continue;
-  }
-};
-
-}
-
 /// Utility function used when matching a pack expansion type against a
 /// pack type.
 ///
@@ -2391,21 +2377,26 @@ static PackType *replaceTypeVariablesWithFreshPacks(ConstraintSystem &cs,
                                                     Type pattern,
                                                     PackType *pack,
                                                     ConstraintLocatorBuilder locator) {
-  SmallVector<Type, 2> elts;
-
+  llvm::SmallSetVector<TypeVariableType *, 2> typeVarSet;
   llvm::MapVector<TypeVariableType *, SmallVector<Type, 2>> typeVars;
 
-  PackTypeVariableCollector collector;
-  pattern.walk(collector);
+  pattern->walkPackReferences([&](Type t) {
+    if (auto *typeVar = t->getAs<TypeVariableType>()) {
+      if (typeVar->getImpl().canBindToPack())
+        typeVarSet.insert(typeVar);
+    }
 
-  if (collector.typeVars.empty())
+    return false;
+  });
+
+  if (typeVarSet.empty())
     return nullptr;
 
   auto *loc = cs.getConstraintLocator(locator);
 
   // For each pack type variable occurring in the pattern type, compute a
   // binding pack type comprised of fresh type variables.
-  for (auto *typeVar : collector.typeVars) {
+  for (auto *typeVar : typeVarSet) {
     auto &freshTypeVars = typeVars[typeVar];
     for (unsigned i = 0, e = pack->getNumElements(); i < e; ++i) {
       auto *packExpansionElt = pack->getElementType(i)->getAs<PackExpansionType>();
@@ -2432,6 +2423,8 @@ static PackType *replaceTypeVariablesWithFreshPacks(ConstraintSystem &cs,
       }
     }
   }
+
+  SmallVector<Type, 2> elts;
 
   // For each element of the original pack type, instantiate the pattern type by
   // replacing each pack type variable with the corresponding element of the
@@ -3515,21 +3508,12 @@ ConstraintSystem::matchFunctionTypes(FunctionType *func1, FunctionType *func2,
       // FIXME: We should check value ownership too, but it's not completely
       // trivial because of inout-to-pointer conversions.
 
-      // For equality contravariance doesn't matter, but let's make sure
-      // that types are matched in original order because that is important
-      // when function types are equated as part of pattern matching.
-      auto paramType1 = kind == ConstraintKind::Equal ? func1Param.getOldType()
-                                                      : func2Param.getOldType();
-
-      auto paramType2 = kind == ConstraintKind::Equal ? func2Param.getOldType()
-                                                      : func1Param.getOldType();
-
-      // Compare the parameter types.
-      auto result = matchTypes(paramType1, paramType2, subKind, subflags,
-                               (func1Params.size() == 1
-                                ? argumentLocator
-                                : argumentLocator.withPathElement(
-                                      LocatorPathElt::TupleElement(i))));
+      // Compare the parameter types, taking contravariance into account.
+      auto result = matchTypes(
+          func2Param.getOldType(), func1Param.getOldType(), subKind, subflags,
+          (func1Params.size() == 1 ? argumentLocator
+                                   : argumentLocator.withPathElement(
+                                         LocatorPathElt::TupleElement(i))));
       if (result.isFailure())
         return result;
     }
@@ -6359,8 +6343,20 @@ bool ConstraintSystem::repairFailures(
     break;
   }
 
+  case ConstraintLocator::EnumPatternImplicitCastMatch: {
+    // If either type is a placeholder, consider this fixed.
+    if (lhs->isPlaceholder() || rhs->isPlaceholder())
+      return true;
+
+    conversionsOrFixes.push_back(ContextualMismatch::create(
+        *this, lhs, rhs, getConstraintLocator(locator)));
+    break;
+  }
+
   case ConstraintLocator::PatternMatch: {
     auto *pattern = elt.castTo<LocatorPathElt::PatternMatch>().getPattern();
+
+    // TODO: We ought to introduce a new locator element for this.
     bool isMemberMatch =
         lhs->is<FunctionType>() && isa<EnumElementPattern>(pattern);
 
@@ -6375,13 +6371,12 @@ bool ConstraintSystem::repairFailures(
     if (lhs->isPlaceholder() || rhs->isPlaceholder())
       return true;
 
-    // If member reference didn't match expected pattern,
-    // let's consider that a contextual mismatch.
     if (isMemberMatch) {
       recordAnyTypeVarAsPotentialHole(lhs);
       recordAnyTypeVarAsPotentialHole(rhs);
       conversionsOrFixes.push_back(AllowAssociatedValueMismatch::create(
           *this, lhs, rhs, getConstraintLocator(locator)));
+      break;
     }
 
     // `weak` declaration with an explicit non-optional type e.g.
@@ -6394,7 +6389,7 @@ bool ConstraintSystem::repairFailures(
         if (auto *OA = var->getAttrs().getAttribute<ReferenceOwnershipAttr>())
           ROK = OA->get();
 
-        if (!rhs->getOptionalObjectType() &&
+        if (!lhs->getOptionalObjectType() &&
             optionalityOf(ROK) == ReferenceOwnershipOptionality::Required) {
           conversionsOrFixes.push_back(
               AllowNonOptionalWeak::create(*this, getConstraintLocator(NP)));
@@ -6402,6 +6397,9 @@ bool ConstraintSystem::repairFailures(
         }
       }
     }
+
+    conversionsOrFixes.push_back(ContextualMismatch::create(
+        *this, lhs, rhs, getConstraintLocator(locator)));
 
     break;
   }
@@ -7308,6 +7306,13 @@ ConstraintSystem::matchTypes(Type type1, Type type2, ConstraintKind kind,
       return matchPackExpansionTypes(expansion1, expansion2, kind, subflags,
                                      locator);
     }
+
+    case TypeKind::PackElement: {
+      auto pack1 = cast<PackElementType>(desugar1)->getPackType();
+      auto pack2 = cast<PackElementType>(desugar2)->getPackType();
+
+      return matchTypes(pack1, pack2, kind, subflags, locator);
+    }
     }
   }
 
@@ -7962,7 +7967,8 @@ ConstraintSystem::simplifyConstructionConstraint(
   case TypeKind::InOut:
   case TypeKind::Module:
   case TypeKind::Pack:
-  case TypeKind::PackExpansion: {
+  case TypeKind::PackExpansion:
+  case TypeKind::PackElement: {
     // If solver is in the diagnostic mode and this is an invalid base,
     // let's give solver a chance to repair it to produce a good diagnostic.
     if (shouldAttemptFixes())
@@ -9113,6 +9119,16 @@ ConstraintSystem::simplifyPackElementOfConstraint(Type first, Type second,
       return SolutionKind::Solved;
   }
 
+  if (isSingleUnlabeledPackExpansionTuple(patternType)) {
+    auto *elementVar =
+        createTypeVariable(getConstraintLocator(locator), /*options=*/0);
+    addValueMemberConstraint(
+        patternType, DeclNameRef(getASTContext().Id_element), elementVar, DC,
+        FunctionRefKind::Unapplied, {},
+        getConstraintLocator(locator, {ConstraintLocator::Member}));
+    patternType = elementVar;
+  }
+
   // Let's try to resolve element type based on the pattern type.
   if (!patternType->hasTypeVariable()) {
     auto *loc = getConstraintLocator(locator);
@@ -9291,6 +9307,9 @@ performMemberLookup(ConstraintKind constraintKind, DeclNameRef memberName,
   Type baseObjTy = baseTy->getRValueType();
   Type instanceTy = baseObjTy;
 
+  auto memberNode = simplifyLocatorToAnchor(memberLocator);
+  auto memberLoc = memberNode ? memberNode.getStartLoc() : SourceLoc();
+
   if (auto baseObjMeta = baseObjTy->getAs<AnyMetatypeType>()) {
     instanceTy = baseObjMeta->getInstanceType();
   }
@@ -9330,6 +9349,7 @@ performMemberLookup(ConstraintKind constraintKind, DeclNameRef memberName,
     if (!memberName.isSpecial()) {
       StringRef nameStr = memberName.getBaseIdentifier().str();
       // Accessing `.element` on an abstract tuple materializes a pack.
+      // (deprecated behavior)
       if (nameStr == "element" && baseTuple->getNumElements() == 1 &&
           isPackExpansionType(baseTuple->getElementType(0))) {
         auto elementType = baseTuple->getElementType(0);
@@ -9402,7 +9422,7 @@ performMemberLookup(ConstraintKind constraintKind, DeclNameRef memberName,
   }
 
   // Look for members within the base.
-  LookupResult &lookup = lookupMember(instanceTy, lookupName);
+  LookupResult &lookup = lookupMember(instanceTy, lookupName, memberLoc);
 
   // If this is true, we're using type construction syntax (Foo()) rather
   // than an explicit call to `init` (Foo.init()).
@@ -9802,7 +9822,8 @@ performMemberLookup(ConstraintKind constraintKind, DeclNameRef memberName,
       memberName.getBaseName() == DeclBaseName::createConstructor() &&
       !isImplicitInit) {
     auto &compatLookup = lookupMember(instanceTy,
-                                      DeclNameRef(ctx.getIdentifier("init")));
+                                      DeclNameRef(ctx.getIdentifier("init")),
+                                      memberLoc);
     for (auto result : compatLookup)
       addChoice(getOverloadChoice(result.getValueDecl(),
                                   /*isBridged=*/false,
@@ -9812,7 +9833,8 @@ performMemberLookup(ConstraintKind constraintKind, DeclNameRef memberName,
   // If the instance type is a bridged to an Objective-C type, perform
   // a lookup into that Objective-C type.
   if (bridgedType) {
-    LookupResult &bridgedLookup = lookupMember(bridgedType, memberName);
+    LookupResult &bridgedLookup = lookupMember(bridgedType, memberName,
+                                               memberLoc);
     ModuleDecl *foundationModule = nullptr;
     for (auto result : bridgedLookup) {
       // Ignore results from the Objective-C "Foundation"
@@ -9875,7 +9897,8 @@ performMemberLookup(ConstraintKind constraintKind, DeclNameRef memberName,
         // prioritize them and mark any results found on wrapped type
         // as a fallback results.
         bool isFallback = !result.ViableCandidates.empty();
-        LookupResult &optionalLookup = lookupMember(objectType, memberName);
+        LookupResult &optionalLookup = lookupMember(objectType, memberName,
+                                                    memberLoc);
         for (auto result : optionalLookup)
           addChoice(getOverloadChoice(result.getValueDecl(),
                                       /*bridged*/ false,
@@ -9943,7 +9966,8 @@ performMemberLookup(ConstraintKind constraintKind, DeclNameRef memberName,
     lookupOptions |= NameLookupFlags::IgnoreAccessControl;
 
     auto lookup =
-        TypeChecker::lookupMember(DC, instanceTy, memberName, lookupOptions);
+        TypeChecker::lookupMember(DC, instanceTy, memberName,
+                                  memberLoc, lookupOptions);
     for (auto entry : lookup) {
       auto *cand = entry.getValueDecl();
 
@@ -13304,6 +13328,12 @@ ConstraintSystem::SolutionKind ConstraintSystem::simplifyShapeOfConstraint(
     return SolutionKind::Solved;
   }
 
+  // Map element archetypes to the pack context to check for equality.
+  if (packTy->hasElementArchetype()) {
+    auto *packEnv = DC->getGenericEnvironmentOfContext();
+    packTy = packEnv->mapElementTypeIntoPackContext(packTy);
+  }
+
   auto shape = packTy->getReducedShape();
   addConstraint(ConstraintKind::Bind, shapeTy, shape, locator);
   return SolutionKind::Solved;
@@ -14745,8 +14775,15 @@ ConstraintSystem::SolutionKind ConstraintSystem::simplifyFixConstraint(
       // means that result would attempt a type from each side if
       // one is available and that would result in two fixes - one for
       // each mismatched branch.
-      if (branchElt->forElse())
+      if (branchElt->forElse()) {
         impact = 10;
+      } else {
+        // Also increase impact for `then` branch lower than `else` to still
+        // eliminate ambiguity, but slightly worst than the average fix to avoid
+        // so the solution which record this fix wouldn't be picked over one
+        // that has contextual mismatch fix on the result of ternary expression.
+        impact = 5;
+      }
     }
     using SingleValueStmtBranch = LocatorPathElt::SingleValueStmtBranch;
     if (auto branchElt = locator->getLastElementAs<SingleValueStmtBranch>()) {
@@ -14793,8 +14830,10 @@ ConstraintSystem::SolutionKind ConstraintSystem::simplifyFixConstraint(
     if (recordFix(fix))
       return SolutionKind::Error;
 
-    (void)matchTypes(type1, OptionalType::get(type2),
-                     ConstraintKind::Conversion,
+    // NOTE: The order here is important! Pattern matching equality is
+    // not symmetric (we need to fix that either by using a different
+    // constraint, or actually making it symmetric).
+    (void)matchTypes(OptionalType::get(type1), type2, ConstraintKind::Equal,
                      TypeMatchFlags::TMF_ApplyingFix, locator);
 
     return SolutionKind::Solved;

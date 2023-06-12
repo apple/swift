@@ -3,6 +3,6 @@
 func testBasic() {
   let _: (Float) -> Float = { $0 + 1 }
 
-  let _ = { $0 + 1 } // expected-error{{unable to infer type of a closure parameter '$0' in the current context}}
+  let _ = { $0 + 1 } // expected-error{{cannot infer type of closure parameter '$0' without a type annotation}}
 }
 

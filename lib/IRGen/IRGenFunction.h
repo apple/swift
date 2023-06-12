@@ -18,16 +18,17 @@
 #ifndef SWIFT_IRGEN_IRGENFUNCTION_H
 #define SWIFT_IRGEN_IRGENFUNCTION_H
 
-#include "swift/Basic/LLVM.h"
-#include "swift/AST/Type.h"
+#include "DominancePoint.h"
+#include "GenPack.h"
+#include "IRBuilder.h"
+#include "LocalTypeDataKind.h"
 #include "swift/AST/ReferenceCounting.h"
+#include "swift/AST/Type.h"
+#include "swift/Basic/LLVM.h"
 #include "swift/SIL/SILLocation.h"
 #include "swift/SIL/SILType.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/IR/CallingConv.h"
-#include "IRBuilder.h"
-#include "LocalTypeDataKind.h"
-#include "DominancePoint.h"
 
 namespace llvm {
   class AllocaInst;
@@ -201,6 +202,15 @@ private:
   llvm::Value *AsyncCoroutineCurrentResume = nullptr;
   llvm::Value *AsyncCoroutineCurrentContinuationContext = nullptr;
 
+protected:
+  // Whether pack metadata stack promotion is disabled for this function in
+  // particular.
+  bool packMetadataStackPromotionDisabled = false;
+
+  /// The on-stack pack metadata allocations emitted so far awaiting cleanup.
+  llvm::SmallSetVector<StackPackAlloc, 2> OutstandingStackPackAllocs;
+
+private:
   Address asyncContextLocation;
 
   /// The unique block that calls @llvm.coro.end.
@@ -228,6 +238,10 @@ public:
   bool optimizeForSize() const {
     return getEffectiveOptimizationMode() == OptimizationMode::ForSize;
   }
+
+  /// Whether metadata/wtable packs allocated on the stack must be eagerly
+  /// heapified.
+  bool canStackPromotePackMetadata() const;
 
   void setupAsync(unsigned asyncContextIndex);
   bool isAsync() const { return asyncContextLocation.isValid(); }
@@ -370,6 +384,12 @@ public:
     llvm::Value *wtable);
 
   llvm::Value *emitPackShapeExpression(CanType type);
+
+  void recordStackPackMetadataAlloc(StackAddress addr, llvm::Value *shape);
+  void eraseStackPackMetadataAlloc(StackAddress addr, llvm::Value *shape);
+
+  void recordStackPackWitnessTableAlloc(StackAddress addr, llvm::Value *shape);
+  void eraseStackPackWitnessTableAlloc(StackAddress addr, llvm::Value *shape);
 
   /// Emit a load of a reference to the given Objective-C selector.
   llvm::Value *emitObjCSelectorRefLoad(StringRef selector);

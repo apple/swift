@@ -153,11 +153,16 @@ function(add_sourcekit_swift_runtime_link_flags target path HAS_SWIFT_MODULES)
       message(FATAL_ERROR "Unknown ASKD_BOOTSTRAPPING_MODE '${ASKD_BOOTSTRAPPING_MODE}'")
     endif()
   endif()
-  set(RPATH_LIST ${RPATH_LIST} PARENT_SCOPE)
 
   if(SWIFT_SWIFT_PARSER)
     # Make sure we can find the early SwiftSyntax libraries.
     target_link_directories(${target} PRIVATE "${SWIFT_PATH_TO_EARLYSWIFTSYNTAX_BUILD_DIR}/lib/swift/host")
+
+    # Add rpath to the host Swift libraries.
+    if (NOT ${SWIFT_HOST_VARIANT_SDK} IN_LIST SWIFT_DARWIN_PLATFORMS)
+      file(RELATIVE_PATH relative_hostlib_path "${path}" "${SWIFTLIB_DIR}/host")
+      list(APPEND RPATH_LIST "$ORIGIN/${relative_hostlib_path}")
+    endif()
 
     # For the "end step" of bootstrapping configurations on Darwin, need to be
     # able to fall back to the SDK directory for libswiftCore et al.
@@ -173,10 +178,19 @@ function(add_sourcekit_swift_runtime_link_flags target path HAS_SWIFT_MODULES)
           get_filename_component(TOOLCHAIN_BIN_DIR ${SWIFT_EXEC_FOR_SWIFT_MODULES} DIRECTORY)
           get_filename_component(TOOLCHAIN_LIB_DIR "${TOOLCHAIN_BIN_DIR}/../lib/swift/${SWIFT_SDK_${SWIFT_HOST_VARIANT_SDK}_LIB_SUBDIR}" ABSOLUTE)
           target_link_directories(${target} PUBLIC ${TOOLCHAIN_LIB_DIR})
+        else()
+          get_filename_component(swift_bin_dir ${SWIFT_EXEC_FOR_SWIFT_MODULES} DIRECTORY)
+          get_filename_component(swift_dir ${swift_bin_dir} DIRECTORY)
+          set(host_lib_dir "${swift_dir}/lib/swift/${SWIFT_SDK_${SWIFT_HOST_VARIANT_SDK}_LIB_SUBDIR}")
+          target_link_directories(${target} PUBLIC ${host_lib_dir})
+
+          list(APPEND RPATH_LIST "${host_lib_dir}")
         endif()
       endif()
     endif()
   endif()
+
+  set(RPATH_LIST ${RPATH_LIST} PARENT_SCOPE)
 endfunction()
 
 # Add a new SourceKit library.

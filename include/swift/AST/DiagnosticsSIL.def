@@ -189,6 +189,9 @@ ERROR(ivar_not_initialized_at_superinit,none,
 ERROR(ivar_not_initialized_at_implicit_superinit,none,
       "property '%0' not initialized at implicitly generated super.init call",
       (StringRef, bool))
+ERROR(ivar_not_initialized_by_init_accessor,none,
+      "property %0 not initialized by init accessor",
+      (DeclName))
 
 ERROR(self_use_before_fully_init,none,
       "'self' used in %select{method call|property access}1 %0 before "
@@ -332,6 +335,8 @@ ERROR(performance_unknown_callees,none,
       "called function is not known at compile time and can have unpredictable performance", ())
 ERROR(performance_callee_unavailable,none,
       "called function is not available in this module and can have unpredictable performance", ())
+ERROR(section_attr_on_non_const_global,none,
+      "global variable must be a compile-time constant to use @_section attribute", ())
 NOTE(performance_called_from,none,
       "called from here", ())
 
@@ -745,96 +750,74 @@ NOTE(discard_nontrivial_implicit_storage_note,none,
      "type %0 implicitly contains %1 which cannot be trivially destroyed",
      (Type, Type))
 
-// move only checker diagnostics
-ERROR(sil_moveonlychecker_owned_value_consumed_more_than_once, none,
+
+/// Move Checking / Noncopyable types diagnostics
+
+ERROR(sil_movechecking_owned_value_consumed_more_than_once, none,
       "'%0' consumed more than once", (StringRef))
-ERROR(sil_moveonlychecker_owned_value_consumed_and_used_at_same_time, none,
+ERROR(sil_movechecking_owned_value_consumed_and_used_at_same_time, none,
       "'%0' consumed and used at the same time", (StringRef))
-ERROR(sil_moveonlychecker_value_used_after_consume, none,
+ERROR(sil_movechecking_value_used_after_consume, none,
       "'%0' used after consume", (StringRef))
-ERROR(sil_moveonlychecker_guaranteed_value_consumed, none,
-      "'%0' has guaranteed ownership but was consumed", (StringRef))
-ERROR(sil_moveonlychecker_guaranteed_value_captured_by_closure, none,
-      "'%0' has guaranteed ownership but was consumed due to being captured by a closure", (StringRef))
-ERROR(sil_moveonlychecker_let_value_consumed_in_closure, none,
-      "'%0' consumed in closure. This is illegal since if the closure is invoked more than once the binding will be uninitialized on later invocations", (StringRef))
-ERROR(sil_moveonlychecker_inout_not_reinitialized_before_end_of_function, none,
-      "'%0' consumed but not reinitialized before end of function", (StringRef))
-ERROR(sil_moveonlychecker_inout_not_reinitialized_before_end_of_closure, none,
-      "'%0' consumed in closure but not reinitialized before end of closure", (StringRef))
-ERROR(sil_moveonlychecker_value_consumed_in_a_loop, none,
-      "'%0' consumed by a use in a loop", (StringRef))
-ERROR(sil_moveonlychecker_exclusivity_violation, none,
-      "'%0' has consuming use that cannot be eliminated due to a tight exclusivity scope", (StringRef))
-ERROR(sil_moveonlychecker_moveonly_field_consumed, none,
-      "'%0' has a move only field that was consumed before later uses", (StringRef))
+ERROR(sil_movechecking_guaranteed_value_consumed, none,
+      "'%0' is borrowed and cannot be consumed", (StringRef))
+ERROR(sil_movechecking_borrowed_parameter_captured_by_closure, none,
+      "'%0' cannot be captured by an escaping closure since it is a borrowed "
+      "parameter",
+      (StringRef))
+ERROR(sil_movechecking_capture_consumed, none,
+      "noncopyable '%0' cannot be consumed when captured by a closure", (StringRef))
+ERROR(sil_movechecking_inout_not_reinitialized_before_end_of_function, none,
+      "missing reinitialization of inout parameter '%0' after consume", (StringRef))
+ERROR(sil_movechecking_value_consumed_in_a_loop, none,
+      "'%0' consumed in a loop", (StringRef))
+ERROR(sil_movechecking_use_after_partial_consume, none,
+      "cannot use '%0' after partial consume", (StringRef))
+ERROR(sil_movechecking_notconsumable_but_assignable_was_consumed, none,
+      "cannot consume noncopyable stored property '%0' %select{of a class|that is global}1",
+      (StringRef, bool))
+ERROR(sil_movechecking_cannot_destructure_has_deinit, none,
+      "cannot partially consume '%0' when it has a deinitializer",
+      (StringRef))
+ERROR(sil_movechecking_discard_missing_consume_self, none,
+      "must consume 'self' before exiting method that discards self", ())
+ERROR(sil_movechecking_reinit_after_discard, none,
+      "cannot reinitialize 'self' after 'discard self'", ())
 
-ERROR(sil_moveonlychecker_notconsumable_but_assignable_was_consumed_classfield_let, none,
-      "'%0' was consumed but it is illegal to consume a noncopyable class let field. One can only read from it",
-      (StringRef))
-ERROR(sil_moveonlychecker_notconsumable_but_assignable_was_consumed_classfield_var, none,
-      "'%0' was consumed but it is illegal to consume a noncopyable class var field. One can only read from it or assign to it",
-      (StringRef))
-ERROR(sil_moveonlychecker_notconsumable_but_assignable_was_consumed_global_var, none,
-      "'%0' was consumed but it is illegal to consume a noncopyable global var. One can only read from it or assign to it",
-      (StringRef))
-ERROR(sil_moveonlychecker_notconsumable_but_assignable_was_consumed_global_let, none,
-      "'%0' was consumed but it is illegal to consume a noncopyable global let. One can only read from it",
-      (StringRef))
-ERROR(sil_moveonlychecker_notconsumable_but_assignable_was_consumed_escaping_var, none,
-      "'%0' was consumed but it is illegal to consume a noncopyable mutable capture of an escaping closure. One can only read from it or assign over it",
-      (StringRef))
-ERROR(sil_moveonlychecker_let_capture_consumed, none,
-      "'%0' was consumed but it is illegal to consume a noncopyable immutable capture of an escaping closure. One can only read from it", (StringRef))
-ERROR(sil_moveonlychecker_cannot_destructure_deinit_nominal_type_self, none,
-      "Cannot partially consume '%0' since it has a user defined deinit",
-      (StringRef))
-ERROR(sil_moveonlychecker_cannot_destructure_deinit_nominal_type_field, none,
-      "Cannot partially consume '%0' since it contains field '%1.%2' whose type %3 has a user defined deinit",
-      (StringRef, StringRef, StringRef, DeclBaseName))
+NOTE(sil_movechecking_discard_self_here, none,
+     "discarded self here", ())
+NOTE(sil_movechecking_partial_consume_here, none,
+     "partially consumed here", ())
+NOTE(sil_movechecking_consuming_use_here, none,
+     "consumed here", ())
+NOTE(sil_movechecking_consumed_again_here, none,
+     "consumed again here", ())
+NOTE(sil_movechecking_two_consuming_uses_here, none,
+     "multiple consumes here", ())
+NOTE(sil_movechecking_consuming_and_non_consuming_uses_here, none,
+     "consumed and used here", ())
+NOTE(sil_movechecking_consuming_closure_use_here, none,
+     "closure capturing '%0' here", (StringRef))
+NOTE(sil_movechecking_nonconsuming_use_here, none,
+     "used here", ())
+NOTE(sil_movechecking_consumed_in_loop_here, none,
+     "consumed in loop here", ())
+NOTE(sil_movechecking_deinit_here, none,
+     "deinitializer declared here", ())
 
-NOTE(sil_moveonlychecker_moveonly_field_consumed_here, none,
-     "move only field consumed here", ())
-NOTE(sil_moveonlychecker_boundary_use, none,
-     "boundary use here", ())
-NOTE(sil_moveonlychecker_consuming_use_here, none,
-     "consuming use here", ())
-NOTE(sil_moveonlychecker_other_consuming_use_here, none,
-     "other consuming use here", ())
-NOTE(sil_moveonlychecker_two_consuming_uses_here, none,
-     "two consuming uses here", ())
-NOTE(sil_moveonlychecker_consuming_and_non_consuming_uses_here, none,
-     "consuming and non-consuming uses here", ())
-NOTE(sil_moveonlychecker_consuming_closure_use_here, none,
-     "closure capture here", ())
-NOTE(sil_moveonlychecker_nonconsuming_use_here, none,
-     "non-consuming use here", ())
-NOTE(sil_movekillscopyablevalue_value_cyclic_consumed_in_loop_here, none,
-     "consuming in loop use here", ())
-NOTE(sil_moveonlychecker_deinit_here, none,
-     "deinit declared here", ())
-
-ERROR(sil_moveonlychecker_not_understand_consumable_and_assignable, none,
-      "Usage of @noImplicitCopy that the move checker does not know how to "
-      "check!", ())
-ERROR(sil_moveonlychecker_not_understand_moveonly, none,
-      "Usage of a move only type that the move checker does not know how to "
-      "check!", ())
-ERROR(sil_moveonlychecker_missed_copy, none,
+// errors involving noncopyables that are considered to be bugs in the compiler
+ERROR(sil_movechecking_not_understand_consumable_and_assignable, none,
+      "usage of no-implicit-copy value that the compiler can't verify. This is a compiler bug. Please file a bug with a small example of the bug", ())
+ERROR(sil_movechecking_not_understand_moveonly, none,
+      "usage of a noncopyable type that compiler can't verify. This is a compiler bug. Please file a bug with a small example of the bug", ())
+ERROR(sil_movechecking_bug_missed_copy, none,
       "copy of noncopyable typed value. This is a compiler bug. Please file a bug with a small example of the bug", ())
-
-// move kills copyable values checker diagnostics
-ERROR(sil_movekillscopyablevalue_value_consumed_more_than_once, none,
-      "'%0' used after being consumed", (StringRef))
-NOTE(sil_movekillscopyablevalue_move_here, none,
-     "consume here", ())
-NOTE(sil_movekillscopyablevalue_use_here, none,
-     "use here", ())
-NOTE(sil_movekillscopyablevalue_value_consumed_in_loop, none,
-     "consume here would occur multiple times in loop", ())
+ERROR(sil_movechecking_bug_exclusivity_violation, none,
+      "'%0' has an unexpected exclusivity violation. This is a compiler bug. Please file a bug with a small example of the bug", (StringRef))
 ERROR(sil_movekillscopyablevalue_move_applied_to_unsupported_move, none,
-      "'consume' applied to value that the compiler does not support checking",
+      "'consume' applied to value that the compiler does not support. This is a compiler bug. Please file a bug with a small example of the bug",
       ())
+
 
 // Implicit inout-to-UnsafeRawPointer conversions
 WARNING(nontrivial_to_rawpointer_conversion,none,

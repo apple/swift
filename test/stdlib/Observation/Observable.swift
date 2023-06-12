@@ -1,6 +1,6 @@
 // REQUIRES: swift_swift_parser, executable_test
 
-// RUN: %target-run-simple-swift( -Xfrontend -disable-availability-checking -parse-as-library -enable-experimental-feature Macros -Xfrontend -plugin-path -Xfrontend %swift-host-lib-dir/plugins)
+// RUN: %target-run-simple-swift( -Xfrontend -disable-availability-checking -parse-as-library -enable-experimental-feature InitAccessors -enable-experimental-feature Macros -Xfrontend -plugin-path -Xfrontend %swift-host-lib-dir/plugins)
 
 // REQUIRES: observation
 // REQUIRES: concurrency
@@ -24,6 +24,24 @@ struct Structure {
 }
 
 @Observable
+struct MemberwiseInitializers {
+  var field: Int
+}
+
+func validateMemberwiseInitializers() {
+  _ = MemberwiseInitializers(field: 3)
+}
+
+@Observable
+struct DefiniteInitialization {
+  var field: Int
+
+  init(field: Int) {
+    self.field = field
+  }
+}
+
+@Observable
 class ContainsWeak {
   weak var obj: AnyObject? = nil
 }
@@ -44,21 +62,21 @@ class ContainsIUO {
 }
 
 class NonObservable {
-  
+
 }
 
 @Observable
 class InheritsFromNonObservable: NonObservable {
-  
+
 }
 
 protocol NonObservableProtocol {
-  
+
 }
 
 @Observable
 class ConformsToNonObservableProtocol: NonObservableProtocol {
-  
+
 }
 
 struct NonObservableContainer {
@@ -73,19 +91,19 @@ class ImplementsAccessAndMutation {
   var field = 3
   let accessCalled: (PartialKeyPath<ImplementsAccessAndMutation>) -> Void
   let withMutationCalled: (PartialKeyPath<ImplementsAccessAndMutation>) -> Void
-  
+
   init(accessCalled: @escaping (PartialKeyPath<ImplementsAccessAndMutation>) -> Void, withMutationCalled: @escaping (PartialKeyPath<ImplementsAccessAndMutation>) -> Void) {
     self.accessCalled = accessCalled
     self.withMutationCalled = withMutationCalled
   }
-  
+
   internal func access<Member>(
       keyPath: KeyPath<ImplementsAccessAndMutation , Member>
   ) {
     accessCalled(keyPath)
     _$observationRegistrar.access(self, keyPath: keyPath)
   }
-  
+
   internal func withMutation<Member, T>(
     keyPath: KeyPath<ImplementsAccessAndMutation , Member>,
     _ mutation: () throws -> T
@@ -110,7 +128,7 @@ class Entity {
 class Person : Entity {
   var firstName = ""
   var lastName = ""
-  
+
   var friends = [Person]()
 
   var fullName: String { firstName + " " + lastName }
@@ -147,7 +165,7 @@ class HasIntermediaryConformance: Intermediary { }
 
 class CapturedState<State>: @unchecked Sendable {
   var state: State
-  
+
   init(state: State) {
     self.state = state
   }

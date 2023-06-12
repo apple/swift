@@ -43,7 +43,7 @@ func testExprFailureLet() {
     // Next line is parsed as move(t) + t
     let _ = _borrow t + t
     // Next line is parsed as move(t+t)
-    let _ = _borrow (t+t) // expected-error {{'borrow' can only be applied to lvalues}}
+    let _ = _borrow (t+t) // expected-error {{'borrow' can only be applied to a local binding ('let', 'var', or parameter)}}
 }
 
 func testExprFailureVar() {
@@ -52,7 +52,7 @@ func testExprFailureVar() {
     // Next line is parsed as move(t) + t
     let _ = _borrow t + t
     // Next line is parsed as move(t+t)
-    let _ = _borrow (t+t) // expected-error {{'borrow' can only be applied to lvalues}}
+    let _ = _borrow (t+t) // expected-error {{'borrow' can only be applied to a local binding ('let', 'var', or parameter)}}
 }
 
 func letAddressOnly<T>(_ v: T) {
@@ -83,5 +83,5 @@ func testLetClassAccessField() {
 func testVarClassAccessField() {
     var t = Klass()
     t = Klass()
-    let _ = _borrow t.k // expected-error {{'borrow' can only be applied to lvalues}}
+    let _ = _borrow t.k // expected-error {{'borrow' can only be applied to a local binding ('let', 'var', or parameter)}}
 }

@@ -100,6 +100,14 @@
   ANY_ADDRESSOR(ID, KEYWORD)
 #endif
 
+/// INIT_ACCESSOR(ID, KEYWORD)
+///   The given accessor is an init accessor.
+///
+///   Defaults to SINGLETON_ACCESSOR(ID, KEYWORD).
+#ifndef INIT_ACCESSOR
+#define INIT_ACCESSOR(ID, KEYWORD) SINGLETON_ACCESSOR(ID, KEYWORD)
+#endif
+
 // Suppress entries for accessors which can't be written in source code.
 #ifndef SUPPRESS_ARTIFICIAL_ACCESSORS
 #define SUPPRESS_ARTIFICIAL_ACCESSORS 0
@@ -174,11 +182,16 @@ IMMUTABLE_ADDRESSOR(Address, unsafeAddress)
 /// of the type).
 MUTABLE_ADDRESSOR(MutableAddress, unsafeMutableAddress)
 
+/// This is an init accessor: a function that is called when DI
+/// re-writes assignment to initialization.
+INIT_ACCESSOR(Init, init)
+
 #ifdef LAST_ACCESSOR
-LAST_ACCESSOR(MutableAddress)
+LAST_ACCESSOR(Init)
 #undef LAST_ACCESSOR
 #endif
 
+#undef INIT_ACCESSOR
 #undef IMMUTABLE_ADDRESSOR
 #undef MUTABLE_ADDRESSOR
 #undef ANY_ADDRESSOR

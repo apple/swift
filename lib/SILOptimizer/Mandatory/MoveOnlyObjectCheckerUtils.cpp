@@ -133,12 +133,10 @@ bool swift::siloptimizer::searchForCandidateObjectMarkMustChecks(
           }
         }
 
-        // Any time we have a lexical move_value, we can process it.
+        // Any time we have a move_value, we can process it.
         if (auto *mvi = dyn_cast<MoveValueInst>(mmci->getOperand())) {
-          if (mvi->isLexical()) {
-            moveIntroducersToProcess.insert(mmci);
-            continue;
-          }
+          moveIntroducersToProcess.insert(mmci);
+          continue;
         }
 
         if (auto *arg = dyn_cast<SILFunctionArgument>(mmci->getOperand())) {

@@ -535,8 +535,8 @@ bool CheckDistributedFunctionRequest::evaluate(
       checkDistributedSerializationRequirementIsExactlyCodable(
           C, serializationRequirements);
 
-  // --- Check parameters for 'Codable' conformance
   for (auto param : *func->getParameters()) {
+    // --- Check parameters for 'Codable' conformance
     auto paramTy = func->mapTypeIntoContext(param->getInterfaceType());
 
     for (auto req : serializationRequirements) {
@@ -555,6 +555,7 @@ bool CheckDistributedFunctionRequest::evaluate(
       }
     }
 
+    // --- Check parameters for various illegal modifiers
     if (param->isInOut()) {
       param->diagnose(
           diag::distributed_actor_func_inout,
@@ -563,6 +564,19 @@ bool CheckDistributedFunctionRequest::evaluate(
       ).fixItRemove(SourceRange(param->getTypeSourceRangeForDiagnostics().Start,
                                 param->getTypeSourceRangeForDiagnostics().Start.getAdvancedLoc(1)));
       // FIXME(distributed): the fixIt should be on param->getSpecifierLoc(), but that Loc is invalid for some reason?
+      return true;
+    }
+
+    if (param->getSpecifier() == ParamSpecifier::LegacyShared ||
+        param->getSpecifier() == ParamSpecifier::LegacyOwned ||
+        param->getSpecifier() == ParamSpecifier::Consuming ||
+        param->getSpecifier() == ParamSpecifier::Borrowing) {
+      param->diagnose(
+          diag::distributed_actor_func_unsupported_specifier,
+          ParamDecl::getSpecifierSpelling(param->getSpecifier()),
+          param->getName(),
+          func->getDescriptiveKind(),
+          func->getName());
       return true;
     }
 

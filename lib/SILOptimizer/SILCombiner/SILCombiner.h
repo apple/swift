@@ -234,8 +234,6 @@ public:
   SILInstruction *visitSILInstruction(SILInstruction *I) { return nullptr; }
 
   /// Instruction visitors.
-  SILInstruction *visitReleaseValueInst(ReleaseValueInst *DI);
-  SILInstruction *visitRetainValueInst(RetainValueInst *CI);
   SILInstruction *visitPartialApplyInst(PartialApplyInst *AI);
   SILInstruction *visitApplyInst(ApplyInst *AI);
   SILInstruction *visitBeginApplyInst(BeginApplyInst *BAI);

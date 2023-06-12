@@ -16,10 +16,14 @@
 
 import Swift
 
+@_implementationOnly import OS.Libc
+
 #if os(macOS) || os(iOS) || os(watchOS) || os(tvOS)
+@_implementationOnly import OS.Darwin
+#endif
 
-@_implementationOnly import _SwiftBacktracingShims
-
+#if os(Linux)
+@_implementationOnly import ImageFormats.Elf
 #endif
 
 /// Holds a backtrace.
@@ -29,7 +33,7 @@ public struct Backtrace: CustomStringConvertible, Sendable {
   /// This is intentionally _not_ a pointer, because you shouldn't be
   /// dereferencing them; they may refer to some other process, for
   /// example.
-  public typealias Address = UInt
+  public typealias Address = UInt64
 
   /// The unwind algorithm to use.
   public enum UnwindAlgorithm {
@@ -127,17 +131,22 @@ public struct Backtrace: CustomStringConvertible, Sendable {
     }
 
     /// A textual description of this frame.
-    public var description: String {
+    public func description(width: Int) -> String {
       switch self {
         case let .programCounter(addr):
-          return "\(hex(addr))"
+          return "\(hex(addr, width: width))"
         case let .returnAddress(addr):
-          return "\(hex(addr)) [ra]"
+          return "\(hex(addr, width: width)) [ra]"
         case let .asyncResumePoint(addr):
-          return "\(hex(addr)) [async]"
+          return "\(hex(addr, width: width)) [async]"
         case .omittedFrames(_), .truncated:
           return "..."
       }
+    }
+
+    /// A textual description of this frame.
+    public var description: String {
+      return description(width: MemoryLayout<Address>.size * 2)
     }
   }
 
@@ -160,14 +169,25 @@ public struct Backtrace: CustomStringConvertible, Sendable {
     public var endOfText: Backtrace.Address
 
     /// Provide a textual description of an Image.
-    public var description: String {
+    public func description(width: Int) -> String {
       if let buildID = self.buildID {
-        return "\(hex(baseAddress))-\(hex(endOfText)) \(hex(buildID)) \(name) \(path)"
+        return "\(hex(baseAddress, width: width))-\(hex(endOfText, width: width)) \(hex(buildID)) \(name) \(path)"
       } else {
-        return "\(hex(baseAddress))-\(hex(endOfText)) <no build ID> \(name) \(path)"
+        return "\(hex(baseAddress, width: width))-\(hex(endOfText, width: width)) <no build ID> \(name) \(path)"
       }
     }
+
+    /// A textual description of an Image.
+    public var description: String {
+      return description(width: MemoryLayout<Address>.size * 2)
+    }
   }
+
+  /// The architecture of the system that captured this backtrace.
+  public var architecture: String
+
+  /// The width of an address in this backtrace, in bits.
+  public var addressWidth: Int
 
   /// A list of captured frame information.
   public var frames: [Frame]
@@ -199,6 +219,17 @@ public struct Backtrace: CustomStringConvertible, Sendable {
   /// be `nil`.
   public var sharedCacheInfo: SharedCacheInfo?
 
+  /// Format an address according to the addressWidth.
+  ///
+  /// @param address     The address to format.
+  /// @param prefix      Whether to include a "0x" prefix.
+  ///
+  /// @returns A String containing the formatted Address.
+  public func formatAddress(_ address: Address,
+                            prefix: Bool = true) -> String {
+    return hex(address, prefix: prefix, width: (addressWidth + 3) / 4)
+  }
+
   /// Capture a backtrace from the current program location.
   ///
   /// The `capture()` method itself will not be included in the backtrace;
@@ -219,15 +250,23 @@ public struct Backtrace: CustomStringConvertible, Sendable {
   ///
   /// @returns A new `Backtrace` struct.
   @inline(never)
+  @_semantics("use_frame_pointer")
   public static func capture(algorithm: UnwindAlgorithm = .auto,
                              limit: Int? = 64,
                              offset: Int = 0,
                              top: Int = 16) throws -> Backtrace {
+    #if os(Linux)
+    let images = captureImages()
+    #else
+    let images: [Image]? = nil
+    #endif
+
     // N.B. We use offset+1 here to skip this frame, rather than inlining
     //      this code into the client.
     return try HostContext.withCurrentContext { ctx in
       try capture(from: ctx,
                   using: UnsafeLocalMemoryReader(),
+                  images: images,
                   algorithm: algorithm,
                   limit: limit,
                   offset: offset + 1,
@@ -236,23 +275,32 @@ public struct Backtrace: CustomStringConvertible, Sendable {
   }
 
   @_spi(Internal)
-  public static func capture(from context: some Context,
-                             using memoryReader: some MemoryReader,
-                             algorithm: UnwindAlgorithm = .auto,
-                             limit: Int? = 64,
-                             offset: Int = 0,
-                             top: Int = 16) throws -> Backtrace {
+  public static func capture<Ctx: Context, Rdr: MemoryReader>(
+    from context: Ctx,
+    using memoryReader: Rdr,
+    images: [Image]?,
+    algorithm: UnwindAlgorithm = .auto,
+    limit: Int? = 64,
+    offset: Int = 0,
+    top: Int = 16
+  ) throws -> Backtrace {
+    let addressWidth = 8 * MemoryLayout<Ctx.Address>.size
+
     switch algorithm {
       // All of them, for now, use the frame pointer unwinder.  In the long
       // run, we should be using DWARF EH frame data for .precise.
       case .auto, .fast, .precise:
         let unwinder =
-          FramePointerUnwinder(context: context, memoryReader: memoryReader)
+          FramePointerUnwinder(context: context,
+                               images: images,
+                               memoryReader: memoryReader)
           .dropFirst(offset)
 
         if let limit = limit {
           if limit <= 0 {
-            return Backtrace(frames: [.truncated])
+            return Backtrace(architecture: context.architecture,
+                             addressWidth: addressWidth,
+                             frames: [.truncated])
           }
 
           let realTop = top < limit ? top : limit - 1
@@ -276,7 +324,9 @@ public struct Backtrace: CustomStringConvertible, Sendable {
               frames[limit - 1] = .truncated
             }
 
-            return Backtrace(frames: frames)
+            return Backtrace(architecture: context.architecture,
+                             addressWidth: addressWidth,
+                             frames: frames)
           } else {
 
             // If we still have frames at this point, start tracking the
@@ -312,10 +362,16 @@ public struct Backtrace: CustomStringConvertible, Sendable {
                                      with: topFrames.prefix(secondPart))
             }
 
-            return Backtrace(frames: frames)
+            return Backtrace(architecture: context.architecture,
+                             addressWidth: addressWidth,
+                             frames: frames,
+                             images: images)
           }
         } else {
-          return Backtrace(frames: Array(unwinder))
+          return Backtrace(architecture: context.architecture,
+                           addressWidth: addressWidth,
+                           frames: Array(unwinder),
+                           images: images)
         }
     }
   }
@@ -326,20 +382,20 @@ public struct Backtrace: CustomStringConvertible, Sendable {
   /// @returns A list of `Image`s.
   public static func captureImages() -> [Image] {
     #if os(macOS) || os(iOS) || os(watchOS) || os(tvOS)
-    return captureImages(for: _swift_backtrace_task_self())
+    return captureImages(for: mach_task_self())
     #else
-    return []
+    return captureImages(using: UnsafeLocalMemoryReader())
     #endif
   }
 
   #if os(macOS) || os(iOS) || os(watchOS) || os(tvOS)
-  private static func withDyldProcessInfo<T>(for task: __swift_task_t,
+  private static func withDyldProcessInfo<T>(for task: task_t,
                                              fn: (OpaquePointer?) throws -> T)
     rethrows -> T {
-    var kret = __swift_kern_return_t(_SWIFT_KERN_SUCCESS)
+    var kret = kern_return_t(KERN_SUCCESS)
     let dyldInfo = _dyld_process_info_create(task, 0, &kret)
 
-    if kret != _SWIFT_KERN_SUCCESS {
+    if kret != KERN_SUCCESS {
       fatalError("error: cannot create dyld process info")
     }
 
@@ -351,12 +407,11 @@ public struct Backtrace: CustomStringConvertible, Sendable {
   }
   #endif
 
+  #if os(macOS) || os(iOS) || os(watchOS) || os(tvOS)
   @_spi(Internal)
   public static func captureImages(for process: Any) -> [Image] {
     var images: [Image] = []
-
-    #if os(macOS) || os(iOS) || os(watchOS) || os(tvOS)
-    let task = process as! __swift_task_t
+    let task = process as! task_t
 
     withDyldProcessInfo(for: task) { dyldInfo in
       _dyld_process_info_for_each_image(dyldInfo) {
@@ -365,7 +420,7 @@ public struct Backtrace: CustomStringConvertible, Sendable {
         if let path = path, let uuid = uuid {
           let pathString = String(cString: path)
           let theUUID = Array(UnsafeBufferPointer(start: uuid,
-                                                  count: MemoryLayout<__swift_uuid_t>.size))
+                                                  count: MemoryLayout<uuid_t>.size))
           let name: String
           if let slashIndex = pathString.lastIndex(of: "/") {
             name = String(pathString.suffix(from:
@@ -393,17 +448,132 @@ public struct Backtrace: CustomStringConvertible, Sendable {
         }
       }
     }
-    #endif // os(macOS) || os(iOS) || os(watchOS)
 
     return images.sorted(by: { $0.baseAddress < $1.baseAddress })
   }
+  #else // !(os(macOS) || os(iOS) || os(tvOS) || os(watchOS))
+  private struct AddressRange {
+    var low: Address = 0
+    var high: Address = 0
+  }
+
+  @_spi(Internal)
+  public static func captureImages<M: MemoryReader>(using reader: M,
+                                                    forProcess pid: Int? = nil) -> [Image] {
+    var images: [Image] = []
+
+    #if os(Linux)
+    let path: String
+    if let pid = pid {
+      path = "/proc/\(pid)/maps"
+    } else {
+      path = "/proc/self/maps"
+    }
+
+    guard let procMaps = readString(from: path) else {
+      return []
+    }
+
+    // Find all the mapped files and get high/low ranges
+    var mappedFiles: [Substring:AddressRange] = [:]
+    for match in ProcMapsScanner(procMaps) {
+      let path = stripWhitespace(match.pathname)
+      if match.inode == "0" || path == "" {
+        continue
+      }
+      guard let start = Address(match.start, radix: 16),
+            let end = Address(match.end, radix: 16) else {
+        continue
+      }
+
+      if let range = mappedFiles[path] {
+        mappedFiles[path] = AddressRange(low: min(start, range.low),
+                                         high: max(end, range.high))
+      } else {
+        mappedFiles[path] = AddressRange(low: start,
+                                         high: end)
+      }
+    }
+
+    // Look for ELF headers in the process' memory
+    typealias Source = MemoryImageSource<M>
+    let source = Source(with: reader)
+    for match in ProcMapsScanner(procMaps) {
+      let path = stripWhitespace(match.pathname)
+      if match.inode == "0" || path == "" {
+        continue
+      }
+
+      guard let start = Address(match.start, radix: 16),
+            let end = Address(match.end, radix: 16),
+            let offset = Address(match.offset, radix: 16) else {
+        continue
+      }
+
+      if offset != 0 || end - start < EI_NIDENT {
+        continue
+      }
+
+      // Extract the filename from path
+      let name: Substring
+      if let slashIndex = path.lastIndex(of: "/") {
+        name = path.suffix(from: path.index(after: slashIndex))
+      } else {
+        name = path
+      }
+
+      // Inspect the image and extract the UUID and end of text
+      let range = mappedFiles[path]!
+      let subSource = SubImageSource(parent: source,
+                                     baseAddress: Source.Address(range.low),
+                                     length: Source.Size(range.high
+                                                           - range.low))
+      var theUUID: [UInt8]? = nil
+      var endOfText: Address = range.low
+
+      if let image = try? Elf32Image(source: subSource) {
+        theUUID = image.uuid
+
+        for hdr in image.programHeaders {
+          if hdr.p_type == .PT_LOAD && (hdr.p_flags & PF_X) != 0 {
+            endOfText = max(endOfText, range.low + Address(hdr.p_vaddr
+                                                             + hdr.p_memsz))
+          }
+        }
+      } else if let image = try? Elf64Image(source: subSource) {
+        theUUID = image.uuid
+
+        for hdr in image.programHeaders {
+          if hdr.p_type == .PT_LOAD && (hdr.p_flags & PF_X) != 0 {
+            endOfText = max(endOfText, range.low + Address(hdr.p_vaddr
+                                                             + hdr.p_memsz))
+          }
+        }
+      } else {
+        // Not a valid ELF image
+        continue
+      }
+
+      let image = Image(name: String(name),
+                        path: String(path),
+                        buildID: theUUID,
+                        baseAddress: range.low,
+                        endOfText: endOfText)
+
+      images.append(image)
+    }
+    #endif
+
+    return images.sorted(by: { $0.baseAddress < $1.baseAddress })
+  }
+  #endif
 
   /// Capture shared cache information.
   ///
   /// @returns A `SharedCacheInfo`.
   public static func captureSharedCacheInfo() -> SharedCacheInfo? {
     #if os(macOS) || os(iOS) || os(watchOS) || os(tvOS)
-    return captureSharedCacheInfo(for: _swift_backtrace_task_self())
+    return captureSharedCacheInfo(for: mach_task_self())
     #else
     return nil
     #endif
@@ -412,13 +582,13 @@ public struct Backtrace: CustomStringConvertible, Sendable {
   @_spi(Internal)
   public static func captureSharedCacheInfo(for t: Any) -> SharedCacheInfo? {
     #if os(macOS) || os(iOS) || os(watchOS) || os(tvOS)
-    let task = t as! __swift_task_t
+    let task = t as! task_t
     return withDyldProcessInfo(for: task) { dyldInfo in
       var cacheInfo = dyld_process_cache_info()
       _dyld_process_info_get_cache(dyldInfo, &cacheInfo)
       let theUUID = withUnsafePointer(to: cacheInfo.cacheUUID) {
         Array(UnsafeRawBufferPointer(start: $0,
-                                     count: MemoryLayout<__swift_uuid_t>.size))
+                                     count: MemoryLayout<uuid_t>.size))
       }
       return SharedCacheInfo(uuid: theUUID,
                              baseAddress: Address(cacheInfo.cacheBaseAddress),
@@ -462,10 +632,11 @@ public struct Backtrace: CustomStringConvertible, Sendable {
   /// Provide a textual version of the backtrace.
   public var description: String {
     var lines: [String] = []
+    let addressChars = (addressWidth + 3) / 4
 
     var n = 0
     for frame in frames {
-      lines.append("\(n)\t\(frame)")
+      lines.append("\(n)\t\(frame.description(width: addressChars))")
       switch frame {
         case let .omittedFrames(count):
           n += count
@@ -479,7 +650,7 @@ public struct Backtrace: CustomStringConvertible, Sendable {
       lines.append("Images:")
       lines.append("")
       for (n, image) in images.enumerated() {
-        lines.append("\(n)\t\(image)")
+        lines.append("\(n)\t\(image.description(width: addressChars))")
       }
     }
 
@@ -488,8 +659,9 @@ public struct Backtrace: CustomStringConvertible, Sendable {
       lines.append("")
       lines.append("Shared Cache:")
       lines.append("")
-      lines.append("  UUID: \(hex(sharedCacheInfo.uuid))")
-      lines.append("  Base: \(hex(sharedCacheInfo.baseAddress))")
+      lines.append("    UUID: \(hex(sharedCacheInfo.uuid))")
+      lines.append("    Base: \(hex(sharedCacheInfo.baseAddress, width: addressChars))")
+      lines.append("  Active: \(!sharedCacheInfo.noCache)")
     }
     #endif
 

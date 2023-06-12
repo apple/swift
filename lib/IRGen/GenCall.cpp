@@ -28,6 +28,7 @@
 #include "clang/Basic/TargetInfo.h"
 #include "clang/CodeGen/CodeGenABITypes.h"
 #include "clang/CodeGen/ModuleBuilder.h"
+#include "clang/Sema/Sema.h"
 #include "llvm/IR/GlobalPtrAuthInfo.h"
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/Support/Compiler.h"
@@ -3860,7 +3861,7 @@ bool irgen::addNativeArgument(IRGenFunction &IGF,
     // Pass the argument explosion directly, mapping into the native swift
     // calling convention.
     Explosion nonNativeParam;
-    ti.reexplode(IGF, in, nonNativeParam);
+    ti.reexplode(in, nonNativeParam);
     Explosion nativeParam = nativeSchema.mapIntoNative(
         IGF.IGM, IGF, nonNativeParam, paramType, isOutlined);
     nativeParam.transferInto(out, nativeParam.size());
@@ -4553,6 +4554,23 @@ bool IRGenModule::isForeignExceptionHandlingEnabled() const {
       Context.getClangModuleLoader()->getClangASTContext().getLangOpts();
   return Context.LangOpts.EnableCXXInterop && clangLangOpts.Exceptions &&
          !clangLangOpts.IgnoreExceptions;
+}
+
+bool IRGenModule::isCxxNoThrow(clang::FunctionDecl *fd, bool defaultNoThrow) {
+  auto *fpt = fd->getType()->getAs<clang::FunctionProtoType>();
+  if (!fpt)
+    return defaultNoThrow;
+  if (fpt->getExceptionSpecType() ==
+      clang::ExceptionSpecificationType::EST_Unevaluated) {
+    // Clang might not have evaluated the exception spec for
+    // a constructor, so force the evaluation of it.
+    auto &clangSema = Context.getClangModuleLoader()->getClangSema();
+    clangSema.EvaluateImplicitExceptionSpec(fd->getLocation(), fd);
+    fpt = fd->getType()->getAs<clang::FunctionProtoType>();
+    if (!fpt)
+      return defaultNoThrow;
+  }
+  return fpt->isNothrow();
 }
 
 /// Emit the epilogue for the function.

@@ -103,12 +103,8 @@ static RawComment toRawComment(ASTContext &Context, CharSourceRange Range) {
       End--;
 
     if (SRC.isOrdinary()) {
-      // If there's a normal comment then reset the current group, unless it's
-      // a gyb comment in which case we should just skip it.
-      if (SRC.isGyb())
-        LastEnd = End;
-      else
-        Comments.clear();
+      // If there's a regular comment just skip it
+      LastEnd = End;
       continue;
     }
 

@@ -385,7 +385,7 @@ static bool isReinitToInitConvertibleInst(SILInstruction *memInst) {
 
 static void insertDebugValueBefore(SILInstruction *insertPt,
                                    DebugVarCarryingInst debugVar,
-                                   SILValue operand) {
+                                   llvm::function_ref<SILValue ()> operand) {
   if (!debugVar) {
     return;
   }
@@ -395,7 +395,7 @@ static void insertDebugValueBefore(SILInstruction *insertPt,
   }
   SILBuilderWithScope debugInfoBuilder(insertPt);
   debugInfoBuilder.setCurrentDebugScope(debugVar->getDebugScope());
-  debugInfoBuilder.createDebugValue(debugVar->getLoc(), operand,
+  debugInfoBuilder.createDebugValue(debugVar->getLoc(), operand(),
                                     *varInfo, false, true);
 }
 
@@ -423,7 +423,7 @@ static void convertMemoryReinitToInitForm(SILInstruction *memInst,
   // Insert a new debug_value instruction after the reinitialization, so that
   // the debugger knows that the variable is in a usable form again.
   insertDebugValueBefore(memInst->getNextInstruction(), debugVar,
-                         stripAccessMarkers(dest));
+                       [&]{ return debugVar.getOperandForDebugValueClone(); });
 }
 
 static bool memInstMustConsume(Operand *memOper) {
@@ -441,7 +441,7 @@ static bool memInstMustConsume(Operand *memOper) {
            (CAI->getDest() == address && !CAI->isInitializationOfDest());
   }
   case SILInstructionKind::ExplicitCopyAddrInst: {
-    auto *CAI = cast<CopyAddrInst>(memInst);
+    auto *CAI = cast<ExplicitCopyAddrInst>(memInst);
     return (CAI->getSrc() == address && CAI->isTakeOfSrc()) ||
            (CAI->getDest() == address && !CAI->isInitializationOfDest());
   }
@@ -516,6 +516,14 @@ static bool isInOutDefThatNeedsEndOfFunctionLiveness(MarkMustCheckInst *markedAd
 
 
   return false;
+}
+
+static bool isCopyableValue(SILValue value) {
+  if (value->getType().isMoveOnly())
+    return false;
+  if (auto *m = dyn_cast<MoveOnlyWrapperToCopyableAddrInst>(value))
+    return false;
+  return true;
 }
 
 //===----------------------------------------------------------------------===//
@@ -691,6 +699,9 @@ struct UseState {
   /// [assign] that are reinits that we will convert to inits and true reinits.
   llvm::SmallMapVector<SILInstruction *, TypeTreeLeafTypeRange, 4> reinitInsts;
 
+  /// The set of drop_deinits of this mark_must_check
+  SmallSetVector<SILInstruction *, 2> dropDeinitInsts;
+
   /// A "inout terminator use" is an implicit liveness use of the entire value
   /// placed on a terminator. We use this both so we add liveness for the
   /// terminator user and so that we can use the set to quickly identify later
@@ -712,6 +723,31 @@ struct UseState {
     return inoutTermUsers.count(inst);
   }
 
+  /// Returns true if the given instruction is within the same block as a reinit
+  /// and precedes a reinit instruction in that block.
+  bool precedesReinitInSameBlock(SILInstruction *inst) const {
+    SILBasicBlock *block = inst->getParent();
+    SmallSetVector<SILInstruction *, 8> sameBlockReinits;
+
+    // First, search for all reinits that are within the same block.
+    for (auto &reinit : reinitInsts) {
+      if (reinit.first->getParent() != block)
+        continue;
+      sameBlockReinits.insert(reinit.first);
+    }
+
+    if (sameBlockReinits.empty())
+      return false;
+
+    // Walk down from the given instruction to see if we encounter a reinit.
+    for (auto ii = std::next(inst->getIterator()); ii != block->end(); ++ii) {
+      if (sameBlockReinits.contains(&*ii))
+        return true;
+    }
+
+    return false;
+  }
+
   void clear() {
     address = nullptr;
     destroys.clear();
@@ -721,6 +757,7 @@ struct UseState {
     takeInsts.clear();
     initInsts.clear();
     reinitInsts.clear();
+    dropDeinitInsts.clear();
     inoutTermUsers.clear();
     debugValue = nullptr;
   }
@@ -754,6 +791,10 @@ struct UseState {
     llvm::dbgs() << "Reinits:\n";
     for (auto pair : reinitInsts) {
       llvm::dbgs() << *pair.first;
+    }
+    llvm::dbgs() << "DropDeinits:\n";
+    for (auto *inst : dropDeinitInsts) {
+      llvm::dbgs() << *inst;
     }
     llvm::dbgs() << "InOut Term Users:\n";
     for (auto *inst : inoutTermUsers) {
@@ -886,30 +927,36 @@ void UseState::initializeLiveness(
   // Then check if our markedValue is from an argument that is in,
   // in_guaranteed, inout, or inout_aliasable, consider the marked address to be
   // the initialization point.
-  if (auto *fArg = dyn_cast<SILFunctionArgument>(address->getOperand())) {
-    switch (fArg->getArgumentConvention()) {
-    case swift::SILArgumentConvention::Indirect_In:
-    case swift::SILArgumentConvention::Indirect_In_Guaranteed:
-    case swift::SILArgumentConvention::Indirect_Inout:
-    case swift::SILArgumentConvention::Indirect_InoutAliasable:
-      // We need to add our address to the initInst array to make sure that
-      // later invariants that we assert upon remain true.
-      LLVM_DEBUG(llvm::dbgs()
-                 << "Found in/in_guaranteed/inout/inout_aliasable argument as "
-                    "an init... adding mark_must_check as init!\n");
-      initInsts.insert({address, liveness.getTopLevelSpan()});
-      liveness.initializeDef(address, liveness.getTopLevelSpan());
-      break;
-    case swift::SILArgumentConvention::Indirect_Out:
-      llvm_unreachable("Should never have out addresses here");
-    case swift::SILArgumentConvention::Direct_Owned:
-    case swift::SILArgumentConvention::Direct_Unowned:
-    case swift::SILArgumentConvention::Direct_Guaranteed:
-    case swift::SILArgumentConvention::Pack_Inout:
-    case swift::SILArgumentConvention::Pack_Guaranteed:
-    case swift::SILArgumentConvention::Pack_Owned:
-    case swift::SILArgumentConvention::Pack_Out:
-      llvm_unreachable("Working with addresses");
+  {
+    SILValue operand = address->getOperand();
+    if (auto *c = dyn_cast<CopyableToMoveOnlyWrapperAddrInst>(operand))
+      operand = c->getOperand();
+    if (auto *fArg = dyn_cast<SILFunctionArgument>(operand)) {
+      switch (fArg->getArgumentConvention()) {
+      case swift::SILArgumentConvention::Indirect_In:
+      case swift::SILArgumentConvention::Indirect_In_Guaranteed:
+      case swift::SILArgumentConvention::Indirect_Inout:
+      case swift::SILArgumentConvention::Indirect_InoutAliasable:
+        // We need to add our address to the initInst array to make sure that
+        // later invariants that we assert upon remain true.
+        LLVM_DEBUG(
+            llvm::dbgs()
+            << "Found in/in_guaranteed/inout/inout_aliasable argument as "
+               "an init... adding mark_must_check as init!\n");
+        initInsts.insert({address, liveness.getTopLevelSpan()});
+        liveness.initializeDef(address, liveness.getTopLevelSpan());
+        break;
+      case swift::SILArgumentConvention::Indirect_Out:
+        llvm_unreachable("Should never have out addresses here");
+      case swift::SILArgumentConvention::Direct_Owned:
+      case swift::SILArgumentConvention::Direct_Unowned:
+      case swift::SILArgumentConvention::Direct_Guaranteed:
+      case swift::SILArgumentConvention::Pack_Inout:
+      case swift::SILArgumentConvention::Pack_Guaranteed:
+      case swift::SILArgumentConvention::Pack_Owned:
+      case swift::SILArgumentConvention::Pack_Out:
+        llvm_unreachable("Working with addresses");
+      }
     }
   }
 
@@ -1267,6 +1314,10 @@ struct MoveOnlyAddressCheckerPImpl {
                    FieldSensitiveMultiDefPrunedLiveRange &liveness,
                    const FieldSensitivePrunedLivenessBoundary &boundary);
 
+  /// Identifies and diagnoses reinitializations that are reachable from a
+  /// discard statement.
+  void checkForReinitAfterDiscard();
+
   void handleSingleBlockDestroy(SILInstruction *destroy, bool isReinit);
 };
 
@@ -1320,7 +1371,7 @@ struct CopiedLoadBorrowEliminationVisitor final
         // Look through copy_value of a move only value. We treat copy_value of
         // copyable values as normal uses.
         if (auto *cvi = dyn_cast<CopyValueInst>(nextUse->getUser())) {
-          if (cvi->getOperand()->getType().isMoveOnly()) {
+          if (!isCopyableValue(cvi->getOperand())) {
             shouldConvertToLoadCopy = true;
             break;
           }
@@ -1424,6 +1475,12 @@ checkForDestructureThroughDeinit(MarkMustCheckInst *rootAddress, Operand *use,
   auto targetType = use->get()->getType();
   auto iterType = rootAddress->getType();
   TypeOffsetSizePair iterPair(iterType, fn);
+
+  // If our rootAddress is moveonlywrapped, then we know that it must be
+  // copyable under the hood meanign that we copy its fields rather than
+  // destructure the fields.
+  if (iterType.isMoveOnlyWrapped())
+    return;
 
   while (iterType != targetType) {
     // If we have a nominal type as our parent type, see if it has a
@@ -1628,7 +1685,7 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
       return false;
 
     // If we have a non-move only type, just treat this as a liveness use.
-    if (!copyAddr->getSrc()->getType().isMoveOnly()) {
+    if (isCopyableValue(copyAddr->getSrc())) {
       LLVM_DEBUG(llvm::dbgs()
                  << "Found copy of copyable type. Treating as liveness use! "
                  << *user);
@@ -1645,6 +1702,7 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
             markedValue);
         return true;
       }
+
       LLVM_DEBUG(llvm::dbgs()
                  << "Found mark must check [nocopy] error: " << *user);
       diagnosticEmitter.emitAddressDiagnosticNoCopy(markedValue, copyAddr);
@@ -1679,7 +1737,7 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
     // trivial load. If it is, then we just treat this as a liveness requiring
     // use.
     if (li->getOwnershipQualifier() == LoadOwnershipQualifier::Trivial ||
-        !li->getType().isMoveOnly()) {
+        isCopyableValue(li)) {
       auto leafRange = TypeTreeLeafTypeRange::get(op->get(), getRootAddress());
       if (!leafRange)
         return false;
@@ -1736,6 +1794,12 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
     // Canonicalize the lifetime of the load [take], load [copy].
     LLVM_DEBUG(llvm::dbgs() << "Running copy propagation!\n");
     moveChecker.changed |= moveChecker.canonicalizer.canonicalize();
+
+    // Export the drop_deinit's discovered by the ObjectChecker into the
+    // AddressChecker to preserve it for later use. We need to do this since
+    // the ObjectChecker's state gets cleared after running on this LoadInst.
+    for (auto *dropDeinit : moveChecker.canonicalizer.getDropDeinitUses())
+      moveChecker.addressUseState.dropDeinitInsts.insert(dropDeinit);
 
     // If we are asked to perform no_consume_or_assign checking or
     // assignable_but_not_consumable checking, if we found any consumes of our
@@ -1960,6 +2024,22 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
 
       return true;
     }
+  }
+
+  if (auto *explicitCopy = dyn_cast<ExplicitCopyAddrInst>(op->getUser())) {
+    assert(op->getOperandNumber() == ExplicitCopyAddrInst::Src &&
+           "Dest should have been handled earlier");
+    assert(!explicitCopy->isTakeOfSrc() &&
+           "If we had a take of src, this should have already been identified "
+           "as a must consume");
+    auto leafRange = TypeTreeLeafTypeRange::get(op->get(), getRootAddress());
+    if (!leafRange) {
+      LLVM_DEBUG(llvm::dbgs() << "Failed to compute leaf range!\n");
+      return false;
+    }
+
+    useState.livenessUses.insert({user, *leafRange});
+    return true;
   }
 
   // If we don't fit into any of those categories, just track as a liveness
@@ -2345,12 +2425,10 @@ void MoveOnlyAddressCheckerPImpl::insertDestroysOnBoundary(
   // referring to the same debug variable as the original definition, we have to
   // use the same debug scope and location as the original debug var.
   auto insertUndefDebugValue = [&debugVar](SILInstruction *insertPt) {
-    if (!debugVar) {
-      return;
-    }
-    insertDebugValueBefore(insertPt, debugVar,
-      SILUndef::get(debugVar.getOperandForDebugValueClone()->getType(),
-                    insertPt->getModule()));
+    insertDebugValueBefore(insertPt, debugVar, [&]{
+      return SILUndef::get(debugVar.getOperandForDebugValueClone()->getType(),
+                           insertPt->getModule());
+    });
   };
 
   for (auto &pair : boundary.getLastUsers()) {
@@ -2460,10 +2538,41 @@ void MoveOnlyAddressCheckerPImpl::rewriteUses(
     FieldSensitiveMultiDefPrunedLiveRange &liveness,
     const FieldSensitivePrunedLivenessBoundary &boundary) {
   LLVM_DEBUG(llvm::dbgs() << "MoveOnlyAddressChecker Rewrite Uses!\n");
-  // First remove all destroy_addr that have not been claimed.
+
+  /// Whether the marked value appeared in a discard statement.
+  const bool isDiscardingContext = !addressUseState.dropDeinitInsts.empty();
+
+  // Process destroys
   for (auto destroyPair : addressUseState.destroys) {
-    if (!consumes.claimConsume(destroyPair.first, destroyPair.second)) {
+    /// Is this destroy instruction a final consuming use?
+    bool isFinalConsume =
+        consumes.claimConsume(destroyPair.first, destroyPair.second);
+
+    // Remove destroys that are not the final consuming use.
+    if (!isFinalConsume) {
       destroyPair.first->eraseFromParent();
+      continue;
+    }
+
+    // Otherwise, if we're in a discarding context, flag this final destroy_addr
+    // as a point where we're missing an explicit `consume self`. The reasoning
+    // here is that if a destroy of self is the final consuming use,
+    // then these are the points where we implicitly destroy self to clean-up
+    // that self var before exiting the scope. An explicit 'consume self'
+    // that is thrown away is a consume of this mark_must_check'd var and not a
+    // destroy of it, according to the use classifier.
+    if (isDiscardingContext) {
+
+      // Since the boundary computations treat a newly-added destroy prior to
+      // a reinit within that same block as a "final consuming use", exclude
+      // such destroys-before-reinit. We are only interested in the final
+      // destroy of a var, not intermediate destroys of the var.
+      if (addressUseState.precedesReinitInSameBlock(destroyPair.first))
+        continue;
+
+      auto *dropDeinit = addressUseState.dropDeinitInsts.front();
+      diagnosticEmitter.emitMissingConsumeInDiscardingContext(destroyPair.first,
+                                                              dropDeinit);
     }
   }
 
@@ -2525,29 +2634,27 @@ void MoveOnlyAddressCheckerPImpl::rewriteUses(
   // scope, we would have emitted the scope expansion error during diagnostics.
   for (auto pair : addressUseState.borrows) {
     if (auto *li = dyn_cast<LoadInst>(pair.first)) {
-      if (li->getOwnershipQualifier() == LoadOwnershipQualifier::Copy) {
-        // If we had a load [copy], borrow then we know that all of its destroys
-        // must have been destroy_value. So we can just gather up those
-        // destroy_value and use then to create a new load_borrow scope.
-        SILBuilderWithScope builder(li);
-        auto *lbi = builder.createLoadBorrow(li->getLoc(), li->getOperand());
-        // We use this auxillary list to avoid iterator invalidation of
-        // li->getConsumingUse();
-        StackList<DestroyValueInst *> toDelete(lbi->getFunction());
-        for (auto *consumeUse : li->getConsumingUses()) {
-          auto *dvi = cast<DestroyValueInst>(consumeUse->getUser());
-          SILBuilderWithScope destroyBuilder(dvi);
-          destroyBuilder.createEndBorrow(dvi->getLoc(), lbi);
-          toDelete.push_back(dvi);
-          changed = true;
-        }
-        while (!toDelete.empty())
-          toDelete.pop_back_val()->eraseFromParent();
-
-        li->replaceAllUsesWith(lbi);
-        li->eraseFromParent();
-        continue;
+      // If we had a load -> load_borrow then we know that all of its destroys
+      // must have been destroy_value. So we can just gather up those
+      // destroy_value and use then to create a new load_borrow scope.
+      SILBuilderWithScope builder(li);
+      auto *lbi = builder.createLoadBorrow(li->getLoc(), li->getOperand());
+      // We use this auxillary list to avoid iterator invalidation of
+      // li->getConsumingUse();
+      StackList<DestroyValueInst *> toDelete(lbi->getFunction());
+      for (auto *consumeUse : li->getConsumingUses()) {
+        auto *dvi = cast<DestroyValueInst>(consumeUse->getUser());
+        SILBuilderWithScope destroyBuilder(dvi);
+        destroyBuilder.createEndBorrow(dvi->getLoc(), lbi);
+        toDelete.push_back(dvi);
+        changed = true;
       }
+      while (!toDelete.empty())
+        toDelete.pop_back_val()->eraseFromParent();
+
+      li->replaceAllUsesWith(lbi);
+      li->eraseFromParent();
+      continue;
     }
 
     llvm::dbgs() << "Borrow: " << *pair.first;
@@ -2561,6 +2668,80 @@ void MoveOnlyAddressCheckerPImpl::rewriteUses(
     llvm_unreachable("Standard error?!");
   }
 #endif
+}
+
+void MoveOnlyAddressCheckerPImpl::checkForReinitAfterDiscard() {
+  auto const &dropDeinits = addressUseState.dropDeinitInsts;
+  auto const &reinits = addressUseState.reinitInsts;
+
+  if (dropDeinits.empty() || reinits.empty())
+    return;
+
+  using BasicBlockMap = llvm::DenseMap<SILBasicBlock *,
+                                       llvm::SmallPtrSet<SILInstruction *, 2>>;
+  BasicBlockMap blocksWithReinit;
+  for (auto const &info : reinits) {
+    auto *reinit = info.first;
+    blocksWithReinit[reinit->getParent()].insert(reinit);
+  }
+
+  // Starting from each drop_deinit instruction, can we reach a reinit of self?
+  for (auto *dropInst : dropDeinits) {
+    auto *dropBB = dropInst->getParent();
+
+    // First, if the block containing this drop_deinit also contains a reinit,
+    // check if that reinit happens after this drop_deinit.
+    auto result = blocksWithReinit.find(dropBB);
+    if (result != blocksWithReinit.end()) {
+      auto &blockReinits = result->second;
+      for (auto ii = std::next(dropInst->getIterator()); ii != dropBB->end();
+           ++ii) {
+        SILInstruction *current = &*ii;
+        if (blockReinits.contains(current)) {
+          // Then the drop_deinit can reach a reinit immediately after it in the
+          // same block.
+          diagnosticEmitter.emitReinitAfterDiscardError(current, dropInst);
+          return;
+        }
+      }
+    }
+
+    BasicBlockWorklist worklist(fn);
+
+    // Seed the search with the successors of the drop_init block, so that if we
+    // visit the drop_deinit block again, we'll know the reinits _before_ the
+    // drop_deinit are reachable via some back-edge / cycle.
+    for (auto *succ : dropBB->getSuccessorBlocks())
+      worklist.pushIfNotVisited(succ);
+
+    // Determine reachability across blocks.
+    while (auto *bb = worklist.pop()) {
+      // Set-up next iteration.
+      for (auto *succ : bb->getSuccessorBlocks())
+        worklist.pushIfNotVisited(succ);
+
+      auto result = blocksWithReinit.find(bb);
+      if (result == blocksWithReinit.end())
+        continue;
+
+      // We found a reachable reinit! Identify the earliest reinit in this block
+      // for diagnosis.
+      auto &blockReinits = result->second;
+      SILInstruction *firstBadReinit = nullptr;
+      for (auto &inst : *bb) {
+        if (blockReinits.contains(&inst)) {
+          firstBadReinit = &inst;
+          break;
+        }
+      }
+
+      if (!firstBadReinit)
+        llvm_unreachable("bug");
+
+      diagnosticEmitter.emitReinitAfterDiscardError(firstBadReinit, dropInst);
+      return;
+    }
+  }
 }
 
 bool MoveOnlyAddressCheckerPImpl::performSingleCheck(
@@ -2658,6 +2839,7 @@ bool MoveOnlyAddressCheckerPImpl::performSingleCheck(
   FieldSensitivePrunedLivenessBoundary boundary(liveness.getNumSubElements());
   liveness.computeBoundary(boundary);
   insertDestroysOnBoundary(markedAddress, liveness, boundary);
+  checkForReinitAfterDiscard();
   rewriteUses(markedAddress, liveness, boundary);
 
   return true;

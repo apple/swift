@@ -228,7 +228,7 @@ public:
                       reinterpret_cast<OpaqueValue *>(fragment->getError()) :
                       fragment->getStoragePtr(),
           /*successType=*/fragment->getResultType(),
-          /*task=*/asyncTask
+          /*retainedTask==*/asyncTask
       };
     }
 
@@ -390,7 +390,11 @@ public:
   virtual void enqueueCompletedTask(AsyncTask *completedTask, bool hadErrorResult) = 0;
 
   /// Resume waiting task with result from `completedTask`
-  void resumeWaitingTask(AsyncTask *completedTask, TaskGroupStatus &assumed, bool hadErrorResult, bool alreadyDecremented = false);
+  void resumeWaitingTask(AsyncTask *completedTask,
+                         TaskGroupStatus &assumed,
+                         bool hadErrorResult,
+                         bool alreadyDecremented = false,
+                         bool taskWasRetained = false);
 
   // ==== Status manipulation -------------------------------------------------
 
@@ -827,7 +831,9 @@ public:
 
 private:
   /// Resume waiting task with specified error
-  void resumeWaitingTaskWithError(SwiftError *error, TaskGroupStatus &assumed, bool alreadyDecremented);
+  void resumeWaitingTaskWithError(SwiftError *error,
+                                  TaskGroupStatus &assumed,
+                                  bool alreadyDecremented);
 };
 
 } // end anonymous namespace
@@ -1146,7 +1152,9 @@ void AccumulatingTaskGroup::offer(AsyncTask *completedTask, AsyncContext *contex
   // will need to release in the other path.
   lock(); // TODO: remove fragment lock, and use status for synchronization
 
-  SWIFT_TASK_GROUP_DEBUG_LOG(this, "offer, completedTask:%p , status:%s", completedTask, statusString().c_str());
+  SWIFT_TASK_GROUP_DEBUG_LOG(this, "offer, completedTask:%p, status:%s",
+                             completedTask,
+                             statusString().c_str());
 
   // Immediately increment ready count and acquire the status
   //
@@ -1218,7 +1226,6 @@ void DiscardingTaskGroup::offer(AsyncTask *completedTask, AsyncContext *context)
   // We can do this, since in this mode there is no ready count to keep track of,
   // and we immediately discard the result.
   auto afterComplete = statusCompletePendingAssumeRelease();
-  (void) afterComplete;
   const bool alreadyDecrementedStatus = true;
   SWIFT_TASK_GROUP_DEBUG_LOG(this, "offer, complete, status afterComplete:%s", afterComplete.to_string(this).c_str());
 
@@ -1238,11 +1245,15 @@ void DiscardingTaskGroup::offer(AsyncTask *completedTask, AsyncContext *context)
         switch (readyErrorItem.getStatus()) {
           case ReadyStatus::RawError:
             SWIFT_TASK_GROUP_DEBUG_LOG(this, "offer, complete, resume with raw error:%p", readyErrorItem.getRawError(this));
-            resumeWaitingTaskWithError(readyErrorItem.getRawError(this), assumed, alreadyDecrementedStatus);
+            resumeWaitingTaskWithError(readyErrorItem.getRawError(this), assumed,
+                                       alreadyDecrementedStatus);
             break;
           case ReadyStatus::Error:
             SWIFT_TASK_GROUP_DEBUG_LOG(this, "offer, complete, resume with errorItem.task:%p", readyErrorItem.getTask());
-            resumeWaitingTask(readyErrorItem.getTask(), assumed, /*hadErrorResult=*/true, alreadyDecrementedStatus);
+            resumeWaitingTask(readyErrorItem.getTask(), assumed,
+                              /*hadErrorResult=*/true,
+                              alreadyDecrementedStatus,
+                              /*taskWasRetained=*/true);
             break;
           default:
             swift_Concurrency_fatalError(0,
@@ -1281,7 +1292,10 @@ void DiscardingTaskGroup::offer(AsyncTask *completedTask, AsyncContext *context)
           resumeWaitingTaskWithError(readyErrorItem.getRawError(this), assumed, alreadyDecrementedStatus);
           break;
         case ReadyStatus::Error:
-          resumeWaitingTask(readyErrorItem.getTask(), assumed, /*hadErrorResult=*/true, alreadyDecrementedStatus);
+          resumeWaitingTask(readyErrorItem.getTask(), assumed,
+                            /*hadErrorResult=*/true,
+                            alreadyDecrementedStatus,
+                            /*taskWasRetained=*/true);
           break;
         default:
           swift_Concurrency_fatalError(0,
@@ -1307,7 +1321,8 @@ void TaskGroupBase::resumeWaitingTask(
     AsyncTask *completedTask,
     TaskGroupStatus &assumed,
     bool hadErrorResult,
-    bool alreadyDecremented) {
+    bool alreadyDecremented,
+    bool taskWasRetained) {
   auto waitingTask = waitQueue.load(std::memory_order_acquire);
   assert(waitingTask && "waitingTask must not be null when attempting to resume it");
   assert(assumed.hasWaitingTask());
@@ -1351,13 +1366,12 @@ void TaskGroupBase::resumeWaitingTask(
         // Run the task.
         auto result = PollResult::get(completedTask, hadErrorResult);
         SWIFT_TASK_GROUP_DEBUG_LOG(this,
-                                   "resume waiting DONE, task = %p, backup = %p, error:%d, complete with = %p, status = %s",
-                                   waitingTask, backup, hadErrorResult, completedTask, statusString().c_str());
+                                   "resume waiting DONE, task = %p, error:%d, complete with = %p, status = %s",
+                                   waitingTask, hadErrorResult, completedTask, statusString().c_str());
 
         auto waitingContext =
             static_cast<TaskFutureWaitAsyncContext *>(
                 waitingTask->ResumeContext);
-
         fillGroupNextResult(waitingContext, result);
 
         // Remove the child from the task group's running tasks list.
@@ -1369,6 +1383,11 @@ void TaskGroupBase::resumeWaitingTask(
         // locks) because we know that the child task is completed and
         // we can't be holding its locks ourselves.
         _swift_taskGroup_detachChild(asAbstract(this), completedTask);
+        if (isDiscardingResults() && hadErrorResult && taskWasRetained) {
+          // We only used the task to keep the error in the future fragment around
+          // so now that we emitted the error and detached the task, we are free to release the task immediately.
+          swift_release(completedTask);
+        }
 
         _swift_tsan_acquire(static_cast<Job *>(waitingTask));
         // TODO: allow the caller to suggest an executor
@@ -1377,7 +1396,7 @@ void TaskGroupBase::resumeWaitingTask(
 #endif /* SWIFT_CONCURRENCY_TASK_TO_THREAD_MODEL */
     } else {
       SWIFT_TASK_GROUP_DEBUG_LOG(this, "CAS failed, task = %p, backup = %p, complete with = %p, status = %s",
-                                 waitingTask, backup, completedTask, statusString().c_str());
+                                 waitingTask, completedTask, statusString().c_str());
     }
   }
 }

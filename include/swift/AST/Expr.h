@@ -25,6 +25,7 @@
 #include "swift/AST/Decl.h"
 #include "swift/AST/DeclContext.h"
 #include "swift/AST/DeclNameLoc.h"
+#include "swift/AST/FreestandingMacroExpansion.h"
 #include "swift/AST/FunctionRefKind.h"
 #include "swift/AST/ProtocolConformanceRef.h"
 #include "swift/AST/TypeAlignments.h"
@@ -138,6 +139,7 @@ class alignas(8) Expr : public ASTAllocated<Expr> {
   void operator=(const Expr&) = delete;
 
 protected:
+  // clang-format off
   union { uint64_t OpaqueBits;
 
   SWIFT_INLINE_BITFIELD_BASE(Expr, bitmax(NumExprKindBits,8)+1,
@@ -370,6 +372,7 @@ protected:
   );
 
   } Bits;
+  // clang-format on
 
 private:
   /// Ty - This is the type of the expression.
@@ -3679,7 +3682,7 @@ public:
 };
 
 /// An expression to materialize a pack from a tuple containing a pack
-/// expansion, spelled \c tuple.element.
+/// expansion.
 ///
 /// These nodes are created by CSApply and should only appear in a
 /// type-checked AST in the context of a \c PackExpansionExpr .
@@ -3687,7 +3690,7 @@ class MaterializePackExpr final : public Expr {
   /// The expression from which to materialize a pack.
   Expr *FromExpr;
 
-  /// The source location of \c .element
+  /// The source location of (deprecated) \c .element
   SourceLoc ElementLoc;
 
   MaterializePackExpr(Expr *fromExpr, SourceLoc elementLoc,
@@ -3711,7 +3714,7 @@ public:
   }
 
   SourceLoc getEndLoc() const {
-    return ElementLoc;
+    return ElementLoc.isValid() ? ElementLoc : FromExpr->getEndLoc();
   }
 
   static bool classof(const Expr *E) {
@@ -6214,10 +6217,10 @@ public:
 
 /// An invocation of a macro expansion, spelled with `#` for freestanding
 /// macros or `@` for attached macros.
-class MacroExpansionExpr final : public Expr {
+class MacroExpansionExpr final : public Expr,
+                                 public FreestandingMacroExpansion {
 private:
   DeclContext *DC;
-  MacroExpansionInfo *info;
   Expr *Rewritten;
   MacroRoles Roles;
   MacroExpansionDecl *SubstituteDecl;
@@ -6226,47 +6229,31 @@ public:
   enum : unsigned { InvalidDiscriminator = 0xFFFF };
 
   explicit MacroExpansionExpr(DeclContext *dc, MacroExpansionInfo *info,
-                              MacroRoles roles,
-                              bool isImplicit = false,
+                              MacroRoles roles, bool isImplicit = false,
                               Type ty = Type())
       : Expr(ExprKind::MacroExpansion, isImplicit, ty),
-        DC(dc), info(info), Rewritten(nullptr), Roles(roles),
-        SubstituteDecl(nullptr) {
+        FreestandingMacroExpansion(FreestandingMacroKind::Expr, info), DC(dc),
+        Rewritten(nullptr), Roles(roles), SubstituteDecl(nullptr) {
     Bits.MacroExpansionExpr.Discriminator = InvalidDiscriminator;
   }
 
-  explicit MacroExpansionExpr(DeclContext *dc,
-                              SourceLoc sigilLoc, DeclNameRef macroName,
-                              DeclNameLoc macroNameLoc,
-                              SourceLoc leftAngleLoc,
-                              ArrayRef<TypeRepr *> genericArgs,
-                              SourceLoc rightAngleLoc,
-                              ArgumentList *argList,
-                              MacroRoles roles,
-                              bool isImplicit = false,
-                              Type ty = Type());
-
-  DeclNameRef getMacroName() const { return info->MacroName; }
-  DeclNameLoc getMacroNameLoc() const { return info->MacroNameLoc; }
+  static MacroExpansionExpr *
+  create(DeclContext *dc, SourceLoc sigilLoc, DeclNameRef macroName,
+         DeclNameLoc macroNameLoc, SourceLoc leftAngleLoc,
+         ArrayRef<TypeRepr *> genericArgs, SourceLoc rightAngleLoc,
+         ArgumentList *argList, MacroRoles roles, bool isImplicit = false,
+         Type ty = Type());
 
   Expr *getRewritten() const { return Rewritten; }
   void setRewritten(Expr *rewritten) { Rewritten = rewritten; }
 
-  ArrayRef<TypeRepr *> getGenericArgs() const { return info->GenericArgs; }
-
-  SourceRange getGenericArgsRange() const {
-    return SourceRange(info->LeftAngleLoc, info->RightAngleLoc);
+  ArgumentList *getArgs() const {
+    return FreestandingMacroExpansion::getArgs();
   }
-
-  ArgumentList *getArgs() const { return info->ArgList; }
-  void setArgs(ArgumentList *newArgs) { info->ArgList = newArgs; }
 
   MacroRoles getMacroRoles() const { return Roles; }
 
-  SourceLoc getLoc() const { return info->SigilLoc; }
-
-  ConcreteDeclRef getMacroRef() const { return info->macroRef; }
-  void setMacroRef(ConcreteDeclRef ref) { info->macroRef = ref; }
+  SourceLoc getLoc() const { return getPoundLoc(); }
 
   DeclContext *getDeclContext() const { return DC; }
   void setDeclContext(DeclContext *dc) { DC = dc; }
@@ -6289,15 +6276,18 @@ public:
     Bits.MacroExpansionExpr.Discriminator = discriminator;
   }
 
-  MacroExpansionInfo *getExpansionInfo() const { return info; }
-
-  SourceRange getSourceRange() const;
+  SourceRange getSourceRange() const {
+    return getExpansionInfo()->getSourceRange();
+  }
 
   MacroExpansionDecl *createSubstituteDecl();
   MacroExpansionDecl *getSubstituteDecl() const;
 
   static bool classof(const Expr *E) {
     return E->getKind() == ExprKind::MacroExpansion;
+  }
+  static bool classof(const FreestandingMacroExpansion *expansion) {
+    return expansion->getFreestandingMacroKind() == FreestandingMacroKind::Expr;
   }
 };
 

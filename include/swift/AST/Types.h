@@ -179,7 +179,10 @@ public:
     /// they have a type variable originator.
     SolverAllocated = 0x8000,
 
-    Last_Property = SolverAllocated
+    /// This type contains a concrete pack.
+    HasConcretePack = 0x10000,
+
+    Last_Property = HasConcretePack
   };
   enum { BitWidth = countBitsUsed(Property::Last_Property) };
 
@@ -254,6 +257,8 @@ public:
   bool hasPlaceholder() const { return Bits & HasPlaceholder; }
 
   bool hasParameterPack() const { return Bits & HasParameterPack; }
+
+  bool hasConcretePack() const { return Bits & HasConcretePack; }
 
   /// Does a type with these properties structurally contain a
   /// parameterized existential type?
@@ -370,6 +375,8 @@ class alignas(1 << TypeAlignInBits) TypeBase
 protected:
   enum { NumAFTExtInfoBits = 11 };
   enum { NumSILExtInfoBits = 11 };
+
+  // clang-format off
   union { uint64_t OpaqueBits;
 
   SWIFT_INLINE_BITFIELD_BASE(TypeBase, bitmax(NumTypeKindBits,8) +
@@ -412,12 +419,12 @@ protected:
     NumProtocols : 16
   );
 
-  SWIFT_INLINE_BITFIELD_FULL(TypeVariableType, TypeBase, 7+31,
+  SWIFT_INLINE_BITFIELD_FULL(TypeVariableType, TypeBase, 7+30,
     /// Type variable options.
     Options : 7,
     : NumPadBits,
     /// The unique number assigned to this type variable.
-    ID : 31
+    ID : 30
   );
 
   SWIFT_INLINE_BITFIELD(SILFunctionType, TypeBase, NumSILExtInfoBits+1+4+1+2+1+1,
@@ -496,6 +503,7 @@ protected:
   );
 
   } Bits;
+  // clang-format on
 
 protected:
   TypeBase(TypeKind kind, const ASTContext *CanTypeCtx,
@@ -684,6 +692,13 @@ public:
     return getRecursiveProperties().hasParameterPack();
   }
 
+  bool hasConcretePack() const {
+    return getRecursiveProperties().hasConcretePack();
+  }
+
+  /// Whether the type has some flavor of pack.
+  bool hasPack() const { return hasParameterPack() || hasConcretePack(); }
+
   /// Determine whether the type involves a parameterized existential type.
   bool hasParameterizedExistential() const {
     return getRecursiveProperties().hasParameterizedExistential();
@@ -712,8 +727,10 @@ public:
       SmallVectorImpl<OpenedArchetypeType *> &rootOpenedArchetypes) const;
 
   /// Retrieve the set of type parameter packs that occur within this type.
-  void getTypeParameterPacks(
-      SmallVectorImpl<Type> &rootParameterPacks);
+  void getTypeParameterPacks(SmallVectorImpl<Type> &rootParameterPacks);
+
+  /// Retrieve the set of type parameter packs that occur within this type.
+  void walkPackReferences(llvm::function_ref<bool (Type)> fn);
 
   /// Replace opened archetypes with the given root with their most
   /// specific non-dependent upper bounds throughout this type.
@@ -779,6 +796,9 @@ public:
   /// substitutions to be unadorned pack parameters or archetypes, which
   /// this function will wrap into a pack containing a singleton expansion.
   PackType *getPackSubstitutionAsPackType();
+
+  /// Increase the expansion level of each parameter pack appearing in this type.
+  Type increasePackElementLevel(unsigned level);
 
   /// Determines whether this type is an lvalue. This includes both straight
   /// lvalue types as well as tuples or optionals of lvalues.
@@ -5288,7 +5308,9 @@ class SILMoveOnlyWrappedType final : public TypeBase,
   SILMoveOnlyWrappedType(CanType innerType)
       : TypeBase(TypeKind::SILMoveOnlyWrapped, &innerType->getASTContext(),
                  innerType->getRecursiveProperties()),
-        innerType(innerType) {}
+        innerType(innerType) {
+    assert(!innerType->isPureMoveOnly() && "Inner type must be copyable");
+  }
 
 public:
   CanType getInnerType() const { return innerType; }
@@ -6414,7 +6436,7 @@ public:
       LayoutConstraint Layout);
 
   // Returns the reduced shape type for this pack archetype.
-  CanType getReducedShape() const;
+  CanType getReducedShape();
 
   static bool classof(const TypeBase *T) {
     return T->getKind() == TypeKind::PackArchetype;
@@ -6999,12 +7021,70 @@ BEGIN_CAN_TYPE_WRAPPER(PackExpansionType, Type)
   }
 END_CAN_TYPE_WRAPPER(PackExpansionType, Type)
 
-
 inline CanTypeWrapper<PackExpansionType>
 CanPackType::unwrapSingletonPackExpansion() const {
   return CanPackExpansionType(
       getPointer()->unwrapSingletonPackExpansion());
 }
+
+/// Represents a reference to a pack from an outer expansion. This comes up
+/// after substitution. For example, given these declarations:
+///
+/// typealias A<each T, U> = (repeat (each T, U))
+/// typealias B<each X, repeat each Y> = (repeat A<repeat each X, each Y>)
+///
+/// Naively substituting replacing {T := repeat each X, U := each Y} in the
+/// underlying type of A would give us:
+///
+///   '(repeat (repeat (each X, each Y)))'
+///
+/// However, this is wrong; we're not expanding X and Y in parallel (they
+/// might not even have the same shape). Instead, we're expanding X, and
+/// then on each iteration, expanding Y.
+///
+/// If we annotate each 'repeat' and its corresponding 'each', we instead see
+/// that the above should give us:
+///
+///   '(repeat[1] (repeat[0] (each[0], each[1] U)))'
+///
+/// We number PackExpansionTypes from the innermost one outwards, assigning
+/// a level of 0 to the innermost one. Then, a PackElementType represents a
+/// reference to a parameter pack from an expansion with level > 0.
+class PackElementType : public TypeBase, public llvm::FoldingSetNode {
+  friend class ASTContext;
+
+  Type packType;
+  unsigned level;
+
+  PackElementType(Type packType, unsigned level,
+                  RecursiveTypeProperties properties,
+                  const ASTContext *ctx);
+
+public:
+  static PackElementType *get(Type packType, unsigned level);
+
+  Type getPackType() const { return packType; }
+
+  unsigned getLevel() const { return level; }
+
+  void Profile(llvm::FoldingSetNodeID &ID) {
+    Profile(ID, getPackType(), getLevel());
+  }
+
+  static void Profile(llvm::FoldingSetNodeID &ID, Type packType, unsigned level);
+
+  // Implement isa/cast/dyncast/etc.
+  static bool classof(const TypeBase *T) {
+    return T->getKind() == TypeKind::PackElement;
+  }
+};
+BEGIN_CAN_TYPE_WRAPPER(PackElementType, Type)
+  static CanPackElementType get(CanType pack);
+
+  CanType getPackType() const {
+    return CanType(getPointer()->getPackType());
+  }
+END_CAN_TYPE_WRAPPER(PackElementType, Type)
 
 /// getASTContext - Return the ASTContext that this type belongs to.
 inline ASTContext &TypeBase::getASTContext() const {
@@ -7038,16 +7118,6 @@ inline bool TypeBase::isTypeParameter() {
     t = memberTy->getBase();
 
   return t->is<GenericTypeParamType>();
-}
-
-inline bool TypeBase::isParameterPack() {
-  Type t(this);
-
-  while (auto *memberTy = t->getAs<DependentMemberType>())
-    t = memberTy->getBase();
-
-  return t->is<GenericTypeParamType>() &&
-         t->castTo<GenericTypeParamType>()->isParameterPack();
 }
 
 // TODO: This will become redundant once InOutType is removed.

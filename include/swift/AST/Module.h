@@ -654,6 +654,14 @@ public:
     Bits.ModuleDecl.HasHermeticSealAtLink = enabled;
   }
 
+  /// Returns true if this module was built with C++ interoperability enabled.
+  bool hasCxxInteroperability() const {
+    return Bits.ModuleDecl.HasCxxInteroperability;
+  }
+  void setHasCxxInteroperability(bool enabled = true) {
+    Bits.ModuleDecl.HasCxxInteroperability = enabled;
+  }
+
   /// \returns true if this module is a system module; note that the StdLib is
   /// considered a system module.
   bool isSystemModule() const {

@@ -80,7 +80,7 @@ extension ApplySite {
   ///
   /// This does not include the callee function operand.
   public var arguments: LazyMapSequence<OperandArray, Value> {
-    argumentOperands.lazy.map { $0.value }
+    argumentOperands.values
   }
 
   public var substitutionMap: SubstitutionMap {

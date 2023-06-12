@@ -405,6 +405,26 @@ void sourcekitd::disposeCancellationToken(
   getGlobalContext().getRequestTracker()->stopTracking(CancellationToken);
 }
 
+bool sourcekitd::requestIsBarrier(sourcekitd_object_t ReqObj) {
+  RequestDict Req(ReqObj);
+  sourcekitd_uid_t ReqUID = Req.getUID(KeyRequest);
+  return ReqUID == RequestEditorOpen || ReqUID == RequestEditorReplaceText ||
+         ReqUID == RequestEditorClose;
+}
+
+bool sourcekitd::requestIsEnableBarriers(sourcekitd_object_t ReqObj) {
+  RequestDict Req(ReqObj);
+  sourcekitd_uid_t ReqUID = Req.getUID(KeyRequest);
+  return ReqUID == RequestEnableRequestBarriers;
+}
+
+void sourcekitd::sendBarriersEnabledResponse(ResponseReceiver Receiver) {
+  ResponseBuilder RespBuilder;
+  auto Elem = RespBuilder.getDictionary();
+  Elem.setBool(KeyBarriersEnabled, true);
+  Receiver(RespBuilder.createResponse());
+}
+
 static std::unique_ptr<llvm::MemoryBuffer> getInputBufForRequest(
     Optional<StringRef> SourceFile, Optional<StringRef> SourceText,
     const Optional<VFSOptions> &vfsOptions, llvm::SmallString<64> &ErrBuf) {
@@ -1804,6 +1824,134 @@ handleRequestDiagnostics(const RequestDict &Req,
   });
 }
 
+/// Expand macros in the specified source file syntactically.
+///
+/// Request would look like:
+///   {
+///     key.compilerargs: []
+///     key.sourcefile: <file name>
+///     key.sourcetext: <source text> (optional)
+///     key.expansions: [<expansion specifier>...]
+///   }
+/// 'compilerargs' is used for plugin search paths.
+/// 'expansion specifier' is
+///   {
+///     key.offset: <offset>
+///     key.modulename: <plugin module name>
+///     key.typename: <macro typename>
+///     key.macro_roles: [<macro role UID>...]
+///   }
+///
+/// Sends the results as a 'CategorizedEdits'. 
+/// Note that, unlike refactoring, each edit doesn't have 'key.buffer_name'.
+/// FIXME: Support nested expansion.
+static void handleRequestSyntacticMacroExpansion(
+    const RequestDict &req, SourceKitCancellationToken cancellationToken,
+    ResponseReceiver rec) {
+
+  Optional<VFSOptions> vfsOptions = getVFSOptions(req);
+  std::unique_ptr<llvm::MemoryBuffer> inputBuf =
+      getInputBufForRequestOrEmitError(req, vfsOptions, rec);
+  if (!inputBuf)
+    return;
+
+  SmallVector<const char *, 16> args;
+  if (getCompilerArgumentsForRequestOrEmitError(req, args, rec))
+    return;
+
+  // key.expansions: [
+  //   { key.offset: 42,
+  //     key.macro_roles: [source.lang.swift.macrorole.conformance,
+  //                      source.lang.swift.macrorole.member],
+  //     key.modulename: "MyMacroImpl",
+  //     key.typename: "StringifyMacro"},
+  //   { key.offset: 132,
+  //     key.sourceText: "foo(bar, baz)",
+  //     key.macro_roles: [source.lang.swift.macrorole.conformance,
+  //                      source.lang.swift.macrorole.member],
+  //     key.expandedmacro_replacements: [
+  //       {key.offset: 4, key.length: 3, key.argindex: 0},
+  //       {key.offset: 9, key.length: 3, key.argindex: 1}]}
+  // ]
+  std::vector<MacroExpansionInfo> expansions;
+  bool failed = req.dictionaryArrayApply(KeyExpansions, [&](RequestDict dict) {
+    // offset.
+    int64_t offset;
+    dict.getInt64(KeyOffset, offset, false);
+
+    // macro roles.
+    SmallVector<sourcekitd_uid_t, 1> macroRoleUIDs;
+    if (dict.getUIDArray(KeyMacroRoles, macroRoleUIDs, false)) {
+      rec(createErrorRequestInvalid(
+          "missing 'key.macro_roles' for expansion specifier"));
+      return true;
+    }
+    MacroRoles macroRoles;
+    for (auto uid : macroRoleUIDs) {
+      if (uid == KindMacroRoleExpression)
+        macroRoles |= MacroRole::Expression;
+      if (uid == KindMacroRoleDeclaration)
+        macroRoles |= MacroRole::Declaration;
+      if (uid == KindMacroRoleCodeItem)
+        macroRoles |= MacroRole::CodeItem;
+      if (uid == KindMacroRoleAccessor)
+        macroRoles |= MacroRole::Accessor;
+      if (uid == KindMacroRoleMemberAttribute)
+        macroRoles |= MacroRole::MemberAttribute;
+      if (uid == KindMacroRoleMember)
+        macroRoles |= MacroRole::Member;
+      if (uid == KindMacroRolePeer)
+        macroRoles |= MacroRole::Peer;
+      if (uid == KindMacroRoleConformance)
+        macroRoles |= MacroRole::Conformance;
+    }
+
+    // definition.
+    if (auto moduleName = dict.getString(KeyModuleName)) {
+      auto typeName = dict.getString(KeyTypeName);
+      if (!typeName) {
+        rec(createErrorRequestInvalid(
+            "missing 'key.typename' for external macro definition"));
+        return true;
+      }
+      MacroExpansionInfo::ExternalMacroReference definition(moduleName->str(),
+                                                            typeName->str());
+      expansions.emplace_back(offset, macroRoles, definition);
+    } else if (auto expandedText = dict.getString(KeySourceText)) {
+      MacroExpansionInfo::ExpandedMacroDefinition definition(*expandedText);
+      bool failed = dict.dictionaryArrayApply(
+          KeyExpandedMacroReplacements, [&](RequestDict dict) {
+            int64_t offset, length, paramIndex;
+            bool failed = false;
+            failed |= dict.getInt64(KeyOffset, offset, false);
+            failed |= dict.getInt64(KeyLength, length, false);
+            failed |= dict.getInt64(KeyArgIndex, paramIndex, false);
+            if (failed) {
+              rec(createErrorRequestInvalid(
+                  "macro replacement should have key.offset, key.length, and "
+                  "key.argindex"));
+              return true;
+            }
+            definition.replacements.emplace_back(
+                RawCharSourceRange{unsigned(offset), unsigned(length)},
+                paramIndex);
+            return false;
+          });
+      if (failed)
+        return true;
+      expansions.emplace_back(offset, macroRoles, definition);
+    }
+    return false;
+  });
+  if (failed)
+    return;
+
+  LangSupport &Lang = getGlobalContext().getSwiftLangSupport();
+  Lang.expandMacroSyntactically(
+      inputBuf.get(), args, expansions,
+      [&](const auto &Result) { rec(createCategorizedEditsResponse(Result)); });
+}
+
 void handleRequestImpl(sourcekitd_object_t ReqObj,
                        SourceKitCancellationToken CancellationToken,
                        ResponseReceiver Rec) {
@@ -1907,6 +2055,8 @@ void handleRequestImpl(sourcekitd_object_t ReqObj,
   HANDLE_REQUEST(RequestRelatedIdents, handleRequestRelatedIdents)
   HANDLE_REQUEST(RequestActiveRegions, handleRequestActiveRegions)
   HANDLE_REQUEST(RequestDiagnostics, handleRequestDiagnostics)
+  HANDLE_REQUEST(RequestSyntacticMacroExpansion,
+                 handleRequestSyntacticMacroExpansion)
 
   {
     SmallString<64> ErrBuf;

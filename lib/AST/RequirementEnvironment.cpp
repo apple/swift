@@ -69,7 +69,9 @@ RequirementEnvironment::RequirementEnvironment(
       MakeAbstractConformanceForGenericType();
 
   auto substConcreteType = concreteType.subst(
-      conformanceToWitnessThunkTypeFn, conformanceToWitnessThunkConformanceFn);
+      conformanceToWitnessThunkTypeFn,
+      conformanceToWitnessThunkConformanceFn,
+      SubstFlags::PreservePackExpansionLevel);
 
   // Calculate the depth at which the requirement's generic parameters
   // appear in the witness thunk signature.

@@ -4,10 +4,10 @@ import SwiftSyntax
 
 extension ASTGenVisitor {
   public func visit(_ node: ClosureExprSyntax) -> ASTNode {
-    let statements = node.statements.map { self.visit($0).bridged() }
+    let statements = node.statements.map { self.visit($0).bridged }
     let body: UnsafeMutableRawPointer = statements.withBridgedArrayRef { ref in
-      let startLoc = self.base.advanced(by: node.leftBrace.position.utf8Offset).raw
-      let endLoc = self.base.advanced(by: node.rightBrace.position.utf8Offset).raw
+      let startLoc = bridgedSourceLoc(for: node.leftBrace)
+      let endLoc = bridgedSourceLoc(for: node.rightBrace)
       return BraceStmt_create(ctx, startLoc, ref, endLoc)
     }
 
@@ -26,37 +26,37 @@ extension ASTGenVisitor {
     let args = visit(node.argumentList).rawValue
     let callee = visit(node.calledExpression).rawValue
 
-    return .expr(SwiftFunctionCallExpr_create(self.ctx, callee, args))
+    return .expr(FunctionCallExpr_create(self.ctx, callee, args))
   }
 
   public func visit(_ node: IdentifierExprSyntax) -> ASTNode {
-    let loc = self.base.advanced(by: node.position.utf8Offset).raw
+    let loc = bridgedSourceLoc(for: node)
 
     var text = node.identifier.text
-    let id = text.withUTF8 { buf in
-      return SwiftASTContext_getIdentifier(ctx, buf.baseAddress, buf.count)
+    let id = text.withBridgedString { bridgedText in
+      return ASTContext_getIdentifier(ctx, bridgedText)
     }
 
-    return .expr(SwiftIdentifierExpr_create(ctx, id, loc))
+    return .expr(IdentifierExpr_create(ctx, id, loc))
   }
 
   public func visit(_ node: IdentifierPatternSyntax) -> ASTNode {
-    let loc = self.base.advanced(by: node.position.utf8Offset).raw
+    let loc = bridgedSourceLoc(for: node)
 
     var text = node.identifier.text
-    let id = text.withUTF8 { buf in
-      return SwiftASTContext_getIdentifier(ctx, buf.baseAddress, buf.count)
+    let id = text.withBridgedString { bridgedText in
+      return ASTContext_getIdentifier(ctx, bridgedText)
     }
 
-    return .expr(SwiftIdentifierExpr_create(ctx, id, loc))
+    return .expr(IdentifierExpr_create(ctx, id, loc))
   }
 
   public func visit(_ node: MemberAccessExprSyntax) -> ASTNode {
-    let loc = self.base.advanced(by: node.position.utf8Offset).raw
+    let loc = bridgedSourceLoc(for: node)
     let base = visit(node.base!).rawValue
     var nameText = node.name.text
-    let name = nameText.withUTF8 { buf in
-      return SwiftASTContext_getIdentifier(ctx, buf.baseAddress, buf.count)
+    let name = nameText.withBridgedString { bridgedName in
+      return ASTContext_getIdentifier(ctx, bridgedName)
     }
 
     return .expr(UnresolvedDotExpr_create(ctx, base, loc, name, loc))
@@ -77,24 +77,24 @@ extension ASTGenVisitor {
       guard var name = $0.label?.text else {
         return nil
       }
-      return name.withUTF8 { buf in
-        SwiftASTContext_getIdentifier(ctx, buf.baseAddress, buf.count)
+      return name.withBridgedString { bridgedName in
+        ASTContext_getIdentifier(ctx, bridgedName)
       }
     }
-    let labelLocs: [UnsafeMutableRawPointer] = node.map {
+    let labelLocs: [BridgedSourceLoc] = node.map {
       let pos = $0.label?.position ?? $0.position
-      return base.advanced(by: pos.utf8Offset).raw
+      return bridgedSourceLoc(at: pos)
     }
 
-    let lParenLoc = self.base.advanced(by: node.position.utf8Offset).raw
-    let rParenLoc = self.base.advanced(by: node.endPosition.utf8Offset).raw
+    let lParenLoc = bridgedSourceLoc(for: node)
+    let rParenLoc = bridgedSourceLoc(at: node.endPosition)
 
     return .expr(
       elements.withBridgedArrayRef { elementsRef in
         labels.withBridgedArrayRef { labelsRef in
           labelLocs.withBridgedArrayRef { labelLocRef in
-            SwiftTupleExpr_create(self.ctx, lParenLoc, elementsRef, labelsRef,
-                                  labelLocRef, rParenLoc)
+            TupleExpr_create(self.ctx, lParenLoc, elementsRef, labelsRef,
+                             labelLocRef, rParenLoc)
           }
         }
       })

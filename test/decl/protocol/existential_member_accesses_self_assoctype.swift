@@ -864,7 +864,7 @@ do {
   // FIXME: Should GenericSignature::getConcreteType return the null type instead
   // of the error type here for Self.A, despite the broken conformance?
   let exist: any CompositionBrokenClassConformance_b & BadConformanceClass
-  exist.method(false) // expected-error {{type of expression is ambiguous without more context}}
+  exist.method(false) // expected-error {{type of expression is ambiguous without a type annotation}}
 }
 
 /// Covariant Associated Type Erasure

@@ -1,0 +1,67 @@
+// First parse this and then emit a *.sib. Then read in the *.sib, then recreate
+
+// RUN: %empty-directory(%t)
+// RUN: %target-sil-opt %s -emit-sib -o %t/tmp.sib -module-name ownershipflags
+// RUN: %target-sil-opt %t/tmp.sib -module-name ownershipflags | %FileCheck %s
+
+sil_stage canonical
+
+import Builtin
+
+class Klass {}
+
+// CHECK-LABEL: sil [serialized] [ossa] @test_movevalue_escaping : 
+// CHECK:  %1 = move_value [pointer_escape] %0 : $Klass
+// CHECK-LABEL: } // end sil function 'test_movevalue_escaping'
+sil [serialized] [ossa] @test_movevalue_escaping : $@convention(thin) (@owned Klass) -> @owned Klass {
+bb0(%0 : @owned $Klass):
+  %1 = move_value [pointer_escape] %0 : $Klass
+  %2 = unchecked_bitwise_cast %1 : $Klass to $Builtin.Int64
+  return %1 : $Klass
+}
+
+// CHECK-LABEL: sil [serialized] [ossa] @test_allocbox_escaping : 
+// CHECK:  %0 = alloc_box [pointer_escape] ${ var Klass }
+// CHECK-LABEL: } // end sil function 'test_allocbox_escaping'
+sil [serialized] [ossa] @test_allocbox_escaping : $@convention(thin) () -> () {
+bb0:
+  %0 = alloc_box [pointer_escape] ${ var Klass }
+  dealloc_box %0 : ${ var Klass }
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [serialized] [ossa] @test_beginborrow_escaping :
+// CHECK: %1 = begin_borrow [pointer_escape] %0 : $Klass
+// CHECK-LABEL: } // end sil function 'test_beginborrow_escaping'
+sil [serialized] [ossa] @test_beginborrow_escaping : $@convention(thin) (@owned Klass) -> () {
+bb0(%0 : @owned $Klass):
+  %1 = begin_borrow [pointer_escape] %0 : $Klass
+  %2 = unchecked_bitwise_cast %1 : $Klass to $Builtin.Int64
+  end_borrow %1 : $Klass
+  destroy_value %0 : $Klass
+  %t = tuple ()
+  return %t : $()
+}
+
+// CHECK-LABEL: sil [serialized] [ossa] @test_reborrow : $@convention(thin) (@owned Klass) -> () {
+// CHECK: bb3([[ARG:%.*]] : @reborrow @guaranteed $Klass):
+// CHECK: } // end sil function 'test_reborrow'
+sil [serialized] [ossa] @test_reborrow : $@convention(thin) (@owned Klass) -> () {
+bb0(%0 : @owned $Klass):
+  cond_br undef, bb1, bb2
+
+bb1:
+  %b1 = begin_borrow %0 : $Klass
+  br bb3(%b1 : $Klass)
+
+bb2:
+  %b2 = begin_borrow %0 : $Klass
+  br bb3(%b2 : $Klass)
+
+bb3(%r : @reborrow @guaranteed $Klass):
+  end_borrow %r : $Klass
+  destroy_value %0 : $Klass
+  %9999 = tuple()
+  return %9999 : $()
+}

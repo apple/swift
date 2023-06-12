@@ -598,7 +598,8 @@ public:
   /// lookup.
   ///
   /// \returns true if anything was found.
-  bool lookupQualified(Type type, DeclNameRef member, NLOptions options,
+  bool lookupQualified(Type type, DeclNameRef member,
+                       SourceLoc loc, NLOptions options,
                        SmallVectorImpl<ValueDecl *> &decls) const;
 
   /// Look for the set of declarations with the given name within the
@@ -616,12 +617,12 @@ public:
   ///
   /// \returns true if anything was found.
   bool lookupQualified(ArrayRef<NominalTypeDecl *> types, DeclNameRef member,
-                       NLOptions options,
+                       SourceLoc loc, NLOptions options,
                        SmallVectorImpl<ValueDecl *> &decls) const;
 
   /// Perform qualified lookup for the given member in the given module.
   bool lookupQualified(ModuleDecl *module, DeclNameRef member,
-                       NLOptions options,
+                       SourceLoc loc, NLOptions options,
                        SmallVectorImpl<ValueDecl *> &decls) const;
 
   /// Look up all Objective-C methods with the given selector visible

@@ -91,6 +91,9 @@ void swift::printDeclDescription(llvm::raw_ostream &out, const Decl *D,
         case AccessorKind::Modify:
           out << "modify";
           break;
+        case AccessorKind::Init:
+          out << "init";
+          break;
         }
 
         out << " for " << ASD->getName();
@@ -130,6 +133,20 @@ void PrettyStackTraceAnyFunctionRef::print(llvm::raw_ostream &out) const {
   }
 }
 
+void PrettyStackTraceFreestandingMacroExpansion::print(
+    llvm::raw_ostream &out) const {
+  out << "While " << Action << ' ';
+  auto &Context = Expansion->getDeclContext()->getASTContext();
+  switch (Expansion->getFreestandingMacroKind()) {
+  case FreestandingMacroKind::Expr:
+    printExprDescription(out, cast<MacroExpansionExpr>(Expansion), Context);
+    break;
+  case FreestandingMacroKind::Decl:
+    printDeclDescription(out, cast<MacroExpansionDecl>(Expansion), Context);
+    break;
+  }
+}
+
 void PrettyStackTraceExpr::print(llvm::raw_ostream &out) const {
   out << "While " << Action << ' ';
   if (!TheExpr) {
@@ -139,7 +156,7 @@ void PrettyStackTraceExpr::print(llvm::raw_ostream &out) const {
   printExprDescription(out, TheExpr, Context);
 }
 
-void swift::printExprDescription(llvm::raw_ostream &out, Expr *E,
+void swift::printExprDescription(llvm::raw_ostream &out, const Expr *E,
                                  const ASTContext &Context, bool addNewline) {
   out << "expression at ";
   E->getSourceRange().print(out, Context.SourceMgr);

@@ -14,6 +14,16 @@ struct SimpleSequenceWithOutOfLineEqualEqual {
   ConstIteratorOutOfLineEq end() const { return ConstIteratorOutOfLineEq(5); }
 };
 
+static int copiesCount = 0;
+
+struct SimpleCopyAwareSequence {
+  ConstIterator begin() const { return ConstIterator(1); }
+  ConstIterator end() const { return ConstIterator(5); }
+
+  SimpleCopyAwareSequence() {}
+  SimpleCopyAwareSequence(const SimpleCopyAwareSequence &other) { copiesCount++; }
+};
+
 struct SimpleArrayWrapper {
 private:
   int a[5] = {10, 20, 30, 40, 50};

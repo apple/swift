@@ -120,7 +120,7 @@ case iPadHair<E>.HairForceOne:
   ()
 case iPadHair.HairForceOne: // expected-error{{generic enum type 'iPadHair' is ambiguous without explicit generic parameters when matching value of type 'any HairType'}}
   ()
-case Watch.Edition: // expected-warning {{cast from 'any HairType' to unrelated type 'Watch' always fails}}
+case Watch.Edition: // expected-error {{pattern of type 'Watch' cannot match 'any HairType'}}
   ()
 case .HairForceOne: // expected-error{{type 'any HairType' has no member 'HairForceOne'}}
   ()
@@ -563,4 +563,98 @@ struct TestIUOMatchOp {
   func foo() {
     if case self = self {}
   }
+}
+
+struct TestRecursiveVarRef<T> {
+  lazy var e: () -> Int = {e}()
+}
+
+func testMultiStmtClosureExprPattern(_ x: Int) {
+  if case { (); return x }() = x {}
+}
+
+func testExprPatternIsolation() {
+  // We type-check ExprPatterns separately, so these are illegal.
+  if case 0 = nil {} // expected-error {{'nil' requires a contextual type}}
+  let _ = {
+    if case 0 = nil {} // expected-error {{'nil' requires a contextual type}}
+  }
+  for case 0 in nil {} // expected-error {{'nil' requires a contextual type}}
+  for case 0 in [nil] {}
+  // expected-error@-1 {{type 'Any' cannot conform to 'Equatable'}}
+  // expected-note@-2 {{only concrete types such as structs, enums and classes can conform to protocols}}
+  // expected-note@-3 {{requirement from conditional conformance of 'Any?' to 'Equatable'}}
+
+  // Though we will try Double for an integer literal...
+  let d: Double = 0
+  if case d = 0 {}
+  let _ = {
+    if case d = 0 {}
+  }
+  for case d in [0] {}
+
+  // But not Float
+  let f: Float = 0
+  if case f = 0 {} // expected-error {{expression pattern of type 'Float' cannot match values of type 'Int'}}
+  let _ = {
+    if case f = 0 {} // expected-error {{expression pattern of type 'Float' cannot match values of type 'Int'}}
+  }
+  for case f in [0] {}  // expected-error {{expression pattern of type 'Float' cannot match values of type 'Int'}}
+
+  enum MultiPayload<T: Equatable>: Equatable {
+    case e(T, T)
+    static func f(_ x: T, _ y: T) -> Self { .e(x, y) }
+  }
+  enum E: Equatable {
+    case a, b
+    static var c: E { .a }
+    static var d: E { .b }
+  }
+
+  func produceMultiPayload<T>() -> MultiPayload<T> { fatalError() }
+
+  // We type-check ExprPatterns left to right, so only one of these works.
+  if case .e(0.0, 0) = produceMultiPayload() {}
+  if case .e(0, 0.0) = produceMultiPayload() {} // expected-error {{expression pattern of type 'Double' cannot match values of type 'Int'}}
+
+  for case .e(0.0, 0) in [produceMultiPayload()] {}
+  for case .e(0, 0.0) in [produceMultiPayload()] {} // expected-error {{expression pattern of type 'Double' cannot match values of type 'Int'}}
+
+  // Same, because although it's a top-level ExprPattern, we don't resolve
+  // that until during solving.
+  if case .f(0.0, 0) = produceMultiPayload() {}
+  if case .f(0, 0.0) = produceMultiPayload() {} // expected-error {{expression pattern of type 'Double' cannot match values of type 'Int'}}
+
+  if case .e(5, nil) = produceMultiPayload() {} // expected-warning {{type 'Int' is not optional, value can never be nil; this is an error in Swift 6}}
+
+  // FIXME: Bad error (https://github.com/apple/swift/issues/64279)
+  if case .e(nil, 0) = produceMultiPayload() {}
+  // expected-error@-1 {{expression pattern of type 'String' cannot match values of type 'Substring'}}
+  // expected-note@-2 {{overloads for '~=' exist with these partially matching parameter lists}}
+
+  if case .e(5, nil) = produceMultiPayload() as MultiPayload<Int?> {}
+  if case .e(nil, 0) = produceMultiPayload() as MultiPayload<Int?> {}
+
+  // Enum patterns are solved together.
+  if case .e(E.a, .b) = produceMultiPayload() {}
+  if case .e(.a, E.b) = produceMultiPayload() {}
+
+  // These also work because they start life as EnumPatterns.
+  if case .e(E.c, .d) = produceMultiPayload() {}
+  if case .e(.c, E.d) = produceMultiPayload() {}
+  for case .e(E.c, .d) in [produceMultiPayload()] {}
+  for case .e(.c, E.d) in [produceMultiPayload()] {}
+
+  // Silly, but allowed.
+  if case 0: Int? = 0 {} // expected-warning {{non-optional expression of type 'Int' used in a check for optionals}}
+
+  var opt: Int?
+  if case opt = 0 {}
+}
+
+enum LotsOfOptional {
+  case yup(Int?, Int?, Int?, Int?, Int?, Int?, Int?, Int?, Int?, Int?, Int?, Int?, Int?, Int?, Int?)
+}
+func testLotsOfNil(_ x: LotsOfOptional) {
+  if case .yup(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil) = x {}
 }

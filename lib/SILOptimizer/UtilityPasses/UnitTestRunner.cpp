@@ -293,7 +293,7 @@ struct OwnershipUtilsHasPointerEscape : UnitTest {
 
 // Arguments:
 // - the lexical borrow to fold
-// Dumpts:
+// Dumps:
 // - the function
 struct LexicalDestroyFoldingTest : UnitTest {
   LexicalDestroyFoldingTest(UnitTestRunner *pass) : UnitTest(pass) {}

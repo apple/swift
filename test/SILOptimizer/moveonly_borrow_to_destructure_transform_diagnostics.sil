@@ -63,7 +63,7 @@ sil @klass_use : $@convention(thin) (@guaranteed Klass) -> ()
 sil [ossa] @test_access_single_child_field_consume : $@convention(method) (@guaranteed AggStruct2) -> () {
 bb0(%0 : @guaranteed $AggStruct2):
   %1 = copy_value %0 : $AggStruct2
-  %2 = mark_must_check [no_consume_or_assign] %1 : $AggStruct2 // expected-error {{'self' has a move only field that was consumed before later uses}}
+  %2 = mark_must_check [no_consume_or_assign] %1 : $AggStruct2 // expected-error {{cannot use 'self' after partial consume}}
   debug_value %2 : $AggStruct2, let, name "self", argno 1, implicit
   %4 = begin_borrow %2 : $AggStruct2
   %5 = struct_extract %4 : $AggStruct2, #AggStruct2.pair
@@ -77,8 +77,8 @@ bb0(%0 : @guaranteed $AggStruct2):
   end_borrow %4a : $AggStruct2
   destroy_value %2 : $AggStruct2
   %9 = function_ref @moveonlyklass_consume : $@convention(thin) (@owned MoveOnlyKlass) -> ()
-  apply %9(%7) : $@convention(thin) (@owned MoveOnlyKlass) -> () // expected-note {{consuming use here}}
-  apply %9(%7a) : $@convention(thin) (@owned MoveOnlyKlass) -> () // expected-note {{boundary use here}}
+  apply %9(%7) : $@convention(thin) (@owned MoveOnlyKlass) -> () // expected-note {{partially consumed here}}
+  apply %9(%7a) : $@convention(thin) (@owned MoveOnlyKlass) -> () // expected-note {{used here}}
   %9999 = tuple()
   return %9999 : $()
 }
@@ -99,7 +99,7 @@ bb0(%0 : @guaranteed $AggStruct2):
   %7a = copy_value %6a : $MoveOnlyKlass
   end_borrow %4a : $AggStruct2
   destroy_value %2 : $AggStruct2
-  %8 = struct $KlassPair2(%7 : $MoveOnlyKlass, %7a : $MoveOnlyKlass) // expected-note {{two consuming uses here}}
+  %8 = struct $KlassPair2(%7 : $MoveOnlyKlass, %7a : $MoveOnlyKlass) // expected-note {{multiple consumes here}}
   return %8 : $KlassPair2
 }
 
@@ -120,7 +120,7 @@ bb0(%0 : @guaranteed $AggStruct2):
   end_borrow %4a : $AggStruct2
   destroy_value %2 : $AggStruct2
   %8 = function_ref @moveonlyklass_consume_use : $@convention(thin) (@owned MoveOnlyKlass, @guaranteed MoveOnlyKlass) -> ()
-  apply %8(%7, %7a) : $@convention(thin) (@owned MoveOnlyKlass, @guaranteed MoveOnlyKlass) -> () // expected-note {{consuming and non-consuming uses here}}
+  apply %8(%7, %7a) : $@convention(thin) (@owned MoveOnlyKlass, @guaranteed MoveOnlyKlass) -> () // expected-note {{consumed and used here}}
   destroy_value %7a : $MoveOnlyKlass
   %9999 = tuple()
   return %9999 : $()
@@ -134,14 +134,14 @@ bb0(%0 : @owned $AggStruct2):
   %4 = copy_value %2 : $AggStruct2
   %5 = move_value [lexical] %4 : $AggStruct2
   %6 = mark_must_check [consumable_and_assignable] %5 : $AggStruct2
-  // expected-error @-1 {{'x2' has a move only field that was consumed before later uses}}
-  // expected-error @-2 {{'x2' has a move only field that was consumed before later uses}}
+  // expected-error @-1 {{cannot use 'x2' after partial consume}}
+  // expected-error @-2 {{cannot use 'x2' after partial consume}}
   debug_value %6 : $AggStruct2, let, name "x2"
   %8 = begin_borrow %6 : $AggStruct2
   %9 = struct_extract %8 : $AggStruct2, #AggStruct2.lhs
   %10 = copy_value %9 : $MoveOnlyKlass
   %11 = function_ref @moveonlyklass_consume : $@convention(thin) (@owned MoveOnlyKlass) -> ()
-  %12 = apply %11(%10) : $@convention(thin) (@owned MoveOnlyKlass) -> () // expected-note {{consuming use here}}
+  %12 = apply %11(%10) : $@convention(thin) (@owned MoveOnlyKlass) -> () // expected-note {{partially consumed here}}
   end_borrow %8 : $AggStruct2
   br bb1
 
@@ -153,7 +153,7 @@ bb2:
   %52 = struct_extract %51 : $AggStruct2, #AggStruct2.lhs
   %53 = copy_value %52 : $MoveOnlyKlass
   %54 = function_ref @moveonlyklass_consume : $@convention(thin) (@owned MoveOnlyKlass) -> ()
-  %55 = apply %54(%53) : $@convention(thin) (@owned MoveOnlyKlass) -> () // expected-note {{consuming use here}}
+  %55 = apply %54(%53) : $@convention(thin) (@owned MoveOnlyKlass) -> () // expected-note {{partially consumed here}}
   end_borrow %51 : $AggStruct2
   br bb1
 

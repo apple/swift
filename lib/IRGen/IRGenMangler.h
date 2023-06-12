@@ -633,6 +633,8 @@ public:
                                            CanType type,
                                            ProtocolConformanceRef conformance);
 
+  std::string mangleSymbolNameForMangledGetEnumTagForLayoutString(CanType type);
+
   std::string
   mangleSymbolNameForUnderlyingTypeAccessorString(OpaqueTypeDecl *opaque,
                                                   unsigned index);

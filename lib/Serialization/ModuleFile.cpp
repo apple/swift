@@ -338,7 +338,7 @@ void ModuleFile::lookupValue(DeclName name,
         if (!declOrError) {
           if (!getContext().LangOpts.EnableDeserializationRecovery)
             fatal(declOrError.takeError());
-          llvm::consumeError(declOrError.takeError());
+          diagnoseAndConsumeError(declOrError.takeError());
           continue;
         }
         auto VD = cast<ValueDecl>(declOrError.get());
@@ -357,7 +357,7 @@ void ModuleFile::lookupValue(DeclName name,
         if (!declOrError) {
           if (!getContext().LangOpts.EnableDeserializationRecovery)
             fatal(declOrError.takeError());
-          llvm::consumeError(declOrError.takeError());
+          diagnoseAndConsumeError(declOrError.takeError());
           continue;
         }
         auto VD = cast<ValueDecl>(declOrError.get());
@@ -560,7 +560,7 @@ void ModuleFile::getImportDecls(SmallVectorImpl<Decl *> &Results) {
           SmallVector<ValueDecl *, 8> Decls;
           TopLevelModule->lookupQualified(
               TopLevelModule, DeclNameRef(ScopeID),
-              NL_QualifiedDefault, Decls);
+              SourceLoc(), NL_QualifiedDefault, Decls);
           Optional<ImportKind> FoundKind = ImportDecl::findBestImportKind(Decls);
           assert(FoundKind.has_value() &&
                  "deserialized imports should not be ambiguous");
@@ -599,7 +599,7 @@ void ModuleFile::lookupVisibleDecls(ImportPath::Access accessPath,
     if (!declOrError) {
       if (!getContext().LangOpts.EnableDeserializationRecovery)
         fatal(declOrError.takeError());
-      llvm::consumeError(declOrError.takeError());
+      diagnoseAndConsumeError(declOrError.takeError());
       return;
     }
     consumer.foundDecl(cast<ValueDecl>(declOrError.get()),
@@ -648,7 +648,7 @@ void ModuleFile::loadExtensions(NominalTypeDecl *nominal) {
       if (!declOrError) {
         if (!getContext().LangOpts.EnableDeserializationRecovery)
           fatal(declOrError.takeError());
-        llvm::consumeError(declOrError.takeError());
+        diagnoseAndConsumeError(declOrError.takeError());
       }
     }
   } else {
@@ -661,7 +661,7 @@ void ModuleFile::loadExtensions(NominalTypeDecl *nominal) {
       if (!declOrError) {
         if (!getContext().LangOpts.EnableDeserializationRecovery)
           fatal(declOrError.takeError());
-        llvm::consumeError(declOrError.takeError());
+        diagnoseAndConsumeError(declOrError.takeError());
       }
     }
   }
@@ -718,7 +718,7 @@ void ModuleFile::loadDerivativeFunctionConfigurations(
     if (!derivativeGenSigOrError) {
       if (!getContext().LangOpts.EnableDeserializationRecovery)
         fatal(derivativeGenSigOrError.takeError());
-      llvm::consumeError(derivativeGenSigOrError.takeError());
+      diagnoseAndConsumeError(derivativeGenSigOrError.takeError());
     }
     auto derivativeGenSig = derivativeGenSigOrError.get();
     // NOTE(TF-1038): Result indices are currently unsupported in derivative
@@ -892,7 +892,7 @@ void ModuleFile::lookupClassMembers(ImportPath::Access accessPath,
         if (!decl) {
           if (!getContext().LangOpts.EnableDeserializationRecovery)
             fatal(decl.takeError());
-          llvm::consumeError(decl.takeError());
+          diagnoseAndConsumeError(decl.takeError());
           continue;
         }
 
@@ -915,7 +915,7 @@ void ModuleFile::lookupClassMembers(ImportPath::Access accessPath,
         if (!decl) {
           if (!getContext().LangOpts.EnableDeserializationRecovery)
             fatal(decl.takeError());
-          llvm::consumeError(decl.takeError());
+          diagnoseAndConsumeError(decl.takeError());
           continue;
         }
 

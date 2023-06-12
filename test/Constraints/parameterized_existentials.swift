@@ -6,7 +6,7 @@ protocol P<A> {
 
 func f1(x: any P) -> any P<Int> {
   // FIXME: Bad diagnostic
-  return x // expected-error {{type of expression is ambiguous without more context}}
+  return x // expected-error {{type of expression is ambiguous without a type annotation}}
 }
 
 func f2(x: any P<Int>) -> any P {

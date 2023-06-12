@@ -22,6 +22,10 @@
 #include "swift/Serialization/SerializedModuleLoader.h"
 #include "swift/Serialization/ModuleDependencyScanner.h"
 #include "swift/Subsystems.h"
+#include "llvm/ADT/IntrusiveRefCntPtr.h"
+#include "llvm/CAS/CachingOnDiskFileSystem.h"
+#include "llvm/Support/Error.h"
+#include "llvm/Support/VirtualFileSystem.h"
 #include "ModuleFileSharedCore.h"
 
 #include <algorithm>
@@ -151,11 +155,6 @@ ErrorOr<ModuleDependencyInfo> ModuleDependencyScanner::scanInterfaceFile(
     Args.push_back("-o");
     Args.push_back(outputPathBase.str().str());
 
-    std::vector<StringRef> ArgsRefs(Args.begin(), Args.end());
-    Result = ModuleDependencyInfo::forSwiftInterfaceModule(
-        outputPathBase.str().str(), InPath, compiledCandidates, ArgsRefs, PCMArgs,
-        Hash, isFramework);
-
     // Open the interface file.
     auto &fs = *Ctx.SourceMgr.getFileSystem();
     auto interfaceBuf = fs.getBufferForFile(moduleInterfacePath);
@@ -171,6 +170,21 @@ ErrorOr<ModuleDependencyInfo> ModuleDependencyScanner::scanInterfaceFile(
     auto sourceFile = new (Ctx) SourceFile(
         *moduleDecl, SourceFileKind::Interface, bufferID, parsingOpts);
     moduleDecl->addAuxiliaryFile(*sourceFile);
+
+    std::string RootID;
+    if (dependencyTracker) {
+      dependencyTracker->startTracking();
+      dependencyTracker->trackFile(moduleInterfacePath);
+      auto RootOrError = dependencyTracker->createTreeFromDependencies();
+      if (!RootOrError)
+        return llvm::errorToErrorCode(RootOrError.takeError());
+      RootID = RootOrError->getID().toString();
+    }
+
+    std::vector<StringRef> ArgsRefs(Args.begin(), Args.end());
+    Result = ModuleDependencyInfo::forSwiftInterfaceModule(
+        outputPathBase.str().str(), InPath, compiledCandidates, ArgsRefs,
+        PCMArgs, Hash, isFramework, RootID, /*module-cache-key*/ "");
 
     // Walk the source file to find the import declarations.
     llvm::StringSet<> alreadyAddedModules;
@@ -255,9 +269,10 @@ Optional<const ModuleDependencyInfo*> SerializedModuleLoaderBase::getModuleDepen
   // FIXME: submodules?
   scanners.push_back(std::make_unique<PlaceholderSwiftModuleScanner>(
       Ctx, LoadMode, moduleId, Ctx.SearchPathOpts.PlaceholderDependencyModuleMap,
-      delegate));
+      delegate, cache.getScanService().createSwiftDependencyTracker()));
   scanners.push_back(std::make_unique<ModuleDependencyScanner>(
-      Ctx, LoadMode, moduleId, delegate));
+      Ctx, LoadMode, moduleId, delegate, ModuleDependencyScanner::MDS_plain,
+      cache.getScanService().createSwiftDependencyTracker()));
 
   // Check whether there is a module with this name that we can import.
   assert(isa<PlaceholderSwiftModuleScanner>(scanners[0].get()) &&

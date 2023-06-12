@@ -1,0 +1,108 @@
+### 1
+source.edit.kind.active:
+  1:1-1:22 ""
+source.edit.kind.active:
+  13:1-13:1 "static func requirement() where Element : P {
+  Element.requirement()
+}"
+source.edit.kind.active:
+  13:2-13:2 "extension Generic : P where Element: P {}"
+source.edit.kind.active:
+  5:3-5:21 ""
+source.edit.kind.active:
+  7:17-7:17 "{
+    get {
+            _value.wrappedValue
+      }
+
+    set {
+            _value.wrappedValue = newValue
+      }
+}"
+source.edit.kind.active:
+  7:12-7:12 "var _value: MyWrapperThingy<Int>"
+source.edit.kind.active:
+  2:1-2:19 ""
+source.edit.kind.active:
+  7:3-7:3 "@Wrapper"
+source.edit.kind.active:
+  10:3-10:3 "@Wrapper"
+source.edit.kind.active:
+  12:3-12:35 "struct blah8 {
+  func __syntactic_macro_a01f07de3e9ee8585adf794ccd6dec8c6methodfMu_() {
+  }
+  func __syntactic_macro_a01f07de3e9ee8585adf794ccd6dec8c6methodfMu0_() {
+  }
+}
+struct blah16 {
+  func __syntactic_macro_a01f07de3e9ee8585adf794ccd6dec8c6methodfMu1_() {
+  }
+  func __syntactic_macro_a01f07de3e9ee8585adf794ccd6dec8c6methodfMu2_() {
+  }
+}
+struct blah32 {
+  func __syntactic_macro_a01f07de3e9ee8585adf794ccd6dec8c6methodfMu3_() {
+  }
+  func __syntactic_macro_a01f07de3e9ee8585adf794ccd6dec8c6methodfMu4_() {
+  }
+}
+struct blah64 {
+  func __syntactic_macro_a01f07de3e9ee8585adf794ccd6dec8c6methodfMu5_() {
+  }
+  func __syntactic_macro_a01f07de3e9ee8585adf794ccd6dec8c6methodfMu6_() {
+  }
+}"
+### 2
+source.edit.kind.active:
+  12:3-12:35 "struct blah8 {
+  func __syntactic_macro_a01f07de3e9ee8585adf794ccd6dec8c6methodfMu_() {
+  }
+  func __syntactic_macro_a01f07de3e9ee8585adf794ccd6dec8c6methodfMu0_() {
+  }
+}
+struct blah16 {
+  func __syntactic_macro_a01f07de3e9ee8585adf794ccd6dec8c6methodfMu1_() {
+  }
+  func __syntactic_macro_a01f07de3e9ee8585adf794ccd6dec8c6methodfMu2_() {
+  }
+}
+struct blah32 {
+  func __syntactic_macro_a01f07de3e9ee8585adf794ccd6dec8c6methodfMu3_() {
+  }
+  func __syntactic_macro_a01f07de3e9ee8585adf794ccd6dec8c6methodfMu4_() {
+  }
+}
+struct blah64 {
+  func __syntactic_macro_a01f07de3e9ee8585adf794ccd6dec8c6methodfMu5_() {
+  }
+  func __syntactic_macro_a01f07de3e9ee8585adf794ccd6dec8c6methodfMu6_() {
+  }
+}"
+source.edit.kind.active:
+  2:1-2:19 ""
+source.edit.kind.active:
+  7:3-7:3 "@Wrapper"
+source.edit.kind.active:
+  10:3-10:3 "@Wrapper"
+source.edit.kind.active:
+  5:3-5:21 ""
+source.edit.kind.active:
+  7:17-7:17 "{
+    get {
+            _value.wrappedValue
+      }
+
+    set {
+            _value.wrappedValue = newValue
+      }
+}"
+source.edit.kind.active:
+  7:12-7:12 "var _value: MyWrapperThingy<Int>"
+source.edit.kind.active:
+  1:1-1:22 ""
+source.edit.kind.active:
+  13:1-13:1 "static func requirement() where Element : P {
+  Element.requirement()
+}"
+source.edit.kind.active:
+  13:2-13:2 "extension Generic : P where Element: P {}"

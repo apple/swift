@@ -3426,6 +3426,9 @@ public:
       case AccessorKind::Modify:
         OS << "<modify accessor for ";
         break;
+      case AccessorKind::Init:
+        OS << "init accessor for ";
+        break;
       }
       printDeclName(storage);
       OS << ">";

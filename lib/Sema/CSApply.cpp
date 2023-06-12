@@ -2937,7 +2937,7 @@ namespace {
 
         auto macro = cast<MacroDecl>(overload.choice.getDecl());
         ConcreteDeclRef macroRef = resolveConcreteDeclRef(macro, locator);
-        auto expansion = new (ctx) MacroExpansionExpr(
+        auto *expansion = MacroExpansionExpr::create(
             dc, expr->getStartLoc(), DeclNameRef(macro->getName()),
             DeclNameLoc(expr->getLoc()), SourceLoc(), {}, SourceLoc(), nullptr,
             MacroRole::Expression, /*isImplicit=*/true, expandedType);
@@ -3846,6 +3846,21 @@ namespace {
     }
 
     Expr *visitPackElementExpr(PackElementExpr *expr) {
+      if (auto *packRefExpr = expr->getPackRefExpr()) {
+        packRefExpr = cs.coerceToRValue(packRefExpr);
+        auto packRefType = cs.getType(packRefExpr);
+        if (auto *tuple = packRefType->getRValueType()->getAs<TupleType>();
+            tuple && tuple->isSingleUnlabeledPackExpansion()) {
+          auto *expansion =
+              tuple->getElementType(0)->castTo<PackExpansionType>();
+          auto patternType = expansion->getPatternType();
+          auto *materializedPackExpr = MaterializePackExpr::create(
+              cs.getASTContext(), packRefExpr, packRefExpr->getLoc(),
+              patternType, /*implicit*/ true);
+          cs.cacheType(materializedPackExpr);
+          expr->setPackRefExpr(materializedPackExpr);
+        }
+      }
       return simplifyExprType(expr);
     }
 
@@ -7219,7 +7234,8 @@ Expr *ExprRewriter::coerceToType(Expr *expr, Type toType,
                                             /*isImplicit*/ true));
   }
 
-  case TypeKind::Pack: {
+  case TypeKind::Pack:
+  case TypeKind::PackElement: {
     llvm_unreachable("Unimplemented!");
   }
 
@@ -7600,6 +7616,7 @@ Expr *ExprRewriter::coerceToType(Expr *expr, Type toType,
   case TypeKind::InOut:
   case TypeKind::Pack:
   case TypeKind::PackExpansion:
+  case TypeKind::PackElement:
     break;
 
   case TypeKind::BuiltinTuple:
@@ -8688,6 +8705,9 @@ namespace {
       return Action::SkipChildren();
     }
 
+    NullablePtr<Pattern>
+    rewritePattern(Pattern *pattern, DeclContext *DC);
+
     /// Rewrite the target, producing a new target.
     Optional<SyntacticElementTarget>
     rewriteTarget(SyntacticElementTarget target);
@@ -8934,12 +8954,68 @@ static Expr *wrapAsyncLetInitializer(
   return resultInit;
 }
 
+static Pattern *rewriteExprPattern(const SyntacticElementTarget &matchTarget,
+                                   Type patternTy,
+                                   RewriteTargetFn rewriteTarget) {
+  auto *EP = matchTarget.getExprPattern();
+
+  // See if we can simplify to another kind of pattern.
+  if (auto simplified = TypeChecker::trySimplifyExprPattern(EP, patternTy))
+    return simplified.get();
+
+  auto resultTarget = rewriteTarget(matchTarget);
+  if (!resultTarget)
+    return nullptr;
+
+  EP->setMatchExpr(resultTarget->getAsExpr());
+  EP->getMatchVar()->setInterfaceType(patternTy->mapTypeOutOfContext());
+  EP->setType(patternTy);
+  return EP;
+}
+
+/// Attempt to rewrite either an ExprPattern, or a pattern that was solved as
+/// an ExprPattern, e.g an EnumElementPattern that could not refer to an enum
+/// case.
+static Optional<Pattern *>
+tryRewriteExprPattern(Pattern *P, Solution &solution, Type patternTy,
+                      RewriteTargetFn rewriteTarget) {
+  // See if we have a match expression target.
+  auto matchTarget = solution.getTargetFor(P);
+  if (!matchTarget)
+    return None;
+
+  return rewriteExprPattern(*matchTarget, patternTy, rewriteTarget);
+}
+
+NullablePtr<Pattern> ExprWalker::rewritePattern(Pattern *pattern,
+                                                DeclContext *DC) {
+  auto &solution = Rewriter.solution;
+
+  // Figure out the pattern type.
+  auto patternTy = solution.getResolvedType(pattern);
+  patternTy = patternTy->reconstituteSugar(/*recursive=*/false);
+
+  // Coerce the pattern to its appropriate type.
+  TypeResolutionOptions patternOptions(TypeResolverContext::InExpression);
+  patternOptions |= TypeResolutionFlags::OverrideType;
+
+  auto tryRewritePattern = [&](Pattern *EP, Type ty) {
+    return ::tryRewriteExprPattern(
+        EP, solution, ty, [&](auto target) { return rewriteTarget(target); });
+  };
+
+  auto contextualPattern = ContextualPattern::forRawPattern(pattern, DC);
+  return TypeChecker::coercePatternToType(contextualPattern, patternTy,
+                                          patternOptions, tryRewritePattern);
+}
+
 /// Apply the given solution to the initialization target.
 ///
 /// \returns the resulting initialization expression.
 static Optional<SyntacticElementTarget>
 applySolutionToInitialization(Solution &solution, SyntacticElementTarget target,
-                              Expr *initializer) {
+                              Expr *initializer,
+                              RewriteTargetFn rewriteTarget) {
   auto wrappedVar = target.getInitializationWrappedVar();
   Type initType;
   if (wrappedVar) {
@@ -9004,10 +9080,14 @@ applySolutionToInitialization(Solution &solution, SyntacticElementTarget target,
 
   finalPatternType = finalPatternType->reconstituteSugar(/*recursive =*/false);
 
+  auto tryRewritePattern = [&](Pattern *EP, Type ty) {
+    return ::tryRewriteExprPattern(EP, solution, ty, rewriteTarget);
+  };
+
   // Apply the solution to the pattern as well.
   auto contextualPattern = target.getContextualPattern();
   if (auto coercedPattern = TypeChecker::coercePatternToType(
-          contextualPattern, finalPatternType, options)) {
+          contextualPattern, finalPatternType, options, tryRewritePattern)) {
     resultTarget.setPattern(coercedPattern);
   } else {
     return None;
@@ -9154,10 +9234,15 @@ static Optional<SyntacticElementTarget> applySolutionToForEachStmt(
     TypeResolutionOptions options(TypeResolverContext::ForEachStmt);
     options |= TypeResolutionFlags::OverrideType;
 
+    auto tryRewritePattern = [&](Pattern *EP, Type ty) {
+      return ::tryRewriteExprPattern(EP, solution, ty, rewriteTarget);
+    };
+
     // Apply the solution to the pattern as well.
     auto contextualPattern = target.getContextualPattern();
     auto coercedPattern = TypeChecker::coercePatternToType(
-        contextualPattern, forEachStmtInfo.initType, options);
+        contextualPattern, forEachStmtInfo.initType, options,
+        tryRewritePattern);
     if (!coercedPattern)
       return None;
 
@@ -9245,7 +9330,8 @@ ExprWalker::rewriteTarget(SyntacticElementTarget target) {
     switch (target.getExprContextualTypePurpose()) {
     case CTP_Initialization: {
       auto initResultTarget = applySolutionToInitialization(
-          solution, target, rewrittenExpr);
+          solution, target, rewrittenExpr,
+          [&](auto target) { return rewriteTarget(target); });
       if (!initResultTarget)
         return None;
 
@@ -9336,47 +9422,11 @@ ExprWalker::rewriteTarget(SyntacticElementTarget target) {
     ConstraintSystem &cs = solution.getConstraintSystem();
     auto info = *cs.getCaseLabelItemInfo(*caseLabelItem);
 
-    // Figure out the pattern type.
-    Type patternType = solution.simplifyType(solution.getType(info.pattern));
-    patternType = patternType->reconstituteSugar(/*recursive=*/false);
-
-    // Check whether this enum element is resolved via ~= application.
-    if (auto *enumElement = dyn_cast<EnumElementPattern>(info.pattern)) {
-      if (auto target = cs.getTargetFor(enumElement)) {
-        auto *EP = target->getExprPattern();
-        auto enumType = solution.getResolvedType(EP);
-
-        auto *matchCall = target->getAsExpr();
-
-        auto *result = matchCall->walk(*this);
-        if (!result)
-          return None;
-
-        {
-          auto *matchVar = EP->getMatchVar();
-          matchVar->setInterfaceType(enumType->mapTypeOutOfContext());
-        }
-
-        EP->setMatchExpr(result);
-        EP->setType(enumType);
-
-        (*caseLabelItem)->setPattern(EP, /*resolved=*/true);
-        return target;
-      }
-    }
-
-    // Coerce the pattern to its appropriate type.
-    TypeResolutionOptions patternOptions(TypeResolverContext::InExpression);
-    patternOptions |= TypeResolutionFlags::OverrideType;
-    auto contextualPattern =
-        ContextualPattern::forRawPattern(info.pattern,
-                                         target.getDeclContext());
-    if (auto coercedPattern = TypeChecker::coercePatternToType(
-            contextualPattern, patternType, patternOptions)) {
-      (*caseLabelItem)->setPattern(coercedPattern, /*resolved=*/true);
-    } else {
+    auto pattern = rewritePattern(info.pattern, target.getDeclContext());
+    if (!pattern)
       return None;
-    }
+
+    (*caseLabelItem)->setPattern(pattern.get(), /*resolved=*/true);
 
     // If there is a guard expression, coerce that.
     if (auto *guardExpr = info.guardExpr) {
@@ -9444,8 +9494,13 @@ ExprWalker::rewriteTarget(SyntacticElementTarget target) {
       options |= TypeResolutionFlags::OverrideType;
     }
 
+    auto tryRewritePattern = [&](Pattern *EP, Type ty) {
+      return ::tryRewriteExprPattern(
+          EP, solution, ty, [&](auto target) { return rewriteTarget(target); });
+    };
+
     if (auto coercedPattern = TypeChecker::coercePatternToType(
-            contextualPattern, patternType, options)) {
+            contextualPattern, patternType, options, tryRewritePattern)) {
       auto resultTarget = target;
       resultTarget.setPattern(coercedPattern);
       return resultTarget;

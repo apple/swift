@@ -85,3 +85,13 @@ final class Dog: Observable {
 func test() {
   observeDog()
 }
+
+
+@freestanding(declaration, names: named(Foo)) macro useIdentifier(_ value: String) = #externalMacro(module: "MacroDefinition", type: "UseIdentifierMacro")
+
+#if false
+#useIdentifier("totallyNotDefined")
+#else
+let hello = "Hello"
+#useIdentifier("hello")
+#endif

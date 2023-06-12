@@ -249,6 +249,6 @@ endif()
 
 if(SWIFT_CONCURRENCY_USES_DISPATCH AND NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
   if(NOT EXISTS "${SWIFT_PATH_TO_LIBDISPATCH_SOURCE}")
-    message(SEND_ERROR "Concurrency require libdispatch on non-Darwin hosts.  Please specify SWIFT_PATH_TO_LIBDISPATCH_SOURCE")
+    message(SEND_ERROR "Concurrency requires libdispatch on non-Darwin hosts.  Please specify SWIFT_PATH_TO_LIBDISPATCH_SOURCE")
   endif()
 endif()

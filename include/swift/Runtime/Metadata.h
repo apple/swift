@@ -992,6 +992,21 @@ void swift_enableDynamicReplacementScope(const DynamicReplacementScope *scope);
 SWIFT_RUNTIME_EXPORT
 void swift_disableDynamicReplacementScope(const DynamicReplacementScope *scope);
 
+/// A struct containing pointers to all of the type descriptors in the
+/// Concurrency runtime which have standard manglings.
+struct ConcurrencyStandardTypeDescriptors {
+#define STANDARD_TYPE(KIND, MANGLING, TYPENAME)
+#define STANDARD_TYPE_CONCURRENCY(KIND, MANGLING, TYPENAME)                    \
+  const ContextDescriptor * __ptrauth_swift_type_descriptor TYPENAME;
+#include "swift/Demangling/StandardTypesMangling.def"
+};
+
+/// Register the type descriptors with standard manglings from the Concurrency
+/// runtime. The passed-in struct must be immortal.
+SWIFT_RUNTIME_STDLIB_SPI
+void _swift_registerConcurrencyStandardTypeDescriptors(
+    const ConcurrencyStandardTypeDescriptors *descriptors);
+
 #pragma clang diagnostic pop
 
 } // end namespace swift

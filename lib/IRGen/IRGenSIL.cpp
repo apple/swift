@@ -21,11 +21,13 @@
 #include "swift/AST/IRGenOptions.h"
 #include "swift/AST/ParameterList.h"
 #include "swift/AST/Pattern.h"
+#include "swift/AST/SemanticAttrs.h"
 #include "swift/AST/SubstitutionMap.h"
 #include "swift/AST/Types.h"
 #include "swift/Basic/ExternalUnion.h"
 #include "swift/Basic/Range.h"
 #include "swift/Basic/STLExtras.h"
+#include "swift/IRGen/GenericRequirement.h"
 #include "swift/IRGen/Linking.h"
 #include "swift/SIL/ApplySite.h"
 #include "swift/SIL/BasicBlockDatastructures.h"
@@ -441,7 +443,24 @@ public:
 
   // A cached dominance analysis.
   std::unique_ptr<DominanceInfo> Dominance;
-  
+
+#ifndef NDEBUG
+  /// For each instruction which might allocate pack metadata on stack, the
+  /// corresponding cleanup instructions.
+  ///
+  /// Used to verify that every instruction on behalf of which on-stack pack
+  /// metadata is emitted has some corresponding cleanup instructions.
+  llvm::DenseMap<SILInstruction *, llvm::SmallVector<SILInstruction *, 2>>
+      DynamicMetadataPackDeallocs;
+#endif
+  /// For each instruction which did allocate pack metadata on-stack, the stack
+  /// locations at which they were allocated.
+  ///
+  /// Used to emit cleanups for those allocations in
+  /// emitDeallocateDynamicPackMetadataAllocas.
+  llvm::DenseMap<SILInstruction *, llvm::SmallVector<StackPackAlloc, 2>>
+      StackPackAllocs;
+
   IRGenSILFunction(IRGenModule &IGM, SILFunction *f);
   ~IRGenSILFunction();
   
@@ -524,7 +543,7 @@ public:
 
       // Otherwise, claim out the right number of values.
       Explosion resultValue;
-      cast<LoadableTypeInfo>(resultTI).reexplode(*this, allValues, resultValue);
+      cast<LoadableTypeInfo>(resultTI).reexplode(allValues, resultValue);
       setLoweredExplosion(result, resultValue);
     }
   }
@@ -1175,6 +1194,7 @@ public:
                                   llvm::Value *addr);
   void visitAllocStackInst(AllocStackInst *i);
   void visitAllocPackInst(AllocPackInst *i);
+  void visitAllocPackMetadataInst(AllocPackMetadataInst *i);
   void visitAllocRefInst(AllocRefInst *i);
   void visitAllocRefDynamicInst(AllocRefDynamicInst *i);
   void visitAllocBoxInst(AllocBoxInst *i);
@@ -1208,6 +1228,9 @@ public:
   void visitAssignByWrapperInst(AssignByWrapperInst *i) {
     llvm_unreachable("assign_by_wrapper is not valid in canonical SIL");
   }
+  void visitAssignOrInitInst(AssignOrInitInst *i) {
+    llvm_unreachable("assign_or_init is not valid in canonical SIL");
+  }
   void visitMarkUninitializedInst(MarkUninitializedInst *i) {
     llvm_unreachable("mark_uninitialized is not valid in canonical SIL");
   }
@@ -1230,8 +1253,7 @@ public:
     setLoweredExplosion(i, e);
   }
   void visitDropDeinitInst(DropDeinitInst *i) {
-    auto e = getLoweredExplosion(i->getOperand());
-    setLoweredExplosion(i, e);
+    llvm_unreachable("only valid in ownership SIL");
   }
   void visitMarkMustCheckInst(MarkMustCheckInst *i) {
     llvm_unreachable("Invalid in Lowered SIL");
@@ -1247,6 +1269,20 @@ public:
   }
   void visitMoveOnlyWrapperToCopyableValueInst(
       MoveOnlyWrapperToCopyableValueInst *i) {
+    auto e = getLoweredExplosion(i->getOperand());
+    setLoweredExplosion(i, e);
+  }
+  void
+  visitMoveOnlyWrapperToCopyableBoxInst(MoveOnlyWrapperToCopyableBoxInst *i) {
+    llvm_unreachable("OSSA instruction");
+  }
+  void
+  visitMoveOnlyWrapperToCopyableAddrInst(MoveOnlyWrapperToCopyableAddrInst *i) {
+    auto e = getLoweredExplosion(i->getOperand());
+    setLoweredExplosion(i, e);
+  }
+  void
+  visitCopyableToMoveOnlyWrapperAddrInst(CopyableToMoveOnlyWrapperAddrInst *i) {
     auto e = getLoweredExplosion(i->getOperand());
     setLoweredExplosion(i, e);
   }
@@ -1364,6 +1400,7 @@ public:
   void visitDeallocStackInst(DeallocStackInst *i);
   void visitDeallocStackRefInst(DeallocStackRefInst *i);
   void visitDeallocPackInst(DeallocPackInst *i);
+  void visitDeallocPackMetadataInst(DeallocPackMetadataInst *i);
   void visitDeallocBoxInst(DeallocBoxInst *i);
   void visitDeallocRefInst(DeallocRefInst *i);
   void visitDeallocPartialRefInst(DeallocPartialRefInst *i);
@@ -1477,7 +1514,6 @@ public:
   LOADABLE_REF_STORAGE_HELPER(Name)
 #include "swift/AST/ReferenceStorage.def"
 #undef LOADABLE_REF_STORAGE_HELPER
-  
 };
 
 } // end anonymous namespace
@@ -1834,6 +1870,11 @@ IRGenSILFunction::IRGenSILFunction(IRGenModule &IGM, SILFunction *f)
       CurFn->addFnAttr(llvm::Attribute::SanitizeThread);
     }
   }
+
+  // If we have @_semantics("use_frame_pointer"), force the use of a
+  // frame pointer for this function.
+  if (f->hasSemanticsAttr(semantics::USE_FRAME_POINTER))
+    CurFn->addFnAttr("frame-pointer", "all");
 
   // Disable inlining of coroutine functions until we split.
   if (f->getLoweredFunctionType()->isCoroutine()) {
@@ -2357,6 +2398,9 @@ void IRGenSILFunction::emitSILFunction() {
   if (IGM.DebugInfo)
     IGM.DebugInfo->emitFunction(*CurSILFn, CurFn);
 
+  if (!CurSILFn->useStackForPackMetadata())
+    packMetadataStackPromotionDisabled = true;
+
   // Map the entry bb.
   LoweredBBs[&*CurSILFn->begin()] = LoweredBB(&CurFn->back(), {});
   // Create LLVM basic blocks for the other bbs.
@@ -2386,6 +2430,26 @@ void IRGenSILFunction::emitSILFunction() {
   emitDynamicSelfMetadata(*this);
 
   assert(params.empty() && "did not map all llvm params to SIL params?!");
+
+#ifndef NDEBUG
+  for (auto &BB : *CurSILFn) {
+    for (auto &I : BB) {
+      if (auto *DPMI = dyn_cast<DeallocPackMetadataInst>(&I)) {
+        DynamicMetadataPackDeallocs[DPMI->getIntroducer()].push_back(DPMI);
+        continue;
+      }
+      if (auto *DSI = dyn_cast<DeallocStackInst>(&I)) {
+        auto *I = DSI->getOperand()->getDefiningInstruction();
+        if (!I)
+          continue;
+        auto *PAI = dyn_cast<PartialApplyInst>(I);
+        if (!PAI || !PAI->isOnStack())
+          continue;
+        DynamicMetadataPackDeallocs[PAI].push_back(DSI);
+      }
+    }
+  }
+#endif
 
   // It's really nice to be able to assume that we've already emitted
   // all the values from dominating blocks --- it makes simple
@@ -2544,7 +2608,53 @@ void IRGenSILFunction::visitSILBasicBlock(SILBasicBlock *BB) {
     IGM.emittedRuntimeFuncs.clear();
 #endif
 
+    assert(OutstandingStackPackAllocs.empty());
+
     visit(&I);
+
+#ifndef NDEBUG
+    if (!OutstandingStackPackAllocs.empty()) {
+      auto iter = DynamicMetadataPackDeallocs.find(&I);
+      if (iter == DynamicMetadataPackDeallocs.end() ||
+          iter->getSecond().size() == 0) {
+        llvm::errs()
+            << "Instruction missing on-stack pack metadata cleanups!\n";
+        I.print(llvm::errs());
+        llvm::errs() << "\n In function";
+        CurSILFn->print(llvm::errs());
+        llvm::errs() << "Allocated the following on-stack pack metadata:";
+        for (auto pair : OutstandingStackPackAllocs) {
+          StackAddress addr;
+          llvm::Value *shape;
+          uint8_t kind;
+          std::tie(addr, shape, kind) = pair;
+          switch ((GenericRequirement::Kind)kind) {
+          case GenericRequirement::Kind::MetadataPack:
+            llvm::errs() << "Metadata Pack: ";
+            break;
+          case GenericRequirement::Kind::WitnessTablePack:
+            llvm::errs() << "Witness Table Pack: ";
+            break;
+          default:
+            llvm_unreachable("bad requirement in stack pack alloc");
+          }
+          addr.getAddressPointer()->print(llvm::errs());
+          llvm::errs() << "\n";
+        }
+        CurFn->print(llvm::errs());
+        llvm::report_fatal_error(
+            "Instruction resulted in on-stack pack metadata emission but no "
+            "cleanup instructions were added");
+      }
+    }
+#endif
+    // Record the on-stack pack allocations emitted on behalf of this SIL
+    // instruction.  They will be cleaned up when visiting the corresponding
+    // cleanup markers.
+    for (auto pair : OutstandingStackPackAllocs) {
+      StackPackAllocs[&I].push_back(pair);
+    }
+    OutstandingStackPackAllocs.clear();
 
 #ifdef CHECK_RUNTIME_EFFECT_ANALYSIS
     if (!isa<DebugValueInst>(&I)) {
@@ -2780,12 +2890,10 @@ void IRGenSILFunction::visitFunctionRefBaseInst(FunctionRefBaseInst *i) {
   FunctionPointer fp =
       FunctionPointer::forDirect(fpKind, value, secondaryValue, sig, useSignature);
   // Update the foreign no-throw information if needed.
-  if (const auto *cd = fn->getClangDecl()) {
+  if (auto *cd = fn->getClangDecl()) {
     if (auto *cfd = dyn_cast<clang::FunctionDecl>(cd)) {
-      if (auto *cft = cfd->getType()->getAs<clang::FunctionProtoType>()) {
-        if (cft->isNothrow())
-          fp.setForeignNoThrow();
-      }
+      if (IGM.isCxxNoThrow(const_cast<clang::FunctionDecl *>(cfd)))
+        fp.setForeignNoThrow();
     }
     if (IGM.emittedForeignFunctionThunksWithExceptionTraps.count(fnPtr))
       fp.setForeignCallCatchesExceptionInThunk();
@@ -2834,10 +2942,9 @@ void IRGenSILFunction::visitAllocGlobalInst(AllocGlobalInst *i) {
 
 void IRGenSILFunction::visitGlobalAddrInst(GlobalAddrInst *i) {
   SILGlobalVariable *var = i->getReferencedGlobal();
-  SILType loweredTy = var->getLoweredTypeInContext(getExpansionContext());
-  assert(loweredTy == i->getType().getObjectType());
+  SILType loweredTy = var->getLoweredType();
   auto &ti = getTypeInfo(loweredTy);
-  
+
   auto expansion = IGM.getResilienceExpansionForLayout(var);
 
   // If the variable is empty in all resilience domains that can see it,
@@ -2860,7 +2967,15 @@ void IRGenSILFunction::visitGlobalAddrInst(GlobalAddrInst *i) {
   // Otherwise, the static storage for the global consists of a fixed-size
   // buffer; project it.
   addr = emitProjectValueInBuffer(*this, loweredTy, addr);
-  
+
+
+  // Get the address of the type in context.
+  SILType loweredTyInContext = var->getLoweredTypeInContext(getExpansionContext());
+  auto &tiInContext = getTypeInfo(loweredTyInContext);
+  auto ptr = Builder.CreateBitOrPointerCast(addr.getAddress(),
+                                            tiInContext.getStorageType()->getPointerTo());
+  addr = Address(ptr, tiInContext.getStorageType(),
+                 tiInContext.getBestKnownAlignment());
   setLoweredAddress(i, addr);
 }
 
@@ -5584,6 +5699,8 @@ void IRGenSILFunction::visitAllocPackInst(swift::AllocPackInst *i) {
   setLoweredStackAddress(i, addr);
 }
 
+void IRGenSILFunction::visitAllocPackMetadataInst(AllocPackMetadataInst *i) {}
+
 static void
 buildTailArrays(IRGenSILFunction &IGF,
                 SmallVectorImpl<std::pair<SILType, llvm::Value *>> &TailArrays,
@@ -5687,6 +5804,14 @@ void IRGenSILFunction::visitDeallocPackInst(swift::DeallocPackInst *i) {
   auto allocatedType = cast<SILPackType>(i->getOperand()->getType().getASTType());
   StackAddress stackAddr = getLoweredStackAddress(i->getOperand());
   deallocatePack(*this, stackAddr, allocatedType);
+}
+
+void IRGenSILFunction::visitDeallocPackMetadataInst(
+    DeallocPackMetadataInst *i) {
+  auto iter = StackPackAllocs.find(i->getIntroducer());
+  if (iter == StackPackAllocs.end())
+    return;
+  cleanupStackAllocPacks(*this, iter->getSecond());
 }
 
 void IRGenSILFunction::visitDeallocRefInst(swift::DeallocRefInst *i) {
@@ -7493,52 +7618,6 @@ void IRGenSILFunction::visitObjCMethodInst(swift::ObjCMethodInst *i) {
   // to happen when the method is called.
   assert(i->getMember().isForeign);
   setLoweredObjCMethod(i, i->getMember());
-}
-
-void IRGenModule::emitSILStaticInitializers() {
-  SmallVector<SILFunction *, 8> StaticInitializers;
-  for (SILGlobalVariable &Global : getSILModule().getSILGlobals()) {
-    SILInstruction *InitValue = Global.getStaticInitializerValue();
-    if (!InitValue)
-      continue;
-
-#ifndef NDEBUG
-    SILType loweredTy = Global.getLoweredType();
-    auto &ti = getTypeInfo(loweredTy);
-
-    auto expansion = getResilienceExpansionForLayout(&Global);
-    assert(ti.isFixedSize(expansion) &&
-           "cannot emit a static initializer for dynamically-sized global");
-#endif
-
-    LinkEntity entity = LinkEntity::forSILGlobalVariable(&Global, *this);
-    std::string name = entity.mangleAsString();
-
-    auto *IRGlobal =
-        Module.getGlobalVariable(name, true /* = AllowLocal */);
-
-    // A check for multi-threaded compilation: Is this the llvm module where the
-    // global is defined and not only referenced (or not referenced at all).
-    if (!IRGlobal || !IRGlobal->hasInitializer())
-      continue;
-
-    if (auto *OI = dyn_cast<ObjectInst>(InitValue)) {
-      StructLayout *Layout = StaticObjectLayouts[&Global].get();
-      llvm::Constant *InitVal = emitConstantObject(*this, OI, Layout);
-      if (canMakeStaticObjectsReadOnly()) {
-        IRGlobal->setInitializer(InitVal);
-      } else {
-        auto *ContainerTy = cast<llvm::StructType>(IRGlobal->getValueType());
-        auto *zero = llvm::ConstantAggregateZero::get(ContainerTy->getElementType(0));
-        IRGlobal->setInitializer(llvm::ConstantStruct::get(ContainerTy,
-                                                           {zero , InitVal}));
-      }
-      continue;
-    }
-
-    IRGlobal->setInitializer(
-      emitConstantValue(*this, cast<SingleValueInstruction>(InitValue)));
-  }
 }
 
 void IRGenSILFunction::visitGetAsyncContinuationInst(

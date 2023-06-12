@@ -88,6 +88,12 @@ struct BridgedValue {
 
 struct OptionalBridgedValue {
   OptionalSwiftObject obj;
+
+  swift::SILValue getSILValue() const {
+    if (obj)
+      return static_cast<swift::ValueBase *>(obj);
+    return swift::SILValue();
+  }
 };
 
 inline swift::ValueOwnershipKind castToOwnership(BridgedValue::Ownership ownership) {
@@ -1100,6 +1106,18 @@ struct BridgedBuilder{
   }
 
   SWIFT_IMPORT_UNSAFE
+  BridgedInstruction createUnownedRetain(BridgedValue op) const {
+    auto b = builder();
+    return {b.createUnownedRetain(regularLoc(), op.getSILValue(), b.getDefaultAtomicity())};
+  }
+
+  SWIFT_IMPORT_UNSAFE
+  BridgedInstruction createUnownedRelease(BridgedValue op) const {
+    auto b = builder();
+    return {b.createUnownedRelease(regularLoc(), op.getSILValue(), b.getDefaultAtomicity())};
+  }
+
+  SWIFT_IMPORT_UNSAFE
   BridgedInstruction createFunctionRef(BridgedFunction function) const {
     return {builder().createFunctionRef(regularLoc(), function.getFunction())};
   }
@@ -1174,6 +1192,14 @@ struct BridgedBuilder{
   }
 
   SWIFT_IMPORT_UNSAFE
+  BridgedInstruction createEnum(SwiftInt caseIdx, OptionalBridgedValue payload,
+                                swift::SILType resultType) const {
+    swift::EnumElementDecl *caseDecl = resultType.getEnumElement(caseIdx);
+    swift::SILValue pl = payload.getSILValue();
+    return {builder().createEnum(regularLoc(), pl, caseDecl, resultType)};
+  }
+
+  SWIFT_IMPORT_UNSAFE
   BridgedInstruction createBranch(BridgedBasicBlock destBlock, BridgedValueArray arguments) const {
     llvm::SmallVector<swift::SILValue, 16> argValues;
     return {builder().createBranch(regularLoc(), destBlock.getBlock(), arguments.getValues(argValues))};
@@ -1211,6 +1237,13 @@ struct BridgedBuilder{
   BridgedInstruction createTuple(swift::SILType type, BridgedValueArray elements) const {
     llvm::SmallVector<swift::SILValue, 16> elementValues;
     return {builder().createTuple(regularLoc(), type, elements.getValues(elementValues))};
+  }
+
+  SWIFT_IMPORT_UNSAFE
+  BridgedInstruction createStore(BridgedValue src, BridgedValue dst,
+                                 SwiftInt ownership) const {
+    return {builder().createStore(regularLoc(), src.getSILValue(), dst.getSILValue(),
+                                  (swift::StoreOwnershipQualifier)ownership)};
   }
 };
 

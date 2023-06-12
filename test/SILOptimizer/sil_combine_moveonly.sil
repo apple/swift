@@ -1,0 +1,73 @@
+// RUN: %target-sil-opt -enable-experimental-feature MoveOnlyEnumDeinits -enable-sil-verify-all -sil-combine %s | %FileCheck %s
+
+sil_stage canonical
+
+import Builtin
+
+struct S : ~Copyable {
+  deinit {}
+}
+
+struct FileDescriptor: ~Copyable {
+  var fd: Builtin.Int64
+
+  init(fd: Builtin.Int64)
+  deinit
+}
+
+enum MaybeFileDescriptor: ~Copyable {
+  case some(FileDescriptor)
+  case nothing
+
+  consuming func discard() { discard self }
+
+  deinit
+}
+
+// Test that a release_value is not removed for a struct-with-deinit.
+// Doing so would forget the deinit.
+//
+// public func testStructDeinit() {
+//   var s = S()
+// }
+//
+// CHECK-LABEL: sil @testStructDeinit : $@convention(thin) () -> () {
+// CHECK:         release_value %{{.*}} : $S
+// CHECK-LABEL: } // end sil function 'testStructDeinit'
+sil @testStructDeinit : $@convention(thin) () -> () {
+bb0:
+  %0 = struct $S ()
+  release_value %0 : $S
+  %5 = tuple ()
+  return %5 : $()
+}
+
+// Test that a release_value is not replaced for a enum-with-deinit.
+// Doing so would forget the deinit.
+//
+// CHECK-LABEL: sil hidden [noinline] @testEnumDeinit : $@convention(thin) () -> () {
+// CHECK:   release_value %{{.*}} : $MaybeFileDescriptor
+// CHECK-LABEL: } // end sil function 'testEnumDeinit'
+sil hidden [noinline] @testEnumDeinit : $@convention(thin) () -> () {
+bb0:
+  %0 = integer_literal $Builtin.Int64, 0
+  %26 = struct $FileDescriptor (%0 : $Builtin.Int64)
+  %38 = enum $MaybeFileDescriptor, #MaybeFileDescriptor.some!enumelt, %26 : $FileDescriptor
+  release_value %38 : $MaybeFileDescriptor
+  %42 = tuple ()
+  return %42 : $()
+}
+
+// Test that a release of a trivial payload is not removed.
+//
+// CHECK-LABEL: sil hidden [noinline] @testEnumDeinitTrivialPayload : $@convention(thin) () -> () {
+// CHECK:   release_value %{{.*}} : $MaybeFileDescriptor
+// CHECK-LABEL: } // end sil function 'testEnumDeinitTrivialPayload'
+sil hidden [noinline] @testEnumDeinitTrivialPayload : $@convention(thin) () -> () {
+bb0:
+  %0 = enum $MaybeFileDescriptor, #MaybeFileDescriptor.nothing!enumelt // users: %2, %1
+  debug_value %0 : $MaybeFileDescriptor, var, name "maybe" // id: %1
+  release_value %0 : $MaybeFileDescriptor
+  %9 = tuple ()
+  return %9 : $()
+}

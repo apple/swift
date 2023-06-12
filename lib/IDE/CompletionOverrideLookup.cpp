@@ -541,7 +541,7 @@ void CompletionOverrideLookup::getOverrideCompletions(SourceLoc Loc) {
   if (CurrTy && !CurrTy->is<ErrorType>()) {
     // Look for overridable static members too.
     Type Meta = MetatypeType::get(CurrTy);
-    lookupVisibleMemberDecls(*this, Meta, CurrDeclContext,
+    lookupVisibleMemberDecls(*this, Meta, introducerLoc, CurrDeclContext,
                              /*includeInstanceMembers=*/true,
                              /*includeDerivedRequirements*/ true,
                              /*includeProtocolExtensionMembers*/ false);

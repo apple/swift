@@ -973,7 +973,7 @@ SILBasicBlock *SILDeserializer::readSILBasicBlock(SILFunction *Fn,
     SILType SILArgTy = getSILType(ArgTy, ValueCategory, Fn);
     auto OwnershipKind = ValueOwnershipKind((Args[I + 1] >> 8) & 0x7);
     auto reborrow = (Args[I + 1] >> 11) & 0x1;
-    auto escaping = (Args[I + 1] >> 12) & 0x1;
+    auto pointerEscape = (Args[I + 1] >> 12) & 0x1;
     if (IsEntry) {
       auto *fArg = CurrentBB->createFunctionArgument(SILArgTy);
       bool isNoImplicitCopy = (Args[I + 1] >> 13) & 0x1;
@@ -987,7 +987,8 @@ SILBasicBlock *SILDeserializer::readSILBasicBlock(SILFunction *Fn,
       Arg = fArg;
     } else {
       Arg = CurrentBB->createPhiArgument(SILArgTy, OwnershipKind,
-                                         /*decl*/ nullptr, reborrow, escaping);
+                                         /*decl*/ nullptr, reborrow,
+                                         pointerEscape);
     }
     LastValueID = LastValueID + 1;
     setLocalValue(Arg, LastValueID);
@@ -1323,6 +1324,8 @@ bool SILDeserializer::readSILInstruction(SILFunction *Fn,
   case SILInstructionKind::DebugValueInst:
   case SILInstructionKind::DebugStepInst:
   case SILInstructionKind::TestSpecificationInst:
+  case SILInstructionKind::AllocPackMetadataInst:
+  case SILInstructionKind::DeallocPackMetadataInst:
     llvm_unreachable("not supported");
 
   case SILInstructionKind::AllocBoxInst: {
@@ -1330,9 +1333,11 @@ bool SILDeserializer::readSILInstruction(SILFunction *Fn,
     bool hasDynamicLifetime = Attr & 0x1;
     bool reflection = (Attr >> 1) & 0x1;
     bool usesMoveableValueDebugInfo = (Attr >> 2) & 0x1;
+    bool pointerEscape = (Attr >> 3) & 0x1;
     ResultInst = Builder.createAllocBox(
         Loc, cast<SILBoxType>(MF->getType(TyID)->getCanonicalType()), None,
-        hasDynamicLifetime, reflection, usesMoveableValueDebugInfo);
+        hasDynamicLifetime, reflection, usesMoveableValueDebugInfo,
+        /*skipVarDeclAssert*/ false, pointerEscape);
     break;
   }
   case SILInstructionKind::AllocStackInst: {
@@ -2116,11 +2121,12 @@ bool SILDeserializer::readSILInstruction(SILFunction *Fn,
   case SILInstructionKind::BeginBorrowInst: {
     assert(RecordKind == SIL_ONE_OPERAND && "Layout should be OneOperand.");
     bool isLexical = Attr & 0x1;
+    bool hasPointerEscape = (Attr >> 1) & 0x1;
     ResultInst = Builder.createBeginBorrow(
         Loc,
         getLocalValue(ValID, getSILType(MF->getType(TyID),
                                         (SILValueCategory)TyCategory, Fn)),
-        isLexical);
+        isLexical, hasPointerEscape);
     break;
   }
 
@@ -2206,10 +2212,11 @@ bool SILDeserializer::readSILInstruction(SILFunction *Fn,
     auto Ty = MF->getType(TyID);
     bool AllowsDiagnostics = Attr & 0x1;
     bool IsLexical = (Attr >> 1) & 0x1;
+    bool IsEscaping = (Attr >> 2) & 0x1;
     auto *MVI = Builder.createMoveValue(
         Loc,
         getLocalValue(ValID, getSILType(Ty, (SILValueCategory)TyCategory, Fn)),
-        IsLexical);
+        IsLexical, IsEscaping);
     MVI->setAllowsDiagnostics(AllowsDiagnostics);
     ResultInst = MVI;
     break;
@@ -2339,6 +2346,27 @@ bool SILDeserializer::readSILInstruction(SILFunction *Fn,
                                            noNestedConflict, fromBuiltin);
     break;
   }
+  case SILInstructionKind::MoveOnlyWrapperToCopyableAddrInst: {
+    assert(RecordKind == SIL_ONE_OPERAND);
+    SILValue op = getLocalValue(
+        ValID, getSILType(MF->getType(TyID), (SILValueCategory)TyCategory, Fn));
+    ResultInst = Builder.createMoveOnlyWrapperToCopyableAddr(Loc, op);
+    break;
+  }
+  case SILInstructionKind::MoveOnlyWrapperToCopyableBoxInst: {
+    assert(RecordKind == SIL_ONE_OPERAND);
+    SILValue op = getLocalValue(
+        ValID, getSILType(MF->getType(TyID), (SILValueCategory)TyCategory, Fn));
+    ResultInst = Builder.createMoveOnlyWrapperToCopyableBox(Loc, op);
+    break;
+  }
+  case SILInstructionKind::CopyableToMoveOnlyWrapperAddrInst: {
+    assert(RecordKind == SIL_ONE_OPERAND);
+    SILValue op = getLocalValue(
+        ValID, getSILType(MF->getType(TyID), (SILValueCategory)TyCategory, Fn));
+    ResultInst = Builder.createCopyableToMoveOnlyWrapperAddr(Loc, op);
+    break;
+  }
   case SILInstructionKind::EndAccessInst: {
     SILValue op = getLocalValue(
         ValID, getSILType(MF->getType(TyID), (SILValueCategory)TyCategory, Fn));
@@ -2411,6 +2439,7 @@ bool SILDeserializer::readSILInstruction(SILFunction *Fn,
     break;
   }
   case SILInstructionKind::AssignByWrapperInst:
+  case SILInstructionKind::AssignOrInitInst:
     llvm_unreachable("not supported");
   case SILInstructionKind::BindMemoryInst: {
     assert(RecordKind == SIL_ONE_TYPE_VALUES &&

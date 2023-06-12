@@ -564,6 +564,10 @@ bool BBEnumTagDataflowState::visitReleaseValueInst(ReleaseValueInst *RVI) {
   if (FindResult == ValueToCaseMap.end())
     return false;
 
+  // If the enum has a deinit, preserve the original release.
+  if (hasValueDeinit(RVI->getOperand()))
+    return false;
+
   // If we do not have any argument, just delete the release value.
   if (!(*FindResult)->second->hasAssociatedValues()) {
     RVI->eraseFromParent();
@@ -620,6 +624,10 @@ bool BBEnumTagDataflowState::hoistDecrementsIntoSwitchRegions(
                                 "list for release_value's operand. Bailing!\n");
       continue;
     }
+
+    // If the enum has a deinit, preserve the original release.
+    if (hasValueDeinit(Op))
+      return false;
 
     auto &EnumBBCaseList = (*R)->second;
     // If we don't have an enum tag for each predecessor of this BB, bail since
@@ -1508,6 +1516,10 @@ static bool tryToSinkRefCountAcrossSwitch(SwitchEnumInst *Switch,
       RCIA->getRCIdentityRoot(Switch->getOperand()))
     return false;
 
+  // If the enum has a deinit, preserve the original release.
+  assert(!hasValueDeinit(Ptr) &&
+         "enum with deinit is not RC-identical to its payload");
+
   // If S has a default case bail since the default case could represent
   // multiple cases.
   //
@@ -1577,6 +1589,10 @@ static bool tryToSinkRefCountAcrossSelectEnum(CondBranchInst *CondBr,
   if (RCIA->getRCIdentityRoot(Ptr) !=
       RCIA->getRCIdentityRoot(SEI->getEnumOperand()))
     return false;
+
+  // If the enum has a deinit, preserve the original release.
+  assert(!hasValueDeinit(Ptr) &&
+         "enum with deinit is not RC-identical to its payload");
 
   // Work out which enum element is the true branch, and which is false.
   // If the enum only has 2 values and its tag isn't the true branch, then we

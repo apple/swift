@@ -43,26 +43,45 @@ typedef long SwiftInt;
 typedef unsigned long SwiftUInt;
 
 typedef struct {
+  const unsigned char *_Nullable data;
+  long length;
+} BridgedString;
+
+typedef struct {
   const void *_Nullable data;
   long numElements;
 } BridgedArrayRef;
+
+typedef struct BridgedASTContext {
+  void *raw;
+} BridgedASTContext;
+
+typedef struct BridgedDeclContext {
+  void *raw;
+} BridgedDeclContext;
+
+typedef struct BridgedSourceLoc {
+  const void *_Nullable raw;
+} BridgedSourceLoc;
+
+typedef struct BridgedIdentifier {
+  const void *_Nullable raw;
+} BridgedIdentifier;
 
 typedef struct {
   void *start;
   SwiftInt byteLength;
 } BridgedCharSourceRange;
 
-typedef void *BridgedIdentifier;
-
 typedef struct {
-  BridgedIdentifier _Nullable Name;
-  void *_Nullable NameLoc;
-  BridgedIdentifier _Nullable SecondName;
-  void *_Nullable SecondNameLoc;
-  void *_Nullable UnderscoreLoc;
-  void *_Nullable ColonLoc;
+  BridgedIdentifier Name;
+  BridgedSourceLoc NameLoc;
+  BridgedIdentifier SecondName;
+  BridgedSourceLoc SecondNameLoc;
+  BridgedSourceLoc UnderscoreLoc;
+  BridgedSourceLoc ColonLoc;
   void *Type;
-  void *_Nullable TrailingCommaLoc;
+  BridgedSourceLoc TrailingCommaLoc;
 } BridgedTupleTypeElement;
 
 typedef enum ENUM_EXTENSIBILITY_ATTR(open) BridgedRequirementReprKind : long {
@@ -84,7 +103,7 @@ typedef enum ENUM_EXTENSIBILITY_ATTR(open) BridgedRequirementReprKind : long {
 } BridgedRequirementReprKind;
 
 typedef struct {
-  void *_Nullable SeparatorLoc;
+  BridgedSourceLoc SeparatorLoc;
   BridgedRequirementReprKind Kind;
   void *FirstType;
   void *SecondType;
@@ -100,7 +119,13 @@ typedef enum ENUM_EXTENSIBILITY_ATTR(open) BridgedDiagnosticSeverity : long {
   BridgedNote,
 } BridgedDiagnosticSeverity;
 
-typedef void* BridgedDiagnostic;
+typedef struct BridgedDiagnostic {
+  void *raw;
+} BridgedDiagnostic;
+
+typedef struct BridgedDiagnosticEngine {
+  void *raw;
+} BridgedDiagnosticEngine;
 
 typedef enum ENUM_EXTENSIBILITY_ATTR(open) BridgedMacroDefinitionKind : long {
   /// An expanded macro.
@@ -122,7 +147,6 @@ typedef enum ENUM_EXTENSIBILITY_ATTR(open) BridgedAttributedTypeSpecifier : long
   BridgedAttributedTypeSpecifierConst,
   BridgedAttributedTypeSpecifierIsolated,
 } BridgedAttributedTypeSpecifier;
-
 
 // Bridged type attribute kinds, which mirror TypeAttrKind exactly.
 typedef enum ENUM_EXTENSIBILITY_ATTR(closed) BridgedTypeAttrKind : long {
@@ -176,11 +200,37 @@ typedef enum ENUM_EXTENSIBILITY_ATTR(closed) BridgedTypeAttrKind : long {
   BridgedTypeAttrKind_Count
 } BridgedTypeAttrKind;
 
+typedef enum ENUM_EXTENSIBILITY_ATTR(open) ASTNodeKind : long {
+  ASTNodeKindExpr,
+  ASTNodeKindStmt,
+  ASTNodeKindDecl
+} ASTNodeKind;
+
+typedef struct BridgedASTNode {
+  void *ptr;
+  ASTNodeKind kind;
+} BridgedASTNode;
+
+typedef struct BridgedFuncDecl {
+  BridgedDeclContext declContext;
+  void *funcDecl;
+  void *decl;
+} BridgedFuncDecl;
+
+typedef struct BridgedDeclContextAndDecl {
+  BridgedDeclContext declContext;
+  void *nominalDecl;
+  void *decl;
+} BridgedDeclContextAndDecl;
+
+typedef struct BridgedTypeAttributes {
+  void *raw;
+} BridgedTypeAttributes;
+
 #ifdef __cplusplus
 extern "C" {
 
 #define _Bool bool
-
 #endif
 
 // Diagnostics
@@ -190,192 +240,212 @@ extern "C" {
 ///
 /// \returns a diagnostic instance that can be extended with additional
 /// information and then must be finished via \c SwiftDiagnostic_finish.
-BridgedDiagnostic SwiftDiagnostic_create(void *diagnosticEngine,
-                                         BridgedDiagnosticSeverity severity,
-                                         const void *_Nullable sourceLoc,
-                                         const unsigned char *_Nullable text,
-                                         long textLen);
+BridgedDiagnostic Diagnostic_create(BridgedDiagnosticEngine cDiags,
+                                    BridgedDiagnosticSeverity severity,
+                                    BridgedSourceLoc cLoc, BridgedString cText);
 
 /// Highlight a source range as part of the diagnostic.
-void SwiftDiagnostic_highlight(
-    BridgedDiagnostic diag, const void *_Nullable startLoc, const void *_Nullable endLoc);
+void Diagnostic_highlight(BridgedDiagnostic cDiag, BridgedSourceLoc cStartLoc,
+                          BridgedSourceLoc cEndLoc);
 
 /// Add a Fix-It to replace a source range as part of the diagnostic.
-void SwiftDiagnostic_fixItReplace(BridgedDiagnostic diag,
-                                  const void *_Nullable replaceStartLoc,
-                                  const void *_Nullable replaceEndLoc,
-                                  const unsigned char *_Nullable newText,
-                                  long newTextLen);
+void Diagnostic_fixItReplace(BridgedDiagnostic cDiag,
+                             BridgedSourceLoc cStartLoc,
+                             BridgedSourceLoc cEndLoc,
+                             BridgedString cReplaceText);
 
 /// Finish the given diagnostic and emit it.
-void SwiftDiagnostic_finish(BridgedDiagnostic diag);
+void Diagnostic_finish(BridgedDiagnostic cDiag);
 
-BridgedIdentifier
-SwiftASTContext_getIdentifier(void *ctx, const unsigned char *_Nullable str,
-                              long len);
+BridgedIdentifier ASTContext_getIdentifier(BridgedASTContext cContext,
+                                           BridgedString cStr);
 
-void *SwiftImportDecl_create(void *, void *, void *, char, void *,
-                             BridgedArrayRef, BridgedArrayRef);
+void *ImportDecl_create(BridgedASTContext cContext,
+                        BridgedDeclContext cDeclContext,
+                        BridgedSourceLoc cImportLoc, char kind,
+                        BridgedSourceLoc cKindLoc, BridgedArrayRef path,
+                        BridgedArrayRef cPathLocs);
 
-void *SwiftTopLevelCodeDecl_createStmt(void *ctx, void *DC, void *startLoc,
-                                       void *element, void *endLoc);
-void *SwiftTopLevelCodeDecl_createExpr(void *ctx, void *DC, void *startLoc,
-                                       void *element, void *endLoc);
+void *TopLevelCodeDecl_createStmt(BridgedASTContext cContext,
+                                  BridgedDeclContext cDeclContext,
+                                  BridgedSourceLoc cStartLoc, void *element,
+                                  BridgedSourceLoc cEndLoc);
+void *TopLevelCodeDecl_createExpr(BridgedASTContext cContext,
+                                  BridgedDeclContext cDeclContext,
+                                  BridgedSourceLoc cStartLoc, void *element,
+                                  BridgedSourceLoc cEndLoc);
 
-void *ReturnStmt_create(void *ctx, void *loc, void *_Nullable expr);
+void *ReturnStmt_create(BridgedASTContext cContext, BridgedSourceLoc cLoc,
+                        void *_Nullable expr);
 
-void *SwiftSequenceExpr_create(void *ctx, BridgedArrayRef exprs);
+void *SequenceExpr_create(BridgedASTContext cContext, BridgedArrayRef exprs);
 
-void *SwiftTupleExpr_create(void *ctx, void *lparen, BridgedArrayRef subs,
-                            BridgedArrayRef names,
-                            BridgedArrayRef nameLocs,
-                            void *rparen);
+void *TupleExpr_create(BridgedASTContext cContext, BridgedSourceLoc cLParen,
+                       BridgedArrayRef subs, BridgedArrayRef names,
+                       BridgedArrayRef cNameLocs, BridgedSourceLoc cRParen);
 
-void *SwiftFunctionCallExpr_create(void *ctx, void *fn, void *args);
+void *FunctionCallExpr_create(BridgedASTContext cContext, void *fn, void *args);
 
-void *SwiftIdentifierExpr_create(void *ctx, BridgedIdentifier base, void *loc);
+void *IdentifierExpr_create(BridgedASTContext cContext, BridgedIdentifier base,
+                            BridgedSourceLoc cLoc);
 
-void *SwiftStringLiteralExpr_create(void *ctx,
-                                    const unsigned char *_Nullable string,
-                                    long len, void *TokenLoc);
+void *StringLiteralExpr_create(BridgedASTContext cContext, BridgedString cStr,
+                               BridgedSourceLoc cTokenLoc);
 
-void *SwiftIntegerLiteralExpr_create(void *ctx,
-                                     const unsigned char *_Nullable string,
-                                     long len, void *TokenLoc);
+void *IntegerLiteralExpr_create(BridgedASTContext cContext, BridgedString cStr,
+                                BridgedSourceLoc cTokenLoc);
 
-void *SwiftBooleanLiteralExpr_create(void *ctx, _Bool value, void *TokenLoc);
+void *BooleanLiteralExpr_create(BridgedASTContext cContext, _Bool value,
+                                BridgedSourceLoc cTokenLoc);
 
-void *ArrayExpr_create(void *ctx, void *lLoc, BridgedArrayRef elements,
-                       BridgedArrayRef commas, void *rLoc);
+void *ArrayExpr_create(BridgedASTContext cContext, BridgedSourceLoc cLLoc,
+                       BridgedArrayRef elements, BridgedArrayRef commas,
+                       BridgedSourceLoc cRLoc);
 
-void *SwiftVarDecl_create(void *ctx, BridgedIdentifier _Nullable name,
-                          void *initExpr, void *loc, _Bool isStatic,
-                          _Bool isLet, void *dc);
+void *VarDecl_create(BridgedASTContext cContext, void *nameExpr, void *initExpr,
+                     BridgedSourceLoc cLoc, _Bool isStatic, _Bool isLet,
+                     BridgedDeclContext cDeclContext);
 
-void *SingleValueStmtExpr_createWithWrappedBranches(void *ctx, void *S,
-                                                    void *DC, _Bool mustBeExpr);
+void *SingleValueStmtExpr_createWithWrappedBranches(
+    BridgedASTContext cContext, void *S, BridgedDeclContext cDeclContext,
+    _Bool mustBeExpr);
 
-void *IfStmt_create(void *ctx, void *ifLoc, void *cond, void *_Nullable then,
-                    void *_Nullable elseLoc, void *_Nullable elseStmt);
+void *IfStmt_create(BridgedASTContext cContext, BridgedSourceLoc cIfLoc,
+                    void *cond, void *_Nullable then, BridgedSourceLoc cElseLoc,
+                    void *_Nullable elseStmt);
 
-typedef enum ENUM_EXTENSIBILITY_ATTR(open) ASTNodeKind : long {
-  ASTNodeKindExpr,
-  ASTNodeKindStmt,
-  ASTNodeKindDecl
-} ASTNodeKind;
+void *BraceStmt_create(BridgedASTContext cContext, BridgedSourceLoc cLBLoc,
+                       BridgedArrayRef elements, BridgedSourceLoc cRBLoc);
 
-struct ASTNodeBridged {
-  void *ptr;
-  ASTNodeKind kind;
-};
+BridgedSourceLoc SourceLoc_advanced(BridgedSourceLoc cLoc, long len);
 
-void *BraceStmt_create(void *ctx, void *lbloc, BridgedArrayRef elements,
-                       void *rbloc);
+void *ParamDecl_create(BridgedASTContext cContext, BridgedSourceLoc cLoc,
+                       BridgedSourceLoc cArgLoc, BridgedIdentifier argName,
+                       BridgedSourceLoc cParamLoc, BridgedIdentifier paramName,
+                       void *_Nullable type, BridgedDeclContext cDeclContext);
 
-void *BridgedSourceLoc_advanced(void *loc, long len);
-
-void *ParamDecl_create(void *ctx, void *loc, void *_Nullable argLoc,
-                       void *_Nullable argName, void *_Nullable paramLoc,
-                       void *_Nullable paramName, void *_Nullable type,
-                       void *declContext);
-struct FuncDeclBridged {
-  void *declContext;
-  void *funcDecl;
-  void *decl;
-};
-
-struct FuncDeclBridged
-FuncDecl_create(void *ctx, void *staticLoc, _Bool isStatic, void *funcLoc,
-                BridgedIdentifier name, void *nameLoc, _Bool isAsync,
-                void *_Nullable asyncLoc, _Bool throws,
-                void *_Nullable throwsLoc, void *paramLLoc,
-                BridgedArrayRef params, void *paramRLoc,
-                void *_Nullable returnType, void *declContext);
+struct BridgedFuncDecl
+FuncDecl_create(BridgedASTContext cContext, BridgedSourceLoc cStaticLoc,
+                _Bool isStatic, BridgedSourceLoc cFuncLoc,
+                BridgedIdentifier name, BridgedSourceLoc cNameLoc,
+                _Bool isAsync, BridgedSourceLoc cAsyncLoc, _Bool throws,
+                BridgedSourceLoc cThrowsLoc, BridgedSourceLoc cParamLLoc,
+                BridgedArrayRef params, BridgedSourceLoc cParamRLoc,
+                void *_Nullable returnType, BridgedDeclContext cDeclContext);
 void FuncDecl_setBody(void *fn, void *body);
 
-void *SimpleIdentTypeRepr_create(void *ctx, void *loc, BridgedIdentifier id);
+void *SimpleIdentTypeRepr_create(BridgedASTContext cContext,
+                                 BridgedSourceLoc cLoc, BridgedIdentifier id);
 
-void *UnresolvedDotExpr_create(void *ctx, void *base, void *dotLoc,
-                               BridgedIdentifier name, void *nameLoc);
+void *UnresolvedDotExpr_create(BridgedASTContext cContext, void *base,
+                               BridgedSourceLoc cDotLoc, BridgedIdentifier name,
+                               BridgedSourceLoc cNameLoc);
 
-void *ClosureExpr_create(void *ctx, void *body, void *dc);
+void *ClosureExpr_create(BridgedASTContext cContext, void *body,
+                         BridgedDeclContext cDeclContext);
 
 void NominalTypeDecl_setMembers(void *decl, BridgedArrayRef members);
 
-struct DeclContextAndDecl {
-  void *declContext;
-  void *nominalDecl;
-  void *decl;
-};
-
-struct DeclContextAndDecl
-StructDecl_create(void *ctx, void *loc, BridgedIdentifier name, void *nameLoc,
-                  void *_Nullable genericParams, void *dc);
-struct DeclContextAndDecl ClassDecl_create(void *ctx, void *loc,
+BridgedDeclContextAndDecl StructDecl_create(BridgedASTContext cContext,
+                                            BridgedSourceLoc cLoc,
+                                            BridgedIdentifier name,
+                                            BridgedSourceLoc cNameLoc,
+                                            void *_Nullable genericParams,
+                                            BridgedDeclContext cDeclContext);
+BridgedDeclContextAndDecl ClassDecl_create(BridgedASTContext cContext,
+                                           BridgedSourceLoc cLoc,
                                            BridgedIdentifier name,
-                                           void *nameLoc, void *dc);
+                                           BridgedSourceLoc cNameLoc,
+                                           BridgedDeclContext cDeclContext);
 
-void *ArrayTypeRepr_create(void *ctx, void *base, void *lsquareLoc,
-                           void *rsquareLoc);
-void *DictionaryTypeRepr_create(void *ctx, void *keyType, void *valueType,
-                                void *lsquareLoc, void *colonloc,
-                                void *rsquareLoc);
-void *OptionalTypeRepr_create(void *ctx, void *base, void *questionLoc);
-void *ImplicitlyUnwrappedOptionalTypeRepr_create(void *ctx, void *base,
-                                                 void *exclamationLoc);
-void *MetatypeTypeRepr_create(void *ctx, void *baseType, void *typeLoc);
-void *ProtocolTypeRepr_create(void *ctx, void *baseType, void *protoLoc);
-
-BridgedTypeAttrKind getBridgedTypeAttrKindFromString(
-    const unsigned char * _Nullable str, long len);
-
-typedef void *BridgedTypeAttributes;
-BridgedTypeAttributes BridgedTypeAttributes_create(void);
-void BridgedTypeAttributes_addSimpleAttr(
-    BridgedTypeAttributes typeAttributes, BridgedTypeAttrKind kind, void *atLoc, void *attrLoc);
-void *AttributedTypeRepr_create(void *ctx, void *base, BridgedTypeAttributes typeAttributes);
-
-void *AttributedTypeSpecifierRepr_create(
-    void *ctx, void *base, BridgedAttributedTypeSpecifier specifier, void *specifierLoc);
-void *VarargTypeRepr_create(void *ctx, void *base, void *ellipsisLocPtr);
-void *PackExpansionTypeRepr_create(void *ctx, void *base, void *repeatLoc);
-void *TupleTypeRepr_create(void *ctx, BridgedArrayRef elements, void *lParenLoc,
-                           void *rParenLoc);
-void *MemberTypeRepr_create(void *ctx, void *baseComponent,
-                            BridgedArrayRef bridgedMemberComponents);
-void *GenericIdentTypeRepr_create(void *ctx, BridgedIdentifier name,
-                                  void *nameLoc, BridgedArrayRef genericArgs,
-                                  void *lAngle, void *rAngle);
-void *EmptyCompositionTypeRepr_create(void *ctx, void *anyLoc);
-void *CompositionTypeRepr_create(void *ctx, BridgedArrayRef types,
-                                 void *firstTypeLoc, void *firstAmpLoc);
-void *FunctionTypeRepr_create(void *ctx, void *argsTy, void *_Nullable asyncLoc,
-                              void *_Nullable throwsLoc, void *arrowLoc,
-                              void *returnType);
-void *NamedOpaqueReturnTypeRepr_create(void *ctx, void *baseTy);
-void *OpaqueReturnTypeRepr_create(void *ctx, void *opaqueLoc, void *baseTy);
-void *ExistentialTypeRepr_create(void *ctx, void *anyLoc, void *baseTy);
-void *GenericParamList_create(void *ctx, void *lAngleLoc,
-                              BridgedArrayRef params, void *_Nullable whereLoc,
-                              BridgedArrayRef reqs, void *rAngleLoc);
-void *GenericTypeParamDecl_create(void *ctx, void *declContext,
-                                  BridgedIdentifier name, void *nameLoc,
-                                  void *_Nullable eachLoc, long index,
+void *GenericParamList_create(BridgedASTContext cContext,
+                              BridgedSourceLoc cLAngleLoc,
+                              BridgedArrayRef params,
+                              BridgedSourceLoc cWhereLoc, BridgedArrayRef reqs,
+                              BridgedSourceLoc cRAngleLoc);
+void *GenericTypeParamDecl_create(BridgedASTContext cContext,
+                                  BridgedDeclContext cDeclContext,
+                                  BridgedIdentifier name,
+                                  BridgedSourceLoc cNameLoc,
+                                  BridgedSourceLoc cEachLoc, long index,
                                   _Bool isParameterPack);
-void GenericTypeParamDecl_setInheritedType(void *ctx, void *Param, void *ty);
+void GenericTypeParamDecl_setInheritedType(BridgedASTContext cContext,
+                                           void *Param, void *ty);
 
-struct DeclContextAndDecl TypeAliasDecl_create(void *ctx, void *declContext,
-                                               void *aliasLoc, void *equalLoc,
+BridgedDeclContextAndDecl TypeAliasDecl_create(BridgedASTContext cContext,
+                                               BridgedDeclContext cDeclContext,
+                                               BridgedSourceLoc cAliasLoc,
+                                               BridgedSourceLoc cEqualLoc,
                                                BridgedIdentifier name,
-                                               void *nameLoc,
+                                               BridgedSourceLoc cNameLoc,
                                                void *_Nullable genericParams);
 void TypeAliasDecl_setUnderlyingTypeRepr(void *decl, void *underlyingType);
 
-void TopLevelCodeDecl_dump(void *);
-void Expr_dump(void *);
-void Decl_dump(void *);
-void Stmt_dump(void *);
-void Type_dump(void *);
+BridgedTypeAttrKind TypeAttrKind_fromString(BridgedString cStr);
+BridgedTypeAttributes TypeAttributes_create(void);
+void TypeAttributes_addSimpleAttr(BridgedTypeAttributes cAttributes,
+                                  BridgedTypeAttrKind kind,
+                                  BridgedSourceLoc cAtLoc,
+                                  BridgedSourceLoc cAttrLoc);
+
+void *ArrayTypeRepr_create(BridgedASTContext cContext, void *base,
+                           BridgedSourceLoc cLSquareLoc,
+                           BridgedSourceLoc cRSquareLoc);
+void *AttributedTypeRepr_create(BridgedASTContext cContext, void *base,
+                                BridgedTypeAttributes cAttributes);
+void *
+AttributedTypeSpecifierRepr_create(BridgedASTContext cContext, void *base,
+                                   BridgedAttributedTypeSpecifier specifier,
+                                   BridgedSourceLoc cSpecifierLoc);
+void *CompositionTypeRepr_create(BridgedASTContext cContext,
+                                 BridgedArrayRef types,
+                                 BridgedSourceLoc cFirstTypeLoc,
+                                 BridgedSourceLoc cFirstAmpLoc);
+void *DictionaryTypeRepr_create(BridgedASTContext cContext, void *keyType,
+                                void *valueType, BridgedSourceLoc cLSquareLoc,
+                                BridgedSourceLoc cColonloc,
+                                BridgedSourceLoc cRSquareLoc);
+void *EmptyCompositionTypeRepr_create(BridgedASTContext cContext,
+                                      BridgedSourceLoc cAnyLoc);
+void *FunctionTypeRepr_create(BridgedASTContext cContext, void *argsTy,
+                              BridgedSourceLoc cAsyncLoc,
+                              BridgedSourceLoc cThrowsLoc,
+                              BridgedSourceLoc cArrowLoc, void *returnType);
+void *GenericIdentTypeRepr_create(BridgedASTContext cContext,
+                                  BridgedIdentifier name,
+                                  BridgedSourceLoc cNameLoc,
+                                  BridgedArrayRef genericArgs,
+                                  BridgedSourceLoc cLAngleLoc,
+                                  BridgedSourceLoc cRAngleLoc);
+void *OptionalTypeRepr_create(BridgedASTContext cContext, void *base,
+                              BridgedSourceLoc cQuestionLoc);
+void *ImplicitlyUnwrappedOptionalTypeRepr_create(
+    BridgedASTContext cContext, void *base, BridgedSourceLoc cExclamationLoc);
+void *MemberTypeRepr_create(BridgedASTContext cContext, void *baseComponent,
+                            BridgedArrayRef bridgedMemberComponents);
+void *MetatypeTypeRepr_create(BridgedASTContext cContext, void *baseType,
+                              BridgedSourceLoc cTypeLoc);
+void *ProtocolTypeRepr_create(BridgedASTContext cContext, void *baseType,
+                              BridgedSourceLoc cProtoLoc);
+void *PackExpansionTypeRepr_create(BridgedASTContext cContext, void *base,
+                                   BridgedSourceLoc cRepeatLoc);
+void *TupleTypeRepr_create(BridgedASTContext cContext, BridgedArrayRef elements,
+                           BridgedSourceLoc cLParenLoc,
+                           BridgedSourceLoc cRParenLoc);
+void *NamedOpaqueReturnTypeRepr_create(BridgedASTContext cContext,
+                                       void *baseTy);
+void *OpaqueReturnTypeRepr_create(BridgedASTContext cContext,
+                                  BridgedSourceLoc cOpaqueLoc, void *baseTy);
+void *ExistentialTypeRepr_create(BridgedASTContext cContext,
+                                 BridgedSourceLoc cAnyLoc, void *baseTy);
+void *VarargTypeRepr_create(BridgedASTContext cContext, void *base,
+                            BridgedSourceLoc cEllipsisLoc);
+
+void TopLevelCodeDecl_dump(void *decl);
+void Expr_dump(void *expr);
+void Decl_dump(void *decl);
+void Stmt_dump(void *statement);
+void Type_dump(void *type);
 
 //===----------------------------------------------------------------------===//
 // Plugins

@@ -236,6 +236,22 @@ ASTWalker::PreWalkAction SemaAnnotator::walkToDeclPreProper(Decl *D) {
 ASTWalker::PostWalkAction SemaAnnotator::walkToDeclPost(Decl *D) {
   auto Action = walkToDeclPostProper(D);
   SEWalker.endBalancedASTOrderDeclVisit(D);
+
+  if (Action.Action == PostWalkAction::Stop)
+    return Action;
+
+  // Walk into peer and conformance expansions if walking expansions
+  if (shouldWalkMacroArgumentsAndExpansion().second) {
+    D->visitAuxiliaryDecls([&](Decl *auxDecl) {
+      if (Action.Action == PostWalkAction::Stop)
+        return;
+
+      if (auxDecl->walk(*this)) {
+        Action = Action::Stop();
+      }
+    }, /*visitFreestandingExpanded=*/false);
+  }
+
   return Action;
 }
 

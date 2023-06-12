@@ -588,6 +588,10 @@ def disable_deserialization_safety :
   Flag<["-"], "disable-deserialization-safety">,
   HelpText<"Don't avoid reading potentially unsafe decls in swiftmodules">;
 
+def force_workaround_broken_modules :
+  Flag<["-"], "experimental-force-workaround-broken-modules">,
+  HelpText<"Attempt unsafe recovery for imported modules with broken modularization">;
+
 def enable_experimental_string_processing :
   Flag<["-"], "enable-experimental-string-processing">,
   HelpText<"Enable experimental string processing">;
@@ -861,6 +865,11 @@ def cxx_interop_getters_setters_as_properties :
   HelpText<"Import getters and setters as computed properties in Swift">,
   Flags<[FrontendOption, HelpHidden]>;
 
+def cxx_interop_disable_requirement_at_import :
+  Flag<["-"], "disable-cxx-interop-requirement-at-import">,
+  HelpText<"Do not require C++ interoperability to be enabled when importing a Swift module that enables C++ interoperability">,
+  Flags<[FrontendOption, HelpHidden]>;
+
 def use_malloc : Flag<["-"], "use-malloc">,
   HelpText<"Allocate internal data structures using malloc "
            "(for memory debugging)">;
@@ -1023,6 +1032,16 @@ def force_struct_type_layouts : Flag<["-"], "force-struct-type-layouts">,
 
 def enable_layout_string_value_witnesses : Flag<["-"], "enable-layout-string-value-witnesses">,
   HelpText<"Enable layout string based value witnesses">;
+
+let Flags = [FrontendOption, NoDriverOption, HelpHidden, ModuleInterfaceOptionIgnorable] in {
+  def enable_pack_metadata_stack_promotion :
+    Joined<["-"], "enable-pack-metadata-stack-promotion=">,
+    HelpText<"Whether to skip heapifying stack metadata packs when possible.">,
+    MetaVarName<"true|false">;
+  def enable_pack_metadata_stack_promotion_noArg :
+    Flag<["-"], "enable-pack-metadata-stack-promotion">,
+    HelpText<"Skip heapifying stack metadata packs when possible.">;
+}
 
 def disable_layout_string_value_witnesses : Flag<["-"], "disable-layout-string-value-witnesses">,
   HelpText<"Disable layout string based value witnesses">;

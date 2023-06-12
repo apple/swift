@@ -1,4 +1,4 @@
-// RUN: %target-swift-emit-sil -sil-verify-all -verify -enable-experimental-feature NoImplicitCopy -enable-experimental-feature MoveOnlyClasses -enable-experimental-feature MoveOnlyTuples %s
+// RUN: %target-swift-emit-sil -sil-verify-all -verify -enable-experimental-feature MoveOnlyClasses -enable-experimental-feature MoveOnlyTuples %s
 
 // This test validates that we properly emit errors if we partially invalidate
 // through a type with a deinit.
@@ -64,17 +64,7 @@ struct DeinitStruct : ~Copyable {
   var fourth: (MoveOnlyKlass, MoveOnlyKlass)
   var fifth: MoveOnlyKlass
 
-  deinit {}
-  // expected-note @-1 {{deinit declared here}}
-  // expected-note @-2 {{deinit declared here}}
-  // expected-note @-3 {{deinit declared here}}
-  // expected-note @-4 {{deinit declared here}}
-  // expected-note @-5 {{deinit declared here}}
-  // expected-note @-6 {{deinit declared here}}
-  // expected-note @-7 {{deinit declared here}}
-  // expected-note @-8 {{deinit declared here}}
-  // expected-note @-9 {{deinit declared here}}
-  // expected-note @-10 {{deinit declared here}}
+  deinit {} // expected-note 10{{deinitializer declared here}}
 }
 
 func testConsumeCopyable(_ x: consuming DeinitStruct) {
@@ -84,24 +74,24 @@ func testConsumeCopyable(_ x: consuming DeinitStruct) {
 }
 
 func testConsumeNonCopyable1(_ x: consuming DeinitStruct) {
-    // expected-error @-1 {{Cannot partially consume 'x' since it has a user defined deinit}}
-    consume(x.third.rhs) // expected-note {{consuming use here}}
+    // expected-error @+1 {{cannot partially consume 'x' when it has a deinitializer}}
+    consume(x.third.rhs)
 }
 
 func testConsumeNonCopyable2(_ x: consuming DeinitStruct) {
-    // expected-error @-1 {{Cannot partially consume 'x' since it has a user defined deinit}}
-    consume(x.fourth.0) // expected-note {{consuming use here}}
+    // expected-error @+1 {{cannot partially consume 'x' when it has a deinitializer}}
+    consume(x.fourth.0)
 }
 
 func testConsumeNonCopyable3(_ x: consuming DeinitStruct) {
-    // expected-error @-1 {{Cannot partially consume 'x' since it has a user defined deinit}}
-    consume(x.fourth.1) // expected-note {{consuming use here}}
+    // expected-error @+1 {{cannot partially consume 'x' when it has a deinitializer}}
+    consume(x.fourth.1)
 }
 
 
 func testConsumeNonCopyable4(_ x: consuming DeinitStruct) {
-    // expected-error @-1 {{Cannot partially consume 'x' since it has a user defined deinit}}
-    consume(x.fifth) // expected-note {{consuming use here}}
+    // expected-error @+1 {{cannot partially consume 'x' when it has a deinitializer}}
+    consume(x.fifth)
 }
 
 
@@ -129,35 +119,35 @@ func testStructContainDeinitStructConsumeCopyable1(_ x: consuming StructContainD
 }
 
 
-func testStructContainStructContainDeinitStructConsumeNonCopyable1(_ x: consuming StructContainDeinitStruct) {
-    // expected-error @-1 {{Cannot partially consume 'x' since it contains field 'x.first' whose type 'DeinitStruct' has a user defined deinit}}
-    consume(x.first.third.rhs) // expected-note {{consuming use here}}
+func testStructContainStructContainDeinitStructConsumeNonCopyable1(_ xyz: consuming StructContainDeinitStruct) {
+    // expected-error @+1 {{cannot partially consume 'xyz.first' when it has a deinitializer}}
+    consume(xyz.first.third.rhs)
 }
 
 func testStructContainStructContainDeinitStructConsumeNonCopyable1a(_ x: consuming StructContainDeinitStruct) {
-    // expected-error @-1 {{Cannot partially consume 'x' since it contains field 'x.second.0' whose type 'DeinitStruct' has a user defined deinit}}
-    consume(x.second.0.third.rhs) // expected-note {{consuming use here}}
+    // expected-error @+1 {{cannot partially consume 'x.second.0' when it has a deinitializer}}
+    consume(x.second.0.third.rhs)
 }
 
 func testStructContainStructContainDeinitStructConsumeNonCopyable2(_ x: consuming StructContainDeinitStruct) {
-    // expected-error @-1 {{Cannot partially consume 'x' since it contains field 'x.first' whose type 'DeinitStruct' has a user defined deinit}}
-    consume(x.first.fourth.0) // expected-note {{consuming use here}}
+    // expected-error @+1 {{cannot partially consume 'x.first' when it has a deinitializer}}
+    consume(x.first.fourth.0)
 }
 
 func testStructContainStructContainDeinitStructConsumeNonCopyable2a(_ x: consuming StructContainDeinitStruct) {
-    // expected-error @-1 {{Cannot partially consume 'x' since it contains field 'x.second.1' whose type 'DeinitStruct' has a user defined deinit}}
-    consume(x.second.1.fourth.0) // expected-note {{consuming use here}}
+    // expected-error @+1 {{cannot partially consume 'x.second.1' when it has a deinitializer}}
+    consume(x.second.1.fourth.0)
 }
 
 func testStructContainStructContainDeinitStructConsumeNonCopyable3(_ x: consuming StructContainDeinitStruct) {
-    // expected-error @-1 {{Cannot partially consume 'x' since it contains field 'x.first' whose type 'DeinitStruct' has a user defined deinit}}
-    consume(x.first.fourth.1) // expected-note {{consuming use here}}
+    // expected-error @+1 {{cannot partially consume 'x.first' when it has a deinitializer}}
+    consume(x.first.fourth.1)
 }
 
 
 func testStructContainStructContainDeinitStructConsumeNonCopyable4(_ x: consuming StructContainDeinitStruct) {
-    // expected-error @-1 {{Cannot partially consume 'x' since it contains field 'x.first' whose type 'DeinitStruct' has a user defined deinit}}
-    consume(x.first.fifth) // expected-note {{consuming use here}}
+    // expected-error @+1 {{cannot partially consume 'x.first' when it has a deinitializer}}
+    consume(x.first.fifth)
 }
 
 ////////////////////////
@@ -169,12 +159,7 @@ struct AddressOnlyDeinitStruct<T : P> : ~Copyable {
   var moveOnly = SingleIntContainingStruct()
   var moveOnlyPair = MoveOnlyPair()
 
-  deinit {}
-  // expected-note @-1 {{deinit declared here}}
-  // expected-note @-2 {{deinit declared here}}
-  // expected-note @-3 {{deinit declared here}}
-  // expected-note @-4 {{deinit declared here}}
-  // expected-note @-5 {{deinit declared here}}
+  deinit {} // expected-note 5{{deinitializer declared here}}
 }
 
 func consume<T : P>(_ x: consuming AddressOnlyDeinitStruct<T>) {}
@@ -187,10 +172,8 @@ func testAddressOnlyCanConsumeEntireType<T : P>(_ x: consuming AddressOnlyDeinit
 }
 
 func testAddressOnlyCannotPartialConsume<T : P>(_ x: consuming AddressOnlyDeinitStruct<T>) {
-  // expected-error @-1 {{Cannot partially consume 'x' since it has a user defined deinit}}
-  // expected-error @-2 {{Cannot partially consume 'x' since it has a user defined deinit}}
-  consume(x.moveOnly) // expected-note {{consuming use here}}
-  consume(x.moveOnlyPair.first) // expected-note {{consuming use here}}
+  consume(x.moveOnly) // expected-error {{cannot partially consume 'x' when it has a deinitializer}}
+  consume(x.moveOnlyPair.first) // expected-error {{cannot partially consume 'x' when it has a deinitializer}}
   consume(x.copyable)
 }
 
@@ -199,17 +182,14 @@ struct AddressOnlyContainingDeinitStruct<T : P> : ~Copyable {
 }
 
 func testAddressOnlyCannotPartialConsumeEvenIfSingleElt<T : P>(_ x: consuming AddressOnlyContainingDeinitStruct<T>) {
-  // expected-error @-1 {{Cannot partially consume 'x' since it contains field 'x.a' whose type 'AddressOnlyDeinitStruct' has a user defined deinit}}
-
   // We do not error here since we can partially consume x, but not x.a
   consume(x.a)
-  consume(x.a.moveOnlyPair) // expected-note {{consuming use here}}
+  consume(x.a.moveOnlyPair) // expected-error {{cannot partially consume 'x.a' when it has a deinitializer}}
 }
 
 struct AddressOnlyContainingDeinitSingleField<T : P> : ~Copyable {
   var moveOnly = SingleIntContainingStruct()
-  deinit {}
-  // expected-note @-1 {{deinit declared here}}
+  deinit {} // expected-note {{deinitializer declared here}}
 }
 
 struct AddressOnlyContainingDeinitStruct3<T : P> : ~Copyable {
@@ -219,11 +199,9 @@ struct AddressOnlyContainingDeinitStruct3<T : P> : ~Copyable {
 func consume<T : P>(_ x: consuming AddressOnlyContainingDeinitSingleField<T>) {}
 
 func testAddressOnlyCannotPartialConsumeEvenIfSingleElt<T : P>(_ x: consuming AddressOnlyContainingDeinitStruct3<T>) {
-  // expected-error @-1 {{Cannot partially consume 'x' since it contains field 'x.a' whose type 'AddressOnlyContainingDeinitSingleField' has a user defined deinit}}
-
   // We do not error here since we can partially consume x, but not x.a
   consume(x.a)
-  consume(x.a.moveOnly) // expected-note {{consuming use here}}
+  consume(x.a.moveOnly) // expected-error {{cannot partially consume 'x.a' when it has a deinitializer}}
 }
 
 
@@ -235,9 +213,7 @@ struct AddressOnlyContainingDeinitStructPair<T : P> : ~Copyable {
 // Make sure that if the deinit is in an intermediate element of the path that
 // we still handle it appropriately.
 func testAddressOnlyDeinitInMiddlePath<T : P>(_ x: consuming AddressOnlyContainingDeinitStructPair<T>) {
-  // expected-error @-1 {{Cannot partially consume 'x' since it contains field 'x.first' whose type 'AddressOnlyDeinitStruct' has a user defined deinit}}
-  // expected-error @-2 {{Cannot partially consume 'x' since it contains field 'x.first' whose type 'AddressOnlyDeinitStruct' has a user defined deinit}}
-  consume(x.first.moveOnly) // expected-note {{consuming use here}}
-  consume(x.first.moveOnlyPair.first) // expected-note {{consuming use here}}
+  consume(x.first.moveOnly) // expected-error {{cannot partially consume 'x.first' when it has a deinitializer}}
+  consume(x.first.moveOnlyPair.first) // expected-error {{cannot partially consume 'x.first' when it has a deinitializer}}
   consume(x.first.copyable)
 }

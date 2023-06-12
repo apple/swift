@@ -576,7 +576,7 @@ function(_add_swift_runtime_link_flags target relpath_to_lib_dir bootstrapping)
     # Make sure we can find the early SwiftSyntax libraries.
     target_link_directories(${target} PRIVATE "${SWIFT_PATH_TO_EARLYSWIFTSYNTAX_BUILD_DIR}/lib/swift/host")
 
-    # For the "end step" of bootstrapping configurations on Darwin, need to be
+    # For the "end step" of bootstrapping configurations, we need to be
     # able to fall back to the SDK directory for libswiftCore et al.
     if (BOOTSTRAPPING_MODE MATCHES "BOOTSTRAPPING.*")
       if (NOT "${bootstrapping}" STREQUAL "1")
@@ -590,6 +590,13 @@ function(_add_swift_runtime_link_flags target relpath_to_lib_dir bootstrapping)
           get_filename_component(TOOLCHAIN_BIN_DIR ${SWIFT_EXEC_FOR_SWIFT_MODULES} DIRECTORY)
           get_filename_component(TOOLCHAIN_LIB_DIR "${TOOLCHAIN_BIN_DIR}/../lib/swift/${SWIFT_SDK_${SWIFT_HOST_VARIANT_SDK}_LIB_SUBDIR}" ABSOLUTE)
           target_link_directories(${target} PUBLIC ${TOOLCHAIN_LIB_DIR})
+        else()
+          get_filename_component(swift_bin_dir ${SWIFT_EXEC_FOR_SWIFT_MODULES} DIRECTORY)
+          get_filename_component(swift_dir ${swift_bin_dir} DIRECTORY)
+          set(host_lib_dir "${swift_dir}/lib/swift/${SWIFT_SDK_${SWIFT_HOST_VARIANT_SDK}_LIB_SUBDIR}")
+          target_link_directories(${target} PRIVATE ${host_lib_dir})
+
+          set(swift_runtime_rpath "${host_lib_dir}")
         endif()
       endif()
     endif()
@@ -926,10 +933,17 @@ function(add_swift_host_tool executable)
       endif()
     endif()
 
-    set_property(
-      TARGET ${executable}
-      APPEND PROPERTY INSTALL_RPATH
-        "@executable_path/../${extra_relative_rpath}lib/swift/host")
+    if(${SWIFT_HOST_VARIANT_SDK} IN_LIST SWIFT_DARWIN_PLATFORMS)
+      set_property(
+        TARGET ${executable}
+        APPEND PROPERTY INSTALL_RPATH
+          "@executable_path/../${extra_relative_rpath}lib/swift/host")
+    else()
+      set_property(
+        TARGET ${executable}
+        APPEND PROPERTY INSTALL_RPATH
+          "$ORIGIN/../${extra_relative_rpath}lib/swift/host")
+    endif()
   endif()
 
   if(ASHT_THINLTO_LD64_ADD_FLTO_CODEGEN_ONLY)

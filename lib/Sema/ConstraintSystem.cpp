@@ -279,13 +279,15 @@ getDynamicResultSignature(ValueDecl *decl) {
   llvm_unreachable("Not a valid @objc member");
 }
 
-LookupResult &ConstraintSystem::lookupMember(Type base, DeclNameRef name) {
+LookupResult &ConstraintSystem::lookupMember(Type base, DeclNameRef name,
+                                             SourceLoc loc) {
   // Check whether we've already performed this lookup.
   auto &result = MemberLookups[{base, name}];
   if (result) return *result;
 
   // Lookup the member.
-  result = TypeChecker::lookupMember(DC, base, name, defaultMemberLookupOptions);
+  result = TypeChecker::lookupMember(DC, base, name, loc,
+                                     defaultMemberLookupOptions);
 
   // If we aren't performing dynamic lookup, we're done.
   if (!*result || !base->isAnyObject())
@@ -3559,7 +3561,7 @@ void ConstraintSystem::resolveOverload(ConstraintLocator *locator,
     break;
 
   case OverloadChoiceKind::MaterializePack: {
-    // Since `.element` is only applicable to single element tuples at the
+    // Since pack expansion is only applicable to single element tuples at the
     // moment we can just look through l-value base to load it.
     //
     // In the future, _if_ the syntax allows for multiple expansions
@@ -5820,6 +5822,11 @@ void constraints::simplifyLocator(ASTNode &anchor,
     case ConstraintLocator::PatternMatch: {
       auto patternElt = path[0].castTo<LocatorPathElt::PatternMatch>();
       anchor = patternElt.getPattern();
+      path = path.slice(1);
+      continue;
+    }
+
+    case ConstraintLocator::EnumPatternImplicitCastMatch: {
       path = path.slice(1);
       continue;
     }

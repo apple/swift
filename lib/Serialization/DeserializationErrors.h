@@ -355,45 +355,54 @@ private:
   DeclName name;
   bool declIsType;
   Kind errorKind;
-  Identifier expectedModuleName;
-  StringRef referencedFromModuleName;
-  Identifier foundModuleName;
+
+  /// Module targeted by the reference that should define the decl.
+  const ModuleDecl *expectedModule;
+
+  /// Binary module file with the outgoing reference.
+  const ModuleFile *referenceModule;
+
+  /// Module where the compiler did find the decl, if any.
+  const ModuleDecl *foundModule;
+
   XRefTracePath path;
 
 public:
   explicit ModularizationError(DeclName name, bool declIsType, Kind errorKind,
-                               Identifier expectedModuleName,
-                               StringRef referencedFromModuleName,
-                               Identifier foundModuleName,
+                               const ModuleDecl *expectedModule,
+                               const ModuleFile *referenceModule,
+                               const ModuleDecl *foundModule,
                                XRefTracePath path):
     name(name), declIsType(declIsType), errorKind(errorKind),
-    expectedModuleName(expectedModuleName),
-    referencedFromModuleName(referencedFromModuleName),
-    foundModuleName(foundModuleName), path(path) {}
+    expectedModule(expectedModule),
+    referenceModule(referenceModule),
+    foundModule(foundModule), path(path) {}
 
   void diagnose(const ModuleFile *MF,
                 DiagnosticBehavior limit = DiagnosticBehavior::Fatal) const;
 
   void log(raw_ostream &OS) const override {
     OS << "modularization issue on '" << name << "', reference from '";
-    OS << referencedFromModuleName << "' not resolvable: ";
+    OS << referenceModule->getName() << "' not resolvable: ";
     switch (errorKind) {
       case Kind::DeclMoved:
-        OS << "expected in '" << expectedModuleName << "' but found in '";
-        OS << foundModuleName << "'";
+        OS << "expected in '" << expectedModule->getName() << "' but found in '";
+        OS << foundModule->getName() << "'";
         break;
       case Kind::DeclKindChanged:
         OS << "decl details changed between what was imported from '";
-        OS << expectedModuleName << "' and what is now imported from '";
-        OS << foundModuleName << "'";
+        OS << expectedModule->getName() << "' and what is now imported from '";
+        OS << foundModule->getName() << "'";
         break;
       case Kind::DeclNotFound:
-        OS << "not found, expected in '" << expectedModuleName << "'";
+        OS << "not found, expected in '" << expectedModule->getName() << "'";
         break;
     }
     OS << "\n";
     path.print(OS);
   }
+
+  SourceLoc getSourceLoc() const;
 
   std::error_code convertToErrorCode() const override {
     return llvm::inconvertibleErrorCode();

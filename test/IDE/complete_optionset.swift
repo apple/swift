@@ -16,6 +16,11 @@ func foo() {
   ShippingOptions.#^MEMBER_STATIC^#
 }
 
+@attached(member, names: named(RawValue), named(rawValue), named(`init`), arbitrary)
+@attached(conformance)
+public macro OptionSet<RawType>() =
+  #externalMacro(module: "SwiftMacros", type: "OptionSetMacro")
+
 // MEMBER_STATIC: Keyword[self]/CurrNominal:          self[#ShippingOptions.Type#]; name=self
 // MEMBER_STATIC: Decl[TypeAlias]/CurrNominal:        RawValue[#UInt8#]; name=RawValue
 // MEMBER_STATIC: Decl[Constructor]/CurrNominal:      init({#rawValue: ShippingOptions.RawValue#})[#ShippingOptions#]; name=init(rawValue:)

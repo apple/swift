@@ -314,6 +314,7 @@ TypeChecker::lookupUnqualifiedType(DeclContext *dc, DeclNameRef name,
 
 LookupResult TypeChecker::lookupMember(DeclContext *dc,
                                        Type type, DeclNameRef name,
+                                       SourceLoc loc,
                                        NameLookupOptions options) {
   assert(type->mayHaveMembers());
 
@@ -331,7 +332,7 @@ LookupResult TypeChecker::lookupMember(DeclContext *dc,
 
   LookupResultBuilder builder(result, dc, options);
   SmallVector<ValueDecl *, 4> lookupResults;
-  dc->lookupQualified(type, name, subOptions, lookupResults);
+  dc->lookupQualified(type, name, loc, subOptions, lookupResults);
 
   for (auto found : lookupResults)
     builder.add(found, nullptr, /*baseDecl=*/nullptr, type, /*isOuter=*/false);
@@ -407,6 +408,7 @@ TypeChecker::isUnsupportedMemberTypeAccess(Type type, TypeDecl *typeDecl,
 
 LookupTypeResult TypeChecker::lookupMemberType(DeclContext *dc,
                                                Type type, DeclNameRef name,
+                                               SourceLoc loc,
                                                NameLookupOptions options) {
   LookupTypeResult result;
 
@@ -422,7 +424,7 @@ LookupTypeResult TypeChecker::lookupMemberType(DeclContext *dc,
   // Make sure we've resolved implicit members, if we need them.
   namelookup::installSemanticMembersIfNeeded(type, name);
 
-  if (!dc->lookupQualified(type, name, subOptions, decls))
+  if (!dc->lookupQualified(type, name, loc, subOptions, decls))
     return result;
 
   // Look through the declarations, keeping only the unique type declarations.
@@ -615,7 +617,7 @@ void TypeChecker::performTypoCorrection(DeclContext *DC, DeclRefKind refKind,
   });
 
   if (baseTypeOrNull) {
-    lookupVisibleMemberDecls(consumer, baseTypeOrNull, DC,
+    lookupVisibleMemberDecls(consumer, baseTypeOrNull, SourceLoc(), DC,
                              /*includeInstanceMembers*/true,
                              /*includeDerivedRequirements*/false,
                              /*includeProtocolExtensionMembers*/true,

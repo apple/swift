@@ -131,6 +131,7 @@ class ExtendedValidationInfo {
     unsigned IsBuiltFromInterface : 1;
     unsigned IsAllowModuleWithCompilerErrorsEnabled : 1;
     unsigned IsConcurrencyChecked : 1;
+    unsigned HasCxxInteroperability : 1;
   } Bits;
 public:
   ExtendedValidationInfo() : Bits() {}
@@ -231,6 +232,10 @@ public:
   }
   void setIsConcurrencyChecked(bool val = true) {
     Bits.IsConcurrencyChecked = val;
+  }
+  bool hasCxxInteroperability() const { return Bits.HasCxxInteroperability; }
+  void setHasCxxInteroperability(bool val) {
+    Bits.HasCxxInteroperability = val;
   }
 };
 

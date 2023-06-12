@@ -545,6 +545,9 @@ private:
         case AccessorKind::Modify:
           Kind = ".modify";
           break;
+        case AccessorKind::Init:
+          Kind = ".init";
+          break;
         }
 
         SmallVector<char, 64> Buf;
@@ -1551,6 +1554,7 @@ private:
     }
 
     case TypeKind::Pack:
+    case TypeKind::PackElement:
       llvm_unreachable("Unimplemented!");
 
     case TypeKind::SILPack:

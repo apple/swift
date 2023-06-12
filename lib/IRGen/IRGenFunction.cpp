@@ -67,6 +67,8 @@ IRGenFunction::~IRGenFunction() {
 
   // Tear down any side-table data structures.
   if (LocalTypeData) destroyLocalTypeData();
+
+  // All dynamically allocated metadata should have been cleaned up.
 }
 
 OptimizationMode IRGenFunction::getEffectiveOptimizationMode() const {
@@ -74,6 +76,11 @@ OptimizationMode IRGenFunction::getEffectiveOptimizationMode() const {
     return OptMode;
 
   return IGM.getOptions().OptMode;
+}
+
+bool IRGenFunction::canStackPromotePackMetadata() const {
+  return IGM.getSILModule().getOptions().EnablePackMetadataStackPromotion &&
+         !packMetadataStackPromotionDisabled;
 }
 
 ModuleDecl *IRGenFunction::getSwiftModule() const {

@@ -97,7 +97,7 @@ enum E: Error { case err }
     discard (self) // expected-error {{cannot convert value of type 'File' to expected argument type 'Int'}}
 
     // FIXME: we should get an error about it being illegal to discard in a closure.
-    let _ = { // expected-error {{type of expression is ambiguous without more context}}
+    let _ = { // expected-error {{type of expression is ambiguous without a type annotation}}
       discard self
       return 0
     }()
@@ -127,7 +127,7 @@ enum E: Error { case err }
   }
 
   __consuming func take() throws -> File {
-    if case let .valid(f) = self {
+    if case let .valid(f) = consume self {
       return f
     }
     discard self
@@ -136,7 +136,7 @@ enum E: Error { case err }
 
   var validFile: File {
     __consuming get {
-      if case let .valid(f) = self {
+      if case let .valid(f) = consume self {
         return f
       }
       discard self

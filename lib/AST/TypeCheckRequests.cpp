@@ -687,7 +687,7 @@ StorageImplInfoRequest::getCachedResult() const {
 
 void StorageImplInfoRequest::cacheResult(StorageImplInfo value) const {
   auto *storage = std::get<0>(getStorage());
-  storage->setImplInfo(value);
+  storage->cacheImplInfo(value);
 }
 
 //----------------------------------------------------------------------------//
@@ -1681,10 +1681,8 @@ void swift::simple_display(
 //----------------------------------------------------------------------------//
 
 DeclNameRef UnresolvedMacroReference::getMacroName() const {
-  if (auto *med = pointer.dyn_cast<MacroExpansionDecl *>())
-    return med->getMacroName();
-  if (auto *mee = pointer.dyn_cast<MacroExpansionExpr *>())
-    return mee->getMacroName();
+  if (auto *expansion = pointer.dyn_cast<FreestandingMacroExpansion *>())
+    return expansion->getMacroName();
   if (auto *attr = pointer.dyn_cast<CustomAttr *>()) {
     auto *identTypeRepr = dyn_cast_or_null<IdentTypeRepr>(attr->getTypeRepr());
     if (!identTypeRepr)
@@ -1695,20 +1693,16 @@ DeclNameRef UnresolvedMacroReference::getMacroName() const {
 }
 
 SourceLoc UnresolvedMacroReference::getSigilLoc() const {
-  if (auto *med = pointer.dyn_cast<MacroExpansionDecl *>())
-    return med->getPoundLoc();
-  if (auto *mee = pointer.dyn_cast<MacroExpansionExpr *>())
-    return mee->getLoc();
+  if (auto *expansion = pointer.dyn_cast<FreestandingMacroExpansion *>())
+    return expansion->getPoundLoc();
   if (auto *attr = pointer.dyn_cast<CustomAttr *>())
     return attr->getRangeWithAt().Start;
   llvm_unreachable("Unhandled case");
 }
 
 DeclNameLoc UnresolvedMacroReference::getMacroNameLoc() const {
-  if (auto *med = pointer.dyn_cast<MacroExpansionDecl *>())
-    return med->getMacroNameLoc();
-  if (auto *mee = pointer.dyn_cast<MacroExpansionExpr *>())
-    return mee->getMacroNameLoc();
+  if (auto *expansion = pointer.dyn_cast<FreestandingMacroExpansion *>())
+    return expansion->getMacroNameLoc();
   if (auto *attr = pointer.dyn_cast<CustomAttr *>()) {
     auto *identTypeRepr = dyn_cast_or_null<IdentTypeRepr>(attr->getTypeRepr());
     if (!identTypeRepr)
@@ -1719,10 +1713,8 @@ DeclNameLoc UnresolvedMacroReference::getMacroNameLoc() const {
 }
 
 SourceRange UnresolvedMacroReference::getGenericArgsRange() const {
-  if (auto *med = pointer.dyn_cast<MacroExpansionDecl *>())
-    return med->getGenericArgsRange();
-  if (auto *mee = pointer.dyn_cast<MacroExpansionExpr *>())
-    return mee->getGenericArgsRange();
+  if (auto *expansion = pointer.dyn_cast<FreestandingMacroExpansion *>())
+    return expansion->getGenericArgsRange();
 
   if (auto *attr = pointer.dyn_cast<CustomAttr *>()) {
     auto *typeRepr = attr->getTypeRepr();
@@ -1737,10 +1729,8 @@ SourceRange UnresolvedMacroReference::getGenericArgsRange() const {
 }
 
 ArrayRef<TypeRepr *> UnresolvedMacroReference::getGenericArgs() const {
-  if (auto *med = pointer.dyn_cast<MacroExpansionDecl *>())
-    return med->getGenericArgs();
-  if (auto *mee = pointer.dyn_cast<MacroExpansionExpr *>())
-    return mee->getGenericArgs();
+  if (auto *expansion = pointer.dyn_cast<FreestandingMacroExpansion *>())
+    return expansion->getGenericArgs();
 
   if (auto *attr = pointer.dyn_cast<CustomAttr *>()) {
     auto *typeRepr = attr->getTypeRepr();
@@ -1755,17 +1745,15 @@ ArrayRef<TypeRepr *> UnresolvedMacroReference::getGenericArgs() const {
 }
 
 ArgumentList *UnresolvedMacroReference::getArgs() const {
-  if (auto *med = pointer.dyn_cast<MacroExpansionDecl *>())
-    return med->getArgs();
-  if (auto *mee = pointer.dyn_cast<MacroExpansionExpr *>())
-    return mee->getArgs();
+  if (auto *expansion = pointer.dyn_cast<FreestandingMacroExpansion *>())
+    return expansion->getArgs();
   if (auto *attr = pointer.dyn_cast<CustomAttr *>())
     return attr->getArgs();
   llvm_unreachable("Unhandled case");
 }
 
 MacroRoles UnresolvedMacroReference::getMacroRoles() const {
-  if (pointer.is<MacroExpansionExpr *>() || pointer.is<MacroExpansionDecl *>())
+  if (pointer.is<FreestandingMacroExpansion *>())
     return getFreestandingMacroRoles();
 
   if (pointer.is<CustomAttr *>())
@@ -1776,10 +1764,8 @@ MacroRoles UnresolvedMacroReference::getMacroRoles() const {
 
 void swift::simple_display(llvm::raw_ostream &out,
                            const UnresolvedMacroReference &ref) {
-  if (ref.getDecl())
-    out << "macro-expansion-decl";
-  else if (ref.getExpr())
-    out << "macro-expansion-expr";
+  if (ref.getFreestanding())
+    out << "freestanding-macro-expansion";
   else if (ref.getAttr())
     out << "custom-attr";
 }

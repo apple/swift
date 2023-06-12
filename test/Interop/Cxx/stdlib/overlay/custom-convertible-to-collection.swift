@@ -15,6 +15,17 @@ CxxSequenceTestSuite.test("SimpleSequence to Swift.Array") {
   expectEqual([1, 2, 3, 4] as [Int32], array)
 }
 
+#if !os(Linux) // this test crashes on Linux (https://github.com/apple/swift/issues/66363)
+CxxSequenceTestSuite.test("SimpleCopyAwareSequence to Swift.Array") {
+  copiesCount = 0
+
+  let seq = SimpleCopyAwareSequence()
+  let array = Array(seq)
+
+  expectEqual(0, copiesCount) // make sure we don't copy the C++ sequence value unnecessarily
+}
+#endif
+
 CxxSequenceTestSuite.test("SimpleSequenceWithOutOfLineEqualEqual to Swift.Array") {
   let seq = SimpleSequenceWithOutOfLineEqualEqual()
   let array = Array(seq)

@@ -1671,6 +1671,45 @@ public:
   bool isCached() const { return true; }
 };
 
+/// Request to obtain a list of computed properties with init accesors
+/// in the given nominal type.
+class InitAccessorPropertiesRequest :
+    public SimpleRequest<InitAccessorPropertiesRequest,
+                         ArrayRef<VarDecl *>(NominalTypeDecl *),
+                         RequestFlags::Cached> {
+public:
+  using SimpleRequest::SimpleRequest;
+
+private:
+  friend SimpleRequest;
+
+  ArrayRef<VarDecl *>
+  evaluate(Evaluator &evaluator, NominalTypeDecl *decl) const;
+
+  // Evaluation.
+  bool evaluate(Evaluator &evaluator, AbstractStorageDecl *decl) const;
+
+public:
+  bool isCached() const { return true; }
+};
+
+class HasStorageRequest :
+    public SimpleRequest<HasStorageRequest,
+                         bool(AbstractStorageDecl *),
+                         RequestFlags::Cached> {
+public:
+  using SimpleRequest::SimpleRequest;
+
+private:
+  friend SimpleRequest;
+
+  // Evaluation.
+  bool evaluate(Evaluator &evaluator, AbstractStorageDecl *decl) const;
+
+public:
+  bool isCached() const { return true; }
+};
+
 class StorageImplInfoRequest :
     public SimpleRequest<StorageImplInfoRequest,
                          StorageImplInfo(AbstractStorageDecl *),
@@ -3204,19 +3243,18 @@ public:
 
 class UnresolvedMacroReference {
 private:
-  llvm::PointerUnion<MacroExpansionDecl *, MacroExpansionExpr *, CustomAttr *>
+  llvm::PointerUnion<FreestandingMacroExpansion *, CustomAttr *>
     pointer;
 
 public:
-  UnresolvedMacroReference(MacroExpansionDecl *decl) : pointer(decl) {}
-  UnresolvedMacroReference(MacroExpansionExpr *expr) : pointer(expr) {}
+  UnresolvedMacroReference(FreestandingMacroExpansion *exp) : pointer(exp) {}
   UnresolvedMacroReference(CustomAttr *attr) : pointer(attr) {}
+  UnresolvedMacroReference(
+      llvm::PointerUnion<FreestandingMacroExpansion *, CustomAttr *> pointer)
+      : pointer(pointer) {}
 
-  MacroExpansionDecl *getDecl() const {
-    return pointer.dyn_cast<MacroExpansionDecl *>();
-  }
-  MacroExpansionExpr *getExpr() const {
-    return pointer.dyn_cast<MacroExpansionExpr *>();
+  FreestandingMacroExpansion *getFreestanding() const {
+    return pointer.dyn_cast<FreestandingMacroExpansion *>();
   }
   CustomAttr *getAttr() const {
     return pointer.dyn_cast<CustomAttr *>();
@@ -4269,6 +4307,25 @@ private:
   friend SimpleRequest;
 
   bool evaluate(Evaluator &evaluator, ModuleDecl *mod) const;
+
+public:
+  bool isCached() const { return true; }
+};
+
+class InitAccessorReferencedVariablesRequest
+    : public SimpleRequest<InitAccessorReferencedVariablesRequest,
+                           ArrayRef<VarDecl *>(DeclAttribute *, AccessorDecl *,
+                                               ArrayRef<Identifier>),
+                           RequestFlags::Cached> {
+public:
+  using SimpleRequest::SimpleRequest;
+
+private:
+  friend SimpleRequest;
+
+  ArrayRef<VarDecl *> evaluate(Evaluator &evaluator, DeclAttribute *attr,
+                               AccessorDecl *attachedTo,
+                               ArrayRef<Identifier>) const;
 
 public:
   bool isCached() const { return true; }

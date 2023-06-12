@@ -90,17 +90,35 @@ void SwitchEnumBuilder::emit() && {
         defaultBlockData ? defaultBlockData->count : ProfileCounter();
     ArrayRef<ProfileCounter> caseBlockCountsRef = caseBlockCounts;
     if (isAddressOnly) {
+      if (subjectExprOperand.getType().isMoveOnlyWrapped()) {
+        subjectExprOperand = ManagedValue::forUnmanaged(
+            builder.createMoveOnlyWrapperToCopyableAddr(
+                loc, subjectExprOperand.getValue()));
+      }
       builder.createSwitchEnumAddr(loc, subjectExprOperand.getValue(),
                                    defaultBlock, caseBlocks, caseBlockCountsRef,
                                    defaultBlockCount);
     } else {
       if (subjectExprOperand.getType().isAddress()) {
-        // TODO: Refactor this into a maybe load.
-        if (subjectExprOperand.hasCleanup()) {
-          subjectExprOperand = builder.createLoadTake(loc, subjectExprOperand);
-        } else {
-          subjectExprOperand = builder.createLoadCopy(loc, subjectExprOperand);
+        bool hasCleanup = subjectExprOperand.hasCleanup();
+        SILValue value = subjectExprOperand.forward(getSGF());
+        if (value->getType().isMoveOnlyWrapped()) {
+          value = builder.createMoveOnlyWrapperToCopyableAddr(
+              loc, subjectExprOperand.getValue());
         }
+        if (hasCleanup) {
+          value = builder.emitLoadValueOperation(loc, value,
+                                                 LoadOwnershipQualifier::Take);
+        } else {
+          value = builder.emitLoadValueOperation(loc, value,
+                                                 LoadOwnershipQualifier::Copy);
+        }
+        subjectExprOperand = getSGF().emitManagedRValueWithCleanup(value);
+      } else {
+        if (subjectExprOperand.getType().isMoveOnlyWrapped())
+          subjectExprOperand =
+              builder.createOwnedMoveOnlyWrapperToCopyableValue(
+                  loc, subjectExprOperand);
       }
       switchEnum = builder.createSwitchEnum(
           loc, subjectExprOperand.forward(getSGF()), defaultBlock, caseBlocks,

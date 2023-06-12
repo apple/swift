@@ -159,13 +159,14 @@ public:
     }
   }
 
-  void packIntoEnumPayload(IRGenFunction &IGF,
+  void packIntoEnumPayload(IRGenModule &IGM,
+                           IRBuilder &builder,
                            EnumPayload &payload,
                            Explosion &src,
                            unsigned offset) const override {
-    payload.insertValue(IGF, src.claimNext(), offset);
-    payload.insertValue(IGF, src.claimNext(),
-      offset + asDerived().getSecondElementOffset(IGF.IGM).getValueInBits());
+    payload.insertValue(IGM, builder, src.claimNext(), offset);
+    payload.insertValue(IGM, builder, src.claimNext(),
+      offset + asDerived().getSecondElementOffset(IGM).getValueInBits());
   }
   
   void unpackFromEnumPayload(IRGenFunction &IGF,

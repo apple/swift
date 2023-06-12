@@ -300,6 +300,23 @@ replaceDestroy(DestroyAddrInst *dai, SILValue newValue, SILBuilderContext &ctx,
   prepareForDeletion(dai, instructionsToDelete);
 }
 
+/// Whether the specified debug_value's operand names the address at the
+/// indicated alloc_stack.
+///
+/// If it's a guaranteed alloc_stack (i.e. a store_borrow location), that
+/// includes the values produced by any store_borrows whose destinations are the
+/// alloc_stack since those values amount to aliases for the alloc_stack's
+/// storage.
+static bool isDebugValueOfAllocStack(DebugValueInst *dvi, AllocStackInst *asi) {
+  auto value = dvi->getOperand();
+  if (value == asi)
+    return true;
+  auto *sbi = dyn_cast<StoreBorrowInst>(value);
+  if (!sbi)
+    return false;
+  return sbi->getDest() == asi;
+}
+
 /// Promote a DebugValue w/ address value to a DebugValue of non-address value.
 static void promoteDebugValueAddr(DebugValueInst *dvai, SILValue value,
                                   SILBuilderContext &ctx,
@@ -1191,7 +1208,7 @@ SILInstruction *StackAllocationPromoter::promoteAllocationInBlock(
     // if we have a valid value to use at this point. Otherwise we'll
     // promote this when we deal with hooking up phis.
     if (auto *dvi = DebugValueInst::hasAddrVal(inst)) {
-      if (dvi->getOperand() == asi && runningVals)
+      if (isDebugValueOfAllocStack(dvi, asi) && runningVals)
         promoteDebugValueAddr(dvi, runningVals->value.replacement(asi, dvi),
                               ctx, deleter);
       continue;
@@ -2034,7 +2051,7 @@ void MemoryToRegisters::removeSingleBlockAllocation(AllocStackInst *asi) {
     // Replace debug_value w/ address value with debug_value of
     // the promoted value.
     if (auto *dvi = DebugValueInst::hasAddrVal(inst)) {
-      if (dvi->getOperand() == asi) {
+      if (isDebugValueOfAllocStack(dvi, asi)) {
         if (runningVals) {
           promoteDebugValueAddr(dvi, runningVals->value.replacement(asi, dvi),
                                 ctx, deleter);

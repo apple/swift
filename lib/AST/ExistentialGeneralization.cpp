@@ -158,6 +158,7 @@ private:
   NO_PRESERVABLE_STRUCTURE(Module)
   NO_PRESERVABLE_STRUCTURE(Pack)
   NO_PRESERVABLE_STRUCTURE(PackExpansion)
+  NO_PRESERVABLE_STRUCTURE(PackElement)
 #undef NO_PRESERVABLE_STRUCTURE
 
   // These types simply shouldn't appear in types that we generalize at all.

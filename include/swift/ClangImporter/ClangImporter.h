@@ -54,6 +54,7 @@ namespace clang {
 namespace tooling {
 namespace dependencies {
   struct ModuleDeps;
+  struct TranslationUnitDeps;
   using ModuleDepsGraph = std::vector<ModuleDeps>;
 }
 }
@@ -430,6 +431,10 @@ public:
   void recordModuleDependencies(
       ModuleDependenciesCache &cache,
       const clang::tooling::dependencies::ModuleDepsGraph &clangDependencies);
+
+  void recordBridgingHeaderOptions(
+      ModuleDependencyInfo &MDI,
+      const clang::tooling::dependencies::TranslationUnitDeps &deps);
 
   Optional<const ModuleDependencyInfo*> getModuleDependencies(
       StringRef moduleName, ModuleDependenciesCache &cache,

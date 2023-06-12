@@ -1,0 +1,17 @@
+// swift-interface-format-version: 1.0
+// swift-compiler-version: Apple Swift version 5.9
+// swift-module-flags: -target arm64-apple-macosx11 -enable-library-evolution -swift-version 5 -library-level api -module-name Test
+
+// RUN: not %target-swift-frontend -typecheck-module-from-interface -module-name Test %s 2>&1 | %FileCheck %s
+
+// REQUIRES: OS=macosx
+
+import Swift
+
+@available(macOS 11, *)
+public struct S {}
+
+public typealias A = S
+
+// CHECK: error: 'S' is only available in macOS 11 or newer; clients of 'Test' may have a lower deployment target
+// CHECK: error: failed to verify module interface of 'Test' due to the errors above;

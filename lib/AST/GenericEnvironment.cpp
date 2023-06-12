@@ -432,7 +432,8 @@ Type TypeBase::mapTypeOutOfContext() {
   assert(!hasTypeParameter() && "already have an interface type");
   return Type(this).subst(MapTypeOutOfContext(),
     MakeAbstractConformanceForGenericType(),
-    SubstFlags::AllowLoweredTypes);
+    SubstFlags::AllowLoweredTypes |
+    SubstFlags::PreservePackExpansionLevel);
 }
 
 class GenericEnvironment::NestedTypeStorage
@@ -637,7 +638,8 @@ Type GenericEnvironment::mapTypeIntoContext(
   type = maybeApplyOuterContextSubstitutions(type);
   Type result = type.subst(QueryInterfaceTypeSubstitutions(this),
                            lookupConformance,
-                           SubstFlags::AllowLoweredTypes);
+                           SubstFlags::AllowLoweredTypes |
+                           SubstFlags::PreservePackExpansionLevel);
   assert((!result->hasTypeParameter() || result->hasError() ||
           getKind() == Kind::Opaque) &&
          "not fully substituted");
@@ -787,16 +789,19 @@ GenericEnvironment::mapElementTypeIntoPackContext(Type type) const {
   // Map element archetypes to the pack archetypes by converting
   // element types to interface types and adding the isParameterPack
   // bit. Then, map type parameters to archetypes.
-  return type.subst([&](SubstitutableType *type) {
-    auto *genericParam = type->getAs<GenericTypeParamType>();
-    if (!genericParam)
-      return Type();
+  return type.subst(
+      [&](SubstitutableType *type) {
+        auto *genericParam = type->getAs<GenericTypeParamType>();
+        if (!genericParam)
+          return Type();
 
-    if (auto *packParam = packParamForElement[{genericParam}])
-      return substitutions(packParam);
+        if (auto *packParam = packParamForElement[{genericParam}])
+          return substitutions(packParam);
 
-    return substitutions(genericParam);
-  }, LookUpConformanceInSignature(sig.getPointer()));
+        return substitutions(genericParam);
+      },
+      LookUpConformanceInSignature(sig.getPointer()),
+      SubstFlags::PreservePackExpansionLevel);
 }
 
 namespace {

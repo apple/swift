@@ -72,6 +72,9 @@
 // CHECK:  }
 // CHECK-NEXT:  SWIFT_INLINE_THUNK String(const String &other) noexcept {
 // CHECK:  }
+// CHECK-NEXT:  SWIFT_INLINE_THUNK String &operator =(const String &other) noexcept {
+// CHECK:  }
+// CHECK-NEXT:  SWIFT_INLINE_THUNK String &operator =(String &&other) = delete;
 // CHECK-NEXT:  SWIFT_INLINE_PRIVATE_HELPER String(String &&) noexcept {
 // CHECK: }
 // CHECK-NEXT:  static SWIFT_INLINE_THUNK String init() SWIFT_SYMBOL({{.*}});

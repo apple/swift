@@ -51,7 +51,8 @@ bb0(%0 : @owned $Builtin.NativeObject):
 // CHECK-NEXT: [[REGISTER_3:%[^,]+]] = move_value [lexical] [[REGISTER_2]]
 // CHECK-NEXT: [[REGISTER_4:%[^,]+]] = move_value [allows_diagnostics] [lexical] [[REGISTER_3]]
 // CHECK-NEXT: [[REGISTER_5:%[^,]+]] = move_value [allows_diagnostics] [lexical] [[REGISTER_4]]
-// CHECK-NEXT: return [[REGISTER_5]]
+// CHECK-NEXT: [[REGISTER_6:%[^,]+]] = move_value [allows_diagnostics] [lexical] [pointer_escape] [[REGISTER_5]]
+// CHECK-NEXT: return [[REGISTER_6]]
 // CHECK-NEXT: } // end sil function 'test_movevalue_parsing'
 sil [ossa] @test_movevalue_parsing : $@convention(thin) (@owned Builtin.NativeObject) -> @owned Builtin.NativeObject {
 bb0(%0 : @owned $Builtin.NativeObject):
@@ -60,7 +61,8 @@ bb0(%0 : @owned $Builtin.NativeObject):
   %3 = move_value [lexical] %2 : $Builtin.NativeObject
   %4 = move_value [allows_diagnostics] [lexical] %3 : $Builtin.NativeObject
   %5 = move_value [lexical] [allows_diagnostics] %4 : $Builtin.NativeObject
-  return %5 : $Builtin.NativeObject
+  %6 = move_value [pointer_escape] [lexical] [allows_diagnostics] %5 : $Builtin.NativeObject
+  return %6 : $Builtin.NativeObject
 }
 
 // CHECK-LABEL: sil [ossa] @test_debug_value_alloc_stack_moved : $@convention(thin) (@owned Builtin.NativeObject) -> () {
@@ -131,13 +133,89 @@ bb0(%0 : @owned $Builtin.NativeObject):
   return %9999 : $()
 }
 
-// CHECK-LABEL: sil [ossa] @test_allocbox_moveable_value_debuginfo_flag : $@convention(thin) () -> () {
-// CHECK: alloc_box [moveable_value_debuginfo] ${ var Builtin.NativeObject }
-// CHECK: } // end sil function 'test_allocbox_moveable_value_debuginfo_flag'
-sil [ossa] @test_allocbox_moveable_value_debuginfo_flag : $@convention(thin) () -> () {
+// CHECK-LABEL: sil [ossa] @test_allocbox_parsing : $@convention(thin) () -> () {
+// CHECK: alloc_box [pointer_escape] [moveable_value_debuginfo] ${ var Builtin.NativeObject }
+// CHECK: } // end sil function 'test_allocbox_parsing'
+sil [ossa] @test_allocbox_parsing : $@convention(thin) () -> () {
 bb0:
-  %0 = alloc_box [moveable_value_debuginfo] ${ var Builtin.NativeObject }
+  %0 = alloc_box [moveable_value_debuginfo] [pointer_escape] ${ var Builtin.NativeObject }
   dealloc_box %0 : ${ var Builtin.NativeObject }
   %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_beginborrow_parsing :
+// CHECK:   %1 = begin_borrow [pointer_escape] %0 : $Builtin.NativeObject
+// CHECK-LABE: } // end sil function 'test_beginborrow_parsing'
+sil [ossa] @test_beginborrow_parsing : $@convention(thin) (@owned Builtin.NativeObject) -> () {
+bb0(%0 : @owned $Builtin.NativeObject):
+  %1 = begin_borrow [pointer_escape] %0 : $Builtin.NativeObject
+  %2 = unchecked_bitwise_cast %1 : $Builtin.NativeObject to $Builtin.Int64
+  end_borrow %1 : $Builtin.NativeObject
+  destroy_value %0 : $Builtin.NativeObject
+  %t = tuple ()
+  return %t : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_escapingarg_parsing :
+// CHECK: bb1(%2 : @pointer_escape @owned $Builtin.NativeObject):
+// CHECK-LABEL: } // end sil function 'test_escapingarg_parsing'
+sil [ossa] @test_escapingarg_parsing : $@convention(thin) (@owned Builtin.NativeObject) -> () {
+bb0(%0 : @owned $Builtin.NativeObject):
+  br bb1(%0 : $Builtin.NativeObject)
+
+bb1(%2 : @pointer_escape @owned $Builtin.NativeObject):
+  destroy_value %2 : $Builtin.NativeObject
+  %t = tuple ()
+  return %t : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_copyable_to_moveonlywrapper : $@convention(thin) (@owned Builtin.NativeObject) -> () {
+// CHECK: copyable_to_moveonlywrapper
+// CHECK: } // end sil function 'test_copyable_to_moveonlywrapper'
+sil [ossa] @test_copyable_to_moveonlywrapper : $@convention(thin) (@owned Builtin.NativeObject) -> () {
+bb0(%0 : @owned $Builtin.NativeObject):
+  %0a = copyable_to_moveonlywrapper [owned] %0 : $Builtin.NativeObject
+  destroy_value %0a : $@moveOnly Builtin.NativeObject
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_moveonlywrapper_to_copyable_addr : $@convention(thin) (@in Builtin.NativeObject) -> () {
+// CHECK: moveonlywrapper_to_copyable_addr
+// CHECK: } // end sil function 'test_moveonlywrapper_to_copyable_addr'
+sil [ossa] @test_moveonlywrapper_to_copyable_addr : $@convention(thin) (@in Builtin.NativeObject) -> () {
+bb0(%0 : $*Builtin.NativeObject):
+  %1 = alloc_stack $@moveOnly Builtin.NativeObject
+  %1a = moveonlywrapper_to_copyable_addr %1 : $*@moveOnly Builtin.NativeObject
+  copy_addr [take] %0 to [init] %1a : $*Builtin.NativeObject
+  destroy_addr %1 : $*@moveOnly Builtin.NativeObject
+  dealloc_stack %1 : $*@moveOnly Builtin.NativeObject
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_copyable_to_moveonlywrapper_addr : $@convention(thin) (@in Builtin.NativeObject) -> () {
+// CHECK: copyable_to_moveonlywrapper_addr
+// CHECK: } // end sil function 'test_copyable_to_moveonlywrapper_addr'
+sil [ossa] @test_copyable_to_moveonlywrapper_addr : $@convention(thin) (@in Builtin.NativeObject) -> () {
+bb0(%0 : $*Builtin.NativeObject):
+  %0a = copyable_to_moveonlywrapper_addr %0 : $*Builtin.NativeObject
+  destroy_addr %0a : $*@moveOnly Builtin.NativeObject
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_moveonlywrapper_to_copyable_box : $@convention(thin) () -> () {
+// CHECK: [[BOX:%.*]] = alloc_box ${ var @moveOnly Builtin.NativeObject }
+// CHECK: [[CAST:%.*]] = moveonlywrapper_to_copyable_box [[BOX]] : ${ var @moveOnly Builtin.NativeObject }
+// CHECK: dealloc_box [[CAST]] : ${ var Builtin.NativeObject }
+// CHECK: } // end sil function 'test_moveonlywrapper_to_copyable_box'
+sil [ossa] @test_moveonlywrapper_to_copyable_box : $@convention(thin) () -> () {
+bb0:
+  %0 = alloc_box ${ var @moveOnly Builtin.NativeObject }
+  %1 = moveonlywrapper_to_copyable_box %0 : ${ var @moveOnly Builtin.NativeObject }
+  dealloc_box %1 : ${ var Builtin.NativeObject }
+  %9999 = tuple ()
   return %9999 : $()
 }

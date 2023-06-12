@@ -34,6 +34,7 @@
 #include "swift/AST/NameLookupRequests.h"
 #include "swift/AST/PrettyStackTrace.h"
 #include "swift/AST/SourceFile.h"
+#include "swift/AST/TypeCheckRequests.h"
 #include "swift/AST/Types.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/Platform.h"
@@ -707,6 +708,15 @@ importer::getNormalInvocationArguments(
   invocationArgStrs.push_back((llvm::Twine(searchPathOpts.RuntimeResourcePath) +
                                llvm::sys::path::get_separator() +
                                "apinotes").str());
+
+  if (!importerOpts.CASPath.empty()) {
+    invocationArgStrs.push_back("-Xclang");
+    invocationArgStrs.push_back("-fcas-path");
+    invocationArgStrs.push_back("-Xclang");
+    invocationArgStrs.push_back(importerOpts.CASPath);
+    invocationArgStrs.push_back("-Xclang");
+    invocationArgStrs.push_back("-fno-pch-timestamp");
+  }
 }
 
 static void
@@ -1720,7 +1730,8 @@ ClangImporter::cloneCompilerInstanceForPrecompiling() {
 
   auto &FrontendOpts = invocation->getFrontendOpts();
   FrontendOpts.DisableFree = false;
-  FrontendOpts.Inputs.clear();
+  if (FrontendOpts.CASIncludeTreeID.empty())
+    FrontendOpts.Inputs.clear();
 
   auto clonedInstance = std::make_unique<clang::CompilerInstance>(
     Impl.Instance->getPCHContainerOperations(),
@@ -1751,7 +1762,8 @@ bool ClangImporter::emitBridgingPCH(
   auto inputFile = clang::FrontendInputFile(headerPath, language);
 
   auto &FrontendOpts = invocation.getFrontendOpts();
-  FrontendOpts.Inputs = {inputFile};
+  if (invocation.getFrontendOpts().CASIncludeTreeID.empty())
+    FrontendOpts.Inputs = {inputFile};
   FrontendOpts.OutputFile = outputPCHPath.str();
   FrontendOpts.ProgramAction = clang::frontend::GeneratePCH;
 
@@ -1783,7 +1795,8 @@ bool ClangImporter::runPreprocessor(
   auto inputFile = clang::FrontendInputFile(inputPath, language);
 
   auto &FrontendOpts = invocation.getFrontendOpts();
-  FrontendOpts.Inputs = {inputFile};
+  if (invocation.getFrontendOpts().CASIncludeTreeID.empty())
+    FrontendOpts.Inputs = {inputFile};
   FrontendOpts.OutputFile = outputPath.str();
   FrontendOpts.ProgramAction = clang::frontend::PrintPreprocessedInput;
 
@@ -1806,11 +1819,13 @@ bool ClangImporter::emitPrecompiledModule(
   auto language = getLanguageFromOptions(LangOpts);
 
   auto &FrontendOpts = invocation.getFrontendOpts();
-  auto inputFile = clang::FrontendInputFile(
-      moduleMapPath, clang::InputKind(
-          language, clang::InputKind::ModuleMap, false),
-      FrontendOpts.IsSystemModule);
-  FrontendOpts.Inputs = {inputFile};
+  if (invocation.getFrontendOpts().CASIncludeTreeID.empty()) {
+    auto inputFile = clang::FrontendInputFile(
+        moduleMapPath,
+        clang::InputKind(language, clang::InputKind::ModuleMap, false),
+        FrontendOpts.IsSystemModule);
+    FrontendOpts.Inputs = {inputFile};
+  }
   FrontendOpts.OriginalModuleMap = moduleMapPath.str();
   FrontendOpts.OutputFile = outputPath.str();
   FrontendOpts.ProgramAction = clang::frontend::GenerateModule;
@@ -1838,7 +1853,8 @@ bool ClangImporter::dumpPrecompiledModule(
           clang::Language::Unknown, clang::InputKind::Precompiled, false));
 
   auto &FrontendOpts = invocation.getFrontendOpts();
-  FrontendOpts.Inputs = {inputFile};
+  if (invocation.getFrontendOpts().CASIncludeTreeID.empty())
+    FrontendOpts.Inputs = {inputFile};
   FrontendOpts.OutputFile = outputPath.str();
 
   auto action = std::make_unique<clang::DumpModuleInfoAction>();
@@ -5006,7 +5022,8 @@ DeclAttributes cloneImportedAttributes(ValueDecl *decl, ASTContext &context) {
   return attrs;
 }
 
-ValueDecl *cloneBaseMemberDecl(ValueDecl *decl, DeclContext *newContext) {
+static ValueDecl *
+cloneBaseMemberDecl(ValueDecl *decl, DeclContext *newContext) {
   if (auto fn = dyn_cast<FuncDecl>(decl)) {
     // TODO: function templates are specialized during type checking so to
     // support these we need to tell Swift to type check the synthesized bodies.
@@ -5055,6 +5072,7 @@ ValueDecl *cloneBaseMemberDecl(ValueDecl *decl, DeclContext *newContext) {
     out->setIsObjC(var->isObjC());
     out->setIsDynamic(var->isDynamic());
     out->copyFormalAccessFrom(var);
+    out->getASTContext().evaluator.cacheOutput(HasStorageRequest{out}, false);
     out->setAccessors(SourceLoc(),
                       makeBaseClassMemberAccessors(newContext, out, var),
                       SourceLoc());
@@ -6290,16 +6308,23 @@ Decl *ClangImporter::importDeclDirectly(const clang::NamedDecl *decl) {
   return Impl.importDecl(decl, Impl.CurrentVersion);
 }
 
-ValueDecl *ClangImporter::importBaseMemberDecl(ValueDecl *decl,
-                                               DeclContext *newContext) {
+ValueDecl *ClangImporter::Implementation::importBaseMemberDecl(
+    ValueDecl *decl, DeclContext *newContext) {
   // Make sure we don't clone the decl again for this class, as that would
   // result in multiple definitions of the same symbol.
   std::pair<ValueDecl *, DeclContext *> key = {decl, newContext};
-  if (!Impl.clonedBaseMembers.count(key)) {
+  auto known = clonedBaseMembers.find(key);
+  if (known == clonedBaseMembers.end()) {
     ValueDecl *cloned = cloneBaseMemberDecl(decl, newContext);
-    Impl.clonedBaseMembers[key] = cloned;
+    known = clonedBaseMembers.insert({key, cloned}).first;
   }
-  return Impl.clonedBaseMembers[key];
+
+  return known->second;
+}
+
+ValueDecl *ClangImporter::importBaseMemberDecl(ValueDecl *decl,
+                                               DeclContext *newContext) {
+  return Impl.importBaseMemberDecl(decl, newContext);
 }
 
 void ClangImporter::diagnoseTopLevelValue(const DeclName &name) {
@@ -6574,6 +6599,17 @@ static bool hasDestroyTypeOperations(const clang::CXXRecordDecl *decl) {
   return false;
 }
 
+static bool hasCustomCopyOrMoveConstructor(const clang::CXXRecordDecl *decl) {
+  // std::pair and std::tuple might have copy and move constructors, but that
+  // doesn't mean they are safe to use from Swift, e.g. std::pair<UnsafeType, T>
+  if (decl->isInStdNamespace() &&
+      (decl->getName() == "pair" || decl->getName() == "tuple")) {
+    return false;
+  }
+  return decl->hasUserDeclaredCopyConstructor() ||
+         decl->hasUserDeclaredMoveConstructor();
+}
+
 static bool isSwiftClassType(const clang::CXXRecordDecl *decl) {
   // Swift type must be annotated with external_source_symbol attribute.
   auto essAttr = decl->getAttr<clang::ExternalSourceSymbolAttr>();
@@ -6641,8 +6677,7 @@ CxxRecordSemantics::evaluate(Evaluator &evaluator,
     return CxxRecordSemanticsKind::Iterator;
   }
   
-  if (!cxxDecl->hasUserDeclaredCopyConstructor() &&
-      !cxxDecl->hasUserDeclaredMoveConstructor() &&
+  if (!hasCustomCopyOrMoveConstructor(cxxDecl) &&
       hasPointerInSubobjects(cxxDecl)) {
     return CxxRecordSemanticsKind::UnsafePointerMember;
   }
@@ -6730,8 +6765,7 @@ bool IsSafeUseOfCxxDecl::evaluate(Evaluator &evaluator,
           return true;
         }
 
-        if (!cxxRecordReturnType->hasUserDeclaredCopyConstructor() &&
-            !cxxRecordReturnType->hasUserDeclaredMoveConstructor() &&
+        if (!hasCustomCopyOrMoveConstructor(cxxRecordReturnType) &&
             !hasOwnedValueAttr(cxxRecordReturnType) &&
             hasPointerInSubobjects(cxxRecordReturnType)) {
           return false;

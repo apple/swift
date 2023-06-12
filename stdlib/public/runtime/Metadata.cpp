@@ -2641,24 +2641,40 @@ void swift::swift_initStructMetadata(StructMetadata *structType,
   vwtable->publishLayout(layout);
 }
 
-enum LayoutStringFlags : uint64_t {
-  Empty = 0,
-  // TODO: Track other useful information tha can be used to optimize layout
-  //       strings, like different reference kinds contained in the string
-  //       number of ref counting operations (maybe up to 4), so we can
-  //       use witness functions optimized for these cases.
-  HasRelativePointers = (1ULL << 63),
-};
+namespace {
+  enum LayoutStringFlags : uint64_t {
+    Empty = 0,
+    // TODO: Track other useful information tha can be used to optimize layout
+    //       strings, like different reference kinds contained in the string
+    //       number of ref counting operations (maybe up to 4), so we can
+    //       use witness functions optimized for these cases.
+    HasRelativePointers = (1ULL << 63),
+  };
 
-inline bool operator&(LayoutStringFlags a, LayoutStringFlags b) {
-  return (uint64_t(a) & uint64_t(b)) != 0;
-}
-inline LayoutStringFlags operator|(LayoutStringFlags a, LayoutStringFlags b) {
-  return LayoutStringFlags(uint64_t(a) | uint64_t(b));
-}
-inline LayoutStringFlags &operator|=(LayoutStringFlags &a, LayoutStringFlags b) {
-  return a = (a | b);
-}
+  inline bool operator&(LayoutStringFlags a, LayoutStringFlags b) {
+    return (uint64_t(a) & uint64_t(b)) != 0;
+  }
+  inline LayoutStringFlags operator|(LayoutStringFlags a, LayoutStringFlags b) {
+    return LayoutStringFlags(uint64_t(a) | uint64_t(b));
+  }
+  inline LayoutStringFlags &operator|=(LayoutStringFlags &a, LayoutStringFlags b) {
+    return a = (a | b);
+  }
+
+  template <typename T>
+  inline T readBytes(const uint8_t *layoutStr, size_t &i) {
+    T returnVal;
+    memcpy(&returnVal, layoutStr + i, sizeof(T));
+    i += sizeof(T);
+    return returnVal;
+  }
+
+  template <typename T>
+  inline void writeBytes(uint8_t *layoutStr, size_t &i, T value) {
+    memcpy(layoutStr + i, &value, sizeof(T));
+    i += sizeof(T);
+  }
+} // end anonymous namespace
 
 void swift::swift_initStructMetadataWithLayoutString(
     StructMetadata *structType, StructLayoutFlags layoutFlags, size_t numFields,
@@ -2732,9 +2748,9 @@ void swift::swift_initStructMetadataWithLayoutString(
   uint8_t *layoutStr = (uint8_t *)MetadataAllocator(LayoutStringTag)
       .Allocate(fixedLayoutStringSize + refCountBytes, alignof(uint8_t));
 
-  *((size_t*)(layoutStr + sizeof(uint64_t))) = refCountBytes;
+  size_t layoutStrOffset = sizeof(uint64_t);
 
-  size_t layoutStrOffset = layoutStringHeaderSize;
+  writeBytes(layoutStr, layoutStrOffset, refCountBytes);
   size_t fullOffset = 0;
   size_t previousFieldOffset = 0;
   LayoutStringFlags flags = LayoutStringFlags::Empty;
@@ -2753,9 +2769,8 @@ void swift::swift_initStructMetadataWithLayoutString(
         auto tag = fieldTag <= 0x2 ? RefCountingKind::UnknownUnowned :
                                      RefCountingKind::UnknownWeak;
 
-        *(uint64_t *)(layoutStr + layoutStrOffset) =
-            ((uint64_t)tag << 56) | offset;
-        layoutStrOffset += sizeof(uint64_t);
+        auto tagAndOffset = ((uint64_t)tag << 56) | offset;
+        writeBytes(layoutStr, layoutStrOffset, tagAndOffset);
       }
 
       fullOffset += fieldType->size;
@@ -2788,15 +2803,22 @@ void swift::swift_initStructMetadataWithLayoutString(
 
         if (fieldFlags & LayoutStringFlags::HasRelativePointers) {
           swift_resolve_resilientAccessors(layoutStr, layoutStrOffset,
-                                           fieldLayoutStr, fieldRefCountBytes,
-                                           fieldType);
+                                           fieldLayoutStr, fieldType);
         }
 
         if (offset) {
-          *(uint64_t *)(layoutStr + layoutStrOffset) += offset;
+          auto layoutStrOffsetCopy = layoutStrOffset;
+          auto firstTagAndOffset =
+              readBytes<uint64_t>(layoutStr, layoutStrOffsetCopy);
+          layoutStrOffsetCopy = layoutStrOffset;
+          firstTagAndOffset += offset;
+          writeBytes(layoutStr, layoutStrOffsetCopy, firstTagAndOffset);
         }
 
-        previousFieldOffset = *(const uint64_t*)(fieldLayoutStr + layoutStringHeaderSize + fieldRefCountBytes);
+        auto previousFieldOffsetOffset =
+            layoutStringHeaderSize + fieldRefCountBytes;
+        previousFieldOffset = readBytes<uint64_t>(fieldLayoutStr,
+                                                  previousFieldOffsetOffset);
         layoutStrOffset += fieldRefCountBytes;
       } else {
         previousFieldOffset += fieldType->vw_size();
@@ -2827,9 +2849,7 @@ void swift::swift_initStructMetadataWithLayoutString(
         };
       }
 
-      *(uint64_t*)(layoutStr + layoutStrOffset) =
-        ((uint64_t)tag << 56) | offset;
-      layoutStrOffset += sizeof(uint64_t);
+      writeBytes(layoutStr, layoutStrOffset, ((uint64_t)tag << 56) | offset);
       previousFieldOffset = fieldType->vw_size();
       fullOffset += previousFieldOffset;
     } else if (fieldType->isAnyExistentialType()) {
@@ -2837,29 +2857,27 @@ void swift::swift_initStructMetadataWithLayoutString(
       assert(existential);
       auto tag = existential->isClassBounded() ? RefCountingKind::Unknown
                                                : RefCountingKind::Existential;
-      *(uint64_t*)(layoutStr + layoutStrOffset) =
-        ((uint64_t)tag << 56) | offset;
-      layoutStrOffset += sizeof(uint64_t);
+      writeBytes(layoutStr, layoutStrOffset, ((uint64_t)tag << 56) | offset);
       previousFieldOffset = fieldType->vw_size();
       fullOffset += previousFieldOffset;
     } else {
 metadata:
-      *(uint64_t*)(layoutStr + layoutStrOffset) =
-        ((uint64_t)RefCountingKind::Metatype << 56) | offset;
-      *(uintptr_t*)(layoutStr + layoutStrOffset + sizeof(uint64_t)) =
-          (uintptr_t)fieldType;
-      layoutStrOffset += sizeof(uint64_t) + sizeof(uintptr_t);
+      writeBytes(layoutStr, layoutStrOffset,
+                 ((uint64_t)RefCountingKind::Metatype << 56) | offset);
+      writeBytes(layoutStr, layoutStrOffset, fieldType);
       previousFieldOffset = fieldType->vw_size();
       fullOffset += previousFieldOffset;
     }
   }
 
-  *(uint64_t *)(layoutStr + layoutStrOffset) = previousFieldOffset;
-  *(uint64_t *)(layoutStr + layoutStrOffset + sizeof(uint64_t)) = 0;
+  writeBytes(layoutStr, layoutStrOffset, previousFieldOffset);
+  writeBytes(layoutStr, layoutStrOffset, 0);
 
   // we mask out HasRelativePointers, because at this point they have all been
   // resolved to metadata pointers
-  *(uint64_t *)(layoutStr) = ((uint64_t)flags) & ~((uint64_t)LayoutStringFlags::HasRelativePointers);
+  layoutStrOffset = 0;
+  writeBytes(layoutStr, layoutStrOffset,
+      ((uint64_t)flags) & ~((uint64_t)LayoutStringFlags::HasRelativePointers));
 
   structType->setLayoutString(layoutStr);
 

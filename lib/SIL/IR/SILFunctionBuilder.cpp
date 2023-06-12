@@ -161,6 +161,9 @@ void SILFunctionBuilder::addFunctionAttributes(
   if (Attrs.hasAttribute<SILGenNameAttr>() || Attrs.hasAttribute<CDeclAttr>())
     F->setHasCReferences(true);
 
+  if (Attrs.hasAttribute<UsedAttr>())
+    F->setMarkedAsUsed(true);
+
   if (Attrs.hasAttribute<NoLocksAttr>()) {
     F->setPerfConstraints(PerformanceConstraints::NoLocks);
   } else if (Attrs.hasAttribute<NoAllocationAttr>()) {
@@ -194,6 +197,12 @@ void SILFunctionBuilder::addFunctionAttributes(
   if (constant.isNull())
     return;
   auto *decl = constant.getDecl();
+
+  // Don't add section for addressor functions (where decl is a global)
+  if (isa<FuncDecl>(decl)) {
+    if (auto *SA = Attrs.getAttribute<SectionAttr>())
+      F->setSection(SA->Name);
+  }
 
   // Only emit replacements for the objc entry point of objc methods.
   // There is one exception: @_dynamicReplacement(for:) of @objc methods in

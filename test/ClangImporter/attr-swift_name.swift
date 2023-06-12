@@ -1,5 +1,5 @@
 // RUN: %empty-directory(%t.mcp)
-// RUN: not %target-swift-frontend(mock-sdk: %clang-importer-sdk) -I %S/Inputs/custom-modules -Xcc -w -typecheck %s -module-cache-path %t.mcp -disable-named-lazy-member-loading 2>&1 | %FileCheck %s
+// RUN: not %target-swift-frontend(mock-sdk: %clang-importer-sdk) -I %S/Inputs/custom-modules -Xcc -w -typecheck %s -module-cache-path %t.mcp 2>&1 | %FileCheck %s
 
 // REQUIRES: objc_interop
 
@@ -22,12 +22,6 @@ func test(_ i: Int) {
   
   // CHECK: warning: too few parameters in swift_name attribute (expected 2; got 1)
   // CHECK: + (instancetype)g:(id)x outParam:(int *)foo SWIFT_NAME(init(g:));
-  // CHECK-NOT: warning:
-  // CHECK: note: please report this issue to the owners of 'ObjCIRExtras'
-  // CHECK-NOT: warning:
-
-  // CHECK: warning: too few parameters in swift_name attribute (expected 2; got 1)
-  // CHECK: + (instancetype)testW:(id)x out:(id *)outObject SWIFT_NAME(ww(_:));
   // CHECK-NOT: warning:
   // CHECK: note: please report this issue to the owners of 'ObjCIRExtras'
   // CHECK-NOT: warning:

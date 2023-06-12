@@ -501,7 +501,7 @@ mayGuaranteedUseValue(SILInstruction *User, SILValue Ptr, AliasAnalysis *AA) {
   for (unsigned i : indices(Params)) {    
     if (!Params[i].isGuaranteed())
       continue;
-    SILValue Op = FAS.getArgument(i);
+    SILValue Op = FAS.getArgumentsWithoutIndirectResults()[i];
     if (!AA->isNoAlias(Op, Ptr))
       return true;
   }

@@ -1507,7 +1507,6 @@ public:
   void emitSILWitnessTable(SILWitnessTable *wt);
   void emitSILProperty(SILProperty *prop);
   void emitSILDifferentiabilityWitness(SILDifferentiabilityWitness *dw);
-  void emitSILStaticInitializers();
   llvm::Constant *emitFixedTypeLayout(CanType t, const FixedTypeInfo &ti);
   void emitProtocolConformance(const ConformanceDescription &record);
   void emitNestedTypeDecls(DeclRange members);
@@ -1721,6 +1720,9 @@ public:
   Address getAddrOfSILGlobalVariable(SILGlobalVariable *var,
                                      const TypeInfo &ti,
                                      ForDefinition_t forDefinition);
+  llvm::Constant *getGlobalInitValue(SILGlobalVariable *var,
+                                     llvm::Type *storageType,
+                                     Alignment alignment);
   llvm::Function *getAddrOfWitnessTableLazyAccessFunction(
                                                const NormalProtocolConformance *C,
                                                CanType conformingType,
@@ -1828,6 +1830,9 @@ public:
   llvm::Function *getForeignExceptionHandlingPersonalityFunc();
 
   bool isForeignExceptionHandlingEnabled() const;
+
+  /// Returns true if the given Clang function does not throw exceptions.
+  bool isCxxNoThrow(clang::FunctionDecl *fd, bool defaultNoThrow = false);
 
 private:
   llvm::Constant *

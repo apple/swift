@@ -373,6 +373,8 @@ static bool doesAccessorNeedDynamicAttribute(AccessorDecl *accessor) {
         storage->getWriteImpl() == WriteImplKind::StoredWithObservers)
       return storage->isDynamic();
     return false;
+  case AccessorKind::Init:
+    return false;
   }
   llvm_unreachable("covered switch");
 }
@@ -772,7 +774,7 @@ PrimaryAssociatedTypesRequest::evaluate(Evaluator &evaluator,
     SmallVector<ValueDecl *, 2> result;
 
     decl->lookupQualified(ArrayRef<NominalTypeDecl *>(decl),
-                          DeclNameRef(pair.first),
+                          DeclNameRef(pair.first), decl->getLoc(),
                           NL_QualifiedDefault | NL_OnlyTypes,
                           result);
 
@@ -1607,28 +1609,6 @@ TypeChecker::lookupPrecedenceGroup(DeclContext *dc, Identifier name,
   return PrecedenceGroupLookupResult(dc, name, std::move(groups));
 }
 
-SmallVector<MacroDecl *, 1>
-TypeChecker::lookupMacros(DeclContext *dc, DeclNameRef macroName,
-                          SourceLoc loc, MacroRoles roles) {
-  SmallVector<MacroDecl *, 1> choices;
-  auto moduleScopeDC = dc->getModuleScopeContext();
-  ASTContext &ctx = moduleScopeDC->getASTContext();
-  UnqualifiedLookupDescriptor descriptor(macroName, moduleScopeDC);
-  auto lookup = evaluateOrDefault(
-      ctx.evaluator, UnqualifiedLookupRequest{descriptor}, {});
-  for (const auto &found : lookup.allResults()) {
-    if (auto macro = dyn_cast<MacroDecl>(found.getValueDecl())) {
-      auto candidateRoles = macro->getMacroRoles();
-      if ((candidateRoles && roles.contains(candidateRoles)) ||
-          // FIXME: `externalMacro` should have all roles.
-          macro->getBaseIdentifier().str() == "externalMacro") {
-        choices.push_back(macro);
-      }
-    }
-  }
-  return choices;
-}
-
 /// Validate the given operator declaration.
 ///
 /// This establishes key invariants, such as an InfixOperatorDecl's
@@ -1693,6 +1673,7 @@ SelfAccessKindRequest::evaluate(Evaluator &evaluator, FuncDecl *FD) const {
     case AccessorKind::Read:
       break;
 
+    case AccessorKind::Init:
     case AccessorKind::MutableAddress:
     case AccessorKind::Set:
     case AccessorKind::Modify:
@@ -1784,6 +1765,7 @@ static ParamDecl *getOriginalParamFromAccessor(AbstractStorageDecl *storage,
   case AccessorKind::DidSet:
   case AccessorKind::WillSet:
   case AccessorKind::Set:
+  case AccessorKind::Init:
     if (param == accessorParams->get(0)) {
       // This is the 'newValue' or 'oldValue' parameter.
       return nullptr;
@@ -2118,6 +2100,7 @@ ResultTypeRequest::evaluate(Evaluator &evaluator, ValueDecl *decl) const {
     case AccessorKind::DidSet:
     case AccessorKind::WillSet:
     case AccessorKind::Set:
+    case AccessorKind::Init:
       return TupleType::getEmpty(ctx);
 
     // Addressor result types can get complicated because of the owner.

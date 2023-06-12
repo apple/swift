@@ -297,7 +297,7 @@ func r18800223(_ i : Int) {
 }
 
 // <rdar://problem/21883806> Bogus "'_' can only appear in a pattern or on the left side of an assignment" is back
-_ = { $0 }  // expected-error {{unable to infer type of a closure parameter '$0' in the current context}}
+_ = { $0 }  // expected-error {{cannot infer type of closure parameter '$0' without a type annotation}}
 
 
 

@@ -70,6 +70,10 @@ class Traversal : public TypeVisitor<Traversal, bool>
     return doIt(ty->getPatternType());
   }
 
+  bool visitPackElementType(PackElementType *ty) {
+    return doIt(ty->getPackType());
+  }
+
   bool visitParenType(ParenType *ty) {
     return doIt(ty->getUnderlyingType());
   }

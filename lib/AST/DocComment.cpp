@@ -435,7 +435,8 @@ private:
     SmallVector<ValueDecl *, 2> members;
     protocol->lookupQualified(const_cast<ProtocolDecl *>(protocol),
                               DeclNameRef(VD->getName()),
-                              NLOptions::NL_ProtocolMembers, members);
+                              VD->getLoc(), NLOptions::NL_ProtocolMembers,
+                              members);
 
     Optional<ResultWithDecl> result;
     for (auto *member : members) {

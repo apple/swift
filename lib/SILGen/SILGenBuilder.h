@@ -441,7 +441,8 @@ public:
                                  bool isLexical = false);
 
   using SILBuilder::createMoveValue;
-  ManagedValue createMoveValue(SILLocation loc, ManagedValue value);
+  ManagedValue createMoveValue(SILLocation loc, ManagedValue value,
+                               bool isLexical = false);
 
   using SILBuilder::createOwnedMoveOnlyWrapperToCopyableValue;
   ManagedValue createOwnedMoveOnlyWrapperToCopyableValue(SILLocation loc,

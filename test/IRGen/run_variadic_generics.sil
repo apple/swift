@@ -1,7 +1,8 @@
 // RUN: %empty-directory(%t)
 // RUN: %target-build-swift-dylib(%t/%target-library-name(PrintShims)) -parse-stdlib %S/../Inputs/print-shims-stdlib.swift -module-name PrintShims -emit-module -emit-module-path %t/PrintShims.swiftmodule
 // RUN: %target-codesign %t/%target-library-name(PrintShims)
-// RUN: %target-build-swift -g -parse-sil %s -emit-ir -I %t -L %t -lPrintShim | %FileCheck %s --check-prefix=CHECK-LL
+// RUN: %target-build-swift -g -parse-sil %s -emit-ir -I %t -L %t -lPrintShim -Onone | %FileCheck %s --check-prefixes=CHECK-LL,CHECK-LL-UNOPT
+// RUN: %target-build-swift -g -parse-sil %s -emit-ir -I %t -L %t -lPrintShim -O | %FileCheck %s --check-prefixes=CHECK-LL,CHECK-LL-OPT
 // RUN: %target-build-swift -g -parse-sil %s -module-name main -o %t/main -I %t -L %t -lPrintShims %target-rpath(%t)
 // RUN: %target-codesign %t/main
 // RUN: %target-run %t/main %t/%target-library-name(PrintShims) | %FileCheck %s
@@ -568,6 +569,7 @@ entry(%intIndex : $Builtin.Word):
 
 // Verify that we just gep into a parameter pack when that's all that the pack consists of.
 // CHECK-LL: define {{.*}}void @direct_access_from_parameter(i{{(32|64)}} [[INDEX:%[^,]+]], i{{(32|64)}} {{%[^,]+}}, %swift.type** [[PACK:%[^,]+]])
+// CHECK-LL-UNOPT:  [[PACK_ADDR_FOR_DI:%.*]] = ptrtoint %swift.type** [[PACK]] to i{{(32|64)}}
 // CHECK-LL:  [[PACK_ADDR:%.*]] = ptrtoint %swift.type** [[PACK]] to i{{(32|64)}}
 // CHECK-LL:  [[PACK_ADDR2:%.*]] = and i{{(32|64)}} [[PACK_ADDR]], -2
 // CHECK-LL:  [[PACK:%.*]] = inttoptr i{{(32|64)}} [[PACK_ADDR2]] to %swift.type**
@@ -591,6 +593,7 @@ entry(%intIndex : $Builtin.Word):
 // CHECK-LL-SAME:        i{{(32|64)}} {{%[^,]+}},
 // CHECK-LL-SAME:        %swift.type** [[METADATA_PACK:%[^,]+]],
 // CHECK-LL-SAME:        i8*** [[WTABLE_PACK:%[^,]+]])
+// CHECK-LL-UNOPT:   [[PACK_ADDR_FOR_DI:%.*]] = ptrtoint %swift.type** [[METADATA_PACK]] to i{{(32|64)}}
 // CHECK-LL:         [[PACK_ADDR:%.*]] = ptrtoint %swift.type** [[METADATA_PACK]] to i{{(32|64)}}
 // CHECK-LL:         [[PACK_ADDR2:%.*]] = and i{{(32|64)}} [[PACK_ADDR]], -2
 // CHECK-LL:         [[METADATA_PACK:%.*]] = inttoptr i{{(32|64)}} [[PACK_ADDR2]] to %swift.type**

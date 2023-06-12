@@ -60,6 +60,7 @@ class alignas(1 << TypeReprAlignInBits) TypeRepr
   void operator=(const TypeRepr&) = delete;
 
 protected:
+  // clang-format off
   union { uint64_t OpaqueBits;
 
   SWIFT_INLINE_BITFIELD_BASE(TypeRepr, bitmax(NumTypeReprKindBits,8)+1+1,
@@ -108,6 +109,7 @@ protected:
   );
 
   } Bits;
+  // clang-format on
 
   TypeRepr(TypeReprKind K) {
     Bits.OpaqueBits = 0;

@@ -288,6 +288,7 @@ void ClangValueTypePrinter::printValueTypeDecl(
   os << "    vwTable->destroy(_getOpaquePointer(), metadata._0);\n";
   os << "  }\n";
 
+  // copy constructor.
   os << "  ";
   printer.printInlineForThunk();
   printer.printBaseName(typeDecl);
@@ -305,6 +306,28 @@ void ClangValueTypePrinter::printValueTypeDecl(
   os << "    vwTable->initializeWithCopy(_getOpaquePointer(), const_cast<char "
         "*>(other._getOpaquePointer()), metadata._0);\n";
   os << "  }\n";
+
+  // copy assignment.
+  os << "  ";
+  printer.printInlineForThunk();
+  printer.printBaseName(typeDecl);
+  os << " &operator =(const ";
+  printer.printBaseName(typeDecl);
+  os << " &other) noexcept {\n";
+  ClangValueTypePrinter::printValueWitnessTableAccessAsVariable(
+      os, typeMetadataFuncName, typeMetadataFuncGenericParams);
+  os << "    vwTable->assignWithCopy(_getOpaquePointer(), const_cast<char "
+        "*>(other._getOpaquePointer()), metadata._0);\n";
+  os << "  return *this;\n";
+  os << "  }\n";
+
+  // FIXME: implement the move assignment.
+  os << "  ";
+  printer.printInlineForThunk();
+  printer.printBaseName(typeDecl);
+  os << " &operator =(";
+  printer.printBaseName(typeDecl);
+  os << " &&other) = delete;\n";
 
   // FIXME: implement the move constructor.
   os << "  [[noreturn]] ";

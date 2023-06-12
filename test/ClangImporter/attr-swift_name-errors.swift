@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -I %S/Inputs/custom-modules -typecheck %s -disable-named-lazy-member-loading \
+// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -I %S/Inputs/custom-modules -typecheck %s \
 // RUN:     -verify -verify-additional-file %S/Inputs/custom-modules/ConflictingNames.h -verify-ignore-unknown
 
 // REQUIRES: objc_interop

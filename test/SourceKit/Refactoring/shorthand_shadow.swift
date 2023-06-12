@@ -32,7 +32,7 @@ func renameBuiltinMacroWithoutHash() {
     // RUN: not %sourcekitd-test -req=find-local-rename-ranges -pos=%(line+1):9 %s -- %s 2>&1 | %FileCheck %s --check-prefix=BUILTIN
     _ = file
   }
-  // BUILTIN: error: cannot rename system symbol 'file'
+  // BUILTIN: error: cannot rename system symbol 'file()'
 }
 
 

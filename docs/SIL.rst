@@ -2805,7 +2805,7 @@ canonical SIL that the value was never copied and thus is a "move only value"
 even though the actual underlying wrapped type is copyable. As an example of
 this, consider the following Swift::
 
-  func doSomething(@_noImplicitCopy _ x: Klass) -> () { // expected-error {{'x' has guaranteed ownership but was consumed}}
+  func doSomething(@_noImplicitCopy _ x: Klass) -> () { // expected-error {{'x' is borrowed and cannot be consumed}}
     x.doSomething()
     let x2 = x // expected-note {{consuming use}}
     x2.doSomething()
@@ -3797,7 +3797,21 @@ address of the allocated memory.
 
 ``alloc_pack`` is a stack allocation instruction.  See the section above
 on stack discipline.  The corresponding stack deallocation instruction is
-``dealloc_stack``.
+``dealloc_pack``.
+
+alloc_pack_metadata
+```````````````````
+
+::
+
+  sil-instruction ::= 'alloc_pack_metadata' $()
+
+Inserted as the last SIL lowering pass of IRGen, indicates that the next instruction
+may have on-stack pack metadata allocated on its behalf.
+
+Notionally, ``alloc_pack_metadata`` is a stack allocation instruction.  See the
+section above on stack discipline.  The corresponding stack deallocation
+instruction is ``dealloc_pack_metadata``.
 
 alloc_ref
 `````````
@@ -4054,6 +4068,23 @@ prior to being deallocated.
 
 ``dealloc_pack`` is a stack deallocation instruction.  See the section
 on Stack Discipline above.  The operand must be an ``alloc_pack``
+instruction.
+
+dealloc_pack_metadata
+`````````````````````
+
+::
+
+  sil-instruction ::= 'dealloc_pack_metadata' sil-operand
+
+  dealloc_pack_metadata $0 : $*()
+
+Inserted as the last SIL lowering pass of IRGen, indicates that the on-stack
+pack metadata emitted on behalf of its operand (actually on behalf of the
+instruction after its operand) must be cleaned up here.
+
+``dealloc_pack_metadata`` is a stack deallocation instruction.  See the section
+on Stack Discipline above.  The operand must be an ``alloc_pack_metadata``
 instruction.
 
 dealloc_box
@@ -8428,6 +8459,33 @@ need for the guaranteed form in the future.
   checking. Importantly, this instruction also is where in the case of an
   @moveOnly trivial type, we convert from the non-trivial representation to the
   trivial representation.
+
+copyable_to_moveonlywrapper_addr
+````````````````````````````````
+::
+
+  sil-instruction ::= 'copyable_to_moveonlywrapper_addr'
+
+`copyable_to_moveonlywrapper_addr`_ takes in a '*T' and maps it to a move only
+wrapped '*@moveOnly T'. This is semantically used by a code generator
+initializing a new moveOnly binding from a copyable value. It semantically acts
+as an address cast. If one thinks of '@moveOnly' as a monad, this is how one
+injects a copyable value into the move only space.
+
+moveonlywrapper_to_copyable_addr
+````````````````````````````````
+::
+
+  sil-instruction ::= 'moveonlywrapper_to_copyable_addr'
+
+`moveonlywrapper_to_copyable_addr`_ takes in a '*@moveOnly T' and produces a new
+'*T' value. This instruction acts like an address cast that projects out the
+underlying T from an @moveOnly T.
+
+NOTE: From the perspective of the address checker, a trivial `load`_ with a
+`moveonlywrapper_to_copyable_addr`_ operand is considered to be a use of a
+noncopyable type.
+
 
 Assertion configuration
 ~~~~~~~~~~~~~~~~~~~~~~~

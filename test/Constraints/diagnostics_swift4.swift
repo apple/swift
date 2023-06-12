@@ -29,7 +29,7 @@ class C_45110: P_45110 {
 
 let _ = S_45110(arg: [C_45110()]) // expected-error {{extraneous argument label 'arg:' in call}}
 
-// rdar://problem/31898542 - Swift 4: 'type of expression is ambiguous without more context' errors, without a fixit
+// rdar://problem/31898542 - Swift 4: 'type of expression is ambiguous without a type annotation' errors, without a fixit
 
 enum R31898542<T> {
   case success(T) // expected-note {{'success' declared here}}

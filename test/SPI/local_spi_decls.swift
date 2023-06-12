@@ -9,7 +9,8 @@
 // SPI declarations
 @_spi(MySPI) public func spiFunc() {}
 @_spi(+) public func invalidSPIName() {} // expected-error {{expected an SPI identifier as subject of the '@_spi' attribute}}
-@_spi(🤔) public func emojiNamedSPI() {}
+@_spi(🤔) public func emojiNamedSPI() {} // OK
+@_spi(_) public func underscoreNamedSPI() {} // OK
 @_spi() public func emptyParensSPI() {} // expected-error {{expected an SPI identifier as subject of the '@_spi' attribute}}
 @_spi(set) public func keywordSPI() {} // expected-error {{expected an SPI identifier as subject of the '@_spi' attribute}}
 

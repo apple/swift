@@ -1,0 +1,21 @@
+// RUN: %target-sil-opt -enable-sil-verify-all=true %s | %target-sil-opt -enable-sil-verify-all=true | %FileCheck %s
+
+// CHECK-LABEL: sil @markers : {{.*}} {
+// CHECK:         [[MARKER:%[^,]+]] = alloc_pack_metadata
+// CHECK:         dealloc_pack_metadata [[MARKER]]
+// CHECK-LABEL: } // end sil function 'markers'
+sil @markers : $<each T>() -> () {
+entry:
+  %a = alloc_pack_metadata $()
+  apply undef<Pack{repeat each T}>() : $@convention(thin) <each T>() -> ()
+  dealloc_pack_metadata %a : $*()
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: sil [no_onstack_pack_metadata] @annotation : {{.*}} {
+// CHECK-LABEL: } // end sil function 'annotation'
+sil [no_onstack_pack_metadata] @annotation : $() -> () {
+  %retval = tuple ()
+  return %retval : $()
+}

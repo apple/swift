@@ -129,7 +129,7 @@ static SILBasicBlock *insertBackedgeBlock(SILLoop *L, DominanceInfo *DT,
   for (auto *BBArg : Header->getArguments()) {
     BBArgs.push_back(BEBlock->createPhiArgument(
         BBArg->getType(), BBArg->getOwnershipKind(), /* decl */ nullptr,
-        BBArg->isReborrow(), BBArg->isEscaping()));
+        BBArg->isReborrow(), BBArg->hasPointerEscape()));
   }
 
   // Arbitrarily pick one of the predecessor's branch locations.

@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#if os(macOS)
+#if (os(macOS) || os(Linux)) && (arch(x86_64) || arch(arm64))
 
 #if canImport(Darwin)
 import Darwin.C
@@ -524,7 +524,13 @@ Generate a backtrace for the parent process.
     tcgetattr(0, &oldAttrs)
 
     var newAttrs = oldAttrs
-    newAttrs.c_lflag &= ~(UInt(ICANON) | UInt(ECHO))
+
+    #if os(Linux)
+    newAttrs.c_lflag &= ~UInt32(ICANON | ECHO)
+    #else
+    newAttrs.c_lflag &= ~UInt(ICANON | ECHO)
+    #endif
+
     tcsetattr(0, TCSANOW, &newAttrs)
 
     return oldAttrs
@@ -581,7 +587,7 @@ Generate a backtrace for the parent process.
   static func backtraceFormatter() -> BacktraceFormatter {
     var terminalSize = winsize(ws_row: 24, ws_col: 80,
                                ws_xpixel: 1024, ws_ypixel: 768)
-    _ = ioctl(0, TIOCGWINSZ, &terminalSize)
+    _ = ioctl(0, CUnsignedLong(TIOCGWINSZ), &terminalSize)
 
     return BacktraceFormatter(formattingOptions
                               .theme(theme)
@@ -607,7 +613,6 @@ Generate a backtrace for the parent process.
 
     writeln("")
     writeln(theme.crashReason(description))
-    writeln("")
 
     var mentionedImages = Set<Int>()
     let formatter = backtraceFormatter()
@@ -615,7 +620,7 @@ Generate a backtrace for the parent process.
     func dump(ndx: Int, thread: TargetThread) {
       let crashed = thread.id == target.crashingThread ? " crashed" : ""
       let name = !thread.name.isEmpty ? " \"\(thread.name)\"" : ""
-      writeln("Thread \(ndx)\(name)\(crashed):\n")
+      writeln("\nThread \(ndx)\(name)\(crashed):\n")
 
       if args.registers! == .all {
         if let context = thread.context {
@@ -660,6 +665,7 @@ Generate a backtrace for the parent process.
       }
     }
 
+    let addressWidthInChars = (crashingThread.backtrace.addressWidth + 3) / 4
     switch args.showImages! {
       case .none:
         break
@@ -671,10 +677,12 @@ Generate a backtrace for the parent process.
         } else {
           writeln("\n\nImages:\n")
         }
-        writeln(formatter.format(images: images))
+        writeln(formatter.format(images: images,
+                                 addressWidth: addressWidthInChars))
       case .all:
         writeln("\n\nImages:\n")
-        writeln(formatter.format(images: target.images))
+        writeln(formatter.format(images: target.images,
+                                 addressWidth: addressWidthInChars))
     }
   }
 
@@ -750,11 +758,14 @@ Generate a backtrace for the parent process.
           let name = thread.name.isEmpty ? "" : " \(thread.name)"
           writeln("Thread \(currentThread) id=\(thread.id)\(name)\(crashed)\n")
 
+          let addressWidthInChars = (backtrace.addressWidth + 3) / 4
+
           if let frame = backtrace.frames.drop(while: {
             $0.isSwiftRuntimeFailure
           }).first {
             let formatter = backtraceFormatter()
-            let formatted = formatter.format(frame: frame)
+            let formatted = formatter.format(frame: frame,
+                                             addressWidth: addressWidthInChars)
             writeln("\(formatted)")
           }
           break
@@ -809,6 +820,7 @@ Generate a backtrace for the parent process.
           var rows: [BacktraceFormatter.TableRow] = []
           for (n, thread) in target.threads.enumerated() {
             let backtrace = thread.backtrace
+            let addressWidthInChars = (backtrace.addressWidth + 3) / 4
 
             let crashed: String
             if n == target.crashingThreadNdx {
@@ -827,7 +839,10 @@ Generate a backtrace for the parent process.
               $0.isSwiftRuntimeFailure
             }).first {
 
-              rows += formatter.formatRows(frame: frame).map{ row in
+              rows += formatter.formatRows(
+                frame: frame,
+                addressWidth: addressWidthInChars).map{ row in
+
                 switch row {
                   case let .columns(columns):
                     return .columns([ "", "" ] + columns)
@@ -846,8 +861,11 @@ Generate a backtrace for the parent process.
           writeln(output)
         case "images":
           let formatter = backtraceFormatter()
-          let images = target.threads[currentThread].backtrace.images
-          let output = formatter.format(images: images)
+          let backtrace = target.threads[currentThread].backtrace
+          let images = backtrace.images
+          let addressWidthInChars = (backtrace.addressWidth + 3) / 4
+          let output = formatter.format(images: images,
+                                        addressWidth: addressWidthInChars)
 
           writeln(output)
         case "set":

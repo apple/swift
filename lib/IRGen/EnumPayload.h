@@ -104,7 +104,8 @@ public:
   /// If \p numBitsUsedInValue is non-negative denotes the actual number of bits
   /// that need storing in \p value otherwise the full bit-width of \p value
   /// will be stored.
-  void insertValue(IRGenFunction &IGF,
+  void insertValue(IRGenModule &IGM,
+                   IRBuilder &builder,
                    llvm::Value *value, unsigned bitOffset);
   
   /// Extract a value from the enum payload.
@@ -120,7 +121,8 @@ public:
   void explode(IRGenModule &IGM, Explosion &out) const;
   
   /// Pack into another enum payload.
-  void packIntoEnumPayload(IRGenFunction &IGF,
+  void packIntoEnumPayload(IRGenModule &IGM,
+                           IRBuilder &builder,
                            EnumPayload &dest,
                            unsigned bitOffset) const;
   
@@ -153,7 +155,8 @@ public:
   void emitApplyAndMask(IRGenFunction &IGF, const APInt &mask);
   
   /// Apply an OR mask to the payload.
-  void emitApplyOrMask(IRGenFunction &IGF, const APInt &mask);
+  void emitApplyOrMask(IRGenModule &IGM,
+                       IRBuilder &builder, const APInt &mask);
   
   /// Apply an OR mask to the payload.
   void emitApplyOrMask(IRGenFunction &IGF, EnumPayload mask);
@@ -161,7 +164,8 @@ public:
   /// Scatter the bits in value to the bit positions indicated by the
   /// mask. The new bits are added using OR, so an emitApplyAndMask
   /// call should be used first if existing bits need to be cleared.
-  void emitScatterBits(IRGenFunction &IGF,
+  void emitScatterBits(IRGenModule &IGM,
+                       IRBuilder &builder,
                        const APInt &mask,
                        llvm::Value *value);
 
@@ -170,6 +174,10 @@ public:
                                    const SpareBitVector &spareBits,
                                    unsigned firstBitOffset,
                                    unsigned bitWidth) const;
+
+  void print(llvm::raw_ostream &OS);
+  void dump();
+
 private:
   /// Calculate the total number of bits this payload requires.
   /// This will always be a multiple of 8.

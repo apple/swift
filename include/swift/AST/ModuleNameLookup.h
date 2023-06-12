@@ -62,7 +62,7 @@ void lookupInModule(const DeclContext *moduleOrFile,
                     DeclName name, SmallVectorImpl<ValueDecl *> &decls,
                     NLKind lookupKind, ResolutionKind resolutionKind,
                     const DeclContext *moduleScopeContext,
-                    NLOptions options);
+                    SourceLoc loc, NLOptions options);
 
 /// Performs a qualified lookup into the given module and, if necessary, its
 /// reexports, observing proper shadowing rules.

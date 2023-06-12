@@ -168,8 +168,7 @@ struct FunctionPassContext : MutatingContext {
   var notifyInstructionChanged: (Instruction) -> () { return { inst in } }
 
   func continueWithNextSubpassRun(for inst: Instruction? = nil) -> Bool {
-    let bridgedInst = OptionalBridgedInstruction(inst?.bridged.obj)
-    return _bridged.continueWithNextSubpassRun(bridgedInst)
+    return _bridged.continueWithNextSubpassRun(inst.bridged)
   }
 
   func createSimplifyContext(preserveDebugInfo: Bool, notifyInstructionChanged: @escaping (Instruction) -> ()) -> SimplifyContext {

@@ -133,6 +133,13 @@
 #define SWIFT_COMPUTED_PROPERTY \
   __attribute__((swift_attr("import_computed_property")))
 
+/// Specifies that a specific **constant** C++ member function should be imported as
+/// `mutating` Swift method. This annotation should be added to constant C++ member functions
+/// that mutate `mutable` fields in a C++ object, to let Swift know that this function is still mutating
+/// and thus that it should become a `mutating` method in Swift.
+#define SWIFT_MUTATING \
+  __attribute__((swift_attr("mutating")))
+
 #else  // #if _CXX_INTEROP_HAS_ATTRIBUTE(swift_attr)
 
 // Empty defines for compilers that don't support `attribute(swift_attr)`.
@@ -144,6 +151,7 @@
 #define SWIFT_NAME(_name)
 #define SWIFT_CONFORMS_TO_PROTOCOL(_moduleName_protocolName)
 #define SWIFT_COMPUTED_PROPERTY
+#define SWIFT_MUTATING
 
 #endif // #if _CXX_INTEROP_HAS_ATTRIBUTE(swift_attr)
 

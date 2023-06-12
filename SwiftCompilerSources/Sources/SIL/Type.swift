@@ -31,8 +31,20 @@ public struct Type : CustomStringConvertible, NoReflectionChildren {
     return !bridged.isNonTrivialOrContainsRawPointer(function.bridged.getFunction())
   }
 
+  /// True if this type is a value type (struct/enum) that requires deinitialization beyond
+  /// destruction of its members.
+  public var isValueTypeWithDeinit: Bool { bridged.isValueTypeWithDeinit() }
+
+  public func isLoadable(in function: Function) -> Bool {
+    return bridged.isLoadable(function.bridged.getFunction())
+  }
+
   public func isReferenceCounted(in function: Function) -> Bool {
     return bridged.isReferenceCounted(function.bridged.getFunction())
+  }
+
+  public var isUnownedStorageType: Bool {
+    return bridged.isUnownedStorageType()
   }
 
   public var hasArchetype: Bool { bridged.hasArchetype() }

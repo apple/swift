@@ -21,21 +21,45 @@ if(SWIFT_BUILD_STDLIB AND SWIFT_ENABLE_EXPERIMENTAL_CONCURRENCY)
 endif()
 
 set(BACKTRACING_SOURCES
+  ArrayImageSource.swift
   Backtrace.swift
   BacktraceFormatter.swift
+  ByteSwapping.swift
   Context.swift
+  Compression.swift
   CoreSymbolication.swift
+  Dwarf.swift
+  Elf.swift
+  FileImageSource.swift
   FramePointerUnwinder.swift
+  Image.swift
+  ImageSource.swift
+  MemoryImageSource.swift
   MemoryReader.swift
+  ProcMapsScanner.swift
   Registers.swift
   SymbolicatedBacktrace.swift
   Utils.swift
-  Shims.cpp
+  Win32Extras.cpp
 
   get-cpu-context.${SWIFT_ASM_EXT}
 )
 
-set(BACKTRACING_COMPILE_FLAGS)
+set(BACKTRACING_COMPILE_FLAGS
+  "-Xfrontend;-experimental-spi-only-imports"
+  "-Xcc;-I${SWIFT_SOURCE_DIR}/include"
+  "-Xcc;-I${CMAKE_BINARY_DIR}/include"
+  "-Xcc;-fno-implicit-module-maps"
+  "-Xcc;-fbuiltin-module-map"
+  "-Xcc;-fmodule-map-file=${SWIFT_STDLIB_SOURCE_DIR}/public/SwiftShims/swift/shims/module.modulemap"
+  "-Xcc;-fmodule-map-file=${SWIFT_STDLIB_SOURCE_DIR}/public/Backtracing/modules/module.modulemap")
+
+###TODO: Add these when we add static linking support
+#
+#list(APPEND BACKTRACING_COMPILE_FLAGS
+#  "-Xcc;-I${SWIFT_PATH_TO_ZLIB_SOURCE}"
+#  "-Xcc;-I${SWIFT_PATH_TO_ZSTD_SOURCE}/lib"
+#  "-Xcc;-I${SWIFT_PATH_TO_LIBLZMA_SOURCE}/src/liblzma/api")
 
 if(SWIFT_ASM_AVAILABLE)
   list(APPEND BACKTRACING_SOURCES get-cpu-context.${SWIFT_ASM_EXT})
@@ -67,5 +91,5 @@ add_swift_target_library(swift_Backtracing ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} I
   INSTALL_IN_COMPONENT stdlib
   MACCATALYST_BUILD_FLAVOR "zippered"
 
-  TARGET_SDKS OSX
+  TARGET_SDKS OSX LINUX
 )

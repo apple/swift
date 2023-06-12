@@ -3472,12 +3472,11 @@ ParserResult<Expr> Parser::parseExprMacroExpansion(bool isExprBasic) {
 
   return makeParserResult(
       status,
-      new (Context) MacroExpansionExpr(
+      MacroExpansionExpr::create(
           CurDeclContext, poundLoc, macroNameRef, macroNameLoc, leftAngleLoc,
           Context.AllocateCopy(genericArgs), rightAngleLoc, argList,
-          CurDeclContext->isTypeContext()
-              ? MacroRole::Declaration
-              : getFreestandingMacroRoles()));
+          CurDeclContext->isTypeContext() ? MacroRole::Declaration
+                                          : getFreestandingMacroRoles()));
 }
 
 /// parseExprCollection - Parse a collection literal expression.

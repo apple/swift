@@ -4,13 +4,15 @@ import SwiftSyntax
 
 fileprivate func emitDiagnosticParts(
   diagEnginePtr: UnsafeMutablePointer<UInt8>,
-  sourceFileBuffer: UnsafeMutableBufferPointer<UInt8>,
+  sourceFileBuffer: UnsafeBufferPointer<UInt8>,
   message: String,
   severity: DiagnosticSeverity,
   position: AbsolutePosition,
   highlights: [Syntax] = [],
   fixItChanges: [FixIt.Change] = []
 ) {
+  let bridgedDiagEngine = BridgedDiagnosticEngine(raw: diagEnginePtr)
+
   // Map severity
   let bridgedSeverity: BridgedDiagnosticSeverity
   switch severity {
@@ -19,75 +21,66 @@ fileprivate func emitDiagnosticParts(
     case .warning: bridgedSeverity = .warning
   }
 
-  // Form a source location for the given absolute position
-  func sourceLoc(
-    at position: AbsolutePosition
-  ) -> UnsafeMutablePointer<UInt8>? {
-    if let sourceFileBase = sourceFileBuffer.baseAddress,
-      position.utf8Offset >= 0 &&
-        position.utf8Offset < sourceFileBuffer.count {
-      return sourceFileBase + position.utf8Offset
-    }
-
-    return nil
+  func bridgedSourceLoc(at position: AbsolutePosition) -> BridgedSourceLoc {
+    return BridgedSourceLoc(at: position, in: sourceFileBuffer)
   }
 
   // Emit the diagnostic
   var mutableMessage = message
-  let diag = mutableMessage.withUTF8 { messageBuffer in
-    SwiftDiagnostic_create(
-      diagEnginePtr, bridgedSeverity, sourceLoc(at: position),
-      messageBuffer.baseAddress, messageBuffer.count
+  let diag = mutableMessage.withBridgedString { bridgedMessage in
+    Diagnostic_create(
+      bridgedDiagEngine, bridgedSeverity, bridgedSourceLoc(at: position),
+      bridgedMessage
     )
   }
 
   // Emit highlights
   for highlight in highlights {
-    SwiftDiagnostic_highlight(
-      diag, sourceLoc(at: highlight.positionAfterSkippingLeadingTrivia),
-      sourceLoc(at: highlight.endPositionBeforeTrailingTrivia)
+    Diagnostic_highlight(
+      diag, bridgedSourceLoc(at: highlight.positionAfterSkippingLeadingTrivia),
+      bridgedSourceLoc(at: highlight.endPositionBeforeTrailingTrivia)
     )
   }
 
   // Emit changes for a Fix-It.
   for change in fixItChanges {
-    let replaceStartLoc: UnsafeMutablePointer<UInt8>?
-    let replaceEndLoc: UnsafeMutablePointer<UInt8>?
+    let replaceStartLoc: BridgedSourceLoc
+    let replaceEndLoc: BridgedSourceLoc
     var newText: String
 
     switch change {
     case .replace(let oldNode, let newNode):
-      replaceStartLoc = sourceLoc(at: oldNode.position)
-      replaceEndLoc = sourceLoc(at: oldNode.endPosition)
+      replaceStartLoc = bridgedSourceLoc(at: oldNode.position)
+      replaceEndLoc = bridgedSourceLoc(at: oldNode.endPosition)
       newText = newNode.description
 
     case .replaceLeadingTrivia(let oldToken, let newTrivia):
-      replaceStartLoc = sourceLoc(at: oldToken.position)
-      replaceEndLoc = sourceLoc(
+      replaceStartLoc = bridgedSourceLoc(at: oldToken.position)
+      replaceEndLoc = bridgedSourceLoc(
         at: oldToken.positionAfterSkippingLeadingTrivia)
       newText = newTrivia.description
 
     case .replaceTrailingTrivia(let oldToken, let newTrivia):
-      replaceStartLoc = sourceLoc(at: oldToken.endPositionBeforeTrailingTrivia)
-      replaceEndLoc = sourceLoc(at: oldToken.endPosition)
+      replaceStartLoc = bridgedSourceLoc(at: oldToken.endPositionBeforeTrailingTrivia)
+      replaceEndLoc = bridgedSourceLoc(at: oldToken.endPosition)
       newText = newTrivia.description
     }
 
-    newText.withUTF8 { textBuffer in
-      SwiftDiagnostic_fixItReplace(
+    newText.withBridgedString { bridgedMessage in
+      Diagnostic_fixItReplace(
         diag, replaceStartLoc, replaceEndLoc,
-        textBuffer.baseAddress, textBuffer.count
+        bridgedMessage
       )
     }
   }
 
-  SwiftDiagnostic_finish(diag);
+  Diagnostic_finish(diag);
 }
 
 /// Emit the given diagnostic via the diagnostic engine.
 func emitDiagnostic(
   diagEnginePtr: UnsafeMutablePointer<UInt8>,
-  sourceFileBuffer: UnsafeMutableBufferPointer<UInt8>,
+  sourceFileBuffer: UnsafeBufferPointer<UInt8>,
   diagnostic: Diagnostic,
   diagnosticSeverity: DiagnosticSeverity,
   messageSuffix: String? = nil
@@ -145,69 +138,69 @@ extension SourceManager {
 
     // Emit the diagnostic
     var mutableMessage = message
-    let diag = mutableMessage.withUTF8 { messageBuffer in
-      SwiftDiagnostic_create(
-        cxxDiagnosticEngine, bridgedSeverity,
-        cxxSourceLocation(for: node, at: position),
-        messageBuffer.baseAddress, messageBuffer.count
+    let diag = mutableMessage.withBridgedString { bridgedMessage in
+      Diagnostic_create(
+        bridgedDiagEngine, bridgedSeverity,
+        bridgedSourceLoc(for: node, at: position),
+        bridgedMessage
       )
     }
 
     // Emit highlights
     for highlight in highlights {
-      SwiftDiagnostic_highlight(
+      Diagnostic_highlight(
         diag,
-        cxxSourceLocation(for: highlight, at: highlight.positionAfterSkippingLeadingTrivia),
-        cxxSourceLocation(for: highlight, at: highlight.endPositionBeforeTrailingTrivia)
+        bridgedSourceLoc(for: highlight, at: highlight.positionAfterSkippingLeadingTrivia),
+        bridgedSourceLoc(for: highlight, at: highlight.endPositionBeforeTrailingTrivia)
       )
     }
 
     // Emit changes for a Fix-It.
     for change in fixItChanges {
-      let replaceStartLoc: CxxSourceLoc?
-      let replaceEndLoc: CxxSourceLoc?
+      let replaceStartLoc: BridgedSourceLoc
+      let replaceEndLoc: BridgedSourceLoc
       var newText: String
 
       switch change {
       case .replace(let oldNode, let newNode):
-        replaceStartLoc = cxxSourceLocation(
+        replaceStartLoc = bridgedSourceLoc(
           for: oldNode,
           at: oldNode.positionAfterSkippingLeadingTrivia
         )
-        replaceEndLoc = cxxSourceLocation(
+        replaceEndLoc = bridgedSourceLoc(
           for: oldNode,
           at: oldNode.endPositionBeforeTrailingTrivia
         )
         newText = newNode.description
 
       case .replaceLeadingTrivia(let oldToken, let newTrivia):
-        replaceStartLoc = cxxSourceLocation(for: oldToken)
-        replaceEndLoc = cxxSourceLocation(
+        replaceStartLoc = bridgedSourceLoc(for: oldToken)
+        replaceEndLoc = bridgedSourceLoc(
           for: oldToken,
           at: oldToken.positionAfterSkippingLeadingTrivia
         )
         newText = newTrivia.description
 
       case .replaceTrailingTrivia(let oldToken, let newTrivia):
-        replaceStartLoc = cxxSourceLocation(
+        replaceStartLoc = bridgedSourceLoc(
           for: oldToken,
           at: oldToken.endPositionBeforeTrailingTrivia)
-        replaceEndLoc = cxxSourceLocation(
+        replaceEndLoc = bridgedSourceLoc(
           for: oldToken,
           at: oldToken.endPosition
         )
         newText = newTrivia.description
       }
 
-      newText.withUTF8 { textBuffer in
-        SwiftDiagnostic_fixItReplace(
+      newText.withBridgedString { bridgedMessage in
+        Diagnostic_fixItReplace(
           diag, replaceStartLoc, replaceEndLoc,
-          textBuffer.baseAddress, textBuffer.count
+          bridgedMessage
         )
       }
     }
 
-    SwiftDiagnostic_finish(diag);
+    Diagnostic_finish(diag);
   }
 
   /// Emit a diagnostic via the C++ diagnostic engine.
@@ -357,13 +350,17 @@ public func addQueuedDiagnostic(
   text: UnsafePointer<UInt8>,
   textLength: Int,
   severity: BridgedDiagnosticSeverity,
-  position: CxxSourceLoc,
-  highlightRangesPtr: UnsafePointer<CxxSourceLoc>?,
+  position: BridgedSourceLoc,
+  highlightRangesPtr: UnsafePointer<BridgedSourceLoc>?,
   numHighlightRanges: Int
 ) {
   let queuedDiagnostics = queuedDiagnosticsPtr.assumingMemoryBound(
     to: QueuedDiagnostics.self
   )
+
+  guard let rawPosition = position.raw else {
+    return
+  }
 
   // Find the source file that contains this location.
   let sourceFile = queuedDiagnostics.pointee.sourceFiles.first { sf in
@@ -371,7 +368,7 @@ public func addQueuedDiagnostic(
       return false
     }
 
-    return position >= baseAddress && position < baseAddress + sf.buffer.count
+    return rawPosition >= baseAddress && rawPosition < baseAddress + sf.buffer.count
   }
   guard let sourceFile = sourceFile else {
     // FIXME: Hard to report an error here...
@@ -379,22 +376,24 @@ public func addQueuedDiagnostic(
   }
 
   // Find the token at that offset.
-  let sourceFileBaseAddress = sourceFile.buffer.baseAddress!
+  let sourceFileBaseAddress = UnsafeRawPointer(sourceFile.buffer.baseAddress!)
   let sourceFileEndAddress = sourceFileBaseAddress + sourceFile.buffer.count
-  let offset = position - sourceFileBaseAddress
+  let offset = rawPosition - sourceFileBaseAddress
   guard let token = sourceFile.syntax.token(at: AbsolutePosition(utf8Offset: offset)) else {
     return
   }
 
   // Map the highlights.
   var highlights: [Syntax] = []
-  let highlightRanges = UnsafeBufferPointer<CxxSourceLoc>(
+  let highlightRanges = UnsafeBufferPointer<BridgedSourceLoc>(
     start: highlightRangesPtr, count: numHighlightRanges * 2
   )
   for index in 0..<numHighlightRanges {
     // Make sure both the start and the end land within this source file.
-    let start = highlightRanges[index * 2]
-    let end = highlightRanges[index * 2 + 1]
+    guard let start = highlightRanges[index * 2].raw,
+          let end = highlightRanges[index * 2 + 1].raw  else {
+      continue
+    }
 
     guard start >= sourceFileBaseAddress && start < sourceFileEndAddress,
           end >= sourceFileBaseAddress && end <= sourceFileEndAddress else {

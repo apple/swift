@@ -12,9 +12,18 @@
 
 #include "swift/Sema/CompletionContextFinder.h"
 #include "swift/Parse/Lexer.h"
+#include "swift/Sema/SyntacticElementTarget.h"
 
 using namespace swift;
+using namespace constraints;
 using Fallback = CompletionContextFinder::Fallback;
+
+CompletionContextFinder::CompletionContextFinder(
+    SyntacticElementTarget target, DeclContext *DC)
+    : InitialExpr(target.getAsExpr()), InitialDC(DC) {
+  assert(DC);
+  target.walk(*this);
+}
 
 ASTWalker::PreWalkResult<Expr *>
 CompletionContextFinder::walkToExprPre(Expr *E) {

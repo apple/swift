@@ -123,6 +123,12 @@ SubElementOffset::computeForAddress(SILValue projectionDerivedFromRoot,
       continue;
     }
 
+    if (auto *m = dyn_cast<MoveOnlyWrapperToCopyableAddrInst>(
+            projectionDerivedFromRoot)) {
+      projectionDerivedFromRoot = m->getOperand();
+      continue;
+    }
+
     if (auto *teai =
             dyn_cast<TupleElementAddrInst>(projectionDerivedFromRoot)) {
       SILType tupleType = teai->getOperand()->getType();

@@ -107,3 +107,7 @@ SWIFT_REQUEST(NameLookup, HasDynamicMemberLookupAttributeRequest,
               bool(NominalTypeDecl *), Cached, NoLocationInfo)
 SWIFT_REQUEST(NameLookup, HasDynamicCallableAttributeRequest,
               bool(NominalTypeDecl *), Cached, NoLocationInfo)
+SWIFT_REQUEST(NameLookup, PotentialMacroExpansionsInContextRequest,
+              PotentialMacroExpansions(TypeOrExtension), Cached, NoLocationInfo)
+SWIFT_REQUEST(NameLookup, ImplementsAttrProtocolRequest,
+              ProtocolDecl *(const ImplementsAttr *, DeclContext *), Cached, NoLocationInfo)

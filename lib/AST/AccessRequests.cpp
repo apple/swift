@@ -61,6 +61,9 @@ AccessLevelRequest::evaluate(Evaluator &evaluator, ValueDecl *D) const {
     case AccessorKind::DidSet:
       // These are only needed to synthesize the setter.
       return AccessLevel::Private;
+    case AccessorKind::Init:
+      // These are only called from designated initializers.
+      return AccessLevel::Private;
     }
   }
 

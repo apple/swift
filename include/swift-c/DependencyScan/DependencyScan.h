@@ -25,7 +25,7 @@
 /// SWIFTSCAN_VERSION_MINOR should increase when there are API additions.
 /// SWIFTSCAN_VERSION_MAJOR is intended for "major" source/ABI breaking changes.
 #define SWIFTSCAN_VERSION_MAJOR 0
-#define SWIFTSCAN_VERSION_MINOR 3
+#define SWIFTSCAN_VERSION_MINOR 4
 
 SWIFTSCAN_BEGIN_DECLS
 
@@ -140,6 +140,10 @@ swiftscan_swift_textual_detail_get_command_line(
     swiftscan_module_details_t details);
 
 SWIFTSCAN_PUBLIC swiftscan_string_set_t *
+swiftscan_swift_textual_detail_get_bridging_pch_command_line(
+    swiftscan_module_details_t details);
+
+SWIFTSCAN_PUBLIC swiftscan_string_set_t *
 swiftscan_swift_textual_detail_get_extra_pcm_args(
     swiftscan_module_details_t details);
 
@@ -152,6 +156,14 @@ SWIFTSCAN_PUBLIC bool swiftscan_swift_textual_detail_get_is_framework(
 
 SWIFTSCAN_PUBLIC swiftscan_string_set_t *
 swiftscan_swift_textual_detail_get_swift_overlay_dependencies(
+    swiftscan_module_details_t details);
+
+SWIFTSCAN_PUBLIC swiftscan_string_ref_t
+swiftscan_swift_textual_detail_get_cas_fs_root_id(
+    swiftscan_module_details_t details);
+
+SWIFTSCAN_PUBLIC swiftscan_string_ref_t
+swiftscan_swift_textual_detail_get_module_cache_key(
     swiftscan_module_details_t details);
 
 //=== Swift Binary Module Details query APIs ------------------------------===//
@@ -170,6 +182,10 @@ swiftscan_swift_binary_detail_get_module_source_info_path(
 
 SWIFTSCAN_PUBLIC bool
 swiftscan_swift_binary_detail_get_is_framework(
+    swiftscan_module_details_t details);
+
+SWIFTSCAN_PUBLIC swiftscan_string_ref_t
+swiftscan_swift_binary_detail_get_module_cache_key(
     swiftscan_module_details_t details);
 
 //=== Swift Placeholder Module Details query APIs -------------------------===//
@@ -199,6 +215,12 @@ swiftscan_clang_detail_get_command_line(swiftscan_module_details_t details);
 
 SWIFTSCAN_PUBLIC swiftscan_string_set_t *
 swiftscan_clang_detail_get_captured_pcm_args(swiftscan_module_details_t details);
+
+SWIFTSCAN_PUBLIC swiftscan_string_ref_t
+swiftscan_clang_detail_get_cas_fs_root_id(swiftscan_module_details_t details);
+
+SWIFTSCAN_PUBLIC swiftscan_string_ref_t
+swiftscan_clang_detail_get_module_cache_key(swiftscan_module_details_t details);
 
 //=== Batch Scan Input Functions ------------------------------------------===//
 
@@ -401,6 +423,40 @@ swiftscan_scanner_cache_reset(swiftscan_scanner_t scanner);
 
 /// An entry point to invoke the compiler via a library call.
 SWIFTSCAN_PUBLIC int invoke_swift_compiler(int argc, const char **argv);
+
+//=== Scanner CAS Operations ----------------------------------------------===//
+
+/// Opaque container for a CAS instance that includes both ObjectStore and
+/// ActionCache.
+typedef struct swiftscan_cas_s *swiftscan_cas_t;
+
+/// Enum types for output types for cache key computation.
+/// TODO: complete the list.
+typedef enum {
+  SWIFTSCAN_OUTPUT_TYPE_OBJECT = 0,
+  SWIFTSCAN_OUTPUT_TYPE_SWIFTMODULE = 1,
+  SWIFTSCAN_OUTPUT_TYPE_SWIFTINTERFACE = 2,
+  SWIFTSCAN_OUTPUT_TYPE_SWIFTPRIAVEINTERFACE = 3,
+  SWIFTSCAN_OUTPUT_TYPE_CLANG_MODULE = 4,
+  SWIFTSCAN_OUTPUT_TYPE_CLANG_PCH = 5
+} swiftscan_output_kind_t;
+
+/// Create a \c cas instance that points to path.
+SWIFTSCAN_PUBLIC swiftscan_cas_t swiftscan_cas_create(const char *path);
+
+/// Dispose the \c cas instance.
+SWIFTSCAN_PUBLIC void swiftscan_cas_dispose(swiftscan_cas_t cas);
+
+/// Store content into CAS. Return \c CASID as string.
+SWIFTSCAN_PUBLIC swiftscan_string_ref_t swiftscan_cas_store(swiftscan_cas_t cas,
+                                                            uint8_t *data,
+                                                            unsigned size);
+
+/// Compute \c CacheKey for output of \c kind from the compiler invocation \c
+/// argc and \c argv with \c input. Return \c CacheKey as string.
+SWIFTSCAN_PUBLIC swiftscan_string_ref_t
+swiftscan_compute_cache_key(swiftscan_cas_t cas, int argc, const char **argv,
+                            const char *input, swiftscan_output_kind_t kind);
 
 //===----------------------------------------------------------------------===//
 

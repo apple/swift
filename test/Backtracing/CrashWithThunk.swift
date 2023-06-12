@@ -1,15 +1,15 @@
 // RUN: %empty-directory(%t)
 // RUN: %target-build-swift %s -parse-as-library -Onone -g -o %t/CrashWithThunk
 // RUN: %target-codesign %t/CrashWithThunk
-// RUN: (env SWIFT_BACKTRACE=enable=yes,cache=no %target-run %t/CrashWithThunk || true) | %FileCheck %s
-// RUN: (env SWIFT_BACKTRACE=preset=friendly,enable=yes,cache=no %target-run %t/CrashWithThunk || true) | %FileCheck %s --check-prefix FRIENDLY
+// RUN: (env SWIFT_BACKTRACE=enable=yes,cache=no %target-run %t/CrashWithThunk 2>&1 || true) | %FileCheck %s
+// RUN: (env SWIFT_BACKTRACE=preset=friendly,enable=yes,cache=no %target-run %t/CrashWithThunk 2>&1 || true) | %FileCheck %s --check-prefix FRIENDLY
 
 // UNSUPPORTED: use_os_stdlib
 // UNSUPPORTED: back_deployment_runtime
 // UNSUPPORTED: asan
 // REQUIRES: executable_test
 // REQUIRES: backtracing
-// REQUIRES: OS=macosx
+// REQUIRES: OS=macosx || OS=linux-gnu
 
 struct Foo<T> {
   var value: T
@@ -32,7 +32,7 @@ struct CrashWithThunk {
 
 // CHECK: *** Program crashed: Bad pointer dereference at 0x{{0+}}4 ***
 
-// CHECK: Thread 0 crashed:
+// CHECK: Thread 0 {{(".*" )?}}crashed:
 
 // CHECK: 0                    0x{{[0-9a-f]+}} crash() + {{[0-9]+}} in CrashWithThunk at {{.*}}/CrashWithThunk.swift:21:15
 // CHECK-NEXT: 1 [ra] [thunk]  0x{{[0-9a-f]+}} thunk for @escaping @callee_guaranteed () -> () + {{[0-9]+}} in CrashWithThunk at {{.*}}/Backtracing/<compiler-generated>
@@ -44,11 +44,11 @@ struct CrashWithThunk {
 
 // CHECK: Images ({{[0-9]+}} omitted):
 
-// CHECK: {{0x[0-9a-f]+}}–{{0x[0-9a-f]+}}{{ +}}{{[0-9a-f]+}}{{ +}}CrashWithThunk{{ +}}{{.*}}/CrashWithThunk
+// CHECK: {{0x[0-9a-f]+}}–{{0x[0-9a-f]+}}{{ +}}{{[0-9a-f]+|<no build ID>}}{{ +}}CrashWithThunk{{ +}}{{.*}}/CrashWithThunk
 
 // FRIENDLY: *** Program crashed: Bad pointer dereference at 0x{{0+}}4 ***
 
-// FRIENDLY: Thread 0 crashed:
+// FRIENDLY: Thread 0 {{(".*" )?}}crashed:
 
 // FRIENDLY: 0 crash() + {{[0-9]+}} in CrashWithThunk at {{.*}}/CrashWithThunk.swift:21:15
 

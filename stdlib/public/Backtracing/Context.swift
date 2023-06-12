@@ -19,7 +19,13 @@
 
 import Swift
 
-@_implementationOnly import _SwiftBacktracingShims
+#if os(macOS) || os(iOS) || os(watchOS) || os(tvOS)
+@_implementationOnly import OS.Darwin
+#elseif os(Linux)
+@_implementationOnly import OS.Linux
+#endif
+
+@_implementationOnly import FixedLayout
 
 @_spi(Contexts) public enum ContextError: Error {
   case unableToFormTLSAddress
@@ -38,6 +44,9 @@ import Swift
   /// An enumerated type defining the registers for the machine (this comes
   /// from the architecture specific DWARF specification).
   associatedtype Register: RawRepresentable where Register.RawValue == Int
+
+  /// The architecture tag for this context (e.g. arm64, x86_64)
+  var architecture: String { get }
 
   /// The program counter; this is likely a return address
   var programCounter: GPRValue { get set }
@@ -188,6 +197,8 @@ extension arm_gprs {
 
   var gprs = x86_64_gprs()
 
+  public var architecture: String { "x86_64" }
+
   public var programCounter: Address {
     get { return gprs.rip }
     set {
@@ -216,12 +227,12 @@ extension arm_gprs {
   public static var registerCount: Int { return 56 }
 
   #if os(macOS) && arch(x86_64)
-  init?(from thread: __swift_thread_t) {
+  init?(from thread: thread_t) {
     var state = darwin_x86_64_thread_state()
     let kr = thread_get_state(thread,
-                              _SWIFT_X86_THREAD_STATE64,
+                              X86_THREAD_STATE64,
                               &state)
-    if kr != _SWIFT_KERN_SUCCESS {
+    if kr != KERN_SUCCESS {
       return nil
     }
 
@@ -258,11 +269,40 @@ extension arm_gprs {
   }
 
   public static func fromHostThread(_ thread: Any) -> HostContext? {
-    return X86_64Context(from: thread as! __swift_thread_t)
+    return X86_64Context(from: thread as! thread_t)
   }
 
   public static func fromHostMContext(_ mcontext: Any) -> HostContext {
     return X86_64Context(with: mcontext as! darwin_x86_64_mcontext)
+  }
+  #elseif os(Linux) && arch(x86_64)
+  init(with mctx: mcontext_t) {
+    gprs.setR(X86_64Register.rax.rawValue, to: UInt64(bitPattern: mctx.gregs.13))
+    gprs.setR(X86_64Register.rbx.rawValue, to: UInt64(bitPattern: mctx.gregs.12))
+    gprs.setR(X86_64Register.rcx.rawValue, to: UInt64(bitPattern: mctx.gregs.14))
+    gprs.setR(X86_64Register.rdx.rawValue, to: UInt64(bitPattern: mctx.gregs.11))
+    gprs.setR(X86_64Register.rdi.rawValue, to: UInt64(bitPattern: mctx.gregs.9))
+    gprs.setR(X86_64Register.rsi.rawValue, to: UInt64(bitPattern: mctx.gregs.8))
+    gprs.setR(X86_64Register.rbp.rawValue, to: UInt64(bitPattern: mctx.gregs.10))
+    gprs.setR(X86_64Register.rsp.rawValue, to: UInt64(bitPattern: mctx.gregs.15))
+    gprs.setR(X86_64Register.r8.rawValue, to: UInt64(bitPattern: mctx.gregs.0))
+    gprs.setR(X86_64Register.r9.rawValue, to: UInt64(bitPattern: mctx.gregs.1))
+    gprs.setR(X86_64Register.r10.rawValue, to: UInt64(bitPattern: mctx.gregs.2))
+    gprs.setR(X86_64Register.r11.rawValue, to: UInt64(bitPattern: mctx.gregs.3))
+    gprs.setR(X86_64Register.r12.rawValue, to: UInt64(bitPattern: mctx.gregs.4))
+    gprs.setR(X86_64Register.r13.rawValue, to: UInt64(bitPattern: mctx.gregs.5))
+    gprs.setR(X86_64Register.r14.rawValue, to: UInt64(bitPattern: mctx.gregs.6))
+    gprs.setR(X86_64Register.r15.rawValue, to: UInt64(bitPattern: mctx.gregs.7))
+    gprs.rip = UInt64(bitPattern: mctx.gregs.16)
+    gprs.rflags = UInt64(bitPattern: mctx.gregs.17)
+    gprs.cs = UInt16(mctx.gregs.18 & 0xffff)
+    gprs.fs = UInt16((mctx.gregs.18 >> 16) & 0xffff)
+    gprs.gs = UInt16((mctx.gregs.18 >> 32) & 0xffff)
+    gprs.valid = 0x1fffff
+  }
+
+  public static func fromHostMContext(_ mcontext: Any) -> HostContext {
+    return X86_64Context(with: mcontext as! mcontext_t)
   }
   #endif
 
@@ -398,6 +438,8 @@ extension arm_gprs {
 
   var gprs = i386_gprs()
 
+  public var architecture: String { "i386" }
+
   public var programCounter: GPRValue {
     get { return gprs.eip }
     set {
@@ -422,6 +464,32 @@ extension arm_gprs {
   }
 
   public static var registerCount: Int { return 50 }
+
+  #if os(Linux) && arch(i386)
+  init(with mctx: mcontext_t) {
+    gprs.setR(I386Register.eax.rawValue, to: UInt32(bitPattern: mctx.gregs.11))
+    gprs.setR(I386Register.ecx.rawValue, to: UInt32(bitPattern: mctx.gregs.10))
+    gprs.setR(I386Register.edx.rawValue, to: UInt32(bitPattern: mctx.gregs.9))
+    gprs.setR(I386Register.ebx.rawValue, to: UInt32(bitPattern: mctx.gregs.8))
+    gprs.setR(I386Register.esp.rawValue, to: UInt32(bitPattern: mctx.gregs.7))
+    gprs.setR(I386Register.ebp.rawValue, to: UInt32(bitPattern: mctx.gregs.6))
+    gprs.setR(I386Register.ebp.rawValue, to: UInt32(bitPattern: mctx.gregs.5))
+    gprs.setR(I386Register.ebp.rawValue, to: UInt32(bitPattern: mctx.gregs.4))
+    gprs.eip = UInt32(bitPattern: mctx.gregs.14)
+    gprs.eflags = UInt32(bitPattern: mctx.gregs.16)
+    gprs.segreg.0 = UInt16(bitPattern: mctx.gregs.2 & 0xffff)  // es
+    gprs.segreg.1 = UInt16(bitPattern: mctx.gregs.15 & 0xffff) // cs
+    gprs.segreg.2 = UInt16(bitPattern: mctx.gregs.18 & 0xffff) // ss
+    gprs.segreg.3 = UInt16(bitPattern: mctx.gregs.3 & 0xffff)  // ds
+    gprs.segreg.4 = UInt16(bitPattern: mctx.gregs.1 & 0xffff)  // fs
+    gprs.segreg.5 = UInt16(bitPattern: mctx.gregs.0 & 0xffff)  // gs
+    gprs.valid = 0x7fff
+  }
+
+  public static func fromHostMContext(_ mcontext: Any) -> HostContext {
+    return I386Context(with: mcontext as! mcontext_t)
+  }
+  #endif
 
   #if os(Windows) || !SWIFT_ASM_AVAILABLE
   struct NotImplemented: Error {}
@@ -553,6 +621,8 @@ extension arm_gprs {
 
   var gprs = arm64_gprs()
 
+  public var architecture: String { "arm64" }
+
   public var programCounter: GPRValue {
     get { return gprs.pc }
     set {
@@ -583,12 +653,12 @@ extension arm_gprs {
   public static var registerCount: Int { return 40 }
 
   #if os(macOS) && arch(arm64)
-  init?(from thread: __swift_thread_t) {
+  init?(from thread: thread_t) {
     var state = darwin_arm64_thread_state()
     let kr = thread_get_state(thread,
-                              _SWIFT_ARM_THREAD_STATE64,
+                              ARM_THREAD_STATE64,
                               &state)
-    if kr != _SWIFT_KERN_SUCCESS {
+    if kr != KERN_SUCCESS {
       return nil
     }
 
@@ -620,13 +690,35 @@ extension arm_gprs {
   }
 
   public static func fromHostThread(_ thread: Any) -> HostContext? {
-    return ARM64Context(from: thread as! __swift_thread_t)
+    return ARM64Context(from: thread as! thread_t)
   }
 
   public static func fromHostMContext(_ mcontext: Any) -> HostContext {
     return ARM64Context(with: mcontext as! darwin_arm64_mcontext)
   }
-#endif
+  #elseif os(Linux) && arch(arm64)
+  init(with mctx: mcontext_t) {
+    withUnsafeMutablePointer(to: &gprs._x) {
+      $0.withMemoryRebound(to: UInt64.self, capacity: 32){ to in
+        withUnsafePointer(to: mctx.regs) {
+          $0.withMemoryRebound(to: UInt64.self, capacity: 31) { from in
+            for n in 0..<31 {
+              to[n] = from[n]
+            }
+          }
+        }
+
+	to[31] = mctx.sp
+      }
+    }
+    gprs.pc = mctx.pc
+    gprs.valid = 0x1ffffffff
+  }
+
+  public static func fromHostMContext(_ mcontext: Any) -> HostContext {
+    return ARM64Context(with: mcontext as! mcontext_t)
+  }
+  #endif
 
   #if os(Windows) || !SWIFT_ASM_AVAILABLE
   struct NotImplemented: Error {}
@@ -747,6 +839,8 @@ extension arm_gprs {
 
   var gprs = arm_gprs()
 
+  public var architecture: String { "arm" }
+
   public var programCounter: GPRValue {
     get { return gprs.getR(ARMRegister.r15.rawValue) }
     set { gprs.setR(ARMRegister.r15.rawValue, to: newValue) }
@@ -768,6 +862,27 @@ extension arm_gprs {
   }
 
   public static var registerCount: Int { return 16 }
+
+  #if os(Linux) && arch(arm)
+  init(with mctx: mcontext_t) {
+    withUnsafeMutablePointer(to: &gprs._r) {
+      $0.withMemoryRebound(to: UInt32.self, capacity: 16) {
+        withUnsafePointer(to: &mctx.arm_r0) {
+          $0.withMemoryRebound(to: UInt32.self, capacity: 16) {
+            for n in 0..<16 {
+              to[n] = from[n]
+            }
+          }
+        }
+      }
+    }
+    gprs.valid = 0xffff
+  }
+
+  public static func fromHostMContext(_ mcontext: Any) -> HostContext {
+    return ARMContext(with: mcontext as! mcontext_t)
+  }
+  #endif
 
   #if os(Windows) || !SWIFT_ASM_AVAILABLE
   struct NotImplemented: Error {}
@@ -860,20 +975,20 @@ extension arm_gprs {
 // .. Darwin specifics .........................................................
 
 #if (os(macOS) || os(iOS) || os(watchOS) || os(tvOS))
-private func thread_get_state<T>(_ thread: __swift_thread_t,
+private func thread_get_state<T>(_ thread: thread_t,
                                  _ flavor: CInt,
-                                 _ result: inout T) -> __swift_kern_return_t {
-  var count: __swift_msg_type_number_t
-    = __swift_msg_type_number_t(MemoryLayout<T>.stride
-                                / MemoryLayout<__swift_natural_t>.stride)
+                                 _ result: inout T) -> kern_return_t {
+  var count: mach_msg_type_number_t
+    = mach_msg_type_number_t(MemoryLayout<T>.stride
+                               / MemoryLayout<natural_t>.stride)
 
   return withUnsafeMutablePointer(to: &result) { ptr in
-    ptr.withMemoryRebound(to: __swift_natural_t.self,
+    ptr.withMemoryRebound(to: natural_t.self,
                           capacity: Int(count)) { intPtr in
-      return _swift_backtrace_thread_get_state(thread,
-                                               __swift_thread_state_flavor_t(flavor),
-                                               intPtr,
-                                               &count)
+      return thread_get_state(thread,
+                              thread_state_flavor_t(flavor),
+                              intPtr,
+                              &count)
     }
   }
 }

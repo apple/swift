@@ -333,7 +333,8 @@ void UnqualifiedLookupFactory::ResultFinderForTypeContext::findResults(
     return;
 
   SmallVector<ValueDecl *, 4> Lookup;
-  contextForLookup->lookupQualified(selfBounds, Name, baseNLOptions, Lookup);
+  contextForLookup->lookupQualified(selfBounds, Name, factory->Loc,
+                                    baseNLOptions, Lookup);
   for (auto Result : Lookup) {
     auto baseDC = const_cast<DeclContext *>(whereValueIsMember(Result));
     auto baseDecl = getBaseDeclForResult(baseDC);
@@ -531,7 +532,8 @@ void UnqualifiedLookupFactory::addImportedResults(const DeclContext *const dc) {
   if (options.contains(Flags::ExcludeMacroExpansions))
     nlOptions |= NL_ExcludeMacroExpansions;
   lookupInModule(dc, Name.getFullName(), CurModuleResults,
-                 NLKind::UnqualifiedLookup, resolutionKind, dc, nlOptions);
+                 NLKind::UnqualifiedLookup, resolutionKind, dc,
+                 Loc, nlOptions);
 
   // Always perform name shadowing for type lookup.
   if (options.contains(Flags::TypeLookup)) {

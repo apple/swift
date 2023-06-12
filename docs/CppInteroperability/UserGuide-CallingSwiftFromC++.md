@@ -1,3 +1,5 @@
+[** ‼️ The official C++ interoperability documentation is live at Swift.org and provides an up-to-date guide for mixing Swift and C++ ‼️ **](https://www.swift.org/documentation/cxx-interop/)
+
 # Guide: Calling Swift APIs from C++
 
 A Swift library author might want to expose their interface to C++, to allow a C++ codebase to interoperate with the Swift library.  This document describes how this can be accomplished, by first describing how Swift can expose its interface to C++, and then going into the details on how to use Swift APIs from C++.

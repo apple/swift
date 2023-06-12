@@ -26,6 +26,7 @@ public struct PublicEquatable {
   public init() { }
 }
 
+// INTERFACE-NOT: @Equatable
 // INTERFACE: public struct PublicEquatable
 // INTERFACE: extension ModuleWithEquatable.PublicEquatable : Swift.Equatable
 

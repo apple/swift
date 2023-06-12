@@ -344,6 +344,12 @@ private:
   template <typename T, typename ...Args>
   T *createDecl(Args &&... args);
 
+  Decl *handleErrorAndSupplyMissingMiscMember(llvm::Error &&error) const;
+
+  Decl *handleErrorAndSupplyMissingMember(ASTContext &context,
+                                          Decl *container,
+                                          llvm::Error &&error) const;
+
 public:
   /// Change the status of the current module.
   Status error(Status issue) {
@@ -407,6 +413,23 @@ public:
     return llvm::consumeError(diagnoseFatal(msg));
   }
 
+  /// Consume errors that are usually safe to ignore because they
+  /// are expected to support language features or caused by project
+  /// misconfigurations.
+  ///
+  /// If the error is handled, success is returned, otherwise the original
+  /// error is returned.
+  llvm::Error consumeExpectedError(llvm::Error &&error);
+
+  /// Report project errors as remarks if desired, otherwise drop the error
+  /// silently.
+  void diagnoseAndConsumeError(llvm::Error error) const;
+
+  /// Report modularization error, either directly or indirectly if it
+  /// caused a \c TypeError or \c ExtensionError. Returns any unhandled errors.
+  llvm::Error
+  diagnoseModularizationError(llvm::Error error,
+                   DiagnosticBehavior limit = DiagnosticBehavior::Fatal) const;
 
   /// Report an unexpected format error that could happen only from a
   /// memory-level inconsistency. Please prefer passing an error to
@@ -596,6 +619,11 @@ public:
   /// Whether this module was built with -experimental-hermetic-seal-at-link.
   bool hasHermeticSealAtLink() const {
     return Core->Bits.HasHermeticSealAtLink;
+  }
+
+  /// Whether this module was built with C++ interoperability enabled.
+  bool hasCxxInteroperability() const {
+    return Core->Bits.HasCxxInteroperability;
   }
 
   /// Whether the module is resilient. ('-enable-library-evolution')

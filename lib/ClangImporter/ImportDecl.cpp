@@ -126,6 +126,7 @@ void ClangImporter::Implementation::makeComputed(AbstractStorageDecl *storage,
                                                  AccessorDecl *getter,
                                                  AccessorDecl *setter) {
   assert(getter);
+  storage->getASTContext().evaluator.cacheOutput(HasStorageRequest{storage}, false);
   if (setter) {
     storage->setImplInfo(StorageImplInfo::getMutableComputed());
     storage->setAccessors(SourceLoc(), {getter, setter}, SourceLoc());
@@ -2379,11 +2380,30 @@ namespace {
         hasMemberwiseInitializer = false;
       }
 
-      if (hasZeroInitializableStorage && !cxxRecordDecl) {
+      if (hasZeroInitializableStorage &&
+          !(cxxRecordDecl && cxxRecordDecl->hasDefaultConstructor())) {
         // Add default constructor for the struct if compiling in C mode.
-        // If we're compiling for C++, we'll import the C++ default constructor
-        // (if there is one), so we don't need to synthesize one here.
-        ctors.push_back(synthesizer.createDefaultConstructor(result));
+        // If we're compiling for C++:
+        // 1. If a default constructor is declared, don't synthesize one.
+        // 2. If a default constructor is deleted, don't try to synthesize one.
+        // 3. If there is no default constructor, synthesize a C-like default
+        //    constructor that zero-initializes the backing memory of the
+        //    struct. This is important to maintain source compatibility when a
+        //    client enables C++ interop in an existing project that uses C
+        //    interop and might rely on the fact that C structs have a default
+        //    constructor available in Swift.
+        ConstructorDecl *defaultCtor =
+            synthesizer.createDefaultConstructor(result);
+        ctors.push_back(defaultCtor);
+        if (cxxRecordDecl) {
+          auto attr = AvailableAttr::createPlatformAgnostic(
+              defaultCtor->getASTContext(),
+              "This zero-initializes the backing memory of the struct, which "
+              "is unsafe for some C++ structs. Consider adding an explicit "
+              "default initializer for this C++ struct.",
+              "", PlatformAgnosticAvailabilityKind::Deprecated);
+          defaultCtor->getAttrs().add(attr);
+        }
       }
 
       // We can assume that it is possible to correctly construct the object by
@@ -3562,6 +3582,12 @@ namespace {
       if (!dc)
         return nullptr;
 
+      // While importing the DeclContext, we might have imported the decl
+      // itself.
+      auto known = Impl.importDeclCached(decl, getVersion());
+      if (known.has_value())
+        return known.value();
+
       // TODO: do we want to emit a diagnostic here?
       // Types that are marked as foreign references cannot be stored by value.
       if (auto recordType =
@@ -3570,11 +3596,30 @@ namespace {
           return nullptr;
       }
 
-      auto importedType =
-          Impl.importType(decl->getType(), ImportTypeKind::RecordField,
-                          ImportDiagnosticAdder(Impl, decl, decl->getLocation()),
-                          isInSystemModule(dc), Bridgeability::None,
-                          getImportTypeAttrs(decl));
+      ImportedType importedType;
+      auto fieldType = decl->getType();
+      if (auto elaborated = dyn_cast<clang::ElaboratedType>(fieldType))
+        fieldType = elaborated->desugar();
+      if (auto typedefType = dyn_cast<clang::TypedefType>(fieldType)) {
+        if (Impl.isUnavailableInSwift(typedefType->getDecl())) {
+          if (auto clangEnum = findAnonymousEnumForTypedef(Impl.SwiftContext, typedefType)) {
+            // If this fails, it means that we need a stronger predicate for
+            // determining the relationship between an enum and typedef.
+            assert(clangEnum.value()->getIntegerType()->getCanonicalTypeInternal() ==
+                   typedefType->getCanonicalTypeInternal());
+            if (auto swiftEnum = Impl.importDecl(*clangEnum, Impl.CurrentVersion)) {
+              importedType = {cast<TypeDecl>(swiftEnum)->getDeclaredInterfaceType(), false};
+            }
+          }
+        }
+      }
+
+      if (!importedType)
+        importedType =
+            Impl.importType(decl->getType(), ImportTypeKind::RecordField,
+                            ImportDiagnosticAdder(Impl, decl, decl->getLocation()),
+                            isInSystemModule(dc), Bridgeability::None,
+                            getImportTypeAttrs(decl));
       if (!importedType) {
         Impl.addImportDiagnostic(
             decl, Diagnostic(diag::record_field_not_imported, decl),
@@ -4525,7 +4570,13 @@ namespace {
         SmallVector<Decl *, 4> matchingTopLevelDecls;
 
         // Get decls with a matching @objc attribute
-        module->lookupTopLevelDeclsByObjCName(matchingTopLevelDecls, name);
+        module->getTopLevelDeclsWhereAttributesMatch(
+            matchingTopLevelDecls, [&name](const DeclAttributes attrs) -> bool {
+              if (auto objcAttr = attrs.getAttribute<ObjCAttr>())
+                if (auto objcName = objcAttr->getName())
+                  return objcName->getSimpleName() == name;
+              return false;
+            });
 
         // Filter by decl kind
         for (auto result : matchingTopLevelDecls) {
@@ -5797,6 +5848,13 @@ SwiftDeclConverter::importAsOptionSetType(DeclContext *dc, Identifier name,
                                           const clang::EnumDecl *decl) {
   ASTContext &ctx = Impl.SwiftContext;
 
+  auto Loc = Impl.importSourceLoc(decl->getLocation());
+
+  // Create a struct with the underlying type as a field.
+  auto structDecl = Impl.createDeclWithClangNode<StructDecl>(
+      decl, AccessLevel::Public, Loc, name, Loc, None, nullptr, dc);
+  Impl.ImportedDecls[{decl->getCanonicalDecl(), getVersion()}] = structDecl;
+
   // Compute the underlying type.
   auto underlyingType = Impl.importTypeIgnoreIUO(
       decl->getIntegerType(), ImportTypeKind::Enum,
@@ -5804,12 +5862,6 @@ SwiftDeclConverter::importAsOptionSetType(DeclContext *dc, Identifier name,
       isInSystemModule(dc), Bridgeability::None, ImportTypeAttrs());
   if (!underlyingType)
     return nullptr;
-
-  auto Loc = Impl.importSourceLoc(decl->getLocation());
-
-  // Create a struct with the underlying type as a field.
-  auto structDecl = Impl.createDeclWithClangNode<StructDecl>(
-      decl, AccessLevel::Public, Loc, name, Loc, None, nullptr, dc);
 
   synthesizer.makeStructRawValued(structDecl, underlyingType,
                                   {KnownProtocolKind::OptionSet});
@@ -6480,7 +6532,7 @@ void SwiftDeclConverter::recordObjCOverride(AbstractFunctionDecl *decl) {
   // Dig out the Objective-C superclass.
   SmallVector<ValueDecl *, 4> results;
   superDecl->lookupQualified(superDecl, DeclNameRef(decl->getName()),
-                             NL_QualifiedDefault,
+                             decl->getLoc(), NL_QualifiedDefault,
                              results);
   for (auto member : results) {
     if (member->getKind() != decl->getKind() ||
@@ -6553,7 +6605,7 @@ void SwiftDeclConverter::recordObjCOverride(SubscriptDecl *subscript) {
   SmallVector<ValueDecl *, 2> lookup;
   subscript->getModuleContext()->lookupQualified(
       superDecl, DeclNameRef(subscript->getName()),
-      NL_QualifiedDefault, lookup);
+      subscript->getLoc(), NL_QualifiedDefault, lookup);
 
   for (auto result : lookup) {
     auto parentSub = dyn_cast<SubscriptDecl>(result);
@@ -8240,7 +8292,8 @@ static void finishTypeWitnesses(
                           NL_OnlyTypes |
                           NL_ProtocolMembers);
 
-    dc->lookupQualified(nominal, DeclNameRef(assocType->getName()), options,
+    dc->lookupQualified(nominal, DeclNameRef(assocType->getName()),
+                        nominal->getLoc(), options,
                         lookupResults);
     for (auto member : lookupResults) {
       auto typeDecl = cast<TypeDecl>(member);
@@ -8736,8 +8789,6 @@ static void loadAllMembersOfSuperclassIfNeeded(ClassDecl *CD) {
     E->loadAllMembers();
 }
 
-ValueDecl *cloneBaseMemberDecl(ValueDecl *decl, DeclContext *newContext);
-
 void ClangImporter::Implementation::loadAllMembersOfRecordDecl(
     NominalTypeDecl *swiftDecl, const clang::RecordDecl *clangRecord) {
   // Import all of the members.
@@ -8768,7 +8819,7 @@ void ClangImporter::Implementation::loadAllMembersOfRecordDecl(
     // This means we found a member in a C++ record's base class.
     if (swiftDecl->getClangDecl() != clangRecord) {
       // So we need to clone the member into the derived class.
-      if (auto newDecl = cloneBaseMemberDecl(cast<ValueDecl>(member), swiftDecl)) {
+      if (auto newDecl = importBaseMemberDecl(cast<ValueDecl>(member), swiftDecl)) {
         swiftDecl->addMember(newDecl);
       }
       continue;

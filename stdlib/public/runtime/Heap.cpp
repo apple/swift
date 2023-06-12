@@ -60,13 +60,6 @@ static constexpr size_t MALLOC_ALIGN_MASK = alignof(std::max_align_t) - 1;
 static_assert(_swift_MinAllocationAlignment > MALLOC_ALIGN_MASK,
               "Swift's default alignment must exceed platform malloc mask.");
 
-#if defined(__APPLE__) && SWIFT_STDLIB_HAS_DARWIN_LIBMALLOC
-static inline malloc_zone_t *DEFAULT_ZONE() {
-  static malloc_zone_t *z = SWIFT_LAZY_CONSTANT(malloc_default_zone());
-  return z;
-}
-#endif
-
 // When alignMask == ~(size_t(0)), allocation uses the "default"
 // _swift_MinAllocationAlignment. This is different than calling swift_slowAlloc
 // with `alignMask == _swift_MinAllocationAlignment - 1` because it forces
@@ -91,11 +84,7 @@ void *swift::swift_slowAlloc(size_t size, size_t alignMask) {
   void *p;
   // This check also forces "default" alignment to use AlignedAlloc.
   if (alignMask <= MALLOC_ALIGN_MASK) {
-#if defined(__APPLE__) && SWIFT_STDLIB_HAS_DARWIN_LIBMALLOC
-    p = malloc_zone_malloc(DEFAULT_ZONE(), size);
-#else
     p = malloc(size);
-#endif
   } else {
     size_t alignment = computeAlignment(alignMask);
     p = AlignedAlloc(size, alignment);
@@ -111,10 +100,10 @@ void *swift::swift_slowAllocTyped(size_t size, size_t alignMask,
     void *p;
     // This check also forces "default" alignment to use malloc_memalign().
     if (alignMask <= MALLOC_ALIGN_MASK) {
-      p = malloc_type_zone_malloc(DEFAULT_ZONE(), size, typeId);
+      p = malloc_type_malloc(size, typeId);
     } else {
       size_t alignment = computeAlignment(alignMask);
-      p = malloc_type_zone_memalign(DEFAULT_ZONE(), alignment, size, typeId);
+      p = malloc_type_aligned_alloc(alignment, size, typeId);
     }
     if (!p) swift::crash("Could not allocate memory.");
     return p;
@@ -141,11 +130,7 @@ void *swift::swift_slowAllocTyped(size_t size, size_t alignMask,
 //   consistent with allocation with the same alignment.
 static void swift_slowDeallocImpl(void *ptr, size_t alignMask) {
   if (alignMask <= MALLOC_ALIGN_MASK) {
-#if defined(__APPLE__) && SWIFT_STDLIB_HAS_DARWIN_LIBMALLOC
-    malloc_zone_free(DEFAULT_ZONE(), ptr);
-#else
     free(ptr);
-#endif
   } else {
     AlignedFree(ptr);
   }

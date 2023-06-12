@@ -1,5 +1,5 @@
-// RUN: %target-swift-emit-silgen -module-name Test -parse-as-library %s -verify | %FileCheck %s --check-prefixes=CHECK,CHECK-NO-STRIP
-// RUN: %target-swift-emit-silgen -module-name Test -parse-as-library %s -verify -unavailable-decl-optimization=none | %FileCheck %s --check-prefixes=CHECK,CHECK-NO-STRIP
+// RUN: %target-swift-emit-silgen -swift-version 5 -module-name Test -parse-as-library %s -verify | %FileCheck %s --check-prefixes=CHECK,CHECK-NO-STRIP
+// RUN: %target-swift-emit-silgen -swift-version 5 -module-name Test -parse-as-library %s -verify -unavailable-decl-optimization=none | %FileCheck %s --check-prefixes=CHECK,CHECK-NO-STRIP
 // RUN: %target-swift-emit-silgen -module-name Test -parse-as-library %s -verify -unavailable-decl-optimization=complete | %FileCheck %s --check-prefixes=CHECK,CHECK-STRIP
 
 // CHECK-NO-STRIP: s4Test14globalConstant_Wz
@@ -17,6 +17,10 @@ public let globalConstant = true
 // CHECK-STRIP-NOT: s4Test15unavailableFuncyyF
 @available(*, unavailable)
 public func unavailableFunc() {}
+
+// CHECK: s4Test21funcObsoletedInSwift5yyF
+@available(swift, introduced: 4.2, obsoleted: 5)
+public func funcObsoletedInSwift5() {}
 
 @available(*, unavailable)
 public struct UnavailableStruct<T> {

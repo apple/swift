@@ -4,6 +4,11 @@
 
 import Swift
 
+@attached(member, names: named(RawValue), named(rawValue), named(`init`), arbitrary)
+@attached(conformance)
+public macro OptionSet<RawType>() =
+  #externalMacro(module: "SwiftMacros", type: "OptionSetMacro")
+
 @OptionSet<UInt8>
 struct ShippingOptions {
   private enum Options: Int {

@@ -309,6 +309,15 @@ void swift::eraseUsesOfValue(SILValue v) {
   }
 }
 
+bool swift::hasValueDeinit(SILType type) {
+  // Do not look inside an aggregate type that has a user-deinit, for which
+  // memberwise-destruction is not equivalent to aggregate destruction.
+  if (auto *nominal = type.getNominalOrBoundGenericNominal()) {
+    return nominal->getValueTypeDestructor() != nullptr;
+  }
+  return false;
+}
+
 SILValue swift::
 getConcreteValueOfExistentialBox(AllocExistentialBoxInst *existentialBox,
                                   SILInstruction *ignoreUser) {
@@ -1120,13 +1129,23 @@ bool swift::simplifyUsers(SingleValueInstruction *inst) {
   return changed;
 }
 
-/// True if a type can be expanded without a significant increase to code size.
+// True if a type can be expanded without a significant increase to code size.
+//
+// False if expanding a type is invalid. For example, expanding a
+// struct-with-deinit drops the deinit.
 bool swift::shouldExpand(SILModule &module, SILType ty) {
   // FIXME: Expansion
   auto expansion = TypeExpansionContext::minimal();
 
   if (module.Types.getTypeLowering(ty, expansion).isAddressOnly()) {
     return false;
+  }
+  // A move-only-with-deinit type cannot be SROA.
+  //
+  // TODO: we could loosen this requirement if all paths lead to a drop_deinit.
+  if (auto *nominalTy = ty.getNominalOrBoundGenericNominal()) {
+    if (nominalTy->getValueTypeDestructor())
+      return false;
   }
   if (EnableExpandAll) {
     return true;
@@ -1469,7 +1488,10 @@ void swift::insertDestroyOfCapturedArguments(
   auto loc = CleanupLocation(origLoc);
   for (auto &arg : pai->getArgumentOperands()) {
     SILValue argValue = arg.get();
-    BeginBorrowInst *argBorrow = dyn_cast<BeginBorrowInst>(argValue);
+    if (auto *m = dyn_cast<MoveOnlyWrapperToCopyableValueInst>(argValue))
+      if (m->hasGuaranteedInitialKind())
+        argValue = m->getOperand();
+    auto *argBorrow = dyn_cast<BeginBorrowInst>(argValue);
     if (argBorrow) {
       argValue = argBorrow->getOperand();
       builder.createEndBorrow(loc, argBorrow);
@@ -1491,18 +1513,19 @@ void swift::insertDeallocOfCapturedArguments(PartialApplyInst *pai,
   SILFunctionConventions calleeConv(site.getSubstCalleeType(),
                                     pai->getModule());
   for (auto &arg : pai->getArgumentOperands()) {
-    SILValue argValue = arg.get();
-    if (auto argBorrow = dyn_cast<BeginBorrowInst>(argValue)) {
-      argValue = argBorrow->getOperand();
-    }
     unsigned calleeArgumentIndex = site.getCalleeArgIndex(arg);
     assert(calleeArgumentIndex >= calleeConv.getSILArgIndexOfFirstParam());
     auto paramInfo = calleeConv.getParamInfoForSILArg(calleeArgumentIndex);
     if (!paramInfo.isIndirectInGuaranteed())
       continue;
 
+    SILValue argValue = arg.get();
+    if (auto moveWrapper =
+            dyn_cast<MoveOnlyWrapperToCopyableAddrInst>(argValue))
+      argValue = moveWrapper->getOperand();
+
     SmallVector<SILBasicBlock *, 4> boundary;
-    auto *asi = cast<AllocStackInst>(arg.get());
+    auto *asi = cast<AllocStackInst>(argValue);
     computeDominatedBoundaryBlocks(asi->getParent(), domInfo, boundary);
 
     SmallVector<Operand *, 2> uses;

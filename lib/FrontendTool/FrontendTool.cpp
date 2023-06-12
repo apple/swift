@@ -51,6 +51,9 @@
 #include "swift/ConstExtract/ConstExtract.h"
 #include "swift/DependencyScan/ScanDependencies.h"
 #include "swift/Frontend/AccumulatingDiagnosticConsumer.h"
+#include "swift/Frontend/CachedDiagnostics.h"
+#include "swift/Frontend/CachingUtils.h"
+#include "swift/Frontend/CompileJobCacheKey.h"
 #include "swift/Frontend/Frontend.h"
 #include "swift/Frontend/ModuleInterfaceLoader.h"
 #include "swift/Frontend/ModuleInterfaceSupport.h"
@@ -1378,6 +1381,35 @@ static bool performAction(CompilerInstance &Instance,
   return Instance.getASTContext().hadError();
 }
 
+/// Try replay the compiler result from cache.
+///
+/// Return true if all the outputs are fetched from cache. Otherwise, return
+/// false and will not replay any output.
+static bool tryReplayCompilerResults(CompilerInstance &Instance) {
+  if (!Instance.supportCaching())
+    return false;
+
+  assert(Instance.getCompilerBaseKey() &&
+         "Instance is not setup correctly for replay");
+
+  auto *CDP = Instance.getCachingDiagnosticsProcessor();
+  assert(CDP && "CachingDiagnosticsProcessor needs to be setup for replay");
+
+  // Don't capture diagnostics from replay.
+  CDP->endDiagnosticCapture();
+
+  bool replayed = replayCachedCompilerOutputs(
+      Instance.getObjectStore(), Instance.getActionCache(),
+      *Instance.getCompilerBaseKey(), Instance.getDiags(),
+      Instance.getInvocation().getFrontendOptions().InputsAndOutputs, *CDP);
+
+  // If we didn't replay successfully, re-start capture.
+  if (!replayed)
+    CDP->startDiagnosticCapture();
+
+  return replayed;
+}
+
 /// Performs the compile requested by the user.
 /// \param Instance Will be reset after performIRGeneration when the verifier
 ///                 mode is NoVerify and there were no errors.
@@ -1388,6 +1420,9 @@ static bool performCompile(CompilerInstance &Instance,
   const auto &Invocation = Instance.getInvocation();
   const auto &opts = Invocation.getFrontendOptions();
   const FrontendOptions::ActionType Action = opts.RequestedAction;
+
+  if (tryReplayCompilerResults(Instance))
+    return false;
 
   // To compile LLVM IR, just pass it off unmodified.
   if (opts.InputsAndOutputs.shouldTreatAsLLVM())

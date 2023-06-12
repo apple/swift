@@ -2684,6 +2684,10 @@ private:
     os << "void";
   }
 
+  void visitPackElementType(PackElementType *PET, Optional<OptionalTypeKind> optionalKind) {
+    llvm_unreachable("Not implemented");
+  }
+
   void visitParenType(ParenType *PT, Optional<OptionalTypeKind> optionalKind) {
     visitPart(PT->getSinglyDesugaredType(), optionalKind);
   }

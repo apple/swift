@@ -15,13 +15,19 @@
 #include "swift/AST/DiagnosticsFrontend.h"
 #include "swift/Basic/FileTypes.h"
 #include "swift/Frontend/CompileJobCacheKey.h"
+#include "clang/CAS/IncludeTree.h"
 #include "clang/Frontend/CompileJobCacheResult.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/CAS/BuiltinUnifiedCASDatabases.h"
+#include "llvm/CAS/CASFileSystem.h"
+#include "llvm/CAS/HierarchicalTreeBuilder.h"
 #include "llvm/CAS/ObjectStore.h"
+#include "llvm/CAS/TreeEntry.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/Support/VirtualOutputBackends.h"
 #include "llvm/Support/VirtualOutputFile.h"
 #include <memory>
@@ -133,6 +139,134 @@ createSwiftCachingOutputBackend(
                                                     InputsAndOutputs);
 }
 
+bool replayCachedCompilerOutputs(
+    ObjectStore &CAS, ActionCache &Cache, ObjectRef BaseKey,
+    DiagnosticEngine &Diag, const FrontendInputsAndOutputs &InputsAndOutputs,
+    CachingDiagnosticsProcessor &CDP) {
+  clang::cas::CompileJobResultSchema Schema(CAS);
+  bool CanReplayAllOutput = true;
+  struct OutputEntry {
+    std::string Path;
+    std::string Key;
+    llvm::cas::ObjectProxy Proxy;
+  };
+  SmallVector<OutputEntry> OutputProxies;
+
+  auto replayOutputFile = [&](StringRef InputName, file_types::ID OutputKind,
+                              StringRef OutputPath) -> Optional<OutputEntry> {
+    LLVM_DEBUG(llvm::dbgs()
+                   << "DEBUG: lookup output \'" << OutputPath << "\' type \'"
+                   << file_types::getTypeName(OutputKind) << "\' input \'"
+                   << InputName << "\n";);
+
+    auto OutputKey =
+        createCompileJobCacheKeyForOutput(CAS, BaseKey, InputName, OutputKind);
+    if (!OutputKey) {
+      Diag.diagnose(SourceLoc(), diag::error_cas,
+                    toString(OutputKey.takeError()));
+      return None;
+    }
+    auto OutputKeyID = CAS.getID(*OutputKey);
+    auto Lookup = Cache.get(OutputKeyID);
+    if (!Lookup) {
+      Diag.diagnose(SourceLoc(), diag::error_cas, toString(Lookup.takeError()));
+      return None;
+    }
+    if (!*Lookup) {
+      Diag.diagnose(SourceLoc(), diag::output_cache_miss, OutputPath,
+                    OutputKeyID.toString());
+      return None;
+    }
+    auto OutputRef = CAS.getReference(**Lookup);
+    if (!OutputRef) {
+      return None;
+    }
+    auto Result = Schema.load(*OutputRef);
+    if (!Result) {
+      Diag.diagnose(SourceLoc(), diag::error_cas, toString(Result.takeError()));
+      return None;
+    }
+    auto MainOutput = Result->getOutput(
+        clang::cas::CompileJobCacheResult::OutputKind::MainOutput);
+    if (!MainOutput) {
+      return None;
+    }
+    auto LoadedResult = CAS.getProxy(MainOutput->Object);
+    if (!LoadedResult) {
+      Diag.diagnose(SourceLoc(), diag::error_cas,
+                    toString(LoadedResult.takeError()));
+      return None;
+    }
+
+    return OutputEntry{OutputPath.str(), OutputKeyID.toString(), *LoadedResult};
+  };
+
+  auto replayOutputFromInput = [&](const InputFile &Input) {
+    auto InputPath = Input.getFileName();
+    if (!Input.outputFilename().empty()) {
+      if (auto Result = replayOutputFile(
+              InputPath, InputsAndOutputs.getPrincipalOutputType(),
+              Input.outputFilename()))
+        OutputProxies.emplace_back(*Result);
+      else
+        CanReplayAllOutput = false;
+    }
+
+    Input.getPrimarySpecificPaths()
+        .SupplementaryOutputs.forEachSetOutputAndType(
+            [&](const std::string &File, file_types::ID ID) {
+              if (ID == file_types::ID::TY_SerializedDiagnostics)
+                return;
+
+              if (auto Result = replayOutputFile(InputPath, ID, File))
+                OutputProxies.emplace_back(*Result);
+              else
+                CanReplayAllOutput = false;
+            });
+  };
+
+  llvm::for_each(InputsAndOutputs.getAllInputs(), replayOutputFromInput);
+
+  auto DiagnosticsOutput = replayOutputFile(
+      "<cached-diagnostics>", file_types::ID::TY_CachedDiagnostics,
+      "<cached-diagnostics>");
+  if (!DiagnosticsOutput)
+    CanReplayAllOutput = false;
+
+  if (!CanReplayAllOutput)
+    return false;
+
+  // Replay Diagnostics first so the output failures comes after.
+  // Also if the diagnostics replay failed, proceed to re-compile.
+  if (auto E = CDP.replayCachedDiagnostics(
+          DiagnosticsOutput->Proxy.getData())) {
+    Diag.diagnose(SourceLoc(), diag::error_replay_cached_diag,
+                  toString(std::move(E)));
+    return false;
+  }
+
+  // Replay the result only when everything is resolved.
+  // Use on disk output backend directly here to write to disk.
+  llvm::vfs::OnDiskOutputBackend Backend;
+  for (auto &Output : OutputProxies) {
+    auto File = Backend.createFile(Output.Path);
+    if (!File) {
+      Diag.diagnose(SourceLoc(), diag::error_opening_output, Output.Path,
+                    toString(File.takeError()));
+      continue;
+    }
+    *File << Output.Proxy.getData();
+    if (auto E = File->keep()) {
+      Diag.diagnose(SourceLoc(), diag::error_closing_output, Output.Path,
+                    toString(std::move(E)));
+      continue;
+    }
+    Diag.diagnose(SourceLoc(), diag::replay_output, Output.Path, Output.Key);
+  }
+
+  return true;
+}
+
 static Expected<std::unique_ptr<llvm::MemoryBuffer>>
 loadCachedCompileResultFromCacheKeyImpl(ObjectStore &CAS, ActionCache &Cache,
                                         StringRef CacheKey,
@@ -214,4 +348,121 @@ Error storeCachedCompilerOutput(llvm::cas::ObjectStore &CAS,
   return Error::success();
 }
 
+static llvm::Error createCASObjectNotFoundError(const llvm::cas::CASID &ID) {
+  return createStringError(llvm::inconvertibleErrorCode(),
+                           "CASID missing from Object Store " + ID.toString());
+}
+
+static Expected<ObjectRef> mergeCASFileSystem(ObjectStore &CAS,
+                                              ArrayRef<std::string> FSRoots) {
+  llvm::cas::HierarchicalTreeBuilder Builder;
+  for (auto &Root : FSRoots) {
+    auto ID = CAS.parseID(Root);
+    if (!ID)
+      return ID.takeError();
+
+    auto Ref = CAS.getReference(*ID);
+    if (!Ref)
+      return createCASObjectNotFoundError(*ID);
+    Builder.pushTreeContent(*Ref, "");
+  }
+
+  auto NewRoot = Builder.create(CAS);
+  if (!NewRoot)
+    return NewRoot.takeError();
+
+  return NewRoot->getRef();
+}
+
+Expected<IntrusiveRefCntPtr<vfs::FileSystem>>
+createCASFileSystem(ObjectStore &CAS, ArrayRef<std::string> FSRoots,
+                    ArrayRef<std::string> IncludeTrees) {
+  assert(!FSRoots.empty() || !IncludeTrees.empty() && "no root ID provided");
+  if (FSRoots.size() == 1 && IncludeTrees.empty()) {
+    auto ID = CAS.parseID(FSRoots.front());
+    if (!ID)
+      return ID.takeError();
+    auto Ref = CAS.getReference(*ID);
+    if (!Ref)
+      return createCASObjectNotFoundError(*ID);
+  }
+
+  auto NewRoot = mergeCASFileSystem(CAS, FSRoots);
+  if (!NewRoot)
+    return NewRoot.takeError();
+
+  auto FS = createCASFileSystem(CAS, CAS.getID(*NewRoot));
+  if (!FS)
+    return FS.takeError();
+
+  auto CASFS = makeIntrusiveRefCnt<vfs::OverlayFileSystem>(std::move(*FS));
+  // Push all Include File System onto overlay.
+  for (auto &Tree : IncludeTrees) {
+    auto ID = CAS.parseID(Tree);
+    if (!ID)
+      return ID.takeError();
+
+    auto Ref = CAS.getReference(*ID);
+    if (!Ref)
+      return createCASObjectNotFoundError(*ID);
+    auto IT = clang::cas::IncludeTreeRoot::get(CAS, *Ref);
+    if (!IT)
+      return IT.takeError();
+
+    auto ITFS = clang::cas::createIncludeTreeFileSystem(*IT);
+    if (!ITFS)
+      return ITFS.takeError();
+    CASFS->pushOverlay(std::move(*ITFS));
+  }
+
+  return CASFS;
+}
+
+namespace cas {
+
+CachingTool::CachingTool(StringRef Path) {
+  auto DB = llvm::cas::createOnDiskUnifiedCASDatabases(Path);
+  if (!DB) {
+    llvm::errs() << "Failed to create CAS at " << Path << ": "
+                 << toString(DB.takeError()) << "\n";
+    return;
+  }
+
+  CAS = std::move(DB->first);
+  Cache = std::move(DB->second);
+}
+
+std::string CachingTool::computeCacheKey(ArrayRef<const char *> Args,
+                                         StringRef InputPath,
+                                         file_types::ID OutputKind) {
+  auto BaseKey = createCompileJobBaseCacheKey(*CAS, Args);
+  if (!BaseKey) {
+    llvm::errs() << "Failed to create cache key: "
+                 << toString(BaseKey.takeError()) << "\n";
+    return "";
+  }
+
+  auto Key =
+      createCompileJobCacheKeyForOutput(*CAS, *BaseKey, InputPath, OutputKind);
+  if (!Key) {
+    llvm::errs() << "Failed to create cache key: " << toString(Key.takeError())
+                 << "\n";
+    return "";
+  }
+
+  return CAS->getID(*Key).toString();
+}
+
+std::string CachingTool::storeContent(StringRef Content) {
+  auto Result = CAS->storeFromString({}, Content);
+  if (!Result) {
+    llvm::errs() << "Failed to store to CAS: " << toString(Result.takeError())
+                 << "\n";
+    return "";
+  }
+
+  return CAS->getID(*Result).toString();
+}
+
+} // namespace cas
 } // namespace swift

@@ -354,8 +354,11 @@ bool ArgsToFrontendOptionsConverter::convert(
   Opts.EnableCAS = Args.hasArg(OPT_enable_cas);
   Opts.CASPath =
       Args.getLastArgValue(OPT_cas_path, llvm::cas::getDefaultOnDiskCASPath());
-  Opts.CASFSRootID = Args.getLastArgValue(OPT_cas_fs);
-  if (Opts.EnableCAS && Opts.CASFSRootID.empty() &&
+  Opts.CASFSRootIDs = Args.getAllArgValues(OPT_cas_fs);
+  Opts.ClangIncludeTrees = Args.getAllArgValues(OPT_clang_include_tree_root);
+
+  if (Opts.EnableCAS && Opts.CASFSRootIDs.empty() &&
+      Opts.ClangIncludeTrees.empty() &&
       FrontendOptions::supportCompilationCaching(Opts.RequestedAction)) {
     if (!Args.hasArg(OPT_allow_unstable_cache_key_for_testing)) {
         Diags.diagnose(SourceLoc(), diag::error_caching_no_cas_fs);
@@ -831,7 +834,7 @@ bool ModuleAliasesConverter::computeModuleAliases(std::vector<std::string> args,
     
     for (auto item: args) {
       auto str = StringRef(item);
-      // splits to an alias and the underlying name
+      // splits to an alias and its real name
       auto pair = str.split('=');
       auto lhs = pair.first;
       auto rhs = pair.second;
@@ -844,13 +847,13 @@ bool ModuleAliasesConverter::computeModuleAliases(std::vector<std::string> args,
         return false;
       }
       
-      // First, add the underlying name as a key to prevent it from being
+      // First, add the real name as a key to prevent it from being
       // used as an alias
       if (!options.ModuleAliasMap.insert({rhs, StringRef()}).second) {
         diags.diagnose(SourceLoc(), diag::error_module_alias_duplicate, rhs);
         return false;
       }
-      // Next, add the alias as a key and the underlying name as a value to the map
+      // Next, add the alias as a key and the real name as a value to the map
       auto underlyingName = options.ModuleAliasMap.find(rhs)->first();
       if (!options.ModuleAliasMap.insert({lhs, underlyingName}).second) {
         diags.diagnose(SourceLoc(), diag::error_module_alias_duplicate, lhs);

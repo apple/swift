@@ -122,7 +122,7 @@ if case let .Naught(value1, value2, value3) = n {} // expected-error{{pattern wi
 
 
 switch n {
-case Foo.A: // expected-error{{enum case 'A' is not a member of type 'Voluntary<Int>'}}
+case Foo.A: // expected-error{{pattern of type 'Foo' cannot match 'Voluntary<Int>'}}
   ()
 case Voluntary<Int>.Naught,
      Voluntary<Int>.Naught(), // expected-error {{pattern with associated values does not match enum case 'Naught'}}
@@ -307,6 +307,7 @@ do {
   while case let _ as [Derived] = arr {}
   // expected-warning@-1 {{'let' pattern has no effect; sub-pattern didn't bind any variables}}
 
+  // https://github.com/apple/swift/issues/61850
   for case _ as [Derived] in [arr] {}
 
   if case is [Derived] = arr {}

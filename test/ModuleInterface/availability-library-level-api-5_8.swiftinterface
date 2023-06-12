@@ -1,0 +1,18 @@
+// swift-interface-format-version: 1.0
+// swift-compiler-version: Apple Swift version 5.8 (swiftlang-5.8.0.117.59 clang-1403.0.22.8.50)
+// swift-module-flags: -target arm64-apple-macosx11 -enable-library-evolution -swift-version 5 -library-level api -module-name Test
+
+// RUN: %target-swift-frontend -typecheck-module-from-interface -verify -module-name Test %s
+
+// REQUIRES: OS=macosx
+
+import Swift
+
+@available(macOS 11, *)
+public struct S {}
+
+// This typealias ought to be @available(macOS 11, *) since it references `S`
+// and the module was compiled with `-library-level api`. However, given that
+// the interface was produced with tools that are older than Swift 5.9 we
+// typecheck availability with the deployment target as the floor.
+public typealias A = S

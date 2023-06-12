@@ -1069,6 +1069,21 @@ void SILGenModule::emitDefaultWitnessTable(ProtocolDecl *protocol) {
   defaultWitnesses->convertToDefinition(builder.DefaultWitnesses);
 }
 
+void SILGenModule::emitNonCopyableTypeDeinitTable(NominalTypeDecl *nom) {
+  auto *dd = nom->getValueTypeDestructor();
+  if (!dd)
+    return;
+
+  SILDeclRef constant(dd, SILDeclRef::Kind::Deallocator);
+  SILFunction *f = getFunction(constant, NotForDefinition);
+  auto serialized = IsSerialized_t::IsNotSerialized;
+  bool nomIsPublic = nom->getEffectiveAccess() >= AccessLevel::Public;
+  // We only serialize the deinit if the type is public and not resilient.
+  if (nomIsPublic && !nom->isResilient())
+    serialized = IsSerialized;
+  SILMoveOnlyDeinit::create(f->getModule(), nom, serialized, f);
+}
+
 namespace {
 
 /// An ASTVisitor for generating SIL from method declarations
@@ -1098,6 +1113,13 @@ public:
     if (auto theClass = dyn_cast<ClassDecl>(theType)) {
       SILGenVTable genVTable(SGM, theClass);
       genVTable.emitVTable();
+    }
+
+    // If this is a nominal type that is move only, emit a deinit table for it.
+    if (auto *nom = dyn_cast<NominalTypeDecl>(theType)) {
+      if (nom->isMoveOnly()) {
+        SGM.emitNonCopyableTypeDeinitTable(nom);
+      }
     }
 
     // Build a default witness table if this is a protocol that needs one.

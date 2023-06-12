@@ -1,0 +1,306 @@
+// RUN: %target-sil-opt -enable-sil-verify-all %s -pack-metadata-marker-inserter -enable-pack-metadata-stack-promotion=true | %FileCheck %s --check-prefixes CHECK-SIL
+// RUN: %target-swift-frontend -parse-sil -emit-ir -primary-file %s -enable-pack-metadata-stack-promotion=false -enable-pack-metadata-stack-promotion=true | %IRGenFileCheck %s --check-prefixes CHECK-LLVM
+
+// REQUIRES: asserts
+
+sil_stage lowered
+
+import Builtin
+
+enum Optional<T> {
+case none
+case some(T)
+}
+
+struct Int {
+  var _value: Builtin.Int64
+}
+
+protocol Error {}
+
+struct S1 {}
+struct S2 {}
+struct S3 {}
+
+struct GV<each T> {
+  var tu: (repeat each T)
+}
+
+struct G<T> {
+  var t: T
+}
+
+sil @takeTypePack : $<each T>() -> ()
+sil @take : $<T>(@in T) -> ()
+
+// =============================================================================
+// BEGIN: Instructions                                                        {{
+// =============================================================================
+
+// CHECK-SIL-LABEL: sil @alloc_pack {{.*}} {
+// CHECK-SIL:         [[MARKER:%[^,]+]] = alloc_pack_metadata
+// CHECK-SIL:         [[PACK:%[^,]+]] = alloc_pack
+// CHECK-SIL:         dealloc_pack [[PACK]]
+// CHECK-SIL:         tuple
+// CHECK-SIL:         dealloc_pack_metadata [[MARKER]]
+// CHECK-SIL-LABEL: } // end sil function 'alloc_pack'
+sil @alloc_pack : $ <each T> () -> () {
+entry:
+  %pack = alloc_pack $Pack{repeat each T, repeat each T}
+  dealloc_pack %pack : $*Pack{repeat each T, repeat each T}
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// =============================================================================
+// FINISH: Instructions                                                       }}
+// =============================================================================
+
+// =============================================================================
+// BEGIN: Instructions: Apply                                                 {{
+// =============================================================================
+
+// CHECK-SIL-LABEL: sil @no_markers_for_apply_without_pack : $@convention(thin) () -> () {
+// CHECK-SIL-NOT:     alloc_pack_metadata
+// CHECK-SIL-LABEL: } // end sil function 'no_markers_for_apply_without_pack'
+sil @no_markers_for_apply_without_pack : $() -> () {
+entry:
+  apply undef() : $@convention(thin) () -> ()
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// A pack directly in the signature results in markers.
+// CHECK-SIL-LABEL: sil @forward_type_pack {{.*}} {
+// CHECK-SIL:         [[TAKE:%[^,]+]] = function_ref @takeTypePack
+// CHECK-SIL:         [[MARKER:%[^,]+]] = alloc_pack_metadata
+// CHECK-SIL:         apply [[TAKE]]
+// CHECK-SIL:         tuple
+// CHECK-SIL:         dealloc_pack_metadata [[MARKER]]
+// CHECK-SIL-LABEL: } // end sil function 'forward_type_pack'
+// CHECK-LLVM-LABEL: define{{.*}} @forward_type_pack(
+// CHECK-LLVM-SAME:      [[INT]] [[SHAPE:%[^,]+]], 
+// CHECK-LLVM-SAME:      %swift.type** [[PACK:%[^,]+]]) {{.*}} {
+// CHECK-LLVM:         call swiftcc void @takeTypePack(
+// CHECK-LLVM-SAME:        [[INT]] [[SHAPE]],
+// CHECK-LLVM-SAME:        %swift.type** [[PACK]])
+// CHECK-LLVM:       }
+sil @forward_type_pack : $<each T>() -> () {
+  %take = function_ref @takeTypePack : $@convention(thin) <each T>() -> ()
+  apply %take<Pack{repeat each T}>() : $@convention(thin) <each T>() -> ()
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// A pack within the type tree of a type in the signature results in markers.
+// CHECK-SIL-LABEL: sil @apply_with_variadic_generic_instance : {{.*}} {
+// CHECK-SIL:       {{bb[0-9]+}}([[INSTANCE:%[^,]+]] :
+// CHECK-SIL:         [[TAKE:%[^,]+]] = function_ref @take
+// CHECK-SIL:         [[MARKER:%[^,]+]] = alloc_pack_metadata $()
+// CHECK-SIL:         apply [[TAKE]]<GV<T, S2, S3>>([[INSTANCE]])
+// CHECK-SIL:         tuple
+// CHECK-SIL:         dealloc_pack_metadata [[MARKER]]
+// CHECK-SIL-LABEL: } // end sil function 'apply_with_variadic_generic_instance'
+// CHECK-LLVM-LABEL: define{{.*}} @apply_with_variadic_generic_instance{{.*}} {
+// CHECK-LLVM:         [[PACK_ADDR:%[^,]+]] = alloca [3 x %swift.type*]
+// CHECK-LLVM:         [[LIFETIME_START_CAST:%[^,]+]] = bitcast [3 x %swift.type*]* [[PACK_ADDR]] to i8*
+// CHECK-LLVM:         call void @llvm.lifetime.start.p0i8(
+// CHECK-LLVM-SAME:        i8* [[LIFETIME_START_CAST]])
+// CHECK-LLVM:         [[LIFETIME_END_CAST:%[^,]+]] = bitcast [3 x %swift.type*]* [[PACK_ADDR]] to i8*
+// CHECK-LLVM:         call void @llvm.lifetime.end.p0i8(
+// CHECK-LLVM-SAME:        [[INT]] 24, 
+// CHECK-LLVM-SAME:        i8* [[LIFETIME_END_CAST]])
+// CHECK-LLVM:         ret void
+// CHECK-LLVM:       }
+sil @apply_with_variadic_generic_instance : $<T>(@in GV<T, S2, S3>) -> () {
+entry(%gv : $*GV<T, S2, S3>):
+  %takeG3 = function_ref @take : $@convention(thin) <T>(@in T) -> ()
+  apply %takeG3<GV<T, S2, S3>>(%gv) : $@convention(thin) <T>(@in T) -> ()
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// A _non_-variadic generic type within the signature doesn't entail a marker.
+// CHECK-SIL-LABEL: sil @apply_with_generic_instance : {{.*}} {
+// CHECK-SIL-NOT:     alloc_pack_metadata
+// CHECK-SIL-LABEL: } // end sil function 'apply_with_generic_instance'
+sil @apply_with_generic_instance : $<T>(@in G<T>) -> () {
+entry(%g : $*G<T>):
+  %take = function_ref @take : $@convention(thin) <T>(@in T) -> ()
+  apply %take<G<T>>(%g) : $@convention(thin) <T>(@in T) -> ()
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-SIL-LABEL: sil @apply_variadic_with_generic_instance : {{.*}} {
+// CHECK-SIL:         [[TAKE:%[^,]+]] = function_ref @takeTypePack
+// CHECK-SIL:         [[MARKER:%[^,]+]] = alloc_pack_metadata
+// CHECK-SIL:         apply [[TAKE]]
+// CHECK-SIL:         dealloc_pack_metadata [[MARKER]]
+// CHECK-SIL-LABEL: } // end sil function 'apply_variadic_with_generic_instance'
+sil @apply_variadic_with_generic_instance : $<T>() -> () {
+entry:
+  %take = function_ref @takeTypePack : $@convention(thin) <each T>() -> ()
+  apply %take<Pack{G<T>}>() : $@convention(thin) <each T>() -> ()
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// =============================================================================
+// FINISH: Instructions: Apply                                                }}
+// =============================================================================
+
+// =============================================================================
+// BEGIN: Instructions: async let                                             {{
+// =============================================================================
+
+sil @closure_for_with_async_let : $@convention(thin) @Sendable @async @substituted <τ_0_0> () -> (@out τ_0_0, @error any Error) for <Int>
+sil @swift_asyncLet_finish : $@convention(thin) @async (Builtin.RawPointer, Builtin.RawPointer) -> ()
+
+// Verify that a function with an async let builtin doesn't contain any marker
+// instructions and that it is annotated no_onstack_pack_metadata.  This is
+// necessary because async let's stack behavior isn't properly encoded in SIL.
+// rdar://109850951
+// CHECK-SIL-LABEL: sil [no_onstack_pack_metadata] @with_async_let {{.*}} {
+// CHECK-SIL-NOT:     alloc_pack_metadata
+// CHECK-SIL-LABEL: } // end sil function 'with_async_let'
+sil @with_async_let : $@async <each T> () -> () {
+entry:
+  %take = function_ref @takeTypePack : $@convention(thin) <each T>() -> ()
+  apply %take<Pack{repeat each T}>() : $@convention(thin) <each T>() -> ()
+
+  %output = alloc_stack $Int
+  %output_ptr = address_to_pointer %output : $*Int to $Builtin.RawPointer
+  %addr = enum $Optional<Builtin.RawPointer>, #Optional.none!enumelt
+  %closure = function_ref @closure_for_with_async_let : $@convention(thin) @Sendable @async @substituted <τ_0_0> () -> (@out τ_0_0, @error any Error) for <Int>
+  %converted_closure = convert_function %closure : $@convention(thin) @Sendable @async @substituted <τ_0_0> () -> (@out τ_0_0, @error any Error) for <Int> to $@convention(thin) @async @substituted <τ_0_0> () -> (@out τ_0_0, @error any Error) for <Int>
+  %thick_closure = thin_to_thick_function %converted_closure : $@convention(thin) @async @substituted <τ_0_0> () -> (@out τ_0_0, @error any Error) for <Int> to $@noescape @async @callee_guaranteed @substituted <τ_0_0> () -> (@out τ_0_0, @error any Error) for <Int>
+  %alet = builtin "startAsyncLetWithLocalBuffer"<Int>(
+    %addr : $Optional<Builtin.RawPointer>, 
+    %thick_closure : $@noescape @async @callee_guaranteed @substituted <τ_0_0> () -> (@out τ_0_0, @error any Error) for <Int>, 
+    %output_ptr : $Builtin.RawPointer) : $Builtin.RawPointer
+  %finish = function_ref @swift_asyncLet_finish : $@convention(thin) @async (Builtin.RawPointer, Builtin.RawPointer) -> ()
+  apply %finish(%alet, %output_ptr) : $@convention(thin) @async (Builtin.RawPointer, Builtin.RawPointer) -> ()
+  builtin "endAsyncLetLifetime"(%alet : $Builtin.RawPointer) : $()
+  dealloc_stack %output : $*Int
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// =============================================================================
+// FINISH: Instructions: async let                                            }}
+// =============================================================================
+
+// =============================================================================
+// BEGIN: Critical edge splitting                                             {{
+// =============================================================================
+                                                                              
+// Critical edges are split if instructions are inserted (necessary because the
+// instructions are inserted on dominance frontiers).
+// CHECK-SIL-LABEL: sil @split_critical_edge_in_modified_function {{.*}} {
+// CHECK-SIL:       {{bb[0-9]+}}:
+// CHECK-SIL:         cond_br undef, [[LEFT:bb[0-9]+]], [[RIGHT:bb[0-9]+]]
+// CHECK-SIL:       [[RIGHT]]:
+// CHECK-SIL:         br [[EXIT:bb[0-9]+]]
+// CHECK-SIL:       [[LEFT]]:
+// CHECK-SIL:         br [[EXIT]]
+// CHECK-SIL:       [[EXIT]]:
+// CHECK-SIL-LABEL: } // end sil function 'split_critical_edge_in_modified_function'
+sil @split_critical_edge_in_modified_function : $<each T>() -> () {
+entry:
+  %take = function_ref @takeTypePack : $@convention(thin) <each T>() -> ()
+  apply %take<Pack{repeat each T}>() : $@convention(thin) <each T>() -> ()
+  cond_br undef, left, exit
+
+left:
+  br exit
+
+exit:
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// Functions which don't need markers don't have critical edges split.
+// CHECK-SIL-LABEL: sil @dont_split_critical_edge_in_modified_function {{.*}} {
+// CHECK-SIL:         cond_br undef, [[LOOP:bb[0-9]+]], [[EXIT:bb[0-9]+]]
+// CHECK-SIL:       [[LOOP]]:
+// CHECK-SIL:         cond_br undef, [[LOOP]], [[EXIT]]
+// CHECK-SIL:       [[EXIT]]:
+// CHECK-SIL-LABEL: } // end sil function 'dont_split_critical_edge_in_modified_function'
+sil @dont_split_critical_edge_in_modified_function : $<each T>() -> () {
+entry:
+  cond_br undef, loop, exit
+
+loop:
+  cond_br undef, loop, exit
+
+exit:
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// =============================================================================
+// FINISH: Critical edge splitting                                            }}
+// =============================================================================
+
+// =============================================================================
+// BEGIN: Dead-end blocks                                                     {{
+// =============================================================================
+                                                                              
+// CHECK-SIL-LABEL: sil @frontier_has_unreachable : {{.*}} {
+// CHECK-SIL:         [[TAKE:%[^,]+]] = function_ref @takeTypePack
+// CHECK-SIL:         [[MARKER:%[^,]+]] = alloc_pack_metadata
+// CHECK-SIL:         apply [[TAKE]]
+// CHECK-SIL:         cond_br undef, [[LEFT:bb[0-9]+]], [[RIGHT:bb[0-9]+]]
+// CHECK-SIL:       [[LEFT]]:
+// CHECK-SIL-NOT:     dealloc_pack_metadata
+// CHECK-SIL:         unreachable
+// CHECK-SIL:       [[RIGHT]]:
+// CHECK-SIL:         tuple
+// CHECK-SIL:         dealloc_pack_metadata [[MARKER]]
+// CHECK-SIL-LABEL: } // end sil function 'frontier_has_unreachable'
+sil @frontier_has_unreachable : $<each T>() -> () {
+  %take = function_ref @takeTypePack : $@convention(thin) <each T>() -> ()
+  apply %take<Pack{repeat each T}>() : $@convention(thin) <each T>() -> ()
+  cond_br undef, left, right
+
+left:
+  unreachable
+
+right:
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-SIL-LABEL: sil @frontier_has_self_loop : $@convention(thin) <each T> () -> () {
+// CHECK-SIL:         [[TAKE:%[^,]+]] = function_ref @takeTypePack
+// CHECK-SIL:         [[MARKER:%[^,]+]] = alloc_pack_metadata
+// CHECK-SIL:         apply [[TAKE]]
+// CHECK-SIL:         cond_br undef, [[ENTER:bb[0-9]+]], [[RIGHT:bb[0-9]+]]
+// CHECK-SIL:       [[ENTER]]:
+// CHECK-SIL:         br [[LOOP:bb[0-9]+]]
+// CHECK-SIL:       [[LOOP]]:
+// CHECK-SIL:         br [[LOOP]]
+// CHECK-SIL:       [[RIGHT]]:
+// CHECK-SIL:         tuple ()
+// CHECK-SIL:         dealloc_pack_metadata [[MARKER]]
+// CHECK-SIL-LABEL: } // end sil function 'frontier_has_self_loop'
+sil @frontier_has_self_loop : $<each T>() -> () {
+  %take = function_ref @takeTypePack : $@convention(thin) <each T>() -> ()
+  apply %take<Pack{repeat each T}>() : $@convention(thin) <each T>() -> ()
+  cond_br undef, loop, right
+
+enter:
+  br loop
+
+loop:
+  br loop
+
+right:
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// =============================================================================
+// FINISH: Dead-end blocks                                                    }}
+// =============================================================================

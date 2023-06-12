@@ -188,11 +188,11 @@ struct CompilerPlugin {
 }
 
 class PluginDiagnosticsEngine {
-  private let cxxDiagnosticEngine: UnsafeMutablePointer<UInt8>
+  private let bridgedDiagEngine: BridgedDiagnosticEngine
   private var exportedSourceFileByName: [String: UnsafePointer<ExportedSourceFile>] = [:]
 
   init(cxxDiagnosticEngine: UnsafeMutablePointer<UInt8>) {
-    self.cxxDiagnosticEngine = cxxDiagnosticEngine
+    self.bridgedDiagEngine = BridgedDiagnosticEngine(raw: cxxDiagnosticEngine)
   }
 
   /// Failable convenience initializer for optional cxx engine pointer.
@@ -258,34 +258,34 @@ class PluginDiagnosticsEngine {
 
     // Emit the diagnostic
     var mutableMessage = message
-    let diag = mutableMessage.withUTF8 { messageBuffer in
-      SwiftDiagnostic_create(
-        cxxDiagnosticEngine, bridgedSeverity,
-        cxxSourceLocation(at: position),
-        messageBuffer.baseAddress, messageBuffer.count)
+    let diag = mutableMessage.withBridgedString { bridgedMessage in
+      Diagnostic_create(
+        bridgedDiagEngine, bridgedSeverity,
+        bridgedSourceLoc(at: position),
+        bridgedMessage)
     }
 
     // Emit highlights
     for highlight in highlights {
-      guard let (startLoc, endLoc) = cxxSourceRange(for: highlight) else {
+      guard let (startLoc, endLoc) = bridgedSourceRange(for: highlight) else {
         continue
       }
-      SwiftDiagnostic_highlight(diag, startLoc, endLoc)
+      Diagnostic_highlight(diag, startLoc, endLoc)
     }
 
     // Emit changes for a Fix-It.
     for change in fixItChanges {
-      guard let (startLoc, endLoc) = cxxSourceRange(for: change.range) else {
+      guard let (startLoc, endLoc) = bridgedSourceRange(for: change.range) else {
         continue
       }
       var newText = change.newText
-      newText.withUTF8 { textBuffer in
-        SwiftDiagnostic_fixItReplace(
-          diag, startLoc, endLoc, textBuffer.baseAddress, textBuffer.count)
+      newText.withBridgedString { bridgedFixItText in
+        Diagnostic_fixItReplace(
+          diag, startLoc, endLoc, bridgedFixItText)
       }
     }
 
-    SwiftDiagnostic_finish(diag)
+    Diagnostic_finish(diag)
   }
 
   /// Emit diagnostics.
@@ -312,40 +312,36 @@ class PluginDiagnosticsEngine {
 
   /// Produce the C++ source location for a given position based on a
   /// syntax node.
-  private func cxxSourceLocation(
+  private func bridgedSourceLoc(
     at offset: Int, in fileName: String
-  ) -> CxxSourceLoc? {
+  ) -> BridgedSourceLoc {
     // Find the corresponding exported source file.
-    guard
-      let exportedSourceFile = exportedSourceFileByName[fileName]
-    else {
+    guard let exportedSourceFile = exportedSourceFileByName[fileName] else {
       return nil
     }
 
     // Compute the resulting address.
-    guard
-      let bufferBaseAddress = exportedSourceFile.pointee.buffer.baseAddress
-    else {
+    guard let bufferBaseAddress = exportedSourceFile.pointee.buffer.baseAddress else {
       return nil
     }
-    return bufferBaseAddress.advanced(by: offset)
+    return SourceLoc_advanced(BridgedSourceLoc(raw: bufferBaseAddress), offset)
   }
 
   /// C++ source location from a position value from a plugin.
-  private func cxxSourceLocation(
+  private func bridgedSourceLoc(
     at position: PluginMessage.Diagnostic.Position
-  ) -> CxxSourceLoc? {
-    cxxSourceLocation(at: position.offset, in: position.fileName)
+  ) -> BridgedSourceLoc {
+    return bridgedSourceLoc(at: position.offset, in: position.fileName)
   }
 
   /// C++ source range from a range value from a plugin.
-  private func cxxSourceRange(
+  private func bridgedSourceRange(
     for range: PluginMessage.Diagnostic.PositionRange
-  ) -> (start: CxxSourceLoc, end: CxxSourceLoc)? {
-    guard
-      let start = cxxSourceLocation(at: range.startOffset, in: range.fileName),
-      let end = cxxSourceLocation(at: range.endOffset, in: range.fileName)
-    else {
+  ) -> (start: BridgedSourceLoc, end: BridgedSourceLoc)? {
+    let start = bridgedSourceLoc(at: range.startOffset, in: range.fileName)
+    let end = bridgedSourceLoc(at: range.endOffset, in: range.fileName)
+
+    if start.raw == nil || end.raw == nil {
       return nil
     }
     return (start: start, end: end )
@@ -364,9 +360,8 @@ extension PluginMessage.Syntax {
     case syntax.is(AttributeSyntax.self): kind = .attribute
     default: return nil
     }
+
     let source = syntax.description
-
-
     let sourceStr = String(decoding: sourceFilePtr.pointee.buffer, as: UTF8.self)
     let fileName = sourceFilePtr.pointee.fileName
     let fileID = "\(sourceFilePtr.pointee.moduleName)/\(sourceFilePtr.pointee.fileName.basename)"

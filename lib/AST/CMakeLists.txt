@@ -50,6 +50,7 @@ add_swift_host_library(swiftAST STATIC
   ExtInfo.cpp
   FineGrainedDependencies.cpp
   FineGrainedDependencyFormat.cpp
+  FreestandingMacroExpansion.cpp
   FrontendSourceFileDepGraphFactory.cpp
   GenericEnvironment.cpp
   GenericParamList.cpp
@@ -117,6 +118,7 @@ add_swift_host_library(swiftAST STATIC
   TypeJoinMeet.cpp
   TypeRefinementContext.cpp
   TypeRepr.cpp
+  TypeSubstitution.cpp
   TypeWalker.cpp
   UnqualifiedLookup.cpp
   USRGeneration.cpp

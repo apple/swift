@@ -76,20 +76,20 @@ protected:
   SILArgument(ValueKind subClassKind, SILBasicBlock *inputParentBlock,
               SILType type, ValueOwnershipKind ownershipKind,
               const ValueDecl *inputDecl = nullptr, bool reborrow = false,
-              bool escaping = false);
+              bool pointerEscape = false);
 
   // A special constructor, only intended for use in
   // SILBasicBlock::replacePHIArg and replaceFunctionArg.
   explicit SILArgument(ValueKind subClassKind, SILType type,
                        ValueOwnershipKind ownershipKind,
                        const ValueDecl *inputDecl = nullptr,
-                       bool reborrow = false, bool escaping = false)
+                       bool reborrow = false, bool pointerEscape = false)
       : ValueBase(subClassKind, type), parentBlock(nullptr), decl(inputDecl) {
     sharedUInt8().SILArgument.valueOwnershipKind = uint8_t(ownershipKind);
     // When the optimizer creates reborrows, reborrow flag needs to be set by
     // calling setReborrow.
     sharedUInt8().SILArgument.reborrow = false;
-    sharedUInt8().SILArgument.escaping = false;
+    sharedUInt8().SILArgument.pointerEscape = false;
   }
 
 public:
@@ -119,8 +119,8 @@ public:
     return getOwnershipKind() == OwnershipKind::Guaranteed && !isReborrow();
   }
 
-  bool isEscaping() const {
-    return ValueOwnershipKind(sharedUInt8().SILArgument.escaping);
+  bool hasPointerEscape() const {
+    return ValueOwnershipKind(sharedUInt8().SILArgument.pointerEscape);
   }
 
   void setOwnershipKind(ValueOwnershipKind newKind) {
@@ -131,8 +131,8 @@ public:
     sharedUInt8().SILArgument.reborrow = isReborrow;
   }
 
-  void setEscaping(bool isEscaping) {
-    sharedUInt8().SILArgument.escaping = isEscaping;
+  void setHasPointerEscape(bool hasPointerEscape) {
+    sharedUInt8().SILArgument.pointerEscape = hasPointerEscape;
   }
 
   SILBasicBlock *getParent() const { return parentBlock; }
@@ -260,17 +260,18 @@ class SILPhiArgument : public SILArgument {
   SILPhiArgument(SILBasicBlock *parentBlock, SILType type,
                  ValueOwnershipKind ownershipKind,
                  const ValueDecl *decl = nullptr, bool isReborrow = false,
-                 bool isEscaping = false)
+                 bool hasPointerEscape = false)
       : SILArgument(ValueKind::SILPhiArgument, parentBlock, type, ownershipKind,
-                    decl, isReborrow, isEscaping) {}
+                    decl, isReborrow, hasPointerEscape) {}
 
   // A special constructor, only intended for use in
   // SILBasicBlock::replacePHIArg.
   explicit SILPhiArgument(SILType type, ValueOwnershipKind ownershipKind,
                           const ValueDecl *decl = nullptr,
-                          bool isReborrow = false, bool isEscaping = false)
+                          bool isReborrow = false,
+                          bool hasPointerEscape = false)
       : SILArgument(ValueKind::SILPhiArgument, type, ownershipKind, decl,
-                    isReborrow, isEscaping) {}
+                    isReborrow, hasPointerEscape) {}
 
 public:
   /// Return true if this is block argument is a phi, as opposed to a terminator

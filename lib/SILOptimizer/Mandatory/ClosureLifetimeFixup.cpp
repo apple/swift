@@ -396,6 +396,9 @@ static SILValue insertMarkDependenceForCapturedArguments(PartialApplyInst *pai,
     if (isa<BeginBorrowInst>(arg.get())
         || arg.get()->getType().isTrivial(*pai->getFunction()))
       continue;
+    if (auto *m = dyn_cast<MoveOnlyWrapperToCopyableValueInst>(arg.get()))
+      if (m->hasGuaranteedInitialKind())
+        continue;
     curr = b.createMarkDependence(pai->getLoc(), curr, arg.get());
   }
 
@@ -434,19 +437,26 @@ static void insertAfterClosureUser(SILInstruction *closureUser,
       return;
     insertFn(builder);
   };
-  
-  if (BeginBorrowInst *beginBorrow = dyn_cast<BeginBorrowInst>(closureUser)) {
-    // Insert everywhere after the borrow is ended.
-    SmallVector<EndBorrowInst *, 4> endBorrows;
-    for (auto eb : beginBorrow->getEndBorrows()) {
-      endBorrows.push_back(eb);
+
+  {
+    SILInstruction *userForBorrow = closureUser;
+    if (auto *m = dyn_cast<MoveOnlyWrapperToCopyableValueInst>(userForBorrow))
+      if (m->hasGuaranteedInitialKind())
+        if (auto *svi = dyn_cast<SingleValueInstruction>(m->getOperand()))
+          userForBorrow = svi;
+    if (auto *beginBorrow = dyn_cast<BeginBorrowInst>(userForBorrow)) {
+      // Insert everywhere after the borrow is ended.
+      SmallVector<EndBorrowInst *, 4> endBorrows;
+      for (auto eb : beginBorrow->getEndBorrows()) {
+        endBorrows.push_back(eb);
+      }
+
+      for (auto eb : endBorrows) {
+        SILBuilderWithScope builder(std::next(eb->getIterator()));
+        insertAtNonUnreachable(builder);
+      }
+      return;
     }
-    
-    for (auto eb : endBorrows) {
-      SILBuilderWithScope builder(std::next(eb->getIterator()));
-      insertAtNonUnreachable(builder);
-    }
-    return;
   }
 
   if (auto *startAsyncLet = dyn_cast<BuiltinInst>(closureUser)) {
@@ -599,11 +609,25 @@ static SILValue tryRewriteToPartialApplyStack(
   }
 
   // Borrow the arguments that need borrowing.
+  SmallVector<MoveOnlyWrapperToCopyableValueInst *, 8>
+      noImplicitCopyWrapperToDelete;
   SmallVector<SILValue, 8> args;
   for (Operand &arg : origPA->getArgumentOperands()) {
     auto argTy = arg.get()->getType();
     if (!argTy.isAddress() && !argTy.isTrivial(*cvt->getFunction())) {
-      auto borrow = b.createBeginBorrow(origPA->getLoc(), arg.get());
+      SILValue argValue = arg.get();
+      bool foundNoImplicitCopy = false;
+      if (auto *mmci = dyn_cast<MoveOnlyWrapperToCopyableValueInst>(argValue)) {
+        if (mmci->hasOwnedInitialKind() && mmci->hasOneUse()) {
+          foundNoImplicitCopy = true;
+          argValue = mmci->getOperand();
+          noImplicitCopyWrapperToDelete.push_back(mmci);
+        }
+      }
+      SILValue borrow = b.createBeginBorrow(origPA->getLoc(), argValue);
+      if (foundNoImplicitCopy)
+        borrow = b.createGuaranteedMoveOnlyWrapperToCopyableValue(
+            origPA->getLoc(), borrow);
       args.push_back(borrow);
     } else {
       args.push_back(arg.get());
@@ -653,6 +677,9 @@ static SILValue tryRewriteToPartialApplyStack(
   if (convertOrPartialApply != origPA)
     saveDeleteInst(convertOrPartialApply);
   saveDeleteInst(origPA);
+  // Delete the mmci of the origPA.
+  while (!noImplicitCopyWrapperToDelete.empty())
+    saveDeleteInst(noImplicitCopyWrapperToDelete.pop_back_val());
 
   ApplySite site(newPA);
   SILFunctionConventions calleeConv(site.getSubstCalleeType(),
@@ -669,11 +696,15 @@ static SILValue tryRewriteToPartialApplyStack(
     assert(calleeArgumentIndex >= calleeConv.getSILArgIndexOfFirstParam());
     auto paramInfo = calleeConv.getParamInfoForSILArg(calleeArgumentIndex);
     if (paramInfo.getConvention() == ParameterConvention::Indirect_In_Guaranteed) {
+      SILValue argValue = arg.get();
+      if (auto *mmci = dyn_cast<MoveOnlyWrapperToCopyableAddrInst>(argValue))
+        argValue = mmci->getOperand();
       // go over all the dealloc_stack, remove it
-      SmallVector<Operand*, 16> Uses(arg.get()->getUses());
-      for (auto use : Uses)
+      SmallVector<Operand *, 16> Uses(argValue->getUses());
+      for (auto use : Uses) {
         if (auto *deallocInst = dyn_cast<DeallocStackInst>(use->getUser()))
           deleter.forceDelete(deallocInst);
+      }
     }
   }
 

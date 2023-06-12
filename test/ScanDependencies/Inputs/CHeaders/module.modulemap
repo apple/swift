@@ -42,3 +42,7 @@ module X {
   header "X.h"
   export *
 }
+module X_Private {
+  header "X_Private.h"
+  export *
+}

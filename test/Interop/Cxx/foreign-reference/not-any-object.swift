@@ -26,4 +26,4 @@ import Test;
 public func test(_ _: AnyObject) {}
 
 // TODO: make this a better error.
-test(Empty.create()) // expected-error {{type of expression is ambiguous without more context}}
+test(Empty.create()) // expected-error {{type of expression is ambiguous without a type annotation}}

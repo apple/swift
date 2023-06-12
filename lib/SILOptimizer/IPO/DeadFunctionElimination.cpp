@@ -71,6 +71,8 @@ class DeadFunctionAndGlobalElimination {
     }
 
     /// Adds an implementation of the method in a specific conformance.
+    ///
+    /// \p Conf is null for default implementations and move-only deinits
     void addWitnessFunction(SILFunction *F, RootProtocolConformance *Conf) {
       assert(isWitnessMethod);
       implementingFunctions.push_back(FuncImpl(F, Conf));
@@ -617,6 +619,14 @@ class DeadFunctionAndGlobalElimination {
         ensureAlive(dw.getJVP());
       if (dw.getVJP())
         ensureAlive(dw.getVJP());
+    }
+
+    // Collect move-only deinit methods.
+    //
+    // TODO: Similar to addWitnessFunction, track the associated
+    // struct/enum decl to allow DCE of unused deinits.
+    for (auto *deinit : Module->getMoveOnlyDeinits()) {
+      makeAlive(deinit->getImplementation());
     }
   }
 

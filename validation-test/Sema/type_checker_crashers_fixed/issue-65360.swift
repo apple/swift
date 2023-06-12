@@ -9,12 +9,24 @@ let _: () -> Void = {
 
 let _: () -> Void = {
   for case (0)? in [a] {}
+  // expected-error@-1 {{pattern cannot match values of type 'Any?'}}
   if case (0, 0) = a {}
-  // expected-error@-1 {{cannot convert value of type 'Any?' to specified type '(_, _)}}
 }
 
 let _: () -> Void = {
   for case (0)? in [a] {}
+  // expected-error@-1 {{pattern cannot match values of type 'Any?'}}
   for case (0, 0) in [a] {}
-  // expected-error@-1 {{cannot convert value of type 'Any?' to expected element type '(_, _)'}}
+}
+
+let _: () -> Void = {
+  if case (0, 0) = a {}
+  // expected-error@-1 {{cannot convert value of type 'Any?' to specified type '(Int, Int)'}}
+  for case (0)? in [a] {}
+}
+
+let _: () -> Void = {
+  for case (0, 0) in [a] {}
+  // expected-error@-1 {{cannot convert value of type 'Any?' to expected element type '(Int, Int)'}}
+  for case (0)? in [a] {}
 }

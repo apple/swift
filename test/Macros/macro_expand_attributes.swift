@@ -123,3 +123,20 @@ class C2: P {
 
   var blah: Int { squareOfLength }
 }
+
+@attached(member, names: named(expandedMember))
+macro AddMember() = #externalMacro(module: "MacroDefinition", type: "SingleMemberMacro")
+
+@AddMember
+@wrapAllProperties
+struct TestExpansionOrder {
+  var originalMember: Int = 10
+}
+
+var expansionOrder = TestExpansionOrder()
+
+// CHECK-NOT: setting 27
+expansionOrder.expandedMember = 27
+
+// CHECK: setting 28
+expansionOrder.originalMember = 28

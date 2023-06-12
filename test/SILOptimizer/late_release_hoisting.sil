@@ -31,6 +31,15 @@ class HasHasObj {
   var ho : HasObj
 }
 
+public final class C {}
+
+@_moveOnly
+struct FD {
+  var c = C()
+
+  deinit {}
+}
+
 sil @$s4test8HasInt64CfD : $@convention(method) (@owned HasInt64) -> () {
 [%0: noescape **]
 }
@@ -307,4 +316,17 @@ bb0(%0 : $Int64, %1 : $HasObj):
   %o = load %oadr : $*AnyObject
   strong_release %lo : $HasHasInt64
   return %o : $AnyObject
+}
+
+// Test that a struct-with-deinit is not RC-identical to its single member.
+//
+// CHECK-LABEL: sil hidden @fdDeinit : $@convention(method) (@owned FD) -> () {
+// CHECK:         strong_release %{{.*}} : $C
+// CHECK-LABEL: } // end sil function 'fdDeinit'
+sil hidden @fdDeinit : $@convention(method) (@owned FD) -> () {
+bb0(%0 : $FD):
+  %2 = struct_extract %0 : $FD, #FD.c
+  strong_release %2 : $C
+  %4 = tuple ()
+  return %4 : $()
 }

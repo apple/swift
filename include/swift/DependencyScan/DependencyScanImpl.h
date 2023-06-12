@@ -86,6 +86,9 @@ typedef struct {
   /// Options to the compile command required to build this module interface
   swiftscan_string_set_t *command_line;
 
+  /// Options to the compile command required to build bridging header.
+  swiftscan_string_set_t *bridging_pch_command_line;
+
   /// To build a PCM to be used by this Swift module, we need to append these
   /// arguments to the generic PCM build arguments reported from the dependency
   /// graph.
@@ -96,6 +99,15 @@ typedef struct {
 
   /// A flag to indicate whether or not this module is a framework.
   bool is_framework;
+
+  /// The CASID for CASFileSystemRoot
+  swiftscan_string_ref_t cas_fs_root_id;
+
+  /// The CASID for bridging header include tree
+  swiftscan_string_ref_t bridging_header_include_tree;
+
+  /// ModuleCacheKey
+  swiftscan_string_ref_t module_cache_key;
 } swiftscan_swift_textual_details_t;
 
 /// Swift modules with only a binary module file.
@@ -111,6 +123,9 @@ typedef struct {
 
   /// A flag to indicate whether or not this module is a framework.
   bool is_framework;
+
+  /// ModuleCacheKey
+  swiftscan_string_ref_t module_cache_key;
 } swiftscan_swift_binary_details_t;
 
 /// Swift placeholder modules carry additional details that specify their
@@ -139,6 +154,15 @@ typedef struct {
 
   /// The swift-specific PCM arguments captured by this dependencies object
   swiftscan_string_set_t *captured_pcm_args;
+
+  /// The CASID for CASFileSystemRoot
+  swiftscan_string_ref_t cas_fs_root_id;
+
+  /// The CASID for CASFileSystemRoot
+  swiftscan_string_ref_t clang_include_tree;
+
+  /// ModuleCacheKey
+  swiftscan_string_ref_t module_cache_key;
 } swiftscan_clang_details_t;
 
 struct swiftscan_module_details_s {

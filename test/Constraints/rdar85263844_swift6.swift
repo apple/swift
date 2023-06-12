@@ -32,5 +32,5 @@ extension S4 where T == (outer: Int, y: Int) {
 
 public func rdar85263844_2(_ x: [Int]) -> S4<(outer: Int, y: Int)> {
   // FIXME: Bad error message.
-  S4(x.map { (inner: $0, y: $0) }) // expected-error {{type of expression is ambiguous without more context}}
+  S4(x.map { (inner: $0, y: $0) }) // expected-error {{type of expression is ambiguous without a type annotation}}
 }

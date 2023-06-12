@@ -140,7 +140,10 @@ using SwiftInterfaceModuleDetailsLayout =
                    FileIDArrayIDField,                  // sourceFiles
                    FileIDArrayIDField,                  // bridgingSourceFiles
                    FileIDArrayIDField,                  // bridgingModuleDependencies
-                   DependencyIDArrayIDField             // swiftOverlayDependencies
+                   DependencyIDArrayIDField,            // swiftOverlayDependencies
+                   IdentifierIDField,                   // CASFileSystemRootID
+                   IdentifierIDField,                   // bridgingHeaderIncludeTree
+                   IdentifierIDField                    // moduleCacheKey
                    >;
 
 using SwiftSourceModuleDetailsLayout =
@@ -150,7 +153,11 @@ using SwiftSourceModuleDetailsLayout =
                    FileIDArrayIDField,               // sourceFiles
                    FileIDArrayIDField,               // bridgingSourceFiles
                    FileIDArrayIDField,               // bridgingModuleDependencies
-                   DependencyIDArrayIDField          // swiftOverlayDependencies
+                   DependencyIDArrayIDField,         // swiftOverlayDependencies
+                   IdentifierIDField,                // CASFileSystemRootID
+                   IdentifierIDField,                // bridgingHeaderIncludeTree
+                   FlagIDArrayIDField,               // buildCommandLine
+                   FlagIDArrayIDField                // bridgingHeaderBuildCommandLine
                    >;
 
 using SwiftBinaryModuleDetailsLayout =
@@ -158,7 +165,8 @@ using SwiftBinaryModuleDetailsLayout =
                    FileIDField,                      // compiledModulePath
                    FileIDField,                      // moduleDocPath
                    FileIDField,                      // moduleSourceInfoPath
-                   IsFrameworkField                  // isFramework
+                   IsFrameworkField,                 // isFramework
+                   IdentifierIDField                 // moduleCacheKey
                    >;
 
 using SwiftPlaceholderModuleDetailsLayout =
@@ -175,7 +183,10 @@ using ClangModuleDetailsLayout =
                    ContextHashIDField,        // contextHash
                    FlagIDArrayIDField,        // commandLine
                    FileIDArrayIDField,        // fileDependencies
-                   FlagIDArrayIDField         // capturedPCMArgs
+                   FlagIDArrayIDField,        // capturedPCMArgs
+                   IdentifierIDField,         // CASFileSystemRootID
+                   IdentifierIDField,         // clangIncludeTreeRoot
+                   IdentifierIDField          // moduleCacheKey
                    >;
 } // namespace graph_block
 

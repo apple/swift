@@ -113,7 +113,7 @@ let _ : D<Int, Int, Float> = D(a: 1, b: 2)
 
 let _ : F = { (a : Int) -> Int in a }  // Infer the types of F
 
-let _ : F = { a in a } // expected-error {{unable to infer type of a closure parameter 'a' in the current context}}
+let _ : F = { a in a } // expected-error {{cannot infer type of closure parameter 'a' without a type annotation}}
 
 _ = MyType(a: "foo", b: 42)
 _ = A(a: "foo", b: 42)

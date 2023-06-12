@@ -58,7 +58,7 @@ const uint16_t SWIFTMODULE_VERSION_MAJOR = 0;
 /// describe what change you made. The content of this comment isn't important;
 /// it just ensures a conflict if two people change the module format.
 /// Don't worry about adhering to the 80-column limit for this line.
-const uint16_t SWIFTMODULE_VERSION_MINOR = 782; // reborrow, escaped SIL flags
+const uint16_t SWIFTMODULE_VERSION_MINOR = 791; // HasCxxInteroperability
 
 /// A standard hash seed used for all string hashes in a serialized module.
 ///
@@ -330,6 +330,7 @@ enum AccessorKind : uint8_t {
   MutableAddress,
   Read,
   Modify,
+  Init,
 };
 using AccessorKindField = BCFixed<4>;
 
@@ -887,6 +888,7 @@ namespace options_block {
     EXTERNAL_SEARCH_PLUGIN_PATH,
     COMPILER_PLUGIN_LIBRARY_PATH,
     COMPILER_PLUGIN_EXECUTABLE_PATH,
+    HAS_CXX_INTEROPERABILITY_ENABLED,
   };
 
   using SDKPathLayout = BCRecordLayout<
@@ -974,6 +976,10 @@ namespace options_block {
   using ModuleExportAsNameLayout = BCRecordLayout<
     MODULE_EXPORT_AS_NAME,
     BCBlob
+  >;
+
+  using HasCxxInteroperabilityEnabledLayout = BCRecordLayout<
+    HAS_CXX_INTEROPERABILITY_ENABLED
   >;
 }
 
@@ -1363,6 +1369,12 @@ namespace decls_block {
     PACK_EXPANSION_TYPE,
     TypeIDField, // pattern type
     TypeIDField  // count type
+  );
+
+  TYPE_LAYOUT(PackElementTypeLayout,
+    PACK_ELEMENT_TYPE,
+    TypeIDField,  // pack type
+    BCFixed<32>   // level
   );
 
   TYPE_LAYOUT(PackTypeLayout,
@@ -2031,6 +2043,12 @@ namespace decls_block {
     BCBlob      // _silgen_name
   >;
 
+  using SectionDeclAttrLayout = BCRecordLayout<
+    Section_DECL_ATTR,
+    BCFixed<1>, // implicit flag
+    BCBlob      // _section
+  >;
+
   using CDeclDeclAttrLayout = BCRecordLayout<
     CDecl_DECL_ATTR,
     BCFixed<1>, // implicit flag
@@ -2213,6 +2231,16 @@ namespace decls_block {
       BCVBR<4>, // # of type erased parameters
       BCArray<IdentifierIDField> // target function pieces, spi groups, type erased params
       >;
+
+  using InitializesDeclAttrLayout = BCRecordLayout<
+      Initializes_DECL_ATTR,
+      BCArray<IdentifierIDField> // initialized properties
+  >;
+
+  using AccessesDeclAttrLayout = BCRecordLayout<
+      Accesses_DECL_ATTR,
+      BCArray<IdentifierIDField> // initialized properties
+  >;
 
   using DifferentiableDeclAttrLayout = BCRecordLayout<
     Differentiable_DECL_ATTR,

@@ -81,7 +81,13 @@ Type swift::ide::getTypeForCompletion(const constraints::Solution &S,
 /// \endcode
 /// If the code completion expression occurs in such an AST, return the
 /// declaration of the \c $match variable, otherwise return \c nullptr.
-static VarDecl *getMatchVarIfInPatternMatch(Expr *E, ConstraintSystem &CS) {
+static VarDecl *getMatchVarIfInPatternMatch(Expr *E, const Solution &S) {
+  if (auto EP = S.getExprPatternFor(E))
+    return EP.get()->getMatchVar();
+
+  // TODO: Once ExprPattern type-checking is fully moved into the solver,
+  // the below can be deleted.
+  auto &CS = S.getConstraintSystem();
   auto &Context = CS.getASTContext();
 
   auto *Binary = dyn_cast_or_null<BinaryExpr>(CS.getParentExpr(E));
@@ -109,20 +115,21 @@ static VarDecl *getMatchVarIfInPatternMatch(Expr *E, ConstraintSystem &CS) {
 }
 
 Type swift::ide::getPatternMatchType(const constraints::Solution &S, Expr *E) {
-  if (auto MatchVar = getMatchVarIfInPatternMatch(E, S.getConstraintSystem())) {
-    Type MatchVarType;
-    // If the MatchVar has an explicit type, it's not part of the solution. But
-    // we can look it up in the constraint system directly.
-    if (auto T = S.getConstraintSystem().getVarType(MatchVar)) {
-      MatchVarType = T;
-    } else {
-      MatchVarType = getTypeForCompletion(S, MatchVar);
-    }
-    if (MatchVarType) {
-      return MatchVarType;
-    }
-  }
-  return nullptr;
+  auto MatchVar = getMatchVarIfInPatternMatch(E, S);
+  if (!MatchVar)
+    return nullptr;
+
+  if (S.hasType(MatchVar))
+    return S.getResolvedType(MatchVar);
+
+  // If the ExprPattern wasn't solved as part of the constraint system, it's
+  // not part of the solution.
+  // TODO: This can be removed once ExprPattern type-checking is fully part
+  // of the constraint system.
+  if (auto T = S.getConstraintSystem().getVarType(MatchVar))
+    return T;
+
+  return getTypeForCompletion(S, MatchVar);
 }
 
 void swift::ide::getSolutionSpecificVarTypes(

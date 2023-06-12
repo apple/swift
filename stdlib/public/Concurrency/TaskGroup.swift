@@ -272,14 +272,15 @@ public struct TaskGroup<ChildTaskResult: Sendable> {
     let flags = taskCreateFlags(
       priority: priority, isChildTask: true, copyTaskLocals: false,
       inheritContext: false, enqueueJob: false,
-      addPendingGroupTaskUnconditionally: true
+      addPendingGroupTaskUnconditionally: true,
+      isDiscardingTask: false
     )
 #else
     let flags = taskCreateFlags(
       priority: priority, isChildTask: true, copyTaskLocals: false,
       inheritContext: false, enqueueJob: true,
-      addPendingGroupTaskUnconditionally: true
-    )
+      addPendingGroupTaskUnconditionally: true,
+      isDiscardingTask: false)
 #endif
 
     // Create the task in this group.
@@ -314,14 +315,14 @@ public struct TaskGroup<ChildTaskResult: Sendable> {
     let flags = taskCreateFlags(
       priority: priority, isChildTask: true, copyTaskLocals: false,
       inheritContext: false, enqueueJob: false,
-      addPendingGroupTaskUnconditionally: false
-    )
+      addPendingGroupTaskUnconditionally: false,
+      isDiscardingTask: false)
 #else
     let flags = taskCreateFlags(
       priority: priority, isChildTask: true, copyTaskLocals: false,
       inheritContext: false, enqueueJob: true,
-      addPendingGroupTaskUnconditionally: false
-    )
+      addPendingGroupTaskUnconditionally: false,
+      isDiscardingTask: false)
 #endif
 
     // Create the task in this group.
@@ -354,8 +355,8 @@ public struct TaskGroup<ChildTaskResult: Sendable> {
     let flags = taskCreateFlags(
       priority: nil, isChildTask: true, copyTaskLocals: false,
       inheritContext: false, enqueueJob: true,
-      addPendingGroupTaskUnconditionally: true
-    )
+      addPendingGroupTaskUnconditionally: true,
+      isDiscardingTask: false)
 
     // Create the task in this group.
     _ = Builtin.createAsyncTaskInGroup(flags, _group, operation)
@@ -394,8 +395,8 @@ public struct TaskGroup<ChildTaskResult: Sendable> {
     let flags = taskCreateFlags(
       priority: nil, isChildTask: true, copyTaskLocals: false,
       inheritContext: false, enqueueJob: true,
-      addPendingGroupTaskUnconditionally: false
-    )
+      addPendingGroupTaskUnconditionally: false,
+      isDiscardingTask: false)
 
     // Create the task in this group.
     _ = Builtin.createAsyncTaskInGroup(flags, _group, operation)
@@ -682,7 +683,8 @@ public struct ThrowingTaskGroup<ChildTaskResult: Sendable, Failure: Error> {
     let flags = taskCreateFlags(
       priority: priority, isChildTask: true, copyTaskLocals: false,
       inheritContext: false, enqueueJob: true,
-      addPendingGroupTaskUnconditionally: true
+      addPendingGroupTaskUnconditionally: true,
+      isDiscardingTask: false
     )
 
     // Create the task in this group.
@@ -720,8 +722,8 @@ public struct ThrowingTaskGroup<ChildTaskResult: Sendable, Failure: Error> {
     let flags = taskCreateFlags(
       priority: priority, isChildTask: true, copyTaskLocals: false,
       inheritContext: false, enqueueJob: true,
-      addPendingGroupTaskUnconditionally: false
-    )
+      addPendingGroupTaskUnconditionally: false,
+      isDiscardingTask: false)
 
     // Create the task in this group.
     _ = Builtin.createAsyncTaskInGroup(flags, _group, operation)
@@ -756,8 +758,8 @@ public struct ThrowingTaskGroup<ChildTaskResult: Sendable, Failure: Error> {
     let flags = taskCreateFlags(
       priority: nil, isChildTask: true, copyTaskLocals: false,
       inheritContext: false, enqueueJob: true,
-      addPendingGroupTaskUnconditionally: true
-    )
+      addPendingGroupTaskUnconditionally: true,
+      isDiscardingTask: false)
 
     // Create the task in this group.
     _ = Builtin.createAsyncTaskInGroup(flags, _group, operation)
@@ -799,8 +801,8 @@ public struct ThrowingTaskGroup<ChildTaskResult: Sendable, Failure: Error> {
     let flags = taskCreateFlags(
       priority: nil, isChildTask: true, copyTaskLocals: false,
       inheritContext: false, enqueueJob: true,
-      addPendingGroupTaskUnconditionally: false
-    )
+      addPendingGroupTaskUnconditionally: false,
+      isDiscardingTask: false)
 
     // Create the task in this group.
     _ = Builtin.createAsyncTaskInGroup(flags, _group, operation)

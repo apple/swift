@@ -44,5 +44,19 @@ int main() {
 // CHECK-NEXT: destroy RefCountedClass
 // CHECK-NEXT: destroy RefCountedClass
 // CHECK-NEXT: breakpoint 3
+
+  {
+    StructWithRefcountedMember value = returnNewStructWithRefcountedMember();
+    StructWithRefcountedMember value2 = returnNewStructWithRefcountedMember();
+    value = value2;
+    printBreak(4);
+  }
+  printBreak(5);
+// CHECK-NEXT: create RefCountedClass
+// CHECK-NEXT: create RefCountedClass
+// CHECK-NEXT: destroy RefCountedClass
+// CHECK-NEXT: breakpoint 4
+// CHECK-NEXT: destroy RefCountedClass
+// CHECK-NEXT: breakpoint 5
   return 0;
 }

@@ -113,7 +113,7 @@ public struct Builder {
     return notifyNew(cast.getAs(UpcastInst.self))
   }
 
-  public func createLoad(fromAddress: Value, ownership: LoadInst.LoadOwnership) -> LoadInst {
+  public func createLoad(fromAddress: Value, ownership: LoadInst.Ownership) -> LoadInst {
     let load = bridged.createLoad(fromAddress.bridged, ownership.rawValue)
     return notifyNew(load.getAs(LoadInst.self))
   }
@@ -134,6 +134,18 @@ public struct Builder {
   public func createStrongRelease(operand: Value) -> StrongReleaseInst {
     let release = bridged.createStrongRelease(operand.bridged)
     return notifyNew(release.getAs(StrongReleaseInst.self))
+  }
+
+  @discardableResult
+  public func createUnownedRetain(operand: Value) -> UnownedRetainInst {
+    let retain = bridged.createUnownedRetain(operand.bridged)
+    return notifyNew(retain.getAs(UnownedRetainInst.self))
+  }
+
+  @discardableResult
+  public func createUnownedRelease(operand: Value) -> UnownedReleaseInst {
+    let release = bridged.createUnownedRelease(operand.bridged)
+    return notifyNew(release.getAs(UnownedReleaseInst.self))
   }
 
   public func createFunctionRef(_ function: Function) -> FunctionRefInst {
@@ -184,6 +196,12 @@ public struct Builder {
     let ued = bridged.createUncheckedEnumData(enumVal.bridged, caseIndex, resultType.bridged)
     return notifyNew(ued.getAs(UncheckedEnumDataInst.self))
   }
+
+  public func createEnum(caseIndex: Int, payload: Value?, enumType: Type) -> EnumInst {
+    let enumInst = bridged.createEnum(caseIndex, payload.bridged, enumType.bridged)
+    return notifyNew(enumInst.getAs(EnumInst.self))
+  }
+
   @discardableResult
   public func createSwitchEnum(enum enumVal: Value,
                                cases: [(Int, BasicBlock)],
@@ -225,7 +243,6 @@ public struct Builder {
     return notifyNew(bridged.createGlobalValue(global.bridged).getAs(GlobalValueInst.self))
   }
 
-  @discardableResult
   public func createStruct(type: Type, elements: [Value]) -> StructInst {
     let structInst = elements.withBridgedValues { valuesRef in
       return bridged.createStruct(type.bridged, valuesRef)
@@ -233,7 +250,6 @@ public struct Builder {
     return notifyNew(structInst.getAs(StructInst.self))
   }
 
-  @discardableResult
   public func createTuple(type: Type, elements: [Value]) -> TupleInst {
     let tuple = elements.withBridgedValues { valuesRef in
       return bridged.createTuple(type.bridged, valuesRef)
@@ -241,4 +257,9 @@ public struct Builder {
     return notifyNew(tuple.getAs(TupleInst.self))
   }
 
+  @discardableResult
+  public func createStore(source: Value, destination: Value, ownership: StoreInst.Ownership) -> StoreInst {
+    let store = bridged.createStore(source.bridged, destination.bridged, ownership.rawValue)
+    return notifyNew(store.getAs(StoreInst.self))
+  }
 }

@@ -37,7 +37,7 @@
       key.buffer_name: "@__swiftmacro_9MacroUser3fooyyF11coerceToIntfMf_.swift"
     },
     {
-      key.buffer_text: "import Swift\n\nprecedencegroup MyPrecedence {}\n\n@attached(member) macro myMacro()\n\nextension Int {\n}\n\n@main\nstruct MyMain {\n  static func main() {\n  }\n}\n\ntypealias Array = Void\n\ntypealias Dictionary = Void\n\ntypealias BooleanLiteralType = Void\n\ntypealias ExtendedGraphemeClusterType = Void\n\ntypealias FloatLiteralType = Void\n\ntypealias IntegerLiteralType = Void\n\ntypealias StringLiteralType = Void\n\ntypealias UnicodeScalarType = Void\n\ntypealias _ColorLiteralType = Void\n\ntypealias _ImageLiteralType = Void\n\ntypealias _FileReferenceLiteralType = Void",
+      key.buffer_text: "import Swift\n\nprecedencegroup MyPrecedence {\n}\n\n@attached(member) macro myMacro()\n\nextension Int {\n}\n\n@main\nstruct MyMain {\n  static func main() {\n  }\n}\n\ntypealias Array = Void\n\ntypealias Dictionary = Void\n\ntypealias BooleanLiteralType = Void\n\ntypealias ExtendedGraphemeClusterType = Void\n\ntypealias FloatLiteralType = Void\n\ntypealias IntegerLiteralType = Void\n\ntypealias StringLiteralType = Void\n\ntypealias UnicodeScalarType = Void\n\ntypealias _ColorLiteralType = Void\n\ntypealias _ImageLiteralType = Void\n\ntypealias _FileReferenceLiteralType = Void",
       key.original_location: {
         key.offset: 499,
         key.length: 0,
@@ -233,7 +233,7 @@
       ]
     },
     {
-      key.line: 5,
+      key.line: 6,
       key.column: 25,
       key.filepath: "@__swiftmacro_9MacroUser3Bad7InvalidfMp_.swift",
       key.severity: source.diagnostic.severity.error,
@@ -257,7 +257,7 @@
       ]
     },
     {
-      key.line: 5,
+      key.line: 6,
       key.column: 25,
       key.filepath: "@__swiftmacro_9MacroUser3Bad7InvalidfMp_.swift",
       key.severity: source.diagnostic.severity.error,
@@ -281,7 +281,7 @@
       ]
     },
     {
-      key.line: 7,
+      key.line: 8,
       key.column: 1,
       key.filepath: "@__swiftmacro_9MacroUser3Bad7InvalidfMp_.swift",
       key.severity: source.diagnostic.severity.error,
@@ -305,7 +305,7 @@
       ]
     },
     {
-      key.line: 10,
+      key.line: 11,
       key.column: 1,
       key.filepath: "@__swiftmacro_9MacroUser3Bad7InvalidfMp_.swift",
       key.severity: source.diagnostic.severity.error,
@@ -329,7 +329,7 @@
       ]
     },
     {
-      key.line: 11,
+      key.line: 12,
       key.column: 8,
       key.filepath: "@__swiftmacro_9MacroUser3Bad7InvalidfMp_.swift",
       key.severity: source.diagnostic.severity.error,
@@ -353,7 +353,7 @@
       ]
     },
     {
-      key.line: 16,
+      key.line: 17,
       key.column: 11,
       key.filepath: "@__swiftmacro_9MacroUser3Bad7InvalidfMp_.swift",
       key.severity: source.diagnostic.severity.error,
@@ -377,7 +377,7 @@
       ]
     },
     {
-      key.line: 18,
+      key.line: 19,
       key.column: 11,
       key.filepath: "@__swiftmacro_9MacroUser3Bad7InvalidfMp_.swift",
       key.severity: source.diagnostic.severity.error,
@@ -401,7 +401,7 @@
       ]
     },
     {
-      key.line: 20,
+      key.line: 21,
       key.column: 11,
       key.filepath: "@__swiftmacro_9MacroUser3Bad7InvalidfMp_.swift",
       key.severity: source.diagnostic.severity.error,
@@ -425,7 +425,7 @@
       ]
     },
     {
-      key.line: 22,
+      key.line: 23,
       key.column: 11,
       key.filepath: "@__swiftmacro_9MacroUser3Bad7InvalidfMp_.swift",
       key.severity: source.diagnostic.severity.error,
@@ -449,7 +449,7 @@
       ]
     },
     {
-      key.line: 24,
+      key.line: 25,
       key.column: 11,
       key.filepath: "@__swiftmacro_9MacroUser3Bad7InvalidfMp_.swift",
       key.severity: source.diagnostic.severity.error,
@@ -473,7 +473,7 @@
       ]
     },
     {
-      key.line: 26,
+      key.line: 27,
       key.column: 11,
       key.filepath: "@__swiftmacro_9MacroUser3Bad7InvalidfMp_.swift",
       key.severity: source.diagnostic.severity.error,
@@ -497,7 +497,7 @@
       ]
     },
     {
-      key.line: 28,
+      key.line: 29,
       key.column: 11,
       key.filepath: "@__swiftmacro_9MacroUser3Bad7InvalidfMp_.swift",
       key.severity: source.diagnostic.severity.error,
@@ -521,7 +521,7 @@
       ]
     },
     {
-      key.line: 30,
+      key.line: 31,
       key.column: 11,
       key.filepath: "@__swiftmacro_9MacroUser3Bad7InvalidfMp_.swift",
       key.severity: source.diagnostic.severity.error,
@@ -545,7 +545,7 @@
       ]
     },
     {
-      key.line: 32,
+      key.line: 33,
       key.column: 11,
       key.filepath: "@__swiftmacro_9MacroUser3Bad7InvalidfMp_.swift",
       key.severity: source.diagnostic.severity.error,
@@ -569,7 +569,7 @@
       ]
     },
     {
-      key.line: 34,
+      key.line: 35,
       key.column: 11,
       key.filepath: "@__swiftmacro_9MacroUser3Bad7InvalidfMp_.swift",
       key.severity: source.diagnostic.severity.error,
@@ -593,7 +593,7 @@
       ]
     },
     {
-      key.line: 36,
+      key.line: 37,
       key.column: 11,
       key.filepath: "@__swiftmacro_9MacroUser3Bad7InvalidfMp_.swift",
       key.severity: source.diagnostic.severity.error,

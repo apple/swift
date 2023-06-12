@@ -17,6 +17,22 @@ import SwiftSyntaxMacros
 @_implementationOnly import SwiftSyntaxBuilder
 
 public struct ObservableMacro {
+  static let moduleName = "_Observation"
+
+  static let conformanceName = "Observable"
+  static var qualifiedConformanceName: String {
+    return "\(moduleName).\(conformanceName)"
+  }
+
+  static var observableConformanceType: TypeSyntax {
+    "\(raw: qualifiedConformanceName)"
+  }
+
+  static let registrarTypeName = "ObservationRegistrar"
+  static var qualifiedRegistrarTypeName: String {
+    return "\(moduleName).\(registrarTypeName)"
+  }
+  
   static let trackedMacroName = "ObservationTracked"
   static let ignoredMacroName = "ObservationIgnored"
 
@@ -25,7 +41,7 @@ public struct ObservableMacro {
   static func registrarVariable(_ observableType: TokenSyntax) -> DeclSyntax {
     return
       """
-      @\(raw: ignoredMacroName) private let \(raw: registrarVariableName) = ObservationRegistrar()
+      @\(raw: ignoredMacroName) private let \(raw: registrarVariableName) = \(raw: qualifiedRegistrarTypeName)()
       """
   }
   
@@ -202,17 +218,15 @@ extension ObservableMacro: MemberMacro {
     declaration.addIfNeeded(ObservableMacro.registrarVariable(observableType), to: &declarations)
     declaration.addIfNeeded(ObservableMacro.accessFunction(observableType), to: &declarations)
     declaration.addIfNeeded(ObservableMacro.withMutationFunction(observableType), to: &declarations)
-    
+
+#if !OBSERVATION_SUPPORTS_PEER_MACROS
     let storedInstanceVariables = declaration.definedVariables.filter { $0.isValidForObservation }
     for property in storedInstanceVariables {
-      if property.hasMacroApplication(ObservableMacro.ignoredMacroName) { continue }
-      if property.initializer == nil {
-        context.addDiagnostics(from: DiagnosticsError(syntax: property, message: "@Observable requires property '\(property.identifier?.text ?? "")' to have an initial value", id: .missingInitializer), node: property)
-      }
-      let storage = DeclSyntax(property.privatePrefixed("_", addingAttribute: ObservableMacro.ignoredAttribute))
-      declaration.addIfNeeded(storage, to: &declarations)
-      
+       if property.hasMacroApplication(ObservableMacro.ignoredMacroName) { continue }
+       let storage = DeclSyntax(property.privatePrefixed("_", addingAttribute: ObservableMacro.ignoredAttribute))
+       declaration.addIfNeeded(storage, to: &declarations)
     }
+#endif
 
     return declarations
   }
@@ -264,13 +278,13 @@ extension ObservableMacro: ConformanceMacro {
     
     if let inheritanceList {
       for inheritance in inheritanceList {
-        if inheritance.typeName.identifier == "Observable" {
+        if inheritance.typeName.identifier == ObservableMacro.conformanceName {
           return []
         }
       }
     }
     
-    return [("Observable", nil)]
+    return [(ObservableMacro.observableConformanceType, nil)]
   }
 }
 
@@ -293,6 +307,13 @@ public struct ObservationTrackedMacro: AccessorMacro {
       return []
     }
 
+    let initAccessor: AccessorDeclSyntax =
+      """
+      init(initialValue) initializes(_\(identifier)) {
+        _\(identifier) = initialValue
+      }
+      """
+
     let getAccessor: AccessorDeclSyntax =
       """
       get {
@@ -310,7 +331,7 @@ public struct ObservationTrackedMacro: AccessorMacro {
       }
       """
 
-    return [getAccessor, setAccessor]
+    return [initAccessor, getAccessor, setAccessor]
   }
 }
 
@@ -327,8 +348,9 @@ extension ObservationTrackedMacro: PeerMacro {
           property.isValidForObservation else {
       return []
     }
-
-    if property.hasMacroApplication(ObservableMacro.ignoredMacroName) {
+    
+    if property.hasMacroApplication(ObservableMacro.ignoredMacroName) ||
+       property.hasMacroApplication(ObservableMacro.trackedMacroName) {
       return []
     }
     

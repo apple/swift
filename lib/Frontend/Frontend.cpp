@@ -232,7 +232,7 @@ SerializationOptions CompilerInvocation::computeSerializationOptions(
     llvm::interleave(
         pair.ModuleNames, [&](auto &name) { optStr += name; },
         [&]() { optStr += ","; });
-    serializationOpts.CompilerPluginLibraryPaths.push_back(optStr);
+    serializationOpts.CompilerPluginExecutablePaths.push_back(optStr);
   }
 
   serializationOpts.DisableCrossModuleIncrementalInfo =
@@ -439,22 +439,6 @@ bool CompilerInstance::setupCASIfNeeded(ArrayRef<const char *> Args) {
   ResultCache = std::move(MaybeCache->second);
 
   // create baseline key.
-  llvm::Optional<llvm::cas::ObjectRef> FSRef;
-  if (!Opts.CASFSRootID.empty()) {
-    auto CASFSID = CAS->parseID(Opts.CASFSRootID);
-    if (!CASFSID) {
-      Diagnostics.diagnose(SourceLoc(), diag::error_cas,
-                           toString(CASFSID.takeError()));
-      return true;
-    }
-    FSRef = CAS->getReference(*CASFSID);
-    if (!FSRef) {
-      Diagnostics.diagnose(SourceLoc(), diag::error_cas,
-                           "-cas-fs value does not exist in CAS");
-      return true;
-    }
-  }
-
   auto BaseKey = createCompileJobBaseCacheKey(*CAS, Args);
   if (!BaseKey) {
     Diagnostics.diagnose(SourceLoc(), diag::error_cas,
@@ -561,23 +545,37 @@ bool CompilerInstance::setup(const CompilerInvocation &Invoke,
 
 bool CompilerInstance::setUpVirtualFileSystemOverlays() {
   if (Invocation.getFrontendOptions().EnableCAS &&
-      !Invocation.getFrontendOptions().CASFSRootID.empty()) {
+      (!Invocation.getFrontendOptions().CASFSRootIDs.empty() ||
+       !Invocation.getFrontendOptions().ClangIncludeTrees.empty())) {
     // Set up CASFS as BaseFS.
-    auto RootID = CAS->parseID(Invocation.getFrontendOptions().CASFSRootID);
-    if (!RootID) {
-      Diagnostics.diagnose(SourceLoc(), diag::error_invalid_cas_id,
-                           Invocation.getFrontendOptions().CASFSRootID,
-                           toString(RootID.takeError()));
-      return true;
-    }
-    auto FS = llvm::cas::createCASFileSystem(*CAS, *RootID);
+    const auto &Opts = getInvocation().getFrontendOptions();
+    auto FS =
+        createCASFileSystem(*CAS, Opts.CASFSRootIDs, Opts.ClangIncludeTrees);
     if (!FS) {
-      Diagnostics.diagnose(SourceLoc(), diag::error_invalid_cas_id,
-                           Invocation.getFrontendOptions().CASFSRootID,
+      Diagnostics.diagnose(SourceLoc(), diag::error_cas,
                            toString(FS.takeError()));
       return true;
     }
     SourceMgr.setFileSystem(std::move(*FS));
+  }
+
+  // If we have a bridging header cache key, try load it now and overlay it.
+  if (!Invocation.getClangImporterOptions().BridgingHeaderPCHCacheKey.empty() &&
+      Invocation.getFrontendOptions().EnableCAS) {
+    auto loadedBridgingBuffer = loadCachedCompileResultFromCacheKey(
+        getObjectStore(), getActionCache(), Diagnostics,
+        Invocation.getClangImporterOptions().BridgingHeaderPCHCacheKey,
+        Invocation.getClangImporterOptions().BridgingHeader);
+    if (loadedBridgingBuffer) {
+      llvm::IntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem> PCHFS =
+          new llvm::vfs::InMemoryFileSystem();
+      PCHFS->addFile(Invocation.getClangImporterOptions().BridgingHeader, 0,
+                     std::move(loadedBridgingBuffer));
+      llvm::IntrusiveRefCntPtr<llvm::vfs::OverlayFileSystem> OverlayVFS =
+          new llvm::vfs::OverlayFileSystem(SourceMgr.getFileSystem());
+      OverlayVFS->pushOverlay(PCHFS);
+      SourceMgr.setFileSystem(std::move(OverlayVFS));
+    }
   }
 
   auto ExpectedOverlay =
@@ -701,17 +699,24 @@ bool CompilerInstance::setUpModuleLoaders() {
   // If using `-explicit-swift-module-map-file`, create the explicit loader
   // before creating `ClangImporter` because the entries in the map influence
   // the Clang flags. The loader is added to the context below.
-  std::unique_ptr<ExplicitSwiftModuleLoader> ESML = nullptr;
+  std::unique_ptr<SerializedModuleLoaderBase> ESML = nullptr;
   bool ExplicitModuleBuild =
       Invocation.getFrontendOptions().DisableImplicitModules;
   if (ExplicitModuleBuild ||
       !Invocation.getSearchPathOptions().ExplicitSwiftModuleMap.empty() ||
       !Invocation.getSearchPathOptions().ExplicitSwiftModuleInputs.empty()) {
-    ESML = ExplicitSwiftModuleLoader::create(
-        *Context, getDependencyTracker(), MLM,
-        Invocation.getSearchPathOptions().ExplicitSwiftModuleMap,
-        Invocation.getSearchPathOptions().ExplicitSwiftModuleInputs,
-        IgnoreSourceInfoFile);
+    if (Invocation.getFrontendOptions().EnableCAS)
+      ESML = ExplicitCASModuleLoader::create(
+          *Context, getObjectStore(), getActionCache(), getDependencyTracker(),
+          MLM, Invocation.getSearchPathOptions().ExplicitSwiftModuleMap,
+          Invocation.getSearchPathOptions().ExplicitSwiftModuleInputs,
+          IgnoreSourceInfoFile);
+    else
+      ESML = ExplicitSwiftModuleLoader::create(
+          *Context, getDependencyTracker(), MLM,
+          Invocation.getSearchPathOptions().ExplicitSwiftModuleMap,
+          Invocation.getSearchPathOptions().ExplicitSwiftModuleInputs,
+          IgnoreSourceInfoFile);
   }
 
   // Wire up the Clang importer. If the user has specified an SDK, use it.
@@ -839,6 +844,12 @@ std::string CompilerInstance::getBridgingHeaderPath() const {
 }
 
 bool CompilerInstance::setUpInputs() {
+  // There is no input file when building PCM using ClangIncludeTree.
+  if (Invocation.getFrontendOptions().RequestedAction ==
+          FrontendOptions::ActionType::EmitPCM &&
+      Invocation.getClangImporterOptions().UseClangIncludeTree)
+    return false;
+
   // Adds to InputSourceCodeBufferIDs, so may need to happen before the
   // per-input setup.
   const Optional<unsigned> ideInspectionTargetBufferID =
@@ -1319,6 +1330,9 @@ ModuleDecl *CompilerInstance::getMainModule() const {
       MainModule->setResilienceStrategy(ResilienceStrategy::Resilient);
     if (Invocation.getLangOptions().isSwiftVersionAtLeast(6))
       MainModule->setIsConcurrencyChecked(true);
+    if (Invocation.getLangOptions().EnableCXXInterop &&
+        Invocation.getLangOptions().RequireCxxInteropToImportCxxInteropModule)
+      MainModule->setHasCxxInteroperability();
 
     // Register the main module with the AST context.
     Context->addLoadedModule(MainModule);

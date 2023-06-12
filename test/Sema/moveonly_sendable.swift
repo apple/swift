@@ -93,35 +93,35 @@ enum Wrong_NoncopyableOption<T> : Sendable { // expected-note {{consider making 
 func takeAnySendable(_ s: any Sendable) {}
 func takeSomeSendable(_ s: some Sendable) {}
 
-// expected-error@+1 {{move-only type 'FileDescriptor' cannot be used with generics yet}}
+// expected-error@+1 {{noncopyable type 'FileDescriptor' cannot be used with generics yet}}
 func mkSendable() -> Sendable { return FileDescriptor(id: 0) }
 
 func tryToCastIt(_ fd: borrowing FileDescriptor) {
-  let _: any Sendable = fd // expected-error {{move-only type 'FileDescriptor' cannot be used with generics yet}}
-  let _: Sendable = fd // expected-error {{move-only type 'FileDescriptor' cannot be used with generics yet}}
+  let _: any Sendable = fd // expected-error {{noncopyable type 'FileDescriptor' cannot be used with generics yet}}
+  let _: Sendable = fd // expected-error {{noncopyable type 'FileDescriptor' cannot be used with generics yet}}
 
-  takeAnySendable(fd) // expected-error {{move-only type 'FileDescriptor' cannot be used with generics yet}}
-  takeSomeSendable(fd) // expected-error {{move-only type 'FileDescriptor' cannot be used with generics yet}}
+  takeAnySendable(fd) // expected-error {{noncopyable type 'FileDescriptor' cannot be used with generics yet}}
+  takeSomeSendable(fd) // expected-error {{noncopyable type 'FileDescriptor' cannot be used with generics yet}}
 
-  let _ = fd as Sendable // expected-error {{move-only type 'FileDescriptor' cannot be used with generics yet}}
+  let _ = fd as Sendable // expected-error {{noncopyable type 'FileDescriptor' cannot be used with generics yet}}
 
   let _ = fd as? Sendable // expected-warning {{cast from 'FileDescriptor' to unrelated type 'any Sendable' always fails}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
 
   let _ = fd as! Sendable // expected-warning {{cast from 'FileDescriptor' to unrelated type 'any Sendable' always fails}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
 
   let _ = fd is Sendable // expected-warning {{cast from 'FileDescriptor' to unrelated type 'any Sendable' always fails}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
 
   let sendy = mkSendable()
   let _ = sendy as FileDescriptor // expected-error {{cannot convert value of type 'any Sendable' to type 'FileDescriptor' in coercion}}
   let _ = sendy is FileDescriptor // expected-warning {{cast from 'any Sendable' to unrelated type 'FileDescriptor' always fails}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
   let _ = sendy as! FileDescriptor // expected-warning {{cast from 'any Sendable' to unrelated type 'FileDescriptor' always fails}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
   let _ = sendy as? FileDescriptor// expected-warning {{cast from 'any Sendable' to unrelated type 'FileDescriptor' always fails}}
-  // expected-error@-1 {{move-only types cannot be conditionally cast}}
+  // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
 }
 
 protocol GiveSendable<T> {
@@ -146,7 +146,7 @@ class Container<T> where T:Sendable {
 }
 
 func createContainer(_ fd: borrowing FileDescriptor) {
-  let _: Container<Sendable> = Container(fd) // expected-error {{move-only type 'FileDescriptor' cannot be used with generics yet}}
+  let _: Container<Sendable> = Container(fd) // expected-error {{noncopyable type 'FileDescriptor' cannot be used with generics yet}}
   let _: Container<Sendable> = Container(CopyableStruct())
 }
 
@@ -159,7 +159,7 @@ extension Sendable {
 }
 
 func tryToDupe(_ fd: borrowing FileDescriptor) {
-  fd.doIllegalThings() // expected-error {{move-only type 'FileDescriptor' cannot be used with generics yet}}
+  fd.doIllegalThings() // expected-error {{noncopyable type 'FileDescriptor' cannot be used with generics yet}}
 }
 
 @_moveOnly

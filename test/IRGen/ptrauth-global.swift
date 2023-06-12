@@ -6,7 +6,7 @@
 
 // Make sure that the key at the definition of the global matches call sites.
 
-// CHECK-DAG: @"$s1A9ContainerV3AllAA1GVySiGycAA1VVySiGcycvpZ" = global %swift.function { {{.*}} @"$s1A9ContainerV3AllAA1GVySiGycAA1VVySiGcycvpZfiAGycAJcycfU_.ptrauth"
+// CHECK-DAG: @"$s1A9ContainerV3AllAA1GVySiGycAA1VVySiGcycvpZ" = constant %swift.function { {{.*}} @"$s1A9ContainerV3AllAA1GVySiGycAA1VVySiGcycvpZfiAGycAJcycfU_.ptrauth"
 // CHECK-DAG: @"$s1A9ContainerV3AllAA1GVySiGycAA1VVySiGcycvpZfiAGycAJcycfU_.ptrauth" = {{.*}} @"$s1A9ContainerV3AllAA1GVySiGycAA1VVySiGcycvpZfiAGycAJcycfU_" {{.*}} i64 58141 }, section "llvm.ptrauth"
 
 

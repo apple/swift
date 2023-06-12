@@ -195,11 +195,11 @@ ERROR(error_empty_package_name,none,
 ERROR(error_stdlib_not_found,Fatal,
       "unable to load standard library for target '%0'", (StringRef))
 ERROR(error_module_alias_invalid_format,none,
-      "invalid module alias format \"%0\"; make sure to use the format '-module-alias alias_name=underlying_name'", (StringRef))
+      "invalid module alias format \"%0\"; make sure to use the format '-module-alias alias_name=real_name'", (StringRef))
 ERROR(error_module_alias_forbidden_name,none,
       "invalid module alias \"%0\"; make sure the alias differs from the module name, module ABI name, module link name, and a standard library name", (StringRef))
 ERROR(error_module_alias_duplicate,none,
-      "duplicate module alias; the name \"%0\" is already used for a module alias or an underlying name", (StringRef))
+      "duplicate module alias; the name \"%0\" is already used for an alias or a real name", (StringRef))
 
 ERROR(error_unable_to_load_supplementary_output_file_map, none,
       "unable to load supplementary output file map '%0': %1",
@@ -488,6 +488,9 @@ REMARK(matching_output_produced,none,
 // Caching related diagnostics
 ERROR(error_caching_no_cas_fs, none,
     "caching is enabled without -cas-fs option, input is not immutable", ())
+
+REMARK(replay_output, none, "replay output file '%0': key '%1'", (StringRef, StringRef))
+REMARK(output_cache_miss, none, "cache miss output file '%0': key '%1'", (StringRef, StringRef))
 
 // CAS related diagnostics
 ERROR(error_create_cas, none, "failed to create CAS '%0' (%1)", (StringRef, StringRef))

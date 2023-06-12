@@ -103,13 +103,16 @@ using namespace swift::hashable_support;
 - (id /* NSString */)description {
   auto error = (const SwiftError *)self;
   auto value = error->getValue();
+  auto type = error->type;
 
   // Copy the value, since it will be consumed by getDescription.
   ValueBuffer copyBuf;
-  auto copy = error->type->allocateBufferIn(&copyBuf);
+  auto copy = type->allocateBufferIn(&copyBuf);
   error->type->vw_initializeWithCopy(copy, const_cast<OpaqueValue *>(value));
 
-  return getDescription(copy, error->type);
+  auto description = getDescription(copy, type);
+  type->deallocateBufferIn(&copyBuf);
+  return description;
 }
 
 - (NSInteger)code {

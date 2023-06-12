@@ -2334,6 +2334,7 @@ public:
     Task_InheritContext                           = 11,
     Task_EnqueueJob                               = 12,
     Task_AddPendingGroupTaskUnconditionally       = 13,
+    Task_IsDiscardingTask                         = 14,
   };
 
   explicit constexpr TaskCreateFlags(size_t bits) : FlagSet(bits) {}
@@ -2360,6 +2361,9 @@ public:
   FLAGSET_DEFINE_FLAG_ACCESSORS(Task_AddPendingGroupTaskUnconditionally,
                                 addPendingGroupTaskUnconditionally,
                                 setAddPendingGroupTaskUnconditionally)
+  FLAGSET_DEFINE_FLAG_ACCESSORS(Task_IsDiscardingTask,
+                                isDiscardingTask,
+                                setIsDiscardingTask)
 };
 
 /// Flags for schedulable jobs.

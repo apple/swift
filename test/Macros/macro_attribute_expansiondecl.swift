@@ -77,11 +77,24 @@ public struct FuncFromClosureMacro: DeclarationMacro {
   }
 }
 
+public struct FuncFooBarNoAttrsMacro: DeclarationMacro {
+  public static var propagateFreestandingMacroAttributes: Bool { false }
+  public static var propagateFreestandingMacroModifiers: Bool { false }
+
+  public static func expansion(
+    of node: some FreestandingMacroExpansionSyntax,
+    in context: some MacroExpansionContext
+  ) throws -> [DeclSyntax] {
+    return ["func foo() -> Int { 1 }", "func bar() -> String { \"bar\" }"]
+  }
+}
+
 //--- test.swift
 
 @freestanding(declaration, names: named(globalFunc), named(globalVar)) macro globalDecls() = #externalMacro(module: "MacroDefinition", type: "GlobalFuncAndVarMacro")
 @freestanding(declaration, names: named(memberFunc), named(memberVar)) macro memberDecls() = #externalMacro(module: "MacroDefinition", type: "MemberFuncAndVarMacro")
 @freestanding(declaration, names: named(localFunc), named(localVar)) macro localDecls() = #externalMacro(module: "MacroDefinition", type: "LocalFuncAndVarMacro")
+@freestanding(declaration, names: named(foo), named(bar)) macro funcFooBarNoAttrs() = #externalMacro(module: "MacroDefinition", type: "FuncFooBarNoAttrsMacro")
 
 @available(SwiftStdlib 9999, *)
 #globalDecls
@@ -156,4 +169,13 @@ struct S2 { // expected-note 4 {{add @available attribute to enclosing struct}}
       _ = APIFrom999()
     }
   }
+}
+
+struct S3 {
+  @discardableResult private #funcFooBarNoAttrs()
+}
+
+func testS3(value: S3) {
+  value.foo() // expected-warning {{result of call to 'foo()' is unused}}
+  value.bar() // expected-warning {{result of call to 'bar()' is unused}}
 }

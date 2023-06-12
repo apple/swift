@@ -281,10 +281,10 @@ void namelookup::lookupInModule(const DeclContext *moduleOrFile,
                                 NLKind lookupKind,
                                 ResolutionKind resolutionKind,
                                 const DeclContext *moduleScopeContext,
-                                NLOptions options) {
+                                SourceLoc loc, NLOptions options) {
   auto &ctx = moduleOrFile->getASTContext();
   LookupInModuleRequest req(moduleOrFile, name, lookupKind, resolutionKind,
-                            moduleScopeContext, options);
+                            moduleScopeContext, loc, options);
   auto results = evaluateOrDefault(ctx.evaluator, req, {});
   decls.append(results.begin(), results.end());
 }

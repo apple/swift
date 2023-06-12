@@ -1,0 +1,14 @@
+extern module ImageFormats "ImageFormats/ImageFormats.modulemap"
+extern module OS "OS/OS.modulemap"
+
+module Runtime {
+  header "Runtime/Runtime.h"
+}
+
+module FixedLayout {
+  header "FixedLayout.h"
+}
+
+module CompressionLibs {
+  header "Compression.h"
+}

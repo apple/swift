@@ -9,6 +9,10 @@
 
 // LINK: fatalError_Cxx_move_of_Swift_value_type_not_supported_yet
 
+// Compile should fail by default when move assignment is attempted in C++:
+
+// RUN: not %target-interop-build-clangxx -c %s -I %t -o %t/swift-structs-execution.o -DMOVE_ASSIGN 2>&1 | %FileCheck --check-prefix=MOVEASSIGN %s
+
 // Fallback to abort at runtime:
 
 // RUN: %target-interop-build-clangxx -c %s -I %t -o %t/swift-structs-execution.o -DLINKS
@@ -34,7 +38,13 @@ int main() {
   using namespace Structs;
 
   auto x = returnNewStructSeveralI64(42);
+#ifdef MOVE_ASSIGN
+  auto y = returnNewStructSeveralI64(24);
+  x = std::move(y);
+// MOVEASSIGN: deleted operator '='
+#else
   StructSeveralI64 x2 = std::move(x);
+#endif
   return 0;
 }
 

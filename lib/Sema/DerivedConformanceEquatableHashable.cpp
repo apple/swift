@@ -417,16 +417,12 @@ deriveEquatable_eq(
   // Add the @_implements(Equatable, ==(_:_:)) attribute
   if (generatedIdentifier != C.Id_EqualsOperator) {
     auto equatableProto = C.getProtocol(KnownProtocolKind::Equatable);
-    auto equatableTy = equatableProto->getDeclaredInterfaceType();
-    auto equatableTyExpr = TypeExpr::createImplicit(equatableTy, C);
     SmallVector<Identifier, 2> argumentLabels = { Identifier(), Identifier() };
     auto equalsDeclName = DeclName(C, DeclBaseName(C.Id_EqualsOperator),
                                    argumentLabels);
-    eqDecl->getAttrs().add(new (C) ImplementsAttr(SourceLoc(),
-                                                  SourceRange(),
-                                                  equatableTyExpr,
-                                                  equalsDeclName,
-                                                  DeclNameLoc()));
+    eqDecl->getAttrs().add(ImplementsAttr::create(parentDC,
+                                                  equatableProto,
+                                                  equalsDeclName));
   }
 
   if (!C.getEqualIntDecl()) {
@@ -890,6 +886,10 @@ static ValueDecl *deriveHashable_hashValue(DerivedConformance &derived) {
                     SourceLoc(), C.Id_hashValue, parentDC);
   hashValueDecl->setInterfaceType(intType);
   hashValueDecl->setSynthesized();
+  hashValueDecl->setImplicit();
+  hashValueDecl->setImplInfo(StorageImplInfo::getImmutableComputed());
+  hashValueDecl->copyFormalAccessFrom(derived.Nominal,
+                                      /*sourceIsParentContext*/ true);
 
   ParameterList *params = ParameterList::createEmpty(C);
 
@@ -908,12 +908,7 @@ static ValueDecl *deriveHashable_hashValue(DerivedConformance &derived) {
                                    /*sourceIsParentContext*/ true);
 
   // Finish creating the property.
-  hashValueDecl->setImplicit();
-  hashValueDecl->setInterfaceType(intType);
-  hashValueDecl->setImplInfo(StorageImplInfo::getImmutableComputed());
   hashValueDecl->setAccessors(SourceLoc(), {getterDecl}, SourceLoc());
-  hashValueDecl->copyFormalAccessFrom(derived.Nominal,
-                                      /*sourceIsParentContext*/ true);
 
   // The derived hashValue of an actor must be nonisolated.
   if (!addNonIsolatedToSynthesized(derived.Nominal, hashValueDecl) &&

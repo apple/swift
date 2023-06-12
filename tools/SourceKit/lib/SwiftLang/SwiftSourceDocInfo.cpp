@@ -536,7 +536,8 @@ static void walkRelatedDecls(const ValueDecl *VD, const FnTy &Fn) {
     auto type = DC->getDeclaredInterfaceType();
     if (!type->is<ErrorType>()) {
       DC->lookupQualified(type, DeclNameRef(VD->getBaseName()),
-                          NL_QualifiedDefault, results);
+                          VD->getLoc(), NL_QualifiedDefault,
+                          results);
     }
   } else {
     namelookup::lookupInModule(DC->getModuleScopeContext(),
@@ -544,6 +545,7 @@ static void walkRelatedDecls(const ValueDecl *VD, const FnTy &Fn) {
                                NLKind::UnqualifiedLookup,
                                namelookup::ResolutionKind::Overloadable,
                                DC->getModuleScopeContext(),
+                               VD->getLoc(),
                                NL_UnqualifiedDefault);
   }
 

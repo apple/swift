@@ -26,7 +26,7 @@ func variadic() {
   _ = f(1, 2)
   _ = f(1, 3)
 
-  let D = { (Ss ...) in 1 } // expected-error{{'...' cannot be applied to a subpattern which is not explicitly typed}}, expected-error{{unable to infer type of a closure parameter 'Ss' in the current context}}
+  let D = { (Ss ...) in 1 } // expected-error{{'...' cannot be applied to a subpattern which is not explicitly typed}}, expected-error{{cannot infer type of closure parameter 'Ss' without a type annotation}}
 }
 
 // Closures with attributes in the parameter list.

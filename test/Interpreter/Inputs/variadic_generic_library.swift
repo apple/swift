@@ -44,14 +44,14 @@ public struct Predicate<each Input> {
     builder: (repeat Variable<each Input>) -> Expr
   ) where Expr: Expression<Bool> {
     self.variables = (repeat Variable<each Input>())
-    self.expression = builder(repeat each variables.element)
+    self.expression = builder(repeat each variables)
   }
 
   public func evaluate(
     _ input: repeat each Input
   ) throws -> Bool  {
     return try expression.evaluate(
-      .init(repeat (each variables.element, each input))
+      .init(repeat (each variables, each input))
     )
   }
 }

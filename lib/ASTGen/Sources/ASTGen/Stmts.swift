@@ -4,9 +4,9 @@ import SwiftSyntax
 
 extension ASTGenVisitor {
   public func visit(_ node: CodeBlockSyntax) -> ASTNode {
-    let statements = node.statements.map { self.visit($0).bridged() }
-    let startLoc = self.base.advanced(by: node.leftBrace.position.utf8Offset).raw
-    let endLoc = self.base.advanced(by: node.rightBrace.position.utf8Offset).raw
+    let statements = node.statements.map { self.visit($0).bridged }
+    let startLoc = bridgedSourceLoc(for: node.leftBrace)
+    let endLoc = bridgedSourceLoc(for: node.rightBrace)
 
     return .stmt(
       statements.withBridgedArrayRef { ref in
@@ -19,7 +19,7 @@ extension ASTGenVisitor {
     assert(conditions.count == 1)  // TODO: handle multiple conditions.
 
     let body = visit(node.body).rawValue
-    let loc = self.base.advanced(by: node.position.utf8Offset).raw
+    let loc = bridgedSourceLoc(for: node)
 
     if let elseBody = node.elseBody, node.elseKeyword != nil {
       return .stmt(IfStmt_create(ctx, loc, conditions.first!, body, loc,
@@ -39,7 +39,7 @@ extension ASTGenVisitor {
   }
 
   public func visit(_ node: ReturnStmtSyntax) -> ASTNode {
-    let loc = self.base.advanced(by: node.position.utf8Offset).raw
+    let loc = bridgedSourceLoc(for: node)
 
     let expr: ASTNode?
     if let expression = node.expression {

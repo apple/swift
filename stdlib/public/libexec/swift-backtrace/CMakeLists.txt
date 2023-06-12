@@ -21,10 +21,16 @@ if(NOT SWIFT_BUILD_STDLIB)
   set(BUILD_STANDALONE TRUE)
 endif()
 
+set(BACKTRACING_COMPILE_FLAGS
+  "-I${SWIFT_STDLIB_SOURCE_DIR}/public/Backtracing/modules"
+  "-Xcc;-I${SWIFT_SOURCE_DIR}/include"
+  "-Xcc;-I${CMAKE_BINARY_DIR}/include")
+
 add_swift_target_executable(swift-backtrace BUILD_WITH_LIBEXEC
   main.swift
   AnsiColor.swift
-  Target.swift
+  TargetMacOS.swift
+  TargetLinux.swift
   Themes.swift
   Utils.swift
 
@@ -35,7 +41,9 @@ add_swift_target_executable(swift-backtrace BUILD_WITH_LIBEXEC
   SWIFT_MODULE_DEPENDS_LINUX   ${glibc}
 
   INSTALL_IN_COMPONENT libexec
-  COMPILE_FLAGS -parse-as-library
+  COMPILE_FLAGS
+    ${BACKTRACING_COMPILE_FLAGS}
+    -parse-as-library
 
-  TARGET_SDKS OSX)
+  TARGET_SDKS OSX LINUX)
 

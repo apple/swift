@@ -1338,7 +1338,7 @@ struct MissingPropertyWrapperUnwrap {
 
 struct InvalidPropertyDelegateUse {
   // TODO(diagnostics): We need to a tailored diagnostic for extraneous arguments in property delegate initialization
-  @Foo var x: Int = 42 // expected-error@:21 {{argument passed to call that takes no arguments}}
+  @Foo var x: Int = 42 // expected-error@:21 {{extra argument 'wrappedValue' in call}}
 
   func test() {
     self.x.foo() // expected-error {{value of type 'Int' has no member 'foo'}}

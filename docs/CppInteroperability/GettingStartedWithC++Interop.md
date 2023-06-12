@@ -1,3 +1,5 @@
+[** ‼️ The official C++ interoperability documentation is live at Swift.org and provides an up-to-date guide for mixing Swift and C++ ‼️ **](https://www.swift.org/documentation/cxx-interop/)
+
 # Getting started with C++ Interoperability
 
 This document is designed to get you started with bidirectional API-level interoperability between Swift and C++.

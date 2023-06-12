@@ -4,17 +4,41 @@
 sil_stage canonical
 
 import Builtin
-import Swift
-import SwiftShims
 
 class C {}
 
-// CHECK:      Begin Error in function end_borrow_1_addr_alloc_stack
-// CHECK-NEXT: SIL verification failed: end_borrow of an address not produced by store_borrow
+// CHECK-LABEL: Begin Error in function end_borrow_1_addr_alloc_stack
+// CHECK:       SIL verification failed: end_borrow of an address not produced by store_borrow
+// CHECK-LABEL: End Error in function end_borrow_1_addr_alloc_stack
 sil [ossa] @end_borrow_1_addr_alloc_stack : $@convention(thin) () -> () {
   %addr = alloc_stack $C
   end_borrow %addr : $*C
   dealloc_stack %addr : $*C
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: Begin Error in function alloc_pack_metadata_before_tuple
+// CHECK:       SIL verification failed: Introduces instruction of kind which cannot emit on-stack pack metadata:
+// CHECK-LABEL: End Error in function alloc_pack_metadata_before_tuple
+sil @alloc_pack_metadata_before_tuple : $@convention(thin) () -> () {
+  %marker = alloc_pack_metadata $()
+  %retval = tuple ()
+  dealloc_pack_metadata %marker : $*()
+  return %retval : $()
+}
+
+// CHECK-LABEL: Begin Error in function dealloc_pack_metadata_with_bad_operand
+// CHECK:       SIL verification failed: stack dealloc does not match most recent stack alloc:
+// CHECK-LABEL: End Error in function dealloc_pack_metadata_with_bad_operand
+// CHECK-LABEL: Begin Error in function dealloc_pack_metadata_with_bad_operand
+// CHECK:       SIL verification failed: Must have alloc_pack_metadata operand
+// CHECK-LABEL: End Error in function dealloc_pack_metadata_with_bad_operand
+sil @dealloc_pack_metadata_with_bad_operand : $@convention(thin) <each T> () -> () {
+  %marker = alloc_pack_metadata $()
+  // To make the %marker legal.
+  %out = apply undef<Pack{repeat each T}>() : $@convention(thin) <each T>() -> ()
+  dealloc_pack_metadata %out : $()
   %retval = tuple ()
   return %retval : $()
 }

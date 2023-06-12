@@ -40,6 +40,12 @@ struct LargeCodesizeStruct {
   var s5: SmallCodesizeStruct
 }
 
+class C {}
+
+struct S {
+  var field: C
+}
+
 ///////////
 // Tests //
 ///////////
@@ -654,6 +660,71 @@ bb15:
 
 bb16:
   dealloc_stack %addr : $*FakeOptional<Klass>
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: sil [ossa] @debug_value_of_store_borrow_addr_multi_block : {{.*}} {
+// CHECK:       {{bb[0-9]+}}([[INSTANCE:%[^,]+]] :
+// CHECK:         [[LIFETIME:%[^,]+]] = begin_borrow [[INSTANCE]]
+// CHECK:         debug_value [[LIFETIME]]
+// CHECK-LABEL: } // end sil function 'debug_value_of_store_borrow_addr_multi_block'
+sil [ossa] @debug_value_of_store_borrow_addr_multi_block : $@convention(thin) (@owned S) -> () {
+entry(%instance : @owned $S):
+  br header
+
+header:
+  %lifetime = begin_borrow %instance : $S
+  %stack = alloc_stack $S
+  %stack_borrow = store_borrow %lifetime to %stack : $*S
+  debug_value %stack_borrow : $*S
+  br body
+
+body:
+  %field_addr = struct_element_addr %stack_borrow : $*S, #S.field
+  %field = load [copy] %field_addr : $*C
+  end_borrow %stack_borrow : $*S
+  dealloc_stack %stack : $*S
+  end_borrow %lifetime : $S
+  destroy_value %field : $C
+  cond_br undef, backedge, exit
+
+backedge:
+  br header
+
+exit:
+  destroy_value %instance : $S
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: sil [ossa] @debug_value_of_store_borrow_addr_single_block : {{.*}} {
+// CHECK:       {{bb[0-9]+}}([[INSTANCE:%[^,]+]] :
+// CHECK:         [[LIFETIME:%[^,]+]] = begin_borrow [[INSTANCE]]
+// CHECK:         debug_value [[LIFETIME]]
+// CHECK-LABEL: } // end sil function 'debug_value_of_store_borrow_addr_single_block'
+sil [ossa] @debug_value_of_store_borrow_addr_single_block : $@convention(thin) (@owned S) -> () {
+entry(%instance : @owned $S):
+  br header
+
+header:
+  %lifetime = begin_borrow %instance : $S
+  %stack = alloc_stack $S
+  %stack_borrow = store_borrow %lifetime to %stack : $*S
+  debug_value %stack_borrow : $*S
+  %field_addr = struct_element_addr %stack_borrow : $*S, #S.field
+  %field = load [copy] %field_addr : $*C
+  end_borrow %stack_borrow : $*S
+  dealloc_stack %stack : $*S
+  end_borrow %lifetime : $S
+  destroy_value %field : $C
+  cond_br undef, backedge, exit
+
+backedge:
+  br header
+
+exit:
+  destroy_value %instance : $S
   %retval = tuple ()
   return %retval : $()
 }

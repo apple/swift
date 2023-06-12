@@ -310,6 +310,8 @@ ABSTRACT_VALUE_AND_INST(SingleValueInstruction, ValueBase, SILInstruction)
                               AllocationInst, None, DoesNotRelease)
     SINGLE_VALUE_INST(AllocPackInst, alloc_pack,
                               AllocationInst, None, DoesNotRelease)
+    SINGLE_VALUE_INST(AllocPackMetadataInst, alloc_pack_metadata,
+                      AllocationInst, None, DoesNotRelease)
     SINGLE_VALUE_INST(AllocRefInst, alloc_ref,
                               AllocationInst, None, DoesNotRelease)
     SINGLE_VALUE_INST(AllocRefDynamicInst, alloc_ref_dynamic,
@@ -461,8 +463,15 @@ ABSTRACT_VALUE_AND_INST(SingleValueInstruction, ValueBase, SILInstruction)
   // effects relative to other OSSA values like copy_value.
   SINGLE_VALUE_INST(MoveValueInst, move_value, SingleValueInstruction, None,
                     DoesNotRelease)
-  SINGLE_VALUE_INST(DropDeinitInst, drop_deinit, SingleValueInstruction, None,
-                    DoesNotRelease)
+  // A drop_deinit has no user-level side effects. It does, however, change the
+  // information about the owenership of its operand, and therefore cannot be
+  // arbitrarily deleted. It effectively wraps the type of the operand so that
+  // the resulting value is an equivalent type without a user-defined deinit.
+  //
+  // TODO: Add an OwnershipEffect type of side effect for instructions like
+  // drop_deinit to indicate their ownership effects.
+  SINGLE_VALUE_INST(DropDeinitInst, drop_deinit, SingleValueInstruction,
+                    MayHaveSideEffects, DoesNotRelease)
   // A canary value inserted by a SIL generating frontend to signal to the move
   // checker to check a specific value.  Valid only in Raw SIL. The relevant
   // checkers should remove the mark_must_check instruction after successfully
@@ -481,11 +490,25 @@ ABSTRACT_VALUE_AND_INST(SingleValueInstruction, ValueBase, SILInstruction)
   // and owned for assignment/owned function arguments.
   SINGLE_VALUE_INST(CopyableToMoveOnlyWrapperValueInst, copyable_to_moveonlywrapper,
                     SingleValueInstruction, None, DoesNotRelease)
-  // Convert a $@moveOnly T to $T. Ownership is fixed at construction by
+  // Convert a $@moveOnly T object to $T. Ownership is fixed at construction by
   // frontend to express specific semantics: guaranteed for function arguments
   // and owned for assignment/return values.
-  SINGLE_VALUE_INST(MoveOnlyWrapperToCopyableValueInst, moveonlywrapper_to_copyable,
-                    SingleValueInstruction, None, DoesNotRelease)
+  SINGLE_VALUE_INST(MoveOnlyWrapperToCopyableValueInst,
+                    moveonlywrapper_to_copyable, SingleValueInstruction, None,
+                    DoesNotRelease)
+  // Convert a ${ @moveOnly T } to $T. This is a forwarding instruction that
+  // acts similarly to an object cast, unlike MoveOnlyWrapperToCopyableValue.
+  SINGLE_VALUE_INST(MoveOnlyWrapperToCopyableBoxInst,
+                    moveonlywrapper_to_copyable_box, SingleValueInstruction, None,
+                    DoesNotRelease)
+  // Convert a $*@moveOnly T to $*T. Acts just as a cast.
+  SINGLE_VALUE_INST(MoveOnlyWrapperToCopyableAddrInst,
+                    moveonlywrapper_to_copyable_addr, SingleValueInstruction,
+                    None, DoesNotRelease)
+  // Convert a $*T to $*@moveOnly T. Acts just as a cast.
+  SINGLE_VALUE_INST(CopyableToMoveOnlyWrapperAddrInst,
+                    copyable_to_moveonlywrapper_addr, SingleValueInstruction,
+                    None, DoesNotRelease)
   // A move_addr is a Raw SIL only instruction that is equivalent to a copy_addr
   // [init]. It is lowered during the diagnostic passes to a copy_addr [init] if
   // the move checker found uses that prevented us from converting this to a
@@ -720,6 +743,8 @@ ABSTRACT_INST(DeallocationInst, SILInstruction)
                  DeallocationInst, MayHaveSideEffects, DoesNotRelease)
   NON_VALUE_INST(DeallocPackInst, dealloc_pack,
                  DeallocationInst, MayHaveSideEffects, DoesNotRelease)
+  NON_VALUE_INST(DeallocPackMetadataInst, dealloc_pack_metadata,
+                 DeallocationInst, MayHaveSideEffects, DoesNotRelease)
   NON_VALUE_INST(DeallocStackRefInst, dealloc_stack_ref,
                  DeallocationInst, MayHaveSideEffects, DoesNotRelease)
   NON_VALUE_INST(DeallocRefInst, dealloc_ref,
@@ -794,6 +819,8 @@ NON_VALUE_INST(StoreInst, store,
 NON_VALUE_INST(AssignInst, assign,
                SILInstruction, MayWrite, DoesNotRelease)
 NON_VALUE_INST(AssignByWrapperInst, assign_by_wrapper,
+               SILInstruction, MayWrite, DoesNotRelease)
+NON_VALUE_INST(AssignOrInitInst, assign_or_init,
                SILInstruction, MayWrite, DoesNotRelease)
 NON_VALUE_INST(MarkFunctionEscapeInst, mark_function_escape,
                SILInstruction, None, DoesNotRelease)

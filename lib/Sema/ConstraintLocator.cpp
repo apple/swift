@@ -90,6 +90,7 @@ unsigned LocatorPathElt::getNewSummaryFlags() const {
   case ConstraintLocator::ImplicitCallAsFunction:
   case ConstraintLocator::TernaryBranch:
   case ConstraintLocator::PatternMatch:
+  case ConstraintLocator::EnumPatternImplicitCastMatch:
   case ConstraintLocator::ArgumentAttribute:
   case ConstraintLocator::UnresolvedMemberChainResult:
   case ConstraintLocator::PlaceholderType:
@@ -403,6 +404,10 @@ void LocatorPathElt::dump(raw_ostream &out) const {
     out << "pattern match";
     break;
 
+  case ConstraintLocator::EnumPatternImplicitCastMatch:
+    out << "enum pattern implicit cast match";
+    break;
+
   case ConstraintLocator::ArgumentAttribute: {
     using AttrLoc = LocatorPathElt::ArgumentAttribute;
 
@@ -675,6 +680,10 @@ NullablePtr<Pattern> ConstraintLocator::getPatternMatch() const {
     return nullptr;
 
   return matchElt->getPattern();
+}
+
+bool ConstraintLocator::isForPatternMatch() const {
+  return getPatternMatch() != nullptr;
 }
 
 bool ConstraintLocator::isMemberRef() const {

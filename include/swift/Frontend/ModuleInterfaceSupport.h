@@ -75,8 +75,26 @@ struct ModuleInterfaceOptions {
 extern version::Version InterfaceFormatVersion;
 std::string getSwiftInterfaceCompilerVersionForCurrentCompiler(ASTContext &ctx);
 
+/// A regex that matches lines like this:
+///
+///     // swift-interface-format-version: 1.0
+///
+/// and extracts "1.0".
 llvm::Regex getSwiftInterfaceFormatVersionRegex();
+
+/// A regex that matches lines like this:
+///
+///     // swift-compiler-version: Apple Swift version 5.8 (swiftlang-5.8.0.117.59)
+///
+/// and extracts "Apple Swift version 5.8 (swiftlang-5.8.0.117.59)".
 llvm::Regex getSwiftInterfaceCompilerVersionRegex();
+
+/// A regex that matches strings like this:
+///
+///     Apple Swift version 5.8
+///
+/// and extracts "5.8".
+llvm::Regex getSwiftInterfaceCompilerToolsVersionRegex();
 
 /// Emit a stable module interface for \p M, which can be used by a client
 /// source file to import this module, subject to options given by \p Opts.

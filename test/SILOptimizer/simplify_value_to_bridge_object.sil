@@ -1,0 +1,36 @@
+// RUN: %target-sil-opt -enable-sil-verify-all %s -onone-simplification -simplify-instruction=value_to_bridge_object | %FileCheck %s
+
+// REQUIRES: swift_in_compiler
+
+import Swift
+import Builtin
+
+// CHECK-LABEL: sil @empty_string_literal_sequence
+// CHECK:         %1 = value_to_bridge_object %0
+// CHECK:         return %1
+// CHECK:       } // end sil function 'empty_string_literal_sequence'
+sil @empty_string_literal_sequence : $@convention(thin) (Builtin.Int64) -> Builtin.BridgeObject {
+bb0(%0 : $Builtin.Int64):
+  %1 = value_to_bridge_object %0 : $Builtin.Int64
+  %2 = unchecked_trivial_bit_cast %1 : $Builtin.BridgeObject to $UInt64
+  %3 = struct_extract %2 : $UInt64, #UInt64._value
+  %4 = value_to_bridge_object %3 : $Builtin.Int64
+  return %4 : $Builtin.BridgeObject
+}
+
+// CHECK-LABEL: sil [ossa] @keep_both_vtbo_instructions
+// CHECK:         %1 = value_to_bridge_object %0
+// CHECK:         %2 = value_to_bridge_object %0
+// CHECK:         %3 = tuple (%1 : $Builtin.BridgeObject, %2 : $Builtin.BridgeObject)
+// CHECK:         return %3
+// CHECK:       } // end sil function 'keep_both_vtbo_instructions'
+sil [ossa] @keep_both_vtbo_instructions : $@convention(thin) (Builtin.Int64) -> (Builtin.BridgeObject, Builtin.BridgeObject) {
+bb0(%0 : $Builtin.Int64):
+  %1 = value_to_bridge_object %0 : $Builtin.Int64
+  %2 = unchecked_trivial_bit_cast %1 : $Builtin.BridgeObject to $UInt64
+  %3 = struct_extract %2 : $UInt64, #UInt64._value
+  %4 = value_to_bridge_object %3 : $Builtin.Int64
+  %5 = tuple (%1 : $Builtin.BridgeObject, %4 : $Builtin.BridgeObject)
+  return %5 : $(Builtin.BridgeObject, Builtin.BridgeObject)
+}
+

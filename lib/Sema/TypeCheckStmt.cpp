@@ -255,7 +255,7 @@ namespace {
     }
 
     MacroWalking getMacroWalkingBehavior() const override {
-      return MacroWalking::ArgumentsAndExpansion;
+      return MacroWalking::Arguments;
     }
 
     PreWalkResult<Expr *> walkToExprPre(Expr *E) override {
@@ -410,7 +410,6 @@ unsigned LocalDiscriminatorsRequest::evaluate(
                              LocalDiscriminatorsRequest{dc->getParent()}, 0);
   }
 
-  Optional<unsigned> expectedNextAutoclosureDiscriminator = None;
   ASTNode node;
   ParameterList *params = nullptr;
   ParamDecl *selfParam = nullptr;
@@ -436,7 +435,7 @@ unsigned LocalDiscriminatorsRequest::evaluate(
     params = closure->getParameters();
   } else if (auto topLevel = dyn_cast<TopLevelCodeDecl>(dc)) {
     node = topLevel->getBody();
-    expectedNextAutoclosureDiscriminator = ctx.NextAutoClosureDiscriminator;
+    dc = topLevel->getParentModule();
   } else if (auto patternBindingInit = dyn_cast<PatternBindingInitializer>(dc)){
     auto patternBinding = patternBindingInit->getBinding();
     node = patternBinding->getInit(patternBindingInit->getBindingIndex());
@@ -472,12 +471,11 @@ unsigned LocalDiscriminatorsRequest::evaluate(
     params = getParameterList(dc);
   }
 
+  auto startDiscriminator = ctx.getNextDiscriminator(dc);
   if (!node && !params && !selfParam)
-    return 0;
+    return startDiscriminator;
 
-  SetLocalDiscriminators visitor(
-      expectedNextAutoclosureDiscriminator.value_or(0)
-  );
+  SetLocalDiscriminators visitor(startDiscriminator);
 
   // Set local discriminator for the 'self' parameter.
   if (selfParam)
@@ -494,9 +492,7 @@ unsigned LocalDiscriminatorsRequest::evaluate(
     node.walk(visitor);
 
   unsigned nextDiscriminator = visitor.maxAssignedDiscriminator();
-  if (expectedNextAutoclosureDiscriminator) {
-    ctx.NextAutoClosureDiscriminator = nextDiscriminator;
-  }
+  ctx.setMaxAssignedDiscriminator(dc, nextDiscriminator);
 
   // Return the next discriminator.
   return nextDiscriminator;
@@ -880,6 +876,7 @@ bool TypeChecker::typeCheckStmtConditionElement(StmtConditionElement &elt,
   bool hadError = TypeChecker::typeCheckBinding(pattern, init, dc, patternType);
   elt.setPattern(pattern);
   elt.setInitializer(init);
+  
   isFalsable |= pattern->isRefutablePattern();
   return hadError;
 }
@@ -2183,6 +2180,7 @@ static bool checkSuperInit(ConstructorDecl *fromCtor,
     SmallVector<ValueDecl *, 4> lookupResults;
     fromCtor->lookupQualified(superclassDecl,
                               DeclNameRef::createConstructor(),
+                              apply->getLoc(),
                               subOptions, lookupResults);
 
     for (auto decl : lookupResults) {

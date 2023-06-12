@@ -186,6 +186,11 @@
    ;; Debug Info
    `(,(regexp-opt '("loc" "scope" "parent" "inlined_at")
                   'words) . font-lock-keyword-face)
+   ;; noimplicit copy
+   `(,(regexp-opt '("moveonlywrapper_to_copyable" "moveonlywrapper_to_copyable_addr"
+                    "copyable_to_moveonlywrapper" "copyable_to_moveonlywrapper_addr"
+                    "moveonlywrapper_to_copyable_box")
+                  'words) . font-lock-keyword-face)
    ;; SIL Value
    '("\\b[%][A-Za-z_0-9]+\\([#][0-9]+\\)?\\b" . font-lock-variable-name-face)
    ;; Variables

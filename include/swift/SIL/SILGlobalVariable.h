@@ -190,6 +190,21 @@ public:
     StaticInitializerBlock.eraseAllInstructions(Module);
   }
 
+  /// Returns true if this global variable has `@_used` attribute.
+  bool markedAsUsed() const {
+    auto *V = getDecl();
+    return V && V->getAttrs().hasAttribute<UsedAttr>();
+  }
+
+  /// Returns a SectionAttr if this global variable has `@_section` attribute.
+  SectionAttr *getSectionAttr() const {
+    auto *V = getDecl();
+    if (!V)
+      return nullptr;
+
+    return V->getAttrs().getAttribute<SectionAttr>();
+  }
+
   /// Return whether this variable corresponds to a Clang node.
   bool hasClangNode() const;
 

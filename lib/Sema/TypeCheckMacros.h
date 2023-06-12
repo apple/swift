@@ -77,6 +77,16 @@ Optional<unsigned> expandPeers(CustomAttr *attr, MacroDecl *macro, Decl *decl);
 Optional<unsigned> expandConformances(CustomAttr *attr, MacroDecl *macro,
                                       NominalTypeDecl *nominal);
 
+/// Determine whether an accessor macro with the given attribute only
+/// introduces observers like willSet and didSet.
+bool accessorMacroOnlyIntroducesObservers(
+    MacroDecl *macro, const MacroRoleAttr *attr);
+
+/// Determine whether an accessor macro (defined with the given role attribute)
+/// introduces an init accessor.
+bool accessorMacroIntroducesInitAccessor(
+    MacroDecl *macro, const MacroRoleAttr *attr);
+
 } // end namespace swift
 
 #endif /* SWIFT_SEMA_TYPECHECKMACROS_H */

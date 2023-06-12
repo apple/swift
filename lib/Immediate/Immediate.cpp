@@ -191,6 +191,50 @@ bool swift::immediate::tryLoadLibraries(ArrayRef<LinkLibrary> LinkLibraries,
                      [](bool Value) { return Value; });
 }
 
+/// Workaround for rdar://94645534.
+///
+/// The framework layout of some frameworks have changed over time, causing
+/// unresolved symbol errors in immediate mode when running on older OS versions
+/// with a newer SDK. This workaround scans through the list of dependencies and
+/// manually adds the right libraries as necessary.
+///
+/// FIXME: JITLink should emulate the Darwin linker's handling of ld$previous
+/// mappings so this is handled automatically.
+static void addMergedLibraries(SmallVectorImpl<LinkLibrary> &AllLinkLibraries,
+                               const llvm::Triple &Target) {
+  assert(Target.isMacOSX());
+
+  struct MergedLibrary {
+    StringRef OldLibrary;
+    llvm::VersionTuple MovedIn;
+  };
+
+  using VersionTuple = llvm::VersionTuple;
+
+  static const llvm::StringMap<MergedLibrary> MergedLibs = {
+    // Merged in macOS 14.0
+    {"AppKit", {"libswiftAppKit.dylib", VersionTuple{14}}},
+    {"HealthKit", {"libswiftHealthKit.dylib", VersionTuple{14}}},
+    {"Network", {"libswiftNetwork.dylib", VersionTuple{14}}},
+    {"Photos", {"libswiftPhotos.dylib", VersionTuple{14}}},
+    {"PhotosUI", {"libswiftPhotosUI.dylib", VersionTuple{14}}},
+    {"SoundAnalysis", {"libswiftSoundAnalysis.dylib", VersionTuple{14}}},
+    {"Virtualization", {"libswiftVirtualization.dylib", VersionTuple{14}}},
+    // Merged in macOS 13.0
+    {"Foundation", {"libswiftFoundation.dylib", VersionTuple{13}}},
+  };
+
+  SmallVector<StringRef> NewLibs;
+  for (auto &Lib : AllLinkLibraries) {
+    auto I = MergedLibs.find(Lib.getName());
+    if (I != MergedLibs.end() && Target.getOSVersion() < I->second.MovedIn)
+      NewLibs.push_back(I->second.OldLibrary);
+  }
+
+  for (StringRef NewLib : NewLibs)
+    AllLinkLibraries.push_back(LinkLibrary(NewLib, LibraryKind::Library));
+}
+
 bool swift::immediate::autolinkImportedModules(ModuleDecl *M,
                                                const IRGenOptions &IRGenOpts) {
   // Perform autolinking.
@@ -201,24 +245,9 @@ bool swift::immediate::autolinkImportedModules(ModuleDecl *M,
 
   M->collectLinkLibraries(addLinkLibrary);
 
-  // Workaround for rdar://94645534.
-  //
-  // The framework layout of Foundation has changed in 13.0, causing unresolved symbol
-  // errors to libswiftFoundation in immediate mode when running on older OS versions
-  // with a 13.0 SDK. This workaround scans through the list of dependencies and
-  // manually adds libswiftFoundation if necessary.
   auto &Target = M->getASTContext().LangOpts.Target;
-  if (Target.isMacOSX() && Target.getOSMajorVersion() < 13) {
-    bool linksFoundation = std::any_of(AllLinkLibraries.begin(),
-        AllLinkLibraries.end(), [](auto &Lib) {
-      return Lib.getName() == "Foundation";
-    });
-
-    if (linksFoundation) {
-      AllLinkLibraries.push_back(LinkLibrary("libswiftFoundation.dylib",
-                                             LibraryKind::Library));
-    }
-  }
+  if (Target.isMacOSX())
+    addMergedLibraries(AllLinkLibraries, Target);
 
   tryLoadLibraries(AllLinkLibraries, M->getASTContext().SearchPathOpts,
                    M->getASTContext().Diags);

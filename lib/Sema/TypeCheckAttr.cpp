@@ -253,6 +253,8 @@ public:
 
   void visitCDeclAttr(CDeclAttr *attr);
   void visitExposeAttr(ExposeAttr *attr);
+  void visitUsedAttr(UsedAttr *attr);
+  void visitSectionAttr(SectionAttr *attr);
 
   void visitDynamicCallableAttr(DynamicCallableAttr *attr);
 
@@ -292,6 +294,8 @@ public:
   void visitDiscardableResultAttr(DiscardableResultAttr *attr);
   void visitDynamicReplacementAttr(DynamicReplacementAttr *attr);
   void visitTypeEraserAttr(TypeEraserAttr *attr);
+  void visitInitializesAttr(InitializesAttr *attr);
+  void visitAccessesAttr(AccessesAttr *attr);
   void visitImplementsAttr(ImplementsAttr *attr);
   void visitNoMetadataAttr(NoMetadataAttr *attr);
 
@@ -466,7 +470,7 @@ void AttributeChecker::visitMutationAttr(DeclAttribute *attr) {
   }
 
   auto DC = FD->getDeclContext();
-  // self-ownership attributes may only appear in type context.
+  // mutation attributes may only appear in type context.
   if (auto contextTy = DC->getDeclaredInterfaceType()) {
     // 'mutating' and 'nonmutating' are not valid on types
     // with reference semantics.
@@ -487,27 +491,6 @@ void AttributeChecker::visitMutationAttr(DeclAttribute *attr) {
         break;
       }
     }
-
-    // Unless we have the experimental no-implicit-copy feature enabled, Copyable
-    // types can't use 'consuming' or 'borrowing' ownership specifiers.
-    if (!Ctx.LangOpts.hasFeature(Feature::NoImplicitCopy)) {
-      if (!contextTy->isPureMoveOnly()) {
-        switch (attrModifier) { // check the modifier for the Copyable type.
-        case SelfAccessKind::NonMutating:
-        case SelfAccessKind::Mutating:
-        case SelfAccessKind::LegacyConsuming:
-          // already checked
-          break;
-
-        case SelfAccessKind::Consuming:
-        case SelfAccessKind::Borrowing:
-          diagnoseAndRemoveAttr(attr, diag::self_ownership_specifier_copyable,
-                                attrModifier, FD->getDescriptiveKind());
-          break;
-        }
-      }
-    }
-
   } else {
     diagnoseAndRemoveAttr(attr, diag::mutating_invalid_global_scope,
                           attrModifier);
@@ -2068,6 +2051,32 @@ void AttributeChecker::visitExposeAttr(ExposeAttr *attr) {
   }
 }
 
+void AttributeChecker::visitUsedAttr(UsedAttr *attr) {
+  if (!Ctx.LangOpts.hasFeature(Feature::SymbolLinkageMarkers)) {
+    diagnoseAndRemoveAttr(attr, diag::section_linkage_markers_disabled);
+    return;
+  }
+  
+  // Only top-level func/var decls are currently supported.
+  if (D->getDeclContext()->isTypeContext())
+    diagnose(attr->getLocation(), diag::used_not_at_top_level);
+}
+
+void AttributeChecker::visitSectionAttr(SectionAttr *attr) {
+  if (!Ctx.LangOpts.hasFeature(Feature::SymbolLinkageMarkers)) {
+    diagnoseAndRemoveAttr(attr, diag::section_linkage_markers_disabled);
+    return;
+  }
+
+  // Only top-level func/var decls are currently supported.
+  if (D->getDeclContext()->isTypeContext())
+    diagnose(attr->getLocation(), diag::section_not_at_top_level);
+
+  // The name must not be empty.
+  if (attr->Name.empty())
+    diagnose(attr->getLocation(), diag::section_empty_name);
+}
+
 void AttributeChecker::visitUnsafeNoObjCTaggedPointerAttr(
                                           UnsafeNoObjCTaggedPointerAttr *attr) {
   // Only class protocols can have the attribute.
@@ -2319,7 +2328,8 @@ void AttributeChecker::checkApplicationMainAttribute(DeclAttribute *attr,
     namelookup::lookupInModule(KitModule, Id_ApplicationDelegate,
                                decls, NLKind::QualifiedLookup,
                                namelookup::ResolutionKind::TypesOnly,
-                               SF, NL_QualifiedDefault);
+                               SF, attr->getLocation(),
+                               NL_QualifiedDefault);
     if (decls.size() == 1)
       ApplicationDelegateProto = dyn_cast<ProtocolDecl>(decls[0]);
   }
@@ -3038,7 +3048,8 @@ static void lookupReplacedDecl(DeclNameRef replacedDeclName,
     options |= NL_IncludeUsableFromInline;
 
   if (typeCtx)
-    moduleScopeCtxt->lookupQualified({typeCtx}, replacedDeclName, options,
+    moduleScopeCtxt->lookupQualified({typeCtx}, replacedDeclName,
+                                     attr->getLocation(), options,
                                      results);
 }
 
@@ -3541,61 +3552,86 @@ void AttributeChecker::visitTypeEraserAttr(TypeEraserAttr *attr) {
   (void)attr->hasViableTypeEraserInit(cast<ProtocolDecl>(D));
 }
 
+void AttributeChecker::visitInitializesAttr(InitializesAttr *attr) {
+  auto *accessor = dyn_cast<AccessorDecl>(D);
+  if (!accessor || accessor->getAccessorKind() != AccessorKind::Init) {
+    diagnose(attr->getLocation(),
+             diag::init_accessor_initializes_attribute_on_other_declaration);
+    return;
+  }
+
+  (void)attr->getPropertyDecls(accessor);
+}
+
+void AttributeChecker::visitAccessesAttr(AccessesAttr *attr) {
+  auto *accessor = dyn_cast<AccessorDecl>(D);
+  if (!accessor || accessor->getAccessorKind() != AccessorKind::Init) {
+    diagnose(attr->getLocation(),
+             diag::init_accessor_accesses_attribute_on_other_declaration);
+    return;
+  }
+
+  // Check whether there are any intersections between initializes(...) and
+  // accesses(...) attributes.
+
+  Optional<ArrayRef<VarDecl *>> initializedProperties;
+  if (auto *initAttr = D->getAttrs().getAttribute<InitializesAttr>()) {
+    initializedProperties.emplace(initAttr->getPropertyDecls(accessor));
+  }
+
+  if (initializedProperties) {
+    for (auto *property : attr->getPropertyDecls(accessor)) {
+      if (llvm::is_contained(*initializedProperties, property)) {
+        diagnose(attr->getLocation(),
+                 diag::init_accessor_property_both_init_and_accessed,
+                 property->getName());
+      }
+    }
+  }
+}
+
 void AttributeChecker::visitImplementsAttr(ImplementsAttr *attr) {
   DeclContext *DC = D->getDeclContext();
 
-  Type T = attr->getProtocolType();
-  if (!T && attr->getProtocolTypeRepr()) {
-    auto context = TypeResolverContext::GenericRequirement;
-    T = TypeResolution::resolveContextualType(attr->getProtocolTypeRepr(), DC,
-                                              TypeResolutionOptions(context),
-                                              /*unboundTyOpener*/ nullptr,
-                                              /*placeholderHandler*/ nullptr,
-                                              /*packElementOpener*/ nullptr);
-  }
+  ProtocolDecl *PD = attr->getProtocol(DC);
 
-  // Definite error-types were already diagnosed in resolveType.
-  if (T->hasError())
-    return;
-  attr->setProtocolType(T);
-
-  // Check that we got a ProtocolType.
-  if (auto PT = T->getAs<ProtocolType>()) {
-    ProtocolDecl *PD = PT->getDecl();
-
-    // Check that the ProtocolType has the specified member.
-    LookupResult R =
-        TypeChecker::lookupMember(PD->getDeclContext(), PT,
-                                  DeclNameRef(attr->getMemberName()));
-    if (!R) {
-      diagnose(attr->getLocation(),
-               diag::implements_attr_protocol_lacks_member,
-               PD->getName(), attr->getMemberName())
-        .highlight(attr->getMemberNameLoc().getSourceRange());
-    }
-
-    // Check that the decl we're decorating is a member of a type that actually
-    // conforms to the specified protocol.
-    NominalTypeDecl *NTD = DC->getSelfNominalTypeDecl();
-    if (auto *OtherPD = dyn_cast<ProtocolDecl>(NTD)) {
-      if (!OtherPD->inheritsFrom(PD)) {
-        diagnose(attr->getLocation(),
-                 diag::implements_attr_protocol_not_conformed_to,
-                 NTD->getName(), PD->getName())
-          .highlight(attr->getProtocolTypeRepr()->getSourceRange());
-      }
-    } else {
-      SmallVector<ProtocolConformance *, 2> conformances;
-      if (!NTD->lookupConformance(PD, conformances)) {
-        diagnose(attr->getLocation(),
-                 diag::implements_attr_protocol_not_conformed_to,
-                 NTD->getName(), PD->getName())
-          .highlight(attr->getProtocolTypeRepr()->getSourceRange());
-      }
-    }
-  } else {
+  if (!PD) {
     diagnose(attr->getLocation(), diag::implements_attr_non_protocol_type)
       .highlight(attr->getProtocolTypeRepr()->getSourceRange());
+    return;
+  }
+
+  // Check that the ProtocolType has the specified member.
+  LookupResult R =
+      TypeChecker::lookupMember(PD->getDeclContext(),
+                                PD->getDeclaredInterfaceType(),
+                                DeclNameRef(attr->getMemberName()));
+  if (!R) {
+    diagnose(attr->getLocation(),
+             diag::implements_attr_protocol_lacks_member,
+             PD->getName(), attr->getMemberName())
+      .highlight(attr->getMemberNameLoc().getSourceRange());
+    return;
+  }
+
+  // Check that the decl we're decorating is a member of a type that actually
+  // conforms to the specified protocol.
+  NominalTypeDecl *NTD = DC->getSelfNominalTypeDecl();
+  if (auto *OtherPD = dyn_cast<ProtocolDecl>(NTD)) {
+    if (!OtherPD->inheritsFrom(PD)) {
+      diagnose(attr->getLocation(),
+               diag::implements_attr_protocol_not_conformed_to,
+               NTD->getName(), PD->getName())
+        .highlight(attr->getProtocolTypeRepr()->getSourceRange());
+    }
+  } else {
+    SmallVector<ProtocolConformance *, 2> conformances;
+    if (!NTD->lookupConformance(PD, conformances)) {
+      diagnose(attr->getLocation(),
+               diag::implements_attr_protocol_not_conformed_to,
+               NTD->getName(), PD->getName())
+        .highlight(attr->getProtocolTypeRepr()->getSourceRange());
+    }
   }
 }
 
@@ -4023,11 +4059,12 @@ void AttributeChecker::visitResultBuilderAttr(ResultBuilderAttr *attr) {
 
       auto builderType = nominal->getDeclaredType();
       nominal->lookupQualified(builderType, DeclNameRef(buildPartialBlockFirst),
-                               NL_QualifiedDefault,
+                               attr->getLocation(), NL_QualifiedDefault,
                                buildPartialBlockFirstMatches);
       nominal->lookupQualified(
           builderType, DeclNameRef(buildPartialBlockAccumulated),
-          NL_QualifiedDefault, buildPartialBlockAccumulatedMatches);
+          attr->getLocation(), NL_QualifiedDefault,
+          buildPartialBlockAccumulatedMatches);
 
       hasAccessibleBuildPartialBlockFirst = llvm::any_of(
           buildPartialBlockFirstMatches, isBuildMethodAsAccessibleAsType);
@@ -4907,6 +4944,8 @@ static DescriptiveDeclKind getAccessorDescriptiveDeclKind(AccessorKind kind) {
     return DescriptiveDeclKind::Addressor;
   case AccessorKind::MutableAddress:
     return DescriptiveDeclKind::MutableAddressor;
+  case AccessorKind::Init:
+    return DescriptiveDeclKind::InitAccessor;
   }
 }
 
@@ -7231,7 +7270,8 @@ ValueDecl *RenamedDeclRequest::evaluate(Evaluator &evaluator,
     SmallVector<ValueDecl *, 1> lookupResults;
     attachedContext->lookupQualified(attachedContext->getParentModule(),
                                      nameRef.withoutArgumentLabels(),
-                                     NL_OnlyTypes, lookupResults);
+                                     attr->getLocation(), NL_OnlyTypes,
+                                     lookupResults);
     if (lookupResults.size() == 1)
       return lookupResults[0];
     return nullptr;
@@ -7516,4 +7556,66 @@ void TypeChecker::checkReflectionMetadataAttributes(ExtensionDecl *ED) {
           }
         });
   }
+}
+
+ArrayRef<VarDecl *> InitAccessorReferencedVariablesRequest::evaluate(
+    Evaluator &evaluator, DeclAttribute *attr, AccessorDecl *attachedTo,
+    ArrayRef<Identifier> referencedVars) const {
+  auto &ctx = attachedTo->getASTContext();
+
+  auto *storage = attachedTo->getStorage();
+
+  auto typeDC = storage->getDeclContext()->getSelfNominalTypeDecl();
+  if (!typeDC)
+    return ctx.AllocateCopy(ArrayRef<VarDecl *>());
+
+  SmallVector<VarDecl *> results;
+
+  bool failed = false;
+  for (auto name : referencedVars) {
+    auto propertyResults = typeDC->lookupDirect(DeclName(name));
+    switch (propertyResults.size()) {
+    case 0: {
+      ctx.Diags.diagnose(attr->getLocation(), diag::cannot_find_type_in_scope,
+                         DeclNameRef(name));
+      failed = true;
+      break;
+    }
+
+    case 1: {
+      auto *member = propertyResults.front();
+
+      // Only stored properties are supported.
+      if (auto *var = dyn_cast<VarDecl>(member)) {
+        if (var->getImplInfo().hasStorage()) {
+          results.push_back(var);
+          break;
+        }
+      }
+
+      ctx.Diags.diagnose(attr->getLocation(),
+                         diag::init_accessor_can_refer_only_to_properties,
+                         member->getDescriptiveKind(), member->createNameRef());
+      failed = true;
+      break;
+    }
+
+    default:
+      ctx.Diags.diagnose(attr->getLocation(),
+                         diag::ambiguous_member_overload_set,
+                         DeclNameRef(name));
+
+      for (auto *choice : propertyResults) {
+        ctx.Diags.diagnose(choice, diag::decl_declared_here, choice->getName());
+      }
+
+      failed = true;
+      break;
+    }
+  }
+
+  if (failed)
+    return ctx.AllocateCopy(ArrayRef<VarDecl *>());
+
+  return ctx.AllocateCopy(results);
 }

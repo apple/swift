@@ -353,6 +353,8 @@ IRGEN_PASS(LoadableByAddress, "loadable-address",
      "SIL Large Loadable type by-address lowering.")
 PASS(MandatorySILLinker, "mandatory-linker",
      "Deserialize all referenced SIL functions that are shared or transparent")
+IRGEN_PASS(PackMetadataMarkerInserter, "pack-metadata-marker-inserter",
+     "Insert markers where pack metadata might be de/allocated.")
 PASS(PerformanceSILLinker, "performance-linker",
      "Deserialize all referenced SIL functions")
 PASS(RawSILInstLowering, "raw-sil-inst-lowering",
@@ -462,7 +464,7 @@ PASS(PartialApplySimplification, "partial-apply-simplification",
      "Transform partial_apply instructions into explicit closure box constructions")
 PASS(MovedAsyncVarDebugInfoPropagator, "sil-moved-async-var-dbginfo-propagator",
      "Propagate debug info from moved async vars after coroutine funclet boundaries")
-PASS(MoveOnlyDeinitInsertion, "sil-move-only-deinit-insertion",
+PASS(MoveOnlyDeinitDevirtualization, "sil-move-only-deinit-devirtualization",
      "After running move only checking, convert last destroy_values to deinit calls")
 PASS(MoveOnlyBorrowToDestructureTransform,
      "sil-move-only-borrow-to-destructure",
@@ -480,6 +482,8 @@ SWIFT_SILCOMBINE_PASS(BeginCOWMutationInst)
 SWIFT_SILCOMBINE_PASS(GlobalValueInst)
 SWIFT_SILCOMBINE_PASS(StrongRetainInst)
 SWIFT_SILCOMBINE_PASS(StrongReleaseInst)
+SWIFT_SILCOMBINE_PASS(RetainValueInst)
+SWIFT_SILCOMBINE_PASS(ReleaseValueInst)
 SWIFT_SILCOMBINE_PASS(LoadInst)
 
 #undef IRGEN_PASS

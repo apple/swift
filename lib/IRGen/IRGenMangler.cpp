@@ -400,6 +400,16 @@ std::string IRGenMangler::mangleSymbolNameForMangledConformanceAccessorString(
   return finalize();
 }
 
+std::string IRGenMangler::mangleSymbolNameForMangledGetEnumTagForLayoutString(
+    CanType type) {
+  beginManglingWithoutPrefix();
+  Buffer << "get_enum_tag_for_layout_string"
+         << " ";
+
+  appendType(type, nullptr);
+  return finalize();
+}
+
 std::string IRGenMangler::mangleSymbolNameForUnderlyingTypeAccessorString(
     OpaqueTypeDecl *opaque, unsigned index) {
   beginManglingWithoutPrefix();

@@ -271,7 +271,7 @@ func testInvalidWrapperInference() {
   S<Int>.test({ $value in })
 
   func testGenericClosure<T>(_ closure: T) {}
-  // expected-error@+1 {{unable to infer type of a closure parameter '$value' in the current context}}
+  // expected-error@+1 {{cannot infer type of closure parameter '$value' without a type annotation}}
   testGenericClosure { $value in }
   testGenericClosure { ($value: ProjectionWrapper<Int>) in } // okay
 

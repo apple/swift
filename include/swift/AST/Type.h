@@ -151,7 +151,11 @@ enum class SubstFlags {
   /// Map member types to their desugared witness type.
   DesugarMemberTypes = 0x02,
   /// Substitute types involving opaque type archetypes.
-  SubstituteOpaqueArchetypes = 0x04
+  SubstituteOpaqueArchetypes = 0x04,
+  /// Don't increase pack expansion level for free pack references.
+  /// Do not introduce new usages of this flag.
+  /// FIXME: Remove this.
+  PreservePackExpansionLevel = 0x08,
 };
 
 /// Options for performing substitutions into a type.

@@ -129,14 +129,18 @@ func expansionOfNonPackType<T>(_ t: repeat each T) {}
 
 func tupleExpansion<each T, each U>(
   _ tuple1: (repeat each T),
-  _ tuple2: (repeat each U)
+  _ tuple2: (repeat each U),
+  _ tuple3: inout (repeat each T)
 ) {
-  _ = forward(repeat each tuple1.element)
+  _ = forward(repeat each tuple1)
 
-  _ = zip(repeat each tuple1.element, with: repeat each tuple1.element)
+  _ = zip(repeat each tuple1, with: repeat each tuple1)
+  _ = zip(repeat each tuple1, with: repeat each tuple1.element) // legacy syntax
 
-  _ = zip(repeat each tuple1.element, with: repeat each tuple2.element)
+  _ = zip(repeat each tuple1, with: repeat each tuple2)
   // expected-error@-1 {{global function 'zip(_:with:)' requires the type packs 'each T' and 'each U' have the same shape}}
+
+  _ = forward(repeat each tuple3)
 }
 
 protocol Generatable {
@@ -243,10 +247,10 @@ func test_pack_expansion_materialization_from_lvalue_base() {
 
     init() {
       self.data = (repeat Data<each T>())
-      _ = (repeat each data.element) // Ok
+      _ = (repeat each data) // Ok
 
       var tmp = (repeat Data<each T>()) // expected-warning {{never mutated}}
-      _ = (repeat each tmp.element) // Ok
+      _ = (repeat each tmp) // Ok
 
       // TODO: Add subscript test-case when syntax is supported.
     }
@@ -274,10 +278,9 @@ func packOutsideExpansion<each T>(_ t: repeat each T) {
 
   let tuple = (repeat each t)
 
-  _ = tuple.element
-  // expected-error@-1{{pack reference 'each T' can only appear in pack expansion}}
+  _ = tuple
 
-  _ = each tuple.element
+  _ = each tuple
   // expected-error@-1{{pack reference 'each T' can only appear in pack expansion}}
 }
 
@@ -472,7 +475,7 @@ do {
   }
 }
 
-// rdar://107675464 - misplaced `each` results in `type of expression is ambiguous without more context`
+// rdar://107675464 - misplaced `each` results in `type of expression is ambiguous without a type annotation`
 do {
   func test_correct_each<each T: P>(_ value: repeat each T) -> (repeat each T.A) {
     return (repeat (each value).makeA()) // Ok
@@ -481,7 +484,6 @@ do {
   func test_misplaced_each<each T: P>(_ value: repeat each T) -> (repeat each T.A) {
     return (repeat each value.makeA())
     // expected-error@-1 {{value pack 'each T' must be referenced with 'each'}} {{25-25=(each }} {{30-30=)}}
-    // expected-error@-2 {{pack expansion requires that '()' and 'each T' have the same shape}}
   }
 }
 
@@ -525,8 +527,8 @@ do {
 func test_pack_expansion_to_void_conv_for_closure_result<each T>(x: repeat each T) {
   let _: () -> Void = { repeat print(each x) } // Ok
   let _: () -> Void = { (repeat print(each x)) } // Ok
-  let _: (Int) -> Void = { repeat ($0, print(each x)) } // expected-warning {{'repeat (Int, ())' is unused}}
-  let _: (Int, String) -> Void = { ($0, repeat ($1, print(each x))) } // expected-warning {{'(Int, repeat (String, ()))' is unused}}
+  let _: (Int) -> Void = { repeat ($0, print(each x)) } // expected-warning {{expression of type '/* shape: each T */ repeat (Int, ())' is unused}}
+  let _: (Int, String) -> Void = { ($0, repeat ($1, print(each x))) } // expected-warning {{expression of type '(Int, /* shape: each T */ repeat (String, ()))' is unused}}
 }
 
 // rdar://109539394 - crash on passing multiple variadic lists to singly variadic callee
@@ -537,5 +539,17 @@ do {
   func caller<each T1, each T2>(t1: repeat each T1, t2: repeat each T2) {
     test1(repeat each t1, repeat each t2) // Ok
     test2(repeat each t2, repeat each t1) // expected-error {{local function 'test2' requires that 'each T2' conform to 'RawRepresentable'}}
+  }
+}
+
+do {
+  func overloaded<each T>(_ a: Int, _ b: repeat each T) -> (repeat each T) {
+    return (repeat each b)
+  }
+
+  func overloaded() {}
+
+  func test<each T>(_ a: repeat each T) {
+    _ = (repeat overloaded(1, each a))
   }
 }

@@ -795,8 +795,7 @@ void StmtEmitter::visitDiscardStmt(DiscardStmt *S) {
     }
   }
 
-  SGF.emitMoveOnlyMemberDestruction(selfValue.forward(SGF), nominal, loc,
-                                    nullptr);
+  SGF.emitMoveOnlyMemberDestruction(selfValue.forward(SGF), nominal, loc);
 }
 
 void StmtEmitter::visitYieldStmt(YieldStmt *S) {

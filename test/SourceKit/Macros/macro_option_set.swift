@@ -16,6 +16,11 @@ func test(opts: ShippingOptions) {
   let _ = ShippingOptions.nextDay
 }
 
+@attached(member, names: named(RawValue), named(rawValue), named(`init`), arbitrary)
+@attached(conformance)
+public macro OptionSet<RawType>() =
+  #externalMacro(module: "SwiftMacros", type: "OptionSetMacro")
+
 // REQUIRES: swift_swift_parser
 
 // RUN: %empty-directory(%t)

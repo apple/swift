@@ -90,16 +90,6 @@ class RequestTracker {
   }
 
 public:
-  /// Returns \c true if the request with the given \p CancellationToken has
-  /// already been cancelled.
-  bool isCancelled(SourceKitCancellationToken CancellationToken) {
-    if (!CancellationToken) {
-      return false;
-    }
-    llvm::sys::ScopedLock L(RequestsMtx);
-    return isCancelledImpl(CancellationToken);
-  }
-
   /// Adds a \p CancellationHandler that will be called when the request
   /// associated with the \p CancellationToken is cancelled.
   /// If that request has already been cancelled when this method is called,

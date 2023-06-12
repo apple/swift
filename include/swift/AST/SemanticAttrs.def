@@ -144,5 +144,8 @@ SEMANTICS_ATTR(NO_PERFORMANCE_ANALYSIS, "no_performance_analysis")
 // that may cause the user to think there is a bug in the compiler.
 SEMANTICS_ATTR(NO_MOVEONLY_DIAGNOSTICS, "sil.optimizer.moveonly.diagnostic.ignore")
 
+// Force the use of the frame pointer for the specified function
+SEMANTICS_ATTR(USE_FRAME_POINTER, "use_frame_pointer")
+
 #undef SEMANTICS_ATTR
 

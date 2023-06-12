@@ -566,7 +566,7 @@ LifetimeChecker::LifetimeChecker(const DIMemoryObjectInfo &TheMemory,
     case DIUseKind::Escape:
       continue;
     case DIUseKind::Assign:
-    case DIUseKind::AssignWrappedValue:
+    case DIUseKind::Set:
     case DIUseKind::IndirectIn:
     case DIUseKind::InitOrAssign:
     case DIUseKind::InOutArgument:
@@ -1094,7 +1094,7 @@ void LifetimeChecker::doIt() {
       continue;
         
     case DIUseKind::Assign:
-    case DIUseKind::AssignWrappedValue:
+    case DIUseKind::Set:
       // Instructions classified as assign are only generated when lowering
       // InitOrAssign instructions in regions known to be initialized.  Since
       // they are already known to be definitely init, don't reprocess them.
@@ -1150,6 +1150,18 @@ void LifetimeChecker::doIt() {
     TheMemory.getFunction().addSemanticsAttr(
         semantics::NO_MOVEONLY_DIAGNOSTICS);
     return;
+  }
+
+  // All of the indirect results marked as "out" have to be fully initialized
+  // before their lifetime ends.
+  if (TheMemory.isOut() && Uses.empty()) {
+    auto loc = TheMemory.getLoc();
+
+    std::string propertyName;
+    auto *property = TheMemory.getPathStringToElement(0, propertyName);
+    diagnose(Module, F.getLocation(),
+             diag::ivar_not_initialized_by_init_accessor, property->getName());
+    EmittedErrorLocs.push_back(loc);
   }
 
   // If the memory object has nontrivial type, then any destroy/release of the
@@ -1436,14 +1448,30 @@ void LifetimeChecker::handleStoreUse(unsigned UseID) {
   // If this is an initialization or a normal assignment, upgrade the store to
   // an initialization or assign in the uses list so that clients know about it.
   if (isFullyUninitialized) {
-    Use.Kind = DIUseKind::Initialization;
+    // If this is a placeholder use of `assign_or_init` instruction,
+    // check whether all of the fields are initialized - if so, call a setter,
+    // otherwise call init accessor.
+    if (isa<AssignOrInitInst>(Use.Inst) && Use.NumElements == 0) {
+      auto allFieldsInitialized =
+          getAnyUninitializedMemberAtInst(Use.Inst, 0,
+                                          TheMemory.getNumElements()) == -1;
+      Use.Kind =
+          allFieldsInitialized ? DIUseKind::Set : DIUseKind::Initialization;
+    } else {
+      Use.Kind = DIUseKind::Initialization;
+    }
   } else if (isFullyInitialized && isa<AssignByWrapperInst>(Use.Inst)) {
     // If some fields are uninitialized, re-write assign_by_wrapper to assignment
     // of the backing wrapper. If all fields are initialized, assign to the wrapped
     // value.
     auto allFieldsInitialized =
         getAnyUninitializedMemberAtInst(Use.Inst, 0, TheMemory.getNumElements()) == -1;
-    Use.Kind = allFieldsInitialized ? DIUseKind::AssignWrappedValue : DIUseKind::Assign;
+    Use.Kind = allFieldsInitialized ? DIUseKind::Set : DIUseKind::Assign;
+  } else if (isFullyInitialized && isa<AssignOrInitInst>(Use.Inst)) {
+    auto allFieldsInitialized =
+        getAnyUninitializedMemberAtInst(Use.Inst, 0,
+                                        TheMemory.getNumElements()) == -1;
+    Use.Kind = allFieldsInitialized ? DIUseKind::Set : DIUseKind::Assign;
   } else if (isFullyInitialized) {
     Use.Kind = DIUseKind::Assign;
   } else {
@@ -1470,7 +1498,7 @@ void LifetimeChecker::handleStoreUse(unsigned UseID) {
       HasConditionalInitAssign = true;
     return;
   }
-  
+
   // Otherwise, we have a definite init or assign.  Make sure the instruction
   // itself is tagged properly.
   NeedsUpdateForInitState.push_back(UseID);
@@ -1593,6 +1621,7 @@ void LifetimeChecker::handleInOutUse(const DIMemoryUse &Use) {
         case AccessorKind::MutableAddress:
         case AccessorKind::DidSet:
         case AccessorKind::WillSet:
+        case AccessorKind::Init:
           return true;
         }
         llvm_unreachable("bad kind");
@@ -2262,7 +2291,8 @@ void LifetimeChecker::handleSelfInitUse(unsigned UseID) {
            "delegating inits have a single elt");
 
     // Lower Assign instructions if needed.
-    if (isa<AssignInst>(Use.Inst) || isa<AssignByWrapperInst>(Use.Inst))
+    if (isa<AssignInst>(Use.Inst) || isa<AssignByWrapperInst>(Use.Inst) ||
+        isa<AssignOrInitInst>(Use.Inst))
       NeedsUpdateForInitState.push_back(UseID);
   } else {
     // super.init also requires that all ivars are initialized before the
@@ -2296,7 +2326,7 @@ void LifetimeChecker::updateInstructionForInitState(unsigned UseID) {
       Use.Kind == DIUseKind::SelfInit)
     InitKind = IsInitialization;
   else {
-    assert(Use.Kind == DIUseKind::Assign || Use.Kind == DIUseKind::AssignWrappedValue);
+    assert(Use.Kind == DIUseKind::Assign || Use.Kind == DIUseKind::Set);
     InitKind = IsNotInitialization;
   }
 
@@ -2356,6 +2386,30 @@ void LifetimeChecker::updateInstructionForInitState(unsigned UseID) {
 
     return;
   }
+
+  if (auto *AI = dyn_cast<AssignOrInitInst>(Inst)) {
+    // Remove this instruction from our data structures, since we will be
+    // removing it.
+    Use.Inst = nullptr;
+    llvm::erase_if(NonLoadUses[Inst], [&](unsigned id) { return id == UseID; });
+
+    switch (Use.Kind) {
+    case DIUseKind::Assign:
+      AI->markAsInitialized(Use.Field.get());
+      LLVM_FALLTHROUGH;
+    case DIUseKind::Initialization:
+      AI->setMode(AssignOrInitInst::Init);
+      break;
+    case DIUseKind::Set:
+      AI->setMode(AssignOrInitInst::Set);
+      break;
+    default:
+      llvm_unreachable("Wrong use kind for assign_or_init");
+    }
+
+    return;
+  }
+
   if (auto *AI = dyn_cast<AssignByWrapperInst>(Inst)) {
     // Remove this instruction from our data structures, since we will be
     // removing it.
@@ -2369,7 +2423,7 @@ void LifetimeChecker::updateInstructionForInitState(unsigned UseID) {
     case DIUseKind::Assign:
       AI->setMode(AssignByWrapperInst::Assign);
       break;
-    case DIUseKind::AssignWrappedValue:
+    case DIUseKind::Set:
       AI->setMode(AssignByWrapperInst::AssignWrappedValue);
       break;
     default:

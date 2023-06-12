@@ -832,7 +832,7 @@ static AsyncTaskAndContext swift_task_create_commonImpl(
   //  the async context to get at the parameters.
   //  See e.g. FutureAsyncContextPrefix.
 
-  if (!futureResultType) {
+  if (!futureResultType || taskCreateFlags.isDiscardingTask()) {
     auto asyncContextPrefix = reinterpret_cast<AsyncContextPrefix *>(
         reinterpret_cast<char *>(allocation) + headerSize -
         sizeof(AsyncContextPrefix));
@@ -940,6 +940,7 @@ static AsyncTaskAndContext swift_task_create_commonImpl(
   // be is the final hop.  Store a signed null instead.
   initialContext->Parent = nullptr;
 
+  // FIXME: add discarding flag
   concurrency::trace::task_create(
       task, parent, group, asyncLet,
       static_cast<uint8_t>(task->Flags.getPriority()),
@@ -1060,21 +1061,40 @@ void swift::swift_task_run_inline(OpaqueValue *result, void *closureAFP,
 
 SWIFT_CC(swift)
 AsyncTaskAndContext swift::swift_task_create(
-    size_t taskCreateFlags,
+    size_t rawTaskCreateFlags,
     TaskOptionRecord *options,
     const Metadata *futureResultType,
     void *closureEntry, HeapObject *closureContext) {
-  FutureAsyncSignature::FunctionType *taskEntry;
-  size_t initialContextSize;
-  std::tie(taskEntry, initialContextSize) =
-      getAsyncClosureEntryPointAndContextSize<
-          FutureAsyncSignature,
-          SpecialPointerAuthDiscriminators::AsyncFutureFunction>(closureEntry);
+  TaskCreateFlags taskCreateFlags(rawTaskCreateFlags);
 
-  return swift_task_create_common(
-      taskCreateFlags, options, futureResultType,
-      reinterpret_cast<TaskContinuationFunction *>(taskEntry), closureContext,
-      initialContextSize);
+  if (taskCreateFlags.isDiscardingTask()) {
+    ThinNullaryAsyncSignature::FunctionType *taskEntry;
+    size_t initialContextSize;
+
+    std::tie(taskEntry, initialContextSize) =
+      getAsyncClosureEntryPointAndContextSize<
+        ThinNullaryAsyncSignature,
+        SpecialPointerAuthDiscriminators::AsyncThinNullaryFunction>(closureEntry);
+
+    return swift_task_create_common(
+        rawTaskCreateFlags, options, futureResultType,
+        reinterpret_cast<TaskContinuationFunction *>(taskEntry), closureContext,
+        initialContextSize);
+
+  } else {
+    FutureAsyncSignature::FunctionType *taskEntry;
+    size_t initialContextSize;
+
+    std::tie(taskEntry, initialContextSize) =
+        getAsyncClosureEntryPointAndContextSize<
+            FutureAsyncSignature,
+            SpecialPointerAuthDiscriminators::AsyncFutureFunction>(closureEntry);
+
+    return swift_task_create_common(
+        rawTaskCreateFlags, options, futureResultType,
+        reinterpret_cast<TaskContinuationFunction *>(taskEntry), closureContext,
+        initialContextSize);
+  }
 }
 
 #ifdef __ARM_ARCH_7K__

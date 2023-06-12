@@ -236,9 +236,6 @@ DependencyScanningTool::initCompilerInstanceForScan(
   auto Instance = std::make_unique<CompilerInstance>();
   Instance->addDiagnosticConsumer(&CDC);
 
-  // Wrap the filesystem with a caching `DependencyScanningWorkerFilesystem`
-  ScanningService->overlaySharedFilesystemCacheForCompilation(*Instance);
-
   // Basic error checking on the arguments
   if (CommandArgs.empty()) {
     Instance->getDiags().diagnose(SourceLoc(), diag::error_no_frontend_args);
@@ -280,6 +277,10 @@ DependencyScanningTool::initCompilerInstanceForScan(
   if (Instance->setup(Invocation, InstanceSetupError)) {
     return std::make_error_code(std::errc::not_supported);
   }
+
+  // Setup the caching service after the instance finishes setup.
+  ScanningService->setupCachingDependencyScanningService(*Instance);
+
   (void)Instance->getMainModule();
 
   return Instance;

@@ -472,21 +472,24 @@ static void checkGenericParams(GenericContext *ownerCtx) {
     return;
 
   auto *decl = ownerCtx->getAsDecl();
-  bool isGenericType = isa<GenericTypeDecl>(decl);
   bool hasPack = false;
 
   for (auto gp : *genericParams) {
     // Diagnose generic types with a parameter packs if VariadicGenerics
     // is not enabled.
-    auto &ctx = decl->getASTContext();
-    if (gp->isParameterPack() && isGenericType) {
-      TypeChecker::checkAvailability(
-          gp->getSourceRange(),
-          ownerCtx->getASTContext().getVariadicGenericTypeAvailability(),
-          diag::availability_variadic_type_only_version_newer,
-          ownerCtx);
+    if (gp->isParameterPack()) {
+      // Variadic nominal types require runtime support.
+      if (isa<NominalTypeDecl>(decl)) {
+        TypeChecker::checkAvailability(
+            gp->getSourceRange(),
+            ownerCtx->getASTContext().getVariadicGenericTypeAvailability(),
+            diag::availability_variadic_type_only_version_newer,
+            ownerCtx);
+      }
 
-      if (hasPack) {
+      // Variadic nominal and type alias types can only have a single
+      // parameter pack.
+      if (hasPack && isa<GenericTypeDecl>(decl)) {
         gp->diagnose(diag::more_than_one_pack_in_type);
       }
 
@@ -1409,6 +1412,7 @@ static void diagnoseClassWithoutInitializers(ClassDecl *classDecl) {
           { C, DeclBaseName::createConstructor(), { C.Id_from } });
       auto result =
           TypeChecker::lookupMember(superclassDecl, superclassType, initFrom,
+                                    classDecl->getLoc(),
                                     NameLookupFlags::IgnoreAccessControl);
 
       if (!result.empty() && !result.front().getValueDecl()->isImplicit())
@@ -1846,7 +1850,7 @@ public:
     if (!isa<ClassDecl>(decl->getDeclContext())) {
       decl->visitAuxiliaryDecls([&](Decl *auxiliaryDecl) {
         this->visit(auxiliaryDecl);
-      });
+      }, /*visitFreestandingExpanded=*/false);
     }
 
     if (auto *Stats = getASTContext().Stats)
@@ -2014,6 +2018,17 @@ public:
     llvm_unreachable("should always be type-checked already");
   }
 
+  /// Determine the number of bits set.
+  static unsigned numBitsSet(uint64_t value) {
+    unsigned count = 0;
+    for (uint64_t i : range(0, 63)) {
+      if (value & (uint64_t(1) << i))
+        ++count;
+    }
+
+    return count;
+  }
+
   void visitMacroDecl(MacroDecl *MD) {
     TypeChecker::checkDeclAttributes(MD);
     checkAccessControl(MD);
@@ -2057,13 +2072,46 @@ public:
       break;
     }
     }
+
+    // If the macro has a result type, it must have the freestanding
+    // expression role. Other roles cannot have result types.
+    if (auto resultTypeRepr = MD->getResultTypeRepr()) {
+      if (!MD->getMacroRoles().contains(MacroRole::Expression)) {
+        auto resultType = MD->getResultInterfaceType(); {
+          auto diag = Ctx.Diags.diagnose(
+              MD->arrowLoc, diag::macro_result_type_cannot_be_used, resultType);
+          diag.highlight(resultTypeRepr->getSourceRange());
+
+          // In a .swiftinterface file, downgrade this diagnostic to a warning.
+          // This allows the compiler to process existing .swiftinterface
+          // files that contain this issue.
+          if (resultType->isVoid()) {
+            if (auto sourceFile = MD->getParentSourceFile())
+              if (sourceFile->Kind == SourceFileKind::Interface)
+                diag.limitBehavior(DiagnosticBehavior::Warning);
+          }
+        }
+
+        Ctx.Diags.diagnose(MD->arrowLoc, diag::macro_make_freestanding_expression)
+          .fixItInsert(MD->getAttributeInsertionLoc(false),
+                       "@freestanding(expression)\n");
+        Ctx.Diags.diagnose(MD->arrowLoc, diag::macro_remove_result_type)
+          .fixItRemove(SourceRange(MD->arrowLoc, resultTypeRepr->getEndLoc()));
+      }
+    }
+
+    // A macro can only have a single freestanding macro role.
+    MacroRoles freestandingRolesInhabited =
+        MD->getMacroRoles() & getFreestandingMacroRoles();
+    if (numBitsSet(freestandingRolesInhabited.toRaw()) > 1) {
+      MD->diagnose(diag::macro_multiple_freestanding_roles);
+    }
   }
 
   void visitMacroExpansionDecl(MacroExpansionDecl *MED) {
     // Assign a discriminator.
     (void)MED->getDiscriminator();
-    // Decls in expansion already visited as auxiliary decls.
-    MED->forEachExpandedExprOrStmt([&](ASTNode node) {
+    MED->forEachExpandedNode([&](ASTNode node) {
       TypeChecker::typeCheckASTNode(node, MED->getDeclContext());
     });
   }
@@ -2609,7 +2657,7 @@ public:
     //
 
     if (ED->isObjC() && ED->isMoveOnly()) {
-      ED->diagnose(diag::moveonly_objc_enum_banned);
+      ED->diagnose(diag::noncopyable_objc_enum);
     }
     // FIXME(kavon): see if these can be integrated into other parts of Sema
     diagnoseCopyableTypeContainingMoveOnlyType(ED);
@@ -2625,11 +2673,11 @@ public:
     // indirect cases.
     if (ED->getAttrs().hasAttribute<MoveOnlyAttr>()) {
       if (ED->isIndirect())
-        ED->diagnose(diag::moveonly_enums_do_not_support_indirect,
+        ED->diagnose(diag::noncopyable_enums_do_not_support_indirect,
                      ED->getBaseIdentifier());
       for (auto *elt : ED->getAllElements()) {
         if (elt->isIndirect()) {
-          elt->diagnose(diag::moveonly_enums_do_not_support_indirect,
+          elt->diagnose(diag::noncopyable_enums_do_not_support_indirect,
                         ED->getBaseIdentifier());
         }
       }
@@ -2797,7 +2845,7 @@ public:
 
     auto &ctx = moveonlyType->getASTContext();
     ctx.Diags.diagnose(loc,
-                       diag::moveonly_cannot_conform_to_type,
+                       diag::noncopyable_cannot_conform_to_type,
                        moveonlyType->getDescriptiveKind(),
                        moveonlyType->getBaseName(),
                        type);
@@ -3646,7 +3694,7 @@ public:
     if (CD->isFailable()) {
       if (auto *nom = CD->getDeclContext()->getSelfNominalTypeDecl()) {
         if (nom->isMoveOnly()) {
-          CD->diagnose(diag::moveonly_failable_init);
+          CD->diagnose(diag::noncopyable_failable_init);
         }
       }
     }

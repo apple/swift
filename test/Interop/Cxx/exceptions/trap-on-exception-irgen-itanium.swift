@@ -131,6 +131,33 @@ public:
   inline ClassWithNoThrowingConstructor() noexcept {}
 };
 
+struct StructWithDefaultConstructor {
+  StructWithDefaultConstructor() = default;
+
+  int m = 0;
+};
+
+
+struct NonTrivial {
+  ~NonTrivial() {}
+};
+
+struct StructWithDefaultCopyConstructor {
+  StructWithDefaultCopyConstructor() noexcept {}
+  StructWithDefaultCopyConstructor(const StructWithDefaultCopyConstructor &) = default;
+
+  int m = 0;
+  NonTrivial _nonTrivialPoison;
+};
+
+struct StructWithDefaultDestructor {
+  StructWithDefaultDestructor() noexcept {}
+  ~StructWithDefaultDestructor() = default;
+
+  int m = 0;
+  NonTrivial _nonTrivialPoison;
+};
+
 //--- test.swift
 
 import CxxModule
@@ -227,6 +254,22 @@ func testClassWithNoThrowingConstructor() -> CInt {
   return obj.m
 }
 
+func testStructWithDefaultConstructor() -> StructWithDefaultConstructor {
+  return StructWithDefaultConstructor()
+}
+
+func testStructWithDefaultCopyConstructor() -> CInt {
+  var s = StructWithDefaultCopyConstructor()
+  let copy = s
+  return s.m
+}
+
+func testStructWithDefaultDestructor() -> CInt {
+  let s = StructWithDefaultDestructor()
+  let result = s.m
+  return result
+}
+
 let _ = testFreeFunctionNoThrowOnly()
 let _ = testFreeFunctionCalls()
 let _ = testMethodCalls()
@@ -241,6 +284,9 @@ let _ = testClassWithCopyConstructor()
 let _ = testClassWithThrowingCopyConstructor()
 let _ = testClassWithThrowingConstructor()
 let _ = testClassWithNoThrowingConstructor()
+let _ = testStructWithDefaultConstructor()
+let _ = testStructWithDefaultCopyConstructor()
+let _ = testStructWithDefaultDestructor()
 
 // CHECK: define {{.*}} @"$s4test0A23FreeFunctionNoThrowOnlys5Int32VyF"() #[[#SWIFTMETA:]] {
 // CHECK-NEXT: :
@@ -390,6 +436,18 @@ let _ = testClassWithNoThrowingConstructor()
 // CHECK-NEXT: unreachable
 
 // CHECK: define {{.*}} @"$s4test0A30ClassWithNoThrowingConstructors5Int32VyF"() #[[#SWIFTMETA]]
+// CHECK-NOT: invoke
+// CHECK: }
+
+// CHECK: define {{.*}} @"$s4test0A28StructWithDefaultConstructorSo0bcdE0VyF"() #[[#SWIFTMETA]] {
+// CHECK-NOT: invoke
+// CHECK: }
+
+// CHECK: define {{.*}} @"$s4test0A32StructWithDefaultCopyConstructors5Int32VyF"() #[[#SWIFTMETA]] {
+// CHECK-NOT: invoke
+// CHECK: }
+
+// CHECK: define {{.*}} @"$s4test0A27StructWithDefaultDestructors5Int32VyF"() #[[#SWIFTMETA]] {
 // CHECK-NOT: invoke
 // CHECK: }
 

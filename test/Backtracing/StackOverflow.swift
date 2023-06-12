@@ -1,16 +1,16 @@
 // RUN: %empty-directory(%t)
 // RUN: %target-build-swift %s -parse-as-library -Onone -g -o %t/StackOverflow
 // RUN: %target-codesign %t/StackOverflow
-// RUN: (env SWIFT_BACKTRACE=enable=yes,cache=no %target-run %t/StackOverflow || true) | %FileCheck %s
-// RUN: (env SWIFT_BACKTRACE=limit=16,top=4,enable=yes,cache=no %target-run %t/StackOverflow || true) | %FileCheck %s --check-prefix LIMITED
-// RUN: (env SWIFT_BACKTRACE=preset=friendly,enable=yes,cache=no %target-run %t/StackOverflow || true) | %FileCheck %s --check-prefix FRIENDLY
+// RUN: (env SWIFT_BACKTRACE=enable=yes,cache=no %target-run %t/StackOverflow 2>&1|| true) | %FileCheck %s
+// RUN: (env SWIFT_BACKTRACE=limit=17,top=5,enable=yes,cache=no %target-run %t/StackOverflow 2>&1 || true) | %FileCheck %s --check-prefix LIMITED
+// RUN: (env SWIFT_BACKTRACE=preset=friendly,enable=yes,cache=no %target-run %t/StackOverflow 2>&1 || true) | %FileCheck %s --check-prefix FRIENDLY
 
 // UNSUPPORTED: use_os_stdlib
 // UNSUPPORTED: back_deployment_runtime
 // UNSUPPORTED: asan
 // REQUIRES: executable_test
 // REQUIRES: backtracing
-// REQUIRES: OS=macosx
+// REQUIRES: OS=macosx || OS=linux-gnu
 
 func recurse(_ level: Int) {
   if level % 100000 == 0 {
@@ -32,9 +32,9 @@ struct StackOverflow {
 
 // CHECK: *** Program crashed: Bad pointer dereference at 0x{{[0-9a-f]+}} ***
 
-// CHECK: Thread 0 crashed:
+// CHECK: Thread 0 {{(".*" )?}}crashed:
 
-// CHECK:     0               0x{{[0-9a-f]+}} recurse(_:) + {{[0-9]+}} in StackOverflow at {{.*}}/StackOverflow.swift:{{[0-9]+}}
+// CHECK:     0               0x{{[0-9a-f]+}} recurse(_:) + {{[0-9]+}} in StackOverflow at {{.*}}/StackOverflow.swift
 // CHECK-NEXT:     1 [ra]          0x{{[0-9a-f]+}} recurse(_:) + {{[0-9]+}} in StackOverflow at {{.*}}/StackOverflow.swift:19:3
 // CHECK-NEXT:     2 [ra]          0x{{[0-9a-f]+}} recurse(_:) + {{[0-9]+}} in StackOverflow at {{.*}}/StackOverflow.swift:19:3
 // CHECK-NEXT:     3 [ra]          0x{{[0-9a-f]+}} recurse(_:) + {{[0-9]+}} in StackOverflow at {{.*}}/StackOverflow.swift:19:3
@@ -93,8 +93,12 @@ struct StackOverflow {
 // CHECK-NEXT: {{[0-9]+}} [ra]          0x{{[0-9a-f]+}} recurse(_:) + {{[0-9]+}} in StackOverflow at {{.*}}/StackOverflow.swift:19:3
 // CHECK-NEXT: {{[0-9]+}} [ra]          0x{{[0-9a-f]+}} recurse(_:) + {{[0-9]+}} in StackOverflow at {{.*}}/StackOverflow.swift:19:3
 // CHECK-NEXT: {{[0-9]+}} [ra]          0x{{[0-9a-f]+}} recurse(_:) + {{[0-9]+}} in StackOverflow at {{.*}}/StackOverflow.swift:19:3
-// CHECK-NEXT: {{[0-9]+}} [ra]          0x{{[0-9a-f]+}} recurse(_:) + {{[0-9]+}} in StackOverflow at {{.*}}/StackOverflow.swift:19:3
-// CHECK-NEXT: {{[0-9]+}} [ra]          0x{{[0-9a-f]+}} static StackOverflow.main() + {{[0-9]+}} in StackOverflow at {{.*}}/StackOverflow.swift:25:5
+
+// The exact number of recursion frames varies from platform to platform;
+// on macOS, there is a hidden dyld frame at the very top, which takes up one
+// of the 16 frames.  On Linux, we may have a couple of libc frames as well.
+
+// CHECK: {{[0-9]+}} [ra]          0x{{[0-9a-f]+}} static StackOverflow.main() + {{[0-9]+}} in StackOverflow at {{.*}}/StackOverflow.swift:25:5
 // CHECK-NEXT: {{[0-9]+}} [ra] [system] 0x{{[0-9a-f]+}} static StackOverflow.$main() + {{[0-9]+}} in StackOverflow at {{.*}}/<compiler-generated>
 // CHECK-NEXT: {{[0-9]+}} [ra]          0x{{[0-9a-f]+}} main + {{[0-9]+}} in StackOverflow at {{.*}}/StackOverflow.swift
 
@@ -102,11 +106,11 @@ struct StackOverflow {
 
 // CHECK: Images ({{[0-9]+}} omitted):
 
-// CHECK: {{0x[0-9a-f]+}}–{{0x[0-9a-f]+}}{{ +}}{{[0-9a-f]+}}{{ +}}StackOverflow{{ +}}{{.*}}/StackOverflow
+// CHECK: {{0x[0-9a-f]+}}–{{0x[0-9a-f]+}}{{ +}}{{[0-9a-f]+|<no build ID>}}{{ +}}StackOverflow{{ +}}{{.*}}/StackOverflow
 
 // LIMITED: *** Program crashed: Bad pointer dereference at 0x{{[0-9a-f]+}} ***
 
-// LIMITED: Thread 0 crashed:
+// LIMITED: Thread 0 {{(".*" )?}}crashed:
 
 // LIMITED:     0               0x{{[0-9a-f]+}} recurse(_:) + {{[0-9]+}} in StackOverflow at {{.*}}/StackOverflow.swift
 // LIMITED-NEXT:     1 [ra]          0x{{[0-9a-f]+}} recurse(_:) + {{[0-9]+}} in StackOverflow at {{.*}}/StackOverflow.swift:19:3
@@ -120,18 +124,21 @@ struct StackOverflow {
 // LIMITED-NEXT:     9 [ra]          0x{{[0-9a-f]+}} recurse(_:) + {{[0-9]+}} in StackOverflow at {{.*}}/StackOverflow.swift:19:3
 // LIMITED-NEXT:    10 [ra]          0x{{[0-9a-f]+}} recurse(_:) + {{[0-9]+}} in StackOverflow at {{.*}}/StackOverflow.swift:19:3
 // LIMITED-NEXT:   ...
-// LIMITED-NEXT: {{[0-9]+}} [ra]          0x{{[0-9a-f]+}} static StackOverflow.main() + {{[0-9]+}} in StackOverflow at {{.*}}/StackOverflow.swift:25:5
+
+// N.B. There can be platform differences surrounding the exact frame counts
+
+// LIMITED: {{[0-9]+}} [ra]          0x{{[0-9a-f]+}} static StackOverflow.main() + {{[0-9]+}} in StackOverflow at {{.*}}/StackOverflow.swift:25:5
 // LIMITED-NEXT: {{[0-9]+}} [ra] [system] 0x{{[0-9a-f]+}} static StackOverflow.$main() + {{[0-9]+}} in StackOverflow at {{.*}}/<compiler-generated>
 // LIMITED-NEXT: {{[0-9]+}} [ra]          0x{{[0-9a-f]+}} main + {{[0-9]+}} in StackOverflow at {{.*}}/StackOverflow.swift
 
 // FRIENDLY: *** Program crashed: Bad pointer dereference at 0x{{[0-9a-f]+}} ***
 
-// FRIENDLY: Thread 0 crashed:
+// FRIENDLY: Thread 0 {{(".*" )?}}crashed:
 
 // FRIENDLY: {{[ ]}}0 recurse(_:) + {{[0-9]+}} in StackOverflow at {{.*}}/StackOverflow.swift
 
 // SKIP-FRIENDLY:      9│ // REQUIRES: executable_test
-// SKIP-FRIENDLY-NEXT:     10│ // REQUIRES: OS=macosx
+// SKIP-FRIENDLY-NEXT:     10│ // REQUIRES: OS=macosx || OS=linux-gnu
 // SKIP-FRIENDLY-NEXT:     11│
 // SKIP-FRIENDLY-NEXT:     12│ func recurse(_ level: Int) {
 // SKIP-FRIENDLY-NEXT:       │ ▲
@@ -203,8 +210,10 @@ struct StackOverflow {
 // FRIENDLY-NEXT: {{[0-9]+}} recurse(_:) + {{[0-9]+}} in StackOverflow at {{.*}}/StackOverflow.swift:19:3
 // FRIENDLY-NEXT: {{[0-9]+}} recurse(_:) + {{[0-9]+}} in StackOverflow at {{.*}}/StackOverflow.swift:19:3
 // FRIENDLY-NEXT: {{[0-9]+}} recurse(_:) + {{[0-9]+}} in StackOverflow at {{.*}}/StackOverflow.swift:19:3
-// FRIENDLY-NEXT: {{[0-9]+}} recurse(_:) + {{[0-9]+}} in StackOverflow at {{.*}}/StackOverflow.swift:19:3
-// FRIENDLY-NEXT: {{[0-9]+}} static StackOverflow.main() + {{[0-9]+}} in StackOverflow at {{.*}}/StackOverflow.swift:25:5
+
+// N.B. There can be platform differences surrounding the exact frame counts
+
+// FRIENDLY: {{[0-9]+}} static StackOverflow.main() + {{[0-9]+}} in StackOverflow at {{.*}}/StackOverflow.swift:25:5
 
 // SKIP-FRIENDLY:     19│ @main
 // SKIP-FRIENDLY-NEXT:     20│ struct StackOverflow {

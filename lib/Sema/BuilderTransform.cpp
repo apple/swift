@@ -984,7 +984,8 @@ Optional<BraceStmt *> TypeChecker::applyResultBuilderBodyTransform(
     SmallVector<Solution, 4> solutions;
     cs.solveForCodeCompletion(solutions);
 
-    CompletionContextFinder analyzer(func, func->getDeclContext());
+    SyntacticElementTarget funcTarget(func);
+    CompletionContextFinder analyzer(funcTarget, func->getDeclContext());
     if (analyzer.hasCompletion()) {
       filterSolutionsForCodeCompletion(solutions, analyzer);
       for (const auto &solution : solutions) {
@@ -1378,6 +1379,7 @@ ResultBuilderOpSupport TypeChecker::checkBuilderOpSupport(
   SmallVector<ValueDecl *, 4> foundDecls;
   dc->lookupQualified(
       builderType, DeclNameRef(fnName),
+      builderType->getAnyNominal()->getLoc(),
       NL_QualifiedDefault | NL_ProtocolMembers, foundDecls);
   for (auto decl : foundDecls) {
     if (auto func = dyn_cast<FuncDecl>(decl)) {

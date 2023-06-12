@@ -5,7 +5,7 @@
 // RUN: touch %t/swift-root/libexec/swift/Foo.exe
 // RUN: touch %t/swift-root/bin/Foo.exe
 
-// RUN: %target-clang %s -std=c++11 -I %swift_src_root/include -I %swift_obj_root/include -I %swift_src_root/stdlib/public/SwiftShims -I %clang-include-dir -isysroot %sdk -L%swift_obj_root/lib/swift/%target-sdk-name/%target-arch -L%llvm_obj_root/lib/swift/%target-sdk-name/%target-arch -lswiftCore -o %t/paths-test
+// RUN: %target-clang %s -std=c++11 -I %swift_src_root/include -I %swift_obj_root/include -I %swift_src_root/stdlib/public/SwiftShims -I %clang-include-dir -isysroot %sdk -L%swift-lib-dir/swift/%target-sdk-name/%target-arch -L%llvm_obj_root/lib/swift/%target-sdk-name/%target-arch -lswiftCore -o %t/paths-test
 // RUN: %target-codesign %t/paths-test
 // RUN: %target-run %t/paths-test | %FileCheck %s
 // RUN: env %env-SWIFT_ROOT=%t/swift-root %target-run %t/paths-test | %FileCheck %s --check-prefix CHECK-FR

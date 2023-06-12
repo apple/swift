@@ -35,8 +35,10 @@
 #include "swift/AST/GenericEnvironment.h"
 #include "swift/AST/GenericSignature.h"
 #include "swift/AST/NameLookup.h"
+#include "swift/AST/NameLookupRequests.h"
 #include "swift/AST/ParameterList.h"
 #include "swift/AST/PrettyStackTrace.h"
+#include "swift/AST/PotentialMacroExpansions.h"
 #include "swift/AST/ProtocolConformance.h"
 #include "swift/AST/TypeCheckRequests.h"
 #include "swift/AST/TypeDeclFinder.h"
@@ -1237,11 +1239,9 @@ witnessHasImplementsAttrForExactRequirement(ValueDecl *witness,
   assert(requirement->isProtocolRequirement());
   auto *PD = cast<ProtocolDecl>(requirement->getDeclContext());
   if (auto A = witness->getAttrs().getAttribute<ImplementsAttr>()) {
-    if (Type T = A->getProtocolType()) {
-      if (auto ProtoTy = T->getAs<ProtocolType>()) {
-        if (ProtoTy->getDecl() == PD) {
-          return A->getMemberName() == requirement->getName();
-        }
+    if (auto *OtherPD = A->getProtocol(witness->getDeclContext())) {
+      if (OtherPD == PD) {
+        return A->getMemberName() == requirement->getName();
       }
     }
   }
@@ -1306,7 +1306,8 @@ WitnessChecker::lookupValueWitnessesViaImplementsAttr(
   nominal->synthesizeSemanticMembersIfNeeded(name.getFullName());
 
   SmallVector<ValueDecl *, 4> lookupResults;
-  DC->lookupQualified(nominal, name, subOptions, lookupResults);
+  DC->lookupQualified(nominal, name, nominal->getLoc(),
+                      subOptions, lookupResults);
 
   for (auto decl : lookupResults) {
     if (!isa<ProtocolDecl>(decl->getDeclContext()))
@@ -1316,6 +1317,25 @@ WitnessChecker::lookupValueWitnessesViaImplementsAttr(
 
   removeOverriddenDecls(witnesses);
   removeShadowedDecls(witnesses, DC);
+}
+
+/// Determine whether the given context may expand an operator with the given name.
+static bool contextMayExpandOperator(
+    DeclContext *dc, DeclBaseName operatorName
+) {
+  TypeOrExtensionDecl decl;
+  if (auto nominal = dyn_cast<NominalTypeDecl>(dc))
+    decl = nominal;
+  else if (auto ext = dyn_cast<ExtensionDecl>(dc))
+    decl = ext;
+  else
+    return false;
+
+  ASTContext &ctx = dc->getASTContext();
+  auto potentialExpansions = evaluateOrDefault(
+      ctx.evaluator, PotentialMacroExpansionsInContextRequest{decl},
+      PotentialMacroExpansions());
+  return potentialExpansions.shouldExpandForName(operatorName);
 }
 
 SmallVector<ValueDecl *, 4>
@@ -1335,10 +1355,12 @@ WitnessChecker::lookupValueWitnesses(ValueDecl *req, bool *ignoringNames) {
   // An operator function is the only kind of witness that requires global
   // lookup. However, because global lookup doesn't enter local contexts,
   // an additional, qualified lookup is warranted when the conforming type
-  // is declared in a local context.
+  // is declared in a local context or when the operator could come from a
+  // macro expansion.
   const bool doUnqualifiedLookup = req->isOperator();
   const bool doQualifiedLookup =
-      !req->isOperator() || DC->getParent()->getLocalContext();
+      !req->isOperator() || DC->getParent()->getLocalContext() ||
+      contextMayExpandOperator(DC, req->getName().getBaseName());
 
   if (doUnqualifiedLookup) {
     auto lookup = TypeChecker::lookupUnqualified(DC->getModuleScopeContext(),
@@ -1366,7 +1388,8 @@ WitnessChecker::lookupValueWitnesses(ValueDecl *req, bool *ignoringNames) {
 
     SmallVector<ValueDecl *, 4> lookupResults;
     bool addedAny = false;
-    DC->lookupQualified(nominal, reqName, options, lookupResults);
+    DC->lookupQualified(nominal, reqName, nominal->getLoc(),
+                        options, lookupResults);
     for (auto *decl : lookupResults) {
       if (!isa<ProtocolDecl>(decl->getDeclContext())) {
         witnesses.push_back(decl);
@@ -1378,7 +1401,8 @@ WitnessChecker::lookupValueWitnesses(ValueDecl *req, bool *ignoringNames) {
     // again using only the base name.
     if (!addedAny && ignoringNames) {
       lookupResults.clear();
-      DC->lookupQualified(nominal, reqBaseName, options, lookupResults);
+      DC->lookupQualified(nominal, reqBaseName, nominal->getLoc(),
+                          options, lookupResults);
       for (auto *decl : lookupResults) {
         if (!isa<ProtocolDecl>(decl->getDeclContext()))
           witnesses.push_back(decl);
@@ -4733,6 +4757,7 @@ ResolveWitnessResult ConformanceChecker::resolveTypeWitnessViaLookup(
 
   DC->lookupQualified(DC->getSelfNominalTypeDecl(),
                       assocType->createNameRef(),
+                      DC->getSelfNominalTypeDecl()->getLoc(),
                       subOptions, candidates);
 
   // If there aren't any candidates, we're done.
@@ -5733,9 +5758,7 @@ TypeChecker::conformsToProtocol(Type T, ProtocolDecl *Proto, ModuleDecl *M,
 
   // If we have a conditional requirements that we need to check, do so now.
   if (!condReqs->empty()) {
-    auto conditionalCheckResult = checkGenericArguments(
-        M, *condReqs,
-        [](SubstitutableType *dependentType) { return Type(dependentType); });
+    auto conditionalCheckResult = checkGenericArguments(*condReqs);
     switch (conditionalCheckResult) {
     case CheckGenericArgumentsResult::Success:
       break;
@@ -6312,7 +6335,8 @@ diagnoseMissingAppendInterpolationMethod(NominalTypeDecl *typeDecl) {
       DeclNameRef baseName(typeDecl->getASTContext().Id_appendInterpolation);
 
       SmallVector<ValueDecl *, 4> lookupResults;
-      typeDecl->lookupQualified(typeDecl, baseName, subOptions, lookupResults);
+      typeDecl->lookupQualified(typeDecl, baseName, typeDecl->getLoc(),
+                                subOptions, lookupResults);
       for (auto decl : lookupResults) {
         auto method = dyn_cast<FuncDecl>(decl);
         if (!method) continue;
@@ -6780,6 +6804,7 @@ swift::findWitnessedObjCRequirements(const ValueDecl *witness,
     case AccessorKind::MutableAddress:
     case AccessorKind::Read:
     case AccessorKind::Modify:
+    case AccessorKind::Init:
       // These accessors are never exposed to Objective-C.
       return result;
     case AccessorKind::DidSet:
@@ -7182,6 +7207,7 @@ void TypeChecker::inferDefaultWitnesses(ProtocolDecl *proto) {
       SmallVector<ValueDecl *, 2> found;
       module->lookupQualified(
                            proto, DeclNameRef(assocType->getName()),
+                           proto->getLoc(),
                            NL_QualifiedDefault|NL_ProtocolMembers|NL_OnlyTypes,
                            found);
       if (found.size() == 1 && isa<AssociatedTypeDecl>(found[0]))

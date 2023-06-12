@@ -227,7 +227,7 @@ else()
   add_subdirectory(Sources)
 
   # TODO: generate this dynamically through the modulemap; this cannot use `sed`
-  # as that is not available on all paltforms (e.g. Windows).
+  # as that is not available on all platforms (e.g. Windows).
   #
   # step 1: generate a dummy source file, which just includes all headers
   # defined in include/swift/module.modulemap

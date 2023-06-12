@@ -61,6 +61,11 @@ static enum sdk_test isAppAtLeastSpring2021() {
     const dyld_build_version_t spring_2021_os_versions = {0xffffffff, 0x007e50301};
     return isAppAtLeast(spring_2021_os_versions);
 }
+
+static enum sdk_test isAppAtLeastFall2023() {
+    const dyld_build_version_t fall_2023_os_versions = {0xffffffff, 0x007e70901};
+    return isAppAtLeast(fall_2023_os_versions);
+}
 #endif
 
 static _SwiftStdlibVersion binCompatVersionOverride = { 0 };
@@ -189,7 +194,11 @@ bool useLegacyOptionalNilInjectionInCasting() {
 // by that protocol.
 bool useLegacyObjCBoxingInCasting() {
 #if BINARY_COMPATIBILITY_APPLE
-  return false; // For now, always use the new behavior on Apple OSes
+  switch (isAppAtLeastFall2023()) {
+  case oldOS: return true; // Legacy behavior on old OS
+  case oldApp: return true; // Legacy behavior for old apps
+  case newApp: return false; // New behavior for new apps
+  }
 #else
   return false; // Always use the new behavior on non-Apple OSes
 #endif
@@ -209,7 +218,11 @@ bool useLegacyObjCBoxingInCasting() {
 
 bool useLegacySwiftValueUnboxingInCasting() {
 #if BINARY_COMPATIBILITY_APPLE
-  return false; // For now, always use the new behavior on Apple OSes
+  switch (isAppAtLeastFall2023()) {
+  case oldOS: return true; // Legacy behavior on old OS
+  case oldApp: return true; // Legacy behavior for old apps
+  case newApp: return false; // New behavior for new apps
+  }
 #else
   return false; // Always use the new behavior on non-Apple OSes
 #endif

@@ -3203,11 +3203,22 @@ static bool usesFeatureBareSlashRegexLiterals(Decl *decl) {
   return false;
 }
 
-static bool usesFeatureVariadicGenerics(Decl *decl) {
+static bool usesFeatureTupleConformances(Decl *decl) {
   return false;
 }
 
-static bool usesFeatureTupleConformances(Decl *decl) {
+static bool usesFeatureSymbolLinkageMarkers(Decl *decl) {
+  auto &attrs = decl->getAttrs();
+  return std::any_of(attrs.begin(), attrs.end(), [](auto *attr) {
+    if (isa<UsedAttr>(attr))
+      return true;
+    if (isa<SectionAttr>(attr))
+      return true;
+    return false;
+  });
+}
+
+static bool usesFeatureInitAccessors(Decl *decl) {
   return false;
 }
 
@@ -4321,6 +4332,7 @@ void PrintAST::visitAccessorDecl(AccessorDecl *decl) {
     break;
   case AccessorKind::Set:
   case AccessorKind::WillSet:
+  case AccessorKind::Init:
     recordDeclLoc(decl,
       [&]{
         Printer << getAccessorLabel(decl->getAccessorKind());
@@ -4335,6 +4347,7 @@ void PrintAST::visitAccessorDecl(AccessorDecl *decl) {
           }
         }
       });
+    break;
   }
 
   // handle effects specifiers before the body
@@ -4798,16 +4811,14 @@ void PrintAST::visitMacroDecl(MacroDecl *decl) {
       }
   );
 
-  {
+  if (decl->resultType.getTypeRepr() ||
+      !decl->getResultInterfaceType()->isVoid()) {
     Printer.printStructurePre(PrintStructureKind::DeclResultTypeClause);
     SWIFT_DEFER {
       Printer.printStructurePost(PrintStructureKind::DeclResultTypeClause);
     };
 
-    if (decl->parameterList)
-      Printer << " -> ";
-    else
-      Printer << ": ";
+    Printer << " -> ";
 
     TypeLoc resultTypeLoc(
         decl->resultType.getTypeRepr(), decl->getResultInterfaceType());
@@ -5212,7 +5223,6 @@ void PrintAST::visitPackExpansionExpr(PackExpansionExpr *expr) {
 
 void PrintAST::visitMaterializePackExpr(MaterializePackExpr *expr) {
   visit(expr->getFromExpr());
-  Printer << ".element";
 }
 
 void PrintAST::visitPackElementExpr(PackElementExpr *expr) {
@@ -6069,8 +6079,25 @@ public:
   }
 
   void visitPackExpansionType(PackExpansionType *T) {
+    SmallVector<Type, 2> rootParameterPacks;
+    T->getPatternType()->getTypeParameterPacks(rootParameterPacks);
+
+    if (rootParameterPacks.empty() &&
+        (T->getCountType()->isParameterPack() ||
+         T->getCountType()->is<PackArchetypeType>())) {
+      Printer << "/* shape: ";
+      visit(T->getCountType());
+      Printer << " */ ";
+    }
+
     Printer << "repeat ";
+
     visit(T->getPatternType());
+  }
+
+  void visitPackElementType(PackElementType *T) {
+    Printer << "/* level: " << T->getLevel() << " */ ";
+    visit(T->getPackType());
   }
 
   void visitTupleType(TupleType *T) {

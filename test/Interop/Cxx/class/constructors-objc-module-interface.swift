@@ -7,4 +7,6 @@
 
 // CHECK:      struct ConstructorWithNSArrayParam {
 // CHECK-NEXT:   init(_ array: [Any]!)
+// CHECK-NEXT:   @available(*, deprecated, message
+// CHECK-NEXT:   init()
 // CHECK-NEXT: }

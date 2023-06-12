@@ -47,33 +47,33 @@ struct CerebralValley<T> {
 // --- now some tests ---
 // ----------------------
 
-func basic_vararg(_ va: MO...) {} // expected-error {{move-only type 'MO' cannot be used with generics yet}}
+func basic_vararg(_ va: MO...) {} // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
 
 func illegalTypes<T>(_ t: T) {
-  let _: Array<MO> // expected-error {{move-only type 'MO' cannot be used with generics yet}}
-  let _: Maybe<MO> // expected-error {{move-only type 'MO' cannot be used with generics yet}}
-  let _: Dictionary<MO, String> // expected-error {{move-only type 'MO' cannot be used with generics yet}}
-  let _: [MO] // expected-error {{move-only type 'MO' cannot be used with generics yet}}
-  let _: [String : MO] // expected-error {{move-only type 'MO' cannot be used with generics yet}}
-  let _: [MO : MO] // expected-error 2{{move-only type 'MO' cannot be used with generics yet}}
-  let _: [MO : T] // expected-error {{move-only type 'MO' cannot be used with generics yet}}
+  let _: Array<MO> // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+  let _: Maybe<MO> // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+  let _: Dictionary<MO, String> // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+  let _: [MO] // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+  let _: [String : MO] // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+  let _: [MO : MO] // expected-error 2{{noncopyable type 'MO' cannot be used with generics yet}}
+  let _: [MO : T] // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
 
-  _ = t as! ValBox<MO> // expected-error {{move-only type 'MO' cannot be used with generics yet}}
+  _ = t as! ValBox<MO> // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
 
-  let _: Optional<MO> // expected-error {{move-only type 'MO' cannot be used with generics yet}}
-  let _: MO? // expected-error {{move-only type 'MO' cannot be used with generics yet}}
-  let _: MO?? // expected-error {{move-only type 'MO' cannot be used with generics yet}}
-  let _: MO! // expected-error {{move-only type 'MO' cannot be used with generics yet}}
-  let _: MO?! // expected-error {{move-only type 'MO' cannot be used with generics yet}}
+  let _: Optional<MO> // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+  let _: MO? // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+  let _: MO?? // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+  let _: MO! // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+  let _: MO?! // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
 
   let _: Klass & MO // expected-error {{non-protocol, non-class type 'MO' cannot be used within a protocol-constrained type}}
   let _: any MO // expected-error {{'any' has no effect on concrete type 'MO'}}
   let _: any GenericMO<T> // expected-error {{'any' has no effect on concrete type 'GenericMO<T>'}}
 
-  let _: CerebralValley<MO>.TechBro // expected-error {{move-only type 'MO' cannot be used with generics yet}}
-  let _: CerebralValley<Int>.GenericBro<MO> // expected-error {{move-only type 'MO' cannot be used with generics yet}}
+  let _: CerebralValley<MO>.TechBro // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+  let _: CerebralValley<Int>.GenericBro<MO> // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
 
-  let _: GenericMO<MO> // expected-error {{move-only type 'MO' cannot be used with generics yet}}
+  let _: GenericMO<MO> // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
 }
 
 func illegalInExpr() {

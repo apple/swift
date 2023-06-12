@@ -275,6 +275,7 @@ SymbolSubKind index::getSubKindForAccessor(AccessorKind AK) {
     return SymbolSubKind::SwiftAccessorMutableAddressor;
   case AccessorKind::Read:      return SymbolSubKind::SwiftAccessorRead;
   case AccessorKind::Modify:    return SymbolSubKind::SwiftAccessorModify;
+  case AccessorKind::Init:      return SymbolSubKind::SwiftAccessorInit;
   }
 
   llvm_unreachable("Unhandled AccessorKind in switch.");

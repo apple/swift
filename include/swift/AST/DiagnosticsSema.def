@@ -197,6 +197,9 @@ ERROR(cannot_match_expr_tuple_pattern_with_nontuple_value,none,
 ERROR(cannot_match_unresolved_expr_pattern_with_value,none,
       "pattern cannot match values of type %0",
       (Type))
+ERROR(cannot_match_value_with_pattern,none,
+      "pattern of type %1 cannot match %0",
+      (Type, Type))
 
 ERROR(cannot_reference_compare_types,none,
       "cannot check reference equality of functions; operands here have types "
@@ -272,10 +275,10 @@ ERROR(no_candidates_match_argument_type,none,
       (StringRef, Type, unsigned))
 
 ERROR(cannot_infer_closure_parameter_type,none,
-      "unable to infer type of a closure parameter %0 in the current context",
+      "cannot infer type of closure parameter %0 without a type annotation",
        (StringRef))
 ERROR(cannot_infer_closure_type,none,
-      "unable to infer closure type in the current context", ())
+      "unable to infer closure type without a type annotation", ())
 ERROR(cannot_infer_empty_closure_result_type,none,
       "cannot infer return type of empty closure", ())
 ERROR(cannot_infer_closure_result_type,none,
@@ -871,20 +874,62 @@ ERROR(need_hermetic_seal_to_import_module,none,
       "module %0 was built with -experimental-hermetic-seal-at-link, but "
       "current compilation does not have -experimental-hermetic-seal-at-link",
       (Identifier))
+ERROR(need_cxx_interop_to_import_module,none,
+      "module %0 was built with C++ interoperability enabled, but "
+      "current compilation does not enable C++ interoperability",
+      (Identifier))
+NOTE(enable_cxx_interop_docs,none,
+     "visit https://www.swift.org/documentation/cxx-interop/project-build-setup to learn how to enable C++ interoperability", ())
 
 ERROR(modularization_issue_decl_moved,Fatal,
-      "reference to %select{top-level|type}0 %1 broken by a context change; "
+      "reference to %select{top-level declaration|type}0 %1 broken by a context change; "
       "%1 was expected to be in %2, but now a candidate is found only in %3",
-      (bool, DeclName, Identifier, Identifier))
+      (bool, DeclName, const ModuleDecl*, const ModuleDecl*))
 ERROR(modularization_issue_decl_type_changed,Fatal,
-      "reference to %select{top-level|type}0 %1 broken by a context change; "
-      "the details of %1 %select{from %2|}5 changed since building '%3'"
-      "%select{|, it was in %2 and is now found in %4}5",
-      (bool, DeclName, Identifier, StringRef, Identifier, bool))
+      "reference to %select{top-level declaration|type}0 %1 broken by a context change; "
+      "the declaration kind of %1 %select{from %2|}5 changed since building '%3'"
+      "%select{|, it was in %2 and is now a candidate is found only in %4}5",
+      (bool, DeclName, const ModuleDecl*, StringRef, const ModuleDecl*, bool))
 ERROR(modularization_issue_decl_not_found,Fatal,
-      "reference to %select{top-level|type}0 %1 broken by a context change; "
+      "reference to %select{top-level declaration|type}0 %1 broken by a context change; "
       "%1 is not found, it was expected to be in %2",
-      (bool, DeclName, Identifier))
+      (bool, DeclName, const ModuleDecl*))
+
+NOTE(modularization_issue_note_expected,none,
+     "the %select{declaration|type}0 was expected to be found in module %1 at '%2'",
+     (bool, const ModuleDecl*, StringRef))
+NOTE(modularization_issue_note_expected_underlying,none,
+     "or expected to be found in the underlying module '%0' defined at '%1'",
+     (StringRef, StringRef))
+NOTE(modularization_issue_note_found,none,
+     "the %select{declaration|type}0 was actually found in module %1 at '%2'",
+     (bool, const ModuleDecl*, StringRef))
+
+NOTE(modularization_issue_stale_module,none,
+     "the module %0 has enabled library-evolution; "
+     "the following file may need to be deleted if the SDK was modified: '%1'",
+     (const ModuleDecl *, StringRef))
+NOTE(modularization_issue_swift_version,none,
+     "the module %0 was built with a Swift language version set to %1 "
+     "while the current invocation uses %2; "
+     "APINotes may change how clang declarations are imported",
+     (const ModuleDecl *, llvm::VersionTuple, llvm::VersionTuple))
+NOTE(modularization_issue_audit_headers,none,
+     "declarations in the %select{underlying|}0 clang module %1 "
+     "may be hidden by clang preprocessor macros",
+     (bool, const ModuleDecl*))
+NOTE(modularization_issue_layering_expected_local,none,
+     "the distributed module %0 refers to the local module %1; "
+     "this may be caused by header maps or search paths",
+     (const ModuleDecl*, const ModuleDecl*))
+NOTE(modularization_issue_layering_found_local,none,
+     "the reference may break layering; the candidate was found in "
+     "the local module %1 for a reference from the distributed module %0",
+     (const ModuleDecl*, const ModuleDecl*))
+NOTE(modularization_issue_related_modules,none,
+     "the %select{declaration|type}0 %1 moved between related modules; "
+     "clang preprocessor macros may affect headers shared between these modules",
+     (bool, DeclName))
 
 NOTE(modularization_issue_side_effect_extension_error,none,
      "could not deserialize extension",
@@ -892,6 +937,11 @@ NOTE(modularization_issue_side_effect_extension_error,none,
 NOTE(modularization_issue_side_effect_type_error,none,
      "could not deserialize type for %0",
      (DeclName))
+
+NOTE(modularization_issue_worked_around,none,
+     "attempting forced recovery enabled by "
+     "-experimental-force-workaround-broken-modules",
+     ())
 
 ERROR(reserved_member_name,none,
       "type member must not be named %0, since it would conflict with the"
@@ -1702,6 +1752,16 @@ ERROR(cdecl_empty_name,none,
 ERROR(cdecl_throws,none,
       "raising errors from @_cdecl functions is not supported", ())
 
+// @_used and @_section
+ERROR(section_linkage_markers_disabled,none,
+      "attribute requires '-enable-experimental-feature SymbolLinkageMarkers'", ())
+ERROR(used_not_at_top_level,none,
+      "@_used can only be applied to global functions and variables", ())
+ERROR(section_not_at_top_level,none,
+      "@_section can only be applied to global functions and variables", ())
+ERROR(section_empty_name,none,
+      "@_section section name cannot be empty", ())
+
 ERROR(expose_only_non_other_attr,none,
       "@_expose attribute cannot be applied to an '%0' declaration", (StringRef))
 ERROR(expose_inside_unexposed_decl,none,
@@ -1732,7 +1792,7 @@ ERROR(expose_enum_case_tuple_to_cxx,none,
 ERROR(expose_protocol_to_cxx_unsupported,none,
       "protocol %0 can not yet be represented in C++", (ValueDecl *))
 ERROR(expose_move_only_to_cxx,none,
-      "move-only %0 %1 can not yet be represented in C++", (DescriptiveDeclKind, ValueDecl *))
+      "noncopyable %0 %1 can not yet be represented in C++", (DescriptiveDeclKind, ValueDecl *))
 ERROR(unexposed_other_decl_in_cxx,none,
       "%0 %1 is not yet exposed to C++", (DescriptiveDeclKind, ValueDecl *))
 ERROR(unsupported_other_decl_in_cxx,none,
@@ -1796,8 +1856,8 @@ WARNING(access_control_non_objc_open_member,none,
       "non-'@objc' %0 in extensions cannot be overridden; use 'public' instead",
       (DescriptiveDeclKind))
 ERROR(access_control_requires_package_name, none,
-      "decl has a package access level but no -package-name was passed",
-      ())
+      "%0 has a package access level but no -package-name was specified: %1",
+      (Identifier, StringRef))
 ERROR(invalid_decl_attribute,none,
       "'%0' attribute cannot be applied to this declaration", (DeclAttribute))
 ERROR(attr_invalid_on_decl_kind,none,
@@ -4109,7 +4169,7 @@ ERROR(could_not_infer_placeholder,none,
       "could not infer type for placeholder", ())
 
 ERROR(type_of_expression_is_ambiguous,none,
-      "type of expression is ambiguous without more context", ())
+      "type of expression is ambiguous without a type annotation", ())
 
 ERROR(failed_to_produce_diagnostic,Fatal,
       "failed to produce diagnostic for expression; "
@@ -4601,6 +4661,9 @@ ERROR(unknown_case_multiple_patterns,none,
       "'@unknown' cannot be applied to multiple patterns", ())
 ERROR(unknown_case_must_be_last,none,
       "'@unknown' can only be applied to the last case in a switch", ())
+
+WARNING(move_only_pattern_match_not_consumed,none,
+        "noncopyable binding being pattern-matched must have the 'consume' operator applied", ())
 
 WARNING(where_on_one_item, none,
         "'where' only applies to the second pattern match in this case", ())
@@ -5099,6 +5162,9 @@ ERROR(distributed_actor_func_nonisolated, none,
 ERROR(distributed_actor_func_inout, none,
       "cannot declare 'inout' argument %0 in %1 %2",
       (DeclName, DescriptiveDeclKind, DeclName))
+ERROR(distributed_actor_func_unsupported_specifier, none,
+      "cannot declare '%0' argument %1 in %2 %3",
+      (StringRef, DeclName, DescriptiveDeclKind, DeclName))
 ERROR(distributed_actor_func_closure, none,
       "%0 %1 cannot declare closure arguments, as they cannot be serialized",
       (DescriptiveDeclKind, DeclName))
@@ -5833,6 +5899,8 @@ ERROR(no_opaque_return_type_of,none,
 
 ERROR(objc_observing_accessor, none,
       "observing accessors are not allowed to be marked @objc", ())
+ERROR(objc_init_accessor, none,
+      "init accessors cannot be marked @objc", ())
 ERROR(objc_addressor, none,
       "addressors are not allowed to be marked @objc", ())
 ERROR(objc_coroutine_accessor, none,
@@ -6944,30 +7012,6 @@ ERROR(wrap_invalid_attr_added_by_access_note, none,
 
 #undef WHICH_ACCESS_NOTE
 
-// Move Only diagnostics
-
-ERROR(experimental_moveonly_feature_can_only_be_used_when_enabled,
-      none, "Can not use feature when experimental move only is disabled! Pass"
-      " the frontend flag -enable-experimental-move-only to swift to enable "
-      "the usage of this language feature", ())
-ERROR(noimplicitcopy_attr_valid_only_on_local_let_params,
-      none, "'@_noImplicitCopy' attribute can only be applied to local lets and params", ())
-ERROR(noimplicitcopy_attr_invalid_in_generic_context,
-      none, "'@_noImplicitCopy' attribute cannot be applied to entities in generic contexts", ())
-ERROR(moveonly_generics, none, "move-only type %0 cannot be used with generics yet", (Type))
-ERROR(moveonly_effectful_getter,none,
-      "%0 of move-only type cannot be 'async' or 'throws'", (DescriptiveDeclKind))
-ERROR(noimplicitcopy_attr_not_allowed_on_moveonlytype,none,
-      "'@_noImplicitCopy' has no effect when applied to a move only type", ())
-ERROR(moveonly_enums_do_not_support_indirect,none,
-      "move-only enum %0 cannot be marked indirect or have indirect cases yet", (Identifier))
-ERROR(moveonly_cast,none,
-      "move-only types cannot be conditionally cast", ())
-ERROR(moveonly_failable_init,none,
-      "move-only types cannot have failable initializers yet", ())
-ERROR(moveonly_objc_enum_banned, none,
-      "@objc enums cannot be marked as move-only", ())
-
 //------------------------------------------------------------------------------
 // MARK: Type inference from default expressions
 //------------------------------------------------------------------------------
@@ -7024,21 +7068,6 @@ ERROR(concurrency_task_to_thread_model_global_actor,none,
 ERROR(concurrency_task_to_thread_model_global_actor_annotation,none,
       "annotating a type with a global actor %0 is not permitted within %1",
       (TypeRepr*, StringRef))
-
-ERROR(moveOnly_not_allowed_here,none,
-      "'moveOnly' only applies to structs or enums", ())
-ERROR(consume_expression_not_passed_lvalue,none,
-      "'consume' can only be applied to lvalues", ())
-ERROR(borrow_expression_not_passed_lvalue,none,
-      "'borrow' can only be applied to lvalues", ())
-ERROR(copy_expression_not_passed_lvalue,none,
-      "'copy' can only be applied to lvalues", ())
-ERROR(copy_expression_cannot_be_used_with_noncopyable_types,none,
-      "'copy' cannot be applied to noncopyable types", ())
-
-ERROR(moveOnly_requires_lexical_lifetimes,none,
-      "noncopyable types require lexical borrow scopes "
-      "(add -enable-lexical-borrow-scopes=true)", ())
 
 //------------------------------------------------------------------------------
 // MARK: #_hasSymbol
@@ -7115,6 +7144,16 @@ ERROR(macro_in_nested,none,
 ERROR(macro_without_role,none,
       "macro %0 must declare its applicable roles via '@freestanding' or @attached'",
        (DeclName))
+ERROR(macro_result_type_cannot_be_used,none,
+      "only a freestanding expression macro can produce a result of type %0",
+      (Type))
+NOTE(macro_remove_result_type,none,
+      "remove the result type if the macro does not produce a value",
+      ())
+NOTE(macro_make_freestanding_expression,none,
+      "make this macro a freestanding expression macro", ())
+ERROR(macro_multiple_freestanding_roles,none,
+      "macro can only have a single freestanding role", ())
 ERROR(macro_expansion_missing_pound,none,
       "expansion of macro %0 requires leading '#'", (DeclName))
 ERROR(macro_expansion_missing_arguments,none,
@@ -7148,6 +7187,17 @@ ERROR(invalid_macro_role_for_macro_syntax,none,
       (unsigned))
 ERROR(macro_cannot_introduce_names,none,
       "'%0' macros are not allowed to introduce names", (StringRef))
+ERROR(macro_accessor_missing_from_expansion,none,
+      "expansion of macro %0 did not produce a %select{non-|}1observing "
+      "accessor",
+      (DeclName, bool))
+ERROR(macro_init_accessor_not_documented,none,
+      "expansion of macro %0 produced an unexpected 'init' accessor",
+      (DeclName))
+ERROR(global_arbitrary_name,none,
+      "'%0' macros are not allowed to introduce arbitrary names "
+      "at global scope",
+      (StringRef))
 
 ERROR(macro_resolve_circular_reference, none,
       "circular reference resolving %select{freestanding|attached}0 macro %1",
@@ -7172,31 +7222,68 @@ NOTE(macro_expand_circular_reference_unnamed_through, none,
      "circular reference expanding %0 macros", (StringRef))
 
 //------------------------------------------------------------------------------
-// MARK: Move Only Errors
+// MARK: Noncopyable Types Diagnostics
 //------------------------------------------------------------------------------
 
-ERROR(moveonly_copyable_type_that_contains_moveonly_type, none,
-      "%0 %1 cannot contain a move-only type without also being move-only",
+ERROR(noncopyable_within_copyable, none,
+      "%0 %1 cannot contain a noncopyable type without also being noncopyable",
       (DescriptiveDeclKind, DeclName))
-NOTE(moveonly_copyable_type_that_contains_moveonly_type_location, none,
-     "contained move-only %0 '%1.%2'",
+NOTE(noncopyable_within_copyable_location, none,
+     "contained noncopyable %0 '%1.%2'",
      (DescriptiveDeclKind, StringRef, StringRef))
-ERROR(moveonly_cannot_conform_to_type, none,
-     "move-only %0 %1 cannot conform to %2",
+ERROR(noncopyable_cannot_conform_to_type, none,
+     "noncopyable %0 %1 cannot conform to %2",
      (DescriptiveDeclKind, DeclName, Type))
-ERROR(moveonly_parameter_missing_ownership, none,
+ERROR(noncopyable_parameter_requires_ownership, none,
       "noncopyable parameter must specify its ownership", ())
-ERROR(moveonly_parameter_subscript_unsupported, none,
+ERROR(noncopyable_parameter_subscript_unsupported, none,
       "subscripts cannot have noncopyable parameters yet", ())
-NOTE(moveonly_parameter_ownership_suggestion, none,
+NOTE(noncopyable_parameter_ownership_suggestion, none,
       "add '%0' %1", (StringRef, StringRef))
 ERROR(ownership_specifier_copyable,none,
-      "Copyable types cannot be 'consuming' or 'borrowing' yet", ())
+      "copyable types cannot be 'consuming' or 'borrowing' yet", ())
 ERROR(self_ownership_specifier_copyable,none,
-      "%0 is not yet valid on %1s in a Copyable type",
+      "%0 is not yet valid on %1s of a copyable type",
       (SelfAccessKind, DescriptiveDeclKind))
 ERROR(ownership_specifier_nonescaping_closure,none,
       "'%0' cannot be applied to nonescaping closure", (StringRef))
+ERROR(noncopyable_generics, none, "noncopyable type %0 cannot be used with generics yet", (Type))
+ERROR(noncopyable_effectful_getter,none,
+      "%0 of noncopyable type cannot be 'async' or 'throws'", (DescriptiveDeclKind))
+ERROR(noncopyable_enums_do_not_support_indirect,none,
+      "noncopyable enum %0 cannot be marked indirect or have indirect cases yet", (Identifier))
+ERROR(noncopyable_cast,none,
+      "noncopyable types cannot be conditionally cast", ())
+ERROR(noncopyable_failable_init,none,
+      "noncopyable types cannot have failable initializers yet", ())
+ERROR(noncopyable_objc_enum, none,
+      "noncopyable enums cannot be marked '@objc'", ())
+ERROR(moveOnly_not_allowed_here,none,
+      "'@_moveOnly' attribute is only valid on structs or enums", ())
+ERROR(consume_expression_not_passed_lvalue,none,
+      "'consume' can only be applied to a local binding ('let', 'var', or parameter)", ())
+ERROR(borrow_expression_not_passed_lvalue,none,
+      "'borrow' can only be applied to a local binding ('let', 'var', or parameter)", ())
+ERROR(copy_expression_not_passed_lvalue,none,
+      "'copy' can only be applied to a local binding ('let', 'var', or parameter)", ())
+ERROR(copy_expression_cannot_be_used_with_noncopyable_types,none,
+      "'copy' cannot be applied to noncopyable types", ())
+
+ERROR(moveOnly_requires_lexical_lifetimes,none,
+      "noncopyable types require lexical borrow scopes "
+      "(add -enable-lexical-borrow-scopes=true)", ())
+
+// Experimental noncopyable feature diagnostics:
+ERROR(experimental_moveonly_feature_can_only_be_used_when_enabled,
+      none, "Can not use feature when experimental move only is disabled! Pass"
+            " the frontend flag -enable-experimental-move-only to swift to enable "
+            "the usage of this language feature", ())
+ERROR(noimplicitcopy_attr_valid_only_on_local_let_params,
+      none, "'@_noImplicitCopy' attribute can only be applied to local lets and params", ())
+ERROR(noimplicitcopy_attr_invalid_in_generic_context,
+      none, "'@_noImplicitCopy' attribute cannot be applied to entities in generic contexts", ())
+ERROR(noimplicitcopy_attr_not_allowed_on_moveonlytype,none,
+      "'@_noImplicitCopy' has no effect when applied to a noncopyable type", ())
 
 //------------------------------------------------------------------------------
 // MARK: Runtime discoverable attributes (@runtimeMetadata)
@@ -7253,6 +7340,25 @@ NOTE(opt_out_from_missing_reflection_metadata_attr,none,
      "opt-out of reflection metadata attribute @%0 using"
      " unavailable extension",
      (StringRef))
+
+//------------------------------------------------------------------------------
+// MARK: Init accessors
+//------------------------------------------------------------------------------
+
+ERROR(init_accessor_can_refer_only_to_properties,none,
+      "init accessor cannot refer to %0 %1; init accessors can refer only"
+      " to stored properties",
+      (DescriptiveDeclKind, DeclNameRef))
+
+ERROR(init_accessor_initializes_attribute_on_other_declaration,none,
+      "initalizes(...) attribute could only be used with init accessors",
+      ())
+ERROR(init_accessor_accesses_attribute_on_other_declaration,none,
+      "accesses(...) attribute could only be used with init accessors",
+      ())
+ERROR(init_accessor_property_both_init_and_accessed,none,
+      "property %0 cannot be both initialized and accessed",
+      (DeclName))
 
 
 #define UNDEFINE_DIAGNOSTIC_MACROS

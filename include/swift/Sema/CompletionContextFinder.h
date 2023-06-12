@@ -20,6 +20,10 @@
 
 namespace swift {
 
+namespace constraints {
+class SyntacticElementTarget;
+}
+
 class CompletionContextFinder : public ASTWalker {
   enum class ContextKind {
     FallbackExpression,
@@ -53,12 +57,9 @@ public:
     return MacroWalking::Arguments;
   }
 
-  /// Finder for completion contexts within the provided initial expression.
-  CompletionContextFinder(ASTNode initialNode, DeclContext *DC)
-      : InitialExpr(initialNode.dyn_cast<Expr *>()), InitialDC(DC) {
-    assert(DC);
-    initialNode.walk(*this);
-  };
+  /// Finder for completion contexts within the provided SyntacticElementTarget.
+  CompletionContextFinder(constraints::SyntacticElementTarget target,
+                          DeclContext *DC);
 
   /// Finder for completion contexts within the outermost non-closure context of
   /// the code completion expression's direct context.

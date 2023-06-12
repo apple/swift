@@ -51,7 +51,7 @@ public:
   /// An Objective-C header to import and make implicitly visible.
   std::string ImplicitObjCHeaderPath;
 
-  /// The map of aliases and underlying names of imported or referenced modules.
+  /// The map of aliases and real names of imported or referenced modules.
   llvm::StringMap<StringRef> ModuleAliasMap;
 
   /// The name of the module that the frontend is building.
@@ -129,7 +129,10 @@ public:
   std::string CASPath;
 
   /// CASFS Root.
-  std::string CASFSRootID;
+  std::vector<std::string> CASFSRootIDs;
+
+  /// Clang Include Trees.
+  std::vector<std::string> ClangIncludeTrees;
 
   /// Number of retry opening an input file if the previous opening returns
   /// bad file descriptor error.

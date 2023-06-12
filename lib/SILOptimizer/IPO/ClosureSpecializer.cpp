@@ -460,7 +460,8 @@ static void rewriteApplyInst(const CallSiteDescriptor &CSDesc,
     // If we passed in the original closure as @owned, then insert a release
     // right after NewAI. This is to balance the +1 from being an @owned
     // argument to AI.
-    if (!CSDesc.isClosureConsumed() || !CSDesc.closureHasRefSemanticContext()) {
+    if (!CSDesc.isClosureConsumed() || CSDesc.isTrivialNoEscapeParameter() ||
+        !CSDesc.closureHasRefSemanticContext()) {
       break;
     }
 
@@ -481,7 +482,8 @@ static void rewriteApplyInst(const CallSiteDescriptor &CSDesc,
     // If we passed in the original closure as @owned, then insert a release
     // right after NewAI. This is to balance the +1 from being an @owned
     // argument to AI.
-    if (CSDesc.isClosureConsumed() && CSDesc.closureHasRefSemanticContext())
+    if (CSDesc.isClosureConsumed() && !CSDesc.isTrivialNoEscapeParameter() &&
+        CSDesc.closureHasRefSemanticContext())
       Builder.createReleaseValue(Closure->getLoc(), Closure,
                                  Builder.getDefaultAtomicity());
 

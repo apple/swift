@@ -605,3 +605,101 @@ struct TestLValues {
     opt![keyPath: kp] = switch Bool.random() { case true: 1 case false: throw Err() }
   }
 }
+
+func exprPatternInClosure() {
+  let f: (Int) -> Void = { i in
+    switch i {
+    case i:
+      ()
+    default:
+      ()
+    }
+  }
+}
+
+func testNeverSwitch1() {
+  let x = switch fatalError() {}
+  return x
+}
+
+func testNeverSwitch2() -> Never {
+  let x = switch fatalError() {
+            case let x: x
+          }
+  return x
+}
+
+func testNeverSwitch3() -> Int {
+  let x = switch fatalError() {
+            case fatalError(): 0
+            case _ where .random(): 1
+            default: 2
+          }
+  return x
+}
+
+func testNeverSwitch4() {
+  let x: Void
+  x = switch fatalError() {}
+  return x
+}
+
+func testNeverSwitch5() -> Never {
+  let x: Never
+  x = switch fatalError() {
+        case let x: x
+      }
+  return x
+}
+
+func testNeverSwitch6() -> Int {
+  let x: Int
+  x = switch fatalError() {
+        case fatalError(): 0
+        case _ where .random(): 1
+        default: 2
+      }
+  return x
+}
+
+func testNeverSwitch7() {
+  let _ = switch fatalError() {}
+  let _ = switch fatalError() { case let x: x }
+  let _ = switch fatalError() { default: "" }
+}
+
+func testNeverSwitch8() {
+  let _ = switch fatalError() { default: C() }
+}
+
+func testNeverSwitch9() {
+  let i = switch Bool.random() {
+  case true:
+    switch fatalError() {}
+  case false:
+    switch fatalError() {}
+  }
+  return i
+}
+
+func testNeverSwitch10() -> Never {
+  switch fatalError() {}
+}
+
+func testNeverSwitch11() {
+  return switch fatalError() {}
+}
+
+func testNeverSwitch12() -> Never {
+  return switch fatalError() { case let x: x }
+}
+
+func testNeverSwitch13() {
+  return switch fatalError() { case let x: x }
+}
+
+extension Never {
+  init(value: Self) {
+    self = switch value { case let v: v }
+  }
+}

@@ -594,6 +594,7 @@ AssociatedTypeInference::inferTypeWitnessesViaAssociatedType(
   // @_implements attributes.
   SmallVector<ValueDecl *, 4> lookupResults;
   dc->lookupQualified(adoptee->getAnyNominal(), defaultName,
+                      adoptee->getAnyNominal()->getStartLoc(),
                       subOptions, lookupResults);
 
   InferredAssociatedTypesByWitnesses result;

@@ -843,6 +843,7 @@ void Serializer::writeBlockInfoBlock() {
   BLOCK_RECORD(options_block, IS_ALLOW_MODULE_WITH_COMPILER_ERRORS_ENABLED);
   BLOCK_RECORD(options_block, MODULE_ABI_NAME);
   BLOCK_RECORD(options_block, IS_CONCURRENCY_CHECKED);
+  BLOCK_RECORD(options_block, HAS_CXX_INTEROPERABILITY_ENABLED);
   BLOCK_RECORD(options_block, MODULE_PACKAGE_NAME);
   BLOCK_RECORD(options_block, MODULE_EXPORT_AS_NAME);
   BLOCK_RECORD(options_block, PLUGIN_SEARCH_PATH);
@@ -1090,6 +1091,12 @@ void Serializer::writeHeader(const SerializationOptions &options) {
         IsConcurrencyChecked.emit(ScratchRecord);
       }
 
+      if (M->hasCxxInteroperability()) {
+        options_block::HasCxxInteroperabilityEnabledLayout
+            CxxInteroperabilityEnabled(Out);
+        CxxInteroperabilityEnabled.emit(ScratchRecord);
+      }
+
       if (options.SerializeOptionsForDebugging) {
         options_block::SDKPathLayout SDKPath(Out);
         options_block::XCCLayout XCC(Out);
@@ -1150,7 +1157,7 @@ void Serializer::writeHeader(const SerializationOptions &options) {
 
         options_block::CompilerPluginExecutablePathLayout
           CompilerPluginExecutablePath(Out);
-        for (auto Arg : options.CompilerPluginLibraryPaths) {
+        for (auto Arg : options.CompilerPluginExecutablePaths) {
           CompilerPluginExecutablePath.emit(ScratchRecord, Arg);
         }
       }
@@ -2677,7 +2684,10 @@ class Serializer::DeclSerializer : public DeclVisitor<DeclSerializer> {
 
       SmallVector<IdentifierID, 4> spis;
       for (auto spi : theAttr->getSPIGroups()) {
-        assert(!spi.empty() && "Empty SPI name");
+        // SPI group name in source code can be '_', a specifier that allows
+        // implicit import of the SPI. It gets converted to to an empty identifier
+        // during parsing to match the existing AST node representation. An empty
+        // identifier is printed as '_' at serialization.
         spis.push_back(S.addDeclBaseNameRef(spi));
       }
 
@@ -2903,6 +2913,34 @@ class Serializer::DeclSerializer : public DeclVisitor<DeclSerializer> {
       return;
     }
 
+    case DAK_Initializes: {
+      auto abbrCode = S.DeclTypeAbbrCodes[InitializesDeclAttrLayout::Code];
+      auto attr = cast<InitializesAttr>(DA);
+
+      SmallVector<IdentifierID, 4> properties;
+      for (auto identifier : attr->getProperties()) {
+        properties.push_back(S.addDeclBaseNameRef(identifier));
+      }
+
+      InitializesDeclAttrLayout::emitRecord(
+          S.Out, S.ScratchRecord, abbrCode, properties);
+      return;
+    }
+
+    case DAK_Accesses: {
+      auto abbrCode = S.DeclTypeAbbrCodes[AccessesDeclAttrLayout::Code];
+      auto attr = cast<InitializesAttr>(DA);
+
+      SmallVector<IdentifierID, 4> properties;
+      for (auto identifier : attr->getProperties()) {
+        properties.push_back(S.addDeclBaseNameRef(identifier));
+      }
+
+      AccessesDeclAttrLayout::emitRecord(
+          S.Out, S.ScratchRecord, abbrCode, properties);
+      return;
+    }
+
     case DAK_DynamicReplacement: {
       auto abbrCode =
           S.DeclTypeAbbrCodes[DynamicReplacementDeclAttrLayout::Code];
@@ -3044,6 +3082,15 @@ class Serializer::DeclSerializer : public DeclVisitor<DeclSerializer> {
       auto abbrCode = S.DeclTypeAbbrCodes[ExposeDeclAttrLayout::Code];
       ExposeDeclAttrLayout::emitRecord(S.Out, S.ScratchRecord, abbrCode,
                                        theAttr->isImplicit(), theAttr->Name);
+      return;
+    }
+
+    case DAK_Section: {
+      auto *theAttr = cast<SectionAttr>(DA);
+      auto abbrCode = S.DeclTypeAbbrCodes[SectionDeclAttrLayout::Code];
+      SectionDeclAttrLayout::emitRecord(S.Out, S.ScratchRecord, abbrCode,
+                                           theAttr->isImplicit(),
+                                           theAttr->Name);
       return;
     }
 
@@ -5068,6 +5115,14 @@ public:
                                         S.addTypeRef(expansionTy->getCountType()));
   }
 
+  void visitPackElementType(const PackElementType *elementType) {
+    using namespace decls_block;
+    unsigned abbrCode = S.DeclTypeAbbrCodes[PackElementTypeLayout::Code];
+    PackElementTypeLayout::emitRecord(S.Out, S.ScratchRecord, abbrCode,
+                                      S.addTypeRef(elementType->getPackType()),
+                                      elementType->getLevel());
+  }
+
   void visitPackType(const PackType *packTy) {
     using namespace decls_block;
     unsigned abbrCode = S.DeclTypeAbbrCodes[PackTypeLayout::Code];
@@ -5625,6 +5680,7 @@ void Serializer::writeAllDeclsAndTypes() {
   registerDeclTypeAbbr<BoundGenericTypeLayout>();
   registerDeclTypeAbbr<GenericFunctionTypeLayout>();
   registerDeclTypeAbbr<SILBlockStorageTypeLayout>();
+  registerDeclTypeAbbr<SILMoveOnlyWrappedTypeLayout>();
   registerDeclTypeAbbr<SILBoxTypeLayout>();
   registerDeclTypeAbbr<SILFunctionTypeLayout>();
   registerDeclTypeAbbr<ArraySliceTypeLayout>();
@@ -5635,6 +5691,7 @@ void Serializer::writeAllDeclsAndTypes() {
   registerDeclTypeAbbr<OptionalTypeLayout>();
   registerDeclTypeAbbr<DynamicSelfTypeLayout>();
   registerDeclTypeAbbr<PackExpansionTypeLayout>();
+  registerDeclTypeAbbr<PackElementTypeLayout>();
   registerDeclTypeAbbr<PackTypeLayout>();
   registerDeclTypeAbbr<SILPackTypeLayout>();
 

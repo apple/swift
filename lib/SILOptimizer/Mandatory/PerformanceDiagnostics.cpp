@@ -476,6 +476,14 @@ private:
     SILModule *module = getModule();
 
     PerformanceDiagnostics diagnoser(*module, getAnalysis<BasicCalleeAnalysis>());
+
+    // Check that @_section is only on constant globals
+    for (SILGlobalVariable &g : module->getSILGlobals()) {
+      if (!g.getStaticInitializerValue() && g.getSectionAttr())
+        module->getASTContext().Diags.diagnose(
+            g.getDecl()->getLoc(), diag::section_attr_on_non_const_global);
+    }
+
     bool annotatedFunctionsFound = false;
 
     for (SILFunction &function : *module) {

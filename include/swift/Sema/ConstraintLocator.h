@@ -318,6 +318,9 @@ public:
   /// otherwise \c nullptr.
   NullablePtr<Pattern> getPatternMatch() const;
 
+  /// Whether the locator in question is for a pattern match.
+  bool isForPatternMatch() const;
+
   /// Returns true if \p locator is ending with either of the following
   ///  - Member
   ///  - Member -> KeyPathDynamicMember

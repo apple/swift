@@ -547,7 +547,7 @@ SILValue RValue::forwardAsSingleStorageValue(SILGenFunction &SGF,
   return SGF.emitConversionFromSemanticValue(l, result, storageType);
 }
 
-void RValue::forwardInto(SILGenFunction &SGF, SILLocation loc, 
+void RValue::forwardInto(SILGenFunction &SGF, SILLocation loc,
                          Initialization *I) && {
   assert(isComplete() && "rvalue is not complete");
   assert(isPlusOneOrTrivial(SGF) && "Can not forward borrowed RValues");

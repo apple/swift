@@ -510,15 +510,16 @@ namespace {
       asDerived().emitValueRelease(IGF, value, IGF.getDefaultAtomicity());
     }
 
-    void packIntoEnumPayload(IRGenFunction &IGF,
+    void packIntoEnumPayload(IRGenModule &IGM,
+                             IRBuilder &builder,
                              EnumPayload &payload,
                              Explosion &src,
                              unsigned offset) const override {
-      payload.insertValue(IGF, src.claimNext(), offset);
-      auto wordSize = IGF.IGM.getPointerSize().getValueInBits();
+      payload.insertValue(IGM, builder, src.claimNext(), offset);
+      auto wordSize = IGM.getPointerSize().getValueInBits();
       for (unsigned i = 0; i < getNumStoredProtocols(); ++i) {
         offset += wordSize;
-        payload.insertValue(IGF, src.claimNext(), offset);
+        payload.insertValue(IGM, builder, src.claimNext(), offset);
       }
     }
 

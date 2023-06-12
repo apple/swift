@@ -20,6 +20,9 @@ def __lldb_init_module(debugger, internal_dict):
     debugger.HandleCommand('type synthetic add --skip-references -w swift '
                            '-l lldbSwiftDataFormatters.DemangleNodeSynthProvider '
                            '-x "^swift::Demangle::Node$"')
+    debugger.HandleCommand('type summary add -w swift '
+                           '-s "${var.Pointer%S}" '
+                           'swift::Identifier')
 
 
 def SmallBitVectorSummaryProvider(valobj, internal_dict):

@@ -57,7 +57,7 @@ func makeTuple<each Element>(
 
 func expandTupleElements<each T: Equatable>(_ value: repeat each T) {
   let values = makeTuple(repeat each value)
-  _ = (repeat expectEqual(each value, each values.element))
+  _ = (repeat expectEqual(each value, each values))
 }
 
 tuples.test("expandTuple") {

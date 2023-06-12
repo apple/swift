@@ -68,7 +68,7 @@ public:
     asDerived().Derived::assign(IGF, temp, dest, isOutlined, T);
   }
 
-  void reexplode(IRGenFunction &IGF, Explosion &in,
+  void reexplode(Explosion &in,
                  Explosion &out) const override {
     unsigned size = asDerived().Derived::getExplosionSize();
     in.transferInto(out, size);
@@ -207,11 +207,12 @@ public:
     }
   }
   
-  void packIntoEnumPayload(IRGenFunction &IGF,
+  void packIntoEnumPayload(IRGenModule &IGM,
+                           IRBuilder &builder,
                            EnumPayload &payload,
                            Explosion &src,
                            unsigned offset) const override {
-    payload.insertValue(IGF, src.claimNext(), offset);
+    payload.insertValue(IGM, builder, src.claimNext(), offset);
   }
   
   void unpackFromEnumPayload(IRGenFunction &IGF,

@@ -1655,18 +1655,18 @@ bool DataflowState::process(
         auto &astContext = fn->getASTContext();
         {
           auto diag =
-              diag::sil_movekillscopyablevalue_value_consumed_more_than_once;
+              diag::sil_movechecking_value_used_after_consume;
           StringRef name = getDebugVarName(address);
           diagnose(astContext, getSourceLocFromValue(address), diag, name);
         }
 
         {
-          auto diag = diag::sil_movekillscopyablevalue_move_here;
+          auto diag = diag::sil_movechecking_consuming_use_here;
           diagnose(astContext, mvi->getLoc().getSourceLoc(), diag);
         }
 
         {
-          auto diag = diag::sil_movekillscopyablevalue_use_here;
+          auto diag = diag::sil_movechecking_nonconsuming_use_here;
           diagnose(astContext, iter->second->getLoc().getSourceLoc(), diag);
         }
 
@@ -1685,18 +1685,18 @@ bool DataflowState::process(
           auto &astContext = fn->getASTContext();
           {
             auto diag =
-                diag::sil_movekillscopyablevalue_value_consumed_more_than_once;
+                diag::sil_movechecking_value_used_after_consume;
             StringRef name = getDebugVarName(address);
             diagnose(astContext, getSourceLocFromValue(address), diag, name);
           }
 
           {
-            auto diag = diag::sil_movekillscopyablevalue_move_here;
+            auto diag = diag::sil_movechecking_consuming_use_here;
             diagnose(astContext, mvi->getLoc().getSourceLoc(), diag);
           }
 
           {
-            auto diag = diag::sil_movekillscopyablevalue_use_here;
+            auto diag = diag::sil_movechecking_nonconsuming_use_here;
             for (auto *user : iter->second->pairedUseInsts) {
               diagnose(astContext, user->getLoc().getSourceLoc(), diag);
             }
@@ -2114,16 +2114,16 @@ bool ConsumeOperatorCopyableAddressesChecker::performSingleBasicBlockAnalysis(
     auto &astCtx = mvi->getFunction()->getASTContext();
     {
       auto diag =
-          diag::sil_movekillscopyablevalue_value_consumed_more_than_once;
+          diag::sil_movechecking_value_used_after_consume;
       StringRef name = getDebugVarName(address);
       diagnose(astCtx, getSourceLocFromValue(address), diag, name);
     }
 
-    auto diag = diag::sil_movekillscopyablevalue_move_here;
+    auto diag = diag::sil_movechecking_consuming_use_here;
     diagnose(astCtx, mvi->getLoc().getSourceLoc(), diag);
 
     {
-      auto diag = diag::sil_movekillscopyablevalue_use_here;
+      auto diag = diag::sil_movechecking_nonconsuming_use_here;
       for (auto *user : interestingClosureUsers) {
         diagnose(astCtx, user->getLoc().getSourceLoc(), diag);
       }
@@ -2155,18 +2155,18 @@ bool ConsumeOperatorCopyableAddressesChecker::performSingleBasicBlockAnalysis(
     auto &astCtx = mvi->getFunction()->getASTContext();
     {
       auto diag =
-          diag::sil_movekillscopyablevalue_value_consumed_more_than_once;
+          diag::sil_movechecking_value_used_after_consume;
       StringRef name = getDebugVarName(address);
       diagnose(astCtx, getSourceLocFromValue(address), diag, name);
     }
 
     {
-      auto diag = diag::sil_movekillscopyablevalue_move_here;
+      auto diag = diag::sil_movechecking_consuming_use_here;
       diagnose(astCtx, mvi->getLoc().getSourceLoc(), diag);
     }
 
     {
-      auto diag = diag::sil_movekillscopyablevalue_use_here;
+      auto diag = diag::sil_movechecking_nonconsuming_use_here;
       diagnose(astCtx, interestingUser->getLoc().getSourceLoc(), diag);
     }
 

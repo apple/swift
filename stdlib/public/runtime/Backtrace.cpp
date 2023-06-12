@@ -52,6 +52,12 @@
 #include <cstring>
 #include <cerrno>
 
+#ifdef _WIN32
+// We'll probably want dbghelp.h here
+#else
+#include <cxxabi.h>
+#endif
+
 #define DEBUG_BACKTRACING_SETTINGS 0
 
 #ifndef lengthof
@@ -70,7 +76,7 @@ SWIFT_RUNTIME_STDLIB_INTERNAL BacktraceSettings _swift_backtraceSettings = {
   // enabled
 #if TARGET_OS_OSX
   OnOffTty::TTY,
-#elif 0 // defined(__linux__) || defined(_WIN32)
+#elif defined(__linux__) // || defined(_WIN32)
   OnOffTty::On,
 #else
   OnOffTty::Off,
@@ -80,7 +86,7 @@ SWIFT_RUNTIME_STDLIB_INTERNAL BacktraceSettings _swift_backtraceSettings = {
   true,
 
   // interactive
-#if TARGET_OS_OSX // || defined(__linux__) || defined(_WIN32)
+#if TARGET_OS_OSX || defined(__linux__) // || defined(_WIN32)
   OnOffTty::TTY,
 #else
   OnOffTty::Off,
@@ -117,7 +123,7 @@ SWIFT_RUNTIME_STDLIB_INTERNAL BacktraceSettings _swift_backtraceSettings = {
   true,
 
   // outputTo,
-  OutputTo::Stdout,
+  OutputTo::Auto,
 
   // swiftBacktracePath
   NULL,
@@ -314,6 +320,13 @@ BacktraceInitializer::BacktraceInitializer() {
       _swift_backtraceSettings.preset = Preset::Friendly;
     else
       _swift_backtraceSettings.preset = Preset::Full;
+  }
+
+  if (_swift_backtraceSettings.outputTo == OutputTo::Auto) {
+    if (_swift_backtraceSettings.interactive == OnOffTty::On)
+      _swift_backtraceSettings.outputTo = OutputTo::Stdout;
+    else
+      _swift_backtraceSettings.outputTo = OutputTo::Stderr;
   }
 
 #if !defined(SWIFT_RUNTIME_FIXED_BACKTRACER_PATH)
@@ -642,7 +655,9 @@ _swift_processBacktracingSetting(llvm::StringRef key,
   } else if (key.equals_insensitive("cache")) {
     _swift_backtraceSettings.cache = parseBoolean(value);
   } else if (key.equals_insensitive("output-to")) {
-    if (value.equals_insensitive("stdout"))
+    if (value.equals_insensitive("auto"))
+      _swift_backtraceSettings.outputTo = OutputTo::Auto;
+    else if (value.equals_insensitive("stdout"))
       _swift_backtraceSettings.outputTo = OutputTo::Stdout;
     else if (value.equals_insensitive("stderr"))
       _swift_backtraceSettings.outputTo = OutputTo::Stderr;
@@ -773,6 +788,54 @@ _swift_backtraceSetupEnvironment()
   *penv = 0;
 }
 
+#ifdef __linux__
+struct spawn_info {
+  const char *path;
+  char * const *argv;
+  char * const *envp;
+  int memserver;
+};
+
+uint8_t spawn_stack[4096];
+
+int
+do_spawn(void *ptr) {
+  struct spawn_info *pinfo = (struct spawn_info *)ptr;
+
+  /* Ensure that the memory server is always on fd 4 */
+  if (pinfo->memserver != 4) {
+    dup2(pinfo->memserver, 4);
+    close(pinfo->memserver);
+  }
+
+  /* Clear the signal mask */
+  sigset_t mask;
+  sigfillset(&mask);
+  sigprocmask(SIG_UNBLOCK, &mask, NULL);
+
+  return execvpe(pinfo->path, pinfo->argv, pinfo->envp);
+}
+
+int
+safe_spawn(pid_t *ppid, const char *path, int memserver,
+           char * const argv[], char * const envp[])
+{
+  struct spawn_info info = { path, argv, envp, memserver };
+
+  /* The CLONE_VFORK is *required* because info is on the stack; we don't
+     want to return until *after* the subprocess has called execvpe(). */
+  int ret = clone(do_spawn, spawn_stack + sizeof(spawn_stack),
+                  CLONE_VFORK|CLONE_VM, &info);
+  if (ret < 0)
+    return ret;
+
+  close(memserver);
+
+  *ppid = ret;
+  return 0;
+}
+#endif // defined(__linux__)
+
 #endif // SWIFT_BACKTRACE_ON_CRASH_SUPPORTED
 
 } // namespace
@@ -789,20 +852,99 @@ namespace backtrace {
 /// @param mangledName is the symbol name to be tested.
 ///
 /// @returns `true` if `mangledName` represents a thunk function.
-SWIFT_RUNTIME_STDLIB_SPI SWIFT_CC(swift) bool
-_swift_isThunkFunction(const char *mangledName) {
+SWIFT_RUNTIME_STDLIB_SPI bool
+_swift_backtrace_isThunkFunction(const char *mangledName) {
   swift::Demangle::Context ctx;
 
   return ctx.isThunkSymbol(mangledName);
+}
+
+// Try to demangle a symbol.
+SWIFT_RUNTIME_STDLIB_SPI char *
+_swift_backtrace_demangle(const char *mangledName,
+                          size_t mangledNameLength,
+                          char *outputBuffer,
+                          size_t *outputBufferSize) {
+  llvm::StringRef name = llvm::StringRef(mangledName, mangledNameLength);
+
+  // You must provide buffer size if you're providing your own output buffer
+  if (outputBuffer && !outputBufferSize) {
+    return nullptr;
+  }
+
+  if (Demangle::isSwiftSymbol(name)) {
+    // This is a Swift mangling
+    auto options = DemangleOptions::SimplifiedUIDemangleOptions();
+    auto result = Demangle::demangleSymbolAsString(name, options);
+    size_t bufferSize;
+
+    if (outputBufferSize) {
+      bufferSize = *outputBufferSize;
+      *outputBufferSize = result.length() + 1;
+    }
+
+    if (outputBuffer == nullptr) {
+      outputBuffer = (char *)::malloc(result.length() + 1);
+      bufferSize = result.length() + 1;
+    }
+
+    size_t toCopy = std::min(bufferSize - 1, result.length());
+    ::memcpy(outputBuffer, result.data(), toCopy);
+    outputBuffer[toCopy] = '\0';
+
+    return outputBuffer;
+#ifndef _WIN32
+  } else if (name.startswith("_Z")) {
+    // Try C++; note that we don't want to force callers to use malloc() to
+    // allocate their buffer, which is a requirement for __cxa_demangle
+    // because it may call realloc() on the incoming pointer.  As a result,
+    // we never pass the caller's buffer to __cxa_demangle.
+    size_t resultLen;
+    int status = 0;
+    char *result = abi::__cxa_demangle(mangledName, nullptr, &resultLen, &status);
+
+    if (result) {
+      size_t bufferSize;
+
+      if (outputBufferSize) {
+        bufferSize = *outputBufferSize;
+        *outputBufferSize = resultLen;
+      }
+
+      if (outputBuffer == nullptr) {
+        return result;
+      }
+
+      size_t toCopy = std::min(bufferSize - 1, resultLen - 1);
+      ::memcpy(outputBuffer, result, toCopy);
+      outputBuffer[toCopy] = '\0';
+
+      free(result);
+
+      return outputBuffer;
+    }
+#else
+    // On Windows, the mangling is different.
+    // ###TODO: Call __unDName()
+#endif
+  }
+
+  return nullptr;
 }
 
 // N.B. THIS FUNCTION MUST BE SAFE TO USE FROM A CRASH HANDLER.  On Linux
 // and macOS, that means it must be async-signal-safe.  On Windows, there
 // isn't an equivalent notion but a similar restriction applies.
 SWIFT_RUNTIME_STDLIB_INTERNAL bool
+#ifdef __linux__
+_swift_spawnBacktracer(const ArgChar * const *argv, int memserver_fd)
+#else
 _swift_spawnBacktracer(const ArgChar * const *argv)
+#endif
 {
-#if TARGET_OS_OSX || TARGET_OS_MACCATALYST
+#if !SWIFT_BACKTRACE_ON_CRASH_SUPPORTED
+  return false;
+#elif TARGET_OS_OSX || TARGET_OS_MACCATALYST || defined(__linux__)
   pid_t child;
   const char *env[BACKTRACE_MAX_ENV_VARS + 1];
 
@@ -817,10 +959,16 @@ _swift_spawnBacktracer(const ArgChar * const *argv)
 
   // SUSv3 says argv and envp are "completely constant" and that the reason
   // posix_spawn() et al use char * const * is for compatibility.
+#ifdef __linux__
+  int ret = safe_spawn(&child, swiftBacktracePath, memserver_fd,
+                       const_cast<char * const *>(argv),
+                       const_cast<char * const *>(env));
+#else
   int ret = posix_spawn(&child, swiftBacktracePath,
                         &backtraceFileActions, &backtraceSpawnAttrs,
                         const_cast<char * const *>(argv),
                         const_cast<char * const *>(env));
+#endif
   if (ret < 0)
     return false;
 
@@ -835,10 +983,7 @@ _swift_spawnBacktracer(const ArgChar * const *argv)
 
   return false;
 
-  // ###TODO: Linux
   // ###TODO: Windows
-#else
-  return false;
 #endif
 }
 

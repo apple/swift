@@ -37,6 +37,7 @@ namespace swift {
   enum class DeclRefKind;
   class Expr;
   class ExtensionDecl;
+  class FreestandingMacroExpansion;
   class FunctionType;
   class LabeledConditionalStmt;
   class LookupResult;
@@ -355,6 +356,13 @@ namespace swift {
   SmallVector<std::pair<ValueDecl *, ValueDecl *>, 1>
   getShorthandShadows(LabeledConditionalStmt *CondStmt,
                       DeclContext *DC = nullptr);
+
+  SourceFile *evaluateFreestandingMacro(FreestandingMacroExpansion *expansion,
+                                        StringRef discriminator);
+
+  SourceFile *evaluateAttachedMacro(MacroDecl *macro, Decl *attachedTo,
+                                    CustomAttr *attr, bool passParentContext,
+                                    MacroRole role, StringRef discriminator);
 }
 
 #endif

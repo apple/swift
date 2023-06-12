@@ -156,8 +156,6 @@ static void addMandatoryDiagnosticOptPipeline(SILPassPipelinePlan &P) {
 
   // Check noImplicitCopy and move only types for objects and addresses.
   P.addMoveOnlyChecker();
-  // Convert last destroy_value to deinits.
-  P.addMoveOnlyDeinitInsertion();
   // Lower move only wrapped trivial types.
   P.addTrivialMoveOnlyTypeEliminator();
   // Check no uses after consume operator of a value in an address.
@@ -881,6 +879,16 @@ SILPassPipelinePlan::getIRGenPreparePassPipeline(const SILOptions &Options) {
   // Change large loadable types to be passed indirectly across function
   // boundaries as required by the ABI.
   P.addLoadableByAddress();
+
+  if (Options.EnablePackMetadataStackPromotion) {
+    // Insert marker instructions indicating where on-stack pack metadata
+    // deallocation must occur.
+    //
+    // No code motion may occur after this pass: alloc_pack_metadata must
+    // directly precede the instruction on behalf of which metadata will
+    // actually be emitted (e.g. apply).
+    P.addPackMetadataMarkerInserter();
+  }
 
   return P;
 }

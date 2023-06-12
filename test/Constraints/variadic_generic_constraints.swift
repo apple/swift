@@ -41,7 +41,7 @@ takesAnyObject()
 takesAnyObject(C(), C(), C())
 
 // FIXME: Bad diagnostic
-takesAnyObject(C(), S(), C())  // expected-error {{type of expression is ambiguous without more context}}
+takesAnyObject(C(), S(), C())  // expected-error {{type of expression is ambiguous without a type annotation}}
 
 // Same-type requirements
 

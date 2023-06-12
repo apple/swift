@@ -218,6 +218,10 @@ public:
     return nullptr;
   }
 
+  virtual NullablePtr<MacroExpansionDecl> getFreestandingMacro() const {
+    return nullptr;
+  }
+
 #pragma mark - debugging and printing
 
 public:
@@ -277,6 +281,10 @@ public:
 
   static std::pair<CaseStmt *, CaseStmt *>
   lookupFallthroughSourceAndDest(SourceFile *sourceFile, SourceLoc loc);
+
+  static void lookupEnclosingMacroScope(
+      SourceFile *sourceFile, SourceLoc loc,
+      llvm::function_ref<bool(ASTScope::PotentialMacro)> consume);
 
   /// Scopes that cannot bind variables may set this to true to create more
   /// compact scope tree in the debug info.
@@ -840,24 +848,20 @@ public:
   bool ignoreInDebugInfo() const override { return true; }
 };
 
-/// Consider:
-///  @_propertyWrapper
-///  struct WrapperWithInitialValue {
-///  }
-///  struct HasWrapper {
-///    @WrapperWithInitialValue var y = 17
-///  }
-/// Lookup has to be able to find the use of WrapperWithInitialValue, that's
-/// what this scope is for. Because the source positions are screwy.
-
-class AttachedPropertyWrapperScope final : public ASTScopeImpl {
+/// The scope for custom attributes and their arguments, such as for
+/// attached property wrappers and for attached macros.
+///
+/// Source locations for the attribute name and its arguments are in the
+/// custom attribute, so lookup is invoked from within the attribute
+/// itself.
+class CustomAttributeScope final : public ASTScopeImpl {
 public:
   CustomAttr *attr;
-  VarDecl *decl;
+  Decl *decl;
 
-  AttachedPropertyWrapperScope(CustomAttr *attr, VarDecl *decl)
+  CustomAttributeScope(CustomAttr *attr,Decl *decl)
       : attr(attr), decl(decl) {}
-  virtual ~AttachedPropertyWrapperScope() {}
+  virtual ~CustomAttributeScope() {}
 
 protected:
   ASTScopeImpl *expandSpecifically(ScopeCreator &) override;
@@ -871,7 +875,8 @@ public:
   NullablePtr<DeclAttribute> getDeclAttributeIfAny() const override {
     return attr;
   }
- bool ignoreInDebugInfo() const override { return true; }
+  bool ignoreInDebugInfo() const override { return true; }
+  
 private:
   void expandAScopeThatDoesNotCreateANewInsertionPoint(ScopeCreator &);
 };
@@ -1134,9 +1139,9 @@ protected:
 class DifferentiableAttributeScope final : public ASTScopeImpl {
 public:
   DifferentiableAttr *const differentiableAttr;
-  ValueDecl *const attributedDeclaration;
+  Decl *const attributedDeclaration;
 
-  DifferentiableAttributeScope(DifferentiableAttr *diffAttr, ValueDecl *decl)
+  DifferentiableAttributeScope(DifferentiableAttr *diffAttr, Decl *decl)
       : differentiableAttr(diffAttr), attributedDeclaration(decl) {}
   virtual ~DifferentiableAttributeScope() {}
 
@@ -1269,6 +1274,10 @@ public:
   std::string getClassName() const override;
   SourceRange
   getSourceRangeOfThisASTNode(bool omitAssertions = false) const override;
+
+  NullablePtr<MacroExpansionDecl> getFreestandingMacro() const override {
+    return decl;
+  }
 
 protected:
   void printSpecifics(llvm::raw_ostream &out) const override;

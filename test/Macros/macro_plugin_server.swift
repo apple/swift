@@ -37,16 +37,16 @@
 // CHECK-NEXT: <-(plugin:[[#PID1]]) {"loadPluginLibraryResult":{"diagnostics":[],"loaded":true}}
 // CHECK-NEXT: ->(plugin:[[#PID1]]) {"loadPluginLibrary":{"libraryPath":"BUILD_DIR{{.*}}plugins/libEvilMacros.dylib","moduleName":"EvilMacros"}}
 // CHECK-NEXT: <-(plugin:[[#PID1]]) {"loadPluginLibraryResult":{"diagnostics":[],"loaded":true}}
-// CHECK-NEXT: ->(plugin:[[#PID1]]) {"expandFreestandingMacro":{"discriminator":"${{.*}}","macro":{"moduleName":"MacroDefinition","name":"stringify","typeName":"StringifyMacro"},"syntax":{"kind":"expression","location":{{{.+}}},"source":"#stringify(a + b)"}}}
+// CHECK-NEXT: ->(plugin:[[#PID1]]) {"expandFreestandingMacro":{"discriminator":"${{.*}}","macro":{"moduleName":"MacroDefinition","name":"stringify","typeName":"StringifyMacro"},"macroRole":"expression","syntax":{"kind":"expression","location":{{{.+}}},"source":"#stringify(a + b)"}}}
 // CHECK-NEXT: <-(plugin:[[#PID1]]) {"expandFreestandingMacroResult":{"diagnostics":[],"expandedSource":"(a + b, \"a + b\")"}}
-// CHECK-NEXT: ->(plugin:[[#PID1]]) {"expandFreestandingMacro":{"discriminator":"${{.*}}","macro":{"moduleName":"EvilMacros","name":"evil","typeName":"CrashingMacro"},"syntax":{"kind":"expression","location":{{{.+}}},"source":"#evil(42)"}}}
+// CHECK-NEXT: ->(plugin:[[#PID1]]) {"expandFreestandingMacro":{"discriminator":"${{.*}}","macro":{"moduleName":"EvilMacros","name":"evil","typeName":"CrashingMacro"},"macroRole":"expression","syntax":{"kind":"expression","location":{{{.+}}},"source":"#evil(42)"}}}
 // ^ This crashes the plugin server.
 
 // CHECK-NEXT: ->(plugin:[[#PID2:]]) {"loadPluginLibrary":{"libraryPath":"BUILD_DIR{{.*}}plugins/libMacroDefinition.dylib","moduleName":"MacroDefinition"}}
 // CHECK-NEXT: <-(plugin:[[#PID2]]) {"loadPluginLibraryResult":{"diagnostics":[],"loaded":true}}
 // CHECK-NEXT: ->(plugin:[[#PID2]]) {"loadPluginLibrary":{"libraryPath":"BUILD_DIR{{.*}}plugins/libEvilMacros.dylib","moduleName":"EvilMacros"}}
 // CHECK-NEXT: <-(plugin:[[#PID2]]) {"loadPluginLibraryResult":{"diagnostics":[],"loaded":true}}
-// CHECK-NEXT: ->(plugin:[[#PID2]]) {"expandFreestandingMacro":{"discriminator":"${{.*}}","macro":{"moduleName":"MacroDefinition","name":"stringify","typeName":"StringifyMacro"},"syntax":{"kind":"expression","location":{{{.+}}},"source":"#stringify(b + a)"}}}
+// CHECK-NEXT: ->(plugin:[[#PID2]]) {"expandFreestandingMacro":{"discriminator":"${{.*}}","macro":{"moduleName":"MacroDefinition","name":"stringify","typeName":"StringifyMacro"},"macroRole":"expression","syntax":{"kind":"expression","location":{{{.+}}},"source":"#stringify(b + a)"}}}
 // CHECK-NEXT: <-(plugin:[[#PID2]]) {"expandFreestandingMacroResult":{"diagnostics":[],"expandedSource":"(b + a, \"b + a\")"}}
 
 @freestanding(expression) macro stringify<T>(_ value: T) -> (T, String) = #externalMacro(module: "MacroDefinition", type: "StringifyMacro")

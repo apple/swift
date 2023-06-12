@@ -249,8 +249,8 @@ public:
     IsTrivial_t isTrivial() const {
       return IsTrivial_t((Flags & NonTrivialFlag) == 0);
     }
-    IsTrivial_t isOrContainsRawPointer() const {
-      return IsTrivial_t((Flags & HasRawPointerFlag) != 0);
+    HasRawPointer_t isOrContainsRawPointer() const {
+      return HasRawPointer_t((Flags & HasRawPointerFlag) != 0);
     }
     IsFixedABI_t isFixedABI() const {
       return IsFixedABI_t((Flags & NonFixedABIFlag) == 0);

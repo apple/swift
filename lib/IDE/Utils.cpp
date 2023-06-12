@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "swift/IDE/Utils.h"
+#include "swift/AST/SourceFile.h"
 #include "swift/Basic/Edit.h"
 #include "swift/Basic/Platform.h"
 #include "swift/Basic/SourceManager.h"
@@ -620,6 +621,102 @@ insertAfter(SourceManager &SM, SourceLoc Loc, StringRef Text,
 void swift::ide::SourceEditConsumer::
 remove(SourceManager &SM, CharSourceRange Range) {
   accept(SM, Range, "");
+}
+
+/// Given the expanded code for a particular macro, perform whitespace
+/// adjustments to make the refactoring more suitable for inline insertion.
+static StringRef
+adjustMacroExpansionWhitespace(GeneratedSourceInfo::Kind kind,
+                               StringRef expandedCode,
+                               llvm::SmallString<64> &scratch) {
+  scratch.clear();
+
+  switch (kind) {
+  case GeneratedSourceInfo::MemberAttributeMacroExpansion:
+    // Attributes are added to the beginning, add a space to separate from
+    // any existing.
+    scratch += expandedCode;
+    scratch += " ";
+    return scratch;
+
+  case GeneratedSourceInfo::MemberMacroExpansion:
+  case GeneratedSourceInfo::PeerMacroExpansion:
+  case GeneratedSourceInfo::ConformanceMacroExpansion:
+    // All added to the end. Note that conformances are always expanded as
+    // extensions, hence treating them the same as peer.
+    scratch += "\n\n";
+    scratch += expandedCode;
+    scratch += "\n";
+    return scratch;
+
+  case GeneratedSourceInfo::ExpressionMacroExpansion:
+  case GeneratedSourceInfo::FreestandingDeclMacroExpansion:
+  case GeneratedSourceInfo::AccessorMacroExpansion:
+  case GeneratedSourceInfo::ReplacedFunctionBody:
+  case GeneratedSourceInfo::PrettyPrinted:
+    return expandedCode;
+  }
+}
+
+void swift::ide::SourceEditConsumer::acceptMacroExpansionBuffer(
+    SourceManager &SM, unsigned bufferID, SourceFile *containingSF,
+    bool adjustExpansion, bool includeBufferName) {
+  auto generatedInfo = SM.getGeneratedSourceInfo(bufferID);
+  if (!generatedInfo || generatedInfo->originalSourceRange.isInvalid())
+    return;
+
+  auto rewrittenBuffer = SM.extractText(generatedInfo->generatedSourceRange);
+
+  // If there's no change, drop the edit entirely.
+  if (generatedInfo->originalSourceRange.getStart() ==
+          generatedInfo->originalSourceRange.getEnd() &&
+      rewrittenBuffer.empty())
+    return;
+
+  SmallString<64> scratchBuffer;
+  if (adjustExpansion) {
+    rewrittenBuffer = adjustMacroExpansionWhitespace(
+        generatedInfo->kind, rewrittenBuffer, scratchBuffer);
+  }
+
+  // `containingFile` is the file of the actual expansion site, where as
+  // `originalFile` is the possibly enclosing buffer. Concretely:
+  // ```
+  // // m.swift
+  // @AddMemberAttributes
+  // struct Foo {
+  //   // --- expanded from @AddMemberAttributes eg. @_someBufferName ---
+  //   @AddedAttribute
+  //   // ---
+  //   let someMember: Int
+  // }
+  // ```
+  //
+  // When expanding `AddedAttribute`, the expansion actually applies to the
+  // original source (`m.swift`) rather than the buffer of the expansion
+  // site (`@_someBufferName`). Thus, we need to include the path to the
+  // original source as well. Note that this path could itself be another
+  // expansion.
+  auto originalSourceRange = generatedInfo->originalSourceRange;
+  SourceFile *originalFile =
+      containingSF->getParentModule()->getSourceFileContainingLocation(
+          originalSourceRange.getStart());
+  StringRef originalPath;
+  if (originalFile->getBufferID().hasValue() &&
+      containingSF->getBufferID() != originalFile->getBufferID()) {
+    originalPath = SM.getIdentifierForBuffer(*originalFile->getBufferID());
+  }
+
+  StringRef bufferName;
+  if (includeBufferName) {
+    bufferName = SM.getIdentifierForBuffer(bufferID);
+  }
+
+  accept(SM, {originalPath,
+              originalSourceRange,
+              bufferName,
+              rewrittenBuffer,
+              {}});
 }
 
 struct swift::ide::SourceEditJsonConsumer::Implementation {

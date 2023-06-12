@@ -590,9 +590,17 @@ DECL_ATTR_KINDS = [
                         swift_name='atReasync',
                         code=110),
 
-    # 111 was an experimental @completionHandlerAsync and is now unused
-
-    # 113 was experimental _unsafeSendable and is now unused
+    DeclAttribute('initializes', 'Initializes',
+                  OnAccessor,
+                  ABIStableToAdd, ABIStableToRemove,
+                  APIBreakingToAdd, APIBreakingToRemove,
+                  code=111),
+    # Note: 112 is used by 'nonisolated'
+    DeclAttribute('accesses', 'Accesses',
+                  OnAccessor,
+                  ABIStableToAdd, ABIStableToRemove,
+                  APIBreakingToAdd, APIBreakingToRemove,
+                  code=113),
 
     SimpleDeclAttribute('_unsafeInheritExecutor', 'UnsafeInheritExecutor',
                         OnFunc, UserInaccessible,
@@ -717,7 +725,22 @@ DECL_ATTR_KINDS = [
     SimpleDeclAttribute('runtimeMetadata', 'RuntimeMetadata',
                         OnStruct, OnClass, OnEnum,
                         ABIBreakingToAdd, ABIBreakingToRemove, APIBreakingToAdd, APIBreakingToRemove,  # noqa: E501
-                        code=139)
+                        code=139),
+
+    SimpleDeclAttribute('_used', 'Used',
+                        OnAbstractFunction, OnVar,
+                        UserInaccessible,
+                        ABIBreakingToAdd, ABIBreakingToRemove,
+                        APIBreakingToAdd, APIBreakingToRemove,
+                        code=143),
+
+    DeclAttribute('_section', 'Section',
+                  OnAbstractFunction, OnVar,
+                  UserInaccessible,
+                  ABIBreakingToAdd, ABIBreakingToRemove,
+                  APIBreakingToAdd, APIBreakingToRemove,
+                  code=144),
+
 ]
 
 # Schema for declaration modifiers:
@@ -922,6 +945,7 @@ DECL_MODIFIER_KINDS = [
                   ABIStableToAdd, ABIStableToRemove, APIStableToAdd, APIBreakingToRemove,  # noqa: E501
                   code=142),
     DeclAttributeAlias('freestanding', 'MacroRole'),
+
 ]
 
 DEPRECATED_MODIFIER_KINDS = [

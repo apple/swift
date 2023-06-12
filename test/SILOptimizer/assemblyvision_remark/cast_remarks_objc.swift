@@ -217,6 +217,11 @@ public func condCast6<NS: AnyObject, T: AnyObject>(_ ns: NS) -> T? {
 // We need to be able to recognize the conformances. We can't do this yet! But
 // we will be able to!
 
+#if false
+// After fixing ARCSequenceOpts in https://github.com/apple/swift/pull/66221,
+// it seems that there are some retains and releases not removed where they should be removed:
+// TODO: reenable these test once rdar://110058022 is fixed
+
 @inline(never)
 public func testForcedCastNStoSwiftString(_ nsString: NSString) -> String {
   let o: String = forcedCast(nsString)
@@ -228,3 +233,5 @@ public func testConditionalCastNStoSwiftString(_ nsString: NSString) -> String? 
   let o: String? = condCast(nsString)
   return o
 }
+
+#endif

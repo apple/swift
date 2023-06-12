@@ -63,6 +63,7 @@ let initializeStaticGlobalsPass = FunctionPass(name: "initialize-static-globals"
 
   context.erase(instruction: allocInst)
   context.erase(instruction: storeToGlobal)
+  context.removeTriviallyDeadInstructionsIgnoringDebugUses(in: function)
 }
 
 /// Analyses the global initializer function and returns the `alloc_global` and `store`

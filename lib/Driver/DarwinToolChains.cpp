@@ -212,61 +212,6 @@ static bool findXcodeClangLibPath(const Twine &libName,
   return true;
 }
 
-static bool findXcodeExecutableDir(llvm::SmallVectorImpl<char> &path) {
-  assert(path.empty());
-
-  auto xcrunPath = llvm::sys::findProgramByName("xcrun");
-  if (!xcrunPath.getError()) {
-    // Explicitly ask for the default toolchain so that we don't find a swiftc
-    // included with an open-source toolchain.
-    const char *args[] = {"-toolchain", "default", "-f", "swiftc", nullptr};
-    sys::TaskQueue queue;
-    queue.addTask(xcrunPath->c_str(), args, /*Env=*/llvm::None,
-                  /*Context=*/nullptr,
-                  /*SeparateErrors=*/true);
-    queue.execute(nullptr,
-                  [&path](sys::ProcessId PID, int returnCode, StringRef output,
-                          StringRef errors,
-                          sys::TaskProcessInformation ProcInfo,
-                          void *unused) -> sys::TaskFinishedResponse {
-                    if (returnCode == 0) {
-                      output = output.rtrim();
-                      path.append(output.begin(), output.end());
-                      llvm::sys::path::remove_filename(path); // 'swiftc'
-                    }
-                    return sys::TaskFinishedResponse::ContinueExecution;
-                  });
-  }
-
-  return !path.empty();
-}
-
-static bool findCurrentSelectedXcodeDir(llvm::SmallVectorImpl<char> &path) {
-  assert(path.empty());
-
-  auto xcodeSelectPath = llvm::sys::findProgramByName("xcode-select");
-  if (!xcodeSelectPath.getError()) {
-    const char *args[] = {"-p", nullptr};
-    sys::TaskQueue queue;
-    queue.addTask(xcodeSelectPath->c_str(), args, /*Env=*/llvm::None,
-                  /*Context=*/nullptr,
-                  /*SeparateErrors=*/true);
-    queue.execute(nullptr,
-                  [&path](sys::ProcessId PID, int returnCode, StringRef output,
-                          StringRef errors,
-                          sys::TaskProcessInformation ProcInfo,
-                          void *unused) -> sys::TaskFinishedResponse {
-                    if (returnCode == 0) {
-                      output = output.rtrim();
-                      path.append(output.begin(), output.end());
-                    }
-                    return sys::TaskFinishedResponse::ContinueExecution;
-                  });
-  }
-
-  return !path.empty();
-}
-
 static void addVersionString(const ArgList &inputArgs, ArgStringList &arguments,
                              llvm::VersionTuple version) {
   llvm::SmallString<8> buf;
@@ -660,46 +605,6 @@ void toolchains::Darwin::addCommonFrontendArgs(
     const llvm::opt::ArgList &inputArgs,
     llvm::opt::ArgStringList &arguments) const {
   ToolChain::addCommonFrontendArgs(OI, output, inputArgs, arguments);
-
-  // Pass -external-plugin-path if the current toolchain is not a Xcode default
-  // toolchain.
-  {
-    // 'xcode-select -p'
-    SmallString<256> xcodeDir;
-    if (findCurrentSelectedXcodeDir(xcodeDir) &&
-        !StringRef(getDriver().getSwiftProgramPath()).starts_with(xcodeDir)) {
-
-      // 'xcrun -f swiftc'
-      SmallString<256> xcodeExecutableDir;
-      if (findXcodeExecutableDir(xcodeExecutableDir)) {
-        using namespace llvm::sys;
-
-        // '${toolchain}/usr/bin/swift-plugin-server'
-        SmallString<256> xcodePluginServerPath(xcodeExecutableDir);
-        path::append(xcodePluginServerPath, "swift-plugin-server");
-        if (fs::can_execute(xcodePluginServerPath)) {
-
-          // '${toolchain}/usr/lib/swift/host/plugins'
-          SmallString<256> xcodePluginPath(xcodeExecutableDir);
-          path::remove_filename(xcodePluginPath); // 'bin'
-          path::append(xcodePluginPath, "lib", "swift", "host", "plugins");
-
-          // '${toolchain}/usr/local/lib/swift/host/plugins'
-          SmallString<256> xcodeLocalPluginPath(xcodeExecutableDir);
-          path::remove_filename(xcodeLocalPluginPath); // 'bin'
-          path::append(xcodeLocalPluginPath, "local");
-          path::append(xcodeLocalPluginPath, "lib", "swift", "host", "plugins");
-
-          arguments.push_back("-external-plugin-path");
-          arguments.push_back(inputArgs.MakeArgString(xcodePluginPath + "#" +
-                                                      xcodePluginServerPath));
-          arguments.push_back("-external-plugin-path");
-          arguments.push_back(inputArgs.MakeArgString(
-              xcodeLocalPluginPath + "#" + xcodePluginServerPath));
-        }
-      }
-    }
-  }
 
   if (auto sdkVersion = getTargetSDKVersion(getTriple())) {
     arguments.push_back("-target-sdk-version");

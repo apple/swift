@@ -90,7 +90,7 @@ func testNil3(_ x: Bool) {
 }
 func testNil4(_ x: Bool) {
   // FIXME: Bad diagnostic (#63130)
-  let _: _? = if x { nil } else { 42 } // expected-error {{type of expression is ambiguous without more context}}
+  let _: _? = if x { nil } else { 42 } // expected-error {{type of expression is ambiguous without a type annotation}}
 }
 
 enum F<T> {
@@ -137,7 +137,7 @@ struct SQ : Q {
 
 func testAssociatedTypeReturn1() {
   func fn<T : Q>(_ fn: (T) -> T.X) {}
-  fn { x in // expected-error {{unable to infer type of a closure parameter 'x' in the current context}}
+  fn { x in // expected-error {{cannot infer type of closure parameter 'x' without a type annotation}}
     if .random() { "" } else { "" }
   }
   fn { (x: SQ) in

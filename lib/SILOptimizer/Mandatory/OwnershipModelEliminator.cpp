@@ -135,6 +135,8 @@ struct OwnershipModelEliminatorVisitor
   bool visitCopyValueInst(CopyValueInst *cvi);
   bool visitExplicitCopyValueInst(ExplicitCopyValueInst *cvi);
   bool visitExplicitCopyAddrInst(ExplicitCopyAddrInst *cai);
+
+  void splitDestroy(DestroyValueInst *destroy);
   bool visitDestroyValueInst(DestroyValueInst *dvi);
   bool visitLoadBorrowInst(LoadBorrowInst *lbi);
   bool visitMoveValueInst(MoveValueInst *mvi) {
@@ -142,8 +144,8 @@ struct OwnershipModelEliminatorVisitor
     return true;
   }
   bool visitDropDeinitInst(DropDeinitInst *ddi) {
-    eraseInstructionAndRAUW(ddi, ddi->getOperand());
-    return true;
+    instructionsToSimplify.insert(ddi);
+    return false;
   }
   bool visitBeginBorrowInst(BeginBorrowInst *bbi) {
     eraseInstructionAndRAUW(bbi, bbi->getOperand());
@@ -197,6 +199,7 @@ struct OwnershipModelEliminatorVisitor
   }
   HANDLE_FORWARDING_INST(ConvertFunction)
   HANDLE_FORWARDING_INST(MoveOnlyWrapperToCopyableValue)
+  HANDLE_FORWARDING_INST(MoveOnlyWrapperToCopyableBox)
   HANDLE_FORWARDING_INST(Upcast)
   HANDLE_FORWARDING_INST(UncheckedRefCast)
   HANDLE_FORWARDING_INST(RefToBridgeObject)
@@ -481,6 +484,57 @@ done_rewriting:
   return false;
 }
 
+// Destroy all nontrivial members of the struct or enum destroyed by \p destroy
+// ignoring any user-defined deinit.
+//
+// See also splitDestructure().
+void OwnershipModelEliminatorVisitor::splitDestroy(DestroyValueInst *destroy) {
+  SILModule &module = destroy->getModule();
+  SILFunction *function = destroy->getFunction();
+  auto loc = destroy->getLoc();
+  auto operand = destroy->getOperand();
+  auto operandTy = operand->getType();
+  NominalTypeDecl *nominalDecl = operandTy.getNominalOrBoundGenericNominal();
+
+  if (auto *sd = dyn_cast<StructDecl>(nominalDecl)) {
+    withBuilder<void>(destroy, [&](SILBuilder &builder, SILLocation loc) {
+      llvm::SmallVector<Projection, 8> projections;
+      Projection::getFirstLevelProjections(
+        operandTy, module, TypeExpansionContext(*function), projections);
+      for (Projection &projection : projections) {
+        auto *projectedValue =
+          projection.createObjectProjection(builder, loc, operand).get();
+        builder.emitDestroyValueOperation(loc, projectedValue);
+      }
+    });
+    return;
+  }
+
+  // "Destructure" an enum.
+  auto *enumDecl = dyn_cast<EnumDecl>(nominalDecl);
+  SmallVector<std::pair<EnumElementDecl *, SILBasicBlock *>, 8> caseCleanups;
+  auto *destroyBlock = destroy->getParent();
+  auto *contBlock = destroyBlock->split(std::next(destroy->getIterator()));
+
+  for (auto *enumElt : enumDecl->getAllElements()) {
+    auto *enumBlock = function->createBasicBlockBefore(contBlock);
+    SILBuilder builder(enumBlock, enumBlock->begin());
+    if (enumElt->hasAssociatedValues()) {
+      auto caseType = operandTy.getEnumElementType(enumElt, function);
+      auto *phiArg =
+        enumBlock->createPhiArgument(caseType, OwnershipKind::Owned);
+      SILBuilderWithScope(enumBlock, builderCtx, destroy->getDebugScope())
+        .emitDestroyValueOperation(loc, phiArg);
+    }
+    // Branch to the continue block.
+    builder.createBranch(loc, contBlock);
+    caseCleanups.emplace_back(enumElt, enumBlock);
+  }
+  SILBuilderWithScope switchBuilder(destroyBlock, builderCtx,
+                                    destroy->getDebugScope());
+  switchBuilder.createSwitchEnum(loc, operand, nullptr, caseCleanups);
+}
+
 bool OwnershipModelEliminatorVisitor::visitDestroyValueInst(
     DestroyValueInst *dvi) {
   // Nonescaping closures are represented ultimately as trivial pointers to
@@ -494,12 +548,15 @@ bool OwnershipModelEliminatorVisitor::visitDestroyValueInst(
       return true;
     }
   }
-    
-  // A destroy_value of an address-only type cannot be replaced.
-  //
-  // TODO: When LowerAddresses runs before this, we can remove this case.
-  if (operandTy.isAddressOnly(*dvi->getFunction()))
-    return false;
+
+  // A drop_deinit eliminates any user-defined deinit. Its destroy does not
+  // lower to a release. If any members require deinitialization, they must be
+  // destructured and individually destroyed.
+  if (isa<DropDeinitInst>(lookThroughOwnershipInsts(operand))) {
+    splitDestroy(dvi);
+    eraseInstruction(dvi);
+    return true;
+  }
 
   // Now that we have set the unqualified ownership flag,
   // emitDestroyValueOperation will insert the appropriate instruction.
@@ -556,6 +613,7 @@ bool OwnershipModelEliminatorVisitor::visitSwitchEnumInst(
   return true;
 }
 
+// See also splitDestroy().
 void OwnershipModelEliminatorVisitor::splitDestructure(
     SILInstruction *destructureInst, SILValue destructureOperand) {
   assert((isa<DestructureStructInst>(destructureInst) ||
@@ -664,12 +722,11 @@ static bool stripOwnership(SILFunction &func) {
       arg->setOwnershipKind(OwnershipKind::None);
     }
 
-    for (auto ii = block.begin(), ie = block.end(); ii != ie;) {
-      // Since we are going to be potentially removing instructions, we need
-      // to make sure to increment our iterator before we perform any
-      // visits.
+    // This loop may erase instructions and split basic blocks.
+    for (auto ii = block.begin(); ii != block.end(); ++ii) {
       SILInstruction *inst = &*ii;
-      ++ii;
+      if (inst->isDeleted())
+        continue;
 
       madeChange |= visitor.visit(inst);
     }
@@ -689,6 +746,12 @@ static bool stripOwnership(SILFunction &func) {
     auto value = visitor.instructionsToSimplify.pop_back_val();
     if (!value.has_value())
       continue;
+
+    if (auto dropDeinit = dyn_cast<DropDeinitInst>(*value)) {
+      visitor.eraseInstructionAndRAUW(dropDeinit, dropDeinit->getOperand());
+      madeChange = true;
+      continue;
+    }
     auto callbacks =
         InstModCallbacks().onDelete([&](SILInstruction *instToErase) {
           visitor.eraseInstruction(instToErase);

@@ -81,6 +81,10 @@ typedef NS_OPTIONS(NSUInteger, Bar) {
 
 typedef NS_OPTIONS(NSUInteger, Baz) { Baz1, Baz2 };
 
+struct HasNSOptionField {
+  Bar bar;
+};
+
 Baz CFunctionReturningNSOption();
 void CFunctionTakingNSOption(Baz);
 

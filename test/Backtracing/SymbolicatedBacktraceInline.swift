@@ -9,6 +9,10 @@
 // REQUIRES: backtracing
 // REQUIRES: OS=macosx
 
+// This currently doesn't work on Linux because the unwind finishes at pow(),
+// which presumably doesn't have a frame pointer.  When we add the Dwarf EH
+// unwinder, we should be able to turn this test on.
+
 import _Backtracing
 
 func kablam() {

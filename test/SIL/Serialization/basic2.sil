@@ -17,6 +17,28 @@ bb0:
   return %9999 : $()
 }
 
+// CHECK-LABEL: sil [ossa] @test_copyable_to_moveonlywrapper : $@convention(thin) (@owned Builtin.NativeObject) -> () {
+// CHECK: copyable_to_moveonlywrapper [owned]
+// CHECK: } // end sil function 'test_copyable_to_moveonlywrapper'
+sil [ossa] @test_copyable_to_moveonlywrapper : $@convention(thin) (@owned Builtin.NativeObject) -> () {
+bb0(%0 : @owned $Builtin.NativeObject):
+  %0a = copyable_to_moveonlywrapper [owned] %0 : $Builtin.NativeObject
+  destroy_value %0a : $@moveOnly Builtin.NativeObject
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_copyable_to_moveonlywrapper_addr : $@convention(thin) (@in Builtin.NativeObject) -> () {
+// CHECK: copyable_to_moveonlywrapper_addr
+// CHECK: } // end sil function 'test_copyable_to_moveonlywrapper_addr'
+sil [ossa] @test_copyable_to_moveonlywrapper_addr : $@convention(thin) (@in Builtin.NativeObject) -> () {
+bb0(%0 : $*Builtin.NativeObject):
+  %0a = copyable_to_moveonlywrapper_addr %0 : $*Builtin.NativeObject
+  destroy_addr %0a : $*@moveOnly Builtin.NativeObject
+  %9999 = tuple()
+  return %9999 : $()
+}
+
 // We don't serialize debug_value today... but we should.
 //
 // CHECK-LABEL: sil [ossa] @test_debug_value_alloc_stack_moved : $@convention(thin) (@owned Builtin.NativeObject) -> () {
@@ -64,5 +86,33 @@ bb0(%0 : @owned $Builtin.NativeObject):
   dealloc_stack %2 : $*Builtin.NativeObject
   dealloc_stack %1 : $*Builtin.NativeObject
   %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_moveonlywrapper_to_copyable_addr : $@convention(thin) (@in Builtin.NativeObject) -> () {
+// CHECK: moveonlywrapper_to_copyable_addr
+// CHECK: } // end sil function 'test_moveonlywrapper_to_copyable_addr'
+sil [ossa] @test_moveonlywrapper_to_copyable_addr : $@convention(thin) (@in Builtin.NativeObject) -> () {
+bb0(%0 : $*Builtin.NativeObject):
+  %1 = alloc_stack $@moveOnly Builtin.NativeObject
+  %1a = moveonlywrapper_to_copyable_addr %1 : $*@moveOnly Builtin.NativeObject
+  copy_addr [take] %0 to [init] %1a : $*Builtin.NativeObject
+  destroy_addr %1 : $*@moveOnly Builtin.NativeObject
+  dealloc_stack %1 : $*@moveOnly Builtin.NativeObject
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_moveonlywrapper_to_copyable_box : $@convention(thin) () -> () {
+// CHECK: [[BOX:%.*]] = alloc_box ${ var @moveOnly Builtin.NativeObject }
+// CHECK: [[CAST:%.*]] = moveonlywrapper_to_copyable_box [[BOX]] : ${ var @moveOnly Builtin.NativeObject }
+// CHECK: dealloc_box [[CAST]] : ${ var Builtin.NativeObject }
+// CHECK: } // end sil function 'test_moveonlywrapper_to_copyable_box'
+sil [ossa] @test_moveonlywrapper_to_copyable_box : $@convention(thin) () -> () {
+bb0:
+  %0 = alloc_box ${ var @moveOnly Builtin.NativeObject }
+  %1 = moveonlywrapper_to_copyable_box %0 : ${ var @moveOnly Builtin.NativeObject }
+  dealloc_box %1 : ${ var Builtin.NativeObject }
+  %9999 = tuple ()
   return %9999 : $()
 }

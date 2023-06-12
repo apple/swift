@@ -20,6 +20,7 @@ internal enum HostToPluginMessage: Codable {
   /// Expand a '@freestanding' macro.
   case expandFreestandingMacro(
     macro: PluginMessage.MacroReference,
+    macroRole: PluginMessage.MacroRole? = nil,
     discriminator: String,
     syntax: PluginMessage.Syntax
   )
@@ -91,6 +92,7 @@ internal enum PluginToHostMessage: Codable {
     case member
     case peer
     case conformance
+    case codeItem
   }
 
   struct SourceLocation: Codable {

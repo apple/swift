@@ -51,7 +51,6 @@ struct AsyncTaskAndContext {
   AsyncContext *InitialContext;
 };
 
-
 /// Caution: not all future-initializing functions actually throw, so
 /// this signature may be incorrect.
 using FutureAsyncSignature =

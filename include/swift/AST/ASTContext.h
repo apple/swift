@@ -342,10 +342,6 @@ public:
   /// The # of times we have performed typo correction.
   unsigned NumTypoCorrections = 0;
 
-  /// The next auto-closure discriminator.  This needs to be preserved
-  /// across invocations of both the parser and the type-checker.
-  unsigned NextAutoClosureDiscriminator = 0;
-
   /// Cached mapping from types to their associated tangent spaces.
   llvm::DenseMap<Type, Optional<TangentSpace>> AutoDiffTangentSpaces;
 
@@ -1120,6 +1116,13 @@ public:
   /// name and context.
   unsigned getNextMacroDiscriminator(MacroDiscriminatorContext context,
                                      DeclBaseName baseName);
+
+  /// Get the next discriminator within the given declaration context.
+  unsigned getNextDiscriminator(const DeclContext *dc);
+
+  /// Set the maximum assigned discriminator within the given declaration context.
+  void setMaxAssignedDiscriminator(
+      const DeclContext *dc, unsigned discriminator);
 
   /// Retrieve the Clang module loader for this ASTContext.
   ///

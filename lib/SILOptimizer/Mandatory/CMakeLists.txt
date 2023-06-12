@@ -28,7 +28,6 @@ target_sources(swiftSILOptimizer PRIVATE
   MoveOnlyBorrowToDestructureTester.cpp
   MoveOnlyBorrowToDestructureUtils.cpp
   MoveOnlyChecker.cpp
-  MoveOnlyDeinitInsertion.cpp
   MoveOnlyDiagnostics.cpp
   MoveOnlyObjectCheckerTester.cpp
   MoveOnlyObjectCheckerUtils.cpp

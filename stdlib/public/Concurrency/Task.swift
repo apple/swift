@@ -200,7 +200,8 @@ extension Task where Failure == Error {
         let flags = taskCreateFlags(priority: priority, isChildTask: false,
                                     copyTaskLocals: true, inheritContext: true,
                                     enqueueJob: false,
-                                    addPendingGroupTaskUnconditionally: false)
+                                    addPendingGroupTaskUnconditionally: false,
+                                    isDiscardingTask: false)
         let (task, _) = Builtin.createAsyncTask(flags, work)
         _startTaskOnMainActor(task)
         return Task<Success, Error>(task)
@@ -222,7 +223,8 @@ extension Task where Failure == Never {
         let flags = taskCreateFlags(priority: priority, isChildTask: false,
                                     copyTaskLocals: true, inheritContext: true,
                                     enqueueJob: false,
-                                    addPendingGroupTaskUnconditionally: false)
+                                    addPendingGroupTaskUnconditionally: false,
+                                    isDiscardingTask: false)
         let (task, _) = Builtin.createAsyncTask(flags, work)
         _startTaskOnMainActor(task)
         return Task(task)
@@ -503,7 +505,8 @@ struct JobFlags {
 func taskCreateFlags(
   priority: TaskPriority?, isChildTask: Bool, copyTaskLocals: Bool,
   inheritContext: Bool, enqueueJob: Bool,
-  addPendingGroupTaskUnconditionally: Bool
+  addPendingGroupTaskUnconditionally: Bool,
+  isDiscardingTask: Bool
 ) -> Int {
   var bits = 0
   bits |= (bits & ~0xFF) | Int(priority?.rawValue ?? 0)
@@ -521,6 +524,9 @@ func taskCreateFlags(
   }
   if addPendingGroupTaskUnconditionally {
     bits |= 1 << 13
+  }
+  if isDiscardingTask {
+    bits |= 1 << 14
   }
   return bits
 }
@@ -573,7 +579,8 @@ extension Task where Failure == Never {
     let flags = taskCreateFlags(
       priority: priority, isChildTask: false, copyTaskLocals: true,
       inheritContext: true, enqueueJob: true,
-      addPendingGroupTaskUnconditionally: false)
+      addPendingGroupTaskUnconditionally: false,
+      isDiscardingTask: false)
 
     // Create the asynchronous task.
     let (task, _) = Builtin.createAsyncTask(flags, operation)
@@ -633,8 +640,8 @@ extension Task where Failure == Error {
     let flags = taskCreateFlags(
       priority: priority, isChildTask: false, copyTaskLocals: true,
       inheritContext: true, enqueueJob: true,
-      addPendingGroupTaskUnconditionally: false
-    )
+      addPendingGroupTaskUnconditionally: false,
+      isDiscardingTask: false)
 
     // Create the asynchronous task future.
     let (task, _) = Builtin.createAsyncTask(flags, operation)
@@ -692,7 +699,8 @@ extension Task where Failure == Never {
     let flags = taskCreateFlags(
       priority: priority, isChildTask: false, copyTaskLocals: false,
       inheritContext: false, enqueueJob: true,
-      addPendingGroupTaskUnconditionally: false)
+      addPendingGroupTaskUnconditionally: false,
+      isDiscardingTask: false)
 
     // Create the asynchronous task future.
     let (task, _) = Builtin.createAsyncTask(flags, operation)
@@ -751,8 +759,8 @@ extension Task where Failure == Error {
     let flags = taskCreateFlags(
       priority: priority, isChildTask: false, copyTaskLocals: false,
       inheritContext: false, enqueueJob: true,
-      addPendingGroupTaskUnconditionally: false
-    )
+      addPendingGroupTaskUnconditionally: false,
+      isDiscardingTask: false)
 
     // Create the asynchronous task future.
     let (task, _) = Builtin.createAsyncTask(flags, operation)

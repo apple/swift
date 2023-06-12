@@ -181,6 +181,9 @@ static bool readOptionsBlock(llvm::BitstreamCursor &cursor,
     case options_block::MODULE_EXPORT_AS_NAME:
       extendedInfo.setExportAsName(blobData);
       break;
+    case options_block::HAS_CXX_INTEROPERABILITY_ENABLED:
+      extendedInfo.setHasCxxInteroperability(true);
+      break;
     default:
       // Unknown options record, possibly for use by a future version of the
       // module format.
@@ -1378,6 +1381,7 @@ ModuleFileSharedCore::ModuleFileSharedCore(
       Bits.IsAllowModuleWithCompilerErrorsEnabled =
           extInfo.isAllowModuleWithCompilerErrorsEnabled();
       Bits.IsConcurrencyChecked = extInfo.isConcurrencyChecked();
+      Bits.HasCxxInteroperability = extInfo.hasCxxInteroperability();
       MiscVersion = info.miscVersion;
       ModuleABIName = extInfo.getModuleABIName();
       ModulePackageName = extInfo.getModulePackageName();

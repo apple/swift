@@ -95,6 +95,7 @@ class TypeInfo {
   friend class TypeConverter;
 
 protected:
+  // clang-format off
   union {
     uint64_t OpaqueBits;
 
@@ -143,6 +144,8 @@ protected:
       Size : 32
     );
   } Bits;
+  // clang-format on
+
   enum { InvalidSubclassKind = 0x7 };
 
   TypeInfo(llvm::Type *Type, Alignment A, IsTriviallyDestroyable_t pod,

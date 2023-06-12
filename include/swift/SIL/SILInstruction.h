@@ -821,6 +821,10 @@ public:
   /// The first operand must be the allocating instruction.
   bool isDeallocatingStack() const;
 
+  /// Whether IRGen lowering of this instruction may result in emitting packs of
+  /// metadata or witness tables.
+  bool mayRequirePackMetadata() const;
+
   /// Create a new copy of this instruction, which retains all of the operands
   /// and other information of this one.  If an insertion point is specified,
   /// then the new instruction is inserted before the specified point, otherwise
@@ -1393,6 +1397,7 @@ FirstArgOwnershipForwardingSingleValueInst::classof(SILInstructionKind kind) {
   case SILInstructionKind::InitExistentialRefInst:
   case SILInstructionKind::MarkDependenceInst:
   case SILInstructionKind::MoveOnlyWrapperToCopyableValueInst:
+  case SILInstructionKind::MoveOnlyWrapperToCopyableBoxInst:
   case SILInstructionKind::CopyableToMoveOnlyWrapperValueInst:
     return true;
   default:
@@ -2275,6 +2280,27 @@ public:
   }
 };
 
+/// AllocPackMetadataInst - Marker instruction indicating that the next
+///                         instruction might allocate on-stack pack metadata
+///                         during IRGen.
+///
+/// Only valid in lowered SIL.
+class AllocPackMetadataInst final
+    : public NullaryInstructionWithTypeDependentOperandsBase<
+          SILInstructionKind::AllocPackMetadataInst, AllocPackMetadataInst,
+          AllocationInst> {
+  friend SILBuilder;
+
+  AllocPackMetadataInst(SILDebugLocation loc, SILType elementType)
+      : NullaryInstructionWithTypeDependentOperandsBase(
+            loc, {}, elementType.getAddressType()) {}
+
+public:
+  /// The instruction which may trigger on-stack pack metadata when IRGen
+  /// lowering.
+  SILInstruction *getIntroducer() { return getNextInstruction(); }
+};
+
 /// The base class for AllocRefInst and AllocRefDynamicInst.
 ///
 /// The first NumTailTypes operands are counts for the tail allocated
@@ -2461,13 +2487,14 @@ class AllocBoxInst final
   AllocBoxInst(SILDebugLocation DebugLoc, CanSILBoxType BoxType,
                ArrayRef<SILValue> TypeDependentOperands, SILFunction &F,
                Optional<SILDebugVariable> Var, bool hasDynamicLifetime,
-               bool reflection = false,
-               bool usesMoveableValueDebugInfo = false);
+               bool reflection = false, bool usesMoveableValueDebugInfo = false,
+               bool hasPointerEscape = false);
 
   static AllocBoxInst *create(SILDebugLocation Loc, CanSILBoxType boxType,
                               SILFunction &F, Optional<SILDebugVariable> Var,
                               bool hasDynamicLifetime, bool reflection = false,
-                              bool usesMoveableValueDebugInfo = false);
+                              bool usesMoveableValueDebugInfo = false,
+                              bool hasPointerEscape = false);
 
 public:
   CanSILBoxType getBoxType() const {
@@ -2480,6 +2507,14 @@ public:
 
   bool hasDynamicLifetime() const {
     return sharedUInt8().AllocBoxInst.dynamicLifetime;
+  }
+
+  void setHasPointerEscape(bool pointerEscape) {
+    sharedUInt8().AllocBoxInst.pointerEscape = pointerEscape;
+  }
+
+  bool hasPointerEscape() const {
+    return sharedUInt8().AllocBoxInst.pointerEscape;
   }
 
   /// True if the box should be emitted with reflection metadata for its
@@ -4421,12 +4456,15 @@ class BeginBorrowInst
                                   SingleValueInstruction> {
   friend class SILBuilder;
 
-  bool lexical;
+  USE_SHARED_UINT8;
 
-  BeginBorrowInst(SILDebugLocation DebugLoc, SILValue LValue, bool isLexical)
+  BeginBorrowInst(SILDebugLocation DebugLoc, SILValue LValue, bool isLexical,
+                  bool hasPointerEscape)
       : UnaryInstructionBase(DebugLoc, LValue,
-                             LValue->getType().getObjectType()),
-        lexical(isLexical) {}
+                             LValue->getType().getObjectType()) {
+    sharedUInt8().BeginBorrowInst.lexical = isLexical;
+    sharedUInt8().BeginBorrowInst.pointerEscape = hasPointerEscape;
+  }
 
 public:
   // FIXME: this does not return all instructions that end a local borrow
@@ -4438,11 +4476,18 @@ public:
 
   /// Whether the borrow scope introduced by this instruction corresponds to a
   /// source-level lexical scope.
-  bool isLexical() const { return lexical; }
+  bool isLexical() const { return sharedUInt8().BeginBorrowInst.lexical; }
 
   /// If this is a lexical borrow, eliminate the lexical bit. If this borrow
   /// doesn't have a lexical bit, do not do anything.
-  void removeIsLexical() { lexical = false; }
+  void removeIsLexical() { sharedUInt8().BeginBorrowInst.lexical = false; }
+
+  bool hasPointerEscape() const {
+    return sharedUInt8().BeginBorrowInst.pointerEscape;
+  }
+  void setHasPointerEscape(bool pointerEscape) {
+    sharedUInt8().BeginBorrowInst.pointerEscape = pointerEscape;
+  }
 
   /// Return a range over all EndBorrow instructions for this BeginBorrow.
   EndBorrowRange getEndBorrows() const;
@@ -4890,6 +4935,78 @@ public:
   }
 };
 
+/// AssignOrInitInst - Represents an abstract assignment via a init accessor
+/// or a setter, which may either be an initialization or a store sequence.
+/// This is only valid in Raw SIL.
+///
+/// Note that this instruction does not inherit from AssignInstBase because
+/// there is no physical destination of the assignment. Both the init
+/// and the setter are factored into functions.
+class AssignOrInitInst
+    : public InstructionBase<SILInstructionKind::AssignOrInitInst,
+                             NonValueInstruction>,
+      public CopyLikeInstruction {
+  friend SILBuilder;
+  USE_SHARED_UINT8;
+
+  FixedOperandList<3> Operands;
+
+  /// Marks all of the properties in `initializes(...)` list that
+  /// have been initialized before this intruction to help Raw SIL
+  /// lowering to emit destroys.
+  llvm::BitVector Assignments;
+
+public:
+  enum Mode {
+    /// The mode is not decided yet (by DefiniteInitialization).
+    Unknown,
+
+    /// The initializer is called with Src as argument.
+    Init,
+
+    /// The setter is called with Src as argument.
+    Set
+  };
+
+private:
+  AssignOrInitInst(SILDebugLocation DebugLoc,
+                   SILValue Src, SILValue Initializer,
+                   SILValue Setter, Mode mode);
+
+public:
+  SILValue getSrc() const { return Operands[0].get(); }
+  SILValue getInitializer() const { return Operands[1].get(); }
+  SILValue getSetter() { return  Operands[2].get(); }
+
+  Mode getMode() const {
+    return Mode(sharedUInt8().AssignOrInitInst.mode);
+  }
+
+  void setMode(Mode mode) {
+    sharedUInt8().AssignOrInitInst.mode = uint8_t(mode);
+  }
+
+  /// Mark a property from `initializes(...)` list as initialized
+  /// before this instruction.
+  void markAsInitialized(VarDecl *property);
+  void markAsInitialized(unsigned propertyIdx);
+
+  /// Check whether a property from `initializes(...)` list with
+  /// the given index has already been initialized and requires
+  /// destroy before it could be re-initialized.
+  bool isPropertyAlreadyInitialized(unsigned propertyIdx);
+
+  unsigned getNumInitializedProperties() const;
+
+  ArrayRef<VarDecl *> getInitializedProperties() const;
+  ArrayRef<VarDecl *> getAccessedProperties() const;
+
+  ArrayRef<Operand> getAllOperands() const { return Operands.asArray(); }
+  MutableArrayRef<Operand> getAllOperands() { return Operands.asArray(); }
+
+  AccessorDecl *getReferencedInitAccessor() const;
+};
+
 /// Indicates that a memory location is uninitialized at this point and needs to
 /// be initialized by the end of the function and before any escape point for
 /// this instruction. This is only valid in Raw SIL.
@@ -4929,6 +5046,10 @@ public:
     /// DelegatingSelfAllocated designates "self" in a delegating class
     /// initializer where memory has already been allocated.
     DelegatingSelfAllocated,
+
+    /// Out designates an indirectly returned result.
+    /// This is the result that has to be checked for initialization.
+    Out,
   };
 private:
   Kind ThisKind;
@@ -4943,6 +5064,7 @@ public:
   Kind getMarkUninitializedKind() const { return ThisKind; }
 
   bool isVar() const { return ThisKind == Var; }
+  bool isOut() const { return ThisKind == Out; }
   bool isRootSelf() const {
     return ThisKind == RootSelf;
   }
@@ -8260,22 +8382,35 @@ class MoveValueInst
                                   SingleValueInstruction> {
   friend class SILBuilder;
 
+  USE_SHARED_UINT8;
+
+  MoveValueInst(SILDebugLocation DebugLoc, SILValue operand, bool isLexical,
+                bool hasPointerEscape)
+      : UnaryInstructionBase(DebugLoc, operand, operand->getType()) {
+    sharedUInt8().MoveValueInst.lexical = isLexical;
+    sharedUInt8().MoveValueInst.pointerEscape = hasPointerEscape;
+  }
+
+public:
   /// If set to true, we should emit the kill diagnostic for this move_value. If
   /// set to false, we shouldn't emit such a diagnostic. This is a short term
   /// addition until we get MoveOnly wrapper types into the SIL type system.
-  bool allowDiagnostics = false;
-  bool lexical = false;
+  bool getAllowDiagnostics() const {
+    return sharedUInt8().MoveValueInst.allowDiagnostics;
+  }
+  void setAllowsDiagnostics(bool newValue) {
+    sharedUInt8().MoveValueInst.allowDiagnostics = newValue;
+  }
 
-  MoveValueInst(SILDebugLocation DebugLoc, SILValue operand, bool isLexical)
-      : UnaryInstructionBase(DebugLoc, operand, operand->getType()),
-        lexical(isLexical) {}
+  bool isLexical() const { return sharedUInt8().MoveValueInst.lexical; }
+  void removeIsLexical() { sharedUInt8().MoveValueInst.lexical = false; }
 
-public:
-  bool getAllowDiagnostics() const { return allowDiagnostics; }
-  void setAllowsDiagnostics(bool newValue) { allowDiagnostics = newValue; }
-
-  bool isLexical() const { return lexical; };
-  void removeIsLexical() { lexical = false; }
+  bool hasPointerEscape() const {
+    return sharedUInt8().MoveValueInst.pointerEscape;
+  }
+  void setHasPointerEscape(bool pointerEscape) {
+    sharedUInt8().MoveValueInst.pointerEscape = pointerEscape;
+  }
 };
 
 class DropDeinitInst
@@ -8459,10 +8594,21 @@ private:
             DebugLoc, operand, operand->getType().addingMoveOnlyWrapper(),
             kind == InitialKind::Guaranteed ? OwnershipKind::Guaranteed
                                             : OwnershipKind::Owned),
-        initialKind(kind) {}
+        initialKind(kind) {
+    assert(!operand->getType().isMoveOnly() &&
+           "Cannot be moveonly or moveonly wrapped");
+  }
 
 public:
   InitialKind getInitialKind() const { return initialKind; }
+
+  bool hasGuaranteedInitialKind() const {
+    return getInitialKind() == InitialKind::Guaranteed;
+  }
+
+  bool hasOwnedInitialKind() const {
+    return getInitialKind() == InitialKind::Owned;
+  }
 };
 
 /// Convert from an @moveOnly wrapper type to the underlying copyable type. Can
@@ -8511,10 +8657,71 @@ private:
             DebugLoc, operand, operand->getType().removingMoveOnlyWrapper(),
             kind == InitialKind::Guaranteed ? OwnershipKind::Guaranteed
                                             : OwnershipKind::Owned),
-        initialKind(kind) {}
+        initialKind(kind) {
+    assert(operand->getType().isMoveOnlyWrapped() &&
+           "Expected moveonlywrapped argument!");
+  }
 
 public:
   InitialKind getInitialKind() const { return initialKind; }
+
+  bool hasGuaranteedInitialKind() const {
+    return getInitialKind() == InitialKind::Guaranteed;
+  }
+
+  bool hasOwnedInitialKind() const {
+    return getInitialKind() == InitialKind::Owned;
+  }
+};
+
+/// Convert a ${ @moveOnly T } to $T. This is a forwarding instruction that acts
+/// similarly to an object cast like upcast, unlike
+/// MoveOnlyWrapperToCopyableValue which provides artificial semantics injected
+/// by SILGen.
+class MoveOnlyWrapperToCopyableBoxInst
+    : public UnaryInstructionBase<
+          SILInstructionKind::MoveOnlyWrapperToCopyableBoxInst,
+          FirstArgOwnershipForwardingSingleValueInst> {
+  friend class SILBuilder;
+
+  MoveOnlyWrapperToCopyableBoxInst(SILDebugLocation DebugLoc, SILValue operand,
+                                   ValueOwnershipKind forwardingOwnershipKind)
+      : UnaryInstructionBase(
+            DebugLoc, operand,
+            operand->getType().removingMoveOnlyWrapperToBoxedType(
+                operand->getFunction()),
+            forwardingOwnershipKind) {
+    assert(
+        operand->getType().isBoxedMoveOnlyWrappedType(operand->getFunction()) &&
+        "Expected moveonlywrapped argument!");
+  }
+};
+
+class CopyableToMoveOnlyWrapperAddrInst
+    : public UnaryInstructionBase<
+          SILInstructionKind::CopyableToMoveOnlyWrapperAddrInst,
+          SingleValueInstruction> {
+  friend class SILBuilder;
+
+  CopyableToMoveOnlyWrapperAddrInst(SILDebugLocation DebugLoc, SILValue operand)
+      : UnaryInstructionBase(DebugLoc, operand,
+                             operand->getType().addingMoveOnlyWrapper()) {
+    assert(!operand->getType().isMoveOnly() && "Expected copyable argument");
+  }
+};
+
+class MoveOnlyWrapperToCopyableAddrInst
+    : public UnaryInstructionBase<
+          SILInstructionKind::MoveOnlyWrapperToCopyableAddrInst,
+          SingleValueInstruction> {
+  friend class SILBuilder;
+
+  MoveOnlyWrapperToCopyableAddrInst(SILDebugLocation DebugLoc, SILValue operand)
+      : UnaryInstructionBase(DebugLoc, operand,
+                             operand->getType().removingMoveOnlyWrapper()) {
+    assert(operand->getType().isMoveOnlyWrapped() &&
+           "Expected moveonlywrapped argument");
+  }
 };
 
 /// Given an object reference, return true iff it is non-nil and refers
@@ -8651,6 +8858,27 @@ class DeallocPackInst :
 
   DeallocPackInst(SILDebugLocation debugLoc, SILValue operand)
       : UnaryInstructionBase(debugLoc, operand) {}
+};
+
+/// DeallocPackMetadataInst - Deallocate stack memory allocated on behalf of the
+///                           operand by IRGen.
+///
+/// Only valid in lowered SIL.
+class DeallocPackMetadataInst final
+    : public UnaryInstructionBase<SILInstructionKind::DeallocPackMetadataInst,
+                                  DeallocationInst> {
+  friend SILBuilder;
+
+  DeallocPackMetadataInst(SILDebugLocation debugLoc, SILValue alloc)
+      : UnaryInstructionBase(debugLoc, alloc) {}
+
+public:
+  AllocPackMetadataInst *getAllocation() {
+    return cast<AllocPackMetadataInst>(getOperand().getDefiningInstruction());
+  }
+  /// The instruction which may trigger on-stack pack metadata when IRGen
+  /// lowering.
+  SILInstruction *getIntroducer() { return getAllocation()->getIntroducer(); }
 };
 
 /// Like DeallocStackInst, but for `alloc_ref [stack]`.

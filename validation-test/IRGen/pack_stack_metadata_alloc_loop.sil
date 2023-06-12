@@ -1,0 +1,79 @@
+// RUN: %target-run-simple-swift(-parse-sil -Xfrontend -enable-pack-metadata-stack-promotion=true)
+// RUN: %target-swift-frontend -parse-sil -enable-pack-metadata-stack-promotion=true -emit-ir -primary-file %s | %IRGenFileCheck %s
+
+// REQUIRES: executable_test
+
+// Allocate metadata packs on the stack in a loop.  If these packs weren't
+// deallocated, the stack would be exhausted.
+
+import Builtin
+import Swift
+
+struct S {}
+
+sil [ossa] @main : $@convention(c) (Int32, UnsafeMutablePointer<Optional<UnsafeMutablePointer<Int8>>>) -> Int32 {
+bb0(%0 : $Int32, %1 : $UnsafeMutablePointer<Optional<UnsafeMutablePointer<Int8>>>):
+  %looper = function_ref @looper : $@convention(thin) <each T_1, each T_2> () -> ()
+  apply %looper<Pack{S, S, S}, Pack{S, S}>() : $@convention(thin) <each T_1, each T_2> () -> ()
+
+// If the stack were exhausted while looping, the apply of %looper would crash
+// and execution would never reach this point.
+
+  %out_literal = integer_literal $Builtin.Int32, 0
+  %out = struct $Int32 (%out_literal : $Builtin.Int32)
+  return %out : $Int32
+}
+
+sil @callee : $@convention(thin) <each T> () -> () {
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: define {{.*}}@looper(
+// CHECK-SAME:      [[INT]] %0, [[INT]] %1, %swift.type** %"each T_1", %swift.type** %"each T_2") {{.*}} {
+// CHECK:       [[ENTRY:entry]]:
+// CHECK:         br label %[[HEADER:[^,]+]]
+// CHECK:       [[HEADER]]:
+// CHECK:         [[PREVIOUS:%[^,]+]] = phi i64 [ 10000000, %[[ENTRY]] ], [ [[REMAINING:%[^,]+]], %{{[^,]+}} ]
+// CHECK:         [[COMBINED_PACK_SIZE:%[^,]+]] = add [[INT]] %0, %1
+// CHECK:         [[STACK_BEFORE_FIRST_ALLOCA:%[^,]+]] = call i8* @llvm.stacksave()
+// CHECK:         [[FIRST_ALLOCA_METADATA_PACK:%[^,]+]] = alloca %swift.type*, [[INT]] [[COMBINED_PACK_SIZE]]
+// CHECK:         call swiftcc void @callee([[INT]] [[COMBINED_PACK_SIZE]], %swift.type** [[FIRST_ALLOCA_METADATA_PACK]])
+// CHECK:         [[COMBINED_PACK_SIZE_2:%[^,]+]] = add [[INT]] %1, %0
+// CHECK:         [[STACK_BEFORE_SECOND_ALLOCA:%[^,]+]] = call i8* @llvm.stacksave()
+// CHECK:         [[SECOND_ALLOCA_METADATA_PACK:%[^,]+]] = alloca %swift.type*, [[INT]] [[COMBINED_PACK_SIZE_2]]
+// CHECK:         call swiftcc void @callee([[INT]] [[COMBINED_PACK_SIZE_2]], %swift.type** [[SECOND_ALLOCA_METADATA_PACK]])
+// CHECK:         [[REMAINING_AND_OVERFLOW:%[^,]+]] = call { i64, i1 } @llvm.ssub.with.overflow.i64(i64 [[PREVIOUS]], i64 1)
+// CHECK:         [[REMAINING]] = extractvalue { i64, i1 } [[REMAINING_AND_OVERFLOW]], 0
+// CHECK:         [[IS_ZERO:%[^,]+]] = icmp eq i64 [[REMAINING]], 0
+// CHECK:         br i1 [[IS_ZERO]], label %[[EXIT:[^,]+]], label %[[BACKEDGE:[^,]+]]
+// CHECK:       [[BACKEDGE]]:
+// CHECK:         call void @llvm.stackrestore(i8* [[STACK_BEFORE_SECOND_ALLOCA]])
+// CHECK:         call void @llvm.stackrestore(i8* [[STACK_BEFORE_FIRST_ALLOCA]])
+// CHECK:         br label %[[HEADER]]
+// CHECK:       [[EXIT]]:
+// CHECK:         call void @llvm.stackrestore(i8* [[STACK_BEFORE_SECOND_ALLOCA]])
+// CHECK:         call void @llvm.stackrestore(i8* [[STACK_BEFORE_FIRST_ALLOCA]])
+// CHECK:         ret void
+// CHECK:       }
+sil @looper : $@convention(thin) <each T_1, each T_2> () -> () {
+entry:
+  %callee = function_ref @callee : $@convention(thin) <each T> () -> ()
+  %initial = integer_literal $Builtin.Int64, 10000000
+  br header(%initial : $Builtin.Int64)
+header(%previous : $Builtin.Int64):
+  apply %callee<Pack{repeat each T_1, repeat each T_2}>() : $@convention(thin) <each T> () -> ()
+  apply %callee<Pack{repeat each T_2, repeat each T_1}>() : $@convention(thin) <each T> () -> ()
+  %offset = integer_literal $Builtin.Int64, 1
+  %flag = integer_literal $Builtin.Int1, -1
+  %remainingAndOverflow = builtin "ssub_with_overflow_Int64"(%previous : $Builtin.Int64, %offset : $Builtin.Int64, %flag : $Builtin.Int1) : $(Builtin.Int64, Builtin.Int1)
+  %remaining = tuple_extract %remainingAndOverflow : $(Builtin.Int64, Builtin.Int1), 0
+  %zero = integer_literal $Builtin.Int64, 0
+  %isZero = builtin "cmp_eq_Int64"(%remaining : $Builtin.Int64, %zero : $Builtin.Int64) : $Builtin.Int1
+  cond_br %isZero, exit, backedge
+backedge:
+  br header(%remaining : $Builtin.Int64)
+exit:
+  %retval = tuple ()
+  return %retval : $()
+}

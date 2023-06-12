@@ -1,0 +1,17 @@
+module OS {
+  module Libc {
+    header "Libc.h"
+  }
+
+  module Darwin {
+    header "Darwin.h"
+  }
+
+  module Linux {
+    header "Linux.h"
+  }
+
+  module Windows {
+    header "Windows.h"
+  }
+}

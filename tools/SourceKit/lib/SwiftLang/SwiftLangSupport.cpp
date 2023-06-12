@@ -29,6 +29,7 @@
 #include "swift/IDE/SyntaxModel.h"
 #include "swift/IDE/Utils.h"
 #include "swift/IDETool/IDEInspectionInstance.h"
+#include "swift/IDETool/SyntacticMacroExpansion.h"
 
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/Preprocessor.h"
@@ -303,6 +304,9 @@ SwiftLangSupport::SwiftLangSupport(SourceKit::Context &SKCtx)
   // By default, just use the in-memory cache.
   CCCache->inMemory = std::make_unique<ide::CodeCompletionCache>();
 
+  SyntacticMacroExpansions =
+      std::make_shared<SyntacticMacroExpansion>(SwiftExecutablePath, Plugins);
+
   // Provide a default file system provider.
   setFileSystemProvider("in-memory-vfs", std::make_unique<InMemoryFileSystemProvider>());
 }
@@ -369,6 +373,8 @@ UIdent SwiftLangSupport::getUIDForAccessor(const ValueDecl *D,
     return IsRef ? KindRefAccessorRead : KindDeclAccessorRead;
   case AccessorKind::Modify:
     return IsRef ? KindRefAccessorModify : KindDeclAccessorModify;
+  case AccessorKind::Init:
+    return IsRef ? KindRefAccessorInit : KindDeclAccessorInit;
   }
 
   llvm_unreachable("Unhandled AccessorKind in switch.");

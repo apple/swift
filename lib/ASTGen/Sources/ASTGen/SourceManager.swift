@@ -1,18 +1,16 @@
+import CASTBridging
 import SwiftOperators
 import SwiftSyntax
 import SwiftSyntaxMacros
 
-/// A C++ source location.
-public typealias CxxSourceLoc = UnsafePointer<UInt8>
-
 /// A source manager that keeps track of the source files in the program.
 class SourceManager {
   init(cxxDiagnosticEngine: UnsafeMutablePointer<UInt8>) {
-    self.cxxDiagnosticEngine = cxxDiagnosticEngine
+    self.bridgedDiagEngine = BridgedDiagnosticEngine(raw: cxxDiagnosticEngine)
   }
 
-  /// A pointer to the C++ diagnostic engine.
-  let cxxDiagnosticEngine: UnsafeMutablePointer<UInt8>
+  /// The bridged diagnostic engine (just the wrapped C++ `DiagnosticEngine`).
+  let bridgedDiagEngine: BridgedDiagnosticEngine
 
   /// The set of source files that have been exported to the C++ code of
   /// the program.
@@ -100,10 +98,10 @@ extension SourceManager {
 
   /// Produce the C++ source location for a given position based on a
   /// syntax node.
-  func cxxSourceLocation<Node: SyntaxProtocol>(
+  func bridgedSourceLoc<Node: SyntaxProtocol>(
     for node: Node,
     at position: AbsolutePosition? = nil
-  ) -> CxxSourceLoc? {
+  ) -> BridgedSourceLoc {
     // Find the source file and this node's position within it.
     guard let (sourceFile, rootPosition) = rootSourceFile(of: node) else {
       return nil
@@ -118,16 +116,9 @@ extension SourceManager {
     // Find the offset of the given position based on the root of the given
     // node.
     let position = position ?? node.position
-    let offsetWithinSyntaxNode =
-       position.utf8Offset - node.position.utf8Offset
-    let offsetFromSourceFile = rootPosition.utf8Offset + offsetWithinSyntaxNode
+    let nodeOffset = SourceLength(utf8Length: position.utf8Offset - node.position.utf8Offset)
+    let realPosition = rootPosition + nodeOffset
 
-    // Compute the resulting address.
-    guard let bufferBaseAddress = exportedSourceFile.pointee.buffer.baseAddress
-    else {
-      return nil
-    }
-    let address = bufferBaseAddress.advanced(by: offsetFromSourceFile)
-    return address
+    return BridgedSourceLoc(at: realPosition, in: exportedSourceFile.pointee.buffer)
   }
 }

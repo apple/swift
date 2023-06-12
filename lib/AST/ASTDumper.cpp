@@ -3873,6 +3873,13 @@ namespace {
       PrintWithColorRAII(OS, ParenthesisColor) << ')';
     }
 
+    void visitPackElementType(PackElementType *T, StringRef label) {
+      printCommon(label, "element_type");
+      printField("level", T->getLevel());
+      printRec("pack", T->getPackType());
+      PrintWithColorRAII(OS, ParenthesisColor) << ')';
+    }
+
     void visitParenType(ParenType *T, StringRef label) {
       printCommon(label, "paren_type");
       printRec(T->getUnderlyingType());

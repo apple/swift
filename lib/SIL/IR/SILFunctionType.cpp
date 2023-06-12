@@ -1058,7 +1058,7 @@ static CanType getKnownType(Optional<CanType> &cacheSlot, ASTContext &C,
       // themselves.
       SmallVector<ValueDecl *, 2> decls;
       mod->lookupQualified(mod, DeclNameRef(C.getIdentifier(typeName)),
-                           NL_QualifiedDefault, decls);
+                           SourceLoc(), NL_QualifiedDefault, decls);
       if (decls.size() != 1)
         return CanType();
 
@@ -2351,6 +2351,75 @@ static CanSILFunctionType getSILFunctionType(
                               TC.Context, witnessMethodConformance);
 }
 
+static CanSILFunctionType getSILFunctionTypeForInitAccessor(
+    TypeConverter &TC, TypeExpansionContext context,
+    AbstractionPattern origType, CanAnyFunctionType substAccessorType,
+    SILExtInfoBuilder extInfoBuilder, const Conventions &conventions,
+    SILDeclRef accessorRef) {
+  auto *accessor = cast<AccessorDecl>(accessorRef.getDecl());
+
+  CanGenericSignature genericSig = substAccessorType.getOptGenericSignature();
+
+  Optional<TypeConverter::GenericContextRAII> contextRAII;
+  if (genericSig)
+    contextRAII.emplace(TC, genericSig);
+
+  SmallVector<SILParameterInfo, 8> inputs;
+
+  // First compute `initialValue` input.
+  {
+    ForeignInfo foreignInfo;
+    DestructureInputs destructurer(context, TC, conventions, foreignInfo,
+                                   inputs);
+    destructurer.destructure(
+        origType, substAccessorType.getParams(),
+        extInfoBuilder.withRepresentation(SILFunctionTypeRepresentation::Thin));
+  }
+
+  // Drop `self` parameter.
+  inputs.pop_back();
+
+  // `accesses(...)` appear as `inout` parameters because they could be
+  // read from and modified.
+  if (auto *attr = accessor->getAttrs().getAttribute<AccessesAttr>()) {
+    for (auto *property : attr->getPropertyDecls(accessor)) {
+      inputs.push_back(
+          SILParameterInfo(property->getInterfaceType()->getCanonicalType(),
+                           ParameterConvention::Indirect_Inout));
+    }
+  }
+
+  SmallVector<SILResultInfo, 8> results;
+
+  // `initializes(...)` appear as `@out` result because they are initialized
+  // by the accessor.
+  if (auto *attr = accessor->getAttrs().getAttribute<InitializesAttr>()) {
+    for (auto *property : attr->getPropertyDecls(accessor)) {
+      results.push_back(
+          SILResultInfo(property->getInterfaceType()->getCanonicalType(),
+                        ResultConvention::Indirect));
+    }
+  }
+
+  auto calleeConvention = ParameterConvention::Direct_Unowned;
+  if (extInfoBuilder.hasContext())
+    calleeConvention = conventions.getCallee();
+
+  // Map '@Sendable' to the appropriate `@Sendable` modifier.
+  auto silExtInfo =
+      SILExtInfoBuilder()
+          .withRepresentation(SILFunctionTypeRepresentation::Thin)
+          .withConcurrent(substAccessorType->getExtInfo().isSendable())
+          .build();
+
+  return SILFunctionType::get(
+      /*genericSig=*/genericSig, silExtInfo, SILCoroutineKind::None,
+      calleeConvention, inputs,
+      /*yields=*/{}, results, /*errorResult=*/None,
+      /*patternSubs=*/SubstitutionMap(),
+      /*invocationSubs=*/SubstitutionMap(), TC.Context);
+}
+
 //===----------------------------------------------------------------------===//
 //                        Deallocator SILFunctionTypes
 //===----------------------------------------------------------------------===//
@@ -2617,8 +2686,14 @@ static CanSILFunctionType getNativeSILFunctionType(
     case SILDeclRef::Kind::Func: {
       // If we have a setter, use the special setter convention. This ensures
       // that we take normal parameters at +1.
-      if (constant && constant->isSetter()) {
-        return getSILFunctionTypeForConventions(DefaultSetterConventions());
+      if (constant) {
+        if (constant->isSetter()) {
+          return getSILFunctionTypeForConventions(DefaultSetterConventions());
+        } else if (constant->isInitAccessor()) {
+          return getSILFunctionTypeForInitAccessor(
+              TC, context, origType, substInterfaceType, extInfoBuilder,
+              DefaultSetterConventions(), *constant);
+        }
       }
       return getSILFunctionTypeForConventions(
           DefaultConventions(NormalParameterConvention::Guaranteed));
@@ -4571,13 +4646,15 @@ static bool areABICompatibleParamsOrReturns(SILType a, SILType b,
           inFunction->getModule().isWholeModule());
       if (aa.getASTType()->hasOpaqueArchetype())
         opaqueTypesSubstituted = aa.subst(inFunction->getModule(), replacer,
-                                         replacer, CanGenericSignature(), true);
+                                         replacer, CanGenericSignature(),
+                                         SubstFlags::SubstituteOpaqueArchetypes);
 
       auto opaqueTypesSubstituted2 = bb;
       if (bb.getASTType()->hasOpaqueArchetype())
         opaqueTypesSubstituted2 =
             bb.subst(inFunction->getModule(), replacer, replacer,
-                     CanGenericSignature(), true);
+                     CanGenericSignature(),
+                     SubstFlags::SubstituteOpaqueArchetypes);
       if (opaqueTypesSubstituted == opaqueTypesSubstituted2)
         continue;
     }

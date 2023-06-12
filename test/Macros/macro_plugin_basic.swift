@@ -23,9 +23,9 @@
 
 // CHECK: ->(plugin:[[#PID:]]) {"getCapability":{}}
 // CHECK: <-(plugin:[[#PID]]) {"getCapabilityResult":{"capability":{"protocolVersion":1}}}
-// CHECK: ->(plugin:[[#PID]]) {"expandFreestandingMacro":{"discriminator":"$s{{.+}}","macro":{"moduleName":"TestPlugin","name":"testString","typeName":"TestStringMacro"},"syntax":{"kind":"expression","location":{"column":19,"fileID":"MyApp/test.swift","fileName":"BUILD_DIR{{.+}}test.swift","line":5,"offset":301},"source":"#testString(123)"}}}
+// CHECK: ->(plugin:[[#PID]]) {"expandFreestandingMacro":{"discriminator":"$s{{.+}}","macro":{"moduleName":"TestPlugin","name":"testString","typeName":"TestStringMacro"},"macroRole":"expression","syntax":{"kind":"expression","location":{"column":19,"fileID":"MyApp/test.swift","fileName":"BUILD_DIR{{.+}}test.swift","line":5,"offset":301},"source":"#testString(123)"}}}
 // CHECK: <-(plugin:[[#PID]]) {"expandFreestandingMacroResult":{"diagnostics":[],"expandedSource":"\"123\"\n  +   \"foo  \""}}
-// CHECK: ->(plugin:[[#PID]]) {"expandFreestandingMacro":{"discriminator":"$s{{.+}}","macro":{"moduleName":"TestPlugin","name":"testStringWithError","typeName":"TestStringWithErrorMacro"},"syntax":{"kind":"expression","location":{"column":19,"fileID":"MyApp/test.swift","fileName":"BUILD_DIR{{.+}}test.swift","line":6,"offset":336},"source":"#testStringWithError(321)"}}}
+// CHECK: ->(plugin:[[#PID]]) {"expandFreestandingMacro":{"discriminator":"$s{{.+}}","macro":{"moduleName":"TestPlugin","name":"testStringWithError","typeName":"TestStringWithErrorMacro"},"macroRole":"expression","syntax":{"kind":"expression","location":{"column":19,"fileID":"MyApp/test.swift","fileName":"BUILD_DIR{{.+}}test.swift","line":6,"offset":336},"source":"#testStringWithError(321)"}}}
 // CHECK: <-(plugin:[[#PID]]) {"expandFreestandingMacroResult":{"diagnostics":[{"fixIts":[],"highlights":[],"message":"message from plugin","notes":[],"position":{"fileName":"BUILD_DIR{{.*}}test.swift","offset":336},"severity":"error"}],"expandedSource":"\"bar\""}}
 
 //--- test.swift

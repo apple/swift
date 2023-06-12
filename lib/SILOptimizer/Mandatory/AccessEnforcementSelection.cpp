@@ -284,7 +284,8 @@ static void checkUsesOfAccess(BeginAccessInst *access) {
     auto user = use->getUser();
     assert(!isa<BeginAccessInst>(user));
     assert(!isa<PartialApplyInst>(user) ||
-           onlyUsedByAssignByWrapper(cast<PartialApplyInst>(user)));
+           onlyUsedByAssignByWrapper(cast<PartialApplyInst>(user)) ||
+           onlyUsedByAssignOrInit(cast<PartialApplyInst>(user)));
   }
 #endif
 }
@@ -616,7 +617,7 @@ public:
 
 protected:
   void processFunction(SILFunction *F);
-  SourceAccess getAccessKindForBox(ProjectBoxInst *projection);
+  SourceAccess getAccessKindForBox(SILValue boxOperand);
   SourceAccess getSourceAccess(SILValue address);
   void handleApply(ApplySite apply);
   void handleAccess(BeginAccessInst *access);
@@ -681,9 +682,7 @@ processFunction(SILFunction *F) {
 #endif
 }
 
-SourceAccess
-AccessEnforcementSelection::getAccessKindForBox(ProjectBoxInst *projection) {
-  SILValue source = projection->getOperand();
+SourceAccess AccessEnforcementSelection::getAccessKindForBox(SILValue source) {
   if (auto *BBI = dyn_cast<BeginBorrowInst>(source))
     source = BBI->getOperand();
   if (auto *MUI = dyn_cast<MarkUninitializedInst>(source))
@@ -708,8 +707,16 @@ SourceAccess AccessEnforcementSelection::getSourceAccess(SILValue address) {
   if (auto *mmci = dyn_cast<MarkMustCheckInst>(address))
     return getSourceAccess(mmci->getOperand());
 
+  // Recurse through moveonlywrapper_to_copyable_addr.
+  if (auto *m = dyn_cast<MoveOnlyWrapperToCopyableAddrInst>(address))
+    return getSourceAccess(m->getOperand());
+
+  // Recurse through moveonlywrapper_to_copyable_box.
+  if (auto *m = dyn_cast<MoveOnlyWrapperToCopyableBoxInst>(address))
+    return getAccessKindForBox(m->getOperand());
+
   if (auto box = dyn_cast<ProjectBoxInst>(address))
-    return getAccessKindForBox(box);
+    return getAccessKindForBox(box->getOperand());
 
   if (auto arg = dyn_cast<SILFunctionArgument>(address)) {
     switch (arg->getArgumentConvention()) {

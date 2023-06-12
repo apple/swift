@@ -675,6 +675,8 @@ Types
   type ::= assoc-type-list 'QZ'                      // shortcut for 'QYz'
   type ::= opaque-type-decl-name bound-generic-args 'Qo' INDEX // opaque type
   
+  type ::= pack-type 'Qe' INDEX              // pack element type
+  
   type ::= pattern-type count-type 'Qp'      // pack expansion type
   type ::= pack-element-list 'QP'            // pack type
   type ::= pack-element-list 'QS' DIRECTNESS // SIL pack type

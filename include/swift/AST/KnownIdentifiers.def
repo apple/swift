@@ -324,6 +324,7 @@ IDENTIFIER(size)
 IDENTIFIER(speed)
 IDENTIFIER(unchecked)
 IDENTIFIER(unsafe)
+IDENTIFIER(element)
 
 // The singleton instance of TupleTypeDecl in the Builtin module
 IDENTIFIER(TheTupleType)

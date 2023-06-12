@@ -535,6 +535,10 @@ checkGenericArguments(ModuleDecl *module, ArrayRef<Requirement> requirements,
                       TypeSubstitutionFn substitutions,
                       SubstOptions options = None);
 
+/// Check the given requirements without applying substitutions.
+CheckGenericArgumentsResult::Kind
+checkGenericArguments(ArrayRef<Requirement> requirements);
+
 /// Checks whether the generic requirements imposed on the nested type
 /// declaration \p decl (if present) are in agreement with the substitutions
 /// that are needed to spell it as a member of the given parent type
@@ -729,15 +733,26 @@ Pattern *resolvePattern(Pattern *P, DeclContext *dc, bool isStmtCondition);
 /// unbound generic types.
 Type typeCheckPattern(ContextualPattern pattern);
 
+/// Attempt to simplify an ExprPattern into a BoolPattern or
+/// OptionalSomePattern. Returns \c nullptr if the pattern could not be
+/// simplified.
+NullablePtr<Pattern> trySimplifyExprPattern(ExprPattern *EP, Type patternTy);
+
 /// Coerce a pattern to the given type.
 ///
 /// \param pattern The contextual pattern.
 /// \param type the type to coerce the pattern to.
 /// \param options Options that control the coercion.
+/// \param tryRewritePattern A function that attempts to externally rewrite
+/// the given pattern. This is used by the constraint system to take over
+/// rewriting for ExprPatterns.
 ///
 /// \returns the coerced pattern, or nullptr if the coercion failed.
-Pattern *coercePatternToType(ContextualPattern pattern, Type type,
-                             TypeResolutionOptions options);
+Pattern *coercePatternToType(
+    ContextualPattern pattern, Type type, TypeResolutionOptions options,
+    llvm::function_ref<Optional<Pattern *>(Pattern *, Type)> tryRewritePattern =
+        [](Pattern *, Type) { return None; });
+
 bool typeCheckExprPattern(ExprPattern *EP, DeclContext *DC, Type type);
 
 /// Coerce the specified parameter list of a ClosureExpr to the specified
@@ -899,6 +914,7 @@ LookupResult lookupUnqualifiedType(
 /// \returns The result of name lookup.
 LookupResult
 lookupMember(DeclContext *dc, Type type, DeclNameRef name,
+             SourceLoc loc = SourceLoc(),
              NameLookupOptions options = defaultMemberLookupOptions);
 
 /// Look up a member type within the given type.
@@ -914,6 +930,7 @@ lookupMember(DeclContext *dc, Type type, DeclNameRef name,
 /// \returns The result of name lookup.
 LookupTypeResult
 lookupMemberType(DeclContext *dc, Type type, DeclNameRef name,
+                 SourceLoc loc = SourceLoc(),
                  NameLookupOptions options = defaultMemberTypeLookupOptions);
 
 /// Given an expression that's known to be an infix operator,
@@ -923,10 +940,6 @@ lookupPrecedenceGroupForInfixOperator(DeclContext *dc, Expr *op, bool diagnose);
 
 PrecedenceGroupLookupResult
 lookupPrecedenceGroup(DeclContext *dc, Identifier name, SourceLoc nameLoc);
-
-SmallVector<MacroDecl *, 1>
-lookupMacros(DeclContext *dc, DeclNameRef macroName, SourceLoc loc,
-             MacroRoles contexts);
 
 enum class UnsupportedMemberTypeAccessKind : uint8_t {
   None,

@@ -99,6 +99,7 @@ SHOULD_NEVER_VISIT_INST(AllocExistentialBox)
 SHOULD_NEVER_VISIT_INST(AllocGlobal)
 SHOULD_NEVER_VISIT_INST(AllocStack)
 SHOULD_NEVER_VISIT_INST(AllocPack)
+SHOULD_NEVER_VISIT_INST(AllocPackMetadata)
 SHOULD_NEVER_VISIT_INST(PackLength)
 SHOULD_NEVER_VISIT_INST(DifferentiabilityWitnessFunction)
 SHOULD_NEVER_VISIT_INST(FloatLiteral)
@@ -147,6 +148,8 @@ OPERAND_OWNERSHIP(TrivialUse, AddressToPointer)
 OPERAND_OWNERSHIP(TrivialUse, AllocRef)        // with tail operand
 OPERAND_OWNERSHIP(TrivialUse, AllocRefDynamic) // with tail operand
 OPERAND_OWNERSHIP(TrivialUse, BeginAccess)
+OPERAND_OWNERSHIP(TrivialUse, MoveOnlyWrapperToCopyableAddr)
+OPERAND_OWNERSHIP(TrivialUse, CopyableToMoveOnlyWrapperAddr)
 OPERAND_OWNERSHIP(TrivialUse, BeginUnpairedAccess)
 OPERAND_OWNERSHIP(TrivialUse, BindMemory)
 OPERAND_OWNERSHIP(TrivialUse, RebindMemory)
@@ -158,6 +161,7 @@ OPERAND_OWNERSHIP(TrivialUse, ExplicitCopyAddr)
 OPERAND_OWNERSHIP(TrivialUse, MarkUnresolvedMoveAddr)
 OPERAND_OWNERSHIP(TrivialUse, DeallocStack)
 OPERAND_OWNERSHIP(TrivialUse, DeallocPack)
+OPERAND_OWNERSHIP(TrivialUse, DeallocPackMetadata)
 OPERAND_OWNERSHIP(TrivialUse, DeinitExistentialAddr)
 OPERAND_OWNERSHIP(TrivialUse, DestroyAddr)
 OPERAND_OWNERSHIP(TrivialUse, EndAccess)
@@ -370,6 +374,7 @@ FORWARDING_OWNERSHIP(MarkMustCheck)
 FORWARDING_OWNERSHIP(MarkUnresolvedReferenceBinding)
 FORWARDING_OWNERSHIP(MoveOnlyWrapperToCopyableValue)
 FORWARDING_OWNERSHIP(CopyableToMoveOnlyWrapperValue)
+FORWARDING_OWNERSHIP(MoveOnlyWrapperToCopyableBox)
 #undef FORWARDING_OWNERSHIP
 
 // Arbitrary value casts are forwarding instructions that are also allowed to
@@ -618,6 +623,16 @@ OperandOwnershipClassifier::visitAssignByWrapperInst(AssignByWrapperInst *i) {
     return OperandOwnership::TrivialUse;
   }
   return OperandOwnership::InstantaneousUse; // initializer/setter closure
+}
+
+OperandOwnership
+OperandOwnershipClassifier::visitAssignOrInitInst(AssignOrInitInst *i) {
+  if (getValue() == i->getSrc()) {
+    return OperandOwnership::DestroyingConsume;
+  }
+
+  // initializer/setter closure
+  return OperandOwnership::InstantaneousUse;
 }
 
 OperandOwnership OperandOwnershipClassifier::visitStoreInst(StoreInst *i) {

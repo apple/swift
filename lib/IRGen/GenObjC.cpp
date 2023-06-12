@@ -1010,7 +1010,7 @@ static llvm::Function *emitObjCPartialApplicationForwarder(IRGenModule &IGM,
     assert(nativeParam.empty());
 
     // Pass along the value.
-    ti.reexplode(subIGF, nonNativeParam, translatedParams);
+    ti.reexplode(nonNativeParam, translatedParams);
   }
 
   // Prepare the call to the underlying method.

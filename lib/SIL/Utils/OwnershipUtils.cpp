@@ -1393,6 +1393,9 @@ ValueOwnershipKind ForwardingOperand::getForwardingOwnershipKind() const {
     return move->getForwardingOwnershipKind();
   }
 
+  if (auto *move = dyn_cast<MoveOnlyWrapperToCopyableBoxInst>(user))
+    return move->getForwardingOwnershipKind();
+
   llvm_unreachable("Unhandled forwarding inst?!");
 }
 

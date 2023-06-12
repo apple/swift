@@ -11,6 +11,7 @@ struct Wrapper<Value> {
 // an opened element type.
 //
 // CHECK-LABEL: define{{.*}}void @test_outlining
+// CHECK:       [[PACK_ADDR_FOR_DEBUGINFO:%.*]] = ptrtoint %swift.type** %"each T" to [[INT]]
 // CHECK:       [[PACK_ADDR:%.*]] = ptrtoint %swift.type** %"each T" to [[INT]]
 // CHECK-NEXT:  [[PACK_ADDR2:%.*]] = and [[INT]] [[PACK_ADDR]], -2
 // CHECK-NEXT:  [[PACK:%.*]] = inttoptr [[INT]] [[PACK_ADDR2]] to %swift.type**

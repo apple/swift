@@ -1062,6 +1062,35 @@ CheckGenericArgumentsResult::Kind TypeChecker::checkGenericArguments(
   return CheckGenericArgumentsResult::Success;
 }
 
+CheckGenericArgumentsResult::Kind TypeChecker::checkGenericArguments(
+    ArrayRef<Requirement> requirements) {
+  SmallVector<Requirement, 4> worklist(requirements.begin(), requirements.end());
+
+  bool hadSubstFailure = false;
+
+  while (!worklist.empty()) {
+    auto req = worklist.pop_back_val();
+    switch (req.checkRequirement(worklist, /*allowMissing=*/true)) {
+    case CheckRequirementResult::Success:
+    case CheckRequirementResult::ConditionalConformance:
+    case CheckRequirementResult::PackRequirement:
+      break;
+
+    case CheckRequirementResult::RequirementFailure:
+      return CheckGenericArgumentsResult::RequirementFailure;
+
+    case CheckRequirementResult::SubstitutionFailure:
+      hadSubstFailure = true;
+      break;
+    }
+  }
+
+  if (hadSubstFailure)
+    return CheckGenericArgumentsResult::SubstitutionFailure;
+
+  return CheckGenericArgumentsResult::Success;
+}
+
 Requirement
 RequirementRequest::evaluate(Evaluator &evaluator,
                              WhereClauseOwner owner,

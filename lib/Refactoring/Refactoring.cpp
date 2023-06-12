@@ -8754,40 +8754,6 @@ getMacroExpansionBuffers(SourceManager &sourceMgr, ResolvedCursorInfoPtr Info) {
   return {};
 }
 
-/// Given the expanded code for a particular macro, perform whitespace
-/// adjustments to make the refactoring more suitable for inline insertion.
-static StringRef adjustMacroExpansionWhitespace(
-    GeneratedSourceInfo::Kind kind, StringRef expandedCode,
-    llvm::SmallString<64> &scratch) {
-  scratch.clear();
-
-  switch (kind) {
-  case GeneratedSourceInfo::MemberAttributeMacroExpansion:
-    // Attributes are added to the beginning, add a space to separate from
-    // any existing.
-    scratch += expandedCode;
-    scratch += " ";
-    return scratch;
-
-  case GeneratedSourceInfo::MemberMacroExpansion:
-  case GeneratedSourceInfo::PeerMacroExpansion:
-  case GeneratedSourceInfo::ConformanceMacroExpansion:
-    // All added to the end. Note that conformances are always expanded as
-    // extensions, hence treating them the same as peer.
-    scratch += "\n\n";
-    scratch += expandedCode;
-    scratch += "\n";
-    return scratch;
-
-  case GeneratedSourceInfo::ExpressionMacroExpansion:
-  case GeneratedSourceInfo::FreestandingDeclMacroExpansion:
-  case GeneratedSourceInfo::AccessorMacroExpansion:
-  case GeneratedSourceInfo::ReplacedFunctionBody:
-  case GeneratedSourceInfo::PrettyPrinted:
-    return expandedCode;
-  }
-}
-
 static bool expandMacro(SourceManager &SM, ResolvedCursorInfoPtr cursorInfo,
                         SourceEditConsumer &editConsumer, bool adjustExpansion) {
   auto bufferIDs = getMacroExpansionBuffers(SM, cursorInfo);
@@ -8799,68 +8765,19 @@ static bool expandMacro(SourceManager &SM, ResolvedCursorInfoPtr cursorInfo,
     return true;
 
   // Send all of the rewritten buffer snippets.
-  CustomAttr *attachedMacroAttr = nullptr;
-  SmallString<64> scratchBuffer;
   for (auto bufferID: bufferIDs) {
-    auto generatedInfo = SM.getGeneratedSourceInfo(bufferID);
-    if (!generatedInfo || generatedInfo->originalSourceRange.isInvalid())
-      continue;
-
-    auto rewrittenBuffer = SM.extractText(generatedInfo->generatedSourceRange);
-
-    // If there's no change, drop the edit entirely.
-    if (generatedInfo->originalSourceRange.getStart() ==
-          generatedInfo->originalSourceRange.getEnd() &&
-        rewrittenBuffer.empty())
-      continue;
-
-    if (adjustExpansion) {
-      rewrittenBuffer = adjustMacroExpansionWhitespace(generatedInfo->kind, rewrittenBuffer, scratchBuffer);
-    }
-
-    // `containingFile` is the file of the actual expansion site, where as
-    // `originalFile` is the possibly enclosing buffer. Concretely:
-    // ```
-    // // m.swift
-    // @AddMemberAttributes
-    // struct Foo {
-    //   // --- expanded from @AddMemberAttributes eg. @_someBufferName ---
-    //   @AddedAttribute
-    //   // ---
-    //   let someMember: Int
-    // }
-    // ```
-    //
-    // When expanding `AddedAttribute`, the expansion actually applies to the
-    // original source (`m.swift`) rather than the buffer of the expansion
-    // site (`@_someBufferName`). Thus, we need to include the path to the
-    // original source as well. Note that this path could itself be another
-    // expansion.
-    auto originalSourceRange = generatedInfo->originalSourceRange;
-    SourceFile *originalFile =
-        containingSF->getParentModule()->getSourceFileContainingLocation(originalSourceRange.getStart());
-    StringRef originalPath;
-    if (originalFile->getBufferID().hasValue() &&
-        containingSF->getBufferID() != originalFile->getBufferID()) {
-      originalPath = SM.getIdentifierForBuffer(*originalFile->getBufferID());
-    }
-
-    editConsumer.accept(SM, {originalPath,
-                             originalSourceRange,
-                             SM.getIdentifierForBuffer(bufferID),
-                             rewrittenBuffer,
-                             {}});
-
-    if (generatedInfo->attachedMacroCustomAttr && !attachedMacroAttr)
-      attachedMacroAttr = generatedInfo->attachedMacroCustomAttr;
+    editConsumer.acceptMacroExpansionBuffer(SM, bufferID, containingSF,
+                                            adjustExpansion, /*includeBufferName=*/true);
   }
 
   // For an attached macro, remove the custom attribute; it's been fully
   // subsumed by its expansions.
-  if (attachedMacroAttr) {
+  if (auto attrRef =
+          cast<ResolvedValueRefCursorInfo>(cursorInfo)->getCustomAttrRef()) {
+    const CustomAttr *attachedMacroAttr = attrRef->first;
     SourceRange range = attachedMacroAttr->getRangeWithAt();
     auto charRange = Lexer::getCharSourceRangeFromSourceRange(SM, range);
-    editConsumer.accept(SM, charRange, StringRef());
+    editConsumer.remove(SM, charRange);
   }
 
   return false;

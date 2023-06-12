@@ -951,3 +951,7 @@ let _ = "foo \(42 /*
 // expected-error @-3 {{cannot find ')' to match opening '(' in string interpolation}} expected-error @-3 {{unterminated string literal}}
 // expected-error @-2 {{expected expression}}
 // expected-error @-3 {{unterminated string literal}}
+
+// https://github.com/apple/swift/issues/66192
+func I66192(_: Int) {}
+I66192(true ? "yes" : "no") // expected-error{{cannot convert value of type 'String' to expected argument type 'Int'}}

@@ -58,7 +58,8 @@ extension Task where Success == Never, Failure == Never {
               let sleepTaskFlags = taskCreateFlags(
                 priority: nil, isChildTask: false, copyTaskLocals: false,
                 inheritContext: false, enqueueJob: false,
-                addPendingGroupTaskUnconditionally: false)
+                addPendingGroupTaskUnconditionally: false,
+                isDiscardingTask: false)
               let (sleepTask, _) = Builtin.createAsyncTask(sleepTaskFlags) {
                 onSleepWake(wordPtr)
               }

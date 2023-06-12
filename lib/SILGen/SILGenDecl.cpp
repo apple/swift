@@ -509,6 +509,25 @@ public:
     // The box type's context is lowered in the minimal resilience domain.
     auto instanceType = SGF.SGM.Types.getLoweredRValueType(
         TypeExpansionContext::minimal(), decl->getType());
+
+    // If we have a no implicit copy param decl, make our instance type
+    // @moveOnly.
+    if (!instanceType->isPureMoveOnly()) {
+      if (auto *pd = dyn_cast<ParamDecl>(decl)) {
+        bool isNoImplicitCopy = pd->isNoImplicitCopy();
+        isNoImplicitCopy |= pd->getSpecifier() == ParamSpecifier::Consuming;
+        if (pd->isSelfParameter()) {
+          auto *dc = pd->getDeclContext();
+          if (auto *fn = dyn_cast<FuncDecl>(dc)) {
+            auto accessKind = fn->getSelfAccessKind();
+            isNoImplicitCopy |= accessKind == SelfAccessKind::Consuming;
+          }
+        }
+        if (isNoImplicitCopy)
+          instanceType = SILMoveOnlyWrappedType::get(instanceType);
+      }
+    }
+
     auto boxType = SGF.SGM.Types.getContextBoxTypeForCapture(
         decl, instanceType, SGF.F.getGenericEnvironment(),
         /*mutable*/ !instanceType->isPureMoveOnly() || !decl->isLet());
@@ -519,12 +538,10 @@ public:
     Optional<SILDebugVariable> DbgVar;
     if (generateDebugInfo)
       DbgVar = SILDebugVariable(decl->isLet(), ArgNo);
-    Box = SGF.B.createAllocBox(decl, boxType, DbgVar, false, false, false
-#ifndef NDEBUG
-                               ,
-                               !generateDebugInfo
-#endif
-    );
+    Box = SGF.B.createAllocBox(
+        decl, boxType, DbgVar, /*hasDynamicLifetime*/ false,
+        /*reflection*/ false, /*usesMoveableValueDebugInfo*/ false,
+        !generateDebugInfo);
 
     // Mark the memory as uninitialized, so DI will track it for us.
     if (kind)
@@ -1608,11 +1625,13 @@ void SILGenFunction::visitVarDecl(VarDecl *D) {
 }
 
 void SILGenFunction::visitMacroExpansionDecl(MacroExpansionDecl *D) {
-  D->forEachExpandedExprOrStmt([&](ASTNode node) {
+  D->forEachExpandedNode([&](ASTNode node) {
     if (auto *expr = node.dyn_cast<Expr *>())
       emitIgnoredExpr(expr);
     else if (auto *stmt = node.dyn_cast<Stmt *>())
       emitStmt(stmt);
+    else
+      visit(node.get<Decl *>());
   });
 }
 
@@ -1789,8 +1808,10 @@ void SILGenFunction::emitStmtCondition(StmtCondition Cond, JumpDest FalseDest,
 
 InitializationPtr SILGenFunction::emitPatternBindingInitialization(
     Pattern *P, JumpDest failureDest, bool generateDebugInfo) {
-  return InitializationForPattern(*this, failureDest, generateDebugInfo)
-      .visit(P);
+  auto init =
+      InitializationForPattern(*this, failureDest, generateDebugInfo).visit(P);
+  init->setEmitDebugValueOnInit(generateDebugInfo);
+  return init;
 }
 
 /// Enter a cleanup to deallocate the given location.
@@ -1964,6 +1985,9 @@ InitializationPtr SILGenFunction::emitLocalVariableWithCleanup(
 std::unique_ptr<TemporaryInitialization>
 SILGenFunction::emitTemporary(SILLocation loc, const TypeLowering &tempTL) {
   SILValue addr = emitTemporaryAllocation(loc, tempTL.getLoweredType());
+  if (addr->getType().isMoveOnly())
+    addr = B.createMarkMustCheckInst(
+        loc, addr, MarkMustCheckInst::CheckKind::ConsumableAndAssignable);
   return useBufferAsTemporary(addr, tempTL);
 }
 
@@ -1971,6 +1995,9 @@ std::unique_ptr<TemporaryInitialization>
 SILGenFunction::emitFormalAccessTemporary(SILLocation loc,
                                           const TypeLowering &tempTL) {
   SILValue addr = emitTemporaryAllocation(loc, tempTL.getLoweredType());
+  if (addr->getType().isMoveOnly())
+    addr = B.createMarkMustCheckInst(
+        loc, addr, MarkMustCheckInst::CheckKind::ConsumableAndAssignable);
   CleanupHandle cleanup =
       enterDormantFormalAccessTemporaryCleanup(addr, loc, tempTL);
   return std::unique_ptr<TemporaryInitialization>(

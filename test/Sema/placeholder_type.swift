@@ -147,15 +147,15 @@ let _ = [_].otherStaticMember.method()
 func f(x: Any, arr: [Int]) {
     // FIXME: Better diagnostics here. Maybe we should suggest replacing placeholders with 'Any'?
 
-    if x is _ {} // expected-error {{type placeholder not allowed here}} expected-error {{type of expression is ambiguous without more context}}
-    if x is [_] {} // expected-error {{type of expression is ambiguous without more context}}
-    if x is () -> _ {} // expected-error {{type of expression is ambiguous without more context}}
-    if let y = x as? _ {} // expected-error {{type placeholder not allowed here}} expected-error {{type of expression is ambiguous without more context}}
-    if let y = x as? [_] {} // expected-error {{type of expression is ambiguous without more context}}
-    if let y = x as? () -> _ {} // expected-error {{type of expression is ambiguous without more context}}
-    let y1 = x as! _ // expected-error {{type placeholder not allowed here}} expected-error {{type of expression is ambiguous without more context}}
-    let y2 = x as! [_] // expected-error {{type of expression is ambiguous without more context}}
-    let y3 = x as! () -> _ // expected-error {{type of expression is ambiguous without more context}}
+    if x is _ {} // expected-error {{type placeholder not allowed here}} expected-error {{type of expression is ambiguous without a type annotation}}
+    if x is [_] {} // expected-error {{type of expression is ambiguous without a type annotation}}
+    if x is () -> _ {} // expected-error {{type of expression is ambiguous without a type annotation}}
+    if let y = x as? _ {} // expected-error {{type placeholder not allowed here}} expected-error {{type of expression is ambiguous without a type annotation}}
+    if let y = x as? [_] {} // expected-error {{type of expression is ambiguous without a type annotation}}
+    if let y = x as? () -> _ {} // expected-error {{type of expression is ambiguous without a type annotation}}
+    let y1 = x as! _ // expected-error {{type placeholder not allowed here}} expected-error {{type of expression is ambiguous without a type annotation}}
+    let y2 = x as! [_] // expected-error {{type of expression is ambiguous without a type annotation}}
+    let y3 = x as! () -> _ // expected-error {{type of expression is ambiguous without a type annotation}}
 
     switch x {
     case is _: break // expected-error {{type placeholder not allowed here}}
@@ -166,15 +166,15 @@ func f(x: Any, arr: [Int]) {
     case let y as () -> _: break // expected-error {{type placeholder not allowed here}}
     }
 
-    if arr is _ {} // expected-error {{type placeholder not allowed here}} expected-error {{type of expression is ambiguous without more context}}
-    if arr is [_] {} // expected-error {{type of expression is ambiguous without more context}}
-    if arr is () -> _ {} // expected-error {{type of expression is ambiguous without more context}}
-    if let y = arr as? _ {} // expected-error {{type placeholder not allowed here}} expected-error {{type of expression is ambiguous without more context}}
-    if let y = arr as? [_] {} // expected-error {{type of expression is ambiguous without more context}}
-    if let y = arr as? () -> _ {} // expected-error {{type of expression is ambiguous without more context}}
-    let y1 = arr as! _ // expected-error {{type placeholder not allowed here}} expected-error {{type of expression is ambiguous without more context}}
-    let y2 = arr as! [_] // expected-error {{type of expression is ambiguous without more context}}
-    let y3 = arr as! () -> _ // expected-error {{type of expression is ambiguous without more context}}
+    if arr is _ {} // expected-error {{type placeholder not allowed here}} expected-error {{type of expression is ambiguous without a type annotation}}
+    if arr is [_] {} // expected-error {{type of expression is ambiguous without a type annotation}}
+    if arr is () -> _ {} // expected-error {{type of expression is ambiguous without a type annotation}}
+    if let y = arr as? _ {} // expected-error {{type placeholder not allowed here}} expected-error {{type of expression is ambiguous without a type annotation}}
+    if let y = arr as? [_] {} // expected-error {{type of expression is ambiguous without a type annotation}}
+    if let y = arr as? () -> _ {} // expected-error {{type of expression is ambiguous without a type annotation}}
+    let y1 = arr as! _ // expected-error {{type placeholder not allowed here}} expected-error {{type of expression is ambiguous without a type annotation}}
+    let y2 = arr as! [_] // expected-error {{type of expression is ambiguous without a type annotation}}
+    let y3 = arr as! () -> _ // expected-error {{type of expression is ambiguous without a type annotation}}
 
     switch arr {
     case is _: break // expected-error {{type placeholder not allowed here}}

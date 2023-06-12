@@ -39,6 +39,30 @@ SILValue swift::lookThroughOwnershipInsts(SILValue v) {
   }
 }
 
+bool swift::visitNonOwnershipUses(SILValue value,
+                                  function_ref<bool(Operand *)> visitor) {
+  // All ownership insts have a single operand, so a recursive walk is
+  // sufficient and cannot revisit operands.
+  for (Operand *use : value->getUses()) {
+    auto *user = use->getUser();
+    switch (user->getKind()) {
+    default:
+      if (!visitor(use))
+        return false;
+
+      break;
+    case SILInstructionKind::MoveValueInst:
+    case SILInstructionKind::CopyValueInst:
+    case SILInstructionKind::BeginBorrowInst:
+      if (!visitNonOwnershipUses(cast<SingleValueInstruction>(user), visitor))
+        return false;
+
+      break;
+    }
+  }
+  return true;
+}
+
 SILValue swift::lookThroughCopyValueInsts(SILValue val) {
   while (auto *cvi =
              dyn_cast_or_null<CopyValueInst>(val->getDefiningInstruction())) {
@@ -379,6 +403,25 @@ bool swift::onlyUsedByAssignByWrapper(PartialApplyInst *PAI) {
   return usedByAssignByWrapper;
 }
 
+bool swift::onlyUsedByAssignOrInit(PartialApplyInst *PAI) {
+  bool usedByAssignOrInit = false;
+  for (Operand *Op : PAI->getUses()) {
+    SILInstruction *user = Op->getUser();
+    if (isa<AssignOrInitInst>(user)) {
+      usedByAssignOrInit = true;
+      continue;
+    }
+
+    if (isa<DestroyValueInst>(user)) {
+      continue;
+    }
+
+    return false;
+  }
+
+  return usedByAssignOrInit;
+}
+
 static RuntimeEffect metadataEffect(SILType ty) {
   ClassDecl *cl = ty.getClassOrBoundGenericClass();
   if (cl && !cl->hasKnownSwiftImplementation())
@@ -435,6 +478,9 @@ RuntimeEffect swift::getRuntimeEffect(SILInstruction *inst, SILType &impactType)
   case SILInstructionKind::BridgeObjectToWordInst:
   case SILInstructionKind::ThinToThickFunctionInst:
   case SILInstructionKind::ThickToObjCMetatypeInst:
+  case SILInstructionKind::MoveOnlyWrapperToCopyableAddrInst:
+  case SILInstructionKind::MoveOnlyWrapperToCopyableBoxInst:
+  case SILInstructionKind::CopyableToMoveOnlyWrapperAddrInst:
   case SILInstructionKind::ObjCMetatypeToObjectInst:
   case SILInstructionKind::ObjCExistentialMetatypeToObjectInst:
   case SILInstructionKind::ClassifyBridgeObjectInst:
@@ -484,6 +530,9 @@ RuntimeEffect swift::getRuntimeEffect(SILInstruction *inst, SILType &impactType)
   case SILInstructionKind::DeallocStackInst:
   case SILInstructionKind::DeallocStackRefInst:
   case SILInstructionKind::DeallocPackInst:
+  // This instruction just destroys stack allocations where metadata pointers
+  // have been stored.
+  case SILInstructionKind::DeallocPackMetadataInst:
   case SILInstructionKind::AutoreleaseValueInst:
   case SILInstructionKind::BindMemoryInst:
   case SILInstructionKind::RebindMemoryInst:
@@ -491,6 +540,7 @@ RuntimeEffect swift::getRuntimeEffect(SILInstruction *inst, SILType &impactType)
   case SILInstructionKind::EndBorrowInst:
   case SILInstructionKind::AssignInst:
   case SILInstructionKind::AssignByWrapperInst:
+  case SILInstructionKind::AssignOrInitInst:
   case SILInstructionKind::MarkFunctionEscapeInst:
   case SILInstructionKind::EndLifetimeInst:
   case SILInstructionKind::EndApplyInst:
@@ -630,6 +680,10 @@ RuntimeEffect swift::getRuntimeEffect(SILInstruction *inst, SILType &impactType)
 
   case SILInstructionKind::AllocPackInst:
     // Just conservatively assume this has metadata impact.
+    return RuntimeEffect::MetaData;
+  case SILInstructionKind::AllocPackMetadataInst:
+    // Currently this instruction has no effect but in the fullness of time it
+    // will have a metadata effect.
     return RuntimeEffect::MetaData;
 
   case SILInstructionKind::AllocStackInst:

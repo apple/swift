@@ -786,7 +786,7 @@ static void emitApplyArgument(IRGenFunction &IGF,
   if (!isSubstituted) {
     auto &substArgTI = cast<LoadableTypeInfo>(
         IGF.getTypeInfo(silConv.getSILType(substParam, substFnTy, context)));
-    substArgTI.reexplode(IGF, in, out);
+    substArgTI.reexplode(in, out);
     return;
   }
 

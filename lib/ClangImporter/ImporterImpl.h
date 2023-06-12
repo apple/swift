@@ -642,10 +642,14 @@ public:
   llvm::MapVector<std::pair<NominalTypeDecl *, Type>,
                   std::pair<FuncDecl *, FuncDecl *>> cxxSubscripts;
 
+private:
   // Keep track of the decls that were already cloned for this specific class.
   llvm::DenseMap<std::pair<ValueDecl *, DeclContext *>, ValueDecl *>
       clonedBaseMembers;
 
+  ValueDecl *importBaseMemberDecl(ValueDecl *decl, DeclContext *newContext);
+
+public:
   // Cache for already-specialized function templates and any thunks they may
   // have.
   llvm::DenseMap<clang::FunctionDecl *, ValueDecl *>

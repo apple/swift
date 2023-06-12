@@ -81,6 +81,8 @@ static StringRef getCodeForAccessorKind(AccessorKind kind) {
     return "lu";
   case AccessorKind::MutableAddress:
     return "au";
+  case AccessorKind::Init:
+    return "i";
   }
   llvm_unreachable("bad accessor kind");
 }
@@ -659,7 +661,8 @@ static Type getTypeForDWARFMangling(Type t) {
       return t;
     },
     MakeAbstractConformanceForGenericType(),
-    SubstFlags::AllowLoweredTypes);
+    SubstFlags::AllowLoweredTypes |
+    SubstFlags::PreservePackExpansionLevel);
 }
 
 std::string ASTMangler::mangleTypeForDebugger(Type Ty, GenericSignature sig) {
@@ -1282,6 +1285,16 @@ void ASTMangler::appendType(Type type, GenericSignature sig,
       appendType(expansionTy->getPatternType(), sig, forDecl);
       appendType(expansionTy->getCountType(), sig, forDecl);
       appendOperator("Qp");
+      return;
+    }
+
+    case TypeKind::PackElement: {
+      auto elementType = cast<PackElementType>(tybase);
+      appendType(elementType->getPackType(), sig, forDecl);
+      // If this ever changes, just mangle level 0 as a plain type parameter.
+      assert(elementType->getLevel() > 0);
+      appendOperator("Qe", Index(elementType->getLevel() - 1));
+
       return;
     }
 
@@ -4020,26 +4033,23 @@ static StringRef getPrivateDiscriminatorIfNecessary(
   return discriminator.str();
 }
 
-std::string ASTMangler::mangleMacroExpansion(
-    const MacroExpansionExpr *expansion) {
-  beginMangling();
-  appendMacroExpansionContext(expansion->getLoc(), expansion->getDeclContext());
-  auto privateDiscriminator = getPrivateDiscriminatorIfNecessary(expansion);
-  if (!privateDiscriminator.empty()) {
-    appendIdentifier(privateDiscriminator);
-    appendOperator("Ll");
+static StringRef getPrivateDiscriminatorIfNecessary(
+    const FreestandingMacroExpansion *expansion) {
+  switch (expansion->getFreestandingMacroKind()) {
+  case FreestandingMacroKind::Expr:
+    return getPrivateDiscriminatorIfNecessary(
+        cast<MacroExpansionExpr>(expansion));
+  case FreestandingMacroKind::Decl:
+    return getPrivateDiscriminatorIfNecessary(
+        cast<Decl>(cast<MacroExpansionDecl>(expansion)));
   }
-  appendMacroExpansionOperator(
-      expansion->getMacroName().getBaseName().userFacingName(),
-      MacroRole::Expression,
-      expansion->getDiscriminator());
-  return finalize();
 }
 
-std::string ASTMangler::mangleMacroExpansion(
-    const MacroExpansionDecl *expansion) {
+std::string
+ASTMangler::mangleMacroExpansion(const FreestandingMacroExpansion *expansion) {
   beginMangling();
-  appendMacroExpansionContext(expansion->getLoc(), expansion->getDeclContext());
+  appendMacroExpansionContext(expansion->getPoundLoc(),
+                              expansion->getDeclContext());
   auto privateDiscriminator = getPrivateDiscriminatorIfNecessary(expansion);
   if (!privateDiscriminator.empty()) {
     appendIdentifier(privateDiscriminator);

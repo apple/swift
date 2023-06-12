@@ -63,8 +63,6 @@ Evaluator::Evaluator(DiagnosticEngine &diags, const LangOptions &opts)
 bool Evaluator::checkDependency(const ActiveRequest &request) {
   // Record this as an active request.
   if (activeRequests.insert(request)) {
-    if (request.getAs<ResolveMacroRequest>())
-      ++numActiveResolveMacroRequests;
     return false;
   }
 
@@ -74,9 +72,6 @@ bool Evaluator::checkDependency(const ActiveRequest &request) {
 }
 
 void Evaluator::finishedRequest(const ActiveRequest &request) {
-  if (request.getAs<ResolveMacroRequest>())
-    --numActiveResolveMacroRequests;
-
   assert(activeRequests.back() == request);
   activeRequests.pop_back();
 }

@@ -526,6 +526,22 @@ static void replaceProjectBoxUsers(SILValue heapBox, SILValue stackBox) {
   }
 }
 
+static void replaceAllNonDebugUsesWith(SILValue value,
+                                       SILValue with) {
+  auto useI = value->use_begin();
+  while (useI != value->use_end()) {
+    Operand *op = *useI;
+    ++useI;
+    // Leave debug instructions on the original value.
+    if (op->getUser()->isDebugInstruction()) {
+      continue;
+    }
+    
+    // Rewrite all other uses.
+    op->set(with);
+  }
+}
+
 static void hoistMarkMustCheckInsts(SILValue stackBox,
                                     MarkMustCheckInst::CheckKind checkKind) {
   StackList<Operand *> worklist(stackBox->getFunction());
@@ -571,7 +587,9 @@ static void hoistMarkMustCheckInsts(SILValue stackBox,
   auto *undef = SILUndef::get(stackBox->getType(), *stackBox->getModule());
 
   auto *mmci = builder.createMarkMustCheckInst(loc, undef, checkKind);
-  stackBox->replaceAllUsesWith(mmci);
+  // Leave debug uses on the to-be-promoted box, but hoist all other uses to the
+  // new mark_must_check.
+  replaceAllNonDebugUsesWith(stackBox, mmci);
   mmci->setOperand(stackBox);
 }
 

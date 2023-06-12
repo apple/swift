@@ -194,7 +194,8 @@ void ContextInfoCallbacks::getImplicitMembers(
 
   } LocalConsumer(CurDeclContext, T, Result);
 
-  lookupVisibleMemberDecls(LocalConsumer, MetatypeType::get(T), CurDeclContext,
+  lookupVisibleMemberDecls(LocalConsumer, MetatypeType::get(T),
+                           Loc, CurDeclContext,
                            /*includeInstanceMembers=*/false,
                            /*includeDerivedRequirements*/false,
                            /*includeProtocolExtensionMembers*/true);

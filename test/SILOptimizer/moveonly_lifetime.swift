@@ -1,7 +1,8 @@
 // RUN: %target-swift-emit-sil -sil-verify-all -module-name moveonly_lifetime -o /dev/null -Xllvm -sil-print-canonical-module -Onone -verify -enable-experimental-feature MoveOnlyClasses %s 2>&1 | %FileCheck %s
 
-@_moveOnly
-class C {}
+struct C : ~Copyable {
+    deinit {}
+}
 
 @_silgen_name("getC")
 func getC() -> C
@@ -37,9 +38,7 @@ func something()
 // CHECK:         apply [[BORROW_C]]([[INSTANCE]])
 //
 // TODO: Once we maximize lifetimes this should be below something.
-// CHECK:         [[DESTROY_C:%[^,]+]] = function_ref @$s17moveonly_lifetime1CCfD
-// CHECK:         [[INSTANCE:%.*]] = load [take] [[STACK]]
-// CHECK:         apply [[DESTROY_C]]([[INSTANCE]])
+// CHECK:         destroy_addr [[STACK]]
 //
 // CHECK:         [[SOMETHING:%[^,]+]] = function_ref @something
 // CHECK:         apply [[SOMETHING]]

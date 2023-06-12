@@ -372,7 +372,7 @@ public:
 
 /// Collect function (or subscript) members with the given \p name on \p baseTy.
 static void collectPossibleCalleesByQualifiedLookup(
-    DeclContext &DC, Type baseTy, DeclNameRef name,
+    DeclContext &DC, Type baseTy, DeclNameRef name, SourceLoc loc,
     SmallVectorImpl<FunctionTypeAndDecl> &candidates) {
   auto baseInstanceTy = baseTy->getMetatypeInstanceType();
   if (!baseInstanceTy->mayHaveMembers())
@@ -395,7 +395,7 @@ static void collectPossibleCalleesByQualifiedLookup(
 
   SmallVector<ValueDecl *, 2> decls;
   if (!DC.lookupQualified(baseInstanceTy,
-                          name.withoutArgumentLabels(),
+                          name.withoutArgumentLabels(), loc,
                           NL_QualifiedDefault | NL_ProtocolMembers,
                           decls))
     return;
@@ -522,7 +522,9 @@ static void collectPossibleCalleesByQualifiedLookup(
     }
   }
 
-  collectPossibleCalleesByQualifiedLookup(DC, baseTy, name, candidates);
+  collectPossibleCalleesByQualifiedLookup(DC, baseTy, name,
+                                          baseExpr->getLoc(),
+                                          candidates);
 
   // Add virtual 'subscript<Value>(keyPath: KeyPath<Root, Value>) -> Value'.
   if (name.getBaseName() == DeclBaseName::createSubscript() &&
@@ -553,6 +555,7 @@ static bool collectPossibleCalleesForUnresolvedMember(
       return;
     collectPossibleCalleesByQualifiedLookup(DC, MetatypeType::get(expectedTy),
                                             unresolvedMemberExpr->getName(),
+                                            unresolvedMemberExpr->getLoc(),
                                             candidates);
   };
 

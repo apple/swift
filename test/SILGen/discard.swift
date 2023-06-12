@@ -1,6 +1,10 @@
 // RUN: %target-swift-emit-silgen -enable-experimental-feature MoveOnlyEnumDeinits -module-name test %s | %FileCheck %s --enable-var-scope
 // RUN: %target-swift-emit-sil -enable-experimental-feature MoveOnlyEnumDeinits -module-name test -sil-verify-all %s | %FileCheck %s --check-prefix CHECK-SIL --enable-var-scope
 
+// Swift sources are require to remove struct_extract so this check-not line passes:
+// "CHECK-SIL-NOT: struct_extract"
+// REQUIRES: swift_in_compiler
+
 func invokedDeinit() {}
 
 @_moveOnly enum MaybeFile {
@@ -25,10 +29,16 @@ func invokedDeinit() {}
   // CHECK:    [[SELF_MMC:%.*]] = mark_must_check [no_consume_or_assign] [[SELF_REF]] : $*MaybeFile
   // CHECK:    [[SELF_VAL:%.*]] = load [copy] [[SELF_MMC]] : $*MaybeFile
   // CHECK:    [[DD:%.*]] = drop_deinit [[SELF_VAL]] : $MaybeFile
-  // CHECK:    switch_enum [[DD]] : $MaybeFile, case #MaybeFile.some!enumelt: bb1, case #MaybeFile.none!enumelt: bb2
+  // CHECK:    destroy_value [[DD]] : $MaybeFile
+
+  // CHECK-SIL-LABEL: sil hidden @$s4test9MaybeFileOAASivg
+  // CHECK-SIL:    [[SELF_STACK:%.*]] = alloc_stack $MaybeFile, let, name "self", argno 1
+  // CHECK-SIL:    store {{.*}}
+  // CHECK-SIL:    [[SELF_VAL:%.*]] = load [[SELF_STACK]] : $*MaybeFile
+  // CHECK-SIL:    switch_enum [[SELF_VAL]] : $MaybeFile, case #MaybeFile.some!enumelt: bb1, case #MaybeFile.none!enumelt: bb2
   //
-  // CHECK:  bb1([[FILE:%.*]] : @owned $File):
-  // CHECK:    destroy_value [[FILE]] : $File
+  // CHECK-SIL:  bb1([[FILE:%.*]] : $File):
+  // CHECK-SIL:    release_value [[FILE]] : $File
 }
 
 @_moveOnly struct File {
@@ -54,7 +64,7 @@ func invokedDeinit() {}
   // CHECK:  [[SELF_MMC:%.*]] = mark_must_check [no_consume_or_assign] [[SELF_REF]] : $*File
   // CHECK:  [[SELF_VAL:%.*]] = load [copy] [[SELF_MMC]] : $*File
   // CHECK:  [[DD:%.*]] = drop_deinit [[SELF_VAL]] : $File
-  // CHECK:  end_lifetime [[DD]] : $File
+  // CHECK:  destroy_value [[DD]] : $File
 
   deinit {
     invokedDeinit()
@@ -70,6 +80,8 @@ func invokedDeinit() {}
   consuming func tryDestroy(doDiscard: Bool) throws {
     if doDiscard {
       discard self
+    } else {
+     _ = consume self
     }
     throw E.err
   }
@@ -88,7 +100,7 @@ func invokedDeinit() {}
 // CHECK:     [[COPIED_SELF:%.*]] = load [copy] [[MMC]] : $*PointerTree
 // CHECK:     end_access [[ACCESS]] : $*PointerTree
 // CHECK:     [[DD:%.*]] = drop_deinit [[COPIED_SELF]]
-// CHECK:     end_lifetime [[DD]]
+// CHECK:     destroy_value [[DD]]
 // CHECK:     br bb3
 //
 // CHECK:   bb2:
@@ -114,9 +126,7 @@ func invokedDeinit() {}
 // CHECK-SIL:     br bb3
 //
 // CHECK-SIL:  bb2:
-// CHECK-SIL:     [[TREE_DEINIT:%.*]] = function_ref @$s4test11PointerTreeVfD : $@convention(method) (@owned PointerTree) -> ()
-// CHECK-SIL:     [[SELF_VAL:%.*]] = load {{.*}} : $*PointerTree
-// CHECK-SIL:     apply [[TREE_DEINIT]]([[SELF_VAL]]) : $@convention(method) (@owned PointerTree) -> ()
+// CHECK-SIL:     destroy_addr %{{.*}} : $*PointerTree
 // CHECK-SIL:     br bb3
 //
 // CHECK-SIL:  bb3:
@@ -139,35 +149,42 @@ final class Wallet {
 
   consuming func changeTicket(inWallet wallet: Wallet? = nil) {
     if let existingWallet = wallet {
-      discard self
       self = .within(existingWallet)
+      _ = consume self
+    } else {
+      discard self
     }
   }
-  // As of now, we allow reinitialization after discard. Not sure if this is intended.
+
   // CHECK-LABEL: sil hidden [ossa] @$s4test6TicketO06changeB08inWalletyAA0E0CSg_tF : $@convention(method) (@guaranteed Optional<Wallet>, @owned Ticket) -> () {
   // CHECK:    [[SELF_REF:%.*]] = project_box [[SELF_BOX:%.*]] : ${ var Ticket }, 0
-  // CHECK:    switch_enum {{.*}} : $Optional<Wallet>, case #Optional.some!enumelt: [[HAVE_WALLET_BB:bb.*]], case #Optional.none!enumelt: {{.*}}
+  // CHECK:    switch_enum {{.*}} : $Optional<Wallet>, case #Optional.some!enumelt: {{.*}}, case #Optional.none!enumelt: [[NO_WALLET_BB:bb[0-9]+]]
   //
   // >> now we begin the destruction sequence, which involves pattern matching on self to destroy its innards
-  // CHECK:  [[HAVE_WALLET_BB]]({{%.*}} : @owned $Wallet):
+  // CHECK:  [[NO_WALLET_BB]]
   // CHECK:    [[SELF_ACCESS:%.*]] = begin_access [read] [unknown] {{%.*}} : $*Ticket
   // CHECK:    [[SELF_MMC:%.*]] = mark_must_check [no_consume_or_assign] [[SELF_ACCESS]]
   // CHECK:    [[SELF_COPY:%.*]] = load [copy] [[SELF_MMC]] : $*Ticket
   // CHECK:    end_access [[SELF_ACCESS:%.*]] : $*Ticket
   // CHECK:    [[DD:%.*]] = drop_deinit [[SELF_COPY]] : $Ticket
-  // CHECK:    switch_enum [[DD]] : $Ticket, case #Ticket.empty!enumelt: [[TICKET_EMPTY:bb[0-9]+]], case #Ticket.within!enumelt: [[TICKET_WITHIN:bb[0-9]+]]
-  // CHECK:  [[TICKET_EMPTY]]:
-  // CHECK:    br [[JOIN_POINT:bb[0-9]+]]
-  // CHECK:  [[TICKET_WITHIN]]([[PREV_SELF_WALLET:%.*]] : @owned $Wallet):
-  // CHECK:    destroy_value [[PREV_SELF_WALLET]] : $Wallet
-  // CHECK:    br [[JOIN_POINT]]
-  // >> from here on we are reinitializing self.
-  // CHECK:  [[JOIN_POINT]]:
-  // CHECK:    [[NEW_SELF_VAL:%.*]] = enum $Ticket, #Ticket.within!enumelt, {{.*}} : $Wallet
-  // CHECK:    [[SELF_ACCESS2:%.*]] = begin_access [modify] [unknown] [[SELF_REF]] : $*Ticket
-  // CHECK:    [[SELF_MMC2:%.*]] = mark_must_check [assignable_but_not_consumable] [[SELF_ACCESS2]] : $*Ticket
-  // CHECK:    assign [[NEW_SELF_VAL]] to [[SELF_MMC2]] : $*Ticket
-  // CHECK:    end_access [[SELF_ACCESS2]] : $*Ticket
+  // CHECK:    destroy_value [[DD]] : $Ticket
+
+  // CHECK-SIL-LABEL: sil hidden @$s4test6TicketO06changeB08inWalletyAA0E0CSg_tF : $@convention(method) (@guaranteed Optional<Wallet>, @owned Ticket) -> () {
+  // CHECK-SIL:    [[SELF_REF:%.*]] = alloc_stack [lexical] $Ticket, var, name "self", implicit 
+  // CHECK-SIL:    switch_enum {{.*}} : $Optional<Wallet>, case #Optional.some!enumelt: {{.*}}, case #Optional.none!enumelt: [[NO_WALLET_BB:bb[0-9]+]]
+  //
+  // >> now we begin the destruction sequence, which involves pattern matching on self to destroy its innards
+  // CHECK-SIL:  [[NO_WALLET_BB]]
+  // CHECK-SIL:    [[SELF_ACCESS:%.*]] = begin_access [modify] [static] {{%.*}} : $*Ticket
+  // CHECK-SIL:    [[SELF_COPY:%.*]] = load [[SELF_ACCESS]] : $*Ticket
+  // CHECK-SIL:    end_access [[SELF_ACCESS:%.*]] : $*Ticket
+  // CHECK-SIL:    switch_enum [[SELF_COPY]] : $Ticket, case #Ticket.empty!enumelt: [[TICKET_EMPTY:bb[0-9]+]], case #Ticket.within!enumelt: [[TICKET_WITHIN:bb[0-9]+]]
+  // CHECK-SIL:  [[TICKET_EMPTY]]:
+  // CHECK-SIL:    br [[JOIN_POINT:bb[0-9]+]]
+  // CHECK-SIL:  [[TICKET_WITHIN]]([[PREV_SELF_WALLET:%.*]] : $Wallet):
+  // CHECK-SIL:    strong_release [[PREV_SELF_WALLET]] : $Wallet
+  // CHECK-SIL:    br [[JOIN_POINT]]
+  // CHECK-SIL:  [[JOIN_POINT]]:
 
   deinit {
     print("destroying ticket")

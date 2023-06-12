@@ -35,6 +35,11 @@
 using namespace swift;
 using namespace irgen;
 
+static void cleanupTypeMetadataPackImpl(IRGenFunction &IGF, StackAddress pack,
+                                        llvm::Value *shape);
+static void cleanupWitnessTablePackImpl(IRGenFunction &IGF, StackAddress pack,
+                                        llvm::Value *shape);
+
 static CanPackArchetypeType
 getForwardedPackArchetypeType(CanPackType packType) {
   if (auto expansion = packType.unwrapSingletonPackExpansion())
@@ -210,10 +215,8 @@ static Address emitFixedSizeMetadataPackRef(IRGenFunction &IGF,
   return pack;
 }
 
-/// Use this to index into packs to correctly handle on-heap packs.
-static llvm::Value *loadMetadataAtIndex(IRGenFunction &IGF,
-                                        llvm::Value *patternPack,
-                                        llvm::Value *index) {
+llvm::Value *irgen::maskMetadataPackPointer(IRGenFunction &IGF,
+                                            llvm::Value *patternPack) {
   // If the pack is on the heap, the LSB is set, so mask it off.
   patternPack =
       IGF.Builder.CreatePtrToInt(patternPack, IGF.IGM.SizeTy);
@@ -221,6 +224,14 @@ static llvm::Value *loadMetadataAtIndex(IRGenFunction &IGF,
       IGF.Builder.CreateAnd(patternPack, llvm::ConstantInt::get(IGF.IGM.SizeTy, -2));
   patternPack =
       IGF.Builder.CreateIntToPtr(patternPack, IGF.IGM.TypeMetadataPtrPtrTy);
+  return patternPack;
+}
+
+/// Use this to index into packs to correctly handle on-heap packs.
+static llvm::Value *loadMetadataAtIndex(IRGenFunction &IGF,
+                                        llvm::Value *patternPack,
+                                        llvm::Value *index) {
+  patternPack = maskMetadataPackPointer(IGF, patternPack);
 
   Address patternPackAddress(patternPack, IGF.IGM.TypeMetadataPtrTy,
                              IGF.IGM.getPointerAlignment());
@@ -439,15 +450,17 @@ static void emitPackExpansionMetadataPack(IRGenFunction &IGF, Address pack,
       });
 }
 
-StackAddress
-irgen::emitTypeMetadataPack(IRGenFunction &IGF,
-                            CanPackType packType,
+std::pair<StackAddress, llvm::Value *>
+irgen::emitTypeMetadataPack(IRGenFunction &IGF, CanPackType packType,
                             DynamicMetadataRequest request) {
   auto *shape = IGF.emitPackShapeExpression(packType);
 
   if (auto *constantInt = dyn_cast<llvm::ConstantInt>(shape)) {
     assert(packType->getNumElements() == constantInt->getValue());
-    return StackAddress(emitFixedSizeMetadataPackRef(IGF, packType, request));
+    auto pack =
+        StackAddress(emitFixedSizeMetadataPackRef(IGF, packType, request));
+    IGF.recordStackPackMetadataAlloc(pack, constantInt);
+    return {pack, constantInt};
   }
 
   assert(packType->containsPackExpansionType());
@@ -481,8 +494,15 @@ irgen::emitTypeMetadataPack(IRGenFunction &IGF,
     };
 
   visitPackExplosion(IGF, packType, visitFn);
+  IGF.recordStackPackMetadataAlloc(pack, shape);
 
-  return pack;
+  return {pack, shape};
+}
+
+static Optional<unsigned> countForShape(llvm::Value *shape) {
+  if (auto *constant = dyn_cast<llvm::ConstantInt>(shape))
+    return constant->getValue().getZExtValue();
+  return llvm::None;
 }
 
 MetadataResponse
@@ -491,10 +511,20 @@ irgen::emitTypeMetadataPackRef(IRGenFunction &IGF, CanPackType packType,
   if (auto result = tryGetLocalPackTypeMetadata(IGF, packType, request))
     return result;
 
-  auto pack = emitTypeMetadataPack(IGF, packType, request);
+  StackAddress pack;
+  llvm::Value *shape;
+  std::tie(pack, shape) = emitTypeMetadataPack(IGF, packType, request);
+
   auto *metadata = pack.getAddress().getAddress();
   metadata = IGF.Builder.CreatePointerCast(
       metadata, IGF.IGM.TypeMetadataPtrTy->getPointerTo());
+
+  if (!IGF.canStackPromotePackMetadata()) {
+    metadata = IGF.Builder.CreateCall(
+        IGF.IGM.getAllocateMetadataPackFunctionPointer(), {metadata, shape});
+
+    cleanupTypeMetadataPack(IGF, pack, shape);
+  }
 
   auto response = MetadataResponse::forComplete(metadata);
   IGF.setScopedLocalTypeMetadata(packType, response);
@@ -567,15 +597,17 @@ static void emitPackExpansionWitnessTablePack(
       });
 }
 
-StackAddress irgen::emitWitnessTablePack(IRGenFunction &IGF,
-                                         CanPackType packType,
-                                         PackConformance *packConformance) {
+std::pair<StackAddress, llvm::Value *>
+irgen::emitWitnessTablePack(IRGenFunction &IGF, CanPackType packType,
+                            PackConformance *packConformance) {
   auto *shape = IGF.emitPackShapeExpression(packType);
 
   if (auto *constantInt = dyn_cast<llvm::ConstantInt>(shape)) {
     assert(packType->getNumElements() == constantInt->getValue());
-    return StackAddress(
+    auto pack = StackAddress(
         emitFixedSizeWitnessTablePack(IGF, packType, packConformance));
+    IGF.recordStackPackWitnessTableAlloc(pack, constantInt);
+    return {pack, constantInt};
   }
 
   assert(packType->containsPackExpansionType());
@@ -611,18 +643,75 @@ StackAddress irgen::emitWitnessTablePack(IRGenFunction &IGF,
   };
 
   visitPackExplosion(IGF, packType, visitFn);
+  IGF.recordStackPackWitnessTableAlloc(pack, shape);
 
-  return pack;
+  return {pack, shape};
+}
+
+static void cleanupWitnessTablePackImpl(IRGenFunction &IGF, StackAddress pack,
+                                        llvm::Value *shape) {
+
+  if (pack.getExtraInfo()) {
+    IGF.emitDeallocateDynamicAlloca(pack);
+  } else if (auto count = countForShape(shape)) {
+    IGF.Builder.CreateLifetimeEnd(pack.getAddress(),
+                                  IGF.IGM.getPointerSize() * (count.value()));
+  }
 }
 
 void irgen::cleanupWitnessTablePack(IRGenFunction &IGF, StackAddress pack,
-                                    Optional<unsigned> elementCount) {
-  if (pack.getExtraInfo()) {
-    IGF.emitDeallocateDynamicAlloca(pack);
-  } else {
-    IGF.Builder.CreateLifetimeEnd(pack.getAddress(),
-                                  IGF.IGM.getPointerSize() * (*elementCount));
+                                    llvm::Value *shape) {
+  cleanupWitnessTablePackImpl(IGF, pack, shape);
+  IGF.eraseStackPackWitnessTableAlloc(pack, shape);
+}
+
+void irgen::cleanupStackAllocPacks(IRGenFunction &IGF,
+                                   ArrayRef<StackPackAlloc> allocs) {
+  for (auto alloc : llvm::reverse(allocs)) {
+    StackAddress addr;
+    uint8_t kind;
+    llvm::Value *shape;
+    std::tie(addr, shape, kind) = alloc;
+
+    switch ((GenericRequirement::Kind)kind) {
+    case GenericRequirement::Kind::MetadataPack:
+      cleanupTypeMetadataPackImpl(IGF, addr, shape);
+      break;
+    case GenericRequirement::Kind::WitnessTablePack:
+      cleanupWitnessTablePackImpl(IGF, addr, shape);
+      break;
+    default:
+      llvm_unreachable("bad requirement in stack pack alloc");
+    }
   }
+}
+
+void IRGenFunction::recordStackPackMetadataAlloc(StackAddress addr,
+                                                 llvm::Value *shape) {
+  OutstandingStackPackAllocs.insert(
+      {addr, shape, (uint8_t)GenericRequirement::Kind::MetadataPack});
+}
+
+void IRGenFunction::eraseStackPackMetadataAlloc(StackAddress addr,
+                                                llvm::Value *shape) {
+  auto removed = OutstandingStackPackAllocs.remove(
+      {addr, shape, (uint8_t)GenericRequirement::Kind::MetadataPack});
+  assert(removed && "erased stack pack metadata addr that wasn't recorded!?");
+  (void)removed;
+}
+
+void IRGenFunction::recordStackPackWitnessTableAlloc(StackAddress addr,
+                                                     llvm::Value *shape) {
+  OutstandingStackPackAllocs.insert(
+      {addr, shape, (uint8_t)GenericRequirement::Kind::WitnessTablePack});
+}
+
+void IRGenFunction::eraseStackPackWitnessTableAlloc(StackAddress addr,
+                                                    llvm::Value *shape) {
+  auto removed = OutstandingStackPackAllocs.remove(
+      {addr, shape, (uint8_t)GenericRequirement::Kind::WitnessTablePack});
+  assert(removed && "erased stack pack metadata addr that wasn't recorded!?");
+  (void)removed;
 }
 
 llvm::Value *irgen::emitWitnessTablePackRef(IRGenFunction &IGF,
@@ -644,11 +733,20 @@ llvm::Value *irgen::emitWitnessTablePackRef(IRGenFunction &IGF,
   if (auto *wtable = tryGetLocalPackTypeData(IGF, packType, localDataKind))
     return wtable;
 
-  auto pack = emitWitnessTablePack(IGF, packType, conformance);
+  StackAddress pack;
+  llvm::Value *shape;
+  std::tie(pack, shape) = emitWitnessTablePack(IGF, packType, conformance);
 
   auto *result = pack.getAddress().getAddress();
   result = IGF.Builder.CreatePointerCast(
       result, IGF.IGM.WitnessTablePtrTy->getPointerTo());
+
+  if (!IGF.canStackPromotePackMetadata()) {
+    result = IGF.Builder.CreateCall(
+        IGF.IGM.getAllocateWitnessTablePackFunctionPointer(), {result, shape});
+
+    cleanupWitnessTablePack(IGF, pack, shape);
+  }
 
   IGF.setScopedLocalTypeData(packType, localDataKind, result);
 
@@ -1012,15 +1110,20 @@ void irgen::bindOpenedElementArchetypesAtIndex(IRGenFunction &IGF,
   }
 }
 
-void irgen::cleanupTypeMetadataPack(IRGenFunction &IGF,
-                                    StackAddress pack,
-                                    Optional<unsigned> elementCount) {
+static void cleanupTypeMetadataPackImpl(IRGenFunction &IGF, StackAddress pack,
+                                        llvm::Value *shape) {
   if (pack.getExtraInfo()) {
     IGF.emitDeallocateDynamicAlloca(pack);
-  } else {
+  } else if (auto count = countForShape(shape)) {
     IGF.Builder.CreateLifetimeEnd(pack.getAddress(),
-                                  IGF.IGM.getPointerSize() * (*elementCount));
+                                  IGF.IGM.getPointerSize() * (*count));
   }
+}
+
+void irgen::cleanupTypeMetadataPack(IRGenFunction &IGF, StackAddress pack,
+                                    llvm::Value *shape) {
+  cleanupTypeMetadataPackImpl(IGF, pack, shape);
+  IGF.eraseStackPackMetadataAlloc(pack, shape);
 }
 
 Address irgen::emitStorageAddressOfPackElement(IRGenFunction &IGF, Address pack,

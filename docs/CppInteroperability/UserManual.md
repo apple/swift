@@ -1,3 +1,5 @@
+[** ‼️ The official C++ interoperability documentation is live at Swift.org and provides an up-to-date guide for mixing Swift and C++ ‼️ **](https://www.swift.org/documentation/cxx-interop/)
+
 # C++ Interop User Manual
 
 The following document explains how C++ APIs are imported into Swift and is targeted at users of C++ interoperability. Hopefully this document will help you understand why the compiler cannot import various APIs and help you update these APIs to be useable from Swift. First, the document will lay out some API patterns and definitions, then it will discuss how the Swift compiler decides if an API should be usable in Swift. 

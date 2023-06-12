@@ -123,7 +123,7 @@ sil_global [let] @string_with_offset : $MyString = {
   %9 = value_to_bridge_object %8 : $Builtin.Int64
   %initval = struct $MyString (%9 : $Builtin.BridgeObject)
 }
-// CHECK: @string_with_offset = {{.*global .*}} <{ %swift.bridge* inttoptr (i64 add (i64 ptrtoint ([23 x i8]* @.str.22.abc123asd3sdj3basfasdf to i64), i64 9223372036854775776) to %swift.bridge*) }>, align 8
+// CHECK: @string_with_offset = {{.*constant .*}} <{ %swift.bridge* inttoptr (i64 add (i64 ptrtoint ([23 x i8]* @.str.22.abc123asd3sdj3basfasdf to i64), i64 9223372036854775776) to %swift.bridge*) }>, align 8
 
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i8* @_TF2cha1xSi() {{.*}} {
 // CHECK-NEXT: entry:

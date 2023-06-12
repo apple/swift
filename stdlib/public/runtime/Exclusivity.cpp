@@ -37,14 +37,14 @@
 #include <memory>
 
 // Pick a return-address strategy
-#if __GNUC__
+#if defined(__wasm__)
+// Wasm can't access call frame for security purposes
+#define get_return_address() ((void*) 0)
+#elif __GNUC__
 #define get_return_address() __builtin_return_address(0)
 #elif _MSC_VER
 #include <intrin.h>
 #define get_return_address() _ReturnAddress()
-#elif defined(__wasm__)
-// Wasm can't access call frame for security purposes
-#define get_return_address() ((void*) 0)
 #else
 #error missing implementation for get_return_address
 #define get_return_address() ((void*) 0)

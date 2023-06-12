@@ -31,6 +31,10 @@ using namespace ownership;
 //                                  Utility
 //===----------------------------------------------------------------------===//
 
+static bool isVariableOrResult(MarkUninitializedInst *MUI) {
+  return MUI->isVar() || MUI->isOut();
+}
+
 static void gatherDestroysOfContainer(const DIMemoryObjectInfo &memoryInfo,
                                       DIElementUseInfo &useInfo) {
   auto *uninitMemory = memoryInfo.getUninitializedValue();
@@ -106,7 +110,7 @@ computeMemorySILType(MarkUninitializedInst *MUI, SILValue Address) {
 
   // If this is a let variable we're initializing, remember this so we don't
   // allow reassignment.
-  if (!MUI->isVar())
+  if (!isVariableOrResult(MUI))
     return {MemorySILType, false};
 
   auto *VDecl = MUI->getLoc().getAsASTNode<VarDecl>();
@@ -417,7 +421,7 @@ DIMemoryObjectInfo::getPathStringToElement(unsigned Element,
     Result = "self";
   else if (ValueDecl *VD =
                dyn_cast_or_null<ValueDecl>(getLoc().getAsASTNode<Decl>()))
-    Result = std::string(VD->getBaseIdentifier());
+    Result = VD->hasName() ? VD->getBaseIdentifier().str() : "_";
   else
     Result = "<unknown>";
 
@@ -459,7 +463,7 @@ DIMemoryObjectInfo::getPathStringToElement(unsigned Element,
 
   // If we are analyzing a variable, we can generally get the decl associated
   // with it.
-  if (MemoryInst->isVar())
+  if (isVariableOrResult(MemoryInst))
     return MemoryInst->getLoc().getAsASTNode<VarDecl>();
 
   // Otherwise, we can't.
@@ -516,7 +520,7 @@ SingleValueInstruction *DIMemoryObjectInfo::findUninitializedSelfValue() const {
       // If instruction is not a local variable, it could only
       // be some kind of `self` (root, delegating, derived etc.)
       // see \c MarkUninitializedInst::Kind for more details.
-      if (!MUI->isVar())
+      if (!isVariableOrResult(MUI))
         return ::getUninitializedValue(MUI);
     }
   }
@@ -525,7 +529,7 @@ SingleValueInstruction *DIMemoryObjectInfo::findUninitializedSelfValue() const {
 
 ConstructorDecl *DIMemoryObjectInfo::getActorInitSelf() const {
   // is it 'self'?
-  if (!MemoryInst->isVar())
+  if (!isVariableOrResult(MemoryInst)) {
     if (auto decl =
         dyn_cast_or_null<ClassDecl>(getASTType()->getAnyNominal()))
       // is it for an actor?
@@ -535,6 +539,7 @@ ConstructorDecl *DIMemoryObjectInfo::getActorInitSelf() const {
           if (auto *ctor = dyn_cast_or_null<ConstructorDecl>(
                             silFn->getDeclContext()->getAsDecl()))
             return ctor;
+  }
 
   return nullptr;
 }
@@ -549,7 +554,7 @@ bool DIMemoryUse::onlyTouchesTrivialElements(
     const DIMemoryObjectInfo &MI) const {
   // assign_by_wrapper calls functions to assign a value. This is not
   // considered as trivial.
-  if (isa<AssignByWrapperInst>(Inst))
+  if (isa<AssignByWrapperInst>(Inst) || isa<AssignOrInitInst>(Inst))
     return false;
 
   auto *F = Inst->getFunction();
@@ -650,25 +655,28 @@ public:
 private:
   void collectUses(SILValue Pointer, unsigned BaseEltNo);
   bool addClosureElementUses(PartialApplyInst *pai, Operand *argUse);
+  void collectAssignOrInitUses(PartialApplyInst *pai, Operand *argUse,
+                               unsigned BaseEltNo = 0);
 
   void collectClassSelfUses(SILValue ClassPointer);
   void collectClassSelfUses(SILValue ClassPointer, SILType MemorySILType,
                             llvm::SmallDenseMap<VarDecl *, unsigned> &EN);
 
   void addElementUses(unsigned BaseEltNo, SILType UseTy, SILInstruction *User,
-                      DIUseKind Kind);
+                      DIUseKind Kind, NullablePtr<VarDecl> Field = 0);
   void collectTupleElementUses(TupleElementAddrInst *TEAI, unsigned BaseEltNo);
   void collectStructElementUses(StructElementAddrInst *SEAI,
                                 unsigned BaseEltNo);
 };
 } // end anonymous namespace
 
-/// addElementUses - An operation (e.g. load, store, inout use, etc) on a value
+/// addElementUses - An operation (e.g. load, store, inout usec etc) on a value
 /// acts on all of the aggregate elements in that value.  For example, a load
 /// of $*(Int,Int) is a use of both Int elements of the tuple.  This is a helper
 /// to keep the Uses data structure up to date for aggregate uses.
 void ElementUseCollector::addElementUses(unsigned BaseEltNo, SILType UseTy,
-                                         SILInstruction *User, DIUseKind Kind) {
+                                         SILInstruction *User, DIUseKind Kind,
+                                         NullablePtr<VarDecl> Field) {
   // If we're in a subelement of a struct or enum, just mark the struct, not
   // things that come after it in a parent tuple.
   unsigned NumElements = 1;
@@ -678,7 +686,7 @@ void ElementUseCollector::addElementUses(unsigned BaseEltNo, SILType UseTy,
         getElementCountRec(TypeExpansionContext(*User->getFunction()), Module,
                            UseTy, IsSelfOfNonDelegatingInitializer);
 
-  trackUse(DIMemoryUse(User, Kind, BaseEltNo, NumElements));
+  trackUse(DIMemoryUse(User, Kind, BaseEltNo, NumElements, Field));
 }
 
 /// Given a tuple_element_addr or struct_element_addr, compute the new
@@ -1083,7 +1091,12 @@ void ElementUseCollector::collectUses(SILValue Pointer, unsigned BaseEltNo) {
     if (auto *PAI = dyn_cast<PartialApplyInst>(User)) {
       if (onlyUsedByAssignByWrapper(PAI))
         continue;
-        
+
+      if (onlyUsedByAssignOrInit(PAI)) {
+        collectAssignOrInitUses(PAI, Op, BaseEltNo);
+        continue;
+      }
+
       if (BaseEltNo == 0 && addClosureElementUses(PAI, Op))
         continue;
     }
@@ -1172,6 +1185,50 @@ bool ElementUseCollector::addClosureElementUses(PartialApplyInst *pai,
     trackUse(DIMemoryUse(pai, use.Kind, use.FirstElement, use.NumElements));
   }
   return true;
+}
+
+void
+ElementUseCollector::collectAssignOrInitUses(PartialApplyInst *pai,
+                                             Operand *argUse,
+                                             unsigned BaseEltNo) {
+  for (Operand *Op : pai->getUses()) {
+    SILInstruction *User = Op->getUser();
+    if (!isa<AssignOrInitInst>(User) || Op->getOperandNumber() != 2) {
+      continue;
+    }
+
+    /// AssignOrInit doesn't operate on `self` so we need to make sure
+    /// that the flag is dropped before calling \c addElementUses.
+    llvm::SaveAndRestore<bool> X(IsSelfOfNonDelegatingInitializer, false);
+
+    auto *inst = cast<AssignOrInitInst>(User);
+    auto *typeDC = inst->getReferencedInitAccessor()
+                       ->getDeclContext()
+                       ->getSelfNominalTypeDecl();
+
+    auto selfTy = pai->getOperand(1)->getType();
+
+    auto addUse = [&](VarDecl *property, DIUseKind useKind) {
+      auto expansionContext = TypeExpansionContext(*pai->getFunction());
+      auto type = selfTy.getFieldType(property, Module, expansionContext);
+      addElementUses(Module.getFieldIndex(typeDC, property), type, User,
+                     useKind, property);
+    };
+
+    auto initializedElts = inst->getInitializedProperties();
+    if (initializedElts.empty()) {
+      // Add a placeholder use that doesn't touch elements to make sure that
+      // the `assign_or_init` instruction gets the kind set when `initializes`
+      // list is empty.
+      trackUse(DIMemoryUse(User, DIUseKind::InitOrAssign, BaseEltNo, 0));
+    } else {
+      for (auto *property : initializedElts)
+        addUse(property, DIUseKind::InitOrAssign);
+    }
+
+    for (auto *property : inst->getAccessedProperties())
+      addUse(property, DIUseKind::Load);
+  }
 }
 
 /// collectClassSelfUses - Collect all the uses of a 'self' pointer in a class
@@ -1575,6 +1632,11 @@ void ElementUseCollector::collectClassSelfUses(
     if (auto *PAI = dyn_cast<PartialApplyInst>(User)) {
       if (onlyUsedByAssignByWrapper(PAI))
         continue;
+
+      if (onlyUsedByAssignOrInit(PAI)) {
+        collectAssignOrInitUses(PAI, Op);
+        continue;
+      }
 
       if (addClosureElementUses(PAI, Op))
         continue;

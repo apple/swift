@@ -48,7 +48,6 @@ func testAmbiguousStringComparisons(s: String) {
   
   // Shouldn't suggest 'as' in a pattern-matching context, as opposed to all these other situations
   if case nsString = "" {} // expected-error{{expression pattern of type 'NSString' cannot match values of type 'String'}}
-  // expected-note@-1 {{overloads for '~=' exist with these partially matching parameter lists: (Substring, String)}}
 }
 
 func testStringDeprecation(hello: String) {

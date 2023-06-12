@@ -79,6 +79,9 @@ namespace {
     bool visitDependentMemberType(CanDependentMemberType type) {
       return false;
     }
+    bool visitPackElementType(CanPackElementType type) {
+      return false;
+    }
     
     /// Archetype metatypes have non-trivial representation in case
     /// they instantiate to a class metatype.
@@ -550,6 +553,12 @@ namespace {
     RetTy visitDependentMemberType(CanDependentMemberType type,
                                    AbstractionPattern origType,
                                    IsTypeExpansionSensitive_t isSensitive) {
+      return visitAbstractTypeParamType(type, origType, isSensitive);
+    }
+
+    RetTy visitPackElementType(CanPackElementType type,
+                               AbstractionPattern origType,
+                               IsTypeExpansionSensitive_t isSensitive) {
       return visitAbstractTypeParamType(type, origType, isSensitive);
     }
 
@@ -1575,6 +1584,19 @@ namespace {
       return B.createStruct(loc, getLoweredType(), values);
     }
 
+    void
+    emitLoweredDestroyValue(SILBuilder &B, SILLocation loc, SILValue aggValue,
+                            TypeExpansionKind loweringStyle) const override {
+      // A value type with a deinit cannot be memberwise destroyed.
+      if (auto *nominal = getLoweredType().getNominalOrBoundGenericNominal()) {
+        if (nominal->getValueTypeDestructor()) {
+          emitDestroyValue(B, loc, aggValue);
+          return;
+        }
+      }
+      Super::emitLoweredDestroyValue(B, loc, aggValue, loweringStyle);
+    }
+
   private:
     void lowerChildren(TypeConverter &TC,
                        SmallVectorImpl<Child> &children) const override {
@@ -2311,6 +2333,8 @@ namespace {
       return handleReference(classType, properties);
     }
 
+    // WARNING: when the specification of trivial types changes, also update
+    // the isValueTrivial() API used by SILCombine.
     TypeLowering *visitAnyStructType(CanType structType,
                                      AbstractionPattern origType,
                                      StructDecl *D,
@@ -2379,7 +2403,9 @@ namespace {
       return handleAggregateByProperties<LoadableStructTypeLowering>(structType,
                                                                     properties);
     }
-        
+
+    // WARNING: when the specification of trivial types changes, also update
+    // the isValueTrivial() API used by SILCombine.
     TypeLowering *visitAnyEnumType(CanType enumType,
                                    AbstractionPattern origType,
                                    EnumDecl *D,
@@ -2498,7 +2524,7 @@ TypeConverter::~TypeConverter() {
     // Destroy only the unique entries.
     CanType srcType = ti.first.OrigType;
     if (!srcType) continue;
-    CanType mappedType = ti.second->getLoweredType().getASTType();
+    CanType mappedType = ti.second->getLoweredType().getRawASTType();
     if (srcType == mappedType)
       ti.second->~TypeLowering();
   }
@@ -3056,6 +3082,10 @@ TypeConverter::computeLoweredRValueType(TypeExpansionContext forExpansion,
 
       return CanType(PackExpansionType::get(loweredSubstPatternType,
                                             loweredSubstCountType));
+    }
+
+    CanType visitPackElementType(CanPackElementType substPackElementType) {
+      return substPackElementType;
     }
 
     CanType visitBuiltinTupleType(CanBuiltinTupleType type) {
@@ -4148,6 +4178,10 @@ public:
                                 CanDependentMemberType type2) {
     return false;
   }
+  bool visitPackElementType(CanPackElementType type1,
+                            CanPackElementType type2) {
+    return false;
+  }
 
   // We also need to handle the general case where we have different
   // kinds of substitutable types.
@@ -4360,10 +4394,11 @@ TypeConverter::getInterfaceBoxTypeForCapture(ValueDecl *captured,
       env->mapTypeIntoContext(contextBoxTy)
          ->getCanonicalType());
   }
+
+  auto ty = getSILBoxFieldType(TypeExpansionContext::minimal(), contextBoxTy,
+                               *this, 0);
   assert(contextBoxTy->getLayout()->getFields().size() == 1 &&
-         getSILBoxFieldType(TypeExpansionContext::minimal(), contextBoxTy,
-                            *this, 0)
-                 .getASTType() == loweredContextType &&
+         ty.getRawASTType() == loweredContextType &&
          "box field type doesn't match capture!");
 #endif
   return boxTy;
@@ -4415,7 +4450,7 @@ CanSILBoxType TypeConverter::getBoxTypeForEnumElement(
   }
 
   // Use the enum's signature for the box type.
-  auto boundEnum = enumType.getASTType();
+  auto boundEnum = enumType.getRawASTType();
 
   // Lower the enum element's argument in the box's context.
   auto eltIntfTy = elt->getArgumentInterfaceType();
@@ -4586,6 +4621,12 @@ void TypeLowering::print(llvm::raw_ostream &os) const {
      << "isFixedABI: " << BOOL(Properties.isFixedABI()) << ".\n"
      << "isAddressOnly: " << BOOL(Properties.isAddressOnly()) << ".\n"
      << "isResilient: " << BOOL(Properties.isResilient()) << ".\n"
+     << "isTypeExpansionSensitive: "
+     << BOOL(Properties.isTypeExpansionSensitive()) << ".\n"
+     << "isInfinite: " << BOOL(Properties.isInfinite()) << ".\n"
+     << "isOrContainsRawPointer: " << BOOL(Properties.isOrContainsRawPointer())
+     << ".\n"
+     << "isLexical: " << BOOL(Properties.isLexical()) << ".\n"
      << "\n";
 }
 

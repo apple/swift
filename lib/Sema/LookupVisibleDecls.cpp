@@ -1143,7 +1143,7 @@ struct KeyPathDynamicMemberConsumer : public VisibleDeclConsumer {
 } // end anonymous namespace
 
 static void lookupVisibleDynamicMemberLookupDecls(
-    Type baseType, KeyPathDynamicMemberConsumer &consumer,
+    Type baseType, SourceLoc loc, KeyPathDynamicMemberConsumer &consumer,
     const DeclContext *dc, LookupState LS, DeclVisibilityKind reason,
     GenericSignature Sig, VisitedSet &visited,
     llvm::DenseSet<TypeBase *> &seenDynamicLookup);
@@ -1154,13 +1154,14 @@ static void lookupVisibleDynamicMemberLookupDecls(
 /// \note This is an implementation detail of \c lookupVisibleMemberDecls and
 /// exists to create the correct recursion for dynamic member lookup.
 static void lookupVisibleMemberAndDynamicMemberDecls(
-    Type baseType, VisibleDeclConsumer &consumer,
+    Type baseType, SourceLoc loc, VisibleDeclConsumer &consumer,
     KeyPathDynamicMemberConsumer &dynamicMemberConsumer, const DeclContext *DC,
     LookupState LS, DeclVisibilityKind reason, GenericSignature Sig,
     VisitedSet &visited, llvm::DenseSet<TypeBase *> &seenDynamicLookup) {
   lookupVisibleMemberDeclsImpl(baseType, consumer, DC, LS, reason, Sig, visited);
-  lookupVisibleDynamicMemberLookupDecls(baseType, dynamicMemberConsumer, DC, LS,
-                                        reason, Sig, visited, seenDynamicLookup);
+  lookupVisibleDynamicMemberLookupDecls(baseType, loc, dynamicMemberConsumer,
+                                        DC, LS, reason, Sig, visited,
+                                        seenDynamicLookup);
 }
 
 /// Enumerates all keypath dynamic members of \c baseType, as seen from the
@@ -1170,7 +1171,7 @@ static void lookupVisibleMemberAndDynamicMemberDecls(
 /// dynamic member subscripts and looks up the members of the keypath's root
 /// type.
 static void lookupVisibleDynamicMemberLookupDecls(
-    Type baseType, KeyPathDynamicMemberConsumer &consumer,
+    Type baseType, SourceLoc loc, KeyPathDynamicMemberConsumer &consumer,
     const DeclContext *dc, LookupState LS, DeclVisibilityKind reason,
     GenericSignature Sig, VisitedSet &visited,
     llvm::DenseSet<TypeBase *> &seenDynamicLookup) {
@@ -1187,7 +1188,7 @@ static void lookupVisibleDynamicMemberLookupDecls(
       { ctx, DeclBaseName::createSubscript(), { ctx.Id_dynamicMember} });
 
   SmallVector<ValueDecl *, 2> subscripts;
-  dc->lookupQualified(baseType, subscriptName,
+  dc->lookupQualified(baseType, subscriptName, loc,
                       NL_QualifiedDefault | NL_ProtocolMembers, subscripts);
 
   for (ValueDecl *VD : subscripts) {
@@ -1209,9 +1210,9 @@ static void lookupVisibleDynamicMemberLookupDecls(
     KeyPathDynamicMemberConsumer::SubscriptChange sub(consumer, subscript,
                                                       baseType);
 
-    lookupVisibleMemberAndDynamicMemberDecls(memberType, consumer, consumer, dc,
-                                             LS, reason, Sig, visited,
-                                             seenDynamicLookup);
+    lookupVisibleMemberAndDynamicMemberDecls(memberType, loc, consumer,
+                                             consumer, dc, LS, reason, Sig,
+                                             visited, seenDynamicLookup);
   }
 }
 
@@ -1222,8 +1223,9 @@ static void lookupVisibleDynamicMemberLookupDecls(
 /// where 'self' is the type of 'a'.  This operation is only valid after name
 /// binding.
 static void lookupVisibleMemberDecls(
-    Type BaseTy, VisibleDeclConsumer &Consumer, const DeclContext *CurrDC,
-    LookupState LS, DeclVisibilityKind Reason, GenericSignature Sig) {
+    Type BaseTy, SourceLoc loc, VisibleDeclConsumer &Consumer,
+    const DeclContext *CurrDC, LookupState LS,
+    DeclVisibilityKind Reason, GenericSignature Sig) {
   OverrideFilteringConsumer overrideConsumer(BaseTy, CurrDC);
   KeyPathDynamicMemberConsumer dynamicConsumer(
       Consumer,
@@ -1232,7 +1234,7 @@ static void lookupVisibleMemberDecls(
   VisitedSet Visited;
   llvm::DenseSet<TypeBase *> seenDynamicLookup;
   lookupVisibleMemberAndDynamicMemberDecls(
-      BaseTy, overrideConsumer, dynamicConsumer, CurrDC, LS, Reason,
+      BaseTy, loc, overrideConsumer, dynamicConsumer, CurrDC, LS, Reason,
       Sig, Visited, seenDynamicLookup);
 
   // Report the declarations we found to the real consumer.
@@ -1346,8 +1348,8 @@ static void lookupVisibleDeclsImpl(VisibleDeclConsumer &Consumer,
     }
 
     if (ExtendedType) {
-      ::lookupVisibleMemberDecls(ExtendedType, Consumer, DC, LS, MemberReason,
-                                 nullptr);
+      ::lookupVisibleMemberDecls(ExtendedType, Loc, Consumer, DC, LS,
+                                 MemberReason, nullptr);
 
       // Going outside the current type context.
       MemberReason = DeclVisibilityKind::MemberOfOutsideNominal;
@@ -1403,7 +1405,7 @@ void swift::lookupVisibleDecls(VisibleDeclConsumer &Consumer,
 }
 
 void swift::lookupVisibleMemberDecls(VisibleDeclConsumer &Consumer, Type BaseTy,
-                                     const DeclContext *CurrDC,
+                                     SourceLoc loc, const DeclContext *CurrDC,
                                      bool includeInstanceMembers,
                                      bool includeDerivedRequirements,
                                      bool includeProtocolExtensionMembers,
@@ -1420,7 +1422,7 @@ void swift::lookupVisibleMemberDecls(VisibleDeclConsumer &Consumer, Type BaseTy,
     ls = ls.withIncludeProtocolExtensionMembers();
   }
 
-  ::lookupVisibleMemberDecls(BaseTy, Consumer, CurrDC, ls,
+  ::lookupVisibleMemberDecls(BaseTy, loc, Consumer, CurrDC, ls,
                              DeclVisibilityKind::MemberOfCurrentNominal,
                              Sig);
 }

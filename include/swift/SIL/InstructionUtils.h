@@ -40,6 +40,12 @@ SILValue stripCastsWithoutMarkDependence(SILValue V);
 /// begin_borrow instructions.
 SILValue lookThroughOwnershipInsts(SILValue v);
 
+/// Reverse of lookThroughOwnershipInsts.
+///
+/// Return true if \p visitor returned true for all uses.
+bool visitNonOwnershipUses(SILValue value,
+                           function_ref<bool(Operand *)> visitor);
+
 /// Return the underlying SILValue after looking through all copy_value
 /// instructions.
 SILValue lookThroughCopyValueInsts(SILValue v);
@@ -138,6 +144,10 @@ SILValue isPartialApplyOfReabstractionThunk(PartialApplyInst *PAI);
 /// Returns true if \p PAI is only used by an assign_by_wrapper instruction as
 /// init or set function.
 bool onlyUsedByAssignByWrapper(PartialApplyInst *PAI);
+
+/// Returns true if \p PAI is only used by an \c assign_or_init
+/// instruction as init or set function.
+bool onlyUsedByAssignOrInit(PartialApplyInst *PAI);
 
 /// Returns the runtime effects of \p inst.
 ///

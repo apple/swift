@@ -202,6 +202,18 @@ class TypeMatcher {
       return mismatch(firstPE.getPointer(), secondType, sugaredFirstType);
     }
 
+    bool visitPackElementType(CanPackElementType firstElement, Type secondType,
+                              Type sugaredFirstType) {
+      if (auto secondElement = secondType->getAs<PackElementType>()) {
+        return this->visit(firstElement.getPackType(),
+                           secondElement->getPackType(),
+                           sugaredFirstType->castTo<PackElementType>()
+                             ->getPackType());
+      }
+
+      return mismatch(firstElement.getPointer(), secondType, sugaredFirstType);
+    }
+
     bool visitReferenceStorageType(CanReferenceStorageType firstStorage,
                                    Type secondType, Type sugaredFirstType) {
       if (firstStorage->getKind() == secondType->getDesugaredType()->getKind()) {

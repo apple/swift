@@ -26,10 +26,6 @@ module _SwiftConcurrencyShims {
   header "_SwiftConcurrency.h"
 }
 
-module _SwiftBacktracingShims {
-  header "_SwiftBacktracing.h"
-}
-
 module SwiftOverlayShims {
   header "LibcOverlayShims.h"
   export *

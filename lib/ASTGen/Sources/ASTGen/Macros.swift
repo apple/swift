@@ -67,6 +67,8 @@ extension MacroRole {
     case 0x10: self = .member
     case 0x20: self = .peer
     case 0x40: self = .conformance
+    case 0x80: self = .codeItem
+
     default: fatalError("unknown macro role")
     }
   }
@@ -414,6 +416,7 @@ func expandFreestandingMacro(
   macroKind: UInt8,
   discriminatorText: UnsafePointer<UInt8>,
   discriminatorTextLength: Int,
+  rawMacroRole: UInt8,
   sourceFilePtr: UnsafeRawPointer,
   sourceLocationPtr: UnsafePointer<UInt8>?,
   expandedSourcePointer: UnsafeMutablePointer<UnsafePointer<UInt8>?>,
@@ -446,11 +449,13 @@ func expandFreestandingMacro(
   )
   let discriminator = String(decoding: discriminatorBuffer, as: UTF8.self)
 
+  let macroRole = MacroRole(rawMacroRole: rawMacroRole)
   let expandedSource: String?
   switch MacroPluginKind(rawValue: macroKind)! {
   case .InProcess:
     expandedSource = expandFreestandingMacroInProcess(
       macroPtr: macroPtr,
+      macroRole: macroRole,
       diagEnginePtr: diagEnginePtr,
       expansionSyntax: expansion,
       sourceFilePtr: sourceFilePtr,
@@ -458,6 +463,7 @@ func expandFreestandingMacro(
   case .Executable:
     expandedSource = expandFreestandingMacroIPC(
       macroPtr: macroPtr,
+      macroRole: macroRole,
       diagEnginePtr: diagEnginePtr,
       expansionSyntax: expansion,
       sourceFilePtr: sourceFilePtr,
@@ -485,6 +491,7 @@ func expandFreestandingMacro(
 
 func expandFreestandingMacroIPC(
   macroPtr: UnsafeRawPointer,
+  macroRole: MacroRole,
   diagEnginePtr: UnsafeMutablePointer<UInt8>,
   expansionSyntax: FreestandingMacroExpansionSyntax,
   sourceFilePtr: UnsafePointer<ExportedSourceFile>,
@@ -502,9 +509,21 @@ func expandFreestandingMacroIPC(
 
   let macro = macroPtr.assumingMemoryBound(to: ExportedExecutableMacro.self).pointee
 
+  // Map the macro role.
+  let pluginMacroRole: PluginMessage.MacroRole
+  switch macroRole {
+  case .accessor, .member, .memberAttribute, .peer, .conformance:
+    preconditionFailure("unhandled macro role for freestanding macro")
+
+  case .expression: pluginMacroRole = .expression
+  case .declaration: pluginMacroRole = .freeStandingDeclaration
+  case .codeItem: pluginMacroRole = .codeItem
+  }
+
   // Send the message.
   let message = HostToPluginMessage.expandFreestandingMacro(
     macro: .init(moduleName: macro.moduleName, typeName: macro.typeName, name: macroName),
+    macroRole: pluginMacroRole,
     discriminator: discriminator,
     syntax: PluginMessage.Syntax(syntax: Syntax(expansionSyntax), in: sourceFilePtr)!)
   do {
@@ -541,6 +560,7 @@ func expandFreestandingMacroIPC(
 
 func expandFreestandingMacroInProcess(
   macroPtr: UnsafeRawPointer,
+  macroRole: MacroRole,
   diagEnginePtr: UnsafeMutablePointer<UInt8>,
   expansionSyntax: FreestandingMacroExpansionSyntax,
   sourceFilePtr: UnsafePointer<ExportedSourceFile>,
@@ -580,6 +600,7 @@ func expandFreestandingMacroInProcess(
 
   return SwiftSyntaxMacroExpansion.expandFreestandingMacro(
     definition: macro,
+    macroRole: macroRole,
     node: node,
     in: context
   )

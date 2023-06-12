@@ -1,0 +1,392 @@
+// RUN: %target-sil-opt -module-name main -enable-sil-verify-all -sil-move-only-deinit-devirtualization -enable-experimental-feature MoveOnlyClasses -enable-experimental-feature MoveOnlyEnumDeinits %s | %FileCheck %s
+
+sil_stage raw
+
+import Builtin
+
+//===----------------------------------------------------------------------===//
+//                                Declarations
+//===----------------------------------------------------------------------===//
+
+@_moveOnly
+class Klass {
+  deinit
+}
+
+@_moveOnly
+struct TrivialStruct {
+  var i: Builtin.Int32
+}
+
+@_moveOnly
+struct StructDeinit {
+  var i: Builtin.Int32
+
+  deinit
+}
+
+@_moveOnly
+struct SingleFieldNonTrivial {
+  var k: Klass
+}
+
+@_moveOnly
+struct ThreeNonTrivial {
+  var k: Klass
+  var i: Builtin.Int32
+  var k2: Klass
+}
+
+@_moveOnly
+struct ThreeNonTrivialNoDeinit {
+  var k: Klass
+  var i: Builtin.Int32
+  var k2: Klass
+}
+
+@_moveOnly enum TrivialMoveOnlyEnum {
+  case first
+  case second(Builtin.Int32)
+  case third(Builtin.Int64, Builtin.Int64)
+  deinit
+}
+
+@_moveOnly enum NonTrivialMoveOnlyEnum {
+  case first
+  case second(Builtin.Int32)
+  case third(Klass, Klass)
+  case fourth(Builtin.Int64, Builtin.Int64)
+  case fifth(TrivialMoveOnlyEnum)
+  deinit
+}
+
+//===----------------------------------------------------------------------===//
+//                                Object Tests
+//===----------------------------------------------------------------------===//
+
+// CHECK-LABEL: sil [ossa] @klassTest : $@convention(thin) (@owned Klass) -> () {
+// CHECK: bb0([[ARG:%.*]] : @owned $Klass):
+// CHECK:   [[FUNC:%.*]] = function_ref @$s4main5KlassCfD :
+// CHECK:   apply [[FUNC]]([[ARG]])
+// CHECK: } // end sil function 'klassTest'
+sil [ossa] @klassTest : $@convention(thin) (@owned Klass) -> () {
+bb0(%0 : @owned $Klass):
+  destroy_value %0 : $Klass
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @structDeinitTest : $@convention(thin) (@owned StructDeinit) -> () {
+// CHECK: bb0([[ARG:%.*]] : @owned $StructDeinit):
+// CHECK:   [[FUNC:%.*]] = function_ref @$s4main12StructDeinitVfD :
+// CHECK:   apply [[FUNC]]([[ARG]])
+// CHECK: } // end sil function 'structDeinitTest'
+sil [ossa] @structDeinitTest : $@convention(thin) (@owned StructDeinit) -> () {
+bb0(%0 : @owned $StructDeinit):
+  destroy_value %0 : $StructDeinit
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @singleFieldNonTrivialTest : $@convention(thin) (@owned SingleFieldNonTrivial) -> () {
+// CHECK:   [[FUNC:%.*]] = function_ref @$s4main21SingleFieldNonTrivialVfD :
+// CHECK:   apply [[FUNC]]([[ARG]])
+// CHECK: } // end sil function 'singleFieldNonTrivialTest'
+sil [ossa] @singleFieldNonTrivialTest : $@convention(thin) (@owned SingleFieldNonTrivial) -> () {
+bb0(%0 : @owned $SingleFieldNonTrivial):
+  destroy_value %0 : $SingleFieldNonTrivial
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @multiFieldNonTrivialTest : $@convention(thin) (@owned ThreeNonTrivial) -> () {
+// CHECK:   [[FUNC:%.*]] = function_ref @$s4main15ThreeNonTrivialVfD :
+// CHECK:   apply [[FUNC]]([[ARG]])
+// CHECK: } // end sil function 'multiFieldNonTrivialTest'
+sil [ossa] @multiFieldNonTrivialTest : $@convention(thin) (@owned ThreeNonTrivial) -> () {
+bb0(%0 : @owned $ThreeNonTrivial):
+  destroy_value %0 : $ThreeNonTrivial
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @trivialMoveOnlyEnum : $@convention(thin) (@owned TrivialMoveOnlyEnum) -> () {
+// CHECK:   [[FUNC:%.*]] = function_ref @$s4main19TrivialMoveOnlyEnumOfD :
+// CHECK:   apply [[FUNC]]([[ARG]])
+// CHECK: } // end sil function 'trivialMoveOnlyEnum'
+sil [ossa] @trivialMoveOnlyEnum : $@convention(thin) (@owned TrivialMoveOnlyEnum) -> () {
+bb0(%0 : @owned $TrivialMoveOnlyEnum):
+  destroy_value %0 : $TrivialMoveOnlyEnum
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+sil [ossa] @nonTrivialMoveOnlyEnum : $@convention(thin) (@owned NonTrivialMoveOnlyEnum) -> () {
+bb0(%0 : @owned $NonTrivialMoveOnlyEnum):
+  destroy_value %0 : $NonTrivialMoveOnlyEnum
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+//===----------------------------------------------------------------------===//
+//                                 Var Tests
+//===----------------------------------------------------------------------===//
+
+// CHECK-LABEL: sil [ossa] @trivialStructAddrTest : $@convention(thin) (@in StructDeinit) -> () {
+// CHECK: bb0([[ARG:%.*]] : $*StructDeinit):
+// CHECK:   [[FUNC:%.*]] = function_ref @$s4main12StructDeinitVfD :
+// CHECK:   [[LOADED_VALUE:%.*]] = load [take] [[ARG]]
+// CHECK:   apply [[FUNC]]([[LOADED_VALUE]])
+// CHECK: } // end sil function 'trivialStructAddrTest'
+sil [ossa] @trivialStructAddrTest : $@convention(thin) (@in StructDeinit) -> () {
+bb0(%0 : $*StructDeinit):
+  destroy_addr %0 : $*StructDeinit
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @singleFieldNonTrivialAddrTest : $@convention(thin) (@in SingleFieldNonTrivial) -> () {
+// CHECK:   [[FUNC:%.*]] = function_ref @$s4main21SingleFieldNonTrivialVfD :
+// CHECK:   [[LOADED_VALUE:%.*]] = load [take] [[ARG]]
+// CHECK:   apply [[FUNC]]([[LOADED_VALUE]])
+// CHECK: } // end sil function 'singleFieldNonTrivialAddrTest'
+sil [ossa] @singleFieldNonTrivialAddrTest : $@convention(thin) (@in SingleFieldNonTrivial) -> () {
+bb0(%0 : $*SingleFieldNonTrivial):
+  destroy_addr %0 : $*SingleFieldNonTrivial
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @multiFieldNonTrivialAddrTest : $@convention(thin) (@in ThreeNonTrivial) -> () {
+// CHECK:   [[FUNC:%.*]] = function_ref @$s4main15ThreeNonTrivialVfD :
+// CHECK:   [[LOADED_VALUE:%.*]] = load [take] [[ARG]]
+// CHECK:   apply [[FUNC]]([[LOADED_VALUE]])
+// CHECK: } // end sil function 'multiFieldNonTrivialAddrTest'
+sil [ossa] @multiFieldNonTrivialAddrTest : $@convention(thin) (@in ThreeNonTrivial) -> () {
+bb0(%0 : $*ThreeNonTrivial):
+  destroy_addr %0 : $*ThreeNonTrivial
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @trivialMoveOnlyEnumArg : $@convention(thin) (@in TrivialMoveOnlyEnum) -> () {
+// CHECK: bb0([[ARG:%.*]] : $*TrivialMoveOnlyEnum):
+// CHECK:   [[FUNC:%.*]] = function_ref @$s4main19TrivialMoveOnlyEnumOfD
+// CHECK:   [[LOADED_VALUE:%.*]] = load [take] [[ARG]]
+// CHECK:   apply [[FUNC]]([[LOADED_VALUE]])
+// CHECK: } // end sil function 'trivialMoveOnlyEnumArg'
+sil [ossa] @trivialMoveOnlyEnumArg : $@convention(thin) (@in TrivialMoveOnlyEnum) -> () {
+bb0(%0 : $*TrivialMoveOnlyEnum):
+  destroy_addr %0 : $*TrivialMoveOnlyEnum
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @nonTrivialMoveOnlyEnumAddrTest : $@convention(thin) (@in NonTrivialMoveOnlyEnum) -> () {
+// CHECK: bb0([[ARG:%.*]] : $*NonTrivialMoveOnlyEnum):
+// CHECK:   [[FUNC:%.*]] = function_ref @$s4main22NonTrivialMoveOnlyEnumOfD :
+// CHECK:   [[LOADED_VALUE:%.*]] = load [take] [[ARG]]
+// CHECK:   apply [[FUNC]]([[LOADED_VALUE]])
+// CHECK: } // end sil function 'nonTrivialMoveOnlyEnumAddrTest'
+sil [ossa] @nonTrivialMoveOnlyEnumAddrTest : $@convention(thin) (@in NonTrivialMoveOnlyEnum) -> () {
+bb0(%0 : $*NonTrivialMoveOnlyEnum):
+  destroy_addr %0 : $*NonTrivialMoveOnlyEnum
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+//===----------------------------------------------------------------------===//
+//                            Type Without Deinit
+//===----------------------------------------------------------------------===//
+
+// CHECK-LABEL: sil [ossa] @multiFieldNonTrivialNoDeinitTest : $@convention(thin) (@owned ThreeNonTrivialNoDeinit) -> () {
+// CHECK: destroy_value
+// CHECK: } // end sil function 'multiFieldNonTrivialNoDeinitTest'
+sil [ossa] @multiFieldNonTrivialNoDeinitTest : $@convention(thin) (@owned ThreeNonTrivialNoDeinit) -> () {
+bb0(%0 : @owned $ThreeNonTrivialNoDeinit):
+  destroy_value %0 : $ThreeNonTrivialNoDeinit
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @multiFieldNonTrivialNoDeinitAddrTest : $@convention(thin) (@in ThreeNonTrivialNoDeinit) -> () {
+// CHECK: destroy_addr
+// CHECK: } // end sil function 'multiFieldNonTrivialNoDeinitAddrTest'
+sil [ossa] @multiFieldNonTrivialNoDeinitAddrTest : $@convention(thin) (@in ThreeNonTrivialNoDeinit) -> () {
+bb0(%0 : $*ThreeNonTrivialNoDeinit):
+  destroy_addr %0 : $*ThreeNonTrivialNoDeinit
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+//===----------------------------------------------------------------------===//
+//                                Destructors
+//===----------------------------------------------------------------------===//
+
+sil hidden [ossa] @$s4main12StructDeinitVfD : $@convention(method) (@owned StructDeinit) -> () {
+bb0(%0 : @owned $StructDeinit):
+  debug_value %0 : $StructDeinit, let, name "self", argno 1, implicit
+  %2 = drop_deinit %0 : $StructDeinit
+  %3 = destructure_struct %2 : $StructDeinit
+  %4 = tuple ()
+  return %4 : $()
+}
+
+// CHECK-LABEL: sil hidden [ossa] @$s4main21SingleFieldNonTrivialVfD : $@convention(method) (@owned SingleFieldNonTrivial) -> () {
+// CHECK: bb0([[ARG:%.*]] : @owned $SingleFieldNonTrivial):
+// CHECK:   [[VALUE:%.*]] = destructure_struct [[ARG]]
+// CHECK:   [[FUNC_REF:%.*]] = function_ref @$s4main5KlassCfD :
+// CHECK:   apply [[FUNC_REF]]([[VALUE]])
+// CHECK: } // end sil function '$s4main21SingleFieldNonTrivialVfD'
+sil hidden [ossa] @$s4main21SingleFieldNonTrivialVfD : $@convention(method) (@owned SingleFieldNonTrivial) -> () {
+bb0(%0 : @owned $SingleFieldNonTrivial):
+  debug_value %0 : $SingleFieldNonTrivial, let, name "self", argno 1, implicit
+  %2 = destructure_struct %0 : $SingleFieldNonTrivial
+  destroy_value %2 : $Klass
+  %4 = tuple ()
+  return %4 : $()
+}
+
+// CHECK-LABEL: sil hidden [ossa] @$s4main15ThreeNonTrivialVfD : $@convention(method) (@owned ThreeNonTrivial) -> () {
+// CHECK: bb0([[ARG:%.*]] : @owned $ThreeNonTrivial):
+// CHECK:   ([[LHS:%.*]], {{%.*}}, [[RHS:%.*]]) = destructure_struct [[ARG]]
+// CHECK:   [[FUNC_REF:%.*]] = function_ref @$s4main5KlassCfD :
+// CHECK:   apply [[FUNC_REF]]([[LHS]])
+// CHECK:   [[FUNC_REF:%.*]] = function_ref @$s4main5KlassCfD :
+// CHECK:   apply [[FUNC_REF]]([[RHS]])
+// CHECK: } // end sil function '$s4main15ThreeNonTrivialVfD'
+sil hidden [ossa] @$s4main15ThreeNonTrivialVfD : $@convention(method) (@owned ThreeNonTrivial) -> () {
+bb0(%0 : @owned $ThreeNonTrivial):
+  debug_value %0 : $ThreeNonTrivial, let, name "self", argno 1, implicit
+  (%2, %3, %4) = destructure_struct %0 : $ThreeNonTrivial
+  destroy_value %2 : $Klass
+  destroy_value %4 : $Klass
+  %7 = tuple ()
+  return %7 : $()
+}
+
+sil hidden [ossa] @$s4main19TrivialMoveOnlyEnumOfD : $@convention(method) (@owned TrivialMoveOnlyEnum) -> () {
+bb0(%0 : @owned $TrivialMoveOnlyEnum):
+  debug_value %0 : $TrivialMoveOnlyEnum, let, name "self", argno 1, implicit
+  switch_enum %0 : $TrivialMoveOnlyEnum, case #TrivialMoveOnlyEnum.first!enumelt: bb1, case #TrivialMoveOnlyEnum.second!enumelt: bb2, case #TrivialMoveOnlyEnum.third!enumelt: bb3
+
+bb1:
+  br bb4
+
+bb2(%4 : $Builtin.Int32):
+  br bb4
+
+bb3(%6 : $(Builtin.Int64, Builtin.Int64)):
+  br bb4
+
+bb4:
+  %8 = tuple ()
+  return %8 : $()
+}
+
+// CHECK-LABEL: sil hidden [ossa] @$s4main22NonTrivialMoveOnlyEnumOfD : $@convention(method) (@owned NonTrivialMoveOnlyEnum) -> () {
+// CHECK: bb5([[ARG:%.*]] : @owned $TrivialMoveOnlyEnum):
+// CHECK:   [[FUNC_REF:%.*]] = function_ref @$s4main19TrivialMoveOnlyEnumOfD : $@convention(method) (@owned TrivialMoveOnlyEnum) -> ()
+// CHECK:   apply [[FUNC_REF]]([[ARG]])
+// CHECK: } // end sil function '$s4main22NonTrivialMoveOnlyEnumOfD'
+sil hidden [ossa] @$s4main22NonTrivialMoveOnlyEnumOfD : $@convention(method) (@owned NonTrivialMoveOnlyEnum) -> () {
+bb0(%0 : @owned $NonTrivialMoveOnlyEnum):
+  debug_value %0 : $NonTrivialMoveOnlyEnum, let, name "self", argno 1, implicit
+  switch_enum %0 : $NonTrivialMoveOnlyEnum, case #NonTrivialMoveOnlyEnum.first!enumelt: bb1, case #NonTrivialMoveOnlyEnum.second!enumelt: bb2, case #NonTrivialMoveOnlyEnum.third!enumelt: bb3, case #NonTrivialMoveOnlyEnum.fourth!enumelt: bb4, case #NonTrivialMoveOnlyEnum.fifth!enumelt: bb5
+
+bb1:
+  br bb6
+
+bb2(%4 : $Builtin.Int32):
+  br bb6
+
+
+bb3(%6 : @owned $(Klass, Klass)):
+  destroy_value %6 : $(Klass, Klass)
+  br bb6
+
+bb4(%9 : $(Builtin.Int64, Builtin.Int64)):
+  br bb6
+
+bb5(%11 : @owned $TrivialMoveOnlyEnum):
+  destroy_value %11 : $TrivialMoveOnlyEnum
+  br bb6
+
+bb6:
+  %14 = tuple ()
+  return %14 : $()
+}
+
+//===----------------------------------------------------------------------===//
+//                              drop_deinit Tests
+//===----------------------------------------------------------------------===//
+
+// CHECK-LABEL: sil [ossa] @dropDeinitOnStruct : $@convention(thin) (@owned StructDeinit) -> () {
+// CHECK:         %1 = drop_deinit %0
+// CHECK-NEXT:    destroy_value %1
+// CHECK:       } // end sil function 'dropDeinitOnStruct'
+sil [ossa] @dropDeinitOnStruct : $@convention(thin) (@owned StructDeinit) -> () {
+bb0(%0 : @owned $StructDeinit):
+  %1 = drop_deinit %0 : $StructDeinit
+  destroy_value %1 : $StructDeinit
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @dropDeinitOnMovedStruct : $@convention(thin) (@owned StructDeinit) -> () {
+// CHECK:         %1 = drop_deinit %0
+// CHECK-NEXT:    %2 = move_value %1
+// CHECK-NEXT:    destroy_value %2
+// CHECK:       } // end sil function 'dropDeinitOnMovedStruct'
+sil [ossa] @dropDeinitOnMovedStruct : $@convention(thin) (@owned StructDeinit) -> () {
+bb0(%0 : @owned $StructDeinit):
+  %1 = drop_deinit %0 : $StructDeinit
+  %2 = move_value %1 : $StructDeinit
+  destroy_value %2 : $StructDeinit
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @dropDeinitOnIndirectStruct : $@convention(thin) (@in StructDeinit) -> () {
+// CHECK:         %1 = drop_deinit %0
+// CHECK-NEXT:    destroy_addr %1
+// CHECK:       } // end sil function 'dropDeinitOnIndirectStruct'
+sil [ossa] @dropDeinitOnIndirectStruct : $@convention(thin) (@in StructDeinit) -> () {
+bb0(%0 : $*StructDeinit):
+  %1 = drop_deinit %0 : $*StructDeinit
+  destroy_addr %1 : $*StructDeinit
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+sil @$s4main5KlassCfD : $@convention(method) (@owned Klass) -> ()
+sil @$s4main5KlassCACycfc : $@convention(method) (@owned Klass) -> @owned Klass
+sil @$s4main5KlassCfd : $@convention(method) (@guaranteed Klass) -> @owned Builtin.NativeObject
+
+sil_moveonlydeinit Klass {
+  @$s4main5KlassCfD
+}
+
+sil_moveonlydeinit StructDeinit {
+  @$s4main12StructDeinitVfD	// StructDeinit.deinit
+}
+
+sil_moveonlydeinit SingleFieldNonTrivial {
+  @$s4main21SingleFieldNonTrivialVfD	// SingleFieldNonTrivial.deinit
+}
+
+sil_moveonlydeinit ThreeNonTrivial {
+  @$s4main15ThreeNonTrivialVfD	// ThreeNonTrivial.deinit
+}
+
+sil_vtable Klass {
+  #Klass.deinit!deallocator: @$s4main5KlassCfD	// Klass.__deallocating_deinit
+}
+
+sil_moveonlydeinit TrivialMoveOnlyEnum {
+  @$s4main19TrivialMoveOnlyEnumOfD
+}
+
+sil_moveonlydeinit NonTrivialMoveOnlyEnum {
+  @$s4main22NonTrivialMoveOnlyEnumOfD
+}

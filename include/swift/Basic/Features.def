@@ -116,11 +116,14 @@ UPCOMING_FEATURE(ExistentialAny, 335, 6)
 UPCOMING_FEATURE(ImportObjcForwardDeclarations, 384, 6)
 
 EXPERIMENTAL_FEATURE(StaticAssert, false)
-EXPERIMENTAL_FEATURE(VariadicGenerics, false)
 EXPERIMENTAL_FEATURE(NamedOpaqueTypes, false)
 EXPERIMENTAL_FEATURE(FlowSensitiveConcurrencyCaptures, false)
 EXPERIMENTAL_FEATURE(CodeItemMacros, true)
 EXPERIMENTAL_FEATURE(TupleConformances, false)
+EXPERIMENTAL_FEATURE(InitAccessors, false)
+
+// Whether to enable @_used and @_section attributes
+EXPERIMENTAL_FEATURE(SymbolLinkageMarkers, true)
 
 // FIXME: MoveOnlyClasses is not intended to be in production,
 // but our tests currently rely on it, and we want to run those

@@ -61,9 +61,17 @@ public:
 
   NominalTypeDecl *getNominalDecl() const { return nominalDecl; }
 
-  SILFunction *getImplementation() const { return funcImpl; }
+  SILFunction *getImplementation() const {
+    assert(funcImpl);
+    return funcImpl;
+  }
 
-  bool isSerialized() const { return serialized; }
+  IsSerialized_t isSerialized() const {
+    return serialized ? IsSerialized : IsNotSerialized;
+  }
+  void setSerialized(IsSerialized_t inputSerialized) {
+    serialized = inputSerialized ? 1 : 0;
+  }
 
   void print(llvm::raw_ostream &os, bool verbose) const;
   void dump() const;

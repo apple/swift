@@ -309,6 +309,9 @@ ERROR(observing_accessor_in_subscript,none,
 ERROR(getset_cannot_be_implied,none,
       "variable with implied type cannot have implied getter/setter", ())
 
+ERROR(init_accessor_expected_name,none,
+      "expected property name in init accessor effect", ())
+
 // Import
 ERROR(decl_expected_module_name,none,
       "expected module name in import declaration", ())
@@ -603,7 +606,11 @@ ERROR(sil_ref_inst_wrong_field,none,
 ERROR(sil_invalid_instr_operands,none,
       "invalid instruction operands", ())
 ERROR(sil_operand_not_address,none,
-      "%0 operand of '%1' must have address type", (StringRef, StringRef))
+      "%0 of '%1' must have address type", (StringRef, StringRef))
+ERROR(sil_operand_not_object,none,
+      "%0 of '%1' must have object type", (StringRef, StringRef))
+ERROR(sil_operand_has_incorrect_moveonlywrapped,none,
+      "%0 of '%1' %select{must|must not}2 be of moveonlywrapped type", (StringRef, StringRef, unsigned))
 ERROR(sil_operand_not_ref_storage_address,none,
       "%0 operand of '%1' must have address of %2 type",
       (StringRef, StringRef, ReferenceOwnership))
@@ -911,6 +918,8 @@ ERROR(sil_box_expected_r_brace,none,
       "expected '}' to complete SIL box field type list", ())
 ERROR(sil_box_expected_r_angle,none,
       "expected '>' to complete SIL box generic argument list", ())
+ERROR(sil_box_expected,none,
+      "%0 expects its operand to be of SIL box field type", (StringRef))
 
 // SIL function types
 ERROR(sil_function_subst_expected_l_angle,none,
@@ -2110,6 +2119,14 @@ ERROR(sil_markuncheckedreferencebinding_requires_attribute,none,
       "mark_unchecked_reference_binding requires an attribute like [inout]", ())
 ERROR(sil_markuncheckedreferencebinding_invalid_attribute,none,
       "Attribute '[%0]' can not be applied to mark_unchecked_reference_binding", (StringRef))
+
+//------------------------------------------------------------------------------
+// MARK: Init accessors
+//------------------------------------------------------------------------------
+
+ERROR(init_accessor_is_not_on_property,none,
+      "init accessors could only be associated with properties",
+      ())
 
 #define UNDEFINE_DIAGNOSTIC_MACROS
 #include "DefineDiagnosticMacros.h"

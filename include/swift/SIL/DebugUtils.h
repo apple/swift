@@ -194,6 +194,16 @@ inline Operand *getSingleDebugUse(SILValue value) {
   return *ii;
 }
 
+/// If \p value has any debug user(s), return the operand associated with some
+/// use. Otherwise, returns nullptr.
+inline Operand *getAnyDebugUse(SILValue value) {
+  auto range = getDebugUses(value);
+  auto ii = range.begin(), ie = range.end();
+  if (ii == ie)
+    return nullptr;
+  return *ii;
+}
+
 /// Erases the instruction \p I from it's parent block and deletes it, including
 /// all debug instructions which use \p I.
 /// Precondition: The instruction may only have debug instructions as uses.

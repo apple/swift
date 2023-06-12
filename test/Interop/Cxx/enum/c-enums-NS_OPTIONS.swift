@@ -20,3 +20,8 @@ import CenumsNSOptions
 // CHECK-NEXT:   @available(swift, obsoleted: 3, renamed: "insertionIndex")
 // CHECK-NEXT:   static var InsertionIndex: NSBinarySearchingOptions { get }
 // CHECK-NEXT: }
+
+// CHECK: struct Bar : OptionSet, @unchecked Sendable
+// CHECK: struct HasNSOptionField {
+// CHECK:   var bar: Bar
+// CHECK: }

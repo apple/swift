@@ -662,7 +662,7 @@ do {
   // FIXME: The type error is likely due to not solving the conjunction before attempting default type var bindings.
   let _ = (switch Bool.random() { case true: Int?.none case false: 1 })?.bitWidth
   // expected-error@-1 {{'switch' may only be used as expression in return, throw, or as the source of an assignment}}
-  // expected-error@-2 {{type of expression is ambiguous without more context}}
+  // expected-error@-2 {{type of expression is ambiguous without a type annotation}}
 }
 do {
   let _ = switch Bool.random() { case true: Int?.none case false: 1 }!

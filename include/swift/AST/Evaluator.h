@@ -208,18 +208,6 @@ class Evaluator {
   /// is treated as a stack and is used to detect cycles.
   llvm::SetVector<ActiveRequest> activeRequests;
 
-  /// How many `ResolveMacroRequest` requests are active.
-  ///
-  /// This allows us to quickly determine whether there is any
-  /// `ResolveMacroRequest` active in the active request stack.
-  /// It saves us from a linear scan through `activeRequests` when
-  /// we need to determine this information.
-  ///
-  /// Why on earth would we need to determine this information?
-  /// Please see the extended comment that goes with the constructor
-  /// of `UnqualifiedLookupRequest`.
-  unsigned numActiveResolveMacroRequests = 0;
-
   /// A cache that stores the results of requests.
   evaluator::RequestCache cache;
 
@@ -316,6 +304,12 @@ public:
     cache.insert<Request>(request, std::move(output));
   }
 
+  template<typename Request,
+           typename std::enable_if<!Request::hasExternalCache>::type* = nullptr>
+  bool hasCachedResult(const Request &request) {
+    return cache.find_as(request) != cache.end<Request>();
+  }
+
   /// Do not introduce new callers of this function.
   template<typename Request,
            typename std::enable_if<!Request::hasExternalCache>::type* = nullptr>
@@ -334,16 +328,6 @@ public:
   template <typename Request>
   bool hasActiveRequest(const Request &request) const {
     return activeRequests.count(ActiveRequest(request));
-  }
-
-  /// Determine whether there is any active "resolve macro" request
-  /// on the request stack.
-  ///
-  /// Why on earth would we need to determine this information?
-  /// Please see the extended comment that goes with the constructor
-  /// of `UnqualifiedLookupRequest`.
-  bool hasActiveResolveMacroRequest() const {
-    return numActiveResolveMacroRequests > 0;
   }
 
 private:

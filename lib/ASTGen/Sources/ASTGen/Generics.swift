@@ -4,11 +4,9 @@ import SwiftSyntax
 
 extension ASTGenVisitor {
   func visit(_ node: GenericParameterClauseSyntax) -> ASTNode {
-    let lAngleLoc = self.base.advanced(by: node.leftAngleBracket.position.utf8Offset).raw
-    let whereLoc = node.genericWhereClause.map {
-      self.base.advanced(by: $0.whereKeyword.position.utf8Offset).raw
-    }
-    let rAngleLoc = self.base.advanced(by: node.rightAngleBracket.position.utf8Offset).raw
+    let lAngleLoc = bridgedSourceLoc(for: node.leftAngleBracket)
+    let whereLoc = bridgedSourceLoc(for: node.genericWhereClause?.whereKeyword)
+    let rAngleLoc = bridgedSourceLoc(for: node.rightAngleBracket)
     return .misc(
       self.withBridgedParametersAndRequirements(node) { params, reqs in
         return GenericParamList_create(self.ctx, lAngleLoc, params, whereLoc, reqs, rAngleLoc)
@@ -17,11 +15,11 @@ extension ASTGenVisitor {
 
   func visit(_ node: GenericParameterSyntax) -> ASTNode {
     var nodeName = node.name.text
-    let name = nodeName.withUTF8 { buf in
-      return SwiftASTContext_getIdentifier(ctx, buf.baseAddress, buf.count)
+    let name = nodeName.withBridgedString { bridgedName in
+      return ASTContext_getIdentifier(ctx, bridgedName)
     }
-    let nameLoc = self.base.advanced(by: node.name.position.utf8Offset).raw
-    let eachLoc = node.each.map { self.base.advanced(by: $0.position.utf8Offset).raw }
+    let nameLoc = bridgedSourceLoc(for: node.name)
+    let eachLoc = bridgedSourceLoc(for: node.each)
 
     var genericParameterIndex: Int?
     for (index, sibling) in (node.parent?.as(GenericParameterListSyntax.self) ?? []).enumerated() {
@@ -37,7 +35,7 @@ extension ASTGenVisitor {
     return .decl(
       GenericTypeParamDecl_create(
         self.ctx, self.declContext, name, nameLoc, eachLoc, genericParameterIndex,
-        eachLoc != nil))
+        eachLoc.raw != nil))
   }
 }
 
@@ -65,7 +63,7 @@ extension ASTGenVisitor {
         switch requirement.body {
         case .conformanceRequirement(let conformance):
           let firstType = self.visit(conformance.leftTypeIdentifier).rawValue
-          let separatorLoc = self.base.advanced(by: conformance.colon.position.utf8Offset).raw
+          let separatorLoc = bridgedSourceLoc(for: conformance.colon)
           let secondType = self.visit(conformance.rightTypeIdentifier).rawValue
           requirements.append(
             BridgedRequirementRepr(
@@ -75,7 +73,7 @@ extension ASTGenVisitor {
               SecondType: secondType))
         case .sameTypeRequirement(let sameType):
           let firstType = self.visit(sameType.leftTypeIdentifier).rawValue
-          let separatorLoc = self.base.advanced(by: sameType.equalityToken.position.utf8Offset).raw
+          let separatorLoc = bridgedSourceLoc(for: sameType.equalityToken)
           let secondType = self.visit(sameType.rightTypeIdentifier).rawValue
           requirements.append(
             BridgedRequirementRepr(

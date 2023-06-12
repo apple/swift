@@ -395,9 +395,7 @@ private:
   /// Action to be executed for serializing the SILModule.
   ActionCallback SerializeSILAction;
 
-#ifndef NDEBUG
   BasicBlockNameMapType basicBlockNames;
-#endif
 
   SILModule(llvm::PointerUnion<FileUnit *, ModuleDecl *> context,
             Lowering::TypeConverter &TC, const SILOptions &Options,

@@ -1,0 +1,12 @@
+module ImageFormats {
+  module Elf {
+    header "Elf/elf.h"
+    export *
+  }
+  module Dwarf {
+    header "Dwarf/dwarf.h"
+    header "Dwarf/eh_frame_hdr.h"
+    export *
+  }
+  export *
+}

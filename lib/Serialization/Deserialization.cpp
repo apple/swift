@@ -40,6 +40,7 @@
 #include "swift/ClangImporter/SwiftAbstractBasicReader.h"
 #include "swift/Serialization/SerializedModuleLoader.h"
 #include "clang/AST/DeclTemplate.h"
+#include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
@@ -161,8 +162,6 @@ void UnsafeDeserializationError::anchor() {}
 const char ModularizationError::ID = '\0';
 void ModularizationError::anchor() {}
 
-static llvm::Error consumeErrorIfXRefNonLoadedModule(llvm::Error &&error);
-
 /// Skips a single record in the bitstream.
 ///
 /// Destroys the stream position if the next entry is not a record.
@@ -187,8 +186,23 @@ SourceLoc ModuleFile::getSourceLoc() const {
   auto filename = getModuleFilename();
   auto bufferID = SourceMgr.getIDForBufferIdentifier(filename);
   if (!bufferID)
-    bufferID = SourceMgr.addMemBufferCopy(StringRef(), filename);
+    bufferID = SourceMgr.addMemBufferCopy("<binary format>", filename);
   return SourceMgr.getLocForBufferStart(*bufferID);
+}
+
+SourceLoc ModularizationError::getSourceLoc() const {
+  auto &SourceMgr = referenceModule->getContext().Diags.SourceMgr;
+  auto filename = referenceModule->getModuleFilename();
+
+  // Synthesize some context. We don't have an actual decl here
+  // so try to print a simple representation of the reference.
+  std::string S;
+  llvm::raw_string_ostream OS(S);
+  OS << expectedModule->getName() << "." << name;
+
+  // If we enable these remarks by default we may want to reuse these buffers.
+  auto bufferID = SourceMgr.addMemBufferCopy(S, filename);
+  return SourceMgr.getLocForBufferStart(bufferID);
 }
 
 void
@@ -199,18 +213,21 @@ ModularizationError::diagnose(const ModuleFile *MF,
   auto diagnoseError = [&](Kind errorKind) {
     switch (errorKind) {
     case Kind::DeclMoved:
-      return ctx.Diags.diagnose(MF->getSourceLoc(), diag::modularization_issue_decl_moved,
-                                declIsType, name, expectedModuleName,
-                                foundModuleName);
+      return ctx.Diags.diagnose(getSourceLoc(),
+                                diag::modularization_issue_decl_moved,
+                                declIsType, name, expectedModule,
+                                foundModule);
     case Kind::DeclKindChanged:
       return
-        ctx.Diags.diagnose(MF->getSourceLoc(), diag::modularization_issue_decl_type_changed,
-                           declIsType, name, expectedModuleName,
-                           referencedFromModuleName, foundModuleName,
-                           foundModuleName != expectedModuleName);
+        ctx.Diags.diagnose(getSourceLoc(),
+                           diag::modularization_issue_decl_type_changed,
+                           declIsType, name, expectedModule,
+                           referenceModule->getName(), foundModule,
+                           foundModule != expectedModule);
     case Kind::DeclNotFound:
-      return ctx.Diags.diagnose(MF->getSourceLoc(), diag::modularization_issue_decl_not_found,
-                                declIsType, name, expectedModuleName);
+      return ctx.Diags.diagnose(getSourceLoc(),
+                                diag::modularization_issue_decl_not_found,
+                                declIsType, name, expectedModule);
     }
     llvm_unreachable("Unhandled ModularizationError::Kind in switch.");
   };
@@ -222,6 +239,103 @@ ModularizationError::diagnose(const ModuleFile *MF,
   // We could pass along the `path` information through notes.
   // However, for a top-level decl a path would just duplicate the
   // expected module name and the decl name from the diagnostic.
+
+  // Show context with relevant file paths.
+  ctx.Diags.diagnose(SourceLoc(),
+                     diag::modularization_issue_note_expected,
+                     declIsType, expectedModule,
+                     expectedModule->getModuleSourceFilename());
+
+  const clang::Module *expectedUnderlying =
+                                   expectedModule->findUnderlyingClangModule();
+  if (!expectedModule->isNonSwiftModule() &&
+      expectedUnderlying) {
+    auto CML = ctx.getClangModuleLoader();
+    auto &CSM = CML->getClangASTContext().getSourceManager();
+    StringRef filename = CSM.getFilename(expectedUnderlying->DefinitionLoc);
+    ctx.Diags.diagnose(SourceLoc(),
+                       diag::modularization_issue_note_expected_underlying,
+                       expectedUnderlying->Name,
+                       filename);
+  }
+
+  if (foundModule)
+    ctx.Diags.diagnose(SourceLoc(),
+                       diag::modularization_issue_note_found,
+                       declIsType, foundModule,
+                       foundModule->getModuleSourceFilename());
+
+  // A Swift language version mismatch could lead to a different set of rules
+  // from APINotes files being applied when building the module vs when reading
+  // from it.
+  version::Version
+    moduleLangVersion = referenceModule->getCompatibilityVersion(),
+    clientLangVersion = MF->getContext().LangOpts.EffectiveLanguageVersion;
+  ModuleDecl *referenceModuleDecl = referenceModule->getAssociatedModule();
+  if (clientLangVersion != moduleLangVersion) {
+    ctx.Diags.diagnose(SourceLoc(),
+                       diag::modularization_issue_swift_version,
+                       referenceModuleDecl, moduleLangVersion,
+                       clientLangVersion);
+  }
+
+  // If the error is in a resilient swiftmodule adjacent to a swiftinterface,
+  // deleting the module to rebuild from the swiftinterface may fix the issue.
+  // Limit this suggestion to distributed Swift modules to not hint at
+  // deleting local caches and such.
+  bool referenceModuleIsDistributed = referenceModuleDecl &&
+                                      referenceModuleDecl->isNonUserModule();
+  if (referenceModule->getResilienceStrategy() ==
+                                               ResilienceStrategy::Resilient &&
+      referenceModuleIsDistributed) {
+    ctx.Diags.diagnose(SourceLoc(),
+                       diag::modularization_issue_stale_module,
+                       referenceModuleDecl,
+                       referenceModule->getModuleFilename());
+  }
+
+  // If the missing decl was expected to be in a clang module,
+  // it may be hidden by some clang defined passed via `-Xcc` affecting how
+  // headers are seen.
+  if (expectedUnderlying) {
+    ctx.Diags.diagnose(SourceLoc(),
+                       diag::modularization_issue_audit_headers,
+                       expectedModule->isNonSwiftModule(), expectedModule);
+  }
+
+  // If the reference goes from a distributed module to a local module,
+  // the compiler may have picked up an undesired module. We usually expect
+  // distributed modules to only reference other distributed modules.
+  // Local modules can reference both local modules and distributed modules.
+  if (referenceModuleIsDistributed) {
+    if (!expectedModule->isNonUserModule()) {
+      ctx.Diags.diagnose(SourceLoc(),
+                         diag::modularization_issue_layering_expected_local,
+                         referenceModuleDecl, expectedModule);
+    } else if (foundModule && !foundModule->isNonUserModule()) {
+      ctx.Diags.diagnose(SourceLoc(),
+                         diag::modularization_issue_layering_found_local,
+                         referenceModuleDecl, foundModule);
+    }
+  }
+
+  // If a type moved between MyModule and MyModule_Private, it can be caused
+  // by the use of `-Xcc -D` to change the API of the modules, leading to
+  // decls moving between both modules.
+  if (errorKind == Kind::DeclMoved ||
+      errorKind == Kind::DeclKindChanged) {
+    StringRef foundModuleName = foundModule->getName().str();
+    StringRef expectedModuleName = expectedModule->getName().str();
+    if (foundModuleName != expectedModuleName &&
+        (foundModuleName.startswith(expectedModuleName) ||
+         expectedModuleName.startswith(foundModuleName)) &&
+        (expectedUnderlying ||
+         expectedModule->findUnderlyingClangModule())) {
+      ctx.Diags.diagnose(SourceLoc(),
+                         diag::modularization_issue_related_modules,
+                         declIsType, name);
+    }
+  }
 }
 
 void TypeError::diagnose(const ModuleFile *MF) const {
@@ -235,21 +349,15 @@ void ExtensionError::diagnose(const ModuleFile *MF) const {
                        diag::modularization_issue_side_effect_extension_error);
 }
 
-llvm::Error ModuleFile::diagnoseFatal(llvm::Error error) const {
-
-  auto &ctx = getContext();
-  if (FileContext) {
-    if (ctx.LangOpts.EnableDeserializationRecovery) {
-      // Attempt to report relevant errors as diagnostics.
-      // At this time, only ModularizationErrors are reported directly. They
-      // can get here either directly or as underlying causes to a TypeError or
-      // and ExtensionError.
-      auto handleModularizationError =
-        [&](const ModularizationError &modularError) -> llvm::Error {
-          modularError.diagnose(this);
-          return llvm::Error::success();
-        };
-      error = llvm::handleErrors(std::move(error),
+llvm::Error
+ModuleFile::diagnoseModularizationError(llvm::Error error,
+                                        DiagnosticBehavior limit) const {
+  auto handleModularizationError =
+    [&](const ModularizationError &modularError) -> llvm::Error {
+      modularError.diagnose(this, limit);
+      return llvm::Error::success();
+    };
+  llvm::Error outError = llvm::handleErrors(std::move(error),
         handleModularizationError,
         [&](TypeError &typeError) -> llvm::Error {
           if (typeError.diagnoseUnderlyingReason(handleModularizationError)) {
@@ -265,6 +373,16 @@ llvm::Error ModuleFile::diagnoseFatal(llvm::Error error) const {
           }
           return llvm::make_error<ExtensionError>(std::move(extError));
         });
+
+  return outError;
+}
+
+llvm::Error ModuleFile::diagnoseFatal(llvm::Error error) const {
+
+  auto &ctx = getContext();
+  if (FileContext) {
+    if (ctx.LangOpts.EnableDeserializationRecovery) {
+      error = diagnoseModularizationError(std::move(error));
 
       // If no error is left, it was reported as a diagnostic. There's no
       // need to crash.
@@ -1540,7 +1658,7 @@ ModuleFile::getSubstitutionMapChecked(serialization::SubstitutionMapID id) {
   for (auto typeID : replacementTypeIDs) {
     auto typeOrError = getTypeChecked(typeID);
     if (!typeOrError) {
-      consumeError(typeOrError.takeError());
+      diagnoseAndConsumeError(typeOrError.takeError());
       continue;
     }
     replacementTypes.push_back(typeOrError.get());
@@ -1795,7 +1913,7 @@ ModuleFile::resolveCrossReference(ModuleID MID, uint32_t pathLen) {
         if (maybeType.errorIsA<FatalDeserializationError>())
           return maybeType.takeError();
         // FIXME: Don't throw away the inner error's information.
-        consumeError(maybeType.takeError());
+        diagnoseAndConsumeError(maybeType.takeError());
         return llvm::make_error<XRefError>("couldn't decode type",
                                            pathTrace, name);
       }
@@ -1808,7 +1926,7 @@ ModuleFile::resolveCrossReference(ModuleID MID, uint32_t pathLen) {
                                getIdentifier(privateDiscriminator));
     } else {
       baseModule->lookupQualified(baseModule, DeclNameRef(name),
-                                  NL_QualifiedDefault,
+                                  SourceLoc(), NL_QualifiedDefault,
                                   values);
     }
     filterValues(filterTy, nullptr, nullptr, isType, inProtocolExt,
@@ -1883,8 +2001,10 @@ ModuleFile::resolveCrossReference(ModuleID MID, uint32_t pathLen) {
   }
 
   auto getXRefDeclNameForError = [&]() -> DeclName {
+    BCOffsetRAII restoreOffset(DeclTypeCursor);
     DeclName result = pathTrace.getLastName();
-    while (--pathLen) {
+    uint32_t namePathLen = pathLen;
+    while (--namePathLen) {
       llvm::BitstreamEntry entry =
           fatalIfUnexpected(DeclTypeCursor.advance(AF_DontPopBlockAtEnd));
       if (entry.Kind != llvm::BitstreamEntry::Record)
@@ -1949,12 +2069,11 @@ ModuleFile::resolveCrossReference(ModuleID MID, uint32_t pathLen) {
     // up to the caller to recover if possible.
 
     // Look for types and value decls in other modules. This extra information
-    // is mostly for compiler engineers to understand a likely solution at a
-    // quick glance.
+    // will be used for diagnostics by the caller logic.
     SmallVector<char, 64> strScratch;
 
     auto errorKind = ModularizationError::Kind::DeclNotFound;
-    Identifier foundIn;
+    ModuleDecl *foundIn = nullptr;
     bool isType = false;
 
     if (recordID == XREF_TYPE_PATH_PIECE ||
@@ -1994,7 +2113,7 @@ ModuleFile::resolveCrossReference(ModuleID MID, uint32_t pathLen) {
                                    getIdentifier(privateDiscriminator));
         } else {
           otherModule->lookupQualified(otherModule, DeclNameRef(name),
-                                      NL_QualifiedDefault,
+                                      SourceLoc(), NL_QualifiedDefault,
                                       values);
         }
 
@@ -2008,7 +2127,7 @@ ModuleFile::resolveCrossReference(ModuleID MID, uint32_t pathLen) {
           // one because otherwise it would have succeeded on the first search.
           // This is usually caused by the use of poorly modularized headers.
           errorKind = ModularizationError::Kind::DeclMoved;
-          foundIn = otherModule->getName();
+          foundIn = otherModule;
           break;
         } else if (hadAMatchBeforeFiltering) {
           // Found a match that was filtered out. This may be from the same
@@ -2016,22 +2135,38 @@ ModuleFile::resolveCrossReference(ModuleID MID, uint32_t pathLen) {
           // by the use of different Swift language versions between a library
           // with serialized SIL and a client.
           errorKind = ModularizationError::Kind::DeclKindChanged;
-          foundIn = otherModule->getName();
+          foundIn = otherModule;
           break;
         }
       }
     }
 
     auto declName = getXRefDeclNameForError();
-    auto expectedIn = baseModule->getName();
-    auto referencedFrom = getName();
-    return llvm::make_error<ModularizationError>(declName,
-                                                 isType,
-                                                 errorKind,
-                                                 expectedIn,
-                                                 referencedFrom,
-                                                 foundIn,
-                                                 pathTrace);
+    auto error = llvm::make_error<ModularizationError>(declName,
+                                                       isType,
+                                                       errorKind,
+                                                       baseModule,
+                                                       this,
+                                                       foundIn,
+                                                       pathTrace);
+
+    // If we want to workaround broken modularization, we can keep going if
+    // we found a matching top-level decl in a different module. This is
+    // obviously dangerous as it could just be some other decl that happens to
+    // match.
+    if (getContext().LangOpts.ForceWorkaroundBrokenModules &&
+        errorKind == ModularizationError::Kind::DeclMoved &&
+        !values.empty()) {
+      // Print the error as a warning and notify of the recovery attempt.
+      llvm::handleAllErrors(std::move(error),
+        [&](const ModularizationError &modularError) {
+          modularError.diagnose(this, DiagnosticBehavior::Warning);
+        });
+      getContext().Diags.diagnose(SourceLoc(),
+                                  diag::modularization_issue_worked_around);
+    } else {
+      return std::move(error);
+    }
   }
 
   // Filters for values discovered in the remaining path pieces.
@@ -2165,7 +2300,7 @@ giveUpFastPath:
             return maybeType.takeError();
 
           // FIXME: Don't throw away the inner error's information.
-          consumeError(maybeType.takeError());
+          diagnoseAndConsumeError(maybeType.takeError());
           return llvm::make_error<XRefError>("couldn't decode type",
                                              pathTrace, memberName);
         }
@@ -2891,15 +3026,17 @@ void ModuleFile::configureStorage(AbstractStorageDecl *decl,
   auto readWriteImpl = getActualReadWriteImplKind(rawReadWriteImplKind);
   if (!readWriteImpl) return;
 
+  auto implInfo = StorageImplInfo(*readImpl, *writeImpl, *readWriteImpl);
+  decl->setImplInfo(implInfo);
+
+  decl->getASTContext().evaluator.cacheOutput(HasStorageRequest{decl}, implInfo.hasStorage());
+
   SmallVector<AccessorDecl*, 8> accessors;
   for (DeclID id : rawIDs.IDs) {
     auto accessor = dyn_cast_or_null<AccessorDecl>(getDecl(id));
     if (!accessor) return;
     accessors.push_back(accessor);
   }
-
-  auto implInfo = StorageImplInfo(*readImpl, *writeImpl, *readWriteImpl);
-  decl->setImplInfo(implInfo);
 
   if (implInfo.isSimpleStored() && accessors.empty())
     return;
@@ -3004,7 +3141,7 @@ class DeclDeserializer {
 
       auto maybeType = MF.getTypeChecked(typeID);
       if (!maybeType) {
-        llvm::consumeError(maybeType.takeError());
+        MF.diagnoseAndConsumeError(maybeType.takeError());
         continue;
       }
       inheritedTypes.push_back(
@@ -3330,10 +3467,10 @@ public:
       return overriddenOrError.takeError();
     } else if (MF.allowCompilerErrors()) {
       // Drop overriding relationship when allowing errors.
-      llvm::consumeError(overriddenOrError.takeError());
+      MF.diagnoseAndConsumeError(overriddenOrError.takeError());
       overridden = nullptr;
     } else {
-      llvm::consumeError(overriddenOrError.takeError());
+      MF.diagnoseAndConsumeError(overriddenOrError.takeError());
       if (overriddenAffectsABI || !ctx.LangOpts.EnableDeserializationRecovery) {
         return llvm::make_error<OverrideError>(name, errorFlags,
                                                numVTableEntries);
@@ -3477,7 +3614,7 @@ public:
       if (overridden.errorIsA<FatalDeserializationError>())
         return overridden.takeError();
 
-      llvm::consumeError(overridden.takeError());
+      MF.diagnoseAndConsumeError(overridden.takeError());
 
       return llvm::make_error<OverrideError>(
           name, getErrorFlags(), numVTableEntries);
@@ -3517,6 +3654,9 @@ public:
     var->setIsSetterMutating(isSetterMutating);
     declOrOffset = var;
 
+    MF.configureStorage(var, opaqueReadOwnership,
+                        readImpl, writeImpl, readWriteImpl, accessors);
+
     auto interfaceTypeOrError = MF.getTypeChecked(interfaceTypeID);
     if (!interfaceTypeOrError)
       return interfaceTypeOrError.takeError();
@@ -3528,8 +3668,6 @@ public:
       AddAttribute(
           new (ctx) ReferenceOwnershipAttr(referenceStorage->getOwnership()));
 
-    MF.configureStorage(var, opaqueReadOwnership,
-                        readImpl, writeImpl, readWriteImpl, accessors);
     auto accessLevel = getActualAccessLevel(rawAccessLevel);
     if (!accessLevel)
       return MF.diagnoseFatal();
@@ -3589,7 +3727,7 @@ public:
 
         // FIXME: This is actually wrong. We can't just drop stored properties
         // willy-nilly if the struct is @frozen.
-        consumeError(backingDecl.takeError());
+        MF.diagnoseAndConsumeError(backingDecl.takeError());
         return var;
       }
 
@@ -3806,7 +3944,7 @@ public:
       overridden = overriddenOrError.get();
     } else {
       if (overriddenAffectsABI || !ctx.LangOpts.EnableDeserializationRecovery) {
-        llvm::consumeError(overriddenOrError.takeError());
+        MF.diagnoseAndConsumeError(overriddenOrError.takeError());
         return llvm::make_error<OverrideError>(name, errorFlags,
                                                numVTableEntries);
       }
@@ -3814,7 +3952,7 @@ public:
       if (overriddenOrError.errorIsA<FatalDeserializationError>())
         return overriddenOrError.takeError();
 
-      llvm::consumeError(overriddenOrError.takeError());
+      MF.diagnoseAndConsumeError(overriddenOrError.takeError());
       overridden = nullptr;
     }
 
@@ -4079,7 +4217,7 @@ public:
       if (!subMapOrError) {
         // If the underlying type references internal details, ignore it.
         auto unconsumedError =
-          consumeErrorIfXRefNonLoadedModule(subMapOrError.takeError());
+          MF.consumeExpectedError(subMapOrError.takeError());
         if (unconsumedError)
           return std::move(unconsumedError);
       } else {
@@ -4136,7 +4274,7 @@ public:
           return pattern.takeError();
 
         // Silently drop the pattern...
-        llvm::consumeError(pattern.takeError());
+        MF.diagnoseAndConsumeError(pattern.takeError());
         // ...but continue to read any further patterns we're expecting.
         continue;
       }
@@ -4654,7 +4792,7 @@ public:
       // Pass through deserialization errors.
       if (overridden.errorIsA<FatalDeserializationError>())
         return overridden.takeError();
-      llvm::consumeError(overridden.takeError());
+      MF.diagnoseAndConsumeError(overridden.takeError());
 
       DeclDeserializationError::Flags errorFlags;
       return llvm::make_error<OverrideError>(
@@ -4889,14 +5027,10 @@ public:
 
     // Resolve the name ids.
     DeclName name;
-    if (numArgNames > 0) {
-      SmallVector<Identifier, 2> argNames;
-      for (auto argNameID : argNameAndDependencyIDs.slice(0, numArgNames))
-        argNames.push_back(MF.getIdentifier(argNameID));
-      name = DeclName(ctx, baseName, argNames);
-    } else {
-      name = baseName;
-    }
+    SmallVector<Identifier, 2> argNames;
+    for (auto argNameID : argNameAndDependencyIDs.slice(0, numArgNames))
+      argNames.push_back(MF.getIdentifier(argNameID));
+    name = DeclName(ctx, baseName, argNames);
     PrettySupplementalDeclNameTrace trace(name);
 
     argNameAndDependencyIDs = argNameAndDependencyIDs.slice(numArgNames);
@@ -5178,7 +5312,7 @@ llvm::Error DeclDeserializer::deserializeCustomAttrs() {
         // is safe to drop when it can't be deserialized.
         // rdar://problem/56599179. When allowing errors we're doing a best
         // effort to create a module, so ignore in that case as well.
-        consumeError(deserialized.takeError());
+        MF.diagnoseAndConsumeError(deserialized.takeError());
       } else
         return deserialized.takeError();
     } else if (!deserialized.get() && MF.allowCompilerErrors()) {
@@ -5459,6 +5593,36 @@ llvm::Error DeclDeserializer::deserializeDeclCommon() {
                                       spis, availabilityAttrs, typeErasedParams,
                                       specializedSig, replacedFunctionName, &MF,
                                       targetFunID);
+        break;
+      }
+
+      case decls_block::Initializes_DECL_ATTR: {
+        ArrayRef<uint64_t> rawPropertyIDs;
+        serialization::decls_block::InitializesDeclAttrLayout::
+            readRecord(scratch, rawPropertyIDs);
+
+        SmallVector<Identifier, 4> properties;
+        for (auto rawID : rawPropertyIDs) {
+          properties.push_back(MF.getIdentifier(rawID));
+        }
+
+        Attr = InitializesAttr::create(ctx, SourceLoc(), SourceRange(),
+                                       properties);
+        break;
+      }
+
+      case decls_block::Accesses_DECL_ATTR: {
+        ArrayRef<uint64_t> rawPropertyIDs;
+        serialization::decls_block::AccessesDeclAttrLayout::
+            readRecord(scratch, rawPropertyIDs);
+
+        SmallVector<Identifier, 4> properties;
+        for (auto rawID : rawPropertyIDs) {
+          properties.push_back(MF.getIdentifier(rawID));
+        }
+
+        Attr = AccessesAttr::create(ctx, SourceLoc(), SourceRange(),
+                                    properties);
         break;
       }
 
@@ -6127,7 +6291,7 @@ Expected<Type> DESERIALIZE_TYPE(NAME_ALIAS_TYPE)(
 
       // We're going to recover by falling back to the underlying type, so
       // just ignore the error.
-      llvm::consumeError(aliasOrError.takeError());
+      MF.diagnoseAndConsumeError(aliasOrError.takeError());
     }
 
     if (!alias || !alias->getDeclaredInterfaceType()->isEqual(underlyingType)) {
@@ -7067,6 +7231,19 @@ Expected<Type> DESERIALIZE_TYPE(PACK_EXPANSION_TYPE)(
   return PackExpansionType::get(patternTy.get(), countTy.get());
 }
 
+Expected<Type> DESERIALIZE_TYPE(PACK_ELEMENT_TYPE)(
+    ModuleFile &MF, SmallVectorImpl<uint64_t> &scratch, StringRef blobData) {
+  TypeID packID;
+  unsigned level;
+  decls_block::PackElementTypeLayout::readRecord(scratch, packID, level);
+
+  auto packType = MF.getTypeChecked(packID);
+  if (!packType)
+    return packType.takeError();
+
+  return PackElementType::get(packType.get(), level);
+}
+
 Expected<Type> DESERIALIZE_TYPE(PACK_TYPE)(
     ModuleFile &MF, SmallVectorImpl<uint64_t> &scratch, StringRef blobData) {
   ArrayRef<uint64_t> elementTypeIDs;
@@ -7351,13 +7528,16 @@ Decl *handleErrorAndSupplyMissingProtoMember(ASTContext &context,
   return suppliedMissingMember;
 }
 
-Decl *handleErrorAndSupplyMissingMiscMember(llvm::Error &&error) {
-  llvm::consumeError(std::move(error));
+Decl *
+ModuleFile::handleErrorAndSupplyMissingMiscMember(llvm::Error &&error) const {
+  diagnoseAndConsumeError(std::move(error));
   return nullptr;
 }
 
-Decl *handleErrorAndSupplyMissingMember(ASTContext &context, Decl *container,
-                                        llvm::Error &&error) {
+Decl *
+ModuleFile::handleErrorAndSupplyMissingMember(ASTContext &context,
+                                              Decl *container,
+                                              llvm::Error &&error) const {
   // Drop the member if it had a problem.
   // FIXME: Handle overridable members in class extensions too, someday.
   if (auto *containingClass = dyn_cast<ClassDecl>(container)) {
@@ -7431,14 +7611,14 @@ void ModuleFile::loadAllMembers(Decl *container, uint64_t contextData) {
   }
 }
 
-static llvm::Error consumeErrorIfXRefNonLoadedModule(llvm::Error &&error) {
+llvm::Error ModuleFile::consumeExpectedError(llvm::Error &&error) {
     // Missing module errors are most likely caused by an
     // implementation-only import hiding types and decls.
     // rdar://problem/60291019
     if (error.isA<XRefNonLoadedModuleError>() ||
         error.isA<UnsafeDeserializationError>() ||
         error.isA<ModularizationError>()) {
-      consumeError(std::move(error));
+      diagnoseAndConsumeError(std::move(error));
       return llvm::Error::success();
     }
 
@@ -7452,7 +7632,7 @@ static llvm::Error consumeErrorIfXRefNonLoadedModule(llvm::Error &&error) {
       if (TE->underlyingReasonIsA<XRefNonLoadedModuleError>() ||
           TE->underlyingReasonIsA<UnsafeDeserializationError>() ||
           TE->underlyingReasonIsA<ModularizationError>()) {
-        consumeError(std::move(errorInfo));
+        diagnoseAndConsumeError(std::move(errorInfo));
         return llvm::Error::success();
       }
 
@@ -7460,6 +7640,19 @@ static llvm::Error consumeErrorIfXRefNonLoadedModule(llvm::Error &&error) {
     }
 
     return std::move(error);
+}
+
+void ModuleFile::diagnoseAndConsumeError(llvm::Error error) const {
+  auto &ctx = getContext();
+  if (ctx.LangOpts.EnableModuleRecoveryRemarks) {
+    error = diagnoseModularizationError(std::move(error),
+                                        DiagnosticBehavior::Remark);
+    // If error was already diagnosed it was also consumed.
+    if (!error)
+      return;
+  }
+
+  consumeError(std::move(error));
 }
 
 namespace {
@@ -7525,12 +7718,12 @@ ModuleFile::loadAllConformances(const Decl *D, uint64_t contextData,
 
     if (!conformance) {
       auto unconsumedError =
-        consumeErrorIfXRefNonLoadedModule(conformance.takeError());
+        consumeExpectedError(conformance.takeError());
       if (unconsumedError) {
         // Ignore if allowing errors, it's just doing a best effort to produce
         // *some* module anyway.
         if (allowCompilerErrors())
-          consumeError(std::move(unconsumedError));
+          diagnoseAndConsumeError(std::move(unconsumedError));
         else
           fatal(std::move(unconsumedError));
       }
@@ -7620,7 +7813,7 @@ void ModuleFile::finishNormalConformance(NormalProtocolConformance *conformance,
     if (maybeConformance) {
       reqConformances.push_back(maybeConformance.get());
     } else if (allowCompilerErrors()) {
-      consumeError(maybeConformance.takeError());
+      diagnoseAndConsumeError(maybeConformance.takeError());
       reqConformances.push_back(ProtocolConformanceRef::forInvalid());
     } else {
       fatal(maybeConformance.takeError());
@@ -7688,7 +7881,7 @@ void ModuleFile::finishNormalConformance(NormalProtocolConformance *conformance,
       second = *secondOrError;
     } else if (getContext().LangOpts.EnableDeserializationRecovery) {
       second = ErrorType::get(getContext());
-      consumeError(secondOrError.takeError());
+      diagnoseAndConsumeError(secondOrError.takeError());
     } else {
       fatal(secondOrError.takeError());
     }
@@ -7698,7 +7891,7 @@ void ModuleFile::finishNormalConformance(NormalProtocolConformance *conformance,
       third = cast_or_null<TypeDecl>(*thirdOrError);
     } else if (getContext().LangOpts.EnableDeserializationRecovery) {
       third = nullptr;
-      consumeError(thirdOrError.takeError());
+      diagnoseAndConsumeError(thirdOrError.takeError());
     } else {
       fatal(thirdOrError.takeError());
     }
@@ -7739,7 +7932,7 @@ void ModuleFile::finishNormalConformance(NormalProtocolConformance *conformance,
     if (deserializedReq) {
       req = cast_or_null<ValueDecl>(*deserializedReq);
     } else if (getContext().LangOpts.EnableDeserializationRecovery) {
-      consumeError(deserializedReq.takeError());
+      diagnoseAndConsumeError(deserializedReq.takeError());
       req = nullptr;
       needToFillInOpaqueValueWitnesses = true;
     } else {
@@ -7756,7 +7949,7 @@ void ModuleFile::finishNormalConformance(NormalProtocolConformance *conformance,
     // In that case, we want the conformance to still be available, but
     // we can't make use of the relationship to the underlying decl.
     } else if (getContext().LangOpts.EnableDeserializationRecovery) {
-      consumeError(deserializedWitness.takeError());
+      diagnoseAndConsumeError(deserializedWitness.takeError());
       isOpaque = true;
       witness = nullptr;
     } else {
@@ -7789,7 +7982,7 @@ void ModuleFile::finishNormalConformance(NormalProtocolConformance *conformance,
       if (witnessSubstitutions.errorIsA<XRefNonLoadedModuleError>() ||
           witnessSubstitutions.errorIsA<UnsafeDeserializationError>() ||
           allowCompilerErrors()) {
-        consumeError(witnessSubstitutions.takeError());
+        diagnoseAndConsumeError(witnessSubstitutions.takeError());
         isOpaque = true;
       }
       else

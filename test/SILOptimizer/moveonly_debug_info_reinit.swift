@@ -39,3 +39,27 @@ func bar(_ x: consuming Foo, y: consuming Foo, z: consuming Foo) {
     // CHECK: debug_value undef : $*Foo, var, name "x"
     use(&x)
 }
+
+// CHECK-LABEL: sil {{.*}} @${{.*}}10inoutParam
+func inoutParam(_ x: inout Foo, y: consuming Foo, z: consuming Foo) {
+    // CHECK: debug_value [[X:%[0-9]+]] : $*Foo, var, name "x"
+
+    // CHECK: [[USE:%.*]] = function_ref @use
+    // CHECK: apply [[USE]]
+    // CHECK: debug_value undef : $*Foo, var, name "x"
+    use(&x)
+    let _ = x
+
+    // CHECK: debug_value undef : $*Foo, var, name "y"
+    // CHECK: debug_value [[X]] : $*Foo, var, name "x"
+    x = y
+    // CHECK: [[USE:%.*]] = function_ref @use
+    // CHECK: apply [[USE]]
+    // CHECK: debug_value undef : $*Foo, var, name "x"
+    use(&x)
+    let _ = x
+
+    // CHECK: debug_value undef : $*Foo, var, name "z"
+    // CHECK: debug_value [[X]] : $*Foo, var, name "x"
+    x = z
+}

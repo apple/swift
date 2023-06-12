@@ -651,6 +651,9 @@ private:
                                         LayoutStringBuilder &B,
                                         GenericSignature genericSig) const;
 
+  bool buildMultiPayloadRefCountString(IRGenModule &IGM, LayoutStringBuilder &B,
+                                       GenericSignature genericSig) const;
+
   static bool classof(const TypeLayoutEntry *entry);
 };
 

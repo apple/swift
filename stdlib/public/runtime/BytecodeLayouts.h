@@ -44,6 +44,11 @@ enum class RefCountingKind : uint8_t {
   Resilient = 0x0f,
 
   SinglePayloadEnumSimple = 0x10,
+  SinglePayloadEnumFN = 0x11,
+  SinglePayloadEnumFNResolved = 0x12,
+
+  MultiPayloadEnumFN = 0x13,
+  MultiPayloadEnumFNResolved = 0x14,
 
   Skip = 0x80,
   // We may use the MSB as flag that a count follows,
@@ -64,7 +69,10 @@ swift::OpaqueValue *swift_generic_initWithTake(swift::OpaqueValue *dest, swift::
 SWIFT_RUNTIME_EXPORT
 void swift_generic_instantiateLayoutString(const uint8_t *layoutStr, Metadata *type);
 
-void swift_resolve_resilientAccessors(uint8_t *layoutStr, size_t layoutStrOffset, const uint8_t *fieldLayoutStr, size_t refCountBytes, const Metadata *fieldType);
+void swift_resolve_resilientAccessors(uint8_t *layoutStr,
+                                      size_t layoutStrOffset,
+                                      const uint8_t *fieldLayoutStr,
+                                      const Metadata *fieldType);
 } // namespace swift
 
 #endif // SWIFT_BYTECODE_LAYOUTS_H
