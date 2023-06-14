@@ -52,17 +52,20 @@ internal struct _${U}Int128 {
 }
 
 extension _${U}Int128 {
+  % if signed:
+  
+  % else:
   /// Divides `x` by rⁿ where r is the `radix`. Returns the quotient,
   /// remainder, and digits
   private static func div (x: _UInt128, radix: Int) ->
   (q:_UInt128, r:UInt64, digits:Int) {
     let maxDivisor: UInt64
-    let digits: Int
+    var digits = _maxPowers[radix-2]
     switch radix {
-      case 2:  maxDivisor = UInt64(9_223_372_036_854_775_808); digits = 63
-      case 8:  maxDivisor = UInt64(9_223_372_036_854_775_808); digits = 21
-      case 16: maxDivisor = UInt64(1_152_921_504_606_846_976); digits = 15
-      case 10: maxDivisor = UInt64(10_000_000_000_000_000_000); digits = 19
+      case 2:  maxDivisor = UInt64(9_223_372_036_854_775_808)
+      case 8:  maxDivisor = UInt64(9_223_372_036_854_775_808)
+      case 16: maxDivisor = UInt64(1_152_921_504_606_846_976)
+      case 10: maxDivisor = UInt64(10_000_000_000_000_000_000)
       default:
         /// Note: Max radix = 36 so
         ///          36¹² = 4_738_381_338_321_616_896 < UInt64.max
@@ -75,6 +78,7 @@ extension _${U}Int128 {
                                                              low: maxDivisor))
     return (result.quotient, result.remainder.low, digits)
   }
+  % end
   
   /// Converts the UInt128 `self` into a string with a given `radix`.  The
   /// radix string can use uppercase characters if `uppercase` is true.
@@ -85,6 +89,12 @@ extension _${U}Int128 {
   /// Further optimizations may be possible by using unchecked string buffers.
   internal func string(withRadix radix:Int = 10, uppercase:Bool = false) ->
   String {
+    % if signed:
+    let str = self.magnitude.string(radix:radix, uppercase: uppercase)
+    if self._isNegative {
+      return "-" + str
+    }
+    % else:
     guard 2...36 ~= radix else { return "0" }
     if self == Self.zero { return "0" }
     var result = (q:self.magnitude, r:UInt64(0), digits:0)
@@ -97,6 +107,7 @@ extension _${U}Int128 {
       }
       str = temp + str
     }
+    % end
     return str
   }
 }
@@ -118,8 +129,8 @@ extension _${U}Int128 {
     guard !text.isEmpty else { return nil }
     guard 2...36 ~= radix else { return nil }
     self.init()
-    if let x : _UInt128 = _UInt128.value(from: text, radix: radix) {
-      self = Self(x)
+    if let x = Self.value(from: text, radix: radix) {
+      self = x
     } else {
       return nil
     }
@@ -134,62 +145,84 @@ extension _${U}Int128 {
   /// This method breaks `string` into pieces to reduce overhead of the
   /// multiplications and allow UInt64 to work in converting larger numbers.
   fileprivate static func value<S: StringProtocol>(
-      from string: S, radix: Int = 10) -> Self? {
+    from string: S, radix: Int = 10) -> Self? {
     // Handles signs and leading zeros
-    let uradix = UInt64(radix)
     var s = String(string)
     % if signed:
     var isNegative = false
-    if s.hasPrefix("-") { isNegative = true }
+    if s.hasPrefix("-") { isNegative = true; s.removeFirst() }
+      
+    // Translate the string into a number
+    guard let r = UInt128.value(from: s, radix: radix) else { return nil }
     % else:
+    let uradix = UInt64(radix)
     if s.hasPrefix("-") { return nil }
-    % end
     if s.hasPrefix("+") { s.removeFirst() }
     while s.hasPrefix("0") { s.removeFirst() }
     
     // Translate the string into a number
-    var r = zero
-    let _ = times(x: zero, timesRadix: uradix, toPower: 1) // initialize table
+    var r = UInt128.zero
     while !s.isEmpty {
       // handle `chunk`-sized digits at a time
-      let chunk = s.prefix(powers.count)
+      let chunk = s.prefix(UInt128._maxPowers[radix-2])
       let size = chunk.count; s.removeFirst(size)
       if let uint = UInt64(chunk, radix: radix) {
         if size != 0 {
-          r = times(x: r, timesRadix: uradix, toPower: size)
+          r = UInt128._multiply(r, timesRadix: uradix, toPower: size)
         }
-        r += Self(high: 0, low: uint)
+        r += UInt128(high: 0, low: uint)
       } else {
         return nil
       }
     }
+    % end
     % if signed:
     if isNegative {
-      return -r
+      return -Self(r)
     }
     % end
-    return r
+    return Self(r)
   }
-  
-  /// Computed powers of rⁿ up to UInt64.max where r is the radix
-  private static var powers = [UInt64]()
-  
+  % if signed:
+          
+  % else:
   /// Multiplies `x` by rⁿ where r is the `radix` and returns the product
-  private static func times<T:FixedWidthInteger>(
-    x: T, timesRadix radix: UInt64, toPower n: Int) -> T {
+  static func _multiply<T:FixedWidthInteger>(
+    _ x: T, timesRadix radix: UInt64, toPower n: Int) -> T {
     // calculate the powers of the radix and store in a table
-    if powers.isEmpty || powers.first! != radix {
-      powers = [UInt64](); powers.reserveCapacity(20)
-      var t = UInt64(1)
-      while t < UInt64.max / radix {
-        t &*= radix
-        powers.append(t)
+    func power(of radix:UInt64, to n:Int) -> UInt64 {
+      var t = UInt64(10)
+      var n = n
+      while n > 0 && t < UInt64.max / radix {
+        t &*= radix; n -= 1
       }
+      return t
     }
-    let radixToPower = powers[n-1]
-    let result = x * T(radixToPower)
-    return result
+    let radixToPower: UInt64
+    if radix == 10 {
+      radixToPower = Self._powers10[n-1]
+    } else {
+      radixToPower = power(of: radix, to: n-1)
+    }
+    return x * T(radixToPower)
   }
+  
+  /// Maximum power of the `radix` for an unsigned 64-bit UInt for base
+  /// indices of 2...36
+  static let _maxPowers : [Int] = [
+    63, 40, 31, 27, 24, 22, 21, 20, 19, 18, 17, 17, 16, 16, 15, 15, 15, 15,
+    14, 14, 14, 14, 13, 13, 13, 13, 13, 13, 13, 13, 13, 12, 12, 12, 12, 12, 12
+  ]
+
+  /// Computed powers of 10ⁿ up to UInt64.max
+  static let _powers10 : [UInt64] = [
+    10, 100, 1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000,
+    1_000_000_000, 10_000_000_000, 100_000_000_000, 1_000_000_000_000,
+    10_000_000_000_000, 100_000_000_000_000, 1_000_000_000_000_000,
+    10_000_000_000_000_000, 100_000_000_000_000_000, 1_000_000_000_000_000_000,
+    10_000_000_000_000_000_000
+  ]
+  % end
 }
 
 extension _${U}Int128: Equatable {
