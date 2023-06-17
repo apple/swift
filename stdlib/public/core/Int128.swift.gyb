@@ -190,7 +190,7 @@ extension _${U}Int128 {
     _ x: T, timesRadix radix: UInt64, toPower n: Int) -> T {
     // calculate the powers of the radix and store in a table
     func power(of radix:UInt64, to n:Int) -> UInt64 {
-      var t = UInt64(10)
+      var t = radix
       var n = n
       while n > 0 && t < UInt64.max / radix {
         t &*= radix; n -= 1
