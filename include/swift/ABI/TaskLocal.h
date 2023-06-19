@@ -208,6 +208,8 @@ public:
   public:
 
     void initializeLinkParent(AsyncTask *task, AsyncTask *parent);
+      
+    bool isEmpty() const { return head == nullptr; }
 
     void pushValue(AsyncTask *task,
                    const HeapObject *key,

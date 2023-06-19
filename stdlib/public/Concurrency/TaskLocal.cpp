@@ -430,7 +430,7 @@ TaskLocal::AdHocScope::AdHocScope(Storage *storage) {
   assert(swift_task_getCurrent() == nullptr &&
          "Cannot use ad-hoc scope with a task");
   oldStorage = FallbackTaskLocalStorage::get();
-  FallbackTaskLocalStorage::set(storage);
+  FallbackTaskLocalStorage::set(storage->isEmpty() ? nullptr : storage);
 }
 
 TaskLocal::AdHocScope::~AdHocScope() {

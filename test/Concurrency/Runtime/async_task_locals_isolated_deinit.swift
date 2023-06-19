@@ -18,10 +18,24 @@ private func isCurrentExecutor(_ executor: UnownedSerialExecutor) -> Bool {
     isCurrentExecutor(unsafeBitCast(executor, to: Builtin.Executor.self))
 }
 
+extension DispatchGroup {
+    func enter(_ count: Int) {
+        for _ in 0..<count {
+            self.enter()
+        }
+    }
+}
+
 @available(SwiftStdlib 5.1, *)
 struct TL {
   @TaskLocal
   static var number: Int = 0
+}
+
+func checkTaskLocalStack() {
+  TL.$number.withValue(-999) {
+    expectEqual(-999, TL.number)
+  }
 }
 
 actor ActorCopy {
@@ -39,6 +53,7 @@ actor ActorCopy {
   isolated deinit {
     expectTrue(isCurrentExecutor(self.unownedExecutor))
     expectEqual(expectedNumber, TL.number)
+    checkTaskLocalStack()
     group.leave()
   }
 }
@@ -59,6 +74,7 @@ actor ActorReset {
   isolated deinit {
     expectTrue(isCurrentExecutor(self.unownedExecutor))
     expectEqual(expectedNumber, TL.number)
+    checkTaskLocalStack()
     group.leave()
   }
 }
@@ -79,6 +95,7 @@ actor ActorAPI {
     withResetTaskLocalValues {
       expectTrue(isCurrentExecutor(self.unownedExecutor))
       expectEqual(expectedNumber, TL.number)
+      checkTaskLocalStack()
       group.leave()
     }
   }
@@ -100,6 +117,7 @@ actor ActorCopyAsync {
     await Task.yield()
     expectTrue(isCurrentExecutor(self.unownedExecutor))
     expectEqual(expectedNumber, TL.number)
+    checkTaskLocalStack()
     group.leave()
   }
 }
@@ -121,6 +139,7 @@ actor ActorResetAsync {
     await Task.yield()
     expectTrue(isCurrentExecutor(self.unownedExecutor))
     expectEqual(expectedNumber, TL.number)
+    checkTaskLocalStack()
     group.leave()
   }
 }
@@ -142,6 +161,7 @@ actor ActorAPIAsync {
     withResetTaskLocalValues {
       expectTrue(isCurrentExecutor(self.unownedExecutor))
       expectEqual(expectedNumber, TL.number)
+      checkTaskLocalStack()
       group.leave()
     }
   }
@@ -170,6 +190,7 @@ class Probe {
   deinit {
     expectTrue(isCurrentExecutor(probeExpectedExecutor))
     expectEqual(probeExpectedNumber, TL.number)
+    checkTaskLocalStack()
     probeGroup.leave()
   }
 }
@@ -190,6 +211,7 @@ class ClassCopy: Probe {
   deinit {
     expectTrue(isCurrentExecutor(AnotherActor.shared.unownedExecutor))
     expectEqual(expectedNumber, TL.number)
+    checkTaskLocalStack()
     group.leave()
   }
 }
@@ -211,6 +233,7 @@ class ClassReset: Probe {
   deinit {
     expectTrue(isCurrentExecutor(AnotherActor.shared.unownedExecutor))
     expectEqual(expectedNumber, TL.number)
+    checkTaskLocalStack()
     group.leave()
   }
 }
@@ -232,6 +255,7 @@ class ClassAPI: Probe {
     withResetTaskLocalValues {
       expectTrue(isCurrentExecutor(AnotherActor.shared.unownedExecutor))
       expectEqual(expectedNumber, TL.number)
+      checkTaskLocalStack()
       group.leave()
     }
   }
@@ -256,6 +280,7 @@ class ClassCopyAsync: Probe {
     await Task.yield()
     expectTrue(isCurrentExecutor(AnotherActor.shared.unownedExecutor))
     expectEqual(expectedNumber, TL.number)
+    checkTaskLocalStack()
     group.leave()
   }
 }
@@ -280,6 +305,7 @@ class ClassResetAsync: Probe {
     await Task.yield()
     expectTrue(isCurrentExecutor(AnotherActor.shared.unownedExecutor))
     expectEqual(expectedNumber, TL.number)
+    checkTaskLocalStack()
     group.leave()
   }
 }
@@ -307,6 +333,7 @@ class ClassAPIAsync: Probe {
       await Task.yield()
       expectTrue(isCurrentExecutor(AnotherActor.shared.unownedExecutor))
       expectEqual(expectedNumber, TL.number)
+      checkTaskLocalStack()
       group.leave()
     }
   }
@@ -316,51 +343,42 @@ class ClassAPIAsync: Probe {
 let tests = TestSuite("Isolated Deinit")
 
 if #available(SwiftStdlib 5.1, *) {
-//  tests.test("sync fast path") {
-//    let group = DispatchGroup()
-//    group.enter()
-//    group.enter()
-//    group.enter()
-//    Task {
-//      await TL.$number.withValue(42) {
-//        await AnotherActor.shared.performTesting {
-//          _ = ClassCopy(expectedNumber: 42, group: group)
-//          _ = ClassReset(expectedNumber: 0, group: group)
-//          _ = ClassAPI(resetNumber: 0, setNumber: 42, group: group)
-//        }
-//      }
-//    }
-//    group.wait()
-//  }
+  tests.test("sync fast path") {
+    let group = DispatchGroup()
+    group.enter(3)
+    Task {
+      await TL.$number.withValue(42) {
+        await AnotherActor.shared.performTesting {
+          _ = ClassCopy(expectedNumber: 42, group: group)
+          _ = ClassReset(expectedNumber: 0, group: group)
+          _ = ClassAPI(resetNumber: 0, setNumber: 42, group: group)
+        }
+      }
+    }
+    group.wait()
+  }
   
-//  tests.test("sync slow path") {
-//    let group = DispatchGroup()
-//    group.enter()
-//    group.enter()
-//    group.enter()
-//    group.enter()
-//    group.enter()
-//    group.enter()
-//    Task {
-//      TL.$number.withValue(37) {
-//        _ = ActorCopy(expectedNumber: 37, group: group)
-//        _ = ActorReset(expectedNumber: 0, group: group)
-//        _ = ActorAPI(resetNumber: 0, setNumber: 37, group: group)
-//      }
-//      TL.$number.withValue(99) {
-//        _ = ClassCopy(expectedNumber: 99, group: group)
-//        _ = ClassReset(expectedNumber: 0, group: group)
-//        _ = ClassAPI(resetNumber: 0, setNumber: 99, group: group)
-//      }
-//    }
-//    group.wait()
-//  }
+  tests.test("sync slow path") {
+    let group = DispatchGroup()
+    group.enter(6)
+    Task {
+      TL.$number.withValue(37) {
+        _ = ActorCopy(expectedNumber: 37, group: group)
+        _ = ActorReset(expectedNumber: 0, group: group)
+        _ = ActorAPI(resetNumber: 0, setNumber: 37, group: group)
+      }
+      TL.$number.withValue(99) {
+        _ = ClassCopy(expectedNumber: 99, group: group)
+        _ = ClassReset(expectedNumber: 0, group: group)
+        _ = ClassAPI(resetNumber: 0, setNumber: 99, group: group)
+      }
+    }
+    group.wait()
+  }
   
   tests.test("async same actor") {
     let group = DispatchGroup()
-    group.enter()
-    group.enter()
-    group.enter()
+    group.enter(3)
     Task {
       await TL.$number.withValue(42) {
         await AnotherActor.shared.performTesting {
@@ -373,28 +391,43 @@ if #available(SwiftStdlib 5.1, *) {
     group.wait()
   }
   
-//  tests.test("async different actor") {
-//    let group = DispatchGroup()
-//    group.enter()
-//    group.enter()
-//    group.enter()
-//    group.enter()
-//    group.enter()
-//    group.enter()
-//    Task {
-//      TL.$number.withValue(37) {
-//        _ = ActorCopyAsync(expectedNumber: 37, group: group)
-//        _ = ActorResetAsync(expectedNumber: 0, group: group)
-//        _ = ActorAPIAsync(resetNumber: 0, setNumber: 37, group: group)
-//      }
-//      TL.$number.withValue(99) {
-//        _ = ClassCopyAsync(expectedNumber: 99, group: group)
-//        _ = ClassResetAsync(expectedNumber: 0, group: group)
-//        _ = ClassAPIAsync(resetNumber: 0, setNumber: 99, group: group)
-//      }
-//    }
-//    group.wait()
-//  }
+  tests.test("async different actor") {
+    let group = DispatchGroup()
+    group.enter(6)
+    Task {
+      TL.$number.withValue(37) {
+        _ = ActorCopyAsync(expectedNumber: 37, group: group)
+        _ = ActorResetAsync(expectedNumber: 0, group: group)
+        _ = ActorAPIAsync(resetNumber: 0, setNumber: 37, group: group)
+      }
+      TL.$number.withValue(99) {
+        _ = ClassCopyAsync(expectedNumber: 99, group: group)
+        _ = ClassResetAsync(expectedNumber: 0, group: group)
+        _ = ClassAPIAsync(resetNumber: 0, setNumber: 99, group: group)
+      }
+    }
+    group.wait()
+  }
+  
+  tests.test("no TLs") {
+    let group = DispatchGroup()
+    group.enter(12)
+    Task {
+      _ = ActorCopy(expectedNumber: 0, group: group)
+      _ = ActorReset(expectedNumber: 0, group: group)
+      _ = ActorAPI(resetNumber: 0, setNumber: 0, group: group)
+      _ = ClassCopy(expectedNumber: 0, group: group)
+      _ = ClassReset(expectedNumber: 0, group: group)
+      _ = ClassAPI(resetNumber: 0, setNumber: 0, group: group)
+      _ = ActorCopyAsync(expectedNumber: 0, group: group)
+      _ = ActorResetAsync(expectedNumber: 0, group: group)
+      _ = ActorAPIAsync(resetNumber: 0, setNumber: 0, group: group)
+      _ = ClassCopyAsync(expectedNumber: 0, group: group)
+      _ = ClassResetAsync(expectedNumber: 0, group: group)
+      _ = ClassAPIAsync(resetNumber: 0, setNumber: 0, group: group)
+    }
+    group.wait()
+  }
 }
 
 runAllTests()
