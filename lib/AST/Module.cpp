@@ -43,6 +43,7 @@
 #include "swift/Basic/Compiler.h"
 #include "swift/Basic/SourceManager.h"
 #include "swift/Basic/Statistic.h"
+#include "swift/Basic/StringExtras.h"
 #include "swift/Demangling/ManglingMacros.h"
 #include "swift/Parse/Token.h"
 #include "swift/Strings.h"
@@ -186,9 +187,6 @@ class swift::SourceLookupCache {
 public:
   SourceLookupCache(const SourceFile &SF);
   SourceLookupCache(const ModuleDecl &Mod);
-
-  /// Throw away as much memory as possible.
-  void invalidate();
 
   void lookupValue(DeclName Name, NLKind LookupKind,
                    OptionSet<ModuleLookupFlags> Flags,
@@ -551,6 +549,29 @@ void SourceLookupCache::lookupVisibleDecls(ImportPath::Access AccessPath,
       Consumer.foundDecl(vd, DeclVisibilityKind::VisibleAtTopLevel);
     }
   }
+
+  populateAuxiliaryDeclCache();
+  SmallVector<MissingDecl *, 4> unexpandedDecls;
+  for (auto &entry : TopLevelAuxiliaryDecls) {
+    for (auto &decl : entry.second) {
+      unexpandedDecls.append(entry.second.begin(), entry.second.end());
+    }
+  }
+
+  // Store macro expanded decls in a 'SmallSetVector' because different
+  // MissingDecls might be created by a single macro expansion. (e.g. multiple
+  // 'names' in macro role attributes). Since expansions are cached, it doesn't
+  // cause duplicated expansions, but different 'unexpandedDecl' may report the
+  // same 'ValueDecl'.
+  SmallSetVector<ValueDecl *, 4> macroExpandedDecls;
+  for (MissingDecl *unexpandedDecl : unexpandedDecls) {
+    unexpandedDecl->forEachMacroExpandedDecl([&](ValueDecl *vd) {
+      macroExpandedDecls.insert(vd);
+    });
+  }
+  for (auto *vd : macroExpandedDecls) {
+    Consumer.foundDecl(vd, DeclVisibilityKind::VisibleAtTopLevel);
+  }
 }
 
 void SourceLookupCache::lookupClassMembers(ImportPath::Access accessPath,
@@ -605,16 +626,6 @@ void SourceLookupCache::lookupClassMember(ImportPath::Access accessPath,
   }
 
   results.append(iter->second.begin(), iter->second.end());
-}
-
-void SourceLookupCache::invalidate() {
-  TopLevelValues.clear();
-  ClassMembers.clear();
-  MemberCachePopulated = false;
-
-  // std::move AllVisibleValues into a temporary to destroy its contents.
-  using SameSizeSmallVector = decltype(AllVisibleValues);
-  (void)SameSizeSmallVector{std::move(AllVisibleValues)};
 }
 
 //===----------------------------------------------------------------------===//
@@ -1066,9 +1077,12 @@ void SourceFile::lookupValue(DeclName name, NLKind lookupKind,
 void ModuleDecl::lookupVisibleDecls(ImportPath::Access AccessPath,
                                     VisibleDeclConsumer &Consumer,
                                     NLKind LookupKind) const {
-  if (isParsedModule(this))
-    return getSourceLookupCache().lookupVisibleDecls(
-      AccessPath, Consumer, LookupKind);
+  if (isParsedModule(this)) {
+    auto &cache = getSourceLookupCache();
+    cache.lookupVisibleDecls(AccessPath, Consumer, LookupKind);
+    assert(Cache.get() == &cache && "cache invalidated during lookup");
+    return;
+  }
 
   FORWARD(lookupVisibleDecls, (AccessPath, Consumer, LookupKind));
 }
@@ -3523,7 +3537,6 @@ void ModuleDecl::clearLookupCache() {
     return;
 
   // Abandon any current cache. We'll rebuild it on demand.
-  Cache->invalidate();
   Cache.reset();
 }
 
@@ -3943,9 +3956,6 @@ SynthesizedFileUnit &FileUnit::getOrCreateSynthesizedFile() {
       return *thisSynth;
     SynthesizedFile = new (getASTContext()) SynthesizedFileUnit(*this);
     SynthesizedFileAndKind.setPointer(SynthesizedFile);
-    // Rebuild the source lookup caches now that we have a synthesized file
-    // full of declarations to look into.
-    getParentModule()->clearLookupCache();
   }
   return *SynthesizedFile;
 }
@@ -4235,18 +4245,6 @@ FrontendStatsTracer::getTraceFormatter<const SourceFile *>() {
   return &TF;
 }
 
-static bool prefixMatches(StringRef prefix, StringRef path) {
-  auto prefixIt = llvm::sys::path::begin(prefix),
-       prefixEnd = llvm::sys::path::end(prefix);
-  for (auto pathIt = llvm::sys::path::begin(path),
-            pathEnd = llvm::sys::path::end(path);
-       prefixIt != prefixEnd && pathIt != pathEnd; ++prefixIt, ++pathIt) {
-    if (*prefixIt != *pathIt)
-      return false;
-  }
-  return prefixIt == prefixEnd;
-}
-
 bool IsNonUserModuleRequest::evaluate(Evaluator &evaluator, ModuleDecl *mod) const {
   // stdlib is non-user by definition
   if (mod->isStdlibModule())
@@ -4274,5 +4272,6 @@ bool IsNonUserModuleRequest::evaluate(Evaluator &evaluator, ModuleDecl *mod) con
     return false;
 
   StringRef runtimePath = searchPathOpts.RuntimeResourcePath;
-  return (!runtimePath.empty() && prefixMatches(runtimePath, modulePath)) || (!sdkPath.empty() && prefixMatches(sdkPath, modulePath));
+  return (!runtimePath.empty() && pathStartsWith(runtimePath, modulePath)) ||
+      (!sdkPath.empty() && pathStartsWith(sdkPath, modulePath));
 }

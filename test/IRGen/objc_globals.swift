@@ -11,8 +11,8 @@ func blackHole<T>(_ t: T) { }
 
 // CHECK-DAG: @"OBJC_CLASS_$_NSNumber" = external global %struct._class_t
 // CHECK-DAG: @"OBJC_CLASS_$_NSString" = external global %struct._class_t
-// CHECK-DAG: @"OBJC_CLASSLIST_REFERENCES_$_{{.*}}" = internal global %struct._class_t* @"OBJC_CLASS_$_NSNumber", section "__DATA,__objc_classrefs,regular,no_dead_strip"
-// CHECK-DAG: @"OBJC_CLASSLIST_REFERENCES_$_{{.*}}" = internal global %struct._class_t* @"OBJC_CLASS_$_NSString", section "__DATA,__objc_classrefs,regular,no_dead_strip"
+// CHECK-DAG: @"OBJC_CLASSLIST_REFERENCES_$_{{.*}}" = internal global ptr @"OBJC_CLASS_$_NSNumber", section "__DATA,__objc_classrefs,regular,no_dead_strip"
+// CHECK-DAG: @"OBJC_CLASSLIST_REFERENCES_$_{{.*}}" = internal global ptr @"OBJC_CLASS_$_NSString", section "__DATA,__objc_classrefs,regular,no_dead_strip"
 
 public func testLiterals() {
   blackHole(gadget.giveMeASelector())
@@ -28,20 +28,18 @@ public func fooLazy() {
   fooInternal()
 }
 
-// CHECK-LABEL: define internal i8* @giveMeASelector()
-// CHECK:         load i8*, i8** @OBJC_SELECTOR_REFERENCES_
+// CHECK-LABEL: define internal ptr @giveMeASelector()
+// CHECK:         load ptr, ptr @OBJC_SELECTOR_REFERENCES_
 // CHECK:         ret
 
-// CHECK-LABEL: define internal {{.*}}* @giveMeANumber()
-// CHECK:         [[CLASS:%.*]] = load %struct._class_t*, %struct._class_t**
-// CHECK-DAG:         [[SELECTOR:%.*]] = load i8*, i8** @OBJC_SELECTOR_REFERENCES_.{{.*}}
-// CHECK-DAG:         bitcast %struct._class_t* [[CLASS]] to i8*
+// CHECK-LABEL: define internal ptr @giveMeANumber()
+// CHECK:         [[CLASS:%.*]] = load ptr, ptr
+// CHECK-DAG:         [[SELECTOR:%.*]] = load ptr, ptr @OBJC_SELECTOR_REFERENCES_.{{.*}}
 // CHECK:         call {{.*}} @objc_msgSend
 // CHECK:         ret
 
-// CHECK-LABEL: define internal i8* @giveMeAMetaclass()
-// CHECK:         [[CLASS:%.*]] = load %struct._class_t*, %struct._class_t**
-// CHECK-DAG:         [[SELECTOR:%.*]] = load i8*, i8** @OBJC_SELECTOR_REFERENCES_
-// CHECK-DAG:         bitcast %struct._class_t* [[CLASS]] to i8*
+// CHECK-LABEL: define internal ptr @giveMeAMetaclass()
+// CHECK:         [[CLASS:%.*]] = load ptr, ptr
+// CHECK-DAG:         [[SELECTOR:%.*]] = load ptr, ptr @OBJC_SELECTOR_REFERENCES_
 // CHECK:         call {{.*}} @objc_msgSend
 // CHECK:         ret

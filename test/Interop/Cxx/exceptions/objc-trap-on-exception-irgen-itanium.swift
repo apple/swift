@@ -1,7 +1,8 @@
 // RUN: %empty-directory(%t)
 // RUN: split-file %s %t
 
-// RUN: %target-swift-emit-ir %t/test.swift -I %t/Inputs -enable-experimental-cxx-interop | %FileCheck %s
+// RUN: %target-swift-emit-ir %use_no_opaque_pointers %t/test.swift -I %t/Inputs -enable-experimental-cxx-interop | %FileCheck %s
+// RUN: %target-swift-emit-ir %t/test.swift -I %t/Inputs -enable-experimental-cxx-interop
 
 // REQUIRES: objc_interop
 // UNSUPPORTED: OS=windows-msvc

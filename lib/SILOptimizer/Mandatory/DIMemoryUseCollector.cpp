@@ -1300,9 +1300,9 @@ void ElementUseCollector::collectClassSelfUses(SILValue ClassPointer) {
         // interrupted before the initializer was called.
         SILValue src = SI->getSrc();
         // Look through conversions.
-        while (auto conversion = dyn_cast<ConversionInst>(src))
-          src = conversion->getConverted();
-        
+        while (auto conversion = ConversionOperation(src))
+          src = conversion.getConverted();
+
         if (auto *LI = dyn_cast<LoadInst>(src))
           if (LI->getOperand() == TheMemory.getUninitializedValue())
             continue;
@@ -1844,9 +1844,9 @@ void ClassInitElementUseCollector::collectClassInitSelfUses() {
         // interrupted before the initializer was called.
         SILValue src = SI->getSrc();
         // Look through conversions.
-        while (auto conversion = dyn_cast<ConversionInst>(src))
-          src = conversion->getConverted();
-        
+        while (auto conversion = ConversionOperation(src))
+          src = conversion.getConverted();
+
         if (auto *LI = dyn_cast<LoadInst>(src))
           if (LI->getOperand() == uninitMemory)
             continue;
@@ -1994,8 +1994,8 @@ void ClassInitElementUseCollector::collectClassInitSelfLoadUses(
         SILValue src = SI->getSrc();
 
         // Look through conversions.
-        while (auto *conversion = dyn_cast<ConversionInst>(src)) {
-          src = conversion->getConverted();
+        while (auto conversion = ConversionOperation(src)) {
+          src = conversion.getConverted();
         }
 
         if (auto *li = dyn_cast<LoadInst>(src)) {

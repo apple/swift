@@ -2128,6 +2128,17 @@ public:
     PrintWithColorRAII(OS, ExprModifierColor)
       << " number_of_decls=" << E->getDecls().size()
       << " function_ref=" << getFunctionRefKindStr(E->getFunctionRefKind());
+    if (!E->isForOperator()) {
+      PrintWithColorRAII(OS, ExprModifierColor) << " decls=[\n";
+      interleave(
+          E->getDecls(),
+          [&](ValueDecl *D) {
+            OS.indent(Indent + 2);
+            D->dumpRef(PrintWithColorRAII(OS, DeclModifierColor).getOS());
+          },
+          [&] { PrintWithColorRAII(OS, DeclModifierColor) << ",\n"; });
+      PrintWithColorRAII(OS, ExprModifierColor) << "]";
+    }
     PrintWithColorRAII(OS, ParenthesisColor) << ')';
   }
   void visitUnresolvedDeclRefExpr(UnresolvedDeclRefExpr *E) {
@@ -3327,6 +3338,22 @@ public:
 
   void visitFixedTypeRepr(FixedTypeRepr *T) {
     printCommon("type_fixed");
+    auto Ty = T->getType();
+    if (Ty) {
+      auto &srcMgr =  Ty->getASTContext().SourceMgr;
+      if (T->getLoc().isValid()) {
+        OS << " location=@";
+        T->getLoc().print(OS, srcMgr);
+      } else {
+        OS << " location=<<invalid>>";
+      }
+    }
+    OS << " type="; Ty.dump(OS);
+    PrintWithColorRAII(OS, ParenthesisColor) << ')';
+  }
+
+  void visitSelfTypeRepr(SelfTypeRepr *T) {
+    printCommon("type_self");
     auto Ty = T->getType();
     if (Ty) {
       auto &srcMgr =  Ty->getASTContext().SourceMgr;

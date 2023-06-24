@@ -2531,6 +2531,22 @@ public:
   bool diagnoseAsError() override;
 };
 
+/// Diagnose an invalid Pattern node in an ExprPattern.
+///
+/// \code
+/// if case foo(let x) = y {}
+/// \endcode
+class InvalidPatternInExprFailure final : public FailureDiagnostic {
+  Pattern *P;
+
+public:
+  InvalidPatternInExprFailure(const Solution &solution, Pattern *pattern,
+                              ConstraintLocator *locator)
+      : FailureDiagnostic(solution, locator), P(pattern) {}
+
+  bool diagnoseAsError() override;
+};
+
 /// Diagnose situations where there is no context to determine a
 /// type of `nil` literal e.g.
 ///
@@ -3011,6 +3027,19 @@ public:
                                    ConstraintLocator *locator)
       : FailureDiagnostic(solution, locator),
         ValuePackType(resolveType(valuePackTy)) {}
+
+  bool diagnoseAsError() override;
+};
+
+class InvalidMemberReferenceWithinInitAccessor final
+    : public FailureDiagnostic {
+  DeclNameRef MemberName;
+
+public:
+  InvalidMemberReferenceWithinInitAccessor(const Solution &solution,
+                                           DeclNameRef memberName,
+                                           ConstraintLocator *locator)
+      : FailureDiagnostic(solution, locator), MemberName(memberName) {}
 
   bool diagnoseAsError() override;
 };

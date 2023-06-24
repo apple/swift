@@ -1,8 +1,10 @@
-// RUN: %target-swift-frontend -primary-file %s -emit-ir > %t.ll
+// RUN: %target-swift-frontend %use_no_opaque_pointers -primary-file %s -emit-ir > %t.ll
+// RUN: %target-swift-frontend -primary-file %s -emit-ir
 // RUN: %FileCheck %s -check-prefix=GLOBAL < %t.ll
 // RUN: %FileCheck %s < %t.ll
 
-// RUN: %target-swift-frontend -primary-file %s -emit-ir -wmo -num-threads 1 > %t.ll.wmo
+// RUN: %target-swift-frontend %use_no_opaque_pointers -primary-file %s -emit-ir -wmo -num-threads 1 > %t.ll.wmo
+// RUN: %target-swift-frontend -primary-file %s -emit-ir -wmo -num-threads 1
 // RUN: %FileCheck %s -check-prefix=GLOBAL < %t.ll.wmo
 // RUN: %FileCheck %s < %t.ll.wmo
 // REQUIRES: CPU=x86_64

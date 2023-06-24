@@ -50,6 +50,13 @@ class C2  {
  init()
 }
 
+class Y {
+  @_hasStorage public var c: C2 { get }
+}
+
+actor Act {
+}
+
 struct S {
   var ptr : Builtin.NativeObject
 }
@@ -1077,4 +1084,25 @@ bb0:
   dealloc_stack %queue : $*Queue
   %12 = tuple ()
   return %12 : $()
+}
+
+// CHECK-LABEL: sil @test_hop_to_executor :
+// CHECK:         strong_retain
+// CHECK:         hop_to_executor
+// CHECK:         strong_release
+// CHECK:       } // end sil function 'test_hop_to_executor'
+sil @test_hop_to_executor : $@convention(thin) @async (@guaranteed Y, @guaranteed Act) -> A {
+bb0(%0 : $Y, %1 : $Act):
+  %2 = ref_element_addr %0 : $Y, #Y.c
+  %3 = load %2 : $*C2
+  strong_retain %3 : $C2
+
+  // This is a synchronization point and any kind of other code might run here,
+  // which potentially can release C2.
+  hop_to_executor %1 : $Act
+
+  %6 = ref_element_addr %3 : $C2, #C2.current
+  %7 = load %6 : $*A
+  strong_release %3 : $C2
+  return %7 : $A
 }

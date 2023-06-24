@@ -9,11 +9,11 @@ class Class <T> {
 
   // Verify that the mangling of the type U is correct.
   // CHECK: define {{.*}}3foo
-  // CHECK: %[[U1:.*]] = alloca %swift.type*
-  // CHECK: call void @llvm.dbg.declare(metadata %swift.type** %[[U1]],
+  // CHECK: %[[U1:.*]] = alloca ptr
+  // CHECK: call void @llvm.dbg.declare(metadata ptr %[[U1]],
   // CHECK-SAME:                        metadata ![[U:[0-9]+]]
-  // CHECK: %[[T2:.*]] = alloca %swift.type*
-  // CHECK: call void @llvm.dbg.declare(metadata %swift.type** %[[T2]],
+  // CHECK: %[[T2:.*]] = alloca ptr
+  // CHECK: call void @llvm.dbg.declare(metadata ptr %[[T2]],
   // CHECK-SAME:                        metadata ![[T:[0-9]+]]
   // CHECK: ![[U]] = !DILocalVariable(name: "$\CF\84_1_0"
   // CHECK: ![[T]] = !DILocalVariable(name: "$\CF\84_0_0"

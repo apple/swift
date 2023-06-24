@@ -135,7 +135,9 @@ bool canCloneTerminator(TermInst *termInst);
 /// BasicBlockCloner handles this internally.
 class SinkAddressProjections {
   // Projections ordered from last to first in the chain.
-  SmallVector<SingleValueInstruction *, 4> projections;
+  SmallVector<SingleValueInstruction *, 4> oldProjections;
+  // Cloned projections to avoid address phis.
+  SmallVectorImpl<SingleValueInstruction *> *newProjections;
   SmallSetVector<SILValue, 4> inBlockDefs;
 
   // Transient per-projection data for use during cloning.
@@ -143,6 +145,10 @@ class SinkAddressProjections {
   llvm::SmallDenseMap<SILBasicBlock *, Operand *, 4> firstBlockUse;
 
 public:
+  SinkAddressProjections(
+      SmallVectorImpl<SingleValueInstruction *> *newProjections = nullptr)
+      : newProjections(newProjections) {}
+
   /// Check for an address projection chain ending at \p inst. Return true if
   /// the given instruction is successfully analyzed.
   ///
@@ -163,6 +169,7 @@ public:
   ArrayRef<SILValue> getInBlockDefs() const {
     return inBlockDefs.getArrayRef();
   }
+
   /// Clone the chain of projections at their use sites.
   ///
   /// Return true if anything was done.

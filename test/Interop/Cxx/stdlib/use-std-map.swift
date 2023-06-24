@@ -11,13 +11,11 @@ import Cxx
 
 var StdMapTestSuite = TestSuite("StdMap")
 
-#if !os(Linux) // https://github.com/apple/swift/issues/61412
 StdMapTestSuite.test("init") {
   let m = Map()
   expectEqual(m.size(), 0)
   expectTrue(m.empty())
 }
-#endif
 
 StdMapTestSuite.test("Map.subscript") {
   // This relies on the `std::map` conformance to `CxxDictionary` protocol.

@@ -16,7 +16,7 @@ bb0(%0 : $@thin MyInt.Type):
   return %1 : $Builtin.Int1
 }
 
-// CHECK-LABEL: define{{( protected| dllexport)?}} swiftcc i1 @isConcrete_false(%swift.type* %T) {{.*}} {
+// CHECK-LABEL: define{{( protected| dllexport)?}} swiftcc i1 @isConcrete_false(ptr %T) {{.*}} {
 // CHECK-NEXT:  entry:
 // CHECK:         ret i1 false
 // CHECK-NEXT:  }

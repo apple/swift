@@ -522,7 +522,7 @@ void CanonicalizeOSSALifetime::findOriginalBoundary(
 ///   These are the "original" live blocks (originalLiveBlocks).
 ///   [Color these blocks green.]
 /// - From within that collection, collect the blocks which contain a _final_
-///   consuming, non-destroy use, and their successors.
+///   consuming, non-destroy use, and their iterative successors.
 ///   These are the "consumed" blocks (consumedAtExitBlocks).
 ///   [Color these blocks red.]
 /// - Extend liveness down to the boundary between originalLiveBlocks and
@@ -558,7 +558,8 @@ void CanonicalizeOSSALifetime::extendUnconsumedLiveness(
 
     // Walk backwards from consuming blocks.
     while (auto *block = worklist.pop()) {
-      originalLiveBlocks.insert(block);
+      if (!originalLiveBlocks.insert(block))
+        continue;
       for (auto *predecessor : block->getPredecessorBlocks()) {
         // If the block was discovered by liveness, we already added it to the
         // set.
@@ -569,8 +570,11 @@ void CanonicalizeOSSALifetime::extendUnconsumedLiveness(
     }
   }
 
-  // Second, collect the blocks which occur after a _final_ consuming use.
+  // Second, collect the blocks which contain a _final_ consuming use and their
+  // iterative successors within the originalLiveBlocks.
   BasicBlockSet consumedAtExitBlocks(currentDef->getFunction());
+  // The subset of consumedAtExitBlocks which do not contain a _final_ consuming
+  // use, i.e. the subset that is dead.
   StackList<SILBasicBlock *> consumedAtEntryBlocks(currentDef->getFunction());
   {
     // Start the forward walk from blocks which contain _final_ non-destroy
@@ -596,8 +600,8 @@ void CanonicalizeOSSALifetime::extendUnconsumedLiveness(
     }
   }
 
-  // Third, find the blocks on the boundary between the originally-live blocks
-  // and the originally-live-but-consumed blocks.  Extend liveness "to the end"
+  // Third, find the blocks on the boundary between the originalLiveBlocks
+  // blocks and the consumedAtEntryBlocks blocks.  Extend liveness "to the end"
   // of these blocks.
   for (auto *block : consumedAtEntryBlocks) {
     for (auto *predecessor : block->getPredecessorBlocks()) {
@@ -1152,6 +1156,12 @@ void CanonicalizeOSSALifetime::rewriteLifetimes() {
 /// Canonicalize a single extended owned lifetime.
 bool CanonicalizeOSSALifetime::canonicalizeValueLifetime(SILValue def) {
   LivenessState livenessState(*this, def);
+
+  // Don't canonicalize the lifetimes of values of move-only type.  According to
+  // language rules, they are fixed.
+  if (def->getType().isMoveOnly()) {
+    return false;
+  }
 
   // Step 1: Compute liveness.
   if (!computeLiveness()) {

@@ -30,6 +30,7 @@
 #include "swift/Concurrency/Actor.h"
 #include "swift/Remote/MemoryReader.h"
 #include "swift/Remote/MetadataReader.h"
+#include "swift/RemoteInspection/GenericMetadataCacheEntry.h"
 #include "swift/RemoteInspection/Records.h"
 #include "swift/RemoteInspection/RuntimeInternals.h"
 #include "swift/RemoteInspection/TypeLowering.h"
@@ -1289,22 +1290,14 @@ public:
   StoredPointer allocationMetadataPointer(
     MetadataAllocation<Runtime> Allocation) {
     if (Allocation.Tag == GenericMetadataCacheTag) {
-        struct GenericMetadataCacheEntry {
-          StoredPointer LockedStorage;
-          uint8_t LockedStorageKind;
-          uint8_t TrackingInfo;
-          uint16_t NumKeyParameters;
-          uint16_t NumWitnessTables;
-          uint32_t Hash;
-          StoredPointer Value;
-        };
         auto AllocationBytes =
           getReader().readBytes(RemoteAddress(Allocation.Ptr),
                                               Allocation.Size);
         if (!AllocationBytes)
           return 0;
-        auto Entry = reinterpret_cast<const GenericMetadataCacheEntry *>(
-          AllocationBytes.get());
+        auto Entry =
+          reinterpret_cast<const GenericMetadataCacheEntry<StoredPointer> *>(
+            AllocationBytes.get());
         return Entry->Value;
     }
     return 0;

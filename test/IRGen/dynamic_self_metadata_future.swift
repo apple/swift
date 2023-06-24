@@ -28,36 +28,31 @@ struct G<T> : P {
 
 class C {
   class func fromMetatype() -> Self? { return nil }
-  // CHECK-LABEL: define hidden swiftcc i64 @"$s28dynamic_self_metadata_future1CC12fromMetatypeACXDSgyFZ"(%swift.type* swiftself %0)
+  // CHECK-LABEL: define hidden swiftcc i64 @"$s28dynamic_self_metadata_future1CC12fromMetatypeACXDSgyFZ"(ptr swiftself %0)
   // CHECK: ret i64 0
 
   func fromInstance() -> Self? { return nil }
-  // CHECK-LABEL: define hidden swiftcc i64 @"$s28dynamic_self_metadata_future1CC12fromInstanceACXDSgyF"(%T28dynamic_self_metadata_future1CC* swiftself %0)
+  // CHECK-LABEL: define hidden swiftcc i64 @"$s28dynamic_self_metadata_future1CC12fromInstanceACXDSgyF"(ptr swiftself %0)
   // CHECK: ret i64 0
 
   func dynamicSelfArgument() -> Self? {
     return id(nil)
   }
-  // CHECK-LABEL: define hidden swiftcc i64 @"$s28dynamic_self_metadata_future1CC0A12SelfArgumentACXDSgyF"(%T28dynamic_self_metadata_future1CC* swiftself %0)
-  // CHECK: [[GEP1:%.+]] = bitcast {{.*}} %0
-  // CHECK: [[TYPE1:%.+]] = load {{.*}} [[GEP1]]
-  // CHECK: [[T0:%.+]] = call swiftcc %swift.metadata_response @"$sSqMa"(i64 0, %swift.type* [[TYPE1]])
+  // CHECK-LABEL: define hidden swiftcc i64 @"$s28dynamic_self_metadata_future1CC0A12SelfArgumentACXDSgyF"(ptr swiftself %0)
+  // CHECK: [[TYPE1:%.+]] = load {{.*}} %0
+  // CHECK: [[T0:%.+]] = call swiftcc %swift.metadata_response @"$sSqMa"(i64 0, ptr [[TYPE1]])
   // CHECK: [[TYPE2:%.+]] = extractvalue %swift.metadata_response [[T0]], 0
-  // CHECK: call swiftcc void @"$s28dynamic_self_metadata_future2idyxxlF"({{.*}}, %swift.type* [[TYPE2]])
+  // CHECK: call swiftcc void @"$s28dynamic_self_metadata_future2idyxxlF"({{.*}}, ptr [[TYPE2]])
 
   func dynamicSelfConformingType() -> Self? {
     _ = G(t: self).f()
     return nil
   }
-  // CHECK-LABEL: define hidden swiftcc i64 @"$s28dynamic_self_metadata_future1CC0A18SelfConformingTypeACXDSgyF"(%T28dynamic_self_metadata_future1CC* swiftself %0)
-  // CHECK: [[SELF_GEP:%.+]] = bitcast {{.*}} %0
-  // CHECK: [[SELF_TYPE:%.+]] = load {{.*}} [[SELF_GEP]]
-  // CHECK: call i8** @swift_getWitnessTable(
-  // CHECK-SAME:   %swift.protocol_conformance_descriptor* bitcast (
-  // CHECK-SAME:     {{.*}} @"$s28dynamic_self_metadata_future1GVyxGAA1PAAMc" 
-  // CHECK-SAME:     to %swift.protocol_conformance_descriptor*
-  // CHECK-SAME:   ), 
-  // CHECK-SAME:   %swift.type* %{{[0-9]+}},
-  // CHECK-SAME:   i8*** undef
+  // CHECK-LABEL: define hidden swiftcc i64 @"$s28dynamic_self_metadata_future1CC0A18SelfConformingTypeACXDSgyF"(ptr swiftself %0)
+  // CHECK: [[SELF_TYPE:%.+]] = load {{.*}} %0
+  // CHECK: call ptr @swift_getWitnessTable(
+  // CHECK-SAME:   ptr  @"$s28dynamic_self_metadata_future1GVyxGAA1PAAMc"
+  // CHECK-SAME:   ptr %{{[0-9]+}},
+  // CHECK-SAME:   ptr undef
   // CHECK-SAME: )
 }

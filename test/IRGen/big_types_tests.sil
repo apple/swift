@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend -I %S/Inputs/abi %s -emit-ir -sil-verify-all | %FileCheck %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers -I %S/Inputs/abi %s -emit-ir -sil-verify-all | %FileCheck %s
+// RUN: %target-swift-frontend -I %S/Inputs/abi %s -emit-ir -sil-verify-all
 
 // REQUIRES: CPU=x86_64
 // REQUIRES: OS=macosx

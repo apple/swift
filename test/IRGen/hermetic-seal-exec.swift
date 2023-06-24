@@ -3,7 +3,7 @@
 // RUN: %empty-directory(%t)
 
 // (1) Build library swiftmodule
-// RUN: %target-build-swift %s -DLIBRARY -module-name Library -experimental-hermetic-seal-at-link -lto=llvm-full %lto_flags \
+// RUN: %use_just_built_liblto %target-build-swift %s -DLIBRARY -module-name Library -experimental-hermetic-seal-at-link -lto=llvm-full %lto_flags \
 // RUN:     -Xfrontend -disable-reflection-metadata -Xfrontend -disable-reflection-names -Xfrontend -disable-objc-interop \
 // RUN:     -emit-library -static -o %t/libLibrary.a \
 // RUN:     -emit-module -emit-module-path %t/Library.swiftmodule
@@ -12,7 +12,7 @@
 // RUN: %llvm-nm %t/libLibrary.a | %FileCheck %s --check-prefix CHECK-NM-LIB
 
 // (3) Build client
-// RUN: %target-build-swift %s -DCLIENT -parse-as-library -module-name Main -experimental-hermetic-seal-at-link -lto=llvm-full %lto_flags \
+// RUN: %use_just_built_liblto %target-build-swift %s -DCLIENT -parse-as-library -module-name Main -experimental-hermetic-seal-at-link -lto=llvm-full %lto_flags \
 // RUN:     -Xfrontend -disable-reflection-metadata -Xfrontend -disable-reflection-names -Xfrontend -disable-objc-interop \
 // RUN:     -I%t -L%t -lLibrary -o %t/main
 // RUN: %target-codesign %t/main

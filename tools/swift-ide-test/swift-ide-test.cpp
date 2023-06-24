@@ -4513,15 +4513,12 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  for (auto path : options::PluginPath) {
-    InitInvok.getSearchPathOptions().PluginSearchPaths.push_back(path);
-  }
   if (!options::LoadPluginLibrary.empty()) {
     std::vector<std::string> paths;
     for (auto path: options::LoadPluginLibrary) {
-      paths.push_back(path);
+      InitInvok.getSearchPathOptions().PluginSearchOpts.emplace_back(
+          PluginSearchOption::LoadPluginLibrary{path});
     }
-    InitInvok.getSearchPathOptions().setCompilerPluginLibraryPaths(paths);
   }
   if (!options::LoadPluginExecutable.empty()) {
     std::vector<PluginExecutablePathAndModuleNames> pairs;
@@ -4533,10 +4530,14 @@ int main(int argc, char *argv[]) {
       for (auto name : llvm::split(modulesStr, ',')) {
         moduleNames.emplace_back(name);
       }
-      pairs.push_back({std::string(path), std::move(moduleNames)});
+      InitInvok.getSearchPathOptions().PluginSearchOpts.emplace_back(
+          PluginSearchOption::LoadPluginExecutable{std::string(path),
+                                                   std::move(moduleNames)});
     }
-
-    InitInvok.getSearchPathOptions().setCompilerPluginExecutablePaths(std::move(pairs));
+  }
+  for (auto path : options::PluginPath) {
+    InitInvok.getSearchPathOptions().PluginSearchOpts.emplace_back(
+        PluginSearchOption::PluginPath{path});
   }
 
   // Process the clang arguments last and allow them to override previously

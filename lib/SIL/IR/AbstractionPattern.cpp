@@ -2064,6 +2064,9 @@ public:
     if (auto gp = handleTypeParameter(pattern, t, level))
       return gp;
 
+    if (pattern.isTuple())
+      return visitTuplePattern(t, pattern);
+
     return CanTypeVisitor::visit(t, pattern);
   }
 
@@ -2312,11 +2315,15 @@ public:
         TC.Context, ppt->getBaseType(), substArgs));
   }
 
-  CanType visitTupleType(CanTupleType tuple, AbstractionPattern pattern) {
+  /// Visit a tuple pattern.  Note that, because of vanishing tuples,
+  /// we can't handle this case by matching a tuple type in the
+  /// substituted type; we have to check for a tuple pattern in the
+  /// top-level visit routine.
+  CanType visitTuplePattern(CanType substType, AbstractionPattern pattern) {
     assert(pattern.isTuple());
 
     SmallVector<TupleTypeElt, 4> tupleElts;
-    pattern.forEachTupleElement(tuple, [&](TupleElementGenerator &elt) {
+    pattern.forEachTupleElement(substType, [&](TupleElementGenerator &elt) {
       auto substEltTypes = elt.getSubstTypes();
       CanType eltTy;
       if (!elt.isOrigPackExpansion()) {

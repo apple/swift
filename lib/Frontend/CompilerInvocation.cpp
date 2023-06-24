@@ -1601,18 +1601,56 @@ static bool ParseSearchPathArgs(SearchPathOptions &Opts,
   }
   Opts.setFrameworkSearchPaths(FrameworkSearchPaths);
 
-  for (const Arg *A : Args.filtered(OPT_plugin_path)) {
-    Opts.PluginSearchPaths.push_back(resolveSearchPath(A->getValue()));
-  }
-
-  for (const Arg *A : Args.filtered(OPT_external_plugin_path)) {
-    // '<plugin directory>#<plugin server executable path>'.
-    // FIXME: '#' can be used in the paths.
-    StringRef dylibPath;
-    StringRef serverPath;
-    std::tie(dylibPath, serverPath) = StringRef(A->getValue()).split('#');
-    Opts.ExternalPluginSearchPaths.push_back(
-        {resolveSearchPath(dylibPath), resolveSearchPath(serverPath)});
+  // All plugin search options, i.e. '-load-plugin-library',
+  // '-load-plugin-executable', '-plugin-path', and  '-external-plugin-path'
+  // are grouped, and plugins are searched by the order of these options.
+  // e.g. For '-plugin-path A -load-plugin-library B/libModule.dylib', if
+  // 'A/libModule.dylib' exists, it's used.
+  for (const Arg *A : Args.filtered(OPT_plugin_search_Group)) {
+    switch (A->getOption().getID()) {
+    case OPT_load_plugin_library: {
+      Opts.PluginSearchOpts.emplace_back(PluginSearchOption::LoadPluginLibrary{
+          resolveSearchPath(A->getValue())});
+      break;
+    }
+    case OPT_load_plugin_executable: {
+      // '<path to executable>#<module names>' where the module names are
+      // comma separated.
+      StringRef path;
+      StringRef modulesStr;
+      std::tie(path, modulesStr) = StringRef(A->getValue()).rsplit('#');
+      std::vector<std::string> moduleNames;
+      for (auto name : llvm::split(modulesStr, ',')) {
+        moduleNames.emplace_back(name);
+      }
+      if (path.empty() || moduleNames.empty()) {
+        Diags.diagnose(SourceLoc(), diag::error_load_plugin_executable,
+                       A->getValue());
+      } else {
+        Opts.PluginSearchOpts.emplace_back(
+            PluginSearchOption::LoadPluginExecutable{resolveSearchPath(path),
+                                                     std::move(moduleNames)});
+      }
+      break;
+    }
+    case OPT_plugin_path: {
+      Opts.PluginSearchOpts.emplace_back(
+          PluginSearchOption::PluginPath{resolveSearchPath(A->getValue())});
+      break;
+    }
+    case OPT_external_plugin_path: {
+      // '<plugin directory>#<plugin server executable path>'.
+      // FIXME: '#' can be used in the paths.
+      StringRef dylibPath;
+      StringRef serverPath;
+      std::tie(dylibPath, serverPath) = StringRef(A->getValue()).split('#');
+      Opts.PluginSearchOpts.emplace_back(PluginSearchOption::ExternalPluginPath{
+          resolveSearchPath(dylibPath), resolveSearchPath(serverPath)});
+      break;
+    }
+    default:
+      llvm_unreachable("unhandled plugin search option");
+    }
   }
 
   for (const Arg *A : Args.filtered(OPT_L)) {
@@ -1673,36 +1711,6 @@ static bool ParseSearchPathArgs(SearchPathOptions &Opts,
   // Assumes exactly one of setMainExecutablePath() or setRuntimeIncludePath()
   // is called before setTargetTriple() and parseArgs().
   // TODO: improve the handling of RuntimeIncludePath.
-
-  std::vector<std::string> CompilerPluginLibraryPaths(
-      Opts.getCompilerPluginLibraryPaths());
-  for (const Arg *A : Args.filtered(OPT_load_plugin_library)) {
-    CompilerPluginLibraryPaths.push_back(resolveSearchPath(A->getValue()));
-  }
-  Opts.setCompilerPluginLibraryPaths(CompilerPluginLibraryPaths);
-
-  std::vector<PluginExecutablePathAndModuleNames> CompilerPluginExecutablePaths(
-      Opts.getCompilerPluginExecutablePaths());
-  for (const Arg *A : Args.filtered(OPT_load_plugin_executable)) {
-    // 'A' is '<path to executable>#<module names>' where the module names are
-    // comma separated.
-    StringRef path;
-    StringRef modulesStr;
-    std::tie(path, modulesStr) = StringRef(A->getValue()).rsplit('#');
-    std::vector<std::string> moduleNames;
-    for (auto name : llvm::split(modulesStr, ',')) {
-      moduleNames.emplace_back(name);
-    }
-    if (path.empty() || moduleNames.empty()) {
-      Diags.diagnose(SourceLoc(), diag::error_load_plugin_executable,
-                     A->getValue());
-    } else {
-      CompilerPluginExecutablePaths.push_back(
-          {resolveSearchPath(path), std::move(moduleNames)});
-    }
-  }
-  Opts.setCompilerPluginExecutablePaths(
-      std::move(CompilerPluginExecutablePaths));
 
   return false;
 }
@@ -2797,6 +2805,16 @@ static bool ParseIRGenArgs(IRGenOptions &Opts, ArgList &Args,
       !Opts.EnableLayoutStringValueWitnesses) {
     Diags.diagnose(SourceLoc(), diag::layout_string_instantiation_without_layout_strings);
     return true;
+  }
+
+  if (const Arg *A = Args.getLastArg(options::OPT_platform_c_calling_convention)) {
+    Opts.PlatformCCallingConvention =
+      llvm::StringSwitch<llvm::CallingConv::ID>(A->getValue())
+        .Case("c", llvm::CallingConv::C)
+        .Case("arm_apcs", llvm::CallingConv::ARM_APCS)
+        .Case("arm_aapcs", llvm::CallingConv::ARM_AAPCS)
+        .Case("arm_aapcs_vfp", llvm::CallingConv::ARM_AAPCS_VFP)
+        .Default(llvm::CallingConv::C);
   }
 
   return false;

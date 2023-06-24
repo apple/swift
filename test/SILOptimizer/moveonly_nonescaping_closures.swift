@@ -77,12 +77,12 @@ func c2(x: consuming M) {
     consume(x)
 }
 
-func d(x: __owned M) { // expected-error {{noncopyable 'x' cannot be consumed when captured by a closure}}
+func d(x: __owned M) { // expected-error {{noncopyable 'x' cannot be consumed when captured by an escaping closure}}
     clodger({ consume(x) })
     // expected-note @-1 {{consumed here}}
 }
 
-func d2(x: consuming M) { // expected-error {{missing reinitialization of inout parameter 'x' after consume}}
+func d2(x: consuming M) { // expected-error {{missing reinitialization of closure capture 'x' after consume}}
     clodger({ consume(x) })
     // expected-note @-1 {{consumed here}}
 }
@@ -129,7 +129,7 @@ func k(x: borrowing M) {
 }
 
 
-func l(x: inout M) { // expected-error {{missing reinitialization of inout parameter 'x' after consume}}
+func l(x: inout M) { // expected-error {{missing reinitialization of closure capture 'x' after consume}}
     clodger({ consume(x) }) // expected-note {{consumed here}}
 }
 

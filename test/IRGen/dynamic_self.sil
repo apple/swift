@@ -17,8 +17,8 @@ bb0(%0 : $*P):
   debug_value %0 : $*P, let, name "p", expr op_deref // id: %1
   %2 = alloc_stack $P                             // users: %3, %4, %12
   copy_addr %0 to [init] %2 : $*P     // id: %3
-  // CHECK: call %swift.opaque*
-  // CHECK: call %swift.opaque*
+  // CHECK: call ptr
+  // CHECK: call ptr
   %4 = open_existential_addr immutable_access %2 : $*P to $*@opened("01234567-89ab-cdef-0123-000000000000", P) Self // users: %8, %10
   dealloc_stack %2 : $*P         // id: %12
   destroy_addr %0 : $*P                           // id: %13

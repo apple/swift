@@ -635,7 +635,6 @@ Type GenericEnvironment::mapTypeIntoContext(
   assert((!type->hasArchetype() || type->hasLocalArchetype()) &&
          "already have a contextual type");
 
-  type = maybeApplyOuterContextSubstitutions(type);
   Type result = type.subst(QueryInterfaceTypeSubstitutions(this),
                            lookupConformance,
                            SubstFlags::AllowLoweredTypes |

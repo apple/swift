@@ -13,10 +13,6 @@
 #ifndef LLVM_SOURCEKITD_INTERNAL_H
 #define LLVM_SOURCEKITD_INTERNAL_H
 
-#if defined (_MSC_VER)
-# define SOURCEKITD_PUBLIC __declspec(dllexport)
-#endif
-
 #include "SourceKit/Support/CancellationToken.h"
 #include "sourcekitd/sourcekitd.h"
 #include "llvm/ADT/Optional.h"

@@ -1,8 +1,10 @@
 // RUN: %empty-directory(%t)
 // RUN: %target-swift-frontend -emit-module -enable-library-evolution -emit-module-path=%t/resilient_struct.swiftmodule -module-name=resilient_struct %S/../Inputs/resilient_struct.swift
 // RUN: %target-swift-frontend -emit-module -enable-library-evolution -emit-module-path=%t/resilient_class.swiftmodule -module-name=resilient_class %S/../Inputs/resilient_class.swift -I %t
-// RUN: %target-swift-frontend -enable-objc-interop -I %t -emit-ir -enable-library-evolution %s | %FileCheck %s --check-prefixes=CHECK,CHECK-objc
-// RUN: %target-swift-frontend -disable-objc-interop -I %t -emit-ir -enable-library-evolution %s | %FileCheck %s --check-prefixes=CHECK,CHECK-native
+// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-objc-interop -I %t -emit-ir -enable-library-evolution %s | %FileCheck %s --check-prefixes=CHECK,CHECK-objc
+// RUN: %target-swift-frontend %use_no_opaque_pointers -disable-objc-interop -I %t -emit-ir -enable-library-evolution %s | %FileCheck %s --check-prefixes=CHECK,CHECK-native
+// RUN: %target-swift-frontend -enable-objc-interop -I %t -emit-ir -enable-library-evolution %s
+// RUN: %target-swift-frontend -disable-objc-interop -I %t -emit-ir -enable-library-evolution %s
 // RUN: %target-swift-frontend -I %t -emit-ir -enable-library-evolution -O %s
 
 // REQUIRES: CPU=x86_64

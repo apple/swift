@@ -143,6 +143,11 @@ protected:
                                      const llvm::opt::ArgList &inputArgs,
                                      llvm::opt::ArgStringList &arguments) const;
 
+  virtual void addPlatformSpecificPluginFrontendArgs(
+      const OutputInfo &OI,
+      const CommandOutput &output,
+      const llvm::opt::ArgList &inputArgs,
+      llvm::opt::ArgStringList &arguments) const;
   virtual InvocationInfo constructInvocation(const CompileJobAction &job,
                                              const JobContext &context) const;
   virtual InvocationInfo constructInvocation(const InterpretJobAction &job,

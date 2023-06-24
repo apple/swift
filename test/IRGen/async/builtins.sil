@@ -1,5 +1,5 @@
-// RUN: %target-swift-frontend  -enable-objc-interop  -primary-file %s -emit-ir -sil-verify-all | %FileCheck %s -DINT=i%target-ptrsize --check-prefixes=CHECK,CHECK-objc,CHECK-%target-ptrsize
-// RUN: %target-swift-frontend  -disable-objc-interop -primary-file %s -emit-ir -sil-verify-all | %FileCheck %s -DINT=i%target-ptrsize --check-prefixes=CHECK,CHECK-native,CHECK-%target-ptrsize
+// RUN: %target-swift-frontend -enable-objc-interop  -primary-file %s -emit-ir -sil-verify-all | %FileCheck %s -DINT=i%target-ptrsize --check-prefixes=CHECK,CHECK-objc,CHECK-%target-ptrsize
+// RUN: %target-swift-frontend -disable-objc-interop -primary-file %s -emit-ir -sil-verify-all | %FileCheck %s -DINT=i%target-ptrsize --check-prefixes=CHECK,CHECK-native,CHECK-%target-ptrsize
 
 // REQUIRES: concurrency
 // XFAIL: CPU=arm64e
@@ -9,21 +9,19 @@ sil_stage canonical
 import Builtin
 import Swift
 
-// CHECK-LABEL: define hidden swift{{(tail)?}}cc void @get_task(%swift.context* swiftasync %0)
+// CHECK-LABEL: define hidden swift{{(tail)?}}cc void @get_task(ptr swiftasync %0)
 sil hidden [ossa] @get_task : $@async @convention(thin) () -> @owned Builtin.NativeObject {
 bb0:
-  // CHECK: [[TASK:%.*]] = call swiftcc %swift.task* @swift_task_getCurrent()
-  // CHECK: [[TASKRC:%.*]] = bitcast %swift.task* [[TASK]] to %swift.refcounted*
+  // CHECK: [[TASK:%.*]] = call swiftcc ptr @swift_task_getCurrent()
   %0 = builtin "getCurrentAsyncTask"() : $Builtin.NativeObject
-  // CHECK-NEXT: [[TASK_COPY:%.*]] = call %swift.refcounted* @swift_retain(%swift.refcounted* returned [[TASKRC]])
+  // CHECK-NEXT: [[TASK_COPY:%.*]] = call ptr @swift_retain(ptr returned [[TASK]])
   %1 = copy_value %0 : $Builtin.NativeObject
   end_lifetime %0 : $Builtin.NativeObject
   return %1 : $Builtin.NativeObject
 }
 
-// CHECK-LABEL: define hidden swift{{(tail)?}}cc void @cancel_task(%swift.refcounted* %0)
-// CHECK: [[TASK:%.*]] = bitcast %swift.refcounted* %0 to %swift.task*
-// CHECK-NEXT:  call swift{{(tail)?}}cc void @swift_task_cancel(%swift.task* [[TASK]])
+// CHECK-LABEL: define hidden swift{{(tail)?}}cc void @cancel_task(ptr %0)
+// CHECK:  call swift{{(tail)?}}cc void @swift_task_cancel(ptr %0)
 sil hidden [ossa] @cancel_task : $@convention(method) (@guaranteed Builtin.NativeObject) -> () {
 bb0(%0 : @guaranteed $Builtin.NativeObject):
   %4 = builtin "cancelAsyncTask"(%0 : $Builtin.NativeObject) : $()
@@ -35,7 +33,7 @@ bb0(%0 : @guaranteed $Builtin.NativeObject):
 sil hidden [ossa] @launch_future : $@convention(method) <T> (Int, Optional<Builtin.RawPointer>, @guaranteed @async @callee_owned @substituted <τ_0_0> () -> (@out τ_0_0, @error Error) for <T>, @in_guaranteed T) -> () {
 bb0(%0 : $Int, %1 : $Optional<Builtin.RawPointer>, %2: @guaranteed $@async @callee_owned @substituted <τ_0_0> () -> (@out τ_0_0, @error Error) for <T>, %4: $*T):
   %5 = copy_value %2 : $@async @callee_owned @substituted <τ_0_0> () -> (@out τ_0_0, @error Error) for <T>
-  // CHECK: call %swift.refcounted* @swift_retain(%swift.refcounted* returned [[FN_CONTEXT:%3]])
+  // CHECK: call ptr @swift_retain(ptr returned [[FN_CONTEXT:%3]])
   %9 = metatype $@thick T.Type
   %10 = init_existential_metatype %9 : $@thick T.Type, $@thick Any.Type
   // CHECK: [[NEW_TASK_AND_CONTEXT:%.*]] = call swift{{(tail)?}}cc %swift.async_task_and_context @swift_task_create(
@@ -47,14 +45,14 @@ bb0(%0 : $Int, %1 : $Optional<Builtin.RawPointer>, %2: @guaranteed $@async @call
 
 // CHECK-LABEL: define hidden swift{{(tail)?}}cc void @launch_future_in_group
 // CHECK: [[OPTIONS:%.*]] = alloca %swift.task_group_task_option
-// CHECK: [[BASE_GEP:%.*]] = getelementptr inbounds %swift.task_group_task_option, %swift.task_group_task_option* [[OPTIONS]], i32 0, i32 0
-// CHECK: [[FLAGS_GEP:%.*]] = getelementptr inbounds %swift.task_option, %swift.task_option* [[BASE_GEP]], i32 0, i32 0
-// CHECK: store [[INT]] 1, [[INT]]* [[FLAGS_GEP]], align 1
-// CHECK: [[PARENT_GEP:%.*]] = getelementptr inbounds %swift.task_option, %swift.task_option* [[BASE_GEP]], i32 0, i32 1
-// CHECK: store [[INT]] 0, [[INT]]* [[PARENT_GEP]], align 1
-// CHECK: [[GROUP_GEP:%.*]] = getelementptr inbounds %swift.task_group_task_option, %swift.task_group_task_option* [[OPTIONS]], i32 0, i32 1
-// CHECK: store i8* %0, i8** [[GROUP_GEP]], align 1
-// CHECK: [[OPTIONS_PTR:%.*]] = ptrtoint %swift.task_group_task_option* [[OPTIONS]] to [[INT]]
+// CHECK: [[BASE_GEP:%.*]] = getelementptr inbounds %swift.task_group_task_option, ptr [[OPTIONS]], i32 0, i32 0
+// CHECK: [[FLAGS_GEP:%.*]] = getelementptr inbounds %swift.task_option, ptr [[BASE_GEP]], i32 0, i32 0
+// CHECK: store [[INT]] 1, ptr [[FLAGS_GEP]], align 1
+// CHECK: [[PARENT_GEP:%.*]] = getelementptr inbounds %swift.task_option, ptr [[BASE_GEP]], i32 0, i32 1
+// CHECK: store [[INT]] 0, ptr [[PARENT_GEP]], align 1
+// CHECK: [[GROUP_GEP:%.*]] = getelementptr inbounds %swift.task_group_task_option, ptr [[OPTIONS]], i32 0, i32 1
+// CHECK: store ptr %0, ptr [[GROUP_GEP]], align 1
+// CHECK: [[OPTIONS_PTR:%.*]] = ptrtoint ptr [[OPTIONS]] to [[INT]]
 // CHECK: call swiftcc %swift.async_task_and_context @swift_task_create([[INT]] %3, [[INT]] [[OPTIONS_PTR]],
 sil hidden @launch_future_in_group : $@convention(thin) (Builtin.RawPointer, @guaranteed @async @callee_guaranteed () -> (Int, @error Error), Int) -> () {
 bb0(%0 : $Builtin.RawPointer, %1 : $@async @callee_guaranteed () -> (Int, @error Error), %3: $Int):
@@ -72,7 +70,7 @@ bb0(%0 : $Builtin.RawPointer, %1 : $@async @callee_guaranteed () -> (Int, @error
 sil hidden [ossa] @launch_void_future : $@convention(method) (Int, Optional<Builtin.RawPointer>, @guaranteed @async @callee_owned @substituted <τ_0_0> () -> (@out τ_0_0, @error Error) for <()>) -> () {
 bb0(%0 : $Int, %1 : $Optional<Builtin.RawPointer>, %2: @guaranteed $@async @callee_owned @substituted <τ_0_0> () -> (@out τ_0_0, @error Error) for <()>):
   %5 = copy_value %2 : $@async @callee_owned @substituted <τ_0_0> () -> (@out τ_0_0, @error Error) for <()>
-  // CHECK: call %swift.refcounted* @swift_retain(%swift.refcounted* returned [[FN_CONTEXT:%3]])
+  // CHECK: call ptr @swift_retain(ptr returned [[FN_CONTEXT:%3]])
   %8 = metatype $@thick ().Type                   // user: %9
   %9 = init_existential_metatype %8 : $@thick ().Type, $@thick Any.Type // user: %10
   // CHECK: [[NEW_TASK_AND_CONTEXT:%.*]] = call swift{{(tail)?}}cc %swift.async_task_and_context @swift_task_create(
@@ -85,16 +83,13 @@ bb0(%0 : $Int, %1 : $Optional<Builtin.RawPointer>, %2: @guaranteed $@async @call
 // CHECK-LABEL: define hidden swiftcc void @resume_nonthrowing_continuation
 sil hidden [ossa] @resume_nonthrowing_continuation : $(@in Builtin.NativeObject, Builtin.RawUnsafeContinuation) -> () {
 bb0(%0 : $*Builtin.NativeObject, %1 : $Builtin.RawUnsafeContinuation):
-  // CHECK:      [[CONT:%.*]] = bitcast i8* %1 to %swift.task*
-  // CHECK-NEXT: [[CONTEXT_SLOT:%.*]] = getelementptr inbounds %swift.task, %swift.task* [[CONT]], i32 0, i32 8
-  // CHECK-NEXT: [[CONTEXT_OPAQUE:%.*]] = load %swift.context*, %swift.context** [[CONTEXT_SLOT]], align
-  // CHECK-NEXT: [[CONTEXT:%.*]] = bitcast %swift.context* [[CONTEXT_OPAQUE]] to %swift.continuation_context*
-  // CHECK-NEXT: [[RESULT_ADDR_SLOT:%.*]] = getelementptr inbounds %swift.continuation_context, %swift.continuation_context* [[CONTEXT]], i32 0, i32 4
-  // CHECK-NEXT: [[RESULT_ADDR_OPAQUE:%.*]] = load %swift.opaque*, %swift.opaque** [[RESULT_ADDR_SLOT]], align
-  // CHECK-NEXT: [[RESULT_ADDR:%.*]] = bitcast %swift.opaque* [[RESULT_ADDR_OPAQUE]] to %swift.refcounted**
-  // CHECK-NEXT: [[VALUE:%.*]] = load %swift.refcounted*, %swift.refcounted** %0, align
-  // CHECK-NEXT: store %swift.refcounted* [[VALUE]], %swift.refcounted** [[RESULT_ADDR]], align
-  // CHECK-NEXT: call swiftcc void @swift_continuation_resume(%swift.task* [[CONT]])
+  // CHECK: [[CONTEXT_SLOT:%.*]] = getelementptr inbounds %swift.task, ptr %1, i32 0, i32 8
+  // CHECK-NEXT: [[CONTEXT_OPAQUE:%.*]] = load ptr, ptr [[CONTEXT_SLOT]], align
+  // CHECK-NEXT: [[RESULT_ADDR_SLOT:%.*]] = getelementptr inbounds %swift.continuation_context, ptr [[CONTEXT_OPAQUE]], i32 0, i32 4
+  // CHECK-NEXT: [[RESULT_ADDR_OPAQUE:%.*]] = load ptr, ptr [[RESULT_ADDR_SLOT]], align
+  // CHECK-NEXT: [[VALUE:%.*]] = load ptr, ptr %0, align
+  // CHECK-NEXT: store ptr [[VALUE]], ptr [[RESULT_ADDR_OPAQUE]], align
+  // CHECK-NEXT: call swiftcc void @swift_continuation_resume(ptr %1)
   // CHECK-NEXT: ret void
   builtin "resumeNonThrowingContinuationReturning"<Builtin.NativeObject>(%1 : $Builtin.RawUnsafeContinuation, %0 : $*Builtin.NativeObject) : $()
   %21 = tuple ()
@@ -104,16 +99,13 @@ bb0(%0 : $*Builtin.NativeObject, %1 : $Builtin.RawUnsafeContinuation):
 // CHECK-LABEL: define hidden swiftcc void @resume_throwing_continuation
 sil hidden [ossa] @resume_throwing_continuation : $(@in Builtin.NativeObject, Builtin.RawUnsafeContinuation) -> () {
 bb0(%0 : $*Builtin.NativeObject, %1 : $Builtin.RawUnsafeContinuation):
-  // CHECK:      [[CONT:%.*]] = bitcast i8* %1 to %swift.task*
-  // CHECK-NEXT: [[CONTEXT_SLOT:%.*]] = getelementptr inbounds %swift.task, %swift.task* [[CONT]], i32 0, i32 8
-  // CHECK-NEXT: [[CONTEXT_OPAQUE:%.*]] = load %swift.context*, %swift.context** [[CONTEXT_SLOT]], align
-  // CHECK-NEXT: [[CONTEXT:%.*]] = bitcast %swift.context* [[CONTEXT_OPAQUE]] to %swift.continuation_context*
-  // CHECK-NEXT: [[RESULT_ADDR_SLOT:%.*]] = getelementptr inbounds %swift.continuation_context, %swift.continuation_context* [[CONTEXT]], i32 0, i32 4
-  // CHECK-NEXT: [[RESULT_ADDR_OPAQUE:%.*]] = load %swift.opaque*, %swift.opaque** [[RESULT_ADDR_SLOT]], align
-  // CHECK-NEXT: [[RESULT_ADDR:%.*]] = bitcast %swift.opaque* [[RESULT_ADDR_OPAQUE]] to %swift.refcounted**
-  // CHECK-NEXT: [[VALUE:%.*]] = load %swift.refcounted*, %swift.refcounted** %0, align
-  // CHECK-NEXT: store %swift.refcounted* [[VALUE]], %swift.refcounted** [[RESULT_ADDR]], align
-  // CHECK-NEXT: call swiftcc void @swift_continuation_throwingResume(%swift.task* [[CONT]])
+  // CHECK: [[CONTEXT_SLOT:%.*]] = getelementptr inbounds %swift.task, ptr %1, i32 0, i32 8
+  // CHECK-NEXT: [[CONTEXT_OPAQUE:%.*]] = load ptr, ptr [[CONTEXT_SLOT]], align
+  // CHECK-NEXT: [[RESULT_ADDR_SLOT:%.*]] = getelementptr inbounds %swift.continuation_context, ptr [[CONTEXT_OPAQUE]], i32 0, i32 4
+  // CHECK-NEXT: [[RESULT_ADDR_OPAQUE:%.*]] = load ptr, ptr [[RESULT_ADDR_SLOT]], align
+  // CHECK-NEXT: [[VALUE:%.*]] = load ptr, ptr %0, align
+  // CHECK-NEXT: store ptr [[VALUE]], ptr [[RESULT_ADDR_OPAQUE]], align
+  // CHECK-NEXT: call swiftcc void @swift_continuation_throwingResume(ptr %1)
   // CHECK-NEXT: ret void
   builtin "resumeThrowingContinuationReturning"<Builtin.NativeObject>(%1 : $Builtin.RawUnsafeContinuation, %0 : $*Builtin.NativeObject) : $()
   %21 = tuple ()
@@ -123,8 +115,7 @@ bb0(%0 : $*Builtin.NativeObject, %1 : $Builtin.RawUnsafeContinuation):
 // CHECK-LABEL: define hidden swiftcc void @resume_throwing_continuation_throwing
 sil hidden [ossa] @resume_throwing_continuation_throwing : $(@owned Error, Builtin.RawUnsafeContinuation) -> () {
 bb0(%0 : @owned $Error, %1 : $Builtin.RawUnsafeContinuation):
-  // CHECK:      [[CONT:%.*]] = bitcast i8* %1 to %swift.task*
-  // CHECK-NEXT: call swiftcc void @swift_continuation_throwingResumeWithError(%swift.task* [[CONT]], %swift.error* %0)
+  // CHECK: call swiftcc void @swift_continuation_throwingResumeWithError(ptr %1, ptr %0)
   // CHECK-NEXT: ret void
   builtin "resumeThrowingContinuationThrowing"(%1 : $Builtin.RawUnsafeContinuation, %0 : $Error) : $()
   %21 = tuple ()
@@ -134,15 +125,14 @@ bb0(%0 : @owned $Error, %1 : $Builtin.RawUnsafeContinuation):
 // CHECK-LABEL: define hidden swift{{(tail)?}}cc  void @task_group_create_destroy
 sil hidden [ossa] @task_group_create_destroy : $@async () -> () {
 bb0:
-  // CHECK:      [[TASKGROUP:%.*]] = alloca [32 x i8*], align 16
-  // CHECK:      [[T0:%.*]] = bitcast [32 x i8*]* [[TASKGROUP]] to i8*
-  // CHECK-NEXT: call void @llvm.lifetime.start.p0i8(i64 -1, i8* [[T0]])
-  // CHECK-NEXT: call swiftcc void @swift_taskGroup_initialize(i8* [[T0]], %swift.type* {{.*}})
+  // CHECK:      [[TASKGROUP:%.*]] = alloca [32 x ptr], align 16
+  // CHECK: call void @llvm.lifetime.start.p0(i64 -1, ptr [[TASKGROUP]])
+  // CHECK-NEXT: call swiftcc void @swift_taskGroup_initialize(ptr [[TASKGROUP]], ptr {{.*}})
   %0 = metatype $@thin Builtin.Int32.Type
   %1 = builtin "createTaskGroup"<Builtin.Int32>(%0: $@thin Builtin.Int32.Type) : $Builtin.RawPointer
 
-  // CHECK-NEXT: call swiftcc void @swift_taskGroup_destroy(i8* [[T0]])
-  // CHECK-NEXT: call void @llvm.lifetime.end.p0i8(i64 -1, i8* [[T0]])
+  // CHECK-NEXT: call swiftcc void @swift_taskGroup_destroy(ptr [[TASKGROUP]])
+  // CHECK-NEXT: call void @llvm.lifetime.end.p0(i64 -1, ptr [[TASKGROUP]])
   builtin "destroyTaskGroup"(%1 : $Builtin.RawPointer) : $()
 
   %21 = tuple ()
@@ -151,16 +141,16 @@ bb0:
 
 
 // CHECK-LABEL: define{{.*}} swiftcc void @testRunInline(
-// CHECK-SAME:      %swift.opaque* noalias nocapture sret(%swift.opaque) [[RESULT:%[^,]+]],
-// CHECK-SAME:      i8* [[CLOSURE:%[^,]+]],
-// CHECK-SAME:      %swift.opaque* [[CLOSURE_CONTEXT:%[^,]+]],
-// CHECK-SAME:      %swift.type* [[FUTURE_RESULT_TYPE:%[^,]+]])
+// CHECK-SAME:      ptr noalias nocapture sret(%swift.opaque) [[RESULT:%[^,]+]],
+// CHECK-SAME:      ptr [[CLOSURE:%[^,]+]],
+// CHECK-SAME:      ptr [[CLOSURE_CONTEXT:%[^,]+]],
+// CHECK-SAME:      ptr [[FUTURE_RESULT_TYPE:%[^,]+]])
 // CHECK-SAME:  {
 // CHECK:         call swiftcc void @swift_task_run_inline(
-// CHECK-SAME:        %swift.opaque* [[RESULT]],
-// CHECK-SAME:        i8* [[CLOSURE]],
-// CHECK-SAME:        %swift.opaque* [[CLOSURE_CONTEXT]],
-// CHECK-SAME:        %swift.type* [[FUTURE_RESULT_TYPE]])
+// CHECK-SAME:        ptr [[RESULT]],
+// CHECK-SAME:        ptr [[CLOSURE]],
+// CHECK-SAME:        ptr [[CLOSURE_CONTEXT]],
+// CHECK-SAME:        ptr [[FUTURE_RESULT_TYPE]])
 // CHECK:       }
 sil hidden @testRunInline : $@convention(thin) <T> (@noescape @async @callee_guaranteed @substituted <τ_0_0> () -> @out τ_0_0 for <T>) -> @out T {
 entry(%result : $*T, %closure : $@noescape @async @callee_guaranteed @substituted <τ_0_0> () -> @out τ_0_0 for <T>):

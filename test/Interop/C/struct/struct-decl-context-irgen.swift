@@ -1,4 +1,5 @@
-// RUN: %target-swift-emit-ir -I %S/Inputs %s | %FileCheck %s
+// RUN: %target-swift-emit-ir %use_no_opaque_pointers -I %S/Inputs %s | %FileCheck %s
+// RUN: %target-swift-emit-ir -I %S/Inputs %s
 
 // This test checks that structs that are imported from a C module are mangled
 // in Swift names as if they are declared in the global namespace, even when

@@ -208,38 +208,41 @@ ErrorOr<ModuleDependencyInfo> ModuleDependencyScanner::scanInterfaceFile(
           });
       if (adjacentBinaryModule != compiledCandidates.end()) {
         // Required modules.
-        auto adjacentBinaryModuleRequiredImports = getModuleImportsOfModule(
+        auto adjacentBinaryModuleRequiredImports = getImportsOfModule(
             *adjacentBinaryModule, ModuleLoadingBehavior::Required, isFramework,
             isRequiredOSSAModules(), Ctx.LangOpts.SDKName,
             Ctx.LangOpts.PackageName, Ctx.SourceMgr.getFileSystem().get(),
             Ctx.SearchPathOpts.DeserializedPathRecoverer);
         if (!adjacentBinaryModuleRequiredImports)
           return adjacentBinaryModuleRequiredImports.getError();
-
+        auto adjacentBinaryModuleRequiredModuleImports =
+          (*adjacentBinaryModuleRequiredImports).moduleImports;
 #ifndef NDEBUG
         //  Verify that the set of required modules read out from the binary
         //  module is a super-set of module imports identified in the
         //  textual interface.
         for (const auto &requiredImport : Result->getModuleImports()) {
-          assert(adjacentBinaryModuleRequiredImports->contains(requiredImport) &&
+          assert(adjacentBinaryModuleRequiredModuleImports.contains(requiredImport) &&
                  "Expected adjacent binary module's import set to contain all "
                  "textual interface imports.");
         }
 #endif
 
-        for (const auto &requiredImport : *adjacentBinaryModuleRequiredImports)
+        for (const auto &requiredImport : adjacentBinaryModuleRequiredModuleImports)
           Result->addModuleImport(requiredImport.getKey(),
                                   &alreadyAddedModules);
 
         // Optional modules. Will be looked-up on a best-effort basis
-        auto adjacentBinaryModuleOptionalImports = getModuleImportsOfModule(
+        auto adjacentBinaryModuleOptionalImports = getImportsOfModule(
             *adjacentBinaryModule, ModuleLoadingBehavior::Optional, isFramework,
             isRequiredOSSAModules(), Ctx.LangOpts.SDKName,
             Ctx.LangOpts.PackageName, Ctx.SourceMgr.getFileSystem().get(),
             Ctx.SearchPathOpts.DeserializedPathRecoverer);
         if (!adjacentBinaryModuleOptionalImports)
           return adjacentBinaryModuleOptionalImports.getError();
-        for (const auto &optionalImport : *adjacentBinaryModuleOptionalImports)
+        auto adjacentBinaryModuleOptionalModuleImports =
+          (*adjacentBinaryModuleOptionalImports).moduleImports;
+        for (const auto &optionalImport : adjacentBinaryModuleOptionalModuleImports)
           Result->addOptionalModuleImport(optionalImport.getKey(),
                                           &alreadyAddedModules);
       }

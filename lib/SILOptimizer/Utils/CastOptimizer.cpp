@@ -1631,7 +1631,7 @@ SILInstruction *CastOptimizer::optimizeUnconditionalCheckedCastAddrInst(
 
 /// Simplify conversions between thick and objc metatypes.
 SILValue CastOptimizer::optimizeMetatypeConversion(
-    ConversionInst *mci, MetatypeRepresentation representation) {
+    ConversionOperation mci, MetatypeRepresentation representation) {
   SILValue op = mci->getOperand(0);
   // Instruction has a proper target type already.
   SILType ty = mci->getType();
@@ -1646,14 +1646,14 @@ SILValue CastOptimizer::optimizeMetatypeConversion(
   auto replaceCast = [&](SILValue newValue) -> SILValue {
     assert(ty.getAs<AnyMetatypeType>()->getRepresentation() ==
            newValue->getType().getAs<AnyMetatypeType>()->getRepresentation());
-    replaceValueUsesAction(mci, newValue);
-    eraseInstAction(mci);
+    replaceValueUsesAction(*mci, newValue);
+    eraseInstAction(*mci);
     return newValue;
   };
 
   if (auto *mi = dyn_cast<MetatypeInst>(op)) {
     return replaceCast(
-        SILBuilderWithScope(mci, builderContext).createMetatype(loc, ty));
+        SILBuilderWithScope(*mci, builderContext).createMetatype(loc, ty));
   }
 
   // For metatype instructions that require an operand, generate the new

@@ -1,13 +1,14 @@
 
-// RUN: %swift -prespecialize-generic-metadata -module-name generic_metatypes -target x86_64-apple-macosx99.99  -emit-ir -disable-legacy-type-info -parse-stdlib -primary-file %s | %FileCheck --check-prefix=CHECK --check-prefix=CHECK-64 -DINT=i64 %s
-// RUN: %swift -prespecialize-generic-metadata -module-name generic_metatypes -target x86_64-apple-ios99.0      -emit-ir -disable-legacy-type-info -parse-stdlib -primary-file %s | %FileCheck --check-prefix=CHECK --check-prefix=CHECK-64 -DINT=i64  %s
-// RUN: %swift -prespecialize-generic-metadata -module-name generic_metatypes -target x86_64-apple-tvos99.0     -emit-ir -disable-legacy-type-info -parse-stdlib -primary-file %s | %FileCheck --check-prefix=CHECK --check-prefix=CHECK-64 -DINT=i64  %s
-// RUN: %swift -prespecialize-generic-metadata -module-name generic_metatypes -target i386-apple-watchos9.99    -emit-ir -disable-legacy-type-info -parse-stdlib -primary-file %s | %FileCheck --check-prefix=CHECK --check-prefix=CHECK-32 -DINT=i32  %s
-// RUN: %swift -prespecialize-generic-metadata -module-name generic_metatypes -target x86_64-unknown-linux-gnu -disable-objc-interop -emit-ir -disable-legacy-type-info -parse-stdlib -primary-file %s | %FileCheck --check-prefix=CHECK --check-prefix=CHECK-64 -DINT=i64 %s
+// RUN: %swift %use_no_opaque_pointers -prespecialize-generic-metadata -module-name generic_metatypes -target x86_64-apple-macosx99.99  -emit-ir -disable-legacy-type-info -parse-stdlib -primary-file %s | %FileCheck --check-prefix=CHECK --check-prefix=CHECK-64 -DINT=i64 %s
+// RUN: %swift -prespecialize-generic-metadata -module-name generic_metatypes -target x86_64-apple-macosx99.99  -emit-ir -disable-legacy-type-info -parse-stdlib -primary-file %s
+// RUN: %swift %use_no_opaque_pointers -prespecialize-generic-metadata -module-name generic_metatypes -target x86_64-apple-ios99.0      -emit-ir -disable-legacy-type-info -parse-stdlib -primary-file %s | %FileCheck --check-prefix=CHECK --check-prefix=CHECK-64 -DINT=i64  %s
+// RUN: %swift %use_no_opaque_pointers -prespecialize-generic-metadata -module-name generic_metatypes -target x86_64-apple-tvos99.0     -emit-ir -disable-legacy-type-info -parse-stdlib -primary-file %s | %FileCheck --check-prefix=CHECK --check-prefix=CHECK-64 -DINT=i64  %s
+// RUN: %swift %use_no_opaque_pointers -prespecialize-generic-metadata -module-name generic_metatypes -target i386-apple-watchos9.99    -emit-ir -disable-legacy-type-info -parse-stdlib -primary-file %s | %FileCheck --check-prefix=CHECK --check-prefix=CHECK-32 -DINT=i32  %s
+// RUN: %swift %use_no_opaque_pointers -prespecialize-generic-metadata -module-name generic_metatypes -target x86_64-unknown-linux-gnu -disable-objc-interop -emit-ir -disable-legacy-type-info -parse-stdlib -primary-file %s | %FileCheck --check-prefix=CHECK --check-prefix=CHECK-64 -DINT=i64 %s
 
-// RUN: %swift -prespecialize-generic-metadata -module-name generic_metatypes -target arm64-apple-ios99.0       -emit-ir -disable-legacy-type-info -parse-stdlib -primary-file %s | %FileCheck --check-prefix=CHECK --check-prefix=CHECK-64 -DINT=i64 %s
-// RUN: %swift -prespecialize-generic-metadata -module-name generic_metatypes -target arm64-apple-tvos99.0      -emit-ir -disable-legacy-type-info -parse-stdlib -primary-file %s | %FileCheck --check-prefix=CHECK --check-prefix=CHECK-64 -DINT=i64 %s
-// RUN: %swift -prespecialize-generic-metadata -module-name generic_metatypes -target armv7k-apple-watchos9.99  -emit-ir -disable-legacy-type-info -parse-stdlib -primary-file %s | %FileCheck --check-prefix=CHECK --check-prefix=CHECK-32 -DINT=i32 %s
+// RUN: %swift %use_no_opaque_pointers -prespecialize-generic-metadata -module-name generic_metatypes -target arm64-apple-ios99.0       -emit-ir -disable-legacy-type-info -parse-stdlib -primary-file %s | %FileCheck --check-prefix=CHECK --check-prefix=CHECK-64 -DINT=i64 %s
+// RUN: %swift %use_no_opaque_pointers -prespecialize-generic-metadata -module-name generic_metatypes -target arm64-apple-tvos99.0      -emit-ir -disable-legacy-type-info -parse-stdlib -primary-file %s | %FileCheck --check-prefix=CHECK --check-prefix=CHECK-64 -DINT=i64 %s
+// RUN: %swift %use_no_opaque_pointers -prespecialize-generic-metadata -module-name generic_metatypes -target armv7k-apple-watchos9.99  -emit-ir -disable-legacy-type-info -parse-stdlib -primary-file %s | %FileCheck --check-prefix=CHECK --check-prefix=CHECK-32 -DINT=i32 %s
 
 
 // REQUIRES: VENDOR=apple || OS=linux-gnu

@@ -586,11 +586,62 @@ void swift::conformToCxxSetIfNeeded(ClangImporter::Implementation &impl,
   if (!valueType || !sizeType)
     return;
 
+  auto insertId = ctx.getIdentifier("__insertUnsafe");
+  auto inserts = lookupDirectWithoutExtensions(decl, insertId);
+  FuncDecl *insert = nullptr;
+  for (auto candidate : inserts) {
+    if (auto candidateMethod = dyn_cast<FuncDecl>(candidate)) {
+      if (!candidateMethod->hasParameterList())
+        continue;
+      auto params = candidateMethod->getParameters();
+      if (params->size() != 1)
+        continue;
+      auto param = params->front();
+      if (param->getType()->getCanonicalType() !=
+          valueType->getUnderlyingType()->getCanonicalType())
+        continue;
+      insert = candidateMethod;
+      break;
+    }
+  }
+  if (!insert)
+    return;
+
   impl.addSynthesizedTypealias(decl, ctx.Id_Element,
                                valueType->getUnderlyingType());
   impl.addSynthesizedTypealias(decl, ctx.getIdentifier("Size"),
                                sizeType->getUnderlyingType());
+  impl.addSynthesizedTypealias(decl, ctx.getIdentifier("InsertionResult"),
+                               insert->getResultInterfaceType());
   impl.addSynthesizedProtocolAttrs(decl, {KnownProtocolKind::CxxSet});
+
+  // If this isn't a std::multiset, try to also synthesize the conformance to
+  // CxxUniqueSet.
+  if (!isStdDecl(clangDecl, {"set", "unordered_set"}))
+    return;
+
+  ProtocolDecl *cxxIteratorProto =
+      ctx.getProtocol(KnownProtocolKind::UnsafeCxxInputIterator);
+  if (!cxxIteratorProto)
+    return;
+
+  auto rawMutableIteratorType =
+      lookupDirectSingleWithoutExtensions<TypeAliasDecl>(
+          decl, ctx.getIdentifier("iterator"));
+  if (!rawMutableIteratorType)
+    return;
+
+  auto rawMutableIteratorTy = rawMutableIteratorType->getUnderlyingType();
+  // Check if RawMutableIterator conforms to UnsafeCxxInputIterator.
+  ModuleDecl *module = decl->getModuleContext();
+  auto rawIteratorConformanceRef =
+      module->lookupConformance(rawMutableIteratorTy, cxxIteratorProto);
+  if (!isConcreteAndValid(rawIteratorConformanceRef, module))
+    return;
+
+  impl.addSynthesizedTypealias(decl, ctx.getIdentifier("RawMutableIterator"),
+                               rawMutableIteratorTy);
+  impl.addSynthesizedProtocolAttrs(decl, {KnownProtocolKind::CxxUniqueSet});
 }
 
 void swift::conformToCxxPairIfNeeded(ClangImporter::Implementation &impl,

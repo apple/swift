@@ -20,12 +20,11 @@ func use<T>(_ t: T) {}
 public func f(_ i : Int?)
 {
   // CHECK1-LABEL: define {{.*}}@"$s4main1fyySiSgF"
-  // CHECK1: %i.debug = alloca %TSiSg
-  // CHECK1: @llvm.dbg.declare(metadata %TSiSg* %i.debug
-  // CHECK1: %[[BITCAST:.*]] = bitcast %TSiSg* %i.debug to i8*
-  // CHECK1: call void @llvm.memset{{.*}}(i8* align {{(4|8)}} %[[BITCAST]],
+  // CHECK1: %[[alloca:.*]] = alloca %TSiSg
+  // CHECK1: @llvm.dbg.declare(metadata ptr %i.debug
+  // CHECK1: call void @llvm.memset{{.*}}(ptr align {{(4|8)}} %[[alloca]],
   // CHECK1-SAME:                         i8 0, i64 {{(5|9)}}, i1 false){{$}}
-  // CHECK1: @llvm.dbg.declare(metadata {{(i32|i64)}}* %val.debug,
+  // CHECK1: @llvm.dbg.declare(metadata ptr %val.debug,
   // CHECK1-SAME:              !dbg ![[DBG0:.*]]
   // CHECK1-LABEL: define {{.*}}@"$s4main1gyySSSgF"
   // CHECK1: ![[F:.*]] = distinct !DISubprogram(name: "f",
@@ -38,12 +37,11 @@ public func f(_ i : Int?)
 public func g(_ s : String?)
 {
   // CHECK2: define {{.*}}@"$s4main1gyySSSgF"
-  // CHECK2: %s.debug = alloca %TSSSg
-  // CHECK2: @llvm.dbg.declare(metadata %TSSSg*
+  // CHECK2: %[[alloca:.*]] = alloca %TSSSg
+  // CHECK2: @llvm.dbg.declare(metadata ptr
   // CHECK2: %val.debug = alloca %TSS
-  // CHECK2: @llvm.dbg.declare(metadata %TSS*
-  // CHECK2: %[[BITCAST:.*]] = bitcast %TSS* %val.debug to i8*{{$}}
-  // CHECK2: call void @llvm.memset.{{.*}}(i8* align {{(4|8)}} %[[BITCAST]], i8 0
+  // CHECK2: @llvm.dbg.declare(metadata ptr
+  // CHECK2: call void @llvm.memset.{{.*}}(ptr align {{(4|8)}} %[[alloca]], i8 0
   // CHECK2: ![[G:.*]] = distinct !DISubprogram(name: "g"
   guard let val = s else { return }
   use(val)
@@ -53,11 +51,10 @@ public func h(_ s : String?)
 {
   // CHECK3: define {{.*}}@"$s4main1hyySSSgF"
   // CHECK3: %s.debug = alloca %TSSSg
-  // CHECK3: @llvm.dbg.declare(metadata %TSSSg*
-  // CHECK3: %s.debug1 = alloca %TSS
-  // CHECK3: @llvm.dbg.declare(metadata %TSS*
-  // CHECK3: %[[BITCAST:.*]] = bitcast %TSS* %s.debug1 to i8*{{$}}
-  // CHECK3: call void @llvm.memset.{{.*}}(i8* align {{(4|8)}} %[[BITCAST]], i8 0
+  // CHECK3: @llvm.dbg.declare(metadata ptr
+  // CHECK3: %[[alloca:.*]] = alloca %TSS
+  // CHECK3: @llvm.dbg.declare(metadata ptr
+  // CHECK3: call void @llvm.memset.{{.*}}(ptr align {{(4|8)}} %[[alloca]], i8 0
   // CHECK3: ![[G:.*]] = distinct !DISubprogram(name: "h"
   guard let s = s else { return }
   use(s)

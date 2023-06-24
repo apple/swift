@@ -77,7 +77,12 @@ extension std.string: Equatable {
   }
 
   public static func +=(lhs: inout std.string, rhs: std.string) {
-    lhs.__appendUnsafe(rhs) // ignore the returned pointer
+    lhs.append(rhs)
+  }
+
+  @inlinable
+  public mutating func append(_ other: std.string) {
+    __appendUnsafe(other) // ignore the returned pointer
   }
 
   public static func +(lhs: std.string, rhs: std.string) -> std.string {
@@ -93,7 +98,12 @@ extension std.u16string: Equatable {
   }
 
   public static func +=(lhs: inout std.u16string, rhs: std.u16string) {
-    lhs.__appendUnsafe(rhs) // ignore the returned pointer
+    lhs.append(rhs)
+  }
+
+  @inlinable
+  public mutating func append(_ other: std.u16string) {
+    __appendUnsafe(other) // ignore the returned pointer
   }
 
   public static func +(lhs: std.u16string, rhs: std.u16string) -> std.u16string {

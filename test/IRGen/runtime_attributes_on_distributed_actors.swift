@@ -13,10 +13,10 @@
 
 // : @"$s40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVHa" = internal constant
 // SAME: i32 5   4
-// SAME: %swift.accessible_function* @"s40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVAA9TestActorC15asyncExternallyyyKFfaHF"
-// SAME: %swift.accessible_function* @"$s40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVAA9TestActorC11doSomethingyyYaKFfaHF"
-// SAME: %swift.accessible_function* @"$s40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVAA9TestActorC11doSomethingyySiYaFfaHF"
-// SAME: %swift.accessible_function* @"$s40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVAA9TestActorC11doSomething_1xySi_SaySiGtYaFfaHF"
+// SAME: ptr @"s40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVAA9TestActorC15asyncExternallyyyKFfaHF"
+// SAME: ptr @"$s40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVAA9TestActorC11doSomethingyyYaKFfaHF"
+// SAME: ptr @"$s40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVAA9TestActorC11doSomethingyySiYaFfaHF"
+// SAME: ptr @"$s40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVAA9TestActorC11doSomething_1xySi_SaySiGtYaFfaHF"
 
 import Distributed
 
@@ -31,15 +31,15 @@ struct FlagForAsyncFuncs {
 distributed actor TestActor {
   typealias ActorSystem = LocalTestingDistributedActorSystem
 
-  // CHECK-LABEL: define hidden swiftcc void @"$s40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVAA9TestActorC15asyncExternallyyyKFfa"(%T40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVSg* noalias nocapture sret(%T40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVAA9TestActorC15asyncExternallyyyKFfa"(ptr noalias nocapture sret(%T40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVSg) %0)
   @FlagForAsyncFuncs distributed func asyncExternally() throws {}
 
-  // CHECK-LABEL: define hidden swiftcc void @"$s40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVAA9TestActorC11doSomethingyyYaKFfa"(%T40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVSg* noalias nocapture sret(%T40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVAA9TestActorC11doSomethingyyYaKFfa"(ptr noalias nocapture sret(%T40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVSg) %0)
   @FlagForAsyncFuncs distributed func doSomething() async throws {}
 
-  // CHECK-LABEL: define hidden swiftcc void @"$s40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVAA9TestActorC11doSomethingyySiYaFfa"(%T40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVSg* noalias nocapture sret(%T40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVAA9TestActorC11doSomethingyySiYaFfa"(ptr noalias nocapture sret(%T40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVSg) %0)
   @FlagForAsyncFuncs nonisolated func doSomething(_: Int) async {}
 
-  // CHECK-LABEL: define hidden swiftcc void @"$s40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVAA9TestActorC11doSomething_1xySi_SaySiGtYaFfa"(%T40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVSg* noalias nocapture sret(%T40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVAA9TestActorC11doSomething_1xySi_SaySiGtYaFfa"(ptr noalias nocapture sret(%T40runtime_attributes_on_distributed_actors17FlagForAsyncFuncsVSg) %0)
   @FlagForAsyncFuncs distributed func doSomething(_: Int, x: [Int]) async {}
 }

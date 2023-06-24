@@ -5,24 +5,24 @@
 
 import resilient_protocol
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}}  swiftcc void @"$s22conformance_resilience14useConformanceyyx18resilient_protocol22OtherResilientProtocolRzlF"(%swift.opaque* noalias nocapture %0, %swift.type* %T, i8** %T.OtherResilientProtocol)
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}}  swiftcc void @"$s22conformance_resilience14useConformanceyyx18resilient_protocol22OtherResilientProtocolRzlF"(ptr noalias nocapture %0, ptr %T, ptr %T.OtherResilientProtocol)
 public func useConformance<T : OtherResilientProtocol>(_: T) {}
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @"$s22conformance_resilience14getConformanceyy18resilient_protocol7WrapperVyxGlF"(%swift.opaque* noalias nocapture %0, %swift.type* %T)
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @"$s22conformance_resilience14getConformanceyy18resilient_protocol7WrapperVyxGlF"(ptr noalias nocapture %0, ptr %T)
 public func getConformance<T>(_ w: Wrapper<T>) {
-  // CHECK: [[RESPONSE:%.*]] = call swiftcc %swift.metadata_response @"$s18resilient_protocol7WrapperVMa"([[INT]] 0, %swift.type* %T)
+  // CHECK: [[RESPONSE:%.*]] = call swiftcc %swift.metadata_response @"$s18resilient_protocol7WrapperVMa"([[INT]] 0, ptr %T)
   // CHECK: [[META:%.*]] = extractvalue %swift.metadata_response [[RESPONSE]], 0
-  // CHECK: [[WTABLE:%.*]] = call i8** @swift_getWitnessTable(%swift.protocol_conformance_descriptor* @"$s18resilient_protocol7WrapperVyxGAA22OtherResilientProtocolAAMc", %swift.type* [[META]], i8*** undef)
-  // CHECK: call swiftcc void @"$s22conformance_resilience14useConformanceyyx18resilient_protocol22OtherResilientProtocolRzlF"(%swift.opaque* noalias nocapture %0, %swift.type* [[META]], i8** [[WTABLE]])
+  // CHECK: [[WTABLE:%.*]] = call ptr @swift_getWitnessTable(ptr @"$s18resilient_protocol7WrapperVyxGAA22OtherResilientProtocolAAMc", ptr [[META]], ptr undef)
+  // CHECK: call swiftcc void @"$s22conformance_resilience14useConformanceyyx18resilient_protocol22OtherResilientProtocolRzlF"(ptr noalias nocapture %0, ptr [[META]], ptr [[WTABLE]])
   // CHECK: ret void
   useConformance(w)
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @"$s22conformance_resilience14getConformanceyy18resilient_protocol15ConcreteWrapperVF"(%swift.opaque* noalias nocapture %0)
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @"$s22conformance_resilience14getConformanceyy18resilient_protocol15ConcreteWrapperVF"(ptr noalias nocapture %0)
 public func getConformance(_ w: ConcreteWrapper) {
   // CHECK: [[RESPONSE:%.*]] = call swiftcc %swift.metadata_response @"$s18resilient_protocol15ConcreteWrapperVMa"([[INT]] 0)
   // CHECK: [[META:%.*]] = extractvalue %swift.metadata_response [[RESPONSE]], 0
-  // CHECK: call swiftcc void @"$s22conformance_resilience14useConformanceyyx18resilient_protocol22OtherResilientProtocolRzlF"(%swift.opaque* noalias nocapture %0, %swift.type* [[META]], i8** @"$s18resilient_protocol15ConcreteWrapperVAA22OtherResilientProtocolAAWP")
+  // CHECK: call swiftcc void @"$s22conformance_resilience14useConformanceyyx18resilient_protocol22OtherResilientProtocolRzlF"(ptr noalias nocapture %0, ptr [[META]], ptr @"$s18resilient_protocol15ConcreteWrapperVAA22OtherResilientProtocolAAWP")
   // CHECK: ret void
   useConformance(w)
 }

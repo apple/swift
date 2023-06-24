@@ -1,4 +1,5 @@
-// RUN: %target-swift-emit-ir -I %S/Inputs -enable-experimental-cxx-interop %s | %FileCheck %s
+// RUN: %target-swift-emit-ir %use_no_opaque_pointers -I %S/Inputs -enable-experimental-cxx-interop %s | %FileCheck %s
+// RUN: %target-swift-emit-ir -I %S/Inputs -enable-experimental-cxx-interop %s
 
 // CHECK: @{{_ZN16WithStaticMember12staticMemberE|"\?staticMember@WithStaticMember@@2HA"}} = external {{(dso_local )?}}global i32, align 4
 // CHECK: @{{_ZN26WithIncompleteStaticMember10selfMemberE|"\?selfMember@WithIncompleteStaticMember@@2V1@A"}} = {{external|linkonce_odr}} {{(dso_local )?}}global %class.WithIncompleteStaticMember, align 4

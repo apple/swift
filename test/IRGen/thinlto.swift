@@ -1,6 +1,6 @@
 // RUN: %empty-directory(%t)
-// RUN: %target-build-swift -parse-as-library -working-directory %t -lto=llvm-thin -DMODULE -static -emit-library -emit-module %s -module-name MyModule
-// RUN: %target-build-swift -parse-as-library -working-directory %t -lto=llvm-thin %s -I%t -L%t -lMyModule -module-name main -o %t/main %lto_flags
+// RUN: %use_just_built_liblto %target-build-swift -parse-as-library -working-directory %t -lto=llvm-thin -DMODULE -static -emit-library -emit-module %s -module-name MyModule
+// RUN: %use_just_built_liblto %target-build-swift -parse-as-library -working-directory %t -lto=llvm-thin %s -I%t -L%t -lMyModule -module-name main -o %t/main %lto_flags
 // RUN: %target-codesign %t/main
 // RUN: %target-run %t/main | %FileCheck %s
 

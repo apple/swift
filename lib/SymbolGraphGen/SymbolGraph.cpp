@@ -718,7 +718,10 @@ bool SymbolGraph::isImplicitlyPrivate(const Decl *D,
 
     // Symbols from exported-imported modules should only be included if they
     // were originally public.
-    if (Walker.isFromExportedImportedModule(D) &&
+    // We force compiler-equality here to ensure that the presence of an underlying
+    // Clang module does not prevent internal Swift symbols from being emitted when
+    // MinimumAccessLevel is set to `internal` or below.
+    if (Walker.isFromExportedImportedModule(D, /*countUnderlyingClangModule*/false) &&
         VD->getFormalAccess() < AccessLevel::Public) {
       return true;
     }

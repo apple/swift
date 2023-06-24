@@ -296,7 +296,7 @@ func testRet3() -> MyRect2 {
 }
 
 // Returning tuple?: (Int x 6)?
-// CHECK-LABEL: define hidden swiftcc void @"$s8test_v7k7minMax2{{.*}}"({{%TSi.*}} noalias nocapture sret({{.*}}) %0, i32 %1, i32 %2)
+// CHECK-LABEL: define hidden swiftcc void @"$s8test_v7k7minMax2{{.*}}"(ptr noalias nocapture sret({{.*}}) %0, i32 %1, i32 %2)
 // V7K-LABEL: _$s8test_v7k7minMax2
 // We will indirectly return an optional with the address in r0, input parameters will be in r1 and r2
 // V7K: str r0, [sp, [[IDX:#[0-9]+]]]
@@ -324,7 +324,7 @@ func minMax2(x : Int, y : Int) -> (min: Int, max: Int, min2: Int, max2: Int, min
 }
 
 // Returning struct?: {Int x 6}?
-// CHECK-LABEL: define hidden swiftcc void @"$s8test_v7k7minMax3{{.*}}"({{%T.*}} noalias nocapture sret({{.*}}) %0, i32 %1, i32 %2)
+// CHECK-LABEL: define hidden swiftcc void @"$s8test_v7k7minMax3{{.*}}"(ptr noalias nocapture sret({{.*}}) %0, i32 %1, i32 %2)
 // V7K-LABEL: _$s8test_v7k7minMax3
 struct Ret {
   var min:Int

@@ -300,6 +300,21 @@ bool AbstractStorageDecl::exportsPropertyDescriptor() const {
   // The storage needs a descriptor if it sits at a module's ABI boundary,
   // meaning it has public linkage.
   
+  // Noncopyable types aren't supported by key paths in their current form.
+  // They would also need a new ABI that's yet to be implemented in order to
+  // be properly supported, so let's suppress the descriptor for now if either
+  // the container or storage type of the declaration is non-copyable.
+  if (getValueInterfaceType()->isPureMoveOnly()) {
+    return false;
+  }
+  if (!isStatic()) {
+    if (auto contextTy = getDeclContext()->getDeclaredTypeInContext()) {
+      if (contextTy->isPureMoveOnly()) {
+        return false;
+      }
+    }
+  }
+  
   // TODO: Global and static properties ought to eventually be referenceable
   // as key paths from () or T.Type too.
   if (!getDeclContext()->isTypeContext() || isStatic())

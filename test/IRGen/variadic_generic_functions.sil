@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend -parse-sil -emit-ir -primary-file %s | %IRGenFileCheck %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers -parse-sil -emit-ir -primary-file %s | %IRGenFileCheck %s
+// RUN: %target-swift-frontend -parse-sil -emit-ir -primary-file %s
 
 import Builtin
 import Swift

@@ -1191,14 +1191,14 @@ public:
 ///
 /// NOTE: We assume that the constructor for the instruction subclass that
 /// initializes the kind field on our object is run before our constructor runs.
-class OwnershipForwardingMixin {
+class ForwardingInstruction {
   ValueOwnershipKind ownershipKind;
   bool preservesOwnershipFlag;
 
 protected:
-  OwnershipForwardingMixin(SILInstructionKind kind,
-                           ValueOwnershipKind ownershipKind,
-                           bool preservesOwnership = true)
+  ForwardingInstruction(SILInstructionKind kind,
+                        ValueOwnershipKind ownershipKind,
+                        bool preservesOwnership = true)
       : ownershipKind(ownershipKind),
         preservesOwnershipFlag(preservesOwnership) {
     assert(isa(kind) && "Invalid subclass?!");
@@ -1239,9 +1239,48 @@ public:
     ownershipKind = newKind;
   }
 
+  static bool canForwardAllOperands(SILInstruction *inst) {
+    switch (inst->getKind()) {
+    case SILInstructionKind::StructInst:
+    case SILInstructionKind::TupleInst:
+    case SILInstructionKind::LinearFunctionInst:
+    case SILInstructionKind::DifferentiableFunctionInst:
+      return true;
+    default:
+      return false;
+    }
+  }
+
+  static bool canForwardFirstOperandOnly(SILInstruction *inst) {
+    if (!ForwardingInstruction::isa(inst)) {
+      return false;
+    }
+    return !canForwardAllOperands(inst);
+  }
+
+  static bool canForwardOwnedCompatibleValuesOnly(SILInstruction *inst) {
+    switch (inst->getKind()) {
+    case SILInstructionKind::MarkUninitializedInst:
+      return true;
+    default:
+      return false;
+    }
+  }
+
+  static bool canForwardGuaranteedCompatibleValuesOnly(SILInstruction *inst) {
+    switch (inst->getKind()) {
+    case SILInstructionKind::TupleExtractInst:
+    case SILInstructionKind::StructExtractInst:
+    case SILInstructionKind::DifferentiableFunctionExtractInst:
+    case SILInstructionKind::LinearFunctionExtractInst:
+      return true;
+    default:
+      return false;
+    }
+  }
+
   /// Defined inline below due to forward declaration issues.
-  static OwnershipForwardingMixin *get(SILInstruction *inst);
-  /// Defined inline below due to forward declaration issues.
+  static ForwardingInstruction *get(SILInstruction *inst);
   static bool isa(SILInstructionKind kind);
   static bool isa(const SILInstruction *inst) { return isa(inst->getKind()); }
   static bool isa(SILNodePointer node) {
@@ -1253,13 +1292,13 @@ public:
   /// Return true if the forwarded value has the same representation. If true,
   /// then the result can be mapped to the same storage without a move or copy.
   ///
-  /// \p inst is an OwnershipForwardingMixin
+  /// \p inst is an ForwardingInstruction
   static bool hasSameRepresentation(SILInstruction *inst);
 
   /// Return true if the forwarded value is address-only either before or after
   /// forwarding.
   ///
-  /// \p inst is an OwnershipForwardingMixin
+  /// \p inst is an ForwardingInstruction
   static bool isAddressOnly(SILInstruction *inst);
 };
 
@@ -1270,16 +1309,15 @@ public:
 ///
 /// TODO: This name is extremely misleading because it may apply to an
 /// operation that has no operand at all, like `enum .None`.
-class FirstArgOwnershipForwardingSingleValueInst
-    : public SingleValueInstruction,
-      public OwnershipForwardingMixin {
+class OwnershipForwardingSingleValueInstruction : public SingleValueInstruction,
+                                                  public ForwardingInstruction {
 protected:
-  FirstArgOwnershipForwardingSingleValueInst(SILInstructionKind kind,
-                                             SILDebugLocation debugLoc,
-                                             SILType ty,
-                                             ValueOwnershipKind ownershipKind)
+  OwnershipForwardingSingleValueInstruction(SILInstructionKind kind,
+                                            SILDebugLocation debugLoc,
+                                            SILType ty,
+                                            ValueOwnershipKind ownershipKind)
       : SingleValueInstruction(kind, debugLoc, ty),
-        OwnershipForwardingMixin(kind, ownershipKind) {
+        ForwardingInstruction(kind, ownershipKind) {
     assert(classof(kind) && "classof missing new subclass?!");
   }
 
@@ -1291,151 +1329,6 @@ public:
   }
 
   static bool classof(SILInstructionKind kind);
-
-  static bool classof(const SILInstruction *inst) {
-    return classof(inst->getKind());
-  }
-};
-
-/// An ownership forwarding single value that has a preferred operand of owned
-/// but if its inputs are all none can have OwnershipKind::None as a result. We
-/// assume that we always forward from operand 0.
-class OwnedFirstArgForwardingSingleValueInst
-    : public FirstArgOwnershipForwardingSingleValueInst {
-protected:
-  OwnedFirstArgForwardingSingleValueInst(SILInstructionKind kind,
-                                         SILDebugLocation debugLoc, SILType ty,
-                                         ValueOwnershipKind resultOwnershipKind)
-      : FirstArgOwnershipForwardingSingleValueInst(kind, debugLoc, ty,
-                                                   resultOwnershipKind) {
-    assert(resultOwnershipKind.isCompatibleWith(OwnershipKind::Owned));
-    assert(classof(kind) && "classof missing new subclass?!");
-  }
-
-public:
-  ValueOwnershipKind getPreferredOwnership() const {
-    return OwnershipKind::Owned;
-  }
-
-  static bool classof(SILNodePointer node) {
-    if (auto *i = dyn_cast<SILInstruction>(node.get()))
-      return classof(i);
-    return false;
-  }
-
-  static bool classof(SILInstructionKind kind) {
-    switch (kind) {
-    case SILInstructionKind::MarkUninitializedInst:
-      return true;
-    default:
-      return false;
-    }
-  }
-
-  static bool classof(const SILInstruction *inst) {
-    return classof(inst->getKind());
-  }
-};
-
-/// An instruction that forwards guaranteed or none ownership. Assumed to always
-/// forward from Operand(0) -> Result(0).
-class GuaranteedFirstArgForwardingSingleValueInst
-    : public FirstArgOwnershipForwardingSingleValueInst {
-protected:
-  GuaranteedFirstArgForwardingSingleValueInst(
-      SILInstructionKind kind, SILDebugLocation debugLoc, SILType ty,
-      ValueOwnershipKind resultOwnershipKind)
-      : FirstArgOwnershipForwardingSingleValueInst(kind, debugLoc, ty,
-                                                   resultOwnershipKind) {
-    assert(resultOwnershipKind.isCompatibleWith(OwnershipKind::Guaranteed));
-    assert(classof(kind) && "classof missing new subclass?!");
-  }
-
-public:
-  ValueOwnershipKind getPreferredOwnership() const {
-    return OwnershipKind::Guaranteed;
-  }
-
-  static bool classof(SILNodePointer node) {
-    if (auto *i = dyn_cast<SILInstruction>(node.get()))
-      return classof(i);
-    return false;
-  }
-
-  static bool classof(SILInstructionKind kind) {
-    switch (kind) {
-    case SILInstructionKind::TupleExtractInst:
-    case SILInstructionKind::StructExtractInst:
-    case SILInstructionKind::DifferentiableFunctionExtractInst:
-    case SILInstructionKind::LinearFunctionExtractInst:
-    case SILInstructionKind::OpenExistentialValueInst:
-    case SILInstructionKind::OpenExistentialBoxValueInst:
-      return true;
-    default:
-      return false;
-    }
-  }
-
-  static bool classof(const SILInstruction *inst) {
-    return classof(inst->getKind());
-  }
-};
-
-inline bool
-FirstArgOwnershipForwardingSingleValueInst::classof(SILInstructionKind kind) {
-  if (OwnedFirstArgForwardingSingleValueInst::classof(kind))
-    return true;
-  if (GuaranteedFirstArgForwardingSingleValueInst::classof(kind))
-    return true;
-
-  switch (kind) {
-  case SILInstructionKind::ObjectInst:
-  case SILInstructionKind::EnumInst:
-  case SILInstructionKind::UncheckedEnumDataInst:
-  case SILInstructionKind::SelectValueInst:
-  case SILInstructionKind::OpenExistentialRefInst:
-  case SILInstructionKind::InitExistentialRefInst:
-  case SILInstructionKind::MarkDependenceInst:
-  case SILInstructionKind::MoveOnlyWrapperToCopyableValueInst:
-  case SILInstructionKind::MoveOnlyWrapperToCopyableBoxInst:
-  case SILInstructionKind::CopyableToMoveOnlyWrapperValueInst:
-    return true;
-  default:
-    return false;
-  }
-}
-
-class AllArgOwnershipForwardingSingleValueInst
-    : public SingleValueInstruction,
-      public OwnershipForwardingMixin {
-protected:
-  AllArgOwnershipForwardingSingleValueInst(SILInstructionKind kind,
-                                           SILDebugLocation debugLoc,
-                                           SILType ty,
-                                           ValueOwnershipKind ownershipKind)
-      : SingleValueInstruction(kind, debugLoc, ty),
-        OwnershipForwardingMixin(kind, ownershipKind) {
-    assert(classof(kind) && "classof missing new subclass?!");
-  }
-
-public:
-  static bool classof(SILNodePointer node) {
-    if (auto *i = dyn_cast<SILInstruction>(node.get()))
-      return classof(i);
-    return false;
-  }
-
-  static bool classof(SILInstructionKind kind) {
-    switch (kind) {
-    case SILInstructionKind::StructInst:
-    case SILInstructionKind::TupleInst:
-    case SILInstructionKind::LinearFunctionInst:
-    case SILInstructionKind::DifferentiableFunctionInst:
-      return true;
-    default:
-      return false;
-    }
-  }
 
   static bool classof(const SILInstruction *inst) {
     return classof(inst->getKind());
@@ -5012,7 +4905,7 @@ public:
 /// this instruction. This is only valid in Raw SIL.
 class MarkUninitializedInst
     : public UnaryInstructionBase<SILInstructionKind::MarkUninitializedInst,
-                                  OwnedFirstArgForwardingSingleValueInst> {
+                                  OwnershipForwardingSingleValueInstruction> {
   friend SILBuilder;
 
 public:
@@ -5523,77 +5416,12 @@ public:
   MutableArrayRef<Operand> getAllOperands() { return Operands.asArray(); }
 };
 
-//===----------------------------------------------------------------------===//
-// Conversion instructions.
-//===----------------------------------------------------------------------===//
-
-/// ConversionInst - Abstract class representing instructions that convert
-/// values.
-///
-class ConversionInst : public SingleValueInstruction {
-protected:
-  ConversionInst(SILInstructionKind Kind, SILDebugLocation DebugLoc, SILType Ty)
-      : SingleValueInstruction(Kind, DebugLoc, Ty) {}
-
-public:
-  /// All conversion instructions take the converted value, whose reference
-  /// identity is expected to be preserved through the conversion chain, as their
-  /// first operand. Some instructions may take additional operands that do not
-  /// affect the reference identity.
-  SILValue getConverted() const { return getOperand(0); }
-  
-  DEFINE_ABSTRACT_SINGLE_VALUE_INST_BOILERPLATE(ConversionInst)
-};
-
-/// A conversion inst that produces a static OwnershipKind set upon the
-/// instruction's construction.
-///
-/// The first operand is the ownership equivalent source.
-class OwnershipForwardingConversionInst : public ConversionInst,
-                                          public OwnershipForwardingMixin {
-protected:
-  OwnershipForwardingConversionInst(SILInstructionKind kind,
-                                    SILDebugLocation debugLoc, SILType ty,
-                                    ValueOwnershipKind ownershipKind)
-      : ConversionInst(kind, debugLoc, ty),
-        OwnershipForwardingMixin(kind, ownershipKind) {
-    assert(classof(kind) && "classof missing subclass?!");
-  }
-
-public:
-  static bool classof(SILNodePointer node) {
-    if (auto *i = dyn_cast<SILInstruction>(node.get()))
-      return classof(i);
-    return false;
-  }
-
-  static bool classof(const SILInstruction *inst) {
-    return classof(inst->getKind());
-  }
-
-  static bool classof(SILInstructionKind kind) {
-    switch (kind) {
-    case SILInstructionKind::ConvertFunctionInst:
-    case SILInstructionKind::UpcastInst:
-    case SILInstructionKind::UncheckedRefCastInst:
-    case SILInstructionKind::UncheckedValueCastInst:
-    case SILInstructionKind::RefToBridgeObjectInst:
-    case SILInstructionKind::BridgeObjectToRefInst:
-    case SILInstructionKind::ThinToThickFunctionInst:
-    case SILInstructionKind::UnconditionalCheckedCastInst:
-      return true;
-    default:
-      return false;
-    }
-  }
-};
-
 /// ConvertFunctionInst - Change the type of a function value without
 /// affecting how it will codegen.
 class ConvertFunctionInst final
     : public UnaryInstructionWithTypeDependentOperandsBase<
           SILInstructionKind::ConvertFunctionInst, ConvertFunctionInst,
-          OwnershipForwardingConversionInst> {
+          OwnershipForwardingSingleValueInstruction> {
   friend SILBuilder;
   USE_SHARED_UINT8;
 
@@ -5642,7 +5470,7 @@ public:
 class ConvertEscapeToNoEscapeInst final
     : public UnaryInstructionWithTypeDependentOperandsBase<
           SILInstructionKind::ConvertEscapeToNoEscapeInst,
-          ConvertEscapeToNoEscapeInst, ConversionInst> {
+          ConvertEscapeToNoEscapeInst, SingleValueInstruction> {
   friend SILBuilder;
 
   bool lifetimeGuaranteed;
@@ -5678,7 +5506,7 @@ public:
 /// UpcastInst - Perform a conversion of a class instance to a supertype.
 class UpcastInst final : public UnaryInstructionWithTypeDependentOperandsBase<
                              SILInstructionKind::UpcastInst, UpcastInst,
-                             OwnershipForwardingConversionInst> {
+                             OwnershipForwardingSingleValueInstruction> {
   friend SILBuilder;
 
   UpcastInst(SILDebugLocation DebugLoc, SILValue Operand,
@@ -5696,9 +5524,8 @@ class UpcastInst final : public UnaryInstructionWithTypeDependentOperandsBase<
 
 /// AddressToPointerInst - Convert a SIL address to a Builtin.RawPointer value.
 class AddressToPointerInst
-  : public UnaryInstructionBase<SILInstructionKind::AddressToPointerInst,
-                                ConversionInst>
-{
+    : public UnaryInstructionBase<SILInstructionKind::AddressToPointerInst,
+                                  SingleValueInstruction> {
   friend SILBuilder;
   USE_SHARED_UINT8;
 
@@ -5716,9 +5543,8 @@ public:
 
 /// PointerToAddressInst - Convert a Builtin.RawPointer value to a SIL address.
 class PointerToAddressInst
-  : public UnaryInstructionBase<SILInstructionKind::PointerToAddressInst,
-                                ConversionInst>
-{
+    : public UnaryInstructionBase<SILInstructionKind::PointerToAddressInst,
+                                  SingleValueInstruction> {
   friend SILBuilder;
   USE_SHARED_UINT8;
   USE_SHARED_UINT32;
@@ -5762,7 +5588,7 @@ public:
 class UncheckedRefCastInst final
     : public UnaryInstructionWithTypeDependentOperandsBase<
           SILInstructionKind::UncheckedRefCastInst, UncheckedRefCastInst,
-          OwnershipForwardingConversionInst> {
+          OwnershipForwardingSingleValueInstruction> {
   friend SILBuilder;
 
   UncheckedRefCastInst(SILDebugLocation DebugLoc, SILValue Operand,
@@ -5780,11 +5606,9 @@ class UncheckedRefCastInst final
 
 /// Convert a value's binary representation to a trivial type of the same size.
 class UncheckedTrivialBitCastInst final
-  : public UnaryInstructionWithTypeDependentOperandsBase<
-                                SILInstructionKind::UncheckedTrivialBitCastInst,
-                                UncheckedTrivialBitCastInst,
-                                ConversionInst>
-{
+    : public UnaryInstructionWithTypeDependentOperandsBase<
+          SILInstructionKind::UncheckedTrivialBitCastInst,
+          UncheckedTrivialBitCastInst, SingleValueInstruction> {
   friend SILBuilder;
 
   UncheckedTrivialBitCastInst(SILDebugLocation DebugLoc, SILValue Operand,
@@ -5797,14 +5621,12 @@ class UncheckedTrivialBitCastInst final
   create(SILDebugLocation DebugLoc, SILValue Operand, SILType Ty,
          SILFunction &F);
 };
-  
+
 /// Bitwise copy a value into another value of the same size or smaller.
 class UncheckedBitwiseCastInst final
-  : public UnaryInstructionWithTypeDependentOperandsBase<
-                                SILInstructionKind::UncheckedBitwiseCastInst,
-                                UncheckedBitwiseCastInst,
-                                ConversionInst>
-{
+    : public UnaryInstructionWithTypeDependentOperandsBase<
+          SILInstructionKind::UncheckedBitwiseCastInst,
+          UncheckedBitwiseCastInst, SingleValueInstruction> {
   friend SILBuilder;
 
   UncheckedBitwiseCastInst(SILDebugLocation DebugLoc, SILValue Operand,
@@ -5821,7 +5643,7 @@ class UncheckedBitwiseCastInst final
 class UncheckedValueCastInst final
     : public UnaryInstructionWithTypeDependentOperandsBase<
           SILInstructionKind::UncheckedValueCastInst, UncheckedValueCastInst,
-          OwnershipForwardingConversionInst> {
+          OwnershipForwardingSingleValueInstruction> {
   friend SILBuilder;
 
   UncheckedValueCastInst(SILDebugLocation DebugLoc, SILValue Operand,
@@ -5841,7 +5663,7 @@ class UncheckedValueCastInst final
 /// in bits from a word.
 class RefToBridgeObjectInst
     : public InstructionBase<SILInstructionKind::RefToBridgeObjectInst,
-                             OwnershipForwardingConversionInst> {
+                             OwnershipForwardingSingleValueInstruction> {
   friend SILBuilder;
 
   FixedOperandList<2> Operands;
@@ -5873,7 +5695,7 @@ class ClassifyBridgeObjectInst
 /// Extract the heap object reference from a BridgeObject.
 class BridgeObjectToRefInst
     : public UnaryInstructionBase<SILInstructionKind::BridgeObjectToRefInst,
-                                  OwnershipForwardingConversionInst> {
+                                  OwnershipForwardingSingleValueInstruction> {
   friend SILBuilder;
 
   BridgeObjectToRefInst(SILDebugLocation DebugLoc, SILValue Operand, SILType Ty,
@@ -5885,7 +5707,7 @@ class BridgeObjectToRefInst
 /// operands
 class ValueToBridgeObjectInst
     : public UnaryInstructionBase<SILInstructionKind::ValueToBridgeObjectInst,
-                                  ConversionInst> {
+                                  SingleValueInstruction> {
   friend SILBuilder;
 
   ValueToBridgeObjectInst(SILDebugLocation DebugLoc, SILValue Operand,
@@ -5895,9 +5717,8 @@ class ValueToBridgeObjectInst
 
 /// Retrieve the bit pattern of a BridgeObject.
 class BridgeObjectToWordInst
-  : public UnaryInstructionBase<SILInstructionKind::BridgeObjectToWordInst,
-                                ConversionInst>
-{
+    : public UnaryInstructionBase<SILInstructionKind::BridgeObjectToWordInst,
+                                  SingleValueInstruction> {
   friend SILBuilder;
 
   BridgeObjectToWordInst(SILDebugLocation DebugLoc, SILValue Operand,
@@ -5907,9 +5728,8 @@ class BridgeObjectToWordInst
 
 /// RefToRawPointer - Convert a reference type to a Builtin.RawPointer.
 class RefToRawPointerInst
-  : public UnaryInstructionBase<SILInstructionKind::RefToRawPointerInst,
-                                ConversionInst>
-{
+    : public UnaryInstructionBase<SILInstructionKind::RefToRawPointerInst,
+                                  SingleValueInstruction> {
   friend SILBuilder;
 
   RefToRawPointerInst(SILDebugLocation DebugLoc, SILValue Operand, SILType Ty)
@@ -5918,9 +5738,8 @@ class RefToRawPointerInst
 
 /// RawPointerToRefInst - Convert a Builtin.RawPointer to a reference type.
 class RawPointerToRefInst
-  : public UnaryInstructionBase<SILInstructionKind::RawPointerToRefInst,
-                                ConversionInst>
-{
+    : public UnaryInstructionBase<SILInstructionKind::RawPointerToRefInst,
+                                  SingleValueInstruction> {
   friend SILBuilder;
 
   RawPointerToRefInst(SILDebugLocation DebugLoc, SILValue Operand, SILType Ty)
@@ -5929,21 +5748,21 @@ class RawPointerToRefInst
 
 /// Transparent reference storage to underlying reference type conversion.
 /// This does nothing at runtime; it just changes the formal type.
-#define LOADABLE_REF_STORAGE(Name, ...) \
-class RefTo##Name##Inst \
-    : public UnaryInstructionBase<SILInstructionKind::RefTo##Name##Inst, \
-                                  ConversionInst> { \
-  friend SILBuilder; \
-  RefTo##Name##Inst(SILDebugLocation DebugLoc, SILValue Operand, SILType Ty) \
-      : UnaryInstructionBase(DebugLoc, Operand, Ty) {} \
-}; \
-class Name##ToRefInst \
-  : public UnaryInstructionBase<SILInstructionKind::Name##ToRefInst, \
-                                ConversionInst> { \
-  friend SILBuilder; \
-  Name##ToRefInst(SILDebugLocation DebugLoc, SILValue Operand, SILType Ty) \
-      : UnaryInstructionBase(DebugLoc, Operand, Ty) {} \
-};
+#define LOADABLE_REF_STORAGE(Name, ...)                                        \
+  class RefTo##Name##Inst                                                      \
+      : public UnaryInstructionBase<SILInstructionKind::RefTo##Name##Inst,     \
+                                    SingleValueInstruction> {                  \
+    friend SILBuilder;                                                         \
+    RefTo##Name##Inst(SILDebugLocation DebugLoc, SILValue Operand, SILType Ty) \
+        : UnaryInstructionBase(DebugLoc, Operand, Ty) {}                       \
+  };                                                                           \
+  class Name##ToRefInst                                                        \
+      : public UnaryInstructionBase<SILInstructionKind::Name##ToRefInst,       \
+                                    SingleValueInstruction> {                  \
+    friend SILBuilder;                                                         \
+    Name##ToRefInst(SILDebugLocation DebugLoc, SILValue Operand, SILType Ty)   \
+        : UnaryInstructionBase(DebugLoc, Operand, Ty) {}                       \
+  };
 #include "swift/AST/ReferenceStorage.def"
 
 /// ThinToThickFunctionInst - Given a thin function reference, adds a null
@@ -5951,7 +5770,7 @@ class Name##ToRefInst \
 class ThinToThickFunctionInst final
     : public UnaryInstructionWithTypeDependentOperandsBase<
           SILInstructionKind::ThinToThickFunctionInst, ThinToThickFunctionInst,
-          OwnershipForwardingConversionInst> {
+          OwnershipForwardingSingleValueInstruction> {
   friend SILBuilder;
 
   ThinToThickFunctionInst(SILDebugLocation DebugLoc, SILValue Operand,
@@ -5979,9 +5798,8 @@ public:
 /// Given a thick metatype value, produces an Objective-C metatype
 /// value.
 class ThickToObjCMetatypeInst
-  : public UnaryInstructionBase<SILInstructionKind::ThickToObjCMetatypeInst,
-                                ConversionInst>
-{
+    : public UnaryInstructionBase<SILInstructionKind::ThickToObjCMetatypeInst,
+                                  SingleValueInstruction> {
   friend SILBuilder;
 
   ThickToObjCMetatypeInst(SILDebugLocation DebugLoc, SILValue Operand,
@@ -5992,9 +5810,8 @@ class ThickToObjCMetatypeInst
 /// Given an Objective-C metatype value, produces a thick metatype
 /// value.
 class ObjCToThickMetatypeInst
-  : public UnaryInstructionBase<SILInstructionKind::ObjCToThickMetatypeInst,
-                                ConversionInst>
-{
+    : public UnaryInstructionBase<SILInstructionKind::ObjCToThickMetatypeInst,
+                                  SingleValueInstruction> {
   friend SILBuilder;
 
   ObjCToThickMetatypeInst(SILDebugLocation DebugLoc, SILValue Operand,
@@ -6004,9 +5821,8 @@ class ObjCToThickMetatypeInst
 
 /// Given an Objective-C metatype value, convert it to an AnyObject value.
 class ObjCMetatypeToObjectInst
-  : public UnaryInstructionBase<SILInstructionKind::ObjCMetatypeToObjectInst,
-                                ConversionInst>
-{
+    : public UnaryInstructionBase<SILInstructionKind::ObjCMetatypeToObjectInst,
+                                  SingleValueInstruction> {
   friend SILBuilder;
 
   ObjCMetatypeToObjectInst(SILDebugLocation DebugLoc, SILValue Operand,
@@ -6017,9 +5833,9 @@ class ObjCMetatypeToObjectInst
 /// Given an Objective-C existential metatype value, convert it to an AnyObject
 /// value.
 class ObjCExistentialMetatypeToObjectInst
-  : public UnaryInstructionBase<SILInstructionKind::ObjCExistentialMetatypeToObjectInst,
-                                ConversionInst>
-{
+    : public UnaryInstructionBase<
+          SILInstructionKind::ObjCExistentialMetatypeToObjectInst,
+          SingleValueInstruction> {
   friend SILBuilder;
 
   ObjCExistentialMetatypeToObjectInst(SILDebugLocation DebugLoc,
@@ -6050,7 +5866,8 @@ public:
 class UnconditionalCheckedCastInst final
     : public UnaryInstructionWithTypeDependentOperandsBase<
           SILInstructionKind::UnconditionalCheckedCastInst,
-          UnconditionalCheckedCastInst, OwnershipForwardingConversionInst> {
+          UnconditionalCheckedCastInst,
+          OwnershipForwardingSingleValueInstruction> {
   CanType DestFormalTy;
   friend SILBuilder;
 
@@ -6079,7 +5896,7 @@ public:
 /// StructInst - Represents a constructed loadable struct.
 class StructInst final : public InstructionBaseWithTrailingOperands<
                              SILInstructionKind::StructInst, StructInst,
-                             AllArgOwnershipForwardingSingleValueInst> {
+                             OwnershipForwardingSingleValueInstruction> {
   friend SILBuilder;
 
   /// Because of the storage requirements of StructInst, object
@@ -6333,7 +6150,7 @@ class SetDeallocatingInst
 /// static initializer list.
 class ObjectInst final : public InstructionBaseWithTrailingOperands<
                              SILInstructionKind::ObjectInst, ObjectInst,
-                             FirstArgOwnershipForwardingSingleValueInst> {
+                             OwnershipForwardingSingleValueInstruction> {
   friend SILBuilder;
 
   unsigned numBaseElements;
@@ -6380,7 +6197,7 @@ public:
 /// TupleInst - Represents a constructed loadable tuple.
 class TupleInst final : public InstructionBaseWithTrailingOperands<
                             SILInstructionKind::TupleInst, TupleInst,
-                            AllArgOwnershipForwardingSingleValueInst> {
+                            OwnershipForwardingSingleValueInstruction> {
   friend SILBuilder;
 
   /// Because of the storage requirements of TupleInst, object
@@ -6455,7 +6272,7 @@ public:
 /// elements.
 class EnumInst
     : public InstructionBase<SILInstructionKind::EnumInst,
-                             FirstArgOwnershipForwardingSingleValueInst> {
+                             OwnershipForwardingSingleValueInstruction> {
   friend SILBuilder;
   enum : unsigned { InvalidCaseIndex = ~unsigned(0) };
 
@@ -6509,7 +6326,7 @@ public:
 /// the tag.
 class UncheckedEnumDataInst
     : public UnaryInstructionBase<SILInstructionKind::UncheckedEnumDataInst,
-                                  FirstArgOwnershipForwardingSingleValueInst> {
+                                  OwnershipForwardingSingleValueInstruction> {
   friend SILBuilder;
   enum : unsigned { InvalidCaseIndex = ~unsigned(0) };
 
@@ -6659,8 +6476,8 @@ public:
   }
 };
 
-// Abstract base class of all select instructions like select_enum,
-// select_value, etc. The template parameter represents a type of case values
+// Abstract base class of all select instructions like select_enum.
+// The template parameter represents a type of case values
 // to be compared with the operand of a select instruction.
 //
 // Subclasses must provide tail allocated storage.
@@ -6785,7 +6602,7 @@ public:
 
 /// A select enum inst that produces a static OwnershipKind.
 class OwnershipForwardingSelectEnumInstBase : public SelectEnumInstBase,
-                                              public OwnershipForwardingMixin {
+                                              public ForwardingInstruction {
 protected:
   OwnershipForwardingSelectEnumInstBase(
       SILInstructionKind kind, SILDebugLocation debugLoc, SILType type,
@@ -6793,7 +6610,7 @@ protected:
       ProfileCounter defaultCount, ValueOwnershipKind ownershipKind)
       : SelectEnumInstBase(kind, debugLoc, type, defaultValue, caseCounts,
                            defaultCount),
-        OwnershipForwardingMixin(kind, ownershipKind) {
+        ForwardingInstruction(kind, ownershipKind) {
     assert(classof(kind) && "classof missing subclass");
   }
 
@@ -6878,50 +6695,6 @@ class SelectEnumAddrInst final
          ProfileCounter DefaultCount);
 };
 
-/// Select on a value of a builtin integer type.
-///
-/// There is 'the' operand, followed by pairs of operands for each case,
-/// followed by an optional default operand.
-class SelectValueInst final
-    : public InstructionBaseWithTrailingOperands<
-          SILInstructionKind::SelectValueInst, SelectValueInst,
-          SelectInstBase<SelectValueInst, SILValue, SingleValueInstruction>> {
-  friend SILBuilder;
-
-  SelectValueInst(SILDebugLocation DebugLoc, SILValue Operand, SILType Type,
-                  SILValue DefaultResult,
-                  ArrayRef<SILValue> CaseValuesAndResults);
-
-  static SelectValueInst *
-  create(SILDebugLocation DebugLoc, SILValue Operand, SILType Type,
-         SILValue DefaultValue,
-         ArrayRef<std::pair<SILValue, SILValue>> CaseValues, SILModule &M);
-
-public:
-  std::pair<SILValue, SILValue>
-  getCase(unsigned i) const {
-    auto cases = getAllOperands().slice(1);
-    return {cases[i*2].get(), cases[i*2+1].get()};
-  }
-
-  unsigned getNumCases() const {
-    // Ignore the first non-case operand.
-    auto count = getAllOperands().size() - 1;
-    // This implicitly ignore the optional default operand.
-    return count / 2;
-  }
-
-  bool hasDefault() const {
-    // If the operand count is even, then we have a default value.
-    return (getAllOperands().size() & 1) == 0;
-  }
-
-  SILValue getDefaultResult() const {
-    assert(hasDefault() && "doesn't have a default");
-    return getAllOperands().back().get();
-  }
-};
-
 /// MetatypeInst - Represents the production of an instance of a given metatype
 /// named statically.
 class MetatypeInst final
@@ -6967,7 +6740,7 @@ class ExistentialMetatypeInst
 /// Extract a numbered element out of a value of tuple type.
 class TupleExtractInst
     : public UnaryInstructionBase<SILInstructionKind::TupleExtractInst,
-                                  GuaranteedFirstArgForwardingSingleValueInst> {
+                                  OwnershipForwardingSingleValueInstruction> {
   friend SILBuilder;
   USE_SHARED_UINT32;
 
@@ -7099,7 +6872,7 @@ public:
 class StructExtractInst
     : public UnaryInstructionBase<
           SILInstructionKind::StructExtractInst,
-          FieldIndexCacheBase<GuaranteedFirstArgForwardingSingleValueInst>> {
+          FieldIndexCacheBase<OwnershipForwardingSingleValueInstruction>> {
   friend SILBuilder;
 
   StructExtractInst(SILDebugLocation DebugLoc, SILValue Operand, VarDecl *Field,
@@ -7367,7 +7140,7 @@ public:
 /// captures the (dynamic) conformances.
 class OpenExistentialValueInst
     : public UnaryInstructionBase<SILInstructionKind::OpenExistentialValueInst,
-                                  GuaranteedFirstArgForwardingSingleValueInst> {
+                                  OwnershipForwardingSingleValueInstruction> {
   friend SILBuilder;
 
   OpenExistentialValueInst(SILDebugLocation debugLoc, SILValue operand,
@@ -7388,7 +7161,7 @@ public:
 /// captures the (dynamic) conformances.
 class OpenExistentialRefInst
     : public UnaryInstructionBase<SILInstructionKind::OpenExistentialRefInst,
-                                  FirstArgOwnershipForwardingSingleValueInst> {
+                                  OwnershipForwardingSingleValueInstruction> {
   friend SILBuilder;
 
   OpenExistentialRefInst(SILDebugLocation DebugLoc, SILValue Operand,
@@ -7452,7 +7225,7 @@ public:
 class OpenExistentialBoxValueInst
     : public UnaryInstructionBase<
           SILInstructionKind::OpenExistentialBoxValueInst,
-          GuaranteedFirstArgForwardingSingleValueInst> {
+          OwnershipForwardingSingleValueInstruction> {
   friend SILBuilder;
 
   OpenExistentialBoxValueInst(SILDebugLocation DebugLoc, SILValue operand,
@@ -7551,7 +7324,7 @@ public:
 class InitExistentialRefInst final
     : public UnaryInstructionWithTypeDependentOperandsBase<
           SILInstructionKind::InitExistentialRefInst, InitExistentialRefInst,
-          FirstArgOwnershipForwardingSingleValueInst> {
+          OwnershipForwardingSingleValueInstruction> {
   friend SILBuilder;
 
   CanType ConcreteType;
@@ -8236,7 +8009,7 @@ public:
 /// "value"'.
 class MarkDependenceInst
     : public InstructionBase<SILInstructionKind::MarkDependenceInst,
-                             FirstArgOwnershipForwardingSingleValueInst> {
+                             OwnershipForwardingSingleValueInstruction> {
   friend SILBuilder;
 
   FixedOperandList<2> Operands;
@@ -8457,8 +8230,7 @@ public:
 /// checking by the checkers that rely upon this instruction.
 class MarkMustCheckInst
     : public UnaryInstructionBase<SILInstructionKind::MarkMustCheckInst,
-                                  SingleValueInstruction>,
-      public OwnershipForwardingMixin {
+                                  OwnershipForwardingSingleValueInstruction> {
   friend class SILBuilder;
 
 public:
@@ -8497,9 +8269,8 @@ private:
 
   MarkMustCheckInst(SILDebugLocation DebugLoc, SILValue operand,
                     CheckKind checkKind)
-      : UnaryInstructionBase(DebugLoc, operand, operand->getType()),
-        OwnershipForwardingMixin(SILInstructionKind::MarkMustCheckInst,
-                                 operand->getOwnershipKind()),
+      : UnaryInstructionBase(DebugLoc, operand, operand->getType(),
+                             operand->getOwnershipKind()),
         kind(checkKind) {
     assert(operand->getType().isMoveOnly() &&
            "mark_must_check can only take a move only typed value");
@@ -8528,8 +8299,7 @@ public:
 class MarkUnresolvedReferenceBindingInst
     : public UnaryInstructionBase<
           SILInstructionKind::MarkUnresolvedReferenceBindingInst,
-          SingleValueInstruction>,
-      public OwnershipForwardingMixin {
+          OwnershipForwardingSingleValueInstruction> {
   friend class SILBuilder;
 
 public:
@@ -8544,10 +8314,8 @@ private:
 
   MarkUnresolvedReferenceBindingInst(SILDebugLocation debugLoc,
                                      SILValue operand, Kind kind)
-      : UnaryInstructionBase(debugLoc, operand, operand->getType()),
-        OwnershipForwardingMixin(
-            SILInstructionKind::MarkUnresolvedReferenceBindingInst,
-            operand->getOwnershipKind()),
+      : UnaryInstructionBase(debugLoc, operand, operand->getType(),
+                             operand->getOwnershipKind()),
         kind(kind) {}
 
 public:
@@ -8576,7 +8344,7 @@ public:
 class CopyableToMoveOnlyWrapperValueInst
     : public UnaryInstructionBase<
           SILInstructionKind::CopyableToMoveOnlyWrapperValueInst,
-          FirstArgOwnershipForwardingSingleValueInst> {
+          OwnershipForwardingSingleValueInstruction> {
 public:
   enum InitialKind {
     Guaranteed,
@@ -8638,7 +8406,7 @@ public:
 class MoveOnlyWrapperToCopyableValueInst
     : public UnaryInstructionBase<
           SILInstructionKind::MoveOnlyWrapperToCopyableValueInst,
-          FirstArgOwnershipForwardingSingleValueInst> {
+          OwnershipForwardingSingleValueInstruction> {
 public:
   enum InitialKind {
     Guaranteed,
@@ -8681,7 +8449,7 @@ public:
 class MoveOnlyWrapperToCopyableBoxInst
     : public UnaryInstructionBase<
           SILInstructionKind::MoveOnlyWrapperToCopyableBoxInst,
-          FirstArgOwnershipForwardingSingleValueInst> {
+          OwnershipForwardingSingleValueInstruction> {
   friend class SILBuilder;
 
   MoveOnlyWrapperToCopyableBoxInst(SILDebugLocation DebugLoc, SILValue operand,
@@ -9316,14 +9084,14 @@ public:
 
 // Forwards the first operand to a result in each successor block.
 class OwnershipForwardingTermInst : public TermInst,
-                                    public OwnershipForwardingMixin {
+                                    public ForwardingInstruction {
 protected:
   OwnershipForwardingTermInst(SILInstructionKind kind,
                               SILDebugLocation debugLoc,
                               ValueOwnershipKind ownershipKind,
                               bool preservesOwnership = true)
       : TermInst(kind, debugLoc),
-        OwnershipForwardingMixin(kind, ownershipKind, preservesOwnership) {
+        ForwardingInstruction(kind, ownershipKind, preservesOwnership) {
     assert(classof(kind));
   }
 
@@ -10377,11 +10145,9 @@ public:
 };
 
 class UncheckedAddrCastInst final
-  : public UnaryInstructionWithTypeDependentOperandsBase<
-                                SILInstructionKind::UncheckedAddrCastInst,
-                                UncheckedAddrCastInst,
-                                ConversionInst>
-{
+    : public UnaryInstructionWithTypeDependentOperandsBase<
+          SILInstructionKind::UncheckedAddrCastInst, UncheckedAddrCastInst,
+          SingleValueInstruction> {
   friend SILBuilder;
 
   UncheckedAddrCastInst(SILDebugLocation DebugLoc, SILValue Operand,
@@ -10482,7 +10248,7 @@ class DifferentiableFunctionInst final
     : public InstructionBaseWithTrailingOperands<
           SILInstructionKind::DifferentiableFunctionInst,
           DifferentiableFunctionInst,
-          AllArgOwnershipForwardingSingleValueInst> {
+          OwnershipForwardingSingleValueInstruction> {
 private:
   friend SILBuilder;
   /// Differentiability parameter indices.
@@ -10596,7 +10362,7 @@ public:
 class LinearFunctionInst final
     : public InstructionBaseWithTrailingOperands<
           SILInstructionKind::LinearFunctionInst, LinearFunctionInst,
-          AllArgOwnershipForwardingSingleValueInst> {
+          OwnershipForwardingSingleValueInstruction> {
 private:
   friend SILBuilder;
   /// Parameters to differentiate with respect to.
@@ -10661,7 +10427,7 @@ public:
 class DifferentiableFunctionExtractInst
     : public UnaryInstructionBase<
           SILInstructionKind::DifferentiableFunctionExtractInst,
-          GuaranteedFirstArgForwardingSingleValueInst> {
+          OwnershipForwardingSingleValueInstruction> {
 private:
   /// The extractee.
   NormalDifferentiableFunctionTypeComponent Extractee;
@@ -10704,7 +10470,7 @@ public:
 /// extract the specified function.
 class LinearFunctionExtractInst
     : public UnaryInstructionBase<SILInstructionKind::LinearFunctionExtractInst,
-                                  GuaranteedFirstArgForwardingSingleValueInst> {
+                                  OwnershipForwardingSingleValueInstruction> {
 private:
   /// The extractee.
   LinearDifferentiableFunctionTypeComponent extractee;
@@ -10724,6 +10490,45 @@ public:
     return extractee;
   }
 };
+
+inline bool
+OwnershipForwardingSingleValueInstruction::classof(SILInstructionKind kind) {
+  switch (kind) {
+  case SILInstructionKind::ObjectInst:
+  case SILInstructionKind::EnumInst:
+  case SILInstructionKind::UncheckedEnumDataInst:
+  case SILInstructionKind::OpenExistentialRefInst:
+  case SILInstructionKind::InitExistentialRefInst:
+  case SILInstructionKind::MarkDependenceInst:
+  case SILInstructionKind::MoveOnlyWrapperToCopyableValueInst:
+  case SILInstructionKind::MoveOnlyWrapperToCopyableBoxInst:
+  case SILInstructionKind::CopyableToMoveOnlyWrapperValueInst:
+  case SILInstructionKind::MarkUninitializedInst:
+  case SILInstructionKind::TupleExtractInst:
+  case SILInstructionKind::StructExtractInst:
+  case SILInstructionKind::DifferentiableFunctionExtractInst:
+  case SILInstructionKind::LinearFunctionExtractInst:
+  case SILInstructionKind::OpenExistentialValueInst:
+  case SILInstructionKind::OpenExistentialBoxValueInst:
+  case SILInstructionKind::StructInst:
+  case SILInstructionKind::TupleInst:
+  case SILInstructionKind::LinearFunctionInst:
+  case SILInstructionKind::DifferentiableFunctionInst:
+  case SILInstructionKind::MarkMustCheckInst:
+  case SILInstructionKind::MarkUnresolvedReferenceBindingInst:
+  case SILInstructionKind::ConvertFunctionInst:
+  case SILInstructionKind::UpcastInst:
+  case SILInstructionKind::UncheckedRefCastInst:
+  case SILInstructionKind::UncheckedValueCastInst:
+  case SILInstructionKind::RefToBridgeObjectInst:
+  case SILInstructionKind::BridgeObjectToRefInst:
+  case SILInstructionKind::ThinToThickFunctionInst:
+  case SILInstructionKind::UnconditionalCheckedCastInst:
+    return true;
+  default:
+    return false;
+  }
+}
 
 /// DifferentiabilityWitnessFunctionInst - Looks up a differentiability witness
 /// function for a given original function.
@@ -10773,7 +10578,7 @@ SILValue ApplyInstBase<Impl, Base, false>::getCalleeOrigin() const {
       continue;
     }
     if (auto *CFI = dyn_cast<ConvertFunctionInst>(Callee)) {
-      Callee = CFI->getConverted();
+      Callee = CFI->getOperand();
       continue;
     }
     if (auto *CETN = dyn_cast<ConvertEscapeToNoEscapeInst>(Callee)) {
@@ -10836,13 +10641,13 @@ SILFunction *ApplyInstBase<Impl, Base, false>::getCalleeFunction() const {
 /// The first operand is the ownership equivalent source.
 class OwnershipForwardingMultipleValueInstruction
     : public MultipleValueInstruction,
-      public OwnershipForwardingMixin {
+      public ForwardingInstruction {
 public:
   OwnershipForwardingMultipleValueInstruction(SILInstructionKind kind,
                                               SILDebugLocation loc,
                                               ValueOwnershipKind ownershipKind)
       : MultipleValueInstruction(kind, loc),
-        OwnershipForwardingMixin(kind, ownershipKind) {
+        ForwardingInstruction(kind, ownershipKind) {
     assert(classof(kind) && "Missing subclass from classof?!");
   }
 
@@ -10986,43 +10791,26 @@ inline bool Operand::isTypeDependent() const {
   return getUser()->isTypeDependentOperand(*this);
 }
 
-inline bool OwnershipForwardingMixin::isa(SILInstructionKind kind) {
-  return FirstArgOwnershipForwardingSingleValueInst::classof(kind) ||
-         AllArgOwnershipForwardingSingleValueInst::classof(kind) ||
+inline bool ForwardingInstruction::isa(SILInstructionKind kind) {
+  return OwnershipForwardingSingleValueInstruction::classof(kind) ||
          OwnershipForwardingTermInst::classof(kind) ||
-         OwnershipForwardingConversionInst::classof(kind) ||
          OwnershipForwardingSelectEnumInstBase::classof(kind) ||
-         OwnershipForwardingMultipleValueInstruction::classof(kind) ||
-         kind == SILInstructionKind::MarkMustCheckInst ||
-         kind == SILInstructionKind::MarkUnresolvedReferenceBindingInst;
+         OwnershipForwardingMultipleValueInstruction::classof(kind);
 }
 
-inline OwnershipForwardingMixin *
-OwnershipForwardingMixin::get(SILInstruction *inst) {
+inline ForwardingInstruction *ForwardingInstruction::get(SILInstruction *inst) {
   // I am purposely performing this cast in this manner rather than reinterpret
-  // casting to OwnershipForwardingMixin to ensure that we offset to the
+  // casting to ForwardingInstruction to ensure that we offset to the
   // appropriate offset inside of inst instead of converting inst's current
-  // location to an OwnershipForwardingMixin which would be incorrect.
-  if (auto *result = dyn_cast<FirstArgOwnershipForwardingSingleValueInst>(inst))
-    return result;
-  if (auto *result = dyn_cast<AllArgOwnershipForwardingSingleValueInst>(inst))
+  // location to an ForwardingInstruction which would be incorrect.
+  if (auto *result = dyn_cast<OwnershipForwardingSingleValueInstruction>(inst))
     return result;
   if (auto *result = dyn_cast<OwnershipForwardingTermInst>(inst))
-    return result;
-  if (auto *result = dyn_cast<OwnershipForwardingConversionInst>(inst))
     return result;
   if (auto *result = dyn_cast<OwnershipForwardingSelectEnumInstBase>(inst))
     return result;
   if (auto *result =
           dyn_cast<OwnershipForwardingMultipleValueInstruction>(inst))
-    return result;
-  if (auto *result = dyn_cast<MarkMustCheckInst>(inst))
-    return result;
-  if (auto *result = dyn_cast<MarkUnresolvedReferenceBindingInst>(inst))
-    return result;
-  if (auto *result = dyn_cast<MoveOnlyWrapperToCopyableValueInst>(inst))
-    return result;
-  if (auto *result = dyn_cast<CopyableToMoveOnlyWrapperValueInst>(inst))
     return result;
   return nullptr;
 }

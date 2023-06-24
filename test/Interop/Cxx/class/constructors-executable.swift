@@ -19,6 +19,12 @@ CxxConstructorTestSuite.test("ImplicitDefaultConstructor") {
   expectEqual(42, instance.x)
 }
 
+CxxConstructorTestSuite.test("DefaultedDefaultConstructor") {
+  let instance = DefaultedDefaultConstructor()
+
+  expectEqual(42, instance.x)
+}
+
 CxxConstructorTestSuite.test("MemberOfClassType") {
   let instance = MemberOfClassType()
 

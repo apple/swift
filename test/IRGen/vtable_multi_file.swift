@@ -1,5 +1,7 @@
-// RUN: %target-swift-frontend -enable-objc-interop -primary-file %s %S/Inputs/vtable_multi_file_helper.swift -emit-ir | %FileCheck --check-prefixes=CHECK,CHECK-OBJC %s
-// RUN: %target-swift-frontend -disable-objc-interop -primary-file %s %S/Inputs/vtable_multi_file_helper.swift -emit-ir | %FileCheck --check-prefixes=CHECK,CHECK-NO-OBJC %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-objc-interop -primary-file %s %S/Inputs/vtable_multi_file_helper.swift -emit-ir | %FileCheck --check-prefixes=CHECK,CHECK-OBJC %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers -disable-objc-interop -primary-file %s %S/Inputs/vtable_multi_file_helper.swift -emit-ir | %FileCheck --check-prefixes=CHECK,CHECK-NO-OBJC %s
+// RUN: %target-swift-frontend -enable-objc-interop -primary-file %s %S/Inputs/vtable_multi_file_helper.swift -emit-ir
+// RUN: %target-swift-frontend -disable-objc-interop -primary-file %s %S/Inputs/vtable_multi_file_helper.swift -emit-ir
 
 // REQUIRES: CPU=x86_64
 

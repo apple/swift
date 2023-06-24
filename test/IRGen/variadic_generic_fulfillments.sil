@@ -11,39 +11,34 @@ struct D<each T : Collection> {}
 
 sil @use_metadata : $<T> () -> ()
 
-// CHECK-LABEL: define{{.*}} void @test_simple_fulfillment(%swift.type* %0)
+// CHECK-LABEL: define{{.*}} void @test_simple_fulfillment(ptr %0)
 sil @test_simple_fulfillment : $<each T> (@thick A<repeat each T>.Type) -> () {
 bb0(%0: $@thick A<repeat each T>.Type):
   %use_metadata = function_ref @use_metadata : $@convention(thin) <T> () -> ()
 
-  // CHECK: [[T0:%.*]] = bitcast %swift.type* %0 to [[INT]]*
-  // CHECK: [[T1:%.*]] = getelementptr inbounds [[INT]], [[INT]]* [[T0]], [[INT]] 2
-  // CHECK: [[COUNT:%.*]] = load [[INT]], [[INT]]* [[T1]], align
-  // CHECK: [[T0:%.*]] = bitcast %swift.type* %0 to %swift.type***
-  // CHECK: [[T1:%.*]] = getelementptr inbounds %swift.type**, %swift.type*** [[T0]], [[INT]] 3
-  // CHECK: [[PACK:%.*]] = load %swift.type**, %swift.type*** [[T1]], align
-  // CHECK: call swiftcc %swift.metadata_response @"$s29variadic_generic_fulfillments1BVMa"([[INT]] 0, [[INT]] [[COUNT]], %swift.type** [[PACK]])
+  // CHECK: [[T1:%.*]] = getelementptr inbounds [[INT]], ptr %0, [[INT]] 2
+  // CHECK: [[COUNT:%.*]] = load [[INT]], ptr [[T1]], align
+  // CHECK: [[T1:%.*]] = getelementptr inbounds ptr, ptr %0, [[INT]] 3
+  // CHECK: [[PACK:%.*]] = load ptr, ptr [[T1]], align
+  // CHECK: call swiftcc %swift.metadata_response @"$s29variadic_generic_fulfillments1BVMa"([[INT]] 0, [[INT]] [[COUNT]], ptr [[PACK]])
   apply %use_metadata<B<repeat each T>>() : $@convention(thin) <T> () -> ()
 
   %ret = tuple ()
   return %ret : $()
 }
 
-// CHECK-LABEL: define{{.*}} void @test_simple_fulfillment_constrained(%swift.type* %0)
+// CHECK-LABEL: define{{.*}} void @test_simple_fulfillment_constrained(ptr %0)
 sil @test_simple_fulfillment_constrained : $<each T : Collection> (@thick C<repeat each T>.Type) -> () {
 bb0(%0: $@thick C<repeat each T>.Type):
   %use_metadata = function_ref @use_metadata : $@convention(thin) <T> () -> ()
 
-  // CHECK: [[T0:%.*]] = bitcast %swift.type* %0 to [[INT]]*
-  // CHECK: [[T1:%.*]] = getelementptr inbounds [[INT]], [[INT]]* [[T0]], [[INT]] 2
-  // CHECK: [[COUNT:%.*]] = load [[INT]], [[INT]]* [[T1]], align
-  // CHECK: [[T0:%.*]] = bitcast %swift.type* %0 to %swift.type***
-  // CHECK: [[T1:%.*]] = getelementptr inbounds %swift.type**, %swift.type*** [[T0]], [[INT]] 3
-  // CHECK: [[PACK:%.*]] = load %swift.type**, %swift.type*** [[T1]], align
-  // CHECK: [[T0:%.*]] = bitcast %swift.type* %0 to i8****
-  // CHECK: [[T1:%.*]] = getelementptr inbounds i8***, i8**** [[T0]], [[INT]] 4
-  // CHECK: [[WTABLE_PACK:%.*]] = load i8***, i8**** [[T1]], align
-  // CHECK: call swiftcc %swift.metadata_response @"$s29variadic_generic_fulfillments1DVMa"([[INT]] 0, [[INT]] [[COUNT]], %swift.type** [[PACK]], i8*** [[WTABLE_PACK]])
+  // CHECK: [[T1:%.*]] = getelementptr inbounds [[INT]], ptr %0, [[INT]] 2
+  // CHECK: [[COUNT:%.*]] = load [[INT]], ptr [[T1]], align
+  // CHECK: [[T1:%.*]] = getelementptr inbounds ptr, ptr %0, [[INT]] 3
+  // CHECK: [[PACK:%.*]] = load ptr, ptr [[T1]], align
+  // CHECK: [[T1:%.*]] = getelementptr inbounds ptr, ptr %0, [[INT]] 4
+  // CHECK: [[WTABLE_PACK:%.*]] = load ptr, ptr [[T1]], align
+  // CHECK: call swiftcc %swift.metadata_response @"$s29variadic_generic_fulfillments1DVMa"([[INT]] 0, [[INT]] [[COUNT]], ptr [[PACK]], ptr [[WTABLE_PACK]])
   apply %use_metadata<D<repeat each T>>() : $@convention(thin) <T> () -> ()
 
   %ret = tuple ()

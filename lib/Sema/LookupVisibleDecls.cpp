@@ -217,17 +217,24 @@ static void collectVisibleMemberDecls(const DeclContext *CurrDC, LookupState LS,
                                       Type BaseType,
                                       IterableDeclContext *Parent,
                                       SmallVectorImpl<ValueDecl *> &FoundDecls) {
-  for (auto Member : Parent->getMembers()) {
-    auto *VD = dyn_cast<ValueDecl>(Member);
+  auto check = [&](Decl *decl) {
+    auto *VD = dyn_cast<ValueDecl>(decl);
     if (!VD)
-      continue;
+      return;
     if (!isDeclVisibleInLookupMode(VD, LS, CurrDC))
-      continue;
+      return;
     if (!evaluateOrDefault(CurrDC->getASTContext().evaluator,
         IsDeclApplicableRequest(DeclApplicabilityOwner(CurrDC, BaseType, VD)),
                            false))
-      continue;
+      return;
     FoundDecls.push_back(VD);
+  };
+
+  for (auto Member : Parent->getMembers()) {
+    check(Member);
+    Member->visitAuxiliaryDecls([&](Decl *d) {
+      check(d);
+    });
   }
 }
 
@@ -632,16 +639,6 @@ static void synthesizeMemberDeclsForLookup(NominalTypeDecl *NTD,
     (void)evaluateOrDefault(ctx.evaluator,
                             ExpandSynthesizedMemberMacroRequest{NTD},
                             false);
-  }
-
-  // Expand peer macros.
-  for (auto *member : NTD->getMembers()) {
-    if (!ctx.evaluator.hasActiveRequest(ExpandPeerMacroRequest{member})) {
-      (void)evaluateOrDefault(
-          ctx.evaluator,
-          ExpandPeerMacroRequest{member},
-          {});
-    }
   }
 
   synthesizePropertyWrapperVariables(NTD);

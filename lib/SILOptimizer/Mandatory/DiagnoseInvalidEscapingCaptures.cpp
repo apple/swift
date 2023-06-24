@@ -530,11 +530,11 @@ static void checkApply(ASTContext &Context, FullApplySite site) {
     auto arg = pair.first;
     bool capture = pair.second;
 
-    if (auto *CI = dyn_cast<ConversionInst>(arg)) {
-      arglistInsert(CI->getConverted(), /*capture=*/false);
+    if (auto CI = ConversionOperation(arg)) {
+      arglistInsert(CI.getConverted(), /*capture=*/false);
       continue;
     }
-    
+
     if (auto *Copy = dyn_cast<CopyValueInst>(arg)) {
       arglistInsert(Copy->getOperand(), capture);
     }

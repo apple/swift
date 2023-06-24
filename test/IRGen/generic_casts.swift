@@ -1,6 +1,7 @@
 // RUN: %empty-directory(%t)
 // RUN: %build-irgen-test-overlays
-// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) -primary-file %s -emit-ir -enable-objc-interop -disable-objc-attr-requires-foundation-module -target %target-swift-abi-5.8-triple | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-os
+// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) %use_no_opaque_pointers -primary-file %s -emit-ir -enable-objc-interop -disable-objc-attr-requires-foundation-module -target %target-swift-abi-5.8-triple | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-os
+// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) -primary-file %s -emit-ir -enable-objc-interop -disable-objc-attr-requires-foundation-module -target %target-swift-abi-5.8-triple
 
 // REQUIRES: CPU=x86_64
 

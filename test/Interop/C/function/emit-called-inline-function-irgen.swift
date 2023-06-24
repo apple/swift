@@ -5,8 +5,10 @@
 // Swift.
 
 // RUN: %empty-directory(%t)
-// RUN: %target-swift-frontend %s -I %S/Inputs -Xcc -std=c99 -emit-ir -o - | %FileCheck %s -check-prefix C99 --implicit-check-not notCalled
-// RUN: %target-swiftxx-frontend %s -I %S/Inputs -emit-ir -o - | %FileCheck %s -check-prefix CXX --implicit-check-not notCalled
+// RUN: %target-swift-frontend %use_no_opaque_pointers %s -I %S/Inputs -Xcc -std=c99 -emit-ir -o - | %FileCheck %s -check-prefix C99 --implicit-check-not notCalled
+// RUN: %target-swift-frontend %s -I %S/Inputs -Xcc -std=c99 -emit-ir -o -
+// RUN: %target-swiftxx-frontend %use_no_opaque_pointers %s -I %S/Inputs -emit-ir -o - | %FileCheck %s -check-prefix CXX --implicit-check-not notCalled
+// RUN: %target-swiftxx-frontend %s -I %S/Inputs -emit-ir -o -
 
 import EmitCalledInlineFunction
 

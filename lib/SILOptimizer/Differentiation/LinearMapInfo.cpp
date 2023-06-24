@@ -117,6 +117,7 @@ LinearMapInfo::createBranchingTraceDecl(SILBasicBlock *originalBB,
     branchingTraceDecl->setAccess(AccessLevel::Internal);
   }
   file.addTopLevelDecl(branchingTraceDecl);
+  file.getParentModule()->clearLookupCache();
 
   return branchingTraceDecl;
 }

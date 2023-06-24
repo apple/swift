@@ -11,4 +11,4 @@ public func testClassTypes() {
 }
 
 // CHECK: define linkonce_odr hidden i1 @"$sSo9ObjCClassCTwS"()
-// CHECK:   ret i1 icmp ne (%objc_class* @"OBJC_CLASS_$_ObjCClass", %objc_class* null)
+// CHECK:   ret i1 icmp ne (ptr @"OBJC_CLASS_$_ObjCClass", ptr null)

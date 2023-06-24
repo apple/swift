@@ -1,4 +1,5 @@
-// RUN: %target-swiftxx-frontend -I %S/Inputs -emit-ir -o - %s | %FileCheck %s
+// RUN: %target-swiftxx-frontend %use_no_opaque_pointers -I %S/Inputs -emit-ir -o - %s | %FileCheck %s
+// RUN: %target-swiftxx-frontend -I %S/Inputs -emit-ir -o - %s
 
 // XFAIL: OS=linux-android
 // XFAIL: OS=linux-androideabi

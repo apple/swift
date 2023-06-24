@@ -259,6 +259,10 @@ function(_add_host_variant_c_compile_flags target)
       # (see revision d913eefcc93f8c80d6d1a6de4ea898a2838d8b6f)
       # This is required to build with VS2017 15.8+
       _ENABLE_EXTENDED_ALIGNED_STORAGE=1>)
+    if(SWIFT_HOST_VARIANT_ARCH MATCHES "ARM64|aarch64")
+      target_compile_options(${target} PRIVATE
+        $<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:-D_STD_ATOMIC_USE_ARM64_LDAR_STLR=0>)
+    endif()
 
     # msvcprt's std::function requires RTTI, but we do not want RTTI data.
     # Emulate /GR-.

@@ -280,6 +280,9 @@ static bool canZapInstruction(SILInstruction *Inst, bool acceptRefCountInsts,
   if (isa<InitExistentialAddrInst>(Inst))
     return true;
 
+  if (isa<BeginAccessInst>(Inst) || isa<EndAccessInst>(Inst))
+    return true;
+
   // If Inst does not read or write to memory, have side effects, and is not a
   // terminator, we can zap it.
   if (!Inst->mayHaveSideEffects() && !Inst->mayReadFromMemory() &&

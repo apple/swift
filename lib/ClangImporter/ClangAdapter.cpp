@@ -554,7 +554,7 @@ clang::TypedefNameDecl *importer::findSwiftNewtype(const clang::NamedDecl *decl,
     clang::LookupResult lookupResult(clangSema, notificationName,
                                      clang::SourceLocation(),
                                      clang::Sema::LookupOrdinaryName);
-    if (!clangSema.LookupName(lookupResult, nullptr))
+    if (!clangSema.LookupName(lookupResult, clangSema.TUScope))
       return nullptr;
     auto nsDecl = lookupResult.getAsSingle<clang::TypedefNameDecl>();
     if (!nsDecl)

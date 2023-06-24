@@ -706,14 +706,7 @@ private:
       return;
 
     unsigned CurLabel = 0;
-    for (auto Member : TypeContext->getMembers()) {
-      auto Prop = dyn_cast<VarDecl>(Member);
-      if (!Prop)
-        continue;
-
-      if (!Prop->isMemberwiseInitialized(/*preferDeclaredProperties=*/true))
-        continue;
-
+    for (auto Prop : TypeContext->getMemberwiseInitProperties()) {
       if (CurLabel == Args.size())
         break;
 

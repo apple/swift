@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend -parse-as-library -O -target-cpu core2 -emit-ir  %s | %FileCheck %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers -parse-as-library -O -target-cpu core2 -emit-ir  %s | %FileCheck %s
+// RUN: %target-swift-frontend -parse-as-library -O -target-cpu core2 -emit-ir  %s
 // REQUIRES: swift_stdlib_no_asserts,optimized_stdlib,CPU=x86_64
 // REQUIRES: swift_in_compiler
 

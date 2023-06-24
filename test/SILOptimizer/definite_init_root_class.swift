@@ -31,7 +31,7 @@ class FirstClass {
     // CHECK:   [[INIT:%.*]] = function_ref @$s24definite_init_root_class10OtherClassCACycfC : $@convention(method) (@thick OtherClass.Type) -> @owned OtherClass
     // CHECK:   [[OTHER:%.*]] = apply [[INIT]]([[METATYPE]]) : $@convention(method) (@thick OtherClass.Type) -> @owned OtherClass
     // CHECK:   [[X_ADDR:%.*]] = ref_element_addr %1 : $FirstClass, #FirstClass.x
-    // CHECK:   [[X_ACCESS:%.*]] = begin_access [modify] [dynamic] %15 : $*OtherClass
+    // CHECK:   [[X_ACCESS:%.*]] = begin_access [init] [static] %15 : $*OtherClass
     // CHECK:   [[ONE:%.*]] = integer_literal $Builtin.Int1, -1
     // CHECK:   store [[ONE]] to [[CONTROL]] : $*Builtin.Int1
     // CHECK:   store [[OTHER]] to [[X_ACCESS]] : $*OtherClass
@@ -115,7 +115,7 @@ class SecondClass {
     // CHECK:   [[INIT:%.*]] = function_ref @$s24definite_init_root_class10OtherClassCACycfC : $@convention(method) (@thick OtherClass.Type) -> @owned OtherClass
     // CHECK:   [[OTHER:%.*]] = apply [[INIT]]([[METATYPE]]) : $@convention(method) (@thick OtherClass.Type) -> @owned OtherClass
     // CHECK:   [[X_ADDR:%.*]] = ref_element_addr %1 : $SecondClass, #SecondClass.x
-    // CHECK:   [[X_ACCESS:%.*]] = begin_access [modify] [dynamic] [[X_ADDR]] : $*OtherClass
+    // CHECK:   [[X_ACCESS:%.*]] = begin_access [init] [static] [[X_ADDR]] : $*OtherClass
     // CHECK:   [[ONE:%.*]] = integer_literal $Builtin.Int2, 1
     // CHECK:   store [[ONE]] to [[CONTROL]] : $*Builtin.Int2
     // CHECK:   store [[OTHER]] to [[X_ACCESS]] : $*OtherClass
@@ -138,7 +138,7 @@ class SecondClass {
     // CHECK:   [[INIT:%.*]] = function_ref @$s24definite_init_root_class10OtherClassCACycfC : $@convention(method) (@thick OtherClass.Type) -> @owned OtherClass
     // CHECK:   [[OTHER:%.*]] = apply [[INIT]]([[METATYPE]]) : $@convention(method) (@thick OtherClass.Type) -> @owned OtherClass
     // CHECK:   [[Y_ADDR:%.*]] = ref_element_addr %1 : $SecondClass, #SecondClass.y
-    // CHECK:   [[Y_ACCESS:%.*]] = begin_access [modify] [dynamic] [[Y_ADDR]] : $*OtherClass
+    // CHECK:   [[Y_ACCESS:%.*]] = begin_access [init] [static] [[Y_ADDR]] : $*OtherClass
     // CHECK:   [[THREE:%.*]] = integer_literal $Builtin.Int2, -1
     // CHECK:   store [[THREE]] to [[CONTROL]] : $*Builtin.Int2
     // CHECK:   store [[OTHER]] to [[Y_ACCESS]] : $*OtherClass

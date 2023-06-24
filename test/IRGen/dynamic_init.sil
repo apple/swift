@@ -1,6 +1,7 @@
 // RUN: %target-swift-frontend -enable-objc-interop  -emit-ir %s | %FileCheck %s --check-prefixes=CHECK,CHECK-objc
 // RUN: %target-swift-frontend -disable-objc-interop -emit-ir %s | %FileCheck %s --check-prefixes=CHECK,CHECK-native
 
+
 // REQUIRES: CPU=x86_64
 
 sil_stage canonical
@@ -20,14 +21,13 @@ sil @$s12dynamic_init1CCfD : $@convention(method) (@owned C) -> ()
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @"$s12dynamic_init15testDynamicInityAA1CCm2cm_tF"
 sil @$s12dynamic_init15testDynamicInityAA1CCm2cm_tF : $@convention(method) (@thick C.Type) -> () {
 bb0(%0 : $@thick C.Type):
-  // CHECK:   [[META:%[0-9]+]] = bitcast %swift.type* %0 to %T12dynamic_init1CC* (%swift.type*)**
-  // CHECK-objc:   [[VTABLE_OFFSET:%[0-9]+]] = getelementptr inbounds %T12dynamic_init1CC* (%swift.type*)*, %T12dynamic_init1CC* (%swift.type*)** [[META]], i64 10
-  // CHECK-native: [[VTABLE_OFFSET:%[0-9]+]] = getelementptr inbounds %T12dynamic_init1CC* (%swift.type*)*, %T12dynamic_init1CC* (%swift.type*)** [[META]], i64 7
-  // CHECK:   [[CTOR:%[0-9]+]] = load %T12dynamic_init1CC* (%swift.type*)*, %T12dynamic_init1CC* (%swift.type*)** [[VTABLE_OFFSET]], align 8
+  // CHECK-objc:   [[VTABLE_OFFSET:%[0-9]+]] = getelementptr inbounds ptr, ptr %0, i64 10
+  // CHECK-native: [[VTABLE_OFFSET:%[0-9]+]] = getelementptr inbounds ptr, ptr %0, i64 7
+  // CHECK:   [[CTOR:%[0-9]+]] = load ptr, ptr [[VTABLE_OFFSET]], align 8
   %2 = class_method %0 : $@thick C.Type, #C.init!allocator : (C.Type) -> () -> C, $@convention(method) (@thick C.Type) -> @owned C
-  // CHECK:   [[RESULT:%[0-9]+]] = call swiftcc %T12dynamic_init1CC* [[CTOR]](%swift.type* swiftself %0)
+  // CHECK:   [[RESULT:%[0-9]+]] = call swiftcc ptr [[CTOR]](ptr swiftself %0)
   %3 = apply %2(%0) : $@convention(method) (@thick C.Type) -> @owned C
-  // CHECK:   call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T12dynamic_init1CC*)*)(%T12dynamic_init1CC* [[RESULT]])
+  // CHECK:   call void @swift_release(ptr [[RESULT]])
   strong_release %3 : $C
   // CHECK: ret void
   %5 = tuple ()

@@ -1,7 +1,7 @@
 // RUN: %empty-directory(%t)
 // RUN: %target-swift-frontend -emit-module -enable-library-evolution -emit-module-path=%t/resilient_struct.swiftmodule -module-name=resilient_struct %S/../Inputs/resilient_struct.swift
 
-// RUN: %target-swift-frontend  -I %t -emit-ir -enable-library-evolution %S/class_update_callback_without_fixed_layout.sil -target %target-stable-abi-triple | %FileCheck %S/class_update_callback_without_fixed_layout.sil --check-prefix=CHECK --check-prefix=CHECK-NEW --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-NEW-%target-ptrsize -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend -I %t -emit-ir -enable-library-evolution %S/class_update_callback_without_fixed_layout.sil -target %target-stable-abi-triple | %FileCheck %S/class_update_callback_without_fixed_layout.sil --check-prefix=CHECK --check-prefix=CHECK-NEW --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-NEW-%target-ptrsize -DINT=i%target-ptrsize
 // RUN: %target-swift-frontend  -I %t -emit-ir -enable-library-evolution -O %S/class_update_callback_without_fixed_layout.sil -target %target-stable-abi-triple
 
 // REQUIRES: objc_interop

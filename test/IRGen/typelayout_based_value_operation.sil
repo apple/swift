@@ -29,31 +29,31 @@ entry(%arg : $*A<Builtin.Int32>):
 }
 
 // CHECK-LABEL: define{{.*}} void @testValue(
-// CHECK:   call %T32typelayout_based_value_operation1AVyAA1CCG* @"$s32typelayout_based_value_operation1AVyAA1CCGWOc"(
-// CHECK:   call %T32typelayout_based_value_operation1AVyAA1CCG* @"$s32typelayout_based_value_operation1AVyAA1CCGWOh"(
-// CHECK:   call %T32typelayout_based_value_operation1AVyAA1CCG* @"$s32typelayout_based_value_operation1AVyAA1CCGWOh"(
+// CHECK:   call ptr @"$s32typelayout_based_value_operation1AVyAA1CCGWOc"(
+// CHECK:   call ptr @"$s32typelayout_based_value_operation1AVyAA1CCGWOh"(
+// CHECK:   call ptr @"$s32typelayout_based_value_operation1AVyAA1CCGWOh"(
 // CHECK: }
 
-// CHECK-LABEL: define{{.*}} %T32typelayout_based_value_operation1AVyAA1CCG* @"$s32typelayout_based_value_operation1AVyAA1CCGWOc"(
-// CHECK:  call %swift.type* @__swift_instantiateConcreteTypeFromMangledName
+// CHECK-LABEL: define{{.*}} ptr @"$s32typelayout_based_value_operation1AVyAA1CCGWOc"(
+// CHECK:  call ptr @__swift_instantiateConcreteTypeFromMangledName
 // CHECK:  load
-// CHECK:  call %swift.opaque* %{{.*}}(%swift.opaque* noalias {{.*}}, %swift.type* {{.*}})
+// CHECK:  call ptr %{{.*}}(ptr noalias {{.*}}, ptr {{.*}})
 // CHECK: }
 
-// CHECK-LABEL: define{{.*}} %T32typelayout_based_value_operation1AVyAA1CCG* @"$s32typelayout_based_value_operation1AVyAA1CCGWOh"(
-// CHECK:  call %swift.type* @__swift_instantiateConcreteTypeFromMangledName
+// CHECK-LABEL: define{{.*}} ptr @"$s32typelayout_based_value_operation1AVyAA1CCGWOh"(
+// CHECK:  call ptr @__swift_instantiateConcreteTypeFromMangledName
 // CHECK:  load
-// CHECK:  call void %{{.*}}(%swift.opaque* noalias {{.*}}, %swift.type* {{.*}})
+// CHECK:  call void %{{.*}}(ptr noalias {{.*}}, ptr {{.*}})
 // CHECK: }
 
-// NOTYPELAYOUT-LABEL: define{{.*}} %T32typelayout_based_value_operation1AVyAA1CCG* @"$s32typelayout_based_value_operation1AVyAA1CCGWOc"(
+// NOTYPELAYOUT-LABEL: define{{.*}} ptr @"$s32typelayout_based_value_operation1AVyAA1CCGWOc"(
 // NOTYPELAYOUT: swift_retain
 // NOTYPELAYOUT: swift_retain
 // NOTYPELAYOUT: swift_retain
 // NOTYPELAYOUT: swift_retain
 // CHECK: }
 
-// NOTYPELAYOUT-LABEL: define{{.*}} %T32typelayout_based_value_operation1AVyAA1CCG* @"$s32typelayout_based_value_operation1AVyAA1CCGWOh"(
+// NOTYPELAYOUT-LABEL: define{{.*}} ptr @"$s32typelayout_based_value_operation1AVyAA1CCGWOh"(
 // NOTYPELAYOUT: swift_release
 // NOTYPELAYOUT: swift_release
 // NOTYPELAYOUT: swift_release

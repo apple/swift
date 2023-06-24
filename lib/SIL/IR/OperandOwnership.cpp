@@ -188,8 +188,6 @@ OPERAND_OWNERSHIP(TrivialUse, PointerToAddress)
 OPERAND_OWNERSHIP(TrivialUse, ProjectBlockStorage)
 OPERAND_OWNERSHIP(TrivialUse, RawPointerToRef)
 OPERAND_OWNERSHIP(TrivialUse, SelectEnumAddr)
-// select_value is only supported for integer types currently.
-OPERAND_OWNERSHIP(TrivialUse, SelectValue)
 OPERAND_OWNERSHIP(TrivialUse, StructElementAddr)
 OPERAND_OWNERSHIP(TrivialUse, SwitchEnumAddr)
 OPERAND_OWNERSHIP(TrivialUse, SwitchValue)
@@ -310,9 +308,8 @@ OPERAND_OWNERSHIP(ForwardingConsume, Throw)
 OPERAND_OWNERSHIP(InteriorPointer, RefElementAddr)
 OPERAND_OWNERSHIP(InteriorPointer, RefTailAddr)
 OPERAND_OWNERSHIP(InteriorPointer, OpenExistentialBox)
-// FIXME: HopToExecutorInst should be an instantaneous use.
-OPERAND_OWNERSHIP(InteriorPointer, HopToExecutor)
-OPERAND_OWNERSHIP(InteriorPointer, ExtractExecutor)
+OPERAND_OWNERSHIP(InstantaneousUse, HopToExecutor)
+OPERAND_OWNERSHIP(PointerEscape, ExtractExecutor)
 
 // Instructions that propagate a value within a borrow scope.
 OPERAND_OWNERSHIP(GuaranteedForwarding, TupleExtract)
@@ -896,12 +893,8 @@ OperandOwnershipBuiltinClassifier::visitCreateAsyncTask(BuiltinInst *bi,
   // The function operand is consumed by the new task.
   if (&op == &bi->getOperandRef(PARAMETER_INDEX_CREATE_ASYNC_TASK_FUTURE_FUNCTION))
     return OperandOwnership::DestroyingConsume;
-  
-  // FIXME: These are considered InteriorPointer because they may propagate a
-  // pointer into a borrowed values. If they do not propagate an interior pointer,
-  // then they should be InstantaneousUse instead and should not require a
-  // guaranteed value.
-  return OperandOwnership::InteriorPointer;
+
+  return OperandOwnership::InstantaneousUse;
 }
 
 OperandOwnership
@@ -910,12 +903,8 @@ OperandOwnershipBuiltinClassifier::visitCreateAsyncTaskInGroup(BuiltinInst *bi,
   // The function operand is consumed by the new task.
   if (&op == &bi->getOperandRef(PARAMETER_INDEX_CREATE_ASYNC_TASK_GROUP_FUTURE_FUNCTION))
     return OperandOwnership::DestroyingConsume;
-  
-  // FIXME: These are considered InteriorPointer because they may propagate a
-  // pointer into a borrowed values. If they do not propagate an interior pointer,
-  // then they should be InstantaneousUse instead and should not require a
-  // guaranteed value.
-  return OperandOwnership::InteriorPointer;
+
+  return OperandOwnership::InstantaneousUse;
 }
 
 OperandOwnership OperandOwnershipBuiltinClassifier::
@@ -947,12 +936,13 @@ visitResumeThrowingContinuationThrowing(BuiltinInst *bi, StringRef attr) {
 
 BUILTIN_OPERAND_OWNERSHIP(InstantaneousUse, TaskRunInline)
 
-BUILTIN_OPERAND_OWNERSHIP(InteriorPointer, CancelAsyncTask)
-BUILTIN_OPERAND_OWNERSHIP(InteriorPointer, InitializeDefaultActor)
-BUILTIN_OPERAND_OWNERSHIP(InteriorPointer, DestroyDefaultActor)
+BUILTIN_OPERAND_OWNERSHIP(InstantaneousUse, CancelAsyncTask)
+BUILTIN_OPERAND_OWNERSHIP(InstantaneousUse, InitializeDefaultActor)
+BUILTIN_OPERAND_OWNERSHIP(InstantaneousUse, DestroyDefaultActor)
 
-BUILTIN_OPERAND_OWNERSHIP(InteriorPointer, InitializeDistributedRemoteActor)
-BUILTIN_OPERAND_OWNERSHIP(InteriorPointer, InitializeNonDefaultDistributedActor)
+BUILTIN_OPERAND_OWNERSHIP(InstantaneousUse, InitializeDistributedRemoteActor)
+BUILTIN_OPERAND_OWNERSHIP(InstantaneousUse,
+                          InitializeNonDefaultDistributedActor)
 
 BUILTIN_OPERAND_OWNERSHIP(PointerEscape, AutoDiffAllocateSubcontext)
 BUILTIN_OPERAND_OWNERSHIP(PointerEscape, AutoDiffProjectTopLevelSubcontext)

@@ -1,0 +1,70 @@
+// RUN: %target-swift-frontend -disable-availability-checking -primary-file %s -emit-ir -disable-llvm-optzns -O -g | %FileCheck %s
+
+// Checking the below on 32 bit architectures would be cumbersome: each
+// fragment is 32 bits long, which changes the number of checks as well as the
+// arithmethic on the bounds of each fragment.
+// UNSUPPORTED: OS=watchos
+
+// CHECK-DAG: llvm.dbg.value{{.*}} metadata ![[VAR:[0-9]+]], metadata !DIExpression(DW_OP_LLVM_fragment, 192, 64){{.*}} !dbg ![[LOC1:[0-9]+]]
+// CHECK-DAG: llvm.dbg.value{{.*}} metadata ![[VAR]], metadata !DIExpression(DW_OP_LLVM_fragment, 128, 64){{.*}} !dbg ![[LOC1]]
+// CHECK-DAG: llvm.dbg.value{{.*}} metadata ![[VAR]], metadata !DIExpression(DW_OP_LLVM_fragment, 64, 64){{.*}} !dbg ![[LOC1]]
+// CHECK-DAG: llvm.dbg.value{{.*}} metadata ![[VAR]], metadata !DIExpression(DW_OP_LLVM_fragment, 0, 64){{.*}} !dbg ![[LOC1]]
+
+sil_stage canonical
+
+import Builtin
+import Swift
+import SwiftShims
+
+protocol External {
+  func use(str: String)
+  func decode<T>(_: T.Type) -> T
+}
+
+struct Data {
+  @_hasStorage var a: String { get set }
+  @_hasStorage var b: String { get set }
+  init(a: String, b: String)
+}
+
+sil_scope 9 { loc "debug_fragment_merge.swift":14:6 parent @$s20debug_fragment_merge4test4cond8externalySi_AA8External_ptYaF : $@convention(thin) (Int, @in_guaranteed any External) -> () }
+sil_scope 10 { loc "debug_fragment_merge.swift":16:7 parent 9 }
+sil_scope 11 { loc "debug_fragment_merge.swift":17:3 parent 10 }
+sil_scope 12 { loc "debug_fragment_merge.swift":19:3 parent 11 }
+sil_scope 13 { loc "debug_fragment_merge.swift":19:12 parent 12 }
+sil_scope 14 { loc "debug_fragment_merge.swift":21:3 parent 11 }
+sil_scope 15 { loc "debug_fragment_merge.swift":21:12 parent 14 }
+
+sil @$side_effect : $@convention(thin) (@owned String) -> ()
+sil @$side_effect_data : $@convention(thin) (@owned Data) -> ()
+sil @$cond : $@convention(thin) () -> (Builtin.Int1)
+
+// test(cond:external:), loc "debug_fragment_merge.swift":14:6, scope 9
+sil hidden @$s20debug_fragment_merge4test4cond8externalySi_AA8External_ptYaF : $@convention(thin) (Int, @in_guaranteed any External) -> () {
+[%1: read v**, write v**, copy v**, destroy v**]
+[global: read,write,copy,destroy,allocate,deinit_barrier]
+bb0(%0 : $Int, %1 : $*any External):
+  br bb1 // cond_br %cond, bb1, bb2
+
+bb1:                                              // Preds: bb0
+  %10 = open_existential_addr immutable_access %1 : $*any External to $*@opened("EDD72648-0EA0-11EE-9925-E91C6F300971", any External) Self, loc "debug_fragment_merge.swift":19:28, scope 12 // users: %14, %14, %13
+  %11 = alloc_stack $Data, loc * "debug_fragment_merge.swift":19:28, scope 13 // users: %17, %15, %21, %14
+  %12 = metatype $@thick Data.Type, loc "debug_fragment_merge.swift":19:35, scope 13 // user: %14
+  %13 = witness_method $@opened("EDD72648-0EA0-11EE-9925-E91C6F300971", any External) Self, #External.decode : <Self where Self : External><T> (Self) -> (T.Type) -> T, %10 : $*@opened("EDD72648-0EA0-11EE-9925-E91C6F300971", any External) Self : $@convention(witness_method: External) <τ_0_0 where τ_0_0 : External><τ_1_0> (@thick τ_1_0.Type, @in_guaranteed τ_0_0) -> @out τ_1_0, loc "debug_fragment_merge.swift":19:28, scope 13 // type-defs: %10; user: %14
+  %14 = apply %13<@opened("EDD72648-0EA0-11EE-9925-E91C6F300971", any External) Self, Data>(%11, %12, %10) : $@convention(witness_method: External) <τ_0_0 where τ_0_0 : External><τ_1_0> (@thick τ_1_0.Type, @in_guaranteed τ_0_0) -> @out τ_1_0, loc "debug_fragment_merge.swift":19:28, scope 13 // type-defs: %10
+  %15 = struct_element_addr %11 : $*Data, #Data.a, loc "debug_fragment_merge.swift":19:28, scope 13 // user: %16
+  %16 = load %15 : $*String, loc "debug_fragment_merge.swift":19:28, scope 13 // users: %19, %22
+  %17 = struct_element_addr %11 : $*Data, #Data.b, loc "debug_fragment_merge.swift":19:28, scope 13 // user: %18
+  %18 = load %17 : $*String, loc "debug_fragment_merge.swift":19:28, scope 13 // users: %22, %20
+  debug_value %16 : $String, let, (name "data", loc "debug_fragment_merge.swift":16:7, scope 10), type $*Data, expr op_fragment:#Data.a, loc "debug_fragment_merge.swift":19:17, scope 12 // id: %19
+  debug_value %18 : $String, let, (name "data", loc "debug_fragment_merge.swift":16:7, scope 10), type $*Data, expr op_fragment:#Data.b, loc "debug_fragment_merge.swift":19:17, scope 12 // id: %20
+  dealloc_stack %11 : $*Data, loc "debug_fragment_merge.swift":19:44, scope 13 // id: %21
+  br bb3(%18 : $String, %16 : $String), loc * "debug_fragment_merge.swift":19:44, scope 13 // id: %22
+
+bb3(%36 : $String, %37 : $String):                // Preds: bb2 bb1
+  %side_effect_ref = function_ref @$side_effect : $@convention(thin) (@owned String) -> ()
+  apply %side_effect_ref(%36) : $@convention(thin) (@owned String) -> ()
+  apply %side_effect_ref(%37) : $@convention(thin) (@owned String) -> ()
+  %44 = tuple ()
+  return %44 : $()
+}

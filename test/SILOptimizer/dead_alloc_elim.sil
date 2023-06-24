@@ -127,7 +127,9 @@ sil @store_to_trivial_property : $@convention(thin) (Int) -> () {
 bb0(%0 : $Int):
   %20 = alloc_ref [stack] $NontrivialDestructor
   %21 = ref_element_addr %20 : $NontrivialDestructor, #NontrivialDestructor.i
-  store %0 to %21 : $*Int
+  %22 = begin_access [modify] [dynamic] %21 : $*Int
+  store %0 to %22 : $*Int
+  end_access %22 : $*Int
   set_deallocating %20 : $NontrivialDestructor
   dealloc_ref %20 : $NontrivialDestructor
   dealloc_stack_ref %20 : $NontrivialDestructor

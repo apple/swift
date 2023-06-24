@@ -1693,7 +1693,7 @@ visitRefToBridgeObjectInst(RefToBridgeObjectInst *Inst) {
   getBuilder().setCurrentDebugScope(getOpScope(Inst->getDebugScope()));
   recordClonedInstruction(
       Inst, getBuilder().createRefToBridgeObject(
-                getOpLocation(Inst->getLoc()), getOpValue(Inst->getConverted()),
+                getOpLocation(Inst->getLoc()), getOpValue(Inst->getOperand(0)),
                 getOpValue(Inst->getBitsOperand()),
                 getBuilder().hasOwnership()
                     ? Inst->getForwardingOwnershipKind()
@@ -1707,7 +1707,7 @@ visitBridgeObjectToRefInst(BridgeObjectToRefInst *Inst) {
   getBuilder().setCurrentDebugScope(getOpScope(Inst->getDebugScope()));
   recordClonedInstruction(
       Inst, getBuilder().createBridgeObjectToRef(
-                getOpLocation(Inst->getLoc()), getOpValue(Inst->getConverted()),
+                getOpLocation(Inst->getLoc()), getOpValue(Inst->getOperand()),
                 getOpType(Inst->getType()),
                 getBuilder().hasOwnership()
                     ? Inst->getForwardingOwnershipKind()
@@ -1721,7 +1721,7 @@ visitBridgeObjectToWordInst(BridgeObjectToWordInst *Inst) {
   getBuilder().setCurrentDebugScope(getOpScope(Inst->getDebugScope()));
   recordClonedInstruction(Inst, getBuilder().createBridgeObjectToWord(
                                     getOpLocation(Inst->getLoc()),
-                                    getOpValue(Inst->getConverted()),
+                                    getOpValue(Inst->getOperand()),
                                     getOpType(Inst->getType())));
 }
 
@@ -3249,24 +3249,6 @@ SILCloner<ImplClass>::visitSelectEnumAddrInst(SelectEnumAddrInst *Inst) {
                                     getOpValue(Inst->getEnumOperand()),
                                     getOpType(Inst->getType()), DefaultResult,
                                     CaseResults));
-}
-
-template<typename ImplClass>
-void
-SILCloner<ImplClass>::visitSelectValueInst(SelectValueInst *Inst) {
-  SILValue DefaultResult;
-  if (Inst->hasDefault())
-    DefaultResult = getOpValue(Inst->getDefaultResult());
-  SmallVector<std::pair<SILValue, SILValue>, 8> CaseResults;
-  for (unsigned i = 0, e = Inst->getNumCases(); i != e; ++i)
-    CaseResults.push_back(std::make_pair(getOpValue(Inst->getCase(i).first),
-                                         getOpValue(Inst->getCase(i).second)));
-
-  getBuilder().setCurrentDebugScope(getOpScope(Inst->getDebugScope()));
-  recordClonedInstruction(
-      Inst, getBuilder().createSelectValue(
-                getOpLocation(Inst->getLoc()), getOpValue(Inst->getOperand()),
-                getOpType(Inst->getType()), DefaultResult, CaseResults));
 }
 
 template <typename ImplClass>

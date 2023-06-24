@@ -2,13 +2,13 @@
 
 import Swift
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} void @c_native_function_pointer(void ()* %0)
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} void @c_native_function_pointer(ptr %0)
 sil @c_native_function_pointer : $@convention(c) (@convention(c) () -> ()) -> () {
 entry(%f : $@convention(c) () -> ()):
   return undef : $()
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @call_with_native_c_function_pointer(i8* %0)
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @call_with_native_c_function_pointer(ptr %0)
 sil @call_with_native_c_function_pointer : $@convention(thin) (@convention(c) () -> ()) -> () {
 entry(%f : $@convention(c) () -> ()):
   %c = function_ref @c_native_function_pointer : $@convention(c) (@convention(c) () -> ()) -> ()

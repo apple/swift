@@ -186,14 +186,12 @@ enum class ConstraintKind : char {
   /// constraint.
   OneWayBindParam,
   /// If there is no contextual info e.g. `_ = { 42 }` default first type
-  /// to a second type (inferred closure type). This is effectively a
-  /// `Defaultable` constraint which a couple of differences:
+  /// to a second type. This is effectively a `Defaultable` constraint
+  /// which one significant difference:
   ///
-  /// - References inferred closure type and all of the outer parameters
-  ///   referenced by closure body.
   /// - Handled specially by binding inference, specifically contributes
   ///   to the bindings only if there are no contextual types available.
-  DefaultClosureType,
+  FallbackType,
   /// The first type represents a result of an unresolved member chain,
   /// and the second type is its base type. This constraint acts almost
   /// like `Equal` but also enforces following semantics:
@@ -701,7 +699,7 @@ public:
     case ConstraintKind::OptionalObject:
     case ConstraintKind::OneWayEqual:
     case ConstraintKind::OneWayBindParam:
-    case ConstraintKind::DefaultClosureType:
+    case ConstraintKind::FallbackType:
     case ConstraintKind::UnresolvedMemberChainBase:
     case ConstraintKind::PackElementOf:
     case ConstraintKind::SameShape:

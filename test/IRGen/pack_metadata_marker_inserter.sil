@@ -1,5 +1,6 @@
 // RUN: %target-sil-opt -enable-sil-verify-all %s -pack-metadata-marker-inserter -enable-pack-metadata-stack-promotion=true | %FileCheck %s --check-prefixes CHECK-SIL
-// RUN: %target-swift-frontend -parse-sil -emit-ir -primary-file %s -enable-pack-metadata-stack-promotion=false -enable-pack-metadata-stack-promotion=true | %IRGenFileCheck %s --check-prefixes CHECK-LLVM
+// RUN: %target-swift-frontend %use_no_opaque_pointers -parse-sil -emit-ir -primary-file %s -enable-pack-metadata-stack-promotion=false -enable-pack-metadata-stack-promotion=true | %IRGenFileCheck %s --check-prefixes CHECK-LLVM
+// RUN: %target-swift-frontend -parse-sil -emit-ir -primary-file %s -enable-pack-metadata-stack-promotion=false -enable-pack-metadata-stack-promotion=true
 
 // REQUIRES: asserts
 
@@ -108,7 +109,6 @@ sil @forward_type_pack : $<each T>() -> () {
 // CHECK-LLVM-SAME:        i8* [[LIFETIME_START_CAST]])
 // CHECK-LLVM:         [[LIFETIME_END_CAST:%[^,]+]] = bitcast [3 x %swift.type*]* [[PACK_ADDR]] to i8*
 // CHECK-LLVM:         call void @llvm.lifetime.end.p0i8(
-// CHECK-LLVM-SAME:        [[INT]] 24, 
 // CHECK-LLVM-SAME:        i8* [[LIFETIME_END_CAST]])
 // CHECK-LLVM:         ret void
 // CHECK-LLVM:       }

@@ -261,6 +261,21 @@ protocol CannotBackDeployProtocol {}
 @backDeployed(before: macOS 12.0) // expected-error {{'@backDeployed' attribute cannot be applied to this declaration}}
 public actor CannotBackDeployActor {}
 
+public struct ConformsToTopLevelProtocol: TopLevelProtocol {
+  public init() {}
+}
+
+@available(SwiftStdlib 5.1, *)
+@backDeployed(before: macOS 12.0) // expected-error {{'@backDeployed' is unsupported on a var with a 'some' return type}}
+public var cannotBackDeployVarWithOpaqueResultType: some TopLevelProtocol {
+  return ConformsToTopLevelProtocol()
+}
+
+@available(SwiftStdlib 5.1, *)
+@backDeployed(before: macOS 12.0) // expected-error {{'@backDeployed' is unsupported on a global function with a 'some' return type}}
+public func cannotBackDeployFuncWithOpaqueResultType() -> some TopLevelProtocol {
+  return ConformsToTopLevelProtocol()
+}
 
 // MARK: - Function body diagnostics
 

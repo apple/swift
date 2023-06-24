@@ -38,8 +38,8 @@ public func testVTableBuilding(user: User) {
   // for the vtable slot for 'lastMethod()'. If the layout here
   // changes, please check that offset is still correct.
   // CHECK-IR-NOT: ret
-  // CHECK-IR-objc: getelementptr inbounds void (%T3Lib4UserC*)*, void (%T3Lib4UserC*)** %{{[0-9]+}}, {{i64 28|i32 31}}
-  // CHECK-IR-native: getelementptr inbounds void (%T3Lib4UserC*)*, void (%T3Lib4UserC*)** %{{[0-9]+}}, {{i64 25|i32 28}}
+  // CHECK-IR-objc: getelementptr inbounds ptr, ptr %{{[0-9]+}}, {{i64 28|i32 31}}
+  // CHECK-IR-native: getelementptr inbounds ptr, ptr %{{[0-9]+}}, {{i64 25|i32 28}}
   user.lastMethod()
 } // CHECK-IR: ret void
 

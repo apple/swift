@@ -822,6 +822,9 @@ swift::_swift_buildDemanglingForMetadata(const Metadata *type,
     auto metatype = static_cast<const MetatypeMetadata *>(type);
     auto instance = _swift_buildDemanglingForMetadata(metatype->InstanceType,
                                                       Dem);
+    if (!instance)
+      return nullptr;
+
     auto typeNode = Dem.createNode(Node::Kind::Type);
     typeNode->addChild(instance, Dem);
     auto node = Dem.createNode(Node::Kind::Metatype);

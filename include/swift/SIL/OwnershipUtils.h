@@ -90,13 +90,13 @@ inline bool isForwardingConsume(SILValue value) {
 //                        Ownership Def-Use Utilities
 //===----------------------------------------------------------------------===//
 
-bool hasPointerEscape(BorrowedValue value);
+bool findPointerEscape(BorrowedValue value);
 
 /// Whether the specified OSSA-lifetime introducer has a pointer escape.
 ///
 /// precondition: \p value introduces an OSSA-lifetime, either a BorrowedValue
 /// can be constructed from it or it's an owned value
-bool hasPointerEscape(SILValue value);
+bool findPointerEscape(SILValue value);
 
 /// Find leaf "use points" of \p guaranteedValue that determine its lifetime
 /// requirement. Return true if no PointerEscape use was found.
@@ -219,7 +219,7 @@ public:
   }
 
   bool preservesOwnership() const {
-    auto &mixin = *OwnershipForwardingMixin::get(use->getUser());
+    auto &mixin = *ForwardingInstruction::get(use->getUser());
     return mixin.preservesOwnership();
   }
 

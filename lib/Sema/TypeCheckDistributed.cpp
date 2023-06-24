@@ -657,9 +657,13 @@ bool swift::checkDistributedActorProperty(VarDecl *var, bool diagnose) {
 void swift::checkDistributedActorProperties(const NominalTypeDecl *decl) {
   auto &C = decl->getASTContext();
 
-  auto sourceFile = decl->getDeclContext()->getParentSourceFile();
-  if (sourceFile && sourceFile->Kind == SourceFileKind::Interface) {
-    // Don't diagnose properties in swiftinterfaces.
+  if (auto sourceFile = decl->getDeclContext()->getParentSourceFile()) {
+    if (sourceFile->Kind == SourceFileKind::Interface) {
+      // Don't diagnose properties in swiftinterfaces.
+      return;
+    }
+  } else {
+    // Don't diagnose when checking without source file (e.g. from module, importer etc).
     return;
   }
 

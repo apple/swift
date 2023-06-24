@@ -3,14 +3,11 @@
 class Sub: Base {
   // CHECK-LABEL: define{{.*}} void @"$s4main3SubC4testyyF"
   func test() {
-    // CHECK: [[BASE_SELF:%.+]] = bitcast %T4main3SubC* %0 to %TSo4BaseC*
-    // CHECK: [[SELECTOR:%.+]] = load i8*, i8** @"\01L_selector(getClassInstanceWithoutMentioningItsName)"
-    // CHECK: [[OPAQUE_SELF:%.+]] = bitcast %TSo4BaseC* %2 to {{%.+}}*
-    // CHECK: [[RESULT:%.+]] = call {{%.+}}* bitcast (void ()* @objc_msgSend to {{%.+}}* ({{%.+}}*, i8*)*)({{%.+}}* [[OPAQUE_SELF]], i8* [[SELECTOR]])
-    // CHECK: [[OPAQUE_RESULT:%.+]] = bitcast {{%.+}}* [[RESULT]] to i8*
-    // CHECK: call i8* @llvm.objc.retainAutoreleasedReturnValue(i8* [[OPAQUE_RESULT]])
+    // CHECK: [[SELECTOR:%.+]] = load ptr, ptr @"\01L_selector(getClassInstanceWithoutMentioningItsName)"
+    // CHECK: [[RESULT:%.+]] = call ptr @objc_msgSend(ptr %{{[0-9]+}}, ptr [[SELECTOR]])
+    // CHECK: call ptr @llvm.objc.retainAutoreleasedReturnValue(ptr [[RESULT]])
     _ = self.getClassInstanceWithoutMentioningItsName()
-    // CHECK: call void @swift_release(%swift.refcounted* {{%.+}})
+    // CHECK: call void @swift_release(ptr {{%.+}})
     // CHECK: ret void
   }
 }

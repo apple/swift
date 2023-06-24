@@ -1,4 +1,5 @@
-// RUN: %swift -prespecialize-generic-metadata -target %module-target-future -parse-stdlib -emit-ir %s | %FileCheck %s -DINT=i%target-ptrsize -DALIGNMENT=%target-alignment
+// RUN: %swift %use_no_opaque_pointers -prespecialize-generic-metadata -target %module-target-future -parse-stdlib -emit-ir %s | %FileCheck %s -DINT=i%target-ptrsize -DALIGNMENT=%target-alignment
+// RUN: %swift -prespecialize-generic-metadata -target %module-target-future -parse-stdlib -emit-ir %s
 
 // REQUIRES: VENDOR=apple || OS=linux-gnu
 // UNSUPPORTED: CPU=i386 && OS=ios

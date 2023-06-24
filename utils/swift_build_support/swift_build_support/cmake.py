@@ -283,11 +283,11 @@ class CMake(object):
         os.chdir(cwd)
         return os.path.join(cmake_build_dir, 'bin', 'cmake')
 
-    # For Linux only, determine the version of the installed CMake compared to
-    # the source and build the source if necessary. Returns the path to the
-    # cmake binary.
+    # For Linux and FreeBSD only, determine the version of the installed
+    # CMake compared to the source and build the source if necessary.
+    # Returns the path to the cmake binary.
     def check_cmake_version(self, source_root, build_root):
-        if platform.system() != 'Linux':
+        if not platform.system() in ["Linux", "FreeBSD"]:
             return
 
         cmake_source_dir = os.path.join(source_root, 'cmake')

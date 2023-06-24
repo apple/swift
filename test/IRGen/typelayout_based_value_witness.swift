@@ -1,6 +1,9 @@
-// RUN: %target-swift-frontend -enable-type-layout -primary-file %s -emit-ir | %FileCheck %s --check-prefix=CHECK
-// RUN: %target-swift-frontend -enable-type-layout -primary-file %s -O -emit-ir | %FileCheck %s --check-prefix=OPT --check-prefix=OPT-%target-ptrsize
-// RUN: %target-swift-frontend -primary-file %s -emit-ir | %FileCheck %s --check-prefix=NOTL
+// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-type-layout -primary-file %s -emit-ir | %FileCheck %s --check-prefix=CHECK
+// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-type-layout -primary-file %s -O -emit-ir | %FileCheck %s --check-prefix=OPT --check-prefix=OPT-%target-ptrsize
+// RUN: %target-swift-frontend %use_no_opaque_pointers -primary-file %s -emit-ir | %FileCheck %s --check-prefix=NOTL
+// RUN: %target-swift-frontend -enable-type-layout -primary-file %s -emit-ir
+// RUN: %target-swift-frontend -enable-type-layout -primary-file %s -O -emit-ir
+// RUN: %target-swift-frontend -primary-file %s -emit-ir
 
 public struct B<T> {
   var x: T

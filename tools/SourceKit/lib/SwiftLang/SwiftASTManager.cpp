@@ -613,6 +613,13 @@ struct SwiftASTManager::Implementation {
   WorkQueue ASTBuildQueue{ WorkQueue::Dequeuing::Serial,
                            "sourcekit.swift.ASTBuilding" };
 
+  /// Queue on which consumers may be notified about results and cancellation.
+  /// This is essentially just a background queue to which we can jump to inform
+  /// consumers while making sure that no locks are currently claimed.
+  WorkQueue ConsumerNotificationQueue{
+      WorkQueue::Dequeuing::Concurrent,
+      "SwiftASTManager::Implementation::ConsumerNotificationQueue"};
+
   /// Remove all scheduled consumers that don't exist anymore. This is just a
   /// garbage-collection operation to make sure the \c ScheduledConsumers vector
   /// doesn't explode. One should never make assumptions that all consumers in
@@ -782,9 +789,11 @@ void SwiftASTManager::processASTAsync(
       // Cancel any consumers with the same OncePerASTToken.
       for (auto ScheduledConsumer : Impl.ScheduledConsumers) {
         if (ScheduledConsumer.OncePerASTToken == OncePerASTToken) {
-          if (auto Consumer = ScheduledConsumer.Consumer.lock()) {
-            Consumer->requestCancellation();
-          }
+          Impl.ConsumerNotificationQueue.dispatch([ScheduledConsumer]() {
+            if (auto Consumer = ScheduledConsumer.Consumer.lock()) {
+              Consumer->requestCancellation();
+            }
+          });
         }
       }
     }
@@ -794,11 +803,17 @@ void SwiftASTManager::processASTAsync(
   Producer->enqueueConsumer(ASTConsumer, fileSystem, shared_from_this());
 
   auto WeakConsumer = SwiftASTConsumerWeakRef(ASTConsumer);
-  Impl.ReqTracker->setCancellationHandler(CancellationToken, [WeakConsumer] {
-    if (auto Consumer = WeakConsumer.lock()) {
-      Consumer->requestCancellation();
-    }
-  });
+  auto WeakThis = std::weak_ptr<SwiftASTManager>(shared_from_this());
+  Impl.ReqTracker->setCancellationHandler(
+      CancellationToken, [WeakConsumer, WeakThis] {
+        if (auto This = WeakThis.lock()) {
+          This->Impl.ConsumerNotificationQueue.dispatch([WeakConsumer]() {
+            if (auto Consumer = WeakConsumer.lock()) {
+              Consumer->requestCancellation();
+            }
+          });
+        }
+      });
 }
 
 void SwiftASTManager::removeCachedAST(SwiftInvocationRef Invok) {
@@ -950,12 +965,14 @@ void ASTBuildOperation::requestConsumerCancellation(
     return;
   }
   Consumers.erase(ConsumerIndex);
-  Consumer->cancelled();
   if (Consumers.empty()) {
     // If there are no more consumers waiting for this result, cancel the AST
     // build.
     CancellationFlag->store(true, std::memory_order_relaxed);
   }
+  ASTManager->Impl.ConsumerNotificationQueue.dispatch([Consumer] {
+    Consumer->cancelled();
+  });
 }
 
 static void collectModuleDependencies(ModuleDecl *TopMod,
@@ -1027,11 +1044,15 @@ void ASTBuildOperation::informConsumer(SwiftASTConsumerRef Consumer) {
                     "more consumers attached to it and should not accept any "
                     "new consumers if the build operation was cancelled. Thus "
                     "this case should never happen.");
-    Consumer->cancelled();
+    ASTManager->Impl.ConsumerNotificationQueue.dispatch([Consumer] {
+      Consumer->cancelled();
+    });
   } else if (Result.AST) {
     Result.AST->Impl.consumeAsync(Consumer, Result.AST);
   } else {
-    Consumer->failed(Result.Error);
+    ASTManager->Impl.ConsumerNotificationQueue.dispatch([Consumer, Error = Result.Error] {
+      Consumer->failed(Error);
+    });
   }
 }
 
@@ -1219,14 +1240,41 @@ bool ASTBuildOperation::addConsumer(SwiftASTConsumerRef Consumer) {
   return true;
 }
 
+/// Returns a build operation that `Consumer` can use, in order of the
+/// following:
+///   1. The latest finished build operation that either exactly matches, or
+///      can be used with snapshots
+///   2. If none, the latest in-progress build operation with the same
+///      conditions
+///   3. `nullptr` otherwise
 ASTBuildOperationRef ASTProducer::getBuildOperationForConsumer(
     SwiftASTConsumerRef Consumer,
     IntrusiveRefCntPtr<llvm::vfs::FileSystem> FileSystem,
     SwiftASTManagerRef Mgr) {
+  ASTBuildOperationRef LatestUsableOp;
+  Statistic *StatCount = nullptr;
   for (auto &BuildOp : llvm::reverse(BuildOperations)) {
-    if (BuildOp->isCancelled()) {
+    if (BuildOp->isCancelled())
+      continue;
+
+    // No point checking for a match, we already have one - we're just looking
+    // for a finished operation that can be used with the file contents of
+    // `BuildOp` at this point (which we will prefer over an incomplete
+    // operation, whether that exactly matches or not).
+    if (LatestUsableOp && !BuildOp->isFinished())
+      continue;
+
+    // Check for an exact match
+    if (BuildOp->matchesSourceState(FileSystem)) {
+      LatestUsableOp = BuildOp;
+      StatCount = &Mgr->Impl.Stats->numASTCacheHits;
+      if (BuildOp->isFinished())
+        break;
       continue;
     }
+
+    // Check for whether the operation can be used taking into account
+    // snapshots
     std::vector<ImmutableTextSnapshotRef> Snapshots;
     Snapshots.reserve(BuildOp->getFileContents().size());
     for (auto &FileContent : BuildOp->getFileContents()) {
@@ -1234,15 +1282,19 @@ ASTBuildOperationRef ASTProducer::getBuildOperationForConsumer(
         Snapshots.push_back(FileContent.Snapshot);
       }
     }
-    if (BuildOp->matchesSourceState(FileSystem)) {
-      ++Mgr->Impl.Stats->numASTCacheHits;
-      return BuildOp;
-    } else if (Consumer->canUseASTWithSnapshots(Snapshots)) {
-      ++Mgr->Impl.Stats->numASTsUsedWithSnapshots;
-      return BuildOp;
+
+    if (Consumer->canUseASTWithSnapshots(Snapshots)) {
+      LatestUsableOp = BuildOp;
+      StatCount = &Mgr->Impl.Stats->numASTsUsedWithSnapshots;
+      if (BuildOp->isFinished())
+        break;
     }
   }
-  return nullptr;
+
+  if (StatCount) {
+    ++(*StatCount);
+  }
+  return LatestUsableOp;
 }
 
 void ASTProducer::enqueueConsumer(

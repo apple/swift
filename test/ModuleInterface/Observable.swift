@@ -3,6 +3,9 @@
 // RUN: %target-swift-typecheck-module-from-interface(%t/Library.swiftinterface) -module-name Library -disable-availability-checking
 // RUN: %FileCheck %s < %t/Library.swiftinterface
 
+// Asserts is required for '-enable-experimental-feature InitAccessors'.
+// REQUIRES: asserts
+
 // REQUIRES: swift_swift_parser
 // REQUIRES: observation
 

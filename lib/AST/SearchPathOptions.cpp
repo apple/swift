@@ -73,12 +73,6 @@ void ModuleSearchPathLookup::rebuildLookupTable(const SearchPathOptions *Opts,
                                 /*isSystem=*/true, Entry.index());
   }
 
-  for (auto Entry : llvm::enumerate(Opts->getCompilerPluginLibraryPaths())) {
-    addFilesInPathToLookupTable(FS, Entry.value(),
-                                ModuleSearchPathKind::CompilerPlugin,
-                                /*isSystem=*/false, Entry.index());
-  }
-
   State.FileSystem = FS;
   State.IsOSDarwin = IsOSDarwin;
   State.Opts = Opts;

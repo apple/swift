@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend -emit-ir %s -disable-availability-checking | %FileCheck %s -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend %use_no_opaque_pointers -emit-ir %s -disable-availability-checking | %FileCheck %s -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend -emit-ir %s -disable-availability-checking
 
 public struct G<T> {}
 

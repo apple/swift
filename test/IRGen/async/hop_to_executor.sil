@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend  -primary-file %s -module-name=test -disable-llvm-optzns -disable-swift-specific-llvm-optzns -emit-ir -sil-verify-all | %IRGenFileCheck %s -check-prefix CHECK-%target-abi
+// RUN: %target-swift-frontend %use_no_opaque_pointers -primary-file %s -module-name=test -disable-llvm-optzns -disable-swift-specific-llvm-optzns -emit-ir -sil-verify-all | %IRGenFileCheck %s -check-prefix CHECK-%target-abi
+// RUN: %target-swift-frontend  -primary-file %s -module-name=test -disable-llvm-optzns -disable-swift-specific-llvm-optzns -emit-ir -sil-verify-all
 
 // REQUIRES: concurrency
 

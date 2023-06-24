@@ -296,7 +296,7 @@ bool OwnershipUseVisitor<Impl>::visitInnerBorrowScopeEnd(Operand *borrowEnd) {
     // TODO: When we have ForwardingInstruction abstraction, walk the use-def
     // chain to ensure we have a partial_apply [on_stack] def.
     assert(pai && pai->isOnStack() ||
-           OwnershipForwardingMixin::get(
+           ForwardingInstruction::get(
                cast<SingleValueInstruction>(borrowEnd->get())));
     return handleUsePoint(borrowEnd, UseLifetimeConstraint::NonLifetimeEnding);
   }

@@ -38,31 +38,31 @@ entry:
   // CHECK-V4-32: [[SIZE:%.*]] = load i32
   // CHECK-V4: [[ALIGN16:%.*]] = load i16
   // CHECK-V4: [[ALIGN:%.*]] = zext i16 [[ALIGN16]] to [[WORD]]
-  // CHECK-V4: call noalias %swift.refcounted* @swift_allocObject(%swift.type* [[METADATA]], [[WORD]] [[SIZE]], [[WORD]] [[ALIGN]])
+  // CHECK-V4: call noalias ptr @swift_allocObject(ptr [[METADATA]], [[WORD]] [[SIZE]], [[WORD]] [[ALIGN]])
 
   // CHECK-V5: [[TMP:%.*]] = call swiftcc %swift.metadata_response @"$s14UsingObjCStuff10ButtHolderCMa"([[WORD]] 0)
   // CHECK-V5: [[METADATA:%.*]] = extractvalue %swift.metadata_response [[TMP]], 0
-  // CHECK-V5-32: call noalias %swift.refcounted* @swift_allocObject(%swift.type* [[METADATA]], [[WORD]] 28, [[WORD]] 3)
-  // CHECK-V5-64: call noalias %swift.refcounted* @swift_allocObject(%swift.type* [[METADATA]], [[WORD]] 48, [[WORD]] 7)
+  // CHECK-V5-32: call noalias ptr @swift_allocObject(ptr [[METADATA]], [[WORD]] 28, [[WORD]] 3)
+  // CHECK-V5-64: call noalias ptr @swift_allocObject(ptr [[METADATA]], [[WORD]] 48, [[WORD]] 7)
 
   %x = alloc_ref $ButtHolder
   // CHECK-V4: [[TMP:%.*]] = call swiftcc %swift.metadata_response @"$s4main13SubButtHolderCMa"([[WORD]] 0)
   // CHECK-V4: [[METADATA:%.*]] = extractvalue %swift.metadata_response [[TMP]], 0
-  // CHECK-V4: call noalias %swift.refcounted* @swift_allocObject(%swift.type* [[METADATA]], [[WORD]] %{{.*}}, [[WORD]] %{{.*}})
+  // CHECK-V4: call noalias ptr @swift_allocObject(ptr [[METADATA]], [[WORD]] %{{.*}}, [[WORD]] %{{.*}})
 
   // CHECK-V5: [[TMP:%.*]] = call swiftcc %swift.metadata_response @"$s4main13SubButtHolderCMa"([[WORD]] 0)
   // CHECK-V5: [[METADATA:%.*]] = extractvalue %swift.metadata_response [[TMP]], 0
-  // CHECK-V5-32: call noalias %swift.refcounted* @swift_allocObject(%swift.type* [[METADATA]], [[WORD]] 40, [[WORD]] 7)
-  // CHECK-V5-64: call noalias %swift.refcounted* @swift_allocObject(%swift.type* [[METADATA]], [[WORD]] 56, [[WORD]] 7)
+  // CHECK-V5-32: call noalias ptr @swift_allocObject(ptr [[METADATA]], [[WORD]] 40, [[WORD]] 7)
+  // CHECK-V5-64: call noalias ptr @swift_allocObject(ptr [[METADATA]], [[WORD]] 56, [[WORD]] 7)
   %y = alloc_ref $SubButtHolder
   // CHECK-V4: [[TMP:%.*]] = call swiftcc %swift.metadata_response @"$s4main03SubB10ButtHolderCMa"([[WORD]] 0)
   // CHECK-V4: [[METADATA:%.*]] = extractvalue %swift.metadata_response [[TMP]], 0
-  // CHECK-V4: call noalias %swift.refcounted* @swift_allocObject(%swift.type* [[METADATA]], [[WORD]] %{{.*}}, [[WORD]] %{{.*}})
+  // CHECK-V4: call noalias ptr @swift_allocObject(ptr [[METADATA]], [[WORD]] %{{.*}}, [[WORD]] %{{.*}})
 
   // CHECK-V5: [[TMP:%.*]] = call swiftcc %swift.metadata_response @"$s4main03SubB10ButtHolderCMa"([[WORD]] 0)
   // CHECK-V5: [[METADATA:%.*]] = extractvalue %swift.metadata_response [[TMP]], 0
-  // CHECK-V5-32: call noalias %swift.refcounted* @swift_allocObject(%swift.type* [[METADATA]], [[WORD]] 48, [[WORD]] 7)
-  // CHECK-V5-64: call noalias %swift.refcounted* @swift_allocObject(%swift.type* [[METADATA]], [[WORD]] 64, [[WORD]] 7)
+  // CHECK-V5-32: call noalias ptr @swift_allocObject(ptr [[METADATA]], [[WORD]] 48, [[WORD]] 7)
+  // CHECK-V5-64: call noalias ptr @swift_allocObject(ptr [[METADATA]], [[WORD]] 64, [[WORD]] 7)
   %z = alloc_ref $SubSubButtHolder
   return %x : $ButtHolder
 }

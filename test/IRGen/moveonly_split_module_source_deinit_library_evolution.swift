@@ -1,8 +1,8 @@
 // RUN: %empty-directory(%t)
-// RUN: %target-build-swift-dylib(%t/%target-library-name(MoveOnlySplit)) -enable-library-evolution %S/Inputs/moveonly_split_module_source_input.swift -emit-module -emit-module-path %t/MoveOnlySplit.swiftmodule -module-name MoveOnlySplit -DTEST_LIBRARY_EVOLUTION
+// RUN: %target-build-swift-dylib(%t/%target-library-name(MoveOnlySplit)) -enable-library-evolution %S/Inputs/moveonly_split_module_source_input.swift -emit-module -emit-module-path %t/MoveOnlySplit.swiftmodule -module-name MoveOnlySplit -DTEST_LIBRARY_EVOLUTION -enable-experimental-feature MoveOnlyResilientTypes
 // RUN: %target-codesign %t/%target-library-name(MoveOnlySplit)
 
-// RUN: %target-build-swift %s -lMoveOnlySplit -I %t -L %t -o %t/main %target-rpath(%t)
+// RUN: %target-build-swift %s -lMoveOnlySplit -I %t -L %t -o %t/main %target-rpath(%t) -enable-experimental-feature MoveOnlyResilientTypes
 // RUN: %target-codesign %t/main
 // RUN: %target-run %t/main %t/%target-library-name(MoveOnlySplit) | %FileCheck -check-prefix=CHECK-LIBRARY-EVOLUTION %s
 

@@ -3,12 +3,12 @@
 // REQUIRES: PTRSIZE=64
 
 struct G<each T> {
-  // CHECK-LABEL: define hidden swiftcc void @"$s22variadic_generic_types1GV6calleeyyF"(i64 %0, %swift.type** %"each T")
+  // CHECK-LABEL: define hidden swiftcc void @"$s22variadic_generic_types1GV6calleeyyF"(i64 %0, ptr %"each T")
   // CHECK: ret void
   func callee() {}
 
-  // CHECK-LABEL: define hidden swiftcc void @"$s22variadic_generic_types1GV6calleryyF"(i64 %0, %swift.type** %"each T")
-  // CHECK: call swiftcc void @"$s22variadic_generic_types1GV6calleeyyF"(i64 %0, %swift.type** %"each T")
+  // CHECK-LABEL: define hidden swiftcc void @"$s22variadic_generic_types1GV6calleryyF"(i64 %0, ptr %"each T")
+  // CHECK: call swiftcc void @"$s22variadic_generic_types1GV6calleeyyF"(i64 %0, ptr %"each T")
   // CHECK: ret void
   func caller() {
     callee()

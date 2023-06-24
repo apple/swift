@@ -1,6 +1,7 @@
 // RUN: %empty-directory(%t)
 // RUN: %{python} %utils/chex.py < %s > %t/cf.sil
-// RUN: %target-swift-frontend -enable-objc-interop -sdk %S/Inputs %t/cf.sil -emit-ir -import-cf-types | %FileCheck --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize %t/cf.sil -DINT=i%target-ptrsize -check-prefix CHECK-%target-import-type -check-prefix CHECK-%target-import-type-%target-ptrsize
+// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-objc-interop -sdk %S/Inputs %t/cf.sil -emit-ir -import-cf-types | %FileCheck --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize %t/cf.sil -DINT=i%target-ptrsize -check-prefix CHECK-%target-import-type -check-prefix CHECK-%target-import-type-%target-ptrsize
+// RUN: %target-swift-frontend -enable-objc-interop -sdk %S/Inputs %t/cf.sil -emit-ir -import-cf-types
 
 // REQUIRES: CPU=i386 || CPU=x86_64
 

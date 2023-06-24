@@ -1,7 +1,8 @@
 // RUN: %empty-directory(%t)
 // RUN: %target-swift-frontend -emit-module -enable-library-evolution -emit-module-path=%t/resilient_struct.swiftmodule -module-name=resilient_struct %S/../Inputs/resilient_struct.swift
 
-// RUN: %target-swift-frontend  -I %t -emit-ir -enable-library-evolution %s -target %target-pre-stable-abi-triple | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-OLD --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-OLD-%target-ptrsize -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend -I %t -emit-ir -enable-library-evolution %s -target %target-pre-stable-abi-triple | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-OLD --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-OLD-%target-ptrsize -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend  -I %t -emit-ir -enable-library-evolution %s -target %target-pre-stable-abi-triple
 // RUN: %target-swift-frontend  -I %t -emit-ir -enable-library-evolution -O %s -target %target-pre-stable-abi-triple
 
 // REQUIRES: objc_interop
@@ -72,7 +73,7 @@ sil_vtable SubclassOfClassWithResilientField {}
 // CHECK-LABEL: @"$s42class_update_callback_without_fixed_layout33SubclassOfClassWithResilientFieldCMf" = internal global <{{.*}}> <{
 
 // Superclass field is filled in dynamically:
-// CHECK-OLD-SAME: i8* null,
+// CHECK-OLD-SAME: ptr null,
 
 // Superclass field is filled in statically:
 // CHECK-NEW-SAME: @"$s42class_update_callback_without_fixed_layout23ClassWithResilientFieldCMf"
@@ -120,40 +121,31 @@ bb0:
 
 // CHECK:      [[T0:%.*]] = call swiftcc %swift.metadata_response @"$s42class_update_callback_without_fixed_layout23ClassWithResilientFieldCMa"([[INT]] 0)
 // CHECK-NEXT: [[META:%.*]] = extractvalue %swift.metadata_response [[T0]], 0
-// CHECK-NEXT: [[META_ADDR:%.*]] = bitcast %swift.type* [[META]] to i8*
-// CHECK-32-NEXT: [[SIZE_ADDR:%.*]] = getelementptr inbounds i8, i8* [[META_ADDR]], i32 28
-// CHECK-64-NEXT: [[SIZE_ADDR:%.*]] = getelementptr inbounds i8, i8* [[META_ADDR]], i32 48
-// CHECK-NEXT: [[SIZE_PTR:%.*]] = bitcast i8* [[SIZE_ADDR]] to i32*
-// CHECK-32-NEXT: [[SIZE:%.*]] = load i32, i32* [[SIZE_PTR]]
-// CHECK-64-NEXT: [[SIZE_2:%.*]] = load i32, i32* [[SIZE_PTR]]
+// CHECK-32-NEXT: [[SIZE_ADDR:%.*]] = getelementptr inbounds i8, ptr [[META]], i32 28
+// CHECK-64-NEXT: [[SIZE_ADDR:%.*]] = getelementptr inbounds i8, ptr [[META]], i32 48
+// CHECK-32-NEXT: [[SIZE:%.*]] = load i32, ptr [[SIZE_ADDR]]
+// CHECK-64-NEXT: [[SIZE_2:%.*]] = load i32, ptr [[SIZE_ADDR]]
 // CHECK-64-NEXT: [[SIZE:%.*]] = zext i32 [[SIZE_2]] to i64
-// CHECK-32-NEXT: [[ALIGN_ADDR:%.*]] = getelementptr inbounds i8, i8* [[META_ADDR]], i32 32
-// CHECK-64-NEXT: [[ALIGN_ADDR:%.*]] = getelementptr inbounds i8, i8* [[META_ADDR]], i32 52
-// CHECK-NEXT: [[ALIGN_PTR:%.*]] = bitcast i8* [[ALIGN_ADDR]] to i16*
-// CHECK-NEXT: [[ALIGN_2:%.*]] = load i16, i16* [[ALIGN_PTR]]
+// CHECK-32-NEXT: [[ALIGN_ADDR:%.*]] = getelementptr inbounds i8, ptr [[META]], i32 32
+// CHECK-64-NEXT: [[ALIGN_ADDR:%.*]] = getelementptr inbounds i8, ptr [[META]], i32 52
+// CHECK-NEXT: [[ALIGN_2:%.*]] = load i16, ptr [[ALIGN_ADDR]]
 // CHECK-NEXT: [[ALIGN:%.*]] = zext i16 [[ALIGN_2]] to [[INT]]
-// CHECK-NEXT: [[ALLOC:%.*]] = call noalias %swift.refcounted* @swift_allocObject(%swift.type* [[META]], [[INT]] [[SIZE]], [[INT]] [[ALIGN]])
+// CHECK-NEXT: [[ALLOC:%.*]] = call noalias ptr @swift_allocObject(ptr [[META]], [[INT]] [[SIZE]], [[INT]] [[ALIGN]])
   %c = alloc_ref $ClassWithResilientField
 
 // ... dealloc_ref also does the same thing.
 
-// CHECK-NEXT: [[SELF:%.*]] = bitcast %swift.refcounted* [[ALLOC]] to %T42class_update_callback_without_fixed_layout23ClassWithResilientFieldC*
-// CHECK-NEXT: [[ISA_ADDR:%.*]] = bitcast %T42class_update_callback_without_fixed_layout23ClassWithResilientFieldC* [[SELF]] to %swift.type**
-// CHECK-NEXT: [[META:%.*]] = load %swift.type*, %swift.type** [[ISA_ADDR]]
-// CHECK-NEXT: [[META_ADDR:%.*]] = bitcast %swift.type* [[META]] to i8*
-// CHECK-32-NEXT: [[SIZE_ADDR:%.*]] = getelementptr inbounds i8, i8* [[META_ADDR]], i32 28
-// CHECK-64-NEXT: [[SIZE_ADDR:%.*]] = getelementptr inbounds i8, i8* [[META_ADDR]], i32 48
-// CHECK-NEXT: [[SIZE_PTR:%.*]] = bitcast i8* [[SIZE_ADDR]] to i32*
-// CHECK-32-NEXT: [[SIZE:%.*]] = load i32, i32* [[SIZE_PTR]]
-// CHECK-64-NEXT: [[SIZE_2:%.*]] = load i32, i32* [[SIZE_PTR]]
+// CHECK-NEXT: [[META:%.*]] = load ptr, ptr [[ALLOC]]
+// CHECK-32-NEXT: [[SIZE_ADDR:%.*]] = getelementptr inbounds i8, ptr [[META]], i32 28
+// CHECK-64-NEXT: [[SIZE_ADDR:%.*]] = getelementptr inbounds i8, ptr [[META]], i32 48
+// CHECK-32-NEXT: [[SIZE:%.*]] = load i32, ptr [[SIZE_ADDR]]
+// CHECK-64-NEXT: [[SIZE_2:%.*]] = load i32, ptr [[SIZE_ADDR]]
 // CHECK-64-NEXT: [[SIZE:%.*]] = zext i32 [[SIZE_2]] to i64
-// CHECK-32-NEXT: [[ALIGN_ADDR:%.*]] = getelementptr inbounds i8, i8* [[META_ADDR]], i32 32
-// CHECK-64-NEXT: [[ALIGN_ADDR:%.*]] = getelementptr inbounds i8, i8* [[META_ADDR]], i32 52
-// CHECK-NEXT: [[ALIGN_PTR:%.*]] = bitcast i8* [[ALIGN_ADDR]] to i16*
-// CHECK-NEXT: [[ALIGN_2:%.*]] = load i16, i16* [[ALIGN_PTR]]
+// CHECK-32-NEXT: [[ALIGN_ADDR:%.*]] = getelementptr inbounds i8, ptr [[META]], i32 32
+// CHECK-64-NEXT: [[ALIGN_ADDR:%.*]] = getelementptr inbounds i8, ptr [[META]], i32 52
+// CHECK-NEXT: [[ALIGN_2:%.*]] = load i16, ptr [[ALIGN_ADDR]]
 // CHECK-NEXT: [[ALIGN:%.*]] = zext i16 [[ALIGN_2]] to [[INT]]
-// CHECK-NEXT: [[ALLOC:%.*]] = bitcast %T42class_update_callback_without_fixed_layout23ClassWithResilientFieldC* [[SELF]] to %swift.refcounted*
-// CHECK-NEXT: call void @swift_deallocClassInstance(%swift.refcounted* [[ALLOC]], [[INT]] [[SIZE]], [[INT]] [[ALIGN]])
+// CHECK-NEXT: call void @swift_deallocClassInstance(ptr [[ALLOC]], [[INT]] [[SIZE]], [[INT]] [[ALIGN]])
   dealloc_ref %c : $ClassWithResilientField
 
   %result = tuple ()
@@ -165,20 +157,20 @@ bb0:
 
 // CHECK-LABEL: define swiftcc %swift.metadata_response @"$s42class_update_callback_without_fixed_layout23ClassWithResilientFieldCMa
 
-// CHECK:      [[CACHE:%.*]] = load %swift.type*, %swift.type** getelementptr inbounds ({ %swift.type*, i8* }, { %swift.type*, i8* }* @"$s42class_update_callback_without_fixed_layout23ClassWithResilientFieldCMl", i32 0, i32 0)
-// CHECK-NEXT: [[COND:%.*]] = icmp eq %swift.type* [[CACHE]], null
+// CHECK:      [[CACHE:%.*]] = load ptr, ptr @"$s42class_update_callback_without_fixed_layout23ClassWithResilientFieldCMl"
+// CHECK-NEXT: [[COND:%.*]] = icmp eq ptr [[CACHE]], null
 // CHECK-NEXT: br i1 [[COND]], label %cacheIsNull, label %cont
 
 // CHECK: cacheIsNull:
-// CHECK-NEXT: [[RESPONSE:%.*]] = call swiftcc %swift.metadata_response @swift_getSingletonMetadata([[INT]] %0, %swift.type_descriptor* bitcast ({{.*}} @"$s42class_update_callback_without_fixed_layout23ClassWithResilientFieldCMn" to %swift.type_descriptor*))
+// CHECK-NEXT: [[RESPONSE:%.*]] = call swiftcc %swift.metadata_response @swift_getSingletonMetadata([[INT]] %0, ptr @"$s42class_update_callback_without_fixed_layout23ClassWithResilientFieldCMn")
 // CHECK-NEXT: [[METADATA:%.*]] = extractvalue %swift.metadata_response [[RESPONSE]], 0
 // CHECK-NEXT: [[STATUS:%.*]] = extractvalue %swift.metadata_response [[RESPONSE]], 1
 // CHECK-NEXT: br label %cont
 
 // CHECK: cont:
-// CHECK-NEXT: [[NEW_METADATA:%.*]] = phi %swift.type* [ [[CACHE]], %entry ], [ [[METADATA]], %cacheIsNull ]
+// CHECK-NEXT: [[NEW_METADATA:%.*]] = phi ptr [ [[CACHE]], %entry ], [ [[METADATA]], %cacheIsNull ]
 // CHECK-NEXT: [[NEW_STATUS:%.*]] = phi [[INT]] [ 0, %entry ], [ [[STATUS]], %cacheIsNull ]
-// CHECK-NEXT: [[T0:%.*]] = insertvalue %swift.metadata_response undef, %swift.type* [[NEW_METADATA]], 0
+// CHECK-NEXT: [[T0:%.*]] = insertvalue %swift.metadata_response undef, ptr [[NEW_METADATA]], 0
 // CHECK-NEXT: [[T1:%.*]] = insertvalue %swift.metadata_response [[T0]], [[INT]] [[NEW_STATUS]], 1
 // CHECK-NEXT: ret %swift.metadata_response [[T1]]
 
@@ -186,20 +178,18 @@ bb0:
 // Accessing a field whose offset depends on resilient types should
 // use the field offset global.
 
-// CHECK-32-LABEL: define swiftcc {{(dllexport )?}}{{(protected )?}}i32 @accessClassWithResilientField(%T42class_update_callback_without_fixed_layout23ClassWithResilientFieldC* %0)
-// CHECK-64-LABEL: define swiftcc {{(dllexport )?}}{{(protected )?}}i64 @accessClassWithResilientField(%T42class_update_callback_without_fixed_layout23ClassWithResilientFieldC* %0)
+// CHECK-32-LABEL: define swiftcc {{(dllexport )?}}{{(protected )?}}i32 @accessClassWithResilientField(ptr %0)
+// CHECK-64-LABEL: define swiftcc {{(dllexport )?}}{{(protected )?}}i64 @accessClassWithResilientField(ptr %0)
 sil @accessClassWithResilientField : $@convention(thin) (@guaranteed ClassWithResilientField) -> Int {
 bb0(%0 : $ClassWithResilientField):
 
-// CHECK:        [[OFFSET:%.*]] = load [[INT]], [[INT]]* @"$s42class_update_callback_without_fixed_layout23ClassWithResilientFieldC5thirdSivpWvd"
-// CHECK-NEXT:   [[SELF_ADDR:%.*]] = bitcast %T42class_update_callback_without_fixed_layout23ClassWithResilientFieldC* %0 to i8*
-// CHECK-NEXT:   [[FIELD_ADDR:%.*]] = getelementptr inbounds i8, i8* [[SELF_ADDR]], [[INT]] [[OFFSET]]
-// CHECK-NEXT:   [[FIELD_PTR2:%.*]] = bitcast i8* [[FIELD_ADDR]] to %TSi*
-// CHECK-NEXT:   [[FIELD_PTR:%.*]] = getelementptr inbounds %TSi, %TSi* [[FIELD_PTR2]], i32 0, i32 0
+// CHECK:        [[OFFSET:%.*]] = load [[INT]], ptr @"$s42class_update_callback_without_fixed_layout23ClassWithResilientFieldC5thirdSivpWvd"
+// CHECK-NEXT:   [[FIELD_ADDR:%.*]] = getelementptr inbounds i8, ptr %0, [[INT]] [[OFFSET]]
+// CHECK-NEXT:   [[FIELD_PTR:%.*]] = getelementptr inbounds %TSi, ptr [[FIELD_ADDR]], i32 0, i32 0
 
   %1 = ref_element_addr %0 : $ClassWithResilientField, #ClassWithResilientField.third
 
-// CHECK-NEXT:   [[VALUE:%.*]] = load [[INT]], [[INT]]* [[FIELD_PTR]]
+// CHECK-NEXT:   [[VALUE:%.*]] = load [[INT]], ptr [[FIELD_PTR]]
   %2 = load %1 : $*Int
 
 // CHECK-NEXT:   ret [[INT]] [[VALUE]]
@@ -209,30 +199,27 @@ bb0(%0 : $ClassWithResilientField):
 
 // Objective-C metadata update callback function for ClassWithResilientField:
 
-// CHECK-OLD-NOT: define internal %objc_class* @"$s42class_update_callback_without_fixed_layout23ClassWithResilientFieldCMU"(%objc_class* %0, i8* %1)
+// CHECK-OLD-NOT: define internal ptr @"$s42class_update_callback_without_fixed_layout23ClassWithResilientFieldCMU"(ptr %0, ptr %1)
 
-// CHECK-NEW-LABEL: define internal %objc_class* @"$s42class_update_callback_without_fixed_layout23ClassWithResilientFieldCMU"(%objc_class* %0, i8* %1)
+// CHECK-NEW-LABEL: define internal ptr @"$s42class_update_callback_without_fixed_layout23ClassWithResilientFieldCMU"(ptr %0, ptr %1)
 // CHECK-NEW: entry:
 // CHECK-NEW-NEXT: [[RESPONSE:%.*]] = call swiftcc %swift.metadata_response @"$s42class_update_callback_without_fixed_layout23ClassWithResilientFieldCMa"([[INT]] 0)
 // CHECK-NEW-NEXT: [[METADATA:%.*]] = extractvalue %swift.metadata_response [[RESPONSE]], 0
-// CHECK-NEW-NEXT: [[RESULT:%.*]] = bitcast %swift.type* [[METADATA]] to %objc_class*
-// CHECK-NEW-NEXT: ret %objc_class* [[RESULT]]
+// CHECK-NEW-NEXT: ret ptr [[METADATA]]
 
 
 // Metadata initialization function for ClassWithResilientField calls swift_updateClassMetadata2()
 // with the new deployment target:
 
-// CHECK-LABEL: define internal swiftcc %swift.metadata_response @"$s42class_update_callback_without_fixed_layout23ClassWithResilientFieldCMr"(%swift.type* %0, i8* %1, i8** %2)
+// CHECK-LABEL: define internal swiftcc %swift.metadata_response @"$s42class_update_callback_without_fixed_layout23ClassWithResilientFieldCMr"(ptr %0, ptr %1, ptr %2)
 
 // CHECK: entry:
-// CHECK-NEXT: [[FIELDS:%.*]] = alloca [3 x i8**]
-// CHECK-NEXT: [[METADATA_ADDR:%.*]] = bitcast %swift.type* %0 to [[INT]]*
-// CHECK-32-NEXT: [[FIELDS_DEST:%.*]] = getelementptr inbounds [[INT]], [[INT]]* [[METADATA_ADDR]], [[INT]] 13
-// CHECK-64-NEXT: [[FIELDS_DEST:%.*]] = getelementptr inbounds [[INT]], [[INT]]* [[METADATA_ADDR]], [[INT]] 10
-// CHECK-NEXT: [[FIELDS_ADDR:%.*]] = bitcast [3 x i8**]* [[FIELDS]] to i8*
-// CHECK-32-NEXT: call void @llvm.lifetime.start.p0i8(i64 12, i8* [[FIELDS_ADDR]])
-// CHECK-64-NEXT: call void @llvm.lifetime.start.p0i8(i64 24, i8* [[FIELDS_ADDR]])
-// CHECK-NEXT: [[FIELDS_PTR:%.*]] = getelementptr inbounds [3 x i8**], [3 x i8**]* [[FIELDS]], i32 0, i32 0
+// CHECK-NEXT: [[FIELDS:%.*]] = alloca [3 x ptr]
+// CHECK-32-NEXT: [[FIELDS_DEST:%.*]] = getelementptr inbounds [[INT]], ptr %0, [[INT]] 13
+// CHECK-64-NEXT: [[FIELDS_DEST:%.*]] = getelementptr inbounds [[INT]], ptr %0, [[INT]] 10
+// CHECK-32-NEXT: call void @llvm.lifetime.start.p0(i64 12, ptr [[FIELDS]])
+// CHECK-64-NEXT: call void @llvm.lifetime.start.p0(i64 24, ptr [[FIELDS]])
+// CHECK-NEXT: [[FIELDS_PTR:%.*]] = getelementptr inbounds [3 x ptr], ptr [[FIELDS]], i32 0, i32 0
 
 // CHECK:      [[T0:%.*]] = call swiftcc %swift.metadata_response @"$s16resilient_struct4SizeVMa"([[INT]] 319)
 // CHECK-NEXT: [[SIZE_METADATA:%.*]] = extractvalue %swift.metadata_response [[T0]], 0
@@ -243,60 +230,58 @@ bb0(%0 : $ClassWithResilientField):
 // CHECK: dependency-satisfied:
 
 // -- ClassLayoutFlags = 0x100 (HasStaticVTable)
-// CHECK-OLD:  [[T0:%.*]] = call swiftcc %swift.metadata_response @swift_initClassMetadata2(%swift.type* %0, [[INT]] 256, [[INT]] 3, i8*** [[FIELDS_PTR]], [[INT]]* [[FIELDS_DEST]])
-// CHECK-NEW:  [[T0:%.*]] = call swiftcc %swift.metadata_response @swift_updateClassMetadata2(%swift.type* %0, [[INT]] 256, [[INT]] 3, i8*** [[FIELDS_PTR]], [[INT]]* [[FIELDS_DEST]])
+// CHECK-OLD:  [[T0:%.*]] = call swiftcc %swift.metadata_response @swift_initClassMetadata2(ptr %0, [[INT]] 256, [[INT]] 3, ptr [[FIELDS_PTR]], ptr [[FIELDS_DEST]])
+// CHECK-NEW:  [[T0:%.*]] = call swiftcc %swift.metadata_response @swift_updateClassMetadata2(ptr %0, [[INT]] 256, [[INT]] 3, ptr [[FIELDS_PTR]], ptr [[FIELDS_DEST]])
 // CHECK-NEXT: [[INITDEP_METADATA:%.*]] = extractvalue %swift.metadata_response [[T0]], 0
 // CHECK-NEXT: [[INITDEP_STATUS:%.*]] = extractvalue %swift.metadata_response [[T0]], 1
-// CHECK-NEXT: [[INITDEP_PRESENT:%.*]] = icmp eq %swift.type* [[INITDEP_METADATA]], null
+// CHECK-NEXT: [[INITDEP_PRESENT:%.*]] = icmp eq ptr [[INITDEP_METADATA]], null
 // CHECK-NEXT: br i1 [[INITDEP_PRESENT]], label %dependency-satisfied1, label %metadata-dependencies.cont
 
 // CHECK: dependency-satisfied1:
 
-// CHECK-native:      [[FIELD_OFFSET:%.*]] = load [[INT]], [[INT]]* {{.*}}
-// CHECK-native-NEXT: store [[INT]] [[FIELD_OFFSET]], [[INT]]* @"$s42class_update_callback_without_fixed_layout23ClassWithResilientFieldC1s16resilient_struct4SizeVvpWvd"
+// CHECK-native:      [[FIELD_OFFSET:%.*]] = load [[INT]], ptr {{.*}}
+// CHECK-native-NEXT: store [[INT]] [[FIELD_OFFSET]], ptr @"$s42class_update_callback_without_fixed_layout23ClassWithResilientFieldC1s16resilient_struct4SizeVvpWvd"
 
-// CHECK-native:      [[FIELD_OFFSET:%.*]] = load [[INT]], [[INT]]* {{.*}}
-// CHECK-native-NEXT: store [[INT]] [[FIELD_OFFSET]], [[INT]]* @"$s42class_update_callback_without_fixed_layout23ClassWithResilientFieldC5colors5Int32VvpWvd"
+// CHECK-native:      [[FIELD_OFFSET:%.*]] = load [[INT]], ptr {{.*}}
+// CHECK-native-NEXT: store [[INT]] [[FIELD_OFFSET]], ptr @"$s42class_update_callback_without_fixed_layout23ClassWithResilientFieldC5colors5Int32VvpWvd"
 
 // CHECK:      br label %metadata-dependencies.cont
 
 // CHECK: metadata-dependencies.cont:
 
-// CHECK-NEXT: [[PENDING_METADATA:%.*]] = phi %swift.type* [ [[SIZE_METADATA]], %entry ], [ [[INITDEP_METADATA]], %dependency-satisfied ], [ null, %dependency-satisfied1 ]
+// CHECK-NEXT: [[PENDING_METADATA:%.*]] = phi ptr [ [[SIZE_METADATA]], %entry ], [ [[INITDEP_METADATA]], %dependency-satisfied ], [ null, %dependency-satisfied1 ]
 // CHECK-NEXT: [[NEW_STATUS:%.*]] = phi [[INT]] [ 63, %entry ], [ [[INITDEP_STATUS]], %dependency-satisfied ], [ 0, %dependency-satisfied1 ]
-// CHECK-NEXT: [[T0:%.*]] = insertvalue %swift.metadata_response undef, %swift.type* [[PENDING_METADATA]], 0
+// CHECK-NEXT: [[T0:%.*]] = insertvalue %swift.metadata_response undef, ptr [[PENDING_METADATA]], 0
 // CHECK-NEXT: [[T1:%.*]] = insertvalue %swift.metadata_response [[T0]], [[INT]] [[NEW_STATUS]], 1
 // CHECK-NEXT: ret %swift.metadata_response [[T1]]
 
 
 // Metadata initialization function for SubclassOfClassWithResilientField:
 
-// CHECK-LABEL: define internal swiftcc %swift.metadata_response @"$s42class_update_callback_without_fixed_layout33SubclassOfClassWithResilientFieldCMr"(%swift.type* %0, i8* %1, i8** %2)
+// CHECK-LABEL: define internal swiftcc %swift.metadata_response @"$s42class_update_callback_without_fixed_layout33SubclassOfClassWithResilientFieldCMr"(ptr %0, ptr %1, ptr %2)
 
 // CHECK: entry:
-// CHECK-NEXT: [[FIELDS:%.*]] = alloca [0 x i8**]
-// CHECK-NEXT: [[METADATA_ADDR:%.*]] = bitcast %swift.type* %0 to [[INT]]*
-// CHECK-32-NEXT: [[FIELDS_DEST:%.*]] = getelementptr inbounds [[INT]], [[INT]]* [[METADATA_ADDR]], [[INT]] 17
-// CHECK-64-NEXT: [[FIELDS_DEST:%.*]] = getelementptr inbounds [[INT]], [[INT]]* [[METADATA_ADDR]], [[INT]] 14
-// CHECK-NEXT: [[FIELDS_ADDR:%.*]] = bitcast [0 x i8**]* [[FIELDS]] to i8*
-// CHECK-NEXT: call void @llvm.lifetime.start.p0i8(i64 0, i8* [[FIELDS_ADDR]])
-// CHECK-NEXT: [[FIELDS_PTR:%.*]] = getelementptr inbounds [0 x i8**], [0 x i8**]* [[FIELDS]], i32 0, i32 0
+// CHECK-NEXT: [[FIELDS:%.*]] = alloca [0 x ptr]
+// CHECK-32-NEXT: [[FIELDS_DEST:%.*]] = getelementptr inbounds [[INT]], ptr %0, [[INT]] 17
+// CHECK-64-NEXT: [[FIELDS_DEST:%.*]] = getelementptr inbounds [[INT]], ptr %0, [[INT]] 14
+// CHECK-NEXT: call void @llvm.lifetime.start.p0(i64 0, ptr [[FIELDS]])
+// CHECK-NEXT: [[FIELDS_PTR:%.*]] = getelementptr inbounds [0 x ptr], ptr [[FIELDS]], i32 0, i32 0
 
 // -- ClassLayoutFlags = 0x100 (HasStaticVTable)
-// CHECK-OLD:  [[T0:%.*]] = call swiftcc %swift.metadata_response @swift_initClassMetadata2(%swift.type* %0, [[INT]] 256, [[INT]] 0, i8*** [[FIELDS_PTR]], [[INT]]* [[FIELDS_DEST]])
-// CHECK-NEW:  [[T0:%.*]] = call swiftcc %swift.metadata_response @swift_updateClassMetadata2(%swift.type* %0, [[INT]] 256, [[INT]] 0, i8*** [[FIELDS_PTR]], [[INT]]* [[FIELDS_DEST]])
+// CHECK-OLD:  [[T0:%.*]] = call swiftcc %swift.metadata_response @swift_initClassMetadata2(ptr %0, [[INT]] 256, [[INT]] 0, ptr [[FIELDS_PTR]], ptr [[FIELDS_DEST]])
+// CHECK-NEW:  [[T0:%.*]] = call swiftcc %swift.metadata_response @swift_updateClassMetadata2(ptr %0, [[INT]] 256, [[INT]] 0, ptr [[FIELDS_PTR]], ptr [[FIELDS_DEST]])
 // CHECK-NEXT: [[INITDEP_METADATA:%.*]] = extractvalue %swift.metadata_response [[T0]], 0
 // CHECK-NEXT: [[INITDEP_STATUS:%.*]] = extractvalue %swift.metadata_response [[T0]], 1
-// CHECK-NEXT: [[INITDEP_PRESENT:%.*]] = icmp eq %swift.type* [[INITDEP_METADATA]], null
+// CHECK-NEXT: [[INITDEP_PRESENT:%.*]] = icmp eq ptr [[INITDEP_METADATA]], null
 // CHECK-NEXT: br i1 [[INITDEP_PRESENT]], label %dependency-satisfied, label %metadata-dependencies.cont
 
 // CHECK: dependency-satisfied:
 // CHECK:      br label %metadata-dependencies.cont
 
 // CHECK: metadata-dependencies.cont:
-// CHECK-NEXT: [[PENDING_METADATA:%.*]] = phi %swift.type* [ [[INITDEP_METADATA]], %entry ], [ null, %dependency-satisfied ]
+// CHECK-NEXT: [[PENDING_METADATA:%.*]] = phi ptr [ [[INITDEP_METADATA]], %entry ], [ null, %dependency-satisfied ]
 // CHECK-NEXT: [[NEW_STATUS:%.*]] = phi [[INT]] [ [[INITDEP_STATUS]], %entry ], [ 0, %dependency-satisfied ]
-// CHECK-NEXT: [[T0:%.*]] = insertvalue %swift.metadata_response undef, %swift.type* [[PENDING_METADATA]], 0
+// CHECK-NEXT: [[T0:%.*]] = insertvalue %swift.metadata_response undef, ptr [[PENDING_METADATA]], 0
 // CHECK-NEXT: [[T1:%.*]] = insertvalue %swift.metadata_response [[T0]], [[INT]] [[NEW_STATUS]], 1
 // CHECK-NEXT: ret %swift.metadata_response [[T1]]
 
@@ -304,20 +289,20 @@ bb0(%0 : $ClassWithResilientField):
 
 // CHECK-LABEL: define swiftcc %swift.metadata_response @"$s42class_update_callback_without_fixed_layout22ClassWithResilientEnumCMa
 
-// CHECK:      [[CACHE:%.*]] = load %swift.type*, %swift.type** getelementptr inbounds ({ %swift.type*, i8* }, { %swift.type*, i8* }* @"$s42class_update_callback_without_fixed_layout22ClassWithResilientEnumCMl", i32 0, i32 0)
-// CHECK-NEXT: [[COND:%.*]] = icmp eq %swift.type* [[CACHE]], null
+// CHECK:      [[CACHE:%.*]] = load ptr, ptr @"$s42class_update_callback_without_fixed_layout22ClassWithResilientEnumCMl"
+// CHECK-NEXT: [[COND:%.*]] = icmp eq ptr [[CACHE]], null
 // CHECK-NEXT: br i1 [[COND]], label %cacheIsNull, label %cont
 
 // CHECK: cacheIsNull:
-// CHECK-NEXT: [[RESPONSE:%.*]] = call swiftcc %swift.metadata_response @swift_getSingletonMetadata([[INT]] %0, %swift.type_descriptor* bitcast ({{.*}} @"$s42class_update_callback_without_fixed_layout22ClassWithResilientEnumCMn" to %swift.type_descriptor*))
+// CHECK-NEXT: [[RESPONSE:%.*]] = call swiftcc %swift.metadata_response @swift_getSingletonMetadata([[INT]] %0, ptr @"$s42class_update_callback_without_fixed_layout22ClassWithResilientEnumCMn")
 // CHECK-NEXT: [[METADATA:%.*]] = extractvalue %swift.metadata_response [[RESPONSE]], 0
 // CHECK-NEXT: [[STATUS:%.*]] = extractvalue %swift.metadata_response [[RESPONSE]], 1
 // CHECK-NEXT: br label %cont
 
 // CHECK: cont:
-// CHECK-NEXT: [[NEW_METADATA:%.*]] = phi %swift.type* [ [[CACHE]], %entry ], [ [[METADATA]], %cacheIsNull ]
+// CHECK-NEXT: [[NEW_METADATA:%.*]] = phi ptr [ [[CACHE]], %entry ], [ [[METADATA]], %cacheIsNull ]
 // CHECK-NEXT: [[NEW_STATUS:%.*]] = phi [[INT]] [ 0, %entry ], [ [[STATUS]], %cacheIsNull ]
-// CHECK-NEXT: [[T0:%.*]] = insertvalue %swift.metadata_response undef, %swift.type* [[NEW_METADATA]], 0
+// CHECK-NEXT: [[T0:%.*]] = insertvalue %swift.metadata_response undef, ptr [[NEW_METADATA]], 0
 // CHECK-NEXT: [[T1:%.*]] = insertvalue %swift.metadata_response [[T0]], [[INT]] [[NEW_STATUS]], 1
 // CHECK-NEXT: ret %swift.metadata_response [[T1]]
 

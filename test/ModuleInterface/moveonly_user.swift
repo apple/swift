@@ -5,8 +5,8 @@
 // RUN: %target-swift-frontend -emit-sil -sil-verify-all -I %t %s > /dev/null
 
 // >> now again with library evolution; we expect the same result.
-// RUN: %target-swift-frontend -DSYNTHESIZE_ACCESSORS -enable-library-evolution -emit-module -o %t/Hello.swiftmodule %S/Inputs/moveonly_api.swift
-// RUN: %target-swift-frontend -emit-sil -sil-verify-all -I %t %s > /dev/null
+// RUN: %target-swift-frontend -DSYNTHESIZE_ACCESSORS -enable-library-evolution -enable-experimental-feature MoveOnlyResilientTypes -emit-module -o %t/Hello.swiftmodule %S/Inputs/moveonly_api.swift
+// RUN: %target-swift-frontend -enable-experimental-feature MoveOnlyResilientTypes -emit-sil -sil-verify-all -I %t %s > /dev/null
 
 // FIXME: ideally this would also try executing the program rather than just generating SIL
 

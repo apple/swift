@@ -21,6 +21,7 @@
 #include "swift/Runtime/AccessibleFunction.h"
 #include "swift/Runtime/Concurrent.h"
 #include "swift/Runtime/Metadata.h"
+#include "Tracing.h"
 
 #include <cstdint>
 #include <new>
@@ -120,12 +121,14 @@ void swift::addImageAccessibleFunctionsBlockCallback(
 
 static const AccessibleFunctionRecord *
 _searchForFunctionRecord(AccessibleFunctionsState &S, llvm::StringRef name) {
+  auto traceState = runtime::trace::accessible_function_scan_begin(name);
+
   for (const auto &section : S.SectionsToScan.snapshot()) {
     for (auto &record : section) {
       auto recordName =
           swift::Demangle::makeSymbolicMangledNameStringRef(record.Name.get());
       if (recordName == name)
-        return &record;
+        return traceState.end(&record);
     }
   }
   return nullptr;

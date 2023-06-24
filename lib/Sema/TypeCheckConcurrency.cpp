@@ -1004,8 +1004,9 @@ bool swift::diagnoseNonSendableTypes(
 }
 
 bool swift::diagnoseNonSendableTypesInReference(
-    ConcreteDeclRef declRef, const DeclContext *fromDC, SourceLoc loc,
-    SendableCheckReason reason, Optional<ActorIsolation> knownIsolation) {
+    ConcreteDeclRef declRef, const DeclContext *fromDC, SourceLoc refLoc,
+    SendableCheckReason refKind, Optional<ActorIsolation> knownIsolation,
+    FunctionCheckKind funcCheckKind, SourceLoc diagnoseLoc) {
 
   // Retrieve the actor isolation to use in diagnostics.
   auto getActorIsolation = [&] {
@@ -1018,23 +1019,31 @@ bool swift::diagnoseNonSendableTypesInReference(
   // For functions, check the parameter and result types.
   SubstitutionMap subs = declRef.getSubstitutions();
   if (auto function = dyn_cast<AbstractFunctionDecl>(declRef.getDecl())) {
-    for (auto param : *function->getParameters()) {
-      Type paramType = param->getInterfaceType().subst(subs);
-      if (diagnoseNonSendableTypes(
-              paramType, fromDC, loc, diag::non_sendable_param_type,
-              (unsigned)reason, function->getDescriptiveKind(),
-              function->getName(), getActorIsolation()))
-        return true;
+    if (funcCheckKind != FunctionCheckKind::Results) {
+      // only check params if funcCheckKind specifies so
+      for (auto param : *function->getParameters()) {
+        Type paramType = param->getInterfaceType().subst(subs);
+        if (diagnoseNonSendableTypes(
+            paramType, fromDC, refLoc, diagnoseLoc.isInvalid() ? refLoc : diagnoseLoc,
+                diag::non_sendable_param_type,
+            (unsigned)refKind, function->getDescriptiveKind(),
+            function->getName(), getActorIsolation()))
+          return true;
+      }
     }
 
     // Check the result type of a function.
     if (auto func = dyn_cast<FuncDecl>(function)) {
-      Type resultType = func->getResultInterfaceType().subst(subs);
-      if (diagnoseNonSendableTypes(
-              resultType, fromDC, loc, diag::non_sendable_result_type,
-              (unsigned)reason, func->getDescriptiveKind(), func->getName(),
-              getActorIsolation()))
-        return true;
+      if (funcCheckKind != FunctionCheckKind::Params) {
+        // only check results if funcCheckKind specifies so
+        Type resultType = func->getResultInterfaceType().subst(subs);
+        if (diagnoseNonSendableTypes(
+            resultType, fromDC, refLoc, diagnoseLoc.isInvalid() ? refLoc : diagnoseLoc,
+                diag::non_sendable_result_type,
+            (unsigned)refKind, func->getDescriptiveKind(), func->getName(),
+            getActorIsolation()))
+          return true;
+      }
     }
 
     return false;
@@ -1045,32 +1054,39 @@ bool swift::diagnoseNonSendableTypesInReference(
         ? var->getType()
         : var->getValueInterfaceType().subst(subs);
     if (diagnoseNonSendableTypes(
-            propertyType, fromDC, loc,
+            propertyType, fromDC, refLoc,
             diag::non_sendable_property_type,
             var->getDescriptiveKind(), var->getName(),
             var->isLocalCapture(),
-            (unsigned)reason,
+            (unsigned)refKind,
             getActorIsolation()))
       return true;
   }
 
   if (auto subscript = dyn_cast<SubscriptDecl>(declRef.getDecl())) {
     for (auto param : *subscript->getIndices()) {
-      Type paramType = param->getInterfaceType().subst(subs);
-      if (diagnoseNonSendableTypes(
-              paramType, fromDC, loc, diag::non_sendable_param_type,
-              (unsigned)reason, subscript->getDescriptiveKind(),
-              subscript->getName(), getActorIsolation()))
-        return true;
+      if (funcCheckKind != FunctionCheckKind::Results) {
+        // Check params of this subscript override for sendability
+        Type paramType = param->getInterfaceType().subst(subs);
+        if (diagnoseNonSendableTypes(
+                paramType, fromDC, refLoc, diagnoseLoc.isInvalid() ? refLoc : diagnoseLoc,
+                diag::non_sendable_param_type,
+                (unsigned)refKind, subscript->getDescriptiveKind(),
+                subscript->getName(), getActorIsolation()))
+          return true;
+      }
     }
 
-    // Check the element type of a subscript.
-    Type resultType = subscript->getElementInterfaceType().subst(subs);
-    if (diagnoseNonSendableTypes(
-            resultType, fromDC, loc, diag::non_sendable_result_type,
-            (unsigned)reason, subscript->getDescriptiveKind(),
-            subscript->getName(), getActorIsolation()))
-      return true;
+    if (funcCheckKind != FunctionCheckKind::Results) {
+      // Check the element type of a subscript.
+      Type resultType = subscript->getElementInterfaceType().subst(subs);
+      if (diagnoseNonSendableTypes(
+          resultType, fromDC, refLoc, diagnoseLoc.isInvalid() ? refLoc : diagnoseLoc,
+              diag::non_sendable_result_type,
+          (unsigned)refKind, subscript->getDescriptiveKind(),
+          subscript->getName(), getActorIsolation()))
+        return true;
+    }
 
     return false;
   }
@@ -3893,7 +3909,7 @@ static ActorIsolation getOverriddenIsolationFor(ValueDecl *value) {
   return isolation.subst(subs);
 }
 
-static ConcreteDeclRef getDeclRefInContext(ValueDecl *value) {
+ConcreteDeclRef swift::getDeclRefInContext(ValueDecl *value) {
   auto declContext = value->getInnermostDeclContext();
   if (auto genericEnv = declContext->getGenericEnvironmentOfContext()) {
     return ConcreteDeclRef(
@@ -4369,9 +4385,18 @@ void swift::checkOverrideActorIsolation(ValueDecl *value) {
     return;
 
   case OverrideIsolationResult::Sendable:
+    // Check that the results of the overriding method are sendable
     diagnoseNonSendableTypesInReference(
         getDeclRefInContext(value), value->getInnermostDeclContext(),
-        value->getLoc(), SendableCheckReason::Override);
+        value->getLoc(), SendableCheckReason::Override,
+        getActorIsolation(value), FunctionCheckKind::Results);
+
+    // Check that the parameters of the overridden method are sendable
+    diagnoseNonSendableTypesInReference(
+        getDeclRefInContext(overridden), overridden->getInnermostDeclContext(),
+        overridden->getLoc(), SendableCheckReason::Override,
+        getActorIsolation(value), FunctionCheckKind::Params,
+        value->getLoc());
     return;
 
   case OverrideIsolationResult::Disallowed:

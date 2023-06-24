@@ -440,8 +440,7 @@ bool SILCombiner::doOneIteration(SILFunction &F, unsigned Iteration) {
       // owned parameters since chains of these values will be in the same
       // block.
       if (auto *svi = dyn_cast<SingleValueInstruction>(I)) {
-        if ((isa<FirstArgOwnershipForwardingSingleValueInst>(svi) ||
-             isa<OwnershipForwardingConversionInst>(svi)) &&
+        if (ForwardingInstruction::canForwardFirstOperandOnly(svi) &&
             SILValue(svi)->getOwnershipKind() == OwnershipKind::Owned) {
           // Try to sink the value. If we sank the value and deleted it,
           // continue. If we didn't optimize or sank but we are still able to

@@ -19,6 +19,6 @@ struct Huge {
   var unalign: Builtin.Int8
 }
 
-// CHECK: define linkonce_odr hidden i8* @__swift_memcpy4097_8(i8* %0, i8* %1, %swift.type* %2)
-// CHECK:   call void @llvm.memcpy.p0i8.p0i8.{{(i64|i32)}}(i8* align 8 %0, i8* align 8 %1, {{(i64|i32)}} 4097, i1 false)
-// CHECK:   ret i8* %0
+// CHECK: define linkonce_odr hidden ptr @__swift_memcpy4097_8(ptr %0, ptr %1, ptr %2)
+// CHECK:   call void @llvm.memcpy.p0.p0.{{(i64|i32)}}(ptr align 8 %0, ptr align 8 %1, {{(i64|i32)}} 4097, i1 false)
+// CHECK:   ret ptr %0

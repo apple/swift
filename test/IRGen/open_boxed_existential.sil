@@ -2,10 +2,10 @@
 
 import Swift
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc {{i[0-9]+}} @open_boxed_existential(%swift.error* %0)
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc {{i[0-9]+}} @open_boxed_existential(ptr %0)
 sil @open_boxed_existential : $@convention(thin) (@owned Error) -> Int {
 entry(%b : $Error):
-  // CHECK: call void @swift_getErrorValue(%swift.error* %0, i8** {{%.*}}, [[TRIPLE:{ %swift.opaque\*, %swift.type\*, i8\*\* }]]* [[OUT:%.*]])
+  // CHECK: call void @swift_getErrorValue(ptr %0, ptr {{%.*}}, ptr [[OUT:%.*]])
   // CHECK: [[OUT_ADDR:%.*]] = getelementptr inbounds {{.*}} [[OUT]], i32 0, i32 0
   // CHECK: [[ADDR:%.*]] = load {{.*}} [[OUT_ADDR]]
   // CHECK: [[OUT_TYPE:%.*]] = getelementptr inbounds {{.*}} [[OUT]], i32 0, i32 1
@@ -14,7 +14,7 @@ entry(%b : $Error):
   // CHECK: [[WITNESS:%.*]] = load {{.*}} [[OUT_WITNESS]]
   %o = open_existential_box %b : $Error to $*@opened("01234567-89AB-CDEF-0123-000000000000", Error) Self
   %m = witness_method $@opened("01234567-89AB-CDEF-0123-000000000000", Error) Self, #Error._code!getter, %o : $*@opened("01234567-89AB-CDEF-0123-000000000000", Error) Self : $@convention(witness_method: Error) <Self: Error> (@in_guaranteed Self) -> Int
-  // CHECK: [[RESULT:%.*]] =  call swiftcc [[INT:i[0-9]+]] @"$ss5ErrorP5_codeSivgTj"(%swift.opaque* noalias nocapture swiftself [[ADDR]], %swift.type* [[TYPE]], i8** [[WITNESS]])
+  // CHECK: [[RESULT:%.*]] =  call swiftcc [[INT:i[0-9]+]] @"$ss5ErrorP5_codeSivgTj"(ptr noalias nocapture swiftself [[ADDR]], ptr [[TYPE]], ptr [[WITNESS]])
   %c = apply %m<@opened("01234567-89AB-CDEF-0123-000000000000", Error) Self>(%o) : $@convention(witness_method: Error) <Self: Error> (@in_guaranteed Self) -> Int
   // CHECK: ret [[INT]] [[RESULT]]
   return %c : $Int

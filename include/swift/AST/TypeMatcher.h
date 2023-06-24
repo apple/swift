@@ -438,10 +438,12 @@ class TypeMatcher {
 
         if (firstArgs.size() == secondArgs.size()) {
           for (unsigned i : indices(firstArgs)) {
-            return this->visit(CanType(firstArgs[i]),
-                               secondArgs[i],
-                               sugaredFirstType->castTo<ParameterizedProtocolType>()
-                                   ->getArgs()[i]);
+            if (!this->visit(CanType(firstArgs[i]),
+                             secondArgs[i],
+                             sugaredFirstType->castTo<ParameterizedProtocolType>()
+                                 ->getArgs()[i])) {
+              return false;
+            }
           }
 
           return true;

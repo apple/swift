@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend -prespecialize-generic-metadata -target %module-target-future -emit-ir %s -swift-version 4 | %FileCheck %s -DINT=i%target-ptrsize -DALIGNMENT=%target-alignment
+// RUN: %target-swift-frontend %use_no_opaque_pointers -prespecialize-generic-metadata -target %module-target-future -emit-ir %s -swift-version 4 | %FileCheck %s -DINT=i%target-ptrsize -DALIGNMENT=%target-alignment
+// RUN: %target-swift-frontend -prespecialize-generic-metadata -target %module-target-future -emit-ir %s -swift-version 4
 
 // REQUIRES: VENDOR=apple || OS=linux-gnu
 // UNSUPPORTED: CPU=i386 && OS=ios

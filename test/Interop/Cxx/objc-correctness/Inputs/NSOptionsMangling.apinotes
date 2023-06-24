@@ -1,0 +1,5 @@
+---
+Name: NSOptionsMangling
+Tags:
+- Name: UIControlState
+  SwiftName: UIControl.State

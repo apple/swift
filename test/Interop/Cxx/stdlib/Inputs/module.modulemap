@@ -3,11 +3,6 @@ module StdVector {
   requires cplusplus
 }
 
-module StdString {
-  header "std-string.h"
-  requires cplusplus
-}
-
 module StdMap {
   header "std-map.h"
   requires cplusplus

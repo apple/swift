@@ -1,4 +1,6 @@
-// RUN: %target-swift-frontend %s -module-name A -emit-ir -g -o - | %FileCheck %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers %s -module-name A -emit-ir -g -o - | %FileCheck %s
+// RUN: %target-swift-frontend %s -module-name A -emit-ir -g -o -
+
 // REQUIRES: CPU=x86_64
 public struct Continuation<A> {
    private let magicToken = "Hello World"

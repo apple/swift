@@ -55,7 +55,7 @@ gatherConstValuesForModule(const std::unordered_set<std::string> &Protocols,
 /// Serialize a collection of \c ConstValueInfos to JSON at the
 /// provided output stream.
 bool writeAsJSONToFile(const std::vector<ConstValueTypeInfo> &ConstValueInfos,
-                       llvm::raw_fd_ostream &OS);
+                       llvm::raw_ostream &OS);
 } // namespace swift
 
 #endif

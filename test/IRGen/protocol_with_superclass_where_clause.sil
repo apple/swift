@@ -25,147 +25,109 @@ class SubDerived : Derived {}
 
 class MoreDerived : Concrete, SubProto {}
 
-// CHECK-objc-LABEL: define hidden swiftcc void @checkExistentialDowncast(%T24protocol_with_superclass8ConcreteC* %0, {{.*}} {
-// CHECK-native-LABEL: define hidden swiftcc void @checkExistentialDowncast(%T24protocol_with_superclass8ConcreteC* %0, %swift.refcounted* %1, i8** %2, %T24protocol_with_superclass8ConcreteC* %3, i8** %4, %T24protocol_with_superclass8ConcreteC* %5, i8** %6, %T24protocol_with_superclass8ConcreteC* %7, i8** %8) {{.*}} {
+// CHECK-objc-LABEL: define hidden swiftcc void @checkExistentialDowncast(ptr %0, {{.*}} {
+// CHECK-native-LABEL: define hidden swiftcc void @checkExistentialDowncast(ptr %0, ptr %1, ptr %2, ptr %3, ptr %4, ptr %5, ptr %6, ptr %7, ptr %8) {{.*}} {
 sil hidden @checkExistentialDowncast : $@convention(thin) (@owned Concrete, @owned SuperProto, @owned SuperProto & Concrete, @owned ProtoRefinesClass, @owned SubProto) -> () {
 bb0(%0 : $Concrete, %1 : $SuperProto, %2 : $SuperProto & Concrete, %3 : $ProtoRefinesClass, %4 : $SubProto):
 
-  // CHECK:             [[ISA_ADDR:%.*]] = bitcast %T24protocol_with_superclass8ConcreteC* %0 to %swift.type**
-  // CHECK-NEXT:        [[ISA:%.*]] = load %swift.type*, %swift.type** [[ISA_ADDR]]
-  // CHECK-NEXT:        [[OBJECT:%.*]] = bitcast %T24protocol_with_superclass8ConcreteC* %0 to i8*
-  // CHECK-NEXT:        [[RESULT:%.*]] = call { i8*, i8** } @dynamic_cast_existential_1_unconditional(i8* [[OBJECT]], %swift.type* [[ISA]], {{.*}} @"$s24protocol_with_superclass17ProtoRefinesClassMp"
-  // CHECK-NEXT:        [[FIRST:%.*]] = extractvalue { i8*, i8** } [[RESULT]], 0
-  // CHECK-NEXT:        [[REFERENCE:%.*]] = bitcast i8* [[FIRST]] to %T24protocol_with_superclass8ConcreteC*
+  // CHECK:        [[ISA:%.*]] = load ptr, ptr %0
+  // CHECK-NEXT:        [[RESULT:%.*]] = call { ptr, ptr } @dynamic_cast_existential_1_unconditional(ptr %0, ptr [[ISA]], {{.*}} @"$s24protocol_with_superclass17ProtoRefinesClassMp"
+  // CHECK-NEXT:        [[FIRST:%.*]] = extractvalue { ptr, ptr } [[RESULT]], 0
   %5 = unconditional_checked_cast %0 : $Concrete to ProtoRefinesClass
 
-  // CHECK:             call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T24protocol_with_superclass8ConcreteC*)*)(%T24protocol_with_superclass8ConcreteC* [[REFERENCE]])
+  // CHECK:             call void @swift_release(ptr [[FIRST]])
   strong_release %5 : $ProtoRefinesClass
 
-  // CHECK:             [[ISA_ADDR:%.*]] = bitcast %T24protocol_with_superclass8ConcreteC* %0 to %swift.type**
-  // CHECK-NEXT:        [[ISA:%.*]] = load %swift.type*, %swift.type** [[ISA_ADDR]]
-  // CHECK-NEXT:        [[OBJECT:%.*]] = bitcast %T24protocol_with_superclass8ConcreteC* %0 to i8*
-  // CHECK-NEXT:        [[RESULT:%.*]] = call { i8*, i8** } @dynamic_cast_existential_1_unconditional(i8* [[OBJECT]], %swift.type* [[ISA]], {{.*}} @"$s24protocol_with_superclass8SubProtoMp"
-  // CHECK-NEXT:        [[FIRST:%.*]] = extractvalue { i8*, i8** } [[RESULT]], 0
-  // CHECK-NEXT:        [[REFERENCE:%.*]] = bitcast i8* [[FIRST]] to %T24protocol_with_superclass8ConcreteC*
+  // CHECK:        [[ISA:%.*]] = load ptr, ptr %0
+  // CHECK-NEXT:        [[RESULT:%.*]] = call { ptr, ptr } @dynamic_cast_existential_1_unconditional(ptr %0, ptr [[ISA]], {{.*}} @"$s24protocol_with_superclass8SubProtoMp"
+  // CHECK-NEXT:        [[FIRST:%.*]] = extractvalue { ptr, ptr } [[RESULT]], 0
   %6 = unconditional_checked_cast %0 : $Concrete to SubProto
 
-  // CHECK:             call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T24protocol_with_superclass8ConcreteC*)*)(%T24protocol_with_superclass8ConcreteC* [[REFERENCE]])
+  // CHECK:             call void @swift_release(ptr [[FIRST]])
   strong_release %6 : $SubProto
 
-  // CHECK-objc:        [[ISA:%.*]] = call %swift.type* @swift_getObjectType(%objc_object* %{{[0-9]+}})
-  // CHECK-objc-NEXT:   [[OBJECT:%.*]] = bitcast %objc_object* %{{[0-9]+}} to i8*
-  // CHECK-native:      [[ISA_ADDR:%.*]] = bitcast %swift.refcounted* %1
-  // CHECK-native-NEXT: [[ISA:%.*]] = load %swift.type*, %swift.type** [[ISA_ADDR]]
-  // CHECK-native-NEXT: [[OBJECT:%.*]] = bitcast %swift.refcounted* %1 to i8*
-  // CHECK-NEXT:        [[RESULT:%.*]] = call { i8*, i8** } @dynamic_cast_existential_1_unconditional(i8* [[OBJECT]], %swift.type* [[ISA]], {{.*}} @"$s24protocol_with_superclass17ProtoRefinesClassMp"
-  // CHECK-NEXT:        [[FIRST:%.*]] = extractvalue { i8*, i8** } [[RESULT]], 0
-  // CHECK-NEXT:        [[REFERENCE:%.*]] = bitcast i8* [[FIRST]] to %T24protocol_with_superclass8ConcreteC*
+  // CHECK-objc:        [[ISA:%.*]] = call ptr @swift_getObjectType(ptr %{{[0-9]+}})
+  // CHECK-native-NEXT: [[ISA:%.*]] = load ptr, ptr %1
+  // CHECK-NEXT:        [[RESULT:%.*]] = call { ptr, ptr } @dynamic_cast_existential_1_unconditional(ptr %1, ptr [[ISA]], {{.*}} @"$s24protocol_with_superclass17ProtoRefinesClassMp"
+  // CHECK-NEXT:        [[FIRST:%.*]] = extractvalue { ptr, ptr } [[RESULT]], 0
   %7 = unconditional_checked_cast %1 : $SuperProto to ProtoRefinesClass
 
-  // CHECK:             call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T24protocol_with_superclass8ConcreteC*)*)(%T24protocol_with_superclass8ConcreteC* [[REFERENCE]])
+  // CHECK:             call void @swift_release(ptr [[FIRST]])
   strong_release %7 : $ProtoRefinesClass
 
-  // CHECK-objc:        [[ISA:%.*]] = call %swift.type* @swift_getObjectType(%objc_object* %{{[0-9]+}})
-  // CHECK-objc-NEXT:   [[OBJECT:%.*]] = bitcast %objc_object* %{{[0-9]+}} to i8*
-  // CHECK-native:      [[ISA_ADDR:%.*]] = bitcast %swift.refcounted* %1
-  // CHECK-native-NEXT: [[ISA:%.*]] = load %swift.type*, %swift.type** [[ISA_ADDR]]
-  // CHECK-native-NEXT: [[OBJECT:%.*]] = bitcast %swift.refcounted* %1 to i8*
-  // CHECK-NEXT:        [[RESULT:%.*]] = call { i8*, i8** } @dynamic_cast_existential_1_unconditional(i8* [[OBJECT]], %swift.type* [[ISA]], {{.*}} @"$s24protocol_with_superclass8SubProtoMp"
-  // CHECK-NEXT:        [[FIRST:%.*]] = extractvalue { i8*, i8** } [[RESULT]], 0
-  // CHECK-NEXT:        [[REFERENCE:%.*]] = bitcast i8* [[FIRST]] to %T24protocol_with_superclass8ConcreteC*
+  // CHECK-objc:        [[ISA:%.*]] = call ptr @swift_getObjectType(ptr %{{[0-9]+}})
+  // CHECK-native-NEXT: [[ISA:%.*]] = load ptr, ptr %1
+  // CHECK-NEXT:        [[RESULT:%.*]] = call { ptr, ptr } @dynamic_cast_existential_1_unconditional(ptr %1, ptr [[ISA]], {{.*}} @"$s24protocol_with_superclass8SubProtoMp"
+  // CHECK-NEXT:        [[FIRST:%.*]] = extractvalue { ptr, ptr } [[RESULT]], 0
   %8 = unconditional_checked_cast %1 : $SuperProto to SubProto
 
-  // CHECK:             call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T24protocol_with_superclass8ConcreteC*)*)(%T24protocol_with_superclass8ConcreteC* [[REFERENCE]])
+  // CHECK:             call void @swift_release(ptr [[FIRST]])
   strong_release %8 : $SubProto
 
-  // CHECK:             [[ISA_ADDR:%.*]] = bitcast %T24protocol_with_superclass8ConcreteC* %{{[0-9]+}} to %swift.type**
-  // CHECK-NEXT:        [[ISA:%.*]] = load %swift.type*, %swift.type** [[ISA_ADDR]]
-  // CHECK-NEXT:        [[OBJECT:%.*]] = bitcast %T24protocol_with_superclass8ConcreteC* %{{[0-9]+}} to i8*
-  // CHECK-NEXT:        [[RESULT:%.*]] = call { i8*, i8** } @dynamic_cast_existential_1_unconditional(i8* [[OBJECT]], %swift.type* [[ISA]], {{.*}} @"$s24protocol_with_superclass17ProtoRefinesClassMp"
-  // CHECK-NEXT:        [[FIRST:%.*]] = extractvalue { i8*, i8** } [[RESULT]], 0
-  // CHECK-NEXT:        [[REFERENCE:%.*]] = bitcast i8* [[FIRST]] to %T24protocol_with_superclass8ConcreteC*
+  // CHECK:        [[ISA:%.*]] = load ptr, ptr %{{[0-9]+}}
+  // CHECK-NEXT:        [[RESULT:%.*]] = call { ptr, ptr } @dynamic_cast_existential_1_unconditional(ptr %{{[0-9]+}}, ptr [[ISA]], {{.*}} @"$s24protocol_with_superclass17ProtoRefinesClassMp"
+  // CHECK-NEXT:        [[FIRST:%.*]] = extractvalue { ptr, ptr } [[RESULT]], 0
   %9 = unconditional_checked_cast %2 : $SuperProto & Concrete to ProtoRefinesClass
 
-  // CHECK:             call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T24protocol_with_superclass8ConcreteC*)*)(%T24protocol_with_superclass8ConcreteC* [[REFERENCE]])
+  // CHECK:             call void @swift_release(ptr [[FIRST]])
   strong_release %9 : $ProtoRefinesClass
 
-  // CHECK:             [[ISA_ADDR:%.*]] = bitcast %T24protocol_with_superclass8ConcreteC* %{{[0-9]+}} to %swift.type**
-  // CHECK-NEXT:        [[ISA:%.*]] = load %swift.type*, %swift.type** [[ISA_ADDR]]
-  // CHECK-NEXT:        [[OBJECT:%.*]] = bitcast %T24protocol_with_superclass8ConcreteC* %{{[0-9]+}} to i8*
-  // CHECK-NEXT:        [[RESULT:%.*]] = call { i8*, i8** } @dynamic_cast_existential_1_unconditional(i8* [[OBJECT]], %swift.type* [[ISA]], {{.*}} @"$s24protocol_with_superclass8SubProtoMp"
-  // CHECK-NEXT:        [[FIRST:%.*]] = extractvalue { i8*, i8** } [[RESULT]], 0
-  // CHECK-NEXT:        [[REFERENCE:%.*]] = bitcast i8* [[FIRST]] to %T24protocol_with_superclass8ConcreteC*
+  // CHECK:        [[ISA:%.*]] = load ptr, ptr %{{[0-9]+}}
+  // CHECK-NEXT:        [[RESULT:%.*]] = call { ptr, ptr } @dynamic_cast_existential_1_unconditional(ptr %{{[0-9]+}}, ptr [[ISA]], {{.*}} @"$s24protocol_with_superclass8SubProtoMp"
+  // CHECK-NEXT:        [[FIRST:%.*]] = extractvalue { ptr, ptr } [[RESULT]], 0
   %10 = unconditional_checked_cast %2 : $SuperProto & Concrete to SubProto
 
-  // CHECK:             call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T24protocol_with_superclass8ConcreteC*)*)(%T24protocol_with_superclass8ConcreteC* [[REFERENCE]])
+  // CHECK:             call void @swift_release(ptr [[FIRST]])
   strong_release %10 : $SubProto
 
-  // CHECK:             [[OBJECT:%.*]] = bitcast %T24protocol_with_superclass8ConcreteC* %{{[0-9]+}} to i8*
-  // CHECK-NEXT:        [[RESPONSE:%.*]] = call swiftcc %swift.metadata_response @"$s24protocol_with_superclass7DerivedCMa"(i{{[0-9]+}} 0)
+  // CHECK:        [[RESPONSE:%.*]] = call swiftcc %swift.metadata_response @"$s24protocol_with_superclass7DerivedCMa"(i{{[0-9]+}} 0)
   // CHECK-NEXT:        [[METADATA:%.*]] = extractvalue %swift.metadata_response [[RESPONSE]], 0
-  // CHECK-NEXT:        [[METADATA_PTR:%.*]] = bitcast %swift.type* [[METADATA]] to i8*
-  // CHECK-NEXT:        [[RESULT:%.*]] = call i8* @swift_dynamicCastClassUnconditional(i8* [[OBJECT]], i8* [[METADATA_PTR]], {{.*}})
-  // CHECK-NEXT:        [[REFERENCE:%.*]] = bitcast i8* [[RESULT]] to %T24protocol_with_superclass7DerivedC*
+  // CHECK-NEXT:        [[RESULT:%.*]] = call ptr @swift_dynamicCastClassUnconditional(ptr %{{[0-9]+}}, ptr [[METADATA]], {{.*}})
   %11 = unconditional_checked_cast %3 : $ProtoRefinesClass to Derived
 
-  // CHECK:             call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T24protocol_with_superclass7DerivedC*)*)(%T24protocol_with_superclass7DerivedC* [[REFERENCE]])
+  // CHECK:             call void @swift_release(ptr [[RESULT]])
   strong_release %11 : $Derived
 
-  // CHECK:             [[OBJECT:%.*]] = bitcast %T24protocol_with_superclass8ConcreteC* %{{[0-9]+}} to i8*
-  // CHECK-NEXT:        [[RESPONSE:%.*]] = call swiftcc %swift.metadata_response @"$s24protocol_with_superclass10SubDerivedCMa"(i{{[0-9]+}} 0)
+  // CHECK:        [[RESPONSE:%.*]] = call swiftcc %swift.metadata_response @"$s24protocol_with_superclass10SubDerivedCMa"(i{{[0-9]+}} 0)
   // CHECK-NEXT:        [[METADATA:%.*]] = extractvalue %swift.metadata_response [[RESPONSE]], 0
-  // CHECK-NEXT:        [[METADATA_PTR:%.*]] = bitcast %swift.type* [[METADATA]] to i8*
-  // CHECK-NEXT:        [[RESULT:%.*]] = call i8* @swift_dynamicCastClassUnconditional(i8* [[OBJECT]], i8* [[METADATA_PTR]], {{.*}})
-  // CHECK-NEXT:        [[REFERENCE:%.*]] = bitcast i8* [[RESULT]] to %T24protocol_with_superclass10SubDerivedC*
+  // CHECK-NEXT:        [[RESULT:%.*]] = call ptr @swift_dynamicCastClassUnconditional(ptr %{{[0-9]+}}, ptr [[METADATA]], {{.*}})
   %12 = unconditional_checked_cast %3 : $ProtoRefinesClass to SubDerived
 
-  // CHECK:             call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T24protocol_with_superclass10SubDerivedC*)*)(%T24protocol_with_superclass10SubDerivedC* [[REFERENCE]])
+  // CHECK:             call void @swift_release(ptr [[RESULT]])
   strong_release %12 : $SubDerived
 
-  // CHECK:             [[ISA_ADDR:%.*]] = bitcast %T24protocol_with_superclass8ConcreteC* %{{[0-9]+}} to %swift.type**
-  // CHECK-NEXT:        [[ISA:%.*]] = load %swift.type*, %swift.type** [[ISA_ADDR]]
-  // CHECK-NEXT:        [[OBJECT:%.*]] = bitcast %T24protocol_with_superclass8ConcreteC* %{{[0-9]+}} to i8*
-  // CHECK-NEXT:        [[RESULT:%.*]] = call { i8*, i8** } @dynamic_cast_existential_1_unconditional(i8* [[OBJECT]], %swift.type* [[ISA]], {{.*}} @"$s24protocol_with_superclass10OtherProtoMp"
-  // CHECK-NEXT:        [[FIRST:%.*]] = extractvalue { i8*, i8** } [[RESULT]], 0
-  // CHECK-NEXT:        [[REFERENCE:%.*]] = bitcast i8* [[FIRST]] to %T24protocol_with_superclass8ConcreteC*
+  // CHECK:        [[ISA:%.*]] = load ptr, ptr %{{[0-9]+}}
+  // CHECK-NEXT:        [[RESULT:%.*]] = call { ptr, ptr } @dynamic_cast_existential_1_unconditional(ptr %{{[0-9]+}}, ptr [[ISA]], {{.*}} @"$s24protocol_with_superclass10OtherProtoMp"
+  // CHECK-NEXT:        [[FIRST:%.*]] = extractvalue { ptr, ptr } [[RESULT]], 0
   %13 = unconditional_checked_cast %3 : $ProtoRefinesClass to OtherProto & Concrete
 
-  // CHECK:             call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T24protocol_with_superclass8ConcreteC*)*)(%T24protocol_with_superclass8ConcreteC* [[REFERENCE]])
+  // CHECK:             call void @swift_release(ptr [[FIRST]])
   strong_release %13 : $OtherProto & Concrete
 
-  // CHECK:             [[ISA_ADDR:%.*]] = bitcast %T24protocol_with_superclass8ConcreteC* %{{[0-9]+}} to %swift.type**
-  // CHECK-NEXT:        [[ISA:%.*]] = load %swift.type*, %swift.type** [[ISA_ADDR]]
-  // CHECK-NEXT:        [[OBJECT:%.*]] = bitcast %T24protocol_with_superclass8ConcreteC* %{{[0-9]+}} to i8*
+  // CHECK:        [[ISA:%.*]] = load ptr, ptr %{{[0-9]+}}
   // CHECK-NEXT:        [[RESPONSE:%.*]] = call swiftcc %swift.metadata_response @"$s24protocol_with_superclass11SubConcreteCMa"(i{{[0-9]+}} 0)
   // CHECK-NEXT:        [[METADATA:%.*]] = extractvalue %swift.metadata_response [[RESPONSE]], 0
-  // CHECK-NEXT:        [[RESULT:%.*]] = call { i8*, i8** } @dynamic_cast_existential_1_superclass_unconditional(i8* [[OBJECT]], %swift.type* [[ISA]], %swift.type* [[METADATA]], {{.*}} @"$s24protocol_with_superclass10OtherProtoMp"
-  // CHECK-NEXT:        [[FIRST:%.*]] = extractvalue { i8*, i8** } [[RESULT]], 0
-  // CHECK-NEXT:        [[REFERENCE:%.*]] = bitcast i8* [[FIRST]] to %T24protocol_with_superclass11SubConcreteC*
+  // CHECK-NEXT:        [[RESULT:%.*]] = call { ptr, ptr } @dynamic_cast_existential_1_superclass_unconditional(ptr %{{[0-9]+}}, ptr [[ISA]], ptr [[METADATA]], {{.*}} @"$s24protocol_with_superclass10OtherProtoMp"
+  // CHECK-NEXT:        [[FIRST:%.*]] = extractvalue { ptr, ptr } [[RESULT]], 0
   %14 = unconditional_checked_cast %3 : $ProtoRefinesClass to OtherProto & SubConcrete
 
-  // CHECK:             call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T24protocol_with_superclass11SubConcreteC*)*)(%T24protocol_with_superclass11SubConcreteC* [[REFERENCE]])
+  // CHECK:             call void @swift_release(ptr [[FIRST]])
   strong_release %14 : $OtherProto & SubConcrete
 
-  // CHECK:             [[OBJECT:%.*]] = bitcast %T24protocol_with_superclass8ConcreteC* %{{[0-9]+}} to i8*
-  // CHECK-NEXT:        [[RESPONSE:%.*]] = call swiftcc %swift.metadata_response @"$s24protocol_with_superclass11MoreDerivedCMa"(i{{[0-9]+}} 0)
+  // CHECK:        [[RESPONSE:%.*]] = call swiftcc %swift.metadata_response @"$s24protocol_with_superclass11MoreDerivedCMa"(i{{[0-9]+}} 0)
   // CHECK-NEXT:        [[METADATA:%.*]] = extractvalue %swift.metadata_response [[RESPONSE]], 0
-  // CHECK-NEXT:        [[METADATA_PTR:%.*]] = bitcast %swift.type* [[METADATA]] to i8*
-  // CHECK-NEXT:        [[RESULT:%.*]] = call i8* @swift_dynamicCastClassUnconditional(i8* [[OBJECT]], i8* [[METADATA_PTR]], {{.*}})
-  // CHECK-NEXT:        [[REFERENCE:%.*]] = bitcast i8* [[RESULT]] to %T24protocol_with_superclass11MoreDerivedC*
+  // CHECK-NEXT:        [[RESULT:%.*]] = call ptr @swift_dynamicCastClassUnconditional(ptr %{{[0-9]+}}, ptr [[METADATA]], {{.*}})
   %15 = unconditional_checked_cast %4 : $SubProto to MoreDerived
 
-  // CHECK:             call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T24protocol_with_superclass11MoreDerivedC*)*)(%T24protocol_with_superclass11MoreDerivedC* [[REFERENCE]])
+  // CHECK:             call void @swift_release(ptr [[RESULT]])
   strong_release %15 : $MoreDerived
 
-  // CHECK:             [[ISA_ADDR:%.*]] = bitcast %T24protocol_with_superclass8ConcreteC* %{{[0-9]+}} to %swift.type**
-  // CHECK-NEXT:        [[ISA:%.*]] = load %swift.type*, %swift.type** [[ISA_ADDR]]
-  // CHECK-NEXT:        [[OBJECT:%.*]] = bitcast %T24protocol_with_superclass8ConcreteC* %{{[0-9]+}} to i8*
-  // CHECK-NEXT:        [[RESULT:%.*]] = call { i8*, i8** } @dynamic_cast_existential_1_unconditional(i8* [[OBJECT]], %swift.type* [[ISA]], {{.*}} @"$s24protocol_with_superclass10OtherProtoMp"
-  // CHECK-NEXT:        [[FIRST:%.*]] = extractvalue { i8*, i8** } [[RESULT]], 0
-  // CHECK-NEXT:        [[REFERENCE:%.*]] = bitcast i8* [[FIRST]] to %T24protocol_with_superclass8ConcreteC*
+  // CHECK:        [[ISA:%.*]] = load ptr, ptr %{{[0-9]+}}
+  // CHECK-NEXT:        [[RESULT:%.*]] = call { ptr, ptr } @dynamic_cast_existential_1_unconditional(ptr %{{[0-9]+}}, ptr [[ISA]], {{.*}} @"$s24protocol_with_superclass10OtherProtoMp"
+  // CHECK-NEXT:        [[FIRST:%.*]] = extractvalue { ptr, ptr } [[RESULT]], 0
   %16 = unconditional_checked_cast %4 : $SubProto to OtherProto & Concrete
 
-  // CHECK:             call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T24protocol_with_superclass8ConcreteC*)*)(%T24protocol_with_superclass8ConcreteC* [[REFERENCE]])
+  // CHECK:             call void @swift_release(ptr [[FIRST]])
   strong_release %16 : $OtherProto & Concrete
 
   %result = tuple ()

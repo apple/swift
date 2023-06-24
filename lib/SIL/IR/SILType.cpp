@@ -851,6 +851,16 @@ bool SILType::isLoweringOf(TypeExpansionContext context, SILModule &Mod,
     }
   }
 
+  // The pattern of a pack expansion is lowered.
+  if (auto formalExpansion = dyn_cast<PackExpansionType>(formalType)) {
+    if (auto loweredExpansion = loweredType.getAs<PackExpansionType>()) {
+      return loweredExpansion.getCountType() == formalExpansion.getCountType()
+         && SILType::getPrimitiveAddressType(loweredExpansion.getPatternType())
+               .isLoweringOf(context, Mod, formalExpansion.getPatternType());
+    }
+    return false;
+  }
+
   // Dynamic self has the same lowering as its contained type.
   if (auto dynamicSelf = dyn_cast<DynamicSelfType>(formalType))
     formalType = dynamicSelf.getSelfType();

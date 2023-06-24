@@ -1,7 +1,7 @@
 // RUN: %empty-directory(%t)
 // RUN: %target-build-swift-dylib(%t/%target-library-name(PrintShims)) %S/../../Inputs/print-shims.swift -module-name PrintShims -emit-module -emit-module-path %t/PrintShims.swiftmodule
 // RUN: %target-codesign %t/%target-library-name(PrintShims)
-// RUN: %target-build-swift  -g -parse-sil %s -emit-ir -I %t -L %t -lPrintShim | %FileCheck %s --check-prefix=CHECK-LL
+// RUN: %target-build-swift -g -parse-sil %s -emit-ir -I %t -L %t -lPrintShim | %FileCheck %s --check-prefix=CHECK-LL
 // RUN: %target-build-swift  -g -parse-sil %s -module-name main -o %t/main -I %t -L %t -lPrintShims %target-rpath(%t) 
 // RUN: %target-codesign %t/main
 // RUN: %target-run %t/main %t/%target-library-name(PrintShims) | %FileCheck %s
@@ -19,7 +19,7 @@ import _Concurrency
 
 sil public_external @printInt64 : $@convention(thin) (Int64) -> ()
 
-// CHECK-LL: define{{( dllexport)?}}{{( protected)?}} swift{{(tail)?}}cc void @afun2(%swift.context* swiftasync {{%[0-9]+}}
+// CHECK-LL: define{{( dllexport)?}}{{( protected)?}} swift{{(tail)?}}cc void @afun2(ptr swiftasync {{%[0-9]+}}
 sil @afun2 : $@async @convention(thin) (Int64) -> () {
 entry(%int : $Int64):
   %print = function_ref @printInt64 : $@convention(thin) (Int64) -> ()

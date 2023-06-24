@@ -151,7 +151,7 @@ func testLoadableConsumingEscapingClosure(_ x: consuming NonTrivialStruct) {
 }
 
 func testLoadableConsumingEscapingClosure2(_ x: consuming NonTrivialStruct) {
-    _ = x // expected-error {{noncopyable 'x' cannot be consumed when captured by a closure}}
+    _ = x // expected-error {{noncopyable 'x' cannot be consumed when captured by an escaping closure}}
     var f: () -> () = {}
     f = {
         _ = x
@@ -165,7 +165,7 @@ func testLoadableConsumingEscapingClosure3(_ x: consuming NonTrivialStruct) {
         _ = x
     }
     _ = f
-    _ = x // expected-error {{noncopyable 'x' cannot be consumed when captured by a closure}}
+    _ = x // expected-error {{noncopyable 'x' cannot be consumed when captured by an escaping closure}}
 }
 
 func testLoadableConsumingNonEscapingClosure(_ x: consuming NonTrivialStruct) {
@@ -302,7 +302,7 @@ func testTrivialConsumingEscapingClosure(_ x: consuming TrivialStruct) {
 }
 
 func testTrivialConsumingEscapingClosure2(_ x: consuming TrivialStruct) {
-    let _ = x // expected-error {{noncopyable 'x' cannot be consumed when captured by a closure}}
+    let _ = x // expected-error {{noncopyable 'x' cannot be consumed when captured by an escaping closure}}
     var f: () -> () = {}
     f = {
         _ = x
@@ -316,7 +316,7 @@ func testTrivialConsumingEscapingClosure3(_ x: consuming TrivialStruct) {
         _ = x
     }
     _ = f
-    let _ = x // expected-error {{noncopyable 'x' cannot be consumed when captured by a closure}}
+    let _ = x // expected-error {{noncopyable 'x' cannot be consumed when captured by an escaping closure}}
 }
 
 func testTrivialConsumingNonEscapingClosure(_ x: consuming TrivialStruct) {
@@ -440,7 +440,7 @@ func testAddressOnlyConsumingEscapingClosure<T : P>(_ x: consuming GenericNonTri
 }
 
 func testAddressOnlyConsumingEscapingClosure2<T : P>(_ x: consuming GenericNonTrivialStruct<T>) {
-    let _ = x // expected-error {{noncopyable 'x' cannot be consumed when captured by a closure}}
+    let _ = x // expected-error {{noncopyable 'x' cannot be consumed when captured by an escaping closure}}
     var f: () -> () = {}
     f = {
         _ = x
@@ -454,7 +454,7 @@ func testAddressOnlyConsumingEscapingClosure3<T : P>(_ x: consuming GenericNonTr
         _ = x
     }
     _ = f
-    let _ = x // expected-error {{noncopyable 'x' cannot be consumed when captured by a closure}}
+    let _ = x // expected-error {{noncopyable 'x' cannot be consumed when captured by an escaping closure}}
 }
 
 func testAddressOnlyConsumingNonEscapingClosure<T : P>(_ x: consuming GenericNonTrivialStruct<T>) {
@@ -646,7 +646,7 @@ struct LoadableSelfTest {
     }
 
     consuming func testCallEscapingClosure2() {
-        let _ = self // expected-error {{noncopyable 'self' cannot be consumed when captured by a closure}}
+        let _ = self // expected-error {{noncopyable 'self' cannot be consumed when captured by an escaping closure}}
         var f: () -> () = {}
         f = {
             let _ = self
@@ -660,7 +660,7 @@ struct LoadableSelfTest {
             let _ = self
         }
         f()
-        let _ = self // expected-error {{noncopyable 'self' cannot be consumed when captured by a closure}}
+        let _ = self // expected-error {{noncopyable 'self' cannot be consumed when captured by an escaping closure}}
     }
 
     consuming func testCallNonEscapingClosure() {
@@ -804,7 +804,7 @@ struct AddressOnlySelfTest<T> {
     }
 
     consuming func testCallEscapingClosure2() {
-        let _ = self // expected-error {{noncopyable 'self' cannot be consumed when captured by a closure}}
+        let _ = self // expected-error {{noncopyable 'self' cannot be consumed when captured by an escaping closure}}
         var f: () -> () = {}
         f = {
             let _ = self
@@ -818,7 +818,7 @@ struct AddressOnlySelfTest<T> {
             let _ = self
         }
         f()
-        let _ = self // expected-error {{noncopyable 'self' cannot be consumed when captured by a closure}}
+        let _ = self // expected-error {{noncopyable 'self' cannot be consumed when captured by an escaping closure}}
     }
 
     consuming func testCallEscapingClosure4() {
@@ -830,7 +830,7 @@ struct AddressOnlySelfTest<T> {
         f = {
             let _ = self
         }
-        let _ = self // expected-error {{noncopyable 'self' cannot be consumed when captured by a closure}}
+        let _ = self // expected-error {{noncopyable 'self' cannot be consumed when captured by an escaping closure}}
     }
 
     consuming func testCallNonEscapingClosure() {
@@ -956,7 +956,7 @@ struct TrivialSelfTest {
     }
 
     consuming func testCallEscapingClosure2() {
-        let _ = self // expected-error {{noncopyable 'self' cannot be consumed when captured by a closure}}
+        let _ = self // expected-error {{noncopyable 'self' cannot be consumed when captured by an escaping closure}}
         var f: () -> () = {}
         f = {
             let _ = self

@@ -1,4 +1,5 @@
-// RUN: %target-swift-emit-ir %s -I %S/Inputs -enable-experimental-cxx-interop | grep 'define.*swiftcc.*$' | xargs %swift-demangle | %FileCheck %s
+// RUN: %target-swift-emit-ir %use_no_opaque_pointers %s -I %S/Inputs -enable-experimental-cxx-interop | grep 'define.*swiftcc.*$' | xargs %swift-demangle | %FileCheck %s
+// RUN: %target-swift-emit-ir %s -I %S/Inputs -enable-experimental-cxx-interop | grep 'define.*swiftcc.*$' 
 
 import Mangling
 

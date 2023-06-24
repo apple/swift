@@ -2,6 +2,12 @@
 
 // RUN: %target-run-simple-swift( -Xfrontend -disable-availability-checking -parse-as-library -enable-experimental-feature InitAccessors -enable-experimental-feature Macros -Xfrontend -plugin-path -Xfrontend %swift-host-lib-dir/plugins)
 
+// Run this test via the swift-plugin-server
+// RUN: %target-run-simple-swift( -Xfrontend -disable-availability-checking -parse-as-library -enable-experimental-feature InitAccessors -enable-experimental-feature Macros -Xfrontend -external-plugin-path -Xfrontend %swift-host-lib-dir/plugins#%swift-plugin-server)
+
+// Asserts is required for '-enable-experimental-feature InitAccessors'.
+// REQUIRES: asserts
+
 // REQUIRES: observation
 // REQUIRES: concurrency
 // REQUIRES: objc_interop

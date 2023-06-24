@@ -35,9 +35,9 @@ import func Swift.print
 
 // rdar://14418336
 #import something_nonexistent
-// expected-error@-1 {{keyword 'import' cannot be used as an identifier here}} expected-note@-1 {{use backticks to escape it}}
-// expected-error@-2 {{no macro named 'import'}}
-// expected-error@-3 {{consecutive statements on a line}} expected-error@-3 {{cannot find 'something_nonexistent' in scope}}
+// expected-error@-1 {{no macro named 'import'}}
+// expected-error@-2 {{consecutive statements on a line}} 
+// expected-error@-3 {{cannot find 'something_nonexistent' in scope}}
 
 // Import specific decls
 import typealias Swift.Int

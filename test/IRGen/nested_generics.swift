@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend %s -emit-ir > %t.txt
+// RUN: %target-swift-frontend %use_no_opaque_pointers %s -emit-ir > %t.txt
+// RUN: %target-swift-frontend %s -emit-ir
 // RUN: %FileCheck %s --check-prefix=CHECK < %t.txt
 // RUN: %FileCheck %s --check-prefix=CHECK-CONSTANTS < %t.txt
 

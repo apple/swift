@@ -11,11 +11,10 @@
 // RUN:   -load-plugin-executable %t/mock-plugin#TestPlugin
 
 // RUN: %lldb-moduleimport-test -verbose -dump-module %t/a.out | %FileCheck %s
-// CHECK: - Macro Search Paths:
-// CHECK:     -plugin-path: {{.*}}plugins
-// CHECK:     -plugin-path: {{.*}}plugins
-// CHECK:     -plugin-path: {{.*}}plugins
-// CHECK:     -plugin-path: {{.*}}plugins
-// CHECK:     -external-plugin-path: {{.*}}plugins#{{.*}}swift-plugin-server
-// CHECK:     -load-plugin-library: {{.*}}MacroDefinition.{{dylib|so|dll}}
-// CHECK:     -load-plugin-executable: {{.*}}mock-plugin#TestPlugin
+// CHECK: - Plugin Search Options:
+// CHECK:     -plugin-path {{.*}}plugins
+// CHECK:     -external-plugin-path {{.*}}plugins#{{.*}}swift-plugin-server
+// CHECK:     -load-plugin-library {{.*}}MacroDefinition.{{dylib|so|dll}}
+// CHECK:     -load-plugin-executable {{.*}}mock-plugin#TestPlugin
+// CHECK:     -plugin-path {{.*}}plugins
+// CHECK:     -plugin-path {{.*}}plugins

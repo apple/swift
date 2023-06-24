@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend -emit-ir -disable-llvm-optzns -disable-swift-specific-llvm-optzns %s | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-%target-ptrsize-%target-ptrauth -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend %use_no_opaque_pointers -emit-ir -disable-llvm-optzns -disable-swift-specific-llvm-optzns %s | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-%target-ptrsize-%target-ptrauth -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend -emit-ir -disable-llvm-optzns -disable-swift-specific-llvm-optzns %s
 // UNSUPPORTED: CPU=arm64_32
 
 import Builtin

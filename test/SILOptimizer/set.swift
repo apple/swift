@@ -23,7 +23,7 @@ public func createEmptySetWithInitializer() -> Set<Int> {
 
 // CHECK-LABEL: sil {{.*}}@$s4test17createNonEmptySetShySiGyF
 // CHECK:         global_value
-// CHECK:         [[F:%[0-9]+]] = function_ref @$sSh21_nonEmptyArrayLiteralShyxGSayxG_tcfCSi_Tg5
+// CHECK:         [[F:%[0-9]+]] = function_ref @$sSh21_nonEmptyArrayLiteralShyxGSayxG_tcfCSi_Tgm5
 // CHECK:         apply [[F]]
 // CHECK:       } // end sil function '$s4test17createNonEmptySetShySiGyF'
 public func createNonEmptySet() -> Set<Int> {

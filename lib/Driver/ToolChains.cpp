@@ -236,8 +236,6 @@ void ToolChain::addCommonFrontendArgs(const OutputInfo &OI,
   inputArgs.AddAllArgs(arguments, options::OPT_I);
   inputArgs.AddAllArgs(arguments, options::OPT_F, options::OPT_Fsystem);
   inputArgs.AddAllArgs(arguments, options::OPT_vfsoverlay);
-  inputArgs.AddAllArgs(arguments, options::OPT_plugin_path);
-  inputArgs.AddAllArgs(arguments, options::OPT_external_plugin_path);
 
   inputArgs.AddLastArg(arguments, options::OPT_AssertConfig);
   inputArgs.AddLastArg(arguments, options::OPT_autolink_force_load);
@@ -325,8 +323,6 @@ void ToolChain::addCommonFrontendArgs(const OutputInfo &OI,
   inputArgs.AddLastArg(arguments, options::OPT_enable_bare_slash_regex);
   inputArgs.AddLastArg(arguments, options::OPT_enable_experimental_cxx_interop);
   inputArgs.AddLastArg(arguments, options::OPT_cxx_interoperability_mode);
-  inputArgs.AddLastArg(arguments, options::OPT_load_plugin_library);
-  inputArgs.AddLastArg(arguments, options::OPT_load_plugin_executable);
   inputArgs.AddLastArg(arguments, options::OPT_enable_builtin_module);
 
   // Pass on any build config options
@@ -376,9 +372,12 @@ void ToolChain::addCommonFrontendArgs(const OutputInfo &OI,
     inputArgs.AddAllArgs(arguments, options::OPT_file_compilation_dir);
   }
 
-  // Add plugin path options.
-  inputArgs.AddAllArgs(arguments, options::OPT_plugin_path);
-
+  // Specify default plugin search path options after explicitly specified
+  // options.
+  inputArgs.AddAllArgs(arguments, options::OPT_plugin_search_Group);
+  addPlatformSpecificPluginFrontendArgs(OI, output, inputArgs, arguments);
+  
+  // Toolchain-relative plugin paths
   {
     SmallString<64> pluginPath;
     auto programPath = getDriver().getSwiftProgramPath();
@@ -405,6 +404,14 @@ void ToolChain::addCommonFrontendArgs(const OutputInfo &OI,
   // Pass through any subsystem flags.
   inputArgs.AddAllArgs(arguments, options::OPT_Xllvm);
   inputArgs.AddAllArgs(arguments, options::OPT_Xcc);
+}
+
+void ToolChain::addPlatformSpecificPluginFrontendArgs(
+    const OutputInfo &OI,
+    const CommandOutput &output,
+    const llvm::opt::ArgList &inputArgs,
+    llvm::opt::ArgStringList &arguments) const {
+  // Overridden where necessary.
 }
 
 static void addRuntimeLibraryFlags(const OutputInfo &OI,
@@ -1512,7 +1519,8 @@ void ToolChain::getRuntimeLibraryPaths(SmallVectorImpl<std::string> &runtimeLibP
   if (!scratchPath.empty())
     runtimeLibPaths.push_back(std::string(scratchPath.str()));
 
-  if (!SDKPath.empty()) {
+  // Only Darwin places libraries directly in /sdk/usr/lib/swift/.
+  if (Triple.isOSDarwin() && !SDKPath.empty()) {
     if (!scratchPath.empty()) {
       // If we added the secondary resource dir, we also need the iOSSupport
       // directory.

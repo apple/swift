@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend -emit-ir %s -swift-version 5 -disable-availability-checking | %IRGenFileCheck %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers -emit-ir %s -swift-version 5 -disable-availability-checking | %IRGenFileCheck %s
+// RUN: %target-swift-frontend -emit-ir %s -swift-version 5 -disable-availability-checking
 
 // CHECK-LABEL: @"$sl26existential_shape_metadata2Q0_px1TRts_XPXGMq" = linkonce_odr hidden constant
 // CHECK-SAME:  { i32 {{.*}}sub ([[INT]] ptrtoint (i8** @{{[0-9]+}} to [[INT]])

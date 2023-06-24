@@ -1,0 +1,18 @@
+// RUN: %target-sil-opt -unit-test-runner %s -o /dev/null 2>&1 | %FileCheck %s
+
+sil_stage raw
+
+import Builtin
+
+struct S : ~Copyable {}
+
+// CHECK-LABEL: begin {{.*}} print-type-lowering with: @argument[0]
+// CHECK:       isLexical: true
+// CHECK-LABEL: end {{.*}} print-type-lowering with: @argument[0]
+sil [ossa] @move_only_argument : $@convention(thin) (@owned S) -> () {
+bb0(%0 : @owned $S):
+  test_specification "print-type-lowering @argument[0]"
+  destroy_value %0 : $S
+  %retval = tuple ()
+  return %retval : $()
+}

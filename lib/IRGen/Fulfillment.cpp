@@ -228,8 +228,22 @@ bool FulfillmentMap::searchConformance(
 
   SILWitnessTable::enumerateWitnessTableConditionalConformances(
       conformance, [&](unsigned index, CanType type, ProtocolDecl *protocol) {
+        Optional<unsigned> packExpansionComponent;
+
+        if (auto packType = dyn_cast<PackType>(type)) {
+          auto param =
+              getSingletonPackExpansionParameter(packType, interestingKeys,
+                                                 packExpansionComponent);
+          if (!param)
+            return /*finished?*/ false;
+          type = param;
+        }
+
         MetadataPath conditionalPath = path;
         conditionalPath.addConditionalConformanceComponent(index);
+        if (packExpansionComponent)
+          conditionalPath.addPackExpansionPatternComponent(*packExpansionComponent);
+
         hadFulfillment |=
             searchWitnessTable(IGM, type, protocol, sourceIndex,
                                std::move(conditionalPath), interestingKeys);

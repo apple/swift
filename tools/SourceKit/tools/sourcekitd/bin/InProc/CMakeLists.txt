@@ -49,6 +49,8 @@ else()
     HAS_SWIFT_MODULES
   )
 endif()
+set_target_properties(sourcekitdInProc PROPERTIES
+  DEFINE_SYMBOL sourcekitd_EXPORTS)
 target_link_libraries(sourcekitdInProc PRIVATE
   SourceKitSwiftLang
   sourcekitdAPI

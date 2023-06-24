@@ -597,7 +597,7 @@ Expr *TypeChecker::resolveDeclRefExpr(UnresolvedDeclRefExpr *UDRE,
           if (typeContext->getSelfClassDecl())
             SelfType = DynamicSelfType::get(SelfType, Context);
           return new (Context)
-              TypeExpr(new (Context) FixedTypeRepr(SelfType, Loc));
+              TypeExpr(new (Context) SelfTypeRepr(SelfType, Loc));
         }
       }
 
@@ -1072,8 +1072,24 @@ namespace {
       if (auto unresolved = dyn_cast<UnresolvedDeclRefExpr>(expr)) {
         TypeChecker::checkForForbiddenPrefix(
             getASTContext(), unresolved->getName().getBaseName());
-        return finish(true, TypeChecker::resolveDeclRefExpr(unresolved, DC,
-                                                            UseErrorExprs));
+        auto *refExpr =
+            TypeChecker::resolveDeclRefExpr(unresolved, DC, UseErrorExprs);
+
+        // Check whether this is standalone `self` in init accessor, which
+        // is invalid.
+        if (auto *accessor = DC->getInnermostPropertyAccessorContext()) {
+          if (accessor->isInitAccessor() && isa<DeclRefExpr>(refExpr)) {
+            auto *DRE = cast<DeclRefExpr>(refExpr);
+            if (accessor->getImplicitSelfDecl() == DRE->getDecl() &&
+                !isa_and_nonnull<UnresolvedDotExpr>(Parent.getAsExpr())) {
+              Ctx.Diags.diagnose(unresolved->getLoc(),
+                                 diag::invalid_use_of_self_in_init_accessor);
+              refExpr = new (Ctx) ErrorExpr(unresolved->getSourceRange());
+            }
+          }
+        }
+
+        return finish(true, refExpr);
       }
 
       // Let's try to figure out if `InOutExpr` is out of place early

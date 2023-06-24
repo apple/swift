@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend %s -module-name main -emit-ir -o - | %FileCheck -check-prefix=%target-ptrsize %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers %s -module-name main -emit-ir -o - | %FileCheck -check-prefix=%target-ptrsize %s
+// RUN: %target-swift-frontend %s -module-name main -emit-ir -o -
 
 import Builtin
 import Swift

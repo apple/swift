@@ -4273,7 +4273,7 @@ bool SILParser::parseSpecificSILInstruction(SILBuilder &B,
       return true;
 
     ValueOwnershipKind forwardingOwnership = Val->getOwnershipKind();
-    if (OwnershipForwardingMixin::isa(Opcode)) {
+    if (ForwardingInstruction::isa(Opcode)) {
       if (parseForwardingOwnershipKind(forwardingOwnership))
         return true;
     }
@@ -6096,66 +6096,6 @@ bool SILParser::parseSpecificSILInstruction(SILBuilder &B,
       if (parseSILDebugLocation(InstLoc, B))
         return true;
       ResultVal = B.createSwitchValue(InstLoc, Val, DefaultBB, CaseBBs);
-      break;
-    }
-    case SILInstructionKind::SelectValueInst: {
-      if (parseTypedValueRef(Val, B))
-        return true;
-
-      SmallVector<std::pair<UnresolvedValueName, UnresolvedValueName>, 4>
-          CaseValueAndResultNames;
-      Optional<UnresolvedValueName> DefaultResultName;
-      while (P.consumeIf(tok::comma)) {
-        Identifier BBName;
-        SourceLoc BBLoc;
-        // Parse 'default' sil-value.
-        UnresolvedValueName tmp;
-        if (P.consumeIf(tok::kw_default)) {
-          if (parseValueName(tmp))
-            return true;
-          DefaultResultName = tmp;
-          break;
-        }
-
-        // Parse 'case' sil-decl-ref ':' sil-value.
-        if (P.consumeIf(tok::kw_case)) {
-          UnresolvedValueName casevalue;
-          parseValueName(casevalue);
-          P.parseToken(tok::colon, diag::expected_tok_in_sil_instr, ":");
-          parseValueName(tmp);
-          CaseValueAndResultNames.push_back(std::make_pair(casevalue, tmp));
-          continue;
-        }
-
-        P.diagnose(P.Tok, diag::expected_tok_in_sil_instr, "case or default");
-        return true;
-      }
-
-      if (!DefaultResultName) {
-        P.diagnose(P.Tok, diag::expected_tok_in_sil_instr, "default");
-        return true;
-      }
-
-      // Parse the type of the result operands.
-      SILType ResultType;
-      if (P.parseToken(tok::colon, diag::expected_tok_in_sil_instr, ":") ||
-          parseSILType(ResultType) || parseSILDebugLocation(InstLoc, B))
-        return true;
-
-      // Resolve the results.
-      SmallVector<std::pair<SILValue, SILValue>, 4> CaseValues;
-      SILValue DefaultValue;
-      if (DefaultResultName)
-        DefaultValue =
-            getLocalValue(*DefaultResultName, ResultType, InstLoc, B);
-      SILType ValType = Val->getType();
-      for (auto &caseName : CaseValueAndResultNames)
-        CaseValues.push_back(std::make_pair(
-            getLocalValue(caseName.first, ValType, InstLoc, B),
-            getLocalValue(caseName.second, ResultType, InstLoc, B)));
-
-      ResultVal = B.createSelectValue(InstLoc, Val, ResultType, DefaultValue,
-                                      CaseValues);
       break;
     }
     case SILInstructionKind::DeinitExistentialAddrInst: {

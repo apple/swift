@@ -11,8 +11,8 @@
 //
 import resilient_struct
 
-// CHECK-LABEL: define{{.*}} swiftcc void @"$s17struct_resilience9takesSizeyy010resilient_A00D0VF"(%swift.opaque* noalias nocapture %0)
-// CHECK-LLDB-LABEL: define{{.*}} swiftcc void @"$s17struct_resilience9takesSizeyy010resilient_A00D0VF"(%T16resilient_struct4SizeV* noalias nocapture dereferenceable({{8|16}}) %0)
+// CHECK-LABEL: define{{.*}} swiftcc void @"$s17struct_resilience9takesSizeyy010resilient_A00D0VF"(ptr noalias nocapture %0)
+// CHECK-LLDB-LABEL: define{{.*}} swiftcc void @"$s17struct_resilience9takesSizeyy010resilient_A00D0VF"(ptr noalias nocapture dereferenceable({{8|16}}) %0)
 public func takesSize(_ s: Size) {}
 
 
@@ -21,12 +21,12 @@ public func takesSize(_ s: Size) {}
 func f() {
   let s1 = Size(w: 1, h: 2)
   takesSize(s1)
-  // CHECK: %[[ADDR:.*]] = alloca i8*
-  // CHECK: call void @llvm.dbg.declare(metadata i8** %[[ADDR]],
+  // CHECK: %[[ADDR:.*]] = alloca ptr
+  // CHECK: call void @llvm.dbg.declare(metadata ptr %[[ADDR]],
   // CHECK-SAME:                        metadata ![[V1:[0-9]+]],
   // CHECK-SAME:                        metadata !DIExpression(DW_OP_deref))
   // CHECK: %[[S1:.*]] = alloca i8,
-  // CHECK: store i8* %[[S1]], i8** %[[ADDR]]
+  // CHECK: store ptr %[[S1]], ptr %[[ADDR]]
 }
 f()
 

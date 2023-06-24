@@ -1,5 +1,7 @@
-// RUN: %swift -disable-legacy-type-info -target i386-apple-ios7 %s -gnone -emit-ir | %FileCheck %s
-// RUN: %swift -disable-legacy-type-info -target armv7-apple-ios7 %s -gnone -emit-ir | %FileCheck %s
+// RUN: %swift %use_no_opaque_pointers -disable-legacy-type-info -target i386-apple-ios7 %s -gnone -emit-ir | %FileCheck %s
+// RUN: %swift %use_no_opaque_pointers -disable-legacy-type-info -target armv7-apple-ios7 %s -gnone -emit-ir | %FileCheck %s
+// RUN: %swift -disable-legacy-type-info -target i386-apple-ios7 %s -gnone -emit-ir
+// RUN: %swift -disable-legacy-type-info -target armv7-apple-ios7 %s -gnone -emit-ir
 
 // REQUIRES: CODEGENERATOR=X86
 // REQUIRES: CODEGENERATOR=ARM

@@ -255,7 +255,6 @@ static bool hasOpaqueArchetype(TypeExpansionContext context,
   case SILInstructionKind::UncheckedTakeEnumDataAddrInst:
   case SILInstructionKind::SelectEnumInst:
   case SILInstructionKind::SelectEnumAddrInst:
-  case SILInstructionKind::SelectValueInst:
   case SILInstructionKind::InitExistentialAddrInst:
   case SILInstructionKind::InitExistentialValueInst:
   case SILInstructionKind::OpenExistentialAddrInst:

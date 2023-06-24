@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend %s -gnone -emit-ir -disable-objc-attr-requires-foundation-module -enable-objc-interop | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-%target-ptrsize-simulator-%target-is-simulator
+// RUN: %target-swift-frontend %use_no_opaque_pointers %s -gnone -emit-ir -disable-objc-attr-requires-foundation-module -enable-objc-interop | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-%target-ptrsize-simulator-%target-is-simulator
+// RUN: %target-swift-frontend %s -gnone -emit-ir -disable-objc-attr-requires-foundation-module -enable-objc-interop
 
 // REQUIRES: CPU=i386 || CPU=x86_64
 

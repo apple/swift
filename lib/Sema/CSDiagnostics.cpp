@@ -120,14 +120,6 @@ Type FailureDiagnostic::resolveType(Type rawType, bool reconstituteSugar,
       return env->mapElementTypeIntoPackContext(type);
     }
 
-    if (auto *packType = type->getAs<PackType>()) {
-      if (packType->getNumElements() == 1) {
-        auto eltType = resolveType(packType->getElementType(0));
-        if (auto expansion = eltType->getAs<PackExpansionType>())
-          return expansion->getPatternType();
-      }
-    }
-
     return type->isPlaceholder() ? Type(type->getASTContext().TheUnresolvedType)
                                  : type;
   });
@@ -321,7 +313,21 @@ ValueDecl *RequirementFailure::getDeclRef() const {
       return cast<ValueDecl>(getDC()->getParent()->getAsDecl());
     }
 
-    return getAffectedDeclFromType(contextualTy);
+    // We check for a contextual type here because we form a
+    // ContextualType(CTP_Initialization) LocatorPathElt for pattern bindings
+    // when there is no TypedPattern present. In such a case, there will be
+    // no recorded contextual type (though the pattern may produce a type that
+    // could be considered contextual).
+    if (contextualTy) {
+      // If the contextual type is e.g a tuple, we may not be able to resolve
+      // a decl. Fall through to getting the 'owner type' in that case.
+      if (auto *D = getAffectedDeclFromType(contextualTy))
+        return D;
+    } else {
+      assert((contextualPurpose == CTP_Initialization ||
+              contextualPurpose == CTP_Unused) &&
+             "Should have had a contextual type");
+    }
   }
 
   if (getLocator()->isFirstElement<LocatorPathElt::CoercionOperand>())
@@ -8303,6 +8309,32 @@ bool InvalidEmptyKeyPathFailure::diagnoseAsError() {
   return true;
 }
 
+bool InvalidPatternInExprFailure::diagnoseAsError() {
+  // Check to see if we have something like 'case <fn>(let foo)', where <fn>
+  // has a fix associated with it. In such a case, it's more likely than not
+  // that the user is trying to write an EnumElementPattern, but has made some
+  // kind of mistake in the function expr that causes it to be treated as an
+  // ExprPattern. Emitting an additional error for the out of place 'let foo' is
+  // just noise in that case, so let's avoid diagnosing.
+  llvm::SmallPtrSet<Expr *, 4> fixAnchors;
+  for (auto *fix : getSolution().Fixes) {
+    if (auto *anchor = getAsExpr(fix->getAnchor()))
+      fixAnchors.insert(anchor);
+  }
+  {
+    auto *E = castToExpr(getLocator()->getAnchor());
+    while (auto *parent = findParentExpr(E)) {
+      if (auto *CE = dyn_cast<CallExpr>(parent)) {
+        if (fixAnchors.contains(CE->getFn()))
+          return false;
+      }
+      E = parent;
+    }
+  }
+  emitDiagnostic(diag::pattern_in_expr, P->getDescriptiveKind());
+  return true;
+}
+
 bool MissingContextualTypeForNil::diagnoseAsError() {
   auto *expr = castToExpr<NilLiteralExpr>(getAnchor());
 
@@ -9057,5 +9089,10 @@ bool MissingEachForValuePackReference::diagnoseAsError() {
     }
   }
 
+  return true;
+}
+
+bool InvalidMemberReferenceWithinInitAccessor::diagnoseAsError() {
+  emitDiagnostic(diag::init_accessor_invalid_member_ref, MemberName);
   return true;
 }

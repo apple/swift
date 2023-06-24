@@ -2,7 +2,8 @@
 
 // RUN: %empty-directory(%t)
 // RUN: %build-irgen-test-overlays
-// RUN: %target-swift-frontend -sdk %S/Inputs -primary-file %s -enable-objc-interop -emit-ir -module-name clang_inline -I %t | %FileCheck %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers -sdk %S/Inputs -primary-file %s -enable-objc-interop -emit-ir -module-name clang_inline -I %t | %FileCheck %s
+// RUN: %target-swift-frontend -sdk %S/Inputs -primary-file %s -enable-objc-interop -emit-ir -module-name clang_inline -I %t
 
 // REQUIRES: CPU=i386 || CPU=x86_64
 // REQUIRES: objc_interop

@@ -172,7 +172,8 @@ void UsableFilteringDeclConsumer::foundDecl(ValueDecl *D,
           if (auto *contextD = DC->getAsDecl())
             tmpLoc = contextD->getStartLoc();
         }
-        if (!SM.isBeforeInBuffer(D->getLoc(), Loc))
+        auto declLoc = DC->getParentModule()->getOriginalLocation(D->getLoc()).second;
+        if (!SM.isBeforeInBuffer(declLoc, tmpLoc))
           return;
       }
 
@@ -2930,6 +2931,8 @@ directReferencesForTypeRepr(Evaluator &evaluator,
 
   case TypeReprKind::Fixed:
     llvm_unreachable("Cannot get fixed TypeReprs in name lookup");
+  case TypeReprKind::Self:
+    llvm_unreachable("Cannot get fixed SelfTypeRepr in name lookup");
 
   case TypeReprKind::Optional:
   case TypeReprKind::ImplicitlyUnwrappedOptional:
@@ -3875,20 +3878,48 @@ void FindLocalVal::visitBraceStmt(BraceStmt *S, bool isTopLevelCode) {
       return;
   }
 
+  // Visit inner statements first before reporting local decls in the current
+  // scope.
   for (auto elem : S->getElements()) {
     // If we have a SingleValueStmtExpr, there may be local bindings in the
     // wrapped statement.
     if (auto *E = elem.dyn_cast<Expr *>()) {
       if (auto *SVE = dyn_cast<SingleValueStmtExpr>(E))
         visit(SVE->getStmt());
+      continue;
     }
-    if (auto *S = elem.dyn_cast<Stmt*>())
+
+    if (auto *S = elem.dyn_cast<Stmt*>()) {
       visit(S);
+      continue;
+    }
   }
-  for (auto elem : S->getElements()) {
-    if (auto *D = elem.dyn_cast<Decl*>()) {
+
+  auto visitDecl = [&](Decl *D) {
+    if (auto *VD = dyn_cast<ValueDecl>(D))
+      checkValueDecl(VD, DeclVisibilityKind::LocalVariable);
+    D->visitAuxiliaryDecls([&](Decl *D) {
       if (auto *VD = dyn_cast<ValueDecl>(D))
         checkValueDecl(VD, DeclVisibilityKind::LocalVariable);
+      // FIXME: Recursively call `visitDecl` to handle nested macros.
+    });
+  };
+
+  for (auto elem : S->getElements()) {
+    if (auto *E = elem.dyn_cast<Expr *>()) {
+      // 'MacroExpansionExpr' at code-item position may introduce value decls.
+      // NOTE: the expression must be type checked.
+      // FIXME: In code-completion local expressions are _not_ type checked.
+      if (auto *mee = dyn_cast<MacroExpansionExpr>(E)) {
+        if (auto *med = mee->getSubstituteDecl()) {
+          visitDecl(med);
+        }
+      }
+      continue;
+    }
+    if (auto *D = elem.dyn_cast<Decl*>()) {
+      visitDecl(D);
+      continue;
     }
   }
 }

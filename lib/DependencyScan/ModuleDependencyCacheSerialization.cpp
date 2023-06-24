@@ -462,10 +462,11 @@ bool ModuleDependenciesCacheDeserializer::readGraph(SwiftDependencyScanningServi
             "Unexpected SWIFT_BINARY_MODULE_DETAILS_NODE record");
       cache.configureForContextHash(getContextHash());
       unsigned compiledModulePathID, moduleDocPathID, moduleSourceInfoPathID,
-          isFramework, moduleCacheKeyID;
+               headerImportsArrayID, isFramework, moduleCacheKeyID;
       SwiftBinaryModuleDetailsLayout::readRecord(
           Scratch, compiledModulePathID, moduleDocPathID,
-          moduleSourceInfoPathID, isFramework, moduleCacheKeyID);
+          moduleSourceInfoPathID, headerImportsArrayID, isFramework,
+          moduleCacheKeyID);
 
       auto compiledModulePath = getIdentifier(compiledModulePathID);
       if (!compiledModulePath)
@@ -477,16 +478,18 @@ bool ModuleDependenciesCacheDeserializer::readGraph(SwiftDependencyScanningServi
       if (!moduleSourceInfoPath)
         llvm::report_fatal_error("Bad module source info path");
       auto moduleCacheKey = getIdentifier(moduleCacheKeyID);
-      if (!moduleCacheKeyID)
+      if (!moduleCacheKey)
         llvm::report_fatal_error("Bad moduleCacheKey");
+
+      auto headerImports = getStringArray(headerImportsArrayID);
+      if (!headerImports)
+        llvm::report_fatal_error("Bad binary direct dependencies: no header imports");
 
       // Form the dependencies storage object
       auto moduleDep = ModuleDependencyInfo::forSwiftBinaryModule(
-          *compiledModulePath, *moduleDocPath, *moduleSourceInfoPath,
-          isFramework, *moduleCacheKey);
-      // Add dependencies of this module
-      for (const auto &moduleName : *currentModuleImports)
-        moduleDep.addModuleImport(moduleName);
+           *compiledModulePath, *moduleDocPath, *moduleSourceInfoPath,
+           *currentModuleImports, *headerImports, isFramework,
+           *moduleCacheKey);
 
       cache.recordDependency(currentModuleName, std::move(moduleDep),
                              getContextHash());
@@ -704,6 +707,7 @@ bool swift::dependencies::module_dependency_cache_serialization::
 enum ModuleIdentifierArrayKind : uint8_t {
   Empty = 0,
   DependencyImports,
+  DependencyHeaders,
   QualifiedModuleDependencyIDs,
   CompiledModuleCandidates,
   BuildCommandLine,
@@ -975,6 +979,7 @@ void ModuleDependenciesCacheSerializer::writeModuleInfo(ModuleDependencyID modul
         getIdentifier(swiftBinDeps->compiledModulePath),
         getIdentifier(swiftBinDeps->moduleDocPath),
         getIdentifier(swiftBinDeps->sourceInfoPath),
+        getArrayID(moduleID, ModuleIdentifierArrayKind::DependencyHeaders),
         swiftBinDeps->isFramework,
         getIdentifier(swiftBinDeps->moduleCacheKey));
 
@@ -1152,6 +1157,8 @@ void ModuleDependenciesCacheSerializer::collectStringsAndArrays(
         addIdentifier(swiftBinDeps->moduleDocPath);
         addIdentifier(swiftBinDeps->sourceInfoPath);
         addIdentifier(swiftBinDeps->moduleCacheKey);
+        addStringArray(moduleID, ModuleIdentifierArrayKind::DependencyHeaders,
+                       swiftBinDeps->preCompiledBridgingHeaderPaths);
         break;
       }
       case swift::ModuleDependencyKind::SwiftPlaceholder: {

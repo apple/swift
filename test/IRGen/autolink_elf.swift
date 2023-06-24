@@ -10,5 +10,5 @@ import Empty
 // as used.
 
 // CHECK-DAG: @_swift1_autolink_entries = private constant [26 x i8] c"-lswiftEmpty\00-lanotherLib\00", section ".swift1_autolink_entries",{{.*}} align 8
-// CHECK-DAG: @llvm.compiler.used = appending global [{{.*}} x i8*] [{{.*}}i8* getelementptr inbounds ([26 x i8], [26 x i8]* @_swift1_autolink_entries, i32 0, i32 0){{.*}}], section "llvm.metadata"
+// CHECK-DAG: @llvm.compiler.used = appending global [{{.*}} x ptr] [{{.*}}ptr @_swift1_autolink_entries{{.*}}], section "llvm.metadata"
 

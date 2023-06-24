@@ -28,8 +28,17 @@ namespace {
 ///
 /// This does a by-name comparison to consider a module's underlying Clang module to be equivalent
 /// to the wrapping module of the same name.
-bool areModulesEqual(const ModuleDecl *lhs, const ModuleDecl *rhs) {
-  return lhs->getNameStr() == rhs->getNameStr();
+///
+/// If the `isClangEqual` argument is set to `false`, the modules must also be from the same
+/// compiler, i.e. a Swift module and its underlying Clang module would be considered not equal.
+bool areModulesEqual(const ModuleDecl *lhs, const ModuleDecl *rhs, bool isClangEqual = true) {
+  if (lhs->getNameStr() != rhs->getNameStr())
+    return false;
+
+  if (!isClangEqual && (lhs->isNonSwiftModule() != rhs->isNonSwiftModule()))
+    return false;
+
+  return true;
 }
 
 } // anonymous namespace
@@ -303,9 +312,9 @@ bool SymbolGraphASTWalker::isConsideredExportedImported(const Decl *D) const {
   return false;
 }
 
-bool SymbolGraphASTWalker::isFromExportedImportedModule(const Decl* D) const {
+bool SymbolGraphASTWalker::isFromExportedImportedModule(const Decl* D, bool countUnderlyingClangModule) const {
   auto *M = D->getModuleContext();
-  return isQualifiedExportedImport(D) || isExportedImportedModule(M);
+  return isQualifiedExportedImport(D) || isExportedImportedModule(M, countUnderlyingClangModule);
 }
 
 bool SymbolGraphASTWalker::isQualifiedExportedImport(const Decl *D) const {
@@ -314,9 +323,9 @@ bool SymbolGraphASTWalker::isQualifiedExportedImport(const Decl *D) const {
   });
 }
 
-bool SymbolGraphASTWalker::isExportedImportedModule(const ModuleDecl *M) const {
-  return llvm::any_of(ExportedImportedModules, [&M](const auto *MD) {
-    return areModulesEqual(M, MD->getModuleContext());
+bool SymbolGraphASTWalker::isExportedImportedModule(const ModuleDecl *M, bool countUnderlyingClangModule) const {
+  return llvm::any_of(ExportedImportedModules, [&M, countUnderlyingClangModule](const auto *MD) {
+    return areModulesEqual(M, MD->getModuleContext(), /*isClangEqual*/countUnderlyingClangModule);
   });
 }
 

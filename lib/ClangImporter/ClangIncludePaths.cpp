@@ -27,6 +27,7 @@ using Path = SmallString<128>;
 
 static Optional<Path> getActualModuleMapPath(
     StringRef name, SearchPathOptions &Opts, const llvm::Triple &triple,
+    bool isArchSpecific,
     const llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> &vfs) {
   StringRef platform = swift::getPlatformNameForTriple(triple);
   StringRef arch = swift::getMajorArchitectureName(triple);
@@ -37,7 +38,11 @@ static Optional<Path> getActualModuleMapPath(
   if (!SDKPath.empty()) {
     result.append(SDKPath.begin(), SDKPath.end());
     llvm::sys::path::append(result, "usr", "lib", "swift");
-    llvm::sys::path::append(result, platform, arch, name);
+    llvm::sys::path::append(result, platform, arch);
+    if (isArchSpecific) {
+      llvm::sys::path::append(result, arch);
+    }
+    llvm::sys::path::append(result, name);
 
     // Only specify the module map if that file actually exists.  It may not;
     // for example in the case that `swiftc -target x86_64-unknown-linux-gnu
@@ -50,7 +55,11 @@ static Optional<Path> getActualModuleMapPath(
     result.clear();
     result.append(Opts.RuntimeResourcePath.begin(),
                   Opts.RuntimeResourcePath.end());
-    llvm::sys::path::append(result, platform, arch, name);
+    llvm::sys::path::append(result, platform);
+    if (isArchSpecific) {
+      llvm::sys::path::append(result, arch);
+    }
+    llvm::sys::path::append(result, name);
 
     // Only specify the module map if that file actually exists.  It may not;
     // for example in the case that `swiftc -target x86_64-unknown-linux-gnu
@@ -88,19 +97,22 @@ static llvm::Optional<Path> getInjectedModuleMapPath(
 static Optional<Path> getGlibcModuleMapPath(
     SearchPathOptions &Opts, const llvm::Triple &triple,
     const llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> &vfs) {
-  return getActualModuleMapPath("glibc.modulemap", Opts, triple, vfs);
+  return getActualModuleMapPath("glibc.modulemap", Opts, triple,
+                                /*isArchSpecific*/ true, vfs);
 }
 
 static Optional<Path> getLibStdCxxModuleMapPath(
     SearchPathOptions &opts, const llvm::Triple &triple,
     const llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> &vfs) {
-  return getActualModuleMapPath("libstdcxx.modulemap", opts, triple, vfs);
+  return getActualModuleMapPath("libstdcxx.modulemap", opts, triple,
+                                /*isArchSpecific*/ false, vfs);
 }
 
 Optional<SmallString<128>>
 swift::getCxxShimModuleMapPath(SearchPathOptions &opts,
                                const llvm::Triple &triple) {
   return getActualModuleMapPath("libcxxshim.modulemap", opts, triple,
+                                /*isArchSpecific*/ false,
                                 llvm::vfs::getRealFileSystem());
 }
 

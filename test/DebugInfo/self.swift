@@ -16,7 +16,7 @@ public func f() {
 // CHECK: define {{.*}} @"$s4self11stuffStructVACycfC"(
 // CHECK-NEXT: entry:
 // CHECK: %[[ALLOCA:.*]] = alloca %T4self11stuffStructV, align {{(4|8)}}
-// CHECK: call void @llvm.dbg.declare(metadata %T4self11stuffStructV* %[[ALLOCA]],
+// CHECK: call void @llvm.dbg.declare(metadata ptr %[[ALLOCA]],
 // CHECK-SAME: metadata ![[SELF:.*]], metadata !DIExpression()), !dbg
 // CHECK: ![[STUFFSTRUCT:.*]] = !DICompositeType(tag: DW_TAG_structure_type, name: "stuffStruct", scope:{{.*}}identifier
 // CHECK: ![[SELF]] = !DILocalVariable(name: "self", scope

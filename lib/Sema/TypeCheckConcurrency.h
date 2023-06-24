@@ -246,6 +246,17 @@ public:
   operator Kind() const { return kind; }
 };
 
+/// Specifies whether checks applied to function types should
+/// apply to their params, results, or both
+enum class FunctionCheckKind {
+  /// Check params and results
+  ParamsResults,
+  /// Check params only
+  Params,
+  /// Check results only
+  Results,
+};
+
 /// Diagnose the presence of any non-sendable types when referencing a
 /// given declaration from a particular declaration context.
 ///
@@ -260,17 +271,26 @@ public:
 ///
 /// \param fromDC The context from which the reference occurs.
 ///
-/// \param loc The location at which the reference occurs, which will be
+/// \param refLoc The location at which the reference occurs, which will be
 /// used when emitting diagnostics.
 ///
 /// \param refKind Describes what kind of reference is being made, which is
 /// used to tailor the diagnostic.
 ///
+/// \param funcCheckKind Describes whether function types in this reference
+/// should be checked for sendability of their results, params, or both
+///
+/// \param diagnoseLoc Provides an alternative source location to `refLoc`
+/// to be used for reporting the top level diagnostic while auxiliary
+/// warnings and diagnostics are reported at `refLoc`.
+///
 /// \returns true if an problem was detected, false otherwise.
 bool diagnoseNonSendableTypesInReference(
-    ConcreteDeclRef declRef, const DeclContext *fromDC, SourceLoc loc,
+    ConcreteDeclRef declRef, const DeclContext *fromDC, SourceLoc refLoc,
     SendableCheckReason refKind,
-    Optional<ActorIsolation> knownIsolation = None);
+    Optional<ActorIsolation> knownIsolation = None,
+    FunctionCheckKind funcCheckKind = FunctionCheckKind::ParamsResults,
+    SourceLoc diagnoseLoc = SourceLoc());
 
 /// Produce a diagnostic for a missing conformance to Sendable.
 void diagnoseMissingSendableConformance(
@@ -282,6 +302,9 @@ void diagnoseMissingExplicitSendable(NominalTypeDecl *nominal);
 
 /// Warn about deprecated `Executor.enqueue` implementations.
 void tryDiagnoseExecutorConformance(ASTContext &C, const NominalTypeDecl *nominal, ProtocolDecl *proto);
+
+// Get a concrete reference to a declaration
+ConcreteDeclRef getDeclRefInContext(ValueDecl *value);
 
 /// How the Sendable check should be performed.
 enum class SendableCheck {
@@ -362,6 +385,37 @@ namespace detail {
 /// Diagnose any non-Sendable types that occur within the given type, using
 /// the given diagnostic.
 ///
+/// \param typeLoc is the source location of the type being diagnosed
+///
+/// \param diagnoseLoc is the source location at which the main diagnostic should
+/// be reported, which can differ from typeLoc
+///
+/// \returns \c true if any errors were produced, \c false if no diagnostics or
+/// only warnings and notes were produced.
+template<typename ...DiagArgs>
+bool diagnoseNonSendableTypes(
+    Type type, SendableCheckContext fromContext,
+    SourceLoc typeLoc, SourceLoc diagnoseLoc,
+    Diag<Type, DiagArgs...> diag,
+    typename detail::Identity<DiagArgs>::type ...diagArgs) {
+
+    ASTContext &ctx = fromContext.fromDC->getASTContext();
+    return diagnoseNonSendableTypes(
+        type, fromContext, typeLoc, [&](Type specificType,
+                                        DiagnosticBehavior behavior) {
+
+          if (behavior != DiagnosticBehavior::Ignore) {
+            ctx.Diags.diagnose(diagnoseLoc, diag, type, diagArgs...)
+                .limitBehavior(behavior);
+          }
+
+          return false;
+        });
+}
+
+/// Diagnose any non-Sendable types that occur within the given type, using
+/// the given diagnostic.
+///
 /// \returns \c true if any errors were produced, \c false if no diagnostics or
 /// only warnings and notes were produced.
 template<typename ...DiagArgs>
@@ -369,17 +423,9 @@ bool diagnoseNonSendableTypes(
     Type type, SendableCheckContext fromContext, SourceLoc loc,
     Diag<Type, DiagArgs...> diag,
     typename detail::Identity<DiagArgs>::type ...diagArgs) {
-  ASTContext &ctx = fromContext.fromDC->getASTContext();
-  return diagnoseNonSendableTypes(
-      type, fromContext, loc, [&](Type specificType,
-      DiagnosticBehavior behavior) {
-    if (behavior != DiagnosticBehavior::Ignore) {
-      ctx.Diags.diagnose(loc, diag, type, diagArgs...)
-        .limitBehavior(behavior);
-    }
 
-    return false;
-  });
+    return diagnoseNonSendableTypes(type, fromContext, loc, loc, diag,
+                             std::forward<decltype(diagArgs)>(diagArgs)...);
 }
 
 /// Diagnose this sendability error with behavior based on the import of

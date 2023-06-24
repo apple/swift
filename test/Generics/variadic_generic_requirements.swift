@@ -30,8 +30,8 @@ struct Outer<each T: Sequence> {
 }
 
 _ = Outer<Array<Int>, Array<String>>.Inner<Set<Int>, Set<String>>.self  // ok
-_ = Outer<Array<Int>, Array<String>>.Inner<Set<String>, Set<Int>>.self  // expected-error {{'Outer<Array<Int>, Array<String>>.Inner' requires the types 'Pack{Int, String}' and 'Pack{String, Int}' be equivalent}}
-_ = Outer<Array<Int>>.Inner<Set<Int>, Set<String>>.self  // expected-error {{'Outer<Array<Int>>.Inner' requires the types 'Pack{Int}' and 'Pack{Int, String}' be equivalent}}
+_ = Outer<Array<Int>, Array<String>>.Inner<Set<String>, Set<Int>>.self  // expected-error {{'Outer<Array<Int>, Array<String>>.Inner' requires the types 'Int, String' and 'String, Int' be equivalent}}
+_ = Outer<Array<Int>>.Inner<Set<Int>, Set<String>>.self  // expected-error {{'Outer<Array<Int>>.Inner' requires the types 'Int' and 'Int, String' be equivalent}}
 
 _ = Outer<Array<Int>, Array<String>>.InnerShape<Set<String>, Set<Int>>.self  // ok
-_ = Outer<Array<Int>>.InnerShape<Set<Int>, Set<String>>.self  // expected-error {{'Outer<Array<Int>>.InnerShape' requires the type packs 'Pack{Array<Int>}' and 'Pack{Set<Int>, Set<String>}' have the same shape}}
+_ = Outer<Array<Int>>.InnerShape<Set<Int>, Set<String>>.self  // expected-error {{'Outer<Array<Int>>.InnerShape' requires the type packs 'Array<Int>' and 'Set<Int>, Set<String>' have the same shape}}

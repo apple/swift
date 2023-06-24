@@ -1,4 +1,5 @@
-// RUN: %target-build-swift -module-name test -wmo -O -emit-ir -Xfrontend -num-threads -Xfrontend 0 %s %S/Inputs/nested_types_defs.swift -o - | %FileCheck %s
+// RUN: %target-build-swift %use_no_opaque_pointers -module-name test -wmo -O -emit-ir -Xfrontend -num-threads -Xfrontend 0 %s %S/Inputs/nested_types_defs.swift -o - | %FileCheck %s
+// RUN: %target-build-swift -module-name test -wmo -O -emit-ir -Xfrontend -num-threads -Xfrontend 0 %s %S/Inputs/nested_types_defs.swift -o -
 
 // Make sure we generate the outer metadata.
 

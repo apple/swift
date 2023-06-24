@@ -25,14 +25,14 @@
 
 //#-- Check '-load-plugin-library' takes precedence over '-plugin-path'.
 // RUN: %target-swift-frontend -typecheck -verify -swift-version 5 \
-// RUN:   -plugin-path %t/plugins \
 // RUN:   -load-plugin-library %t/plugins_local/%target-library-name(MacroDefinition) \
+// RUN:   -plugin-path %t/plugins \
 // RUN:   %t/src/test.swift
 
-//#-- Same, but with different argument order.
-// RUN: %target-swift-frontend -typecheck -verify -swift-version 5 \
-// RUN:   -load-plugin-library %t/plugins_local/%target-library-name(MacroDefinition) \
+//#-- Different argument order changes the search order, hence fail.
+// RUN: not %target-swift-frontend -typecheck -verify -swift-version 5 \
 // RUN:   -plugin-path %t/plugins \
+// RUN:   -load-plugin-library %t/plugins_local/%target-library-name(MacroDefinition) \
 // RUN:   %t/src/test.swift
 
 //--- test.swift
@@ -40,7 +40,7 @@
 
 func foo() {
   let _: Int = #constInt
-  // If 'MacroDefinition.float.swift' is loaded, type checking this fails because it expands to '4.2' which is a float literal.
+  // If 'MacroDefinition.float.swift' (in '-pluing-path') is loaded, type checking this fails because it expands to '4.2' which is a float literal.
 }
 
 //--- MacroDefinition.float.swift

@@ -1176,6 +1176,33 @@ private:
   friend class TypeRepr;
 };
 
+/// A TypeRepr for uses of 'Self' in the type of a declaration.
+class SelfTypeRepr : public TypeRepr {
+  Type Ty;
+  SourceLoc Loc;
+
+public:
+  SelfTypeRepr(Type Ty, SourceLoc Loc)
+    : TypeRepr(TypeReprKind::Self), Ty(Ty), Loc(Loc) {}
+
+  /// Retrieve the location.
+  SourceLoc getLoc() const { return Loc; }
+
+  /// Retrieve the fixed type.
+  Type getType() const { return Ty; }
+
+  static bool classof(const TypeRepr *T) {
+    return T->getKind() == TypeReprKind::Self;
+  }
+  static bool classof(const SelfTypeRepr *T) { return true; }
+
+private:
+  SourceLoc getStartLocImpl() const { return Loc; }
+  SourceLoc getEndLocImpl() const { return Loc; }
+  void printImpl(ASTPrinter &Printer, const PrintOptions &Opts) const;
+  friend class TypeRepr;
+};
+
 class SILBoxTypeReprField {
   SourceLoc VarOrLetLoc;
   llvm::PointerIntPair<TypeRepr*, 1, bool> FieldTypeAndMutable;
@@ -1436,6 +1463,7 @@ inline bool TypeRepr::isSimple() const {
   case TypeReprKind::Pack:
   case TypeReprKind::Tuple:
   case TypeReprKind::Fixed:
+  case TypeReprKind::Self:
   case TypeReprKind::Array:
   case TypeReprKind::SILBox:
   case TypeReprKind::Isolated:

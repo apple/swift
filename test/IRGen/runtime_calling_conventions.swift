@@ -7,11 +7,11 @@
 public class C {
 }
 
-// CHECK-LABEL: define {{(dllexport )?}}{{(protected )?}}swiftcc void @"$s27runtime_calling_conventions3fooyyAA1CCF"(%T27runtime_calling_conventions1CC* %0)
+// CHECK-LABEL: define {{(dllexport )?}}{{(protected )?}}swiftcc void @"$s27runtime_calling_conventions3fooyyAA1CCF"(ptr %0)
 // Check that runtime functions use a proper calling convention.
 // CHECK-NOT: call void {{.*}} @swift_release
 
-// OPT-CHECK-LABEL: define {{(dllexport )?}}{{(protected )?}}swiftcc void @"$s{{(27|28)}}runtime_calling_conventions3fooyyAA1CCF"(%T27runtime_calling_conventions1CC* nocapture{{.*}} %0)
+// OPT-CHECK-LABEL: define {{(dllexport )?}}{{(protected )?}}swiftcc void @"$s{{(27|28)}}runtime_calling_conventions3fooyyAA1CCF"(ptr nocapture{{.*}} %0)
 // Check that runtime functions use a proper calling convention.
 // OPT-CHECK-NOT: tail call void @swift_release
 

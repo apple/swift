@@ -40,7 +40,7 @@ actor C {
 // CHECK-LABEL: sil hidden @$s21default_actor_definit1CC1yACSgSi_tcfc
 // CHECK:         builtin "initializeDefaultActor"(%1 : $C)
 // CHECK:         [[X:%.*]] = ref_element_addr %1 : $C, #C.x
-// CHECK-NEXT:    [[ACCESS:%.*]] = begin_access [modify] [dynamic] [[X]] : $*String
+// CHECK-NEXT:    [[ACCESS:%.*]] = begin_access [init] [static] [[X]] : $*String
 // CHECK-NEXT:    store {{.*}} to [[ACCESS]] : $*String
 // CHECK-NEXT:    end_access [[ACCESS]] : $*String
 // CHECK:         cond_br {{%.*}}, bb1, bb2

@@ -2284,7 +2284,7 @@ ConstraintSystem::matchTupleTypes(TupleType *tuple1, TupleType *tuple2,
   case ConstraintKind::BridgingConversion:
   case ConstraintKind::OneWayEqual:
   case ConstraintKind::OneWayBindParam:
-  case ConstraintKind::DefaultClosureType:
+  case ConstraintKind::FallbackType:
   case ConstraintKind::UnresolvedMemberChainBase:
   case ConstraintKind::PropertyWrapper:
   case ConstraintKind::SyntacticElement:
@@ -2643,7 +2643,7 @@ static bool matchFunctionRepresentations(FunctionType::ExtInfo einfo1,
   case ConstraintKind::ValueWitness:
   case ConstraintKind::OneWayEqual:
   case ConstraintKind::OneWayBindParam:
-  case ConstraintKind::DefaultClosureType:
+  case ConstraintKind::FallbackType:
   case ConstraintKind::UnresolvedMemberChainBase:
   case ConstraintKind::PropertyWrapper:
   case ConstraintKind::SyntacticElement:
@@ -3161,7 +3161,7 @@ ConstraintSystem::matchFunctionTypes(FunctionType *func1, FunctionType *func2,
   case ConstraintKind::BridgingConversion:
   case ConstraintKind::OneWayEqual:
   case ConstraintKind::OneWayBindParam:
-  case ConstraintKind::DefaultClosureType:
+  case ConstraintKind::FallbackType:
   case ConstraintKind::UnresolvedMemberChainBase:
   case ConstraintKind::PropertyWrapper:
   case ConstraintKind::SyntacticElement:
@@ -6811,7 +6811,7 @@ ConstraintSystem::matchTypes(Type type1, Type type2, ConstraintKind kind,
     case ConstraintKind::ValueWitness:
     case ConstraintKind::OneWayEqual:
     case ConstraintKind::OneWayBindParam:
-    case ConstraintKind::DefaultClosureType:
+    case ConstraintKind::FallbackType:
     case ConstraintKind::UnresolvedMemberChainBase:
     case ConstraintKind::PropertyWrapper:
     case ConstraintKind::SyntacticElement:
@@ -9635,6 +9635,44 @@ performMemberLookup(ConstraintKind constraintKind, DeclNameRef memberName,
         }
       }
 
+      if (auto *UDE =
+              getAsExpr<UnresolvedDotExpr>(memberLocator->getAnchor())) {
+        auto *base = UDE->getBase();
+        if (auto *accessor = DC->getInnermostPropertyAccessorContext()) {
+          if (accessor->isInitAccessor() && isa<DeclRefExpr>(base) &&
+              accessor->getImplicitSelfDecl() ==
+                  cast<DeclRefExpr>(base)->getDecl()) {
+            bool isValidReference = false;
+
+            // If name doesn't appear in either `initializes` or `accesses`
+            // then it's invalid instance member.
+
+            if (auto *initializesAttr =
+                    accessor->getAttrs().getAttribute<InitializesAttr>()) {
+              isValidReference |= llvm::any_of(
+                  initializesAttr->getProperties(), [&](Identifier name) {
+                    return DeclNameRef(name) == memberName;
+                  });
+            }
+
+            if (auto *accessesAttr =
+                    accessor->getAttrs().getAttribute<AccessesAttr>()) {
+              isValidReference |= llvm::any_of(
+                  accessesAttr->getProperties(), [&](Identifier name) {
+                    return DeclNameRef(name) == memberName;
+                  });
+            }
+
+            if (!isValidReference) {
+              result.addUnviable(
+                  candidate,
+                  MemberLookupResult::UR_UnavailableWithinInitAccessor);
+              return;
+            }
+          }
+        }
+      }
+
     // If the underlying type of a typealias is fully concrete, it is legal
     // to access the type with a protocol metatype base.
     } else if (instanceTy->isExistentialType() &&
@@ -10215,6 +10253,10 @@ fixMemberRef(ConstraintSystem &cs, Type baseTy,
 
     case MemberLookupResult::UR_InvalidStaticMemberOnProtocolMetatype:
       return AllowInvalidStaticMemberRefOnProtocolMetatype::create(cs, locator);
+
+    case MemberLookupResult::UR_UnavailableWithinInitAccessor:
+      return AllowInvalidMemberReferenceInInitAccessor::create(cs, memberName,
+                                                               locator);
     }
   }
 
@@ -10947,18 +10989,18 @@ ConstraintSystem::SolutionKind ConstraintSystem::simplifyDefaultableConstraint(
   return SolutionKind::Solved;
 }
 
-ConstraintSystem::SolutionKind
-ConstraintSystem::simplifyDefaultClosureTypeConstraint(
-    Type closureType, Type inferredType,
-    ArrayRef<TypeVariableType *> referencedOuterParameters,
-    TypeMatchOptions flags, ConstraintLocatorBuilder locator) {
-  closureType = getFixedTypeRecursive(closureType, flags, /*wantRValue=*/true);
+ConstraintSystem::SolutionKind ConstraintSystem::simplifyFallbackTypeConstraint(
+    Type defaultableType, Type fallbackType,
+    ArrayRef<TypeVariableType *> referencedVars, TypeMatchOptions flags,
+    ConstraintLocatorBuilder locator) {
+  defaultableType =
+      getFixedTypeRecursive(defaultableType, flags, /*wantRValue=*/true);
 
-  if (closureType->isTypeVariableOrMember()) {
+  if (defaultableType->isTypeVariableOrMember()) {
     if (flags.contains(TMF_GenerateConstraints)) {
       addUnsolvedConstraint(Constraint::create(
-          *this, ConstraintKind::DefaultClosureType, closureType, inferredType,
-          getConstraintLocator(locator), referencedOuterParameters));
+          *this, ConstraintKind::FallbackType, defaultableType, fallbackType,
+          getConstraintLocator(locator), referencedVars));
       return SolutionKind::Solved;
     }
 
@@ -13493,18 +13535,64 @@ ConstraintSystem::simplifyExplicitGenericArgumentsConstraint(
   if (simplifiedBoundType->isTypeVariableOrMember())
     return formUnsolved();
 
-  // If the overload hasn't been resolved, we can't simplify this constraint.
-  auto overloadLocator = getCalleeLocator(getConstraintLocator(locator));
-  auto selectedOverload = findSelectedOverloadFor(overloadLocator);
-  if (!selectedOverload)
-    return formUnsolved();
+  ValueDecl *decl;
+  SmallVector<OpenedType, 2> openedTypes;
+  if (auto *bound = dyn_cast<TypeAliasType>(type1.getPointer())) {
+    decl = bound->getDecl();
+    for (auto argType : bound->getDirectGenericArgs()) {
+      auto *typeVar = argType->getAs<TypeVariableType>();
+      auto *genericParam = typeVar->getImpl().getGenericParameter();
+      openedTypes.push_back({genericParam, typeVar});
+    }
+  } else if (locator.directlyAt<TypeExpr>()) {
+    auto *BGT = type1->getAs<BoundGenericType>();
+    if (!BGT)
+      return SolutionKind::Error;
 
-  auto overloadChoice = selectedOverload->choice;
-  if (!overloadChoice.isDecl()) {
-    return SolutionKind::Error;
+    decl = BGT->getDecl();
+
+    auto genericParams = BGT->getDecl()->getInnermostGenericParamTypes();
+    if (genericParams.size() != BGT->getGenericArgs().size())
+      return SolutionKind::Error;
+
+    for (unsigned i = 0, n = genericParams.size(); i != n; ++i) {
+      auto argType = BGT->getGenericArgs()[i];
+      if (auto *typeVar = argType->getAs<TypeVariableType>()) {
+        openedTypes.push_back({genericParams[i], typeVar});
+      } else {
+        // If we have a concrete substitution then we need to create
+        // a new type variable to be able to add it to the list as-if
+        // it is opened generic parameter type.
+        auto *GP = genericParams[i];
+
+        unsigned options = TVO_CanBindToNoEscape;
+        if (GP->isParameterPack())
+          options |= TVO_CanBindToPack;
+
+        auto *argVar = createTypeVariable(
+            getConstraintLocator(locator, LocatorPathElt::GenericArgument(i)),
+            options);
+        addConstraint(ConstraintKind::Bind, argVar, argType, locator);
+        openedTypes.push_back({GP, argVar});
+      }
+    }
+  } else {
+    // If the overload hasn't been resolved, we can't simplify this constraint.
+    auto overloadLocator = getCalleeLocator(getConstraintLocator(locator));
+    auto selectedOverload = findSelectedOverloadFor(overloadLocator);
+    if (!selectedOverload)
+      return formUnsolved();
+
+    auto overloadChoice = selectedOverload->choice;
+    if (!overloadChoice.isDecl()) {
+      return SolutionKind::Error;
+    }
+
+    decl = overloadChoice.getDecl();
+    auto openedOverloadTypes = getOpenedTypes(overloadLocator);
+    openedTypes.append(openedOverloadTypes.begin(), openedOverloadTypes.end());
   }
 
-  auto decl = overloadChoice.getDecl();
   auto genericContext = decl->getAsGenericContext();
   if (!genericContext)
     return SolutionKind::Error;
@@ -13518,9 +13606,28 @@ ConstraintSystem::simplifyExplicitGenericArgumentsConstraint(
   // Map the generic parameters we have over to their opened types.
   SmallVector<Type, 2> openedGenericParams;
   auto genericParamDepth = genericParams->getParams()[0]->getDepth();
-  for (const auto &openedType : getOpenedTypes(overloadLocator)) {
+  for (const auto &openedType : openedTypes) {
     if (openedType.first->getDepth() == genericParamDepth) {
-      openedGenericParams.push_back(Type(openedType.second));
+      // A generic argument list containing pack references expects
+      // those packs to be wrapped in pack expansion types. If this
+      // opened type represents the generic argument for a parameter
+      // pack, wrap generate the appropriate shape constraints and
+      // add a pack expansion to the argument list.
+      if (openedType.first->isParameterPack()) {
+        auto patternType = openedType.second;
+        auto *shapeLoc = getConstraintLocator(
+            locator.withPathElement(ConstraintLocator::PackShape));
+        auto *shapeType = createTypeVariable(shapeLoc,
+                                            TVO_CanBindToPack |
+                                            TVO_CanBindToHole);
+        addConstraint(ConstraintKind::ShapeOf,
+                      shapeType, patternType, shapeLoc);
+
+        auto *expansion = PackExpansionType::get(patternType, shapeType);
+        openedGenericParams.push_back(expansion);
+      } else {
+        openedGenericParams.push_back(Type(openedType.second));
+      }
     }
   }
   assert(openedGenericParams.size() == genericParams->size());
@@ -14640,6 +14747,10 @@ ConstraintSystem::SolutionKind ConstraintSystem::simplifyFixConstraint(
     return recordFix(fix, 100) ? SolutionKind::Error : SolutionKind::Solved;
   }
 
+  case FixKind::AllowInvalidMemberReferenceInInitAccessor: {
+    return recordFix(fix, 5) ? SolutionKind::Error : SolutionKind::Solved;
+  }
+
   case FixKind::ExplicitlyConstructRawRepresentable: {
     // Let's increase impact of this fix for binary operators because
     // it's possible to get both `.rawValue` and construction fixes for
@@ -14871,6 +14982,7 @@ ConstraintSystem::SolutionKind ConstraintSystem::simplifyFixConstraint(
   case FixKind::AddExplicitExistentialCoercion:
   case FixKind::DestructureTupleToMatchPackExpansionParameter:
   case FixKind::AllowValueExpansionWithoutPackReferences:
+  case FixKind::IgnoreInvalidPatternInExpr:
   case FixKind::IgnoreMissingEachKeyword:
     llvm_unreachable("handled elsewhere");
   }
@@ -14985,7 +15097,7 @@ ConstraintSystem::addConstraintImpl(ConstraintKind kind, Type first,
   case ConstraintKind::Conjunction:
   case ConstraintKind::KeyPath:
   case ConstraintKind::KeyPathApplication:
-  case ConstraintKind::DefaultClosureType:
+  case ConstraintKind::FallbackType:
   case ConstraintKind::SyntacticElement:
     llvm_unreachable("Use the correct addConstraint()");
   }
@@ -15517,12 +15629,12 @@ ConstraintSystem::simplifyConstraint(const Constraint &constraint) {
                                          /*flags*/ None,
                                          constraint.getLocator());
 
-  case ConstraintKind::DefaultClosureType:
-    return simplifyDefaultClosureTypeConstraint(constraint.getFirstType(),
-                                                constraint.getSecondType(),
-                                                constraint.getTypeVariables(),
-                                                /*flags*/ None,
-                                                constraint.getLocator());
+  case ConstraintKind::FallbackType:
+    return simplifyFallbackTypeConstraint(constraint.getFirstType(),
+                                          constraint.getSecondType(),
+                                          constraint.getTypeVariables(),
+                                          /*flags*/ None,
+                                          constraint.getLocator());
 
   case ConstraintKind::PropertyWrapper:
     return simplifyPropertyWrapperConstraint(constraint.getFirstType(),

@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend -disable-availability-checking -emit-ir %s | %FileCheck %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers -disable-availability-checking -emit-ir %s | %FileCheck %s
+// RUN: %target-swift-frontend -disable-availability-checking -emit-ir %s
 
 protocol Butt { }
 

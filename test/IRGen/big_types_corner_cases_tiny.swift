@@ -6,6 +6,6 @@
 
 // CHECK-LABEL: define internal void @{{.*}}WZ
 // CHECK: [[ALLOC:%.*]] = alloca %T27big_types_corner_cases_tiny30LoadableStructWithBiggerStringV
-// CHECK: call swiftcc void {{.*}}(%T27big_types_corner_cases_tiny30LoadableStructWithBiggerStringV* noalias nocapture sret({{.*}}) [[ALLOC]]
+// CHECK: call swiftcc void {{.*}}(ptr noalias nocapture sret({{.*}}) [[ALLOC]]
 let model = ClassWithLoadableStructWithBiggerString().f()
 

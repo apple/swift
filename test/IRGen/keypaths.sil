@@ -2,7 +2,8 @@
 // RUN: %empty-directory(%t)
 // -- Convert <i32 0x...> constants to decimal constants that LLVM will print
 // RUN: %{python} %utils/chex.py < %s > %t/keypaths.sil
-// RUN: %target-swift-frontend -module-name keypaths -emit-ir %s | %FileCheck %t/keypaths.sil --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-%target-os
+// RUN: %target-swift-frontend %use_no_opaque_pointers -module-name keypaths -emit-ir %s | %FileCheck %t/keypaths.sil --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-%target-os
+// RUN: %target-swift-frontend -module-name keypaths -emit-ir %s
 
 sil_stage canonical
 import Swift

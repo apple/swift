@@ -322,7 +322,7 @@ llvm::CallingConv::ID irgen::expandCallingConv(IRGenModule &IGM,
   case SILFunctionTypeRepresentation::ObjCMethod:
   case SILFunctionTypeRepresentation::CXXMethod:
   case SILFunctionTypeRepresentation::Block:
-    return llvm::CallingConv::C;
+    return IGM.getOptions().PlatformCCallingConvention;
 
   case SILFunctionTypeRepresentation::Method:
   case SILFunctionTypeRepresentation::WitnessMethod:

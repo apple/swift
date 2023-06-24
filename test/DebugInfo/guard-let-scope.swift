@@ -10,12 +10,14 @@ func f(c: AnyObject??) {
   // CHECK: sil_scope [[S5:[0-9]+]] { {{.*}} parent [[S3]] }
   // CHECK: sil_scope [[S6:[0-9]+]] { loc "{{.*}}":7:3 parent [[S5]] }
   // CHECK: sil_scope [[S7:[0-9]+]] { loc "{{.*}}":7:17 parent [[S6]] }
-  // CHECK: sil_scope [[S8:[0-9]+]] { loc "{{.*}}":7:28 parent [[S7]] }
+  // CHECK: sil_scope [[S8:[0-9]+]] { loc "{{.*}}":7:17 parent [[S6]] }
+  // CHECK: sil_scope [[S9:[0-9]+]] { loc "{{.*}}":7:28 parent [[S8]] }
+  // CHECK: sil_scope [[S10:[0-9]+]] { loc "{{.*}}":7:28 parent [[S8]] }
   // CHECK: debug_value %{{.*}} : $Optional<Optional<AnyObject>>, let, name "x"{{.*}} scope [[S5]]
-  // CHECK: debug_value %{{.*}} : $Optional<AnyObject>, let, name "x", {{.*}} scope [[S7]]
-  // CHECK: debug_value %{{.*}} : $AnyObject, let, name "x", {{.*}} scope [[S8]]
+  // CHECK: debug_value %{{.*}} : $Optional<AnyObject>, let, name "x", {{.*}} scope [[S8]]
+  // CHECK: debug_value %{{.*}} : $AnyObject, let, name "x", {{.*}} scope [[S10]]
     fatalError()
   }
-  // CHECK: function_ref {{.*3use.*}} scope [[S8]]
+  // CHECK: function_ref {{.*3use.*}} scope [[S10]]
   use(x)
 }

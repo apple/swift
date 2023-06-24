@@ -94,13 +94,19 @@ public struct PropertyWrappers : MyProto {
 // CHECK: [
 // CHECK-NEXT:  {
 // CHECK-NEXT:    "typeName": "ExtractLiterals.Bools",
+// CHECK-NEXT:    "mangledTypeName": "15ExtractLiterals5BoolsV",
 // CHECK-NEXT:    "kind": "struct",
 // CHECK-NEXT:    "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractLiterals.swift",
 // CHECK-NEXT:    "line": 9,
+// CHECK-NEXT:    "conformances": [
+// CHECK-NEXT:      "ExtractLiterals.MyProto"
+// CHECK-NEXT:    ],
+// CHECK-NEXT:    "associatedTypeAliases": [],
 // CHECK-NEXT:    "properties": [
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "bool1",
 // CHECK-NEXT:        "type": "Swift.Bool",
+// CHECK-NEXT:        "mangledTypeName": "Sb",
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "false",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractLiterals.swift",
@@ -111,6 +117,7 @@ public struct PropertyWrappers : MyProto {
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "bool2",
 // CHECK-NEXT:        "type": "Swift.Optional<Swift.Bool>",
+// CHECK-NEXT:        "mangledTypeName": "SbSg",
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "false",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractLiterals.swift",
@@ -122,13 +129,19 @@ public struct PropertyWrappers : MyProto {
 // CHECK-NEXT:  },
 // CHECK-NEXT:  {
 // CHECK-NEXT:    "typeName": "ExtractLiterals.Ints",
+// CHECK-NEXT:    "mangledTypeName": "15ExtractLiterals4IntsV",
 // CHECK-NEXT:    "kind": "struct",
 // CHECK-NEXT:    "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractLiterals.swift",
 // CHECK-NEXT:    "line": 14,
+// CHECK-NEXT:    "conformances": [
+// CHECK-NEXT:      "ExtractLiterals.MyProto"
+// CHECK-NEXT:    ],
+// CHECK-NEXT:    "associatedTypeAliases": [], 
 // CHECK-NEXT:    "properties": [
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "int1",
 // CHECK-NEXT:        "type": "Swift.Int",
+// CHECK-NEXT:        "mangledTypeName": "Si",
 // CHECK-NEXT:        "isStatic": "true",
 // CHECK-NEXT:        "isComputed": "false",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractLiterals.swift",
@@ -139,6 +152,7 @@ public struct PropertyWrappers : MyProto {
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "int2",
 // CHECK-NEXT:        "type": "Swift.Int",
+// CHECK-NEXT:        "mangledTypeName": "Si",
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "true",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractLiterals.swift",
@@ -149,6 +163,7 @@ public struct PropertyWrappers : MyProto {
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "int3",
 // CHECK-NEXT:        "type": "Swift.Int",
+// CHECK-NEXT:        "mangledTypeName": "Si",
 // CHECK-NEXT:        "isStatic": "true",
 // CHECK-NEXT:        "isComputed": "true",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractLiterals.swift",
@@ -160,13 +175,19 @@ public struct PropertyWrappers : MyProto {
 // CHECK-NEXT:  },
 // CHECK-NEXT:  {
 // CHECK-NEXT:    "typeName": "ExtractLiterals.Floats",
+// CHECK-NEXT:    "mangledTypeName": "15ExtractLiterals6FloatsV",
 // CHECK-NEXT:    "kind": "struct",
 // CHECK-NEXT:    "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractLiterals.swift",
-// CHECK-NEXT:    "line": 20,
+// CHECK-NEXT:    "line": 20, 
+// CHECK-NEXT:    "conformances": [
+// CHECK-NEXT:      "ExtractLiterals.MyProto"
+// CHECK-NEXT:    ],
+// CHECK-NEXT:    "associatedTypeAliases": [],
 // CHECK-NEXT:    "properties": [
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "float1",
 // CHECK-NEXT:        "type": "Swift.Float",
+// CHECK-NEXT:        "mangledTypeName": "Sf",
 // CHECK-NEXT:        "isStatic": "true",
 // CHECK-NEXT:        "isComputed": "false",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractLiterals.swift",
@@ -177,6 +198,7 @@ public struct PropertyWrappers : MyProto {
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "float2",
 // CHECK-NEXT:        "type": "Swift.Float",
+// CHECK-NEXT:        "mangledTypeName": "Sf", 
 // CHECK-NEXT:        "isStatic": "true",
 // CHECK-NEXT:        "isComputed": "true",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractLiterals.swift",
@@ -187,6 +209,7 @@ public struct PropertyWrappers : MyProto {
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "float3",
 // CHECK-NEXT:        "type": "Swift.Float",
+// CHECK-NEXT:        "mangledTypeName": "Sf", 
 // CHECK-NEXT:        "isStatic": "true",
 // CHECK-NEXT:        "isComputed": "true",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractLiterals.swift",
@@ -197,13 +220,19 @@ public struct PropertyWrappers : MyProto {
 // CHECK-NEXT:  },
 // CHECK-NEXT:  {
 // CHECK-NEXT:    "typeName": "ExtractLiterals.Strings",
+// CHECK-NEXT:    "mangledTypeName": "15ExtractLiterals7StringsV",
 // CHECK-NEXT:    "kind": "struct",
 // CHECK-NEXT:    "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractLiterals.swift",
 // CHECK-NEXT:    "line": 26,
+// CHECK-NEXT:    "conformances": [
+// CHECK-NEXT:      "ExtractLiterals.MyProto"
+// CHECK-NEXT:    ],
+// CHECK-NEXT:    "associatedTypeAliases": [], 
 // CHECK-NEXT:    "properties": [
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "string1",
 // CHECK-NEXT:        "type": "Swift.String",
+// CHECK-NEXT:        "mangledTypeName": "SS",
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "false",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractLiterals.swift",
@@ -214,6 +243,7 @@ public struct PropertyWrappers : MyProto {
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "string2",
 // CHECK-NEXT:        "type": "Swift.String",
+// CHECK-NEXT:        "mangledTypeName": "SS",
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "false",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractLiterals.swift",
@@ -224,6 +254,7 @@ public struct PropertyWrappers : MyProto {
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "string3",
 // CHECK-NEXT:        "type": "Swift.String",
+// CHECK-NEXT:        "mangledTypeName": "SS",
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "true",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractLiterals.swift",
@@ -235,13 +266,19 @@ public struct PropertyWrappers : MyProto {
 // CHECK-NEXT:  },
 // CHECK-NEXT:  {
 // CHECK-NEXT:    "typeName": "ExtractLiterals.PropertyWrappers",
+// CHECK-NEXT:    "mangledTypeName": "15ExtractLiterals16PropertyWrappersV",
 // CHECK-NEXT:    "kind": "struct",
 // CHECK-NEXT:    "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractLiterals.swift",
 // CHECK-NEXT:    "line": 37,
+// CHECK-NEXT:    "conformances": [
+// CHECK-NEXT:      "ExtractLiterals.MyProto"
+// CHECK-NEXT:    ],
+// CHECK-NEXT:    "associatedTypeAliases": [],
 // CHECK-NEXT:    "properties": [
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "_propertyWrapper1",
 // CHECK-NEXT:        "type": "ExtractLiterals.Buffered<Swift.String>",
+// CHECK-NEXT:        "mangledTypeName": "15ExtractLiterals8BufferedVySSG",
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "false",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractLiterals.swift",
@@ -262,6 +299,7 @@ public struct PropertyWrappers : MyProto {
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "_propertyWrapper2",
 // CHECK-NEXT:        "type": "ExtractLiterals.Clamping<Swift.Int>",
+// CHECK-NEXT:        "mangledTypeName": "15ExtractLiterals8ClampingVySiG",
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "false",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractLiterals.swift",
@@ -294,6 +332,7 @@ public struct PropertyWrappers : MyProto {
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "_propertyWrapper3",
 // CHECK-NEXT:        "type": "ExtractLiterals.Buffered<ExtractLiterals.Clamping<Swift.Int>>",
+// CHECK-NEXT:        "mangledTypeName": "15ExtractLiterals8BufferedVyAA8ClampingVySiGG",
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "false",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractLiterals.swift",
@@ -336,6 +375,7 @@ public struct PropertyWrappers : MyProto {
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "propertyWrapper1",
 // CHECK-NEXT:        "type": "Swift.String",
+// CHECK-NEXT:        "mangledTypeName": "SS",
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "true",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractLiterals.swift",
@@ -364,6 +404,7 @@ public struct PropertyWrappers : MyProto {
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "$propertyWrapper1",
 // CHECK-NEXT:        "type": "(Swift.String, Swift.Optional<Swift.String>)",
+// CHECK-NEXT:        "mangledTypeName": "SS_SSSgt",
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "true",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractLiterals.swift",
@@ -373,6 +414,7 @@ public struct PropertyWrappers : MyProto {
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "propertyWrapper2",
 // CHECK-NEXT:        "type": "Swift.Int",
+// CHECK-NEXT:        "mangledTypeName": "Si",
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "true",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractLiterals.swift",
@@ -426,6 +468,7 @@ public struct PropertyWrappers : MyProto {
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "propertyWrapper3",
 // CHECK-NEXT:        "type": "Swift.Int",
+// CHECK-NEXT:        "mangledTypeName": "Si",
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "true",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractLiterals.swift",
@@ -495,6 +538,7 @@ public struct PropertyWrappers : MyProto {
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "$propertyWrapper3",
 // CHECK-NEXT:        "type": "(ExtractLiterals.Clamping<Swift.Int>, Swift.Optional<ExtractLiterals.Clamping<Swift.Int>>)",
+// CHECK-NEXT:        "mangledTypeName": "15ExtractLiterals8ClampingVySiG_ADSgt",
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "true",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractLiterals.swift",

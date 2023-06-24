@@ -1761,8 +1761,13 @@ visitAllocRefDynamicInst(AllocRefDynamicInst *ARDI) {
   Builder.setCurrentDebugScope(ARDI->getDebugScope());
 
   SILValue MDVal = ARDI->getMetatypeOperand();
-  while (auto *UCI = dyn_cast<UpcastInst>(MDVal))
+  while (auto *UCI = dyn_cast<UpcastInst>(MDVal)) {
+    // For simplicity ignore a cast of an `alloc_ref [stack]`. It would need more
+    // work to keep its `dealloc_stack_ref` correct.
+    if (ARDI->canAllocOnStack())
+      return nullptr;
     MDVal = UCI->getOperand();
+  }
 
   SingleValueInstruction *NewInst = nullptr;
   if (auto *MI = dyn_cast<MetatypeInst>(MDVal)) {
@@ -1775,7 +1780,7 @@ visitAllocRefDynamicInst(AllocRefDynamicInst *ARDI) {
       return nullptr;
 
     NewInst = Builder.createAllocRef(ARDI->getLoc(), SILInstanceTy,
-                                     ARDI->isObjC(), false,
+                                     ARDI->isObjC(), ARDI->canAllocOnStack(),
                                      ARDI->getTailAllocatedTypes(),
                                      getCounts(ARDI));
 
@@ -1800,11 +1805,14 @@ visitAllocRefDynamicInst(AllocRefDynamicInst *ARDI) {
       if (!SILInstanceTy.getClassOrBoundGenericClass())
         return nullptr;
       NewInst = Builder.createAllocRef(ARDI->getLoc(), SILInstanceTy,
-                                       ARDI->isObjC(), false,
+                                       ARDI->isObjC(), ARDI->canAllocOnStack(),
                                        ARDI->getTailAllocatedTypes(),
                                        getCounts(ARDI));
     }
   } else if (auto *AI = dyn_cast<ApplyInst>(MDVal)) {
+    if (ARDI->canAllocOnStack())
+      return nullptr;
+
     SILFunction *SF = AI->getReferencedFunctionOrNull();
     if (!SF)
       return nullptr;
@@ -1833,6 +1841,7 @@ visitAllocRefDynamicInst(AllocRefDynamicInst *ARDI) {
   if (NewInst && NewInst->getType() != ARDI->getType()) {
     // In case the argument was an upcast of the metatype, we have to upcast the
     // resulting reference.
+    assert(!ARDI->canAllocOnStack() && "upcasting alloc_ref [stack] not supported");
     NewInst = Builder.createUpcast(ARDI->getLoc(), NewInst, ARDI->getType());
   }
   return NewInst;

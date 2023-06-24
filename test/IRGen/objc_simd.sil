@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -emit-ir %s | %FileCheck %s --check-prefix=%target-cpu --check-prefix=%target-cpu-%target-sdk-name
+// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) %use_no_opaque_pointers -emit-ir %s | %FileCheck %s --check-prefix=%target-cpu --check-prefix=%target-cpu-%target-sdk-name
+// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -emit-ir %s
 
 import Swift
 import simd

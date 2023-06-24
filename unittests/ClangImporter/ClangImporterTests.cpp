@@ -157,8 +157,7 @@ struct LibStdCxxInjectionVFS {
 
   // Add a libstdc++ modulemap that's part of Swift's distribution.
   LibStdCxxInjectionVFS &libstdCxxModulemap(StringRef contents = "") {
-    newFile("/usr/lib/swift/" + osString + "/" + archString +
-                "/libstdcxx.modulemap",
+    newFile("/usr/lib/swift/" + osString + "/libstdcxx.modulemap",
             contents.empty() ? getLibstdcxxModulemapContents() : contents);
     return *this;
   }
@@ -210,11 +209,11 @@ TEST(ClangImporterTest, libStdCxxInjectionTest) {
     EXPECT_EQ(paths.redirectedFiles[0].first,
               "/opt/rh/devtoolset-9/root/usr/include/c++/9/libstdcxx.h");
     EXPECT_EQ(paths.redirectedFiles[0].second,
-              "/usr/lib/swift/linux/x86_64/libstdcxx.h");
+              "/usr/lib/swift/linux/libstdcxx.h");
     EXPECT_EQ(paths.redirectedFiles[1].first,
               "/opt/rh/devtoolset-9/root/usr/include/c++/9/module.modulemap");
     EXPECT_EQ(paths.redirectedFiles[1].second,
-              "/usr/lib/swift/linux/x86_64/libstdcxx.modulemap");
+              "/usr/lib/swift/linux/libstdcxx.modulemap");
   }
 
   {
@@ -226,7 +225,7 @@ TEST(ClangImporterTest, libStdCxxInjectionTest) {
     EXPECT_EQ(paths.redirectedFiles[0].first,
               "/opt/rh/devtoolset-9/root/usr/include/c++/9/libstdcxx.h");
     EXPECT_EQ(paths.redirectedFiles[0].second,
-              "/usr/lib/swift/linux/x86_64/libstdcxx.h");
+              "/usr/lib/swift/linux/libstdcxx.h");
     EXPECT_EQ(paths.overridenFiles[0].first,
               "/opt/rh/devtoolset-9/root/usr/include/c++/9/module.modulemap");
     EXPECT_NE(paths.overridenFiles[0].second.find(
@@ -252,7 +251,7 @@ TEST(ClangImporterTest, libStdCxxInjectionTest) {
     EXPECT_EQ(paths.redirectedFiles[0].first,
               "/opt/rh/devtoolset-9/root/usr/include/c++/9/libstdcxx.h");
     EXPECT_EQ(paths.redirectedFiles[0].second,
-              "/usr/lib/swift/linux/x86_64/libstdcxx.h");
+              "/usr/lib/swift/linux/libstdcxx.h");
     EXPECT_EQ(paths.overridenFiles[0].first,
               "/opt/rh/devtoolset-9/root/usr/include/c++/9/module.modulemap");
     EXPECT_NE(

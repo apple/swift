@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend -emit-ir -primary-file %s | %FileCheck %s -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend %use_no_opaque_pointers -emit-ir -primary-file %s | %FileCheck %s -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend -emit-ir -primary-file %s
 
 // REQUIRES: CPU=i386 || CPU=x86_64
 

@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend -parse-as-library -emit-ir -primary-file %s | %FileCheck %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers -parse-as-library -emit-ir -primary-file %s | %FileCheck %s
+// RUN: %target-swift-frontend -parse-as-library -emit-ir -primary-file %s
 
 // REQUIRES: CPU=x86_64
 

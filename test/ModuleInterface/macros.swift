@@ -35,9 +35,19 @@
 @attached(accessor) public macro myWrapper() = #externalMacro(module: "SomeModule", type: "Wrapper")
 
 // CHECK: #if compiler(>=5.3) && $Macros && $AttachedMacros
-// CHECK: @attached(member, names: named(`init`), prefixed(`$`)) public macro MemberwiseInit() = #externalMacro(module: "SomeModule", type: "MemberwiseInitMacro")
+// CHECK: @attached(member, names: named(init), prefixed(`$`)) public macro MemberwiseInit() = #externalMacro(module: "SomeModule", type: "MemberwiseInitMacro")
 // CHECK-NEXT: #endif
 @attached(member, names: named(init), prefixed(`$`)) public macro MemberwiseInit() = #externalMacro(module: "SomeModule", type: "MemberwiseInitMacro")
+
+// CHECK: #if compiler(>=5.3) && $Macros && $AttachedMacros
+// CHECK: @attached(member, names: named(`init`), prefixed(`$`)) public macro MemberwiseInitFunc() = #externalMacro(module: "SomeModule", type: "MemberwiseInitFuncMacro")
+// CHECK-NEXT: #endif
+@attached(member, names: named(`init`), prefixed(`$`)) public macro MemberwiseInitFunc() = #externalMacro(module: "SomeModule", type: "MemberwiseInitFuncMacro")
+
+// CHECK: #if compiler(>=5.3) && $Macros && $AttachedMacros
+// CHECK: @attached(accessor, names: named(init)) public macro AccessorInitFunc() = #externalMacro(module: "SomeModule", type: "AccessorInitFuncMacro")
+// CHECK-NEXT: #endif
+@attached(accessor, names: named(init)) public macro AccessorInitFunc() = #externalMacro(module: "SomeModule", type: "AccessorInitFuncMacro")
 
 // CHECK-NOT: internalStringify
 @freestanding(expression) macro internalStringify<T>(_ value: T) -> (T, String) = #externalMacro(module: "SomeModule", type: "StringifyMacro")

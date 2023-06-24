@@ -15,6 +15,7 @@
 #include "swift/AST/Decl.h"
 #include "swift/AST/DiagnosticEngine.h"
 #include "swift/AST/DiagnosticsFrontend.h"
+#include "swift/AST/FileSystem.h"
 #include "swift/AST/FileUnit.h"
 #include "swift/AST/Module.h"
 #include "swift/AST/TBDGenRequests.h"
@@ -29,6 +30,7 @@
 #include "llvm/IR/Mangler.h"
 #include "llvm/IR/ValueSymbolTable.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/VirtualOutputBackend.h"
 #include <vector>
 
 using namespace swift;
@@ -42,18 +44,13 @@ static std::vector<StringRef> sortSymbols(llvm::StringSet<> &symbols) {
 }
 
 bool swift::writeTBD(ModuleDecl *M, StringRef OutputFilename,
+                     llvm::vfs::OutputBackend &Backend,
                      const TBDGenOptions &Opts) {
-  std::error_code EC;
-  llvm::raw_fd_ostream OS(OutputFilename, EC, llvm::sys::fs::OF_None);
-  if (EC) {
-    M->getASTContext().Diags.diagnose(SourceLoc(), diag::error_opening_output,
-                                      OutputFilename, EC.message());
-    return true;
-  }
-
-  writeTBDFile(M, OS, Opts);
-
-  return false;
+  return withOutputPath(M->getDiags(), Backend, OutputFilename,
+                        [&](raw_ostream &OS) -> bool {
+                          writeTBDFile(M, OS, Opts);
+                          return false;
+                        });
 }
 
 static bool validateSymbols(DiagnosticEngine &diags,

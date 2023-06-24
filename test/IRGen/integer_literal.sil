@@ -34,22 +34,22 @@ sil @constant_corner_cases : $() -> () {
 entry:
   %fn = function_ref @use_literal : $@convention(thin) (Builtin.IntLiteral) -> ()
 
-  // CHECK:         call swiftcc void @use_literal(i32* getelementptr inbounds ([1 x i32], [1 x i32]* @intliteral.-2147483648, i32 0, i32 0), i32 8193)
+  // CHECK:         call swiftcc void @use_literal(ptr @intliteral.-2147483648, i32 8193)
   //   8193 == 32 << 8 + 1 (negative)
   %0 = integer_literal $Builtin.IntLiteral, -0x8000_0000
   apply %fn(%0) : $@convention(thin) (Builtin.IntLiteral) -> ()
 
-  // CHECK-NEXT:    call swiftcc void @use_literal(i32* getelementptr inbounds ([2 x i32], [2 x i32]* @intliteral.2147483648, i32 0, i32 0), i32 8448)
+  // CHECK-NEXT:    call swiftcc void @use_literal(ptr @intliteral.2147483648, i32 8448)
   //   8448 == 33 << 8
   %1 = integer_literal $Builtin.IntLiteral, 0x8000_0000
   apply %fn(%1) : $@convention(thin) (Builtin.IntLiteral) -> ()
 
-  // CHECK-NEXT:    call swiftcc void @use_literal(i32* getelementptr inbounds ([1 x i32], [1 x i32]* @intliteral.0, i32 0, i32 0), i32 256)
+  // CHECK-NEXT:    call swiftcc void @use_literal(ptr @intliteral.0, i32 256)
   //   256 == 1 << 8
   %3 = integer_literal $Builtin.IntLiteral, 0
   apply %fn(%3) : $@convention(thin) (Builtin.IntLiteral) -> ()
 
-  // CHECK-NEXT:    call swiftcc void @use_literal(i32* getelementptr inbounds ([1 x i32], [1 x i32]* @intliteral.-1, i32 0, i32 0), i32 257)
+  // CHECK-NEXT:    call swiftcc void @use_literal(ptr @intliteral.-1, i32 257)
   //   257 == 1 << 8 + 1 (negative)
   %4 = integer_literal $Builtin.IntLiteral, -1
   apply %fn(%4) : $@convention(thin) (Builtin.IntLiteral) -> ()
@@ -64,12 +64,12 @@ sil @redundant_literals : $() -> () {
 entry:
   %fn = function_ref @use_literal : $@convention(thin) (Builtin.IntLiteral) -> ()
 
-  // CHECK:         call swiftcc void @use_literal(i32* getelementptr inbounds ([1 x i32], [1 x i32]* @intliteral.60, i32 0, i32 0), i32 1792)
+  // CHECK:         call swiftcc void @use_literal(ptr @intliteral.60, i32 1792)
   //   1792 == 7 << 8
   %0 = integer_literal $Builtin.IntLiteral, 60
   apply %fn(%0) : $@convention(thin) (Builtin.IntLiteral) -> ()
 
-  // CHECK-NEXT:    call swiftcc void @use_literal(i32* getelementptr inbounds ([1 x i32], [1 x i32]* @intliteral.60, i32 0, i32 0), i32 1792)
+  // CHECK-NEXT:    call swiftcc void @use_literal(ptr @intliteral.60, i32 1792)
   //   1792 == 7 << 8
   %1 = integer_literal $Builtin.IntLiteral, 60
   apply %fn(%1) : $@convention(thin) (Builtin.IntLiteral) -> ()
@@ -94,7 +94,7 @@ entry(%0 : $Builtin.IntLiteral):
   // CHECK:       [[INVALID]]:
   // CHECK-NEXT:    br label %[[DONE:[a-z.]+]]
   // CHECK:       [[VALID]]:
-  // CHECK-NEXT:    [[CHUNK0:%.*]] = load i32, i32* %0, align 4
+  // CHECK-NEXT:    [[CHUNK0:%.*]] = load i32, ptr %0, align 4
   // CHECK-NEXT:    [[CHUNK0_TRUNC:%.*]] = trunc i32 [[CHUNK0]] to i16
   // CHECK-NEXT:    br label %[[DONE]]
   // CHECK:       [[DONE]]:
@@ -114,7 +114,7 @@ entry(%0 : $Builtin.IntLiteral):
   // CHECK:       [[INVALID]]:
   // CHECK-NEXT:    br label %[[DONE:[a-z.]+]]
   // CHECK:       [[VALID]]:
-  // CHECK-NEXT:    [[CHUNK0:%.*]] = load i32, i32* %0, align 4
+  // CHECK-NEXT:    [[CHUNK0:%.*]] = load i32, ptr %0, align 4
   // CHECK-NEXT:    br label %[[DONE]]
   // CHECK:       [[DONE]]:
   // CHECK-NEXT:    [[RESULT:%.*]] = phi i32 [ 0, %[[INVALID]] ], [ [[CHUNK0]], %[[VALID]] ]
@@ -133,15 +133,15 @@ entry(%0 : $Builtin.IntLiteral):
   // CHECK:       [[INVALID]]:
   // CHECK-NEXT:    br label %[[DONE:[a-z.]+]]
   // CHECK:       [[VALID]]:
-  // CHECK-NEXT:    [[CHUNK0:%.*]] = load i32, i32* %0, align 4
+  // CHECK-NEXT:    [[CHUNK0:%.*]] = load i32, ptr %0, align 4
   // CHECK-NEXT:    [[FINISHED0:%.*]] = icmp ule i32 [[WIDTH]], 32
   // CHECK-NEXT:    br i1 [[FINISHED0]], label %[[FINISH0:[a-z.]+]], label %[[NEXT0:[a-z.]+]]
   // CHECK:       [[FINISH0]]:
   // CHECK-NEXT:    [[RESULT0:%.*]] = sext i32 [[CHUNK0]] to i48
   // CHECK-NEXT:    br label %[[DONE]]
   // CHECK:       [[NEXT0]]:
-  // CHECK-NEXT:    [[CHUNKADDR1:%.*]] = getelementptr inbounds i32, i32* %0, i32 1
-  // CHECK-NEXT:    [[CHUNK1:%.*]] = load i32, i32* [[CHUNKADDR1]], align 4
+  // CHECK-NEXT:    [[CHUNKADDR1:%.*]] = getelementptr inbounds i32, ptr %0, i32 1
+  // CHECK-NEXT:    [[CHUNK1:%.*]] = load i32, ptr [[CHUNKADDR1]], align 4
   // CHECK-NEXT:    [[EXTEND1:%.*]] = zext i32 [[CHUNK0]] to i48
   // CHECK-NEXT:    [[CHUNK1EXT:%.*]] = zext i32 [[CHUNK1]] to i48
   // CHECK-NEXT:    [[CHUNK1SHIFT:%.*]] = shl i48 [[CHUNK1EXT]], 32
@@ -164,15 +164,15 @@ entry(%0 : $Builtin.IntLiteral):
   // CHECK:       [[INVALID]]:
   // CHECK-NEXT:    br label %[[DONE:[a-z.]+]]
   // CHECK:       [[VALID]]:
-  // CHECK-NEXT:    [[CHUNK0:%.*]] = load i32, i32* %0, align 4
+  // CHECK-NEXT:    [[CHUNK0:%.*]] = load i32, ptr %0, align 4
   // CHECK-NEXT:    [[FINISHED0:%.*]] = icmp ule i32 [[WIDTH]], 32
   // CHECK-NEXT:    br i1 [[FINISHED0]], label %[[FINISH0:[a-z.]+]], label %[[NEXT0:[a-z.]+]]
   // CHECK:       [[FINISH0]]:
   // CHECK-NEXT:    [[RESULT0:%.*]] = sext i32 [[CHUNK0]] to i64
   // CHECK-NEXT:    br label %[[DONE]]
   // CHECK:       [[NEXT0]]:
-  // CHECK-NEXT:    [[CHUNKADDR1:%.*]] = getelementptr inbounds i32, i32* %0, i32 1
-  // CHECK-NEXT:    [[CHUNK1:%.*]] = load i32, i32* [[CHUNKADDR1]], align 4
+  // CHECK-NEXT:    [[CHUNKADDR1:%.*]] = getelementptr inbounds i32, ptr %0, i32 1
+  // CHECK-NEXT:    [[CHUNK1:%.*]] = load i32, ptr [[CHUNKADDR1]], align 4
   // CHECK-NEXT:    [[EXTEND1:%.*]] = zext i32 [[CHUNK0]] to i64
   // CHECK-NEXT:    [[CHUNK1EXT:%.*]] = zext i32 [[CHUNK1]] to i64
   // CHECK-NEXT:    [[CHUNK1SHIFT:%.*]] = shl i64 [[CHUNK1EXT]], 32
@@ -203,7 +203,7 @@ entry(%0 : $Builtin.IntLiteral):
   // CHECK:       [[INVALID]]:
   // CHECK-NEXT:    br label %[[DONE:[a-z.]+]]
   // CHECK:       [[VALID]]:
-  // CHECK-NEXT:    [[CHUNK0:%.*]] = load i32, i32* %0, align 4
+  // CHECK-NEXT:    [[CHUNK0:%.*]] = load i32, ptr %0, align 4
   // CHECK-NEXT:    [[CHUNK0_TRUNC:%.*]] = trunc i32 [[CHUNK0]] to i16
   // CHECK-NEXT:    br label %[[DONE]]
   // CHECK:       [[DONE]]:
@@ -225,7 +225,7 @@ entry(%0 : $Builtin.IntLiteral):
   // CHECK:       [[INVALID]]:
   // CHECK-NEXT:    br label %[[DONE:[a-z.]+]]
   // CHECK:       [[VALID]]:
-  // CHECK-NEXT:    [[CHUNK0:%.*]] = load i32, i32* %0, align 4
+  // CHECK-NEXT:    [[CHUNK0:%.*]] = load i32, ptr %0, align 4
   // CHECK-NEXT:    br label %[[DONE]]
   // CHECK:       [[DONE]]:
   // CHECK-NEXT:    [[RESULT:%.*]] = phi i32 [ 0, %[[INVALID]] ], [ [[CHUNK0]], %[[VALID]] ]
@@ -246,15 +246,15 @@ entry(%0 : $Builtin.IntLiteral):
   // CHECK:       [[INVALID]]:
   // CHECK-NEXT:    br label %[[DONE:[a-z.]+]]
   // CHECK:       [[VALID]]:
-  // CHECK-NEXT:    [[CHUNK0:%.*]] = load i32, i32* %0, align 4
+  // CHECK-NEXT:    [[CHUNK0:%.*]] = load i32, ptr %0, align 4
   // CHECK-NEXT:    [[FINISHED0:%.*]] = icmp ule i32 [[WIDTH]], 33
   // CHECK-NEXT:    br i1 [[FINISHED0]], label %[[FINISH0:[a-z.]+]], label %[[NEXT0:[a-z.]+]]
   // CHECK:       [[FINISH0]]:
   // CHECK-NEXT:    [[RESULT0:%.*]] = zext i32 [[CHUNK0]] to i48
   // CHECK-NEXT:    br label %[[DONE]]
   // CHECK:       [[NEXT0]]:
-  // CHECK-NEXT:    [[CHUNKADDR1:%.*]] = getelementptr inbounds i32, i32* %0, i32 1
-  // CHECK-NEXT:    [[CHUNK1:%.*]] = load i32, i32* [[CHUNKADDR1]], align 4
+  // CHECK-NEXT:    [[CHUNKADDR1:%.*]] = getelementptr inbounds i32, ptr %0, i32 1
+  // CHECK-NEXT:    [[CHUNK1:%.*]] = load i32, ptr [[CHUNKADDR1]], align 4
   // CHECK-NEXT:    [[EXTEND1:%.*]] = zext i32 [[CHUNK0]] to i48
   // CHECK-NEXT:    [[CHUNK1EXT:%.*]] = zext i32 [[CHUNK1]] to i48
   // CHECK-NEXT:    [[CHUNK1SHIFT:%.*]] = shl i48 [[CHUNK1EXT]], 32
@@ -279,15 +279,15 @@ entry(%0 : $Builtin.IntLiteral):
   // CHECK:       [[INVALID]]:
   // CHECK-NEXT:    br label %[[DONE:[a-z.]+]]
   // CHECK:       [[VALID]]:
-  // CHECK-NEXT:    [[CHUNK0:%.*]] = load i32, i32* %0, align 4
+  // CHECK-NEXT:    [[CHUNK0:%.*]] = load i32, ptr %0, align 4
   // CHECK-NEXT:    [[FINISHED0:%.*]] = icmp ule i32 [[WIDTH]], 33
   // CHECK-NEXT:    br i1 [[FINISHED0]], label %[[FINISH0:[a-z.]+]], label %[[NEXT0:[a-z.]+]]
   // CHECK:       [[FINISH0]]:
   // CHECK-NEXT:    [[RESULT0:%.*]] = zext i32 [[CHUNK0]] to i64
   // CHECK-NEXT:    br label %[[DONE]]
   // CHECK:       [[NEXT0]]:
-  // CHECK-NEXT:    [[CHUNKADDR1:%.*]] = getelementptr inbounds i32, i32* %0, i32 1
-  // CHECK-NEXT:    [[CHUNK1:%.*]] = load i32, i32* [[CHUNKADDR1]], align 4
+  // CHECK-NEXT:    [[CHUNKADDR1:%.*]] = getelementptr inbounds i32, ptr %0, i32 1
+  // CHECK-NEXT:    [[CHUNK1:%.*]] = load i32, ptr [[CHUNKADDR1]], align 4
   // CHECK-NEXT:    [[EXTEND1:%.*]] = zext i32 [[CHUNK0]] to i64
   // CHECK-NEXT:    [[CHUNK1EXT:%.*]] = zext i32 [[CHUNK1]] to i64
   // CHECK-NEXT:    [[CHUNK1SHIFT:%.*]] = shl i64 [[CHUNK1EXT]], 32
@@ -310,7 +310,7 @@ entry(%0 : $Builtin.IntLiteral):
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc half @sitofp16
 sil @sitofp16 : $(Builtin.IntLiteral) -> Builtin.FPIEEE16 {
 entry(%0 : $Builtin.IntLiteral):
-  // CHECK:      [[T0:%.*]] = call swiftcc float @swift_intToFloat32(i32* %0, i32 %1)
+  // CHECK:      [[T0:%.*]] = call swiftcc float @swift_intToFloat32(ptr %0, i32 %1)
   // CHECK-NEXT: [[T1:%.*]] = fptrunc float [[T0]] to half
   // CHECK-NEXT: ret half [[T1]]
   %result = builtin "itofp_with_overflow_IntLiteral_FPIEEE16"(%0 : $Builtin.IntLiteral) : $Builtin.FPIEEE16
@@ -320,7 +320,7 @@ entry(%0 : $Builtin.IntLiteral):
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc float @sitofp32
 sil @sitofp32 : $(Builtin.IntLiteral) -> Builtin.FPIEEE32 {
 entry(%0 : $Builtin.IntLiteral):
-  // CHECK:      [[T0:%.*]] = call swiftcc float @swift_intToFloat32(i32* %0, i32 %1)
+  // CHECK:      [[T0:%.*]] = call swiftcc float @swift_intToFloat32(ptr %0, i32 %1)
   // CHECK-NEXT: ret float [[T0]]
   %result = builtin "itofp_with_overflow_IntLiteral_FPIEEE32"(%0 : $Builtin.IntLiteral) : $Builtin.FPIEEE32
   return %result : $Builtin.FPIEEE32
@@ -329,7 +329,7 @@ entry(%0 : $Builtin.IntLiteral):
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc double @sitofp64
 sil @sitofp64 : $(Builtin.IntLiteral) -> Builtin.FPIEEE64 {
 entry(%0 : $Builtin.IntLiteral):
-  // CHECK:      [[T0:%.*]] = call swiftcc double @swift_intToFloat64(i32* %0, i32 %1)
+  // CHECK:      [[T0:%.*]] = call swiftcc double @swift_intToFloat64(ptr %0, i32 %1)
   // CHECK-NEXT: ret double [[T0]]
   %result = builtin "itofp_with_overflow_IntLiteral_FPIEEE64"(%0 : $Builtin.IntLiteral) : $Builtin.FPIEEE64
   return %result : $Builtin.FPIEEE64
@@ -338,7 +338,7 @@ entry(%0 : $Builtin.IntLiteral):
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc x86_fp80 @sitofp80
 sil @sitofp80 : $(Builtin.IntLiteral) -> Builtin.FPIEEE80 {
 entry(%0 : $Builtin.IntLiteral):
-  // CHECK:      [[T0:%.*]] = call swiftcc double @swift_intToFloat64(i32* %0, i32 %1)
+  // CHECK:      [[T0:%.*]] = call swiftcc double @swift_intToFloat64(ptr %0, i32 %1)
   // CHECK-NEXT: [[T1:%.*]] = fpext double [[T0]] to x86_fp80
   // CHECK-NEXT: ret x86_fp80 [[T1]]
   %result = builtin "itofp_with_overflow_IntLiteral_FPIEEE80"(%0 : $Builtin.IntLiteral) : $Builtin.FPIEEE80
@@ -348,7 +348,7 @@ entry(%0 : $Builtin.IntLiteral):
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc fp128 @sitofp128
 sil @sitofp128 : $(Builtin.IntLiteral) -> Builtin.FPIEEE128 {
 entry(%0 : $Builtin.IntLiteral):
-  // CHECK:      [[T0:%.*]] = call swiftcc double @swift_intToFloat64(i32* %0, i32 %1)
+  // CHECK:      [[T0:%.*]] = call swiftcc double @swift_intToFloat64(ptr %0, i32 %1)
   // CHECK-NEXT: [[T1:%.*]] = fpext double [[T0]] to fp128
   // CHECK-NEXT: ret fp128 [[T1]]
   %result = builtin "itofp_with_overflow_IntLiteral_FPIEEE128"(%0 : $Builtin.IntLiteral) : $Builtin.FPIEEE128
@@ -361,7 +361,7 @@ entry(%0 : $Builtin.IntLiteral):
 /* bitWidth, isNegative, wordAtIndex                                       */
 /***************************************************************************/
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i32 @test_bitWidth(i32* %0, i32 %1)
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i32 @test_bitWidth(ptr %0, i32 %1)
 sil @test_bitWidth : $(Builtin.IntLiteral) -> Builtin.Word {
 entry(%value : $Builtin.IntLiteral):
   // CHECK:      %2 = lshr i32 %1, 8
@@ -370,7 +370,7 @@ entry(%value : $Builtin.IntLiteral):
   return %result : $Builtin.Word
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i1 @test_isNegative(i32* %0, i32 %1)
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i1 @test_isNegative(ptr %0, i32 %1)
 sil @test_isNegative : $(Builtin.IntLiteral) -> Builtin.Int1 {
 entry(%value : $Builtin.IntLiteral):
   // CHECK:      %2 = trunc i32 %1 to i1
@@ -379,11 +379,11 @@ entry(%value : $Builtin.IntLiteral):
   return %result : $Builtin.Int1
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i32 @test_wordAtIndex(i32* %0, i32 %1, i32 %2)
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i32 @test_wordAtIndex(ptr %0, i32 %1, i32 %2)
 sil @test_wordAtIndex : $(Builtin.IntLiteral, Builtin.Word) -> Builtin.Word {
 entry(%value : $Builtin.IntLiteral, %index : $Builtin.Word):
-  // CHECK:      %3 = getelementptr inbounds i32, i32* %0, i32 %2
-  // CHECK-NEXT: %4 = load i32, i32* %3, align 4
+  // CHECK:      %3 = getelementptr inbounds i32, ptr %0, i32 %2
+  // CHECK-NEXT: %4 = load i32, ptr %3, align 4
   // CHECK-NEXT: ret i32 %4
   %result = builtin "wordAtIndex_IntLiteral"(%value : $Builtin.IntLiteral, %index : $Builtin.Word) : $Builtin.Word
   return %result : $Builtin.Word

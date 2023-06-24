@@ -222,19 +222,13 @@ bb4(%phi : @owned $C):
   return %99 : $()
 }
 
-// A dead (ref_element_addr) projection is treated like a pointer
-// escape for convenience. Make sure the pointer escape bubbles up
-// through the phi and casts.
-//
 // CHECK-LABEL: testSSADeadRefElementAddr: ssa-liveness
 // CHECK: SSA lifetime analysis: %0 = argument of bb0 : $C
-// CHECK-NEXT: Incomplete liveness: Escaping address
 // CHECK-NEXT: bb0: LiveOut
 // CHECK-NEXT: bb2: LiveOut
 // CHECK-NEXT: bb3: LiveWithin
 // CHECK-NEXT: bb1: LiveOut
-// CHECK: last user:
-// CHECK-SAME: ref_element_addr %6 : $D, #D.object
+// CHECK: ref_element_addr %6 : $D, #D.object
 // CHECK-NEXT-LABEL: end running test 1 of 1 on testSSADeadRefElementAddr: ssa-liveness
 sil [ossa] @testSSADeadRefElementAddr : $@convention(thin) (@guaranteed C) -> () {
 bb0(%0 : @guaranteed $C):

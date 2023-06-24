@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend %s -enable-objc-interop -disable-type-layout -emit-ir | %FileCheck %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers %s -enable-objc-interop -disable-type-layout -emit-ir | %FileCheck %s
+// RUN: %target-swift-frontend %s -enable-objc-interop -disable-type-layout -emit-ir
 
 // REQUIRES: CPU=x86_64
 

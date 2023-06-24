@@ -29,6 +29,7 @@
 #include "swift/Runtime/Exclusivity.h"
 #include "swift/Runtime/HeapObject.h"
 #include "swift/Threading/Thread.h"
+#include "swift/Threading/ThreadSanitizer.h"
 #include <atomic>
 #include <new>
 
@@ -99,15 +100,23 @@ void _swift_taskGroup_cancelAllChildren(TaskGroup *group);
 /// should generally use a higher-level function.
 void _swift_taskGroup_detachChild(TaskGroup *group, AsyncTask *child);
 
-/// release() establishes a happens-before relation with a preceding acquire()
-/// on the same address.
-void _swift_tsan_acquire(void *addr);
-void _swift_tsan_release(void *addr);
-/// Technically, this consume relies on implicit HW address dependency ordering
-/// and is paired with a corresponding release. Since TSAN doesn't know how to
-/// reason about this, we tell TSAN it's an acquire instead. See also
-/// SWIFT_MEMORY_ORDER_CONSUME definition.
-#define _swift_tsan_consume _swift_tsan_acquire
+/// Tell TSan about an acquiring load
+inline void _swift_tsan_acquire(void *addr) {
+  swift::tsan::acquire(addr);
+}
+/// Tell TSan about a releasing store
+inline void _swift_tsan_release(void *addr) {
+  swift::tsan::release(addr);
+}
+/// Tell TSan about a consuming load
+inline void _swift_tsan_consume(void *addr) {
+  // TSan doesn't support consume, so pretend it's an acquire.
+  //
+  // Note that that means that TSan won't generate errors for non-dependent
+  // reads, so this isn't entirely safe if you're relying solely on TSan to
+  // spot bugs.
+  swift::tsan::acquire(addr);
+}
 
 /// Special values used with DispatchQueueIndex to indicate the global and main
 /// executors.

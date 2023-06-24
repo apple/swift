@@ -188,6 +188,12 @@ guarantee this. This was
 "Do not merge". Placed in PR titles where discussion or analysis is still
 ongoing.
 
+## DSO
+
+Dynamic shared object, a shared library file (.so/.dylib/.dll, the extension of
+which depends on the platform) to be used by multiple applications while they
+are executing.
+
 ## dup
 
 From "duplicate". As a noun, refers to another filed issue that describes
@@ -249,6 +255,18 @@ way of looking at it is that the generic environment connects
 A representation of all generic parameters and their requirements. Like
 types, generic signatures can be [canonicalized](#canonical-type) to be
 compared directly.
+
+## GOT
+
+[Global offset table](https://en.wikipedia.org/wiki/Global_Offset_Table),
+a section in an executable or a shared library, which enables code to run
+independently of the memory address where it is loaded at runtime. Entries
+in GOT directly point to absolute addresses of symbols. The format of GOT
+is platform-dependent. Loaders update GOT relocations either on
+startup or on symbol access.
+
+Additionally, IRGen makes heavy usage of "GOT" as in "GOT-equivalent variable"
+to describe the way it forms references to global objects that may or may not be external references. 
 
 ## iff
 
@@ -456,6 +474,12 @@ rather they must be the first file parsed by the compiler. PCHs are used
 only to accelerate the process of reading C/C++/Objective-C headers, such as
 the bridging headers read in by the `-import-objc-header` command-line
 flag to swiftc.
+
+## PLT
+
+Procedure linkage table, which is used to call external functions that don't
+have their addresses known at link time. These addresses are then resolved
+by a loader at run time.
 
 ## PR
 

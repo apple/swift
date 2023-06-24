@@ -14,14 +14,12 @@ extension Int {
     // Make sure the initialization of `thing` is after the dynamic replacement
     // check. Coro splitting does not like memsets before the coro.begin.
 
-    // CHECK: define{{.*}} swiftcc { i8*, %TSi1AE5ThingV* } @"$sSi1AE5thingSiAAE5ThingVvM"
-    // CHECK: call i8* @swift_getFunctionReplacement
+    // CHECK: define{{.*}} swiftcc { ptr, ptr } @"$sSi1AE5thingSiAAE5ThingVvM"
+    // CHECK: call ptr @swift_getFunctionReplacement
     // CHECK: br
-    // CHECK: original_entry:
-    // CHECK: [[FRAMEPTR:%.*]] = bitcast i8* %0 to
-    // CHECK: [[THING:%.*]] = getelementptr inbounds {{.*}}* [[FRAMEPTR]], i32 0
-    // CHECK: [[THING2:%.*]] = bitcast %TSi1AE5ThingV* [[THING]] to i8*
-    // CHECK: call void @llvm.memset{{.*}}(i8* {{.*}} [[THING2]]
+    // CHECK: AllocaSpillBB:
+    // CHECK: [[THING:%.*]] = getelementptr inbounds %"$sSi1AE5thingSiAAE5ThingVvM.Frame", ptr %0, i32 0
+    // CHECK: call void @llvm.memset{{.*}}(ptr {{.*}} [[THING]]
     // CHECK: ret
     _modify {
       var thing = Thing(self)

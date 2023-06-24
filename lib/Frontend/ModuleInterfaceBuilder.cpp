@@ -145,8 +145,11 @@ bool ExplicitModuleInterfaceBuilder::collectDepsForSerialization(
       continue;
 
     auto Status = fs.status(DepName);
-    if (!Status)
+    if (!Status) {
+      Instance.getDiags().diagnose(SourceLoc(), diag::cannot_open_file, DepName,
+                                   Status.getError().message());
       return true;
+    }
 
     /// Lazily load the dependency buffer if we need it. If we're not
     /// dealing with a hash-based dependencies, and if the dependency is
@@ -155,11 +158,14 @@ bool ExplicitModuleInterfaceBuilder::collectDepsForSerialization(
     auto getDepBuf = [&]() -> llvm::MemoryBuffer * {
       if (DepBuf)
         return DepBuf.get();
-      if (auto Buf = fs.getBufferForFile(DepName, /*FileSize=*/-1,
-                                         /*RequiresNullTerminator=*/false)) {
+      auto Buf = fs.getBufferForFile(DepName, /*FileSize=*/-1,
+                                     /*RequiresNullTerminator=*/false);
+      if (Buf) {
         DepBuf = std::move(Buf.get());
         return DepBuf.get();
       }
+      Instance.getDiags().diagnose(SourceLoc(), diag::cannot_open_file, DepName,
+                                   Buf.getError().message());
       return nullptr;
     };
 
@@ -287,11 +293,11 @@ std::error_code ExplicitModuleInterfaceBuilder::buildSwiftModuleFromInterface(
   SerializationOpts.ABIDescriptorPath = ABIDescriptorPath.str();
   SmallVector<FileDependency, 16> Deps;
   bool SerializeHashes = FEOpts.SerializeModuleInterfaceDependencyHashes;
-  if (collectDepsForSerialization(Deps, InterfacePath, SerializeHashes)) {
-    return std::make_error_code(std::errc::not_supported);
-  }
-  if (ShouldSerializeDeps)
+  if (ShouldSerializeDeps) {
+    if (collectDepsForSerialization(Deps, InterfacePath, SerializeHashes))
+      return std::make_error_code(std::errc::not_supported);
     SerializationOpts.Dependencies = Deps;
+  }
   SerializationOpts.IsOSSA = SILOpts.EnableOSSAModules;
 
   SILMod->setSerializeSILAction([&]() {

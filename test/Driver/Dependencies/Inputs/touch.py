@@ -15,6 +15,7 @@
 #
 # ----------------------------------------------------------------------------
 
+import glob
 import os
 import sys
 
@@ -23,6 +24,14 @@ timeVal = int(sys.argv[1])
 
 # Update the output file mtime, or create it if necessary.
 # From http://stackoverflow.com/a/1160227.
-for outputFile in sys.argv[2:]:
-    with open(outputFile, 'a'):
-        os.utime(outputFile, (timeVal, timeVal))
+for filePathPattern in sys.argv[2:]:
+    # Support glob patterns if the shell did not expand them (like cmd.exe)
+    if glob.escape(filePathPattern) == filePathPattern:
+        # Not a glob pattern. We should touch that specific file.
+        filePaths = [filePathPattern]
+    else:
+        filePaths = glob.glob(filePathPattern)
+
+    for filePath in filePaths:
+        with open(filePath, 'a'):
+            os.utime(filePath, (timeVal, timeVal))

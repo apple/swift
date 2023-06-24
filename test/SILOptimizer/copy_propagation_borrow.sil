@@ -501,6 +501,7 @@ bb0:
   %copy1 = copy_value %borrow1 : $C
   %borrow2 = begin_borrow %copy1 : $C
   %addr = ref_element_addr %borrow2 : $C, #C.a
+  %ptr = address_to_pointer %addr : $*Int64 to $Builtin.RawPointer
   cond_br undef, bb1, bb2
 bb1:
   // inside use
@@ -1201,4 +1202,3 @@ bb0(%0 : @guaranteed $C):
   %7 = tuple ()
   return %7 : $()
 }
-

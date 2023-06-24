@@ -9,10 +9,10 @@ func globalActorMetatype<T>(_: T.Type) -> Any.Type {
   return Fn.self
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc %swift.type* @"$s4test19globalActorMetatypeyypXpxmlF"
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @"$s4test19globalActorMetatypeyypXpxmlF"
 // CHECK: [[MAIN_ACTOR_RESPONSE:%[0-9]+]] = call swiftcc %swift.metadata_response @"$sScMMa"(i{{32|64}} 255)
 // CHECK-NEXT: [[MAIN_ACTOR_METADATA:%[0-9]+]] = extractvalue %swift.metadata_response [[MAIN_ACTOR_RESPONSE]], 0
-// CHECK: call %swift.type* @swift_getFunctionTypeMetadataGlobalActor{{.*}}(i{{32|64}} 335544320, i{{32|64}} 0, %swift.type** null, i32* null, %swift.type* %T, %swift.type* [[MAIN_ACTOR_METADATA]])
+// CHECK: call ptr @swift_getFunctionTypeMetadataGlobalActor{{.*}}(i{{32|64}} 335544320, i{{32|64}} 0, ptr null, ptr null, ptr %T, ptr [[MAIN_ACTOR_METADATA]])
 sil [ossa] @$s4test19globalActorMetatypeyypXpxmlF : $@convention(thin) <T> (@thick T.Type) -> @thick Any.Type {
 bb0(%0 : $@thick T.Type):
   %2 = metatype $@thin (@MainActor () -> T).Type

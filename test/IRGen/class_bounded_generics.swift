@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend -module-name class_bounded_generics -enable-objc-interop -emit-ir -primary-file %s -disable-objc-attr-requires-foundation-module | %FileCheck %s -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend %use_no_opaque_pointers -module-name class_bounded_generics -enable-objc-interop -emit-ir -primary-file %s -disable-objc-attr-requires-foundation-module | %FileCheck %s -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend -module-name class_bounded_generics -enable-objc-interop -emit-ir -primary-file %s -disable-objc-attr-requires-foundation-module
 
 // REQUIRES: CPU=x86_64
 

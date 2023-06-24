@@ -846,10 +846,7 @@ void Serializer::writeBlockInfoBlock() {
   BLOCK_RECORD(options_block, HAS_CXX_INTEROPERABILITY_ENABLED);
   BLOCK_RECORD(options_block, MODULE_PACKAGE_NAME);
   BLOCK_RECORD(options_block, MODULE_EXPORT_AS_NAME);
-  BLOCK_RECORD(options_block, PLUGIN_SEARCH_PATH);
-  BLOCK_RECORD(options_block, EXTERNAL_SEARCH_PLUGIN_PATH);
-  BLOCK_RECORD(options_block, COMPILER_PLUGIN_LIBRARY_PATH);
-  BLOCK_RECORD(options_block, COMPILER_PLUGIN_EXECUTABLE_PATH);
+  BLOCK_RECORD(options_block, PLUGIN_SEARCH_OPTION);
 
   BLOCK(INPUT_BLOCK);
   BLOCK_RECORD(input_block, IMPORTED_MODULE);
@@ -1138,27 +1135,44 @@ void Serializer::writeHeader(const SerializationOptions &options) {
         }
 
         // Macro plugins
-        options_block::PluginSearchPathLayout PluginSearchPath(Out);
-        for (auto Arg : options.PluginSearchPaths) {
-          PluginSearchPath.emit(ScratchRecord, Arg);
-        }
-
-        options_block::ExternalPluginSearchPathLayout
-          ExternalPluginSearchPath(Out);
-        for (auto Arg : options.ExternalPluginSearchPaths) {
-          ExternalPluginSearchPath.emit(ScratchRecord, Arg);
-        }
-
-        options_block::CompilerPluginLibraryPathLayout
-          CompilerPluginLibraryPath(Out);
-        for (auto Arg : options.CompilerPluginLibraryPaths) {
-          CompilerPluginLibraryPath.emit(ScratchRecord, Arg);
-        }
-
-        options_block::CompilerPluginExecutablePathLayout
-          CompilerPluginExecutablePath(Out);
-        for (auto Arg : options.CompilerPluginExecutablePaths) {
-          CompilerPluginExecutablePath.emit(ScratchRecord, Arg);
+        options_block::PluginSearchOptionLayout PluginSearchOpt(Out);
+        for (auto &elem : options.PluginSearchOptions) {
+          switch (elem.getKind()) {
+          case PluginSearchOption::Kind::PluginPath: {
+            auto &opt = elem.get<PluginSearchOption::PluginPath>();
+            PluginSearchOpt.emit(ScratchRecord,
+                                 uint8_t(PluginSearchOptionKind::PluginPath),
+                                 opt.SearchPath);
+            continue;
+          }
+          case PluginSearchOption::Kind::ExternalPluginPath: {
+            auto &opt = elem.get<PluginSearchOption::ExternalPluginPath>();
+            PluginSearchOpt.emit(
+                ScratchRecord,
+                uint8_t(PluginSearchOptionKind::ExternalPluginPath),
+                opt.SearchPath + "#" + opt.ServerPath);
+            continue;
+          }
+          case PluginSearchOption::Kind::LoadPluginLibrary: {
+            auto &opt = elem.get<PluginSearchOption::LoadPluginLibrary>();
+            PluginSearchOpt.emit(
+                ScratchRecord,
+                uint8_t(PluginSearchOptionKind::LoadPluginLibrary),
+                opt.LibraryPath);
+            continue;
+          }
+          case PluginSearchOption::Kind::LoadPluginExecutable: {
+            auto &opt = elem.get<PluginSearchOption::LoadPluginExecutable>();
+            std::string optStr = opt.ExecutablePath + "#";
+            llvm::interleave(
+                opt.ModuleNames, [&](auto &name) { optStr += name; },
+                [&]() { optStr += ","; });
+            PluginSearchOpt.emit(
+                ScratchRecord,
+                uint8_t(PluginSearchOptionKind::LoadPluginExecutable), optStr);
+            continue;
+          }
+          }
         }
       }
     }

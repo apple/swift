@@ -45,6 +45,6 @@ func exp1() {
 //CHECK: sil shared [noinline] @$s16specialize_chain3YYYV4AAA2{{[_0-9a-zA-Z]*}}FSi_Tg5
 //CHECK: sil shared [noinline] @$s16specialize_chain3YYYV4AAA1{{[_0-9a-zA-Z]*}}FSi_Tg5
 //CHECK: exp1
-//CHECK: function_ref @$s16specialize_chain3YYYV{{[_0-9a-zA-Z]*}}fCSi_Tg5
+//CHECK: function_ref @$s16specialize_chain3YYYV{{[_0-9a-zA-Z]*}}fCSi_Tgm5
 //CHECK: function_ref @$s16specialize_chain3YYYV4AAA9{{[_0-9a-zA-Z]*}}FSi_Tg5
 //CHECK: return

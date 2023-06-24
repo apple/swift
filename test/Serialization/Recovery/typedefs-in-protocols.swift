@@ -21,13 +21,12 @@ public func testWitnessDispatch(user: Proto) {
   // for the witness table slot for 'lastMethod()'. If the layout here
   // changes, please check that offset 11 is still correct.
   // CHECK-IR-NOT: ret
-  // CHECK-IR: [[SLOT:%.+]] = getelementptr inbounds i8*, i8** {{%.+}}, i32 12
+  // CHECK-IR: [[SLOT:%.+]] = getelementptr inbounds ptr, ptr {{%.+}}, i32 12
   // CHECK-IR-NOT: ret
-  // CHECK-IR: [[RAW_METHOD:%.+]] = load i8*, i8** [[SLOT]]
+  // CHECK-IR: [[RAW_METHOD:%.+]] = load ptr, ptr [[SLOT]]
   // CHECK-IR-NOT: ret
-  // CHECK-IR: [[METHOD:%.+]] = bitcast i8* [[RAW_METHOD]] to void (%swift.opaque*, %swift.type*, i8**)*
   // CHECK-IR-NOT: ret
-  // CHECK-IR: call swiftcc void [[METHOD]](
+  // CHECK-IR: call swiftcc void [[RAW_METHOD]](
   _ = user.lastMethod()
 } // CHECK-IR: ret void
 
@@ -37,13 +36,12 @@ public func testGenericDispatch<T: Proto>(user: T) {
   // for the witness table slot for 'lastMethod()'. If the layout here
   // changes, please check that offset 11 is still correct.
   // CHECK-IR-NOT: ret
-  // CHECK-IR: [[SLOT:%.+]] = getelementptr inbounds i8*, i8** %T.Proto, i32 12
+  // CHECK-IR: [[SLOT:%.+]] = getelementptr inbounds ptr, ptr %T.Proto, i32 12
   // CHECK-IR-NOT: ret
-  // CHECK-IR: [[RAW_METHOD:%.+]] = load i8*, i8** [[SLOT]]
+  // CHECK-IR: [[RAW_METHOD:%.+]] = load ptr, ptr [[SLOT]]
   // CHECK-IR-NOT: ret
-  // CHECK-IR: [[METHOD:%.+]] = bitcast i8* [[RAW_METHOD]] to void (%swift.opaque*, %swift.type*, i8**)*
   // CHECK-IR-NOT: ret
-  // CHECK-IR: call swiftcc void [[METHOD]](
+  // CHECK-IR: call swiftcc void [[RAW_METHOD]](
   user.lastMethod()
 } // CHECK-IR: ret void
 

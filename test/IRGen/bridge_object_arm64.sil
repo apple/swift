@@ -1,4 +1,5 @@
-// RUN: %swift -module-name bridge_object -emit-ir -disable-legacy-type-info -target arm64-apple-ios8.0 %s | %FileCheck %s
+// RUN: %swift %use_no_opaque_pointers -module-name bridge_object -emit-ir -disable-legacy-type-info -target arm64-apple-ios8.0 %s | %FileCheck %s
+// RUN: %swift -module-name bridge_object -emit-ir -disable-legacy-type-info -target arm64-apple-ios8.0 %s
 
 // REQUIRES: CODEGENERATOR=AArch64
 

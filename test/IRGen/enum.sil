@@ -1,7 +1,9 @@
 // #if directives don't work with SIL keywords, therefore please put ObjC tests
 // in `enum_objc.sil`.
-// RUN: %target-swift-frontend %s -Xllvm -sil-disable-pass=simplification -disable-type-layout -disable-generic-metadata-prespecialization -disable-generic-metadata-prespecialization -gnone -emit-ir -disable-diagnostic-passes -enable-objc-interop  | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-objc --check-prefix=CHECK-objc-%target-ptrsize --check-prefix=CHECK-objc-%target-ptrsize-simulator-%target-is-simulator -DWORD=i%target-ptrsize
-// RUN: %target-swift-frontend %s -Xllvm -sil-disable-pass=simplification -disable-type-layout -disable-generic-metadata-prespecialization -gnone -emit-ir -disable-diagnostic-passes -disable-objc-interop | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-native --check-prefix=CHECK-native-%target-ptrsize -DWORD=i%target-ptrsize
+// RUN: %target-swift-frontend %use_no_opaque_pointers %s -Xllvm -sil-disable-pass=simplification -disable-type-layout -disable-generic-metadata-prespecialization -disable-generic-metadata-prespecialization -gnone -emit-ir -disable-diagnostic-passes -enable-objc-interop  | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-objc --check-prefix=CHECK-objc-%target-ptrsize --check-prefix=CHECK-objc-%target-ptrsize-simulator-%target-is-simulator -DWORD=i%target-ptrsize
+// RUN: %target-swift-frontend %use_no_opaque_pointers %s -Xllvm -sil-disable-pass=simplification -disable-type-layout -disable-generic-metadata-prespecialization -gnone -emit-ir -disable-diagnostic-passes -disable-objc-interop | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-native --check-prefix=CHECK-native-%target-ptrsize -DWORD=i%target-ptrsize
+// RUN: %target-swift-frontend %s -Xllvm -sil-disable-pass=simplification -disable-type-layout -disable-generic-metadata-prespecialization -disable-generic-metadata-prespecialization -gnone -emit-ir -disable-diagnostic-passes -enable-objc-interop
+// RUN: %target-swift-frontend %s -Xllvm -sil-disable-pass=simplification -disable-type-layout -disable-generic-metadata-prespecialization -gnone -emit-ir -disable-diagnostic-passes -disable-objc-interop
 
 // REQUIRES: CPU=i386 || CPU=x86_64
 

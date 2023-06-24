@@ -161,7 +161,7 @@ public struct FramePointerUnwinder<C: Context, M: MemoryReader>: Sequence, Itera
           return nil
         }
 
-        if next <= fp {
+        if next <= fp || pc == 0 {
           return nil
         }
 

@@ -16,7 +16,7 @@ public struct Other : Simple {}
 // CHECK-SAME: @"$ss5OtherVMn"
 // CHECK-SAME: , section "__TEXT, __swift5_types, regular"
 
-// CHECK:      @llvm.used = appending global [{{.*}} x i8*] [
+// CHECK:      @llvm.used = appending global [{{.*}} x ptr] [
 // CHECK-SAME: @"$ss6SimpleHr"
 // CHECK-SAME: @"$ss5OtherVs6SimplesHc"
 // CHECK-SAME: @"$ss5OtherVHn"

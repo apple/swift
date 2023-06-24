@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend -primary-file %s -disable-availability-checking -emit-ir | %FileCheck %s
+// RUN: %target-swift-frontend -primary-file %s -emit-ir -disable-availability-checking | %FileCheck %s
 
 // REQUIRES: swift_in_compiler
 // REQUIRES: PTRSIZE=64
@@ -51,13 +51,11 @@ extension A {
 // CHECK-NOT: g8
 // CHECK-NOT: g9
 
-// CHECK: define{{( dllexport)?}}{{( protected)?}} i32 @main(i32 %0, i8** %1) {{.*}} {
-// CHECK:      store  i64 {{.*}}, i64* getelementptr inbounds ([[INT]], [[INT]]* @"$s7globals2g0Sivp", i32 0, i32 0), align 8
+// CHECK: define{{( dllexport)?}}{{( protected)?}} i32 @main(i32 %0, ptr %1) {{.*}} {
+// CHECK:      store  i64 {{.*}}, ptr @"$s7globals2g0Sivp", align 8
 
 // CHECK:  [[BUF_PROJ:%.*]] = call {{.*}} @__swift_project_value_buffer({{.*}}s7globals1gQrvp
-// CHECK:  [[CAST:%.*]] = bitcast {{.*}} [[BUF_PROJ]]
-// CHECK:  [[CAST2:%.*]] = bitcast {{.*}} [[CAST]]
-// CHECK:  call void @llvm.memcpy{{.*}}({{.*}}[[CAST2]]
+// CHECK:  call void @llvm.memcpy{{.*}}({{.*}}[[BUF_PROJ]]
 
 
 public protocol Some {}

@@ -1,5 +1,6 @@
 
-// RUN: %target-swift-frontend -module-name generic_tuples -emit-ir -primary-file %s | %FileCheck %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers -module-name generic_tuples -emit-ir -primary-file %s | %FileCheck %s
+// RUN: %target-swift-frontend -module-name generic_tuples -emit-ir -primary-file %s
 
 // Make sure that optimization passes don't choke on storage types for generic tuples
 // RUN: %target-swift-frontend -module-name generic_tuples -emit-ir -O %s

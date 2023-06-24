@@ -1065,24 +1065,6 @@ public:
     return InstNumbers[a] < InstNumbers[b];
   }
 
-  // FIXME: For sanity, address-type phis should be prohibited at all SIL
-  // stages. However, the optimizer currently breaks the invariant in three
-  // places:
-  // 1. Normal Simplify CFG during conditional branch simplification
-  //    (sneaky jump threading).
-  // 2. Simplify CFG via Jump Threading.
-  // 3. Loop Rotation.
-  //
-  // BasicBlockCloner::canCloneInstruction and sinkAddressProjections is
-  // designed to avoid this issue, we just need to make sure all passes use it
-  // correctly.
-  //
-  // Minimally, we must prevent address-type phis as long as access markers are
-  // preserved. A goal is to preserve access markers in OSSA.
-  bool prohibitAddressPhis() {
-    return F.hasOwnership();
-  }
-
   void visitSILPhiArgument(SILPhiArgument *arg) {
     // Verify that the `isPhiArgument` property is sound:
     // - Phi arguments come from branches.
@@ -1106,7 +1088,7 @@ public:
                 "All phi argument inputs must be from branches.");
       }
     }
-    if (arg->isPhi() && prohibitAddressPhis()) {
+    if (arg->isPhi()) {
       // As a property of well-formed SIL, we disallow address-type
       // phis. Supporting them would prevent reliably reasoning about the
       // underlying storage of memory access. This reasoning is important for
@@ -1303,10 +1285,17 @@ public:
                 "Operand constraint should never have an unowned preferred "
                 "kind since guaranteed and owned values can always be passed "
                 "in unowned positions");
+
+        require(operand.getOperandOwnership() !=
+                        OperandOwnership::InteriorPointer ||
+                    InteriorPointerOperandKind::get(&operand) !=
+                        InteriorPointerOperandKind::Invalid,
+                "All operands with InteriorPointer operand ownership should be "
+                "added to the InteriorPointerOperand utility");
       }
     }
 
-    if (I->getFunction()->hasOwnership() && OwnershipForwardingMixin::isa(I)) {
+    if (I->getFunction()->hasOwnership() && ForwardingInstruction::isa(I)) {
       checkOwnershipForwardingInst(I);
     }
   }
@@ -1353,16 +1342,16 @@ public:
   /// of its results, check forwarding invariants.
   void checkOwnershipForwardingInst(SILInstruction *i) {
     ValueOwnershipKind ownership =
-        OwnershipForwardingMixin::get(i)->getForwardingOwnershipKind();
+        ForwardingInstruction::get(i)->getForwardingOwnershipKind();
 
-    if (auto *o = dyn_cast<OwnedFirstArgForwardingSingleValueInst>(i)) {
+    if (ForwardingInstruction::canForwardOwnedCompatibleValuesOnly(i)) {
       ValueOwnershipKind kind = OwnershipKind::Owned;
       require(kind.isCompatibleWith(ownership),
               "OwnedFirstArgForwardingSingleValueInst's ownership kind must be "
               "compatible with owned");
     }
 
-    if (auto *o = dyn_cast<GuaranteedFirstArgForwardingSingleValueInst>(i)) {
+    if (ForwardingInstruction::canForwardGuaranteedCompatibleValuesOnly(i)) {
       ValueOwnershipKind kind = OwnershipKind::Guaranteed;
       require(kind.isCompatibleWith(ownership),
               "GuaranteedFirstArgForwardingSingleValueInst's ownership kind "
@@ -1378,9 +1367,9 @@ public:
     // representation. Non-destructive projection is allowed. Aggregation and
     // destructive disaggregation is not allowed. See SIL.rst, Forwarding
     // Addres-Only Values.
-    if (ownership == OwnershipKind::Guaranteed
-        && OwnershipForwardingMixin::isAddressOnly(i)) {
-      require(OwnershipForwardingMixin::hasSameRepresentation(i),
+    if (ownership == OwnershipKind::Guaranteed &&
+        ForwardingInstruction::isAddressOnly(i)) {
+      require(ForwardingInstruction::hasSameRepresentation(i),
               "Forwarding a guaranteed address-only value requires the same "
               "representation since no move or copy is allowed.");
     }
@@ -4697,10 +4686,9 @@ public:
   }
   
   void checkRefToBridgeObjectInst(RefToBridgeObjectInst *RI) {
-    require(RI->getConverted()->getType().isObject(),
+    require(RI->getOperand(0)->getType().isObject(),
             "ref_to_bridge_object must convert from a value");
-    require(RI->getConverted()->getType().getASTType()
-              ->isBridgeableObjectType(),
+    require(RI->getOperand(0)->getType().getASTType()->isBridgeableObjectType(),
             "ref_to_bridge_object must convert from a heap object ref");
     requireSameType(
         RI->getBitsOperand()->getType(),
@@ -4713,7 +4701,7 @@ public:
   
   void checkBridgeObjectToRefInst(BridgeObjectToRefInst *RI) {
     verifyLocalArchetype(RI, RI->getType().getASTType());
-    requireSameType(RI->getConverted()->getType(),
+    requireSameType(RI->getOperand()->getType(),
                     SILType::getBridgeObjectType(F.getASTContext()),
                     "bridge_object_to_ref must take a BridgeObject");
     require(RI->getType().isObject(),
@@ -4722,7 +4710,7 @@ public:
             "bridge_object_to_ref must produce a heap object reference");
   }
   void checkBridgeObjectToWordInst(BridgeObjectToWordInst *RI) {
-    requireSameType(RI->getConverted()->getType(),
+    requireSameType(RI->getOperand()->getType(),
                     SILType::getBridgeObjectType(F.getASTContext()),
                     "bridge_object_to_word must take a BridgeObject");
     require(RI->getType().isObject(),
@@ -4931,55 +4919,6 @@ public:
     if (SVI->hasDefault())
       require(SVI->getDefaultBB()->args_empty(),
               "switch_value default destination cannot take arguments");
-  }
-
-  void checkSelectValueCases(SelectValueInst *I) {
-    struct APIntCmp {
-      bool operator()(const APInt &a, const APInt &b) const {
-        return a.ult(b);
-      };
-    };
-
-    llvm::SmallSet<APInt, 16, APIntCmp> seenCaseValues;
-
-    // Verify the set of cases we dispatch on.
-    for (unsigned i = 0, e = I->getNumCases(); i < e; ++i) {
-      SILValue casevalue;
-      SILValue result;
-      std::tie(casevalue, result) = I->getCase(i);
-      
-      if (!isa<SILUndef>(casevalue)) {
-        auto  *il = dyn_cast<IntegerLiteralInst>(casevalue);
-        require(il,
-                "select_value case operands should refer to integer literals");
-        APInt elt = il->getValue();
-
-        require(!seenCaseValues.count(elt),
-                "select_value dispatches on same case value more than once");
-
-        seenCaseValues.insert(elt);
-      }
-
-      requireSameType(I->getOperand()->getType(), casevalue->getType(),
-                      "select_value case value must match type of operand");
-
-      // The result value must match the type of the instruction.
-      requireSameType(result->getType(), I->getType(),
-                    "select_value case result must match type of instruction");
-    }
-
-    require(I->hasDefault(),
-            "select_value should always have a default");
-    requireSameType(I->getDefaultResult()->getType(),
-                  I->getType(),
-                  "select_value default operand must match type of instruction");
-  }
-
-  void checkSelectValueInst(SelectValueInst *SVI) {
-    require(SVI->getOperand()->getType().isObject(),
-            "select_value operand must be an object");
-
-    checkSelectValueCases(SVI);
   }
 
   void checkSwitchEnumInst(SwitchEnumInst *switchEnum) {

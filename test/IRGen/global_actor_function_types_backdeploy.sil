@@ -11,8 +11,8 @@ func globalActorMetatype<T>(_: T.Type) -> Any.Type {
   return Fn.self
 }
 
-// CHECK-OS: call %swift.type* @swift_getFunctionTypeMetadataGlobalActor{{.*}}(i{{32|64}} 335544320, i{{32|64}} 0, %swift.type** null, i32* null, %swift.type* %T, %swift.type* {{.*}})
-// CHECK-BACKDEPLOY: call %swift.type* @swift_getFunctionTypeMetadataGlobalActorBackDeploy{{.*}}(i{{32|64}} 335544320, i{{32|64}} 0, %swift.type** null, i32* null, %swift.type* %T, %swift.type* {{.*}})
+// CHECK-OS: call ptr @swift_getFunctionTypeMetadataGlobalActor{{.*}}(i{{32|64}} 335544320, i{{32|64}} 0, ptr null, ptr null, ptr %T, ptr {{.*}})
+// CHECK-BACKDEPLOY: call ptr @swift_getFunctionTypeMetadataGlobalActorBackDeploy{{.*}}(i{{32|64}} 335544320, i{{32|64}} 0, ptr null, ptr null, ptr %T, ptr {{.*}})
 sil [ossa] @$s4test19globalActorMetatypeyypXpxmlF : $@convention(thin) <T> (@thick T.Type) -> @thick Any.Type {
 bb0(%0 : $@thick T.Type):
   %2 = metatype $@thin (@MainActor () -> T).Type

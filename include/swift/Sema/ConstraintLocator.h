@@ -1271,6 +1271,15 @@ public:
     return ConstraintLocatorBuilder(this, newElt, newFlags);
   }
 
+  /// Determine whether this locator builder points directly to a
+  /// given expression.
+  template <typename E>
+  bool directlyAt() const {
+    if (auto *expr = getAnchor().dyn_cast<Expr *>())
+      return isa<E>(expr) && hasEmptyPath();
+    return false;
+  }
+
   /// Determine whether this builder has an empty path.
   bool hasEmptyPath() const {
     return !element;

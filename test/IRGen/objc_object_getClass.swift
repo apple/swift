@@ -18,5 +18,5 @@ func test(_ o: ObjCSubclass) {
   o.field = 10
 }
 
-// CHECK-DAG: declare i8* @object_getClass(i8*{{.*}})
-// CHECK-DAG: call %objc_class* bitcast (i8* (i8*)* @object_getClass to %objc_class* (%objc_object*)*)(%objc_object* %{{.*}})
+// CHECK-DAG: declare ptr @object_getClass(ptr{{.*}})
+// CHECK-DAG: call ptr @object_getClass(ptr %{{.*}})

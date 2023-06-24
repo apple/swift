@@ -10,7 +10,7 @@ import weak_import_native_helper
 // CHECK-DAG: @"$s25weak_import_native_helper23ProtocolWithWeakMembersP1TAC_AA05OtherE0Tn" = extern_weak global %swift.protocol_requirement
 // CHECK-DAG: @"$s1T25weak_import_native_helper23ProtocolWithWeakMembersPTl" = extern_weak global %swift.protocol_requirement
 // CHECK-DAG: @"$s25weak_import_native_helper23ProtocolWithWeakMembersP1fyyFTq" = extern_weak global %swift.method_descriptor
-// CHECK-DAG: declare extern_weak swiftcc void @"$s25weak_import_native_helper23ProtocolWithWeakMembersPAAE1fyyF"(%swift.type*, i8**, %swift.opaque* noalias nocapture swiftself)
+// CHECK-DAG: declare extern_weak swiftcc void @"$s25weak_import_native_helper23ProtocolWithWeakMembersPAAE1fyyF"(ptr, ptr, ptr noalias nocapture swiftself)
 struct ConformsToProtocolWithWeakMembers : ProtocolWithWeakMembers {}
 
 func testTopLevel() {
@@ -179,5 +179,5 @@ class WeakGenericSub: GenericC<Int> {
 
 protocol RefinesP : BaseP {}
 
-// CHECK-DAG: @"$s25weak_import_native_helper1SVAA5BasePAAWP" = extern_weak global i8*
+// CHECK-DAG: @"$s25weak_import_native_helper1SVAA5BasePAAWP" = extern_weak global ptr
 extension S : RefinesP {}

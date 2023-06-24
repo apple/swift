@@ -5,7 +5,7 @@
 import protocol_overrides
 
 // CHECK: @keypath = private global
-// CHECK-SAME: %swift.method_descriptor** @"{{got.|\\01__imp__?}}$s18protocol_overrides14OriginalGetterPy7ElementQz5IndexQzcigTq"
+// CHECK-SAME: ptr @"{{got.|\\01__imp__?}}$s18protocol_overrides14OriginalGetterPy7ElementQz5IndexQzcigTq"
 public func getWritableKeyPath<OS: OverridesSetter>(_ c: OS, index: OS.Index) -> AnyKeyPath
 where OS.Index: Hashable {
   let keypath = \OS.[index]

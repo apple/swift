@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -enable-library-evolution -module-name main -enable-sil-verify-all -sil-move-only-deinit-devirtualization -enable-experimental-feature MoveOnlyClasses -enable-experimental-feature MoveOnlyEnumDeinits %s | %FileCheck %s
+// RUN: %target-sil-opt -enable-library-evolution -module-name main -enable-sil-verify-all -sil-move-only-deinit-devirtualization -enable-experimental-feature MoveOnlyClasses -enable-experimental-feature MoveOnlyEnumDeinits -enable-experimental-feature MoveOnlyResilientTypes %s | %FileCheck %s
 
 sil_stage raw
 

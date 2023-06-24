@@ -726,10 +726,12 @@ static bool emitConstValuesForWholeModuleIfNeeded(
     return true;
   auto ConstValues = gatherConstValuesForModule(Protocols,
                                                 Instance.getMainModule());
-  std::error_code EC;
-  llvm::raw_fd_ostream OS(ConstValuesFilePath, EC, llvm::sys::fs::OF_None);
-  writeAsJSONToFile(ConstValues, OS);
-  return false;
+
+  return withOutputPath(Instance.getDiags(), Instance.getOutputBackend(),
+                        ConstValuesFilePath, [&](llvm::raw_ostream &OS) {
+                          writeAsJSONToFile(ConstValues, OS);
+                          return false;
+                        });
 }
 
 static void emitConstValuesForAllPrimaryInputsIfNeeded(
@@ -755,9 +757,11 @@ static void emitConstValuesForAllPrimaryInputsIfNeeded(
       continue;
 
     auto ConstValues = gatherConstValuesForPrimary(Protocols, SF);
-    std::error_code EC;
-    llvm::raw_fd_ostream OS(ConstValuesFilePath, EC, llvm::sys::fs::OF_None);
-    writeAsJSONToFile(ConstValues, OS);
+    withOutputPath(Instance.getDiags(), Instance.getOutputBackend(),
+                   ConstValuesFilePath, [&](llvm::raw_ostream &OS) {
+                     writeAsJSONToFile(ConstValues, OS);
+                     return false;
+                   });
   }
 }
 
@@ -772,9 +776,12 @@ static bool writeModuleSemanticInfoIfNeeded(CompilerInstance &Instance) {
   auto ModuleSemanticPath = frontendOpts.InputsAndOutputs
     .getPrimarySpecificPathsForAtMostOnePrimary().SupplementaryOutputs
     .ModuleSemanticInfoOutputPath;
-  llvm::raw_fd_ostream OS(ModuleSemanticPath, EC, llvm::sys::fs::OF_None);
-  OS << "{}\n";
-  return false;
+
+  return withOutputPath(Instance.getDiags(), Instance.getOutputBackend(),
+                        ModuleSemanticPath, [&](llvm::raw_ostream &OS) {
+                          OS << "{}\n";
+                          return false;
+                        });
 }
 
 static bool writeTBDIfNeeded(CompilerInstance &Instance) {
@@ -799,7 +806,8 @@ static bool writeTBDIfNeeded(CompilerInstance &Instance) {
 
   const std::string &TBDPath = Invocation.getTBDPathForWholeModule();
 
-  return writeTBD(Instance.getMainModule(), TBDPath, tbdOpts);
+  return writeTBD(Instance.getMainModule(), TBDPath,
+                  Instance.getOutputBackend(), tbdOpts);
 }
 
 static bool performCompileStepsPostSILGen(CompilerInstance &Instance,

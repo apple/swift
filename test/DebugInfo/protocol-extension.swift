@@ -8,8 +8,8 @@ public extension P {
   // CHECK: define {{.*}}swiftcc i32 @"$s4main1PPAAE1fs5Int32VyF"
   public func f() -> Int32 {
     // CHECK-NEXT: entry:
-    // CHECK-NEXT: %[[ALLOCA:.*]] = alloca %swift.type*,
-    // CHECK-NEXT: @llvm.dbg.declare(metadata %swift.type** %[[ALLOCA]],
+    // CHECK-NEXT: %[[ALLOCA:.*]] = alloca ptr,
+    // CHECK-NEXT: @llvm.dbg.declare(metadata ptr %[[ALLOCA]],
     // CHECK-SAME:    metadata ![[SELFMETA:.*]], metadata !DIExpression())
     return v
   }

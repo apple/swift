@@ -1436,38 +1436,6 @@ void SILSerializer::writeSILInstruction(const SILInstruction &SI) {
         ListOfValues);
     break;
   }
-  case SILInstructionKind::SelectValueInst: {
-    // Format: condition, a list of cases (Value ID + Value ID),
-    // default value ID. Use SILOneTypeValuesLayout: the type is
-    // for condition, the list has value for condition, result type,
-    // hasDefault, default
-    // basic block ID, a list of (Value ID, Value ID).
-    const SelectValueInst *SVI = cast<SelectValueInst>(&SI);
-    SmallVector<ValueID, 4> ListOfValues;
-    ListOfValues.push_back(addValueRef(SVI->getOperand()));
-    ListOfValues.push_back(S.addTypeRef(SVI->getType().getRawASTType()));
-    ListOfValues.push_back((unsigned)SVI->getType().getCategory());
-    ListOfValues.push_back((unsigned)SVI->hasDefault());
-    if (SVI->hasDefault()) {
-      ListOfValues.push_back(addValueRef(SVI->getDefaultResult()));
-    } else {
-      ListOfValues.push_back(0);
-    }
-    for (unsigned i = 0, e = SVI->getNumCases(); i < e; ++i) {
-      SILValue casevalue;
-      SILValue result;
-      std::tie(casevalue, result) = SVI->getCase(i);
-      ListOfValues.push_back(addValueRef(casevalue));
-      ListOfValues.push_back(addValueRef(result));
-    }
-    SILOneTypeValuesLayout::emitRecord(Out, ScratchRecord,
-        SILAbbrCodes[SILOneTypeValuesLayout::Code],
-        (unsigned)SI.getKind(),
-        S.addTypeRef(SVI->getOperand()->getType().getRawASTType()),
-        (unsigned)SVI->getOperand()->getType().getCategory(),
-        ListOfValues);
-    break;
-  }
 #define UNCHECKED_REF_STORAGE(Name, ...)                                       \
   case SILInstructionKind::StrongCopy##Name##ValueInst:
 #define NEVER_LOADABLE_CHECKED_REF_STORAGE(Name, ...) \
@@ -1963,15 +1931,15 @@ void SILSerializer::writeSILInstruction(const SILInstruction &SI) {
   }
   case SILInstructionKind::RefToBridgeObjectInst: {
     auto RI = cast<RefToBridgeObjectInst>(&SI);
-    SILTwoOperandsLayout::emitRecord(Out, ScratchRecord,
-           SILAbbrCodes[SILTwoOperandsLayout::Code], (unsigned)SI.getKind(),
-           /*attr*/ 0,
-           S.addTypeRef(RI->getConverted()->getType().getRawASTType()),
-           (unsigned)RI->getConverted()->getType().getCategory(),
-           addValueRef(RI->getConverted()),
-           S.addTypeRef(RI->getBitsOperand()->getType().getRawASTType()),
-           (unsigned)RI->getBitsOperand()->getType().getCategory(),
-           addValueRef(RI->getBitsOperand()));
+    auto op = RI->getOperand(0);
+    SILTwoOperandsLayout::emitRecord(
+        Out, ScratchRecord, SILAbbrCodes[SILTwoOperandsLayout::Code],
+        (unsigned)SI.getKind(),
+        /*attr*/ 0, S.addTypeRef(op->getType().getRawASTType()),
+        (unsigned)op->getType().getCategory(), addValueRef(op),
+        S.addTypeRef(RI->getBitsOperand()->getType().getRawASTType()),
+        (unsigned)RI->getBitsOperand()->getType().getCategory(),
+        addValueRef(RI->getBitsOperand()));
     break;
   }
   // Checked Conversion instructions.

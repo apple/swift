@@ -939,7 +939,8 @@ SILCombiner::visitThickToObjCMetatypeInst(ThickToObjCMetatypeInst *TTOCMI) {
   //
   // (thick_to_objc_metatype (existential_metatype @thick)) ->
   // (existential_metatype @objc_metatype)
-  if (CastOpt.optimizeMetatypeConversion(TTOCMI, MetatypeRepresentation::Thick))
+  if (CastOpt.optimizeMetatypeConversion(ConversionOperation(TTOCMI),
+                                         MetatypeRepresentation::Thick))
     MadeChange = true;
 
   return nullptr;
@@ -961,7 +962,8 @@ SILCombiner::visitObjCToThickMetatypeInst(ObjCToThickMetatypeInst *OCTTMI) {
   //
   // (objc_to_thick_metatype (existential_metatype @objc_metatype)) ->
   // (existential_metatype @thick)
-  if (CastOpt.optimizeMetatypeConversion(OCTTMI, MetatypeRepresentation::ObjC))
+  if (CastOpt.optimizeMetatypeConversion(ConversionOperation(OCTTMI),
+                                         MetatypeRepresentation::ObjC))
     MadeChange = true;
 
   return nullptr;
@@ -1061,17 +1063,17 @@ SILInstruction *SILCombiner::visitConvertEscapeToNoEscapeInst(
   // (convert_escape_to_noescape (thin_to_thick_function (convert_function x)))
   //
   // This unblocks the `thin_to_thick_function` peephole optimization below.
-  if (auto *CFI = dyn_cast<ConvertFunctionInst>(Cvt->getConverted())) {
+  if (auto *CFI = dyn_cast<ConvertFunctionInst>(Cvt->getOperand())) {
     if (CFI->getSingleUse()) {
-      if (auto *TTTFI = dyn_cast<ThinToThickFunctionInst>(CFI->getConverted())) {
+      if (auto *TTTFI = dyn_cast<ThinToThickFunctionInst>(CFI->getOperand())) {
         if (TTTFI->getSingleUse()) {
           auto convertedThickType = CFI->getType().castTo<SILFunctionType>();
           auto convertedThinType = convertedThickType->getWithRepresentation(
             SILFunctionTypeRepresentation::Thin);
           auto *newCFI = Builder.createConvertFunction(
-            CFI->getLoc(), TTTFI->getConverted(),
-            SILType::getPrimitiveObjectType(convertedThinType),
-            CFI->withoutActuallyEscaping());
+              CFI->getLoc(), TTTFI->getOperand(),
+              SILType::getPrimitiveObjectType(convertedThinType),
+              CFI->withoutActuallyEscaping());
           auto *newTTTFI = Builder.createThinToThickFunction(
             TTTFI->getLoc(), newCFI, CFI->getType());
           replaceInstUsesWith(*CFI, newTTTFI);
@@ -1085,7 +1087,8 @@ SILInstruction *SILCombiner::visitConvertEscapeToNoEscapeInst(
   //
   // (convert_escape_to_noescape (thin_to_thick_function x)) =>
   // (thin_to_thick_function [noescape] x)
-  if (auto *OrigThinToThick = dyn_cast<ThinToThickFunctionInst>(Cvt->getConverted())) {
+  if (auto *OrigThinToThick =
+          dyn_cast<ThinToThickFunctionInst>(Cvt->getOperand())) {
     auto origFunType = OrigThinToThick->getType().getAs<SILFunctionType>();
     auto NewTy = origFunType->getWithExtInfo(origFunType->getExtInfo().withNoEscape(true));
 
@@ -1106,7 +1109,7 @@ SILInstruction *SILCombiner::visitConvertEscapeToNoEscapeInst(
   // %jvp' = convert_escape_to_noescape %jvp
   // %vjp' = convert_escape_to_noescape %vjp
   // %y = differentiable_function(%orig', %jvp', %vjp')
-  if (auto *DFI = dyn_cast<DifferentiableFunctionInst>(Cvt->getConverted())) {
+  if (auto *DFI = dyn_cast<DifferentiableFunctionInst>(Cvt->getOperand())) {
     auto createConvertEscapeToNoEscape = [&](NormalDifferentiableFunctionTypeComponent extractee) {
       if (!DFI->hasExtractee(extractee))
         return SILValue();
@@ -1138,8 +1141,8 @@ SILInstruction *SILCombiner::visitConvertEscapeToNoEscapeInst(
            "New `@differentiable` function instruction should have same type "
            "as the old `convert_escape_to_no_escape` instruction");
     return newDFI;
-  }  
-  
+  }
+
   return nullptr;
 }
 
@@ -1175,10 +1178,10 @@ SILCombiner::visitConvertFunctionInst(ConvertFunctionInst *cfi) {
         // with the original value.
         //
         // OWNERSHIP DISCUSSION: We know that cfi is forwarding, so we know that
-        // if cfi is not owned, then we know that cfi->getConverted() must be
+        // if cfi is not owned, then we know that cfi->getOperand() must be
         // valid at applySite and also that the applySite does not consume a
         // value. In such a case, just perform the change and continue.
-        SILValue newValue = cfi->getConverted();
+        SILValue newValue = cfi->getOperand();
         if (newValue->getOwnershipKind() != OwnershipKind::Owned &&
             newValue->getOwnershipKind() != OwnershipKind::Guaranteed) {
           getInstModCallbacks().setUseValue(use, newValue);
@@ -1212,7 +1215,7 @@ SILCombiner::visitConvertFunctionInst(ConvertFunctionInst *cfi) {
                                       pa->getArguments().end());
 
         auto newPA = Builder.createPartialApply(
-            pa->getLoc(), cfi->getConverted(), pa->getSubstitutionMap(), args,
+            pa->getLoc(), cfi->getOperand(), pa->getSubstitutionMap(), args,
             pa->getFunctionType()->getCalleeConvention());
         auto newConvert = Builder.createConvertFunction(pa->getLoc(), newPA,
                                                         partialApplyTy, false);
@@ -1222,14 +1225,14 @@ SILCombiner::visitConvertFunctionInst(ConvertFunctionInst *cfi) {
       }
 
       OwnershipRAUWHelper checkRAUW(ownershipFixupContext, pa,
-                                    cfi->getConverted());
+                                    cfi->getOperand());
       if (!checkRAUW)
         continue;
 
       SmallVector<SILValue, 4> args(pa->getArguments().begin(),
                                     pa->getArguments().end());
-      auto newValue = makeCopiedValueAvailable(cfi->getConverted(),
-                                               pa->getParent());
+      auto newValue =
+          makeCopiedValueAvailable(cfi->getOperand(), pa->getParent());
 
       SILBuilderWithScope localBuilder(std::next(pa->getIterator()), Builder);
       auto *newPA = localBuilder.createPartialApply(
@@ -1253,12 +1256,12 @@ SILCombiner::visitConvertFunctionInst(ConvertFunctionInst *cfi) {
   }
 
   // (convert_function (convert_function x)) => (convert_function x)
-  if (auto *subCFI = dyn_cast<ConvertFunctionInst>(cfi->getConverted())) {
+  if (auto *subCFI = dyn_cast<ConvertFunctionInst>(cfi->getOperand())) {
     // We handle the case of an identity conversion in inst simplify, so if we
     // see this pattern then we know that we don't have a round trip and thus
     // should just bypass the intermediate conversion.
     if (cfi->getForwardingOwnershipKind() != OwnershipKind::Owned) {
-      cfi->getOperandRef().set(subCFI->getConverted());
+      cfi->getOperandRef().set(subCFI->getOperand());
       // Return cfi to show we changed it.
       return cfi;
     }
@@ -1270,7 +1273,7 @@ SILCombiner::visitConvertFunctionInst(ConvertFunctionInst *cfi) {
     // canonical.
     SingleBlockOwnedForwardingInstFolder folder(*this, cfi);
     if (folder.add(subCFI))
-      return std::move(folder).optimizeWithSetValue(subCFI->getConverted());
+      return std::move(folder).optimizeWithSetValue(subCFI->getOperand());
   }
 
   // Push conversion instructions inside `differentiable_function`. This
@@ -1285,7 +1288,7 @@ SILCombiner::visitConvertFunctionInst(ConvertFunctionInst *cfi) {
   // %jvp' = convert_function %jvp
   // %vjp' = convert_function %vjp
   // %y = differentiable_function(%orig', %jvp', %vjp')
-  if (auto *DFI = dyn_cast<DifferentiableFunctionInst>(cfi->getConverted())) {
+  if (auto *DFI = dyn_cast<DifferentiableFunctionInst>(cfi->getOperand())) {
     auto createConvertFunctionOfComponent =
       [&](NormalDifferentiableFunctionTypeComponent extractee) {
         if (!DFI->hasExtractee(extractee))
@@ -1320,7 +1323,7 @@ SILCombiner::visitConvertFunctionInst(ConvertFunctionInst *cfi) {
              "as the old `convert_function` instruction");
       return newDFI;
   }
-  
+
   // Replace a convert_function that only has refcounting uses with its
   // operand.
   tryEliminateOnlyOwnershipUsedForwardingInst(cfi, getInstModCallbacks());

@@ -1,6 +1,7 @@
 // RUN: %empty-directory(%t)
 // RUN: %build-irgen-test-overlays
-// RUN: %target-swift-frontend -Xllvm -sil-disable-pass=simplification -sdk %S/Inputs -I %t -emit-ir %s | %FileCheck %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers -Xllvm -sil-disable-pass=simplification -sdk %S/Inputs -I %t -emit-ir %s | %FileCheck %s
+// RUN: %target-swift-frontend -Xllvm -sil-disable-pass=simplification -sdk %S/Inputs -I %t -emit-ir %s
 
 // REQUIRES: CPU=x86_64
 // REQUIRES: objc_interop

@@ -1,6 +1,9 @@
-// RUN: %target-swift-frontend -parse-sil -emit-ir -disable-llvm-optzns -O %s | %FileCheck --check-prefix=CHECK-%target-runtime %s
-// RUN: %target-swift-frontend -parse-sil -emit-ir -disable-llvm-optzns -Ounchecked %s | %FileCheck --check-prefix=CHECK-%target-runtime %s
-// RUN: %target-swift-frontend -parse-sil -emit-ir -disable-llvm-optzns -Onone %s | %FileCheck --check-prefix=ONONE %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers -parse-sil -emit-ir -disable-llvm-optzns -O %s | %FileCheck --check-prefix=CHECK-%target-runtime %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers -parse-sil -emit-ir -disable-llvm-optzns -Ounchecked %s | %FileCheck --check-prefix=CHECK-%target-runtime %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers -parse-sil -emit-ir -disable-llvm-optzns -Onone %s | %FileCheck --check-prefix=ONONE %s
+// RUN: %target-swift-frontend -parse-sil -emit-ir -disable-llvm-optzns -O %s
+// RUN: %target-swift-frontend -parse-sil -emit-ir -disable-llvm-optzns -Ounchecked %s
+// RUN: %target-swift-frontend -parse-sil -emit-ir -disable-llvm-optzns -Onone %s
 
 // REQUIRES: CPU=i386 || CPU=x86_64
 

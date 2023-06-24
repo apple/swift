@@ -15,6 +15,7 @@
 #include "FixedTypeInfo.h"
 #include "GenOpaque.h"
 #include "IRGen.h"
+#include "GenEnum.h"
 #include "GenExistential.h"
 #include "GenericArguments.h"
 #include "IRGenFunction.h"
@@ -79,10 +80,12 @@ public:
     SinglePayloadEnumFN = 0x11,
     // reserved
     // SinglePayloadEnumFNResolved = 0x12,
+    // SinglePayloadEnumGeneric = 0x13,
 
-    MultiPayloadEnumFN = 0x13,
+    MultiPayloadEnumFN = 0x14,
     // reserved
-    // MultiPayloadEnumFNResolved = 0x14,
+    // MultiPayloadEnumFNResolved = 0x15,
+    // MultiPayloadEnumGeneric = 0x16,
 
     Skip = 0x80,
     // We may use the MSB as flag that a count follows,
@@ -498,7 +501,7 @@ llvm::Function *createFixedEnumLoadTag(IRGenModule &IGM,
 
   IRGenMangler mangler;
   auto symbol = mangler.mangleSymbolNameForMangledGetEnumTagForLayoutString(
-      entry.ty.getASTType());
+      entry.ty.getASTType()->mapTypeOutOfContext()->getCanonicalType());
 
   auto helperFn = IGM.getOrCreateHelperFunction(
       symbol, IGM.Int32Ty /*retTy*/, IGM.Int8PtrTy /*argTys*/,
@@ -509,7 +512,8 @@ llvm::Function *createFixedEnumLoadTag(IRGenModule &IGM,
         auto castEnumPtr = IGF.Builder.CreateBitCast(enumPtr, enumType);
         auto enumAddr = typeInfo->getAddressForPointer(castEnumPtr);
 
-        auto tag = entry.getEnumTag(IGF, enumAddr);
+        auto &strategy = getEnumImplStrategy(IGM, entry.ty);
+        auto tag = strategy.emitGetEnumTag(IGF, entry.ty, enumAddr);
         IGF.Builder.CreateRet(tag);
       });
 

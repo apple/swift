@@ -12,3 +12,12 @@ public struct UsesG<each Input> {
   public init<E>(builder: (repeat G<each Input>) -> E) {}
 }
 UsesG<Int, String, Bool> { a, b, c in 0 }
+
+// rdar://107367324
+func returnVariadicClosure<each T, R>(f: @escaping (repeat each T) -> R) -> (repeat each T) -> R {
+    { (t: repeat each T) -> R in
+        let tuple = (repeat each t)
+        print(tuple)
+        return f(repeat each t)
+    }
+}

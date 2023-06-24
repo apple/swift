@@ -25,16 +25,6 @@ AddressUseKind TransitiveAddressWalker::walk(SILValue projectedAddress) && {
   // When we exit, set the result to be invalidated so we can't use this again.
   SWIFT_DEFER { didInvalidate = true; };
 
-  // If the projectedAddress is dead, it is itself a leaf use. Since we don't
-  // have an operand for it, simply bail. Dead projectedAddress is unexpected.
-  //
-  // TODO: store_borrow is currently an InteriorPointer with no uses, so we end
-  // up bailing. It should be in a dependence scope instead. It's not clear why
-  // it produces an address at all.
-  if (projectedAddress->use_empty()) {
-    return AddressUseKind::PointerEscape;
-  }
-
   StackList<Operand *> worklist(projectedAddress->getFunction());
   SmallPtrSet<Operand *, 32> visitedOperands;
 

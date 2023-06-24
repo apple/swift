@@ -17,11 +17,11 @@ public func testGlobalFunctions() {
 
 // --- asyncFunc() ---
 // CHECK: define linkonce_odr hidden i1 @"$s17has_symbol_helper9asyncFuncyyYaFTwS"()
-// CHECK:   ret i1 and (i1 icmp ne (void (%swift.context*)* @"$s17has_symbol_helper9asyncFuncyyYaF", void (%swift.context*)* null), i1 icmp ne (%swift.async_func_pointer* @"$s17has_symbol_helper9asyncFuncyyYaFTu", %swift.async_func_pointer* null))
+// CHECK:   ret i1 and (i1 icmp ne (ptr @"$s17has_symbol_helper9asyncFuncyyYaF", ptr null), i1 icmp ne (ptr @"$s17has_symbol_helper9asyncFuncyyYaFTu", ptr null))
 
 // --- isolatedFunc() ---
 // CHECK: define linkonce_odr hidden i1 @"$s17has_symbol_helper12isolatedFuncyyFTwS"()
-// CHECK:   ret i1 icmp ne (void ()* @"$s17has_symbol_helper12isolatedFuncyyF", void ()* null)
+// CHECK:   ret i1 icmp ne (ptr @"$s17has_symbol_helper12isolatedFuncyyF", ptr null)
 
 public func testActor(_ a: A) {
   // CHECK: %{{[0-9]+}} = call i1 @"$s17has_symbol_helper1ACACycfcTwS"()
@@ -35,8 +35,8 @@ public func testActor(_ a: A) {
 
 // --- A.init() ---
 // CHECK: define linkonce_odr hidden i1 @"$s17has_symbol_helper1ACACycfcTwS"()
-// CHECK:   ret i1 and (i1 icmp ne (%T17has_symbol_helper1AC* (%T17has_symbol_helper1AC*)* @"$s17has_symbol_helper1ACACycfc", %T17has_symbol_helper1AC* (%T17has_symbol_helper1AC*)* null), i1 icmp ne (%T17has_symbol_helper1AC* (%swift.type*)* @"$s17has_symbol_helper1ACACycfC", %T17has_symbol_helper1AC* (%swift.type*)* null))
+// CHECK:   ret i1 and (i1 icmp ne (ptr @"$s17has_symbol_helper1ACACycfc", ptr null), i1 icmp ne (ptr @"$s17has_symbol_helper1ACACycfC", ptr null))
 
 // --- A.asyncMethod() ---
 // CHECK: define linkonce_odr hidden i1 @"$s17has_symbol_helper1AC11asyncMethodyyYaFTwS"()
-// CHECK:   ret i1 and (i1 and (i1 icmp ne (void (%swift.context*, %T17has_symbol_helper1AC*)* @"$s17has_symbol_helper1AC11asyncMethodyyYaFTj", void (%swift.context*, %T17has_symbol_helper1AC*)* null), i1 icmp ne (%swift.async_func_pointer* @"$s17has_symbol_helper1AC11asyncMethodyyYaFTjTu", %swift.async_func_pointer* null)), i1 icmp ne (%swift.method_descriptor* @"$s17has_symbol_helper1AC11asyncMethodyyYaFTq", %swift.method_descriptor* null))
+// CHECK:   ret i1 and (i1 and (i1 icmp ne (ptr @"$s17has_symbol_helper1AC11asyncMethodyyYaFTj", ptr null), i1 icmp ne (ptr @"$s17has_symbol_helper1AC11asyncMethodyyYaFTjTu", ptr null)), i1 icmp ne (ptr @"$s17has_symbol_helper1AC11asyncMethodyyYaFTq", ptr null))

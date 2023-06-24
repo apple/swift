@@ -46,7 +46,7 @@
 // EXTRACT-INIT-LABEL:   sil @$s5basic7VehicleC1nACSi_tcfc : $@convention(method) (Int, @owned Vehicle) -> @owned Vehicle {
 // EXTRACT-INIT:         bb0
 // EXTRACT-INIT-NEXT:      ref_element_addr
-// EXTRACT-INIT-NEXT:      begin_access [modify] [dynamic]
+// EXTRACT-INIT-NEXT:      begin_access [init] [static]
 // EXTRACT-INIT-NEXT:      store
 // EXTRACT-INIT-NEXT:      end_access
 // EXTRACT-INIT-NEXT:      return

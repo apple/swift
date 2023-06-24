@@ -666,6 +666,37 @@ void swift_initStructMetadataWithLayoutString(StructMetadata *self,
                                               const uint8_t *fieldTags,
                                               uint32_t *fieldOffsets);
 
+enum LayoutStringFlags : uint64_t {
+  Empty = 0,
+  // TODO: Track other useful information tha can be used to optimize layout
+  //       strings, like different reference kinds contained in the string
+  //       number of ref counting operations (maybe up to 4), so we can
+  //       use witness functions optimized for these cases.
+  HasRelativePointers = (1ULL << 63),
+};
+
+inline bool operator&(LayoutStringFlags a, LayoutStringFlags b) {
+  return (uint64_t(a) & uint64_t(b)) != 0;
+}
+inline LayoutStringFlags operator|(LayoutStringFlags a, LayoutStringFlags b) {
+  return LayoutStringFlags(uint64_t(a) | uint64_t(b));
+}
+inline LayoutStringFlags &operator|=(LayoutStringFlags &a, LayoutStringFlags b) {
+  return a = (a | b);
+}
+
+SWIFT_RUNTIME_STDLIB_INTERNAL
+size_t _swift_refCountBytesForMetatype(const Metadata *type);
+
+struct LayoutStringWriter;
+
+SWIFT_RUNTIME_STDLIB_INTERNAL
+void _swift_addRefCountStringForMetatype(LayoutStringWriter &writer,
+                                         LayoutStringFlags &flags,
+                                         const Metadata *fieldType,
+                                         size_t &fullOffset,
+                                         size_t &previousFieldOffset);
+
 /// Allocate the metadata for a class and copy fields from the given pattern.
 /// The final size of the metadata is calculated at runtime from the metadata
 /// bounds in the class descriptor.

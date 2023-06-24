@@ -239,6 +239,15 @@ namespace irgen {
                                           GenericSignature sig,
                                           ArrayRef<Requirement> requirements);
 
+  /// Add generic pack shape descriptors to the given constant struct builder.
+  ///
+  /// These appear in generic type metadata, and conformance descriptors with
+  /// conditional pack requirements.
+  void addGenericPackShapeDescriptors(IRGenModule &IGM,
+                                      ConstantStructBuilder &B,
+                                      ArrayRef<CanType> shapes,
+                                      ArrayRef<GenericPackArgument> packArgs);
+
   llvm::GlobalValue *emitAsyncFunctionPointer(IRGenModule &IGM,
                                               llvm::Function *function,
                                               LinkEntity entity,

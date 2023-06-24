@@ -8,11 +8,11 @@ import gizmo
 
 sil @use_metatype : $@convention(thin) <T> (@thin T.Type) -> ()
 
-// CHECK-LABEL: define swiftcc void @test(%TSo014OuterTypeInnerB0C* swiftself %0, %swift.type* %Self, i8** %SelfWitnessTable)
+// CHECK-LABEL: define swiftcc void @test(ptr swiftself %0, ptr %Self, ptr %SelfWitnessTable)
 // FIXME:   Metadata realization via demangling is disabled for now
 // CHECK:   [[TMP:%.*]] = call swiftcc %swift.metadata_response @"$sSo9OuterTypeCMa"
 // CHECK:   [[METADATA:%.*]] = extractvalue %swift.metadata_response %1, 0
-// CHECK:   call swiftcc void @use_metatype(%swift.type* [[METADATA]])
+// CHECK:   call swiftcc void @use_metatype(ptr [[METADATA]])
 // CHECK:   ret void
 
 sil @test : $@convention(witness_method: NSRuncing) (@guaranteed OuterType.InnerType) -> () {

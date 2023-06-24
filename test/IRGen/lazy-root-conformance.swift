@@ -20,6 +20,6 @@ extension E : Q {
 }
 #endif
 
-// CHECK-DIRECT: @"$s1A1EO1B1QADWP" ={{( dllexport)?}}{{( protected)?}} constant [2 x i8*] [i8* bitcast (%swift.protocol_conformance_descriptor* @"$s1A1EO1B1QADMc" to i8*), i8* bitcast (i8** @"$s1A1EOAA1PAAWP" to i8*)]
-// CHECK-INDIRECT: @"$s1A1EO1B1QADWP" ={{( dllexport)?}}{{( protected)?}} constant [2 x i8*] [i8* bitcast ({{.*}}* @"$s1A1EO1B1QADMc" to i8*), i8* null]
+// CHECK-DIRECT: @"$s1A1EO1B1QADWP" ={{( dllexport)?}}{{( protected)?}} constant [2 x ptr] [ptr @"$s1A1EO1B1QADMc", ptr @"$s1A1EOAA1PAAWP"]
+// CHECK-INDIRECT: @"$s1A1EO1B1QADWP" ={{( dllexport)?}}{{( protected)?}} constant [2 x ptr] [ptr @"$s1A1EO1B1QADMc", ptr null]
 

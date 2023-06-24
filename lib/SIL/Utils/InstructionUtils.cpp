@@ -268,8 +268,8 @@ SILValue swift::stripBorrow(SILValue V) {
 // This is guaranteed to handle all function-type conversions: ThinToThick,
 // ConvertFunction, and ConvertEscapeToNoEscapeInst.
 SingleValueInstruction *swift::getSingleValueCopyOrCast(SILInstruction *I) {
-  if (auto *convert = dyn_cast<ConversionInst>(I))
-    return convert;
+  if (auto convert = ConversionOperation(I))
+    return *convert;
 
   switch (I->getKind()) {
   default:
@@ -512,7 +512,6 @@ RuntimeEffect swift::getRuntimeEffect(SILInstruction *inst, SILType &impactType)
   case SILInstructionKind::UncheckedTakeEnumDataAddrInst:
   case SILInstructionKind::SelectEnumInst:
   case SILInstructionKind::SelectEnumAddrInst:
-  case SILInstructionKind::SelectValueInst:
   case SILInstructionKind::OpenExistentialMetatypeInst:
   case SILInstructionKind::OpenExistentialBoxInst:
   case SILInstructionKind::OpenExistentialValueInst:
@@ -902,7 +901,7 @@ RuntimeEffect swift::getRuntimeEffect(SILInstruction *inst, SILType &impactType)
       if (pa->isOnStack()) {
         for (SILValue arg : pa->getArguments()) {
           if (!arg->getType().isTrivial(*pa->getFunction()))
-            rt |= RuntimeEffect::RefCounting;
+            rt |= ifNonTrivial(arg->getType(), RuntimeEffect::RefCounting);
         }
       } else {
         rt |= RuntimeEffect::Allocating | RuntimeEffect::Releasing;

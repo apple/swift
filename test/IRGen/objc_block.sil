@@ -14,13 +14,10 @@ entry(%b : $@convention(block) (Foo) -> Foo, %x : $Foo):
   %y = apply %b(%x) : $@convention(block) (Foo) -> Foo
   return %y : $Foo
 }
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc %T10objc_block3FooC* @call_block(%objc_block* %0, %T10objc_block3FooC* %1) {{.*}} {
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @call_block(ptr %0, ptr %1) {{.*}} {
 // CHECK:       entry:
-// CHECK:         [[T0:%.*]] = getelementptr inbounds %objc_block, %objc_block* %0, i32 0, i32 3
-// CHECK:         [[T1:%.*]] = load i8*, i8** [[T0]]
-// CHECK:         [[T2:%.*]] = bitcast i8* [[T1]] to i8* (%objc_block*, i8*)*
-// CHECK:         [[T3:%.*]] = bitcast %T10objc_block3FooC* %1 to i8*
-// CHECK:         [[T4:%.*]] = call i8* [[T2]](%objc_block* %0, i8* [[T3]])
-// CHECK:         [[T5:%.*]] = bitcast i8* [[T4]] to %T10objc_block3FooC*
-// CHECK:         ret %T10objc_block3FooC* [[T5]]
+// CHECK:         [[T0:%.*]] = getelementptr inbounds %objc_block, ptr %0, i32 0, i32 3
+// CHECK:         [[T1:%.*]] = load ptr, ptr [[T0]]
+// CHECK:         [[T4:%.*]] = call ptr [[T1]](ptr %0, ptr %1)
+// CHECK:         ret ptr [[T4]]
 // CHECK:       }

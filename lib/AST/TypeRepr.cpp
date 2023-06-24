@@ -629,6 +629,11 @@ void FixedTypeRepr::printImpl(ASTPrinter &Printer,
   getType().print(Printer, Opts);
 }
 
+void SelfTypeRepr::printImpl(ASTPrinter &Printer,
+                             const PrintOptions &Opts) const {
+  getType().print(Printer, Opts);
+}
+
 void SILBoxTypeRepr::printImpl(ASTPrinter &Printer,
                                const PrintOptions &Opts) const {
   // TODO

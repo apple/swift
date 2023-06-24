@@ -1,6 +1,7 @@
 // RUN: %empty-directory(%t)
 // RUN: %{python} %utils/chex.py < %s > %t/generic_structs.sil
-// RUN: %target-swift-frontend -disable-type-layout -disable-generic-metadata-prespecialization %t/generic_structs.sil -emit-ir | %FileCheck %t/generic_structs.sil
+// RUN: %target-swift-frontend %use_no_opaque_pointers -disable-type-layout -disable-generic-metadata-prespecialization %t/generic_structs.sil -emit-ir | %FileCheck %t/generic_structs.sil
+// RUN: %target-swift-frontend -disable-type-layout -disable-generic-metadata-prespecialization %t/generic_structs.sil -emit-ir
 
 // REQUIRES: CPU=x86_64
 

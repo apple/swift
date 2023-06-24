@@ -519,6 +519,9 @@ public:
 /// where escaped Unicode characters lead to malformed/invalid JSON.
 void writeEscaped(llvm::StringRef Str, llvm::raw_ostream &OS);
 
+/// Whether the path components of `path` begin with those from `prefix`.
+bool pathStartsWith(StringRef prefix, StringRef path);
+
 } // end namespace swift
 
 #endif // SWIFT_BASIC_STRINGEXTRAS_H

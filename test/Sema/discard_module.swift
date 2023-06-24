@@ -5,7 +5,7 @@
 // RUN: %target-typecheck-verify-swift -I %t
 
 // >> now again with library evolution; we expect the same result.
-// RUN: %target-swift-frontend -enable-library-evolution -emit-module -o %t/SorryModule.swiftmodule %S/Inputs/discard_module_defining.swift %S/Inputs/discard_module_adjacent.swift
+// RUN: %target-swift-frontend -enable-library-evolution -emit-module -o %t/SorryModule.swiftmodule %S/Inputs/discard_module_defining.swift %S/Inputs/discard_module_adjacent.swift -enable-experimental-feature MoveOnlyResilientTypes
 // RUN: %target-typecheck-verify-swift -I %t
 
 // "Sorry" is meaningless

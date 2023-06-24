@@ -15,16 +15,17 @@
 //===----------------------------------------------------------------------===//
 
 #include "swift/SIL/SILInstruction.h"
-#include "swift/Basic/type_traits.h"
+#include "swift/Basic/AssertImplements.h"
 #include "swift/Basic/Unicode.h"
+#include "swift/Basic/type_traits.h"
 #include "swift/SIL/ApplySite.h"
+#include "swift/SIL/DynamicCasts.h"
+#include "swift/SIL/InstructionUtils.h"
 #include "swift/SIL/SILBuilder.h"
 #include "swift/SIL/SILCloner.h"
 #include "swift/SIL/SILDebugScope.h"
-#include "swift/SIL/SILVisitor.h"
-#include "swift/SIL/DynamicCasts.h"
-#include "swift/Basic/AssertImplements.h"
 #include "swift/SIL/SILModule.h"
+#include "swift/SIL/SILVisitor.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -688,25 +689,6 @@ namespace {
       return visitSelectEnumInstBase(RHS);
     }
 
-    bool visitSelectValueInst(const SelectValueInst *RHS) {
-      // Check that the instructions match cases in the same order.
-      auto *X = cast<SelectValueInst>(LHS);
-
-      if (X->getNumCases() != RHS->getNumCases())
-        return false;
-      if (X->hasDefault() != RHS->hasDefault())
-        return false;
-
-      for (unsigned i = 0, e = X->getNumCases(); i < e; ++i) {
-        if (X->getCase(i).first != RHS->getCase(i).first)
-          return false;
-        if (X->getCase(i).second != RHS->getCase(i).second)
-          return false;
-      }
-
-      return true;
-    }
-
     // Conversion instructions.
     // All of these just return true as they have already had their
     // operands and types checked
@@ -1138,6 +1120,7 @@ bool SILInstruction::mayRelease() const {
     return true;
 
   case SILInstructionKind::DestroyValueInst:
+  case SILInstructionKind::HopToExecutorInst:
     return true;
 
   case SILInstructionKind::UnconditionalCheckedCastAddrInst:
@@ -1786,8 +1769,8 @@ DestroyValueInst::getNonescapingClosureAllocation() const {
       // Stop at a conversion from escaping closure, since there's no stack
       // allocation in that case.
       return nullptr;
-    } else if (auto conv = dyn_cast<ConversionInst>(operand)) {
-      operand = conv->getConverted();
+    } else if (auto convert = ConversionOperation(operand)) {
+      operand = convert.getConverted();
       continue;
     } else if (auto pa = dyn_cast<PartialApplyInst>(operand)) {
       // If we found the `[on_stack]` partial apply, we're done.

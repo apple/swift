@@ -61,10 +61,7 @@ public:
 
   /// A convenience method to visit all the members.
   void visitMembers(NominalTypeDecl *D) {
-    for (Decl *member : D->getMembers()) {
-      member->visitAuxiliaryDecls([&](Decl *decl) {
-        asImpl().visit(decl);
-      });
+    for (Decl *member : D->getAllMembers()) {
       asImpl().visit(member);
     }
   }

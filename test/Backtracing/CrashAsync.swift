@@ -40,7 +40,7 @@ struct CrashAsync {
 
 // CHECK: *** Program crashed: Bad pointer dereference at 0x{{0+}}4 ***
 
-// CHECK: Thread {{[0-9]+}} crashed:
+// CHECK: Thread {{[0-9]+( ".*")?}} crashed:
 
 // CHECK:  0                  0x{{[0-9a-f]+}} {{_?}}$s10CrashAsync5crashyyF + {{[0-9]+}} in CrashAsync at {{.*}}/CrashAsync.swift:21:15
 // CHECK-NEXT:  1 [ra]             0x{{[0-9a-f]+}} {{_?}}$s10CrashAsync5levelyySiYaFTY0_ + {{[0-9]+}} in CrashAsync at {{.*}}/CrashAsync.swift:29:5
@@ -57,7 +57,7 @@ struct CrashAsync {
 
 // FRIENDLY: *** Program crashed: Bad pointer dereference at 0x{{0+}}4 ***
 
-// FRIENDLY: Thread {{[0-9]+}} crashed:
+// FRIENDLY: Thread {{[0-9]+( ".*")?}} crashed:
 
 // FRIENDLY: 0 {{_?}}$s10CrashAsync5crashyyF + {{[0-9]+}} in CrashAsync at {{.*}}CrashAsync.swift:21:15
 

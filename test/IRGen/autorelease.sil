@@ -19,9 +19,9 @@ bb0(%0 : @owned $C?):
 }
 
 // CHECK:      define{{( dllexport| protected)?}} swiftcc [[INT]] @foo([[INT]] %0) {{.*}} {
-// CHECK:        [[T0:%.*]] = inttoptr [[INT]] %0 to i8*
-// CHECK-NEXT:   [[T1:%.*]] = tail call i8* @llvm.objc.autoreleaseReturnValue(i8* [[T0]])
-// CHECK-NEXT:   [[T2:%.*]] = ptrtoint i8* [[T1]] to [[INT]]
+// CHECK:        [[T0:%.*]] = inttoptr [[INT]] %0 to ptr
+// CHECK-NEXT:   [[T1:%.*]] = tail call ptr @llvm.objc.autoreleaseReturnValue(ptr [[T0]])
+// CHECK-NEXT:   [[T2:%.*]] = ptrtoint ptr [[T1]] to [[INT]]
 // CHECK-NEXT:   ret [[INT]] [[T2]]
 
 sil [ossa] @bar : $@convention(thin) (@owned C?) -> @owned C? {
@@ -33,63 +33,63 @@ bb0(%0 : @owned $C?):
 
 // x86_64:    define{{( dllexport| protected)?}} swiftcc i64 @bar(i64 %0)
 // x86_64:      [[T0:%.*]] = call swiftcc i64 @foo(i64 %0)
-// x86_64-NEXT: [[T1:%.*]] = inttoptr i64 [[T0]] to i8*
-// x86_64-NEXT: [[T2:%.*]] = notail call i8* @llvm.objc.retainAutoreleasedReturnValue(i8* [[T1]])
-// x86_64-NEXT: [[T3:%.*]] = ptrtoint i8* [[T2]] to i64
+// x86_64-NEXT: [[T1:%.*]] = inttoptr i64 [[T0]] to ptr
+// x86_64-NEXT: [[T2:%.*]] = notail call ptr @llvm.objc.retainAutoreleasedReturnValue(ptr [[T1]])
+// x86_64-NEXT: [[T3:%.*]] = ptrtoint ptr [[T2]] to i64
 // x86_64-NEXT: ret i64 [[T3]]
 
 // arm64:    define{{( dllexport| protected)?}} swiftcc i64 @bar(i64 %0)
 // arm64:      [[T0:%.*]] = call swiftcc i64 @foo(i64 %0)
 // arm64-NEXT: call void asm sideeffect "mov
-// arm64-NEXT: [[T1:%.*]] = inttoptr i64 [[T0]] to i8*
-// arm64-NEXT: [[T2:%.*]] = call i8* @llvm.objc.retainAutoreleasedReturnValue(i8* [[T1]])
-// arm64-NEXT: [[T3:%.*]] = ptrtoint i8* [[T2]] to i64
+// arm64-NEXT: [[T1:%.*]] = inttoptr i64 [[T0]] to ptr
+// arm64-NEXT: [[T2:%.*]] = call ptr @llvm.objc.retainAutoreleasedReturnValue(ptr [[T1]])
+// arm64-NEXT: [[T3:%.*]] = ptrtoint ptr [[T2]] to i64
 // arm64-NEXT: ret i64 [[T3]]
 
 // arm64e:    define{{( dllexport| protected)?}} swiftcc i64 @bar(i64 %0)
 // arm64e:      [[T0:%.*]] = call swiftcc i64 @foo(i64 %0)
 // arm64e-NEXT: call void asm sideeffect "mov
-// arm64e-NEXT: [[T1:%.*]] = inttoptr i64 [[T0]] to i8*
-// arm64e-NEXT: [[T2:%.*]] = call i8* @llvm.objc.retainAutoreleasedReturnValue(i8* [[T1]])
-// arm64e-NEXT: [[T3:%.*]] = ptrtoint i8* [[T2]] to i64
+// arm64e-NEXT: [[T1:%.*]] = inttoptr i64 [[T0]] to ptr
+// arm64e-NEXT: [[T2:%.*]] = call ptr @llvm.objc.retainAutoreleasedReturnValue(ptr [[T1]])
+// arm64e-NEXT: [[T3:%.*]] = ptrtoint ptr [[T2]] to i64
 // arm64e-NEXT: ret i64 [[T3]]
 
 // aarch64:    define{{( dllexport| protected)?}} swiftcc i64 @bar(i64 %0)
 // aarch64:      [[T0:%.*]] = call swiftcc i64 @foo(i64 %0)
 // aarch64-NEXT: call void asm sideeffect "mov
-// aarch64-NEXT: [[T1:%.*]] = inttoptr i64 [[T0]] to i8*
-// aarch64-NEXT: [[T2:%.*]] = call i8* @llvm.objc.retainAutoreleasedReturnValue(i8* [[T1]])
-// aarch64-NEXT: [[T3:%.*]] = ptrtoint i8* [[T2]] to i64
+// aarch64-NEXT: [[T1:%.*]] = inttoptr i64 [[T0]] to ptr
+// aarch64-NEXT: [[T2:%.*]] = call ptr @llvm.objc.retainAutoreleasedReturnValue(ptr [[T1]])
+// aarch64-NEXT: [[T3:%.*]] = ptrtoint ptr [[T2]] to i64
 // aarch64-NEXT: ret i64 [[T3]]
 
 // i386:    define{{( dllexport| protected)?}} swiftcc i32 @bar(i32 %0)
 // i386:      [[T0:%.*]] = call swiftcc i32 @foo(i32 %0)
-// i386-NEXT: [[T1:%.*]] = inttoptr i32 [[T0]] to i8*
-// i386-NEXT: [[T2:%.*]] = call i8* @llvm.objc.retainAutoreleasedReturnValue(i8* [[T1]])
-// i386-NEXT: [[T3:%.*]] = ptrtoint i8* [[T2]] to i32
+// i386-NEXT: [[T1:%.*]] = inttoptr i32 [[T0]] to ptr
+// i386-NEXT: [[T2:%.*]] = call ptr @llvm.objc.retainAutoreleasedReturnValue(ptr [[T1]])
+// i386-NEXT: [[T3:%.*]] = ptrtoint ptr [[T2]] to i32
 // i386-NEXT: ret i32 [[T3]]
 
 // armv7:    define{{( dllexport| protected)?}} swiftcc i32 @bar(i32 %0)
 // armv7:      [[T0:%.*]] = call swiftcc i32 @foo(i32 %0)
 // armv7-NEXT: call void asm sideeffect "mov
-// armv7-NEXT: [[T1:%.*]] = inttoptr i32 [[T0]] to i8*
-// armv7-NEXT: [[T2:%.*]] = call i8* @llvm.objc.retainAutoreleasedReturnValue(i8* [[T1]])
-// armv7-NEXT: [[T3:%.*]] = ptrtoint i8* [[T2]] to i32
+// armv7-NEXT: [[T1:%.*]] = inttoptr i32 [[T0]] to ptr
+// armv7-NEXT: [[T2:%.*]] = call ptr @llvm.objc.retainAutoreleasedReturnValue(ptr [[T1]])
+// armv7-NEXT: [[T3:%.*]] = ptrtoint ptr [[T2]] to i32
 // armv7-NEXT: ret i32 [[T3]]
 
 // armv7s:    define{{( dllexport| protected)?}} swiftcc i32 @bar(i32 %0)
 // armv7s:      [[T0:%.*]] = call swiftcc i32 @foo(i32 %0)
 // armv7s-NEXT: call void asm sideeffect "mov
-// armv7s-NEXT: [[T1:%.*]] = inttoptr i32 [[T0]] to i8*
-// armv7s-NEXT: [[T2:%.*]] = call i8* @llvm.objc.retainAutoreleasedReturnValue(i8* [[T1]])
-// armv7s-NEXT: [[T3:%.*]] = ptrtoint i8* [[T2]] to i32
+// armv7s-NEXT: [[T1:%.*]] = inttoptr i32 [[T0]] to ptr
+// armv7s-NEXT: [[T2:%.*]] = call ptr @llvm.objc.retainAutoreleasedReturnValue(ptr [[T1]])
+// armv7s-NEXT: [[T3:%.*]] = ptrtoint ptr [[T2]] to i32
 // armv7s-NEXT: ret i32 [[T3]]
 
 // armv7k:    define{{( dllexport| protected)?}} swiftcc i32 @bar(i32 %0)
 // armv7k:      [[T0:%.*]] = call swiftcc i32 @foo(i32 %0)
 // armv7k-NEXT: call void asm sideeffect "mov
-// armv7k-NEXT: [[T1:%.*]] = inttoptr i32 [[T0]] to i8*
-// armv7k-NEXT: [[T2:%.*]] = call i8* @llvm.objc.retainAutoreleasedReturnValue(i8* [[T1]])
-// armv7k-NEXT: [[T3:%.*]] = ptrtoint i8* [[T2]] to i32
+// armv7k-NEXT: [[T1:%.*]] = inttoptr i32 [[T0]] to ptr
+// armv7k-NEXT: [[T2:%.*]] = call ptr @llvm.objc.retainAutoreleasedReturnValue(ptr [[T1]])
+// armv7k-NEXT: [[T3:%.*]] = ptrtoint ptr [[T2]] to i32
 // armv7k-NEXT: ret i32 [[T3]]
 

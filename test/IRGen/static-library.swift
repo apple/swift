@@ -1,7 +1,9 @@
 // RUN: %empty-directory(%t)
 // RUN: %swiftc_driver_plain -target x86_64-unknown-windows-msvc -DLIBRARY -module-name Library -emit-library -static -autolink-force-load -module-link-name Library %s -o %t/library.lib -emit-module-path %t
-// RUN: %swiftc_driver_plain -target x86_64-unknown-windows-msvc -DLIBRARY -module-name Library -emit-library -static -autolink-force-load -module-link-name Library %s -S -emit-ir -o - | %FileCheck -check-prefix CHECK-LIBRARY %s
-// RUN: %swiftc_driver_plain -target x86_64-unknown-windows-msvc -I %t -emit-library -S -emit-ir -o - %s | %FileCheck -check-prefix CHECK-EMBEDDING %s
+// RUN: %swiftc_driver_plain %use_no_opaque_pointers -target x86_64-unknown-windows-msvc -DLIBRARY -module-name Library -emit-library -static -autolink-force-load -module-link-name Library %s -S -emit-ir -o - | %FileCheck -check-prefix CHECK-LIBRARY %s
+// RUN: %swiftc_driver_plain %use_no_opaque_pointers -target x86_64-unknown-windows-msvc -I %t -emit-library -S -emit-ir -o - %s | %FileCheck -check-prefix CHECK-EMBEDDING %s
+// RUN: %swiftc_driver_plain -target x86_64-unknown-windows-msvc -DLIBRARY -module-name Library -emit-library -static -autolink-force-load -module-link-name Library %s -S -emit-ir -o -
+// RUN: %swiftc_driver_plain -target x86_64-unknown-windows-msvc -I %t -emit-library -S -emit-ir -o - %s
 
 // REQUIRES: OS=windows-msvc
 

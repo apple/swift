@@ -409,6 +409,11 @@ public:
   /// Reads the original source file name from PCH.
   std::string getOriginalSourceFile(StringRef PCHFilename);
 
+  /// Add clang dependency file names.
+  ///
+  /// \param files The list of file to append dependencies to.
+  void addClangInvovcationDependencies(std::vector<std::string> &files);
+
   /// Makes a temporary replica of the ClangImporter's CompilerInstance, reads a
   /// module map into the replica and emits a PCM file for one of the modules it
   /// declares. Delegates to clang for everything except construction of the

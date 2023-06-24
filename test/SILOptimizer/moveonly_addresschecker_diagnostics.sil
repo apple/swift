@@ -359,7 +359,7 @@ bb0(%0 : @closureCapture @guaranteed $<τ_0_0 where τ_0_0 : P> { var AddressOnl
   end_access %12 : $*AddressOnlyGeneric<T>
   %17 = begin_access [deinit] [dynamic] %1 : $*AddressOnlyGeneric<T>
   %18 = mark_must_check [assignable_but_not_consumable] %17 : $*AddressOnlyGeneric<T>
-  // expected-error @-1 {{noncopyable 'x' cannot be consumed when captured by a closure}}
+  // expected-error @-1 {{noncopyable 'x' cannot be consumed when captured by an escaping closure}}
   %19 = function_ref @addressOnlyGenericConsume : $@convention(thin) <τ_0_0 where τ_0_0 : P> (@in AddressOnlyGeneric<τ_0_0>) -> ()
   %20 = apply %19<T>(%18) : $@convention(thin) <τ_0_0 where τ_0_0 : P> (@in AddressOnlyGeneric<τ_0_0>) -> ()
   end_access %17 : $*AddressOnlyGeneric<T>

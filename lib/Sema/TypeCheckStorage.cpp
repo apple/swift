@@ -301,8 +301,12 @@ StoredPropertiesAndMissingMembersRequest::evaluate(Evaluator &evaluator,
   return decl->getASTContext().AllocateCopy(results);
 }
 
-/// Determine whether the given variable has an init accessor.
-static bool hasInitAccessor(VarDecl *var) {
+bool HasInitAccessorRequest::evaluate(Evaluator &evaluator,
+                                      AbstractStorageDecl *decl) const {
+  auto *var = dyn_cast<VarDecl>(decl);
+  if (!var)
+    return false;
+
   if (var->getAccessor(AccessorKind::Init))
     return true;
 
@@ -329,6 +333,18 @@ static bool hasInitAccessor(VarDecl *var) {
 ArrayRef<VarDecl *>
 InitAccessorPropertiesRequest::evaluate(Evaluator &evaluator,
                                         NominalTypeDecl *decl) const {
+  SmallVector<VarDecl *, 4> results;
+  for (auto var : decl->getMemberwiseInitProperties()) {
+    if (var->hasInitAccessor())
+      results.push_back(var);
+  }
+
+  return decl->getASTContext().AllocateCopy(results);
+}
+
+ArrayRef<VarDecl *>
+MemberwiseInitPropertiesRequest::evaluate(Evaluator &evaluator,
+                                        NominalTypeDecl *decl) const {
   IterableDeclContext *implDecl = decl->getImplementationContext();
 
   if (!hasStoredProperties(decl, implDecl))
@@ -338,13 +354,43 @@ InitAccessorPropertiesRequest::evaluate(Evaluator &evaluator,
   computeLoweredProperties(decl, implDecl, LoweredPropertiesReason::Memberwise);
 
   SmallVector<VarDecl *, 4> results;
-  for (auto *member : decl->getMembers()) {
-    auto *var = dyn_cast<VarDecl>(member);
-    if (!var || var->isStatic() || !hasInitAccessor(var)) {
-      continue;
-    }
+  SmallPtrSet<VarDecl *, 4> subsumedViaInitAccessor;
 
+  auto maybeAddProperty = [&](VarDecl *var) {
+    // We only care about properties that are memberwise initialized.
+    if (!var->isMemberwiseInitialized(/*preferDeclaredProperties=*/true))
+      return;
+
+    // Add this property.
     results.push_back(var);
+
+    // If this property has an init accessor, it subsumes all of the stored properties
+    // that the accessor initializes. Mark those stored properties as being subsumed; we'll
+    // get back to them later.
+    if (auto initAccessor = var->getAccessor(AccessorKind::Init)) {
+      if (auto initAttr = initAccessor->getAttrs().getAttribute<InitializesAttr>()) {
+        for (auto subsumed : initAttr->getPropertyDecls(initAccessor))
+          subsumedViaInitAccessor.insert(subsumed);
+      }
+    }
+  };
+
+  for (auto *member : decl->getCurrentMembers()) {
+    if (auto *var = dyn_cast<VarDecl>(member))
+      maybeAddProperty(var);
+
+    member->visitAuxiliaryDecls([&](Decl *auxDecl) {
+      if (auto auxVar = dyn_cast<VarDecl>(auxDecl))
+        maybeAddProperty(auxVar);
+    });
+  }
+
+  // If any properties were subsumed via init accessors, drop them from the list.
+  if (!subsumedViaInitAccessor.empty()) {
+    results.erase(std::remove_if(results.begin(), results.end(), [&](VarDecl *var) {
+                    return subsumedViaInitAccessor.contains(var);
+                  }),
+                  results.end());
   }
 
   return decl->getASTContext().AllocateCopy(results);
@@ -471,6 +517,13 @@ const PatternBindingEntry *PatternBindingEntryRequest::evaluate(
                                              options)) {
       binding->setInvalid();
       return &pbe;
+    }
+
+    // Local variable packs are not allowed.
+    if (binding->getDeclContext()->isLocalContext() &&
+        binding->getInit(entryNumber)->getType()->is<PackExpansionType>()) {
+      binding->diagnose(diag::expansion_not_allowed,
+                        binding->getInit(entryNumber)->getType());
     }
 
     // A pattern binding at top level is not allowed to pick up another decl's
@@ -3355,7 +3408,7 @@ static void finishStorageImplInfo(AbstractStorageDecl *storage,
   auto dc = storage->getDeclContext();
 
   if (auto var = dyn_cast<VarDecl>(storage)) {
-    if (!info.hasStorage()) {
+    if (!info.hasStorage() && !var->hasInitAccessor()) {
       if (auto *init = var->getParentExecutableInitializer()) {
         auto &Diags = var->getASTContext().Diags;
         Diags.diagnose(init->getLoc(), diag::getset_init)

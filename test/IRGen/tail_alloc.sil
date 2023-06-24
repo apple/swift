@@ -1,5 +1,7 @@
-// RUN: %target-swift-frontend -enable-objc-interop  -stack-promotion-limit 48 -Onone -emit-ir %s | %FileCheck --check-prefixes=CHECK,CHECK-objc %s -DINT=i%target-ptrsize
-// RUN: %target-swift-frontend -disable-objc-interop -stack-promotion-limit 48 -Onone -emit-ir %s | %FileCheck --check-prefixes=CHECK,CHECK-native %s -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-objc-interop  -stack-promotion-limit 48 -Onone -emit-ir %s | %FileCheck --check-prefixes=CHECK,CHECK-objc %s -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend %use_no_opaque_pointers -disable-objc-interop -stack-promotion-limit 48 -Onone -emit-ir %s | %FileCheck --check-prefixes=CHECK,CHECK-native %s -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend -enable-objc-interop  -stack-promotion-limit 48 -Onone -emit-ir %s
+// RUN: %target-swift-frontend -disable-objc-interop -stack-promotion-limit 48 -Onone -emit-ir %s
 //
 // REQUIRES: CPU=x86_64
 

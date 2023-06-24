@@ -34,20 +34,20 @@ public class Class {
 // CHECK-LABEL: @"$s11dead_method5ClassCMf" = internal global <{{.*}}> <{
 
 // -- destructor
-// CHECK-SAME:   void (%T11dead_method5ClassC*)* {{.*}}@"$s11dead_method5ClassCfD{{(.ptrauth)?}}"
+// CHECK-SAME:   ptr {{.*}}@"$s11dead_method5ClassCfD{{(.ptrauth)?}}"
 
 // -- value witness table
-// CHECK-SAME:   i8** {{@"\$sBoWV"|null}},
+// CHECK-SAME:   ptr {{@"\$sBoWV"|null}},
 
 // -- nominal type descriptor
 // CHECK-SAME:   @"$s11dead_method5ClassCMn{{(.ptrauth)?}}"
 
 // -- ivar destroyer
-// CHECK-SAME:   i8* null,
+// CHECK-SAME:   ptr null,
 
 // -- vtable
-// CHECK-SAME:   %T11dead_method5ClassC* (%swift.type*)* {{.*}}@"$s11dead_method5ClassCACycfC{{(.ptrauth)?}}"
-// CHECK-SAME:   void (%T11dead_method5ClassC*)* {{.*}}@"$s11dead_method5ClassC4liveyyF{{(.ptrauth)?}}"
-// CHECK-SAME:   i8* bitcast {{.*}}@swift_deletedMethodError{{(.ptrauth)?}} to i8*)
+// CHECK-SAME:   ptr {{.*}}@"$s11dead_method5ClassCACycfC{{(.ptrauth)?}}"
+// CHECK-SAME:   ptr {{.*}}@"$s11dead_method5ClassC4liveyyF{{(.ptrauth)?}}"
+// CHECK-SAME:   ptr {{.*}}@swift_deletedMethodError{{(.ptrauth)?}}
 
 // CHECK-SAME: }>

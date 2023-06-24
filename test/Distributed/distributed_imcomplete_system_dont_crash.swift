@@ -37,3 +37,11 @@ public final class CompletelyHollowActorSystem: DistributedActorSystem {
   }
 
 }
+
+public final class CompletelyHollowActorSystem_NotEvenTypes: DistributedActorSystem {
+  // expected-error@-1{{type 'CompletelyHollowActorSystem_NotEvenTypes' does not conform to protocol 'DistributedActorSystem'}}
+  // expected-error@-2{{class 'CompletelyHollowActorSystem_NotEvenTypes' is missing witness for protocol requirement 'remoteCallVoid'}}
+  // expected-error@-3{{class 'CompletelyHollowActorSystem_NotEvenTypes' is missing witness for protocol requirement 'remoteCall'}}
+  // expected-note@-4{{protocol 'DistributedActorSystem' requires function 'remoteCall' with signature:}}
+  // expected-note@-5{{protocol 'DistributedActorSystem' requires function 'remoteCallVoid' with signature:}}
+}

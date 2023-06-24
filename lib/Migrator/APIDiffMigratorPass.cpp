@@ -220,6 +220,10 @@ public:
   FoundResult visitFixedTypeRepr(FixedTypeRepr *T) {
     return handleParent(T, ArrayRef<TypeRepr*>());
   }
+
+  FoundResult visitSelfTypeRepr(SelfTypeRepr *T) {
+    return handleParent(T, ArrayRef<TypeRepr*>());
+  }
 };
 
 struct ConversionFunctionInfo {

@@ -277,7 +277,7 @@ void DCE::markLive() {
       case SILInstructionKind::DestroyValueInst: {
         auto phi = PhiValue(I.getOperand(0));
         // Disable DCE of phis which are lexical or may have a pointer escape.
-        if (phi && (phi->isLexical() || hasPointerEscape(phi))) {
+        if (phi && (phi->isLexical() || findPointerEscape(phi))) {
           markInstructionLive(&I);
         }
         // The instruction is live only if it's operand value is also live
@@ -287,7 +287,7 @@ void DCE::markLive() {
       case SILInstructionKind::EndBorrowInst: {
         auto phi = PhiValue(I.getOperand(0));
         // If there is a pointer escape or phi is lexical, disable DCE.
-        if (phi && (hasPointerEscape(phi) || phi->isLexical())) {
+        if (phi && (findPointerEscape(phi) || phi->isLexical())) {
           markInstructionLive(&I);
         }
         // The instruction is live only if it's operand value is also live

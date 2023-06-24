@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend -g -enable-objc-interop  -primary-file %s -emit-ir -sil-verify-all -disable-llvm-optzns -disable-swift-specific-llvm-optzns | %IRGenFileCheck %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers -g -enable-objc-interop  -primary-file %s -emit-ir -sil-verify-all -disable-llvm-optzns -disable-swift-specific-llvm-optzns | %IRGenFileCheck %s
+// RUN: %target-swift-frontend -g -enable-objc-interop  -primary-file %s -emit-ir -sil-verify-all -disable-llvm-optzns -disable-swift-specific-llvm-optzns 
 // RUN: %target-swift-frontend  -enable-objc-interop  -primary-file %s -emit-ir -sil-verify-all
 
 // REQUIRES: concurrency

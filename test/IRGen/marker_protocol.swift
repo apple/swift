@@ -47,14 +47,14 @@ struct HasMarkers {
 
 // Note: no mention of marker protocols when forming a dictionary.
 // CHECK-LABEL: define{{.*}}@"$s15marker_protocol0A12InDictionaryypyF"
-// CHECK: call %swift.type* @__swift_instantiateConcreteTypeFromMangledName({{.*}} @"$sSS_15marker_protocol1P_ptMD")
+// CHECK: call ptr @__swift_instantiateConcreteTypeFromMangledName({{.*}} @"$sSS_15marker_protocol1P_ptMD")
 public func markerInDictionary() -> Any {
   let dict: [String: P] = ["answer" : 42]
   return dict
 }
 
 // Note: no witness tables
-// CHECK: swiftcc void @"$s15marker_protocol7genericyyxAA1PRzlF"(%swift.opaque* noalias nocapture %0, %swift.type* %T)
+// CHECK: swiftcc void @"$s15marker_protocol7genericyyxAA1PRzlF"(ptr noalias nocapture %0, ptr %T)
 public func generic<T: P>(_: T) { }
 
 public struct GenericType<T: Hashable & P> { }

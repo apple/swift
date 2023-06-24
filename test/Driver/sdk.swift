@@ -12,7 +12,7 @@
 // OSX: bin{{/|\\\\}}swift
 // OSX: Driver{{/|\\\\}}sdk.swift
 // OSX: -sdk {{.*}}/Inputs/clang-importer-sdk
-// OSX-NEXT: bin{{/|\\\\}}swift
+// OSX: bin{{/|\\\\}}swift
 // OSX: -sdk {{.*}}/Inputs/clang-importer-sdk
 // OSX: {{.*}}.o{{[ "]}}
 // OSX: {{-syslibroot|--sysroot}} {{[^ ]*}}/Inputs/clang-importer-sdk

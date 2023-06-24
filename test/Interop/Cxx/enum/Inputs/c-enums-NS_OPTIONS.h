@@ -20,16 +20,13 @@ extern "C" {
 #define NS_REFINED_FOR_SWIFT __attribute__((swift_private))
 #define UIKIT_EXTERN extern "C" __attribute__((visibility("default")))
 
-typedef unsigned long NSUInteger;
-typedef long NSInteger;
-
-typedef NS_OPTIONS(NSUInteger, NSBinarySearchingOptions) {
+typedef NS_OPTIONS(unsigned long, NSBinarySearchingOptions) {
 	NSBinarySearchingFirstEqual = (1UL << 8),
 	NSBinarySearchingLastEqual = (1UL << 9),
 	NSBinarySearchingInsertionIndex = (1UL << 10),
 };
 
-typedef NS_OPTIONS(NSUInteger, NSAttributedStringFormattingOptions) {
+typedef NS_OPTIONS(unsigned long, NSAttributedStringFormattingOptions) {
   NSAttributedStringFormattingInsertArgumentAttributesWithoutMerging = 1 << 0,
   NSAttributedStringFormattingApplyReplacementIndexAttribute = 1 << 1,
 } NS_REFINED_FOR_SWIFT;
@@ -45,7 +42,7 @@ typedef NS_OPTIONS(NSUInteger, NSAttributedStringFormattingOptions) {
 UIKIT_EXTERN
 @interface UIPrinter
 
-typedef NS_OPTIONS(NSInteger, UIPrinterJobTypes) {
+typedef NS_OPTIONS(long, UIPrinterJobTypes) {
   UIPrinterJobTypeUnknown = 0,
   UIPrinterJobTypeDocument = 1 << 0,
   UIPrinterJobTypeEnvelope = 1 << 1,
@@ -60,7 +57,7 @@ typedef NS_OPTIONS(NSInteger, UIPrinterJobTypes) {
 @end
 }
 
-typedef NS_OPTIONS(NSUInteger, Foo) {
+typedef NS_OPTIONS(unsigned long, Foo) {
   NS_SWIFT_NAMED_OptionOne __attribute__((swift_name("SwiftOptionOne"))) = 0,
   NS_SWIFT_NAMED_OptionTwo __attribute__((swift_name("SwiftOptionTwo"))) = 1
                                                                            << 0,
@@ -71,7 +68,7 @@ typedef NS_OPTIONS(NSUInteger, Foo) {
                                                    NS_SWIFT_NAMED_OptionTwo
 };
 
-typedef NS_OPTIONS(NSUInteger, Bar) {
+typedef NS_OPTIONS(unsigned long, Bar) {
   API_NOTES_NAMED_OptionOne = 0,
   API_NOTES_NAMED_OptionTwo = 1 << 0,
   API_NOTES_NAMED_OptionThree = 1 << 1,
@@ -79,7 +76,7 @@ typedef NS_OPTIONS(NSUInteger, Bar) {
                                API_NOTES_NAMED_OptionTwo
 };
 
-typedef NS_OPTIONS(NSUInteger, Baz) { Baz1, Baz2 };
+typedef NS_OPTIONS(unsigned long, Baz) { Baz1, Baz2 };
 
 struct HasNSOptionField {
   Bar bar;

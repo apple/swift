@@ -23,5 +23,5 @@ testDemo()
 
 // Make sure the clang importer puts the selectors and co into the llvm.compiler used variable.
 
-// CHECK: @llvm.compiler.used = appending global [{{.*}} x i8*] [{{.*}} @"OBJC_CLASSLIST_REFERENCES_$_"{{.*}}@OBJC_METH_VAR_NAME_{{.*}}@OBJC_SELECTOR_REFERENCES_{{.*}}@OBJC_METH_VAR_NAME_.{{.*}}@OBJC_SELECTOR_REFERENCES_.{{.*}}]
+// CHECK: @llvm.compiler.used = appending global [{{.*}} x ptr] [{{.*}} @"OBJC_CLASSLIST_REFERENCES_$_"{{.*}}@OBJC_METH_VAR_NAME_{{.*}}@OBJC_SELECTOR_REFERENCES_{{.*}}@OBJC_METH_VAR_NAME_.{{.*}}@OBJC_SELECTOR_REFERENCES_.{{.*}}]
 

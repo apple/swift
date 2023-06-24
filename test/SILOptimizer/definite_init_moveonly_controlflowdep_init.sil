@@ -119,7 +119,7 @@ bb3:
   %23 = apply %22(%21) : $@convention(thin) (@guaranteed S) -> ()
   destroy_value %21 : $S
   %25 = mark_must_check [assignable_but_not_consumable] %3 : $*S
-  // expected-error @-1 {{noncopyable 's' cannot be consumed when captured by a closure}}
+  // expected-error @-1 {{noncopyable 's' cannot be consumed when captured by an escaping closure}}
   %26 = load [take] %25 : $*S
   %27 = function_ref @consumeVal : $@convention(thin) (@owned S) -> ()
   %28 = apply %27(%26) : $@convention(thin) (@owned S) -> ()

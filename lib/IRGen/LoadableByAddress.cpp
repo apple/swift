@@ -3066,7 +3066,7 @@ void LoadableByAddress::run() {
             }
           }
         } else if (auto *Cvt = dyn_cast<ConvertEscapeToNoEscapeInst>(&I)) {
-          SILValue val = Cvt->getConverted();
+          SILValue val = Cvt->getOperand();
           SILType currType = val->getType();
           auto fType = currType.getAs<SILFunctionType>();
           assert(fType && "Expected SILFunctionType");
@@ -3074,7 +3074,7 @@ void LoadableByAddress::run() {
             conversionInstrs.insert(Cvt);
           }
         } else if (auto *CFI = dyn_cast<ConvertFunctionInst>(&I)) {
-          SILValue val = CFI->getConverted();
+          SILValue val = CFI->getOperand();
           SILType currType = val->getType();
           auto fType = currType.getAs<SILFunctionType>();
           assert(fType && "Expected SILFunctionType");

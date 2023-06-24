@@ -1078,7 +1078,7 @@ if #available(SwiftStdlib 5.9, *) {
     let dogAgeKp = _createOffsetBasedKeyPath(
       root: Dog.self,
       value: Int.self,
-      offset: 16
+      offset: MemoryLayout<String>.size
     ) as? KeyPath<Dog, Int>
 
     expectNotNil(dogAgeKp)

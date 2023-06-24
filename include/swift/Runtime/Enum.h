@@ -45,6 +45,11 @@ void swift_initEnumMetadataSingleCase(EnumMetadata *enumType,
                                       EnumLayoutFlags flags,
                                       const TypeLayout *payload);
 
+SWIFT_RUNTIME_EXPORT
+void swift_initEnumMetadataSingleCaseWithLayoutString(
+    EnumMetadata *self, EnumLayoutFlags layoutFlags,
+    const Metadata *payloadType);
+
 /// Initialize the type metadata for a single-payload enum type.
 ///
 /// \param enumType - pointer to the instantiated but uninitialized metadata
@@ -57,6 +62,11 @@ void swift_initEnumMetadataSinglePayload(EnumMetadata *enumType,
                                          EnumLayoutFlags flags,
                                          const TypeLayout *payload,
                                          unsigned emptyCases);
+
+SWIFT_RUNTIME_EXPORT
+void swift_initEnumMetadataSinglePayloadWithLayoutString(
+    EnumMetadata *enumType, EnumLayoutFlags flags, const Metadata *payload,
+    unsigned emptyCases);
 
 using getExtraInhabitantTag_t =
   SWIFT_CC(swift) unsigned (const OpaqueValue *value,
@@ -110,6 +120,12 @@ void swift_initEnumMetadataMultiPayload(EnumMetadata *enumType,
                                         EnumLayoutFlags flags,
                                         unsigned numPayloads,
                                         const TypeLayout * const *payloadTypes);
+
+SWIFT_RUNTIME_EXPORT
+void swift_initEnumMetadataMultiPayloadWithLayoutString(EnumMetadata *enumType,
+                                                        EnumLayoutFlags flags,
+                                                        unsigned numPayloads,
+                                          const Metadata * const *payloadTypes);
 
 /// Return an integer value representing which case of a multi-payload
 ///        enum is inhabited.

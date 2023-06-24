@@ -3119,6 +3119,61 @@ bb3 (%10: $Builtin.Int32):
   return %10 : $Builtin.Int32
 }
 
+// CHECK-LABEL: sil [ossa] @alloc_ref_dynamic_stack_with_metatype :
+// CHECK:       bb0:
+// CHECK-NOT:     alloc_ref_dynamic
+// CHECK-NEXT:    alloc_ref [stack] $B
+// CHECK-NEXT:    destroy_value
+// CHECK-NEXT:    dealloc_stack_ref
+// CHECK: return
+// CHECK: } // end sil function 'alloc_ref_dynamic_stack_with_metatype'
+sil [ossa] @alloc_ref_dynamic_stack_with_metatype : $() -> () {
+  %1 = metatype $@thick B.Type
+  %2 = alloc_ref_dynamic [stack] %1 : $@thick B.Type, $B
+  destroy_value %2 : $B
+  dealloc_stack_ref %2 : $B
+  %4 = tuple()
+  return %4 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @alloc_ref_dynamic_stack_with_upcast_metatype :
+// CHECK:         alloc_ref_dynamic [stack]
+// CHECK:       } // end sil function 'alloc_ref_dynamic_stack_with_upcast_metatype'
+sil [ossa] @alloc_ref_dynamic_stack_with_upcast_metatype : $() -> () {
+  %1 = metatype $@thick E.Type
+  %2 = upcast %1 : $@thick E.Type to $@thick B.Type
+  %3 = alloc_ref_dynamic [stack] %2 : $@thick B.Type, $B
+  destroy_value %3 : $B
+  dealloc_stack_ref %3 : $B
+  %4 = tuple()
+  return %4 : $()
+}
+
+// CHECK-LABEL: @alloc_ref_dynamic_stack_after_successful_checked_cast_br :
+// CHECK:         checked_cast_br
+// CHECK:       bb1
+// CHECK-NOT:     alloc_ref_dynamic
+// CHECK:         alloc_ref [stack] $B
+// CHECK:       } // end sil function 'alloc_ref_dynamic_stack_after_successful_checked_cast_br'
+sil [ossa] @alloc_ref_dynamic_stack_after_successful_checked_cast_br : $(@thick B.Type) -> Builtin.Int32 {
+bb0(%1 : $@thick B.Type):
+  checked_cast_br [exact] %1 : $@thick B.Type to B.Type, bb1, bb2
+
+bb1(%2 : $@thick B.Type):
+  %3 = alloc_ref_dynamic [stack] %2 : $@thick B.Type, $B
+  destroy_value %3 : $B
+  dealloc_stack_ref %3 : $B
+  %4 = integer_literal $Builtin.Int32, 1
+  br bb3 (%4 : $Builtin.Int32)
+
+bb2(%2a : $@thick B.Type):
+  %5 = integer_literal $Builtin.Int32, 2
+  br bb3 (%5 : $Builtin.Int32)
+
+bb3 (%10: $Builtin.Int32):
+  return %10 : $Builtin.Int32
+}
+
 // CHECK-LABEL: sil [ossa] @delete_dead_alloc_stack
 // XHECK: bb0
 // XHECK-NEXT: tuple

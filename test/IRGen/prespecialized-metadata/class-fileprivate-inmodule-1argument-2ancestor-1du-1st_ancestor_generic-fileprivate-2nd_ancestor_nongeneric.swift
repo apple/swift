@@ -1,6 +1,7 @@
 // RUN: %empty-directory(%t)
 
-// RUN: %target-swift-frontend -prespecialize-generic-metadata -target %module-target-future -emit-ir -I %t -L %t %s > %t/out.ir
+// RUN: %target-swift-frontend %use_no_opaque_pointers -prespecialize-generic-metadata -target %module-target-future -emit-ir -I %t -L %t %s > %t/out.ir
+// RUN: %target-swift-frontend -prespecialize-generic-metadata -target %module-target-future -emit-ir -I %t -L %t %s
 // RUN: %FileCheck --input-file=%t/out.ir %s -DINT=i%target-ptrsize -DALIGNMENT=%target-alignment --check-prefix=CHECK --check-prefix=CHECK-%target-vendor
 
 // REQUIRES: VENDOR=apple || OS=linux-gnu

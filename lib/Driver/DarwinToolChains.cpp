@@ -620,6 +620,51 @@ void toolchains::Darwin::addCommonFrontendArgs(
   }
 }
 
+/// Add the frontend arguments needed to find external plugins in standard
+/// locations based on the base path.
+static void addExternalPluginFrontendArgs(
+    StringRef basePath, const llvm::opt::ArgList &inputArgs,
+    llvm::opt::ArgStringList &arguments) {
+  // Plugin server: $BASE/usr/bin/swift-plugin-server
+  SmallString<128> pluginServer;
+  llvm::sys::path::append(
+      pluginServer, basePath, "usr", "bin", "swift-plugin-server");
+
+  SmallString<128> pluginDir;
+  llvm::sys::path::append(pluginDir, basePath, "usr", "lib");
+  llvm::sys::path::append(pluginDir, "swift", "host", "plugins");
+  arguments.push_back("-external-plugin-path");
+  arguments.push_back(inputArgs.MakeArgString(pluginDir + "#" + pluginServer));
+
+  pluginDir.clear();
+  llvm::sys::path::append(pluginDir, basePath, "usr", "local", "lib");
+  llvm::sys::path::append(pluginDir, "swift", "host", "plugins");
+  arguments.push_back("-external-plugin-path");
+  arguments.push_back(inputArgs.MakeArgString(pluginDir + "#" + pluginServer));
+}
+
+void toolchains::Darwin::addPlatformSpecificPluginFrontendArgs(
+    const OutputInfo &OI,
+    const CommandOutput &output,
+    const llvm::opt::ArgList &inputArgs,
+    llvm::opt::ArgStringList &arguments) const {
+  // Add SDK-relative directories for plugins.
+  if (!OI.SDKPath.empty()) {
+    addExternalPluginFrontendArgs(OI.SDKPath, inputArgs, arguments);
+  }
+
+  // Add platform-relative directories for plugins.
+  if (!OI.SDKPath.empty()) {
+    SmallString<128> platformPath;
+    llvm::sys::path::append(platformPath, OI.SDKPath);
+    llvm::sys::path::remove_filename(platformPath); // specific SDK
+    llvm::sys::path::remove_filename(platformPath); // SDKs
+    llvm::sys::path::remove_filename(platformPath); // Developer
+    llvm::sys::path::append(platformPath, "Developer");
+    addExternalPluginFrontendArgs(platformPath, inputArgs, arguments);
+  }
+}
+
 ToolChain::InvocationInfo
 toolchains::Darwin::constructInvocation(const DynamicLinkJobAction &job,
                                         const JobContext &context) const {

@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend -parse-sil %s -emit-ir | %FileCheck %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers -parse-sil %s -emit-ir | %FileCheck %s
+// RUN: %target-swift-frontend -parse-sil %s -emit-ir
 // REQUIRES: CPU=x86_64
 
 sil_stage canonical

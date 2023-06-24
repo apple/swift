@@ -150,15 +150,20 @@ protected:
   /// Scan the given serialized module file to determine dependencies.
   llvm::ErrorOr<ModuleDependencyInfo> scanModuleFile(Twine modulePath, bool isFramework);
 
-  static llvm::ErrorOr<llvm::StringSet<>>
-  getModuleImportsOfModule(Twine modulePath,
-                           ModuleLoadingBehavior transitiveBehavior,
-                           bool isFramework,
-                           bool isRequiredOSSAModules,
-                           StringRef SDKName,
-                           StringRef packageName,
-                           llvm::vfs::FileSystem *fileSystem,
-                           PathObfuscator &recoverer);
+  struct BinaryModuleImports {
+    llvm::StringSet<> moduleImports;
+    llvm::StringSet<> headerImports;
+  };
+
+  static llvm::ErrorOr<BinaryModuleImports>
+  getImportsOfModule(Twine modulePath,
+                     ModuleLoadingBehavior transitiveBehavior,
+                     bool isFramework,
+                     bool isRequiredOSSAModules,
+                     StringRef SDKName,
+                     StringRef packageName,
+                     llvm::vfs::FileSystem *fileSystem,
+                     PathObfuscator &recoverer);
 
   /// Load the module file into a buffer and also collect its module name.
   static std::unique_ptr<llvm::MemoryBuffer>

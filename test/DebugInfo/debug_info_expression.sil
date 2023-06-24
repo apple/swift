@@ -19,26 +19,21 @@ sil hidden @test_fragment : $@convention(thin) () -> () {
 bb0:
   %2 = alloc_stack $MyStruct, var, name "my_struct", loc "file.swift":8:9, scope 1
   // CHECK: %[[MY_STRUCT:.+]] = alloca %{{.*}}MyStruct
-  // CHECK: llvm.dbg.declare(metadata {{.*}}* %[[MY_STRUCT]], metadata ![[VAR_DECL_MD:[0-9]+]]
+  // CHECK: llvm.dbg.declare(metadata {{.*}} %[[MY_STRUCT]], metadata ![[VAR_DECL_MD:[0-9]+]]
   // CHECK: %[[SMALL_STRUCT:.+]] = alloca %{{.*}}SmallStruct
-  // CHECK: llvm.dbg.declare(metadata {{.*}}* %[[SMALL_STRUCT]], metadata ![[SMALL_VAR_DECL_MD:[0-9]+]]
+  // CHECK: llvm.dbg.declare(metadata {{.*}} %[[SMALL_STRUCT]], metadata ![[SMALL_VAR_DECL_MD:[0-9]+]]
   %3 = struct_element_addr %2 : $*MyStruct, #MyStruct.x, loc "file.swift":9:17, scope 1
   // CHECK: %[[FIELD_X:.*]] = getelementptr {{.*}} %[[MY_STRUCT]]
   // CHECK-SIL: debug_value %{{[0-9]+}} : $*Builtin.Int64
   // CHECK-SIL-SAME:        (name "my_struct", loc "file.swift":8:9, scope {{[0-9]+}})
   // CHECK-SIL-SAME         type $MyStruct, expr op_deref:op_fragment:#MyStruct.x
   debug_value %3 : $*Builtin.Int64, var, (name "my_struct", loc "file.swift":8:9, scope 1), type $MyStruct, expr op_deref:op_fragment:#MyStruct.x, loc "file.swift":9:17, scope 1
-  // CHECK: llvm.dbg.value(metadata {{.*}}* %[[FIELD_X]], metadata ![[VAR_DECL_MD]]
-  // CHECK-SAME:           !DIExpression(DW_OP_deref, DW_OP_LLVM_fragment, 0, 64)
-  // CHECK-NOT:           ), !dbg ![[VAR_DECL_MD]]
 
   %4 = alloc_stack $SmallStruct, var, name "small_struct", loc "file.swift":10:11, scope 1
   %5 = struct_element_addr %4 : $*SmallStruct, #SmallStruct.z, loc "file.swift":11:13, scope 1
   // CHECK: %[[FIELD_Z:.*]] = getelementptr {{.*}} %[[SMALL_STRUCT]]
   // If the fragment covers the whole struct, we're not generating the
   // DW_OP_LLVM_fragment part.
-  // CHECK: llvm.dbg.value(metadata {{.*}}* %[[FIELD_Z]], metadata ![[SMALL_VAR_DECL_MD]]
-  // CHECK-SAME:           !DIExpression(DW_OP_deref)
   debug_value %5 : $*Builtin.Int64, var, (name "small_struct", loc "file.swift":10:11, scope 1), type $SmallStruct, expr op_deref:op_fragment:#SmallStruct.z, loc "file.swift":11:13, scope 1
   dealloc_stack %4 : $*SmallStruct
 
@@ -54,13 +49,13 @@ sil hidden @test_alloc_stack : $@convention(thin) () -> () {
 bb0:
   %my_struct = alloc_stack $MyStruct, var, name "my_struct", loc "file.swift":15:9, scope 2
   // CHECK: %[[MY_STRUCT:.+]] = alloca %{{.*}}MyStruct
-  // CHECK: llvm.dbg.declare(metadata {{.*}}* %[[MY_STRUCT]], metadata ![[VAR_DECL_MD:[0-9]+]]
+  // CHECK: llvm.dbg.declare(metadata ptr %[[MY_STRUCT]], metadata ![[VAR_DECL_MD:[0-9]+]]
   // CHECK-SIL: alloc_stack $Int, var
   // CHECK-SIL-SAME:        (name "my_struct", loc "file.swift":15:9, scope {{[0-9]+}})
   // CHECK-SIL-SAME:        type $MyStruct, expr op_fragment:#MyStruct.x
   %field_x = alloc_stack $Int, var, (name "my_struct", loc "file.swift":15:9, scope 2), type $MyStruct, expr op_fragment:#MyStruct.x, loc "file.swift":16:17, scope 2
   // CHECK: %[[FIELD_X:.+]] = alloca %TSi
-  // CHECK: llvm.dbg.declare(metadata %TSi* %[[FIELD_X]], metadata ![[VAR_DECL_MD]]
+  // CHECK: llvm.dbg.declare(metadata ptr %[[FIELD_X]], metadata ![[VAR_DECL_MD]]
   // CHECK-SAME:             !DIExpression(DW_OP_LLVM_fragment, 0, 64)
   dealloc_stack %field_x : $*Int
   dealloc_stack %my_struct: $*MyStruct

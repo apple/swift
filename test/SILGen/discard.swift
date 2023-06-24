@@ -89,7 +89,8 @@ func invokedDeinit() {}
 // CHECK-LABEL: sil hidden [ossa] @$s4test11PointerTreeV10tryDestroy9doDiscardySb_tKF : $@convention(method) (Bool, @owned PointerTree) -> @error any Error {
 // CHECK:   bb0{{.*}}:
 // CHECK:     [[SELF_BOX:%.*]] = alloc_box ${ var PointerTree }, var, name "self"
-// CHECK:     [[SELF_PTR:%.*]] = project_box [[SELF_BOX]] : ${ var PointerTree }, 0
+// CHECK:     [[SELF_BOX_LIFETIME:%.*]] = begin_borrow [lexical] [[SELF_BOX]]
+// CHECK:     [[SELF_PTR:%.*]] = project_box [[SELF_BOX_LIFETIME]] : ${ var PointerTree }, 0
 //            .. skip to the conditional test ..
 // CHECK:     [[SHOULD_FORGET:%.*]] = struct_extract {{.*}} : $Bool, #Bool._value
 // CHECK:     cond_br [[SHOULD_FORGET]], bb1, bb2
@@ -107,6 +108,7 @@ func invokedDeinit() {}
 // CHECK:     br bb3
 //
 // CHECK:   bb3:
+// CHECK:     end_borrow [[SELF_BOX_LIFETIME]]
 // CHECK:     destroy_value [[SELF_BOX]] : ${ var PointerTree }
 // CHECK:     throw
 // CHECK: } // end sil function

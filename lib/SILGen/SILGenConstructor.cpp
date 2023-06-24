@@ -222,6 +222,7 @@ static RValue emitImplicitValueConstructorArg(SILGenFunction &SGF,
         auto eltAddr =
           SGF.B.createPackElementGet(loc, packIndex, arg, eltTy);
         ManagedValue eltMV = emitManagedParameter(SGF, eltAddr, argIsConsumed);
+        eltMV = SGF.B.createLoadIfLoadable(loc, eltMV);
         eltInit->copyOrInitValueInto(SGF, loc, eltMV, argIsConsumed);
         eltInit->finishInitialization(SGF);
       });
@@ -232,19 +233,16 @@ static RValue emitImplicitValueConstructorArg(SILGenFunction &SGF,
 
   ManagedValue mvArg = emitManagedParameter(SGF, arg, argIsConsumed);
 
+  // This can happen if the value is resilient in the calling convention
+  // but not resilient locally.
+  if (argType.isAddress()) {
+    mvArg = SGF.B.createLoadIfLoadable(loc, mvArg);
+  }
+
   if (argInit) {
     argInit->copyOrInitValueInto(SGF, loc, mvArg, argIsConsumed);
     argInit->finishInitialization(SGF);
     return RValue::forInContext();
-  }
-
-  // This can happen if the value is resilient in the calling convention
-  // but not resilient locally.
-  if (argType.isLoadable(SGF.F) && argType.isAddress()) {
-    if (mvArg.isPlusOne(SGF))
-      mvArg = SGF.B.createLoadTake(loc, mvArg);
-    else
-      mvArg = SGF.B.createLoadBorrow(loc, mvArg);
   }
 
   return RValue(SGF, loc, type, mvArg);
@@ -272,12 +270,13 @@ static RValue maybeEmitPropertyWrapperInitFromValue(
                                                           subs, std::move(arg));
 }
 
-static void emitApplyOfInitAccessor(SILGenFunction &SGF, SILLocation loc,
-                                    AccessorDecl *accessor, SILValue selfValue,
-                                    SILType selfTy, RValue &&initialValue) {
+static void
+emitApplyOfInitAccessor(SILGenFunction &SGF, SILLocation loc,
+                        AccessorDecl *accessor, SILValue selfValue,
+                        SILType selfTy, RValue &&initialValue) {
   SmallVector<SILValue> arguments;
 
-  auto emitFieldReference = [&](VarDecl *field) {
+  auto emitFieldReference = [&](VarDecl *field, bool forInit = false) {
     auto fieldTy =
         selfTy.getFieldType(field, SGF.SGM.M, SGF.getTypeExpansionContext());
     return SGF.B.createStructElementAddr(loc, selfValue, field,
@@ -287,7 +286,7 @@ static void emitApplyOfInitAccessor(SILGenFunction &SGF, SILLocation loc,
   // First, let's emit all of the indirect results.
   if (auto *initAttr = accessor->getAttrs().getAttribute<InitializesAttr>()) {
     for (auto *property : initAttr->getPropertyDecls(accessor)) {
-      arguments.push_back(emitFieldReference(property));
+      arguments.push_back(emitFieldReference(property, /*forInit=*/true));
     }
   }
 
@@ -399,29 +398,39 @@ static void emitImplicitValueConstructor(SILGenFunction &SGF,
 
   // If we have an indirect return slot, initialize it in-place.
   if (resultSlot) {
-    // Tracks all the init accessors we have emitted
-    // because they can initialize more than one property.
-    llvm::SmallPtrSet<AccessorDecl *, 2> emittedInitAccessors;
-
     auto elti = elements.begin(), eltEnd = elements.end();
-    for (VarDecl *field : decl->getStoredProperties()) {
+
+    llvm::SmallPtrSet<VarDecl *, 4> storedProperties;
+    {
+      auto properties = decl->getStoredProperties();
+      storedProperties.insert(properties.begin(), properties.end());
+    }
+
+    for (auto *member : decl->getAllMembers()) {
+      auto *field = dyn_cast<VarDecl>(member);
+      if (!field)
+        continue;
+
+      if (initializedViaAccessor.count(field))
+        continue;
 
       // Handle situations where this stored propery is initialized
       // via a call to an init accessor on some other property.
-      if (initializedViaAccessor.count(field)) {
-        auto *initProperty = initializedViaAccessor.find(field)->second;
-        auto *initAccessor = initProperty->getAccessor(AccessorKind::Init);
+      if (auto *initAccessor = field->getAccessor(AccessorKind::Init)) {
+        if (field->isMemberwiseInitialized(/*preferDeclaredProperties=*/true)) {
+          assert(elti != eltEnd &&
+                 "number of args does not match number of fields");
 
-        if (emittedInitAccessors.count(initAccessor))
+          emitApplyOfInitAccessor(SGF, Loc, initAccessor, resultSlot, selfTy,
+                                  std::move(*elti));
+          ++elti;
           continue;
-
-        emitApplyOfInitAccessor(SGF, Loc, initAccessor, resultSlot, selfTy,
-                                std::move(*elti));
-
-        emittedInitAccessors.insert(initAccessor);
-        ++elti;
-        continue;
+        }
       }
+
+      // If this is not one of the stored properties, let's move on.
+      if (!storedProperties.count(field))
+        continue;
 
       auto fieldTy =
           selfTy.getFieldType(field, SGF.SGM.M, SGF.getTypeExpansionContext());
@@ -1460,10 +1469,17 @@ void SILGenFunction::emitMemberInitializers(DeclContext *dc,
                                             NominalTypeDecl *nominal) {
   auto subs = getSubstitutionsForPropertyInitializer(dc, nominal);
 
-  for (auto member : nominal->getImplementationContext()->getMembers()) {
+  for (auto member : nominal->getImplementationContext()->getAllMembers()) {
     // Find instance pattern binding declarations that have initializers.
     if (auto pbd = dyn_cast<PatternBindingDecl>(member)) {
       if (pbd->isStatic()) continue;
+
+      // Skip properties with init accessors, they could only be used
+      // explicitly and in memberwise initializers.
+      if (auto *var = pbd->getSingleVar()) {
+        if (var->hasInitAccessor())
+          continue;
+      }
 
       for (auto i : range(pbd->getNumPatternEntries())) {
         auto init = pbd->getExecutableInit(i);

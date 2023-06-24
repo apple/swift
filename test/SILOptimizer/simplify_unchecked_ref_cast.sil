@@ -1,0 +1,74 @@
+// RUN: %target-sil-opt -enable-sil-verify-all %s -onone-simplification -simplify-instruction=unchecked_ref_cast | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-ONONE
+// RUN: %target-sil-opt -enable-sil-verify-all %s -simplification -simplify-instruction=unchecked_ref_cast | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-O
+
+// REQUIRES: swift_in_compiler
+
+import Swift
+import Builtin
+
+protocol P : AnyObject {}
+class B : P {}
+class X : B {}
+
+// CHECK-LABEL: sil @test_non_ossa :
+// CHECK:         %0 = alloc_ref
+// CHECK:         unchecked_ref_cast %0 : $X
+// CHECK:       } // end sil function 'test_non_ossa'
+sil @test_non_ossa : $@convention(thin) () -> X {
+bb0:
+  %0 = alloc_ref $X
+  %1 = upcast %0 : $X to $B
+  %2 = init_existential_ref %1 : $B : $B, $AnyObject
+  %3 = unchecked_ref_cast %2 : $AnyObject to $X
+  return %3 : $X
+}
+
+// CHECK-LABEL: sil [ossa] @test_ossa :
+// CHECK:         %0 = alloc_ref
+// CHECK-O-NEXT:  unchecked_ref_cast %0 : $X
+// CHECK-ONONE:   unchecked_ref_cast %2 : $AnyObject
+// CHECK:       } // end sil function 'test_ossa'
+sil [ossa] @test_ossa : $@convention(thin) () -> @owned X {
+bb0:
+  %0 = alloc_ref $X
+  %1 = upcast %0 : $X to $B
+  %2 = init_existential_ref %1 : $B : $B, $AnyObject
+  debug_value %2 : $AnyObject, name "x"
+  %4 = unchecked_ref_cast %2 : $AnyObject to $X
+  return %4 : $X
+}
+
+// CHECK-LABEL: sil [ossa] @test_ossa_multiple_uses :
+// CHECK:         unchecked_ref_cast %1 : $B
+// CHECK:       } // end sil function 'test_ossa_multiple_uses'
+sil [ossa] @test_ossa_multiple_uses : $@convention(thin) () -> @owned X {
+bb0:
+  %0 = alloc_ref $X
+  %1 = upcast %0 : $X to $B
+  fix_lifetime %1 : $B
+  %3 = unchecked_ref_cast %1 : $B to $X
+  return %3 : $X
+}
+
+// CHECK-LABEL: sil [ossa] @test_borrow :
+// CHECK:         %1 = begin_borrow
+// CHECK-NEXT:    %2 = unchecked_ref_cast %1 : $X
+// CHECK-NEXT:    fix_lifetime %2
+// CHECK:       } // end sil function 'test_borrow'
+sil [ossa] @test_borrow : $@convention(thin) () -> () {
+bb0:
+  %0 = alloc_ref $X
+  %1 = begin_borrow %0 : $X
+  %2 = upcast %1 : $X to $B
+  %3 = init_existential_ref %2 : $B : $B, $P
+  %4 = unchecked_ref_cast %3 : $P to $X
+  fix_lifetime %4 : $X
+  end_borrow %1 : $X
+  destroy_value %0: $X
+  %8 = tuple ()
+  return %8 : $()
+}
+
+sil_vtable X {
+}
+

@@ -1,4 +1,5 @@
-// RUN: %swift -target wasm32-unknown-wasi -parse-stdlib -emit-ir -o - %s | %FileCheck %s
+// RUN: %swift %use_no_opaque_pointers -target wasm32-unknown-wasi -parse-stdlib -emit-ir -o - %s | %FileCheck %s
+// RUN: %swift -target wasm32-unknown-wasi -parse-stdlib -emit-ir -o - %s
 
 // REQUIRES: CODEGENERATOR=WebAssembly
 

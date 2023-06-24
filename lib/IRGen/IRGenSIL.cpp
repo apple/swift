@@ -981,10 +981,16 @@ public:
       && !isAnonymous;
   }
 
-  bool shouldShadowStorage(llvm::Value *Storage) {
-    return !isa<llvm::AllocaInst>(Storage)
-      && !isa<llvm::UndefValue>(Storage)
-      && needsShadowCopy(Storage);
+  bool shouldShadowStorage(llvm::Value *Storage,
+                           llvm::Type *StorageType) {
+    Storage = Storage->stripPointerCasts();
+    if (isa<llvm::UndefValue>(Storage))
+        return false;
+    if (auto *Alloca = dyn_cast<llvm::AllocaInst>(Storage);
+        Alloca && Alloca->isStaticAlloca() &&
+        Alloca->getAllocatedType() == StorageType)
+      return false;
+    return needsShadowCopy(Storage);
   }
 
   /// At -Onone, emit a shadow copy of an Address in an alloca, so the
@@ -992,6 +998,7 @@ public:
   /// register pressure is high.  There is a trade-off to this: With
   /// shadow copies, we lose the precise lifetime.
   llvm::Value *emitShadowCopyIfNeeded(llvm::Value *Storage,
+                                      llvm::Type *StorageType,
                                       const SILDebugScope *Scope,
                                       SILDebugVariable VarInfo,
                                       bool IsAnonymous, bool WasMoved,
@@ -1011,7 +1018,7 @@ public:
     // This condition must be consistent with emitPoisonDebugValueInst to avoid
     // generating extra shadow copies for debug_value [poison].
     if (!shouldShadowVariable(VarInfo, IsAnonymous)
-        || !shouldShadowStorage(Storage)) {
+        || !shouldShadowStorage(Storage, StorageType)) {
       return Storage;
     }
 
@@ -1034,11 +1041,12 @@ public:
   /// Like \c emitShadowCopyIfNeeded() but takes an \c Address instead of an
   /// \c llvm::Value.
   llvm::Value *emitShadowCopyIfNeeded(Address Storage,
+                                      llvm::Type *StorageType,
                                       const SILDebugScope *Scope,
                                       SILDebugVariable VarInfo,
                                       bool IsAnonymous, bool WasMoved) {
-    return emitShadowCopyIfNeeded(Storage.getAddress(), Scope, VarInfo,
-                                  IsAnonymous, WasMoved,
+    return emitShadowCopyIfNeeded(Storage.getAddress(), StorageType, Scope,
+                                  VarInfo, IsAnonymous, WasMoved,
                                   Storage.getAlignment());
   }
 
@@ -1072,7 +1080,9 @@ public:
       return;
     
     if (e.size() == 1) {
-      copy.push_back(emitShadowCopyIfNeeded(e.claimNext(), Scope, VarInfo,
+      auto &ti = getTypeInfo(SILVal->getType());
+      copy.push_back(emitShadowCopyIfNeeded(e.claimNext(), ti.getStorageType(),
+                                            Scope, VarInfo,
                                             IsAnonymous, WasMoved));
       return;
     }
@@ -1116,7 +1126,7 @@ public:
     llvm::raw_svector_ostream(Buf) << "$pack_count_" << Position;
     auto Name = IGM.Context.getIdentifier(Buf.str());
     SILDebugVariable Var(Name.str(), true, 0);
-    Shape = emitShadowCopyIfNeeded(Shape, getDebugScope(), Var, false,
+    Shape = emitShadowCopyIfNeeded(Shape, nullptr, getDebugScope(), Var, false,
                                    false /*was move*/);
     if (IGM.DebugInfo)
       IGM.DebugInfo->emitPackCountParameter(*this, Shape, Var);
@@ -1300,7 +1310,6 @@ public:
   void visitInitEnumDataAddrInst(InitEnumDataAddrInst *i);
   void visitSelectEnumInst(SelectEnumInst *i);
   void visitSelectEnumAddrInst(SelectEnumAddrInst *i);
-  void visitSelectValueInst(SelectValueInst *i);
   void visitUncheckedEnumDataInst(UncheckedEnumDataInst *i);
   void visitUncheckedTakeEnumDataAddrInst(UncheckedTakeEnumDataAddrInst *i);
   void visitInjectEnumAddrInst(InjectEnumAddrInst *i);
@@ -4658,27 +4667,6 @@ void IRGenSILFunction::visitSelectEnumAddrInst(SelectEnumAddrInst *inst) {
     // emitBBMapForSelectEnum set up a phi node to receive the result.
     Builder.SetInsertPoint(contBB);
   }
-  
-  setLoweredValue(inst,
-                  getLoweredValueForSelect(*this, result, inst));
-}
-
-void IRGenSILFunction::visitSelectValueInst(SelectValueInst *inst) {
-  Explosion value = getLoweredExplosion(inst->getOperand());
-
-  // Map the SIL dest bbs to their LLVM bbs.
-  SmallVector<std::pair<SILValue, llvm::BasicBlock*>, 4> dests;
-  llvm::BasicBlock *defaultDest;
-  Explosion result;
-  auto *contBB = emitBBMapForSelect(*this, result, dests, defaultDest, inst);
-
-  // Emit the dispatch.
-  emitSwitchValueDispatch(*this, inst->getOperand()->getType(), value, dests,
-                          defaultDest);
-
-  // emitBBMapForSelectEnum set up a continuation block and phi nodes to
-  // receive the result.
-  Builder.SetInsertPoint(contBB);
 
   setLoweredValue(inst,
                   getLoweredValueForSelect(*this, result, inst));
@@ -5083,7 +5071,7 @@ void IRGenSILFunction::emitErrorResultVar(CanSILFunctionType FnTy,
   auto Var = DbgValue->getVarInfo();
   assert(Var && "error result without debug info");
   auto Storage =
-      emitShadowCopyIfNeeded(ErrorResultSlot.getAddress(), getDebugScope(),
+      emitShadowCopyIfNeeded(ErrorResultSlot.getAddress(), nullptr, getDebugScope(),
                              *Var, false, false /*was move*/);
   if (!IGM.DebugInfo)
     return;
@@ -5130,7 +5118,7 @@ void IRGenSILFunction::emitPoisonDebugValueInst(DebugValueInst *i) {
   // copy--poison should never affect program behavior. Also filter everything
   // not handled by emitShadowCopyIfNeeded to avoid extra shadow copies.
   if (!shouldShadowVariable(*varInfo, isAnonymous)
-      || !shouldShadowStorage(storage)) {
+      || !shouldShadowStorage(storage, nullptr)) {
     return;
   }
 
@@ -5277,13 +5265,15 @@ void IRGenSILFunction::visitDebugValueInst(DebugValueInst *i) {
 
   // Put the value into a shadow-copy stack slot at -Onone.
   llvm::SmallVector<llvm::Value *, 8> Copy;
-  if (IsAddrVal)
+  if (IsAddrVal) {
+    auto &ti = getTypeInfo(SILVal->getType());
     Copy.emplace_back(emitShadowCopyIfNeeded(
-        getLoweredAddress(SILVal).getAddress(), i->getDebugScope(), *VarInfo,
+        getLoweredAddress(SILVal).getAddress(), ti.getStorageType(), i->getDebugScope(), *VarInfo,
         IsAnonymous, i->getUsesMoveableValueDebugInfo()));
-  else
+  } else {
     emitShadowCopyIfNeeded(SILVal, i->getDebugScope(), *VarInfo, IsAnonymous,
                            i->getUsesMoveableValueDebugInfo(), Copy);
+  }
 
   bindArchetypes(DbgTy.getType());
   if (!IGM.DebugInfo)
@@ -5904,9 +5894,10 @@ void IRGenSILFunction::visitAllocBoxInst(swift::AllocBoxInst *i) {
   auto VarInfo = i->getVarInfo();
   if (!VarInfo)
     return;
-
+  auto &ti = getTypeInfo(SILTy);
   auto Storage =
-      emitShadowCopyIfNeeded(boxWithAddr.getAddress(), i->getDebugScope(),
+      emitShadowCopyIfNeeded(boxWithAddr.getAddress(), ti.getStorageType(),
+                             i->getDebugScope(),
                              *VarInfo, IsAnonymous, false /*was moved*/);
 
   if (!IGM.DebugInfo)
@@ -6623,7 +6614,7 @@ void IRGenSILFunction::visitObjCProtocolInst(ObjCProtocolInst *i) {
 
 void IRGenSILFunction::visitRefToBridgeObjectInst(
                                               swift::RefToBridgeObjectInst *i) {
-  Explosion refEx = getLoweredExplosion(i->getConverted());
+  Explosion refEx = getLoweredExplosion(i->getOperand(0));
   llvm::Value *ref = refEx.claimNext();
   
   Explosion bitsEx = getLoweredExplosion(i->getBitsOperand());
@@ -6681,7 +6672,7 @@ void IRGenSILFunction::visitValueToBridgeObjectInst(
 
 void IRGenSILFunction::visitBridgeObjectToRefInst(
                                               swift::BridgeObjectToRefInst *i) {
-  Explosion boEx = getLoweredExplosion(i->getConverted());
+  Explosion boEx = getLoweredExplosion(i->getOperand());
   llvm::Value *bo = boEx.claimNext();
   Explosion resultEx;
   
@@ -6752,7 +6743,7 @@ void IRGenSILFunction::visitBridgeObjectToRefInst(
 
 void IRGenSILFunction::visitBridgeObjectToWordInst(
                                              swift::BridgeObjectToWordInst *i) {
-  Explosion boEx = getLoweredExplosion(i->getConverted());
+  Explosion boEx = getLoweredExplosion(i->getOperand());
   llvm::Value *val = boEx.claimNext();
   val = Builder.CreatePtrToInt(val, IGM.SizeTy);
   Explosion wordEx;

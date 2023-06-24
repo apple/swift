@@ -446,6 +446,11 @@ void SwiftDependencyScanningService::setupCachingDependencyScanningService(
     }
   }
 
+  // Fetch some dependency files from clang importer.
+  auto clangImporter = static_cast<ClangImporter *>(
+      Instance.getASTContext().getClangModuleLoader());
+  clangImporter->addClangInvovcationDependencies(CommonDependencyFiles);
+
   auto CachingFS =
       llvm::cas::createCachingOnDiskFileSystem(Instance.getObjectStore());
   if (!CachingFS) {

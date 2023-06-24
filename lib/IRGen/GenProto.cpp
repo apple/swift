@@ -1942,6 +1942,10 @@ namespace {
     ConformanceDescription Description;
     ConformanceFlags Flags;
 
+    using PlaceholderPosition =
+      ConstantAggregateBuilderBase::PlaceholderPosition;
+    Optional<PlaceholderPosition> FlagsPP;
+
   public:
     ProtocolConformanceDescriptorBuilder(
                                  IRGenModule &IGM,
@@ -1959,6 +1963,11 @@ namespace {
       addConditionalRequirements();
       addResilientWitnesses();
       addGenericWitnessTable();
+
+      // We fill the flags last, since we continue filling them in
+      // after the call to addFlags() deposits the placeholder.
+      B.fillPlaceholderWithInt(*FlagsPP, IGM.Int32Ty,
+                               Flags.getIntValue());
 
       B.suggestType(IGM.ProtocolConformanceDescriptorTy);
     }
@@ -1981,13 +1990,6 @@ namespace {
     }
 
     void addWitnessTable() {
-      // Note the number of conditional requirements.
-      unsigned numConditional = 0;
-      if (auto normal = dyn_cast<NormalProtocolConformance>(Conformance)) {
-        numConditional = normal->getConditionalRequirements().size();
-      }
-      Flags = Flags.withNumConditionalRequirements(numConditional);
-
       // Relative reference to the witness table.
       B.addRelativeAddressOrNull(Description.pattern);
     }
@@ -2001,13 +2003,9 @@ namespace {
         Flags = Flags.withIsRetroactive(false)
                      .withIsSynthesizedNonUnique(false);
       }
-      Flags = Flags.withHasResilientWitnesses(
-                                      !Description.resilientWitnesses.empty());
-      Flags =
-        Flags.withHasGenericWitnessTable(Description.requiresSpecialization);
 
-      // Add the flags.
-      B.addInt32(Flags.getIntValue());
+      // Add a placeholder for the flags.
+      FlagsPP = B.addPlaceholderWithSize(IGM.Int32Ty);
     }
 
     void addContext() {
@@ -2025,18 +2023,41 @@ namespace {
 
     void addConditionalRequirements() {
       auto normal = dyn_cast<NormalProtocolConformance>(Conformance);
-      if (!normal || normal->getConditionalRequirements().empty())
+      if (!normal)
         return;
 
-      auto nominal = normal->getType()->getAnyNominal();
-      irgen::addGenericRequirements(IGM, B,
-        nominal->getGenericSignatureOfContext(),
-        normal->getConditionalRequirements());
+      auto condReqs = normal->getConditionalRequirements();
+      if (condReqs.empty())
+        return;
+
+      Flags = Flags.withNumConditionalRequirements(condReqs.size());
+
+      auto nominal = normal->getDeclContext()->getSelfNominalTypeDecl();
+      auto sig = nominal->getGenericSignatureOfContext();
+      auto metadata = irgen::addGenericRequirements(IGM, B, sig, condReqs);
+
+      Flags = Flags.withNumConditionalPackDescriptors(
+          metadata.GenericPackArguments.size());
+
+      // Collect the shape classes from the nominal type's generic signature.
+      sig->forEachParam([&](GenericTypeParamType *param, bool canonical) {
+        if (canonical && param->isParameterPack()) {
+          auto reducedShape = sig->getReducedShape(param)->getCanonicalType();
+          if (reducedShape->isEqual(param))
+            metadata.ShapeClasses.push_back(reducedShape);
+        }
+      });
+
+      irgen::addGenericPackShapeDescriptors(
+          IGM, B, metadata.ShapeClasses,
+          metadata.GenericPackArguments);
     }
 
     void addResilientWitnesses() {
       if (Description.resilientWitnesses.empty())
         return;
+
+      Flags = Flags.withHasResilientWitnesses(true);
 
       // TargetResilientWitnessesHeader
       ArrayRef<llvm::Constant *> witnesses = Description.resilientWitnesses;
@@ -2097,6 +2118,8 @@ namespace {
     void addGenericWitnessTable() {
       if (!Description.requiresSpecialization)
         return;
+
+      Flags = Flags.withHasGenericWitnessTable(true);
 
       // WitnessTableSizeInWords
       B.addInt(IGM.Int16Ty, Description.witnessTableSize);

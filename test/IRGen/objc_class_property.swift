@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend %s -emit-ir -enable-objc-interop -disable-objc-attr-requires-foundation-module | %FileCheck %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers %s -emit-ir -enable-objc-interop -disable-objc-attr-requires-foundation-module | %FileCheck %s
+// RUN: %target-swift-frontend %s -emit-ir -enable-objc-interop -disable-objc-attr-requires-foundation-module
 
 // REQUIRES: CPU=x86_64
 

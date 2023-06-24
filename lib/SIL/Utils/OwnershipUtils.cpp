@@ -25,54 +25,11 @@
 
 using namespace swift;
 
-bool swift::hasPointerEscape(BorrowedValue original) {
-  ValueWorklist worklist(original->getFunction());
-  worklist.push(*original);
-
-  if (auto *phi = SILArgument::asPhi(*original)) {
-    phi->visitTransitiveIncomingPhiOperands([&](auto *phi, auto *operand) {
-      worklist.pushIfNotVisited(operand->get());
-      return true;
-    });
+bool swift::findPointerEscape(SILValue original) {
+  if (original->getOwnershipKind() != OwnershipKind::Owned &&
+      original->getOwnershipKind() != OwnershipKind::Guaranteed) {
+    return false;
   }
-
-  while (auto value = worklist.pop()) {
-    for (auto *op : value->getUses()) {
-      switch (op->getOperandOwnership()) {
-      case OperandOwnership::ForwardingUnowned:
-      case OperandOwnership::PointerEscape:
-        return true;
-
-      case OperandOwnership::Reborrow: {
-        SILArgument *phi = PhiOperand(op).getValue();
-        worklist.pushIfNotVisited(phi);
-        break;
-      }
-
-      case OperandOwnership::GuaranteedForwarding: {
-        // This may follow guaranteed phis.
-        ForwardingOperand(op).visitForwardedValues([&](SILValue result) {
-          // Do not include transitive uses with 'none' ownership
-          if (result->getOwnershipKind() == OwnershipKind::None)
-            return true;
-          worklist.pushIfNotVisited(result);
-          return true;
-        });
-        break;
-      }
-      default:
-        break;
-      }
-    }
-  }
-  return false;
-}
-
-bool swift::hasPointerEscape(SILValue original) {
-  if (auto borrowedValue = BorrowedValue(original)) {
-    return hasPointerEscape(borrowedValue);
-  }
-  assert(original->getOwnershipKind() == OwnershipKind::Owned);
 
   ValueWorklist worklist(original->getFunction());
   worklist.push(original);
@@ -82,6 +39,7 @@ bool swift::hasPointerEscape(SILValue original) {
       return true;
     });
   }
+
   while (auto value = worklist.pop()) {
     for (auto use : value->getUses()) {
       switch (use->getOperandOwnership()) {
@@ -98,6 +56,36 @@ bool swift::hasPointerEscape(SILValue original) {
         worklist.pushIfNotVisited(phi);
         break;
       }
+      case OperandOwnership::Borrow: {
+        auto borrowOp = BorrowingOperand(use);
+        if (auto borrowValue = borrowOp.getBorrowIntroducingUserResult()) {
+          worklist.pushIfNotVisited(borrowValue.value);
+        }
+        break;
+      }
+      case OperandOwnership::Reborrow: {
+        SILArgument *phi = PhiOperand(use).getValue();
+        worklist.pushIfNotVisited(phi);
+        break;
+      }
+      case OperandOwnership::GuaranteedForwarding: {
+        // This may follow guaranteed phis.
+        ForwardingOperand(use).visitForwardedValues([&](SILValue result) {
+          // Do not include transitive uses with 'none' ownership
+          if (result->getOwnershipKind() == OwnershipKind::None)
+            return true;
+          worklist.pushIfNotVisited(result);
+          return true;
+        });
+        break;
+      }
+      case OperandOwnership::InteriorPointer: {
+        if (InteriorPointerOperand(use).findTransitiveUses() !=
+            AddressUseKind::NonEscaping) {
+          return true;
+        }
+        break;
+      }
       default:
         break;
       }
@@ -112,28 +100,30 @@ bool swift::canOpcodeForwardInnerGuaranteedValues(SILValue value) {
   if (auto *arg = dyn_cast<SILArgument>(value))
     if (auto *ti = arg->getSingleTerminator())
       if (ti->mayHaveTerminatorResult())
-        return OwnershipForwardingMixin::get(ti)->preservesOwnership();
+        return ForwardingInstruction::get(ti)->preservesOwnership();
 
   if (auto *inst = value->getDefiningInstruction())
-    if (auto *mixin = OwnershipForwardingMixin::get(inst))
+    if (auto *mixin = ForwardingInstruction::get(inst))
       return mixin->preservesOwnership() &&
-             !isa<OwnedFirstArgForwardingSingleValueInst>(inst);
+             !ForwardingInstruction::canForwardOwnedCompatibleValuesOnly(inst);
 
   return false;
 }
 
 bool swift::canOpcodeForwardInnerGuaranteedValues(Operand *use) {
-  if (auto *mixin = OwnershipForwardingMixin::get(use->getUser()))
-    return mixin->preservesOwnership() &&
-           !isa<OwnedFirstArgForwardingSingleValueInst>(use->getUser());
+  if (auto *fwi = ForwardingInstruction::get(use->getUser()))
+    return fwi->preservesOwnership() &&
+           !ForwardingInstruction::canForwardOwnedCompatibleValuesOnly(
+               use->getUser());
   return false;
 }
 
 bool swift::canOpcodeForwardOwnedValues(SILValue value) {
   if (auto *inst = value->getDefiningInstructionOrTerminator()) {
-    if (auto *mixin = OwnershipForwardingMixin::get(inst)) {
-      return mixin->preservesOwnership() &&
-             !isa<GuaranteedFirstArgForwardingSingleValueInst>(inst);
+    if (auto *fwi = ForwardingInstruction::get(inst)) {
+      return fwi->preservesOwnership() &&
+             !ForwardingInstruction::canForwardGuaranteedCompatibleValuesOnly(
+                 inst);
     }
   }
   return false;
@@ -141,9 +131,10 @@ bool swift::canOpcodeForwardOwnedValues(SILValue value) {
 
 bool swift::canOpcodeForwardOwnedValues(Operand *use) {
   auto *user = use->getUser();
-  if (auto *mixin = OwnershipForwardingMixin::get(user))
-    return mixin->preservesOwnership() &&
-           !isa<GuaranteedFirstArgForwardingSingleValueInst>(user);
+  if (auto *fwi = ForwardingInstruction::get(user))
+    return fwi->preservesOwnership() &&
+           !ForwardingInstruction::canForwardGuaranteedCompatibleValuesOnly(
+               user);
   return false;
 }
 
@@ -1366,14 +1357,8 @@ ValueOwnershipKind ForwardingOperand::getForwardingOwnershipKind() const {
   // NOTE: This if chain is meant to be a covered switch, so make sure to return
   // in each if itself since we have an unreachable at the bottom to ensure if a
   // new subclass of OwnershipForwardingInst is added
-  if (auto *ofsvi = dyn_cast<AllArgOwnershipForwardingSingleValueInst>(user))
+  if (auto *ofsvi = dyn_cast<OwnershipForwardingSingleValueInstruction>(user))
     return ofsvi->getForwardingOwnershipKind();
-
-  if (auto *ofsvi = dyn_cast<FirstArgOwnershipForwardingSingleValueInst>(user))
-    return ofsvi->getForwardingOwnershipKind();
-
-  if (auto *ofci = dyn_cast<OwnershipForwardingConversionInst>(user))
-    return ofci->getForwardingOwnershipKind();
 
   if (auto *ofseib = dyn_cast<OwnershipForwardingSelectEnumInstBase>(user))
     return ofseib->getForwardingOwnershipKind();
@@ -1389,13 +1374,6 @@ ValueOwnershipKind ForwardingOperand::getForwardingOwnershipKind() const {
     return ofti->getForwardingOwnershipKind();
   }
 
-  if (auto *move = dyn_cast<MoveOnlyWrapperToCopyableValueInst>(user)) {
-    return move->getForwardingOwnershipKind();
-  }
-
-  if (auto *move = dyn_cast<MoveOnlyWrapperToCopyableBoxInst>(user))
-    return move->getForwardingOwnershipKind();
-
   llvm_unreachable("Unhandled forwarding inst?!");
 }
 
@@ -1405,12 +1383,8 @@ void ForwardingOperand::setForwardingOwnershipKind(
   // NOTE: This if chain is meant to be a covered switch, so make sure to return
   // in each if itself since we have an unreachable at the bottom to ensure if a
   // new subclass of OwnershipForwardingInst is added
-  if (auto *ofsvi = dyn_cast<AllArgOwnershipForwardingSingleValueInst>(user))
+  if (auto *ofsvi = dyn_cast<OwnershipForwardingSingleValueInstruction>(user))
     return ofsvi->setForwardingOwnershipKind(newKind);
-  if (auto *ofsvi = dyn_cast<FirstArgOwnershipForwardingSingleValueInst>(user))
-    return ofsvi->setForwardingOwnershipKind(newKind);
-  if (auto *ofci = dyn_cast<OwnershipForwardingConversionInst>(user))
-    return ofci->setForwardingOwnershipKind(newKind);
   if (auto *ofseib = dyn_cast<OwnershipForwardingSelectEnumInstBase>(user))
     return ofseib->setForwardingOwnershipKind(newKind);
   if (auto *ofmvi = dyn_cast<OwnershipForwardingMultipleValueInstruction>(user)) {
@@ -1471,17 +1445,9 @@ void ForwardingOperand::replaceOwnershipKind(ValueOwnershipKind oldKind,
                                              ValueOwnershipKind newKind) const {
   auto *user = use->getUser();
 
-  if (auto *fInst = dyn_cast<AllArgOwnershipForwardingSingleValueInst>(user))
+  if (auto *fInst = dyn_cast<OwnershipForwardingSingleValueInstruction>(user))
     if (fInst->getForwardingOwnershipKind() == oldKind)
       return fInst->setForwardingOwnershipKind(newKind);
-
-  if (auto *fInst = dyn_cast<FirstArgOwnershipForwardingSingleValueInst>(user))
-    if (fInst->getForwardingOwnershipKind() == oldKind)
-      return fInst->setForwardingOwnershipKind(newKind);
-
-  if (auto *ofci = dyn_cast<OwnershipForwardingConversionInst>(user))
-    if (ofci->getForwardingOwnershipKind() == oldKind)
-      return ofci->setForwardingOwnershipKind(newKind);
 
   if (auto *ofseib = dyn_cast<OwnershipForwardingSelectEnumInstBase>(user))
     if (ofseib->getForwardingOwnershipKind() == oldKind)
@@ -1733,19 +1699,11 @@ bool swift::visitForwardedGuaranteedOperands(
   if (inst->getNumRealOperands() == 0) {
     return false;
   }
-  if (isa<FirstArgOwnershipForwardingSingleValueInst>(inst)
-      || isa<OwnershipForwardingConversionInst>(inst)
-      || isa<OwnershipForwardingSelectEnumInstBase>(inst)
-      || isa<OwnershipForwardingMultipleValueInstruction>(inst)
-      || isa<MoveOnlyWrapperToCopyableValueInst>(inst)
-      || isa<CopyableToMoveOnlyWrapperValueInst>(inst)) {
-    assert(!isa<SingleValueInstruction>(inst)
-           || !BorrowedValue(cast<SingleValueInstruction>(inst))
-                  && "forwarded operand cannot begin a borrow scope");
+  if (ForwardingInstruction::canForwardFirstOperandOnly(inst)) {
     visitOperand(&inst->getOperandRef(0));
     return true;
   }
-  if (isa<AllArgOwnershipForwardingSingleValueInst>(inst)) {
+  if (ForwardingInstruction::canForwardAllOperands(inst)) {
     assert(inst->getNumOperands() > 0 && "checked above");
     assert(inst->getNumOperands() == inst->getNumRealOperands() &&
            "mixin expects all readl operands");
@@ -2312,7 +2270,7 @@ bool swift::isRedundantMoveValue(MoveValueInst *mvi) {
   //
   // Check this in two ways, one cheaper than the other.
 
-  // First, avoid calling hasPointerEscape(original).
+  // First, avoid calling findPointerEscape(original).
   //
   // If the original value is not a phi (a phi's incoming values might have
   // escaping uses) and its only user is the move, then it doesn't escape. Also
@@ -2320,19 +2278,19 @@ bool swift::isRedundantMoveValue(MoveValueInst *mvi) {
   auto *singleUser =
       original->getSingleUse() ? original->getSingleUse()->getUser() : nullptr;
   if (mvi == singleUser && !SILArgument::asPhi(original)) {
-    assert(!hasPointerEscape(original));
+    assert(!findPointerEscape(original));
     assert(original->getSingleConsumingUse()->getUser() == mvi);
     // - !escaping(original)
     // - singleConsumingUser(original) == move
     return true;
   }
 
-  // Second, call hasPointerEscape(original).
+  // Second, call findPointerEscape(original).
   //
   // Explicitly check both
   // - !escaping(original)
   // - singleConsumingUser(original) == move
-  auto originalHasEscape = hasPointerEscape(original);
+  auto originalHasEscape = findPointerEscape(original);
   auto *singleConsumingUser = original->getSingleConsumingUse()
                                   ? original->getSingleConsumingUse()->getUser()
                                   : nullptr;
@@ -2341,6 +2299,6 @@ bool swift::isRedundantMoveValue(MoveValueInst *mvi) {
   }
 
   // (3) Escaping matches?  (Expensive check, saved for last.)
-  auto moveHasEscape = hasPointerEscape(mvi);
+  auto moveHasEscape = findPointerEscape(mvi);
   return moveHasEscape == originalHasEscape;
 }

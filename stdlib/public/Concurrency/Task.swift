@@ -933,7 +933,7 @@ extension UnsafeCurrentTask: Equatable {
 func _getCurrentAsyncTask() -> Builtin.NativeObject?
 
 @_silgen_name("swift_task_startOnMainActor")
-fileprivate func _startTaskOnMainActor(_ task: Builtin.NativeObject) -> Builtin.NativeObject?
+fileprivate func _startTaskOnMainActor(_ task: Builtin.NativeObject)
 
 @available(SwiftStdlib 5.1, *)
 @_silgen_name("swift_task_getJobFlags")

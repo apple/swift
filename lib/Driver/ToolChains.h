@@ -53,6 +53,12 @@ protected:
       const llvm::opt::ArgList &inputArgs,
       llvm::opt::ArgStringList &arguments) const override;
 
+  void addPlatformSpecificPluginFrontendArgs(
+      const OutputInfo &OI,
+      const CommandOutput &output,
+      const llvm::opt::ArgList &inputArgs,
+      llvm::opt::ArgStringList &arguments) const override;
+
   InvocationInfo constructInvocation(const InterpretJobAction &job,
                                      const JobContext &context) const override;
   InvocationInfo constructInvocation(const DynamicLinkJobAction &job,

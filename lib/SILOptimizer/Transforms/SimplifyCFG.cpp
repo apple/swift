@@ -2361,15 +2361,15 @@ simplifyCheckedCastAddrBranchBlock(CheckedCastAddrBranchInst *CCABI) {
 static SILValue getActualCallee(SILValue Callee) {
   while (!isa<FunctionRefInst>(Callee)) {
     if (auto *CFI = dyn_cast<ConvertFunctionInst>(Callee)) {
-      Callee = CFI->getConverted();
+      Callee = CFI->getOperand();
       continue;
     }
     if (auto *Cvt = dyn_cast<ConvertEscapeToNoEscapeInst>(Callee)) {
-      Callee = Cvt->getConverted();
+      Callee = Cvt->getOperand();
       continue;
     }
     if (auto *TTI = dyn_cast<ThinToThickFunctionInst>(Callee)) {
-      Callee = TTI->getConverted();
+      Callee = TTI->getOperand();
       continue;
     }
     break;
@@ -2391,7 +2391,7 @@ static bool isTryApplyOfConvertFunction(TryApplyInst *TAI,
   // Look through a @noescape conversion.
   auto *Cvt = dyn_cast<ConvertEscapeToNoEscapeInst>(CalleeOperand);
   if (Cvt)
-    CalleeOperand = Cvt->getConverted();
+    CalleeOperand = Cvt->getOperand();
 
   auto *CFI = dyn_cast<ConvertFunctionInst>(CalleeOperand);
   if (!CFI)
@@ -2400,7 +2400,7 @@ static bool isTryApplyOfConvertFunction(TryApplyInst *TAI,
   // Check if it is a conversion of a non-throwing function into
   // a throwing function. If this is the case, replace by a
   // simple apply.
-  auto OrigFnTy = CFI->getConverted()->getType().getAs<SILFunctionType>();
+  auto OrigFnTy = CFI->getOperand()->getType().getAs<SILFunctionType>();
   if (!OrigFnTy || OrigFnTy->hasErrorResult())
     return false;
   
@@ -2409,7 +2409,7 @@ static bool isTryApplyOfConvertFunction(TryApplyInst *TAI,
     return false;
 
   // Look through the conversions and find the real callee.
-  Callee = getActualCallee(CFI->getConverted());
+  Callee = getActualCallee(CFI->getOperand());
   CalleeType = Callee->getType();
   
   // If it a call of a throwing callee, bail.
@@ -3534,238 +3534,6 @@ static bool simplifySwitchEnumToSelectEnum(SILBasicBlock *BB, unsigned ArgNum,
 }
 
 /// Collected information for a select_value case or default case.
-struct CaseInfo {
-  /// The input value or null if it is the default case.
-  IntegerLiteralInst *Literal = nullptr;
-  
-  /// The result value.
-  SingleValueInstruction *Result = nullptr;
-
-  /// The block which contains the cond_br of the input value comparison
-  /// or the block which assigns the default value.
-  SILBasicBlock *CmpOrDefault = nullptr;
-};
-
-/// Get information about a potential select_value case (or default).
-/// \p Input is set to the common input value.
-/// \p Pred is the predecessor block of the last merge block of the CFG pattern.
-/// \p ArgNum is the index of the argument passed to the merge block.
-CaseInfo getCaseInfo(SILValue &Input, SILBasicBlock *Pred, unsigned ArgNum) {
-  
-  CaseInfo CaseInfo;
-  
-  auto *TI = Pred->getTerminator();
-  if (!isa<BranchInst>(TI))
-    return CaseInfo;
-  
-  // Find the Nth argument passed to BB.
-  auto Arg = TI->getOperand(ArgNum);
-
-  // Currently we only accept enums as result values.
-  auto *EI2 = dyn_cast<EnumInst>(Arg);
-  if (!EI2)
-    return CaseInfo;
-  
-  if (EI2->hasOperand()) {
-    // ... or enums with enum data. This is exactly the pattern for an enum
-    // with integer raw value initialization.
-    auto *EI1 = dyn_cast<EnumInst>(EI2->getOperand());
-    if (!EI1)
-      return CaseInfo;
-    
-    // But not enums with enums with data.
-    if (EI1->hasOperand())
-      return CaseInfo;
-  }
-  
-  // Check if we come to the Pred block by comparing the input value to a
-  // constant.
-  SILBasicBlock *CmpBlock = Pred->getSinglePredecessorBlock();
-  if (!CmpBlock)
-    return CaseInfo;
-  
-  auto *CmpInst = dyn_cast<CondBranchInst>(CmpBlock->getTerminator());
-  if (!CmpInst)
-    return CaseInfo;
-  
-  auto *CondInst = dyn_cast<BuiltinInst>(CmpInst->getCondition());
-  if (!CondInst)
-    return CaseInfo;
-  
-  if (!CondInst->getName().str().startswith("cmp_eq"))
-    return CaseInfo;
-  
-  auto CondArgs = CondInst->getArguments();
-  assert(CondArgs.size() == 2);
-  
-  SILValue Arg1 = CondArgs[0];
-  SILValue Arg2 = CondArgs[1];
-  
-  if (isa<IntegerLiteralInst>(Arg1))
-    std::swap(Arg1, Arg2);
-  
-  auto *CmpVal = dyn_cast<IntegerLiteralInst>(Arg2);
-  if (!CmpVal)
-    return CaseInfo;
-
-  SILBasicBlock *FalseBB = CmpInst->getFalseBB();
-  if (!FalseBB)
-    return CaseInfo;
-
-  // Check for a common input value.
-  if (Input && Input != Arg1)
-    return CaseInfo;
-  
-  Input = Arg1;
-  CaseInfo.Result = EI2;
-  if (CmpInst->getTrueBB() == Pred) {
-    // This is a case for the select_value.
-    CaseInfo.Literal = CmpVal;
-    CaseInfo.CmpOrDefault = CmpBlock;
-  } else {
-    // This is the default for the select_value.
-    CaseInfo.CmpOrDefault = Pred;
-  }
-  
-  return CaseInfo;
-}
-
-/// Move an instruction which is an operand to the new SelectValueInst to its
-/// correct place.
-/// Either the instruction is somewhere inside the CFG pattern, then we move it
-/// up, immediately before the SelectValueInst in the pattern's dominating
-/// entry block. Or it is somewhere above the entry block, then we can leave the
-/// instruction there.
-void moveIfNotDominating(SILInstruction *I, SILInstruction *InsertPos,
-                         DominanceInfo *DT) {
-  SILBasicBlock *InstBlock = I->getParent();
-  SILBasicBlock *InsertBlock = InsertPos->getParent();
-  if (!DT->dominates(InstBlock, InsertBlock)) {
-    assert(DT->dominates(InsertBlock, InstBlock));
-    LLVM_DEBUG(llvm::dbgs() << "  move " << *I);
-    I->moveBefore(InsertPos);
-  }
-}
-
-/// Simplify a pattern of integer compares to a select_value.
-/// \code
-///   if input == 1 {
-///     result = Enum.A
-///   } else if input == 2 {
-///     result = Enum.B
-///   ...
-///   } else {
-///     result = Enum.X
-///   }
-/// \endcode
-/// Currently this only works if the input value is an integer and the result
-/// value is an enum.
-/// \p MergeBlock The "last" block which contains an argument in which all
-///               result values are merged.
-/// \p ArgNum The index of the block argument which is the result value.
-/// \p DT The dominance info.
-/// \return Returns true if a select_value is generated.
-bool simplifyToSelectValue(SILBasicBlock *MergeBlock, unsigned ArgNum,
-                           DominanceInfo *DT) {
-  if (!DT)
-    return false;
-  
-  // Collect all case infos from the merge block's predecessors.
-  BasicBlockSet FoundCmpBlocks(MergeBlock->getParent());
-  SmallVector<CaseInfo, 8> CaseInfos;
-  SILValue Input;
-  for (auto *Pred : MergeBlock->getPredecessorBlocks()) {
-    CaseInfo CaseInfo = getCaseInfo(Input, Pred, ArgNum);
-    if (!CaseInfo.Result)
-      return false;
-
-    FoundCmpBlocks.insert(CaseInfo.CmpOrDefault);
-    CaseInfos.push_back(CaseInfo);
-  }
-  
-  SmallVector<std::pair<SILValue, SILValue>, 8> Cases;
-  llvm::SmallDenseMap<SILValue, SILValue> CaseLiteralsToResultMap;
-  SILValue defaultResult;
-  
-  // The block of the first input value compare. It dominates all other blocks
-  // in this CFG pattern.
-  SILBasicBlock *dominatingBlock = nullptr;
-  
-  // Build the cases for the SelectValueInst and find the first dominatingBlock.
-  for (auto &CaseInfo : CaseInfos) {
-    if (CaseInfo.Literal) {
-      auto *BrInst = cast<CondBranchInst>(CaseInfo.CmpOrDefault->getTerminator());
-      if (!FoundCmpBlocks.contains(BrInst->getFalseBB()))
-        return false;
-      // Ignore duplicate cases
-      if (CaseLiteralsToResultMap.find(CaseInfo.Literal) ==
-          CaseLiteralsToResultMap.end()) {
-        CaseLiteralsToResultMap.insert({CaseInfo.Literal, CaseInfo.Result});
-        Cases.push_back({CaseInfo.Literal, CaseInfo.Result});
-      } else {
-        // Check if the result value matches
-        EnumInst *PrevResult =
-            dyn_cast<EnumInst>(CaseLiteralsToResultMap[CaseInfo.Literal]);
-        assert(PrevResult && "Prev. case result is not an EnumInst");
-        auto *CurrResult = dyn_cast<EnumInst>(CaseInfo.Result);
-        assert(CurrResult && "Curr. case result is not an EnumInst");
-        if (PrevResult->getElement() != CurrResult->getElement()) {
-          // result value does not match - bail
-          return false;
-        }
-      }
-      SILBasicBlock *Pred = CaseInfo.CmpOrDefault->getSinglePredecessorBlock();
-      if (!Pred || !FoundCmpBlocks.contains(Pred)) {
-        // There may be only a single block whose predecessor we didn't see. And
-        // this is the entry block to the CFG pattern.
-        if (dominatingBlock)
-          return false;
-        dominatingBlock = CaseInfo.CmpOrDefault;
-      }
-    } else {
-      if (defaultResult)
-        return false;
-      defaultResult = CaseInfo.Result;
-    }
-  }
-  if (!defaultResult)
-    return false;
-
-  if (!dominatingBlock)
-    return false;
-  
-  // Generate the select_value right before the first cond_br of the pattern.
-  SILInstruction *insertPos = dominatingBlock->getTerminator();
-  SILBuilder B(insertPos);
-  
-  // Move all needed operands to a place where they dominate the select_value.
-  for (auto &CaseInfo : CaseInfos) {
-    if (CaseInfo.Literal)
-      moveIfNotDominating(CaseInfo.Literal, insertPos, DT);
-    auto *EI2 = dyn_cast<EnumInst>(CaseInfo.Result);
-    assert(EI2);
-    
-    if (EI2->hasOperand()) {
-      auto *EI1 = dyn_cast<EnumInst>(EI2->getOperand());
-      assert(EI1);
-      assert(!EI1->hasOperand());
-
-      moveIfNotDominating(EI1, insertPos, DT);
-    }
-    moveIfNotDominating(EI2, insertPos, DT);
-  }
-
-  SILArgument *bbArg = MergeBlock->getArgument(ArgNum);
-  auto SelectInst = B.createSelectValue(dominatingBlock->getTerminator()->getLoc(),
-                                        Input, bbArg->getType(),
-                                       defaultResult, Cases);
-
-  bbArg->replaceAllUsesWith(SelectInst);
-  LLVM_DEBUG(llvm::dbgs() << "convert if-structure to " << *SelectInst);
-
-  return true;
-}
-
 bool SimplifyCFG::simplifyBlockArgs() {
   auto *DA = PM->getAnalysis<DominanceAnalysis>();
 
@@ -3785,10 +3553,6 @@ bool SimplifyCFG::simplifyBlockArgs() {
 bool SimplifyCFG::simplifyArgument(SILBasicBlock *BB, unsigned i) {
   auto *A = BB->getArgument(i);
 
-  // Try to create a select_value.
-  if (simplifyToSelectValue(BB, i, DT))
-    return true;
-  
   // If we are reading an i1, then check to see if it comes from
   // a switch_enum.  If so, we may be able to lower this sequence to
   // a select_enum.

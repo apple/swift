@@ -697,7 +697,7 @@ Type GenericSignatureImpl::getUpperBound(Type type,
           abort();
         }
 
-        if (!hasInnerGenericParam)
+        if (!hasInnerGenericParam && (wantDependentBound || !hasOuterGenericParam))
           argTypes.push_back(reducedType);
       }
 

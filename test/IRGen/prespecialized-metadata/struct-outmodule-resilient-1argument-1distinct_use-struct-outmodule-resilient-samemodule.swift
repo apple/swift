@@ -18,8 +18,8 @@ func consume<T>(_ t: T) {
 import Generic
 
 // CHECK: define hidden swiftcc void @"$s4main4doityyF"() #{{[0-9]+}} {
-// CHECK:   [[METADATA:%[0-9]+]] = call %swift.type* @__swift_instantiateConcreteTypeFromMangledName({ i32, i32 }* @"$s7Generic11OneArgumentVyAA7IntegerVGMD")
-// CHECK:   call swiftcc void @"$s4main7consumeyyxlF"(%swift.opaque* noalias nocapture {{%[0-9]+}}, %swift.type* [[METADATA]])
+// CHECK:   [[METADATA:%[0-9]+]] = call ptr @__swift_instantiateConcreteTypeFromMangledName(ptr @"$s7Generic11OneArgumentVyAA7IntegerVGMD")
+// CHECK:   call swiftcc void @"$s4main7consumeyyxlF"(ptr noalias nocapture {{%[0-9]+}}, ptr [[METADATA]])
 // CHECK: }
 func doit() {
   consume( OneArgument(Integer(13)) )

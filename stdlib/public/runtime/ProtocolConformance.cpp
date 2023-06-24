@@ -30,6 +30,7 @@
 #include "../CompatibilityOverride/CompatibilityOverride.h"
 #include "ImageInspection.h"
 #include "Private.h"
+#include "Tracing.h"
 
 #include <new>
 #include <vector>
@@ -332,8 +333,7 @@ ProtocolConformanceDescriptor::getWitnessTable(const Metadata *type) const {
     auto error = _checkGenericRequirements(
         getConditionalRequirements(), conditionalArgs,
         [&substitutions](unsigned depth, unsigned index) {
-          // FIXME: Variadic generics
-          return substitutions.getMetadata(depth, index).getMetadataOrNull();
+          return substitutions.getMetadata(depth, index).Ptr;
         },
         [&substitutions](const Metadata *type, unsigned index) {
           return substitutions.getWitnessTable(type, index);
@@ -1089,6 +1089,9 @@ swift_conformsToProtocolMaybeInstantiateSuperclasses(
     }
   };
 
+  auto traceState =
+      runtime::trace::protocol_conformance_scan_begin(type, protocol);
+
   auto snapshot = C.SectionsToScan.snapshot();
   if (C.scanSectionsBackwards) {
     for (auto &section : llvm::reverse(snapshot))
@@ -1124,6 +1127,8 @@ swift_conformsToProtocolMaybeInstantiateSuperclasses(
     }
   }
   noteFinalMetadataState(superclassIterator.state);
+
+  traceState.end(foundWitness);
 
   // If it's for a superclass or if we didn't find anything, then add an
   // authoritative entry for this type.
@@ -1170,13 +1175,15 @@ swift_conformsToProtocolImpl(const Metadata *const type,
 
 const ContextDescriptor *
 swift::_searchConformancesByMangledTypeName(Demangle::NodePointer node) {
+  auto traceState = runtime::trace::protocol_conformance_scan_begin(node);
+
   auto &C = Conformances.get();
 
   for (auto &section : C.SectionsToScan.snapshot()) {
     for (const auto &record : section) {
       if (auto ntd = record->getTypeDescriptor()) {
         if (_contextDescriptorMatchesMangling(ntd, node))
-          return ntd;
+          return traceState.end(ntd);
       }
     }
   }
@@ -1540,7 +1547,7 @@ checkGenericPackRequirement(const GenericRequirementDescriptor &req,
 
   case GenericRequirementKind::SameShape: {
     auto result = swift::getTypePackByMangledName(
-        req.getParam(), extraArguments.data(),
+        req.getMangledTypeName(), extraArguments.data(),
         substGenericParam, substWitnessTable);
     if (result.getError())
       return *result.getError();

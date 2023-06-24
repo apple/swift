@@ -135,7 +135,7 @@ public:
   void deleteInstructionsAfterUnreachable(SILInstruction *UnreachableInst,
                                           SILInstruction *TrapInst);
 
-  SILValue optimizeMetatypeConversion(ConversionInst *mci,
+  SILValue optimizeMetatypeConversion(ConversionOperation mci,
                                       MetatypeRepresentation representation);
 };
 

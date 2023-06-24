@@ -1204,6 +1204,9 @@ static void addPlatformConditions(CodeCompletionResultSink &Sink) {
   addWithName("targetEnvironment", [](CodeCompletionResultBuilder &Builder) {
     Builder.addTextChunk("simulator");
   });
+  addWithName("targetEnvironment", [](CodeCompletionResultBuilder &Builder) {
+    Builder.addTextChunk("macCatalyst");
+  });
   addWithName("swift", [](CodeCompletionResultBuilder &Builder) {
     Builder.addTextChunk(">=");
     Builder.addSimpleNamedParameter("version");

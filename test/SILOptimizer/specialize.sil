@@ -9,7 +9,7 @@ import Swift
 // CHECK-LABEL: sil @exp1 : $@convention(thin) () -> () {
 // CHECK-NOT: apply
 // Call of specialized initializer: <Int32>
-// CHECK: [[CTOR:%[0-9]+]] = function_ref @$s8XXX_inits5Int32V_Tg5
+// CHECK: [[CTOR:%[0-9]+]] = function_ref @$s8XXX_inits5Int32V_Tgm5
 // CHECK: apply [[CTOR]]
 // CHECK: [[ACCEPTS_INT:%[0-9]+]] = function_ref @acceptsInt
 // Call of specialized XXX_foo: <Int32>
@@ -35,7 +35,7 @@ import Swift
 // YAML:            Line:            73
 // YAML:            Column:          17
 // YAML-NEXT:   - String:          ' with type '
-// YAML-NEXT:   - FuncType:        '(Int32, @thin XXX<Int32>.Type) -> XXX<Int32>'
+// YAML-NEXT:   - FuncType:        '(Int32) -> XXX<Int32>'
 // YAML-NEXT: ...
 // YAML-NEXT: --- !Passed
 // YAML-NEXT: Pass:            sil-generic-specializer
@@ -556,7 +556,7 @@ bb0:
 
 // test_bind<A> (Builtin.RawPointer, A.Type) -> ()
 // Check that this is specialized as T=Int.
-// CHECK-LABEL: sil shared @$s9test_bindSi_Tg5 : $@convention(thin) (Builtin.RawPointer, @thick Int.Type) -> ()
+// CHECK-LABEL: sil shared @$s9test_bindSi_Tgm5 : $@convention(thin) (Builtin.RawPointer) -> ()
 // CHECK: bind_memory %0 : $Builtin.RawPointer, {{%.*}} : $Builtin.Word to $*Int
 // CHECK: return
 sil hidden @test_bind : $@convention(thin) <T> (Builtin.RawPointer, @thick T.Type) -> () {
@@ -701,7 +701,7 @@ bb0(%0 : $*T, %1 :$*T):
 }
 
 // This should not assert.
-// CHECK-LABEL: sil shared @$s26specialize_no_return_applys5NeverO_Tg5
+// CHECK-LABEL: sil shared @$s26specialize_no_return_applys5NeverO_Tgm5
 // CHECK:      apply
 // CHECK-NEXT: unreachable
 

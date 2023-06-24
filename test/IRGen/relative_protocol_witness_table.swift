@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend -enable-relative-protocol-witness-tables -module-name A -primary-file %s -emit-ir | %FileCheck %s --check-prefix=CHECK-%target-cpu --check-prefix=CHECK
+// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-relative-protocol-witness-tables -module-name A -primary-file %s -emit-ir | %FileCheck %s --check-prefix=CHECK-%target-cpu --check-prefix=CHECK
+// RUN: %target-swift-frontend -enable-relative-protocol-witness-tables -module-name A -primary-file %s -emit-ir
 
 // REQUIRES: CPU=x86_64 || CPU=arm64 || CPU=arm64e
 

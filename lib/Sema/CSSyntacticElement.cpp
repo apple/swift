@@ -2625,8 +2625,10 @@ void ConjunctionElement::findReferencedVariables(
   }
 
   if (element.is<Decl *>() || element.is<StmtConditionElement *>() ||
-      element.is<Expr *>() || element.isStmt(StmtKind::Return))
+      element.is<Expr *>() || element.isPattern(PatternKind::Expr) ||
+      element.isStmt(StmtKind::Return)) {
     element.walk(refFinder);
+  }
 }
 
 Type constraints::isPlaceholderVar(PatternBindingDecl *PB) {

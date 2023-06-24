@@ -39,11 +39,10 @@ public struct ConformsToFrozenProtocol : FrozenProtocol {
 // Requirements in @_fixed_layout protocols are called by direct witness
 // table lookup
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @"$s16frozen_protocols23callOtherProtocolMethodyyx18resilient_protocol0d6FrozenE0RzlF"(%swift.opaque* noalias nocapture %0, %swift.type* %T, i8** %T.OtherFrozenProtocol)
-// CHECK: [[ADDR:%.*]] = getelementptr inbounds i8*, i8** %T.OtherFrozenProtocol, i32 1
-// CHECK: [[FN:%.*]] = load i8*, i8** [[ADDR]]
-// CHECK: [[CAST:%.*]] = bitcast i8* [[FN]] to void (%swift.opaque*, %swift.type*, i8**)*
-// CHECK: call swiftcc void [[CAST]](%swift.opaque* noalias nocapture swiftself %0, %swift.type* %T, i8** %T.OtherFrozenProtocol)
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @"$s16frozen_protocols23callOtherProtocolMethodyyx18resilient_protocol0d6FrozenE0RzlF"(ptr noalias nocapture %0, ptr %T, ptr %T.OtherFrozenProtocol)
+// CHECK: [[ADDR:%.*]] = getelementptr inbounds ptr, ptr %T.OtherFrozenProtocol, i32 1
+// CHECK: [[FN:%.*]] = load ptr, ptr [[ADDR]]
+// CHECK: call swiftcc void [[FN]](ptr noalias nocapture swiftself %0, ptr %T, ptr %T.OtherFrozenProtocol)
 // CHECK: ret void
 
 // @_fixed_layout protocols still emit method dispatch thunks though, which

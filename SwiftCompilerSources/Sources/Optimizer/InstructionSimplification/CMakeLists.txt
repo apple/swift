@@ -19,6 +19,7 @@ swift_compiler_sources(Optimizer
   SimplifyInitEnumDataAddr.swift
   SimplifyLoad.swift
   SimplifyPartialApply.swift
+  SimplifyRefCasts.swift
   SimplifyRetainReleaseValue.swift
   SimplifyStrongRetainRelease.swift
   SimplifyStructExtract.swift

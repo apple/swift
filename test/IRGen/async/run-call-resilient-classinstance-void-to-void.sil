@@ -3,7 +3,7 @@
 // RUN: %target-codesign %t/%target-library-name(PrintShims)
 // RUN: %target-build-swift-dylib(%t/%target-library-name(ResilientClass)) %S/Inputs/class-1instance-void_to_void.swift  -Xfrontend -disable-availability-checking -g -module-name ResilientClass -emit-module -emit-module-path %t/ResilientClass.swiftmodule
 // RUN: %target-codesign %t/%target-library-name(ResilientClass)
-// RUN: %target-build-swift  -Xfrontend -disable-availability-checking -g -parse-sil %s -emit-ir -I %t -L %t -lPrintShim -lResilientClass | %FileCheck %s --check-prefix=CHECK-LL
+// RUN: %target-build-swift -Xfrontend -disable-availability-checking -g -parse-sil %s -emit-ir -I %t -L %t -lPrintShim -lResilientClass | %FileCheck %s --check-prefix=CHECK-LL
 // RUN: %target-build-swift  -Xfrontend -disable-availability-checking -g -parse-sil %s -module-name main -o %t/main -I %t -L %t -lPrintShims -lResilientClass %target-rpath(%t) 
 // RUN: %target-codesign %t/main
 // RUN: %target-run %t/main %t/%target-library-name(PrintShims) %t/%target-library-name(ResilientClass) | %FileCheck %s
@@ -23,7 +23,7 @@ import ResilientClass
 
 sil public_external [exact_self_class] @$s14ResilientClass5ClazzCACycfC : $@convention(method) (@thick Clazz.Type) -> @owned Clazz
 
-// CHECK-LL: define{{( dllexport)?}}{{( protected)?}} swift{{(tail)?}}cc void @test_case(%swift.context* swiftasync {{%[0-9]+}}) {{#[0-9]*}}
+// CHECK-LL: define{{( dllexport)?}}{{( protected)?}} swift{{(tail)?}}cc void @test_case(ptr swiftasync {{%[0-9]+}}) {{#[0-9]*}}
 sil @test_case : $@convention(thin) @async () -> () {
   %s_type = metatype $@thick Clazz.Type
   %allocating_init = function_ref @$s14ResilientClass5ClazzCACycfC : $@convention(method) (@thick Clazz.Type) -> @owned Clazz

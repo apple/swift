@@ -2080,6 +2080,19 @@ IgnoreInvalidASTNode *IgnoreInvalidASTNode::create(ConstraintSystem &cs,
   return new (cs.getAllocator()) IgnoreInvalidASTNode(cs, locator);
 }
 
+bool IgnoreInvalidPatternInExpr::diagnose(const Solution &solution,
+                                          bool asNote) const {
+  InvalidPatternInExprFailure failure(solution, P, getLocator());
+  return failure.diagnose(asNote);
+}
+
+IgnoreInvalidPatternInExpr *
+IgnoreInvalidPatternInExpr::create(ConstraintSystem &cs, Pattern *pattern,
+                                   ConstraintLocator *locator) {
+  return new (cs.getAllocator())
+      IgnoreInvalidPatternInExpr(cs, pattern, locator);
+}
+
 bool SpecifyContextualTypeForNil::diagnose(const Solution &solution,
                                            bool asNote) const {
   MissingContextualTypeForNil failure(solution, getLocator());
@@ -2795,4 +2808,19 @@ IgnoreMissingEachKeyword::create(ConstraintSystem &cs, Type valuePackTy,
                                  ConstraintLocator *locator) {
   return new (cs.getAllocator())
       IgnoreMissingEachKeyword(cs, valuePackTy, locator);
+}
+
+bool AllowInvalidMemberReferenceInInitAccessor::diagnose(
+    const Solution &solution, bool asNote) const {
+  InvalidMemberReferenceWithinInitAccessor failure(solution, MemberName,
+                                                   getLocator());
+  return failure.diagnose(asNote);
+}
+
+AllowInvalidMemberReferenceInInitAccessor *
+AllowInvalidMemberReferenceInInitAccessor::create(ConstraintSystem &cs,
+                                                  DeclNameRef memberName,
+                                                  ConstraintLocator *locator) {
+  return new (cs.getAllocator())
+      AllowInvalidMemberReferenceInInitAccessor(cs, memberName, locator);
 }

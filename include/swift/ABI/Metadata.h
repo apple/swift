@@ -2596,6 +2596,7 @@ struct TargetProtocolConformanceDescriptor final
              TargetProtocolConformanceDescriptor<Runtime>,
              TargetRelativeContextPointer<Runtime>,
              TargetGenericRequirementDescriptor<Runtime>,
+             GenericPackShapeDescriptor,
              TargetResilientWitnessesHeader<Runtime>,
              TargetResilientWitness<Runtime>,
              TargetGenericWitnessTable<Runtime>> {
@@ -2604,6 +2605,7 @@ struct TargetProtocolConformanceDescriptor final
                              TargetProtocolConformanceDescriptor<Runtime>,
                              TargetRelativeContextPointer<Runtime>,
                              TargetGenericRequirementDescriptor<Runtime>,
+                             GenericPackShapeDescriptor,
                              TargetResilientWitnessesHeader<Runtime>,
                              TargetResilientWitness<Runtime>,
                              TargetGenericWitnessTable<Runtime>>;
@@ -2695,10 +2697,17 @@ public:
 
   /// Retrieve the conditional requirements that must also be
   /// satisfied
-  llvm::ArrayRef<GenericRequirementDescriptor>
+  llvm::ArrayRef<TargetGenericRequirementDescriptor<Runtime>>
   getConditionalRequirements() const {
-    return {this->template getTrailingObjects<GenericRequirementDescriptor>(),
+    return {this->template getTrailingObjects<TargetGenericRequirementDescriptor<Runtime>>(),
             Flags.getNumConditionalRequirements()};
+  }
+
+  /// Retrieve the pack shape descriptors for the conditional pack requirements.
+  llvm::ArrayRef<GenericPackShapeDescriptor>
+  getConditionalPackShapeDescriptors() const {
+    return {this->template getTrailingObjects<GenericPackShapeDescriptor>(),
+            Flags.getNumConditionalPackShapeDescriptors()};
   }
 
   /// Get the directly-referenced witness table pattern, which may also
@@ -2757,6 +2766,10 @@ private:
 
   size_t numTrailingObjects(OverloadToken<GenericRequirementDescriptor>) const {
     return Flags.getNumConditionalRequirements();
+  }
+
+  size_t numTrailingObjects(OverloadToken<GenericPackShapeDescriptor>) const {
+    return Flags.getNumConditionalPackShapeDescriptors();
   }
 
   size_t numTrailingObjects(OverloadToken<ResilientWitnessesHeader>) const {

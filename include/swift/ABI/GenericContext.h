@@ -183,10 +183,11 @@ public:
     return offsetof(typename std::remove_reference<decltype(*this)>::type, Param);
   }
 
-  /// Retrieve the right-hand type for a SameType or BaseClass requirement.
+  /// Retrieve the right-hand type for a SameType, BaseClass or SameShape requirement.
   llvm::StringRef getMangledTypeName() const {
     assert(getKind() == GenericRequirementKind::SameType ||
-           getKind() == GenericRequirementKind::BaseClass);
+           getKind() == GenericRequirementKind::BaseClass ||
+           getKind() == GenericRequirementKind::SameShape);
     return swift::Demangle::makeSymbolicMangledNameStringRef(Type.get());
   }
 

@@ -2182,6 +2182,10 @@ bool Traversal::visitFixedTypeRepr(FixedTypeRepr *T) {
   return false;
 }
 
+bool Traversal::visitSelfTypeRepr(SelfTypeRepr *T) {
+  return false;
+}
+
 bool Traversal::visitSILBoxTypeRepr(SILBoxTypeRepr *T) {
   for (auto &field : T->getFields()) {
     if (doIt(field.getFieldType()))

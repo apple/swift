@@ -9,6 +9,11 @@
 //
 //===----------------------------------------------------------------------===//
 
+/// Provides storage for tracking and access to data changes.
+///
+/// You don't need to create an instance of `ObservationRegistrar` when using
+/// the ``Observation/Observable-swift.macro`` macro to indicate observability
+/// of a type.
 @available(SwiftStdlib 5.9, *)
 public struct ObservationRegistrar: Sendable {
   struct State: @unchecked Sendable {
@@ -90,9 +95,20 @@ public struct ObservationRegistrar: Sendable {
   
   let context = Context()
   
+  /// Creates an instance of the observation registrar.
+  ///
+  /// You don't need to create an instance of
+  /// ``Observation/ObservationRegistrar`` when using the
+  /// ``Observation/Observable-swift.macro`` macro to indicate observably
+  /// of a type.
   public init() {
   }
 
+  /// Registers access to a specific property for observation.
+  ///
+  /// - Parameters:
+  ///   - subject: An instance of an observable type.
+  ///   - keyPath: The key path of an observed property.
   public func access<Subject: Observable, Member>(
       _ subject: Subject,
       keyPath: KeyPath<Subject, Member>
@@ -106,6 +122,11 @@ public struct ObservationRegistrar: Sendable {
     }
   }
   
+  /// A property observation called before setting the value of the subject.
+  ///
+  /// - Parameters:
+  ///     - subject: An instance of an observable type.
+  ///     - keyPath: The key path of an observed property.
   public func willSet<Subject: Observable, Member>(
       _ subject: Subject,
       keyPath: KeyPath<Subject, Member>
@@ -113,6 +134,11 @@ public struct ObservationRegistrar: Sendable {
     context.willSet(subject, keyPath: keyPath)
   }
   
+  /// A property observation called after setting the value of the subject.
+  ///
+  /// - Parameters:
+  ///   - subject: An instance of an observable type.
+  ///   - keyPath: The key path of an observed property.
   public func didSet<Subject: Observable, Member>(
       _ subject: Subject,
       keyPath: KeyPath<Subject, Member>
@@ -120,6 +146,13 @@ public struct ObservationRegistrar: Sendable {
     
   }
   
+  /// Identifies mutations to the transactions registered for observers.
+  ///
+  /// This method calls ``willset(_:keypath:)`` before the mutation. Then it
+  /// calls ``didset(_:keypath:)`` after the mutation.
+  /// - Parameters:
+  ///   - of: An instance of an observable type.
+  ///   - keyPath: The key path of an observed property.
   public func withMutation<Subject: Observable, Member, T>(
     of subject: Subject,
     keyPath: KeyPath<Subject, Member>,

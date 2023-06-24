@@ -15,12 +15,12 @@ sil @getObject : $@convention(thin) <T where T : AnyObject> () -> T
 // Test swift_getObjCClassFromObject side-effects. It reads the object
 // argument. A release cannot be hoisted above it.
 //
-// CHECK-LABEL: define {{.*}}swiftcc %objc_class* @testGetObjCClassFromObjectSideEffect(%swift.type* %T)
+// CHECK-LABEL: define {{.*}}swiftcc ptr @testGetObjCClassFromObjectSideEffect(ptr %T)
 // CHECK:     entry:
-// CHECK-NEXT:  %0 = tail call swiftcc %objc_object* @getObject(%swift.type* %T)
-// CHECK-NEXT:  %.Type = tail call %objc_class* @swift_getObjCClassFromObject(%objc_object* %0)
-// CHECK-NEXT:  tail call void @swift_unknownObjectRelease(%objc_object* %0)
-// CHECK:       ret %objc_class* %.Type
+// CHECK-NEXT:  %0 = tail call swiftcc ptr @getObject(ptr %T)
+// CHECK-NEXT:  %.Type = tail call ptr @swift_getObjCClassFromObject(ptr %0)
+// CHECK-NEXT:  tail call void @swift_unknownObjectRelease(ptr %0)
+// CHECK:       ret ptr %.Type
 // CHECK:     }
 sil @testGetObjCClassFromObjectSideEffect : $@convention(thin) <T where T : AnyObject> () -> @objc_metatype T.Type {
 bb0:

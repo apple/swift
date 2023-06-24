@@ -38,14 +38,12 @@ func test2() {
   // CHECK: define hidden swiftcc void @"$s4main5test2yyF"()
   let x: TheProtocol = MyStruct()
   x.func1_live()
-  // CHECK: [[TBL:%.*]] = phi i8**
-  // CHECK-arm64e: [[T0:%.*]] = ptrtoint i8** [[TBL]] to i64
+  // CHECK: [[TBL:%.*]] = phi ptr
+  // CHECK-arm64e: [[T0:%.*]] = ptrtoint ptr [[TBL]] to i64
   // CHECK-arm64e: [[T1:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[T0]], i32 2, i64 47152)
-  // CHECK-arm64e: [[TBL:%.*]] = inttoptr i64 [[T1]] to i8**
-  // CHECK: [[TBL2:%.*]] = bitcast i8** [[TBL]] to i32*
-  // CHECK: [[ENTRY:%.*]] = getelementptr inbounds i32, i32* [[TBL2]], i32 1
-  // CHECK: [[ENTRY2:%.*]] = bitcast i32* [[ENTRY]] to i8*
-  // CHECK: call { i8*, i1 } @llvm.type.checked.load.relative(i8* [[ENTRY2]], i32 0, metadata !"$s4main11TheProtocolP10func1_liveyyFTq")
+  // CHECK-arm64e: [[TBL:%.*]] = inttoptr i64 [[T1]] to ptr
+  // CHECK: [[ENTRY:%.*]] = getelementptr inbounds i32, ptr [[TBL]], i32 1
+  // CHECK: call { ptr, i1 } @llvm.type.checked.load.relative(ptr [[ENTRY]], i32 0, metadata !"$s4main11TheProtocolP10func1_liveyyFTq")
 }
 
 // CHECK: !0 = !{i64 4, !"$s4main11TheProtocolP10func1_liveyyFTq"}

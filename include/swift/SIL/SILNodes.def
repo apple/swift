@@ -370,53 +370,52 @@ ABSTRACT_VALUE_AND_INST(SingleValueInstruction, ValueBase, SILInstruction)
     SINGLE_VALUE_INST_RANGE(MethodInst, ClassMethodInst, WitnessMethodInst)
 
   // Conversions
-  ABSTRACT_SINGLE_VALUE_INST(ConversionInst, SingleValueInstruction)
     SINGLE_VALUE_INST(UpcastInst, upcast,
-                      ConversionInst, None, DoesNotRelease)
+                      SingleValueInstruction, None, DoesNotRelease)
     SINGLE_VALUE_INST(AddressToPointerInst, address_to_pointer,
-                      ConversionInst, None, DoesNotRelease)
+                      SingleValueInstruction, None, DoesNotRelease)
     SINGLE_VALUE_INST(PointerToAddressInst, pointer_to_address,
-                      ConversionInst, None, DoesNotRelease)
+                      SingleValueInstruction, None, DoesNotRelease)
     SINGLE_VALUE_INST(UncheckedRefCastInst, unchecked_ref_cast,
-                      ConversionInst, None, DoesNotRelease)
+                      SingleValueInstruction, None, DoesNotRelease)
     SINGLE_VALUE_INST(UncheckedAddrCastInst, unchecked_addr_cast,
-                      ConversionInst, None, DoesNotRelease)
+                      SingleValueInstruction, None, DoesNotRelease)
     SINGLE_VALUE_INST(UncheckedTrivialBitCastInst, unchecked_trivial_bit_cast,
-                      ConversionInst, None, DoesNotRelease)
+                      SingleValueInstruction, None, DoesNotRelease)
     SINGLE_VALUE_INST(UncheckedBitwiseCastInst, unchecked_bitwise_cast,
-                      ConversionInst, None, DoesNotRelease)
+                      SingleValueInstruction, None, DoesNotRelease)
     SINGLE_VALUE_INST(UncheckedValueCastInst, unchecked_value_cast,
-                      ConversionInst, None, DoesNotRelease)
+                      SingleValueInstruction, None, DoesNotRelease)
     SINGLE_VALUE_INST(RefToRawPointerInst, ref_to_raw_pointer,
-                      ConversionInst, None, DoesNotRelease)
+                      SingleValueInstruction, None, DoesNotRelease)
     SINGLE_VALUE_INST(RawPointerToRefInst, raw_pointer_to_ref,
-                      ConversionInst, None, DoesNotRelease)
+                      SingleValueInstruction, None, DoesNotRelease)
 #define LOADABLE_REF_STORAGE(Name, name, ...) \
     SINGLE_VALUE_INST(RefTo##Name##Inst, ref_to_##name, \
-                      ConversionInst, None, DoesNotRelease) \
+                      SingleValueInstruction, None, DoesNotRelease) \
     SINGLE_VALUE_INST(Name##ToRefInst, name##_to_ref, \
-                      ConversionInst, None, DoesNotRelease)
+                      SingleValueInstruction, None, DoesNotRelease)
 #include "swift/AST/ReferenceStorage.def"
     SINGLE_VALUE_INST(ConvertFunctionInst, convert_function,
-                      ConversionInst, None, DoesNotRelease)
+                      SingleValueInstruction, None, DoesNotRelease)
     SINGLE_VALUE_INST(ConvertEscapeToNoEscapeInst, convert_escape_to_noescape,
-                      ConversionInst, None, DoesNotRelease)
+                      SingleValueInstruction, None, DoesNotRelease)
     SINGLE_VALUE_INST(RefToBridgeObjectInst, ref_to_bridge_object,
-                      ConversionInst, None, DoesNotRelease)
+                      SingleValueInstruction, None, DoesNotRelease)
     SINGLE_VALUE_INST(BridgeObjectToRefInst, bridge_object_to_ref,
-                      ConversionInst, None, DoesNotRelease)
+                      SingleValueInstruction, None, DoesNotRelease)
     SINGLE_VALUE_INST(BridgeObjectToWordInst, bridge_object_to_word,
-                      ConversionInst, None, DoesNotRelease)
+                      SingleValueInstruction, None, DoesNotRelease)
     SINGLE_VALUE_INST(ThinToThickFunctionInst, thin_to_thick_function,
-                      ConversionInst, None, DoesNotRelease)
+                      SingleValueInstruction, None, DoesNotRelease)
     SINGLE_VALUE_INST(ThickToObjCMetatypeInst, thick_to_objc_metatype,
-                      ConversionInst, None, DoesNotRelease)
+                      SingleValueInstruction, None, DoesNotRelease)
     SINGLE_VALUE_INST(ObjCToThickMetatypeInst, objc_to_thick_metatype,
-                      ConversionInst, None, DoesNotRelease)
+                      SingleValueInstruction, None, DoesNotRelease)
     SINGLE_VALUE_INST(ObjCMetatypeToObjectInst, objc_metatype_to_object,
-                      ConversionInst, None, DoesNotRelease)
+                      SingleValueInstruction, None, DoesNotRelease)
     SINGLE_VALUE_INST(ObjCExistentialMetatypeToObjectInst, objc_existential_metatype_to_object,
-                      ConversionInst, None, DoesNotRelease)
+                      SingleValueInstruction, None, DoesNotRelease)
     // unconditional_checked_cast_inst is only MayRead to prevent a subsequent
     // release of the cast's source from being hoisted above the cast:
     // retain X
@@ -429,8 +428,7 @@ ABSTRACT_VALUE_AND_INST(SingleValueInstruction, ValueBase, SILInstruction)
     // scalar cast that doesn't affect the value's representation, its
     // side effect can then be modeled as None.
     DYNAMICCAST_SINGLE_VALUE_INST(UnconditionalCheckedCastInst, unconditional_checked_cast,
-                      ConversionInst, MayRead, DoesNotRelease)
-    SINGLE_VALUE_INST_RANGE(ConversionInst, UpcastInst, UnconditionalCheckedCastInst)
+                      SingleValueInstruction, MayRead, DoesNotRelease)
 
   SINGLE_VALUE_INST(ClassifyBridgeObjectInst, classify_bridge_object,
                     SingleValueInstruction, None, DoesNotRelease)
@@ -609,8 +607,6 @@ ABSTRACT_VALUE_AND_INST(SingleValueInstruction, ValueBase, SILInstruction)
                     SingleValueInstruction, None, DoesNotRelease)
   SINGLE_VALUE_INST(SelectEnumAddrInst, select_enum_addr,
                     SingleValueInstruction, MayRead, DoesNotRelease)
-  SINGLE_VALUE_INST(SelectValueInst, select_value,
-                    SingleValueInstruction, None, DoesNotRelease)
 
   // Protocol and Protocol Composition Types
   SINGLE_VALUE_INST(InitExistentialAddrInst, init_existential_addr,
@@ -798,7 +794,7 @@ NON_VALUE_INST(FixLifetimeInst, fix_lifetime,
                SILInstruction, MayHaveSideEffects, DoesNotRelease)
 
 NON_VALUE_INST(HopToExecutorInst, hop_to_executor,
-               SILInstruction, MayHaveSideEffects, DoesNotRelease)
+               SILInstruction, MayHaveSideEffects, MayRelease)
 
 NON_VALUE_INST(DestroyValueInst, destroy_value,
                SILInstruction, MayHaveSideEffects, MayRelease)

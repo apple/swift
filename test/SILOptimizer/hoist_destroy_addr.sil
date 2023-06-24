@@ -79,6 +79,9 @@ struct STXXITXXII {
   var i: I
 }
 
+@_moveOnly struct MoS {}
+@_moveOnly struct MoE {}
+
 sil @unknown : $@convention(thin) () -> ()
 sil @use_S : $@convention(thin) (@in_guaranteed S) -> ()
 
@@ -1142,6 +1145,37 @@ entry(%addr : $*X):
   %empty = function_ref @empty : $@convention(thin) () -> ()
   apply %empty() : $@convention(thin) () -> ()
   destroy_addr %addr : $*X
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// Even though the apply of %empty is not a deinit barrier (c.f.
+// hoist_over_apply_of_non_barrier_fn), verify that the destroy_addr is not
+// hoisted, because MoS is move-only.
+// CHECK-LABEL: sil [ossa] @dont_move_destroy_addr_of_moveonly_struct : {{.*}} {
+// CHECK:       {{bb[0-9]+}}([[ADDR:%[^,]+]] :
+// CHECK:         apply
+// CHECK:         destroy_addr [[ADDR]]
+// CHECK-LABEL: } // end sil function 'dont_move_destroy_addr_of_moveonly_struct'
+sil [ossa] @dont_move_destroy_addr_of_moveonly_struct : $@convention(thin) (@in MoS) -> () {
+entry(%addr : $*MoS):
+  %empty = function_ref @empty : $@convention(thin) () -> ()
+  apply %empty() : $@convention(thin) () -> ()
+  destroy_addr %addr : $*MoS
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: sil [ossa] @dont_move_destroy_addr_of_moveonly_enum : {{.*}} {
+// CHECK:       {{bb[0-9]+}}([[ADDR:%[^,]+]] :
+// CHECK:         apply
+// CHECK:         destroy_addr [[ADDR]]
+// CHECK-LABEL: } // end sil function 'dont_move_destroy_addr_of_moveonly_enum'
+sil [ossa] @dont_move_destroy_addr_of_moveonly_enum : $@convention(thin) (@in MoE) -> () {
+entry(%addr : $*MoE):
+  %empty = function_ref @empty : $@convention(thin) () -> ()
+  apply %empty() : $@convention(thin) () -> ()
+  destroy_addr %addr : $*MoE
   %retval = tuple ()
   return %retval : $()
 }

@@ -146,6 +146,24 @@ import objc_implementation_private
     super.init(fromSuperclass2: v)
   }
 
+  @objc(initFromProtocol1:)
+  required public init?(fromProtocol1 v: CInt) {
+    // OK
+    super.init(fromSuperclass: v)
+  }
+
+  @objc(initFromProtocol2:)
+  required public init?(fromProtocol2 v: CInt) {
+    // OK
+    super.init(fromSuperclass: v)
+  }
+
+  @objc(initNotFromProtocol:)
+  public init?(notFromProtocol v: CInt) {
+    // OK
+    super.init(fromSuperclass: v)
+  }
+
   class func classMethod1(_: CInt) {}
   class func classMethod2(_: CInt) {}
   class func classMethod3(_: CInt) {}

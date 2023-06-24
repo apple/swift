@@ -1154,14 +1154,38 @@ void LifetimeChecker::doIt() {
 
   // All of the indirect results marked as "out" have to be fully initialized
   // before their lifetime ends.
-  if (TheMemory.isOut() && Uses.empty()) {
-    auto loc = TheMemory.getLoc();
+  if (TheMemory.isOut()) {
+    auto diagnoseMissingInit = [&]() {
+      std::string propertyName;
+      auto *property = TheMemory.getPathStringToElement(0, propertyName);
+      diagnose(Module, F.getLocation(),
+               diag::ivar_not_initialized_by_init_accessor,
+               property->getName());
+      EmittedErrorLocs.push_back(TheMemory.getLoc());
+    };
 
-    std::string propertyName;
-    auto *property = TheMemory.getPathStringToElement(0, propertyName);
-    diagnose(Module, F.getLocation(),
-             diag::ivar_not_initialized_by_init_accessor, property->getName());
-    EmittedErrorLocs.push_back(loc);
+    // No uses means that there was no initialization.
+    if (Uses.empty()) {
+      diagnoseMissingInit();
+      return;
+    }
+
+    // Go over every return block and check whether member is fully initialized
+    // because it's possible that there is branch that doesn't have any use of
+    // the memory and nothing else is going to diagnose that. This is different
+    // from `self`, for example, because it would always have either `copy_addr`
+    // or `load` before return.
+
+    auto returnBB = F.findReturnBB();
+
+    while (returnBB != F.end()) {
+      auto *terminator = returnBB->getTerminator();
+
+      if (!isInitializedAtUse(DIMemoryUse(terminator, DIUseKind::Load, 0, 1)))
+        diagnoseMissingInit();
+
+      ++returnBB;
+    }
   }
 
   // If the memory object has nontrivial type, then any destroy/release of the
@@ -1195,6 +1219,11 @@ void LifetimeChecker::doIt() {
       ASI->setDynamicLifetime();
     } else if (auto *ABI = dyn_cast<AllocBoxInst>(memAddr)) {
       ABI->setDynamicLifetime();
+    }
+    // We don't support noncopyable types with dynamic lifetimes currently.
+    if (TheMemory.getType().isMoveOnly()) {
+      diagnose(Module, TheMemory.getUninitializedValue()->getLoc(),
+               diag::noncopyable_dynamic_lifetime_unsupported);
     }
   }
   if (!ConditionalDestroys.empty())
@@ -2312,6 +2341,19 @@ void LifetimeChecker::handleSelfInitUse(unsigned UseID) {
   }
 }
 
+// In case of `var` initializations, SILGen creates a dynamic begin/end_access
+// pair around the initialization store. If it's an initialization (and not
+// a re-assign) it's guaranteed that it's an exclusive access and we can
+// convert the access to an `[init] [static]` access.
+static void setStaticInitAccess(SILValue memoryAddress) {
+  if (auto *ba = dyn_cast<BeginAccessInst>(memoryAddress)) {
+    if (ba->getEnforcement() == SILAccessEnforcement::Dynamic) {
+      ba->setEnforcement(SILAccessEnforcement::Static);
+      if (ba->getAccessKind() == SILAccessKind::Modify)
+        ba->setAccessKind(SILAccessKind::Init);
+    }
+  }
+}
 
 /// updateInstructionForInitState - When an instruction being analyzed moves
 /// from being InitOrAssign to some concrete state, update it for that state.
@@ -2336,6 +2378,8 @@ void LifetimeChecker::updateInstructionForInitState(unsigned UseID) {
     assert(!CA->isInitializationOfDest() &&
            "should not modify copy_addr that already knows it is initialized");
     CA->setIsInitializationOfDest(InitKind);
+    if (InitKind == IsInitialization)
+      setStaticInitAccess(CA->getDest());
     return;
   }
 
@@ -2382,6 +2426,7 @@ void LifetimeChecker::updateInstructionForInitState(unsigned UseID) {
               MarkMustCheckInst::CheckKind::InitableButNotConsumable);
         }
       }
+      setStaticInitAccess(AI->getDest());
     }
 
     return;

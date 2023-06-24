@@ -53,6 +53,28 @@
 #include <cstdlib>
 #include <cstring>
 
+#if !SWIFT_STDLIB_HAS_FILESYSTEM
+
+SWIFT_RUNTIME_EXPORT
+const char *
+swift_getRuntimeLibraryPath() {
+  return nullptr;
+}
+
+SWIFT_RUNTIME_EXPORT
+const char *
+swift_getRootPath() {
+  return nullptr;
+}
+
+SWIFT_RUNTIME_EXPORT
+char *
+swift_copyAuxiliaryExecutablePath(const char *name) {
+  return nullptr;
+}
+
+#else // SWIFT_STDLIB_HAS_FILESYSTEM
+
 namespace {
 
 swift::once_t runtimePathToken;
@@ -578,3 +600,5 @@ bool _swift_exists(const char *path)
 }
 
 }
+
+#endif // SWIFT_STDLIB_HAS_FILESYSTEM

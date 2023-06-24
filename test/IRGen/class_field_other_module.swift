@@ -1,7 +1,8 @@
 // RUN: %empty-directory(%t)
 
 // RUN: %target-swift-frontend -emit-module -emit-module-path=%t/other_class.swiftmodule %S/Inputs/other_class.swift
-// RUN: %target-swift-frontend -I %t -emit-ir -O -enforce-exclusivity=unchecked %s | %FileCheck %s -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend %use_no_opaque_pointers -I %t -emit-ir -O -enforce-exclusivity=unchecked %s | %FileCheck %s -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend -I %t -emit-ir -O -enforce-exclusivity=unchecked %s
 
 import other_class
 

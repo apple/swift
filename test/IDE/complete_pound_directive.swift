@@ -51,6 +51,7 @@ class C {
 // CONDITION-DAG: Pattern/CurrModule/Flair[ExprSpecific]:               arch({#(name)#}); name=arch(); sourcetext=arch(<#T##name#>)
 // CONDITION-DAG: Pattern/CurrModule/Flair[ExprSpecific]:               canImport({#(module)#}); name=canImport(); sourcetext=canImport(<#T##module#>)
 // CONDITION-DAG: Pattern/CurrModule/Flair[ExprSpecific]:               targetEnvironment(simulator); name=targetEnvironment(simulator); sourcetext=targetEnvironment(simulator)
+// CONDITION-DAG: Pattern/CurrModule/Flair[ExprSpecific]:               targetEnvironment(macCatalyst); name=targetEnvironment(macCatalyst); sourcetext=targetEnvironment(macCatalyst)
 // CONDITION-DAG: Pattern/CurrModule/Flair[ExprSpecific]:               swift(>={#(version)#}); name=swift(>=); sourcetext=swift(>=<#T##version#>)
 // CONDITION-DAG: Pattern/CurrModule/Flair[ExprSpecific]:               swift(<{#(version)#}); name=swift(<); sourcetext=swift(<<#T##version#>)
 // CONDITION-DAG: Pattern/CurrModule/Flair[ExprSpecific]:               compiler(>={#(version)#}); name=compiler(>=); sourcetext=compiler(>=<#T##version#>)

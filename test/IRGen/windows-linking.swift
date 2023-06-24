@@ -42,9 +42,9 @@ struct Entry {
 // Ensure that static linking does not mark the entries as being indirected
 // through the IAT.
 
-// CHECK-STATIC:       @"$s6module1EO4main1QADWP" = hidden constant [2 x i8*] [
-// CHECK-STATIC-SAME:      i8* bitcast (%swift.protocol_conformance_descriptor* @"$s6module1EO4main1QADMc" to i8*),
-// CHECK-STATIC-SAME:      i8* bitcast (i8** @"$s6module1EOAA1PAAWP" to i8*)
+// CHECK-STATIC:       @"$s6module1EO4main1QADWP" = hidden constant [2 x ptr] [
+// CHECK-STATIC-SAME:      ptr @"$s6module1EO4main1QADMc",
+// CHECK-STATIC-SAME:      ptr @"$s6module1EOAA1PAAWP"
 // CHECK-STATIC-SAME:  ]
 
 // CHECK-STATIC: declare swiftcc void @"$s6module5valueAA1SVvg"()
@@ -55,9 +55,9 @@ struct Entry {
 // Ensure that shared linking does mark the functions as being indirected
 // through the IAT.
 
-// CHECK-SHARED:       @"$s6module1EO4main1QADWP" = hidden constant [2 x i8*] [
-// CHECK-SHARED-SAME:      i8* bitcast ({ i32, i32, i32, i32, i16, i16, i32, i32 }* @"$s6module1EO4main1QADMc" to i8*),
-// CHECK-SHARED-SAME:      i8* null
+// CHECK-SHARED:       @"$s6module1EO4main1QADWP" = hidden constant [2 x ptr] [
+// CHECK-SHARED-SAME:      ptr @"$s6module1EO4main1QADMc",
+// CHECK-SHARED-SAME:      ptr null
 // CHECK-SHARED-SAME:  ]
 
 // CHECK-SHARED: declare dllimport swiftcc void @"$s6module5valueAA1SVvg"()

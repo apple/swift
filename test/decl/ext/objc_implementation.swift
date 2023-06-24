@@ -1,13 +1,17 @@
 // RUN: %target-typecheck-verify-swift -import-objc-header %S/Inputs/objc_implementation.h
 // REQUIRES: objc_interop
 
-@_objcImplementation extension ObjCClass {
+protocol EmptySwiftProto {}
+
+@_objcImplementation extension ObjCClass: EmptySwiftProto, EmptyObjCProto {
   // expected-note@-1 {{previously implemented by extension here}}
   // expected-error@-2 {{extension for main class interface should provide implementation for instance method 'method(fromHeader4:)'}}
   // expected-error@-3 {{extension for main class interface should provide implementation for property 'propertyFromHeader9'}}
   // FIXME: give better diagnostic expected-error@-4 {{extension for main class interface should provide implementation for property 'propertyFromHeader8'}}
   // FIXME: give better diagnostic expected-error@-5 {{extension for main class interface should provide implementation for property 'propertyFromHeader7'}}
   // FIXME: give better diagnostic expected-error@-6 {{extension for main class interface should provide implementation for instance method 'method(fromHeader3:)'}}
+  // expected-error@-7 {{'@_objcImplementation' extension cannot add conformance to 'EmptySwiftProto'; add this conformance with an ordinary extension}}
+  // expected-error@-8 {{'@_objcImplementation' extension cannot add conformance to 'EmptyObjCProto'; add this conformance in the Objective-C header}}
 
   func method(fromHeader1: CInt) {
     // OK, provides an implementation for the header's method.
@@ -143,6 +147,21 @@
 
   override public init(fromSuperclass _: CInt) {
     // OK
+  }
+
+  @objc(initFromProtocol1:)
+  required public init?(fromProtocol1: CInt) {
+    // OK
+  }
+
+  @objc(initFromProtocol2:)
+  public init?(fromProtocol2: CInt) {
+    // expected-error@-1 {{initializer 'init(fromProtocol2:)' should be 'required' to match initializer declared by the header}} {{3-3=required }}
+  }
+
+  @objc(initNotFromProtocol:)
+  required public init?(notFromProtocol: CInt) {
+    // expected-error@-1 {{initializer 'init(notFromProtocol:)' should not be 'required' to match initializer declared by the header}} {{3-12=}}
   }
 
   class func classMethod1(_: CInt) {
@@ -308,6 +327,14 @@
 
   public func doSomethingFunAndAsynchronous(completionHandler: @escaping (Any?, Error?) -> Void) {
   }
+
+  @available(SwiftStdlib 5.1, *)
+  @objc(doSomethingOverloadedWithCompletionHandler:)
+  public func doSomethingOverloaded() async {}
+
+  @available(*, noasync)
+  @objc(doSomethingOverloaded)
+  public func doSomethingOverloaded() {}
 }
 
 @_objcImplementation(Conformance) extension ObjCClass {

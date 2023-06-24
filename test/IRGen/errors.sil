@@ -1,6 +1,7 @@
 // XFAIL: CPU=powerpc64le
 // XFAIL: CPU=s390x
-// RUN: %target-swift-frontend -primary-file %s -emit-ir | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-runtime --check-prefix=CHECK-%target-cpu --check-prefix=CHECK-%target-ptrsize
+// RUN: %target-swift-frontend %use_no_opaque_pointers -primary-file %s -emit-ir | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-runtime --check-prefix=CHECK-%target-cpu --check-prefix=CHECK-%target-ptrsize
+// RUN: %target-swift-frontend -primary-file %s -emit-ir
 
 sil_stage canonical
 

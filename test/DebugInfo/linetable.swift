@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend %s -emit-ir -g -o - | %FileCheck %s
+// RUN: %target-swift-frontend %s %use_no_opaque_pointers -emit-ir -g -o - | %FileCheck %s
 // RUN: %target-swift-frontend %s -S -g -o - | %FileCheck %s --check-prefix ASM-CHECK
 
 // REQUIRES: CPU=i386 || CPU=x86_64

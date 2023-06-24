@@ -291,6 +291,22 @@ public:
     }
   }
 
+  /// Like `getSubstTypes`, but uses a different and possibly
+  /// non-canonical tuple type.
+  TupleEltTypeArrayRef getSubstTypes(Type ncSubstType) const {
+    assert(!isFinished());
+    if (!origTupleVanishes) {
+      return ncSubstType->castTo<TupleType>()
+               ->getElementTypes().slice(substEltIndex,
+                                         numSubstEltsForOrigElt);
+    } else if (numSubstEltsForOrigElt == 0) {
+      return TupleEltTypeArrayRef();
+    } else {
+      scratchSubstElt = TupleTypeElt(ncSubstType);
+      return TupleEltTypeArrayRef(scratchSubstElt);
+    }
+  }
+
   /// Call this to finalize the traversal and assert that it was done
   /// properly.
   void finish() {

@@ -580,11 +580,29 @@ prepareIndirectResultInit(SILGenFunction &SGF, SILLocation loc,
                           SmallVectorImpl<CleanupHandle> &cleanups) {
   // Recursively decompose tuple abstraction patterns.
   if (origResultType.isTuple()) {
-    auto resultTupleType = cast<TupleType>(resultType);
-    auto tupleInit = new TupleInitialization(resultTupleType);
-    tupleInit->SubInitializations.reserve(resultTupleType->getNumElements());
+    // Normally, we build a compound initialization for the tuple.  But
+    // the initialization we build should match the substituted type,
+    // so if the tuple in the abstraction pattern vanishes under variadic
+    // substitution, we actually just want to return the initializer
+    // for the surviving component.
+    TupleInitialization *tupleInit = nullptr;
+    SmallVector<InitializationPtr, 1> singletonEltInit;
 
-    origResultType.forEachTupleElement(resultTupleType,
+    bool vanishes =
+      origResultType.getVanishingTupleElementPatternType().hasValue();
+    if (!vanishes) {
+      auto resultTupleType = cast<TupleType>(resultType);
+      tupleInit = new TupleInitialization(resultTupleType);
+      tupleInit->SubInitializations.reserve(
+        cast<TupleType>(resultType)->getNumElements());
+    }
+
+    // The list of element initializers to build into.
+    auto &eltInits = (vanishes
+        ? static_cast<SmallVectorImpl<InitializationPtr> &>(singletonEltInit)
+        : tupleInit->SubInitializations);
+
+    origResultType.forEachTupleElement(resultType,
                                        [&](TupleElementGenerator &elt) {
       if (!elt.isOrigPackExpansion()) {
         auto eltInit = prepareIndirectResultInit(SGF, loc, fnTypeForResults,
@@ -594,7 +612,7 @@ prepareIndirectResultInit(SILGenFunction &SGF, SILLocation loc,
                                                  directResults,
                                                  indirectResultAddrs,
                                                  cleanups);
-        tupleInit->SubInitializations.push_back(std::move(eltInit));
+        eltInits.push_back(std::move(eltInit));
       } else {
         assert(allResults[0].isPack());
         assert(SGF.silConv.isSILIndirect(allResults[0]));
@@ -604,11 +622,17 @@ prepareIndirectResultInit(SILGenFunction &SGF, SILLocation loc,
         indirectResultAddrs = indirectResultAddrs.slice(1);
 
         preparePackResultInit(SGF, loc, elt.getOrigType(), elt.getSubstTypes(),
-                              packAddr,
-                              cleanups, tupleInit->SubInitializations);
+                              packAddr, cleanups, eltInits);
       }
     });
 
+    if (vanishes) {
+      assert(singletonEltInit.size() == 1);
+      return std::move(singletonEltInit.front());
+    }
+
+    assert(tupleInit);
+    assert(eltInits.size() == cast<TupleType>(resultType)->getNumElements());
     return InitializationPtr(tupleInit);
   }
 

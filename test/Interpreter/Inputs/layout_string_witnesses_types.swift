@@ -299,7 +299,7 @@ public struct ContainsSinglePayloadSimpleClassEnum {
 
 public enum SinglePayloadEnum<T> {
     case empty
-    case nonEmpty(T?)
+    case nonEmpty(Int, T?)
 }
 
 public struct SinglePayloadEnumWrapper<T> {
@@ -442,6 +442,10 @@ public struct InternalEnumWrapper {
   }
 }
 
+public enum SingletonEnum<T> {
+    case only(T, Int)
+}
+
 public enum SinglePayloadEnumManyXI {
     case empty0
     case empty1
@@ -450,7 +454,7 @@ public enum SinglePayloadEnumManyXI {
     case empty4
     case empty5
     case empty6
-    case nonEmpty(Builtin.Int127, SimpleClass)
+    case nonEmpty(Builtin.Int63, SimpleClass)
 }
 
 public struct PrespecializedStruct<T> {

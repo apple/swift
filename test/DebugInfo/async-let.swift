@@ -1,22 +1,23 @@
 // RUN: %target-swift-frontend %s -emit-ir -g -o - \
 // RUN:    -module-name M  -disable-availability-checking \
 // RUN:    -parse-as-library | %FileCheck %s --check-prefix=CHECK
+
 // REQUIRES: concurrency
 
 public actor Alice {
   let bob = Bob()
 
   // CHECK: define {{.*}}$s1M5AliceC4callyyYaFTY0_{{.*}} !dbg ![[SCOPE0:[0-9]+]]
-  // CHECK: call i8* @__swift_async_resume_get_context{{.*}}!dbg ![[HOP0:[0-9]+]]
+  // CHECK: call ptr @__swift_async_resume_get_context{{.*}}!dbg ![[HOP0:[0-9]+]]
 
   // CHECK: define {{.*}}$s1M5AliceC4callyyYaFTY1_{{.*}} !dbg ![[SCOPE1:[0-9]+]]
-  // CHECK: call i8* @__swift_async_resume_get_context{{.*}}!dbg ![[HOP1:[0-9]+]]
+  // CHECK: call ptr @__swift_async_resume_get_context{{.*}}!dbg ![[HOP1:[0-9]+]]
 
   // CHECK: define {{.*}}$s1M5AliceC4callyyYaFSiyYaYbcfu_TY0_{{.*}} !dbg ![[LET_SCOPE0:[0-9]+]]
-  // CHECK: call i8* @__swift_async_resume_get_context{{.*}}!dbg ![[LET_HOP0:[0-9]+]]
+  // CHECK: call ptr @__swift_async_resume_get_context{{.*}}!dbg ![[LET_HOP0:[0-9]+]]
 
   // CHECK: define {{.*}}$s1M5AliceC4callyyYaFSiyYaYbcfu_TY2_{{.*}} !dbg ![[LET_SCOPE1:[0-9]+]]
-  // CHECK: call i8* @__swift_async_resume_get_context{{.*}}!dbg ![[LET_HOP1:[0-9]+]]
+  // CHECK: call ptr @__swift_async_resume_get_context{{.*}}!dbg ![[LET_HOP1:[0-9]+]]
   public func call() async {
     // CHECK: ![[SCOPE0]] = distinct !DISubprogram({{.*}}line: [[@LINE-1]]
     // CHECK: ![[HOP0]] = !DILocation(line: [[@LINE-2]], column: 15

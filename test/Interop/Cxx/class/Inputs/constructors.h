@@ -10,6 +10,11 @@ struct ImplicitDefaultConstructor {
   int x = 42;
 };
 
+struct DefaultedDefaultConstructor {
+  int x = 42;
+  DefaultedDefaultConstructor() = default;
+};
+
 struct MemberOfClassType {
   ImplicitDefaultConstructor member;
 };

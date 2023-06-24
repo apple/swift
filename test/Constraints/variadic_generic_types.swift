@@ -22,3 +22,10 @@ func g<each T>(_: repeat each T) {
   // expected-error@-1 {{pack expansion 'Int' must contain at least one pack reference}}
   // expected-error@-2 {{'each' cannot be applied to non-pack type 'Int'}}{{15-19=}}
 }
+
+struct MissingMemberError<each T> {
+  init() {
+    self.doesNotExist = 1
+    // expected-error@-1 {{value of type 'MissingMemberError<repeat each T>' has no member 'doesNotExist'}}
+  }
+}

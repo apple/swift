@@ -62,10 +62,12 @@ void resume_other_threads();
 void take_thread_lock();
 void release_thread_lock();
 void notify_paused();
+uint32_t currently_paused();
 void wait_paused(uint32_t expected, const struct timespec *timeout);
 int  memserver_start();
 int  memserver_entry(void *);
 bool run_backtracer(int fd);
+void format_unsigned(unsigned u, char buffer[22]);
 
 ssize_t safe_read(int fd, void *buf, size_t len) {
   uint8_t *ptr = (uint8_t *)buf;
@@ -88,7 +90,7 @@ ssize_t safe_read(int fd, void *buf, size_t len) {
 }
 
 ssize_t safe_write(int fd, const void *buf, size_t len) {
-  const uint8_t *ptr = (uint8_t *)buf;
+  const uint8_t *ptr = (const uint8_t *)buf;
   const uint8_t *end = ptr + len;
   ssize_t total = 0;
 
@@ -308,6 +310,124 @@ getdents(int fd, void *buf, size_t bufsiz)
   return syscall(SYS_getdents64, fd, buf, bufsiz);
 }
 
+/* Find the signal to use to suspend the given thread.
+
+   Sadly, libdispatch blocks SIGUSR1, so we can't just use that everywhere;
+   and on Ubuntu 20.04 *something* is starting a thread with SIGPROF blocked,
+   so we can't just use that either.
+
+   We also can't modify the signal mask for another thread, since there is
+   no syscall to do that.
+
+   As a workaround, read /proc/<pid>/task/<tid>/status to find the signal
+   mask so that we can decide which signal to try and send. */
+int
+signal_for_suspend(int pid, int tid)
+{
+  char pid_buffer[22];
+  char tid_buffer[22];
+
+  format_unsigned((unsigned)pid, pid_buffer);
+  format_unsigned((unsigned)tid, tid_buffer);
+
+  char status_file[6 + 22 + 6 + 22 + 7 + 1];
+
+  strcpy(status_file, "/proc/");    // 6
+  strcat(status_file, pid_buffer);  // 22
+  strcat(status_file, "/task/");    // 6
+  strcat(status_file, tid_buffer);  // 22
+  strcat(status_file, "/status");   // 7 + 1 for NUL
+
+  int fd = open(status_file, O_RDONLY);
+  if (fd < 0)
+    return -1;
+
+  enum match_state {
+    Matching,
+    EatLine,
+    AfterMatch,
+    InHex,
+
+    // states after this terminate the loop
+    Done,
+    Bad
+  };
+
+  enum match_state state = Matching;
+  const char *toMatch = "SigBlk:";
+  const char *matchPtr = toMatch;
+  char buffer[256];
+  uint64_t mask = 0;
+  ssize_t count;
+  while (state < Done && (count = read(fd, buffer, sizeof(buffer))) > 0) {
+    char *ptr = buffer;
+    char *end = buffer + count;
+
+    while (state < Done && ptr < end) {
+      int ch = *ptr++;
+
+      switch (state) {
+      case Matching:
+        if (ch != *matchPtr) {
+          state = EatLine;
+          matchPtr = toMatch;
+        } else if (!*++matchPtr) {
+          state = AfterMatch;
+        }
+        break;
+      case EatLine:
+        if (ch == '\n')
+          state = Matching;
+        break;
+      case AfterMatch:
+        if (ch == ' ' || ch == '\t') {
+          break;
+        }
+        state = InHex;
+        SWIFT_FALLTHROUGH;
+      case InHex:
+        if (ch >= '0' && ch <= '9') {
+          mask = (mask << 4) | (ch - '0');
+        } else if (ch >= 'a' && ch <= 'f') {
+          mask = (mask << 4) | (ch - 'a' + 10);
+        } else if (ch >= 'A' && ch <= 'F') {
+          mask = (mask << 4) | (ch - 'A' + 10);
+        } else if (ch == '\n') {
+          state = Done;
+          break;
+        } else {
+          state = Bad;
+        }
+        break;
+      case Done:
+      case Bad:
+        break;
+      }
+    }
+  }
+
+  close(fd);
+
+  if (state == Done) {
+    if (!(mask & (1 << (SIGUSR1 - 1))))
+      return SIGUSR1;
+    else if (!(mask & (1 << (SIGUSR2 - 1))))
+      return SIGUSR2;
+    else if (!(mask & (1 << (SIGPROF - 1))))
+      return SIGPROF;
+    else
+      return -1;
+  }
+
+  return -1;
+}
+
+// Write a string to stderr
+void
+warn(const char *str) {
+  write(STDERR_FILENO, str, strlen(str));
+}
+
 /* Stop all other threads in this process; we do this by establishing a
    signal handler for SIGPROF, then iterating through the threads sending
    SIGPROF.
@@ -321,7 +441,7 @@ getdents(int fd, void *buf, size_t bufsiz)
 void
 suspend_other_threads(struct thread *self)
 {
-  struct sigaction sa, sa_old;
+  struct sigaction sa, sa_old_prof, sa_old_usr1, sa_old_usr2;
 
   // Take the lock
   take_thread_lock();
@@ -329,13 +449,15 @@ suspend_other_threads(struct thread *self)
   // Start the thread list with this thread
   reset_threads(self);
 
-  // Swap out the SIGPROF signal handler first
+  // Swap out the signal handlers first
   sigfillset(&sa.sa_mask);
-  sa.sa_flags = SA_NODEFER;
+  sa.sa_flags = 0;
   sa.sa_handler = NULL;
   sa.sa_sigaction = pause_thread;
 
-  sigaction(SIGPROF, &sa, &sa_old);
+  sigaction(SIGPROF, &sa, &sa_old_prof);
+  sigaction(SIGUSR1, &sa, &sa_old_usr1);
+  sigaction(SIGUSR2, &sa, &sa_old_usr2);
 
   /* Now scan /proc/self/task to get the tids of the threads in this
      process.  We need to ignore our own thread. */
@@ -346,11 +468,14 @@ suspend_other_threads(struct thread *self)
   size_t offset = 0;
   size_t count = 0;
 
-  uint32_t thread_count = 0;
-  uint32_t old_thread_count;
+  unsigned max_loops = 15;
+  uint32_t pending = 0;
 
   do {
-    old_thread_count = thread_count;
+    uint32_t paused = currently_paused();
+
+    pending = 0;
+
     lseek(fd, 0, SEEK_SET);
 
     for (;;) {
@@ -372,21 +497,35 @@ suspend_other_threads(struct thread *self)
       int tid = atoi(dp->d_name);
 
       if ((int64_t)tid != self->tid && !seen_thread(tid)) {
-        tgkill(our_pid, tid, SIGPROF);
-        ++thread_count;
+        int sig_to_use = signal_for_suspend(our_pid, tid);
+
+        if (sig_to_use > 0) {
+          tgkill(our_pid, tid, sig_to_use);
+          ++pending;
+        } else {
+          warn("swift-runtime: unable to suspend thread ");
+          warn(dp->d_name);
+          warn("\n");
+        }
       }
     }
 
-    // Wait up to 5 seconds for the threads to pause
-    struct timespec timeout = { 5, 0 };
-    wait_paused(thread_count, &timeout);
-  } while (old_thread_count != thread_count);
+    // If we find no new threads, we're done
+    if (!pending)
+      break;
+
+    // Wait for the threads to suspend
+    struct timespec timeout = { 2, 0 };
+    wait_paused(paused + pending, &timeout);
+  } while (max_loops--);
 
   // Close the directory
   close(fd);
 
-  // Finally, reset the signal handler
-  sigaction(SIGPROF, &sa_old, NULL);
+  // Finally, reset the signal handlers
+  sigaction(SIGPROF, &sa_old_prof, NULL);
+  sigaction(SIGUSR1, &sa_old_usr1, NULL);
+  sigaction(SIGUSR2, &sa_old_usr2, NULL);
 }
 
 void
@@ -441,6 +580,12 @@ notify_paused()
   futex(&threads_paused, FUTEX_WAKE, 1, NULL, NULL, 0);
 }
 
+uint32_t
+currently_paused()
+{
+  return __atomic_load_n(&threads_paused, __ATOMIC_ACQUIRE);
+}
+
 void
 wait_paused(uint32_t expected, const struct timespec *timeout)
 {
@@ -462,7 +607,7 @@ wait_paused(uint32_t expected, const struct timespec *timeout)
    We don't want to require CAP_SYS_PTRACE because we're potentially being
    used inside of a Docker container, which won't have that enabled. */
 
-char memserver_stack[4096];
+char memserver_stack[4096] __attribute__((aligned(SWIFT_PAGE_SIZE)));
 char memserver_buffer[4096];
 int memserver_fd;
 bool memserver_has_ptrace;

@@ -1,5 +1,7 @@
-// RUN: %target-swift-frontend -primary-file %s -emit-ir -enable-objc-interop | %FileCheck %s --check-prefixes=CHECK,CHECK-objc
-// RUN: %target-swift-frontend -primary-file %s -emit-ir -disable-objc-interop | %FileCheck %s --check-prefixes=CHECK,CHECK-native
+// RUN: %target-swift-frontend %use_no_opaque_pointers -primary-file %s -emit-ir -enable-objc-interop | %FileCheck %s --check-prefixes=CHECK,CHECK-objc
+// RUN: %target-swift-frontend %use_no_opaque_pointers -primary-file %s -emit-ir -disable-objc-interop | %FileCheck %s --check-prefixes=CHECK,CHECK-native
+// RUN: %target-swift-frontend -primary-file %s -emit-ir -enable-objc-interop
+// RUN: %target-swift-frontend -primary-file %s -emit-ir -disable-objc-interop
 
 // REQUIRES: CPU=x86_64
 

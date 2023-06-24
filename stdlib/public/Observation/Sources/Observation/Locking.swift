@@ -33,7 +33,8 @@ internal struct _ManagedCriticalState<State> {
   }
   
   internal init(_ initial: State) {
-    self.init(LockedBuffer.create(minimumCapacity: Swift.max(_lockSize() / MemoryLayout<UnsafeRawPointer>.size, 1)) { buffer in
+    let roundedSize = (_lockSize() + MemoryLayout<UnsafeRawPointer>.size - 1) / MemoryLayout<UnsafeRawPointer>.size 
+    self.init(LockedBuffer.create(minimumCapacity: Swift.max(roundedSize, 1)) { buffer in
       buffer.withUnsafeMutablePointerToElements { _lockInit(UnsafeRawPointer($0)) }
       return initial
     })
@@ -49,30 +50,6 @@ internal struct _ManagedCriticalState<State> {
       }
       return try critical(&header.pointee)
     }
-  }
-}
-
-@available(SwiftStdlib 5.9, *)
-internal protocol _Deinitializable {
-  mutating func deinitialize()
-}
-
-@available(SwiftStdlib 5.9, *)
-extension _ManagedCriticalState where State: _Deinitializable {
-  final private class DeinitializingLockedBuffer: 
-    ManagedBuffer<State, UnsafeRawPointer> {
-    deinit {
-      withUnsafeMutablePointers { header, lock in
-        header.pointee.deinitialize()
-      }
-    }
-  }
-  
-  internal init(managing initial: State) {
-    self.init(DeinitializingLockedBuffer.create(minimumCapacity: Swift.max(_lockSize() / MemoryLayout<UnsafeRawPointer>.size, 1)) { buffer in
-      buffer.withUnsafeMutablePointerToElements { _lockInit(UnsafeRawPointer($0)) }
-      return initial
-    })
   }
 }
 

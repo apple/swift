@@ -452,7 +452,7 @@ void BindingSet::inferTransitiveBindings(
 
     // Infer transitive defaults.
     for (const auto &def : bindings.Defaults) {
-      if (def.getSecond()->getKind() == ConstraintKind::DefaultClosureType)
+      if (def.getSecond()->getKind() == ConstraintKind::FallbackType)
         continue;
 
       addDefault(def.second);
@@ -1510,7 +1510,7 @@ void PotentialBindings::infer(Constraint *constraint) {
   }
 
   case ConstraintKind::Defaultable:
-  case ConstraintKind::DefaultClosureType:
+  case ConstraintKind::FallbackType:
     // Do these in a separate pass.
     if (CS.getFixedTypeRecursive(constraint->getFirstType(), true)
             ->getAs<TypeVariableType>() == TypeVar) {
@@ -1634,7 +1634,7 @@ void PotentialBindings::retract(Constraint *constraint) {
     break;
 
   case ConstraintKind::Defaultable:
-  case ConstraintKind::DefaultClosureType: {
+  case ConstraintKind::FallbackType: {
     Defaults.erase(constraint);
     break;
   }
@@ -2075,11 +2075,10 @@ bool TypeVarBindingProducer::computeNext() {
   if (NumTries == 0) {
     // Add defaultable constraints (if any).
     for (auto *constraint : DelayedDefaults) {
-      if (constraint->getKind() == ConstraintKind::DefaultClosureType) {
-        // If there are no other possible bindings for this closure
-        // let's default it to the type inferred from its parameters/body,
-        // otherwise we should only attempt contextual types as a
-        // top-level closure type.
+      if (constraint->getKind() == ConstraintKind::FallbackType) {
+        // If there are no other possible bindings for this variable
+        // let's default it to the fallback type, otherwise we should
+        // only attempt contextual types.
         if (!ExploredTypes.empty())
           continue;
       }

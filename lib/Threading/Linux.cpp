@@ -18,6 +18,7 @@
 
 #include "swift/Threading/Impl.h"
 #include "swift/Threading/Errors.h"
+#include "swift/Threading/ThreadSanitizer.h"
 
 namespace {
 
@@ -61,7 +62,7 @@ void swift::threading_impl::once_slow(once_t &predicate, void (*fn)(void *),
 #endif
   if (predicate.flag.load(std::memory_order_acquire) == 0) {
     fn(context);
-    predicate.flag.store(-1, std::memory_order_release);
+    predicate.flag.store(tsan::enabled() ? 1 : -1, std::memory_order_release);
   }
 #if defined(__LP64__) || defined(_LP64)
   linux::ulock_unlock(&predicate.lock);

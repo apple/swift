@@ -15,22 +15,22 @@ sil_stage canonical
 public protocol Protocol {}
 struct S : Protocol {}
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i8* @thin_func_value(i8* %0) {{.*}} {
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @thin_func_value(ptr %0) {{.*}} {
 // CHECK-NEXT:  entry:
-// CHECK-NEXT:    ret i8* %0
+// CHECK-NEXT:    ret ptr %0
 // CHECK-NEXT:  }
 sil @thin_func_value : $@convention(thin) (@convention(thin) () -> ()) -> @convention(thin) () -> () {
 entry(%x : $@convention(thin) () -> ()):
   return %x : $@convention(thin) () -> ()
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc { i8*, %swift.refcounted* } @thick_func_value(i8* %0, %swift.refcounted* %1) {{.*}} {
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc { ptr, ptr } @thick_func_value(ptr %0, ptr %1) {{.*}} {
 // CHECK-NEXT:  entry:
-// CHECK-NEXT:    call %swift.refcounted* @swift_retain(%swift.refcounted* returned %1) {{#[0-9]+}}
-// CHECK-NEXT:    call void @swift_release(%swift.refcounted* %1) {{#[0-9]+}}
-// CHECK-NEXT:    %3 = insertvalue { i8*, %swift.refcounted* } undef, i8* %0, 0
-// CHECK-NEXT:    %4 = insertvalue { i8*, %swift.refcounted* } %3, %swift.refcounted* %1, 1
-// CHECK-NEXT:    ret { i8*, %swift.refcounted* } %4
+// CHECK-NEXT:    call ptr @swift_retain(ptr returned %1) {{#[0-9]+}}
+// CHECK-NEXT:    call void @swift_release(ptr %1) {{#[0-9]+}}
+// CHECK-NEXT:    %3 = insertvalue { ptr, ptr } undef, ptr %0, 0
+// CHECK-NEXT:    %4 = insertvalue { ptr, ptr } %3, ptr %1, 1
+// CHECK-NEXT:    ret { ptr, ptr } %4
 // CHECK-NEXT:  }
 sil @thick_func_value : $@convention(thin) (@owned () -> ()) -> @owned () -> () {
 entry(%x : $() -> ()):
@@ -39,9 +39,9 @@ entry(%x : $() -> ()):
   return %x : $() -> ()
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i8* @thin_witness_value(i8* %0) {{.*}} {
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @thin_witness_value(ptr %0) {{.*}} {
 // CHECK-NEXT:  entry:
-// CHECK-NEXT:    ret i8* %0
+// CHECK-NEXT:    ret ptr %0
 // CHECK-NEXT:  }
 sil @thin_witness_value : $@convention(thin) (@convention(witness_method: Protocol) (S) -> ()) -> @convention(witness_method: Protocol) (S) -> () {
 entry(%x : $@convention(witness_method: Protocol) (S) -> ()):
@@ -52,9 +52,9 @@ struct X {}
 
 sil @out_void_return : $@convention(thin) () -> @out X
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @use_void_return_value(%T14function_types1XV* noalias nocapture sret({{.*}}) %0) {{.*}} {
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @use_void_return_value(ptr noalias nocapture sret({{.*}}) %0) {{.*}} {
 // CHECK-NEXT:  entry:
-// CHECK-NEXT:    call swiftcc void @out_void_return(%T14function_types1XV* noalias nocapture sret({{.*}}) %0)
+// CHECK-NEXT:    call swiftcc void @out_void_return(ptr noalias nocapture sret({{.*}}) %0)
 // CHECK-NEXT:    ret void
 // CHECK-NEXT:  }
 sil @use_void_return_value : $@convention(thin) () -> @out X {

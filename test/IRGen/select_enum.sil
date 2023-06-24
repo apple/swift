@@ -7,12 +7,12 @@ enum SinglePayloadSingleEmpty {
   case DataCase(Builtin.Word)
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @select_enum_SinglePayloadSingleEmpty(%T11select_enum013SinglePayloadC5EmptyO* noalias nocapture dereferenceable({{.*}}) %0)
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @select_enum_SinglePayloadSingleEmpty(ptr noalias nocapture dereferenceable({{.*}}) %0)
 sil @select_enum_SinglePayloadSingleEmpty : $@convention(thin) (@in SinglePayloadSingleEmpty) -> () {
 bb0(%0 : $*SinglePayloadSingleEmpty):
   %1 = load %0 : $*SinglePayloadSingleEmpty
-  // CHECK: [[PAYLOAD1:%[0-9]+]] = load [[WORD_TY:(i32|i64)]], [[WORD_TY:(i32|i64)]]*
-  // CHECK: [[TAG1:%[0-9]+]] = load i1, i1*
+  // CHECK: [[PAYLOAD1:%[0-9]+]] = load [[WORD_TY:(i32|i64)]], ptr
+  // CHECK: [[TAG1:%[0-9]+]] = load i1, ptr
 
   %2 = integer_literal $Builtin.Int32, 2
   %3 = integer_literal $Builtin.Int32, 3
@@ -24,8 +24,8 @@ bb0(%0 : $*SinglePayloadSingleEmpty):
   // CHECK-NEXT:   select i1 [[V3]], i32 3, i32 2
   %5 = select_enum %1 : $SinglePayloadSingleEmpty, case #SinglePayloadSingleEmpty.DataCase!enumelt: %3, case #SinglePayloadSingleEmpty.EmptyCase!enumelt: %2 : $Builtin.Int32
 
-  // CHECK: [[PAYLOAD0:%[0-9]+]] = load [[WORD_TY]], [[WORD_TY]]*
-  // CHECK: [[TAG0:%[0-9]+]] = load i1, i1*
+  // CHECK: [[PAYLOAD0:%[0-9]+]] = load [[WORD_TY:(i32|i64)]], ptr
+  // CHECK: [[TAG0:%[0-9]+]] = load i1, ptr
 
   // CHECK:   select i1 [[TAG0]], i32 2, i32 3
   %6 = select_enum_addr %0 : $*SinglePayloadSingleEmpty, case #SinglePayloadSingleEmpty.EmptyCase!enumelt: %2, case #SinglePayloadSingleEmpty.DataCase!enumelt: %3 : $Builtin.Int32
@@ -45,7 +45,7 @@ enum MyOptional<T> {
 
 sil @select_enum_TwoCasesNoPayload :$ @convention(thin) (@in TwoCasesNoPayload, @in MyOptional<TwoCasesNoPayload>) -> () {
 bb0(%0 : $*TwoCasesNoPayload, %10 : $*MyOptional<TwoCasesNoPayload>):
-// CHECK: [[PAYLOAD1:%[0-9]+]] = load i1, i1*
+// CHECK: [[PAYLOAD1:%[0-9]+]] = load i1, ptr
   %1 = load %0 : $*TwoCasesNoPayload
 
   %2 = integer_literal $Builtin.Int32, 2
@@ -60,7 +60,7 @@ bb0(%0 : $*TwoCasesNoPayload, %10 : $*MyOptional<TwoCasesNoPayload>):
   %5 = select_enum %1 : $TwoCasesNoPayload, case #TwoCasesNoPayload.Y!enumelt: %3, default %2 : $Builtin.Int32
 
 
-  // CHECK: [[PAYLOAD2:%[0-9]+]] = load i8, i8*
+  // CHECK: [[PAYLOAD2:%[0-9]+]] = load i8, ptr
   %11 = load %10 : $*MyOptional<TwoCasesNoPayload>
 
   // CHECK-NEXT: [[V1:%[0-9]+]] = icmp eq i8 [[PAYLOAD2]], 2

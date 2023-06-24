@@ -17,7 +17,7 @@ bb0(%0 : $Builtin.RawPointer):
   %addr1 = index_addr %addr : $*UInt8, %offset1 : $Builtin.Word
   // CHECK: debug_value %[[ADDR]] : $*UInt8, let, name "hello"
   // CHECK-SAME: expr op_constu:3:op_plus:op_deref
-  // CHECK-IR: call void @llvm.dbg.value(metadata i8* %0, metadata ![[DBG_VAR:[0-9]+]],
+  // CHECK-IR: call void @llvm.dbg.value(metadata ptr %0, metadata ![[DBG_VAR:[0-9]+]],
   // CHECK-IR-SAME: !DIExpression(DW_OP_constu, 3, DW_OP_plus, DW_OP_deref)
   debug_value %addr1 : $*UInt8, let, name "hello", expr op_deref
   %addr2 = index_addr %addr1 : $*UInt8, %offset2 : $Builtin.Word

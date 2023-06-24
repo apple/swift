@@ -3130,11 +3130,6 @@ protected:
     // opaque value rewriting.
   }
 
-  void visitSelectValueInst(SelectValueInst *selectInst) {
-    // FIXME: Unimplemented
-    llvm::report_fatal_error("Unimplemented SelectValue use.");
-  }
-
   void visitStoreBorrowInst(StoreBorrowInst *sbi) {
     auto addr = addrMat.materializeAddress(use->get());
     SmallVector<Operand *, 4> uses(sbi->getUses());

@@ -50,39 +50,42 @@
 
 //#-- Expect -load-plugin-library
 // RUN: %target-build-swift %t/src/test.swift \
-// RUN:   -o %t/main1 \
 // RUN:   -module-name test \
+// RUN:   -load-plugin-library %t/lib/tmp/%target-library-name(MacroDefinition) \
 // RUN:   -plugin-path %t/lib/plugins \
 // RUN:   -external-plugin-path %t/external#%swift-plugin-server \
-// RUN:   -load-plugin-library %t/lib/tmp/%target-library-name(MacroDefinition) \
-// RUN:   -load-plugin-executable  %t/libexec/MacroDefinitionPlugin#MacroDefinition
+// RUN:   -load-plugin-executable  %t/libexec/MacroDefinitionPlugin#MacroDefinition \
+// RUN:   -o %t/main1
 // RUN: %target-codesign %t/main1
 // RUN: %target-run %t/main1 | %FileCheck --check-prefix=CHECK_LOAD_PLUGIN_LIBRARY %s
 
 //#-- Expect -load-plugin-executable
 // RUN: %target-build-swift %t/src/test.swift \
-// RUN:   -o %t/main2 \
 // RUN:   -module-name test \
+// RUN:   -load-plugin-executable  %t/libexec/MacroDefinitionPlugin#MacroDefinition \
 // RUN:   -plugin-path %t/lib/plugins \
 // RUN:   -external-plugin-path %t/external#%swift-plugin-server \
-// RUN:   -load-plugin-executable  %t/libexec/MacroDefinitionPlugin#MacroDefinition
+// RUN:   -o %t/main2
 // RUN: %target-codesign %t/main2
 // RUN: %target-run %t/main2 | %FileCheck --check-prefix=CHECK_LOAD_PLUGIN_EXECUTABLE %s
 
 //#-- Expect -plugin-path
 // RUN: %target-build-swift %t/src/test.swift \
-// RUN:   -o %t/main3 \
 // RUN:   -module-name test \
 // RUN:   -plugin-path %t/lib/plugins \
-// RUN:   -external-plugin-path %t/external#%swift-plugin-server
+// RUN:   -load-plugin-library %t/lib/tmp/%target-library-name(MacroDefinition) \
+// RUN:   -external-plugin-path %t/external#%swift-plugin-server \
+// RUN:   -o %t/main3
 // RUN: %target-codesign %t/main3
 // RUN: %target-run %t/main3 | %FileCheck --check-prefix=CHECK_PLUGIN_PATH %s
 
 //#-- Expect -external-plugin-path
 // RUN: %target-build-swift %t/src/test.swift \
-// RUN:   -o %t/main4 \
 // RUN:   -module-name test \
-// RUN:   -external-plugin-path %t/external#%swift-plugin-server
+// RUN:   -external-plugin-path %t/external#%swift-plugin-server \
+// RUN:   -plugin-path %t/lib/plugins \
+// RUN:   -load-plugin-executable  %t/libexec/MacroDefinitionPlugin#MacroDefinition \
+// RUN:   -o %t/main4
 // RUN: %target-codesign %t/main4
 // RUN: %target-run %t/main4 | %FileCheck --check-prefix=CHECK_EXTERNAL_PLUGIN_PATH %s
 

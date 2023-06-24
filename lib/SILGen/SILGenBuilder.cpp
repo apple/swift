@@ -437,6 +437,23 @@ ManagedValue SILGenBuilder::createUncheckedTakeEnumDataAddr(
   return cloner.clone(result);
 }
 
+ManagedValue
+SILGenBuilder::createLoadIfLoadable(SILLocation loc, ManagedValue addr) {
+  assert(addr.getType().isAddress());
+  if (!addr.getType().isLoadable(SGF.F))
+    return addr;
+  return createLoadWithSameOwnership(loc, addr);
+}
+
+ManagedValue
+SILGenBuilder::createLoadWithSameOwnership(SILLocation loc,
+                                           ManagedValue addr) {
+  if (addr.isPlusOne(SGF))
+    return createLoadTake(loc, addr);
+  else
+    return createLoadBorrow(loc, addr);
+}
+
 ManagedValue SILGenBuilder::createLoadTake(SILLocation loc, ManagedValue v) {
   auto &lowering = SGF.getTypeLowering(v.getType());
   return createLoadTake(loc, v, lowering);

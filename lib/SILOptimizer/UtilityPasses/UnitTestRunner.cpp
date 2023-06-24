@@ -73,6 +73,7 @@
 #include "swift/SIL/OwnershipLiveness.h"
 #include "swift/SIL/OwnershipUtils.h"
 #include "swift/SIL/PrunedLiveness.h"
+#include "swift/SIL/FieldSensitivePrunedLiveness.h"
 #include "swift/SIL/SILArgumentArrayRef.h"
 #include "swift/SIL/SILBasicBlock.h"
 #include "swift/SIL/SILBridging.h"
@@ -89,6 +90,7 @@
 #include "swift/SILOptimizer/Utils/InstructionDeleter.h"
 #include "swift/SILOptimizer/Utils/ParseTestSpecification.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include <iterator>
 #include <memory>
@@ -280,10 +282,23 @@ struct OwnershipUtilsHasPointerEscape : UnitTest {
   OwnershipUtilsHasPointerEscape(UnitTestRunner *pass) : UnitTest(pass) {}
   void invoke(Arguments &arguments) override {
     auto value = arguments.takeValue();
-    auto has = hasPointerEscape(value);
+    auto has = findPointerEscape(value);
     value->print(llvm::errs());
     auto *boolString = has ? "true" : "false";
     llvm::errs() << boolString << "\n";
+  }
+};
+
+// Arguments:
+// - value: whose type will be printed
+// Dumps:
+// - the type lowering of the type
+struct PrintTypeLowering : UnitTest {
+  PrintTypeLowering(UnitTestRunner *pass) : UnitTest(pass) {}
+  void invoke(Arguments &arguments) override {
+    auto value = arguments.takeValue();
+    auto ty = value->getType();
+    getFunction()->getTypeLowering(ty).print(llvm::dbgs());
   }
 };
 
@@ -477,6 +492,85 @@ struct MultiDefUseLivenessTest : UnitTest {
     PrunedLivenessBoundary boundary;
     liveness.computeBoundary(boundary);
     boundary.print(llvm::outs());
+  }
+};
+
+// Arguments:
+// - value: entity whose fields' livenesses are being computed
+// - string: "defs:"
+// - variadic list of triples consisting of 
+//   - value: a live-range defining value
+//   - int: the beginning of the range of fields defined by the value
+//   - int: the end of the range of the fields defined by the value
+// - the string "uses:"
+// - variadic list of quadruples consisting of
+//   - instruction: a live-range user
+//   - bool: whether the user is lifetime-ending
+//   - int: the beginning of the range of fields used by the instruction
+//   - int: the end of the range of fields used by the instruction
+// Dumps:
+// - the liveness result and boundary
+//
+// Computes liveness for the specified def nodes by considering the
+// specified uses. The actual uses of the def nodes are ignored.
+//
+// This is useful for testing non-ssa liveness, for example, of memory
+// locations. In that case, the def nodes may be stores and the uses may be
+// destroy_addrs.
+struct FieldSensitiveMultiDefUseLiveRangeTest : UnitTest {
+  FieldSensitiveMultiDefUseLiveRangeTest(UnitTestRunner *pass) : UnitTest(pass) {}
+
+  void invoke(Arguments &arguments) override {
+    SmallVector<SILBasicBlock *, 8> discoveredBlocks;
+    auto value = arguments.takeValue();
+    FieldSensitiveMultiDefPrunedLiveRange liveness(getFunction(), value, &discoveredBlocks);
+
+    llvm::outs() << "FieldSensitive MultiDef lifetime analysis:\n";
+    if (arguments.takeString() != "defs:") {
+      llvm::report_fatal_error(
+        "test specification expects the 'defs:' label\n");
+    }
+    while (true) {
+      auto argument = arguments.takeArgument();
+      if (isa<StringArgument>(argument)) {
+        if(cast<StringArgument>(argument).getValue() != "uses:") {
+          llvm::report_fatal_error(
+            "test specification expects the 'uses:' label\n");
+        }
+        break;
+      }
+      auto begin = arguments.takeUInt();
+      auto end = arguments.takeUInt();
+      TypeTreeLeafTypeRange range(begin, end);
+      if (isa<InstructionArgument>(argument)) {
+        auto *instruction = cast<InstructionArgument>(argument).getValue();
+        llvm::outs() << "  def in range [" << begin << ", " << end << ") instruction: " << *instruction;
+        liveness.initializeDef(instruction, range);
+        continue;
+      }
+      if (isa<ValueArgument>(argument)) {
+        SILValue value = cast<ValueArgument>(argument).getValue();
+        llvm::outs() << "  def in range [" << begin << ", " << end << ") value: " << value;
+        liveness.initializeDef(value, range);
+        continue;
+      }
+      llvm::report_fatal_error(
+        "test specification expects the 'uses:' label\n");
+    }
+    liveness.finishedInitializationOfDefs();
+    while (arguments.hasUntaken()) {
+      auto *inst = arguments.takeInstruction();
+      auto lifetimeEnding = arguments.takeBool();
+      auto begin = arguments.takeUInt();
+      auto end = arguments.takeUInt();
+      TypeTreeLeafTypeRange range(begin, end);
+      liveness.updateForUse(inst, range, lifetimeEnding);
+    }
+    liveness.print(llvm::errs());
+
+    FieldSensitivePrunedLivenessBoundary boundary(liveness.getNumSubElements());
+    liveness.computeBoundary(boundary);
+    boundary.print(llvm::errs());
   }
 };
 
@@ -899,6 +993,7 @@ void UnitTestRunner::withTest(StringRef name, Doit doit) {
     ADD_UNIT_TEST_SUBCLASS("find-enclosing-defs", FindEnclosingDefsTest)
     ADD_UNIT_TEST_SUBCLASS("function-get-self-argument-index", FunctionGetSelfArgumentIndex)
     ADD_UNIT_TEST_SUBCLASS("has-pointer-escape", OwnershipUtilsHasPointerEscape)
+    ADD_UNIT_TEST_SUBCLASS("print-type-lowering", PrintTypeLowering)
     ADD_UNIT_TEST_SUBCLASS("interior-liveness", InteriorLivenessTest)
     ADD_UNIT_TEST_SUBCLASS("is-deinit-barrier", IsDeinitBarrierTest)
     ADD_UNIT_TEST_SUBCLASS("is-lexical", IsLexicalTest)
@@ -906,6 +1001,7 @@ void UnitTestRunner::withTest(StringRef name, Doit doit) {
     ADD_UNIT_TEST_SUBCLASS("linear-liveness", LinearLivenessTest)
     ADD_UNIT_TEST_SUBCLASS("multidef-liveness", MultiDefLivenessTest)
     ADD_UNIT_TEST_SUBCLASS("multidefuse-liveness", MultiDefUseLivenessTest)
+    ADD_UNIT_TEST_SUBCLASS("fieldsensitive-multidefuse-liverange", FieldSensitiveMultiDefUseLiveRangeTest)
     ADD_UNIT_TEST_SUBCLASS("ossa-lifetime-completion", OSSALifetimeCompletionTest)
     ADD_UNIT_TEST_SUBCLASS("pruned-liveness-boundary-with-list-of-last-users-insertion-points", PrunedLivenessBoundaryWithListOfLastUsersInsertionPointsTest)
     ADD_UNIT_TEST_SUBCLASS("shrink-borrow-scope", ShrinkBorrowScopeTest)

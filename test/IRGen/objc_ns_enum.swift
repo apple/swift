@@ -1,6 +1,7 @@
 // RUN: %empty-directory(%t)
 // RUN: %build-irgen-test-overlays
-// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) -primary-file %s -emit-ir > %t/out.txt
+// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) %use_no_opaque_pointers -primary-file %s -emit-ir > %t/out.txt
+// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) -primary-file %s -emit-ir
 // RUN: %FileCheck %s -DINT=i%target-ptrsize < %t/out.txt
 // RUN: %FileCheck %s --check-prefix=NEGATIVE < %t/out.txt
 

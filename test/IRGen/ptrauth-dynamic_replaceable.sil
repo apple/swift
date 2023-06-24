@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend %s -emit-ir -disable-objc-interop -module-name A | %FileCheck %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers %s -emit-ir -disable-objc-interop -module-name A | %FileCheck %s
+// RUN: %target-swift-frontend %s -emit-ir -disable-objc-interop -module-name A
 
 // REQUIRES: objc_interop
 // REQUIRES: CPU=arm64e

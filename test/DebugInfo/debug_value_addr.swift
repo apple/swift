@@ -11,7 +11,7 @@
 // CHECK: entry:
 // CHECK-NEXT: %[[TADDR:.*]] = alloca
 // CHECK-NEXT: call void @llvm.dbg.declare({{.*}}%[[TADDR]]
-// CHECK: store %swift.opaque* %0, %swift.opaque** %[[TADDR:.*]], align
+// CHECK: store ptr %0, ptr %[[TADDR:.*]], align
 
 struct S<T> {
   var a : T

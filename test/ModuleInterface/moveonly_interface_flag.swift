@@ -1,6 +1,6 @@
-// RUN: %empty-directory(%t)
-// RUN: %target-swift-emit-module-interface(%t/Library.swiftinterface) %s -module-name Library
-// RUN: %target-swift-typecheck-module-from-interface(%t/Library.swiftinterface) -I %t
+7// RUN: %empty-directory(%t)
+// RUN: %target-swift-emit-module-interface(%t/Library.swiftinterface) %s -module-name Library -enable-experimental-feature MoveOnlyResilientTypes
+// RUN: %target-swift-typecheck-module-from-interface(%t/Library.swiftinterface) -I %t -enable-experimental-feature MoveOnlyResilientTypes
 // RUN: %FileCheck %s < %t/Library.swiftinterface
 
 // this test makes sure that decls containing a move-only type are guarded by the $MoveOnly feature flag

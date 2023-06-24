@@ -3415,7 +3415,7 @@ collectMembersForInit(ResolvedCursorInfoPtr CursorInfo,
 
   SourceManager &SM = nominalDecl->getASTContext().SourceMgr;
 
-  for (auto member : nominalDecl->getMembers()) {
+  for (auto member : nominalDecl->getMemberwiseInitProperties()) {
     auto varDecl = dyn_cast<VarDecl>(member);
     if (!varDecl) {
       continue;
@@ -3425,10 +3425,6 @@ collectMembersForInit(ResolvedCursorInfoPtr CursorInfo,
       // inconsistent with the implicitly synthesized memberwise initializer but
       // we think it makes more sense because otherwise the lazy variable's
       // initializer gets evaluated eagerly.
-      continue;
-    }
-
-    if (!varDecl->isMemberwiseInitialized(/*preferDeclaredProperties=*/true)) {
       continue;
     }
 

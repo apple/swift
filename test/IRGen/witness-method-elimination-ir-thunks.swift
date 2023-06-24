@@ -25,9 +25,8 @@ extension MyLocalProtocol {
   func func1() {
     // CHECK: define hidden swiftcc void @"$s4Main15MyLocalProtocolPAAE5func1yyF"
     self.local_req()
-    // CHECK: [[SLOT:%.*]] = getelementptr inbounds i8*, i8** {{.*}}, i32 1
-    // CHECK: [[SLOTASPTR:%.*]] = bitcast i8** [[SLOT]] to i8*
-    // CHECK: call { i8*, i1 } @llvm.type.checked.load(i8* [[SLOTASPTR]], i32 0, metadata !"$s4Main15MyLocalProtocolP9local_reqyyFTq")
+    // CHECK: [[SLOT:%.*]] = getelementptr inbounds ptr, ptr {{.*}}, i32 1
+    // CHECK: call { ptr, i1 } @llvm.type.checked.load(ptr [[SLOT]], i32 0, metadata !"$s4Main15MyLocalProtocolP9local_reqyyFTq")
     // CHECK: ret void
   }
 }

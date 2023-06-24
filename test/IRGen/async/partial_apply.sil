@@ -437,7 +437,7 @@ bb0(%0 : $*A2<A3>):
 
 //sil @capture_class : $@async @convention(thin) (@guaranteed A3) -> ()
 //
-//// CHECK LABEL: define{{.*}} swift{{(tail)?}}cc i8* @partial_apply_stack_in_coroutine(i8* {{.*}} %0, %T13partial_apply2A3C* %1)
+//// CHECK LABEL: define{{.*}} swift{{(tail)?}}cc ptr @partial_apply_stack_in_coroutine(ptr {{.*}} %0, ptr %1)
 //sil @partial_apply_stack_in_coroutine : $@async @yield_once (@owned A3) -> () {
 //entry(%0: $A3):
 //  %f = function_ref @capture_class : $@async @convention(thin) (@guaranteed A3) -> ()
@@ -606,7 +606,7 @@ entry(%0 : $EmptyType, %1: $*SomeType, %3: $FixedType):
   return %40 : $()
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swift{{(tail)?}}cc { i8*, %swift.refcounted* } @create_pa_f2(
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swift{{(tail)?}}cc { ptr, ptr } @create_pa_f2(
 sil @create_pa_f2 : $@convention(thin) (@callee_guaranteed @async @convention(thick) (Int64, Int32) -> Int64, Int32) -> @owned @async @callee_guaranteed (Int64) -> Int64 {
 bb0(%thick : $@callee_guaranteed @async @convention(thick) (Int64, Int32) -> Int64 , %captured : $Int32):
   %pa_f = partial_apply [callee_guaranteed] %thick(%captured) : $@callee_guaranteed @async @convention(thick) (Int64, Int32) -> Int64

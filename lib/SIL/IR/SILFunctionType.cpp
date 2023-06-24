@@ -3212,6 +3212,12 @@ getIndirectCParameterConvention(const clang::ParmVarDecl *param) {
 ///
 /// Generally, whether the parameter is +1 is handled before this.
 static ParameterConvention getDirectCParameterConvention(clang::QualType type) {
+  if (auto *cxxRecord = type->getAsCXXRecordDecl()) {
+    // Directly passed non-trivially destroyed C++ record is consumed by the
+    // callee.
+    if (!cxxRecord->hasTrivialDestructor())
+      return ParameterConvention::Direct_Owned;
+  }
   return ParameterConvention::Direct_Unowned;
 }
 

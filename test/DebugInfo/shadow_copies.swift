@@ -19,15 +19,15 @@ class ClassB : ClassA
     {
     // CHECK:       @"$s{{.*}}6ClassBCyACs5Int64Vcfc"
     // NOCOPY:      @"$s{{.*}}6ClassBCyACs5Int64Vcfc"
-    // CHECK:       alloca {{.*}}ClassBC*
-    // NOCOPY:      alloca {{.*}}ClassBC*
+    // CHECK:       alloca ptr
+    // NOCOPY:      alloca ptr
 
     // CHECK:       alloca i64
 
     // CHECK-NOT:   alloca
     // NOCOPY-NOT:  alloca
-    // CHECK:       ret {{.*}}ClassBC
-    // NOCOPY:      ret {{.*}}ClassBC
+    // CHECK:       ret ptr
+    // NOCOPY:      ret ptr
         super.init (input)
     }
 }
@@ -42,7 +42,7 @@ class ClassC
     // NOCOPY: define {{.*}}@"$s13shadow_copies6ClassCCACycfc"
     init ()
     {
-    // CHECK:  alloca %T13shadow_copies6ClassCC*
+    // CHECK:  alloca ptr
     // CHECK-NOT: alloca
     // NOCOPY-NOT: alloca
 

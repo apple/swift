@@ -262,4 +262,13 @@ public struct Builder {
     let store = bridged.createStore(source.bridged, destination.bridged, ownership.rawValue)
     return notifyNew(store.getAs(StoreInst.self))
   }
+
+  public func createInitExistentialRef(instance: Value,
+                                       existentialType: Type,
+                                       useConformancesOf: InitExistentialRefInst) -> InitExistentialRefInst {
+    let initExistential = bridged.createInitExistentialRef(instance.bridged,
+                                                           existentialType.bridged,
+                                                           useConformancesOf.bridged)
+    return notifyNew(initExistential.getAs(InitExistentialRefInst.self))
+  }
 }

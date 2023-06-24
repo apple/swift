@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) %s -emit-ir | %FileCheck %s -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) %use_no_opaque_pointers %s -emit-ir | %FileCheck %s -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) %s -emit-ir
 
 // REQUIRES: objc_interop
 

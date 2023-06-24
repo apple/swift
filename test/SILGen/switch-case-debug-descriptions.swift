@@ -9,7 +9,7 @@ enum E {
 func test1(_ e: E) {
   switch e {                                  // SCOPE: sil_scope [[test1_switch:[0-9]+]] {{.*}}:[[@LINE]]:3
   case .one(let payload), .two(let payload):  // SCOPE-NEXT: sil_scope [[test1_case1:[0-9]+]] {{.*}}:[[@LINE]]:3 parent [[test1_switch]]
-    print(payload)
+    print(payload)                            // SCOPE-NEXT: sil_scope                        {{.*}}:[[@LINE]]:5 parent [[test1_case1]]
   case .three(let payload):                   // SCOPE-NEXT: sil_scope [[test1_case2:[0-9]+]] {{.*}}:[[@LINE]]:3 parent [[test1_switch]]
     print(payload)
   }
@@ -43,7 +43,7 @@ func test4(_ e: E) {
     print(x)                                  // SCOPE-NEXT: sil_scope {{.*}}:[[@LINE]]:5 parent [[test4_case1]]
     fallthrough
   case .two(let x):                           // SCOPE-NEXT: sil_scope [[test4_case2:[0-9]+]] {{.*}}:[[@LINE]]:3 parent [[test4_switch]]
-    print(x)
+    print(x)                                  // SCOPE-NEXT:                                    {{.*}}:[[@LINE]]:5 parent [[test4_case2]]
     fallthrough
   default:                                    // SCOPE-NEXT: sil_scope [[test4_default:[0-9]+]] {{.*}}:[[@LINE]]:3 parent [[test4_switch]]
     print("default")                          // SCOPE:      sil_scope [[test4_default1:[0-9]+]] {{.*}}:[[@LINE]]:5

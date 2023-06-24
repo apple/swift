@@ -10,7 +10,7 @@ struct X {
 // Make sure we can irgen a SIL function with various parameter attributes
 // without choking. This is just a basic reality check.
 
-// CHECK: define{{( dllexport)?}}{{( protected)?}} swiftcc void @foo(%T4Test1XV* noalias nocapture sret({{.*}}) %0, %T4Test1XV* noalias nocapture dereferenceable({{.*}}) %1, %T4Test1XV* nocapture dereferenceable({{.*}}) %2, %T4Test1XV* noalias nocapture dereferenceable({{.*}}) %3, i32 %4, i32 %5, i32 %6) {{.*}} {
+// CHECK: define{{( dllexport)?}}{{( protected)?}} swiftcc void @foo(ptr noalias nocapture sret({{.*}}) %0, ptr noalias nocapture dereferenceable({{.*}}) %1, ptr nocapture dereferenceable({{.*}}) %2, ptr noalias nocapture dereferenceable({{.*}}) %3, i32 %4, i32 %5, i32 %6) {{.*}} {
 
 sil @foo : $@convention(thin) (@in X, @inout X, @in_guaranteed X, @owned X, X, @guaranteed X) -> @out X {
 bb0(%0 : $*X, %1 : $*X, %2 : $*X, %3 : $*X, %4 : $X, %5 : $X, %6 : $X):

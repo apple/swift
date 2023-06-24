@@ -14,11 +14,11 @@
 
 // CHECK: @"$s28runtime_attributes_on_actors17FlagForAsyncFuncsVHa" = internal constant
 // CHECK-SAME: i32 5
-// CHECK-SAME: %swift.accessible_function* @"$s28runtime_attributes_on_actors17FlagForAsyncFuncsVAA9TestActorC15asyncExternallyyyKFfaHF"
-// CHECK-SAME: %swift.accessible_function* @"$s28runtime_attributes_on_actors17FlagForAsyncFuncsVAA9TestActorC11doSomethingyyYaKFfaHF"
-// CHECK-SAME: %swift.accessible_function* @"$s28runtime_attributes_on_actors17FlagForAsyncFuncsVAA9TestActorC11doSomethingyySiYaFfaHF"
-// CHECK-SAME: %swift.accessible_function* @"$s28runtime_attributes_on_actors17FlagForAsyncFuncsVAA9TestActorC11doSomething_1xySi_SaySiGztYaFfaHF"
-// CHECK-SAME: %swift.accessible_function* @"$s28runtime_attributes_on_actors17FlagForAsyncFuncsVAA06globalG2FnSaySSGyYaFfaHF"
+// CHECK-SAME: ptr @"$s28runtime_attributes_on_actors17FlagForAsyncFuncsVAA9TestActorC15asyncExternallyyyKFfaHF"
+// CHECK-SAME: ptr @"$s28runtime_attributes_on_actors17FlagForAsyncFuncsVAA9TestActorC11doSomethingyyYaKFfaHF"
+// CHECK-SAME: ptr @"$s28runtime_attributes_on_actors17FlagForAsyncFuncsVAA9TestActorC11doSomethingyySiYaFfaHF"
+// CHECK-SAME: ptr @"$s28runtime_attributes_on_actors17FlagForAsyncFuncsVAA9TestActorC11doSomething_1xySi_SaySiGztYaFfaHF"
+// CHECK-SAME: ptr @"$s28runtime_attributes_on_actors17FlagForAsyncFuncsVAA06globalG2FnSaySSGyYaFfaHF"
 
 @runtimeMetadata
 struct FlagForAsyncFuncs {
@@ -29,24 +29,24 @@ struct FlagForAsyncFuncs {
 }
 
 actor TestActor {
-  // CHECK-LABEL: define hidden swiftcc void @"$s28runtime_attributes_on_actors17FlagForAsyncFuncsVAA9TestActorC15asyncExternallyyyKFfa"(%T28runtime_attributes_on_actors17FlagForAsyncFuncsVSg* noalias nocapture sret(%T28runtime_attributes_on_actors17FlagForAsyncFuncsVSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s28runtime_attributes_on_actors17FlagForAsyncFuncsVAA9TestActorC15asyncExternallyyyKFfa"(ptr noalias nocapture sret(%T28runtime_attributes_on_actors17FlagForAsyncFuncsVSg) %0)
   @FlagForAsyncFuncs func asyncExternally() throws {
   }
 
-  // CHECK-LABEL: define hidden swiftcc void @"$s28runtime_attributes_on_actors17FlagForAsyncFuncsVAA9TestActorC11doSomethingyyYaKFfa"(%T28runtime_attributes_on_actors17FlagForAsyncFuncsVSg* noalias nocapture sret(%T28runtime_attributes_on_actors17FlagForAsyncFuncsVSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s28runtime_attributes_on_actors17FlagForAsyncFuncsVAA9TestActorC11doSomethingyyYaKFfa"(ptr noalias nocapture sret(%T28runtime_attributes_on_actors17FlagForAsyncFuncsVSg) %0)
   @FlagForAsyncFuncs func doSomething() async throws {
   }
 
-  // CHECK-LABEL: define hidden swiftcc void @"$s28runtime_attributes_on_actors17FlagForAsyncFuncsVAA9TestActorC11doSomethingyySiYaFfa"(%T28runtime_attributes_on_actors17FlagForAsyncFuncsVSg* noalias nocapture sret(%T28runtime_attributes_on_actors17FlagForAsyncFuncsVSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s28runtime_attributes_on_actors17FlagForAsyncFuncsVAA9TestActorC11doSomethingyySiYaFfa"(ptr noalias nocapture sret(%T28runtime_attributes_on_actors17FlagForAsyncFuncsVSg) %0)
   @FlagForAsyncFuncs nonisolated func doSomething(_: Int) async {
   }
 
-  // CHECK-LABEL: define hidden swiftcc void @"$s28runtime_attributes_on_actors17FlagForAsyncFuncsVAA9TestActorC11doSomething_1xySi_SaySiGztYaFfa"(%T28runtime_attributes_on_actors17FlagForAsyncFuncsVSg* noalias nocapture sret(%T28runtime_attributes_on_actors17FlagForAsyncFuncsVSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s28runtime_attributes_on_actors17FlagForAsyncFuncsVAA9TestActorC11doSomething_1xySi_SaySiGztYaFfa"(ptr noalias nocapture sret(%T28runtime_attributes_on_actors17FlagForAsyncFuncsVSg) %0)
   @FlagForAsyncFuncs func doSomething(_: Int, x: inout [Int]) async {
   }
 }
 
-// CHECK-LABEL: define hidden swiftcc void @"$s28runtime_attributes_on_actors17FlagForAsyncFuncsVAA06globalG2FnSaySSGyYaFfa"(%T28runtime_attributes_on_actors17FlagForAsyncFuncsVSg* noalias nocapture sret(%T28runtime_attributes_on_actors17FlagForAsyncFuncsVSg) %0)
+// CHECK-LABEL: define hidden swiftcc void @"$s28runtime_attributes_on_actors17FlagForAsyncFuncsVAA06globalG2FnSaySSGyYaFfa"(ptr noalias nocapture sret(%T28runtime_attributes_on_actors17FlagForAsyncFuncsVSg) %0)
 @FlagForAsyncFuncs
 func globalAsyncFn() async -> [String] {
   return []

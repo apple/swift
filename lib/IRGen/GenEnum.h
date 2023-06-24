@@ -384,6 +384,12 @@ public:
                                   SILType T,
                               MetadataDependencyCollector *collector) const = 0;
 
+  virtual void initializeMetadataWithLayoutString(IRGenFunction &IGF,
+                                                  llvm::Value *metadata,
+                                                  bool isVWTMutable,
+                                                  SILType T,
+                              MetadataDependencyCollector *collector) const = 0;
+
   virtual bool mayHaveExtraInhabitants(IRGenModule &IGM) const = 0;
 
   // Only ever called for fixed types.

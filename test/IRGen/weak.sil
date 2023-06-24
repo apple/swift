@@ -1,5 +1,7 @@
-// RUN: %target-swift-frontend -enable-objc-interop -disable-type-layout -emit-ir %s | %FileCheck %s
-// RUN: %target-swift-frontend -O -S %s | %FileCheck %s --check-prefix=TAILCALL
+// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-objc-interop -disable-type-layout -emit-ir %s | %FileCheck %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers -O -S %s | %FileCheck %s --check-prefix=TAILCALL
+// RUN: %target-swift-frontend -enable-objc-interop -disable-type-layout -emit-ir %s
+// RUN: %target-swift-frontend -O -S %s
 
 // REQUIRES: CPU=x86_64
 

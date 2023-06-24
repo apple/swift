@@ -524,10 +524,19 @@ private struct NoStores : ValueDefUseWalker, AddressDefUseWalker {
   var walkDownCache = WalkerCache<SmallProjectionPath>()
 
   mutating func leafUse(value: Operand, path: SmallProjectionPath) -> WalkResult {
-    if let ptai = value.instruction as? PointerToAddressInst {
+    switch value.instruction {
+    case let ptai as PointerToAddressInst:
       return walkDownUses(ofAddress: ptai, path: path)
+    case let bi as BuiltinInst:
+      switch bi.intrinsicID {
+      case .memcpy, .memmove:
+        return value.index != 0 ? .continueWalk : .abortWalk
+      default:
+        return .abortWalk
+      }
+    default:
+      return .abortWalk
     }
-    return .abortWalk
   }
 
   mutating func leafUse(address: Operand, path: SmallProjectionPath) -> WalkResult {

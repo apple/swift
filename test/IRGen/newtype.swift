@@ -1,9 +1,11 @@
 // RUN: %empty-directory(%t)
 // RUN: %build-irgen-test-overlays
-// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t -I %S/../IDE/Inputs/custom-modules) %s -emit-ir > %t/out.ll
+// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t -I %S/../IDE/Inputs/custom-modules) %use_no_opaque_pointers %s -emit-ir > %t/out.ll
+// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t -I %S/../IDE/Inputs/custom-modules) %s -emit-ir
 // RUN: %FileCheck %s -DINT=i%target-ptrsize < %t/out.ll
 // RUN: %FileCheck %s  -check-prefix=CHECK-CC -DINT=i%target-ptrsize < %t/out.ll
-// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t -I %S/../IDE/Inputs/custom-modules) %s -emit-ir -O | %FileCheck %s -check-prefix=OPT -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t -I %S/../IDE/Inputs/custom-modules) %use_no_opaque_pointers %s -emit-ir -O | %FileCheck %s -check-prefix=OPT -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t -I %S/../IDE/Inputs/custom-modules) %s -emit-ir -O
 import CoreFoundation
 import Foundation
 import Newtype

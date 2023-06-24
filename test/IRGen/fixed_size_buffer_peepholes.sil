@@ -5,16 +5,14 @@ import Builtin
 protocol P {}
 
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @dont_crash(
-// CHECK:  [[TYPE_ADDR:%.*]] = getelementptr inbounds %T27fixed_size_buffer_peepholes1PP, %T27fixed_size_buffer_peepholes1PP* %0, i32 0, i32 1
-// CHECK:  [[TYPE:%.*]] = load %swift.type*, %swift.type** [[TYPE_ADDR]]
+// CHECK:  [[TYPE_ADDR:%.*]] = getelementptr inbounds %T27fixed_size_buffer_peepholes1PP, ptr %0, i32 0, i32 1
+// CHECK:  [[TYPE:%.*]] = load ptr, ptr [[TYPE_ADDR]]
 // CHECK:  call {{.*}} @__swift_project_boxed_opaque_existential_1
-// CHECK:  [[PTR:%.*]] = bitcast %swift.type* [[TYPE]] to i8***
-// CHECK:  [[VWT_ADDR:%.*]] = getelementptr inbounds i8**, i8*** [[PTR]], {{(i64|i32)}} -1
-// CHECK:  [[VWT:%.*]] = load i8**, i8*** [[VWT_ADDR]]
-// CHECK:  [[WITNESS_ADDR:%.*]] = getelementptr inbounds i8*, i8** [[VWT]], {{(i64|i32)}} 2
-// CHECK:  [[WITNESS:%.*]] = load i8*, i8** [[WITNESS_ADDR]]
-// CHECK:  [[INITWITHCOPY:%.*]] = bitcast i8* [[WITNESS]] to %swift.opaque* (%swift.opaque*, %swift.opaque*, %swift.type*)*
-// CHECK:  call %swift.opaque* [[INITWITHCOPY]](
+// CHECK:  [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[TYPE]], {{(i64|i32)}} -1
+// CHECK:  [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK:  [[WITNESS_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[VWT]], {{(i64|i32)}} 2
+// CHECK:  [[WITNESS:%.*]] = load ptr, ptr [[WITNESS_ADDR]]
+// CHECK:  call ptr [[WITNESS]](
 sil @dont_crash : $@convention(thin) (@in P) -> () {
 entry(%p : $*P):
   %0 = alloc_stack $P

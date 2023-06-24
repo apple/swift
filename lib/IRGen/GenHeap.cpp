@@ -1978,7 +1978,7 @@ emitHeapMetadataRefForUnknownHeapObject(IRGenFunction &IGF,
   auto metadata = IGF.Builder.CreateCall(
       IGF.IGM.getGetObjectClassFunctionPointer(), object);
   metadata->setName(object->getName() + ".Type");
-  metadata->setCallingConv(llvm::CallingConv::C);
+  metadata->setCallingConv(IGF.IGM.getOptions().PlatformCCallingConvention);
   metadata->setDoesNotThrow();
   metadata->addFnAttr(llvm::Attribute::ReadOnly);
   return metadata;

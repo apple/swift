@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend -enable-objc-interop -primary-file %s -emit-ir | %FileCheck %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-objc-interop -primary-file %s -emit-ir | %FileCheck %s
+// RUN: %target-swift-frontend -enable-objc-interop -primary-file %s -emit-ir
 
 // REQUIRES: CPU=x86_64
 

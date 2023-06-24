@@ -796,7 +796,7 @@ struct spawn_info {
   int memserver;
 };
 
-uint8_t spawn_stack[4096];
+uint8_t spawn_stack[4096] __attribute__((aligned(SWIFT_PAGE_SIZE)));
 
 int
 do_spawn(void *ptr) {

@@ -67,6 +67,13 @@ AccessLevelRequest::evaluate(Evaluator &evaluator, ValueDecl *D) const {
     }
   }
 
+  // Special case for opaque type decls, which inherit the access of their
+  // naming decls.
+  if (auto *opaqueType = dyn_cast<OpaqueTypeDecl>(D)) {
+    if (auto *namingDecl = opaqueType->getNamingDecl())
+      return namingDecl->getFormalAccess();
+  }
+
   DeclContext *DC = D->getDeclContext();
 
   // Special case for generic parameters; we just give them a dummy

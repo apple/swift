@@ -14,6 +14,7 @@
 
 #include "MoveOnlyDiagnostics.h"
 
+#include "swift/AST/Decl.h"
 #include "swift/AST/DiagnosticsSIL.h"
 #include "swift/AST/Stmt.h"
 #include "swift/Basic/Defer.h"
@@ -226,6 +227,12 @@ void DiagnosticEmitter::emitMissingConsumeInDiscardingContext(
       return true;
 
     case SILLocation::RegularKind: {
+      Decl *decl = loc.getAsASTNode<Decl>();
+      if (decl && isa<AbstractFunctionDecl>(decl)) {
+        // Having the function itself as a location results in a location at the
+        // first line of the function.  Find another location.
+        return false;
+      }
       Stmt *stmt = loc.getAsASTNode<Stmt>();
       if (!stmt)
         return true; // For non-statements, assume it is exiting the func.
@@ -283,12 +290,8 @@ void DiagnosticEmitter::emitMissingConsumeInDiscardingContext(
     //          / \        / \
     //         d   d      .   .
     //
-    BasicBlockSet visited(destroyPoint->getFunction());
-    std::deque<SILBasicBlock *> bfsWorklist = {destroyPoint->getParent()};
-    while (auto *bb = bfsWorklist.front()) {
-      visited.insert(bb);
-      bfsWorklist.pop_front();
-
+    BasicBlockWorkqueue bfsWorklist = {destroyPoint->getParent()};
+    while (auto *bb = bfsWorklist.pop()) {
       TermInst *term = bb->getTerminator();
 
       // Looking for a block that exits the function or terminates the program.
@@ -308,8 +311,7 @@ void DiagnosticEmitter::emitMissingConsumeInDiscardingContext(
       }
 
       for (auto *nextBB : term->getSuccessorBlocks())
-        if (!visited.contains(nextBB))
-          bfsWorklist.push_back(nextBB);
+        bfsWorklist.pushIfNotVisited(nextBB);
     }
   }
 
@@ -542,6 +544,19 @@ void DiagnosticEmitter::emitObjectDiagnosticsForPartialApplyUses(
 //                         MARK: Address Diagnostics
 //===----------------------------------------------------------------------===//
 
+static bool isClosureCapture(MarkMustCheckInst *markedValue) {
+  SILValue val = markedValue->getOperand();
+
+  // look past any project-box
+  if (auto *pbi = dyn_cast<ProjectBoxInst>(val))
+    val = pbi->getOperand();
+
+  if (auto *fArg = dyn_cast<SILFunctionArgument>(val))
+    return fArg->isClosureCapture();
+
+  return false;
+}
+
 void DiagnosticEmitter::emitAddressExclusivityHazardDiagnostic(
     MarkMustCheckInst *markedValue, SILInstruction *consumingUser) {
   if (!useWithDiagnostic.insert(consumingUser).second)
@@ -596,8 +611,8 @@ void DiagnosticEmitter::emitAddressDiagnostic(MarkMustCheckInst *markedValue,
     diagnose(
         astContext, markedValue,
         diag::
-            sil_movechecking_inout_not_reinitialized_before_end_of_function,
-        varName);
+            sil_movechecking_not_reinitialized_before_end_of_function,
+        varName, isClosureCapture(markedValue));
     diagnose(astContext, violatingUser,
              diag::sil_movechecking_consuming_use_here);
     return;
@@ -647,8 +662,8 @@ void DiagnosticEmitter::emitInOutEndOfFunctionDiagnostic(
   // consuming message:
   diagnose(
       astContext, markedValue,
-      diag::sil_movechecking_inout_not_reinitialized_before_end_of_function,
-      varName);
+      diag::sil_movechecking_not_reinitialized_before_end_of_function,
+      varName, isClosureCapture(markedValue));
   diagnose(astContext, violatingUser,
            diag::sil_movechecking_consuming_use_here);
 }

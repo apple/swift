@@ -16,7 +16,6 @@
 
 // These two appear out-of-order between run lines
 
-// CHECK-DAG: [[MYCLASS:%T20PrivateStoredMembers7MyClassC]] = type 
 // CHECK-DAG: [[MYSTRUCT:%T20PrivateStoredMembers8MyStructV]] = type <{ %Ts5Int64V, %TSb, [7 x i8], %Ts5Int64V, %TSb, [7 x i8], %Ts5Int64V, %TSb, [7 x i8], %Ts5Int64V, %TSb, [7 x i8], %Ts5Int64V }>
 
 // CHECK-MAIN-DAG: [[MYCLASS:%T4main7MyClassC]] = type <{ %swift.refcounted, %Ts5Int64V, %TSb, [7 x i8], %Ts5Int64V, %TSb, [7 x i8], %Ts5Int64V, %TSb, [7 x i8], %Ts5Int64V, %TSb, [7 x i8], %Ts5Int64V }>
@@ -29,22 +28,22 @@ import PrivateStoredMembers
 // CHECK-EXEC: swiftcc void @"$s{{[^ ]+}}8makeUseryyF"() #0 {
 public func makeUser() {
   let ptr = UnsafeMutablePointer<MyStruct>.allocate(capacity: 1)
-  // CHECK-EXEC: %.publicEndVar = getelementptr inbounds [[MYSTRUCT]], [[MYSTRUCT]]* %{{[0-9]+}}, i32 0, i32 [[PUBLIC_END_VAR_IDX:12]]
-  // CHECK-EXEC: %.publicEndVar._value = getelementptr inbounds %Ts5Int64V, %Ts5Int64V* %.publicEndVar, i32 0, i32 0
-  // CHECK-EXEC: store i64 4, i64* %.publicEndVar._value
+  // CHECK-EXEC: %.publicEndVar = getelementptr inbounds [[MYSTRUCT]], ptr %{{[0-9]+}}, i32 0, i32 [[PUBLIC_END_VAR_IDX:12]]
+  // CHECK-EXEC: %.publicEndVar._value = getelementptr inbounds %Ts5Int64V, ptr %.publicEndVar, i32 0, i32 0
+  // CHECK-EXEC: store i64 4, ptr %.publicEndVar._value
   ptr.pointee.publicEndVar = 4
 
-  // CHECK-EXEC: %.publicEndVar1 = getelementptr inbounds [[MYSTRUCT]], [[MYSTRUCT]]* %{{[0-9]+}}, i32 0, i32 [[PUBLIC_END_VAR_IDX]]
-  // CHECK-EXEC: %.publicEndVar1._value = getelementptr inbounds %Ts5Int64V, %Ts5Int64V* %.publicEndVar1, i32 0, i32 0
-  // CHECK-EXEC: [[PUBLIC_END_VAR_LOAD:%[0-9]+]] = load i64, i64* %.publicEndVar1._value, align 8
+  // CHECK-EXEC: %.publicEndVar1 = getelementptr inbounds [[MYSTRUCT]], ptr %{{[0-9]+}}, i32 0, i32 [[PUBLIC_END_VAR_IDX]]
+  // CHECK-EXEC: %.publicEndVar1._value = getelementptr inbounds %Ts5Int64V, ptr %.publicEndVar1, i32 0, i32 0
+  // CHECK-EXEC: [[PUBLIC_END_VAR_LOAD:%[0-9]+]] = load i64, ptr %.publicEndVar1._value, align 8
 
-  // CHECK-EXEC: %.publicVar = getelementptr inbounds [[MYSTRUCT]], [[MYSTRUCT]]* %{{[0-9]+}}, i32 0, i32 0
-  // CHECK-EXEC: %.publicVar._value = getelementptr inbounds %Ts5Int64V, %Ts5Int64V* %.publicVar, i32 0, i32 0
-  // CHECK-EXEC: store i64 [[PUBLIC_END_VAR_LOAD]], i64* %.publicVar._value, align 8
+  // CHECK-EXEC: %.publicVar = getelementptr inbounds [[MYSTRUCT]], ptr %{{[0-9]+}}, i32 0, i32 0
+  // CHECK-EXEC: %.publicVar._value = getelementptr inbounds %Ts5Int64V, ptr %.publicVar, i32 0, i32 0
+  // CHECK-EXEC: store i64 [[PUBLIC_END_VAR_LOAD]], ptr %.publicVar._value, align 8
   ptr.pointee.publicVar = ptr.pointee.publicEndVar
   ptr.deallocate()
 
-  // CHECK-EXEC: %[[MYCLASS_INIT:[0-9]+]] = call swiftcc [[MYCLASS]]* @"$s{{[^ ]+}}7MyClassCACycfC"(%swift.type* swiftself %{{[0-9]+}})
+  // CHECK-EXEC: %[[MYCLASS_INIT:[0-9]+]] = call swiftcc ptr @"$s{{[^ ]+}}7MyClassCACycfC"(ptr swiftself %{{[0-9]+}})
   let myClass = MyClass()
 
   // These are uninteresting as they just call into the standard getter and setter.

@@ -25,14 +25,14 @@
 //           :   i32 trunc (
 //           :     i64 sub (
 //           :       i64 ptrtoint (
-//           :         %swift.type* (
-//           :           %swift.type_descriptor*, 
-//           :           i8**, 
-//           :           i8*
+//           :         ptr (
+//           :           ptr, 
+//           :           ptr, 
+//           :           ptr
 //           :         )* @"$s4main6EitherOMi" to i64
 //           :       ), 
 //           :       i64 ptrtoint (
-//           :         <{ i32, i32, i32, i32, i32, i16, i16 }>* @"$s4main6EitherOMP" to i64
+//           :         ptr @"$s4main6EitherOMP" to i64
 //           :       )
 //           :     ) to i32
 //           :   ), 
@@ -41,12 +41,12 @@
 //           :   i32 trunc (
 //           :     i64 sub (
 //           :       i64 ptrtoint (
-//           :         %swift.enum_vwtable* @"$s4main6EitherOWV" to i64
+//           :         ptr @"$s4main6EitherOWV" to i64
 //           :       ), 
 //           :       i64 ptrtoint (
-//           :         i32* getelementptr inbounds (
+//           :         ptr getelementptr inbounds (
 //           :           <{ i32, i32, i32, i32, i32, i16, i16 }>, 
-//           :           <{ i32, i32, i32, i32, i32, i16, i16 }>* @"$s4main6EitherOMP", 
+//           :           ptr @"$s4main6EitherOMP", 
 //           :           i32 0, 
 //           :           i32 3
 //           :         ) to i64
@@ -56,12 +56,12 @@
 //           :   i32 trunc (
 // CHECK-SAME:     [[INT]] sub (
 // CHECK-SAME:       [[INT]] ptrtoint (
-// CHECK-SAME:         <{ [[INT]], i64 }>* [[EXTRA_DATA_PATTERN]] to [[INT]]
+// CHECK-SAME:         ptr [[EXTRA_DATA_PATTERN]] to [[INT]]
 // CHECK-SAME:       ), 
 // CHECK-SAME:       [[INT]] ptrtoint (
-// CHECK-SAME:         i32* getelementptr inbounds (
+// CHECK-SAME:         ptr getelementptr inbounds (
 // CHECK-SAME:           <{ i32, i32, i32, i32, i32, i16, i16 }>, 
-// CHECK-SAME:           <{ i32, i32, i32, i32, i32, i16, i16 }>* @"$s4main6EitherOMP", 
+// CHECK-SAME:           ptr @"$s4main6EitherOMP", 
 // CHECK-SAME:           i32 0, 
 // CHECK-SAME:           i32 4
 // CHECK-SAME:         ) to [[INT]]

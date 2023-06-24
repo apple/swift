@@ -75,7 +75,7 @@
 // COMPLEX: bin{{/|\\\\}}swift
 // COMPLEX: -c
 // COMPLEX: Driver{{/|\\\\}}driver-compile.swift
-// COMPLEX-DAG: -sdk {{.*}}/Inputs/clang-importer-sdk
+// COMPLEX-DAG: -sdk
 // COMPLEX-DAG: -foo -bar
 // COMPLEX-DAG: -Xllvm -baz
 // COMPLEX-DAG: -Xcc -garply

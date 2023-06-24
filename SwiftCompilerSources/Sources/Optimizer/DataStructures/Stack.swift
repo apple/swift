@@ -47,17 +47,17 @@ struct Stack<Element> : CollectionLikeSequence {
     
     mutating func next() -> Element? {
       let end = (slab.data == lastSlab.data ? endIndex : slabCapacity)
-      if index < end {
-        let elem = Stack.bind(slab)[index]
-        index += 1
-
-        if index >= end && slab.data != lastSlab.data {
-          slab = slab.getNext()
-          index = 0
-        }
-        return elem
+      
+      guard index < end else { return nil }
+    
+      let elem = Stack.bind(slab)[index]
+      index += 1
+      
+      if index >= end && slab.data != lastSlab.data {
+        slab = slab.getNext()
+        index = 0
       }
-      return nil
+      return elem
     }
   }
   

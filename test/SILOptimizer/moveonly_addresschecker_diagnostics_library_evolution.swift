@@ -1,4 +1,4 @@
-// RUN: %target-swift-emit-sil -enable-experimental-feature NoImplicitCopy -sil-verify-all -verify -enable-library-evolution %s
+// RUN: %target-swift-emit-sil -enable-experimental-feature NoImplicitCopy -sil-verify-all -verify -enable-library-evolution -enable-experimental-feature MoveOnlyResilientTypes %s
 
 // This test is used to validate that we properly handle library evolution code
 // until we can get all of the normal moveonly_addresschecker_diagnostics test

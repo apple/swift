@@ -1,6 +1,7 @@
 // RUN: %empty-directory(%t)
 // RUN: %build-irgen-test-overlays
-// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) %s -emit-ir -target %target-pre-stable-abi-triple | %FileCheck %s -DINT=i%target-ptrsize --check-prefix=CHECK --check-prefix=CHECK-OLD
+// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) %use_no_opaque_pointers  %s -emit-ir -target %target-pre-stable-abi-triple | %FileCheck %s -DINT=i%target-ptrsize --check-prefix=CHECK --check-prefix=CHECK-OLD
+// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) %s -emit-ir -target %target-pre-stable-abi-triple
 
 // REQUIRES: objc_interop
 // UNSUPPORTED: swift_only_stable_abi

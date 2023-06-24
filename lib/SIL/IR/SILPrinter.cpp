@@ -28,6 +28,7 @@
 #include "swift/Demangling/Demangle.h"
 #include "swift/SIL/ApplySite.h"
 #include "swift/SIL/CFG.h"
+#include "swift/SIL/InstructionUtils.h"
 #include "swift/SIL/SILArgument.h"
 #include "swift/SIL/SILCoverageMap.h"
 #include "swift/SIL/SILDebugScope.h"
@@ -853,6 +854,12 @@ public:
     }
     *this << ')';
   }
+
+#ifndef NDEBUG
+  void printID(const SILBasicBlock *BB) {
+    *this << Ctx.getID(BB) << "\n";
+  }
+#endif
 
   void print(const SILBasicBlock *BB) {
     // Output uses for BB arguments. These are put into place as comments before
@@ -1725,8 +1732,7 @@ public:
     }
   }
 
-  void printForwardingOwnershipKind(OwnershipForwardingMixin *inst,
-                                    SILValue op) {
+  void printForwardingOwnershipKind(ForwardingInstruction *inst, SILValue op) {
     if (!op)
       return;
 
@@ -1932,9 +1938,9 @@ public:
       *this << " !false_count(" << CI->getFalseBBCount().getValue() << ")";
   }
 
-  void printUncheckedConversionInst(ConversionInst *CI, SILValue operand) {
+  void printUncheckedConversionInst(ConversionOperation CI, SILValue operand) {
     *this << getIDAndType(operand) << " to " << CI->getType();
-    if (auto *ofci = dyn_cast<OwnershipForwardingConversionInst>(CI)) {
+    if (auto *ofci = dyn_cast<OwnershipForwardingSingleValueInstruction>(*CI)) {
       printForwardingOwnershipKind(ofci, ofci->getOperand(0));
     }
   }
@@ -1958,11 +1964,11 @@ public:
           << getIDAndType(CI->getOperand()) << " to " << CI->getType();
   }
   void visitUpcastInst(UpcastInst *CI) {
-    printUncheckedConversionInst(CI, CI->getOperand());
+    printUncheckedConversionInst(ConversionOperation(CI), CI->getOperand());
   }
   void visitAddressToPointerInst(AddressToPointerInst *CI) {
     *this << (CI->needsStackProtection() ? "[stack_protection] " : "");
-    printUncheckedConversionInst(CI, CI->getOperand());
+    printUncheckedConversionInst(ConversionOperation(CI), CI->getOperand());
   }
   void visitPointerToAddressInst(PointerToAddressInst *CI) {
     *this << getIDAndType(CI->getOperand()) << " to ";
@@ -1975,7 +1981,7 @@ public:
     *this << CI->getType();
   }
   void visitUncheckedRefCastInst(UncheckedRefCastInst *CI) {
-    printUncheckedConversionInst(CI, CI->getOperand());
+    printUncheckedConversionInst(ConversionOperation(CI), CI->getOperand());
   }
   void visitUncheckedRefCastAddrInst(UncheckedRefCastAddrInst *CI) {
     *this << ' ' << CI->getSourceFormalType() << " in " << getIDAndType(CI->getSrc())
@@ -1983,64 +1989,64 @@ public:
           << getIDAndType(CI->getDest());
   }
   void visitUncheckedAddrCastInst(UncheckedAddrCastInst *CI) {
-    printUncheckedConversionInst(CI, CI->getOperand());
+    printUncheckedConversionInst(ConversionOperation(CI), CI->getOperand());
   }
   void visitUncheckedTrivialBitCastInst(UncheckedTrivialBitCastInst *CI) {
-    printUncheckedConversionInst(CI, CI->getOperand());
+    printUncheckedConversionInst(ConversionOperation(CI), CI->getOperand());
   }
   void visitUncheckedBitwiseCastInst(UncheckedBitwiseCastInst *CI) {
-    printUncheckedConversionInst(CI, CI->getOperand());
+    printUncheckedConversionInst(ConversionOperation(CI), CI->getOperand());
   }
   void visitUncheckedValueCastInst(UncheckedValueCastInst *CI) {
-    printUncheckedConversionInst(CI, CI->getOperand());
+    printUncheckedConversionInst(ConversionOperation(CI), CI->getOperand());
   }
   void visitRefToRawPointerInst(RefToRawPointerInst *CI) {
-    printUncheckedConversionInst(CI, CI->getOperand());
+    printUncheckedConversionInst(ConversionOperation(CI), CI->getOperand());
   }
   void visitRawPointerToRefInst(RawPointerToRefInst *CI) {
-    printUncheckedConversionInst(CI, CI->getOperand());
+    printUncheckedConversionInst(ConversionOperation(CI), CI->getOperand());
   }
 
-#define LOADABLE_REF_STORAGE(Name, ...) \
-  void visitRefTo##Name##Inst(RefTo##Name##Inst *CI) { \
-    printUncheckedConversionInst(CI, CI->getOperand()); \
-  } \
-  void visit##Name##ToRefInst(Name##ToRefInst *CI) { \
-    printUncheckedConversionInst(CI, CI->getOperand()); \
+#define LOADABLE_REF_STORAGE(Name, ...)                                        \
+  void visitRefTo##Name##Inst(RefTo##Name##Inst *CI) {                         \
+    printUncheckedConversionInst(ConversionOperation(CI), CI->getOperand());   \
+  }                                                                            \
+  void visit##Name##ToRefInst(Name##ToRefInst *CI) {                           \
+    printUncheckedConversionInst(ConversionOperation(CI), CI->getOperand());   \
   }
 #include "swift/AST/ReferenceStorage.def"
   void visitThinToThickFunctionInst(ThinToThickFunctionInst *CI) {
-    printUncheckedConversionInst(CI, CI->getOperand());
+    printUncheckedConversionInst(ConversionOperation(CI), CI->getOperand());
   }
   void visitThickToObjCMetatypeInst(ThickToObjCMetatypeInst *CI) {
-    printUncheckedConversionInst(CI, CI->getOperand());
+    printUncheckedConversionInst(ConversionOperation(CI), CI->getOperand());
   }
   void visitObjCToThickMetatypeInst(ObjCToThickMetatypeInst *CI) {
-    printUncheckedConversionInst(CI, CI->getOperand());
+    printUncheckedConversionInst(ConversionOperation(CI), CI->getOperand());
   }
   void visitObjCMetatypeToObjectInst(ObjCMetatypeToObjectInst *CI) {
-    printUncheckedConversionInst(CI, CI->getOperand());
+    printUncheckedConversionInst(ConversionOperation(CI), CI->getOperand());
   }
   void visitObjCExistentialMetatypeToObjectInst(
                                       ObjCExistentialMetatypeToObjectInst *CI) {
-    printUncheckedConversionInst(CI, CI->getOperand());
+    printUncheckedConversionInst(ConversionOperation(CI), CI->getOperand());
   }
   void visitObjCProtocolInst(ObjCProtocolInst *CI) {
     *this << "#" << CI->getProtocol()->getName() << " : " << CI->getType();
   }
   
   void visitRefToBridgeObjectInst(RefToBridgeObjectInst *I) {
-    *this << getIDAndType(I->getConverted()) << ", "
+    *this << getIDAndType(I->getOperand(0)) << ", "
           << getIDAndType(I->getBitsOperand());
-    printForwardingOwnershipKind(I, I->getConverted());
+    printForwardingOwnershipKind(I, I->getOperand(0));
   }
-  
+
   void visitBridgeObjectToRefInst(BridgeObjectToRefInst *I) {
-    printUncheckedConversionInst(I, I->getOperand());
+    printUncheckedConversionInst(ConversionOperation(I), I->getOperand());
     printForwardingOwnershipKind(I, I->getOperand());
   }
   void visitBridgeObjectToWordInst(BridgeObjectToWordInst *I) {
-    printUncheckedConversionInst(I, I->getOperand());
+    printUncheckedConversionInst(ConversionOperation(I), I->getOperand());
   }
 
   void visitCopyValueInst(CopyValueInst *I) {
@@ -2712,21 +2718,6 @@ public:
     printSelectEnumInst(SEI);
   }
 
-  void visitSelectValueInst(SelectValueInst *SVI) {
-    *this << getIDAndType(SVI->getOperand());
-
-    for (unsigned i = 0, e = SVI->getNumCases(); i < e; ++i) {
-      SILValue casevalue;
-      SILValue result;
-      std::tie(casevalue, result) = SVI->getCase(i);
-      *this << ", case " << Ctx.getID(casevalue) << ": " << Ctx.getID(result);
-    }
-    if (SVI->hasDefault())
-      *this << ", default " << Ctx.getID(SVI->getDefaultResult());
-
-    *this << " : " << SVI->getType();
-  }
-  
   void visitDynamicMethodBranchInst(DynamicMethodBranchInst *DMBI) {
     *this << getIDAndType(DMBI->getOperand()) << ", " << DMBI->getMember()
           << ", " << Ctx.getID(DMBI->getHasMethodBB()) << ", "
@@ -3100,6 +3091,21 @@ void SILBasicBlock::print(raw_ostream &OS) const {
 void SILBasicBlock::print(SILPrintContext &Ctx) const {
   SILPrinter(Ctx).print(this);
 }
+
+#ifndef NDEBUG
+void SILBasicBlock::dumpID() const {
+  printID(llvm::errs());
+}
+
+void SILBasicBlock::printID(llvm::raw_ostream &OS) const {
+  SILPrintContext Ctx(OS);
+  printID(Ctx);
+}
+
+void SILBasicBlock::printID(SILPrintContext &Ctx) const {
+  SILPrinter(Ctx).printID(this);
+}
+#endif
 
 /// Pretty-print the SILFunction to errs.
 void SILFunction::dump(bool Verbose) const {

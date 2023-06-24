@@ -236,6 +236,15 @@ public:
   ManagedValue createUncheckedTakeEnumDataAddr(SILLocation loc, ManagedValue operand,
                                                EnumElementDecl *element, SILType ty);
 
+  /// Given the address of a value, load a scalar value from it if the type
+  /// is loadable.  Most general routines in SILGen expect to work with
+  /// values with the canonical scalar-ness for their type.
+  ManagedValue createLoadIfLoadable(SILLocation loc, ManagedValue addr);
+
+  /// Given the address of a loadable value, load the value but don't
+  /// change the ownership.
+  ManagedValue createLoadWithSameOwnership(SILLocation loc, ManagedValue addr);
+
   ManagedValue createLoadTake(SILLocation loc, ManagedValue addr);
   ManagedValue createLoadTake(SILLocation loc, ManagedValue addr,
                               const TypeLowering &lowering);

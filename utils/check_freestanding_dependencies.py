@@ -56,7 +56,6 @@ common_expected_dependencies = [
     "_posix_memalign", "_putc", "_read", "_realloc", "_snprintf", "_strchr",
     "_strcmp", "_strdup", "_strlen", "_strncmp", "_strtod", "_strtof",
     "_strtol", "_strtold", "_vprintf", "_vsnprintf", "_write",
-    "_stat", "_stat$INODE64",
 ] + cxx_dependencies + math_dependencies
 vendor_apple_specific_dependencies = [
     "___stack_chk_fail", "___stack_chk_guard",

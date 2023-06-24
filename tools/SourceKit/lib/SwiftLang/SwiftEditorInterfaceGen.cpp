@@ -265,6 +265,46 @@ static void reportSemanticAnnotations(const SourceTextInfo &IFaceInfo,
   }
 }
 
+namespace {
+/// A diagnostic consumer that picks up module loading errors.
+class ModuleLoadingErrorConsumer final : public DiagnosticConsumer {
+  llvm::SmallVector<std::string, 2> DiagMessages;
+
+  void handleDiagnostic(SourceManager &SM,
+                        const DiagnosticInfo &Info) override {
+    // Only record errors for now. In the future it might be useful to pick up
+    // some notes, but some notes are just noise.
+    if (Info.Kind != DiagnosticKind::Error)
+      return;
+
+    std::string Message;
+    {
+      llvm::raw_string_ostream Out(Message);
+      DiagnosticEngine::formatDiagnosticText(Out, Info.FormatString,
+                                             Info.FormatArgs);
+    }
+    // We're only interested in the first and last errors. For a clang module
+    // failure, the first error will be the reason why the module failed to
+    // load, and the last error will be a generic "could not build Obj-C module"
+    // error. For a Swift module, we'll typically only emit one error.
+    //
+    // NOTE: Currently when loading transitive dependencies for a Swift module,
+    // we'll only diagnose the root failure, and not record the error for the
+    // top-level module failure, as we stop emitting errors after a fatal error
+    // has been recorded. This is currently fine for our use case though, as
+    // we already include the top-level module name in the error we hand back.
+    if (DiagMessages.size() < 2) {
+      DiagMessages.emplace_back(std::move(Message));
+    } else {
+      DiagMessages.back() = std::move(Message);
+    }
+  }
+
+public:
+  ArrayRef<std::string> getDiagMessages() { return DiagMessages; }
+};
+} // end anonymous namespace
+
 static bool getModuleInterfaceInfo(ASTContext &Ctx,
                                    StringRef ModuleName,
                                    Optional<StringRef> Group,
@@ -280,21 +320,35 @@ static bool getModuleInterfaceInfo(ASTContext &Ctx,
     return true;
   }
 
-  // Get the (sub)module to generate.
-  Mod = Ctx.getModuleByName(ModuleName);
-  if (!Mod) {
-    ErrMsg = "Could not load module: ";
-    ErrMsg += ModuleName;
-    return true;
+  // Get the (sub)module to generate, recording the errors emitted.
+  ModuleLoadingErrorConsumer DiagConsumer;
+  {
+    DiagnosticConsumerRAII R(Ctx.Diags, DiagConsumer);
+    Mod = Ctx.getModuleByName(ModuleName);
   }
-  if (Mod->failedToLoad()) {
-    // We might fail to load the underlying Clang module
-    // for a Swift overlay module like 'CxxStdlib', or a mixed-language
-    // framework. Make sure an error is reported in this case, so that we can
-    // either retry to load with C++ interoperability enabled, and if that
-    // fails, we can report this to the user.
-    ErrMsg = "Could not load underlying module for: ";
-    ErrMsg += ModuleName;
+
+  // Check to see if we either couldn't find the module, or we failed to load
+  // it, and report an error message back that includes the diagnostics we
+  // collected, which should help pinpoint what the issue was. Note we do this
+  // even if `Mod` is null, as the clang importer currently returns nullptr
+  // when a module fails to load, and there may be interesting errors to
+  // collect there.
+  // Note that us failing here also means the caller may retry with e.g C++
+  // interoperability enabled.
+  if (!Mod || Mod->failedToLoad()) {
+    llvm::raw_string_ostream OS(ErrMsg);
+
+    OS << "Could not load module: ";
+    OS << ModuleName;
+    auto ModuleErrs = DiagConsumer.getDiagMessages();
+    if (!ModuleErrs.empty()) {
+      // We print the errors in reverse, as they are typically emitted in
+      // a bottom-up manner by module loading, and a top-down presentation
+      // makes more sense.
+      OS << " (";
+      llvm::interleaveComma(llvm::reverse(ModuleErrs), OS);
+      OS << ")";
+    }
     return true;
   }
 

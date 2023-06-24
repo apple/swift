@@ -5,6 +5,7 @@
 // long enough in the same form to be worth rewriting CHECK lines.
 
 // REQUIRES: objc_interop
+// REQUIRES: swift_in_compiler
 
 import ObjectiveC
 
@@ -68,7 +69,7 @@ class Cat : FakeNSObject {
     // CHECK-NEXT: strong_release [[ARG2]]
     // CHECK-NEXT: [[RELOAD_ARG2:%.*]] = load [[SELF_BOX]]
     // CHECK-NEXT: [[SUPER:%.*]] = upcast [[RELOAD_ARG2]] : $Cat to $FakeNSObject
-    // CHECK-NEXT: [[SUB:%.*]] = unchecked_ref_cast [[SUPER]] : $FakeNSObject to $Cat
+    // CHECK-NEXT: [[SUB:%.*]] = unchecked_ref_cast [[RELOAD_ARG2]] : $Cat to $Cat
     // CHECK-NEXT: [[SUPER_FN:%.*]] = objc_super_method [[SUB]] : $Cat, #FakeNSObject.init!initializer.foreign : (FakeNSObject.Type) -> () -> FakeNSObject, $@convention(objc_method) (@owned FakeNSObject) -> @owned FakeNSObject
     // CHECK-NEXT: [[NEW_SUPER_SELF:%.*]] = apply [[SUPER_FN]]([[SUPER]]) : $@convention(objc_method) (@owned FakeNSObject) -> @owned FakeNSObject
     // CHECK-NEXT: [[NEW_SELF:%.*]] = unchecked_ref_cast [[NEW_SUPER_SELF]] : $FakeNSObject to $Cat

@@ -568,14 +568,14 @@ entry(%intIndex : $Builtin.Word):
 }
 
 // Verify that we just gep into a parameter pack when that's all that the pack consists of.
-// CHECK-LL: define {{.*}}void @direct_access_from_parameter(i{{(32|64)}} [[INDEX:%[^,]+]], i{{(32|64)}} {{%[^,]+}}, %swift.type** [[PACK:%[^,]+]])
-// CHECK-LL-UNOPT:  [[PACK_ADDR_FOR_DI:%.*]] = ptrtoint %swift.type** [[PACK]] to i{{(32|64)}}
-// CHECK-LL:  [[PACK_ADDR:%.*]] = ptrtoint %swift.type** [[PACK]] to i{{(32|64)}}
+// CHECK-LL: define {{.*}}void @direct_access_from_parameter(i{{(32|64)}} [[INDEX:%[^,]+]], i{{(32|64)}} {{%[^,]+}}, ptr [[PACK:%[^,]+]])
+// CHECK-LL-UNOPT:  [[PACK_ADDR_FOR_DI:%.*]] = ptrtoint ptr [[PACK]] to i{{(32|64)}}
+// CHECK-LL:  [[PACK_ADDR:%.*]] = ptrtoint ptr [[PACK]] to i{{(32|64)}}
 // CHECK-LL:  [[PACK_ADDR2:%.*]] = and i{{(32|64)}} [[PACK_ADDR]], -2
-// CHECK-LL:  [[PACK:%.*]] = inttoptr i{{(32|64)}} [[PACK_ADDR2]] to %swift.type**
-// CHECK-LL:   [[ELEMENT_ADDRESS:%[^,]+]] = getelementptr inbounds %swift.type*, %swift.type** [[PACK]], i{{(32|64)}} [[INDEX]]
-// CHECK-LL:   [[ELEMENT:%[^,]+]] = load %swift.type*, %swift.type** [[ELEMENT_ADDRESS]]
-// CHECK-LL:   call swiftcc void @printGenericType(%swift.type* [[ELEMENT]], %swift.type* [[ELEMENT]])
+// CHECK-LL:  [[PACK:%.*]] = inttoptr i{{(32|64)}} [[PACK_ADDR2]] to ptr
+// CHECK-LL:   [[ELEMENT_ADDRESS:%[^,]+]] = getelementptr inbounds ptr, ptr [[PACK]], i{{(32|64)}} [[INDEX]]
+// CHECK-LL:   [[ELEMENT:%[^,]+]] = load ptr, ptr [[ELEMENT_ADDRESS]]
+// CHECK-LL:   call swiftcc void @printGenericType(ptr [[ELEMENT]], ptr [[ELEMENT]])
 sil @direct_access_from_parameter : $<each T_1> (Builtin.Word) -> () {
 entry(%intIndex : $Builtin.Word):
   %innerIndex = dynamic_pack_index %intIndex of $Pack{repeat each T_1}
@@ -591,20 +591,20 @@ entry(%intIndex : $Builtin.Word):
 // CHECK-LL-LABEL: define {{.*}}@direct_access_from_parameter_with_conformance(
 // CHECK-LL-SAME:        i{{(32|64)}} [[INDEX:%[^,]+]], 
 // CHECK-LL-SAME:        i{{(32|64)}} {{%[^,]+}},
-// CHECK-LL-SAME:        %swift.type** [[METADATA_PACK:%[^,]+]],
-// CHECK-LL-SAME:        i8*** [[WTABLE_PACK:%[^,]+]])
-// CHECK-LL-UNOPT:   [[PACK_ADDR_FOR_DI:%.*]] = ptrtoint %swift.type** [[METADATA_PACK]] to i{{(32|64)}}
-// CHECK-LL:         [[PACK_ADDR:%.*]] = ptrtoint %swift.type** [[METADATA_PACK]] to i{{(32|64)}}
+// CHECK-LL-SAME:        ptr [[METADATA_PACK:%[^,]+]],
+// CHECK-LL-SAME:        ptr [[WTABLE_PACK:%[^,]+]])
+// CHECK-LL-UNOPT:   [[PACK_ADDR_FOR_DI:%.*]] = ptrtoint ptr [[METADATA_PACK]] to i{{(32|64)}}
+// CHECK-LL:         [[PACK_ADDR:%.*]] = ptrtoint ptr [[METADATA_PACK]] to i{{(32|64)}}
 // CHECK-LL:         [[PACK_ADDR2:%.*]] = and i{{(32|64)}} [[PACK_ADDR]], -2
-// CHECK-LL:         [[METADATA_PACK:%.*]] = inttoptr i{{(32|64)}} [[PACK_ADDR2]] to %swift.type**
-// CHECK-LL:         [[METADATA_ADDRESS:%[^,]+]] = getelementptr inbounds %swift.type*, %swift.type**        [[METADATA_PACK]], i{{(32|64)}} [[INDEX]]
-// CHECK-LL:         [[METADATA:%[^,]+]] = load %swift.type*, %swift.type** [[METADATA_ADDRESS]]
-// CHECK-LL:         [[PACK_ADDR:%.*]] = ptrtoint i8*** [[WTABLE_PACK]] to i{{(32|64)}}
+// CHECK-LL:         [[METADATA_PACK:%.*]] = inttoptr i{{(32|64)}} [[PACK_ADDR2]] to ptr
+// CHECK-LL:         [[METADATA_ADDRESS:%[^,]+]] = getelementptr inbounds ptr, ptr        [[METADATA_PACK]], i{{(32|64)}} [[INDEX]]
+// CHECK-LL:         [[METADATA:%[^,]+]] = load ptr, ptr [[METADATA_ADDRESS]]
+// CHECK-LL:         [[PACK_ADDR:%.*]] = ptrtoint ptr [[WTABLE_PACK]] to i{{(32|64)}}
 // CHECK-LL:         [[PACK_ADDR2:%.*]] = and i{{(32|64)}} [[PACK_ADDR]], -2
-// CHECK-LL:         [[WTABLE_PACK:%.*]] = inttoptr i{{(32|64)}} [[PACK_ADDR2]] to i8***
-// CHECK-LL:         [[WTABLE_ADDRESS:%[^,]+]] = getelementptr inbounds i8**, i8*** [[WTABLE_PACK]], i{{(32|64)}} [[INDEX]]
-// CHECK-LL:         [[WTABLE:%[^,]+]] = load i8**, i8*** [[WTABLE_ADDRESS]], align
-// CHECK-LL:         call swiftcc void @printGenericType(%swift.type* [[METADATA]], %swift.type* [[METADATA]])
+// CHECK-LL:         [[WTABLE_PACK:%.*]] = inttoptr i{{(32|64)}} [[PACK_ADDR2]] to ptr
+// CHECK-LL:         [[WTABLE_ADDRESS:%[^,]+]] = getelementptr inbounds ptr, ptr [[WTABLE_PACK]], i{{(32|64)}} [[INDEX]]
+// CHECK-LL:         [[WTABLE:%[^,]+]] = load ptr, ptr [[WTABLE_ADDRESS]], align
+// CHECK-LL:         call swiftcc void @printGenericType(ptr [[METADATA]], ptr [[METADATA]])
 sil @direct_access_from_parameter_with_conformance : $<each T_1 : P> (Builtin.Word) -> () {
 entry(%intIndex : $Builtin.Word):
   %innerIndex = dynamic_pack_index %intIndex of $Pack{repeat each T_1}

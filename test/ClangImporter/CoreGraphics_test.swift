@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend -module-name=cgtest -emit-ir -O %s | %FileCheck %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers -module-name=cgtest -emit-ir -O %s | %FileCheck %s
+// RUN: %target-swift-frontend -module-name=cgtest -emit-ir -O %s
 
 // Test some imported CG APIs
 import CoreGraphics

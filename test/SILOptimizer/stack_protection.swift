@@ -118,3 +118,10 @@ public func loadUnaligned(_ urp: UnsafeRawPointer) -> Int {
   return urp.loadUnaligned(as: Int.self)
 }
 
+// CHECK-LABEL: sil @$s4test19storeBytesToPointeryySv_SitF :
+// CHECK-NOT:     copy_addr
+// CHECK:       } // end sil function '$s4test19storeBytesToPointeryySv_SitF'
+public func storeBytesToPointer(_ p: UnsafeMutableRawPointer, _ i: Int) {
+  p.storeBytes(of: i, as: Int.self)
+}
+

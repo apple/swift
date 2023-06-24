@@ -306,6 +306,9 @@ enum class FixKind : uint8_t {
   /// This issue should already have been diagnosed elsewhere.
   IgnoreUnresolvedPatternVar,
 
+  /// Ignore a nested UnresolvedPatternExpr in an ExprPattern, which is invalid.
+  IgnoreInvalidPatternInExpr,
+
   /// Resolve type of `nil` by providing a contextual type.
   SpecifyContextualTypeForNil,
 
@@ -447,6 +450,10 @@ enum class FixKind : uint8_t {
 
   /// Ignore missing 'each' keyword before value pack reference.
   IgnoreMissingEachKeyword,
+
+  /// Ignore the fact that member couldn't be referenced within init accessor
+  /// because its name doesn't appear in 'initializes' or 'accesses' attributes.
+  AllowInvalidMemberReferenceInInitAccessor,
 };
 
 class ConstraintFix {
@@ -2959,6 +2966,33 @@ public:
   }
 };
 
+class IgnoreInvalidPatternInExpr final : public ConstraintFix {
+  Pattern *P;
+
+  IgnoreInvalidPatternInExpr(ConstraintSystem &cs, Pattern *pattern,
+                             ConstraintLocator *locator)
+      : ConstraintFix(cs, FixKind::IgnoreInvalidPatternInExpr, locator),
+        P(pattern) {}
+
+public:
+  std::string getName() const override {
+    return "ignore invalid Pattern nested in Expr";
+  }
+
+  bool diagnose(const Solution &solution, bool asNote = false) const override;
+
+  bool diagnoseForAmbiguity(CommonFixesArray commonFixes) const override {
+    return diagnose(*commonFixes.front().first);
+  }
+
+  static IgnoreInvalidPatternInExpr *
+  create(ConstraintSystem &cs, Pattern *pattern, ConstraintLocator *locator);
+
+  static bool classof(const ConstraintFix *fix) {
+    return fix->getKind() == FixKind::IgnoreInvalidPatternInExpr;
+  }
+};
+
 class SpecifyContextualTypeForNil final : public ConstraintFix {
   SpecifyContextualTypeForNil(ConstraintSystem &cs,
                               ConstraintLocator *locator)
@@ -3533,6 +3567,39 @@ public:
 
   static bool classof(const ConstraintFix *fix) {
     return fix->getKind() == FixKind::IgnoreMissingEachKeyword;
+  }
+};
+
+class AllowInvalidMemberReferenceInInitAccessor final : public ConstraintFix {
+  DeclNameRef MemberName;
+
+  AllowInvalidMemberReferenceInInitAccessor(ConstraintSystem &cs,
+                                            DeclNameRef memberName,
+                                            ConstraintLocator *locator)
+      : ConstraintFix(cs, FixKind::AllowInvalidMemberReferenceInInitAccessor,
+                      locator),
+        MemberName(memberName) {}
+
+public:
+  std::string getName() const override {
+    llvm::SmallVector<char, 16> scratch;
+    auto memberName = MemberName.getString(scratch);
+    return "allow reference to member '" + memberName.str() +
+           "' in init accessor";
+  }
+
+  bool diagnose(const Solution &solution, bool asNote = false) const override;
+
+  bool diagnoseForAmbiguity(CommonFixesArray commonFixes) const override {
+    return diagnose(*commonFixes.front().first);
+  }
+
+  static AllowInvalidMemberReferenceInInitAccessor *
+  create(ConstraintSystem &cs, DeclNameRef memberName,
+         ConstraintLocator *locator);
+
+  static bool classof(const ConstraintFix *fix) {
+    return fix->getKind() == FixKind::AllowInvalidMemberReferenceInInitAccessor;
   }
 };
 

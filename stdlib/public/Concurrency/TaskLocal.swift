@@ -37,7 +37,7 @@ import Swift
 /// The default value is returned whenever the task-local is read
 /// from a context which either: has no task available to read the value from
 /// (e.g. a synchronous function, called without any asynchronous function in its call stack),
-///
+/// or no value was bound within the scope of the current task or any of its parent tasks.
 ///
 /// ### Reading task-local values
 /// Reading task local values is simple and looks the same as-if reading a normal

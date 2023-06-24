@@ -2564,6 +2564,9 @@ NeverNullType TypeResolver::resolveType(TypeRepr *repr,
 
   case TypeReprKind::Fixed:
     return cast<FixedTypeRepr>(repr)->getType();
+
+  case TypeReprKind::Self:
+    return cast<SelfTypeRepr>(repr)->getType();
   }
   llvm_unreachable("all cases should be handled");
 }
@@ -4618,7 +4621,7 @@ NeverNullType TypeResolver::resolvePackExpansionType(PackExpansionTypeRepr *repr
   }
 
   // We might not allow variadic expansions here at all.
-  if (!options.isPackExpansionSupported(getDeclContext())) {
+  if (!options.isPackExpansionSupported()) {
     diagnose(repr->getLoc(), diag::expansion_not_allowed, result);
     return ErrorType::get(ctx);
   }
@@ -5200,6 +5203,7 @@ public:
     case TypeReprKind::ImplicitlyUnwrappedOptional:
     case TypeReprKind::Tuple:
     case TypeReprKind::Fixed:
+    case TypeReprKind::Self:
     case TypeReprKind::Array:
     case TypeReprKind::SILBox:
     case TypeReprKind::Isolated:

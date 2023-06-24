@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend -target %target-swift-abi-5.8-triple -emit-ir %s -module-name M -import-objc-header %S/Inputs/issue-49393.h | %FileCheck %s --check-prefix=CHECK-%is-darwin --check-prefix=CHECK
+// RUN: %target-swift-frontend %use_no_opaque_pointers -target %target-swift-abi-5.8-triple -emit-ir %s -module-name M -import-objc-header %S/Inputs/issue-49393.h | %FileCheck %s --check-prefix=CHECK-%is-darwin --check-prefix=CHECK
+// RUN: %target-swift-frontend -target %target-swift-abi-5.8-triple -emit-ir %s -module-name M -import-objc-header %S/Inputs/issue-49393.h
 // REQUIRES: objc_interop
 
 // https://github.com/apple/swift/issues/49393

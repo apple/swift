@@ -47,5 +47,5 @@ doit()
 // TODO: Prespecialize Value<Int>.
 
 //        CHECK-LABEL: define hidden swiftcc void @"$s4main4doityyF"()
-//              CHECK:   call %swift.type* @__swift_instantiateConcreteTypeFromMangledName({ i32, i32 }* @"$s4main5Value{{[A-Za-z_0-9]+}}LLCySiGMD")
+//              CHECK:   call ptr @__swift_instantiateConcreteTypeFromMangledName(ptr @"$s4main5Value{{[A-Za-z_0-9]+}}LLCySiGMD")
 //              CHECK: }

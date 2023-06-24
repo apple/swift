@@ -1,5 +1,7 @@
-// RUN: %target-swift-frontend -primary-file %s -emit-ir | %FileCheck %s
-// RUN: %target-swift-frontend -O -primary-file %s -emit-ir | %FileCheck %s --check-prefix=OPT
+// RUN: %target-swift-frontend %use_no_opaque_pointers -primary-file %s -emit-ir | %FileCheck %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers -O -primary-file %s -emit-ir | %FileCheck %s --check-prefix=OPT
+// RUN: %target-swift-frontend -primary-file %s -emit-ir
+// RUN: %target-swift-frontend -O -primary-file %s -emit-ir
 
 // REQUIRES: CPU=x86_64
 

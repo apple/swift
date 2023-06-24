@@ -1693,6 +1693,28 @@ public:
   bool isCached() const { return true; }
 };
 
+/// Request to obtain a list of properties that will be reflected in the parameters of a
+/// memberwise initializer.
+class MemberwiseInitPropertiesRequest :
+    public SimpleRequest<MemberwiseInitPropertiesRequest,
+                         ArrayRef<VarDecl *>(NominalTypeDecl *),
+                         RequestFlags::Cached> {
+public:
+  using SimpleRequest::SimpleRequest;
+
+private:
+  friend SimpleRequest;
+
+  ArrayRef<VarDecl *>
+  evaluate(Evaluator &evaluator, NominalTypeDecl *decl) const;
+
+  // Evaluation.
+  bool evaluate(Evaluator &evaluator, AbstractStorageDecl *decl) const;
+
+public:
+  bool isCached() const { return true; }
+};
+
 class HasStorageRequest :
     public SimpleRequest<HasStorageRequest,
                          bool(AbstractStorageDecl *),
@@ -4307,6 +4329,22 @@ private:
   friend SimpleRequest;
 
   bool evaluate(Evaluator &evaluator, ModuleDecl *mod) const;
+
+public:
+  bool isCached() const { return true; }
+};
+
+class HasInitAccessorRequest
+    : public SimpleRequest<HasInitAccessorRequest, bool(AbstractStorageDecl *),
+                           RequestFlags::Cached> {
+public:
+  using SimpleRequest::SimpleRequest;
+
+private:
+  friend SimpleRequest;
+
+  // Evaluation.
+  bool evaluate(Evaluator &evaluator, AbstractStorageDecl *decl) const;
 
 public:
   bool isCached() const { return true; }

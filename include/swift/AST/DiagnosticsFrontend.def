@@ -437,7 +437,8 @@ NOTE(sdk_version_pbm_version,none,
 NOTE(compiled_module_ignored_reason,none,
      "compiled module '%0' was ignored because %select{%error"
      "|it belongs to a framework in the SDK"
-     "|loading from module interfaces is preferred}1",
+     "|loading from module interfaces is preferred"
+     "|it's a compiler host module}1",
      (StringRef, unsigned))
 NOTE(out_of_date_module_here,none,
      "%select{compiled|cached|forwarding|prebuilt}0 module is out of date: '%1'",

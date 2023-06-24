@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend -stack-promotion-limit 48 -Onone -emit-ir %s | %FileCheck %s -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend %use_no_opaque_pointers -stack-promotion-limit 48 -Onone -emit-ir %s | %FileCheck %s -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend -stack-promotion-limit 48 -Onone -emit-ir %s
 
 import Builtin
 import Swift

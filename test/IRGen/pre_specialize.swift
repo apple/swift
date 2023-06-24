@@ -1,32 +1,42 @@
 // RUN: %empty-directory(%t)
 
 // Module A code generation.
-// RUN: %target-swift-frontend -emit-ir -primary-file %S/Inputs/pre_specialize_module.swift -module-name A | %FileCheck %s -check-prefix=CHECK-A -check-prefix=CHECK-A-FRAG
-// RUN: %target-swift-frontend -O -emit-ir -primary-file %S/Inputs/pre_specialize_module.swift -module-name A | %FileCheck %s -check-prefix=CHECK-A -check-prefix=CHECK-A-FRAG
-// RUN: %target-swift-frontend -enable-library-evolution -emit-ir -primary-file %S/Inputs/pre_specialize_module.swift -module-name A | %FileCheck %s -check-prefix=CHECK-A -check-prefix=CHECK-A-RES
-// RUN: %target-swift-frontend -O -enable-library-evolution -emit-ir -primary-file %S/Inputs/pre_specialize_module.swift -module-name A | %FileCheck %s -check-prefix=CHECK-A -check-prefix=CHECK-A-RES
+// RUN: %target-swift-frontend %use_no_opaque_pointers -emit-ir -primary-file %S/Inputs/pre_specialize_module.swift -module-name A | %FileCheck %s -check-prefix=CHECK-A -check-prefix=CHECK-A-FRAG
+// RUN: %target-swift-frontend %use_no_opaque_pointers -O -emit-ir -primary-file %S/Inputs/pre_specialize_module.swift -module-name A | %FileCheck %s -check-prefix=CHECK-A -check-prefix=CHECK-A-FRAG
+// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-library-evolution -emit-ir -primary-file %S/Inputs/pre_specialize_module.swift -module-name A | %FileCheck %s -check-prefix=CHECK-A -check-prefix=CHECK-A-RES
+// RUN: %target-swift-frontend %use_no_opaque_pointers -O -enable-library-evolution -emit-ir -primary-file %S/Inputs/pre_specialize_module.swift -module-name A | %FileCheck %s -check-prefix=CHECK-A -check-prefix=CHECK-A-RES
+// RUN: %target-swift-frontend -emit-ir -primary-file %S/Inputs/pre_specialize_module.swift -module-name A
+// RUN: %target-swift-frontend -O -emit-ir -primary-file %S/Inputs/pre_specialize_module.swift -module-name A
+// RUN: %target-swift-frontend -enable-library-evolution -emit-ir -primary-file %S/Inputs/pre_specialize_module.swift -module-name A
+// RUN: %target-swift-frontend -O -enable-library-evolution -emit-ir -primary-file %S/Inputs/pre_specialize_module.swift -module-name A
 
 // Module B code generation with A.swiftmodule.
 // RUN: %empty-directory(%t)
 // RUN: %target-build-swift -Xfrontend -validate-tbd-against-ir=missing -emit-module -emit-module-path=%t/A.swiftmodule -module-name A %S/Inputs/pre_specialize_module.swift -emit-library -o %t/%target-library-name(A)
-// RUN: %target-swift-frontend -I %t -emit-ir -primary-file %S/Inputs/pre_specialize_module_B.swift -module-name B | %FileCheck %s -check-prefix=CHECK-B
-// RUN: %target-swift-frontend -I %t -O -emit-ir -primary-file %S/Inputs/pre_specialize_module_B.swift -module-name B | %FileCheck %s -check-prefix=CHECK-B
+// RUN: %target-swift-frontend %use_no_opaque_pointers -I %t -emit-ir -primary-file %S/Inputs/pre_specialize_module_B.swift -module-name B | %FileCheck %s -check-prefix=CHECK-B
+// RUN: %target-swift-frontend %use_no_opaque_pointers -I %t -O -emit-ir -primary-file %S/Inputs/pre_specialize_module_B.swift -module-name B | %FileCheck %s -check-prefix=CHECK-B
+// RUN: %target-swift-frontend -I %t -emit-ir -primary-file %S/Inputs/pre_specialize_module_B.swift -module-name B
+// RUN: %target-swift-frontend -I %t -O -emit-ir -primary-file %S/Inputs/pre_specialize_module_B.swift -module-name B
 // RUN: %target-build-swift -I %t -Xfrontend -validate-tbd-against-ir=missing -emit-module -emit-module-path=%t/B.swiftmodule -module-name B %S/Inputs/pre_specialize_module_B.swift -emit-library -o %t/%target-library-name(B) -L %t -lA
 // RUN: %target-build-swift -swift-version 5 -I %t -Xfrontend -validate-tbd-against-ir=all -enable-library-evolution -emit-module-interface-path %t/B.swiftinterface -module-name B %S/Inputs/pre_specialize_module_B.swift -emit-library -o %t/%target-library-name(B) -L %t -lA
 
 // Module B code generation with A.swiftmodule with library evolution.
 // RUN: %empty-directory(%t)
 // RUN: %target-build-swift -enable-library-evolution -Xfrontend -validate-tbd-against-ir=all -emit-module -emit-module-path=%t/A.swiftmodule -module-name A %S/Inputs/pre_specialize_module.swift -emit-library -o %t/%target-library-name(A)
-// RUN: %target-swift-frontend -I %t -emit-ir -primary-file %S/Inputs/pre_specialize_module_B.swift -module-name B | %FileCheck %s -check-prefix=CHECK-B
-// RUN: %target-swift-frontend -I %t -O -emit-ir -primary-file %S/Inputs/pre_specialize_module_B.swift -module-name B | %FileCheck %s -check-prefix=CHECK-B
+// RUN: %target-swift-frontend %use_no_opaque_pointers -I %t -emit-ir -primary-file %S/Inputs/pre_specialize_module_B.swift -module-name B | %FileCheck %s -check-prefix=CHECK-B
+// RUN: %target-swift-frontend %use_no_opaque_pointers -I %t -O -emit-ir -primary-file %S/Inputs/pre_specialize_module_B.swift -module-name B | %FileCheck %s -check-prefix=CHECK-B
+// RUN: %target-swift-frontend -I %t -emit-ir -primary-file %S/Inputs/pre_specialize_module_B.swift -module-name B
+// RUN: %target-swift-frontend -I %t -O -emit-ir -primary-file %S/Inputs/pre_specialize_module_B.swift -module-name B
 // RUN: %target-build-swift -I %t -Xfrontend -validate-tbd-against-ir=missing -emit-module -emit-module-path=%t/B.swiftmodule -module-name B %S/Inputs/pre_specialize_module_B.swift -emit-library -o %t/%target-library-name(B) -L %t -lA
 // RUN: %target-build-swift -swift-version 5 -I %t -Xfrontend -validate-tbd-against-ir=all -enable-library-evolution -emit-module-interface-path %t/B.swiftinterface -module-name B %S/Inputs/pre_specialize_module_B.swift -emit-library -o %t/%target-library-name(B) -L %t -lA
 
 // Module B code generation with A.swiftinterface with library evolution.
 // RUN: %empty-directory(%t)
 // RUN: %target-build-swift -enable-library-evolution -Xfrontend -validate-tbd-against-ir=all -emit-module-interface-path %t/A.swiftinterface -module-name A %S/Inputs/pre_specialize_module.swift -emit-library -o %t/%target-library-name(A) -swift-version 5
-// RUN: %target-swift-frontend -I %t -emit-ir -primary-file %S/Inputs/pre_specialize_module_B.swift -module-name B | %FileCheck %s -check-prefix=CHECK-B
-// RUN: %target-swift-frontend -I %t -O -emit-ir -primary-file %S/Inputs/pre_specialize_module_B.swift -module-name B | %FileCheck %s -check-prefix=CHECK-B
+// RUN: %target-swift-frontend %use_no_opaque_pointers -I %t -emit-ir -primary-file %S/Inputs/pre_specialize_module_B.swift -module-name B | %FileCheck %s -check-prefix=CHECK-B
+// RUN: %target-swift-frontend %use_no_opaque_pointers -I %t -O -emit-ir -primary-file %S/Inputs/pre_specialize_module_B.swift -module-name B | %FileCheck %s -check-prefix=CHECK-B
+// RUN: %target-swift-frontend -I %t -emit-ir -primary-file %S/Inputs/pre_specialize_module_B.swift -module-name B
+// RUN: %target-swift-frontend -I %t -O -emit-ir -primary-file %S/Inputs/pre_specialize_module_B.swift -module-name B
 // RUN: %target-build-swift -I %t -Xfrontend -validate-tbd-against-ir=missing -emit-module -emit-module-path=%t/B.swiftmodule -module-name B %S/Inputs/pre_specialize_module_B.swift -emit-library -o %t/%target-library-name(B) -L %t -lA
 // RUN: %target-build-swift -swift-version 5 -I %t -Xfrontend -validate-tbd-against-ir=all -enable-library-evolution -emit-module-interface-path %t/B.swiftinterface -module-name B %S/Inputs/pre_specialize_module_B.swift -emit-library -o %t/%target-library-name(B) -L %t -lA
 
@@ -106,37 +116,43 @@
 // RUN: %empty-directory(%t)
 // RUN: %target-build-swift -emit-module -emit-module-path=%t/A.swiftmodule -module-name A %S/Inputs/pre_specialize_module.swift
 // RUN: %target-build-swift -I %t -emit-module -emit-module-path=%t/B.swiftmodule -module-name B %S/Inputs/pre_specialize_module_B.swift
-// RUN: %target-swift-frontend -O -I %t -emit-ir -primary-file %s -module-name C | %FileCheck %s -check-prefix=CHECK-C
+// RUN: %target-swift-frontend %use_no_opaque_pointers -O -I %t -emit-ir -primary-file %s -module-name C | %FileCheck %s -check-prefix=CHECK-C
+// RUN: %target-swift-frontend -O -I %t -emit-ir -primary-file %s -module-name C
 
 // Fragile optimized .swiftmodule
 // RUN: %empty-directory(%t)
 // RUN: %target-build-swift -O -emit-module -emit-module-path=%t/A.swiftmodule -module-name A %S/Inputs/pre_specialize_module.swift
 // RUN: %target-build-swift -O -I %t -emit-module -emit-module-path=%t/B.swiftmodule -module-name B %S/Inputs/pre_specialize_module_B.swift
-// RUN: %target-swift-frontend -O -I %t -emit-ir -primary-file %s -module-name C | %FileCheck %s -check-prefix=CHECK-C
+// RUN: %target-swift-frontend %use_no_opaque_pointers -O -I %t -emit-ir -primary-file %s -module-name C | %FileCheck %s -check-prefix=CHECK-C
+// RUN: %target-swift-frontend -O -I %t -emit-ir -primary-file %s -module-name C
 
 // Resilient .swiftmodule
 // RUN: %empty-directory(%t)
 // RUN: %target-build-swift -enable-library-evolution -emit-module -emit-module-path=%t/A.swiftmodule -module-name A %S/Inputs/pre_specialize_module.swift
 // RUN: %target-build-swift -enable-library-evolution -I %t -emit-module -emit-module-path=%t/B.swiftmodule -module-name B %S/Inputs/pre_specialize_module_B.swift
-// RUN: %target-swift-frontend -O -I %t -emit-ir -primary-file %s -module-name C | %FileCheck %s -check-prefix=CHECK-C
+// RUN: %target-swift-frontend %use_no_opaque_pointers -O -I %t -emit-ir -primary-file %s -module-name C | %FileCheck %s -check-prefix=CHECK-C
+// RUN: %target-swift-frontend -O -I %t -emit-ir -primary-file %s -module-name C
 
 // Resilient optimized .swiftmodule
 // RUN: %empty-directory(%t)
 // RUN: %target-build-swift -O -enable-library-evolution -emit-module -emit-module-path=%t/A.swiftmodule -module-name A %S/Inputs/pre_specialize_module.swift
 // RUN: %target-build-swift -O -enable-library-evolution -I %t -emit-module -emit-module-path=%t/B.swiftmodule -module-name B %S/Inputs/pre_specialize_module_B.swift
-// RUN: %target-swift-frontend -O -I %t -emit-ir -primary-file %s -module-name C | %FileCheck %s -check-prefix=CHECK-C
+// RUN: %target-swift-frontend %use_no_opaque_pointers -O -I %t -emit-ir -primary-file %s -module-name C | %FileCheck %s -check-prefix=CHECK-C
+// RUN: %target-swift-frontend -O -I %t -emit-ir -primary-file %s -module-name C
 
 // .swiftinterface
 // RUN: %empty-directory(%t)
 // RUN: %target-build-swift -c -enable-library-evolution -emit-module-interface-path %t/A.swiftinterface -module-name A %S/Inputs/pre_specialize_module.swift -o  %t/A.o -swift-version 5
 // RUN: %target-build-swift -c -enable-library-evolution -I %t -emit-module-interface-path %t/B.swiftinterface -module-name B %S/Inputs/pre_specialize_module_B.swift -o %t/B.o -swift-version 5
-// RUN: %target-swift-frontend -O -I %t -emit-ir -primary-file %s -module-name C | %FileCheck %s -check-prefix=CHECK-C
+// RUN: %target-swift-frontend %use_no_opaque_pointers -O -I %t -emit-ir -primary-file %s -module-name C | %FileCheck %s -check-prefix=CHECK-C
+// RUN: %target-swift-frontend -O -I %t -emit-ir -primary-file %s -module-name C
 
 // Optimized .swiftinterface
 // RUN: %empty-directory(%t)
 // RUN: %target-build-swift -O -c -enable-library-evolution -emit-module-interface-path %t/A.swiftinterface -module-name A %S/Inputs/pre_specialize_module.swift -o  %t/A.o -swift-version 5
 // RUN: %target-build-swift -O -c -enable-library-evolution -I %t -emit-module-interface-path %t/B.swiftinterface -module-name B %S/Inputs/pre_specialize_module_B.swift -o %t/B.o -swift-version 5
-// RUN: %target-swift-frontend -O -I %t -emit-ir -primary-file %s -module-name C | %FileCheck %s -check-prefix=CHECK-C
+// RUN: %target-swift-frontend %use_no_opaque_pointers -O -I %t -emit-ir -primary-file %s -module-name C | %FileCheck %s -check-prefix=CHECK-C
+// RUN: %target-swift-frontend -O -I %t -emit-ir -primary-file %s -module-name C
 
 import A
 import B

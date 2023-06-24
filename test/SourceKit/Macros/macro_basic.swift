@@ -136,7 +136,7 @@ macro anonymousTypes(_: () -> String) = #externalMacro(module: "MacroDefinition"
 // EXPAND_MACRO_DECL-NEXT:     "hello"
 // EXPAND_MACRO_DECL-NEXT:   }
 // EXPAND_MACRO_DECL-EMPTY:
-// EXPAND_MACRO_DECL-NEXT:   func getSelf() -> Any .Type {
+// EXPAND_MACRO_DECL-NEXT:   func getSelf() -> Any.Type {
 // EXPAND_MACRO_DECL-NEXT:      return Self.self
 // EXPAND_MACRO_DECL-NEXT:   }
 // EXPAND_MACRO_DECL-NEXT: }

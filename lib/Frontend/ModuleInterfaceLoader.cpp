@@ -20,6 +20,7 @@
 #include "swift/AST/FileSystem.h"
 #include "swift/AST/Module.h"
 #include "swift/Basic/Platform.h"
+#include "swift/Basic/StringExtras.h"
 #include "swift/Frontend/CachingUtils.h"
 #include "swift/Frontend/Frontend.h"
 #include "swift/Frontend/ModuleInterfaceSupport.h"
@@ -233,6 +234,7 @@ struct ModuleRebuildInfo {
     NotIgnored,
     PublicFramework,
     InterfacePreferred,
+    CompilerHostModule,
   };
   struct CandidateModule {
     std::string path;
@@ -704,7 +706,29 @@ class ModuleInterfaceLoaderImpl {
   bool isInResourceDir(StringRef path) {
     StringRef resourceDir = ctx.SearchPathOpts.RuntimeResourcePath;
     if (resourceDir.empty()) return false;
-    return path.startswith(resourceDir);
+    return pathStartsWith(resourceDir, path);
+  }
+
+  bool isInResourceHostDir(StringRef path) {
+    StringRef resourceDir = ctx.SearchPathOpts.RuntimeResourcePath;
+    if (resourceDir.empty()) return false;
+
+    SmallString<128> hostPath;
+    llvm::sys::path::append(hostPath,
+                            resourceDir, "host");
+    return pathStartsWith(hostPath, path);
+  }
+
+  bool isInSystemFrameworks(StringRef path, bool publicFramework) {
+    StringRef sdkPath = ctx.SearchPathOpts.getSDKPath();
+    if (sdkPath.empty()) return false;
+
+    SmallString<128> frameworksPath;
+    llvm::sys::path::append(frameworksPath,
+                            sdkPath, "System", "Library",
+                            publicFramework ? "Frameworks" : "PrivateFrameworks");
+
+    return pathStartsWith(frameworksPath, path);
   }
 
   std::pair<std::string, std::string> getCompiledModuleCandidates() {
@@ -715,14 +739,12 @@ class ModuleInterfaceLoaderImpl {
 
     // Don't use the adjacent swiftmodule for frameworks from the public
     // Frameworks folder of the SDK.
-    SmallString<128> publicFrameworksPath;
-    llvm::sys::path::append(publicFrameworksPath,
-                            ctx.SearchPathOpts.getSDKPath(),
-                            "System", "Library", "Frameworks");
-    if (!ctx.SearchPathOpts.getSDKPath().empty() &&
-        modulePath.startswith(publicFrameworksPath)) {
+    if (isInSystemFrameworks(modulePath, /*publicFramework*/true)) {
       shouldLoadAdjacentModule = false;
       rebuildInfo.addIgnoredModule(modulePath, ReasonIgnored::PublicFramework);
+    } else if (isInResourceHostDir(modulePath)) {
+      shouldLoadAdjacentModule = false;
+      rebuildInfo.addIgnoredModule(modulePath, ReasonIgnored::CompilerHostModule);
     }
 
     switch (loadMode) {
@@ -2004,7 +2026,7 @@ struct ExplicitSwiftModuleLoader::Implementation {
       const std::vector<std::pair<std::string, std::string>>
           &commandLineExplicitInputs) {
     for (const auto &moduleInput : commandLineExplicitInputs) {
-      ExplicitSwiftModuleInputInfo entry(moduleInput.second, {}, {});
+      ExplicitSwiftModuleInputInfo entry(moduleInput.second, {}, {}, {});
       ExplicitModuleMap.try_emplace(moduleInput.first, std::move(entry));
     }
   }
@@ -2270,7 +2292,7 @@ struct ExplicitCASModuleLoader::Implementation {
       const std::vector<std::pair<std::string, std::string>>
           &commandLineExplicitInputs) {
     for (const auto &moduleInput : commandLineExplicitInputs) {
-      ExplicitSwiftModuleInputInfo entry(moduleInput.second, {}, {});
+      ExplicitSwiftModuleInputInfo entry(moduleInput.second, {}, {}, {});
       ExplicitModuleMap.try_emplace(moduleInput.first, std::move(entry));
     }
   }

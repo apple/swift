@@ -277,7 +277,7 @@ static void checkInheritanceClause(
     }
 
     // If this is an enum inheritance clause, check for a raw type.
-    if (isa<EnumDecl>(decl)) {
+    if (auto enumDecl = dyn_cast<EnumDecl>(decl)) {
       // Check if we already had a raw type.
       if (superclassTy) {
         if (superclassTy->isEqual(inheritedTy)) {
@@ -293,6 +293,18 @@ static void checkInheritanceClause(
         }
         continue;
       }
+
+      // Noncopyable types cannot have a raw type until there is support for
+      // generics, since the raw type here is only useful if we'll generate
+      // a conformance to RawRepresentable, which is currently disabled.
+      if (enumDecl->isMoveOnly()) {
+        // TODO: getRemovalRange is not yet aware of ~Copyable entries so it
+        // will accidentally delete commas or colons that are needed.
+        diags.diagnose(inherited.getSourceRange().Start,
+                       diag::enum_raw_type_nonconforming_and_noncopyable,
+                       enumDecl->getDeclaredInterfaceType(), inheritedTy)
+             .highlight(inherited.getSourceRange());
+      }
       
       // If this is not the first entry in the inheritance clause, complain.
       if (i > 0) {
@@ -303,11 +315,9 @@ static void checkInheritanceClause(
           .fixItRemoveChars(removeRange.Start, removeRange.End)
           .fixItInsert(inheritedClause[0].getSourceRange().Start,
                        inheritedTy.getString() + ", ");
-
-        // Fall through to record the raw type.
       }
 
-      // Record the raw type.
+      // Save the raw type locally.
       superclassTy = inheritedTy;
       superclassRange = inherited.getSourceRange();
       continue;
@@ -2289,7 +2299,7 @@ public:
         if (PBD->isInitialized(i)) {
           // Add the attribute that preserves the "has an initializer" value
           // across module generation, as required for TBDGen.
-          if (var->hasStorage() &&
+          if (var->supportsInitialization() &&
               !var->getAttrs().hasAttribute<HasInitialValueAttr>()) {
             var->getAttrs().add(new (Ctx)
                                     HasInitialValueAttr(/*IsImplicit=*/true));
@@ -2671,7 +2681,7 @@ public:
 
     // If our enum is marked as move only, it cannot be indirect or have any
     // indirect cases.
-    if (ED->getAttrs().hasAttribute<MoveOnlyAttr>()) {
+    if (ED->isMoveOnly()) {
       if (ED->isIndirect())
         ED->diagnose(diag::noncopyable_enums_do_not_support_indirect,
                      ED->getBaseIdentifier());
@@ -2680,6 +2690,13 @@ public:
           elt->diagnose(diag::noncopyable_enums_do_not_support_indirect,
                         ED->getBaseIdentifier());
         }
+      }
+
+      if (!ED->getASTContext().LangOpts.hasFeature(
+              Feature::MoveOnlyResilientTypes) &&
+          ED->isResilient()) {
+        ED->diagnose(diag::noncopyable_types_cannot_be_resilient,
+                     ED->getDescriptiveKind(), ED->getBaseIdentifier());
       }
     }
   }
@@ -2721,6 +2738,13 @@ public:
     diagnoseCopyableTypeContainingMoveOnlyType(SD);
 
     diagnoseIncompatibleProtocolsForMoveOnlyType(SD);
+
+    if (!SD->getASTContext().LangOpts.hasFeature(
+            Feature::MoveOnlyResilientTypes) &&
+        SD->isResilient() && SD->isMoveOnly()) {
+      SD->diagnose(diag::noncopyable_types_cannot_be_resilient,
+                   SD->getDescriptiveKind(), SD->getBaseIdentifier());
+    }
   }
 
   /// Check whether the given properties can be @NSManaged in this class.

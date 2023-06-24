@@ -17,7 +17,7 @@ public func testDirect2ReturnNoReturn() {
 
 // CHECK-LABEL: define {{.*}} void @"$s1A020testIndirectReturnNoC0yyF"()
 // CHECK:   [[INDIRECT_RESULT:%.*]] = alloca %struct.Large
-// CHECK:   call void @largeStructNoReturn(%struct.Large* {{.*}}[[INDIRECT_RESULT]])
+// CHECK:   call void @largeStructNoReturn(ptr {{.*}}[[INDIRECT_RESULT]])
 // CHECK:   unreachable
 public func testIndirectReturnNoReturn() {
   largeStructNoReturn()

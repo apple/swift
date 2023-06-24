@@ -328,6 +328,8 @@ static Optional<std::pair<llvm::APSInt, Type>>
     }
 
   // Macro identifier.
+  // TODO: for some reason when in C++ mode, "hasMacroDefinition" is often
+  // false: rdar://110071334
   } else if (token.is(clang::tok::identifier) &&
              token.getIdentifierInfo()->hasMacroDefinition()) {
 
@@ -422,7 +424,7 @@ static ValueDecl *importMacro(ClangImporter::Implementation &impl,
       auto diagState = impl.getClangSema().DelayedDiagnostics.push(diagPool);
       auto parsedType = impl.getClangSema().getTypeName(identifier,
                                                         clang::SourceLocation(),
-                                                        /*scope*/nullptr);
+                                                        impl.getClangSema().TUScope);
       impl.getClangSema().DelayedDiagnostics.popWithoutEmitting(diagState);
 
       if (parsedType && diagPool.empty()) {

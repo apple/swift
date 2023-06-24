@@ -74,3 +74,15 @@ func testNestedExtensions() {
 
   Tree<Int>.Branch<String>.Nest<Void>.Egg.twite()
 }
+
+// rdar://111059036 - failed to produce a diagnostic in specialized extension
+struct Test {
+  struct Key<Value> {}
+}
+
+class State {
+}
+
+extension Test.Key<State> {
+  static let state = Self<State>()
+}

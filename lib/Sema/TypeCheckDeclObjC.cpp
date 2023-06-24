@@ -2899,6 +2899,18 @@ public:
   {
     assert(!ext->hasClangNode() && "passed interface, not impl, to checker");
 
+    // Conformances are declared exclusively in the interface, so diagnose any
+    // in the implementation right away.
+    for (auto &inherited : ext->getInherited()) {
+      bool isImportedProtocol = false;
+      if (auto protoNominal = inherited.getType()->getAnyNominal())
+        isImportedProtocol = protoNominal->hasClangNode();
+
+      diagnose(inherited.getLoc(),
+               diag::attr_objc_implementation_no_conformance,
+               inherited.getType(), isImportedProtocol);
+    }
+
     // Did we actually match this extension to an interface? (In invalid code,
     // we might not have.)
     auto interfaceDecl = ext->getImplementedObjCDecl();
@@ -2931,7 +2943,7 @@ private:
     if (auto func = dyn_cast<AbstractFunctionDecl>(req)) {
       auto asyncFunc = func->getAsyncAlternative();
 
-      if (auto asyncAccessor = dyn_cast<AccessorDecl>(asyncFunc))
+      if (auto asyncAccessor = dyn_cast_or_null<AccessorDecl>(asyncFunc))
         return asyncAccessor->getStorage();
 
       return asyncFunc;
@@ -3023,6 +3035,7 @@ private:
     WrongDeclKind,
     WrongType,
     WrongWritability,
+    WrongRequiredAttr,
 
     Match,
     MatchWithExplicitObjCName,
@@ -3320,6 +3333,10 @@ private:
             !cast<AbstractStorageDecl>(cand)->isSettable(nullptr))
         return MatchOutcome::WrongWritability;
 
+    if (auto reqCtor = dyn_cast<ConstructorDecl>(req))
+      if (reqCtor->isRequired() != cast<ConstructorDecl>(cand)->isRequired())
+        return MatchOutcome::WrongRequiredAttr;
+
     // If we got here, everything matched. But at what quality?
     if (explicitObjCName)
       return MatchOutcome::MatchWithExplicitObjCName;
@@ -3407,6 +3424,22 @@ private:
       diagnose(cand, diag::objc_implementation_must_be_settable,
                cand->getDescriptiveKind(), cand, req->getDescriptiveKind());
       return;
+
+    case MatchOutcome::WrongRequiredAttr: {
+      bool shouldBeRequired = cast<ConstructorDecl>(req)->isRequired();
+
+      auto diag =
+        diagnose(cand, diag::objc_implementation_required_attr_mismatch,
+                 cand->getDescriptiveKind(), cand, shouldBeRequired);
+      
+      if (shouldBeRequired)
+        diag.fixItInsert(cand->getAttributeInsertionLoc(/*forModifier=*/true),
+                         "required ");
+      else
+        diag.fixItRemove(cand->getAttrs().getAttribute<RequiredAttr>()
+                             ->getLocation());
+      return;
+    }
     }
 
     llvm_unreachable("Unknown MatchOutcome");

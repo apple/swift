@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend  -primary-file %s -module-name=test -disable-llvm-optzns -disable-swift-specific-llvm-optzns -emit-ir -sil-verify-all | %IRGenFileCheck %s
+// RUN: %target-swift-frontend -primary-file %s -module-name=test -disable-llvm-optzns -disable-swift-specific-llvm-optzns -emit-ir -sil-verify-all | %IRGenFileCheck %s
 
 // REQUIRES: concurrency
 // rdar://106849189 move-only types should be supported in freestanding mode
@@ -41,10 +41,10 @@ bb0(%0 : $Builtin.Executor):
   return %1 : $Optional<Builtin.Executor>
 }
 
-// CHECK: define{{.*}} swiftcc { [[INT]], [[INT]] } @test_build_default_actor(%T4test14MyDefaultActorC* %0)
+// CHECK: define{{.*}} swiftcc { [[INT]], [[INT]] } @test_build_default_actor(ptr %0)
 sil @test_build_default_actor : $(@guaranteed MyDefaultActor) -> Builtin.Executor {
 bb0(%0 : $MyDefaultActor):
-  // CHECK:      [[T0:%.*]] = ptrtoint %T4test14MyDefaultActorC* %0 to [[INT]]
+  // CHECK:      [[T0:%.*]] = ptrtoint ptr %0 to [[INT]]
   // CHECK-NEXT: [[ONE:%.*]] = insertvalue { [[INT]], [[INT]] } undef, [[INT]] [[T0]], 0
   // CHECK-NEXT: [[TWO:%.*]] = insertvalue { [[INT]], [[INT]] } [[ONE]], [[INT]] 0, 1
   // CHECK-NEXT: ret { [[INT]], [[INT]] } [[TWO]]
@@ -52,12 +52,12 @@ bb0(%0 : $MyDefaultActor):
   return %1 : $Builtin.Executor
 }
 
-// CHECK: define{{.*}} swiftcc { [[INT]], [[INT]] } @test_build_custom_actor(%T4test13MyCustomActorC* %0)
+// CHECK: define{{.*}} swiftcc { [[INT]], [[INT]] } @test_build_custom_actor(ptr %0)
 sil @test_build_custom_actor : $(@guaranteed MyCustomActor) -> Builtin.Executor {
 bb0(%0 : $MyCustomActor):
-  // CHECK:      [[T0:%.*]] = ptrtoint %T4test13MyCustomActorC* %0 to [[INT]]
-  // CHECK-NEXT: [[T1:%.*]] = call i8** @"$s4test13MyCustomActorCACScfAAWl"()
-  // CHECK-NEXT: [[T2:%.*]] = ptrtoint i8** [[T1]] to [[INT]]
+  // CHECK:      [[T0:%.*]] = ptrtoint ptr %0 to [[INT]]
+  // CHECK-NEXT: [[T1:%.*]] = call ptr @"$s4test13MyCustomActorCACScfAAWl"()
+  // CHECK-NEXT: [[T2:%.*]] = ptrtoint ptr [[T1]] to [[INT]]
   // CHECK:      [[ONE:%.*]] = insertvalue { [[INT]], [[INT]] } undef, [[INT]] [[T0]], 0
   // CHECK-NEXT: [[TWO:%.*]] = insertvalue { [[INT]], [[INT]] } [[ONE]], [[INT]] [[T2]], 1
   // CHECK-NEXT: ret { [[INT]], [[INT]] } [[TWO]]

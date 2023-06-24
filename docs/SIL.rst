@@ -3475,8 +3475,6 @@ A value ``%1`` is said to be *value-dependent* on a value ``%0`` if:
   with ``tuple_extract``, ``struct_extract``, ``unchecked_enum_data``,
   ``select_enum``, or ``select_enum_addr``.
 
-- ``%1`` is the result of ``select_value`` and ``%0`` is one of the cases.
-
 - ``%1`` is a basic block parameter and ``%0`` is the corresponding
   argument from a branch to that block.
 
@@ -7948,45 +7946,6 @@ values of the instruction, control is transferred to the corresponding basic
 block. If there is a ``default`` basic block, control is transferred to it if
 the value does not match any of the ``case`` values. It is undefined behavior
 if the value does not match any cases and no ``default`` branch is provided.
-
-select_value
-````````````
-::
-
-  sil-instruction ::= 'select_value' sil-operand sil-select-value-case*
-                      (',' 'default' sil-value)?
-                      ':' sil-type
-  sil-select-value-case ::= 'case' sil-value ':' sil-value
-
-
-  %n = select_value %0 : $U, \
-    case %c1: %r1,           \
-    case %c2: %r2, /* ... */ \
-    default %r3 : $T
-
-  // $U must be a builtin type. Only integers types are supported currently.
-  // c1, c2, etc must be of type $U
-  // %r1, %r2, %r3, etc. must have type $T
-  // %n has type $T
-
-Selects one of the "case" or "default" operands based on the case of a
-value. This is equivalent to a trivial `switch_value`_ branch sequence::
-
-  entry:
-    switch_value %0 : $U,            \
-      case %c1: bb1,           \
-      case %c2: bb2, /* ... */ \
-      default bb_default
-  bb1:
-    br cont(%r1 : $T) // value for %c1
-  bb2:
-    br cont(%r2 : $T) // value for %c2
-  bb_default:
-    br cont(%r3 : $T) // value for default
-  cont(%n : $T):
-    // use argument %n
-
-but turns the control flow dependency into a data flow dependency.
 
 switch_enum
 ```````````

@@ -3009,16 +3009,6 @@ static bool hasExplicitGlobalActorAttr(ValueDecl *decl) {
 
 Optional<ActorIsolation> ConformanceChecker::checkActorIsolation(
     ValueDecl *requirement, ValueDecl *witness) {
-  /// Retrieve a concrete witness for Sendable checking.
-  auto getConcreteWitness = [&] {
-    if (auto genericEnv = witness->getInnermostDeclContext()
-            ->getGenericEnvironmentOfContext()) {
-      return ConcreteDeclRef(
-          witness, genericEnv->getForwardingSubstitutionMap());
-    }
-
-    return ConcreteDeclRef(witness);
-  };
 
   // Determine the isolation of the requirement itself.
   auto requirementIsolation = getActorIsolation(requirement);
@@ -3034,7 +3024,7 @@ Optional<ActorIsolation> ConformanceChecker::checkActorIsolation(
     loc = Conformance->getLoc();
 
   auto refResult = ActorReferenceResult::forReference(
-      getConcreteWitness(), witness->getLoc(), DC, None, None,
+      getDeclRefInContext(witness), witness->getLoc(), DC, None, None,
       None, requirementIsolation);
   bool sameConcurrencyDomain = false;
   switch (refResult) {
@@ -3051,7 +3041,7 @@ Optional<ActorIsolation> ConformanceChecker::checkActorIsolation(
 
   case ActorReferenceResult::ExitsActorToNonisolated:
     diagnoseNonSendableTypesInReference(
-        getConcreteWitness(), DC, loc, SendableCheckReason::Conformance);
+        getDeclRefInContext(witness), DC, loc, SendableCheckReason::Conformance);
     return None;
 
   case ActorReferenceResult::EntersActor:
@@ -3133,8 +3123,19 @@ Optional<ActorIsolation> ConformanceChecker::checkActorIsolation(
         witness->getAttrs().hasAttribute<NonisolatedAttr>())
       return None;
 
+    // Check that the results of the witnessing method are sendable
     diagnoseNonSendableTypesInReference(
-        getConcreteWitness(), DC, loc, SendableCheckReason::Conformance);
+        getDeclRefInContext(witness), DC, loc, SendableCheckReason::Conformance,
+        getActorIsolation(witness), FunctionCheckKind::Results);
+
+    // If this requirement is a function, check that its parameters are Sendable as well
+    if (isa<AbstractFunctionDecl>(requirement)) {
+      diagnoseNonSendableTypesInReference(
+          getDeclRefInContext(requirement),
+          requirement->getInnermostDeclContext(), requirement->getLoc(),
+          SendableCheckReason::Conformance, getActorIsolation(witness),
+          FunctionCheckKind::Params, loc);
+    }
 
     // If the witness is accessible across actors, we don't need to consider it
     // isolated.

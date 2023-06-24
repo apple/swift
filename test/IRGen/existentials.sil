@@ -1,5 +1,7 @@
-// RUN: %target-swift-frontend %s -emit-ir -disable-objc-interop | %FileCheck %s
-// RUN: %target-swift-frontend %s -emit-ir -disable-objc-interop -O | %FileCheck %s --check-prefix=OPT
+// RUN: %target-swift-frontend %use_no_opaque_pointers %s -emit-ir -disable-objc-interop | %FileCheck %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers %s -emit-ir -disable-objc-interop -O | %FileCheck %s --check-prefix=OPT
+// RUN: %target-swift-frontend %s -emit-ir -disable-objc-interop
+// RUN: %target-swift-frontend %s -emit-ir -disable-objc-interop -O
 
 // REQUIRES: CPU=x86_64
 

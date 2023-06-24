@@ -2699,7 +2699,7 @@ void AttributeChecker::visitRequiredAttr(RequiredAttr *attr) {
     // The constructor must be declared within the class itself.
     // FIXME: Allow an SDK overlay to add a required initializer to a class
     // defined in Objective-C
-    if (!isa<ClassDecl>(ctor->getDeclContext()) &&
+    if (!isa<ClassDecl>(ctor->getDeclContext()->getImplementedObjCContext()) &&
         !isObjCClassExtensionInOverlay(ctor->getDeclContext())) {
       diagnose(ctor, diag::required_initializer_in_extension, parentTy)
         .highlight(attr->getLocation());
@@ -4347,6 +4347,14 @@ void AttributeChecker::checkBackDeployedAttrs(
         diagnoseAndRemoveAttr(Attr, diag::attr_not_on_stored_properties, Attr);
         continue;
       }
+    }
+
+    if (VD->getOpaqueResultTypeDecl()) {
+      diagnoseAndRemoveAttr(Attr,
+                            diag::backdeployed_opaque_result_not_supported,
+                            Attr, D->getDescriptiveKind())
+          .warnInSwiftInterface(D->getDeclContext());
+      continue;
     }
 
     auto AtLoc = Attr->AtLoc;

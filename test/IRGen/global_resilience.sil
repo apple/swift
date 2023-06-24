@@ -1,7 +1,8 @@
 // RUN: %empty-directory(%t)
 
 // RUN: %target-swift-frontend %S/../Inputs/resilient_struct.swift -enable-library-evolution -emit-module -emit-module-path %t/resilient_struct.swiftmodule
-// RUN: %target-swift-frontend -Xllvm -sil-disable-pass=simplification -enable-library-evolution -I %t -emit-ir %s | %FileCheck %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers -Xllvm -sil-disable-pass=simplification -enable-library-evolution -I %t -emit-ir %s | %FileCheck %s
+// RUN: %target-swift-frontend -Xllvm -sil-disable-pass=simplification -enable-library-evolution -I %t -emit-ir %s
 // RUN: %target-swift-frontend -Xllvm -sil-disable-pass=simplification -enable-library-evolution -I %t -emit-ir -O %s
 
 // CHECK: %swift.type = type { [[INT:i32|i64]] }

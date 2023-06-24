@@ -126,18 +126,27 @@ static bool readOptionsBlock(llvm::BitstreamCursor &cursor,
     case options_block::XCC:
       extendedInfo.addExtraClangImporterOption(blobData);
       break;
-    case options_block::PLUGIN_SEARCH_PATH:
-      extendedInfo.addPluginSearchPath(blobData);
+    case options_block::PLUGIN_SEARCH_OPTION: {
+      unsigned kind;
+      options_block::ResilienceStrategyLayout::readRecord(scratch, kind);
+      PluginSearchOption::Kind optKind;
+      switch (PluginSearchOptionKind(kind)) {
+      case PluginSearchOptionKind::PluginPath:
+        optKind = PluginSearchOption::Kind::PluginPath;
+        break;
+      case PluginSearchOptionKind::ExternalPluginPath:
+        optKind = PluginSearchOption::Kind::ExternalPluginPath;
+        break;
+      case PluginSearchOptionKind::LoadPluginLibrary:
+        optKind = PluginSearchOption::Kind::LoadPluginLibrary;
+        break;
+      case PluginSearchOptionKind::LoadPluginExecutable:
+        optKind = PluginSearchOption::Kind::LoadPluginExecutable;
+        break;
+      }
+      extendedInfo.addPluginSearchOption({optKind, blobData});
       break;
-    case options_block::EXTERNAL_SEARCH_PLUGIN_PATH:
-      extendedInfo.addExternalPluginSearchPath(blobData);
-      break;
-    case options_block::COMPILER_PLUGIN_LIBRARY_PATH:
-      extendedInfo.addCompilerPluginLibraryPath(blobData);
-      break;
-    case options_block::COMPILER_PLUGIN_EXECUTABLE_PATH:
-      extendedInfo.addCompilerPluginExecutablePath(blobData);
-      break;
+    }
     case options_block::IS_SIB:
       bool IsSIB;
       options_block::IsSIBLayout::readRecord(scratch, IsSIB);

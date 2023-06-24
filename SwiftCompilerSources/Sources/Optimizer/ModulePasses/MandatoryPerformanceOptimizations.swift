@@ -58,16 +58,14 @@ private func optimize(function: Function, _ context: FunctionPassContext) {
     switch instruction {
     case let apply as FullApplySite:
       inlineAndDevirtualize(apply: apply, context, simplifyCtxt)
-    case let mt as MetatypeInst:
-      if mt.isTriviallyDeadIgnoringDebugUses {
-        simplifyCtxt.erase(instructionIncludingDebugUses: mt)
-      }
     default:
       break
     }
   }
 
   _ = context.specializeApplies(in: function, isMandatory: true)
+
+  removeUnusedMetatypeInstructions(in: function, context)
 
   // If this is a just specialized function, try to optimize copy_addr, etc.
   if context.optimizeMemoryAccesses(in: function) {
@@ -99,6 +97,15 @@ private func inlineAndDevirtualize(apply: FullApplySite, _ context: FunctionPass
     // This can result in invalid stack nesting.
     if callee.hasOwnership && !apply.parentFunction.hasOwnership  {
       simplifyCtxt.notifyInvalidatedStackNesting()
+    }
+  }
+}
+
+private func removeUnusedMetatypeInstructions(in function: Function, _ context: FunctionPassContext) {
+  for inst in function.instructions {
+    if let mt = inst as? MetatypeInst,
+       mt.isTriviallyDeadIgnoringDebugUses {
+      context.erase(instructionIncludingDebugUses: mt)
     }
   }
 }

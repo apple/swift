@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend %s -swift-version 4 -emit-ir -enforce-exclusivity=checked | %FileCheck --check-prefix=CHECK --check-prefix=CHECK-%target-cpu %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers %s -swift-version 4 -emit-ir -enforce-exclusivity=checked | %FileCheck --check-prefix=CHECK --check-prefix=CHECK-%target-cpu %s
+// RUN: %target-swift-frontend %s -swift-version 4 -emit-ir -enforce-exclusivity=checked
 
 sil_stage canonical
 

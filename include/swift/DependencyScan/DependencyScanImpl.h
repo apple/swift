@@ -121,6 +121,10 @@ typedef struct {
   /// The path to the .swiftSourceInfo file.
   swiftscan_string_ref_t module_source_info_path;
 
+  /// (Clang) header dependencies of this binary module.
+  /// Typically pre-compiled bridging header.
+  swiftscan_string_set_t *header_dependencies;
+
   /// A flag to indicate whether or not this module is a framework.
   bool is_framework;
 

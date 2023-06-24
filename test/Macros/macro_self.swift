@@ -9,11 +9,11 @@ func sync() {}
 macro Self() = #externalMacro(module: "MacroDefinition", type: "InvalidMacro")
 
 func testSelfAsFreestandingMacro() {
-  _ = #self // expected-error {{keyword 'self' cannot be used as an identifier here}} expected-note {{use backticks to escape it}}
+  _ = #self
 }
 
 func testCapitalSelfAsFreestandingMacro() {
-  _ = #Self // expected-error {{keyword 'Self' cannot be used as an identifier here}} expected-note {{use backticks to escape it}}
+  _ = #Self
 }
  
 func testSelfAsAttachedMacro() {

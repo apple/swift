@@ -1,5 +1,6 @@
 
-// RUN: %target-swift-frontend -module-name builtins -parse-stdlib -Xllvm -sil-disable-pass=target-constant-folding -disable-access-control -primary-file %s -emit-ir -o - -disable-objc-attr-requires-foundation-module | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-runtime
+// RUN: %target-swift-frontend %use_no_opaque_pointers -module-name builtins -parse-stdlib -Xllvm -sil-disable-pass=target-constant-folding -disable-access-control -primary-file %s -emit-ir -o - -disable-objc-attr-requires-foundation-module | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-runtime
+// RUN: %target-swift-frontend -module-name builtins -parse-stdlib -Xllvm -sil-disable-pass=target-constant-folding -disable-access-control -primary-file %s -emit-ir -o - -disable-objc-attr-requires-foundation-module
 
 // REQUIRES: CPU=x86_64 || CPU=arm64 || CPU=arm64e
 

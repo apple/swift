@@ -886,35 +886,33 @@ bb0(%0 : $*Self, %1 : $*Self, %2 : $@thick Self.Type):
 
 // Check that a specialization for _Trivial(32) uses direct loads and stores
 // instead of value witness functions to load and store the value of a generic type.
-// CHECK-IRGEN-LABEL: define linkonce_odr hidden swiftcc void @"$s16eager_specialize18copyValueAndReturn_1sxx_xztlFxxxRlze31_lIetilr_Tp5"(i32* noalias nocapture sret(i32) %0, i32* noalias nocapture dereferenceable(4) %1, i32* nocapture dereferenceable(4) %2, %swift.type* %S
+// CHECK-IRGEN-LABEL: define linkonce_odr hidden swiftcc void @"$s16eager_specialize18copyValueAndReturn_1sxx_xztlFxxxRlze31_lIetilr_Tp5"(ptr noalias nocapture sret(i32) %0, ptr noalias nocapture dereferenceable(4) %1, ptr nocapture dereferenceable(4) %2, ptr %S
 // CHECK-IRGEN: entry:
-// CHECK-IRGEN:       %3 = load i32, i32* %2
-// CHECK-IRGEN-NEXT:  store i32 %3, i32* %0
+// CHECK-IRGEN:       %3 = load i32, ptr %2
+// CHECK-IRGEN-NEXT:  store i32 %3, ptr %0
 // CHECK-IRGEN-NEXT:  ret void
 // CHECK-IRGEN-NEXT:}
 
 // Check that a specialization for _Trivial(64) uses direct loads and stores
 // instead of value witness functions to load and store the value of a generic type.
-// CHECK-IRGEN-LABEL: define linkonce_odr hidden swiftcc void @"$s16eager_specialize18copyValueAndReturn_1sxx_xztlFxxxRlze63_lIetilr_Tp5"(i64* noalias nocapture sret(i64) %0, i64* noalias nocapture dereferenceable(8) %1, i64* nocapture dereferenceable(8) %2, %swift.type* %S
+// CHECK-IRGEN-LABEL: define linkonce_odr hidden swiftcc void @"$s16eager_specialize18copyValueAndReturn_1sxx_xztlFxxxRlze63_lIetilr_Tp5"(ptr noalias nocapture sret(i64) %0, ptr noalias nocapture dereferenceable(8) %1, ptr nocapture dereferenceable(8) %2, ptr %S
 // CHECK-IRGEN: entry:
-// CHECK-IRGEN:        %3 = load i64, i64* %2
-// CHECK-IRGEN-NEXT:   store i64 %3, i64* %0
+// CHECK-IRGEN:        %3 = load i64, ptr %2
+// CHECK-IRGEN-NEXT:   store i64 %3, ptr %0
 // CHECK-IRGEN-NEXT:   ret void
 // CHECK-IRGEN-NEXT: }
 
 // Check that a specialization for _Trivial does not call the 'destroy' value witness,
 // because it is known that the object is Trivial, i.e. contains no references.
-// CHECK-IRGEN-LABEL: define linkonce_odr hidden swiftcc void @"$s16eager_specialize19copyValueAndReturn2_1sxx_xztlFxxxRlzTlIetilr_Tp5"(%swift.opaque* noalias nocapture sret(%swift.opaque) %0, %swift.opaque* noalias nocapture %1, %swift.opaque* nocapture %2, %swift.type* %S
+// CHECK-IRGEN-LABEL: define linkonce_odr hidden swiftcc void @"$s16eager_specialize19copyValueAndReturn2_1sxx_xztlFxxxRlzTlIetilr_Tp5"(ptr noalias nocapture sret(%swift.opaque) %0, ptr noalias nocapture %1, ptr nocapture %2, ptr %S
 // CHECK-IRGEN-NEXT: entry:
-// CHECK-IRGEN:        %3 = bitcast %swift.type* %S to i8***
-// CHECK-IRGEN-NEXT:   %4 = getelementptr inbounds i8**, i8*** %3, i{{.*}} -1
-// CHECK-IRGEN-NEXT:   %S.valueWitnesses = load i8**, i8*** %4
-// CHECK-IRGEN-NEXT:   %5 = getelementptr inbounds i8*, i8** %S.valueWitnesses
-// CHECK-IRGEN-NEXT:   %6 = load i8*, i8** %5
-// CHECK-IRGEN-NEXT:   %initializeWithCopy = {{.*}}
-// CHECK-IRGEN-arm64e-NEXT:   ptrtoint i8** %5 to i64
+// CHECK-IRGEN:   %3 = getelementptr inbounds ptr, ptr %S, i{{.*}} -1
+// CHECK-IRGEN-NEXT:   %S.valueWitnesses = load ptr, ptr %3
+// CHECK-IRGEN-NEXT:   %4 = getelementptr inbounds ptr, ptr %S.valueWitnesses
+// CHECK-IRGEN-NEXT:   %5 = load ptr, ptr %4
+// CHECK-IRGEN-arm64e-NEXT:   ptrtoint ptr %4 to i64
 // CHECK-IRGEN-arm64e-NEXT:   call i64 @llvm.ptrauth.blend.i64
-// CHECK-IRGEN-NEXT:   call {{.*}} %initializeWithCopy
+// CHECK-IRGEN-NEXT:   call {{.*}} %5
 // CHECK-IRGEN-NEXT:   ret void
 // CHECK-IRGEN-NEXT: }
 

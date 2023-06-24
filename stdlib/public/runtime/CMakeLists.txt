@@ -76,8 +76,15 @@ set(swift_runtime_sources
     SwiftDtoa.cpp
     SwiftTLSContext.cpp
     ThreadingError.cpp
+    Tracing.cpp
     AccessibleFunction.cpp
     Win32.cpp)
+
+# We pull this in separately here because other dylibs will need it, but only
+# will have the __tsan_on_initialize called, and on Darwin, RTLD_NEXT can't be
+# used to call subsequence dylibs' copies of that.
+set(swift_runtime_threading_sources
+  ${SWIFT_SOURCE_DIR}/lib/Threading/ThreadSanitizer.cpp)
 
 set(swift_runtime_backtracing_sources
   Backtrace.cpp
@@ -87,7 +94,7 @@ set(swift_runtime_backtracing_sources
 # Acknowledge that the following sources are known.
 set(LLVM_OPTIONAL_SOURCES
     SwiftRT-COFF.cpp
-    SwiftRT-ELF.cpp
+    SwiftRT-ELF-WASM.cpp
     ${swift_runtime_sources}
     ${swift_runtime_objc_sources}
     ${swift_runtime_leaks_sources}
@@ -105,18 +112,19 @@ set(sdk "${SWIFT_HOST_VARIANT_SDK}")
 if(SWIFT_BUILD_STATIC_STDLIB AND "${sdk}" STREQUAL "LINUX")
   set(static_binary_lnk_file_list)
   string(TOLOWER "${sdk}" lowercase_sdk)
+  set(static_binary_lnk_src "${SWIFT_SOURCE_DIR}/stdlib/public/Resources/${lowercase_sdk}/static-executable-args.lnk")
 
   # Generate the static-executable-args.lnk file used for ELF systems (eg linux)
   set(linkfile "${lowercase_sdk}/static-executable-args.lnk")
   add_custom_command_target(swift_static_binary_${sdk}_args
     COMMAND
       "${CMAKE_COMMAND}" -E copy
-      "${SWIFT_SOURCE_DIR}/utils/static-executable-args.lnk"
+      "${static_binary_lnk_src}"
       "${SWIFTSTATICLIB_DIR}/${linkfile}"
     OUTPUT
       "${SWIFTSTATICLIB_DIR}/${linkfile}"
     DEPENDS
-      "${SWIFT_SOURCE_DIR}/utils/static-executable-args.lnk")
+      "${static_binary_lnk_src}")
 
   list(APPEND static_binary_lnk_file_list ${swift_static_binary_${sdk}_args})
   swift_install_in_component(FILES "${SWIFTSTATICLIB_DIR}/${linkfile}"
@@ -130,6 +138,7 @@ add_swift_target_library(swiftRuntime OBJECT_LIBRARY
   ${swift_runtime_sources}
   ${swift_runtime_objc_sources}
   ${swift_runtime_leaks_sources}
+  ${swift_runtime_threading_sources}
   C_COMPILE_FLAGS
     ${swift_runtime_library_compile_flags}
   LINK_FLAGS ${swift_runtime_linker_flags}
@@ -138,11 +147,14 @@ add_swift_target_library(swiftRuntime OBJECT_LIBRARY
 
 set(ELFISH_SDKS)
 set(COFF_SDKS)
+set(WASM_SDKS)
 foreach(sdk ${SWIFT_SDKS})
   if("${SWIFT_SDK_${sdk}_OBJECT_FORMAT}" STREQUAL "ELF")
     list(APPEND ELFISH_SDKS ${sdk})
   elseif("${SWIFT_SDK_${sdk}_OBJECT_FORMAT}" STREQUAL "COFF")
     list(APPEND COFF_SDKS ${sdk})
+  elseif("${SWIFT_SDK_${sdk}_OBJECT_FORMAT}" STREQUAL "WASM")
+    list(APPEND WASM_SDKS ${sdk})
   endif()
 endforeach()
 
@@ -151,7 +163,7 @@ endforeach()
 # with LTO, force swift runtime to compile without LTO for Linux.
 add_swift_target_library(swiftImageRegistrationObjectELF
                   OBJECT_LIBRARY IS_STDLIB IS_STDLIB_CORE
-                  SwiftRT-ELF.cpp
+                  SwiftRT-ELF-WASM.cpp
                   C_COMPILE_FLAGS ${SWIFT_RUNTIME_CORE_CXX_FLAGS}
                   C_COMPILE_FLAGS_LINUX -fno-lto
                   LINK_FLAGS ${SWIFT_RUNTIME_CORE_LINK_FLAGS}
@@ -169,17 +181,32 @@ add_swift_target_library(swiftImageRegistrationObjectCOFF
                   SWIFT_COMPILE_FLAGS ${SWIFT_STANDARD_LIBRARY_SWIFT_FLAGS}
                   INSTALL_IN_COMPONENT none)
 
+add_swift_target_library(swiftImageRegistrationObjectWASM
+                  OBJECT_LIBRARY IS_STDLIB IS_STDLIB_CORE
+                  SwiftRT-ELF-WASM.cpp
+                  C_COMPILE_FLAGS ${SWIFT_RUNTIME_CORE_CXX_FLAGS}
+                  LINK_FLAGS ${SWIFT_RUNTIME_CORE_LINK_FLAGS}
+                  TARGET_SDKS ${WASM_SDKS}
+                  SWIFT_COMPILE_FLAGS ${SWIFT_STANDARD_LIBRARY_SWIFT_FLAGS}
+                  INSTALL_IN_COMPONENT none)
+
 foreach(sdk ${SWIFT_SDKS})
   foreach(arch ${SWIFT_SDK_${sdk}_ARCHITECTURES})
     set(arch_subdir "${SWIFT_SDK_${sdk}_LIB_SUBDIR}/${arch}")
     set(arch_suffix "${SWIFT_SDK_${sdk}_LIB_SUBDIR}-${arch}")
 
     if("${SWIFT_SDK_${sdk}_OBJECT_FORMAT}" STREQUAL "ELF" OR
-       "${SWIFT_SDK_${sdk}_OBJECT_FORMAT}" STREQUAL "COFF")
+       "${SWIFT_SDK_${sdk}_OBJECT_FORMAT}" STREQUAL "COFF" OR
+       "${SWIFT_SDK_${sdk}_OBJECT_FORMAT}" STREQUAL "WASM")
       # TODO(compnerd) switch to the generator expression when cmake is upgraded
       # to a version which supports it.
       # set(swiftrtObject "$<TARGET_OBJECTS:swiftImageRegistrationObject${SWIFT_SDK_${sdk}_OBJECT_FORMAT}-${arch_suffix}>")
-      set(swiftrtObject ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/swiftImageRegistrationObject${SWIFT_SDK_${sdk}_OBJECT_FORMAT}-${arch_suffix}.dir/SwiftRT-${SWIFT_SDK_${sdk}_OBJECT_FORMAT}.cpp${CMAKE_C_OUTPUT_EXTENSION})
+      set(swiftrtSourceName SwiftRT-${SWIFT_SDK_${sdk}_OBJECT_FORMAT}.cpp)
+      if("${SWIFT_SDK_${sdk}_OBJECT_FORMAT}" STREQUAL "ELF" OR
+         "${SWIFT_SDK_${sdk}_OBJECT_FORMAT}" STREQUAL "WASM")
+       set(swiftrtSourceName SwiftRT-ELF-WASM.cpp)
+      endif()
+      set(swiftrtObject ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/swiftImageRegistrationObject${SWIFT_SDK_${sdk}_OBJECT_FORMAT}-${arch_suffix}.dir/${swiftrtSourceName}${CMAKE_C_OUTPUT_EXTENSION})
 
       if(sdk STREQUAL WINDOWS)
         set(extension .obj)

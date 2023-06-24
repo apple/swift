@@ -85,6 +85,20 @@ StdStringOverlayTestSuite.test("std::u16string operators") {
   expectTrue(s1 == "something123literal")
 }
 
+StdStringOverlayTestSuite.test("std::string::append") {
+  var s1 = std.string("0123")
+  let s2 = std.string("abc")
+  s1.append(s2)
+  expectEqual(s1, std.string("0123abc"))
+}
+
+StdStringOverlayTestSuite.test("std::u16string::append") {
+  var s1 = std.u16string("0123")
+  let s2 = std.u16string("abc")
+  s1.append(s2)
+  expectEqual(s1, std.u16string("0123abc"))
+}
+
 StdStringOverlayTestSuite.test("std::string as Hashable") {
   let s0 = std.string()
   let h0 = s0.hashValue

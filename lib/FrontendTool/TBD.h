@@ -18,6 +18,9 @@
 namespace llvm {
 class StringRef;
 class Module;
+namespace vfs {
+class OutputBackend;
+}
 }
 namespace swift {
 class ModuleDecl;
@@ -26,7 +29,7 @@ class FrontendOptions;
 struct TBDGenOptions;
 
 bool writeTBD(ModuleDecl *M, StringRef OutputFilename,
-              const TBDGenOptions &Opts);
+              llvm::vfs::OutputBackend &Backend, const TBDGenOptions &Opts);
 bool validateTBD(ModuleDecl *M,
                  const llvm::Module &IRModule,
                  const TBDGenOptions &opts,

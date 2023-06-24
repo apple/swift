@@ -587,24 +587,9 @@ createFromTypeToPathMap(const TypeToPathMap *map) {
   if (!map)
     return paths;
   const std::pair<file_types::ID, std::string &> typesAndStrings[] = {
-      {file_types::TY_ClangHeader, paths.ClangHeaderOutputPath},
-      {file_types::TY_SwiftModuleFile, paths.ModuleOutputPath},
-      {file_types::TY_SwiftModuleDocFile, paths.ModuleDocOutputPath},
-      {file_types::TY_SwiftSourceInfoFile, paths.ModuleSourceInfoOutputPath},
-      {file_types::TY_Dependencies, paths.DependenciesFilePath},
-      {file_types::TY_SwiftDeps, paths.ReferenceDependenciesFilePath},
-      {file_types::TY_SerializedDiagnostics, paths.SerializedDiagnosticsPath},
-      {file_types::TY_ModuleTrace, paths.LoadedModuleTracePath},
-      {file_types::TY_TBD, paths.TBDPath},
-      {file_types::TY_SwiftModuleInterfaceFile,
-       paths.ModuleInterfaceOutputPath},
-      {file_types::TY_SwiftModuleSummaryFile, paths.ModuleSummaryOutputPath},
-      {file_types::TY_PrivateSwiftModuleInterfaceFile,
-       paths.PrivateModuleInterfaceOutputPath},
-      {file_types::TY_YAMLOptRecord, paths.YAMLOptRecordPath},
-      {file_types::TY_BitstreamOptRecord, paths.BitstreamOptRecordPath},
-      {file_types::TY_SwiftABIDescriptor, paths.ABIDescriptorOutputPath},
-      {file_types::TY_ConstValues, paths.ConstValuesOutputPath}
+#define OUTPUT(NAME, TYPE) {file_types::TYPE, paths.NAME},
+#include "swift/Basic/SupplementaryOutputPaths.def"
+#undef OUTPUT
   };
   for (const std::pair<file_types::ID, std::string &> &typeAndString :
        typesAndStrings) {

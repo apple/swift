@@ -20,17 +20,17 @@ public class BigCat : Cat {
   }
 }
 
-public func make(type: Cat.Type, cats: Int) {
-  type.init(cats: cats)
+public func make(type: Cat.Type, cats: Int) -> Cat {
+  return type.init(cats: cats)
 }
 
-// CHECK-LABEL: sil @$s23devirt_speculative_init4make4type4catsyAA3CatCm_SitF : $@convention(thin) (@thick Cat.Type, Int) -> ()
+// CHECK-LABEL: sil @$s23devirt_speculative_init4make4type4catsAA3CatCAFm_SitF : $@convention(thin) (@thick Cat.Type, Int) -> @owned Cat {
 // CHECK:   checked_cast_br [exact] %0 : $@thick Cat.Type to @thick Cat.Type, bb2, bb3
-// CHECK: bb1:
+// CHECK: bb1{{.*}}:
 // CHECK:   return
 // CHECK: bb2({{%.*}} : $@thick Cat.Type):
-// CHECK:   alloc_ref [stack] $Cat
+// CHECK:   alloc_ref $Cat
 // CHECK:   br bb1
 // CHECK: bb3:
-// CHECK:   alloc_ref [stack] $BigCat
+// CHECK:   alloc_ref $BigCat
 // CHECK:   br bb1

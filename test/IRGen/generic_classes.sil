@@ -19,7 +19,7 @@ import Swift
 // --       flags: class, generic, unique, has vtable
 // CHECK-SAME:   <i32 0x8000_00D0>
 // --       name
-// CHECK-SAME:   [12 x i8]* [[ROOTGENERIC_NAME]]
+// CHECK-SAME:   ptr [[ROOTGENERIC_NAME]]
 // --       negative size in words
 // CHECK-SAME:   i32 3,
 // --       positive size in words
@@ -33,7 +33,7 @@ import Swift
 // CHECK-objc-SAME:   i32 11,
 // CHECK-native-SAME:   i32 8,
 // --       template instantiation cache
-// CHECK-SAME:   [16 x i8*]* @"$s15generic_classes11RootGenericCMI"
+// CHECK-SAME:   ptr @"$s15generic_classes11RootGenericCMI"
 // --       template instantiation pattern
 // CHECK-SAME:   @"$s15generic_classes11RootGenericCMP"
 // --       generic parameters, requirements, key arguments, extra arguments
@@ -48,7 +48,7 @@ import Swift
 // CHECK-LABEL: @"$s15generic_classes11RootGenericCMP" = internal constant
 // CHECK-SAME: <{
 // --       template instantiation function
-// CHECK-SAME:   %swift.type* (%swift.type_descriptor*, i8**, i8*)* @"$s15generic_classes11RootGenericCMi"
+// CHECK-SAME:   ptr @"$s15generic_classes11RootGenericCMi"
 // --       heap destructor
 // CHECK-SAME:   @"$s15generic_classes11RootGenericCfD"
 // --       ivar destroyer
@@ -86,7 +86,7 @@ import Swift
 // CHECK-DIRECT-SAME:   <i32 0x8000_0050>
 // CHECK-INDIRECT-SAME:   <i32 0x8001_0050>
 // --       name
-// CHECK-SAME:   [15 x i8]* [[ROOTNONGENERIC_NAME]]
+// CHECK-SAME:   ptr [[ROOTNONGENERIC_NAME]]
 // --       num fields
 // CHECK-SAME:   i32 3,
 // --       -- field offset vector offset
@@ -95,27 +95,27 @@ import Swift
 
 // CHECK: @"$s15generic_classes14RootNonGenericCMf" = internal global <{ {{.*}} }> <{
 // -- destructor
-// CHECK-SAME:                void (%T15generic_classes14RootNonGenericC*)*{{.*}} @"$s15generic_classes14RootNonGenericCfD{{[^,]*}}"{{[^,]*}},
+// CHECK-SAME:                ptr{{.*}} @"$s15generic_classes14RootNonGenericCfD{{[^,]*}}"{{[^,]*}},
 // -- witness table pointer
-// CHECK-DIRECT-SAME:         i8** {{.*}}@"$sBoWV{{(\.[^"]*)?}}",
-// CHECK-INDIRECT-SAME:       i8** null,
+// CHECK-DIRECT-SAME:         ptr {{.*}}@"$sBoWV{{(\.[^"]*)?}}",
+// CHECK-INDIRECT-SAME:       ptr null,
 // -- swift object type
 // CHECK-objc-SAME:           i64 {{.*}}@"$s15generic_classes14RootNonGenericCMm{{(\.[^"]*)?}}"
 // CHECK-native-SAME:         i64 0,
 // -- superclass
-// CHECK-DIRECT-objc-SAME:    %objc_class* {{.*}}@"OBJC_CLASS_$_{{(_TtCs12_)?}}SwiftObject{{(.ptrauth)?}}"
-// CHECK-INDIRECT-objc-SAME:  %swift.type* null,
-// CHECK-native-SAME:         %swift.type* null,
+// CHECK-DIRECT-objc-SAME:    ptr {{.*}}@"OBJC_CLASS_$_{{(_TtCs12_)?}}SwiftObject{{(.ptrauth)?}}"
+// CHECK-INDIRECT-objc-SAME:  ptr null,
+// CHECK-native-SAME:         ptr null,
 // -- objc only fields
-// CHECK-objc-SAME:           %swift.opaque* @_objc_empty_cache,
-// CHECK-objc-SAME:           %swift.opaque* null,
+// CHECK-objc-SAME:           ptr @_objc_empty_cache,
+// CHECK-objc-SAME:           ptr null,
 // CHECK-objc-SAME:           @_DATA__TtC15generic_classes14RootNonGeneric
 // -- flags, sizes, and offsets...
 // CHECK-SAME:                i32 33,
 // CHECK-SAME:                i16 7,
 // CHECK-SAME:                i16 0,
 // -- nominal type descriptor
-// CHECK-SAME:                {{.*}}* @"$s15generic_classes14RootNonGenericCMn{{[^,]*}}"
+// CHECK-SAME:                ptr @"$s15generic_classes14RootNonGenericCMn{{[^,]*}}"
 // CHECK-SAME: }>
 
 // CHECK: @"$s15generic_classes015GenericInheritsC0CMn" = hidden constant
@@ -124,7 +124,7 @@ import Swift
 
 // CHECK: @"$s15generic_classes015GenericInheritsC0CMP" = internal constant
 // --       template instantiation function
-// CHECK-SAME:   %swift.type* (%swift.type_descriptor*, i8**, i8*)* @"$s15generic_classes015GenericInheritsC0CMi"
+// CHECK-SAME:   ptr @"$s15generic_classes015GenericInheritsC0CMi"
 // --       pattern flags (1 == has extra data pattern)
 // CHECK-native-SAME: i32 0,
 // CHECK-objc-SAME:   i32 1,
@@ -254,21 +254,18 @@ sil_vtable RecursiveGenericInheritsGeneric {}
 sil @$s15generic_classes024RecursiveGenericInheritsD0CfD : $@convention(method) <T, U> (RecursiveGenericInheritsGeneric<T, U>) -> ()
 
 
-// CHECK: define{{( dllexport)?}}{{( protected)?}} swiftcc [[ROOTGENERIC]]* @RootGeneric_fragile_dependent_alloc
-// CHECK:   [[T0:%.*]] = call swiftcc %swift.metadata_response @"$s15generic_classes11RootGenericCMa"(i64 0, %swift.type* %G)
+// CHECK: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @RootGeneric_fragile_dependent_alloc
+// CHECK:   [[T0:%.*]] = call swiftcc %swift.metadata_response @"$s15generic_classes11RootGenericCMa"(i64 0, ptr %G)
 // CHECK:   [[METADATA:%.*]] = extractvalue %swift.metadata_response [[T0]], 0
-// CHECK:   [[METADATA_ARRAY:%.*]] = bitcast %swift.type* [[METADATA]] to i8*
-// CHECK-objc:   [[T0:%.*]] = getelementptr inbounds i8, i8* [[METADATA_ARRAY]], i32 48
-// CHECK-native: [[T0:%.*]] = getelementptr inbounds i8, i8* [[METADATA_ARRAY]], i32 24
-// CHECK:   [[T1:%.*]] = bitcast i8* [[T0]] to i32*
-// CHECK:   [[SIZE32:%.*]] = load i32, i32* [[T1]], align 8
+// CHECK-objc:   [[T0:%.*]] = getelementptr inbounds i8, ptr [[METADATA]], i32 48
+// CHECK-native: [[T0:%.*]] = getelementptr inbounds i8, ptr [[METADATA]], i32 24
+// CHECK:   [[SIZE32:%.*]] = load i32, ptr [[T0]], align 8
 // CHECK:   [[SIZE:%.*]] = zext i32 [[SIZE32]] to i64
-// CHECK-objc:   [[T0:%.*]] = getelementptr inbounds i8, i8* [[METADATA_ARRAY]], i32 52
-// CHECK-native: [[T0:%.*]] = getelementptr inbounds i8, i8* [[METADATA_ARRAY]], i32 28
-// CHECK:   [[T1:%.*]] = bitcast i8* [[T0]] to i16*
-// CHECK:   [[ALIGN16:%.*]] = load i16, i16* [[T1]], align 4
+// CHECK-objc:   [[T0:%.*]] = getelementptr inbounds i8, ptr [[METADATA]], i32 52
+// CHECK-native: [[T0:%.*]] = getelementptr inbounds i8, ptr [[METADATA]], i32 28
+// CHECK:   [[ALIGN16:%.*]] = load i16, ptr [[T0]], align 4
 // CHECK:   [[ALIGN:%.*]] = zext i16 [[ALIGN16]] to i64
-// CHECK:   call noalias %swift.refcounted* @swift_allocObject(%swift.type* [[METADATA]], i64 [[SIZE]], i64 [[ALIGN]])
+// CHECK:   call noalias ptr @swift_allocObject(ptr [[METADATA]], i64 [[SIZE]], i64 [[ALIGN]])
 sil @RootGeneric_fragile_dependent_alloc : $<G> () -> RootGeneric<G> {
 entry:
   %x = alloc_ref $RootGeneric<G>
@@ -277,7 +274,7 @@ entry:
 
 // RootGeneric.x has fixed layout
 // CHECK: define{{( dllexport)?}}{{( protected)?}} swiftcc i8 @RootGeneric_concrete_fragile_dependent_member_access_x
-// CHECK:   getelementptr inbounds [[ROOTGENERIC]], [[ROOTGENERIC]]* %0, i32 0, i32 1
+// CHECK:   getelementptr inbounds [[ROOTGENERIC]], ptr %0, i32 0, i32 1
 sil @RootGeneric_concrete_fragile_dependent_member_access_x : $<F> (RootGeneric<F>) -> UInt8 {
 entry(%c : $RootGeneric<F>):
   %p = ref_element_addr %c : $RootGeneric<F>, #RootGeneric.x
@@ -287,13 +284,10 @@ entry(%c : $RootGeneric<F>):
 
 // RootGeneric.y has dependent layout; load the offset from the metadata
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @RootGeneric_concrete_fragile_dependent_member_access_y
-// CHECK:   [[TYPE_METADATA_ARRAY:%.*]] = bitcast %swift.type* {{%.*}} to i64*
-// CHECK-objc:   [[Y_OFFSET_ADDR:%.*]] = getelementptr inbounds i64, i64* [[TYPE_METADATA_ARRAY]], i64 12
-// CHECK-native: [[Y_OFFSET_ADDR:%.*]] = getelementptr inbounds i64, i64* [[TYPE_METADATA_ARRAY]], i64 9
-// CHECK:   [[Y_OFFSET:%.*]] = load i64, i64* [[Y_OFFSET_ADDR]], align 8
-// CHECK:   [[CLASS_BYTE_ARRAY:%.*]] = bitcast [[ROOTGENERIC]]* {{%.*}} to i8*
-// CHECK:   [[Y_ADDR:%.*]] = getelementptr inbounds i8, i8* [[CLASS_BYTE_ARRAY]], i64 [[Y_OFFSET]]
-// CHECK:   bitcast i8* [[Y_ADDR]] to %swift.opaque*
+// CHECK-objc:   [[Y_OFFSET_ADDR:%.*]] = getelementptr inbounds i64, ptr {{%.*}}, i64 12
+// CHECK-native: [[Y_OFFSET_ADDR:%.*]] = getelementptr inbounds i64, ptr {{%.*}}, i64 9
+// CHECK:   [[Y_OFFSET:%.*]] = load i64, ptr [[Y_OFFSET_ADDR]], align 8
+// CHECK:   [[Y_ADDR:%.*]] = getelementptr inbounds i8, ptr {{%.*}}, i64 [[Y_OFFSET]]
 sil @RootGeneric_concrete_fragile_dependent_member_access_y : $<F> (RootGeneric<F>) -> @out F {
 entry(%z : $*F, %c : $RootGeneric<F>):
   %p = ref_element_addr %c : $RootGeneric<F>, #RootGeneric.y
@@ -303,8 +297,7 @@ entry(%z : $*F, %c : $RootGeneric<F>):
 }
 
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @RootGeneric_subst_concrete_fragile_dependent_member_access_y
-// CHECK:   [[Y_ADDR:%.*]] = getelementptr inbounds {{.*}}, {{.*}}* %1, i32 0, i32 3
-// CHECK:   bitcast %TSi* [[Y_ADDR]] to i8*
+// CHECK:   [[Y_ADDR:%.*]] = getelementptr inbounds {{.*}}, ptr %1, i32 0, i32 3
 sil @RootGeneric_subst_concrete_fragile_dependent_member_access_y : $(RootGeneric<Int>) -> @out Int {
 entry(%z : $*Int, %c : $RootGeneric<Int>):
   %p = ref_element_addr %c : $RootGeneric<Int>, #RootGeneric.y
@@ -315,13 +308,10 @@ entry(%z : $*Int, %c : $RootGeneric<Int>):
 
 // RootGeneric.z has dependent layout; load the offset from the metadata
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i8 @RootGeneric_concrete_fragile_dependent_member_access_z
-// CHECK:   [[TYPE_METADATA_ARRAY:%.*]] = bitcast %swift.type* {{%.*}} to i64*
-// CHECK-objc:   [[Z_OFFSET_ADDR:%.*]] = getelementptr inbounds i64, i64* [[TYPE_METADATA_ARRAY]], i64 13
-// CHECK-native: [[Z_OFFSET_ADDR:%.*]] = getelementptr inbounds i64, i64* [[TYPE_METADATA_ARRAY]], i64 10
-// CHECK:   [[Z_OFFSET:%.*]] = load i64, i64* [[Z_OFFSET_ADDR]], align 8
-// CHECK:   [[CLASS_BYTE_ARRAY:%.*]] = bitcast [[ROOTGENERIC]]* {{%.*}} to i8*
-// CHECK:   [[Z_ADDR:%.*]] = getelementptr inbounds i8, i8* [[CLASS_BYTE_ARRAY]], i64 [[Z_OFFSET]]
-// CHECK:   bitcast i8* [[Z_ADDR]] to %Ts5UInt8V*
+// CHECK-objc:   [[Z_OFFSET_ADDR:%.*]] = getelementptr inbounds i64, ptr {{%.*}}, i64 13
+// CHECK-native: [[Z_OFFSET_ADDR:%.*]] = getelementptr inbounds i64, ptr {{%.*}}, i64 10
+// CHECK:   [[Z_OFFSET:%.*]] = load i64, ptr [[Z_OFFSET_ADDR]], align 8
+// CHECK:   [[Z_ADDR:%.*]] = getelementptr inbounds i8, ptr {{%.*}}, i64 [[Z_OFFSET]]
 sil @RootGeneric_concrete_fragile_dependent_member_access_z : $<F> (RootGeneric<F>) -> UInt8 {
 entry(%c : $RootGeneric<F>):
   %p = ref_element_addr %c : $RootGeneric<F>, #RootGeneric.z
@@ -330,9 +320,9 @@ entry(%c : $RootGeneric<F>):
 }
 
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i8 @RootGeneric_subst_concrete_fragile_dependent_member_access_z
-// CHECK:   [[Z_ADDR:%.*]] = getelementptr inbounds {{.*}}, {{.*}}* %0, i32 0, i32 4
-// CHECK:   [[T0:%.*]] = getelementptr inbounds %Ts5UInt8V, %Ts5UInt8V* [[Z_ADDR]], i32 0, i32 0
-// CHECK:   load i8, i8* [[T0]], align
+// CHECK:   [[Z_ADDR:%.*]] = getelementptr inbounds {{.*}}, ptr %0, i32 0, i32 4
+// CHECK:   [[T0:%.*]] = getelementptr inbounds %Ts5UInt8V, ptr [[Z_ADDR]], i32 0, i32 0
+// CHECK:   load i8, ptr [[T0]], align
 sil @RootGeneric_subst_concrete_fragile_dependent_member_access_z : $(RootGeneric<Int>) -> UInt8 {
 entry(%c : $RootGeneric<Int>):
   %p = ref_element_addr %c : $RootGeneric<Int>, #RootGeneric.z
@@ -355,65 +345,62 @@ entry(%c : $RootGeneric<Int32>):
 }
  */
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} internal %swift.type* @"$s15generic_classes11RootGenericCMi"(%swift.type_descriptor* %0, i8** %1, i8* %2) {{.*}} {
-// CHECK:   [[METADATA:%.*]] = call{{( tail)?}} %swift.type* @swift_allocateGenericClassMetadata(%swift.type_descriptor* {{%[0-9,a-z,A-Z]+}}, i8** %1, i8* %2)
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} internal ptr @"$s15generic_classes11RootGenericCMi"(ptr %0, ptr %1, ptr %2) {{.*}} {
+// CHECK:   [[METADATA:%.*]] = call{{( tail)?}} ptr @swift_allocateGenericClassMetadata(ptr {{%[0-9,a-z,A-Z]+}}, ptr %1, ptr %2)
 
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} internal swiftcc %swift.metadata_response @"$s15generic_classes11RootGenericCMr"
-// CHECK-SAME:    (%swift.type* [[METADATA:%.*]], i8* %0, i8** %1) {{.*}} {
+// CHECK-SAME:    (ptr [[METADATA:%.*]], ptr %0, ptr %1) {{.*}} {
 // -- initialize the dependent field offsets
-// CHECK:   call swiftcc %swift.metadata_response @swift_initClassMetadata2(%swift.type* [[METADATA]], i64 0, i64 3, i8*** {{%.*}}, i64* {{%.*}})
+// CHECK:   call swiftcc %swift.metadata_response @swift_initClassMetadata2(ptr [[METADATA]], i64 0, i64 3, ptr {{%.*}}, ptr {{%.*}})
 // CHECK: }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} internal %swift.type* @"$s15generic_classes22RootGenericFixedLayoutCMi"(%swift.type_descriptor* %0, i8** %1, i8* %2) {{.*}} {
-// CHECK:   [[METADATA:%.*]] ={{( tail)?}} call %swift.type* @swift_allocateGenericClassMetadata(%swift.type_descriptor* {{%[0-9,a-z,A-Z]+}}, i8** %1, i8* %2)
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} internal ptr @"$s15generic_classes22RootGenericFixedLayoutCMi"(ptr %0, ptr %1, ptr %2) {{.*}} {
+// CHECK:   [[METADATA:%.*]] ={{( tail)?}} call ptr @swift_allocateGenericClassMetadata(ptr {{%[0-9,a-z,A-Z]+}}, ptr %1, ptr %2)
 
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} internal swiftcc %swift.metadata_response @"$s15generic_classes22RootGenericFixedLayoutCMr"
-// CHECK-SAME:    (%swift.type* [[METADATA:%.*]], i8* %0, i8** %1) {{.*}} {
-// CHECK:   call swiftcc %swift.metadata_response @swift_initClassMetadata2(%swift.type* [[METADATA]], i64 0, i64 3, i8*** {{%.*}}, i64* {{%.*}})
+// CHECK-SAME:    (ptr [[METADATA:%.*]], ptr %0, ptr %1) {{.*}} {
+// CHECK:   call swiftcc %swift.metadata_response @swift_initClassMetadata2(ptr [[METADATA]], i64 0, i64 3, ptr {{%.*}}, ptr {{%.*}})
 // CHECK: }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} internal %swift.type* @"$s15generic_classes015GenericInheritsC0CMi"(%swift.type_descriptor* %0, i8** %1, i8* %2) {{.*}} {
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} internal ptr @"$s15generic_classes015GenericInheritsC0CMi"(ptr %0, ptr %1, ptr %2) {{.*}} {
 //   Bind the generic parameters.
-// CHECK:   [[T0:%.*]] = bitcast i8** %1 to %swift.type**
-// CHECK:   %A  = load %swift.type*, %swift.type** [[T0]]
-// CHECK:   [[T1:%.*]] = getelementptr inbounds %swift.type*, %swift.type** [[T0]], i32 1
-// CHECK:   %B  = load %swift.type*, %swift.type** [[T1]]
+// CHECK:   %A  = load ptr, ptr %1
+// CHECK:   [[T1:%.*]] = getelementptr inbounds ptr, ptr %1, i32 1
+// CHECK:   %B  = load ptr, ptr [[T1]]
 //   Construct the class.
-// CHECK:   [[METADATA:%.*]] ={{( tail)?}} call %swift.type* @swift_allocateGenericClassMetadata(%swift.type_descriptor* {{%[0-9,a-z,A-Z]+}}, i8** %1, i8* %2)
-// CHECK-NEXT:   ret %swift.type* [[METADATA]]
+// CHECK:   [[METADATA:%.*]] ={{( tail)?}} call ptr @swift_allocateGenericClassMetadata(ptr {{%[0-9,a-z,A-Z]+}}, ptr %1, ptr %2)
+// CHECK-NEXT:   ret ptr [[METADATA]]
 
 // CHECK-LABEL: define{{( protected)?}} internal swiftcc %swift.metadata_response @"$s15generic_classes015GenericInheritsC0CMr"
-// CHECK-SAME:    (%swift.type* [[METADATA:%.*]], i8* %0, i8** %1) {{.*}} {
+// CHECK-SAME:    (ptr [[METADATA:%.*]], ptr %0, ptr %1) {{.*}} {
 
 //   Initialize our own dependent field offsets.
-// CHECK:   [[METADATA_ARRAY:%.*]] = bitcast %swift.type* [[METADATA]] to i64*
-// CHECK-objc:   [[OFFSETS:%.*]] = getelementptr inbounds i64, i64* [[METADATA_ARRAY]], i64 20
-// CHECK-native: [[OFFSETS:%.*]] = getelementptr inbounds i64, i64* [[METADATA_ARRAY]], i64 17
-// CHECK:   [[FIELDS_ADDR:%.*]] = getelementptr inbounds [1 x i8**], [1 x i8**]* %classFields, i32 0, i32 0
-// CHECK:   [[T0:%.*]] = call{{( tail)?}} swiftcc %swift.metadata_response @swift_checkMetadataState(i64 319, %swift.type* %B)
+// CHECK-objc:   [[OFFSETS:%.*]] = getelementptr inbounds i64, ptr [[METADATA]], i64 20
+// CHECK-native: [[OFFSETS:%.*]] = getelementptr inbounds i64, ptr [[METADATA]], i64 17
+// CHECK:   [[FIELDS_ADDR:%.*]] = getelementptr inbounds [1 x ptr], ptr %classFields, i32 0, i32 0
+// CHECK:   [[T0:%.*]] = call{{( tail)?}} swiftcc %swift.metadata_response @swift_checkMetadataState(i64 319, ptr %B)
 // CHECK:   [[B_CHECKED:%.*]] = extractvalue %swift.metadata_response [[T0]], 0
 // CHECK:   [[B_STATUS:%.*]] = extractvalue %swift.metadata_response [[T0]], 1
 // CHECK:   [[B_OK:%.*]] = icmp ule i64 [[B_STATUS]], 63
 // CHECK:   br i1 [[B_OK]],
-// CHECK:   [[T0:%.*]] = bitcast %swift.type* [[B_CHECKED]] to i8***
-// CHECK:   [[T1:%.*]] = getelementptr inbounds i8**, i8*** [[T0]], i64 -1
-// CHECK:   [[VWT:%.*]] = load i8**, i8*** [[T1]], align 8
-// CHECK:   [[T0:%.*]] = getelementptr inbounds i8*, i8** %{{[0-9a-zA-Z.]+}}, i32 8
-// CHECK:   [[T1:%.*]] = getelementptr inbounds i8**, i8*** [[FIELDS_ADDR]], i32 0
-// CHECK:   store i8** [[T0]], i8*** [[T1]], align 8
+// CHECK:   [[T1:%.*]] = getelementptr inbounds ptr, ptr [[B_CHECKED]], i64 -1
+// CHECK:   [[VWT:%.*]] = load ptr, ptr [[T1]], align 8
+// CHECK:   [[T0:%.*]] = getelementptr inbounds ptr, ptr %{{[0-9a-zA-Z.]+}}, i32 8
+// CHECK:   [[T1:%.*]] = getelementptr inbounds ptr, ptr [[FIELDS_ADDR]], i32 0
+// CHECK:   store ptr [[T0]], ptr [[T1]], align 8
 
-// CHECK:   [[T0:%.*]] = call swiftcc %swift.metadata_response @swift_initClassMetadata2(%swift.type* [[METADATA]], i64 0, i64 1, i8*** [[FIELDS_ADDR]], i64* [[OFFSETS]])
+// CHECK:   [[T0:%.*]] = call swiftcc %swift.metadata_response @swift_initClassMetadata2(ptr [[METADATA]], i64 0, i64 1, ptr [[FIELDS_ADDR]], ptr [[OFFSETS]])
 // CHECK-NEXT: [[INITDEP_METADATA:%.*]] = extractvalue %swift.metadata_response [[T0]], 0
 // CHECK-NEXT: [[INITDEP_STATUS:%.*]] = extractvalue %swift.metadata_response [[T0]], 1
-// CHECK-NEXT: [[INITDEP_PRESENT:%.*]] = icmp eq %swift.type* [[INITDEP_METADATA]], null
+// CHECK-NEXT: [[INITDEP_PRESENT:%.*]] = icmp eq ptr [[INITDEP_METADATA]], null
 // CHECK-NEXT: br i1 [[INITDEP_PRESENT]],
 
-// CHECK:   [[DEP:%.*]] = phi %swift.type* [ [[B_CHECKED]], {{.*}} ], [ [[INITDEP_METADATA]], {{.*}} ], [ null, {{.*}} ]
+// CHECK:   [[DEP:%.*]] = phi ptr [ [[B_CHECKED]], {{.*}} ], [ [[INITDEP_METADATA]], {{.*}} ], [ null, {{.*}} ]
 // CHECK:   [[DEP_REQ:%.*]] = phi i64 [ 63, {{.*}} ], [ [[INITDEP_STATUS]], {{.*}} ], [ 0, {{.*}} ]
-// CHECK:   [[T0:%.*]] = insertvalue %swift.metadata_response undef, %swift.type* [[DEP]], 0
+// CHECK:   [[T0:%.*]] = insertvalue %swift.metadata_response undef, ptr [[DEP]], 0
 // CHECK:   [[T1:%.*]] = insertvalue %swift.metadata_response [[T0]], i64 [[DEP_REQ]], 1
 // CHECK:   ret %swift.metadata_response [[T1]]
 // CHECK: }
 
-// OSIZE: define hidden swiftcc %swift.metadata_response @"$s15generic_classes11RootGenericCMa"(i64 %0, %swift.type* {{.*}}) [[ATTRS:#[0-9]+]] {{(section)?.*}}{
+// OSIZE: define hidden swiftcc %swift.metadata_response @"$s15generic_classes11RootGenericCMa"(i64 %0, ptr {{.*}}) [[ATTRS:#[0-9]+]] {{(section)?.*}}{
 // OSIZE: [[ATTRS]] = {{{.*}}noinline

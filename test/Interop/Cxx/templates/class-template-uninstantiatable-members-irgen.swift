@@ -1,4 +1,5 @@
-// RUN: %target-swift-emit-ir %s -I %S/Inputs -enable-experimental-cxx-interop -disable-availability-checking -Xcc -fignore-exceptions | %FileCheck %s
+// RUN: %target-swift-emit-ir %use_no_opaque_pointers %s -I %S/Inputs -enable-experimental-cxx-interop -disable-availability-checking -Xcc -fignore-exceptions | %FileCheck %s
+// RUN: %target-swift-emit-ir %s -I %S/Inputs -enable-experimental-cxx-interop -disable-availability-checking -Xcc -fignore-exceptions
 
 import ClassTemplateInstantiationErrors
 

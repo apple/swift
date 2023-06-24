@@ -1730,14 +1730,6 @@ public:
         getModule(), CaseCounts, DefaultCount));
   }
 
-  SelectValueInst *createSelectValue(
-      SILLocation Loc, SILValue Operand, SILType Ty, SILValue DefaultResult,
-      ArrayRef<std::pair<SILValue, SILValue>> CaseValuesAndResult) {
-    return insert(SelectValueInst::create(getSILDebugLocation(Loc), Operand, Ty,
-                                          DefaultResult, CaseValuesAndResult,
-                                          getModule()));
-  }
-
   TupleExtractInst *createTupleExtract(SILLocation Loc, SILValue Operand,
                                        unsigned FieldNo, SILType ResultTy) {
     return createTupleExtract(Loc, Operand, FieldNo, ResultTy,

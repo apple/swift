@@ -1808,60 +1808,14 @@ namespace {
       }
       
       if (AnyMetatypeType *meta = baseTy->getAs<AnyMetatypeType>()) {
-        if (BoundGenericType *bgt
-              = meta->getInstanceType()->getAs<BoundGenericType>()) {
-          ArrayRef<Type> typeVars = bgt->getGenericArgs();
-          auto specializations = expr->getUnresolvedParams();
-
-          // If we have too many generic arguments, complain.
-          if (specializations.size() > typeVars.size()) {
-            de.diagnose(expr->getSubExpr()->getLoc(),
-                        diag::type_parameter_count_mismatch,
-                        bgt->getDecl()->getName(), typeVars.size(),
-                        specializations.size(),
-                        /*too many arguments*/ false,
-                        /*isParameterPack?*/ false)
-                .highlight(
-                    SourceRange(expr->getLAngleLoc(), expr->getRAngleLoc()));
-            de.diagnose(bgt->getDecl(), diag::kind_declname_declared_here,
-                        DescriptiveDeclKind::GenericType,
-                        bgt->getDecl()->getName());
-            return Type();
-          }
-
-          // Bind the specified generic arguments to the type variables in the
-          // open type.
-          auto *const locator = CS.getConstraintLocator(expr);
-          auto options =
-              TypeResolutionOptions(TypeResolverContext::InExpression);
-          for (size_t i = 0, e = specializations.size(); i < e; ++i) {
-            PackExpansionExpr *elementEnv = nullptr;
-            if (!PackElementEnvironments.empty()) {
-              options |= TypeResolutionFlags::AllowPackReferences;
-              elementEnv = PackElementEnvironments.back();
-            }
-
-            const auto result = TypeResolution::resolveContextualType(
-                specializations[i], CS.DC, options,
-                // Introduce type variables for unbound generics.
-                OpenUnboundGenericType(CS, locator),
-                HandlePlaceholderType(CS, locator),
-                OpenPackElementType(CS, locator, elementEnv));
-            if (result->hasError())
-              return Type();
-
-            CS.addConstraint(ConstraintKind::Bind, typeVars[i], result,
-                             locator);
-          }
-          
-          return baseTy;
-        } else {
-          de.diagnose(expr->getSubExpr()->getLoc(), diag::not_a_generic_type,
-                      meta->getInstanceType());
-          de.diagnose(expr->getLAngleLoc(),
-                      diag::while_parsing_as_left_angle_bracket);
+        auto *overloadLocator = CS.getConstraintLocator(expr->getSubExpr());
+        if (addSpecializationConstraint(overloadLocator,
+                                        meta->getInstanceType(),
+                                        expr->getUnresolvedParams())) {
           return Type();
         }
+
+        return baseTy;
       }
 
       // FIXME: If the base type is a type variable, constrain it to a metatype
@@ -2949,10 +2903,6 @@ namespace {
         PreWalkAction walkToDeclPre(Decl *D) override {
           return Action::VisitChildrenIf(isa<PatternBindingDecl>(D));
         }
-
-        PreWalkResult<Pattern *> walkToPatternPre(Pattern *P) override {
-          return Action::SkipChildren(P);
-        }
       } collectVarRefs(CS);
 
       // Walk the capture list if this closure has one,  because it could
@@ -2971,9 +2921,9 @@ namespace {
       SmallVector<TypeVariableType *, 4> referencedVars{
           collectVarRefs.varRefs.begin(), collectVarRefs.varRefs.end()};
 
-      CS.addUnsolvedConstraint(Constraint::create(
-          CS, ConstraintKind::DefaultClosureType, closureType, inferredType,
-          locator, referencedVars));
+      CS.addUnsolvedConstraint(
+          Constraint::create(CS, ConstraintKind::FallbackType, closureType,
+                             inferredType, locator, referencedVars));
 
       CS.setClosureType(closure, inferredType);
       return closureType;
@@ -3482,16 +3432,18 @@ namespace {
     }
     
     Type visitUnresolvedPatternExpr(UnresolvedPatternExpr *expr) {
-      // If there are UnresolvedPatterns floating around after pattern type
-      // checking, they are definitely invalid. However, we will
-      // diagnose that condition elsewhere; to avoid unnecessary noise errors,
-      // just plop an open type variable here.
-      
-      auto locator = CS.getConstraintLocator(expr);
-      auto typeVar = CS.createTypeVariable(locator,
-                                           TVO_CanBindToLValue |
-                                           TVO_CanBindToNoEscape);
-      return typeVar;
+      // Encountering an UnresolvedPatternExpr here means we have an invalid
+      // ExprPattern with a Pattern node like 'let x' nested in it. Record a
+      // fix, and assign ErrorTypes to any VarDecls bound.
+      auto *locator = CS.getConstraintLocator(expr);
+      auto *P = expr->getSubPattern();
+      CS.recordFix(IgnoreInvalidPatternInExpr::create(CS, P, locator));
+
+      P->forEachVariable([&](VarDecl *VD) {
+        CS.setType(VD, ErrorType::get(CS.getASTContext()));
+      });
+
+      return CS.createTypeVariable(locator, TVO_CanBindToHole);
     }
 
     /// Get the type T?

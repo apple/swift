@@ -1,0 +1,1130 @@
+// RUN: %target-sil-opt -sil-move-only-address-checker -enable-sil-verify-all %s | %FileCheck %s
+sil_stage raw
+
+import Builtin
+
+// #############################################################################
+// #############################################################################
+// SCALAR STORAGE                                                             {{
+// #############################################################################
+// #############################################################################
+
+sil [ossa] @condition : $@convention(thin) () -> Builtin.Int1
+
+@_moveOnly struct S {
+  deinit
+}
+
+sil [ossa] @get : $@convention(thin) () -> @out S
+sil [ossa] @get_value : $@convention(thin) () -> @owned S
+
+sil [ossa] @see : $@convention(thin) (@guaranteed S) -> ()
+sil [ossa] @see_addr : $@convention(thin) (@in_guaranteed S) -> ()
+
+sil [ossa] @end : $@convention(thin) (@owned S) -> ()
+sil [ossa] @end_addr : $@convention(thin) (@in S) -> ()
+
+sil [ossa] @other : $@convention(thin) () -> ()
+
+// =============================================================================
+// =============================================================================
+// Single def                                                                 {{
+// =============================================================================
+// =============================================================================
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Single block                                                               {{
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// A load-copy of the value is passed to a value-consuming function, and the
+// storage is destroyed at function end.
+//
+// Ensure that there is no copy and the lifetime ends at the value-consume.
+// CHECK-LABEL: sil [ossa] @singleblock_consume_value_before_other : {{.*}} {
+// CHECK:         [[OTHER:%[^,]+]] = function_ref @other
+// CHECK:         [[GET_VALUE:%[^,]+]] = function_ref @get_value
+// CHECK:         [[END:%[^,]+]] = function_ref @end
+// CHECK:         [[STACK:%[^,]+]] = alloc_stack
+// CHECK:         [[INSTANCE:%[^,]+]] = apply [[GET_VALUE]]()
+// CHECK:         store [[INSTANCE]] to [init] [[STACK]]
+// CHECK:         [[ACCESS:%[^,]+]] = begin_access [modify] [static] [[STACK]]
+// CHECK:         [[INSTANCE_RELOAD:%[^,]+]] = load [take] [[ACCESS]]
+// CHECK:         apply [[END]]([[INSTANCE_RELOAD]])
+// CHECK:         end_access [[ACCESS]]
+// CHECK:         apply [[OTHER]]()
+// CHECK:         dealloc_stack [[STACK]]
+// CHECK-LABEL: } // end sil function 'singleblock_consume_value_before_other'
+sil [ossa] @singleblock_consume_value_before_other : $@convention(thin) () -> () {
+bb0:
+  %other = function_ref @other : $@convention(thin) () -> ()
+  %get_value = function_ref @get_value : $@convention(thin) () -> @owned S
+  %end = function_ref @end : $@convention(thin) (@owned S) -> ()
+
+  %stack_addr = alloc_stack $S
+  %stack = mark_must_check [consumable_and_assignable] %stack_addr : $*S
+  %instance = apply %get_value() : $@convention(thin) () -> @owned S
+  store %instance to [init] %stack : $*S
+  %access = begin_access [deinit] [static] %stack : $*S
+  %instance_reload = load [copy] %access : $*S
+  apply %end(%instance_reload) : $@convention(thin) (@owned S) -> ()
+  end_access %access : $*S
+  %18 = apply %other() : $@convention(thin) () -> ()
+  destroy_addr %stack : $*S
+  dealloc_stack %stack_addr : $*S
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// A load-copy of the value is passed to a value-borrowing function then
+// destroyed, and the storage is destroyed at function end.
+//
+// Ensure that there is no copy and the lifetime ends at function end.
+// CHECK-LABEL: sil [ossa] @singleblock_borrow_before_other : {{.*}} {
+// CHECK:         [[OTHER:%[^,]+]] = function_ref @other
+// CHECK:         [[GET_VALUE:%[^,]+]] = function_ref @get_value
+// CHECK:         [[SEE:%[^,]+]] = function_ref @see
+// CHECK:         [[STACK:%[^,]+]] = alloc_stack
+// CHECK:         [[INSTANCE:%[^,]+]] = apply [[GET_VALUE]]()
+// CHECK:         store [[INSTANCE]] to [init] [[STACK]]
+// CHECK:         [[ACCESS:%[^,]+]] = begin_access [deinit] [static] [[STACK]]
+// CHECK:         [[BORROW:%[^,]+]] = load_borrow [[ACCESS]]
+// CHECK:         apply [[SEE]]([[BORROW]])
+// CHECK:         end_borrow [[BORROW]]
+// CHECK:         end_access [[ACCESS]]
+// CHECK:         apply [[OTHER]]()
+// CHECK:         destroy_addr [[STACK]]
+// CHECK:         dealloc_stack [[STACK]]
+// CHECK-LABEL: } // end sil function 'singleblock_borrow_before_other'
+sil [ossa] @singleblock_borrow_before_other : $@convention(thin) () -> () {
+bb0:
+  %other = function_ref @other : $@convention(thin) () -> ()
+  %get_value = function_ref @get_value : $@convention(thin) () -> @owned S
+  %see = function_ref @see : $@convention(thin) (@guaranteed S) -> ()
+  %end = function_ref @end : $@convention(thin) (@owned S) -> ()
+
+  %stack_addr = alloc_stack $S
+  %stack = mark_must_check [consumable_and_assignable] %stack_addr : $*S
+  %instance = apply %get_value() : $@convention(thin) () -> @owned S
+  store %instance to [init] %stack : $*S
+  %access = begin_access [deinit] [static] %stack : $*S
+  %instance_reload = load [copy] %access : $*S
+  apply %see(%instance_reload) : $@convention(thin) (@guaranteed S) -> ()
+  destroy_value %instance_reload : $S
+  end_access %access : $*S
+  %18 = apply %other() : $@convention(thin) () -> ()
+  destroy_addr %stack : $*S
+  dealloc_stack %stack_addr : $*S
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// }} Single block
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Multiple blocks                                                            {{
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// There is a consuming use in right.  So bottom is a consumed block.  Liveness
+// is retracted up to the consume in right and up to the bottom of left.
+// CHECK-LABEL: sil [ossa] @diamond__consume_r__use_l__destroy_b : {{.*}} {
+// CHECK:         [[STACK:%[^,]+]] = alloc_stack
+// CHECK:         [[GET:%[^,]+]] = function_ref @get
+// CHECK:         [[OTHER:%[^,]+]] = function_ref @other
+// CHECK:         [[SEE_ADDR:%[^,]+]] = function_ref @see_addr
+// CHECK:         [[END:%[^,]+]] = function_ref @end
+// CHECK:         apply [[GET]]([[STACK]])
+// CHECK:         cond_br undef, [[LEFT:bb[0-9]+]], [[RIGHT:bb[0-9]+]]                         
+// CHECK:       [[LEFT:bb[0-9]+]]:                                              
+// CHECK:         apply [[SEE_ADDR]]([[STACK]])
+// CHECK:         apply [[OTHER]]()
+// CHECK:         destroy_addr [[STACK]]
+// CHECK:         br [[BOTTOM:bb[0-9]+]]                                          
+// CHECK:       [[RIGHT:bb[0-9]+]]:                                              
+// CHECK:         [[INSTANCE:%[^,]+]] = load [take] [[STACK]]
+// CHECK:         apply [[END]]([[INSTANCE]])
+// CHECK:         br [[BOTTOM]]                                          
+// CHECK:       [[BOTTOM]]:                                              
+// CHECK-LABEL: } // end sil function 'diamond__consume_r__use_l__destroy_b'
+sil [ossa] @diamond__consume_r__use_l__destroy_b : $@convention(thin) () -> () {
+top:
+    %stack_addr = alloc_stack $S
+    %stack = mark_must_check [consumable_and_assignable] %stack_addr : $*S
+    %get = function_ref @get : $@convention(thin) () -> @out S
+    %other = function_ref @other : $@convention(thin) () -> ()
+    %see = function_ref @see : $@convention(thin) (@guaranteed S) -> ()
+    %see_addr = function_ref @see_addr : $@convention(thin) (@in_guaranteed S) -> ()
+    %end = function_ref @end : $@convention(thin) (@owned S) -> ()
+    %end_addr = function_ref @end_addr : $@convention(thin) (@in S) -> ()
+    apply %get(%stack) : $@convention(thin) () -> @out S
+    cond_br undef, left, right
+left:
+    apply %see_addr(%stack) : $@convention(thin) (@in_guaranteed S) -> ()
+    apply %other() : $@convention(thin) () -> ()
+    br bottom
+right:
+    %copy = load [copy] %stack : $*S
+    apply %end(%copy) : $@convention(thin) (@owned S) -> ()
+    br bottom
+bottom:
+    destroy_addr %stack : $*S
+    dealloc_stack %stack_addr : $*S
+    %retval = tuple ()
+    return %retval : $()
+}
+
+// Only bottom is consumedAtEntry.
+// CHECK-LABEL: sil [ossa] @diamond_2r__consume_r1r2__use_l__destroy_b : {{.*}} {
+// CHECK:         [[STACK:%[^,]+]] = alloc_stack
+// CHECK:         [[GET:%[^,]+]] = function_ref @get
+// CHECK:         [[SEE:%[^,]+]] = function_ref @see
+// CHECK:         [[END:%[^,]+]] = function_ref @end
+// CHECK:         apply [[GET]]([[STACK]])
+// CHECK:         cond_br undef, [[LEFT:bb[0-9]+]], [[RIGHT:bb[0-9]+]]
+// CHECK:       [[LEFT]]:
+// CHECK:         [[BORROW:%[^,]+]] = load_borrow [[STACK]]
+// CHECK:         apply [[SEE]]([[BORROW]])
+// CHECK:         end_borrow [[BORROW]]
+// CHECK:         destroy_addr [[STACK]]
+// CHECK:         br [[BOTTOM:bb[0-9]+]]
+// CHECK:       [[RIGHT]]:
+// CHECK:         [[BORROW_2:%[^,]+]] = load_borrow [[STACK]]
+// CHECK:         apply [[SEE]]([[BORROW_2]])
+// CHECK:         end_borrow [[BORROW_2]]
+// CHECK:         br [[RIGHT_2:bb[0-9]+]]
+// CHECK:       [[RIGHT_2]]:
+// CHECK:         [[TAKE:%[^,]+]] = load [take] [[STACK]]
+// CHECK:         apply [[END]]([[TAKE]])
+// CHECK:         br [[BOTTOM]]
+// CHECK:       [[BOTTOM]]:
+// CHECK-LABEL: } // end sil function 'diamond_2r__consume_r1r2__use_l__destroy_b'
+sil [ossa] @diamond_2r__consume_r1r2__use_l__destroy_b : $@convention(thin) () -> () {
+top:
+    %stack_addr = alloc_stack $S
+    %stack = mark_must_check [consumable_and_assignable] %stack_addr : $*S
+    %get = function_ref @get : $@convention(thin) () -> @out S
+    %other = function_ref @other : $@convention(thin) () -> ()
+    %see = function_ref @see : $@convention(thin) (@guaranteed S) -> ()
+    %see_addr = function_ref @see_addr : $@convention(thin) (@in_guaranteed S) -> ()
+    %end = function_ref @end : $@convention(thin) (@owned S) -> ()
+    %end_addr = function_ref @end_addr : $@convention(thin) (@in S) -> ()
+    apply %get(%stack) : $@convention(thin) () -> @out S
+    cond_br undef, left, right
+left:
+    %copy3 = load [copy] %stack : $*S
+    apply %see(%copy3) : $@convention(thin) (@guaranteed S) -> ()
+    destroy_value %copy3 : $S
+    br bottom
+right:
+    %copy = load [copy] %stack : $*S
+    apply %see(%copy) : $@convention(thin) (@guaranteed S) -> ()
+    destroy_value %copy : $S
+    br right2
+right2:
+    %copy2 = load [copy] %stack : $*S
+    apply %end(%copy2) : $@convention(thin) (@owned S) -> ()
+    br bottom
+bottom:
+    destroy_addr %stack : $*S
+    dealloc_stack %stack_addr : $*S
+    %retval = tuple ()
+    return %retval : $()
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// }} Multiple blocks
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// =============================================================================
+// =============================================================================
+// }} Single def
+// =============================================================================
+// =============================================================================
+
+// =============================================================================
+// =============================================================================
+// Multiple defs                                                              {{
+// =============================================================================
+// =============================================================================
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Multiple blocks                                                            {{
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// Like diamond__consume_r__use_l__destroy_b but with a copy_addr [take] reinit
+// in left.  The reinit is after an apply of other.
+//
+// Ensure that the destroy from that deinit remains at the same location--it
+// will be split into a separate instruction.
+//
+// TODO: Avoid the unnecessary churn of that splitting.
+// CHECK-LABEL: sil [ossa] @diamond__consume_r__reinit_l__use_l__destroy_b : {{.*}} {
+// CHECK:         [[STACK:%[^,]+]] = alloc_stack
+// CHECK:         [[GET:%[^,]+]] = function_ref @get
+// CHECK:         [[OTHER:%[^,]+]] = function_ref @other
+// CHECK:         [[SEE_ADDR:%[^,]+]] = function_ref @see_addr
+// CHECK:         [[END:%[^,]+]] = function_ref @end
+// CHECK:         apply [[GET]]([[STACK]])
+// CHECK:         cond_br undef, [[LEFT:bb[0-9]+]], [[RIGHT:bb[0-9]+]]                         
+// CHECK:       [[LEFT:bb[0-9]+]]:                                              
+// CHECK:         apply [[OTHER]]()
+// CHECK:         destroy_addr [[STACK]]
+// CHECK:         apply [[SEE_ADDR]]([[STACK]])
+// CHECK:         apply [[OTHER]]()
+// CHECK:         destroy_addr [[STACK]]
+// CHECK:         br [[BOTTOM:bb[0-9]+]]                                          
+// CHECK:       [[RIGHT:bb[0-9]+]]:                                              
+// CHECK:         [[INSTANCE:%[^,]+]] = load [take] [[STACK]]
+// CHECK:         apply [[END]]([[INSTANCE]])
+// CHECK:         br [[BOTTOM]]                                          
+// CHECK:       [[BOTTOM]]:                                              
+// CHECK-LABEL: } // end sil function 'diamond__consume_r__reinit_l__use_l__destroy_b'
+sil [ossa] @diamond__consume_r__reinit_l__use_l__destroy_b : $@convention(thin) () -> () {
+top:
+    %stack_addr = alloc_stack $S
+    %stack = mark_must_check [consumable_and_assignable] %stack_addr : $*S
+    %get = function_ref @get : $@convention(thin) () -> @out S
+    %other = function_ref @other : $@convention(thin) () -> ()
+    %see = function_ref @see : $@convention(thin) (@guaranteed S) -> ()
+    %see_addr = function_ref @see_addr : $@convention(thin) (@in_guaranteed S) -> ()
+    %end = function_ref @end : $@convention(thin) (@owned S) -> ()
+    %end_addr = function_ref @end_addr : $@convention(thin) (@in S) -> ()
+    apply %get(%stack) : $@convention(thin) () -> @out S
+    cond_br undef, left, right
+left:
+    apply %other() : $@convention(thin) () -> ()
+    %stack2 = alloc_stack $S
+    apply %get(%stack2) : $@convention(thin) () -> @out S
+    copy_addr [take] %stack2 to %stack : $*S
+    dealloc_stack %stack2 : $*S
+    apply %see_addr(%stack) : $@convention(thin) (@in_guaranteed S) -> ()
+    apply %other() : $@convention(thin) () -> ()
+    br bottom
+right:
+    %copy = load [copy] %stack : $*S
+    apply %end(%copy) : $@convention(thin) (@owned S) -> ()
+    br bottom
+bottom:
+    destroy_addr %stack : $*S
+    dealloc_stack %stack_addr : $*S
+    %retval = tuple ()
+    return %retval : $()
+}
+
+// Like diamond__consume_r__reinit_l__use_l__destroy_b with a store [assign]
+// reinit in left.  The reinit is after an apply of other.
+//
+// Ensure that the destroy from that deinit remains at the same location--it
+// will be split into a separate instruction.
+//
+// TODO: Avoid the unnecessary churn of that splitting.
+// CHECK-LABEL: sil [ossa] @diamond__consume_r__reinit_l__use_l__destroy_b2 : {{.*}} {
+// CHECK:         [[STACK:%[^,]+]] = alloc_stack
+// CHECK:         [[GET:%[^,]+]] = function_ref @get
+// CHECK:         [[OTHER:%[^,]+]] = function_ref @other
+// CHECK:         [[SEE_ADDR:%[^,]+]] = function_ref @see_addr
+// CHECK:         [[END:%[^,]+]] = function_ref @end
+// CHECK:         apply [[GET]]([[STACK]])
+// CHECK:         cond_br undef, [[LEFT:bb[0-9]+]], [[RIGHT:bb[0-9]+]]                         
+// CHECK:       [[LEFT:bb[0-9]+]]:                                              
+// CHECK:         apply [[OTHER]]()
+// CHECK:         destroy_addr [[STACK]]
+// CHECK:         apply [[SEE_ADDR]]([[STACK]])
+// CHECK:         apply [[OTHER]]()
+// CHECK:         destroy_addr [[STACK]]
+// CHECK:         br [[BOTTOM:bb[0-9]+]]                                          
+// CHECK:       [[RIGHT:bb[0-9]+]]:                                              
+// CHECK:         [[INSTANCE:%[^,]+]] = load [take] [[STACK]]
+// CHECK:         apply [[END]]([[INSTANCE]])
+// CHECK:         br [[BOTTOM]]                                          
+// CHECK:       [[BOTTOM]]:                                              
+// CHECK-LABEL: } // end sil function 'diamond__consume_r__reinit_l__use_l__destroy_b2'
+sil [ossa] @diamond__consume_r__reinit_l__use_l__destroy_b2 : $@convention(thin) () -> () {
+top:
+    %stack_addr = alloc_stack $S
+    %stack = mark_must_check [consumable_and_assignable] %stack_addr : $*S
+    %get = function_ref @get : $@convention(thin) () -> @out S
+    %get_value = function_ref @get_value : $@convention(thin) () -> @owned S
+    %other = function_ref @other : $@convention(thin) () -> ()
+    %see = function_ref @see : $@convention(thin) (@guaranteed S) -> ()
+    %see_addr = function_ref @see_addr : $@convention(thin) (@in_guaranteed S) -> ()
+    %end = function_ref @end : $@convention(thin) (@owned S) -> ()
+    %end_addr = function_ref @end_addr : $@convention(thin) (@in S) -> ()
+    apply %get(%stack) : $@convention(thin) () -> @out S
+    cond_br undef, left, right
+left:
+    apply %other() : $@convention(thin) () -> ()
+    %new = apply %get_value() : $@convention(thin) () -> @owned S
+    store %new to [assign] %stack : $*S
+    apply %see_addr(%stack) : $@convention(thin) (@in_guaranteed S) -> ()
+    apply %other() : $@convention(thin) () -> ()
+    br bottom
+right:
+    %copy = load [copy] %stack : $*S
+    apply %end(%copy) : $@convention(thin) (@owned S) -> ()
+    br bottom
+bottom:
+    destroy_addr %stack : $*S
+    dealloc_stack %stack_addr : $*S
+    %retval = tuple ()
+    return %retval : $()
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// }} Multiple blocks
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// =============================================================================
+// =============================================================================
+// }} Multiple defs
+// =============================================================================
+// =============================================================================
+
+// #############################################################################
+// #############################################################################
+// }} SCALAR STORAGE
+// #############################################################################
+// #############################################################################
+
+// #############################################################################
+// #############################################################################
+// AGGREGATE STORAGE                                                          {{
+// #############################################################################
+// #############################################################################
+
+@_moveOnly struct S2 {
+    var s1: S
+    var s2: S
+}
+
+sil [ossa] @get_value_S2 : $@convention(thin) () -> @owned S2
+sil [ossa] @end_S2 : $@convention(thin) (@owned S2) -> ()
+
+@_moveOnly struct S3 {
+    var s1: S
+    var s2: S
+    var s3: S
+}
+
+sil [ossa] @get_value_S3 : $@convention(thin) () -> @owned S3
+sil [ossa] @end_S3 : $@convention(thin) (@owned S3) -> ()
+
+// =============================================================================
+// =============================================================================
+// Single def                                                                 {{
+// =============================================================================
+// =============================================================================
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Single block                                                               {{
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// The apply of other remains before the destroy_addr.
+// CHECK-LABEL: sil [ossa] @aggregate_1 : {{.*}} {
+// CHECK:         [[OTHER:%[^,]+]] = function_ref @other
+// CHECK:         [[STACK:%[^,]+]] = alloc_stack
+// CHECK:         apply [[OTHER]]()
+// CHECK:         destroy_addr [[STACK]]
+// CHECK-LABEL: } // end sil function 'aggregate_1'
+sil [ossa] @aggregate_1 : $@convention(thin) () -> () {
+bb0:
+  %get_value_S2 = function_ref @get_value_S2 : $@convention(thin) () -> @owned S2
+  %end = function_ref @end : $@convention(thin) (@owned S) -> ()
+  %other = function_ref @other : $@convention(thin) () -> ()
+
+  %stack_addr = alloc_stack $S2
+  %stack = mark_must_check [consumable_and_assignable] %stack_addr : $*S2
+  %instance_1 = apply %get_value_S2() : $@convention(thin) () -> @owned S2
+  store %instance_1 to [init] %stack : $*S2
+  apply %other() : $@convention(thin) () -> ()
+  destroy_addr %stack : $*S2
+  dealloc_stack %stack_addr : $*S2
+  %retval = tuple ()
+  return %retval : $()
+}
+
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// }} Single block
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// =============================================================================
+// =============================================================================
+// }} Single def
+// =============================================================================
+// =============================================================================
+
+// =============================================================================
+// =============================================================================
+// Multiple defs                                                              {{
+// =============================================================================
+// =============================================================================
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Single block                                                               {{
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// Calls to other before each destroy remain before.
+// CHECK-LABEL: sil [ossa] @aggregate_2 : {{.*}} {
+// CHECK:         [[OTHER:%[^,]+]] = function_ref @other
+// CHECK:         [[STACK:%[^,]+]] = alloc_stack
+// CHECK:         apply [[OTHER]]()
+// CHECK:         destroy_addr [[STACK]] : $*S2
+// CHECK:         apply [[OTHER]]()
+// CHECK:         destroy_addr [[STACK]] : $*S2
+// CHECK-LABEL: } // end sil function 'aggregate_2'
+sil [ossa] @aggregate_2 : $@convention(thin) () -> () {
+bb0:
+  %get_value_S2 = function_ref @get_value_S2 : $@convention(thin) () -> @owned S2
+  %end = function_ref @end : $@convention(thin) (@owned S) -> ()
+  %other = function_ref @other : $@convention(thin) () -> ()
+
+  %stack_addr = alloc_stack $S2
+  %stack = mark_must_check [consumable_and_assignable] %stack_addr : $*S2
+  %instance_1 = apply %get_value_S2() : $@convention(thin) () -> @owned S2
+  store %instance_1 to [init] %stack : $*S2
+  %instance_2 = apply %get_value_S2() : $@convention(thin) () -> @owned S2
+  apply %other() : $@convention(thin) () -> ()
+  store %instance_2 to [assign] %stack : $*S2
+  apply %other() : $@convention(thin) () -> ()
+  destroy_addr %stack : $*S2
+  dealloc_stack %stack_addr : $*S2
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// s1 is consumed but s2 is not and so is not destroyed until function end, after
+// other.
+
+// CHECK-LABEL: sil [ossa] @simpleTestVar2 : {{.*}} {
+// CHECK:         [[OTHER:%[^,]+]] = function_ref @other
+// CHECK:         [[STACK:%[^,]+]] = alloc_stack
+// CHECK:         apply [[OTHER]]()
+// CHECK:         [[S2_ADDR:%[^,]+]] = struct_element_addr [[STACK]] : $*S2, #S2.s2
+// CHECK:         destroy_addr [[S2_ADDR]]
+// CHECK-LABEL: } // end sil function 'simpleTestVar2'
+sil [ossa] @simpleTestVar2 : $@convention(thin) () -> () {
+bb0:
+  %get_value_S2 = function_ref @get_value_S2 : $@convention(thin) () -> @owned S2
+  %end = function_ref @end : $@convention(thin) (@owned S) -> ()
+  %other = function_ref @other : $@convention(thin) () -> ()
+
+  %stack_addr = alloc_stack $S2
+  %stack = mark_must_check [consumable_and_assignable] %stack_addr : $*S2
+  %instance_1 = apply %get_value_S2() : $@convention(thin) () -> @owned S2
+  store %instance_1 to [init] %stack : $*S2
+  %instance_2 = apply %get_value_S2() : $@convention(thin) () -> @owned S2
+  %access = begin_access [modify] [static] %stack : $*S2
+  store %instance_2 to [assign] %access : $*S2
+  end_access %access : $*S2
+  %access_2 = begin_access [deinit] [static] %stack : $*S2
+  %s1_addr = struct_element_addr %access_2 : $*S2, #S2.s1
+  %s1 = load [copy] %s1_addr : $*S
+  apply %end(%s1) : $@convention(thin) (@owned S) -> ()
+  end_access %access_2 : $*S2
+  apply %other() : $@convention(thin) () -> ()
+  destroy_addr %stack : $*S2
+  dealloc_stack %stack_addr : $*S2
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// Both fields (#S2.s1, #S2.s2) are consumed before other.
+// CHECK-LABEL: sil [ossa] @simpleTestVar3 : {{.*}} {
+// CHECK:         [[END:%[^,]+]] = function_ref @end
+// CHECK:         [[OTHER:%[^,]+]] = function_ref @other
+// CHECK:         [[STACK:%[^,]+]] = alloc_stack
+// CHECK:         begin_access
+// CHECK:         [[ACCESS_1:%[^,]+]] = begin_access [modify] [static] [[STACK]]
+// CHECK:         [[S1_ADDR:%[^,]+]] = struct_element_addr [[ACCESS_1]] : $*S2, #S2.s1
+// CHECK:         [[S1:%[^,]+]] = load [take] [[S1_ADDR]]
+// CHECK:         apply [[END]]([[S1]])
+// CHECK:         [[ACCESS_2:%[^,]+]] = begin_access [modify] [static] [[STACK]]
+// CHECK:         [[S2_ADDR:%[^,]+]] = struct_element_addr [[ACCESS_2]] : $*S2, #S2.s2
+// CHECK:         [[S2:%[^,]+]] = load [take] [[S2_ADDR]]
+// CHECK:         apply [[END]]([[S2]])
+// CHECK:         apply [[OTHER]]()
+// CHECK-LABEL: } // end sil function 'simpleTestVar3'
+sil [ossa] @simpleTestVar3 : $@convention(thin) () -> () {
+bb0:
+  %get_value_S2 = function_ref @get_value_S2 : $@convention(thin) () -> @owned S2
+  %end = function_ref @end : $@convention(thin) (@owned S) -> ()
+  %other = function_ref @other : $@convention(thin) () -> ()
+
+  %stack_addr = alloc_stack $S2
+  %stack = mark_must_check [consumable_and_assignable] %stack_addr : $*S2
+  %instance_1 = apply %get_value_S2() : $@convention(thin) () -> @owned S2
+  store %instance_1 to [init] %stack : $*S2
+  %instance_2 = apply %get_value_S2() : $@convention(thin) () -> @owned S2
+  %access = begin_access [modify] [static] %stack : $*S2
+  store %instance_2 to [assign] %access : $*S2
+  end_access %access : $*S2
+  %access_2 = begin_access [deinit] [static] %stack : $*S2
+  %s1_addr = struct_element_addr %access_2 : $*S2, #S2.s1
+  %s1 = load [copy] %s1_addr : $*S
+  apply %end(%s1) : $@convention(thin) (@owned S) -> ()
+  end_access %access_2 : $*S2
+  %access_3 = begin_access [deinit] [static] %stack : $*S2
+  %s2_addr = struct_element_addr %access_3 : $*S2, #S2.s2
+  %s2 = load [copy] %s2_addr : $*S
+  apply %end(%s2) : $@convention(thin) (@owned S) -> ()
+  end_access %access_3 : $*S2
+  apply %other() : $@convention(thin) () -> ()
+  destroy_addr %stack : $*S2
+  dealloc_stack %stack_addr : $*S2
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// Addr is initialized, then both fields are individually consumed before other.
+// Then addr is initialized again and neither field is consumed; then other is
+// applied again.
+//
+// Ensure that the reinitialized fields survive to function end.
+//
+// CHECK-LABEL: sil [ossa] @simpleTestVar3a : {{.*}} {
+// CHECK:         [[GET_VALUE_S2:%[^,]+]] = function_ref @get_value_S2
+// CHECK:         [[OTHER:%[^,]+]] = function_ref @other
+// CHECK:         [[STACK:%[^,]+]] = alloc_stack
+// CHECK:         apply [[OTHER]]()
+// CHECK:         [[INSTANCE_3:%[^,]+]] = apply [[GET_VALUE_S2]]()
+// CHECK:         [[ACCESS:%[^,]+]] = begin_access [modify] [static] [[STACK]]
+// CHECK:         store [[INSTANCE_3]] to [init] [[ACCESS]]
+// CHECK:         end_access [[ACCESS]]
+// CHECK:         apply [[OTHER]]() : $@convention(thin) () -> ()
+// CHECK:         destroy_addr [[STACK]]
+// CHECK-LABEL: } // end sil function 'simpleTestVar3a'
+sil [ossa] @simpleTestVar3a : $@convention(thin) () -> () {
+bb0:
+  %get_value_S2 = function_ref @get_value_S2 : $@convention(thin) () -> @owned S2
+  %end = function_ref @end : $@convention(thin) (@owned S) -> ()
+  %other = function_ref @other : $@convention(thin) () -> ()
+
+  %stack_addr = alloc_stack $S2
+  %stack = mark_must_check [consumable_and_assignable] %stack_addr : $*S2
+  %instance_1 = apply %get_value_S2() : $@convention(thin) () -> @owned S2
+  store %instance_1 to [init] %stack : $*S2
+  %instance_2 = apply %get_value_S2() : $@convention(thin) () -> @owned S2
+  %access_1 = begin_access [modify] [static] %stack : $*S2
+  store %instance_2 to [assign] %access_1 : $*S2
+  end_access %access_1 : $*S2
+  %access_2 = begin_access [deinit] [static] %stack : $*S2
+  %s1_addr = struct_element_addr %access_2 : $*S2, #S2.s1
+  %s1 = load [copy] %s1_addr : $*S
+  apply %end(%s1) : $@convention(thin) (@owned S) -> ()
+  end_access %access_2 : $*S2
+  %access_3 = begin_access [deinit] [static] %stack : $*S2
+  %s2_addr = struct_element_addr %access_3 : $*S2, #S2.s2
+  %s2 = load [copy] %s2_addr : $*S
+  apply %end(%s2) : $@convention(thin) (@owned S) -> ()
+  end_access %access_3 : $*S2
+  apply %other() : $@convention(thin) () -> ()
+  %instance_3 = apply %get_value_S2() : $@convention(thin) () -> @owned S2
+  %access_4 = begin_access [modify] [static] %stack : $*S2
+  store %instance_3 to [assign] %access_4 : $*S2
+  end_access %access_4 : $*S2
+  apply %other() : $@convention(thin) () -> ()
+  destroy_addr %stack : $*S2
+  dealloc_stack %stack_addr : $*S2
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// Like simpleTestVar3a but without access scopes and the original init.
+// CHECK-LABEL: sil [ossa] @simpleTestVar3a_simplified : {{.*}} {
+// CHECK:         [[GET_VALUE_S2:%[^,]+]] = function_ref @get_value_S2
+// CHECK:         [[OTHER:%[^,]+]] = function_ref @other
+// CHECK:         [[STACK:%[^,]+]] = alloc_stack
+// CHECK:         apply [[OTHER]]()
+// CHECK:         [[INSTANCE_2:%[^,]+]] = apply [[GET_VALUE_S2]]()
+// CHECK:         store [[INSTANCE_2]] to [init] [[STACK]]
+// CHECK:         apply [[OTHER]]() : $@convention(thin) () -> ()
+// CHECK:         destroy_addr [[STACK]]
+// CHECK-LABEL: } // end sil function 'simpleTestVar3a_simplified'
+sil [ossa] @simpleTestVar3a_simplified : $@convention(thin) () -> () {
+bb0:
+  %get_value_S2 = function_ref @get_value_S2 : $@convention(thin) () -> @owned S2
+  %end = function_ref @end : $@convention(thin) (@owned S) -> ()
+  %other = function_ref @other : $@convention(thin) () -> ()
+
+  %stack_addr = alloc_stack $S2
+  %stack = mark_must_check [consumable_and_assignable] %stack_addr : $*S2
+  %instance_1 = apply %get_value_S2() : $@convention(thin) () -> @owned S2
+  store %instance_1 to [init] %stack : $*S2
+  %s1_addr = struct_element_addr %stack : $*S2, #S2.s1
+  %s1 = load [copy] %s1_addr : $*S
+  apply %end(%s1) : $@convention(thin) (@owned S) -> ()
+  %s2_addr = struct_element_addr %stack : $*S2, #S2.s2
+  %s2 = load [copy] %s2_addr : $*S
+  apply %end(%s2) : $@convention(thin) (@owned S) -> ()
+  apply %other() : $@convention(thin) () -> ()
+  %instance_2 = apply %get_value_S2() : $@convention(thin) () -> @owned S2
+  store %instance_2 to [assign] %stack : $*S2
+  apply %other() : $@convention(thin) () -> ()
+  destroy_addr %stack : $*S2
+  dealloc_stack %stack_addr : $*S2
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// Ensure that first initialized liveness remains until original destroy.
+// And ensure that reinitialized fields live until function exit.
+// CHECK-LABEL: sil [ossa] @simpleTestVar3a_simplified_vary2 : {{.*}} {
+// CHECK:         [[GET_VALUE:%[^,]+]] = function_ref @get_value
+// CHECK:         [[SEE:%[^,]+]] = function_ref @see
+// CHECK:         [[OTHER:%[^,]+]] = function_ref @other
+// CHECK:         [[STACK:%[^,]+]] = alloc_stack $S
+// CHECK:         [[INSTANCE_1:%[^,]+]] = apply [[GET_VALUE]]()
+// CHECK:         store [[INSTANCE_1]] to [init] [[STACK]]
+// CHECK:         [[BORROW:%[^,]+]] = load_borrow [[STACK]]
+// CHECK:         apply [[SEE]]([[BORROW]])
+// CHECK:         end_borrow [[BORROW]]
+// CHECK:         apply [[OTHER]]()
+// CHECK:         [[INSTANCE_2:%[^,]+]] = apply [[GET_VALUE]]()
+// CHECK:         destroy_addr [[STACK]]
+// CHECK:         store [[INSTANCE_2]] to [init] [[STACK]]
+// CHECK:         apply [[OTHER]]()
+// CHECK:         destroy_addr [[STACK]]
+// CHECK-LABEL: } // end sil function 'simpleTestVar3a_simplified_vary2'
+sil [ossa] @simpleTestVar3a_simplified_vary2 : $@convention(thin) () -> () {
+bb0:
+  %get_value = function_ref @get_value : $@convention(thin) () -> @owned S
+  %see = function_ref @see : $@convention(thin) (@guaranteed S) -> ()
+  %other = function_ref @other : $@convention(thin) () -> ()
+
+  %stack_addr = alloc_stack $S
+  %stack = mark_must_check [consumable_and_assignable] %stack_addr : $*S
+  %instance_1 = apply %get_value() : $@convention(thin) () -> @owned S
+  store %instance_1 to [init] %stack : $*S
+  %s = load_borrow %stack : $*S
+  apply %see(%s) : $@convention(thin) (@guaranteed S) -> ()
+  end_borrow %s : $S
+  apply %other() : $@convention(thin) () -> ()
+  %instance_2 = apply %get_value() : $@convention(thin) () -> @owned S
+  store %instance_2 to [assign] %stack : $*S
+  apply %other() : $@convention(thin) () -> ()
+  destroy_addr %stack : $*S
+  dealloc_stack %stack_addr : $*S
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// s1 is consumed at @end.  s2 is never consumed so it's destroyed at function
+// end.
+// CHECK-LABEL: sil [ossa] @simpleTestVar3b : {{.*}} {
+// CHECK:         [[END:%[^,]+]] = function_ref @end
+// CHECK:         [[OTHER:%[^,]+]] = function_ref @other
+// CHECK:         [[STACK:%[^,]+]] = alloc_stack
+// CHECK:         begin_access
+// CHECK:         [[ACCESS:%[^,]+]] = begin_access [modify] [static] [[STACK]]
+// CHECK:         [[S1_ADDR:%[^,]+]] = struct_element_addr [[ACCESS]] : $*S2, #S2.s1
+// CHECK:         [[S1:%[^,]+]] = load [take] [[S1_ADDR]]
+// CHECK:         apply [[END]]([[S1]])
+// CHECK:         apply [[OTHER]]()
+// CHECK:         [[S2_ADDR:%[^,]+]] = struct_element_addr [[STACK]] : $*S2, #S2.s2
+// CHECK:         destroy_addr [[S2_ADDR]]
+// CHECK-LABEL: } // end sil function 'simpleTestVar3b'
+sil [ossa] @simpleTestVar3b : $@convention(thin) () -> () {
+bb0:
+  %get_value_S2 = function_ref @get_value_S2 : $@convention(thin) () -> @owned S2
+  %end = function_ref @end : $@convention(thin) (@owned S) -> ()
+  %see = function_ref @see : $@convention(thin) (@guaranteed S) -> ()
+  %other = function_ref @other : $@convention(thin) () -> ()
+
+  %stack_addr = alloc_stack $S2
+  %stack = mark_must_check [consumable_and_assignable] %stack_addr : $*S2
+  %instance_1 = apply %get_value_S2() : $@convention(thin) () -> @owned S2
+  store %instance_1 to [init] %stack : $*S2
+  %instance_2 = apply %get_value_S2() : $@convention(thin) () -> @owned S2
+  %access_1 = begin_access [modify] [static] %stack : $*S2
+  store %instance_2 to [assign] %access_1 : $*S2
+  end_access %access_1 : $*S2
+  %access_2 = begin_access [deinit] [static] %stack : $*S2
+  %s1_addr = struct_element_addr %access_2 : $*S2, #S2.s1
+  %s1 = load [copy] %s1_addr : $*S
+  apply %end(%s1) : $@convention(thin) (@owned S) -> ()
+  end_access %access_2 : $*S2
+  %access_3 = begin_access [read] [static] %stack : $*S2
+  %s2_addr = struct_element_addr %access_3 : $*S2, #S2.s2
+  %s2 = load [copy] %s2_addr : $*S
+  apply %see(%s2) : $@convention(thin) (@guaranteed S) -> ()
+  destroy_value %s2 : $S
+  end_access %access_3 : $*S2
+  apply %other() : $@convention(thin) () -> ()
+  destroy_addr %stack : $*S2
+  dealloc_stack %stack_addr : $*S2
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// }} Single block
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// {{ Multiple blocks
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// Ensure that liveness extends to destroy in live-at-entry block where no def
+// precedes destroy.  And ensure that the reinit stack stays live until
+// function exit.
+// CHECK-LABEL: sil [ossa] @simpleTestVar3a_simplified_vary : {{.*}} {
+// CHECK:         [[GET_VALUE_S2:%[^,]+]] = function_ref @get_value_S2
+// CHECK:         [[SEE:%[^,]+]] = function_ref @see
+// CHECK:         [[OTHER:%[^,]+]] = function_ref @other
+// CHECK:         [[STACK:%[^,]+]] = alloc_stack $S2
+// CHECK:         [[INSTANCE_1:%[^,]+]] = apply [[GET_VALUE_S2]]()
+// CHECK:         store [[INSTANCE_1]] to [init] [[STACK]]
+// CHECK:         [[S1_ADDR:%[^,]+]] = struct_element_addr [[STACK]]
+// CHECK:         [[S1:%[^,]+]] = load_borrow [[S1_ADDR]]
+// CHECK:         apply [[SEE]]([[S1]])
+// CHECK:         end_borrow [[S1]]
+// CHECK:         [[S2_ADDR:%[^,]+]] = struct_element_addr [[STACK]]
+// CHECK:         [[S2:%[^,]+]] = load_borrow [[S2_ADDR]]
+// CHECK:         apply [[SEE]]([[S2]])
+// CHECK:         end_borrow [[S2]]
+// CHECK:         apply [[OTHER]]()
+// CHECK:         [[INSTANCE_2:%[^,]+]] = apply [[GET_VALUE_S2]]()
+// CHECK:         br bb1
+// CHECK:       bb1:
+// CHECK:         destroy_addr [[STACK]]
+// CHECK:         store [[INSTANCE_2]] to [init] [[STACK]]
+// CHECK:         apply [[OTHER]]()
+// CHECK:         destroy_addr [[STACK]]
+// CHECK-LABEL: } // end sil function 'simpleTestVar3a_simplified_vary'
+sil [ossa] @simpleTestVar3a_simplified_vary : $@convention(thin) () -> () {
+bb0:
+  %get_value_S2 = function_ref @get_value_S2 : $@convention(thin) () -> @owned S2
+  %see = function_ref @see : $@convention(thin) (@guaranteed S) -> ()
+  %other = function_ref @other : $@convention(thin) () -> ()
+
+  %stack_addr = alloc_stack $S2
+  %stack = mark_must_check [consumable_and_assignable] %stack_addr : $*S2
+  %instance_1 = apply %get_value_S2() : $@convention(thin) () -> @owned S2
+  store %instance_1 to [init] %stack : $*S2
+  %s1_addr = struct_element_addr %stack : $*S2, #S2.s1
+  %s1 = load_borrow %s1_addr : $*S
+  apply %see(%s1) : $@convention(thin) (@guaranteed S) -> ()
+  end_borrow %s1 : $S
+  %s2_addr = struct_element_addr %stack : $*S2, #S2.s2
+  %s2 = load_borrow %s2_addr : $*S
+  apply %see(%s2) : $@convention(thin) (@guaranteed S) -> ()
+  end_borrow %s2 : $S
+  apply %other() : $@convention(thin) () -> ()
+  %instance_3 = apply %get_value_S2() : $@convention(thin) () -> @owned S2
+  br bb1
+bb1:
+  store %instance_3 to [assign] %stack : $*S2
+  apply %other() : $@convention(thin) () -> ()
+  destroy_addr %stack : $*S2
+  dealloc_stack %stack_addr : $*S2
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// Stack is initialized twice, in entry and middle.  In each case, it is passed
+// to a consuming function on the left block and unused on the right block; and
+// each right block contains an apply of other.
+//
+// Verify that the destroy in each right block is after the apply of other.
+// CHECK-LABEL: sil [ossa] @simpleTestVar4 : {{.*}} {
+// CHECK:         [[OTHER:%[^,]+]] = function_ref @other
+// CHECK:         [[STACK:%[^,]+]] = alloc_stack
+// CHECK:         cond_br {{%[^,]+}}, [[LEFT_1:bb[0-9]+]], [[RIGHT_1:bb[0-9]+]]
+// CHECK:       [[LEFT_1]]:
+// CHECK:         br [[MIDDLE:bb[0-9]+]]
+// CHECK:       [[RIGHT_1]]:
+// CHECK:         apply [[OTHER]]()
+// CHECK:         destroy_addr [[STACK]]
+// CHECK:         br [[MIDDLE]]
+// CHECK:       [[MIDDLE]]:
+// CHECK:         cond_br {{%[^,]+}}, [[LEFT_2:bb[0-9]+]], [[RIGHT_2:bb[0-9]+]]
+// CHECK:       [[LEFT_2]]:
+// CHECK:         br [[EXIT:bb[0-9]+]]
+// CHECK:       [[RIGHT_2]]:
+// CHECK:         destroy_addr [[STACK]]
+// CHECK:         apply [[OTHER]]() : $@convention(thin) () -> ()
+// CHECK:         br [[EXIT]]
+// CHECK-LABEL: } // end sil function 'simpleTestVar4'
+sil [ossa] @simpleTestVar4 : $@convention(thin) () -> () {
+entry:
+  %get_value_S2 = function_ref @get_value_S2 : $@convention(thin) () -> @owned S2
+  %condition = function_ref @condition : $@convention(thin) () -> Builtin.Int1
+  %end_S2 = function_ref @end_S2 : $@convention(thin) (@owned S2) -> ()
+  %other = function_ref @other : $@convention(thin) () -> ()
+
+  %stack_addr = alloc_stack $S2
+  %stack = mark_must_check [consumable_and_assignable] %stack_addr : $*S2
+  %instance_1 = apply %get_value_S2() : $@convention(thin) () -> @owned S2
+  store %instance_1 to [init] %stack : $*S2
+  %instance_2 = apply %get_value_S2() : $@convention(thin) () -> @owned S2
+  %access_1 = begin_access [modify] [static] %stack : $*S2
+  store %instance_2 to [assign] %access_1 : $*S2
+  end_access %access_1 : $*S2
+  %which_1 = apply %condition() : $@convention(thin) () -> Builtin.Int1
+  cond_br %which_1, left_1, right_1
+
+left_1:
+  %access_2 = begin_access [deinit] [static] %stack : $*S2
+  %reload_1 = load [copy] %access_2 : $*S2
+  apply %end_S2(%reload_1) : $@convention(thin) (@owned S2) -> ()
+  end_access %access_2 : $*S2
+  br middle
+
+right_1:
+  apply %other() : $@convention(thin) () -> ()
+  br middle
+
+middle:
+  %instance_3 = apply %get_value_S2() : $@convention(thin) () -> @owned S2
+  %access_3 = begin_access [modify] [static] %stack : $*S2
+  store %instance_3 to [assign] %access_3 : $*S2
+  end_access %access_3 : $*S2
+  %which_2 = apply %condition() : $@convention(thin) () -> Builtin.Int1
+  cond_br %which_2, left_2, right_2
+
+left_2:
+  %access_4 = begin_access [deinit] [static] %stack : $*S2
+  %reload_2 = load [copy] %access_4 : $*S2
+  apply %end_S2(%reload_2) : $@convention(thin) (@owned S2) -> ()
+  end_access %access_4 : $*S2
+  br end
+
+right_2:
+  apply %other() : $@convention(thin) () -> ()
+  br end
+
+end:
+  %retval = tuple ()
+  destroy_addr %stack : $*S2
+  dealloc_stack %stack_addr : $*S2
+  return %retval : $() 
+}
+
+// One field is consumed in either branch: s1 in left, s2 in right.  The other
+// field should live until the end of the block.
+// CHECK-LABEL: sil [ossa] @simpleTestVar6 : $@convention(thin) () -> () {
+// CHECK:         [[OTHER:%[^,]+]] = function_ref @other
+// CHECK:         [[STACK:%[^,]+]] = alloc_stack
+// CHECK:         cond_br {{%[^,]+}}, [[LEFT:bb[0-9]+]], [[RIGHT:bb[0-9]+]]
+// CHECK:       [[LEFT]]:
+// CHECK:         apply [[OTHER]]()
+// CHECK:         [[S2_ADDR:%[^,]+]] = struct_element_addr [[STACK]] : $*S2, #S2.s2
+// CHECK:         destroy_addr [[S2_ADDR]] : $*S
+// CHECK:         br [[EXIT:bb[0-9]+]]
+// CHECK:       [[RIGHT]]:
+// CHECK:         apply [[OTHER]]()
+// CHECK:         [[S1_ADDR:%[^,]+]] = struct_element_addr [[STACK]] : $*S2, #S2.s1
+// CHECK:         destroy_addr [[S1_ADDR]] : $*S
+// CHECK:         br [[EXIT]]
+// CHECK:       [[EXIT]]:
+// CHECK-LABEL: } // end sil function 'simpleTestVar6'
+sil [ossa] @simpleTestVar6 : $@convention(thin) () -> () {
+entry:
+  %get_value_S2 = function_ref @get_value_S2 : $@convention(thin) () -> @owned S2
+  %condition = function_ref @condition : $@convention(thin) () -> Builtin.Int1
+  %other = function_ref @other : $@convention(thin) () -> ()
+  %end = function_ref @end : $@convention(thin) (@owned S) -> ()
+
+  %stack_addr = alloc_stack $S2
+  %stack = mark_must_check [consumable_and_assignable] %stack_addr : $*S2
+  %instance_1 = apply %get_value_S2() : $@convention(thin) () -> @owned S2
+  store %instance_1 to [init] %stack : $*S2
+  %instance_2 = apply %get_value_S2() : $@convention(thin) () -> @owned S2
+  %access_1 = begin_access [modify] [static] %stack : $*S2
+  store %instance_2 to [assign] %access_1 : $*S2
+  end_access %access_1 : $*S2
+  %which = apply %condition() : $@convention(thin) () -> Builtin.Int1
+  cond_br %which, left, right
+
+left:
+  %access_2 = begin_access [deinit] [static] %stack : $*S2
+  %s1_addr = struct_element_addr %access_2 : $*S2, #S2.s1
+  %s1 = load [copy] %s1_addr : $*S
+  apply %end(%s1) : $@convention(thin) (@owned S) -> ()
+  end_access %access_2 : $*S2
+  apply %other() : $@convention(thin) () -> ()
+  br exit
+
+right:
+  %access_3 = begin_access [deinit] [static] %stack : $*S2
+  %s2_addr = struct_element_addr %access_3 : $*S2, #S2.s2
+  %s2 = load [copy] %s2_addr : $*S
+  apply %end(%s2) : $@convention(thin) (@owned S) -> ()
+  end_access %access_3 : $*S2
+  apply %other() : $@convention(thin) () -> ()
+  br exit
+
+exit:
+  %instance_3 = apply %get_value_S2() : $@convention(thin) () -> @owned S2
+  %access_4 = begin_access [modify] [static] %stack : $*S2
+  store %instance_3 to [assign] %access_4 : $*S2
+  end_access %access_4 : $*S2
+  destroy_addr %stack : $*S2
+  dealloc_stack %stack_addr : $*S2
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// The struct has three fields: 
+//   s1 is consumed in left but not right
+//   s2 is consumed in right but not left
+//   s3 is not consumed
+// There is an apply of other after the consumes and at the beginning of exit.
+//
+// Ensure that the not-consumed-on-this-branch field (s2 in left, s1 in right)
+// is destroyed after the apply of other in each branch block.  Ensure that the
+// unconsumed field is destroyed at function exit--after the apply of other in
+// exit.
+// CHECK-LABEL: sil [ossa] @simpleTestVar6a : $@convention(thin) () -> () {
+// CHECK:         [[OTHER:%[^,]+]] = function_ref @other : $@convention(thin) () -> () 
+// CHECK:         [[STACK:%[^,]+]] = alloc_stack $S3                            
+// CHECK:         cond_br {{%[^,]+}}, [[LEFT:bb[0-9]+]], [[RIGHT:bb[0-9]+]]                           
+// CHECK:       [[LEFT]]:                                              
+// CHECK:         apply [[OTHER]]() : $@convention(thin) () -> ()
+// CHECK:         [[S2_ADDR:%[^,]+]] = struct_element_addr [[STACK]] : $*S3, #S3.s2     
+// CHECK:         destroy_addr [[S2_ADDR]] : $*S                          
+// CHECK:         br [[EXIT:bb[0-9]+]]                                          
+// CHECK:       [[RIGHT]]:                                              
+// CHECK:         apply [[OTHER]]() : $@convention(thin) () -> ()
+// CHECK:         [[S1_ADDR:%[^,]+]] = struct_element_addr [[STACK]] : $*S3, #S3.s1     
+// CHECK:         destroy_addr [[S1_ADDR]] : $*S                          
+// CHECK:         br [[EXIT]]                                          
+// CHECK:       [[EXIT]]:                                              
+// CHECK:         apply [[OTHER]]() : $@convention(thin) () -> ()
+// CHECK:         [[S3_ADDR:%[^,]+]] = struct_element_addr [[STACK]] : $*S3, #S3.s3     
+// CHECK:         destroy_addr [[S3_ADDR]] : $*S                          
+// CHECK-LABEL: } // end sil function 'simpleTestVar6a'
+sil [ossa] @simpleTestVar6a : $@convention(thin) () -> () {
+bb0:
+  %condition = function_ref @condition : $@convention(thin) () -> Builtin.Int1
+  %end = function_ref @end : $@convention(thin) (@owned S) -> ()
+  %get_value_S3 = function_ref @get_value_S3 : $@convention(thin) () -> @owned S3
+  %other = function_ref @other : $@convention(thin) () -> ()
+
+  %stack_addr = alloc_stack $S3
+  %stack = mark_must_check [consumable_and_assignable] %stack_addr : $*S3
+  %instance_1 = apply %get_value_S3() : $@convention(thin) () -> @owned S3
+  store %instance_1 to [init] %stack : $*S3
+  %instance_2 = apply %get_value_S3() : $@convention(thin) () -> @owned S3
+  %access_1 = begin_access [modify] [static] %stack : $*S3
+  store %instance_2 to [assign] %access_1 : $*S3
+  end_access %access_1 : $*S3
+  %which = apply %condition() : $@convention(thin) () -> Builtin.Int1  
+  cond_br %which, left, right
+
+left:
+  %access_2 = begin_access [deinit] [static] %stack : $*S3
+  %s1_addr = struct_element_addr %access_2 : $*S3, #S3.s1
+  %s1 = load [copy] %s1_addr : $*S
+  apply %end(%s1) : $@convention(thin) (@owned S) -> ()
+  end_access %access_2 : $*S3
+  apply %other() : $@convention(thin) () -> ()
+  br exit
+
+right:
+  %access_3 = begin_access [deinit] [static] %stack : $*S3
+  %s2_addr = struct_element_addr %access_3 : $*S3, #S3.s2
+  %s2 = load [copy] %s2_addr : $*S
+  apply %end(%s2) : $@convention(thin) (@owned S) -> ()
+  end_access %access_3 : $*S3
+  apply %other() : $@convention(thin) () -> ()
+  br exit
+
+exit:
+  apply %other() : $@convention(thin) () -> ()
+  destroy_addr %stack : $*S3
+  dealloc_stack %stack_addr : $*S3
+  %retval = tuple ()
+  return %retval : $()
+}
+
+/// The fields #S3.s1 and #S3.s3 are consumed in left but not right.
+/// So they should be live until the end of right.
+/// The field #S3.s2 is consumed in right but not left.
+/// So it should be live until the end of left.
+///
+// CHECK-LABEL: sil [ossa] @simpleTestVar6b : {{.*}} {
+// CHECK:       {{bb[0-9]+}}:
+// CHECK:         [[OTHER:%[^,]+]] = function_ref @other
+// CHECK:         [[STACK:%[^,]+]] = alloc_stack
+// CHECK:         cond_br {{%[^,]+}}, [[LEFT:bb[0-9]+]], [[RIGHT:bb[0-9]+]]
+// CHECK:       [[LEFT]]:
+// CHECK:         apply [[OTHER]]()
+// CHECK:         [[S2_ADDR:%[^,]+]] = struct_element_addr [[STACK]] : $*S3, #S3.s2
+// CHECK:         destroy_addr [[S2_ADDR]]
+// CHECK:         br [[EXIT:bb[0-9]+]]
+// CHECK:       [[RIGHT]]:
+// CHECK:         apply [[OTHER]]()
+// CHECK:         [[S3_ADDR:%[^,]+]] = struct_element_addr [[STACK]] : $*S3, #S3.s3
+// CHECK:         destroy_addr [[S3_ADDR]]
+// CHECK:         [[S1_ADDR:%[^,]+]] = struct_element_addr [[STACK]] : $*S3, #S3.s1
+// CHECK:         destroy_addr [[S1_ADDR]]
+// CHECK:         br [[EXIT]]
+// CHECK:       [[EXIT]]:
+// CHECK-LABEL: } // end sil function 'simpleTestVar6b'
+sil [ossa] @simpleTestVar6b : $@convention(thin) () -> () {
+entry:
+  %condition = function_ref @condition : $@convention(thin) () -> Builtin.Int1
+  %end = function_ref @end : $@convention(thin) (@owned S) -> ()
+  %get_value_S3 = function_ref @get_value_S3 : $@convention(thin) () -> @owned S3
+  %other = function_ref @other : $@convention(thin) () -> ()
+
+  %stack_addr = alloc_stack $S3
+  %stack = mark_must_check [consumable_and_assignable] %stack_addr : $*S3
+  %instance_1 = apply %get_value_S3() : $@convention(thin) () -> @owned S3
+  store %instance_1 to [init] %stack : $*S3
+  %instance_2 = apply %get_value_S3() : $@convention(thin) () -> @owned S3
+  %access_1 = begin_access [modify] [static] %stack : $*S3
+  store %instance_2 to [assign] %access_1 : $*S3
+  end_access %access_1 : $*S3
+  %which = apply %condition() : $@convention(thin) () -> Builtin.Int1
+  cond_br %which, left, right
+
+left:
+  %access_2 = begin_access [deinit] [static] %stack : $*S3
+  %s1_addr = struct_element_addr %access_2 : $*S3, #S3.s1
+  %s1 = load [copy] %s1_addr : $*S
+  apply %end(%s1) : $@convention(thin) (@owned S) -> ()
+  end_access %access_2 : $*S3
+  %access_3 = begin_access [deinit] [static] %stack : $*S3
+  %s3_addr = struct_element_addr %access_3 : $*S3, #S3.s3
+  %s3 = load [copy] %s3_addr : $*S
+  apply %end(%s3) : $@convention(thin) (@owned S) -> ()
+  end_access %access_3 : $*S3
+  apply %other() : $@convention(thin) () -> ()
+  br exit
+
+right:
+  %access_4 = begin_access [deinit] [static] %stack : $*S3
+  %s2_addr = struct_element_addr %access_4 : $*S3, #S3.s2
+  %s2 = load [copy] %s2_addr : $*S
+  apply %end(%s2) : $@convention(thin) (@owned S) -> ()
+  end_access %access_4 : $*S3
+  apply %other() : $@convention(thin) () -> ()
+  br exit
+
+exit:
+  apply %other() : $@convention(thin) () -> ()
+  destroy_addr %stack : $*S3
+  dealloc_stack %stack_addr : $*S3
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// }} Multiple blocks
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// =============================================================================
+// =============================================================================
+// }} Multiple defs
+// =============================================================================
+// =============================================================================
+
+// #############################################################################
+// #############################################################################
+// }} AGGREGATE STORAGE
+// #############################################################################
+// #############################################################################

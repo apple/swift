@@ -17,17 +17,17 @@ open class C {
 
 // CHECK: @"$s1M1CC3foo33_{{.*}}Tu" = hidden global %swift.async_func_pointer <{ {{.*}} @_swift_dead_method_stub
 
-// CHECK: @"$s1M1CC1i33_807E3D81CC6CDD898084F3279464DDF9LLSDySOypGvg" = hidden alias void (), void ()* @_swift_dead_method_stub
-// CHECK: @"$s1M1CC1i33_807E3D81CC6CDD898084F3279464DDF9LLSDySOypGvs" = hidden alias void (), void ()* @_swift_dead_method_stub
-// CHECK: @"$s1M1CC1i33_807E3D81CC6CDD898084F3279464DDF9LLSDySOypGvM" = hidden alias void (), void ()* @_swift_dead_method_stub
+// CHECK: @"$s1M1CC1i33_807E3D81CC6CDD898084F3279464DDF9LLSDySOypGvg" = hidden alias void (), ptr @_swift_dead_method_stub
+// CHECK: @"$s1M1CC1i33_807E3D81CC6CDD898084F3279464DDF9LLSDySOypGvs" = hidden alias void (), ptr @_swift_dead_method_stub
+// CHECK: @"$s1M1CC1i33_807E3D81CC6CDD898084F3279464DDF9LLSDySOypGvM" = hidden alias void (), ptr @_swift_dead_method_stub
 
 //--- B.swift
 final class D: C {
 }
 
-// CHECK: declare swiftcc %swift.bridge* @"$s1M1CC1i33_807E3D81CC6CDD898084F3279464DDF9LLSDySOypGvg"(%T1M1CC* swiftself) #0
-// CHECK: declare swiftcc void @"$s1M1CC1i33_807E3D81CC6CDD898084F3279464DDF9LLSDySOypGvs"(%swift.bridge*, %T1M1CC* swiftself) #0
-// CHECK: declare swiftcc { i8*, %TSD* } @"$s1M1CC1i33_807E3D81CC6CDD898084F3279464DDF9LLSDySOypGvM"(i8* noalias dereferenceable(32), %T1M1CC* swiftself) #0
+// CHECK: declare swiftcc ptr @"$s1M1CC1i33_807E3D81CC6CDD898084F3279464DDF9LLSDySOypGvg"(ptr swiftself) #0
+// CHECK: declare swiftcc void @"$s1M1CC1i33_807E3D81CC6CDD898084F3279464DDF9LLSDySOypGvs"(ptr, ptr swiftself) #0
+// CHECK: declare swiftcc { ptr, ptr } @"$s1M1CC1i33_807E3D81CC6CDD898084F3279464DDF9LLSDySOypGvM"(ptr noalias dereferenceable(32), ptr swiftself) #0
 
 @main
 struct Main {

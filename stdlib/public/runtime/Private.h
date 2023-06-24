@@ -395,6 +395,9 @@ public:
     /// The number of key generic parameters.
     mutable unsigned numKeyGenericParameters = 0;
 
+    /// The number of pack shape classes.
+    mutable unsigned numShapeClasses = 0;
+
     /// Builds the descriptor path.
     ///
     /// \returns a pair containing the number of key generic parameters in

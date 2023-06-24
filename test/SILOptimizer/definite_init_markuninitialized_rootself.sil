@@ -21,6 +21,17 @@ class RootClassWithNontrivialStoredProperties {
 }
 
 class SomeClass {}
+
+final class IntClass {
+  var i: Int
+  init(_ i: Int)
+}
+
+final class GenericClass<T> {
+  var t: T
+  init(_ t: T)
+}
+
 sil @getSomeClass : $@convention(thin) () -> @owned SomeClass
 sil @getSomeOptionalClass : $@convention(thin) () -> Optional<SomeClass>
 
@@ -130,4 +141,46 @@ bb0(%0 : @owned $RootClassWithNontrivialStoredProperties):
 
   %13 = tuple ()
   return %13 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @init_IntClass :
+// CHECK:         [[ACCESS:%.*]] = begin_access [init] [static]
+// CHECK:         store %0 to [trivial] [[ACCESS]]
+// CHECK:         [[ACCESS2:%.*]] = begin_access [modify] [dynamic]
+// CHECK:         store %0 to [trivial] [[ACCESS2]]
+// CHECK:       } // end sil function 'init_IntClass'
+sil [ossa] @init_IntClass : $@convention(method) (Int, @owned IntClass) -> @owned IntClass {
+bb0(%0 : $Int, %1 : @owned $IntClass):
+  %4 = mark_uninitialized [rootself] %1 : $IntClass
+  %5 = begin_borrow %4 : $IntClass
+  %6 = ref_element_addr %5 : $IntClass, #IntClass.i
+  %7 = begin_access [modify] [dynamic] %6 : $*Int
+  assign %0 to %7 : $*Int
+  end_access %7 : $*Int
+  %10 = begin_access [modify] [dynamic] %6 : $*Int
+  assign %0 to %10 : $*Int
+  end_access %10 : $*Int
+  end_borrow %5 : $IntClass
+  return %4 : $IntClass
+}
+
+// CHECK-LABEL: sil [ossa] @init_GenericClass :
+// CHECK:         [[ACCESS:%.*]] = begin_access [init] [static]
+// CHECK:         copy_addr %0 to [init] [[ACCESS]]
+// CHECK:         [[ACCESS2:%.*]] = begin_access [modify] [dynamic]
+// CHECK:         copy_addr [take] %0 to [[ACCESS2]]
+// CHECK:       } // end sil function 'init_GenericClass'
+sil [ossa] @init_GenericClass : $@convention(method) <T> (@in T, @owned GenericClass<T>) -> @owned GenericClass<T> {
+bb0(%0 : $*T, %1 : @owned $GenericClass<T>):
+  %4 = mark_uninitialized [rootself] %1 : $GenericClass<T>
+  %5 = begin_borrow %4 : $GenericClass<T>
+  %8 = ref_element_addr %5 : $GenericClass<T>, #GenericClass.t
+  %9 = begin_access [modify] [dynamic] %8 : $*T
+  copy_addr %0 to %9 : $*T
+  end_access %9 : $*T
+  %12 = begin_access [modify] [dynamic] %8 : $*T
+  copy_addr [take] %0 to %12 : $*T
+  end_access %12 : $*T
+  end_borrow %5 : $GenericClass<T>
+  return %4 : $GenericClass<T>
 }

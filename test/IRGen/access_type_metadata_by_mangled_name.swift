@@ -41,15 +41,15 @@ protocol Proto {}
 public func test() -> Builtin.AnyObject {
   var x: Builtin.AnyObject
 
-  // CHECK: call %swift.type* @__swift_instantiateConcreteTypeFromMangledName({ i32, i32 }* @"$s36access_type_metadata_by_mangled_name3FooCyAA3BarCyAA3ZimCyAA4ZangCGGGMD")
+  // CHECK: call ptr @__swift_instantiateConcreteTypeFromMangledName(ptr @"$s36access_type_metadata_by_mangled_name3FooCyAA3BarCyAA3ZimCyAA4ZangCGGGMD")
   x = Foo<Bar<Zim<Zang>>>()
-  // CHECK: call %swift.type* @__swift_instantiateConcreteTypeFromMangledName({ i32, i32 }* @"$s36access_type_metadata_by_mangled_name3FooC16NestedNonGenericCyAA4ZangC_GMD")
+  // CHECK: call ptr @__swift_instantiateConcreteTypeFromMangledName(ptr @"$s36access_type_metadata_by_mangled_name3FooC16NestedNonGenericCyAA4ZangC_GMD")
   x = Foo<Zang>.NestedNonGeneric()
-  // CHECK: call %swift.type* @__swift_instantiateConcreteTypeFromMangledName({ i32, i32 }* @"$s36access_type_metadata_by_mangled_name3FooC13NestedGenericCyAA4ZangC_AGGMD")
+  // CHECK: call ptr @__swift_instantiateConcreteTypeFromMangledName(ptr @"$s36access_type_metadata_by_mangled_name3FooC13NestedGenericCyAA4ZangC_AGGMD")
   x = Foo<Zang>.NestedGeneric<Zang>()
-  // CHECK: call %swift.type* @__swift_instantiateConcreteTypeFromMangledName({ i32, i32 }* @"$s36access_type_metadata_by_mangled_name4ZangC13NestedGenericCy_ACGMD")
+  // CHECK: call ptr @__swift_instantiateConcreteTypeFromMangledName(ptr @"$s36access_type_metadata_by_mangled_name4ZangC13NestedGenericCy_ACGMD")
   x = Zang.NestedGeneric<Zang>()
-  // CHECK: call %swift.type* @__swift_instantiateConcreteTypeFromMangledName({ i32, i32 }* @"$s36access_type_metadata_by_mangled_name3ZimCA2A4ZangCRszlE16ExtensionGenericCyAE_AEGMD")
+  // CHECK: call ptr @__swift_instantiateConcreteTypeFromMangledName(ptr @"$s36access_type_metadata_by_mangled_name3ZimCA2A4ZangCRszlE16ExtensionGenericCyAE_AEGMD")
   x = Zim<Zang>.ExtensionGeneric<Zang>()
 
   // Accessing nongeneric nominal type metadata should still go through the
@@ -64,7 +64,7 @@ public func test() -> Builtin.AnyObject {
 
   // Protocols still have only existential type metadata, so it's better
   // to access them by mangled name.
-  // CHECK: call %swift.type* @__swift_instantiateConcreteTypeFromMangledName({ i32, i32 }* @"$s36access_type_metadata_by_mangled_name5Proto_pMD")
+  // CHECK: call ptr @__swift_instantiateConcreteTypeFromMangledName(ptr @"$s36access_type_metadata_by_mangled_name5Proto_pMD")
   var y: Any.Type = Proto.self
 
   return x

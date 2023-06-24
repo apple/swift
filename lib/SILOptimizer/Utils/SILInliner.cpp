@@ -1110,7 +1110,6 @@ InlineCost swift::instructionInlineCost(SILInstruction &I) {
   case SILInstructionKind::InitBlockStorageHeaderInst:
   case SILInstructionKind::SelectEnumAddrInst:
   case SILInstructionKind::SelectEnumInst:
-  case SILInstructionKind::SelectValueInst:
   case SILInstructionKind::KeyPathInst:
   case SILInstructionKind::GlobalValueInst:
   case SILInstructionKind::DifferentiableFunctionInst:

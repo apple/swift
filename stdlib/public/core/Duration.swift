@@ -122,7 +122,7 @@ extension Duration {
     // handle them slightly differently to ensure that integer values are
     // never rounded if `scale` is representable as Double.
     let integralPart = duration.rounded(.towardZero)
-    let fractionalPart = integralPart - duration
+    let fractionalPart = duration - integralPart
     self.init(_attoseconds:
       // This term may trap due to overflow, but it cannot round, so if the
       // input `seconds` is an exact integer, we get an exact integer result.

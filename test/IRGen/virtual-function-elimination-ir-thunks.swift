@@ -24,17 +24,16 @@ public class MyLocalClass {
 }
 
 func func1(o: MyLocalClass) {
-  // CHECK: define hidden swiftcc void @"$s4Main5func11oyAA12MyLocalClassC_tF"(%T4Main12MyLocalClassC* %0)
+  // CHECK: define hidden swiftcc void @"$s4Main5func11oyAA12MyLocalClassC_tF"(ptr %0)
   o.bar()
-  // CHECK:  [[SLOT:%.*]] = getelementptr inbounds void (%T4Main12MyLocalClassC*)*, void (%T4Main12MyLocalClassC*)** {{.*}}, {{i64|i32}} {{.*}}
-  // CHECK:  [[SLOTASPTR:%.*]] = bitcast void (%T4Main12MyLocalClassC*)** [[SLOT]] to i8*
-  // CHECK:  call { i8*, i1 } @llvm.type.checked.load(i8* [[SLOTASPTR]], i32 0, metadata !"$s4Main12MyLocalClassC3baryyFTq")
+  // CHECK:  [[SLOT:%.*]] = getelementptr inbounds ptr, ptr {{.*}}, {{i64|i32}} {{.*}}
+  // CHECK:  call { ptr, i1 } @llvm.type.checked.load(ptr [[SLOT]], i32 0, metadata !"$s4Main12MyLocalClassC3baryyFTq")
 
   // CHECK: ret void
 }
 
 func func2(o: MyLibraryClass) {
-  // CHECK: define hidden swiftcc void @"$s4Main5func21oy7Library02MyC5ClassC_tF"(%T7Library02MyA5ClassC* %0)
+  // CHECK: define hidden swiftcc void @"$s4Main5func21oy7Library02MyC5ClassC_tF"(ptr %0)
   o.foo()
   // CHECK: call swiftcc void @"$s7Library02MyA5ClassC3fooyyFTj"
 

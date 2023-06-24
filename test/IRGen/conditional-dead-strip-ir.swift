@@ -35,8 +35,7 @@ public enum Enum {
 // CHECK-DAG:      [[M4]]  = !{{{.*}} @"$s4main4EnumOMF", i32 0, [[M4A:!.*]]}
 // CHECK-DAG:      [[M4A]] =   {{.*}} @"$s4main4EnumOMn"
 
-// CHECK-DAG:      [[C1]]  = !{{{.*}} @"$s4main11TheProtocolHr", i32 0, [[C1A:!.*]]}
-// CHECK-DAG:      [[C1A]] =   {{.*}} @"$s4main11TheProtocolMp"}
+// CHECK-DAG:      [[C1]]  = !{{{.*}} @"$s4main11TheProtocolHr", i32 0, [[M1A:!.*]]}
 
 // CHECK-DAG:      [[C2]]  = !{{{.*}} @"$s4main5ClassCAA11TheProtocolAAHc", i32 1, [[C2A:!.*]]}
 // CHECK-DAG:      [[C2A]] =   {{.*}} @"$s4main11TheProtocolMp", {{.*}} @"$s4main5ClassCMn"}

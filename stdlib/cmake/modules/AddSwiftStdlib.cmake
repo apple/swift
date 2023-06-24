@@ -138,8 +138,8 @@ function(_add_target_variant_c_compile_link_flags)
   if (_lto_flag_out)
     list(APPEND result "${_lto_flag_out}")
     # Disable opaque pointers in lto mode.
-    list(APPEND result "-Xclang")
-    list(APPEND result "-no-opaque-pointers")
+    #list(APPEND result "-Xclang")
+    #list(APPEND result "-no-opaque-pointers")
   endif()
 
   set("${CFLAGS_RESULT_VAR_NAME}" "${result}" PARENT_SCOPE)
@@ -352,6 +352,16 @@ function(_add_target_variant_c_compile_flags)
     list(APPEND result "-DSWIFT_STDLIB_HAS_DLADDR")
   endif()
 
+  if(SWIFT_STDLIB_HAS_DLSYM)
+    list(APPEND result "-DSWIFT_STDLIB_HAS_DLSYM=1")
+  else()
+    list(APPEND result "-DSWIFT_STDLIB_HAS_DLSYM=0")
+  endif()
+
+  if(SWIFT_STDLIB_HAS_FILESYSTEM)
+    list(APPEND result "-DSWIFT_STDLIB_HAS_FILESYSTEM")
+  endif()
+
   if(SWIFT_RUNTIME_STATIC_IMAGE_INSPECTION)
     list(APPEND result "-DSWIFT_RUNTIME_STATIC_IMAGE_INSPECTION")
   endif()
@@ -415,6 +425,10 @@ function(_add_target_variant_c_compile_flags)
 
   if(SWIFT_STDLIB_ENABLE_UNICODE_DATA)
     list(APPEND result "-DSWIFT_STDLIB_ENABLE_UNICODE_DATA")
+  endif()
+
+  if(SWIFT_STDLIB_TRACING)
+    list(APPEND result "-DSWIFT_STDLIB_TRACING")
   endif()
 
   if(SWIFT_STDLIB_CONCURRENCY_TRACING)
@@ -897,7 +911,7 @@ function(add_swift_target_library_single target name)
 
   # Define availability macros.
   foreach(def ${SWIFT_STDLIB_AVAILABILITY_DEFINITIONS})
-    list(APPEND SWIFTLIB_SINGLE_SWIFT_COMPILE_FLAGS "-Xfrontend" "-define-availability" "-Xfrontend" "${def}") 
+    list(APPEND SWIFTLIB_SINGLE_SWIFT_COMPILE_FLAGS "-Xfrontend" "-define-availability" "-Xfrontend" "${def}")
   endforeach()
 
   # Enable -target-min-inlining-version

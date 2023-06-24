@@ -511,7 +511,7 @@ static bool tryJoinIfDestroyConsumingUseInSameBlock(
   // Check whether the uses considered immediately above are all effectively
   // instantaneous uses. Pointer escapes propagate values ways that may not be
   // discoverable.
-  if (hasPointerEscape(operand)) {
+  if (findPointerEscape(operand)) {
     return false;
   }
 
@@ -791,7 +791,7 @@ bool SemanticARCOptVisitor::tryPerformOwnedCopyValueOptimization(
   SmallVector<Operand *, 8> parentLifetimeEndingUses;
   for (auto *origValueUse : originalValue->getUses())
     if (origValueUse->isLifetimeEnding() &&
-        !OwnershipForwardingMixin::isa(origValueUse->getUser()))
+        !ForwardingInstruction::isa(origValueUse->getUser()))
       parentLifetimeEndingUses.push_back(origValueUse);
 
   // Ok, we have an owned value. If we do not have any non-destroying consuming

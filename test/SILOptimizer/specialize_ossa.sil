@@ -6,6 +6,7 @@ import Builtin
 import Swift
 
 class Klass {}
+class GenericKlass<T> {}
 
 sil [ossa] [transparent] @ossaTransparentCallee : $@convention(thin) <T> (@in T) -> () {
 bb0(%0 : $*T):
@@ -43,7 +44,7 @@ bb0(%0 : $Builtin.NativeObject):
 // CHECK-LABEL: sil [ossa] @exp1 : $@convention(thin) () -> () {
 // CHECK-NOT: apply
 // Call of specialized initializer: <Int32>
-// CHECK: [[CTOR:%[0-9]+]] = function_ref @$s8XXX_inits5Int32V_Tg5
+// CHECK: [[CTOR:%[0-9]+]] = function_ref @$s8XXX_inits5Int32V_Tgm5
 // CHECK: apply [[CTOR]]
 // CHECK: [[ACCEPTS_INT:%[0-9]+]] = function_ref @acceptsInt
 // Call of specialized XXX_foo: <Int32>
@@ -634,7 +635,7 @@ bb0:
 
 // test_bind<A> (Builtin.RawPointer, A.Type) -> ()
 // Check that this is specialized as T=Int.
-// CHECK-LABEL: sil shared [ossa] @$s9test_bindSi_Tg5 : $@convention(thin) (Builtin.RawPointer, @thick Int.Type) -> ()
+// CHECK-LABEL: sil shared [ossa] @$s9test_bindSi_Tgm5 : $@convention(thin) (Builtin.RawPointer) -> () {
 // CHECK: bind_memory %0 : $Builtin.RawPointer, {{%.*}} : $Builtin.Word to $*Int
 // CHECK: return
 sil hidden [ossa] @test_bind : $@convention(thin) <T> (Builtin.RawPointer, @thick T.Type) -> () {
@@ -893,7 +894,7 @@ bb0(%0 : $*T, %1 :$*T):
 }
 
 // This should not assert.
-// CHECK-LABEL: sil shared [ossa] @$s26specialize_no_return_applys5NeverO_Tg5
+// CHECK-LABEL: sil shared [ossa] @$s26specialize_no_return_applys5NeverO_Tgm5 : $@convention(thin) () -> () {
 // CHECK:      apply
 // CHECK-NEXT: unreachable
 
@@ -1305,7 +1306,7 @@ sil @genericReturn : $@convention(thin) <τ_0_0> (@guaranteed AnyObject) -> @out
 // The generic cloner needs to be able to compute liveness to fixup a
 // store borrow scope when the only use is in unreachable code.
 // specialized testNoReturnSpecialization
-// CHECK-LABEL: sil shared [ossa] @$s26testNoReturnSpecializations5NeverO_Tg5 : $@convention(thin) (@guaranteed AnyObject, @thick Never.Type) -> () {
+// CHECK-LABEL: sil shared [ossa] @$s26testNoReturnSpecializations5NeverO_Tgm5 : $@convention(thin) (@guaranteed AnyObject) -> () {
 // CHECK:   [[SB:%.*]] = store_borrow %0 to %{{.*}} : $*AnyObject
 // CHECK:   [[LB:%.*]] = load_borrow [[SB]] : $*AnyObject
 // CHECK:   apply %{{.*}}<Never>(%{{.*}}, [[LB]]) : $@convention(thin) <τ_0_0> (@guaranteed AnyObject) -> @out τ_0_0
@@ -1314,7 +1315,7 @@ sil @genericReturn : $@convention(thin) <τ_0_0> (@guaranteed AnyObject) -> @out
 // CHECK: bb1:
 // CHECK:   end_borrow [[LB]] : $AnyObject
 // CHECK:   end_borrow [[SB]] : $*AnyObject
-// CHECK-LABEL: } // end sil function '$s26testNoReturnSpecializations5NeverO_Tg5'
+// CHECK-LABEL: } // end sil function '$s26testNoReturnSpecializations5NeverO_Tgm5'
 sil [ossa] @testNoReturnSpecialization : $@convention(thin) <T> (@in_guaranteed AnyObject, @thick T.Type) -> () {
 bb0(%0 : $*AnyObject, %1 : $@thick T.Type):
   %2 = load_borrow %0 : $*AnyObject
@@ -1336,3 +1337,149 @@ bb0(%0 : $*AnyObject):
   %t = tuple ()
   return %t : $()
 }
+
+sil [ossa] @metatypeUsed : $@convention(thin) <T> (@thick GenericKlass<T>.Type) -> () {
+bb0(%0 : $@thick GenericKlass<T>.Type):
+  %1 = alloc_ref_dynamic %0 : $@thick GenericKlass<T>.Type, $GenericKlass<T>
+  destroy_value %1 : $GenericKlass<T>
+   %3 = tuple ()
+  return %3 : $()
+}
+
+sil [ossa] @metatypeUnused : $@convention(thin) <T> (@thick GenericKlass<T>.Type) -> () {
+bb0(%0 : $@thick GenericKlass<T>.Type):
+  debug_value %0 : $@thick GenericKlass<T>.Type, let, name "mt", argno 0
+   %2 = tuple ()
+  return %2 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @callUsedMetatypeWithConcreteMetatype :
+// CHECK:         = function_ref @$s12metatypeUsedSi_Tgm5 : $@convention(thin) () -> ()
+// CHECK-LABEL: } // end sil function 'callUsedMetatypeWithConcreteMetatype'
+sil [ossa] @callUsedMetatypeWithConcreteMetatype : $@convention(thin) () -> () {
+bb0:
+  %0 = metatype $@thick GenericKlass<Int>.Type
+  %1 = function_ref @metatypeUsed : $@convention(thin) <T> (@thick GenericKlass<T>.Type) -> ()
+  %2 = apply %1<Int>(%0) : $@convention(thin) <T> (@thick GenericKlass<T>.Type) -> ()
+  %3 = tuple ()
+  return %3 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @callUsedMetatypeWithUnknownMetatype :
+// CHECK:         = function_ref @$s12metatypeUsedSi_Tg5 : $@convention(thin) (@thick GenericKlass<Int>.Type) -> ()
+// CHECK-LABEL: } // end sil function 'callUsedMetatypeWithUnknownMetatype'
+sil [ossa] @callUsedMetatypeWithUnknownMetatype : $@convention(thin) (@thick GenericKlass<Int>.Type) -> () {
+bb0(%0 : $@thick GenericKlass<Int>.Type):
+  %1 = function_ref @metatypeUsed : $@convention(thin) <T> (@thick GenericKlass<T>.Type) -> ()
+  %2 = apply %1<Int>(%0) : $@convention(thin) <T> (@thick GenericKlass<T>.Type) -> ()
+  %3 = tuple ()
+  return %3 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @callUnusedMetatypeWithUnknownMetatype :
+// CHECK:         = function_ref @$s14metatypeUnusedSi_Tgm5 : $@convention(thin) () -> ()
+// CHECK-LABEL: } // end sil function 'callUnusedMetatypeWithUnknownMetatype'
+sil [ossa] @callUnusedMetatypeWithUnknownMetatype : $@convention(thin) (@thick GenericKlass<Int>.Type) -> () {
+bb0(%0 : $@thick GenericKlass<Int>.Type):
+  %1 = function_ref @metatypeUnused : $@convention(thin) <T> (@thick GenericKlass<T>.Type) -> ()
+  %2 = apply %1<Int>(%0) : $@convention(thin) <T> (@thick GenericKlass<T>.Type) -> ()
+  %3 = tuple ()
+  return %3 : $()
+}
+
+sil [ossa] @closure_with_metatype : $@convention(thin) <T> (@in_guaranteed T, @thick GenericKlass<T>.Type) -> () {
+bb0(%0 : $*T, %1 : $@thick GenericKlass<T>.Type):
+   %3 = tuple ()
+  return %3 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @returnClosureWithAppliedMetatype :
+// CHECK:         = function_ref @$s21closure_with_metatypeSi_TGm5 : $@convention(thin) (@in_guaranteed Int) -> ()
+// CHECK-LABEL: } // end sil function 'returnClosureWithAppliedMetatype'
+sil [ossa] @returnClosureWithAppliedMetatype : $@convention(thin) () -> @owned @callee_owned (@in_guaranteed Int) -> () {
+bb0:
+  %0 = metatype $@thick GenericKlass<Int>.Type
+  %1 = function_ref @closure_with_metatype : $@convention(thin) <T> (@in_guaranteed T, @thick GenericKlass<T>.Type) -> ()
+  %2 = partial_apply %1<Int>(%0) : $@convention(thin) <T> (@in_guaranteed T, @thick GenericKlass<T>.Type) -> ()
+  return %2 : $@callee_owned (@in_guaranteed Int) -> ()
+}
+
+// CHECK-LABEL: sil [ossa] @returnClosureWithNotAppliedMetatype :
+// CHECK:         = function_ref @$s21closure_with_metatypeSi_TG5 : $@convention(thin) (@in_guaranteed Int, @thick GenericKlass<Int>.Type) -> ()
+// CHECK-LABEL: } // end sil function 'returnClosureWithNotAppliedMetatype'
+sil [ossa] @returnClosureWithNotAppliedMetatype : $@convention(thin) () -> @owned @callee_owned (@in_guaranteed Int, @thick GenericKlass<Int>.Type) -> () {
+bb0:
+  %1 = function_ref @closure_with_metatype : $@convention(thin) <T> (@in_guaranteed T, @thick GenericKlass<T>.Type) -> ()
+  %2 = partial_apply %1<Int>() : $@convention(thin) <T> (@in_guaranteed T, @thick GenericKlass<T>.Type) -> ()
+  return %2 : $@callee_owned (@in_guaranteed Int, @thick GenericKlass<Int>.Type) -> ()
+}
+
+sil [ossa] @method_with_dynamic_self : $@convention(method) <T> (@thick GenericKlass<T>.Type) -> () {
+bb0(%0 : $@thick GenericKlass<T>.Type):
+  %1 = metatype $@thick @dynamic_self GenericKlass<T>.Type
+  %2 = tuple ()
+  return %2 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @callMethodWithDynamicSelf :
+// CHECK:         = function_ref @$s24method_with_dynamic_selfSi_Tg5 : $@convention(method) (@thick GenericKlass<Int>.Type) -> ()
+// CHECK-LABEL: } // end sil function 'callMethodWithDynamicSelf'
+sil [ossa] @callMethodWithDynamicSelf : $@convention(thin) () -> () {
+bb0:
+  %0 = metatype $@thick GenericKlass<Int>.Type
+  %1 = function_ref @method_with_dynamic_self : $@convention(method) <T> (@thick GenericKlass<T>.Type) -> ()
+  %2 = apply %1<Int>(%0) : $@convention(method) <T> (@thick GenericKlass<T>.Type) -> ()
+  return %2 : $()
+}
+
+sil @complex_closure : $@convention(thin) <T> (@thick T.Type, @in_guaranteed T, Bool) -> @out T {
+bb0(%0 : $*T, %2 : $@thick T.Type, %3 : $*T, %4 : $Bool):
+  %5 = tuple ()
+  return %5 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @returnComplexClosure :
+// CHECK:         = function_ref @$s15complex_closureSi_TGm5 : $@convention(thin) (@in_guaranteed Int, Bool) -> @out Int
+// CHECK-LABEL: } // end sil function 'returnComplexClosure'
+sil [ossa] @returnComplexClosure : $@convention(thin) (@in Int, Bool) -> @owned @callee_owned () -> @out Int {
+bb0(%0: $*Int, %1 : $Bool):
+  %2 = metatype $@thick Int.Type
+  %3 = function_ref @complex_closure : $@convention(thin) <T> (@thick T.Type, @in_guaranteed T, Bool) -> @out T
+  %4 = partial_apply %3<Int>(%2, %0, %1) : $@convention(thin) <T> (@thick T.Type, @in_guaranteed T, Bool) -> @out T
+  return %4 : $@callee_owned () -> @out Int
+}
+
+sil [ossa] @closure_with_thin_metatype : $@convention(thin) <T> (@in_guaranteed T, @thin GenericKlass<T>.Type) -> @out T {
+bb0(%0 : $*T, %1 : $*T, %2 : $@thin GenericKlass<T>.Type):
+  copy_addr %1 to [init] %0: $*T
+   %3 = tuple ()
+  return %3 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @returnClosureWithNotAppliedThinMetatype :
+// CHECK:         = function_ref @$s26closure_with_thin_metatypeSi_TG5 : $@convention(thin) (@in_guaranteed Int, @thin GenericKlass<Int>.Type) -> @out Int
+// CHECK-LABEL: } // end sil function 'returnClosureWithNotAppliedThinMetatype'
+sil [ossa] @returnClosureWithNotAppliedThinMetatype : $@convention(thin) () -> @owned @callee_owned (@in_guaranteed Int, @thin GenericKlass<Int>.Type) -> @out Int {
+bb0:
+  %1 = function_ref @closure_with_thin_metatype : $@convention(thin) <T> (@in_guaranteed T, @thin GenericKlass<T>.Type) -> @out T
+  %2 = partial_apply %1<Int>() : $@convention(thin) <T> (@in_guaranteed T, @thin GenericKlass<T>.Type) -> @out T
+  return %2 : $@callee_owned (@in_guaranteed Int, @thin GenericKlass<Int>.Type) -> @out Int
+}
+
+sil [ossa] @method_with_dynamic_self_arg : $@convention(method) <T> (@thick @dynamic_self GenericKlass<T>.Type) -> () {
+bb0(%0 : $@thick @dynamic_self GenericKlass<T>.Type):
+  %2 = tuple ()
+  return %2 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @callMethodWithDynamicSelfArg :
+// CHECK:         = function_ref @$s28method_with_dynamic_self_argSi_Tg5 : $@convention(method) (@thick @dynamic_self GenericKlass<Int>.Type) -> ()
+// CHECK-LABEL: } // end sil function 'callMethodWithDynamicSelfArg'
+sil [ossa] @callMethodWithDynamicSelfArg : $@convention(method) (@guaranteed GenericKlass<Int>) -> () {
+bb0(%0 : @guaranteed $GenericKlass<Int>):
+  %1 = metatype $@thick @dynamic_self GenericKlass<Int>.Type
+  %2 = function_ref @method_with_dynamic_self_arg : $@convention(method) <T> (@thick @dynamic_self GenericKlass<T>.Type) -> ()
+  %3 = apply %2<Int>(%1) : $@convention(method) <T> (@thick @dynamic_self GenericKlass<T>.Type) -> ()
+  return %3 : $()
+}
+

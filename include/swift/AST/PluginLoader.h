@@ -28,6 +28,13 @@ class ASTContext;
 ///  * Load plugins resolving VFS paths
 ///  * Track plugin dependencies
 class PluginLoader {
+public:
+  struct PluginEntry {
+    StringRef libraryPath;
+    StringRef executablePath;
+  };
+
+private:
   /// Plugin registry. Lazily populated by get/setRegistry().
   /// NOTE: Do not reference this directly. Use getRegistry().
   PluginRegistry *Registry = nullptr;
@@ -38,44 +45,31 @@ class PluginLoader {
   ASTContext &Ctx;
   DependencyTracker *DepTracker;
 
-  /// Map a module name to an executable plugin path that provides the module.
-  llvm::DenseMap<swift::Identifier, llvm::StringRef> ExecutablePluginPaths;
+  /// Map a module name to an plugin entry that provides the module.
+  llvm::Optional<llvm::DenseMap<swift::Identifier, PluginEntry>> PluginMap;
 
-  void createModuleToExecutablePluginMap();
+  /// Get or lazily create and populate 'PluginMap'.
+  llvm::DenseMap<swift::Identifier, PluginEntry> &getPluginMap();
 
 public:
   PluginLoader(ASTContext &Ctx, DependencyTracker *DepTracker)
-      : Ctx(Ctx), DepTracker(DepTracker) {
-    createModuleToExecutablePluginMap();
-  }
+      : Ctx(Ctx), DepTracker(DepTracker) {}
 
   void setRegistry(PluginRegistry *newValue);
   PluginRegistry *getRegistry();
 
-  /// Lookup a library plugin that can handle \p moduleName and return the path
-  /// to it from `-load-plugin-library`.
-  /// The path returned can be loaded by 'loadLibraryPlugin' method.
-  llvm::Optional<std::string>
-  lookupExplicitLibraryPluginByModuleName(Identifier moduleName);
-
-  /// Lookup a library plugin that can handle \p moduleName and return the path
-  /// to it from `-plugin-path`.
-  /// The path returned can be loaded by 'loadLibraryPlugin' method.
-  llvm::Optional<std::string>
-  lookupLibraryPluginInSearchPathByModuleName(Identifier moduleName);
-
-  /// Lookup an executable plugin that is declared to handle \p moduleName
-  /// module by '-load-plugin-executable'.
-  /// The path returned can be loaded by 'loadExecutablePlugin' method.
-  llvm::Optional<StringRef>
-  lookupExecutablePluginByModuleName(Identifier moduleName);
-
-  /// Look for dynamic libraries in paths from `-external-plugin-path` and
-  /// return a pair of `(library path, plugin server executable)` if found.
-  /// These paths are valid within the VFS, use `FS.getRealPath()` for their
-  /// underlying path.
-  llvm::Optional<std::pair<std::string, std::string>>
-  lookupExternalLibraryPluginByModuleName(Identifier moduleName);
+  /// Lookup a plugin that can handle \p moduleName and return the path(s) to
+  /// it. The path returned can be loaded by 'load(Library|Executable)Plugin()'.
+  /// The return value is a pair of a "library path" and a "executable path".
+  ///
+  ///  * (libPath: empty, execPath: empty) - plugin not found.
+  ///  * (libPath: some,  execPath: empty) - load the library path by
+  ///    'loadLibraryPlugin()'.
+  ///  * (libPath: empty, execPath: some) - load the executable path by
+  ///    'loadExecutablePlugin()'.
+  ///  * (libPath: some,  execPath: some) - load the executable path by
+  ///    'loadExecutablePlugin()' and let the plugin load the libPath via IPC.
+  const PluginEntry &lookupPluginByModuleName(Identifier moduleName);
 
   /// Load the specified dylib plugin path resolving the path with the
   /// current VFS. If it fails to load the plugin, a diagnostic is emitted, and

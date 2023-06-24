@@ -184,7 +184,7 @@ public enum AddBlocker: ExpressionMacro {
     in context: some MacroExpansionContext
   ) -> ExprSyntax {
     let visitor = AddVisitor()
-    let result = visitor.visit(Syntax(node))
+    let result = visitor.rewrite(Syntax(node))
 
     for diag in visitor.diagnostics {
       context.diagnose(diag)
@@ -1604,6 +1604,21 @@ extension SelfAlwaysEqualOperator: MemberMacro {
   }
 }
 
+public struct AddPeerStoredPropertyMacro: PeerMacro, Sendable {
+  public static func expansion(
+    of attribute: AttributeSyntax,
+    providingPeersOf declaration: some DeclSyntaxProtocol,
+    in context: some MacroExpansionContext
+  ) throws -> [DeclSyntax] {
+    return [
+      """
+
+      private var _foo: Int = 100
+      """
+    ]
+  }
+}
+
 public struct InitializableMacro: ConformanceMacro, MemberMacro {
   public static func expansion(
     of node: AttributeSyntax,
@@ -1624,5 +1639,18 @@ public struct InitializableMacro: ConformanceMacro, MemberMacro {
       """
 
     return [requirement]
+  }
+}
+
+public struct PeerValueWithSuffixNameMacro: PeerMacro {
+  public static func expansion(
+    of node: AttributeSyntax,
+    providingPeersOf declaration: some DeclSyntaxProtocol,
+    in context: some MacroExpansionContext
+  ) throws -> [DeclSyntax] {
+    guard let identified = declaration.asProtocol(IdentifiedDeclSyntax.self) else {
+      throw CustomError.message("Macro can only be applied to an identified declarations.")
+    }
+    return ["var \(raw: identified.identifier.text)_peer: Int { 1 }"]
   }
 }

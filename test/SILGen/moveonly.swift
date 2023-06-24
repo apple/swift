@@ -131,7 +131,7 @@ public func useNonTrivialOwnedStruct(_ s: __owned NonTrivialStruct) {
 public func useNonTrivialEnum(_ s: borrowing NonTrivialEnum) {
     borrowVal(s)
     let s2 = s
-    switch s {
+    switch consume s {
     case _:
         break
     }
@@ -149,7 +149,7 @@ public func useNonTrivialEnum(_ s: borrowing NonTrivialEnum) {
 public func useNonTrivialOwnedEnum(_ s: __owned NonTrivialEnum) {
     borrowVal(s)
     let s2 = s
-    switch s {
+    switch consume s {
     case _:
         break
     }
@@ -705,7 +705,13 @@ var booleanGuard2: Bool { false }
 // CHECK-LABEL: sil hidden [ossa] @$s8moveonly15enumSwitchTest1yyAA04EnumC5TestsO1EOF : $@convention(thin) (@guaranteed EnumSwitchTests.E) -> () {
 // CHECK: bb0([[ARG:%.*]] : @guaranteed
 // CHECK:   [[COPY_ARG:%.*]] = copy_value [[ARG]]
-// CHECK:   [[MARKED_VALUE:%.*]] = mark_must_check [no_consume_or_assign] [[COPY_ARG]]
+// CHECK:   [[ARG_MARKED_VALUE:%.*]] = mark_must_check [no_consume_or_assign] [[COPY_ARG]]
+//             -- code corresponding to the consume x --
+// CHECK:   [[BORROW_ARG_MARKED_VALUE:%.*]] = begin_borrow [[ARG_MARKED_VALUE]]
+// CHECK:   [[COPY_COPY_ARG:%.*]] = copy_value [[BORROW_ARG_MARKED_VALUE]]
+// CHECK:   [[MOVE_COPY_COPY_ARG:%.*]] = move_value [allows_diagnostics] [[COPY_COPY_ARG]]
+// CHECK:   [[MARKED_VALUE:%.*]] = mark_must_check [consumable_and_assignable] [[MOVE_COPY_COPY_ARG]]
+//           -- now switching on the `consume x` --
 // CHECK:   [[BORROWED_VALUE:%.*]] = begin_borrow [[MARKED_VALUE]]
 // CHECK:   switch_enum [[BORROWED_VALUE]] : $EnumSwitchTests.E, case #EnumSwitchTests.E.first!enumelt: [[BB_E_1:bb[0-9]+]], case #EnumSwitchTests.E.second!enumelt: [[BB_E_2:bb[0-9]+]], case #EnumSwitchTests.E.third!enumelt: [[BB_E_3:bb[0-9]+]], case #EnumSwitchTests.E.fourth!enumelt: [[BB_E_4:bb[0-9]+]]
 //
@@ -758,10 +764,10 @@ var booleanGuard2: Bool { false }
 // CHECK:   br [[BB_CONT]]
 //
 // CHECK: [[BB_CONT]]:
-// CHECK:   destroy_value [[MARKED_VALUE]]
+// CHECK:   destroy_value [[ARG_MARKED_VALUE]]
 // CHECK: } // end sil function '$s8moveonly15enumSwitchTest1yyAA04EnumC5TestsO1EOF'
 func enumSwitchTest1(_ e: borrowing EnumSwitchTests.E) {
-    switch e {
+    switch consume e {
     case .first:
         break
     case .second(let x):
@@ -933,7 +939,8 @@ struct EmptyStruct {
   // CHECK-LABEL: sil hidden [ossa] @$s8moveonly11EmptyStructVACycfC : $@convention(method) (@thin EmptyStruct.Type) -> @owned EmptyStruct {
   // CHECK: [[BOX:%.*]] = alloc_box ${ var EmptyStruct }, var, name "self"
   // CHECK: [[MARKED_UNINIT:%.*]] = mark_uninitialized [rootself] [[BOX]]
-  // CHECK: [[PROJECT:%.*]] = project_box [[MARKED_UNINIT]]
+  // CHECK: [[BOX_LIFETIME:%.*]] = begin_borrow [lexical] [[MARKED_UNINIT]]
+  // CHECK: [[PROJECT:%.*]] = project_box [[BOX_LIFETIME]]
   // CHECK: [[STRUCT:%.*]] = struct $EmptyStruct ()
   // CHECK: store [[STRUCT]] to [init] [[PROJECT]]
   // CHECK: [[MV_CHECK:%.*]] = mark_must_check [assignable_but_not_consumable] [[PROJECT]]
@@ -1039,7 +1046,8 @@ public struct LoadableSubscriptGetOnlyTester : ~Copyable {
 
 // CHECK-LABEL: sil [ossa] @$s8moveonly047testSubscriptGetOnly_BaseLoadable_ResultAddressE4_VaryyF : $@convention(thin) () -> () {
 // CHECK: [[BOX:%.*]] = alloc_box $
-// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+// CHECK: [[BOX_LIFETIME:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX_LIFETIME]]
 //
 // The get call
 // CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
@@ -1077,7 +1085,8 @@ public func testSubscriptGetOnly_BaseLoadable_ResultAddressOnly_Var() {
 
 // CHECK-LABEL: sil [ossa] @$s8moveonly047testSubscriptGetOnly_BaseLoadable_ResultAddressE4_LetyyF : $@convention(thin) () -> () {
 // CHECK: [[BOX:%.*]] = alloc_box $
-// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+// CHECK: [[BOX_LIFETIME:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX_LIFETIME]]
 //
 // The get call
 // CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[PROJECT]]
@@ -1140,7 +1149,8 @@ public struct LoadableSubscriptGetOnlyTesterNonCopyableStructParent : ~Copyable 
 
 // CHECK-LABEL: sil [ossa] @$s8moveonly077testSubscriptGetOnlyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressE4_VaryyF : $@convention(thin) () -> () {
 // CHECK: [[BOX:%.*]] = alloc_box $
-// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+// CHECK: [[BOX_LIFETIME:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX_LIFETIME]]
 //
 // The first get call
 // CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
@@ -1181,7 +1191,8 @@ public func testSubscriptGetOnlyThroughNonCopyableParentStruct_BaseLoadable_Resu
 
 // CHECK-LABEL: sil [ossa] @$s8moveonly077testSubscriptGetOnlyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressE4_LetyyF : $@convention(thin) () -> () {
 // CHECK: [[BOX:%.*]] = alloc_box ${ let L
-// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+// CHECK: [[BOX_LIFETIME:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX_LIFETIME]]
 //
 // CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[PROJECT]]
 // CHECK: [[LOAD:%.*]] = load_borrow [[MARK]]
@@ -1350,7 +1361,8 @@ public struct LoadableSubscriptGetSetTester : ~Copyable {
 
 // CHECK-LABEL: sil [ossa] @$s8moveonly54testSubscriptGetSet_BaseLoadable_ResultAddressOnly_VaryyF : $@convention(thin) () -> () {
 // CHECK: [[BOX:%.*]] = alloc_box $
-// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+// CHECK: [[BOX_LIFETIME:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX_LIFETIME]]
 //
 // The get call
 // CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
@@ -1396,7 +1408,8 @@ public func testSubscriptGetSet_BaseLoadable_ResultAddressOnly_Var() {
 
 // CHECK-LABEL: sil [ossa] @$s8moveonly54testSubscriptGetSet_BaseLoadable_ResultAddressOnly_LetyyF : $@convention(thin) () -> () {
 // CHECK: [[BOX:%.*]] = alloc_box $
-// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+// CHECK: [[BOX_LIFETIME:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX_LIFETIME]]
 //
 // The get call
 // CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[PROJECT]]
@@ -1507,7 +1520,8 @@ public struct LoadableSubscriptGetSetTesterNonCopyableStructParent : ~Copyable {
 
 // CHECK-LABEL: sil [ossa] @$s8moveonly84testSubscriptGetSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_VaryyF : $@convention(thin) () -> () {
 // CHECK: [[BOX:%.*]] = alloc_box $
-// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+// CHECK: [[BOX_LIFETIME:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX_LIFETIME]]
 //
 // The first get call
 // CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
@@ -1561,7 +1575,8 @@ public func testSubscriptGetSetThroughNonCopyableParentStruct_BaseLoadable_Resul
 
 // CHECK-LABEL: sil [ossa] @$s8moveonly84testSubscriptGetSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_LetyyF : $@convention(thin) () -> () {
 // CHECK: [[BOX:%.*]] = alloc_box ${ let L
-// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+// CHECK: [[BOX_LIFETIME:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX_LIFETIME]]
 //
 // CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[PROJECT]]
 // CHECK: [[LOAD:%.*]] = load_borrow [[MARK]]
@@ -1819,7 +1834,8 @@ public struct LoadableSubscriptReadSetTester : ~Copyable {
 
 // CHECK-LABEL: sil [ossa] @$s8moveonly55testSubscriptReadSet_BaseLoadable_ResultAddressOnly_VaryyF : $@convention(thin) () -> () {
 // CHECK: [[BOX:%.*]] = alloc_box $
-// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+// CHECK: [[BOX_LIFETIME:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX_LIFETIME]]
 //
 // The read call
 // CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
@@ -1865,7 +1881,8 @@ public func testSubscriptReadSet_BaseLoadable_ResultAddressOnly_Var() {
 
 // CHECK-LABEL: sil [ossa] @$s8moveonly55testSubscriptReadSet_BaseLoadable_ResultAddressOnly_LetyyF : $@convention(thin) () -> () {
 // CHECK: [[BOX:%.*]] = alloc_box $
-// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+// CHECK: [[BOX_LIFETIME:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX_LIFETIME]]
 //
 // The get call
 // CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[PROJECT]]
@@ -1979,7 +1996,8 @@ public struct LoadableSubscriptReadSetTesterNonCopyableStructParent : ~Copyable 
 
 // CHECK-LABEL: sil [ossa] @$s8moveonly85testSubscriptReadSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_VaryyF : $@convention(thin) () -> () {
 // CHECK: [[BOX:%.*]] = alloc_box $
-// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+// CHECK: [[BOX_LIFETIME:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX_LIFETIME]]
 //
 // The first get call
 // CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
@@ -2031,7 +2049,8 @@ public func testSubscriptReadSetThroughNonCopyableParentStruct_BaseLoadable_Resu
 
 // CHECK-LABEL: sil [ossa] @$s8moveonly85testSubscriptReadSetThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_LetyyF : $@convention(thin) () -> () {
 // CHECK: [[BOX:%.*]] = alloc_box ${ let L
-// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+// CHECK: [[BOX_LIFETIME:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX_LIFETIME]]
 //
 // CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[PROJECT]]
 // CHECK: [[LOAD:%.*]] = load_borrow [[MARK]]
@@ -2285,7 +2304,8 @@ public struct LoadableSubscriptReadModifyTester : ~Copyable {
 
 // CHECK-LABEL: sil [ossa] @$s8moveonly58testSubscriptReadModify_BaseLoadable_ResultAddressOnly_VaryyF : $@convention(thin) () -> () {
 // CHECK: [[BOX:%.*]] = alloc_box $
-// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+// CHECK: [[BOX_LIFETIME:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX_LIFETIME]]
 //
 // The read call
 // CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
@@ -2328,7 +2348,8 @@ public func testSubscriptReadModify_BaseLoadable_ResultAddressOnly_Var() {
 
 // CHECK-LABEL: sil [ossa] @$s8moveonly58testSubscriptReadModify_BaseLoadable_ResultAddressOnly_LetyyF : $@convention(thin) () -> () {
 // CHECK: [[BOX:%.*]] = alloc_box $
-// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+// CHECK: [[BOX_LIFETIME:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX_LIFETIME]]
 //
 // The get call
 // CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[PROJECT]]
@@ -2431,7 +2452,8 @@ public struct LoadableSubscriptReadModifyTesterNonCopyableStructParent : ~Copyab
 
 // CHECK-LABEL: sil [ossa] @$s8moveonly88testSubscriptReadModifyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_VaryyF : $@convention(thin) () -> () {
 // CHECK: [[BOX:%.*]] = alloc_box $
-// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+// CHECK: [[BOX_LIFETIME:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX_LIFETIME]]
 //
 // The first get call
 // CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
@@ -2477,7 +2499,8 @@ public func testSubscriptReadModifyThroughNonCopyableParentStruct_BaseLoadable_R
 
 // CHECK-LABEL: sil [ossa] @$s8moveonly88testSubscriptReadModifyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_LetyyF : $@convention(thin) () -> () {
 // CHECK: [[BOX:%.*]] = alloc_box ${ let L
-// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+// CHECK: [[BOX_LIFETIME:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX_LIFETIME]]
 //
 // CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[PROJECT]]
 // CHECK: [[LOAD:%.*]] = load_borrow [[MARK]]
@@ -2699,7 +2722,8 @@ public struct LoadableSubscriptGetModifyTester : ~Copyable {
 
 // CHECK-LABEL: sil [ossa] @$s8moveonly57testSubscriptGetModify_BaseLoadable_ResultAddressOnly_VaryyF : $@convention(thin) () -> () {
 // CHECK: [[BOX:%.*]] = alloc_box $
-// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+// CHECK: [[BOX_LIFETIME:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX_LIFETIME]]
 //
 // The get call
 // CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
@@ -2743,7 +2767,8 @@ public func testSubscriptGetModify_BaseLoadable_ResultAddressOnly_Var() {
 
 // CHECK-LABEL: sil [ossa] @$s8moveonly57testSubscriptGetModify_BaseLoadable_ResultAddressOnly_LetyyF : $@convention(thin) () -> () {
 // CHECK: [[BOX:%.*]] = alloc_box $
-// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+// CHECK: [[BOX_LIFETIME:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX_LIFETIME]]
 //
 // The get call
 // CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[PROJECT]]
@@ -2850,7 +2875,8 @@ public struct LoadableSubscriptGetModifyTesterNonCopyableStructParent : ~Copyabl
 
 // CHECK-LABEL: sil [ossa] @$s8moveonly87testSubscriptGetModifyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_VaryyF : $@convention(thin) () -> () {
 // CHECK: [[BOX:%.*]] = alloc_box $
-// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+// CHECK: [[BOX_LIFETIME:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX_LIFETIME]]
 //
 // The first get call
 // CHECK: [[ACCESS:%.*]] = begin_access [read] [unknown] [[PROJECT]]
@@ -2900,7 +2926,8 @@ public func testSubscriptGetModifyThroughNonCopyableParentStruct_BaseLoadable_Re
 
 // CHECK-LABEL: sil [ossa] @$s8moveonly87testSubscriptGetModifyThroughNonCopyableParentStruct_BaseLoadable_ResultAddressOnly_LetyyF : $@convention(thin) () -> () {
 // CHECK: [[BOX:%.*]] = alloc_box ${ let L
-// CHECK: [[PROJECT:%.*]] = project_box [[BOX]]
+// CHECK: [[BOX_LIFETIME:%.*]] = begin_borrow [lexical] [[BOX]]
+// CHECK: [[PROJECT:%.*]] = project_box [[BOX_LIFETIME]]
 //
 // CHECK: [[MARK:%.*]] = mark_must_check [no_consume_or_assign] [[PROJECT]]
 // CHECK: [[LOAD:%.*]] = load_borrow [[MARK]]

@@ -122,7 +122,7 @@ struct OwnershipModelEliminatorVisitor
   bool visitSILInstruction(SILInstruction *inst) {
     // Make sure this wasn't a forwarding instruction in case someone adds a new
     // forwarding instruction but does not update this code.
-    if (OwnershipForwardingMixin::isa(inst)) {
+    if (ForwardingInstruction::isa(inst)) {
       llvm::errs() << "Found unhandled forwarding inst: " << *inst;
       llvm_unreachable("standard error handler");
     }
@@ -190,10 +190,7 @@ struct OwnershipModelEliminatorVisitor
 
 #define HANDLE_FORWARDING_INST(Cls)                                            \
   bool visit##Cls##Inst(Cls##Inst *i) {                                        \
-    if (isa<SelectValueInst>(i)) {                                             \
-      return true;                                                             \
-    }                                                                          \
-    OwnershipForwardingMixin::get(i)->setForwardingOwnershipKind(              \
+    ForwardingInstruction::get(i)->setForwardingOwnershipKind(                 \
         OwnershipKind::None);                                                  \
     return true;                                                               \
   }
@@ -212,7 +209,6 @@ struct OwnershipModelEliminatorVisitor
   HANDLE_FORWARDING_INST(Enum)
   HANDLE_FORWARDING_INST(UncheckedEnumData)
   HANDLE_FORWARDING_INST(SelectEnum)
-  HANDLE_FORWARDING_INST(SelectValue)
   HANDLE_FORWARDING_INST(OpenExistentialRef)
   HANDLE_FORWARDING_INST(InitExistentialRef)
   HANDLE_FORWARDING_INST(MarkDependence)

@@ -215,10 +215,11 @@ public:
 
   /// Return false if we fail to create the right DW_OP_LLVM_fragment operand.
   bool handleFragmentDIExpr(const SILDIExprOperand &CurDIExprOp,
-                            SmallVectorImpl<uint64_t> &Operands);
+                            llvm::DIExpression::FragmentInfo &Fragment);
   /// Return false if we fail to create the desired !DIExpression.
   bool buildDebugInfoExpression(const SILDebugVariable &VarInfo,
-                                SmallVectorImpl<uint64_t> &Operands);
+                                SmallVectorImpl<uint64_t> &Operands,
+                                llvm::DIExpression::FragmentInfo &Fragment);
 
   /// Emit a dbg.declare at the current insertion point in Builder.
   void emitVariableDeclaration(IRBuilder &Builder,
@@ -569,14 +570,8 @@ private:
     if (FuncDecl *FD = L.getAsASTNode<FuncDecl>())
       return getName(*FD);
 
-    if (L.isASTNode<ConstructorDecl>())
-      return "init";
-
-    if (L.isASTNode<DestructorDecl>())
-      return "deinit";
-
     if (ValueDecl *D = L.getAsASTNode<ValueDecl>())
-      return D->getBaseIdentifier().str();
+      return D->getBaseName().userFacingName();
 
     if (auto *D = L.getAsASTNode<MacroExpansionDecl>())
       return D->getMacroName().getBaseIdentifier().str();
@@ -2522,7 +2517,8 @@ void IRGenDebugInfoImpl::emitOutlinedFunction(IRBuilder &Builder,
 }
 
 bool IRGenDebugInfoImpl::handleFragmentDIExpr(
-    const SILDIExprOperand &CurDIExprOp, SmallVectorImpl<uint64_t> &Operands) {
+    const SILDIExprOperand &CurDIExprOp,
+    llvm::DIExpression::FragmentInfo &Fragment) {
   assert(CurDIExprOp.getOperator() == SILDIExprOperator::Fragment);
   // Expecting a VarDecl that points to a field in an struct
   auto DIExprArgs = CurDIExprOp.args();
@@ -2554,23 +2550,31 @@ bool IRGenDebugInfoImpl::handleFragmentDIExpr(
   uint64_t OffsetInBits =
       Offset->getUniqueInteger().getLimitedValue() * SizeOfByte;
 
-  // Translate to LLVM dbg intrinsic operands
-  Operands.push_back(llvm::dwarf::DW_OP_LLVM_fragment);
-  Operands.push_back(OffsetInBits);
-  Operands.push_back(SizeInBits);
+  // Translate to DW_OP_LLVM_fragment operands
+  Fragment = {SizeInBits, OffsetInBits};
 
   return true;
 }
 
 bool IRGenDebugInfoImpl::buildDebugInfoExpression(
-    const SILDebugVariable &VarInfo, SmallVectorImpl<uint64_t> &Operands) {
+    const SILDebugVariable &VarInfo, SmallVectorImpl<uint64_t> &Operands,
+    llvm::DIExpression::FragmentInfo &Fragment) {
   assert(VarInfo.DIExpr && "SIL debug info expression not found");
+
+#ifndef NDEBUG
+  bool HasFragment = VarInfo.DIExpr.hasFragment();
+#endif
 
   const auto &DIExpr = VarInfo.DIExpr;
   for (const SILDIExprOperand &ExprOperand : DIExpr.operands()) {
     switch (ExprOperand.getOperator()) {
     case SILDIExprOperator::Fragment:
-      if (!handleFragmentDIExpr(ExprOperand, Operands))
+      assert(HasFragment && "Fragment must be the last part of a DIExpr");
+#ifndef NDEBUG
+      // Trigger the assert above if we have more than one fragment expression.
+      HasFragment = false;
+#endif
+      if (!handleFragmentDIExpr(ExprOperand, Fragment))
         return false;
       break;
     case SILDIExprOperator::Dereference:
@@ -2677,24 +2681,54 @@ void IRGenDebugInfoImpl::emitVariableDeclaration(
     LocalVarCache.insert({Key, llvm::TrackingMDNodeRef(Var)});
   }
 
-  auto appendDIExpression =
-      [&VarInfo, this](llvm::DIExpression *DIExpr) -> llvm::DIExpression * {
-    if (VarInfo.DIExpr) {
-      llvm::SmallVector<uint64_t, 2> Operands;
-      if (!buildDebugInfoExpression(VarInfo, Operands))
-        return nullptr;
-      if (Operands.size())
-        return llvm::DIExpression::append(DIExpr, Operands);
-    }
-    return DIExpr;
-  };
-
   // Running variables for the current/previous piece.
   bool IsPiece = Storage.size() > 1;
   uint64_t SizeOfByte = CI.getTargetInfo().getCharWidth();
   unsigned AlignInBits = SizeOfByte;
   unsigned OffsetInBits = 0;
   unsigned SizeInBits = 0;
+  llvm::DIExpression::FragmentInfo Fragment = {0, 0};
+
+  auto appendDIExpression =
+      [&VarInfo, this](llvm::DIExpression *DIExpr,
+                       llvm::DIExpression::FragmentInfo PieceFragment)
+      -> llvm::DIExpression * {
+    if (!VarInfo.DIExpr) {
+      if (!PieceFragment.SizeInBits)
+        return DIExpr;
+
+      return llvm::DIExpression::createFragmentExpression(
+                 DIExpr, PieceFragment.OffsetInBits, PieceFragment.SizeInBits)
+          .getValueOr(nullptr);
+    }
+
+    llvm::SmallVector<uint64_t, 2> Operands;
+    llvm::DIExpression::FragmentInfo VarFragment = {0, 0};
+    if (!buildDebugInfoExpression(VarInfo, Operands, VarFragment))
+      return nullptr;
+
+    if (!Operands.empty())
+      DIExpr = llvm::DIExpression::append(DIExpr, Operands);
+
+    // Add the fragment of the SIL variable.
+    if (VarFragment.SizeInBits)
+      DIExpr = llvm::DIExpression::createFragmentExpression(
+                   DIExpr, VarFragment.OffsetInBits, VarFragment.SizeInBits)
+                   .getValueOr(nullptr);
+
+    if (!DIExpr)
+      return nullptr;
+
+    // When the fragment of the SIL variable is further split into other
+    // fragments (PieceFragment), merge them into one DW_OP_LLVM_Fragment
+    // expression.
+    if (PieceFragment.SizeInBits)
+      return llvm::DIExpression::createFragmentExpression(
+                 DIExpr, PieceFragment.OffsetInBits, PieceFragment.SizeInBits)
+          .getValueOr(nullptr);
+
+    return DIExpr;
+  };
 
   for (llvm::Value *Piece : Storage) {
     SmallVector<uint64_t, 3> Operands;
@@ -2723,16 +2757,12 @@ void IRGenDebugInfoImpl::emitVariableDeclaration(
       }
 #endif
 
-      // Add the piece DWARF expression.
-      Operands.push_back(llvm::dwarf::DW_OP_LLVM_fragment);
-      Operands.push_back(OffsetInBits);
-      Operands.push_back(SizeInBits);
+      // Add the piece DW_OP_LLVM_fragment operands
+      Fragment.OffsetInBits = OffsetInBits;
+      Fragment.SizeInBits = SizeInBits;
     }
     llvm::DIExpression *DIExpr = DBuilder.createExpression(Operands);
-    // DW_OP_LLVM_fragment must be the last part of an DIExpr
-    // so we can't append more if IsPiece is true.
-    if (!IsPiece)
-      DIExpr = appendDIExpression(DIExpr);
+    DIExpr = appendDIExpression(DIExpr, Fragment);
     if (DIExpr)
       emitDbgIntrinsic(
           Builder, Piece, Var, DIExpr, DInstLine, DInstLoc.column, Scope, DS,
@@ -2742,7 +2772,9 @@ void IRGenDebugInfoImpl::emitVariableDeclaration(
 
   // Emit locationless intrinsic for variables that were optimized away.
   if (Storage.empty()) {
-    if (auto *DIExpr = appendDIExpression(DBuilder.createExpression()))
+    llvm::DIExpression::FragmentInfo NoFragment = {0, 0};
+    if (auto *DIExpr =
+            appendDIExpression(DBuilder.createExpression(), NoFragment))
       emitDbgIntrinsic(Builder, llvm::ConstantInt::get(IGM.Int64Ty, 0), Var,
                        DIExpr, DInstLine, DInstLoc.column, Scope, DS,
                        Indirection == CoroDirectValue ||
@@ -2817,6 +2849,7 @@ void IRGenDebugInfoImpl::emitDbgIntrinsic(
     llvm::DIExpression *Expr, unsigned Line, unsigned Col,
     llvm::DILocalScope *Scope, const SILDebugScope *DS, bool InCoroContext,
     AddrDbgInstrKind AddrDInstKind) {
+  Storage = Storage->stripPointerCasts();
   // Set the location/scope of the intrinsic.
   auto *InlinedAt = createInlinedAt(DS);
   auto DL =

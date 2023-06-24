@@ -53,9 +53,9 @@ import someModule
 // FORCE-LOAD-HEX: @"_swift_FORCE_LOAD_$306d6f64756c65"
 
 // NO-FORCE-LOAD-CLIENT-NOT: FORCE_LOAD
-// FORCE-LOAD-CLIENT: @"_swift_FORCE_LOAD_$_module_$_autolinking" = weak_odr hidden constant void ()* @"_swift_FORCE_LOAD_$_module"
-// FORCE-LOAD-CLIENT: @llvm.used = appending global [{{[0-9]+}} x i8*] [
-// FORCE-LOAD-CLIENT: i8* bitcast (void ()** @"_swift_FORCE_LOAD_$_module_$_autolinking" to i8*)
+// FORCE-LOAD-CLIENT: @"_swift_FORCE_LOAD_$_module_$_autolinking" = weak_odr hidden constant ptr @"_swift_FORCE_LOAD_$_module"
+// FORCE-LOAD-CLIENT: @llvm.used = appending global [{{[0-9]+}} x ptr] [
+// FORCE-LOAD-CLIENT: ptr @"_swift_FORCE_LOAD_$_module_$_autolinking"
 // FORCE-LOAD-CLIENT: ], section "llvm.metadata"
 // FORCE-LOAD-CLIENT-macho: declare extern_weak {{(dllimport )?}}void @"_swift_FORCE_LOAD_$_module"()
 // FORCE-LOAD-CLIENT-COFF: declare extern {{(dllimport )?}}void @"_swift_FORCE_LOAD_$_module"()

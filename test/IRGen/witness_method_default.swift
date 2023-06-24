@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend %s -emit-ir | %FileCheck --check-prefix=CHECK %s -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend %use_no_opaque_pointers %s -emit-ir | %FileCheck --check-prefix=CHECK %s -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend %s -emit-ir
 
 public protocol DummyProtocol { }
 

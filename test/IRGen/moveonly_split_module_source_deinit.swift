@@ -1,7 +1,9 @@
 // RUN: %empty-directory(%t)
 // RUN: %target-swiftc_driver -emit-module -module-name server -emit-module-path %t/server.swiftmodule %s %S/Inputs/moveonly_split_module_source_input.swift
-// RUN: %target-swift-frontend -module-name server -primary-file %s %S/Inputs/moveonly_split_module_source_input.swift -emit-ir -emit-module-path %t/server.swiftmodule | %FileCheck %s -check-prefix=REFERRING_MODULE
-// RUN: %target-swift-frontend -module-name server  %s -primary-file %S/Inputs/moveonly_split_module_source_input.swift -emit-ir -emit-module-path %t/server.swiftmodule | %FileCheck %s -check-prefix=DEFINING_MODULE
+// RUN: %target-swift-frontend %use_no_opaque_pointers -module-name server -primary-file %s %S/Inputs/moveonly_split_module_source_input.swift -emit-ir -emit-module-path %t/server.swiftmodule | %FileCheck %s -check-prefix=REFERRING_MODULE
+// RUN: %target-swift-frontend %use_no_opaque_pointers -module-name server  %s -primary-file %S/Inputs/moveonly_split_module_source_input.swift -emit-ir -emit-module-path %t/server.swiftmodule | %FileCheck %s -check-prefix=DEFINING_MODULE
+// RUN: %target-swift-frontend -module-name server -primary-file %s %S/Inputs/moveonly_split_module_source_input.swift -emit-ir -emit-module-path %t/server.swiftmodule
+// RUN: %target-swift-frontend -module-name server  %s -primary-file %S/Inputs/moveonly_split_module_source_input.swift -emit-ir -emit-module-path %t/server.swiftmodule
 
 // Make sure we call the deinit through the value witness table in the other module.
 

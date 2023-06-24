@@ -13,7 +13,7 @@ sil_scope 2 { loc "simple.swift":1:2 parent @test_debug_value : $@convention(thi
 // CHECK-SAME: !dbg ![[FUNC_DI:[0-9]+]]
 sil hidden @test_debug_value : $@convention(thin) (Int) -> () {
 bb0(%0 : $Int):
-  // CHECK:      @llvm.dbg.declare(metadata i{{[0-9]+}}*
+  // CHECK:      @llvm.dbg.declare(metadata ptr
   // CHECK-SAME:                   metadata ![[VAR_DI:[0-9]+]]
   // CHECK-SAME:                   ), !dbg ![[LOC_DI:[0-9]+]]
   debug_value %0 : $Int, let, name "x", argno 1, loc "simple.swift":3:4, scope 2

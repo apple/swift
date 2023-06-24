@@ -9,10 +9,10 @@ func consume<T>(_ t: T) {}
 public func f(_ s1: Set<Int>?, _ s2: Set<Int>?) {
   switch (s1, s2) {
   case (nil, let a), (let a, nil):
-  // CHECK: debug_value {{.*}} $Optional<Set<Int>>, let, name "a", {{.*}}:[[@LINE-1]]:18, scope [[S1]]
+  // CHECK: debug_value {{.*}} $Optional<Set<Int>>, let, name "a", {{.*}}:11:18, scope [[S2]]
     consume(a)
   case (let a?, _):
-  // CHECK: debug_value {{.*}} $Set<Int>, let, name "a", {{.*}}:[[@LINE-1]]:13, scope [[S3]]
+  // CHECK: debug_value {{.*}} $Set<Int>, let, name "a", {{.*}}:14:13, scope [[S3]]
     consume((a))
   }
 }

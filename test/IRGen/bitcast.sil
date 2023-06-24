@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend -primary-file %s -emit-ir| %FileCheck --check-prefix=CHECK --check-prefix=CHECK-%target-cpu %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers -primary-file %s -emit-ir| %FileCheck --check-prefix=CHECK --check-prefix=CHECK-%target-cpu %s
+// RUN: %target-swift-frontend -primary-file %s -emit-ir
 
 // REQUIRES: CPU=i386 || CPU=x86_64
 

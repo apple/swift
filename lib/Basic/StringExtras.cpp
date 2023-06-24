@@ -23,6 +23,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 
@@ -1416,4 +1417,16 @@ void swift::writeEscaped(llvm::StringRef Str, llvm::raw_ostream &OS) {
         break;
     }
   }
+}
+
+bool swift::pathStartsWith(StringRef prefix, StringRef path) {
+  auto prefixIt = llvm::sys::path::begin(prefix),
+       prefixEnd = llvm::sys::path::end(prefix);
+  for (auto pathIt = llvm::sys::path::begin(path),
+            pathEnd = llvm::sys::path::end(path);
+       prefixIt != prefixEnd && pathIt != pathEnd; ++prefixIt, ++pathIt) {
+    if (*prefixIt != *pathIt)
+      return false;
+  }
+  return prefixIt == prefixEnd;
 }

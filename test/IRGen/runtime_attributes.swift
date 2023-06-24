@@ -90,7 +90,7 @@
 
 // CHECK: @"$s3RAD6IgnoreVHa" = internal constant
 // CHECK-SAME: i32 0
-// CHECK-SAME: %swift.type_descriptor** @"got.$s3RAD6IgnoreVMn"
+// CHECK-SAME: ptr @"got.$s3RAD6IgnoreVMn"
 // CHECK-SAME: i32 5
 // CHECK-SAME: @"$s3RAD6IgnoreV18runtime_attributes1AV5InnerC11extComputedSivpfaHF"
 // CHECK-SAME: @"$s3RAD6IgnoreV18runtime_attributes16WithExternalAttrVfaHF"
@@ -101,7 +101,7 @@
 
 // CHECK: @"$s3RAD13TestAmbiguityVHa" = internal constant
 // CHECK-SAME: i32 0
-// CHECK-SAME: %swift.type_descriptor** @"got.$s3RAD13TestAmbiguityVMn"
+// CHECK-SAME: ptr @"got.$s3RAD13TestAmbiguityVMn"
 // CHECK-SAME: i32 6
 // CHECK-SAME: @"$s3RAD13TestAmbiguityV18runtime_attributes4testyySiFfaHF"
 // CHECK-SAME: @"$s3RAD13TestAmbiguityV18runtime_attributes4testyySSFfaHF"
@@ -141,7 +141,7 @@
 
 // CHECK: @"$s3RAD8EnumFlagOHa" = internal constant
 // CHECK-SAME: i32 0
-// CHECK-SAME: %swift.type_descriptor** @"got.$s3RAD8EnumFlagOMn"
+// CHECK-SAME: ptr @"got.$s3RAD8EnumFlagOMn"
 // CHECK-SAME: i32 5
 // CHECK-SAME: @"$s3RAD8EnumFlagO18runtime_attributes06globalB4TestSi_SaySSGtSgyFfaHF"
 // CHECK-SAME: @"$s3RAD8EnumFlagO18runtime_attributes0B8TypeTestV1xSivpfaHF"
@@ -166,89 +166,89 @@ struct OnlyPropsTest<B, V> {
 
 // - Check that all of the generator functions have been emitted
 
-// CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA8globalFnyyFfa"(%T18runtime_attributes4FlagVyytGSg* noalias nocapture sret(%T18runtime_attributes4FlagVyytGSg) %0)
+// CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA8globalFnyyFfa"(ptr noalias nocapture sret(%T18runtime_attributes4FlagVyytGSg) %0)
 @Flag("global") func globalFn() {}
 
 @Flag
 struct A {
-  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV2v1SSvpfa"(%T18runtime_attributes4FlagVySSGSg* noalias nocapture sret(%T18runtime_attributes4FlagVySSGSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV2v1SSvpfa"(ptr noalias nocapture sret(%T18runtime_attributes4FlagVySSGSg) %0)
   @Flag("v1") var v1: String = ""
 
-  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV4compSivpfa"(%T18runtime_attributes4FlagVySiGSg* noalias nocapture sret(%T18runtime_attributes4FlagVySiGSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV4compSivpfa"(ptr noalias nocapture sret(%T18runtime_attributes4FlagVySiGSg) %0)
   @Flag var comp: Int {
     get { 42 }
   }
 
-  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV5test1SiyFZfa"(%T18runtime_attributes4FlagVySiGSg* noalias nocapture sret(%T18runtime_attributes4FlagVySiGSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV5test1SiyFZfa"(ptr noalias nocapture sret(%T18runtime_attributes4FlagVySiGSg) %0)
   @Flag static func test1() -> Int { 42 }
 
-  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV5test2yyFfa"(%T18runtime_attributes4FlagVyytGSg* noalias nocapture sret(%T18runtime_attributes4FlagVyytGSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV5test2yyFfa"(ptr noalias nocapture sret(%T18runtime_attributes4FlagVyytGSg) %0)
   @Flag("test2") func test2() {} // Ok
 
-  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV1xSaySiGSgvpfa"(%T18runtime_attributes4FlagVySaySiGSgGSg* noalias nocapture sret(%T18runtime_attributes4FlagVySaySiGSgGSg) %0)
-  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes13OnlyPropsTestVAA1AV1xSaySiGSgvpfa"(%T18runtime_attributes13OnlyPropsTestVyAA1AVSaySiGSgGSg* noalias nocapture sret(%T18runtime_attributes13OnlyPropsTestVyAA1AVSaySiGSgGSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV1xSaySiGSgvpfa"(ptr noalias nocapture sret(%T18runtime_attributes4FlagVySaySiGSgGSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes13OnlyPropsTestVAA1AV1xSaySiGSgvpfa"(ptr noalias nocapture sret(%T18runtime_attributes13OnlyPropsTestVyAA1AVSaySiGSgGSg) %0)
   @OnlyPropsTest @Flag("x") var x: [Int]? = [] // Ok
 
   @Flag("Inner type") class Inner {
-    // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV5InnerC4testSaySiGSgvpfa"(%T18runtime_attributes4FlagVySaySiGSgGSg* noalias nocapture sret(%T18runtime_attributes4FlagVySaySiGSgGSg) %0)
-    // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes13OnlyPropsTestVAA1AV5InnerC4testSaySiGSgvpfa"(%T18runtime_attributes13OnlyPropsTestVyAA1AV5InnerCSaySiGSgGSg* noalias nocapture sret(%T18runtime_attributes13OnlyPropsTestVyAA1AV5InnerCSaySiGSgGSg) %0)
+    // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV5InnerC4testSaySiGSgvpfa"(ptr noalias nocapture sret(%T18runtime_attributes4FlagVySaySiGSgGSg) %0)
+    // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes13OnlyPropsTestVAA1AV5InnerC4testSaySiGSgvpfa"(ptr noalias nocapture sret(%T18runtime_attributes13OnlyPropsTestVyAA1AV5InnerCSaySiGSgGSg) %0)
     @OnlyPropsTest @Flag("test property") var test: [Int]? = nil // Ok
-  } // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV5InnerCfa"(%T18runtime_attributes4FlagVyAA1AV5InnerCGSg* noalias nocapture sret(%T18runtime_attributes4FlagVyAA1AV5InnerCGSg) %0)
+  } // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV5InnerCfa"(ptr noalias nocapture sret(%T18runtime_attributes4FlagVyAA1AV5InnerCGSg) %0)
 }
 
 // The generator for `struct A` is emitted last.
-// CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AVfa"(%T18runtime_attributes4FlagVyAA1AVGSg* noalias nocapture sret(%T18runtime_attributes4FlagVyAA1AVGSg) %0)
+// CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AVfa"(ptr noalias nocapture sret(%T18runtime_attributes4FlagVyAA1AVGSg) %0)
 
 extension A.Inner {
   @Flag("B type") struct B {
-    // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV5InnerC1BV03extD10StaticTestyyFZfa"(%T18runtime_attributes4FlagVyytGSg* noalias nocapture sret(%T18runtime_attributes4FlagVyytGSg) %0)
+    // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV5InnerC1BV03extD10StaticTestyyFZfa"(ptr noalias nocapture sret(%T18runtime_attributes4FlagVyytGSg) %0)
     @Flag static func extInnerStaticTest() {}
-    // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV5InnerC1BV03extD4TestyyFZfa"(%T18runtime_attributes4FlagVyytGSg* noalias nocapture sret(%T18runtime_attributes4FlagVyytGSg) %0)
+    // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV5InnerC1BV03extD4TestyyFZfa"(ptr noalias nocapture sret(%T18runtime_attributes4FlagVyytGSg) %0)
     @Flag static func extInnerTest() {}
 
-    // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes13OnlyPropsTestVAA1AV5InnerC1BV6storedSivpfa"(%T18runtime_attributes13OnlyPropsTestVyAA1AV5InnerC1BVSiGSg* noalias nocapture sret(%T18runtime_attributes13OnlyPropsTestVyAA1AV5InnerC1BVSiGSg) %0)
-    // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV5InnerC1BV6storedSivpfa"(%T18runtime_attributes4FlagVySiGSg* noalias nocapture sret(%T18runtime_attributes4FlagVySiGSg) %0)
+    // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes13OnlyPropsTestVAA1AV5InnerC1BV6storedSivpfa"(ptr noalias nocapture sret(%T18runtime_attributes13OnlyPropsTestVyAA1AV5InnerC1BVSiGSg) %0)
+    // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV5InnerC1BV6storedSivpfa"(ptr noalias nocapture sret(%T18runtime_attributes4FlagVySiGSg) %0)
     @Flag("stored prop") @OnlyPropsTest let stored: Int = 42
-  } // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV5InnerC1BVfa"(%T18runtime_attributes4FlagVyAA1AV5InnerC1BVGSg* noalias nocapture sret(%T18runtime_attributes4FlagVyAA1AV5InnerC1BVGSg) %0
+  } // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV5InnerC1BVfa"(ptr noalias nocapture sret(%T18runtime_attributes4FlagVyAA1AV5InnerC1BVGSg) %0
 
-  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV5InnerC13extStaticTestyyFZfa"(%T18runtime_attributes4FlagVyytGSg* noalias nocapture sret(%T18runtime_attributes4FlagVyytGSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV5InnerC13extStaticTestyyFZfa"(ptr noalias nocapture sret(%T18runtime_attributes4FlagVyytGSg) %0)
   @Flag static func extStaticTest() {}
-  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV5InnerC7extTestyyFZfa"(%T18runtime_attributes4FlagVyytGSg* noalias nocapture sret(%T18runtime_attributes4FlagVyytGSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV5InnerC7extTestyyFZfa"(ptr noalias nocapture sret(%T18runtime_attributes4FlagVyytGSg) %0)
   @Flag static func extTest() {}
 
-  // CHECK-LABEL: define hidden swiftcc void @"$s3RAD6IgnoreV18runtime_attributes1AV5InnerC11extComputedSivpfa"(%T3RAD6IgnoreVys7KeyPathCy18runtime_attributes1AV5InnerCSiGGSg* noalias nocapture sret(%T3RAD6IgnoreVys7KeyPathCy18runtime_attributes1AV5InnerCSiGGSg) %0)
-  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV5InnerC11extComputedSivpfa"(%T18runtime_attributes4FlagVySiGSg* noalias nocapture sret(%T18runtime_attributes4FlagVySiGSg) %0)
-  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes13OnlyPropsTestVAA1AV5InnerC11extComputedSivpfa"(%T18runtime_attributes13OnlyPropsTestVyAA1AV5InnerCSiGSg* noalias nocapture sret(%T18runtime_attributes13OnlyPropsTestVyAA1AV5InnerCSiGSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s3RAD6IgnoreV18runtime_attributes1AV5InnerC11extComputedSivpfa"(ptr noalias nocapture sret(%T3RAD6IgnoreVys7KeyPathCy18runtime_attributes1AV5InnerCSiGGSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes4FlagVAA1AV5InnerC11extComputedSivpfa"(ptr noalias nocapture sret(%T18runtime_attributes4FlagVySiGSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes13OnlyPropsTestVAA1AV5InnerC11extComputedSivpfa"(ptr noalias nocapture sret(%T18runtime_attributes13OnlyPropsTestVyAA1AV5InnerCSiGSg) %0)
   @OnlyPropsTest @Flag @Ignore var extComputed: Int {
     get { 42 }
   }
 }
 
-// CHECK-LABEL: define hidden swiftcc void @"$s3RAD6IgnoreV18runtime_attributes16WithExternalAttrVfa"(%T3RAD6IgnoreVy18runtime_attributes16WithExternalAttrVmGSg* noalias nocapture sret(%T3RAD6IgnoreVy18runtime_attributes16WithExternalAttrVmGSg) %0)
+// CHECK-LABEL: define hidden swiftcc void @"$s3RAD6IgnoreV18runtime_attributes16WithExternalAttrVfa"(ptr noalias nocapture sret(%T3RAD6IgnoreVy18runtime_attributes16WithExternalAttrVmGSg) %0)
 @Ignore struct WithExternalAttr {}
 
-// CHECK-LABEL: define hidden swiftcc void @"$s3RAD13TestAmbiguityV18runtime_attributes4testyySiFfa"(%T3RAD13TestAmbiguityVSg* noalias nocapture sret(%T3RAD13TestAmbiguityVSg) %0)
+// CHECK-LABEL: define hidden swiftcc void @"$s3RAD13TestAmbiguityV18runtime_attributes4testyySiFfa"(ptr noalias nocapture sret(%T3RAD13TestAmbiguityVSg) %0)
 @TestAmbiguity public func test(_: Int) {}
-// CHECK-LABEL: define hidden swiftcc void @"$s3RAD13TestAmbiguityV18runtime_attributes4testyySSFfa"(%T3RAD13TestAmbiguityVSg* noalias nocapture sret(%T3RAD13TestAmbiguityVSg) %0)
+// CHECK-LABEL: define hidden swiftcc void @"$s3RAD13TestAmbiguityV18runtime_attributes4testyySSFfa"(ptr noalias nocapture sret(%T3RAD13TestAmbiguityVSg) %0)
 @TestAmbiguity public func test(_: String) {}
 
 public struct TestNoAmbiguity {
-  // CHECK-LABEL: define hidden swiftcc void @"$s3RAD13TestAmbiguityV18runtime_attributes0b2NoC0V10testStaticSiyFZfa"(%T3RAD13TestAmbiguityVSg* noalias nocapture sret(%T3RAD13TestAmbiguityVSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s3RAD13TestAmbiguityV18runtime_attributes0b2NoC0V10testStaticSiyFZfa"(ptr noalias nocapture sret(%T3RAD13TestAmbiguityVSg) %0)
   @TestAmbiguity static func testStatic() -> Int { 42 }
-  // CHECK-LABEL: define hidden swiftcc void @"$s3RAD13TestAmbiguityV18runtime_attributes0b2NoC0V10testStaticyyFZfa"(%T3RAD13TestAmbiguityVSg* noalias nocapture sret(%T3RAD13TestAmbiguityVSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s3RAD13TestAmbiguityV18runtime_attributes0b2NoC0V10testStaticyyFZfa"(ptr noalias nocapture sret(%T3RAD13TestAmbiguityVSg) %0)
   @TestAmbiguity static func testStatic() {}
 
-  // CHECK-LABEL: define hidden swiftcc void @"$s3RAD13TestAmbiguityV18runtime_attributes0b2NoC0V8testInstyySi_SStFfa"(%T3RAD13TestAmbiguityVSg* noalias nocapture sret(%T3RAD13TestAmbiguityVSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s3RAD13TestAmbiguityV18runtime_attributes0b2NoC0V8testInstyySi_SStFfa"(ptr noalias nocapture sret(%T3RAD13TestAmbiguityVSg) %0)
   @TestAmbiguity func testInst(_: Int, _: String) {}
-  // CHECK-LABEL: define hidden swiftcc void @"$s3RAD13TestAmbiguityV18runtime_attributes0b2NoC0V8testInstyySi_SitFfa"(%T3RAD13TestAmbiguityVSg* noalias nocapture sret(%T3RAD13TestAmbiguityVSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s3RAD13TestAmbiguityV18runtime_attributes0b2NoC0V8testInstyySi_SitFfa"(ptr noalias nocapture sret(%T3RAD13TestAmbiguityVSg) %0)
   @TestAmbiguity func testInst(_: Int, _: Int) {}
 }
 
-// CHECK-LABEL: define hidden swiftcc void @"$s3RAD6IgnoreV18runtime_attributes14TestInference1Vfa"(%T3RAD6IgnoreVy18runtime_attributes14TestInference1VmGSg* noalias nocapture sret(%T3RAD6IgnoreVy18runtime_attributes14TestInference1VmGSg) %0)
+// CHECK-LABEL: define hidden swiftcc void @"$s3RAD6IgnoreV18runtime_attributes14TestInference1Vfa"(ptr noalias nocapture sret(%T3RAD6IgnoreVy18runtime_attributes14TestInference1VmGSg) %0)
 public struct TestInference1 : Ignored {}
-// CHECK-LABEL: define hidden swiftcc void @"$s3RAD6IgnoreV18runtime_attributes14TestInference2Cfa"(%T3RAD6IgnoreVy18runtime_attributes14TestInference2CmGSg* noalias nocapture sret(%T3RAD6IgnoreVy18runtime_attributes14TestInference2CmGSg) %0)
+// CHECK-LABEL: define hidden swiftcc void @"$s3RAD6IgnoreV18runtime_attributes14TestInference2Cfa"(ptr noalias nocapture sret(%T3RAD6IgnoreVy18runtime_attributes14TestInference2CmGSg) %0)
 public class  TestInference2 : Ignored {}
-// CHECK-LABEL: define hidden swiftcc void @"$s3RAD6IgnoreV18runtime_attributes14TestInference3Ofa"(%T3RAD6IgnoreVy18runtime_attributes14TestInference3OmGSg* noalias nocapture sret(%T3RAD6IgnoreVy18runtime_attributes14TestInference3OmGSg) %0)
+// CHECK-LABEL: define hidden swiftcc void @"$s3RAD6IgnoreV18runtime_attributes14TestInference3Ofa"(ptr noalias nocapture sret(%T3RAD6IgnoreVy18runtime_attributes14TestInference3OmGSg) %0)
 public enum   TestInference3 : Ignored {}
 
 @runtimeMetadata
@@ -256,14 +256,14 @@ struct AvailabilityTests {
   init(attachedTo: Any) {}
 }
 
-// CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes17AvailabilityTestsVAA08testWithC0yySiFfa"(%T18runtime_attributes17AvailabilityTestsVSg* noalias nocapture sret(%T18runtime_attributes17AvailabilityTestsVSg) %0)
+// CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes17AvailabilityTestsVAA08testWithC0yySiFfa"(ptr noalias nocapture sret(%T18runtime_attributes17AvailabilityTestsVSg) %0)
 // CHECK: entry:
 // CHECK: {{.*}} = call swiftcc i1 @"$ss26_stdlib_isOSVersionAtLeastyBi1_Bw_BwBwtF"(i64 42, i64 0, i64 0)
 @available(macOS, introduced: 42.0)
 @AvailabilityTests
 func testWithAvailability(_: Int) {}
 
-// CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes17AvailabilityTestsVAA08TypeWithC0Cfa"(%T18runtime_attributes17AvailabilityTestsVSg* noalias nocapture sret(%T18runtime_attributes17AvailabilityTestsVSg) %0)
+// CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes17AvailabilityTestsVAA08TypeWithC0Cfa"(ptr noalias nocapture sret(%T18runtime_attributes17AvailabilityTestsVSg) %0)
 // CHECK: entry:
 // CHECK: {{.*}} = call swiftcc i1 @"$ss26_stdlib_isOSVersionAtLeastyBi1_Bw_BwBwtF"(i64 100, i64 0, i64 0)
 @available(macOS, introduced: 100.0)
@@ -271,21 +271,21 @@ func testWithAvailability(_: Int) {}
 class TypeWithAvailability {}
 
 class MembersWithAvailability {
-  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes17AvailabilityTestsVAA011MembersWithC0C8staticFnyyFZfa"(%T18runtime_attributes17AvailabilityTestsVSg* noalias nocapture sret(%T18runtime_attributes17AvailabilityTestsVSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes17AvailabilityTestsVAA011MembersWithC0C8staticFnyyFZfa"(ptr noalias nocapture sret(%T18runtime_attributes17AvailabilityTestsVSg) %0)
   // CHECK: entry:
   // CHECK: {{.*}} = call swiftcc i1 @"$ss26_stdlib_isOSVersionAtLeastyBi1_Bw_BwBwtF"(i64 201, i64 0, i64 0)
   @AvailabilityTests
   @available(macOS, introduced: 201.0)
   static func staticFn() {}
 
-  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes17AvailabilityTestsVAA011MembersWithC0C6instFnyyFfa"(%T18runtime_attributes17AvailabilityTestsVSg* noalias nocapture sret(%T18runtime_attributes17AvailabilityTestsVSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes17AvailabilityTestsVAA011MembersWithC0C6instFnyyFfa"(ptr noalias nocapture sret(%T18runtime_attributes17AvailabilityTestsVSg) %0)
   // CHECK: entry:
   // CHECK: {{.*}} = call swiftcc i1 @"$ss26_stdlib_isOSVersionAtLeastyBi1_Bw_BwBwtF"(i64 202, i64 0, i64 0)
   @AvailabilityTests
   @available(macOS, introduced: 202.0)
   func instFn() {}
 
-  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes17AvailabilityTestsVAA011MembersWithC0C4propSivpfa"(%T18runtime_attributes17AvailabilityTestsVSg* noalias nocapture sret(%T18runtime_attributes17AvailabilityTestsVSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes17AvailabilityTestsVAA011MembersWithC0C4propSivpfa"(ptr noalias nocapture sret(%T18runtime_attributes17AvailabilityTestsVSg) %0)
   // CHECK: entry:
   // CHECK: {{.*}} = call swiftcc i1 @"$ss26_stdlib_isOSVersionAtLeastyBi1_Bw_BwBwtF"(i64 203, i64 0, i64 0)
   @AvailabilityTests
@@ -299,7 +299,7 @@ struct FlagWithAvail {
   init(attachedTo: Any) {}
 }
 
-// CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes13FlagWithAvailVAA20attrIsHigherThanFuncyyFfa"(%T18runtime_attributes13FlagWithAvailVSg* noalias nocapture sret(%T18runtime_attributes13FlagWithAvailVSg) %0)
+// CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes13FlagWithAvailVAA20attrIsHigherThanFuncyyFfa"(ptr noalias nocapture sret(%T18runtime_attributes13FlagWithAvailVSg) %0)
 // CHECK: entry:
 // CHECK: {{.*}} = call swiftcc i1 @"$ss26_stdlib_isOSVersionAtLeastyBi1_Bw_BwBwtF"(i64 110, i64 0, i64 0)
 @FlagWithAvail
@@ -322,32 +322,32 @@ struct FlagForInnerMethods<Result> {
 
 struct OuterType {
   struct Inner {
-    // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes19FlagForInnerMethodsVAA9OuterTypeV0E0V15innerInstFnTestyyFfa"(%T18runtime_attributes19FlagForInnerMethodsVyytGSg* noalias nocapture sret(%T18runtime_attributes19FlagForInnerMethodsVyytGSg) %0)
+    // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes19FlagForInnerMethodsVAA9OuterTypeV0E0V15innerInstFnTestyyFfa"(ptr noalias nocapture sret(%T18runtime_attributes19FlagForInnerMethodsVyytGSg) %0)
     @FlagForInnerMethods func innerInstFnTest() {}
-    // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes19FlagForInnerMethodsVAA9OuterTypeV0E0V17innerStaticFnTestyyFZfa"(%T18runtime_attributes19FlagForInnerMethodsVyytGSg* noalias nocapture sret(%T18runtime_attributes19FlagForInnerMethodsVyytGSg) %0)
+    // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes19FlagForInnerMethodsVAA9OuterTypeV0E0V17innerStaticFnTestyyFZfa"(ptr noalias nocapture sret(%T18runtime_attributes19FlagForInnerMethodsVyytGSg) %0)
     @FlagForInnerMethods static func innerStaticFnTest() {}
 
-    // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes19FlagForInnerMethodsVAA9OuterTypeV0E0V07mutableE6FnTest1x_ySS_SiztFfa"(%T18runtime_attributes19FlagForInnerMethodsVyytGSg* noalias nocapture sret(%T18runtime_attributes19FlagForInnerMethodsVyytGSg) %0)
+    // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes19FlagForInnerMethodsVAA9OuterTypeV0E0V07mutableE6FnTest1x_ySS_SiztFfa"(ptr noalias nocapture sret(%T18runtime_attributes19FlagForInnerMethodsVyytGSg) %0)
     @FlagForInnerMethods mutating func mutableInnerFnTest(x: String, _ y: inout Int) {}
   }
 }
 
 extension OuterType {
-  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes19FlagForInnerMethodsVAA9OuterTypeV15outerMutatingFnSiyFfa"(%T18runtime_attributes19FlagForInnerMethodsVySiGSg* noalias nocapture sret(%T18runtime_attributes19FlagForInnerMethodsVySiGSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s18runtime_attributes19FlagForInnerMethodsVAA9OuterTypeV15outerMutatingFnSiyFfa"(ptr noalias nocapture sret(%T18runtime_attributes19FlagForInnerMethodsVySiGSg) %0)
   @FlagForInnerMethods mutating func outerMutatingFn() -> Int { 42 }
 }
 
-// CHECK-LABEL: define hidden swiftcc void @"$s3RAD8EnumFlagO18runtime_attributes06globalB4TestSi_SaySSGtSgyFfa"(%T3RAD8EnumFlagOyytSi_SaySSGtSgGSg* noalias nocapture sret(%T3RAD8EnumFlagOyytSi_SaySSGtSgGSg) %0)
+// CHECK-LABEL: define hidden swiftcc void @"$s3RAD8EnumFlagO18runtime_attributes06globalB4TestSi_SaySSGtSgyFfa"(ptr noalias nocapture sret(%T3RAD8EnumFlagOyytSi_SaySSGtSgGSg) %0)
 @EnumFlag func globalEnumTest() -> (Int, [String])? {
   nil
 }
 
 @EnumFlag struct EnumTypeTest {
-  // CHECK-LABEL: define hidden swiftcc void @"$s3RAD8EnumFlagO18runtime_attributes0B8TypeTestV1xSivpfa"(%T3RAD8EnumFlagOy18runtime_attributes0B8TypeTestVSiGSg* noalias nocapture sret(%T3RAD8EnumFlagOy18runtime_attributes0B8TypeTestVSiGSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s3RAD8EnumFlagO18runtime_attributes0B8TypeTestV1xSivpfa"(ptr noalias nocapture sret(%T3RAD8EnumFlagOy18runtime_attributes0B8TypeTestVSiGSg) %0)
   @EnumFlag var x: Int = 42
-  // CHECK-LABEL: define hidden swiftcc void @"$s3RAD8EnumFlagO18runtime_attributes0B8TypeTestV8testInstyyFfa"(%T3RAD8EnumFlagOy18runtime_attributes0B8TypeTestVytGSg* noalias nocapture sret(%T3RAD8EnumFlagOy18runtime_attributes0B8TypeTestVytGSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s3RAD8EnumFlagO18runtime_attributes0B8TypeTestV8testInstyyFfa"(ptr noalias nocapture sret(%T3RAD8EnumFlagOy18runtime_attributes0B8TypeTestVytGSg) %0)
   @EnumFlag func testInst() {}
-  // CHECK-LABEL: define hidden swiftcc void @"$s3RAD8EnumFlagO18runtime_attributes0B8TypeTestV10testStaticSiyFZfa"(%T3RAD8EnumFlagOy18runtime_attributes0B8TypeTestVmSiGSg* noalias nocapture sret(%T3RAD8EnumFlagOy18runtime_attributes0B8TypeTestVmSiGSg) %0)
+  // CHECK-LABEL: define hidden swiftcc void @"$s3RAD8EnumFlagO18runtime_attributes0B8TypeTestV10testStaticSiyFZfa"(ptr noalias nocapture sret(%T3RAD8EnumFlagOy18runtime_attributes0B8TypeTestVmSiGSg) %0)
   @EnumFlag static func testStatic() -> Int { 42 }
 }
-// CHECK-LABEL: define hidden swiftcc void @"$s3RAD8EnumFlagO18runtime_attributes0B8TypeTestVfa"(%T3RAD8EnumFlagOy18runtime_attributes0B8TypeTestVytGSg* noalias nocapture sret(%T3RAD8EnumFlagOy18runtime_attributes0B8TypeTestVytGSg) %0)
+// CHECK-LABEL: define hidden swiftcc void @"$s3RAD8EnumFlagO18runtime_attributes0B8TypeTestVfa"(ptr noalias nocapture sret(%T3RAD8EnumFlagOy18runtime_attributes0B8TypeTestVytGSg) %0)

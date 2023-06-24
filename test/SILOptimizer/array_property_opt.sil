@@ -1,5 +1,9 @@
 // RUN: %target-sil-opt -parse-serialized-sil -enable-sil-verify-all %s -array-property-opt | %FileCheck %s
 
+// Linux doesn't have the same symbol name for _ArrayBuffer, which is part of
+// the ObjC runtime interop.  Use `_ContiguousArrayBuffer instead.
+// REQUIRES: objc_interop
+
 sil_stage canonical
 
 import Builtin
@@ -257,4 +261,133 @@ bb10: // Exit dominated by bb3
 
 bb11: // Non-exit dominated by bb1
   return %4 : $Builtin.Int1
+}
+
+class Klass {
+  var val: Optional<Int>
+}
+
+struct WrapperStruct {
+  var val: Klass
+}
+
+sil @use_klass : $@convention(thin) (@in_guaranteed Klass) -> ()
+
+sil @test_sink_address_proj : $@convention(thin) (@inout MyArray<MyClass>, @in_guaranteed WrapperStruct) -> () {
+bb0(%0 : $*MyArray<MyClass>, %1 : $*WrapperStruct):
+  %3 = load %0 : $*MyArray<MyClass>
+  br bb1
+
+bb1:
+  %2 = function_ref @arrayPropertyIsNative : $@convention(method) (@owned MyArray<MyClass>) -> Bool
+  retain_value %3 : $MyArray<MyClass>
+  %5 = apply %2(%3) : $@convention(method) (@owned MyArray<MyClass>) -> Bool
+  %ele = struct_element_addr %1 : $*WrapperStruct, #WrapperStruct.val
+  cond_br undef, bb5, bb2
+
+bb2:
+ %6 = integer_literal $Builtin.Int1, -1
+ cond_br %6, bb3, bb4
+
+bb3:
+  br bb1
+
+bb4:
+ br bb6
+
+bb5:
+ %f = function_ref @use_klass : $@convention(thin) (@in_guaranteed Klass) -> ()
+ %a = apply %f(%ele) : $@convention(thin) (@in_guaranteed Klass) -> ()
+ br bb6
+
+bb6:
+ %t = tuple ()
+ return %t : $()
+}
+
+sil [_semantics "array.props.isNativeTypeChecked"] @hoistableIsNativeTypeChecked : $@convention(method) (@guaranteed Array<Klass>) -> Bool
+sil [_semantics "array.get_element"] @getElement : $@convention(method) (Int, Bool, _DependenceToken, @guaranteed Array<Klass>) -> @owned Klass
+sil [_semantics "array.get_count"] @getCount : $@convention(method) (@guaranteed Array<Klass>) -> Int
+
+sil hidden @test_array_prop_opt : $@convention(thin) (@guaranteed Optional<Array<Klass>>) -> Int {
+bb0(%0 : $Optional<Array<Klass>>):
+  %4 = integer_literal $Builtin.Int64, 0
+  switch_enum %0 : $Optional<Array<Klass>>, case #Optional.some!enumelt: bb2, case #Optional.none!enumelt: bb1
+
+bb1:
+  br bb12(%4 : $Builtin.Int64)
+
+bb2(%12 : $Array<Klass>):
+  %14 = function_ref @getCount : $@convention(method) (@guaranteed Array<Klass>) -> Int
+  retain_value %0 : $Optional<Array<Klass>>
+  retain_value %0 : $Optional<Array<Klass>>
+  %17 = apply %14(%12) : $@convention(method) (@guaranteed Array<Klass>) -> Int
+  %18 = struct_extract %17 : $Int, #Int._value
+  %19 = builtin "cmp_eq_Int64"(%18 : $Builtin.Int64, %4 : $Builtin.Int64) : $Builtin.Int1
+  cond_br %19, bb3, bb4
+
+bb3:
+  release_value %0 : $Optional<Array<Klass>>
+  %22 = unchecked_enum_data %0 : $Optional<Array<Klass>>, #Optional.some!enumelt
+  %23 = struct_extract %22 : $Array<Klass>, #Array._buffer
+  %24 = struct_extract %23 : $_ArrayBuffer<Klass>, #_ArrayBuffer._storage
+  %25 = struct_extract %24 : $_BridgeStorage<__ContiguousArrayStorageBase>, #_BridgeStorage.rawValue
+  strong_release %25 : $Builtin.BridgeObject
+  br bb12(%4 : $Builtin.Int64)
+
+bb4:
+  %28 = function_ref @hoistableIsNativeTypeChecked : $@convention(method) (@guaranteed Array<Klass>) -> Bool
+  %29 = function_ref @getElement : $@convention(method) (Int, Bool, _DependenceToken, @guaranteed Array<Klass>) -> @owned Klass
+  %30 = integer_literal $Builtin.Int64, 1
+  %31 = integer_literal $Builtin.Int1, -1
+  %32 = struct $_DependenceToken ()
+  br bb5(%4 : $Builtin.Int64)
+
+bb5(%34 : $Builtin.Int64):
+  %35 = struct $Int (%34 : $Builtin.Int64)
+  %36 = apply %28(%12) : $@convention(method) (@guaranteed Array<Klass>) -> Bool
+  %37 = apply %29(%35, %36, %32, %12) : $@convention(method) (Int, Bool, _DependenceToken, @guaranteed Array<Klass>) -> @owned Klass
+  %38 = builtin "sadd_with_overflow_Int64"(%34 : $Builtin.Int64, %30 : $Builtin.Int64, %31 : $Builtin.Int1) : $(Builtin.Int64, Builtin.Int1)
+  %39 = tuple_extract %38 : $(Builtin.Int64, Builtin.Int1), 0
+  %40 = tuple_extract %38 : $(Builtin.Int64, Builtin.Int1), 1
+  cond_fail %40 : $Builtin.Int1, "arithmetic overflow"
+  %43 = ref_element_addr %37 : $Klass, #Klass.val
+  %44 = begin_access [read] [dynamic] [no_nested_conflict] %43 : $*Optional<Int>
+  %45 = load %44 : $*Optional<Int>
+  end_access %44 : $*Optional<Int>
+  switch_enum %45 : $Optional<Int>, case #Optional.some!enumelt: bb9, case #Optional.none!enumelt: bb6
+
+bb6:
+  strong_release %37 : $Klass
+  %49 = builtin "cmp_eq_Int64"(%39 : $Builtin.Int64, %18 : $Builtin.Int64) : $Builtin.Int1
+  cond_br %49, bb7, bb8
+
+bb7:
+  release_value %0 : $Optional<Array<Klass>>
+  release_value %0 : $Optional<Array<Klass>>
+  br bb12(%4 : $Builtin.Int64)
+
+bb8:
+  br bb5(%39 : $Builtin.Int64)
+
+bb9:
+  release_value %0 : $Optional<Array<Klass>>
+  %57 = begin_access [read] [dynamic] [no_nested_conflict] %43 : $*Optional<Int>
+  %58 = load %57 : $*Optional<Int>
+  end_access %57 : $*Optional<Int>
+  switch_enum %58 : $Optional<Int>, case #Optional.some!enumelt: bb11, case #Optional.none!enumelt: bb10
+
+bb10:
+  cond_fail %31 : $Builtin.Int1, "Unexpectedly found nil while unwrapping an Optional value"
+  unreachable
+
+bb11(%63 : $Int):
+  release_value %0 : $Optional<Array<Klass>>
+  strong_release %37 : $Klass
+  %66 = struct_extract %63 : $Int, #Int._value
+  br bb12(%66 : $Builtin.Int64)
+
+bb12(%69 : $Builtin.Int64):
+  %70 = struct $Int (%69 : $Builtin.Int64)
+  return %70 : $Int
 }

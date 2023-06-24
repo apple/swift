@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend -emit-ir -disable-llvm-optzns -disable-swift-specific-llvm-optzns %s | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-%target-ptrsize-%target-ptrauth -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend %use_no_opaque_pointers -emit-ir -disable-llvm-optzns -disable-swift-specific-llvm-optzns %s | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-%target-ptrsize-%target-ptrauth -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend -emit-ir -disable-llvm-optzns -disable-swift-specific-llvm-optzns %s
 
 // i386 uses a scalar result count of 3 instead of 4, so this test would need
 // to be substantially different to test the functionality there.  It's easier

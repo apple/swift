@@ -89,15 +89,25 @@ static bool validateModule(
       llvm::outs() << ", system=" << (searchPath.IsSystem ? "true" : "false")
                    << "\n";
     }
-    llvm::outs() << "- Macro Search Paths:\n";
-    for (auto path : extendedInfo.getPluginSearchPaths())
-      llvm::outs() << "    -plugin-path: " << path << "\n";
-    for (auto path : extendedInfo.getExternalPluginSearchPaths())
-      llvm::outs() << "    -external-plugin-path: " << path << "\n";
-    for (auto path : extendedInfo.getCompilerPluginLibraryPaths())
-      llvm::outs() << "    -load-plugin-library: " << path << "\n";
-    for (auto path : extendedInfo.getCompilerPluginExecutablePaths())
-      llvm::outs() << "    -load-plugin-executable: " << path << "\n";
+    llvm::outs() << "- Plugin Search Options:\n";
+    for (auto opt : extendedInfo.getPluginSearchOptions()) {
+      StringRef optStr;
+      switch (opt.first) {
+      case swift::PluginSearchOption::Kind::PluginPath:
+        optStr = "-plugin-path";
+        break;
+      case swift::PluginSearchOption::Kind::ExternalPluginPath:
+        optStr = "-external-plugin-path";
+        break;
+      case swift::PluginSearchOption::Kind::LoadPluginLibrary:
+        optStr = "-load-plugin-library";
+        break;
+      case swift::PluginSearchOption::Kind::LoadPluginExecutable:
+        optStr = "-load-plugin-executable";
+        break;
+      }
+      llvm::outs() << "    " << optStr << " " << opt.second << "\n";
+    }
   }
 
   return true;

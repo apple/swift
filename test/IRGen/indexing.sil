@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend %s -Xllvm -sil-disable-pass=simplification -emit-ir | %FileCheck %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers %s -Xllvm -sil-disable-pass=simplification -emit-ir | %FileCheck %s
+// RUN: %target-swift-frontend %s -Xllvm -sil-disable-pass=simplification -emit-ir
 
 // REQUIRES: CPU=x86_64
 

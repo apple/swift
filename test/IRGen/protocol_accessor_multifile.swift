@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend -emit-ir -primary-file %s %S/Inputs/protocol_accessor_multifile_other.swift > %t.ll
+// RUN: %target-swift-frontend %use_no_opaque_pointers -emit-ir -primary-file %s %S/Inputs/protocol_accessor_multifile_other.swift > %t.ll
+// RUN: %target-swift-frontend -emit-ir -primary-file %s %S/Inputs/protocol_accessor_multifile_other.swift
 // RUN: %FileCheck %s -check-prefix CHECK -check-prefix CHECK-%target-runtime < %t.ll
 // RUN: %FileCheck -check-prefix NEGATIVE %s < %t.ll
 

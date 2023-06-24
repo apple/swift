@@ -63,21 +63,21 @@ import resilient_objc_class
 // CHECK-SAME:    internal global %objc_full_class_stub {
 // CHECK-SAME:    [[INT]] 0,
 // CHECK-SAME:    [[INT]] 1,
-// CHECK-SAME:    %objc_class* (%objc_class*, i8*)* {{.*}}@"$s31class_update_callback_with_stub17ResilientSubclassCMU{{(\.ptrauth)?}}"
+// CHECK-SAME:    ptr {{.*}}@"$s31class_update_callback_with_stub17ResilientSubclassCMU{{(\.ptrauth)?}}"
 // CHECK-SAME:  }
 
 // CHECK-LABEL: @"$s31class_update_callback_with_stub25ResilientNSObjectSubclassCMt" =
 // CHECK-SAME:    internal global %objc_full_class_stub {
 // CHECK-SAME:    [[INT]] 0,
 // CHECK-SAME:    [[INT]] 1,
-// CHECK-SAME:    %objc_class* (%objc_class*, i8*)* {{.*}}@"$s31class_update_callback_with_stub25ResilientNSObjectSubclassCMU{{(\.ptrauth)?}}"
+// CHECK-SAME:    ptr {{.*}}@"$s31class_update_callback_with_stub25ResilientNSObjectSubclassCMU{{(\.ptrauth)?}}"
 // CHECK-SAME:  }
 
 // CHECK-LABEL: @"$s31class_update_callback_with_stub27FixedLayoutNSObjectSubclassCMt" =
 // CHECK-SAME:    internal global %objc_full_class_stub {
 // CHECK-SAME:    [[INT]] 0,
 // CHECK-SAME:    [[INT]] 1,
-// CHECK-SAME:    %objc_class* (%objc_class*, i8*)* {{.*}}@"$s31class_update_callback_with_stub27FixedLayoutNSObjectSubclassCMU{{(\.ptrauth)?}}"
+// CHECK-SAME:    ptr {{.*}}@"$s31class_update_callback_with_stub27FixedLayoutNSObjectSubclassCMU{{(\.ptrauth)?}}"
 // CHECK-SAME:  }
 
 
@@ -123,8 +123,8 @@ import resilient_objc_class
 
 // -- Address point for class stubs
 
-// CHECK: @"$s31class_update_callback_with_stub17ResilientSubclassCMs" = alias %objc_class_stub, bitcast (i8* getelementptr inbounds (i8, i8* bitcast (%objc_full_class_stub* @"$s31class_update_callback_with_stub17ResilientSubclassCMt" to i8*), [[INT]] {{4|8}}) to %objc_class_stub*)
-// CHECK: @"$s31class_update_callback_with_stub25ResilientNSObjectSubclassCMs" = alias %objc_class_stub, bitcast (i8* getelementptr inbounds (i8, i8* bitcast (%objc_full_class_stub* @"$s31class_update_callback_with_stub25ResilientNSObjectSubclassCMt" to i8*), [[INT]] {{4|8}}) to %objc_class_stub*)
+// CHECK: @"$s31class_update_callback_with_stub17ResilientSubclassCMs" = alias %objc_class_stub, getelementptr inbounds (i8, ptr @"$s31class_update_callback_with_stub17ResilientSubclassCMt", [[INT]] {{4|8}})
+// CHECK: @"$s31class_update_callback_with_stub25ResilientNSObjectSubclassCMs" = alias %objc_class_stub, getelementptr inbounds (i8, ptr @"$s31class_update_callback_with_stub25ResilientNSObjectSubclassCMt", [[INT]] {{4|8}})
 
 
 // -- Class symbol for NSObject-derived class points at the class stub
@@ -133,20 +133,18 @@ import resilient_objc_class
 
 // -- Metadata update callbacks referenced from class stubs
 
-// CHECK-LABEL: define internal %objc_class* @"$s31class_update_callback_with_stub17ResilientSubclassCMU"(%objc_class* %0, i8* %1)
+// CHECK-LABEL: define internal ptr @"$s31class_update_callback_with_stub17ResilientSubclassCMU"(ptr %0, ptr %1)
 // CHECK:       entry:
 // CHECK-NEXT:    [[RESPONSE:%.*]] = call swiftcc %swift.metadata_response @"$s31class_update_callback_with_stub17ResilientSubclassCMa"([[INT]] 0)
 // CHECK-NEXT:    [[METADATA:%.*]] = extractvalue %swift.metadata_response [[RESPONSE]], 0
-// CHECK-NEXT:    [[CLASS:%.*]] = bitcast %swift.type* [[METADATA]] to %objc_class*
-// CHECK-NEXT:    ret %objc_class* [[CLASS]]
+// CHECK-NEXT:    ret ptr [[METADATA]]
 // CHECK-NEXT:  }
 
-// CHECK-LABEL: define internal %objc_class* @"$s31class_update_callback_with_stub25ResilientNSObjectSubclassCMU"(%objc_class* %0, i8* %1)
+// CHECK-LABEL: define internal ptr @"$s31class_update_callback_with_stub25ResilientNSObjectSubclassCMU"(ptr %0, ptr %1)
 // CHECK:       entry:
 // CHECK-NEXT:    [[RESPONSE:%.*]] = call swiftcc %swift.metadata_response @"$s31class_update_callback_with_stub25ResilientNSObjectSubclassCMa"([[INT]] 0)
 // CHECK-NEXT:    [[METADATA:%.*]] = extractvalue %swift.metadata_response [[RESPONSE]], 0
-// CHECK-NEXT:    [[CLASS:%.*]] = bitcast %swift.type* [[METADATA]] to %objc_class*
-// CHECK-NEXT:    ret %objc_class* [[CLASS]]
+// CHECK-NEXT:    ret ptr [[METADATA]]
 // CHECK-NEXT:  }
 
 open class ResilientSubclass : ResilientOutsideParent {}

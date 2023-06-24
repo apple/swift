@@ -3304,6 +3304,12 @@ static bool usesFeatureMoveOnlyEnumDeinits(Decl *decl) {
   return false;
 }
 
+static bool usesFeatureMoveOnlyResilientTypes(Decl *decl) {
+  if (auto *nomDecl = dyn_cast<NominalTypeDecl>(decl))
+    return nomDecl->isResilient() && usesFeatureMoveOnly(decl);
+  return false;
+}
+
 static bool usesFeatureOneWayClosureParameters(Decl *decl) {
   return false;
 }
@@ -6051,7 +6057,8 @@ public:
   }
 
   void visitPackType(PackType *T) {
-    Printer << "Pack{";
+    if (Options.PrintExplicitPackTypes)
+      Printer << "Pack{";
 
     auto Fields = T->getElementTypes();
     for (unsigned i = 0, e = Fields.size(); i != e; ++i) {
@@ -6060,7 +6067,9 @@ public:
       Type EltType = Fields[i];
       visit(EltType);
     }
-    Printer << "}";
+
+    if (Options.PrintExplicitPackTypes)
+      Printer << "}";
   }
 
   void visitSILPackType(SILPackType *T) {

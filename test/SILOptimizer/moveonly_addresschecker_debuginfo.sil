@@ -50,13 +50,13 @@ bb1:
 // CHECK:   [[BORROW:%.*]] = load_borrow [[STACK]]
 // CHECK:   apply {{%.*}}([[BORROW]])
 // CHECK-NEXT: end_borrow [[BORROW]]
-// CHECK-NEXT: destroy_addr [[STACK]]
-// CHECK-NEXT: debug_value undef : $*NonTrivialStruct, let, name "v" // {{.*}}; line:[[DEBUG_LOC]]
 // CHECK: br bb3
 //
 // CHECK: bb2:
-// CHECK-NEXT:   destroy_addr [[STACK]]
+// CHECK-NEXT:   br bb3
+// CHECK: bb3:
 // CHECK-NEXT: debug_value undef : $*NonTrivialStruct, let, name "v" // {{.*}}; line:[[DEBUG_LOC]]
+// CHECK-NEXT: destroy_addr [[STACK]]
 // CHECK: } // end sil function 'non_lifetime_ending_use_test_boundary_edge'
 sil [ossa] @non_lifetime_ending_use_test_boundary_edge : $@convention(thin) () -> () {
   %f = function_ref @get_nontrivial_struct : $@convention(thin) () -> @owned NonTrivialStruct

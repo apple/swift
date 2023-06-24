@@ -473,18 +473,24 @@ void IRGenFunction::bindLocalTypeDataFromSelfWitnessTable(
   SILWitnessTable::enumerateWitnessTableConditionalConformances(
       conformance,
       [&](unsigned index, CanType type, ProtocolDecl *proto) {
-        auto archetype = getTypeInContext(type);
-        if (isa<ArchetypeType>(archetype)) {
+        if (auto packType = dyn_cast<PackType>(type)) {
+          if (auto expansion = packType.unwrapSingletonPackExpansion())
+            type = expansion.getPatternType();
+        }
+
+        type = getTypeInContext(type);
+
+        if (isa<ArchetypeType>(type)) {
           WitnessIndex wIndex(privateWitnessTableIndexToTableOffset(index),
                               /*prefix*/ false);
 
           auto table = loadConditionalConformance(*this ,selfTable,
                                                   wIndex.forProtocolWitnessTable());
           table = Builder.CreateBitCast(table, IGM.WitnessTablePtrTy);
-          setProtocolWitnessTableName(IGM, table, archetype, proto);
+          setProtocolWitnessTableName(IGM, table, type, proto);
 
           setUnscopedLocalTypeData(
-              archetype,
+              type,
               LocalTypeDataKind::forAbstractProtocolWitnessTable(proto),
               table);
         }

@@ -73,11 +73,10 @@ bb0:
 
 // CHECK-LABEL: define{{.*}} @test_pack_element_get_1(
 // CHECK: [[INDEX:%.*]] = add [[INT]] %1, 1
-// CHECK: [[ELT_STORAGE:%.*]] = getelementptr inbounds %swift.opaque*, %swift.opaque** %0, [[INT]] [[INDEX]]
-// CHECK: [[BITCAST_STORAGE:%.*]] = bitcast %swift.opaque** [[ELT_STORAGE]] to %TSi**
-// CHECK: [[ELT_ADDR:%.*]] = load %TSi*, %TSi** [[BITCAST_STORAGE]], align
-// CHECK: [[VALUE_ADDR:%.*]] = getelementptr inbounds %TSi, %TSi* [[ELT_ADDR]], i32 0, i32 0
-// CHECK: [[RET:%.*]] = load [[INT]], [[INT]]* [[VALUE_ADDR]], align
+// CHECK: [[ELT_STORAGE:%.*]] = getelementptr inbounds ptr, ptr %0, [[INT]] [[INDEX]]
+// CHECK: [[ELT_ADDR:%.*]] = load ptr, ptr [[ELT_STORAGE]], align
+// CHECK: [[VALUE_ADDR:%.*]] = getelementptr inbounds %TSi, ptr [[ELT_ADDR]], i32 0, i32 0
+// CHECK: [[RET:%.*]] = load [[INT]], ptr [[VALUE_ADDR]], align
 // CHECK: ret [[INT]] [[RET]]
 sil @test_pack_element_get_1 : $<each T> (@pack_owned Pack{Int, repeat each T, Int}) -> Int {
 bb0(%pack : $*Pack{Int, repeat each T, Int}):
@@ -89,11 +88,10 @@ bb0(%pack : $*Pack{Int, repeat each T, Int}):
  
 // CHECK-LABEL: define{{.*}} @test_pack_element_set_1(
 // CHECK: [[INDEX:%.*]] = add [[INT]] %2, 1
-// CHECK: [[ELT_STORAGE:%.*]] = getelementptr inbounds %swift.opaque*, %swift.opaque** %0, [[INT]] [[INDEX]]
-// CHECK: [[BITCAST_STORAGE:%.*]] = bitcast %swift.opaque** [[ELT_STORAGE]] to %TSi**
-// CHECK: [[ELT_ADDR:%.*]] = load %TSi*, %TSi** [[BITCAST_STORAGE]], align
-// CHECK: [[VALUE_ADDR:%.*]] = getelementptr inbounds %TSi, %TSi* [[ELT_ADDR]], i32 0, i32 0
-// CHECK: store [[INT]] %1, [[INT]]* [[VALUE_ADDR]], align
+// CHECK: [[ELT_STORAGE:%.*]] = getelementptr inbounds ptr, ptr %0, [[INT]] [[INDEX]]
+// CHECK: [[ELT_ADDR:%.*]] = load ptr, ptr [[ELT_STORAGE]], align
+// CHECK: [[VALUE_ADDR:%.*]] = getelementptr inbounds %TSi, ptr [[ELT_ADDR]], i32 0, i32 0
+// CHECK: store [[INT]] %1, ptr [[VALUE_ADDR]], align
 // CHECK: ret void
 sil @test_pack_element_set_1 : $<each T> (@pack_owned Pack{Int, repeat each T, Int}, Int) -> () {
 bb0(%pack : $*Pack{Int, repeat each T, Int}, %value : $Int):
@@ -107,9 +105,9 @@ bb0(%pack : $*Pack{Int, repeat each T, Int}, %value : $Int):
 // CHECK-LABEL: define {{.*}}@test_pack_alloc_1_dynamic(
 // CHECK-SAME:       [[INT]] [[PACK_SIZE:%[^,]+]]
 // CHECK:        [[SIZE:%[^,]+]] = add [[INT]] [[PACK_SIZE]], [[PACK_SIZE]]
-// CHECK:        [[SP_SAVE:%[^,]+]] = call i8* @llvm.stacksave()
-// CHECK:        alloca %swift.opaque*, [[INT]] [[SIZE]]
-// CHECK:        call void @llvm.stackrestore(i8* [[SP_SAVE]])
+// CHECK:        [[SP_SAVE:%[^,]+]] = call ptr @llvm.stacksave()
+// CHECK:        alloca ptr, [[INT]] [[SIZE]]
+// CHECK:        call void @llvm.stackrestore(ptr [[SP_SAVE]])
 sil @test_pack_alloc_1_dynamic : $<each T> () -> () {
 // Control flow so that stack saving/restoring is emitted
 entry:
@@ -126,10 +124,9 @@ exit:
 }
 
 // CHECK-LABEL: define {{.*}}@test_pack_alloc_2_static
-// CHECK:         [[STACK:%[^,]+]] = alloca [2 x %swift.opaque*]
-// CHECK:         call void @llvm.lifetime.start.p0i8
-// CHECK:         [[CAST:%.*]] = bitcast [2 x %swift.opaque*]* [[STACK]] to %swift.opaque**
-// CHECK:         call void @llvm.lifetime.end.p0i8
+// CHECK:         [[STACK:%[^,]+]] = alloca [2 x ptr]
+// CHECK:         call void @llvm.lifetime.start.p0
+// CHECK:         call void @llvm.lifetime.end.p0
 sil @test_pack_alloc_2_static : $<each T> () -> () {
   %addr = alloc_pack $Pack{Int, Int}
   dealloc_pack %addr : $*Pack{Int, Int}
@@ -144,17 +141,14 @@ entry(%addr : $*T):
 }
 
 // CHECK-LABEL: define {{.*}}@test_tuple_pack_element_addr_1(
-// CHECK-SAME:        {{.*}}* nocapture [[TUPLE_ADDR:%[^,]+]], i{{(64|32)}} [[INDEX:%[^,]+]]
-// CHECK:         [[ELT_TYPE:%.*]] = phi %swift.type* [
+// CHECK-SAME:        ptr nocapture [[TUPLE_ADDR:%[^,]+]], i{{(64|32)}} [[INDEX:%[^,]+]]
+// CHECK:         [[ELT_TYPE:%.*]] = phi ptr [
 // CHECK:         [[RESPONSE:%[^,]+]] = call swiftcc %swift.metadata_response @swift_getTupleTypeMetadata
 // CHECK:         [[UNCAST_METADATA:%[^,]+]] = extractvalue %swift.metadata_response [[RESPONSE]], 0
-// CHECK:         [[METADATA:%[^,]+]] = bitcast %swift.type* [[UNCAST_METADATA]] to %swift.tuple_type*
-// CHECK:         [[OFFSET_PTR:%[^,]+]] = getelementptr inbounds %swift.tuple_type, %swift.tuple_type* [[METADATA]], i{{(64|32)}} 0, i32 3, i{{(64|32)}} [[INDEX]]
-// CHECK:         [[OFFSET:%[^,]+]] = load i32, i32* [[OFFSET_PTR]], align
-// CHECK:         [[CAST_TUPLE_ADDR:%[^,]+]] = bitcast <{ %TSS }>* [[TUPLE_ADDR]] to i8*
-// CHECK:         [[UNCAST_ELEMENT_ADDR:%[^,]+]] = getelementptr inbounds i8, i8* [[CAST_TUPLE_ADDR]], i32 [[OFFSET]]
-// CHECK:         [[ELEMENT_ADDR:%[^,]+]] = bitcast i8* [[UNCAST_ELEMENT_ADDR]] to %swift.opaque*
-// CHECK:         call swiftcc void @borrow(%swift.opaque* noalias nocapture [[ELEMENT_ADDR]], %swift.type* [[ELT_TYPE]])
+// CHECK:         [[OFFSET_PTR:%[^,]+]] = getelementptr inbounds %swift.tuple_type, ptr [[UNCAST_METADATA]], i{{(64|32)}} 0, i32 3, i{{(64|32)}} [[INDEX]]
+// CHECK:         [[OFFSET:%[^,]+]] = load i32, ptr [[OFFSET_PTR]], align
+// CHECK:         [[UNCAST_ELEMENT_ADDR:%[^,]+]] = getelementptr inbounds i8, ptr [[TUPLE_ADDR]], i32 [[OFFSET]]
+// CHECK:         call swiftcc void @borrow(ptr noalias nocapture [[UNCAST_ELEMENT_ADDR]], ptr [[ELT_TYPE]])
 sil @test_tuple_pack_element_addr_1 :  $<T, U> (@inout (String, T, U, Int), Builtin.Word) -> () {
 bb0(%tuple : $*(String, T, U, Int), %i : $Builtin.Word):
   %index = dynamic_pack_index %i of $Pack{Float, T, U, Float}

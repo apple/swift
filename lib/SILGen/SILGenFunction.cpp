@@ -55,10 +55,52 @@ SILGenFunction::SILGenFunction(SILGenModule &SGM, SILFunction &F,
   assert(DC && "creating SGF without a DeclContext?");
   B.setInsertionPoint(createBasicBlock());
   B.setCurrentDebugScope(F.getDebugScope());
+
+  // Populate VarDeclScopeMap.
   SourceLoc SLoc = F.getLocation().getSourceLoc();
   if (SF && SLoc) {
     FnASTScope = ast_scope::ASTScopeImpl::findStartingScopeForLookup(SF, SLoc);
     ScopeMap.insert({{FnASTScope, nullptr}, F.getDebugScope()});
+
+    // Collect all variable declarations in this scope.
+    struct Consumer : public namelookup::AbstractASTScopeDeclConsumer {
+      const ast_scope::ASTScopeImpl *ASTScope;
+      VarDeclScopeMapTy &VarDeclScopeMap;
+      Consumer(const ast_scope::ASTScopeImpl *ASTScope,
+               VarDeclScopeMapTy &VarDeclScopeMap)
+          : ASTScope(ASTScope), VarDeclScopeMap(VarDeclScopeMap) {}
+
+      bool consume(ArrayRef<ValueDecl *> values,
+                   NullablePtr<DeclContext> baseDC) override {
+        LLVM_DEBUG(ASTScope->print(llvm::errs(), 0, false, false));
+        for (auto &value : values) {
+          LLVM_DEBUG({
+            if (value->hasName())
+              llvm::dbgs() << "+ " << value->getBaseIdentifier() << "\n";
+          });
+
+          // FIXME: ASTs coming out of the autodiff transformation trigger this.
+          // assert((VarDeclScopeMap.count(value) == 0 ||
+          //         VarDeclScopeMap[value] == ASTScope) &&
+          //        "VarDecl appears twice");
+          VarDeclScopeMap.insert({value, ASTScope});
+        }
+        return false;
+      }
+      bool lookInMembers(const DeclContext *) const override { return false; }
+#ifndef NDEBUG
+      void startingNextLookupStep() override {}
+      void finishingLookup(std::string) const override {}
+      bool isTargetLookup() const override { return false; }
+#endif
+    };
+    const_cast<ast_scope::ASTScopeImpl *>(FnASTScope)
+        ->preOrderChildrenDo([&](ast_scope::ASTScopeImpl *ASTScope) {
+          if (!ASTScope->ignoreInDebugInfo()) {
+            Consumer consumer(ASTScope, VarDeclScopeMap);
+            ASTScope->lookupLocalsOrMembers(consumer);
+          }
+        });
   }
 }
 
@@ -202,8 +244,6 @@ const SILDebugScope *SILGenFunction::getScopeOrNull(SILLocation Loc,
   SourceLoc SLoc = Loc.getSourceLoc();
   if (!SF || LastSourceLoc == SLoc)
     return nullptr;
-  // Prime VarDeclScopeMap.
-  auto Scope = getOrCreateScope(SLoc);
   if (ForMetaInstruction)
     if (ValueDecl *ValDecl = Loc.getAsASTNode<ValueDecl>()) {
       // The source location of a VarDecl isn't necessarily in the same scope
@@ -212,7 +252,7 @@ const SILDebugScope *SILGenFunction::getScopeOrNull(SILLocation Loc,
       if (ValueScope != VarDeclScopeMap.end())
         return getOrCreateScope(ValueScope->second, F.getDebugScope());
     }
-  return Scope;
+  return getOrCreateScope(SLoc);
 }
 
 const SILDebugScope *SILGenFunction::getOrCreateScope(SourceLoc SLoc) {
@@ -405,32 +445,6 @@ SILGenFunction::getOrCreateScope(const ast_scope::ASTScopeImpl *ASTScope,
                                          FnScope, InlinedAt);
     return ParentScope->InlinedCallSite != InlinedAt ? FnScope : ParentScope;
   }
-
-  // Collect all variable declarations in this scope.
-  struct Consumer : public namelookup::AbstractASTScopeDeclConsumer {
-    const ast_scope::ASTScopeImpl *ASTScope;
-    VarDeclScopeMapTy &VarDeclScopeMap;
-    Consumer(const ast_scope::ASTScopeImpl *ASTScope,
-             VarDeclScopeMapTy &VarDeclScopeMap)
-        : ASTScope(ASTScope), VarDeclScopeMap(VarDeclScopeMap) {}
-
-    bool consume(ArrayRef<ValueDecl *> values,
-                 NullablePtr<DeclContext> baseDC) override {
-      for (auto &value : values) {
-        assert(VarDeclScopeMap.count(value) == 0 && "VarDecl appears twice");
-        VarDeclScopeMap.insert({value, ASTScope});
-      }
-      return false;
-    }
-    bool lookInMembers(const DeclContext *) const override { return false; }
-#ifndef NDEBUG
-    void startingNextLookupStep() override {}
-    void finishingLookup(std::string) const override {}
-    bool isTargetLookup() const override { return false; }
-#endif
-  };
-  Consumer consumer(ASTScope, VarDeclScopeMap);
-  ASTScope->lookupLocalsOrMembers(consumer);
 
   // Collapse BraceStmtScopes whose parent is a .*BodyScope.
   if (auto Parent = ASTScope->getParent().getPtrOrNull())

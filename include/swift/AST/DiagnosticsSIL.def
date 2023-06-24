@@ -193,6 +193,11 @@ ERROR(ivar_not_initialized_by_init_accessor,none,
       "property %0 not initialized by init accessor",
       (DeclName))
 
+ERROR(noncopyable_dynamic_lifetime_unsupported,none,
+      "conditional initialization or destruction of noncopyable types is not "
+      "supported; this variable must be consistently in an initialized or "
+      "uninitialized state through every code path", ())
+
 ERROR(self_use_before_fully_init,none,
       "'self' used in %select{method call|property access}1 %0 before "
       "%select{all stored properties are initialized|"
@@ -766,9 +771,10 @@ ERROR(sil_movechecking_borrowed_parameter_captured_by_closure, none,
       "parameter",
       (StringRef))
 ERROR(sil_movechecking_capture_consumed, none,
-      "noncopyable '%0' cannot be consumed when captured by a closure", (StringRef))
-ERROR(sil_movechecking_inout_not_reinitialized_before_end_of_function, none,
-      "missing reinitialization of inout parameter '%0' after consume", (StringRef))
+      "noncopyable '%0' cannot be consumed when captured by an escaping closure", (StringRef))
+ERROR(sil_movechecking_not_reinitialized_before_end_of_function, none,
+      "missing reinitialization of %select{inout parameter|closure capture}1 '%0' "
+      "after consume", (StringRef, bool))
 ERROR(sil_movechecking_value_consumed_in_a_loop, none,
       "'%0' consumed in a loop", (StringRef))
 ERROR(sil_movechecking_use_after_partial_consume, none,

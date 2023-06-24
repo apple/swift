@@ -1,5 +1,6 @@
 // RUN: %empty-directory(%t)
-// RUN: %target-swift-frontend -enable-objc-interop -disable-objc-attr-requires-foundation-module -import-objc-header %S/Inputs/c_functions.h -primary-file %s -emit-ir | %FileCheck %s -check-prefix CHECK -check-prefix %target-cpu -check-prefix %target-abi-%target-cpu
+// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-objc-interop -disable-objc-attr-requires-foundation-module -import-objc-header %S/Inputs/c_functions.h -primary-file %s -emit-ir | %FileCheck %s -check-prefix CHECK -check-prefix %target-cpu -check-prefix %target-abi-%target-cpu
+// RUN: %target-swift-frontend -enable-objc-interop -disable-objc-attr-requires-foundation-module -import-objc-header %S/Inputs/c_functions.h -primary-file %s -emit-ir
 
 // This is deliberately not a SIL test so that we can test SILGen too.
 

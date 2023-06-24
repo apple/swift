@@ -13,13 +13,13 @@ import objc_generics
 // for them either, since they wouldn't be available through the polymorphic
 // convention for class methods.
 
-// CHECK-LABEL: define swiftcc void @method(i64 %0, %TSo12GenericClassC* swiftself %1)
+// CHECK-LABEL: define swiftcc void @method(i64 %0, ptr swiftself %1)
 sil @method : $@convention(method) @pseudogeneric <T: AnyObject> (Int64, @guaranteed GenericClass<T>) -> () {
 entry(%0 : $Int64, %1 : $GenericClass<T>):
   return undef : $()
 }
 
-// CHECK-LABEL: define void @objcMethod(i8* %0, i8* %1, i64 %2)
+// CHECK-LABEL: define void @objcMethod(ptr %0, ptr %1, i64 %2)
 sil @objcMethod : $@convention(objc_method) @pseudogeneric <T: AnyObject> (Int64, @guaranteed GenericClass<T>) -> () {
 entry(%0 : $Int64, %1 : $GenericClass<T>):
   return undef : $()

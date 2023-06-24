@@ -8,12 +8,12 @@ public struct AnotherType<T> {
 }
 
 // Don't pass the metadata of Private<T> to AnotherType<T>'s outlined destroy.
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @"$s4main4copyyAA11AnotherTypeVyxGAElF"(%swift.opaque* noalias nocapture sret({{.*}}) %0, %T4main11AnotherTypeV* noalias nocapture %1, %swift.type* %T)
-// CHECK:  [[MD:%.*]] = call swiftcc %swift.metadata_response @"$s4main11AnotherTypeVMa"(i{{.*}} 0, %swift.type* %T)
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @"$s4main4copyyAA11AnotherTypeVyxGAElF"(ptr noalias nocapture sret({{.*}}) %0, ptr noalias nocapture %1, ptr %T)
+// CHECK:  [[MD:%.*]] = call swiftcc %swift.metadata_response @"$s4main11AnotherTypeVMa"(i{{.*}} 0, ptr %T)
 // CHECK:  [[MD1:%.*]] = extractvalue %swift.metadata_response [[MD]], 0
-// CHECK:  [[MD2:%.*]] = call swiftcc %swift.metadata_response @"$s4main6PublicVMa"(i{{.*}} 0, %swift.type* %T)
+// CHECK:  [[MD2:%.*]] = call swiftcc %swift.metadata_response @"$s4main6PublicVMa"(i{{.*}} 0, ptr %T)
 // CHECK:  [[MD3:%.*]] = extractvalue %swift.metadata_response [[MD2]], 0
-// CHECK:  call %T4main11AnotherTypeV* @"$s4main11AnotherTypeVyxGlWOc"(%T4main11AnotherTypeV* %1, %T4main11AnotherTypeV* {{.*}}, %swift.type* %T, %swift.type* [[MD3]], %swift.type* [[MD1]])
+// CHECK:  call ptr @"$s4main11AnotherTypeVyxGlWOc"(ptr %1, ptr {{.*}}, ptr %T, ptr [[MD3]], ptr [[MD1]])
 public func copy<T>(_ a: AnotherType<T>) -> AnotherType<T> {
   let copy = a
   return copy

@@ -100,10 +100,15 @@ manglePrespecialized(GenericSignature sig, SubstitutionMap subs) {
 }
                                   
 std::string GenericSpecializationMangler::
-mangleNotReabstracted(SubstitutionMap subs) {
+mangleNotReabstracted(SubstitutionMap subs,
+                      bool metatyeParamsRemoved) {
   beginMangling();
   appendSubstitutions(getGenericSignature(), subs);
-  appendSpecializationOperator("TG");
+  if (metatyeParamsRemoved) {
+    appendSpecializationOperator("TGm");
+  } else {
+    appendSpecializationOperator("TG");
+  }
   return finalize();
 }
                                   

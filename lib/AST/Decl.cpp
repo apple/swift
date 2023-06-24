@@ -3749,6 +3749,15 @@ bool ValueDecl::isUsableFromInline() const {
       return true;
   }
 
+  if (auto *opaqueType = dyn_cast<OpaqueTypeDecl>(this)) {
+    if (auto *namingDecl = opaqueType->getNamingDecl()) {
+      if (namingDecl->getAttrs().hasAttribute<UsableFromInlineAttr>() ||
+          namingDecl->getAttrs().hasAttribute<AlwaysEmitIntoClientAttr>() ||
+          namingDecl->getAttrs().hasAttribute<InlinableAttr>())
+        return true;
+    }
+  }
+
   if (auto *EED = dyn_cast<EnumElementDecl>(this))
     if (EED->getParentEnum()->getAttrs().hasAttribute<UsableFromInlineAttr>())
       return true;
@@ -3816,6 +3825,10 @@ bool ValueDecl::shouldHideFromEditor() const {
   // '$__' names are reserved by compiler internal.
   if (!getBaseName().isSpecial() &&
       getBaseIdentifier().str().startswith("$__"))
+    return true;
+
+  // Macro unique names are only intended to be used inside the expanded code.
+  if (MacroDecl::isUniqueMacroName(getBaseName()))
     return true;
 
   return false;
@@ -4908,6 +4921,16 @@ NominalTypeDecl::getInitAccessorProperties() const {
   return evaluateOrDefault(
       ctx.evaluator,
       InitAccessorPropertiesRequest{mutableThis},
+      {});
+}
+
+ArrayRef<VarDecl *>
+NominalTypeDecl::getMemberwiseInitProperties() const {
+  auto &ctx = getASTContext();
+  auto mutableThis = const_cast<NominalTypeDecl *>(this);
+  return evaluateOrDefault(
+      ctx.evaluator,
+      MemberwiseInitPropertiesRequest{mutableThis},
       {});
 }
 
@@ -6711,6 +6734,12 @@ Type AbstractStorageDecl::getValueInterfaceType() const {
   return cast<SubscriptDecl>(this)->getElementInterfaceType();
 }
 
+bool AbstractStorageDecl::hasInitAccessor() const {
+  return evaluateOrDefault(
+      getASTContext().evaluator,
+      HasInitAccessorRequest{const_cast<AbstractStorageDecl *>(this)}, false);
+}
+
 VarDecl::VarDecl(DeclKind kind, bool isStatic, VarDecl::Introducer introducer,
                  SourceLoc nameLoc, Identifier name,
                  DeclContext *dc, StorageIsMutable_t supportsMutation)
@@ -7158,6 +7187,14 @@ bool VarDecl::isMemberwiseInitialized(bool preferDeclaredProperties) const {
   if (hasStorage() && preferDeclaredProperties &&
       isBackingStorageForDeclaredProperty(this))
     return false;
+
+  // If this is a computed property with `init` accessor, it's
+  // memberwise initializable when it could be used to initialize
+  // other stored properties.
+  if (hasInitAccessor()) {
+    if (auto *init = getAccessor(AccessorKind::Init))
+      return init->getAttrs().hasAttribute<InitializesAttr>();
+  }
 
   // If this is a computed property, it's not memberwise initialized unless
   // the caller has asked for the declared properties and it is either a

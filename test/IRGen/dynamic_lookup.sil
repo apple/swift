@@ -50,7 +50,7 @@ bb0(%0 : $X):
   return %7 : $Int
 }
 
-// CHECK: define{{( dllexport)?}}{{( protected)?}} swiftcc void @dynamic_lookup_br(%objc_object* %0)
+// CHECK: define{{( dllexport)?}}{{( protected)?}} swiftcc void @dynamic_lookup_br(ptr %0)
 sil @dynamic_lookup_br : $@convention(thin) (AnyObject) -> () {
 bb0(%0 : $AnyObject):
   %1 = alloc_box $<τ_0_0> { var τ_0_0 } <AnyObject>
@@ -61,9 +61,9 @@ bb0(%0 : $AnyObject):
   strong_retain %4 : $AnyObject
   %6 = open_existential_ref %4 : $AnyObject to $@opened("01234567-89ab-cdef-0123-000000000000", AnyObject) Self
 
-  // CHECK: [[SEL:%[0-9]+]] = load i8*, i8** @"\01L_selector(f)"
-  // CHECK: [[RESPONDS:%[0-9]+]] = load i8*, i8** @"\01L_selector(respondsToSelector:)"
-  // CHECK: [[HAS_SEL:%[0-9]]] = call i1 {{.*}}@objc_msgSend {{.*}}(%objc_object* [[OBJECT:%[0-9]+]], i8* [[RESPONDS]], i8* [[SEL]])
+  // CHECK: [[SEL:%[0-9]+]] = load ptr, ptr @"\01L_selector(f)"
+  // CHECK: [[RESPONDS:%[0-9]+]] = load ptr, ptr @"\01L_selector(respondsToSelector:)"
+  // CHECK: [[HAS_SEL:%[0-9]]] = call i1 {{.*}}@objc_msgSend(ptr [[OBJECT:%[0-9]+]], ptr [[RESPONDS]], ptr [[SEL]])
   // CHECK: br i1 [[HAS_SEL]]
   dynamic_method_br %6 : $@opened("01234567-89ab-cdef-0123-000000000000", AnyObject) Self, #X.f!foreign, bb1, bb2
 
@@ -80,12 +80,12 @@ bb3:
   return %43 : $()
 }
 
-// CHECK: define{{( dllexport)?}}{{( protected)?}} swiftcc void @dynamic_lookup_static_br(%swift.type* %0)
+// CHECK: define{{( dllexport)?}}{{( protected)?}} swiftcc void @dynamic_lookup_static_br(ptr %0)
 sil @dynamic_lookup_static_br : $@convention(thin) (@thick AnyObject.Type) -> () {
 bb0(%0 : $@thick AnyObject.Type):
-  // CHECK: [[SEL:%[0-9]+]] = load i8*, i8** @"\01L_selector(g)", align {{(4|8)}}
-  // CHECK: [[RESPONDS:%[0-9]+]] = load i8*, i8** @"\01L_selector(respondsToSelector:)"
-  // CHECK: [[HAS_SEL:%[0-9]]] = call i1 {{.*}}@objc_msgSend {{.*}}(%objc_object* [[OBJECT:%[0-9]+]], i8* [[RESPONDS]], i8* [[SEL]])
+  // CHECK: [[SEL:%[0-9]+]] = load ptr, ptr @"\01L_selector(g)", align {{(4|8)}}
+  // CHECK: [[RESPONDS:%[0-9]+]] = load ptr, ptr @"\01L_selector(respondsToSelector:)"
+  // CHECK: [[HAS_SEL:%[0-9]]] = call i1 {{.*}}@objc_msgSend(ptr [[OBJECT:%[0-9]+]], ptr [[RESPONDS]], ptr [[SEL]])
   // CHECK: br i1 [[HAS_SEL]]
   %1 = open_existential_metatype %0 : $@thick AnyObject.Type to $@thick (@opened("EF9BE7CA-DFBF-11E4-99CB-28CFE91AF28F", AnyObject) Self).Type
   dynamic_method_br %1 : $@thick (@opened("EF9BE7CA-DFBF-11E4-99CB-28CFE91AF28F", AnyObject) Self).Type, #X.g!foreign, bb1, bb2
@@ -123,7 +123,7 @@ bb3:
   return %43 : $()
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @_T1t16opt_to_subscriptFT3objPSo13AnyObject_1iSi_T_(%objc_object* %0, {{(i32|i64)}} %1)
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @_T1t16opt_to_subscriptFT3objPSo13AnyObject_1iSi_T_(ptr %0, {{(i32|i64)}} %1)
 sil @_T1t16opt_to_subscriptFT3objPSo13AnyObject_1iSi_T_ : $@convention(thin) (AnyObject, Int) -> () {
 bb0(%0 : $AnyObject, %1 : $Int):
   %2 = alloc_box $<τ_0_0> { var τ_0_0 } <AnyObject>
@@ -135,9 +135,9 @@ bb0(%0 : $AnyObject, %1 : $Int):
   %8 = load %2a : $*AnyObject
   strong_retain %8 : $AnyObject
   %10 = open_existential_ref %8 : $AnyObject to $@opened("21234567-89ab-cdef-0123-111111111111", AnyObject) Self
-  // CHECK: [[SEL:%[0-9]+]] = load i8*, i8** @"\01L_selector(objectAtIndexedSubscript:)", align {{(4|8)}}
-  // CHECK: [[RESPONDS:%[0-9]+]] = load i8*, i8** @"\01L_selector(respondsToSelector:)"
-  // CHECK-NEXT: [[HAS_SEL:%[0-9]+]] = call i1 {{.*}}@objc_msgSend {{.*}}(%objc_object* [[OBJECT:%[0-9]+]], i8* [[RESPONDS]], i8* [[SEL]])
+  // CHECK: [[SEL:%[0-9]+]] = load ptr, ptr @"\01L_selector(objectAtIndexedSubscript:)", align {{(4|8)}}
+  // CHECK: [[RESPONDS:%[0-9]+]] = load ptr, ptr @"\01L_selector(respondsToSelector:)"
+  // CHECK-NEXT: [[HAS_SEL:%[0-9]+]] = call i1 {{.*}}@objc_msgSend(ptr [[OBJECT:%[0-9]+]], ptr [[RESPONDS]], ptr [[SEL]])
   // CHECK-NEXT: br i1 [[HAS_SEL]], label [[HAS_METHOD:%[0-9]+]], label [[HAS_METHOD:%[0-9]+]]
 
   dynamic_method_br %10 : $@opened("21234567-89ab-cdef-0123-111111111111", AnyObject) Self, #X.subscript!getter.foreign, bb1, bb2

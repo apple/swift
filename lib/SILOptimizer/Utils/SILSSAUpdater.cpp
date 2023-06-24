@@ -86,20 +86,30 @@ areIdentical(llvm::DenseMap<SILBasicBlock *, SILValue> &availableValues) {
     return true;
   }
 
-  auto *mvir =
-      dyn_cast<MultipleValueInstructionResult>(availableValues.begin()->second);
-  if (!mvir)
-    return false;
+  if (auto *mvir = dyn_cast<MultipleValueInstructionResult>(
+          availableValues.begin()->second)) {
+    for (auto value : availableValues) {
+      auto *result = dyn_cast<MultipleValueInstructionResult>(value.second);
+      if (!result)
+        return false;
+      if (!result->getParent()->isIdenticalTo(mvir->getParent()) ||
+          result->getIndex() != mvir->getIndex()) {
+        return false;
+      }
+    }
+    return true;
+  }
 
+  auto *firstArg = cast<SILArgument>(availableValues.begin()->second);
   for (auto value : availableValues) {
-    auto *result = dyn_cast<MultipleValueInstructionResult>(value.second);
-    if (!result)
+    auto *arg = dyn_cast<SILArgument>(value.second);
+    if (!arg)
       return false;
-    if (!result->getParent()->isIdenticalTo(mvir->getParent()) ||
-        result->getIndex() != mvir->getIndex()) {
+    if (arg != firstArg) {
       return false;
     }
   }
+
   return true;
 }
 

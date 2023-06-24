@@ -312,6 +312,9 @@ SWIFT_REQUEST(TypeChecker, StoredPropertiesRequest,
 SWIFT_REQUEST(TypeChecker, InitAccessorPropertiesRequest,
               ArrayRef<VarDecl *>(NominalTypeDecl *),
               Cached, NoLocationInfo)
+SWIFT_REQUEST(TypeChecker, MemberwiseInitPropertiesRequest,
+              ArrayRef<VarDecl *>(NominalTypeDecl *),
+              Cached, NoLocationInfo)
 SWIFT_REQUEST(TypeChecker, StructuralTypeRequest, Type(TypeAliasDecl *), Cached,
               NoLocationInfo)
 SWIFT_REQUEST(TypeChecker, SuperclassTypeRequest,
@@ -487,6 +490,9 @@ SWIFT_REQUEST(TypeChecker, IsNonUserModuleRequest,
 SWIFT_REQUEST(TypeChecker, TypeCheckObjCImplementationRequest,
               unsigned(ExtensionDecl *),
               Cached, NoLocationInfo)
+SWIFT_REQUEST(TypeChecker, HasInitAccessorRequest,
+              bool(AbstractStorageDecl *), Cached,
+              NoLocationInfo)
 SWIFT_REQUEST(TypeChecker, InitAccessorReferencedVariablesRequest,
               ArrayRef<VarDecl *>(DeclAttribute *, AccessorDecl *,
                                   ArrayRef<Identifier>),

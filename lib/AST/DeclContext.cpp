@@ -211,6 +211,24 @@ AbstractFunctionDecl *DeclContext::getInnermostMethodContext() {
   return nullptr;
 }
 
+AccessorDecl *DeclContext::getInnermostPropertyAccessorContext() {
+  auto dc = this;
+  do {
+    if (auto decl = dc->getAsDecl()) {
+      auto accessor = dyn_cast<AccessorDecl>(decl);
+      // If we found a non-accessor decl, we're done.
+      if (accessor == nullptr)
+        return nullptr;
+
+      auto *storage = accessor->getStorage();
+      if (isa<VarDecl>(storage) && storage->getDeclContext()->isTypeContext())
+        return accessor;
+    }
+  } while ((dc = dc->getParent()));
+
+  return nullptr;
+}
+
 bool DeclContext::isTypeContext() const {
   if (auto decl = getAsDecl())
     return isa<NominalTypeDecl>(decl) || isa<ExtensionDecl>(decl);
@@ -902,6 +920,10 @@ DeclRange IterableDeclContext::getCurrentMembersWithoutLoading() const {
 }
 
 DeclRange IterableDeclContext::getMembers() const {
+  return getCurrentMembers();
+}
+
+DeclRange IterableDeclContext::getCurrentMembers() const {
   loadAllMembers();
 
   return getCurrentMembersWithoutLoading();

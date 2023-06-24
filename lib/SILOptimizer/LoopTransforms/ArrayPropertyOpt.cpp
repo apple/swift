@@ -53,19 +53,19 @@
 #define DEBUG_TYPE "array-property-opt"
 
 #include "ArrayOpt.h"
-#include "swift/SILOptimizer/Analysis/ArraySemantic.h"
-#include "swift/SILOptimizer/Analysis/LoopAnalysis.h"
-#include "swift/SILOptimizer/PassManager/Transforms.h"
-#include "swift/SILOptimizer/Utils/CFGOptUtils.h"
-#include "swift/SILOptimizer/Utils/LoopUtils.h"
-#include "swift/SILOptimizer/Utils/SILSSAUpdater.h"
 #include "swift/SIL/CFG.h"
 #include "swift/SIL/DebugUtils.h"
 #include "swift/SIL/InstructionUtils.h"
-#include "swift/SIL/Projection.h"
 #include "swift/SIL/LoopInfo.h"
-#include "swift/SIL/BasicBlockBits.h"
+#include "swift/SIL/Projection.h"
 #include "swift/SIL/SILCloner.h"
+#include "swift/SILOptimizer/Analysis/ArraySemantic.h"
+#include "swift/SILOptimizer/Analysis/LoopAnalysis.h"
+#include "swift/SILOptimizer/PassManager/Transforms.h"
+#include "swift/SILOptimizer/Utils/BasicBlockOptUtils.h"
+#include "swift/SILOptimizer/Utils/CFGOptUtils.h"
+#include "swift/SILOptimizer/Utils/LoopUtils.h"
+#include "swift/SILOptimizer/Utils/SILSSAUpdater.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -85,6 +85,8 @@ class ArrayPropertiesAnalysis {
   SILLoop *Loop;
   SILBasicBlock *Preheader;
   DominanceInfo *DomTree;
+
+  SinkAddressProjections sinkProj;
 
   llvm::DenseMap<SILFunction *, uint32_t> InstCountCache;
   llvm::SmallSet<SILValue, 16> HoistableArray;
@@ -169,12 +171,17 @@ public:
 
     bool FoundHoistable = false;
     uint32_t LoopInstCount = 0;
+
     for (auto *BB : Loop->getBlocks()) {
       for (auto &Inst : *BB) {
         // Can't clone alloc_stack instructions whose dealloc_stack is outside
         // the loop.
         if (!canDuplicateLoopInstruction(Loop, &Inst))
           return false;
+
+        if (!sinkProj.analyzeAddressProjections(&Inst)) {
+          return false;
+        }
 
         ArraySemanticsCall ArrayPropsInst(&Inst, "array.props", true);
         if (!ArrayPropsInst)
@@ -512,10 +519,11 @@ protected:
                          SILSSAUpdater &SSAUp) {
     // Collect outside uses.
     SmallVector<UseWrapper, 16> UseList;
-    for (auto Use : V->getUses())
+    for (auto Use : V->getUses()) {
       if (!isBlockCloned(Use->getUser()->getParent())) {
         UseList.push_back(UseWrapper(Use));
       }
+    }
     if (UseList.empty())
       return;
 
@@ -532,15 +540,40 @@ protected:
 
   void updateSSAForm() {
     SILSSAUpdater SSAUp;
+    SmallVector<SingleValueInstruction *, 4> newProjections;
+    SinkAddressProjections sinkProj(&newProjections);
+
     for (auto *origBB : originalPreorderBlocks()) {
       // Update outside used phi values.
-      for (auto *arg : origBB->getArguments())
+      for (auto *arg : origBB->getArguments()) {
         updateSSAForValue(origBB, arg, SSAUp);
+      }
 
       // Update outside used instruction values.
       for (auto &inst : *origBB) {
-        for (auto result : inst.getResults())
-          updateSSAForValue(origBB, result, SSAUp);
+        for (auto result : inst.getResults()) {
+          bool success = sinkProj.analyzeAddressProjections(&inst);
+          assert(success);
+          // Sink address projections by cloning to avoid address phis.
+          sinkProj.cloneProjections();
+
+          // If no new projections were created, update ssa for the result only.
+          if (newProjections.empty()) {
+            updateSSAForValue(origBB, result, SSAUp);
+            continue;
+          }
+
+          for (auto *newProj : newProjections) {
+            // Operand values of new projections may need ssa update.
+            for (auto opVal : newProj->getOperandValues()) {
+              if (!isBlockCloned(opVal->getParentBlock())) {
+                continue;
+              }
+              updateSSAForValue(origBB, opVal, SSAUp);
+            }
+          }
+          newProjections.clear();
+        }
       }
     }
   }

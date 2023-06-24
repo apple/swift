@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend -disable-debugger-shadow-copies -gnone -emit-ir %s | %FileCheck --check-prefix=CHECK --check-prefix=CHECK-%target-cpu %s -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend %use_no_opaque_pointers -disable-debugger-shadow-copies -gnone -emit-ir %s | %FileCheck --check-prefix=CHECK --check-prefix=CHECK-%target-cpu %s -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend -disable-debugger-shadow-copies -gnone -emit-ir %s
 
 // CHECK: [[OPAQUE:%swift.opaque]] = type opaque
 // CHECK: [[TYPE:%swift.type]] = type

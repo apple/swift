@@ -32,6 +32,9 @@
     },
     {
       "name": "package-name-if-supported"
+    },
+    {
+      "name": "const-extract-complete-metadata"
     }
   ]
 }

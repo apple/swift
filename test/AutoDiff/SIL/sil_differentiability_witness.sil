@@ -54,7 +54,7 @@ sil_differentiability_witness [reverse] [parameters 0] [results 0] @externalFn1 
 // ROUNDTRIP:   vjp: @AD__externalFn1__vjp_src_0_wrt_0 : $@convention(thin) (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float)
 // ROUNDTRIP: }
 
-// IRGEN-LABEL: @externalFn1WJrSpSr ={{( protected)?}} global { i8*, i8* } {
+// IRGEN-LABEL: @externalFn1WJrSpSr ={{( protected)?}} global { ptr, ptr } {
 // IRGEN-SAME: @AD__externalFn1__jvp_src_0_wrt_0
 // IRGEN-SAME: @AD__externalFn1__vjp_src_0_wrt_0
 // IRGEN-SAME: }
@@ -78,7 +78,7 @@ sil_differentiability_witness [reverse] [parameters 0] [results 0] @externalFn2 
 // ROUNDTRIP:   vjp: @AD__externalFn2__vjp_src_0_wrt_0 : $@convention(thin) (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float)
 // ROUNDTRIP: }
 
-// IRGEN-LABEL: @externalFn2WJrSpSr ={{( protected)?}} global { i8*, i8* } {
+// IRGEN-LABEL: @externalFn2WJrSpSr ={{( protected)?}} global { ptr, ptr } {
 // IRGEN-SAME: @AD__externalFn2__jvp_src_0_wrt_0
 // IRGEN-SAME: @AD__externalFn2__vjp_src_0_wrt_0
 // IRGEN-SAME: }
@@ -92,7 +92,7 @@ sil_differentiability_witness [reverse] [parameters 0] [results 0] @externalFn3 
 // ROUNDTRIP-LABEL: // differentiability witness for externalFn3
 // ROUNDTRIP: sil_differentiability_witness{{( public_external)?}} [reverse] [parameters 0] [results 0] @externalFn3 : $@convention(thin) (Float) -> Float{{[^{]*$}}
 
-// IRGEN-NOT: @AD__externalFn3{{.*}}={{.*}}{ i8*, i8* }
+// IRGEN-NOT: @AD__externalFn3{{.*}}={{.*}}{ ptr, ptr }
 
 // Test public non-generic function.
 // SIL differentiability witness:
@@ -125,7 +125,7 @@ sil_differentiability_witness [reverse] [parameters 0] [results 0] @foo : $@conv
 // ROUNDTRIP:   vjp: @AD__foo__vjp_src_0_wrt_0 : $@convention(thin) (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float)
 // ROUNDTRIP: }
 
-// IRGEN-LABEL: @fooWJrSpSr ={{( protected)?}} global { i8*, i8* } {
+// IRGEN-LABEL: @fooWJrSpSr ={{( protected)?}} global { ptr, ptr } {
 // IRGEN-SAME: @AD__foo__jvp_src_0_wrt_0
 // IRGEN-SAME: @AD__foo__vjp_src_0_wrt_0
 // IRGEN-SAME: }
@@ -163,7 +163,7 @@ sil_differentiability_witness hidden [reverse] [parameters 0 1] [results 0] <τ_
 // ROUNDTRIP:   vjp: @AD__generic__vjp_src_0_wrt_0_1 : $@convention(thin) <τ_0_0 where τ_0_0 : Differentiable> (@in_guaranteed τ_0_0, Float) -> (@out τ_0_0, @owned @callee_guaranteed (@in_guaranteed τ_0_0.TangentVector) -> (@out τ_0_0.TangentVector, Float))
 // ROUNDTRIP: }
 
-// IRGEN: @generic16_Differentiation14DifferentiableRzlWJrSSpSr = hidden global { i8*, i8* } {
+// IRGEN: @generic16_Differentiation14DifferentiableRzlWJrSSpSr = hidden global { ptr, ptr } {
 // IRGEN-SAME: @AD__generic__jvp_src_0_wrt_0_1
 // IRGEN-SAME: @AD__generic__vjp_src_0_wrt_0_1
 // IRGEN-SAME: }

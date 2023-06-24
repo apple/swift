@@ -566,21 +566,7 @@ namespace {
       B.addInt(IGM.Int16Ty, shapes.size());
 
       // Emit each GenericPackShapeDescriptor collected previously.
-      for (const auto &packArg : packArgs) {
-        // Kind
-        B.addInt(IGM.Int16Ty, uint16_t(packArg.Kind));
-
-        // Index
-        B.addInt(IGM.Int16Ty, packArg.Index);
-
-        // ShapeClass
-        auto found = std::find(shapes.begin(), shapes.end(), packArg.ReducedShape);
-        assert(found != shapes.end());
-        B.addInt(IGM.Int16Ty, found - shapes.begin());
-
-        // Unused
-        B.addInt(IGM.Int16Ty, 0);
-      }
+      irgen::addGenericPackShapeDescriptors(IGM, B, shapes, packArgs);
     }
 
     uint8_t getVersion() {
@@ -3003,16 +2989,17 @@ static void emitInitializeValueMetadata(IRGenFunction &IGF,
                                         MetadataDependencyCollector *collector) {
   auto &IGM = IGF.IGM;
   auto loweredTy = IGM.getLoweredType(nominalDecl->getDeclaredTypeInContext());
+  bool useLayoutStrings = IGM.Context.LangOpts.hasFeature(Feature::LayoutStringValueWitnesses) &&
+        IGM.Context.LangOpts.hasFeature(
+            Feature::LayoutStringValueWitnessesInstantiation) &&
+        IGM.getOptions().EnableLayoutStringValueWitnesses &&
+        IGM.getOptions().EnableLayoutStringValueWitnessesInstantiation;
 
   if (isa<StructDecl>(nominalDecl)) {
     auto &fixedTI = IGM.getTypeInfo(loweredTy);
     if (isa<FixedTypeInfo>(fixedTI)) return;
 
-    if (IGM.Context.LangOpts.hasFeature(Feature::LayoutStringValueWitnesses) &&
-        IGM.Context.LangOpts.hasFeature(
-            Feature::LayoutStringValueWitnessesInstantiation) &&
-        IGM.getOptions().EnableLayoutStringValueWitnesses &&
-        IGM.getOptions().EnableLayoutStringValueWitnessesInstantiation) {
+    if (useLayoutStrings) {
       emitInitializeFieldOffsetVectorWithLayoutString(IGF, loweredTy, metadata,
                                                       isVWTMutable, collector);
     } else {
@@ -3021,9 +3008,16 @@ static void emitInitializeValueMetadata(IRGenFunction &IGF,
     }
   } else {
     assert(isa<EnumDecl>(nominalDecl));
+
     auto &strategy = getEnumImplStrategy(IGM, loweredTy);
-    strategy.initializeMetadata(IGF, metadata, isVWTMutable, loweredTy,
-                                collector);
+
+    if (useLayoutStrings) {
+      strategy.initializeMetadataWithLayoutString(IGF, metadata, isVWTMutable,
+                                                  loweredTy, collector);
+    } else {
+      strategy.initializeMetadata(IGF, metadata, isVWTMutable, loweredTy,
+                                  collector);
+    }
   }
 }
 
@@ -5721,10 +5715,25 @@ namespace {
       return {global, offset, structSize};
     }
 
+    bool hasLayoutString() {
+      if (!IGM.Context.LangOpts.hasFeature(
+              Feature::LayoutStringValueWitnesses) ||
+          !IGM.getOptions().EnableLayoutStringValueWitnesses) {
+        return false;
+      }
+
+      return !!getLayoutString() ||
+             (IGM.Context.LangOpts.hasFeature(
+                  Feature::LayoutStringValueWitnessesInstantiation) &&
+              IGM.getOptions().EnableLayoutStringValueWitnessesInstantiation &&
+              (HasDependentVWT || HasDependentMetadata) &&
+              !isa<FixedTypeInfo>(IGM.getTypeInfo(getLoweredType())));
+    }
+
     llvm::Constant *emitNominalTypeDescriptor() {
       return EnumContextDescriptorBuilder(
                  IGM, Target, RequireMetadata,
-                 /*hasLayoutString*/ !!getLayoutString())
+                 /*hasLayoutString*/ hasLayoutString())
           .emit();
     }
 
@@ -5746,7 +5755,7 @@ namespace {
 
     bool hasCompletionFunction() {
       return !isa<FixedTypeInfo>(IGM.getTypeInfo(getLoweredType())) ||
-             !!getLayoutString();
+             hasLayoutString();
     }
   };
 
@@ -6279,6 +6288,7 @@ SpecialProtocol irgen::getSpecialProtocolID(ProtocolDecl *P) {
   case KnownProtocolKind::CxxRandomAccessCollection:
   case KnownProtocolKind::CxxSet:
   case KnownProtocolKind::CxxSequence:
+  case KnownProtocolKind::CxxUniqueSet:
   case KnownProtocolKind::UnsafeCxxInputIterator:
   case KnownProtocolKind::UnsafeCxxRandomAccessIterator:
   case KnownProtocolKind::Executor:
@@ -6549,6 +6559,27 @@ GenericArgumentMetadata irgen::addGenericRequirements(
   }
 
   return metadata;
+}
+
+void irgen::addGenericPackShapeDescriptors(IRGenModule &IGM,
+                                           ConstantStructBuilder &B,
+                                           ArrayRef<CanType> shapes,
+                                           ArrayRef<GenericPackArgument> packArgs) {
+  for (const auto &packArg : packArgs) {
+    // Kind
+    B.addInt(IGM.Int16Ty, uint16_t(packArg.Kind));
+
+    // Index
+    B.addInt(IGM.Int16Ty, packArg.Index);
+
+    // ShapeClass
+    auto found = std::find(shapes.begin(), shapes.end(), packArg.ReducedShape);
+    assert(found != shapes.end());
+    B.addInt(IGM.Int16Ty, found - shapes.begin());
+
+    // Unused
+    B.addInt(IGM.Int16Ty, 0);
+  }
 }
 
 //===----------------------------------------------------------------------===//

@@ -1,4 +1,5 @@
-// RUN: %swift -module-name bridge_object -emit-ir -target armv7-apple-ios8.0 -disable-legacy-type-info %s | %FileCheck %s
+// RUN: %swift %use_no_opaque_pointers -module-name bridge_object -emit-ir -target armv7-apple-ios8.0 -disable-legacy-type-info %s | %FileCheck %s
+// RUN: %swift -module-name bridge_object -emit-ir -target armv7-apple-ios8.0 -disable-legacy-type-info %s
 
 // REQUIRES: CODEGENERATOR=ARM
 

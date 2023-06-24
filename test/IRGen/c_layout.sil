@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend -I %S/Inputs/abi %s -emit-ir | %FileCheck %s --check-prefix=CHECK-%target-cpu -check-prefix CHECK-%target-abi-%target-cpu -check-prefix CHECK-%target-sdk-name-%target-cpu
+// RUN: %target-swift-frontend %use_no_opaque_pointers -I %S/Inputs/abi %s -emit-ir | %FileCheck %s --check-prefix=CHECK-%target-cpu -check-prefix CHECK-%target-abi-%target-cpu -check-prefix CHECK-%target-sdk-name-%target-cpu
+// RUN: %target-swift-frontend -I %S/Inputs/abi %s -emit-ir
 
 sil_stage canonical
 import c_layout

@@ -111,10 +111,8 @@ struct ValidationInfo {
 class ExtendedValidationInfo {
   SmallVector<StringRef, 4> ExtraClangImporterOpts;
 
-  SmallVector<StringRef, 1> PluginSearchPaths;
-  SmallVector<StringRef, 1> ExternalPluginSearchPaths;
-  SmallVector<StringRef, 1> CompilerPluginLibraryPaths;
-  SmallVector<StringRef, 1> CompilerPluginExecutablePaths;
+  SmallVector<std::pair<PluginSearchOption::Kind, StringRef>, 2>
+      PluginSearchOptions;
 
   std::string SDKPath;
   StringRef ModuleABIName;
@@ -149,32 +147,13 @@ public:
     ExtraClangImporterOpts.push_back(option);
   }
 
-  ArrayRef<StringRef> getPluginSearchPaths() const {
-    return PluginSearchPaths;
+  ArrayRef<std::pair<PluginSearchOption::Kind, StringRef>>
+  getPluginSearchOptions() const {
+    return PluginSearchOptions;
   }
-  void addPluginSearchPath(StringRef path) {
-    PluginSearchPaths.push_back(path);
-  }
-
-  ArrayRef<StringRef> getExternalPluginSearchPaths() const {
-    return ExternalPluginSearchPaths;
-  }
-  void addExternalPluginSearchPath(StringRef path) {
-    ExternalPluginSearchPaths.push_back(path);
-  }
-
-  ArrayRef<StringRef> getCompilerPluginLibraryPaths() const {
-    return CompilerPluginLibraryPaths;
-  }
-  void addCompilerPluginLibraryPath(StringRef path) {
-    CompilerPluginLibraryPaths.push_back(path);
-  }
-
-  ArrayRef<StringRef> getCompilerPluginExecutablePaths() const {
-    return CompilerPluginExecutablePaths;
-  }
-  void addCompilerPluginExecutablePath(StringRef path) {
-    CompilerPluginExecutablePaths.push_back(path);
+  void addPluginSearchOption(
+      const std::pair<PluginSearchOption::Kind, StringRef> &opt) {
+    PluginSearchOptions.push_back(opt);
   }
 
   bool isSIB() const { return Bits.IsSIB; }

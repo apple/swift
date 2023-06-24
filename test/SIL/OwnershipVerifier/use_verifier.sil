@@ -1433,23 +1433,3 @@ bb0(%0 : @unowned $ThreeDifferingPayloadEnum):
   return %1 : $Builtin.Int32
 }
 
-sil [ossa] @test_select_value : $@convention(thin) (Builtin.Word) -> Builtin.Word {
-bb0(%0 : $Builtin.Word):
-
-  %1 = integer_literal $Builtin.Word, 1
-  %2 = integer_literal $Builtin.Word, 2
-  %3 = integer_literal $Builtin.Word, 3
-  %4 = integer_literal $Builtin.Word, 4
-  %5 = integer_literal $Builtin.Word, 5
-  %6 = integer_literal $Builtin.Word, 6
-  %11 = integer_literal $Builtin.Word, 11
-  %22 = integer_literal $Builtin.Word, 22
-  %33 = integer_literal $Builtin.Word, 33
-  %44 = integer_literal $Builtin.Word, 44
-  %55 = integer_literal $Builtin.Word, 55
-  %66 = integer_literal $Builtin.Word, 66
-
-  %10 = select_value %1: $Builtin.Word, case %1: %11, case %2: %22, case %4: %44, case %5: %55, case %6: %66, default %33 : $Builtin.Word
-
-  return %10 : $Builtin.Word
-}

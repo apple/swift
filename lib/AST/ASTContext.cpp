@@ -103,11 +103,10 @@ llvm::StringRef swift::getProtocolName(KnownProtocolKind kind) {
 }
 
 namespace {
-  enum class SearchPathKind : uint8_t {
-    Import = 1 << 0,
-    Framework = 1 << 1,
-    CompilerPlugin = 1 << 2
-  };
+enum class SearchPathKind : uint8_t {
+  Import = 1 << 0,
+  Framework = 1 << 1,
+};
 } // end anonymous namespace
 
 using AssociativityCacheType =
@@ -694,8 +693,6 @@ ASTContext::ASTContext(
     getImpl().SearchPathsSet[path] |= SearchPathKind::Import;
   for (const auto &framepath : SearchPathOpts.getFrameworkSearchPaths())
     getImpl().SearchPathsSet[framepath.Path] |= SearchPathKind::Framework;
-  for (StringRef path : SearchPathOpts.getCompilerPluginLibraryPaths())
-    getImpl().SearchPathsSet[path] |= SearchPathKind::CompilerPlugin;
 
   // Register any request-evaluator functions available at the AST layer.
   registerAccessRequestFunctions(evaluator);
@@ -1141,6 +1138,7 @@ ProtocolDecl *ASTContext::getProtocol(KnownProtocolKind kind) const {
   case KnownProtocolKind::CxxRandomAccessCollection:
   case KnownProtocolKind::CxxSet:
   case KnownProtocolKind::CxxSequence:
+  case KnownProtocolKind::CxxUniqueSet:
   case KnownProtocolKind::UnsafeCxxInputIterator:
   case KnownProtocolKind::UnsafeCxxRandomAccessIterator:
     M = getLoadedModule(Id_Cxx);
@@ -1397,6 +1395,9 @@ FuncDecl *ASTContext::getMakeInvocationEncoderOnDistributedActorSystem(
 FuncDecl *
 ASTContext::getRecordGenericSubstitutionOnDistributedInvocationEncoder(
     NominalTypeDecl *nominal) const {
+  if (!nominal)
+    return nullptr;
+
   for (auto result : nominal->lookupDirect(Id_recordGenericSubstitution)) {
     auto *func = dyn_cast<FuncDecl>(result);
     if (func &&
@@ -1410,6 +1411,9 @@ ASTContext::getRecordGenericSubstitutionOnDistributedInvocationEncoder(
 
 AbstractFunctionDecl *ASTContext::getRecordArgumentOnDistributedInvocationEncoder(
     NominalTypeDecl *nominal) const {
+  if (!nominal)
+    return nullptr;
+
   return evaluateOrDefault(
       nominal->getASTContext().evaluator,
       GetDistributedTargetInvocationEncoderRecordArgumentFunctionRequest{nominal},
@@ -1418,6 +1422,9 @@ AbstractFunctionDecl *ASTContext::getRecordArgumentOnDistributedInvocationEncode
 
 AbstractFunctionDecl *ASTContext::getRecordReturnTypeOnDistributedInvocationEncoder(
     NominalTypeDecl *nominal) const {
+  if (!nominal)
+    return nullptr;
+
   return evaluateOrDefault(
       nominal->getASTContext().evaluator,
       GetDistributedTargetInvocationEncoderRecordReturnTypeFunctionRequest{nominal},
@@ -1426,6 +1433,9 @@ AbstractFunctionDecl *ASTContext::getRecordReturnTypeOnDistributedInvocationEnco
 
 AbstractFunctionDecl *ASTContext::getRecordErrorTypeOnDistributedInvocationEncoder(
     NominalTypeDecl *nominal) const {
+  if (!nominal)
+    return nullptr;
+
   return evaluateOrDefault(
       nominal->getASTContext().evaluator,
       GetDistributedTargetInvocationEncoderRecordErrorTypeFunctionRequest{nominal},
@@ -1434,6 +1444,9 @@ AbstractFunctionDecl *ASTContext::getRecordErrorTypeOnDistributedInvocationEncod
 
 AbstractFunctionDecl *ASTContext::getDecodeNextArgumentOnDistributedInvocationDecoder(
     NominalTypeDecl *nominal) const {
+  if (!nominal)
+    return nullptr;
+
   return evaluateOrDefault(
       nominal->getASTContext().evaluator,
       GetDistributedTargetInvocationDecoderDecodeNextArgumentFunctionRequest{nominal},
@@ -1442,6 +1455,9 @@ AbstractFunctionDecl *ASTContext::getDecodeNextArgumentOnDistributedInvocationDe
 
 AbstractFunctionDecl *ASTContext::getOnReturnOnDistributedTargetInvocationResultHandler(
     NominalTypeDecl *nominal) const {
+  if (!nominal)
+    return nullptr;
+
   return evaluateOrDefault(
       nominal->getASTContext().evaluator,
       GetDistributedTargetInvocationResultHandlerOnReturnFunctionRequest{nominal},

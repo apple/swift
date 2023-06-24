@@ -71,7 +71,7 @@ public:
     // Since our array is sorted, we need to first find the first pair with our
     // inst as the first element.
     auto start = std::lower_bound(
-        storage.begin(), storage.end(), std::make_pair(key, Value()),
+        storage.begin(), storage.end(), std::make_pair(key, llvm::None),
         [&](const std::pair<Key, Optional<Value>> &p1,
             const std::pair<Key, Optional<Value>> &p2) {
           return p1.first < p2.first;

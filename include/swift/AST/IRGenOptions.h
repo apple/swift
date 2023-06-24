@@ -25,6 +25,7 @@
 #include "swift/Basic/OptimizationMode.h"
 #include "swift/Config.h"
 #include "clang/Basic/PointerAuthOptions.h"
+#include "llvm/IR/CallingConv.h"
 // FIXME: This include is just for llvm::SanitizerCoverageOptions. We should
 // split the header upstream so we don't include so much.
 #include "llvm/Transforms/Instrumentation.h"
@@ -477,6 +478,9 @@ public:
   /// function instead of to trap instructions.
   std::string TrapFuncName = "";
 
+  /// The calling convention used to perform non-swift calls.
+  llvm::CallingConv::ID PlatformCCallingConvention;
+
   IRGenOptions()
       : DWARFVersion(2),
         OutputKind(IRGenOutputKind::LLVMAssemblyAfterOptimization),
@@ -517,7 +521,8 @@ public:
         ColocateTypeDescriptors(true),
         UseRelativeProtocolWitnessTables(false), CmdArgs(),
         SanitizeCoverage(llvm::SanitizerCoverageOptions()),
-        TypeInfoFilter(TypeInfoDumpFilter::All) {
+        TypeInfoFilter(TypeInfoDumpFilter::All),
+        PlatformCCallingConvention(llvm::CallingConv::C) {
 #ifndef NDEBUG
     DisableRoundTripDebugTypes = false;
 #else

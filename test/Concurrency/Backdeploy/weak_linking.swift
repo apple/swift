@@ -18,7 +18,7 @@
 // NEW-NOT: extern_weak
 
 // BACKDEPLOY_CONCURRENCY: @"$sScPMn" = extern_weak global
-// BACKDEPLOY_CONCURRENCY: declare extern_weak swiftcc i8* @swift_task_alloc
+// BACKDEPLOY_CONCURRENCY: declare extern_weak swiftcc ptr @swift_task_alloc
 // BACKDEPLOY_CONCURRENCY: declare extern_weak swiftcc %swift.metadata_response @"$sScPMa"
 
 // BACKDEPLOY_CONCURRENCY: declare extern_weak void @"_swift_FORCE_LOAD_$_swiftCompatibilityConcurrency"()
@@ -26,10 +26,10 @@
 
 // BACKDEPLOY_CONCURRENCY: declare extern_weak swiftcc i8 @"$sScP8rawValues5UInt8Vvg"
 
-// OPTIMIZED: @swift_async_extendedFramePointerFlags = extern_weak global i8*
-// OPTIMIZED: @_swift_async_extendedFramePointerFlagsUser = linkonce_odr hidden global i8** @swift_async_extendedFramePointerFlags
+// OPTIMIZED: @swift_async_extendedFramePointerFlags = extern_weak global ptr
+// OPTIMIZED: @_swift_async_extendedFramePointerFlagsUser = linkonce_odr hidden global ptr @swift_async_extendedFramePointerFlags
 // OPTIMIZED: @llvm.used =
-// OPTIMIZED-SAME: (i8*** @_swift_async_extendedFramePointerFlagsUser to i8*)
+// OPTIMIZED-SAME: ptr @_swift_async_extendedFramePointerFlagsUser
 
 @available(macOS 12.0, *)
 public func g() async -> String { "hello" }

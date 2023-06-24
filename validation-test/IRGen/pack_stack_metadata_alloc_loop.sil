@@ -1,5 +1,6 @@
 // RUN: %target-run-simple-swift(-parse-sil -Xfrontend -enable-pack-metadata-stack-promotion=true)
-// RUN: %target-swift-frontend -parse-sil -enable-pack-metadata-stack-promotion=true -emit-ir -primary-file %s | %IRGenFileCheck %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers -parse-sil -enable-pack-metadata-stack-promotion=true -emit-ir -primary-file %s | %IRGenFileCheck %s
+// RUN: %target-swift-frontend -parse-sil -enable-pack-metadata-stack-promotion=true -emit-ir -primary-file %s
 
 // REQUIRES: executable_test
 

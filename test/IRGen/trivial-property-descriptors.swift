@@ -6,5 +6,5 @@ extension S {
   public var j: () { return () }
 }
 
-// CHECK: @"$ss1SV1jytvpMV" = dllexport alias { i32 }, { i32 }* @"$ss1SV1iytvpMV"
+// CHECK: @"$ss1SV1jytvpMV" = dllexport alias { i32 }, ptr @"$ss1SV1iytvpMV"
 

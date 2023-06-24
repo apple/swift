@@ -216,8 +216,8 @@ enum Color {
     }
 }
 
-@_moveOnly
-enum StrengthLevel: Int { // ensure move-only raw enums do not conform to RawRepresentable
+// expected-error@+1:21 {{'StrengthLevel' declares raw type 'Int', but cannot yet conform to RawRepresentable because it is noncopyable}}
+enum StrengthLevel: Int, ~Copyable {
     case none = 0
     case low
     case high

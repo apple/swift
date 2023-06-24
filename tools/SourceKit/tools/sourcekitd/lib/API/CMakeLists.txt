@@ -14,6 +14,8 @@ add_sourcekit_library(sourcekitdAPI
   VariableTypeArray.cpp
   UIDHandling.cpp)
 
+target_compile_definitions(sourcekitdAPI PRIVATE
+  sourcekitd_EXPORTS)
 target_link_libraries(sourcekitdAPI PRIVATE
   swiftBasic
   SourceKitSupport)

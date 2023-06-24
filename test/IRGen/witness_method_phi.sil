@@ -3,17 +3,15 @@
 sil_stage canonical
 
 protocol P { func foo() }
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @phi_witness_method(%swift.type* %T, i8** %T.P) #0 {
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @phi_witness_method(ptr %T, ptr %T.P) #0 {
 sil @phi_witness_method : $@convention(thin) <T: P> () -> () {
 entry:
-  // CHECK: [[T0_GEP:%.*]] = getelementptr inbounds i8*, i8** %T.P, i32 1
-  // CHECK: [[LOAD:%.*]] = load i8*, i8** [[T0_GEP]],
-  // CHECK: [[T0:%.*]] = bitcast i8* [[LOAD]] to void (%swift.opaque*, %swift.type*, i8**)*
-  // CHECK: [[FUNC:%.*]] = bitcast void (%swift.opaque*, %swift.type*, i8**)* {{.*}} to i8*
+  // CHECK: [[T0_GEP:%.*]] = getelementptr inbounds ptr, ptr %T.P, i32 1
+  // CHECK: [[LOAD:%.*]] = load ptr, ptr [[T0_GEP]],
   %1 = witness_method $T, #P.foo : $@convention(witness_method: P) <T: P> (@in T) -> ()
   br bb1(%1 : $@convention(witness_method: P) <T: P> (@in T) -> ())
 
-// CHECK:         phi i8* [ [[FUNC]], %entry ]
+// CHECK:         phi ptr [ {{.*}}, %entry ]
 bb1(%2 : $@convention(witness_method: P) <T: P> (@in T) -> ()):
   unreachable
 }

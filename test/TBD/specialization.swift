@@ -40,7 +40,7 @@ public func f() {
 
 // Generic specialization, from the foo call in f
 // CHECK-LABEL: // specialized Foo.foo<A>(_:)
-// CHECK-NEXT: sil private [noinline] @$s14specialization3FooC3foo33_A6E3E43DB6679655BDF5A878ABC489A0LLyyxmlFSi_Tg5Tf4dd_n : $@convention(thin) () -> ()
+// CHECK-NEXT: sil private [noinline] @$s14specialization3FooC3foo33_A6E3E43DB6679655BDF5A878ABC489A0LLyyxmlFSi_Tgm5Tf4d_n : $@convention(thin) () -> ()
 
 // Function signature specialization, from the bar call in Bar.init
 // CHECK-LABEL: // specialized Bar.bar()

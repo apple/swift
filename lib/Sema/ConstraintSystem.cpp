@@ -1031,7 +1031,7 @@ Type ConstraintSystem::openPackExpansionType(PackExpansionType *expansion,
   // This constraint is important to make sure that pack expansion always
   // has a binding and connect pack expansion var to any type variables
   // that appear in pattern and shape types.
-  addUnsolvedConstraint(Constraint::create(*this, ConstraintKind::Defaultable,
+  addUnsolvedConstraint(Constraint::create(*this, ConstraintKind::FallbackType,
                                            expansionVar, openedPackExpansion,
                                            expansionLoc));
 
@@ -1868,10 +1868,13 @@ TypeVariableType *ConstraintSystem::openGenericParameter(
   auto *paramLocator = getConstraintLocator(
       locator.withPathElement(LocatorPathElt::GenericParameter(parameter)));
 
-  unsigned options = (TVO_PrefersSubtypeBinding |
-                      TVO_CanBindToHole);
+  unsigned options = TVO_PrefersSubtypeBinding;
+
   if (parameter->isParameterPack())
     options |= TVO_CanBindToPack;
+
+  if (shouldAttemptFixes())
+    options |= TVO_CanBindToHole;
 
   auto typeVar = createTypeVariable(paramLocator, options);
   auto result = replacements.insert(std::make_pair(
@@ -5310,12 +5313,18 @@ bool ConstraintSystem::diagnoseAmbiguityWithFixes(
 /// provided set.
 static unsigned countDistinctOverloads(ArrayRef<OverloadChoice> choices) {
   llvm::SmallPtrSet<void *, 4> uniqueChoices;
-  unsigned result = 0;
   for (auto choice : choices) {
-    if (uniqueChoices.insert(choice.getOpaqueChoiceSimple()).second)
-      ++result;
+    uniqueChoices.insert(choice.getOpaqueChoiceSimple());
   }
-  return result;
+  return uniqueChoices.size();
+}
+
+static Type getOverloadChoiceType(ConstraintLocator *overloadLoc,
+                                  const Solution &solution) {
+  auto selectedOverload = solution.overloadChoices.find(overloadLoc);
+  if (selectedOverload == solution.overloadChoices.end())
+    return Type();
+  return solution.simplifyType(selectedOverload->second.adjustedOpenedType);
 }
 
 /// Determine the name of the overload in a set of overload choices.
@@ -5396,6 +5405,25 @@ bool ConstraintSystem::diagnoseAmbiguity(ArrayRef<Solution> solutions) {
   for (unsigned i = 0, n = diff.overloads.size(); i != n; ++i) {
     auto &overload = diff.overloads[i];
     auto *locator = overload.locator;
+
+    // If there is only one overload difference, it's the best.
+    if (n == 1) {
+      bestOverload = i;
+      break;
+    }
+
+    // If there are multiple overload sets involved, let's pick the
+    // one that has choices with different types, because that is
+    // most likely the source of ambiguity.
+    {
+      auto overloadTy = getOverloadChoiceType(locator, solutions.front());
+      if (std::all_of(solutions.begin() + 1, solutions.end(),
+                      [&](const Solution &solution) {
+                        return overloadTy->isEqual(
+                          getOverloadChoiceType(locator, solution));
+                      }))
+        continue;
+    }
 
     ASTNode anchor;
 
@@ -7391,7 +7419,7 @@ bool TypeVarBindingProducer::requiresOptionalAdjustment(
 PotentialBinding
 TypeVarBindingProducer::getDefaultBinding(Constraint *constraint) const {
   assert(constraint->getKind() == ConstraintKind::Defaultable ||
-         constraint->getKind() == ConstraintKind::DefaultClosureType);
+         constraint->getKind() == ConstraintKind::FallbackType);
 
   auto type = constraint->getSecondType();
   Binding binding{type, BindingKind::Exact, constraint};

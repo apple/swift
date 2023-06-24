@@ -3,7 +3,7 @@
 
 
 // CHECK: %T11actor_class7MyClassC = type <{ %swift.refcounted, %swift.defaultactor, %TSi }>
-// CHECK: %swift.defaultactor = type { [12 x i8*] }
+// CHECK: %swift.defaultactor = type { [12 x ptr] }
 
 // CHECK-objc-LABEL: @"$s11actor_class7MyClassCMm" = global
 // CHECK-objc-SAME: @"OBJC_METACLASS_$__TtCs12_SwiftObject{{(.ptrauth)?}}"
@@ -11,7 +11,7 @@
 // CHECK: @"$s11actor_class7MyClassCMf" = internal global
 // CHECK-SAME: @"$s11actor_class7MyClassCfD{{(.ptrauth)?}}"
 // CHECK-objc-SAME: @"OBJC_CLASS_$__TtCs12_SwiftObject{{(.ptrauth)?}}"
-// CHECK-nonobjc-SAME: %swift.type* null,
+// CHECK-nonobjc-SAME: ptr null,
 //   Flags: uses Swift refcounting
 // CHECK-SAME: i32 2,
 //   Instance size
@@ -41,15 +41,15 @@ public actor MyClass {
 }
 
 // CHECK-LABEL: define {{.*}}@"$s11actor_class7MyClassC1xSivg"
-// CHECK: [[T0:%.*]] = getelementptr inbounds %T11actor_class7MyClassC, %T11actor_class7MyClassC* %0, i32 0, i32 2
-// CHECK: [[T1:%.*]] = getelementptr inbounds %TSi, %TSi* [[T0]], i32 0, i32 0
-// CHECK: load [[INT]], [[INT]]* [[T1]], align
+// CHECK: [[T0:%.*]] = getelementptr inbounds %T11actor_class7MyClassC, ptr %0, i32 0, i32 2
+// CHECK: [[T1:%.*]] = getelementptr inbounds %TSi, ptr [[T0]], i32 0, i32 0
+// CHECK: load [[INT]], ptr [[T1]], align
 
-// CHECK-LABEL: define {{.*}}swiftcc %T11actor_class7MyClassC* @"$s11actor_class7MyClassCACycfc"
+// CHECK-LABEL: define {{.*}}swiftcc ptr @"$s11actor_class7MyClassCACycfc"
 // CHECK: swift_defaultActor_initialize
-// CHECK-LABEL: ret %T11actor_class7MyClassC*
+// CHECK-LABEL: ret ptr
 
-// CHECK-LABEL: define {{.*}}swiftcc %swift.refcounted* @"$s11actor_class7MyClassCfd"
+// CHECK-LABEL: define {{.*}}swiftcc ptr @"$s11actor_class7MyClassCfd"
 // CHECK: swift_defaultActor_destroy
 // CHECK-LABEL: ret
 
@@ -66,7 +66,6 @@ public actor Exchanger<T> {
 // CHECK-LABEL: define{{.*}} void @"$s11actor_class9ExchangerC5valuexvg"(
 //   Note that this is one more than the field offset vector offset from
 //   the class descriptor, since this is the second field.
-// CHECK:         [[T0:%.*]] = getelementptr inbounds [[INT]], [[INT]]* {{.*}}, [[INT]] [[#CLASS_METADATA_HEADER+2]]
-// CHECK-NEXT:    [[OFFSET:%.*]] = load [[INT]], [[INT]]* [[T0]], align
-// CHECK-NEXT:    [[T0:%.*]] = bitcast %T11actor_class9ExchangerC* %1 to i8*
-// CHECK-NEXT:    getelementptr inbounds i8, i8* [[T0]], [[INT]] [[OFFSET]]
+// CHECK:         [[T0:%.*]] = getelementptr inbounds [[INT]], ptr {{.*}}, [[INT]] [[#CLASS_METADATA_HEADER+2]]
+// CHECK-NEXT:    [[OFFSET:%.*]] = load [[INT]], ptr [[T0]], align
+// CHECK-NEXT:    getelementptr inbounds i8, ptr %1, [[INT]] [[OFFSET]]

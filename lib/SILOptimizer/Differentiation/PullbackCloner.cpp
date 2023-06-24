@@ -1890,25 +1890,16 @@ bool PullbackCloner::Implementation::run() {
   // ignored.
   // The original blocks in traversal order for pullback generation.
   SmallVector<SILBasicBlock *, 8> originalBlocks;
-  // The set of visited original blocks.
-  SmallDenseSet<SILBasicBlock *, 8> visitedBlocks;
+  // The workqueue used for bookkeeping during the breadth-first traversal.
+  BasicBlockWorkqueue workqueue = {originalExitBlock};
 
   // Perform BFS from the original exit block.
   {
-    std::deque<SILBasicBlock *> worklist = {};
-    worklist.push_back(originalExitBlock);
-    visitedBlocks.insert(originalExitBlock);
-    while (!worklist.empty()) {
-      auto *BB = worklist.front();
-      worklist.pop_front();
-
+    while (auto *BB = workqueue.pop()) {
       originalBlocks.push_back(BB);
 
       for (auto *nextBB : BB->getPredecessorBlocks()) {
-        if (!visitedBlocks.count(nextBB)) {
-          worklist.push_back(nextBB);
-          visitedBlocks.insert(nextBB);
-        }
+        workqueue.pushIfNotVisited(nextBB);
       }
     }
   }
@@ -2004,7 +1995,7 @@ bool PullbackCloner::Implementation::run() {
     //   pullback original block, passing adjoint values of active values.
     for (auto *succBB : origBB->getSuccessorBlocks()) {
       // Skip generating pullback block for original unreachable blocks.
-      if (!visitedBlocks.count(succBB))
+      if (!workqueue.isVisited(succBB))
         continue;
       auto *pullbackTrampolineBB = pullback.createBasicBlockBefore(pullbackBB);
       pullbackTrampolineBBMap.insert({{origBB, succBB}, pullbackTrampolineBB});

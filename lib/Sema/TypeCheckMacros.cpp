@@ -342,38 +342,17 @@ LoadedCompilerPlugin
 CompilerPluginLoadRequest::evaluate(Evaluator &evaluator, ASTContext *ctx,
                                     Identifier moduleName) const {
   PluginLoader &loader = ctx->getPluginLoader();
+  const auto &entry = loader.lookupPluginByModuleName(moduleName);
 
-  std::string libraryPath;
-  std::string executablePath;
-
-  // '-load-plugin-libarary'.
-  if (auto found = loader.lookupExplicitLibraryPluginByModuleName(moduleName)) {
-    libraryPath = found.value();
-  }
-  // '-load-plugin-executable'.
-  else if (auto found = loader.lookupExecutablePluginByModuleName(moduleName)) {
-    executablePath = found->str();
-  }
-  // '-plugin-path'.
-  else if (auto found =
-               loader.lookupLibraryPluginInSearchPathByModuleName(moduleName)) {
-    libraryPath = found.value();
-  }
-  // '-external-plugin-path'.
-  else if (auto found =
-               loader.lookupExternalLibraryPluginByModuleName(moduleName)) {
-    std::tie(libraryPath, executablePath) = found.value();
-  }
-
-  if (!executablePath.empty()) {
+  if (!entry.executablePath.empty()) {
     if (LoadedExecutablePlugin *executablePlugin =
-            loader.loadExecutablePlugin(executablePath)) {
-      return initializeExecutablePlugin(*ctx, executablePlugin, libraryPath,
-                                        moduleName);
+            loader.loadExecutablePlugin(entry.executablePath)) {
+      return initializeExecutablePlugin(*ctx, executablePlugin,
+                                        entry.libraryPath, moduleName);
     }
-  } else if (!libraryPath.empty()) {
+  } else if (!entry.libraryPath.empty()) {
     if (LoadedLibraryPlugin *libraryPlugin =
-            loader.loadLibraryPlugin(libraryPath)) {
+            loader.loadLibraryPlugin(entry.libraryPath)) {
       return libraryPlugin;
     }
   }
@@ -1319,9 +1298,11 @@ Optional<unsigned> swift::expandAccessors(
     !accessorMacroOnlyIntroducesObservers(macro, roleAttr);
   if (foundNonObservingAccessor) {
     // If any non-observing accessor was added, mark the initializer as
-    // subsumed.
+    // subsumed unless it has init accessor, because the initializer in
+    // such cases could be used for memberwise initialization.
     if (auto var = dyn_cast<VarDecl>(storage)) {
-      if (auto binding = var->getParentPatternBinding()) {
+      if (auto binding = var->getParentPatternBinding();
+          !var->getAccessor(AccessorKind::Init)) {
         unsigned index = binding->getPatternEntryIndexForVarDecl(var);
         binding->setInitializerSubsumed(index);
       }

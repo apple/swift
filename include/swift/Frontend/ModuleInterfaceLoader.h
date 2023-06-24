@@ -241,12 +241,14 @@ struct ExplicitSwiftModuleInputInfo {
   ExplicitSwiftModuleInputInfo(std::string modulePath,
                                llvm::Optional<std::string> moduleDocPath,
                                llvm::Optional<std::string> moduleSourceInfoPath,
+                               llvm::Optional<std::vector<std::string>> headerDependencyPaths,
                                bool isFramework = false,
                                bool isSystem = false,
                                llvm::Optional<std::string> moduleCacheKey = None)
     : modulePath(modulePath),
       moduleDocPath(moduleDocPath),
       moduleSourceInfoPath(moduleSourceInfoPath),
+      headerDependencyPaths(headerDependencyPaths),
       isFramework(isFramework),
       isSystem(isSystem),
       moduleCacheKey(moduleCacheKey) {}
@@ -256,6 +258,8 @@ struct ExplicitSwiftModuleInputInfo {
   llvm::Optional<std::string> moduleDocPath;
   // Path of the .swiftsourceinfo file.
   llvm::Optional<std::string> moduleSourceInfoPath;
+  // Paths of the precompiled header dependencies of this module.
+  llvm::Optional<std::vector<std::string>> headerDependencyPaths;
   // A flag that indicates whether this module is a framework
   bool isFramework = false;
   // A flag that indicates whether this module is a system module
@@ -369,34 +373,39 @@ private:
     llvm::Optional<std::string> swiftModulePath, swiftModuleDocPath,
                                 swiftModuleSourceInfoPath, swiftModuleCacheKey,
                                 clangModuleCacheKey;
+    llvm::Optional<std::vector<std::string>> headerDependencyPaths;
     std::string clangModuleMapPath = "", clangModulePath = "";
     bool isFramework = false, isSystem = false;
     for (auto &entry : *mapNode) {
       auto key = getScalaNodeText(entry.getKey());
-      auto val = getScalaNodeText(entry.getValue());
-      if (key == "moduleName") {
-        moduleName = val;
-      } else if (key == "modulePath") {
-        swiftModulePath = val.str();
-      } else if (key == "docPath") {
-        swiftModuleDocPath = val.str();
-      } else if (key == "sourceInfoPath") {
-        swiftModuleSourceInfoPath = val.str();
-      } else if (key == "isFramework") {
-        isFramework = parseBoolValue(val);
-      } else if (key == "isSystem") {
-        isSystem = parseBoolValue(val);
-      } else if (key == "clangModuleMapPath") {
-        clangModuleMapPath = val.str();
-      } else if (key == "clangModulePath") {
-        clangModulePath = val.str();
-      } else if (key == "moduleCacheKey") {
-        swiftModuleCacheKey = val.str();
-      } else if (key == "clangModuleCacheKey") {
-        clangModuleCacheKey = val.str();
-      } else {
-        // Being forgiving for future fields.
+      if (key == "prebuiltHeaderDependencyPaths") {
         continue;
+      } else {
+        auto val = getScalaNodeText(entry.getValue());
+        if (key == "moduleName") {
+          moduleName = val;
+        } else if (key == "modulePath") {
+          swiftModulePath = val.str();
+        } else if (key == "docPath") {
+          swiftModuleDocPath = val.str();
+        } else if (key == "sourceInfoPath") {
+          swiftModuleSourceInfoPath = val.str();
+        } else if (key == "isFramework") {
+          isFramework = parseBoolValue(val);
+        } else if (key == "isSystem") {
+          isSystem = parseBoolValue(val);
+        } else if (key == "clangModuleMapPath") {
+          clangModuleMapPath = val.str();
+        } else if (key == "clangModulePath") {
+          clangModulePath = val.str();
+        } else if (key == "moduleCacheKey") {
+          swiftModuleCacheKey = val.str();
+        } else if (key == "clangModuleCacheKey") {
+          clangModuleCacheKey = val.str();
+        } else {
+          // Being forgiving for future fields.
+          continue;
+        }
       }
     }
     if (moduleName.empty())
@@ -409,6 +418,7 @@ private:
       ExplicitSwiftModuleInputInfo entry(swiftModulePath.value(),
                                          swiftModuleDocPath,
                                          swiftModuleSourceInfoPath,
+                                         headerDependencyPaths,
                                          isFramework,
                                          isSystem,
                                          swiftModuleCacheKey);

@@ -6,7 +6,7 @@ sil_stage canonical
 
 import Builtin
 
-// CHECK-LABEL: define swiftcc %swift.refcounted* @move_value_test(
+// CHECK-LABEL: define swiftcc ptr @move_value_test(
 // CHECK-NEXT: entry:
 // CHECK-NEXT: ret
 // CHECK-NEXT: }

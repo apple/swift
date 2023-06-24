@@ -1,11 +1,15 @@
 // RUN: %target-swift-frontend -enable-experimental-feature SymbolLinkageMarkers -primary-file %s    -emit-sil | %FileCheck %s --check-prefix=SIL
 // RUN: %target-swift-frontend -enable-experimental-feature SymbolLinkageMarkers -primary-file %s -O -emit-sil | %FileCheck %s --check-prefix=SIL
-// RUN: %target-swift-frontend -enable-experimental-feature SymbolLinkageMarkers -primary-file %s    -emit-ir  | %FileCheck %s --check-prefix=IR
-// RUN: %target-swift-frontend -enable-experimental-feature SymbolLinkageMarkers -primary-file %s -O -emit-ir  | %FileCheck %s --check-prefix=IR
+// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-experimental-feature SymbolLinkageMarkers -primary-file %s    -emit-ir  | %FileCheck %s --check-prefix=IR
+// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-experimental-feature SymbolLinkageMarkers -primary-file %s -O -emit-ir  | %FileCheck %s --check-prefix=IR
+// RUN: %target-swift-frontend -enable-experimental-feature SymbolLinkageMarkers -primary-file %s    -emit-ir
+// RUN: %target-swift-frontend -enable-experimental-feature SymbolLinkageMarkers -primary-file %s -O -emit-ir
 // RUN: %target-swift-frontend -enable-experimental-feature SymbolLinkageMarkers -primary-file %s    -emit-sil -parse-as-library | %FileCheck %s --check-prefix=SIL
 // RUN: %target-swift-frontend -enable-experimental-feature SymbolLinkageMarkers -primary-file %s -O -emit-sil -parse-as-library | %FileCheck %s --check-prefix=SIL
-// RUN: %target-swift-frontend -enable-experimental-feature SymbolLinkageMarkers -primary-file %s    -emit-ir  -parse-as-library | %FileCheck %s --check-prefix=IR
-// RUN: %target-swift-frontend -enable-experimental-feature SymbolLinkageMarkers -primary-file %s -O -emit-ir  -parse-as-library | %FileCheck %s --check-prefix=IR
+// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-experimental-feature SymbolLinkageMarkers -primary-file %s    -emit-ir  -parse-as-library | %FileCheck %s --check-prefix=IR
+// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-experimental-feature SymbolLinkageMarkers -primary-file %s -O -emit-ir  -parse-as-library | %FileCheck %s --check-prefix=IR
+// RUN: %target-swift-frontend -enable-experimental-feature SymbolLinkageMarkers -primary-file %s    -emit-ir  -parse-as-library
+// RUN: %target-swift-frontend -enable-experimental-feature SymbolLinkageMarkers -primary-file %s -O -emit-ir  -parse-as-library
 
 // REQUIRES: swift_in_compiler
 

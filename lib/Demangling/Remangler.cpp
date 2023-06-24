@@ -3839,6 +3839,8 @@ ManglingErrorOr<NodePointer> Demangle::getUnspecialized(Node *node,
     case Node::Kind::TypeAlias:
     case Node::Kind::OtherNominalType: {
       NodePointer result = Factory.createNode(node->getKind());
+
+      DEMANGLER_ASSERT(node->hasChildren(), node);
       NodePointer parentOrModule = node->getChild(0);
       if (isSpecialized(parentOrModule)) {
         auto unspec = getUnspecialized(parentOrModule, Factory);
@@ -3859,8 +3861,10 @@ ManglingErrorOr<NodePointer> Demangle::getUnspecialized(Node *node,
     case Node::Kind::BoundGenericProtocol:
     case Node::Kind::BoundGenericOtherNominalType:
     case Node::Kind::BoundGenericTypeAlias: {
+      DEMANGLER_ASSERT(node->hasChildren(), node);
       NodePointer unboundType = node->getChild(0);
       DEMANGLER_ASSERT(unboundType->getKind() == Node::Kind::Type, unboundType);
+      DEMANGLER_ASSERT(unboundType->hasChildren(), unboundType);
       NodePointer nominalType = unboundType->getChild(0);
       if (isSpecialized(nominalType))
         return getUnspecialized(nominalType, Factory);
@@ -3868,12 +3872,14 @@ ManglingErrorOr<NodePointer> Demangle::getUnspecialized(Node *node,
     }
 
     case Node::Kind::ConstrainedExistential: {
+      DEMANGLER_ASSERT(node->hasChildren(), node);
       NodePointer unboundType = node->getChild(0);
       DEMANGLER_ASSERT(unboundType->getKind() == Node::Kind::Type, unboundType);
       return unboundType;
     }
 
     case Node::Kind::BoundGenericFunction: {
+      DEMANGLER_ASSERT(node->hasChildren(), node);
       NodePointer unboundFunction = node->getChild(0);
       DEMANGLER_ASSERT(unboundFunction->getKind() == Node::Kind::Function ||
                            unboundFunction->getKind() ==
@@ -3885,6 +3891,7 @@ ManglingErrorOr<NodePointer> Demangle::getUnspecialized(Node *node,
     }
 
     case Node::Kind::Extension: {
+      DEMANGLER_ASSERT(node->getNumChildren() >= 2, node);
       NodePointer parent = node->getChild(1);
       if (!isSpecialized(parent))
         return node;

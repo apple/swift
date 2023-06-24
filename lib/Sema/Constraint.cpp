@@ -99,7 +99,7 @@ Constraint::Constraint(ConstraintKind Kind, Type First, Type Second,
     llvm_unreachable("Wrong constructor for member constraint");
 
   case ConstraintKind::Defaultable:
-  case ConstraintKind::DefaultClosureType:
+  case ConstraintKind::FallbackType:
     assert(!First.isNull());
     assert(!Second.isNull());
     break;
@@ -164,7 +164,7 @@ Constraint::Constraint(ConstraintKind Kind, Type First, Type Second, Type Third,
   case ConstraintKind::Conjunction:
   case ConstraintKind::OneWayEqual:
   case ConstraintKind::OneWayBindParam:
-  case ConstraintKind::DefaultClosureType:
+  case ConstraintKind::FallbackType:
   case ConstraintKind::UnresolvedMemberChainBase:
   case ConstraintKind::PropertyWrapper:
   case ConstraintKind::SyntacticElement:
@@ -314,7 +314,7 @@ Constraint *Constraint::clone(ConstraintSystem &cs) const {
   case ConstraintKind::Defaultable:
   case ConstraintKind::OneWayEqual:
   case ConstraintKind::OneWayBindParam:
-  case ConstraintKind::DefaultClosureType:
+  case ConstraintKind::FallbackType:
   case ConstraintKind::UnresolvedMemberChainBase:
   case ConstraintKind::PropertyWrapper:
   case ConstraintKind::BindTupleOfFunctionParams:
@@ -469,8 +469,8 @@ void Constraint::print(llvm::raw_ostream &Out, SourceManager *sm,
   case ConstraintKind::OpenedExistentialOf: Out << " opened archetype of "; break;
   case ConstraintKind::OneWayEqual: Out << " one-way bind to "; break;
   case ConstraintKind::OneWayBindParam: Out << " one-way bind param to "; break;
-  case ConstraintKind::DefaultClosureType:
-    Out << " closure can default to ";
+  case ConstraintKind::FallbackType:
+    Out << " can fallback to ";
     break;
   case ConstraintKind::UnresolvedMemberChainBase:
     Out << " unresolved member chain base ";
@@ -740,7 +740,7 @@ gatherReferencedTypeVars(Constraint *constraint,
   case ConstraintKind::SelfObjectOfProtocol:
   case ConstraintKind::OneWayEqual:
   case ConstraintKind::OneWayBindParam:
-  case ConstraintKind::DefaultClosureType:
+  case ConstraintKind::FallbackType:
   case ConstraintKind::UnresolvedMemberChainBase:
   case ConstraintKind::PropertyWrapper:
   case ConstraintKind::BindTupleOfFunctionParams:

@@ -103,13 +103,19 @@ struct SymbolGraphASTWalker : public SourceEntityWalker {
   virtual bool isConsideredExportedImported(const Decl *D) const;
   
   /// Returns whether the given declaration comes from an `@_exported import` module.
-  virtual bool isFromExportedImportedModule(const Decl *D) const;
+  ///
+  /// If `countUnderlyingClangModule` is `false`, decls from Clang modules will not be considered
+  /// re-exported unless the Clang module was itself directly re-exported.
+  virtual bool isFromExportedImportedModule(const Decl *D, bool countUnderlyingClangModule = true) const;
 
   /// Returns whether the given declaration was imported via an `@_exported import <type>` declaration.
   virtual bool isQualifiedExportedImport(const Decl *D) const;
 
   /// Returns whether the given module is an `@_exported import` module.
-  virtual bool isExportedImportedModule(const ModuleDecl *M) const;
+  ///
+  /// If `countUnderlyingClangModule` is `false`, Clang modules will not be considered re-exported
+  /// unless the Clang module itself was directly re-exported.
+  virtual bool isExportedImportedModule(const ModuleDecl *M, bool countUnderlyingClangModule = true) const;
 
   /// Returns whether the given module is the main module, or is an `@_exported import` module.
   virtual bool isOurModule(const ModuleDecl *M) const;

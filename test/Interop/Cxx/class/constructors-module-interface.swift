@@ -9,6 +9,11 @@
 // CHECK-NEXT:   init(x: Int32)
 // CHECK-NEXT:   var x: Int32
 // CHECK-NEXT: }
+// CHECK-NEXT: struct DefaultedDefaultConstructor {
+// CHECK-NEXT:   init()
+// CHECK-NEXT:   init(x: Int32)
+// CHECK-NEXT:   var x: Int32
+// CHECK-NEXT: }
 // CHECK-NEXT: struct MemberOfClassType {
 // CHECK-NEXT:   init()
 // CHECK-NEXT:   init(member: ImplicitDefaultConstructor)

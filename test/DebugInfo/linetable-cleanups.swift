@@ -20,15 +20,14 @@ func main() {
 // CHECK: call {{.*}}void @"$s4main8markUsedyyxlF"
 // CHECK: br label
 // CHECK: {{[0-9]+}}:
-// CHECK: call %Ts16IndexingIteratorVySaySiGG* @"$ss16IndexingIteratorVySaySiGGWOh"(%Ts16IndexingIteratorVySaySiGG* %{{.*}}), !dbg ![[LOOPHEADER_LOC:.*]]
+// CHECK: call ptr @"$ss16IndexingIteratorVySaySiGGWOh"(ptr %{{.*}}), !dbg ![[LOOPHEADER_LOC:.*]]
 // CHECK: call {{.*}}void @"$s4main8markUsedyyxlF"
 // The cleanups should share the line number with the ret stmt.
-// CHECK:  call %TSa* @"$sSaySiGWOh"(%TSa* %{{.*}}), !dbg ![[CLEANUPS:.*]]
-// CHECK-NEXT:  !dbg ![[CLEANUPS]]
+// CHECK:  call ptr @"$sSaySiGWOh"(ptr %{{.*}}), !dbg ![[CLEANUPS:.*]]
 // CHECK-NEXT:  llvm.lifetime.end
+// CHECK-SAME:  !dbg ![[CLEANUPS]]
 // CHECK-NEXT:  load
 // CHECK-NEXT:  swift_release
-// CHECK-NEXT:  bitcast
 // CHECK-NEXT:  llvm.lifetime.end
 // CHECK-NEXT:  ret void, !dbg ![[CLEANUPS]]
 // CHECK: ![[CLEANUPS]] = !DILocation(line: [[@LINE+1]], column: 1,

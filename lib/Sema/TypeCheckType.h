@@ -335,7 +335,7 @@ public:
   }
 
   /// Whether pack expansion types are supported in this context.
-  bool isPackExpansionSupported(DeclContext *dc) const {
+  bool isPackExpansionSupported() const {
     switch (context) {
     case Context::FunctionInput:
     case Context::VariadicFunctionInput:
@@ -343,12 +343,7 @@ public:
     case Context::TupleElement:
     case Context::GenericArgument:
       return true;
-
-    // Local variable packs are supported, but property packs
-    // are not.
     case Context::PatternBindingDecl:
-      return !dc->isTypeContext();
-
     case Context::None:
     case Context::ProtocolGenericArgument:
     case Context::Inherited:

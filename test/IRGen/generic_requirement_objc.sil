@@ -7,6 +7,6 @@ import Builtin
 @objc protocol ObjCProto { }
 
 // CHECK: @"$s24generic_requirement_objc13GenericStructVMn" = 
-// CHECK-SAME: i32 add {{.*}} ptrtoint (i8** @"\01l_OBJC_PROTOCOL_REFERENCE_$__TtP24generic_requirement_objc9ObjCProto_" {{.*}} @"$s24generic_requirement_objc13GenericStructVMn", {{.*}} i32 3)
+// CHECK-SAME: i32 add {{.*}} ptrtoint (ptr @"\01l_OBJC_PROTOCOL_REFERENCE_$__TtP24generic_requirement_objc9ObjCProto_" {{.*}} @"$s24generic_requirement_objc13GenericStructVMn", {{.*}} i32 3)
 
 struct GenericStruct<T: ObjCProto> { }

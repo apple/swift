@@ -335,6 +335,16 @@ InFlightDiagnostic::warnUntilSwiftVersion(unsigned majorVersion) {
 }
 
 InFlightDiagnostic &
+InFlightDiagnostic::warnInSwiftInterface(const DeclContext *context) {
+  auto sourceFile = context->getParentSourceFile();
+  if (sourceFile && sourceFile->Kind == SourceFileKind::Interface) {
+    return limitBehavior(DiagnosticBehavior::Warning);
+  }
+
+  return *this;
+}
+
+InFlightDiagnostic &
 InFlightDiagnostic::wrapIn(const Diagnostic &wrapper) {
   // Save current active diagnostic into WrappedDiagnostics, ignoring state
   // so we don't get a None return or influence future diagnostics.

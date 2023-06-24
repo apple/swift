@@ -53,7 +53,7 @@ import MacroLib
 @freestanding(expression) public macro `class`() -> Int = #externalMacro(module: "MacroDefinition", type: "OneMacro")
 
 func test() {
-  let _: Int = #public() // expected-error {{keyword 'public' cannot be used as an identifier here}} expected-note {{if this name is unavoidable, use backticks to escape it}}
+  let _: Int = #public()
   let _: Int = #`public`()
   let _: Int = #escaped()
   let _: Int = #`class`()

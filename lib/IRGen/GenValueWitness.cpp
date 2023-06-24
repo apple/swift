@@ -885,17 +885,48 @@ void addStride(ConstantStructBuilder &B, const TypeInfo *TI, IRGenModule &IGM) {
 }
 } // end anonymous namespace
 
-bool isRuntimeInstatiatedLayoutString(IRGenModule &IGM,
-                                      const TypeLayoutEntry *typeLayoutEntry) {
+static bool isRuntimeInstatiatedLayoutString(IRGenModule &IGM,
+                                       const TypeLayoutEntry *typeLayoutEntry) {
   if (IGM.Context.LangOpts.hasFeature(Feature::LayoutStringValueWitnesses) &&
       IGM.Context.LangOpts.hasFeature(
           Feature::LayoutStringValueWitnessesInstantiation) &&
       IGM.getOptions().EnableLayoutStringValueWitnessesInstantiation) {
-    return (typeLayoutEntry->isAlignedGroup() &&
-            !typeLayoutEntry->isFixedSize(IGM));
+    return (
+        (typeLayoutEntry->isAlignedGroup() || typeLayoutEntry->getAsEnum()) &&
+        !typeLayoutEntry->isFixedSize(IGM));
   }
 
   return false;
+}
+
+static llvm::Constant *getEnumTagFunction(IRGenModule &IGM,
+                                   const EnumTypeLayoutEntry *typeLayoutEntry) {
+  if (typeLayoutEntry->isSingleton()) {
+    return nullptr;
+  } else if (!typeLayoutEntry->isFixedSize(IGM)) {
+    if (typeLayoutEntry->isMultiPayloadEnum()) {
+      return IGM.getMultiPayloadEnumGenericGetEnumTagFn();
+    } else {
+      // TODO: implement support for single payload generic enums
+      return IGM.getSinglePayloadEnumGenericGetEnumTagFn();
+    }
+  } else if (typeLayoutEntry->isMultiPayloadEnum()) {
+    return IGM.getEnumFnGetEnumTagFn();
+  } else {
+    auto &payloadTI = **(typeLayoutEntry->cases[0]->getFixedTypeInfo());
+    auto mask = payloadTI.getFixedExtraInhabitantMask(IGM);
+    auto tzCount = mask.countTrailingZeros();
+    auto shiftedMask = mask.lshr(tzCount);
+    auto toCount = shiftedMask.countTrailingOnes();
+    if (payloadTI.mayHaveExtraInhabitants(IGM) &&
+        (mask.countPopulation() > 64 ||
+         toCount != mask.countPopulation() ||
+         (tzCount % toCount != 0))) {
+      return IGM.getEnumFnGetEnumTagFn();
+    } else {
+      return nullptr;
+    }
+  }
 }
 
 static bool
@@ -1112,7 +1143,28 @@ static void addValueWitness(IRGenModule &IGM, ConstantStructBuilder &B,
     goto standard;
   }
 
-  case ValueWitness::GetEnumTag:
+  case ValueWitness::GetEnumTag: {
+    assert(concreteType.getEnumOrBoundGenericEnum());
+
+    if (IGM.Context.LangOpts.hasFeature(Feature::LayoutStringValueWitnesses) &&
+        IGM.getOptions().EnableLayoutStringValueWitnesses) {
+      auto ty = boundGenericCharacteristics
+                    ? boundGenericCharacteristics->concreteType
+                    : concreteType;
+      auto &typeInfo = boundGenericCharacteristics
+                           ? *boundGenericCharacteristics->TI
+                           : concreteTI;
+      if (auto *typeLayoutEntry = typeInfo.buildTypeLayoutEntry(
+              IGM, ty, /*useStructLayouts*/ true)) {
+        if (auto *enumLayoutEntry = typeLayoutEntry->getAsEnum()) {
+          if (auto *fn = getEnumTagFunction(IGM, enumLayoutEntry)) {
+            return addFunction(fn);
+          }
+        }
+      }
+    }
+    goto standard;
+  }
   case ValueWitness::DestructiveProjectEnumData:
   case ValueWitness::DestructiveInjectEnumTag:
     assert(concreteType.getEnumOrBoundGenericEnum());

@@ -144,12 +144,6 @@ static void maybeAddMemberwiseDefaultArg(ParamDecl *arg, VarDecl *var,
   if (!var->getParentPattern()->getSingleVar())
     return;
 
-  // FIXME: Don't attempt to synthesize default arguments for init
-  //        accessor properties because there could be multiple properties
-  //        with default values they are going to initialize.
-  if (var->getAccessor(AccessorKind::Init))
-    return;
-
   // Whether we have explicit initialization.
   bool isExplicitlyInitialized = false;
   if (auto pbd = var->getParentPatternBinding()) {
@@ -300,36 +294,8 @@ static ConstructorDecl *createImplicitConstructor(NominalTypeDecl *decl,
   if (ICK == ImplicitConstructorKind::Memberwise) {
     assert(isa<StructDecl>(decl) && "Only struct have memberwise constructor");
 
-    std::multimap<VarDecl *, VarDecl *> initializedViaAccessor;
-    decl->collectPropertiesInitializableByInitAccessors(initializedViaAccessor);
-
-    // A single property could be used to initialize N other stored
-    // properties via a call to its init accessor.
-    llvm::SmallPtrSet<VarDecl *, 4> usedInitProperties;
-    for (auto member : decl->getMembers()) {
-      auto var = dyn_cast<VarDecl>(member);
-      if (!var)
-        continue;
-
-      if (!var->isMemberwiseInitialized(/*preferDeclaredProperties=*/true))
-        continue;
-
-      // Check whether this property could be initialized via init accessor.
-      //
-      // Note that we check for a single match here because intersecting
-      // properties are going to be diagnosed.
-      if (initializedViaAccessor.count(var) == 1) {
-        auto *initializerProperty = initializedViaAccessor.find(var)->second;
-        // Parameter for this property is already emitted.
-        if (usedInitProperties.count(initializerProperty))
-          continue;
-
-        var = initializerProperty;
-        usedInitProperties.insert(initializerProperty);
-      }
-
+    for (auto var : decl->getMemberwiseInitProperties()) {
       accessLevel = std::min(accessLevel, var->getFormalAccess());
-
       params.push_back(createMemberwiseInitParameter(decl, Loc, var));
     }
   } else if (ICK == ImplicitConstructorKind::DefaultDistributedActor) {
@@ -1318,6 +1284,12 @@ HasMemberwiseInitRequest::evaluate(Evaluator &evaluator,
   if (hasUserDefinedDesignatedInit(evaluator, decl))
     return false;
 
+  std::multimap<VarDecl *, VarDecl *> initializedViaAccessor;
+  decl->collectPropertiesInitializableByInitAccessors(initializedViaAccessor);
+
+  llvm::SmallPtrSet<VarDecl *, 4> initializedProperties;
+  llvm::SmallVector<std::pair<VarDecl *, Identifier>> invalidOrderings;
+
   for (auto *member : decl->getMembers()) {
     if (auto *var = dyn_cast<VarDecl>(member)) {
       // If this is a backing storage property for a property wrapper,
@@ -1325,10 +1297,75 @@ HasMemberwiseInitRequest::evaluate(Evaluator &evaluator,
       if (var->getOriginalWrappedProperty())
         continue;
 
-      if (var->isMemberwiseInitialized(/*preferDeclaredProperties=*/true))
+      if (!var->isMemberwiseInitialized(/*preferDeclaredProperties=*/true))
+        continue;
+
+      // If init accessors are not involved, we are done.
+      if (initializedViaAccessor.empty())
         return true;
+
+      // Check whether use of init accessors results in access to uninitialized
+      // properties.
+
+      if (auto *initAccessor = var->getAccessor(AccessorKind::Init)) {
+        // Make sure that all properties accessed by init accessor
+        // are previously initialized.
+        if (auto accessAttr =
+            initAccessor->getAttrs().getAttribute<AccessesAttr>()) {
+          for (auto *property : accessAttr->getPropertyDecls(initAccessor)) {
+            if (!initializedProperties.count(property))
+              invalidOrderings.push_back(
+                {var, property->getName()});
+          }
+        }
+
+        // Record all of the properties initialized by calling init accessor.
+        if (auto initAttr =
+            initAccessor->getAttrs().getAttribute<InitializesAttr>()) {
+          auto properties = initAttr->getPropertyDecls(initAccessor);
+          initializedProperties.insert(properties.begin(), properties.end());
+        }
+
+        continue;
+      }
+
+      switch (initializedViaAccessor.count(var)) {
+      // Not covered by an init accessor.
+      case 0:
+        initializedProperties.insert(var);
+        continue;
+
+      // Covered by a single init accessor, we'll handle that
+      // once we get to the property with init accessor.
+      case 1:
+        continue;
+
+      // Covered by more than one init accessor which means that we
+      // cannot synthesize memberwise initializer due to intersecting
+      // initializations.
+      default:
+        return false;
+      }
     }
   }
+
+  if (invalidOrderings.empty())
+    return !initializedProperties.empty();
+
+  {
+    auto &diags = decl->getASTContext().Diags;
+
+    diags.diagnose(
+        decl, diag::cannot_synthesize_memberwise_due_to_property_init_order);
+
+    for (const auto &invalid : invalidOrderings) {
+      auto *accessor = invalid.first->getAccessor(AccessorKind::Init);
+      diags.diagnose(accessor->getLoc(),
+                     diag::out_of_order_access_in_init_accessor,
+                     invalid.first->getName(), invalid.second);
+    }
+  }
+
   return false;
 }
 
@@ -1358,8 +1395,7 @@ ResolveEffectiveMemberwiseInitRequest::evaluate(Evaluator &evaluator,
   auto accessLevel = AccessLevel::Public;
   for (auto *member : decl->getMembers()) {
     auto *var = dyn_cast<VarDecl>(member);
-    if (!var ||
-        !var->isMemberwiseInitialized(/*preferDeclaredProperties*/ true))
+    if (!var || !var->isMemberwiseInitialized(/*preferDeclaredProperties=*/true))
       continue;
     accessLevel = std::min(accessLevel, var->getFormalAccess());
   }

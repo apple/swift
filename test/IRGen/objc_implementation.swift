@@ -1,7 +1,8 @@
 // Test doesn't pass on all platforms (rdar://101420862)
 // REQUIRES: OS=macosx
 
-// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -I %S/Inputs/abi -F %clang-importer-sdk-path/frameworks %s -import-objc-header %S/Inputs/objc_implementation.h -emit-ir > %t.ir
+// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) %use_no_opaque_pointers -I %S/Inputs/abi -F %clang-importer-sdk-path/frameworks %s -import-objc-header %S/Inputs/objc_implementation.h -emit-ir > %t.ir
+// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -I %S/Inputs/abi -F %clang-importer-sdk-path/frameworks %s -import-objc-header %S/Inputs/objc_implementation.h -emit-ir
 // RUN: %FileCheck --input-file %t.ir %s
 // RUN: %FileCheck --input-file %t.ir --check-prefix NEGATIVE %s
 // REQUIRES: objc_interop

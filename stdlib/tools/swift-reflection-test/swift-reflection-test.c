@@ -764,10 +764,6 @@ int doDumpHeapInstance(const char *BinaryFilename) {
       exit(status);
     }
     default: { // Parent
-      for (int i = 5; i > 1; i--) {
-	fprintf(stderr, "%d\n", i);
-	sleep(1);
-      }
       close(PipeMemoryReader_getChildReadFD(&Pipe));
       close(PipeMemoryReader_getChildWriteFD(&Pipe));
       SwiftReflectionContextRef RC =

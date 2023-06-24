@@ -228,8 +228,10 @@ def run(*args, **kwargs):
     my_pipe = subprocess.Popen(
         *args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
         universal_newlines=True,
+        encoding='utf-8',
         **kwargs)
     (output, _) = my_pipe.communicate()
+    output = output.encode(encoding='ascii', errors='replace')
     ret = my_pipe.wait()
 
     if lock:

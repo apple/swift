@@ -91,7 +91,34 @@ struct SillyEmptyGeneric<T>: ~Copyable {
   deinit { fatalError("ran unexpectedly!") }
 }
 
+struct SingleMutableField: ~Copyable {
+  var value = 0
+
+  consuming func justDiscard() {
+    discard self
+  }
+
+  deinit {
+    print("SingleMutableField.deinit")
+  }
+}
+
+// rdar://110232973 ([move-only] Checker should distinguish in between
+// field of single field struct vs parent field itself (was: mutation
+// of field in noncopyable struct should not trigger deinit))
+//
+// This test must not be in a closure.
+@inline(never)
+func testSingleMutableFieldNoMemberReinit() {
+  var x = SingleMutableField()
+  x.value = 20 // should not trigger deinit.
+  // CHECK-NOT: SingleMutableField.deinit
+  x.justDiscard()
+}
+
 func main() {
+  testSingleMutableFieldNoMemberReinit()
+
   let _ = {
     let x = FileDescriptor() // 0
     x.close()

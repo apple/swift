@@ -34,7 +34,7 @@ func useFoo(_ x: Foo) -> Int32 {
   }
 
   // CHECK: [[DEFAULT]]:
-  // CHECK: call swiftcc void @"$ss32_diagnoseUnexpectedEnumCaseValue{{.+}}"(%swift.type* @"$s{{.+}}3FooON", %swift.opaque* noalias nocapture %{{.+}}, %swift.type* @"$ss5Int32VN")
+  // CHECK: call swiftcc void @"$ss32_diagnoseUnexpectedEnumCaseValue{{.+}}"(ptr @"$s{{.+}}3FooON", ptr noalias nocapture %{{.+}}, ptr @"$ss5Int32VN")
   // CHECK-NEXT: unreachable
 
   // CHECK: [[FINAL]]:
@@ -68,7 +68,7 @@ func useBar(_ x: Bar) -> Int32 {
   }
 
   // CHECK: [[DEFAULT]]:
-  // CHECK: call swiftcc void @"$ss32_diagnoseUnexpectedEnumCaseValue{{.+}}"(%swift.type* @"$s{{.+}}3BarON", %swift.opaque* noalias nocapture %{{.+}}, %swift.type* @"$ss5Int32VN")
+  // CHECK: call swiftcc void @"$ss32_diagnoseUnexpectedEnumCaseValue{{.+}}"(ptr @"$s{{.+}}3BarON", ptr noalias nocapture %{{.+}}, ptr @"$ss5Int32VN")
   // CHECK-NEXT: unreachable
 
   // CHECK: [[FINAL]]:

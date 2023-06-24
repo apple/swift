@@ -88,7 +88,8 @@ public:
       : SpecializationMangler(SpecializationPass::GenericSpecializer,
                               Serialized, F) {}
 
-  std::string mangleNotReabstracted(SubstitutionMap subs);
+  std::string mangleNotReabstracted(SubstitutionMap subs,
+                                    bool metatyeParamsRemoved);
 
   /// Mangle a generic specialization with re-abstracted parameters.
   ///

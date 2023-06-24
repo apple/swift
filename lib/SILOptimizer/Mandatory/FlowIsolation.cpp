@@ -20,6 +20,7 @@
 #include "swift/SIL/BitDataflow.h"
 #include "swift/SIL/BasicBlockBits.h"
 #include "swift/SIL/DebugUtils.h"
+#include "swift/SIL/BasicBlockDatastructures.h"
 #include "swift/SILOptimizer/PassManager/Transforms.h"
 
 using namespace swift;
@@ -277,33 +278,12 @@ SILInstruction *AnalysisInfo::findNonisolatedBlame(SILInstruction* startInst) {
   SILBasicBlock* firstBlk = startInst->getParent();
   assert(firstBlk->getParent() == getFunction());
 
-  // workList for breadth-first search to find one of the closest blocks.
-  std::deque<SILBasicBlock*> workList;
-  BasicBlockSet visited(getFunction());
-
-  // seed the search
-  workList.push_back(firstBlk);
-  SILBasicBlock::reverse_iterator cursor = startInst->getReverseIterator();
-
-  while (!workList.empty()) {
-    auto *block = workList.front();
-    workList.pop_front();
+  // searches the a block starting at the provided position in reverse
+  // order of instructions (i.e., from terminator to first instruction).
+  auto searchBlockForNonisolated =
+      [&](SILBasicBlock::reverse_iterator cursor) -> SILInstruction * {
+    SILBasicBlock *block = cursor->getParent();
     auto &state = flow[block];
-
-    // if this block doesn't have exiting nonisolation, then there's no
-    // way we'll find nonisolation in a predecessor.
-    assert(state.exitSet[State::Nonisolated] && "nonisolation is unreachable!");
-
-    // If this is the first time we're scanning the start block, then leave
-    // the cursor alone and do a partial scan. If the block is part of
-    // a cycle, we want to scan the block entirely on the second visit, so we
-    // do not count this as a visit.
-    if (startInst) {
-      startInst = nullptr; // make sure second visit scans entirely.
-    } else {
-      cursor = block->rbegin();
-      visited.insert(block);
-    }
 
     // does this block generate non-isolation?
     if (state.genSet[State::Nonisolated]) {
@@ -321,16 +301,36 @@ SILInstruction *AnalysisInfo::findNonisolatedBlame(SILInstruction* startInst) {
       }
     }
 
+    return nullptr;
+  };
+
+  // whether we should visit a given predecessor block in the search.
+  auto shouldVisit = [&](SILBasicBlock *pred) {
+    // visit blocks that contribute nonisolation to successors.
+    return flow[pred].exitSet[State::Nonisolated];
+  };
+
+  // first check if the nonisolated use precedes the start instruction in
+  // this same block.
+  if (auto *inst = searchBlockForNonisolated(startInst->getReverseIterator()))
+    return inst;
+
+  // Seed a workQueue with the predecessors of this start block to
+  // begin a breadth-first search to find one of the closest predecessors.
+  BasicBlockWorkqueue workQueue(firstBlk->getFunction());
+  for (auto *pred : firstBlk->getPredecessorBlocks())
+    if (shouldVisit(pred))
+      workQueue.push(pred);
+
+  while (auto *block = workQueue.pop()) {
+    // do we have a nonisolated use here?
+    if (auto *inst = searchBlockForNonisolated(block->rbegin()))
+      return inst;
+
+    // otherwise keep looking
     for (auto *pred : block->getPredecessorBlocks()) {
-      // skip visited
-      if (visited.contains(pred))
-        continue;
-
-      // skip blocks that do not contribute nonisolation.
-      if (flow[pred].exitSet[State::Nonisolated] == false)
-        continue;
-
-      workList.push_back(pred);
+      if (shouldVisit(pred))
+        workQueue.pushIfNotVisited(pred);
     }
   }
 

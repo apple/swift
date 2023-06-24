@@ -1,7 +1,8 @@
 // RUN: %empty-directory(%t)
 // RUN: split-file %S/trap-on-exception-irgen-itanium.swift %t
 
-// RUN: %target-swift-emit-ir %t/test.swift -I %t/Inputs -enable-experimental-cxx-interop | %FileCheck %s
+// RUN: %target-swift-emit-ir %use_no_opaque_pointers %t/test.swift -I %t/Inputs -enable-experimental-cxx-interop | %FileCheck %s
+// RUN: %target-swift-emit-ir %t/test.swift -I %t/Inputs -enable-experimental-cxx-interop
 
 // REQUIRES: OS=windows-msvc
 

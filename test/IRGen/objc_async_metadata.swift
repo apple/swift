@@ -1,6 +1,6 @@
 // RUN: %empty-directory(%t)
 // RUN: %build-irgen-test-overlays
-// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t)  -disable-availability-checking %s -emit-ir | %FileCheck %s
+// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) -disable-availability-checking %s -emit-ir | %FileCheck %s
 
 // REQUIRES: OS=macosx
 // REQUIRES: concurrency
@@ -25,11 +25,11 @@ class MyClass: NSObject {
 // CHECK: [[ENCODE_ASYNC_STRING_PROTO:@.*]] = private unnamed_addr constant [15 x i8] c"v32@0:8@16@?24\00"
 // CHECK-LABEL: @_PROTOCOL_INSTANCE_METHODS__TtP19objc_async_metadata7MyProto_ = weak hidden constant
 // CHECK-SAME: _selector_data(myProtoRequirement:completionHandler:)
-// CHECK-SAME: [15 x i8]* [[ENCODE_ASYNC_STRING_PROTO]]
+// CHECK-SAME: ptr [[ENCODE_ASYNC_STRING_PROTO]]
 
 // CHECK: [[ENCODE_ASYNC_STRING_PROTO_TYPE:@.*]] = private unnamed_addr constant [41 x i8] c"v32@0:8@\22NSString\2216@?<v@?@\22NSString\22>24\00"
 // CHECK-LABEL: @_PROTOCOL_METHOD_TYPES__TtP19objc_async_metadata7MyProto_ = weak hidden constant
-// CHECK-SAME: [41 x i8]* [[ENCODE_ASYNC_STRING_PROTO_TYPE]]
+// CHECK-SAME: ptr [[ENCODE_ASYNC_STRING_PROTO_TYPE]]
 
 @objc protocol MyProto {
   @objc func myProtoRequirement(_ x: String) async -> String

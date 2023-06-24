@@ -139,3 +139,43 @@ struct TestAccessBeforeInit {
     self.y = y
   }
 }
+
+class TestInitWithGuard {
+  var _a: Int
+  var _b: Int
+
+  var pair1: (Int, Int) {
+    init(initialValue) initializes(_a, _b) { // expected-error {{property '_b' not initialized by init accessor}}
+      _a = initialValue.0
+
+      if _a > 0 {
+        return
+      }
+
+      _b = initialValue.1
+    }
+
+    get { (_a, _b) }
+    set { }
+  }
+
+  var pair2: (Int, Int) {
+    init(initialValue) initializes(_a, _b) { // Ok
+      _a = initialValue.0
+
+      if _a > 0 {
+        _b = 0
+        return
+      }
+
+      _b = initialValue.1
+    }
+
+    get { (_a, _b) }
+    set { }
+  }
+
+  init(a: Int, b: Int) {
+    self.pair2 = (a, b)
+  }
+}

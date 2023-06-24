@@ -36,15 +36,16 @@
 // SIMPLE: -o main.swiftmodule
 
 
-// COMPLEX: {{bin(/|\\\\)swift(-frontend|c)?(\.exe)?"?}} -frontend
+// COMPLEX: -frontend
 // COMPLEX: -emit-module
 // COMPLEX-DAG: -emit-module-doc-path {{[^ ]*[/\\]}}merge-module-{{[^ ]*}}.swiftdoc
-// COMPLEX-DAG: -sdk {{.*}}/Inputs/clang-importer-sdk
+// COMPLEX-DAG: -sdk
+// COMPLEX-DAG /Inputs/clang-importer-sdk
 // COMPLEX-DAG: -foo -bar
 // COMPLEX-DAG: -F /path/to/frameworks -F /path/to/more/frameworks
 // COMPLEX-DAG: -I /path/to/headers -I path/to/more/headers
 // COMPLEX-DAG: -module-cache-path /tmp/modules
-// COMPLEX: {{bin(/|\\\\)swift(-frontend|c)?(\.exe)?"?}} -frontend
+// COMPLEX-DAG: -frontend
 // COMPLEX: -emit-module
 // COMPLEX-DAG: -F /path/to/frameworks -F /path/to/more/frameworks
 // COMPLEX-DAG: -I /path/to/headers -I path/to/more/headers

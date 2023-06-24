@@ -71,13 +71,21 @@ std::string toFullyQualifiedTypeNameString(const swift::Type &Type) {
   Options.AlwaysDesugarArraySliceTypes = true;
   Options.AlwaysDesugarDictionaryTypes = true;
   Options.AlwaysDesugarOptionalTypes = true;
+  Options.OpaqueReturnTypePrinting =
+    PrintOptions::OpaqueReturnTypePrintingMode::WithOpaqueKeyword;
   Type.print(OutputStream, Options);
   OutputStream.flush();
   return TypeNameOutput;
 }
 
+std::string toFullyQualifiedProtocolNameString(const swift::ProtocolDecl &Protocol) {
+  // Protocols cannot be nested in other declarations, so the only fully-qualified
+  // context is the declaring module name.
+  return Protocol.getParentModule()->getNameStr().str() + "." + Protocol.getNameStr().str();
+}
+
 std::string toMangledTypeNameString(const swift::Type &Type) {
-  return Mangle::ASTMangler().mangleTypeWithoutPrefix(Type);
+  return Mangle::ASTMangler().mangleTypeWithoutPrefix(Type->getCanonicalType());
 }
 
 } // namespace
@@ -803,46 +811,178 @@ void writeAttrInformation(llvm::json::OStream &JSON,
   });
 }
 
+void writeParameterizedProtocolSameTypeRequirements(
+    llvm::json::OStream &JSON,
+    const ParameterizedProtocolType &ParameterizedProtoTy) {
+  auto Protocol = ParameterizedProtoTy.getProtocol();
+  auto ProtocolTy = ParameterizedProtoTy.getBaseType();
+  auto Requirements = Protocol->getProtocolRequirements();
+  auto ParameterTypeNames = Protocol->getPrimaryAssociatedTypeNames();
+  auto ProtocolArguments = ParameterizedProtoTy.getArgs();
+  llvm::dbgs() << Requirements.size() << "\n";
+  assert(ProtocolArguments.size() >= ParameterTypeNames.size());
+
+  for (size_t i = 0; i < ProtocolArguments.size(); ++i) {
+    auto ProtocolArgumentTy = ProtocolArguments[i];
+    std::string ArgumentName = ParameterTypeNames.size() > i
+                                   ? ParameterTypeNames[i].first.str().str()
+                                   : "unknown";
+
+    JSON.object([&] {
+      auto QualifiedTypeAliasName = toFullyQualifiedProtocolNameString(
+                                        *ParameterizedProtoTy.getProtocol()) +
+                                    "." + ArgumentName;
+      JSON.attribute("typeAliasName", QualifiedTypeAliasName);
+      JSON.attribute("substitutedTypeName",
+                     toFullyQualifiedTypeNameString(ProtocolArgumentTy));
+      JSON.attribute("substitutedMangledTypeName",
+                     toMangledTypeNameString(ProtocolArgumentTy));
+    });
+  }
+}
+
+void writeOpaqueTypeProtocolCompositionSameTypeRequirements(
+    llvm::json::OStream &JSON,
+    const ProtocolCompositionType &ProtocolCompositionTy) {
+  for (auto CompositionMemberProto : ProtocolCompositionTy.getMembers()) {
+    if (auto ParameterizedProtoTy =
+            CompositionMemberProto->getAs<ParameterizedProtocolType>()) {
+      writeParameterizedProtocolSameTypeRequirements(JSON,
+                                                     *ParameterizedProtoTy);
+    }
+  }
+}
+
+void writeSubstitutedOpaqueTypeAliasDetails(
+    llvm::json::OStream &JSON, const OpaqueTypeArchetypeType &OpaqueTy) {
+  JSON.attributeArray("opaqueTypeProtocolRequirements", [&] {
+    auto ConformsToProtocols = OpaqueTy.getConformsTo();
+    for (auto Proto : ConformsToProtocols) {
+      JSON.value(toFullyQualifiedProtocolNameString(*Proto));
+    }
+  });
+  JSON.attributeArray("opaqueTypeSameTypeRequirements", [&] {
+    auto GenericSig = OpaqueTy.getDecl()
+                          ->getNamingDecl()
+                          ->getInnermostDeclContext()
+                          ->getGenericSignatureOfContext();
+    auto ConstraintTy = OpaqueTy.getExistentialType();
+    if (auto existential = ConstraintTy->getAs<ExistentialType>())
+      ConstraintTy = existential->getConstraintType();
+
+    // Opaque archetype substitutions are always canonical, so
+    // re-sugar the constraint type using the owning
+    // declaration's generic parameter names.
+    if (GenericSig)
+      ConstraintTy = GenericSig->getSugaredType(ConstraintTy);
+
+    if (auto ParameterizedProtoTy =
+            ConstraintTy->getAs<ParameterizedProtocolType>()) {
+      writeParameterizedProtocolSameTypeRequirements(JSON,
+                                                     *ParameterizedProtoTy);
+    } else if (auto ProtocolCompositionTy =
+                   ConstraintTy->getAs<ProtocolCompositionType>()) {
+      writeOpaqueTypeProtocolCompositionSameTypeRequirements(
+          JSON, *ProtocolCompositionTy);
+    }
+  });
+}
+
+void writeAssociatedTypeAliases(llvm::json::OStream &JSON,
+                                const NominalTypeDecl &NomTypeDecl) {
+  JSON.attributeArray("associatedTypeAliases", [&] {
+    for (auto &Conformance : NomTypeDecl.getAllConformances()) {
+      Conformance->forEachTypeWitness(
+          [&](AssociatedTypeDecl *assoc, Type type, TypeDecl *typeDecl) {
+            JSON.object([&] {
+              JSON.attribute("typeAliasName", assoc->getName().str().str());
+              JSON.attribute("substitutedTypeName",
+                             toFullyQualifiedTypeNameString(type));
+              JSON.attribute("substitutedMangledTypeName",
+                             toMangledTypeNameString(type));
+              if (auto OpaqueTy = dyn_cast<OpaqueTypeArchetypeType>(type)) {
+                writeSubstitutedOpaqueTypeAliasDetails(JSON, *OpaqueTy);
+              }
+            });
+            return false;
+          });
+    }
+  });
+}
+
+void writeProperties(llvm::json::OStream &JSON,
+                     const ConstValueTypeInfo &TypeInfo,
+                     const NominalTypeDecl &NomTypeDecl) {
+  JSON.attributeArray("properties", [&] {
+    for (const auto &PropertyInfo : TypeInfo.Properties) {
+      JSON.object([&] {
+        const auto *decl = PropertyInfo.VarDecl;
+        JSON.attribute("label", decl->getName().str().str());
+        JSON.attribute("type", toFullyQualifiedTypeNameString(decl->getType()));
+        JSON.attribute("mangledTypeName", toMangledTypeNameString(decl->getType()));
+        JSON.attribute("isStatic", decl->isStatic() ? "true" : "false");
+        JSON.attribute("isComputed", !decl->hasStorage() ? "true" : "false");
+        writeLocationInformation(JSON, decl->getLoc(),
+                                 decl->getDeclContext()->getASTContext());
+        writeValue(JSON, PropertyInfo.Value);
+        writePropertyWrapperAttributes(JSON, PropertyInfo.PropertyWrappers,
+                                       decl->getASTContext());
+        writeRuntimeMetadataAttributes(JSON,
+                                       PropertyInfo.RuntimeMetadataAttributes,
+                                       decl->getASTContext());
+        writeResultBuilderInformation(JSON, &NomTypeDecl, decl);
+        writeAttrInformation(JSON, decl->getAttrs());
+      });
+    }
+  });
+}
+
+void writeConformances(llvm::json::OStream &JSON,
+                       const NominalTypeDecl &NomTypeDecl) {
+  JSON.attributeArray("conformances", [&] {
+    for (auto &Protocol : NomTypeDecl.getAllProtocols()) {
+      JSON.value(toFullyQualifiedProtocolNameString(*Protocol));
+    }
+  });
+}
+
+void writeTypeName(llvm::json::OStream &JSON, const TypeDecl &TypeDecl) {
+  JSON.attribute("typeName",
+                 toFullyQualifiedTypeNameString(
+                                 TypeDecl.getDeclaredInterfaceType()));
+  JSON.attribute("mangledTypeName",
+                 toMangledTypeNameString(TypeDecl.getDeclaredInterfaceType()));
+}
+
+void writeNominalTypeKind(llvm::json::OStream &JSON,
+                          const NominalTypeDecl &NomTypeDecl) {
+  JSON.attribute(
+      "kind",
+      NomTypeDecl.getDescriptiveKindName(NomTypeDecl.getDescriptiveKind())
+          .str());
+}
+
 bool writeAsJSONToFile(const std::vector<ConstValueTypeInfo> &ConstValueInfos,
-                       llvm::raw_fd_ostream &OS) {
+                       llvm::raw_ostream &OS) {
   llvm::json::OStream JSON(OS, 2);
   JSON.array([&] {
     for (const auto &TypeInfo : ConstValueInfos) {
+      assert(isa<NominalTypeDecl>(TypeInfo.TypeDecl) &&
+             "Expected Nominal Type Decl for a conformance");
+      const auto *NomTypeDecl = cast<NominalTypeDecl>(TypeInfo.TypeDecl);
+      const auto SourceLoc =
+          extractNearestSourceLoc(NomTypeDecl->getInnermostDeclContext());
+      const auto &Ctx = NomTypeDecl->getInnermostDeclContext()->getASTContext();
+
       JSON.object([&] {
-        const auto *TypeDecl = TypeInfo.TypeDecl;
-        JSON.attribute("typeName", toFullyQualifiedTypeNameString(
-                                       TypeDecl->getDeclaredInterfaceType()));
-        JSON.attribute(
-            "kind",
-            TypeDecl->getDescriptiveKindName(TypeDecl->getDescriptiveKind())
-                .str());
-        writeLocationInformation(
-            JSON, extractNearestSourceLoc(TypeDecl->getInnermostDeclContext()),
-            TypeDecl->getInnermostDeclContext()->getASTContext());
-        JSON.attributeArray("properties", [&] {
-          for (const auto &PropertyInfo : TypeInfo.Properties) {
-            JSON.object([&] {
-              const auto *decl = PropertyInfo.VarDecl;
-              JSON.attribute("label", decl->getName().str().str());
-              JSON.attribute("type",
-                             toFullyQualifiedTypeNameString(decl->getType()));
-              JSON.attribute("isStatic", decl->isStatic() ? "true" : "false");
-              JSON.attribute("isComputed",
-                             !decl->hasStorage() ? "true" : "false");
-              writeLocationInformation(JSON, decl->getLoc(),
-                                       decl->getDeclContext()->getASTContext());
-              writeValue(JSON, PropertyInfo.Value);
-              writePropertyWrapperAttributes(
-                  JSON, PropertyInfo.PropertyWrappers, decl->getASTContext());
-              writeRuntimeMetadataAttributes(
-                  JSON, PropertyInfo.RuntimeMetadataAttributes, decl->getASTContext());
-              writeResultBuilderInformation(JSON, TypeDecl, decl);
-              writeAttrInformation(JSON, decl->getAttrs());
-            });
-          }
-        });
+        writeTypeName(JSON, *NomTypeDecl);
+        writeNominalTypeKind(JSON, *NomTypeDecl);
+        writeLocationInformation(JSON, SourceLoc, Ctx);
+        writeConformances(JSON, *NomTypeDecl);
+        writeAssociatedTypeAliases(JSON, *NomTypeDecl);
+        writeProperties(JSON, TypeInfo, *NomTypeDecl);
         writeEnumCases(JSON, TypeInfo.EnumElements);
-        writeAttrInformation(JSON, TypeDecl->getAttrs());
+        writeAttrInformation(JSON, NomTypeDecl->getAttrs());
       });
     }
   });

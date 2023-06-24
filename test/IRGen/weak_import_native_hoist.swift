@@ -1,7 +1,8 @@
 // RUN: %empty-directory(%t)
 // RUN: %target-swift-frontend -emit-module -emit-module-path %t/weak_import_native_hoist_helper.swiftmodule -parse-as-library %S/Inputs/weak_import_native_hoist_helper.swift -enable-library-evolution
 //
-// RUN: %target-swift-frontend -disable-type-layout -primary-file %s -I %t -emit-ir | %FileCheck %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers -disable-type-layout -primary-file %s -I %t -emit-ir | %FileCheck %s
+// RUN: %target-swift-frontend -disable-type-layout -primary-file %s -I %t -emit-ir
 
 // UNSUPPORTED: OS=windows-msvc
 

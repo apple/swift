@@ -6,4 +6,3 @@
 // Too many pointer-sized integers in the IR
 // REQUIRES: PTRSIZE=64
 // REQUIRES: VENDOR=apple || OS=linux-gnu
-

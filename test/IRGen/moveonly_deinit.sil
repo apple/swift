@@ -8,7 +8,7 @@ import Builtin
 import Swift
 
 // Check that box destructor invokes deinit for a captured move-only value.
-// CHECK: @[[BOX_STRUCT_METADATA:[A-Za-z0-9_.]+]] = {{.*}} constant %swift.full_boxmetadata { void (%swift.refcounted*)* @[[BOX_STRUCT_DESTRUCTOR:[A-Za-z0-9_.]+]]
+// CHECK: @[[BOX_STRUCT_METADATA:[A-Za-z0-9_.]+]] = {{.*}} constant %swift.full_boxmetadata { ptr @[[BOX_STRUCT_DESTRUCTOR:[A-Za-z0-9_.]+]]
 
 sil_stage canonical
 
@@ -205,10 +205,8 @@ entry(%b : $MOEnum):
 
 // CHECK-LABEL: define{{.*}}@destroy_enum_value_indirect(
 // CHECK-NEXT:  entry:
-// CHECK-NEXT:    bitcast
 // CHECK-NEXT:    load
 // CHECK-NEXT:    getelementptr
-// CHECK-NEXT:    bitcast
 // CHECK-NEXT:    load
 // CHECK-NEXT:    zext
 // CHECK-NEXT:    call{{.*}}@destroy_enum(
@@ -299,7 +297,7 @@ entry(%b : $*MOGenericDeinit<T, U>):
 }
 
 // CHECK-LABEL: define{{.*}}@box_struct(
-// CHECK:         call {{.*}} @swift_allocObject({{.*}} %swift.full_boxmetadata* @[[BOX_STRUCT_METADATA]],
+// CHECK:         call {{.*}} @swift_allocObject({{.*}} ptr @[[BOX_STRUCT_METADATA]],
 
 // CHECK:       define{{.*}}@[[BOX_STRUCT_DESTRUCTOR]](
 // CHECK:        call {{.*}} @destroy_struct

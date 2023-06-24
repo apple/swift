@@ -1,6 +1,7 @@
 // RUN: %empty-directory(%t)
 // RUN: %build-irgen-test-overlays
-// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) -emit-ir -primary-file %s | %FileCheck %s -check-prefix=CHECK -check-prefix=CHECK-%target-ptrauth
+// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) %use_no_opaque_pointers -emit-ir -primary-file %s | %FileCheck %s -check-prefix=CHECK -check-prefix=CHECK-%target-ptrauth
+// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) -emit-ir -primary-file %s
 
 // REQUIRES: PTRSIZE=64
 // REQUIRES: objc_interop

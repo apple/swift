@@ -977,57 +977,6 @@ bb6:
   return %18 : $()
 }
 
-// CHECK-LABEL: sil @test_select_value : $@convention(thin) (Builtin.Word) -> Builtin.Word
-sil @test_select_value : $@convention(thin) (Builtin.Word) -> Builtin.Word {
-bb0(%0 : $Builtin.Word):
-
-  %1 = integer_literal $Builtin.Word, 1
-  %2 = integer_literal $Builtin.Word, 2
-  %3 = integer_literal $Builtin.Word, 3
-  %4 = integer_literal $Builtin.Word, 4
-  %5 = integer_literal $Builtin.Word, 5
-  %6 = integer_literal $Builtin.Word, 6
-  %11 = integer_literal $Builtin.Word, 11
-  %22 = integer_literal $Builtin.Word, 22
-  %33 = integer_literal $Builtin.Word, 33
-  %44 = integer_literal $Builtin.Word, 44
-  %55 = integer_literal $Builtin.Word, 55
-  %66 = integer_literal $Builtin.Word, 66
-
-  // CHECK: select_value %{{.*}} : $Builtin.Word, case %{{.*}}: %{{.*}}, case %{{.*}}: %{{.*}}, case %{{.*}}: %{{.*}}, case %{{.*}}: %{{.*}}, case %{{.*}}: %{{.*}}, default %{{.*}} : $Builtin.Word
-  %10 = select_value %0: $Builtin.Word, case %1: %11, case %2: %22, case %4: %44, case %5: %55, case %6: %66, default %33 : $Builtin.Word
-
-  // CHECK: return
-  return %10 : $Builtin.Word
-}
-
-enum IntEnum : Int {
-  case E0
-  case E1
-  case E2
-}
-
-// CHECK-LABEL: sil @test_select_value_with_enum : $@convention(thin) (Builtin.Word) -> Optional<IntEnum>
-sil @test_select_value_with_enum : $@convention(thin) (Builtin.Word) -> Optional<IntEnum> {
-bb0(%0 : $Builtin.Word):
-  %1 = integer_literal $Builtin.Word, 0
-  %2 = integer_literal $Builtin.Word, 1
-  %3 = enum $IntEnum, #IntEnum.E1!enumelt
-  %4 = enum $Optional<IntEnum>, #Optional.some!enumelt, %3 : $IntEnum
-  %5 = integer_literal $Builtin.Word, 2
-  %6 = enum $IntEnum, #IntEnum.E2!enumelt
-  %7 = enum $Optional<IntEnum>, #Optional.some!enumelt, %6 : $IntEnum
-  %8 = enum $IntEnum, #IntEnum.E0!enumelt
-  %9 = enum $Optional<IntEnum>, #Optional.some!enumelt, %8 : $IntEnum
-  %10 = enum $Optional<IntEnum>, #Optional.none!enumelt
-
-  // CHECK: select_value %{{.*}} : $Builtin.Word, case %{{.*}}: %{{.*}}, case %{{.*}}: %{{.*}}, case %{{.*}}: %{{.*}}, default %{{.*}} : $Optional<IntEnum>
-  %11 = select_value %0 : $Builtin.Word, case %2: %4, case %5: %7, case %1: %9, default %10 : $Optional<IntEnum>
-
-  // CHECK: return
-  return %11 : $Optional<IntEnum>
-}
-
 class ConcreteClass : ClassP {
 }
 struct Spoon : Bendable {

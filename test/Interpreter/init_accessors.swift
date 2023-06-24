@@ -332,3 +332,133 @@ test_assignments()
 // CHECK-NEXT: test-assignments-1: (3, 42)
 // CHECK-NEXT: a-init-accessor: 0
 // CHECK-NEXT: test-assignments-2: (0, 2)
+
+func test_memberwise_ordering() {
+  struct Test1 {
+    var _a: Int
+    var _b: Int
+
+    var a: Int {
+      init(initialValue) initializes(_a) accesses(_b) {
+        _a = initialValue
+      }
+
+      get { _a }
+      set { }
+    }
+  }
+
+  let test1 = Test1(_b: 42, a: 0)
+  print("test-memberwise-ordering-1: \(test1)")
+
+  struct Test2 {
+    var _a: Int
+
+    var pair: (Int, Int) {
+      init(initialValue) initializes(_a, _b) {
+        _a = initialValue.0
+        _b = initialValue.1
+      }
+
+      get { (_a, _b) }
+      set { }
+    }
+
+    var _b: Int
+  }
+
+  let test2 = Test2(pair: (-1, -2))
+  print("test-memberwise-ordering-2: \(test2)")
+
+  struct Test3 {
+    var _a: Int
+    var _b: Int
+
+    var pair: (Int, Int) {
+      init(initialValue) accesses(_a, _b) {
+      }
+
+      get { (_a, _b) }
+      set { }
+    }
+
+    var _c: Int
+  }
+
+  let test3 = Test3(_a: 1, _b: 2, _c: 3)
+  print("test-memberwise-ordering-3: \(test3)")
+}
+
+test_memberwise_ordering()
+// CHECK: test-memberwise-ordering-1: Test1(_a: 0, _b: 42)
+// CHECK-NEXT: test-memberwise-ordering-2: Test2(_a: -1, _b: -2)
+// CHECK-NEXT: test-memberwise-ordering-3: Test3(_a: 1, _b: 2, _c: 3)
+
+func test_memberwise_with_default_args() {
+  struct TestWithoutDefault {
+    var _a: Int
+    var _b: Int
+
+    var pair: (Int, Int) = (-1, 42) {
+      init(initialValue) initializes(_a, _b) {
+        _a = initialValue.0
+        _b = initialValue.1
+      }
+
+      get { (0, 42) }
+      set { }
+    }
+  }
+
+  let test1 = TestWithoutDefault()
+  print("test-memberwise_with_default-1: \(test1)")
+
+  let test2 = TestWithoutDefault(pair: (42, -1))
+  print("test-memberwise_with_default-2: \(test2)")
+
+  struct TestDefaulted {
+    var _a: Int = 0
+    var _b: Int = 0
+
+    var pair: (Int, Int) = (1, 2) {
+      init(initialValue) initializes(_a, _b) {
+        _a = initialValue.0
+        _b = initialValue.1
+      }
+
+      get { (_a, _b) }
+      set { }
+    }
+  }
+
+  let test3 = TestDefaulted()
+  print("test-defaulted-1: \(test3)")
+
+  let test4 = TestDefaulted(pair: (3, 4))
+  print("test-defaulted-2: \(test4)")
+
+  class TestClass {
+    var _q: String = "<<default>>"
+    var _a: Int = 1
+
+    var pair: (String, Int) = ("", 42) {
+      init(initialValue) initializes(_q, _a) {
+        _q = initialValue.0
+        _a = initialValue.1
+      }
+
+      get { (_q, _a) }
+      set { }
+    }
+  }
+
+  let test5 = TestClass()
+  print("test-defaulted-class: \(test5.pair)")
+}
+
+test_memberwise_with_default_args()
+// CHECK: test-memberwise_with_default-1: TestWithoutDefault(_a: -1, _b: 42)
+// CHECK-NEXT: test-memberwise_with_default-2: TestWithoutDefault(_a: 42, _b: -1)
+// CHECK-NEXT: test-defaulted-1: TestDefaulted(_a: 0, _b: 0)
+// CHECK-NEXT: test-defaulted-2: TestDefaulted(_a: 3, _b: 4)
+// CHECK-NEXT: test-defaulted-class: ("<<default>>", 1)

@@ -57,7 +57,7 @@ func entityClient() {
 	root.addEntity(leaf)
 	// CHECK-COMMON: call swiftcc void @"$s14OriginalModule6EntityV03addC0yyACF"()
 	let moved = MovedClass()
-	// CHECK-COMMON: call swiftcc %T14OriginalModule10MovedClassC* @"$s14OriginalModule10MovedClassCACycfC"
+	// CHECK-COMMON: call swiftcc ptr @"$s14OriginalModule10MovedClassCACycfC"
 	moved.MovableFuncFoo()
 	// CHECK-COMMON: call swiftcc void @"$s14OriginalModule10MovedClassC14MovableFuncFooyyF"
 }

@@ -1200,7 +1200,7 @@ public func closureClassUseAfterConsumeArg(_ argX: inout NonTrivialStruct) {
 // We do not support captures of vars by closures today.
 public func closureCaptureClassUseAfterConsume() {
     var x2 = NonTrivialStruct()
-    // expected-error @-1 {{missing reinitialization of inout parameter 'x2' after consume}}
+    // expected-error @-1 {{missing reinitialization of closure capture 'x2' after consume}}
     // expected-error @-2 {{'x2' consumed more than once}}
     x2 = NonTrivialStruct()
     let f = {
@@ -1216,7 +1216,7 @@ public func closureCaptureClassUseAfterConsumeError() {
     var x2 = NonTrivialStruct()
     // expected-error @-1 {{'x2' consumed more than once}}
     // expected-error @-2 {{'x2' consumed more than once}}
-    // expected-error @-3 {{missing reinitialization of inout parameter 'x2' after consume}}
+    // expected-error @-3 {{missing reinitialization of closure capture 'x2' after consume}}
     // expected-error @-4 {{'x2' consumed more than once}}
     // expected-error @-5 {{'x2' consumed more than once}}
     x2 = NonTrivialStruct()
@@ -1251,7 +1251,7 @@ public func closureCaptureClassArgUseAfterConsume(_ x2: inout NonTrivialStruct) 
 // TODO: Improve error msg here to make it clear the use is due to the defer.
 public func deferCaptureClassUseAfterConsume() {
     var x2 = NonTrivialStruct()
-    // expected-error @-1 {{missing reinitialization of inout parameter 'x2' after consume}}
+    // expected-error @-1 {{missing reinitialization of closure capture 'x2' after consume}}
     // expected-error @-2 {{'x2' consumed more than once}}
     // expected-error @-3 {{'x2' used after consume}}
     x2 = NonTrivialStruct()
@@ -1266,7 +1266,7 @@ public func deferCaptureClassUseAfterConsume() {
 
 public func deferCaptureClassUseAfterConsume2() {
     var x2 = NonTrivialStruct()
-    // expected-error @-1 {{missing reinitialization of inout parameter 'x2' after consume}}
+    // expected-error @-1 {{missing reinitialization of closure capture 'x2' after consume}}
     // expected-error @-2 {{'x2' consumed more than once}}
     // expected-error @-3 {{'x2' used after consume}}
     x2 = NonTrivialStruct()
@@ -1281,7 +1281,7 @@ public func deferCaptureClassUseAfterConsume2() {
 }
 
 public func deferCaptureClassArgUseAfterConsume(_ x2: inout NonTrivialStruct) {
-    // expected-error @-1 {{missing reinitialization of inout parameter 'x2' after consume}}
+    // expected-error @-1 {{missing reinitialization of closure capture 'x2' after consume}}
     // expected-error @-2 {{'x2' consumed more than once}}
     borrowVal(x2)
     defer {
@@ -1295,7 +1295,7 @@ public func deferCaptureClassArgUseAfterConsume(_ x2: inout NonTrivialStruct) {
 
 public func closureAndDeferCaptureClassUseAfterConsume() {
     var x2 = NonTrivialStruct()
-    // expected-error @-1 {{missing reinitialization of inout parameter 'x2' after consume}}
+    // expected-error @-1 {{missing reinitialization of closure capture 'x2' after consume}}
     // expected-error @-2 {{'x2' consumed more than once}}
     x2 = NonTrivialStruct()
     let f = {
@@ -1313,7 +1313,7 @@ public func closureAndDeferCaptureClassUseAfterConsume() {
 
 public func closureAndDeferCaptureClassUseAfterConsume2() {
     var x2 = NonTrivialStruct()
-    // expected-error @-1 {{missing reinitialization of inout parameter 'x2' after consume}}
+    // expected-error @-1 {{missing reinitialization of closure capture 'x2' after consume}}
     // expected-error @-2 {{'x2' consumed more than once}}
     // expected-error @-3 {{'x2' used after consume}}
     x2 = NonTrivialStruct()
@@ -1333,7 +1333,7 @@ public func closureAndDeferCaptureClassUseAfterConsume2() {
 
 public func closureAndDeferCaptureClassUseAfterConsume3() {
     var x2 = NonTrivialStruct()
-    // expected-error @-1 {{missing reinitialization of inout parameter 'x2' after consume}}
+    // expected-error @-1 {{missing reinitialization of closure capture 'x2' after consume}}
     // expected-error @-2 {{'x2' consumed more than once}}
     // expected-error @-3 {{'x2' used after consume}}
     x2 = NonTrivialStruct()
@@ -1353,7 +1353,7 @@ public func closureAndDeferCaptureClassUseAfterConsume3() {
 }
 
 public func closureAndDeferCaptureClassArgUseAfterConsume(_ x2: inout NonTrivialStruct) {
-    // expected-error @-1 {{missing reinitialization of inout parameter 'x2' after consume}}
+    // expected-error @-1 {{missing reinitialization of closure capture 'x2' after consume}}
     // expected-error @-2 {{'x2' consumed more than once}}
     // expected-note @-3 {{'x2' is declared 'inout'}}
     let f = { // expected-error {{escaping closure captures 'inout' parameter 'x2'}}
@@ -1373,7 +1373,7 @@ public func closureAndDeferCaptureClassArgUseAfterConsume(_ x2: inout NonTrivial
 public func closureAndClosureCaptureClassUseAfterConsume() {
     var x2 = NonTrivialStruct()
     // expected-error @-1 {{'x2' consumed more than once}}
-    // expected-error @-2 {{missing reinitialization of inout parameter 'x2' after consume}}
+    // expected-error @-2 {{missing reinitialization of closure capture 'x2' after consume}}
     x2 = NonTrivialStruct()
     let f = {
         let g = {
@@ -1390,7 +1390,7 @@ public func closureAndClosureCaptureClassUseAfterConsume() {
 public func closureAndClosureCaptureClassUseAfterConsume2() {
     var x2 = NonTrivialStruct()
     // expected-error @-1 {{'x2' consumed more than once}}
-    // expected-error @-2 {{missing reinitialization of inout parameter 'x2' after consume}}
+    // expected-error @-2 {{missing reinitialization of closure capture 'x2' after consume}}
     x2 = NonTrivialStruct()
     let f = {
         let g = {
@@ -1408,7 +1408,7 @@ public func closureAndClosureCaptureClassUseAfterConsume2() {
 public func closureAndClosureCaptureClassUseAfterConsume3() {
     var x2 = NonTrivialStruct()
     // expected-error @-1 {{'x2' consumed more than once}}
-    // expected-error @-2 {{missing reinitialization of inout parameter 'x2' after consume}}
+    // expected-error @-2 {{missing reinitialization of closure capture 'x2' after consume}}
     // expected-error @-3 {{'x2' used after consume}}
     x2 = NonTrivialStruct()
     let f = {

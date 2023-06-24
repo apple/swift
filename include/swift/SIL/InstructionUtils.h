@@ -257,6 +257,80 @@ private:
 /// return SILValue().
 SILValue getStaticOverloadForSpecializedPolymorphicBuiltin(BuiltinInst *bi);
 
+/// An ADT for writing generic code against conversion instructions.
+struct ConversionOperation {
+  SingleValueInstruction *inst = nullptr;
+
+  ConversionOperation() = default;
+
+  explicit ConversionOperation(SILInstruction *inst) {
+    auto *svi = dyn_cast<SingleValueInstruction>(inst);
+    if (!svi) {
+      return;
+    }
+    if (!ConversionOperation::isa(svi)) {
+      return;
+    }
+    this->inst = svi;
+  }
+
+  explicit ConversionOperation(SILValue value) {
+    auto *inst = value->getDefiningInstruction();
+    if (!inst) {
+      return;
+    }
+    auto *svi = dyn_cast<SingleValueInstruction>(inst);
+    if (!svi) {
+      return;
+    }
+    if (!ConversionOperation::isa(svi)) {
+      return;
+    }
+    this->inst = svi;
+  }
+
+  operator bool() const { return inst != nullptr; }
+
+  SingleValueInstruction *operator->() { return inst; }
+  SingleValueInstruction *operator->() const { return inst; }
+  SingleValueInstruction *operator*() { return inst; }
+  SingleValueInstruction *operator*() const { return inst; }
+
+  static bool isa(SILInstruction *inst) {
+    switch (inst->getKind()) {
+    case SILInstructionKind::ConvertFunctionInst:
+    case SILInstructionKind::UpcastInst:
+    case SILInstructionKind::AddressToPointerInst:
+    case SILInstructionKind::UncheckedTrivialBitCastInst:
+    case SILInstructionKind::UncheckedAddrCastInst:
+    case SILInstructionKind::UncheckedBitwiseCastInst:
+    case SILInstructionKind::RefToRawPointerInst:
+    case SILInstructionKind::RawPointerToRefInst:
+    case SILInstructionKind::ConvertEscapeToNoEscapeInst:
+    case SILInstructionKind::RefToBridgeObjectInst:
+    case SILInstructionKind::BridgeObjectToRefInst:
+    case SILInstructionKind::BridgeObjectToWordInst:
+    case SILInstructionKind::ThinToThickFunctionInst:
+    case SILInstructionKind::ThickToObjCMetatypeInst:
+    case SILInstructionKind::ObjCToThickMetatypeInst:
+    case SILInstructionKind::ObjCMetatypeToObjectInst:
+    case SILInstructionKind::ObjCExistentialMetatypeToObjectInst:
+    case SILInstructionKind::UnconditionalCheckedCastInst:
+    case SILInstructionKind::UncheckedRefCastInst:
+    case SILInstructionKind::UncheckedValueCastInst:
+    case SILInstructionKind::RefToUnmanagedInst:
+    case SILInstructionKind::RefToUnownedInst:
+    case SILInstructionKind::UnmanagedToRefInst:
+    case SILInstructionKind::UnownedToRefInst:
+      return true;
+    default:
+      return false;
+    }
+  }
+
+  SILValue getConverted() { return inst->getOperand(0); }
+};
+
 } // end namespace swift
 
 #endif

@@ -658,3 +658,69 @@ enum LotsOfOptional {
 func testLotsOfNil(_ x: LotsOfOptional) {
   if case .yup(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil) = x {}
 }
+
+// https://github.com/apple/swift/issues/66752
+// FIXME: We ought to improve the diagnostics here
+func issue66752(_ x: Result<String, Error>) {
+  let _ = {
+    if case .failure() = x {}
+    // expected-error@-1 {{type '()' cannot conform to 'Error}}
+    // expected-note@-2 {{only concrete types such as structs, enums and classes can conform to protocols}}
+    // expected-note@-3 {{required by generic enum 'Result' where 'Failure' = '()'}}
+  }
+  let _ = {
+    if case (.failure(), let y) = (x, 0) {}
+    // expected-error@-1 {{type '()' cannot conform to 'Error}}
+    // expected-note@-2 {{only concrete types such as structs, enums and classes can conform to protocols}}
+    // expected-note@-3 {{required by generic enum 'Result' where 'Failure' = '()'}}
+  }
+  if case .failure() = x {}
+  // expected-error@-1 {{type '()' cannot conform to 'Error}}
+  // expected-note@-2 {{only concrete types such as structs, enums and classes can conform to protocols}}
+  // expected-note@-3 {{required by generic enum 'Result' where 'Failure' = '()'}}
+  
+  if case (.failure(), let y) = (x, 0) {}
+  // expected-error@-1 {{type '()' cannot conform to 'Error}}
+  // expected-note@-2 {{only concrete types such as structs, enums and classes can conform to protocols}}
+  // expected-note@-3 {{required by generic enum 'Result' where 'Failure' = '()'}}
+}
+
+// https://github.com/apple/swift/issues/66750
+// FIXME: We ought to improve the diagnostics here
+func issue66750(_ x: Result<String, Error>) {
+  let _ = {
+    switch x {
+    case .success:
+      "a"
+    case .failure():
+      // expected-error@-1 {{type '()' cannot conform to 'Error}}
+      // expected-note@-2 {{only concrete types such as structs, enums and classes can conform to protocols}}
+      // expected-note@-3 {{required by generic enum 'Result' where 'Failure' = '()'}}
+      "b"
+    }
+  }
+  let _ = {
+    switch (x, 0) {
+    case (.success, let y):
+      "a"
+    case (.failure(), let y):
+      // expected-error@-1 {{type '()' cannot conform to 'Error}}
+      // expected-note@-2 {{only concrete types such as structs, enums and classes can conform to protocols}}
+      // expected-note@-3 {{required by generic enum 'Result' where 'Failure' = '()'}}
+      "b"
+    }
+  }
+  switch x {
+  case .success:
+    break
+  case .failure(): // expected-error {{tuple pattern cannot match values of the non-tuple type 'any Error'}}
+    break
+  }
+  switch (x, 0) {
+  case (.success, let y):
+    break
+  case (.failure(), let y):
+    // expected-error@-1 {{tuple pattern cannot match values of the non-tuple type 'any Error'}}
+    break
+  }
+}

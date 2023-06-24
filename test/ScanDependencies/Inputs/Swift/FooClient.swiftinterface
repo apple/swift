@@ -1,0 +1,5 @@
+// swift-interface-format-version: 1.0
+// swift-module-flags: -module-name FooClient
+import Swift
+import Foo
+public func overlayFuncA() { }

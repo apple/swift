@@ -2041,8 +2041,14 @@ void SwiftLangSupport::getCursorInfo(
                            fileSystem, Receiver, Offset, Actionables,
                            SymbolGraph](
                               const RequestResult<CursorInfoData> &Res) {
+    if (Res.isCancelled()) {
+      // If the AST-based result got cancelled, we don’t want to start
+      // solver-based cursor info anymore.
+      Receiver(Res);
+      return;
+    }
     // AST based completion *always* produces a result
-    bool NoResults = Res.isError() || Res.isCancelled();
+    bool NoResults = Res.isError();
     if (Res.isValue()) {
       NoResults = Res.value().Symbols.empty();
     }

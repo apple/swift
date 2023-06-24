@@ -990,7 +990,6 @@ public:
   SourceRange
   getSourceRangeOfThisASTNode(bool omitAssertions = false) const override;
   std::string getClassName() const override;
-  bool ignoreInDebugInfo() const override { return true; }
 
 private:
   void expandAScopeThatDoesNotCreateANewInsertionPoint(ScopeCreator &);

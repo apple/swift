@@ -28,6 +28,7 @@
 #include "swift/Basic/Range.h"
 #include "swift/Basic/STLExtras.h"
 #include "swift/Demangling/Demangler.h"
+#include "swift/RemoteInspection/GenericMetadataCacheEntry.h"
 #include "swift/Runtime/Casting.h"
 #include "swift/Runtime/EnvironmentVariables.h"
 #include "swift/Runtime/ExistentialContainer.h"
@@ -426,6 +427,16 @@ namespace {
     }
   };
 } // end anonymous namespace
+
+namespace swift {
+  struct StaticAssertGenericMetadataCacheEntryValueOffset {
+    static_assert(
+      offsetof(GenericCacheEntry, Value) ==
+      offsetof(swift::GenericMetadataCacheEntry<InProcess::StoredPointer>,
+               Value),
+      "The generic metadata cache entry layout mismatch");
+  };
+}
 
 namespace {
   class GenericMetadataCache :
@@ -2641,41 +2652,6 @@ void swift::swift_initStructMetadata(StructMetadata *structType,
   vwtable->publishLayout(layout);
 }
 
-namespace {
-  enum LayoutStringFlags : uint64_t {
-    Empty = 0,
-    // TODO: Track other useful information tha can be used to optimize layout
-    //       strings, like different reference kinds contained in the string
-    //       number of ref counting operations (maybe up to 4), so we can
-    //       use witness functions optimized for these cases.
-    HasRelativePointers = (1ULL << 63),
-  };
-
-  inline bool operator&(LayoutStringFlags a, LayoutStringFlags b) {
-    return (uint64_t(a) & uint64_t(b)) != 0;
-  }
-  inline LayoutStringFlags operator|(LayoutStringFlags a, LayoutStringFlags b) {
-    return LayoutStringFlags(uint64_t(a) | uint64_t(b));
-  }
-  inline LayoutStringFlags &operator|=(LayoutStringFlags &a, LayoutStringFlags b) {
-    return a = (a | b);
-  }
-
-  template <typename T>
-  inline T readBytes(const uint8_t *layoutStr, size_t &i) {
-    T returnVal;
-    memcpy(&returnVal, layoutStr + i, sizeof(T));
-    i += sizeof(T);
-    return returnVal;
-  }
-
-  template <typename T>
-  inline void writeBytes(uint8_t *layoutStr, size_t &i, T value) {
-    memcpy(layoutStr + i, &value, sizeof(T));
-    i += sizeof(T);
-  }
-} // end anonymous namespace
-
 void swift::swift_initStructMetadataWithLayoutString(
     StructMetadata *structType, StructLayoutFlags layoutFlags, size_t numFields,
     const uint8_t *const *fieldTypes, const uint8_t *fieldTags,
@@ -2727,30 +2703,21 @@ void swift::swift_initStructMetadataWithLayoutString(
       extraInhabitantCount = fieldExtraInhabitantCount;
     }
 
-    if (fieldType->vw_size() == 0) {
-      continue;
-    } else if (fieldType->getValueWitnesses()->isPOD()) {
-      // no extra space required for POD
-    } else if (fieldType->hasLayoutString()) {
-      refCountBytes += *(const size_t *)(fieldType->getLayoutString() +
-                                         sizeof(uint64_t));
-    } else if (fieldType->isClassObject() || fieldType->isAnyExistentialType()) {
-      refCountBytes += sizeof(uint64_t);
-    } else {
-      refCountBytes += sizeof(uint64_t) + sizeof(uintptr_t);
-    }
+    refCountBytes += _swift_refCountBytesForMetatype(fieldType);
   }
 
-  const size_t layoutStringHeaderSize = sizeof(uint64_t) + sizeof(size_t);
   const size_t fixedLayoutStringSize = layoutStringHeaderSize +
                                        sizeof(uint64_t) * 2;
 
-  uint8_t *layoutStr = (uint8_t *)MetadataAllocator(LayoutStringTag)
-      .Allocate(fixedLayoutStringSize + refCountBytes, alignof(uint8_t));
+  uint8_t *layoutStr =
+      (uint8_t *)MetadataAllocator(LayoutStringTag)
+          .Allocate(llvm::alignTo(fixedLayoutStringSize + refCountBytes,
+                                  sizeof(void *)),
+                    alignof(uint8_t));
 
-  size_t layoutStrOffset = sizeof(uint64_t);
+  LayoutStringWriter writer{layoutStr, sizeof(uint64_t)};
 
-  writeBytes(layoutStr, layoutStrOffset, refCountBytes);
+  writer.writeBytes(refCountBytes);
   size_t fullOffset = 0;
   size_t previousFieldOffset = 0;
   LayoutStringFlags flags = LayoutStringFlags::Empty;
@@ -2770,7 +2737,7 @@ void swift::swift_initStructMetadataWithLayoutString(
                                      RefCountingKind::UnknownWeak;
 
         auto tagAndOffset = ((uint64_t)tag << 56) | offset;
-        writeBytes(layoutStr, layoutStrOffset, tagAndOffset);
+        writer.writeBytes(tagAndOffset);
       }
 
       fullOffset += fieldType->size;
@@ -2781,103 +2748,18 @@ void swift::swift_initStructMetadataWithLayoutString(
 
     const Metadata *fieldType = (const Metadata*)fieldTypes[i];
 
-    fullOffset = roundUpToAlignMask(fullOffset, fieldType->vw_alignment() - 1);
-    size_t offset = fullOffset - unalignedOffset + previousFieldOffset;
-
-    if (fieldType->vw_size() == 0) {
-      continue;
-    } else if (fieldType->getValueWitnesses()->isPOD()) {
-      // No need to handle PODs
-      previousFieldOffset = offset + fieldType->vw_size();
-      fullOffset += fieldType->vw_size();
-    } else if (fieldType->hasLayoutString()) {
-      const uint8_t *fieldLayoutStr = fieldType->getLayoutString();
-      const LayoutStringFlags fieldFlags =
-          *(const LayoutStringFlags *)fieldLayoutStr;
-      const size_t fieldRefCountBytes =
-          *(const size_t *)(fieldLayoutStr + sizeof(uint64_t));
-      if (fieldRefCountBytes > 0) {
-        flags |= fieldFlags;
-        memcpy(layoutStr + layoutStrOffset, fieldLayoutStr + layoutStringHeaderSize,
-               fieldRefCountBytes);
-
-        if (fieldFlags & LayoutStringFlags::HasRelativePointers) {
-          swift_resolve_resilientAccessors(layoutStr, layoutStrOffset,
-                                           fieldLayoutStr, fieldType);
-        }
-
-        if (offset) {
-          auto layoutStrOffsetCopy = layoutStrOffset;
-          auto firstTagAndOffset =
-              readBytes<uint64_t>(layoutStr, layoutStrOffsetCopy);
-          layoutStrOffsetCopy = layoutStrOffset;
-          firstTagAndOffset += offset;
-          writeBytes(layoutStr, layoutStrOffsetCopy, firstTagAndOffset);
-        }
-
-        auto previousFieldOffsetOffset =
-            layoutStringHeaderSize + fieldRefCountBytes;
-        previousFieldOffset = readBytes<uint64_t>(fieldLayoutStr,
-                                                  previousFieldOffsetOffset);
-        layoutStrOffset += fieldRefCountBytes;
-      } else {
-        previousFieldOffset += fieldType->vw_size();
-      }
-      fullOffset += fieldType->vw_size();
-    } else if (auto *cls = fieldType->getClassObject()) {
-      RefCountingKind tag;
-      if (!cls->isTypeMetadata()) {
-      #if SWIFT_OBJC_INTEROP
-        tag = RefCountingKind::ObjC;
-      #else
-        tag = RefCountingKind::Unknown;
-      #endif
-      } else {
-        auto *vwt = cls->getValueWitnesses();
-        if (vwt == &VALUE_WITNESS_SYM(Bo)) {
-          tag = RefCountingKind::NativeStrong;
-        } else if (vwt == &VALUE_WITNESS_SYM(BO)) {
-        #if SWIFT_OBJC_INTEROP
-          tag = RefCountingKind::ObjC;
-        #else
-          tag = RefCountingKind::Unknown;
-        #endif
-        } else if (vwt == &VALUE_WITNESS_SYM(Bb)) {
-          tag = RefCountingKind::Bridge;
-        } else {
-          goto metadata;
-        };
-      }
-
-      writeBytes(layoutStr, layoutStrOffset, ((uint64_t)tag << 56) | offset);
-      previousFieldOffset = fieldType->vw_size();
-      fullOffset += previousFieldOffset;
-    } else if (fieldType->isAnyExistentialType()) {
-      auto *existential = dyn_cast<ExistentialTypeMetadata>(fieldType);
-      assert(existential);
-      auto tag = existential->isClassBounded() ? RefCountingKind::Unknown
-                                               : RefCountingKind::Existential;
-      writeBytes(layoutStr, layoutStrOffset, ((uint64_t)tag << 56) | offset);
-      previousFieldOffset = fieldType->vw_size();
-      fullOffset += previousFieldOffset;
-    } else {
-metadata:
-      writeBytes(layoutStr, layoutStrOffset,
-                 ((uint64_t)RefCountingKind::Metatype << 56) | offset);
-      writeBytes(layoutStr, layoutStrOffset, fieldType);
-      previousFieldOffset = fieldType->vw_size();
-      fullOffset += previousFieldOffset;
-    }
+    _swift_addRefCountStringForMetatype(writer, flags, fieldType, fullOffset,
+                                        previousFieldOffset);
   }
 
-  writeBytes(layoutStr, layoutStrOffset, previousFieldOffset);
-  writeBytes(layoutStr, layoutStrOffset, 0);
+  writer.writeBytes((uint64_t)previousFieldOffset);
+  writer.writeBytes((uint64_t)0);
 
   // we mask out HasRelativePointers, because at this point they have all been
   // resolved to metadata pointers
-  layoutStrOffset = 0;
-  writeBytes(layoutStr, layoutStrOffset,
-      ((uint64_t)flags) & ~((uint64_t)LayoutStringFlags::HasRelativePointers));
+  writer.offset = 0;
+  writer.writeBytes(((uint64_t)flags) &
+                    ~((uint64_t)LayoutStringFlags::HasRelativePointers));
 
   structType->setLayoutString(layoutStr);
 
@@ -2894,6 +2776,121 @@ metadata:
   installCommonValueWitnesses(layout, vwtable);
 
   vwtable->publishLayout(layout);
+}
+
+size_t swift::_swift_refCountBytesForMetatype(const Metadata *type) {
+  if (type->vw_size() == 0 || type->getValueWitnesses()->isPOD()) {
+    return 0;
+  } else if (type->hasLayoutString()) {
+    size_t offset = sizeof(uint64_t);
+    return LayoutStringReader{type->getLayoutString(), offset}
+        .readBytes<size_t>();
+  } else if (type->isClassObject() || type->isAnyExistentialType()) {
+    return sizeof(uint64_t);
+  } else if (auto *tuple = dyn_cast<TupleTypeMetadata>(type)) {
+    size_t res = 0;
+    for (InProcess::StoredSize i = 0; i < tuple->NumElements; i++) {
+      res += _swift_refCountBytesForMetatype(tuple->getElement(i).Type);
+    }
+    return res;
+  } else {
+    return sizeof(uint64_t) + sizeof(uintptr_t);
+  }
+}
+
+void swift::_swift_addRefCountStringForMetatype(LayoutStringWriter &writer,
+                                                LayoutStringFlags &flags,
+                                                const Metadata *fieldType,
+                                                size_t &fullOffset,
+                                                size_t &previousFieldOffset) {
+  size_t unalignedOffset = fullOffset;
+  fullOffset = roundUpToAlignMask(fullOffset, fieldType->vw_alignment() - 1);
+  size_t offset = fullOffset - unalignedOffset + previousFieldOffset;
+  if (fieldType->vw_size() == 0) {
+    return;
+  } else if (fieldType->getValueWitnesses()->isPOD()) {
+    // No need to handle PODs
+    previousFieldOffset = offset + fieldType->vw_size();
+    fullOffset += fieldType->vw_size();
+  } else if (fieldType->hasLayoutString()) {
+    LayoutStringReader reader{fieldType->getLayoutString(), 0};
+    const auto fieldFlags = reader.readBytes<LayoutStringFlags>();
+    const auto fieldRefCountBytes = reader.readBytes<size_t>();
+    if (fieldRefCountBytes > 0) {
+      flags |= fieldFlags;
+      memcpy(writer.layoutStr + writer.offset,
+             reader.layoutStr + layoutStringHeaderSize, fieldRefCountBytes);
+
+      if (fieldFlags & LayoutStringFlags::HasRelativePointers) {
+        swift_resolve_resilientAccessors(writer.layoutStr, writer.offset,
+                                         reader.layoutStr, fieldType);
+      }
+
+      if (offset) {
+        auto writerOffsetCopy = writer.offset;
+        reader.offset = layoutStringHeaderSize;
+        auto firstTagAndOffset = reader.readBytes<uint64_t>();
+        firstTagAndOffset += offset;
+        writer.writeBytes(firstTagAndOffset);
+        writer.offset = writerOffsetCopy;
+      }
+
+      reader.offset = layoutStringHeaderSize + fieldRefCountBytes;
+      previousFieldOffset = reader.readBytes<uint64_t>();
+      writer.skip(fieldRefCountBytes);
+    } else {
+      previousFieldOffset += fieldType->vw_size();
+    }
+    fullOffset += fieldType->vw_size();
+  } else if (auto *tuple = dyn_cast<TupleTypeMetadata>(fieldType)) {
+    for (InProcess::StoredSize i = 0; i < tuple->NumElements; i++) {
+      _swift_addRefCountStringForMetatype(writer, flags,
+                                          tuple->getElement(i).Type, fullOffset,
+                                          previousFieldOffset);
+    }
+  } else if (auto *cls = fieldType->getClassObject()) {
+    RefCountingKind tag;
+    if (!cls->isTypeMetadata()) {
+    #if SWIFT_OBJC_INTEROP
+      tag = RefCountingKind::ObjC;
+    #else
+      tag = RefCountingKind::Unknown;
+    #endif
+    } else {
+      auto *vwt = cls->getValueWitnesses();
+      if (vwt == &VALUE_WITNESS_SYM(Bo)) {
+        tag = RefCountingKind::NativeStrong;
+      } else if (vwt == &VALUE_WITNESS_SYM(BO)) {
+      #if SWIFT_OBJC_INTEROP
+        tag = RefCountingKind::ObjC;
+      #else
+        tag = RefCountingKind::Unknown;
+      #endif
+      } else if (vwt == &VALUE_WITNESS_SYM(Bb)) {
+        tag = RefCountingKind::Bridge;
+      } else {
+        goto metadata;
+      };
+    }
+
+    writer.writeBytes(((uint64_t)tag << 56) | offset);
+    previousFieldOffset = fieldType->vw_size();
+    fullOffset += previousFieldOffset;
+  } else if (fieldType->isAnyExistentialType()) {
+    auto *existential = dyn_cast<ExistentialTypeMetadata>(fieldType);
+    assert(existential);
+    auto tag = existential->isClassBounded() ? RefCountingKind::Unknown
+                                             : RefCountingKind::Existential;
+    writer.writeBytes(((uint64_t)tag << 56) | offset);
+    previousFieldOffset = fieldType->vw_size();
+    fullOffset += previousFieldOffset;
+  } else {
+metadata:
+  writer.writeBytes(((uint64_t)RefCountingKind::Metatype << 56) | offset);
+  writer.writeBytes(fieldType);
+  previousFieldOffset = fieldType->vw_size();
+  fullOffset += previousFieldOffset;
+  }
 }
 
 /***************************************************************************/
@@ -5677,6 +5674,7 @@ instantiateWitnessTable(const Metadata *Type,
                         void **fullTable) {
   auto protocol = conformance->getProtocol();
   auto genericTable = conformance->getGenericWitnessTable();
+  auto *genericArgs = Type->getGenericArgs();
 
   // The number of witnesses provided by the table pattern.
   size_t numPatternWitnesses = genericTable->WitnessTableSizeInWords;
@@ -5718,20 +5716,38 @@ instantiateWitnessTable(const Metadata *Type,
   // requirements into the private area.
   {
     unsigned currentInstantiationArg = 0;
-    auto copyNextInstantiationArg = [&] {
-      assert(currentInstantiationArg < privateSizeInWords);
-      table[-1 - (int)currentInstantiationArg] =
-        const_cast<void *>(instantiationArgs[currentInstantiationArg]);
-      ++currentInstantiationArg;
-    };
+
+    llvm::ArrayRef<GenericPackShapeDescriptor> packShapeDescriptors =
+        conformance->getConditionalPackShapeDescriptors();
+    unsigned packIdx = 0;
 
     for (const auto &conditionalRequirement
           : conformance->getConditionalRequirements()) {
-      if (conditionalRequirement.Flags.hasKeyArgument())
-        copyNextInstantiationArg();
+      if (!conditionalRequirement.Flags.hasKeyArgument())
+        continue;
 
-      assert(!conditionalRequirement.Flags.isPackRequirement() &&
-             "Packs not supported here yet");
+      assert(currentInstantiationArg < privateSizeInWords);
+
+      auto *instantiationArg = instantiationArgs[currentInstantiationArg];
+
+      // Heap-allocate witness tables for conditional pack conformance requirements.
+      if (conditionalRequirement.Flags.isPackRequirement()) {
+        auto packShapeDescriptor = packShapeDescriptors[packIdx];
+        assert(packShapeDescriptor.Kind == GenericPackKind::WitnessTable);
+        assert(packShapeDescriptor.Index == currentInstantiationArg);
+        size_t count = reinterpret_cast<const size_t>(
+            genericArgs[packShapeDescriptor.ShapeClass]);
+
+        auto *wtable = reinterpret_cast<const WitnessTable * const*>(instantiationArg);
+        wtable = swift_allocateWitnessTablePack(wtable, count);
+
+        instantiationArg = wtable;
+        ++packIdx;
+      }
+
+      table[-1 - (int)currentInstantiationArg] = const_cast<void *>(instantiationArg);
+
+      ++currentInstantiationArg;
     }
   }
 
@@ -6046,6 +6062,9 @@ instantiateRelativeWitnessTable(const Metadata *Type,
           : conformance->getConditionalRequirements()) {
       if (conditionalRequirement.Flags.hasKeyArgument())
         copyNextInstantiationArg();
+
+      assert(!conditionalRequirement.Flags.isPackRequirement() &&
+             "Not supported yet");
     }
   }
 

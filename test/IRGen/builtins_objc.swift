@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend -parse-stdlib -primary-file %s -emit-ir > %t.ir
+// RUN: %target-swift-frontend %use_no_opaque_pointers -parse-stdlib -primary-file %s -emit-ir > %t.ir
+// RUN: %target-swift-frontend -parse-stdlib -primary-file %s -emit-ir
 // RUN: %FileCheck %s --input-file=%t.ir
 
 // REQUIRES: executable_test

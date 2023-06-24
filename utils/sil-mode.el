@@ -130,7 +130,7 @@
    ;; swift declaration as well handled at the top.
    `(,(regexp-opt '("init_enum_data_addr" "unchecked_enum_data"
                     "unchecked_take_enum_data_addr" "inject_enum_addr"
-                    "select_enum" "select_value" "select_enum_addr")
+                    "select_enum" "select_enum_addr")
                   'words) . font-lock-keyword-face)
    ;; Protocol and Protocol Composition Types
    `(,(regexp-opt '("init_existential_addr" "deinit_existential_addr"

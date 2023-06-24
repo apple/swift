@@ -80,14 +80,14 @@ entry:
 }
 
 // CHECK-LABEL: define {{.*}} @test_unaligned
-// CHECK:   store i64 %{{.*}}, i64* %{{.*}}, align 8
-// CHECK:   %{{.*}} = load i64, i64* %{{.*}}, align 8
-// CHECK:   store i64 %{{.*}}, i64* %{{.*}}, align 1
-// CHECK:   %{{.*}} = load i64, i64* %{{.*}}, align 1
-// CHECK:   store i64 %{{.*}}, i64* %{{.*}}, align 8
-// CHECK:   %{{.*}} = load i64, i64* %{{.*}}, align 8
-// CHECK:   store i64 %{{.*}}, i64* %{{.*}}, align 536870912
-// CHECK:   %{{.*}} = load i64, i64* %{{.*}}, align 536870912
+// CHECK:   store i64 %{{.*}}, ptr %{{.*}}, align 8
+// CHECK:   %{{.*}} = load i64, ptr %{{.*}}, align 8
+// CHECK:   store i64 %{{.*}}, ptr %{{.*}}, align 1
+// CHECK:   %{{.*}} = load i64, ptr %{{.*}}, align 1
+// CHECK:   store i64 %{{.*}}, ptr %{{.*}}, align 8
+// CHECK:   %{{.*}} = load i64, ptr %{{.*}}, align 8
+// CHECK:   store i64 %{{.*}}, ptr %{{.*}}, align 536870912
+// CHECK:   %{{.*}} = load i64, ptr %{{.*}}, align 536870912
 sil @test_unaligned : $@convention(thin) (Builtin.RawPointer, Builtin.Int64) -> () {
 entry(%0 : $Builtin.RawPointer, %1 : $Builtin.Int64):
   %2 = pointer_to_address %0 : $Builtin.RawPointer to $*Builtin.Int64

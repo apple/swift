@@ -1,5 +1,7 @@
 // RUN: %target-swift-frontend -disable-objc-attr-requires-foundation-module -typecheck -verify -import-cf-types -I %S/Inputs/custom-modules %s
 
+// RUN: %target-swift-frontend -disable-objc-attr-requires-foundation-module -typecheck -verify -import-cf-types -enable-experimental-cxx-interop -I %S/Inputs/custom-modules %s
+
 // REQUIRES: objc_interop
 
 import CoreCooling

@@ -735,7 +735,7 @@ class FailableBaseClass {
 // CHECK:       bb0(%0 : $FailableBaseClass):
 // CHECK:         [[CANARY:%.*]] = apply
 // CHECK-NEXT:    [[MEMBER_ADDR:%.*]] = ref_element_addr %0
-// CHECK-NEXT:    [[WRITE:%.*]] = begin_access [modify] [dynamic] [[MEMBER_ADDR]] : $*Canary
+// CHECK-NEXT:    [[WRITE:%.*]] = begin_access [init] [static] [[MEMBER_ADDR]] : $*Canary
 // CHECK-NEXT:    store [[CANARY]] to [[WRITE]]
 // CHECK-NEXT:    end_access [[WRITE]] : $*Canary
 // CHECK-NEXT:    strong_release %0
@@ -849,7 +849,7 @@ class FailableDerivedClass : FailableBaseClass {
 // CHECK:         [[CANARY_FUN:%.*]] = function_ref @$s35definite_init_failable_initializers6CanaryCACycfC :
 // CHECK:         [[CANARY:%.*]] = apply [[CANARY_FUN]](
 // CHECK-NEXT:    [[MEMBER_ADDR:%.*]] = ref_element_addr [[SELF]]
-// CHECK-NEXT:    [[WRITE:%.*]] = begin_access [modify] [dynamic] [[MEMBER_ADDR]] : $*Canary
+// CHECK-NEXT:    [[WRITE:%.*]] = begin_access [init] [static] [[MEMBER_ADDR]] : $*Canary
 // CHECK-NEXT:    store [[CANARY]] to [[WRITE]]
 // CHECK-NEXT:    end_access [[WRITE]] : $*Canary
 // CHECK-NEXT:    strong_release [[SELF]]

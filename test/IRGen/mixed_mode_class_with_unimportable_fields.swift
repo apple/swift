@@ -1,7 +1,9 @@
 // RUN: %empty-directory(%t)
 // RUN: %target-swift-frontend -emit-module -o %t/UsingObjCStuff.swiftmodule -module-name UsingObjCStuff -I %t -I %S/Inputs/mixed_mode -swift-version 5 %S/Inputs/mixed_mode/UsingObjCStuff.swift
-// RUN: %target-swift-frontend -emit-ir -I %t -I %S/Inputs/mixed_mode -module-name main -swift-version 4 %s | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-V4 -DWORD=i%target-ptrsize --check-prefix=CHECK-V4-STABLE-ABI-%target-mandates-stable-abi
-// RUN: %target-swift-frontend -emit-ir -I %t -I %S/Inputs/mixed_mode -module-name main -swift-version 5 %s | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-V5 -DWORD=i%target-ptrsize --check-prefix=CHECK-V5-STABLE-ABI-%target-mandates-stable-abi
+// RUN: %target-swift-frontend %use_no_opaque_pointers -emit-ir -I %t -I %S/Inputs/mixed_mode -module-name main -swift-version 4 %s | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-V4 -DWORD=i%target-ptrsize --check-prefix=CHECK-V4-STABLE-ABI-%target-mandates-stable-abi
+// RUN: %target-swift-frontend %use_no_opaque_pointers -emit-ir -I %t -I %S/Inputs/mixed_mode -module-name main -swift-version 5 %s | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-V5 -DWORD=i%target-ptrsize --check-prefix=CHECK-V5-STABLE-ABI-%target-mandates-stable-abi
+// RUN: %target-swift-frontend -emit-ir -I %t -I %S/Inputs/mixed_mode -module-name main -swift-version 4 %s
+// RUN: %target-swift-frontend -emit-ir -I %t -I %S/Inputs/mixed_mode -module-name main -swift-version 5 %s
 
 // REQUIRES: objc_interop
 

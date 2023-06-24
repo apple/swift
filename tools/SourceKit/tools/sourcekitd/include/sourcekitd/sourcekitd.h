@@ -52,12 +52,14 @@
 # define SOURCEKITD_END_DECLS
 #endif
 
-#ifndef SOURCEKITD_PUBLIC
-# if defined (_MSC_VER)
-#  define SOURCEKITD_PUBLIC __declspec(dllimport)
+#if defined(_WIN32)
+# if defined(sourcekitd_EXPORTS)
+#   define SOURCEKITD_PUBLIC __declspec(dllexport)
 # else
-#  define SOURCEKITD_PUBLIC
+#   define SOURCEKITD_PUBLIC __declspec(dllimport)
 # endif
+#else
+# define SOURCEKITD_PUBLIC
 #endif
 
 #ifndef __has_feature

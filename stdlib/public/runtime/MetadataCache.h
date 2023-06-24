@@ -1583,6 +1583,8 @@ public:
   bool matchesKey(const MetadataCacheKey &key) const {
     return key == getKey();
   }
+
+  friend struct StaticAssertGenericMetadataCacheEntryValueOffset;
 };
 
 template <class EntryType, uint16_t Tag>

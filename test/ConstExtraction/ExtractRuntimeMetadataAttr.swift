@@ -20,13 +20,20 @@ struct A : MyProto {
 }
 
 // CHECK:    "typeName": "ExtractRuntimeMetadataAttr.A",
+// CHECK-NEXT:    "mangledTypeName": "26ExtractRuntimeMetadataAttr1AV",
 // CHECK-NEXT:    "kind": "struct",
 // CHECK-NEXT:    "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractRuntimeMetadataAttr.swift",
 // CHECK-NEXT:    "line": 18,
+// CHECK-NEXT:    "conformances": [
+// CHECK-NEXT:      "ExtractRuntimeMetadataAttr.MyProto",
+// CHECK-NEXT:      "Swift.Sendable"
+// CHECK-NEXT:    ],
+// CHECK-NEXT:    "associatedTypeAliases": [],
 // CHECK-NEXT:    "properties": [
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "v1",
 // CHECK-NEXT:        "type": "Swift.String",
+// CHECK-NEXT:        "mangledTypeName": "SS", 
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "false",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractRuntimeMetadataAttr.swift",

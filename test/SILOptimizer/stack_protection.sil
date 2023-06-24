@@ -676,4 +676,20 @@ bb0:
   return %12 : $()
 }
 
+// CHECK-LABEL: sil @test_mem_intrinsics
+// CHECK-NOT:     copy_addr
+// CHECK:       } // end sil function 'test_mem_intrinsics'
+sil @test_mem_intrinsics : $@convention(thin) (Builtin.RawPointer, Int64) -> () {
+bb0(%0 : $Builtin.RawPointer, %1: $Int64):
+  %2 = alloc_stack $Int64
+  store %1 to %2 : $*Int64
+  %4 = address_to_pointer [stack_protection] %2 : $*Int64 to $Builtin.RawPointer
+  %5 = integer_literal $Builtin.Int64, 8
+  %6 = integer_literal $Builtin.Int1, 0
+  %7 = builtin "int_memcpy_RawPointer_RawPointer_Int64"(%0 : $Builtin.RawPointer, %4 : $Builtin.RawPointer, %5 : $Builtin.Int64, %6 : $Builtin.Int1) : $()
+  %8 = builtin "int_memmove_RawPointer_RawPointer_Int64"(%0 : $Builtin.RawPointer, %4 : $Builtin.RawPointer, %5 : $Builtin.Int64, %6 : $Builtin.Int1) : $()
+  dealloc_stack %2 : $*Int64
+  %10 = tuple ()
+  return %10 : $()
+}
 

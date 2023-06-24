@@ -213,3 +213,18 @@ func testVarPeer() {
   _ = value
   _ = Date().value
 }
+
+// Stored properties added via peer macros.
+@attached(peer, names: named(_foo))
+macro AddPeerStoredProperty() =
+  #externalMacro(module: "MacroDefinition", type: "AddPeerStoredPropertyMacro")
+
+struct SomeStructWithPeerProperties {
+  @AddPeerStoredProperty
+  var foo: String = "hello"
+}
+
+func testStructWithPeers() {
+  let x = SomeStructWithPeerProperties()
+  print(x)
+}

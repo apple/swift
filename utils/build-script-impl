@@ -174,6 +174,7 @@ KNOWN_SETTINGS=(
     lldb-test-swift-compatibility                 ""                "specify additional Swift compilers to test lldb with"
     lldb-test-swift-only                          "0"               "when running lldb tests, only include Swift-specific tests"
     lldb-use-system-debugserver                   ""                "don't try to codesign debugserver, and use the system's debugserver instead"
+    lldb-configure-tests                          "1"               "if set, will make sure we configure LLDB's test target without running the tests"
 
     ## LLVM Options
     llvm-enable-lto                               ""                "Must be set to one of 'thin' or 'full'"
@@ -207,10 +208,13 @@ KNOWN_SETTINGS=(
     swift-enable-reflection                       "1"               "whether to support reflection and mirrors"
     swift-stdlib-reflection-metadata              "enabled"         "whether to build stdlib with runtime metadata (valid options are 'enabled', 'disabled' and 'debugger-only')"
     swift-stdlib-has-dladdr                       "1"               "whether to build stdlib assuming the runtime environment provides dladdr API"
+    swift-stdlib-has-dlsym                        "1"               "whether to build stdlib assuming the runtime environment provides the dlsym API"
+    swift-stdlib-has-filesystem                   "1"               "whether to build stdlib assuming the runtime environment provides a filesystem"
     swift-stdlib-supports-backtrace-reporting     ""                "whether to build stdlib assuming the runtime environment provides the backtrace(3) API, if not set defaults to true on all platforms except for Cygwin, Haiku and wasm"
     swift-runtime-static-image-inspection         "0"               "whether to build stdlib assuming the runtime environment only supports a single runtime image with Swift code"
     swift-threading-package                       ""                "override the threading package for the host build; this is either a single package or a semicolon-separated list of sdk:package pairs.  Valid packages are empty string (no override), 'pthreads', 'darwin', 'linux', 'win32', 'c11', 'none'"
     swift-stdlib-single-threaded-concurrency      "0"               "build Swift concurrency in single-threaded mode"
+    swift-stdlib-tracing                          ""                "whether to enable tracing signposts for the stdlib; default is 1 on Darwin platforms, 0 otherwise"
     swift-stdlib-concurrency-tracing              ""                "whether to enable tracing signposts for concurrency; default is 1 on Darwin platforms, 0 otherwise"
     swift-stdlib-use-relative-protocol-witness-tables "0"            "whether to use relative protocol witness table"
     swift-enable-runtime-function-counters        ""                "whether to enable runtime function counters"
@@ -452,7 +456,8 @@ function should_execute_host_actions_for_phase() {
 function verify_host_is_supported() {
     local host="$1"
     case ${host} in
-      freebsd-x86_64            \
+      freebsd-arm64             \
+      | freebsd-x86_64          \
       | openbsd-amd64           \
       | cygwin-x86_64           \
       | haiku-x86_64            \
@@ -481,6 +486,7 @@ function verify_host_is_supported() {
       | watchsimulator-arm64    \
       | watchos-armv7k          \
       | watchos-arm64_32        \
+      | wasi-wasm32             \
       | android-armv7           \
       | android-aarch64         \
       | android-x86_64)
@@ -1828,6 +1834,8 @@ for host in "${ALL_HOSTS[@]}"; do
                     -DSWIFT_STDLIB_SINGLE_THREADED_CONCURRENCY:BOOL=$(true_false "${SWIFT_STDLIB_SINGLE_THREADED_CONCURRENCY}")
                     -DSWIFT_ENABLE_RUNTIME_FUNCTION_COUNTERS:BOOL=$(true_false "${SWIFT_ENABLE_RUNTIME_FUNCTION_COUNTERS}")
                     -DSWIFT_STDLIB_HAS_DLADDR:BOOL=$(true_false "${SWIFT_STDLIB_HAS_DLADDR}")
+                    -DSWIFT_STDLIB_HAS_DLSYM:BOOL=$(true_false "${SWIFT_STDLIB_HAS_DLSYM}")
+                    -DSWIFT_STDLIB_HAS_FILESYSTEM:BOOL=$(true_false "${SWIFT_STDLIB_HAS_FILESYSTEM}")
                     -DSWIFT_RUNTIME_STATIC_IMAGE_INSPECTION:BOOL=$(true_false "${SWIFT_RUNTIME_STATIC_IMAGE_INSPECTION}")
                     -DSWIFT_STDLIB_OS_VERSIONING:BOOL=$(true_false "${SWIFT_STDLIB_OS_VERSIONING}")
                     -DSWIFT_STDLIB_HAS_COMMANDLINE:BOOL=$(true_false "${SWIFT_STDLIB_HAS_COMMANDLINE}")
@@ -2044,6 +2052,13 @@ for host in "${ALL_HOSTS[@]}"; do
                     )
                 fi
 
+                if [[ "${SWIFT_STDLIB_TRACING}" ]] ; then
+                    cmake_options=(
+                        "${cmake_options[@]}"
+                        -DSWIFT_STDLIB_TRACING:BOOL=$(true_false "${SWIFT_STDLIB_TRACING}")
+                    )
+                fi
+
                 if [[ "${SWIFT_STDLIB_CONCURRENCY_TRACING}" ]] ; then
                     cmake_options=(
                         "${cmake_options[@]}"
@@ -2187,7 +2202,7 @@ for host in "${ALL_HOSTS[@]}"; do
                     DOTEST_ARGS="${DOTEST_ARGS};-E;${DOTEST_EXTRA}"
                 fi
 
-                if [[ "${SKIP_TEST_LLDB}" ]]; then
+                if [[ $(true_false "${LLDB_CONFIGURE_TESTS}") == "FALSE" ]]; then
                     should_configure_tests="FALSE"
                 else
                     should_configure_tests=$(false_true ${BUILD_TOOLCHAIN_ONLY})

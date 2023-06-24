@@ -83,7 +83,7 @@ actor BoringActor {
     // CHECK-LABEL: sil hidden @$s4test14SingleVarActorC10iterationsACSi_tYacfc : $@convention(method) @async (Int, @owned SingleVarActor) -> @owned SingleVarActor {
     // CHECK:   bb0({{%[0-9]+}} : $Int, [[SELF:%[0-9]+]] : $SingleVarActor):
     // CHECK:       [[MYVAR_REF:%[0-9]+]] = ref_element_addr [[SELF]] : $SingleVarActor, #SingleVarActor.myVar
-    // CHECK:       [[MYVAR:%[0-9]+]] = begin_access [modify] [dynamic] [[MYVAR_REF]] : $*Int
+    // CHECK:       [[MYVAR:%[0-9]+]] = begin_access [init] [static] [[MYVAR_REF]] : $*Int
     // CHECK:       store {{%[0-9]+}} to [[MYVAR]] : $*Int
     // CHECK-NEXT:  end_access [[MYVAR]]
     // CHECK-NEXT:  hop_to_executor [[SELF]] : $SingleVarActor
@@ -196,7 +196,7 @@ actor MultiVarActor {
     // CHECK-LABEL: sil hidden @$s4test13MultiVarActorC10doNotThrowACSb_tYaKcfc : $@convention(method) @async (Bool, @owned MultiVarActor) -> (@owned MultiVarActor, @error any Error) {
     // CHECK:   bb0({{%[0-9]+}} : $Bool, [[SELF:%[0-9]+]] : $MultiVarActor):
     // CHECK:       [[REF:%[0-9]+]] = ref_element_addr [[SELF]] : $MultiVarActor, #MultiVarActor.firstVar
-    // CHECK:       [[VAR:%[0-9]+]] = begin_access [modify] [dynamic] [[REF]] : $*Int
+    // CHECK:       [[VAR:%[0-9]+]] = begin_access [init] [static] [[REF]] : $*Int
     // CHECK:       store {{%[0-9]+}} to [[VAR]] : $*Int
     // CHECK-NEXT:  end_access [[VAR]]
     // CHECK-NEXT:  hop_to_executor %1 : $MultiVarActor

@@ -36,8 +36,9 @@ func coerceExpansion<each T>(_ value: repeat each T) {
 
 func localValuePack<each T>(_ t: repeat each T) -> (repeat each T, repeat each T) {
   let local = repeat each t
+  // expected-error@-1{{pack expansion 'repeat each T' can only appear in a function parameter list, tuple element, or generic argument list}}
   let localAnnotated: repeat each T = repeat each t
-  // expected-error@-1{{value pack expansion can only appear inside a function argument list or tuple element}}
+  // expected-error@-1{{pack expansion 'repeat each T' can only appear in a function parameter list, tuple element, or generic argument list}}
 
   return (repeat each local, repeat each localAnnotated)
 }
@@ -138,7 +139,7 @@ func tupleExpansion<each T, each U>(
   _ = zip(repeat each tuple1, with: repeat each tuple1.element) // legacy syntax
 
   _ = zip(repeat each tuple1, with: repeat each tuple2)
-  // expected-error@-1 {{global function 'zip(_:with:)' requires the type packs 'each T' and 'each U' have the same shape}}
+  // expected-error@-1 {{global function 'zip(_:with:)' requires the type packs 'repeat each T' and 'repeat each U' have the same shape}}
 
   _ = forward(repeat each tuple3)
 }
@@ -551,5 +552,55 @@ do {
 
   func test<each T>(_ a: repeat each T) {
     _ = (repeat overloaded(1, each a))
+  }
+}
+
+func configure<T, each Element>(
+  _ item: T,
+  with configuration: repeat (ReferenceWritableKeyPath<T, each Element>, each Element)
+) -> T {
+  repeat item[keyPath: (each configuration).0] = (each configuration).1
+  return item
+}
+
+// rdar://110819621 - generic parameter is bound before pack expansion type which result in inference failures
+func test_that_expansions_are_bound_early() {
+  struct Data {
+    let prop: Int?
+  }
+
+  struct Value<each T> {
+    init(_ body: (repeat each T) -> Bool) {}
+  }
+
+  func compute<Root, Value>(
+    root: Root,
+    keyPath: KeyPath<Root, Value>,
+    other: Value) -> Bool { true }
+
+  func test_keypath(v: Int) {
+    let _: Value<Data> = Value({
+        compute(
+          root: $0,
+          keyPath: \.prop,
+          other: v
+        )
+      }) // Ok
+
+    let _: Value = Value<Data>({
+        compute(
+          root: $0,
+          keyPath: \.prop,
+          other: v
+        )
+      }) // Ok
+  }
+
+  func equal<Value>(_: Value, _: Value) -> Bool {}
+
+  func test_equality(i: Int) {
+    let _: Value<Data> = Value({
+        equal($0.prop, i) // Ok
+      })
   }
 }

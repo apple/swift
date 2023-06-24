@@ -1,0 +1,185 @@
+// RUN: %target-sil-opt -unit-test-runner %s -o /dev/null 2>&1 | %FileCheck %s
+
+class C {}
+sil @getC : $@convention(thin) () -> (@owned C)
+
+// Test a live range that is extended through reborrows,
+// considering them new defs.
+// (e.g. BorrowedValue::visitTransitiveLifetimeEndingUses)
+//
+// This live range is not dominated by the original borrow.
+//
+// CHECK-LABEL: testReborrow: fieldsensitive-multidefuse-liverange
+// CHECK: FieldSensitive MultiDef lifetime analysis:
+// CHECK:   def in range [0, 1) value:   [[B:%.*]] = load_borrow %0 : $*C
+// CHECK:   def in range [0, 1) value:   [[RB:%.*]] = argument of bb3 : $C
+// CHECK-NEXT: bb2: LiveWithin
+// CHECK-NEXT: bb3: LiveWithin
+// CHECK-NEXT: last user:   br bb3([[B]] : $C)
+// CHECK-NEXT: at 1
+// CHECK-NEXT: last user:   end_borrow [[RB]] : $C
+// CHECK-NEXT: at 1
+sil [ossa] @testReborrow : $@convention(thin) () -> () {
+bb0:
+  test_specification """
+                     fieldsensitive-multidefuse-liverange
+                     @instruction
+                     defs: 
+                     @trace[0] 0 1
+                     @trace[1] 0 1
+                     uses:
+                     @block[2].instruction[3] true 0 1
+                     @block[3].instruction[0] true 0 1
+                     """
+  %stack = alloc_stack $C
+  %getC = function_ref @getC : $@convention(thin) () -> (@owned C)
+  cond_br undef, bb1, bb2
+
+bb1:
+  %c1 = apply %getC() : $@convention(thin) () -> (@owned C)
+  store %c1 to [init] %stack : $*C
+  %borrow1 = load_borrow %stack : $*C
+  br bb3(%borrow1 : $C)
+
+bb2:
+  %c2 = apply %getC() : $@convention(thin) () -> (@owned C)
+  store %c2 to [init] %stack : $*C
+  %borrow2 = load_borrow %stack : $*C
+  debug_value [trace] %borrow2 : $C
+  br bb3(%borrow2 : $C)
+
+bb3(%reborrow : @guaranteed $C):
+  debug_value [trace] %reborrow : $C
+  end_borrow %reborrow : $C
+  br bb4
+
+bb4:
+  destroy_addr %stack : $*C
+  dealloc_stack %stack : $*C
+  %99 = tuple()
+  return %99 : $()
+}
+
+// CHECK-LABEL: begin running test 1 of 1 on testMultiDefUseAddressReinit
+// CHECK: MultiDef lifetime analysis:
+// CHECK:   def in range [0, 1) instruction:   store %{{.*}} to [init] [[ADDR:%.*]] : $*C
+// CHECK:   def in range [0, 1) instruction:   store %0 to [init] [[ADDR]] : $*C
+// CHECK: bb0: LiveOut
+// CHECK: bb1: LiveWithin
+// CHECK: last user:    %{{.*}} = load [copy] [[ADDR]] : $*C
+// CHECK: boundary edge: bb2
+// CHECK: dead def:   store %0 to [init] %1 : $*C
+// CHECK-LABEL: end running test 1 of 1 on testMultiDefUseAddressReinit
+sil [ossa] @testMultiDefUseAddressReinit : $@convention(thin) (@owned C) -> () {
+bb0(%0: @owned $C):
+  test_specification """
+                     fieldsensitive-multidefuse-liverange
+                     @instruction
+                     defs: 
+                     @instruction[+2] 0 1
+                     @block[1].instruction[2] 0 1
+                     uses: 
+                     @block[1].instruction[0] false 0 1
+                     """
+  %1 = alloc_stack $C
+  %2 = copy_value %0 : $C
+  store %2 to [init] %1 : $*C
+  cond_br undef, bb1, bb2
+
+bb1:
+  %5 = load [copy] %1 : $*C
+  destroy_addr %1 : $*C
+  store %0 to [init] %1 : $*C
+  destroy_value %5 : $C
+  br bb3
+
+bb2:
+  destroy_value %0 : $C
+  br bb3
+
+bb3:
+  destroy_addr %1 : $*C
+  dealloc_stack %1 : $*C
+  %9999 = tuple ()
+  return %9999 : $()
+}
+
+// A single instruction occurs twice on the same liverange
+// boundary. Once as a last use, and once as a dead def.
+// This is a particularly problematic corner case.
+//
+// CHECK-LABEL: testDeadSelfKill: fieldsensitive-multidefuse-liverange
+// CHECK: FieldSensitive MultiDef lifetime analysis:
+// CHECK: def in range [0, 1) instruction: store {{%[^,]+}} to [init] [[STACK:%[^,]+]] :
+// CHECK: def in range [0, 1) instruction: store {{%[^,]+}} to [assign] [[STACK]]
+// CHECK: bb1: LiveWithin
+// CHECK: last user:   store {{%[^,]+}} to [assign] [[STACK]]
+// CHECK: dead def:   store {{%[^,]+}} to [assign] [[STACK]]
+sil [ossa] @testDeadSelfKill : $@convention(thin) () -> () {
+bb0:
+  br bb3
+
+bb1(%1 : @owned $C, %2 : @owned $C):
+  test_specification """
+                     fieldsensitive-multidefuse-liverange
+                     @instruction
+                     defs: 
+                     @instruction[+1] 0 1
+                     @instruction[+2] 0 1
+                     uses:
+                     @instruction[+2] true 0 1
+                     """
+  %stack = alloc_stack $C
+  store %1 to [init] %stack : $*C
+  store %2 to [assign] %stack : $*C
+  unreachable
+
+bb3:
+  %99 = tuple()
+  return %99 : $()
+}
+
+// A dead-end block with a def can still be a boundary edge. This can
+// only happen in OSSA with incomplete lifetimes.
+//
+// CHECK-LABEL: testMultiDefDeadDefBoundaryEdge: fieldsensitive-multidefuse-liverange
+// CHECK: FieldSensitive MultiDef lifetime analysis:
+// CHECK:   def in range [0, 1) instruction: store {{%[^,]+}} to [init] [[STACK:%[^,]+]] :
+// CHECK:   def in range [0, 1) instruction: store {{%[^,]+}} to [assign] [[STACK]]
+// CHECK: bb0: LiveOut
+// CHECK: bb1: LiveWithin
+// CHECK: bb2: LiveWithin
+// CHECK: last user:   destroy_addr [[STACK]]
+// CHECK-NEXT: at 1
+// CHECK-NEXT: boundary edge: bb1
+// CHECK-NEXT: at 1
+// CHECK-NEXT: dead def: store {{%[^,]+}} to [assign] [[STACK]]
+// CHECK-NEXT: at 1
+sil [ossa] @testMultiDefDeadDefBoundaryEdge : $@convention(thin) () -> () {
+bb0:
+  %getC = function_ref @getC : $@convention(thin) () -> (@owned C)
+  %stack = alloc_stack $C
+  %c = apply %getC() : $@convention(thin) () -> (@owned C)
+  store %c to [init] %stack : $*C
+  test_specification """
+                     fieldsensitive-multidefuse-liverange
+                     @instruction[-3]
+                     defs: 
+                     @instruction[-1] 0 1
+                     @block[1].instruction[1] 0 1
+                     uses:
+                     @block[2].instruction[0] true 0 1
+                     """
+  cond_br undef, bb1, bb3
+
+bb1:
+  %c2 = apply %getC() : $@convention(thin) () -> (@owned C)
+  store %c2 to [assign] %stack : $*C
+  unreachable
+
+bb3:
+  destroy_addr %stack : $*C
+  dealloc_stack %stack : $*C
+  %99 = tuple()
+  return %99 : $()
+}

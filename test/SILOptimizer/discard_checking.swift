@@ -125,8 +125,8 @@ struct Basics: ~Copyable {
     if case .red = c {
       discard self // expected-note {{discarded self here}}
     } else {
-      mutator() // expected-error {{must consume 'self' before exiting method that discards self}}
-      throw E.someError // <- better spot
+      mutator()
+      throw E.someError // expected-error {{must consume 'self' before exiting method that discards self}}
     }
   }
 
@@ -212,10 +212,10 @@ struct Basics: ~Copyable {
       return
     } catch {
       print("hi")
-      return  // <- better spot!!
+      return // expected-error {{must consume 'self' before exiting method that discards self}}
     }
     _ = consume self // expected-warning {{will never be executed}}
-  } // expected-error {{must consume 'self' before exiting method that discards self}}
+  }
 
   consuming func test9_fixed(_ c: Color) throws {
     if case .red = c {
@@ -238,16 +238,16 @@ struct Basics: ~Copyable {
 
   consuming func test10(_ c: Color) throws {
     if case .red = c {
-      discard self // expected-note {{discarded self here}}
+      discard self // expected-note 2{{discarded self here}}
       return
     }
 
     do {
-      throw E.someError // expected-error {{must consume 'self' before exiting method that discards self}}
+      throw E.someError
     } catch E.someError {
-      return // <- better spot
+      return // expected-error {{must consume 'self' before exiting method that discards self}}
     } catch {
-      return // <- ok spot
+      return // expected-error {{must consume 'self' before exiting method that discards self}}
     }
   }
 
@@ -263,8 +263,8 @@ struct Basics: ~Copyable {
     borrower()
     let x = self
     self = x
-    mutator() // expected-error {{must consume 'self' before exiting method that discards self}}
-  }
+    mutator()
+  } // expected-error {{must consume 'self' before exiting method that discards self}}
 
   consuming func test11_fixed(_ c: Color) {
     guard case .red = c else {
@@ -328,13 +328,13 @@ struct Basics: ~Copyable {
     _ = consume self
   }
 
-  consuming func test13(_ c: Color) async { // expected-error {{must consume 'self' before exiting method that discards self}}
+  consuming func test13(_ c: Color) async {
     guard case .red = c else {
       discard self // expected-note {{discarded self here}}
       return
     }
     await asyncer()
-  } // <- better spot
+  } // expected-error {{must consume 'self' before exiting method that discards self}}
 
   consuming func test13_fixed(_ c: Color) async {
     guard case .red = c else {
@@ -350,11 +350,11 @@ struct Basics: ~Copyable {
       discard self // expected-note {{discarded self here}}
       return
     }
-    await withCheckedContinuation { cont in // expected-error {{must consume 'self' before exiting method that discards self}}
+    await withCheckedContinuation { cont in
       cont.resume()
     }
     print("back!")
-  } // <- better spot
+  } // expected-error {{must consume 'self' before exiting method that discards self}}
 
   consuming func test14_fixed(_ c: Color) async {
     guard case .red = c else {
@@ -388,7 +388,7 @@ struct Basics: ~Copyable {
 
   // FIXME move checker is treating the defer like a closure capture (rdar://100468597)
   // not expecting any errors here
-  consuming func brokenPositiveTest(_ i: Int) { // expected-error {{missing reinitialization of inout parameter 'self' after consume}}
+  consuming func brokenPositiveTest(_ i: Int) { // expected-error {{missing reinitialization of closure capture 'self' after consume}}
     defer { discard self } // expected-note {{consumed here}}
     switch i {
     case 0, 1, 2, 3: return
@@ -402,7 +402,7 @@ struct Basics: ~Copyable {
     case 0:
       fallthrough
     case 1:
-      throw E.someError // expected-error 2{{must consume 'self' before exiting method that discards self}}
+      throw E.someError // expected-error {{must consume 'self' before exiting method that discards self}}
     case 2:
       return // expected-error {{must consume 'self' before exiting method that discards self}}
     case 3:
@@ -410,22 +410,21 @@ struct Basics: ~Copyable {
     case 4:
       globalConsumingFn(self)
     default:
-      discard self // expected-note 4{{discarded self here}}
+      discard self // expected-note 3{{discarded self here}}
     }
   }
 
   consuming func loopyExit_bad(_ i: Int) {
     if i < 0 {
-      discard self // expected-note 2{{discarded self here}}
+      discard self // expected-note {{discarded self here}}
       return
     }
 
-    // TODO: rdar://110239087 (avoid duplicate consume-before-exit diagnostics for loop in discarding method)
-    for _ in 0..<i {  // expected-error {{must consume 'self' before exiting method that discards self}}
-      self = Basics() // expected-error {{must consume 'self' before exiting method that discards self}}
+    for _ in 0..<i {
+      self = Basics()
     }
 
-    return
+    return // expected-error {{must consume 'self' before exiting method that discards self}}
   }
 
   consuming func loopyExit_good(_ i: Int) {
@@ -474,14 +473,11 @@ struct Basics: ~Copyable {
   }
 
   consuming func reinitAfterDiscard3_bad(_ c: Color) throws {
-    // expected-error@-1 {{must consume 'self' before exiting method that discards self}}
-    // FIXME: ^ this error is related to rdar://110239087
-
     repeat {
       self = Basics() // expected-error {{cannot reinitialize 'self' after 'discard self'}}
       discard self // expected-note 2{{discarded self here}}
     } while false
-  }
+  } // expected-error {{must consume 'self' before exiting method that discards self}}
 
   consuming func reinitAfterDiscard3_ok(_ c: Color) throws {
     self = Basics()

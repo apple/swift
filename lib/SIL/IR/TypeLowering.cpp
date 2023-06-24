@@ -2394,6 +2394,7 @@ namespace {
 
       if (D->isMoveOnly()) {
         properties.setNonTrivial();
+        properties.setLexical(IsLexical);
         if (properties.isAddressOnly())
           return handleMoveOnlyAddressOnly(structType, properties);
         return new (TC) MoveOnlyLoadableStructTypeLowering(
@@ -2475,6 +2476,7 @@ namespace {
 
       if (D->isMoveOnly()) {
         properties.setNonTrivial();
+        properties.setLexical(IsLexical);
         if (properties.isAddressOnly())
           return handleMoveOnlyAddressOnly(enumType, properties);
         return new (TC)

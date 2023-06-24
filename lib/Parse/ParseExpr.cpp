@@ -1059,14 +1059,14 @@ bool Parser::isStartOfGetSetAccessor() {
   // The only case this can happen is if the accessor label is immediately after
   // a brace (possibly preceded by attributes).  "get" is implicit, so it can't
   // be checked for.  Conveniently however, get/set properties are not allowed
-  // to have initializers, so we don't have an ambiguity, we just have to check
-  // for observing accessors.
+  // to have initializers unless they have `init` accessor, so we don't have an
+  // ambiguity, we just have to check for observing accessors and init accessor.
   //
   // If we have a 'didSet' or a 'willSet' label, disambiguate immediately as
   // an accessor block.
   Token NextToken = peekToken();
   if (NextToken.isContextualKeyword("didSet") ||
-      NextToken.isContextualKeyword("willSet"))
+      NextToken.isContextualKeyword("willSet") || NextToken.is(tok::kw_init))
     return true;
 
   // If we don't have attributes, then it cannot be an accessor block.
@@ -1087,9 +1087,9 @@ bool Parser::isStartOfGetSetAccessor() {
       skipSingle();
   }
 
-  // Check if we have 'didSet'/'willSet' after attributes.
+  // Check if we have 'didSet'/'willSet' or 'init' after attributes.
   return Tok.isContextualKeyword("didSet") ||
-         Tok.isContextualKeyword("willSet");
+         Tok.isContextualKeyword("willSet") || Tok.is(tok::kw_init);
 }
 
 /// Recover invalid uses of trailing closures in a situation
@@ -1664,19 +1664,35 @@ ParserResult<Expr> Parser::parseExprPrimary(Diag<> ID, bool isExprBasic) {
   }
 
   case tok::identifier:  // foo
-  case tok::kw_self:     // self
-
+  case tok::kw_self: {   // self
+    auto canParseBindingInPattern = [&]() {
+      if (InBindingPattern != PatternBindingState::ImplicitlyImmutable &&
+          !InBindingPattern.getIntroducer().hasValue()) {
+        return false;
+      }
+      // If we have "case let x.", "case let x(", or "case let x[", we parse 'x'
+      // as a normal name, not a binding, because it is the start of an enum
+      // pattern, call, or subscript.
+      if (peekToken().isAny(tok::period, tok::period_prefix, tok::l_paren,
+                            tok::l_square)) {
+        return false;
+      }
+      // If we have a generic argument list, this is something like
+      // "case let E<Int>.e(y)", and 'E' should be parsed as a normal name, not
+      // a binding.
+      if (peekToken().isAnyOperator() && peekToken().getText().equals("<")) {
+        BacktrackingScope S(*this);
+        consumeToken();
+        return !canParseAsGenericArgumentList();
+      }
+      return true;
+    }();
     // If we are parsing a refutable pattern and are inside a let/var pattern,
     // the identifiers change to be value bindings instead of decl references.
     // Parse and return this as an UnresolvedPatternExpr around a binding.  This
     // will be resolved (or rejected) by sema when the overall refutable pattern
     // it transformed from an expression into a pattern.
-    if ((InBindingPattern == PatternBindingState::ImplicitlyImmutable ||
-         InBindingPattern.getIntroducer().hasValue()) &&
-        // If we have "case let x." or "case let x(", we parse x as a normal
-        // name, not a binding, because it is the start of an enum pattern or
-        // call pattern.
-        peekToken().isNot(tok::period, tok::period_prefix, tok::l_paren)) {
+    if (canParseBindingInPattern) {
       Identifier name;
       SourceLoc loc = consumeIdentifier(name, /*diagnoseDollarPrefix=*/false);
       // If we have an inout/let/var, set that as our introducer. otherwise
@@ -1710,6 +1726,7 @@ ParserResult<Expr> Parser::parseExprPrimary(Diag<> ID, bool isExprBasic) {
     }
 
     LLVM_FALLTHROUGH;
+  }
   case tok::kw_Self:     // Self
     return parseExprIdentifier();
 
@@ -2301,16 +2318,7 @@ ParserStatus Parser::parseFreestandingMacroExpansion(
 
   bool hasWhitespaceBeforeName = poundEndLoc != Tok.getLoc();
 
-  // Diagnose and parse keyword right after `#`.
-  if (Tok.isKeyword() && !hasWhitespaceBeforeName) {
-    diagnose(Tok, diag::keyword_cant_be_identifier, Tok.getText());
-    diagnose(Tok, diag::backticks_to_escape)
-        .fixItReplace(Tok.getLoc(), "`" + Tok.getText().str() + "`");
-
-    // Let 'parseDeclNameRef' to parse this as an identifier.
-    Tok.setKind(tok::identifier);
-  }
-  macroNameRef = parseDeclNameRef(macroNameLoc, diag, DeclNameOptions());
+  macroNameRef = parseDeclNameRef(macroNameLoc, diag, DeclNameFlag::AllowKeywords);
   if (!macroNameRef)
     return makeParserError();
 

@@ -646,6 +646,11 @@ option(SWIFT_THREADING_PACKAGE
    Valid package names are 'pthreads', 'darwin', 'linux', 'win32', 'c11', 'none'
    or the empty string for the SDK default.")
 
+option(SWIFT_THREADING_HAS_DLSYM
+  "Enable the use of the dlsym() function.  This gets used to provide TSan
+   support on some platforms."
+  TRUE)
+
 option(SWIFT_ENABLE_MACCATALYST
   "Build the Standard Library and overlays with MacCatalyst support"
   FALSE)
@@ -1040,6 +1045,14 @@ elseif("${SWIFT_HOST_VARIANT_SDK}" STREQUAL "ANDROID")
   endif()
 
   configure_sdk_unix("Android" "${SWIFT_SDK_ANDROID_ARCHITECTURES}")
+  set(SWIFT_PRIMARY_VARIANT_SDK_default  "${SWIFT_HOST_VARIANT_SDK}")
+  set(SWIFT_PRIMARY_VARIANT_ARCH_default "${SWIFT_HOST_VARIANT_ARCH}")
+
+elseif("${SWIFT_HOST_VARIANT_SDK}" STREQUAL "WASI")
+  set(SWIFT_HOST_VARIANT "wasi" CACHE STRING
+      "Deployment OS for Swift host tools (the compiler) [wasi]")
+
+  configure_sdk_unix("WASI" "wasm32")
   set(SWIFT_PRIMARY_VARIANT_SDK_default  "${SWIFT_HOST_VARIANT_SDK}")
   set(SWIFT_PRIMARY_VARIANT_ARCH_default "${SWIFT_HOST_VARIANT_ARCH}")
 

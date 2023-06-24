@@ -49,16 +49,24 @@ function(add_swift_unittest test_dirname)
   endif()
 
   # some headers switch their inline implementations based on
-  # SWIFT_STDLIB_SINGLE_THREADED_CONCURRENCY and
+  # SWIFT_STDLIB_SINGLE_THREADED_CONCURRENCY, SWIFT_STDLIB_HAS_DLSYM and
   # SWIFT_THREADING_PACKAGE definitions
   if(SWIFT_STDLIB_SINGLE_THREADED_CONCURRENCY)
     target_compile_definitions("${test_dirname}" PRIVATE
       SWIFT_STDLIB_SINGLE_THREADED_CONCURRENCY)
   endif()
+  if(SWIFT_STDLIB_HAS_DLSYM)
+    target_compile_definitions("${test_dirname}" PRIVATE
+      "SWIFT_STDLIB_HAS_DLSYM=1")
+  else()
+    target_compile_definitions("${test_dirname}" PRIVATE
+      "SWIFT_STDLIB_HAS_DLSYM=0")
+  endif()
 
   string(TOUPPER "${SWIFT_SDK_${SWIFT_HOST_VARIANT_SDK}_THREADING_PACKAGE}" _threading_package)
   target_compile_definitions("${test_dirname}" PRIVATE
-    "SWIFT_THREADING_${_threading_package}")
+    "SWIFT_THREADING_${_threading_package}"
+    "SWIFT_THREADING_STATIC")
 
   if(NOT SWIFT_COMPILER_IS_MSVC_LIKE)
     if(SWIFT_USE_LINKER)

@@ -1,13 +1,14 @@
 // RUN: %target-swift-frontend %s -emit-ir -disable-objc-interop | %FileCheck %s --check-prefix=CHECK --check-prefix=COMPAT
 // RUN: %target-swift-frontend %s -emit-ir -disable-objc-interop -target x86_64-apple-macosx10.15 | %FileCheck %s --check-prefix=CHECK --check-prefix=NONCOMPAT
 
+
 // REQUIRES: objc_interop
 
 // The arm64e test is in ptrauth-dynamic_replaceable.sil.
 // UNSUPPORTED: CPU=arm64e
 
-// CHECK: @test_dynamically_replaceableTX = global %swift.dyn_repl_link_entry { i8* bitcast (void ()* @test_dynamically_replaceable to i8*), %swift.dyn_repl_link_entry* null }
-// CHECK: @test_dynamically_replaceableTx = constant %swift.dyn_repl_key { i32{{.*}}%swift.dyn_repl_link_entry* @test_dynamically_replaceableTX{{.*}}, i32 0 }, section "__TEXT,__const"
+// CHECK: @test_dynamically_replaceableTX = global %swift.dyn_repl_link_entry { ptr @test_dynamically_replaceable, ptr null }
+// CHECK: @test_dynamically_replaceableTx = constant %swift.dyn_repl_key { i32{{.*}}ptr @test_dynamically_replaceableTX{{.*}}, i32 0 }, section "__TEXT,__const"
 // CHECK: @test_replacementTX = global %swift.dyn_repl_link_entry zeroinitializer
 
 // CHECK: @"\01l_unnamed_dynamic_replacements" = private constant { i32, i32, [1 x { i32, i32, i32, i32 }] }
@@ -15,9 +16,9 @@
 // CHECK-SAME:   i32 1,
 // CHECK-SAME:  [1 x { i32, i32, i32, i32 }]
 // CHECK-SAME:  [{ i32, i32, i32, i32 }
-// CHECK-SAME:  %swift.dyn_repl_key* @test_dynamically_replaceableTx
+// CHECK-SAME:  ptr @test_dynamically_replaceableTx
 // CHECK-SAME:  @test_replacement
-// CHECK-SAME:  %swift.dyn_repl_link_entry* @test_replacementTX
+// CHECK-SAME:  ptr @test_replacementTX
 // CHECK-SAME:  i32 0 }] }, section "__TEXT,__const"
 
 // CHECK: @"\01l_auto_dynamic_replacements" = private constant { i32, i32, [2 x i32] }
@@ -27,13 +28,12 @@
 
 // CHECK-LABEL: define swiftcc void @test_dynamically_replaceable()
 // CHECK-NEXT: entry:
-// COMPAT-NEXT:   [[FUN_PTR:%.*]] =  call i8* @swift_getFunctionReplacement{{.*}}(i8** getelementptr inbounds (%swift.dyn_repl_link_entry, %swift.dyn_repl_link_entry* @test_dynamically_replaceableTX, i32 0, i32 0), i8* bitcast (void ()* @test_dynamically_replaceable to i8*))
-// NONCOMPAT-NEXT:   [[FUN_PTR:%.*]] =  call i8* @swift_getFunctionReplacement(i8** getelementptr inbounds (%swift.dyn_repl_link_entry, %swift.dyn_repl_link_entry* @test_dynamically_replaceableTX, i32 0, i32 0), i8* bitcast (void ()* @test_dynamically_replaceable to i8*))
-// CHECK-NEXT:   [[CMP:%.*]] = icmp eq i8* [[FUN_PTR]], null
+// COMPAT-NEXT:   [[FUN_PTR:%.*]] =  call ptr @swift_getFunctionReplacement{{.*}}(ptr @test_dynamically_replaceableTX, ptr @test_dynamically_replaceable)
+// NONCOMPAT-NEXT:   [[FUN_PTR:%.*]] =  call ptr @swift_getFunctionReplacement(ptr @test_dynamically_replaceableTX, ptr @test_dynamically_replaceable)
+// CHECK-NEXT:   [[CMP:%.*]] = icmp eq ptr [[FUN_PTR]], null
 // CHECK-NEXT:   br i1 [[CMP]], label %[[ORIGBB:[a-z_]*]], label %[[FWBB:[a-z_]*]]
 // CHECK:      [[FWBB]]:
-// CHECK-NEXT:   [[TYPED_PTR:%.*]] = bitcast i8* [[FUN_PTR]] to void ()*
-// CHECK-NEXT:   tail call swiftcc void [[TYPED_PTR]]()
+// CHECK-NEXT:   tail call swiftcc void [[FUN_PTR]]()
 // CHECK-NEXT:   ret void
 // CHECK:      [[ORIGBB]]:
 // CHECK-NEXT:   ret void
@@ -54,10 +54,9 @@ bb0:
 // The thunk that implement the prev_dynamic_function_ref lookup.
 // CHECK-LABEL: define swiftcc void @test_replacementTI()
 // CHECK: entry:
-// COMPAT:   [[FUN_PTR:%.*]] = call i8* @swift_getOrigOfReplaceable{{.*}}(i8** getelementptr inbounds (%swift.dyn_repl_link_entry, %swift.dyn_repl_link_entry* @test_replacementTX, i32 0, i32 0))
-// NONCOMPAT:   [[FUN_PTR:%.*]] = call i8* @swift_getOrigOfReplaceable(i8** getelementptr inbounds (%swift.dyn_repl_link_entry, %swift.dyn_repl_link_entry* @test_replacementTX, i32 0, i32 0))
-// CHECK:   [[TYPED_PTR:%.*]] = bitcast i8* [[FUN_PTR]] to void ()*
-// CHECK:   call swiftcc void [[TYPED_PTR]]()
+// COMPAT:   [[FUN_PTR:%.*]] = call ptr @swift_getOrigOfReplaceable{{.*}}(ptr @test_replacementTX)
+// NONCOMPAT:   [[FUN_PTR:%.*]] = call ptr @swift_getOrigOfReplaceable(ptr @test_replacementTX)
+// CHECK:   call swiftcc void [[FUN_PTR]]()
 // CHECK:   ret void
 // CHECK: }
 sil [dynamic_replacement_for "test_dynamically_replaceable"] @test_replacement : $@convention(thin) () -> () {

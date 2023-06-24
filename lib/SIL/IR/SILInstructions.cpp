@@ -1975,35 +1975,6 @@ SwitchValueInst *SwitchValueInst::create(
   return ::new (buf) SwitchValueInst(Loc, Operand, DefaultBB, Cases, BBs);
 }
 
-SelectValueInst::SelectValueInst(SILDebugLocation DebugLoc, SILValue Operand,
-                                 SILType Type, SILValue DefaultResult,
-                                 ArrayRef<SILValue> CaseValuesAndResults)
-    : InstructionBaseWithTrailingOperands(Operand, CaseValuesAndResults,
-                                          DebugLoc, Type) {}
-
-SelectValueInst *
-SelectValueInst::create(SILDebugLocation Loc, SILValue Operand, SILType Type,
-                        SILValue DefaultResult,
-                        ArrayRef<std::pair<SILValue, SILValue>> CaseValues,
-                        SILModule &M) {
-  // Allocate enough room for the instruction with tail-allocated data for all
-  // the case values and the SILSuccessor arrays. There are `CaseBBs.size()`
-  // SILValues and `CaseBBs.size() + (DefaultBB ? 1 : 0)` successors.
-  SmallVector<SILValue, 8> CaseValuesAndResults;
-  for (auto pair : CaseValues) {
-    CaseValuesAndResults.push_back(pair.first);
-    CaseValuesAndResults.push_back(pair.second);
-  }
-
-  if ((bool)DefaultResult)
-    CaseValuesAndResults.push_back(DefaultResult);
-
-  auto Size = totalSizeToAlloc<swift::Operand>(CaseValuesAndResults.size() + 1);
-  auto Buf = M.allocateInst(Size, alignof(SelectValueInst));
-  return ::new (Buf)
-      SelectValueInst(Loc, Operand, Type, DefaultResult, CaseValuesAndResults);
-}
-
 template <typename SELECT_ENUM_INST>
 SELECT_ENUM_INST *SelectEnumInstBase::createSelectEnum(
     SILDebugLocation Loc, SILValue Operand, SILType Ty, SILValue DefaultValue,
@@ -3229,7 +3200,7 @@ ReturnInst::ReturnInst(SILFunction &func, SILDebugLocation debugLoc,
          "result info?!");
 }
 
-bool OwnershipForwardingMixin::hasSameRepresentation(SILInstruction *inst) {
+bool ForwardingInstruction::hasSameRepresentation(SILInstruction *inst) {
   switch (inst->getKind()) {
   // Explicitly list instructions which definitely involve a representation
   // change.
@@ -3237,7 +3208,7 @@ bool OwnershipForwardingMixin::hasSameRepresentation(SILInstruction *inst) {
   default:
     // Conservatively assume that a conversion changes representation.
     // Operations can be added as needed to participate in SIL opaque values.
-    assert(OwnershipForwardingMixin::isa(inst));
+    assert(ForwardingInstruction::isa(inst));
     return false;
 
   case SILInstructionKind::ConvertFunctionInst:
@@ -3257,14 +3228,16 @@ bool OwnershipForwardingMixin::hasSameRepresentation(SILInstruction *inst) {
   }
 }
 
-bool OwnershipForwardingMixin::isAddressOnly(SILInstruction *inst) {
-  if (auto *aggregate =
-      dyn_cast<AllArgOwnershipForwardingSingleValueInst>(inst)) {
+bool ForwardingInstruction::isAddressOnly(SILInstruction *inst) {
+  if (canForwardAllOperands(inst)) {
+    // All ForwardingInstructions that forward all operands are currently a
+    // single value instruction.
+    auto *aggregate = cast<OwnershipForwardingSingleValueInstruction>(inst);
     // If any of the operands are address-only, then the aggregate must be.
     return aggregate->getType().isAddressOnly(*inst->getFunction());
   }
   // All other forwarding instructions must forward their first operand.
-  assert(OwnershipForwardingMixin::isa(inst));
+  assert(canForwardFirstOperandOnly(inst));
   return inst->getOperand(0)->getType().isAddressOnly(*inst->getFunction());
 }
 

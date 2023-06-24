@@ -28,7 +28,7 @@ struct AStruct {}
 // CHECK2: define{{.*}}app
 public func app() {
   // No members? No storage!
-  // CHECK2: call void @llvm.dbg.value(metadata {{.*}}* undef,
+  // CHECK2: call void @llvm.dbg.value(metadata ptr undef,
   // CHECK2-SAME:                      metadata ![[AT:.*]], metadata
   // CHECK2: ![[AT]] = !DILocalVariable(name: "at",{{.*}}line: [[@LINE+1]]
   var at = AStruct()

@@ -884,58 +884,6 @@ enum IntEnum : Int32 {
   case E2
 }
 
-// CHECK-LABEL: sil [ossa] @create_select_value : $@convention(thin) (Builtin.Int32) -> Optional<IntEnum> {
-// CHECK-DAG: [[X2:%[0-9]+]] = integer_literal $Builtin.Int32, 0
-// CHECK-DAG: [[X5:%[0-9]+]] = enum $Optional<IntEnum>, #Optional.none!enumelt
-// CHECK-DAG: [[X6:%[0-9]+]] = integer_literal $Builtin.Int32, 2
-// CHECK-DAG: [[X7:%[0-9]+]] = enum $IntEnum, #IntEnum.E2!enumelt
-// CHECK-DAG: [[X8:%[0-9]+]] = enum $Optional<IntEnum>, #Optional.some!enumelt, [[X7]] : $IntEnum
-// CHECK-DAG: [[X9:%[0-9]+]] = integer_literal $Builtin.Int32, 1
-// CHECK-DAG: [[X10:%[0-9]+]] = enum $IntEnum, #IntEnum.E1!enumelt
-// CHECK-DAG: [[X11:%[0-9]+]] = enum $Optional<IntEnum>, #Optional.some!enumelt, [[X10]] : $IntEnum
-// CHECK-DAG: [[X12:%[0-9]+]] = enum $IntEnum, #IntEnum.E0!enumelt
-// CHECK-DAG: [[X13:%[0-9]+]] = enum $Optional<IntEnum>, #Optional.some!enumelt, [[X12]] : $IntEnum
-// CHECK-DAG: [[X14:%[0-9]+]] = select_value %0 : $Builtin.Int32, case [[X6]]: [[X8]], case [[X9]]: [[X11]], case [[X2]]: [[X13]], default [[X5]] : $Optional<IntEnum>
-// CHECK-DAG: return [[X14]] : $Optional<IntEnum>
-sil [ossa] @create_select_value : $@convention(thin) (Builtin.Int32) -> Optional<IntEnum> {
-bb0(%0 : $Builtin.Int32):
-  %2 = integer_literal $Builtin.Int32, 0
-  %4 = builtin "cmp_eq_Int32"(%2 : $Builtin.Int32, %0 : $Builtin.Int32) : $Builtin.Int1
-  cond_br %4, bb1, bb2
-
-bb1:
-  %6 = enum $IntEnum, #IntEnum.E0!enumelt
-  %7 = enum $Optional<IntEnum>, #Optional.some!enumelt, %6 : $IntEnum
-  br bb7(%7 : $Optional<IntEnum>)
-
-bb2:
-  %9 = integer_literal $Builtin.Int32, 1
-  %10 = builtin "cmp_eq_Int32"(%9 : $Builtin.Int32, %0 : $Builtin.Int32) : $Builtin.Int1
-  cond_br %10, bb3, bb4
-
-bb3:
-  %12 = enum $IntEnum, #IntEnum.E1!enumelt
-  %13 = enum $Optional<IntEnum>, #Optional.some!enumelt, %12 : $IntEnum
-  br bb7(%13 : $Optional<IntEnum>)
-
-bb4:
-  %15 = integer_literal $Builtin.Int32, 2
-  %16 = builtin "cmp_eq_Int32"(%15 : $Builtin.Int32, %0 : $Builtin.Int32) : $Builtin.Int1
-  cond_br %16, bb5, bb6
-
-bb5:
-  %18 = enum $IntEnum, #IntEnum.E2!enumelt
-  %19 = enum $Optional<IntEnum>, #Optional.some!enumelt, %18 : $IntEnum
-  br bb7(%19 : $Optional<IntEnum>)
-
-bb6:
-  %21 = enum $Optional<IntEnum>, #Optional.none!enumelt
-  br bb7(%21 : $Optional<IntEnum>)
-
-bb7(%23 : $Optional<IntEnum>):
-  return %23 : $Optional<IntEnum>
-}
-
 // CHECK-LABEL: sil [ossa] @checked_cast_anyobject_metatypeinst_to_class
 // CHECK: bb0
 // CHECK-NOT: checked_cast

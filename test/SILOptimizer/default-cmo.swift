@@ -80,9 +80,8 @@ public func getSubmoduleKlassMember() -> Int {
 }
 
 // CHECK-LABEL: sil @$s4Main26getSubmoduleKlassMemberTBDSiyF
-// CHECK:         [[F:%[0-9]+]] = function_ref @$s9ModuleTBD20submoduleKlassMemberSiyF
-// CHECK:         [[I:%[0-9]+]] = apply [[F]]
-// CHECK:         return [[I]]
+// CHECK-NOT:     function_ref 
+// CHECK-NOT:     apply 
 // CHECK:       } // end sil function '$s4Main26getSubmoduleKlassMemberTBDSiyF'
 public func getSubmoduleKlassMemberTBD() -> Int {
   return ModuleTBD.submoduleKlassMember()

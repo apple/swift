@@ -1,6 +1,7 @@
 // RUN: %empty-directory(%t)
 // RUN: %{python} %utils/chex.py < %s > %t/generic_structs_future.sil
-// RUN: %target-swift-frontend -disable-type-layout -prespecialize-generic-metadata -target %module-target-future %t/generic_structs_future.sil -emit-ir | %FileCheck %t/generic_structs_future.sil
+// RUN: %target-swift-frontend %use_no_opaque_pointers -disable-type-layout -prespecialize-generic-metadata -target %module-target-future %t/generic_structs_future.sil -emit-ir | %FileCheck %t/generic_structs_future.sil
+// RUN: %target-swift-frontend -disable-type-layout -prespecialize-generic-metadata -target %module-target-future %t/generic_structs_future.sil -emit-ir
 
 // REQUIRES: VENDOR=apple || OS=linux-gnu
 // REQUIRES: CPU=x86_64

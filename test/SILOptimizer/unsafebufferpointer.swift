@@ -16,7 +16,6 @@ public func testIteration(_ p: UnsafeBufferPointer<Int>) -> Int {
 // CHECK:       phi
 // CHECK-NEXT:  phi
 // CHECK-NEXT:  getelementptr
-// CHECK-NEXT:  bitcast
 // CHECK-NEXT:  load
 // CHECK-NEXT:  add
 // CHECK-NEXT:  icmp
@@ -53,7 +52,7 @@ public func testCount(_ x: UnsafeBufferPointer<UInt>) -> Int {
 //
 // CHECK: [[LOOP]]:
 // CHECK: phi float [ 0.000000e+00
-// CHECK: load float, float*
+// CHECK: load float, ptr
 // CHECK: fadd float
 // CHECK: [[CMP:%[0-9]+]] = icmp eq
 // CHECK: br i1 [[CMP]], label %.loopexit, label %[[LOOP]]
@@ -75,7 +74,7 @@ public func testSubscript(_ ubp: UnsafeBufferPointer<Float>) -> Float {
 //
 // CHECK: [[LOOP]]:
 // CHECK: phi i64 [ 0
-// CHECK: load i8, i8*
+// CHECK: load i8, ptr
 // CHECK: zext i8 %{{.*}} to i64
 // CHECK: add i64
 // CHECK: [[CMP:%[0-9]+]] = icmp eq

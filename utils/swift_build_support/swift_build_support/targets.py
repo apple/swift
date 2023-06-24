@@ -277,7 +277,7 @@ class StdlibDeploymentTarget(object):
         "powerpc64le",
         "s390x"])
 
-    FreeBSD = Platform("freebsd", archs=["x86_64"])
+    FreeBSD = Platform("freebsd", archs=["x86_64", "arm64"])
 
     OpenBSD = OpenBSDPlatform("openbsd", archs=["amd64"])
 
@@ -375,6 +375,8 @@ class StdlibDeploymentTarget(object):
         elif system == 'FreeBSD':
             if machine == 'amd64':
                 return StdlibDeploymentTarget.FreeBSD.x86_64
+            elif machine == 'arm64':
+                return StdlibDeploymentTarget.FreeBSD.arm64
 
         elif system == 'OpenBSD':
             if machine == 'amd64':

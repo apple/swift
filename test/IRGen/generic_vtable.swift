@@ -1,7 +1,9 @@
 // RUN: %empty-directory(%t)
 // RUN: %{python} %utils/chex.py < %s > %t/generic_vtable.swift
-// RUN: %target-swift-frontend -enable-objc-interop  %t/generic_vtable.swift -emit-ir | %FileCheck %t/generic_vtable.swift --check-prefixes=CHECK,CHECK-objc,CHECK-objc%target-ptrsize,CHECK-%target-ptrsize,CHECK-%target-import-type,CHECK-%target-abi -DINT=i%target-ptrsize
-// RUN: %target-swift-frontend -disable-objc-interop %t/generic_vtable.swift -emit-ir | %FileCheck %t/generic_vtable.swift --check-prefixes=CHECK,CHECK-native,CHECK-native%target-ptrsize,CHECK-%target-ptrsize,CHECK-%target-import-type,CHECK-%target-abi -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-objc-interop  %t/generic_vtable.swift -emit-ir | %FileCheck %t/generic_vtable.swift --check-prefixes=CHECK,CHECK-objc,CHECK-objc%target-ptrsize,CHECK-%target-ptrsize,CHECK-%target-import-type,CHECK-%target-abi -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend %use_no_opaque_pointers -disable-objc-interop %t/generic_vtable.swift -emit-ir | %FileCheck %t/generic_vtable.swift --check-prefixes=CHECK,CHECK-native,CHECK-native%target-ptrsize,CHECK-%target-ptrsize,CHECK-%target-import-type,CHECK-%target-abi -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend -enable-objc-interop  %t/generic_vtable.swift -emit-ir
+// RUN: %target-swift-frontend -disable-objc-interop %t/generic_vtable.swift -emit-ir
 
 public class Base {
   public func m1() {}

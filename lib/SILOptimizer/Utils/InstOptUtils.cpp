@@ -1506,7 +1506,9 @@ void swift::insertDestroyOfCapturedArguments(
 }
 
 void swift::insertDeallocOfCapturedArguments(PartialApplyInst *pai,
-                                             DominanceInfo *domInfo) {
+                         DominanceInfo *domInfo,
+                         llvm::function_ref<bool(SILValue)> shouldInsertDestroy)
+{
   assert(pai->isOnStack());
 
   ApplySite site(pai);
@@ -1520,6 +1522,9 @@ void swift::insertDeallocOfCapturedArguments(PartialApplyInst *pai,
       continue;
 
     SILValue argValue = arg.get();
+    if (!shouldInsertDestroy(argValue)) {
+      continue;
+    }
     if (auto moveWrapper =
             dyn_cast<MoveOnlyWrapperToCopyableAddrInst>(argValue))
       argValue = moveWrapper->getOperand();
@@ -1803,8 +1808,10 @@ SILValue swift::makeValueAvailable(SILValue value, SILBasicBlock *inBlock) {
 
 bool swift::tryEliminateOnlyOwnershipUsedForwardingInst(
     SingleValueInstruction *forwardingInst, InstModCallbacks &callbacks) {
-  if (!OwnershipForwardingMixin::isa(forwardingInst) ||
-      isa<AllArgOwnershipForwardingSingleValueInst>(forwardingInst))
+  if (!ForwardingInstruction::isa(forwardingInst))
+    return false;
+
+  if (ForwardingInstruction::canForwardAllOperands(forwardingInst))
     return false;
 
   SmallVector<Operand *, 32> worklist(getNonDebugUses(forwardingInst));

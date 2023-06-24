@@ -1,4 +1,5 @@
-// RUN: %swift -swift-version 4 -target arm64e-apple-ios12.0 -parse-stdlib -parse-as-library %s -emit-ir -module-name test | %FileCheck %s --check-prefix=CHECK
+// RUN: %swift %use_no_opaque_pointers -swift-version 4 -target arm64e-apple-ios12.0 -parse-stdlib -parse-as-library %s -emit-ir -module-name test | %FileCheck %s --check-prefix=CHECK
+// RUN: %swift -swift-version 4 -target arm64e-apple-ios12.0 -parse-stdlib -parse-as-library %s -emit-ir -module-name test
 
 // REQUIRES: CPU=arm64e
 // REQUIRES: OS=ios

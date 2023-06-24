@@ -2,7 +2,7 @@
 
 import Swift
 
-// CHECK: define{{.*}}swiftcc void @takeInoutAliasable(%TSP* nocapture dereferenceable({{[0-9]+}}) %0, %swift.type* %T)
+// CHECK: define{{.*}}swiftcc void @takeInoutAliasable(ptr nocapture dereferenceable({{[0-9]+}}) %0, ptr %T)
 sil @takeInoutAliasable : $<T> (@inout_aliasable UnsafePointer<T>) -> () {
 entry(%ptr : $*UnsafePointer<T>):
   %retval = tuple ()

@@ -1,4 +1,5 @@
-// RUN: %target-swiftxx-frontend -I %S/Inputs %s -emit-ir -Xcc -fignore-exceptions | %FileCheck %s
+// RUN: %target-swiftxx-frontend %use_no_opaque_pointers -I %S/Inputs %s -emit-ir -Xcc -fignore-exceptions | %FileCheck %s
+// RUN: %target-swiftxx-frontend -I %S/Inputs %s -emit-ir -Xcc -fignore-exceptions
 
 // Verify that non-trivial/address-only C++ classes are constructed and accessed
 // correctly. Make sure that we correctly IRGen functions that construct

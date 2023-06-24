@@ -1676,6 +1676,11 @@ ERROR(attr_objc_implementation_category_not_found,none,
 NOTE(attr_objc_implementation_fixit_remove_category_name,none,
      "remove arguments to implement the main '@interface' for this class",
      ())
+ERROR(attr_objc_implementation_no_conformance,none,
+      "'@_objcImplementation' extension cannot add conformance to %0; "
+      "add this conformance %select{with an ordinary extension|"
+      "in the Objective-C header}1",
+      (Type, bool))
 
 ERROR(member_of_objc_implementation_not_objc_or_final,none,
       "%0 %1 does not match any %0 declared in the headers for %2; did you use "
@@ -1708,6 +1713,11 @@ ERROR(objc_implementation_type_mismatch,none,
       "%0 %1 of type %2 does not match type %3 declared by the "
       "header",
       (DescriptiveDeclKind, ValueDecl *, Type, Type))
+
+ERROR(objc_implementation_required_attr_mismatch,none,
+      "%0 %1 %select{should not|should}2 be 'required' to match %0 declared by "
+      "the header",
+      (DescriptiveDeclKind, ValueDecl *, bool))
 
 ERROR(objc_implementation_wrong_objc_name,none,
       "selector %0 for %1 %2 not found in header; did you mean %3?",
@@ -2117,6 +2127,9 @@ ERROR(unable_to_convert_generic_swift_types,none,
       "could not generate C++ types from the generic Swift types provided; "
       "the following Swift type(s) provided to '%0' could not be "
       "converted: %1",
+      (StringRef, StringRef))
+ERROR(unable_to_substitute_cxx_function_template,none,
+      "could not substitute parameters for C++ function template '%0': %1",
       (StringRef, StringRef))
 
 // Type aliases
@@ -3236,6 +3249,9 @@ ERROR(enum_raw_type_nonconforming_and_nonsynthable,none,
       "and conformance could not be synthesized", (Type, Type))
 NOTE(enum_declares_rawrep_with_raw_type,none,
       "%0 declares raw type %1, which implies RawRepresentable", (Type, Type))
+ERROR(enum_raw_type_nonconforming_and_noncopyable,none,
+      "%0 declares raw type %1, but cannot yet conform to RawRepresentable "
+      "because it is noncopyable", (Type, Type))
 ERROR(enum_raw_type_access,none,
       "enum %select{must be declared %select{"
       "%select{private|fileprivate|internal|package|%error|%error}1|private or fileprivate}3"
@@ -4662,7 +4678,7 @@ ERROR(unknown_case_multiple_patterns,none,
 ERROR(unknown_case_must_be_last,none,
       "'@unknown' can only be applied to the last case in a switch", ())
 
-WARNING(move_only_pattern_match_not_consumed,none,
+ERROR(move_only_pattern_match_not_consumed,none,
         "noncopyable binding being pattern-matched must have the 'consume' operator applied", ())
 
 WARNING(where_on_one_item, none,
@@ -5219,8 +5235,8 @@ WARNING(non_sendable_param_type,none,
         "non-sendable type %0 %select{passed in call to %4 %2 %3|"
         "exiting %4 context in call to non-isolated %2 %3|"
         "passed in implicitly asynchronous call to %4 %2 %3|"
-        "in parameter of %4 %2 %3 satisfying protocol requirement|"
-        "in parameter of %4 overriding %2 %3|"
+        "in parameter of the protocol requirement satisfied by %4 %2 %3|"
+        "in parameter of superclass method overridden by %4 %2 %3|"
         "in parameter of %4 '@objc' %2 %3}1 cannot cross actor boundary",
         (Type, unsigned, DescriptiveDeclKind, DeclName, ActorIsolation))
 WARNING(non_sendable_call_param_type,none,
@@ -7043,6 +7059,10 @@ ERROR(attr_incompatible_with_back_deploy,none,
       "'%0' cannot be applied to a back deployed %1",
       (DeclAttribute, DescriptiveDeclKind))
 
+ERROR(backdeployed_opaque_result_not_supported,none,
+      "'%0' is unsupported on a %1 with a 'some' return type",
+      (DeclAttribute, DescriptiveDeclKind))
+
 //------------------------------------------------------------------------------
 // MARK: Implicit opening of existential types
 //------------------------------------------------------------------------------
@@ -7284,6 +7304,11 @@ ERROR(noimplicitcopy_attr_invalid_in_generic_context,
       none, "'@_noImplicitCopy' attribute cannot be applied to entities in generic contexts", ())
 ERROR(noimplicitcopy_attr_not_allowed_on_moveonlytype,none,
       "'@_noImplicitCopy' has no effect when applied to a noncopyable type", ())
+ERROR(noncopyable_types_cannot_be_resilient, none,
+      "noncopyable %0 %1 must be @frozen in library evolution mode; "
+      "non-@frozen public and @usableFromInline noncopyable types are not "
+      "supported",
+      (DescriptiveDeclKind, Identifier))
 
 //------------------------------------------------------------------------------
 // MARK: Runtime discoverable attributes (@runtimeMetadata)
@@ -7359,7 +7384,22 @@ ERROR(init_accessor_accesses_attribute_on_other_declaration,none,
 ERROR(init_accessor_property_both_init_and_accessed,none,
       "property %0 cannot be both initialized and accessed",
       (DeclName))
-
+ERROR(invalid_use_of_self_in_init_accessor,none,
+      "'self' within init accessors can only be used to reference "
+      "properties listed in 'initializes' and 'accesses'; "
+      "init accessors are run before 'self' is fully available", ())
+ERROR(init_accessor_invalid_member_ref,none,
+      "cannot reference instance member %0; init accessors can only "
+      "refer to instance properties listed in 'initializes' and "
+      "'accesses' attributes",
+      (DeclNameRef))
+ERROR(cannot_synthesize_memberwise_due_to_property_init_order,none,
+      "cannot synthesize memberwise initializer",
+      ())
+NOTE(out_of_order_access_in_init_accessor,none,
+     "init accessor for %0 cannot access stored property %1 because it "
+     "is called before %1 is initialized",
+     (Identifier, Identifier))
 
 #define UNDEFINE_DIAGNOSTIC_MACROS
 #include "DefineDiagnosticMacros.h"

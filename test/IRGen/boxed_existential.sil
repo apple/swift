@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend %s -emit-ir | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-%target-runtime
+// RUN: %target-swift-frontend %use_no_opaque_pointers %s -emit-ir | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-%target-runtime
+// RUN: %target-swift-frontend %s -emit-ir
 
 import Swift
 

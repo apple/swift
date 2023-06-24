@@ -3297,7 +3297,7 @@ llvm::Constant *swift::irgen::emitCXXConstructorThunkIfNeeded(
   llvm::Function *thunk = llvm::Function::Create(
       assumedFnType, llvm::Function::PrivateLinkage, name, &IGM.Module);
 
-  thunk->setCallingConv(llvm::CallingConv::C);
+  thunk->setCallingConv(IGM.getOptions().PlatformCCallingConvention);
 
   llvm::AttrBuilder attrBuilder(IGM.getLLVMContext());
   IGM.constructInitialFnAttributes(attrBuilder);
@@ -5190,7 +5190,8 @@ IRGenModule::getAddrOfTypeMetadata(CanType concreteType,
   }
 
   if (auto *GV = dyn_cast<llvm::GlobalVariable>(addr.getValue()))
-    GV->setComdat(nullptr);
+    if (GV->isDeclaration())
+      GV->setComdat(nullptr);
 
   // FIXME: MC breaks when emitting alias references on some platforms
   // (rdar://problem/22450593 ). Work around this by referring to the aliasee
@@ -5661,7 +5662,7 @@ static bool shouldEmitCategory(IRGenModule &IGM, ExtensionDecl *ext) {
       return true;
   }
 
-  for (auto member : ext->getMembers()) {
+  for (auto member : ext->getAllMembers()) {
     if (auto func = dyn_cast<FuncDecl>(member)) {
       if (requiresObjCMethodDescriptor(func))
         return true;

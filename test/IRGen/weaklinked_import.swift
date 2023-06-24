@@ -8,7 +8,7 @@
 
 @_weakLinked import weaklinked_import_helper
 
-// CHECK-DAG: @"$s24weaklinked_import_helper12ConcreteTypeVAA13OtherProtocolAAWP" = extern_weak global i8*
+// CHECK-DAG: @"$s24weaklinked_import_helper12ConcreteTypeVAA13OtherProtocolAAWP" = extern_weak global ptr
 // CHECK-DAG: @"$s24weaklinked_import_helper12ConcreteTypeVMn" = extern_weak global %swift.type_descriptor
 // CHECK-DAG: @"$s24weaklinked_import_helper17ProtocolWithAssocMp" = extern_weak global %swift.protocol
 // CHECK-DAG: @"$s24weaklinked_import_helper17ProtocolWithAssocP1TAC_AA05OtherD0Tn" = extern_weak global %swift.protocol_requirement
@@ -154,7 +154,7 @@ func testProtocolGeneric<Impl: P>(_ type: Impl.Type) {
 // CHECK-DAG: @"$s24weaklinked_import_helper5BasePMp" = extern_weak global %swift.protocol
 protocol RefinesP: BaseP {}
 
-// CHECK-DAG: @"$s24weaklinked_import_helper1SVAA5BasePAAWP" = extern_weak global i8*
+// CHECK-DAG: @"$s24weaklinked_import_helper1SVAA5BasePAAWP" = extern_weak global ptr
 // CHECK-DAG: @"$s24weaklinked_import_helper1SVMn" = extern_weak global %swift.type_descriptor
 extension S: RefinesP {}
 

@@ -5,6 +5,9 @@ sil @getOwned : $@convention(thin) () -> @owned C
 sil @barrier : $@convention(thin) () -> ()
 struct S {}
 
+@_moveOnly struct MoS {}
+@_moveOnly struct MoE {}
+
 // When access scopes are respected, the lifetime which previously extended
 // beyond the access scope still extends beyond it.
 // CHECK-LABEL: begin running test 1 of 2 on retract_value_lifetime_into_access_scope_when_access_scopes_not_respected: canonicalize-ossa-lifetime with: true, false, true, @trace
@@ -131,6 +134,49 @@ exit(%phi : @owned $C, %typhi : $S):
   debug_value [trace] %phi : $C
   test_specification "canonicalize-ossa-lifetime true false true @trace"
   destroy_value %phi : $C
+  %retval = tuple ()
+  return %retval : $()
+}
+
+sil @empty : $@convention(thin) () -> () {
+[global: ]
+bb0:
+  %0 = tuple ()                                   
+  return %0 : $()                                 
+} 
+
+// Even though the apply of %empty is not a deinit barrier, verify that the
+// destroy is not hoisted, because MoS is move-only.
+// CHECK-LABEL: begin running test {{.*}} on dont_move_destroy_value_of_moveonly_struct: canonicalize-ossa-lifetime with: true, false, true, @argument
+// CHECK-LABEL: sil [ossa] @dont_move_destroy_value_of_moveonly_struct : {{.*}} {
+// CHECK:       {{bb[0-9]+}}([[INSTANCE:%[^,]+]] :
+// CHECK:         apply
+// CHECK:         destroy_value [[INSTANCE]]
+// CHECK-LABEL: } // end sil function 'dont_move_destroy_value_of_moveonly_struct'
+// CHECK-LABEL: end running test {{.*}} on dont_move_destroy_value_of_moveonly_struct: canonicalize-ossa-lifetime with: true, false, true, @argument
+sil [ossa] @dont_move_destroy_value_of_moveonly_struct : $@convention(thin) (@owned MoS) -> () {
+entry(%instance : @owned $MoS):
+  test_specification "canonicalize-ossa-lifetime true false true @argument"
+  %empty = function_ref @empty : $@convention(thin) () -> ()
+  apply %empty() : $@convention(thin) () -> ()
+  destroy_value %instance : $MoS
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: begin running test {{.*}} on dont_move_destroy_value_of_moveonly_enum: canonicalize-ossa-lifetime with: true, false, true, @argument
+// CHECK-LABEL: sil [ossa] @dont_move_destroy_value_of_moveonly_enum : {{.*}} {
+// CHECK:       {{bb[0-9]+}}([[INSTANCE:%[^,]+]] :
+// CHECK:         apply
+// CHECK:         destroy_value [[INSTANCE]]
+// CHECK-LABEL: } // end sil function 'dont_move_destroy_value_of_moveonly_enum'
+// CHECK-LABEL: end running test {{.*}} on dont_move_destroy_value_of_moveonly_enum: canonicalize-ossa-lifetime with: true, false, true, @argument
+sil [ossa] @dont_move_destroy_value_of_moveonly_enum : $@convention(thin) (@owned MoE) -> () {
+entry(%instance : @owned $MoE):
+  test_specification "canonicalize-ossa-lifetime true false true @argument"
+  %empty = function_ref @empty : $@convention(thin) () -> ()
+  apply %empty() : $@convention(thin) () -> ()
+  destroy_value %instance : $MoE
   %retval = tuple ()
   return %retval : $()
 }

@@ -15,9 +15,11 @@
 #include "swift/Basic/Defer.h"
 #include "swift/SIL/DebugUtils.h"
 #include "swift/SIL/InstructionUtils.h"
+#include "swift/SIL/PrunedLiveness.h"
 #include "swift/SIL/SILArgument.h"
 #include "swift/SIL/SILBuilder.h"
 #include "swift/SIL/SILInstruction.h"
+#include "swift/SIL/SILValue.h"
 #include "swift/SIL/BasicBlockDatastructures.h"
 #include "swift/SILOptimizer/PassManager/Passes.h"
 #include "swift/SILOptimizer/PassManager/Transforms.h"
@@ -712,7 +714,171 @@ static SILValue tryRewriteToPartialApplyStack(
   // lifetime ends.
   SmallVector<SILInstruction *, 4> lifetimeEnds;
   collectStackClosureLifetimeEnds(lifetimeEnds, closureOp);
+  
+  // For noncopyable address-only captures, see if we can eliminate the copy
+  // that SILGen emitted to allow the original partial_apply to take ownership.
+  // We do this here because otherwise the move checker will see the copy as an
+  // attempt to consume the value, which we don't want.
+  SmallVector<SILBasicBlock *, 8> discoveredBlocks;
+  SSAPrunedLiveness closureLiveness(cvt->getFunction(), &discoveredBlocks);
+  closureLiveness.initializeDef(closureOp);
+  
+  SmallSetVector<SILValue, 4> borrowedOriginals;
+  
+  for (unsigned i : indices(newPA->getArgumentOperands())) {
+    auto &arg = newPA->getArgumentOperands()[i];
+    SILValue copy = arg.get();
+    // The temporary should be a local stack allocation.
+    LLVM_DEBUG(llvm::dbgs() << "considering whether to eliminate copy of capture\n";
+               copy->printInContext(llvm::dbgs());
+               llvm::dbgs() << "\n");
+
+    auto stack = dyn_cast<AllocStackInst>(copy);
+    if (!stack) {
+      LLVM_DEBUG(llvm::dbgs() << "-- not an alloc_stack\n");
+      continue;
+    }
     
+    // This would be a nice optimization to attempt for all types, but for now,
+    // limit the effect to move-only types.
+    if (!copy->getType().isMoveOnly()) {
+      LLVM_DEBUG(llvm::dbgs() << "-- not move-only\n");
+      continue;
+    }
+    
+    // Is the capture a borrow?
+    auto paramIndex = newPA
+      ->getArgumentIndexForOperandIndex(i + newPA->getArgumentOperandNumber())
+      .getValue();
+    if (!newPA->getOrigCalleeType()->getParameters()[paramIndex]
+          .isIndirectInGuaranteed()) {
+      LLVM_DEBUG(llvm::dbgs() << "-- not an in_guaranteed parameter\n";
+                 newPA->getOrigCalleeType()->getParameters()[paramIndex]
+                   .print(llvm::dbgs());
+                 llvm::dbgs() << "\n");
+      continue;
+    }
+    
+    // It needs to have been initialized by copying from somewhere else.
+    CopyAddrInst *initialization = nullptr;
+    MarkDependenceInst *markDep = nullptr;
+    for (auto *use : stack->getUses()) {
+      // Since we removed the `dealloc_stack`s from the capture arguments,
+      // the only uses of this stack slot should be the initialization, the
+      // partial application, and possibly a mark_dependence from the
+      // buffer to the partial application.
+      if (use->getUser() == newPA) {
+        continue;
+      }
+      if (auto mark = dyn_cast<MarkDependenceInst>(use->getUser())) {
+        // If we're marking dependence of the current partial_apply on this
+        // stack slot, that's fine.
+        if (mark->getValue() != newPA
+            || mark->getBase() != stack) {
+          LLVM_DEBUG(llvm::dbgs() << "-- had unexpected mark_dependence use\n";
+                     use->getUser()->print(llvm::dbgs());
+                     llvm::dbgs() << "\n");
+          
+          break;
+        }
+        markDep = mark;
+        continue;
+      }
+      
+      // If we saw more than just the initialization, this isn't a pattern we
+      // recognize.
+      if (initialization) {
+        LLVM_DEBUG(llvm::dbgs() << "-- had non-initialization, non-partial-apply use\n";
+                   use->getUser()->print(llvm::dbgs());
+                   llvm::dbgs() << "\n");
+                   
+        initialization = nullptr;
+        break;
+      }
+      if (auto possibleInit = dyn_cast<CopyAddrInst>(use->getUser())) {
+        // Should copy the source and initialize the destination.
+        if (possibleInit->isTakeOfSrc()
+            || !possibleInit->isInitializationOfDest()) {
+          LLVM_DEBUG(llvm::dbgs() << "-- had non-initialization, non-partial-apply use\n";
+                     use->getUser()->print(llvm::dbgs());
+                     llvm::dbgs() << "\n");
+
+          break;
+        }
+        // This is the initialization if there are no other uses.
+        initialization = possibleInit;
+        continue;
+      }
+      LLVM_DEBUG(llvm::dbgs() << "-- unrecognized use\n");
+      break;
+    }
+    if (!initialization) {
+      LLVM_DEBUG(llvm::dbgs() << "-- failed to find single initializing use\n");
+      continue;
+    }
+    
+    // The source should have no writes in the duration of the partial_apply's
+    // liveness.
+    auto orig = initialization->getSrc();
+    LLVM_DEBUG(llvm::dbgs() << "++ found original:\n";
+               orig->print(llvm::dbgs());
+               llvm::dbgs() << "\n");
+               
+    bool origIsUnusedDuringClosureLifetime = true;
+
+    class OrigUnusedDuringClosureLifetimeWalker final
+      : public TransitiveAddressWalker
+    {
+      SSAPrunedLiveness &closureLiveness;
+      bool &origIsUnusedDuringClosureLifetime;
+    public:
+      OrigUnusedDuringClosureLifetimeWalker(SSAPrunedLiveness &closureLiveness,
+                                        bool &origIsUnusedDuringClosureLifetime)
+        : closureLiveness(closureLiveness),
+          origIsUnusedDuringClosureLifetime(origIsUnusedDuringClosureLifetime)
+      {}
+    
+      virtual bool visitUse(Operand *origUse) override {
+        LLVM_DEBUG(llvm::dbgs() << "looking at use\n";
+                   origUse->getUser()->printInContext(llvm::dbgs());
+                   llvm::dbgs() << "\n");
+        
+        // If the user doesn't write to memory, then it's harmless.
+        if (!origUse->getUser()->mayWriteToMemory()) {
+          return true;
+        }
+        if (closureLiveness.isWithinBoundary(origUse->getUser())) {
+          origIsUnusedDuringClosureLifetime = false;
+          LLVM_DEBUG(llvm::dbgs() << "-- original has other possibly writing use during closure lifetime\n";
+                     origUse->getUser()->print(llvm::dbgs());
+                     llvm::dbgs() << "\n");
+          return false;
+        }
+        return true;
+      }
+    };
+    
+    OrigUnusedDuringClosureLifetimeWalker origUseWalker(closureLiveness,
+                                             origIsUnusedDuringClosureLifetime);
+    auto walkResult = std::move(origUseWalker).walk(orig);
+    
+    if (walkResult == AddressUseKind::Unknown
+        || !origIsUnusedDuringClosureLifetime) {
+      continue;
+    }
+
+    // OK, we can use the original. Eliminate the copy and replace it with the
+    // original.
+    LLVM_DEBUG(llvm::dbgs() << "++ replacing with original!\n");
+    arg.set(orig);
+    if (markDep) {
+      markDep->setBase(orig);
+    }
+    initialization->eraseFromParent();
+    stack->eraseFromParent();
+    borrowedOriginals.insert(orig);
+  }
+  
   /* DEBUG
   llvm::errs() << "=== found lifetime ends for\n";
   closureOp->dump();
@@ -724,7 +890,11 @@ static SILValue tryRewriteToPartialApplyStack(
     */
     SILBuilderWithScope builder(std::next(destroy->getIterator()));
     insertDestroyOfCapturedArguments(newPA, builder,
-                                     [&](SILValue arg) -> bool { return true; },
+                                     [&](SILValue arg) -> bool {
+                                       // Don't need to destroy if we borrowed
+                                       // in place .
+                                       return !borrowedOriginals.count(arg);
+                                     },
                                      newPA->getLoc());
   }
   /* DEBUG
@@ -750,7 +920,12 @@ static SILValue tryRewriteToPartialApplyStack(
     return closureOp;
 
   insertDeallocOfCapturedArguments(
-      newPA, dominanceAnalysis->get(closureUser->getFunction()));
+      newPA, dominanceAnalysis->get(closureUser->getFunction()),
+      [&](SILValue arg) -> bool {
+        // Don't need to destroy if we borrowed
+        // in place.
+        return !borrowedOriginals.count(arg);
+      });
 
   return closureOp;
 }

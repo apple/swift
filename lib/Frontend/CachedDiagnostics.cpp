@@ -108,16 +108,32 @@ struct DiagnosticSerializer {
                         ReplayFunc Fn = nullptr);
   llvm::Error serializeEmittedDiagnostics(llvm::raw_ostream &os);
 
-  static llvm::Error emitDiagnosticsFromCached(llvm::StringRef Buffer,
-                                               SourceManager &SrcMgr,
-                                               DiagnosticEngine &Diags) {
+  static llvm::Error
+  emitDiagnosticsFromCached(llvm::StringRef Buffer, SourceManager &SrcMgr,
+                            DiagnosticEngine &Diags,
+                            const FrontendInputsAndOutputs &InAndOut) {
     // Create a new DiagnosticSerializer since this cannot be shared with a
     // serialization instance.
     DiagnosticSerializer DS(SrcMgr.getFileSystem());
+    DS.addInputsToSourceMgr(InAndOut);
     return DS.doEmitFromCached(Buffer, Diags);
   }
 
   SourceManager &getSourceMgr() { return SrcMgr; }
+
+  void addInputsToSourceMgr(const FrontendInputsAndOutputs &InAndOut) {
+    // Extract all the input file names so they can be added to the source
+    // manager when replaying the diagnostics. All input files are needed even
+    // they don't contain diagnostics because FileSpecificDiagConsumer need
+    // has references to input files to find subconsumer.
+    auto addInputToSourceMgr = [&](const InputFile &Input) {
+      if (Input.getFileName() != "-")
+        SrcMgr.getExternalSourceBufferID(Input.getFileName());
+      return false;
+    };
+    InAndOut.forEachInputProducingSupplementaryOutput(addInputToSourceMgr);
+    InAndOut.forEachNonPrimaryInput(addInputToSourceMgr);
+  }
 
 private:
   // Serialization helper
@@ -632,7 +648,7 @@ public:
 
   llvm::Error replayCachedDiagnostics(llvm::StringRef Buffer) {
     return DiagnosticSerializer::emitDiagnosticsFromCached(
-        Buffer, getDiagnosticSourceMgr(), Diags);
+        Buffer, getDiagnosticSourceMgr(), Diags, InAndOut);
   }
 
   void handleDiagnostic(SourceManager &SM,
@@ -683,18 +699,7 @@ private:
     if (!Serializer) {
       Serializer.reset(
           new DiagnosticSerializer(InstanceSourceMgr.getFileSystem()));
-      auto &SM = Serializer->getSourceMgr();
-      // Extract all the input file names so they can be added to the source
-      // manager when replaying the diagnostics. All input files are needed even
-      // they don't contain diagnostics because FileSpecificDiagConsumer need
-      // has references to input files to find subconsumer.
-      auto addInputToSourceMgr = [&](const InputFile &Input) {
-        if (Input.getFileName() != "-")
-          SM.getExternalSourceBufferID(Input.getFileName());
-        return false;
-      };
-      InAndOut.forEachInputProducingSupplementaryOutput(addInputToSourceMgr);
-      InAndOut.forEachNonPrimaryInput(addInputToSourceMgr);
+      Serializer->addInputsToSourceMgr(InAndOut);
     }
 
     return *Serializer;

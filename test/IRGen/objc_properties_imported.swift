@@ -1,4 +1,5 @@
-// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -enable-objc-interop -enable-source-import -emit-ir -o - -primary-file %s | %FileCheck %s
+// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) %use_no_opaque_pointers -enable-objc-interop -enable-source-import -emit-ir -o - -primary-file %s | %FileCheck %s
+// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -enable-objc-interop -enable-source-import -emit-ir -o - -primary-file %s
 
 // REQUIRES: CPU=x86_64
 

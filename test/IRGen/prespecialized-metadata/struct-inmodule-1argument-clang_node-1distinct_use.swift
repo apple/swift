@@ -1,7 +1,8 @@
 // RUN: %empty-directory(%t)
 // RUN: %build-irgen-test-overlays(mock-sdk-directory: %S/../Inputs)
 // REQUIRES: VENDOR=apple || OS=linux-gnu
-// RUN: %target-swift-frontend(mock-sdk: -sdk %S/../Inputs -I %t) -prespecialize-generic-metadata -target %module-target-future -primary-file %s -emit-ir | %FileCheck %s -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend(mock-sdk: -sdk %S/../Inputs -I %t) %use_no_opaque_pointers -prespecialize-generic-metadata -target %module-target-future -primary-file %s -emit-ir | %FileCheck %s -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend(mock-sdk: -sdk %S/../Inputs -I %t) -prespecialize-generic-metadata -target %module-target-future -primary-file %s -emit-ir
 
 // UNSUPPORTED: CPU=i386 && OS=ios
 // UNSUPPORTED: CPU=armv7 && OS=ios

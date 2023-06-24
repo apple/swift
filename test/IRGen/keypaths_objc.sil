@@ -20,7 +20,7 @@ sil @x_get : $@convention(thin) (@in_guaranteed C) -> @out NSString
 // CHECK: [[KEYPATH_A:@keypath(\..*)?]] = private global
 // --             computed, get-only, function-instantiated identifier
 // CHECK-SAME: <i32 0x0200_0001>,
-// CHECK-SAME: i8* (i8*)* [[SELECTOR_FN:@[A-Za-z0-9_.]+]] to
+// CHECK-SAME: ptr [[SELECTOR_FN:@[A-Za-z0-9_.]+]] to
 
 // CHECK: [[KEYPATH_B:@keypath(\..*)?]] = private global
 // --             class mutable stored property with indirect offset
@@ -30,7 +30,7 @@ sil @x_get : $@convention(thin) (@in_guaranteed C) -> @out NSString
 // CHECK-LABEL: define swiftcc void @objc_only_property()
 sil @objc_only_property : $@convention(thin) () -> () {
 entry:
-  // CHECK: call %swift.refcounted* @swift_getKeyPath({{.*}} [[KEYPATH_A]]
+  // CHECK: call ptr @swift_getKeyPath({{.*}} [[KEYPATH_A]]
   %a = keypath $KeyPath<C, NSString>, (objc "x"; root $C; gettable_property $NSString, id #C.x!getter.foreign, getter @x_get : $@convention(thin) (@in_guaranteed C) -> @out NSString)
   unreachable
 }
@@ -45,15 +45,15 @@ entry(%0 : $@objc_metatype C.Type):
   unreachable
 }
 
-// CHECK: define linkonce_odr hidden i8* [[SELECTOR_FN]]
+// CHECK: define linkonce_odr hidden ptr [[SELECTOR_FN]]
 // CHECK-NEXT: entry:
 // CHECK-NEXT:   %1 = load {{.*}}selector(x)
-// CHECK-NEXT:   ret i8* %1
+// CHECK-NEXT:   ret ptr %1
 
 // CHECK-LABEL: define swiftcc void @objc_stored_property()
 sil @objc_stored_property : $@convention(thin) () -> () {
 entry:
-  // CHECK: call %swift.refcounted* @swift_getKeyPath({{.*}} [[KEYPATH_B]]
+  // CHECK: call ptr @swift_getKeyPath({{.*}} [[KEYPATH_B]]
   %b = keypath $KeyPath<C, Int>, (objc "stored"; root $C; stored_property #C.stored : $Int)
   unreachable
 }

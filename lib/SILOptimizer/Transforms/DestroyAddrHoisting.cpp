@@ -870,6 +870,11 @@ bool hoistDestroys(SILValue root, bool ignoreDeinitBarriers,
                    BasicCalleeAnalysis *calleeAnalysis) {
   LLVM_DEBUG(llvm::dbgs() << "Performing destroy hoisting on " << root);
 
+  // Don't canonicalize the lifetimes of addresses of move-only type.
+  // According to language rules, they are fixed.
+  if (root->getType().isMoveOnly())
+    return false;
+
   SILFunction *function = root->getFunction();
   if (!function)
     return false;

@@ -662,17 +662,20 @@ private:
   enum : int_type {
     UnusedLowBits = 0x07,      // historical conformance kind
 
-    TypeMetadataKindMask = 0x7 << 3, // 8 type reference kinds
+    TypeMetadataKindMask = 0x7u << 3, // 8 type reference kinds
     TypeMetadataKindShift = 3,
 
-    IsRetroactiveMask = 0x01 << 6,
-    IsSynthesizedNonUniqueMask = 0x01 << 7,
+    IsRetroactiveMask = 0x01u << 6,
+    IsSynthesizedNonUniqueMask = 0x01u << 7,
 
-    NumConditionalRequirementsMask = 0xFF << 8,
+    NumConditionalRequirementsMask = 0xFFu << 8,
     NumConditionalRequirementsShift = 8,
 
-    HasResilientWitnessesMask = 0x01 << 16,
-    HasGenericWitnessTableMask = 0x01 << 17,
+    HasResilientWitnessesMask = 0x01u << 16,
+    HasGenericWitnessTableMask = 0x01u << 17,
+
+    NumConditionalPackDescriptorsMask = 0xFFu << 24,
+    NumConditionalPackDescriptorsShift = 24
   };
 
   int_type Value;
@@ -700,6 +703,11 @@ public:
   ConformanceFlags withNumConditionalRequirements(unsigned n) const {
     return ConformanceFlags((Value & ~NumConditionalRequirementsMask)
                             | (n << NumConditionalRequirementsShift));
+  }
+
+  ConformanceFlags withNumConditionalPackDescriptors(unsigned n) const {
+    return ConformanceFlags((Value & ~NumConditionalPackDescriptorsMask)
+                            | (n << NumConditionalPackDescriptorsShift));
   }
 
   ConformanceFlags withHasResilientWitnesses(bool hasResilientWitnesses) const {
@@ -745,6 +753,12 @@ public:
   unsigned getNumConditionalRequirements() const {
     return (Value & NumConditionalRequirementsMask)
               >> NumConditionalRequirementsShift;
+  }
+
+  /// Retrieve the # of conditional pack shape descriptors.
+  unsigned getNumConditionalPackShapeDescriptors() const {
+    return (Value & NumConditionalPackDescriptorsMask)
+              >> NumConditionalPackDescriptorsShift;
   }
 
   /// Whether this conformance has any resilient witnesses.

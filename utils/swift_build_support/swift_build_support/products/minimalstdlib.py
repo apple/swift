@@ -116,6 +116,7 @@ class MinimalStdlib(cmake_product.CMakeProduct):
         self.cmake_options.define(
             'SWIFT_RUNTIME_STATIC_IMAGE_INSPECTION:BOOL', 'FALSE')
         self.cmake_options.define('SWIFT_STDLIB_BUILD_PRIVATE:BOOL', 'TRUE')
+        self.cmake_options.define('SWIFT_STDLIB_TRACING:BOOL', 'FALSE')
         self.cmake_options.define(
             'SWIFT_STDLIB_CONCURRENCY_TRACING:BOOL', 'FALSE')
         self.cmake_options.define(
@@ -139,7 +140,9 @@ class MinimalStdlib(cmake_product.CMakeProduct):
         self.cmake_options.define(
             'SWIFT_STDLIB_HAS_DARWIN_LIBMALLOC:BOOL', 'FALSE')
         self.cmake_options.define('SWIFT_STDLIB_HAS_DLADDR:BOOL', 'FALSE')
+        self.cmake_options.define('SWIFT_STDLIB_HAS_DLSYM:BOOL', 'FALSE')
         self.cmake_options.define('SWIFT_STDLIB_HAS_ENVIRON:BOOL', 'FALSE')
+        self.cmake_options.define('SWIFT_STDLIB_HAS_FILESYSTEM:BOOL', 'FALSE')
         self.cmake_options.define('SWIFT_STDLIB_HAS_LOCALE:BOOL', 'FALSE')
         self.cmake_options.define('SWIFT_STDLIB_HAS_STDIN:BOOL', 'FALSE')
         self.cmake_options.define(

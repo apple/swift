@@ -16,19 +16,19 @@ public enum SingletonEnum {
 // CHECK:   ret void
 // CHECK: }
 
-// CHECK: define internal %swift.opaque* @"$s14enum_singleton13SingletonEnumOwcp"
-// CHECK-OPT:   [[R0:%.*]] = tail call %swift.opaque* @"{{.*}}OwcpTm"
-// CHECK-OPT:   ret %swift.opaque* [[R0]]
+// CHECK: define internal ptr @"$s14enum_singleton13SingletonEnumOwcp"
+// CHECK-OPT:   [[R0:%.*]] = tail call ptr @"{{.*}}OwcpTm"
+// CHECK-OPT:   ret ptr [[R0]]
 // CHECK: }
 
-// CHECK: define internal %swift.opaque* @"$s14enum_singleton13SingletonEnumOwca"
-// CHECK-OPT:   [[R1:%.*]] = tail call %swift.opaque* @"{{.*}}OwcaTm"
-// CHECK-OPT:   ret %swift.opaque* [[R1]]
+// CHECK: define internal ptr @"$s14enum_singleton13SingletonEnumOwca"
+// CHECK-OPT:   [[R1:%.*]] = tail call ptr @"{{.*}}OwcaTm"
+// CHECK-OPT:   ret ptr [[R1]]
 // CHECK: }
 
-// CHECK: define internal %swift.opaque* @"$s14enum_singleton13SingletonEnumOwta"
-// CHECK-OPT:   [[R2:%.*]] = tail call %swift.opaque* @"{{.*}}OwtaTm"
-// CHECK-OPT:   ret %swift.opaque* [[R2]]
+// CHECK: define internal ptr @"$s14enum_singleton13SingletonEnumOwta"
+// CHECK-OPT:   [[R2:%.*]] = tail call ptr @"{{.*}}OwtaTm"
+// CHECK-OPT:   ret ptr [[R2]]
 // CHECK: }
 
 // CHECK: define internal i32 @"$s14enum_singleton13SingletonEnumOwet"

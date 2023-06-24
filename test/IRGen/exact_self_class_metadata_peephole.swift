@@ -1,5 +1,7 @@
-// RUN: %target-swift-frontend -emit-ir %s | %FileCheck %s --check-prefix=CHECK --check-prefix=ONONE
-// RUN: %target-swift-frontend -O -disable-llvm-optzns -Xllvm -sil-disable-pass=FunctionSignatureOpts -emit-ir %s | %FileCheck %s --check-prefix=CHECK --check-prefix=O
+// RUN: %target-swift-frontend %use_no_opaque_pointers -emit-ir %s | %FileCheck %s --check-prefix=CHECK --check-prefix=ONONE
+// RUN: %target-swift-frontend -emit-ir %s
+// RUN: %target-swift-frontend %use_no_opaque_pointers -O -disable-llvm-optzns -Xllvm -sil-disable-pass=FunctionSignatureOpts -emit-ir %s | %FileCheck %s --check-prefix=CHECK --check-prefix=O
+// RUN: %target-swift-frontend -O -disable-llvm-optzns -Xllvm -sil-disable-pass=FunctionSignatureOpts -emit-ir %s
 
 @_silgen_name("useMetadata")
 func useMetadata<T>(_: T.Type)

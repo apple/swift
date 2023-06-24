@@ -33,7 +33,7 @@ bb0:
   return %result : $@differentiable(reverse) @callee_guaranteed (Float) -> Float
 }
 
-// CHECK-LABEL: define{{.*}}test_form_diff_func(<{ %swift.function, %swift.function, %swift.function }>* noalias nocapture sret(<{ %swift.function, %swift.function, %swift.function }>)
+// CHECK-LABEL: define{{.*}}test_form_diff_func(ptr noalias nocapture sret(<{ %swift.function, %swift.function, %swift.function }>)
 // CHECK-SAME: [[OUT:%.*]])
 // CHECK:   [[OUT_ORIG:%.*]] = getelementptr{{.*}}[[OUT]], i32 0, i32 0
 // CHECK:   [[OUT_ORIG_FN:%.*]] = getelementptr{{.*}}[[OUT_ORIG]], i32 0, i32 0
@@ -60,8 +60,8 @@ bb0(%0 : $@differentiable(reverse) @callee_guaranteed (Float) -> Float):
   return %result : $(@callee_guaranteed (Float) -> Float, @callee_guaranteed (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float), @callee_guaranteed (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float))
 }
 
-// CHECK-LABEL: define{{.*}}@test_extract_components(<{ %swift.function, %swift.function, %swift.function }>* noalias nocapture sret(<{ %swift.function, %swift.function, %swift.function }>)
-// CHECK-SAME: [[OUT:%.*]], <{ %swift.function, %swift.function, %swift.function }>*{{.*}}[[IN:%.*]])
+// CHECK-LABEL: define{{.*}}@test_extract_components(ptr noalias nocapture sret(<{ %swift.function, %swift.function, %swift.function }>)
+// CHECK-SAME: [[OUT:%.*]], ptr{{.*}}[[IN:%.*]])
 // CHECK:   [[ORIG:%.*]] = getelementptr{{.*}}[[IN]], i32 0, i32 0
 // CHECK:   [[ORIG_FN_ADDR:%.*]] = getelementptr{{.*}}[[ORIG]], i32 0, i32 0
 // CHECK:   [[ORIG_FN:%.*]] = load{{.*}}[[ORIG_FN_ADDR]]
@@ -99,15 +99,14 @@ bb0(%0 : $@differentiable(reverse) @callee_guaranteed (Float) -> Float, %1 : $Fl
   return %2 : $Float
 }
 
-// CHECK-LABEL: define{{.*}}@test_call_diff_fn(<{ %swift.function, %swift.function, %swift.function }>*
+// CHECK-LABEL: define{{.*}}@test_call_diff_fn(ptr
 // CHECK-SAME: [[DIFF_FN:%.*]], float [[INPUT_FLOAT:%.*]])
 // CHECK:   [[ORIG:%.*]] = getelementptr{{.*}}[[DIFF_FN]], i32 0, i32 0
 // CHECK:   [[ORIG_FN_ADDR:%.*]] = getelementptr{{.*}}[[ORIG]], i32 0, i32 0
 // CHECK:   [[ORIG_FN:%.*]] = load{{.*}}[[ORIG_FN_ADDR]]
 // CHECK:   [[ORIG_DATA_ADDR:%.*]] = getelementptr{{.*}}[[ORIG]], i32 0, i32 1
 // CHECK:   [[ORIG_DATA:%.*]] = load{{.*}}[[ORIG_DATA_ADDR]]
-// CHECK:   [[ORIG_FN_CAST:%.*]] = bitcast{{.*}}[[ORIG_FN]]
-// CHECK:   [[RESULT:%.*]] = call swiftcc float [[ORIG_FN_CAST]](float [[INPUT_FLOAT]], %swift.refcounted* swiftself [[ORIG_DATA]])
+// CHECK:   [[RESULT:%.*]] = call swiftcc float [[ORIG_FN]](float [[INPUT_FLOAT]], ptr swiftself [[ORIG_DATA]])
 // CHECK:   ret float [[RESULT]]
 
 sil @test_convert_escape_to_noescape : $@convention(thin) (@guaranteed @differentiable(reverse) @callee_guaranteed (Float) -> Float) -> () {

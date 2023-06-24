@@ -1,7 +1,9 @@
 // This file is also used by objc_properties_ios.swift.
 
-// RUN: %swift -target %target-cpu-apple-macosx10.11 %s -disable-target-os-checking -emit-ir -disable-objc-attr-requires-foundation-module | %FileCheck -check-prefix=CHECK -check-prefix=CHECK-NEW %s
-// RUN: %swift -target %target-cpu-apple-macosx10.10 %s -disable-target-os-checking -emit-ir -disable-objc-attr-requires-foundation-module | %FileCheck -check-prefix=CHECK -check-prefix=CHECK-OLD %s
+// RUN: %swift %use_no_opaque_pointers -target %target-cpu-apple-macosx10.11 %s -disable-target-os-checking -emit-ir -disable-objc-attr-requires-foundation-module | %FileCheck -check-prefix=CHECK -check-prefix=CHECK-NEW %s
+// RUN: %swift %use_no_opaque_pointers -target %target-cpu-apple-macosx10.10 %s -disable-target-os-checking -emit-ir -disable-objc-attr-requires-foundation-module | %FileCheck -check-prefix=CHECK -check-prefix=CHECK-OLD %s
+// RUN: %swift -target %target-cpu-apple-macosx10.11 %s -disable-target-os-checking -emit-ir -disable-objc-attr-requires-foundation-module
+// RUN: %swift -target %target-cpu-apple-macosx10.10 %s -disable-target-os-checking -emit-ir -disable-objc-attr-requires-foundation-module
 
 // REQUIRES: OS=macosx
 // REQUIRES: objc_interop
