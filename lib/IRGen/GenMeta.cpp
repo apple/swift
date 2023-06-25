@@ -3369,7 +3369,7 @@ template <class Impl, class DeclType>
     void layoutHeader() {
       super::layoutHeader();
 
-      // RelativeIndirectablePointer<const ValueWitnessTable> ValueWitnesses;
+      // TargetRelativeIndirectableValueWitnessTablePointer ValueWitnesses;
       asImpl().addValueWitnessTable();
 
     }
@@ -3691,7 +3691,11 @@ namespace {
       if (asImpl().getFieldLayout().hasObjCImplementation())
         return;
 
-      B.add(asImpl().getValueWitnessTable(false).getValue());
+      auto wtable = asImpl().getValueWitnessTable(false).getValue();
+      auto schema = IGM.getOptions().PointerAuth.ValueWitnessTable;
+
+      B.addSignedPointer(wtable, schema,
+                         PointerAuthEntity::Special::ValueWitnessTable);
     }
 
     llvm::Constant *getAddrOfMetaclassObject(ForDefinition_t forDefinition) {
@@ -4902,9 +4906,22 @@ emitInvariantLoadFromMetadataAtIndex(IRGenFunction &IGF,
 /// Given a type metadata pointer, load its value witness table.
 llvm::Value *
 IRGenFunction::emitValueWitnessTableRefForMetadata(llvm::Value *metadata) {
-  auto witness = emitInvariantLoadFromMetadataAtIndex(*this, metadata, nullptr,
+  llvm::Value *addrOfValueWitnessTablePtr = nullptr;
+  auto witness = emitInvariantLoadFromMetadataAtIndex(*this, metadata,
+                                                    &addrOfValueWitnessTablePtr,
                                                       -1, IGM.WitnessTablePtrTy,
                                                       ".valueWitnesses");
+
+  if (auto schema = IGM.getOptions().PointerAuth.ValueWitnessTable) {
+    // TODO: We might be able to flag witnessTablePtr as dereferencable (see
+    // below) by adding an attribute (not setting the metadata). However, it
+    // is unclear if there are any benefits to be had at the cost of
+    // changing the APIs in multiple places.
+    auto info = PointerAuthInfo::emit(*this, schema, addrOfValueWitnessTablePtr,
+                                 PointerAuthEntity::Special::ValueWitnessTable);
+    return emitPointerAuthAuth(*this, witness, info);
+  }
+
   // A value witness table is dereferenceable to the number of value witness
   // pointers.
   
@@ -5062,7 +5079,10 @@ namespace {
     }
 
     void addValueWitnessTable() {
-      B.add(asImpl().getValueWitnessTable(false).getValue());
+      auto vwtPointer = asImpl().getValueWitnessTable(false).getValue();
+      B.addSignedPointer(vwtPointer,
+                         IGM.getOptions().PointerAuth.ValueWitnessTable,
+                         PointerAuthEntity::Special::ValueWitnessTable);
     }
 
     llvm::Constant *emitLayoutString() {
@@ -5517,7 +5537,10 @@ namespace {
     }
 
     void addValueWitnessTable() {
-      B.add(asImpl().getValueWitnessTable(false).getValue());
+      auto vwtPointer = asImpl().getValueWitnessTable(false).getValue();
+      B.addSignedPointer(vwtPointer,
+                         IGM.getOptions().PointerAuth.ValueWitnessTable,
+                         PointerAuthEntity::Special::ValueWitnessTable);
     }
 
     llvm::Constant *emitNominalTypeDescriptor() {
@@ -5988,7 +6011,9 @@ namespace {
                    ? IGM.Context.getAnyObjectType()
                    : IGM.Context.TheNativeObjectType);
       auto wtable = IGM.getAddrOfValueWitnessTable(type);
-      B.add(wtable);
+      B.addSignedPointer(wtable,
+                         IGM.getOptions().PointerAuth.ValueWitnessTable,
+                         PointerAuthEntity::Special::ValueWitnessTable);
     }
 
     void addMetadataFlags() {
@@ -6059,7 +6084,11 @@ namespace {
 
     void addValueWitnessTable() {
       auto type = getTargetType()->getCanonicalType();
-      B.add(irgen::emitValueWitnessTable(IGM, type, false, false).getValue());
+      auto vwtPointer = irgen::emitValueWitnessTable(IGM, type, false, false)
+          .getValue();
+      B.addSignedPointer(vwtPointer,
+                         IGM.getOptions().PointerAuth.ValueWitnessTable,
+                         PointerAuthEntity::Special::ValueWitnessTable);
     }
 
     void addMetadataFlags() {
@@ -6098,7 +6127,10 @@ namespace {
     }
 
     void addValueWitnessTable() {
-      B.add(emitValueWitnessTable(/*relative*/ false).getValue());
+      auto vwtPointer = emitValueWitnessTable(/*relative*/ false).getValue();
+      B.addSignedPointer(vwtPointer,
+                         IGM.getOptions().PointerAuth.ValueWitnessTable,
+                         PointerAuthEntity::Special::ValueWitnessTable);
     }
 
     void flagUnfilledFieldOffset() {
@@ -6125,7 +6157,10 @@ namespace {
     }
 
     void addValueWitnessTable() {
-      B.add(emitValueWitnessTable(/*relative*/ false).getValue());
+      auto vwtPointer = emitValueWitnessTable(/*relative*/ false).getValue();
+      B.addSignedPointer(vwtPointer,
+                         IGM.getOptions().PointerAuth.ValueWitnessTable,
+                         PointerAuthEntity::Special::ValueWitnessTable);
     }
     
     void addPayloadSize() const {

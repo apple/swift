@@ -381,6 +381,8 @@ PointerAuthEntity::getDeclDiscriminator(IRGenModule &IGM) const {
         return SpecialPointerAuthDiscriminators::DynamicReplacementKey;
       case Special::TypeLayoutString:
         return SpecialPointerAuthDiscriminators::TypeLayoutString;
+      case Special::ValueWitnessTable:
+        return SpecialPointerAuthDiscriminators::ValueWitnessTable;
       case Special::BlockCopyHelper:
       case Special::BlockDisposeHelper:
         llvm_unreachable("no known discriminator for these foreign entities");

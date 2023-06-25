@@ -613,10 +613,11 @@ public:
     // pointer's referenced address.
     TargetValueWitnessTable<Runtime> VWT;
     auto ValueWitnessTableAddrAddr = MetadataAddress - sizeof(StoredPointer);
-    StoredPointer ValueWitnessTableAddr;
+    StoredSignedPointer SignedValueWitnessTableAddr;
     if (!Reader->readInteger(RemoteAddress(ValueWitnessTableAddrAddr),
-                             &ValueWitnessTableAddr))
+                             &SignedValueWitnessTableAddr))
       return None;
+    auto ValueWitnessTableAddr = stripSignedPointer(SignedValueWitnessTableAddr);
     if (!Reader->readBytes(RemoteAddress(ValueWitnessTableAddr),
                            (uint8_t *)&VWT, sizeof(VWT)))
       return None;

@@ -125,6 +125,18 @@ struct TargetTypeMetadataLayoutPrefix {
         layoutString;
 };
 
+template <typename Runtime>
+using TargetValueWitnessTablePointer =
+  TargetSignedPointer<Runtime, const ValueWitnessTable *
+                                  __ptrauth_swift_value_witness_table_pointer>;
+
+template <typename Runtime>
+using TargetRelativeIndirectableValueWitnessTablePointer =
+  RelativeIndirectablePointer<
+    const ValueWitnessTable,
+    /* nullable */ true, int32_t,
+    TargetValueWitnessTablePointer<Runtime>>;
+
 /// The header before a metadata object which appears on all type
 /// metadata.  Note that heap metadata are not necessarily type
 /// metadata, even for objects of a heap type: for example, objects of
@@ -136,7 +148,7 @@ template <typename Runtime>
 struct TargetTypeMetadataHeaderBase {
   /// A pointer to the value-witnesses for this type.  This is only
   /// present for type metadata.
-  TargetPointer<Runtime, const ValueWitnessTable> ValueWitnesses;
+  TargetValueWitnessTablePointer<Runtime> ValueWitnesses;
 };
 
 template <typename Runtime>
@@ -3411,8 +3423,7 @@ struct TargetGenericValueMetadataPattern final :
 
   /// The value-witness table.  Indirectable so that we can re-use tables
   /// from other libraries if that seems wise.
-  TargetRelativeIndirectablePointer<Runtime, const ValueWitnessTable>
-    ValueWitnesses;
+  TargetRelativeIndirectableValueWitnessTablePointer<Runtime> ValueWitnesses;
 
   const ValueWitnessTable *getValueWitnessesPattern() const {
     return ValueWitnesses.get();

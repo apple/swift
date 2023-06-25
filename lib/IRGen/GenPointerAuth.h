@@ -65,6 +65,7 @@ public:
     ProtocolConformanceDescriptor,
     ProtocolConformanceDescriptorAsArgument,
     TypeLayoutString,
+    ValueWitnessTable,
   };
 
 private:

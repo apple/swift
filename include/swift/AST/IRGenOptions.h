@@ -108,6 +108,9 @@ struct PointerAuthOptions : clang::PointerAuthOptions {
   /// Swift value witness functions.
   PointerAuthSchema ValueWitnesses;
 
+  /// Pointers to Swift value witness tables stored in type metadata.
+  PointerAuthSchema ValueWitnessTable;
+
   /// Swift protocol witness functions.
   PointerAuthSchema ProtocolWitnesses;
 
