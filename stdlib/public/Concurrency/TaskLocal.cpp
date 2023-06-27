@@ -21,8 +21,9 @@
 #include "swift/Runtime/Concurrency.h"
 #include "swift/Threading/ThreadLocalStorage.h"
 #include "llvm/ADT/PointerIntPair.h"
+#include "llvm/ADT/DenseSet.h"
+#include "llvm/Support/Compiler.h"
 #include <new>
-#include <set>
 
 #if SWIFT_STDLIB_HAS_ASL
 #include <asl.h>
@@ -399,31 +400,44 @@ void TaskLocal::Storage::copyTo(TaskLocal::Storage *target, AsyncTask *task) {
          "Task-local storage must not be null when copying values into it");
   assert(!(target->head) &&
          "Cannot copy to task-local storage when it is already in use");
+  
+  auto const head = this->head;
+  auto enumerateValues = [head]<typename BodyF>(BodyF body){
+    for (auto item = head; item; item = item->getNext()) {
+      switch (item->getKind()) {
+      case ItemKind::Value:
+        body(item);
+        break;
+      case ItemKind::ParentLink:
+        // Parent links are not re-created when copying
+        // Just skip to the next item;
+        continue;
+      case ItemKind::Barrier:
+        // Stop iteration when hitting a barrier
+        return;
+      }
+    }
+  };
+  
+  unsigned numEntries = 0;
+  enumerateValues([&numEntries](Item *) {
+    ++numEntries;
+  });
 
   // Set of keys for which we already have copied to the new task.
   // We only ever need to copy the *first* encounter of any given key,
   // because it is the most "specific"/"recent" binding and any other binding
   // of a key does not matter for the target task as it will never be able to
   // observe it.
-  std::set<const HeapObject*> copied = {};
-
-  for (auto item = head; item; item = item->getNext()) {
-    switch (item->getKind()) {
-    case ItemKind::Value:
-      // we only have to copy an item if it is the most recent binding of a key.
-      // i.e. if we've already seen an item for this key, we can skip it.
-      if (copied.emplace(item->getKey()).second) {
-        item->copyTo(target, task);
-      }
-      break;
-    case ItemKind::ParentLink:
-      // Parent links are not re-created when copying
-      // Just skip to the next item;
-      continue;
-    case ItemKind::Barrier:
-      return;
+  llvm::DenseSet<const HeapObject*> copied(numEntries);
+  
+  enumerateValues([target, task, &copied](Item *item) {
+    // we only have to copy an item if it is the most recent binding of a key.
+    // i.e. if we've already seen an item for this key, we can skip it.
+    if (copied.insert(item->getKey()).second) {
+      item->copyTo(target, task);
     }
-  }
+  });
 }
 
 TaskLocal::AdHocScope::AdHocScope(Storage *storage) {
