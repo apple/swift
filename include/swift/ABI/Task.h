@@ -17,7 +17,6 @@
 #ifndef SWIFT_ABI_TASK_H
 #define SWIFT_ABI_TASK_H
 
-#include "swift/ABI/TaskLocal.h"
 #include "swift/ABI/Executor.h"
 #include "swift/ABI/HeapObject.h"
 #include "swift/ABI/Metadata.h"

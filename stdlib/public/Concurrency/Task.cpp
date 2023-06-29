@@ -28,7 +28,7 @@
 #include "Tracing.h"
 #include "swift/ABI/Metadata.h"
 #include "swift/ABI/Task.h"
-#include "swift/ABI/TaskLocal.h"
+#include "TaskLocal.h"
 #include "swift/ABI/TaskOptions.h"
 #include "swift/Basic/Lazy.h"
 #include "swift/Runtime/Concurrency.h"

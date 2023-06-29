@@ -29,6 +29,7 @@ class DefaultActor;
 class Job;
 class SerialExecutorWitnessTable;
 class TaskExecutorWitnessTable;
+struct SwiftError;
 
 /// An unmanaged reference to a serial executor.
 ///

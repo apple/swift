@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "swift/ABI/TaskLocal.h"
+#include "TaskLocal.h"
 #include "../CompatibilityOverride/CompatibilityOverride.h"
 #include "TaskPrivate.h"
 #include "swift/ABI/Actor.h"

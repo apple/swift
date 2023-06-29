@@ -19,6 +19,7 @@
 
 #include "Error.h"
 #include "Tracing.h"
+#include "TaskLocal.h"
 #include "swift/ABI/Metadata.h"
 #include "swift/ABI/Task.h"
 #include "swift/ABI/TaskStatus.h"
