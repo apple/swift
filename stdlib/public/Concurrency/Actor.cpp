@@ -2049,24 +2049,26 @@ private:
   void *Object;
   DeinitWorkFunction *Work;
   TaskLocal::Storage Local;
-
+  TaskAllocator Allocator;
 public:
   IsolatedDeinitJob(JobPriority priority, void *object,
-                    DeinitWorkFunction *work, bool copyTaskLocals)
-      : Job({JobKind::IsolatedDeinit, priority}, &process), Object(object),
-        Work(work) {
-    if (copyTaskLocals) {
-      TaskLocal::copyTo(&Local, nullptr);
-    }
+                    DeinitWorkFunction *work, TaskLocal::Copier& copier,
+                    size_t capacity)
+      : Job({JobKind::IsolatedDeinit, priority}, &process),
+        Object(object), Work(work),
+        Allocator(this + 1, capacity - sizeof(*this))
+  {
+      copier.copyTo(&Local, &Allocator);
   }
 
-  ~IsolatedDeinitJob() { Local.destroy(nullptr); }
+  ~IsolatedDeinitJob() { Local.destroy(&Allocator); }
 
   SWIFT_CC(swiftasync)
   static void process(Job *_job) {
     auto *job = cast<IsolatedDeinitJob>(_job);
     job->runWork();
-    delete job;
+    job->~IsolatedDeinitJob();
+    free(job);
   }
 
   inline void runWork() {
@@ -2146,8 +2148,12 @@ static void swift_task_deinitOnExecutorImpl(void *object,
   auto priority = currentTask ? swift_task_currentPriority(currentTask)
                               : swift_task_getCurrentThreadPriority();
 
-  auto job = new IsolatedDeinitJob(priority, object, work,
-                                   flags.copyTaskLocalsOnHop());
+  auto copier = flags.copyTaskLocalsOnHop() ? TaskLocal::Copier::get() : TaskLocal::Copier();
+  TaskAllocator::Simulator simulator(sizeof(IsolatedDeinitJob));
+  copier.simulate(simulator);
+  size_t bufferSize = simulator.getBufferSize();
+  void *buffer = malloc(bufferSize);
+  auto job = new(buffer) IsolatedDeinitJob(priority, object, work, copier, bufferSize);
   swift_task_enqueue(job, newExecutor);
 }
 

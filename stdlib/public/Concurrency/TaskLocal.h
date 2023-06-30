@@ -21,6 +21,7 @@
 #include "swift/ABI/Metadata.h"
 #include "swift/ABI/MetadataValues.h"
 #include "TaskAlloc.h"
+#include "llvm/ADT/DenseSet.h"
 
 namespace swift {
 class AsyncTask;
@@ -146,6 +147,7 @@ public:
         reinterpret_cast<char *>(this) + storageOffset(valueType));
     }
 
+    void simulateCopy(TaskAllocator::Simulator &simulator);
     void copyTo(Storage *target, TaskAllocator *allocator);
 
     /// Compute the offset of the storage from the base of the item.
@@ -168,6 +170,33 @@ public:
       }
       return offset;
     }
+  };
+  
+  class Copier {
+    TaskLocal::Item *head;
+    llvm::DenseSet<const HeapObject*> copied;
+    
+    template<class F> void enumerateValues(F body) const;
+  public:
+    static Copier get();
+    
+    explicit Copier(TaskLocal::Item *head = nullptr);
+    
+    Copier(const Copier&) = delete;
+    Copier(Copier&&) = default;
+    Copier& operator= (Copier&&) = default;
+    Copier& operator= (const Copier&) = delete;
+    
+    void simulate(TaskAllocator::Simulator &simulator);
+    
+    /// Copy all task locals from the current context to the target storage.
+    /// To prevent data races, there should be no other accesses to the target
+    /// storage, while copying. Target storage is asserted to be empty, as a proxy
+    /// for being not in use. If @c task is specified, it will be used for memory
+    /// management. If @c task is nil, items will be allocated using malloc(). The
+    /// same value of @c task should be passed to @c TaskLocal::Storage::destroy()
+    /// .
+    void copyTo(Storage *target, TaskAllocator *allocator);
   };
 
   class Storage {
@@ -211,6 +240,7 @@ public:
     void initializeLinkParent(TaskAllocator &allocator, AsyncTask *parent);
       
     bool isEmpty() const { return head == nullptr; }
+    Copier getCopier() const { return Copier(head); }
 
     void pushValue(TaskAllocator *allocator,
                    const HeapObject *key,
@@ -225,18 +255,6 @@ public:
     /// can be safely disposed of.
     bool pop(TaskAllocator *allocator);
 
-    /// Copy all task-local bindings to the target task.
-    ///
-    /// The new bindings allocate their own items and can out-live the current task.
-    ///
-    /// ### Optimizations
-    /// Only the most recent binding of a value is copied over, i.e. given
-    /// a key bound to `A` and then `B`, only the `B` binding will be copied.
-    /// This is safe and correct because the new task would never have a chance
-    /// to observe the `A` value, because it semantically will never observe a
-    /// "pop" of the `B` value - it was spawned from a scope where only B was observable.
-    void copyTo(Storage *target, TaskAllocator *allocator);
-
     /// Destroy and deallocate all items stored by this specific task.
     /// If @c task is null, then this is a task-less storage and items are
     /// deallocated using free().
@@ -245,15 +263,6 @@ public:
     /// them.
     void destroy(TaskAllocator *allocator);
   };
-
-  /// Copy all task locals from the current context to the target storage.
-  /// To prevent data races, there should be no other accesses to the target
-  /// storage, while copying. Target storage is asserted to be empty, as a proxy
-  /// for being not in use. If @c task is specified, it will be used for memory
-  /// management. If @c task is nil, items will be allocated using malloc(). The
-  /// same value of @c task should be passed to @c TaskLocal::Storage::destroy()
-  /// .
-  static void copyTo(Storage *target, TaskAllocator *allocator);
 
   class AdHocScope {
     Storage *oldStorage;

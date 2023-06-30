@@ -21,7 +21,6 @@
 #include "swift/Runtime/Concurrency.h"
 #include "swift/Threading/ThreadLocalStorage.h"
 #include "llvm/ADT/PointerIntPair.h"
-#include "llvm/ADT/DenseSet.h"
 #include "llvm/Support/Compiler.h"
 #include <new>
 
@@ -161,22 +160,19 @@ SWIFT_CC(swift)
 static void swift_task_localsCopyToImpl(AsyncTask *task) {
   assert(task && "TaskLocal item attempt to copy to null target task!");
   auto &priv = task->_private();
-  TaskLocal::copyTo(&priv.Local, &priv.Allocator);
+  TaskLocal::Copier::get().copyTo(&priv.Local, &priv.Allocator);
 }
 
-void TaskLocal::copyTo(Storage *target, TaskAllocator *allocator) {
+TaskLocal::Copier TaskLocal::Copier::get() {
   TaskLocal::Storage *Local = nullptr;
 
   if (AsyncTask *task = swift_task_getCurrent()) {
-    Local = &task->_private().Local;
+    return task->_private().Local.getCopier();
   } else if (auto *storage = FallbackTaskLocalStorage::get()) {
-    Local = storage;
+    return storage->getCopier();
   } else {
-    // bail out, there are no values to copy
-    return;
+    return Copier();
   }
-
-  Local->copyTo(target, allocator);
 }
 
 // =============================================================================
@@ -228,6 +224,12 @@ TaskLocal::Item *TaskLocal::Item::createStop(TaskLocal::Item *next,
   size_t amountToAllocate = Item::itemSize(/*valueType*/ nullptr);
   void *allocation = allocate(amountToAllocate, allocator);
   return ::new (allocation) Item(next, ItemKind::Barrier);
+}
+
+void TaskLocal::Item::simulateCopy(TaskAllocator::Simulator &simulator) {
+  assert(getKind() == ItemKind::Value);
+  size_t amountToAllocate = Item::itemSize(valueType);
+  simulator.allocate(amountToAllocate);
 }
 
 void TaskLocal::Item::copyTo(TaskLocal::Storage *target, TaskAllocator *allocator) {
@@ -395,42 +397,51 @@ OpaqueValue* TaskLocal::Storage::getValue(const HeapObject *key) {
   return nullptr;
 }
 
-void TaskLocal::Storage::copyTo(TaskLocal::Storage *target, TaskAllocator *allocator) {
-  assert(target &&
-         "Task-local storage must not be null when copying values into it");
-  assert(!(target->head) &&
-         "Cannot copy to task-local storage when it is already in use");
-  
-  auto const head = this->head;
-  auto enumerateValues = [head](auto body) {
-    for (auto item = head; item; item = item->getNext()) {
-      switch (item->getKind()) {
-      case ItemKind::Value:
-        body(item);
-        break;
-      case ItemKind::ParentLink:
-        // Parent links are not re-created when copying
-        // Just skip to the next item;
-        continue;
-      case ItemKind::Barrier:
-        // Stop iteration when hitting a barrier
-        return;
-      }
+template<class F> void TaskLocal::Copier::enumerateValues(F body) const {
+  for (auto item = head; item; item = item->getNext()) {
+    switch (item->getKind()) {
+    case ItemKind::Value:
+      body(item);
+      break;
+    case ItemKind::ParentLink:
+      // Parent links are not re-created when copying
+      // Just skip to the next item;
+      continue;
+    case ItemKind::Barrier:
+      // Stop iteration when hitting a barrier
+      return;
     }
-  };
-  
+  }
+}
+
+TaskLocal::Copier::Copier(TaskLocal::Item *head) {
+  this->head = head;
   unsigned numEntries = 0;
   enumerateValues([&numEntries](Item *) {
     ++numEntries;
   });
+  copied.reserve(numEntries);
+}
 
-  // Set of keys for which we already have copied to the new task.
-  // We only ever need to copy the *first* encounter of any given key,
-  // because it is the most "specific"/"recent" binding and any other binding
-  // of a key does not matter for the target task as it will never be able to
-  // observe it.
-  llvm::DenseSet<const HeapObject*> copied(numEntries);
-  
+void TaskLocal::Copier::simulate(TaskAllocator::Simulator &simulator) {
+  auto& copied = this->copied;
+  enumerateValues([&copied, &simulator](Item *item) {
+    // we only have to copy an item if it is the most recent binding of a key.
+    // i.e. if we've already seen an item for this key, we can skip it.
+    if (copied.insert(item->getKey()).second) {
+      item->simulateCopy(simulator);
+    }
+  });
+  copied.clear();
+}
+
+void TaskLocal::Copier::copyTo(TaskLocal::Storage *target, TaskAllocator *allocator) {
+  assert(target &&
+         "Task-local storage must not be null when copying values into it");
+  assert(target->isEmpty() &&
+         "Cannot copy to task-local storage when it is already in use");
+
+  auto& copied = this->copied;
   enumerateValues([target, allocator, &copied](Item *item) {
     // we only have to copy an item if it is the most recent binding of a key.
     // i.e. if we've already seen an item for this key, we can skip it.
