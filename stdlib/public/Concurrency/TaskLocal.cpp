@@ -88,7 +88,7 @@ static void swift_task_localValuePushImpl(const HeapObject *key,
 
   // no AsyncTask available so we must check the fallback
   TaskLocal::Storage *Local = FallbackTaskLocalStorage::getOrCreate();
-  Local->pushValue(/*task=*/nullptr, key, value, valueType);
+  Local->pushValue(/*allocator=*/nullptr, key, value, valueType);
 }
 
 SWIFT_CC(swift)
@@ -100,7 +100,7 @@ static OpaqueValue* swift_task_localValueGetImpl(const HeapObject *key) {
 
   // no AsyncTask available so we must check the fallback
   if (auto Local = FallbackTaskLocalStorage::get()) {
-    return Local->getValue(/*task*/nullptr, key);
+    return Local->getValue(key);
   }
 
   // no value found in task-local or fallback thread-local storage.
@@ -137,7 +137,7 @@ static bool swift_task_localBarrierPushImpl() {
 
   // no AsyncTask available so we must check the fallback
   if (TaskLocal::Storage *Local = FallbackTaskLocalStorage::get()) {
-    Local->pushBarrier(/*task=*/nullptr);
+    Local->pushBarrier(/*allocator=*/nullptr);
     return true;
   }
 
@@ -160,10 +160,11 @@ static void swift_task_localBarrierPopImpl(bool didPush) {
 SWIFT_CC(swift)
 static void swift_task_localsCopyToImpl(AsyncTask *task) {
   assert(task && "TaskLocal item attempt to copy to null target task!");
-  TaskLocal::copyTo(&task->_private().Local, task);
+  auto &priv = task->_private();
+  TaskLocal::copyTo(&priv.Local, &priv.Allocator);
 }
 
-void TaskLocal::copyTo(Storage *target, AsyncTask *task) {
+void TaskLocal::copyTo(Storage *target, TaskAllocator *allocator) {
   TaskLocal::Storage *Local = nullptr;
 
   if (AsyncTask *task = swift_task_getCurrent()) {
@@ -175,26 +176,26 @@ void TaskLocal::copyTo(Storage *target, AsyncTask *task) {
     return;
   }
 
-  Local->copyTo(target, task);
+  Local->copyTo(target, allocator);
 }
 
 // =============================================================================
 // ==== Initialization ---------------------------------------------------------
 
-void TaskLocal::Storage::initializeLinkParent(AsyncTask* task,
+void TaskLocal::Storage::initializeLinkParent(TaskAllocator &allocator,
                                               AsyncTask* parent) {
   assert(!head && "initial task local storage was already initialized");
   assert(parent && "parent must be provided to link to it");
-  head = TaskLocal::Item::createParentLink(task, parent);
+  head = TaskLocal::Item::createParentLink(allocator, parent);
 }
 
-void *TaskLocal::Item::allocate(size_t amountToAllocate, AsyncTask *task) {
-  return task ? _swift_task_alloc_specific(task, amountToAllocate)
-              : malloc(amountToAllocate);
+void *TaskLocal::Item::allocate(size_t amountToAllocate, TaskAllocator *allocator) {
+  return allocator ? allocator->alloc(amountToAllocate)
+                   : malloc(amountToAllocate);
 }
 
-TaskLocal::Item *TaskLocal::Item::createParentLink(AsyncTask *task,
-                                                   AsyncTask *parent) {
+TaskLocal::Item*
+TaskLocal::Item::createParentLink(TaskAllocator &allocator, AsyncTask *parent) {
   auto parentHead = parent->_private().Local.head;
   if (!parentHead) {
     return nullptr;
@@ -209,29 +210,29 @@ TaskLocal::Item *TaskLocal::Item::createParentLink(AsyncTask *task,
   }
 
   size_t amountToAllocate = Item::itemSize(/*valueType*/ nullptr);
-  void *allocation = _swift_task_alloc_specific(task, amountToAllocate);
+  void *allocation = allocator.alloc(amountToAllocate);
   return ::new (allocation) Item(parentHead, ItemKind::ParentLink);
 }
 
 TaskLocal::Item *TaskLocal::Item::createValue(TaskLocal::Item *next,
-                                              AsyncTask *task,
+                                              TaskAllocator *allocator,
                                               const HeapObject *key,
                                               const Metadata *valueType) {
   size_t amountToAllocate = Item::itemSize(valueType);
-  void *allocation = allocate(amountToAllocate, task);
+  void *allocation = allocate(amountToAllocate, allocator);
   return ::new (allocation) Item(next, key, valueType);
 }
 
 TaskLocal::Item *TaskLocal::Item::createStop(TaskLocal::Item *next,
-                                             AsyncTask *task) {
+                                             TaskAllocator *allocator) {
   size_t amountToAllocate = Item::itemSize(/*valueType*/ nullptr);
-  void *allocation = allocate(amountToAllocate, task);
+  void *allocation = allocate(amountToAllocate, allocator);
   return ::new (allocation) Item(next, ItemKind::Barrier);
 }
 
-void TaskLocal::Item::copyTo(TaskLocal::Storage *target, AsyncTask *task) {
+void TaskLocal::Item::copyTo(TaskLocal::Storage *target, TaskAllocator *allocator) {
   assert(getKind() == ItemKind::Value);
-  auto item = Item::createValue(target->head, task, keyOrKind.key, valueType);
+  auto item = Item::createValue(target->head, allocator, keyOrKind.key, valueType);
   valueType->vw_initializeWithCopy(item->getStoragePtr(), getStoragePtr());
 
   /// A `copyTo` may ONLY be invoked BEFORE the task is actually scheduled,
@@ -319,7 +320,7 @@ static void swift_task_reportIllegalTaskLocalBindingWithinWithTaskGroupImpl(
 // =============================================================================
 // ==== destroy ----------------------------------------------------------------
 
-void TaskLocal::Item::destroy(AsyncTask *task) {
+void TaskLocal::Item::destroy(TaskAllocator *allocator) {
   // otherwise it was task-local allocated, so we can safely destroy it right away
   if (valueType) {
     valueType->vw_destroy(getStoragePtr());
@@ -327,17 +328,17 @@ void TaskLocal::Item::destroy(AsyncTask *task) {
 
   // if task is available, we must have used the task allocator to allocate this item,
   // so we must deallocate it using the same. Otherwise, we must have used malloc.
-  if (task) _swift_task_dealloc_specific(task, this);
+  if (allocator) allocator->dealloc(this);
   else free(this);
 }
 
-void TaskLocal::Storage::destroy(AsyncTask *task) {
+void TaskLocal::Storage::destroy(TaskAllocator *allocator) {
   auto item = head;
   head = nullptr;
   while (item) {
     TaskLocal::Item *next = item->getNext();
     auto kind = item->getKind();
-    item->destroy(task);
+    item->destroy(allocator);
     if (kind == ItemKind::ParentLink) {
       // we're done here; as we must not proceed into the parent owned values.
       break;
@@ -349,33 +350,32 @@ void TaskLocal::Storage::destroy(AsyncTask *task) {
 // =============================================================================
 // ==== Task Local Storage: operations -----------------------------------------
 
-void TaskLocal::Storage::pushValue(AsyncTask *task,
+void TaskLocal::Storage::pushValue(TaskAllocator *allocator,
                                    const HeapObject *key,
                                    /* +1 */ OpaqueValue *value,
                                    const Metadata *valueType) {
   assert(value && "Task local value must not be nil");
 
-  auto item = Item::createValue(head, task, key, valueType);
+  auto item = Item::createValue(head, allocator, key, valueType);
   valueType->vw_initializeWithTake(item->getStoragePtr(), value);
   head = item;
 }
 
-void TaskLocal::Storage::pushBarrier(AsyncTask *task) {
-  head = Item::createStop(head, task);
+void TaskLocal::Storage::pushBarrier(TaskAllocator *allocator) {
+  head = Item::createStop(head, allocator);
 }
 
-bool TaskLocal::Storage::pop(AsyncTask *task) {
+bool TaskLocal::Storage::pop(TaskAllocator *allocator) {
   assert(head && "attempted to pop item off empty task-local stack");
   auto old = head;
   head = head->getNext();
-  old->destroy(task);
+  old->destroy(allocator);
 
   /// if pointing at not-null next item, there are remaining bindings.
   return head != nullptr;
 }
 
-OpaqueValue* TaskLocal::Storage::getValue(AsyncTask *task,
-                                          const HeapObject *key) {
+OpaqueValue* TaskLocal::Storage::getValue(const HeapObject *key) {
   assert(key && "TaskLocal key must not be null.");
 
   for (auto item = head; item; item = item->getNext()) {
@@ -395,14 +395,14 @@ OpaqueValue* TaskLocal::Storage::getValue(AsyncTask *task,
   return nullptr;
 }
 
-void TaskLocal::Storage::copyTo(TaskLocal::Storage *target, AsyncTask *task) {
+void TaskLocal::Storage::copyTo(TaskLocal::Storage *target, TaskAllocator *allocator) {
   assert(target &&
          "Task-local storage must not be null when copying values into it");
   assert(!(target->head) &&
          "Cannot copy to task-local storage when it is already in use");
   
   auto const head = this->head;
-  auto enumerateValues = [head]<typename BodyF>(BodyF body){
+  auto enumerateValues = [head](auto body) {
     for (auto item = head; item; item = item->getNext()) {
       switch (item->getKind()) {
       case ItemKind::Value:
@@ -431,11 +431,11 @@ void TaskLocal::Storage::copyTo(TaskLocal::Storage *target, AsyncTask *task) {
   // observe it.
   llvm::DenseSet<const HeapObject*> copied(numEntries);
   
-  enumerateValues([target, task, &copied](Item *item) {
+  enumerateValues([target, allocator, &copied](Item *item) {
     // we only have to copy an item if it is the most recent binding of a key.
     // i.e. if we've already seen an item for this key, we can skip it.
     if (copied.insert(item->getKey()).second) {
-      item->copyTo(target, task);
+      item->copyTo(target, allocator);
     }
   });
 }

@@ -20,6 +20,7 @@
 #include "swift/ABI/HeapObject.h"
 #include "swift/ABI/Metadata.h"
 #include "swift/ABI/MetadataValues.h"
+#include "TaskAlloc.h"
 
 namespace swift {
 class AsyncTask;
@@ -93,7 +94,7 @@ public:
       assert(valueType != nullptr);
     }
 
-    static void *allocate(size_t amountToAllocate, AsyncTask *task);
+    static void *allocate(size_t amountToAllocate, TaskAllocator *allocator);
 
   public:
     /// Item which does not by itself store any value, but only points
@@ -105,16 +106,16 @@ public:
     /// When a task actually has its own task locals, it should rather point
     /// to the parent's *first* task-local item in its *last* item, extending
     /// the Item linked list into the appropriate parent.
-    static Item *createParentLink(AsyncTask *task, AsyncTask *parent);
+    static Item *createParentLink(TaskAllocator &allocator, AsyncTask *parent);
 
-    static Item *createValue(Item *next, AsyncTask *task, const HeapObject *key,
+    static Item *createValue(Item *next, TaskAllocator *allocator, const HeapObject *key,
                              const Metadata *valueType);
 
-    static Item *createStop(Item *next, AsyncTask *task);
+    static Item *createStop(Item *next, TaskAllocator *allocator);
 
     /// Destroys value and frees memory using specified task for deallocation.
     /// If task is null, then th
-    void destroy(AsyncTask *task);
+    void destroy(TaskAllocator *allocator);
 
     Item *getNext() { return next; }
 
@@ -145,7 +146,7 @@ public:
         reinterpret_cast<char *>(this) + storageOffset(valueType));
     }
 
-    void copyTo(Storage *target, AsyncTask *task);
+    void copyTo(Storage *target, TaskAllocator *allocator);
 
     /// Compute the offset of the storage from the base of the item.
     static size_t storageOffset(const Metadata *valueType) {
@@ -207,22 +208,22 @@ public:
 
   public:
 
-    void initializeLinkParent(AsyncTask *task, AsyncTask *parent);
+    void initializeLinkParent(TaskAllocator &allocator, AsyncTask *parent);
       
     bool isEmpty() const { return head == nullptr; }
 
-    void pushValue(AsyncTask *task,
+    void pushValue(TaskAllocator *allocator,
                    const HeapObject *key,
                    /* +1 */ OpaqueValue *value, const Metadata *valueType);
 
-    void pushBarrier(AsyncTask *task);
+    void pushBarrier(TaskAllocator *allocator);
 
-    OpaqueValue* getValue(AsyncTask *task, const HeapObject *key);
+    OpaqueValue* getValue(const HeapObject *key);
 
     /// Returns `true` if more bindings remain in this storage,
     /// and `false` if the just popped value was the last one and the storage
     /// can be safely disposed of.
-    bool pop(AsyncTask *task);
+    bool pop(TaskAllocator *allocator);
 
     /// Copy all task-local bindings to the target task.
     ///
@@ -234,7 +235,7 @@ public:
     /// This is safe and correct because the new task would never have a chance
     /// to observe the `A` value, because it semantically will never observe a
     /// "pop" of the `B` value - it was spawned from a scope where only B was observable.
-    void copyTo(Storage *target, AsyncTask *task);
+    void copyTo(Storage *target, TaskAllocator *allocator);
 
     /// Destroy and deallocate all items stored by this specific task.
     /// If @c task is null, then this is a task-less storage and items are
@@ -242,7 +243,7 @@ public:
     ///
     /// Items owned by a parent task are left untouched, since we do not own
     /// them.
-    void destroy(AsyncTask *task);
+    void destroy(TaskAllocator *allocator);
   };
 
   /// Copy all task locals from the current context to the target storage.
@@ -252,7 +253,7 @@ public:
   /// management. If @c task is nil, items will be allocated using malloc(). The
   /// same value of @c task should be passed to @c TaskLocal::Storage::destroy()
   /// .
-  static void copyTo(Storage *target, AsyncTask *task);
+  static void copyTo(Storage *target, TaskAllocator *allocator);
 
   class AdHocScope {
     Storage *oldStorage;

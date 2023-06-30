@@ -1004,7 +1004,7 @@ swift_task_create_commonImpl(size_t rawTaskCreateFlags,
       swift_task_cancel(task);
 
     // Initialize task locals with a link to the parent task.
-    task->_private().Local.initializeLinkParent(task, parent);
+    task->_private().Local.initializeLinkParent(task->_private().Allocator, parent);
   }
 
   // Configure the initial context.
