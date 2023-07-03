@@ -1,7 +1,6 @@
 // RUN: %empty-directory(%t)
 // RUN: %build-irgen-test-overlays
-// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) %use_no_opaque_pointers %s -emit-ir | %FileCheck %s
-// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) %s -emit-ir
+// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) %s -emit-ir | %FileCheck %s
 
 // REQUIRES: CPU=x86_64
 // REQUIRES: objc_interop
@@ -18,11 +17,9 @@ class Purebred {
 }
 sil_vtable Purebred {}
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @purebred_method(%T18class_isa_pointers8PurebredC* %0) {{.*}} {
-// CHECK:         [[ISA_PTR:%.*]] = bitcast %T18class_isa_pointers8PurebredC* %0 to %swift.type**
-// CHECK:         [[ISA:%.*]] = load %swift.type*, %swift.type** [[ISA_PTR]]
-// CHECK:         [[VTABLE:%.*]] = bitcast %swift.type* [[ISA]]
-// CHECK:         getelementptr inbounds {{.*}} [[VTABLE]]
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @purebred_method(ptr %0) {{.*}} {
+// CHECK:         [[ISA:%.*]] = load ptr, ptr %0
+// CHECK:         getelementptr inbounds {{.*}} [[ISA]]
 sil @purebred_method : $@convention(thin) (@owned Purebred) -> () {
 entry(%0 : $Purebred):
   %m = class_method %0 : $Purebred, #Purebred.method : (Purebred) -> () -> (), $@convention(method) (@guaranteed Purebred) -> ()
@@ -39,14 +36,12 @@ class Mongrel: Gizmo {
 }
 sil_vtable Mongrel {}
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @mongrel_method(%T18class_isa_pointers7MongrelC* %0) {{.*}} {
-// CHECK:         [[T0:%.*]] = bitcast {{.*}} %0 to i64*
-// CHECK-NEXT:    [[T1:%.*]] = load i64, i64* [[T0]], align 8
-// CHECK-NEXT:    [[T2:%.*]] = load i64, i64* @swift_isaMask, align 8
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @mongrel_method(ptr %0) {{.*}} {
+// CHECK:    [[T1:%.*]] = load i64, ptr %0, align 8
+// CHECK-NEXT:    [[T2:%.*]] = load i64, ptr @swift_isaMask, align 8
 // CHECK-NEXT:    [[T3:%.*]] = and i64 [[T1]], [[T2]]
-// CHECK:         [[ISA:%.*]] = inttoptr i64 [[T3]] to %swift.type*
-// CHECK:         [[VTABLE:%.*]] = bitcast %swift.type* [[ISA]]
-// CHECK:         getelementptr inbounds {{.*}} [[VTABLE]]
+// CHECK:         [[ISA:%.*]] = inttoptr i64 [[T3]] to ptr
+// CHECK:         getelementptr inbounds {{.*}} [[ISA]]
 sil @mongrel_method : $@convention(thin) (@owned Mongrel) -> () {
 entry(%0 : $Mongrel):
   %m = class_method %0 : $Mongrel, #Mongrel.method : (Mongrel) -> () -> (), $@convention(method) (@guaranteed Mongrel) -> ()

@@ -76,8 +76,8 @@ void Output::endObject() {
   Stream << "}";
 }
 
-bool Output::preflightKey(StringRef Key, bool Required, bool SameAsDefault,
-                          bool &UseDefault, void *&) {
+bool Output::preflightKey(llvm::StringRef Key, bool Required,
+                          bool SameAsDefault, bool &UseDefault, void *&) {
   UseDefault = false;
   if (Required || !SameAsDefault) {
     if (StateStack.back() != ObjectFirstKey) {
@@ -109,7 +109,7 @@ void Output::beginEnumScalar() {
 
 bool Output::matchEnumScalar(const char *Str, bool Match) {
   if (Match && !EnumerationMatchFound) {
-    StringRef StrRef(Str);
+    llvm::StringRef StrRef(Str);
     scalarString(StrRef, true);
     EnumerationMatchFound = true;
   }
@@ -137,7 +137,7 @@ bool Output::bitSetMatch(const char *Str, bool Matches) {
       if (PrettyPrint)
         Stream << ' ';
     }
-    StringRef StrRef(Str);
+    llvm::StringRef StrRef(Str);
     scalarString(StrRef, true);
   }
   return false;
@@ -149,7 +149,7 @@ void Output::endBitSetScalar() {
   Stream << ']';
 }
 
-void Output::scalarString(StringRef &S, bool MustQuote) {
+void Output::scalarString(llvm::StringRef &S, bool MustQuote) {
   if (MustQuote) {
     Stream << '"';
     for (unsigned char c : S) {
@@ -231,73 +231,70 @@ void Output::indent() {
 //  traits for built-in types
 //===----------------------------------------------------------------------===//
 
-StringRef ScalarReferenceTraits<bool>::stringRef(const bool &Val) {
+llvm::StringRef ScalarReferenceTraits<bool>::stringRef(const bool &Val) {
   return (Val ? "true" : "false");
 }
 
-StringRef ScalarReferenceTraits<StringRef>::stringRef(const StringRef &Val) {
+llvm::StringRef
+ScalarReferenceTraits<llvm::StringRef>::stringRef(const llvm::StringRef &Val) {
   return Val;
 }
 
-StringRef
+llvm::StringRef
 ScalarReferenceTraits<std::string>::stringRef(const std::string &Val) {
   return Val;
 }
 
-void ScalarTraits<uint8_t>::output(const uint8_t &Val,
-                                   raw_ostream &Out) {
+void ScalarTraits<uint8_t>::output(const uint8_t &Val, llvm::raw_ostream &Out) {
   // use temp uin32_t because ostream thinks uint8_t is a character
   uint32_t Num = Val;
   Out << Num;
 }
 
 void ScalarTraits<uint16_t>::output(const uint16_t &Val,
-                                    raw_ostream &Out) {
+                                    llvm::raw_ostream &Out) {
   Out << Val;
 }
 
 void ScalarTraits<uint32_t>::output(const uint32_t &Val,
-                                    raw_ostream &Out) {
+                                    llvm::raw_ostream &Out) {
   Out << Val;
 }
 
 #if defined(_MSC_VER)
 void ScalarTraits<unsigned long>::output(const unsigned long &Val,
-                                         raw_ostream &Out) {
+                                         llvm::raw_ostream &Out) {
   Out << Val;
 }
 #endif
 
 void ScalarTraits<uint64_t>::output(const uint64_t &Val,
-                                    raw_ostream &Out) {
+                                    llvm::raw_ostream &Out) {
   Out << Val;
 }
 
-void ScalarTraits<int8_t>::output(const int8_t &Val, raw_ostream &Out) {
+void ScalarTraits<int8_t>::output(const int8_t &Val, llvm::raw_ostream &Out) {
   // use temp in32_t because ostream thinks int8_t is a character
   int32_t Num = Val;
   Out << Num;
 }
 
-void ScalarTraits<int16_t>::output(const int16_t &Val,
-                                   raw_ostream &Out) {
+void ScalarTraits<int16_t>::output(const int16_t &Val, llvm::raw_ostream &Out) {
   Out << Val;
 }
 
-void ScalarTraits<int32_t>::output(const int32_t &Val,
-                                   raw_ostream &Out) {
+void ScalarTraits<int32_t>::output(const int32_t &Val, llvm::raw_ostream &Out) {
   Out << Val;
 }
 
-void ScalarTraits<int64_t>::output(const int64_t &Val,
-                                   raw_ostream &Out) {
+void ScalarTraits<int64_t>::output(const int64_t &Val, llvm::raw_ostream &Out) {
   Out << Val;
 }
 
-void ScalarTraits<double>::output(const double &Val, raw_ostream &Out) {
+void ScalarTraits<double>::output(const double &Val, llvm::raw_ostream &Out) {
   Out << llvm::format("%g", Val);
 }
 
-void ScalarTraits<float>::output(const float &Val, raw_ostream &Out) {
+void ScalarTraits<float>::output(const float &Val, llvm::raw_ostream &Out) {
   Out << llvm::format("%g", Val);
 }

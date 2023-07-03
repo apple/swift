@@ -21,6 +21,7 @@
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Path.h"
@@ -29,6 +30,8 @@
 
 using namespace swift;
 using namespace camel_case;
+
+using llvm::StringRef;
 
 bool swift::canBeArgumentLabel(StringRef identifier) {
   return llvm::StringSwitch<bool>(identifier)
@@ -344,8 +347,9 @@ size_t camel_case::findWord(StringRef string, StringRef word) {
 }
 
 /// Skip a type suffix that can be dropped.
-static Optional<StringRef> skipTypeSuffix(StringRef typeName) {
-  if (typeName.empty()) return None;
+static llvm::Optional<StringRef> skipTypeSuffix(StringRef typeName) {
+  if (typeName.empty())
+    return llvm::None;
 
   auto lastWord = camel_case::getLastWord(typeName);
 
@@ -381,7 +385,7 @@ static Optional<StringRef> skipTypeSuffix(StringRef typeName) {
   if (typeName.size() > 2 && typeName.endswith("_t")) {
     return typeName.drop_back(2);
   }
-  return None;
+  return llvm::None;
 }
 
 /// Match a word within a name to a word within a type.
@@ -718,7 +722,7 @@ omitSelfTypeFromBaseName(StringRef name, OmissionTypeName typeName,
   typeName.CollectionElement = StringRef();
 
   auto nameWords = camel_case::getWords(name);
-  Optional<llvm::iterator_range<WordIterator>> matchingRange;
+  llvm::Optional<llvm::iterator_range<WordIterator>> matchingRange;
 
   // Search backwards for the type name, whether anchored at the end or not.
   for (auto nameReverseIter = nameWords.rbegin();
@@ -1209,18 +1213,14 @@ static bool splitBaseName(StringRef &baseName, StringRef &argName,
   return false;
 }
 
-bool swift::omitNeedlessWords(StringRef &baseName,
-                              MutableArrayRef<StringRef> argNames,
-                              StringRef firstParamName,
-                              OmissionTypeName givenResultType,
-                              OmissionTypeName contextType,
-                              ArrayRef<OmissionTypeName> paramTypes,
-                              bool returnsSelf,
-                              bool isProperty,
-                              const InheritedNameSet *allPropertyNames,
-                              Optional<unsigned> completionHandlerIndex,
-                              Optional<StringRef> completionHandlerName,
-                              StringScratchSpace &scratch) {
+bool swift::omitNeedlessWords(
+    StringRef &baseName, MutableArrayRef<StringRef> argNames,
+    StringRef firstParamName, OmissionTypeName givenResultType,
+    OmissionTypeName contextType, ArrayRef<OmissionTypeName> paramTypes,
+    bool returnsSelf, bool isProperty, const InheritedNameSet *allPropertyNames,
+    llvm::Optional<unsigned> completionHandlerIndex,
+    llvm::Optional<StringRef> completionHandlerName,
+    StringScratchSpace &scratch) {
   bool anyChanges = false;
   OmissionTypeName resultType = returnsSelf ? contextType : givenResultType;
 
@@ -1367,7 +1367,8 @@ bool swift::omitNeedlessWords(StringRef &baseName,
   return lowercaseAcronymsForReturn();
 }
 
-Optional<StringRef> swift::stripWithCompletionHandlerSuffix(StringRef name) {
+llvm::Optional<StringRef>
+swift::stripWithCompletionHandlerSuffix(StringRef name) {
   if (name.endswith("WithCompletionHandler")) {
     return name.drop_back(strlen("WithCompletionHandler"));
   }
@@ -1392,7 +1393,7 @@ Optional<StringRef> swift::stripWithCompletionHandlerSuffix(StringRef name) {
     return name.drop_back(strlen("WithReply"));
   }
 
-  return None;
+  return llvm::None;
 }
 
 void swift::writeEscaped(llvm::StringRef Str, llvm::raw_ostream &OS) {

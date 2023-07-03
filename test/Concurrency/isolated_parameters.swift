@@ -86,11 +86,11 @@ func testIsolatedParamCallsAsync(a: isolated A, b: A) async {
 @available(SwiftStdlib 5.1, *)
 func testIsolatedParamCaptures(a: isolated A) async {
   let _ = { @MainActor in
-    a.f() // expected-error {{actor-isolated instance method 'f()' can not be referenced from the main actor}}
+    a.f() // expected-error {{call to actor-isolated instance method 'f()' in a synchronous main actor-isolated context}}
   }
 
   let _: @MainActor () -> () = {
-    a.f() // expected-error {{actor-isolated instance method 'f()' can not be referenced from the main actor}}
+    a.f() // expected-error {{call to actor-isolated instance method 'f()' in a synchronous main actor-isolated context}}
   }
 
   let _ = {
@@ -98,7 +98,7 @@ func testIsolatedParamCaptures(a: isolated A) async {
   }
 
   let _ = { @Sendable in
-    a.f() // expected-error {{actor-isolated instance method 'f()' can not be referenced from a Sendable closure}}
+    a.f() // expected-error {{call to actor-isolated instance method 'f()' in a synchronous nonisolated context}}
   }
 
 }
@@ -139,7 +139,7 @@ struct S: P {
   func j(isolated: Int) -> Int { return isolated }
   func k(isolated y: Int) -> Int { return j(isolated: y) }
   func l(isolated _: Int) -> Int { return k(isolated: 0) }
-  func m(thing: MyActor) { thing.hello() } // expected-error {{actor-isolated instance method 'hello()' can not be referenced from a non-isolated context}}
+  func m(thing: MyActor) { thing.hello() } // expected-error {{call to actor-isolated instance method 'hello()' in a synchronous nonisolated context}}
 }
 
 func checkConformer(_ s: S, _ p: any P, _ ma: MyActor) async {
@@ -267,7 +267,7 @@ extension TestActor {
   // expected-warning@+1 {{instance method with 'isolated' parameter cannot be 'nonisolated'; this is an error in Swift 6}}{{3-15=}}
   nonisolated func isolatedToParameter(_ other: isolated TestActor) {
     isolatedMethod()
-    // expected-error@-1{{actor-isolated instance method 'isolatedMethod()' can not be referenced on a non-isolated actor instance}}
+    // expected-error@-1{{call to actor-isolated instance method 'isolatedMethod()' in a synchronous actor-isolated context}}
 
     other.isolatedMethod()
   }
@@ -305,8 +305,8 @@ func isolatedClosures() {
   // expected-warning@+1 {{subscript with 'isolated' parameter cannot be 'nonisolated'; this is an error in Swift 6}}{{3-15=}}
   nonisolated subscript(_ a: isolated A, _ b: isolated A) -> Int {
     // FIXME: wrong isolation. should be isolated to `a`.
-    a.f() // expected-error {{actor-isolated instance method 'f()' can not be referenced on a non-isolated actor instance}}
-    b.f() // expected-error {{actor-isolated instance method 'f()' can not be referenced on a non-isolated actor instance}}
+    a.f() // expected-error {{call to actor-isolated instance method 'f()' in a synchronous actor-isolated context}}
+    b.f() // expected-error {{call to actor-isolated instance method 'f()' in a synchronous actor-isolated context}}
     return 0
   }
 

@@ -125,6 +125,11 @@ public struct ExistentialWrapper {
     }
 }
 
+@inline(never)
+public func createExistentialWrapper(_ x: any SomeProtocol) -> ExistentialWrapper {
+    return ExistentialWrapper(x: x)
+}
+
 public protocol SomeClassProtocol: AnyObject {}
 
 public struct ExistentialRefWrapper {

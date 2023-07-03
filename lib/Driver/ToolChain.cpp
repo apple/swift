@@ -67,7 +67,7 @@ ToolChain::JobContext::getTemporaryFilePath(const llvm::Twine &name,
   return C.getArgs().MakeArgString(buffer.str());
 }
 
-Optional<Job::ResponseFileInfo>
+llvm::Optional<Job::ResponseFileInfo>
 ToolChain::getResponseFileInfo(const Compilation &C, const char *executablePath,
                                const ToolChain::InvocationInfo &invocationInfo,
                                const ToolChain::JobContext &context) const {
@@ -85,7 +85,7 @@ ToolChain::getResponseFileInfo(const Compilation &C, const char *executablePath,
         C.getArgs().MakeArgString(Twine("@") + responseFilePath);
     return {{responseFilePath, responseFileArg}};
   }
-  return None;
+  return llvm::None;
 }
 
 std::unique_ptr<Job> ToolChain::constructJob(

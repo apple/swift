@@ -1,5 +1,4 @@
-// RUN: %swift %use_no_opaque_pointers -swift-version 5 -target arm64e-apple-ios12.0 -parse-stdlib -parse-as-library %s -emit-ir -module-name test -Xcc -Xclang -Xcc -fptrauth-calls | %FileCheck %s --check-prefix=CHECK
-// RUN: %swift -swift-version 5 -target arm64e-apple-ios12.0 -parse-stdlib -parse-as-library %s -emit-ir -module-name test -Xcc -Xclang -Xcc -fptrauth-calls
+// RUN: %swift -swift-version 5 -target arm64e-apple-ios12.0 -parse-stdlib -parse-as-library %s -emit-ir -module-name test -Xcc -Xclang -Xcc -fptrauth-calls | %FileCheck %s --check-prefix=CHECK
 
 // REQUIRES: CPU=arm64e
 // REQUIRES: OS=ios
@@ -42,9 +41,9 @@ bb0(%0 : $@thick A.Type):
 sil_witness_table A : P module test {
   method #P.foo: @A_foo
 }
-// CHECK: @A_foo.ptrauth = private constant { i8*, i32, i64, i64 } { i8* bitcast (void (%swift.type*, %swift.type*, i8**)* @A_foo to i8*), i32 0, i64 ptrtoint (i8** getelementptr inbounds ([2 x i8*], [2 x i8*]* @"$s4test1AVAA1PAAWP", i32 0, i32 1) to i64), i64 53700 }, section "llvm.ptrauth"
+// CHECK: @A_foo.ptrauth = private constant { ptr, i32, i64, i64 } { ptr @A_foo, i32 0, i64 ptrtoint (ptr getelementptr inbounds ([2 x ptr], ptr @"$s4test1AVAA1PAAWP", i32 0, i32 1) to i64), i64 53700 }, section "llvm.ptrauth"
 
-// CHECK: @"$s4test1AVAA1PAAWP" = hidden constant [2 x i8*] [i8* bitcast (%swift.protocol_conformance_descriptor* @"$s4test1AVAA1PAAMc" to i8*), i8* bitcast ({ i8*, i32, i64, i64 }* @A_foo.ptrauth to i8*)], align 8
+// CHECK: @"$s4test1AVAA1PAAWP" = hidden constant [2 x ptr] [ptr @"$s4test1AVAA1PAAMc", ptr @A_foo.ptrauth], align 8
 
 sil @B_init : $@convention(witness_method : Q) (@thick B.Type) -> (@out B) {
 bb0(%0 : $*B, %1 : $@thick B.Type):
@@ -56,11 +55,11 @@ sil_witness_table B : Q module test {
   associated_type Assoc: A
   method #Q.init!allocator: @B_init
 }
-// CHECK: @B_init.ptrauth = private constant { i8*, i32, i64, i64 } { i8* bitcast (void (%T4test1BV*, %swift.type*, %swift.type*, i8**)* @B_init to i8*), i32 0, i64 ptrtoint (i8** getelementptr inbounds ([4 x i8*], [4 x i8*]* @"$s4test1BVAA1QAAWP", i32 0, i32 3) to i64), i64 33208 }, section "llvm.ptrauth"
-// CHECK: @"$s4test1BVAA1QAAWP" = hidden global [4 x i8*] [
-// CHECK-SAME: i8* bitcast ({{.*}}* @"$s4test1BVAA1QAAMc" to i8*),
-// CHECK-SAME: @.ptrauth
-// CHECK-SAME: i8* bitcast ({ i8*, i32, i64, i64 }* @B_init.ptrauth to i8*)]
+// CHECK: @B_init.ptrauth = private constant { ptr, i32, i64, i64 } { ptr @B_init, i32 0, i64 ptrtoint (ptr getelementptr inbounds ([4 x ptr], ptr @"$s4test1BVAA1QAAWP", i32 0, i32 3) to i64), i64 33208 }, section "llvm.ptrauth"
+// CHECK: @"$s4test1BVAA1QAAWP" = hidden global [4 x ptr] [
+// CHECK-SAME: ptr @"$s4test1BVAA1QAAMc",
+// CHECK-SAME: @"{{.*}}.ptrauth",
+// CHECK-SAME: ptr @B_init.ptrauth]
 
 sil @test_accesses : $@convention(thin) <T : Q> () -> () {
 bb0:
@@ -69,22 +68,21 @@ bb0:
   apply %0<T.Assoc>(%1) : $@convention(witness_method : P) <τ_0_0 where τ_0_0 : P> (@thick τ_0_0.Type) -> ()
   return undef : $()
 }
-// CHECK-LABEL: define swiftcc void @test_accesses(%swift.type* %T, i8** %T.Q)
+// CHECK-LABEL: define swiftcc void @test_accesses(ptr %T, ptr %T.Q)
 //   Fetch T.Assoc.
 // CHECK:    [[T_ASSOC:%.*]] = extractvalue %swift.metadata_response [[TMP:%.*]], 0
 // CHECK-NEXT:    {{%.*}} = extractvalue %swift.metadata_response [[TMP]], 1
 //   Fetch T.Assoc : P.
-// CHECK-NEXT:    %T.Assoc.P = call swiftcc i8** @swift_getAssociatedConformanceWitness(i8** %T.Q, %swift.type* %T, %swift.type* [[T_ASSOC]]
+// CHECK-NEXT:    %T.Assoc.P = call swiftcc ptr @swift_getAssociatedConformanceWitness(ptr %T.Q, ptr %T, ptr [[T_ASSOC]]
 //   Fetch T.Assoc.foo
-// CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds i8*, i8** %T.Assoc.P, i32 1
-// CHECK-NEXT:    [[T1:%.*]] = load i8*, i8** [[T0]], align 8
-// CHECK-NEXT:    [[FOO:%.*]] = bitcast i8* [[T1]] to void (%swift.type*, %swift.type*, i8**)*
-// CHECK-NEXT:    [[T1:%.*]] = ptrtoint i8** [[T0]] to i64
-// CHECK-NEXT:    [[DISC:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[T1]], i64 53700)
+// CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds ptr, ptr %T.Assoc.P, i32 1
+// CHECK-NEXT:    [[T1:%.*]] = load ptr, ptr [[T0]], align 8
+// CHECK-NEXT:    [[T2:%.*]] = ptrtoint ptr [[T0]] to i64
+// CHECK-NEXT:    [[DISC:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[T2]], i64 53700)
 //   TODO: be smart about this and do a complete-metadata fetch in the first place
-// CHECK-NEXT:    [[ASSOC_RESPONSE:%.*]] = call swiftcc %swift.metadata_response @swift_checkMetadataState(i64 0, %swift.type* [[T_ASSOC]])
+// CHECK-NEXT:    [[ASSOC_RESPONSE:%.*]] = call swiftcc %swift.metadata_response @swift_checkMetadataState(i64 0, ptr [[T_ASSOC]])
 // CHECK-NEXT:    [[ASSOC:%.*]] = extractvalue %swift.metadata_response [[ASSOC_RESPONSE]], 0
-// CHECK-NEXT:    call swiftcc void [[FOO]](%swift.type* swiftself [[ASSOC]], %swift.type* [[ASSOC]], i8** %T.Assoc.P) [ "ptrauth"(i32 0, i64 [[DISC]]) ]
+// CHECK-NEXT:    call swiftcc void [[T1]](ptr swiftself [[ASSOC]], ptr [[ASSOC]], ptr %T.Assoc.P) [ "ptrauth"(i32 0, i64 [[DISC]]) ]
 // CHECK-NEXT:    ret void
 
 sil @use_conformances : $@convention(thin) () -> () {

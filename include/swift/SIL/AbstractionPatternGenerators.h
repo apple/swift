@@ -224,6 +224,11 @@ public:
     return origEltIndex == numOrigElts;
   }
 
+  /// Does the entire original tuple vanish?
+  bool doesOrigTupleVanish() const {
+    return origTupleVanishes;
+  }
+
   /// Advance to the next orig element.
   void advance() {
     assert(!isFinished());

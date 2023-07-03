@@ -19,13 +19,12 @@
 namespace swift {
 
 void emitDistributedActorSystemWitnessCall(
-    SILBuilder &B, SILLocation loc, DeclName methodName,
-    SILValue base,
+    SILBuilder &B, SILLocation loc, DeclName methodName, SILValue base,
     // types to be passed through to SubstitutionMap:
     SILType actorType,
     // call arguments, except the base which will be passed last
     ArrayRef<SILValue> args,
-    Optional<std::pair<SILBasicBlock *, SILBasicBlock *>> tryTargets) {
+    llvm::Optional<std::pair<SILBasicBlock *, SILBasicBlock *>> tryTargets) {
   auto &F = B.getFunction();
   auto &M = B.getModule();
   auto &C = F.getASTContext();
@@ -92,15 +91,15 @@ void emitDistributedActorSystemWitnessCall(
     subs = SubstitutionMap::get(genericSig, subTypes, subConformances);
   }
 
-  Optional<SILValue> temporaryArgumentBuffer;
+  llvm::Optional<SILValue> temporaryArgumentBuffer;
 
   // If the self parameter is indirect but the base is a value, put it
   // into a temporary allocation.
   auto methodSILFnTy = methodSILTy.castTo<SILFunctionType>();
-  Optional<SILValue> temporaryActorSystemBuffer;
+  llvm::Optional<SILValue> temporaryActorSystemBuffer;
   if (methodSILFnTy->getSelfParameter().isFormalIndirect() &&
       !base->getType().isAddress()) {
-    auto buf = B.createAllocStack(loc, base->getType(), None);
+    auto buf = B.createAllocStack(loc, base->getType(), llvm::None);
     base = B.emitCopyValueOperation(loc, base);
     B.emitStoreValueOperation(
         loc, base, buf, StoreOwnershipQualifier::Init);
@@ -116,7 +115,7 @@ void emitDistributedActorSystemWitnessCall(
     if (params[i].isFormalIndirect() &&
         !arg->getType().isAddress() &&
         !dyn_cast<AnyMetatypeType>(arg->getType().getASTType())) {
-      auto buf = B.createAllocStack(loc, arg->getType(), None);
+      auto buf = B.createAllocStack(loc, arg->getType(), llvm::None);
       auto argCopy = B.emitCopyValueOperation(loc, arg);
       B.emitStoreValueOperation(
           loc, argCopy, buf, StoreOwnershipQualifier::Init);

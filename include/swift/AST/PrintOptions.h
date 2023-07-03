@@ -573,10 +573,15 @@ struct PrintOptions {
       QualifyNestedDeclarations::Never;
 
   /// If true, we print a protocol's primary associated types using the
-  /// primary associated type syntax: protocol Foo<Type1, ...>.
+  /// primary associated type syntax: `protocol Foo<Type1, ...>`.
   ///
   /// If false, we print them as ordinary associated types.
   bool PrintPrimaryAssociatedTypes = true;
+
+  /// Whether or not to print `@attached(extension)` attributes on
+  /// macro declarations. This is used for feature suppression in
+  /// Swift interface printing.
+  bool PrintExtensionMacroAttributes = true;
 
   /// If this is not \c nullptr then function bodies (including accessors
   /// and constructors) will be printed by this function.

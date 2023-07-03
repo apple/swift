@@ -1,5 +1,4 @@
-// RUN: %swift %use_no_opaque_pointers -prespecialize-generic-metadata -target %module-target-future -emit-ir %s | %FileCheck %s -DINT=i%target-ptrsize -DALIGNMENT=%target-alignment --check-prefix=CHECK --check-prefix=CHECK-%target-vendor
-// RUN: %swift -prespecialize-generic-metadata -target %module-target-future -emit-ir %s
+// RUN: %swift -prespecialize-generic-metadata -target %module-target-future -emit-ir %s | %FileCheck %s -DINT=i%target-ptrsize -DALIGNMENT=%target-alignment --check-prefix=CHECK --check-prefix=CHECK-%target-vendor
 
 // REQUIRES: VENDOR=apple || OS=linux-gnu
 // UNSUPPORTED: CPU=i386 && OS=ios
@@ -34,15 +33,15 @@ func consume<T>(_ t: T) {
 //       __swift_instantiateConcreteTypeFromMangledName.
 
 //      CHECK: define hidden swiftcc void @"$s4main4doityyF"() #{{[0-9]+}} {
-//      CHECK:   [[METADATA:%[0-9]+]] = call %swift.type* @__swift_instantiateConcreteTypeFromMangledName(
+//      CHECK:   [[METADATA:%[0-9]+]] = call ptr @__swift_instantiateConcreteTypeFromMangledName(
 // CHECK-SAME:     @"$s4main5Value[[UNIQUE_ID_1:[A-Za-z0-9_]+]]LLCyAA3BoxACLLCGMD"
-//      CHECK:   {{%[0-9]+}} = call swiftcc %T4main5Value[[UNIQUE_ID_1]]LLC* @"$s4main5Value[[UNIQUE_ID_1]]LLC5firstADyxGx_tcfC"(
-// CHECK-SAME:     %swift.opaque* noalias nocapture {{%[0-9]+}}, 
-// CHECK-SAME:     %swift.type* swiftself [[METADATA]]
+//      CHECK:   {{%[0-9]+}} = call swiftcc ptr @"$s4main5Value[[UNIQUE_ID_1]]LLC5firstADyxGx_tcfC"(
+// CHECK-SAME:     ptr noalias nocapture {{%[0-9]+}}, 
+// CHECK-SAME:     ptr swiftself [[METADATA]]
 // CHECK-SAME:   )
 // CHECK:   call swiftcc void @"$s4main7consumeyyxlF"(
-// CHECK-SAME:     %swift.opaque* noalias nocapture {{%[0-9]+}}, 
-// CHECK-SAME:     %swift.type* [[METADATA]])
+// CHECK-SAME:     ptr noalias nocapture {{%[0-9]+}}, 
+// CHECK-SAME:     ptr [[METADATA]])
 // CHECK: }
 func doit() {
   consume( Value(first: Box(value: 13)) )

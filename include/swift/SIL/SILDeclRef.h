@@ -564,7 +564,7 @@ struct SILDeclRef {
                                                     AbstractFunctionDecl *func);
 
   /// Returns the availability of the decl for computing linkage.
-  Optional<AvailabilityContext> getAvailabilityForLinkage() const;
+  llvm::Optional<AvailabilityContext> getAvailabilityForLinkage() const;
 
   /// True if the referenced entity is some kind of thunk.
   bool isThunk() const;

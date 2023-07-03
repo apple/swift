@@ -1,7 +1,5 @@
-// RUN: %swift %use_no_opaque_pointers -disable-legacy-type-info -target i386-apple-ios7 %s -gnone -emit-ir | %FileCheck %s
-// RUN: %swift %use_no_opaque_pointers -disable-legacy-type-info -target armv7-apple-ios7 %s -gnone -emit-ir | %FileCheck %s
-// RUN: %swift -disable-legacy-type-info -target i386-apple-ios7 %s -gnone -emit-ir
-// RUN: %swift -disable-legacy-type-info -target armv7-apple-ios7 %s -gnone -emit-ir
+// RUN: %swift -disable-legacy-type-info -target i386-apple-ios7 %s -gnone -emit-ir | %FileCheck %s
+// RUN: %swift -disable-legacy-type-info -target armv7-apple-ios7 %s -gnone -emit-ir | %FileCheck %s
 
 // REQUIRES: CODEGENERATOR=X86
 // REQUIRES: CODEGENERATOR=ARM
@@ -18,7 +16,6 @@ sil_vtable C {}
 
 sil @$s11enum_32_bit1CCfD : $@convention(thin) (@owned C) -> ()
 
-// CHECK-LABEL: %T11enum_32_bit3FooO = type <{ [4 x i8] }>
 enum Foo {
   case A(C)
   case B
@@ -26,13 +23,11 @@ enum Foo {
 
 @objc protocol ClassExistential {}
 
-// CHECK-LABEL: %T11enum_32_bit3BarO = type <{ [4 x i8] }>
 enum Bar {
   case A(ClassExistential)
   case B
 }
 
-// CHECK-LABEL: %T11enum_32_bit3BasO = type <{ [4 x i8] }>
 enum Bas {
   case A(ClassExistential)
   case B(C)

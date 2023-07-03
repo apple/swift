@@ -194,7 +194,8 @@ private:
 
 public:
   CompileJobAction(file_types::ID OutputType)
-      : IncrementalJobAction(Action::Kind::CompileJob, None, OutputType, {}) {}
+      : IncrementalJobAction(Action::Kind::CompileJob, llvm::None, OutputType,
+                             {}) {}
   CompileJobAction(Action *Input, file_types::ID OutputType, InputInfo info)
       : IncrementalJobAction(Action::Kind::CompileJob, Input, OutputType,
                              info) {}

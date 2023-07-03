@@ -11,7 +11,7 @@
 // UNSUPPORTED: use_os_stdlib
 // UNSUPPORTED: back_deployment_runtime
 
-import _Observation
+import Observation
 
 @Observable
 public class Model {

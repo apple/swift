@@ -1,12 +1,11 @@
-// RUN: %swift %use_no_opaque_pointers -swift-version 4 -target arm64e-apple-ios12.0 -parse-stdlib -parse-as-library %s -emit-ir -module-name test -Xcc -Xclang -Xcc -fptrauth-calls | %FileCheck %s --check-prefix=CHECK
-// RUN: %swift -swift-version 4 -target arm64e-apple-ios12.0 -parse-stdlib -parse-as-library %s -emit-ir -module-name test -Xcc -Xclang -Xcc -fptrauth-calls
+// RUN: %swift -swift-version 4 -target arm64e-apple-ios12.0 -parse-stdlib -parse-as-library %s -emit-ir -module-name test -Xcc -Xclang -Xcc -fptrauth-calls | %FileCheck %s --check-prefix=CHECK
 
 // REQUIRES: CPU=arm64e
 // REQUIRES: OS=ios
 
 import Builtin
 
-// CHECK: @global_function.ptrauth = private constant { i8*, i32, i64, i64 } { i8* bitcast (void ()* @global_function to i8*), i32 0, i64 0, i64 {{.*}} }, section "llvm.ptrauth", align 8
+// CHECK: @global_function.ptrauth = private constant { ptr, i32, i64, i64 } { ptr @global_function, i32 0, i64 0, i64 {{.*}} }, section "llvm.ptrauth", align 8
 
 sil @global_function : $@convention(thin) () -> ()
 
@@ -15,8 +14,8 @@ bb0:
   %0 = function_ref @global_function : $@convention(thin) () -> ()
   return %0 : $@convention(thin) () -> ()
 }
-// CHECK-LABEL: define swiftcc i8* @test_sign()
-// CHECK: ret i8* bitcast ({ i8*, i32, i64, i64 }* @global_function.ptrauth to i8*)
+// CHECK-LABEL: define swiftcc ptr @test_sign()
+// CHECK: ret ptr @global_function.ptrauth
 
 sil @test_direct_call : $@convention(thin) () -> () {
 bb0:
@@ -32,27 +31,24 @@ bb0(%0 : $@convention(thin) () -> ()):
   %1 = apply %0() : $@convention(thin) () -> ()
   return %1 : $()
 }
-// CHECK-LABEL: define swiftcc void @test_indirect_call_thin(i8* %0)
-// CHECK:      [[CAST:%.*]] = bitcast i8* %0 to void ()*
-// CHECK-NEXT: call swiftcc void [[CAST]]() [ "ptrauth"(i32 0, i64 {{.*}}) ]
+// CHECK-LABEL: define swiftcc void @test_indirect_call_thin(ptr %0)
+// CHECK: call swiftcc void %0() [ "ptrauth"(i32 0, i64 {{.*}}) ]
 
 sil @test_indirect_call_thick : $@convention(thin) (@guaranteed @callee_guaranteed () -> ()) -> () {
 bb0(%0 : $@callee_guaranteed () -> ()):
   %1 = apply %0() : $@callee_guaranteed () -> ()
   return %1 : $()
 }
-// CHECK-LABEL: define swiftcc void @test_indirect_call_thick(i8* %0, %swift.refcounted* %1)
-// CHECK:      [[CAST:%.*]] = bitcast i8* %0 to void (%swift.refcounted*)*
-// CHECK-NEXT: call swiftcc void [[CAST]](%swift.refcounted* swiftself %1) [ "ptrauth"(i32 0, i64 {{.*}}) ]
+// CHECK-LABEL: define swiftcc void @test_indirect_call_thick(ptr %0, ptr %1)
+// CHECK: call swiftcc void %0(ptr swiftself %1) [ "ptrauth"(i32 0, i64 {{.*}}) ]
 
 sil @test_indirect_call_c : $@convention(thin) (@convention(c) () -> ()) -> () {
 bb0(%0 : $@convention(c) () -> ()):
   %1 = apply %0() : $@convention(c) () -> ()
   return %1 : $()
 }
-// CHECK-LABEL: define swiftcc void @test_indirect_call_c(i8* %0)
-// CHECK:      [[CAST:%.*]] = bitcast i8* %0 to void ()*
-// CHECK-NEXT: call void [[CAST]]() [ "ptrauth"(i32 0, i64 {{.*}}) ]
+// CHECK-LABEL: define swiftcc void @test_indirect_call_c(ptr %0)
+// CHECK: call void %0() [ "ptrauth"(i32 0, i64 {{.*}}) ]
 
 sil @test_thin_to_thick : $@convention(thin) (@convention(thin) () -> ()) -> (@callee_guaranteed () -> ()) {
 bb0(%0 : $@convention(thin) () -> ()):
@@ -60,10 +56,10 @@ bb0(%0 : $@convention(thin) () -> ()):
   return %1 : $@callee_guaranteed () -> ()
 }
 
-// CHECK-LABEL: define swiftcc { i8*, %swift.refcounted* } @test_thin_to_thick(i8* %0)
-// CHECK:      [[T0:%.*]] = insertvalue { i8*, %swift.refcounted* } undef, i8* %0, 0
-// CHECK-NEXT: [[T1:%.*]] = insertvalue { i8*, %swift.refcounted* } [[T0]], %swift.refcounted* null, 1
-// CHECK-NEXT: ret { i8*, %swift.refcounted* } [[T1]]
+// CHECK-LABEL: define swiftcc { ptr, ptr } @test_thin_to_thick(ptr %0)
+// CHECK:      [[T0:%.*]] = insertvalue { ptr, ptr } undef, ptr %0, 0
+// CHECK-NEXT: [[T1:%.*]] = insertvalue { ptr, ptr } [[T0]], ptr null, 1
+// CHECK-NEXT: ret { ptr, ptr } [[T1]]
 
 sil @test_sign_thin_to_thick : $@convention(thin) () -> (@callee_guaranteed () -> ()) {
 bb0:
@@ -71,8 +67,8 @@ bb0:
   %1 = thin_to_thick_function %0 : $@convention(thin) () -> () to $@callee_guaranteed () -> ()
   return %1 : $@callee_guaranteed () -> ()
 }
-// CHECK: define swiftcc { i8*, %swift.refcounted* } @test_sign_thin_to_thick() #[[ATTRS:[0-9]+]] {
-// CHECK: ret { i8*, %swift.refcounted* } { i8* bitcast ({ i8*, i32, i64, i64 }* @global_function.ptrauth to i8*), %swift.refcounted* null }
+// CHECK: define swiftcc { ptr, ptr } @test_sign_thin_to_thick() #[[ATTRS:[0-9]+]] {
+// CHECK: ret { ptr, ptr } { ptr @global_function.ptrauth, ptr null }
 
 class F {}
 sil @generic_return : $@convention(thin) @yield_once <T : F> (@guaranteed T) ->  @yields @guaranteed T

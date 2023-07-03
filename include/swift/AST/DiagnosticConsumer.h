@@ -21,6 +21,8 @@
 
 #include "swift/Basic/LLVM.h"
 #include "swift/Basic/SourceLoc.h"
+#include "llvm/ADT/None.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/Support/SourceMgr.h"
 
 namespace swift {
@@ -295,7 +297,7 @@ private:
   ///
   /// If None, Note diagnostics are sent to every consumer.
   /// If null, diagnostics are suppressed.
-  Optional<Subconsumer *> SubconsumerForSubsequentNotes = None;
+  llvm::Optional<Subconsumer *> SubconsumerForSubsequentNotes = llvm::None;
 
   bool HasAnErrorBeenConsumed = false;
 
@@ -323,16 +325,16 @@ private:
   /// Returns nullptr if diagnostic is to be suppressed,
   /// None if diagnostic is to be distributed to every consumer,
   /// a particular consumer if diagnostic goes there.
-  Optional<FileSpecificDiagnosticConsumer::Subconsumer *>
+  llvm::Optional<FileSpecificDiagnosticConsumer::Subconsumer *>
   subconsumerForLocation(SourceManager &SM, SourceLoc loc);
 
-  Optional<FileSpecificDiagnosticConsumer::Subconsumer *>
+  llvm::Optional<FileSpecificDiagnosticConsumer::Subconsumer *>
   findSubconsumer(SourceManager &SM, const DiagnosticInfo &Info);
 
-  Optional<FileSpecificDiagnosticConsumer::Subconsumer *>
+  llvm::Optional<FileSpecificDiagnosticConsumer::Subconsumer *>
   findSubconsumerForNonNote(SourceManager &SM, const DiagnosticInfo &Info);
 };
-  
+
 } // end namespace swift
 
 #endif // SWIFT_BASIC_DIAGNOSTICCONSUMER_H

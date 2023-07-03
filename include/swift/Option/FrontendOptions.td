@@ -1217,6 +1217,23 @@ def always_compile_output_files :
   Flag<["-"], "always-compile-output-files">,
   HelpText<"Always compile output files even it might not change the results">;
 
+// CAS/Caching related options.
+def allow_unstable_cache_key_for_testing: Flag<["-"], "allow-unstable-cache-key-for-testing">,
+  HelpText<"Allow compilation caching with unstable inputs for testing purpose">;
+
+def bridging_header_pch_key : Separate<["-"], "bridging-header-pch-key">,
+  HelpText<"Cache Key for bridging header pch">;
+
+def clang_include_tree: Flag<["-"], "clang-include-tree">,
+  HelpText<"Use clang include tree">;
+
+def cas_fs: Separate<["-"], "cas-fs">,
+  HelpText<"Root CASID for CAS FileSystem">, MetaVarName<"<cas-id>">;
+
+def clang_include_tree_root: Separate<["-"], "clang-include-tree-root">,
+  HelpText<"Clang Include Tree CASID">, MetaVarName<"<cas-id>">;
+
+
 def experimental_spi_only_imports :
   Flag<["-"], "experimental-spi-only-imports">,
   HelpText<"Enable use of @_spiOnly imports">;

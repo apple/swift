@@ -90,7 +90,7 @@ IsZeroKind isZeroValue(SILValue Value);
 /// It is planned to extend this approach to track all bits of a value.
 /// Therefore it can be considered to be the beginning of a range analysis
 /// infrastructure for the Swift compiler.
-Optional<bool> computeSignBit(SILValue Value);
+llvm::Optional<bool> computeSignBit(SILValue Value);
 
 /// Check if execution of a given builtin instruction can result in overflows.
 /// Returns true of an overflow can happen. Otherwise returns false.

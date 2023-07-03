@@ -2743,34 +2743,34 @@ bool TypeConverter::visitAggregateLeaves(
     Lowering::AbstractionPattern origType, CanType substType,
     TypeExpansionContext context,
     std::function<bool(CanType, Lowering::AbstractionPattern, ValueDecl *,
-                       Optional<unsigned>)>
+                       llvm::Optional<unsigned>)>
         isLeafAggregate,
     std::function<bool(CanType, Lowering::AbstractionPattern, ValueDecl *,
-                       Optional<unsigned>)>
+                       llvm::Optional<unsigned>)>
         visit) {
   llvm::SmallSet<std::tuple<CanType, ValueDecl *, unsigned>, 16> visited;
   llvm::SmallVector<
       std::tuple<CanType, AbstractionPattern, ValueDecl *, unsigned>, 16>
       worklist;
-  auto insertIntoWorklist = [&visited,
-                             &worklist](CanType substTy,
-                                        AbstractionPattern origTy,
-                                        ValueDecl *field,
-                                        Optional<unsigned> maybeIndex) -> bool {
+  auto insertIntoWorklist =
+      [&visited, &worklist](CanType substTy, AbstractionPattern origTy,
+                            ValueDecl *field,
+                            llvm::Optional<unsigned> maybeIndex) -> bool {
     unsigned index = maybeIndex.value_or(UINT_MAX);
     if (!visited.insert({substTy, field, index}).second)
       return false;
     worklist.push_back({substTy, origTy, field, index});
     return true;
   };
-  auto popFromWorklist = [&worklist]()
-      -> std::tuple<CanType, AbstractionPattern, ValueDecl *, Optional<unsigned>> {
+  auto popFromWorklist =
+      [&worklist]() -> std::tuple<CanType, AbstractionPattern, ValueDecl *,
+                                  llvm::Optional<unsigned>> {
     CanType ty;
     AbstractionPattern origTy = AbstractionPattern::getOpaque();
     ValueDecl *field;
     unsigned index;
     std::tie(ty, origTy, field, index) = worklist.pop_back_val();
-    Optional<unsigned> maybeIndex;
+    llvm::Optional<unsigned> maybeIndex;
     if (index != UINT_MAX)
       maybeIndex = {index};
     return {ty, origTy, field, maybeIndex};
@@ -2787,7 +2787,7 @@ bool TypeConverter::visitAggregateLeaves(
     CanType ty;
     AbstractionPattern origTy = AbstractionPattern::getOpaque();
     ValueDecl *field;
-    Optional<unsigned> index;
+    llvm::Optional<unsigned> index;
     std::tie(ty, origTy, field, index) = popFromWorklist();
     assert(!field || !index && "both field and index!?");
     if (isAggregate(ty) && !isLeafAggregate(ty, origTy, field, index)) {
@@ -3004,7 +3004,8 @@ TypeConverter::computeLoweredRValueType(TypeExpansionContext forExpansion,
               .build();
 
       return ::getNativeSILFunctionType(TC, forExpansion, origType, substFnType,
-                                        silExtInfo, None, None, None, {});
+                                        silExtInfo, llvm::None, llvm::None,
+                                        llvm::None, {});
     }
 
     // Ignore dynamic self types.
@@ -3751,11 +3752,11 @@ TypeConverter::getProtocolDispatchStrategy(ProtocolDecl *P) {
 
 /// If a capture references a local function, return a reference to that
 /// function.
-static Optional<AnyFunctionRef>
+static llvm::Optional<AnyFunctionRef>
 getAnyFunctionRefFromCapture(CapturedValue capture) {
   if (auto *afd = dyn_cast<AbstractFunctionDecl>(capture.getDecl()))
     return AnyFunctionRef(afd);
-  return None;
+  return llvm::None;
 }
 
 bool
@@ -3796,7 +3797,7 @@ TypeConverter::getLoweredLocalCaptures(SILDeclRef fn) {
 
   // If there is a capture of 'self' with dynamic 'Self' type, it goes last so
   // that IRGen can pass dynamic 'Self' metadata.
-  Optional<CapturedValue> selfCapture;
+  llvm::Optional<CapturedValue> selfCapture;
 
   bool capturesGenericParams = false;
   DynamicSelfType *capturesDynamicSelf = nullptr;
@@ -4470,7 +4471,7 @@ CanSILBoxType TypeConverter::getBoxTypeForEnumElement(
   return boxTy;
 }
 
-Optional<AbstractionPattern>
+llvm::Optional<AbstractionPattern>
 TypeConverter::getConstantAbstractionPattern(SILDeclRef constant) {
   if (auto closure = constant.getAbstractClosureExpr()) {
     // Using operator[] here creates an entry in the map if one doesn't exist
@@ -4478,7 +4479,7 @@ TypeConverter::getConstantAbstractionPattern(SILDeclRef constant) {
     // established and cannot be overridden by `setAbstractionPattern` later.
     return ClosureAbstractionPatterns[closure];
   }
-  return None;
+  return llvm::None;
 }
 
 TypeExpansionContext

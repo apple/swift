@@ -98,7 +98,7 @@
 public let globalVariable = [ 100, 101, 102 ]
 
 // CHECK-LABEL: sil [noinline] @$s4test11arrayLookupyS2iF
-// CHECK:   global_value @$s4test11arrayLookupyS2iFTv_
+// CHECK:   global_value [bare] @$s4test11arrayLookupyS2iFTv_
 // CHECK-NOT: retain
 // CHECK-NOT: release
 // CHECK:   } // end sil function '$s4test11arrayLookupyS2iF'

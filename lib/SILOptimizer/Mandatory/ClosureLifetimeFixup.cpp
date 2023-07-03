@@ -749,7 +749,7 @@ static SILValue tryRewriteToPartialApplyStack(
     // Is the capture a borrow?
     auto paramIndex = newPA
       ->getArgumentIndexForOperandIndex(i + newPA->getArgumentOperandNumber())
-      .getValue();
+      .value();
     if (!newPA->getOrigCalleeType()->getParameters()[paramIndex]
           .isIndirectInGuaranteed()) {
       LLVM_DEBUG(llvm::dbgs() << "-- not an in_guaranteed parameter\n";

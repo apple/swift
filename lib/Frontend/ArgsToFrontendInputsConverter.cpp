@@ -38,7 +38,7 @@ ArgsToFrontendInputsConverter::ArgsToFrontendInputsConverter(
       BadFileDescriptorRetryCountArg(
         args.getLastArg(options::OPT_bad_file_descriptor_retry_count)) {}
 
-Optional<FrontendInputsAndOutputs> ArgsToFrontendInputsConverter::convert(
+llvm::Optional<FrontendInputsAndOutputs> ArgsToFrontendInputsConverter::convert(
     SmallVectorImpl<std::unique_ptr<llvm::MemoryBuffer>> *buffers) {
   SWIFT_DEFER {
     if (buffers) {
@@ -52,14 +52,14 @@ Optional<FrontendInputsAndOutputs> ArgsToFrontendInputsConverter::convert(
   };
 
   if (enforceFilelistExclusion())
-    return None;
+    return llvm::None;
 
   if (FilelistPathArg ? readInputFilesFromFilelist()
                       : readInputFilesFromCommandLine())
-    return None;
-  Optional<std::set<StringRef>> primaryFiles = readPrimaryFiles();
+    return llvm::None;
+  llvm::Optional<std::set<StringRef>> primaryFiles = readPrimaryFiles();
   if (!primaryFiles)
-    return None;
+    return llvm::None;
 
   FrontendInputsAndOutputs result;
   std::set<StringRef> unusedPrimaryFiles;
@@ -67,7 +67,7 @@ Optional<FrontendInputsAndOutputs> ArgsToFrontendInputsConverter::convert(
       createInputFilesConsumingPrimaries(*primaryFiles);
 
   if (diagnoseUnusedPrimaryFiles(unusedPrimaryFiles))
-    return None;
+    return llvm::None;
 
   // Must be set before iterating over inputs needing outputs.
   result.setBypassBatchModeChecks(
@@ -160,7 +160,7 @@ bool ArgsToFrontendInputsConverter::addFile(StringRef file) {
   return true;
 }
 
-Optional<std::set<StringRef>>
+llvm::Optional<std::set<StringRef>>
 ArgsToFrontendInputsConverter::readPrimaryFiles() {
   std::set<StringRef> primaryFiles;
   for (const Arg *A : Args.filtered(options::OPT_primary_file))
@@ -168,7 +168,7 @@ ArgsToFrontendInputsConverter::readPrimaryFiles() {
   if (forAllFilesInFilelist(
           PrimaryFilelistPathArg,
           [&](StringRef file) -> void { primaryFiles.insert(file); }))
-    return None;
+    return llvm::None;
   return primaryFiles;
 }
 
@@ -186,9 +186,9 @@ ArgsToFrontendInputsConverter::createInputFilesConsumingPrimaries(
   }
 
   if (!Files.empty() && !hasAnyPrimaryFiles) {
-    Optional<std::vector<std::string>> userSuppliedNamesOrErr =
+    llvm::Optional<std::vector<std::string>> userSuppliedNamesOrErr =
         OutputFilesComputer::getOutputFilenamesFromCommandLineOrFilelist(
-          Args, Diags, options::OPT_o, options::OPT_output_filelist);
+            Args, Diags, options::OPT_o, options::OPT_output_filelist);
     if (userSuppliedNamesOrErr && userSuppliedNamesOrErr->size() == 1)
       result.setIsSingleThreadedWMO(true);
   }

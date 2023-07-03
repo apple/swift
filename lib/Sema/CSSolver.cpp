@@ -775,7 +775,7 @@ ConstraintSystem::SolverScope::~SolverScope() {
 ///
 /// \returns a solution if a single unambiguous one could be found, or None if
 /// ambiguous or unsolvable.
-Optional<Solution>
+llvm::Optional<Solution>
 ConstraintSystem::solveSingle(FreeTypeVariableBinding allowFreeTypeVariables,
                               bool allowFixes) {
 
@@ -787,7 +787,7 @@ ConstraintSystem::solveSingle(FreeTypeVariableBinding allowFreeTypeVariables,
   filterSolutions(solutions);
 
   if (solutions.size() != 1)
-    return Optional<Solution>();
+    return llvm::Optional<Solution>();
 
   return std::move(solutions[0]);
 }
@@ -819,7 +819,7 @@ bool ConstraintSystem::Candidate::solve(
   };
 
   // Allocate new constraint system for sub-expression.
-  ConstraintSystem cs(DC, None);
+  ConstraintSystem cs(DC, llvm::None);
 
   // Set up expression type checker timer for the candidate.
   cs.Timer.emplace(E, cs);
@@ -1231,7 +1231,7 @@ void ConstraintSystem::shrink(Expr *expr) {
 
           if (typeRepr && isSuitableCollection(typeRepr)) {
             const auto coercionType = TypeResolution::resolveContextualType(
-                typeRepr, CS.DC, None,
+                typeRepr, CS.DC, llvm::None,
                 // FIXME: Should we really be unconditionally complaining
                 // about unbound generics and placeholders here? For
                 // example:
@@ -1371,7 +1371,7 @@ static bool debugConstraintSolverForTarget(ASTContext &C,
   return startBound != endBound;
 }
 
-Optional<std::vector<Solution>>
+llvm::Optional<std::vector<Solution>>
 ConstraintSystem::solve(SyntacticElementTarget &target,
                         FreeTypeVariableBinding allowFreeTypeVariables) {
   llvm::SaveAndRestore<ConstraintSystemOptions> debugForExpr(Options);
@@ -1438,7 +1438,7 @@ ConstraintSystem::solve(SyntacticElementTarget &target,
 
     case SolutionResult::Error:
       maybeProduceFallbackDiagnostic(target);
-      return None;
+      return llvm::None;
 
     case SolutionResult::TooComplex: {
       auto affectedRange = solution.getTooComplexAt();
@@ -1453,7 +1453,7 @@ ConstraintSystem::solve(SyntacticElementTarget &target,
           .highlight(*affectedRange);
 
       solution.markAsDiagnosed();
-      return None;
+      return llvm::None;
     }
 
     case SolutionResult::Ambiguous:
@@ -1465,7 +1465,7 @@ ConstraintSystem::solve(SyntacticElementTarget &target,
       if (stage == 1 || Context.SolutionCallback) {
         reportSolutionsToSolutionCallback(solution);
         solution.markAsDiagnosed();
-        return None;
+        return llvm::None;
       }
 
       if (Options.contains(
@@ -1486,14 +1486,14 @@ ConstraintSystem::solve(SyntacticElementTarget &target,
       /// Hence always run the second (salvaging) stage.
       if (shouldSuppressDiagnostics() && !Context.SolutionCallback) {
         solution.markAsDiagnosed();
-        return None;
+        return llvm::None;
       }
 
       if (stage == 1) {
         diagnoseFailureFor(target);
         reportSolutionsToSolutionCallback(solution);
         solution.markAsDiagnosed();
-        return None;
+        return llvm::None;
       }
 
       // Loop again to try to salvage.
@@ -1895,7 +1895,7 @@ static Constraint *selectBestBindingDisjunction(
   return firstBindDisjunction;
 }
 
-Optional<std::pair<Constraint *, unsigned>>
+llvm::Optional<std::pair<Constraint *, unsigned>>
 ConstraintSystem::findConstraintThroughOptionals(
     TypeVariableType *typeVar, OptionalWrappingDirection optionalDirection,
     llvm::function_ref<bool(Constraint *, TypeVariableType *)> predicate) {
@@ -1952,9 +1952,9 @@ ConstraintSystem::findConstraintThroughOptionals(
     }
 
     // Otherwise we're done.
-    return None;
+    return llvm::None;
   }
-  return None;
+  return llvm::None;
 }
 
 Constraint *ConstraintSystem::getUnboundBindOverloadDisjunction(

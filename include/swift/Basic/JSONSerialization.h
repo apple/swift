@@ -20,7 +20,8 @@
 #ifndef SWIFT_BASIC_JSONSERIALIZATION_H
 #define SWIFT_BASIC_JSONSERIALIZATION_H
 
-#include "swift/Basic/LLVM.h"
+/* #include "swift/Basic/LLVM.h" */
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
@@ -226,7 +227,7 @@ template <class T>
 struct has_ScalarTraits
 {
   using Signature_output = void (*)(const T &, llvm::raw_ostream &);
-  using Signature_mustQuote = bool (*)(StringRef);
+  using Signature_mustQuote = bool (*)(llvm::StringRef);
 
   template <typename U>
   static char test(SameType<Signature_output, &U::output> *,
@@ -244,8 +245,8 @@ public:
 template <class T>
 struct has_ScalarReferenceTraits
 {
-  using Signature_stringRef = StringRef (*)(const T &);
-  using Signature_mustQuote = bool (*)(StringRef);
+  using Signature_stringRef = llvm::StringRef (*)(const T &);
+  using Signature_mustQuote = bool (*)(llvm::StringRef);
 
   template <typename U>
   static char test(SameType<Signature_stringRef, &U::stringRef> *,
@@ -279,7 +280,7 @@ public:
 template <class T>
 struct has_ObjectValidateTraits
 {
-  using Signature_validate = StringRef (*)(class Output &, T &);
+  using Signature_validate = llvm::StringRef (*)(class Output &, T &);
 
   template <typename U>
   static char test(SameType<Signature_validate, &U::validate>*);
@@ -331,9 +332,9 @@ public:
   (sizeof(test<NullableTraits<T>>(nullptr)) == 1);
 };
 
-inline bool isNumber(StringRef S) {
+inline bool isNumber(llvm::StringRef S) {
   static const char DecChars[] = "0123456789";
-  if (S.find_first_not_of(DecChars) == StringRef::npos)
+  if (S.find_first_not_of(DecChars) == llvm::StringRef::npos)
     return true;
 
   llvm::Regex FloatMatcher(
@@ -344,7 +345,7 @@ inline bool isNumber(StringRef S) {
   return false;
 }
 
-inline bool isNumeric(StringRef S) {
+inline bool isNumeric(llvm::StringRef S) {
   if ((S.front() == '-' || S.front() == '+') && isNumber(S.drop_front()))
     return true;
 
@@ -354,11 +355,9 @@ inline bool isNumeric(StringRef S) {
   return false;
 }
 
-inline bool isNull(StringRef S) {
-  return S.equals("null");
-}
+inline bool isNull(llvm::StringRef S) { return S.equals("null"); }
 
-inline bool isBool(StringRef S) {
+inline bool isBool(llvm::StringRef S) {
   return S.equals("true") || S.equals("false");
 }
 
@@ -395,7 +394,7 @@ private:
   };
 
   llvm::raw_ostream &Stream;
-  SmallVector<State, 8> StateStack;
+  llvm::SmallVector<State, 8> StateStack;
   bool PrettyPrint;
   bool NeedBitValueComma;
   bool EnumerationMatchFound;
@@ -420,7 +419,7 @@ public:
 
   void beginObject();
   void endObject();
-  bool preflightKey(StringRef, bool, bool, bool &, void *&);
+  bool preflightKey(llvm::StringRef, bool, bool, bool &, void *&);
   void postflightKey(void*);
 
   void beginEnumScalar();
@@ -431,7 +430,7 @@ public:
   bool bitSetMatch(const char*, bool);
   void endBitSetScalar();
 
-  void scalarString(StringRef &, bool);
+  void scalarString(llvm::StringRef &, bool);
   void null();
 
   template <typename T>
@@ -462,13 +461,13 @@ public:
   }
 
   template <typename T>
-  void mapRequired(StringRef Key, T& Val) {
+  void mapRequired(llvm::StringRef Key, T &Val) {
     this->processKey(Key, Val, true);
   }
 
   template <typename T>
-  typename std::enable_if<has_ArrayTraits<T>::value,void>::type
-  mapOptional(StringRef Key, T& Val) {
+  typename std::enable_if<has_ArrayTraits<T>::value, void>::type
+  mapOptional(llvm::StringRef Key, T &Val) {
     // omit key/value instead of outputting empty array
     if (this->canElideEmptyArray() && !(Val.begin() != Val.end()))
       return;
@@ -476,25 +475,26 @@ public:
   }
 
   template <typename T>
-  void mapOptional(StringRef Key, Optional<T> &Val) {
-    processKeyWithDefault(Key, Val, Optional<T>(), /*Required=*/false);
+  void mapOptional(llvm::StringRef Key, llvm::Optional<T> &Val) {
+    processKeyWithDefault(Key, Val, llvm::Optional<T>(), /*Required=*/false);
   }
 
   template <typename T>
-  typename std::enable_if<!has_ArrayTraits<T>::value,void>::type
-  mapOptional(StringRef Key, T& Val) {
+  typename std::enable_if<!has_ArrayTraits<T>::value, void>::type
+  mapOptional(llvm::StringRef Key, T &Val) {
     this->processKey(Key, Val, false);
   }
 
   template <typename T>
-  void mapOptional(StringRef Key, T& Val, const T& Default) {
+  void mapOptional(llvm::StringRef Key, T &Val, const T &Default) {
     this->processKeyWithDefault(Key, Val, Default, false);
   }
 
 private:
   template <typename T>
-  void processKeyWithDefault(StringRef Key, Optional<T> &Val,
-                             const Optional<T> &DefaultValue, bool Required) {
+  void processKeyWithDefault(llvm::StringRef Key, llvm::Optional<T> &Val,
+                             const llvm::Optional<T> &DefaultValue,
+                             bool Required) {
     assert(!DefaultValue.has_value() &&
            "Optional<T> shouldn't have a value!");
     void *SaveInfo;
@@ -513,7 +513,7 @@ private:
   }
 
   template <typename T>
-  void processKeyWithDefault(StringRef Key, T &Val, const T &DefaultValue,
+  void processKeyWithDefault(llvm::StringRef Key, T &Val, const T &DefaultValue,
                              bool Required) {
     void *SaveInfo;
     bool UseDefault;
@@ -529,7 +529,7 @@ private:
   }
 
   template <typename T>
-  void processKey(StringRef Key, T &Val, bool Required) {
+  void processKey(llvm::StringRef Key, T &Val, bool Required) {
     void *SaveInfo;
     bool UseDefault;
     if (this->preflightKey(Key, Required, false, UseDefault, SaveInfo)) {
@@ -554,38 +554,38 @@ template <typename T> struct ArrayTraits<std::vector<T>> {
 
 template<>
 struct ScalarReferenceTraits<bool> {
-  static StringRef stringRef(const bool &);
-  static bool mustQuote(StringRef) { return false; }
+  static llvm::StringRef stringRef(const bool &);
+  static bool mustQuote(llvm::StringRef) { return false; }
 };
 
-template<>
-struct ScalarReferenceTraits<StringRef> {
-  static StringRef stringRef(const StringRef &);
-  static bool mustQuote(StringRef S) { return true; }
+template <>
+struct ScalarReferenceTraits<llvm::StringRef> {
+  static llvm::StringRef stringRef(const llvm::StringRef &);
+  static bool mustQuote(llvm::StringRef S) { return true; }
 };
 
 template<>
 struct ScalarReferenceTraits<std::string> {
-  static StringRef stringRef(const std::string &);
-  static bool mustQuote(StringRef S) { return true; }
+  static llvm::StringRef stringRef(const std::string &);
+  static bool mustQuote(llvm::StringRef S) { return true; }
 };
 
 template<>
 struct ScalarTraits<uint8_t> {
   static void output(const uint8_t &, llvm::raw_ostream &);
-  static bool mustQuote(StringRef) { return false; }
+  static bool mustQuote(llvm::StringRef) { return false; }
 };
 
 template<>
 struct ScalarTraits<uint16_t> {
   static void output(const uint16_t &, llvm::raw_ostream &);
-  static bool mustQuote(StringRef) { return false; }
+  static bool mustQuote(llvm::StringRef) { return false; }
 };
 
 template<>
 struct ScalarTraits<uint32_t> {
   static void output(const uint32_t &, llvm::raw_ostream &);
-  static bool mustQuote(StringRef) { return false; }
+  static bool mustQuote(llvm::StringRef) { return false; }
 };
 
 #if defined(_MSC_VER)
@@ -594,50 +594,50 @@ struct ScalarTraits<uint32_t> {
 template<>
 struct ScalarTraits<unsigned long> {
   static void output(const unsigned long &, llvm::raw_ostream &);
-  static bool mustQuote(StringRef) { return false; }
+  static bool mustQuote(llvm::StringRef) { return false; }
 };
 #endif
 
 template<>
 struct ScalarTraits<uint64_t> {
   static void output(const uint64_t &, llvm::raw_ostream &);
-  static bool mustQuote(StringRef) { return false; }
+  static bool mustQuote(llvm::StringRef) { return false; }
 };
 
 template<>
 struct ScalarTraits<int8_t> {
   static void output(const int8_t &, llvm::raw_ostream &);
-  static bool mustQuote(StringRef) { return false; }
+  static bool mustQuote(llvm::StringRef) { return false; }
 };
 
 template<>
 struct ScalarTraits<int16_t> {
   static void output(const int16_t &, llvm::raw_ostream &);
-  static bool mustQuote(StringRef) { return false; }
+  static bool mustQuote(llvm::StringRef) { return false; }
 };
 
 template<>
 struct ScalarTraits<int32_t> {
   static void output(const int32_t &, llvm::raw_ostream &);
-  static bool mustQuote(StringRef) { return false; }
+  static bool mustQuote(llvm::StringRef) { return false; }
 };
 
 template<>
 struct ScalarTraits<int64_t> {
   static void output(const int64_t &, llvm::raw_ostream &);
-  static bool mustQuote(StringRef) { return false; }
+  static bool mustQuote(llvm::StringRef) { return false; }
 };
 
 template<>
 struct ScalarTraits<float> {
   static void output(const float &, llvm::raw_ostream &);
-  static bool mustQuote(StringRef) { return false; }
+  static bool mustQuote(llvm::StringRef) { return false; }
 };
 
 template<>
 struct ScalarTraits<double> {
   static void output(const double &, llvm::raw_ostream &);
-  static bool mustQuote(StringRef) { return false; }
+  static bool mustQuote(llvm::StringRef) { return false; }
 };
 
 template<typename T>
@@ -665,11 +665,11 @@ template<typename T>
 typename std::enable_if<has_ScalarTraits<T>::value,void>::type
 jsonize(Output &out, T &Val, bool) {
   {
-    SmallString<64> Storage;
+    llvm::SmallString<64> Storage;
     llvm::raw_svector_ostream Buffer(Storage);
     Buffer.SetUnbuffered();
     ScalarTraits<T>::output(Val, Buffer);
-    StringRef Str = Buffer.str();
+    llvm::StringRef Str = Buffer.str();
     out.scalarString(Str, ScalarTraits<T>::mustQuote(Str));
   }
 }
@@ -677,7 +677,7 @@ jsonize(Output &out, T &Val, bool) {
 template <typename T>
 typename std::enable_if<has_ScalarReferenceTraits<T>::value, void>::type
 jsonize(Output &out, T &Val, bool) {
-  StringRef Str = ScalarReferenceTraits<T>::stringRef(Val);
+  llvm::StringRef Str = ScalarReferenceTraits<T>::stringRef(Val);
   out.scalarString(Str, ScalarReferenceTraits<T>::mustQuote(Str));
 }
 
@@ -696,7 +696,7 @@ typename std::enable_if<validatedObjectTraits<T>::value, void>::type
 jsonize(Output &out, T &Val, bool) {
   out.beginObject();
   {
-    StringRef Err = ObjectTraits<T>::validate(out, Val);
+    llvm::StringRef Err = ObjectTraits<T>::validate(out, Val);
     if (!Err.empty()) {
       llvm::errs() << Err << "\n";
       assert(Err.empty() && "invalid struct trying to be written as json");

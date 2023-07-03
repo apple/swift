@@ -32,13 +32,13 @@ using namespace swift;
 namespace {
 
 /// Get PlatformConditionKind from platform condition name.
-static
-Optional<PlatformConditionKind> getPlatformConditionKind(StringRef Name) {
-  return llvm::StringSwitch<Optional<PlatformConditionKind>>(Name)
+static llvm::Optional<PlatformConditionKind>
+getPlatformConditionKind(StringRef Name) {
+  return llvm::StringSwitch<llvm::Optional<PlatformConditionKind>>(Name)
 #define PLATFORM_CONDITION(LABEL, IDENTIFIER) \
     .Case(IDENTIFIER, PlatformConditionKind::LABEL)
 #include "swift/AST/PlatformConditionKinds.def"
-    .Default(None);
+      .Default(llvm::None);
 }
 
 /// Get platform condition name from PlatformConditionKind.
@@ -58,8 +58,9 @@ static StringRef extractExprSource(SourceManager &SM, Expr *E) {
   return SM.extractText(Range);
 }
 
-static bool isValidPrefixUnaryOperator(Optional<StringRef> UnaryOperator) {
-  return UnaryOperator != None &&
+static bool
+isValidPrefixUnaryOperator(llvm::Optional<StringRef> UnaryOperator) {
+  return UnaryOperator != llvm::None &&
          (UnaryOperator.value() == ">=" || UnaryOperator.value() == "<");
 }
 
@@ -164,13 +165,13 @@ class ValidateIfConfigCondition :
   bool HasError;
 
   /// Get the identifier string of the UnresolvedDeclRefExpr.
-  Optional<StringRef> getDeclRefStr(Expr *E, DeclRefKind Kind) {
+  llvm::Optional<StringRef> getDeclRefStr(Expr *E, DeclRefKind Kind) {
     auto UDRE = dyn_cast<UnresolvedDeclRefExpr>(E);
     if (!UDRE ||
         !UDRE->hasName() ||
         UDRE->getRefKind() != Kind ||
         UDRE->getName().isCompoundName())
-      return None;
+      return llvm::None;
 
     return UDRE->getName().getBaseIdentifier().str();
   }
@@ -197,7 +198,7 @@ class ValidateIfConfigCondition :
   Expr *foldSequence(Expr *LHS, ArrayRef<Expr*> &S, bool isRecurse = false) {
     assert(!S.empty() && ((S.size() & 1) == 0));
 
-    auto getNextOperator = [&]() -> Optional<StringRef> {
+    auto getNextOperator = [&]() -> llvm::Optional<StringRef> {
       assert((S.size() & 1) == 0);
       while (!S.empty()) {
         auto Name = getDeclRefStr(S[0], DeclRefKind::BinaryOperator);
@@ -212,7 +213,7 @@ class ValidateIfConfigCondition :
         // Consume invalid operator and the immediate RHS.
         S = S.slice(2);
       }
-      return None;
+      return llvm::None;
     };
 
     // Extract out the first operator name.
@@ -326,8 +327,9 @@ public:
     if (*KindName == "swift" || *KindName == "compiler" ||
         *KindName == "_compiler_version") {
       auto PUE = dyn_cast<PrefixUnaryExpr>(Arg);
-      Optional<StringRef> PrefixName =
-          PUE ? getDeclRefStr(PUE->getFn(), DeclRefKind::PrefixOperator) : None;
+      llvm::Optional<StringRef> PrefixName =
+          PUE ? getDeclRefStr(PUE->getFn(), DeclRefKind::PrefixOperator)
+              : llvm::None;
       if (!isValidPrefixUnaryOperator(PrefixName)) {
         D.diagnose(
             Arg->getLoc(), diag::unsupported_platform_condition_argument,
@@ -792,7 +794,8 @@ Result Parser::parseIfConfigRaw(
       SourceMgr.getIDEInspectionTargetBufferID() == L->getBufferID() &&
       SourceMgr.isBeforeInBuffer(Tok.getLoc(),
                                  SourceMgr.getIDEInspectionTargetLoc())) {
-    llvm::SaveAndRestore<Optional<StableHasher>> H(CurrentTokenHash, None);
+    llvm::SaveAndRestore<llvm::Optional<StableHasher>> H(CurrentTokenHash,
+                                                         llvm::None);
     BacktrackingScope backtrack(*this);
     do {
       auto startLoc = Tok.getLoc();
@@ -879,9 +882,9 @@ Result Parser::parseIfConfigRaw(
     llvm::SaveAndRestore<bool> S(InInactiveClauseEnvironment,
                                  InInactiveClauseEnvironment || !isActive);
     // Disable updating the interface hash inside inactive blocks.
-    Optional<llvm::SaveAndRestore<Optional<StableHasher>>> T;
+    llvm::Optional<llvm::SaveAndRestore<llvm::Optional<StableHasher>>> T;
     if (!isActive)
-      T.emplace(CurrentTokenHash, None);
+      T.emplace(CurrentTokenHash, llvm::None);
 
     if (isActive || !isVersionCondition) {
       parseElements(

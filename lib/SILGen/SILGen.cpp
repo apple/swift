@@ -94,13 +94,11 @@ SILGenModule::~SILGenModule() {
   M.verifyIncompleteOSSA();
 }
 
-static SILDeclRef
-getBridgingFn(Optional<SILDeclRef> &cacheSlot,
-              SILGenModule &SGM,
-              Identifier moduleName,
-              StringRef functionName,
-              std::initializer_list<Type> inputTypes,
-              Type outputType) {
+static SILDeclRef getBridgingFn(llvm::Optional<SILDeclRef> &cacheSlot,
+                                SILGenModule &SGM, Identifier moduleName,
+                                StringRef functionName,
+                                std::initializer_list<Type> inputTypes,
+                                Type outputType) {
   if (!cacheSlot) {
     ASTContext &ctx = SGM.M.getASTContext();
     ModuleDecl *mod = ctx.getLoadedModule(moduleName);
@@ -366,7 +364,8 @@ SILGenModule::getConformanceToBridgedStoredNSError(SILLocation loc, Type type) {
 }
 
 static FuncDecl *lookupIntrinsic(ModuleDecl &module,
-                                 Optional<FuncDecl *> &cache, Identifier name) {
+                                 llvm::Optional<FuncDecl *> &cache,
+                                 Identifier name) {
   if (cache)
     return *cache;
 
@@ -384,7 +383,7 @@ static FuncDecl *lookupIntrinsic(ModuleDecl &module,
 }
 
 static FuncDecl *lookupConcurrencyIntrinsic(ASTContext &C,
-                                            Optional<FuncDecl *> &cache,
+                                            llvm::Optional<FuncDecl *> &cache,
                                             StringRef name) {
   auto *module = C.getLoadedModule(C.Id_Concurrency);
   if (!module) {
@@ -602,17 +601,10 @@ SILGenModule::getKeyPathProjectionCoroutine(bool isReadAccess,
   auto env = sig.getGenericEnvironment();
 
   SILGenFunctionBuilder builder(*this);
-  fn = builder.createFunction(SILLinkage::PublicExternal,
-                              functionName,
-                              functionTy,
-                              env,
-                              /*location*/ None,
-                              IsNotBare,
-                              IsNotTransparent,
-                              IsNotSerialized,
-                              IsNotDynamic,
-                              IsNotDistributed,
-                              IsNotRuntimeAccessible);
+  fn = builder.createFunction(
+      SILLinkage::PublicExternal, functionName, functionTy, env,
+      /*location*/ llvm::None, IsNotBare, IsNotTransparent, IsNotSerialized,
+      IsNotDynamic, IsNotDistributed, IsNotRuntimeAccessible);
 
   return fn;
 }
@@ -1939,7 +1931,7 @@ void SILGenModule::tryEmitPropertyDescriptor(AbstractStorageDecl *decl) {
   bool needsGenericContext = true;
   
   if (canStorageUseTrivialDescriptor(*this, decl)) {
-    (void)SILProperty::create(M, /*serialized*/ false, decl, None);
+    (void)SILProperty::create(M, /*serialized*/ false, decl, llvm::None);
     return;
   }
   
@@ -2009,7 +2001,7 @@ namespace {
 class SourceFileScope {
   SILGenModule &sgm;
   SILDeclRef EntryRef;
-  Optional<Scope> scope;
+  llvm::Optional<Scope> scope;
   bool isAsyncTopLevel = false;
 public:
   SourceFileScope(SILGenModule &sgm, SourceFile *sf) : sgm(sgm) {
@@ -2043,7 +2035,7 @@ public:
       sgm.TopLevelSGF->MagicFunctionName = sgm.SwiftModule->getName();
       auto moduleCleanupLoc = CleanupLocation::getModuleCleanupLocation();
 
-      sgm.TopLevelSGF->prepareEpilog(None, true, moduleCleanupLoc);
+      sgm.TopLevelSGF->prepareEpilog(llvm::None, true, moduleCleanupLoc);
 
       auto prologueLoc = RegularLocation::getModuleLocation();
       prologueLoc.markAsPrologue();
@@ -2201,10 +2193,6 @@ public:
     for (auto *D : sf->getTopLevelDecls()) {
       // Emit auxiliary decls.
       D->visitAuxiliaryDecls([&](Decl *auxiliaryDecl) {
-        // Skip extensions decls; they are visited below.
-        if (isa<ExtensionDecl>(auxiliaryDecl))
-          return;
-
         FrontendStatsTracer StatsTracer(SGM.getASTContext().Stats,
                                         "SILgen-decl", auxiliaryDecl);
         SGM.visit(auxiliaryDecl);
@@ -2234,7 +2222,8 @@ public:
           continue;
 
         auto *sf = D->getInnermostDeclContext()->getParentSourceFile();
-        if (sf->getFulfilledMacroRole() != MacroRole::Conformance)
+        if (sf->getFulfilledMacroRole() != MacroRole::Conformance &&
+            sf->getFulfilledMacroRole() != MacroRole::Extension)
           continue;
 
         FrontendStatsTracer StatsTracer(SGM.getASTContext().Stats,
@@ -2362,7 +2351,7 @@ swift::performASTLowering(ModuleDecl *mod, Lowering::TypeConverter &tc,
                           const SILOptions &options,
                           const IRGenOptions *irgenOptions) {
   auto desc = ASTLoweringDescriptor::forWholeModule(mod, tc, options,
-                                                    None, irgenOptions);
+                                                    llvm::None, irgenOptions);
   return llvm::cantFail(
       mod->getASTContext().evaluator(ASTLoweringRequest{desc}));
 }
@@ -2371,6 +2360,7 @@ std::unique_ptr<SILModule>
 swift::performASTLowering(FileUnit &sf, Lowering::TypeConverter &tc,
                           const SILOptions &options,
                           const IRGenOptions *irgenOptions) {
-  auto desc = ASTLoweringDescriptor::forFile(sf, tc, options, None, irgenOptions);
+  auto desc =
+      ASTLoweringDescriptor::forFile(sf, tc, options, llvm::None, irgenOptions);
   return llvm::cantFail(sf.getASTContext().evaluator(ASTLoweringRequest{desc}));
 }

@@ -31,6 +31,7 @@ target_sources(swiftSILOptimizer PRIVATE
   MoveOnlyDiagnostics.cpp
   MoveOnlyObjectCheckerTester.cpp
   MoveOnlyObjectCheckerUtils.cpp
+  MoveOnlyTempAllocationFromLetTester.cpp
   MoveOnlyTypeUtils.cpp
   MoveOnlyUtils.cpp
   MovedAsyncVarDebugInfoPropagator.cpp

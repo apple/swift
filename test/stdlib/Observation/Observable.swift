@@ -15,7 +15,7 @@
 // UNSUPPORTED: back_deployment_runtime
 
 import StdlibUnittest
-import _Observation
+import Observation
 
 @usableFromInline
 @inline(never)

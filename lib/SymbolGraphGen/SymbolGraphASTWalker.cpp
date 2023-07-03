@@ -50,7 +50,7 @@ SymbolGraphASTWalker::SymbolGraphASTWalker(
     const SymbolGraphOptions &Options)
     : Options(Options), M(M), ExportedImportedModules(ExportedImportedModules),
       QualifiedExportedImports(QualifiedExportedImports),
-      MainGraph(*this, M, None, Ctx) {}
+      MainGraph(*this, M, llvm::None, Ctx) {}
 
 /// Get a "sub" symbol graph for the parent module of a type that
 /// the main module `M` is extending.
@@ -99,7 +99,7 @@ SymbolGraph *SymbolGraphASTWalker::getModuleSymbolGraph(const Decl *D) {
   }
   auto *Memory = Ctx.allocate(sizeof(SymbolGraph), alignof(SymbolGraph));
   auto *SG = new (Memory)
-      SymbolGraph(*this, MainGraph.M, Optional<ModuleDecl *>(M), Ctx);
+      SymbolGraph(*this, MainGraph.M, llvm::Optional<ModuleDecl *>(M), Ctx);
 
   ExtendedModuleGraphs.insert({M->getNameStr(), SG});
   return SG;

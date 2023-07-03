@@ -481,11 +481,22 @@ private:
 
     PerformanceDiagnostics diagnoser(*module, getAnalysis<BasicCalleeAnalysis>());
 
-    // Check that @_section is only on constant globals
+    // Check that @_section, @_silgen_name is only on constant globals
     for (SILGlobalVariable &g : module->getSILGlobals()) {
-      if (!g.getStaticInitializerValue() && g.getSectionAttr())
-        module->getASTContext().Diags.diagnose(
-            g.getDecl()->getLoc(), diag::section_attr_on_non_const_global);
+      if (!g.getStaticInitializerValue()) {
+        if (g.getSectionAttr()) {
+          module->getASTContext().Diags.diagnose(
+            g.getDecl()->getLoc(), diag::bad_attr_on_non_const_global,
+            "@_section");
+        }
+
+        auto *decl = g.getDecl();
+        if (decl && g.isDefinition() && decl->getAttrs().hasAttribute<SILGenNameAttr>()) {
+          module->getASTContext().Diags.diagnose(
+            g.getDecl()->getLoc(), diag::bad_attr_on_non_const_global,
+            "@_silgen_name");
+        }
+      }
     }
 
     bool annotatedFunctionsFound = false;

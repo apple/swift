@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -I %S/Inputs/abi %s -emit-ir -sil-verify-all | %FileCheck %s
-// RUN: %target-swift-frontend -I %S/Inputs/abi %s -emit-ir -sil-verify-all
+// RUN: %target-swift-frontend -I %S/Inputs/abi %s -emit-ir -sil-verify-all | %FileCheck %s
 
 // REQUIRES: CPU=x86_64
 // REQUIRES: OS=macosx
@@ -20,9 +19,9 @@ public struct BigStruct {
   var i8 : Int32 = 8
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @testDestroyValue(%T15big_types_tests9BigStructV* noalias nocapture dereferenceable({{.*}}) #0 {
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @testDestroyValue(ptr noalias nocapture dereferenceable({{.*}}) #0 {
 // CHECK-NEXT: entry
-// CHECK-NEXT: call %T15big_types_tests9BigStructV* @"$s15big_types_tests9BigStructVWOs"(%T15big_types_tests9BigStructV* %0)
+// CHECK-NEXT: call ptr @"$s15big_types_tests9BigStructVWOs"(ptr %0)
 // CHECK-NEXT: ret void
 sil @testDestroyValue : $@convention(thin) (@owned BigStruct) -> ()  {
 entry(%x : $BigStruct):

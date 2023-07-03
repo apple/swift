@@ -410,7 +410,7 @@ static bool detectAndDiagnoseErrors(SymbolicValue errorInfo,
 /// instructions discovered during the evaluation to
 /// 'foldState.constantSILValues'.
 /// \returns error information if the evaluation failed.
-static Optional<SymbolicValue> collectConstants(FoldState &foldState) {
+static llvm::Optional<SymbolicValue> collectConstants(FoldState &foldState) {
 
   ConstExprStepEvaluator &constantEvaluator = foldState.constantEvaluator;
   SILBasicBlock::iterator currI = foldState.beginInstruction->getIterator();
@@ -427,8 +427,8 @@ static Optional<SymbolicValue> collectConstants(FoldState &foldState) {
     // Initialize string info from this instruction if possible.
     foldState.stringInfo.extractStringInfoFromInstruction(currInst);
 
-    Optional<SymbolicValue> errorInfo = None;
-    Optional<SILBasicBlock::iterator> nextI = None;
+    llvm::Optional<SymbolicValue> errorInfo = llvm::None;
+    llvm::Optional<SILBasicBlock::iterator> nextI = llvm::None;
 
     std::tie(nextI, errorInfo) = evaluateOrSkip(constantEvaluator, currI);
 
@@ -444,7 +444,7 @@ static Optional<SymbolicValue> collectConstants(FoldState &foldState) {
       // We cannot find the next instruction to continue evaluation, and we
       // haven't seen any reportable errors during evaluation. Therefore,
       // consider this the end point of evaluation.
-      return None; // No error.
+      return llvm::None; // No error.
     }
 
     // Set the next instruction to continue evaluation from.
@@ -456,14 +456,14 @@ static Optional<SymbolicValue> collectConstants(FoldState &foldState) {
       if (!isSILValueFoldable(instructionResult))
         continue;
 
-      Optional<SymbolicValue> constantVal =
+      llvm::Optional<SymbolicValue> constantVal =
           constantEvaluator.lookupConstValue(instructionResult);
       if (constantVal.has_value()) {
         foldState.addConstantSILValue(instructionResult);
       }
     }
   }
-  return None; // No error.
+  return llvm::None; // No error.
 }
 
 /// Generate SIL code to create an array of constant size from the given
@@ -743,7 +743,7 @@ static SILValue emitCodeForSymbolicValue(SymbolicValue symVal,
       SmallVector<SILValue, 4> capturedSILVals;
       for (SymbolicClosureArgument capture : captures) {
         SILValue captureOperand = capture.first;
-        Optional<SymbolicValue> captureSymVal = capture.second;
+        llvm::Optional<SymbolicValue> captureSymVal = capture.second;
         assert(captureSymVal);
         // Note that the captured operand type may have generic parameters which
         // has to be substituted with the substitution map that was inferred by
@@ -839,7 +839,7 @@ getEndPointsOfDataDependentChain(SingleValueInstruction *value, SILFunction *fun
 /// value, if there is exactly one such introducing value. Otherwise, return
 /// None. There can be multiple borrow scopes for a SILValue iff it is derived
 /// from a guaranteed basic block parameter representing a phi node.
-static Optional<BorrowedValue>
+static llvm::Optional<BorrowedValue>
 getUniqueBorrowScopeIntroducingValue(SILValue value) {
   assert(value->getOwnershipKind() == OwnershipKind::Guaranteed &&
          "parameter must be a guaranteed value");
@@ -900,7 +900,7 @@ static void replaceAllUsesAndFixLifetimes(SILValue foldedVal,
   // casts. There's no reason to think that it's valid to replace uses of
   // originalVal with a new borrow of the "introducing value". All casts
   // potentially need to be cloned.
-  Optional<BorrowedValue> originalScopeBegin =
+  llvm::Optional<BorrowedValue> originalScopeBegin =
       getUniqueBorrowScopeIntroducingValue(originalVal);
   assert(originalScopeBegin &&
          "value without a unique borrow scope should not have been folded");
@@ -959,7 +959,7 @@ static void substituteConstants(FoldState &foldState) {
     // value at the point where the owned value is defined.
     SILInstruction *insertionPoint = definingInst;
     if (constantSILValue->getOwnershipKind() == OwnershipKind::Guaranteed) {
-      Optional<BorrowedValue> borrowIntroducer =
+      llvm::Optional<BorrowedValue> borrowIntroducer =
           getUniqueBorrowScopeIntroducingValue(constantSILValue);
       if (!borrowIntroducer) {
         // This case happens only if constantSILValue is derived from a
@@ -999,7 +999,7 @@ static bool checkOSLogMessageIsConstant(SingleValueInstruction *osLogMessage,
   SILModule &module = fn->getModule();
   ASTContext &astContext = fn->getASTContext();
 
-  Optional<SymbolicValue> osLogMessageValueOpt =
+  llvm::Optional<SymbolicValue> osLogMessageValueOpt =
       constantEvaluator.lookupConstValue(osLogMessage);
   if (!osLogMessageValueOpt ||
       osLogMessageValueOpt->getKind() != SymbolicValue::Aggregate) {

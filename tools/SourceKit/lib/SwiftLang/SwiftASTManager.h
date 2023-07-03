@@ -135,8 +135,9 @@ public:
 typedef IntrusiveRefCntPtr<ASTUnit> ASTUnitRef;
 
 class SwiftASTConsumer : public std::enable_shared_from_this<SwiftASTConsumer> {
-  /// Mutex guarding all accesses to CancellationRequestCallback
-  llvm::sys::Mutex CancellationRequestCallbackMtx;
+  /// Mutex guarding all accesses to \c CancellationRequestCallback and \c
+  /// IsCancelled.
+  llvm::sys::Mutex CancellationRequestCallbackAndIsCancelledMtx;
 
   /// A callback that informs the \c ASTBuildOperation, which is producing the
   /// AST for this consumer, that the consumer is no longer of interest. Calling
@@ -144,7 +145,7 @@ class SwiftASTConsumer : public std::enable_shared_from_this<SwiftASTConsumer> {
   /// If the consumer isn't associated with any \c ASTBuildOperation at the
   /// moment (e.g. if it hasn't been scheduled on one yet or if the build
   /// operation has already informed the ASTConsumer), the callback is \c None.
-  Optional<std::function<void(std::shared_ptr<SwiftASTConsumer>)>>
+  llvm::Optional<std::function<void(std::shared_ptr<SwiftASTConsumer>)>>
       CancellationRequestCallback;
 
   bool IsCancelled = false;
@@ -160,11 +161,16 @@ public:
   /// cause the \c ASTBuildOperation to be cancelled if no other consumer is
   /// depending on it.
   void requestCancellation() {
-    llvm::sys::ScopedLock L(CancellationRequestCallbackMtx);
-    IsCancelled = true;
-    if (CancellationRequestCallback.has_value()) {
-      (*CancellationRequestCallback)(shared_from_this());
-      CancellationRequestCallback = None;
+    llvm::Optional<std::function<void(std::shared_ptr<SwiftASTConsumer>)>>
+        CallbackToCall;
+    {
+      llvm::sys::ScopedLock L(CancellationRequestCallbackAndIsCancelledMtx);
+      IsCancelled = true;
+      CallbackToCall = CancellationRequestCallback;
+      CancellationRequestCallback = llvm::None;
+    }
+    if (CallbackToCall.has_value()) {
+      (*CallbackToCall)(shared_from_this());
     }
   }
 
@@ -177,21 +183,27 @@ public:
   /// called, \c NewCallback will be called immediately.
   void setCancellationRequestCallback(
       std::function<void(std::shared_ptr<SwiftASTConsumer>)> NewCallback) {
-    llvm::sys::ScopedLock L(CancellationRequestCallbackMtx);
-    assert(!CancellationRequestCallback.has_value() &&
-           "Can't set two cancellation callbacks on a SwiftASTConsumer");
-    if (IsCancelled) {
+    bool ShouldCallCallback = false;
+    {
+      llvm::sys::ScopedLock L(CancellationRequestCallbackAndIsCancelledMtx);
+      assert(!CancellationRequestCallback.has_value() &&
+             "Can't set two cancellation callbacks on a SwiftASTConsumer");
+      if (IsCancelled) {
+        ShouldCallCallback = true;
+      } else {
+        CancellationRequestCallback = NewCallback;
+      }
+    }
+    if (ShouldCallCallback) {
       NewCallback(shared_from_this());
-    } else {
-      CancellationRequestCallback = NewCallback;
     }
   }
 
   /// Removes the cancellation request callback previously set by \c
   /// setCancellationRequestCallback.
   void removeCancellationRequestCallback() {
-    llvm::sys::ScopedLock L(CancellationRequestCallbackMtx);
-    CancellationRequestCallback = None;
+    llvm::sys::ScopedLock L(CancellationRequestCallbackAndIsCancelledMtx);
+    CancellationRequestCallback = llvm::None;
   }
 
   // MARK: Result methods

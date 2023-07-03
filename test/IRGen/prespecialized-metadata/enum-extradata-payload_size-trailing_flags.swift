@@ -46,7 +46,7 @@
 //           :       i64 ptrtoint (
 //           :         ptr getelementptr inbounds (
 //           :           <{ i32, i32, i32, i32, i32, i16, i16 }>, 
-//           :           ptr @"$s4main6EitherOMP", 
+//           :           $s4main6EitherOMP
 //           :           i32 0, 
 //           :           i32 3
 //           :         ) to i64
@@ -61,7 +61,7 @@
 // CHECK-SAME:       [[INT]] ptrtoint (
 // CHECK-SAME:         ptr getelementptr inbounds (
 // CHECK-SAME:           <{ i32, i32, i32, i32, i32, i16, i16 }>, 
-// CHECK-SAME:           ptr @"$s4main6EitherOMP", 
+// CHECK-SAME:           $s4main6EitherOMP
 // CHECK-SAME:           i32 0, 
 // CHECK-SAME:           i32 4
 // CHECK-SAME:         ) to [[INT]]

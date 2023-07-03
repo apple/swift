@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -module-name moveonly_addresschecker -sil-move-only-address-checker -enable-experimental-feature MoveOnlyClasses -enable-sil-verify-all %s | %FileCheck %s
+// RUN: %target-sil-opt -module-name moveonly_addresschecker -sil-move-only-address-checker -enable-experimental-feature MoveOnlyClasses -enable-experimental-feature MoveOnlyPartialConsumption -enable-sil-verify-all %s | %FileCheck %s
 
 sil_stage raw
 
@@ -676,4 +676,59 @@ bb0:
   dealloc_stack %0 : $*SingleTrivialFieldAndDeinit
   %21 = tuple ()
   return %21 : $()
+}
+
+struct FixedSizeQueue : ~Copyable {
+  var ptr: Builtin.Int32
+}
+
+sil @get_fixedsize_queue : $@convention(thin) () -> @owned FixedSizeQueue
+
+// CHECK-LABEL: sil [ossa] @test_return_trivial_type : $@convention(thin) (@owned FixedSizeQueue) -> Builtin.Int32 {
+// CHECK: bb0([[ARG:%.*]] : @owned $
+// CHECK:   [[ALLOC:%.*]] = alloc_stack [lexical] $FixedSizeQueue
+// CHECK:   store [[ARG]] to [init] [[ALLOC]]
+// CHECK:   [[ACCESS:%.*]] = begin_access [modify] [static] [[ALLOC]]
+// CHECK:   [[ALLOC2:%.*]] = alloc_stack $FixedSizeQueue
+// CHECK:   copy_addr [take] [[ACCESS]] to [init] [[ALLOC2]]
+// CHECK:   [[LOADED:%.*]] = load_borrow [[ALLOC2]]
+// CHECK:   end_access [[ACCESS]]
+// CHECK:   [[BORROW:%.*]] = begin_borrow [[LOADED]]
+// CHECK:   [[TRIVIAL_VALUE:%.*]] = struct_extract [[BORROW]]
+// CHECK:   end_borrow [[BORROW]]
+// CHECK:   end_borrow [[LOADED]]
+// CHECK:   destroy_addr [[ALLOC2]]
+// CHECK:   dealloc_stack [[ALLOC2]]
+// CHECK:   [[NEW_VALUE:%.*]] = apply {{%.*}}()
+// CHECK:   [[ACCESS:%.*]] = begin_access [modify] [static] [[ALLOC]]
+// CHECK:   store [[NEW_VALUE]] to [init] [[ACCESS]]
+// CHECK:   end_access [[ACCESS]]
+// CHECK:   destroy_addr [[ALLOC]]
+// CHECK:   dealloc_stack [[ALLOC]]
+// CHECK:   return [[TRIVIAL_VALUE]]
+// CHECK: } // end sil function 'test_return_trivial_type'
+sil [ossa] @test_return_trivial_type : $@convention(thin) (@owned FixedSizeQueue) -> Builtin.Int32 {
+bb0(%0 : @owned $FixedSizeQueue):
+  %1 = alloc_stack [lexical] $FixedSizeQueue, var, name "self", implicit
+  %2 = mark_must_check [consumable_and_assignable] %1 : $*FixedSizeQueue
+  store %0 to [init] %2 : $*FixedSizeQueue
+  %4 = begin_access [modify] [static] %2 : $*FixedSizeQueue
+  %5 = alloc_stack $FixedSizeQueue
+  %6 = mark_must_check [consumable_and_assignable] %5 : $*FixedSizeQueue
+  copy_addr %4 to [init] %6 : $*FixedSizeQueue
+  %8 = load [take] %6 : $*FixedSizeQueue
+  end_access %4 : $*FixedSizeQueue
+  %10 = begin_borrow %8 : $FixedSizeQueue
+  %11 = struct_extract %10 : $FixedSizeQueue, #FixedSizeQueue.ptr
+  end_borrow %10 : $FixedSizeQueue
+  destroy_value %8 : $FixedSizeQueue
+  dealloc_stack %5 : $*FixedSizeQueue
+  %21 = function_ref @get_fixedsize_queue : $@convention(thin) () -> @owned FixedSizeQueue
+  %22 = apply %21() : $@convention(thin) () -> @owned FixedSizeQueue
+  %23 = begin_access [modify] [static] %2 : $*FixedSizeQueue
+  store %22 to [assign] %23 : $*FixedSizeQueue
+  end_access %23 : $*FixedSizeQueue
+  destroy_addr %2 : $*FixedSizeQueue
+  dealloc_stack %1 : $*FixedSizeQueue
+  return %11 : $Builtin.Int32
 }

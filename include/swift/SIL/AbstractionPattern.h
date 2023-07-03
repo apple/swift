@@ -309,31 +309,40 @@ class AbstractionPattern {
         assert(errorStripsResultOptionality() == stripsResultOptionality);
       }
 
-    EncodedForeignInfo(Async_t,
-                       unsigned completionParameterIndex,
-                       Optional<unsigned> completionErrorParameterIndex,
-                       Optional<unsigned> completionErrorFlagParameterIndex,
-                       bool completionErrorFlagIsZeroOnError)
-    : Value(1
-      + (unsigned(IsAsync) - 1)
-      + (unsigned(completionParameterIndex) << AsyncCompletionParameterIndexShift)
-      + ((completionErrorParameterIndex ? *completionErrorParameterIndex + 1
-                                        : 0) << AsyncCompletionErrorParameterIndexShift)
-      + ((completionErrorFlagParameterIndex ? *completionErrorFlagParameterIndex + 1
-                                            : 0) << AsyncCompletionErrorFlagParameterIndexShift)
-      + (unsigned(completionErrorFlagIsZeroOnError) << AsyncCompletionErrorFlagParameterPolarityShift)){
+      EncodedForeignInfo(
+          Async_t, unsigned completionParameterIndex,
+          llvm::Optional<unsigned> completionErrorParameterIndex,
+          llvm::Optional<unsigned> completionErrorFlagParameterIndex,
+          bool completionErrorFlagIsZeroOnError)
+          : Value(1 + (unsigned(IsAsync) - 1) +
+                  (unsigned(completionParameterIndex)
+                   << AsyncCompletionParameterIndexShift) +
+                  ((completionErrorParameterIndex
+                        ? *completionErrorParameterIndex + 1
+                        : 0)
+                   << AsyncCompletionErrorParameterIndexShift) +
+                  ((completionErrorFlagParameterIndex
+                        ? *completionErrorFlagParameterIndex + 1
+                        : 0)
+                   << AsyncCompletionErrorFlagParameterIndexShift) +
+                  (unsigned(completionErrorFlagIsZeroOnError)
+                   << AsyncCompletionErrorFlagParameterPolarityShift)) {
 
-      assert(getKind() == IsAsync);
-      assert(getAsyncCompletionHandlerParamIndex() == completionParameterIndex);
-      assert(getAsyncCompletionHandlerErrorParamIndex() == completionErrorParameterIndex);
-      assert(getAsyncCompletionHandlerErrorFlagParamIndex() == completionErrorFlagParameterIndex);
-      assert(isCompletionErrorFlagZeroOnError() == completionErrorFlagIsZeroOnError);
-    }
+        assert(getKind() == IsAsync);
+        assert(getAsyncCompletionHandlerParamIndex() ==
+               completionParameterIndex);
+        assert(getAsyncCompletionHandlerErrorParamIndex() ==
+               completionErrorParameterIndex);
+        assert(getAsyncCompletionHandlerErrorFlagParamIndex() ==
+               completionErrorFlagParameterIndex);
+        assert(isCompletionErrorFlagZeroOnError() ==
+               completionErrorFlagIsZeroOnError);
+      }
 
   public:
     static EncodedForeignInfo
-    encode(const Optional<ForeignErrorConvention> &foreignError,
-           const Optional<ForeignAsyncConvention> &foreignAsync);
+    encode(const llvm::Optional<ForeignErrorConvention> &foreignError,
+           const llvm::Optional<ForeignAsyncConvention> &foreignAsync);
 
     bool hasValue() const { return Value != 0; }
     ForeignKind getKind() const {
@@ -363,8 +372,8 @@ class AbstractionPattern {
       return ((Value - 1) & AsyncCompletionParameterIndexMask)
         >> AsyncCompletionParameterIndexShift;
     }
-    
-    Optional<unsigned> getAsyncCompletionHandlerErrorParamIndex() const {
+
+    llvm::Optional<unsigned> getAsyncCompletionHandlerErrorParamIndex() const {
       assert(getKind() == IsAsync);
 
       unsigned encodedValue = ((Value - 1) & AsyncCompletionErrorParameterIndexMask)
@@ -375,7 +384,8 @@ class AbstractionPattern {
       return encodedValue - 1;
     }
 
-    Optional<unsigned> getAsyncCompletionHandlerErrorFlagParamIndex() const {
+    llvm::Optional<unsigned>
+    getAsyncCompletionHandlerErrorFlagParamIndex() const {
       assert(getKind() == IsAsync);
 
       unsigned encodedValue = ((Value - 1) & AsyncCompletionErrorFlagParameterIndexMask)
@@ -385,7 +395,7 @@ class AbstractionPattern {
       }
       return encodedValue - 1;
     }
-    
+
     bool isCompletionErrorFlagZeroOnError() const {
       assert(getKind() == IsAsync);
 
@@ -678,12 +688,11 @@ public:
 public:
   /// Return an abstraction pattern for the curried type of an
   /// Objective-C method.
-  static AbstractionPattern
-  getCurriedObjCMethod(CanType origType, const clang::ObjCMethodDecl *method,
-                       const Optional<ForeignErrorConvention> &foreignError,
-                       const Optional<ForeignAsyncConvention> &foreignAsync);
+  static AbstractionPattern getCurriedObjCMethod(
+      CanType origType, const clang::ObjCMethodDecl *method,
+      const llvm::Optional<ForeignErrorConvention> &foreignError,
+      const llvm::Optional<ForeignAsyncConvention> &foreignAsync);
 
-  
   /// Return an abstraction pattern for the uncurried type of a C function
   /// imported as a method.
   ///
@@ -872,8 +881,8 @@ public:
   /// Return an abstraction pattern for the type of an Objective-C method.
   static AbstractionPattern
   getObjCMethod(CanType origType, const clang::ObjCMethodDecl *method,
-                const Optional<ForeignErrorConvention> &foreignError,
-                const Optional<ForeignAsyncConvention> &foreignAsync);
+                const llvm::Optional<ForeignErrorConvention> &foreignError,
+                const llvm::Optional<ForeignAsyncConvention> &foreignAsync);
 
 private:
   /// Return an abstraction pattern for the uncurried type of an
@@ -1342,7 +1351,12 @@ public:
   ///
   /// If the surviving element came from an expansion element, the
   /// returned element is the pattern type of the expansion.
-  Optional<AbstractionPattern> getVanishingTupleElementPatternType() const;
+  llvm::Optional<AbstractionPattern>
+  getVanishingTupleElementPatternType() const;
+
+  /// Does this tuple type vanish, i.e. is it flattened to a singleton
+  /// non-expansion element under substitution?
+  bool doesTupleVanish() const;
 
   static AbstractionPattern
   projectTupleElementType(const AbstractionPattern *base, size_t index) {

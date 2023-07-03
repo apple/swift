@@ -601,7 +601,7 @@ public:
   /// Create a new Applicable Function constraint.
   static Constraint *createApplicableFunction(
       ConstraintSystem &cs, Type argumentFnType, Type calleeType,
-      Optional<TrailingClosureMatching> trailingClosureMatching,
+      llvm::Optional<TrailingClosureMatching> trailingClosureMatching,
       ConstraintLocator *locator);
 
   static Constraint *createSyntacticElement(ConstraintSystem &cs,
@@ -619,9 +619,9 @@ public:
   ConstraintKind getKind() const { return Kind; }
 
   /// Retrieve the restriction placed on this constraint.
-  Optional<ConversionRestrictionKind> getRestriction() const {
+  llvm::Optional<ConversionRestrictionKind> getRestriction() const {
     if (!HasRestriction)
-      return None;
+      return llvm::None;
 
     return Restriction;
   }
@@ -892,7 +892,7 @@ public:
 
   /// For an applicable function constraint, retrieve the trailing closure
   /// matching rule.
-  Optional<TrailingClosureMatching> getTrailingClosureMatching() const;
+  llvm::Optional<TrailingClosureMatching> getTrailingClosureMatching() const;
 
   /// Retrieve the locator for this constraint.
   ConstraintLocator *getLocator() const { return Locator; }

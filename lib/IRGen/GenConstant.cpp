@@ -178,7 +178,7 @@ Explosion emitConstantStructOrTuple(IRGenModule &IGM, InstTy inst,
 
   for (unsigned i = 0, e = inst->getElements().size(); i != e; ++i) {
     auto operand = inst->getOperand(i);
-    Optional<unsigned> index = nextIndex(IGM, type, i);
+    llvm::Optional<unsigned> index = nextIndex(IGM, type, i);
     if (index.has_value()) {
       unsigned idx = index.value();
       assert(elements[idx].empty() &&

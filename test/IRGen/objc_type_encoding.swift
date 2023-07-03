@@ -1,7 +1,6 @@
 // RUN: %empty-directory(%t)
 // RUN: %build-irgen-test-overlays
-// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) %use_no_opaque_pointers %s -emit-ir -disable-objc-attr-requires-foundation-module -target %target-swift-abi-5.8-triple | %FileCheck %s -check-prefix=CHECK-%target-os
-// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) %s -emit-ir -disable-objc-attr-requires-foundation-module -target %target-swift-abi-5.8-triple
+// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) %s -emit-ir -disable-objc-attr-requires-foundation-module -target %target-swift-abi-5.8-triple | %FileCheck %s -check-prefix=CHECK-%target-os
 
 // REQUIRES: CPU=x86_64
 // REQUIRES: objc_interop
@@ -173,14 +172,14 @@ import gizmo
   @objc func getRawEnumInGizmo() -> RawEnumInGizmo {
     return InGizmoTwo
   }
-// CHECK-macosx: { i8* getelementptr inbounds ([18 x i8], [18 x i8]* @"\01L_selector_data(getRawEnumInGizmo)", i64 0, i64 0),
-// CHECK-macosx: i8* getelementptr inbounds ([8 x i8], [8 x i8]* [[ENUMENCODING]], i64 0, i64 0)
-// CHECK-ios: { i8* getelementptr inbounds ([18 x i8], [18 x i8]* @"\01L_selector_data(getRawEnumInGizmo)", i64 0, i64 0),
-// CHECK-ios: i8* getelementptr inbounds ([8 x i8], [8 x i8]* [[ENUMENCODING]], i64 0, i64 0)
-// CHECK-tvos: { i8* getelementptr inbounds ([18 x i8], [18 x i8]* @"\01L_selector_data(getRawEnumInGizmo)", i64 0, i64 0),
-// CHECK-tvos: i8* getelementptr inbounds ([8 x i8], [8 x i8]* [[ENUMENCODING]], i64 0, i64 0)
-// CHECK-watchos: { i8* getelementptr inbounds ([18 x i8], [18 x i8]* @"\01L_selector_data(getRawEnumInGizmo)", i64 0, i64 0),
-// CHECK-watchos: i8* getelementptr inbounds ([8 x i8], [8 x i8]* [[ENUMENCODING]], i64 0, i64 0)
+// CHECK-macosx: { ptr @"\01L_selector_data(getRawEnumInGizmo)",
+// CHECK-macosx: ptr [[ENUMENCODING]]
+// CHECK-ios: { ptr @"\01L_selector_data(getRawEnumInGizmo)",
+// CHECK-ios: ptr [[ENUMENCODING]]
+// CHECK-tvos: { ptr @"\01L_selector_data(getRawEnumInGizmo)",
+// CHECK-tvos: ptr [[ENUMENCODING]]
+// CHECK-watchos: { ptr @"\01L_selector_data(getRawEnumInGizmo)",
+// CHECK-watchos: ptr [[ENUMENCODING]]
 
 }
 
@@ -200,22 +199,22 @@ import gizmo
 // CHECK-macosx: [[ENC2:@.*]] = private unnamed_addr constant [46 x i8] c"v32@0:8@\22Gizmo\2216@?<v@?@\22NSView\22@\22NSSpoon\22>24\00"
 // CHECK-macosx: [[ENC3:@.*]] = private unnamed_addr constant [53 x i8] c"v24@0:8@\22_TtC18objc_type_encoding14MyCustomObject\2216\00"
 // CHECK-macosx: [[ENC4:@.*]] = private unnamed_addr constant [75 x i8] c"v24@0:8@\22_TtC18objc_type_encoding14MyCustomObject<NSFunging><NSRuncing>\2216\00"
-// CHECK-macosx: @_PROTOCOL_METHOD_TYPES__TtP18objc_type_encoding10MyProtocol_ = weak hidden constant [4 x i8*] [i8* getelementptr inbounds ([35 x i8], [35 x i8]* [[ENC1]], i64 0, i64 0), i8* getelementptr inbounds ([46 x i8], [46 x i8]* [[ENC2]], i64 0, i64 0), i8* getelementptr inbounds ([53 x i8], [53 x i8]* [[ENC3]], i64 0, i64 0), i8* getelementptr inbounds ([75 x i8], [75 x i8]* [[ENC4]], i64 0, i64 0)]
+// CHECK-macosx: @_PROTOCOL_METHOD_TYPES__TtP18objc_type_encoding10MyProtocol_ = weak hidden constant [4 x ptr] [ptr [[ENC1]], ptr [[ENC2]], ptr [[ENC3]], ptr [[ENC4]]]
 // CHECK-ios: [[ENC1:@.*]] = private unnamed_addr constant [35 x i8] c"v24@0:8@\22<NSFunging><NSRuncing>\2216\00"
 // CHECK-ios: [[ENC2:@.*]] = private unnamed_addr constant [46 x i8] c"v32@0:8@\22Gizmo\2216@?<v@?@\22NSView\22@\22NSSpoon\22>24\00"
 // CHECK-ios: [[ENC3:@.*]] = private unnamed_addr constant [53 x i8] c"v24@0:8@\22_TtC18objc_type_encoding14MyCustomObject\2216\00"
 // CHECK-ios: [[ENC4:@.*]] = private unnamed_addr constant [75 x i8] c"v24@0:8@\22_TtC18objc_type_encoding14MyCustomObject<NSFunging><NSRuncing>\2216\00"
-// CHECK-ios: @_PROTOCOL_METHOD_TYPES__TtP18objc_type_encoding10MyProtocol_ = weak hidden constant [4 x i8*] [i8* getelementptr inbounds ([35 x i8], [35 x i8]* [[ENC1]], i64 0, i64 0), i8* getelementptr inbounds ([46 x i8], [46 x i8]* [[ENC2]], i64 0, i64 0), i8* getelementptr inbounds ([53 x i8], [53 x i8]* [[ENC3]], i64 0, i64 0), i8* getelementptr inbounds ([75 x i8], [75 x i8]* [[ENC4]], i64 0, i64 0)]
+// CHECK-ios: @_PROTOCOL_METHOD_TYPES__TtP18objc_type_encoding10MyProtocol_ = weak hidden constant [4 x ptr] [ptr [[ENC1]], ptr [[ENC2]], ptr [[ENC3]], ptr [[ENC4]]]
 // CHECK-tvos: [[ENC1:@.*]] = private unnamed_addr constant [35 x i8] c"v24@0:8@\22<NSFunging><NSRuncing>\2216\00"
 // CHECK-tvos: [[ENC2:@.*]] = private unnamed_addr constant [46 x i8] c"v32@0:8@\22Gizmo\2216@?<v@?@\22NSView\22@\22NSSpoon\22>24\00"
 // CHECK-tvos: [[ENC3:@.*]] = private unnamed_addr constant [53 x i8] c"v24@0:8@\22_TtC18objc_type_encoding14MyCustomObject\2216\00"
 // CHECK-tvos: [[ENC4:@.*]] = private unnamed_addr constant [75 x i8] c"v24@0:8@\22_TtC18objc_type_encoding14MyCustomObject<NSFunging><NSRuncing>\2216\00"
-// CHECK-tvos: @_PROTOCOL_METHOD_TYPES__TtP18objc_type_encoding10MyProtocol_ = weak hidden constant [4 x i8*] [i8* getelementptr inbounds ([35 x i8], [35 x i8]* [[ENC1]], i64 0, i64 0), i8* getelementptr inbounds ([46 x i8], [46 x i8]* [[ENC2]], i64 0, i64 0), i8* getelementptr inbounds ([53 x i8], [53 x i8]* [[ENC3]], i64 0, i64 0), i8* getelementptr inbounds ([75 x i8], [75 x i8]* [[ENC4]], i64 0, i64 0)]
+// CHECK-tvos: @_PROTOCOL_METHOD_TYPES__TtP18objc_type_encoding10MyProtocol_ = weak hidden constant [4 x ptr] [ptr [[ENC1]], ptr [[ENC2]], ptr [[ENC3]], ptr [[ENC4]]]
 // CHECK-watchos: [[ENC1:@.*]] = private unnamed_addr constant [35 x i8] c"v24@0:8@\22<NSFunging><NSRuncing>\2216\00"
 // CHECK-watchos: [[ENC2:@.*]] = private unnamed_addr constant [46 x i8] c"v32@0:8@\22Gizmo\2216@?<v@?@\22NSView\22@\22NSSpoon\22>24\00"
 // CHECK-watchos: [[ENC3:@.*]] = private unnamed_addr constant [53 x i8] c"v24@0:8@\22_TtC18objc_type_encoding14MyCustomObject\2216\00"
 // CHECK-watchos: [[ENC4:@.*]] = private unnamed_addr constant [75 x i8] c"v24@0:8@\22_TtC18objc_type_encoding14MyCustomObject<NSFunging><NSRuncing>\2216\00"
-// CHECK-watchos: @_PROTOCOL_METHOD_TYPES__TtP18objc_type_encoding10MyProtocol_ = weak hidden constant [4 x i8*] [i8* getelementptr inbounds ([35 x i8], [35 x i8]* [[ENC1]], i64 0, i64 0), i8* getelementptr inbounds ([46 x i8], [46 x i8]* [[ENC2]], i64 0, i64 0), i8* getelementptr inbounds ([53 x i8], [53 x i8]* [[ENC3]], i64 0, i64 0), i8* getelementptr inbounds ([75 x i8], [75 x i8]* [[ENC4]], i64 0, i64 0)]
+// CHECK-watchos: @_PROTOCOL_METHOD_TYPES__TtP18objc_type_encoding10MyProtocol_ = weak hidden constant [4 x ptr] [ptr [[ENC1]], ptr [[ENC2]], ptr [[ENC3]], ptr [[ENC4]]]
 
 class C: P {
   func stuff() {}

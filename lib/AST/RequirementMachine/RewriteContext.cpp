@@ -159,28 +159,34 @@ static DebugOptions parseDebugFlags(StringRef debugFlags) {
   SmallVector<StringRef, 2> debug;
   debugFlags.split(debug, ',');
   for (auto flagStr : debug) {
-    auto flag = llvm::StringSwitch<Optional<DebugFlags>>(flagStr)
-      .Case("simplify", DebugFlags::Simplify)
-      .Case("add", DebugFlags::Add)
-      .Case("completion", DebugFlags::Completion)
-      .Case("property-map", DebugFlags::PropertyMap)
-      .Case("concrete-unification", DebugFlags::ConcreteUnification)
-      .Case("concretize-nested-types", DebugFlags::ConcretizeNestedTypes)
-      .Case("conditional-requirements", DebugFlags::ConditionalRequirements)
-      .Case("homotopy-reduction", DebugFlags::HomotopyReduction)
-      .Case("homotopy-reduction-detail", DebugFlags::HomotopyReductionDetail)
-      .Case("minimal-conformances", DebugFlags::MinimalConformances)
-      .Case("minimal-conformances-detail", DebugFlags::MinimalConformancesDetail)
-      .Case("protocol-dependencies", DebugFlags::ProtocolDependencies)
-      .Case("minimization", DebugFlags::Minimization)
-      .Case("redundant-rules", DebugFlags::RedundantRules)
-      .Case("redundant-rules-detail", DebugFlags::RedundantRulesDetail)
-      .Case("concrete-contraction", DebugFlags::ConcreteContraction)
-      .Case("propagate-requirement-ids", DebugFlags::PropagateRequirementIDs)
-      .Case("timers", DebugFlags::Timers)
-      .Case("conflicting-rules", DebugFlags::ConflictingRules)
-      .Case("split-concrete-equiv-class", DebugFlags::SplitConcreteEquivalenceClass)
-      .Default(None);
+    auto flag =
+        llvm::StringSwitch<llvm::Optional<DebugFlags>>(flagStr)
+            .Case("simplify", DebugFlags::Simplify)
+            .Case("add", DebugFlags::Add)
+            .Case("completion", DebugFlags::Completion)
+            .Case("property-map", DebugFlags::PropertyMap)
+            .Case("concrete-unification", DebugFlags::ConcreteUnification)
+            .Case("concretize-nested-types", DebugFlags::ConcretizeNestedTypes)
+            .Case("conditional-requirements",
+                  DebugFlags::ConditionalRequirements)
+            .Case("homotopy-reduction", DebugFlags::HomotopyReduction)
+            .Case("homotopy-reduction-detail",
+                  DebugFlags::HomotopyReductionDetail)
+            .Case("minimal-conformances", DebugFlags::MinimalConformances)
+            .Case("minimal-conformances-detail",
+                  DebugFlags::MinimalConformancesDetail)
+            .Case("protocol-dependencies", DebugFlags::ProtocolDependencies)
+            .Case("minimization", DebugFlags::Minimization)
+            .Case("redundant-rules", DebugFlags::RedundantRules)
+            .Case("redundant-rules-detail", DebugFlags::RedundantRulesDetail)
+            .Case("concrete-contraction", DebugFlags::ConcreteContraction)
+            .Case("propagate-requirement-ids",
+                  DebugFlags::PropagateRequirementIDs)
+            .Case("timers", DebugFlags::Timers)
+            .Case("conflicting-rules", DebugFlags::ConflictingRules)
+            .Case("split-concrete-equiv-class",
+                  DebugFlags::SplitConcreteEquivalenceClass)
+            .Default(llvm::None);
     if (!flag) {
       llvm::errs() << "Unknown debug flag in -debug-requirement-machine "
                    << flagStr << "\n";

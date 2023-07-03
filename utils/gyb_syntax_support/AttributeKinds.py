@@ -182,7 +182,7 @@ TYPE_ATTR_KINDS = [
 # docs/ReferenceGuides/UnderscoredAttributes.md.
 DECL_ATTR_KINDS = [
     DeclAttribute('_silgen_name', 'SILGenName',
-                  OnAbstractFunction,
+                  OnAbstractFunction, OnVar,
                   LongAttribute, UserInaccessible, ABIStableToAdd, ABIStableToRemove,
                   APIStableToAdd, APIStableToRemove,
                   code=0),

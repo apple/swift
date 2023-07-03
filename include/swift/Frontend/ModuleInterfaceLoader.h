@@ -238,20 +238,16 @@ public:
 
 // Explicitly-specified Swift module inputs
 struct ExplicitSwiftModuleInputInfo {
-  ExplicitSwiftModuleInputInfo(std::string modulePath,
-                               llvm::Optional<std::string> moduleDocPath,
-                               llvm::Optional<std::string> moduleSourceInfoPath,
-                               llvm::Optional<std::vector<std::string>> headerDependencyPaths,
-                               bool isFramework = false,
-                               bool isSystem = false,
-                               llvm::Optional<std::string> moduleCacheKey = None)
-    : modulePath(modulePath),
-      moduleDocPath(moduleDocPath),
-      moduleSourceInfoPath(moduleSourceInfoPath),
-      headerDependencyPaths(headerDependencyPaths),
-      isFramework(isFramework),
-      isSystem(isSystem),
-      moduleCacheKey(moduleCacheKey) {}
+  ExplicitSwiftModuleInputInfo(
+      std::string modulePath, llvm::Optional<std::string> moduleDocPath,
+      llvm::Optional<std::string> moduleSourceInfoPath,
+      llvm::Optional<std::vector<std::string>> headerDependencyPaths,
+      bool isFramework = false, bool isSystem = false,
+      llvm::Optional<std::string> moduleCacheKey = llvm::None)
+      : modulePath(modulePath), moduleDocPath(moduleDocPath),
+        moduleSourceInfoPath(moduleSourceInfoPath),
+        headerDependencyPaths(headerDependencyPaths), isFramework(isFramework),
+        isSystem(isSystem), moduleCacheKey(moduleCacheKey) {}
   // Path of the .swiftmodule file.
   std::string modulePath;
   // Path of the .swiftmoduledoc file.
@@ -270,16 +266,13 @@ struct ExplicitSwiftModuleInputInfo {
 
 // Explicitly-specified Clang module inputs
 struct ExplicitClangModuleInputInfo {
-  ExplicitClangModuleInputInfo(std::string moduleMapPath,
-                               std::string modulePath,
-                               bool isFramework = false,
-                               bool isSystem = false,
-                               llvm::Optional<std::string> moduleCacheKey = None)
-    : moduleMapPath(moduleMapPath),
-      modulePath(modulePath),
-      isFramework(isFramework),
-      isSystem(isSystem),
-      moduleCacheKey(moduleCacheKey) {}
+  ExplicitClangModuleInputInfo(
+      std::string moduleMapPath, std::string modulePath,
+      bool isFramework = false, bool isSystem = false,
+      llvm::Optional<std::string> moduleCacheKey = llvm::None)
+      : moduleMapPath(moduleMapPath), modulePath(modulePath),
+        isFramework(isFramework), isSystem(isSystem),
+        moduleCacheKey(moduleCacheKey) {}
   // Path of the Clang module map file.
   std::string moduleMapPath;
   // Path of a compiled Clang explicit module file (pcm).

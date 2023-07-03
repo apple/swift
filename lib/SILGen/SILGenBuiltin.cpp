@@ -37,11 +37,9 @@ using namespace Lowering;
 ///
 /// Because these are builtin operations, we can make some structural
 /// assumptions about the expression used to call them.
-static Optional<SmallVector<Expr*, 2>>
-decomposeArguments(SILGenFunction &SGF,
-                   SILLocation loc,
-                   PreparedArguments &&args,
-                   unsigned expectedCount) {
+static llvm::Optional<SmallVector<Expr *, 2>>
+decomposeArguments(SILGenFunction &SGF, SILLocation loc,
+                   PreparedArguments &&args, unsigned expectedCount) {
   SmallVector<Expr*, 2> result;
   auto sources = std::move(args).getSources();
 
@@ -54,7 +52,7 @@ decomposeArguments(SILGenFunction &SGF,
   SGF.SGM.diagnose(loc, diag::invalid_sil_builtin,
                    "argument to builtin should be a literal tuple");
 
-  return None;
+  return llvm::None;
 }
 
 static ManagedValue emitBuiltinRetain(SILGenFunction &SGF,
@@ -1082,7 +1080,7 @@ static ManagedValue emitBuiltinAllocWithTailElems(SILGenFunction &SGF,
     assert(InstanceType == RefType.getASTType() &&
            "substituted type does not match operand metatype");
     (void) InstanceType;
-    return SGF.B.createAllocRef(loc, RefType, false, false,
+    return SGF.B.createAllocRef(loc, RefType, false,
                                 ElemTypes, Counts);
   } else {
     return SGF.B.createAllocRefDynamic(loc, Metatype, RefType, false,
@@ -1789,16 +1787,16 @@ static ManagedValue emitBuiltinBuildMainActorExecutorRef(
                               BuiltinValueKind::BuildMainActorExecutorRef);
 }
 
-Optional<SpecializedEmitter>
+llvm::Optional<SpecializedEmitter>
 SpecializedEmitter::forDecl(SILGenModule &SGM, SILDeclRef function) {
   // Only consider standalone declarations in the Builtin module.
   if (function.kind != SILDeclRef::Kind::Func)
-    return None;
+    return llvm::None;
   if (!function.hasDecl())
-    return None;  
+    return llvm::None;
   ValueDecl *decl = function.getDecl();
   if (!isa<BuiltinUnit>(decl->getDeclContext()))
-    return None;
+    return llvm::None;
 
   const auto name = decl->getBaseIdentifier();
   const BuiltinInfo &builtin = SGM.M.getBuiltinInfo(name);

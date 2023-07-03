@@ -1,5 +1,4 @@
-// RUN: %swift %use_no_opaque_pointers -prespecialize-generic-metadata -target %module-target-future -emit-ir %s | %FileCheck %s -DINT=i%target-ptrsize -DALIGNMENT=%target-alignment
-// RUN: %swift -prespecialize-generic-metadata -target %module-target-future -emit-ir %s
+// RUN: %swift -prespecialize-generic-metadata -target %module-target-future -emit-ir %s | %FileCheck %s -DINT=i%target-ptrsize -DALIGNMENT=%target-alignment
 
 // REQUIRES: VENDOR=apple || OS=linux-gnu
 // UNSUPPORTED: CPU=i386 && OS=ios
@@ -7,14 +6,14 @@
 // UNSUPPORTED: CPU=armv7s && OS=ios
 
 // CHECK: @"$s4main5ValueVys4Int8Vs5UInt8VGWV" = linkonce_odr hidden constant %swift.vwtable {
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwCP{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwxx{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwcp{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwca{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwtk{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwta{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwet{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwst{{[^)]*}} to i8*)
+// CHECK-SAME:    $s4main5ValueVwCP
+// CHECK-SAME:    $s4main5ValueVwxx
+// CHECK-SAME:    $s4main5ValueVwcp
+// CHECK-SAME:    $s4main5ValueVwca
+// CHECK-SAME:    $s4main5ValueVwtk
+// CHECK-SAME:    $s4main5ValueVwta
+// CHECK-SAME:    $s4main5ValueVwet
+// CHECK-SAME:    $s4main5ValueVwst
 // CHECK-SAME:    [[INT]] {{[0-9]+}},
 // CHECK-SAME:    [[INT]] {{[0-9]+}},
 // CHECK-SAME:    i32 {{[0-9]+}},
@@ -24,20 +23,20 @@
 // CHECK-SAME: align [[ALIGNMENT]]
 
 // CHECK: @"$s4main5ValueVys4Int8Vs5UInt8VGMf" = linkonce_odr hidden constant <{ 
-// CHECK-SAME:    i8**, 
+// CHECK-SAME:    ptr, 
 // CHECK-SAME:    [[INT]], 
-// CHECK-SAME:    %swift.type_descriptor*, 
-// CHECK-SAME:    %swift.type*, 
-// CHECK-SAME:    %swift.type*, 
+// CHECK-SAME:    ptr, 
+// CHECK-SAME:    ptr, 
+// CHECK-SAME:    ptr, 
 // CHECK-SAME:    i32, 
 // CHECK-SAME:    i32, 
 // CHECK-SAME:    i64 
 // CHECK-SAME:}> <{ 
-// CHECK-SAME:    i8** getelementptr inbounds (%swift.vwtable, %swift.vwtable* @"$s4main5ValueVys4Int8Vs5UInt8VGWV", i32 0, i32 0), 
+// CHECK-SAME:    $s4main5ValueVys4Int8Vs5UInt8VGWV
 // CHECK-SAME:    [[INT]] 512, 
-// CHECK-SAME:    %swift.type_descriptor* bitcast ({{.+}}$s4main5ValueVMn{{.+}} to %swift.type_descriptor*), 
-// CHECK-SAME:    %swift.type* @"$ss4Int8VN", 
-// CHECK-SAME:    %swift.type* @"$ss5UInt8VN", 
+// CHECK-SAME:    $s4main5ValueVMn
+// CHECK-SAME:    $ss4Int8VN
+// CHECK-SAME:    $ss5UInt8VN
 // CHECK-SAME:    i32 0, 
 // CHECK-SAME:    i32 1, 
 // CHECK-SAME:    i64 3 
@@ -45,14 +44,14 @@
 
 
 // CHECK: @"$s4main5ValueVys5UInt8VSSGWV" = linkonce_odr hidden constant %swift.vwtable {
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwCP{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwxx{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwcp{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwca{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwtk{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwta{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwet{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwst{{[^)]*}} to i8*)
+// CHECK-SAME:    $s4main5ValueVwCP
+// CHECK-SAME:    $s4main5ValueVwxx
+// CHECK-SAME:    $s4main5ValueVwcp
+// CHECK-SAME:    $s4main5ValueVwca
+// CHECK-SAME:    $s4main5ValueVwtk
+// CHECK-SAME:    $s4main5ValueVwta
+// CHECK-SAME:    $s4main5ValueVwet
+// CHECK-SAME:    $s4main5ValueVwst
 // CHECK-SAME:    [[INT]] {{[0-9]+}},
 // CHECK-SAME:    [[INT]] {{[0-9]+}},
 // CHECK-SAME:    i32 {{[0-9]+}},
@@ -62,34 +61,34 @@
 // CHECK-SAME: align [[ALIGNMENT]]
 
 // CHECK: @"$s4main5ValueVys5UInt8VSSGMf" = linkonce_odr hidden constant <{ 
-// CHECK-SAME:    i8**, 
+// CHECK-SAME:    ptr, 
 // CHECK-SAME:    [[INT]], 
-// CHECK-SAME:    %swift.type_descriptor*, 
-// CHECK-SAME:    %swift.type*, 
-// CHECK-SAME:    %swift.type*, 
+// CHECK-SAME:    ptr, 
+// CHECK-SAME:    ptr, 
+// CHECK-SAME:    ptr, 
 // CHECK-SAME:    i32, 
 // CHECK-SAME:    i32, 
 // CHECK-SAME:    i64 
 // CHECK-SAME:}> <{ 
-// CHECK-SAME:    i8** getelementptr inbounds (%swift.vwtable, %swift.vwtable* @"$s4main5ValueVys5UInt8VSSGWV", i32 0, i32 0), 
+// CHECK-SAME:    $s4main5ValueVys5UInt8VSSGWV
 // CHECK-SAME:    [[INT]] 512, 
-// CHECK-SAME:    %swift.type_descriptor* bitcast ({{.+}}$s4main5ValueVMn{{.+}} to %swift.type_descriptor*), 
-// CHECK-SAME:    %swift.type* @"$ss5UInt8VN", 
-// CHECK-SAME:    %swift.type* @"$sSSN", 
+// CHECK-SAME:    $s4main5ValueVMn
+// CHECK-SAME:    $ss5UInt8VN
+// CHECK-SAME:    $sSSN
 // CHECK-SAME:    i32 0, 
 // CHECK-SAME:    i32 [[ALIGNMENT]], 
 // CHECK-SAME:    i64 3 
 // CHECK-SAME:}>, align [[ALIGNMENT]]
 
 // CHECK: @"$s4main5ValueVySSSdGWV" = linkonce_odr hidden constant %swift.vwtable {
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwCP{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwxx{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwcp{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwca{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwtk{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwta{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwet{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwst{{[^)]*}} to i8*)
+// CHECK-SAME:    $s4main5ValueVwCP
+// CHECK-SAME:    $s4main5ValueVwxx
+// CHECK-SAME:    $s4main5ValueVwcp
+// CHECK-SAME:    $s4main5ValueVwca
+// CHECK-SAME:    $s4main5ValueVwtk
+// CHECK-SAME:    $s4main5ValueVwta
+// CHECK-SAME:    $s4main5ValueVwet
+// CHECK-SAME:    $s4main5ValueVwst
 // CHECK-SAME:    [[INT]] {{[0-9]+}},
 // CHECK-SAME:    [[INT]] {{[0-9]+}},
 // CHECK-SAME:    i32 {{[0-9]+}},
@@ -99,34 +98,34 @@
 // CHECK-SAME: align [[ALIGNMENT]]
 
 // CHECK: @"$s4main5ValueVySSSdGMf" = linkonce_odr hidden constant <{ 
-// CHECK-SAME:    i8**, 
+// CHECK-SAME:    ptr, 
 // CHECK-SAME:    [[INT]], 
-// CHECK-SAME:    %swift.type_descriptor*, 
-// CHECK-SAME:    %swift.type*, 
-// CHECK-SAME:    %swift.type*, 
+// CHECK-SAME:    ptr, 
+// CHECK-SAME:    ptr, 
+// CHECK-SAME:    ptr, 
 // CHECK-SAME:    i32, 
 // CHECK-SAME:    i32, 
 // CHECK-SAME:    i64 
 // CHECK-SAME:}> <{ 
-// CHECK-SAME:    i8** getelementptr inbounds (%swift.vwtable, %swift.vwtable* @"$s4main5ValueVySSSdGWV", i32 0, i32 0), 
+// CHECK-SAME:    $s4main5ValueVySSSdGWV
 // CHECK-SAME:    [[INT]] 512, 
-// CHECK-SAME:    %swift.type_descriptor* bitcast ({{.+}}$s4main5ValueVMn{{.+}} to %swift.type_descriptor*), 
-// CHECK-SAME:    %swift.type* @"$sSSN", 
-// CHECK-SAME:    %swift.type* @"$sSdN", 
+// CHECK-SAME:    $s4main5ValueVMn
+// CHECK-SAME:    $sSSN
+// CHECK-SAME:    $sSdN
 // CHECK-SAME:    i32 0, 
 // CHECK-SAME:    i32 16, 
 // CHECK-SAME:    i64 3 
 // CHECK-SAME:}>, align [[ALIGNMENT]]
 
 // CHECK: @"$s4main5ValueVySdSiGWV" = linkonce_odr hidden constant %swift.vwtable {
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwCP{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwxx{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwcp{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwca{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwtk{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwta{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwet{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwst{{[^)]*}} to i8*)
+// CHECK-SAME:    $s4main5ValueVwCP
+// CHECK-SAME:    $s4main5ValueVwxx
+// CHECK-SAME:    $s4main5ValueVwcp
+// CHECK-SAME:    $s4main5ValueVwca
+// CHECK-SAME:    $s4main5ValueVwtk
+// CHECK-SAME:    $s4main5ValueVwta
+// CHECK-SAME:    $s4main5ValueVwet
+// CHECK-SAME:    $s4main5ValueVwst
 // CHECK-SAME:    [[INT]] {{[0-9]+}},
 // CHECK-SAME:    [[INT]] {{[0-9]+}},
 // CHECK-SAME:    i32 {{[0-9]+}},
@@ -136,34 +135,34 @@
 // CHECK-SAME: align [[ALIGNMENT]]
 
 // CHECK: @"$s4main5ValueVySdSiGMf" = linkonce_odr hidden constant <{ 
-// CHECK-SAME:    i8**, 
+// CHECK-SAME:    ptr, 
 // CHECK-SAME:    [[INT]], 
-// CHECK-SAME:    %swift.type_descriptor*, 
-// CHECK-SAME:    %swift.type*, 
-// CHECK-SAME:    %swift.type*, 
+// CHECK-SAME:    ptr, 
+// CHECK-SAME:    ptr, 
+// CHECK-SAME:    ptr, 
 // CHECK-SAME:    i32, 
 // CHECK-SAME:    i32, 
 // CHECK-SAME:    i64 
 // CHECK-SAME:}> <{ 
-// CHECK-SAME:    i8** getelementptr inbounds (%swift.vwtable, %swift.vwtable* @"$s4main5ValueVySdSiGWV", i32 0, i32 0), 
+// CHECK-SAME:    $s4main5ValueVySdSiGWV
 // CHECK-SAME:    [[INT]] 512, 
-// CHECK-SAME:    %swift.type_descriptor* bitcast ({{.+}}$s4main5ValueVMn{{.+}} to %swift.type_descriptor*), 
-// CHECK-SAME:    %swift.type* @"$sSdN", 
-// CHECK-SAME:    %swift.type* @"$sSiN", 
+// CHECK-SAME:    $s4main5ValueVMn
+// CHECK-SAME:    $sSdN
+// CHECK-SAME:    $sSiN
 // CHECK-SAME:    i32 0, 
 // CHECK-SAME:    i32 8, 
 // CHECK-SAME:    i64 3 
 // CHECK-SAME:}>, align [[ALIGNMENT]]
 
 // CHECK: @"$s4main5ValueVyS2iGWV" = linkonce_odr hidden constant %swift.vwtable {
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwCP{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwxx{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwcp{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwca{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwtk{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwta{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwet{{[^)]*}} to i8*)
-// CHECK-SAME:    i8* bitcast ({{[^@]+}}@"$s4main5ValueVwst{{[^)]*}} to i8*)
+// CHECK-SAME:    $s4main5ValueVwCP
+// CHECK-SAME:    $s4main5ValueVwxx
+// CHECK-SAME:    $s4main5ValueVwcp
+// CHECK-SAME:    $s4main5ValueVwca
+// CHECK-SAME:    $s4main5ValueVwtk
+// CHECK-SAME:    $s4main5ValueVwta
+// CHECK-SAME:    $s4main5ValueVwet
+// CHECK-SAME:    $s4main5ValueVwst
 // CHECK-SAME:    [[INT]] {{[0-9]+}},
 // CHECK-SAME:    [[INT]] {{[0-9]+}},
 // CHECK-SAME:    i32 {{[0-9]+}},
@@ -173,20 +172,20 @@
 // CHECK-SAME: align [[ALIGNMENT]]
 
 // CHECK: @"$s4main5ValueVyS2iGMf" = linkonce_odr hidden constant <{ 
-// CHECK-SAME:    i8**, 
+// CHECK-SAME:    ptr, 
 // CHECK-SAME:    [[INT]], 
-// CHECK-SAME:    %swift.type_descriptor*, 
-// CHECK-SAME:    %swift.type*, 
-// CHECK-SAME:    %swift.type*, 
+// CHECK-SAME:    ptr, 
+// CHECK-SAME:    ptr, 
+// CHECK-SAME:    ptr, 
 // CHECK-SAME:    i32, 
 // CHECK-SAME:    i32, 
 // CHECK-SAME:    i64 
 // CHECK-SAME:}> <{ 
-// CHECK-SAME:    i8** getelementptr inbounds (%swift.vwtable, %swift.vwtable* @"$s4main5ValueVyS2iGWV", i32 0, i32 0), 
+// CHECK-SAME:    $s4main5ValueVyS2iGWV
 // CHECK-SAME:    [[INT]] 512, 
-// CHECK-SAME:    %swift.type_descriptor* bitcast ({{.+}}$s4main5ValueVMn{{.+}} to %swift.type_descriptor*), 
-// CHECK-SAME:    %swift.type* @"$sSiN", 
-// CHECK-SAME:    %swift.type* @"$sSiN", 
+// CHECK-SAME:    $s4main5ValueVMn
+// CHECK-SAME:    $sSiN
+// CHECK-SAME:    $sSiN
 // CHECK-SAME:    i32 0, 
 // CHECK-SAME:    i32 [[ALIGNMENT]], 
 // CHECK-SAME:    i64 3 
@@ -203,11 +202,51 @@ func consume<T>(_ t: T) {
 }
 
 // CHECK: define hidden swiftcc void @"$s4main4doityyF"() #{{[0-9]+}} {
-// CHECK:   call swiftcc void @"$s4main7consumeyyxlF"(%swift.opaque* noalias nocapture %{{[0-9]+}}, %swift.type* getelementptr inbounds (%swift.full_type, %swift.full_type* bitcast (<{ i8*, i8**, [[INT]], %swift.type_descriptor*, %swift.type*, %swift.type*, i32, i32, i64 }>* @"$s4main5ValueVyS2iGMf" to %swift.full_type*), i32 0, i32 2))
-// CHECK:   call swiftcc void @"$s4main7consumeyyxlF"(%swift.opaque* noalias nocapture %{{[0-9]+}}, %swift.type* getelementptr inbounds (%swift.full_type, %swift.full_type* bitcast (<{ i8*, i8**, [[INT]], %swift.type_descriptor*, %swift.type*, %swift.type*, i32, i32, i64 }>* @"$s4main5ValueVySdSiGMf" to %swift.full_type*), i32 0, i32 2))
-// CHECK:   call swiftcc void @"$s4main7consumeyyxlF"(%swift.opaque* noalias nocapture %{{[0-9]+}}, %swift.type* getelementptr inbounds (%swift.full_type, %swift.full_type* bitcast (<{ i8*, i8**, [[INT]], %swift.type_descriptor*, %swift.type*, %swift.type*, i32, i32, i64 }>* @"$s4main5ValueVySSSdGMf" to %swift.full_type*), i32 0, i32 2))
-// CHECK:   call swiftcc void @"$s4main7consumeyyxlF"(%swift.opaque* noalias nocapture %{{[0-9]+}}, %swift.type* getelementptr inbounds (%swift.full_type, %swift.full_type* bitcast (<{ i8*, i8**, [[INT]], %swift.type_descriptor*, %swift.type*, %swift.type*, i32, i32, i64 }>* @"$s4main5ValueVys5UInt8VSSGMf" to %swift.full_type*), i32 0, i32 2))
-// CHECK:   call swiftcc void @"$s4main7consumeyyxlF"(%swift.opaque* noalias nocapture %{{[0-9]+}}, %swift.type* getelementptr inbounds (%swift.full_type, %swift.full_type* bitcast (<{ i8*, i8**, [[INT]], %swift.type_descriptor*, %swift.type*, %swift.type*, i32, i32, i64 }>* @"$s4main5ValueVys4Int8Vs5UInt8VGMf" to %swift.full_type*), i32 0, i32 2))
+// CHECK:      call swiftcc void @"$s4main7consumeyyxlF"(
+// CHECK-SAME:   ptr noalias nocapture %{{[0-9]+}}, 
+// CHECK-SAME:   ptr getelementptr inbounds (
+// CHECK-SAME:     %swift.full_type, 
+// CHECK-SAME:     $s4main5ValueVyS2iGMf
+// CHECK-SAME:     i32 0, 
+// CHECK-SAME:     i32 2
+// CHECK-SAME:   )
+// CHECK-SAME: )
+// CHECK:      call swiftcc void @"$s4main7consumeyyxlF"(
+// CHECK-SAME:   ptr noalias nocapture %{{[0-9]+}}, 
+// CHECK-SAME:   ptr getelementptr inbounds (
+// CHECK-SAME:     %swift.full_type, 
+// CHECK-SAME:     $s4main5ValueVySdSiGMf
+// CHECK-SAME:     i32 0, 
+// CHECK-SAME:     i32 2
+// CHECK-SAME:   )
+// CHECK-SAME: )
+// CHECK:      call swiftcc void @"$s4main7consumeyyxlF"(
+// CHECK-SAME:   ptr noalias nocapture %{{[0-9]+}}, 
+// CHECK-SAME:   ptr getelementptr inbounds (
+// CHECK-SAME:     %swift.full_type, 
+// CHECK-SAME:     $s4main5ValueVySSSdGMf
+// CHECK-SAME:     i32 0, 
+// CHECK-SAME:     i32 2
+// CHECK-SAME:   )
+// CHECK-SAME: )
+// CHECK:      call swiftcc void @"$s4main7consumeyyxlF"(
+// CHECK-SAME:   ptr noalias nocapture %{{[0-9]+}}, 
+// CHECK-SAME:   ptr getelementptr inbounds (
+// CHECK-SAME:     %swift.full_type, 
+// CHECK-SAME:     $s4main5ValueVys5UInt8VSSGMf
+// CHECK-SAME:     i32 0, 
+// CHECK-SAME:     i32 2
+// CHECK-SAME:   )
+// CHECK-SAME: )
+// CHECK:      call swiftcc void @"$s4main7consumeyyxlF"(
+// CHECK-SAME:   ptr noalias nocapture %{{[0-9]+}}, 
+// CHECK-SAME:   ptr getelementptr inbounds (
+// CHECK-SAME:     %swift.full_type, 
+// CHECK-SAME:     $s4main5ValueVys4Int8Vs5UInt8VGMf
+// CHECK-SAME:     i32 0, 
+// CHECK-SAME:     i32 2
+// CHECK-SAME:   )
+// CHECK-SAME: )
 // CHECK: }
 func doit() {
   consume( Value(first: 13, second: 13) )
@@ -219,10 +258,14 @@ func doit() {
 doit()
 
 // CHECK: ; Function Attrs: noinline nounwind readnone
-// CHECK: define hidden swiftcc %swift.metadata_response @"$s4main5ValueVMa"([[INT]] %0, %swift.type* %1, %swift.type* %2) #{{[0-9]+}} {{(section)?.*}}{
+// CHECK: define hidden swiftcc %swift.metadata_response @"$s4main5ValueVMa"([[INT]] %0, ptr %1, ptr %2) #{{[0-9]+}} {{(section)?.*}}{
 // CHECK: entry:
-// CHECK:   [[ERASED_TYPE_1:%[0-9]+]] = bitcast %swift.type* %1 to i8*
-// CHECK:   [[ERASED_TYPE_2:%[0-9]+]] = bitcast %swift.type* %2 to i8*
-// CHECK:   {{%[0-9]+}} = call swiftcc %swift.metadata_response @__swift_instantiateCanonicalPrespecializedGenericMetadata([[INT]] %0, i8* [[ERASED_TYPE_1]], i8* [[ERASED_TYPE_2]], i8* undef, %swift.type_descriptor* bitcast ({{.+}}$s4main5ValueVMn{{.+}} to %swift.type_descriptor*), [[INT]]* @"$s4main5ValueVMz") #{{[0-9]+}}
+// CHECK:   {{%[0-9]+}} = call swiftcc %swift.metadata_response @__swift_instantiateCanonicalPrespecializedGenericMetadata(
+// CHECK-SAME:   [[INT]] %0, 
+// CHECK-SAME:   ptr %1, 
+// CHECK-SAME:   ptr %2, 
+// CHECK-SAME:   ptr undef, 
+// CHECK-SAME:   $s4main5ValueVMn
+// CHECK-SAME:   $s4main5ValueVMz
 // CHECK:   ret %swift.metadata_response {{%[0-9]+}}
 // CHECK: }

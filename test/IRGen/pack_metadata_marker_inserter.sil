@@ -1,6 +1,5 @@
 // RUN: %target-sil-opt -enable-sil-verify-all %s -pack-metadata-marker-inserter -enable-pack-metadata-stack-promotion=true | %FileCheck %s --check-prefixes CHECK-SIL
-// RUN: %target-swift-frontend %use_no_opaque_pointers -parse-sil -emit-ir -primary-file %s -enable-pack-metadata-stack-promotion=false -enable-pack-metadata-stack-promotion=true | %IRGenFileCheck %s --check-prefixes CHECK-LLVM
-// RUN: %target-swift-frontend -parse-sil -emit-ir -primary-file %s -enable-pack-metadata-stack-promotion=false -enable-pack-metadata-stack-promotion=true
+// RUN: %target-swift-frontend -parse-sil -emit-ir -primary-file %s -enable-pack-metadata-stack-promotion=false -enable-pack-metadata-stack-promotion=true | %IRGenFileCheck %s --check-prefixes CHECK-LLVM
 
 // REQUIRES: asserts
 
@@ -81,10 +80,10 @@ entry:
 // CHECK-SIL-LABEL: } // end sil function 'forward_type_pack'
 // CHECK-LLVM-LABEL: define{{.*}} @forward_type_pack(
 // CHECK-LLVM-SAME:      [[INT]] [[SHAPE:%[^,]+]], 
-// CHECK-LLVM-SAME:      %swift.type** [[PACK:%[^,]+]]) {{.*}} {
+// CHECK-LLVM-SAME:      ptr [[PACK:%[^,]+]]) {{.*}} {
 // CHECK-LLVM:         call swiftcc void @takeTypePack(
 // CHECK-LLVM-SAME:        [[INT]] [[SHAPE]],
-// CHECK-LLVM-SAME:        %swift.type** [[PACK]])
+// CHECK-LLVM-SAME:        ptr [[PACK]])
 // CHECK-LLVM:       }
 sil @forward_type_pack : $<each T>() -> () {
   %take = function_ref @takeTypePack : $@convention(thin) <each T>() -> ()
@@ -103,13 +102,11 @@ sil @forward_type_pack : $<each T>() -> () {
 // CHECK-SIL:         dealloc_pack_metadata [[MARKER]]
 // CHECK-SIL-LABEL: } // end sil function 'apply_with_variadic_generic_instance'
 // CHECK-LLVM-LABEL: define{{.*}} @apply_with_variadic_generic_instance{{.*}} {
-// CHECK-LLVM:         [[PACK_ADDR:%[^,]+]] = alloca [3 x %swift.type*]
-// CHECK-LLVM:         [[LIFETIME_START_CAST:%[^,]+]] = bitcast [3 x %swift.type*]* [[PACK_ADDR]] to i8*
-// CHECK-LLVM:         call void @llvm.lifetime.start.p0i8(
-// CHECK-LLVM-SAME:        i8* [[LIFETIME_START_CAST]])
-// CHECK-LLVM:         [[LIFETIME_END_CAST:%[^,]+]] = bitcast [3 x %swift.type*]* [[PACK_ADDR]] to i8*
-// CHECK-LLVM:         call void @llvm.lifetime.end.p0i8(
-// CHECK-LLVM-SAME:        i8* [[LIFETIME_END_CAST]])
+// CHECK-LLVM:         [[PACK_ADDR:%[^,]+]] = alloca [3 x ptr]
+// CHECK-LLVM:         call void @llvm.lifetime.start.p0(
+// CHECK-LLVM-SAME:        ptr [[PACK_ADDR]])
+// CHECK-LLVM:         call void @llvm.lifetime.end.p0(
+// CHECK-LLVM-SAME:        ptr [[PACK_ADDR]])
 // CHECK-LLVM:         ret void
 // CHECK-LLVM:       }
 sil @apply_with_variadic_generic_instance : $<T>(@in GV<T, S2, S3>) -> () {

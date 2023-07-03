@@ -472,13 +472,13 @@ struct SyntacticElementContext
     return this->dyn_cast<AbstractFunctionDecl *>();
   }
 
-  Optional<AnyFunctionRef> getAsAnyFunctionRef() const {
+  llvm::Optional<AnyFunctionRef> getAsAnyFunctionRef() const {
     if (auto *fn = this->dyn_cast<AbstractFunctionDecl *>()) {
       return {fn};
     } else if (auto *closure = this->dyn_cast<AbstractClosureExpr *>()) {
       return {closure};
     } else {
-      return None;
+      return llvm::None;
     }
   }
 
@@ -711,7 +711,7 @@ private:
     }
   }
 
-  Optional<SyntacticElementTarget>
+  llvm::Optional<SyntacticElementTarget>
   getTargetForPattern(PatternBindingDecl *patternBinding, unsigned index,
                       Type patternType) {
     auto hasPropertyWrapper = [&](Pattern *pattern) -> bool {
@@ -744,7 +744,7 @@ private:
       if (ConstraintSystem::preCheckTarget(
               target, /*replaceInvalidRefsWithErrors=*/true,
               /*LeaveCLosureBodyUnchecked=*/false))
-        return None;
+        return llvm::None;
 
       return target;
     }
@@ -1192,14 +1192,14 @@ private:
         auto contextualFixedTy = cs.getFixedTypeRecursive(
             contextInfo->getType(), /*wantRValue*/ true);
         if (contextualFixedTy->isTypeVariableOrMember())
-          contextInfo = None;
+          contextInfo = llvm::None;
       }
 
       elements.push_back(makeElement(
           element,
           cs.getConstraintLocator(locator,
                                   LocatorPathElt::SyntacticElement(element)),
-          contextInfo.getValueOr(ContextualTypeInfo()), isDiscarded));
+          contextInfo.value_or(ContextualTypeInfo()), isDiscarded));
     }
 
     createConjunction(cs, elements, locator);
@@ -1533,7 +1533,7 @@ ConstraintSystem::simplifySyntacticElementConstraint(
     TypeMatchOptions flags, ConstraintLocatorBuilder locator) {
   auto anchor = locator.getAnchor();
 
-  Optional<SyntacticElementContext> context;
+  llvm::Optional<SyntacticElementContext> context;
   if (auto *closure = getAsExpr<ClosureExpr>(anchor)) {
     context = SyntacticElementContext::forClosure(closure);
   } else if (auto *fn = getAsDecl<AbstractFunctionDecl>(anchor)) {
@@ -2081,7 +2081,7 @@ private:
       mode = convertToResult;
     }
 
-    Optional<SyntacticElementTarget> resultTarget;
+    llvm::Optional<SyntacticElementTarget> resultTarget;
     if (auto target = cs.getTargetFor(returnStmt)) {
       resultTarget = *target;
     } else {

@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -disable-type-layout %s -emit-ir | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-runtime  --check-prefix=CHECK-%target-runtime-simulator-%target-is-simulator
-// RUN: %target-swift-frontend -disable-type-layout %s -emit-ir
+// RUN: %target-swift-frontend -disable-type-layout %s -emit-ir | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-runtime  --check-prefix=CHECK-%target-runtime-simulator-%target-is-simulator
 
 // REQUIRES: CPU=x86_64
 
@@ -12,55 +11,38 @@ enum NullableRefcounted {
   case None
 }
 
-// CHECK-LABEL: define internal void @"$s34enum_value_semantics_special_cases18NullableRefcountedOwxx"(%swift.opaque* noalias %object, %swift.type* %NullableRefcounted) {{.*}} {
+// CHECK-LABEL: define internal void @"$s34enum_value_semantics_special_cases18NullableRefcountedOwxx"(ptr noalias %object, ptr %NullableRefcounted) {{.*}} {
 // CHECK: entry:
-// CHECK:   %0 = bitcast %swift.opaque* %object to %T34enum_value_semantics_special_cases18NullableRefcountedO*
-// CHECK:   %1 = bitcast %T34enum_value_semantics_special_cases18NullableRefcountedO* %0 to %swift.refcounted**
-// CHECK:   %2 = load %swift.refcounted*, %swift.refcounted** %1, align 8
-// CHECK:   call void @swift_release(%swift.refcounted* %2)
+// CHECK:   %0 = load ptr, ptr %object, align 8
+// CHECK:   call void @swift_release(ptr %0)
 // CHECK:   ret void
 // CHECK: }
 
-// CHECK-LABEL: define internal %swift.opaque* @"$s34enum_value_semantics_special_cases18NullableRefcountedOwcp"(%swift.opaque* noalias %dest, %swift.opaque* noalias %src, %swift.type* %NullableRefcounted) {{.*}} {
+// CHECK-LABEL: define internal ptr @"$s34enum_value_semantics_special_cases18NullableRefcountedOwcp"(ptr noalias %dest, ptr noalias %src, ptr %NullableRefcounted) {{.*}} {
 // CHECK: entry:
-// CHECK:   %0 = bitcast %swift.opaque* %dest to %T34enum_value_semantics_special_cases18NullableRefcountedO*
-// CHECK:   %1 = bitcast %swift.opaque* %src to %T34enum_value_semantics_special_cases18NullableRefcountedO*
-// CHECK:   %2 = bitcast %T34enum_value_semantics_special_cases18NullableRefcountedO* %0 to %swift.refcounted**
-// CHECK:   %3 = bitcast %T34enum_value_semantics_special_cases18NullableRefcountedO* %1 to %swift.refcounted**
-// CHECK:   %4 = load %swift.refcounted*, %swift.refcounted** %3, align 8
-// CHECK:   %5 = call %swift.refcounted* @swift_retain(%swift.refcounted* returned %4)
-// CHECK:   store %swift.refcounted* %4, %swift.refcounted** %2, align 8
-// CHECK:   %6 = bitcast %T34enum_value_semantics_special_cases18NullableRefcountedO* %0 to %swift.opaque*
-// CHECK:   ret %swift.opaque* %6
+// CHECK:   %0 = load ptr, ptr %src, align 8
+// CHECK:   %1 = call ptr @swift_retain(ptr returned %0)
+// CHECK:   store ptr %0, ptr %dest, align 8
+// CHECK:   ret ptr %dest
 // CHECK: }
 
-// CHECK-LABEL: define internal %swift.opaque* @"$s34enum_value_semantics_special_cases18NullableRefcountedOwca"(%swift.opaque* %dest, %swift.opaque* %src, %swift.type* %NullableRefcounted) {{.*}} {
+// CHECK-LABEL: define internal ptr @"$s34enum_value_semantics_special_cases18NullableRefcountedOwca"(ptr %dest, ptr %src, ptr %NullableRefcounted) {{.*}} {
 // CHECK: entry:
-// CHECK:   %0 = bitcast %swift.opaque* %dest to %T34enum_value_semantics_special_cases18NullableRefcountedO*
-// CHECK:   %1 = bitcast %swift.opaque* %src to %T34enum_value_semantics_special_cases18NullableRefcountedO*
-// CHECK:   %2 = bitcast %T34enum_value_semantics_special_cases18NullableRefcountedO* %0 to %swift.refcounted**
-// CHECK:   %3 = bitcast %T34enum_value_semantics_special_cases18NullableRefcountedO* %1 to %swift.refcounted**
-// CHECK:   %4 = load %swift.refcounted*, %swift.refcounted** %2, align 8
-// CHECK:   %5 = load %swift.refcounted*, %swift.refcounted** %3, align 8
-// CHECK:   %6 = call %swift.refcounted* @swift_retain(%swift.refcounted* returned %5)
-// CHECK:   store %swift.refcounted* %5, %swift.refcounted** %2, align 8
-// CHECK:   call void @swift_release(%swift.refcounted* %4)
-// CHECK:   %7 = bitcast %T34enum_value_semantics_special_cases18NullableRefcountedO* %0 to %swift.opaque*
-// CHECK:   ret %swift.opaque* %7
+// CHECK:   %0 = load ptr, ptr %dest, align 8
+// CHECK:   %1 = load ptr, ptr %src, align 8
+// CHECK:   %2 = call ptr @swift_retain(ptr returned %1)
+// CHECK:   store ptr %1, ptr %dest, align 8
+// CHECK:   call void @swift_release(ptr %0)
+// CHECK:   ret ptr %dest
 // CHECK: }
 
-// CHECK-LABEL: define internal %swift.opaque* @"$s34enum_value_semantics_special_cases18NullableRefcountedOwta"(%swift.opaque* noalias %dest, %swift.opaque* noalias %src, %swift.type* %NullableRefcounted) {{.*}} {
+// CHECK-LABEL: define internal ptr @"$s34enum_value_semantics_special_cases18NullableRefcountedOwta"(ptr noalias %dest, ptr noalias %src, ptr %NullableRefcounted) {{.*}} {
 // CHECK: entry:
-// CHECK:   %0 = bitcast %swift.opaque* %dest to %T34enum_value_semantics_special_cases18NullableRefcountedO*
-// CHECK:   %1 = bitcast %swift.opaque* %src to %T34enum_value_semantics_special_cases18NullableRefcountedO*
-// CHECK:   %2 = bitcast %T34enum_value_semantics_special_cases18NullableRefcountedO* %0 to %swift.refcounted**
-// CHECK:   %3 = bitcast %T34enum_value_semantics_special_cases18NullableRefcountedO* %1 to %swift.refcounted**
-// CHECK:   %4 = load %swift.refcounted*, %swift.refcounted** %2, align 8
-// CHECK:   %5 = load %swift.refcounted*, %swift.refcounted** %3, align 8
-// CHECK:   store %swift.refcounted* %5, %swift.refcounted** %2, align 8
-// CHECK:   call void @swift_release(%swift.refcounted* %4)
-// CHECK:   %6 = bitcast %T34enum_value_semantics_special_cases18NullableRefcountedO* %0 to %swift.opaque*
-// CHECK:   ret %swift.opaque* %6
+// CHECK:   %0 = load ptr, ptr %dest, align 8
+// CHECK:   %1 = load ptr, ptr %src, align 8
+// CHECK:   store ptr %1, ptr %dest, align 8
+// CHECK:   call void @swift_release(ptr %0)
+// CHECK:   ret ptr %dest
 // CHECK: }
 
 // Enums consisting of a retainable block pointer and a single empty case use
@@ -70,55 +52,38 @@ enum NullableBlockRefcounted {
   case None
 }
 
-// CHECK-LABEL: define internal void @"$s34enum_value_semantics_special_cases23NullableBlockRefcountedOwxx"(%swift.opaque* noalias %object, %swift.type* %NullableBlockRefcounted) {{.*}} {
+// CHECK-LABEL: define internal void @"$s34enum_value_semantics_special_cases23NullableBlockRefcountedOwxx"(ptr noalias %object, ptr %NullableBlockRefcounted) {{.*}} {
 // CHECK: entry:
-// CHECK:   %0 = bitcast %swift.opaque* %object to %T34enum_value_semantics_special_cases23NullableBlockRefcountedO*
-// CHECK:   %1 = bitcast %T34enum_value_semantics_special_cases23NullableBlockRefcountedO* %0 to %objc_block**
-// CHECK:   %2 = load %objc_block*, %objc_block** %1, align 8
-// CHECK:   call void @_Block_release(%objc_block* %2)
+// CHECK:   %0 = load ptr, ptr %object, align 8
+// CHECK:   call void @_Block_release(ptr %0)
 // CHECK:   ret void
 // CHECK: }
 
-// CHECK-LABEL: define internal %swift.opaque* @"$s34enum_value_semantics_special_cases23NullableBlockRefcountedOwcp"(%swift.opaque* noalias %dest, %swift.opaque* noalias %src, %swift.type* %NullableBlockRefcounted) {{.*}} {
+// CHECK-LABEL: define internal ptr @"$s34enum_value_semantics_special_cases23NullableBlockRefcountedOwcp"(ptr noalias %dest, ptr noalias %src, ptr %NullableBlockRefcounted) {{.*}} {
 // CHECK: entry:
-// CHECK:   %0 = bitcast %swift.opaque* %dest to %T34enum_value_semantics_special_cases23NullableBlockRefcountedO*
-// CHECK:   %1 = bitcast %swift.opaque* %src to %T34enum_value_semantics_special_cases23NullableBlockRefcountedO*
-// CHECK:   %2 = bitcast %T34enum_value_semantics_special_cases23NullableBlockRefcountedO* %0 to %objc_block**
-// CHECK:   %3 = bitcast %T34enum_value_semantics_special_cases23NullableBlockRefcountedO* %1 to %objc_block**
-// CHECK:   %4 = load %objc_block*, %objc_block** %3, align 8
-// CHECK:   %5 = call %objc_block* @_Block_copy(%objc_block* %4)
-// CHECK:   store %objc_block* %4, %objc_block** %2, align 8
-// CHECK:   %6 = bitcast %T34enum_value_semantics_special_cases23NullableBlockRefcountedO* %0 to %swift.opaque*
-// CHECK:   ret %swift.opaque* %6
+// CHECK:   %0 = load ptr, ptr %src, align 8
+// CHECK:   %1 = call ptr @_Block_copy(ptr %0)
+// CHECK:   store ptr %0, ptr %dest, align 8
+// CHECK:   ret ptr %dest
 // CHECK: }
 
-// CHECK-LABEL: define internal %swift.opaque* @"$s34enum_value_semantics_special_cases23NullableBlockRefcountedOwca"(%swift.opaque* %dest, %swift.opaque* %src, %swift.type* %NullableBlockRefcounted) {{.*}} {
+// CHECK-LABEL: define internal ptr @"$s34enum_value_semantics_special_cases23NullableBlockRefcountedOwca"(ptr %dest, ptr %src, ptr %NullableBlockRefcounted) {{.*}} {
 // CHECK: entry:
-// CHECK:   %0 = bitcast %swift.opaque* %dest to %T34enum_value_semantics_special_cases23NullableBlockRefcountedO*
-// CHECK:   %1 = bitcast %swift.opaque* %src to %T34enum_value_semantics_special_cases23NullableBlockRefcountedO*
-// CHECK:   %2 = bitcast %T34enum_value_semantics_special_cases23NullableBlockRefcountedO* %0 to %objc_block**
-// CHECK:   %3 = bitcast %T34enum_value_semantics_special_cases23NullableBlockRefcountedO* %1 to %objc_block**
-// CHECK:   %4 = load %objc_block*, %objc_block** %2, align 8
-// CHECK:   %5 = load %objc_block*, %objc_block** %3, align 8
-// CHECK:   %6 = call %objc_block* @_Block_copy(%objc_block* %5)
-// CHECK:   store %objc_block* %5, %objc_block** %2, align 8
-// CHECK:   call void @_Block_release(%objc_block* %4)
-// CHECK:   %7 = bitcast %T34enum_value_semantics_special_cases23NullableBlockRefcountedO* %0 to %swift.opaque*
-// CHECK:   ret %swift.opaque* %7
+// CHECK:   %0 = load ptr, ptr %dest, align 8
+// CHECK:   %1 = load ptr, ptr %src, align 8
+// CHECK:   %2 = call ptr @_Block_copy(ptr %1)
+// CHECK:   store ptr %1, ptr %dest, align 8
+// CHECK:   call void @_Block_release(ptr %0)
+// CHECK:   ret ptr %dest
 // CHECK: }
 
-// CHECK-LABEL: define internal %swift.opaque* @"$s34enum_value_semantics_special_cases23NullableBlockRefcountedOwta"(%swift.opaque* noalias %dest, %swift.opaque* noalias %src, %swift.type* %NullableBlockRefcounted) {{.*}} {
+// CHECK-LABEL: define internal ptr @"$s34enum_value_semantics_special_cases23NullableBlockRefcountedOwta"(ptr noalias %dest, ptr noalias %src, ptr %NullableBlockRefcounted) {{.*}} {
 // CHECK: entry:
-// CHECK:   %0 = bitcast %swift.opaque* %dest to %T34enum_value_semantics_special_cases23NullableBlockRefcountedO*
-// CHECK:   %1 = bitcast %swift.opaque* %src to %T34enum_value_semantics_special_cases23NullableBlockRefcountedO*
-// CHECK:   %2 = bitcast %T34enum_value_semantics_special_cases23NullableBlockRefcountedO* %0 to %objc_block**
-// CHECK:   %3 = bitcast %T34enum_value_semantics_special_cases23NullableBlockRefcountedO* %1 to %objc_block**
-// CHECK:   %4 = load %objc_block*, %objc_block** %2, align 8
-// CHECK:   %5 = load %objc_block*, %objc_block** %3, align 8
-// CHECK:   store %objc_block* %5, %objc_block** %2, align 8
-// CHECK:   call void @_Block_release(%objc_block* %4)
-// CHECK:   %6 = bitcast %T34enum_value_semantics_special_cases23NullableBlockRefcountedO* %0 to %swift.opaque*
-// CHECK:   ret %swift.opaque* %6
+// CHECK:   %0 = load ptr, ptr %dest, align 8
+// CHECK:   %1 = load ptr, ptr %src, align 8
+// CHECK:   store ptr %1, ptr %dest, align 8
+// CHECK:   call void @_Block_release(ptr %0)
+// CHECK:   ret ptr %dest
 // CHECK: }
 
 // With multiple empty cases, the nullable pointer semantics aren't used.
@@ -128,23 +93,20 @@ enum MultipleEmptyRefcounted {
   case B
 }
 
-// CHECK-LABEL: define internal void @"$s34enum_value_semantics_special_cases23MultipleEmptyRefcountedOwxx"(%swift.opaque* noalias %object, %swift.type* %MultipleEmptyRefcounted) {{.*}} {
+// CHECK-LABEL: define internal void @"$s34enum_value_semantics_special_cases23MultipleEmptyRefcountedOwxx"(ptr noalias %object, ptr %MultipleEmptyRefcounted) {{.*}} {
 // CHECK: entry:
-// CHECK:   %0 = bitcast %swift.opaque* %object to %T34enum_value_semantics_special_cases23MultipleEmptyRefcountedO*
-// CHECK:   %1 = bitcast %T34enum_value_semantics_special_cases23MultipleEmptyRefcountedO* %0 to i64*
-// CHECK:   %2 = load i64, i64* %1, align 8
-// CHECK:   switch i64 %2, label %3 [
-// CHECK:     i64 0, label %5
-// CHECK-native:   i64 1, label %5
-// CHECK-objc-simulator-false:     i64 2, label %5
-// CHECK-objc-simulator-true:     i64 1, label %5
+// CHECK:   %0 = load i64, ptr %object, align 8
+// CHECK:   switch i64 %0, label %1 [
+// CHECK:     i64 0, label %2
+// CHECK-native:   i64 1, label %2
+// CHECK-objc-simulator-false:     i64 2, label %2
+// CHECK-objc-simulator-true:     i64 1, label %2
 // CHECK:   ]
-// CHECK: 3:                                      ; preds = %entry
-// CHECK:   %4 = bitcast %T34enum_value_semantics_special_cases23MultipleEmptyRefcountedO* %0 to %swift.refcounted**
-// CHECK:   %toDestroy = load %swift.refcounted*, %swift.refcounted** %4, align 8
-// CHECK:   call void @swift_release(%swift.refcounted* %toDestroy)
-// CHECK:   br label %5
-// CHECK: 5:                                      ; preds = %3, %entry, %entry
+// CHECK: 1:                                      ; preds = %entry
+// CHECK:   %toDestroy = load ptr, ptr %object, align 8
+// CHECK:   call void @swift_release(ptr %toDestroy)
+// CHECK:   br label %2
+// CHECK: 2:                                      ; preds = %1, %entry, %entry
 // CHECK:   ret void
 // CHECK: }
 
@@ -167,26 +129,23 @@ enum AllRefcounted {
   case None
 }
 
-// CHECK-LABEL: define internal void @"$s34enum_value_semantics_special_cases13AllRefcountedOwxx"(%swift.opaque* noalias %object, %swift.type* %AllRefcounted) {{.*}} {
+// CHECK-LABEL: define internal void @"$s34enum_value_semantics_special_cases13AllRefcountedOwxx"(ptr noalias %object, ptr %AllRefcounted) {{.*}} {
 // CHECK: entry:
-// CHECK:   %0 = bitcast %swift.opaque* %object to %T34enum_value_semantics_special_cases13AllRefcountedO*
-// CHECK:   %1 = bitcast %T34enum_value_semantics_special_cases13AllRefcountedO* %0 to i64*
-// CHECK:   %2 = load i64, i64* %1, align 8
+// CHECK:   %0 = load i64, ptr %object, align 8
 // --                        0x3fffffffffffffff
-// CHECK:   %3 = and i64 %2, 4611686018427387903
-// CHECK:   %4 = inttoptr i64 %3 to %swift.refcounted*
-// CHECK:   call void @swift_release(%swift.refcounted* %4)
+// CHECK:   %1 = and i64 %0, 4611686018427387903
+// CHECK:   %2 = inttoptr i64 %1 to ptr
+// CHECK:   call void @swift_release(ptr %2)
 // CHECK:   ret void
 // CHECK: }
 
-// CHECK-LABEL: define internal %swift.opaque* @"$s34enum_value_semantics_special_cases13AllRefcountedOwcp"(%swift.opaque* noalias %dest, %swift.opaque* noalias %src, %swift.type* %AllRefcounted)
+// CHECK-LABEL: define internal ptr @"$s34enum_value_semantics_special_cases13AllRefcountedOwcp"(ptr noalias %dest, ptr noalias %src, ptr %AllRefcounted)
 // --                              0x3fffffffffffffff
-// CHECK:         %4 = and i64 %3, 4611686018427387903
-// CHECK:         %5 = inttoptr i64 %4 to %swift.refcounted*
-// CHECK:         call %swift.refcounted* @swift_retain(%swift.refcounted* returned %5)
-// CHECK:         %6 = bitcast %T34enum_value_semantics_special_cases13AllRefcountedO* %0 to i64*
+// CHECK:         %1 = and i64 %0, 4611686018427387903
+// CHECK:         %2 = inttoptr i64 %1 to ptr
+// CHECK:         call ptr @swift_retain(ptr returned %2)
 // -- NB: The original loaded value is stored, not the masked one.
-// CHECK:         store i64 %3, i64* %6, align 8
+// CHECK:         store i64 %0, ptr %dest, align 8
 // CHECK: }
 
 enum AllRefcountedTwoSimple {

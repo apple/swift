@@ -59,14 +59,15 @@ protected:
   /// Empty key, tombstone key or normal key.
   KeyKind Kind;
   /// The path to reach the accessed field of the object.
-  Optional<ProjectionPath> Path;
+  llvm::Optional<ProjectionPath> Path;
 
 public:
   /// Constructors.
   LSBase() : Base(), Kind(Normal) {}
   LSBase(KeyKind Kind) : Base(), Kind(Kind) {}
   LSBase(SILValue B) : Base(B), Kind(Normal) {}
-  LSBase(SILValue B, const Optional<ProjectionPath> &P, KeyKind Kind = Normal)
+  LSBase(SILValue B, const llvm::Optional<ProjectionPath> &P,
+         KeyKind Kind = Normal)
       : Base(B), Kind(Kind), Path(P) {}
 
   /// Virtual destructor.
@@ -90,7 +91,7 @@ public:
   /// Getters for LSBase.
   KeyKind getKind() const { return Kind; }
   SILValue getBase() const { return Base; }
-  const Optional<ProjectionPath> &getPath() const { return Path; }
+  const llvm::Optional<ProjectionPath> &getPath() const { return Path; }
 
   /// Reset the LSBase, i.e. clear base and path.
   void reset() {
@@ -113,7 +114,7 @@ public:
   }
 
   /// Subtract the given path from the ProjectionPath.
-  void removePathPrefix(Optional<ProjectionPath> &P) {
+  void removePathPrefix(llvm::Optional<ProjectionPath> &P) {
     if (!P.has_value())
       return;
     // Remove prefix does not modify the Path in-place.
@@ -182,7 +183,7 @@ public:
 
 static inline llvm::hash_code hash_value(const LSBase &S) {
   const SILValue Base = S.getBase();
-  const Optional<ProjectionPath> &Path = S.getPath();
+  const llvm::Optional<ProjectionPath> &Path = S.getPath();
   llvm::hash_code HC = llvm::hash_combine(Base.getOpaqueValue());
   if (!Path.has_value())
     return HC;
@@ -323,7 +324,8 @@ class LSLocation : public LSBase {
 public:
   /// Constructors.
   LSLocation() {}
-  LSLocation(SILValue B, const Optional<ProjectionPath> &P, KeyKind K = Normal)
+  LSLocation(SILValue B, const llvm::Optional<ProjectionPath> &P,
+             KeyKind K = Normal)
       : LSBase(B, P, K) {}
   LSLocation(KeyKind Kind) : LSBase(Kind) {}
   /// Use the concatenation of the 2 ProjectionPaths as the Path.
@@ -336,7 +338,8 @@ public:
   }
 
   /// Initialize a location with a new set of base, projectionpath and kind.
-  void init(SILValue B, const Optional<ProjectionPath> &P, KeyKind K= Normal) {
+  void init(SILValue B, const llvm::Optional<ProjectionPath> &P,
+            KeyKind K = Normal) {
     Base = B;
     Path = P;
     Kind = K;

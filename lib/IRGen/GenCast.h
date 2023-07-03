@@ -96,14 +96,10 @@ namespace irgen {
   ///
   /// If a metatype kind is provided, the cast is done as a metatype cast. If
   /// not, the cast is done as a class instance cast.
-  void emitScalarExistentialDowncast(IRGenFunction &IGF,
-                                  llvm::Value *orig,
-                                  SILType srcType,
-                                  SILType destType,
-                                  CheckedCastMode mode,
-                                  Optional<MetatypeRepresentation> metatypeKind,
-                                  GenericSignature fnSig,
-                                  Explosion &ex);
+  void emitScalarExistentialDowncast(
+      IRGenFunction &IGF, llvm::Value *orig, SILType srcType, SILType destType,
+      CheckedCastMode mode, llvm::Optional<MetatypeRepresentation> metatypeKind,
+      GenericSignature fnSig, Explosion &ex);
 
   /// Emit a checked cast from a metatype to AnyObject.
   llvm::Value *emitMetatypeToAnyObjectDowncast(IRGenFunction &IGF,

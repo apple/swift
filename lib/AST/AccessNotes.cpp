@@ -28,7 +28,7 @@
 namespace swift {
 
 AccessNoteDeclName::AccessNoteDeclName()
-  : parentNames(), name(), accessorKind(None) { }
+    : parentNames(), name(), accessorKind(llvm::None) {}
 
 AccessNoteDeclName::AccessNoteDeclName(ASTContext &ctx, StringRef str) {
   auto parsedName = parseDeclName(str);
@@ -44,7 +44,7 @@ AccessNoteDeclName::AccessNoteDeclName(ASTContext &ctx, StringRef str) {
   else if (parsedName.IsSetter)
     accessorKind = AccessorKind::Set;
   else
-    accessorKind = None;
+    accessorKind = llvm::None;
 
   name = parsedName.formDeclName(ctx, /*isSubscript=*/true);
 }
@@ -206,7 +206,7 @@ AccessNotesFile::load(ASTContext &ctx, const llvm::MemoryBuffer *buffer) {
   yamlIn >> notes;
 
   if (yamlIn.error())
-    return None;
+    return llvm::None;
 
   return notes;
 }

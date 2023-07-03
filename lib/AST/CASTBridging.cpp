@@ -256,7 +256,7 @@ void *FunctionCallExpr_create(BridgedASTContext cContext, void *fn,
                            TE->getElement(i));
   }
   auto *argList = ArgumentList::create(context, TE->getLParenLoc(), arguments,
-                                       TE->getRParenLoc(), None,
+                                       TE->getRParenLoc(), llvm::None,
                                        /*isImplicit*/ false);
   return CallExpr::create(context, static_cast<Expr *>(fn), argList,
                           /*implicit*/ false);
@@ -333,7 +333,7 @@ void *IfStmt_create(BridgedASTContext cContext, BridgedSourceLoc cIfLoc,
   ASTContext &context = convertASTContext(cContext);
   return new (context)
       IfStmt(convertSourceLoc(cIfLoc), (Expr *)cond, (Stmt *)then,
-             convertSourceLoc(cElseLoc), (Stmt *)elseStmt, None, context);
+             convertSourceLoc(cElseLoc), (Stmt *)elseStmt, llvm::None, context);
 }
 
 void *ReturnStmt_create(BridgedASTContext cContext, BridgedSourceLoc cLoc,

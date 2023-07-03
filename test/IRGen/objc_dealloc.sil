@@ -1,13 +1,9 @@
 // RUN: %empty-directory(%t)
 // RUN: %build-irgen-test-overlays
-// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) %use_no_opaque_pointers %s -emit-ir | %FileCheck %s
-// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) %s -emit-ir
+// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) %s -emit-ir | %FileCheck %s
 
 // REQUIRES: CPU=x86_64
 // REQUIRES: objc_interop
-
-// CHECK: [[SGIZMO:%T12objc_dealloc10SwiftGizmoC]] = type
-// CHECK: [[GIZMO:%TSo5GizmoC]] = type <{ %objc_class* }>
 
 sil_stage raw
 
@@ -71,12 +67,11 @@ bb0(%0 : @unowned $X, %1 : @unowned $SwiftGizmo):
   return %7 : $()                                 // id: %8
 }
 
-// CHECK: define internal void @"$s12objc_dealloc10SwiftGizmoCfDTo"([[OPAQUE:%.*]]* %0, i8* %1) {{[#0-9]*}} {
+// CHECK: define internal void @"$s12objc_dealloc10SwiftGizmoCfDTo"(ptr %0, ptr %1) {{[#0-9]*}} {
 sil private [ossa] @$s12objc_dealloc10SwiftGizmoCfDTo : $@convention(objc_method) (SwiftGizmo) -> () {
 bb0(%0 : @unowned $SwiftGizmo):
   // CHECK-NEXT: entry
   // CHECK-NEXT: [[OBJC_SUPER:%[a-zA-Z0-9_]+]] = alloca %objc_super, align 8
-  // CHECK: [[SGIZMOVAL:%[a-zA-Z0-9]+]] = bitcast [[OPAQUE]]* %0 to [[SGIZMO]]*
 
   // Call to onDestruct()
   // CHECK: call swiftcc void @"$s12objc_dealloc10onDestructyyF"()
@@ -87,29 +82,24 @@ bb0(%0 : @unowned $SwiftGizmo):
 
   // Destroy instance variables
   // FIXME: This should move to .cxx_destruct
-  // CHECK: [[XOFFSET:%[a-zA-Z0-9]+]] = load i64, i64* @"$s12objc_dealloc10SwiftGizmoC1xAA1XCvpWvd", align 8
-  // CHECK-NEXT: bitcast
-  // CHECK-NEXT: [[IVAR_ADDR:%[a-zA-Z0-9]+]] = getelementptr inbounds i8, i8* {{.*}}, i64 [[XOFFSET]]
-  // CHECK-NEXT: [[XADDR:%[.a-zA-Z0-9]+]] = bitcast i8* [[IVAR_ADDR]] to %T12objc_dealloc1XC**
-  // CHECK-NEXT: [[X:%[a-zA-Z0-9]+]] = load %T12objc_dealloc1XC*, %T12objc_dealloc1XC** [[XADDR]], align 8
-  // CHECK-NEXT: call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T12objc_dealloc1XC*)*)(%T12objc_dealloc1XC* [[X]])
+  // CHECK: [[XOFFSET:%[a-zA-Z0-9]+]] = load i64, ptr @"$s12objc_dealloc10SwiftGizmoC1xAA1XCvpWvd", align 8
+  // CHECK-NEXT: [[IVAR_ADDR:%[a-zA-Z0-9]+]] = getelementptr inbounds i8, ptr {{.*}}, i64 [[XOFFSET]]
+  // CHECK-NEXT: [[X:%[a-zA-Z0-9]+]] = load ptr, ptr [[IVAR_ADDR]], align 8
+  // CHECK-NEXT: call void @swift_release(ptr [[X]])
   %3 = unchecked_ownership_conversion %0 : $SwiftGizmo, @unowned to @guaranteed
   %4 = ref_element_addr %3 : $SwiftGizmo, #SwiftGizmo.x      // user: %4
   destroy_addr %4 : $*X                           // id: %4
   end_borrow %3 : $SwiftGizmo
 
   // Call super -dealloc.
-  // CHECK: [[SUPER:%[a-zA-Z0-9]+]] = bitcast [[SGIZMO]]* [[SGIZMOVAL]] to [[GIZMO]]*
-  // CHECK-NEXT: [[SUPER_OBJ:%[a-zA-Z0-9]+]] = bitcast [[GIZMO]]* [[SUPER]] to %objc_object*
-  // CHECK-NEXT: [[TMP:%.*]] = call swiftcc %swift.metadata_response @"$s12objc_dealloc10SwiftGizmoCMa"(i64 0)
+  // CHECK: [[TMP:%.*]] = call swiftcc %swift.metadata_response @"$s12objc_dealloc10SwiftGizmoCMa"(i64 0)
   // CHECK-NEXT: [[T0:%.*]] = extractvalue %swift.metadata_response [[TMP]], 0
-  // CHECK-NEXT: [[T1:%.*]] = bitcast %swift.type* [[T0]] to %objc_class*
-  // CHECK-NEXT: [[OBJC_SUPER_RECEIVER:%[a-zA-Z0-9]+]] = getelementptr inbounds %objc_super, %objc_super* [[OBJC_SUPER]], i32 0, i32 0
-  // CHECK-NEXT: store %objc_object* [[SUPER_OBJ]], %objc_object** [[OBJC_SUPER_RECEIVER]], align 8
-  // CHECK-NEXT: [[OBJC_SUPER_CLASS:%[a-zA-Z0-9]+]] = getelementptr inbounds %objc_super, %objc_super* [[OBJC_SUPER]], i32 0, i32 1
-  // CHECK-NEXT: store %objc_class* [[T1]], %objc_class** [[OBJC_SUPER_CLASS]], align 8
-  // CHECK-NEXT: [[DEALLOC_SEL:%[a-zA-Z0-9]+]] = load i8*, i8** @"\01L_selector(dealloc)", align 8
-  // CHECK-NEXT: call void bitcast (void ()* @objc_msgSendSuper2 to void (%objc_super*, i8*)*)(%objc_super* [[OBJC_SUPER]], i8* [[DEALLOC_SEL]])
+  // CHECK-NEXT: [[OBJC_SUPER_RECEIVER:%[a-zA-Z0-9]+]] = getelementptr inbounds %objc_super, ptr [[OBJC_SUPER]], i32 0, i32 0
+  // CHECK-NEXT: store ptr %0, ptr [[OBJC_SUPER_RECEIVER]], align 8
+  // CHECK-NEXT: [[OBJC_SUPER_CLASS:%[a-zA-Z0-9]+]] = getelementptr inbounds %objc_super, ptr [[OBJC_SUPER]], i32 0, i32 1
+  // CHECK-NEXT: store ptr [[T0]], ptr [[OBJC_SUPER_CLASS]], align 8
+  // CHECK-NEXT: [[DEALLOC_SEL:%[a-zA-Z0-9]+]] = load ptr, ptr @"\01L_selector(dealloc)", align 8
+  // CHECK-NEXT: call void @objc_msgSendSuper2(ptr [[OBJC_SUPER]], ptr [[DEALLOC_SEL]])
   %5 = objc_super_method %0 : $SwiftGizmo, #Gizmo.deinit!deallocator.foreign : (Gizmo) -> () -> (), $@convention(objc_method) (Gizmo) -> () // user: %7
   %6 = upcast %0 : $SwiftGizmo to $Gizmo          // user: %7
   %7 = apply %5(%6) : $@convention(objc_method) (Gizmo) -> ()

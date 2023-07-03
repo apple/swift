@@ -1,4 +1,4 @@
-// REQUIRES: swift_swift_parser
+// REQUIRES: swift_swift_parser, asserts
 
 // RUN: %target-typecheck-verify-swift -swift-version 5 -enable-experimental-feature CodeItemMacros -module-name MacrosTest
 
@@ -96,8 +96,7 @@ macro genericDeclMacro<T: Numeric, U: Numeric>(_ x: T, _ y: U)
 // expected-note @-2 {{where 'U' = 'String'}}
 
 func testDiags(a: Int, b: Int) {
-  // FIXME: Bad diagnostic.
-  let s = #stringify<Int, Int>(a + b) // expected-error{{type of expression is ambiguous without a type annotation}}
+  let s = #stringify<Int, Int>(a + b) // expected-error{{generic type 'stringify' specialized with too many type parameters (got 2, but expected 1)}}
 
   _ = #stringify()
   // expected-error@-1{{missing argument for parameter #1 in macro expansion}}

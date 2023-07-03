@@ -39,6 +39,7 @@
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/CAS/ActionCache.h"
 #include "llvm/CAS/ObjectStore.h"
 #include "llvm/Support/CommandLine.h"
@@ -238,7 +239,7 @@ struct ModuleRebuildInfo {
   };
   struct CandidateModule {
     std::string path;
-    Optional<serialization::Status> serializationStatus;
+    llvm::Optional<serialization::Status> serializationStatus;
     ModuleKind kind;
     ReasonIgnored reasonIgnored;
     SmallVector<std::string, 10> outOfDateDependencies;
@@ -251,7 +252,7 @@ struct ModuleRebuildInfo {
       if (mod.path == path) return mod;
     }
     candidateModules.push_back({path.str(),
-                                None,
+                                llvm::None,
                                 ModuleKind::Normal,
                                 ReasonIgnored::NotIgnored,
                                 {},
@@ -630,13 +631,13 @@ class ModuleInterfaceLoaderImpl {
     return false;
   }
 
-  Optional<StringRef>
+  llvm::Optional<StringRef>
   computePrebuiltModulePath(llvm::SmallString<256> &scratch) {
     namespace path = llvm::sys::path;
 
     // Check if this is a public interface file from the SDK.
     if (!canInterfaceHavePrebuiltModule())
-      return None;
+      return llvm::None;
 
     // Assemble the expected path: $PREBUILT_CACHE/Foo.swiftmodule or
     // $PREBUILT_CACHE/Foo.swiftmodule/arch.swiftmodule. Note that there's no
@@ -656,7 +657,7 @@ class ModuleInterfaceLoaderImpl {
 
     // If there isn't a file at this location, skip returning a path.
     if (!fs.exists(scratch))
-      return None;
+      return llvm::None;
 
     return scratch.str();
   }
@@ -664,7 +665,7 @@ class ModuleInterfaceLoaderImpl {
   /// Hack to deal with build systems (including the Swift standard library, at
   /// the time of this comment) that aren't yet using target-specific names for
   /// multi-target swiftmodules, in case the prebuilt cache is.
-  Optional<StringRef>
+  llvm::Optional<StringRef>
   computeFallbackPrebuiltModulePath(llvm::SmallString<256> &scratch) {
     namespace path = llvm::sys::path;
     StringRef sdkPath = ctx.SearchPathOpts.getSDKPath();
@@ -674,19 +675,19 @@ class ModuleInterfaceLoaderImpl {
         !hasPrefix(path::begin(interfacePath), path::end(interfacePath),
                    path::begin(sdkPath), path::end(sdkPath)) ||
         StringRef(interfacePath).endswith(".private.swiftinterface"))
-      return None;
+      return llvm::None;
 
     // If the module isn't target-specific, there's no fallback path.
     StringRef inParentDirName =
         path::filename(path::parent_path(interfacePath));
     if (path::extension(inParentDirName) != ".swiftmodule")
-      return None;
+      return llvm::None;
 
     // If the interface is already using the target-specific name, there's
     // nothing else to try.
     auto normalizedTarget = getTargetSpecificModuleTriple(ctx.LangOpts.Target);
     if (path::stem(modulePath) == normalizedTarget.str())
-      return None;
+      return llvm::None;
 
     // Assemble the expected path:
     // $PREBUILT_CACHE/Foo.swiftmodule/target.swiftmodule. Note that there's no
@@ -698,7 +699,7 @@ class ModuleInterfaceLoaderImpl {
 
     // If there isn't a file at this location, skip returning a path.
     if (!fs.exists(scratch))
-      return None;
+      return llvm::None;
 
     return scratch.str();
   }
@@ -786,7 +787,7 @@ class ModuleInterfaceLoaderImpl {
     if (!prebuiltCacheDir.empty()) {
       llvm::SmallString<256> scratch;
       std::unique_ptr<llvm::MemoryBuffer> moduleBuffer;
-      Optional<StringRef> path = computePrebuiltModulePath(scratch);
+      llvm::Optional<StringRef> path = computePrebuiltModulePath(scratch);
       if (!path) {
         // Hack: deal with prebuilds of modules that still use the target-based
         // names.
@@ -1181,7 +1182,7 @@ std::error_code ModuleInterfaceLoader::findModuleFilesInDirectory(
 
   // First check to see if the .swiftinterface exists at all. Bail if not.
   auto &fs = *Ctx.SourceMgr.getFileSystem();
-  std::string InPath = BaseName.findInterfacePath(fs).getValueOr("");
+  std::string InPath = BaseName.findInterfacePath(fs).value_or("");
   if (InPath.empty()) {
     if (fs.exists(ModPath)) {
       LLVM_DEBUG(llvm::dbgs()
@@ -1600,12 +1601,23 @@ void InterfaceSubContextDelegateImpl::inheritOptionsForBuildingInterface(
     GenericArgs.push_back(clangImporterOpts.BuildSessionFilePath);
   }
 
-  if (!clangImporterOpts.CASPath.empty()) {
-    genericSubInvocation.getClangImporterOptions().CASPath =
-        clangImporterOpts.CASPath;
-    GenericArgs.push_back("-enable-cas");
-    GenericArgs.push_back("-cas-path");
-    GenericArgs.push_back(clangImporterOpts.CASPath);
+  if (clangImporterOpts.CASOpts) {
+    genericSubInvocation.getClangImporterOptions().CASOpts =
+        clangImporterOpts.CASOpts;
+    GenericArgs.push_back("-cache-compile-job");
+    if (!clangImporterOpts.CASOpts->CASPath.empty()) {
+      GenericArgs.push_back("-cas-path");
+      GenericArgs.push_back(clangImporterOpts.CASOpts->CASPath);
+    }
+    if (!clangImporterOpts.CASOpts->PluginPath.empty()) {
+      GenericArgs.push_back("-cas-plugin-path");
+      GenericArgs.push_back(clangImporterOpts.CASOpts->PluginPath);
+      for (auto Opt : clangImporterOpts.CASOpts->PluginOptions) {
+        GenericArgs.push_back("-cas-plugin-option");
+        std::string pair = (llvm::Twine(Opt.first) + "=" + Opt.second).str();
+        GenericArgs.push_back(ArgSaver.save(pair));
+      }
+    }
   }
 
   if (clangImporterOpts.UseClangIncludeTree) {
@@ -1702,7 +1714,7 @@ InterfaceSubContextDelegateImpl::InterfaceSubContextDelegateImpl(
   // required by sourcekitd.
   subClangImporterOpts.DetailedPreprocessingRecord =
     clangImporterOpts.DetailedPreprocessingRecord;
-  subClangImporterOpts.CASPath = clangImporterOpts.CASPath;
+  subClangImporterOpts.CASOpts = clangImporterOpts.CASOpts;
 
   // If the compiler has been asked to be strict with ensuring downstream dependencies
   // get the parent invocation's context, or this is an Explicit build, inherit the

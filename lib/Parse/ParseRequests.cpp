@@ -62,7 +62,7 @@ ParseMembersRequest::evaluate(Evaluator &evaluator,
       }
     }
 
-    Optional<Fingerprint> fp = None;
+    llvm::Optional<Fingerprint> fp = llvm::None;
     if (!idc->getDecl()->isImplicit() && fileUnit) {
       fp = fileUnit->loadFingerprint(idc);
     }
@@ -215,7 +215,8 @@ SourceFileParsingResult ParseSourceFileRequest::evaluate(Evaluator &evaluator,
       break;
     }
 
-    case GeneratedSourceInfo::ConformanceMacroExpansion: {
+    case GeneratedSourceInfo::ConformanceMacroExpansion:
+    case GeneratedSourceInfo::ExtensionMacroExpansion: {
       parser.parseTopLevelItems(items);
       break;
     }
@@ -224,7 +225,7 @@ SourceFileParsingResult ParseSourceFileRequest::evaluate(Evaluator &evaluator,
     parser.parseTopLevelItems(items);
   }
 
-  Optional<ArrayRef<Token>> tokensRef;
+  llvm::Optional<ArrayRef<Token>> tokensRef;
   if (auto tokens = parser.takeTokenReceiver()->finalize())
     tokensRef = ctx.AllocateCopy(*tokens);
 
@@ -237,12 +238,12 @@ evaluator::DependencySource ParseSourceFileRequest::readDependencySource(
   return std::get<0>(getStorage());
 }
 
-Optional<SourceFileParsingResult>
+llvm::Optional<SourceFileParsingResult>
 ParseSourceFileRequest::getCachedResult() const {
   auto *SF = std::get<0>(getStorage());
   auto items = SF->getCachedTopLevelItems();
   if (!items)
-    return None;
+    return llvm::None;
 
   return SourceFileParsingResult{*items, SF->AllCollectedTokens,
                                  SF->InterfaceHasher};

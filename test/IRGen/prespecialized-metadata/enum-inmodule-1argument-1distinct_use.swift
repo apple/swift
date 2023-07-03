@@ -1,5 +1,4 @@
-// RUN: %swift %use_no_opaque_pointers -prespecialize-generic-metadata -target %module-target-future -emit-ir %s | %FileCheck %s -DINT=i%target-ptrsize -DALIGNMENT=%target-alignment
-// RUN: %swift -prespecialize-generic-metadata -target %module-target-future -emit-ir %s
+// RUN: %swift -prespecialize-generic-metadata -target %module-target-future -emit-ir %s | %FileCheck %s -DINT=i%target-ptrsize -DALIGNMENT=%target-alignment
 
 // REQUIRES: VENDOR=apple || OS=linux-gnu
 // UNSUPPORTED: CPU=i386 && OS=ios
@@ -7,35 +6,33 @@
 // UNSUPPORTED: CPU=armv7s && OS=ios
 
 // CHECK: @"$s4main5ValueOySiGWV" = linkonce_odr hidden constant %swift.enum_vwtable { 
-// CHECK-SAME:   i8* bitcast ({{[^@]+}}@"$s4main5ValueOwCP{{[^\)]*}} to i8*), 
-// CHECK-SAME:   i8* bitcast ({{[^@]+}}@"$s4main5ValueOwxx{{[^)]*}} to i8*), 
-// CHECK-SAME:   i8* bitcast ({{[^@]+}}@"$s4main5ValueOwcp{{[^)]*}} to i8*), 
-// CHECK-SAME:   i8* bitcast ({{[^@]+}}@"$s4main5ValueOwca{{[^)]*}} to i8*), 
-// CHECK-SAME:   i8* bitcast ({{[^@]+}}@"$s4main5ValueOwtk{{[^)]*}} to i8*), 
-// CHECK-SAME:   i8* bitcast ({{[^@]+}}@"$s4main5ValueOwta{{[^)]*}} to i8*), 
-// CHECK-SAME:   i8* bitcast ({{[^@]+}}@"$s4main5ValueOwet{{[^)]+}} to i8*), 
-// CHECK-SAME:   i8* bitcast ({{[^@]+}}@"$s4main5ValueOwst{{[^)]+}} to i8*), 
+// CHECK-SAME:   $s4main5ValueOwCP
+// CHECK-SAME:   $s4main5ValueOwxx
+// CHECK-SAME:   $s4main5ValueOwcp
+// CHECK-SAME:   $s4main5ValueOwca
+// CHECK-SAME:   $s4main5ValueOwtk
+// CHECK-SAME:   $s4main5ValueOwta
+// CHECK-SAME:   $s4main5ValueOwet
+// CHECK-SAME:   $s4main5ValueOwst
 // CHECK-SAME:   [[INT]] [[ALIGNMENT]], 
 // CHECK-SAME:   [[INT]] [[ALIGNMENT]], 
 // CHECK-SAME:   i32 {{[0-9]+}}, 
 // CHECK-SAME:   i32 0, 
-// CHECK-SAME:   i8* bitcast ({{[^@]+}}@"$s4main5ValueOwug{{[^)]+}} to i8*), 
-// CHECK-SAME:   i8* bitcast ({{[^@]+}}@"$s4main5ValueOwup{{[^)]+}} to i8*), 
-// CHECK-SAME:   i8* bitcast ({{[^@]+}}@"$s4main5ValueOwui{{[^)]+}} to i8*) 
+// CHECK-SAME:   $s4main5ValueOwug
+// CHECK-SAME:   $s4main5ValueOwup
+// CHECK-SAME:   $s4main5ValueOwui
 // CHECK-SAME: }, align [[ALIGNMENT]]
 // CHECK: @"$s4main5ValueOySiGMf" = linkonce_odr hidden constant <{ 
-// CHECK-SAME:   i8**, 
+// CHECK-SAME:   ptr, 
 // CHECK-SAME:   [[INT]], 
-// CHECK-SAME:   %swift.type_descriptor*, 
-// CHECK-SAME:   %swift.type*, 
+// CHECK-SAME:   ptr, 
+// CHECK-SAME:   ptr, 
 // CHECK-SAME:   i64 
 // CHECK-SAME: }> <{ 
-// CHECK-SAME: i8** getelementptr inbounds (%swift.enum_vwtable, %swift.enum_vwtable* @"$s4main5ValueOySiGWV", i32 0, i32 0), 
-// CHECK-SAME: [[INT]] 513, 
-// CHECK-SAME:   %swift.type_descriptor* bitcast (
-// CHECK-SAME:     {{.*}}$s4main5ValueOMn{{.*}} to %swift.type_descriptor*
-// CHECK-SAME:   ), 
-// CHECK-SAME:   %swift.type* @"$sSiN", 
+// CHECK-SAME:   $s4main5ValueOySiGWV
+// CHECK-SAME:   [[INT]] 513, 
+// CHECK-SAME:   $s4main5ValueOMn
+// CHECK-SAME:   $sSiN
 // CHECK-SAME:   i64 3 
 // CHECK-SAME: }>, align [[ALIGNMENT]]
 enum Value<First> {
@@ -50,8 +47,8 @@ func consume<T>(_ t: T) {
 
 // CHECK: define hidden swiftcc void @"$s4main4doityyF"() #{{[0-9]+}} {
 // CHECK:   call swiftcc void @"$s4main7consumeyyxlF"(
-// CHECK-SAME:   %swift.opaque* noalias nocapture %{{[0-9]+}}, 
-// CHECK-SAME:   %swift.type* getelementptr inbounds (%swift.full_type, %swift.full_type* bitcast (<{ i8*, i8**, [[INT]], %swift.type_descriptor*, %swift.type*, i64 }>* @"$s4main5ValueOySiGMf" to %swift.full_type*), i32 0, i32 2)
+// CHECK-SAME:   ptr noalias nocapture %{{[0-9]+}}, 
+// CHECK-SAME:   $s4main5ValueOySiGMf
 // CHECK-SAME: )
 // CHECK: }
 func doit() {
@@ -60,17 +57,14 @@ func doit() {
 doit()
 
 // CHECK: ; Function Attrs: noinline nounwind readnone
-// CHECK: define hidden swiftcc %swift.metadata_response @"$s4main5ValueOMa"([[INT]] %0, %swift.type* %1) #{{[0-9]+}} {{(section)?.*}}{
+// CHECK: define hidden swiftcc %swift.metadata_response @"$s4main5ValueOMa"([[INT]] %0, ptr %1) #{{[0-9]+}} {{(section)?.*}}{
 // CHECK: entry:
-// CHECK:   [[ERASED_TYPE:%[0-9]+]] = bitcast %swift.type* %1 to i8*
 // CHECK:   {{%[0-9]+}} = call swiftcc %swift.metadata_response @__swift_instantiateCanonicalPrespecializedGenericMetadata(
 // CHECK-SAME:   [[INT]] %0, 
-// CHECK-SAME:   i8* %2, 
-// CHECK-SAME:   i8* undef, 
-// CHECK-SAME:   i8* undef, 
-// CHECK-SAME:   %swift.type_descriptor* bitcast (
-// CHECK-SAME:     {{.*}}$s4main5ValueOMn{{.*}} to %swift.type_descriptor*
-// CHECK-SAME:   )
-// CHECK-SAME: ) #{{[0-9]+}}
+// CHECK-SAME:   ptr %1, 
+// CHECK-SAME:   ptr undef, 
+// CHECK-SAME:   ptr undef, 
+// CHECK-SAME:   $s4main5ValueOMn
+// CHECK-SAME: )
 // CHECK:   ret %swift.metadata_response {{%[0-9]+}}
 // CHECK: }

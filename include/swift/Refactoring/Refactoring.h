@@ -69,7 +69,7 @@ struct RefactoringOptions {
 struct RenameRangeDetail {
   CharSourceRange Range;
   RefactoringRangeKind RangeKind;
-  Optional<unsigned> Index;
+  llvm::Optional<unsigned> Index;
 };
 
 enum class RefactorAvailableKind {

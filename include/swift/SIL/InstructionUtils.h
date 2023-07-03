@@ -13,6 +13,7 @@
 #ifndef SWIFT_SIL_INSTRUCTIONUTILS_H
 #define SWIFT_SIL_INSTRUCTIONUTILS_H
 
+#include "swift/SIL/InstWrappers.h"
 #include "swift/SIL/RuntimeEffect.h"
 #include "swift/SIL/SILInstruction.h"
 
@@ -162,58 +163,6 @@ RuntimeEffect getRuntimeEffect(SILInstruction *inst, SILType &impactType);
 void findClosuresForFunctionValue(SILValue V,
                                   TinyPtrVector<PartialApplyInst *> &results);
 
-/// An abstraction over LoadInst/LoadBorrowInst so one can handle both types of
-/// load using common code.
-struct LoadOperation {
-  llvm::PointerUnion<LoadInst *, LoadBorrowInst *> value;
-
-  LoadOperation() : value() {}
-  LoadOperation(SILInstruction *input) : value(nullptr) {
-    if (auto *li = dyn_cast<LoadInst>(input)) {
-      value = li;
-      return;
-    }
-
-    if (auto *lbi = dyn_cast<LoadBorrowInst>(input)) {
-      value = lbi;
-      return;
-    }
-  }
-
-  explicit operator bool() const { return !value.isNull(); }
-
-  SingleValueInstruction *getLoadInst() const {
-    if (value.is<LoadInst *>())
-      return value.get<LoadInst *>();
-    return value.get<LoadBorrowInst *>();
-  }
-
-  SingleValueInstruction *operator*() const { return getLoadInst(); }
-
-  const SingleValueInstruction *operator->() const { return getLoadInst(); }
-
-  SingleValueInstruction *operator->() { return getLoadInst(); }
-
-  SILValue getOperand() const {
-    if (value.is<LoadInst *>())
-      return value.get<LoadInst *>()->getOperand();
-    return value.get<LoadBorrowInst *>()->getOperand();
-  }
-
-  /// Return the ownership qualifier of the underlying load if we have a load or
-  /// None if we have a load_borrow.
-  ///
-  /// TODO: Rather than use an optional here, we should include an invalid
-  /// representation in LoadOwnershipQualifier.
-  Optional<LoadOwnershipQualifier> getOwnershipQualifier() const {
-    if (auto *lbi = value.dyn_cast<LoadBorrowInst *>()) {
-      return None;
-    }
-
-    return value.get<LoadInst *>()->getOwnershipQualifier();
-  }
-};
-
 /// Given a polymorphic builtin \p bi that may be generic and thus have in/out
 /// params, stash all of the information needed for either specializing while
 /// inlining or propagating the type in constant propagation.
@@ -256,81 +205,6 @@ private:
 /// polymorphic builtin or does not have any available overload for these types,
 /// return SILValue().
 SILValue getStaticOverloadForSpecializedPolymorphicBuiltin(BuiltinInst *bi);
-
-/// An ADT for writing generic code against conversion instructions.
-struct ConversionOperation {
-  SingleValueInstruction *inst = nullptr;
-
-  ConversionOperation() = default;
-
-  explicit ConversionOperation(SILInstruction *inst) {
-    auto *svi = dyn_cast<SingleValueInstruction>(inst);
-    if (!svi) {
-      return;
-    }
-    if (!ConversionOperation::isa(svi)) {
-      return;
-    }
-    this->inst = svi;
-  }
-
-  explicit ConversionOperation(SILValue value) {
-    auto *inst = value->getDefiningInstruction();
-    if (!inst) {
-      return;
-    }
-    auto *svi = dyn_cast<SingleValueInstruction>(inst);
-    if (!svi) {
-      return;
-    }
-    if (!ConversionOperation::isa(svi)) {
-      return;
-    }
-    this->inst = svi;
-  }
-
-  operator bool() const { return inst != nullptr; }
-
-  SingleValueInstruction *operator->() { return inst; }
-  SingleValueInstruction *operator->() const { return inst; }
-  SingleValueInstruction *operator*() { return inst; }
-  SingleValueInstruction *operator*() const { return inst; }
-
-  static bool isa(SILInstruction *inst) {
-    switch (inst->getKind()) {
-    case SILInstructionKind::ConvertFunctionInst:
-    case SILInstructionKind::UpcastInst:
-    case SILInstructionKind::AddressToPointerInst:
-    case SILInstructionKind::UncheckedTrivialBitCastInst:
-    case SILInstructionKind::UncheckedAddrCastInst:
-    case SILInstructionKind::UncheckedBitwiseCastInst:
-    case SILInstructionKind::RefToRawPointerInst:
-    case SILInstructionKind::RawPointerToRefInst:
-    case SILInstructionKind::ConvertEscapeToNoEscapeInst:
-    case SILInstructionKind::RefToBridgeObjectInst:
-    case SILInstructionKind::BridgeObjectToRefInst:
-    case SILInstructionKind::BridgeObjectToWordInst:
-    case SILInstructionKind::ThinToThickFunctionInst:
-    case SILInstructionKind::ThickToObjCMetatypeInst:
-    case SILInstructionKind::ObjCToThickMetatypeInst:
-    case SILInstructionKind::ObjCMetatypeToObjectInst:
-    case SILInstructionKind::ObjCExistentialMetatypeToObjectInst:
-    case SILInstructionKind::UnconditionalCheckedCastInst:
-    case SILInstructionKind::UncheckedRefCastInst:
-    case SILInstructionKind::UncheckedValueCastInst:
-    case SILInstructionKind::RefToUnmanagedInst:
-    case SILInstructionKind::RefToUnownedInst:
-    case SILInstructionKind::UnmanagedToRefInst:
-    case SILInstructionKind::UnownedToRefInst:
-      return true;
-    default:
-      return false;
-    }
-  }
-
-  SILValue getConverted() { return inst->getOperand(0); }
-};
-
 } // end namespace swift
 
 #endif

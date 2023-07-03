@@ -164,7 +164,7 @@ void ModuleDependencyInfo::addModuleImport(
   }
 }
 
-Optional<std::string> ModuleDependencyInfo::getBridgingHeader() const {
+llvm::Optional<std::string> ModuleDependencyInfo::getBridgingHeader() const {
   switch (getKind()) {
   case swift::ModuleDependencyKind::SwiftInterface: {
     auto swiftInterfaceStorage =
@@ -181,7 +181,7 @@ Optional<std::string> ModuleDependencyInfo::getBridgingHeader() const {
   }
 }
 
-Optional<std::string> ModuleDependencyInfo::getCASFSRootID() const {
+llvm::Optional<std::string> ModuleDependencyInfo::getCASFSRootID() const {
   std::string Root;
   switch (getKind()) {
   case swift::ModuleDependencyKind::SwiftInterface: {
@@ -202,15 +202,15 @@ Optional<std::string> ModuleDependencyInfo::getCASFSRootID() const {
     break;
   }
   default:
-    return None;
+    return llvm::None;
   }
   if (Root.empty())
-    return None;
+    return llvm::None;
 
   return Root;
 }
 
-Optional<std::string> ModuleDependencyInfo::getClangIncludeTree() const {
+llvm::Optional<std::string> ModuleDependencyInfo::getClangIncludeTree() const {
   std::string Root;
   switch (getKind()) {
   case swift::ModuleDependencyKind::Clang: {
@@ -219,15 +219,15 @@ Optional<std::string> ModuleDependencyInfo::getClangIncludeTree() const {
     break;
   }
   default:
-    return None;
+    return llvm::None;
   }
   if (Root.empty())
-    return None;
+    return llvm::None;
 
   return Root;
 }
 
-Optional<std::string>
+llvm::Optional<std::string>
 ModuleDependencyInfo::getBridgingHeaderIncludeTree() const {
   std::string Root;
   switch (getKind()) {
@@ -246,10 +246,10 @@ ModuleDependencyInfo::getBridgingHeaderIncludeTree() const {
     break;
   }
   default:
-    return None;
+    return llvm::None;
   }
   if (Root.empty())
-    return None;
+    return llvm::None;
 
   return Root;
 }
@@ -394,11 +394,31 @@ SwiftDependencyScanningService::SwiftDependencyScanningService() {
   SharedFilesystemCache.emplace();
 }
 
+void SwiftDependencyTracker::addCommonSearchPathDeps(
+    const SearchPathOptions &Opts) {
+  // Add SDKSetting file.
+  SmallString<256> SDKSettingPath;
+  llvm::sys::path::append(SDKSettingPath, Opts.getSDKPath(),
+                          "SDKSettings.json");
+  FS->status(SDKSettingPath);
+
+  // Add Legacy layout file.
+  const std::vector<std::string> AllSupportedArches = {
+      "arm64", "arm64e", "x86_64", "i386",
+      "armv7", "armv7s", "armv7k", "arm64_32"};
+
+  for (auto RuntimeLibPath : Opts.RuntimeLibraryPaths) {
+    std::error_code EC;
+    for (auto &Arch : AllSupportedArches) {
+      SmallString<256> LayoutFile(RuntimeLibPath);
+      llvm::sys::path::append(LayoutFile, "layout-" + Arch + ".yaml");
+      FS->status(LayoutFile);
+    }
+  }
+}
+
 void SwiftDependencyTracker::startTracking() {
   FS->trackNewAccesses();
-
-  for (auto &file : Files)
-    (void)FS->status(file);
 }
 
 llvm::Expected<llvm::cas::ObjectProxy>
@@ -417,12 +437,25 @@ void SwiftDependencyScanningService::overlaySharedFilesystemCacheForCompilation(
   Instance.getSourceMgr().setFileSystem(depFS);
 }
 
-void SwiftDependencyScanningService::setupCachingDependencyScanningService(
+bool SwiftDependencyScanningService::setupCachingDependencyScanningService(
     CompilerInstance &Instance) {
-  if (!Instance.getInvocation().getFrontendOptions().EnableCAS)
-    return;
+  if (!Instance.getInvocation().getFrontendOptions().EnableCaching)
+    return false;
+
+  if (CASOpts) {
+    // If CASOption matches, the service is initialized already.
+    if (*CASOpts == Instance.getInvocation().getFrontendOptions().CASOpts)
+      return false;
+
+    // CASOption mismatch, return error.
+    Instance.getDiags().diagnose(
+        SourceLoc(), diag::error_cas,
+        "conflicting CAS options used in scanning service");
+    return true;
+  }
 
   // Setup CAS.
+  CASOpts = Instance.getInvocation().getFrontendOptions().CASOpts;
   CAS = Instance.getSharedCASInstance();
 
   // Add SDKSetting file.
@@ -446,24 +479,14 @@ void SwiftDependencyScanningService::setupCachingDependencyScanningService(
     }
   }
 
-  // Fetch some dependency files from clang importer.
-  auto clangImporter = static_cast<ClangImporter *>(
-      Instance.getASTContext().getClangModuleLoader());
-  clangImporter->addClangInvovcationDependencies(CommonDependencyFiles);
-
   auto CachingFS =
       llvm::cas::createCachingOnDiskFileSystem(Instance.getObjectStore());
   if (!CachingFS) {
-    Instance.getDiags().diagnose(SourceLoc(), diag::error_create_cas,
-                                 "CachingOnDiskFS",
+    Instance.getDiags().diagnose(SourceLoc(), diag::error_cas,
                                  toString(CachingFS.takeError()));
-    return;
+    return true;
   }
   CacheFS = std::move(*CachingFS);
-
-  clang::CASOptions CASOpts;
-  CASOpts.CASPath = Instance.getInvocation().getFrontendOptions().CASPath;
-  CASOpts.ensurePersistentCAS();
 
   UseClangIncludeTree =
       Instance.getInvocation().getClangImporterOptions().UseClangIncludeTree;
@@ -474,10 +497,13 @@ void SwiftDependencyScanningService::setupCachingDependencyScanningService(
 
   ClangScanningService.emplace(
       clang::tooling::dependencies::ScanningMode::DependencyDirectivesScan,
-      ClangScanningFormat, CASOpts, Instance.getSharedCASInstance(),
-      Instance.getSharedCacheInstance(),
+      ClangScanningFormat,
+      Instance.getInvocation().getFrontendOptions().CASOpts,
+      Instance.getSharedCASInstance(), Instance.getSharedCacheInstance(),
       UseClangIncludeTree ? nullptr : CacheFS,
       /* ReuseFileManager */ false, /* OptimizeArgs */ false);
+
+  return false;
 }
 
 SwiftDependencyScanningService::ContextSpecificGlobalCacheState *
@@ -526,8 +552,9 @@ void SwiftDependencyScanningService::configureForContextHash(StringRef scanningC
   }
 }
 
-Optional<const ModuleDependencyInfo*> SwiftDependencyScanningService::findDependency(
-    StringRef moduleName, Optional<ModuleDependencyKind> kind,
+llvm::Optional<const ModuleDependencyInfo *>
+SwiftDependencyScanningService::findDependency(
+    StringRef moduleName, llvm::Optional<ModuleDependencyKind> kind,
     StringRef scanningContextHash) const {
   if (!kind) {
     for (auto kind = ModuleDependencyKind::FirstKind;
@@ -536,7 +563,7 @@ Optional<const ModuleDependencyInfo*> SwiftDependencyScanningService::findDepend
       if (dep.has_value())
         return dep.value();
     }
-    return None;
+    return llvm::None;
   }
 
   assert(kind.has_value() && "Expected dependencies kind for lookup.");
@@ -545,11 +572,11 @@ Optional<const ModuleDependencyInfo*> SwiftDependencyScanningService::findDepend
   if (known != map.end())
     return &(known->second);
 
-  return None;
+  return llvm::None;
 }
 
 bool SwiftDependencyScanningService::hasDependency(
-    StringRef moduleName, Optional<ModuleDependencyKind> kind,
+    StringRef moduleName, llvm::Optional<ModuleDependencyKind> kind,
     StringRef scanContextHash) const {
   return findDependency(moduleName, kind, scanContextHash).has_value();
 }
@@ -605,18 +632,19 @@ ModuleDependenciesCache::ModuleDependenciesCache(
   }
 }
 
-Optional<const ModuleDependencyInfo *> ModuleDependenciesCache::findDependency(
-    StringRef moduleName, Optional<ModuleDependencyKind> kind) const {
+llvm::Optional<const ModuleDependencyInfo *>
+ModuleDependenciesCache::findDependency(
+    StringRef moduleName, llvm::Optional<ModuleDependencyKind> kind) const {
   auto optionalDep = globalScanningService.findDependency(moduleName, kind,
                                                           scannerContextHash);
   // During a scan, only produce the cached source module info for the current
   // module under scan.
-  if (optionalDep.hasValue()) {
-    auto dep = optionalDep.getValue();
+  if (optionalDep) {
+    auto dep = *optionalDep;
     if (dep->getAsSwiftSourceModule() &&
         moduleName != mainScanModuleName &&
         moduleName != "DummyMainModuleForResolvingCrossImportOverlays") {
-      return None;
+      return llvm::None;
     }
   }
 
@@ -624,7 +652,7 @@ Optional<const ModuleDependencyInfo *> ModuleDependenciesCache::findDependency(
 }
 
 bool ModuleDependenciesCache::hasDependency(
-    StringRef moduleName, Optional<ModuleDependencyKind> kind) const {
+    StringRef moduleName, llvm::Optional<ModuleDependencyKind> kind) const {
   return findDependency(moduleName, kind).has_value();
 }
 

@@ -7,8 +7,8 @@
 
 @_marker public protocol _Copyable {}
 
-func nextTime<T>(_ t: T) {}
+func nextTime<T>(_ t: T) {} // expected-note {{generic parameter 'T' has an implicit Copyable requirement}}
 
 @_moveOnly struct MO {}
 
-nextTime(MO()) // expected-error {{noncopyable type 'MO' cannot be used with generics yet}}
+nextTime(MO()) // expected-error {{noncopyable type 'MO' cannot be substituted for copyable generic parameter 'T' in 'nextTime'}}

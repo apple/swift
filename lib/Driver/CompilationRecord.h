@@ -74,14 +74,14 @@ getIdentifierForInputInfoStatus(CompileJobAction::InputInfo::Status Status) {
 
 /// \returns The status corresponding to the string identifier used in a
 /// compilation record file (.swiftdeps file).
-inline static Optional<CompileJobAction::InputInfo::Status>
+inline static llvm::Optional<CompileJobAction::InputInfo::Status>
 getInfoStatusForIdentifier(StringRef Identifier) {
   using InputStatus = CompileJobAction::InputInfo::Status;
-  return llvm::StringSwitch<Optional<InputStatus>>(Identifier)
-    .Case("", InputStatus::UpToDate)
-    .Case("!dirty", InputStatus::NeedsCascadingBuild)
-    .Case("!private", InputStatus::NeedsNonCascadingBuild)
-    .Default(None);
+  return llvm::StringSwitch<llvm::Optional<InputStatus>>(Identifier)
+      .Case("", InputStatus::UpToDate)
+      .Case("!dirty", InputStatus::NeedsCascadingBuild)
+      .Case("!private", InputStatus::NeedsNonCascadingBuild)
+      .Default(llvm::None);
 }
 
 } // end namespace compilation_record

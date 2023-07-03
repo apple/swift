@@ -15,8 +15,10 @@ import SwiftDiagnostics
 import SwiftOperators
 import SwiftParser
 import SwiftSyntax
+import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 import SwiftSyntaxMacroExpansion
+@_spi(PluginMessage) import SwiftCompilerPluginMessageHandling
 
 extension SyntaxProtocol {
   func token(at position: AbsolutePosition) -> TokenSyntax? {
@@ -60,14 +62,15 @@ enum MacroPluginKind: UInt8 {
 extension MacroRole {
   init(rawMacroRole: UInt8) {
     switch rawMacroRole {
-    case 0x01: self = .expression
-    case 0x02: self = .declaration
-    case 0x04: self = .accessor
-    case 0x08: self = .memberAttribute
-    case 0x10: self = .member
-    case 0x20: self = .peer
-    case 0x40: self = .conformance
-    case 0x80: self = .codeItem
+    case 0: self = .expression
+    case 1: self = .declaration
+    case 2: self = .accessor
+    case 3: self = .memberAttribute
+    case 4: self = .member
+    case 5: self = .peer
+    case 6: self = .conformance
+    case 7: self = .codeItem
+    case 8: self = .`extension`
 
     default: fatalError("unknown macro role")
     }
@@ -407,6 +410,29 @@ func checkMacroDefinition(
   }
 }
 
+// Make an expansion result for '@_cdecl' function caller.
+func makeExpansionOutputResult(
+  expandedSource: String?,
+  outputPointer: UnsafeMutablePointer<UnsafePointer<UInt8>?>,
+  outputLength: UnsafeMutablePointer<Int>
+) -> Int {
+  guard var expandedSource = expandedSource else {
+    return -1
+  }
+
+  // Form the result buffer for our caller.
+  expandedSource.withUTF8 { utf8 in
+    let evaluatedResultPtr = UnsafeMutablePointer<UInt8>.allocate(capacity: utf8.count + 1)
+    if let baseAddress = utf8.baseAddress {
+      evaluatedResultPtr.initialize(from: baseAddress, count: utf8.count)
+    }
+    evaluatedResultPtr[utf8.count] = 0
+
+    outputPointer.pointee = UnsafePointer(evaluatedResultPtr)
+    outputLength.pointee = utf8.count
+  }
+  return 0
+}
 
 @_cdecl("swift_ASTGen_expandFreestandingMacro")
 @usableFromInline
@@ -470,23 +496,11 @@ func expandFreestandingMacro(
       discriminator: discriminator)
   }
 
-  guard var expandedSource = expandedSource else {
-    return -1
-  }
-
-  // Form the result buffer for our caller.
-  expandedSource.withUTF8 { utf8 in
-    let evaluatedResultPtr = UnsafeMutablePointer<UInt8>.allocate(capacity: utf8.count + 1)
-    if let baseAddress = utf8.baseAddress {
-      evaluatedResultPtr.initialize(from: baseAddress, count: utf8.count)
-    }
-    evaluatedResultPtr[utf8.count] = 0
-
-    expandedSourcePointer.pointee = UnsafePointer(evaluatedResultPtr)
-    expandedSourceLength.pointee = utf8.count
-  }
-
-  return 0
+  return makeExpansionOutputResult(
+    expandedSource: expandedSource,
+    outputPointer: expandedSourcePointer,
+    outputLength: expandedSourceLength
+  )
 }
 
 func expandFreestandingMacroIPC(
@@ -512,11 +526,11 @@ func expandFreestandingMacroIPC(
   // Map the macro role.
   let pluginMacroRole: PluginMessage.MacroRole
   switch macroRole {
-  case .accessor, .member, .memberAttribute, .peer, .conformance:
+  case .accessor, .member, .memberAttribute, .peer, .conformance, .extension:
     preconditionFailure("unhandled macro role for freestanding macro")
 
   case .expression: pluginMacroRole = .expression
-  case .declaration: pluginMacroRole = .freeStandingDeclaration
+  case .declaration: pluginMacroRole = .declaration
   case .codeItem: pluginMacroRole = .codeItem
   }
 
@@ -528,9 +542,15 @@ func expandFreestandingMacroIPC(
     syntax: PluginMessage.Syntax(syntax: Syntax(expansionSyntax), in: sourceFilePtr)!)
   do {
     let result = try macro.plugin.sendMessageAndWait(message)
-    guard
-      case .expandFreestandingMacroResult(let expandedSource, let diagnostics) = result
-    else {
+    let expandedSource: String?
+    let diagnostics: [PluginMessage.Diagnostic]
+    switch result {
+    case
+        .expandMacroResult(let _expandedSource, let _diagnostics),
+        .expandFreestandingMacroResult(let _expandedSource, let _diagnostics):
+      expandedSource = _expandedSource
+      diagnostics = _diagnostics
+    default:
       throw PluginError.invalidReponseKind
     }
 
@@ -686,6 +706,8 @@ func expandAttachedMacro(
   macroKind: UInt8,
   discriminatorText: UnsafePointer<UInt8>,
   discriminatorTextLength: Int,
+  qualifiedTypeText: UnsafePointer<UInt8>,
+  qualifiedTypeLength: Int,
   rawMacroRole: UInt8,
   customAttrSourceFilePtr: UnsafeRawPointer,
   customAttrSourceLocPointer: UnsafePointer<UInt8>?,
@@ -737,14 +759,21 @@ func expandAttachedMacro(
   )
   let discriminator = String(decoding: discriminatorBuffer, as: UTF8.self)
 
-  let expandedSources: [String]?
+  let qualifiedTypeBuffer = UnsafeBufferPointer(
+    start: qualifiedTypeText, count: qualifiedTypeLength
+  )
+  let qualifiedType = String(decoding: qualifiedTypeBuffer, as: UTF8.self)
+
+
+  let expandedSource: String?
   switch MacroPluginKind(rawValue: macroKind)! {
   case .Executable:
-    expandedSources = expandAttachedMacroIPC(
+    expandedSource = expandAttachedMacroIPC(
       diagEnginePtr: diagEnginePtr,
       macroPtr: macroPtr,
       rawMacroRole: rawMacroRole,
       discriminator: discriminator,
+      qualifiedType: qualifiedType,
       customAttrSourceFilePtr: customAttrSourceFilePtr,
       customAttrNode: customAttrNode,
       declarationSourceFilePtr: declarationSourceFilePtr,
@@ -752,11 +781,12 @@ func expandAttachedMacro(
       parentDeclSourceFilePtr: parentDeclSourceFilePtr,
       parentDeclNode: parentDeclNode)
   case .InProcess:
-    expandedSources = expandAttachedMacroInProcess(
+    expandedSource = expandAttachedMacroInProcess(
       diagEnginePtr: diagEnginePtr,
       macroPtr: macroPtr,
       rawMacroRole: rawMacroRole,
       discriminator: discriminator,
+      qualifiedType: qualifiedType,
       customAttrSourceFilePtr: customAttrSourceFilePtr,
       customAttrNode: customAttrNode,
       declarationSourceFilePtr: declarationSourceFilePtr,
@@ -765,26 +795,11 @@ func expandAttachedMacro(
       parentDeclNode: parentDeclNode)
   }
 
-  guard let expandedSources = expandedSources else {
-    return -1
-  }
-
-  // Fixup the source.
-  var expandedSource: String = collapse(expansions: expandedSources, for: MacroRole(rawMacroRole: rawMacroRole), attachedTo: declarationNode)
-
-  // Form the result buffer for our caller.
-  expandedSource.withUTF8 { utf8 in
-    let evaluatedResultPtr = UnsafeMutablePointer<UInt8>.allocate(capacity: utf8.count + 1)
-    if let baseAddress = utf8.baseAddress {
-      evaluatedResultPtr.initialize(from: baseAddress, count: utf8.count)
-    }
-    evaluatedResultPtr[utf8.count] = 0
-
-    expandedSourcePointer.pointee = UnsafePointer(evaluatedResultPtr)
-    expandedSourceLength.pointee = utf8.count
-  }
-
-  return 0
+  return makeExpansionOutputResult(
+    expandedSource: expandedSource,
+    outputPointer: expandedSourcePointer,
+    outputLength: expandedSourceLength
+  )
 }
 
 func expandAttachedMacroIPC(
@@ -792,13 +807,14 @@ func expandAttachedMacroIPC(
   macroPtr: UnsafeRawPointer,
   rawMacroRole: UInt8,
   discriminator: String,
+  qualifiedType: String,
   customAttrSourceFilePtr: UnsafePointer<ExportedSourceFile>,
   customAttrNode: AttributeSyntax,
   declarationSourceFilePtr: UnsafePointer<ExportedSourceFile>,
   attachedTo declarationNode: DeclSyntax,
   parentDeclSourceFilePtr: UnsafePointer<ExportedSourceFile>?,
   parentDeclNode: DeclSyntax?
-) -> [String]? {
+) -> String? {
   let macroName: String = customAttrNode.attributeName.description
   let macro = macroPtr.assumingMemoryBound(to: ExportedExecutableMacro.self).pointee
 
@@ -810,6 +826,7 @@ func expandAttachedMacroIPC(
   case .memberAttribute: macroRole = .memberAttribute
   case .peer: macroRole = .peer
   case .conformance: macroRole = .conformance
+  case .extension: macroRole = .`extension`
   case
       .expression,
       .declaration,
@@ -831,6 +848,14 @@ func expandAttachedMacroIPC(
     parentDeclSyntax = nil
   }
 
+  let extendedTypeSyntax: PluginMessage.Syntax?
+  if (!qualifiedType.isEmpty) {
+    let typeSyntax: TypeSyntax = "\(raw: qualifiedType)"
+    extendedTypeSyntax = .init(syntax: Syntax(typeSyntax))!
+  } else {
+    extendedTypeSyntax = nil
+  }
+
   // Send the message.
   let message = HostToPluginMessage.expandAttachedMacro(
     macro: .init(moduleName: macro.moduleName, typeName: macro.typeName, name: macroName),
@@ -838,12 +863,30 @@ func expandAttachedMacroIPC(
     discriminator: discriminator,
     attributeSyntax: customAttributeSyntax,
     declSyntax: declSyntax,
-    parentDeclSyntax: parentDeclSyntax)
+    parentDeclSyntax: parentDeclSyntax,
+    extendedTypeSyntax: extendedTypeSyntax)
   do {
-    let result = try macro.plugin.sendMessageAndWait(message)
-    guard
-      case .expandAttachedMacroResult(let expandedSources, let diagnostics) = result
-    else {
+    let expandedSource: String?
+    let diagnostics: [PluginMessage.Diagnostic]
+    switch try macro.plugin.sendMessageAndWait(message) {
+    case .expandMacroResult(let _expandedSource, let _diagnostics):
+      expandedSource = _expandedSource
+      diagnostics = _diagnostics
+
+    // Handle legacy result message.
+    case .expandAttachedMacroResult(let _expandedSources, let _diagnostics):
+      if let _expandedSources = _expandedSources {
+        expandedSource = SwiftSyntaxMacroExpansion.collapse(
+          expansions: _expandedSources,
+          for: MacroRole(rawMacroRole: rawMacroRole),
+          attachedTo: declarationNode
+        )
+      } else {
+        expandedSource = nil
+      }
+      diagnostics = _diagnostics
+      break
+    default:
       throw PluginError.invalidReponseKind
     }
 
@@ -857,7 +900,7 @@ func expandAttachedMacroIPC(
       }
       diagEngine.emit(diagnostics, messageSuffix: " (from macro '\(macroName)')")
     }
-    return expandedSources
+    return expandedSource
 
   } catch let error {
     let srcMgr = SourceManager(cxxDiagnosticEngine: diagEnginePtr)
@@ -885,13 +928,14 @@ func expandAttachedMacroInProcess(
   macroPtr: UnsafeRawPointer,
   rawMacroRole: UInt8,
   discriminator: String,
+  qualifiedType: String,
   customAttrSourceFilePtr: UnsafePointer<ExportedSourceFile>,
   customAttrNode: AttributeSyntax,
   declarationSourceFilePtr: UnsafePointer<ExportedSourceFile>,
   attachedTo declarationNode: DeclSyntax,
   parentDeclSourceFilePtr: UnsafePointer<ExportedSourceFile>?,
   parentDeclNode: DeclSyntax?
-) -> [String]? {
+) -> String? {
   // Get the macro.
   let macroPtr = macroPtr.bindMemory(to: ExportedMacro.self, capacity: 1)
   let macro = macroPtr.pointee.macro
@@ -930,6 +974,7 @@ func expandAttachedMacroInProcess(
   )
   let declarationNode = sourceManager.detach(declarationNode)
   let parentDeclNode = parentDeclNode.map { sourceManager.detach($0) }
+  let extendedType: TypeSyntax = "\(raw: qualifiedType)"
 
   return SwiftSyntaxMacroExpansion.expandAttachedMacro(
     definition: macro,
@@ -937,6 +982,7 @@ func expandAttachedMacroInProcess(
     attributeNode: attributeNode,
     declarationNode: declarationNode,
     parentDeclNode: parentDeclNode,
+    extendedType: extendedType,
     in: context
   )
 }
@@ -954,55 +1000,4 @@ fileprivate extension SyntaxProtocol {
     }
     return formatted.trimmedDescription(matching: { $0.isWhitespace })
   }
-}
-
-fileprivate func collapse<Node: SyntaxProtocol>(
-  expansions: [String],
-  for role: MacroRole,
-  attachedTo declarationNode: Node
-) -> String {
-  if expansions.isEmpty {
-    return ""
-  }
-
-  var expansions = expansions
-  var separator: String = "\n\n"
-
-  if role == .accessor,
-     let varDecl = declarationNode.as(VariableDeclSyntax.self),
-     let binding = varDecl.bindings.first,
-     binding.accessor == nil {
-    let indentation = String(repeating: " ", count: 4)
-
-    expansions = expansions.map({ indent($0, with: indentation) })
-    expansions[0] = "{\n" + expansions[0]
-    expansions[expansions.count - 1] += "\n}"
-  } else if role == .memberAttribute {
-    separator = " "
-  }
-
-  return expansions.joined(separator: separator)
-}
-
-fileprivate func indent(_ source: String, with indentation: String) -> String {
-  if source.isEmpty || indentation.isEmpty {
-    return source
-  }
-
-  var indented = ""
-  var remaining = source[...]
-  while let nextNewline = remaining.firstIndex(where: { $0.isNewline }) {
-    if nextNewline != remaining.startIndex {
-      indented += indentation
-    }
-    indented += remaining[...nextNewline]
-    remaining = remaining[remaining.index(after: nextNewline)...]
-  }
-
-  if !remaining.isEmpty {
-    indented += indentation
-    indented += remaining
-  }
-
-  return indented
 }

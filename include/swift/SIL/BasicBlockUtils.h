@@ -168,8 +168,8 @@ template <typename Region>
 struct SILCFGBackwardDFS {
   Region &region;
   ArrayRef<SILBasicBlock *> roots;
-  Optional<SmallVector<SILBasicBlock *, 16>> cachedPostOrder;
-  Optional<BasicBlockSet> cachedVisited;
+  llvm::Optional<SmallVector<SILBasicBlock *, 16>> cachedPostOrder;
+  llvm::Optional<BasicBlockSet> cachedVisited;
 
   SILCFGBackwardDFS(Region &region, ArrayRef<SILBasicBlock *> roots)
       : region(region), roots(roots) {}

@@ -163,7 +163,7 @@ class CompletionLookup final : public swift::VisibleDeclConsumer {
   /// Innermost method that the code completion point is in.
   const AbstractFunctionDecl *CurrentMethod = nullptr;
 
-  Optional<SemanticContextKind> ForcedSemanticContext = None;
+  llvm::Optional<SemanticContextKind> ForcedSemanticContext = llvm::None;
   bool IsUnresolvedMember = false;
 
 public:
@@ -313,8 +313,9 @@ public:
   void collectImportedModules(llvm::StringSet<> &directImportedModules,
                               llvm::StringSet<> &allImportedModules);
 
-  void addModuleName(ModuleDecl *MD,
-                     Optional<ContextualNotRecommendedReason> R = None);
+  void
+  addModuleName(ModuleDecl *MD,
+                llvm::Optional<ContextualNotRecommendedReason> R = llvm::None);
 
   void addImportModuleNames();
 
@@ -358,7 +359,7 @@ public:
 
   void analyzeActorIsolation(
       const ValueDecl *VD, Type T, bool &implicitlyAsync,
-      Optional<ContextualNotRecommendedReason> &NotRecommended);
+      llvm::Optional<ContextualNotRecommendedReason> &NotRecommended);
 
   void addVarDeclRef(const VarDecl *VD, DeclVisibilityKind Reason,
                      DynamicLookupInfo dynamicLookupInfo);
@@ -389,7 +390,7 @@ public:
                                    const AbstractFunctionDecl *AFD,
                                    bool forceAsync = false);
 
-  void addPoundAvailable(Optional<StmtKind> ParentKind);
+  void addPoundAvailable(llvm::Optional<StmtKind> ParentKind);
 
   void addPoundSelector(bool needPound);
 
@@ -399,11 +400,11 @@ public:
 
   void addSubscriptCallPattern(
       const AnyFunctionType *AFT, const SubscriptDecl *SD,
-      const Optional<SemanticContextKind> SemanticContext = None);
+      const llvm::Optional<SemanticContextKind> SemanticContext = llvm::None);
 
   void addFunctionCallPattern(
       const AnyFunctionType *AFT, const AbstractFunctionDecl *AFD = nullptr,
-      const Optional<SemanticContextKind> SemanticContext = None);
+      const llvm::Optional<SemanticContextKind> SemanticContext = llvm::None);
 
   bool isImplicitlyCurriedInstanceMethod(const AbstractFunctionDecl *FD);
 
@@ -412,8 +413,8 @@ public:
 
   void addConstructorCall(const ConstructorDecl *CD, DeclVisibilityKind Reason,
                           DynamicLookupInfo dynamicLookupInfo,
-                          Optional<Type> BaseType, Optional<Type> Result,
-                          bool IsOnType = true,
+                          llvm::Optional<Type> BaseType,
+                          llvm::Optional<Type> Result, bool IsOnType = true,
                           Identifier addName = Identifier());
 
   void addConstructorCallsForType(Type type, Identifier name,
@@ -506,7 +507,7 @@ public:
 
   bool tryFunctionCallCompletions(
       Type ExprType, const ValueDecl *VD,
-      Optional<SemanticContextKind> SemanticContext = None);
+      llvm::Optional<SemanticContextKind> SemanticContext = llvm::None);
 
   bool tryModuleCompletions(Type ExprType, CodeCompletionFilter Filter);
 
@@ -587,9 +588,10 @@ public:
 
   static bool canUseAttributeOnDecl(DeclAttrKind DAK, bool IsInSil,
                                     bool IsConcurrencyEnabled,
-                                    Optional<DeclKind> DK, StringRef Name);
+                                    llvm::Optional<DeclKind> DK,
+                                    StringRef Name);
 
-  void getAttributeDeclCompletions(bool IsInSil, Optional<DeclKind> DK);
+  void getAttributeDeclCompletions(bool IsInSil, llvm::Optional<DeclKind> DK);
 
   void getAttributeDeclParamCompletions(CustomSyntaxAttributeKind AttrKind,
                                         int ParamIndex, bool HasLabel);

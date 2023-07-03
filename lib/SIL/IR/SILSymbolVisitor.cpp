@@ -51,14 +51,14 @@ static bool isGlobalOrStaticVar(VarDecl *VD) {
 
 using DynamicKind = SILSymbolVisitor::DynamicKind;
 
-static Optional<DynamicKind> getDynamicKind(ValueDecl *VD) {
+static llvm::Optional<DynamicKind> getDynamicKind(ValueDecl *VD) {
   if (VD->shouldUseNativeMethodReplacement())
     return DynamicKind::Replaceable;
 
   if (VD->getDynamicallyReplacedDecl())
     return DynamicKind::Replacement;
 
-  return None;
+  return llvm::None;
 }
 
 class SILSymbolVisitorImpl : public ASTVisitor<SILSymbolVisitorImpl> {

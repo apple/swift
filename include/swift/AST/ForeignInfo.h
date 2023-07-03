@@ -27,8 +27,8 @@ namespace swift {
 
 struct ForeignInfo {
   ImportAsMemberStatus self;
-  Optional<ForeignErrorConvention> error;
-  Optional<ForeignAsyncConvention> async;
+  llvm::Optional<ForeignErrorConvention> error;
+  llvm::Optional<ForeignAsyncConvention> async;
 };
 
 } // end namespace swift

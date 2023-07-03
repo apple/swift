@@ -554,6 +554,7 @@ void SourceLookupCache::lookupVisibleDecls(ImportPath::Access AccessPath,
   SmallVector<MissingDecl *, 4> unexpandedDecls;
   for (auto &entry : TopLevelAuxiliaryDecls) {
     for (auto &decl : entry.second) {
+      (void) decl;
       unexpandedDecls.append(entry.second.begin(), entry.second.end());
     }
   }
@@ -839,7 +840,7 @@ ModuleDecl::getOriginalLocation(SourceLoc loc) const {
 
   SourceLoc startLoc = loc;
   unsigned startBufferID = bufferID;
-  while (Optional<GeneratedSourceInfo> info =
+  while (llvm::Optional<GeneratedSourceInfo> info =
              SM.getGeneratedSourceInfo(bufferID)) {
     switch (info->kind) {
     case GeneratedSourceInfo::ExpressionMacroExpansion:
@@ -848,7 +849,8 @@ ModuleDecl::getOriginalLocation(SourceLoc loc) const {
     case GeneratedSourceInfo::MemberAttributeMacroExpansion:
     case GeneratedSourceInfo::MemberMacroExpansion:
     case GeneratedSourceInfo::PeerMacroExpansion:
-    case GeneratedSourceInfo::ConformanceMacroExpansion: {
+    case GeneratedSourceInfo::ConformanceMacroExpansion:
+    case GeneratedSourceInfo::ExtensionMacroExpansion: {
       // Location was within a macro expansion, return the expansion site, not
       // the insertion location.
       if (info->attachedMacroCustomAttr) {
@@ -1130,9 +1132,9 @@ CustomAttr *SourceFile::getAttachedMacroAttribute() const {
   return genInfo.attachedMacroCustomAttr;
 }
 
-Optional<MacroRole> SourceFile::getFulfilledMacroRole() const {
+llvm::Optional<MacroRole> SourceFile::getFulfilledMacroRole() const {
   if (Kind != SourceFileKind::MacroExpansion)
-    return None;
+    return llvm::None;
 
   auto genInfo =
       *getASTContext().SourceMgr.getGeneratedSourceInfo(*getBufferID());
@@ -1158,9 +1160,12 @@ Optional<MacroRole> SourceFile::getFulfilledMacroRole() const {
   case GeneratedSourceInfo::ConformanceMacroExpansion:
     return MacroRole::Conformance;
 
+  case GeneratedSourceInfo::ExtensionMacroExpansion:
+    return MacroRole::Extension;
+
   case GeneratedSourceInfo::ReplacedFunctionBody:
   case GeneratedSourceInfo::PrettyPrinted:
-    return None;
+    return llvm::None;
   }
 }
 
@@ -1407,18 +1412,18 @@ TypeDecl *SourceFile::lookupLocalType(llvm::StringRef mangledName) const {
   return nullptr;
 }
 
-Optional<ExternalSourceLocs::RawLocs>
+llvm::Optional<ExternalSourceLocs::RawLocs>
 SourceFile::getExternalRawLocsForDecl(const Decl *D) const {
   auto *FileCtx = D->getDeclContext()->getModuleScopeContext();
   assert(FileCtx == this && "D doesn't belong to this source file");
   if (FileCtx != this) {
     // D doesn't belong to this file. This shouldn't happen in practice.
-    return None;
+    return llvm::None;
   }
 
   SourceLoc MainLoc = D->getLoc(/*SerializedOK=*/false);
   if (MainLoc.isInvalid())
-    return None;
+    return llvm::None;
 
   // TODO: Rather than grabbing the location of the macro expansion, we should
   // instead add the generated buffer tree - that would need to include source
@@ -1431,7 +1436,7 @@ SourceFile::getExternalRawLocsForDecl(const Decl *D) const {
     std::tie(UnderlyingBufferID, MainLoc) =
         D->getModuleContext()->getOriginalLocation(MainLoc);
     if (BufferID != UnderlyingBufferID)
-      return None;
+      return llvm::None;
   }
 
   auto setLoc = [&](ExternalSourceLocs::RawLoc &RawLoc, SourceLoc Loc) {
@@ -2083,9 +2088,9 @@ Fingerprint SourceFile::getInterfaceHash() const {
   assert(hasInterfaceHash() && "Interface hash not enabled");
   auto &eval = getASTContext().evaluator;
   auto *mutableThis = const_cast<SourceFile *>(this);
-  Optional<StableHasher> interfaceHasher =
+  llvm::Optional<StableHasher> interfaceHasher =
       evaluateOrDefault(eval, ParseSourceFileRequest{mutableThis}, {})
-              .InterfaceHasher;
+          .InterfaceHasher;
   return Fingerprint{StableHasher{interfaceHasher.value()}.finalize()};
 }
 
@@ -2468,8 +2473,9 @@ NominalTypeDecl *ModuleDecl::getMainTypeDecl() const {
   return nominalType;
 }
 
-bool ModuleDecl::registerEntryPointFile(FileUnit *file, SourceLoc diagLoc,
-                                        Optional<ArtificialMainKind> kind) {
+bool ModuleDecl::registerEntryPointFile(
+    FileUnit *file, SourceLoc diagLoc,
+    llvm::Optional<ArtificialMainKind> kind) {
   if (!EntryPointInfo.hasEntryPoint()) {
     EntryPointInfo.setEntryPointFile(file);
     return false;
@@ -3085,13 +3091,13 @@ bool HasImportsMatchingFlagRequest::evaluate(Evaluator &evaluator,
   return false;
 }
 
-Optional<bool> HasImportsMatchingFlagRequest::getCachedResult() const {
+llvm::Optional<bool> HasImportsMatchingFlagRequest::getCachedResult() const {
   SourceFile *sourceFile = std::get<0>(getStorage());
   ImportFlags flag = std::get<1>(getStorage());
   if (sourceFile->validCachedImportOptions.contains(flag))
     return sourceFile->cachedImportOptions.contains(flag);
 
-  return None;
+  return llvm::None;
 }
 
 void HasImportsMatchingFlagRequest::cacheResult(bool value) const {
@@ -3231,7 +3237,7 @@ RestrictedImportKind SourceFile::getRestrictedImportKind(const ModuleDecl *modul
 
 ImportAccessLevel
 SourceFile::getImportAccessLevel(const ModuleDecl *targetModule) const {
-  assert(Imports.hasValue());
+  assert(Imports.has_value());
 
   // Leave it to the caller to avoid calling this service for a self import.
   // We want to return AccessLevel::Public, but there's no import site to return.
@@ -3239,7 +3245,7 @@ SourceFile::getImportAccessLevel(const ModuleDecl *targetModule) const {
          "getImportAccessLevel doesn't support checking for a self-import");
 
   auto &imports = getASTContext().getImportCache();
-  ImportAccessLevel restrictiveImport = None;
+  ImportAccessLevel restrictiveImport = llvm::None;
 
   for (auto &import : *Imports) {
     if ((!restrictiveImport.has_value() ||
@@ -3692,7 +3698,7 @@ ModuleDecl::computeFileIDMap(bool shouldDiagnose) const {
 }
 
 SourceFile::SourceFile(ModuleDecl &M, SourceFileKind K,
-                       Optional<unsigned> bufferID,
+                       llvm::Optional<unsigned> bufferID,
                        ParsingOptions parsingOpts, bool isPrimary)
     : FileUnit(FileUnitKind::Source, M), BufferID(bufferID ? *bufferID : -1),
       ParsingOpts(parsingOpts), IsPrimary(isPrimary), Kind(K) {
@@ -3702,7 +3708,7 @@ SourceFile::SourceFile(ModuleDecl &M, SourceFileKind K,
          "A primary cannot appear outside the main module");
 
   if (isScriptMode()) {
-    bool problem = M.registerEntryPointFile(this, SourceLoc(), None);
+    bool problem = M.registerEntryPointFile(this, SourceLoc(), llvm::None);
     assert(!problem && "multiple main files?");
     (void)problem;
   }
@@ -4113,8 +4119,7 @@ void FileUnit::getTopLevelDeclsWithAuxiliaryDecls(
   getTopLevelDecls(nonExpandedDecls);
   for (auto *decl : nonExpandedDecls) {
     decl->visitAuxiliaryDecls([&](Decl *auxDecl) {
-      if (!isa<ExtensionDecl>(auxDecl))
-        results.push_back(auxDecl);
+      results.push_back(auxDecl);
     });
     results.push_back(decl);
   }

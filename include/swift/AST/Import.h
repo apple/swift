@@ -25,9 +25,11 @@
 #include "swift/Basic/OptionSet.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMapInfo.h"
+#include "llvm/ADT/None.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/PointerIntPair.h"
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
@@ -582,7 +584,7 @@ struct AttributedImport {
 
   /// If the import declaration has a `@_documentation(visibility: <access>)`
   /// attribute, this is the given access level.
-  Optional<AccessLevel> docVisibility;
+  llvm::Optional<AccessLevel> docVisibility;
 
   /// Access level limiting how imported types can be exported.
   AccessLevel accessLevel;
@@ -595,7 +597,7 @@ struct AttributedImport {
                    ImportOptions options = ImportOptions(),
                    StringRef filename = {}, ArrayRef<Identifier> spiGroups = {},
                    SourceRange preconcurrencyRange = {},
-                   Optional<AccessLevel> docVisibility = None,
+                   llvm::Optional<AccessLevel> docVisibility = llvm::None,
                    AccessLevel accessLevel = AccessLevel::Public,
                    SourceLoc accessLevelLoc = SourceLoc())
       : module(module), importLoc(importLoc), options(options),

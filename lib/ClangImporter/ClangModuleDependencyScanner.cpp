@@ -79,8 +79,7 @@ static void addSearchPathInvocationArguments(
 
 /// Create the command line for Clang dependency scanning.
 static std::vector<std::string> getClangDepScanningInvocationArguments(
-    ASTContext &ctx,
-    Optional<StringRef> sourceFileName = None) {
+    ASTContext &ctx, llvm::Optional<StringRef> sourceFileName = llvm::None) {
   std::vector<std::string> commandLineArgs =
       ClangImporter::getClangArguments(ctx);
   addSearchPathInvocationArguments(commandLineArgs, ctx);
@@ -238,10 +237,21 @@ void ClangImporter::recordModuleDependencies(
     std::string IncludeTree =
         clangModuleDep.IncludeTreeID ? *clangModuleDep.IncludeTreeID : "";
 
-    if (!RootID.empty() || !IncludeTree.empty()) {
-      swiftArgs.push_back("-enable-cas");
-      swiftArgs.push_back("-cas-path");
-      swiftArgs.push_back(ctx.ClangImporterOpts.CASPath);
+    if (ctx.ClangImporterOpts.CASOpts) {
+      swiftArgs.push_back("-cache-compile-job");
+      if (!ctx.ClangImporterOpts.CASOpts->CASPath.empty()) {
+        swiftArgs.push_back("-cas-path");
+        swiftArgs.push_back(ctx.ClangImporterOpts.CASOpts->CASPath);
+      }
+      if (!ctx.ClangImporterOpts.CASOpts->PluginPath.empty()) {
+        swiftArgs.push_back("-cas-plugin-path");
+        swiftArgs.push_back(ctx.ClangImporterOpts.CASOpts->PluginPath);
+        for (auto Opt : ctx.ClangImporterOpts.CASOpts->PluginOptions) {
+          swiftArgs.push_back("-cas-plugin-option");
+          swiftArgs.push_back(
+              (llvm::Twine(Opt.first) + "=" + Opt.second).str());
+        }
+      }
     }
 
     if (!RootID.empty()) {
@@ -334,10 +344,20 @@ void ClangImporter::recordBridgingHeaderOptions(
 
   llvm::for_each(clangArgs, addClangArg);
 
-  if (!ctx.ClangImporterOpts.CASPath.empty()) {
-    swiftArgs.push_back("-enable-cas");
-    swiftArgs.push_back("-cas-path");
-    swiftArgs.push_back(ctx.ClangImporterOpts.CASPath);
+  if (ctx.ClangImporterOpts.CASOpts) {
+    swiftArgs.push_back("-cache-compile-job");
+    if (!ctx.ClangImporterOpts.CASOpts->CASPath.empty()) {
+      swiftArgs.push_back("-cas-path");
+      swiftArgs.push_back(ctx.ClangImporterOpts.CASOpts->CASPath);
+    }
+    if (!ctx.ClangImporterOpts.CASOpts->PluginPath.empty()) {
+      swiftArgs.push_back("-cas-plugin-path");
+      swiftArgs.push_back(ctx.ClangImporterOpts.CASOpts->PluginPath);
+      for (auto Opt : ctx.ClangImporterOpts.CASOpts->PluginOptions) {
+        swiftArgs.push_back("-cas-plugin-option");
+        swiftArgs.push_back((llvm::Twine(Opt.first) + "=" + Opt.second).str());
+      }
+    }
   }
 
   if (auto Tree = deps.IncludeTreeID) {
@@ -359,7 +379,7 @@ void ClangImporter::recordBridgingHeaderOptions(
 // Clang does have a concept working directory which may be specified on this
 // Clang invocation with '-working-directory'. If so, it is crucial that we
 // use this directory as an argument to the Clang scanner invocation below.
-static Optional<std::string>
+static llvm::Optional<std::string>
 computeClangWorkingDirectory(const std::vector<std::string> &commandLineArgs,
                              const ASTContext &ctx) {
   std::string workingDir;
@@ -372,27 +392,29 @@ computeClangWorkingDirectory(const std::vector<std::string> &commandLineArgs,
     if (clangWorkingDirPos - 1 == commandLineArgs.rend()) {
       ctx.Diags.diagnose(SourceLoc(), diag::clang_dependency_scan_error,
                          "Missing '-working-directory' argument");
-      return None;
+      return llvm::None;
     }
     workingDir = *(clangWorkingDirPos - 1);
   }
   return workingDir;
 }
 
-Optional<const ModuleDependencyInfo*> ClangImporter::getModuleDependencies(
-    StringRef moduleName, ModuleDependenciesCache &cache,
-    InterfaceSubContextDelegate &delegate, bool isTestableImport) {
+llvm::Optional<const ModuleDependencyInfo *>
+ClangImporter::getModuleDependencies(StringRef moduleName,
+                                     ModuleDependenciesCache &cache,
+                                     InterfaceSubContextDelegate &delegate,
+                                     bool isTestableImport) {
   auto &ctx = Impl.SwiftContext;
   // Determine the command-line arguments for dependency scanning.
   std::vector<std::string> commandLineArgs =
       getClangDepScanningInvocationArguments(ctx);
   auto optionalWorkingDir = computeClangWorkingDirectory(commandLineArgs, ctx);
-  if (!optionalWorkingDir.hasValue()) {
+  if (!optionalWorkingDir) {
     ctx.Diags.diagnose(SourceLoc(), diag::clang_dependency_scan_error,
                        "Missing '-working-directory' argument");
-    return None;
+    return llvm::None;
   }
-  std::string workingDir = optionalWorkingDir.getValue();
+  std::string workingDir = *optionalWorkingDir;
 
   auto moduleCachePath = getModuleCachePathFromClang(getClangInstance());
   auto lookupModuleOutput =
@@ -414,7 +436,7 @@ Optional<const ModuleDependencyInfo*> ClangImporter::getModuleDependencies(
                       "' not found") == std::string::npos)
       ctx.Diags.diagnose(SourceLoc(), diag::clang_dependency_scan_error,
                          errorStr);
-    return None;
+    return llvm::None;
   }
 
   // Record module dependencies for each module we found.
@@ -452,12 +474,12 @@ bool ClangImporter::addBridgingHeaderDependencies(
   std::vector<std::string> commandLineArgs =
       getClangDepScanningInvocationArguments(ctx, StringRef(bridgingHeader));
   auto optionalWorkingDir = computeClangWorkingDirectory(commandLineArgs, ctx);
-  if (!optionalWorkingDir.hasValue()) {
+  if (!optionalWorkingDir) {
     ctx.Diags.diagnose(SourceLoc(), diag::clang_dependency_scan_error,
                        "Missing '-working-directory' argument");
     return true;
   }
-  std::string workingDir = optionalWorkingDir.getValue();
+  std::string workingDir = *optionalWorkingDir;
 
   auto moduleCachePath = getModuleCachePathFromClang(getClangInstance());
   auto lookupModuleOutput =

@@ -206,3 +206,19 @@ func rdar85458997() {
   _ = S(\.name)
   // expected-error@-1 {{cannot infer key path type from context; consider explicitly specifying a root type}} {{10-10=<#Root#>}}
 }
+
+// https://github.com/apple/swift/issues/65965 - failed to produce correct types for key path capability mismatch
+func issue_65965() {
+  struct S {
+	  var s: String
+	  let v: String
+  }
+	
+  let refKP: ReferenceWritableKeyPath<S, String>
+  refKP = \.s
+  // expected-error@-1 {{key path value type 'WritableKeyPath<S, String>' cannot be converted to contextual type 'ReferenceWritableKeyPath<S, String>'}}
+	
+  let writeKP: WritableKeyPath<S, String>
+  writeKP = \.v
+  // expected-error@-1 {{key path value type 'KeyPath<S, String>' cannot be converted to contextual type 'WritableKeyPath<S, String>'}}
+}

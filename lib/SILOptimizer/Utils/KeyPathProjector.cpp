@@ -223,8 +223,8 @@ public:
       // The callback expects a memory address it can read from,
       // so allocate a buffer.
       auto &function = builder.getFunction();
-      auto substType = component.getComponentType().subst(keyPath->getSubstitutions(),
-                                                           None);
+      auto substType = component.getComponentType().subst(
+          keyPath->getSubstitutions(), llvm::None);
       SILType type = function.getLoweredType(
                          Lowering::AbstractionPattern::getOpaque(), substType);
       auto addr = builder.createAllocStack(loc, type);
@@ -301,8 +301,8 @@ public:
           // The callback expects a memory address it can write to,
           // so allocate a writeback buffer.
           auto &function = builder.getFunction();
-          auto substType = component.getComponentType().subst(keyPath->getSubstitutions(),
-                                                               None);
+          auto substType = component.getComponentType().subst(
+              keyPath->getSubstitutions(), llvm::None);
           SILType type = function.getLoweredType(
                         Lowering::AbstractionPattern::getOpaque(), substType);
           auto addr = builder.createAllocStack(loc, type);
@@ -351,8 +351,8 @@ public:
     
     parent->project(AccessType::Get, [&](SILValue parentValue) {
       auto &function = builder.getFunction();
-      auto substType = component.getComponentType().subst(keyPath->getSubstitutions(),
-                                                           None);
+      auto substType = component.getComponentType().subst(
+          keyPath->getSubstitutions(), llvm::None);
       SILType optType = function.getLoweredType(
                          Lowering::AbstractionPattern::getOpaque(), substType);
       SILType objType = optType.getOptionalObjectType().getAddressType();
@@ -568,7 +568,8 @@ public:
       // If we're reading an optional chain, create an optional result.
       auto resultCanType = components.back().getComponentType();
       auto &function = builder.getFunction();
-      auto substType = resultCanType.subst(keyPath->getSubstitutions(), None);
+      auto substType =
+          resultCanType.subst(keyPath->getSubstitutions(), llvm::None);
       auto optType = function.getLoweredType(
                          Lowering::AbstractionPattern::getOpaque(), substType);
       

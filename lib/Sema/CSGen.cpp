@@ -1991,7 +1991,7 @@ namespace {
       auto contextualType = CS.getContextualType(expr, /*forConstraint=*/false);
       auto contextualPurpose = CS.getContextualTypePurpose(expr);
 
-      auto joinElementTypes = [&](Optional<Type> elementType) {
+      auto joinElementTypes = [&](llvm::Optional<Type> elementType) {
         const auto elements = expr->getElements();
         unsigned index = 0;
 
@@ -4299,7 +4299,7 @@ static bool generateInitPatternConstraints(ConstraintSystem &cs,
   return false;
 }
 
-static Optional<SyntacticElementTarget>
+static llvm::Optional<SyntacticElementTarget>
 generateForEachStmtConstraints(ConstraintSystem &cs,
                                SyntacticElementTarget target) {
   ASTContext &ctx = cs.getASTContext();
@@ -4316,7 +4316,7 @@ generateForEachStmtConstraints(ConstraintSystem &cs,
       cs.getASTContext(), stmt->getForLoc(),
       isAsync ? KnownProtocolKind::AsyncSequence : KnownProtocolKind::Sequence);
   if (!sequenceProto)
-    return None;
+    return llvm::None;
 
   std::string name;
   {
@@ -4357,7 +4357,7 @@ generateForEachStmtConstraints(ConstraintSystem &cs,
         CTP_ForEachSequence);
 
     if (cs.generateConstraints(makeIteratorTarget))
-      return None;
+      return llvm::None;
 
     forEachStmtInfo.makeIteratorVar = PB;
 
@@ -4410,7 +4410,7 @@ generateForEachStmtConstraints(ConstraintSystem &cs,
           isAsync ? KnownProtocolKind::AsyncIteratorProtocol
                   : KnownProtocolKind::IteratorProtocol);
       if (!iteratorProto)
-        return None;
+        return llvm::None;
 
       cs.setContextualType(
           nextRef->getBase(),
@@ -4422,7 +4422,7 @@ generateForEachStmtConstraints(ConstraintSystem &cs,
                                       /*contextualType=*/Type(),
                                       /*isDiscarded=*/false);
     if (cs.generateConstraints(nextTarget, FreeTypeVariableBinding::Disallow))
-      return None;
+      return llvm::None;
 
     forEachStmtInfo.nextCall = nextTarget.getAsExpr();
     cs.setTargetFor(forEachStmtInfo.nextCall, nextTarget);
@@ -4431,12 +4431,12 @@ generateForEachStmtConstraints(ConstraintSystem &cs,
   Pattern *pattern = TypeChecker::resolvePattern(stmt->getPattern(), dc,
                                                  /*isStmtCondition*/ false);
   if (!pattern)
-    return None;
+    return llvm::None;
 
   auto contextualPattern = ContextualPattern::forRawPattern(pattern, dc);
   Type patternType = TypeChecker::typeCheckPattern(contextualPattern);
   if (patternType->hasError()) {
-    return None;
+    return llvm::None;
   }
 
   // Collect constraints from the element pattern.
@@ -4446,7 +4446,7 @@ generateForEachStmtConstraints(ConstraintSystem &cs,
       cs.generateConstraints(pattern, elementLocator,
                              target.shouldBindPatternVarsOneWay(), nullptr, 0);
   if (!initType)
-    return None;
+    return llvm::None;
 
   // Add a conversion constraint between the element type of the sequence
   // and the type of the element pattern.
@@ -4469,16 +4469,16 @@ generateForEachStmtConstraints(ConstraintSystem &cs,
   if (auto *whereExpr = stmt->getWhere()) {
     auto *boolDecl = dc->getASTContext().getBoolDecl();
     if (!boolDecl)
-      return None;
+      return llvm::None;
 
     Type boolType = boolDecl->getDeclaredInterfaceType();
     if (!boolType)
-      return None;
+      return llvm::None;
 
     SyntacticElementTarget whereTarget(whereExpr, dc, CTP_Condition, boolType,
                                        /*isDiscarded=*/false);
     if (cs.generateConstraints(whereTarget, FreeTypeVariableBinding::Disallow))
-      return None;
+      return llvm::None;
 
     cs.setTargetFor(whereExpr, whereTarget);
     cs.setContextualType(whereExpr, TypeLoc::withoutLoc(boolType),
@@ -4847,7 +4847,7 @@ void ConstraintSystem::optimizeConstraints(Expr *e) {
 struct ResolvedMemberResult::Implementation {
   llvm::SmallVector<ValueDecl*, 4> AllDecls;
   unsigned ViableStartIdx;
-  Optional<unsigned> BestIdx;
+  llvm::Optional<unsigned> BestIdx;
 };
 
 ResolvedMemberResult::ResolvedMemberResult(): Impl(new Implementation()) {}
@@ -4881,7 +4881,7 @@ getMemberDecls(InterestedMemberKind Kind) {
 ResolvedMemberResult swift::resolveValueMember(DeclContext &DC, Type BaseTy,
                                                DeclName Name) {
   ResolvedMemberResult Result;
-  ConstraintSystem CS(&DC, None);
+  ConstraintSystem CS(&DC, llvm::None);
 
   // Look up all members of BaseTy with the given Name.
   MemberLookupResult LookupResult = CS.performMemberLookup(
@@ -4912,7 +4912,7 @@ ResolvedMemberResult swift::resolveValueMember(DeclContext &DC, Type BaseTy,
                                                TVO_CanBindToLValue |
                                                TVO_CanBindToNoEscape);
   CS.addOverloadSet(TV, LookupResult.ViableCandidates, &DC, Locator);
-  Optional<Solution> OpSolution = CS.solveSingle();
+  llvm::Optional<Solution> OpSolution = CS.solveSingle();
   ValueDecl *Selected = nullptr;
   if (OpSolution.has_value()) {
     Selected = OpSolution.value().overloadChoices[Locator].choice.getDecl();

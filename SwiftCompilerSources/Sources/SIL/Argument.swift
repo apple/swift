@@ -141,11 +141,17 @@ public enum ArgumentConvention {
   /// indirectly is recorded in the pack type.
   case packGuaranteed
 
+  /// This argument is a pack of indirect return value addresses.  The
+  /// addresses are stored in the pack by the caller and read out by the
+  /// callee; within the callee, they are individually treated like
+  /// indirectOut arguments.
+  case packOut
+
   public var isIndirect: Bool {
     switch self {
     case .indirectIn, .indirectInGuaranteed,
          .indirectInout, .indirectInoutAliasable, .indirectOut,
-         .packInout, .packOwned, .packGuaranteed:
+         .packOut, .packInout, .packOwned, .packGuaranteed:
       return true
     case .directOwned, .directUnowned, .directGuaranteed:
       return false
@@ -159,7 +165,19 @@ public enum ArgumentConvention {
       return true
     case .directOwned, .directUnowned, .directGuaranteed,
          .indirectInout, .indirectInoutAliasable, .indirectOut,
-         .packInout:
+         .packOut, .packInout:
+      return false
+    }
+  }
+
+  public var isIndirectOut: Bool {
+    switch self {
+    case .indirectOut, .packOut:
+      return true
+    case .indirectInGuaranteed, .directGuaranteed, .packGuaranteed,
+         .indirectIn, .directOwned, .directUnowned,
+         .indirectInout, .indirectInoutAliasable,
+         .packInout, .packOwned:
       return false
     }
   }
@@ -170,7 +188,7 @@ public enum ArgumentConvention {
       return true
     case .indirectIn, .directOwned, .directUnowned,
          .indirectInout, .indirectInoutAliasable, .indirectOut,
-         .packInout, .packOwned:
+         .packOut, .packInout, .packOwned:
       return false
     }
   }
@@ -181,6 +199,7 @@ public enum ArgumentConvention {
          .indirectOut,
          .indirectInGuaranteed,
          .indirectInout,
+         .packOut,
          .packInout,
          .packOwned,
          .packGuaranteed:
@@ -207,6 +226,7 @@ public enum ArgumentConvention {
          .directUnowned,
          .directGuaranteed,
          .directOwned,
+         .packOut,
          .packOwned,
          .packGuaranteed:
       return false
@@ -233,6 +253,7 @@ extension BridgedArgumentConvention {
       case .Direct_Owned:            return .directOwned
       case .Direct_Unowned:          return .directUnowned
       case .Direct_Guaranteed:       return .directGuaranteed
+      case .Pack_Out:                return .packOut
       case .Pack_Inout:              return .packInout
       case .Pack_Owned:              return .packOwned
       case .Pack_Guaranteed:         return .packGuaranteed

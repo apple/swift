@@ -105,7 +105,7 @@ class COWArrayOpt {
   RCIdentityFunctionInfo *RCIA;
   SILFunction *Function;
   SILLoop *Loop;
-  Optional<SmallVector<SILBasicBlock *, 8>> LoopExitingBlocks;
+  llvm::Optional<SmallVector<SILBasicBlock *, 8>> LoopExitingBlocks;
   SILBasicBlock *Preheader;
   DominanceInfo *DomTree;
   bool HasChanged = false;
@@ -493,7 +493,7 @@ ArraySemanticsCall getEndMutationCall(const UserRange &AddressUsers) {
 
 /// Returns true if this instruction is a safe array use if all of its users are
 /// also safe array users.
-static Optional<SILInstructionResultArray>
+static llvm::Optional<SILInstructionResultArray>
 isTransitiveSafeUser(SILInstruction *I) {
   switch (I->getKind()) {
   case SILInstructionKind::StructExtractInst:
@@ -509,7 +509,7 @@ isTransitiveSafeUser(SILInstruction *I) {
   case SILInstructionKind::BeginBorrowInst:
     return I->getResults();
   default:
-    return None;
+    return llvm::None;
   }
 }
 

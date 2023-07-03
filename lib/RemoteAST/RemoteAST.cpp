@@ -91,7 +91,7 @@ public:
 /// The template subclasses do target-specific logic.
 class RemoteASTContextImpl {
   std::unique_ptr<IRGenContext> IRGen;
-  Optional<Failure> CurFailure;
+  llvm::Optional<Failure> CurFailure;
 
 public:
   RemoteASTContextImpl() = default;
@@ -391,7 +391,7 @@ private:
   }
 
   /// Attempt to discover the size and alignment of the given type.
-  Optional<std::pair<Size, Alignment>>
+  llvm::Optional<std::pair<Size, Alignment>>
   getTypeSizeAndAlignment(irgen::IRGenModule &IGM, SILType eltTy) {
     auto &eltTI = IGM.getTypeInfo(eltTy);
     if (auto fixedTI = dyn_cast<irgen::FixedTypeInfo>(&eltTI)) {
@@ -400,7 +400,7 @@ private:
     }
 
     // TODO: handle resilient types
-    return None;
+    return llvm::None;
   }
 };
 

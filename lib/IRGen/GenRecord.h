@@ -124,8 +124,8 @@ private:
   const unsigned NumFields;
   const unsigned AreFieldsABIAccessible : 1;
 
-  mutable Optional<const FieldImpl *> ExtraInhabitantProvidingField;
-  mutable Optional<bool> MayHaveExtraInhabitants;
+  mutable llvm::Optional<const FieldImpl *> ExtraInhabitantProvidingField;
+  mutable llvm::Optional<bool> MayHaveExtraInhabitants;
 
 protected:
   const Impl &asImpl() const { return *static_cast<const Impl*>(this); }

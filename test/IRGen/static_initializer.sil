@@ -1,7 +1,6 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers %s -emit-ir | %FileCheck %s -check-prefix CHECK -check-prefix CHECK-%target-abi
-// RUN: %target-swift-frontend %s -emit-ir
+// RUN: %target-swift-frontend %s -emit-ir | %FileCheck %s -check-prefix CHECK -check-prefix CHECK-%target-abi -check-prefix CHECK-%target-abi-%target-cpu
 
-// REQUIRES: CPU=x86_64
+// REQUIRES: CPU=arm64 || CPU=x86_64
 
 // Generated from
 // var x : Int32 = 2
@@ -25,10 +24,12 @@ public struct S2 {
 // CHECK: %T18static_initializer1SV = type <{ %Ts5Int32V }>
 // CHECK: %T18static_initializer16TestArrayStorageC_tailelems0c = type { [1 x i64], %T18static_initializer16TestArrayStorageC_tailelems0 }
 // CHECK: %T18static_initializer16TestArrayStorageC_tailelems0 = type <{ %swift.refcounted, %Ts5Int32V, [4 x i8], %Ts5Int64V, %Ts5Int64V }>
-// CHECK-SYSV: %T18static_initializer16TestArrayStorageC_tailelems1c = type { [2 x i64], %T18static_initializer16TestArrayStorageC_tailelems1 }
-// CHECK-WIN: %T18static_initializer16TestArrayStorageC_tailelems1c = type { [1 x i64], %T18static_initializer16TestArrayStorageC_tailelems1 }
-// CHECK-SYSV: %T18static_initializer16TestArrayStorageC_tailelems1 = type <{ %swift.refcounted, %Ts5Int32V, [12 x i8], %Ts7Float80V }>
-// CHECK-WIN: %T18static_initializer16TestArrayStorageC_tailelems1 = type <{ %swift.refcounted, %Ts5Int32V, [1 x i8] }>
+// CHECK-SYSV-arm64: %T18static_initializer16TestArrayStorageC_tailelems1c = type { [1 x i64], %T18static_initializer16TestArrayStorageC_tailelems1 }
+// CHECK-SYSV-x86_64: %T18static_initializer16TestArrayStorageC_tailelems1c = type { [2 x i64], %T18static_initializer16TestArrayStorageC_tailelems1 }
+// CHECK-WIN-x86_64: %T18static_initializer16TestArrayStorageC_tailelems1c = type { [1 x i64], %T18static_initializer16TestArrayStorageC_tailelems1 }
+// CHECK-SYSV-arm64: %T18static_initializer16TestArrayStorageC_tailelems1 = type <{ %swift.refcounted, %Ts5Int32V, [1 x i8] }>
+// CHECK-SYSV-x86_64: %T18static_initializer16TestArrayStorageC_tailelems1 = type <{ %swift.refcounted, %Ts5Int32V, [12 x i8], %Ts7Float80V }>
+// CHECK-WIN-x86_64: %T18static_initializer16TestArrayStorageC_tailelems1 = type <{ %swift.refcounted, %Ts5Int32V, [1 x i8] }>
 // CHECK: %T18static_initializer16TestArrayStorageC_tailelems3 = type <{ %swift.refcounted, %Ts5Int32V, [1 x i8], [1 x i8] }>
 
 sil_global @$s2ch1xSiv : $Int32 = {
@@ -78,8 +79,9 @@ sil_global @static_aligned_array : $TestArrayStorage = {
   %4 = struct $Float80 (%1 : $Builtin.FPIEEE80)
   %initval = object $TestArrayStorage (%3 : $Int32, [tail_elems] %4 : $Float80)
 }
-// CHECK-SYSV: @static_aligned_array = {{(dllexport )?}}{{(protected )?}}global %T18static_initializer16TestArrayStorageC_tailelems1c { [2 x i64] zeroinitializer, %T18static_initializer16TestArrayStorageC_tailelems1 <{ %swift.refcounted zeroinitializer, %Ts5Int32V <{ i32 2 }>, [12 x i8] undef, %Ts7Float80V <{ x86_fp80 0xK3FFE8000000000000000 }> }> }, align 16
-// CHECK-WIN: @static_aligned_array = {{(dllexport )?}}{{(protected )?}}global %T18static_initializer16TestArrayStorageC_tailelems1c { [1 x i64] zeroinitializer, %T18static_initializer16TestArrayStorageC_tailelems1 <{ %swift.refcounted zeroinitializer, %Ts5Int32V <{ i32 2 }>, [1 x i8] undef }> }, align 8
+// CHECK-SYSV-arm64: @static_aligned_array = {{(dllexport )?}}{{(protected )?}}global %T18static_initializer16TestArrayStorageC_tailelems1c { [1 x i64] zeroinitializer, %T18static_initializer16TestArrayStorageC_tailelems1 <{ %swift.refcounted zeroinitializer, %Ts5Int32V <{ i32 2 }>, [1 x i8] undef }> }, align 8
+// CHECK-SYSV-x86_64: @static_aligned_array = {{(dllexport )?}}{{(protected )?}}global %T18static_initializer16TestArrayStorageC_tailelems1c { [2 x i64] zeroinitializer, %T18static_initializer16TestArrayStorageC_tailelems1 <{ %swift.refcounted zeroinitializer, %Ts5Int32V <{ i32 2 }>, [12 x i8] undef, %Ts7Float80V <{ x86_fp80 0xK3FFE8000000000000000 }> }> }, align 16
+// CHECK-WIN-x86_64: @static_aligned_array = {{(dllexport )?}}{{(protected )?}}global %T18static_initializer16TestArrayStorageC_tailelems1c { [1 x i64] zeroinitializer, %T18static_initializer16TestArrayStorageC_tailelems1 <{ %swift.refcounted zeroinitializer, %Ts5Int32V <{ i32 2 }>, [1 x i8] undef }> }, align 8
 
 final class ClassWithEmptyField {
   @_hasStorage var x: Int32
@@ -124,11 +126,11 @@ sil_global [let] @string_with_offset : $MyString = {
   %9 = value_to_bridge_object %8 : $Builtin.Int64
   %initval = struct $MyString (%9 : $Builtin.BridgeObject)
 }
-// CHECK: @string_with_offset = {{.*constant .*}} <{ %swift.bridge* inttoptr (i64 add (i64 ptrtoint ([23 x i8]* @.str.22.abc123asd3sdj3basfasdf to i64), i64 9223372036854775776) to %swift.bridge*) }>, align 8
+// CHECK: @string_with_offset = {{.*constant .*}} <{ ptr inttoptr (i64 add (i64 ptrtoint (ptr @.str.22.abc123asd3sdj3basfasdf to i64), i64 9223372036854775776) to ptr) }>, align 8
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i8* @_TF2cha1xSi() {{.*}} {
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @_TF2cha1xSi() {{.*}} {
 // CHECK-NEXT: entry:
-// CHECK-NEXT: ret i8* bitcast (%Ts5Int32V* @"$s2ch1xSiv" to i8*)
+// CHECK-NEXT: ret ptr @"$s2ch1xSiv"
 sil [global_init] @_TF2cha1xSi : $@convention(thin) () -> Builtin.RawPointer {
 bb0:
   %0 = global_addr @$s2ch1xSiv : $*Int32
@@ -138,7 +140,7 @@ bb0:
 
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i32 @"$s2ch1fSiyF"() {{.*}} {
 // CHECK-NEXT: entry:
-// CHECK-NEXT: load i32, i32* getelementptr inbounds (%Ts5Int32V, %Ts5Int32V* @"$s2ch1xSiv", i32 0, i32 0)
+// CHECK-NEXT: load i32, ptr @"$s2ch1xSiv"
 // CHECK-NEXT: ret
 sil @$s2ch1fSiyF : $@convention(thin) () -> Int32 {
 bb0:
@@ -147,9 +149,9 @@ bb0:
   return %1 : $Int32
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i8* @_TF6nesteda1xVS_2S2() {{.*}} {
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @_TF6nesteda1xVS_2S2() {{.*}} {
 // CHECK-NEXT: entry:
-// CHECK-NEXT: ret i8* bitcast (%T18static_initializer2S2V* @"$s6nested1xAA2S2Vv" to i8*)
+// CHECK-NEXT: ret ptr @"$s6nested1xAA2S2Vv"
 sil [global_init] @_TF6nesteda1xVS_2S2 : $@convention(thin) () -> Builtin.RawPointer {
 bb0:
   %0 = global_addr @$s6nested1xAA2S2Vv : $*S2
@@ -159,9 +161,9 @@ bb0:
 
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc { i64, i32 } @"$s6nested1fAA2S2VyF"() {{.*}} {
 // CHECK-NEXT: entry:
-// CHECK: load i32, i32* getelementptr inbounds (%T18static_initializer2S2V, %T18static_initializer2S2V* @"$s6nested1xAA2S2Vv", i32 0, i32 0, i32 0)
-// CHECK-NEXT: load i32, i32* getelementptr inbounds (%T18static_initializer2S2V, %T18static_initializer2S2V* @"$s6nested1xAA2S2Vv", i32 0, i32 1, i32 0)
-// CHECK-NEXT: load i32, i32* getelementptr inbounds (%T18static_initializer2S2V, %T18static_initializer2S2V* @"$s6nested1xAA2S2Vv", i32 0, i32 2, i32 0, i32 0)
+// CHECK: load i32, ptr @"$s6nested1xAA2S2Vv"
+// CHECK-NEXT: load i32, ptr getelementptr inbounds (%T18static_initializer2S2V, ptr @"$s6nested1xAA2S2Vv", i32 0, i32 1)
+// CHECK-NEXT: load i32, ptr getelementptr inbounds (%T18static_initializer2S2V, ptr @"$s6nested1xAA2S2Vv", i32 0, i32 2)
 sil @$s6nested1fAA2S2VyF : $@convention(thin) () -> S2 {
 bb0:
   %0 = global_addr @$s6nested1xAA2S2Vv : $*S2
@@ -169,26 +171,35 @@ bb0:
   return %1 : $S2
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc %T18static_initializer16TestArrayStorageC* @return_static_array() {{.*}} {
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @return_static_array() {{.*}} {
 sil @return_static_array : $@convention(thin) () -> TestArray {
 bb0:
   // CHECK: [[TMP:%.*]] = call swiftcc %swift.metadata_response @"$s18static_initializer16TestArrayStorageCMa"(i64 0)
   // CHECK: [[MD:%[0-9]+]] = extractvalue %swift.metadata_response [[TMP]], 0
-  // CHECK: [[O:%[0-9a-z]+]] = call %swift.refcounted* @swift_initStaticObject(%swift.type* [[MD]], %swift.refcounted* getelementptr inbounds (%T18static_initializer16TestArrayStorageC_tailelems0c, %T18static_initializer16TestArrayStorageC_tailelems0c* @static_array, i32 0, i32 1, i32 0))
-  // CHECK: [[R:%[0-9]+]] = bitcast %swift.refcounted* [[O]] to %T18static_initializer16TestArrayStorageC*
-  // CHECK: ret %T18static_initializer16TestArrayStorageC* [[R]]
+  // CHECK: [[O:%[0-9a-z]+]] = call ptr @swift_initStaticObject(ptr [[MD]], ptr getelementptr inbounds (%T18static_initializer16TestArrayStorageC_tailelems0c, ptr @static_array, i32 0, i32 1))
+  // CHECK: ret ptr [[O]]
   %0 = global_value @static_array : $TestArrayStorage
   %1 = struct $TestArray (%0 : $TestArrayStorage)
   return %1 : $TestArray
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc %T18static_initializer16TestArrayStorageC* @phi_nodes(i1 %0, %T18static_initializer16TestArrayStorageC* %1)
-// CHECK: [[T0:%.*]] = call %swift.refcounted* @swift_initStaticObject
-// CHECK: [[T1:%.*]] = bitcast %swift.refcounted* [[T0]] to %T18static_initializer16TestArrayStorageC*
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i32 @bare_static_array() {{.*}} {
+sil @bare_static_array : $@convention(thin) () -> Int32 {
+bb0:
+  // CHECK: %0 = load i32, {{.*}}@static_array
+  // CHECK: ret i32 %0
+  %0 = global_value [bare] @static_array : $TestArrayStorage
+  %1 = ref_element_addr %0 : $TestArrayStorage, #TestArrayStorage.count
+  %2 = load %1 : $*Int32
+  return %2 : $Int32
+}
+
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @phi_nodes(i1 %0, ptr %1)
+// CHECK: [[T0:%.*]] = call ptr @swift_initStaticObject
 // CHECK: br
 // CHECK: br
-// CHECK: [[T3:%.*]] = phi %T18static_initializer16TestArrayStorageC* [ %1, {{.*}} ], [ [[T1]], {{.*}} ]
-// CHECK: ret %T18static_initializer16TestArrayStorageC* [[T3]]
+// CHECK: [[T3:%.*]] = phi ptr [ %1, {{.*}} ], [ [[T0]], {{.*}} ]
+// CHECK: ret ptr [[T3]]
 sil @phi_nodes : $@convention(thin) (Builtin.Int1, TestArrayStorage) -> TestArrayStorage {
 bb0(%0 : $Builtin.Int1, %1 : $TestArrayStorage):
  cond_br %0, bb1, bb2

@@ -35,7 +35,7 @@ struct swift::ide::api::SDKNodeInitInfo {
 #include "swift/IDE/DigesterEnums.def"
 #define KEY_BOOL(X, Y) bool X = false;
 #include "swift/IDE/DigesterEnums.def"
-#define KEY_UINT(X, Y) Optional<uint8_t> X;
+#define KEY_UINT(X, Y) llvm::Optional<uint8_t> X;
 #include "swift/IDE/DigesterEnums.def"
 #define KEY_STRING_ARR(X, Y) std::vector<StringRef> X;
 #include "swift/IDE/DigesterEnums.def"
@@ -550,19 +550,19 @@ StringRef SDKNodeTypeWitness::getWitnessedTypeName() const {
     getName()) + "." + getName()).str());
 }
 
-Optional<SDKNodeDeclType*> SDKNodeDeclType::getSuperclass() const {
+llvm::Optional<SDKNodeDeclType *> SDKNodeDeclType::getSuperclass() const {
   if (SuperclassUsr.empty())
-    return None;
+    return llvm::None;
   auto Descendants = getRootNode()->getDescendantsByUsr(SuperclassUsr);
   if (!Descendants.empty()) {
     return Descendants.front()->getAs<SDKNodeDeclType>();
   }
-  return None;
+  return llvm::None;
 }
 
 /// Finding the node through all children, including the inherited ones,
 /// whose printed name matches with the given name.
-Optional<SDKNodeDecl*>
+llvm::Optional<SDKNodeDecl *>
 SDKNodeDeclType::lookupChildByPrintedName(StringRef Name) const {
   for (auto C : getChildren()) {
     if (C->getPrintedName() == Name)
@@ -572,7 +572,7 @@ SDKNodeDeclType::lookupChildByPrintedName(StringRef Name) const {
   if (auto Super = getSuperclass()) {
     return (*Super)->lookupChildByPrintedName(Name);
   }
-  return None;
+  return llvm::None;
 }
 
 SDKNodeType *SDKNodeDeclType::getRawValueType() const {
@@ -614,11 +614,11 @@ StringRef SDKNodeDeclAbstractFunc::getTypeRoleDescription(SDKContext &Ctx,
   }
 #include "swift/IDE/DigesterEnums.def"
 
-static Optional<KeyKind> parseKeyKind(StringRef Content) {
-  return llvm::StringSwitch<Optional<KeyKind>>(Content)
+static llvm::Optional<KeyKind> parseKeyKind(StringRef Content) {
+  return llvm::StringSwitch<llvm::Optional<KeyKind>>(Content)
 #define KEY(NAME) .Case(#NAME, KeyKind::KK_##NAME)
 #include "swift/IDE/DigesterEnums.def"
-    .Default(None);
+      .Default(llvm::None);
 }
 
 static StringRef getKeyContent(SDKContext &Ctx, KeyKind Kind) {
@@ -751,11 +751,11 @@ SDKNode* SDKNode::constructSDKNode(SDKContext &Ctx,
         break;
       }
       case KeyKind::KK_declKind: {
-        auto dKind = llvm::StringSwitch<Optional<DeclKind>>(
-          GetScalarString(Pair.getValue()))
-  #define DECL(X, PARENT) .Case(#X, DeclKind::X)
+        auto dKind = llvm::StringSwitch<llvm::Optional<DeclKind>>(
+                         GetScalarString(Pair.getValue()))
+#define DECL(X, PARENT) .Case(#X, DeclKind::X)
   #include "swift/AST/DeclNodes.def"
-        .Default(None);
+                         .Default(llvm::None);
         if (dKind)
           Info.DKind = *dKind;
         else
@@ -848,7 +848,8 @@ static bool hasSameParameterFlags(const SDKNodeType *Left, const SDKNodeType *Ri
 }
 
 // Return whether a decl has been moved in/out to an extension
-static Optional<bool> isFromExtensionChanged(const SDKNode &L, const SDKNode &R) {
+static llvm::Optional<bool> isFromExtensionChanged(const SDKNode &L,
+                                                   const SDKNode &R) {
   assert(L.getKind() == R.getKind());
   // Version 8 starts to include whether a decl is from an extension.
   if (L.getJsonFormatVersion() + R.getJsonFormatVersion() < 2 * 8) {
@@ -1185,12 +1186,12 @@ static bool isFuncThrowing(ValueDecl *VD) {
   return false;
 }
 
-static Optional<uint8_t> getSelfIndex(ValueDecl *VD) {
+static llvm::Optional<uint8_t> getSelfIndex(ValueDecl *VD) {
   if (auto AF = dyn_cast<AbstractFunctionDecl>(VD)) {
     if (AF->isImportAsInstanceMember())
       return AF->getSelfIndex();
   }
-  return None;
+  return llvm::None;
 }
 
 static ReferenceOwnership getReferenceOwnership(ValueDecl *VD) {
@@ -1262,26 +1263,26 @@ StringRef printGenericSignature(SDKContext &Ctx, ProtocolConformance *Conf, bool
   return printGenericSignature(Ctx, Conf->getConditionalRequirements(), Canonical);
 }
 
-static Optional<uint8_t> getSimilarMemberCount(NominalTypeDecl *NTD,
-                                               ValueDecl *VD,
-                                        llvm::function_ref<bool(Decl*)> Check) {
+static llvm::Optional<uint8_t>
+getSimilarMemberCount(NominalTypeDecl *NTD, ValueDecl *VD,
+                      llvm::function_ref<bool(Decl *)> Check) {
   if (!Check(VD))
-    return None;
+    return llvm::None;
   auto Members = NTD->getMembers();
   auto End = std::find(Members.begin(), Members.end(), VD);
   assert(End != Members.end());
   return std::count_if(Members.begin(), End, Check);
 }
 
-Optional<uint8_t> SDKContext::getFixedBinaryOrder(ValueDecl *VD) const {
+llvm::Optional<uint8_t> SDKContext::getFixedBinaryOrder(ValueDecl *VD) const {
   // We don't need fixed binary order when checking API stability.
   if (!checkingABI())
-    return None;
+    return llvm::None;
   auto *NTD = dyn_cast_or_null<NominalTypeDecl>(VD->getDeclContext()->
     getAsDecl());
 
   if (!NTD || isa<ProtocolDecl>(NTD) || NTD->isResilient())
-    return None;
+    return llvm::None;
 
   // The relative order of stored properties matters for non-resilient type.
   auto isStored = [](Decl *M) {

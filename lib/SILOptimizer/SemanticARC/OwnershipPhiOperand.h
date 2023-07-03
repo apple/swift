@@ -40,14 +40,14 @@ private:
   OwnershipPhiOperand(Operand *op) : op(op) {}
 
 public:
-  static Optional<OwnershipPhiOperand> get(const Operand *op) {
+  static llvm::Optional<OwnershipPhiOperand> get(const Operand *op) {
     switch (op->getUser()->getKind()) {
     case SILInstructionKind::BranchInst:
     case SILInstructionKind::StructInst:
     case SILInstructionKind::TupleInst:
       return {{const_cast<Operand *>(op)}};
     default:
-      return None;
+      return llvm::None;
     }
   }
 

@@ -819,7 +819,7 @@ GenericSignatureRequest::evaluate(Evaluator &evaluator,
 /// substitutions that will have been applied to these types.
 /// These are used to produce the "parameter = argument" bindings in the test.
 static std::string gatherGenericParamBindingsText(
-    ArrayRef<Type> types, TypeArrayView<GenericTypeParamType> genericParams,
+    ArrayRef<Type> types, ArrayRef<GenericTypeParamType *> genericParams,
     TypeSubstitutionFn substitutions) {
   llvm::SmallPtrSet<GenericTypeParamType *, 2> knownGenericParams;
   for (auto type : types) {
@@ -870,7 +870,7 @@ static std::string gatherGenericParamBindingsText(
 void TypeChecker::diagnoseRequirementFailure(
     const CheckGenericArgumentsResult::RequirementFailureInfo &reqFailureInfo,
     SourceLoc errorLoc, SourceLoc noteLoc, Type targetTy,
-    TypeArrayView<GenericTypeParamType> genericParams,
+    ArrayRef<GenericTypeParamType *> genericParams,
     TypeSubstitutionFn substitutions, ModuleDecl *module) {
   assert(errorLoc.isValid() && noteLoc.isValid());
 
@@ -1098,7 +1098,7 @@ RequirementRequest::evaluate(Evaluator &evaluator,
     options |= TypeResolutionFlags::AllowPackReferences;
   if (owner.dc->isInSpecializeExtensionContext())
     options |= TypeResolutionFlags::AllowUsableFromInline;
-  Optional<TypeResolution> resolution;
+  llvm::Optional<TypeResolution> resolution;
   switch (stage) {
   case TypeResolutionStage::Structural:
     resolution = TypeResolution::forStructural(owner.dc, options,

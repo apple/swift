@@ -1,12 +1,9 @@
 // RUN: %empty-directory(%t)
 // RUN: %build-irgen-test-overlays
-// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) %use_no_opaque_pointers %s -emit-ir | %FileCheck %s
-// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) %s -emit-ir
+// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) %s -emit-ir | %FileCheck %s
 
 // REQUIRES: PTRSIZE=64
 // REQUIRES: objc_interop
-
-// CHECK: [[SGIZMO:%T19objc_attr_NSManaged10SwiftGizmoC]] = type
 
 import Builtin
 import Swift
@@ -18,13 +15,13 @@ import Foundation
 sil_vtable X {}
 
 // The getter/setter should not show up in the Objective-C metadata.
-// CHECK: @_INSTANCE_METHODS__TtC19objc_attr_NSManaged10SwiftGizmo = internal constant { i32, i32, [2 x { i8*, i8*, i8* }] } { i32 24, i32 2, {{.*}} @"\01L_selector_data(initWithBellsOn:)", {{.*}} @"\01L_selector_data(init)",
+// CHECK: @_INSTANCE_METHODS__TtC19objc_attr_NSManaged10SwiftGizmo = internal constant { i32, i32, [2 x { ptr, ptr, ptr }] } { i32 24, i32 2, {{.*}} @"\01L_selector_data(initWithBellsOn:)", {{.*}} @"\01L_selector_data(init)",
 
 // The property 'x' should show up in the Objective-C metadata.
-// CHECK: @_PROPERTIES__TtC19objc_attr_NSManaged10SwiftGizmo = internal constant { {{.*}}i32, i32, [1 x { i8*, i8* }] } { i32 16, i32 1, [1 x { i8*, i8* }] [{ i8*, i8* } { i8* getelementptr inbounds ([2 x i8], [2 x i8]* @.str.1.x, i64 0, i64 0),
+// CHECK: @_PROPERTIES__TtC19objc_attr_NSManaged10SwiftGizmo = internal constant { {{.*}}i32, i32, [1 x { ptr, ptr }] } { i32 16, i32 1, [1 x { ptr, ptr }] [{ ptr, ptr } { ptr @.str.1.x,
 
 // The getter/setter should not show up in the Swift metadata.
-// CHECK: @"$s19objc_attr_NSManaged10SwiftGizmoCMf" = internal global <{ {{.*}} }> <{ i8*{{.*}}, void (%T19objc_attr_NSManaged10SwiftGizmoC*)* {{.*}}@"$s19objc_attr_NSManaged10SwiftGizmoCfD{{(\.ptrauth)?}}"{{.*}}, i8**{{.*}} @"$sBOWV{{(.ptrauth)?(.)?[0-9]?}}"{{.*}}, {{.*}} @"OBJC_METACLASS_$__TtC19objc_attr_NSManaged10SwiftGizmo{{(.ptrauth)?}}"{{.*}}, %objc_class*{{.*}} @"OBJC_CLASS_$_Gizmo{{(.ptrauth)?}}"{{.*}}, %swift.opaque* @_objc_empty_cache, %swift.opaque* null,{{.*}}@_DATA__TtC19objc_attr_NSManaged10SwiftGizmo{{.*}}i64 {{1|2}}){{.*}}, i32 {{1|0}}, i32 0, i32 8, i16 7, i16 0, i32 104, i32 24, {{.*}}* @"$s19objc_attr_NSManaged10SwiftGizmoCMn{{(\.ptrauth)?}}"{{.*}}, i8* null }>
+// CHECK: @"$s19objc_attr_NSManaged10SwiftGizmoCMf" = internal global <{ {{.*}} }> <{ ptr{{.*}}, ptr {{.*}}@"$s19objc_attr_NSManaged10SwiftGizmoCfD{{(\.ptrauth)?}}"{{.*}}, ptr{{.*}} @"$sBOWV{{(.ptrauth)?(.)?[0-9]?}}"{{.*}}, {{.*}} @"OBJC_METACLASS_$__TtC19objc_attr_NSManaged10SwiftGizmo{{(.ptrauth)?}}"{{.*}}, ptr{{.*}} @"OBJC_CLASS_$_Gizmo{{(.ptrauth)?}}"{{.*}}, ptr @_objc_empty_cache, ptr null,{{.*}}@_DATA__TtC19objc_attr_NSManaged10SwiftGizmo{{.*}}i64 {{1|2}}){{.*}}, i32 {{1|0}}, i32 0, i32 8, i16 7, i16 0, i32 104, i32 24, ptr @"$s19objc_attr_NSManaged10SwiftGizmoCMn{{(\.ptrauth)?}}"{{.*}}, ptr null }>
 
 @objc class SwiftGizmo : Gizmo {
   @objc @NSManaged var x: X

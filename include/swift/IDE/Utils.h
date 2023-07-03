@@ -112,7 +112,7 @@ std::unique_ptr<llvm::MemoryBuffer>
   replacePlaceholders(std::unique_ptr<llvm::MemoryBuffer> InputBuf,
                       bool *HadPlaceholder = nullptr);
 
-Optional<std::pair<unsigned, unsigned>> parseLineCol(StringRef LineCol);
+llvm::Optional<std::pair<unsigned, unsigned>> parseLineCol(StringRef LineCol);
 
 class XMLEscapingPrinter : public StreamPrinter {
   public:
@@ -172,7 +172,8 @@ private:
   bool IsRef = true;
   Type Ty;
   Type ContainerType;
-  Optional<std::pair<const CustomAttr *, Decl *>> CustomAttrRef = None;
+  llvm::Optional<std::pair<const CustomAttr *, Decl *>> CustomAttrRef =
+      llvm::None;
 
   bool IsKeywordArgument = false;
   /// It this is a ref, whether it is "dynamic". See \c ide::isDynamicRef.
@@ -195,7 +196,7 @@ public:
   explicit ResolvedValueRefCursorInfo(
       SourceFile *SF, SourceLoc Loc, ValueDecl *ValueD, TypeDecl *CtorTyRef,
       ExtensionDecl *ExtTyRef, bool IsRef, Type Ty, Type ContainerType,
-      Optional<std::pair<const CustomAttr *, Decl *>> CustomAttrRef,
+      llvm::Optional<std::pair<const CustomAttr *, Decl *>> CustomAttrRef,
       bool IsKeywordArgument, bool IsDynamic,
       SmallVector<NominalTypeDecl *> ReceiverTypes,
       SmallVector<ValueDecl *> ShorthandShadowedDecls)
@@ -239,7 +240,8 @@ public:
 
   ValueDecl *typeOrValue() { return CtorTyRef ? CtorTyRef : ValueD; }
 
-  Optional<std::pair<const CustomAttr *, Decl *>> getCustomAttrRef() const {
+  llvm::Optional<std::pair<const CustomAttr *, Decl *>>
+  getCustomAttrRef() const {
     return CustomAttrRef;
   }
 
@@ -315,7 +317,7 @@ struct ResolvedLoc {
   ASTWalker::ParentTy Node;
   CharSourceRange Range;
   std::vector<CharSourceRange> LabelRanges;
-  Optional<unsigned> FirstTrailingLabel;
+  llvm::Optional<unsigned> FirstTrailingLabel;
   LabelRangeType LabelType;
   bool IsActive;
   bool IsInSelector;
@@ -362,9 +364,9 @@ class NameMatcher: public ASTWalker {
   bool tryResolve(ASTWalker::ParentTy Node, SourceLoc NameLoc);
   bool tryResolve(ASTWalker::ParentTy Node, DeclNameLoc NameLoc,
                   ArgumentList *Args);
-  bool tryResolve(ASTWalker::ParentTy Node, SourceLoc NameLoc, LabelRangeType RangeType,
-                  ArrayRef<CharSourceRange> LabelLocs,
-                  Optional<unsigned> FirstTrailingLabel);
+  bool tryResolve(ASTWalker::ParentTy Node, SourceLoc NameLoc,
+                  LabelRangeType RangeType, ArrayRef<CharSourceRange> LabelLocs,
+                  llvm::Optional<unsigned> FirstTrailingLabel);
   bool handleCustomAttrs(Decl *D);
   ArgumentList *getApplicableArgsFor(Expr* E);
 
@@ -552,7 +554,7 @@ struct NoteRegion {
   unsigned StartColumn;
   unsigned EndLine;
   unsigned EndColumn;
-  Optional<unsigned> ArgIndex;
+  llvm::Optional<unsigned> ArgIndex;
 };
 
 struct Replacement {
@@ -685,7 +687,7 @@ getCallArgInfo(SourceManager &SM, ArgumentList *Args, LabelRangeEndAt EndKind);
 // Get the ranges of argument labels from an Arg, either tuple or paren, and
 // the index of the first trailing closure argument, if any. This includes empty
 // ranges for any unlabelled arguments, including the first trailing closure.
-std::pair<std::vector<CharSourceRange>, Optional<unsigned>>
+std::pair<std::vector<CharSourceRange>, llvm::Optional<unsigned>>
 getCallArgLabelRanges(SourceManager &SM, ArgumentList *Args,
                       LabelRangeEndAt EndKind);
 

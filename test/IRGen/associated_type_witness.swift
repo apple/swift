@@ -1,10 +1,8 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -primary-file %s -emit-ir > %t.ll
-// RUN: %target-swift-frontend -primary-file %s -emit-ir
+// RUN: %target-swift-frontend -primary-file %s -emit-ir > %t.ll
 // RUN: %FileCheck %s -check-prefix=GLOBAL < %t.ll
 // RUN: %FileCheck %s < %t.ll
 
-// RUN: %target-swift-frontend %use_no_opaque_pointers -primary-file %s -emit-ir -wmo -num-threads 1 > %t.ll.wmo
-// RUN: %target-swift-frontend -primary-file %s -emit-ir -wmo -num-threads 1
+// RUN: %target-swift-frontend -primary-file %s -emit-ir -wmo -num-threads 1 > %t.ll.wmo
 // RUN: %FileCheck %s -check-prefix=GLOBAL < %t.ll.wmo
 // RUN: %FileCheck %s < %t.ll.wmo
 // REQUIRES: CPU=x86_64
@@ -39,7 +37,7 @@ protocol HasThreeAssocTypes {
 }
 
 //   Witness table for WithUniversal : Assocked.
-// GLOBAL-LABEL: @"$s23associated_type_witness13WithUniversalVAA8AssockedAAWP" = hidden global [4 x i8*] [
+// GLOBAL-LABEL: @"$s23associated_type_witness13WithUniversalVAA8AssockedAAWP" = hidden global [4 x ptr] [
 // GLOBAL-SAME:    @"$s23associated_type_witness13WithUniversalVAA8AssockedAAMc"
 // GLOBAL-SAME:    @"associated conformance 23associated_type_witness13WithUniversalVAA8AssockedAA5AssocAaDP_AA1P",
 // GLOBAL-SAME:    @"associated conformance 23associated_type_witness13WithUniversalVAA8AssockedAA5AssocAaDP_AA1Q"
@@ -50,7 +48,7 @@ struct WithUniversal : Assocked {
 }
 
 //   Witness table for GenericWithUniversal : Assocked.
-// GLOBAL-LABEL: @"$s23associated_type_witness20GenericWithUniversalVyxGAA8AssockedAAWP" = hidden global [4 x i8*] [
+// GLOBAL-LABEL: @"$s23associated_type_witness20GenericWithUniversalVyxGAA8AssockedAAWP" = hidden global [4 x ptr] [
 // GLOBAL-SAME:    @"$s23associated_type_witness20GenericWithUniversalVyxGAA8AssockedAAMc"
 // GLOBAL-SAME:    @"associated conformance 23associated_type_witness20GenericWithUniversalVyxGAA8AssockedAA5AssocAaEP_AA1P"
 // GLOBAL-SAME:    @"associated conformance 23associated_type_witness20GenericWithUniversalVyxGAA8AssockedAA5AssocAaEP_AA1Q"
@@ -61,7 +59,7 @@ struct GenericWithUniversal<T> : Assocked {
 }
 
 //   Witness table for Fulfilled : Assocked.
-// GLOBAL-LABEL: @"$s23associated_type_witness9FulfilledVyxGAA8AssockedAAWp" = internal global [4 x i8*] [
+// GLOBAL-LABEL: @"$s23associated_type_witness9FulfilledVyxGAA8AssockedAAWp" = internal global [4 x ptr] [
 // GLOBAL-SAME:    @"$s23associated_type_witness9FulfilledVyxGAA8AssockedAAMc"
 // GLOBAL-SAME:    @"associated conformance 23associated_type_witness9FulfilledVyxGAA8AssockedAA5AssocAaEP_AA1P"
 // GLOBAL-SAME:    @"associated conformance 23associated_type_witness9FulfilledVyxGAA8AssockedAA5AssocAaEP_AA1Q"
@@ -72,23 +70,21 @@ struct Fulfilled<T : P & Q> : Assocked {
 }
 
 //   Associated type witness table access function for Fulfilled.Assoc : P.
-// CHECK-LABEL:  define internal swiftcc i8** @"$s23associated_type_witness9FulfilledVyxGAA8AssockedAA5AssocAaEP_AA1PPWT"(%swift.type* %"Fulfilled<T>.Assoc", %swift.type* %"Fulfilled<T>", i8** %"Fulfilled<T>.Assocked")
-// CHECK:         [[T0:%.*]] = bitcast %swift.type* %"Fulfilled<T>" to i8***
-// CHECK-NEXT:    [[T1:%.*]] = getelementptr inbounds i8**, i8*** [[T0]], i64 3
-// CHECK-NEXT:    [[T2:%.*]] = load i8**, i8*** [[T1]], align 8, !invariant.load
-// CHECK-NEXT:    ret i8** [[T2]]
+// CHECK-LABEL:  define internal swiftcc ptr @"$s23associated_type_witness9FulfilledVyxGAA8AssockedAA5AssocAaEP_AA1PPWT"(ptr %"Fulfilled<T>.Assoc", ptr %"Fulfilled<T>", ptr %"Fulfilled<T>.Assocked")
+// CHECK:    [[T1:%.*]] = getelementptr inbounds ptr, ptr %"Fulfilled<T>", i64 3
+// CHECK-NEXT:    [[T2:%.*]] = load ptr, ptr [[T1]], align 8, !invariant.load
+// CHECK-NEXT:    ret ptr [[T2]]
 
 //   Associated type witness table access function for Fulfilled.Assoc : Q.
-// CHECK-LABEL:  define internal swiftcc i8** @"$s23associated_type_witness9FulfilledVyxGAA8AssockedAA5AssocAaEP_AA1QPWT"(%swift.type* %"Fulfilled<T>.Assoc", %swift.type* %"Fulfilled<T>", i8** %"Fulfilled<T>.Assocked")
-// CHECK:         [[T0:%.*]] = bitcast %swift.type* %"Fulfilled<T>" to i8***
-// CHECK-NEXT:    [[T1:%.*]] = getelementptr inbounds i8**, i8*** [[T0]], i64 4
-// CHECK-NEXT:    [[T2:%.*]] = load i8**, i8*** [[T1]], align 8, !invariant.load
-// CHECK-NEXT:    ret i8** [[T2]]
+// CHECK-LABEL:  define internal swiftcc ptr @"$s23associated_type_witness9FulfilledVyxGAA8AssockedAA5AssocAaEP_AA1QPWT"(ptr %"Fulfilled<T>.Assoc", ptr %"Fulfilled<T>", ptr %"Fulfilled<T>.Assocked")
+// CHECK:    [[T1:%.*]] = getelementptr inbounds ptr, ptr %"Fulfilled<T>", i64 4
+// CHECK-NEXT:    [[T2:%.*]] = load ptr, ptr [[T1]], align 8, !invariant.load
+// CHECK-NEXT:    ret ptr [[T2]]
 
 struct Pair<T, U> : P, Q {}
 
 //   Generic witness table pattern for Computed : Assocked.
-// GLOBAL-LABEL: @"$s23associated_type_witness8ComputedVyxq_GAA8AssockedAAWp" = internal global [4 x i8*] [
+// GLOBAL-LABEL: @"$s23associated_type_witness8ComputedVyxq_GAA8AssockedAAWp" = internal global [4 x ptr] [
 // GLOBAL-SAME:    @"$s23associated_type_witness8ComputedVyxq_GAA8AssockedAAMc"
 // GLOBAL-SAME:    @"associated conformance 23associated_type_witness8ComputedVyxq_GAA8AssockedAA5AssocAaEP_AA1P"
 // GLOBAL-SAME:    @"associated conformance 23associated_type_witness8ComputedVyxq_GAA8AssockedAA5AssocAaEP_AA1Q"
@@ -102,7 +98,7 @@ struct Pair<T, U> : P, Q {}
 
 //    No instantiator function
 // GLOBAL-SAME:    i32 0,
-// GLOBAL-SAME:    i32 trunc (i64 sub (i64 ptrtoint ([16 x i8*]* [[PRIVATE:@.*]] to i64), i64 ptrtoint
+// GLOBAL-SAME:    i32 trunc (i64 sub (i64 ptrtoint (ptr [[PRIVATE:@.*]] to i64), i64 ptrtoint
 // GLOBAL-SAME:  }
 
 struct Computed<T, U> : Assocked {
@@ -110,11 +106,10 @@ struct Computed<T, U> : Assocked {
 }
 
 //   Instantiation function for GenericComputed : DerivedFromSimpleAssoc.
-// CHECK-LABEL: define internal void @"$s23associated_type_witness15GenericComputedVyxGAA22DerivedFromSimpleAssocAAWI"(i8** %0, %swift.type* %"GenericComputed<T>", i8** %1)
-// CHECK:         [[T0:%.*]] = call i8** @swift_getWitnessTable({{.*}}@"$s23associated_type_witness15GenericComputedVyxGAA14HasSimpleAssocAAMc"
-// CHECK-NEXT:    [[T1:%.*]] = bitcast i8** [[T0]] to i8*
-// CHECK-NEXT:    [[T2:%.*]] = getelementptr inbounds i8*, i8** %0, i32 1
-// CHECK-NEXT:    store i8* [[T1]], i8** [[T2]], align 8
+// CHECK-LABEL: define internal void @"$s23associated_type_witness15GenericComputedVyxGAA22DerivedFromSimpleAssocAAWI"(ptr %0, ptr %"GenericComputed<T>", ptr %1)
+// CHECK:         [[T0:%.*]] = call ptr @swift_getWitnessTable({{.*}}@"$s23associated_type_witness15GenericComputedVyxGAA14HasSimpleAssocAAMc"
+// CHECK-NEXT:    [[T2:%.*]] = getelementptr inbounds ptr, ptr %0, i32 1
+// CHECK-NEXT:    store ptr [[T0]], ptr [[T2]], align 8
 // CHECK-NEXT:    ret void
 
 
@@ -125,9 +120,9 @@ protocol HasSimpleAssoc {
 protocol DerivedFromSimpleAssoc : HasSimpleAssoc {}
 
 //   Generic witness table pattern for GenericComputed : DerivedFromSimpleAssoc.
-// GLOBAL-LABEL: @"$s23associated_type_witness15GenericComputedVyxGAA22DerivedFromSimpleAssocAAWp" = internal constant [2 x i8*]
+// GLOBAL-LABEL: @"$s23associated_type_witness15GenericComputedVyxGAA22DerivedFromSimpleAssocAAWp" = internal constant [2 x ptr]
 // GLOBAL-SAME: @"$s23associated_type_witness15GenericComputedVyxGAA22DerivedFromSimpleAssocAAMc"
-// GLOBAL-SAME: i8* null
+// GLOBAL-SAME: ptr null
 
 //   Protocol conformance descriptor for GenericComputed : DerivedFromSimpleAssoc.
 // GLOBAL-LABEL: @"$s23associated_type_witness15GenericComputedVyxGAA22DerivedFromSimpleAssocAAMc" = hidden constant
@@ -135,7 +130,7 @@ protocol DerivedFromSimpleAssoc : HasSimpleAssoc {}
 // GLOBAL-SAME:    i16 1,
 
 //   Relative reference to instantiator function
-// GLOBAL-SAME:    i32 trunc (i64 sub (i64 ptrtoint (void (i8**, %swift.type*, i8**)* @"$s23associated_type_witness15GenericComputedVyxGAA22DerivedFromSimpleAssocAAWI" to i64),
+// GLOBAL-SAME:    i32 trunc (i64 sub (i64 ptrtoint (ptr @"$s23associated_type_witness15GenericComputedVyxGAA22DerivedFromSimpleAssocAAWI" to i64),
 
 //   Relative reference to private data
 struct GenericComputed<T: P> : DerivedFromSimpleAssoc {

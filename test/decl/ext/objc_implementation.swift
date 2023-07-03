@@ -335,6 +335,26 @@ protocol EmptySwiftProto {}
   @available(*, noasync)
   @objc(doSomethingOverloaded)
   public func doSomethingOverloaded() {}
+
+  @objc(doSomethingThatCanFailWithHandler:error:)
+  public func doSomethingThatCanFail(handler: @escaping () -> Void) throws {
+    // OK
+  }
+
+  @objc(doSomethingElseThatCanFail:handler:)
+  public func doSomethingElseThatCanFail(handler: @escaping () -> Void) throws {
+    // OK
+  }
+
+  @objc(doSomethingThatCanFailWithWeirdParameterWithHandler::)
+  public func doSomethingThatCanFailWithWeirdParameter(handler: @escaping () -> Void) throws {
+    // expected-error@-1 {{instance method 'doSomethingThatCanFailWithWeirdParameter(handler:)' does not match the declaration in the header because it uses parameter #1 for the error, not parameter #2; a selector part called 'error:' can control which parameter to use}}
+  }
+
+  @objc(doSomethingThatCanFailWithWeirdReturnCodeWithError:)
+  public func doSomethingThatCanFailWithWeirdReturnCode() throws {
+    // expected-error@-1 {{instance method 'doSomethingThatCanFailWithWeirdReturnCode()' does not match the declaration in the header because it indicates an error by returning zero, rather than by returning non-zero}}
+  }
 }
 
 @_objcImplementation(Conformance) extension ObjCClass {

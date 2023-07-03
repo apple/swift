@@ -146,6 +146,10 @@ public:
   }
 };
 
+namespace generator_details {
+template <class T> struct is_simple_generator_ref;
+}
+
 /// An abstracting reference to an existing generator.
 ///
 /// The implementation of this type holds the reference to the existing
@@ -182,7 +186,8 @@ public:
   constexpr SimpleGeneratorRef() : vtable(nullptr), pointer(nullptr) {}
 
   template <class G>
-  constexpr SimpleGeneratorRef(G &generator)
+  constexpr SimpleGeneratorRef(G &generator,
+      typename std::enable_if<!generator_details::is_simple_generator_ref<G>::value, bool>::type = false)
     : vtable(&VTableImpl<G>::vtable), pointer(&generator) {}
 
   /// Test whether this generator ref was initialized with a
@@ -211,6 +216,19 @@ public:
     vtable->finish(pointer);
   }
 };
+
+namespace generator_details {
+
+template <class T>
+struct is_simple_generator_ref<SimpleGeneratorRef<T>> {
+  static constexpr bool value = true;
+};
+template <class T>
+struct is_simple_generator_ref {
+  static constexpr bool value = false;
+};
+
+}
 
 } // end namespace swift
 

@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers %s -emit-ir | %FileCheck %s --check-prefix=CHECK-%target-ptrsize
-// RUN: %target-swift-frontend %s -emit-ir
+// RUN: %target-swift-frontend %s -emit-ir | %FileCheck %s --check-prefix=CHECK-%target-ptrsize
 // REQUIRES: CPU=i386 || CPU=x86_64
 
 sil_stage canonical
@@ -13,10 +12,10 @@ enum ManyEmptyCases {
 }
 
 // CHECK-LABEL-64: define{{( protected)?}} swiftcc i1 @select_enum_A(i64)
-// CHECK-64:  %5 = load i32, i32* %4
-// CHECK-64:  %8 = load i1, i1* %7
-// CHECK-64:  [[PAYLOAD:%.*]] = icmp eq i32 %5, 0
-// CHECK-64:  [[EXTRA:%.*]] = and i1 %8, [[PAYLOAD]]
+// CHECK-64:  %2 = load i32, ptr %temp-coercion.coerced
+// CHECK-64:  %4 = load i1, ptr %3
+// CHECK-64:  [[PAYLOAD:%.*]] = icmp eq i32 %2, 0
+// CHECK-64:  [[EXTRA:%.*]] = and i1 %4, [[PAYLOAD]]
 // CHECK-64:  ret i1 [[EXTRA]]
 
 // CHECK-LABEL-32: define{{( protected)?}} swiftcc i1 @select_enum_A(i32, i8) {{.*}}{
@@ -34,10 +33,10 @@ entry(%0 : $ManyEmptyCases):
 }
 
 // CHECK-LABEL-64: define{{( protected)?}} swiftcc i1 @select_enum_B(i64)
-// CHECK-64:  %5 = load i32, i32* %4
-// CHECK-64:  %8 = load i1, i1* %7
-// CHECK-64:  [[PAYLOAD:%.*]] = icmp eq i32 %5, 1
-// CHECK-64:  [[EXTRA:%.*]] = and i1 %8, [[PAYLOAD]]
+// CHECK-64:  %2 = load i32, ptr %temp-coercion.coerced
+// CHECK-64:  %4 = load i1, ptr %3
+// CHECK-64:  [[PAYLOAD:%.*]] = icmp eq i32 %2, 1
+// CHECK-64:  [[EXTRA:%.*]] = and i1 %4, [[PAYLOAD]]
 // CHECK-64:  ret i1 [[EXTRA]]
 
 // CHECK-LABEL-32: define{{( protected)?}} swiftcc i1 @select_enum_A(i32, i8) {{.*}}{

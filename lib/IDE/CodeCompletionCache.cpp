@@ -52,7 +52,7 @@ CodeCompletionCache::ValueRefCntPtr CodeCompletionCache::createValue() {
   return ValueRefCntPtr(new Value);
 }
 
-Optional<CodeCompletionCache::ValueRefCntPtr>
+llvm::Optional<CodeCompletionCache::ValueRefCntPtr>
 CodeCompletionCache::get(const Key &K) {
   auto &TheCache = Impl->TheCache;
   llvm::Optional<ValueRefCntPtr> V = TheCache.get(K);
@@ -63,7 +63,7 @@ CodeCompletionCache::get(const Key &K) {
         V.value()->ModuleModificationTime !=
         ModuleStatus.getLastModificationTime()) {
       // Cache is stale.
-      V = None;
+      V = llvm::None;
       TheCache.remove(K);
     }
   } else if (nextCache && (V = nextCache->get(K))) {
@@ -506,17 +506,17 @@ static std::string getName(StringRef cacheDirectory,
   return std::string(name.str());
 }
 
-Optional<CodeCompletionCache::ValueRefCntPtr>
+llvm::Optional<CodeCompletionCache::ValueRefCntPtr>
 OnDiskCodeCompletionCache::get(const Key &K) {
   // Try to find the cached file.
   auto bufferOrErr = llvm::MemoryBuffer::getFile(getName(cacheDirectory, K));
   if (!bufferOrErr)
-    return None;
+    return llvm::None;
 
   // Read the cached results, failing if they are out of date.
   auto V = CodeCompletionCache::createValue();
   if (!readCachedModule(bufferOrErr.get().get(), K, *V))
-    return None;
+    return llvm::None;
 
   return V;
 }
@@ -548,12 +548,12 @@ std::error_code OnDiskCodeCompletionCache::set(const Key &K, ValueRefCntPtr V) {
   return llvm::sys::fs::rename(tmpName.str(), name);
 }
 
-Optional<CodeCompletionCache::ValueRefCntPtr>
+llvm::Optional<CodeCompletionCache::ValueRefCntPtr>
 OnDiskCodeCompletionCache::getFromFile(StringRef filename) {
   // Try to find the cached file.
   auto bufferOrErr = llvm::MemoryBuffer::getFile(filename);
   if (!bufferOrErr)
-    return None;
+    return llvm::None;
 
   // Make up a key for readCachedModule.
   CodeCompletionCache::Key K{/*ModuleFilename=*/filename.str(),
@@ -571,7 +571,7 @@ OnDiskCodeCompletionCache::getFromFile(StringRef filename) {
   auto V = CodeCompletionCache::createValue();
   if (!readCachedModule(bufferOrErr.get().get(), K, *V,
                         /*allowOutOfDate*/ true))
-    return None;
+    return llvm::None;
 
   return V;
 }

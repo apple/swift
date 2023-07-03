@@ -258,13 +258,13 @@ public:
 
 class TypeReplacements {
 private:
-  Optional<SILType> resultType;
+  llvm::Optional<SILType> resultType;
   llvm::MapVector<unsigned, CanType> indirectResultTypes;
   llvm::MapVector<unsigned, CanType> paramTypeReplacements;
   llvm::MapVector<unsigned, CanType> yieldTypeReplacements;
 
 public:
-  Optional<SILType> getResultType() const { return resultType; }
+  llvm::Optional<SILType> getResultType() const { return resultType; }
 
   void setResultType(SILType type) { resultType = type; }
 

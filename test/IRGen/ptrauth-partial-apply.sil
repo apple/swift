@@ -1,65 +1,54 @@
-// RUN: %swift %use_no_opaque_pointers -swift-version 4 -target arm64e-apple-ios12.0 -parse-stdlib -parse-as-library %s -emit-ir -module-name test -Xcc -Xclang -Xcc -fptrauth-calls | %FileCheck %s --check-prefix=CHECK
-// RUN: %swift -swift-version 4 -target arm64e-apple-ios12.0 -parse-stdlib -parse-as-library %s -emit-ir -module-name test -Xcc -Xclang -Xcc -fptrauth-calls
+// RUN: %swift -swift-version 4 -target arm64e-apple-ios12.0 -parse-stdlib -parse-as-library %s -emit-ir -module-name test -Xcc -Xclang -Xcc -fptrauth-calls | %FileCheck %s --check-prefix=CHECK
 
 // REQUIRES: CPU=arm64e
 // REQUIRES: OS=ios
 
 import Builtin
 
-// CHECK: @"$sTA.ptrauth" = private constant { i8*, i32, i64, i64 } { i8* bitcast (void (%swift.refcounted*)* @"$sTA" to i8*), i32 0, i64 0, i64 {{.*}} }, section "llvm.ptrauth"
+// CHECK: @"$sTA.ptrauth" = private constant { ptr, i32, i64, i64 } { ptr @"$sTA", i32 0, i64 0, i64 {{.*}} }, section "llvm.ptrauth"
 
 sil @test_thin_indirect : $@convention(thin) (@convention(thin) (Builtin.Int32, Builtin.Int32) -> (), Builtin.Int32) -> @owned @callee_owned () -> () {
 bb0(%0 : $@convention(thin) (Builtin.Int32, Builtin.Int32) -> (), %1 : $Builtin.Int32):
   %2 = partial_apply %0(%1, %1) : $@convention(thin) (Builtin.Int32, Builtin.Int32) -> ()
   return %2 : $@callee_owned () -> ()
 }
-// CHECK-LABEL: define swiftcc { i8*, %swift.refcounted* } @test_thin_indirect(i8* %0, i32 %1)
-// CHECK:       [[FN:%.*]] = bitcast i8* %0 to void (i32, i32)*
+// CHECK-LABEL: define swiftcc { ptr, ptr } @test_thin_indirect(ptr %0, i32 %1)
 // CHECK:       [[ALLOC:%.*]] = call {{.*}}swift_allocObject(
-// CHECK:       [[CTXT:%.*]] = bitcast %swift.refcounted* [[ALLOC]] to [[CTXT_TY:<{ %swift.refcounted, i32, i32, i8\* }>]]*
-// CHECK:       [[SLOT:%.*]] = getelementptr inbounds [[CTXT_TY]], [[CTXT_TY]]* [[CTXT]], i32 0, i32 3
-// CHECK:       [[T0:%.*]] = ptrtoint i8** [[SLOT]] to i64
+// CHECK:       [[SLOT:%.*]] = getelementptr inbounds [[CTXT_TY:<{ %swift.refcounted, i32, i32, ptr }>]], ptr [[ALLOC]], i32 0, i32 3
+// CHECK:       [[T0:%.*]] = ptrtoint ptr [[SLOT]] to i64
 // CHECK:       [[DISC:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[T0]], i64 7185)
-// CHECK:       [[T0:%.*]] = ptrtoint void (i32, i32)* [[FN]] to i64
+// CHECK:       [[T0:%.*]] = ptrtoint ptr %0 to i64
 // CHECK:       [[T1:%.*]] = call i64 @llvm.ptrauth.resign(i64 [[T0]], i32 0, i64 {{.*}}, i32 1, i64 [[DISC]])
-// CHECK:       [[T2:%.*]] = inttoptr i64 [[T1]] to void (i32, i32)*
-// CHECK:       [[T3:%.*]] = bitcast void (i32, i32)* [[T2]] to i8*
-// CHECK:       store i8* [[T3]], i8** [[SLOT]], align 8
-// CHECK:       insertvalue { i8*, %swift.refcounted* } { i8* bitcast ({ i8*, i32, i64, i64 }* @"$sTA.ptrauth" to i8*), %swift.refcounted* undef }, %swift.refcounted* {{.*}}, 1
+// CHECK:       [[T2:%.*]] = inttoptr i64 [[T1]] to ptr
+// CHECK:       store ptr [[T2]], ptr [[SLOT]], align 8
+// CHECK:       insertvalue { ptr, ptr } { ptr @"$sTA.ptrauth", ptr undef }, ptr {{.*}}, 1
 
-// CHECK-LABEL: define internal swiftcc void @"$sTA"(%swift.refcounted* swiftself %0)
-// CHECK:       [[T0:%.*]] = bitcast %swift.refcounted* %0 to [[CTXT_TY:<{ %swift.refcounted, i32, i32, i8\* }>]]*
-// CHECK:       [[SLOT:%.*]] = getelementptr inbounds [[CTXT_TY]], [[CTXT_TY]]* [[T0]], i32 0, i32 3
-// CHECK:       [[T0:%.*]] = load i8*, i8** [[SLOT]], align 8
-// CHECK:       [[T1:%.*]] = ptrtoint i8** [[SLOT]] to i64
+// CHECK-LABEL: define internal swiftcc void @"$sTA"(ptr swiftself %0)
+// CHECK:       [[SLOT:%.*]] = getelementptr inbounds [[CTXT_TY:<{ %swift.refcounted, i32, i32, ptr }>]], ptr %0, i32 0, i32 3
+// CHECK:       [[T0:%.*]] = load ptr, ptr [[SLOT]], align 8
+// CHECK:       [[T1:%.*]] = ptrtoint ptr [[SLOT]] to i64
 // CHECK:       [[DISC:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[T1]], i64 7185)
-// CHECK:       [[FN:%.*]] = bitcast i8* [[T0]] to void (i32, i32)*
-// CHECK:       call swiftcc void [[FN]](i32 {{.*}}, i32 {{.*}}) [ "ptrauth"(i32 1, i64 [[DISC]]) ]
+// CHECK:       call swiftcc void [[T0]](i32 {{.*}}, i32 {{.*}}) [ "ptrauth"(i32 1, i64 [[DISC]]) ]
 
 sil @test_thick_indirect : $@convention(thin) (@callee_owned (Builtin.Int32, Builtin.Int32) -> (), Builtin.Int32) -> @owned @callee_owned () -> () {
 bb0(%0 : $@callee_owned (Builtin.Int32, Builtin.Int32) -> (), %1 : $Builtin.Int32):
   %2 = partial_apply %0(%1, %1) : $@callee_owned (Builtin.Int32, Builtin.Int32) -> ()
   return %2 : $@callee_owned () -> ()
 }
-// CHECK-LABEL: define swiftcc { i8*, %swift.refcounted* } @test_thick_indirect(i8* %0, %swift.refcounted* %1, i32 %2)
-// CHECK:       [[FN:%.*]] = bitcast i8* %0 to void (i32, i32, %swift.refcounted*)*
+// CHECK-LABEL: define swiftcc { ptr, ptr } @test_thick_indirect(ptr %0, ptr %1, i32 %2)
 // CHECK:       [[ALLOC:%.*]] = call {{.*}}swift_allocObject(
-// CHECK:       [[CTXT:%.*]] = bitcast %swift.refcounted* [[ALLOC]] to [[CTXT_TY:<{ %swift.refcounted, i32, i32, %swift.refcounted\*, i8\* }>]]*
-// CHECK:       [[SLOT:%.*]] = getelementptr inbounds [[CTXT_TY]], [[CTXT_TY]]* {{%.*}}, i32 0, i32 4
-// CHECK:       [[T0:%.*]] = ptrtoint i8** [[SLOT]] to i64
+// CHECK:       [[SLOT:%.*]] = getelementptr inbounds [[CTXT_TY:<{ %swift.refcounted, i32, i32, ptr, ptr }>]], ptr {{%.*}}, i32 0, i32 4
+// CHECK:       [[T0:%.*]] = ptrtoint ptr [[SLOT]] to i64
 // CHECK:       [[DISC:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[T0]], i64 7185)
-// CHECK:       [[T0:%.*]] = ptrtoint void (i32, i32, %swift.refcounted*)* [[FN]] to i64
+// CHECK:       [[T0:%.*]] = ptrtoint ptr %0 to i64
 // CHECK:       [[T1:%.*]] = call i64 @llvm.ptrauth.resign(i64 [[T0]], i32 0, i64 {{.*}}, i32 1, i64 [[DISC]])
-// CHECK:       [[T2:%.*]] = inttoptr i64 [[T1]] to void (i32, i32, %swift.refcounted*)*
-// CHECK:       [[T3:%.*]] = bitcast void (i32, i32, %swift.refcounted*)* [[T2]] to i8*
-// CHECK:       store i8* [[T3]], i8** [[SLOT]], align 8
-// CHECK:       insertvalue { i8*, %swift.refcounted* } { i8* bitcast ({ i8*, i32, i64, i64 }* @"$sTA{{.*}}.ptrauth" to i8*), %swift.refcounted* undef }, %swift.refcounted* {{.*}}, 1
+// CHECK:       [[T2:%.*]] = inttoptr i64 [[T1]] to ptr
+// CHECK:       store ptr [[T2]], ptr [[SLOT]], align 8
+// CHECK:       insertvalue { ptr, ptr } { ptr @"$sTA{{.*}}.ptrauth", ptr undef }, ptr {{.*}}, 1
 
-// CHECK-LABEL: define internal swiftcc void @"$sTA{{.*}}"(%swift.refcounted* swiftself %0)
-// CHECK:       [[T0:%.*]] = bitcast %swift.refcounted* %0 to <{ %swift.refcounted, i32, i32, %swift.refcounted*, i8* }>*
-// CHECK:       [[SLOT:%.*]] = getelementptr inbounds <{ %swift.refcounted, i32, i32, %swift.refcounted*, i8* }>, <{ %swift.refcounted, i32, i32, %swift.refcounted*, i8* }>* [[T0]], i32 0, i32 4
-// CHECK:       [[T0:%.*]] = load i8*, i8** [[SLOT]], align 8
-// CHECK:       [[T1:%.*]] = ptrtoint i8** [[SLOT]] to i64
+// CHECK-LABEL: define internal swiftcc void @"$sTA{{.*}}"(ptr swiftself %0)
+// CHECK:       [[SLOT:%.*]] = getelementptr inbounds <{ %swift.refcounted, i32, i32, ptr, ptr }>, ptr %0, i32 0, i32 4
+// CHECK:       [[T0:%.*]] = load ptr, ptr [[SLOT]], align 8
+// CHECK:       [[T1:%.*]] = ptrtoint ptr [[SLOT]] to i64
 // CHECK:       [[DISC:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[T1]], i64 7185)
-// CHECK:       [[FN:%.*]] = bitcast i8* [[T0]] to void (i32, i32, %swift.refcounted*)*
-// CHECK:       call swiftcc void [[FN]](i32 {{.*}}, i32 {{.*}}, %swift.refcounted* {{.*}}) [ "ptrauth"(i32 1, i64 [[DISC]]) ]
+// CHECK:       call swiftcc void [[T0]](i32 {{.*}}, i32 {{.*}}, ptr {{.*}}) [ "ptrauth"(i32 1, i64 [[DISC]]) ]

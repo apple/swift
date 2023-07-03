@@ -193,7 +193,7 @@ private:
   void setMainAndSupplementaryOutputs(
       ArrayRef<std::string> outputFiles,
       ArrayRef<SupplementaryOutputPaths> supplementaryOutputs,
-      ArrayRef<std::string> outputFilesForIndexUnits = None);
+      ArrayRef<std::string> outputFilesForIndexUnits = {});
   void setPrincipalOutputType(file_types::ID type) {
     PrincipalOutputType = type;
   }

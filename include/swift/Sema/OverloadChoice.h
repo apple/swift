@@ -272,7 +272,7 @@ public:
 
   /// Retrieve the type of implicitly unwrapped optional for a reference to this
   /// overload choice, or \c None if the choice is not for an IUO decl.
-  Optional<IUOReferenceKind>
+  llvm::Optional<IUOReferenceKind>
   getIUOReferenceKind(ConstraintSystem &cs,
                       bool forSecondApplication = false) const;
 

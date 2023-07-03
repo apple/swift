@@ -276,8 +276,8 @@ void RuleBuilder::addAssociatedType(const AssociatedTypeDecl *type,
 /// will be added in the corresponding term from the substitution array.
 void RuleBuilder::addRequirement(const Requirement &req,
                                  const ProtocolDecl *proto,
-                                 Optional<ArrayRef<Term>> substitutions,
-                                 Optional<unsigned> requirementID) {
+                                 llvm::Optional<ArrayRef<Term>> substitutions,
+                                 llvm::Optional<unsigned> requirementID) {
   if (Dump) {
     llvm::dbgs() << "+ ";
     req.dump(llvm::dbgs());
@@ -399,7 +399,7 @@ void RuleBuilder::addRequirement(const StructuralRequirement &req,
                                  const ProtocolDecl *proto) {
   WrittenRequirements.push_back(req);
   unsigned requirementID = WrittenRequirements.size() - 1;
-  addRequirement(req.req.getCanonical(), proto, /*substitutions=*/None,
+  addRequirement(req.req.getCanonical(), proto, /*substitutions=*/llvm::None,
                  requirementID);
 }
 
@@ -433,7 +433,7 @@ void RuleBuilder::addTypeAlias(const ProtocolTypeAlias &alias,
   }
 
   RequirementRules.emplace_back(subjectTerm, constraintTerm,
-                                /*requirementID=*/None);
+                                /*requirementID=*/llvm::None);
 }
 
 /// If we haven't seen this protocol yet, save it for later so that we can

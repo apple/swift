@@ -512,9 +512,8 @@ void IRGenModule::emitSourceFile(SourceFile &SF) {
   // harmless aside from code size.
   if (!IRGen.Opts.UseJIT) {
     auto addBackDeployLib = [&](llvm::VersionTuple version,
-                                StringRef libraryName,
-                                bool forceLoad) {
-      Optional<llvm::VersionTuple> compatibilityVersion;
+                                StringRef libraryName, bool forceLoad) {
+      llvm::Optional<llvm::VersionTuple> compatibilityVersion;
       if (libraryName == "swiftCompatibilityDynamicReplacements") {
         compatibilityVersion = IRGen.Opts.
             AutolinkRuntimeCompatibilityDynamicReplacementLibraryVersion;
@@ -537,7 +536,7 @@ void IRGenModule::emitSourceFile(SourceFile &SF) {
                                        forceLoad));
     };
 
-    #define BACK_DEPLOYMENT_LIB(Version, Filter, LibraryName, ForceLoad) \
+#define BACK_DEPLOYMENT_LIB(Version, Filter, LibraryName, ForceLoad) \
       addBackDeployLib(llvm::VersionTuple Version, LibraryName, ForceLoad);
     #include "swift/Frontend/BackDeploymentLibs.def"
   }
@@ -2384,8 +2383,8 @@ llvm::Function *irgen::createFunction(IRGenModule &IGM, LinkInfo &linkInfo,
 /// Get or create an LLVM global variable with these linkage rules.
 llvm::GlobalVariable *swift::irgen::createVariable(
     IRGenModule &IGM, LinkInfo &linkInfo, llvm::Type *storageType,
-    Alignment alignment, DebugTypeInfo DbgTy, Optional<SILLocation> DebugLoc,
-    StringRef DebugName) {
+    Alignment alignment, DebugTypeInfo DbgTy,
+    llvm::Optional<SILLocation> DebugLoc, StringRef DebugName) {
   auto name = linkInfo.getName();
   llvm::GlobalValue *existingValue = IGM.Module.getNamedGlobal(name);
   if (existingValue) {
@@ -2678,7 +2677,7 @@ Address IRGenModule::getAddrOfSILGlobalVariable(SILGlobalVariable *var,
     } else {
       // Create a global variable with debug info.
       StringRef name;
-      Optional<SILLocation> loc;
+      llvm::Optional<SILLocation> loc;
       if (var->getDecl()) {
         // Use the VarDecl for more accurate debugging information.
         loc = var->getDecl();
@@ -3715,7 +3714,7 @@ IRGenModule::getAddrOfLLVMVariable(LinkEntity entity,
     return getElementBitCast(existing, defaultType);
 
   const LazyConstantInitializer *lazyInitializer = nullptr;
-  Optional<ConstantInitBuilder> lazyBuilder;
+  llvm::Optional<ConstantInitBuilder> lazyBuilder;
   if (definition.isLazy()) {
     lazyInitializer = definition.getLazy();
     lazyBuilder.emplace(*this);
@@ -5153,7 +5152,7 @@ IRGenModule::getAddrOfTypeMetadata(CanType concreteType,
     }
   }
 
-  Optional<LinkEntity> entity;
+  llvm::Optional<LinkEntity> entity;
   DebugTypeInfo DbgTy;
 
   switch (canonicality) {
@@ -5472,11 +5471,10 @@ llvm::Constant *IRGenModule::getAddrOfProtocolConformanceDescriptor(
 }
 
 /// Fetch the declaration of the ivar initializer for the given class.
-Optional<llvm::Function*> IRGenModule::getAddrOfIVarInitDestroy(
-                            ClassDecl *cd,
-                            bool isDestroyer,
-                            bool isForeign,
-                            ForDefinition_t forDefinition) {
+llvm::Optional<llvm::Function *>
+IRGenModule::getAddrOfIVarInitDestroy(ClassDecl *cd, bool isDestroyer,
+                                      bool isForeign,
+                                      ForDefinition_t forDefinition) {
   auto silRef = SILDeclRef(cd,
                            isDestroyer
                            ? SILDeclRef::Kind::IVarDestroyer
@@ -5488,7 +5486,7 @@ Optional<llvm::Function*> IRGenModule::getAddrOfIVarInitDestroy(
     return getAddrOfSILFunction(silFn, forDefinition);
   }
 
-  return None;
+  return llvm::None;
 }
 
 /// Returns the address of a value-witness function.
@@ -5578,11 +5576,6 @@ void IRGenModule::emitNestedTypeDecls(DeclRange members) {
       continue;
 
     member->visitAuxiliaryDecls([&](Decl *decl) {
-      // FIXME: Conformance macros can generate extension decls. These
-      // are visited as top-level decls; skip them here.
-      if (isa<ExtensionDecl>(decl))
-        return;
-
       emitNestedTypeDecls({decl, nullptr});
     });
     switch (member->getKind()) {

@@ -349,7 +349,7 @@ public:
 template <unsigned N>
 class SmallSILInstructionWorklist final
     : public SILInstructionWorklist<
-          llvm::SmallVector<Optional<SILInstruction *>, N>,
+          llvm::SmallVector<llvm::Optional<SILInstruction *>, N>,
           // TODO: A DenseMap rather than a SmallDenseMap is used here to avoid
           //       running into an upstream problem with the handling of grow()
           //       when it results in rehashing and tombstone removal:
@@ -357,7 +357,7 @@ class SmallSILInstructionWorklist final
           //       https://reviews.llvm.org/D56455
           llvm::DenseMap<SILInstruction *, unsigned>> {
 public:
-  using VectorT = llvm::SmallVector<Optional<SILInstruction *>, N>;
+  using VectorT = llvm::SmallVector<llvm::Optional<SILInstruction *>, N>;
   using MapT = llvm::DenseMap<SILInstruction *, unsigned>;
   SmallSILInstructionWorklist(const char *loggingName = "InstructionWorklist")
       : SILInstructionWorklist<VectorT, MapT>(loggingName) {}

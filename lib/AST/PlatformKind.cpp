@@ -47,22 +47,23 @@ StringRef swift::prettyPlatformString(PlatformKind platform) {
   llvm_unreachable("bad PlatformKind");
 }
 
-Optional<PlatformKind> swift::platformFromString(StringRef Name) {
+llvm::Optional<PlatformKind> swift::platformFromString(StringRef Name) {
   if (Name == "*")
     return PlatformKind::none;
-  return llvm::StringSwitch<Optional<PlatformKind>>(Name)
+  return llvm::StringSwitch<llvm::Optional<PlatformKind>>(Name)
 #define AVAILABILITY_PLATFORM(X, PrettyName) .Case(#X, PlatformKind::X)
 #include "swift/AST/PlatformKinds.def"
       .Case("OSX", PlatformKind::macOS)
       .Case("OSXApplicationExtension", PlatformKind::macOSApplicationExtension)
-      .Default(Optional<PlatformKind>());
+      .Default(llvm::Optional<PlatformKind>());
 }
 
-Optional<StringRef> swift::closestCorrectedPlatformString(StringRef candidate) {
+llvm::Optional<StringRef>
+swift::closestCorrectedPlatformString(StringRef candidate) {
   auto lowerCasedCandidate = candidate.lower();
   auto lowerCasedCandidateRef = StringRef(lowerCasedCandidate);
   auto minDistance = std::numeric_limits<unsigned int>::max();
-  Optional<StringRef> result = None;
+  llvm::Optional<StringRef> result = llvm::None;
 #define AVAILABILITY_PLATFORM(X, PrettyName)                                   \
   {                                                                            \
     auto platform = StringRef(#X);                                             \
@@ -79,7 +80,7 @@ Optional<StringRef> swift::closestCorrectedPlatformString(StringRef candidate) {
   // If the most similar platform distance is greater than this threshold,
   // it's not similar enough to be suggested as correction.
   const unsigned int distanceThreshold = 5;
-  return (minDistance < distanceThreshold) ? result : None;
+  return (minDistance < distanceThreshold) ? result : llvm::None;
 }
 
 static bool isApplicationExtensionPlatform(PlatformKind Platform) {

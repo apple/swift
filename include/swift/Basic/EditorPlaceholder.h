@@ -18,8 +18,8 @@
 #ifndef SWIFT_BASIC_EDITORPLACEHOLDER_H
 #define SWIFT_BASIC_EDITORPLACEHOLDER_H
 
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/StringRef.h"
-#include "swift/Basic/LLVM.h"
 
 namespace swift {
 
@@ -32,22 +32,22 @@ struct EditorPlaceholderData {
   /// Placeholder kind.
   EditorPlaceholderKind Kind;
   /// The part that is displayed in the editor.
-  StringRef Display;
+  llvm::StringRef Display;
   /// If kind is \c Typed, this is the type string for the placeholder.
-  StringRef Type;
+  llvm::StringRef Type;
   /// If kind is \c Typed, this is the type string to be considered for
   /// placeholder expansion.
   /// It can be same as \c Type or different if \c Type is a typealias.
-  StringRef TypeForExpansion;
+  llvm::StringRef TypeForExpansion;
 };
 
 /// Deconstructs a placeholder string and returns info about it.
 /// \returns None if the \c PlaceholderText is not a valid placeholder string.
-Optional<EditorPlaceholderData>
-  parseEditorPlaceholder(StringRef PlaceholderText);
+llvm::Optional<EditorPlaceholderData>
+parseEditorPlaceholder(llvm::StringRef PlaceholderText);
 
 /// Checks if an identifier with the given text is an editor placeholder
-bool isEditorPlaceholder(StringRef IdentifierText);
+bool isEditorPlaceholder(llvm::StringRef IdentifierText);
 } // end namespace swift
 
 #endif // SWIFT_BASIC_EDITORPLACEHOLDER_H

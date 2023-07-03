@@ -41,7 +41,8 @@ CodeCompletionMacroRoles swift::ide::getCompletionMacroRoles(const Decl *D) {
     roles |= CodeCompletionMacroRole::AttachedVar;
   }
   if (macroRoles & MacroRoles({MacroRole::MemberAttribute, MacroRole::Member,
-                               MacroRole::Conformance})) {
+                               MacroRole::Conformance,
+                               MacroRole::Extension,})) {
     roles |= CodeCompletionMacroRole::AttachedContext;
   }
   if (macroRoles.contains(MacroRole::Peer)) {

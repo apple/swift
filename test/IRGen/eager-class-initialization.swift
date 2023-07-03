@@ -1,7 +1,6 @@
 // RUN: %empty-directory(%t)
 // RUN: %build-irgen-test-overlays
-// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) %use_no_opaque_pointers  %s -emit-ir -target %target-pre-stable-abi-triple | %FileCheck %s -DINT=i%target-ptrsize --check-prefix=CHECK --check-prefix=CHECK-OLD
-// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) %s -emit-ir -target %target-pre-stable-abi-triple
+// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) %s -emit-ir -target %target-pre-stable-abi-triple | %FileCheck %s -DINT=i%target-ptrsize --check-prefix=CHECK --check-prefix=CHECK-OLD
 
 // REQUIRES: objc_interop
 // UNSUPPORTED: swift_only_stable_abi
@@ -28,8 +27,8 @@ class GenericAncestryWithCustomName : Generic<Double> {}
 // CHECK-NEXT:  entry:
 // CHECK-OLD-NEXT: [[RESPONSE:%.*]] = call swiftcc %swift.metadata_response @"$s4main15GenericAncestryCMa"([[INT]] 0)
 // CHECK-OLD-NEXT: [[METADATA:%.*]] = extractvalue %swift.metadata_response [[RESPONSE]], 0
-// CHECK-OLD-NEXT: call void asm sideeffect "", "r"(%swift.type* [[METADATA]])
+// CHECK-OLD-NEXT: call void asm sideeffect "", "r"(ptr [[METADATA]])
 // CHECK-NEXT:     [[RESPONSE:%.*]] = call swiftcc %swift.metadata_response @"$s4main29GenericAncestryWithCustomNameCMa"([[INT]] 0)
 // CHECK-NEXT:     [[METADATA:%.*]] = extractvalue %swift.metadata_response [[RESPONSE]], 0
-// CHECK-NEXT:     call void asm sideeffect "", "r"(%swift.type* [[METADATA]])
+// CHECK-NEXT:     call void asm sideeffect "", "r"(ptr [[METADATA]])
 // CHECK-NEXT:     ret

@@ -33,7 +33,7 @@ void reportEvaluatedRequest(UnifiedStatsReporter &stats,
                             const Request &request);
 
 struct FingerprintAndMembers {
-  Optional<Fingerprint> fingerprint = None;
+  llvm::Optional<Fingerprint> fingerprint = llvm::None;
   ArrayRef<Decl *> members = {};
   bool operator==(const FingerprintAndMembers &x) const {
     return fingerprint == x.fingerprint && members == x.members;
@@ -81,14 +81,14 @@ private:
 public:
   // Caching
   bool isCached() const { return true; }
-  Optional<BodyAndFingerprint> getCachedResult() const;
+  llvm::Optional<BodyAndFingerprint> getCachedResult() const;
   void cacheResult(BodyAndFingerprint value) const;
 };
 
 struct SourceFileParsingResult {
   ArrayRef<ASTNode> TopLevelItems;
-  Optional<ArrayRef<Token>> CollectedTokens;
-  Optional<StableHasher> InterfaceHasher;
+  llvm::Optional<ArrayRef<Token>> CollectedTokens;
+  llvm::Optional<StableHasher> InterfaceHasher;
 };
 
 /// Parse the top-level items of a SourceFile.
@@ -108,7 +108,7 @@ private:
 public:
   // Caching.
   bool isCached() const { return true; }
-  Optional<SourceFileParsingResult> getCachedResult() const;
+  llvm::Optional<SourceFileParsingResult> getCachedResult() const;
   void cacheResult(SourceFileParsingResult result) const;
 
 public:

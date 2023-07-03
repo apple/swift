@@ -14,6 +14,7 @@ import CASTBridging
 import CBasicBridging
 import SwiftSyntax
 import swiftLLVMJSON
+@_spi(PluginMessage) import SwiftCompilerPluginMessageHandling
 
 enum PluginError: String, Error, CustomStringConvertible {
   case stalePlugin = "plugin is stale"
@@ -154,24 +155,38 @@ struct CompilerPlugin {
 
   /// Initialize the plugin. This should be called inside lock.
   func initialize() throws {
-    // Get capability.
-    let response = try self.sendMessageAndWaitWithoutLock(.getCapability)
+    // Send host capability and get plugin capability.
+    let hostCapability = PluginMessage.HostCapability(
+      protocolVersion: PluginMessage.PROTOCOL_VERSION_NUMBER
+    )
+    let request = HostToPluginMessage.getCapability(capability: hostCapability)
+    let response = try self.sendMessageAndWaitWithoutLock(request)
     guard case .getCapabilityResult(let capability) = response else {
       throw PluginError.invalidReponseKind
     }
+
+    deinitializePluginCapabilityIfExist()
+
     let ptr = UnsafeMutablePointer<Capability>.allocate(capacity: 1)
     ptr.initialize(to: .init(capability))
     Plugin_setCapability(opaqueHandle, UnsafeRawPointer(ptr))
   }
 
+  /// Deinitialize and unset the plugin capability stored in C++
+  /// 'LoadedExecutablePlugin'. This should be called inside lock.
+  func deinitializePluginCapabilityIfExist() {
+    if let ptr = Plugin_getCapability(opaqueHandle) {
+      let capabilityPtr = UnsafeMutableRawPointer(mutating: ptr)
+        .assumingMemoryBound(to: PluginMessage.PluginCapability.self)
+      capabilityPtr.deinitialize(count: 1)
+      capabilityPtr.deallocate()
+      Plugin_setCapability(opaqueHandle, nil)
+    }
+  }
+
   func deinitialize() {
     self.withLock {
-      if let ptr = Plugin_getCapability(opaqueHandle) {
-        let capabilityPtr = UnsafeMutableRawPointer(mutating: ptr)
-          .assumingMemoryBound(to: PluginMessage.PluginCapability.self)
-        capabilityPtr.deinitialize(count: 1)
-        capabilityPtr.deallocate()
-      }
+      deinitializePluginCapabilityIfExist()
     }
   }
 
@@ -377,5 +392,32 @@ extension PluginMessage.Syntax {
         offset: loc.offset,
         line: loc.line,
         column: loc.column))
+  }
+
+  init?(syntax: Syntax) {
+    let kind: PluginMessage.Syntax.Kind
+    switch true {
+    case syntax.is(DeclSyntax.self): kind = .declaration
+    case syntax.is(ExprSyntax.self): kind = .expression
+    case syntax.is(StmtSyntax.self): kind = .statement
+    case syntax.is(TypeSyntax.self): kind = .type
+    case syntax.is(PatternSyntax.self): kind = .pattern
+    case syntax.is(AttributeSyntax.self): kind = .attribute
+    default: return nil
+    }
+
+    let source = syntax.description
+
+    self.init(
+      kind: kind,
+      source: source,
+      location: .init(
+        fileID: "",
+        fileName: "",
+        offset: 0,
+        line: 0,
+        column: 0
+      )
+    )
   }
 }

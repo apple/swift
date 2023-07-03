@@ -530,14 +530,10 @@ llvm::Value *irgen::emitMetatypeToAnyObjectDowncast(IRGenFunction &IGF,
 
 
 /// Emit a checked cast to a protocol or protocol composition.
-void irgen::emitScalarExistentialDowncast(IRGenFunction &IGF,
-                                  llvm::Value *value,
-                                  SILType srcType,
-                                  SILType destType,
-                                  CheckedCastMode mode,
-                                  Optional<MetatypeRepresentation> metatypeKind,
-                                  GenericSignature fnSig,
-                                  Explosion &ex) {
+void irgen::emitScalarExistentialDowncast(
+    IRGenFunction &IGF, llvm::Value *value, SILType srcType, SILType destType,
+    CheckedCastMode mode, llvm::Optional<MetatypeRepresentation> metatypeKind,
+    GenericSignature fnSig, Explosion &ex) {
   auto srcInstanceType = srcType.getASTType();
   auto destInstanceType = destType.getASTType();
   while (auto metatypeType = dyn_cast<ExistentialMetatypeType>(
@@ -730,7 +726,7 @@ void irgen::emitScalarExistentialDowncast(IRGenFunction &IGF,
 
   // If we're doing a conditional cast, and the ObjC protocol checks failed,
   // then the cast is done.
-  Optional<ConditionalDominanceScope> condition;
+  llvm::Optional<ConditionalDominanceScope> condition;
   llvm::BasicBlock *origBB = nullptr, *successBB = nullptr, *contBB = nullptr;
   if (!objcProtos.empty()) {
     switch (mode) {
@@ -1017,9 +1013,7 @@ void irgen::emitScalarCheckedCast(IRGenFunction &IGF,
     Explosion outRes;
     emitScalarExistentialDowncast(IGF, instance, sourceLoweredType,
                                   targetLoweredType, mode,
-                                  /*not a metatype*/ None,
-                                  fnSig,
-                                  outRes);
+                                  /*not a metatype*/ llvm::None, fnSig, outRes);
     returnNilCheckedResult(IGF.Builder, outRes);
     return;
   }

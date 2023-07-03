@@ -52,7 +52,7 @@ void collectPossibleReturnTypesFromContext(DeclContext *DC,
 struct FunctionTypeAndDecl {
   AnyFunctionType *Type;
   ValueDecl *Decl;
-  Optional<SemanticContextKind> SemanticContext;
+  llvm::Optional<SemanticContextKind> SemanticContext;
 
   FunctionTypeAndDecl(AnyFunctionType *Type, ValueDecl *Decl)
       : Type(Type), Decl(Decl) {}

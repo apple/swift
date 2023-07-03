@@ -762,7 +762,7 @@ namespace {
     template <class T>
     struct MetatypeGenerator {
       T Object;
-      Optional<MetatypeRepresentation> Repr;
+      llvm::Optional<MetatypeRepresentation> Repr;
       Type build(BuiltinFunctionBuilder &builder) const {
         return MetatypeType::get(Object.build(builder), Repr);
       }
@@ -809,7 +809,8 @@ makeBoundGenericType(NominalTypeDecl *decl,
 
 template <class T>
 static BuiltinFunctionBuilder::MetatypeGenerator<T>
-makeMetatype(const T &object, Optional<MetatypeRepresentation> repr = None) {
+makeMetatype(const T &object,
+             llvm::Optional<MetatypeRepresentation> repr = llvm::None) {
   return { object, repr };
 }
 

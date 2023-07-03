@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-objc-interop -emit-ir %s | %FileCheck %s -check-prefix CHECK -check-prefix CHECK-%target-import-type
-// RUN: %target-swift-frontend -enable-objc-interop -emit-ir %s
+// RUN: %target-swift-frontend -enable-objc-interop -emit-ir %s | %FileCheck %s -check-prefix CHECK -check-prefix CHECK-%target-import-type
 
 // REQUIRES: CPU=x86_64
 
@@ -25,11 +24,9 @@ class ParentNode : Node {
 sil @_test_exact_checked_cast_branch : $@convention(method) (@guaranteed Node) -> Int {
 bb0(%0 : $Node):
 //CHECK-LABEL: define{{.*}}@_test_exact_checked_cast_branch
-//CHECK:       [[LOAD:%.*]] = load %swift.type
-//CHECK-DIRECT-NEXT:  = icmp eq %swift.type
-//CHECK-INDIRECT-NEXT: = bitcast %swift.type* [[LOAD]] to %objc_class*
-//CHECK-INDIRECT-NEXT:  = icmp eq %objc_class*
-//CHECK-NEXT:  = bitcast
+//CHECK:       [[LOAD:%.*]] = load ptr
+//CHECK-DIRECT-NEXT:  = icmp eq ptr
+//CHECK-INDIRECT-NEXT:  = icmp eq ptr
 //CHECK-NEXT:  br i1
   checked_cast_br [exact] %0 : $Node to ParentNode, bb2, bb3 // id: %2
 
@@ -65,8 +62,7 @@ bb0(%0 : $BaseBase):
 //CHECK-LABEL: define{{.*}}@test_exact_checked_cast_branch_dynamic_init
 //CHECK: call swiftcc {{.*}}@"$s9exactcast10DerivedIntCMa"({{.*}})
 //CHECK: load
-//CHECK: bitcast
-//CHECK: icmp eq %swift.type
+//CHECK: icmp eq ptr
 //CHECK: br
   checked_cast_br [exact] %0 : $BaseBase to DerivedInt, bb2, bb3 // id: %2
 

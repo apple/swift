@@ -1,7 +1,6 @@
 // RUN: %empty-directory(%t)
 // RUN: %build-irgen-test-overlays
-// RUN: %target-swift-frontend %use_no_opaque_pointers -disable-type-layout -sdk %S/Inputs -I %t %s -emit-ir | %FileCheck %s
-// RUN: %target-swift-frontend -disable-type-layout -sdk %S/Inputs -I %t %s -emit-ir
+// RUN: %target-swift-frontend -disable-type-layout -sdk %S/Inputs -I %t %s -emit-ir | %FileCheck %s
 
 // REQUIRES: CPU=x86_64
 // REQUIRES: objc_interop
@@ -23,13 +22,12 @@ bb0(%0 : $*Any, %1 : $T):
   return %3 : $()
 }
 
-// CHECK-DAG:   define{{( protected)?}} swiftcc void @init_opaque_existential([[ANY:%Any]]* noalias nocapture sret({{.*}}) %0, [[GIZMO:%.*]]* %1, [[TYPE:%.*]]* %T) {{.*}} {
-// CHECK:         [[T0:%.*]] = getelementptr inbounds [[ANY]], [[ANY]]* %0, i32 0, i32 1
-// CHECK-NEXT:    store [[TYPE]]* %T, [[TYPE]]** [[T0]], align 8
-// CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[ANY]], [[ANY]]* %0, i32 0, i32 0
-// CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[ANY]], [[ANY]]* %0, i32 0, i32 0
-// CHECK-NEXT:    [[T1:%.*]] = bitcast [24 x i8]* [[T0]] to [[GIZMO]]**
-// CHECK-NEXT:    store [[GIZMO]]* %1, [[GIZMO]]** [[T1]], align 8
+// CHECK-DAG:   define{{( protected)?}} swiftcc void @init_opaque_existential(ptr noalias nocapture sret({{.*}}) %0, ptr %1, ptr %T) {{.*}} {
+// CHECK:         [[T0:%.*]] = getelementptr inbounds [[ANY:%Any]], ptr %0, i32 0, i32 1
+// CHECK-NEXT:    store ptr %T, ptr [[T0]], align 8
+// CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[ANY]], ptr %0, i32 0, i32 0
+// CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[ANY]], ptr %0, i32 0, i32 0
+// CHECK-NEXT:    store ptr %1, ptr [[T0]], align 8
 // CHECK-NEXT:    ret void
 
 sil @take_opaque_existential : $@convention(thin) (@in Any) -> @out Any {
@@ -39,22 +37,20 @@ bb0(%0 : $*Any, %1 : $*Any):
   return %3 : $()
 }
 
-// CHECK-DAG:   define{{( protected)?}} swiftcc void @take_opaque_existential([[ANY:%Any]]* noalias nocapture sret({{.*}}) %0, %Any* noalias nocapture dereferenceable({{.*}}) %1) {{.*}} {
-// CHECK: call %Any* @"$sypWOb"(%Any* %1, %Any* %0)
+// CHECK-DAG:   define{{( protected)?}} swiftcc void @take_opaque_existential(ptr noalias nocapture sret({{.*}}) %0, ptr noalias nocapture dereferenceable({{.*}}) %1) {{.*}} {
+// CHECK: call ptr @"$sypWOb"(ptr %1, ptr %0)
 // CHECK-NEXT:    ret void
 
-// CHECK-DAG:   define linkonce_odr hidden %Any* @"$sypWOb"(%Any* %0, %Any* %1)
-// CHECK:       %2 = bitcast %Any* %1 to i8*
-// CHECK-NEXT:  %3 = bitcast %Any* %0 to i8*
-// CHECK-NEXT:  call void @llvm.memcpy.p0i8.p0i8.i64(i8* align 8 %2, i8* align 8 %3, i64 32, i1 false)
-// CHECK-NEXT:  ret %Any* %1
+// CHECK-DAG:   define linkonce_odr hidden ptr @"$sypWOb"(ptr %0, ptr %1)
+// CHECK:  call void @llvm.memcpy.p0.p0.i64(ptr align 8 %1, ptr align 8 %0, i64 32, i1 false)
+// CHECK-NEXT:  ret ptr %1
 
 // rdar://problem/19035529
 @objc protocol OP {}
 @objc protocol OP2: OP {}
 
-// CHECK-DAG: define{{( protected)?}} swiftcc %objc_object* @init_existential_objc_to_objc(%objc_object* %0) {{.*}} {
-// CHECK:       ret %objc_object* %0
+// CHECK-DAG: define{{( protected)?}} swiftcc ptr @init_existential_objc_to_objc(ptr %0) {{.*}} {
+// CHECK:       ret ptr %0
 sil @init_existential_objc_to_objc : $@convention(thin) (@owned OP2) -> @owned OP {
 entry(%o : $OP2):
   %a = init_existential_ref %o : $OP2 : $OP2, $OP
@@ -63,91 +59,91 @@ entry(%o : $OP2):
 
 protocol CP: class {}
 
-// CHECK-DAG: define{{( protected)?}} swiftcc { %objc_object*, i8** } @class_existential_unowned(%objc_object* %0, i8** %1) {{.*}} {
+// CHECK-DAG: define{{( protected)?}} swiftcc { ptr, ptr } @class_existential_unowned(ptr %0, ptr %1) {{.*}} {
 sil @class_existential_unowned : $@convention(thin) (@owned CP) -> @owned CP {
 entry(%s : $CP):
   %u1 = alloc_stack $@sil_unowned CP
   %u2 = alloc_stack $@sil_unowned CP
-  // CHECK: [[U1:%.*]] = alloca [[UREF:{ %swift.unowned, i8.. }]], align 8
+  // CHECK: [[U1:%.*]] = alloca [[UREF:{ %swift.unowned, ptr }]], align 8
   // CHECK: [[U2:%.*]] = alloca [[UREF]], align 8
 
   store_unowned %s to [init] %u1 : $*@sil_unowned CP
-  // CHECK: [[T0:%.*]] = getelementptr inbounds [[UREF]], [[UREF]]* [[U1]], i32 0, i32 1
-  // CHECK: store i8** %1, i8*** [[T0]], align 8
-  // CHECK: [[T0:%.*]] = getelementptr inbounds [[UREF]], [[UREF]]* [[U1]], i32 0, i32 0
-  // CHECK: call %swift.unowned* @swift_unknownObjectUnownedInit(%swift.unowned* returned [[T0]], %objc_object* %0)
+  // CHECK: [[T0:%.*]] = getelementptr inbounds [[UREF]], ptr [[U1]], i32 0, i32 1
+  // CHECK: store ptr %1, ptr [[T0]], align 8
+  // CHECK: [[T0:%.*]] = getelementptr inbounds [[UREF]], ptr [[U1]], i32 0, i32 0
+  // CHECK: call ptr @swift_unknownObjectUnownedInit(ptr returned [[T0]], ptr %0)
 
-  // CHECK: [[T0:%.*]] = getelementptr inbounds [[UREF]], [[UREF]]* [[U1]], i32 0, i32 0
-  // CHECK: [[T1:%.*]] = call %objc_object* @swift_unknownObjectUnownedLoadStrong(%swift.unowned* [[T0]])
+  // CHECK: [[T0:%.*]] = getelementptr inbounds [[UREF]], ptr [[U1]], i32 0, i32 0
+  // CHECK: [[T1:%.*]] = call ptr @swift_unknownObjectUnownedLoadStrong(ptr [[T0]])
   %t = load_unowned %u1 : $*@sil_unowned CP
-  // CHECK: call void @swift_unknownObjectRelease(%objc_object* [[T1]])
+  // CHECK: call void @swift_unknownObjectRelease(ptr [[T1]])
   strong_release %t : $CP
 
   dealloc_stack %u2 : $*@sil_unowned CP
   dealloc_stack %u1 : $*@sil_unowned CP
 
   %v = ref_to_unmanaged %s : $CP to $@sil_unmanaged CP
-  // CHECK: call %objc_object* @swift_unknownObjectRetain(%objc_object*
+  // CHECK: call ptr @swift_unknownObjectRetain(ptr
   %v_copy = strong_copy_unmanaged_value %v : $@sil_unmanaged CP
-  // CHECK: call void @swift_unknownObjectRelease(%objc_object*
+  // CHECK: call void @swift_unknownObjectRelease(ptr
   strong_release %v_copy : $CP
 
   %z = unmanaged_to_ref %v : $@sil_unmanaged CP to $CP
 
-  // CHECK: [[RESULT_A:%.*]] = insertvalue { %objc_object*, i8** } undef, %objc_object* %0, 0
-  // CHECK: [[RESULT_B:%.*]] = insertvalue { %objc_object*, i8** } [[RESULT_A]], i8** %1, 1
-  // CHECK: ret { %objc_object*, i8** } [[RESULT_B]]
+  // CHECK: [[RESULT_A:%.*]] = insertvalue { ptr, ptr } undef, ptr %0, 0
+  // CHECK: [[RESULT_B:%.*]] = insertvalue { ptr, ptr } [[RESULT_A]], ptr %1, 1
+  // CHECK: ret { ptr, ptr } [[RESULT_B]]
 
   return %z : $CP
 }
 
-// CHECK-DAG: define{{( protected)?}} swiftcc void @class_existential_weak({ %swift.weak, i8** }* noalias nocapture sret({{.*}}) %0, i64 %1, i64 %2)
+// CHECK-DAG: define{{( protected)?}} swiftcc void @class_existential_weak(ptr noalias nocapture sret({{.*}}) %0, i64 %1, i64 %2)
 sil @class_existential_weak : $@convention(thin) (@owned CP?) -> @out @sil_weak CP? {
 entry(%w : $*@sil_weak CP?, %a : $CP?):
-  // CHECK: [[V:%.*]] = alloca { %swift.weak, i8** }
+  // CHECK: [[V:%.*]] = alloca { %swift.weak, ptr }
   %v = alloc_stack $@sil_weak CP?
 
-  // CHECK: [[SRC_REF:%.*]] = inttoptr {{.*}} %objc_object*
-  // CHECK: [[SRC_WITNESS:%.*]] = inttoptr {{.*}} i8**
-  // CHECK: [[DEST_WITNESS_ADDR:%.*]] = getelementptr inbounds { %swift.weak, i8** }, { %swift.weak, i8** }* %0, i32 0, i32 1
-  // CHECK: store i8** [[SRC_WITNESS]], i8*** [[DEST_WITNESS_ADDR]]
-  // CHECK: [[DEST_REF_ADDR:%.*]] = getelementptr inbounds { %swift.weak, i8** }, { %swift.weak, i8** }* %0, i32 0, i32 0
-  // CHECK: call %swift.weak* @swift_unknownObjectWeakInit(%swift.weak* returned [[DEST_REF_ADDR]], %objc_object* [[SRC_REF]])
+  // CHECK: [[SRC_REF:%.*]] = inttoptr {{.*}} ptr
+  // CHECK: [[SRC_WITNESS:%.*]] = inttoptr {{.*}} ptr
+  // CHECK: [[DEST_WITNESS_ADDR:%.*]] = getelementptr inbounds { %swift.weak, ptr }, ptr %0, i32 0, i32 1
+  // CHECK: store ptr [[SRC_WITNESS]], ptr [[DEST_WITNESS_ADDR]]
+  // CHECK: [[DEST_REF_ADDR:%.*]] = getelementptr inbounds { %swift.weak, ptr }, ptr %0, i32 0, i32 0
+  // CHECK: call ptr @swift_unknownObjectWeakInit(ptr returned [[DEST_REF_ADDR]], ptr [[SRC_REF]])
   store_weak %a to [init] %w : $*@sil_weak CP?
 
-  // CHECK: [[SRC_REF:%.*]] = inttoptr {{.*}} %objc_object*
-  // CHECK: [[SRC_WITNESS:%.*]] = inttoptr {{.*}} i8**
-  // CHECK: [[DEST_WITNESS_ADDR:%.*]] = getelementptr inbounds { %swift.weak, i8** }, { %swift.weak, i8** }* %0, i32 0, i32 1
-  // CHECK: store i8** [[SRC_WITNESS]], i8*** [[DEST_WITNESS_ADDR]]
-  // CHECK: [[DEST_REF_ADDR:%.*]] = getelementptr inbounds { %swift.weak, i8** }, { %swift.weak, i8** }* %0, i32 0, i32 0
-  // CHECK: call %swift.weak* @swift_unknownObjectWeakAssign(%swift.weak* returned [[DEST_REF_ADDR]], %objc_object* [[SRC_REF]])
+  // CHECK: [[SRC_REF:%.*]] = inttoptr {{.*}} ptr
+  // CHECK: [[SRC_WITNESS:%.*]] = inttoptr {{.*}} ptr
+  // CHECK: [[DEST_WITNESS_ADDR:%.*]] = getelementptr inbounds { %swift.weak, ptr }, ptr %0, i32 0, i32 1
+  // CHECK: store ptr [[SRC_WITNESS]], ptr [[DEST_WITNESS_ADDR]]
+  // CHECK: [[DEST_REF_ADDR:%.*]] = getelementptr inbounds { %swift.weak, ptr }, ptr %0, i32 0, i32 0
+  // CHECK: call ptr @swift_unknownObjectWeakAssign(ptr returned [[DEST_REF_ADDR]], ptr [[SRC_REF]])
   store_weak %a to                  %w : $*@sil_weak CP?
 
-  // CHECK: [[SRC_REF_ADDR:%.*]] = getelementptr inbounds { %swift.weak, i8** }, { %swift.weak, i8** }* %0, i32 0, i32 0
-  // CHECK: [[DEST_REF:%.*]] = call %objc_object* @swift_unknownObjectWeakTakeStrong(%swift.weak* [[SRC_REF_ADDR]])
-  // CHECK: [[SRC_WITNESS_ADDR:%.*]] = getelementptr inbounds { %swift.weak, i8** }, { %swift.weak, i8** }* %0, i32 0, i32 1
-  // CHECK: [[DEST_WITNESS:%.*]] = load i8**, i8*** [[SRC_WITNESS_ADDR]]
+  // CHECK: [[SRC_REF_ADDR:%.*]] = getelementptr inbounds { %swift.weak, ptr }, ptr %0, i32 0, i32 0
+  // CHECK: [[DEST_REF:%.*]] = call ptr @swift_unknownObjectWeakTakeStrong(ptr [[SRC_REF_ADDR]])
+  // CHECK: [[SRC_WITNESS_ADDR:%.*]] = getelementptr inbounds { %swift.weak, ptr }, ptr %0, i32 0, i32 1
+  // CHECK: [[DEST_WITNESS:%.*]] = load ptr, ptr [[SRC_WITNESS_ADDR]]
   %b = load_weak [take] %w : $*@sil_weak CP?
 
-  // CHECK: [[SRC_REF_ADDR:%.*]] = getelementptr inbounds { %swift.weak, i8** }, { %swift.weak, i8** }* %0, i32 0, i32 0
-  // CHECK: [[DEST_REF:%.*]] = call %objc_object* @swift_unknownObjectWeakLoadStrong(%swift.weak* [[SRC_REF_ADDR]])
-  // CHECK: [[SRC_WITNESS_ADDR:%.*]] = getelementptr inbounds { %swift.weak, i8** }, { %swift.weak, i8** }* %0, i32 0, i32 1
-  // CHECK: [[DEST_WITNESS:%.*]] = load i8**, i8*** [[SRC_WITNESS_ADDR]]
+  // CHECK: [[SRC_REF_ADDR:%.*]] = getelementptr inbounds { %swift.weak, ptr }, ptr %0, i32 0, i32 0
+  // CHECK: [[DEST_REF:%.*]] = call ptr @swift_unknownObjectWeakLoadStrong(ptr [[SRC_REF_ADDR]])
+  // CHECK: [[SRC_WITNESS_ADDR:%.*]] = getelementptr inbounds { %swift.weak, ptr }, ptr %0, i32 0, i32 1
+  // CHECK: [[DEST_WITNESS:%.*]] = load ptr, ptr [[SRC_WITNESS_ADDR]]
   %c = load_weak        %w : $*@sil_weak CP?
 
-  // CHECK: call { %swift.weak, i8** }* @"$s17existentials_objc2CP_pSgXwWOb"({ %swift.weak, i8** }* %0, { %swift.weak, i8** }* [[V]])
+  // CHECK: call ptr @"$s17existentials_objc2CP_pSgXwWOb"(ptr %0, ptr [[V]])
   copy_addr [take] %w to [init] %v : $*@sil_weak CP?
 
-  // CHECK: call { %swift.weak, i8** }* @"$s17existentials_objc2CP_pSgXwWOd"({ %swift.weak, i8** }* %0, { %swift.weak, i8** }* [[V]])
+  // CHECK: call ptr @"$s17existentials_objc2CP_pSgXwWOd"(ptr %0, ptr [[V]])
   copy_addr [take] %w to                  %v : $*@sil_weak CP?
 
-  // CHECK: call { %swift.weak, i8** }* @"$s17existentials_objc2CP_pSgXwWOc"({ %swift.weak, i8** }* %0, { %swift.weak, i8** }* [[V]])
+  // CHECK: call ptr @"$s17existentials_objc2CP_pSgXwWOc"(ptr %0, ptr [[V]])
   copy_addr        %w to [init] %v : $*@sil_weak CP?
 
-  // CHECK: call { %swift.weak, i8** }* @"$s17existentials_objc2CP_pSgXwWOf"({ %swift.weak, i8** }* %0, { %swift.weak, i8** }* [[V]])
+  // CHECK: call ptr @"$s17existentials_objc2CP_pSgXwWOf"(ptr %0, ptr [[V]])
   copy_addr        %w to                  %v : $*@sil_weak CP?
 
-  // CHECK: call { %swift.weak, i8** }* @"$s17existentials_objc2CP_pSgXwWOh"({ %swift.weak, i8** }* [[V]])
+  // CHECK: call ptr @"$s17existentials_objc2CP_pSgXwWOh"(ptr [[V]])
   destroy_addr %v : $*@sil_weak CP?
 
   dealloc_stack %v : $*@sil_weak CP?
@@ -159,15 +155,14 @@ entry(%w : $*@sil_weak CP?, %a : $CP?):
  @objc optional func funcA()
 }
 
-// CHECK: define swiftcc void @useObjcProtocol(%objc_object* swiftself %0)
+// CHECK: define swiftcc void @useObjcProtocol(ptr swiftself %0)
 // CHECK: entry:
-// CHECK:   load i8*, i8** @"\01L_selector(funcA)"
-// CHECK:   load i8*, i8** @"\01L_selector(respondsToSelector:)"
-// CHECK:   [[TMP:%.*]] = call i1 bitcast (void ()* @objc_msgSend
+// CHECK:   load ptr, ptr @"\01L_selector(funcA)"
+// CHECK:   load ptr, ptr @"\01L_selector(respondsToSelector:)"
+// CHECK:   [[TMP:%.*]] = call i1 @objc_msgSend
 // CHECK:   br i1 [[TMP]]
 //
-// CHECK:   [[SELF:%.*]] = bitcast %objc_object* %0 to i8*
-// CHECK:   call void bitcast (void ()* @objc_msgSend to void (i8*, i8*)*)(i8* [[SELF]]
+// CHECK:   call void @objc_msgSend(ptr %0
 // CHECK:   ret void
 // CHECK: }
 
@@ -197,12 +192,11 @@ class TestC {
 }
 
 // CHECK-LABEL: define {{.*}}@test_load_unowned
-// CHECK: [[REF:%.*]] = load %swift.refcounted*, %swift.refcounted**
-// CHECK: [[CAST:%.*]] = bitcast %swift.refcounted* [[REF]] to %T17existentials_objc8NSObjectC
+// CHECK: [[REF:%.*]] = load ptr, ptr
 // CHECK: swift_unownedRetainStrong
-// CHECK: [[EXIST0:%.*]] = insertvalue { %T17existentials_objc8NSObjectC*, i8** } undef, %T17existentials_objc8NSObjectC* [[CAST]], 0
-// CHECK: [[EXIST:%.*]] = insertvalue { %T17existentials_objc8NSObjectC*, i8** } [[EXIST0]], i8** {{.*}}, 1
-// CHECK:  ret { %T17existentials_objc8NSObjectC*, i8** } [[EXIST]]
+// CHECK: [[EXIST0:%.*]] = insertvalue { ptr, ptr } undef, ptr [[REF]], 0
+// CHECK: [[EXIST:%.*]] = insertvalue { ptr, ptr } [[EXIST0]], ptr {{.*}}, 1
+// CHECK:  ret { ptr, ptr } [[EXIST]]
 
 sil @test_load_unowned : $@convention(method) (@guaranteed TestC) -> @owned NSObject & TestP {
 bb0(%0 : $TestC):
@@ -212,12 +206,11 @@ bb0(%0 : $TestC):
 }
 
 // CHECK-LABEL: define {{.*}}@test_load_take_unowned
-// CHECK: [[REF:%.*]] = load %swift.refcounted*, %swift.refcounted**
-// CHECK: [[CAST:%.*]] = bitcast %swift.refcounted* [[REF]] to %T17existentials_objc8NSObjectC
+// CHECK: [[REF:%.*]] = load ptr, ptr
 // CHECK: swift_unownedRetainStrongAndRelease
-// CHECK: [[EXIST0:%.*]] = insertvalue { %T17existentials_objc8NSObjectC*, i8** } undef, %T17existentials_objc8NSObjectC* [[CAST]], 0
-// CHECK: [[EXIST:%.*]] = insertvalue { %T17existentials_objc8NSObjectC*, i8** } [[EXIST0]], i8** {{.*}}, 1
-// CHECK:  ret { %T17existentials_objc8NSObjectC*, i8** } [[EXIST]]
+// CHECK: [[EXIST0:%.*]] = insertvalue { ptr, ptr } undef, ptr [[REF]], 0
+// CHECK: [[EXIST:%.*]] = insertvalue { ptr, ptr } [[EXIST0]], ptr {{.*}}, 1
+// CHECK:  ret { ptr, ptr } [[EXIST]]
 
 sil @test_load_take_unowned : $@convention(method) (@guaranteed TestC) -> @owned NSObject & TestP {
 bb0(%0 : $TestC):

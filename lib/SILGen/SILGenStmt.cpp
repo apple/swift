@@ -588,8 +588,7 @@ prepareIndirectResultInit(SILGenFunction &SGF, SILLocation loc,
     TupleInitialization *tupleInit = nullptr;
     SmallVector<InitializationPtr, 1> singletonEltInit;
 
-    bool vanishes =
-      origResultType.getVanishingTupleElementPatternType().hasValue();
+    bool vanishes = origResultType.doesTupleVanish();
     if (!vanishes) {
       auto resultTupleType = cast<TupleType>(resultType);
       tupleInit = new TupleInitialization(resultTupleType);

@@ -23,7 +23,7 @@ class SILGenFunction;
 
 /// TODO: std::variant.
 struct SwitchCaseBranchDest {
-  Optional<JumpDest> jumpDest;
+  llvm::Optional<JumpDest> jumpDest;
   NullablePtr<SILBasicBlock> block;
 
   SwitchCaseBranchDest() : jumpDest(), block() {}

@@ -142,7 +142,7 @@ createSwiftCachingOutputBackend(
 bool replayCachedCompilerOutputs(
     ObjectStore &CAS, ActionCache &Cache, ObjectRef BaseKey,
     DiagnosticEngine &Diag, const FrontendInputsAndOutputs &InputsAndOutputs,
-    CachingDiagnosticsProcessor &CDP) {
+    CachingDiagnosticsProcessor &CDP, bool CacheRemarks) {
   clang::cas::CompileJobResultSchema Schema(CAS);
   bool CanReplayAllOutput = true;
   struct OutputEntry {
@@ -173,8 +173,9 @@ bool replayCachedCompilerOutputs(
       return None;
     }
     if (!*Lookup) {
-      Diag.diagnose(SourceLoc(), diag::output_cache_miss, OutputPath,
-                    OutputKeyID.toString());
+      if (CacheRemarks)
+        Diag.diagnose(SourceLoc(), diag::output_cache_miss, OutputPath,
+                      OutputKeyID.toString());
       return None;
     }
     auto OutputRef = CAS.getReference(**Lookup);
@@ -261,7 +262,8 @@ bool replayCachedCompilerOutputs(
                     toString(std::move(E)));
       continue;
     }
-    Diag.diagnose(SourceLoc(), diag::replay_output, Output.Path, Output.Key);
+    if (CacheRemarks)
+      Diag.diagnose(SourceLoc(), diag::replay_output, Output.Path, Output.Key);
   }
 
   return true;

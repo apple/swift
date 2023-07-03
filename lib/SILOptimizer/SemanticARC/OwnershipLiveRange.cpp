@@ -166,7 +166,7 @@ void OwnershipLiveRange::insertEndBorrowsAtDestroys(
   //
   // TODO: Hoist this out?
   SILInstruction *inst = introducer.value->getDefiningInstruction();
-  Optional<ValueLifetimeAnalysis> analysis;
+  llvm::Optional<ValueLifetimeAnalysis> analysis;
   if (!inst) {
     analysis.emplace(cast<SILArgument>(introducer.value),
                      getAllConsumingInsts());

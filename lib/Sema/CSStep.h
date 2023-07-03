@@ -221,7 +221,9 @@ protected:
 
   Score getCurrentScore() const { return CS.CurrentScore; }
 
-  Optional<Score> getBestScore() const { return CS.solverState->BestScore; }
+  llvm::Optional<Score> getBestScore() const {
+    return CS.solverState->BestScore;
+  }
 
   void filterSolutions(SmallVectorImpl<Solution> &solutions, bool minimize) {
     CS.filterSolutions(solutions, minimize);
@@ -377,7 +379,7 @@ class ComponentStep final : public SolverStep {
 
   /// The original best score computed before any of the
   /// component steps belonging to the same "split" are taken.
-  Optional<Score> OriginalBestScore;
+  llvm::Optional<Score> OriginalBestScore;
 
   /// If this step depends on other smaller steps to be solved first
   /// we need to keep active scope until all of the work is done.
@@ -514,7 +516,8 @@ protected:
   /// being attempted, helps to rewind state of the
   /// constraint system back to original before attempting
   /// next binding, if any.
-  Optional<std::pair<std::unique_ptr<Scope>, typename P::Element>> ActiveChoice;
+  llvm::Optional<std::pair<std::unique_ptr<Scope>, typename P::Element>>
+      ActiveChoice;
 
   BindingStep(ConstraintSystem &cs, P producer,
               SmallVectorImpl<Solution> &solutions)
@@ -680,8 +683,8 @@ class DisjunctionStep final : public BindingStep<DisjunctionChoiceProducer> {
   SmallVector<Constraint *, 4> DisabledChoices;
   ConstraintList::iterator AfterDisjunction;
 
-  Optional<Score> BestNonGenericScore;
-  Optional<std::pair<Constraint *, Score>> LastSolvedChoice;
+  llvm::Optional<Score> BestNonGenericScore;
+  llvm::Optional<std::pair<Constraint *, Score>> LastSolvedChoice;
 
 public:
   DisjunctionStep(ConstraintSystem &cs, Constraint *disjunction,
@@ -794,7 +797,8 @@ private:
   };
 
   // Figure out which of the solutions has the smallest score.
-  static Optional<Score> getBestScore(SmallVectorImpl<Solution> &solutions) {
+  static llvm::Optional<Score>
+  getBestScore(SmallVectorImpl<Solution> &solutions) {
     if (solutions.empty())
       return None;
 
@@ -819,7 +823,7 @@ class ConjunctionStep : public BindingStep<ConjunctionElementProducer> {
     /// The conjunction this snapshot belongs to.
     Constraint *Conjunction;
 
-    Optional<llvm::SaveAndRestore<DeclContext *>> DC = None;
+    llvm::Optional<llvm::SaveAndRestore<DeclContext *>> DC = None;
 
     llvm::SetVector<TypeVariableType *> TypeVars;
     ConstraintList Constraints;
@@ -899,7 +903,7 @@ class ConjunctionStep : public BindingStep<ConjunctionElementProducer> {
   };
 
   /// Best solution solver reached so far.
-  Optional<Score> BestScore;
+  llvm::Optional<Score> BestScore;
   /// The score established before conjunction is attempted.
   Score CurrentScore;
 
@@ -909,7 +913,7 @@ class ConjunctionStep : public BindingStep<ConjunctionElementProducer> {
 
   /// The number of milliseconds until outer constraint system
   /// is considered "too complex" if timer is enabled.
-  Optional<std::pair<ExpressionTimer::AnchorType, unsigned>>
+  llvm::Optional<std::pair<ExpressionTimer::AnchorType, unsigned>>
       OuterTimeRemaining = None;
 
   /// Conjunction constraint associated with this step.
@@ -925,7 +929,7 @@ class ConjunctionStep : public BindingStep<ConjunctionElementProducer> {
   /// If conjunction has to be solved in isolation, this
   /// variable would capture the snapshot of the constraint
   /// system step before conjunction step.
-  Optional<SolverSnapshot> Snapshot;
+  llvm::Optional<SolverSnapshot> Snapshot;
 
   /// A set of previously deduced solutions. This is used upon
   /// successful solution of an isolated conjunction to introduce
@@ -941,7 +945,7 @@ class ConjunctionStep : public BindingStep<ConjunctionElementProducer> {
   /// If \c ConjunctionStep::attempt modified the constraint system options,
   /// it will store the original options in this \c llvm::SaveAndRestore.
   /// Upon \c resume, these values will be restored.
-  Optional<llvm::SaveAndRestore<ConstraintSystemOptions>> ModifiedOptions;
+  llvm::Optional<llvm::SaveAndRestore<ConstraintSystemOptions>> ModifiedOptions;
 
 public:
   ConjunctionStep(ConstraintSystem &cs, Constraint *conjunction,

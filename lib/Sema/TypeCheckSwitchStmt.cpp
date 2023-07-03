@@ -444,11 +444,11 @@ namespace {
       // \p minusCount is an optional pointer counting the number of
       // remaining calls to minus before the computation times out.
       // Returns None if the computation "timed out".
-      Optional<Space> minus(const Space &other, const DeclContext *DC,
-                            unsigned *minusCount) const {
+      llvm::Optional<Space> minus(const Space &other, const DeclContext *DC,
+                                  unsigned *minusCount) const {
         if (minusCount && (*minusCount)-- == 0)
-          return None;
-        
+          return llvm::None;
+
         if (this->isEmpty()) {
           return Space();
         }
@@ -521,7 +521,7 @@ namespace {
             if (auto diff = tot.minus(s, DC, minusCount))
               tot = *diff;
             else
-              return None;
+              return llvm::None;
           }
           return tot;
         }
@@ -535,7 +535,7 @@ namespace {
           for (auto s : this->getSpaces()) {
             auto diff = s.minus(other, DC, minusCount);
             if (!diff)
-              return None;
+              return llvm::None;
             if (diff->getKind() == SpaceKind::Disjunct) {
               smallSpaces.append(diff->getSpaces().begin(),
                                  diff->getSpaces().end());
@@ -570,7 +570,7 @@ namespace {
           for (auto subSpace : this->getSpaces()) {
             auto nextSpace = subSpace.minus(other, DC, minusCount);
             if (!nextSpace)
-              return None;
+              return llvm::None;
             if (nextSpace.value().isEmpty())
               return Space();
             newSubSpaces.push_back(nextSpace.value());
@@ -616,7 +616,7 @@ namespace {
 
             auto reducedSpaceOrNone = s1.minus(s2, DC, minusCount);
             if (!reducedSpaceOrNone)
-              return None;
+              return llvm::None;
             auto reducedSpace = *reducedSpaceOrNone;
             
             // If one of the constructor parameters is empty it means
@@ -1124,7 +1124,7 @@ namespace {
       bool InEditor = Context.LangOpts.DiagnosticsEditorMode;
 
       // Decide whether we want an error or a warning.
-      Optional<decltype(diag::non_exhaustive_switch)> mainDiagType =
+      llvm::Optional<decltype(diag::non_exhaustive_switch)> mainDiagType =
           diag::non_exhaustive_switch;
       if (unknownCase) {
         switch (defaultReason) {
@@ -1169,7 +1169,7 @@ namespace {
         }
         DE.diagnose(startLoc, diag::non_exhaustive_switch_unknown_only,
                     subjectType, shouldIncludeFutureVersionComment);
-        mainDiagType = None;
+        mainDiagType = llvm::None;
       }
         break;
       }
@@ -1499,8 +1499,8 @@ namespace {
           // If there's no sub-pattern then there's no further recursive
           // structure here.  Yield the constructor space.
           // FIXME: Compound names.
-          return Space::forConstructor(item->getType(),
-                                       VP->getName().getBaseIdentifier(), None);
+          return Space::forConstructor(
+              item->getType(), VP->getName().getBaseIdentifier(), llvm::None);
         }
 
         SmallVector<Space, 4> conArgSpace;

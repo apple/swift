@@ -241,7 +241,7 @@ static SILInstruction *createDealloc(SILInstruction *Alloc,
 bool StackNesting::insertDeallocs(const BitVector &AliveBefore,
                                   const BitVector &AliveAfter,
                                   SILInstruction *InsertionPoint,
-                                  Optional<SILLocation> Location) {
+                                  llvm::Optional<SILLocation> Location) {
   if (!AliveBefore.test(AliveAfter))
     return false;
 
@@ -293,7 +293,8 @@ StackNesting::Changes StackNesting::insertDeallocsAtBlockBoundaries() {
         changes = Changes::CFG;
       }
       if (insertDeallocs(bd.data.AliveStackLocsAtExit,
-                SuccBI.AliveStackLocsAtEntry, &InsertionBlock->front(), None)) {
+                         SuccBI.AliveStackLocsAtEntry, &InsertionBlock->front(),
+                         llvm::None)) {
         if (changes == Changes::None)
           changes = Changes::Instructions;
       }

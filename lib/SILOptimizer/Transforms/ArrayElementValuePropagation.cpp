@@ -211,7 +211,7 @@ bool ArrayAllocation::replaceGetElements() {
     assert(GetElement.getKind() == ArrayCallKind::kGetElement);
 
     auto ConstantIndex = GetElement.getConstantIndex();
-    if (ConstantIndex == None)
+    if (ConstantIndex == llvm::None)
       continue;
 
     // ElementValueMap keys are unsigned. Avoid implicit signed-unsigned

@@ -149,14 +149,14 @@ public func withTaskGroup<ChildTaskResult, GroupResult>(
 /// For example, in the code below,
 /// nothing is canceled and the group doesn't throw an error:
 ///
-///     try await withThrowingTaskGroup { group in
+///     try await withThrowingTaskGroup(of: Void.self) { group in
 ///         group.addTask { throw SomeError() }
 ///     }
 ///
 /// In contrast, this example throws `SomeError`
 /// and cancels all of the tasks in the group:
 ///
-///     try await withThrowingTaskGroup { group in
+///     try await withThrowingTaskGroup(of: Void.self) { group in
 ///         group.addTask { throw SomeError() }
 ///         try await group.next()
 ///     }

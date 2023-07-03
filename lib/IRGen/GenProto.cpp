@@ -1294,7 +1294,7 @@ public:
     const ProtocolConformance &ConformanceInContext;
     CanType ConcreteType;
 
-    Optional<FulfillmentMap> Fulfillments;
+    llvm::Optional<FulfillmentMap> Fulfillments;
 
     WitnessTableBuilderBase(IRGenModule &IGM, SILWitnessTable *SILWT)
         : IGM(IGM), SILWT(SILWT),
@@ -1944,7 +1944,7 @@ namespace {
 
     using PlaceholderPosition =
       ConstantAggregateBuilderBase::PlaceholderPosition;
-    Optional<PlaceholderPosition> FlagsPP;
+    llvm::Optional<PlaceholderPosition> FlagsPP;
 
   public:
     ProtocolConformanceDescriptorBuilder(
@@ -3577,14 +3577,13 @@ GenericTypeRequirements::GenericTypeRequirements(IRGenModule &IGM,
 
   // Construct a representative function type.
   auto generics = ncGenerics.getCanonicalSignature();
-  auto fnType = SILFunctionType::get(generics, SILFunctionType::ExtInfo(),
-                                SILCoroutineKind::None,
-                                /*callee*/ ParameterConvention::Direct_Unowned,
-                                /*params*/ {}, /*yields*/ {},
-                                /*results*/ {}, /*error*/ None,
-                                /*pattern subs*/ SubstitutionMap(),
-                                /*invocation subs*/ SubstitutionMap(),
-                                IGM.Context);
+  auto fnType = SILFunctionType::get(
+      generics, SILFunctionType::ExtInfo(), SILCoroutineKind::None,
+      /*callee*/ ParameterConvention::Direct_Unowned,
+      /*params*/ {}, /*yields*/ {},
+      /*results*/ {}, /*error*/ llvm::None,
+      /*pattern subs*/ SubstitutionMap(),
+      /*invocation subs*/ SubstitutionMap(), IGM.Context);
 
   // Figure out what we're actually still required to pass 
   PolymorphicConvention convention(IGM, fnType);

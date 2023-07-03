@@ -599,7 +599,7 @@ static bool rewriteAllocBoxAsAllocStack(AllocBoxInst *ABI) {
   LLVM_DEBUG(llvm::dbgs() << "*** Promoting alloc_box to stack: " << *ABI);
 
   SILValue HeapBox = ABI;
-  Optional<MarkUninitializedInst::Kind> Kind;
+  llvm::Optional<MarkUninitializedInst::Kind> Kind;
   if (HeapBox->hasOneUse()) {
     auto *User = HeapBox->getSingleUse()->getUser();
     if (auto *MUI = dyn_cast<MarkUninitializedInst>(User)) {
@@ -1213,9 +1213,51 @@ static void rewriteApplySites(AllocBoxToStackState &pass) {
     auto *FRI = cast<FunctionRefInst>(Apply.getCallee());
     Apply.getInstruction()->eraseFromParent();
 
-    // TODO: Erase from module if there are no more uses.
-    if (FRI->use_empty())
+    if (FRI->use_empty()) {
+      auto referencedFn = FRI->getReferencedFunction();
       FRI->eraseFromParent();
+
+      // TODO: Erase from module if there are no more uses.
+      // If the function has no remaining references, it should eventually
+      // be deleted. We can't do that from a function pass, since the function
+      // is still queued up for other passes to run after this one, but we
+      // can at least gut the implementation, since subsequent passes that
+      // rely on stack promotion to occur (particularly closure lifetime
+      // fixup and move-only checking) may not be able to proceed in a
+      // sensible way on the now non-canonical original implementation.
+      if (referencedFn->getRefCount() == 0
+          && !isPossiblyUsedExternally(referencedFn->getLinkage(),
+                                   referencedFn->getModule().isWholeModule())) {
+        LLVM_DEBUG(llvm::dbgs() << "*** Deleting original function " << referencedFn->getName() << "'s body since it is unused");
+        // Remove all non-entry blocks.
+        auto entryBB = referencedFn->begin();
+        auto nextBB = std::next(entryBB);
+        
+        while (nextBB != referencedFn->end()) {
+          auto thisBB = nextBB;
+          ++nextBB;
+          thisBB->eraseFromParent();
+        }
+        
+        // Rewrite the entry block to only contain an unreachable.
+        auto loc = entryBB->begin()->getLoc();
+        entryBB->eraseAllInstructions(referencedFn->getModule());
+        {
+          SILBuilder b(&*entryBB);
+          b.createUnreachable(loc);
+        }
+        
+        // Refresh the CFG in case we removed any function calls.
+        pass.CFGChanged = true;
+        
+        // If the function has shared linkage, reduce this version to private
+        // linkage, because we don't want the deleted-body form to win in any
+        // ODR shootouts.
+        if (referencedFn->getLinkage() == SILLinkage::Shared) {
+          referencedFn->setLinkage(SILLinkage::Private);
+        }
+      }
+    }
   }
 }
 

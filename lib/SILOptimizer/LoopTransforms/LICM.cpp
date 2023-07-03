@@ -1374,7 +1374,7 @@ hoistLoadsAndStores(AccessPath accessPath, SILLoop *loop) {
 
   // Set all stored values as available values in the ssaUpdater.
   // If there are multiple stores in a block, only the last one counts.
-  Optional<SILLocation> loc;
+  llvm::Optional<SILLocation> loc;
   for (SILInstruction *I : LoadsAndStores) {
     if (auto *SI = isStoreToAccess(I, accessPath)) {
       loc = SI->getLoc();

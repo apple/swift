@@ -1,9 +1,7 @@
 // RUN: %empty-directory(%t)
 // RUN: %swiftc_driver_plain -target x86_64-unknown-windows-msvc -DLIBRARY -module-name Library -emit-library -static -autolink-force-load -module-link-name Library %s -o %t/library.lib -emit-module-path %t
-// RUN: %swiftc_driver_plain %use_no_opaque_pointers -target x86_64-unknown-windows-msvc -DLIBRARY -module-name Library -emit-library -static -autolink-force-load -module-link-name Library %s -S -emit-ir -o - | %FileCheck -check-prefix CHECK-LIBRARY %s
-// RUN: %swiftc_driver_plain %use_no_opaque_pointers -target x86_64-unknown-windows-msvc -I %t -emit-library -S -emit-ir -o - %s | %FileCheck -check-prefix CHECK-EMBEDDING %s
-// RUN: %swiftc_driver_plain -target x86_64-unknown-windows-msvc -DLIBRARY -module-name Library -emit-library -static -autolink-force-load -module-link-name Library %s -S -emit-ir -o -
-// RUN: %swiftc_driver_plain -target x86_64-unknown-windows-msvc -I %t -emit-library -S -emit-ir -o - %s
+// RUN: %swiftc_driver_plain -target x86_64-unknown-windows-msvc -DLIBRARY -module-name Library -emit-library -static -autolink-force-load -module-link-name Library %s -S -emit-ir -o - | %FileCheck -check-prefix CHECK-LIBRARY %s
+// RUN: %swiftc_driver_plain -target x86_64-unknown-windows-msvc -I %t -emit-library -S -emit-ir -o - %s | %FileCheck -check-prefix CHECK-EMBEDDING %s
 
 // REQUIRES: OS=windows-msvc
 
@@ -40,23 +38,23 @@ open class C {
 }
 
 // Library.C.method() -> ()
-// CHECK-LIBRARY: define swiftcc void @"$s7Library1CC6methodyyF"(%T7Library1CC* swiftself %0)
+// CHECK-LIBRARY: define swiftcc void @"$s7Library1CC6methodyyF"(ptr swiftself %0)
 
 // Library.C.deinit
-// CHECK-LIBRARY: define swiftcc %swift.refcounted* @"$s7Library1CCfd"(%T7Library1CC* swiftself %0)
+// CHECK-LIBRARY: define swiftcc ptr @"$s7Library1CCfd"(ptr swiftself %0)
 
 // Library.C.__deallocating_deinit
-// CHECK-LIBRARY: define swiftcc void @"$s7Library1CCfD"(%T7Library1CC* swiftself %0)
+// CHECK-LIBRARY: define swiftcc void @"$s7Library1CCfD"(ptr swiftself %0)
 
 // Library.C.__allocating_init() -> Library.C
-// CHECK-LIBRARY: define swiftcc %T7Library1CC* @"$s7Library1CCACycfC"(%swift.type* swiftself %0)
+// CHECK-LIBRARY: define swiftcc ptr @"$s7Library1CCACycfC"(ptr swiftself %0)
 
 public struct S {
     var member: () -> Void = f
 }
 
 // variable initialization expression of Library.S.member : () -> ()
-// CHECK-LIBRARY: define swiftcc { i8*, %swift.refcounted* } @"$s7Library1SV6memberyycvpfi"()
+// CHECK-LIBRARY: define swiftcc { ptr, ptr } @"$s7Library1SV6memberyycvpfi"()
 
 // type metadata accessor for Library.C
 // CHECK-LIBRARY: define swiftcc %swift.metadata_response @"$s7Library1CCMa"(i64 %0)

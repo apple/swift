@@ -31,6 +31,8 @@
 #include "swift/AST/TypeAlignments.h"
 #include "swift/Basic/Debug.h"
 #include "swift/Basic/InlineBitfield.h"
+#include "llvm/ADT/None.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/Support/TrailingObjects.h"
 #include <utility>
 
@@ -1201,9 +1203,9 @@ public:
 
   /// Determine whether this reference needs to happen asynchronously, i.e.,
   /// guarded by hop_to_executor, and if so describe the target.
-  Optional<ActorIsolation> isImplicitlyAsync() const {
+  llvm::Optional<ActorIsolation> isImplicitlyAsync() const {
     if (!Bits.DeclRefExpr.IsImplicitlyAsync)
-      return None;
+      return llvm::None;
 
     return implicitActorHopTarget;
   }
@@ -1584,9 +1586,9 @@ public:
 
   /// Determine whether this reference needs to happen asynchronously, i.e.,
   /// guarded by hop_to_executor, and if so describe the target.
-  Optional<ActorIsolation> isImplicitlyAsync() const {
+  llvm::Optional<ActorIsolation> isImplicitlyAsync() const {
     if (!Bits.LookupExpr.IsImplicitlyAsync)
-      return None;
+      return llvm::None;
 
     return implicitActorHopTarget;
   }
@@ -4704,9 +4706,9 @@ public:
   ///
   /// When the application is implicitly async, the result describes
   /// the actor to which we need to need to hop.
-  Optional<ActorIsolation> isImplicitlyAsync() const {
+  llvm::Optional<ActorIsolation> isImplicitlyAsync() const {
     if (!Bits.ApplyExpr.ImplicitlyAsync)
-      return None;
+      return llvm::None;
 
     return implicitActorHopTarget;
   }
@@ -5982,7 +5984,7 @@ public:
   /// If the provided expression appears as an argument to a subscript component
   /// of the key path, returns the index of that component. Otherwise, returns
   /// \c None.
-  Optional<unsigned> findComponentWithSubscriptArg(Expr *arg);
+  llvm::Optional<unsigned> findComponentWithSubscriptArg(Expr *arg);
 
   /// Retrieve the string literal expression, which will be \c NULL prior to
   /// type checking and a string literal after type checking for an

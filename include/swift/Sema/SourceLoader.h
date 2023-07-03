@@ -97,7 +97,7 @@ public:
     // Parsing populates the Objective-C method tables.
   }
 
-  Optional<const ModuleDependencyInfo*>
+  llvm::Optional<const ModuleDependencyInfo *>
   getModuleDependencies(StringRef moduleName, ModuleDependenciesCache &cache,
                         InterfaceSubContextDelegate &delegate,
                         bool isTestableImport) override;

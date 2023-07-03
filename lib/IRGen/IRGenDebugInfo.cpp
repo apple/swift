@@ -225,7 +225,7 @@ public:
   void emitVariableDeclaration(IRBuilder &Builder,
                                ArrayRef<llvm::Value *> Storage,
                                DebugTypeInfo Ty, const SILDebugScope *DS,
-                               Optional<SILLocation> VarLoc,
+                               llvm::Optional<SILLocation> VarLoc,
                                SILDebugVariable VarInfo,
                                IndirectionKind = DirectValue,
                                ArtificialKind = RealValue,
@@ -241,7 +241,7 @@ public:
                                      StringRef Name, StringRef LinkageName,
                                      DebugTypeInfo DebugType,
                                      bool IsLocalToUnit,
-                                     Optional<SILLocation> Loc);
+                                     llvm::Optional<SILLocation> Loc);
   void emitTypeMetadata(IRGenFunction &IGF, llvm::Value *Metadata,
                         unsigned Depth, unsigned Index, StringRef Name);
   void emitPackCountParameter(IRGenFunction &IGF, llvm::Value *Metadata,
@@ -324,7 +324,7 @@ private:
     return getSwiftFilenameAndLocation(DI, D, End);
   }
 
-  FilenameAndLocation getStartLocation(Optional<SILLocation> OptLoc) {
+  FilenameAndLocation getStartLocation(llvm::Optional<SILLocation> OptLoc) {
     if (!OptLoc)
       return {};
     if (OptLoc->isFilenameAndLocation())
@@ -468,14 +468,14 @@ private:
       }
     }
 
-    return createFile(Filename, None, None);
+    return createFile(Filename, llvm::None, llvm::None);
   }
 
   /// This is effectively \p clang::CGDebugInfo::createFile().
   llvm::DIFile *
   createFile(StringRef FileName,
-             Optional<llvm::DIFile::ChecksumInfo<StringRef>> CSInfo,
-             Optional<StringRef> Source) {
+             llvm::Optional<llvm::DIFile::ChecksumInfo<StringRef>> CSInfo,
+             llvm::Optional<StringRef> Source) {
     StringRef File, Dir;
     StringRef CurDir = Opts.DebugCompilationDir;
     SmallString<128> NormalizedFile(FileName);
@@ -795,17 +795,18 @@ private:
                              Desc.getASTFile());
   };
 
-  static Optional<ASTSourceDescriptor> getClangModule(const ModuleDecl &M) {
+  static llvm::Optional<ASTSourceDescriptor>
+  getClangModule(const ModuleDecl &M) {
     for (auto *FU : M.getFiles())
       if (auto *CMU = dyn_cast_or_null<ClangModuleUnit>(FU))
         if (auto Desc = CMU->getASTSourceDescriptor())
           return Desc;
-    return None;
+    return llvm::None;
   }
 
   llvm::DIModule *getOrCreateModule(ImportedModule IM) {
     ModuleDecl *M = IM.importedModule;
-    if (Optional<ASTSourceDescriptor> ModuleDesc = getClangModule(*M))
+    if (llvm::Optional<ASTSourceDescriptor> ModuleDesc = getClangModule(*M))
       return getOrCreateModule(*ModuleDesc, ModuleDesc->getModuleOrNull());
     StringRef Path = getFilenameFromDC(M);
     // Use the module 'real' name, which can be different from the name if module
@@ -1052,7 +1053,7 @@ private:
       // Swift Enums can be both like DWARF enums and discriminated unions.
       // LLVM now supports variant types in debug metadata, which may be a
       // better fit.
-      Optional<CompletedDebugTypeInfo> ElemDbgTy;
+      llvm::Optional<CompletedDebugTypeInfo> ElemDbgTy;
       if (Decl->hasRawType()) {
         // An enum with a raw type (enum E : Int {}), similar to a
         // DWARF enum.
@@ -1393,38 +1394,38 @@ private:
 
     case TypeKind::BuiltinNativeObject: {
       unsigned PtrSize = CI.getTargetInfo().getPointerWidth(0);
-      auto PTy =
-          DBuilder.createPointerType(nullptr, PtrSize, 0,
-                                     /* DWARFAddressSpace */ None, MangledName);
+      auto PTy = DBuilder.createPointerType(nullptr, PtrSize, 0,
+                                            /* DWARFAddressSpace */ llvm::None,
+                                            MangledName);
       return DBuilder.createObjectPointerType(PTy);
     }
 
     case TypeKind::BuiltinBridgeObject: {
       unsigned PtrSize = CI.getTargetInfo().getPointerWidth(0);
-      auto PTy =
-          DBuilder.createPointerType(nullptr, PtrSize, 0,
-                                     /* DWARFAddressSpace */ None, MangledName);
+      auto PTy = DBuilder.createPointerType(nullptr, PtrSize, 0,
+                                            /* DWARFAddressSpace */ llvm::None,
+                                            MangledName);
       return DBuilder.createObjectPointerType(PTy);
     }
 
     case TypeKind::BuiltinRawPointer: {
       unsigned PtrSize = CI.getTargetInfo().getPointerWidth(0);
       return DBuilder.createPointerType(nullptr, PtrSize, 0,
-                                        /* DWARFAddressSpace */ None,
+                                        /* DWARFAddressSpace */ llvm::None,
                                         MangledName);
     }
 
     case TypeKind::BuiltinRawUnsafeContinuation: {
       unsigned PtrSize = CI.getTargetInfo().getPointerWidth(0);
       return DBuilder.createPointerType(nullptr, PtrSize, 0,
-                                        /* DWARFAddressSpace */ None,
+                                        /* DWARFAddressSpace */ llvm::None,
                                         MangledName);
     }
 
     case TypeKind::BuiltinJob: {
       unsigned PtrSize = CI.getTargetInfo().getPointerWidth(0);
       return DBuilder.createPointerType(nullptr, PtrSize, 0,
-                                        /* DWARFAddressSpace */ None,
+                                        /* DWARFAddressSpace */ llvm::None,
                                         MangledName);
     }
 
@@ -2603,7 +2604,7 @@ bool IRGenDebugInfoImpl::buildDebugInfoExpression(
 
 void IRGenDebugInfoImpl::emitVariableDeclaration(
     IRBuilder &Builder, ArrayRef<llvm::Value *> Storage, DebugTypeInfo DbgTy,
-    const SILDebugScope *DS, Optional<SILLocation> DbgInstLoc,
+    const SILDebugScope *DS, llvm::Optional<SILLocation> DbgInstLoc,
     SILDebugVariable VarInfo, IndirectionKind Indirection,
     ArtificialKind Artificial, AddrDbgInstrKind AddrDInstrKind) {
   assert(DS && "variable has no scope");
@@ -2699,7 +2700,7 @@ void IRGenDebugInfoImpl::emitVariableDeclaration(
 
       return llvm::DIExpression::createFragmentExpression(
                  DIExpr, PieceFragment.OffsetInBits, PieceFragment.SizeInBits)
-          .getValueOr(nullptr);
+          .value_or(nullptr);
     }
 
     llvm::SmallVector<uint64_t, 2> Operands;
@@ -2714,7 +2715,7 @@ void IRGenDebugInfoImpl::emitVariableDeclaration(
     if (VarFragment.SizeInBits)
       DIExpr = llvm::DIExpression::createFragmentExpression(
                    DIExpr, VarFragment.OffsetInBits, VarFragment.SizeInBits)
-                   .getValueOr(nullptr);
+                   .value_or(nullptr);
 
     if (!DIExpr)
       return nullptr;
@@ -2725,7 +2726,7 @@ void IRGenDebugInfoImpl::emitVariableDeclaration(
     if (PieceFragment.SizeInBits)
       return llvm::DIExpression::createFragmentExpression(
                  DIExpr, PieceFragment.OffsetInBits, PieceFragment.SizeInBits)
-          .getValueOr(nullptr);
+          .value_or(nullptr);
 
     return DIExpr;
   };
@@ -2980,7 +2981,7 @@ void IRGenDebugInfoImpl::emitDbgIntrinsic(
 
 void IRGenDebugInfoImpl::emitGlobalVariableDeclaration(
     llvm::GlobalVariable *Var, StringRef Name, StringRef LinkageName,
-    DebugTypeInfo DbgTy, bool IsLocalToUnit, Optional<SILLocation> Loc) {
+    DebugTypeInfo DbgTy, bool IsLocalToUnit, llvm::Optional<SILLocation> Loc) {
   if (Opts.DebugInfoLevel <= IRGenDebugInfoLevel::LineTables)
     return;
 
@@ -3167,7 +3168,7 @@ void IRGenDebugInfo::emitOutlinedFunction(IRBuilder &Builder,
 }
 void IRGenDebugInfo::emitVariableDeclaration(
     IRBuilder &Builder, ArrayRef<llvm::Value *> Storage, DebugTypeInfo Ty,
-    const SILDebugScope *DS, Optional<SILLocation> VarLoc,
+    const SILDebugScope *DS, llvm::Optional<SILLocation> VarLoc,
     SILDebugVariable VarInfo, IndirectionKind Indirection,
     ArtificialKind Artificial, AddrDbgInstrKind AddrDInstKind) {
   static_cast<IRGenDebugInfoImpl *>(this)->emitVariableDeclaration(
@@ -3189,7 +3190,8 @@ void IRGenDebugInfo::emitDbgIntrinsic(IRBuilder &Builder, llvm::Value *Storage,
 
 void IRGenDebugInfo::emitGlobalVariableDeclaration(
     llvm::GlobalVariable *Storage, StringRef Name, StringRef LinkageName,
-    DebugTypeInfo DebugType, bool IsLocalToUnit, Optional<SILLocation> Loc) {
+    DebugTypeInfo DebugType, bool IsLocalToUnit,
+    llvm::Optional<SILLocation> Loc) {
   static_cast<IRGenDebugInfoImpl *>(this)->emitGlobalVariableDeclaration(
       Storage, Name, LinkageName, DebugType, IsLocalToUnit, Loc);
 }

@@ -157,10 +157,10 @@ private:
 
   SourceManager *SourceMgr;
   clang::SourceManager *ClangSourceMgr;
-  Optional<AlwaysOnDriverCounters> DriverCounters;
-  Optional<AlwaysOnFrontendCounters> FrontendCounters;
-  Optional<AlwaysOnFrontendCounters> LastTracedFrontendCounters;
-  Optional<std::vector<FrontendStatsEvent>> FrontendStatsEvents;
+  llvm::Optional<AlwaysOnDriverCounters> DriverCounters;
+  llvm::Optional<AlwaysOnFrontendCounters> FrontendCounters;
+  llvm::Optional<AlwaysOnFrontendCounters> LastTracedFrontendCounters;
+  llvm::Optional<std::vector<FrontendStatsEvent>> FrontendStatsEvents;
 
   // These are unique_ptr so we can use incomplete types here.
   std::unique_ptr<RecursionSafeTimers> RecursiveTimers;

@@ -540,12 +540,12 @@ class DeclUSRsTableWriter {
   llvm::OnDiskChainedHashTableGenerator<USRTableInfo> generator;
 public:
   uint32_t peekNextId() const { return USRs.size(); }
-  Optional<uint32_t> getNewUSRId(StringRef USR) {
+  llvm::Optional<uint32_t> getNewUSRId(StringRef USR) {
     // Attempt to insert the USR into the StringSet.
     auto It = USRs.insert(USR);
     // If the USR exists in the StringSet, return None.
     if (!It.second)
-      return None;
+      return llvm::None;
     auto Id = USRs.size() - 1;
     // We have to insert the USR from the StringSet because it's where the
     // memory is owned.
@@ -682,11 +682,11 @@ struct BasicDeclLocsTableWriter : public ASTWalker {
     return MacroWalking::Expansion;
   }
 
-  Optional<uint32_t> calculateNewUSRId(Decl *D) {
+  llvm::Optional<uint32_t> calculateNewUSRId(Decl *D) {
     llvm::SmallString<512> Buffer;
     llvm::raw_svector_ostream OS(Buffer);
     if (ide::printDeclUSR(D, OS))
-      return None;
+      return llvm::None;
     return USRWriter.getNewUSRId(OS.str());
   }
 

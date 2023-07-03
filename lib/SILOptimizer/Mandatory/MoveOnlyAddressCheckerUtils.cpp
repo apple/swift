@@ -287,107 +287,8 @@ llvm::cl::opt<bool> DisableMoveOnlyAddressCheckerLifetimeExtension(
                    "move-only values."));
 
 //===----------------------------------------------------------------------===//
-//                           MARK: Memory Utilities
+//                              MARK: Utilities
 //===----------------------------------------------------------------------===//
-
-static bool memInstMustInitialize(Operand *memOper) {
-  SILValue address = memOper->get();
-
-  SILInstruction *memInst = memOper->getUser();
-
-  switch (memInst->getKind()) {
-  default:
-    return false;
-
-  case SILInstructionKind::CopyAddrInst: {
-    auto *CAI = cast<CopyAddrInst>(memInst);
-    return CAI->getDest() == address && CAI->isInitializationOfDest();
-  }
-  case SILInstructionKind::ExplicitCopyAddrInst: {
-    auto *CAI = cast<ExplicitCopyAddrInst>(memInst);
-    return CAI->getDest() == address && CAI->isInitializationOfDest();
-  }
-  case SILInstructionKind::MarkUnresolvedMoveAddrInst: {
-    return cast<MarkUnresolvedMoveAddrInst>(memInst)->getDest() == address;
-  }
-  case SILInstructionKind::InitExistentialAddrInst:
-  case SILInstructionKind::InitEnumDataAddrInst:
-  case SILInstructionKind::InjectEnumAddrInst:
-    return true;
-
-  case SILInstructionKind::BeginApplyInst:
-  case SILInstructionKind::TryApplyInst:
-  case SILInstructionKind::ApplyInst: {
-    FullApplySite applySite(memInst);
-    return applySite.isIndirectResultOperand(*memOper);
-  }
-  case SILInstructionKind::StoreInst: {
-    auto qual = cast<StoreInst>(memInst)->getOwnershipQualifier();
-    return qual == StoreOwnershipQualifier::Init ||
-           qual == StoreOwnershipQualifier::Trivial;
-  }
-
-#define NEVER_OR_SOMETIMES_LOADABLE_CHECKED_REF_STORAGE(Name, ...)             \
-  case SILInstructionKind::Store##Name##Inst:                                  \
-    return cast<Store##Name##Inst>(memInst)->isInitializationOfDest();
-#include "swift/AST/ReferenceStorage.def"
-  }
-}
-
-static bool memInstMustReinitialize(Operand *memOper) {
-  SILValue address = memOper->get();
-
-  SILInstruction *memInst = memOper->getUser();
-
-  switch (memInst->getKind()) {
-  default:
-    return false;
-
-  case SILInstructionKind::CopyAddrInst: {
-    auto *CAI = cast<CopyAddrInst>(memInst);
-    return CAI->getDest() == address && !CAI->isInitializationOfDest();
-  }
-  case SILInstructionKind::ExplicitCopyAddrInst: {
-    auto *CAI = cast<ExplicitCopyAddrInst>(memInst);
-    return CAI->getDest() == address && !CAI->isInitializationOfDest();
-  }
-  case SILInstructionKind::YieldInst: {
-    auto *yield = cast<YieldInst>(memInst);
-    return yield->getYieldInfoForOperand(*memOper).isIndirectInOut();
-  }
-  case SILInstructionKind::BeginApplyInst:
-  case SILInstructionKind::TryApplyInst:
-  case SILInstructionKind::ApplyInst: {
-    FullApplySite applySite(memInst);
-    return applySite.getArgumentOperandConvention(*memOper).isInoutConvention();
-  }
-  case SILInstructionKind::StoreInst:
-    return cast<StoreInst>(memInst)->getOwnershipQualifier() ==
-           StoreOwnershipQualifier::Assign;
-
-#define NEVER_OR_SOMETIMES_LOADABLE_CHECKED_REF_STORAGE(Name, ...)             \
-  case SILInstructionKind::Store##Name##Inst:                                  \
-    return !cast<Store##Name##Inst>(memInst)->isInitializationOfDest();
-#include "swift/AST/ReferenceStorage.def"
-  }
-}
-
-/// Is this a reinit instruction that we know how to convert into its init form.
-static bool isReinitToInitConvertibleInst(SILInstruction *memInst) {
-  switch (memInst->getKind()) {
-  default:
-    return false;
-
-  case SILInstructionKind::CopyAddrInst: {
-    auto *cai = cast<CopyAddrInst>(memInst);
-    return !cai->isInitializationOfDest();
-  }
-  case SILInstructionKind::StoreInst: {
-    auto *si = cast<StoreInst>(memInst);
-    return si->getOwnershipQualifier() == StoreOwnershipQualifier::Assign;
-  }
-  }
-}
 
 static void insertDebugValueBefore(SILInstruction *insertPt,
                                    DebugVarCarryingInst debugVar,
@@ -432,47 +333,20 @@ static void convertMemoryReinitToInitForm(SILInstruction *memInst,
                        [&]{ return debugVar.getOperandForDebugValueClone(); });
 }
 
-static bool memInstMustConsume(Operand *memOper) {
-  SILValue address = memOper->get();
-
-  SILInstruction *memInst = memOper->getUser();
-
-  // FIXME: drop_deinit must be handled here!
+/// Is this a reinit instruction that we know how to convert into its init form.
+static bool isReinitToInitConvertibleInst(SILInstruction *memInst) {
   switch (memInst->getKind()) {
   default:
     return false;
 
   case SILInstructionKind::CopyAddrInst: {
-    auto *CAI = cast<CopyAddrInst>(memInst);
-    return (CAI->getSrc() == address && CAI->isTakeOfSrc()) ||
-           (CAI->getDest() == address && !CAI->isInitializationOfDest());
+    auto *cai = cast<CopyAddrInst>(memInst);
+    return !cai->isInitializationOfDest();
   }
-  case SILInstructionKind::ExplicitCopyAddrInst: {
-    auto *CAI = cast<ExplicitCopyAddrInst>(memInst);
-    return (CAI->getSrc() == address && CAI->isTakeOfSrc()) ||
-           (CAI->getDest() == address && !CAI->isInitializationOfDest());
+  case SILInstructionKind::StoreInst: {
+    auto *si = cast<StoreInst>(memInst);
+    return si->getOwnershipQualifier() == StoreOwnershipQualifier::Assign;
   }
-  case SILInstructionKind::BeginApplyInst:
-  case SILInstructionKind::TryApplyInst:
-  case SILInstructionKind::ApplyInst: {
-    FullApplySite applySite(memInst);
-    return applySite.getArgumentOperandConvention(*memOper).isOwnedConvention();
-  }
-  case SILInstructionKind::PartialApplyInst: {
-    // If we are on the stack or have an inout convention, we do not
-    // consume. Otherwise, we do.
-    auto *pai = cast<PartialApplyInst>(memInst);
-    if (pai->isOnStack())
-      return false;
-    ApplySite applySite(pai);
-    auto convention = applySite.getArgumentConvention(*memOper);
-    return !convention.isInoutConvention();
-  }
-  case SILInstructionKind::DestroyAddrInst:
-    return true;
-  case SILInstructionKind::LoadInst:
-    return cast<LoadInst>(memInst)->getOwnershipQualifier() ==
-           LoadOwnershipQualifier::Take;
   }
 }
 
@@ -563,7 +437,10 @@ namespace {
 struct UseState {
   MarkMustCheckInst *address;
 
-  Optional<unsigned> cachedNumSubelements;
+  using InstToBitMap =
+      llvm::SmallMapVector<SILInstruction *, SmallBitVector, 4>;
+
+  llvm::Optional<unsigned> cachedNumSubelements;
 
   /// The blocks that consume fields of the value.
   ///
@@ -576,7 +453,7 @@ struct UseState {
 
   /// A map from a liveness requiring use to the part of the type that it
   /// requires liveness for.
-  llvm::SmallMapVector<SILInstruction *, SmallBitVector, 4> livenessUses;
+  InstToBitMap livenessUses;
 
   /// A map from a load [copy] or load [take] that we determined must be
   /// converted to a load_borrow to the part of the type tree that it needs to
@@ -622,11 +499,11 @@ struct UseState {
 
   /// A map from an instruction that initializes memory to the description of
   /// the part of the type tree that it initializes.
-  llvm::SmallMapVector<SILInstruction *, TypeTreeLeafTypeRange, 4> initInsts;
+  InstToBitMap initInsts;
 
   /// memInstMustReinitialize insts. Contains both insts like copy_addr/store
   /// [assign] that are reinits that we will convert to inits and true reinits.
-  llvm::SmallMapVector<SILInstruction *, TypeTreeLeafTypeRange, 4> reinitInsts;
+  InstToBitMap reinitInsts;
 
   /// The set of drop_deinits of this mark_must_check
   SmallSetVector<SILInstruction *, 2> dropDeinitInsts;
@@ -653,24 +530,39 @@ struct UseState {
     return *cachedNumSubelements;
   }
 
-  SmallBitVector &getOrCreateLivenessUse(SILInstruction *inst) {
-    auto iter = livenessUses.find(inst);
-    if (iter == livenessUses.end()) {
-      iter = livenessUses.insert({inst, SmallBitVector(getNumSubelements())})
-                 .first;
+  SmallBitVector &getOrCreateAffectedBits(SILInstruction *inst,
+                                          InstToBitMap &map) {
+    auto iter = map.find(inst);
+    if (iter == map.end()) {
+      iter = map.insert({inst, SmallBitVector(getNumSubelements())}).first;
     }
     return iter->second;
   }
 
+  void setAffectedBits(SILInstruction *inst, SmallBitVector const &bits,
+                       InstToBitMap &map) {
+    getOrCreateAffectedBits(inst, map) |= bits;
+  }
+
+  void setAffectedBits(SILInstruction *inst, TypeTreeLeafTypeRange range,
+                       InstToBitMap &map) {
+    range.setBits(getOrCreateAffectedBits(inst, map));
+  }
+
   void recordLivenessUse(SILInstruction *inst, SmallBitVector const &bits) {
-    getOrCreateLivenessUse(inst) |= bits;
+    setAffectedBits(inst, bits, livenessUses);
   }
 
   void recordLivenessUse(SILInstruction *inst, TypeTreeLeafTypeRange range) {
-    auto &bits = getOrCreateLivenessUse(inst);
-    for (auto element : range.getRange()) {
-      bits.set(element);
-    }
+    setAffectedBits(inst, range, livenessUses);
+  }
+
+  void recordReinitUse(SILInstruction *inst, TypeTreeLeafTypeRange range) {
+    setAffectedBits(inst, range, reinitInsts);
+  }
+
+  void recordInitUse(SILInstruction *inst, TypeTreeLeafTypeRange range) {
+    setAffectedBits(inst, range, initInsts);
   }
 
   /// Returns true if this is a terminator instruction that although it doesn't
@@ -765,14 +657,24 @@ struct UseState {
     }
   }
 
-  void recordConsumingBlock(SILBasicBlock *block, TypeTreeLeafTypeRange range) {
+  SmallBitVector &getOrCreateConsumingBlock(SILBasicBlock *block) {
     auto iter = consumingBlocks.find(block);
     if (iter == consumingBlocks.end()) {
       iter =
           consumingBlocks.insert({block, SmallBitVector(getNumSubelements())})
               .first;
     }
-    range.setBits(iter->second);
+    return iter->second;
+  }
+
+  void recordConsumingBlock(SILBasicBlock *block, TypeTreeLeafTypeRange range) {
+    auto &consumingBits = getOrCreateConsumingBlock(block);
+    range.setBits(consumingBits);
+  }
+
+  void recordConsumingBlock(SILBasicBlock *block, SmallBitVector &bits) {
+    auto &consumingBits = getOrCreateConsumingBlock(block);
+    consumingBits |= bits;
   }
 
   void
@@ -839,7 +741,7 @@ struct UseState {
     if (!isReinitToInitConvertibleInst(inst)) {
       auto iter = reinitInsts.find(inst);
       if (iter != reinitInsts.end()) {
-        if (span.setIntersection(iter->second))
+        if (span.intersects(iter->second))
           return true;
       }
     }
@@ -857,14 +759,14 @@ struct UseState {
     {
       auto iter = initInsts.find(inst);
       if (iter != initInsts.end()) {
-        if (span.setIntersection(iter->second))
+        if (span.intersects(iter->second))
           return true;
       }
     }
     if (isReinitToInitConvertibleInst(inst)) {
       auto iter = reinitInsts.find(inst);
       if (iter != reinitInsts.end()) {
-        if (span.setIntersection(iter->second))
+        if (span.intersects(iter->second))
           return true;
       }
     }
@@ -1002,7 +904,7 @@ void UseState::initializeLiveness(
             llvm::dbgs()
             << "Found in/in_guaranteed/inout/inout_aliasable argument as "
                "an init... adding mark_must_check as init!\n");
-        initInsts.insert({address, liveness.getTopLevelSpan()});
+        recordInitUse(address, liveness.getTopLevelSpan());
         liveness.initializeDef(address, liveness.getTopLevelSpan());
         break;
       case swift::SILArgumentConvention::Indirect_Out:
@@ -1033,14 +935,14 @@ void UseState::initializeLiveness(
         // later invariants that we assert upon remain true.
         LLVM_DEBUG(llvm::dbgs() << "Found move only arg closure box use... "
                                    "adding mark_must_check as init!\n");
-        initInsts.insert({address, liveness.getTopLevelSpan()});
+        recordInitUse(address, liveness.getTopLevelSpan());
         liveness.initializeDef(address, liveness.getTopLevelSpan());
       }
     } else if (auto *box = dyn_cast<AllocBoxInst>(
                    lookThroughOwnershipInsts(projectBox->getOperand()))) {
       LLVM_DEBUG(llvm::dbgs() << "Found move only var allocbox use... "
                  "adding mark_must_check as init!\n");
-      initInsts.insert({address, liveness.getTopLevelSpan()});
+      recordInitUse(address, liveness.getTopLevelSpan());
       liveness.initializeDef(address, liveness.getTopLevelSpan());
     }
   }
@@ -1051,7 +953,7 @@ void UseState::initializeLiveness(
           stripAccessMarkers(address->getOperand()))) {
     LLVM_DEBUG(llvm::dbgs() << "Found ref_element_addr use... "
                                "adding mark_must_check as init!\n");
-    initInsts.insert({address, liveness.getTopLevelSpan()});
+    recordInitUse(address, liveness.getTopLevelSpan());
     liveness.initializeDef(address, liveness.getTopLevelSpan());
   }
 
@@ -1061,7 +963,7 @@ void UseState::initializeLiveness(
           dyn_cast<GlobalAddrInst>(stripAccessMarkers(address->getOperand()))) {
     LLVM_DEBUG(llvm::dbgs() << "Found global_addr use... "
                                "adding mark_must_check as init!\n");
-    initInsts.insert({address, liveness.getTopLevelSpan()});
+    recordInitUse(address, liveness.getTopLevelSpan());
     liveness.initializeDef(address, liveness.getTopLevelSpan());
   }
 
@@ -1578,10 +1480,12 @@ struct CopiedLoadBorrowEliminationVisitor final
 //                  MARK: DestructureThroughDeinit Checking
 //===----------------------------------------------------------------------===//
 
-static void
-checkForDestructureThroughDeinit(MarkMustCheckInst *rootAddress, Operand *use,
-                                 TypeTreeLeafTypeRange usedBits,
-                                 DiagnosticEmitter &diagnosticEmitter) {
+/// When partial consumption is enabled, we only allow for destructure through
+/// deinits. When partial consumption is disabled, we error on /all/ partial
+/// consumption.
+static void checkForDestructure(MarkMustCheckInst *rootAddress, Operand *use,
+                                TypeTreeLeafTypeRange usedBits,
+                                DiagnosticEmitter &diagnosticEmitter) {
   LLVM_DEBUG(llvm::dbgs() << "    DestructureNeedingUse: " << *use->getUser());
 
   SILFunction *fn = rootAddress->getFunction();
@@ -1599,6 +1503,29 @@ checkForDestructureThroughDeinit(MarkMustCheckInst *rootAddress, Operand *use,
   if (iterType.isMoveOnlyWrapped())
     return;
 
+  // If we are not allowing for any partial consumption, just emit an error
+  // immediately.
+  if (!rootAddress->getModule().getASTContext().LangOpts.hasFeature(
+          Feature::MoveOnlyPartialConsumption)) {
+    // If the types equal, just bail early.
+    if (iterType == targetType)
+      return;
+
+    // Otherwise, build up the path string and emit the error.
+    SmallString<128> pathString;
+    auto rootType = rootAddress->getType();
+    if (iterType != rootType) {
+      llvm::raw_svector_ostream os(pathString);
+      pair.constructPathString(iterType, {rootType, fn}, rootType, fn, os);
+    }
+
+    diagnosticEmitter.emitCannotDestructureNominalError(
+        rootAddress, pathString, nullptr /*nominal*/, use->getUser(),
+        false /*is for deinit error*/);
+    return;
+  }
+
+  // Otherwise, walk the type looking for the deinit.
   while (iterType != targetType) {
     // If we have a nominal type as our parent type, see if it has a
     // deinit. We know that it must be non-copyable since copyable types
@@ -1617,8 +1544,9 @@ checkForDestructureThroughDeinit(MarkMustCheckInst *rootAddress, Operand *use,
           pair.constructPathString(iterType, {rootType, fn}, rootType, fn, os);
         }
 
-        diagnosticEmitter.emitCannotDestructureDeinitNominalError(
-            rootAddress, pathString, nom, use->getUser());
+        diagnosticEmitter.emitCannotDestructureNominalError(
+            rootAddress, pathString, nom, use->getUser(),
+            true /*is for deinit error*/);
         break;
       }
     }
@@ -1725,7 +1653,7 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
   LLVM_DEBUG(llvm::dbgs() << "Visiting user: " << *user;);
 
   // First check if we have init/reinit. These are quick/simple.
-  if (::memInstMustInitialize(op)) {
+  if (noncopyable::memInstMustInitialize(op)) {
     LLVM_DEBUG(llvm::dbgs() << "Found init: " << *user);
 
     // TODO: What about copy_addr of itself. We really should just pre-process
@@ -1734,18 +1662,16 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
     if (!leafRange)
       return false;
 
-    assert(!useState.initInsts.count(user));
-    useState.initInsts.insert({user, *leafRange});
+    useState.recordInitUse(user, *leafRange);
     return true;
   }
 
-  if (::memInstMustReinitialize(op)) {
+  if (noncopyable::memInstMustReinitialize(op)) {
     LLVM_DEBUG(llvm::dbgs() << "Found reinit: " << *user);
-    assert(!useState.reinitInsts.count(user));
     auto leafRange = TypeTreeLeafTypeRange::get(op->get(), getRootAddress());
     if (!leafRange)
       return false;
-    useState.reinitInsts.insert({user, *leafRange});
+    useState.recordReinitUse(user, *leafRange);
     return true;
   }
 
@@ -1828,8 +1754,10 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
 
     // TODO: Add borrow checking here like below.
 
-    // TODO: Add destructure deinit checking here once address only checking is
-    // completely brought up.
+    // If we have a copy_addr, we are either going to have a take or a
+    // copy... in either case, this copy_addr /is/ going to be a consuming
+    // operation. Make sure to check if we semantically destructure.
+    checkForDestructure(markedValue, op, *leafRange, diagnosticEmitter);
 
     if (copyAddr->isTakeOfSrc()) {
       LLVM_DEBUG(llvm::dbgs() << "Found take: " << *user);
@@ -1897,17 +1825,6 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
       return false;
     }
 
-    checkForDestructureThroughDeinit(markedValue, op, *leafRange,
-                                     diagnosticEmitter);
-
-    // If we emitted an error diagnostic, do not transform further and instead
-    // mark that we emitted an early diagnostic and return true.
-    if (numDiagnostics != moveChecker.diagnosticEmitter.getDiagnosticCount()) {
-      LLVM_DEBUG(llvm::dbgs()
-                 << "Emitting destructure through deinit error!\n");
-      return true;
-    }
-
     // Canonicalize the lifetime of the load [take], load [copy].
     LLVM_DEBUG(llvm::dbgs() << "Running copy propagation!\n");
     moveChecker.changed |= moveChecker.canonicalizer.canonicalize();
@@ -1935,11 +1852,28 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
           assert(checkKind == MarkMustCheckInst::CheckKind::NoConsumeOrAssign);
           moveChecker.diagnosticEmitter.emitObjectGuaranteedDiagnostic(
               markedValue);
-        } else {
-          // Otherwise, we need to emit an escaping closure error.
+          return true;
+        }
+
+        // If we have a function argument that is no_consume_or_assign and we do
+        // not have any partial apply uses, then we know that we have a use of
+        // an address only borrowed parameter that we need to
+        if (fArg &&
+            checkKind == MarkMustCheckInst::CheckKind::NoConsumeOrAssign &&
+            !moveChecker.canonicalizer.hasPartialApplyConsumingUse()) {
+          moveChecker.diagnosticEmitter.emitObjectGuaranteedDiagnostic(
+              markedValue);
+          return true;
+        }
+
+        // Finally try to emit either a global or class field error...
+        if (!moveChecker.diagnosticEmitter
+                 .emitGlobalOrClassFieldLoadedAndConsumed(markedValue)) {
+          // And otherwise if we failed emit an escaping closure error.
           moveChecker.diagnosticEmitter
               .emitAddressEscapingClosureCaptureLoadedAndConsumed(markedValue);
         }
+
         return true;
       }
 
@@ -2008,6 +1942,19 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
         useState.recordLivenessUse(dvi, *leafRange);
       }
     } else {
+      // Now that we know that we are going to perform a take, perform a
+      // checkForDestructure.
+      checkForDestructure(markedValue, op, *leafRange, diagnosticEmitter);
+
+      // If we emitted an error diagnostic, do not transform further and instead
+      // mark that we emitted an early diagnostic and return true.
+      if (numDiagnostics !=
+          moveChecker.diagnosticEmitter.getDiagnosticCount()) {
+        LLVM_DEBUG(llvm::dbgs()
+                   << "Emitting destructure through deinit error!\n");
+        return true;
+      }
+
       // If we had a load [copy], store this into the copy list. These are the
       // things that we must merge into destroy_addr or reinits after we are
       // done checking. The load [take] are already complete and good to go.
@@ -2024,7 +1971,7 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
 
   // Now that we have handled or loadTakeOrCopy, we need to now track our
   // additional pure takes.
-  if (::memInstMustConsume(op)) {
+  if (noncopyable::memInstMustConsume(op)) {
     // If we don't have a consumeable and assignable check kind, then we can't
     // consume. Emit an error.
     //
@@ -2052,8 +1999,7 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
     // error.
     unsigned numDiagnostics =
         moveChecker.diagnosticEmitter.getDiagnosticCount();
-    checkForDestructureThroughDeinit(markedValue, op, *leafRange,
-                                     diagnosticEmitter);
+    checkForDestructure(markedValue, op, *leafRange, diagnosticEmitter);
     if (numDiagnostics != moveChecker.diagnosticEmitter.getDiagnosticCount()) {
       LLVM_DEBUG(llvm::dbgs()
                  << "Emitting destructure through deinit error!\n");
@@ -2186,7 +2132,7 @@ namespace {
 
 using InstLeafTypePair = std::pair<SILInstruction *, TypeTreeLeafTypeRange>;
 using InstOptionalLeafTypePair =
-    std::pair<SILInstruction *, Optional<TypeTreeLeafTypeRange>>;
+    std::pair<SILInstruction *, llvm::Optional<TypeTreeLeafTypeRange>>;
 
 /// Post process the found liveness and emit errors if needed. TODO: Better
 /// name.
@@ -2730,9 +2676,7 @@ void MoveOnlyAddressCheckerPImpl::rewriteUses(
   for (auto reinitPair : addressUseState.reinitInsts) {
     if (!isReinitToInitConvertibleInst(reinitPair.first))
       continue;
-    SmallBitVector bits(liveness.getNumSubElements());
-    reinitPair.second.setBits(bits);
-    if (!consumes.claimConsume(reinitPair.first, bits))
+    if (!consumes.claimConsume(reinitPair.first, reinitPair.second))
       convertMemoryReinitToInitForm(reinitPair.first, debugVar);
   }
 
@@ -2923,7 +2867,7 @@ void ExtendUnconsumedLiveness::run() {
       }
     }
     for (auto pair : addressUseState.reinitInsts) {
-      if (pair.second.contains(element)) {
+      if (pair.second.test(element)) {
         destroys[pair.first] = DestroyKind::Reinit;
       }
     }
@@ -3186,6 +3130,24 @@ bool MoveOnlyAddressCheckerPImpl::performSingleCheck(
       return false;
     }
     state.process();
+  }
+
+  // Then if we have a let allocation, see if we have any copy_addr on our
+  // markedAddress that form temporary allocation chains. This occurs when we
+  // emit SIL for code like:
+  //
+  // let x: AddressOnlyType = ...
+  // let _ = x.y.z
+  //
+  // SILGen will treat y as a separate rvalue from x and will create a temporary
+  // allocation. In contrast if we have a var, we treat x like an lvalue and
+  // just create GEPs appropriately.
+  if (eliminateTemporaryAllocationsFromLet(markedAddress)) {
+    LLVM_DEBUG(
+        llvm::dbgs()
+            << "Succeeded in eliminating temporary allocations! Fn after:\n";
+        markedAddress->getFunction()->dump());
+    changed = true;
   }
 
   // Then gather all uses of our address by walking from def->uses. We use this

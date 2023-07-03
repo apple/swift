@@ -186,7 +186,7 @@ protected:
 #ifndef NDEBUG
   // SILPrintContext is used to print block IDs in RPO order.
   // It is optional so only the final insertion point interference is printed.
-  Optional<SILPrintContext> printCtx;
+  llvm::Optional<SILPrintContext> printCtx;
 #endif
 
   /// Return the rc-identity root of the SILValue.

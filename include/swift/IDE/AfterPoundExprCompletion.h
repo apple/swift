@@ -35,7 +35,7 @@ class AfterPoundExprCompletion : public TypeCheckCompletionCallback {
 
   CodeCompletionExpr *CompletionExpr;
   DeclContext *DC;
-  Optional<StmtKind> ParentStmtKind;
+  llvm::Optional<StmtKind> ParentStmtKind;
 
   SmallVector<Result, 4> Results;
 
@@ -43,7 +43,7 @@ class AfterPoundExprCompletion : public TypeCheckCompletionCallback {
 
 public:
   AfterPoundExprCompletion(CodeCompletionExpr *CompletionExpr, DeclContext *DC,
-                           Optional<StmtKind> ParentStmtKind)
+                           llvm::Optional<StmtKind> ParentStmtKind)
       : CompletionExpr(CompletionExpr), DC(DC), ParentStmtKind(ParentStmtKind) {
   }
 

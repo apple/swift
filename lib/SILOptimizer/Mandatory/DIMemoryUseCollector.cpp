@@ -655,8 +655,7 @@ public:
 private:
   void collectUses(SILValue Pointer, unsigned BaseEltNo);
   bool addClosureElementUses(PartialApplyInst *pai, Operand *argUse);
-  void collectAssignOrInitUses(PartialApplyInst *pai, Operand *argUse,
-                               unsigned BaseEltNo = 0);
+  void collectAssignOrInitUses(AssignOrInitInst *pai, unsigned BaseEltNo = 0);
 
   void collectClassSelfUses(SILValue ClassPointer);
   void collectClassSelfUses(SILValue ClassPointer, SILType MemorySILType,
@@ -1088,14 +1087,17 @@ void ElementUseCollector::collectUses(SILValue Pointer, unsigned BaseEltNo) {
     if (User->isDebugInstruction())
       continue;
 
+    if (auto *AI = dyn_cast<AssignOrInitInst>(User)) {
+      collectAssignOrInitUses(AI, BaseEltNo);
+      continue;
+    }
+
     if (auto *PAI = dyn_cast<PartialApplyInst>(User)) {
       if (onlyUsedByAssignByWrapper(PAI))
         continue;
 
-      if (onlyUsedByAssignOrInit(PAI)) {
-        collectAssignOrInitUses(PAI, Op, BaseEltNo);
+      if (onlyUsedByAssignOrInit(PAI))
         continue;
-      }
 
       if (BaseEltNo == 0 && addClosureElementUses(PAI, Op))
         continue;
@@ -1188,47 +1190,38 @@ bool ElementUseCollector::addClosureElementUses(PartialApplyInst *pai,
 }
 
 void
-ElementUseCollector::collectAssignOrInitUses(PartialApplyInst *pai,
-                                             Operand *argUse,
+ElementUseCollector::collectAssignOrInitUses(AssignOrInitInst *Inst,
                                              unsigned BaseEltNo) {
-  for (Operand *Op : pai->getUses()) {
-    SILInstruction *User = Op->getUser();
-    if (!isa<AssignOrInitInst>(User) || Op->getOperandNumber() != 2) {
-      continue;
-    }
+  /// AssignOrInit doesn't operate on `self` so we need to make sure
+  /// that the flag is dropped before calling \c addElementUses.
+  llvm::SaveAndRestore<bool> X(IsSelfOfNonDelegatingInitializer, false);
 
-    /// AssignOrInit doesn't operate on `self` so we need to make sure
-    /// that the flag is dropped before calling \c addElementUses.
-    llvm::SaveAndRestore<bool> X(IsSelfOfNonDelegatingInitializer, false);
+  auto *typeDC = Inst->getReferencedInitAccessor()
+                     ->getDeclContext()
+                     ->getSelfNominalTypeDecl();
 
-    auto *inst = cast<AssignOrInitInst>(User);
-    auto *typeDC = inst->getReferencedInitAccessor()
-                       ->getDeclContext()
-                       ->getSelfNominalTypeDecl();
+  auto selfTy = Inst->getSelf()->getType();
 
-    auto selfTy = pai->getOperand(1)->getType();
+  auto addUse = [&](VarDecl *property, DIUseKind useKind) {
+    auto expansionContext = TypeExpansionContext(*Inst->getFunction());
+    auto type = selfTy.getFieldType(property, Module, expansionContext);
+    addElementUses(Module.getFieldIndex(typeDC, property), type, Inst, useKind,
+                   property);
+  };
 
-    auto addUse = [&](VarDecl *property, DIUseKind useKind) {
-      auto expansionContext = TypeExpansionContext(*pai->getFunction());
-      auto type = selfTy.getFieldType(property, Module, expansionContext);
-      addElementUses(Module.getFieldIndex(typeDC, property), type, User,
-                     useKind, property);
-    };
-
-    auto initializedElts = inst->getInitializedProperties();
-    if (initializedElts.empty()) {
-      // Add a placeholder use that doesn't touch elements to make sure that
-      // the `assign_or_init` instruction gets the kind set when `initializes`
-      // list is empty.
-      trackUse(DIMemoryUse(User, DIUseKind::InitOrAssign, BaseEltNo, 0));
-    } else {
-      for (auto *property : initializedElts)
-        addUse(property, DIUseKind::InitOrAssign);
-    }
-
-    for (auto *property : inst->getAccessedProperties())
-      addUse(property, DIUseKind::Load);
+  auto initializedElts = Inst->getInitializedProperties();
+  if (initializedElts.empty()) {
+    // Add a placeholder use that doesn't touch elements to make sure that
+    // the `assign_or_init` instruction gets the kind set when `initializes`
+    // list is empty.
+    trackUse(DIMemoryUse(Inst, DIUseKind::InitOrAssign, BaseEltNo, 0));
+  } else {
+    for (auto *property : initializedElts)
+      addUse(property, DIUseKind::InitOrAssign);
   }
+
+  for (auto *property : Inst->getAccessedProperties())
+    addUse(property, DIUseKind::Load);
 }
 
 /// collectClassSelfUses - Collect all the uses of a 'self' pointer in a class
@@ -1626,17 +1619,20 @@ void ElementUseCollector::collectClassSelfUses(
 
     if (User->isDebugInstruction())
       continue;
- 
+
+    if (auto *AI = dyn_cast<AssignOrInitInst>(User)) {
+      collectAssignOrInitUses(AI);
+      continue;
+    }
+
     // If this is a partial application of self, then this is an escape point
     // for it.
     if (auto *PAI = dyn_cast<PartialApplyInst>(User)) {
       if (onlyUsedByAssignByWrapper(PAI))
         continue;
 
-      if (onlyUsedByAssignOrInit(PAI)) {
-        collectAssignOrInitUses(PAI, Op);
+      if (onlyUsedByAssignOrInit(PAI))
         continue;
-      }
 
       if (addClosureElementUses(PAI, Op))
         continue;

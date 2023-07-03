@@ -93,7 +93,7 @@ struct GenericParamKey {
 
   /// Find the index that this key would have into an array of
   /// generic type parameters
-  unsigned findIndexIn(TypeArrayView<GenericTypeParamType> genericParams) const;
+  unsigned findIndexIn(ArrayRef<GenericTypeParamType *> genericParams) const;
 };
 
 } // end namespace swift

@@ -1,9 +1,6 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -parse-sil -emit-ir -disable-llvm-optzns -O %s | %FileCheck --check-prefix=CHECK-%target-runtime %s
-// RUN: %target-swift-frontend %use_no_opaque_pointers -parse-sil -emit-ir -disable-llvm-optzns -Ounchecked %s | %FileCheck --check-prefix=CHECK-%target-runtime %s
-// RUN: %target-swift-frontend %use_no_opaque_pointers -parse-sil -emit-ir -disable-llvm-optzns -Onone %s | %FileCheck --check-prefix=ONONE %s
-// RUN: %target-swift-frontend -parse-sil -emit-ir -disable-llvm-optzns -O %s
-// RUN: %target-swift-frontend -parse-sil -emit-ir -disable-llvm-optzns -Ounchecked %s
-// RUN: %target-swift-frontend -parse-sil -emit-ir -disable-llvm-optzns -Onone %s
+// RUN: %target-swift-frontend -parse-sil -emit-ir -disable-llvm-optzns -O %s | %FileCheck --check-prefix=CHECK-%target-runtime %s
+// RUN: %target-swift-frontend -parse-sil -emit-ir -disable-llvm-optzns -Ounchecked %s | %FileCheck --check-prefix=CHECK-%target-runtime %s
+// RUN: %target-swift-frontend -parse-sil -emit-ir -disable-llvm-optzns -Onone %s | %FileCheck --check-prefix=ONONE %s
 
 // REQUIRES: CPU=i386 || CPU=x86_64
 
@@ -11,27 +8,27 @@
 // unnecessary.
 // ONONE-NOT: @__swift_fixLifetime
 
-// CHECK-objc-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @test(%T11fixlifetime1CC* %0, %objc_object* %1, i8** %2, i8* %3, %swift.refcounted* %4, %T11fixlifetime3AggV* noalias nocapture dereferenceable({{.*}}) %5, {{(i64|i32)}} %6, {{(i64|i32)}} %7) {{.*}} {
+// CHECK-objc-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @test(ptr %0, ptr %1, ptr %2, ptr %3, ptr %4, ptr noalias nocapture dereferenceable({{.*}}) %5, {{(i64|i32)}} %6, {{(i64|i32)}} %7) {{.*}} {
 // CHECK-objc: entry:
-// CHECK-objc:  call void bitcast (void (%swift.refcounted*)* @__swift_fixLifetime to void (%T11fixlifetime1CC*)*)(%T11fixlifetime1CC*
-// CHECK-objc:  call void bitcast (void (%swift.refcounted*)* @__swift_fixLifetime to void (%objc_object*)*)(%objc_object*
-// CHECK-objc:  call void @__swift_fixLifetime(%swift.refcounted*
-// CHECK-objc:  call void bitcast (void (%swift.refcounted*)* @__swift_fixLifetime to void (%T11fixlifetime1CC*)*)(%T11fixlifetime1CC*
-// CHECK-objc:  call void bitcast (void (%swift.refcounted*)* @__swift_fixLifetime to void (%objc_object*)*)(%objc_object*
-// CHECK-objc:  call void @__swift_fixLifetime(%swift.refcounted*
-// CHECK-objc:  [[TEMP:%.*]] = inttoptr {{(i64|i32)}} %6 to %objc_object*
-// CHECK-objc:  call void bitcast (void (%swift.refcounted*)* @__swift_fixLifetime to void (%objc_object*)*)(%objc_object* [[TEMP]])
-// CHECK-objc:  call void bitcast (void (%swift.refcounted*)* @__swift_fixLifetime to void (%T11fixlifetime1CC**)*)(%T11fixlifetime1CC**
+// CHECK-objc:  call void @__swift_fixLifetime(ptr
+// CHECK-objc:  call void @__swift_fixLifetime(ptr
+// CHECK-objc:  call void @__swift_fixLifetime(ptr
+// CHECK-objc:  call void @__swift_fixLifetime(ptr
+// CHECK-objc:  call void @__swift_fixLifetime(ptr
+// CHECK-objc:  call void @__swift_fixLifetime(ptr
+// CHECK-objc:  [[TEMP:%.*]] = inttoptr {{(i64|i32)}} %6 to ptr
+// CHECK-objc:  call void @__swift_fixLifetime(ptr [[TEMP]])
+// CHECK-objc:  call void @__swift_fixLifetime(ptr
 
-// CHECK-native-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @test(%T11fixlifetime1CC* %0, %swift.refcounted* %1, i8** %2, i8* %3, %swift.refcounted* %4, %T11fixlifetime3AggV* noalias nocapture dereferenceable({{.*}}) %5, {{(i64|i32)}} %6, {{(i64|i32)}} %7) {{.*}} {
+// CHECK-native-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @test(ptr %0, ptr %1, ptr %2, ptr %3, ptr %4, ptr noalias nocapture dereferenceable({{.*}}) %5, {{(i64|i32)}} %6, {{(i64|i32)}} %7) {{.*}} {
 // CHECK-native: entry:
-// CHECK-native:  call void bitcast (void (%swift.refcounted*)* @__swift_fixLifetime to void (%T11fixlifetime1CC*)*)(%T11fixlifetime1CC*
-// CHECK-native:  call void @__swift_fixLifetime(%swift.refcounted*
-// CHECK-native:  call void @__swift_fixLifetime(%swift.refcounted*
-// CHECK-native:  call void bitcast (void (%swift.refcounted*)* @__swift_fixLifetime to void (%T11fixlifetime1CC*)*)(%T11fixlifetime1CC*
-// CHECK-native:  call void @__swift_fixLifetime(%swift.refcounted*
-// CHECK-native:  call void @__swift_fixLifetime(%swift.refcounted*
-// CHECK-native:  call void bitcast (void (%swift.refcounted*)* @__swift_fixLifetime to void (%T11fixlifetime1CC**)*)(%T11fixlifetime1CC**
+// CHECK-native:  call void @__swift_fixLifetime(ptr
+// CHECK-native:  call void @__swift_fixLifetime(ptr
+// CHECK-native:  call void @__swift_fixLifetime(ptr
+// CHECK-native:  call void @__swift_fixLifetime(ptr
+// CHECK-native:  call void @__swift_fixLifetime(ptr
+// CHECK-native:  call void @__swift_fixLifetime(ptr
+// CHECK-native:  call void @__swift_fixLifetime(ptr
 
 import Builtin
 

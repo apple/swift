@@ -87,7 +87,7 @@ public:
 
   Decl *getAsDecl() const { return OpKind == DeclKind ? Declaration : nullptr; }
 
-  Optional<uint64_t> getAsConstInt() const {
+  llvm::Optional<uint64_t> getAsConstInt() const {
     if (OpKind == ConstIntKind)
       return ConstantInt;
     else

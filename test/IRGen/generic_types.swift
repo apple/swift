@@ -1,17 +1,13 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-objc-interop %s -emit-ir | %FileCheck %s --check-prefixes=CHECK,CHECK-objc
-// RUN: %target-swift-frontend %use_no_opaque_pointers -disable-objc-interop %s -emit-ir | %FileCheck %s --check-prefixes=CHECK,CHECK-native
-// RUN: %target-swift-frontend -enable-objc-interop %s -emit-ir
-// RUN: %target-swift-frontend -disable-objc-interop %s -emit-ir
+// RUN: %target-swift-frontend -enable-objc-interop %s -emit-ir | %FileCheck %s --check-prefixes=CHECK,CHECK-objc
+// RUN: %target-swift-frontend -disable-objc-interop %s -emit-ir | %FileCheck %s --check-prefixes=CHECK,CHECK-native
 
 // REQUIRES: CPU=x86_64
 
 // CHECK: [[A:%T13generic_types1AC]] = type <{ [[REF:%swift.refcounted]], [[INT:%TSi]] }>
 // CHECK: [[INT]] = type <{ i64 }>
 // CHECK: [[B:%T13generic_types1BC]] = type <{ [[REF:%swift.refcounted]], [[UNSAFE:%TSp]] }>
-// CHECK: [[C:%T13generic_types1CC]] = type
-// CHECK: [[D:%T13generic_types1DC]] = type
 
-// CHECK-LABEL: @"$s13generic_types1ACMI" = internal global [16 x i8*] zeroinitializer, align 8
+// CHECK-LABEL: @"$s13generic_types1ACMI" = internal global [16 x ptr] zeroinitializer, align 8
 
 // CHECK-LABEL: @"$s13generic_types1ACMn" = hidden constant
 // CHECK-SAME:   i32 -2147483440,
@@ -51,14 +47,14 @@
 // -- instantiation function
 // CHECK-SAME:   @"$s13generic_types1ACMi"
 // -- heap destructor
-// CHECK-SAME:   void ([[A]]*)* @"$s13generic_types1ACfD"
+// CHECK-SAME:   ptr @"$s13generic_types1ACfD"
 // -- ivar destroyer
 // CHECK-SAME:   i32 0,
 // -- flags
 // CHECK-SAME:   i32 {{3|2}},
 // CHECK-SAME: }
 
-// CHECK-LABEL: @"$s13generic_types1BCMI" = internal global [16 x i8*] zeroinitializer, align 8
+// CHECK-LABEL: @"$s13generic_types1BCMI" = internal global [16 x ptr] zeroinitializer, align 8
 
 // CHECK-LABEL: @"$s13generic_types1BCMn" = hidden constant
 // CHECK-SAME:   @"$s13generic_types1BCMa"
@@ -69,7 +65,7 @@
 // -- instantiation function
 // CHECK-SAME:   @"$s13generic_types1BCMi"
 // -- heap destructor
-// CHECK-SAME:   void ([[B]]*)* @"$s13generic_types1BCfD"
+// CHECK-SAME:   ptr @"$s13generic_types1BCfD"
 // -- ivar destroyer
 // CHECK-SAME:   i32 0,
 // -- class flags
@@ -80,7 +76,7 @@
 // -- instantiation function
 // CHECK-SAME:   @"$s13generic_types1CCMi"
 // -- heap destructor
-// CHECK-SAME:   void ([[C]]*)* @"$s13generic_types1CCfD"
+// CHECK-SAME:   ptr @"$s13generic_types1CCfD"
 // -- ivar destroyer
 // CHECK-SAME:   i32 0,
 // -- class flags
@@ -91,7 +87,7 @@
 // -- instantiation function
 // CHECK-SAME:   @"$s13generic_types1DCMi"
 // -- heap destructor
-// CHECK-SAME:   void ([[D]]*)* @"$s13generic_types1DCfD"
+// CHECK-SAME:   ptr @"$s13generic_types1DCfD"
 // -- ivar destroyer
 // CHECK-SAME:   i32 0,
 // -- class flags
@@ -163,16 +159,14 @@ struct X2: P2 {
 
 struct X3<T, U> where U: P2, U.A: P1 { }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} internal %swift.type* @"$s13generic_types1ACMi"(%swift.type_descriptor* %0, i8** %1, i8* %2) {{.*}} {
-// CHECK:   [[T0:%.*]] = bitcast i8** %1 to %swift.type**
-// CHECK:   %T = load %swift.type*, %swift.type** [[T0]],
-// CHECK:   [[METADATA:%.*]] = call %swift.type* @swift_allocateGenericClassMetadata(%swift.type_descriptor* %0, i8** %1, i8* %2)
-// CHECK-NEXT:   ret %swift.type* [[METADATA]]
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} internal ptr @"$s13generic_types1ACMi"(ptr %0, ptr %1, ptr %2) {{.*}} {
+// CHECK:   %T = load ptr, ptr %1,
+// CHECK:   [[METADATA:%.*]] = call ptr @swift_allocateGenericClassMetadata(ptr %0, ptr %1, ptr %2)
+// CHECK-NEXT:   ret ptr [[METADATA]]
 // CHECK: }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} internal %swift.type* @"$s13generic_types1BCMi"(%swift.type_descriptor* %0, i8** %1, i8* %2) {{.*}} {
-// CHECK:   [[T0:%.*]] = bitcast i8** %1 to %swift.type**
-// CHECK:   %T = load %swift.type*, %swift.type** [[T0]],
-// CHECK:   [[METADATA:%.*]] = call %swift.type* @swift_allocateGenericClassMetadata(%swift.type_descriptor* %0, i8** %1, i8* %2)
-// CHECK-NEXT: ret %swift.type* [[METADATA]]
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} internal ptr @"$s13generic_types1BCMi"(ptr %0, ptr %1, ptr %2) {{.*}} {
+// CHECK:   %T = load ptr, ptr %1,
+// CHECK:   [[METADATA:%.*]] = call ptr @swift_allocateGenericClassMetadata(ptr %0, ptr %1, ptr %2)
+// CHECK-NEXT: ret ptr [[METADATA]]
 // CHECK: }

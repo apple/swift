@@ -39,7 +39,7 @@ public:
   LazyValue(Initializer Init) : Init(Init){};
 
   T &get() {
-    if (!Value.hasValue()) {
+    if (!Value.has_value()) {
       Value = Init();
     }
     return Value.value();

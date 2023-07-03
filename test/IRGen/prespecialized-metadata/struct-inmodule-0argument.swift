@@ -16,7 +16,22 @@ func consume<T>(_ t: T) {
 }
 
 // CHECK: define hidden swiftcc void @"$s4main4doityyF"() #{{[0-9]+}} {
-// CHECK:   call swiftcc void @"$s4main7consumeyyxlF"(ptr noalias nocapture %{{[0-9]+}}, ptr getelementptr inbounds (<{ ptr, ptr, [[INT]], ptr, i32{{(, \[4 x i8\])?}}, i64 }>, ptr @"$s4main5ValueVMf", i32 0, i32 2))
+// CHECK:   call swiftcc void @"$s4main7consumeyyxlF"(
+// CHECK-SAME:   ptr noalias nocapture %{{[0-9]+}}, 
+// CHECK-SAME:   ptr getelementptr inbounds (
+// CHECK-SAME:     <{ 
+// CHECK-SAME:       ptr, 
+// CHECK-SAME:       ptr, 
+// CHECK-SAME:       [[INT]], 
+// CHECK-SAME:       ptr, 
+// CHECK-SAME:       i32
+// CHECK-SAME:       i64 
+// CHECK-SAME:     }>, 
+// CHECK-SAME:     ptr @"$s4main5ValueVMf", 
+// CHECK-SAME:     i32 0, 
+// CHECK-SAME:     i32 2
+// CHECK-SAME:   )
+// CHECK-SAME: )
 // CHECK: }
 func doit() {
   consume( Value(first: 13) )

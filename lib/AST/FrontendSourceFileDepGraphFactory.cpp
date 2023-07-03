@@ -531,8 +531,9 @@ class ExternalDependencyEnumerator {
   const DependencyKey sourceFileImplementation;
 
 public:
-  using UseEnumerator = llvm::function_ref<void(
-      const DependencyKey &, const DependencyKey &, Optional<Fingerprint>)>;
+  using UseEnumerator =
+      llvm::function_ref<void(const DependencyKey &, const DependencyKey &,
+                              llvm::Optional<Fingerprint>)>;
 
   ExternalDependencyEnumerator(const DependencyTracker &depTracker,
                                StringRef swiftDeps)
@@ -546,14 +547,14 @@ public:
                                              id.fingerprint);
     }
     for (StringRef s : depTracker.getDependencies()) {
-      enumerateUse<NodeKind::externalDepend>(enumerator, s, None);
+      enumerateUse<NodeKind::externalDepend>(enumerator, s, llvm::None);
     }
   }
 
 private:
   template <NodeKind kind>
   void enumerateUse(UseEnumerator createDefUse, StringRef name,
-                    Optional<Fingerprint> maybeFP) {
+                    llvm::Optional<Fingerprint> maybeFP) {
     static_assert(kind == NodeKind::externalDepend,
                   "Not a kind of external dependency!");
     createDefUse(DependencyKey(kind, DeclAspect::interface, "", name.str()),
@@ -571,7 +572,7 @@ void FrontendSourceFileDepGraphFactory::addAllUsedDecls() {
   ExternalDependencyEnumerator(depTracker, swiftDeps)
       .enumerateExternalUses([&](const DependencyKey &def,
                                  const DependencyKey &use,
-                                 Optional<Fingerprint> maybeFP) {
+                                 llvm::Optional<Fingerprint> maybeFP) {
         addAnExternalDependency(def, use, maybeFP);
       });
 }

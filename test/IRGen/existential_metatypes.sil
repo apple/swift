@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -emit-ir -o - -primary-file %s | %FileCheck %s
-// RUN: %target-swift-frontend -emit-ir -o - -primary-file %s
+// RUN: %target-swift-frontend -emit-ir -o - -primary-file %s | %FileCheck %s
 // REQUIRES: CPU=x86_64
 
 sil_stage canonical
@@ -20,8 +19,8 @@ extension Float : Kindable {
   public var kind: Int { get }
 }
 
-// CHECK: @"$sSi21existential_metatypes8KindableAAWP" = external{{( dllimport)?}} global i8*, align 8
-// CHECK: @"$sSf21existential_metatypes8KindableAAWP" = external{{( dllimport)?}} global i8*, align 8
+// CHECK: @"$sSi21existential_metatypes8KindableAAWP" = external{{( dllimport)?}} global ptr, align 8
+// CHECK: @"$sSf21existential_metatypes8KindableAAWP" = external{{( dllimport)?}} global ptr, align 8
 
 sil @int_kind_getter : $@convention(method) (Int) -> Int {
 bb0(%0 : $Int):
@@ -56,28 +55,26 @@ bb0(%0 : $*Float):
 // CHECK: define{{( dllexport)?}}{{( protected)?}} swiftcc void @test0()
 sil @test0 : $@convention(thin) () -> () {
 bb0:
-  // CHECK:      [[V:%.*]] = alloca { %swift.type*, i8** }, align 8
-  // CHECK-NEXT: bitcast
+  // CHECK:      [[V:%.*]] = alloca { ptr, ptr }, align 8
   // CHECK-NEXT: llvm.lifetime.start
   %0 = alloc_stack $@thick Kindable.Type, var, name "v"
-  // CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds { %swift.type*, i8** }, { %swift.type*, i8** }* [[V]], i32 0, i32 0
-  // CHECK-NEXT: store %swift.type* @"$sSiN", %swift.type** [[T0]], align 8
-  // CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds { %swift.type*, i8** }, { %swift.type*, i8** }* [[V]], i32 0, i32 1
+  // CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds { ptr, ptr }, ptr [[V]], i32 0, i32 0
+  // CHECK-NEXT: store ptr @"$sSiN", ptr [[T0]], align 8
+  // CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds { ptr, ptr }, ptr [[V]], i32 0, i32 1
   %1 = metatype $@thin Int.Type
   %2 = metatype $@thick Int.Type
   %3 = init_existential_metatype %2 : $@thick Int.Type, $@thick Kindable.Type
-  // CHECK-NEXT: store i8** @"$sSi21existential_metatypes8KindableAAWP", i8*** [[T0]], align 8
+  // CHECK-NEXT: store ptr @"$sSi21existential_metatypes8KindableAAWP", ptr [[T0]], align 8
   store %3 to %0 : $*@thick Kindable.Type
-  // CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds { %swift.type*, i8** }, { %swift.type*, i8** }* [[V]], i32 0, i32 0
-  // CHECK-NEXT: store %swift.type* @"$sSfN", %swift.type** [[T0]], align 8
-  // CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds { %swift.type*, i8** }, { %swift.type*, i8** }* [[V]], i32 0, i32 1
+  // CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds { ptr, ptr }, ptr [[V]], i32 0, i32 0
+  // CHECK-NEXT: store ptr @"$sSfN", ptr [[T0]], align 8
+  // CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds { ptr, ptr }, ptr [[V]], i32 0, i32 1
   %5 = metatype $@thin Float.Type
   %6 = metatype $@thick Float.Type
   %7 = init_existential_metatype %6 : $@thick Float.Type, $@thick Kindable.Type
-  // CHECK-NEXT: store i8** @"$sSf21existential_metatypes8KindableAAWP", i8*** [[T0]], align 8
+  // CHECK-NEXT: store ptr @"$sSf21existential_metatypes8KindableAAWP", ptr [[T0]], align 8
   store %7 to %0 : $*@thick Kindable.Type
   %9 = tuple ()
-  // CHECK-NEXT: bitcast
   // CHECK-NEXT: llvm.lifetime.end
   dealloc_stack %0 : $*@thick Kindable.Type
   // CHECK-NEXT: ret void
@@ -93,8 +90,8 @@ bb0(%0 : $@thick Kindable.Type):
 // CHECK: define{{( dllexport)?}}{{( protected)?}} swiftcc void @test1(i64 %0, i64 %1)
 sil @test1 : $@convention(thin) (Optional<@thick Kindable.Type>) -> () {
 bb0(%0 : $Optional<@thick Kindable.Type>):
-  // CHECK:     [[TYPE:%.*]] = inttoptr i64 %0 to %swift.type*
-  // CHECK:     [[WITNESS:%.*]] = inttoptr i64 %1 to i8**
+  // CHECK:     [[TYPE:%.*]] = inttoptr i64 %0 to ptr
+  // CHECK:     [[WITNESS:%.*]] = inttoptr i64 %1 to ptr
   switch_enum %0 : $Optional<@thick Kindable.Type>, case #Optional.some!enumelt: bb1, case #Optional.none!enumelt: bb2
 
 bb1(%3 : $@thick Kindable.Type):

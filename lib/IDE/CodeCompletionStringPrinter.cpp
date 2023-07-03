@@ -19,7 +19,7 @@ using namespace swift::ide;
 
 using ChunkKind = CodeCompletionString::Chunk::ChunkKind;
 
-Optional<ChunkKind>
+llvm::Optional<ChunkKind>
 CodeCompletionStringPrinter::getChunkKindForPrintNameContext(
     PrintNameContext context) const {
   switch (context) {
@@ -34,25 +34,26 @@ CodeCompletionStringPrinter::getChunkKindForPrintNameContext(
     return ChunkKind::Attribute;
   case PrintNameContext::FunctionParameterExternal:
     if (isInType()) {
-      return None;
+      return llvm::None;
     }
     return ChunkKind::ParameterDeclExternalName;
   case PrintNameContext::FunctionParameterLocal:
     if (isInType()) {
-      return None;
+      return llvm::None;
     }
     return ChunkKind::ParameterDeclLocalName;
   default:
-    return None;
+    return llvm::None;
   }
 }
 
-Optional<ChunkKind> CodeCompletionStringPrinter::getChunkKindForStructureKind(
+llvm::Optional<ChunkKind>
+CodeCompletionStringPrinter::getChunkKindForStructureKind(
     PrintStructureKind Kind) const {
   switch (Kind) {
   case PrintStructureKind::FunctionParameter:
     if (isInType()) {
-      return None;
+      return llvm::None;
     }
     return ChunkKind::ParameterDeclBegin;
   case PrintStructureKind::DefaultArgumentClause:
@@ -68,7 +69,7 @@ Optional<ChunkKind> CodeCompletionStringPrinter::getChunkKindForStructureKind(
   case PrintStructureKind::FunctionParameterType:
     return ChunkKind::ParameterDeclTypeBegin;
   default:
-    return None;
+    return llvm::None;
   }
 }
 

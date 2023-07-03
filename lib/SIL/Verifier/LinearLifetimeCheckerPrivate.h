@@ -93,7 +93,7 @@ public:
 class LLVM_LIBRARY_VISIBILITY LinearLifetimeChecker::ErrorBuilder {
   StringRef functionName;
   ErrorBehaviorKind behavior;
-  Optional<Error> error;
+  llvm::Optional<Error> error;
   unsigned *errorMessageCounter;
 
 public:
@@ -123,7 +123,7 @@ public:
 
   Error consumeAndGetFinalError() && {
     auto result = *error;
-    error = None;
+    error = llvm::None;
     errorMessageCounter = nullptr;
     return result;
   }

@@ -157,7 +157,7 @@ public:
   void printInlineForHelperFunction() const;
 
   void printNullability(
-      Optional<OptionalTypeKind> kind,
+      llvm::Optional<OptionalTypeKind> kind,
       NullabilityPrintKind printKind = NullabilityPrintKind::After) const;
 
   /// Returns true if \p name matches a keyword in any Clang language mode.

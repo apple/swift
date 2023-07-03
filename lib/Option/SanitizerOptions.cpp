@@ -47,11 +47,11 @@ static StringRef toFileName(const SanitizerKind kind) {
   llvm_unreachable("Unknown sanitizer");
 }
 
-static Optional<SanitizerKind> parse(const char* arg) {
-  return llvm::StringSwitch<Optional<SanitizerKind>>(arg)
-      #define SANITIZER(_, kind, name, file) .Case(#name, SanitizerKind::kind)
-      #include "swift/Basic/Sanitizers.def"
-      .Default(None);
+static llvm::Optional<SanitizerKind> parse(const char *arg) {
+  return llvm::StringSwitch<llvm::Optional<SanitizerKind>>(arg)
+#define SANITIZER(_, kind, name, file) .Case(#name, SanitizerKind::kind)
+#include "swift/Basic/Sanitizers.def"
+      .Default(llvm::None);
 }
 
 llvm::SanitizerCoverageOptions swift::parseSanitizerCoverageArgValue(
@@ -131,7 +131,7 @@ OptionSet<SanitizerKind> swift::parseSanitizerArgValues(
 
   // Find the sanitizer kind.
   for (const char *arg : A->getValues()) {
-    Optional<SanitizerKind> optKind = parse(arg);
+    llvm::Optional<SanitizerKind> optKind = parse(arg);
 
     // Unrecognized sanitizer option
     if (!optKind.has_value()) {
@@ -222,7 +222,7 @@ OptionSet<SanitizerKind> swift::parseSanitizerRecoverArgValues(
 
   // Find the sanitizer kind.
   for (const char *arg : A->getValues()) {
-    Optional<SanitizerKind> optKind = parse(arg);
+    llvm::Optional<SanitizerKind> optKind = parse(arg);
 
     // Unrecognized sanitizer option
     if (!optKind.has_value()) {

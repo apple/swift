@@ -1,0 +1,190 @@
+// RUN: %target-sil-opt -sil-verify-all -sil-move-only-temp-allocation-from-let-tester %s | %FileCheck %s
+
+sil_stage raw
+
+public class Klass {}
+
+public struct Empty : ~Copyable {}
+public struct SingleFieldLoadable : ~Copyable {
+    var e: Empty
+    var k: Klass
+}
+public enum LoadableEnum : ~Copyable {
+    case first(Empty)
+    case second(Klass)
+}
+public struct LoadableType : ~Copyable {
+    var e: Empty
+    var l: SingleFieldLoadable
+    var k: Klass
+    var lEnum: LoadableEnum
+}
+
+public protocol P {}
+
+public struct SingleFieldAddressOnly : ~Copyable {
+    var e: Empty
+    var k: P
+    var en: AddressOnlyEnum
+}
+public struct SingleFieldAddressOnly2 : ~Copyable {
+    var e: Empty
+    var k: P
+    var en: AddressOnlyEnum
+    var s2: SingleFieldAddressOnly
+}
+public enum AddressOnlyEnum : ~Copyable {
+    case first(Empty)
+    case second(P)
+}
+public struct AddressOnlyType : ~Copyable {
+    var e: Empty
+    var l: SingleFieldAddressOnly2
+    var l2: SingleFieldAddressOnly
+    var k: P
+    var lEnum: AddressOnlyEnum
+}
+
+sil @get_addressonly_type : $@convention(method) (@thin AddressOnlyType.Type) -> @out AddressOnlyType
+sil @sideeffect : $@convention(thin) () -> ()
+
+/////////////////
+// MARK: Tests //
+/////////////////
+
+// CHECK-LABEL: sil hidden [ossa] @accessGrandLoadableField : $@convention(thin) () -> () {
+// CHECK: [[ALLOC:%.*]] = alloc_stack
+// CHECK: [[MARK:%.*]] = mark_must_check [consumable_and_assignable] [[ALLOC]]
+// CHECK: apply {{%.*}}([[MARK]], {{%.*}})
+// CHECK: [[GEP1:%.*]] = struct_element_addr [[MARK]]
+// CHECK: [[GEP2:%.*]] = struct_element_addr [[GEP1]]
+// CHECK: [[GEP3:%.*]] = struct_element_addr [[GEP2]]
+// CHECK: [[LOAD:%.*]] = load [copy] [[GEP3]]
+// CHECK: move_value [[LOAD]]
+// CHECK: } // end sil function 'accessGrandLoadableField'
+sil hidden [ossa] @accessGrandLoadableField : $@convention(thin) () -> () {
+bb0:
+  %0 = alloc_stack [lexical] $AddressOnlyType, let, name "x"
+  %1 = mark_must_check [consumable_and_assignable] %0 : $*AddressOnlyType
+  %2 = metatype $@thin AddressOnlyType.Type
+  %3 = function_ref @get_addressonly_type : $@convention(method) (@thin AddressOnlyType.Type) -> @out AddressOnlyType
+  %4 = apply %3(%1, %2) : $@convention(method) (@thin AddressOnlyType.Type) -> @out AddressOnlyType
+  %5 = struct_element_addr %1 : $*AddressOnlyType, #AddressOnlyType.l
+  %6 = alloc_stack $SingleFieldAddressOnly2
+  copy_addr %5 to [init] %6 : $*SingleFieldAddressOnly2
+  %8 = struct_element_addr %6 : $*SingleFieldAddressOnly2, #SingleFieldAddressOnly2.s2
+  %9 = alloc_stack $SingleFieldAddressOnly
+  copy_addr %8 to [init] %9 : $*SingleFieldAddressOnly
+  destroy_addr %6 : $*SingleFieldAddressOnly2
+  %12 = struct_element_addr %9 : $*SingleFieldAddressOnly, #SingleFieldAddressOnly.e
+  %13 = load [copy] %12 : $*Empty
+  destroy_addr %9 : $*SingleFieldAddressOnly
+  %15 = move_value %13 : $Empty
+  destroy_value %15 : $Empty
+  dealloc_stack %9 : $*SingleFieldAddressOnly
+  dealloc_stack %6 : $*SingleFieldAddressOnly2
+  destroy_addr %1 : $*AddressOnlyType
+  dealloc_stack %0 : $*AddressOnlyType
+  %21 = tuple ()
+  return %21 : $()
+}
+
+// CHECK-LABEL: sil hidden [ossa] @accessChildLoadableField : $@convention(thin) () -> () {
+// CHECK: [[ALLOC:%.*]] = alloc_stack
+// CHECK: [[MARK:%.*]] = mark_must_check [consumable_and_assignable] [[ALLOC]]
+// CHECK: apply {{%.*}}([[MARK]], {{%.*}})
+// CHECK: [[GEP1:%.*]] = struct_element_addr [[MARK]]
+// CHECK: [[GEP2:%.*]] = struct_element_addr [[GEP1]]
+// CHECK: [[LOAD:%.*]] = load [copy] [[GEP2]]
+// CHECK: move_value [[LOAD]]
+// CHECK: } // end sil function 'accessChildLoadableField'
+sil hidden [ossa] @accessChildLoadableField : $@convention(thin) () -> () {
+bb0:
+  %0 = alloc_stack [lexical] $AddressOnlyType, let, name "x"
+  %1 = mark_must_check [consumable_and_assignable] %0 : $*AddressOnlyType
+  %2 = metatype $@thin AddressOnlyType.Type
+  %3 = function_ref @get_addressonly_type : $@convention(method) (@thin AddressOnlyType.Type) -> @out AddressOnlyType
+  %4 = apply %3(%1, %2) : $@convention(method) (@thin AddressOnlyType.Type) -> @out AddressOnlyType
+  %5 = struct_element_addr %1 : $*AddressOnlyType, #AddressOnlyType.l
+  %6 = alloc_stack $SingleFieldAddressOnly2
+  copy_addr %5 to [init] %6 : $*SingleFieldAddressOnly2
+  %8 = struct_element_addr %6 : $*SingleFieldAddressOnly2, #SingleFieldAddressOnly2.e
+  %9 = load [copy] %8 : $*Empty
+  destroy_addr %6 : $*SingleFieldAddressOnly2
+  %11 = move_value %9 : $Empty
+  destroy_value %11 : $Empty
+  dealloc_stack %6 : $*SingleFieldAddressOnly2
+  destroy_addr %1 : $*AddressOnlyType
+  dealloc_stack %0 : $*AddressOnlyType
+  %16 = tuple ()
+  return %16 : $()
+}
+
+// CHECK-LABEL: sil hidden [ossa] @accessChildLoadableFieldWithBlockingSideEffect : $@convention(thin) () -> () {
+// CHECK: [[MARK:%.*]] = mark_must_check [consumable_and_assignable] [[ALLOC]]
+// CHECK: apply {{%.*}}([[MARK]], {{%.*}})
+// CHECK: [[GEP1:%.*]] = struct_element_addr [[MARK]]
+// CHECK: [[TEMP:%.*]] = alloc_stack $SingleFieldAddressOnly2
+// CHECK: copy_addr [[GEP1]] to [init] [[TEMP]]
+// CHECK: apply {{%.*}}() :
+// CHECK: [[GEP2:%.*]] = struct_element_addr [[TEMP]]
+// CHECK: [[LOAD:%.*]] = load [copy] [[GEP2]]
+// CHECK: move_value [[LOAD]]
+// CHECK: } // end sil function 'accessChildLoadableFieldWithBlockingSideEffect'
+sil hidden [ossa] @accessChildLoadableFieldWithBlockingSideEffect : $@convention(thin) () -> () {
+bb0:
+  %0 = alloc_stack [lexical] $AddressOnlyType, let, name "x"
+  %1 = mark_must_check [consumable_and_assignable] %0 : $*AddressOnlyType
+  %2 = metatype $@thin AddressOnlyType.Type
+  %3 = function_ref @get_addressonly_type : $@convention(method) (@thin AddressOnlyType.Type) -> @out AddressOnlyType
+  %4 = apply %3(%1, %2) : $@convention(method) (@thin AddressOnlyType.Type) -> @out AddressOnlyType
+  %5 = struct_element_addr %1 : $*AddressOnlyType, #AddressOnlyType.l
+  %6 = alloc_stack $SingleFieldAddressOnly2
+  // This is our original copy_addr. If there is a side effect in between it
+  // and %9 (our final use), then we conservatively bail.
+  copy_addr %5 to [init] %6 : $*SingleFieldAddressOnly2
+  %f = function_ref @sideeffect : $@convention(thin) () -> ()
+  apply %f() : $@convention(thin) () -> ()
+  %8 = struct_element_addr %6 : $*SingleFieldAddressOnly2, #SingleFieldAddressOnly2.e
+  %9 = load [copy] %8 : $*Empty
+  destroy_addr %6 : $*SingleFieldAddressOnly2
+  %11 = move_value %9 : $Empty
+  destroy_value %11 : $Empty
+  dealloc_stack %6 : $*SingleFieldAddressOnly2
+  destroy_addr %1 : $*AddressOnlyType
+  dealloc_stack %0 : $*AddressOnlyType
+  %16 = tuple ()
+  return %16 : $()
+}
+
+// CHECK-LABEL: sil hidden [ossa] @copyableAddressOnlyTest : $@convention(thin) () -> () {
+// CHECK: [[ALLOC:%.*]] = alloc_stack
+// CHECK: [[MARK:%.*]] = mark_must_check [consumable_and_assignable] [[ALLOC]]
+// CHECK: apply {{%.*}}([[MARK]], {{%.*}})
+// CHECK: [[GEP1:%.*]] = struct_element_addr [[MARK]]
+// CHECK: [[GEP2:%.*]] = struct_element_addr [[GEP1]]
+// CHECK: [[RESULT:%.*]] = alloc_stack $any P
+// CHECK: copy_addr [[GEP2]] to [init] [[RESULT]]
+// CHECK: } // end sil function 'copyableAddressOnlyTest'
+sil hidden [ossa] @copyableAddressOnlyTest : $@convention(thin) () -> () {
+bb0:
+  %0 = alloc_stack [lexical] $AddressOnlyType, let, name "x"
+  %1 = mark_must_check [consumable_and_assignable] %0 : $*AddressOnlyType
+  %2 = metatype $@thin AddressOnlyType.Type
+  %3 = function_ref @get_addressonly_type : $@convention(method) (@thin AddressOnlyType.Type) -> @out AddressOnlyType
+  %4 = apply %3(%1, %2) : $@convention(method) (@thin AddressOnlyType.Type) -> @out AddressOnlyType
+  %5 = struct_element_addr %1 : $*AddressOnlyType, #AddressOnlyType.l
+  %6 = alloc_stack $SingleFieldAddressOnly2
+  copy_addr %5 to [init] %6 : $*SingleFieldAddressOnly2
+  %8 = struct_element_addr %6 : $*SingleFieldAddressOnly2, #SingleFieldAddressOnly2.k
+  %9 = alloc_stack $any P
+  copy_addr %8 to [init] %9 : $*any P
+  destroy_addr %6 : $*SingleFieldAddressOnly2
+  destroy_addr %9 : $*any P
+  dealloc_stack %9 : $*any P
+  dealloc_stack %6 : $*SingleFieldAddressOnly2
+  destroy_addr %1 : $*AddressOnlyType
+  dealloc_stack %0 : $*AddressOnlyType
+  %17 = tuple ()
+  return %17 : $()
+}

@@ -1299,6 +1299,33 @@ public struct DelegatedConformanceMacro: ConformanceMacro, MemberMacro {
   }
 }
 
+extension DelegatedConformanceMacro: ExtensionMacro {
+  public static func expansion(
+    of node: AttributeSyntax,
+    attachedTo decl: some DeclGroupSyntax,
+    providingExtensionsOf type: some TypeSyntaxProtocol,
+    in context: some MacroExpansionContext
+  ) throws -> [ExtensionDeclSyntax] {
+    let decl: DeclSyntax =
+      """
+      extension \(raw: type.trimmedDescription): P where Element: P {
+        static func requirement() {
+          Element.requirement()
+        }
+      }
+
+      """
+
+    guard let extensionDecl = decl.as(ExtensionDeclSyntax.self) else {
+      return []
+    }
+
+    return [
+      extensionDecl
+    ]
+  }
+}
+
 public struct ExtendableEnum: MemberMacro {
   public static func expansion(
     of node: AttributeSyntax,

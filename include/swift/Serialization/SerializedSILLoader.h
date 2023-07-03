@@ -61,8 +61,10 @@ public:
   ~SerializedSILLoader();
 
   SILFunction *lookupSILFunction(SILFunction *Callee, bool onlyUpdateLinkage);
-  SILFunction *lookupSILFunction(StringRef Name, Optional<SILLinkage> linkage);
-  bool hasSILFunction(StringRef Name, Optional<SILLinkage> linkage = None);
+  SILFunction *lookupSILFunction(StringRef Name,
+                                 llvm::Optional<SILLinkage> linkage);
+  bool hasSILFunction(StringRef Name,
+                      llvm::Optional<SILLinkage> linkage = llvm::None);
   SILVTable *lookupVTable(const ClassDecl *C);
   SILMoveOnlyDeinit *lookupMoveOnlyDeinit(const NominalTypeDecl *nomDecl);
   SILWitnessTable *lookupWitnessTable(SILWitnessTable *C);

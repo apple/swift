@@ -642,6 +642,7 @@ adjustMacroExpansionWhitespace(GeneratedSourceInfo::Kind kind,
   case GeneratedSourceInfo::MemberMacroExpansion:
   case GeneratedSourceInfo::PeerMacroExpansion:
   case GeneratedSourceInfo::ConformanceMacroExpansion:
+  case GeneratedSourceInfo::ExtensionMacroExpansion:
     // All added to the end. Note that conformances are always expanded as
     // extensions, hence treating them the same as peer.
     scratch += "\n\n";
@@ -702,7 +703,7 @@ void swift::ide::SourceEditConsumer::acceptMacroExpansionBuffer(
       containingSF->getParentModule()->getSourceFileContainingLocation(
           originalSourceRange.getStart());
   StringRef originalPath;
-  if (originalFile->getBufferID().hasValue() &&
+  if (originalFile->getBufferID().has_value() &&
       containingSF->getBufferID() != originalFile->getBufferID()) {
     originalPath = SM.getIdentifierForBuffer(*originalFile->getBufferID());
   }

@@ -66,12 +66,12 @@ raw_ostream &swift::ide::api::operator<<(raw_ostream &Out, const DeclKind Value)
   return Out << getDeclKindStrRaw(Value);
 }
 
-Optional<SDKNodeKind> swift::ide::api::parseSDKNodeKind(StringRef Content) {
-  return llvm::StringSwitch<Optional<SDKNodeKind>>(Content)
+llvm::Optional<SDKNodeKind>
+swift::ide::api::parseSDKNodeKind(StringRef Content) {
+  return llvm::StringSwitch<llvm::Optional<SDKNodeKind>>(Content)
 #define NODE_KIND(NAME, VALUE) .Case(#VALUE, SDKNodeKind::NAME)
 #include "swift/IDE/DigesterEnums.def"
-    .Default(None)
-  ;
+      .Default(llvm::None);
 }
 
 NodeAnnotation swift::ide::api::parseSDKNodeAnnotation(StringRef Content) {
@@ -339,7 +339,7 @@ static APIDiffItem*
 serializeDiffItem(llvm::BumpPtrAllocator &Alloc,
                   llvm::yaml::MappingNode* Node) {
 #define DIFF_ITEM_KEY_KIND_STRING(NAME) StringRef NAME;
-#define DIFF_ITEM_KEY_KIND_INT(NAME) Optional<int> NAME;
+#define DIFF_ITEM_KEY_KIND_INT(NAME) llvm::Optional<int> NAME;
 #include "swift/IDE/DigesterEnums.def"
   for (auto &Pair : *Node) {
     switch(parseKeyKind(getScalarString(Pair.getKey()))) {
@@ -360,8 +360,8 @@ serializeDiffItem(llvm::BumpPtrAllocator &Alloc,
                      LeftUsr, RightUsr, LeftComment, RightComment, ModuleName);
   }
   case APIDiffItemKind::ADK_TypeMemberDiffItem: {
-    Optional<uint8_t> SelfIndexShort;
-    Optional<uint8_t> RemovedIndexShort;
+    llvm::Optional<uint8_t> SelfIndexShort;
+    llvm::Optional<uint8_t> RemovedIndexShort;
     if (SelfIndex)
       SelfIndexShort = SelfIndex.value();
     if (RemovedIndex)

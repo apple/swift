@@ -158,7 +158,7 @@ PropertyBag::getPrefixAfterStrippingKey(const MutableTerm &lookupTerm) const {
 ///
 /// Asserts if this property bag does not have a superclass bound.
 Type PropertyBag::getSuperclassBound(
-    TypeArrayView<GenericTypeParamType> genericParams,
+    ArrayRef<GenericTypeParamType *> genericParams,
     const MutableTerm &lookupTerm,
     const PropertyMap &map) const {
   MutableTerm prefix = getPrefixAfterStrippingKey(lookupTerm);
@@ -179,7 +179,7 @@ Type PropertyBag::getSuperclassBound(
 ///
 /// Asserts if this property bag is not concrete.
 Type PropertyBag::getConcreteType(
-    TypeArrayView<GenericTypeParamType> genericParams,
+    ArrayRef<GenericTypeParamType *> genericParams,
     const MutableTerm &lookupTerm,
     const PropertyMap &map) const {
   MutableTerm prefix = getPrefixAfterStrippingKey(lookupTerm);

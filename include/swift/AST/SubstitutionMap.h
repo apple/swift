@@ -168,7 +168,7 @@ public:
 
   /// Query whether any replacement types in the map contain an opened
   /// existential.
-  bool hasOpenedExistential() const;
+  bool hasLocalArchetypes() const;
 
   /// Query whether any replacement types in the map contain dynamic Self.
   bool hasDynamicSelf() const;
@@ -182,13 +182,13 @@ public:
   /// Apply a substitution to all replacement types in the map. Does not
   /// change keys.
   SubstitutionMap subst(SubstitutionMap subMap,
-                        SubstOptions options=None) const;
+                        SubstOptions options = llvm::None) const;
 
   /// Apply a substitution to all replacement types in the map. Does not
   /// change keys.
   SubstitutionMap subst(TypeSubstitutionFn subs,
                         LookupConformanceFn conformances,
-                        SubstOptions options=None) const;
+                        SubstOptions options = llvm::None) const;
 
   /// Apply an in-flight substitution to all replacement types in the map.
   /// Does not change keys.

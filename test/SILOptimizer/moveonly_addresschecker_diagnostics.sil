@@ -1,5 +1,5 @@
-// RUN: %target-sil-opt -sil-move-only-address-checker -enable-experimental-feature MoveOnlyClasses -enable-sil-verify-all %s -verify
-// RUN: %target-sil-opt -sil-move-only-address-checker -enable-experimental-feature MoveOnlyClasses -enable-sil-verify-all -move-only-diagnostics-silently-emit-diagnostics %s | %FileCheck %s
+// RUN: %target-sil-opt -sil-move-only-address-checker -enable-experimental-feature MoveOnlyPartialConsumption -enable-experimental-feature MoveOnlyClasses -enable-sil-verify-all %s -verify
+// RUN: %target-sil-opt -sil-move-only-address-checker -enable-experimental-feature MoveOnlyPartialConsumption -enable-experimental-feature MoveOnlyClasses -enable-sil-verify-all -move-only-diagnostics-silently-emit-diagnostics %s | %FileCheck %s
 
 // TODO: Add FileCheck
 

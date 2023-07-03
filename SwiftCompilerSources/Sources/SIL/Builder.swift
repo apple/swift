@@ -239,8 +239,8 @@ public struct Builder {
     return notifyNew(bridged.createGlobalAddr(global.bridged).getAs(GlobalAddrInst.self))
   }
 
-  public func createGlobalValue(global: GlobalVariable) -> GlobalValueInst {
-    return notifyNew(bridged.createGlobalValue(global.bridged).getAs(GlobalValueInst.self))
+  public func createGlobalValue(global: GlobalVariable, isBare: Bool) -> GlobalValueInst {
+    return notifyNew(bridged.createGlobalValue(global.bridged, isBare).getAs(GlobalValueInst.self))
   }
 
   public func createStruct(type: Type, elements: [Value]) -> StructInst {

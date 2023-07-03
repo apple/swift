@@ -786,7 +786,7 @@ DeclRefExpr *DerivedConformance::convertEnumToIndex(SmallVectorImpl<ASTNode> &st
                                   SourceLoc());
     cases.push_back(CaseStmt::create(C, CaseParentKind::Switch, SourceLoc(),
                                      labelItem, SourceLoc(), SourceLoc(), body,
-                                     /*case body vardecls*/ None));
+                                     /*case body vardecls*/ llvm::None));
   }
 
   // generate: switch enumVar { }

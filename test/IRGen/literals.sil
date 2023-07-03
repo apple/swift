@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -emit-ir %s | %FileCheck %s
-// RUN: %target-swift-frontend -emit-ir %s
+// RUN: %target-swift-frontend -emit-ir %s | %FileCheck %s
 
 // REQUIRES: CPU=x86_64
 
@@ -15,14 +14,14 @@ bb0:
   %0 = string_literal utf8 "help\tme"
   return %0 : $Builtin.RawPointer
 }
-// CHECK: define{{( dllexport)?}}{{( protected)?}} swiftcc i8* @utf8_literal() {{.*}} {
-// CHECK:   ret i8* getelementptr inbounds ([8 x i8], [8 x i8]* [[U8_0]], i64 0, i64 0)
+// CHECK: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @utf8_literal() {{.*}} {
+// CHECK:   ret ptr [[U8_0]]
 
 sil @utf8_literal_with_nul : $@convention(thin) () -> Builtin.RawPointer {
 bb0:
   %0 = string_literal utf8 "\u{00}x\u{01ab}"
   return %0 : $Builtin.RawPointer
 }
-// CHECK: define{{( dllexport)?}}{{( protected)?}} swiftcc i8* @utf8_literal_with_nul() {{.*}} {
-// CHECK:   ret i8* getelementptr inbounds ([5 x i8], [5 x i8]* [[U8_1]], i64 0, i64 0)
+// CHECK: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @utf8_literal_with_nul() {{.*}} {
+// CHECK:   ret ptr [[U8_1]]
 

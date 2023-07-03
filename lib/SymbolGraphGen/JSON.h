@@ -46,7 +46,7 @@ void serialize(const swift::GenericTypeParamType *Param, llvm::json::OStream &OS
 void serialize(const ModuleDecl &M, llvm::json::OStream &OS, llvm::Triple Target);
 
 void filterGenericParams(
-    TypeArrayView<GenericTypeParamType> GenericParams,
+    ArrayRef<GenericTypeParamType *> GenericParams,
     SmallVectorImpl<const GenericTypeParamType*> &FilteredParams,
     SubstitutionMap SubMap = {});
 

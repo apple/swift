@@ -143,7 +143,7 @@ public:
 
   /// The instruction that began the first in-progress access to the storage
   /// location. Used for diagnostic purposes.
-  Optional<RecordedAccess> FirstAccess = None;
+  llvm::Optional<RecordedAccess> FirstAccess = llvm::None;
 
 public:
   /// Increment the count for given access.
@@ -169,7 +169,7 @@ public:
     // If all open accesses are now ended, forget the location of the
     // first access.
     if (Reads == 0 && NonReads == 0)
-      FirstAccess = None;
+      FirstAccess = llvm::None;
   }
 
   /// Returns true when there are any accesses to this location in progress.
@@ -246,11 +246,11 @@ class AccessInfo {
 public:
   // Returns the previous access when beginning an access of the given Kind will
   // result in a conflict with a previous access.
-  Optional<RecordedAccess>
+  llvm::Optional<RecordedAccess>
   conflictsWithAccess(SILAccessKind Kind, const IndexTrieNode *SubPath) const {
     auto I = findFirstSubPathWithConflict(Kind, SubPath);
     if (I == SubAccesses.end())
-      return None;
+      return llvm::None;
 
     return I->FirstAccess;
   }
@@ -629,12 +629,12 @@ static llvm::cl::opt<bool> ShouldAssertOnFailure(
 
 /// If making an access of the given kind at the given subpath would
 /// would conflict, returns the first recorded access it would conflict
-/// with. Otherwise, returns None.
-static Optional<RecordedAccess>
-shouldReportAccess(const AccessInfo &Info,swift::SILAccessKind Kind,
+/// with. Otherwise, returns llvm::None.
+static llvm::Optional<RecordedAccess>
+shouldReportAccess(const AccessInfo &Info, swift::SILAccessKind Kind,
                    const IndexTrieNode *SubPath) {
   if (Info.alreadyHadConflict())
-    return None;
+    return llvm::None;
 
   auto result = Info.conflictsWithAccess(Kind, SubPath);
   if (ShouldAssertOnFailure && result.has_value())
@@ -650,12 +650,12 @@ shouldReportAccess(const AccessInfo &Info,swift::SILAccessKind Kind,
 /// this will return the conflict for the aggregate. This approach guarantees
 /// determinism and makes it more  likely that we'll diagnose the most helpful
 /// conflict.
-static Optional<ConflictingAccess>
+static llvm::Optional<ConflictingAccess>
 findConflictingArgumentAccess(const AccessSummaryAnalysis::ArgumentSummary &AS,
                               const AccessStorage &AccessStorage,
                               const AccessInfo &InProgressInfo) {
-  Optional<RecordedAccess> BestInProgressAccess;
-  Optional<RecordedAccess> BestArgAccess;
+  llvm::Optional<RecordedAccess> BestInProgressAccess;
+  llvm::Optional<RecordedAccess> BestArgAccess;
 
   for (const auto &MapPair : AS.getSubAccesses()) {
     const IndexTrieNode *SubPath = MapPair.getFirst();
@@ -676,7 +676,7 @@ findConflictingArgumentAccess(const AccessSummaryAnalysis::ArgumentSummary &AS,
   }
 
   if (!BestArgAccess)
-    return None;
+    return llvm::None;
 
   return ConflictingAccess(AccessStorage, *BestInProgressAccess,
                            *BestArgAccess);
@@ -950,13 +950,13 @@ static void checkStaticExclusivity(SILFunction &Fn, PostOrderFunctionInfo *PO,
 
   // For each basic block, track the stack of current accesses on
   // exit from that block.
-  llvm::SmallDenseMap<SILBasicBlock *, Optional<StorageMap>, 32>
+  llvm::SmallDenseMap<SILBasicBlock *, llvm::Optional<StorageMap>, 32>
       BlockOutAccesses;
 
   BlockOutAccesses[Fn.getEntryBlock()] = StorageMap();
 
   for (auto *BB : PO->getReversePostOrder()) {
-    Optional<StorageMap> &BBState = BlockOutAccesses[BB];
+    llvm::Optional<StorageMap> &BBState = BlockOutAccesses[BB];
 
     // Because we use a reverse post-order traversal, unless this is the entry
     // at least one of its predecessors must have been reached. Use the out
@@ -967,7 +967,7 @@ static void checkStaticExclusivity(SILFunction &Fn, PostOrderFunctionInfo *PO,
       if (it == BlockOutAccesses.end())
         continue;
 
-      const Optional<StorageMap> &PredAccesses = it->getSecond();
+      const llvm::Optional<StorageMap> &PredAccesses = it->getSecond();
       if (PredAccesses) {
         BBState = PredAccesses;
         break;

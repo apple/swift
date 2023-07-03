@@ -2965,6 +2965,15 @@ ManglingError Remangler::mangleConformanceAttachedMacroExpansion(
   return mangleChildNode(node, 3, depth + 1);
 }
 
+ManglingError Remangler::mangleExtensionAttachedMacroExpansion(
+    Node *node, unsigned depth) {
+  RETURN_IF_ERROR(mangleChildNode(node, 0, depth + 1));
+  RETURN_IF_ERROR(mangleChildNode(node, 1, depth + 1));
+  RETURN_IF_ERROR(mangleChildNode(node, 2, depth + 1));
+  Buffer << "fMe";
+  return mangleChildNode(node, 3, depth + 1);
+}
+
 ManglingError Remangler::mangleMacroExpansionUniqueName(
     Node *node, unsigned depth) {
   RETURN_IF_ERROR(mangleChildNode(node, 0, depth + 1));

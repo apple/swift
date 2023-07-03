@@ -2318,6 +2318,7 @@ static uint8_t getRawStableMacroRole(swift::MacroRole context) {
   CASE(Peer)
   CASE(Conformance)
   CASE(CodeItem)
+  CASE(Extension)
   }
 #undef CASE
   llvm_unreachable("bad result declaration macro kind");
@@ -3148,10 +3149,19 @@ class Serializer::DeclSerializer : public DeclVisitor<DeclSerializer> {
           introducedDeclNames.push_back(S.addDeclBaseNameRef(label));
       }
 
+      unsigned numNames = introducedDeclNames.size();
+
+      unsigned numConformances = 0;
+      for (auto conformance : theAttr->getConformances()) {
+        introducedDeclNames.push_back(
+            S.addTypeRef(conformance->getInstanceType()));
+        ++numConformances;
+      }
+
       MacroRoleDeclAttrLayout::emitRecord(
           S.Out, S.ScratchRecord, abbrCode, theAttr->isImplicit(),
           static_cast<uint8_t>(theAttr->getMacroSyntax()),
-          rawMacroRole, introducedDeclNames.size(),
+          rawMacroRole, numNames, numConformances,
           introducedDeclNames);
       return;
     }
@@ -4722,7 +4732,7 @@ public:
     uint8_t hasExpandedDefinition = 0;
     IdentifierID externalModuleNameID = 0;
     IdentifierID externalMacroTypeNameID = 0;
-    Optional<ExpandedMacroDefinition> expandedDef;
+    llvm::Optional<ExpandedMacroDefinition> expandedDef;
     auto def = macro->getDefinition();
     switch (def.kind) {
       case MacroDefinition::Kind::Invalid:
@@ -6290,7 +6300,7 @@ void Serializer::writeAST(ModuleOrSourceFile DC) {
   bool hasLocalTypes = false;
   bool hasOpaqueReturnTypes = false;
 
-  Optional<DeclID> entryPointClassID;
+  llvm::Optional<DeclID> entryPointClassID;
   SmallVector<DeclID, 16> orderedTopLevelDecls;
 
   ArrayRef<const FileUnit *> files;

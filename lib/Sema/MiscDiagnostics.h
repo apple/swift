@@ -112,7 +112,7 @@ void diagnoseConstantArgumentRequirement(const Expr *expr,
 /// \returns true iff any fix-its were attached to \p diag.
 bool computeFixitsForOverriddenDeclaration(
     ValueDecl *decl, const ValueDecl *base,
-    llvm::function_ref<Optional<InFlightDiagnostic>(bool)> diag);
+    llvm::function_ref<llvm::Optional<InFlightDiagnostic>(bool)> diag);
 
 /// Emit fix-its to enclose trailing closure in argument parens.
 void fixItEncloseTrailingClosure(ASTContext &ctx,

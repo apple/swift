@@ -1394,7 +1394,8 @@ static bool performAction(CompilerInstance &Instance,
 /// Return true if all the outputs are fetched from cache. Otherwise, return
 /// false and will not replay any output.
 static bool tryReplayCompilerResults(CompilerInstance &Instance) {
-  if (!Instance.supportCaching())
+  if (!Instance.supportCaching() ||
+      Instance.getInvocation().getFrontendOptions().CacheSkipReplay)
     return false;
 
   assert(Instance.getCompilerBaseKey() &&
@@ -1409,7 +1410,8 @@ static bool tryReplayCompilerResults(CompilerInstance &Instance) {
   bool replayed = replayCachedCompilerOutputs(
       Instance.getObjectStore(), Instance.getActionCache(),
       *Instance.getCompilerBaseKey(), Instance.getDiags(),
-      Instance.getInvocation().getFrontendOptions().InputsAndOutputs, *CDP);
+      Instance.getInvocation().getFrontendOptions().InputsAndOutputs, *CDP,
+      Instance.getInvocation().getFrontendOptions().EnableCachingRemarks);
 
   // If we didn't replay successfully, re-start capture.
   if (!replayed)
@@ -1681,7 +1683,7 @@ static bool performCompileStepsPostSILGen(CompilerInstance &Instance,
   const ASTContext &Context = Instance.getASTContext();
   const IRGenOptions &IRGenOpts = Invocation.getIRGenOptions();
 
-  Optional<BufferIndirectlyCausingDiagnosticRAII> ricd;
+  llvm::Optional<BufferIndirectlyCausingDiagnosticRAII> ricd;
   if (auto *SF = MSF.dyn_cast<SourceFile *>())
     ricd.emplace(*SF);
 
@@ -2178,14 +2180,14 @@ int swift::performFrontend(ArrayRef<const char *> Args,
   // dynamically-sized array of optional PrettyStackTraces, which get
   // initialized by iterating over the buffers we collected above.
   auto configurationFileStackTraces =
-      std::make_unique<Optional<PrettyStackTraceFileContents>[]>(
-        configurationFileBuffers.size());
+      std::make_unique<llvm::Optional<PrettyStackTraceFileContents>[]>(
+          configurationFileBuffers.size());
   for_each(configurationFileBuffers.begin(), configurationFileBuffers.end(),
            &configurationFileStackTraces[0],
            [](const std::unique_ptr<llvm::MemoryBuffer> &buffer,
-              Optional<PrettyStackTraceFileContents> &trace) {
-    trace.emplace(*buffer);
-  });
+              llvm::Optional<PrettyStackTraceFileContents> &trace) {
+             trace.emplace(*buffer);
+           });
 
   // Setting DWARF Version depend on platform
   IRGenOptions &IRGenOpts = Invocation.getIRGenOptions();

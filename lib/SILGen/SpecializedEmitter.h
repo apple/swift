@@ -89,8 +89,8 @@ public:
     : TheKind(Kind::LateEmitter), TheLateEmitter(emitter) {}
 
   /// Try to find an appropriate emitter for the given declaration.
-  static Optional<SpecializedEmitter>
-  forDecl(SILGenModule &SGM, SILDeclRef decl);
+  static llvm::Optional<SpecializedEmitter> forDecl(SILGenModule &SGM,
+                                                    SILDeclRef decl);
 
   bool isEarlyEmitter() const { return TheKind == Kind::EarlyEmitter; }
   EarlyEmitter *getEarlyEmitter() const {

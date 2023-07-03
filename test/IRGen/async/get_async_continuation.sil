@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -g -enable-objc-interop  -primary-file %s -emit-ir -sil-verify-all -disable-llvm-optzns -disable-swift-specific-llvm-optzns | %IRGenFileCheck %s
-// RUN: %target-swift-frontend -g -enable-objc-interop  -primary-file %s -emit-ir -sil-verify-all -disable-llvm-optzns -disable-swift-specific-llvm-optzns 
+// RUN: %target-swift-frontend -g -enable-objc-interop  -primary-file %s -emit-ir -sil-verify-all -disable-llvm-optzns -disable-swift-specific-llvm-optzns | %IRGenFileCheck %s
 // RUN: %target-swift-frontend  -enable-objc-interop  -primary-file %s -emit-ir -sil-verify-all
 
 // REQUIRES: concurrency
@@ -15,67 +14,64 @@ bb0:
 }
 
 // CHECK-LABEL: define{{.*}} @async_continuation(
-// CHECK: [[ctxt_addr:%.*]] = alloca %swift.context*
+// CHECK: [[ctxt_addr:%.*]] = alloca ptr
 // CHECK: [[cont_context:%.*]] = alloca %swift.continuation_context
 // CHECK: [[result_storage:%.*]] = alloca i32
 // CHECK: call token @llvm.coro.id.async
-// CHECK: call i8* @llvm.coro.begin(
+// CHECK: call ptr @llvm.coro.begin(
 
 //   Initialize the async continuation context:
 
 //   Initialize Parent.
-// CHECK: [[base_context:%.*]] = getelementptr inbounds %swift.continuation_context, %swift.continuation_context* [[cont_context]], i32 0, i32 0
-// CHECK: [[context_addr:%.*]] = getelementptr inbounds %swift.context, %swift.context* [[base_context]], i32 0, i32 0
-// CHECK: [[ctxt:%.*]] = load %swift.context*, %swift.context** [[ctxt_addr]]
-// CHECK-arm64e: [[ctxt_addr_int:%[0-9]+]] = ptrtoint %swift.context** [[context_addr]] to i64
+// CHECK: [[base_context:%.*]] = getelementptr inbounds %swift.continuation_context, ptr [[cont_context]], i32 0, i32 0
+// CHECK: [[context_addr:%.*]] = getelementptr inbounds %swift.context, ptr [[base_context]], i32 0, i32 0
+// CHECK: [[ctxt:%.*]] = load ptr, ptr [[ctxt_addr]]
+// CHECK-arm64e: [[ctxt_addr_int:%[0-9]+]] = ptrtoint ptr [[context_addr]] to i64
 // CHECK-arm64e: [[ptrauth_blend:%[0-9]+]]   = call i64 @llvm.ptrauth.blend(i64 [[ctxt_addr_int]], i64 48546)
-// CHECK-arm64e: [[ctxt_int:%[0-9]+]]      = ptrtoint %swift.context* [[ctxt]] to i64
+// CHECK-arm64e: [[ctxt_int:%[0-9]+]]      = ptrtoint ptr [[ctxt]] to i64
 // CHECK-arm64e: [[signed_int:%[0-9]+]]      = call i64 @llvm.ptrauth.sign(i64 [[ctxt_int]], i32 2, i64 [[ptrauth_blend]])
-// CHECK-arm64e: [[signed_ctxt:%[0-9]+]]   = inttoptr i64 [[signed_int]] to %swift.context*
-// CHECK-arm64e: store %swift.context* [[signed_ctxt]], %swift.context** [[context_addr]]
-// CHECK-x86_64: store %swift.context* [[ctxt]], %swift.context** [[context_addr]]
+// CHECK-arm64e: [[signed_ctxt:%[0-9]+]]   = inttoptr i64 [[signed_int]] to ptr
+// CHECK-arm64e: store ptr [[signed_ctxt]], ptr [[context_addr]]
+// CHECK-x86_64: store ptr [[ctxt]], ptr [[context_addr]]
 
 //   Initialize NormalResult.
-// CHECK: [[result_addr:%.*]] = getelementptr inbounds %swift.continuation_context, %swift.continuation_context* [[cont_context]], i32 0, i32 4
-// CHECK: [[result_storage_as_opaque:%.*]] = bitcast i32* [[result_storage]] to %swift.opaque*
-// CHECK: store %swift.opaque* [[result_storage_as_opaque]], %swift.opaque** [[result_addr]]
+// CHECK: [[result_addr:%.*]] = getelementptr inbounds %swift.continuation_context, ptr [[cont_context]], i32 0, i32 4
+// CHECK: store ptr [[result_storage]], ptr [[result_addr]]
 
 //   Initialize ResumeParent.
-// CHECK: [[resume_intrinsic:%.*]] = call i8* @llvm.coro.async.resume()
-// CHECK: [[continuation_fn_addr:%.*]] = getelementptr inbounds %swift.context, %swift.context* [[base_context]], i32 0, i32 1
-// CHECK: [[continuation_fn:%.*]] = bitcast i8* [[resume_intrinsic]] to void (%swift.context*)*
-// CHECK-arm64e: [[continuation_fn_addr_int:%[0-9]+]] = ptrtoint void (%swift.context*)** [[continuation_fn_addr]] to i64
+// CHECK: [[resume_intrinsic:%.*]] = call ptr @llvm.coro.async.resume()
+// CHECK: [[continuation_fn_addr:%.*]] = getelementptr inbounds %swift.context, ptr [[base_context]], i32 0, i32 1
+// CHECK-arm64e: [[continuation_fn_addr_int:%[0-9]+]] = ptrtoint ptr [[continuation_fn_addr]] to i64
 // CHECK-arm64e: [[ptrauth_blend:%[0-9]+]]   = call i64 @llvm.ptrauth.blend(i64 [[continuation_fn_addr_int]], i64 55047)
-// CHECK-arm64e: [[continuation_fn_int:%[0-9]+]]      = ptrtoint void (%swift.context*)* [[continuation_fn]] to i64
+// CHECK-arm64e: [[continuation_fn_int:%[0-9]+]]      = ptrtoint ptr [[resume_intrinsic]] to i64
 // CHECK-arm64e: [[signed_int:%[0-9]+]]      = call i64 @llvm.ptrauth.sign(i64 [[continuation_fn_int]], i32 0, i64 [[ptrauth_blend]])
-// CHECK-arm64e: [[signed_continuation_fn:%[0-9]+]]   = inttoptr i64 [[signed_int]] to void (%swift.context*)*
-// CHECK-arm64e: store void (%swift.context*)* [[signed_continuation_fn]], void (%swift.context*)** [[continuation_fn_addr]]
-// CHECK-x86_64: store void (%swift.context*)* [[continuation_fn]], void (%swift.context*)** [[continuation_fn_addr]]
+// CHECK-arm64e: [[signed_continuation_fn:%[0-9]+]]   = inttoptr i64 [[signed_int]] to ptr
+// CHECK-arm64e: store ptr [[signed_continuation_fn]], ptr [[continuation_fn_addr]]
+// CHECK-x86_64: store ptr [[resume_intrinsic]], ptr [[continuation_fn_addr]]
 
 //   Call the runtime to retrieve and initialize the continuation.
-// CHECK: call swiftcc %swift.task* @swift_continuation_init(%swift.continuation_context* [[cont_context]], [[INT]] 0)
+// CHECK: call swiftcc ptr @swift_continuation_init(ptr [[cont_context]], [[INT]] 0)
 
 //   Do some stuff.
 // CHECK: call swiftcc void @not_async_test()
 
 //   Arrive at the await_async_continuation point.
-// CHECK: [[suspend:%.*]] = call { i8* } (i32, i8*, i8*, ...) @llvm.coro.suspend.async.sl_p0i8s(i32 0, i8* [[resume_intrinsic]], i8* bitcast (i8* (i8*)* @__swift_async_resume_project_context to i8*), i8* bitcast (void (%swift.continuation_context*)* @__swift_continuation_await_point to i8*), %swift.continuation_context* [[cont_context]])
-// CHECK:   [[result_addr_addr:%.*]] = getelementptr inbounds %swift.continuation_context, %swift.continuation_context* [[cont_context]], i32 0, i32 4
-// CHECK:   [[result_addr:%.*]] = load %swift.opaque*, %swift.opaque** [[result_addr_addr]]
-// CHECK:   [[typed_result_addr:%.*]] = bitcast %swift.opaque* [[result_addr]] to i32*
-// CHECK:   [[result_value:%.*]] = load i32, i32* [[typed_result_addr]]
+// CHECK: [[suspend:%.*]] = call { ptr } (i32, ptr, ptr, ...) @llvm.coro.suspend.async.sl_p0s(i32 0, ptr [[resume_intrinsic]], ptr @__swift_async_resume_project_context, ptr @__swift_continuation_await_point, ptr [[cont_context]])
+// CHECK:   [[result_addr_addr:%.*]] = getelementptr inbounds %swift.continuation_context, ptr [[cont_context]], i32 0, i32 4
+// CHECK:   [[result_addr:%.*]] = load ptr, ptr [[result_addr_addr]]
+// CHECK:   [[result_value:%.*]] = load i32, ptr [[result_addr]]
 // CHECK:   br label %[[result_bb:[0-9]+]]
 
 // CHECK: [[result_bb]]:
 // CHECK:   phi i32 [ [[result_value]], %entry ]
 
-// CHECK: define {{.*}} void @__swift_continuation_await_point(%swift.continuation_context* %0)
-// CHECK:      {{musttail call swifttailcc|tail call swiftcc}} void @swift_continuation_await(%swift.continuation_context* %0)
+// CHECK: define {{.*}} void @__swift_continuation_await_point(ptr %0)
+// CHECK:      {{musttail call swifttailcc|tail call swiftcc}} void @swift_continuation_await(ptr %0)
 // CHECK-NEXT: ret void
 
-// CHECK: define {{.*}} void @async_continuation.0(i8* %0, %swift.context* %1){{.*}}!dbg ![[DBG:[0-9]+]]
+// CHECK: define {{.*}} void @async_continuation.0(ptr %0, ptr %1){{.*}}!dbg ![[DBG:[0-9]+]]
 // CHECK-NOT: define
-// CHECK:  tail call swift{{(tail)?}}cc void %{{.*}}(%swift.context* swiftasync %1)
+// CHECK:  tail call swift{{(tail)?}}cc void %{{.*}}(ptr swiftasync %1)
 // CHECK-NEXT:  ret void
 // CHECK: ![[DBG]] = distinct !DISubprogram(linkageName: "async_continuation"
 

@@ -106,6 +106,12 @@
 
 - (void)doSomethingOverloadedWithCompletionHandler:(void (^ _Nonnull)())completionHandler;
 - (void)doSomethingOverloaded __attribute__((__swift_attr__("@_unavailableFromAsync(message: \"Use async doSomethingOverloaded instead.\")")));
+
+- (BOOL)doSomethingThatCanFailWithHandler:(void (^ _Nonnull)())handler error:(NSError **)error;
+- (BOOL)doSomethingElseThatCanFail:(NSError **)error handler:(void (^ _Nonnull)())handler;
+- (BOOL)doSomethingThatCanFailWithWeirdParameterWithHandler:(void (^ _Nonnull)())handler :(NSError **)error;
+- (int)doSomethingThatCanFailWithWeirdReturnCodeWithError:(NSError **)error __attribute__((swift_error(nonzero_result)));
+
 @end
 
 @protocol PartiallyOptionalProtocol

@@ -98,7 +98,7 @@ ArrayRef<Type> GenericEnvironment::getOpenedPackParams() const {
   return ArrayRef<Type>(begin, getNumOpenedPackParams());
 }
 
-TypeArrayView<GenericTypeParamType>
+ArrayRef<GenericTypeParamType *>
 GenericEnvironment::getGenericParams() const {
   return getGenericSignature().getGenericParams();
 }
@@ -152,7 +152,7 @@ namespace {
 
 struct FindOpenedElementParam {
   ArrayRef<Type> openedPacks;
-  TypeArrayView<GenericTypeParamType> packElementParams;
+  ArrayRef<GenericTypeParamType *> packElementParams;
 
   FindOpenedElementParam(const GenericEnvironment *env,
                          ArrayRef<Type> openedPacks)
@@ -320,8 +320,8 @@ void GenericEnvironment::addMapping(GenericParamKey key,
   getContextTypes()[index] = contextType;
 }
 
-Optional<Type> GenericEnvironment::getMappingIfPresent(
-                                                    GenericParamKey key) const {
+llvm::Optional<Type>
+GenericEnvironment::getMappingIfPresent(GenericParamKey key) const {
   // Find the index into the parallel arrays of generic parameters and
   // context types.
   auto genericParams = getGenericParams();
@@ -331,7 +331,7 @@ Optional<Type> GenericEnvironment::getMappingIfPresent(
   if (auto type = getContextTypes()[index])
     return type;
 
-  return None;
+  return llvm::None;
 }
 
 namespace {
@@ -672,7 +672,7 @@ GenericEnvironment::mapContextualPackTypeIntoElementContext(Type type) const {
   FindElementArchetypeForOpenedPackParam
     findElementArchetype(this, getOpenedPackParams());
 
-  return type.transformRec([&](TypeBase *ty) -> Optional<Type> {
+  return type.transformRec([&](TypeBase *ty) -> llvm::Optional<Type> {
     // We're only directly substituting pack archetypes.
     auto archetype = ty->getAs<PackArchetypeType>();
     if (!archetype) {
@@ -681,7 +681,7 @@ GenericEnvironment::mapContextualPackTypeIntoElementContext(Type type) const {
         return Type(ty);
 
       // Recurse into any other type.
-      return None;
+      return llvm::None;
     }
 
     auto rootArchetype = cast<PackArchetypeType>(archetype->getRoot());
@@ -722,7 +722,7 @@ GenericEnvironment::mapPackTypeIntoElementContext(Type type) const {
   // Map the interface type to the element type by stripping
   // away the isParameterPack bit before mapping type parameters
   // to archetypes.
-  return type.transformRec([&](TypeBase *ty) -> Optional<Type> {
+  return type.transformRec([&](TypeBase *ty) -> llvm::Optional<Type> {
     // We're only directly substituting pack parameters.
     if (!ty->isTypeParameter()) {
       // Don't recurse into nested pack expansions; just map it into
@@ -731,7 +731,7 @@ GenericEnvironment::mapPackTypeIntoElementContext(Type type) const {
         return mapTypeIntoContext(ty);
 
       // Recurse into any other type.
-      return None;
+      return llvm::None;
     }
 
     // Just do normal mapping for types that are not rooted in

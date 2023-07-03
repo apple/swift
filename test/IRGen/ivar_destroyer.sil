@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-objc-interop -emit-ir %s | %FileCheck %s -check-prefix CHECK -check-prefix CHECK-%target-import-type
-// RUN: %target-swift-frontend -enable-objc-interop -emit-ir %s
+// RUN: %target-swift-frontend -enable-objc-interop -emit-ir %s | %FileCheck %s -check-prefix CHECK -check-prefix CHECK-%target-import-type
 
 // REQUIRES: CPU=x86_64
 
@@ -8,14 +7,14 @@
 // CHECK: [[TYPE:%swift.type]] = type
 
 // CHECK-LABEL: @"$s14ivar_destroyer17NonTrivialDerivedCMf" = internal global <{ {{.*}} }> <{
-// CHECK-SAME:    i8* null,
-// CHECK-SAME:    i8** {{@"\$sBoWV"|null}},
-// CHECK-SAME:    i64 ptrtoint ([[OBJCCLASS]]* @"$s14ivar_destroyer17NonTrivialDerivedCMm" to i64),
-// CHECK-DIRECT-SAME:    [[TYPE]]* bitcast (i64* getelementptr inbounds (<{ {{.*}} }>, <{ {{.*}} }>* @"$s14ivar_destroyer11TrivialBaseCMf", i32 0, i32 3) to [[TYPE]]*),
-// CHECK-INDIRECT-SAME:  [[TYPE]]* null,
-// CHECK-SAME:    [[OPAQUE]]* @_objc_empty_cache,
-// CHECK-SAME:    [[OPAQUE]]* null,
-// CHECK-SAME:    i64 add (i64 ptrtoint ({{.*}}* @_DATA__TtC14ivar_destroyer17NonTrivialDerived to i64), i64 {{1|2}}),
+// CHECK-SAME:    ptr null,
+// CHECK-SAME:    ptr {{@"\$sBoWV"|null}},
+// CHECK-SAME:    i64 ptrtoint (ptr @"$s14ivar_destroyer17NonTrivialDerivedCMm" to i64),
+// CHECK-DIRECT-SAME:    ptr getelementptr inbounds (<{ {{.*}} }>, ptr @"$s14ivar_destroyer11TrivialBaseCMf", i32 0, i32 3),
+// CHECK-INDIRECT-SAME:  ptr null,
+// CHECK-SAME:    ptr @_objc_empty_cache,
+// CHECK-SAME:    ptr null,
+// CHECK-SAME:    i64 add (i64 ptrtoint (ptr @_DATA__TtC14ivar_destroyer17NonTrivialDerived to i64), i64 {{1|2}}),
 // CHECK-SAME:    i32 {{3|2}},
 // CHECK-SAME:    i32 0,
 // CHECK-SAME:    i32 24,
@@ -23,9 +22,9 @@
 // CHECK-SAME:    i16 0,
 // CHECK-SAME:    i32 120,
 // CHECK-SAME:    i32 24,
-// CHECK-SAME:    <{ {{.*}} }>* @"$s14ivar_destroyer17NonTrivialDerivedCMn"
-// CHECK-SAME:    void (%T14ivar_destroyer17NonTrivialDerivedC*)* @"$s14ivar_destroyer17NonTrivialDerivedCfE",
-// CHECK-SAME:    %T14ivar_destroyer17NonTrivialDerivedC* ([[TYPE]]*)* @alloc_NonTrivialDerived
+// CHECK-SAME:    ptr @"$s14ivar_destroyer17NonTrivialDerivedCMn"
+// CHECK-SAME:    ptr @"$s14ivar_destroyer17NonTrivialDerivedCfE",
+// CHECK-SAME:    ptr @alloc_NonTrivialDerived
 // CHECK-DIRECT-SAME:    i64 16
 // CHECK-INDIRECT-SAME:  i64 0
 // CHECK-SAME:  }>

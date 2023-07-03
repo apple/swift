@@ -233,7 +233,7 @@ private:
 
   // Argument parsing: Primitives
 
-  Optional<BoolArgument> parseBool() {
+  llvm::Optional<BoolArgument> parseBool() {
     if (consumeAll("true")) {
       return BoolArgument{true};
     } else if (consumeAll("false")) {
@@ -242,20 +242,20 @@ private:
     return llvm::None;
   }
 
-  Optional<UIntArgument> parseUInt() {
+  llvm::Optional<UIntArgument> parseUInt() {
     unsigned long long value;
     if (llvm::consumeUnsignedInteger(specification, /*radix=*/10, value))
       return llvm::None;
     return UIntArgument{value};
   }
 
-  Optional<StringArgument> parseString() {
+  llvm::Optional<StringArgument> parseString() {
     auto retval = StringArgument{specification};
     specification = specification.drop_front(specification.size());
     return retval;
   }
 
-  Optional<TaggedUnion<unsigned long long, long long, StringRef>>
+  llvm::Optional<TaggedUnion<unsigned long long, long long, StringRef>>
   parseSubscript() {
     if (!consumePrefix("["))
       return llvm::None;
@@ -306,7 +306,7 @@ private:
     llvm_unreachable("bad suffix after 'trace'!?");
   }
 
-  Optional<Argument> parseTraceReference(SILFunction *within) {
+  llvm::Optional<Argument> parseTraceReference(SILFunction *within) {
     auto trace = parseTraceComponent(within);
     if (!trace)
       return llvm::None;
@@ -335,7 +335,7 @@ private:
     llvm_unreachable("bad suffix after 'operand'!?");
   }
 
-  Optional<Argument> parseOperandReference(SILInstruction *within) {
+  llvm::Optional<Argument> parseOperandReference(SILInstruction *within) {
     auto *operand = parseOperandComponent(within);
     if (!operand)
       return llvm::None;
@@ -360,7 +360,7 @@ private:
     llvm_unreachable("bad suffix after 'argument'!?");
   }
 
-  Optional<Argument> parseBlockArgumentReference(SILBasicBlock *block) {
+  llvm::Optional<Argument> parseBlockArgumentReference(SILBasicBlock *block) {
     auto *argument = parseBlockArgumentComponent(block);
     if (!argument)
       return llvm::None;
@@ -370,7 +370,7 @@ private:
   using InstructionContext = TaggedUnion<SILFunction *, SILBasicBlock *>;
 
   SILInstruction *
-  parseInstructionComponent(Optional<InstructionContext> within) {
+  parseInstructionComponent(llvm::Optional<InstructionContext> within) {
     if (!consumePrefix("instruction"))
       return nullptr;
     auto getInstructionAtIndex = [](unsigned index, InstructionContext within) {
@@ -404,8 +404,8 @@ private:
     llvm_unreachable("bad suffix after 'instruction'!?");
   }
 
-  Optional<Argument>
-  parseInstructionReference(Optional<InstructionContext> within) {
+  llvm::Optional<Argument>
+  parseInstructionReference(llvm::Optional<InstructionContext> within) {
     auto *instruction = parseInstructionComponent(within);
     if (!instruction)
       return llvm::None;
@@ -443,7 +443,7 @@ private:
     llvm_unreachable("bad suffix after 'block'!?");
   }
 
-  Optional<Argument> parseBlockReference(SILFunction *within) {
+  llvm::Optional<Argument> parseBlockReference(SILFunction *within) {
     auto *block = parseBlockComponent(within);
     if (!block)
       return llvm::None;
@@ -486,7 +486,7 @@ private:
     llvm_unreachable("bad suffix after 'function'!?");
   }
 
-  Optional<Argument> parseFunctionReference(SILModule *within) {
+  llvm::Optional<Argument> parseFunctionReference(SILModule *within) {
     auto *function = parseFunctionComponent(within);
     if (!function)
       return llvm::None;
@@ -503,7 +503,7 @@ private:
     llvm_unreachable("unhandled suffix after 'function'!?");
   }
 
-  Optional<Argument> parseReference() {
+  llvm::Optional<Argument> parseReference() {
     if (!consumePrefix("@"))
       return llvm::None;
     if (auto arg = parseTraceReference(nullptr))

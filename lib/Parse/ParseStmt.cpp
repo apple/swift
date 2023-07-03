@@ -209,7 +209,7 @@ ParserStatus Parser::parseExprOrStmt(ASTNode &Result) {
 /// given that we're in the middle of a switch already.
 static bool isAtStartOfSwitchCase(Parser &parser,
                                   bool needsToBacktrack = true) {
-  Optional<Parser::BacktrackingScope> backtrack;
+  llvm::Optional<Parser::BacktrackingScope> backtrack;
 
   // Check for and consume attributes. The only valid attribute is `@unknown`
   // but that's a semantic restriction.
@@ -371,7 +371,7 @@ ParserStatus Parser::parseBraceItems(SmallVectorImpl<ASTNode> &Entries,
                           IsFollowingGuard);
         });
       if (IfConfigResult.hasCodeCompletion() && isIDEInspectionFirstPass()) {
-        consumeDecl(BeginParserPosition, None, IsTopLevel);
+        consumeDecl(BeginParserPosition, llvm::None, IsTopLevel);
         return IfConfigResult;
       }
       BraceItemsStatus |= IfConfigResult;
@@ -423,7 +423,7 @@ ParserStatus Parser::parseBraceItems(SmallVectorImpl<ASTNode> &Entries,
         NeedParseErrorRecovery = true;
         if (DeclResult.hasCodeCompletion() && IsTopLevel &&
             isIDEInspectionFirstPass()) {
-          consumeDecl(BeginParserPosition, None, IsTopLevel);
+          consumeDecl(BeginParserPosition, llvm::None, IsTopLevel);
           return DeclResult;
         }
       }
@@ -845,7 +845,7 @@ ParserResult<Stmt> Parser::parseStmtYield(SourceLoc tryLoc) {
     auto result = makeParserResult(
       YieldStmt::create(Context, yieldLoc, SourceLoc(), cce, SourceLoc()));
     if (CodeCompletionCallbacks) {
-      CodeCompletionCallbacks->completeYieldStmt(cce, /*index=*/None);
+      CodeCompletionCallbacks->completeYieldStmt(cce, /*index=*/llvm::None);
     }
     result.setHasCodeCompletionAndIsError();
     consumeToken();
@@ -1006,7 +1006,7 @@ ParserResult<Stmt> Parser::parseStmtDefer() {
     // Change the DeclContext for any variables declared in the defer to be within
     // the defer closure.
     ParseFunctionBody cc(*this, tempDecl);
-    llvm::SaveAndRestore<Optional<StableHasher>> T(
+    llvm::SaveAndRestore<llvm::Optional<StableHasher>> T(
         CurrentTokenHash, StableHasher::defaultHasher());
 
     ParserResult<BraceStmt> Body =
@@ -1233,7 +1233,7 @@ validateAvailabilitySpecList(Parser &P,
                              SmallVectorImpl<AvailabilitySpec *> &Specs,
                              Parser::AvailabilitySpecSource Source) {
   llvm::SmallSet<PlatformKind, 4> Platforms;
-  Optional<SourceLoc> OtherPlatformSpecLoc = None;
+  llvm::Optional<SourceLoc> OtherPlatformSpecLoc = llvm::None;
 
   if (Specs.size() == 1 &&
       isa<PlatformAgnosticVersionConstraintAvailabilitySpec>(Specs[0])) {
@@ -1283,7 +1283,7 @@ validateAvailabilitySpecList(Parser &P,
 
   switch (Source) {
   case Parser::AvailabilitySpecSource::Available: {
-    if (OtherPlatformSpecLoc == None) {
+    if (OtherPlatformSpecLoc == llvm::None) {
       SourceLoc InsertWildcardLoc = P.PreviousLoc;
       P.diagnose(InsertWildcardLoc, diag::availability_query_wildcard_required)
         .fixItInsertAfter(InsertWildcardLoc, ", *");
@@ -1291,7 +1291,7 @@ validateAvailabilitySpecList(Parser &P,
     break;
   }
   case Parser::AvailabilitySpecSource::Unavailable: {
-    if (OtherPlatformSpecLoc != None) {
+    if (OtherPlatformSpecLoc != llvm::None) {
       SourceLoc Loc = OtherPlatformSpecLoc.value();
       P.diagnose(Loc, diag::unavailability_query_wildcard_not_required)
         .fixItRemove(Loc);
@@ -1299,7 +1299,7 @@ validateAvailabilitySpecList(Parser &P,
     break;
   }
   case Parser::AvailabilitySpecSource::Macro: {
-    if (OtherPlatformSpecLoc != None) {
+    if (OtherPlatformSpecLoc != llvm::None) {
       SourceLoc Loc = OtherPlatformSpecLoc.value();
       P.diagnose(Loc, diag::attr_availability_wildcard_in_macro);
     }
@@ -1663,7 +1663,7 @@ Parser::parseStmtConditionElement(SmallVectorImpl<StmtConditionElement> &result,
     consumeToken(tok::kw_case);
 
     auto newPatternBindingState = PatternBindingState::get(BindingKindStr)
-      .getValueOr(PatternBindingState(PatternBindingState::InVar));
+      .value_or(PatternBindingState(PatternBindingState::InVar));
     BindingKindStr = "case";
     
     // In our recursive parse, remember that we're in a var/let pattern.
@@ -1693,7 +1693,7 @@ Parser::parseStmtConditionElement(SmallVectorImpl<StmtConditionElement> &result,
     // Otherwise, this is an implicit optional binding "if let".
     ThePattern = parseMatchingPatternAsBinding(
         PatternBindingState::get(BindingKindStr)
-            .getValueOr(PatternBindingState(PatternBindingState::InVar)),
+            .value_or(PatternBindingState(PatternBindingState::InVar)),
         IntroducerLoc,
         /*isExprBasic*/ true);
     // The let/var pattern is part of the statement.
@@ -2191,7 +2191,7 @@ ParserResult<CaseStmt> Parser::parseStmtCatch() {
 
   SmallVector<VarDecl*, 4> boundDecls;
   ParserStatus status;
-  Optional<MutableArrayRef<VarDecl *>> caseBodyDecls;
+  llvm::Optional<MutableArrayRef<VarDecl *>> caseBodyDecls;
   SmallVector<CaseLabelItem, 1> caseLabelItems;
 
   {
@@ -2232,11 +2232,11 @@ ParserResult<CaseStmt> Parser::parseStmtCatch() {
   }
 
   return makeParserResult(
-      status, CaseStmt::create(Context, CaseParentKind::DoCatch, catchLoc,
-                               caseLabelItems,
-                               /*UnknownAttrLoc*/ SourceLoc(),
-                               bodyResult.get()->getStartLoc(),
-                               bodyResult.get(), caseBodyDecls, None, nullptr));
+      status,
+      CaseStmt::create(
+          Context, CaseParentKind::DoCatch, catchLoc, caseLabelItems,
+          /*UnknownAttrLoc*/ SourceLoc(), bodyResult.get()->getStartLoc(),
+          bodyResult.get(), caseBodyDecls, llvm::None, nullptr));
 }
 
 static bool isStmtForCStyle(Parser &P) {
@@ -2546,7 +2546,7 @@ static ParserStatus
 parseStmtCase(Parser &P, SourceLoc &CaseLoc,
               SmallVectorImpl<CaseLabelItem> &LabelItems,
               SmallVectorImpl<VarDecl *> &BoundDecls, SourceLoc &ColonLoc,
-              Optional<MutableArrayRef<VarDecl *>> &CaseBodyDecls) {
+              llvm::Optional<MutableArrayRef<VarDecl *>> &CaseBodyDecls) {
   ParserStatus Status;
   bool isFirst = true;
   
@@ -2708,7 +2708,7 @@ ParserResult<CaseStmt> Parser::parseStmtCase(bool IsActive) {
 
   SourceLoc CaseLoc;
   SourceLoc ColonLoc;
-  Optional<MutableArrayRef<VarDecl *>> CaseBodyDecls;
+  llvm::Optional<MutableArrayRef<VarDecl *>> CaseBodyDecls;
   if (Tok.is(tok::kw_case)) {
     Status |= ::parseStmtCase(*this, CaseLoc, CaseLabelItems, BoundDecls,
                               ColonLoc, CaseBodyDecls);
@@ -2743,8 +2743,8 @@ ParserResult<CaseStmt> Parser::parseStmtCase(bool IsActive) {
   return makeParserResult(
       Status,
       CaseStmt::create(Context, CaseParentKind::Switch, CaseLoc, CaseLabelItems,
-                       UnknownAttrLoc, ColonLoc, Body, CaseBodyDecls, None,
-                       FallthroughFinder::findFallthrough(Body)));
+                       UnknownAttrLoc, ColonLoc, Body, CaseBodyDecls,
+                       llvm::None, FallthroughFinder::findFallthrough(Body)));
 }
 
 /// stmt-pound-assert:

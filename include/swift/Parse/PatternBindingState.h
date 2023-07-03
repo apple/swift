@@ -59,7 +59,7 @@ struct PatternBindingState {
 
   operator Kind() const { return kind; }
 
-  static Optional<PatternBindingState> get(StringRef str) {
+  static llvm::Optional<PatternBindingState> get(StringRef str) {
     auto kind = llvm::StringSwitch<Kind>(str)
                     .Case("let", Kind::InLet)
                     .Case("var", Kind::InVar)
@@ -103,12 +103,12 @@ struct PatternBindingState {
 
   /// If there is a direct introducer associated with this pattern binding
   /// state, return that. Return none otherwise.
-  Optional<VarDecl::Introducer> getIntroducer() const {
+  llvm::Optional<VarDecl::Introducer> getIntroducer() const {
     switch (kind) {
     case Kind::NotInBinding:
     case Kind::InMatchingPattern:
     case Kind::ImplicitlyImmutable:
-      return None;
+      return llvm::None;
     case Kind::InVar:
       return VarDecl::Introducer::Var;
     case Kind::InLet:
@@ -123,7 +123,7 @@ struct PatternBindingState {
     return PatternBindingState(getIntroducer().value_or(defaultValue));
   }
 
-  Optional<unsigned> getSelectIndexForIntroducer() const {
+  llvm::Optional<unsigned> getSelectIndexForIntroducer() const {
     switch (kind) {
     case Kind::InLet:
       return 0;
@@ -132,7 +132,7 @@ struct PatternBindingState {
     case Kind::InVar:
       return 2;
     default:
-      return None;
+      return llvm::None;
     }
   }
 

@@ -82,6 +82,10 @@ struct HasNSOptionField {
   Bar bar;
 };
 
+@interface HasNSOptionFieldObjC
+@property Bar bar;
+@end
+
 Baz CFunctionReturningNSOption();
 void CFunctionTakingNSOption(Baz);
 

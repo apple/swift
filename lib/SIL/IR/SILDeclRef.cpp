@@ -185,16 +185,16 @@ SILDeclRef::SILDeclRef(SILDeclRef::Loc baseLoc,
   pointer = prespecializedSig.getPointer();
 }
 
-Optional<AnyFunctionRef> SILDeclRef::getAnyFunctionRef() const {
+llvm::Optional<AnyFunctionRef> SILDeclRef::getAnyFunctionRef() const {
   switch (getLocKind()) {
   case LocKind::Decl:
     if (auto *afd = getAbstractFunctionDecl())
       return AnyFunctionRef(afd);
-    return None;
+    return llvm::None;
   case LocKind::Closure:
     return AnyFunctionRef(getAbstractClosureExpr());
   case LocKind::File:
-    return None;
+    return llvm::None;
   }
   llvm_unreachable("Unhandled case in switch");
 }
@@ -219,12 +219,13 @@ ASTContext &SILDeclRef::getASTContext() const {
   return DC->getASTContext();
 }
 
-Optional<AvailabilityContext> SILDeclRef::getAvailabilityForLinkage() const {
+llvm::Optional<AvailabilityContext>
+SILDeclRef::getAvailabilityForLinkage() const {
   // Back deployment thunks and fallbacks don't have availability since they
   // are non-ABI.
   // FIXME: Generalize this check to all kinds of non-ABI functions.
   if (backDeploymentKind != SILDeclRef::BackDeploymentKind::None)
-    return None;
+    return llvm::None;
 
   return getDecl()->getAvailabilityForLinkage();
 }

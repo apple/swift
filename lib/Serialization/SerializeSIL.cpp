@@ -498,7 +498,7 @@ void SILSerializer::writeSILFunction(const SILFunction &F, bool DeclOnly) {
       numAttrs++;
     });
 
-  Optional<llvm::VersionTuple> available;
+  llvm::Optional<llvm::VersionTuple> available;
   auto availability = F.getAvailabilityForLinkage();
   if (!availability.isAlwaysAvailable()) {
     available = availability.getOSVersion().getLowerEndpoint();
@@ -1057,8 +1057,12 @@ void SILSerializer::writeSILInstruction(const SILInstruction &SI) {
     const AllocRefInstBase *ARI = cast<AllocRefInstBase>(&SI);
     unsigned abbrCode = SILAbbrCodes[SILOneTypeValuesLayout::Code];
     SmallVector<ValueID, 4> Args;
+    bool isBare = false;
+    if (auto *ar = dyn_cast<AllocRefInst>(&SI))
+      isBare = ar->isBare();
     Args.push_back((unsigned)ARI->isObjC() |
-                   ((unsigned)ARI->canAllocOnStack() << 1));
+                   ((unsigned)ARI->canAllocOnStack() << 1) |
+                   ((unsigned)isBare << 2));
     ArrayRef<SILType> TailTypes = ARI->getTailAllocatedTypes();
     ArrayRef<Operand> AllOps = ARI->getAllOperands();
     unsigned NumTailAllocs = TailTypes.size();
@@ -1250,9 +1254,12 @@ void SILSerializer::writeSILInstruction(const SILInstruction &SI) {
     const GlobalAccessInst *GI = cast<GlobalAccessInst>(&SI);
     auto *G = GI->getReferencedGlobal();
     addReferencedGlobalVariable(G);
+    bool isBare = false;
+    if (auto *gv = dyn_cast<GlobalValueInst>(&SI))
+      isBare = gv->isBare();
     SILOneOperandLayout::emitRecord(Out, ScratchRecord,
         SILAbbrCodes[SILOneOperandLayout::Code],
-        (unsigned)SI.getKind(), 0,
+        (unsigned)SI.getKind(), isBare ? 1 : 0,
         S.addTypeRef(GI->getType().getRawASTType()),
         (unsigned)GI->getType().getCategory(),
         S.addUniquedStringRef(G->getName()));
@@ -1381,30 +1388,29 @@ void SILSerializer::writeSILInstruction(const SILInstruction &SI) {
     // for condition, the list has value for condition, result type,
     //   hasDefault, default
     // basic block ID, a list of (DeclID, BasicBlock ID).
-    const SelectEnumInstBase *SOI = cast<SelectEnumInstBase>(&SI);
+    auto SEO = SelectEnumOperation(&SI);
     SmallVector<ValueID, 4> ListOfValues;
-    ListOfValues.push_back(addValueRef(SOI->getEnumOperand()));
-    ListOfValues.push_back(S.addTypeRef(SOI->getType().getRawASTType()));
-    ListOfValues.push_back((unsigned)SOI->getType().getCategory());
-    ListOfValues.push_back((unsigned)SOI->hasDefault());
-    if (SOI->hasDefault()) {
-      ListOfValues.push_back(addValueRef(SOI->getDefaultResult()));
+    ListOfValues.push_back(addValueRef(SEO.getEnumOperand()));
+    ListOfValues.push_back(S.addTypeRef(SEO->getType().getRawASTType()));
+    ListOfValues.push_back((unsigned)SEO->getType().getCategory());
+    ListOfValues.push_back((unsigned)SEO.hasDefault());
+    if (SEO.hasDefault()) {
+      ListOfValues.push_back(addValueRef(SEO.getDefaultResult()));
     } else {
       ListOfValues.push_back(0);
     }
-    for (unsigned i = 0, e = SOI->getNumCases(); i < e; ++i) {
+    for (unsigned i = 0, e = SEO.getNumCases(); i < e; ++i) {
       EnumElementDecl *elt;
       SILValue result;
-      std::tie(elt, result) = SOI->getCase(i);
+      std::tie(elt, result) = SEO.getCase(i);
       ListOfValues.push_back(S.addDeclRef(elt));
       ListOfValues.push_back(addValueRef(result));
     }
-    SILOneTypeValuesLayout::emitRecord(Out, ScratchRecord,
-        SILAbbrCodes[SILOneTypeValuesLayout::Code],
+    SILOneTypeValuesLayout::emitRecord(
+        Out, ScratchRecord, SILAbbrCodes[SILOneTypeValuesLayout::Code],
         (unsigned)SI.getKind(),
-        S.addTypeRef(SOI->getEnumOperand()->getType().getRawASTType()),
-        (unsigned)SOI->getEnumOperand()->getType().getCategory(),
-        ListOfValues);
+        S.addTypeRef(SEO.getEnumOperand()->getType().getRawASTType()),
+        (unsigned)SEO.getEnumOperand()->getType().getCategory(), ListOfValues);
     break;
   }
   case SILInstructionKind::SwitchValueInst: {

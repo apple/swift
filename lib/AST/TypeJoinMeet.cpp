@@ -202,20 +202,20 @@ CanType TypeJoin::visitBoundGenericClassType(CanType second) {
 /// The subtype relationship of Optionals is as follows:
 ///   S  <: S?
 ///   S? <: T? if S <: T (covariant)
-static Optional<CanType> joinOptional(CanType first, CanType second) {
+static llvm::Optional<CanType> joinOptional(CanType first, CanType second) {
   auto firstObject = first.getOptionalObjectType();
   auto secondObject = second.getOptionalObjectType();
 
   // If neither is any kind of Optional, we're done.
   if (!firstObject && !secondObject)
-    return None;
+    return llvm::None;
 
   first = (firstObject ? firstObject : first);
   second = (secondObject ? secondObject : second);
 
   auto join = TypeJoin::join(first, second);
   if (!join)
-    return None;
+    return llvm::None;
 
   return OptionalType::get(join)->getCanonicalType();
 }
@@ -491,16 +491,16 @@ CanType TypeJoin::visitBuiltinType(CanType second) {
 
 } // namespace
 
-Optional<Type> Type::join(Type first, Type second) {
+llvm::Optional<Type> Type::join(Type first, Type second) {
   assert(first && second && "Unexpected null type!");
 
   if (!first || !second)
-    return None;
+    return llvm::None;
 
   auto join =
       TypeJoin::join(first->getCanonicalType(), second->getCanonicalType());
   if (!join)
-    return None;
+    return llvm::None;
 
   return join;
 }

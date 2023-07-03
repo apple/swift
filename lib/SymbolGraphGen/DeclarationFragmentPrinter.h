@@ -88,15 +88,12 @@ private:
   unsigned NumFragments;
 
 public:
-  DeclarationFragmentPrinter(const SymbolGraph *SG,
-                             llvm::json::OStream &OS,
-                             Optional<StringRef> Key = None,
-                             SmallPtrSet<const Decl*, 8> *ReferencedDecls = nullptr)
-    : SG(SG),
-      OS(OS),
-      Kind(FragmentKind::None),
-      ReferencedDecls(ReferencedDecls),
-      NumFragments(0) {
+  DeclarationFragmentPrinter(
+      const SymbolGraph *SG, llvm::json::OStream &OS,
+      llvm::Optional<StringRef> Key = llvm::None,
+      SmallPtrSet<const Decl *, 8> *ReferencedDecls = nullptr)
+      : SG(SG), OS(OS), Kind(FragmentKind::None),
+        ReferencedDecls(ReferencedDecls), NumFragments(0) {
     if (Key) {
       OS.attributeBegin(*Key);
       OS.arrayBegin();

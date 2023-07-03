@@ -72,18 +72,18 @@ public:
 
   unsigned size() const { return PostOrder.size(); }
 
-  Optional<unsigned> getPONumber(SILBasicBlock *BB) const {
+  llvm::Optional<unsigned> getPONumber(SILBasicBlock *BB) const {
     auto Iter = BBToPOMap.find(BB);
     if (Iter != BBToPOMap.end())
       return Iter->second;
-    return None;
+    return llvm::None;
   }
 
-  Optional<unsigned> getRPONumber(SILBasicBlock *BB) const {
+  llvm::Optional<unsigned> getRPONumber(SILBasicBlock *BB) const {
     auto Iter = BBToPOMap.find(BB);
     if (Iter != BBToPOMap.end())
       return PostOrder.size() - Iter->second - 1;
-    return None;
+    return llvm::None;
   }
 };
 

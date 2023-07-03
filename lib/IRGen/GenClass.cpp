@@ -101,7 +101,7 @@ namespace {
     // added before the class fields, and the tail elements themselves
     // come after. We don't make a ClassLayout in this case, only a
     // StructLayout.
-    Optional<ArrayRef<SILType>> TailTypes;
+    llvm::Optional<ArrayRef<SILType>> TailTypes;
 
     // Normally, Swift only emits static metadata for a class if it has no
     // generic ancestry and no fields with resilient value types, which
@@ -135,10 +135,9 @@ namespace {
     ClassLayoutBuilder(IRGenModule &IGM, SILType classType,
                        ReferenceCounting refcounting,
                        bool completelyFragileLayout,
-                       Optional<ArrayRef<SILType>> tailTypes = None)
-      : StructLayoutBuilder(IGM),
-        TailTypes(tailTypes),
-        CompletelyFragileLayout(completelyFragileLayout) {
+                       llvm::Optional<ArrayRef<SILType>> tailTypes = llvm::None)
+        : StructLayoutBuilder(IGM), TailTypes(tailTypes),
+          CompletelyFragileLayout(completelyFragileLayout) {
       // Start by adding a heap header.
       switch (refcounting) {
       case ReferenceCounting::Native:
@@ -672,7 +671,7 @@ OwnedAddress irgen::projectPhysicalClassMemberAddress(IRGenFunction &IGF,
   case FieldAccess::ConstantDirect: {
     Address baseAddr(base, classLayout.getType(), classLayout.getAlignment());
     auto element = fieldInfo.second;
-    Address memberAddr = element.project(IGF, baseAddr, None);
+    Address memberAddr = element.project(IGF, baseAddr, llvm::None);
     // We may need to bitcast the address if the field is of a generic type.
     if (memberAddr.getElementType() != fieldTI.getStorageType())
       memberAddr = IGF.Builder.CreateElementBitCast(memberAddr,
@@ -858,7 +857,8 @@ irgen::appendSizeForTailAllocatedArrays(IRGenFunction &IGF,
 
 /// Emit an allocation of a class.
 llvm::Value *irgen::emitClassAllocation(IRGenFunction &IGF, SILType selfType,
-                                        bool objc, int &StackAllocSize,
+                                        bool objc, bool isBare,
+                                        int &StackAllocSize,
                                         TailArraysRef TailArrays) {
   auto &classTI = IGF.getTypeInfo(selfType).as<ClassTypeInfo>();
   auto classType = selfType.getASTType();
@@ -875,10 +875,6 @@ llvm::Value *irgen::emitClassAllocation(IRGenFunction &IGF, SILType selfType,
     return emitObjCAllocObjectCall(IGF, metadata, selfType);
   }
 
-  llvm::Value *metadata =
-    emitClassHeapMetadataRef(IGF, classType, MetadataValueType::TypeMetadata,
-                             MetadataState::Complete);
-
   auto &classLayout = classTI.getClassLayout(IGF.IGM, selfType,
                                              /*forBackwardDeployment=*/false);
 
@@ -886,9 +882,21 @@ llvm::Value *irgen::emitClassAllocation(IRGenFunction &IGF, SILType selfType,
   llvm::Value *val = nullptr;
   if (llvm::Value *Promoted = stackPromote(IGF, classLayout, StackAllocSize,
                                            TailArrays)) {
-    val = IGF.Builder.CreateBitCast(Promoted, IGF.IGM.RefCountedPtrTy);
-    val = IGF.emitInitStackObjectCall(metadata, val, "reference.new");
+    if (isBare) {
+      val = Promoted;
+    } else {
+      llvm::Value *metadata =
+        emitClassHeapMetadataRef(IGF, classType, MetadataValueType::TypeMetadata,
+                                 MetadataState::Complete);
+
+      val = IGF.Builder.CreateBitCast(Promoted, IGF.IGM.RefCountedPtrTy);
+      val = IGF.emitInitStackObjectCall(metadata, val, "reference.new");
+    }
   } else {
+    llvm::Value *metadata =
+      emitClassHeapMetadataRef(IGF, classType, MetadataValueType::TypeMetadata,
+                               MetadataState::Complete);
+
     llvm::Value *size, *alignMask;
     if (classLayout.isFixedSize()) {
       size = IGF.IGM.getSize(classLayout.getSize());
@@ -1112,7 +1120,7 @@ namespace {
       }
       return nullptr;
     }
-    Optional<CanType> getSpecializedGenericType() const {
+    llvm::Optional<CanType> getSpecializedGenericType() const {
       const ClassUnion *classUnion;
       if (!(classUnion = TheEntity.dyn_cast<ClassUnion>())) {
         return llvm::None;
@@ -1125,14 +1133,14 @@ namespace {
       return pair.second;
     }
 
-    Optional<StringRef> getObjCImplCategoryName() const {
+    llvm::Optional<StringRef> getObjCImplCategoryName() const {
       if (!TheExtension || !TheExtension->isObjCImplementation())
-        return None;
+        return llvm::None;
       if (auto ident = TheExtension->getCategoryNameForObjCImplementation()) {
         assert(!ident->empty());
         return ident->str();
       }
-      return None;
+      return llvm::None;
     }
     bool isBuildingClass() const {
       return TheEntity.isa<ClassUnion>() && !TheExtension;
@@ -1346,7 +1354,8 @@ namespace {
     void buildMetaclassStub() {
       assert(FieldLayout && "can't build a metaclass from a category");
 
-      Optional<CanType> specializedGenericType = getSpecializedGenericType();
+      llvm::Optional<CanType> specializedGenericType =
+          getSpecializedGenericType();
 
       // The isa is the metaclass pointer for the root class.
       auto rootClass = getRootClassForMetaclass(IGM, getClass());
@@ -1587,7 +1596,7 @@ namespace {
       //     const uint8_t *IvarLayout;
       //     ClassMetadata *NonMetaClass;
       // };
-      Optional<CanType> specializedGenericType;
+      llvm::Optional<CanType> specializedGenericType;
       if ((specializedGenericType = getSpecializedGenericType()) && forMeta) {
         //     ClassMetadata *NonMetaClass;
         b.addBitCast(IGM.getAddrOfTypeMetadata(*specializedGenericType),

@@ -753,7 +753,8 @@ bool SameShapeExpansionFailure::diagnoseAsError() {
   return true;
 }
 
-Optional<Diag<Type, Type>> GenericArgumentsMismatchFailure::getDiagnosticFor(
+llvm::Optional<Diag<Type, Type>>
+GenericArgumentsMismatchFailure::getDiagnosticFor(
     ContextualTypePurpose context) {
   switch (context) {
   case CTP_Initialization:
@@ -802,7 +803,7 @@ Optional<Diag<Type, Type>> GenericArgumentsMismatchFailure::getDiagnosticFor(
   case CTP_SingleValueStmtBranch:
     break;
   }
-  return None;
+  return llvm::None;
 }
 
 void GenericArgumentsMismatchFailure::emitNoteForMismatch(int position) {
@@ -858,7 +859,7 @@ bool GenericArgumentsMismatchFailure::diagnoseAsError() {
 
   path = path.drop_back(toDrop);
 
-  Optional<Diag<Type, Type>> diagnostic;
+  llvm::Optional<Diag<Type, Type>> diagnostic;
   if (path.empty()) {
     if (isExpr<AssignExpr>(anchor)) {
       diagnostic = getDiagnosticFor(CTP_AssignSource);
@@ -2045,7 +2046,7 @@ bool AssignmentFailure::diagnoseAsError() {
   // Walk through the destination expression, resolving what the problem is.  If
   // we find a node in the lvalue path that is problematic, this returns it.
   Expr *immutableExpr;
-  Optional<OverloadChoice> choice;
+  llvm::Optional<OverloadChoice> choice;
   std::tie(immutableExpr, choice) = resolveImmutableBase(DestExpr);
 
   // Attempt diagnostics based on the overload choice.
@@ -2265,7 +2266,7 @@ bool AssignmentFailure::diagnoseAsError() {
   return true;
 }
 
-std::pair<Expr *, Optional<OverloadChoice>>
+std::pair<Expr *, llvm::Optional<OverloadChoice>>
 AssignmentFailure::resolveImmutableBase(Expr *expr) const {
   auto *DC = getDC();
   expr = expr->getValueProvidingExpr();
@@ -2295,7 +2296,7 @@ AssignmentFailure::resolveImmutableBase(Expr *expr) const {
       }
     }
 
-    Optional<OverloadChoice> member = getMemberRef(
+    llvm::Optional<OverloadChoice> member = getMemberRef(
         getConstraintLocator(SE, ConstraintLocator::SubscriptMember));
 
     // If it isn't settable, return it.
@@ -2363,7 +2364,7 @@ AssignmentFailure::resolveImmutableBase(Expr *expr) const {
     if (member && member->isDecl() && isImmutable(member->getDecl()))
       return {expr, member};
     else
-      return {expr, None};
+      return {expr, llvm::None};
   }
 
   if (auto *DRE = dyn_cast<DeclRefExpr>(expr))
@@ -2386,14 +2387,14 @@ AssignmentFailure::resolveImmutableBase(Expr *expr) const {
   if (auto *SAE = dyn_cast<SelfApplyExpr>(expr))
     return resolveImmutableBase(SAE->getFn());
 
-  return {expr, None};
+  return {expr, llvm::None};
 }
 
-Optional<OverloadChoice>
+llvm::Optional<OverloadChoice>
 AssignmentFailure::getMemberRef(ConstraintLocator *locator) const {
   auto member = getOverloadChoiceIfAvailable(locator);
   if (!member)
-    return None;
+    return llvm::None;
 
   if (!member->choice.isDecl())
     return member->choice;
@@ -2417,11 +2418,12 @@ AssignmentFailure::getMemberRef(ConstraintLocator *locator) const {
           locator, LocatorPathElt::KeyPathDynamicMember(keyPath));
 
       auto memberRef = getOverloadChoiceIfAvailable(memberLoc);
-      return memberRef ? Optional<OverloadChoice>(memberRef->choice) : None;
+      return memberRef ? llvm::Optional<OverloadChoice>(memberRef->choice)
+                       : llvm::None;
     }
 
     // If this is a string based dynamic lookup, there is no member declaration.
-    return None;
+    return llvm::None;
   }
 
   return member->choice;
@@ -2771,7 +2773,7 @@ bool ContextualFailure::diagnoseAsNote() {
   return true;
 }
 
-static Optional<Diag<Type>>
+static llvm::Optional<Diag<Type>>
 getContextualNilDiagnostic(ContextualTypePurpose CTP) {
   switch (CTP) {
   case CTP_Unused:
@@ -2798,7 +2800,7 @@ getContextualNilDiagnostic(ContextualTypePurpose CTP) {
   case CTP_ComposedPropertyWrapper:
   case CTP_ExprPattern:
   case CTP_SingleValueStmtBranch:
-    return None;
+    return llvm::None;
 
   case CTP_EnumCaseRawValue:
     return diag::cannot_convert_raw_initializer_value_nil;
@@ -2837,7 +2839,7 @@ bool ContextualFailure::diagnoseConversionToNil() const {
 
   auto *locator = getLocator();
 
-  Optional<ContextualTypePurpose> CTP;
+  llvm::Optional<ContextualTypePurpose> CTP;
   // Easy case were failure has been identified as contextual already.
   if (auto contextualTy =
           locator->getLastElementAs<LocatorPathElt::ContextualType>()) {
@@ -3497,7 +3499,7 @@ bool ContextualFailure::isIntegerToStringIndexConversion() const {
           toType.getString() == "String.CharacterView.Index");
 }
 
-Optional<Diag<Type, Type>>
+llvm::Optional<Diag<Type, Type>>
 ContextualFailure::getDiagnosticFor(ContextualTypePurpose context,
                                     Type contextualType) {
   auto forProtocol = contextualType->isConstraintType();
@@ -3584,7 +3586,7 @@ ContextualFailure::getDiagnosticFor(ContextualTypePurpose context,
   case CTP_ExprPattern:
     break;
   }
-  return None;
+  return llvm::None;
 }
 
 bool NonClassTypeToAnyObjectConversionFailure::diagnoseAsError() {
@@ -3602,7 +3604,7 @@ bool NonClassTypeToAnyObjectConversionFailure::diagnoseAsError() {
     return failure.diagnoseAsError();
   }
 
-  Optional<Diag<Type, Type>> diagnostic;
+  llvm::Optional<Diag<Type, Type>> diagnostic;
 
   bool forProtocol = toType->isConstraintType();
   auto rawAnchor = getRawAnchor();
@@ -3623,7 +3625,7 @@ bool NonClassTypeToAnyObjectConversionFailure::diagnoseAsError() {
     diagnostic = diag::cannot_convert_initializer_value_anyobject;
   }
 
-  if (diagnostic.hasValue()) {
+  if (diagnostic.has_value()) {
     emitDiagnostic(*diagnostic, fromType, toType);
     return true;
   }
@@ -4747,7 +4749,7 @@ bool AllowTypeOrInstanceMemberFailure::diagnoseAsError() {
     // If the base of the lookup is a protocol metatype, suggest
     // to replace the metatype with 'Self'
     // error saying the lookup cannot be on a protocol metatype
-    Optional<InFlightDiagnostic> Diag;
+    llvm::Optional<InFlightDiagnostic> Diag;
     auto baseTy = BaseType;
 
     if (auto metatypeTy = baseTy->getAs<AnyMetatypeType>()) {
@@ -5463,7 +5465,7 @@ bool MissingArgumentsFailure::isMisplacedMissingArgument(
   return TypeChecker::isConvertibleTo(argType, paramType, solution.getDC());
 }
 
-Optional<std::pair<Expr *, ArgumentList *>>
+llvm::Optional<std::pair<Expr *, ArgumentList *>>
 MissingArgumentsFailure::getCallInfo(ASTNode anchor) const {
   if (auto *call = getAsExpr<CallExpr>(anchor)) {
     return std::make_pair(call->getFn(), call->getArgs());
@@ -5474,7 +5476,7 @@ MissingArgumentsFailure::getCallInfo(ASTNode anchor) const {
   } else if (auto *ME = getAsExpr<MacroExpansionExpr>(anchor)) {
     return std::make_pair((Expr *)ME, ME->getArgs());
   }
-  return None;
+  return llvm::None;
 }
 
 void MissingArgumentsFailure::forFixIt(
@@ -6154,6 +6156,72 @@ bool NotCompileTimeConstFailure::diagnoseAsError() {
 }
 
 bool NotCopyableFailure::diagnoseAsError() {
+  switch (failure.getKind()) {
+  case NoncopyableMatchFailure::ExistentialCast: {
+    if (noncopyableTy->is<AnyMetatypeType>())
+      emitDiagnostic(diag::noncopyable_generics_metatype_cast,
+                     noncopyableTy,
+                     failure.getType(),
+                     noncopyableTy->getMetatypeInstanceType());
+    else
+      emitDiagnostic(diag::noncopyable_generics_erasure,
+                     noncopyableTy,
+                     failure.getType());
+    return true;
+  }
+
+  case NoncopyableMatchFailure::CopyableConstraint: {
+    auto *loc = getLocator();
+
+    if (loc->isLastElement<LocatorPathElt::AnyTupleElement>()) {
+      assert(!noncopyableTy->is<TupleType>() && "will use poor wording");
+      emitDiagnostic(diag::tuple_move_only_not_supported, noncopyableTy);
+      return true;
+    }
+
+    if (loc->isLastElement<LocatorPathElt::PackElement>()) {
+      emitDiagnostic(diag::noncopyable_element_of_pack_not_supported,
+                     noncopyableTy);
+      return true;
+    }
+
+    // a bit paranoid of nulls and such...
+    if (auto *genericParam = loc->getGenericParameter()) {
+      if (auto *paramDecl = genericParam->getDecl()) {
+        if (auto *owningDecl =
+            dyn_cast_or_null<ValueDecl>(paramDecl->getDeclContext()->getAsDecl())) {
+
+          // FIXME: these owningDecl names are kinda bad. like just `init(describing:)`
+          if (noncopyableTy->is<AnyMetatypeType>())
+            emitDiagnostic(diag::noncopyable_generics_generic_param_metatype,
+                           noncopyableTy->getMetatypeInstanceType(),
+                           paramDecl->getDescriptiveKind(),
+                           genericParam,
+                           owningDecl->getName(),
+                           noncopyableTy);
+          else
+            emitDiagnostic(diag::noncopyable_generics_generic_param,
+                           noncopyableTy,
+                           paramDecl->getDescriptiveKind(),
+                           genericParam,
+                           owningDecl->getName());
+
+          // If we have a location for the parameter, point it out in a note.
+          if (auto loc = paramDecl->getNameLoc()) {
+            emitDiagnosticAt(loc,
+                             diag::noncopyable_generics_implicit_copyable,
+                             paramDecl->getDescriptiveKind(),
+                             genericParam);
+          }
+
+          return true;
+        }
+      }
+    }
+    break;
+  }
+  }
+
   emitDiagnostic(diag::noncopyable_generics, noncopyableTy);
   return true;
 }
@@ -6285,7 +6353,7 @@ bool MissingContextualConformanceFailure::diagnoseAsError() {
   auto anchor = getAnchor();
   auto path = getLocator()->getPath();
 
-  Optional<Diag<Type, Type>> diagnostic;
+  llvm::Optional<Diag<Type, Type>> diagnostic;
   if (path.empty()) {
     assert(isExpr<AssignExpr>(anchor));
     if (isa<SubscriptExpr>(castToExpr<AssignExpr>(anchor)->getDest())) {
@@ -7523,7 +7591,7 @@ void NonEphemeralConversionFailure::emitSuggestionNotes() const {
     AK_MutableTyped,
   };
 
-  auto getAlternativeKind = [&]() -> Optional<AlternativeKind> {
+  auto getAlternativeKind = [&]() -> llvm::Optional<AlternativeKind> {
     switch (getPointerKind(getParamType())) {
     case PTK_UnsafeRawPointer:
       return AK_Raw;
@@ -7534,7 +7602,7 @@ void NonEphemeralConversionFailure::emitSuggestionNotes() const {
     case PTK_UnsafeMutablePointer:
       return AK_MutableTyped;
     case PTK_AutoreleasingUnsafeMutablePointer:
-      return None;
+      return llvm::None;
     }
     llvm_unreachable("invalid pointer kind");
   };
@@ -8039,7 +8107,7 @@ bool UnableToInferKeyPathRootFailure::diagnoseAsError() {
   return true;
 }
 
-Optional<Diag<Type, Type>>
+llvm::Optional<Diag<Type, Type>>
 AbstractRawRepresentableFailure::getDiagnostic() const {
   auto *locator = getLocator();
 
@@ -8051,7 +8119,7 @@ AbstractRawRepresentableFailure::getDiagnostic() const {
     return diag::cannot_convert_argument_value;
   }
 
-  return None;
+  return llvm::None;
 }
 
 bool AbstractRawRepresentableFailure::diagnoseAsError() {
@@ -8067,7 +8135,7 @@ bool AbstractRawRepresentableFailure::diagnoseAsError() {
 bool AbstractRawRepresentableFailure::diagnoseAsNote() {
   auto *locator = getLocator();
 
-  Optional<InFlightDiagnostic> diagnostic;
+  llvm::Optional<InFlightDiagnostic> diagnostic;
   if (locator->isForContextualType()) {
     auto overload = getCalleeOverloadChoiceIfAvailable(locator);
     if (!overload)
@@ -9094,5 +9162,16 @@ bool MissingEachForValuePackReference::diagnoseAsError() {
 
 bool InvalidMemberReferenceWithinInitAccessor::diagnoseAsError() {
   emitDiagnostic(diag::init_accessor_invalid_member_ref, MemberName);
+  return true;
+}
+
+bool ConcreteTypeSpecialization::diagnoseAsError() {
+  emitDiagnostic(diag::not_a_generic_type, ConcreteType);
+  return true;
+}
+
+bool InvalidTypeSpecializationArity::diagnoseAsError() {
+  emitDiagnostic(diag::type_parameter_count_mismatch, D->getBaseIdentifier(),
+                 NumParams, NumArgs, NumArgs < NumParams, HasParameterPack);
   return true;
 }

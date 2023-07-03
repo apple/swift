@@ -85,8 +85,9 @@ class BugReducerTester : public SILFunctionTransform {
     auto FuncType = SILFunctionType::get(
         nullptr, SILFunctionType::ExtInfo::getThin(), SILCoroutineKind::None,
         ParameterConvention::Direct_Unowned, ArrayRef<SILParameterInfo>(),
-        ArrayRef<SILYieldInfo>(), ResultInfoArray, None, SubstitutionMap(),
-        SubstitutionMap(), getFunction()->getModule().getASTContext());
+        ArrayRef<SILYieldInfo>(), ResultInfoArray, llvm::None,
+        SubstitutionMap(), SubstitutionMap(),
+        getFunction()->getModule().getASTContext());
 
     SILOptFunctionBuilder FunctionBuilder(*this);
     SILFunction *F = FunctionBuilder.getOrCreateSharedFunction(

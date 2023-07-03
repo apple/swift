@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -emit-ir %s -swift-version 5 -target %target-cpu-apple-macosx11.0 -module-name actor_class_objc | %IRGenFileCheck %s
-// RUN: %target-swift-frontend -emit-ir %s -swift-version 5 -target %target-cpu-apple-macosx11.0 -module-name actor_class_objc
+// RUN: %target-swift-frontend -emit-ir %s -swift-version 5 -target %target-cpu-apple-macosx11.0 -module-name actor_class_objc | %IRGenFileCheck %s
 // REQUIRES: concurrency
 // REQUIRES: objc_interop
 // REQUIRES: OS=macosx
@@ -7,11 +6,11 @@
 import Foundation
 
 // CHECK: %T16actor_class_objc7MyClassC = type <{ %swift.refcounted, %swift.defaultactor, %TSi }>
-// CHECK: %swift.defaultactor = type { [12 x i8*] }
+// CHECK: %swift.defaultactor = type { [12 x ptr] }
 
 // CHECK-LABEL: @"OBJC_METACLASS_$__TtC16actor_class_objc7MyClass" = global
 //   Metaclass is an instance of the root class.
-// CHECK-SAME: %objc_class* {{.*}}@"OBJC_METACLASS_$_NSObject{{(.ptrauth)?}}"
+// CHECK-SAME: ptr {{.*}}@"OBJC_METACLASS_$_NSObject{{(.ptrauth)?}}"
 
 // CHECK: @"$s16actor_class_objc7MyClassCMf" = internal global
 // CHECK-SAME: @"$s16actor_class_objc7MyClassCfD{{(.ptrauth)?}}"
@@ -41,20 +40,19 @@ import Foundation
 
 
 // CHECK-LABEL: define {{.*}} @"$s16actor_class_objc7MyClassC1xSivg"
-// CHECK: [[T0:%.*]] = getelementptr inbounds %T16actor_class_objc7MyClassC, %T16actor_class_objc7MyClassC* %0, i32 0, i32 2
-// CHECK: [[T1:%.*]] = getelementptr inbounds %TSi, %TSi* [[T0]], i32 0, i32 0
-// CHECK: load [[INT]], [[INT]]* [[T1]], align
+// CHECK: [[T0:%.*]] = getelementptr inbounds %T16actor_class_objc7MyClassC, ptr %0, i32 0, i32 2
+// CHECK: [[T1:%.*]] = getelementptr inbounds %TSi, ptr [[T0]], i32 0, i32 0
+// CHECK: load [[INT]], ptr [[T1]], align
 
-// CHECK-LABEL: define {{.*}}swiftcc %T16actor_class_objc7MyClassC* @"$s16actor_class_objc7MyClassCACycfc"
+// CHECK-LABEL: define {{.*}}swiftcc ptr @"$s16actor_class_objc7MyClassCACycfc"
 // CHECK: swift_defaultActor_initialize
-// CHECK-LABEL: ret %T16actor_class_objc7MyClassC*
+// CHECK-LABEL: ret ptr
 
 // CHECK: swift_defaultActor_destroy
 
 // CHECK-LABEL: define private void @_swift_objc_actor_initialization()
-// CHECK: [[SWIFT_NATIVE_NSOBJECT_CLASS:%.*]]  = call %objc_class* @objc_getRequiredClass(i8* getelementptr inbounds ([20 x i8], [20 x i8]* [[SWIFT_NATIVE_NSOBJECT_NAME]]
+// CHECK: [[SWIFT_NATIVE_NSOBJECT_CLASS:%.*]]  = call ptr @objc_getRequiredClass(ptr [[SWIFT_NATIVE_NSOBJECT_NAME]]
 // CHECK: [[ACTOR_RESPONSE:%.*]] = call swiftcc %swift.metadata_response @"$s16actor_class_objc7MyClassCMa"(
 // CHECK: [[ACTOR_METADATA:%.*]] = extractvalue %swift.metadata_response [[ACTOR_RESPONSE]], 0
-// CHECK: [[ACTOR_CLASS:%.*]] = bitcast %swift.type* [[ACTOR_METADATA]] to %objc_class*
-// CHECK: call %objc_class* @class_setSuperclass(%objc_class* [[ACTOR_CLASS]], %objc_class* [[SWIFT_NATIVE_NSOBJECT_CLASS]])
+// CHECK: call ptr @class_setSuperclass(ptr [[ACTOR_METADATA]], ptr [[SWIFT_NATIVE_NSOBJECT_CLASS]])
 

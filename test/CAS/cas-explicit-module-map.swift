@@ -5,7 +5,7 @@
 // RUN: %target-swift-emit-pcm -module-cache-path %t/clang-module-cache -module-name _SwiftConcurrencyShims %swift-lib-dir/swift/shims/module.modulemap -o %t/_SwiftConcurrencyShims.pcm
 // RUN: %target-swift-frontend -emit-module -module-cache-path %t/clang-module-cache %t/A.swift -o %t/A.swiftmodule -swift-version 5
 // RUN: %target-swift-frontend -emit-module -module-cache-path %t/clang-module-cache %t/B.swift -o %t/B.swiftmodule -I %t -swift-version 5
-// RUN: %target-swift-frontend -scan-dependencies -module-cache-path %t/clang-module-cache %t/Test.swift -o %t/deps.json -I %t -swift-version 5 -enable-cas -cas-path %t/cas
+// RUN: %target-swift-frontend -scan-dependencies -module-cache-path %t/clang-module-cache %t/Test.swift -o %t/deps.json -I %t -swift-version 5 -cache-compile-job -cas-path %t/cas
 
 // RUN: %S/Inputs/SwiftDepsExtractor.py %t/deps.json swiftPrebuiltExternal:A moduleCacheKey | tr -d '\n' > %t/A.key
 // RUN: %S/Inputs/SwiftDepsExtractor.py %t/deps.json swiftPrebuiltExternal:B moduleCacheKey | tr -d '\n' > %t/B.key
@@ -107,7 +107,7 @@
 
 // RUN: llvm-cas --cas %t/cas --make-blob --data %t/map.json > %t/map.casid
 
-// RUN: %target-swift-frontend -emit-module -emit-module-path %t/Foo.swiftmodule -disable-implicit-swift-modules -module-cache-path %t.module-cache -explicit-swift-module-map-file @%t/map.casid -Rmodule-loading -Xcc -Rmodule-import %s -enable-cas -cas-path %t/cas -allow-unstable-cache-key-for-testing 2>&1 | %FileCheck %s
+// RUN: %target-swift-frontend -emit-module -emit-module-path %t/Foo.swiftmodule -disable-implicit-swift-modules -module-cache-path %t.module-cache -explicit-swift-module-map-file @%t/map.casid -Rmodule-loading -Xcc -Rmodule-import %s -cache-compile-job -cas-path %t/cas -allow-unstable-cache-key-for-testing 2>&1 | %FileCheck %s
 
 // CHECK-DAG: loaded module 'A'
 // CHECK-DAG: loaded module 'B'

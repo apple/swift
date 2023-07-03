@@ -91,53 +91,53 @@ public:
 
   size_t anonymousSymbolCounter = 0;
 
-  Optional<SILDeclRef> StringToNSStringFn;
-  Optional<SILDeclRef> NSStringToStringFn;
-  Optional<SILDeclRef> ArrayToNSArrayFn;
-  Optional<SILDeclRef> NSArrayToArrayFn;
-  Optional<SILDeclRef> DictionaryToNSDictionaryFn;
-  Optional<SILDeclRef> NSDictionaryToDictionaryFn;
-  Optional<SILDeclRef> SetToNSSetFn;
-  Optional<SILDeclRef> NSSetToSetFn;
-  Optional<SILDeclRef> BoolToObjCBoolFn;
-  Optional<SILDeclRef> ObjCBoolToBoolFn;
-  Optional<SILDeclRef> BoolToDarwinBooleanFn;
-  Optional<SILDeclRef> DarwinBooleanToBoolFn;
-  Optional<SILDeclRef> NSErrorToErrorFn;
-  Optional<SILDeclRef> ErrorToNSErrorFn;
-  Optional<SILDeclRef> BoolToWindowsBoolFn;
-  Optional<SILDeclRef> WindowsBoolToBoolFn;
+  llvm::Optional<SILDeclRef> StringToNSStringFn;
+  llvm::Optional<SILDeclRef> NSStringToStringFn;
+  llvm::Optional<SILDeclRef> ArrayToNSArrayFn;
+  llvm::Optional<SILDeclRef> NSArrayToArrayFn;
+  llvm::Optional<SILDeclRef> DictionaryToNSDictionaryFn;
+  llvm::Optional<SILDeclRef> NSDictionaryToDictionaryFn;
+  llvm::Optional<SILDeclRef> SetToNSSetFn;
+  llvm::Optional<SILDeclRef> NSSetToSetFn;
+  llvm::Optional<SILDeclRef> BoolToObjCBoolFn;
+  llvm::Optional<SILDeclRef> ObjCBoolToBoolFn;
+  llvm::Optional<SILDeclRef> BoolToDarwinBooleanFn;
+  llvm::Optional<SILDeclRef> DarwinBooleanToBoolFn;
+  llvm::Optional<SILDeclRef> NSErrorToErrorFn;
+  llvm::Optional<SILDeclRef> ErrorToNSErrorFn;
+  llvm::Optional<SILDeclRef> BoolToWindowsBoolFn;
+  llvm::Optional<SILDeclRef> WindowsBoolToBoolFn;
 
-  Optional<ProtocolDecl*> PointerProtocol;
+  llvm::Optional<ProtocolDecl *> PointerProtocol;
 
-  Optional<ProtocolDecl*> ObjectiveCBridgeable;
-  Optional<FuncDecl*> BridgeToObjectiveCRequirement;
-  Optional<FuncDecl*> UnconditionallyBridgeFromObjectiveCRequirement;
-  Optional<AssociatedTypeDecl*> BridgedObjectiveCType;
+  llvm::Optional<ProtocolDecl *> ObjectiveCBridgeable;
+  llvm::Optional<FuncDecl *> BridgeToObjectiveCRequirement;
+  llvm::Optional<FuncDecl *> UnconditionallyBridgeFromObjectiveCRequirement;
+  llvm::Optional<AssociatedTypeDecl *> BridgedObjectiveCType;
 
-  Optional<ProtocolDecl*> BridgedStoredNSError;
-  Optional<VarDecl*> NSErrorRequirement;
+  llvm::Optional<ProtocolDecl *> BridgedStoredNSError;
+  llvm::Optional<VarDecl *> NSErrorRequirement;
 
-  Optional<ProtocolConformance *> NSErrorConformanceToError;
+  llvm::Optional<ProtocolConformance *> NSErrorConformanceToError;
 
-  Optional<FuncDecl*> AsyncLetStart;
-  Optional<FuncDecl*> AsyncLetGet;
-  Optional<FuncDecl*> AsyncLetGetThrowing;
-  Optional<FuncDecl*> EndAsyncLet;
+  llvm::Optional<FuncDecl *> AsyncLetStart;
+  llvm::Optional<FuncDecl *> AsyncLetGet;
+  llvm::Optional<FuncDecl *> AsyncLetGetThrowing;
+  llvm::Optional<FuncDecl *> EndAsyncLet;
 
-  Optional<FuncDecl*> TaskFutureGet;
-  Optional<FuncDecl*> TaskFutureGetThrowing;
+  llvm::Optional<FuncDecl *> TaskFutureGet;
+  llvm::Optional<FuncDecl *> TaskFutureGetThrowing;
 
-  Optional<FuncDecl*> RunTaskForBridgedAsyncMethod;
-  Optional<FuncDecl*> ResumeUnsafeContinuation;
-  Optional<FuncDecl*> ResumeUnsafeThrowingContinuation;
-  Optional<FuncDecl*> ResumeUnsafeThrowingContinuationWithError;
-  Optional<FuncDecl*> CheckExpectedExecutor;
+  llvm::Optional<FuncDecl *> RunTaskForBridgedAsyncMethod;
+  llvm::Optional<FuncDecl *> ResumeUnsafeContinuation;
+  llvm::Optional<FuncDecl *> ResumeUnsafeThrowingContinuation;
+  llvm::Optional<FuncDecl *> ResumeUnsafeThrowingContinuationWithError;
+  llvm::Optional<FuncDecl *> CheckExpectedExecutor;
 
-  Optional<FuncDecl *> AsyncMainDrainQueue;
-  Optional<FuncDecl *> GetMainExecutor;
-  Optional<FuncDecl *> SwiftJobRun;
-  Optional<FuncDecl *> ExitFunc;
+  llvm::Optional<FuncDecl *> AsyncMainDrainQueue;
+  llvm::Optional<FuncDecl *> GetMainExecutor;
+  llvm::Optional<FuncDecl *> SwiftJobRun;
+  llvm::Optional<FuncDecl *> ExitFunc;
 
 public:
   SILGenModule(SILModule &M, ModuleDecl *SM);
@@ -170,9 +170,8 @@ public:
   /// Emit a vtable thunk for a derived method if its natural abstraction level
   /// diverges from the overridden base method. If no thunking is needed,
   /// returns a static reference to the derived method.
-  Optional<SILVTable::Entry> emitVTableMethod(ClassDecl *theClass,
-                                              SILDeclRef derived,
-                                              SILDeclRef base);
+  llvm::Optional<SILVTable::Entry>
+  emitVTableMethod(ClassDecl *theClass, SILDeclRef derived, SILDeclRef base);
 
   /// True if a function has been emitted for a given SILDeclRef.
   bool hasFunction(SILDeclRef constant);
@@ -193,7 +192,7 @@ public:
       CanSILFunctionType blockType, CanType continuationTy,
       AbstractionPattern origFormalType, CanGenericSignature sig,
       ForeignAsyncConvention convention,
-      Optional<ForeignErrorConvention> foreignError);
+      llvm::Optional<ForeignErrorConvention> foreignError);
 
   /// Determine whether the given class has any instance variables that
   /// need to be destroyed.

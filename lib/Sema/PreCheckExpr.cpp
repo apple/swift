@@ -1632,7 +1632,7 @@ bool PreCheckExpression::correctInterpolationIfStrange(
         if (callee->getName().getBaseName() ==
             Context.Id_appendInterpolation) {
 
-          Optional<Argument> newArg;
+          llvm::Optional<Argument> newArg;
           if (args->size() > 1) {
             auto *secondArg = args->get(1).getExpr();
             Context.Diags
@@ -1689,7 +1689,7 @@ bool PreCheckExpression::correctInterpolationIfStrange(
 
             auto *newArgList =
                 ArgumentList::create(Context, lParen, {*newArg}, rParen,
-                                     /*trailingClosureIdx*/ None,
+                                     /*trailingClosureIdx*/ llvm::None,
                                      /*implicit*/ false);
             E = CallExpr::create(Context, newCallee, newArgList,
                                  /*implicit=*/false);

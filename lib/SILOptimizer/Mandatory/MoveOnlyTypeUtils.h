@@ -60,14 +60,14 @@ struct TypeOffsetSizePair {
   /// Given an ancestor offset \p ancestorOffset and a type called \p
   /// ancestorType, walk one level towards this current type which is assumed to
   /// be a child type of \p ancestorType.
-  Optional<std::pair<TypeOffsetSizePair, SILType>>
+  llvm::Optional<std::pair<TypeOffsetSizePair, SILType>>
   walkOneLevelTowardsChild(TypeOffsetSizePair ancestorOffsetSize,
                            SILType ancestorType, SILFunction *fn) const;
 
   /// Given an ancestor offset \p ancestorOffset and a type called \p
   /// ancestorType, walk one level towards this current type inserting on value,
   /// the relevant projection.
-  Optional<std::pair<TypeOffsetSizePair, SILValue>>
+  llvm::Optional<std::pair<TypeOffsetSizePair, SILValue>>
   walkOneLevelTowardsChild(SILBuilderWithScope &builder, SILLocation loc,
                            TypeOffsetSizePair ancestorOffsetSize,
                            SILValue ancestorValue) const;

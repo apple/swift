@@ -76,7 +76,7 @@ void RewriteSystem::initialize(
     std::vector<StructuralRequirement> &&writtenRequirements,
     std::vector<Rule> &&importedRules,
     std::vector<std::pair<MutableTerm, MutableTerm>> &&permanentRules,
-    std::vector<std::tuple<MutableTerm, MutableTerm, Optional<unsigned>>>
+    std::vector<std::tuple<MutableTerm, MutableTerm, llvm::Optional<unsigned>>>
         &&requirementRules) {
   assert(!Initialized);
   Initialized = 1;
@@ -209,7 +209,7 @@ bool RewriteSystem::addRule(MutableTerm lhs, MutableTerm rhs,
 
   // If the left hand side and right hand side are already equivalent, we're
   // done.
-  Optional<int> result = lhs.compare(rhs, Context);
+  llvm::Optional<int> result = lhs.compare(rhs, Context);
   if (*result == 0) {
     // If this rule is a consequence of existing rules, add a homotopy
     // generator.
@@ -289,7 +289,7 @@ bool RewriteSystem::addPermanentRule(MutableTerm lhs, MutableTerm rhs) {
 
 /// Add a new rule, marking it explicit.
 bool RewriteSystem::addExplicitRule(MutableTerm lhs, MutableTerm rhs,
-                                    Optional<unsigned> requirementID) {
+                                    llvm::Optional<unsigned> requirementID) {
   bool added = addRule(std::move(lhs), std::move(rhs));
   if (added) {
     Rules.back().markExplicit();
@@ -308,7 +308,8 @@ bool RewriteSystem::addExplicitRule(MutableTerm lhs, MutableTerm rhs,
 void RewriteSystem::addRules(
     std::vector<Rule> &&importedRules,
     std::vector<std::pair<MutableTerm, MutableTerm>> &&permanentRules,
-    std::vector<std::tuple<MutableTerm, MutableTerm, Optional<unsigned>>> &&requirementRules) {
+    std::vector<std::tuple<MutableTerm, MutableTerm, llvm::Optional<unsigned>>>
+        &&requirementRules) {
   unsigned ruleCount = Rules.size();
 
   if (ruleCount == 0) {

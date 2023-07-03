@@ -778,7 +778,7 @@ private:
   /// If there is a single .PCH file imported into the __ObjC module, this
   /// is the filename of that PCH. When other files are imported, this should
   /// be llvm::None.
-  Optional<std::string> SinglePCHImport = None;
+  llvm::Optional<std::string> SinglePCHImport = llvm::None;
 
 public:
   importer::NameImporter &getNameImporter() {
@@ -1032,9 +1032,9 @@ public:
 
   /// If we already imported a given decl, return the corresponding Swift decl.
   /// Otherwise, return nullptr.
-  Optional<Decl *> importDeclCached(const clang::NamedDecl *ClangDecl,
-                                    Version version,
-                                    bool UseCanonicalDecl = true);
+  llvm::Optional<Decl *> importDeclCached(const clang::NamedDecl *ClangDecl,
+                                          Version version,
+                                          bool UseCanonicalDecl = true);
 
   Decl *importDeclImpl(const clang::NamedDecl *ClangDecl, Version version,
                        bool &TypedefIsSuperfluous, bool &HadForwardDeclaration);
@@ -1083,7 +1083,8 @@ public:
                                    const ClassDecl *classDecl,
                                    SmallVectorImpl<Decl *> &newMembers);
   void importMirroredProtocolMembers(const clang::ObjCContainerDecl *decl,
-                                     DeclContext *dc, Optional<DeclBaseName> name,
+                                     DeclContext *dc,
+                                     llvm::Optional<DeclBaseName> name,
                                      SmallVectorImpl<Decl *> &members);
 
   /// Utility function for building simple generic signatures.
@@ -1298,14 +1299,14 @@ public:
   ///          indicates if the Optional is implicitly unwrapped. If
   ///          the type cannot be represented in Swift, then the type
   ///          field will be null.
-  ImportedType
-  importType(clang::QualType type, ImportTypeKind kind,
-             llvm::function_ref<void(Diagnostic &&)> addImportDiagnosticFn,
-             bool allowNSUIntegerAsInt, Bridgeability topLevelBridgeability,
-             ImportTypeAttrs attrs,
-             OptionalTypeKind optional = OTK_ImplicitlyUnwrappedOptional,
-             bool resugarNSErrorPointer = true,
-             Optional<unsigned> completionHandlerErrorParamIndex = None);
+  ImportedType importType(
+      clang::QualType type, ImportTypeKind kind,
+      llvm::function_ref<void(Diagnostic &&)> addImportDiagnosticFn,
+      bool allowNSUIntegerAsInt, Bridgeability topLevelBridgeability,
+      ImportTypeAttrs attrs,
+      OptionalTypeKind optional = OTK_ImplicitlyUnwrappedOptional,
+      bool resugarNSErrorPointer = true,
+      llvm::Optional<unsigned> completionHandlerErrorParamIndex = llvm::None);
 
   /// Import the given Clang type into Swift.
   ///
@@ -1428,11 +1429,11 @@ public:
   ///        with \c ImportDiagnosticAdder .
   ///
   /// \returns The imported parameter result on success, or None on failure.
-  Optional<ImportParameterTypeResult> importParameterType(
+  llvm::Optional<ImportParameterTypeResult> importParameterType(
       const clang::ParmVarDecl *param, OptionalTypeKind optionalityOfParam,
       bool allowNSUIntegerAsInt, bool isNSDictionarySubscriptGetter,
       bool paramIsError, bool paramIsCompletionHandler,
-      Optional<unsigned> completionHandlerErrorParamIndex,
+      llvm::Optional<unsigned> completionHandlerErrorParamIndex,
       ArrayRef<GenericTypeParamDecl *> genericParams,
       llvm::function_ref<void(Diagnostic &&)> addImportDiagnosticFn);
 
@@ -1477,17 +1478,14 @@ public:
   ///
   /// \returns the imported result type, or null if the type cannot be
   /// imported.
-  ImportedType
-  importMethodParamsAndReturnType(const DeclContext *dc,
-                                  const clang::ObjCMethodDecl *clangDecl,
-                                  ArrayRef<const clang::ParmVarDecl *> params,
-                                  bool isVariadic,
-                                  bool isFromSystemModule,
-                                  ParameterList **bodyParams,
-                                  importer::ImportedName importedName,
-                                  Optional<ForeignAsyncConvention> &asyncConv,
-                                  Optional<ForeignErrorConvention> &errorConv,
-                                  SpecialMethodKind kind);
+  ImportedType importMethodParamsAndReturnType(
+      const DeclContext *dc, const clang::ObjCMethodDecl *clangDecl,
+      ArrayRef<const clang::ParmVarDecl *> params, bool isVariadic,
+      bool isFromSystemModule, ParameterList **bodyParams,
+      importer::ImportedName importedName,
+      llvm::Optional<ForeignAsyncConvention> &asyncConv,
+      llvm::Optional<ForeignErrorConvention> &errorConv,
+      SpecialMethodKind kind);
 
   /// Import the type of an Objective-C method that will be imported as an
   /// accessor for \p property.
@@ -1518,7 +1516,7 @@ public:
   /// Determine whether the given typedef-name is "special", meaning
   /// that it has performed some non-trivial mapping of its underlying type
   /// based on the name of the typedef.
-  Optional<MappedTypeNameKind>
+  llvm::Optional<MappedTypeNameKind>
   getSpecialTypedefKind(clang::TypedefNameDecl *decl);
 
   /// Look up a name, accepting only typedef results.
@@ -1777,7 +1775,7 @@ public:
   /// Dump the Swift-specific name lookup tables we generate.
   void dumpSwiftLookupTables();
 
-  void setSinglePCHImport(Optional<std::string> PCHFilename) {
+  void setSinglePCHImport(llvm::Optional<std::string> PCHFilename) {
     if (PCHFilename.has_value()) {
       assert(llvm::sys::path::extension(PCHFilename.value())
                  .endswith(file_types::getExtension(file_types::TY_PCH)) &&
@@ -1927,9 +1925,9 @@ static inline Type applyToFunctionType(
   return type;
 }
 
-inline Optional<const clang::EnumDecl *> findAnonymousEnumForTypedef(
-    const ASTContext &ctx,
-    const clang::TypedefType *typedefType) {
+inline llvm::Optional<const clang::EnumDecl *>
+findAnonymousEnumForTypedef(const ASTContext &ctx,
+                            const clang::TypedefType *typedefType) {
   auto *typedefDecl = typedefType->getDecl();
   auto *lookupTable = ctx.getClangModuleLoader()->findLookupTable(typedefDecl->getOwningModule());
 
@@ -1964,7 +1962,7 @@ inline Optional<const clang::EnumDecl *> findAnonymousEnumForTypedef(
   if (swiftPrivateFound != foundDecls.end())
     return cast<clang::EnumDecl>(swiftPrivateFound->get<clang::NamedDecl *>());
 
-  return None;
+  return llvm::None;
 }
 
 inline std::string getPrivateOperatorName(const std::string &OperatorToken) {

@@ -241,7 +241,7 @@ AssociatedTypeDecl *PropertyBag::getAssociatedType(Identifier name) {
 /// Compute the interface type for a range of symbols.
 static Type
 getTypeForSymbolRange(const Symbol *begin, const Symbol *end,
-                      TypeArrayView<GenericTypeParamType> genericParams,
+                      ArrayRef<GenericTypeParamType *> genericParams,
                       const PropertyMap &map) {
   auto &ctx = map.getRewriteContext();
   Type result;
@@ -391,12 +391,12 @@ getTypeForSymbolRange(const Symbol *begin, const Symbol *end,
 }
 
 Type PropertyMap::getTypeForTerm(Term term,
-                      TypeArrayView<GenericTypeParamType> genericParams) const {
+                      ArrayRef<GenericTypeParamType *> genericParams) const {
   return getTypeForSymbolRange(term.begin(), term.end(), genericParams, *this);
 }
 
 Type PropertyMap::getTypeForTerm(const MutableTerm &term,
-                      TypeArrayView<GenericTypeParamType> genericParams) const {
+                      ArrayRef<GenericTypeParamType *> genericParams) const {
   return getTypeForSymbolRange(term.begin(), term.end(), genericParams, *this);
 }
 
@@ -474,14 +474,14 @@ RewriteContext::getRelativeTermForType(CanType typeWitness,
 /// RewriteSystemBuilder::getConcreteSubstitutionSchema().
 Type PropertyMap::getTypeFromSubstitutionSchema(
     Type schema, ArrayRef<Term> substitutions,
-    TypeArrayView<GenericTypeParamType> genericParams,
+    ArrayRef<GenericTypeParamType *> genericParams,
     const MutableTerm &prefix) const {
   assert(!schema->isTypeParameter() && "Must have a concrete type here");
 
   if (!schema->hasTypeParameter())
     return schema;
 
-  return schema.transformRec([&](Type t) -> Optional<Type> {
+  return schema.transformRec([&](Type t) -> llvm::Optional<Type> {
     if (t->is<GenericTypeParamType>()) {
       auto index = RewriteContext::getGenericParamIndex(t);
       auto substitution = substitutions[index];
@@ -501,7 +501,7 @@ Type PropertyMap::getTypeFromSubstitutionSchema(
     }
 
     assert(!t->isTypeParameter());
-    return None;
+    return llvm::None;
   });
 }
 
@@ -535,9 +535,9 @@ RewriteContext::getRelativeSubstitutionSchemaFromType(
   if (!concreteType->hasTypeParameter())
     return concreteType;
 
-  return CanType(concreteType.transformRec([&](Type t) -> Optional<Type> {
+  return CanType(concreteType.transformRec([&](Type t) -> llvm::Optional<Type> {
     if (!t->isTypeParameter())
-      return None;
+      return llvm::None;
 
     auto term = getRelativeTermForType(CanType(t), substitutions);
 
@@ -566,9 +566,9 @@ RewriteContext::getSubstitutionSchemaFromType(CanType concreteType,
   if (!concreteType->hasTypeParameter())
     return concreteType;
 
-  return CanType(concreteType.transformRec([&](Type t) -> Optional<Type> {
+  return CanType(concreteType.transformRec([&](Type t) -> llvm::Optional<Type> {
     if (!t->isTypeParameter())
-      return None;
+      return llvm::None;
 
     unsigned index = result.size();
     result.push_back(getTermForType(CanType(t), proto));

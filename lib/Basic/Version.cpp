@@ -14,12 +14,13 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "swift/Basic/Version.h"
+#include "swift/Basic/LLVM.h"
 #include "clang/Basic/CharInfo.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/ADT/None.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
-#include "swift/Basic/LLVM.h"
-#include "swift/Basic/Version.h"
+#include "llvm/Support/raw_ostream.h"
 
 #include <vector>
 
@@ -124,10 +125,10 @@ Version::operator llvm::VersionTuple() const
   }
 }
 
-Optional<Version> Version::getEffectiveLanguageVersion() const {
+llvm::Optional<Version> Version::getEffectiveLanguageVersion() const {
   switch (size()) {
   case 0:
-    return None;
+    return llvm::None;
   case 1:
     break;
   case 2:
@@ -135,12 +136,12 @@ Optional<Version> Version::getEffectiveLanguageVersion() const {
     // component is 4.2.
     if (Components[0] == 4 && Components[1] == 2)
       break;
-    return None;
+    return llvm::None;
   default:
     // We do not want to permit users requesting more precise effective language
     // versions since accepting such an argument promises more than we're able
     // to deliver.
-    return None;
+    return llvm::None;
   }
 
   // FIXME: When we switch to Swift 5 by default, the "4" case should return
@@ -173,7 +174,7 @@ Optional<Version> Version::getEffectiveLanguageVersion() const {
     return Version{6};
 #endif
   default:
-    return None;
+    return llvm::None;
   }
 }
 

@@ -460,6 +460,9 @@ SWIFT_REQUEST(TypeChecker, ExpandAccessorMacros,
 SWIFT_REQUEST(TypeChecker, ExpandConformanceMacros,
               ArrayRef<unsigned>(NominalTypeDecl *),
               Cached, NoLocationInfo)
+SWIFT_REQUEST(TypeChecker, ExpandExtensionMacros,
+              ArrayRef<unsigned>(NominalTypeDecl *),
+              Cached, NoLocationInfo)
 SWIFT_REQUEST(TypeChecker, ExpandSynthesizedMemberMacroRequest,
               ArrayRef<unsigned>(Decl *),
               Cached, NoLocationInfo)

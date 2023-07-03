@@ -316,10 +316,12 @@ namespace {
     static bool isFirstElementTrivial() {
       return true;
     }
-    void emitRetainFirstElement(IRGenFunction &IGF, llvm::Value *fn,
-                                Optional<Atomicity> atomicity = None) const {}
-    void emitReleaseFirstElement(IRGenFunction &IGF, llvm::Value *fn,
-                                 Optional<Atomicity> atomicity = None) const {}
+    void emitRetainFirstElement(
+        IRGenFunction &IGF, llvm::Value *fn,
+        llvm::Optional<Atomicity> atomicity = llvm::None) const {}
+    void emitReleaseFirstElement(
+        IRGenFunction &IGF, llvm::Value *fn,
+        llvm::Optional<Atomicity> atomicity = llvm::None) const {}
     void emitAssignFirstElement(IRGenFunction &IGF, llvm::Value *fn,
                                 Address fnAddr) const {
       IGF.Builder.CreateStore(fn, fnAddr);
@@ -337,15 +339,17 @@ namespace {
     bool isSecondElementTrivial() const {
       return isTriviallyDestroyable(ResilienceExpansion::Maximal);
     }
-    void emitRetainSecondElement(IRGenFunction &IGF, llvm::Value *data,
-                                 Optional<Atomicity> atomicity = None) const {
+    void emitRetainSecondElement(
+        IRGenFunction &IGF, llvm::Value *data,
+        llvm::Optional<Atomicity> atomicity = llvm::None) const {
       if (!isTriviallyDestroyable(ResilienceExpansion::Maximal)) {
         if (!atomicity) atomicity = IGF.getDefaultAtomicity();
         IGF.emitNativeStrongRetain(data, *atomicity);
       }
     }
-    void emitReleaseSecondElement(IRGenFunction &IGF, llvm::Value *data,
-                                  Optional<Atomicity> atomicity = None) const {
+    void emitReleaseSecondElement(
+        IRGenFunction &IGF, llvm::Value *data,
+        llvm::Optional<Atomicity> atomicity = llvm::None) const {
       if (!isTriviallyDestroyable(ResilienceExpansion::Maximal)) {
         if (!atomicity) atomicity = IGF.getDefaultAtomicity();
         IGF.emitNativeStrongRelease(data, *atomicity);
@@ -871,7 +875,7 @@ protected:
   IRGenModule &IGM;
   IRGenFunction &subIGF;
   llvm::Function *fwd;
-  const Optional<FunctionPointer> &staticFnPtr;
+  const llvm::Optional<FunctionPointer> &staticFnPtr;
   bool calleeHasContext;
   const Signature &origSig;
   CanSILFunctionType origType;
@@ -890,7 +894,7 @@ protected:
 
   PartialApplicationForwarderEmission(
       IRGenModule &IGM, IRGenFunction &subIGF, llvm::Function *fwd,
-      const Optional<FunctionPointer> &staticFnPtr, bool calleeHasContext,
+      const llvm::Optional<FunctionPointer> &staticFnPtr, bool calleeHasContext,
       const Signature &origSig, CanSILFunctionType origType,
       CanSILFunctionType substType, CanSILFunctionType outType,
       SubstitutionMap subs, HeapLayout const *layout,
@@ -1082,7 +1086,7 @@ class SyncPartialApplicationForwarderEmission
 public:
   SyncPartialApplicationForwarderEmission(
       IRGenModule &IGM, IRGenFunction &subIGF, llvm::Function *fwd,
-      const Optional<FunctionPointer> &staticFnPtr, bool calleeHasContext,
+      const llvm::Optional<FunctionPointer> &staticFnPtr, bool calleeHasContext,
       const Signature &origSig, CanSILFunctionType origType,
       CanSILFunctionType substType, CanSILFunctionType outType,
       SubstitutionMap subs, HeapLayout const *layout,
@@ -1179,7 +1183,7 @@ class AsyncPartialApplicationForwarderEmission
     Kind kind;
     llvm::Value *value;
   };
-  Optional<Self> self = llvm::None;
+  llvm::Optional<Self> self = llvm::None;
   unsigned asyncParametersInsertionIndex = 0;
 
   void saveValue(ElementLayout layout, Explosion &explosion) {
@@ -1191,7 +1195,7 @@ class AsyncPartialApplicationForwarderEmission
 public:
   AsyncPartialApplicationForwarderEmission(
       IRGenModule &IGM, IRGenFunction &subIGF, llvm::Function *fwd,
-      const Optional<FunctionPointer> &staticFnPtr, bool calleeHasContext,
+      const llvm::Optional<FunctionPointer> &staticFnPtr, bool calleeHasContext,
       const Signature &origSig, CanSILFunctionType origType,
       CanSILFunctionType substType, CanSILFunctionType outType,
       SubstitutionMap subs, HeapLayout const *layout,
@@ -1199,8 +1203,7 @@ public:
       : PartialApplicationForwarderEmission(
             IGM, subIGF, fwd, staticFnPtr, calleeHasContext, origSig, origType,
             substType, outType, subs, layout, conventions),
-        layout(getAsyncContextLayout(
-            subIGF.IGM, origType, substType, subs)),
+        layout(getAsyncContextLayout(subIGF.IGM, origType, substType, subs)),
         currentArgumentIndex(outType->getNumParameters()) {}
 
   void begin() override { super::begin(); }
@@ -1333,7 +1336,7 @@ public:
 std::unique_ptr<PartialApplicationForwarderEmission>
 getPartialApplicationForwarderEmission(
     IRGenModule &IGM, IRGenFunction &subIGF, llvm::Function *fwd,
-    const Optional<FunctionPointer> &staticFnPtr, bool calleeHasContext,
+    const llvm::Optional<FunctionPointer> &staticFnPtr, bool calleeHasContext,
     const Signature &origSig, CanSILFunctionType origType,
     CanSILFunctionType substType, CanSILFunctionType outType,
     SubstitutionMap subs, HeapLayout const *layout,
@@ -1356,21 +1359,17 @@ getPartialApplicationForwarderEmission(
 /// If 'layout' is null, there is a single captured value of
 /// Swift-refcountable type that is being used directly as the
 /// context object.
-static llvm::Value *emitPartialApplicationForwarder(IRGenModule &IGM,
-                                   const Optional<FunctionPointer> &staticFnPtr,
-                                   bool calleeHasContext,
-                                   const Signature &origSig,
-                                   CanSILFunctionType origType,
-                                   CanSILFunctionType substType,
-                                   CanSILFunctionType outType,
-                                   SubstitutionMap subs,
-                                   HeapLayout const *layout,
-                                   ArrayRef<ParameterConvention> conventions) {
+static llvm::Value *emitPartialApplicationForwarder(
+    IRGenModule &IGM, const llvm::Optional<FunctionPointer> &staticFnPtr,
+    bool calleeHasContext, const Signature &origSig,
+    CanSILFunctionType origType, CanSILFunctionType substType,
+    CanSILFunctionType outType, SubstitutionMap subs, HeapLayout const *layout,
+    ArrayRef<ParameterConvention> conventions) {
   auto outSig = IGM.getSignature(outType);
   llvm::AttributeList outAttrs = outSig.getAttributes();
   llvm::FunctionType *fwdTy = outSig.getType();
   SILFunctionConventions outConv(outType, IGM.getSILModule());
-  Optional<AsyncContextLayout> asyncLayout;
+  llvm::Optional<AsyncContextLayout> asyncLayout;
 
   StringRef FnName;
   if (staticFnPtr)
@@ -1472,7 +1471,8 @@ static llvm::Value *emitPartialApplicationForwarder(IRGenModule &IGM,
       auto bindingLayout = layout->getElement(nextCapturedField++);
       // The bindings should be fixed-layout inside the object, so we can
       // pass None here. If they weren't, we'd have a chicken-egg problem.
-      auto bindingsAddr = bindingLayout.project(subIGF, data, /*offsets*/ None);
+      auto bindingsAddr =
+          bindingLayout.project(subIGF, data, /*offsets*/ llvm::None);
       layout->getBindings().restore(subIGF, bindingsAddr,
                                     MetadataState::Complete);
     }
@@ -1905,7 +1905,7 @@ static llvm::Value *emitPartialApplicationForwarder(IRGenModule &IGM,
 
 /// Emit a partial application thunk for a function pointer applied to a partial
 /// set of argument values.
-Optional<StackAddress> irgen::emitFunctionPartialApplication(
+llvm::Optional<StackAddress> irgen::emitFunctionPartialApplication(
     IRGenFunction &IGF, SILFunction &SILFn, const FunctionPointer &fn,
     llvm::Value *fnContext, Explosion &args, ArrayRef<SILParameterInfo> params,
     SubstitutionMap subs, CanSILFunctionType origType,
@@ -1915,8 +1915,8 @@ Optional<StackAddress> irgen::emitFunctionPartialApplication(
   // directly as our closure context without creating a box and thunk.
   enum HasSingleSwiftRefcountedContext { Maybe, Yes, No, Thunkable }
     hasSingleSwiftRefcountedContext = Maybe;
-  Optional<ParameterConvention> singleRefcountedConvention;
-  Optional<llvm::Type *> singleRefCountedType;
+  llvm::Optional<ParameterConvention> singleRefcountedConvention;
+  llvm::Optional<llvm::Type *> singleRefCountedType;
 
   SmallVector<const TypeInfo *, 4> argTypeInfos;
   SmallVector<SILType, 4> argValTypes;
@@ -2083,8 +2083,8 @@ Optional<StackAddress> irgen::emitFunctionPartialApplication(
     out.add(ctx);
     return {};
   }
-  
-  Optional<FunctionPointer> staticFn;
+
+  llvm::Optional<FunctionPointer> staticFn;
   if (fn.isConstant()) staticFn = fn;
 
   // If the function pointer is dynamic, include it in the context.
@@ -2145,7 +2145,7 @@ Optional<StackAddress> irgen::emitFunctionPartialApplication(
 
   llvm::Value *data;
 
-  Optional<StackAddress> stackAddr;
+  llvm::Optional<StackAddress> stackAddr;
 
   if (args.empty() && layout.isKnownEmpty()) {
     if (outType->isNoEscape())

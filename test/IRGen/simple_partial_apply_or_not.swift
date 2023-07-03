@@ -1,5 +1,4 @@
-// RUN: %target-swift-emit-ir %use_no_opaque_pointers -Xllvm -sil-disable-pass=Simplification -module-name test %s | %FileCheck %s
-// RUN: %target-swift-emit-ir -Xllvm -sil-disable-pass=Simplification -module-name test %s
+// RUN: %target-swift-emit-ir -Xllvm -sil-disable-pass=Simplification -module-name test %s | %FileCheck %s
 // RUN: %target-run-simple-swift -Xllvm -sil-disable-pass=Simplification %s | %FileCheck %s --check-prefix=CHECK-EXEC
 
 // REQUIRES: executable_test
@@ -39,9 +38,9 @@ print(s)
 // because the ABI of closure requires swiftself in the context parameter but
 // the method of this self type (struct S) does not.
 
-// CHECK: define {{.*}}swiftcc %T4test5StateV9Reference33_C903A018FCE7355FD30EF8324850EB90LLCySi_G* @"$s4test1SVACycfC"()
-// CHECK:  call swiftcc void {{.*}}"$s4test1SV5valueSivsTA
-// CHECK:  ret %T4test5StateV9Reference33_C903A018FCE7355FD30EF8324850EB90LLCySi_G
+// CHECK: define {{.*}}swiftcc ptr @"$s4test1SVACycfC"()
+// CHECK:  [[RES:%.*]] = call swiftcc ptr @"$s4test1SV5valueSivpfP"(i64 1)
+// CHECK:  ret ptr [[RES]]
 
 // This used to crash.
 

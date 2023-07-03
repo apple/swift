@@ -1,10 +1,8 @@
 // RUN: %empty-directory(%t)
 // RUN: %target-swift-frontend -emit-module -enable-library-evolution -emit-module-path=%t/resilient_struct.swiftmodule -module-name=resilient_struct %S/../Inputs/resilient_struct.swift
 // RUN: %target-swift-frontend -emit-module -enable-library-evolution -emit-module-path=%t/resilient_class.swiftmodule -module-name=resilient_class %S/../Inputs/resilient_class.swift -I %t
-// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-objc-interop -I %t -emit-ir -enable-library-evolution %s | %FileCheck %s --check-prefixes=CHECK,CHECK-objc
-// RUN: %target-swift-frontend %use_no_opaque_pointers -disable-objc-interop -I %t -emit-ir -enable-library-evolution %s | %FileCheck %s --check-prefixes=CHECK,CHECK-native
-// RUN: %target-swift-frontend -enable-objc-interop -I %t -emit-ir -enable-library-evolution %s
-// RUN: %target-swift-frontend -disable-objc-interop -I %t -emit-ir -enable-library-evolution %s
+// RUN: %target-swift-frontend -enable-objc-interop -I %t -emit-ir -enable-library-evolution %s | %FileCheck %s --check-prefixes=CHECK,CHECK-objc
+// RUN: %target-swift-frontend -disable-objc-interop -I %t -emit-ir -enable-library-evolution %s | %FileCheck %s --check-prefixes=CHECK,CHECK-native
 // RUN: %target-swift-frontend -I %t -emit-ir -enable-library-evolution -O %s
 
 // REQUIRES: CPU=x86_64
@@ -26,18 +24,15 @@ import resilient_class
 // CHECK-LABEL: define {{(dllexport )?}}{{(protected )?}}swiftcc void @allocResilientOutsideParent()
 // CHECK:      [[T0:%.*]] = call swiftcc %swift.metadata_response @"$s15resilient_class22ResilientOutsideParentCMa"(i64 0)
 // CHECK-NEXT: [[META:%.*]] = extractvalue %swift.metadata_response [[T0]], 0
-// CHECK-NEXT: [[META_ADDR:%.*]] = bitcast %swift.type* [[META]] to i8*
-// CHECK-objc-NEXT: [[SIZE_ADDR:%.*]] = getelementptr inbounds i8, i8* [[META_ADDR]], i32 48
-// CHECK-native-NEXT: [[SIZE_ADDR:%.*]] = getelementptr inbounds i8, i8* [[META_ADDR]], i32 24
-// CHECK-NEXT: [[SIZE_PTR:%.*]] = bitcast i8* [[SIZE_ADDR]] to i32*
-// CHECK-NEXT: [[SIZE_2:%.*]] = load i32, i32* [[SIZE_PTR]], align 8
+// CHECK-objc-NEXT: [[SIZE_ADDR:%.*]] = getelementptr inbounds i8, ptr [[META]], i32 48
+// CHECK-native-NEXT: [[SIZE_ADDR:%.*]] = getelementptr inbounds i8, ptr [[META]], i32 24
+// CHECK-NEXT: [[SIZE_2:%.*]] = load i32, ptr [[SIZE_ADDR]], align 8
 // CHECK-NEXT: [[SIZE:%.*]] = zext i32 [[SIZE_2]] to i64
-// CHECK-objc-NEXT: [[ALIGN_ADDR:%.*]] = getelementptr inbounds i8, i8* [[META_ADDR]], i32 52
-// CHECK-native-NEXT: [[ALIGN_ADDR:%.*]] = getelementptr inbounds i8, i8* [[META_ADDR]], i32 28
-// CHECK-NEXT: [[ALIGN_PTR:%.*]] = bitcast i8* [[ALIGN_ADDR]] to i16*
-// CHECK-NEXT: [[ALIGN_2:%.*]] = load i16, i16* [[ALIGN_PTR]], align 4
+// CHECK-objc-NEXT: [[ALIGN_ADDR:%.*]] = getelementptr inbounds i8, ptr [[META]], i32 52
+// CHECK-native-NEXT: [[ALIGN_ADDR:%.*]] = getelementptr inbounds i8, ptr [[META]], i32 28
+// CHECK-NEXT: [[ALIGN_2:%.*]] = load i16, ptr [[ALIGN_ADDR]], align 4
 // CHECK-NEXT: [[ALIGN:%.*]] = zext i16 [[ALIGN_2]] to i64
-// CHECK-NEXT: call noalias %swift.refcounted* @swift_allocObject(%swift.type* [[META]], i64 [[SIZE]], i64 [[ALIGN]])
+// CHECK-NEXT: call noalias ptr @swift_allocObject(ptr [[META]], i64 [[SIZE]], i64 [[ALIGN]])
 
 sil @allocResilientOutsideParent : $@convention(thin) () -> () {
 bb0:

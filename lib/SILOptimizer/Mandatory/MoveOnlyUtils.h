@@ -16,6 +16,8 @@
 namespace swift {
 
 class SILFunction;
+class MarkMustCheckInst;
+class Operand;
 
 namespace siloptimizer {
 
@@ -27,6 +29,16 @@ bool cleanupNonCopyableCopiesAfterEmittingDiagnostic(SILFunction *fn);
 /// diagnostic was emitted, use \p diagnosticEmitter.getDiagnosticCount().
 void emitCheckerMissedCopyOfNonCopyableTypeErrors(
     SILFunction *fn, DiagnosticEmitter &diagnosticEmitter);
+
+bool eliminateTemporaryAllocationsFromLet(MarkMustCheckInst *markedInst);
+
+namespace noncopyable {
+
+bool memInstMustConsume(Operand *memOper);
+bool memInstMustReinitialize(Operand *memOper);
+bool memInstMustInitialize(Operand *memOper);
+
+} // namespace noncopyable
 
 } // namespace siloptimizer
 

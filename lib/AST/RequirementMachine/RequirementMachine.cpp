@@ -366,7 +366,7 @@ RequirementMachine::initWithProtocolWrittenRequirements(
 
   // For RequirementMachine::verify() when called by generic signature queries;
   // We have a single valid generic parameter at depth 0, index 0.
-  Params.push_back(component[0]->getSelfInterfaceType());
+  Params.push_back(component[0]->getSelfInterfaceType()->castTo<GenericTypeParamType>());
 
   if (Dump) {
     llvm::dbgs() << "Adding protocols";
@@ -557,8 +557,8 @@ void RequirementMachine::dump(llvm::raw_ostream &out) const {
   } else {
     out << "fresh signature <";
     for (auto paramTy : Params) {
-      out << " " << paramTy;
-      if (paramTy->castTo<GenericTypeParamType>()->isParameterPack())
+      out << " " << Type(paramTy);
+      if (paramTy->isParameterPack())
         out << "…";
     }
     out << " >";

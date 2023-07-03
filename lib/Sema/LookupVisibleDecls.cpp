@@ -230,7 +230,7 @@ static void collectVisibleMemberDecls(const DeclContext *CurrDC, LookupState LS,
     FoundDecls.push_back(VD);
   };
 
-  for (auto Member : Parent->getMembers()) {
+  for (auto Member : Parent->getAllMembers()) {
     check(Member);
     Member->visitAuxiliaryDecls([&](Decl *d) {
       check(d);
@@ -257,28 +257,6 @@ static void doGlobalExtensionLookup(Type BaseType,
         IsDeclApplicableRequest(DeclApplicabilityOwner(CurrDC, BaseType,
                                                        extension)), false))
       continue;
-
-    synthesizePropertyWrapperVariables(extension);
-
-    // Expand member macros.
-    ASTContext &ctx = nominal->getASTContext();
-    if (!ctx.evaluator.hasActiveRequest(
-            ExpandSynthesizedMemberMacroRequest{extension})) {
-      (void)evaluateOrDefault(
-          ctx.evaluator,
-          ExpandSynthesizedMemberMacroRequest{extension},
-          false);
-    }
-
-    // Expand peer macros.
-    for (auto *member : extension->getMembers()) {
-      if (!ctx.evaluator.hasActiveRequest(ExpandPeerMacroRequest{member})) {
-        (void)evaluateOrDefault(
-            ctx.evaluator,
-            ExpandPeerMacroRequest{member},
-            {});
-      }
-    }
 
     collectVisibleMemberDecls(CurrDC, LS, BaseType, extension, FoundDecls);
   }
@@ -606,44 +584,6 @@ synthesizePropertyWrapperVariables(IterableDeclContext *IDC) {
       }
 }
 
-/// Trigger synthesizing implicit member declarations to make them "visible".
-static void synthesizeMemberDeclsForLookup(NominalTypeDecl *NTD,
-                                           const DeclContext *DC) {
-  // Synthesize the memberwise initializer for structs or default initializer
-  // for classes.
-  if (!NTD->getASTContext().evaluator.hasActiveRequest(
-          SynthesizeMemberwiseInitRequest{NTD}))
-    TypeChecker::addImplicitConstructors(NTD);
-
-  // Check all conformances to trigger the synthesized decl generation.
-  // e.g. init(rawValue:) for RawRepresentable.
-  for (auto Conformance : NTD->getAllConformances()) {
-    auto Proto = Conformance->getProtocol();
-    if (!Proto->isAccessibleFrom(DC))
-      continue;
-    auto NormalConformance = dyn_cast<NormalProtocolConformance>(
-        Conformance->getRootConformance());
-    if (!NormalConformance)
-      continue;
-    NormalConformance->forEachTypeWitness(
-        [](AssociatedTypeDecl *, Type, TypeDecl *) { return false; },
-        /*useResolver=*/true);
-    NormalConformance->forEachValueWitness([](ValueDecl *, Witness) {},
-                                           /*useResolver=*/true);
-  }
-
-  // Expand synthesized member macros.
-  auto &ctx = NTD->getASTContext();
-  if (!ctx.evaluator.hasActiveRequest(
-          ExpandSynthesizedMemberMacroRequest{NTD})) {
-    (void)evaluateOrDefault(ctx.evaluator,
-                            ExpandSynthesizedMemberMacroRequest{NTD},
-                            false);
-  }
-
-  synthesizePropertyWrapperVariables(NTD);
-}
-
 static void lookupVisibleMemberDeclsImpl(
     Type BaseTy, VisibleDeclConsumer &Consumer, const DeclContext *CurrDC,
     LookupState LS, DeclVisibilityKind Reason, GenericSignature Sig,
@@ -766,20 +706,14 @@ static void lookupVisibleMemberDeclsImpl(
 
   auto lookupTy = BaseTy;
 
-  const auto synthesizeAndLookupTypeMembers = [&](NominalTypeDecl *NTD) {
-    synthesizeMemberDeclsForLookup(NTD, CurrDC);
-
-    // Look in for members of a nominal type.
-    lookupTypeMembers(BaseTy, lookupTy, Consumer, CurrDC, LS, Reason);
-  };
-
   llvm::SmallPtrSet<ClassDecl *, 8> Ancestors;
   {
     const auto NTD = BaseTy->getAnyNominal();
     if (NTD == nullptr)
       return;
 
-    synthesizeAndLookupTypeMembers(NTD);
+    lookupTypeMembers(BaseTy, lookupTy, Consumer, CurrDC, LS, Reason);
+
     // Look into protocols only on the current nominal to avoid repeatedly
     // visiting inherited conformances.
     lookupDeclsFromProtocolsBeingConformedTo(BaseTy, Consumer, LS, CurrDC,
@@ -815,7 +749,7 @@ static void lookupVisibleMemberDeclsImpl(
     if (!Ancestors.insert(CurClass).second)
       break;
 
-    synthesizeAndLookupTypeMembers(CurClass);
+    lookupTypeMembers(BaseTy, lookupTy, Consumer, CurrDC, LS, Reason);
 
     lookupTy = CurClass->getSuperclass();
     if (!CurClass->inheritsSuperclassInitializers())

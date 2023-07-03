@@ -26,7 +26,8 @@ bool swift::shouldAttemptEvaluation(SILInstruction *inst) {
   return isConstantEvaluable(calleeFun);
 }
 
-std::pair<Optional<SILBasicBlock::iterator>, Optional<SymbolicValue>>
+std::pair<llvm::Optional<SILBasicBlock::iterator>,
+          llvm::Optional<SymbolicValue>>
 swift::evaluateOrSkip(ConstExprStepEvaluator &stepEval,
                       SILBasicBlock::iterator instI) {
   SILInstruction *inst = &(*instI);

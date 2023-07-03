@@ -22,9 +22,7 @@
 // dependencies.
 // Casting.h has complex templates that cannot be easily forward declared.
 #include "llvm/Support/Casting.h"
-// None.h includes an enumerator that is desired & cannot be forward declared
-// without a definition of NoneType.
-#include "llvm/ADT/None.h"
+
 #if defined(__clang_major__) && __clang_major__ < 6
 // Add this header as a workaround to prevent `too few template arguments for
 // class template 'SmallVector'` on the buggy Clang 5 compiler (it doesn't
@@ -60,10 +58,8 @@ namespace llvm {
   template<typename T> class ArrayRef;
   template<typename T> class MutableArrayRef;
 #endif
-  template<typename T> class TinyPtrVector;
-#if SWIFT_LLVM_ODR_SAFE
-  template<typename T> class Optional;
-#endif
+  template <typename T>
+  class TinyPtrVector;
   template <typename ...PTs> class PointerUnion;
   template <typename IteratorT> class iterator_range;
   class SmallBitVector;
@@ -93,10 +89,6 @@ namespace swift {
   using llvm::MutableArrayRef;
 #endif
   using llvm::iterator_range;
-  using llvm::None;
-#if SWIFT_LLVM_ODR_SAFE
-  using llvm::Optional;
-#endif
   using llvm::PointerUnion;
   using llvm::SmallBitVector;
   using llvm::SmallPtrSet;
@@ -118,7 +110,6 @@ namespace swift {
 #if SWIFT_LLVM_ODR_SAFE
   using llvm::function_ref;
 #endif
-  using llvm::NoneType;
   using llvm::raw_ostream;
 } // end namespace swift
 

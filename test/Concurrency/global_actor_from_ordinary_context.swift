@@ -51,12 +51,10 @@ func referenceGlobalActor2() {
 }
 
 
-// expected-note@+2 {{add 'async' to function 'referenceAsyncGlobalActor()' to make it asynchronous}} {{33-33= async}}
-// expected-note@+1 {{add '@SomeGlobalActor' to make global function 'referenceAsyncGlobalActor()' part of global actor 'SomeGlobalActor'}}
+// expected-note@+1 {{add 'async' to function 'referenceAsyncGlobalActor()' to make it asynchronous}} {{33-33= async}}
 func referenceAsyncGlobalActor() {
-  let y = asyncGlobalActFn // expected-note{{calls to let 'y' from outside of its actor context are implicitly asynchronous}}
+  let y = asyncGlobalActFn
   y() // expected-error{{'async' call in a function that does not support concurrency}}
-  // expected-error@-1{{call to global actor 'SomeGlobalActor'-isolated let 'y' in a synchronous nonisolated context}}
 }
 
 

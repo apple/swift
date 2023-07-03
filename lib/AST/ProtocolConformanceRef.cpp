@@ -183,7 +183,7 @@ ProtocolConformanceRef::getWitnessByName(Type type, DeclName name) const {
   return getConcrete()->getWitnessDeclRef(requirement);
 }
 
-Optional<ArrayRef<Requirement>>
+llvm::Optional<ArrayRef<Requirement>>
 ProtocolConformanceRef::getConditionalRequirementsIfAvailable() const {
   if (isConcrete())
     return getConcrete()->getConditionalRequirementsIfAvailable();

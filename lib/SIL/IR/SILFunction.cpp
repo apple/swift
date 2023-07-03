@@ -92,20 +92,16 @@ void SILFunction::removeSpecializeAttr(SILSpecializeAttr *attr) {
                           SpecializeAttrSet.end());
 }
 
-SILFunction *
-SILFunction::create(SILModule &M, SILLinkage linkage, StringRef name,
-                    CanSILFunctionType loweredType,
-                    GenericEnvironment *genericEnv, Optional<SILLocation> loc,
-                    IsBare_t isBareSILFunction, IsTransparent_t isTrans,
-                    IsSerialized_t isSerialized, ProfileCounter entryCount,
-                    IsDynamicallyReplaceable_t isDynamic,
-                    IsDistributed_t isDistributed,
-                    IsRuntimeAccessible_t isRuntimeAccessible,
-                    IsExactSelfClass_t isExactSelfClass,
-                    IsThunk_t isThunk,
-                    SubclassScope classSubclassScope, Inline_t inlineStrategy,
-                    EffectsKind E, SILFunction *insertBefore,
-                    const SILDebugScope *debugScope) {
+SILFunction *SILFunction::create(
+    SILModule &M, SILLinkage linkage, StringRef name,
+    CanSILFunctionType loweredType, GenericEnvironment *genericEnv,
+    llvm::Optional<SILLocation> loc, IsBare_t isBareSILFunction,
+    IsTransparent_t isTrans, IsSerialized_t isSerialized,
+    ProfileCounter entryCount, IsDynamicallyReplaceable_t isDynamic,
+    IsDistributed_t isDistributed, IsRuntimeAccessible_t isRuntimeAccessible,
+    IsExactSelfClass_t isExactSelfClass, IsThunk_t isThunk,
+    SubclassScope classSubclassScope, Inline_t inlineStrategy, EffectsKind E,
+    SILFunction *insertBefore, const SILDebugScope *debugScope) {
   // Get a StringMapEntry for the function.  As a sop to error cases,
   // allow the name to have an empty string.
   llvm::StringMapEntry<SILFunction*> *entry = nullptr;

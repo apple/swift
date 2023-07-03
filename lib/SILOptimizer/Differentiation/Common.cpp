@@ -248,7 +248,7 @@ void collectMinimalIndicesForFunctionCall(
 #endif
 }
 
-Optional<std::pair<SILDebugLocation, SILDebugVariable>>
+llvm::Optional<std::pair<SILDebugLocation, SILDebugVariable>>
 findDebugLocationAndVariable(SILValue originalValue) {
   if (auto *asi = dyn_cast<AllocStackInst>(originalValue))
     return asi->getVarInfo().transform([&](SILDebugVariable var) {
@@ -265,7 +265,7 @@ findDebugLocationAndVariable(SILValue originalValue) {
         return std::make_pair(dvi->getDebugLocation(), var);
       });
   }
-  return None;
+  return llvm::None;
 }
 
 //===----------------------------------------------------------------------===//
@@ -447,11 +447,11 @@ getExactDifferentiabilityWitness(SILModule &module, SILFunction *original,
   return nullptr;
 }
 
-Optional<AutoDiffConfig>
+llvm::Optional<AutoDiffConfig>
 findMinimalDerivativeConfiguration(AbstractFunctionDecl *original,
                                    IndexSubset *parameterIndices,
                                    IndexSubset *&minimalASTParameterIndices) {
-  Optional<AutoDiffConfig> minimalConfig = None;
+  llvm::Optional<AutoDiffConfig> minimalConfig = llvm::None;
   auto configs = original->getDerivativeFunctionConfigurations();
   for (auto &config : configs) {
     auto *silParameterIndices = autodiff::getLoweredParameterIndices(

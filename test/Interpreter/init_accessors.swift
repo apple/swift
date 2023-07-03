@@ -385,7 +385,7 @@ func test_memberwise_ordering() {
     var _c: Int
   }
 
-  let test3 = Test3(_a: 1, _b: 2, _c: 3)
+  let test3 = Test3(_a: 1, _b: 2, pair: (1, 2), _c: 3)
   print("test-memberwise-ordering-3: \(test3)")
 }
 

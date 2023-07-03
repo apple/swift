@@ -222,7 +222,7 @@ public:
   /// and SDK version. This function is also used by LLDB.
   static std::string
   computePrebuiltCachePath(StringRef RuntimeResourcePath, llvm::Triple target,
-                           Optional<llvm::VersionTuple> sdkVer);
+                           llvm::Optional<llvm::VersionTuple> sdkVer);
 
   /// If we haven't explicitly passed -prebuilt-module-cache-path, set it to
   /// the default value of <resource-dir>/<platform>/prebuilt-modules.
@@ -448,7 +448,7 @@ class CompilerInstance {
   /// the file buffer provided by CAS needs to outlive the SourceMgr.
   std::shared_ptr<llvm::cas::ObjectStore> CAS;
   std::shared_ptr<llvm::cas::ActionCache> ResultCache;
-  Optional<llvm::cas::ObjectRef> CompileJobBaseKey;
+  llvm::Optional<llvm::cas::ObjectRef> CompileJobBaseKey;
 
   SourceManager SourceMgr;
   DiagnosticEngine Diagnostics{SourceMgr};
@@ -539,7 +539,7 @@ public:
   std::shared_ptr<llvm::cas::ObjectStore> getSharedCASInstance() const {
     return CAS;
   }
-  Optional<llvm::cas::ObjectRef> getCompilerBaseKey() const {
+  llvm::Optional<llvm::cas::ObjectRef> getCompilerBaseKey() const {
     return CompileJobBaseKey;
   }
   CachingDiagnosticsProcessor *getCachingDiagnosticsProcessor() const {
@@ -683,34 +683,36 @@ private:
   /// \return false if successful, true on error.
   bool setupDiagnosticVerifierIfNeeded();
 
-  Optional<unsigned> setUpIDEInspectionTargetBuffer();
+  llvm::Optional<unsigned> setUpIDEInspectionTargetBuffer();
 
   /// Find a buffer for a given input file and ensure it is recorded in
   /// SourceMgr, PartialModules, or InputSourceCodeBufferIDs as appropriate.
   /// Return the buffer ID if it is not already compiled, or None if so.
   /// Set failed on failure.
 
-  Optional<unsigned> getRecordedBufferID(const InputFile &input,
-                                         const bool shouldRecover,
-                                         bool &failed);
+  llvm::Optional<unsigned> getRecordedBufferID(const InputFile &input,
+                                               const bool shouldRecover,
+                                               bool &failed);
 
   /// Given an input file, return a buffer to use for its contents,
   /// and a buffer for the corresponding module doc file if one exists.
   /// On failure, return a null pointer for the first element of the returned
   /// pair.
-  Optional<ModuleBuffers> getInputBuffersIfPresent(const InputFile &input);
+  llvm::Optional<ModuleBuffers>
+  getInputBuffersIfPresent(const InputFile &input);
 
   /// Try to open the module doc file corresponding to the input parameter.
   /// Return None for error, nullptr if no such file exists, or the buffer if
   /// one was found.
-  Optional<std::unique_ptr<llvm::MemoryBuffer>>
+  llvm::Optional<std::unique_ptr<llvm::MemoryBuffer>>
   openModuleDoc(const InputFile &input);
 
   /// Try to open the module source info file corresponding to the input parameter.
   /// Return None for error, nullptr if no such file exists, or the buffer if
   /// one was found.
-  Optional<std::unique_ptr<llvm::MemoryBuffer>>
+  llvm::Optional<std::unique_ptr<llvm::MemoryBuffer>>
   openModuleSourceInfo(const InputFile &input);
+
 public:
   /// Parses and type-checks all input files.
   void performSema();
@@ -730,7 +732,7 @@ private:
   /// Creates a new source file for the main module.
   SourceFile *createSourceFileForMainModule(ModuleDecl *mod,
                                             SourceFileKind FileKind,
-                                            Optional<unsigned> BufferID,
+                                            llvm::Optional<unsigned> BufferID,
                                             bool isMainBuffer = false) const;
 
   /// Creates all the files to be added to the main module, appending them to

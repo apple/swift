@@ -329,7 +329,11 @@ static void diagSyntacticUseRestrictions(const Expr *E, const DeclContext *DC,
         // Diagnose attempts to form a tuple with any noncopyable elements.
         if (E->getType()->isPureMoveOnly()
             && !Ctx.LangOpts.hasFeature(Feature::MoveOnlyTuples)) {
-          Ctx.Diags.diagnose(E->getLoc(), diag::tuple_move_only_not_supported);
+          auto noncopyableTy = E->getType();
+          assert(noncopyableTy->is<TupleType>() && "will use poor wording");
+          Ctx.Diags.diagnose(E->getLoc(),
+                             diag::tuple_containing_move_only_not_supported,
+                             noncopyableTy);
         }
       }
 
@@ -603,7 +607,7 @@ static void diagSyntacticUseRestrictions(const Expr *E, const DeclContext *DC,
                          calleeParam->getName());
     }
 
-    Optional<MagicIdentifierLiteralExpr::Kind>
+    llvm::Optional<MagicIdentifierLiteralExpr::Kind>
     getMagicIdentifierDefaultArgKind(const ParamDecl *param) {
       switch (param->getDefaultArgumentKind()) {
 #define MAGIC_IDENTIFIER(NAME, STRING, SYNTAX_KIND) \
@@ -618,7 +622,7 @@ static void diagSyntacticUseRestrictions(const Expr *E, const DeclContext *DC,
       case DefaultArgumentKind::EmptyArray:
       case DefaultArgumentKind::EmptyDictionary:
       case DefaultArgumentKind::StoredProperty:
-        return None;
+        return llvm::None;
       }
 
       llvm_unreachable("Unhandled DefaultArgumentKind in "
@@ -1068,7 +1072,7 @@ static void diagSyntacticUseRestrictions(const Expr *E, const DeclContext *DC,
       }
       
       StringRef replaceBefore, replaceAfter;
-      Optional<Diag<Type, Type>> diagID;
+      llvm::Optional<Diag<Type, Type>> diagID;
       SmallString<64> replaceBeforeBuf;
 
       // Bitcasting among numeric types should use `bitPattern:` initializers.
@@ -2093,7 +2097,7 @@ bool swift::diagnoseArgumentLabelError(ASTContext &ctx,
                                        ArrayRef<Identifier> newNames,
                                        ParameterContext paramContext,
                                        InFlightDiagnostic *existingDiag) {
-  Optional<InFlightDiagnostic> diagOpt;
+  llvm::Optional<InFlightDiagnostic> diagOpt;
   auto getDiag = [&]() -> InFlightDiagnostic & {
     if (existingDiag)
       return *existingDiag;
@@ -2115,10 +2119,10 @@ bool swift::diagnoseArgumentLabelError(ASTContext &ctx,
     //  - None if i is out of bounds for the argument list
     //  - nullptr for an argument without a label
     //  - have a value if the argument has a label
-    Optional<Identifier> oldName;
+    llvm::Optional<Identifier> oldName;
     if (i < argList->size())
       oldName = argList->getLabel(i);
-    Optional<Identifier> newName;
+    llvm::Optional<Identifier> newName;
     if (i < newNames.size())
       newName = newNames[i];
 
@@ -2601,11 +2605,11 @@ static bool fixItOverrideDeclarationTypesImpl(
 
 bool swift::computeFixitsForOverriddenDeclaration(
     ValueDecl *decl, const ValueDecl *base,
-    llvm::function_ref<Optional<InFlightDiagnostic>(bool)> diag) {
+    llvm::function_ref<llvm::Optional<InFlightDiagnostic>(bool)> diag) {
   SmallVector<std::tuple<NoteKind_t, SourceRange, std::string>, 4> Notes;
   bool hasNotes = ::fixItOverrideDeclarationTypesImpl(decl, base, Notes);
 
-  Optional<InFlightDiagnostic> diagnostic = diag(hasNotes);
+  llvm::Optional<InFlightDiagnostic> diagnostic = diag(hasNotes);
   if (!diagnostic) return hasNotes;
 
   for (const auto &note : Notes) {
@@ -3011,7 +3015,7 @@ public:
     // A list of all mismatches discovered across all candidates.
     // If there are any mismatches in availability contexts, they
     // are not diagnosed but propagated to the declaration.
-    Optional<std::pair<unsigned, GenericTypeParamType *>> mismatch;
+    llvm::Optional<std::pair<unsigned, GenericTypeParamType *>> mismatch;
 
     auto opaqueParams = OpaqueDecl->getOpaqueGenericParams();
     SubstitutionMap underlyingSubs = std::get<1>(Candidates.front().second);
@@ -6086,15 +6090,16 @@ static OmissionTypeName getTypeNameForOmission(Type type) {
   return "";
 }
 
-Optional<DeclName> TypeChecker::omitNeedlessWords(AbstractFunctionDecl *afd) {
+llvm::Optional<DeclName>
+TypeChecker::omitNeedlessWords(AbstractFunctionDecl *afd) {
   auto &Context = afd->getASTContext();
 
   if (afd->isInvalid() || isa<DestructorDecl>(afd))
-    return None;
+    return llvm::None;
 
   const DeclName name = afd->getName();
   if (!name)
-    return None;
+    return llvm::None;
 
   // String'ify the arguments.
   StringRef baseNameStr = name.getBaseName().userFacingName();
@@ -6134,13 +6139,12 @@ Optional<DeclName> TypeChecker::omitNeedlessWords(AbstractFunctionDecl *afd) {
     firstParamName = params->get(0)->getName().str();
 
   StringScratchSpace scratch;
-  if (!swift::omitNeedlessWords(baseNameStr, argNameStrs, firstParamName,
-                                getTypeNameForOmission(resultType),
-                                getTypeNameForOmission(contextType),
-                                paramTypes, returnsSelf, false,
-                                /*allPropertyNames=*/nullptr,
-                                None, None, scratch))
-    return None;
+  if (!swift::omitNeedlessWords(
+          baseNameStr, argNameStrs, firstParamName,
+          getTypeNameForOmission(resultType),
+          getTypeNameForOmission(contextType), paramTypes, returnsSelf, false,
+          /*allPropertyNames=*/nullptr, llvm::None, llvm::None, scratch))
+    return llvm::None;
 
   /// Retrieve a replacement identifier.
   auto getReplacementIdentifier = [&](StringRef name,
@@ -6167,21 +6171,21 @@ Optional<DeclName> TypeChecker::omitNeedlessWords(AbstractFunctionDecl *afd) {
   return DeclName(Context, newBaseName, newArgNames);
 }
 
-Optional<Identifier> TypeChecker::omitNeedlessWords(VarDecl *var) {
+llvm::Optional<Identifier> TypeChecker::omitNeedlessWords(VarDecl *var) {
   auto &Context = var->getASTContext();
 
   if (var->isInvalid())
-    return None;
+    return llvm::None;
 
   if (var->getName().empty())
-    return None;
+    return llvm::None;
 
   auto name = var->getName().str();
 
   // Dig out the context type.
   Type contextType = var->getDeclContext()->getDeclaredInterfaceType();
   if (!contextType)
-    return None;
+    return llvm::None;
 
   // Dig out the type of the variable.
   Type type = var->getValueInterfaceType();
@@ -6192,13 +6196,14 @@ Optional<Identifier> TypeChecker::omitNeedlessWords(VarDecl *var) {
   StringScratchSpace scratch;
   OmissionTypeName typeName = getTypeNameForOmission(var->getInterfaceType());
   OmissionTypeName contextTypeName = getTypeNameForOmission(contextType);
-  if (::omitNeedlessWords(name, { }, "", typeName, contextTypeName, { },
+  if (::omitNeedlessWords(name, {}, "", typeName, contextTypeName, {},
                           /*returnsSelf=*/false, true,
-                          /*allPropertyNames=*/nullptr, None, None, scratch)) {
+                          /*allPropertyNames=*/nullptr, llvm::None, llvm::None,
+                          scratch)) {
     return Context.getIdentifier(name);
   }
 
-  return None;
+  return llvm::None;
 }
 
 bool swift::diagnoseUnhandledThrowsInAsyncContext(DeclContext *dc,

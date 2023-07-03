@@ -51,15 +51,14 @@ struct ReferenceMetaData {
   bool isImplicitCtorType = false;
 
   /// When non-none, this is a custom attribute reference.
-  Optional<std::pair<const CustomAttr *, Decl *>> CustomAttrRef;
+  llvm::Optional<std::pair<const CustomAttr *, Decl *>> CustomAttrRef;
 
-  ReferenceMetaData(
-      SemaReferenceKind Kind, llvm::Optional<AccessKind> AccKind,
-      bool isImplicit = false,
-      Optional<std::pair<const CustomAttr *, Decl *>> customAttrRef
-        = None
-  ) : Kind(Kind), AccKind(AccKind), isImplicit(isImplicit),
-      CustomAttrRef(customAttrRef) {}
+  ReferenceMetaData(SemaReferenceKind Kind, llvm::Optional<AccessKind> AccKind,
+                    bool isImplicit = false,
+                    llvm::Optional<std::pair<const CustomAttr *, Decl *>>
+                        customAttrRef = llvm::None)
+      : Kind(Kind), AccKind(AccKind), isImplicit(isImplicit),
+        CustomAttrRef(customAttrRef) {}
 };
 
 /// Specifies how the initialization expression of a \c lazy variable should be
@@ -319,7 +318,7 @@ public:
   template <typename T>
   struct PreWalkResult {
     PreWalkAction Action;
-    Optional<T> Value;
+    llvm::Optional<T> Value;
 
     template <typename U,
               typename std::enable_if<std::is_convertible<U, T>::value>::type
@@ -353,7 +352,7 @@ public:
           Value(std::move(Result.Value)) {}
 
     PreWalkResult(_Detail::StopWalkAction)
-        : Action(PreWalkAction::Stop), Value(None) {}
+        : Action(PreWalkAction::Stop), Value(llvm::None) {}
   };
 
   /// Do not construct directly, use \c Action::<action> instead.
@@ -364,7 +363,7 @@ public:
   template <typename T>
   struct PostWalkResult {
     PostWalkAction Action;
-    Optional<T> Value;
+    llvm::Optional<T> Value;
 
     template <typename U,
               typename std::enable_if<std::is_convertible<U, T>::value>::type
@@ -392,7 +391,7 @@ public:
           Value(std::move(Result.Value)) {}
 
     PostWalkResult(_Detail::StopWalkAction)
-        : Action(PostWalkAction::Stop), Value(None) {}
+        : Action(PostWalkAction::Stop), Value(llvm::None) {}
   };
 
   /// This method is called when first visiting an expression

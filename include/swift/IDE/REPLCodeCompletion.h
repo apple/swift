@@ -69,7 +69,7 @@ private:
   std::vector<CookedResult> CookedResults;
 
   std::string Prefix;
-  mutable Optional<std::string> Root;
+  mutable llvm::Optional<std::string> Root;
   size_t CurrentCompletionIdx;
 
 public:

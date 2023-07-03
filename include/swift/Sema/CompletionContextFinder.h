@@ -121,7 +121,7 @@ public:
   /// code completion expression directly but instead add some
   /// of the enclosing context e.g. when completion is an argument
   /// to a call.
-  Optional<Fallback> getFallbackCompletionExpr() const;
+  llvm::Optional<Fallback> getFallbackCompletionExpr() const;
 
 private:
   bool hasContext(ContextKind kind) const {

@@ -45,7 +45,7 @@ TestContext::TestContext(ShouldDeclareOptionalTypes optionals)
   Ctx.addLoadedModule(module);
 
   FileForLookups = new (Ctx) SourceFile(*module, SourceFileKind::Library,
-                                        /*buffer*/ None);
+                                        /*buffer*/ llvm::None);
   module->addFile(*FileForLookups);
 
   if (optionals == DeclareOptionalTypes) {
@@ -55,9 +55,9 @@ TestContext::TestContext(ShouldDeclareOptionalTypes optionals)
     optionalTypes.push_back(createOptionalType(
         Ctx, FileForLookups, Ctx.getIdentifier("ImplicitlyUnwrappedOptional")));
 
-    auto result = SourceFileParsingResult{
-        Ctx.AllocateCopy(optionalTypes), /*tokens*/ None,
-        /*interfaceHash*/ None};
+    auto result = SourceFileParsingResult{Ctx.AllocateCopy(optionalTypes),
+                                          /*tokens*/ llvm::None,
+                                          /*interfaceHash*/ llvm::None};
 
     Ctx.evaluator.cacheOutput(ParseSourceFileRequest{FileForLookups},
                               std::move(result));

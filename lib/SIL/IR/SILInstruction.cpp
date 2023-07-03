@@ -665,17 +665,17 @@ namespace {
       return X->getElement() == RHS->getElement();
     }
 
-    bool visitSelectEnumInstBase(const SelectEnumInstBase *RHS) {
+    bool visitSelectEnumOperation(SelectEnumOperation RHS) {
       // Check that the instructions match cases in the same order.
-      auto *X = cast<SelectEnumInstBase>(LHS);
+      auto X = SelectEnumOperation(LHS);
 
-      if (X->getNumCases() != RHS->getNumCases())
+      if (X.getNumCases() != RHS.getNumCases())
         return false;
-      if (X->hasDefault() != RHS->hasDefault())
+      if (X.hasDefault() != RHS.hasDefault())
         return false;
 
-      for (unsigned i = 0, e = X->getNumCases(); i < e; ++i) {
-        if (X->getCase(i).first != RHS->getCase(i).first)
+      for (unsigned i = 0, e = X.getNumCases(); i < e; ++i) {
+        if (X.getCase(i).first != RHS.getCase(i).first)
           return false;
       }
 
@@ -683,10 +683,10 @@ namespace {
     }
 
     bool visitSelectEnumInst(const SelectEnumInst *RHS) {
-      return visitSelectEnumInstBase(RHS);
+      return visitSelectEnumOperation(RHS);
     }
     bool visitSelectEnumAddrInst(const SelectEnumAddrInst *RHS) {
-      return visitSelectEnumInstBase(RHS);
+      return visitSelectEnumOperation(RHS);
     }
 
     // Conversion instructions.
@@ -1631,12 +1631,12 @@ void OpenPackElementInst::forEachDefinedLocalArchetype(
 //                         Multiple Value Instruction
 //===----------------------------------------------------------------------===//
 
-Optional<unsigned>
+llvm::Optional<unsigned>
 MultipleValueInstruction::getIndexOfResult(SILValue Target) const {
   // First make sure we actually have one of our instruction results.
   auto *MVIR = dyn_cast<MultipleValueInstructionResult>(Target);
   if (!MVIR || MVIR->getParent() != this)
-    return None;
+    return llvm::None;
   return MVIR->getIndex();
 }
 

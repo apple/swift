@@ -192,7 +192,7 @@ IsDeclApplicableRequest::evaluate(Evaluator &evaluator,
 bool
 TypeRelationCheckRequest::evaluate(Evaluator &evaluator,
                                    TypeRelationCheckInput Owner) const {
-  Optional<constraints::ConstraintKind> CKind;
+  llvm::Optional<constraints::ConstraintKind> CKind;
   switch (Owner.Relation) {
   case TypeRelation::ConvertTo:
     CKind = constraints::ConstraintKind::Conversion;

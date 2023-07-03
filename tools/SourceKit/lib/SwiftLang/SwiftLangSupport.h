@@ -421,8 +421,8 @@ public:
   ///                   get the real file system.
   /// \param error Set to a description of the error, if appropriate.
   llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem>
-  getFileSystem(const Optional<VFSOptions> &vfsOptions,
-                Optional<StringRef> primaryFile, std::string &error);
+  getFileSystem(const llvm::Optional<VFSOptions> &vfsOptions,
+                llvm::Optional<StringRef> primaryFile, std::string &error);
 
   static SourceKit::UIdent getUIDForDeclLanguage(const swift::Decl *D);
   static SourceKit::UIdent getUIDForDecl(const swift::Decl *D,
@@ -454,7 +454,8 @@ public:
 
   static SourceKit::UIdent getUIDForRefactoringRangeKind(swift::ide::RefactoringRangeKind Kind);
 
-  static Optional<UIdent> getUIDForDeclAttribute(const swift::DeclAttribute *Attr);
+  static llvm::Optional<UIdent>
+  getUIDForDeclAttribute(const swift::DeclAttribute *Attr);
 
   static SourceKit::UIdent getUIDForFormalAccessScope(const swift::AccessScope Scope);
 
@@ -566,7 +567,7 @@ public:
                     OptionsDictionary *options,
                     SourceKit::CodeCompletionConsumer &Consumer,
                     ArrayRef<const char *> Args,
-                    Optional<VFSOptions> vfsOptions,
+                    llvm::Optional<VFSOptions> vfsOptions,
                     SourceKitCancellationToken CancellationToken) override;
 
   void codeCompleteOpen(StringRef name, llvm::MemoryBuffer *inputBuf,
@@ -574,7 +575,7 @@ public:
                         ArrayRef<FilterRule> rawFilterRules,
                         GroupedCodeCompletionConsumer &consumer,
                         ArrayRef<const char *> args,
-                        Optional<VFSOptions> vfsOptions,
+                        llvm::Optional<VFSOptions> vfsOptions,
                         SourceKitCancellationToken CancellationToken) override;
 
   void codeCompleteClose(StringRef name, unsigned offset,
@@ -593,17 +594,16 @@ public:
   void
   codeCompleteSetCustom(ArrayRef<CustomCompletionInfo> completions) override;
 
-  void editorOpen(
-      StringRef Name, llvm::MemoryBuffer *Buf, EditorConsumer &Consumer,
-      ArrayRef<const char *> Args, Optional<VFSOptions> vfsOptions) override;
+  void editorOpen(StringRef Name, llvm::MemoryBuffer *Buf,
+                  EditorConsumer &Consumer, ArrayRef<const char *> Args,
+                  llvm::Optional<VFSOptions> vfsOptions) override;
 
-  void editorOpenInterface(EditorConsumer &Consumer,
-                           StringRef Name,
+  void editorOpenInterface(EditorConsumer &Consumer, StringRef Name,
                            StringRef ModuleName,
-                           Optional<StringRef> Group,
+                           llvm::Optional<StringRef> Group,
                            ArrayRef<const char *> Args,
                            bool SynthesizedExtensions,
-                           Optional<StringRef> InterestedUSR) override;
+                           llvm::Optional<StringRef> InterestedUSR) override;
 
   void editorOpenTypeInterface(EditorConsumer &Consumer,
                                ArrayRef<const char *> Args,
@@ -647,21 +647,22 @@ public:
                      unsigned Offset, unsigned Length, bool Actionables,
                      bool SymbolGraph, bool CancelOnSubsequentRequest,
                      ArrayRef<const char *> Args,
-                     Optional<VFSOptions> vfsOptions,
+                     llvm::Optional<VFSOptions> vfsOptions,
                      SourceKitCancellationToken CancellationToken,
                      std::function<void(const RequestResult<CursorInfoData> &)>
                          Receiver) override;
 
   void
   getDiagnostics(StringRef PrimaryFilePath, ArrayRef<const char *> Args,
-                 Optional<VFSOptions> VfsOptions,
+                 llvm::Optional<VFSOptions> VfsOptions,
                  SourceKitCancellationToken CancellationToken,
                  std::function<void(const RequestResult<DiagnosticsResult> &)>
                      Receiver) override;
 
   void getNameInfo(
-      StringRef Filename, unsigned Offset, NameTranslatingInfo &Input,
-      ArrayRef<const char *> Args, SourceKitCancellationToken CancellationToken,
+      StringRef PrimaryFilePath, StringRef InputBufferName, unsigned Offset,
+      NameTranslatingInfo &Input, ArrayRef<const char *> Args,
+      SourceKitCancellationToken CancellationToken,
       std::function<void(const RequestResult<NameTranslatingInfo> &)> Receiver)
       override;
 
@@ -674,7 +675,7 @@ public:
   void getCursorInfoFromUSR(
       StringRef PrimaryFilePath, StringRef InputBufferName, StringRef USR,
       bool CancelOnSubsequentRequest, ArrayRef<const char *> Args,
-      Optional<VFSOptions> vfsOptions,
+      llvm::Optional<VFSOptions> vfsOptions,
       SourceKitCancellationToken CancellationToken,
       std::function<void(const RequestResult<CursorInfoData> &)> Receiver)
       override;
@@ -717,8 +718,8 @@ public:
 
   void collectVariableTypes(
       StringRef PrimaryFilePath, StringRef InputBufferName,
-      ArrayRef<const char *> Args, Optional<unsigned> Offset,
-      Optional<unsigned> Length, bool FullyQualified,
+      ArrayRef<const char *> Args, llvm::Optional<unsigned> Offset,
+      llvm::Optional<unsigned> Length, bool FullyQualified,
       SourceKitCancellationToken CancellationToken,
       std::function<void(const RequestResult<VariableTypesInFile> &)> Receiver)
       override;
@@ -748,7 +749,7 @@ public:
                                 ArrayRef<const char *> Args,
                                 SourceKitCancellationToken CancellationToken,
                                 TypeContextInfoConsumer &Consumer,
-                                Optional<VFSOptions> vfsOptions) override;
+                                llvm::Optional<VFSOptions> vfsOptions) override;
 
   void getConformingMethodList(llvm::MemoryBuffer *inputBuf, unsigned Offset,
                                OptionsDictionary *options,
@@ -756,7 +757,7 @@ public:
                                ArrayRef<const char *> ExpectedTypes,
                                SourceKitCancellationToken CancellationToken,
                                ConformingMethodListConsumer &Consumer,
-                               Optional<VFSOptions> vfsOptions) override;
+                               llvm::Optional<VFSOptions> vfsOptions) override;
 
   void expandMacroSyntactically(llvm::MemoryBuffer *inputBuf,
                                 ArrayRef<const char *> args,
@@ -765,7 +766,7 @@ public:
 
   void
   performCompile(StringRef Name, ArrayRef<const char *> Args,
-                 Optional<VFSOptions> vfsOptions,
+                 llvm::Optional<VFSOptions> vfsOptions,
                  SourceKitCancellationToken CancellationToken,
                  std::function<void(const RequestResult<CompilationResult> &)>
                      Receiver) override;

@@ -166,7 +166,7 @@ namespace irgen {
   /// The returned \p StackAllocSize value is the actual size if the object is
   /// allocated on the stack or -1, if the object is allocated on the heap.
   llvm::Value *emitClassAllocation(IRGenFunction &IGF, SILType selfType,
-                  bool objc, int &StackAllocSize, TailArraysRef TailArrays);
+                  bool objc, bool isBare, int &StackAllocSize, TailArraysRef TailArrays);
 
   /// Emit an allocation of a class using a metadata value.
   llvm::Value *emitClassAllocationDynamic(IRGenFunction &IGF,

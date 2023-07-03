@@ -197,7 +197,7 @@ deriveBodyEquatable_enum_hasAssociatedValues_eq(AbstractFunctionDecl *eqDecl,
     rhsElemPat->setImplicit();
 
     auto hasBoundDecls = !lhsPayloadVars.empty();
-    Optional<MutableArrayRef<VarDecl *>> caseBodyVarDecls;
+    llvm::Optional<MutableArrayRef<VarDecl *>> caseBodyVarDecls;
     if (hasBoundDecls) {
       // We allocated a direct copy of our lhs var decls for the case
       // body.
@@ -267,7 +267,7 @@ deriveBodyEquatable_enum_hasAssociatedValues_eq(AbstractFunctionDecl *eqDecl,
     cases.push_back(CaseStmt::create(C, CaseParentKind::Switch, SourceLoc(),
                                      defaultItem, SourceLoc(), SourceLoc(),
                                      body,
-                                     /*case body var decls*/ None));
+                                     /*case body var decls*/ llvm::None));
   }
 
   // switch (a, b) { <case statements> }
@@ -728,7 +728,7 @@ deriveBodyHashable_enum_hasAssociatedValues_hashInto(
     }
 
     auto hasBoundDecls = !payloadVars.empty();
-    Optional<MutableArrayRef<VarDecl *>> caseBodyVarDecls;
+    llvm::Optional<MutableArrayRef<VarDecl *>> caseBodyVarDecls;
     if (hasBoundDecls) {
       auto copy = C.Allocate<VarDecl *>(payloadVars.size());
       for (unsigned i : indices(payloadVars)) {

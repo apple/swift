@@ -269,7 +269,7 @@ private:
     DeinitBarriers &result;
     Dataflow::Result reachability;
     Dataflow dataflow;
-    Optional<SmallVector<SILBasicBlock *, 16>> cachedRoots;
+    llvm::Optional<SmallVector<SILBasicBlock *, 16>> cachedRoots;
     bool recordDeadUsers = false;
 
   public:

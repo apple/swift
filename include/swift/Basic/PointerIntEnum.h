@@ -185,9 +185,9 @@ public:
 
   /// \returns the kind of the enum if the enum is valid. Returns None if the
   /// enum is invalid.
-  Optional<EnumTy> getKind() const {
+  llvm::Optional<EnumTy> getKind() const {
     if (!isValid())
-      return None;
+      return llvm::None;
 
     // Check if the bottom pointer bits are all not set. If that is true then we
     // know that we have a pointer kind.

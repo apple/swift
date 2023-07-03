@@ -108,8 +108,8 @@ public:
   
   /// The value stored in a Builtin.once predicate to indicate that an
   /// initialization has already happened, if known.
-  Optional<int64_t> OnceDonePredicateValue = None;
-  
+  llvm::Optional<int64_t> OnceDonePredicateValue = llvm::None;
+
   /// True if `swift_retain` and `swift_release` are no-ops when passed
   /// "negative" pointer values.
   bool SwiftRetainIgnoresNegativeValues = false;

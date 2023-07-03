@@ -137,8 +137,8 @@ bool IDEInspectionSecondPassRequest::evaluate(
 void Parser::performIDEInspectionSecondPassImpl(
     IDEInspectionDelayedDeclState &info) {
   // Disable updating the interface hash
-  llvm::SaveAndRestore<Optional<StableHasher>> CurrentTokenHashSaver(
-      CurrentTokenHash, None);
+  llvm::SaveAndRestore<llvm::Optional<StableHasher>> CurrentTokenHashSaver(
+      CurrentTokenHash, llvm::None);
 
   auto BufferID = L->getBufferID();
   auto startLoc = SourceMgr.getLocForOffset(BufferID, info.StartOffset);
@@ -407,7 +407,7 @@ public:
   TokenRecorder(ASTContext &ctx, Lexer &BaseLexer)
       : Ctx(ctx), BaseLexer(BaseLexer), BufferID(BaseLexer.getBufferID()) {}
 
-  Optional<std::vector<Token>> finalize() override {
+  llvm::Optional<std::vector<Token>> finalize() override {
     auto &SM = Ctx.SourceMgr;
 
     // We should consume the comments at the end of the file that don't attach
@@ -826,7 +826,7 @@ getStructureMarkerKindForToken(const Token &tok) {
 Parser::StructureMarkerRAII::StructureMarkerRAII(Parser &parser, SourceLoc loc,
                                                  StructureMarkerKind kind)
     : StructureMarkerRAII(parser) {
-  parser.StructureMarkers.push_back({loc, kind, None});
+  parser.StructureMarkers.push_back({loc, kind, llvm::None});
   if (parser.StructureMarkers.size() > MaxDepth) {
     parser.diagnose(loc, diag::structure_overflow, MaxDepth);
     // We need to cut off parsing or we will stack-overflow.
@@ -1076,15 +1076,14 @@ Parser::parseList(tok RightK, SourceLoc LeftLoc, SourceLoc &RightLoc,
   return Status;
 }
 
-Optional<StringRef>
-Parser::getStringLiteralIfNotInterpolated(SourceLoc Loc,
-                                          StringRef DiagText) {
+llvm::Optional<StringRef>
+Parser::getStringLiteralIfNotInterpolated(SourceLoc Loc, StringRef DiagText) {
   assert(Tok.is(tok::string_literal));
 
   // FIXME: Support extended escaping string literal.
   if (Tok.getCustomDelimiterLen()) {
     diagnose(Loc, diag::forbidden_extended_escaping_string, DiagText);
-    return None;
+    return llvm::None;
   }
 
   SmallVector<Lexer::StringSegment, 1> Segments;
@@ -1092,7 +1091,7 @@ Parser::getStringLiteralIfNotInterpolated(SourceLoc Loc,
   if (Segments.size() != 1 ||
       Segments.front().Kind == Lexer::StringSegment::Expr) {
     diagnose(Loc, diag::forbidden_interpolated_string, DiagText);
-    return None;
+    return llvm::None;
   }
 
   return SourceMgr.extractText(CharSourceRange(Segments.front().Loc,
@@ -1177,7 +1176,7 @@ void ParserUnit::parse() {
   SmallVector<ASTNode, 128> items;
   P.parseTopLevelItems(items);
 
-  Optional<ArrayRef<Token>> tokensRef;
+  llvm::Optional<ArrayRef<Token>> tokensRef;
   if (auto tokens = P.takeTokenReceiver()->finalize())
     tokensRef = ctx.AllocateCopy(*tokens);
 

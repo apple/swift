@@ -306,7 +306,7 @@ DeclAttributes::getDeprecated(const ASTContext &ctx) const {
       if (AvAttr->isUnconditionallyDeprecated())
         return AvAttr;
 
-      Optional<llvm::VersionTuple> DeprecatedVersion = AvAttr->Deprecated;
+      llvm::Optional<llvm::VersionTuple> DeprecatedVersion = AvAttr->Deprecated;
       if (!DeprecatedVersion.has_value())
         continue;
 
@@ -344,7 +344,7 @@ DeclAttributes::getSoftDeprecated(const ASTContext &ctx) const {
           !AvAttr->isPackageDescriptionVersionSpecific())
         continue;
 
-      Optional<llvm::VersionTuple> DeprecatedVersion = AvAttr->Deprecated;
+      llvm::Optional<llvm::VersionTuple> DeprecatedVersion = AvAttr->Deprecated;
       if (!DeprecatedVersion.has_value())
         continue;
 
@@ -859,7 +859,7 @@ SourceLoc DeclAttributes::getStartLoc(bool forModifiers) const {
   return lastAttr ? lastAttr->getRangeWithAt().Start : SourceLoc();
 }
 
-Optional<const DeclAttribute *>
+llvm::Optional<const DeclAttribute *>
 OrigDeclAttrFilter::operator()(const DeclAttribute *Attr) const {
   auto declLoc = decl->getStartLoc();
   auto *mod = decl->getModuleContext();
@@ -871,7 +871,7 @@ OrigDeclAttrFilter::operator()(const DeclAttribute *Attr) const {
   // Only attributes in the same buffer as the declaration they're attached to
   // are part of the original attribute list.
   if (declFile->getBufferID() != attrFile->getBufferID())
-    return None;
+    return llvm::None;
 
   return Attr;
 }
@@ -1371,6 +1371,13 @@ bool DeclAttribute::printImpl(ASTPrinter &Printer, const PrintOptions &Options,
 
   case DAK_MacroRole: {
     auto Attr = cast<MacroRoleAttr>(this);
+
+    // Suppress @attached(extension) if needed.
+    if (!Options.PrintExtensionMacroAttributes &&
+        Attr->getMacroRole() == MacroRole::Extension) {
+      break;
+    }
+
     switch (Attr->getMacroSyntax()) {
     case MacroSyntax::Freestanding:
       Printer.printAttrName("@freestanding");
@@ -1632,11 +1639,10 @@ StringRef DeclAttribute::getAttrName() const {
 }
 
 ObjCAttr::ObjCAttr(SourceLoc atLoc, SourceRange baseRange,
-                   Optional<ObjCSelector> name, SourceRange parenRange,
+                   llvm::Optional<ObjCSelector> name, SourceRange parenRange,
                    ArrayRef<SourceLoc> nameLocs)
-  : DeclAttribute(DAK_ObjC, atLoc, baseRange, /*Implicit=*/false),
-    NameData(nullptr)
-{
+    : DeclAttribute(DAK_ObjC, atLoc, baseRange, /*Implicit=*/false),
+      NameData(nullptr) {
   if (name) {
     // Store the name.
     assert(name->getNumSelectorPieces() == nameLocs.size());
@@ -1656,19 +1662,19 @@ ObjCAttr::ObjCAttr(SourceLoc atLoc, SourceRange baseRange,
   Bits.ObjCAttr.Swift3Inferred = false;
 }
 
-ObjCAttr *ObjCAttr::create(ASTContext &Ctx, Optional<ObjCSelector> name,
+ObjCAttr *ObjCAttr::create(ASTContext &Ctx, llvm::Optional<ObjCSelector> name,
                            bool isNameImplicit) {
   return new (Ctx) ObjCAttr(name, isNameImplicit);
 }
 
 ObjCAttr *ObjCAttr::createUnnamed(ASTContext &Ctx, SourceLoc AtLoc,
                                   SourceLoc ObjCLoc) {
-  return new (Ctx) ObjCAttr(AtLoc, SourceRange(ObjCLoc), None,
-                            SourceRange(), { });
+  return new (Ctx)
+      ObjCAttr(AtLoc, SourceRange(ObjCLoc), llvm::None, SourceRange(), {});
 }
 
 ObjCAttr *ObjCAttr::createUnnamedImplicit(ASTContext &Ctx) {
-  return new (Ctx) ObjCAttr(None, false);
+  return new (Ctx) ObjCAttr(llvm::None, false);
 }
 
 ObjCAttr *ObjCAttr::createNullary(ASTContext &Ctx, SourceLoc AtLoc, 
@@ -1889,7 +1895,7 @@ AvailableAttr *AvailableAttr::clone(ASTContext &C, bool implicit) const {
                                IsSPI);
 }
 
-Optional<OriginallyDefinedInAttr::ActiveVersion>
+llvm::Optional<OriginallyDefinedInAttr::ActiveVersion>
 OriginallyDefinedInAttr::isActivePlatform(const ASTContext &ctx) const {
   OriginallyDefinedInAttr::ActiveVersion Result;
   Result.Platform = Platform;
@@ -1908,7 +1914,7 @@ OriginallyDefinedInAttr::isActivePlatform(const ASTContext &ctx) const {
     Result.IsSimulator = ctx.LangOpts.TargetVariant->isSimulatorEnvironment();
     return Result;
   }
-  return None;
+  return llvm::None;
 }
 
 OriginallyDefinedInAttr *OriginallyDefinedInAttr::clone(ASTContext &C,
@@ -2492,29 +2498,45 @@ MacroRoleAttr::MacroRoleAttr(SourceLoc atLoc, SourceRange range,
                              MacroSyntax syntax, SourceLoc lParenLoc,
                              MacroRole role,
                              ArrayRef<MacroIntroducedDeclName> names,
+                             ArrayRef<TypeExpr *> conformances,
                              SourceLoc rParenLoc, bool implicit)
     : DeclAttribute(DAK_MacroRole, atLoc, range, implicit),
-      syntax(syntax), role(role), numNames(names.size()), lParenLoc(lParenLoc),
+      syntax(syntax), role(role), numNames(names.size()),
+      numConformances(conformances.size()), lParenLoc(lParenLoc),
       rParenLoc(rParenLoc) {
   auto *trailingNamesBuffer = getTrailingObjects<MacroIntroducedDeclName>();
   std::uninitialized_copy(names.begin(), names.end(), trailingNamesBuffer);
+
+  auto *trailingConformancesBuffer = getTrailingObjects<TypeExpr *>();
+  std::uninitialized_copy(conformances.begin(), conformances.end(),
+                          trailingConformancesBuffer);
 }
 
 MacroRoleAttr *
 MacroRoleAttr::create(ASTContext &ctx, SourceLoc atLoc, SourceRange range,
                       MacroSyntax syntax, SourceLoc lParenLoc, MacroRole role,
                       ArrayRef<MacroIntroducedDeclName> names,
+                      ArrayRef<TypeExpr *> conformances,
                       SourceLoc rParenLoc, bool implicit) {
-  unsigned size = totalSizeToAlloc<MacroIntroducedDeclName>(names.size());
+  unsigned size =
+      totalSizeToAlloc<MacroIntroducedDeclName, TypeExpr *>(
+          names.size(), conformances.size());
   auto *mem = ctx.Allocate(size, alignof(MacroRoleAttr));
   return new (mem) MacroRoleAttr(atLoc, range, syntax, lParenLoc, role, names,
-                                 rParenLoc, implicit);
+                                 conformances, rParenLoc, implicit);
 }
 
 ArrayRef<MacroIntroducedDeclName> MacroRoleAttr::getNames() const {
   return {
     getTrailingObjects<MacroIntroducedDeclName>(),
     numNames
+  };
+}
+
+ArrayRef<TypeExpr *> MacroRoleAttr::getConformances() const {
+  return {
+    getTrailingObjects<TypeExpr *>(),
+    numConformances
   };
 }
 

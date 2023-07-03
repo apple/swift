@@ -856,14 +856,15 @@ By default, SourceKit hides underscored protocols from the generated
 swiftinterface (for all modules, not just the standard library), but this
 attribute can be used to override that behavior for the standard library.
 
-## `@_silgen_name("cName")`
+## `@_silgen_name([raw: ]"cName")`
 
-Changes the symbol name for a function, similar to an ASM label in C,
-except that the platform symbol mangling (leading underscore on Darwin)
-is maintained.
+Changes the symbol name for a function or a global, similar to an ASM label in
+C. Unlike ASM labels in C, the platform symbol mangling (leading underscore on
+Darwin) is maintained, unless "raw:" is used, in which case the name provided is
+expected to already be mangled.
 
 Since this has label-like behavior, it may not correspond to any declaration;
-if so, it is assumed that the function is implemented in C.
+if so, it is assumed that the function/global is implemented in C.
 
 A function defined by `@_silgen_name` is assumed to use the Swift ABI.
 

@@ -55,7 +55,7 @@ class RequirementMachine final {
   friend class swift::InferredGenericSignatureRequest;
 
   CanGenericSignature Sig;
-  SmallVector<Type, 2> Params;
+  SmallVector<GenericTypeParamType *, 2> Params;
 
   RewriteContext &Context;
   RewriteSystem System;
@@ -123,14 +123,13 @@ class RequirementMachine final {
   void buildRequirementsFromRules(
     ArrayRef<unsigned> requirementRules,
     ArrayRef<unsigned> typeAliasRules,
-    TypeArrayView<GenericTypeParamType> genericParams,
+    ArrayRef<GenericTypeParamType *> genericParams,
     bool reconstituteSugar,
     std::vector<Requirement> &reqs,
     std::vector<ProtocolTypeAlias> &aliases) const;
 
-  TypeArrayView<GenericTypeParamType> getGenericParams() const {
-    return TypeArrayView<GenericTypeParamType>(
-      ArrayRef<Type>(Params));
+  ArrayRef<GenericTypeParamType *> getGenericParams() const {
+    return Params;
   }
 
 public:
@@ -140,22 +139,22 @@ public:
   // RequirementMachine instance; instead, call the corresponding methods on
   // GenericSignature, which lazily create a RequirementMachine for you.
   GenericSignature::LocalRequirements getLocalRequirements(Type depType,
-                      TypeArrayView<GenericTypeParamType> genericParams) const;
+                      ArrayRef<GenericTypeParamType *> genericParams) const;
   bool requiresClass(Type depType) const;
   LayoutConstraint getLayoutConstraint(Type depType) const;
   bool requiresProtocol(Type depType, const ProtocolDecl *proto) const;
   GenericSignature::RequiredProtocols getRequiredProtocols(Type depType) const;
   Type getSuperclassBound(Type depType,
-                          TypeArrayView<GenericTypeParamType> genericParams) const;
+                          ArrayRef<GenericTypeParamType *> genericParams) const;
   bool isConcreteType(Type depType,
                       const ProtocolDecl *proto=nullptr) const;
   Type getConcreteType(Type depType,
-                       TypeArrayView<GenericTypeParamType> genericParams,
+                       ArrayRef<GenericTypeParamType *> genericParams,
                        const ProtocolDecl *proto=nullptr) const;
   bool areReducedTypeParametersEqual(Type depType1, Type depType2) const;
   bool isReducedType(Type type) const;
   Type getReducedType(Type type,
-                      TypeArrayView<GenericTypeParamType> genericParams) const;
+                      ArrayRef<GenericTypeParamType *> genericParams) const;
   bool isValidTypeParameter(Type type) const;
   ConformancePath getConformancePath(Type type, ProtocolDecl *protocol);
   TypeDecl *lookupNestedType(Type depType, Identifier name) const;
@@ -165,7 +164,7 @@ private:
 
 public:
   Type getReducedShape(Type type,
-                       TypeArrayView<GenericTypeParamType> genericParams) const;
+                       ArrayRef<GenericTypeParamType *> genericParams) const;
 
   bool haveSameShape(Type type1, Type type2) const;
 

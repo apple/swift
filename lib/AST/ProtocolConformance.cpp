@@ -42,7 +42,7 @@ Witness::Witness(ValueDecl *decl, SubstitutionMap substitutions,
                  GenericSignature witnessThunkSig,
                  SubstitutionMap reqToWitnessThunkSigSubs,
                  GenericSignature derivativeGenSig,
-                 Optional<ActorIsolation> enterIsolation) {
+                 llvm::Optional<ActorIsolation> enterIsolation) {
   if (!witnessThunkSig && substitutions.empty() &&
       reqToWitnessThunkSigSubs.empty() && !enterIsolation) {
     storage = decl;
@@ -316,7 +316,7 @@ bool NormalProtocolConformance::isResilient() const {
   return getDeclContext()->getParentModule()->isResilient();
 }
 
-Optional<ArrayRef<Requirement>>
+llvm::Optional<ArrayRef<Requirement>>
 ProtocolConformance::getConditionalRequirementsIfAvailable() const {
   CONFORMANCE_SUBCLASS_DISPATCH(getConditionalRequirementsIfAvailable, ());
 }
@@ -325,12 +325,12 @@ ArrayRef<Requirement> ProtocolConformance::getConditionalRequirements() const {
   CONFORMANCE_SUBCLASS_DISPATCH(getConditionalRequirements, ());
 }
 
-Optional<ArrayRef<Requirement>>
+llvm::Optional<ArrayRef<Requirement>>
 NormalProtocolConformance::getConditionalRequirementsIfAvailable() const {
   const auto &eval = getDeclContext()->getASTContext().evaluator;
   if (eval.hasActiveRequest(ConditionalRequirementsRequest{
           const_cast<NormalProtocolConformance *>(this)})) {
-    return None;
+    return llvm::None;
   }
   return getConditionalRequirements();
 }
@@ -685,7 +685,7 @@ NormalProtocolConformance::getWitnessUncached(ValueDecl *requirement) const {
 
 Witness SelfProtocolConformance::getWitness(ValueDecl *requirement) const {
   return Witness(requirement, SubstitutionMap(), nullptr, SubstitutionMap(),
-                 GenericSignature(), None);
+                 GenericSignature(), llvm::None);
 }
 
 ConcreteDeclRef

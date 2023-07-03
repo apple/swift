@@ -680,6 +680,22 @@ static void recordShadowedDeclsAfterTypeMatch(
         }
       }
 
+      // Next, prefer any other module over the Observation module.
+      if (auto obsModule = ctx.getLoadedModule(ctx.Id_Observation)) {
+        if ((firstModule == obsModule) != (secondModule == obsModule)) {
+          // If second module is (_)Observation, then it is shadowed by
+          // first.
+          if (secondModule == obsModule) {
+            shadowed.insert(secondDecl);
+            continue;
+          }
+
+          // Otherwise, the first declaration is shadowed by the second.
+          shadowed.insert(firstDecl);
+          break;
+        }
+      }
+
       // The Foundation overlay introduced Data.withUnsafeBytes, which is
       // treated as being ambiguous with SwiftNIO's Data.withUnsafeBytes
       // extension. Apply a special-case name shadowing rule to use the
@@ -1791,6 +1807,21 @@ populateLookupTableEntryFromMacroExpansions(ASTContext &ctx,
           ctx.evaluator,
           ExpandSynthesizedMemberMacroRequest{decl},
           false);
+    }
+  }
+
+  // Trigger the expansion of extension macros on the container, if any of the
+  // names match.
+  {
+    MacroIntroducedNameTracker nameTracker;
+    if (auto nominal = dyn_cast<NominalTypeDecl>(container.getAsDecl())) {
+      forEachPotentialAttachedMacro(nominal, MacroRole::Extension, nameTracker);
+      if (nameTracker.shouldExpandForName(name)) {
+        (void)evaluateOrDefault(
+            ctx.evaluator,
+            ExpandExtensionMacros{nominal},
+            false);
+      }
     }
   }
 

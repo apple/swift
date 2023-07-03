@@ -62,7 +62,7 @@
 /include/swift/DependencyScan                      @artemcm
 /include/swift/Driver                              @artemcm
 # TODO: /include/swift/IRGen/
-/include/swift/IDE/                                @ahoppen @bnbarham @rintaro
+/include/swift/IDE/                                @ahoppen @bnbarham @rintaro @hamishknight
 /include/swift/Index/                              @bnbarham
 /include/swift/Refactoring                         @ahoppen @bnbarham
 /include/swift/Parse/                              @ahoppen @bnbarham @CodaFi @DougGregor @rintaro
@@ -100,8 +100,8 @@
 /lib/DriverTool/swift_symbolgraph_extract_main.cpp  @QuietMisdreavus
 /lib/Frontend/*ModuleInterface*                     @artemcm @tshortli
 # TODO: /lib/IRGen/
-/lib/IDE/                                           @ahoppen @bnbarham @rintaro
-/lib/IDETool/                                       @ahoppen @bnbarham @rintaro
+/lib/IDE/                                           @ahoppen @bnbarham @rintaro @hamishknight
+/lib/IDETool/                                       @ahoppen @bnbarham @rintaro @hamishknight
 /lib/Index/                                         @bnbarham
 /lib/Refactoring/                                   @ahoppen @bnbarham
 /lib/IRGen/*Coverage*                               @hamishknight
@@ -139,6 +139,7 @@
 # stdlib
 # TODO: /stdlib/
 /stdlib/public/Backtracing/               @al45tair
+/stdlib/public/Concurrency/               @ktoso @kavon
 /stdlib/public/Cxx/                       @zoecarver @hyp @egorzhdan
 /stdlib/public/Distributed/               @ktoso
 /stdlib/public/Windows/                   @compnerd
@@ -146,6 +147,7 @@
 
 # test
 /test/ASTGen/                                       @zoecarver @CodaFi
+/test/Concurrency/                                  @ktoso @kavon
 /test/Constraints/                                  @hborla @xedin
 /test/DebugInfo/                                    @adrian-prantl
 /test/Distributed/                                  @ktoso
@@ -153,10 +155,10 @@
 /test/Driver/static*                                @MaxDesiatov @etcwilde
 /test/Generics/                                     @hborla @slavapestov
 # TODO: /test/IRGen/
-/test/IDE/                                          @ahoppen @bnbarham @rintaro
+/test/IDE/                                          @ahoppen @bnbarham @rintaro @hamishknight
 /test/Index/                                        @bnbarham
 /test/refactoring/                                  @ahoppen @bnbarham
-/test/SourceKit/                                    @ahoppen @bnbarham @rintaro
+/test/SourceKit/                                    @ahoppen @bnbarham @rintaro @hamishknight
 /test/Interop/                                      @zoecarver @hyp @egorzhdan
 /test/Parse/                                        @ahoppen @bnbarham @CodaFi @DougGregor @rintaro
 /test/Profiler                                      @hamishknight
@@ -177,9 +179,9 @@
 
 # tools
 # TODO: /tools
-/tools/SourceKit                                    @ahoppen @bnbarham @rintaro
+/tools/SourceKit                                    @ahoppen @bnbarham @rintaro @hamishknight
 /tools/lldb-moduleimport-test/                      @adrian-prantl
-/tools/swift-ide-test                               @ahoppen @bnbarham @rintaro
+/tools/swift-ide-test                               @ahoppen @bnbarham @rintaro @hamishknight
 /tools/swift-refactor                               @ahoppen @bnbarham
 
 # unittests
@@ -188,7 +190,7 @@
 /unittests/Parse/                         @ahoppen @bnbarham @CodaFi @DougGregor @rintaro
 # TODO: /unittests/SIL/
 /unittests/Sema/                          @hborla @xedin
-/unittests/SourceKit/                     @ahoppen @bnbarham @rintaro
+/unittests/SourceKit/                     @ahoppen @bnbarham @rintaro @hamishknight
 # TODO: /unittests/stdlib/
 
 # userdocs
@@ -209,7 +211,7 @@
 
 # validation-test
 # TODO: /validation-test/IRGen/
-/validation-test/IDE/                     @ahoppen @bnbarham @rintaro
+/validation-test/IDE/                     @ahoppen @bnbarham @rintaro @hamishknight
 /validation-test/Parse/                   @ahoppen @bnbarham @CodaFi @DougGregor @rintaro
 # TODO: /validation-test/SIL/
 # TODO: /validation-test/SILGen/

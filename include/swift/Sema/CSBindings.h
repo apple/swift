@@ -285,7 +285,7 @@ private:
   /// Attempt to infer a new binding and other useful information
   /// (i.e. whether bindings should be delayed) from the given
   /// relational constraint.
-  Optional<PotentialBinding> inferFromRelational(Constraint *constraint);
+  llvm::Optional<PotentialBinding> inferFromRelational(Constraint *constraint);
 
 public:
   void infer(Constraint *constraint);

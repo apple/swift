@@ -83,7 +83,7 @@ public:
   IRGenFunction(IRGenModule &IGM, llvm::Function *fn,
                 OptimizationMode Mode = OptimizationMode::NotSet,
                 const SILDebugScope *DbgScope = nullptr,
-                Optional<SILLocation> DbgLoc = None);
+                llvm::Optional<SILLocation> DbgLoc = llvm::None);
   ~IRGenFunction();
 
   void unimplemented(SourceLoc Loc, StringRef Message);

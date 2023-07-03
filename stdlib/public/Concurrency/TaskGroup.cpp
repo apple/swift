@@ -89,7 +89,7 @@ using FutureFragment = AsyncTask::FutureFragment;
 
 /// During evolution discussions we opted to implement the following semantic of
 /// a discarding task-group throw:
-/// - the error thrown out of withThrowingDiscardingTaskGroup { ... } always "wins",
+/// - the error thrown out of withThrowingDiscardingTaskGroup(...) { ... } always "wins",
 ///   even if the group already had an error stored within.
 ///
 /// This is harder to implement, since we have to always store the "first error from children",

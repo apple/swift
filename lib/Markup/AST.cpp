@@ -15,8 +15,9 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "swift/Markup/Markup.h"
 #include "swift/Markup/AST.h"
+#include "swift/Markup/Markup.h"
+#include "llvm/ADT/None.h"
 #include "llvm/ADT/Optional.h"
 
 using namespace swift;
@@ -109,7 +110,7 @@ Link *Link::create(MarkupContext &MC, StringRef Destination,
   return new (Mem) Link(DestinationCopy, Children);
 }
 
-Image::Image(StringRef Destination, Optional<StringRef> Title,
+Image::Image(StringRef Destination, llvm::Optional<StringRef> Title,
              ArrayRef<MarkupASTNode *> Children)
     : InlineContent(ASTNodeKind::Image), NumChildren(Children.size()),
       Destination(Destination), Title(Title) {
@@ -118,12 +119,12 @@ Image::Image(StringRef Destination, Optional<StringRef> Title,
 }
 
 Image *Image::create(MarkupContext &MC, StringRef Destination,
-                     Optional<StringRef> Title,
+                     llvm::Optional<StringRef> Title,
                      ArrayRef<MarkupASTNode *> Children) {
   void *Mem = MC.allocate(totalSizeToAlloc<MarkupASTNode *>(Children.size()),
                           alignof(Image));
   StringRef DestinationCopy = MC.allocateCopy(Destination);
-  Optional<StringRef> TitleCopy;
+  llvm::Optional<StringRef> TitleCopy;
   if (Title)
     TitleCopy = MC.allocateCopy(*Title);
   return new (Mem) Image(DestinationCopy, TitleCopy, Children);
@@ -215,8 +216,7 @@ Strong *Strong::create(MarkupContext &MC,
 
 ParamField::ParamField(StringRef Name, ArrayRef<MarkupASTNode *> Children)
     : PrivateExtension(ASTNodeKind::ParamField), NumChildren(Children.size()),
-      Name(Name),
-      Parts(None) {
+      Name(Name), Parts(llvm::None) {
   std::uninitialized_copy(Children.begin(), Children.end(),
                           getTrailingObjects<MarkupASTNode *>());
 }

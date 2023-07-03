@@ -20,6 +20,7 @@
 #include "swift/AST/ASTAllocated.h"
 #include "swift/AST/Types.h"
 #include "swift/Basic/Debug.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/TrailingObjects.h"
 
@@ -139,7 +140,7 @@ class alignas(Argument) ArgumentList final
   bool HasLabelLocs : 1;
 
   ArgumentList(SourceLoc lParenLoc, SourceLoc rParenLoc, unsigned numArgs,
-               Optional<unsigned> firstTrailingClosureIndex,
+               llvm::Optional<unsigned> firstTrailingClosureIndex,
                ArgumentList *originalArgs, bool isImplicit, bool hasLabels,
                bool hasLabelLocs)
       : LParenLoc(lParenLoc), RParenLoc(rParenLoc), NumArgs(numArgs),
@@ -220,8 +221,9 @@ public:
   /// \param arena The arena to allocate the ArgumentList in.
   static ArgumentList *
   create(ASTContext &ctx, SourceLoc lParenLoc, ArrayRef<Argument> args,
-         SourceLoc rParenLoc, Optional<unsigned> firstTrailingClosureIndex,
-         bool isImplicit, ArgumentList *originalArgs = nullptr,
+         SourceLoc rParenLoc,
+         llvm::Optional<unsigned> firstTrailingClosureIndex, bool isImplicit,
+         ArgumentList *originalArgs = nullptr,
          AllocationArena arena = AllocationArena::Permanent);
 
   /// Create a new explicit parsed ArgumentList.
@@ -235,7 +237,7 @@ public:
   static ArgumentList *
   createParsed(ASTContext &ctx, SourceLoc lParenLoc, ArrayRef<Argument> args,
                SourceLoc rParenLoc,
-               Optional<unsigned> firstTrailingClosureIndex);
+               llvm::Optional<unsigned> firstTrailingClosureIndex);
 
   /// Create a new type-checked ArgumentList from an original set of arguments.
   ///
@@ -254,17 +256,17 @@ public:
   /// \param rParenLoc The location of the closing ')'. Note that for a
   /// subscript argument list, this will be for the closing ']'.
   /// \param arena The arena to allocate the ArgumentList in.
-  static ArgumentList *
-  createImplicit(ASTContext &ctx, SourceLoc lParenLoc, ArrayRef<Argument> args,
-                 SourceLoc rParenLoc,
-                 Optional<unsigned> firstTrailingClosureIndex = None,
-                 AllocationArena arena = AllocationArena::Permanent);
+  static ArgumentList *createImplicit(
+      ASTContext &ctx, SourceLoc lParenLoc, ArrayRef<Argument> args,
+      SourceLoc rParenLoc,
+      llvm::Optional<unsigned> firstTrailingClosureIndex = llvm::None,
+      AllocationArena arena = AllocationArena::Permanent);
 
   /// Create a new implicit ArgumentList with a set of \p args.
-  static ArgumentList *
-  createImplicit(ASTContext &ctx, ArrayRef<Argument> args,
-                 Optional<unsigned> firstTrailingClosureIndex = None,
-                 AllocationArena arena = AllocationArena::Permanent);
+  static ArgumentList *createImplicit(
+      ASTContext &ctx, ArrayRef<Argument> args,
+      llvm::Optional<unsigned> firstTrailingClosureIndex = llvm::None,
+      AllocationArena arena = AllocationArena::Permanent);
 
   /// Create a new implicit ArgumentList with a single labeled argument
   /// expression.
@@ -380,10 +382,10 @@ public:
   ///
   /// Note for a type-checked argument list, this must be queried on
   /// \c getOriginalArgs instead.
-  Optional<unsigned> getFirstTrailingClosureIndex() const {
+  llvm::Optional<unsigned> getFirstTrailingClosureIndex() const {
     assert(!HasOriginalArgs && "Query original args instead");
     if (RawFirstTrailingClosureIndex == NumArgs)
-      return None;
+      return llvm::None;
     return RawFirstTrailingClosureIndex;
   }
 
@@ -467,11 +469,11 @@ public:
   ///
   /// Note for a type-checked argument list, this must be queried on
   /// \c getOriginalArgs instead.
-  Optional<Argument> getFirstTrailingClosure() const {
+  llvm::Optional<Argument> getFirstTrailingClosure() const {
     assert(!HasOriginalArgs && "Query original args instead");
     auto idx = getFirstTrailingClosureIndex();
     if (!idx.has_value())
-      return None;
+      return llvm::None;
     return get(*idx);
   }
 
@@ -525,8 +527,8 @@ public:
   /// arguments, returns its index. Otherwise returns \c None. By default this
   /// will match against semantic sub-expressions, but that may be disabled by
   /// passing \c false for \c allowSemantic.
-  Optional<unsigned> findArgumentExpr(Expr *expr,
-                                      bool allowSemantic = true) const;
+  llvm::Optional<unsigned> findArgumentExpr(Expr *expr,
+                                            bool allowSemantic = true) const;
 
   /// Creates a TupleExpr or ParenExpr that holds the argument exprs. A
   /// ParenExpr will be returned for a single argument, otherwise a TupleExpr.

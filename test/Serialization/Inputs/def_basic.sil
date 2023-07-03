@@ -684,6 +684,17 @@ bb0:
   return %2 : $()
 }
 
+// CHECK-LABEL: sil public_external [transparent] @test_bare_flags
+sil [transparent] [serialized] @test_bare_flags : $@convention(thin) () -> () {
+bb0:
+  // CHECK: alloc_ref [bare] $Class1
+  %0 = alloc_ref [bare] $Class1
+  // CHECK: global_value [bare] @static_global_object : $GlobalObject
+  %1 = global_value [bare] @static_global_object : $GlobalObject
+  %2 = tuple ()
+  return %2 : $()
+}
+
 // CHECK-LABEL: sil public_external [transparent] @test_stack_protection_flags
 sil [transparent] [serialized] @test_stack_protection_flags : $@convention(thin) (@inout Builtin.Word) -> () {
 bb0(%0 : $*Builtin.Word):
@@ -1537,7 +1548,8 @@ bb0:
   %84 = function_ref @test_dealloc_partial_ref : $@convention(thin) () -> ()
   %85 = function_ref @test_dealloc_box : $@convention(thin) () -> ()
   %86 = function_ref @test_stack_flag : $@convention(thin) () -> ()
-  %86b = function_ref @test_stack_protection_flags : $@convention(thin) (@inout Builtin.Word) -> ()
+  %86b = function_ref @test_bare_flags : $@convention(thin) () -> ()
+  %86c = function_ref @test_stack_protection_flags : $@convention(thin) (@inout Builtin.Word) -> ()
   %87 = function_ref @test_tail_elems : $@convention(thin) (Builtin.Word, Builtin.Word) -> ()
   %88 = function_ref @test_tail_elems_dynamic : $@convention(thin) (Builtin.Word, Builtin.Word, @thick Class1.Type) -> ()
   %89 = function_ref @test_tail_addr : $@convention(thin) (@owned Class1, Builtin.Word) -> @owned Class1

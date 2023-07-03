@@ -31,6 +31,9 @@ SILGlobalVariable *SILGenModule::getSILGlobalVariable(VarDecl *gDecl,
     auto SILGenName = gDecl->getAttrs().getAttribute<SILGenNameAttr>();
     if (SILGenName && !SILGenName->Name.empty()) {
       mangledName = SILGenName->Name.str();
+      if (SILGenName->Raw) {
+        mangledName = "\1" + mangledName;
+      }
     } else {
       Mangle::ASTMangler NewMangler;
       mangledName = NewMangler.mangleGlobalVariableFull(gDecl);
@@ -45,6 +48,13 @@ SILGlobalVariable *SILGenModule::getSILGlobalVariable(VarDecl *gDecl,
     formalLinkage = getDeclLinkage(gDecl);
   auto silLinkage = getSILLinkage(formalLinkage, forDef);
 
+  if (gDecl->getAttrs().hasAttribute<SILGenNameAttr>()) {
+    silLinkage = SILLinkage::DefaultForDeclaration;
+    if (! gDecl->hasInitialValue()) {
+      forDef = NotForDefinition;
+    }
+  }
+
   // Check if it is already created, and update linkage if necessary.
   if (auto gv = M.lookUpGlobalVariable(mangledName)) {
     // Update the SILLinkage here if this is a definition.
@@ -58,9 +68,8 @@ SILGlobalVariable *SILGenModule::getSILGlobalVariable(VarDecl *gDecl,
   SILType silTy = SILType::getPrimitiveObjectType(
     M.Types.getLoweredTypeOfGlobal(gDecl));
 
-  auto *silGlobal = SILGlobalVariable::create(M, silLinkage, IsNotSerialized,
-                                              mangledName, silTy,
-                                              None, gDecl);
+  auto *silGlobal = SILGlobalVariable::create(
+      M, silLinkage, IsNotSerialized, mangledName, silTy, llvm::None, gDecl);
   silGlobal->setDeclaration(!forDef);
 
   return silGlobal;
@@ -68,7 +77,7 @@ SILGlobalVariable *SILGenModule::getSILGlobalVariable(VarDecl *gDecl,
 
 ManagedValue
 SILGenFunction::emitGlobalVariableRef(SILLocation loc, VarDecl *var,
-                                      Optional<ActorIsolation> actorIso) {
+                                      llvm::Optional<ActorIsolation> actorIso) {
   assert(!VarLocs.count(var));
   if (var->isLazilyInitializedGlobal()) {
     // Call the global accessor to get the variable's address.
@@ -81,7 +90,7 @@ SILGenFunction::emitGlobalVariableRef(SILLocation loc, VarDecl *var,
     // variable first. So, we must call this accessor with the same
     // isolation that the variable itself requires during access.
     ExecutorBreadcrumb prevExecutor = emitHopToTargetActor(loc, actorIso,
-                                                                /*base=*/None);
+                                                           /*base=*/llvm::None);
 
     SILValue addr = B.createApply(loc, accessor, SubstitutionMap(), {});
 

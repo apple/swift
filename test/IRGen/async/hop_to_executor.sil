@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -primary-file %s -module-name=test -disable-llvm-optzns -disable-swift-specific-llvm-optzns -emit-ir -sil-verify-all | %IRGenFileCheck %s -check-prefix CHECK-%target-abi
-// RUN: %target-swift-frontend  -primary-file %s -module-name=test -disable-llvm-optzns -disable-swift-specific-llvm-optzns -emit-ir -sil-verify-all
+// RUN: %target-swift-frontend -primary-file %s -module-name=test -disable-llvm-optzns -disable-swift-specific-llvm-optzns -emit-ir -sil-verify-all | %IRGenFileCheck %s -check-prefix CHECK-%target-abi
 
 // REQUIRES: concurrency
 
@@ -14,13 +13,19 @@ import Swift
 import _Concurrency
 
 // CHECK-LABEL: define{{.*}} void @test_simple(
-// CHECK-SAME: %swift.context* swiftasync %0, [[INT]] %1, [[INT]] %2)
-// CHECK-DAG: [[CTX:%[0-9]+]] = bitcast %swift.context* %0
-// CHECK-DAG: [[RESUME:%[0-9]+]] = call i8* @llvm.coro.async.resume()
-// CHECK-x86_64: call {{.*}} @llvm.coro.suspend.async{{.*}}(i32 0, i8* [[RESUME]], i8* bitcast (i8* (i8*)* @__swift_async_resume_get_context to i8*), i8* bitcast (void (i8*, [[INT]], [[INT]], %swift.context*)* @test_simple.1 to i8*), i8* [[RESUME]], [[INT]] %1, [[INT]] %2, %swift.context* {{%[0-9]+}})
-// CHECK-arm64e: call {{.*}} @llvm.coro.suspend.async{{.*}}(i32 0, i8* [[RESUME]], i8* bitcast (i8* (i8*)* @__swift_async_resume_get_context to i8*), i8* bitcast (void (i8*, [[INT]], [[INT]], %swift.context*)* @test_simple.1 to i8*), i8* [[RESUME]], [[INT]] %1, [[INT]] %2, %swift.context* {{%[0-9]+}})
-// CHECK: [[RET_CONTINUATION:%.*]] = bitcast void (%swift.context*)* {{.*}} to i8*
-// CHECK:  call i1 (i8*, i1, ...) @llvm.coro.end.async(i8* {{.*}}, i1 false, void (i8*, %swift.context*)* @[[TAIL_CALL_FUNC:.*]], i8* [[RET_CONTINUATION]]
+// CHECK-SAME: ptr swiftasync %0, [[INT]] %1, [[INT]] %2)
+// CHECK: store ptr %0, ptr [[CTX_ADDR:%[0-9]+]]
+// CHECK: [[RESUME:%[0-9]+]] = call ptr @llvm.coro.async.resume()
+// CHECK: call {{.*}} @llvm.coro.suspend.async{{.*}}(i32 0, ptr [[RESUME]], ptr @__swift_async_resume_get_context, ptr @test_simple.1, ptr [[RESUME]], [[INT]] %1, [[INT]] %2, ptr {{%[0-9]+}})
+// CHECK: [[RESUME_CTX:%[0-9]+]] = call ptr @__swift_async_resume_get_context(
+// CHECK: store ptr [[RESUME_CTX]], ptr [[CTX_ADDR]]
+// CHECK: [[CTX:%[0-9+]+]] = load ptr, ptr [[CTX_ADDR]]
+// CHECK: [[CONT_ADDR:%[0-9]+]] = getelementptr inbounds <{ ptr, ptr }>, ptr [[CTX]], i32 0, i32 1
+// CHECK: [[RET_CONTINUATION:%.*]] = load ptr, ptr [[CONT_ADDR]]
+// CHECK-arm64e:  [[T0:%.*]] = ptrtoint ptr [[RET_CONTINUATION]] to i64
+// CHECK-arm64e:  [[T1:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[T0]]
+// CHECK-arm64e:  [[RET_CONTINUATION:%.*]] = inttoptr i64 [[T1]] to ptr
+// CHECK: call i1 (ptr, i1, ...) @llvm.coro.end.async(ptr {{.*}}, i1 false, ptr @[[TAIL_CALL_FUNC:.*]], ptr [[RET_CONTINUATION]]
 // CHECK: unreachable
 
 sil @test_simple : $@async (@guaranteed Optional<Builtin.Executor>) -> () {
@@ -31,15 +36,14 @@ bb0(%0 : $Optional<Builtin.Executor>):
 }
 
 // CHECK-LABEL: define internal swift{{(tail)?}}cc void @test_simple.1
-// CHECK-SAME:  (i8* [[RESUME_FN:%0]], [[INT]] %1, [[INT]] %2, %swift.context* [[CTXT:%[^,]+]])
-// CHECK-arm64e: [[RESUME_FN_INT:%[^,]+]] = ptrtoint i8* [[RESUME_FN]] to i64
+// CHECK-SAME:  (ptr [[RESUME_FN:%0]], [[INT]] %1, [[INT]] %2, ptr [[CTXT:%[^,]+]])
+// CHECK-arm64e: [[RESUME_FN_INT:%[^,]+]] = ptrtoint ptr [[RESUME_FN]] to i64
 // CHECK-arm64e: [[PTRAUTH_SIGN:%[^,]+]] = call i64 @llvm.ptrauth.sign(i64 [[RESUME_FN_INT]], i32 0, i64 0)
-// CHECK-arm64e: [[RESUME_FN:%[^,]+]] = inttoptr i64 [[PTRAUTH_SIGN]] to i8*
-// CHECK:    {{(must)?}}tail call swift{{(tail)?}}cc void @swift_task_switch(%swift.context* swiftasync [[CTXT]], i8* [[RESUME_FN]], [[INT]] %1, [[INT]] %2)
+// CHECK-arm64e: [[RESUME_FN:%[^,]+]] = inttoptr i64 [[PTRAUTH_SIGN]] to ptr
+// CHECK:    {{(must)?}}tail call swift{{(tail)?}}cc void @swift_task_switch(ptr swiftasync [[CTXT]], ptr [[RESUME_FN]], [[INT]] %1, [[INT]] %2)
 // CHECK:    ret void
 
-// CHECK: define{{.*}} void @[[TAIL_CALL_FUNC]](i8* %0, %swift.context* %1)
-// CHECK:   %2 = bitcast i8* %0 to void (%swift.context*)*
-// CHECK:   {{(must)?}}tail call swift{{(tail)?}}cc void %2(%swift.context* swiftasync %1)
+// CHECK: define{{.*}} void @[[TAIL_CALL_FUNC]](ptr %0, ptr %1)
+// CHECK:   {{(must)?}}tail call swift{{(tail)?}}cc void %0(ptr swiftasync %1)
 // CHECK:   ret void
 // CHECK: }

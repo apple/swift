@@ -56,14 +56,14 @@ private func baz() -> some protoA<testModBStruct> & protoB<Float> & testModBProt
 // CHECK-NEXT:        ],
 // CHECK-NEXT:        "opaqueTypeSameTypeRequirements": [
 // CHECK-NEXT:          {
-// CHECK-NEXT:            "typeAliasName": "ExtractOpaqueTypealias.protoA.T",
-// CHECK-NEXT:            "substitutedTypeName": "testModB.testModBStruct",
-// CHECK-NEXT:            "substitutedMangledTypeName": "8testModB0aB7BStructV"
-// CHECK-NEXT:          },
-// CHECK-NEXT:          {
 // CHECK-NEXT:            "typeAliasName": "ExtractOpaqueTypealias.protoB.K",
 // CHECK-NEXT:            "substitutedTypeName": "Swift.Float",
 // CHECK-NEXT:            "substitutedMangledTypeName": "Sf"
+// CHECK-NEXT:          }
+// CHECK-NEXT:          {
+// CHECK-NEXT:            "typeAliasName": "ExtractOpaqueTypealias.protoA.T",
+// CHECK-NEXT:            "substitutedTypeName": "testModB.testModBStruct",
+// CHECK-NEXT:            "substitutedMangledTypeName": "8testModB0aB7BStructV"
 // CHECK-NEXT:          }
 // CHECK-NEXT:        ]
 // CHECK-NEXT:      }

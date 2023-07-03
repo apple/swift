@@ -1064,13 +1064,13 @@ llvm::Optional<GenericArgumentMap> TypeRef::getSubstMap() const {
       unsigned Index = 0;
       for (auto Param : BG->getGenericParams()) {
         if (!Param->isConcrete())
-          return None;
+          return llvm::None;
         Substitutions.insert({{Depth, Index++}, Param});
       }
       if (auto Parent = BG->getParent()) {
         auto ParentSubs = Parent->getSubstMap();
         if (!ParentSubs)
-          return None;
+          return llvm::None;
         Substitutions.insert(ParentSubs->begin(), ParentSubs->end());
       }
       break;
@@ -1322,7 +1322,7 @@ public:
   visitTypeRefRequirement(const TypeRefRequirement &req) {
     auto newFirst = visit(req.getFirstType());
     if (!newFirst)
-      return None;
+      return llvm::None;
 
     switch (req.getKind()) {
     case RequirementKind::SameShape:
@@ -1331,7 +1331,7 @@ public:
     case RequirementKind::SameType: {
       auto newSecond = visit(req.getFirstType());
       if (!newSecond)
-        return None;
+        return llvm::None;
       return TypeRefRequirement(req.getKind(), newFirst, newSecond);
     }
     case RequirementKind::Layout:

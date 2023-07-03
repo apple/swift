@@ -1130,7 +1130,7 @@ SILInstruction *SILCombiner::visitConvertEscapeToNoEscapeInst(
     SILValue convertedVJP = createConvertEscapeToNoEscape(
       NormalDifferentiableFunctionTypeComponent::VJP);
 
-    Optional<std::pair<SILValue, SILValue>> derivativeFunctions;
+    llvm::Optional<std::pair<SILValue, SILValue>> derivativeFunctions;
     if (convertedJVP && convertedVJP)
       derivativeFunctions = std::make_pair(convertedJVP, convertedVJP);
 
@@ -1312,7 +1312,7 @@ SILCombiner::visitConvertFunctionInst(ConvertFunctionInst *cfi) {
           NormalDifferentiableFunctionTypeComponent::JVP);
       SILValue convertedVJP = createConvertFunctionOfComponent(
           NormalDifferentiableFunctionTypeComponent::VJP);
-      Optional<std::pair<SILValue, SILValue>> derivativeFunctions;
+      llvm::Optional<std::pair<SILValue, SILValue>> derivativeFunctions;
       if (convertedJVP && convertedVJP)
         derivativeFunctions = std::make_pair(convertedJVP, convertedVJP);
       auto *newDFI = Builder.createDifferentiableFunction(

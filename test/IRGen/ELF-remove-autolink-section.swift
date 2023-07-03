@@ -1,5 +1,4 @@
-// RUN: %swiftc_driver %use_no_opaque_pointers -emit-ir %s -o - -Xfrontend -disable-implicit-concurrency-module-import -Xfrontend -disable-implicit-string-processing-module-import | %FileCheck %s -check-prefix ELF
-// RUN: %swiftc_driver -emit-ir %s -o - -Xfrontend -disable-implicit-concurrency-module-import -Xfrontend -disable-implicit-string-processing-module-import
+// RUN: %swiftc_driver -emit-ir %s -o - -Xfrontend -disable-implicit-concurrency-module-import -Xfrontend -disable-implicit-string-processing-module-import | %FileCheck %s -check-prefix ELF
 
 // Check that the swift auto link section is available in the object file.
 // RUN: %swiftc_driver -c %s -o %t -Xfrontend -disable-implicit-concurrency-module-import
@@ -13,7 +12,7 @@
 
 print("Hi from Swift!")
 
-// ELF: @llvm.compiler.used = {{.*}}[37 x i8]* @_swift1_autolink_entries
+// ELF: @llvm.compiler.used = {{.*}}ptr @_swift1_autolink_entries
 
 // SECTION: .swift1_autolink_entries
 // NOSECTION-NOT: .swift1_autolink_entries

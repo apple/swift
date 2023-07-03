@@ -340,8 +340,8 @@ ERROR(performance_unknown_callees,none,
       "called function is not known at compile time and can have unpredictable performance", ())
 ERROR(performance_callee_unavailable,none,
       "called function is not available in this module and can have unpredictable performance", ())
-ERROR(section_attr_on_non_const_global,none,
-      "global variable must be a compile-time constant to use @_section attribute", ())
+ERROR(bad_attr_on_non_const_global,none,
+      "global variable must be a compile-time constant to use %0 attribute", (StringRef))
 NOTE(performance_called_from,none,
       "called from here", ())
 
@@ -784,6 +784,9 @@ ERROR(sil_movechecking_notconsumable_but_assignable_was_consumed, none,
       (StringRef, bool))
 ERROR(sil_movechecking_cannot_destructure_has_deinit, none,
       "cannot partially consume '%0' when it has a deinitializer",
+      (StringRef))
+ERROR(sil_movechecking_cannot_destructure, none,
+      "cannot partially consume '%0'",
       (StringRef))
 ERROR(sil_movechecking_discard_missing_consume_self, none,
       "must consume 'self' before exiting method that discards self", ())

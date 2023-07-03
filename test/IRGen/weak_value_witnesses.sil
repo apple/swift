@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers %s -emit-ir | %FileCheck %s
-// RUN: %target-swift-frontend %s -emit-ir
+// RUN: %target-swift-frontend %s -emit-ir | %FileCheck %s
 
 // REQUIRES: CPU=x86_64
 
@@ -26,39 +25,39 @@ struct Gen<T> {
   var y: T
 }
 
-// CHECK-NOT: define internal %swift.opaque* @"$s20weak_value_witnesses8JustWeakVwTK"(
+// CHECK-NOT: define internal ptr @"$s20weak_value_witnesses8JustWeakVwTK"(
 
 // The default memcpy-ing witness is good enough for NoWeak.
-// CHECK-NOT: define internal %swift.opaque* @"$s20weak_value_witnesses6NoWeakVwtk"(%swift.opaque* %dest, %swift.opaque* %src, %swift.type* %Self)
+// CHECK-NOT: define internal ptr @"$s20weak_value_witnesses6NoWeakVwtk"(ptr %dest, ptr %src, ptr %Self)
 
 // CHECK-NOT: @"$s20weak_value_witnesses6NoWeakVwTK"
 
-// CHECK-LABEL: define internal %swift.opaque* @"$s20weak_value_witnesses8JustWeakVwCP"
+// CHECK-LABEL: define internal ptr @"$s20weak_value_witnesses8JustWeakVwCP"
 // CHECK: entry:
-// CHECK:  load %swift.refcounted*, %swift.refcounted**
-// CHECK:  call %swift.refcounted* @swift_retain
-// CHECK:  store %swift.refcounted*
-// CHECK:  load %swift.refcounted*
+// CHECK:  load ptr, ptr
+// CHECK:  call ptr @swift_retain
+// CHECK:  store ptr
+// CHECK:  load ptr
 // CHECK:  getelementptr inbounds i8
-// CHECK:  ret %swift.opaque
+// CHECK:  ret ptr
 // CHECK:}
 
-// CHECK-LABEL: define internal %swift.opaque* @"$s20weak_value_witnesses8SomeWeakVwCP"
+// CHECK-LABEL: define internal ptr @"$s20weak_value_witnesses8SomeWeakVwCP"
 // CHECK:entry:
-// CHECK:  load %swift.refcounted*, %swift.refcounted**
-// CHECK:  call %swift.refcounted* @swift_retain
-// CHECK:  store %swift.refcounted*
-// CHECK:  load %swift.refcounted*
+// CHECK:  load ptr, ptr
+// CHECK:  call ptr @swift_retain
+// CHECK:  store ptr
+// CHECK:  load ptr
 // CHECK:  getelementptr inbounds i8
-// CHECK:  ret %swift.opaque
+// CHECK:  ret ptr
 // CHECK:}
 
 // Weak references must be taken by swift_weakTakeInit.
-// CHECK-LABEL: define internal %swift.opaque* @"$s20weak_value_witnesses8SomeWeakVwtk"(%swift.opaque* noalias %dest, %swift.opaque* noalias %src, %swift.type* %SomeWeak)
-// CHECK:         call %swift.weak* @swift_weakTakeInit
+// CHECK-LABEL: define internal ptr @"$s20weak_value_witnesses8SomeWeakVwtk"(ptr noalias %dest, ptr noalias %src, ptr %SomeWeak)
+// CHECK:         call ptr @swift_weakTakeInit
 
-// CHECK-NOT: define internal %swift.opaque* @"$s20weak_value_witnesses8SomeWeakVwTK"(
+// CHECK-NOT: define internal ptr @"$s20weak_value_witnesses8SomeWeakVwTK"(
 
 // Generic types must be taken using their value witness.
-// CHECK-LABEL: define internal %swift.opaque* @"$s20weak_value_witnesses3GenVwtk"(%swift.opaque* noalias %dest, %swift.opaque* noalias %src, %swift.type* %"Gen<T>")
-// CHECK:         call %swift.opaque* %initializeWithTake
+// CHECK-LABEL: define internal ptr @"$s20weak_value_witnesses3GenVwtk"(ptr noalias %dest, ptr noalias %src, ptr %"Gen<T>")
+// CHECK:         call ptr

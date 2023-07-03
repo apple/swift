@@ -5,7 +5,7 @@
 
 // RUN: %empty-directory(%t)
 
-// RUN: %target-swift-emit-module-interface(%t/Macros.swiftinterface) -module-name Macros %s
+// RUN: %target-swift-emit-module-interface(%t/Macros.swiftinterface) -enable-experimental-feature ExtensionMacros -module-name Macros %s
 // RUN: %FileCheck %s < %t/Macros.swiftinterface --check-prefix CHECK
 // RUN: %target-swift-frontend -compile-module-from-interface %t/Macros.swiftinterface -o %t/Macros.swiftmodule
 
@@ -48,6 +48,13 @@
 // CHECK: @attached(accessor, names: named(init)) public macro AccessorInitFunc() = #externalMacro(module: "SomeModule", type: "AccessorInitFuncMacro")
 // CHECK-NEXT: #endif
 @attached(accessor, names: named(init)) public macro AccessorInitFunc() = #externalMacro(module: "SomeModule", type: "AccessorInitFuncMacro")
+
+// CHECK: #if compiler(>=5.3) && $Macros && $AttachedMacros
+// CHECK: @attached(extension) @attached(conformance) public macro AddSendable() = #externalMacro(module: "SomeModule", type: "SendableExtensionMacro")
+// CHECK-NEXT: #else
+// CHECK: @attached(conformance) public macro AddSendable() = #externalMacro(module: "SomeModule", type: "SendableExtensionMacro")
+// CHECK-NEXT: #endif
+@attached(extension) @attached(conformance) public macro AddSendable() = #externalMacro(module: "SomeModule", type: "SendableExtensionMacro")
 
 // CHECK-NOT: internalStringify
 @freestanding(expression) macro internalStringify<T>(_ value: T) -> (T, String) = #externalMacro(module: "SomeModule", type: "StringifyMacro")

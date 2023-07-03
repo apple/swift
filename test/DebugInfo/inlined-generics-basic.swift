@@ -75,9 +75,9 @@ public class C<R> {
     g((r, s))
     // Note to maintainers: the relative order of the constant dbg.values here
     // seem to flip back and forth.
-    // IR: dbg.value(metadata i64 0, metadata ![[GI_U:[0-9]+]]
-    // IR: dbg.value(metadata i64 0, metadata ![[GI_T:[0-9]+]]
-    // IR: call {{.*}}3use{{.*}}(i64 0)
+    // IR: dbg.value(metadata i{{.*}} 0, metadata ![[GI_U:[0-9]+]]
+    // IR: dbg.value(metadata i{{.*}} 0, metadata ![[GI_T:[0-9]+]]
+    // IR: call {{.*}}3use{{.*}}(i{{.*}} 0)
 #sourceLocation(file: "f.swift", line: 5)
     g(Int(0))
     // IR: dbg.value(metadata i1 false, metadata ![[GB_U:[0-9]+]]

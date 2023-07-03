@@ -62,9 +62,9 @@ SWIFT_TYPEID_NAMED(NamedPattern *, NamedPattern)
 SWIFT_TYPEID_NAMED(NominalTypeDecl *, NominalTypeDecl)
 SWIFT_TYPEID_NAMED(OpaqueTypeDecl *, OpaqueTypeDecl)
 SWIFT_TYPEID_NAMED(OperatorDecl *, OperatorDecl)
-SWIFT_TYPEID_NAMED(Optional<PropertyWrapperLValueness>,
+SWIFT_TYPEID_NAMED(llvm::Optional<PropertyWrapperLValueness>,
                    PropertyWrapperLValueness)
-SWIFT_TYPEID_NAMED(Optional<PropertyWrapperMutability>,
+SWIFT_TYPEID_NAMED(llvm::Optional<PropertyWrapperMutability>,
                    PropertyWrapperMutability)
 SWIFT_TYPEID_NAMED(ParamDecl *, ParamDecl)
 SWIFT_TYPEID_NAMED(PatternBindingEntry *, PatternBindingEntry)

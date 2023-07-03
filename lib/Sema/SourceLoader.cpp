@@ -153,11 +153,11 @@ void SourceLoader::loadExtensions(NominalTypeDecl *nominal,
   // nothing to do here.
 }
 
-Optional<const ModuleDependencyInfo*>
+llvm::Optional<const ModuleDependencyInfo *>
 SourceLoader::getModuleDependencies(StringRef moduleName,
                                     ModuleDependenciesCache &cache,
                                     InterfaceSubContextDelegate &delegate,
                                     bool isTestableImport) {
   // FIXME: Implement?
-  return None;
+  return llvm::None;
 }

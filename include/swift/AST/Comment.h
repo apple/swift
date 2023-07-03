@@ -49,15 +49,15 @@ public:
     return llvm::makeArrayRef(Parts.Tags.begin(), Parts.Tags.end());
   }
 
-  Optional<const swift::markup::Paragraph *> getBrief() const {
+  llvm::Optional<const swift::markup::Paragraph *> getBrief() const {
     return Parts.Brief;
   }
 
-  Optional<const swift::markup::ReturnsField * >getReturnsField() const {
+  llvm::Optional<const swift::markup::ReturnsField *> getReturnsField() const {
     return Parts.ReturnsField;
   }
 
-  Optional<const swift::markup::ThrowsField*> getThrowsField() const {
+  llvm::Optional<const swift::markup::ThrowsField *> getThrowsField() const {
     return Parts.ThrowsField;
   }
 
@@ -69,7 +69,7 @@ public:
     return Parts.BodyNodes;
   }
 
-  Optional<const markup::LocalizationKeyField *>
+  llvm::Optional<const markup::LocalizationKeyField *>
   getLocalizationKeyField() const {
     return Parts.LocalizationKeyField;
   }

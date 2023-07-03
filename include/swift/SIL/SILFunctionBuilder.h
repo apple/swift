@@ -100,21 +100,19 @@ class SILFunctionBuilder {
   /// This signature is a direct copy of the signature of SILFunction::create()
   /// in order to simplify refactoring all SILFunction creation use-sites to use
   /// SILFunctionBuilder. Eventually the uses should probably be refactored.
-  SILFunction *
-  createFunction(SILLinkage linkage, StringRef name,
-                 CanSILFunctionType loweredType, GenericEnvironment *genericEnv,
-                 Optional<SILLocation> loc, IsBare_t isBareSILFunction,
-                 IsTransparent_t isTrans, IsSerialized_t isSerialized,
-                 IsDynamicallyReplaceable_t isDynamic,
-                 IsDistributed_t isDistributed,
-                 IsRuntimeAccessible_t isRuntimeAccessible,
-                 ProfileCounter entryCount = ProfileCounter(),
-                 IsThunk_t isThunk = IsNotThunk,
-                 SubclassScope subclassScope = SubclassScope::NotApplicable,
-                 Inline_t inlineStrategy = InlineDefault,
-                 EffectsKind EK = EffectsKind::Unspecified,
-                 SILFunction *InsertBefore = nullptr,
-                 const SILDebugScope *DebugScope = nullptr);
+  SILFunction *createFunction(
+      SILLinkage linkage, StringRef name, CanSILFunctionType loweredType,
+      GenericEnvironment *genericEnv, llvm::Optional<SILLocation> loc,
+      IsBare_t isBareSILFunction, IsTransparent_t isTrans,
+      IsSerialized_t isSerialized, IsDynamicallyReplaceable_t isDynamic,
+      IsDistributed_t isDistributed, IsRuntimeAccessible_t isRuntimeAccessible,
+      ProfileCounter entryCount = ProfileCounter(),
+      IsThunk_t isThunk = IsNotThunk,
+      SubclassScope subclassScope = SubclassScope::NotApplicable,
+      Inline_t inlineStrategy = InlineDefault,
+      EffectsKind EK = EffectsKind::Unspecified,
+      SILFunction *InsertBefore = nullptr,
+      const SILDebugScope *DebugScope = nullptr);
 
   void addFunctionAttributes(
       SILFunction *F, DeclAttributes &Attrs, SILModule &M,

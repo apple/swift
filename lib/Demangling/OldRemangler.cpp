@@ -1105,6 +1105,13 @@ ManglingError Remangler::mangleConformanceAttachedMacroExpansion(
   return mangleChildNodes(node, depth + 1);
 }
 
+ManglingError Remangler::mangleExtensionAttachedMacroExpansion(
+    Node *node, unsigned depth) {
+  Buffer << "fMe";
+  RETURN_IF_ERROR(mangleIndex(node, depth + 1));
+  return mangleChildNodes(node, depth + 1);
+}
+
 ManglingError Remangler::mangleMacroExpansionUniqueName(
     Node *node, unsigned depth) {
   Buffer << "fMu";

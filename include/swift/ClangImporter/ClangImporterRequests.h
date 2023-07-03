@@ -296,7 +296,7 @@ private:
  public:
    // Separate caching.
    bool isCached() const { return true; }
-   Optional<ObjCInterfaceAndImplementation> getCachedResult() const;
+   llvm::Optional<ObjCInterfaceAndImplementation> getCachedResult() const;
    void cacheResult(ObjCInterfaceAndImplementation value) const;
 };
 

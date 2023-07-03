@@ -85,7 +85,7 @@ public:
   ~CodeCompletionCache();
 
   static ValueRefCntPtr createValue();
-  Optional<ValueRefCntPtr> get(const Key &K);
+  llvm::Optional<ValueRefCntPtr> get(const Key &K);
   void set(const Key &K, ValueRefCntPtr V) { setImpl(K, V, /*setChain*/ true); }
 
 private:
@@ -107,10 +107,10 @@ public:
   OnDiskCodeCompletionCache(Twine cacheDirectory);
   ~OnDiskCodeCompletionCache();
 
-  Optional<ValueRefCntPtr> get(const Key &K);
+  llvm::Optional<ValueRefCntPtr> get(const Key &K);
   std::error_code set(const Key &K, ValueRefCntPtr V);
 
-  static Optional<ValueRefCntPtr> getFromFile(StringRef filename);
+  static llvm::Optional<ValueRefCntPtr> getFromFile(StringRef filename);
 };
 
 struct RequestedCachedModule {

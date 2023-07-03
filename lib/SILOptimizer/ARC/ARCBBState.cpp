@@ -203,7 +203,7 @@ llvm::Optional<ARCBBStateInfoHandle>
 ARCBBStateInfo::getBottomUpBBHandle(SILBasicBlock *BB) {
   auto OptID = getBBID(BB);
   if (!OptID.has_value())
-    return None;
+    return llvm::None;
 
   unsigned ID = OptID.value();
 
@@ -218,7 +218,7 @@ llvm::Optional<ARCBBStateInfoHandle>
 ARCBBStateInfo::getTopDownBBHandle(SILBasicBlock *BB) {
   auto MaybeID = getBBID(BB);
   if (!MaybeID.has_value())
-    return None;
+    return llvm::None;
 
   unsigned ID = MaybeID.value();
 
@@ -232,7 +232,7 @@ ARCBBStateInfo::getTopDownBBHandle(SILBasicBlock *BB) {
 llvm::Optional<unsigned> ARCBBStateInfo::getBBID(SILBasicBlock *BB) const {
   auto Iter = BBToBBIDMap.find(BB);
   if (Iter == BBToBBIDMap.end())
-    return None;
+    return llvm::None;
   return Iter->second;
 }
 

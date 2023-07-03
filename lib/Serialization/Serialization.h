@@ -170,9 +170,9 @@ class Serializer : public SerializerBase {
     /// Returns the next entity to be written.
     ///
     /// If there is nothing left to serialize, returns None.
-    Optional<T> peekNext() const {
+    llvm::Optional<T> peekNext() const {
       if (!hasMoreToSerialize())
-        return None;
+        return llvm::None;
       return EntitiesToWrite.front();
     }
 
@@ -180,9 +180,9 @@ class Serializer : public SerializerBase {
     /// it so it can be written.
     ///
     /// If there is nothing left to serialize, returns None.
-    Optional<T> popNext(BitOffset offset) {
+    llvm::Optional<T> popNext(BitOffset offset) {
       if (!hasMoreToSerialize())
-        return None;
+        return llvm::None;
       T result = EntitiesToWrite.front();
       EntitiesToWrite.pop();
       Offsets.push_back(offset);

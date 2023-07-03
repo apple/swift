@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-objc-interop -primary-file %s -emit-ir | %FileCheck %s
-// RUN: %target-swift-frontend -enable-objc-interop -primary-file %s -emit-ir
+// RUN: %target-swift-frontend -enable-objc-interop -primary-file %s -emit-ir | %FileCheck %s
 
 // REQUIRES: CPU=x86_64
 
@@ -25,9 +24,9 @@ enum Node {
   case sequence(Sequence)
 }
 
-// CHECK: define internal i32 @"$s22multi_payload_shifting4NodeOwet"(%swift.opaque* noalias %value, i32 %numEmptyCases, %swift.type* %Node)
-// CHECK:  [[ADDR:%.*]] = getelementptr inbounds { i64, i64, i64, i8 }, { i64, i64, i64, i8 }* {{.*}}, i32 0, i32 3
-// CHECK:  [[BYTE:%.*]] = load i8, i8* [[ADDR]]
+// CHECK: define internal i32 @"$s22multi_payload_shifting4NodeOwet"(ptr noalias %value, i32 %numEmptyCases, ptr %Node)
+// CHECK:  [[ADDR:%.*]] = getelementptr inbounds { i64, i64, i64, i8 }, ptr {{.*}}, i32 0, i32 3
+// CHECK:  [[BYTE:%.*]] = load i8, ptr [[ADDR]]
 // Make sure we zext before we shift.
 // CHECK:  [[ZEXT:%.*]] = zext i8 [[BYTE]] to i32
 // CHECK:  shl i32 [[ZEXT]], 10

@@ -39,7 +39,7 @@ using namespace swift;
 
 /// Match retains to releases and return whether or not all of the releases
 /// were known safe.
-Optional<MatchingSetFlags>
+llvm::Optional<MatchingSetFlags>
 ARCMatchingSetBuilder::matchIncrementsToDecrements() {
   MatchingSetFlags Flags = {true, true};
 
@@ -55,7 +55,7 @@ ARCMatchingSetBuilder::matchIncrementsToDecrements() {
     if (BURefCountState == BUMap.end()) {
       LLVM_DEBUG(llvm::dbgs() << "        FAILURE! Could not find state for "
                                  "increment!\n");
-      return None;
+      return llvm::None;
     }
 
     LLVM_DEBUG(llvm::dbgs() << "        SUCCESS! Found state for increment.\n");
@@ -91,7 +91,7 @@ ARCMatchingSetBuilder::matchIncrementsToDecrements() {
       if (TDRefCountState == TDMap.end()) {
         LLVM_DEBUG(llvm::dbgs() << "            FAILURE! Could not find state "
                                    "for decrement.\n");
-        return None;
+        return llvm::None;
       }
       LLVM_DEBUG(llvm::dbgs() << "            SUCCESS! Found state for "
                                  "decrement.\n");
@@ -103,7 +103,7 @@ ARCMatchingSetBuilder::matchIncrementsToDecrements() {
         LLVM_DEBUG(
             llvm::dbgs() << "            FAILURE! Not tracking instruction or "
                             "found increment that did not match.\n");
-        return None;
+        return llvm::None;
       }
 
       // Add the decrement to the decrement to move set. If we don't insert
@@ -121,7 +121,7 @@ ARCMatchingSetBuilder::matchIncrementsToDecrements() {
   return Flags;
 }
 
-Optional<MatchingSetFlags>
+llvm::Optional<MatchingSetFlags>
 ARCMatchingSetBuilder::matchDecrementsToIncrements() {
   MatchingSetFlags Flags = {true, true};
 
@@ -137,7 +137,7 @@ ARCMatchingSetBuilder::matchDecrementsToIncrements() {
     if (TDRefCountState == TDMap.end()) {
       LLVM_DEBUG(llvm::dbgs() << "        FAILURE! Could not find state for "
                                  "increment!\n");
-      return None;
+      return llvm::None;
     }
 
     LLVM_DEBUG(llvm::dbgs() << "        SUCCESS! Found state for decrement.\n");
@@ -173,7 +173,7 @@ ARCMatchingSetBuilder::matchDecrementsToIncrements() {
       if (BURefCountState == BUMap.end()) {
         LLVM_DEBUG(llvm::dbgs() << "            FAILURE! Could not find state "
                                    "for increment.\n");
-        return None;
+        return llvm::None;
       }
 
       LLVM_DEBUG(
@@ -187,7 +187,7 @@ ARCMatchingSetBuilder::matchDecrementsToIncrements() {
         LLVM_DEBUG(
             llvm::dbgs() << "            FAILURE! Not tracking instruction or "
                             "found increment that did not match.\n");
-        return None;
+        return llvm::None;
       }
 
       // Add the decrement to the decrement to move set. If we don't insert

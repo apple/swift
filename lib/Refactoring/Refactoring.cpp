@@ -124,7 +124,7 @@ public:
   /// Adds replacements to rename the given label ranges
   /// \return true if the label ranges do not match the old name
   bool renameLabels(ArrayRef<CharSourceRange> LabelRanges,
-                    Optional<unsigned> FirstTrailingLabel,
+                    llvm::Optional<unsigned> FirstTrailingLabel,
                     LabelRangeType RangeType, bool isCallSite) {
     if (isCallSite)
       return renameLabelsLenient(LabelRanges, FirstTrailingLabel, RangeType);
@@ -279,7 +279,7 @@ private:
   }
 
   bool renameLabelsLenient(ArrayRef<CharSourceRange> LabelRanges,
-                           Optional<unsigned> FirstTrailingLabel,
+                           llvm::Optional<unsigned> FirstTrailingLabel,
                            LabelRangeType RangeType) {
 
     ArrayRef<StringRef> OldNames = Old.args();
@@ -475,7 +475,7 @@ class RenameRangeDetailCollector : public Renamer {
   }
   void doRenameBase(CharSourceRange Range,
                     RefactoringRangeKind RangeKind) override {
-    Ranges.push_back({Range, RangeKind, None});
+    Ranges.push_back({Range, RangeKind, llvm::None});
   }
 
 public:
@@ -638,8 +638,9 @@ struct RenameInfo {
   RefactorAvailabilityInfo Availability;
 };
 
-static Optional<RefactorAvailabilityInfo>
-renameAvailabilityInfo(const ValueDecl *VD, Optional<RenameRefInfo> RefInfo) {
+static llvm::Optional<RefactorAvailabilityInfo>
+renameAvailabilityInfo(const ValueDecl *VD,
+                       llvm::Optional<RenameRefInfo> RefInfo) {
   RefactorAvailableKind AvailKind = RefactorAvailableKind::Available;
   if (getRelatedSystemDecl(VD)) {
     AvailKind = RefactorAvailableKind::Unavailable_system_symbol;
@@ -655,7 +656,7 @@ renameAvailabilityInfo(const ValueDecl *VD, Optional<RenameRefInfo> RefInfo) {
     if (!file)
       return false;
 
-    return file->getFulfilledMacroRole() != None;
+    return file->getFulfilledMacroRole() != llvm::None;
   };
 
   if (AvailKind == RefactorAvailableKind::Available) {
@@ -670,22 +671,22 @@ renameAvailabilityInfo(const ValueDecl *VD, Optional<RenameRefInfo> RefInfo) {
   if (isa<AbstractFunctionDecl>(VD)) {
     // Disallow renaming accessors.
     if (isa<AccessorDecl>(VD))
-      return None;
+      return llvm::None;
 
     // Disallow renaming deinit.
     if (isa<DestructorDecl>(VD))
-      return None;
+      return llvm::None;
 
     // Disallow renaming init with no arguments.
     if (auto CD = dyn_cast<ConstructorDecl>(VD)) {
       if (!CD->getParameters()->size())
-        return None;
+        return llvm::None;
 
       if (RefInfo && !RefInfo->IsArgLabel) {
         NameMatcher Matcher(*(RefInfo->SF));
         auto Resolved = Matcher.resolve({RefInfo->Loc, /*ResolveArgs*/ true});
         if (Resolved.LabelRanges.empty())
-          return None;
+          return llvm::None;
       }
     }
 
@@ -695,13 +696,13 @@ renameAvailabilityInfo(const ValueDecl *VD, Optional<RenameRefInfo> RefInfo) {
       // whether it's an instance method, so we do the same here for now.
       if (FD->getBaseIdentifier() == FD->getASTContext().Id_callAsFunction) {
         if (!FD->getParameters()->size())
-          return None;
+          return llvm::None;
 
         if (RefInfo && !RefInfo->IsArgLabel) {
           NameMatcher Matcher(*(RefInfo->SF));
           auto Resolved = Matcher.resolve({RefInfo->Loc, /*ResolveArgs*/ true});
           if (Resolved.LabelRanges.empty())
-            return None;
+            return llvm::None;
         }
       }
     }
@@ -721,16 +722,17 @@ renameAvailabilityInfo(const ValueDecl *VD, Optional<RenameRefInfo> RefInfo) {
 /// Given a cursor, return the decl and its rename availability. \c None if
 /// the cursor did not resolve to a decl or it resolved to a decl that we do
 /// not allow renaming on.
-static Optional<RenameInfo> getRenameInfo(ResolvedCursorInfoPtr cursorInfo) {
+static llvm::Optional<RenameInfo>
+getRenameInfo(ResolvedCursorInfoPtr cursorInfo) {
   auto valueCursor = dyn_cast<ResolvedValueRefCursorInfo>(cursorInfo);
   if (!valueCursor)
-    return None;
+    return llvm::None;
 
   ValueDecl *VD = valueCursor->typeOrValue();
   if (!VD)
-    return None;
+    return llvm::None;
 
-  Optional<RenameRefInfo> refInfo;
+  llvm::Optional<RenameRefInfo> refInfo;
   if (!valueCursor->getShorthandShadowedDecls().empty()) {
     // Find the outermost decl for a shorthand if let/closure capture
     VD = valueCursor->getShorthandShadowedDecls().back();
@@ -739,9 +741,10 @@ static Optional<RenameInfo> getRenameInfo(ResolvedCursorInfoPtr cursorInfo) {
                valueCursor->isKeywordArgument()};
   }
 
-  Optional<RefactorAvailabilityInfo> info = renameAvailabilityInfo(VD, refInfo);
+  llvm::Optional<RefactorAvailabilityInfo> info =
+      renameAvailabilityInfo(VD, refInfo);
   if (!info)
-    return None;
+    return llvm::None;
 
   return RenameInfo{VD, *info};
 }
@@ -798,8 +801,8 @@ private:
     return true;
   }
 
-  Optional<RenameLoc> indexSymbolToRenameLoc(const index::IndexSymbol &symbol,
-                                             StringRef NewName);
+  llvm::Optional<RenameLoc>
+  indexSymbolToRenameLoc(const index::IndexSymbol &symbol, StringRef NewName);
 
 private:
   StringRef USR;
@@ -808,11 +811,11 @@ private:
   std::vector<RenameLoc> locations;
 };
 
-Optional<RenameLoc>
+llvm::Optional<RenameLoc>
 RenameRangeCollector::indexSymbolToRenameLoc(const index::IndexSymbol &symbol,
                                              StringRef newName) {
   if (symbol.roles & (unsigned)index::SymbolRole::Implicit) {
-    return None;
+    return llvm::None;
   }
 
   NameUsage usage = NameUsage::Unknown;
@@ -958,7 +961,7 @@ class RefactoringAction##KIND: public RangeBasedRefactoringAction {           \
 
 bool RefactoringActionLocalRename::isApplicable(
     ResolvedCursorInfoPtr CursorInfo, DiagnosticEngine &Diag) {
-  Optional<RenameInfo> Info = getRenameInfo(CursorInfo);
+  llvm::Optional<RenameInfo> Info = getRenameInfo(CursorInfo);
   return Info &&
          Info->Availability.AvailableKind == RefactorAvailableKind::Available &&
          Info->Availability.Kind == RefactoringKind::LocalRename;
@@ -990,19 +993,18 @@ static void analyzeRenameScope(ValueDecl *VD,
   Scopes.push_back(Scope);
 }
 
-static Optional<RenameRangeCollector> localRenames(SourceFile *SF,
-                                                   SourceLoc startLoc,
-                                                   StringRef preferredName,
-                                                   DiagnosticEngine &diags) {
+static llvm::Optional<RenameRangeCollector>
+localRenames(SourceFile *SF, SourceLoc startLoc, StringRef preferredName,
+             DiagnosticEngine &diags) {
   auto cursorInfo =
       evaluateOrDefault(SF->getASTContext().evaluator,
                         CursorInfoRequest{CursorInfoOwner(SF, startLoc)},
                         new ResolvedCursorInfo());
 
-  Optional<RenameInfo> info = getRenameInfo(cursorInfo);
+  llvm::Optional<RenameInfo> info = getRenameInfo(cursorInfo);
   if (!info) {
     diags.diagnose(startLoc, diag::unresolved_location);
-    return None;
+    return llvm::None;
   }
 
   switch (info->Availability.AvailableKind) {
@@ -1010,28 +1012,28 @@ static Optional<RenameRangeCollector> localRenames(SourceFile *SF,
     break;
   case RefactorAvailableKind::Unavailable_system_symbol:
     diags.diagnose(startLoc, diag::decl_is_system_symbol, info->VD->getName());
-    return None;
+    return llvm::None;
   case RefactorAvailableKind::Unavailable_has_no_location:
     diags.diagnose(startLoc, diag::value_decl_no_loc, info->VD->getName());
-    return None;
+    return llvm::None;
   case RefactorAvailableKind::Unavailable_has_no_name:
     diags.diagnose(startLoc, diag::decl_has_no_name);
-    return None;
+    return llvm::None;
   case RefactorAvailableKind::Unavailable_has_no_accessibility:
     diags.diagnose(startLoc, diag::decl_no_accessibility);
-    return None;
+    return llvm::None;
   case RefactorAvailableKind::Unavailable_decl_from_clang:
     diags.diagnose(startLoc, diag::decl_from_clang);
-    return None;
+    return llvm::None;
   case RefactorAvailableKind::Unavailable_decl_in_macro:
     diags.diagnose(startLoc, diag::decl_in_macro);
-    return None;
+    return llvm::None;
   }
 
   SmallVector<DeclContext *, 8> scopes;
   analyzeRenameScope(info->VD, scopes);
   if (scopes.empty())
-    return None;
+    return llvm::None;
 
   RenameRangeCollector rangeCollector(info->VD, preferredName);
   for (DeclContext *DC : scopes)
@@ -1055,7 +1057,7 @@ bool RefactoringActionLocalRename::performChange() {
     return true;
   }
 
-  Optional<RenameRangeCollector> rangeCollector =
+  llvm::Optional<RenameRangeCollector> rangeCollector =
       localRenames(TheFile, StartLoc, PreferredName, DiagEngine);
   if (!rangeCollector)
     return true;
@@ -1356,7 +1358,8 @@ getNotableRegions(StringRef SourceText, unsigned NameOffset, StringRef Name,
   UnresolvedLoc UnresoledName{NameLoc, true};
 
   NameMatcher Matcher(*Instance->getPrimarySourceFile());
-  auto Resolved = Matcher.resolve(llvm::makeArrayRef(UnresoledName), None);
+  auto Resolved =
+      Matcher.resolve(llvm::makeArrayRef(UnresoledName), llvm::None);
   assert(!Resolved.empty() && "Failed to resolve generated func name loc");
 
   RenameLoc RenameConfig = {
@@ -1728,27 +1731,25 @@ bool RefactoringActionExtractExprBase::performChange() {
   EndOffset = DeclBuffer.size();
   OS << TyBuffer.str() <<  " = " << RangeInfo.ContentRange.str() << "\n";
 
-  NoteRegion DeclNameRegion{
-    RefactoringRangeKind::BaseName,
-    /*StartLine=*/1, /*StartColumn=*/StartOffset + 1,
-    /*EndLine=*/1, /*EndColumn=*/EndOffset + 1,
-    /*ArgIndex*/None
-  };
+  NoteRegion DeclNameRegion{RefactoringRangeKind::BaseName,
+                            /*StartLine=*/1,
+                            /*StartColumn=*/StartOffset + 1,
+                            /*EndLine=*/1,
+                            /*EndColumn=*/EndOffset + 1,
+                            /*ArgIndex*/ llvm::None};
 
   // Perform code change.
   EditConsumer.accept(SM, InsertLoc, DeclBuffer.str(), {DeclNameRegion});
 
   // Replace all occurrences of the extracted expression.
   for (auto *E : AllExpressions) {
-    EditConsumer.accept(SM,
-      Lexer::getCharSourceRangeFromSourceRange(SM, E->getSourceRange()),
-      PreferredName,
-      {{
-        RefactoringRangeKind::BaseName,
-        /*StartLine=*/1, /*StartColumn-*/1, /*EndLine=*/1,
-        /*EndColumn=*/static_cast<unsigned int>(PreferredName.size() + 1),
-        /*ArgIndex*/None
-      }});
+    EditConsumer.accept(
+        SM, Lexer::getCharSourceRangeFromSourceRange(SM, E->getSourceRange()),
+        PreferredName,
+        {{RefactoringRangeKind::BaseName,
+          /*StartLine=*/1, /*StartColumn-*/ 1, /*EndLine=*/1,
+          /*EndColumn=*/static_cast<unsigned int>(PreferredName.size() + 1),
+          /*ArgIndex*/ llvm::None}});
   }
   return false;
 }
@@ -4544,10 +4545,10 @@ struct AsyncHandlerDesc {
   }
 
   /// If the completion handler has an Error parameter, return it.
-  Optional<AnyFunctionType::Param> getErrorParam() const {
+  llvm::Optional<AnyFunctionType::Param> getErrorParam() const {
     if (HasError && Type == HandlerType::PARAMS)
       return params().back();
-    return None;
+    return llvm::None;
   }
 
   /// Get the type of the error that will be thrown by the \c async method or \c
@@ -4555,11 +4556,11 @@ struct AsyncHandlerDesc {
   /// This may be more specialized than the generic 'Error' type if the
   /// completion handler of the converted function takes a more specialized
   /// error type.
-  Optional<swift::Type> getErrorType() const {
+  llvm::Optional<swift::Type> getErrorType() const {
     if (HasError) {
       switch (Type) {
       case HandlerType::INVALID:
-        return None;
+        return llvm::None;
       case HandlerType::PARAMS:
         // The last parameter of the completion handler is the error param
         return params().back().getPlainType()->lookThroughSingleOptionalType();
@@ -4576,7 +4577,7 @@ struct AsyncHandlerDesc {
         return GenericArgs.back();
       }
     } else {
-      return None;
+      return llvm::None;
     }
   }
 
@@ -4781,7 +4782,7 @@ struct AsyncHandlerParamDesc : public AsyncHandlerDesc {
       return AsyncHandlerParamDesc();
 
     const auto *Alternative = FD->getAsyncAlternative();
-    Optional<unsigned> Index =
+    llvm::Optional<unsigned> Index =
         FD->findPotentialCompletionHandlerParam(Alternative);
     if (!Index)
       return AsyncHandlerParamDesc();
@@ -4878,7 +4879,7 @@ static ConditionPath flippedConditionPath(ConditionPath Path) {
 /// Finds the `Subject` being compared to in various conditions. Also finds any
 /// pattern that may have a bound name.
 struct CallbackCondition {
-  Optional<ConditionType> Type;
+  llvm::Optional<ConditionType> Type;
   const Decl *Subject = nullptr;
   const Pattern *BindPattern = nullptr;
 
@@ -5064,10 +5065,10 @@ struct ClassifiedCondition : public CallbackCondition {
 /// \c None if they are not present in any conditions.
 struct ClassifiedCallbackConditions final
     : llvm::MapVector<const Decl *, ClassifiedCondition> {
-  Optional<ClassifiedCondition> lookup(const Decl *D) const {
+  llvm::Optional<ClassifiedCondition> lookup(const Decl *D) const {
     auto Res = find(D);
     if (Res == end())
-      return None;
+      return llvm::None;
     return Res->second;
   }
 };
@@ -5320,7 +5321,7 @@ class ClosureCallbackParams final {
   ArrayRef<const ParamDecl *> AllParams;
   llvm::SetVector<const ParamDecl *> SuccessParams;
   const ParamDecl *ErrParam = nullptr;
-  Optional<KnownBoolFlagParam> BoolFlagParam;
+  llvm::Optional<KnownBoolFlagParam> BoolFlagParam;
 
 public:
   ClosureCallbackParams(const AsyncHandlerParamDesc &HandlerDesc,
@@ -5406,7 +5407,7 @@ public:
 
   /// If there is a known Bool flag parameter indicating success or failure,
   /// returns it, \c None otherwise.
-  Optional<KnownBoolFlagParam> getKnownBoolFlagParam() const {
+  llvm::Optional<KnownBoolFlagParam> getKnownBoolFlagParam() const {
     return BoolFlagParam;
   }
 
@@ -5619,20 +5620,20 @@ private:
   }
 
   /// Given a callback condition, classify it as a success or failure path.
-  Optional<ClassifiedCondition>
+  llvm::Optional<ClassifiedCondition>
   classifyCallbackCondition(const CallbackCondition &Cond,
                             const NodesToPrint &SuccessNodes, Stmt *ElseStmt) {
     if (!Cond.isValid())
-      return None;
+      return llvm::None;
 
     // If the condition involves a refutable pattern, we can't currently handle
     // it.
     if (Cond.BindPattern && Cond.BindPattern->isRefutablePattern())
-      return None;
+      return llvm::None;
 
     auto *SubjectParam = dyn_cast<ParamDecl>(Cond.Subject);
     if (!SubjectParam)
-      return None;
+      return llvm::None;
 
     // For certain types of condition, they need to be certain kinds of params.
     auto CondType = *Cond.Type;
@@ -5640,17 +5641,17 @@ private:
     case ConditionType::NOT_NIL:
     case ConditionType::NIL:
       if (!Params.isUnwrappableParam(SubjectParam))
-        return None;
+        return llvm::None;
       break;
     case ConditionType::IS_TRUE:
     case ConditionType::IS_FALSE:
       if (!Params.isSuccessParam(SubjectParam))
-        return None;
+        return llvm::None;
       break;
     case ConditionType::SUCCESS_PATTERN:
     case ConditionType::FAILURE_PATTEN:
       if (SubjectParam != Params.getResultParam())
-        return None;
+        return llvm::None;
       break;
     }
 
@@ -5685,7 +5686,7 @@ private:
     // success or failure.
     if (auto KnownBoolFlag = Params.getKnownBoolFlagParam()) {
       if (KnownBoolFlag->Param != SubjectParam)
-        return None;
+        return llvm::None;
 
       // The path may need to be flipped depending on whether the flag indicates
       // success.
@@ -5720,7 +5721,7 @@ private:
         // If we also found an unwrap in the success block, we don't know what's
         // happening here.
         if (FoundInSuccessBlock)
-          return None;
+          return llvm::None;
 
         // Otherwise we can determine this as a success condition. Note this is
         // flipped as if the error is present in the else block, this condition
@@ -5738,7 +5739,7 @@ private:
     }
 
     // Otherwise we can't classify this.
-    return None;
+    return llvm::None;
   }
 
   /// Classifies all the conditions present in a given StmtCondition, taking
@@ -5749,7 +5750,7 @@ private:
                             Stmt *ElseStmt,
                             ClassifiedCallbackConditions &Conditions) {
     bool UnhandledConditions = false;
-    Optional<ClassifiedCondition> ObjCFlagCheck;
+    llvm::Optional<ClassifiedCondition> ObjCFlagCheck;
     auto TryAddCond = [&](CallbackCondition CC) {
       auto Classified =
           classifyCallbackCondition(CC, ThenNodesToPrint, ElseStmt);
@@ -5852,7 +5853,7 @@ private:
 
     // If all the conditions were classified, make sure they're all consistently
     // on the success or failure path.
-    Optional<ConditionPath> Path;
+    llvm::Optional<ConditionPath> Path;
     for (auto &Entry : CallbackConditions) {
       auto &Cond = Entry.second;
       if (!Path) {
@@ -6569,7 +6570,7 @@ private:
       if (SuccessParams.size() > 1)
         SuccessParamNames.back().append(std::to_string(idx + 1));
     }
-    Optional<SmallString<4>> ErrName;
+    llvm::Optional<SmallString<4>> ErrName;
     if (HandlerDesc.getErrorParam())
       ErrName.emplace("error");
 
@@ -7605,7 +7606,7 @@ private:
   }
 
   /// Add a binding to a known bool flag that indicates success or failure.
-  void addBoolFlagParamBindingIfNeeded(Optional<KnownBoolFlagParam> Flag,
+  void addBoolFlagParamBindingIfNeeded(llvm::Optional<KnownBoolFlagParam> Flag,
                                        BlockKind Block) {
     if (!Flag)
       return;
@@ -8616,8 +8617,9 @@ bool RefactoringActionAddAsyncWrapper::performChange() {
 
 /// Retrieve the macro expansion buffer for the given macro expansion
 /// expression.
-static Optional<unsigned> getMacroExpansionBuffer(
-    SourceManager &sourceMgr, MacroExpansionExpr *expansion) {
+static llvm::Optional<unsigned>
+getMacroExpansionBuffer(SourceManager &sourceMgr,
+                        MacroExpansionExpr *expansion) {
   return evaluateOrDefault(
       expansion->getDeclContext()->getASTContext().evaluator,
       ExpandMacroExpansionExprRequest{expansion}, {});
@@ -8625,7 +8627,7 @@ static Optional<unsigned> getMacroExpansionBuffer(
 
 /// Retrieve the macro expansion buffer for the given macro expansion
 /// declaration.
-static Optional<unsigned>
+static llvm::Optional<unsigned>
 getMacroExpansionBuffer(SourceManager &sourceMgr,
                         MacroExpansionDecl *expansion) {
   return evaluateOrDefault(expansion->getASTContext().evaluator,
@@ -8675,6 +8677,14 @@ getMacroExpansionBuffers(MacroDecl *macro, const CustomAttr *attr, Decl *decl) {
     if (auto nominal = dyn_cast<NominalTypeDecl>(decl)) {
       auto bufferIDs = evaluateOrDefault(
           ctx.evaluator, ExpandConformanceMacros{nominal}, { });
+      allBufferIDs.append(bufferIDs.begin(), bufferIDs.end());
+    }
+  }
+
+  if (roles.contains(MacroRole::Extension)) {
+    if (auto nominal = dyn_cast<NominalTypeDecl>(decl)) {
+      auto bufferIDs = evaluateOrDefault(
+          ctx.evaluator, ExpandExtensionMacros{nominal}, { });
       allBufferIDs.append(bufferIDs.begin(), bufferIDs.end());
     }
   }
@@ -8734,7 +8744,7 @@ getMacroExpansionBuffers(SourceManager &sourceMgr, ResolvedCursorInfoPtr Info) {
   Finder.resolve();
 
   if (!Finder.getContexts().empty()) {
-    Optional<unsigned> bufferID;
+    llvm::Optional<unsigned> bufferID;
     if (auto *target = dyn_cast_or_null<MacroExpansionExpr>(
             Finder.getContexts()[0].dyn_cast<Expr *>())) {
       bufferID = getMacroExpansionBuffer(sourceMgr, target);
@@ -9084,7 +9094,7 @@ int swift::ide::syntacticRename(SourceFile *SF, ArrayRef<RenameLoc> RenameLocs,
     if (Type == RegionType::Mismatch) {
       DiagEngine.diagnose(Resolved.Range.getStart(), diag::mismatched_rename,
                           Rename.NewName);
-      EditConsumer.accept(SM, Type, None);
+      EditConsumer.accept(SM, Type, llvm::None);
     } else {
       EditConsumer.accept(SM, Type, Renamer.getReplacements());
     }
@@ -9115,7 +9125,7 @@ int swift::ide::findSyntacticRenameRanges(
     if (Type == RegionType::Mismatch) {
       DiagEngine.diagnose(Resolved.Range.getStart(), diag::mismatched_rename,
                           Rename.NewName);
-      RenameConsumer.accept(SM, Type, None);
+      RenameConsumer.accept(SM, Type, llvm::None);
     } else {
       RenameConsumer.accept(SM, Type, Renamer.Ranges);
     }
@@ -9135,7 +9145,7 @@ int swift::ide::findLocalRenameRanges(
   Diags.addConsumer(DiagConsumer);
 
   auto StartLoc = Lexer::getLocForStartOfToken(SM, Range.getStart(SM));
-  Optional<RenameRangeCollector> RangeCollector =
+  llvm::Optional<RenameRangeCollector> RangeCollector =
       localRenames(SF, StartLoc, StringRef(), Diags);
   if (!RangeCollector)
     return true;

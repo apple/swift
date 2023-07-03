@@ -430,6 +430,22 @@ extension RefCountingInst {
   }
 }
 
+extension AllocRefInst {
+  func setIsBare(_ context: some MutatingContext) {
+    context.notifyInstructionsChanged()
+    bridged.AllocRefInst_setIsBare()
+    context.notifyInstructionChanged(self)
+  }
+}
+
+extension GlobalValueInst {
+  func setIsBare(_ context: some MutatingContext) {
+    context.notifyInstructionsChanged()
+    bridged.GlobalValueInst_setIsBare()
+    context.notifyInstructionChanged(self)
+  }
+}
+
 extension TermInst {
   func replaceBranchTarget(from fromBlock: BasicBlock, to toBlock: BasicBlock, _ context: some MutatingContext) {
     context.notifyBranchesChanged()

@@ -15,9 +15,9 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "swift/Basic/LLVM.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Program.h"
 #include "llvm/Support/Signals.h"
@@ -33,11 +33,11 @@ public:
   const char *ExecPath;
 
   /// Any arguments which should be passed during execution.
-  ArrayRef<const char *> Args;
+  llvm::ArrayRef<const char *> Args;
 
   /// The environment which should be used during execution. If empty,
   /// the current process's environment will be used instead.
-  ArrayRef<const char *> Env;
+  llvm::ArrayRef<const char *> Env;
 
   /// Context associated with this Task.
   void *Context;
@@ -46,14 +46,14 @@ public:
   /// Output.
   bool SeparateErrors;
 
-  SmallString<64> StdoutPath;
+  llvm::SmallString<64> StdoutPath;
 
-  SmallString<64> StderrPath;
+  llvm::SmallString<64> StderrPath;
 
   llvm::sys::ProcessInfo PI;
 
-  Task(const char *ExecPath, ArrayRef<const char *> Args,
-       ArrayRef<const char *> Env = None, void *Context = nullptr,
+  Task(const char *ExecPath, llvm::ArrayRef<const char *> Args,
+       llvm::ArrayRef<const char *> Env = llvm::None, void *Context = nullptr,
        bool SeparateErrors = false)
       : ExecPath(ExecPath), Args(Args), Env(Env), Context(Context),
         SeparateErrors(SeparateErrors) {}
@@ -64,13 +64,13 @@ public:
 };
 
 bool Task::execute() {
-  SmallVector<const char *, 128> Argv;
+  llvm::SmallVector<const char *, 128> Argv;
   Argv.push_back(ExecPath);
   Argv.append(Args.begin(), Args.end());
   Argv.push_back(nullptr);
 
-  Optional<ArrayRef<StringRef>> Envp =
-      Env.empty() ? decltype(Envp)(None)
+  llvm::Optional<llvm::ArrayRef<llvm::StringRef>> Envp =
+      Env.empty() ? decltype(Envp)(llvm::None)
                   : decltype(Envp)(llvm::toStringRefArray(Env.data()));
 
   if (llvm::sys::fs::createTemporaryFile("stdout", "tmp", StdoutPath))
@@ -83,10 +83,10 @@ bool Task::execute() {
     llvm::sys::RemoveFileOnSignal(StderrPath);
   }
 
-  Optional<StringRef> Redirects[] = {
-      None,
-      StringRef{StdoutPath},
-      StringRef{SeparateErrors ? StderrPath : StdoutPath},
+  llvm::Optional<llvm::StringRef> Redirects[] = {
+    llvm::None,
+      llvm::StringRef{StdoutPath},
+      llvm::StringRef{SeparateErrors ? StderrPath : StdoutPath},
   };
 
   bool ExecutionFailed = false;

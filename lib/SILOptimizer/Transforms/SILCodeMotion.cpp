@@ -1082,7 +1082,7 @@ cheaperToPassOperandsAsArguments(SILInstruction *First,
   auto *SecondStruct = dyn_cast<StructInst>(Second);
 
   if (!FirstStruct || !SecondStruct)
-    return None;
+    return llvm::None;
 
   assert(FirstStruct->getNumOperands() == SecondStruct->getNumOperands() &&
          FirstStruct->getType() == SecondStruct->getType() &&
@@ -1095,20 +1095,20 @@ cheaperToPassOperandsAsArguments(SILInstruction *First,
     if (FirstStruct->getOperand(i) != SecondStruct->getOperand(i)) {
       // Only track one different operand for now
       if (DifferentOperandIndex)
-        return None;
+        return llvm::None;
       DifferentOperandIndex = i;
     }
   }
 
   if (!DifferentOperandIndex)
-    return None;
+    return llvm::None;
 
   // Found a different operand, now check to see if its type is something
   // cheap enough to sink.
   // TODO: Sink more than just integers.
   SILType ArgTy = FirstStruct->getOperand(*DifferentOperandIndex)->getType();
   if (!ArgTy.is<BuiltinIntegerType>())
-    return None;
+    return llvm::None;
 
   return *DifferentOperandIndex;
 }

@@ -444,7 +444,7 @@ static llvm::Function *createDtorFn(IRGenModule &IGM,
     // The type metadata bindings should be at a fixed offset, so we can pass
     // None for NonFixedOffsets. If we didn't, we'd have a chicken-egg problem.
     auto bindingsAddr = layout.getElement(layout.getBindingsIndex())
-                            .project(IGF, structAddr, None);
+                            .project(IGF, structAddr, llvm::None);
     layout.getBindings().restore(IGF, bindingsAddr, MetadataState::Complete);
   }
 
@@ -1553,11 +1553,14 @@ public:
       // FIXME: This seems wrong. We used to just mangle opened archetypes as
       // their interface type. Let's make that explicit now.
       auto astType = boxedInterfaceType.getASTType();
-      astType = astType.transformRec([](Type t) -> Optional<Type> {
-        if (auto *openedExistential = t->getAs<OpenedArchetypeType>())
-          return openedExistential->getInterfaceType();
-        return None;
-      })->getCanonicalType();
+      astType =
+          astType
+              .transformRec([](Type t) -> llvm::Optional<Type> {
+                if (auto *openedExistential = t->getAs<OpenedArchetypeType>())
+                  return openedExistential->getInterfaceType();
+                return llvm::None;
+              })
+              ->getCanonicalType();
       boxedInterfaceType = SILType::getPrimitiveType(
           astType, boxedInterfaceType.getCategory());
     }
@@ -1585,7 +1588,7 @@ public:
   project(IRGenFunction &IGF, llvm::Value *box, SILType boxedType)
   const override {
     Address rawAddr = layout.emitCastTo(IGF, box);
-    rawAddr = layout.getElement(0).project(IGF, rawAddr, None);
+    rawAddr = layout.getElement(0).project(IGF, rawAddr, llvm::None);
     auto &ti = IGF.getTypeInfo(boxedType);
     return IGF.Builder.CreateElementBitCast(rawAddr, ti.getStorageType());
   }

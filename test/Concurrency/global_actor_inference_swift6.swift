@@ -78,7 +78,7 @@ struct HasMainActorWrappedProp {
 
   var plainStorage: Int
 
-  var computedProp: Int { 0 } // expected-note {{property declared here}}
+  var computedProp: Int { 0 }
 
   nonisolated func testErrors() {
     _ = thing // expected-error {{main actor-isolated property 'thing' can not be referenced from a non-isolated context}}
@@ -89,7 +89,7 @@ struct HasMainActorWrappedProp {
 
     _ = plainStorage
 
-    _ = computedProp // expected-error {{main actor-isolated property 'computedProp' can not be referenced from a non-isolated context}}
+    _ = computedProp
   }
 }
 

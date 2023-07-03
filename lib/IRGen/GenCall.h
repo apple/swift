@@ -254,7 +254,7 @@ namespace irgen {
 
   void emitAsyncReturn(
       IRGenFunction &IGF, AsyncContextLayout &layout, CanSILFunctionType fnType,
-      Optional<ArrayRef<llvm::Value *>> nativeResultArgs = llvm::None);
+      llvm::Optional<ArrayRef<llvm::Value *>> nativeResultArgs = llvm::None);
 
   void emitAsyncReturn(IRGenFunction &IGF, AsyncContextLayout &layout,
                        SILType funcResultTypeInContext,

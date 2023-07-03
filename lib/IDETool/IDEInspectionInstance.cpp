@@ -444,7 +444,8 @@ bool IDEInspectionInstance::performCachedOperationIfPossible(
 }
 
 void IDEInspectionInstance::performNewOperation(
-    Optional<llvm::hash_code> ArgsHash, swift::CompilerInvocation &Invocation,
+    llvm::Optional<llvm::hash_code> ArgsHash,
+    swift::CompilerInvocation &Invocation,
     llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> FileSystem,
     llvm::MemoryBuffer *ideInspectionTargetBuffer, unsigned int Offset,
     DiagnosticConsumer *DiagC,

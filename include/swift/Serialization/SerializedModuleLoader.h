@@ -180,7 +180,7 @@ public:
   /// If the AST cannot be loaded and \p diagLoc is present, a diagnostic is
   /// printed. (Note that \p diagLoc is allowed to be invalid.)
   LoadedFile *
-  loadAST(ModuleDecl &M, Optional<SourceLoc> diagLoc,
+  loadAST(ModuleDecl &M, llvm::Optional<SourceLoc> diagLoc,
           StringRef moduleInterfacePath, StringRef moduleInterfaceSourcePath,
           std::unique_ptr<llvm::MemoryBuffer> moduleInputBuffer,
           std::unique_ptr<llvm::MemoryBuffer> moduleDocInputBuffer,
@@ -232,10 +232,10 @@ public:
 
   virtual void verifyAllModules() override;
 
-  virtual Optional<const ModuleDependencyInfo*> getModuleDependencies(
-      StringRef moduleName, ModuleDependenciesCache &cache,
-      InterfaceSubContextDelegate &delegate,
-      bool isTestableImport) override;
+  virtual llvm::Optional<const ModuleDependencyInfo *>
+  getModuleDependencies(StringRef moduleName, ModuleDependenciesCache &cache,
+                        InterfaceSubContextDelegate &delegate,
+                        bool isTestableImport) override;
 };
 
 /// Imports serialized Swift modules into an ASTContext.
@@ -425,7 +425,7 @@ public:
          ObjCSelector selector,
          SmallVectorImpl<AbstractFunctionDecl *> &results) const override;
 
-  Optional<Fingerprint>
+  llvm::Optional<Fingerprint>
   loadFingerprint(const IterableDeclContext *IDC) const override;
 
   virtual void
@@ -433,20 +433,20 @@ public:
                 const ModuleDecl *importedModule,
                 llvm::SmallSetVector<Identifier, 4> &spiGroups) const override;
 
-  Optional<CommentInfo> getCommentForDecl(const Decl *D) const override;
+  llvm::Optional<CommentInfo> getCommentForDecl(const Decl *D) const override;
 
   bool hasLoadedSwiftDoc() const override;
 
-  Optional<StringRef> getGroupNameForDecl(const Decl *D) const override;
+  llvm::Optional<StringRef> getGroupNameForDecl(const Decl *D) const override;
 
+  llvm::Optional<StringRef>
+  getSourceFileNameForDecl(const Decl *D) const override;
 
-  Optional<StringRef> getSourceFileNameForDecl(const Decl *D) const override;
+  llvm::Optional<unsigned> getSourceOrderForDecl(const Decl *D) const override;
 
-  Optional<unsigned> getSourceOrderForDecl(const Decl *D) const override;
+  llvm::Optional<StringRef> getGroupNameByUSR(StringRef USR) const override;
 
-  Optional<StringRef> getGroupNameByUSR(StringRef USR) const override;
-
-  Optional<ExternalSourceLocs::RawLocs>
+  llvm::Optional<ExternalSourceLocs::RawLocs>
   getExternalRawLocsForDecl(const Decl *D) const override;
 
   void collectAllGroups(SmallVectorImpl<StringRef> &Names) const override;

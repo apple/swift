@@ -147,12 +147,12 @@ bb0(%0 : @owned $MoveOnlyKlass):
 // CHECK:   [[ARG_COPY:%.*]] = copy_value [[ARG]]
 // CHECK:   [[MARKED_ARG:%.*]] = mark_must_check [no_consume_or_assign] [[ARG_COPY]]
 // CHECK:   [[MARKED_ARG_COPY:%.*]] = copy_value [[MARKED_ARG]]
-// CHECK:   [[MISC_USE:%.*]] = function_ref @misc_use : $@convention(thin) () -> ()
-// CHECK:   apply [[MISC_USE]]()
 // CHECK:   [[BORROW:%.*]] = begin_borrow [[MARKED_ARG_COPY]]
 // CHECK:   [[EXT:%.*]] = struct_extract [[BORROW]]
 // CHECK:   end_borrow [[BORROW]]
-// CHECK:   destroy_value [[MARKED_ARG_COPY]]
+// CHECK:   [[MISC_USE:%.*]] = function_ref @misc_use : $@convention(thin) () -> ()
+// CHECK:   apply [[MISC_USE]]()
+// CHECK:   destroy_value [[MARKED_ARG]]
 // CHECK:   return [[EXT]]
 // CHECK: } // end sil function 'test_return_of_extracted_trivial_type'
 sil [ossa] @test_return_of_extracted_trivial_type : $@convention(thin) (@guaranteed SingleIntContainingStruct) -> Builtin.Int32 {
@@ -862,9 +862,9 @@ bbCont:
 // CHECK: [[BB_E_SECOND]]([[BBARG:%.*]] : @owned
 // CHECK:   [[BBARG_BORROW:%.*]] = begin_borrow [[BBARG]]
 // CHECK:   [[BBARG_BORROW_EXT:%.*]] = struct_extract [[BBARG_BORROW]]
-// CHECK:   apply {{%.*}}([[BBARG_BORROW_EXT]])
 // CHECK:   end_borrow [[BBARG_BORROW]]
 // CHECK:   destroy_value [[BBARG]]
+// CHECK:   apply {{%.*}}([[BBARG_BORROW_EXT]])
 // CHECK:   br [[BB_CONT]]
 //
 // CHECK: [[BB_E_THIRD]]([[BBARG:%.*]] : @owned
@@ -955,9 +955,9 @@ bbCont:
 // CHECK: [[BB_E_SECOND]]([[BBARG:%.*]] : @owned
 // CHECK:   [[BBARG_BORROW:%.*]] = begin_borrow [[BBARG]]
 // CHECK:   [[BBARG_BORROW_EXT:%.*]] = struct_extract [[BBARG_BORROW]]
-// CHECK:   apply {{%.*}}([[BBARG_BORROW_EXT]])
 // CHECK:   end_borrow [[BBARG_BORROW]]
 // CHECK:   destroy_value [[BBARG]]
+// CHECK:   apply {{%.*}}([[BBARG_BORROW_EXT]])
 // CHECK:   br [[BB_CONT]]
 //
 // CHECK: [[BB_E_THIRD]]([[BBARG:%.*]] : @owned

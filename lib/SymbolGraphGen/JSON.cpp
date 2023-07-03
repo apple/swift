@@ -170,7 +170,7 @@ void swift::symbolgraphgen::serialize(const ModuleDecl &Module,
 
 void
 swift::symbolgraphgen::filterGenericParams(
-    TypeArrayView<GenericTypeParamType> GenericParams,
+    ArrayRef<GenericTypeParamType *> GenericParams,
     SmallVectorImpl<const GenericTypeParamType*> &FilteredParams,
     SubstitutionMap SubMap) {
 

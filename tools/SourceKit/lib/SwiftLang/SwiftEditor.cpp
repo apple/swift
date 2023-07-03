@@ -75,20 +75,22 @@ void EditorDiagConsumer::getAllDiagnostics(
 
 /// Retrieve the raw range from a range, if it exists in the provided buffer.
 /// Otherwise returns \c None.
-static Optional<RawCharSourceRange> getRawRangeInBuffer(CharSourceRange range,
-                                                        unsigned bufferID,
-                                                        SourceManager &SM) {
+static llvm::Optional<RawCharSourceRange>
+getRawRangeInBuffer(CharSourceRange range, unsigned bufferID,
+                    SourceManager &SM) {
   if (!range.isValid() ||
       SM.findBufferContainingLoc(range.getStart()) != bufferID) {
-    return None;
+    return llvm::None;
   }
   unsigned offset = SM.getLocOffsetInBuffer(range.getStart(), bufferID);
   unsigned length = range.getByteLength();
   return {{offset, length}};
 }
 
-BufferInfoSharedPtr EditorDiagConsumer::getBufferInfo(
-    StringRef FileName, Optional<unsigned> BufferID, swift::SourceManager &SM) {
+BufferInfoSharedPtr
+EditorDiagConsumer::getBufferInfo(StringRef FileName,
+                                  llvm::Optional<unsigned> BufferID,
+                                  swift::SourceManager &SM) {
   // NOTE: Using StringRef as a key here relies on SourceMgr using const char*
   // as buffer identifiers. This is fast, but may be brittle.  We can always
   // switch over to using a StringMap. Note that the logic in
@@ -97,8 +99,8 @@ BufferInfoSharedPtr EditorDiagConsumer::getBufferInfo(
   if (Result != BufferInfos.end())
     return Result->second;
 
-  Optional<std::string> GeneratedFileText;
-  Optional<BufferInfo::OriginalLocation> OriginalLocInfo;
+  llvm::Optional<std::string> GeneratedFileText;
+  llvm::Optional<BufferInfo::OriginalLocation> OriginalLocInfo;
 
   // If we have a generated buffer, we need to include the source text, as
   // clients otherwise won't be able to access to it.
@@ -184,7 +186,7 @@ void EditorDiagConsumer::handleDiagnostic(SourceManager &SM,
   for (auto notePath : Info.EducationalNotePaths)
     SKInfo.EducationalNotePaths.push_back(notePath);
 
-  Optional<unsigned> BufferIDOpt;
+  llvm::Optional<unsigned> BufferIDOpt;
   if (Info.Loc.isValid()) {
     BufferIDOpt = SM.findBufferContainingLoc(Info.Loc);
   }
@@ -231,7 +233,7 @@ void EditorDiagConsumer::handleDiagnostic(SourceManager &SM,
         SKInfo.Fixits.emplace_back(*Range, F.getText().str());
     }
   } else {
-    SKInfo.FileInfo = getBufferInfo("<unknown>", /*BufferID*/ None, SM);
+    SKInfo.FileInfo = getBufferInfo("<unknown>", /*BufferID*/ llvm::None, SM);
   }
 
   if (IsNote) {
@@ -567,7 +569,7 @@ struct SwiftSyntaxMap {
     // If the replaced range didn't intersect with any existing tokens, there's
     // no need to report an affected range
     if (!TokenIntersected)
-      return None;
+      return llvm::None;
 
     // Update the end of the affected range to account for NewLen
     if (NewLen >= Len) {
@@ -721,7 +723,7 @@ public:
 
   void readSemanticInfo(ImmutableTextSnapshotRef NewSnapshot,
                         std::vector<SwiftSemanticToken> &Tokens,
-                        Optional<std::vector<DiagnosticEntryInfo>> &Diags,
+                        llvm::Optional<std::vector<DiagnosticEntryInfo>> &Diags,
                         ArrayRef<DiagnosticEntryInfo> ParserDiags);
 
   void processLatestSnapshotAsync(EditableTextBufferRef EditableBuffer,
@@ -743,9 +745,9 @@ private:
   std::vector<SwiftSemanticToken> takeSemanticTokens(
       ImmutableTextSnapshotRef NewSnapshot);
 
-  Optional<std::vector<DiagnosticEntryInfo>> getSemanticDiagnostics(
-      ImmutableTextSnapshotRef NewSnapshot,
-      ArrayRef<DiagnosticEntryInfo> ParserDiags);
+  llvm::Optional<std::vector<DiagnosticEntryInfo>>
+  getSemanticDiagnostics(ImmutableTextSnapshotRef NewSnapshot,
+                         ArrayRef<DiagnosticEntryInfo> ParserDiags);
 };
 
 class SwiftDocumentSyntaxInfo {
@@ -830,7 +832,7 @@ uint64_t SwiftDocumentSemanticInfo::getASTGeneration() const {
 void SwiftDocumentSemanticInfo::readSemanticInfo(
     ImmutableTextSnapshotRef NewSnapshot,
     std::vector<SwiftSemanticToken> &Tokens,
-    Optional<std::vector<DiagnosticEntryInfo>> &Diags,
+    llvm::Optional<std::vector<DiagnosticEntryInfo>> &Diags,
     ArrayRef<DiagnosticEntryInfo> ParserDiags) {
 
   llvm::sys::ScopedLock L(Mtx);
@@ -887,7 +889,7 @@ SwiftDocumentSemanticInfo::takeSemanticTokens(
   return std::move(SemaToks);
 }
 
-Optional<std::vector<DiagnosticEntryInfo>>
+llvm::Optional<std::vector<DiagnosticEntryInfo>>
 SwiftDocumentSemanticInfo::getSemanticDiagnostics(
     ImmutableTextSnapshotRef NewSnapshot,
     ArrayRef<DiagnosticEntryInfo> ParserDiags) {
@@ -1214,19 +1216,20 @@ static UIdent getAccessLevelUID(AccessLevel Access) {
   llvm_unreachable("Unhandled access level in switch.");
 }
 
-static Optional<AccessLevel>
+static llvm::Optional<AccessLevel>
 inferDefaultAccessSyntactically(const ExtensionDecl *ED) {
   // Check if the extension has an explicit access control attribute.
   if (auto *AA = ED->getAttrs().getAttribute<AccessControlAttr>())
     return std::min(std::max(AA->getAccess(), AccessLevel::FilePrivate),
                     AccessLevel::Public);
-  return None;
+  return llvm::None;
 }
 
 /// Document structure is a purely syntactic request that shouldn't require name lookup
 /// or type-checking, so this is a best-effort computation, particularly where extensions
 /// are concerned.
-static Optional<AccessLevel> inferAccessSyntactically(const ValueDecl *D) {
+static llvm::Optional<AccessLevel>
+inferAccessSyntactically(const ValueDecl *D) {
   assert(D);
 
   // Check if the decl has an explicit access control attribute.
@@ -1240,7 +1243,7 @@ static Optional<AccessLevel> inferAccessSyntactically(const ValueDecl *D) {
     if (auto container = dyn_cast<NominalTypeDecl>(D->getDeclContext())) {
       if (auto containerAccess = inferAccessSyntactically(container))
         return std::max(containerAccess.value(), AccessLevel::Internal);
-      return None;
+      return llvm::None;
     }
     return AccessLevel::Private;
   }
@@ -1293,10 +1296,10 @@ static bool inferIsSettableSyntactically(const AbstractStorageDecl *D) {
   }
 }
 
-static Optional<AccessLevel>
+static llvm::Optional<AccessLevel>
 inferSetterAccessSyntactically(const AbstractStorageDecl *D) {
   if (!inferIsSettableSyntactically(D))
-    return None;
+    return llvm::None;
   if (auto *AA = D->getAttrs().getAttribute<SetterAccessAttr>())
     return AA->getAccess();
   return inferAccessSyntactically(D);
@@ -1802,14 +1805,14 @@ private:
   }
 
   struct ParamClosureInfo {
-    Optional<ClosureInfo> placeholderClosure;
+    llvm::Optional<ClosureInfo> placeholderClosure;
     bool isNonPlaceholderClosure = false;
     bool isWrappedWithBraces = false;
   };
 
   /// Scan the given ArgumentList collecting argument closure information and
   /// returning the index of the given target placeholder (if found).
-  Optional<unsigned>
+  llvm::Optional<unsigned>
   scanArgumentList(ArgumentList *Args, SourceLoc targetPlaceholderLoc,
                    std::vector<ParamClosureInfo> &outParams) {
     if (Args->empty())
@@ -1818,7 +1821,7 @@ private:
     outParams.clear();
     outParams.reserve(Args->size());
 
-    Optional<unsigned> targetPlaceholderIndex;
+    llvm::Optional<unsigned> targetPlaceholderIndex;
 
     for (auto Arg : *Args) {
       auto *E = Arg.getExpr();
@@ -1892,7 +1895,7 @@ public:
     // and if the call parens can be removed in that case.
     // We'll first find the enclosing CallExpr, and then do further analysis.
     std::vector<ParamClosureInfo> params;
-    Optional<unsigned> targetPlaceholderIndex;
+    llvm::Optional<unsigned> targetPlaceholderIndex;
     auto ECE = enclosingCallExprArg(SF, PlaceholderStartLoc);
     ArgumentList *Args = ECE.first;
     if (Args && ECE.second) {
@@ -2139,7 +2142,7 @@ void SwiftEditorDocument::readSemanticInfo(ImmutableTextSnapshotRef Snapshot,
                                            EditorConsumer& Consumer) {
   llvm::sys::ScopedLock L(Impl.AccessMtx);
   std::vector<SwiftSemanticToken> SemaToks;
-  Optional<std::vector<DiagnosticEntryInfo>> SemaDiags;
+  llvm::Optional<std::vector<DiagnosticEntryInfo>> SemaDiags;
   Impl.SemanticInfo->readSemanticInfo(Snapshot, SemaToks, SemaDiags,
                                       Impl.ParserDiagnostics);
 
@@ -2372,14 +2375,16 @@ void SwiftEditorDocument::reportDocumentStructure(SourceFile &SrcFile,
 //===----------------------------------------------------------------------===//
 // EditorOpen
 //===----------------------------------------------------------------------===//
-void SwiftLangSupport::editorOpen(
-    StringRef Name, llvm::MemoryBuffer *Buf, EditorConsumer &Consumer,
-    ArrayRef<const char *> Args, Optional<VFSOptions> vfsOptions) {
+void SwiftLangSupport::editorOpen(StringRef Name, llvm::MemoryBuffer *Buf,
+                                  EditorConsumer &Consumer,
+                                  ArrayRef<const char *> Args,
+                                  llvm::Optional<VFSOptions> vfsOptions) {
 
   std::string error;
   // Do not provide primaryFile so that opening an existing document will
   // reinitialize the filesystem instead of keeping the old one.
-  auto fileSystem = getFileSystem(vfsOptions, /*primaryFile=*/None, error);
+  auto fileSystem =
+      getFileSystem(vfsOptions, /*primaryFile=*/llvm::None, error);
   if (!fileSystem)
     return Consumer.handleRequestError(error.c_str());
 

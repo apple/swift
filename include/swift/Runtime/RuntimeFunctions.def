@@ -2315,6 +2315,37 @@ FUNCTION(GenericInitWithTake,
          ATTRS(NoUnwind),
          EFFECT(Refcounting))
 
+// void *swift_generic_initializeBufferWithCopyOfBuffer(ValueBuffer* dest, ValueBuffer* src, const Metadata* type);
+FUNCTION(GenericInitializeBufferWithCopyOfBuffer,
+         swift_generic_initializeBufferWithCopyOfBuffer,
+         C_CC, AlwaysAvailable,
+         RETURNS(Int8PtrTy),
+         ARGS(getFixedBufferTy()->getPointerTo(),
+              getFixedBufferTy()->getPointerTo(),
+              TypeMetadataPtrTy),
+         ATTRS(NoUnwind),
+         EFFECT(Refcounting))
+
+// unsigned swift_singletonEnum_getEnumTag(swift::OpaqueValue *address,
+//                                         const Metadata *metadata);
+FUNCTION(SingletonEnumGetEnumTag,
+         swift_singletonEnum_getEnumTag,
+         C_CC, AlwaysAvailable,
+         RETURNS(Int32Ty),
+         ARGS(Int8PtrTy, TypeMetadataPtrTy),
+         ATTRS(NoUnwind, WillReturn),
+         EFFECT(NoEffect))
+
+// unsigned swift_enumSimple_getEnumTag(swift::OpaqueValue *address,
+//                                      const Metadata *metadata);
+FUNCTION(EnumSimpleGetEnumTag,
+         swift_enumSimple_getEnumTag,
+         C_CC, AlwaysAvailable,
+         RETURNS(Int32Ty),
+         ARGS(Int8PtrTy, TypeMetadataPtrTy),
+         ATTRS(NoUnwind, WillReturn),
+         EFFECT(NoEffect))
+
 // unsigned swift_enumFn_getEnumTag(swift::OpaqueValue *address,
 //                                  const Metadata *metadata);
 FUNCTION(EnumFnGetEnumTag,
@@ -2322,7 +2353,7 @@ FUNCTION(EnumFnGetEnumTag,
          C_CC, AlwaysAvailable,
          RETURNS(Int32Ty),
          ARGS(Int8PtrTy, TypeMetadataPtrTy),
-         ATTRS(NoUnwind),
+         ATTRS(NoUnwind, WillReturn),
          EFFECT(NoEffect))
 
 // unsigned swift_multiPayloadEnumGeneric_getEnumTag(opaque* address,
@@ -2332,7 +2363,18 @@ FUNCTION(MultiPayloadEnumGenericGetEnumTag,
          C_CC, AlwaysAvailable,
          RETURNS(Int32Ty),
          ARGS(Int8PtrTy, TypeMetadataPtrTy),
-         ATTRS(NoUnwind),
+         ATTRS(NoUnwind, WillReturn),
+         EFFECT(NoEffect))
+
+// void swift_multiPayloadEnumGeneric_destructiveInjectEnumTag(swift::OpaqueValue *address,
+//                                                             unsigned tag,
+//                                                             const Metadata *metadata)
+FUNCTION(MultiPayloadEnumGenericDestructiveInjectEnumTag,
+         swift_multiPayloadEnumGeneric_destructiveInjectEnumTag,
+         C_CC, AlwaysAvailable,
+         RETURNS(VoidTy),
+         ARGS(Int8PtrTy, Int32Ty, TypeMetadataPtrTy),
+         ATTRS(NoUnwind, WillReturn),
          EFFECT(NoEffect))
 
 // unsigned swift_singlePayloadEnumGeneric_getEnumTag(swift::OpaqueValue *address,
@@ -2342,7 +2384,18 @@ FUNCTION(SinglePayloadEnumGenericGetEnumTag,
          C_CC, AlwaysAvailable,
          RETURNS(Int32Ty),
          ARGS(Int8PtrTy, TypeMetadataPtrTy),
-         ATTRS(NoUnwind),
+         ATTRS(NoUnwind, WillReturn),
+         EFFECT(NoEffect))
+
+// void swift_singlePayloadEnumGeneric_destructiveInjectEnumTag(swift::OpaqueValue *address,
+//                                                              unsigned tag,
+//                                                              const Metadata *metadata)
+FUNCTION(SinglePayloadEnumGenericDestructiveInjectEnumTag,
+         swift_singlePayloadEnumGeneric_destructiveInjectEnumTag,
+         C_CC, AlwaysAvailable,
+         RETURNS(VoidTy),
+         ARGS(Int8PtrTy, Int32Ty, TypeMetadataPtrTy),
+         ATTRS(NoUnwind, WillReturn),
          EFFECT(NoEffect))
 
 // void swift_generic_instantiateLayoutString(const uint8_t* layoutStr,

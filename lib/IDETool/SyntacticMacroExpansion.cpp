@@ -163,6 +163,7 @@ MacroDecl *SyntacticMacroExpansionInstance::getSynthesizedMacroDecl(
 
     auto *attr = MacroRoleAttr::create(ctx, /*atLoc=*/{}, /*range=*/{}, syntax,
                                        /*lParenLoc=*/{}, role, /*names=*/{},
+                                       /*conformances=*/{},
                                        /*rParenLoc=*/{}, /*implicit=*/true);
     macro->getAttrs().add(attr);
   }
@@ -174,10 +175,10 @@ MacroDecl *SyntacticMacroExpansionInstance::getSynthesizedMacroDecl(
 }
 
 /// Create a unique name of the expansion. The result is *appended* to \p out.
-static void addExpansionDiscriminator(SmallString<32> &out,
-                                      const SourceFile *SF, SourceLoc loc,
-                                      Optional<SourceLoc> supplementalLoc = None,
-                                      Optional<MacroRole> role = None) {
+static void addExpansionDiscriminator(
+    SmallString<32> &out, const SourceFile *SF, SourceLoc loc,
+    llvm::Optional<SourceLoc> supplementalLoc = llvm::None,
+    llvm::Optional<MacroRole> role = llvm::None) {
   SourceManager &SM = SF->getASTContext().SourceMgr;
 
   StableHasher hasher = StableHasher::defaultHasher();
@@ -280,6 +281,10 @@ expandAttachedMacro(MacroDecl *macro, CustomAttr *attr, Decl *attachedDecl) {
   if (roles.contains(MacroRole::Conformance)) {
     if (isa<NominalTypeDecl>(attachedDecl))
       evaluate(attachedDecl, /*passParent=*/false, MacroRole::Conformance);
+  }
+  if (roles.contains(MacroRole::Extension)) {
+    if (isa<NominalTypeDecl>(attachedDecl))
+      evaluate(attachedDecl, /*passParent=*/false, MacroRole::Extension);
   }
   return bufferIDs;
 }

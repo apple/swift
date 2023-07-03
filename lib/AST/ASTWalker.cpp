@@ -442,19 +442,33 @@ class Traversal : public ASTVisitor<Traversal, Expr*, Stmt*,
     return false;
   }
 
+  bool visitFreestandingMacroArgs(FreestandingMacroExpansion *ME) {
+    for (TypeRepr *genArg : ME->getGenericArgs()) {
+      if (doIt(genArg))
+        return true;
+    }
+
+    if (ME->getArgs()) {
+      ArgumentList *args = doIt(ME->getArgs());
+      if (!args)
+        return true;
+      ME->setArgs(args);
+    }
+
+    return false;
+  }
+
   bool visitMacroExpansionDecl(MacroExpansionDecl *MED) {
 #ifndef NDEBUG
     PrettyStackTraceDecl debugStack("walking into", MED);
 #endif
+
     bool shouldWalkArguments, shouldWalkExpansion;
     std::tie(shouldWalkArguments, shouldWalkExpansion) =
         Walker.shouldWalkMacroArgumentsAndExpansion();
-    if (shouldWalkArguments && MED->getArgs()) {
-      if (auto *argList = doIt(MED->getArgs()))
-        MED->setArgs(argList);
-      else
-        return true;
-    }
+
+    if (shouldWalkArguments && visitFreestandingMacroArgs(MED))
+      return true;
 
     bool alreadyFailed = false;
     if (shouldWalkExpansion) {
@@ -1369,11 +1383,8 @@ class Traversal : public ASTVisitor<Traversal, Expr*, Stmt*,
       shouldWalkArguments = false;
     }
 
-    if (shouldWalkArguments && E->getArgs()) {
-      ArgumentList *args = doIt(E->getArgs());
-      if (!args) return nullptr;
-      E->setArgs(args);
-    }
+    if (shouldWalkArguments && visitFreestandingMacroArgs(E))
+      return nullptr;
 
     if (shouldWalkExpansion) {
       Expr *rewritten = nullptr;

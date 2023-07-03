@@ -225,7 +225,8 @@ private:
   /// other scope ending instructions.
   /// If a Match WITH an apply is returned, we might be able to transform this
   /// instruction, so more expensive checks are in order.
-  Optional<Match> definesMatchingInstructionSequence(SILInstruction *) const;
+  llvm::Optional<Match>
+  definesMatchingInstructionSequence(SILInstruction *) const;
 
   /// Whether the specified instruction is or might be the beginning of a
   /// sequence of "inconsequential" instructions the last of which destroys
@@ -660,7 +661,7 @@ bool borroweeHasUsesWithinBorrowScope(Context const &context,
 //                             MARK: Predicates
 //===----------------------------------------------------------------------===//
 
-Optional<Match>
+llvm::Optional<Match>
 FindCandidates::definesMatchingInstructionSequence(SILInstruction *inst) const {
   // Look specifically for
   //
@@ -670,10 +671,10 @@ FindCandidates::definesMatchingInstructionSequence(SILInstruction *inst) const {
   //   destroy_value %borrowee
   auto *ebi = dyn_cast<EndBorrowInst>(inst);
   if (!ebi)
-    return None;
+    return llvm::None;
   auto *dvi = findNextBorroweeDestroy(ebi->getNextInstruction());
   if (!dvi)
-    return None;
+    return llvm::None;
   auto *ai = dyn_cast_or_null<ApplyInst>(ebi->getPreviousInstruction());
   if (!ai)
     return {{nullptr, ebi, dvi}};

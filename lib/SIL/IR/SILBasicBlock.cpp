@@ -71,7 +71,7 @@ void SILBasicBlock::setDebugName(llvm::StringRef name) {
   getModule().setBasicBlockName(this, name);
 }
 
-Optional<llvm::StringRef> SILBasicBlock::getDebugName() const {
+llvm::Optional<llvm::StringRef> SILBasicBlock::getDebugName() const {
   return getModule().getBasicBlockName(this);
 }
 

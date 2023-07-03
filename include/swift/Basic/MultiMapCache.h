@@ -31,11 +31,11 @@ namespace swift {
 ///
 /// For an example of a subclass implementation see:
 /// unittests/Basic/MultiMapCacheTest.cpp.
-template <typename KeyTy, typename ValueTy,
-          typename MapTy =
-              llvm::DenseMap<KeyTy, Optional<std::tuple<unsigned, unsigned>>>,
-          typename VectorTy = std::vector<ValueTy>,
-          typename VectorTyImpl = VectorTy>
+template <
+    typename KeyTy, typename ValueTy,
+    typename MapTy =
+        llvm::DenseMap<KeyTy, llvm::Optional<std::tuple<unsigned, unsigned>>>,
+    typename VectorTy = std::vector<ValueTy>, typename VectorTyImpl = VectorTy>
 class MultiMapCache {
   std::function<bool(const KeyTy &, VectorTyImpl &)> function;
   MapTy valueToDataOffsetIndexMap;
@@ -56,8 +56,8 @@ public:
   bool empty() const { return valueToDataOffsetIndexMap.empty(); }
   unsigned size() const { return valueToDataOffsetIndexMap.size(); }
 
-  Optional<ArrayRef<ValueTy>> get(const KeyTy &key) {
-    auto iter = valueToDataOffsetIndexMap.try_emplace(key, None);
+  llvm::Optional<ArrayRef<ValueTy>> get(const KeyTy &key) {
+    auto iter = valueToDataOffsetIndexMap.try_emplace(key, llvm::None);
 
     // If we already have a cached value, just return the cached value.
     if (!iter.second) {
@@ -78,7 +78,7 @@ public:
     // We assume that constructValuesForKey /only/ inserts to the end of data
     // and does not inspect any other values in the data array.
     if (!function(key, data)) {
-      return None;
+      return llvm::None;
     }
 
     // Otherwise, compute our length, compute our initial ArrayRef<ValueTy>,
@@ -91,10 +91,11 @@ public:
 };
 
 template <typename KeyTy, typename ValueTy>
-using SmallMultiMapCache = MultiMapCache<
-    KeyTy, ValueTy,
-    llvm::SmallDenseMap<KeyTy, Optional<std::tuple<unsigned, unsigned>>, 8>,
-    SmallVector<ValueTy, 32>, SmallVectorImpl<ValueTy>>;
+using SmallMultiMapCache =
+    MultiMapCache<KeyTy, ValueTy,
+                  llvm::SmallDenseMap<
+                      KeyTy, llvm::Optional<std::tuple<unsigned, unsigned>>, 8>,
+                  SmallVector<ValueTy, 32>, SmallVectorImpl<ValueTy>>;
 
 } // namespace swift
 

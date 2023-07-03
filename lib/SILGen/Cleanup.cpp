@@ -101,7 +101,7 @@ void CleanupManager::emitCleanups(CleanupsDepth depth, CleanupLocation loc,
     // This is necessary both because we might need to pop the cleanup and
     // because the cleanup might push other cleanups that will invalidate
     // references onto the stack.
-    Optional<CleanupBuffer> copiedCleanup;
+    llvm::Optional<CleanupBuffer> copiedCleanup;
     if (stackCleanup.isActive() && SGF.B.hasValidInsertionPoint()) {
       copiedCleanup.emplace(stackCleanup);
     }
@@ -220,7 +220,7 @@ void CleanupManager::setCleanupState(CleanupsDepth depth, CleanupState state) {
     popTopDeadCleanups();
 }
 
-std::tuple<Cleanup::Flags, Optional<SILValue>>
+std::tuple<Cleanup::Flags, llvm::Optional<SILValue>>
 CleanupManager::getFlagsAndWritebackBuffer(CleanupHandle depth) {
   auto iter = stack.find(depth);
   assert(iter != stack.end() && "can't change end of cleanups stack");
@@ -228,7 +228,7 @@ CleanupManager::getFlagsAndWritebackBuffer(CleanupHandle depth) {
          "Trying to get writeback buffer of a dead cleanup?!");
 
   auto resultFlags = iter->getFlags();
-  Optional<SILValue> result;
+  llvm::Optional<SILValue> result;
   bool foundValue = iter->getWritebackBuffer([&](SILValue v) { result = v; });
   (void)foundValue;
   assert(result.has_value() == foundValue);
@@ -359,7 +359,7 @@ void CleanupStateRestorationScope::pop() && { popImpl(); }
 //===----------------------------------------------------------------------===//
 
 CleanupCloner::CleanupCloner(SILGenFunction &SGF, const ManagedValue &mv)
-    : SGF(SGF), writebackBuffer(None), hasCleanup(mv.hasCleanup()),
+    : SGF(SGF), writebackBuffer(llvm::None), hasCleanup(mv.hasCleanup()),
       isLValue(mv.isLValue()), isFormalAccess(false) {
   if (hasCleanup) {
     auto handle = mv.getCleanup();
@@ -498,4 +498,36 @@ CleanupCloner::cloneForRemainingPackComponents(SILValue packAddr,
     SGF.enterDestroyRemainingPackComponentsCleanup(packAddr, formalPackType,
                                                    firstComponentIndex);
   return ManagedValue(packAddr, cleanup);
+}
+
+ManagedValue
+CleanupCloner::cloneForRemainingTupleComponents(SILValue tupleAddr,
+                                                CanPackType inducedPackType,
+                                                unsigned firstComponentIndex) const {
+  if (isLValue) {
+    return ManagedValue::forLValue(tupleAddr);
+  }
+
+  if (!hasCleanup) {
+    return ManagedValue::forUnmanaged(tupleAddr);
+  }
+
+  assert(!writebackBuffer.has_value());
+  bool isTrivial = true;
+  auto tupleTy = tupleAddr->getType().castTo<TupleType>();
+  for (auto eltTy : tupleTy.getElementTypes().slice(firstComponentIndex)) {
+    if (!SILType::getPrimitiveObjectType(eltTy).isTrivial(SGF.F)) {
+      isTrivial = false;
+      break;
+    }
+  }
+
+  if (isTrivial)
+    return ManagedValue::forUnmanaged(tupleAddr);
+
+  auto cleanup =
+    SGF.enterDestroyRemainingTupleElementsCleanup(tupleAddr,
+                                                  inducedPackType,
+                                                  firstComponentIndex);
+  return ManagedValue(tupleAddr, cleanup);
 }

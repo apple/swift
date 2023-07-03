@@ -1,16 +1,17 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-sil-opaque-values -parse-stdlib -primary-file %s -emit-ir | %FileCheck --check-prefix=CHECK --check-prefix=CHECK-%target-cpu %s
-// RUN: %target-swift-frontend -enable-sil-opaque-values -parse-stdlib -primary-file %s -emit-ir
+// RUN: %target-swift-frontend -enable-sil-opaque-values -parse-stdlib -primary-file %s -emit-ir | %FileCheck --check-prefix=CHECK --check-prefix=CHECK-%target-cpu %s
 
 import Builtin
 
 sil_stage raw
 
-// CHECK: define hidden swiftcc void @f010_irgen_identity(%swift.opaque* noalias nocapture sret({{.*}}) %0, %swift.opaque* noalias nocapture %1, %swift.type* %T)
+// CHECK: define hidden swiftcc void @f010_irgen_identity(ptr noalias nocapture sret({{.*}}) %0, ptr noalias nocapture %1, ptr %T)
 // CHECK: entry:
 // CHECK-NOT: call
-// CHECK-arm64e: call i64 @llvm.ptrauth.blend
 // CHECK-NOT: call
-// CHECK: %{{.*}} = call %swift.opaque* %initializeWithTake(%swift.opaque* noalias %0, %swift.opaque* noalias %1, %swift.type* %T)
+// CHECK: [[InitializeWithTake_ADDR:%.*]] = getelementptr inbounds ptr, ptr %T.valueWitnesses
+// CHECK: [[InitializeWithTake:%.*]] = load ptr, ptr [[InitializeWithTake_ADDR]]
+// CHECK-arm64e: call i64 @llvm.ptrauth.blend
+// CHECK: %{{.*}} = call ptr [[InitializeWithTake]](ptr noalias %0, ptr noalias %1, ptr %T)
 // CHECK-NOT: call
 // CHECK: ret void
 sil hidden [ossa] @f010_irgen_identity : $@convention(thin) <T> (@in T) -> @out T {

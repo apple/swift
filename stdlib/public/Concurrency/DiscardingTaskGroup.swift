@@ -35,7 +35,7 @@ import Swift
 /// before returning from this function:
 ///
 /// ```
-/// await withDiscardingTaskGroup { group in
+/// await withDiscardingTaskGroup(...) { group in
 ///   group.addTask { /* slow-task */ }
 ///   // slow-task executes...
 /// }
@@ -357,7 +357,7 @@ extension DiscardingTaskGroup: Sendable { }
 /// before returning from this function:
 ///
 /// ```
-/// try await withThrowingDiscardingTaskGroup { group in
+/// try await withThrowingDiscardingTaskGroup(of: Void.self) { group in
 ///   group.addTask { /* slow-task */ }
 ///   // slow-task executes...
 /// }
@@ -390,7 +390,7 @@ extension DiscardingTaskGroup: Sendable { }
 ///
 /// ```
 /// // ThrowingTaskGroup, pattern not applicable to ThrowingDiscardingTaskGroup
-/// try await withThrowingTaskGroup { group in
+/// try await withThrowingTaskGroup(of: Void.self) { group in
 ///   group.addTask { try boom() }
 ///   try await group.next() // re-throws "boom"
 /// }

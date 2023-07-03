@@ -1,5 +1,4 @@
-// RUN: %swift %use_no_opaque_pointers -swift-version 4 -target arm64e-apple-ios12.0 -parse-stdlib -parse-as-library %s -emit-ir -module-name test -Xcc -Xclang -Xcc -fptrauth-calls | %FileCheck %s --check-prefix=CHECK
-// RUN: %swift -swift-version 4 -target arm64e-apple-ios12.0 -parse-stdlib -parse-as-library %s -emit-ir -module-name test -Xcc -Xclang -Xcc -fptrauth-calls
+// RUN: %swift -swift-version 4 -target arm64e-apple-ios12.0 -parse-stdlib -parse-as-library %s -emit-ir -module-name test -Xcc -Xclang -Xcc -fptrauth-calls | %FileCheck %s --check-prefix=CHECK
 
 // REQUIRES: CPU=arm64e
 // REQUIRES: OS=ios
@@ -8,11 +7,11 @@ import Builtin
 
 // CHECK: [[VOID_BLOCK_SIGNATURE:@.*]] = private unnamed_addr constant {{.*}} c"v8@?0\00"
 
-// CHECK: [[TRIVIAL_BLOCK_DESCRIPTOR:@.*]] = internal constant { {{.*}} } { i64 0, i64 40, i8* getelementptr inbounds ({{.*}} [[VOID_BLOCK_SIGNATURE]], i64 0, i64 0) }
+// CHECK: [[TRIVIAL_BLOCK_DESCRIPTOR:@.*]] = internal constant { {{.*}} } { i64 0, i64 40, ptr [[VOID_BLOCK_SIGNATURE]] }
 
-// CHECK: @block_copy_helper.ptrauth = private constant { i8*, i32, i64, i64 } { i8* bitcast ({{.*}}* @block_copy_helper to i8*), i32 0, i64 ptrtoint ({{.*}} getelementptr inbounds ({{.*}} [[NONTRIVIAL_BLOCK_DESCRIPTOR:@.*]], i32 0, i32 2) to i64), i64 0 }, section "llvm.ptrauth"
-// CHECK: @block_destroy_helper.ptrauth = private constant { i8*, i32, i64, i64 } { i8* bitcast ({{.*}}* @block_destroy_helper to i8*), i32 0, i64 ptrtoint ({{.*}} getelementptr inbounds ({{.*}} [[NONTRIVIAL_BLOCK_DESCRIPTOR:@.*]], i32 0, i32 3) to i64), i64 0 }, section "llvm.ptrauth"
-// CHECK: [[NONTRIVIAL_BLOCK_DESCRIPTOR]] = internal constant { {{.*}} } { i64 0, i64 40, void ({ %objc_block, %swift.refcounted* }*, {{.*}} bitcast ({{.*}} @block_copy_helper.ptrauth to {{.*}}), {{.*}} bitcast ({{.*}} @block_destroy_helper.ptrauth to {{.*}}), i8* getelementptr inbounds ({{.*}} [[VOID_BLOCK_SIGNATURE]], i64 0, i64 0) }
+// CHECK: @block_copy_helper.ptrauth = private constant { ptr, i32, i64, i64 } { ptr @block_copy_helper, i32 0, i64 ptrtoint ({{.*}} getelementptr inbounds ({{.*}} [[NONTRIVIAL_BLOCK_DESCRIPTOR:@.*]], i32 0, i32 2) to i64), i64 0 }, section "llvm.ptrauth"
+// CHECK: @block_destroy_helper.ptrauth = private constant { ptr, i32, i64, i64 } { ptr @block_destroy_helper, i32 0, i64 ptrtoint ({{.*}} getelementptr inbounds ({{.*}} [[NONTRIVIAL_BLOCK_DESCRIPTOR:@.*]], i32 0, i32 3) to i64), i64 0 }, section "llvm.ptrauth"
+// CHECK: [[NONTRIVIAL_BLOCK_DESCRIPTOR]] = internal constant { {{.*}} } { i64 0, i64 40, ptr @block_copy_helper.ptrauth, {{.*}} @block_destroy_helper.ptrauth, ptr [[VOID_BLOCK_SIGNATURE]] }
 
 sil @init_header_trivial : $@convention(thin) (@inout_aliasable @block_storage Builtin.RawPointer) -> @convention(block) () -> () {
 entry(%0 : $*@block_storage Builtin.RawPointer):
@@ -20,15 +19,15 @@ entry(%0 : $*@block_storage Builtin.RawPointer):
   %b = init_block_storage_header %0 : $*@block_storage Builtin.RawPointer, invoke %i : $@convention(c) (@inout_aliasable @block_storage Builtin.RawPointer) -> (), type $@convention(block) () -> ()
   return %b : $@convention(block) () -> ()
 }
-// CHECK-LABEL: define swiftcc %objc_block* @init_header_trivial({ %objc_block, i8* }*
-// CHECK:         [[HEADER:%.*]] = getelementptr inbounds { %objc_block, i8* }, { %objc_block, i8* }* %0, i32 0, i32 0
-// CHECK:         [[SLOT:%.*]] = getelementptr inbounds %objc_block, %objc_block* [[HEADER]], i32 0, i32 3
-// CHECK:         [[T0:%.*]] = ptrtoint i8** [[SLOT]] to i64
-// CHECK:         [[SIGNED:%.*]] = call i64 @llvm.ptrauth.sign(i64 ptrtoint (void (void (...)*)* @invoke_trivial to i64), i32 0, i64 [[T0]])
-// CHECK:         [[T0:%.*]] = inttoptr i64 [[SIGNED]] to i8*
-// CHECK:         store i8* [[T0]], i8** [[SLOT]],
-// CHECK:         [[SLOT:%.*]] = getelementptr inbounds %objc_block, %objc_block* [[HEADER]], i32 0, i32 4
-// CHECK:         store i8* bitcast ({{.*}} [[TRIVIAL_BLOCK_DESCRIPTOR]] to i8*), i8** [[SLOT]]
+// CHECK-LABEL: define swiftcc ptr @init_header_trivial(ptr
+// CHECK:         [[HEADER:%.*]] = getelementptr inbounds { %objc_block, ptr }, ptr %0, i32 0, i32 0
+// CHECK:         [[SLOT:%.*]] = getelementptr inbounds %objc_block, ptr [[HEADER]], i32 0, i32 3
+// CHECK:         [[T0:%.*]] = ptrtoint ptr [[SLOT]] to i64
+// CHECK:         [[SIGNED:%.*]] = call i64 @llvm.ptrauth.sign(i64 ptrtoint (ptr @invoke_trivial to i64), i32 0, i64 [[T0]])
+// CHECK:         [[T0:%.*]] = inttoptr i64 [[SIGNED]] to ptr
+// CHECK:         store ptr [[T0]], ptr [[SLOT]],
+// CHECK:         [[SLOT:%.*]] = getelementptr inbounds %objc_block, ptr [[HEADER]], i32 0, i32 4
+// CHECK:         store ptr [[TRIVIAL_BLOCK_DESCRIPTOR]], ptr [[SLOT]]
 
 sil @invoke_trivial : $@convention(c) (@inout_aliasable @block_storage Builtin.RawPointer) -> () {
 entry(%0 : $*@block_storage Builtin.RawPointer):
@@ -42,15 +41,15 @@ entry(%0 : $*@block_storage Builtin.NativeObject):
   %b = init_block_storage_header %0 : $*@block_storage Builtin.NativeObject, invoke %i : $@convention(c) (@inout_aliasable @block_storage Builtin.NativeObject) -> (), type $@convention(block) () -> ()
   return %b : $@convention(block) () -> ()
 }
-// CHECK-LABEL: define swiftcc %objc_block* @init_header_nontrivial({ %objc_block, %swift.refcounted* }*
-// CHECK:         [[HEADER:%.*]] = getelementptr inbounds { %objc_block, %swift.refcounted* }, { %objc_block, %swift.refcounted* }* %0, i32 0, i32 0
-// CHECK:         [[SLOT:%.*]] = getelementptr inbounds %objc_block, %objc_block* [[HEADER]], i32 0, i32 3
-// CHECK:         [[T0:%.*]] = ptrtoint i8** [[SLOT]] to i64
-// CHECK:         [[SIGNED:%.*]] = call i64 @llvm.ptrauth.sign(i64 ptrtoint (void (void (...)*)* @invoke_nontrivial to i64), i32 0, i64 [[T0]])
-// CHECK:         [[T0:%.*]] = inttoptr i64 [[SIGNED]] to i8*
-// CHECK:         store i8* [[T0]], i8** [[SLOT]],
-// CHECK:         [[SLOT:%.*]] = getelementptr inbounds %objc_block, %objc_block* [[HEADER]], i32 0, i32 4
-// CHECK:         store i8* bitcast ({{.*}} [[NONTRIVIAL_BLOCK_DESCRIPTOR]] to i8*), i8** [[SLOT]]
+// CHECK-LABEL: define swiftcc ptr @init_header_nontrivial(ptr
+// CHECK:         [[HEADER:%.*]] = getelementptr inbounds { %objc_block, ptr }, ptr %0, i32 0, i32 0
+// CHECK:         [[SLOT:%.*]] = getelementptr inbounds %objc_block, ptr [[HEADER]], i32 0, i32 3
+// CHECK:         [[T0:%.*]] = ptrtoint ptr [[SLOT]] to i64
+// CHECK:         [[SIGNED:%.*]] = call i64 @llvm.ptrauth.sign(i64 ptrtoint (ptr @invoke_nontrivial to i64), i32 0, i64 [[T0]])
+// CHECK:         [[T0:%.*]] = inttoptr i64 [[SIGNED]] to ptr
+// CHECK:         store ptr [[T0]], ptr [[SLOT]],
+// CHECK:         [[SLOT:%.*]] = getelementptr inbounds %objc_block, ptr [[HEADER]], i32 0, i32 4
+// CHECK:         store ptr [[NONTRIVIAL_BLOCK_DESCRIPTOR]], ptr [[SLOT]]
 
 sil @invoke_nontrivial : $@convention(c) (@inout_aliasable @block_storage Builtin.NativeObject) -> () {
 entry(%0 : $*@block_storage Builtin.NativeObject):
@@ -63,9 +62,8 @@ entry(%0 : $@convention(block) () -> ()):
   apply %0() : $@convention(block) () -> ()
   return undef : $()
 }
-// CHECK-LABEL: define swiftcc void @invoke_block(%objc_block* %0)
-// CHECK:      [[SLOT:%.*]] = getelementptr inbounds %objc_block, %objc_block* %0, i32 0, i32 3
-// CHECK-NEXT: [[T0:%.*]] = load i8*, i8** [[SLOT]], align
-// CHECK-NEXT: [[INVOKE:%.*]] = bitcast i8* [[T0]] to void (%objc_block*)*
-// CHECK-NEXT: [[DISC:%.*]] = ptrtoint i8** [[SLOT]] to i64
-// CHECK-NEXT: call void [[INVOKE]](%objc_block* %0) [ "ptrauth"(i32 0, i64 [[DISC]]) ]
+// CHECK-LABEL: define swiftcc void @invoke_block(ptr %0)
+// CHECK:      [[SLOT:%.*]] = getelementptr inbounds %objc_block, ptr %0, i32 0, i32 3
+// CHECK-NEXT: [[T0:%.*]] = load ptr, ptr [[SLOT]], align
+// CHECK-NEXT: [[DISC:%.*]] = ptrtoint ptr [[SLOT]] to i64
+// CHECK-NEXT: call void [[T0]](ptr %0) [ "ptrauth"(i32 0, i64 [[DISC]]) ]

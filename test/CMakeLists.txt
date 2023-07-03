@@ -70,6 +70,7 @@ function(get_test_dependencies SDK result_var_name)
       arcmt-test
       c-arcmt-test
       c-index-test
+      CASPluginTest
       clang
       clang-cas-test
       count

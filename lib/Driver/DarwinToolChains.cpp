@@ -338,8 +338,8 @@ toolchains::Darwin::addArgsToLinkStdlib(ArgStringList &Arguments,
   // have an older Swift runtime.
   SmallString<128> SharedResourceDirPath;
   getResourceDirPath(SharedResourceDirPath, context.Args, /*Shared=*/true);
-  Optional<llvm::VersionTuple> runtimeCompatibilityVersion;
-  
+  llvm::Optional<llvm::VersionTuple> runtimeCompatibilityVersion;
+
   if (context.Args.hasArg(options::OPT_runtime_compatibility_version)) {
     auto value = context.Args.getLastArgValue(
                                     options::OPT_runtime_compatibility_version);
@@ -354,7 +354,7 @@ toolchains::Darwin::addArgsToLinkStdlib(ArgStringList &Arguments,
     } else if (value.equals("5.8")) {
       runtimeCompatibilityVersion = llvm::VersionTuple(5, 8);
     } else if (value.equals("none")) {
-      runtimeCompatibilityVersion = None;
+      runtimeCompatibilityVersion = llvm::None;
     } else {
       // TODO: diagnose unknown runtime compatibility version?
     }
@@ -492,10 +492,10 @@ toolchains::Darwin::addProfileGenerationArgs(ArgStringList &Arguments,
   }
 }
 
-Optional<llvm::VersionTuple>
+llvm::Optional<llvm::VersionTuple>
 toolchains::Darwin::getTargetSDKVersion(const llvm::Triple &triple) const {
   if (!SDKInfo)
-    return None;
+    return llvm::None;
   return swift::getTargetSDKVersion(*SDKInfo, triple);
 }
 

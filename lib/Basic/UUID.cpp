@@ -16,6 +16,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "swift/Basic/UUID.h"
+#include "llvm/ADT/None.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
 
@@ -65,14 +66,14 @@ swift::UUID::UUID() {
 #endif
 }
 
-Optional<swift::UUID> swift::UUID::fromString(const char *s) {
+llvm::Optional<swift::UUID> swift::UUID::fromString(const char *s) {
 #if defined(_WIN32)
   RPC_CSTR t = const_cast<RPC_CSTR>(reinterpret_cast<const unsigned char*>(s));
 
   ::UUID uuid;
   RPC_STATUS status = UuidFromStringA(t, &uuid);
   if (status == RPC_S_INVALID_STRING_UUID) {
-    return None;
+    return llvm::None;
   }
 
   swift::UUID result = UUID();
@@ -81,7 +82,7 @@ Optional<swift::UUID> swift::UUID::fromString(const char *s) {
 #else
   swift::UUID result;
   if (uuid_parse(s, result.Value))
-    return None;
+    return llvm::None;
   return result;
 #endif
 }

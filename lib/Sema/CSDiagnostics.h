@@ -144,14 +144,14 @@ protected:
 
   /// Retrieve overload choice resolved for a given locator
   /// by the constraint solver.
-  Optional<SelectedOverload>
+  llvm::Optional<SelectedOverload>
   getOverloadChoiceIfAvailable(ConstraintLocator *locator) const {
     return S.getOverloadChoiceIfAvailable(locator);
   }
 
   /// Retrieve overload choice resolved for a callee for the anchor
   /// of a given locator.
-  Optional<SelectedOverload>
+  llvm::Optional<SelectedOverload>
   getCalleeOverloadChoiceIfAvailable(ConstraintLocator *locator) const {
     return getOverloadChoiceIfAvailable(S.getCalleeLocator(locator));
   }
@@ -176,7 +176,7 @@ protected:
     return S.getConstraintLocator(baseLocator, element);
   }
 
-  Optional<FunctionArgApplyInfo>
+  llvm::Optional<FunctionArgApplyInfo>
   getFunctionArgApplyInfo(ConstraintLocator *locator) const {
     return S.getFunctionArgApplyInfo(locator);
   }
@@ -539,16 +539,16 @@ public:
         ResultTypeIsOptional(resultOptional) {}
 
   bool diagnoseAsError() override;
-  
+
   Type getMemberBaseType() const {
     return MemberBaseType;
   }
-  
+
   SourceLoc getLoc() const override {
     // The end location points to the dot in the member access.
     return getSourceRange().End;
   }
-  
+
   SourceRange getSourceRange() const override;
 
 };
@@ -610,10 +610,10 @@ private:
   /// \returns The base subexpression that looks immutable (or that can't be
   /// analyzed any further) along with an OverloadChoice extracted from it if we
   /// could.
-  std::pair<Expr *, Optional<OverloadChoice>>
+  std::pair<Expr *, llvm::Optional<OverloadChoice>>
   resolveImmutableBase(Expr *expr) const;
 
-  std::pair<Expr *, Optional<OverloadChoice>>
+  std::pair<Expr *, llvm::Optional<OverloadChoice>>
   resolveImmutableBase(const Expr *expr) const {
     return resolveImmutableBase(const_cast<Expr *>(expr));
   }
@@ -623,7 +623,7 @@ private:
 
   /// Retrieve an member reference associated with given member
   /// looking through dynamic member lookup on the way.
-  Optional<OverloadChoice> getMemberRef(ConstraintLocator *locator) const;
+  llvm::Optional<OverloadChoice> getMemberRef(ConstraintLocator *locator) const;
 };
 
 /// Intended to diagnose any possible contextual failure
@@ -670,7 +670,7 @@ public:
 
   /// If we're trying to convert something to `nil`.
   bool diagnoseConversionToNil() const;
-  
+
   /// Diagnose failed conversion in a `CoerceExpr`.
   bool diagnoseCoercionToUnrelatedType() const;
 
@@ -732,7 +732,7 @@ private:
 protected:
   ContextualTypePurpose getContextualTypePurpose() const { return CTP; }
 
-  static Optional<Diag<Type, Type>>
+  static llvm::Optional<Diag<Type, Type>>
   getDiagnosticFor(ContextualTypePurpose context, Type contextualType);
 
 protected:
@@ -896,7 +896,8 @@ private:
 
   void emitNoteForMismatch(int mismatchPosition);
 
-  Optional<Diag<Type, Type>> getDiagnosticFor(ContextualTypePurpose context);
+  llvm::Optional<Diag<Type, Type>>
+  getDiagnosticFor(ContextualTypePurpose context);
 
   /// The actual type being used.
   BoundGenericType *getActual() const {
@@ -1491,7 +1492,8 @@ private:
 
   /// Gather information associated with expression that represents
   /// a call - function and argument list.
-  Optional<std::pair<Expr *, ArgumentList *>> getCallInfo(ASTNode anchor) const;
+  llvm::Optional<std::pair<Expr *, ArgumentList *>>
+  getCallInfo(ASTNode anchor) const;
 
   /// Transform given argument into format suitable for a fix-it
   /// text e.g. `[<label>:]? <#<type#>`
@@ -1829,9 +1831,14 @@ public:
 
 class NotCopyableFailure final : public FailureDiagnostic {
   Type noncopyableTy;
+  NoncopyableMatchFailure failure;
 public:
-  NotCopyableFailure(const Solution &solution, Type noncopyableTy, ConstraintLocator *locator)
-      : FailureDiagnostic(solution, locator), noncopyableTy(noncopyableTy) {}
+  NotCopyableFailure(const Solution &solution,
+                     Type noncopyableTy,
+                     NoncopyableMatchFailure failure,
+                     ConstraintLocator *locator)
+      : FailureDiagnostic(solution, locator),
+        noncopyableTy(noncopyableTy), failure(failure) {}
 
   bool diagnoseAsError() override;
 };
@@ -2413,7 +2420,7 @@ public:
   bool diagnoseAsNote() override;
 
 protected:
-  Optional<Diag<Type, Type>> getDiagnostic() const;
+  llvm::Optional<Diag<Type, Type>> getDiagnostic() const;
 
   virtual void fixIt(InFlightDiagnostic &diagnostic) const = 0;
 };
@@ -3040,6 +3047,50 @@ public:
                                            DeclNameRef memberName,
                                            ConstraintLocator *locator)
       : FailureDiagnostic(solution, locator), MemberName(memberName) {}
+
+  bool diagnoseAsError() override;
+};
+
+/// Diagnose attempts to specialize a concrete type or its alias:
+///
+/// \code
+/// struct Test {}
+/// typealias X = Test
+///
+/// _ = X<Int>() // error
+/// \endcode
+class ConcreteTypeSpecialization final : public FailureDiagnostic {
+  Type ConcreteType;
+
+public:
+  ConcreteTypeSpecialization(const Solution &solution, Type concreteTy,
+                             ConstraintLocator *locator)
+      : FailureDiagnostic(solution, locator),
+        ConcreteType(resolveType(concreteTy)) {}
+
+  bool diagnoseAsError() override;
+};
+
+/// Diagnose attempts to specialize with invalid number of generic arguments:
+///
+/// \code
+/// struct Test<T, U> {}
+///
+/// _ = Test<Int>() // error
+/// \endcode
+class InvalidTypeSpecializationArity final : public FailureDiagnostic {
+  ValueDecl *D;
+  unsigned NumParams;
+  unsigned NumArgs;
+  bool HasParameterPack;
+
+public:
+  InvalidTypeSpecializationArity(const Solution &solution, ValueDecl *decl,
+                                 unsigned numParams, unsigned numArgs,
+                                 bool hasParameterPack,
+                                 ConstraintLocator *locator)
+      : FailureDiagnostic(solution, locator), D(decl), NumParams(numParams),
+        NumArgs(numArgs), HasParameterPack(hasParameterPack) {}
 
   bool diagnoseAsError() override;
 };

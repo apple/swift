@@ -1146,7 +1146,7 @@ ScopedImportLookupRequest::evaluate(Evaluator &evaluator,
     return ArrayRef<ValueDecl *>();
   }
 
-  Optional<ImportKind> actualKind = ImportDecl::findBestImportKind(decls);
+  llvm::Optional<ImportKind> actualKind = ImportDecl::findBestImportKind(decls);
   if (!actualKind.has_value()) {
     // FIXME: print entire module name?
     ctx.Diags.diagnose(importLoc, diag::ambiguous_decl_in_module,
@@ -1155,7 +1155,7 @@ ScopedImportLookupRequest::evaluate(Evaluator &evaluator,
       ctx.Diags.diagnose(next, diag::found_candidate);
 
   } else if (!isCompatibleImportKind(importKind, *actualKind)) {
-    Optional<InFlightDiagnostic> emittedDiag;
+    llvm::Optional<InFlightDiagnostic> emittedDiag;
     if (*actualKind == ImportKind::Type && isNominalImportKind(importKind)) {
       assert(decls.size() == 1 &&
              "if we start suggesting ImportKind::Type for, e.g., a mix of "

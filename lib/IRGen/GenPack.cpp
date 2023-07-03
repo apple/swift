@@ -499,7 +499,7 @@ irgen::emitTypeMetadataPack(IRGenFunction &IGF, CanPackType packType,
   return {pack, shape};
 }
 
-static Optional<unsigned> countForShape(llvm::Value *shape) {
+static llvm::Optional<unsigned> countForShape(llvm::Value *shape) {
   if (auto *constant = dyn_cast<llvm::ConstantInt>(shape))
     return constant->getValue().getZExtValue();
   return llvm::None;

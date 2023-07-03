@@ -79,7 +79,7 @@ class IRGenThunk {
   bool isCoroutine;
   bool isWitnessMethod;
 
-  Optional<AsyncContextLayout> asyncLayout;
+  llvm::Optional<AsyncContextLayout> asyncLayout;
 
   // Initialized by prepareArguments()
   llvm::Value *indirectReturnSlot = nullptr;

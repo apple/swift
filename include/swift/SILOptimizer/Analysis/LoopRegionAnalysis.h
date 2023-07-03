@@ -206,27 +206,30 @@ public:
     unsigned asInt() const { return *reinterpret_cast<const unsigned *>(this); }
 
     struct ToLiveSucc {
-      Optional<SuccessorID> operator()(Optional<SuccessorID> ID) const {
+      llvm::Optional<SuccessorID>
+      operator()(llvm::Optional<SuccessorID> ID) const {
         return ID;
       }
     };
 
     struct ToLiveLocalSucc {
-      Optional<unsigned> operator()(Optional<SuccessorID> ID) const {
+      llvm::Optional<unsigned>
+      operator()(llvm::Optional<SuccessorID> ID) const {
         if (!ID)
-          return None;
+          return llvm::None;
         if ((*ID).IsNonLocal)
-          return None;
+          return llvm::None;
         return (*ID).ID;
       }
     };
 
     struct ToLiveNonLocalSucc {
-      Optional<unsigned> operator()(Optional<SuccessorID> ID) const {
+      llvm::Optional<unsigned>
+      operator()(llvm::Optional<SuccessorID> ID) const {
         if (!ID)
-          return None;
+          return llvm::None;
         if (!(*ID).IsNonLocal)
-          return None;
+          return llvm::None;
         return (*ID).ID;
       }
     };
@@ -624,13 +627,13 @@ public:
     return getSubregionData().getBackedgeRegions();
   }
 
-  Optional<unsigned> getBackedgeRegion() const {
+  llvm::Optional<unsigned> getBackedgeRegion() const {
     if (isBlock())
-      return None;
+      return llvm::None;
     auto bedge_begin = getSubregionData().backedge_begin();
     auto bedge_end = getSubregionData().backedge_end();
     if (bedge_begin == bedge_end)
-      return None;
+      return llvm::None;
     return *bedge_begin;
   }
 
@@ -716,7 +719,7 @@ public:
 
   /// Return the ID of the parent region of this BB. Asserts if this is a
   /// function region.
-  Optional<unsigned> getParentID() const { return ParentID; }
+  llvm::Optional<unsigned> getParentID() const { return ParentID; }
 
   unsigned getRPONumber() const {
     if (isBlock())
@@ -931,11 +934,11 @@ public:
   RegionTy *getRegionForNonLocalSuccessor(const RegionTy *Child,
                                           unsigned SuccID) const;
 
-  Optional<unsigned> getGrandparentID(const RegionTy *GrandChild) {
+  llvm::Optional<unsigned> getGrandparentID(const RegionTy *GrandChild) {
     if (auto ParentID = GrandChild->getParentID()) {
       return getRegion(*ParentID)->getParentID();
     }
-    return None;
+    return llvm::None;
   }
 
   /// Look up the region associated with this block and return it. Asserts if

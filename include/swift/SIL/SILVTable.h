@@ -162,7 +162,7 @@ public:
   void updateVTableCache(const Entry &entry);
 
   /// Look up the implementation function for the given method.
-  Optional<Entry> getEntry(SILModule &M, SILDeclRef method) const;
+  llvm::Optional<Entry> getEntry(SILModule &M, SILDeclRef method) const;
 
   /// Removes entries from the vtable.
   /// \p predicate Returns true if the passed entry should be removed.

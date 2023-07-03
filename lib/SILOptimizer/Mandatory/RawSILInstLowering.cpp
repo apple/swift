@@ -284,10 +284,7 @@ lowerAssignOrInitInstruction(SILBuilderWithScope &b,
       CanSILFunctionType fTy = initFn->getType().castTo<SILFunctionType>();
       SILFunctionConventions convention(fTy, inst->getModule());
 
-      auto *setterPA = dyn_cast<PartialApplyInst>(inst->getSetter());
-      assert(setterPA);
-
-      auto selfValue = setterPA->getOperand(1);
+      auto selfValue = inst->getSelf();
       auto isRefSelf = selfValue->getType().getASTType()->mayHaveSuperclass();
 
       SILValue selfRef;
@@ -337,7 +334,7 @@ lowerAssignOrInitInstruction(SILBuilderWithScope &b,
       for (auto *property : inst->getAccessedProperties())
         arguments.push_back(emitFieldReference(property));
 
-      b.createApply(loc, initFn, setterPA->getSubstitutionMap(), arguments);
+      b.createApply(loc, initFn, SubstitutionMap(), arguments);
 
       if (isRefSelf) {
         b.emitEndBorrowOperation(loc, selfRef);
@@ -345,10 +342,13 @@ lowerAssignOrInitInstruction(SILBuilderWithScope &b,
         b.createEndAccess(loc, selfRef, /*aborted=*/false);
       }
 
+      auto *setterPA = dyn_cast<PartialApplyInst>(inst->getSetter());
+      assert(setterPA);
+
       // The unused partial_apply violates memory lifetime rules in case "self"
       // is an inout. Therefore we cannot keep it as a dead closure to be
       // cleaned up later. We have to delete it in this pass.
-      toDelete.insert(inst->getSetter());
+      toDelete.insert(setterPA);
 
       // Also the argument of the closure (which usually is a "load") has to be
       // deleted to avoid memory lifetime violations.

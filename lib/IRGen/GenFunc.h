@@ -47,7 +47,7 @@ namespace irgen {
 
   /// Emit a partial application thunk for a function pointer applied to a
   /// partial set of argument values.
-  Optional<StackAddress> emitFunctionPartialApplication(
+  llvm::Optional<StackAddress> emitFunctionPartialApplication(
       IRGenFunction &IGF, SILFunction &SILFn, const FunctionPointer &fnPtr,
       llvm::Value *fnContext, Explosion &args,
       ArrayRef<SILParameterInfo> argTypes, SubstitutionMap subs,

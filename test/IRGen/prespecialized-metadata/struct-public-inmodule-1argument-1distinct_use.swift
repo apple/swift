@@ -1,5 +1,4 @@
-// RUN: %swift %use_no_opaque_pointers -prespecialize-generic-metadata -target %module-target-future -emit-ir %s | %FileCheck %s -DINT=i%target-ptrsize -DALIGNMENT=%target-alignment
-// RUN: %swift -prespecialize-generic-metadata -target %module-target-future -emit-ir %s
+// RUN: %swift -prespecialize-generic-metadata -target %module-target-future -emit-ir %s | %FileCheck %s -DINT=i%target-ptrsize -DALIGNMENT=%target-alignment
 
 // REQUIRES: VENDOR=apple || OS=linux-gnu
 // UNSUPPORTED: CPU=i386 && OS=ios
@@ -7,19 +6,19 @@
 // UNSUPPORTED: CPU=armv7s && OS=ios
 
 // CHECK: @"$s4main5ValueVySiGMf" = linkonce_odr hidden constant <{
-// CHECK-SAME:    i8**,
+// CHECK-SAME:    ptr,
 // CHECK-SAME:    [[INT]],
-// CHECK-SAME:    %swift.type_descriptor*,
-// CHECK-SAME:    %swift.type*,
-// CHECK-SAME:    i32{{(, \[4 x i8\])?}},
+// CHECK-SAME:    ptr,
+// CHECK-SAME:    ptr,
+// CHECK-SAME:    i32,
 // CHECK-SAME:    i64
 // CHECK-SAME: }> <{
-//                i8** @"$sB[[INT]]_WV",
-//                i8** getelementptr inbounds (%swift.vwtable, %swift.vwtable* @"$s4main5ValueVySiGWV", i32 0, i32 0),
+//                ptr @"$sB[[INT]]_WV",
+//                ptr {{[^@]*}}@"$s4main5ValueVySiGWV"{{[^,]*}},
 // CHECK-SAME:    [[INT]] 512,
-// CHECK-SAME:    %swift.type_descriptor* bitcast ({{.+}}$s4main5ValueVMn{{.+}} to %swift.type_descriptor*),
-// CHECK-SAME:    %swift.type* @"$sSiN",
-// CHECK-SAME:    i32 0{{(, \[4 x i8\] zeroinitializer)?}},
+// CHECK-SAME:    $s4main5ValueVMn
+// CHECK-SAME:    $sSiN
+// CHECK-SAME:    i32 0,
 // CHECK-SAME:    i64 3
 // CHECK-SAME: }>, align [[ALIGNMENT]]
 
@@ -35,7 +34,15 @@ func consume<T>(_ t: T) {
 }
 
 // CHECK: define hidden swiftcc void @"$s4main4doityyF"() #{{[0-9]+}} {
-// CHECK:   call swiftcc void @"$s4main7consumeyyxlF"(%swift.opaque* noalias nocapture %{{[0-9]+}}, %swift.type* getelementptr inbounds (%swift.full_type, %swift.full_type* bitcast (<{ i8*, i8**, [[INT]], %swift.type_descriptor*, %swift.type*, i32{{(, \[4 x i8\])?}}, i64 }>* @"$s4main5ValueVySiGMf" to %swift.full_type*), i32 0, i32 2))
+// CHECK:   call swiftcc void @"$s4main7consumeyyxlF"(
+// CHECK-SAME:   ptr noalias nocapture %{{[0-9]+}}, 
+// CHECK-SAME:   ptr getelementptr inbounds (
+// CHECK-SAME:     %swift.full_type, 
+// CHECK-SAME:     $s4main5ValueVySiGMf
+// CHECK-SAME:     i32 0, 
+// CHECK-SAME:     i32 2
+// CHECK-SAME:   )
+// CHECK-SAME: )
 // CHECK: }
 func doit() {
   consume( Value(first: 13) )
@@ -43,9 +50,13 @@ func doit() {
 doit()
 
 // CHECK: ; Function Attrs: noinline nounwind readnone
-// CHECK: define{{( protected| dllexport)?}} swiftcc %swift.metadata_response @"$s4main5ValueVMa"([[INT]] %0, %swift.type* %1) #{{[0-9]+}} {{(section)?.*}}{
-// CHECK: entry:
-// CHECK:   [[ERASED_TYPE:%[0-9]+]] = bitcast %swift.type* %1 to i8*
-// CHECK:   {{%[0-9]+}} = call swiftcc %swift.metadata_response @__swift_instantiateCanonicalPrespecializedGenericMetadata([[INT]] %0, i8* [[ERASED_TYPE]], i8* undef, i8* undef, %swift.type_descriptor* bitcast ({{.+}}$s4main5ValueVMn{{.+}} to %swift.type_descriptor*), [[INT]]* @"$s4main5ValueVMz") #{{[0-9]+}}
+// CHECK: define{{( protected| dllexport)?}} swiftcc %swift.metadata_response @"$s4main5ValueVMa"([[INT]] %0, ptr %1) #{{[0-9]+}} {{(section)?.*}}{
+// CHECK:      call swiftcc %swift.metadata_response @__swift_instantiateCanonicalPrespecializedGenericMetadata(
+// CHECK-SAME:   [[INT]] %0, 
+// CHECK-SAME:   ptr %1, 
+// CHECK-SAME:   ptr undef, 
+// CHECK-SAME:   ptr undef, 
+// CHECK-SAME:   $s4main5ValueVMn
+// CHECK-SAME:   $s4main5ValueVMz
 // CHECK:   ret %swift.metadata_response {{%[0-9]+}}
 // CHECK: }

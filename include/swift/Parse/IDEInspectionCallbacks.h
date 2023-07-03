@@ -123,7 +123,7 @@ public:
   };
 
   /// Set target decl for attribute if the CC token is in attribute of the decl.
-  virtual void setAttrTargetDeclKind(Optional<DeclKind> DK) {}
+  virtual void setAttrTargetDeclKind(llvm::Optional<DeclKind> DK) {}
 
   /// Set that the code completion token occurred in a custom attribute. This
   /// allows us to type check the custom attribute even if it is not attached to
@@ -240,10 +240,10 @@ public:
   /// index means that the completion is within the parentheses and is
   /// for a specific yield value.
   virtual void completeYieldStmt(CodeCompletionExpr *E,
-                                 Optional<unsigned> yieldIndex) {};
+                                 llvm::Optional<unsigned> yieldIndex){};
 
   virtual void completeAfterPoundExpr(CodeCompletionExpr *E,
-                                      Optional<StmtKind> ParentKind) {};
+                                      llvm::Optional<StmtKind> ParentKind){};
 
   virtual void completeAfterPoundDirective() {};
 

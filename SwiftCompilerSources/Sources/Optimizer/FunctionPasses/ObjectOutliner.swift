@@ -310,7 +310,7 @@ private func replace(object allocRef: AllocRefInstBase,
 
   // Replace the alloc_ref by global_value + strong_retain instructions.
   let builder = Builder(before: allocRef, context)
-  let globalValue = builder.createGlobalValue(global: global)
+  let globalValue = builder.createGlobalValue(global: global, isBare: false)
   builder.createStrongRetain(operand: globalValue)
 
   endCOW.uses.replaceAll(with: endCOW.instance, context)

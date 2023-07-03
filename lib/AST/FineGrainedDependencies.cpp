@@ -42,34 +42,34 @@ using namespace fine_grained_dependencies;
 // MARK: Emitting and reading SourceFileDepGraph
 //==============================================================================
 
-Optional<SourceFileDepGraph>
+llvm::Optional<SourceFileDepGraph>
 SourceFileDepGraph::loadFromPath(StringRef path, const bool allowSwiftModule) {
   const bool treatAsModule =
       allowSwiftModule &&
       path.endswith(file_types::getExtension(file_types::TY_SwiftModuleFile));
   auto bufferOrError = llvm::MemoryBuffer::getFile(path);
   if (!bufferOrError)
-    return None;
+    return llvm::None;
   return treatAsModule ? loadFromSwiftModuleBuffer(*bufferOrError.get())
                        : loadFromBuffer(*bufferOrError.get());
 }
 
-Optional<SourceFileDepGraph>
+llvm::Optional<SourceFileDepGraph>
 SourceFileDepGraph::loadFromBuffer(llvm::MemoryBuffer &buffer) {
   SourceFileDepGraph fg;
   if (swift::fine_grained_dependencies::readFineGrainedDependencyGraph(
       buffer, fg))
-    return None;
-  return Optional<SourceFileDepGraph>(std::move(fg));
+    return llvm::None;
+  return llvm::Optional<SourceFileDepGraph>(std::move(fg));
 }
 
-Optional<SourceFileDepGraph>
+llvm::Optional<SourceFileDepGraph>
 SourceFileDepGraph::loadFromSwiftModuleBuffer(llvm::MemoryBuffer &buffer) {
   SourceFileDepGraph fg;
   if (swift::fine_grained_dependencies::
           readFineGrainedDependencyGraphFromSwiftModule(buffer, fg))
-    return None;
-  return Optional<SourceFileDepGraph>(std::move(fg));
+    return llvm::None;
+  return llvm::Optional<SourceFileDepGraph>(std::move(fg));
 }
 
 //==============================================================================
@@ -114,7 +114,8 @@ void SourceFileDepGraph::forEachArc(
 
 InterfaceAndImplementationPair<SourceFileDepGraphNode>
 SourceFileDepGraph::findExistingNodePairOrCreateAndAddIfNew(
-    const DependencyKey &interfaceKey, Optional<Fingerprint> fingerprint) {
+    const DependencyKey &interfaceKey,
+    llvm::Optional<Fingerprint> fingerprint) {
 
   // Optimization for whole-file users:
   if (interfaceKey.getKind() == NodeKind::sourceFileProvide &&
@@ -150,7 +151,7 @@ SourceFileDepGraph::findExistingNodePairOrCreateAndAddIfNew(
 }
 
 SourceFileDepGraphNode *SourceFileDepGraph::findExistingNodeOrCreateIfNew(
-    const DependencyKey &key, const Optional<Fingerprint> fingerprint,
+    const DependencyKey &key, const llvm::Optional<Fingerprint> fingerprint,
     const bool isProvides) {
   SourceFileDepGraphNode *result = memoizedNodes.findExistingOrCreateIfNew(
       key, [&](DependencyKey key) -> SourceFileDepGraphNode * {
@@ -174,7 +175,7 @@ SourceFileDepGraphNode *SourceFileDepGraph::findExistingNodeOrCreateIfNew(
   // since we won't be able to tell which Decl is depended-upon (is this right?)
   // just use the one node, but erase its print:
   if (fingerprint != result->getFingerprint())
-    result->setFingerprint(None);
+    result->setFingerprint(llvm::None);
   return result;
 }
 

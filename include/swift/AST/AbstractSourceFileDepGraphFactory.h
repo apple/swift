@@ -16,6 +16,7 @@
 #include "swift/AST/Decl.h"
 #include "swift/AST/DeclContext.h"
 #include "swift/AST/FineGrainedDependencies.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/Support/VirtualOutputBackend.h"
 
 namespace swift {
@@ -90,26 +91,26 @@ protected:
   /// represent some \c Decl defined in this source file. \param key the
   /// interface key of the pair
   void addADefinedDecl(const DependencyKey &key,
-                       Optional<Fingerprint> fingerprint);
+                       llvm::Optional<Fingerprint> fingerprint);
 
   void addAUsedDecl(const DependencyKey &def, const DependencyKey &use);
 
   /// Add an external dependency node to the graph. If the provided fingerprint
   /// is not \c None, it is added to the def key.
-  void addAnExternalDependency(const DependencyKey &def,
-                               const DependencyKey &use,
-                               Optional<Fingerprint> dependencyFingerprint);
+  void
+  addAnExternalDependency(const DependencyKey &def, const DependencyKey &use,
+                          llvm::Optional<Fingerprint> dependencyFingerprint);
 
-  static Optional<Fingerprint>
+  static llvm::Optional<Fingerprint>
   getFingerprintIfAny(std::pair<const NominalTypeDecl *, const ValueDecl *>) {
-    return None;
+    return llvm::None;
   }
 
-  static Optional<Fingerprint> getFingerprintIfAny(const Decl *d) {
+  static llvm::Optional<Fingerprint> getFingerprintIfAny(const Decl *d) {
     if (const auto *idc = dyn_cast<IterableDeclContext>(d)) {
       return idc->getBodyFingerprint();
     }
-    return None;
+    return llvm::None;
   }
 };
 

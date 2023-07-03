@@ -52,10 +52,10 @@ class MemoryBehaviorVisitor
   /// is always a valid SILValue.
   SILValue cachedValueAddress;
 
-  Optional<bool> cachedIsLetValue;
+  llvm::Optional<bool> cachedIsLetValue;
 
   /// The SILType of the value.
-  Optional<SILType> TypedAccessTy;
+  llvm::Optional<SILType> TypedAccessTy;
 
 public:
   MemoryBehaviorVisitor(AliasAnalysis *AA, SILValue V)

@@ -271,7 +271,7 @@ static bool usesExtendedExistentialMetadata(CanType type) {
   return layout.containsParameterized;
 }
 
-static Optional<std::pair<CanExistentialType, /*depth*/ unsigned>>
+static llvm::Optional<std::pair<CanExistentialType, /*depth*/ unsigned>>
 usesExtendedExistentialMetadata(CanExistentialMetatypeType type) {
   unsigned depth = 1;
   auto cur = type.getInstanceType();
@@ -292,7 +292,7 @@ usesExtendedExistentialMetadata(CanExistentialMetatypeType type) {
     }
     return std::make_pair(cast<ExistentialType>(cur), depth);
   }
-  return None;
+  return llvm::None;
 }
 
 llvm::Constant *IRGenModule::getAddrOfStringForMetadataRef(

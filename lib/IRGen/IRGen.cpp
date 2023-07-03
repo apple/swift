@@ -192,7 +192,7 @@ void swift::performLLVMOptimizations(const IRGenOptions &Opts,
                                      llvm::Module *Module,
                                      llvm::TargetMachine *TargetMachine,
                                      llvm::raw_pwrite_stream *out) {
-  Optional<PGOOptions> PGOOpt;
+  llvm::Optional<PGOOptions> PGOOpt;
 
   PipelineTuningOptions PTO;
 
@@ -870,7 +870,7 @@ swift::createTargetMachine(const IRGenOptions &Opts, ASTContext &Ctx) {
   // On Cygwin 64 bit, dlls are loaded above the max address for 32 bits.
   // This means that the default CodeModel causes generated code to segfault
   // when run.
-  Optional<CodeModel::Model> cmodel = None;
+  llvm::Optional<CodeModel::Model> cmodel = llvm::None;
   if (EffectiveTriple.isArch64Bit() && EffectiveTriple.isWindowsCygwinEnvironment())
     cmodel = CodeModel::Large;
 
@@ -1050,10 +1050,10 @@ struct SymbolSourcesToEmit {
   IREntitiesToEmit irEntitiesToEmit;
 };
 
-static Optional<SymbolSourcesToEmit>
+static llvm::Optional<SymbolSourcesToEmit>
 getSymbolSourcesToEmit(const IRGenDescriptor &desc) {
   if (!desc.SymbolsToEmit)
-    return None;
+    return llvm::None;
 
   assert(!desc.SILMod && "Already emitted SIL?");
 
@@ -1544,9 +1544,9 @@ GeneratedModule swift::performIRGeneration(
   const auto *SILModPtr = SILMod.get();
   const auto &SILOpts = SILModPtr->getOptions();
   auto desc = IRGenDescriptor::forWholeModule(
-      M, Opts, TBDOpts, SILOpts, SILModPtr->Types,
-      std::move(SILMod), ModuleName, PSPs, /*symsToEmit*/ None,
-      parallelOutputFilenames, outModuleHash);
+      M, Opts, TBDOpts, SILOpts, SILModPtr->Types, std::move(SILMod),
+      ModuleName, PSPs, /*symsToEmit*/ llvm::None, parallelOutputFilenames,
+      outModuleHash);
 
   if (Opts.shouldPerformIRGenerationInParallel() &&
       !parallelOutputFilenames.empty() &&
@@ -1570,9 +1570,9 @@ performIRGeneration(FileUnit *file, const IRGenOptions &Opts,
   const auto *SILModPtr = SILMod.get();
   const auto &SILOpts = SILModPtr->getOptions();
   auto desc = IRGenDescriptor::forFile(
-      file, Opts, TBDOpts, SILOpts, SILModPtr->Types,
-      std::move(SILMod), ModuleName, PSPs, PrivateDiscriminator,
-      /*symsToEmit*/ None, outModuleHash);
+      file, Opts, TBDOpts, SILOpts, SILModPtr->Types, std::move(SILMod),
+      ModuleName, PSPs, PrivateDiscriminator,
+      /*symsToEmit*/ llvm::None, outModuleHash);
   return llvm::cantFail(file->getASTContext().evaluator(IRGenRequest{desc}));
 }
 

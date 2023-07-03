@@ -60,11 +60,13 @@ void ClangTypeInfo::dump(llvm::raw_ostream &os,
 
 // MARK: - UnexpectedClangTypeError
 
-Optional<UnexpectedClangTypeError> UnexpectedClangTypeError::checkClangType(
-  SILFunctionTypeRepresentation silRep,
-  const clang::Type *type, bool expectNonnullForCOrBlock, bool expectCanonical) {
+llvm::Optional<UnexpectedClangTypeError>
+UnexpectedClangTypeError::checkClangType(SILFunctionTypeRepresentation silRep,
+                                         const clang::Type *type,
+                                         bool expectNonnullForCOrBlock,
+                                         bool expectCanonical) {
 #ifdef NDEBUG
-  return None;
+  return llvm::None;
 #else
   bool isBlock = true;
   switch (silRep) {
@@ -76,7 +78,7 @@ Optional<UnexpectedClangTypeError> UnexpectedClangTypeError::checkClangType(
     if (!type) {
       if (expectNonnullForCOrBlock)
         return {{Kind::NullForCOrBlock, type}};
-      return None;
+      return llvm::None;
     }
     if (expectCanonical && !type->isCanonicalUnqualified())
       return {{Kind::NonCanonical, type}};
@@ -85,12 +87,12 @@ Optional<UnexpectedClangTypeError> UnexpectedClangTypeError::checkClangType(
     if (!isBlock && !(type->isFunctionPointerType()
                       || type->isFunctionReferenceType()))
       return {{Kind::NotFunctionPointerOrReference, type}};
-    return None;
+    return llvm::None;
   }
   default: {
     if (type)
       return {{Kind::NonnullForNonCOrBlock, type}};
-    return None;
+    return llvm::None;
   }
   }
 #endif
@@ -181,7 +183,7 @@ SILExtInfo SILExtInfoBuilder::build() const {
 
 // MARK: - SILExtInfo
 
-Optional<UnexpectedClangTypeError> SILExtInfo::checkClangType() const {
+llvm::Optional<UnexpectedClangTypeError> SILExtInfo::checkClangType() const {
   return UnexpectedClangTypeError::checkClangType(
       getRepresentation(), getClangTypeInfo().getType(), true, true);
 }

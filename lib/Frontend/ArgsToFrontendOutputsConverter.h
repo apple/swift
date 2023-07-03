@@ -49,7 +49,7 @@ public:
 
   /// Try to read an output file list file.
   /// \returns `None` if it could not open the filelist.
-  static Optional<std::vector<std::string>>
+  static llvm::Optional<std::vector<std::string>>
   readOutputFileList(StringRef filelistPath, DiagnosticEngine &diags);
 };
 
@@ -82,7 +82,7 @@ class OutputFilesComputer {
                       OutputOptInfo optInfo);
 
 public:
-  static Optional<OutputFilesComputer>
+  static llvm::Optional<OutputFilesComputer>
   create(const llvm::opt::ArgList &args, DiagnosticEngine &diags,
          const FrontendInputsAndOutputs &inputsAndOutputs,
          OutputOptInfo optInfo);
@@ -90,17 +90,17 @@ public:
   /// \return the output filenames on the command line or in the output
   /// filelist. If there
   /// were neither -o's nor an output filelist, returns an empty vector.
-  static Optional<std::vector<std::string>>
+  static llvm::Optional<std::vector<std::string>>
   getOutputFilenamesFromCommandLineOrFilelist(const llvm::opt::ArgList &args,
                                               DiagnosticEngine &diags,
                                               options::ID singleOpt,
                                               options::ID filelistOpt);
 
-  Optional<std::vector<std::string>> computeOutputFiles() const;
+  llvm::Optional<std::vector<std::string>> computeOutputFiles() const;
 
 private:
-  Optional<std::string> computeOutputFile(StringRef outputArg,
-                                          const InputFile &input) const;
+  llvm::Optional<std::string> computeOutputFile(StringRef outputArg,
+                                                const InputFile &input) const;
 
   /// \return the correct output filename when none was specified.
   ///
@@ -108,14 +108,15 @@ private:
   /// without the driver,
   /// because the driver will always pass -o with an appropriate filename
   /// if output is required for the requested action.
-  Optional<std::string> deriveOutputFileFromInput(const InputFile &input) const;
+  llvm::Optional<std::string>
+  deriveOutputFileFromInput(const InputFile &input) const;
 
   /// \return the correct output filename when a directory was specified.
   ///
   /// Such a specification should only occur when invoking the frontend
   /// directly, because the driver will always pass -o with an appropriate
   /// filename if output is required for the requested action.
-  Optional<std::string>
+  llvm::Optional<std::string>
   deriveOutputFileForDirectory(const InputFile &input) const;
 
   std::string determineBaseNameOfOutput(const InputFile &input) const;
@@ -137,7 +138,8 @@ public:
       const llvm::opt::ArgList &args, DiagnosticEngine &diags,
       const FrontendInputsAndOutputs &inputsAndOutputs,
       ArrayRef<std::string> outputFiles, StringRef moduleName);
-  Optional<std::vector<SupplementaryOutputPaths>> computeOutputPaths() const;
+  llvm::Optional<std::vector<SupplementaryOutputPaths>>
+  computeOutputPaths() const;
 
 private:
   /// \Return a set of supplementary output paths for each input that might
@@ -152,21 +154,21 @@ private:
   /// In the future, these will also include those passed in via whatever
   /// filelist scheme gets implemented to handle cases where the command line
   /// arguments become burdensome.
-  Optional<std::vector<SupplementaryOutputPaths>>
+  llvm::Optional<std::vector<SupplementaryOutputPaths>>
   getSupplementaryOutputPathsFromArguments() const;
 
   /// Read a supplementary output file map file.
   /// \returns `None` if it could not open the file map.
-  Optional<std::vector<SupplementaryOutputPaths>>
+  llvm::Optional<std::vector<SupplementaryOutputPaths>>
   readSupplementaryOutputFileMap() const;
 
   /// Given an ID corresponding to supplementary output argument
   /// (e.g. -emit-module-path), collect all such paths, and ensure
   /// there are the right number of them.
-  Optional<std::vector<std::string>>
+  llvm::Optional<std::vector<std::string>>
   getSupplementaryFilenamesFromArguments(options::ID pathID) const;
 
-  Optional<SupplementaryOutputPaths> computeOutputPathsForOneInput(
+  llvm::Optional<SupplementaryOutputPaths> computeOutputPathsForOneInput(
       StringRef outputFilename,
       const SupplementaryOutputPaths &pathsFromFilelists,
       const InputFile &) const;

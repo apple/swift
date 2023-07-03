@@ -225,6 +225,13 @@ module WinSDK [system] {
 
       link "xinput.lib"
     }
+    
+    module DirectInput8 {
+      header "dinput.h"
+      export *
+
+      link "dinput.lib"
+    }
 
     link "dxguid.lib"
   }

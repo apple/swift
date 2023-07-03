@@ -45,7 +45,7 @@ void SILGenFunction::emitDestroyingDestructor(DestructorDecl *dd) {
   // Create a basic block to jump to for the implicit destruction behavior
   // of releasing the elements and calling the superclass destructor.
   // We won't actually emit the block until we finish with the destructor body.
-  prepareEpilog(None, false, CleanupLocation(Loc));
+  prepareEpilog(llvm::None, false, CleanupLocation(Loc));
 
   auto cleanupLoc = CleanupLocation(Loc);
 
@@ -96,7 +96,7 @@ void SILGenFunction::emitDestroyingDestructor(DestructorDecl *dd) {
   emitProfilerIncrement(dd->getTypecheckedBody());
   emitStmt(dd->getTypecheckedBody());
 
-  Optional<SILValue> maybeReturnValue;
+  llvm::Optional<SILValue> maybeReturnValue;
   SILLocation returnLoc(Loc);
   std::tie(maybeReturnValue, returnLoc) = emitEpilogBB(Loc);
 
@@ -248,14 +248,14 @@ void SILGenFunction::emitDeallocatingMoveOnlyDestructor(DestructorDecl *dd) {
   // Create a basic block to jump to for the implicit destruction behavior
   // of releasing the elements and calling the superclass destructor.
   // We won't actually emit the block until we finish with the destructor body.
-  prepareEpilog(None, false, CleanupLocation(loc));
+  prepareEpilog(llvm::None, false, CleanupLocation(loc));
 
   auto cleanupLoc = CleanupLocation(loc);
 
   emitProfilerIncrement(dd->getTypecheckedBody());
   emitStmt(dd->getTypecheckedBody());
 
-  Optional<SILValue> maybeReturnValue;
+  llvm::Optional<SILValue> maybeReturnValue;
   SILLocation returnLoc(loc);
   std::tie(maybeReturnValue, returnLoc) = emitEpilogBB(loc);
 
@@ -277,7 +277,7 @@ void SILGenFunction::emitIVarDestroyer(SILDeclRef ivarDestroyer) {
       emitSelfDeclForDestructor(cd->getDestructor()->getImplicitSelfDecl()));
 
   auto cleanupLoc = CleanupLocation(loc);
-  prepareEpilog(None, false, cleanupLoc);
+  prepareEpilog(llvm::None, false, cleanupLoc);
   {
     Scope S(*this, cleanupLoc);
     // Self is effectively guaranteed for the duration of any destructor.  For
@@ -569,13 +569,13 @@ void SILGenFunction::emitObjCDestructor(SILDeclRef dtor) {
   // Create a basic block to jump to for the implicit destruction behavior
   // of releasing the elements and calling the superclass destructor.
   // We won't actually emit the block until we finish with the destructor body.
-  prepareEpilog(None, false, CleanupLocation(loc));
+  prepareEpilog(llvm::None, false, CleanupLocation(loc));
 
   emitProfilerIncrement(dd->getTypecheckedBody());
   // Emit the destructor body.
   emitStmt(dd->getTypecheckedBody());
 
-  Optional<SILValue> maybeReturnValue;
+  llvm::Optional<SILValue> maybeReturnValue;
   SILLocation returnLoc(loc);
   std::tie(maybeReturnValue, returnLoc) = emitEpilogBB(loc);
 

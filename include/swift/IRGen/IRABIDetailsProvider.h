@@ -271,14 +271,14 @@ public:
     }
 
     static MethodDispatchInfo indirectVTableStaticOffset(
-        size_t offset, Optional<PointerAuthDiscriminator> discriminator) {
+        size_t offset, llvm::Optional<PointerAuthDiscriminator> discriminator) {
       return MethodDispatchInfo(Kind::IndirectVTableStaticOffset, offset, "",
                                 discriminator);
     }
 
     static MethodDispatchInfo indirectVTableRelativeOffset(
         size_t offset, std::string symbolName,
-        Optional<PointerAuthDiscriminator> discriminator) {
+        llvm::Optional<PointerAuthDiscriminator> discriminator) {
       return MethodDispatchInfo(Kind::IndirectVTableRelativeOffset, offset,
                                 symbolName, discriminator);
     }
@@ -295,7 +295,8 @@ public:
       assert(kind == Kind::IndirectVTableStaticOffset);
       return offset;
     }
-    Optional<PointerAuthDiscriminator> getPointerAuthDiscriminator() const {
+    llvm::Optional<PointerAuthDiscriminator>
+    getPointerAuthDiscriminator() const {
       assert(kind == Kind::IndirectVTableStaticOffset ||
              kind == Kind::IndirectVTableRelativeOffset);
       return discriminator;
@@ -320,18 +321,19 @@ public:
     }
 
   private:
-    MethodDispatchInfo(Kind kind, size_t offset, std::string symbolName = "",
-                       Optional<PointerAuthDiscriminator> discriminator = None)
+    MethodDispatchInfo(
+        Kind kind, size_t offset, std::string symbolName = "",
+        llvm::Optional<PointerAuthDiscriminator> discriminator = llvm::None)
         : kind(kind), offset(offset), symbolName(symbolName),
           discriminator(discriminator) {}
 
     Kind kind;
     size_t offset;
     std::string symbolName;
-    Optional<PointerAuthDiscriminator> discriminator;
+    llvm::Optional<PointerAuthDiscriminator> discriminator;
   };
 
-  Optional<MethodDispatchInfo>
+  llvm::Optional<MethodDispatchInfo>
   getMethodDispatchInfo(const AbstractFunctionDecl *funcDecl);
 
   /// Returns the type of the base offset value located at the specific class

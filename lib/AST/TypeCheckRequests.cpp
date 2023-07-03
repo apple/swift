@@ -26,6 +26,9 @@
 #include "swift/AST/Types.h"
 #include "swift/Subsystems.h"
 
+#include "llvm/ADT/None.h"
+#include "llvm/ADT/Optional.h"
+
 using namespace swift;
 
 namespace swift {
@@ -111,14 +114,14 @@ bool InheritedTypeRequest::isCached() const {
   return std::get<2>(getStorage()) == TypeResolutionStage::Interface;
 }
 
-Optional<Type> InheritedTypeRequest::getCachedResult() const {
+llvm::Optional<Type> InheritedTypeRequest::getCachedResult() const {
   const auto &storage = getStorage();
   auto &typeLoc = getInheritedTypeLocAtIndex(std::get<0>(storage),
                                              std::get<1>(storage));
   if (typeLoc.wasValidated())
     return typeLoc.getType();
 
-  return None;
+  return llvm::None;
 }
 
 void InheritedTypeRequest::cacheResult(Type value) const {
@@ -142,7 +145,7 @@ bool SuperclassTypeRequest::isCached() const {
   return std::get<1>(getStorage()) == TypeResolutionStage::Interface;
 }
 
-Optional<Type> SuperclassTypeRequest::getCachedResult() const {
+llvm::Optional<Type> SuperclassTypeRequest::getCachedResult() const {
   auto nominalDecl = std::get<0>(getStorage());
 
   if (auto *classDecl = dyn_cast<ClassDecl>(nominalDecl))
@@ -153,7 +156,7 @@ Optional<Type> SuperclassTypeRequest::getCachedResult() const {
     if (protocolDecl->LazySemanticInfo.SuperclassType.getInt())
       return protocolDecl->LazySemanticInfo.SuperclassType.getPointer();
 
-  return None;
+  return llvm::None;
 }
 
 void SuperclassTypeRequest::cacheResult(Type value) const {
@@ -198,12 +201,12 @@ void EnumRawTypeRequest::noteCycleStep(DiagnosticEngine &diags) const {
 // isObjC computation.
 //----------------------------------------------------------------------------//
 
-Optional<bool> IsObjCRequest::getCachedResult() const {
+llvm::Optional<bool> IsObjCRequest::getCachedResult() const {
   auto decl = std::get<0>(getStorage());
   if (decl->LazySemanticInfo.isObjCComputed)
     return decl->LazySemanticInfo.isObjC;
 
-  return None;
+  return llvm::None;
 }
 
 void IsObjCRequest::cacheResult(bool value) const {
@@ -227,7 +230,7 @@ void ProtocolRequiresClassRequest::noteCycleStep(DiagnosticEngine &diags) const 
                  requirement->getName());
 }
 
-Optional<bool> ProtocolRequiresClassRequest::getCachedResult() const {
+llvm::Optional<bool> ProtocolRequiresClassRequest::getCachedResult() const {
   auto decl = std::get<0>(getStorage());
   return decl->getCachedRequiresClass();
 }
@@ -252,7 +255,7 @@ void ExistentialConformsToSelfRequest::noteCycleStep(DiagnosticEngine &diags) co
                  DescriptiveDeclKind::Protocol, requirement->getName());
 }
 
-Optional<bool> ExistentialConformsToSelfRequest::getCachedResult() const {
+llvm::Optional<bool> ExistentialConformsToSelfRequest::getCachedResult() const {
   auto decl = std::get<0>(getStorage());
   return decl->getCachedExistentialConformsToSelf();
 }
@@ -279,7 +282,7 @@ void HasSelfOrAssociatedTypeRequirementsRequest::noteCycleStep(
                  DescriptiveDeclKind::Protocol, requirement->getName());
 }
 
-Optional<bool>
+llvm::Optional<bool>
 HasSelfOrAssociatedTypeRequirementsRequest::getCachedResult() const {
   auto decl = std::get<0>(getStorage());
   return decl->getCachedHasSelfOrAssociatedTypeRequirements();
@@ -294,12 +297,12 @@ void HasSelfOrAssociatedTypeRequirementsRequest::cacheResult(bool value) const {
 // isFinal computation.
 //----------------------------------------------------------------------------//
 
-Optional<bool> IsFinalRequest::getCachedResult() const {
+llvm::Optional<bool> IsFinalRequest::getCachedResult() const {
   auto decl = std::get<0>(getStorage());
   if (decl->LazySemanticInfo.isFinalComputed)
     return decl->LazySemanticInfo.isFinal;
 
-  return None;
+  return llvm::None;
 }
 
 void IsFinalRequest::cacheResult(bool value) const {
@@ -316,12 +319,12 @@ void IsFinalRequest::cacheResult(bool value) const {
 // isMoveOnly computation.
 //----------------------------------------------------------------------------//
 
-Optional<bool> IsMoveOnlyRequest::getCachedResult() const {
+llvm::Optional<bool> IsMoveOnlyRequest::getCachedResult() const {
   auto decl = std::get<0>(getStorage());
   if (decl->LazySemanticInfo.isMoveOnlyComputed)
     return decl->LazySemanticInfo.isMoveOnly;
 
-  return None;
+  return llvm::None;
 }
 
 void IsMoveOnlyRequest::cacheResult(bool value) const {
@@ -339,12 +342,12 @@ void IsMoveOnlyRequest::cacheResult(bool value) const {
 // isDynamic computation.
 //----------------------------------------------------------------------------//
 
-Optional<bool> IsDynamicRequest::getCachedResult() const {
+llvm::Optional<bool> IsDynamicRequest::getCachedResult() const {
   auto decl = std::get<0>(getStorage());
   if (decl->LazySemanticInfo.isDynamicComputed)
     return decl->LazySemanticInfo.isDynamic;
 
-  return None;
+  return llvm::None;
 }
 
 void IsDynamicRequest::cacheResult(bool value) const {
@@ -360,13 +363,13 @@ void IsDynamicRequest::cacheResult(bool value) const {
 // RequirementSignatureRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<RequirementSignature>
+llvm::Optional<RequirementSignature>
 RequirementSignatureRequest::getCachedResult() const {
   auto proto = std::get<0>(getStorage());
   if (proto->isRequirementSignatureComputed())
     return *proto->RequirementSig;
 
-  return None;
+  return llvm::None;
 }
 
 void RequirementSignatureRequest::cacheResult(RequirementSignature value) const {
@@ -491,12 +494,12 @@ void swift::simple_display(llvm::raw_ostream &out,
 // DefaultTypeRequest caching.
 //----------------------------------------------------------------------------//
 
-Optional<Type> DefaultTypeRequest::getCachedResult() const {
+llvm::Optional<Type> DefaultTypeRequest::getCachedResult() const {
   auto *DC = std::get<1>(getStorage());
   auto knownProtocolKind = std::get<0>(getStorage());
   const auto &cachedType = DC->getASTContext().getDefaultTypeRequestCache(
       DC->getParentSourceFile(), knownProtocolKind);
-  return cachedType ? Optional<Type>(cachedType) : None;
+  return cachedType ? llvm::Optional<Type>(cachedType) : llvm::None;
 }
 
 void DefaultTypeRequest::cacheResult(Type value) const {
@@ -614,7 +617,7 @@ void swift::simple_display(llvm::raw_ostream &out,
 // SelfAccessKindRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<SelfAccessKind> SelfAccessKindRequest::getCachedResult() const {
+llvm::Optional<SelfAccessKind> SelfAccessKindRequest::getCachedResult() const {
   auto *funcDecl = std::get<0>(getStorage());
   return funcDecl->getCachedSelfAccessKind();
 }
@@ -628,11 +631,11 @@ void SelfAccessKindRequest::cacheResult(SelfAccessKind value) const {
 // IsGetterMutatingRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<bool> IsGetterMutatingRequest::getCachedResult() const {
+llvm::Optional<bool> IsGetterMutatingRequest::getCachedResult() const {
   auto *storage = std::get<0>(getStorage());
   if (storage->LazySemanticInfo.IsGetterMutatingComputed)
     return storage->LazySemanticInfo.IsGetterMutating;
-  return None;
+  return llvm::None;
 }
 
 void IsGetterMutatingRequest::cacheResult(bool value) const {
@@ -644,11 +647,11 @@ void IsGetterMutatingRequest::cacheResult(bool value) const {
 // IsSetterMutatingRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<bool> IsSetterMutatingRequest::getCachedResult() const {
+llvm::Optional<bool> IsSetterMutatingRequest::getCachedResult() const {
   auto *storage = std::get<0>(getStorage());
   if (storage->LazySemanticInfo.IsSetterMutatingComputed)
     return storage->LazySemanticInfo.IsSetterMutating;
-  return None;
+  return llvm::None;
 }
 
 void IsSetterMutatingRequest::cacheResult(bool value) const {
@@ -660,12 +663,12 @@ void IsSetterMutatingRequest::cacheResult(bool value) const {
 // OpaqueReadOwnershipRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<OpaqueReadOwnership>
+llvm::Optional<OpaqueReadOwnership>
 OpaqueReadOwnershipRequest::getCachedResult() const {
   auto *storage = std::get<0>(getStorage());
   if (storage->LazySemanticInfo.OpaqueReadOwnershipComputed)
     return OpaqueReadOwnership(storage->LazySemanticInfo.OpaqueReadOwnership);
-  return None;
+  return llvm::None;
 }
 
 void OpaqueReadOwnershipRequest::cacheResult(OpaqueReadOwnership value) const {
@@ -677,12 +680,12 @@ void OpaqueReadOwnershipRequest::cacheResult(OpaqueReadOwnership value) const {
 // StorageImplInfoRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<StorageImplInfo>
+llvm::Optional<StorageImplInfo>
 StorageImplInfoRequest::getCachedResult() const {
   auto *storage = std::get<0>(getStorage());
   if (storage->LazySemanticInfo.ImplInfoComputed)
     return storage->ImplInfo;
-  return None;
+  return llvm::None;
 }
 
 void StorageImplInfoRequest::cacheResult(StorageImplInfo value) const {
@@ -694,12 +697,11 @@ void StorageImplInfoRequest::cacheResult(StorageImplInfo value) const {
 // RequiresOpaqueAccessorsRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<bool>
-RequiresOpaqueAccessorsRequest::getCachedResult() const {
+llvm::Optional<bool> RequiresOpaqueAccessorsRequest::getCachedResult() const {
   auto *storage = std::get<0>(getStorage());
   if (storage->LazySemanticInfo.RequiresOpaqueAccessorsComputed)
     return storage->LazySemanticInfo.RequiresOpaqueAccessors;
-  return None;
+  return llvm::None;
 }
 
 void RequiresOpaqueAccessorsRequest::cacheResult(bool value) const {
@@ -712,12 +714,12 @@ void RequiresOpaqueAccessorsRequest::cacheResult(bool value) const {
 // RequiresOpaqueModifyCoroutineRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<bool>
+llvm::Optional<bool>
 RequiresOpaqueModifyCoroutineRequest::getCachedResult() const {
   auto *storage = std::get<0>(getStorage());
   if (storage->LazySemanticInfo.RequiresOpaqueModifyCoroutineComputed)
     return storage->LazySemanticInfo.RequiresOpaqueModifyCoroutine;
-  return None;
+  return llvm::None;
 }
 
 void RequiresOpaqueModifyCoroutineRequest::cacheResult(bool value) const {
@@ -730,8 +732,7 @@ void RequiresOpaqueModifyCoroutineRequest::cacheResult(bool value) const {
 // IsAccessorTransparentRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<bool>
-IsAccessorTransparentRequest::getCachedResult() const {
+llvm::Optional<bool> IsAccessorTransparentRequest::getCachedResult() const {
   auto *accessor = std::get<0>(getStorage());
   return accessor->getCachedIsTransparent();
 }
@@ -754,14 +755,14 @@ void IsAccessorTransparentRequest::cacheResult(bool value) const {
 // SynthesizeAccessorRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<AccessorDecl *>
+llvm::Optional<AccessorDecl *>
 SynthesizeAccessorRequest::getCachedResult() const {
   auto *storage = std::get<0>(getStorage());
   auto kind = std::get<1>(getStorage());
   auto *accessor = storage->getAccessor(kind);
   if (accessor)
     return accessor;
-  return None;
+  return llvm::None;
 }
 
 void SynthesizeAccessorRequest::cacheResult(AccessorDecl *accessor) const {
@@ -775,12 +776,12 @@ void SynthesizeAccessorRequest::cacheResult(AccessorDecl *accessor) const {
 // IsImplicitlyUnwrappedOptionalRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<bool>
+llvm::Optional<bool>
 IsImplicitlyUnwrappedOptionalRequest::getCachedResult() const {
   auto *decl = std::get<0>(getStorage());
   if (decl->LazySemanticInfo.isIUOComputed)
     return decl->LazySemanticInfo.isIUO;
-  return None;
+  return llvm::None;
 }
 
 void IsImplicitlyUnwrappedOptionalRequest::cacheResult(bool value) const {
@@ -792,12 +793,13 @@ void IsImplicitlyUnwrappedOptionalRequest::cacheResult(bool value) const {
 // GenericSignatureRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<GenericSignature> GenericSignatureRequest::getCachedResult() const {
+llvm::Optional<GenericSignature>
+GenericSignatureRequest::getCachedResult() const {
   auto *GC = std::get<0>(getStorage());
   if (GC->GenericSigAndBit.getInt()) {
     return GC->GenericSigAndBit.getPointer();
   }
-  return None;
+  return llvm::None;
 }
 
 void GenericSignatureRequest::cacheResult(GenericSignature value) const {
@@ -837,12 +839,11 @@ void InferredGenericSignatureRequest::noteCycleStep(DiagnosticEngine &d) const {
 // UnderlyingTypeRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<Type>
-UnderlyingTypeRequest::getCachedResult() const {
+llvm::Optional<Type> UnderlyingTypeRequest::getCachedResult() const {
   auto *typeAlias = std::get<0>(getStorage());
   if (auto type = typeAlias->UnderlyingTy.getType())
     return type;
-  return None;
+  return llvm::None;
 }
 
 void UnderlyingTypeRequest::cacheResult(Type value) const {
@@ -876,11 +877,12 @@ bool EnumRawValuesRequest::isCached() const {
   return std::get<1>(getStorage()) == TypeResolutionStage::Interface;
 }
 
-Optional<evaluator::SideEffect> EnumRawValuesRequest::getCachedResult() const {
+llvm::Optional<evaluator::SideEffect>
+EnumRawValuesRequest::getCachedResult() const {
   auto *ED = std::get<0>(getStorage());
   if (ED->SemanticFlags.contains(EnumDecl::HasFixedRawValuesAndTypes))
     return std::make_tuple<>();
-  return None;
+  return llvm::None;
 }
 
 void EnumRawValuesRequest::cacheResult(evaluator::SideEffect) const {
@@ -903,7 +905,7 @@ void EnumRawValuesRequest::noteCycleStep(DiagnosticEngine &diags) const {
 // IsStaticRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<bool> IsStaticRequest::getCachedResult() const {
+llvm::Optional<bool> IsStaticRequest::getCachedResult() const {
   auto *FD = std::get<0>(getStorage());
   return FD->getCachedIsStatic();
 }
@@ -917,11 +919,11 @@ void IsStaticRequest::cacheResult(bool result) const {
 // NeedsNewVTableEntryRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<bool> NeedsNewVTableEntryRequest::getCachedResult() const {
+llvm::Optional<bool> NeedsNewVTableEntryRequest::getCachedResult() const {
   auto *decl = std::get<0>(getStorage());
   if (decl->LazySemanticInfo.NeedsNewVTableEntryComputed)
     return decl->LazySemanticInfo.NeedsNewVTableEntry;
-  return None;
+  return llvm::None;
 }
 
 void NeedsNewVTableEntryRequest::cacheResult(bool value) const {
@@ -934,7 +936,7 @@ void NeedsNewVTableEntryRequest::cacheResult(bool value) const {
 // ParamSpecifierRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<ParamSpecifier> ParamSpecifierRequest::getCachedResult() const {
+llvm::Optional<ParamSpecifier> ParamSpecifierRequest::getCachedResult() const {
   auto *decl = std::get<0>(getStorage());
   return decl->getCachedSpecifier();
 }
@@ -948,7 +950,7 @@ void ParamSpecifierRequest::cacheResult(ParamSpecifier specifier) const {
 // ResultTypeRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<Type> ResultTypeRequest::getCachedResult() const {
+llvm::Optional<Type> ResultTypeRequest::getCachedResult() const {
   Type type;
   auto *const decl = std::get<0>(getStorage());
   if (const auto *const funcDecl = dyn_cast<FuncDecl>(decl)) {
@@ -960,7 +962,7 @@ Optional<Type> ResultTypeRequest::getCachedResult() const {
   }
 
   if (type.isNull())
-    return None;
+    return llvm::None;
 
   return type;
 }
@@ -980,12 +982,12 @@ void ResultTypeRequest::cacheResult(Type type) const {
 // PatternBindingEntryRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<const PatternBindingEntry *>
+llvm::Optional<const PatternBindingEntry *>
 PatternBindingEntryRequest::getCachedResult() const {
   auto *PBD = std::get<0>(getStorage());
   auto idx = std::get<1>(getStorage());
   if (!PBD->getPatternList()[idx].isFullyValidated()) {
-    return None;
+    return llvm::None;
   }
   return &PBD->getPatternList()[idx];
 }
@@ -1001,12 +1003,12 @@ void PatternBindingEntryRequest::cacheResult(
 // NamingPatternRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<NamedPattern *> NamingPatternRequest::getCachedResult() const {
+llvm::Optional<NamedPattern *> NamingPatternRequest::getCachedResult() const {
   auto *VD = std::get<0>(getStorage());
   if (auto *Pat = VD->NamingPattern) {
     return Pat;
   }
-  return None;
+  return llvm::None;
 }
 
 void NamingPatternRequest::cacheResult(NamedPattern *value) const {
@@ -1018,11 +1020,11 @@ void NamingPatternRequest::cacheResult(NamedPattern *value) const {
 // ExprPatternMatchRequest caching.
 //----------------------------------------------------------------------------//
 
-Optional<ExprPatternMatchResult>
+llvm::Optional<ExprPatternMatchResult>
 ExprPatternMatchRequest::getCachedResult() const {
   auto *EP = std::get<0>(getStorage());
   if (!EP->MatchVar)
-    return None;
+    return llvm::None;
 
   return ExprPatternMatchResult(EP->MatchVar, EP->MatchExpr);
 }
@@ -1037,12 +1039,12 @@ void ExprPatternMatchRequest::cacheResult(ExprPatternMatchResult result) const {
 // InterfaceTypeRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<Type> InterfaceTypeRequest::getCachedResult() const {
+llvm::Optional<Type> InterfaceTypeRequest::getCachedResult() const {
   auto *decl = std::get<0>(getStorage());
   if (auto Ty = decl->TypeAndAccess.getPointer()) {
     return Ty;
   }
-  return None;
+  return llvm::None;
 }
 
 void InterfaceTypeRequest::cacheResult(Type type) const {
@@ -1095,7 +1097,8 @@ void swift::simple_display(llvm::raw_ostream &out,
 // InheritsSuperclassInitializersRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<bool> InheritsSuperclassInitializersRequest::getCachedResult() const {
+llvm::Optional<bool>
+InheritsSuperclassInitializersRequest::getCachedResult() const {
   auto *decl = std::get<0>(getStorage());
   return decl->getCachedInheritsSuperclassInitializers();
 }
@@ -1140,11 +1143,11 @@ void swift::simple_display(llvm::raw_ostream &out,
 // TypeWitnessRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<TypeWitnessAndDecl> TypeWitnessRequest::getCachedResult() const {
+llvm::Optional<TypeWitnessAndDecl> TypeWitnessRequest::getCachedResult() const {
   auto *conformance = std::get<0>(getStorage());
   auto *requirement = std::get<1>(getStorage());
   if (conformance->TypeWitnesses.count(requirement) == 0) {
-    return None;
+    return llvm::None;
   }
   return conformance->TypeWitnesses[requirement];
 }
@@ -1157,11 +1160,11 @@ void TypeWitnessRequest::cacheResult(TypeWitnessAndDecl typeWitAndDecl) const {
 // WitnessRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<Witness> ValueWitnessRequest::getCachedResult() const {
+llvm::Optional<Witness> ValueWitnessRequest::getCachedResult() const {
   auto *conformance = std::get<0>(getStorage());
   auto *requirement = std::get<1>(getStorage());
   if (conformance->Mapping.count(requirement) == 0) {
-    return None;
+    return llvm::None;
   }
   return conformance->Mapping[requirement];
 }
@@ -1225,7 +1228,7 @@ void HasCircularRawValueRequest::noteCycleStep(DiagnosticEngine &diags) const {
 // DefaultArgumentInitContextRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<Initializer *>
+llvm::Optional<Initializer *>
 DefaultArgumentInitContextRequest::getCachedResult() const {
   auto *param = std::get<0>(getStorage());
   return param->getCachedDefaultArgumentInitContext();
@@ -1240,14 +1243,14 @@ void DefaultArgumentInitContextRequest::cacheResult(Initializer *init) const {
 // DefaultArgumentExprRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<Expr *> DefaultArgumentExprRequest::getCachedResult() const {
+llvm::Optional<Expr *> DefaultArgumentExprRequest::getCachedResult() const {
   auto *param = std::get<0>(getStorage());
   auto *defaultInfo = param->DefaultValueAndFlags.getPointer();
   if (!defaultInfo)
-    return None;
+    return llvm::None;
 
   if (!defaultInfo->InitContextAndIsTypeChecked.getInt())
-    return None;
+    return llvm::None;
 
   return defaultInfo->DefaultArg.get<Expr *>();
 }
@@ -1261,13 +1264,14 @@ void DefaultArgumentExprRequest::cacheResult(Expr *expr) const {
 // DefaultArgumentTypeRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<Type> DefaultArgumentTypeRequest::getCachedResult() const {
+llvm::Optional<Type> DefaultArgumentTypeRequest::getCachedResult() const {
   auto *param = std::get<0>(getStorage());
   auto *defaultInfo = param->DefaultValueAndFlags.getPointer();
   if (!defaultInfo)
-    return None;
+    return llvm::None;
 
-  return defaultInfo->ExprType ? defaultInfo->ExprType : Optional<Type>();
+  return defaultInfo->ExprType ? llvm::Optional<Type>(defaultInfo->ExprType)
+                               : llvm::None;
 }
 
 void DefaultArgumentTypeRequest::cacheResult(Type type) const {
@@ -1279,7 +1283,8 @@ void DefaultArgumentTypeRequest::cacheResult(Type type) const {
 // CallerSideDefaultArgExprRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<Expr *> CallerSideDefaultArgExprRequest::getCachedResult() const {
+llvm::Optional<Expr *>
+CallerSideDefaultArgExprRequest::getCachedResult() const {
   auto *defaultExpr = std::get<0>(getStorage());
   auto storage = defaultExpr->ContextOrCallerSideExpr;
   assert(!storage.isNull());
@@ -1287,7 +1292,7 @@ Optional<Expr *> CallerSideDefaultArgExprRequest::getCachedResult() const {
   if (auto *expr = storage.dyn_cast<Expr *>())
     return expr;
 
-  return None;
+  return llvm::None;
 }
 
 void CallerSideDefaultArgExprRequest::cacheResult(Expr *expr) const {
@@ -1299,12 +1304,12 @@ void CallerSideDefaultArgExprRequest::cacheResult(Expr *expr) const {
 // DifferentiableAttributeTypeCheckRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<IndexSubset *>
+llvm::Optional<IndexSubset *>
 DifferentiableAttributeTypeCheckRequest::getCachedResult() const {
   auto *attr = std::get<0>(getStorage());
   if (attr->hasBeenTypeChecked())
     return attr->ParameterIndicesAndBit.getPointer();
-  return None;
+  return llvm::None;
 }
 
 void DifferentiableAttributeTypeCheckRequest::cacheResult(
@@ -1317,10 +1322,10 @@ void DifferentiableAttributeTypeCheckRequest::cacheResult(
 // CheckRedeclarationRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<evaluator::SideEffect>
+llvm::Optional<evaluator::SideEffect>
 CheckRedeclarationRequest::getCachedResult() const {
   if (!std::get<0>(getStorage())->alreadyCheckedRedeclaration())
-    return None;
+    return llvm::None;
   return std::make_tuple<>();
 }
 
@@ -1370,10 +1375,10 @@ void LookupAllConformancesInContextRequest::writeDependencySink(
 // ResolveTypeEraserTypeRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<Type> ResolveTypeEraserTypeRequest::getCachedResult() const {
+llvm::Optional<Type> ResolveTypeEraserTypeRequest::getCachedResult() const {
   auto *TyExpr = std::get<1>(getStorage())->TypeEraserExpr;
   if (!TyExpr || !TyExpr->getType()) {
-    return None;
+    return llvm::None;
   }
   return TyExpr->getInstanceType();
 }
@@ -1398,13 +1403,13 @@ evaluator::DependencySource TypeCheckSourceFileRequest::readDependencySource(
   return std::get<0>(getStorage());
 }
 
-Optional<evaluator::SideEffect>
+llvm::Optional<evaluator::SideEffect>
 TypeCheckSourceFileRequest::getCachedResult() const {
   auto *SF = std::get<0>(getStorage());
   if (SF->ASTStage == SourceFile::TypeChecked)
     return std::make_tuple<>();
 
-  return None;
+  return llvm::None;
 }
 
 void TypeCheckSourceFileRequest::cacheResult(evaluator::SideEffect) const {
@@ -1425,7 +1430,8 @@ void TypeCheckSourceFileRequest::cacheResult(evaluator::SideEffect) const {
 // TypeCheckFunctionBodyRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<BraceStmt *> TypeCheckFunctionBodyRequest::getCachedResult() const {
+llvm::Optional<BraceStmt *>
+TypeCheckFunctionBodyRequest::getCachedResult() const {
   using BodyKind = AbstractFunctionDecl::BodyKind;
   auto *afd = std::get<0>(getStorage());
   switch (afd->getBodyKind()) {
@@ -1442,7 +1448,7 @@ Optional<BraceStmt *> TypeCheckFunctionBodyRequest::getCachedResult() const {
   case BodyKind::Synthesize:
   case BodyKind::Parsed:
   case BodyKind::Unparsed:
-    return None;
+    return llvm::None;
   }
   llvm_unreachable("Unhandled BodyKind in switch");
 }
@@ -1573,12 +1579,12 @@ void swift::simple_display(llvm::raw_ostream &out, CustomAttrTypeKind value) {
   llvm_unreachable("bad kind");
 }
 
-Optional<Type> CustomAttrTypeRequest::getCachedResult() const {
+llvm::Optional<Type> CustomAttrTypeRequest::getCachedResult() const {
   auto *attr = std::get<0>(getStorage());
   if (auto ty = attr->getType()) {
     return ty;
   }
-  return None;
+  return llvm::None;
 }
 
 void CustomAttrTypeRequest::cacheResult(Type value) const {
@@ -1864,6 +1870,22 @@ void ExpandConformanceMacros::noteCycleStep(DiagnosticEngine &diags) const {
   diags.diagnose(decl->getLoc(),
                  diag::macro_expand_circular_reference_entity_through,
                  "conformance",
+                 decl->getName());
+}
+
+void ExpandExtensionMacros::diagnoseCycle(DiagnosticEngine &diags) const {
+  auto decl = std::get<0>(getStorage());
+  diags.diagnose(decl->getLoc(),
+                 diag::macro_expand_circular_reference_entity,
+                 "extension",
+                 decl->getName());
+}
+
+void ExpandExtensionMacros::noteCycleStep(DiagnosticEngine &diags) const {
+  auto decl = std::get<0>(getStorage());
+  diags.diagnose(decl->getLoc(),
+                 diag::macro_expand_circular_reference_entity_through,
+                 "extension",
                  decl->getName());
 }
 

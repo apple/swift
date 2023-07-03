@@ -538,13 +538,13 @@ ExprPattern *ExprPattern::createImplicit(ASTContext &ctx, Expr *E,
 
 Expr *ExprPattern::getMatchExpr() const {
   auto &eval = DC->getASTContext().evaluator;
-  return evaluateOrDefault(eval, ExprPatternMatchRequest{this}, None)
+  return evaluateOrDefault(eval, ExprPatternMatchRequest{this}, llvm::None)
       .getMatchExpr();
 }
 
 VarDecl *ExprPattern::getMatchVar() const {
   auto &eval = DC->getASTContext().evaluator;
-  return evaluateOrDefault(eval, ExprPatternMatchRequest{this}, None)
+  return evaluateOrDefault(eval, ExprPatternMatchRequest{this}, llvm::None)
       .getMatchVar();
 }
 

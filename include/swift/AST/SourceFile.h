@@ -46,7 +46,7 @@ enum class RestrictedImportKind {
 };
 
 /// Import that limits the access level of imported entities.
-using ImportAccessLevel = Optional<AttributedImport<ImportedModule>>;
+using ImportAccessLevel = llvm::Optional<AttributedImport<ImportedModule>>;
 
 /// A file containing Swift source code.
 ///
@@ -109,7 +109,7 @@ private:
   /// This is the list of modules that are imported by this module.
   ///
   /// This is \c None until it is filled in by the import resolution phase.
-  Optional<ArrayRef<AttributedImport<ImportedModule>>> Imports;
+  llvm::Optional<ArrayRef<AttributedImport<ImportedModule>>> Imports;
 
   /// Which imports have made use of @preconcurrency.
   llvm::SmallDenseSet<AttributedImport<ImportedModule>>
@@ -174,7 +174,7 @@ private:
   /// they have not yet been parsed.
   /// FIXME: Once addTopLevelDecl/prependTopLevelDecl
   /// have been removed, this can become an optional ArrayRef.
-  Optional<std::vector<ASTNode>> Items;
+  llvm::Optional<std::vector<ASTNode>> Items;
 
   /// The list of hoisted declarations. See Decl::isHoisted().
   /// This is only used by lldb.
@@ -251,9 +251,9 @@ public:
 
   /// Retrieves an immutable view of the top-level items if they have already
   /// been parsed, or \c None if they haven't. Should only be used for dumping.
-  Optional<ArrayRef<ASTNode>> getCachedTopLevelItems() const {
+  llvm::Optional<ArrayRef<ASTNode>> getCachedTopLevelItems() const {
     if (!Items)
-      return None;
+      return llvm::None;
     return llvm::makeArrayRef(*Items);
   }
 
@@ -345,7 +345,7 @@ public:
   /// \c #sourceLocation(file:) declarations.
   llvm::StringMap<SourceFilePathInfo> getInfoForUsedFilePaths() const;
 
-  SourceFile(ModuleDecl &M, SourceFileKind K, Optional<unsigned> bufferID,
+  SourceFile(ModuleDecl &M, SourceFileKind K, llvm::Optional<unsigned> bufferID,
              ParsingOptions parsingOpts = {}, bool isPrimary = false);
 
   ~SourceFile();
@@ -499,16 +499,16 @@ public:
 
   Identifier getDiscriminatorForPrivateDecl(const Decl *D) const override;
   Identifier getPrivateDiscriminator(bool createIfMissing = false) const;
-  Optional<ExternalSourceLocs::RawLocs>
+  llvm::Optional<ExternalSourceLocs::RawLocs>
   getExternalRawLocsForDecl(const Decl *D) const override;
 
   virtual bool walk(ASTWalker &walker) override;
 
   /// The buffer ID for the file that was imported, or None if there
   /// is no associated buffer.
-  Optional<unsigned> getBufferID() const {
+  llvm::Optional<unsigned> getBufferID() const {
     if (BufferID == -1)
-      return None;
+      return llvm::None;
     return BufferID;
   }
 
@@ -537,7 +537,7 @@ public:
   ///
   /// \Returns the fulfilled macro role, or \c None if this source file is not
   /// for a macro expansion.
-  Optional<MacroRole> getFulfilledMacroRole() const;
+  llvm::Optional<MacroRole> getFulfilledMacroRole() const;
 
   /// When this source file is enclosed within another source file, for example
   /// because it describes a macro expansion, return the source file it was
@@ -702,7 +702,7 @@ private:
 
   /// If not \c None, the underlying vector contains the parsed tokens of this
   /// source file.
-  Optional<ArrayRef<Token>> AllCollectedTokens;
+  llvm::Optional<ArrayRef<Token>> AllCollectedTokens;
 };
 
 inline SourceFile::ParsingOptions operator|(SourceFile::ParsingFlags lhs,

@@ -58,11 +58,11 @@ struct SyntaxModelContext::Implementation {
 /// If the given tokens start with the expected tokens and they all appear on
 ///  the same line, the source location beyond the final matched token and
 ///  number of matched tokens are returned. Otherwise None is returned.
-static Optional<Located<unsigned>>
+static llvm::Optional<Located<unsigned>>
 matchImageOrFileLiteralArg(ArrayRef<Token> Tokens) {
   const unsigned NUM_TOKENS = 5;
   if (Tokens.size() < NUM_TOKENS)
-    return None;
+    return llvm::None;
   const tok kinds[NUM_TOKENS] = {
       tok::l_paren,
       tok::identifier, tok::colon, tok::string_literal,
@@ -72,10 +72,10 @@ matchImageOrFileLiteralArg(ArrayRef<Token> Tokens) {
     // FIXME: some editors don't handle multi-line object literals very well,
     // so don't report them as object literals for now.
     if (Tokens[i].getKind() != kinds[i] || Tokens[i].isAtStartOfLine())
-      return None;
+      return llvm::None;
   }
   if (Tokens[1].getText() != "resourceName")
-    return None;
+    return llvm::None;
   auto EndToken = Tokens[NUM_TOKENS-1];
   return Located<unsigned>(NUM_TOKENS, EndToken.getLoc().getAdvancedLoc(EndToken.getLength()));
 }
@@ -86,11 +86,11 @@ matchImageOrFileLiteralArg(ArrayRef<Token> Tokens) {
 /// If the given tokens start with the expected tokens and they all appear on
 /// the same line, the source location beyond the final matched token and number
 /// of matched tokens are returned. Otherwise None is returned.
-static Optional<Located<unsigned>>
+static llvm::Optional<Located<unsigned>>
 matchColorLiteralArg(ArrayRef<Token> Tokens) {
   const unsigned NUM_TOKENS = 17;
   if (Tokens.size() < NUM_TOKENS)
-    return None;
+    return llvm::None;
   const tok kinds[NUM_TOKENS] = {
     tok::l_paren,
     tok::identifier, tok::colon, tok::floating_literal, tok::comma,
@@ -106,11 +106,11 @@ matchColorLiteralArg(ArrayRef<Token> Tokens) {
     // FIXME: some editors don't handle multi-line object literals very well,
     // so don't report them as object literals for now.
     if (Kind != kinds[i] || Tokens[i].isAtStartOfLine())
-      return None;
+      return llvm::None;
   }
   if (Tokens[1].getText() != "red" || Tokens[5].getText() != "green" ||
       Tokens[9].getText() != "blue" || Tokens[13].getText() != "alpha")
-    return None;
+    return llvm::None;
   auto EndToken = Tokens[NUM_TOKENS-1];
   return Located<unsigned>(NUM_TOKENS, EndToken.getLoc().getAdvancedLoc(EndToken.getLength()));
 }
@@ -130,7 +130,7 @@ SyntaxModelContext::SyntaxModelContext(SourceFile &SrcFile)
         continue;
     SyntaxNodeKind Kind;
     SourceLoc Loc;
-    Optional<unsigned> Length;
+    llvm::Optional<unsigned> Length;
     if (AttrLoc.isValid()) {
       // This token is following @, see if it's a known attribute name.
       // Type attribute, decl attribute, or '@unknown' for swift case statement.
@@ -350,8 +350,8 @@ class ModelASTWalker : public ASTWalker {
   SourceLoc LastLoc;
   static const std::regex &getURLRegex(StringRef Protocol);
 
-  Optional<SyntaxNode> parseFieldNode(StringRef Text, StringRef OrigText,
-                                      SourceLoc OrigLoc);
+  llvm::Optional<SyntaxNode> parseFieldNode(StringRef Text, StringRef OrigText,
+                                            SourceLoc OrigLoc);
   llvm::DenseSet<ASTNode> NodesVisitedBefore;
   /// When non-zero, we should avoid passing tokens as syntax nodes since a parent of several tokens
   /// is considered as one, e.g. object literal expression.
@@ -440,7 +440,7 @@ private:
   };
   struct PassUntilResult {
     bool shouldContinue;
-    Optional<SyntaxNode> MatchedToken;
+    llvm::Optional<SyntaxNode> MatchedToken;
   };
 
   PassUntilResult
@@ -1390,7 +1390,7 @@ ModelASTWalker::passTokenNodesUntil(SourceLoc Loc,
                                     PassNodesBehavior Behavior) {
   assert(Loc.isValid());
   unsigned I = 0;
-  Optional<SyntaxNode> MatchedToken;
+  llvm::Optional<SyntaxNode> MatchedToken;
   for (unsigned E = TokenNodes.size(); I != E; ++I) {
     SourceLoc StartLoc = TokenNodes[I].Range.getStart();
     if (SM.isBeforeInBuffer(Loc, StartLoc)) {
@@ -1409,7 +1409,7 @@ ModelASTWalker::passTokenNodesUntil(SourceLoc Loc,
     }
     if (!AvoidPassingSyntaxToken) {
       if (!passNode(TokenNodes[I]))
-        return {false, None};
+        return {false, llvm::None};
     }
   }
 
@@ -1656,15 +1656,15 @@ public:
   // ^[ ]?- (parameter) [^:]*:
   // ^[ ]?- (Parameters):
   // ^[ ]*- (...MarkupSimpleFields.def...|returns):
-  Optional<StringRef> parseFieldName() {
+  llvm::Optional<StringRef> parseFieldName() {
     unsigned numSpaces = 0;
     while (advanceIf(' '))
       ++numSpaces;
     if (!advanceIf('-') || !advanceIf(' '))
-      return None;
+      return llvm::None;
 
     if (ptr == end || !clang::isAsciiIdentifierContinue(*ptr))
-      return None;
+      return llvm::None;
     const char *identStart = ptr++;
     while (advanceIf([](char c) { return clang::isAsciiIdentifierContinue(c); }))
       ;
@@ -1672,16 +1672,16 @@ public:
 
     if (ident.equals_insensitive("parameter")) {
       if (numSpaces > 1 || !advanceIf(' '))
-        return None;
+        return llvm::None;
       while (advanceIf([](char c) { return c != ':'; }))
         ;
       if (!advanceIf(':'))
-        return None;
+        return llvm::None;
       return ident;
 
     } else if (advanceIf(':')) {
       if (ident.equals_insensitive("parameters") && numSpaces > 1)
-        return None;
+        return llvm::None;
       auto lowerIdent = ident.lower();
       bool isField = llvm::StringSwitch<bool>(lowerIdent)
 #define MARKUP_SIMPLE_FIELD(Id, Keyword, XMLKind) .Case(#Keyword, true)
@@ -1693,20 +1693,20 @@ public:
         return ident;
     }
 
-    return None;
+    return llvm::None;
   }
 };
 } // end anonymous namespace
 
-Optional<SyntaxNode> ModelASTWalker::parseFieldNode(StringRef Text,
-                                                    StringRef OrigText,
-                                                    SourceLoc OrigLoc) {
-  Optional<SyntaxNode> Node;
+llvm::Optional<SyntaxNode> ModelASTWalker::parseFieldNode(StringRef Text,
+                                                          StringRef OrigText,
+                                                          SourceLoc OrigLoc) {
+  llvm::Optional<SyntaxNode> Node;
   DocFieldParser parser(Text);
   if (auto ident = parser.parseFieldName()) {
     auto loc = OrigLoc.getAdvancedLoc(ident->data() - OrigText.data());
     CharSourceRange range(loc, ident->size());
-    Node = Optional<SyntaxNode>({SyntaxNodeKind::DocCommentField, range});
+    Node = llvm::Optional<SyntaxNode>({SyntaxNodeKind::DocCommentField, range});
   }
   return Node;
 }

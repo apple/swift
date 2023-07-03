@@ -78,13 +78,14 @@ llvm::Expected<llvm::cas::ObjectRef> swift::createCompileJobBaseCacheKey(
   }
 
   llvm::cas::HierarchicalTreeBuilder Builder;
-  auto CMD = CAS.storeFromString(None, CommandLine);
+  auto CMD = CAS.storeFromString(llvm::None, CommandLine);
   if (!CMD)
     return CMD.takeError();
   Builder.push(*CMD, llvm::cas::TreeEntry::Regular, "command-line");
 
   // FIXME: The version is maybe insufficient...
-  auto Version = CAS.storeFromString(None, version::getSwiftFullVersion());
+  auto Version =
+      CAS.storeFromString(llvm::None, version::getSwiftFullVersion());
   if (!Version)
     return Version.takeError();
   Builder.push(*Version, llvm::cas::TreeEntry::Regular, "version");

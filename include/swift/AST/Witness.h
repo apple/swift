@@ -97,7 +97,7 @@ class Witness {
     /// The derivative generic signature, when the requirement is a derivative
     /// function.
     GenericSignature derivativeGenSig;
-    Optional<ActorIsolation> enterIsolation;
+    llvm::Optional<ActorIsolation> enterIsolation;
   };
 
   llvm::PointerUnion<ValueDecl *, StoredWitness *> storage;
@@ -125,9 +125,9 @@ public:
   /// Create a witness for the given requirement.
   ///
   /// Deserialized witnesses do not have a witness thunk signature.
-  static Witness forDeserialized(ValueDecl *decl,
-                                 SubstitutionMap substitutions,
-                                 Optional<ActorIsolation> enterIsolation) {
+  static Witness
+  forDeserialized(ValueDecl *decl, SubstitutionMap substitutions,
+                  llvm::Optional<ActorIsolation> enterIsolation) {
     // TODO: It's probably a good idea to have a separate 'deserialized' bit.
     return Witness(
         decl, substitutions, nullptr, SubstitutionMap(), CanGenericSignature(),
@@ -151,12 +151,11 @@ public:
   ///
   /// \param enterIsolation The actor isolation that the witness thunk will
   /// need to hop to before calling the witness.
-  Witness(ValueDecl *decl,
-          SubstitutionMap substitutions,
+  Witness(ValueDecl *decl, SubstitutionMap substitutions,
           GenericSignature witnessThunkSig,
           SubstitutionMap reqToWitnessThunkSigSubs,
           GenericSignature derivativeGenSig,
-          Optional<ActorIsolation> enterIsolation);
+          llvm::Optional<ActorIsolation> enterIsolation);
 
   /// Retrieve the witness declaration reference, which includes the
   /// substitutions needed to use the witness from the witness thunk signature
@@ -202,11 +201,11 @@ public:
     return GenericSignature();
   }
 
-  Optional<ActorIsolation> getEnterIsolation() const {
+  llvm::Optional<ActorIsolation> getEnterIsolation() const {
     if (auto *storedWitness = storage.dyn_cast<StoredWitness *>())
       return storedWitness->enterIsolation;
 
-    return None;
+    return llvm::None;
   }
 
   /// Retrieve a copy of the witness with an actor isolation that the

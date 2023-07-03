@@ -1379,16 +1379,24 @@ static bool handleResponse(sourcekitd_response_t Resp, const TestOptions &Opts,
       KeepResponseAlive = true;
       break;
 
-    case SourceKitRequest::Edit:
-      if (Opts.Length == 0 && Opts.ReplaceText->empty()) {
-        // Length=0, replace="" is a nop and will not trigger sema.
+    case SourceKitRequest::Edit: {
+      // Length=0, replace="" is a nop and will not trigger sema.
+      bool SyntacticOnly = Opts.Length == 0 && Opts.ReplaceText->empty();
+      for (const std::string &ReqOpt : Opts.RequestOptions) {
+        if (SyntacticOnly)
+          break;
+        if (ReqOpt.find("syntactic_only=1") != std::string::npos) {
+          SyntacticOnly = true;
+        }
+      }
+      if (SyntacticOnly) {
         printRawResponse(Resp);
       } else {
         getSemanticInfo(Info, SourceFile);
         KeepResponseAlive = true;
       }
       break;
-
+    }
     case SourceKitRequest::DemangleNames:
       printDemangleResults(sourcekitd_response_get_value(Resp), outs());
       break;

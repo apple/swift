@@ -63,7 +63,7 @@ importer::getNonNullArgs(const clang::Decl *decl,
   return result;
 }
 
-Optional<const clang::Decl *>
+llvm::Optional<const clang::Decl *>
 importer::getDefinitionForClangTypeDecl(const clang::Decl *D) {
   if (auto OID = dyn_cast<clang::ObjCInterfaceDecl>(D))
     return OID->getDefinition();
@@ -74,7 +74,7 @@ importer::getDefinitionForClangTypeDecl(const clang::Decl *D) {
   if (auto OPD = dyn_cast<clang::ObjCProtocolDecl>(D))
     return OPD->getDefinition();
 
-  return None;
+  return llvm::None;
 }
 
 static bool isInLocalScope(const clang::Decl *D) {
@@ -103,7 +103,7 @@ importer::getFirstNonLocalDecl(const clang::Decl *D) {
   return *iter;
 }
 
-Optional<clang::Module *>
+llvm::Optional<clang::Module *>
 importer::getClangSubmoduleForDecl(const clang::Decl *D,
                                    bool allowForwardDeclaration) {
   const clang::Decl *actual = nullptr;
@@ -113,7 +113,7 @@ importer::getClangSubmoduleForDecl(const clang::Decl *D,
   if (auto maybeDefinition = getDefinitionForClangTypeDecl(D)) {
     actual = maybeDefinition.value();
     if (!actual && !allowForwardDeclaration)
-      return None;
+      return llvm::None;
   }
 
   if (!actual)
@@ -204,7 +204,7 @@ OmissionTypeName importer::getClangTypeNameForOmission(clang::ASTContext &ctx,
       if (isCollectionName(name)) {
         if (auto ptrType = type->getAs<clang::PointerType>()) {
           return OmissionTypeName(
-              name, None,
+              name, llvm::None,
               getClangTypeNameForOmission(ctx, ptrType->getPointeeType()).Name);
         }
       }
@@ -218,7 +218,7 @@ OmissionTypeName importer::getClangTypeNameForOmission(clang::ASTContext &ctx,
     // For array types, convert the element type and treat this an as array.
     if (auto arrayType = dyn_cast<clang::ArrayType>(typePtr)) {
       return OmissionTypeName(
-          "Array", None,
+          "Array", llvm::None,
           getClangTypeNameForOmission(ctx, arrayType->getElementType()).Name);
     }
 
@@ -264,17 +264,18 @@ OmissionTypeName importer::getClangTypeNameForOmission(clang::ASTContext &ctx,
         unsigned lastWordSize = camel_case::getLastWord(className).size();
         StringRef elementName =
             className.substr(0, className.size() - lastWordSize);
-        return OmissionTypeName(className, None, elementName);
+        return OmissionTypeName(className, llvm::None, elementName);
       }
 
       // If we don't have type arguments, the collection element type
       // is "Object".
       auto typeArgs = objcObjectPtr->getTypeArgs();
       if (typeArgs.empty())
-        return OmissionTypeName(className, None, "Object");
+        return OmissionTypeName(className, llvm::None, "Object");
 
       return OmissionTypeName(
-          className, None, getClangTypeNameForOmission(ctx, typeArgs[0]).Name);
+          className, llvm::None,
+          getClangTypeNameForOmission(ctx, typeArgs[0]).Name);
     }
 
     // Objective-C "id" type.

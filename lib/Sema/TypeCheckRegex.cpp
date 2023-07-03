@@ -48,10 +48,10 @@ bool swift::decodeRegexCaptureTypes(ASTContext &ctx,
   // Read contents.
   SmallVector<SmallVector<TupleTypeElt, 4>, 4> scopes(1);
   unsigned offset = sizeof(Version);
-  auto consumeCode = [&]() -> Optional<RegexCaptureStructureCode> {
+  auto consumeCode = [&]() -> llvm::Optional<RegexCaptureStructureCode> {
     auto rawValue = serialization[offset];
     if (rawValue >= (uint8_t)RegexCaptureStructureCode::CaseCount)
-      return None;
+      return llvm::None;
     offset += sizeof(RegexCaptureStructureCode);
     return (RegexCaptureStructureCode)rawValue;
   };

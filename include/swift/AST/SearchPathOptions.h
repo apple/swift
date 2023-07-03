@@ -247,6 +247,23 @@ public:
       : kind(Kind::ExternalPluginPath) {
     storage.emplace<ExternalPluginPath>(kind, v);
   }
+  PluginSearchOption(const PluginSearchOption &o) : kind(o.kind) {
+    storage.copyConstruct(o.kind, o.storage);
+  }
+  PluginSearchOption(PluginSearchOption &&o) : kind(o.kind) {
+    storage.moveConstruct(o.kind, std::move(o.storage));
+  }
+  ~PluginSearchOption() { storage.destruct(kind); }
+  PluginSearchOption &operator=(const PluginSearchOption &o) {
+    storage.copyAssign(kind, o.kind, o.storage);
+    kind = o.kind;
+    return *this;
+  }
+  PluginSearchOption &operator=(PluginSearchOption &&o) {
+    storage.moveAssign(kind, o.kind, std::move(o.storage));
+    kind = o.kind;
+    return *this;
+  }
 
   Kind getKind() const { return kind; }
 

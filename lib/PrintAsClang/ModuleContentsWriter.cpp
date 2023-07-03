@@ -878,7 +878,7 @@ public:
         os << " { } SWIFT_UNAVAILABLE_MSG(\"";
 
         auto diag =
-            representation.isUnsupported() && representation.error.hasValue()
+            representation.isUnsupported() && representation.error.has_value()
                 ? cxx_translation::diagnoseRepresenationError(
                       *representation.error, const_cast<ValueDecl *>(vd))
                 : Diagnostic(

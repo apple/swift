@@ -192,7 +192,7 @@ void AccessControlCheckerBase::checkTypeAccessImpl(
     return;
 
   AccessScope problematicAccessScope = AccessScope::getPublic();
-  ImportAccessLevel problematicImport = None;
+  ImportAccessLevel problematicImport = llvm::None;
 
   if (type) {
     auto scopeAndImport =
@@ -202,7 +202,7 @@ void AccessControlCheckerBase::checkTypeAccessImpl(
     // Note: This means that the type itself is invalid for this particular
     // context, because it references declarations from two incompatible scopes.
     // In this case we should have diagnosed the bad reference already.
-    Optional<AccessScope> typeAccessScope = scopeAndImport.Scope;
+    llvm::Optional<AccessScope> typeAccessScope = scopeAndImport.Scope;
     if (!typeAccessScope.has_value())
       return;
 
@@ -265,9 +265,10 @@ void AccessControlCheckerBase::checkTypeAccessImpl(
       //   public let foo: Optional = VeryPrivateStruct()
       //
       // Downgrade the error to a warning in this case for source compatibility.
-      Optional<AccessScope> typeReprAccessScope =
+      llvm::Optional<AccessScope> typeReprAccessScope =
           TypeAccessScopeChecker::getAccessScope(typeRepr, useDC,
-                                                 checkUsableFromInline).Scope;
+                                                 checkUsableFromInline)
+              .Scope;
       assert(typeReprAccessScope && "valid Type but not valid TypeRepr?");
       if (contextAccessScope.hasEqualDeclContextWith(*typeReprAccessScope) ||
           contextAccessScope.isChildOf(*typeReprAccessScope)) {
@@ -285,7 +286,7 @@ void AccessControlCheckerBase::checkTypeAccessImpl(
 
   if (problematicImport.has_value() &&
       problematicImport->accessLevel == AccessLevel::Public)
-    problematicImport = None;
+    problematicImport = llvm::None;
 
   const TypeRepr *complainRepr = TypeAccessScopeDiagnoser::findTypeWithScope(
       typeRepr, problematicAccessScope, useDC, checkUsableFromInline);
@@ -382,7 +383,7 @@ void AccessControlCheckerBase::checkGenericParamAccess(
   const TypeRepr *complainRepr = nullptr;
   auto downgradeToWarning = DowngradeToWarning::Yes;
   auto minDiagAccessLevel = AccessLevel::Public;
-  ImportAccessLevel minImportLimit = None;
+  ImportAccessLevel minImportLimit = llvm::None;
 
   auto callbackACEK = ACEK::Parameter;
 
@@ -721,7 +722,7 @@ public:
     const TypeRepr *complainRepr = nullptr;
     auto downgradeToWarning = DowngradeToWarning::No;
     auto minDiagAccessLevel = AccessLevel::Public;
-    ImportAccessLevel minImportLimit = None;
+    ImportAccessLevel minImportLimit = llvm::None;
 
     std::for_each(assocType->getInherited().begin(),
                   assocType->getInherited().end(),
@@ -912,7 +913,7 @@ public:
     const TypeRepr *complainRepr = nullptr;
     auto downgradeToWarning = DowngradeToWarning::No;
     auto minDiagAccessLevel = AccessLevel::Public;
-    ImportAccessLevel minImportLimit = None;
+    ImportAccessLevel minImportLimit = llvm::None;
     DescriptiveDeclKind declKind = DescriptiveDeclKind::Protocol;
 
     // FIXME: Hack to ensure that we've computed the types involved here.
@@ -1010,7 +1011,7 @@ public:
     const TypeRepr *complainRepr = nullptr;
     auto downgradeToWarning = DowngradeToWarning::No;
     auto minDiagAccessLevel = AccessLevel::Public;
-    ImportAccessLevel minImportLimit = None;
+    ImportAccessLevel minImportLimit = llvm::None;
     bool problemIsElement = false;
 
     for (auto &P : *SD->getIndices()) {
@@ -1083,7 +1084,7 @@ public:
     const TypeRepr *complainRepr = nullptr;
     auto downgradeToWarning = DowngradeToWarning::No;
     auto minDiagAccessLevel = AccessLevel::Public;
-    ImportAccessLevel minImportLimit = None;
+    ImportAccessLevel minImportLimit = llvm::None;
 
     bool hasInaccessibleParameterWrapper = false;
     for (auto *P : *fn->getParameters()) {
@@ -1202,7 +1203,7 @@ public:
     const TypeRepr *complainRepr = nullptr;
     auto downgradeToWarning = DowngradeToWarning::No;
     auto minDiagAccessLevel = AccessLevel::Public;
-    ImportAccessLevel minImportLimit = None;
+    ImportAccessLevel minImportLimit = llvm::None;
     bool problemIsResult = false;
 
     if (MD->parameterList) {
@@ -1904,8 +1905,8 @@ class DeclAvailabilityChecker : public DeclVisitor<DeclAvailabilityChecker> {
   ExportContext Where;
 
   void checkType(Type type, const TypeRepr *typeRepr, const Decl *context,
-                 ExportabilityReason reason=ExportabilityReason::General,
-                 DeclAvailabilityFlags flags=None) {
+                 ExportabilityReason reason = ExportabilityReason::General,
+                 DeclAvailabilityFlags flags = llvm::None) {
     // Don't bother checking errors.
     if (type && type->hasError())
       return;

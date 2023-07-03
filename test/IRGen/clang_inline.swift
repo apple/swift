@@ -1,12 +1,10 @@
 // RUN: %empty-directory(%t)
 // RUN: %build-irgen-test-overlays
-// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-objc-interop -sdk %S/Inputs -primary-file %s -O -disable-sil-perf-optzns -disable-llvm-optzns -emit-ir -Xcc -fstack-protector -I %t | %FileCheck %s
-// RUN: %target-swift-frontend -enable-objc-interop -sdk %S/Inputs -primary-file %s -O -disable-sil-perf-optzns -disable-llvm-optzns -emit-ir -Xcc -fstack-protector -I %t
+// RUN: %target-swift-frontend -enable-objc-interop -sdk %S/Inputs -primary-file %s -O -disable-sil-perf-optzns -disable-llvm-optzns -emit-ir -Xcc -fstack-protector -I %t | %FileCheck %s
 
 // RUN: %empty-directory(%t/Empty.framework/Modules/Empty.swiftmodule)
 // RUN: %target-swift-frontend -emit-module-path %t/Empty.framework/Modules/Empty.swiftmodule/%target-swiftmodule-name %S/../Inputs/empty.swift -module-name Empty -I %t
-// RUN: %target-swift-frontend %use_no_opaque_pointers -sdk %S/Inputs -primary-file %s -I %t -F %t -DIMPORT_EMPTY -O -disable-sil-perf-optzns -disable-llvm-optzns -emit-ir -Xcc -fstack-protector -enable-objc-interop | %FileCheck %s
-// RUN: %target-swift-frontend -sdk %S/Inputs -primary-file %s -I %t -F %t -DIMPORT_EMPTY -O -disable-sil-perf-optzns -disable-llvm-optzns -emit-ir -Xcc -fstack-protector -enable-objc-interop
+// RUN: %target-swift-frontend -sdk %S/Inputs -primary-file %s -I %t -F %t -DIMPORT_EMPTY -O -disable-sil-perf-optzns -disable-llvm-optzns -emit-ir -Xcc -fstack-protector -enable-objc-interop | %FileCheck %s
 
 // REQUIRES: CPU=i386 || CPU=x86_64
 // REQUIRES: objc_interop
@@ -17,7 +15,7 @@
 
 import gizmo
 
-// CHECK-LABEL: define hidden swiftcc i64 @"$s12clang_inline16CallStaticInlineC10ReturnZeros5Int64VyF"(%T12clang_inline16CallStaticInlineC* swiftself %0) {{.*}} {
+// CHECK-LABEL: define hidden swiftcc i64 @"$s12clang_inline16CallStaticInlineC10ReturnZeros5Int64VyF"(ptr swiftself %0) {{.*}} {
 class CallStaticInline {
   func ReturnZero() -> Int64 { return Int64(zero()) }
 }
@@ -25,7 +23,7 @@ class CallStaticInline {
 // CHECK-LABEL: define internal i32 @zero()
 // CHECK-SAME:         [[INLINEHINT_SSP_UWTABLE:#[0-9]+]] {
 
-// CHECK-LABEL: define hidden swiftcc i64 @"$s12clang_inline17CallStaticInline2C10ReturnZeros5Int64VyF"(%T12clang_inline17CallStaticInline2C* swiftself %0) {{.*}} {
+// CHECK-LABEL: define hidden swiftcc i64 @"$s12clang_inline17CallStaticInline2C10ReturnZeros5Int64VyF"(ptr swiftself %0) {{.*}} {
 class CallStaticInline2 {
   func ReturnZero() -> Int64 { return Int64(wrappedZero()) }
 }

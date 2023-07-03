@@ -650,7 +650,7 @@ bool ConstraintLocator::isForSingleValueStmtConjunction() const {
   return path.empty();
 }
 
-Optional<SingleValueStmtBranchKind>
+llvm::Optional<SingleValueStmtBranchKind>
 ConstraintLocator::isForSingleValueStmtBranch() const {
   // Ignore a trailing ContextualType path element.
   auto path = getPath();
@@ -658,14 +658,14 @@ ConstraintLocator::isForSingleValueStmtBranch() const {
     path = path.drop_back();
 
   if (path.empty())
-    return None;
+    return llvm::None;
 
   if (!path.back().is<LocatorPathElt::SingleValueStmtBranch>())
-    return None;
+    return llvm::None;
 
   auto *SVE = getAsExpr<SingleValueStmtExpr>(getAnchor());
   if (!SVE)
-    return None;
+    return llvm::None;
 
   if (auto *CE = dyn_cast<ClosureExpr>(SVE->getDeclContext())) {
     if (CE->hasSingleExpressionBody() && !hasExplicitResult(CE))

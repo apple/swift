@@ -168,7 +168,7 @@ public:
 
   // Caching
   bool isCached() const { return true; }
-  Optional<ClassDecl *> getCachedResult() const;
+  llvm::Optional<ClassDecl *> getCachedResult() const;
   void cacheResult(ClassDecl *value) const;
 };
 
@@ -189,7 +189,7 @@ private:
 public:
   // Caching
   bool isCached() const { return true; }
-  Optional<ArrayRef<ProtocolDecl *>> getCachedResult() const;
+  llvm::Optional<ArrayRef<ProtocolDecl *>> getCachedResult() const;
   void cacheResult(ArrayRef<ProtocolDecl *> value) const;
 
 public:
@@ -214,7 +214,7 @@ private:
 public:
   // Caching
   bool isCached() const { return true; }
-  Optional<ArrayRef<ValueDecl *>> getCachedResult() const;
+  llvm::Optional<ArrayRef<ValueDecl *>> getCachedResult() const;
   void cacheResult(ArrayRef<ValueDecl *> value) const;
 };
 
@@ -237,7 +237,7 @@ private:
 public:
   // Caching
   bool isCached() const { return true; }
-  Optional<bool> getCachedResult() const;
+  llvm::Optional<bool> getCachedResult() const;
   void cacheResult(bool) const;
 };
 
@@ -259,7 +259,7 @@ private:
 public:
   // Separate caching.
   bool isCached() const { return true; }
-  Optional<NominalTypeDecl *> getCachedResult() const;
+  llvm::Optional<NominalTypeDecl *> getCachedResult() const;
   void cacheResult(NominalTypeDecl *value) const;
 
 public:
@@ -363,7 +363,7 @@ private:
 public:
   // Caching
   bool isCached() const { return true; }
-  Optional<DestructorDecl *> getCachedResult() const;
+  llvm::Optional<DestructorDecl *> getCachedResult() const;
   void cacheResult(DestructorDecl *value) const;
 };
 
@@ -384,7 +384,7 @@ private:
 public:
   // Separate caching.
   bool isCached() const { return true; }
-  Optional<GenericParamList *> getCachedResult() const;
+  llvm::Optional<GenericParamList *> getCachedResult() const;
   void cacheResult(GenericParamList *value) const;
 };
 

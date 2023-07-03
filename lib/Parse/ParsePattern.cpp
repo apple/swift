@@ -1065,7 +1065,7 @@ ParserResult<Pattern> Parser::parseTypedPattern() {
 ///
 ParserResult<Pattern> Parser::parsePattern() {
   auto introducer =
-      InBindingPattern.getIntroducer().getValueOr(VarDecl::Introducer::Let);
+      InBindingPattern.getIntroducer().value_or(VarDecl::Introducer::Let);
   switch (Tok.getKind()) {
   case tok::l_paren:
     return parsePatternTuple();
@@ -1119,7 +1119,7 @@ ParserResult<Pattern> Parser::parsePattern() {
     SourceLoc varLoc = consumeToken();
 
     // 'var', 'let', 'inout' patterns shouldn't nest.
-    if (InBindingPattern.getIntroducer().hasValue()) {
+    if (InBindingPattern.getIntroducer().has_value()) {
       auto diag = diag::var_pattern_in_var;
       unsigned index = *newBindingState.getSelectIndexForIntroducer();
       if (Context.LangOpts.hasFeature(Feature::ReferenceBindings)) {
@@ -1150,7 +1150,7 @@ ParserResult<Pattern> Parser::parsePattern() {
       return nullptr;
     return makeParserResult(new (Context) BindingPattern(
         varLoc,
-        newBindingState.getIntroducer().getValueOr(VarDecl::Introducer::Var),
+        newBindingState.getIntroducer().value_or(VarDecl::Introducer::Var),
         subPattern.get()));
   }
       
@@ -1183,7 +1183,7 @@ Pattern *Parser::createBindingFromPattern(SourceLoc loc, Identifier name,
 ///
 ///   pattern-tuple-element:
 ///     (identifier ':')? pattern
-std::pair<ParserStatus, Optional<TuplePatternElt>>
+std::pair<ParserStatus, llvm::Optional<TuplePatternElt>>
 Parser::parsePatternTupleElement() {
   // If this element has a label, parse it.
   Identifier Label;
@@ -1198,9 +1198,9 @@ Parser::parsePatternTupleElement() {
   // Parse the pattern.
   ParserResult<Pattern>  pattern = parsePattern();
   if (pattern.hasCodeCompletion())
-    return std::make_pair(makeParserCodeCompletionStatus(), None);
+    return std::make_pair(makeParserCodeCompletionStatus(), llvm::None);
   if (pattern.isNull())
-    return std::make_pair(makeParserError(), None);
+    return std::make_pair(makeParserError(), llvm::None);
 
   auto Elt = TuplePatternElt(Label, LabelLoc, pattern.get());
   return std::make_pair(makeParserSuccess(), Elt);
@@ -1226,7 +1226,7 @@ ParserResult<Pattern> Parser::parsePatternTuple() {
               [&] () -> ParserStatus {
     // Parse the pattern tuple element.
     ParserStatus EltStatus;
-    Optional<TuplePatternElt> elt;
+    llvm::Optional<TuplePatternElt> elt;
     std::tie(EltStatus, elt) = parsePatternTupleElement();
     if (EltStatus.hasCodeCompletion())
       return makeParserCodeCompletionStatus();
@@ -1347,7 +1347,7 @@ ParserResult<Pattern>
 Parser::parseMatchingPatternAsBinding(PatternBindingState newState,
                                       SourceLoc varLoc, bool isExprBasic) {
   // 'var', 'let', 'inout' patterns shouldn't nest.
-  if (InBindingPattern.getIntroducer().hasValue()) {
+  if (InBindingPattern.getIntroducer().has_value()) {
     auto diag = diag::var_pattern_in_var;
     if (Context.LangOpts.hasFeature(Feature::ReferenceBindings))
       diag = diag::var_pattern_in_var_inout;
@@ -1372,7 +1372,7 @@ Parser::parseMatchingPatternAsBinding(PatternBindingState newState,
   if (subPattern.isNull())
     return nullptr;
   auto *varP = new (Context) BindingPattern(
-      varLoc, newState.getIntroducer().getValueOr(VarDecl::Introducer::Var),
+      varLoc, newState.getIntroducer().value_or(VarDecl::Introducer::Var),
       subPattern.get());
   return makeParserResult(ParserStatus(subPattern), varP);
 }

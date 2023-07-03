@@ -577,12 +577,12 @@ SILInstruction *optimizeBitOp(BuiltinInst *BI,
 
 /// Returns a 64-bit integer constant if \p op is an integer_literal instruction
 /// with a value which fits into 64 bits.
-static Optional<uint64_t> getIntConst(SILValue op) {
+static llvm::Optional<uint64_t> getIntConst(SILValue op) {
   if (auto *ILI = dyn_cast<IntegerLiteralInst>(op)) {
     if (ILI->getValue().getActiveBits() <= 64)
       return ILI->getValue().getZExtValue();
   }
-  return None;
+  return llvm::None;
 }
 
 /// Optimize the bit extract of a string object. Example in SIL pseudo-code,

@@ -1,7 +1,6 @@
 // RUN: %empty-directory(%t)
 // RUN: %build-irgen-test-overlays
-// RUN: %target-swift-frontend %use_no_opaque_pointers -Xllvm -sil-disable-pass=simplification -sdk %S/Inputs -I %t -emit-ir %s | %FileCheck %s
-// RUN: %target-swift-frontend -Xllvm -sil-disable-pass=simplification -sdk %S/Inputs -I %t -emit-ir %s
+// RUN: %target-swift-frontend -Xllvm -sil-disable-pass=simplification -sdk %S/Inputs -I %t -emit-ir %s | %FileCheck %s
 
 // REQUIRES: CPU=x86_64
 // REQUIRES: objc_interop
@@ -20,56 +19,55 @@ sil @_TFC8metatype1Xd : $@convention(method) (@owned X) -> @owned Builtin.Native
 
 sil @_TFC8metatype1XD : $@convention(method) (@owned X) -> ()
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc %objc_class* @_TF8metatype22thick_to_objc_metatypeFT2xmMCS_1X_T_(%swift.type* %0)
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @_TF8metatype22thick_to_objc_metatypeFT2xmMCS_1X_T_(ptr %0)
 sil @_TF8metatype22thick_to_objc_metatypeFT2xmMCS_1X_T_ : $@convention(thin) (@thick X.Type) -> @objc_metatype X.Type {
 bb0(%0 : $@thick X.Type):
-  // CHECK: [[RESULT:%[0-9a-zA-Z_-]+]] = bitcast %swift.type* %0 to %objc_class*
   %1 = thick_to_objc_metatype %0 : $@thick X.Type to $@objc_metatype X.Type
-  // CHECK-NEXT: ret %objc_class* [[RESULT]]
+  // CHECK: ret ptr %0
   return %1 : $@objc_metatype X.Type
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc %objc_class* @foreign_thick_to_objc(%swift.type* %0)
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @foreign_thick_to_objc(ptr %0)
 sil @foreign_thick_to_objc : $@convention(thin) (@thick Gizmo.Type) -> @objc_metatype Gizmo.Type {
 bb0(%0 : $@thick Gizmo.Type):
-  // CHECK: call %objc_class* @swift_getObjCClassFromMetadata
+  // CHECK: call ptr @swift_getObjCClassFromMetadata
   %1 = thick_to_objc_metatype %0 : $@thick Gizmo.Type to $@objc_metatype Gizmo.Type
-  // CHECK: ret %objc_class*
+  // CHECK: ret ptr
   return %1 : $@objc_metatype Gizmo.Type
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc %swift.type* @_TF8metatype22objc_to_thick_metatypeFT2xmMCS_1X_T_(%objc_class* %0)
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @_TF8metatype22objc_to_thick_metatypeFT2xmMCS_1X_T_(ptr %0)
 sil @_TF8metatype22objc_to_thick_metatypeFT2xmMCS_1X_T_ : $@convention(thin) (@objc_metatype X.Type) -> @thick X.Type {
 bb0(%0 : $@objc_metatype X.Type):
-  // CHECK: [[RESULT:%[0-9a-zA-Z_-]+]] = call %swift.type* @swift_getObjCClassMetadata(%objc_class* %0)
+  // CHECK: [[RESULT:%[0-9a-zA-Z_-]+]] = call ptr @swift_getObjCClassMetadata(ptr %0)
   %1 = objc_to_thick_metatype %0 : $@objc_metatype X.Type to $@thick X.Type
-  // CHECK-NEXT: ret %swift.type* [[RESULT]]
+  // CHECK-NEXT: ret ptr [[RESULT]]
   return %1 : $@thick X.Type
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc %swift.type* @foreign_objc_to_thick(%objc_class* %0)
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @foreign_objc_to_thick(ptr %0)
 sil @foreign_objc_to_thick : $@convention(thin) (@objc_metatype Gizmo.Type) -> @thick Gizmo.Type {
 bb0(%0 : $@objc_metatype Gizmo.Type):
-  // CHECK: [[RESULT:%[0-9a-zA-Z_-]+]] = call %swift.type* @swift_getObjCClassMetadata(%objc_class* %0)
+  // CHECK: [[RESULT:%[0-9a-zA-Z_-]+]] = call ptr @swift_getObjCClassMetadata(ptr %0)
   %1 = objc_to_thick_metatype %0 : $@objc_metatype Gizmo.Type to $@thick Gizmo.Type
-  // CHECK-NEXT: ret %swift.type* [[RESULT]]
+  // CHECK-NEXT: ret ptr [[RESULT]]
   return %1 : $@thick Gizmo.Type
 }
 
 protocol CP: class {}
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc %objc_class* @archetype_objc_metatype(%swift.type* %T, i8** %T.CP)
-// CHECK:         call %objc_class* @swift_getObjCClassFromMetadata
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @archetype_objc_metatype(ptr %T, ptr %T.CP)
+// CHECK:         call ptr @swift_getObjCClassFromMetadata
 sil @archetype_objc_metatype : $@convention(thin) <T: CP> () -> @objc_metatype T.Type {
 entry:
   %m = metatype $@objc_metatype T.Type
   return %m : $@objc_metatype T.Type
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc %objc_class* @existential_objc_metatype(%objc_object* %0) {{.*}} {
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @existential_objc_metatype(ptr %0) {{.*}} {
 // CHECK: entry:
-// CHECK-NEXT: [[METATYPE:%.*]] = call %objc_class* @swift_getObjCClassFromObject(%objc_object* %0) {{#[0-9]+}}
-// CHECK-NEXT: ret %objc_class* [[METATYPE]]
+// CHECK-NEXT: [[METATYPE:%.*]] = call ptr @swift_getObjCClassFromObject(ptr %0) {{#[0-9]+}}
+// CHECK-NEXT: ret ptr [[METATYPE]]
 // CHECK-NEXT: }
 sil @existential_objc_metatype : $@convention(thin) (AnyObject) -> (@objc_metatype AnyObject.Type) {
 bb0(%0 : $AnyObject):
@@ -82,8 +80,8 @@ public protocol ClassProto : AnyObject {
   var other: ClassProto? { get }
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @drop_witness_table(%swift.type* %0, i8** %1)
-// CHECK:  call %objc_class* @swift_getObjCClassFromMetadata(%swift.type* %0)
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @drop_witness_table(ptr %0, ptr %1)
+// CHECK:  call ptr @swift_getObjCClassFromMetadata(ptr %0)
 // CHECK:  ret void
 sil @drop_witness_table : $@convention(thin) (@thick ClassProto.Type) -> () {
 bb0(%0 : $@thick ClassProto.Type):

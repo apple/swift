@@ -27,12 +27,15 @@ struct Test1 {
 
   // CHECK-LABEL: sil hidden [ossa] @$s23assign_or_init_lowering5Test1V1aACSi_tcfC : $@convention(method) (Int, @thin Test1.Type) -> @owned Test1
   init(a: Int) {
-    // CHECK: assign_or_init [init] [[VALUE:%.*]] : $Int, init {{.*}} : $@convention(thin) (Int) -> @out Int, set {{.*}} : $@callee_guaranteed (Int) -> ()
+    // CHECK: [[INIT_REF:%.*]] = function_ref @$s23assign_or_init_lowering5Test1V1aSivi : $@convention(thin) (Int) -> @out Int
+    // CHECK: assign_or_init [init] self {{.*}}, value [[VALUE:%.*]] : $Int, init [[INIT_REF]] : $@convention(thin) (Int) -> @out Int, set {{.*}} : $@callee_guaranteed (Int) -> ()
     self.a = a
-    // CHECK: assign_or_init [init] [assign=0] [[VALUE:%.*]] : $String, init {{.*}} : $@convention(thin) (@owned String) -> (@out Int, @out String), set {{.*}} : $@callee_guaranteed (@owned String) -> ()
+    // CHECK: [[INIT_REF:%.*]] = function_ref @$s23assign_or_init_lowering5Test1V1bSSvi : $@convention(thin) (@owned String) -> (@out Int, @out String)
+    // CHECK: assign_or_init [init] [assign=0] self {{.*}}, value [[VALUE:%.*]] : $String, init [[INIT_REF]] : $@convention(thin) (@owned String) -> (@out Int, @out String), set {{.*}} : $@callee_guaranteed (@owned String) -> ()
     self.a = -1
     self.b = ""
-    // CHECK: assign_or_init [set] [[VALUE:%.*]] : $Int, init {{.*}} : $@convention(thin) (Int) -> @out Int, set {{.*}} : $@callee_guaranteed (Int) -> ()
+    // CHECK: [[INIT_REF:%.*]] = function_ref @$s23assign_or_init_lowering5Test1V1aSivi : $@convention(thin) (Int) -> @out Int
+    // CHECK: assign_or_init [set] self {{.*}}, value [[VALUE:%.*]] : $Int, init [[INIT_REF]] : $@convention(thin) (Int) -> @out Int, set {{.*}} : $@callee_guaranteed (Int) -> ()
     self.a = a
   }
 }
@@ -54,12 +57,18 @@ struct Test2<T> {
 
   // CHECK-LABEL: sil hidden [ossa] @$s23assign_or_init_lowering5Test2V1a1bACyxGSi_xtcfC : $@convention(method) <T> (Int, @in T, @thin Test2<T>.Type) -> @out Test2<T>
   init(a: Int, b: T) {
-    // CHECK: assign_or_init [init] [[VALUE:%.*]] : $*(Int, T), init {{.*}} : $@convention(thin) <τ_0_0> (Int, @in τ_0_0) -> (@out Int, @out τ_0_0), set {{.*}} : $@callee_guaranteed (Int, @in T) -> ()
+    // CHECK: [[INIT_REF:%.*]] = function_ref @$s23assign_or_init_lowering5Test2V4pairSi_xtvi : $@convention(thin) <τ_0_0> (Int, @in τ_0_0) -> (@out Int, @out τ_0_0)
+    // CHECK-NEXT: [[SUBST_INIT_REF:%.*]] = partial_apply [callee_guaranteed] [[INIT_REF]]<T>() : $@convention(thin) <τ_0_0> (Int, @in τ_0_0) -> (@out Int, @out τ_0_0)
+    // CHECK: assign_or_init [init] self {{.*}}, value [[VALUE:%.*]] : $*(Int, T), init [[SUBST_INIT_REF]] : $@callee_guaranteed (Int, @in T) -> (@out Int, @out T), set {{.*}} : $@callee_guaranteed (Int, @in T) -> ()
     self.pair = (a, b)
-    // CHECK: assign_or_init [init] [assign=0] [assign=1] [[VALUE:%.*]] : $*(Int, T), init {{.*}} : $@convention(thin) <τ_0_0> (Int, @in τ_0_0) -> (@out Int, @out τ_0_0), set {{.*}} : $@callee_guaranteed (Int, @in T) -> ()
+    // CHECK: [[INIT_REF:%.*]] = function_ref @$s23assign_or_init_lowering5Test2V4pairSi_xtvi : $@convention(thin) <τ_0_0> (Int, @in τ_0_0) -> (@out Int, @out τ_0_0)
+    // CHECK-NEXT: [[SUBST_INIT_REF:%.*]] = partial_apply [callee_guaranteed] [[INIT_REF]]<T>() : $@convention(thin) <τ_0_0> (Int, @in τ_0_0) -> (@out Int, @out τ_0_0)
+    // CHECK: assign_or_init [init] [assign=0] [assign=1] self {{.*}}, value [[VALUE:%.*]] : $*(Int, T), init [[SUBST_INIT_REF]] : $@callee_guaranteed (Int, @in T) -> (@out Int, @out T), set {{.*}} : $@callee_guaranteed (Int, @in T) -> ()
     self.pair = (0, b)
     self._c = ""
-    // CHECK: assign_or_init [set] [[VALUE:%.*]] : $*(Int, T), init {{.*}} : $@convention(thin) <τ_0_0> (Int, @in τ_0_0) -> (@out Int, @out τ_0_0), set {{.*}} : $@callee_guaranteed (Int, @in T) -> ()
+    // CHECK: [[INIT_REF:%.*]] = function_ref @$s23assign_or_init_lowering5Test2V4pairSi_xtvi : $@convention(thin) <τ_0_0> (Int, @in τ_0_0) -> (@out Int, @out τ_0_0)
+    // CHECK-NEXT: [[SUBST_INIT_REF:%.*]] = partial_apply [callee_guaranteed] [[INIT_REF]]<T>() : $@convention(thin) <τ_0_0> (Int, @in τ_0_0) -> (@out Int, @out τ_0_0)
+    // CHECK: assign_or_init [set] self {{.*}}, value [[VALUE:%.*]] : $*(Int, T), init [[SUBST_INIT_REF]] : $@callee_guaranteed (Int, @in T) -> (@out Int, @out T), set {{.*}} : $@callee_guaranteed (Int, @in T) -> ()
     self.pair = (1, b)
   }
 }
@@ -75,7 +84,8 @@ struct Test {
 
   // CHECK-LABEL: sil hidden [ossa] @$s23assign_or_init_lowering4TestV1vACSi_tcfC : $@convention(method) (Int, @thin Test.Type) -> Test
   init(v: Int) {
-    // CHECK: assign_or_init [set] %0 : $Int, init {{.*}} : $@convention(thin) (Int) -> (), set {{.*}} : $@callee_guaranteed (Int) -> ()
+    // CHECK: [[INIT_REF:%.*]] = function_ref @$s23assign_or_init_lowering4TestV4testSivi : $@convention(thin) (Int) -> ()
+    // CHECK: assign_or_init [set] self {{.*}}, value %0 : $Int, init [[INIT_REF]] : $@convention(thin) (Int) -> (), set {{.*}} : $@callee_guaranteed (Int) -> ()
     self.test = v
   }
 }

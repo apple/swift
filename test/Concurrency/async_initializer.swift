@@ -106,17 +106,16 @@ enum E {
 }
 
 struct SomeStruct {
-  @MainActor init(asyncMainActor: Int) async {} // expected-note{{calls to initializer 'init(asyncMainActor:)' from outside of its actor context are implicitly asynchronous}}
+  @MainActor init(asyncMainActor: Int) async {}
   @MainActor init(mainActor: Int) {} // expected-note {{calls to initializer 'init(mainActor:)' from outside of its actor context are implicitly asynchronous}}
   @MainActor(unsafe) init(asyncMainActorUnsafe: Int) async {}
   @MainActor(unsafe) init(mainActorUnsafe: Int) {}
 }
 
-// expected-note@+2 2{{add '@MainActor' to make global function 'globActorTest1()' part of global actor 'MainActor'}}
+// expected-note@+2 {{add '@MainActor' to make global function 'globActorTest1()' part of global actor 'MainActor'}}
 // expected-note@+1 2 {{add 'async' to function 'globActorTest1()' to make it asynchronous}}
 func globActorTest1() {
   _ = SomeStruct(asyncMainActor: 0) // expected-error {{'async' call in a function that does not support concurrency}}
-  // expected-error@-1{{call to main actor-isolated initializer 'init(asyncMainActor:)' in a synchronous nonisolated context}}
 
   _ = SomeStruct(mainActor: 0) // expected-error {{call to main actor-isolated initializer 'init(mainActor:)' in a synchronous nonisolated context}}
 

@@ -22,22 +22,16 @@ void PrimitiveTypeMapping::initialize(ASTContext &ctx) {
   assert(mappedTypeNames.empty() && "expected empty type map");
 #define MAP(SWIFT_NAME, CLANG_REPR, NEEDS_NULLABILITY)                         \
   mappedTypeNames[{ctx.StdlibModuleName, ctx.getIdentifier(#SWIFT_NAME)}] = {  \
-    CLANG_REPR,                                                                \
-    Optional<StringRef>(CLANG_REPR),                                           \
-    Optional<StringRef>(CLANG_REPR),                                           \
-    NEEDS_NULLABILITY                                                          \
-  }
+      CLANG_REPR, llvm::Optional<StringRef>(CLANG_REPR),                       \
+      llvm::Optional<StringRef>(CLANG_REPR), NEEDS_NULLABILITY}
 #define MAP_C(SWIFT_NAME, OBJC_REPR, C_REPR, NEEDS_NULLABILITY)                \
   mappedTypeNames[{ctx.StdlibModuleName, ctx.getIdentifier(#SWIFT_NAME)}] = {  \
-    OBJC_REPR,                                                                 \
-    Optional<StringRef>(C_REPR),                                               \
-    Optional<StringRef>(C_REPR),                                               \
-    NEEDS_NULLABILITY                                                          \
-  }
+      OBJC_REPR, llvm::Optional<StringRef>(C_REPR),                            \
+      llvm::Optional<StringRef>(C_REPR), NEEDS_NULLABILITY}
 #define MAP_CXX(SWIFT_NAME, OBJC_REPR, C_REPR, CXX_REPR, NEEDS_NULLABILITY)    \
   mappedTypeNames[{ctx.StdlibModuleName, ctx.getIdentifier(#SWIFT_NAME)}] = {  \
-      OBJC_REPR, Optional<StringRef>(C_REPR), Optional<StringRef>(CXX_REPR),   \
-      NEEDS_NULLABILITY}
+      OBJC_REPR, llvm::Optional<StringRef>(C_REPR),                            \
+      llvm::Optional<StringRef>(CXX_REPR), NEEDS_NULLABILITY}
 
   MAP(CBool, "bool", false);
 
@@ -85,21 +79,21 @@ void PrimitiveTypeMapping::initialize(ASTContext &ctx) {
 
   Identifier ID_ObjectiveC = ctx.Id_ObjectiveC;
   mappedTypeNames[{ID_ObjectiveC, ctx.getIdentifier("ObjCBool")}] = {
-      "BOOL", None, None, false};
+      "BOOL", llvm::None, llvm::None, false};
   mappedTypeNames[{ID_ObjectiveC, ctx.getIdentifier("Selector")}] = {
-      "SEL", None, None, true};
+      "SEL", llvm::None, llvm::None, true};
   mappedTypeNames[{ID_ObjectiveC, ctx.getIdentifier(swift::getSwiftName(
                                       KnownFoundationEntity::NSZone))}] = {
-      "struct _NSZone *", None, None, true};
+      "struct _NSZone *", llvm::None, llvm::None, true};
 
   mappedTypeNames[{ctx.Id_Darwin, ctx.getIdentifier("DarwinBoolean")}] = {
-      "Boolean", None, None, false};
+      "Boolean", llvm::None, llvm::None, false};
 
-  mappedTypeNames[{ctx.Id_CoreGraphics, ctx.Id_CGFloat}] = {"CGFloat", None,
-                                                            None, false};
+  mappedTypeNames[{ctx.Id_CoreGraphics, ctx.Id_CGFloat}] = {
+      "CGFloat", llvm::None, llvm::None, false};
 
-  mappedTypeNames[{ctx.Id_CoreFoundation, ctx.Id_CGFloat}] = {"CGFloat", None,
-                                                              None, false};
+  mappedTypeNames[{ctx.Id_CoreFoundation, ctx.Id_CGFloat}] = {
+      "CGFloat", llvm::None, llvm::None, false};
 
   // Use typedefs we set up for SIMD vector types.
 #define MAP_SIMD_TYPE(BASENAME, _, __)                                         \
@@ -131,27 +125,27 @@ PrimitiveTypeMapping::getMappedTypeInfoOrNull(const TypeDecl *typeDecl) {
   return &iter->second;
 }
 
-Optional<PrimitiveTypeMapping::ClangTypeInfo>
+llvm::Optional<PrimitiveTypeMapping::ClangTypeInfo>
 PrimitiveTypeMapping::getKnownObjCTypeInfo(const TypeDecl *typeDecl) {
   if (auto *typeInfo = getMappedTypeInfoOrNull(typeDecl))
     return ClangTypeInfo{typeInfo->objcName, typeInfo->canBeNullable};
-  return None;
+  return llvm::None;
 }
 
-Optional<PrimitiveTypeMapping::ClangTypeInfo>
+llvm::Optional<PrimitiveTypeMapping::ClangTypeInfo>
 PrimitiveTypeMapping::getKnownCTypeInfo(const TypeDecl *typeDecl) {
   if (auto *typeInfo = getMappedTypeInfoOrNull(typeDecl)) {
     if (typeInfo->cName)
       return ClangTypeInfo{*typeInfo->cName, typeInfo->canBeNullable};
   }
-  return None;
+  return llvm::None;
 }
 
-Optional<PrimitiveTypeMapping::ClangTypeInfo>
+llvm::Optional<PrimitiveTypeMapping::ClangTypeInfo>
 PrimitiveTypeMapping::getKnownCxxTypeInfo(const TypeDecl *typeDecl) {
   if (auto *typeInfo = getMappedTypeInfoOrNull(typeDecl)) {
     if (typeInfo->cxxName)
       return ClangTypeInfo{*typeInfo->cxxName, typeInfo->canBeNullable};
   }
-  return None;
+  return llvm::None;
 }

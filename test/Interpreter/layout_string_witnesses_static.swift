@@ -193,7 +193,7 @@ class ClassWithSomeProtocol: SomeProtocol {
     }
 }
 
-func testExistential() {
+func testExistentialClass() {
     let ptr = UnsafeMutablePointer<ExistentialWrapper>.allocate(capacity: 1)
 
     do {
@@ -220,7 +220,78 @@ func testExistential() {
     ptr.deallocate()
 }
 
-testExistential()
+testExistentialClass()
+
+struct StructWithSomeProtocolInline: SomeProtocol {
+    let y: Int = 0
+    let x: SimpleClass
+}
+
+func testExistentialStructInline() {
+    let ptr = UnsafeMutablePointer<ExistentialWrapper>.allocate(capacity: 1)
+
+    do {
+        let x = StructWithSomeProtocolInline(x: SimpleClass(x: 23))
+        testInit(ptr, to: createExistentialWrapper(x))
+    }
+
+    do {
+        let y = StructWithSomeProtocolInline(x: SimpleClass(x: 32))
+
+        // CHECK: Before deinit
+        print("Before deinit")
+
+        // CHECK-NEXT: SimpleClass deinitialized!
+        testAssign(ptr, from: createExistentialWrapper(y))
+    }
+
+    // CHECK-NEXT: Before deinit
+    print("Before deinit")
+
+    // CHECK-NEXT: SimpleClass deinitialized!
+    testDestroy(ptr)
+
+    ptr.deallocate()
+}
+
+testExistentialStructInline()
+
+struct StructWithSomeProtocolBox: SomeProtocol {
+    let y: Int = 0
+    let x: SimpleClass
+    let z: Int = 0
+    let zz: Int = 0
+    let zzz: Int = 0
+}
+
+func testExistentialStructBox() {
+    let ptr = UnsafeMutablePointer<ExistentialWrapper>.allocate(capacity: 1)
+
+    do {
+        let x = StructWithSomeProtocolBox(x: SimpleClass(x: 23))
+        testInit(ptr, to: createExistentialWrapper(x))
+    }
+
+    do {
+        let y = StructWithSomeProtocolBox(x: SimpleClass(x: 32))
+
+        // CHECK: Before deinit
+        print("Before deinit")
+
+        // CHECK-NEXT: SimpleClass deinitialized!
+        testAssign(ptr, from: createExistentialWrapper(y))
+    }
+
+    // CHECK-NEXT: Before deinit
+    print("Before deinit")
+
+    // CHECK-NEXT: SimpleClass deinitialized!
+    testDestroy(ptr)
+
+    ptr.deallocate()
+}
+
+testExistentialStructBox()
 
 class ClassWithSomeClassProtocol: SomeClassProtocol {
     deinit {

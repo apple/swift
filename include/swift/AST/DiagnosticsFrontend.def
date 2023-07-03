@@ -494,7 +494,6 @@ REMARK(replay_output, none, "replay output file '%0': key '%1'", (StringRef, Str
 REMARK(output_cache_miss, none, "cache miss output file '%0': key '%1'", (StringRef, StringRef))
 
 // CAS related diagnostics
-ERROR(error_create_cas, none, "failed to create CAS '%0' (%1)", (StringRef, StringRef))
 ERROR(error_invalid_cas_id, none, "invalid CASID '%0' (%1)", (StringRef, StringRef))
 ERROR(error_cas, none, "CAS error encountered: %0", (StringRef))
 

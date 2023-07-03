@@ -17,15 +17,15 @@ class MoveOnlyStruct {
 
 class C {
     var copyable: CopyableKlass? = nil
-    var moveOnlyC: MoveOnlyKlass? = nil // expected-error {{noncopyable type 'MoveOnlyKlass' cannot be used with generics yet}}
-    var moveOnlyS: MoveOnlyStruct? = nil // expected-error {{noncopyable type 'MoveOnlyStruct' cannot be used with generics yet}}
+    var moveOnlyC: MoveOnlyKlass? = nil // expected-error {{noncopyable type 'MoveOnlyKlass' cannot be used with generic type 'Optional<Wrapped>' yet}}
+    var moveOnlyS: MoveOnlyStruct? = nil // expected-error {{noncopyable type 'MoveOnlyStruct' cannot be used with generic type 'Optional<Wrapped>' yet}}
 }
 
 @_moveOnly
 class CMoveOnly {
     var copyable: CopyableKlass? = nil
-    var moveOnlyC: MoveOnlyKlass? = nil // expected-error {{noncopyable type 'MoveOnlyKlass' cannot be used with generics yet}}
-    var moveOnlyS: MoveOnlyStruct? = nil // expected-error {{noncopyable type 'MoveOnlyStruct' cannot be used with generics yet}}
+    var moveOnlyC: MoveOnlyKlass? = nil // expected-error {{noncopyable type 'MoveOnlyKlass' cannot be used with generic type 'Optional<Wrapped>' yet}}
+    var moveOnlyS: MoveOnlyStruct? = nil // expected-error {{noncopyable type 'MoveOnlyStruct' cannot be used with generic type 'Optional<Wrapped>' yet}}
 }
 
 struct OptionalGrandField<T> { // expected-error {{generic struct 'OptionalGrandField' cannot contain a noncopyable type without also being noncopyable}}
@@ -34,8 +34,8 @@ struct OptionalGrandField<T> { // expected-error {{generic struct 'OptionalGrand
 }
 
 struct S0 {
-    var moveOnly3: OptionalGrandField<MoveOnlyKlass> // expected-error {{noncopyable type 'MoveOnlyKlass' cannot be used with generics yet}}
-    var moveOnly4: OptionalGrandField<MoveOnlyStruct> // expected-error {{noncopyable type 'MoveOnlyStruct' cannot be used with generics yet}}
+    var moveOnly3: OptionalGrandField<MoveOnlyKlass> // expected-error {{noncopyable type 'MoveOnlyKlass' cannot be used with generic type 'OptionalGrandField<T>' yet}}
+    var moveOnly4: OptionalGrandField<MoveOnlyStruct> // expected-error {{noncopyable type 'MoveOnlyStruct' cannot be used with generic type 'OptionalGrandField<T>' yet}}
 }
 
 struct SCopyable {
@@ -44,10 +44,10 @@ struct SCopyable {
 
 struct S { // expected-error {{struct 'S' cannot contain a noncopyable type without also being noncopyable}}
     var copyable: CopyableKlass
-    var moveOnly2: MoveOnlyStruct? // expected-error {{noncopyable type 'MoveOnlyStruct' cannot be used with generics yet}}
+    var moveOnly2: MoveOnlyStruct? // expected-error {{noncopyable type 'MoveOnlyStruct' cannot be used with generic type 'Optional<Wrapped>' yet}}
     var moveOnly: MoveOnlyStruct // expected-note {{contained noncopyable property 'S.moveOnly'}}
-    var moveOnly3: OptionalGrandField<MoveOnlyKlass> // expected-error {{noncopyable type 'MoveOnlyKlass' cannot be used with generics yet}}
-    var moveOnly3: OptionalGrandField<MoveOnlyStruct> // expected-error {{noncopyable type 'MoveOnlyStruct' cannot be used with generics yet}}
+    var moveOnly3: OptionalGrandField<MoveOnlyKlass> // expected-error {{noncopyable type 'MoveOnlyKlass' cannot be used with generic type 'OptionalGrandField<T>' yet}}
+    var moveOnly3: OptionalGrandField<MoveOnlyStruct> // expected-error {{noncopyable type 'MoveOnlyStruct' cannot be used with generic type 'OptionalGrandField<T>' yet}}
 }
 
 @_moveOnly
@@ -59,7 +59,7 @@ struct SMoveOnly {
 enum E { // expected-error {{enum 'E' cannot contain a noncopyable type without also being noncopyable}}
     case lhs(CopyableKlass)
     case rhs(MoveOnlyKlass) // expected-note {{contained noncopyable enum case 'E.rhs'}}
-    case rhs2(OptionalGrandField<MoveOnlyKlass>) // expected-error {{noncopyable type 'MoveOnlyKlass' cannot be used with generics yet}}
+    case rhs2(OptionalGrandField<MoveOnlyKlass>) // expected-error {{noncopyable type 'MoveOnlyKlass' cannot be used with generic type 'OptionalGrandField<T>' yet}}
 }
 
 @_moveOnly
@@ -81,13 +81,13 @@ extension MoveOnlyStruct {
 func foo() {
     class C2 {
         var copyable: CopyableKlass? = nil
-        var moveOnly: MoveOnlyKlass? = nil // expected-error {{noncopyable type 'MoveOnlyKlass' cannot be used with generics yet}}
+        var moveOnly: MoveOnlyKlass? = nil // expected-error {{noncopyable type 'MoveOnlyKlass' cannot be used with generic type 'Optional<Wrapped>' yet}}
     }
 
     @_moveOnly
     class C2MoveOnly {
         var copyable: CopyableKlass? = nil
-        var moveOnly: MoveOnlyKlass? = nil // expected-error {{noncopyable type 'MoveOnlyKlass' cannot be used with generics yet}}
+        var moveOnly: MoveOnlyKlass? = nil // expected-error {{noncopyable type 'MoveOnlyKlass' cannot be used with generic type 'Optional<Wrapped>' yet}}
     }
 
     struct S2 { // expected-error {{struct 'S2' cannot contain a noncopyable type without also being noncopyable}}
@@ -114,13 +114,13 @@ func foo() {
     {
         class C3 {
             var copyable: CopyableKlass? = nil
-            var moveOnly: MoveOnlyKlass? = nil // expected-error {{noncopyable type 'MoveOnlyKlass' cannot be used with generics yet}}
+            var moveOnly: MoveOnlyKlass? = nil // expected-error {{noncopyable type 'MoveOnlyKlass' cannot be used with generic type 'Optional<Wrapped>' yet}}
         }
 
         @_moveOnly
         class C3MoveOnly {
             var copyable: CopyableKlass? = nil
-            var moveOnly: MoveOnlyKlass? = nil // expected-error {{noncopyable type 'MoveOnlyKlass' cannot be used with generics yet}}
+            var moveOnly: MoveOnlyKlass? = nil // expected-error {{noncopyable type 'MoveOnlyKlass' cannot be used with generic type 'Optional<Wrapped>' yet}}
         }
 
         struct S3 { // expected-error {{struct 'S3' cannot contain a noncopyable type without also being noncopyable}}

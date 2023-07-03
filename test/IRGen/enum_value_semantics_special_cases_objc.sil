@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers %s -enable-objc-interop -disable-type-layout -emit-ir | %FileCheck %s
-// RUN: %target-swift-frontend %s -enable-objc-interop -disable-type-layout -emit-ir
+// RUN: %target-swift-frontend %s -enable-objc-interop -disable-type-layout -emit-ir | %FileCheck %s
 
 // REQUIRES: CPU=x86_64
 
@@ -10,11 +9,9 @@ enum NullableObjCRefcounted {
   case Ref(Builtin.AnyObject)
   case None
 }
-// CHECK-LABEL: define internal void @"$s39enum_value_semantics_special_cases_objc22NullableObjCRefcountedOwxx"(%swift.opaque* noalias %object, %swift.type* %NullableObjCRefcounted) {{.*}} {
+// CHECK-LABEL: define internal void @"$s39enum_value_semantics_special_cases_objc22NullableObjCRefcountedOwxx"(ptr noalias %object, ptr %NullableObjCRefcounted) {{.*}} {
 // CHECK: entry:
-// CHECK:   %0 = bitcast %swift.opaque* %object to %T39enum_value_semantics_special_cases_objc22NullableObjCRefcountedO*
-// CHECK:   %1 = bitcast %T39enum_value_semantics_special_cases_objc22NullableObjCRefcountedO* %0 to %objc_object**
-// CHECK:   %2 = load %objc_object*, %objc_object** %1, align 8
-// CHECK:   call void @swift_unknownObjectRelease(%objc_object* %2) {{#[0-9]+}}
+// CHECK:   %0 = load ptr, ptr %object, align 8
+// CHECK:   call void @swift_unknownObjectRelease(ptr %0) {{#[0-9]+}}
 // CHECK:   ret void
 // CHECK: }

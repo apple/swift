@@ -454,6 +454,13 @@ enum class FixKind : uint8_t {
   /// Ignore the fact that member couldn't be referenced within init accessor
   /// because its name doesn't appear in 'initializes' or 'accesses' attributes.
   AllowInvalidMemberReferenceInInitAccessor,
+
+  /// Ignore an attempt to specialize non-generic type.
+  AllowConcreteTypeSpecialization,
+
+  /// Ignore situations when provided number of generic arguments didn't match
+  /// expected number of parameters.
+  IgnoreGenericSpecializationArityMismatch,
 };
 
 class ConstraintFix {
@@ -499,7 +506,7 @@ public:
   }
 
   /// Determine the impact of this fix on the solution score, if any.
-  Optional<ScoreKind> impact() const;
+  llvm::Optional<ScoreKind> impact() const;
 
   virtual std::string getName() const = 0;
 
@@ -1638,17 +1645,19 @@ class AllowTupleTypeMismatch final : public ContextualMismatch {
   /// If this is an element mismatch, \c Index is the element index where the
   /// type mismatch occurred. If this is an arity or label mismatch, \c Index
   /// will be \c None.
-  Optional<unsigned> Index;
+  llvm::Optional<unsigned> Index;
 
   AllowTupleTypeMismatch(ConstraintSystem &cs, Type lhs, Type rhs,
-                         ConstraintLocator *locator, Optional<unsigned> index)
+                         ConstraintLocator *locator,
+                         llvm::Optional<unsigned> index)
       : ContextualMismatch(cs, FixKind::AllowTupleTypeMismatch, lhs, rhs,
-                           locator), Index(index) {}
+                           locator),
+        Index(index) {}
 
 public:
-  static AllowTupleTypeMismatch *create(ConstraintSystem &cs, Type lhs,
-                                        Type rhs, ConstraintLocator *locator,
-                                        Optional<unsigned> index = None);
+  static AllowTupleTypeMismatch *
+  create(ConstraintSystem &cs, Type lhs, Type rhs, ConstraintLocator *locator,
+         llvm::Optional<unsigned> index = llvm::None);
 
   static bool classof(const ConstraintFix *fix) {
     return fix->getKind() == FixKind::AllowTupleTypeMismatch;
@@ -2082,10 +2091,53 @@ public:
   }
 };
 
+/// Describes the reason why the type must be copyable
+struct NoncopyableMatchFailure {
+  enum Kind {
+    CopyableConstraint,
+    ExistentialCast,
+  };
+
+private:
+  Kind reason;
+  union {
+    Type type;
+  };
+
+  NoncopyableMatchFailure(Kind reason, Type type)
+      : reason(reason), type(type) {}
+
+public:
+  Kind getKind() const { return reason; }
+
+  Type getType() const {
+    switch (reason) {
+    case ExistentialCast:
+      return type;
+
+    case CopyableConstraint:
+      llvm_unreachable("no type payload");
+    };
+  }
+
+  static NoncopyableMatchFailure forCopyableConstraint() {
+    return NoncopyableMatchFailure(CopyableConstraint, Type());
+  }
+
+  static NoncopyableMatchFailure forExistentialCast(Type existential) {
+    assert(existential->isAnyExistentialType());
+    return NoncopyableMatchFailure(ExistentialCast, existential);
+  }
+};
+
 class MustBeCopyable final : public ConstraintFix {
   Type noncopyableTy;
+  NoncopyableMatchFailure failure;
 
-  MustBeCopyable(ConstraintSystem &cs, Type noncopyableTy, ConstraintLocator *locator);
+  MustBeCopyable(ConstraintSystem &cs,
+                 Type noncopyableTy,
+                 NoncopyableMatchFailure failure,
+                 ConstraintLocator *locator);
 
 public:
   std::string getName() const override { return "remove move-only from type"; }
@@ -2096,6 +2148,7 @@ public:
 
   static MustBeCopyable *create(ConstraintSystem &cs,
                              Type noncopyableTy,
+                             NoncopyableMatchFailure failure,
                              ConstraintLocator *locator);
 
   static bool classof(const ConstraintFix *fix) {
@@ -3381,10 +3434,11 @@ public:
                  openedExistentials,
              ConstraintLocatorBuilder locator);
 
-  static bool isRequired(ConstraintSystem &cs, Type resultTy,
-                         llvm::function_ref<Optional<Type>(TypeVariableType *)>
-                             findExistentialType,
-                         ConstraintLocatorBuilder locator);
+  static bool
+  isRequired(ConstraintSystem &cs, Type resultTy,
+             llvm::function_ref<llvm::Optional<Type>(TypeVariableType *)>
+                 findExistentialType,
+             ConstraintLocatorBuilder locator);
 
   static AddExplicitExistentialCoercion *create(ConstraintSystem &cs,
                                                 Type resultTy,
@@ -3600,6 +3654,69 @@ public:
 
   static bool classof(const ConstraintFix *fix) {
     return fix->getKind() == FixKind::AllowInvalidMemberReferenceInInitAccessor;
+  }
+};
+
+class AllowConcreteTypeSpecialization final : public ConstraintFix {
+  Type ConcreteType;
+
+  AllowConcreteTypeSpecialization(ConstraintSystem &cs, Type concreteTy,
+                                  ConstraintLocator *locator)
+      : ConstraintFix(cs, FixKind::AllowConcreteTypeSpecialization, locator),
+        ConcreteType(concreteTy) {}
+
+public:
+  std::string getName() const override {
+    return "allow concrete type specialization";
+  }
+
+  bool diagnose(const Solution &solution, bool asNote = false) const override;
+
+  bool diagnoseForAmbiguity(CommonFixesArray commonFixes) const override {
+    return diagnose(*commonFixes.front().first);
+  }
+
+  static AllowConcreteTypeSpecialization *
+  create(ConstraintSystem &cs, Type concreteTy, ConstraintLocator *locator);
+
+  static bool classof(const ConstraintFix *fix) {
+    return fix->getKind() == FixKind::AllowConcreteTypeSpecialization;
+  }
+};
+
+class IgnoreGenericSpecializationArityMismatch final : public ConstraintFix {
+  ValueDecl *D;
+  unsigned NumParams;
+  unsigned NumArgs;
+  bool HasParameterPack;
+
+  IgnoreGenericSpecializationArityMismatch(ConstraintSystem &cs,
+                                           ValueDecl *decl, unsigned numParams,
+                                           unsigned numArgs,
+                                           bool hasParameterPack,
+                                           ConstraintLocator *locator)
+      : ConstraintFix(cs, FixKind::IgnoreGenericSpecializationArityMismatch,
+                      locator),
+        D(decl), NumParams(numParams), NumArgs(numArgs),
+        HasParameterPack(hasParameterPack) {}
+
+public:
+  std::string getName() const override {
+    return "ignore generic specialization mismatch";
+  }
+
+  bool diagnose(const Solution &solution, bool asNote = false) const override;
+
+  bool diagnoseForAmbiguity(CommonFixesArray commonFixes) const override {
+    return diagnose(*commonFixes.front().first);
+  }
+
+  static IgnoreGenericSpecializationArityMismatch *
+  create(ConstraintSystem &cs, ValueDecl *decl, unsigned numParams,
+         unsigned numArgs, bool hasParameterPack, ConstraintLocator *locator);
+
+  static bool classof(const ConstraintFix *fix) {
+    return fix->getKind() == FixKind::IgnoreGenericSpecializationArityMismatch;
   }
 };
 

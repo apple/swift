@@ -1,9 +1,7 @@
 // RUN: %empty-directory(%t)
 // RUN: %{python} %utils/chex.py < %s > %t/generic_vtable.swift
-// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-objc-interop  %t/generic_vtable.swift -emit-ir | %FileCheck %t/generic_vtable.swift --check-prefixes=CHECK,CHECK-objc,CHECK-objc%target-ptrsize,CHECK-%target-ptrsize,CHECK-%target-import-type,CHECK-%target-abi -DINT=i%target-ptrsize
-// RUN: %target-swift-frontend %use_no_opaque_pointers -disable-objc-interop %t/generic_vtable.swift -emit-ir | %FileCheck %t/generic_vtable.swift --check-prefixes=CHECK,CHECK-native,CHECK-native%target-ptrsize,CHECK-%target-ptrsize,CHECK-%target-import-type,CHECK-%target-abi -DINT=i%target-ptrsize
-// RUN: %target-swift-frontend -enable-objc-interop  %t/generic_vtable.swift -emit-ir
-// RUN: %target-swift-frontend -disable-objc-interop %t/generic_vtable.swift -emit-ir
+// RUN: %target-swift-frontend -enable-objc-interop  %t/generic_vtable.swift -emit-ir | %FileCheck %t/generic_vtable.swift --check-prefixes=CHECK,CHECK-objc,CHECK-objc%target-ptrsize,CHECK-%target-ptrsize,CHECK-%target-import-type,CHECK-%target-abi -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend -disable-objc-interop %t/generic_vtable.swift -emit-ir | %FileCheck %t/generic_vtable.swift --check-prefixes=CHECK,CHECK-native,CHECK-native%target-ptrsize,CHECK-%target-ptrsize,CHECK-%target-import-type,CHECK-%target-abi -DINT=i%target-ptrsize
 
 public class Base {
   public func m1() {}
@@ -35,9 +33,9 @@ public class Concrete : Derived<Int> {
 // -- vtable size
 // CHECK-SAME: i32 3,
 // -- vtable entry for m1()
-// CHECK-SAME: void (%T14generic_vtable4BaseC*)* @"$s14generic_vtable4BaseC2m1yyF"
+// CHECK-SAME: ptr @"$s14generic_vtable4BaseC2m1yyF"
 // -- vtable entry for m2()
-// CHECK-SAME: void (%T14generic_vtable4BaseC*)* @"$s14generic_vtable4BaseC2m2yyF"
+// CHECK-SAME: ptr @"$s14generic_vtable4BaseC2m2yyF"
 // --
 // CHECK-SAME: section "{{.*}}",{{.*}} align 4
 
@@ -47,13 +45,13 @@ public class Concrete : Derived<Int> {
 // -- destructor
 // CHECK-SAME: @"$s14generic_vtable4BaseCfD{{(.ptrauth)?}}"
 // -- value witness table
-// CHECK-SAME: i8** {{@"\$sBoWV"|null}}
+// CHECK-SAME: ptr {{@"\$sBoWV"|null}}
 // -- vtable entry for 'm1()'
-// CHECK-SAME: void (%T14generic_vtable4BaseC*)* {{@"\$s14generic_vtable4BaseC2m1yyF"|.* @"\$s14generic_vtable4BaseC2m1yyF.ptrauth[.0-9]*"}}
+// CHECK-SAME: ptr {{@"\$s14generic_vtable4BaseC2m1yyF"|@"\$s14generic_vtable4BaseC2m1yyF.ptrauth[.0-9]*"}}
 // -- vtable entry for 'm2()'
-// CHECK-SAME: void (%T14generic_vtable4BaseC*)* {{@"\$s14generic_vtable4BaseC2m2yyF"|.* @"\$s14generic_vtable4BaseC2m2yyF.ptrauth[.0-9]*"}}
+// CHECK-SAME: ptr {{@"\$s14generic_vtable4BaseC2m2yyF"|@"\$s14generic_vtable4BaseC2m2yyF.ptrauth[.0-9]*"}}
 // -- vtable entry for 'init()'
-// CHECK-SAME: %T14generic_vtable4BaseC* (%swift.type*)* {{@"\$s14generic_vtable4BaseCACycfC"|.* @"\$s14generic_vtable4BaseCACycfC.ptrauth[.0-9]*"}}
+// CHECK-SAME: ptr {{@"\$s14generic_vtable4BaseCACycfC"|@"\$s14generic_vtable4BaseCACycfC.ptrauth[.0-9]*"}}
 // --
 // CHECK-SAME: , align
 
@@ -71,7 +69,7 @@ public class Concrete : Derived<Int> {
 // -- vtable size
 // CHECK-SAME: i32 1,
 // -- vtable entry for m3()
-// CHECK-SAME: void (%T14generic_vtable7DerivedC*)* @"$s14generic_vtable7DerivedC2m3yyF"
+// CHECK-SAME: ptr @"$s14generic_vtable7DerivedC2m3yyF"
 // -- override table size
 // CHECK-SAME: i32 2,
 // -- override for m2()
@@ -109,7 +107,7 @@ public class Concrete : Derived<Int> {
 // -- vtable size
 // CHECK-SAME: i32 1,
 // -- vtable entry for m4()
-// CHECK-SAME: void (%T14generic_vtable8ConcreteC*)* @"$s14generic_vtable8ConcreteC2m4yyF"
+// CHECK-SAME: ptr @"$s14generic_vtable8ConcreteC2m4yyF"
 // -- override table size
 // CHECK-SAME: i32 2,
 // -- override for m3()
@@ -130,59 +128,59 @@ public class Concrete : Derived<Int> {
 // -- destructor
 // CHECK-SAME: @"$s14generic_vtable8ConcreteCfD{{(.ptrauth)?}}"
 // -- value witness table is filled in at runtime
-// CHECK-SAME: i8** null,
+// CHECK-SAME: ptr null,
 // -- nominal type descriptor
 // CHECK-SAME: @"$s14generic_vtable8ConcreteCMn{{(.ptrauth)?}}"
 // -- vtable entry for 'm1()'
-// CHECK-SAME: void (%T14generic_vtable4BaseC*)* {{@"\$s14generic_vtable4BaseC2m1yyF"|.* @"\$s14generic_vtable4BaseC2m1yyF.ptrauth[.0-9]*"}}
+// CHECK-SAME: ptr {{@"\$s14generic_vtable4BaseC2m1yyF"|@"\$s14generic_vtable4BaseC2m1yyF.ptrauth[.0-9]*"}}
 // -- vtable entry for 'm2()'
-// CHECK-SAME: void (%T14generic_vtable7DerivedC*)* {{@"\$s14generic_vtable7DerivedC2m2yyF"|.* @"\$s14generic_vtable7DerivedC2m2yyF.ptrauth[.0-9]*"}}
+// CHECK-SAME: ptr {{@"\$s14generic_vtable7DerivedC2m2yyF"|@"\$s14generic_vtable7DerivedC2m2yyF.ptrauth[.0-9]*"}}
 // -- vtable entry for 'init()'
-// CHECK-SAME: %T14generic_vtable8ConcreteC* (%swift.type*)* {{@"\$s14generic_vtable8ConcreteCACycfC"|.* @"\$s14generic_vtable8ConcreteCACycfC.ptrauth[.0-9]*"}}
+// CHECK-SAME: ptr {{@"\$s14generic_vtable8ConcreteCACycfC"|@"\$s14generic_vtable8ConcreteCACycfC.ptrauth[.0-9]*"}}
 // -- vtable entry for 'm3()'
-// CHECK-SAME: void (%T14generic_vtable8ConcreteC*)* {{@"\$s14generic_vtable8ConcreteC2m3yyF"|.* @"\$s14generic_vtable8ConcreteC2m3yyF.ptrauth[.0-9]*"}}
+// CHECK-SAME: ptr {{@"\$s14generic_vtable8ConcreteC2m3yyF"|@"\$s14generic_vtable8ConcreteC2m3yyF.ptrauth[.0-9]*"}}
 // -- vtable entry for 'm4()'
-// CHECK-SAME: void (%T14generic_vtable8ConcreteC*)* {{@"\$s14generic_vtable8ConcreteC2m4yyF"|.* @"\$s14generic_vtable8ConcreteC2m4yyF.ptrauth[.0-9]*"}}
+// CHECK-SAME: ptr {{@"\$s14generic_vtable8ConcreteC2m4yyF"|@"\$s14generic_vtable8ConcreteC2m4yyF.ptrauth[.0-9]*"}}
 // --
 // CHECK-SAME: }>, align
 
 
 //// Method descriptors
 
-// CHECK-LABEL: @"$s14generic_vtable4BaseC2m1yyFTq" ={{( dllexport)?}}{{( protected)?}} alias %swift.method_descriptor, getelementptr inbounds (<{{.*}}>* @"$s14generic_vtable4BaseCMn", i32 0, i32 {{(13|16)}})
-// CHECK-LABEL: @"$s14generic_vtable4BaseC2m2yyFTq" ={{( dllexport)?}}{{( protected)?}} alias %swift.method_descriptor, getelementptr inbounds (<{{.*}}* @"$s14generic_vtable4BaseCMn", i32 0, i32 {{(14|17)}})
-// CHECK-LABEL: @"$s14generic_vtable4BaseCACycfCTq" = hidden alias %swift.method_descriptor, getelementptr inbounds (<{{.*}}* @"$s14generic_vtable4BaseCMn", i32 0, i32 {{(15|18)}})
+// CHECK-LABEL: @"$s14generic_vtable4BaseC2m1yyFTq" ={{( dllexport)?}}{{( protected)?}} alias %swift.method_descriptor, getelementptr inbounds (<{{.*}}>, ptr @"$s14generic_vtable4BaseCMn", i32 0, i32 {{(13|16)}})
+// CHECK-LABEL: @"$s14generic_vtable4BaseC2m2yyFTq" ={{( dllexport)?}}{{( protected)?}} alias %swift.method_descriptor, getelementptr inbounds (<{{.*}}>, ptr @"$s14generic_vtable4BaseCMn", i32 0, i32 {{(14|17)}})
+// CHECK-LABEL: @"$s14generic_vtable4BaseCACycfCTq" = hidden alias %swift.method_descriptor, getelementptr inbounds (<{{.*}}>, ptr @"$s14generic_vtable4BaseCMn", i32 0, i32 {{(15|18)}})
 
-// CHECK-LABEL: @"$s14generic_vtable7DerivedC2m3yyFTq" ={{( dllexport)?}}{{( protected)?}} alias %swift.method_descriptor, getelementptr inbounds (<{{.*}}>* @"$s14generic_vtable7DerivedCMn", i32 0, i32 23)
+// CHECK-LABEL: @"$s14generic_vtable7DerivedC2m3yyFTq" ={{( dllexport)?}}{{( protected)?}} alias %swift.method_descriptor, getelementptr inbounds (<{{.*}}>, ptr @"$s14generic_vtable7DerivedCMn", i32 0, i32 23)
 
-// CHECK-LABEL: @"$s14generic_vtable8ConcreteC2m4yyFTq" ={{( dllexport)?}}{{( protected)?}} alias %swift.method_descriptor, getelementptr inbounds (<{{.*}}>* @"$s14generic_vtable8ConcreteCMn", i32 0, i32 16)
+// CHECK-LABEL: @"$s14generic_vtable8ConcreteC2m4yyFTq" ={{( dllexport)?}}{{( protected)?}} alias %swift.method_descriptor, getelementptr inbounds (<{{.*}}>, ptr @"$s14generic_vtable8ConcreteCMn", i32 0, i32 16)
 
 
 //// Metadata initialization function for 'Derived' copies superclass vtable
 //// and installs overrides for 'm2()' and 'init()'.
 
-// CHECK-LABEL: define internal %swift.type* @"$s14generic_vtable7DerivedCMi"(%swift.type_descriptor* %0, i8** %1, i8* %2)
+// CHECK-LABEL: define internal ptr @"$s14generic_vtable7DerivedCMi"(ptr %0, ptr %1, ptr %2)
 
 // - 2 immediate members:
 //   - type metadata for generic parameter T,
 //   - and vtable entry for 'm3()'
-// CHECK: [[METADATA:%.*]] = call %swift.type* @swift_allocateGenericClassMetadata(%swift.type_descriptor* {{.*}}, i8** %1, i8* %2)
-// CHECK: ret %swift.type* [[METADATA]]
+// CHECK: [[METADATA:%.*]] = call ptr @swift_allocateGenericClassMetadata(ptr {{.*}}, ptr %1, ptr %2)
+// CHECK: ret ptr [[METADATA]]
 
 // CHECK-LABEL: define internal swiftcc %swift.metadata_response @"$s14generic_vtable7DerivedCMr"
-// CHECK-SAME:    (%swift.type* [[METADATA:%.*]], i8* %0, i8** %1) {{.*}} {
-// CHECK: call swiftcc %swift.metadata_response @swift_initClassMetadata2(%swift.type* [[METADATA]], [[INT]] 0, {{.*}})
+// CHECK-SAME:    (ptr [[METADATA:%.*]], ptr %0, ptr %1) {{.*}} {
+// CHECK: call swiftcc %swift.metadata_response @swift_initClassMetadata2(ptr [[METADATA]], [[INT]] 0, {{.*}})
 
 // CHECK: ret %swift.metadata_response
 
 
 // CHECK-LABEL: define {{(dllexport )?}}{{(protected )?}}swiftcc %swift.metadata_response @"$s14generic_vtable8ConcreteCMa"
-// CHECK: call swiftcc %swift.metadata_response @swift_getSingletonMetadata([[INT]] %0, %swift.type_descriptor* bitcast ({{.*}} @"$s14generic_vtable8ConcreteCMn" to {{.*}}))
+// CHECK: call swiftcc %swift.metadata_response @swift_getSingletonMetadata([[INT]] %0, ptr @"$s14generic_vtable8ConcreteCMn")
 // CHECK: ret
 
 //// Metadata response function for 'Concrete' is fairly simple.
 
-// CHECK-LABEL: define internal swiftcc %swift.metadata_response @"$s14generic_vtable8ConcreteCMr"(%swift.type* %0, i8* %1, i8** %2)
+// CHECK-LABEL: define internal swiftcc %swift.metadata_response @"$s14generic_vtable8ConcreteCMr"(ptr %0, ptr %1, ptr %2)
 // -- ClassLayoutFlags is 256 / 0x100, HasStaticVTable
-// CHECK: call swiftcc %swift.metadata_response @swift_initClassMetadata2(%swift.type* %0, [[INT]] 256, {{.*}})
+// CHECK: call swiftcc %swift.metadata_response @swift_initClassMetadata2(ptr %0, [[INT]] 256, {{.*}})
 // CHECK: ret %swift.metadata_response

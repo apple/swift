@@ -1,7 +1,6 @@
 // RUN: %empty-directory(%t)
 // RUN: %target-swift-frontend -emit-module -emit-module-path %t/has_symbol_helper.swiftmodule -parse-as-library %S/Inputs/has_symbol/has_symbol_helper.swift -enable-library-evolution -disable-availability-checking
-// RUN: %target-swift-frontend %use_no_opaque_pointers -emit-irgen %s -I %t -I %S/Inputs/has_symbol -module-name test | %FileCheck %s
-// RUN: %target-swift-frontend -emit-irgen %s -I %t -I %S/Inputs/has_symbol -module-name test
+// RUN: %target-swift-frontend -emit-irgen %s -I %t -I %S/Inputs/has_symbol -module-name test | %FileCheck %s
 
 // UNSUPPORTED: OS=windows-msvc
 
@@ -44,43 +43,43 @@ public func testGlobalFunctions() {
 
 // --- function(with:) ---
 // CHECK: define linkonce_odr hidden i1 @"$s17has_symbol_helper8function4withySi_tFTwS"()
-// CHECK:   ret i1 icmp ne (void ([[WORD]])* @"$s17has_symbol_helper8function4withySi_tF", void ([[WORD]])* null)
+// CHECK:   ret i1 icmp ne (ptr @"$s17has_symbol_helper8function4withySi_tF", ptr null)
 
 // --- throwingFunc() ---
 // CHECK: define linkonce_odr hidden i1 @"$s17has_symbol_helper12throwingFuncyyKFTwS"()
-// CHECK:   ret i1 icmp ne (void (%swift.refcounted*, %swift.error**)* @"$s17has_symbol_helper12throwingFuncyyKF", void (%swift.refcounted*, %swift.error**)* null)
+// CHECK:   ret i1 icmp ne (ptr @"$s17has_symbol_helper12throwingFuncyyKF", ptr null)
 
 // --- genericFunc(_:) ---
 // CHECK: define linkonce_odr hidden i1 @"$s17has_symbol_helper11genericFuncyyxAA1PRzlFTwS"()
-// CHECK:   ret i1 icmp ne (void (%swift.opaque*, %swift.type*, i8**)* @"$s17has_symbol_helper11genericFuncyyxAA1PRzlF", void (%swift.opaque*, %swift.type*, i8**)* null)
+// CHECK:   ret i1 icmp ne (ptr @"$s17has_symbol_helper11genericFuncyyxAA1PRzlF", ptr null)
 
 // --- funcWithOpaqueResult() ---
 // CHECK: define linkonce_odr hidden i1 @"$s17has_symbol_helper20funcWithOpaqueResultQryFTwS"()
-// CHECK:   ret i1 and (i1 icmp ne (%swift.type_descriptor* @"$s17has_symbol_helper20funcWithOpaqueResultQryFQOMQ", %swift.type_descriptor* null), i1 icmp ne (void (%swift.opaque*)* @"$s17has_symbol_helper20funcWithOpaqueResultQryF", void (%swift.opaque*)* null))
+// CHECK:   ret i1 and (i1 icmp ne (ptr @"$s17has_symbol_helper20funcWithOpaqueResultQryFQOMQ", ptr null), i1 icmp ne (ptr @"$s17has_symbol_helper20funcWithOpaqueResultQryF", ptr null))
 
 // --- cdeclFunc() ---
 // CHECK: define linkonce_odr hidden i1 @"$s17has_symbol_helper9cdeclFuncyyFTwS"()
-// CHECK:   ret i1 and (i1 icmp ne (void ()* @"$s17has_symbol_helper9cdeclFuncyyF", void ()* null), i1 icmp ne (void ()* @cdecl_func, void ()* null))
+// CHECK:   ret i1 and (i1 icmp ne (ptr @"$s17has_symbol_helper9cdeclFuncyyF", ptr null), i1 icmp ne (ptr @cdecl_func, ptr null))
 
 // --- forwardDeclaredFunc() ---
 // CHECK: define linkonce_odr hidden i1 @"$s17has_symbol_helper19forwardDeclaredFuncyyFTwS"()
-// CHECK:   ret i1 icmp ne (void ()* @forward_declared_func, void ()* null)
+// CHECK:   ret i1 icmp ne (ptr @forward_declared_func, ptr null)
 
 // --- dynamicFunc() ---
 // CHECK: define linkonce_odr hidden i1 @"$s17has_symbol_helper11dynamicFuncyyFTwS"()
-// CHECK:   ret i1 and (i1 and (i1 icmp ne (void ()* @"$s17has_symbol_helper11dynamicFuncyyF", void ()* null), i1 icmp ne (%swift.dyn_repl_link_entry* @"$s17has_symbol_helper11dynamicFuncyyFTX", %swift.dyn_repl_link_entry* null)), i1 icmp ne (%swift.dyn_repl_key* @"$s17has_symbol_helper11dynamicFuncyyFTx", %swift.dyn_repl_key* null))
+// CHECK:   ret i1 and (i1 and (i1 icmp ne (ptr @"$s17has_symbol_helper11dynamicFuncyyF", ptr null), i1 icmp ne (ptr @"$s17has_symbol_helper11dynamicFuncyyFTX", ptr null)), i1 icmp ne (ptr @"$s17has_symbol_helper11dynamicFuncyyFTx", ptr null))
 
 // --- replacementFunc() ---
 // CHECK: define linkonce_odr hidden i1 @"$s17has_symbol_helper15replacementFuncyyFTwS"()
-// CHECK:   ret i1 and (i1 icmp ne (void ()* @"$s17has_symbol_helper15replacementFuncyyF", void ()* null), i1 icmp ne (%swift.dyn_repl_link_entry* @"$s17has_symbol_helper15replacementFuncyyFTX", %swift.dyn_repl_link_entry* null))
+// CHECK:   ret i1 and (i1 icmp ne (ptr @"$s17has_symbol_helper15replacementFuncyyF", ptr null), i1 icmp ne (ptr @"$s17has_symbol_helper15replacementFuncyyFTX", ptr null))
 
 // --- dynamicFuncOpaqueResult() ---
 // CHECK: define linkonce_odr hidden i1 @"$s17has_symbol_helper23dynamicFuncOpaqueResultQryFTwS"()
-// CHECK:   ret i1 and (i1 and (i1 and (i1 and (i1 and (i1 and (i1 and (i1 icmp ne (%swift.type_descriptor* @"$s17has_symbol_helper23dynamicFuncOpaqueResultQryFQOMQ", %swift.type_descriptor* null), i1 icmp ne (%swift.type_descriptor* ()* @"$s17has_symbol_helper23dynamicFuncOpaqueResultQryFQOMg", %swift.type_descriptor* ()* null)), i1 icmp ne (%swift.type_descriptor* ()* @"$s17has_symbol_helper23dynamicFuncOpaqueResultQryFQOMh", %swift.type_descriptor* ()* null)), i1 icmp ne (%swift.type_descriptor* ()* @"$s17has_symbol_helper23dynamicFuncOpaqueResultQryFQOMg", %swift.type_descriptor* ()* null)), i1 icmp ne (%swift.type_descriptor* ()* @"$s17has_symbol_helper23dynamicFuncOpaqueResultQryFQOMg", %swift.type_descriptor* ()* null)), i1 icmp ne (void (%swift.opaque*)* @"$s17has_symbol_helper23dynamicFuncOpaqueResultQryF", void (%swift.opaque*)* null)), i1 icmp ne (%swift.dyn_repl_link_entry* @"$s17has_symbol_helper23dynamicFuncOpaqueResultQryFTX", %swift.dyn_repl_link_entry* null)), i1 icmp ne (%swift.dyn_repl_key* @"$s17has_symbol_helper23dynamicFuncOpaqueResultQryFTx", %swift.dyn_repl_key* null))
+// CHECK:   ret i1 and (i1 and (i1 and (i1 and (i1 and (i1 and (i1 and (i1 icmp ne (ptr @"$s17has_symbol_helper23dynamicFuncOpaqueResultQryFQOMQ", ptr null), i1 icmp ne (ptr @"$s17has_symbol_helper23dynamicFuncOpaqueResultQryFQOMg", ptr null)), i1 icmp ne (ptr @"$s17has_symbol_helper23dynamicFuncOpaqueResultQryFQOMh", ptr null)), i1 icmp ne (ptr @"$s17has_symbol_helper23dynamicFuncOpaqueResultQryFQOMg", ptr null)), i1 icmp ne (ptr @"$s17has_symbol_helper23dynamicFuncOpaqueResultQryFQOMg", ptr null)), i1 icmp ne (ptr @"$s17has_symbol_helper23dynamicFuncOpaqueResultQryF", ptr null)), i1 icmp ne (ptr @"$s17has_symbol_helper23dynamicFuncOpaqueResultQryFTX", ptr null)), i1 icmp ne (ptr @"$s17has_symbol_helper23dynamicFuncOpaqueResultQryFTx", ptr null))
 
 // --- replacementFuncOpaqueResult() ---
 // CHECK: define linkonce_odr hidden i1 @"$s17has_symbol_helper27replacementFuncOpaqueResultQryFTwS"()
-// CHECK:   ret i1 and (i1 and (i1 and (i1 and (i1 icmp ne (%swift.type_descriptor* @"$s17has_symbol_helper27replacementFuncOpaqueResultQryFQOMQ", %swift.type_descriptor* null), i1 icmp ne (%swift.type_descriptor* ()* @"$s17has_symbol_helper27replacementFuncOpaqueResultQryFQOMg", %swift.type_descriptor* ()* null)), i1 icmp ne (%swift.type_descriptor* ()* @"$s17has_symbol_helper27replacementFuncOpaqueResultQryFQOMg", %swift.type_descriptor* ()* null)), i1 icmp ne (void (%swift.opaque*)* @"$s17has_symbol_helper27replacementFuncOpaqueResultQryF", void (%swift.opaque*)* null)), i1 icmp ne (%swift.dyn_repl_link_entry* @"$s17has_symbol_helper27replacementFuncOpaqueResultQryFTX", %swift.dyn_repl_link_entry* null))
+// CHECK:   ret i1 and (i1 and (i1 and (i1 and (i1 icmp ne (ptr @"$s17has_symbol_helper27replacementFuncOpaqueResultQryFQOMQ", ptr null), i1 icmp ne (ptr @"$s17has_symbol_helper27replacementFuncOpaqueResultQryFQOMg", ptr null)), i1 icmp ne (ptr @"$s17has_symbol_helper27replacementFuncOpaqueResultQryFQOMg", ptr null)), i1 icmp ne (ptr @"$s17has_symbol_helper27replacementFuncOpaqueResultQryF", ptr null)), i1 icmp ne (ptr @"$s17has_symbol_helper27replacementFuncOpaqueResultQryFTX", ptr null))
 
 public func testVars() {
   // CHECK: %{{[0-9]+}} = call i1 @"$s17has_symbol_helper6globalSivpTwS"()
@@ -89,7 +88,7 @@ public func testVars() {
 
 // --- global ---
 // CHECK: define linkonce_odr hidden i1 @"$s17has_symbol_helper6globalSivpTwS"()
-// CHECK:   ret i1 icmp ne ([[WORD]] ()* @"$s17has_symbol_helper6globalSivg", [[WORD]] ()* null)
+// CHECK:   ret i1 icmp ne (ptr @"$s17has_symbol_helper6globalSivg", ptr null)
 
 public func testClass(_ c: C) {
   // CHECK: %{{[0-9]+}} = call i1 @"$s17has_symbol_helper1CCACycfcTwS"()
@@ -101,11 +100,11 @@ public func testClass(_ c: C) {
 
 // --- C.init() ---
 // CHECK: define linkonce_odr hidden i1 @"$s17has_symbol_helper1CCACycfcTwS"()
-// CHECK:   ret i1 and (i1 icmp ne (%T17has_symbol_helper1CC* (%T17has_symbol_helper1CC*)* @"$s17has_symbol_helper1CCACycfc", %T17has_symbol_helper1CC* (%T17has_symbol_helper1CC*)* null), i1 icmp ne (%T17has_symbol_helper1CC* (%swift.type*)* @"$s17has_symbol_helper1CCACycfC", %T17has_symbol_helper1CC* (%swift.type*)* null))
+// CHECK:   ret i1 and (i1 icmp ne (ptr @"$s17has_symbol_helper1CCACycfc", ptr null), i1 icmp ne (ptr @"$s17has_symbol_helper1CCACycfC", ptr null))
 
 // --- C.method(with:) ---
 // CHECK: define linkonce_odr hidden i1 @"$s17has_symbol_helper1CC6method4withySi_tFTwS"()
-// CHECK:   ret i1 and (i1 icmp ne (void ([[WORD]], %T17has_symbol_helper1CC*)* @"$s17has_symbol_helper1CC6method4withySi_tFTj", void ([[WORD]], %T17has_symbol_helper1CC*)* null), i1 icmp ne (%swift.method_descriptor* @"$s17has_symbol_helper1CC6method4withySi_tFTq", %swift.method_descriptor* null))
+// CHECK:   ret i1 and (i1 icmp ne (ptr @"$s17has_symbol_helper1CC6method4withySi_tFTj", ptr null), i1 icmp ne (ptr @"$s17has_symbol_helper1CC6method4withySi_tFTq", ptr null))
 
 public func testStruct(_ s: S) {
   // CHECK: %{{[0-9]+}} = call i1 @"$s17has_symbol_helper1SV6memberSivpTwS"()
@@ -117,11 +116,11 @@ public func testStruct(_ s: S) {
 
 // --- S.member ---
 // CHECK: define linkonce_odr hidden i1 @"$s17has_symbol_helper1SV6memberSivpTwS"()
-// CHECK:   ret i1 and (i1 and (i1 and (i1 icmp ne (%swift.type_descriptor* @"$s17has_symbol_helper1SV6memberSivpMV", %swift.type_descriptor* null), i1 icmp ne ([[WORD]] (%swift.opaque*)* @"$s17has_symbol_helper1SV6memberSivg", [[WORD]] (%swift.opaque*)* null)), i1 icmp ne (void ([[WORD]], %swift.opaque*)* @"$s17has_symbol_helper1SV6memberSivs", void ([[WORD]], %swift.opaque*)* null)), i1 icmp ne ({ i8*, %TSi* } (i8*, %swift.opaque*)* @"$s17has_symbol_helper1SV6memberSivM", { i8*, %TSi* } (i8*, %swift.opaque*)* null))
+// CHECK:   ret i1 and (i1 and (i1 and (i1 icmp ne (ptr @"$s17has_symbol_helper1SV6memberSivpMV", ptr null), i1 icmp ne (ptr @"$s17has_symbol_helper1SV6memberSivg", ptr null)), i1 icmp ne (ptr @"$s17has_symbol_helper1SV6memberSivs", ptr null)), i1 icmp ne (ptr @"$s17has_symbol_helper1SV6memberSivM", ptr null))
 
 // --- S.method(with:) ---
 // CHECK: define linkonce_odr hidden i1 @"$s17has_symbol_helper1SV6method4withySi_tFTwS"()
-// CHECK:   ret i1 icmp ne (void ([[WORD]], %swift.opaque*)* @"$s17has_symbol_helper1SV6method4withySi_tF", void ([[WORD]], %swift.opaque*)* null)
+// CHECK:   ret i1 icmp ne (ptr @"$s17has_symbol_helper1SV6method4withySi_tF", ptr null)
 
 public func testEnum(_ e: E) {
   // CHECK: %{{[0-9]+}} = call i1 @"$s17has_symbol_helper1EO9basicCaseyA2CmFTwS"()
@@ -133,11 +132,11 @@ public func testEnum(_ e: E) {
 
 // --- E.basicCase ---
 // CHECK: define linkonce_odr hidden i1 @"$s17has_symbol_helper1EO9basicCaseyA2CmFTwS"()
-// CHECK:   ret i1 icmp ne (i32* @"$s17has_symbol_helper1EO9basicCaseyA2CmFWC", i32* null)
+// CHECK:   ret i1 icmp ne (ptr @"$s17has_symbol_helper1EO9basicCaseyA2CmFWC", ptr null)
 
 // --- E.payloadCase(_:) ---
 // CHECK: define linkonce_odr hidden i1 @"$s17has_symbol_helper1EO11payloadCaseyAcA1SVcACmFTwS"()
-// CHECK:   ret i1 icmp ne (i32* @"$s17has_symbol_helper1EO11payloadCaseyAcA1SVcACmFWC", i32* null)
+// CHECK:   ret i1 icmp ne (ptr @"$s17has_symbol_helper1EO11payloadCaseyAcA1SVcACmFWC", ptr null)
 
 public func testOpaqueParameter<T: P>(_ p: T) {
   // CHECK: %{{[0-9]+}} = call i1 @"$s17has_symbol_helper1PP11requirementyyFTwS"()
@@ -149,11 +148,11 @@ public func testOpaqueParameter<T: P>(_ p: T) {
 
 // --- P.requirement() ---
 // CHECK: define linkonce_odr hidden i1 @"$s17has_symbol_helper1PP11requirementyyFTwS"()
-// CHECK:   ret i1 icmp ne (void (%swift.opaque*, %swift.type*, i8**)* @"$s17has_symbol_helper1PP11requirementyyF", void (%swift.opaque*, %swift.type*, i8**)* null)
+// CHECK:   ret i1 icmp ne (ptr @"$s17has_symbol_helper1PP11requirementyyF", ptr null)
 
 // --- P.requirementWithDefaultImpl() ---
 // CHECK: define linkonce_odr hidden i1 @"$s17has_symbol_helper1PP26requirementWithDefaultImplyyFTwS"()
-// CHECK:   ret i1 icmp ne (void (%swift.opaque*, %swift.type*, i8**)* @"$s17has_symbol_helper1PP26requirementWithDefaultImplyyF", void (%swift.opaque*, %swift.type*, i8**)* null)
+// CHECK:   ret i1 icmp ne (ptr @"$s17has_symbol_helper1PP26requirementWithDefaultImplyyF", ptr null)
 
 public func testExistentialParameter(_ p: any P) {
   // CHECK: %{{[0-9]+}} = call i1 @"$s17has_symbol_helper1PP11requirementyyFTwS"()
@@ -170,4 +169,4 @@ public func testMetatypes() {
 
 // --- S.self ---
 // CHECK: define linkonce_odr hidden i1 @"$s17has_symbol_helper1SVTwS"()
-// CHECK:   ret i1 and (i1 and (i1 icmp ne (%swift.type_descriptor* @"$s17has_symbol_helper1SVMn", %swift.type_descriptor* null), i1 icmp ne (%swift.type* @"$s17has_symbol_helper1SVN", %swift.type* null)), i1 icmp ne (%swift.metadata_response ([[WORD]])* @"$s17has_symbol_helper1SVMa", %swift.metadata_response ([[WORD]])* null))
+// CHECK:   ret i1 and (i1 and (i1 icmp ne (ptr @"$s17has_symbol_helper1SVMn", ptr null), i1 icmp ne (ptr @"$s17has_symbol_helper1SVN", ptr null)), i1 icmp ne (ptr @"$s17has_symbol_helper1SVMa", ptr null))

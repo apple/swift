@@ -911,20 +911,21 @@ public:
       const ProtocolDecl *proto, uint64_t contextData,
       SmallVectorImpl<AssociatedTypeDecl *> &assocTypes) override;
 
-  Optional<StringRef> getGroupNameById(unsigned Id) const;
-  Optional<StringRef> getSourceFileNameById(unsigned Id) const;
-  Optional<StringRef> getGroupNameForDecl(const Decl *D) const;
-  Optional<StringRef> getSourceFileNameForDecl(const Decl *D) const;
-  Optional<unsigned> getSourceOrderForDecl(const Decl *D) const;
+  llvm::Optional<StringRef> getGroupNameById(unsigned Id) const;
+  llvm::Optional<StringRef> getSourceFileNameById(unsigned Id) const;
+  llvm::Optional<StringRef> getGroupNameForDecl(const Decl *D) const;
+  llvm::Optional<StringRef> getSourceFileNameForDecl(const Decl *D) const;
+  llvm::Optional<unsigned> getSourceOrderForDecl(const Decl *D) const;
   void collectAllGroups(SmallVectorImpl<StringRef> &Names) const;
-  Optional<CommentInfo> getCommentForDecl(const Decl *D) const;
+  llvm::Optional<CommentInfo> getCommentForDecl(const Decl *D) const;
   bool hasLoadedSwiftDoc() const;
-  Optional<CommentInfo> getCommentForDeclByUSR(StringRef USR) const;
-  Optional<StringRef> getGroupNameByUSR(StringRef USR) const;
-  Optional<ExternalSourceLocs::RawLocs>
+  llvm::Optional<CommentInfo> getCommentForDeclByUSR(StringRef USR) const;
+  llvm::Optional<StringRef> getGroupNameByUSR(StringRef USR) const;
+  llvm::Optional<ExternalSourceLocs::RawLocs>
   getExternalRawLocsForDecl(const Decl *D) const;
   Identifier getDiscriminatorForPrivateDecl(const Decl *D);
-  Optional<Fingerprint> loadFingerprint(const IterableDeclContext *IDC) const;
+  llvm::Optional<Fingerprint>
+  loadFingerprint(const IterableDeclContext *IDC) const;
   void collectBasicSourceFileInfo(
       llvm::function_ref<void(const BasicSourceFileInfo &)> callback) const;
   void collectSerializedSearchPath(
@@ -1035,16 +1036,16 @@ public:
   SILLayout *readSILLayout(llvm::BitstreamCursor &Cursor);
 
   /// Reads a foreign error convention from \c DeclTypeCursor, if present.
-  Optional<ForeignErrorConvention> maybeReadForeignErrorConvention();
+  llvm::Optional<ForeignErrorConvention> maybeReadForeignErrorConvention();
 
   /// Reads a foreign async convention from \c DeclTypeCursor, if present.
-  Optional<ForeignAsyncConvention> maybeReadForeignAsyncConvention();
+  llvm::Optional<ForeignAsyncConvention> maybeReadForeignAsyncConvention();
 
   /// Reads inlinable body text from \c DeclTypeCursor, if present.
-  Optional<StringRef> maybeReadInlinableBodyText();
+  llvm::Optional<StringRef> maybeReadInlinableBodyText();
 
   /// Reads pattern initializer text from \c DeclTypeCursor, if present.
-  Optional<StringRef> maybeReadPatternInitializerText();
+  llvm::Optional<StringRef> maybeReadPatternInitializerText();
 };
 
 template <typename T, typename RawData>

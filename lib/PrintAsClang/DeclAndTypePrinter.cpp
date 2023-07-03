@@ -117,7 +117,7 @@ struct CxxEmissionScopeRAII {
 class DeclAndTypePrinter::Implementation
     : private DeclVisitor<DeclAndTypePrinter::Implementation>,
       private TypeVisitor<DeclAndTypePrinter::Implementation, void,
-                          Optional<OptionalTypeKind>>,
+                          llvm::Optional<OptionalTypeKind>>,
       private ClangSyntaxPrinter {
   using PrinterImpl = Implementation;
   friend ASTVisitor;
@@ -582,7 +582,7 @@ private:
     };
 
     auto printStruct = [&](StringRef caseName, EnumElementDecl *elementDecl,
-                           Optional<IRABIDetailsProvider::EnumElementInfo>
+                           llvm::Optional<IRABIDetailsProvider::EnumElementInfo>
                                elementInfo) {
       os << "  inline const static struct _impl_" << caseName << " {  "
          << "// impl struct for case " << caseName << '\n';
@@ -828,7 +828,7 @@ private:
             // Printing struct for unknownDefault
             printStruct(resilientUnknownDefaultCaseName,
                         /* elementDecl */ nullptr,
-                        /* elementInfo */ None);
+                        /* elementInfo */ llvm::None);
             // Printing isUnknownDefault
             printIsFunction(resilientUnknownDefaultCaseName, ED);
             os << '\n';
@@ -975,10 +975,10 @@ private:
     return true;
   }
 
-  Type getForeignResultType(AbstractFunctionDecl *AFD,
-                            AnyFunctionType *methodTy,
-                            Optional<ForeignAsyncConvention> asyncConvention,
-                            Optional<ForeignErrorConvention> errorConvention) {
+  Type
+  getForeignResultType(AbstractFunctionDecl *AFD, AnyFunctionType *methodTy,
+                       llvm::Optional<ForeignAsyncConvention> asyncConvention,
+                       llvm::Optional<ForeignErrorConvention> errorConvention) {
     // A foreign error convention can affect the result type as seen in
     // Objective-C.
     if (errorConvention) {
@@ -1052,9 +1052,9 @@ private:
                                      bool isClassMethod,
                                      bool isNSUIntegerSubscript = false,
                                      const SubscriptDecl *SD = nullptr) {
-    Optional<ForeignAsyncConvention> asyncConvention =
+    llvm::Optional<ForeignAsyncConvention> asyncConvention =
         AFD->getForeignAsyncConvention();
-    Optional<ForeignErrorConvention> errorConvention =
+    llvm::Optional<ForeignErrorConvention> errorConvention =
         AFD->getForeignErrorConvention();
     Type rawMethodTy = AFD->getMethodInterfaceType();
     auto methodTy = rawMethodTy->castTo<FunctionType>();
@@ -1080,7 +1080,7 @@ private:
                              /*selfTypeDeclContext=*/typeDeclContext);
       if (!funcABI)
         return;
-      Optional<IRABIDetailsProvider::MethodDispatchInfo> dispatchInfo;
+      llvm::Optional<IRABIDetailsProvider::MethodDispatchInfo> dispatchInfo;
       if (!isa<ConstructorDecl>(AFD)) {
         dispatchInfo = owningPrinter.interopContext.getIrABIDetails()
                            .getMethodDispatchInfo(AFD);
@@ -1236,7 +1236,7 @@ private:
       // parameter, print it.
       if (errorConvention && i == errorConvention->getErrorParameterIndex()) {
         os << piece << ":(";
-        print(errorConvention->getErrorParameterType(), None);
+        print(errorConvention->getErrorParameterType(), llvm::None);
         os << ")error";
         continue;
       }
@@ -1402,10 +1402,10 @@ private:
   // Print out the function signature for a @_cdecl function.
   void printAbstractFunctionAsCFunction(FuncDecl *FD) {
     printDocumentationComment(FD);
-    Optional<ForeignAsyncConvention> asyncConvention
-      = FD->getForeignAsyncConvention();
-    Optional<ForeignErrorConvention> errorConvention
-      = FD->getForeignErrorConvention();
+    llvm::Optional<ForeignAsyncConvention> asyncConvention =
+        FD->getForeignAsyncConvention();
+    llvm::Optional<ForeignErrorConvention> errorConvention =
+        FD->getForeignErrorConvention();
     assert(!FD->getGenericSignature() &&
            "top-level generic functions not supported here");
     auto funcTy = FD->getInterfaceType()->castTo<FunctionType>();
@@ -1490,14 +1490,15 @@ private:
   }
 
   // Print out the extern C Swift ABI function signature.
-  Optional<FunctionSwiftABIInformation>
+  llvm::Optional<FunctionSwiftABIInformation>
   printSwiftABIFunctionSignatureAsCxxFunction(
-      AbstractFunctionDecl *FD, Optional<FunctionType *> givenFuncType = None,
-      Optional<NominalTypeDecl *> selfTypeDeclContext = None) {
+      AbstractFunctionDecl *FD,
+      llvm::Optional<FunctionType *> givenFuncType = llvm::None,
+      llvm::Optional<NominalTypeDecl *> selfTypeDeclContext = llvm::None) {
     assert(outputLang == OutputLanguageMode::Cxx);
-    Optional<ForeignAsyncConvention> asyncConvention =
+    llvm::Optional<ForeignAsyncConvention> asyncConvention =
         FD->getForeignAsyncConvention();
-    Optional<ForeignErrorConvention> errorConvention =
+    llvm::Optional<ForeignErrorConvention> errorConvention =
         FD->getForeignErrorConvention();
     // FIXME (Alex): Make type adjustments for C++.
     AnyFunctionType *funcTy;
@@ -1515,14 +1516,14 @@ private:
                          .getFunctionLoweredSignature(FD);
     // FIXME: Add a note saying that this func is unsupported.
     if (!signature)
-      return None;
+      return llvm::None;
     FunctionSwiftABIInformation funcABI(FD, *signature);
 
     auto representation = printCFunctionWithLoweredSignature(
         FD, funcABI, resultTy, funcTy, funcABI.getSymbolName());
     if (representation.isUnsupported())
       // FIXME: Emit remark about unemitted declaration.
-      return None;
+      return llvm::None;
 
     if (selfTypeDeclContext && !isa<ConstructorDecl>(FD)) {
       if (auto dispatchInfo = owningPrinter.interopContext.getIrABIDetails()
@@ -1563,9 +1564,9 @@ private:
     assert(outputLang == OutputLanguageMode::Cxx);
     printDocumentationComment(FD);
 
-    Optional<ForeignAsyncConvention> asyncConvention =
+    llvm::Optional<ForeignAsyncConvention> asyncConvention =
         FD->getForeignAsyncConvention();
-    Optional<ForeignErrorConvention> errorConvention =
+    llvm::Optional<ForeignErrorConvention> errorConvention =
         FD->getForeignErrorConvention();
     auto funcTy = FD->getInterfaceType()->castTo<AnyFunctionType>();
     auto resultTy =
@@ -2096,7 +2097,7 @@ private:
   /// Visit part of a type, such as the base of a pointer type.
   ///
   /// If a full type is being printed, use print() instead.
-  void visitPart(Type ty, Optional<OptionalTypeKind> optionalKind) {
+  void visitPart(Type ty, llvm::Optional<OptionalTypeKind> optionalKind) {
     TypeVisitor::visit(ty, optionalKind);
   }
 
@@ -2159,7 +2160,7 @@ private:
   void printObjCBridgeableType(const NominalTypeDecl *swiftNominal,
                                const ClassDecl *objcClass,
                                ArrayRef<Type> typeArgs,
-                               Optional<OptionalTypeKind> optionalKind) {
+                               llvm::Optional<OptionalTypeKind> optionalKind) {
     auto &ctx = swiftNominal->getASTContext();
     assert(objcClass);
 
@@ -2221,7 +2222,7 @@ private:
   /// \returns true iff printed something.
   bool printIfObjCBridgeable(const NominalTypeDecl *nominal,
                              ArrayRef<Type> typeArgs,
-                             Optional<OptionalTypeKind> optionalKind) {
+                             llvm::Optional<OptionalTypeKind> optionalKind) {
     if (const ClassDecl *objcClass = getObjCBridgedClass(nominal)) {
       printObjCBridgeableType(nominal, objcClass, typeArgs, optionalKind);
       return true;
@@ -2236,7 +2237,7 @@ private:
   /// This handles typealiases and structs provided by the standard library
   /// for interfacing with C and Objective-C.
   bool printIfKnownSimpleType(const TypeDecl *typeDecl,
-                              Optional<OptionalTypeKind> optionalKind) {
+                              llvm::Optional<OptionalTypeKind> optionalKind) {
     auto knownTypeInfo =
         owningPrinter.typeMapping.getKnownObjCTypeInfo(typeDecl);
     if (!knownTypeInfo)
@@ -2247,14 +2248,15 @@ private:
     return true;
   }
 
-  void visitType(TypeBase *Ty, Optional<OptionalTypeKind> optionalKind) {
+  void visitType(TypeBase *Ty, llvm::Optional<OptionalTypeKind> optionalKind) {
     assert(Ty->getDesugaredType() == Ty && "unhandled sugared type");
     os << "/* ";
     Ty->print(os);
     os << " */";
   }
 
-  void visitErrorType(ErrorType *Ty, Optional<OptionalTypeKind> optionalKind) {
+  void visitErrorType(ErrorType *Ty,
+                      llvm::Optional<OptionalTypeKind> optionalKind) {
     os << "/* error */id";
   }
 
@@ -2267,7 +2269,7 @@ private:
 
   bool printImportedAlias(const TypeAliasDecl *alias,
                           ArrayRef<Type> genericArgs,
-                          Optional<OptionalTypeKind> optionalKind) {
+                          llvm::Optional<OptionalTypeKind> optionalKind) {
     if (!alias->hasClangNode())
       return false;
 
@@ -2303,7 +2305,7 @@ private:
   }
 
   void visitTypeAliasType(TypeAliasType *aliasTy,
-                               Optional<OptionalTypeKind> optionalKind) {
+                          llvm::Optional<OptionalTypeKind> optionalKind) {
     const TypeAliasDecl *alias = aliasTy->getDecl();
     auto genericArgs = aliasTy->getDirectGenericArgs();
 
@@ -2338,7 +2340,7 @@ private:
   }
 
   void visitStructType(StructType *ST,
-                       Optional<OptionalTypeKind> optionalKind) {
+                       llvm::Optional<OptionalTypeKind> optionalKind) {
     const StructDecl *SD = ST->getStructOrBoundGenericStruct();
 
     // Handle known type names.
@@ -2384,13 +2386,14 @@ private:
 
     assert(ty && "unknown bridged type");
 
-    print(ty, None);
+    print(ty, llvm::None);
   }
 
   /// If \p BGT represents a generic struct used to import Clang types, print
   /// it out.
-  bool printIfKnownGenericStruct(const BoundGenericStructType *BGT,
-                                 Optional<OptionalTypeKind> optionalKind) {
+  bool
+  printIfKnownGenericStruct(const BoundGenericStructType *BGT,
+                            llvm::Optional<OptionalTypeKind> optionalKind) {
     auto bgsTy = Type(const_cast<BoundGenericStructType *>(BGT));
 
     if (bgsTy->isUnmanaged()) {
@@ -2423,8 +2426,9 @@ private:
     return true;
   }
 
-  void visitBoundGenericStructType(BoundGenericStructType *BGT,
-                                   Optional<OptionalTypeKind> optionalKind) {
+  void
+  visitBoundGenericStructType(BoundGenericStructType *BGT,
+                              llvm::Optional<OptionalTypeKind> optionalKind) {
     // Handle bridged types.
     if (printIfObjCBridgeable(BGT->getDecl(), BGT->getGenericArgs(),
                               optionalKind))
@@ -2442,14 +2446,15 @@ private:
 
   void printGenericArgs(ArrayRef<Type> genericArgs) {
     os << '<';
-    interleave(genericArgs,
-               [this](Type t) { print(t, None); },
-               [this] { os << ", "; });
+    interleave(
+        genericArgs, [this](Type t) { print(t, llvm::None); },
+        [this] { os << ", "; });
     os << '>';
   }
 
-  void visitBoundGenericClassType(BoundGenericClassType *BGT,
-                                  Optional<OptionalTypeKind> optionalKind) {
+  void
+  visitBoundGenericClassType(BoundGenericClassType *BGT,
+                             llvm::Optional<OptionalTypeKind> optionalKind) {
     // Only handle imported ObjC generics.
     auto CD = BGT->getClassOrBoundGenericClass();
     if (!CD->isObjC())
@@ -2471,7 +2476,7 @@ private:
   }
 
   void visitBoundGenericType(BoundGenericType *BGT,
-                             Optional<OptionalTypeKind> optionalKind) {
+                             llvm::Optional<OptionalTypeKind> optionalKind) {
     // Handle bridged types.
     if (!isa<StructDecl>(BGT->getDecl()) &&
         printIfObjCBridgeable(BGT->getDecl(), BGT->getGenericArgs(),
@@ -2484,7 +2489,8 @@ private:
       visitType(BGT, optionalKind);
   }
 
-  void visitEnumType(EnumType *ET, Optional<OptionalTypeKind> optionalKind) {
+  void visitEnumType(EnumType *ET,
+                     llvm::Optional<OptionalTypeKind> optionalKind) {
     const EnumDecl *ED = ET->getDecl();
 
     // Handle bridged types.
@@ -2495,7 +2501,8 @@ private:
     os << getNameForObjC(ED);
   }
 
-  void visitClassType(ClassType *CT, Optional<OptionalTypeKind> optionalKind) {
+  void visitClassType(ClassType *CT,
+                      llvm::Optional<OptionalTypeKind> optionalKind) {
     const ClassDecl *CD = CT->getClassOrBoundGenericClass();
     assert(CD->isObjC());
     auto clangDecl = dyn_cast_or_null<clang::NamedDecl>(CD->getClangDecl());
@@ -2518,7 +2525,7 @@ private:
   }
 
   void visitExistentialType(Type T,
-                            Optional<OptionalTypeKind> optionalKind,
+                            llvm::Optional<OptionalTypeKind> optionalKind,
                             bool isMetatype = false) {
     auto layout = T->getExistentialLayout();
     if (layout.isErrorExistential()) {
@@ -2551,28 +2558,30 @@ private:
   }
 
   void visitProtocolType(ProtocolType *PT,
-                         Optional<OptionalTypeKind> optionalKind) {
+                         llvm::Optional<OptionalTypeKind> optionalKind) {
     visitExistentialType(PT, optionalKind, /*isMetatype=*/false);
   }
 
-  void visitProtocolCompositionType(ProtocolCompositionType *PCT,
-                                    Optional<OptionalTypeKind> optionalKind) {
+  void
+  visitProtocolCompositionType(ProtocolCompositionType *PCT,
+                               llvm::Optional<OptionalTypeKind> optionalKind) {
     visitExistentialType(PCT, optionalKind, /*isMetatype=*/false);
   }
 
   void visitExistentialType(ExistentialType *ET,
-                            Optional<OptionalTypeKind> optionalKind) {
+                            llvm::Optional<OptionalTypeKind> optionalKind) {
     visitPart(ET->getConstraintType(), optionalKind);
   }
 
-  void visitExistentialMetatypeType(ExistentialMetatypeType *MT,
-                                    Optional<OptionalTypeKind> optionalKind) {
+  void
+  visitExistentialMetatypeType(ExistentialMetatypeType *MT,
+                               llvm::Optional<OptionalTypeKind> optionalKind) {
     Type instanceTy = MT->getInstanceType();
     visitExistentialType(instanceTy, optionalKind, /*isMetatype=*/true);
   }
 
   void visitMetatypeType(MetatypeType *MT,
-                         Optional<OptionalTypeKind> optionalKind) {
+                         llvm::Optional<OptionalTypeKind> optionalKind) {
     Type instanceTy = MT->getInstanceType();
     if (auto classTy = instanceTy->getAs<ClassType>()) {
       const ClassDecl *CD = classTy->getDecl();
@@ -2584,8 +2593,9 @@ private:
     }
   }
 
-  void visitGenericTypeParamType(GenericTypeParamType *type,
-                                 Optional<OptionalTypeKind> optionalKind) {
+  void
+  visitGenericTypeParamType(GenericTypeParamType *type,
+                            llvm::Optional<OptionalTypeKind> optionalKind) {
     const GenericTypeParamDecl *decl = type->getDecl();
     assert(decl && "can't print canonicalized GenericTypeParamType");
 
@@ -2616,7 +2626,7 @@ private:
   }
 
   void printFunctionType(FunctionType *FT, char pointerSigil,
-                         Optional<OptionalTypeKind> optionalKind) {
+                         llvm::Optional<OptionalTypeKind> optionalKind) {
     visitPart(FT->getResult(), OTK_None);
     os << " (" << pointerSigil;
     printNullability(optionalKind);
@@ -2624,7 +2634,7 @@ private:
   }
 
   void visitFunctionType(FunctionType *FT,
-                         Optional<OptionalTypeKind> optionalKind) {
+                         llvm::Optional<OptionalTypeKind> optionalKind) {
     switch (FT->getRepresentation()) {
     case AnyFunctionType::Representation::Thin:
       llvm_unreachable("can't represent thin functions in ObjC");
@@ -2670,41 +2680,47 @@ private:
     os << ")";
   }
 
-  void visitTupleType(TupleType *TT, Optional<OptionalTypeKind> optionalKind) {
+  void visitTupleType(TupleType *TT,
+                      llvm::Optional<OptionalTypeKind> optionalKind) {
     assert(TT->getNumElements() == 0);
     os << "void";
   }
 
-  void visitPackType(PackType *PT, Optional<OptionalTypeKind> optionalKind) {
+  void visitPackType(PackType *PT,
+                     llvm::Optional<OptionalTypeKind> optionalKind) {
     assert(PT->getNumElements() == 0);
     os << "void";
   }
 
-  void visitPackExpansionType(PackExpansionType *PET, Optional<OptionalTypeKind> optionalKind) {
+  void visitPackExpansionType(PackExpansionType *PET,
+                              llvm::Optional<OptionalTypeKind> optionalKind) {
     os << "void";
   }
 
-  void visitPackElementType(PackElementType *PET, Optional<OptionalTypeKind> optionalKind) {
+  void visitPackElementType(PackElementType *PET,
+                            llvm::Optional<OptionalTypeKind> optionalKind) {
     llvm_unreachable("Not implemented");
   }
 
-  void visitParenType(ParenType *PT, Optional<OptionalTypeKind> optionalKind) {
+  void visitParenType(ParenType *PT,
+                      llvm::Optional<OptionalTypeKind> optionalKind) {
     visitPart(PT->getSinglyDesugaredType(), optionalKind);
   }
 
   void visitSyntaxSugarType(SyntaxSugarType *SST,
-                            Optional<OptionalTypeKind> optionalKind) {
+                            llvm::Optional<OptionalTypeKind> optionalKind) {
     visitPart(SST->getSinglyDesugaredType(), optionalKind);
   }
 
   void visitDynamicSelfType(DynamicSelfType *DST,
-                            Optional<OptionalTypeKind> optionalKind) {
+                            llvm::Optional<OptionalTypeKind> optionalKind) {
     printNullability(optionalKind, NullabilityPrintKind::ContextSensitive);
     os << "instancetype";
   }
 
-  void visitReferenceStorageType(ReferenceStorageType *RST,
-                                 Optional<OptionalTypeKind> optionalKind) {
+  void
+  visitReferenceStorageType(ReferenceStorageType *RST,
+                            llvm::Optional<OptionalTypeKind> optionalKind) {
     visitPart(RST->getReferentType(), optionalKind);
   }
 
@@ -2741,7 +2757,7 @@ private:
   /// finishFunctionType()). If only a part of a type is being printed, use
   /// visitPart().
 public:
-  void print(Type ty, Optional<OptionalTypeKind> optionalKind,
+  void print(Type ty, llvm::Optional<OptionalTypeKind> optionalKind,
              StringRef name = "",
              IsFunctionParam_t isFuncParam = IsNotFunctionParam) {
     PrettyStackTraceType trace(getASTContext(), "printing", ty);
@@ -2926,7 +2942,7 @@ void DeclAndTypePrinter::print(const Decl *D) {
 }
 
 void DeclAndTypePrinter::print(Type ty) {
-  getImpl().print(ty, /*overridingOptionality*/None);
+  getImpl().print(ty, /*overridingOptionality*/ llvm::None);
 }
 
 void DeclAndTypePrinter::printAvailability(raw_ostream &os, const Decl *D) {

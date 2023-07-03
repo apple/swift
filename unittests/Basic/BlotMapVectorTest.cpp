@@ -320,7 +320,7 @@ template <typename T> class BlotMapVectorTest : public ::testing::Test {
 protected:
   T Map;
 
-  Optional<unsigned> NumExpectedLiveTesters;
+  llvm::Optional<unsigned> NumExpectedLiveTesters;
 
   static typename T::key_type *const dummy_key_ptr;
   static typename T::mapped_type *const dummy_value_ptr;

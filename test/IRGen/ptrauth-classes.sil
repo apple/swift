@@ -1,5 +1,4 @@
-// RUN: %swift %use_no_opaque_pointers -swift-version 4 -target arm64e-apple-ios12.0 -parse-stdlib -parse-as-library %s -emit-ir -module-name test -Xcc -Xclang -Xcc -fptrauth-calls | %FileCheck %s --check-prefix=CHECK
-// RUN: %swift -swift-version 4 -target arm64e-apple-ios12.0 -parse-stdlib -parse-as-library %s -emit-ir -module-name test -Xcc -Xclang -Xcc -fptrauth-calls
+// RUN: %swift -swift-version 4 -target arm64e-apple-ios12.0 -parse-stdlib -parse-as-library %s -emit-ir -module-name test -Xcc -Xclang -Xcc -fptrauth-calls | %FileCheck %s --check-prefix=CHECK
 
 // REQUIRES: CPU=arm64e
 // REQUIRES: OS=ios
@@ -14,9 +13,9 @@ struct S {}
 class B : A<S> {}
 sil_vtable B {}
 
-// CHECK-LABEL: define internal %swift.type* @"$s4test1ACMi"(%swift.type_descriptor* %0, i8** %1, i8* %2)
-// CHECK: [[INT:%.*]] = ptrtoint %swift.type_descriptor* %0 to i64
+// CHECK-LABEL: define internal ptr @"$s4test1ACMi"(ptr %0, ptr %1, ptr %2)
+// CHECK: [[INT:%.*]] = ptrtoint ptr %0 to i64
 // CHECK: [[SIGNED:%.*]] = call i64 @llvm.ptrauth.sign(i64 [[INT]], i32 2, i64 44678)
-// CHECK: [[PTR:%.*]] = inttoptr i64 [[SIGNED]] to %swift.type_descriptor*
-// CHECK: [[METADATA:%.*]] = call %swift.type* @swift_allocateGenericClassMetadata(%swift.type_descriptor* [[PTR]], i8** %1, i8* %2)
-// CHECK: ret %swift.type* [[METADATA]]
+// CHECK: [[PTR:%.*]] = inttoptr i64 [[SIGNED]] to ptr
+// CHECK: [[METADATA:%.*]] = call ptr @swift_allocateGenericClassMetadata(ptr [[PTR]], ptr %1, ptr %2)
+// CHECK: ret ptr [[METADATA]]

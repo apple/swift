@@ -387,6 +387,7 @@ private:
     case Node::Kind::NoEscapeFunctionType:
     case Node::Kind::ExplicitClosure:
     case Node::Kind::Extension:
+    case Node::Kind::ExtensionAttachedMacroExpansion:
     case Node::Kind::EnumCase:
     case Node::Kind::FieldOffset:
     case Node::Kind::FreestandingMacroExpansion:
@@ -1467,6 +1468,12 @@ NodePointer NodePrinter::print(NodePointer Node, unsigned depth,
     return printEntity(Node, depth, asPrefixContext, TypePrinting::NoType,
                        /*hasName*/true,
                        ("conformance macro @" + nodeToString(Node->getChild(2)) +
+                        " expansion #"),
+                       (int)Node->getChild(3)->getIndex() + 1);
+  case Node::Kind::ExtensionAttachedMacroExpansion:
+    return printEntity(Node, depth, asPrefixContext, TypePrinting::NoType,
+                       /*hasName*/true,
+                       ("extension macro @" + nodeToString(Node->getChild(2)) +
                         " expansion #"),
                        (int)Node->getChild(3)->getIndex() + 1);
   case Node::Kind::MacroExpansionUniqueName:

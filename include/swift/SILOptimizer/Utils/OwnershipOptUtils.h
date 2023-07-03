@@ -157,7 +157,7 @@ public:
 /// "ownership fixup" utilities. Please do not put actual methods on this, it is
 /// meant to be composed with.
 struct OwnershipFixupContext {
-  Optional<InstModCallbacks> inlineCallbacks;
+  llvm::Optional<InstModCallbacks> inlineCallbacks;
   InstModCallbacks &callbacks;
   DeadEndBlocks &deBlocks;
 

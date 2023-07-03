@@ -16,14 +16,15 @@
 #ifndef SWIFT_AST_PROTOCOLCONFORMANCEREF_H
 #define SWIFT_AST_PROTOCOLCONFORMANCEREF_H
 
-#include "swift/Basic/Debug.h"
-#include "llvm/ADT/Hashing.h"
-#include "llvm/ADT/PointerUnion.h"
-#include "llvm/ADT/STLExtras.h"
 #include "swift/AST/ProtocolConformanceRef.h"
 #include "swift/AST/Requirement.h"
-#include "swift/AST/TypeAlignments.h"
 #include "swift/AST/Type.h"
+#include "swift/AST/TypeAlignments.h"
+#include "swift/Basic/Debug.h"
+#include "llvm/ADT/Hashing.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/PointerUnion.h"
+#include "llvm/ADT/STLExtras.h"
 
 namespace llvm {
   class raw_ostream;
@@ -152,15 +153,13 @@ public:
   ProtocolDecl *getRequirement() const;
   
   /// Apply a substitution to the conforming type.
-  ProtocolConformanceRef subst(Type origType,
-                               SubstitutionMap subMap,
-                               SubstOptions options=None) const;
+  ProtocolConformanceRef subst(Type origType, SubstitutionMap subMap,
+                               SubstOptions options = llvm::None) const;
 
   /// Apply a substitution to the conforming type.
-  ProtocolConformanceRef subst(Type origType,
-                               TypeSubstitutionFn subs,
+  ProtocolConformanceRef subst(Type origType, TypeSubstitutionFn subs,
                                LookupConformanceFn conformances,
-                               SubstOptions options=None) const;
+                               SubstOptions options = llvm::None) const;
 
   /// Apply a substitution to the conforming type.
   ///
@@ -217,7 +216,8 @@ public:
 
   /// Get any additional requirements that are required for this conformance to
   /// be satisfied, if they're possible to compute.
-  Optional<ArrayRef<Requirement>> getConditionalRequirementsIfAvailable() const;
+  llvm::Optional<ArrayRef<Requirement>>
+  getConditionalRequirementsIfAvailable() const;
 
   /// Get any additional requirements that are required for this conformance to
   /// be satisfied.

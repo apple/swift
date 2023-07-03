@@ -103,7 +103,7 @@ public:
 
   void printTypeExpansionWithProjection(SILFunction &Fn) {
     SILModule *M = &Fn.getModule();
-    llvm::SmallVector<Optional<ProjectionPath>, 8> PPList;
+    llvm::SmallVector<llvm::Optional<ProjectionPath>, 8> PPList;
     unsigned Counter = 0;
     for (auto &BB : Fn) {
       for (auto &II : BB) {

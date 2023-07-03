@@ -95,46 +95,36 @@ bool swift::findPointerEscape(SILValue original) {
 }
 
 bool swift::canOpcodeForwardInnerGuaranteedValues(SILValue value) {
-  // If we have an argument from a transforming terminator, we can forward
-  // guaranteed.
-  if (auto *arg = dyn_cast<SILArgument>(value))
-    if (auto *ti = arg->getSingleTerminator())
-      if (ti->mayHaveTerminatorResult())
-        return ForwardingInstruction::get(ti)->preservesOwnership();
-
-  if (auto *inst = value->getDefiningInstruction())
-    if (auto *mixin = ForwardingInstruction::get(inst))
-      return mixin->preservesOwnership() &&
-             !ForwardingInstruction::canForwardOwnedCompatibleValuesOnly(inst);
-
+  if (auto *inst = value->getDefiningInstructionOrTerminator()) {
+    if (auto fwdOp = ForwardingOperation(inst)) {
+      return fwdOp.preservesOwnership() &&
+             !fwdOp.canForwardOwnedCompatibleValuesOnly();
+    }
+  }
   return false;
 }
 
 bool swift::canOpcodeForwardInnerGuaranteedValues(Operand *use) {
-  if (auto *fwi = ForwardingInstruction::get(use->getUser()))
-    return fwi->preservesOwnership() &&
-           !ForwardingInstruction::canForwardOwnedCompatibleValuesOnly(
-               use->getUser());
+  if (auto fwdOp = ForwardingOperation(use->getUser()))
+    return fwdOp.preservesOwnership() &&
+           !fwdOp.canForwardOwnedCompatibleValuesOnly();
   return false;
 }
 
 bool swift::canOpcodeForwardOwnedValues(SILValue value) {
   if (auto *inst = value->getDefiningInstructionOrTerminator()) {
-    if (auto *fwi = ForwardingInstruction::get(inst)) {
-      return fwi->preservesOwnership() &&
-             !ForwardingInstruction::canForwardGuaranteedCompatibleValuesOnly(
-                 inst);
+    if (auto fwdOp = ForwardingOperation(inst)) {
+      return fwdOp.preservesOwnership() &&
+             !fwdOp.canForwardGuaranteedCompatibleValuesOnly();
     }
   }
   return false;
 }
 
 bool swift::canOpcodeForwardOwnedValues(Operand *use) {
-  auto *user = use->getUser();
-  if (auto *fwi = ForwardingInstruction::get(user))
-    return fwi->preservesOwnership() &&
-           !ForwardingInstruction::canForwardGuaranteedCompatibleValuesOnly(
-               user);
+  if (auto fwdOp = ForwardingOperation(use->getUser()))
+    return fwdOp.preservesOwnership() &&
+           !fwdOp.canForwardGuaranteedCompatibleValuesOnly();
   return false;
 }
 
@@ -1360,9 +1350,6 @@ ValueOwnershipKind ForwardingOperand::getForwardingOwnershipKind() const {
   if (auto *ofsvi = dyn_cast<OwnershipForwardingSingleValueInstruction>(user))
     return ofsvi->getForwardingOwnershipKind();
 
-  if (auto *ofseib = dyn_cast<OwnershipForwardingSelectEnumInstBase>(user))
-    return ofseib->getForwardingOwnershipKind();
-
   if (auto *ofmvi =
           dyn_cast<OwnershipForwardingMultipleValueInstruction>(user)) {
     assert(ofmvi->getNumOperands() == 1);
@@ -1385,8 +1372,6 @@ void ForwardingOperand::setForwardingOwnershipKind(
   // new subclass of OwnershipForwardingInst is added
   if (auto *ofsvi = dyn_cast<OwnershipForwardingSingleValueInstruction>(user))
     return ofsvi->setForwardingOwnershipKind(newKind);
-  if (auto *ofseib = dyn_cast<OwnershipForwardingSelectEnumInstBase>(user))
-    return ofseib->setForwardingOwnershipKind(newKind);
   if (auto *ofmvi = dyn_cast<OwnershipForwardingMultipleValueInstruction>(user)) {
     assert(ofmvi->getNumOperands() == 1);
     if (!ofmvi->getOperand(0)->getType().isTrivial(*ofmvi->getFunction())) {
@@ -1448,10 +1433,6 @@ void ForwardingOperand::replaceOwnershipKind(ValueOwnershipKind oldKind,
   if (auto *fInst = dyn_cast<OwnershipForwardingSingleValueInstruction>(user))
     if (fInst->getForwardingOwnershipKind() == oldKind)
       return fInst->setForwardingOwnershipKind(newKind);
-
-  if (auto *ofseib = dyn_cast<OwnershipForwardingSelectEnumInstBase>(user))
-    if (ofseib->getForwardingOwnershipKind() == oldKind)
-      return ofseib->setForwardingOwnershipKind(newKind);
 
   if (auto *ofmvi = dyn_cast<OwnershipForwardingMultipleValueInstruction>(user)) {
     if (ofmvi->getForwardingOwnershipKind() == oldKind) {
@@ -1699,20 +1680,16 @@ bool swift::visitForwardedGuaranteedOperands(
   if (inst->getNumRealOperands() == 0) {
     return false;
   }
-  if (ForwardingInstruction::canForwardFirstOperandOnly(inst)) {
-    visitOperand(&inst->getOperandRef(0));
-    return true;
+
+  auto fwdOp = ForwardingOperation(inst);
+  if (!fwdOp) {
+    return false;
   }
-  if (ForwardingInstruction::canForwardAllOperands(inst)) {
-    assert(inst->getNumOperands() > 0 && "checked above");
-    assert(inst->getNumOperands() == inst->getNumRealOperands() &&
-           "mixin expects all readl operands");
-    for (auto &operand : inst->getAllOperands()) {
-      visitOperand(&operand);
-    }
-    return true;
+
+  for (auto &operand : fwdOp.getForwardedOperands()) {
+    visitOperand(&operand);
   }
-  return false;
+  return true;
 }
 
 namespace {

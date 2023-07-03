@@ -19,4 +19,5 @@ swift_compiler_sources(Optimizer
   ReleaseDevirtualizer.swift
   SimplificationPasses.swift
   StackPromotion.swift
+  StripObjectHeaders.swift
 )

@@ -1,12 +1,8 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers %s -module-name main -emit-ir -o - | %FileCheck -check-prefix=%target-ptrsize %s
-// RUN: %target-swift-frontend %s -module-name main -emit-ir -o -
+// RUN: %target-swift-frontend %s -module-name main -emit-ir -o - | %FileCheck -check-prefix=%target-ptrsize %s
 
 import Builtin
 import Swift
 
-// 64: %T4main14Rdar15410780_AV = type <{ i2048, %Ts4Int8V }>
-// 64: %T4main14Rdar15410780_BV = type <{ %T4main14Rdar15410780_AVSg }>
-// 64: %T4main14Rdar15410780_AVSg = type <{ [257 x i8], [1 x i8] }>
 // 64: %T4main14Rdar15410780_CV = type <{ %TSSSg }>
 // 64: %TSSSg = type <{ [16 x i8] }>
 
@@ -15,9 +11,6 @@ import Swift
 // 64: @"$s4main14Rdar15410780_CVWV" = internal constant {{.*}} i64 16
 
 
-// 32: %T4main14Rdar15410780_AV = type <{ i2048, %Ts4Int8V }>
-// 32: %T4main14Rdar15410780_BV = type <{ %T4main14Rdar15410780_AVSg }>
-// 32: %T4main14Rdar15410780_AVSg = type <{ [257 x i8], [1 x i8] }>
 // 32: %T4main14Rdar15410780_CV = type <{ %TSSSg }>
 // 32: %TSSSg = type <{ [12 x i8] }>
 

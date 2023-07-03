@@ -125,7 +125,7 @@ public:
   SILValue getIndex() const;
 
   /// Get the index as a constant if possible.
-  Optional<int64_t> getConstantIndex() const;
+  llvm::Optional<int64_t> getConstantIndex() const;
 
   /// Get the array.props.isNativeTypeChecked argument.
   SILValue getArrayPropertyIsNativeTypeChecked() const;

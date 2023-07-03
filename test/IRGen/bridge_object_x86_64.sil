@@ -1,5 +1,4 @@
-// RUN: %swift %use_no_opaque_pointers -module-name bridge_object -emit-ir -disable-legacy-type-info -target x86_64-apple-macosx10.9 %s | %FileCheck %s
-// RUN: %swift -module-name bridge_object -emit-ir -disable-legacy-type-info -target x86_64-apple-macosx10.9 %s
+// RUN: %swift -module-name bridge_object -emit-ir -disable-legacy-type-info -target x86_64-apple-macosx10.9 %s | %FileCheck %s
 
 // REQUIRES: CODEGENERATOR=X86
 
@@ -13,7 +12,7 @@ sil_vtable C {}
 @objc protocol ObjC {}
 
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @retain_release_bridge_object
-// CHECK:         call [[BRIDGE:%swift.bridge\*]] @swift_bridgeObjectRetain{{.*}}returned
+// CHECK:         call ptr @swift_bridgeObjectRetain{{.*}}returned
 // CHECK:         call void @swift_bridgeObjectRelease
 sil @retain_release_bridge_object : $(Builtin.BridgeObject) -> () {
 entry(%b : $Builtin.BridgeObject):
@@ -22,32 +21,31 @@ entry(%b : $Builtin.BridgeObject):
   return undef : $()
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc %swift.bridge* @convert_to_bridge_object
-// CHECK:         [[REFBITS:%.*]] = ptrtoint [[C:%T13bridge_object1CC\*]] %0 to i64
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @convert_to_bridge_object
+// CHECK:         [[REFBITS:%.*]] = ptrtoint ptr %0 to i64
 // CHECK:         [[OR:%.*]] = or i64 [[REFBITS]], %1
-// CHECK:         inttoptr i64 [[OR]] to [[BRIDGE]]
+// CHECK:         inttoptr i64 [[OR]] to ptr
 sil @convert_to_bridge_object : $(C, Builtin.Word) -> Builtin.BridgeObject {
 entry(%c : $C, %w : $Builtin.Word):
   %b = ref_to_bridge_object %c : $C, %w : $Builtin.Word
   return %b : $Builtin.BridgeObject
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc { %objc_object*, i64 } @convert_from_bridge_object
-// CHECK:         [[BOBITS:%.*]] = ptrtoint [[BRIDGE]] %0 to i64
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc { ptr, i64 } @convert_from_bridge_object
+// CHECK:         [[BOBITS:%.*]] = ptrtoint ptr %0 to i64
 // --                                                     0x8000_0000_0000_0001
 // CHECK:         [[TAGBITS:%.*]] = and i64 [[BOBITS]], 1
 // CHECK:         [[TAGGED:%.*]] = icmp eq i64 [[TAGBITS]], 0
 // CHECK:         br i1 [[TAGGED]], label %not-tagged-pointer, label %tagged-pointer
 // CHECK:       tagged-pointer:
-// CHECK:         [[TAGGED_RESULT:%.*]] = bitcast [[BRIDGE]] %0 to [[C:%objc_object\*]]
 // CHECK:         br label %tagged-cont
 // CHECK:       not-tagged-pointer:
 // --                                                     0x00ff_ffff_ffff_fff8
 // CHECK:         [[MASKED_BITS:%.*]] = and i64 [[BOBITS]], 72057594037927928
-// CHECK:         [[MASKED_RESULT:%.*]] = inttoptr i64 [[MASKED_BITS]] to [[C]]
+// CHECK:         [[MASKED_RESULT:%.*]] = inttoptr i64 [[MASKED_BITS]] to ptr
 // CHECK:         br label %tagged-cont
 // CHECK:      tagged-cont:
-// CHECK:         phi [[C]] [ [[TAGGED_RESULT]], %tagged-pointer ], [ [[MASKED_RESULT]], %not-tagged-pointer ]
+// CHECK:         phi ptr [ %0, %tagged-pointer ], [ [[MASKED_RESULT]], %not-tagged-pointer ]
 
 sil @convert_from_bridge_object : $(Builtin.BridgeObject) -> (ObjC, Builtin.Word) {
 entry(%b : $Builtin.BridgeObject):
@@ -57,11 +55,11 @@ entry(%b : $Builtin.BridgeObject):
   return %t : $(ObjC, Builtin.Word)
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc %T13bridge_object1CC* @convert_from_native_bridge_object
-// CHECK:         [[BOBITS:%.*]] = ptrtoint %swift.bridge* %0 to i64
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @convert_from_native_bridge_object
+// CHECK:         [[BOBITS:%.*]] = ptrtoint ptr %0 to i64
 // CHECK:         [[MASKED_BITS:%.*]] = and i64 [[BOBITS]], 72057594037927928
-// CHECK:         [[RESULT:%.*]] = inttoptr i64 [[MASKED_BITS]] to [[C:%T13bridge_object1CC\*]]
-// CHECK:         ret %T13bridge_object1CC* [[RESULT]]
+// CHECK:         [[RESULT:%.*]] = inttoptr i64 [[MASKED_BITS]] to ptr
+// CHECK:         ret ptr [[RESULT]]
 sil @convert_from_native_bridge_object : $(Builtin.BridgeObject) -> C {
 entry(%b : $Builtin.BridgeObject):
   %c = bridge_object_to_ref %b : $Builtin.BridgeObject to $C

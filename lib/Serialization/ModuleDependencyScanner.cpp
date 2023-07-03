@@ -119,7 +119,7 @@ ErrorOr<ModuleDependencyInfo> ModuleDependencyScanner::scanInterfaceFile(
   auto realModuleName = Ctx.getRealModuleName(moduleName);
   llvm::SmallString<32> modulePath = realModuleName.str();
   llvm::sys::path::replace_extension(modulePath, newExt);
-  Optional<ModuleDependencyInfo> Result;
+  llvm::Optional<ModuleDependencyInfo> Result;
 
   // FIXME: Consider not spawning a sub-instance for this
   std::error_code code =
@@ -174,6 +174,14 @@ ErrorOr<ModuleDependencyInfo> ModuleDependencyScanner::scanInterfaceFile(
     std::string RootID;
     if (dependencyTracker) {
       dependencyTracker->startTracking();
+      dependencyTracker->addCommonSearchPathDeps(Ctx.SearchPathOpts);
+      std::vector<std::string> clangDependencyFiles;
+      auto clangImporter =
+          static_cast<ClangImporter *>(Ctx.getClangModuleLoader());
+      clangImporter->addClangInvovcationDependencies(clangDependencyFiles);
+      llvm::for_each(clangDependencyFiles, [&](std::string &file) {
+        dependencyTracker->trackFile(file);
+      });
       dependencyTracker->trackFile(moduleInterfacePath);
       auto RootOrError = dependencyTracker->createTreeFromDependencies();
       if (!RootOrError)
@@ -257,7 +265,8 @@ ErrorOr<ModuleDependencyInfo> ModuleDependencyScanner::scanInterfaceFile(
   return *Result;
 }
 
-Optional<const ModuleDependencyInfo*> SerializedModuleLoaderBase::getModuleDependencies(
+llvm::Optional<const ModuleDependencyInfo *>
+SerializedModuleLoaderBase::getModuleDependencies(
     StringRef moduleName, ModuleDependenciesCache &cache,
     InterfaceSubContextDelegate &delegate, bool isTestableDependencyLookup) {
   ImportPath::Module::Builder builder(Ctx, moduleName, /*separator=*/'.');
@@ -288,5 +297,5 @@ Optional<const ModuleDependencyInfo*> SerializedModuleLoaderBase::getModuleDepen
     }
   }
 
-  return None;
+  return llvm::None;
 }

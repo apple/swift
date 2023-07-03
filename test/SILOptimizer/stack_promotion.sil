@@ -74,10 +74,14 @@ bb0:
   return %n1 : $XX
 }
 
-// CHECK-LABEL: sil @dont_promote_in_unreachable
-// CHECK: bb1:
-// CHECK-NEXT: alloc_ref $XX
-sil @dont_promote_in_unreachable : $@convention(thin) () -> () {
+// CHECK-LABEL: sil @promote_in_unreachable :
+// CHECK:       bb1:
+// CHECK-NEXT:    alloc_ref [stack] $XX
+// CHECK:         apply
+// CHECK:         apply
+// CHECK-NEXT:    unreachable
+// CHECK:       } // end sil function 'promote_in_unreachable'
+sil @promote_in_unreachable : $@convention(thin) () -> () {
 bb0:
   cond_br undef, bb1, bb2
 
@@ -95,6 +99,34 @@ bb1:
 bb2:
   %r = tuple ()
   return %r : $()
+}
+
+// CHECK-LABEL: sil @promote_in_unreachable_loop :
+// CHECK:       bb1:
+// CHECK-NEXT:    alloc_ref [stack] $XX
+// CHECK:         apply
+// CHECK:         apply
+// CHECK-NEXT:    strong_release
+// CHECK-NEXT:    dealloc_stack_ref
+// CHECK-NEXT:    cond_br
+// CHECK:       } // end sil function 'promote_in_unreachable_loop'
+sil @promote_in_unreachable_loop : $@convention(thin) () -> () {
+bb0:
+  br bb1
+
+bb1:
+  %o1 = alloc_ref $XX
+  %f1 = function_ref @xx_init : $@convention(thin) (@guaranteed XX) -> XX
+  %n1 = apply %f1(%o1) : $@convention(thin) (@guaranteed XX) -> XX
+  %l1 = ref_element_addr %n1 : $XX, #XX.x
+  %l2 = load %l1 : $*Int32
+  %f2 = function_ref @consume_int : $@convention(thin) (Int32) -> ()
+  %a = apply %f2(%l2) : $@convention(thin) (Int32) -> ()
+  strong_release %o1 : $XX
+  cond_br undef, bb1, bb2
+
+bb2:
+  unreachable
 }
 
 // CHECK-LABEL: sil @promote_nested

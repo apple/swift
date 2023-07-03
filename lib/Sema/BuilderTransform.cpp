@@ -156,7 +156,7 @@ protected:
   /// Visit the element of a brace statement, returning \c None if the element
   /// was transformed successfully, or an unsupported element if the element
   /// cannot be handled.
-  Optional<UnsupportedElt>
+  llvm::Optional<UnsupportedElt>
   transformBraceElement(ASTNode element, SmallVectorImpl<ASTNode> &newBody,
                         SmallVectorImpl<Expr *> &buildBlockArguments) {
     if (auto *returnStmt = getAsStmt<ReturnStmt>(element)) {
@@ -177,7 +177,7 @@ protected:
       case DeclKind::Var:
       case DeclKind::Param:
         newBody.push_back(element);
-        return None;
+        return llvm::None;
 
       default:
         return UnsupportedElt(decl);
@@ -189,7 +189,7 @@ protected:
       // Throw is allowed as is.
       if (auto *throwStmt = dyn_cast<ThrowStmt>(stmt)) {
         newBody.push_back(throwStmt);
-        return None;
+        return llvm::None;
       }
 
       // Allocate variable with a placeholder type
@@ -202,7 +202,7 @@ protected:
       newBody.push_back(result.get());
       buildBlockArguments.push_back(
           builder.buildVarRef(resultVar, stmt->getStartLoc()));
-      return None;
+      return llvm::None;
     }
 
     auto *expr = element.get<Expr *>();
@@ -231,10 +231,10 @@ protected:
           builder.buildVarRef(capture, element.getStartLoc()));
     }
 
-    return None;
+    return llvm::None;
   }
 
-  std::pair<NullablePtr<Expr>, Optional<UnsupportedElt>>
+  std::pair<NullablePtr<Expr>, llvm::Optional<UnsupportedElt>>
   transform(BraceStmt *braceStmt, SmallVectorImpl<ASTNode> &newBody) {
     SmallVector<Expr *, 4> buildBlockArguments;
 
@@ -276,7 +276,8 @@ protected:
         }
 
         return std::make_pair(
-            builder.buildVarRef(buildBlockVar, braceStmt->getStartLoc()), None);
+            builder.buildVarRef(buildBlockVar, braceStmt->getStartLoc()),
+            llvm::None);
       }
       // If `buildBlock` does not exist at this point, it could be the case that
       // `buildPartialBlock` did not have the sufficient availability for this
@@ -294,7 +295,7 @@ protected:
       auto *buildBlock = builder.buildCall(
           braceStmt->getStartLoc(), ctx.Id_buildBlock, buildBlockArguments,
           /*argLabels=*/{});
-      return std::make_pair(buildBlock, None);
+      return std::make_pair(buildBlock, llvm::None);
     }
   }
 
@@ -309,7 +310,7 @@ protected:
     };
 
     NullablePtr<Expr> buildBlockVarRef;
-    Optional<UnsupportedElt> unsupported;
+    llvm::Optional<UnsupportedElt> unsupported;
 
     std::tie(buildBlockVarRef, unsupported) = transform(braceStmt, elements);
     if (unsupported)
@@ -455,7 +456,7 @@ protected:
   NullablePtr<IfStmt>
   transformIf(IfStmt *ifStmt,
               SmallVectorImpl<std::pair<Expr *, Stmt *>> &branchVarRefs) {
-    Optional<UnsupportedElt> unsupported;
+    llvm::Optional<UnsupportedElt> unsupported;
 
     // If there is a #available in the condition, wrap the 'then' or 'else'
     // in a call to buildLimitedAvailability(_:).
@@ -594,7 +595,8 @@ protected:
     return DoStmt::createImplicit(ctx, LabeledStmtInfo(), doBody);
   }
 
-  Optional<std::pair<Expr *, CaseStmt *>> transformCase(CaseStmt *caseStmt) {
+  llvm::Optional<std::pair<Expr *, CaseStmt *>>
+  transformCase(CaseStmt *caseStmt) {
     auto *body = caseStmt->getBody();
 
     // Explicitly disallow `case` statements with empty bodies
@@ -606,19 +608,19 @@ protected:
         // completion. Code completion ignores diagnostics
         // and won't get any types if we fail.
         if (!ctx.SourceMgr.hasIDEInspectionTargetBuffer())
-          return None;
+          return llvm::None;
       }
     }
 
     NullablePtr<Expr> caseVarRef;
-    Optional<UnsupportedElt> unsupported;
+    llvm::Optional<UnsupportedElt> unsupported;
     SmallVector<ASTNode, 4> newBody;
 
     std::tie(caseVarRef, unsupported) = transform(body, newBody);
 
     if (unsupported) {
       recordUnsupported(*unsupported);
-      return None;
+      return llvm::None;
     }
 
     auto *newCase = CaseStmt::create(
@@ -674,7 +676,7 @@ protected:
                           /*Commas=*/{}, /*RBrace=*/endLoc));
 
     NullablePtr<Expr> bodyVarRef;
-    Optional<UnsupportedElt> unsupported;
+    llvm::Optional<UnsupportedElt> unsupported;
 
     SmallVector<ASTNode, 4> newBody;
     {
@@ -880,7 +882,7 @@ private:
 
 } // end anonymous namespace
 
-Optional<BraceStmt *> TypeChecker::applyResultBuilderBodyTransform(
+llvm::Optional<BraceStmt *> TypeChecker::applyResultBuilderBodyTransform(
     FuncDecl *func, Type builderType,
     bool ClosuresInResultBuilderDontParticipateInInference) {
   // Pre-check the body: pre-check any expressions in it and look
@@ -933,7 +935,7 @@ Optional<BraceStmt *> TypeChecker::applyResultBuilderBodyTransform(
       }
     }
 
-    return None;
+    return llvm::None;
   }
   }
 
@@ -1085,7 +1087,7 @@ Optional<BraceStmt *> TypeChecker::applyResultBuilderBodyTransform(
   return nullptr;
 }
 
-Optional<ConstraintSystem::TypeMatchResult>
+llvm::Optional<ConstraintSystem::TypeMatchResult>
 ConstraintSystem::matchResultBuilder(AnyFunctionRef fn, Type builderType,
                                      Type bodyResultType,
                                      ConstraintKind bodyResultConstraintKind,
@@ -1138,7 +1140,7 @@ ConstraintSystem::matchResultBuilder(AnyFunctionRef fn, Type builderType,
 
     // If the body has a return statement, suppress the transform but
     // continue solving the constraint system.
-    return None;
+    return llvm::None;
   }
 
   auto transformedBody = getBuilderTransformedBody(fn, builder);
@@ -1483,9 +1485,9 @@ swift::determineResultBuilderBuildFixItInfo(NominalTypeDecl *builder) {
 }
 
 void swift::printResultBuilderBuildFunction(
-      NominalTypeDecl *builder, Type componentType,
-      ResultBuilderBuildFunction function,
-      Optional<std::string> stubIndent, llvm::raw_ostream &out) {
+    NominalTypeDecl *builder, Type componentType,
+    ResultBuilderBuildFunction function, llvm::Optional<std::string> stubIndent,
+    llvm::raw_ostream &out) {
   // Render the component type into a string.
   std::string componentTypeString;
   if (componentType)

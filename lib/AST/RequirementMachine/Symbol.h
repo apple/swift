@@ -10,9 +10,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "swift/Basic/LLVM.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/StringRef.h"
 
 #ifndef SWIFT_RQM_SYMBOL_H
@@ -136,7 +136,7 @@ public:
 
   static const unsigned NumKinds = 9;
 
-  static const StringRef Kinds[];
+  static const llvm::StringRef Kinds[];
 
 private:
   friend class RewriteContext;
@@ -180,7 +180,7 @@ public:
 
   CanType getConcreteType() const;
 
-  ArrayRef<Term> getSubstitutions() const;
+  llvm::ArrayRef<Term> getSubstitutions() const;
 
   /// Returns an opaque pointer that uniquely identifies this symbol.
   const void *getOpaquePointer() const {
@@ -209,26 +209,24 @@ public:
   static Symbol forLayout(LayoutConstraint layout,
                           RewriteContext &ctx);
 
-  static Symbol forSuperclass(CanType type,
-                              ArrayRef<Term> substitutions,
+  static Symbol forSuperclass(CanType type, llvm::ArrayRef<Term> substitutions,
                               RewriteContext &ctx);
 
   static Symbol forConcreteType(CanType type,
-                                ArrayRef<Term> substitutions,
+                                llvm::ArrayRef<Term> substitutions,
                                 RewriteContext &ctx);
 
   static Symbol forConcreteConformance(CanType type,
-                                       ArrayRef<Term> substitutions,
+                                       llvm::ArrayRef<Term> substitutions,
                                        const ProtocolDecl *proto,
                                        RewriteContext &ctx);
 
   const ProtocolDecl *getRootProtocol() const;
 
-  Optional<int> compare(Symbol other, RewriteContext &ctx) const;
+  llvm::Optional<int> compare(Symbol other, RewriteContext &ctx) const;
 
-  Symbol withConcreteSubstitutions(
-      ArrayRef<Term> substitutions,
-      RewriteContext &ctx) const;
+  Symbol withConcreteSubstitutions(llvm::ArrayRef<Term> substitutions,
+                                   RewriteContext &ctx) const;
 
   Symbol transformConcreteSubstitutions(
       llvm::function_ref<Term(Term)> fn,

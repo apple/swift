@@ -1719,6 +1719,49 @@ ERROR(objc_implementation_required_attr_mismatch,none,
       "the header",
       (DescriptiveDeclKind, ValueDecl *, bool))
 
+ERROR(objc_implementation_candidate_has_error_convention,none,
+      "%0 %1 does not match the declaration in the header because it throws an "
+      "error",
+      (DescriptiveDeclKind, ValueDecl *))
+
+ERROR(objc_implementation_candidate_lacks_error_convention,none,
+      "%0 %1 does not match the declaration in the header because it does not "
+      "throw an error",
+      (DescriptiveDeclKind, ValueDecl *))
+
+#define SELECT_FOREIGN_ERROR_CONVENTION_KIND \
+      "select{returning zero|returning non-zero|returning zero or a result|" \
+      "returning nil|setting the error parameter|%error}"
+
+ERROR(objc_implementation_mismatched_error_convention_kind,none,
+      "%0 %1 does not match the declaration in the header because it indicates "
+      "an error by %" SELECT_FOREIGN_ERROR_CONVENTION_KIND "2, rather than by "
+      "%" SELECT_FOREIGN_ERROR_CONVENTION_KIND "3",
+      (DescriptiveDeclKind, ValueDecl *, unsigned, unsigned))
+
+ERROR(objc_implementation_mismatched_error_convention_index,none,
+      "%0 %1 does not match the declaration in the header because it uses "
+      "parameter #%2 for the error, not parameter #%3; a selector part called "
+      "'error:' can control which parameter to use",
+      (DescriptiveDeclKind, ValueDecl *, unsigned, unsigned))
+
+ERROR(objc_implementation_mismatched_error_convention_void_param,none,
+      "%0 %1 does not match the declaration in the header because it "
+      "%select{removes the error parameter|makes the error parameter 'Void'}2 "
+      "rather than %select{making it 'Void'|removing it}2",
+      (DescriptiveDeclKind, ValueDecl *, bool))
+
+ERROR(objc_implementation_mismatched_error_convention_ownership,none,
+      "%0 %1 does not match the declaration in the header because it "
+      "%select{does not own|owns}2 the error parameter",
+      (DescriptiveDeclKind, ValueDecl *, bool))
+
+ERROR(objc_implementation_mismatched_error_convention_other,none,
+      "%0 %1 does not match the declaration in the header because it uses a "
+      "different Objective-C error convention; please file a bug report with a "
+      "sample project, as the compiler should be able to describe the mismatch",
+      (DescriptiveDeclKind, ValueDecl *))
+
 ERROR(objc_implementation_wrong_objc_name,none,
       "selector %0 for %1 %2 not found in header; did you mean %3?",
       (ObjCSelector, DescriptiveDeclKind, ValueDecl *, ObjCSelector))
@@ -5239,9 +5282,9 @@ WARNING(non_sendable_param_type,none,
         "in parameter of superclass method overridden by %4 %2 %3|"
         "in parameter of %4 '@objc' %2 %3}1 cannot cross actor boundary",
         (Type, unsigned, DescriptiveDeclKind, DeclName, ActorIsolation))
-WARNING(non_sendable_call_param_type,none,
-        "non-sendable type %0 passed in %select{implicitly asynchronous |}1"
-        "call to %2 function cannot cross actor boundary",
+WARNING(non_sendable_call_argument,none,
+        "passing argument of non-sendable type %0 %select{into %2 context|"
+        "outside of %2 context}1 may introduce data races",
         (Type, bool, ActorIsolation))
 WARNING(non_sendable_result_type,none,
         "non-sendable type %0 returned by %select{call to %4 %2 %3|"
@@ -5520,7 +5563,9 @@ ERROR(tuple_pack_element_label,none,
       "cannot use label with pack expansion tuple element",
       ())
 ERROR(tuple_move_only_not_supported,none,
-      "tuples with noncopyable elements are not supported", ())
+      "tuple with noncopyable element type %0 is not supported", (Type))
+ERROR(tuple_containing_move_only_not_supported,none,
+      "type %0 containing noncopyable element is not supported", (Type))
 ERROR(vararg_not_allowed,none,
       "variadic parameter cannot appear outside of a function parameter list",
       ())
@@ -7059,7 +7104,7 @@ ERROR(attr_incompatible_with_back_deploy,none,
       "'%0' cannot be applied to a back deployed %1",
       (DeclAttribute, DescriptiveDeclKind))
 
-ERROR(backdeployed_opaque_result_not_supported,none,
+WARNING(backdeployed_opaque_result_not_supported,none,
       "'%0' is unsupported on a %1 with a 'some' return type",
       (DeclAttribute, DescriptiveDeclKind))
 
@@ -7218,6 +7263,9 @@ ERROR(global_arbitrary_name,none,
       "'%0' macros are not allowed to introduce arbitrary names "
       "at global scope",
       (StringRef))
+ERROR(local_extension_macro,none,
+      "local type cannot have attached extension macro",
+      ())
 
 ERROR(macro_resolve_circular_reference, none,
       "circular reference resolving %select{freestanding|attached}0 macro %1",
@@ -7267,7 +7315,33 @@ ERROR(self_ownership_specifier_copyable,none,
       (SelfAccessKind, DescriptiveDeclKind))
 ERROR(ownership_specifier_nonescaping_closure,none,
       "'%0' cannot be applied to nonescaping closure", (StringRef))
-ERROR(noncopyable_generics, none, "noncopyable type %0 cannot be used with generics yet", (Type))
+ERROR(noncopyable_generics, none,
+      "noncopyable type %0 cannot be used with generics yet",
+      (Type))
+ERROR(noncopyable_generics_variadic, none,
+      "noncopyable type %0 cannot be used within a variadic type yet",
+      (Type))
+ERROR(noncopyable_generics_specific, none,
+      "noncopyable type %0 cannot be used with generic type %1 yet",
+      (Type, Type))
+ERROR(noncopyable_generics_erasure, none,
+      "noncopyable type %0 cannot be erased to copyable existential type %1",
+      (Type, Type))
+ERROR(noncopyable_generics_metatype_cast, none,
+      "metatype %0 cannot be cast to %1 because %2 is noncopyable",
+      (Type, Type, Type))
+ERROR(noncopyable_generics_generic_param, none,
+      "noncopyable type %0 cannot be substituted for copyable %1 %2 in %3",
+      (Type, DescriptiveDeclKind, Type, DeclName))
+ERROR(noncopyable_generics_generic_param_metatype, none,
+      "metatype %4 of noncopyable type %0 cannot be substituted for copyable %1 %2 in %3",
+      (Type, DescriptiveDeclKind, Type, DeclName, Type))
+NOTE(noncopyable_generics_implicit_copyable, none,
+      "%0 %1 has an implicit Copyable requirement",
+      (DescriptiveDeclKind, Type))
+ERROR(noncopyable_element_of_pack_not_supported,none,
+      "parameter pack containing noncopyable element %0 is not supported",
+      (Type))
 ERROR(noncopyable_effectful_getter,none,
       "%0 of noncopyable type cannot be 'async' or 'throws'", (DescriptiveDeclKind))
 ERROR(noncopyable_enums_do_not_support_indirect,none,

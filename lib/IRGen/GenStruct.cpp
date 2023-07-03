@@ -234,11 +234,11 @@ namespace {
       return fieldInfo.getStructIndex();
     }
 
-    Optional<unsigned> getFieldIndexIfNotEmpty(IRGenModule &IGM,
-                                               VarDecl *field) const {
+    llvm::Optional<unsigned> getFieldIndexIfNotEmpty(IRGenModule &IGM,
+                                                     VarDecl *field) const {
       auto &fieldInfo = getFieldInfo(field);
       if (fieldInfo.isEmpty())
-        return None;
+        return llvm::None;
       return fieldInfo.getStructIndex();
     }
 
@@ -437,10 +437,10 @@ namespace {
     }
 
     llvm::NoneType getNonFixedOffsets(IRGenFunction &IGF) const {
-      return None;
+      return llvm::None;
     }
     llvm::NoneType getNonFixedOffsets(IRGenFunction &IGF, SILType T) const {
-      return None;
+      return llvm::None;
     }
     MemberAccessStrategy
     getNonFixedFieldAccessStrategy(IRGenModule &IGM, SILType T,
@@ -534,9 +534,11 @@ namespace {
       destroy(IGF, src, T, isOutlined);
     }
 
-    llvm::NoneType getNonFixedOffsets(IRGenFunction &IGF) const { return None; }
+    llvm::NoneType getNonFixedOffsets(IRGenFunction &IGF) const {
+      return llvm::None;
+    }
     llvm::NoneType getNonFixedOffsets(IRGenFunction &IGF, SILType T) const {
-      return None;
+      return llvm::None;
     }
     MemberAccessStrategy
     getNonFixedFieldAccessStrategy(IRGenModule &IGM, SILType T,
@@ -611,7 +613,7 @@ namespace {
           /*callee=*/ParameterConvention::Direct_Unowned,
           /*params*/ {ptrParam},
           /*yields*/ {}, /*results*/ {result},
-          /*error*/ None,
+          /*error*/ llvm::None,
           /*pattern subs*/ SubstitutionMap(),
           /*invocation subs*/ SubstitutionMap(), IGF.IGM.Context);
     }
@@ -851,9 +853,11 @@ namespace {
                                                          isOutlined);
     }
 
-    llvm::NoneType getNonFixedOffsets(IRGenFunction &IGF) const { return None; }
+    llvm::NoneType getNonFixedOffsets(IRGenFunction &IGF) const {
+      return llvm::None;
+    }
     llvm::NoneType getNonFixedOffsets(IRGenFunction &IGF, SILType T) const {
-      return None;
+      return llvm::None;
     }
     MemberAccessStrategy
     getNonFixedFieldAccessStrategy(IRGenModule &IGM, SILType T,
@@ -930,10 +934,10 @@ namespace {
       LoadableStructTypeInfo::initialize(IGF, params, addr, isOutlined);
     }
     llvm::NoneType getNonFixedOffsets(IRGenFunction &IGF) const {
-      return None;
+      return llvm::None;
     }
     llvm::NoneType getNonFixedOffsets(IRGenFunction &IGF, SILType T) const {
-      return None;
+      return llvm::None;
     }
     MemberAccessStrategy
     getNonFixedFieldAccessStrategy(IRGenModule &IGM, SILType T,
@@ -1004,10 +1008,10 @@ namespace {
     }
 
     llvm::NoneType getNonFixedOffsets(IRGenFunction &IGF) const {
-      return None;
+      return llvm::None;
     }
     llvm::NoneType getNonFixedOffsets(IRGenFunction &IGF, SILType T) const {
-      return None;
+      return llvm::None;
     }
     MemberAccessStrategy
     getNonFixedFieldAccessStrategy(IRGenModule &IGM, SILType T,
@@ -1552,9 +1556,9 @@ irgen::getPhysicalStructMemberAccessStrategy(IRGenModule &IGM,
   FOR_STRUCT_IMPL(IGM, baseType, getFieldAccessStrategy, baseType, field);
 }
 
-Optional<unsigned> irgen::getPhysicalStructFieldIndex(IRGenModule &IGM,
-                                                      SILType baseType,
-                                                      VarDecl *field) {
+llvm::Optional<unsigned> irgen::getPhysicalStructFieldIndex(IRGenModule &IGM,
+                                                            SILType baseType,
+                                                            VarDecl *field) {
   FOR_STRUCT_IMPL(IGM, baseType, getFieldIndexIfNotEmpty, field);
 }
 

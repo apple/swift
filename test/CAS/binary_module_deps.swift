@@ -6,7 +6,7 @@
 
 // RUN: %target-swift-frontend -emit-module -module-cache-path %t/clang-module-cache %S/../ScanDependencies/Inputs/Swift/E.swiftinterface -o %t/E.swiftmodule -I %S/../ScanDependencies/Inputs/CHeaders -I %S/../ScanDependencies/Inputs/Swift -swift-version 4
 // RUN: %target-swift-frontend -emit-module -module-cache-path %t/clang-module-cache %S/../ScanDependencies/Inputs/Swift/A.swiftinterface -o %t/A.swiftmodule -I %S/../ScanDependencies/Inputs/CHeaders -I %S/../ScanDependencies/Inputs/Swift -swift-version 4
-// RUN: %target-swift-frontend -scan-dependencies -module-cache-path %t/clang-module-cache %s -o %t/deps.json -I %t -swift-version 4 -enable-cas -cas-path %t/cas
+// RUN: %target-swift-frontend -scan-dependencies -module-cache-path %t/clang-module-cache %s -o %t/deps.json -I %t -swift-version 4 -cache-compile-job -cas-path %t/cas
 // RUN: %FileCheck %s -DTEMP=%t < %t/deps.json
 
 /// Test binary module key: binary module key is the CASID of itself.

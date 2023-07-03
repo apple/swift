@@ -221,7 +221,7 @@ LocalTypeDataCache::tryGet(IRGenFunction &IGF, LocalTypeDataKey key,
   auto &chain = it->second;
 
   CacheEntry *best = nullptr;
-  Optional<OperationCost> bestCost;
+  llvm::Optional<OperationCost> bestCost;
 
   CacheEntry *next = chain.Root;
   while (next) {
@@ -548,7 +548,7 @@ void LocalTypeDataCache::
 addAbstractForFulfillments(IRGenFunction &IGF, FulfillmentMap &&fulfillments,
                            llvm::function_ref<AbstractSource()> createSource) {
   // Add the source lazily.
-  Optional<unsigned> sourceIndex;
+  llvm::Optional<unsigned> sourceIndex;
   auto getSourceIndex = [&]() -> unsigned {
     if (!sourceIndex) {
       AbstractSources.emplace_back(createSource());
@@ -604,7 +604,7 @@ addAbstractForFulfillments(IRGenFunction &IGF, FulfillmentMap &&fulfillments,
 
     // Check whether there's already an entry that's at least as good as the
     // fulfillment.
-    Optional<OperationCost> fulfillmentCost;
+    llvm::Optional<OperationCost> fulfillmentCost;
     auto getFulfillmentCost = [&]() -> OperationCost {
       if (!fulfillmentCost)
         fulfillmentCost = fulfillment.second.Path.cost();

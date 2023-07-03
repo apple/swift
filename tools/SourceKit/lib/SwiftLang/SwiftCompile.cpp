@@ -128,12 +128,13 @@ void compile::SessionManager::performCompileAsync(
 
 void SwiftLangSupport::performCompile(
     StringRef Name, ArrayRef<const char *> Args,
-    Optional<VFSOptions> vfsOptions,
+    llvm::Optional<VFSOptions> vfsOptions,
     SourceKitCancellationToken CancellationToken,
     std::function<void(const RequestResult<CompilationResult> &)> Receiver) {
 
   std::string error;
-  auto fileSystem = getFileSystem(vfsOptions, /*primaryFile=*/None, error);
+  auto fileSystem =
+      getFileSystem(vfsOptions, /*primaryFile=*/llvm::None, error);
   if (!fileSystem) {
     Receiver(RequestResult<CompilationResult>::fromError(error));
     return;

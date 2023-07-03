@@ -61,7 +61,7 @@ void SuperclassDeclRequest::noteCycleStep(DiagnosticEngine &diags) const {
                  decl->getDescriptiveKind(), decl->getName());
 }
 
-Optional<ClassDecl *> SuperclassDeclRequest::getCachedResult() const {
+llvm::Optional<ClassDecl *> SuperclassDeclRequest::getCachedResult() const {
   auto nominalDecl = std::get<0>(getStorage());
 
   if (auto *classDecl = dyn_cast<ClassDecl>(nominalDecl))
@@ -72,7 +72,7 @@ Optional<ClassDecl *> SuperclassDeclRequest::getCachedResult() const {
     if (protocolDecl->LazySemanticInfo.SuperclassDecl.getInt())
       return protocolDecl->LazySemanticInfo.SuperclassDecl.getPointer();
 
-  return None;
+  return llvm::None;
 }
 
 void SuperclassDeclRequest::cacheResult(ClassDecl *value) const {
@@ -89,11 +89,11 @@ void SuperclassDeclRequest::cacheResult(ClassDecl *value) const {
 // InheritedProtocolsRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<ArrayRef<ProtocolDecl *>>
+llvm::Optional<ArrayRef<ProtocolDecl *>>
 InheritedProtocolsRequest::getCachedResult() const {
   auto proto = std::get<0>(getStorage());
   if (!proto->areInheritedProtocolsValid())
-    return None;
+    return llvm::None;
 
   return proto->InheritedProtocols;
 }
@@ -112,11 +112,11 @@ void InheritedProtocolsRequest::writeDependencySink(
   }
 }
 
-Optional<ArrayRef<ValueDecl *>>
+llvm::Optional<ArrayRef<ValueDecl *>>
 ProtocolRequirementsRequest::getCachedResult() const {
   auto proto = std::get<0>(getStorage());
   if (!proto->areProtocolRequirementsValid())
-    return None;
+    return llvm::None;
 
   return proto->ProtocolRequirements;
 }
@@ -131,7 +131,8 @@ void ProtocolRequirementsRequest::cacheResult(ArrayRef<ValueDecl *> PDs) const {
 // Missing designated initializers computation
 //----------------------------------------------------------------------------//
 
-Optional<bool> HasMissingDesignatedInitializersRequest::getCachedResult() const {
+llvm::Optional<bool>
+HasMissingDesignatedInitializersRequest::getCachedResult() const {
   auto classDecl = std::get<0>(getStorage());
   return classDecl->getCachedHasMissingDesignatedInitializers();
 }
@@ -172,7 +173,8 @@ HasMissingDesignatedInitializersRequest::evaluate(Evaluator &evaluator,
 // Extended nominal computation.
 //----------------------------------------------------------------------------//
 
-Optional<NominalTypeDecl *> ExtendedNominalRequest::getCachedResult() const {
+llvm::Optional<NominalTypeDecl *>
+ExtendedNominalRequest::getCachedResult() const {
   // Note: if we fail to compute any nominal declaration, it's considered
   // a cache miss. This allows us to recompute the extended nominal types
   // during extension binding.
@@ -182,7 +184,7 @@ Optional<NominalTypeDecl *> ExtendedNominalRequest::getCachedResult() const {
   // fixed point.
   auto ext = std::get<0>(getStorage());
   if (!ext->hasBeenBound() || !ext->getExtendedNominal())
-    return None;
+    return llvm::None;
   return ext->getExtendedNominal();
 }
 
@@ -209,11 +211,11 @@ void ExtendedNominalRequest::writeDependencySink(
 // Destructor computation.
 //----------------------------------------------------------------------------//
 
-Optional<DestructorDecl *> GetDestructorRequest::getCachedResult() const {
+llvm::Optional<DestructorDecl *> GetDestructorRequest::getCachedResult() const {
   auto *classDecl = std::get<0>(getStorage());
   auto results = classDecl->lookupDirect(DeclBaseName::createDestructor());
   if (results.empty())
-    return None;
+    return llvm::None;
 
   return cast<DestructorDecl>(results.front());
 }
@@ -227,7 +229,8 @@ void GetDestructorRequest::cacheResult(DestructorDecl *value) const {
 // GenericParamListRequest computation.
 //----------------------------------------------------------------------------//
 
-Optional<GenericParamList *> GenericParamListRequest::getCachedResult() const {
+llvm::Optional<GenericParamList *>
+GenericParamListRequest::getCachedResult() const {
   using GenericParamsState = GenericContext::GenericParamsState;
   auto *decl = std::get<0>(getStorage());
   switch (decl->GenericParamsAndState.getInt()) {
@@ -236,7 +239,7 @@ Optional<GenericParamList *> GenericParamListRequest::getCachedResult() const {
     return decl->GenericParamsAndState.getPointer();
 
   case GenericParamsState::Parsed:
-    return None;
+    return llvm::None;
   }
 }
 

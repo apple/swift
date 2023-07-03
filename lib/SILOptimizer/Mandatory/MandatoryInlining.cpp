@@ -483,7 +483,7 @@ public:
   // set needs to continue to be updated (by this handler) when deleting
   // instructions. This assumes that DeadFunctionValSet::erase() is stable.
   void cleanupDeadClosures(SILFunction *F) {
-    for (Optional<SILInstruction *> I : deadFunctionVals) {
+    for (llvm::Optional<SILInstruction *> I : deadFunctionVals) {
       if (!I.has_value() || I.value()->isDeleted())
         continue;
 

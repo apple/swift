@@ -1,4 +1,4 @@
-// RUN: %target-typecheck-verify-swift
+// RUN: %target-typecheck-verify-swift -disable-typo-correction
 
 struct X { 
   var b = true, i = 17

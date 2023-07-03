@@ -1,7 +1,5 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -Xllvm -sil-disable-pass=simplification -enable-objc-interop  -primary-file %s -emit-ir | %FileCheck %s -DINT=i%target-ptrsize --check-prefixes=CHECK,CHECK-objc
-// RUN: %target-swift-frontend %use_no_opaque_pointers -Xllvm -sil-disable-pass=simplification -disable-objc-interop -primary-file %s -emit-ir | %FileCheck %s -DINT=i%target-ptrsize --check-prefixes=CHECK,CHECK-native
-// RUN: %target-swift-frontend -Xllvm -sil-disable-pass=simplification -enable-objc-interop  -primary-file %s -emit-ir
-// RUN: %target-swift-frontend -Xllvm -sil-disable-pass=simplification -disable-objc-interop -primary-file %s -emit-ir
+// RUN: %target-swift-frontend -Xllvm -sil-disable-pass=simplification -enable-objc-interop  -primary-file %s -emit-ir | %FileCheck %s -DINT=i%target-ptrsize --check-prefixes=CHECK,CHECK-objc
+// RUN: %target-swift-frontend -Xllvm -sil-disable-pass=simplification -disable-objc-interop -primary-file %s -emit-ir | %FileCheck %s -DINT=i%target-ptrsize --check-prefixes=CHECK,CHECK-native
 sil_stage canonical
 
 import Builtin
@@ -27,11 +25,10 @@ bb0(%0 : $*S):
   return %2 : $@callee_owned (@in O) -> ()
 }
 
-// CHECK-LABEL: define internal swiftcc %T23partial_apply_forwarder1DCyAA1CCG* @"$s23unspecialized_uncurriedTA"(%swift.refcounted*
+// CHECK-LABEL: define internal swiftcc ptr @"$s23unspecialized_uncurriedTA"(ptr
 // CHECK: [[TMP:%.*]] = call swiftcc %swift.metadata_response @"$s23partial_apply_forwarder1CCMa"([[INT]] 0)
 // CHECK: [[TYPE:%.*]] = extractvalue %swift.metadata_response [[TMP]], 0
-// CHECK: [[CAST:%.*]] = bitcast %swift.refcounted* %0 to %T23partial_apply_forwarder1EC*
-// CHECK: [[CALL:%.*]] = call swiftcc %T23partial_apply_forwarder1DC* @unspecialized_uncurried(%swift.type* [[TYPE]], i8** getelementptr inbounds ([1 x i8*], [1 x i8*]* @"$s23partial_apply_forwarder1CCAA1PAAWP", i32 0, i32 0), %T23partial_apply_forwarder1EC* swiftself [[CAST]])
+// CHECK: [[CALL:%.*]] = call swiftcc ptr @unspecialized_uncurried(ptr [[TYPE]], ptr @"$s23partial_apply_forwarder1CCAA1PAAWP", ptr swiftself %0)
 
 sil hidden @specialized_curried : $@convention(thin) (@owned E) -> @owned @callee_owned () -> @owned D<C> {
 bb0(%0 : $E):
@@ -43,13 +40,12 @@ bb0(%0 : $E):
 sil hidden_external @unspecialized_uncurried : $@convention(method) <τ_0_0 where τ_0_0 : P> (@guaranteed E) -> @owned D<τ_0_0>
 
 
-// CHECK-LABEL: define internal swiftcc void @"$s7takingPTA"(%swift.refcounted*
-// CHECK: [[CONTEXT:%.*]] = alloca %swift.refcounted*
+// CHECK-LABEL: define internal swiftcc void @"$s7takingPTA"(ptr
+// CHECK: [[CONTEXT:%.*]] = alloca ptr
 // CHECK: [[TMP:%.*]] = call swiftcc %swift.metadata_response @"$s23partial_apply_forwarder1CCMa"([[INT]] 0)
 // CHECK: [[TYPE:%.*]] = extractvalue %swift.metadata_response [[TMP]], 0
-// CHECK: store %swift.refcounted* %0, %swift.refcounted** [[CONTEXT]]
-// CHECK: [[CAST:%.*]] = bitcast %swift.refcounted** [[CONTEXT]] to %swift.opaque*
-// CHECK:  call swiftcc void @takingP(%swift.type* [[TYPE]], i8**{{.*}}$s23partial_apply_forwarder1CCAA1PAAWP{{.*}}, %swift.opaque* {{.*}} swiftself [[CAST]]
+// CHECK: store ptr %0, ptr [[CONTEXT]]
+// CHECK:  call swiftcc void @takingP(ptr [[TYPE]], ptr{{.*}}$s23partial_apply_forwarder1CCAA1PAAWP{{.*}}, ptr {{.*}} swiftself [[CONTEXT]]
 // CHECK:  ret
 sil hidden_external @takingP : $@convention(method) <τ_0_0 where τ_0_0 : P> (@in_guaranteed τ_0_0) -> ()
 
@@ -81,25 +77,23 @@ sil hidden_external @takingQ : $@convention(thin) <τ_0_0 where  τ_0_0 : Q> (@o
 sil hidden_external @takingQAndEmpty : $@convention(thin) <τ_0_0 where  τ_0_0 : Q> (@owned WeakBox<τ_0_0>, EmptyType) -> ()
 sil hidden_external @takingEmptyAndQ : $@convention(thin) <τ_0_0 where  τ_0_0 : Q> (EmptyType, @owned WeakBox<τ_0_0>) -> ()
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc { i8*, %swift.refcounted* } @bind_polymorphic_param_from_context(%swift.opaque* noalias nocapture %0, %swift.type* %"\CF\84_0_1")
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc { ptr, ptr } @bind_polymorphic_param_from_context(ptr noalias nocapture %0, ptr %"\CF\84_0_1")
 // CHECK: entry:
-// CHECK:   [[TMP:%.*]] = call swiftcc %swift.metadata_response @"$s23partial_apply_forwarder12BaseProducerVMa"([[INT]] 255, %swift.type* %"\CF\84_0_1")
+// CHECK:   [[TMP:%.*]] = call swiftcc %swift.metadata_response @"$s23partial_apply_forwarder12BaseProducerVMa"([[INT]] 255, ptr %"\CF\84_0_1")
 // CHECK:   [[BPTYPE:%.*]] = extractvalue %swift.metadata_response [[TMP]], 0
-// CHECK:   [[TMP:%.*]] = call swiftcc %swift.metadata_response @"$s23partial_apply_forwarder7WeakBoxCMa"([[INT]] 0, %swift.type* [[BPTYPE]])
+// CHECK:   [[TMP:%.*]] = call swiftcc %swift.metadata_response @"$s23partial_apply_forwarder7WeakBoxCMa"([[INT]] 0, ptr [[BPTYPE]])
 // CHECK:   [[WEAKBOXTYPE:%.*]] = extractvalue %swift.metadata_response [[TMP]], 0
-// CHECK:   [[OBJ:%.*]] = call noalias %swift.refcounted* @swift_allocObject(%swift.type* [[WEAKBOXTYPE]]
-// CHECK:   [[WB:%.*]] = bitcast %swift.refcounted* [[OBJ]] to %T23partial_apply_forwarder7WeakBoxC*
-// CHECK:   [[CTX:%.*]] = call noalias %swift.refcounted* @swift_allocObject(
-// CHECK:   [[WITNESS:%.*]] = call i8** @swift_getWitnessTable(
-// CHECK:   [[CLOSURE:%.*]] = insertvalue { i8*, %swift.refcounted* } { i8* bitcast ({{.*}}* @"$s7takingQTA{{(\.ptrauth)?}}" to i8*), %swift.refcounted* undef }, %swift.refcounted* [[CTX]], 1
-// CHECK:   ret { i8*, %swift.refcounted* } [[CLOSURE]]
+// CHECK:   [[OBJ:%.*]] = call noalias ptr @swift_allocObject(ptr [[WEAKBOXTYPE]]
+// CHECK:   [[CTX:%.*]] = call noalias ptr @swift_allocObject(
+// CHECK:   [[WITNESS:%.*]] = call ptr @swift_getWitnessTable(
+// CHECK:   [[CLOSURE:%.*]] = insertvalue { ptr, ptr } { ptr @"$s7takingQTA{{(\.ptrauth)?}}", ptr undef }, ptr [[CTX]], 1
+// CHECK:   ret { ptr, ptr } [[CLOSURE]]
 
-// CHECK-LABEL: define internal swiftcc void @"$s7takingQTA"(%swift.refcounted* swiftself %0)
+// CHECK-LABEL: define internal swiftcc void @"$s7takingQTA"(ptr swiftself %0)
 // CHECK: entry:
-// CHECK:   [[WITNESS:%.*]] = load i8**, i8*** [[WITNESSADDR:%.*]]
-// CHECK:   [[OBJPTR:%.*]] = load %T23partial_apply_forwarder7WeakBoxC*, %T23partial_apply_forwarder7WeakBoxC** {{%.*}}
-// CHECK:   [[OBJ:%.*]] = bitcast %T23partial_apply_forwarder7WeakBoxC* [[OBJPTR]] to %T23partial_apply_forwarder7WeakBoxC.1*
-// CHECK:   tail call swiftcc void @takingQ(%T23partial_apply_forwarder7WeakBoxC.1* [[OBJ]], i8** [[WITNESS:%.*]])
+// CHECK:   [[WITNESS:%.*]] = load ptr, ptr [[WITNESSADDR:%.*]]
+// CHECK:   [[OBJPTR:%.*]] = load ptr, ptr {{%.*}}
+// CHECK:   tail call swiftcc void @takingQ(ptr [[OBJPTR]], ptr [[WITNESS:%.*]])
 // CHECK: }
 
 sil public @bind_polymorphic_param_from_context : $@convention(thin) <τ_0_1>(@in τ_0_1) -> @owned @callee_owned () -> () {
@@ -110,11 +104,10 @@ bb0(%0 : $*τ_0_1):
   return %9 : $@callee_owned () -> ()
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc { i8*, %swift.refcounted* } @bind_polymorphic_param_from_context_2(%swift.opaque* noalias nocapture %0, %swift.type* %"\CF\84_0_1")
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc { ptr, ptr } @bind_polymorphic_param_from_context_2(ptr noalias nocapture %0, ptr %"\CF\84_0_1")
 // CHECK:   [[OBJ:%.*]] = call {{.*}} @swift_allocObject
-// CHECK:   [[WB:%.*]] = bitcast %swift.refcounted* [[OBJ]]
 // CHECK:   [[REF:%.*]] = call {{.*}} @swift_allocObject
-// CHECK:   [[CLOSURE:%.*]] = insertvalue { i8*, %swift.refcounted* } { i8* bitcast ({{.*}}* @"$s15takingQAndEmptyTA{{(\.ptrauth)?}}" to i8*), %swift.refcounted* undef }, %swift.refcounted* [[REF]], 1
+// CHECK:   [[CLOSURE:%.*]] = insertvalue { ptr, ptr } { ptr @"$s15takingQAndEmptyTA{{(\.ptrauth)?}}", ptr undef }, ptr [[REF]], 1
 // CHECK: }
 sil public @bind_polymorphic_param_from_context_2 : $@convention(thin) <τ_0_1>(@in τ_0_1, EmptyType) -> @owned @callee_owned () -> () {
 bb0(%0 : $*τ_0_1, %2: $EmptyType):
@@ -124,11 +117,10 @@ bb0(%0 : $*τ_0_1, %2: $EmptyType):
   return %9 : $@callee_owned () -> ()
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc { i8*, %swift.refcounted* } @bind_polymorphic_param_from_context_3(%swift.opaque* noalias nocapture %0, %swift.type* %"\CF\84_0_1")
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc { ptr, ptr } @bind_polymorphic_param_from_context_3(ptr noalias nocapture %0, ptr %"\CF\84_0_1")
 // CHECK:   [[OBJ:%.*]] = call {{.*}} @swift_allocObject
-// CHECK:   [[WB:%.*]] = bitcast %swift.refcounted* [[OBJ]]
 // CHECK:   [[REF:%.*]] = call {{.*}} @swift_allocObject
-// CHECK:   [[CLOSURE:%.*]] = insertvalue { i8*, %swift.refcounted* } { i8* bitcast ({{.*}}* @"$s15takingEmptyAndQTA{{(\.ptrauth)?}}" to i8*), %swift.refcounted* undef }, %swift.refcounted* [[REF]], 1
+// CHECK:   [[CLOSURE:%.*]] = insertvalue { ptr, ptr } { ptr @"$s15takingEmptyAndQTA{{(\.ptrauth)?}}", ptr undef }, ptr [[REF]], 1
 // CHECK: }
 
 sil public @bind_polymorphic_param_from_context_3 : $@convention(thin) <τ_0_1>(@in τ_0_1, EmptyType) -> @owned @callee_owned () -> () {
@@ -139,20 +131,19 @@ bb0(%0 : $*τ_0_1, %2: $EmptyType):
   return %9 : $@callee_owned () -> ()
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc { i8*, %swift.refcounted* } @bind_polymorphic_param_from_forwarder_parameter(%swift.opaque* noalias nocapture %0, %swift.type* %"\CF\84_0_1")
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc { ptr, ptr } @bind_polymorphic_param_from_forwarder_parameter(ptr noalias nocapture %0, ptr %"\CF\84_0_1")
 // CHECK: entry:
-// CHECK:   [[TMP:%.*]] = call swiftcc %swift.metadata_response @"$s23partial_apply_forwarder12BaseProducerVMa"([[INT]] 255, %swift.type* %"\CF\84_0_1")
+// CHECK:   [[TMP:%.*]] = call swiftcc %swift.metadata_response @"$s23partial_apply_forwarder12BaseProducerVMa"([[INT]] 255, ptr %"\CF\84_0_1")
 // CHECK:   [[BPTY:%.*]] = extractvalue %swift.metadata_response [[TMP]], 0
-// CHECK:   [[TMP:%.*]] = call swiftcc %swift.metadata_response @"$s23partial_apply_forwarder7WeakBoxCMa"([[INT]] 0, %swift.type* [[BPTY]]
+// CHECK:   [[TMP:%.*]] = call swiftcc %swift.metadata_response @"$s23partial_apply_forwarder7WeakBoxCMa"([[INT]] 0, ptr [[BPTY]]
 // CHECK:   [[WBTY:%.*]] = extractvalue %swift.metadata_response [[TMP]], 0
-// CHECK:   call noalias %swift.refcounted* @swift_allocObject(%swift.type* [[WBTY]]
+// CHECK:   call noalias ptr @swift_allocObject(ptr [[WBTY]]
 // CHECK:   ret void
 
-// CHECK-LABEL: define internal swiftcc void @"$s7takingQTA.13"(%T23partial_apply_forwarder7WeakBoxC* %0, %swift.refcounted* swiftself %1)
+// CHECK-LABEL: define internal swiftcc void @"$s7takingQTA.13"(ptr %0, ptr swiftself %1)
 // CHECK: entry:
-// CHECK:   [[OBJ:%.*]] = bitcast %T23partial_apply_forwarder7WeakBoxC* %0 to %T23partial_apply_forwarder7WeakBoxC.1*
-// CHECK:   [[WITNESS:%.*]] = load i8**, i8*** [[WITNESSADDR:%.*]]
-// CHECK:   tail call swiftcc void @takingQ(%T23partial_apply_forwarder7WeakBoxC.1* [[OBJ]], i8** [[WITNESS:%.*]])
+// CHECK:   [[WITNESS:%.*]] = load ptr, ptr [[WITNESSADDR:%.*]]
+// CHECK:   tail call swiftcc void @takingQ(ptr %0, ptr [[WITNESS:%.*]])
 // CHECK:   ret void
 
 sil public @bind_polymorphic_param_from_forwarder_parameter : $@convention(thin) <τ_0_1>(@in τ_0_1) -> @callee_owned (@owned WeakBox<BaseProducer<τ_0_1>>) -> () {
@@ -169,54 +160,44 @@ struct S {
 
 sil hidden_external @takingQAndS : $@convention(thin) <τ_0_0 where  τ_0_0 : Q> (S, @owned WeakBox<τ_0_0>) -> ()
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc {{.*}} @bind_polymorphic_param_from_context_with_layout(%swift.opaque* noalias nocapture %0, i64 %1, %swift.type* %"\CF\84_0_1")
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc {{.*}} @bind_polymorphic_param_from_context_with_layout(ptr noalias nocapture %0, i64 %1, ptr %"\CF\84_0_1")
 // CHECK: entry:
-// CHECK:   [[TMP:%.*]] = call swiftcc %swift.metadata_response @"$s23partial_apply_forwarder12BaseProducerVMa"([[INT]] 255, %swift.type* %"\CF\84_0_1")
+// CHECK:   [[TMP:%.*]] = call swiftcc %swift.metadata_response @"$s23partial_apply_forwarder12BaseProducerVMa"([[INT]] 255, ptr %"\CF\84_0_1")
 // CHECK:   [[BPTY:%.*]] = extractvalue %swift.metadata_response [[TMP]], 0
-// CHECK:   [[TMP:%.*]] = call swiftcc %swift.metadata_response @"$s23partial_apply_forwarder7WeakBoxCMa"([[INT]] 0, %swift.type* [[BPTY]]
+// CHECK:   [[TMP:%.*]] = call swiftcc %swift.metadata_response @"$s23partial_apply_forwarder7WeakBoxCMa"([[INT]] 0, ptr [[BPTY]]
 // CHECK:   [[WBTY:%.*]] = extractvalue %swift.metadata_response [[TMP]], 0
-// CHECK:   [[WBREF:%.*]] = call noalias %swift.refcounted* @swift_allocObject(%swift.type* [[WBTY]]
-// CHECK:   [[WB:%.*]] = bitcast %swift.refcounted* [[WBREF]] to %T23partial_apply_forwarder7WeakBoxC*
-// CHECK:   [[CONTEXT0:%.*]] = call noalias %swift.refcounted* @swift_allocObject
-// CHECK:   [[CONTEXT:%.*]] = bitcast %swift.refcounted* [[CONTEXT0]] to <{ %swift.refcounted,{{.*}} %T23partial_apply_forwarder1SV, %T23partial_apply_forwarder7WeakBoxC* }>*
+// CHECK:   [[WBREF:%.*]] = call noalias ptr @swift_allocObject(ptr [[WBTY]]
+// CHECK:   [[CONTEXT0:%.*]] = call noalias ptr @swift_allocObject
 
-// CHECK:   [[WITNESS_ADDR:%.*]] = getelementptr inbounds <{ %swift.refcounted,{{.*}} %T23partial_apply_forwarder1SV, %T23partial_apply_forwarder7WeakBoxC* }>, <{ %swift.refcounted,{{.*}} %T23partial_apply_forwarder1SV, %T23partial_apply_forwarder7WeakBoxC* }>* [[CONTEXT]], i32 0, i32 {{(1|2)}}
-// CHECK:   [[WITNESS_PTR:%.*]] = bitcast {{.*}} [[WITNESS_ADDR]] to %swift.type**
-// CHECK:   [[WITNESS:%.*]] = call i8** @swift_getWitnessTable(%swift.protocol_conformance_descriptor* @"$s23partial_apply_forwarder12BaseProducerVyxGAA1QAAMc", %swift.type* [[BPTY]], i8*** undef)
-// CHECK:   [[WITNESS_PTR2:%.*]] = bitcast %swift.type** [[WITNESS_PTR]] to i8***
-// CHECK:   store i8** [[WITNESS]], i8*** [[WITNESS_PTR2]]
+// CHECK:   [[WITNESS_ADDR:%.*]] = getelementptr inbounds <{ %swift.refcounted,{{.*}} %T23partial_apply_forwarder1SV, ptr }>, ptr [[CONTEXT0]], i32 0, i32 {{(1|2)}}
+// CHECK:   [[WITNESS:%.*]] = call ptr @swift_getWitnessTable(ptr @"$s23partial_apply_forwarder12BaseProducerVyxGAA1QAAMc", ptr [[BPTY]], ptr undef)
+// CHECK:   store ptr [[WITNESS]], ptr [[WITNESS_ADDR]]
 
-// CHECK:   [[SADDR:%.*]] = getelementptr inbounds <{ %swift.refcounted,{{.*}} %T23partial_apply_forwarder1SV, %T23partial_apply_forwarder7WeakBoxC* }>, <{ %swift.refcounted,{{.*}} %T23partial_apply_forwarder1SV, %T23partial_apply_forwarder7WeakBoxC* }>* [[CONTEXT]], i32 0, i32 {{(2|3)}}
-// CHECK:   [[XADDR:%.*]] = getelementptr inbounds %T23partial_apply_forwarder1SV, %T23partial_apply_forwarder1SV* [[SADDR]], i32 0, i32 0
-// CHECK:   store i64 %1, i64* [[XADDR]]
+// CHECK:   [[SADDR:%.*]] = getelementptr inbounds <{ %swift.refcounted,{{.*}} %T23partial_apply_forwarder1SV, ptr }>, ptr [[CONTEXT0]], i32 0, i32 {{(2|3)}}
+// CHECK:   [[XADDR:%.*]] = getelementptr inbounds %T23partial_apply_forwarder1SV, ptr [[SADDR]], i32 0, i32 0
+// CHECK:   store i64 %1, ptr [[XADDR]]
 
-// CHECK:   [[WBADDR:%.*]] = getelementptr inbounds <{ %swift.refcounted,{{.*}} %T23partial_apply_forwarder1SV, %T23partial_apply_forwarder7WeakBoxC* }>, <{ %swift.refcounted,{{.*}} %T23partial_apply_forwarder1SV, %T23partial_apply_forwarder7WeakBoxC* }>* [[CONTEXT]], i32 0, i32 {{(3|4)}}
-// CHECK:   store %T23partial_apply_forwarder7WeakBoxC* [[WB]], %T23partial_apply_forwarder7WeakBoxC** [[WBADDR]]
-// CHECK:   [[CLOSURE:%.*]] = insertvalue { i8*, %swift.refcounted* } { i8* bitcast ({{.*}}* @"$s11takingQAndSTA{{(\.ptrauth)?}}" to i8*), %swift.refcounted* undef }, %swift.refcounted* [[CONTEXT0]], 1
-// CHECK:   ret { i8*, %swift.refcounted* } [[CLOSURE]]
+// CHECK:   [[WBADDR:%.*]] = getelementptr inbounds <{ %swift.refcounted,{{.*}} %T23partial_apply_forwarder1SV, ptr }>, ptr [[CONTEXT0]], i32 0, i32 {{(3|4)}}
+// CHECK:   store ptr [[WBREF]], ptr [[WBADDR]]
+// CHECK:   [[CLOSURE:%.*]] = insertvalue { ptr, ptr } { ptr @"$s11takingQAndSTA{{(\.ptrauth)?}}", ptr undef }, ptr [[CONTEXT0]], 1
+// CHECK:   ret { ptr, ptr } [[CLOSURE]]
 
-// CHECK-LABEL: define internal swiftcc void @"$s11takingQAndSTA"(%swift.refcounted* swiftself %0)
+// CHECK-LABEL: define internal swiftcc void @"$s11takingQAndSTA"(ptr swiftself %0)
 // CHECK: entry:
-// CHECK:   [[CONTEXT:%.*]] = bitcast %swift.refcounted* %0 to <{ %swift.refcounted,{{.*}} %T23partial_apply_forwarder1SV, %T23partial_apply_forwarder7WeakBoxC* }>*
 
-// CHECK:   [[WITNESS_ADDR:%.*]] = getelementptr inbounds <{ %swift.refcounted,{{.*}} %T23partial_apply_forwarder1SV, %T23partial_apply_forwarder7WeakBoxC* }>, <{ %swift.refcounted,{{.*}} %T23partial_apply_forwarder1SV, %T23partial_apply_forwarder7WeakBoxC* }>* [[CONTEXT]], i32 0, i32 {{(1|2)}}
-// CHECK:   [[WITNESS_PTR:%.*]] = bitcast {{.*}} [[WITNESS_ADDR]] to %swift.type**
-// CHECK:   [[WITNESS_PTR2:%.*]] = bitcast %swift.type** [[WITNESS_PTR]] to i8***
-// CHECK:   [[WITNESS:%.*]] = load i8**, i8*** [[WITNESS_PTR2]]
+// CHECK:   [[WITNESS_ADDR:%.*]] = getelementptr inbounds <{ %swift.refcounted,{{.*}} %T23partial_apply_forwarder1SV, ptr }>, ptr %0, i32 0, i32 {{(1|2)}}
+// CHECK:   [[WITNESS:%.*]] = load ptr, ptr [[WITNESS_ADDR]]
 
-// CHECK:   [[SADDR:%.*]] = getelementptr inbounds <{ %swift.refcounted,{{.*}} %T23partial_apply_forwarder1SV, %T23partial_apply_forwarder7WeakBoxC* }>, <{ %swift.refcounted,{{.*}} %T23partial_apply_forwarder1SV, %T23partial_apply_forwarder7WeakBoxC* }>* [[CONTEXT]], i32 0, i32 {{(2|3)}}
-// CHECK:   [[XADDR:%.*]] = getelementptr inbounds %T23partial_apply_forwarder1SV, %T23partial_apply_forwarder1SV* [[SADDR]], i32 0, i32 0
-// CHECK:   [[X:%.*]] = load i64, i64* [[XADDR]]
+// CHECK:   [[SADDR:%.*]] = getelementptr inbounds <{ %swift.refcounted,{{.*}} %T23partial_apply_forwarder1SV, ptr }>, ptr %0, i32 0, i32 {{(2|3)}}
+// CHECK:   [[XADDR:%.*]] = getelementptr inbounds %T23partial_apply_forwarder1SV, ptr [[SADDR]], i32 0, i32 0
+// CHECK:   [[X:%.*]] = load i64, ptr [[XADDR]]
 
-// CHECK:   [[WBADDR:%.*]] = getelementptr inbounds <{ %swift.refcounted,{{.*}} %T23partial_apply_forwarder1SV, %T23partial_apply_forwarder7WeakBoxC* }>, <{ %swift.refcounted,{{.*}} %T23partial_apply_forwarder1SV, %T23partial_apply_forwarder7WeakBoxC* }>* [[CONTEXT]], i32 0, i32 {{(3|4)}}
-// CHECK:   [[WB:%.*]] = load %T23partial_apply_forwarder7WeakBoxC*, %T23partial_apply_forwarder7WeakBoxC** [[WBADDR]]
-// CHECK:   [[WBREF:%.*]] = bitcast %T23partial_apply_forwarder7WeakBoxC* [[WB]] to %swift.refcounted*
-// CHECK:   call %swift.refcounted* @swift_retain(%swift.refcounted* returned [[WBREF]])
-// CHECK:   [[TYADDR:%.*]] = bitcast %T23partial_apply_forwarder7WeakBoxC* [[WB]]
-// CHECK:   [[TY:%.*]] = load %swift.type*, %swift.type** [[TYADDR]]
-// CHECK:   %.asUnsubstituted = bitcast %T23partial_apply_forwarder7WeakBoxC* [[WB]] to %T23partial_apply_forwarder7WeakBoxC.1*
-// CHECK:   call void @swift_release(%swift.refcounted* %0)
-// CHECK:   tail call swiftcc void @takingQAndS(i64 [[X]], %T23partial_apply_forwarder7WeakBoxC.1* %.asUnsubstituted, i8** [[WITNESS]])
+// CHECK:   [[WBADDR:%.*]] = getelementptr inbounds <{ %swift.refcounted,{{.*}} %T23partial_apply_forwarder1SV, ptr }>, ptr %0, i32 0, i32 {{(3|4)}}
+// CHECK:   [[WB:%.*]] = load ptr, ptr [[WBADDR]]
+// CHECK:   call ptr @swift_retain(ptr returned [[WB]])
+// CHECK:   [[TY:%.*]] = load ptr, ptr [[WB]]
+// CHECK:   call void @swift_release(ptr %0)
+// CHECK:   tail call swiftcc void @takingQAndS(i64 [[X]], ptr [[WB]], ptr [[WITNESS]])
 sil public @bind_polymorphic_param_from_context_with_layout : $@convention(thin) <τ_0_1>(@in τ_0_1, S) -> @owned @callee_owned () -> () {
 bb0(%0 : $*τ_0_1, %1: $S):
   %2 = alloc_ref $WeakBox<BaseProducer<τ_0_1>>
@@ -247,9 +228,9 @@ bb0:
   return %1 : $@callee_guaranteed (Empty<S>) -> (@owned Empty<S>, @owned @callee_guaranteed (Empty<S>) -> @owned Empty<S>)
 }
 
-// CHECK-LABEL: define hidden swiftcc { i8*, %swift.refcounted* } @specializes_closure_returning_closure() #0 {
+// CHECK-LABEL: define hidden swiftcc { ptr, ptr } @specializes_closure_returning_closure() #0 {
 // CHECK: entry:
-// CHECK: ret { i8*, %swift.refcounted* } { i8* bitcast ({{.*}} @"{{.*}}returns_closure{{.*}}" to i8*), %swift.refcounted* null }
+// CHECK: ret { ptr, ptr } { ptr @"{{.*}}returns_closure{{.*}}", ptr null }
 
 protocol MyEquatable {
   static func isEqual (lhs: Self, rhs: Self) -> Builtin.Int1

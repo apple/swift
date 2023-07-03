@@ -30,8 +30,8 @@ class TypeAccessScopeChecker {
   const SourceFile *File;
   bool TreatUsableFromInlineAsPublic;
 
-  Optional<AccessScope> Scope = AccessScope::getPublic();
-  ImportAccessLevel ImportRestriction = None;
+  llvm::Optional<AccessScope> Scope = AccessScope::getPublic();
+  ImportAccessLevel ImportRestriction = llvm::None;
 
   TypeAccessScopeChecker(const DeclContext *useDC,
                          bool treatUsableFromInlineAsPublic)
@@ -63,7 +63,7 @@ class TypeAccessScopeChecker {
 public:
 
   struct Result {
-    Optional<AccessScope> Scope;
+    llvm::Optional<AccessScope> Scope;
     ImportAccessLevel Import;
   };
 

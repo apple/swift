@@ -9,18 +9,18 @@
 
 @_moveOnly
 struct Foo {
-    var t: (Int, Butt) // expected-error{{tuples with noncopyable elements are not supported}}
+    var t: (Int, Butt) // expected-error{{tuple with noncopyable element type 'Butt' is not supported}}
 }
 @_moveOnly
 struct Bar<T> {
-    var t: (T, Butt) // expected-error{{tuples with noncopyable elements are not supported}}
-    var u: (Int, (T, Butt)) // expected-error{{tuples with noncopyable elements are not supported}}
+    var t: (T, Butt) // expected-error{{tuple with noncopyable element type 'Butt' is not supported}}
+    var u: (Int, (T, Butt)) // expected-error{{tuple with noncopyable element type 'Butt' is not supported}}
 }
 
 func inferredTuples<T>(x: Int, y: borrowing Butt, z: T) {
-    let a = (x, y) // expected-error{{tuples with noncopyable elements are not supported}}
-    let b = (y, z) // expected-error{{tuples with noncopyable elements are not supported}}
-    let c = (x, y, z) // expected-error{{tuples with noncopyable elements are not supported}}
+    let a = (x, y) // expected-error{{type '(Int, Butt)' containing noncopyable element is not supported}}
+    let b = (y, z) // expected-error{{type '(Butt, T)' containing noncopyable element is not supported}}
+    let c = (x, y, z) // expected-error{{type '(Int, Butt, T)' containing noncopyable element is not supported}}
     _ = a
     _ = b
     _ = c

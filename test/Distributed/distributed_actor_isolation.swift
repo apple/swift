@@ -207,10 +207,10 @@ distributed actor DijonMustard {
 
   convenience init(conv: FakeActorSystem) { // expected-warning {{initializers in actors are not marked with 'convenience'; this is an error in Swift 6}}{{3-15=}}
     self.init(system: conv)
-    self.f() // expected-error {{actor-isolated instance method 'f()' can not be referenced from a non-isolated context}}
+    self.f() // expected-error {{call to actor-isolated instance method 'f()' in a synchronous nonisolated context}}
   }
 
-  func f() {} // expected-note {{distributed actor-isolated instance method 'f()' declared here}}
+  func f() {} // expected-note {{calls to instance method 'f()' from outside of its actor context are implicitly asynchronous}}
 
   nonisolated init(conv2: FakeActorSystem) { // expected-warning {{'nonisolated' on an actor's synchronous initializer is invalid; this is an error in Swift 6}} {{3-15=}}
     self.init(system: conv2)

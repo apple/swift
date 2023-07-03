@@ -312,7 +312,7 @@ static bool isProtocolExtensionAsSpecializedAs(DeclContext *dc1,
 
   // Form a constraint system where we've opened up all of the requirements of
   // the second protocol extension.
-  ConstraintSystem cs(dc1, None);
+  ConstraintSystem cs(dc1, llvm::None);
   OpenedTypeMap replacements;
   cs.openGeneric(dc2, sig2, ConstraintLocatorBuilder(nullptr), replacements);
 
@@ -739,7 +739,7 @@ struct TypeBindingsToCompare {
 /// Given the bound types of two constructor overloads, returns their parameter
 /// list types as tuples to compare for solution ranking, or \c None if they
 /// shouldn't be compared.
-static Optional<TypeBindingsToCompare>
+static llvm::Optional<TypeBindingsToCompare>
 getConstructorParamsAsTuples(ASTContext &ctx, Type boundTy1, Type boundTy2) {
   auto choiceTy1 =
       boundTy1->lookThroughAllOptionalTypes()->getAs<FunctionType>();
@@ -749,19 +749,19 @@ getConstructorParamsAsTuples(ASTContext &ctx, Type boundTy1, Type boundTy2) {
   // If the type variables haven't been bound to functions yet, let's not try
   // and rank them.
   if (!choiceTy1 || !choiceTy2)
-    return None;
+    return llvm::None;
 
   auto initParams1 = choiceTy1->getParams();
   auto initParams2 = choiceTy2->getParams();
   if (initParams1.size() != initParams2.size())
-    return None;
+    return llvm::None;
 
   // Don't compare if there are variadic differences. This preserves the
   // behavior of when we'd compare through matchTupleTypes with the parameter
   // flags intact.
   for (auto idx : indices(initParams1)) {
     if (initParams1[idx].isVariadic() != initParams2[idx].isVariadic())
-      return None;
+      return llvm::None;
   }
 
   // Awful hack needed to preserve source compatibility: If we have single
@@ -1351,15 +1351,15 @@ SolutionCompareResult ConstraintSystem::compareSolutions(
                   : SolutionCompareResult::Incomparable;
 }
 
-Optional<unsigned>
+llvm::Optional<unsigned>
 ConstraintSystem::findBestSolution(SmallVectorImpl<Solution> &viable,
                                    bool minimize) {
   // Don't spend time filtering solutions if we already hit a threshold.
   if (isTooComplex(viable))
-    return None;
+    return llvm::None;
 
   if (viable.empty())
-    return None;
+    return llvm::None;
   if (viable.size() == 1)
     return 0;
 
@@ -1407,7 +1407,7 @@ ConstraintSystem::findBestSolution(SmallVectorImpl<Solution> &viable,
 
     // Give up if we're out of time.
     if (isTooComplex(/*solutions=*/{}))
-      return None;
+      return llvm::None;
   }
 
   // Make sure that our current best is better than all of the solved systems.
@@ -1433,7 +1433,7 @@ ConstraintSystem::findBestSolution(SmallVectorImpl<Solution> &viable,
     case SolutionCompareResult::Incomparable:
       // If we're not supposed to minimize the result set, just return eagerly.
       if (!minimize)
-        return None;
+        return llvm::None;
 
       ambiguous = true;
       break;
@@ -1441,7 +1441,7 @@ ConstraintSystem::findBestSolution(SmallVectorImpl<Solution> &viable,
 
     // Give up if we're out of time.
     if (isTooComplex(/*solutions=*/{}))
-      return None;
+      return llvm::None;
   }
 
   // If the result was not ambiguous, we're done.
@@ -1451,7 +1451,7 @@ ConstraintSystem::findBestSolution(SmallVectorImpl<Solution> &viable,
   }
 
   if (!minimize)
-    return None;
+    return llvm::None;
 
   // Remove any solution that is worse than some other solution.
   unsigned outIndex = 0;
@@ -1471,7 +1471,7 @@ ConstraintSystem::findBestSolution(SmallVectorImpl<Solution> &viable,
   viable.erase(viable.begin() + outIndex, viable.end());
   NumDiscardedSolutions += viable.size() - outIndex;
 
-  return None;
+  return llvm::None;
 }
 
 SolutionDiff::SolutionDiff(ArrayRef<Solution> solutions) {

@@ -85,9 +85,6 @@ final public class Function : CustomStringConvertible, HasShortDescription, Hash
   public var resultType: Type { bridged.getSILResultType().type }
 
   public func getArgumentConvention(for argumentIndex: Int) -> ArgumentConvention {
-    if argumentIndex < numIndirectResultArguments {
-      return .indirectOut
-    }
     return bridged.getSILArgumentConvention(argumentIndex).convention
   }
 

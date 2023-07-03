@@ -266,13 +266,13 @@ public struct ConformsToTopLevelProtocol: TopLevelProtocol {
 }
 
 @available(SwiftStdlib 5.1, *)
-@backDeployed(before: macOS 12.0) // expected-error {{'@backDeployed' is unsupported on a var with a 'some' return type}}
+@backDeployed(before: macOS 12.0) // expected-warning {{'@backDeployed' is unsupported on a var with a 'some' return type}}
 public var cannotBackDeployVarWithOpaqueResultType: some TopLevelProtocol {
   return ConformsToTopLevelProtocol()
 }
 
 @available(SwiftStdlib 5.1, *)
-@backDeployed(before: macOS 12.0) // expected-error {{'@backDeployed' is unsupported on a global function with a 'some' return type}}
+@backDeployed(before: macOS 12.0) // expected-warning {{'@backDeployed' is unsupported on a global function with a 'some' return type}}
 public func cannotBackDeployFuncWithOpaqueResultType() -> some TopLevelProtocol {
   return ConformsToTopLevelProtocol()
 }

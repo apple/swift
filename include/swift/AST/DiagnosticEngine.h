@@ -828,7 +828,7 @@ namespace swift {
     DiagnosticState state;
 
     /// The currently active diagnostic, if there is one.
-    Optional<Diagnostic> ActiveDiagnostic;
+    llvm::Optional<Diagnostic> ActiveDiagnostic;
 
     /// Diagnostics wrapped by ActiveDiagnostic, if any.
     SmallVector<DiagnosticInfo, 2> WrappedDiagnostics;
@@ -1170,7 +1170,7 @@ namespace swift {
     Diagnostic &getActiveDiagnostic() { return *ActiveDiagnostic; }
 
     /// Generate DiagnosticInfo for a Diagnostic to be passed to consumers.
-    Optional<DiagnosticInfo>
+    llvm::Optional<DiagnosticInfo>
     diagnosticInfoForDiagnostic(const Diagnostic &diagnostic);
 
     /// Send \c diag to all diagnostic consumers.

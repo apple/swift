@@ -63,6 +63,12 @@ requireHashable(S2())
 
 requireEquatable(E.Nested())
 
+extension E {
+  @Equatable struct NestedInExtension {}
+}
+
+requireEquatable(E.NestedInExtension())
+
 #if TEST_DIAGNOSTICS
 requireEquatable(PublicEquatable())
 

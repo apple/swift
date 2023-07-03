@@ -5,19 +5,23 @@
 import CxxStdlib
 
 func test() {
-    let x: Float = 1.0
+    let x: Double = 1.0
     let y: Double = 2.0
 
-    // Note: we dispatch `pow(Float,Double)`
-    // to ensure we don't pick up the
-    // C++ stdlib `pow` function template.
-    // The `pow` function is still reexported
-    // from Darwin via CxxStdlib, so there are
-    // matching overloads that can be found still.
-    // Note: the error is different on Glibc instead
-    // of Darwin, so do not check the exact error.
-    let _ =  CxxStdlib.pow(x, y) // expected-error {{}}
+    let _ =  pow(x, y)
 
-    let _ = CxxStdlib.abs(x) // expected-error {{module 'CxxStdlib' has no member named 'abs'}}
-    let _ = CxxStdlib.div(x) // expected-error {{module 'CxxStdlib' has no member named 'div'}}
+    let _ = abs(x)
+    // https://github.com/apple/swift/issues/67006
+    // let _ = div(42, 2)
+    let _ = sin(x)
+    let _ = cos(x)
+
+    // strstr comes from stdlib.h or cstdlib on *some* flavors of linux, so it
+    // won't get imported. We may need a more fine grained approach for those
+    // platforms.
+#if !os(Linux)
+    let _ = strstr("a", "aaa")
+#endif
+
+    exit(0)
 }

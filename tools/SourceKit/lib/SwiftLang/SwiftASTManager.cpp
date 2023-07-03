@@ -1182,6 +1182,7 @@ void ASTBuildOperation::schedule(WorkQueue Queue) {
                             /*ExpectedOldState=*/State::Running);
         };
 
+        SmallVector<SwiftASTConsumerRef, 4> ConsumersToCancel;
         {
           llvm::sys::ScopedLock L(ConsumersAndResultMtx);
           if (Consumers.empty()) {
@@ -1192,24 +1193,25 @@ void ASTBuildOperation::schedule(WorkQueue Queue) {
           if (CancellationFlag->load(std::memory_order_relaxed)) {
             assert(false && "We should only set the cancellation flag if there "
                             "are no more consumers");
-            for (auto &Consumer : Consumers) {
-              Consumer->cancelled();
-            }
+            ConsumersToCancel = Consumers;
           }
+        }
+        for (auto &Consumer : ConsumersToCancel) {
+          Consumer->cancelled();
         }
 
         std::string Error;
         assert(!Result && "We should only be producing a result once");
         ASTUnitRef AST = buildASTUnit(Error);
-        SmallVector<SwiftASTConsumerRef, 4> LocalConsumers;
+        SmallVector<SwiftASTConsumerRef, 4> ConsumersToInform;
         {
           llvm::sys::ScopedLock L(ConsumersAndResultMtx);
           bool WasCancelled = CancellationFlag->load(std::memory_order_relaxed);
           Result.emplace(AST, Error, WasCancelled);
-          LocalConsumers = Consumers;
+          ConsumersToInform = Consumers;
           Consumers = {};
         }
-        for (auto &Consumer : LocalConsumers) {
+        for (auto &Consumer : ConsumersToInform) {
           informConsumer(Consumer);
         }
         DidFinishCallback();

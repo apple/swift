@@ -308,9 +308,9 @@ TEST(TypeRefTest, UniqueMetatypeTypeRef) {
   TypeRefBuilder Builder(TypeRefBuilder::ForTesting);
 
   auto N1 = Builder.createNominalType(ABC_decl, nullptr);
-  auto M1 = Builder.createMetatypeType(N1, None);
-  auto M2 = Builder.createMetatypeType(N1, None);
-  auto MM3 = Builder.createMetatypeType(M1, None);
+  auto M1 = Builder.createMetatypeType(N1, llvm::None);
+  auto M2 = Builder.createMetatypeType(N1, llvm::None);
+  auto MM3 = Builder.createMetatypeType(M1, llvm::None);
   auto M4 = Builder.createMetatypeType(N1, Demangle::ImplMetatypeRepresentation::Thick);
 
   EXPECT_EQ(M1, M2);

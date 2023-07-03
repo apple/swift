@@ -20,6 +20,7 @@
 
 #include "swift/Basic/LLVM.h"
 #include "swift/Basic/OptionSet.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSet.h"
@@ -342,16 +343,14 @@ struct OmissionTypeName {
 
   /// Construct a type name.
   OmissionTypeName(StringRef name = StringRef(),
-                   OmissionTypeOptions options = None,
+                   OmissionTypeOptions options = llvm::None,
                    StringRef collectionElement = StringRef())
-    : Name(name), CollectionElement(collectionElement),
-      Options(options) { }
+      : Name(name), CollectionElement(collectionElement), Options(options) {}
 
   /// Construct a type name.
-  OmissionTypeName(const char * name, OmissionTypeOptions options = None,
+  OmissionTypeName(const char *name, OmissionTypeOptions options = llvm::None,
                    StringRef collectionElement = StringRef())
-    : Name(name), CollectionElement(collectionElement),
-      Options(options) { }
+      : Name(name), CollectionElement(collectionElement), Options(options) {}
 
   /// Produce a new type name for omission with a default argument.
   OmissionTypeName withDefaultArgument(bool defaultArgument = true) {
@@ -453,21 +452,18 @@ public:
 /// just chopping names.
 ///
 /// \returns true if any words were omitted, false otherwise.
-bool omitNeedlessWords(StringRef &baseName,
-                       MutableArrayRef<StringRef> argNames,
-                       StringRef firstParamName,
-                       OmissionTypeName resultType,
+bool omitNeedlessWords(StringRef &baseName, MutableArrayRef<StringRef> argNames,
+                       StringRef firstParamName, OmissionTypeName resultType,
                        OmissionTypeName contextType,
-                       ArrayRef<OmissionTypeName> paramTypes,
-                       bool returnsSelf,
+                       ArrayRef<OmissionTypeName> paramTypes, bool returnsSelf,
                        bool isProperty,
                        const InheritedNameSet *allPropertyNames,
-                       Optional<unsigned> completionHandlerIndex,
-                       Optional<StringRef> completionHandlerName,
+                       llvm::Optional<unsigned> completionHandlerIndex,
+                       llvm::Optional<StringRef> completionHandlerName,
                        StringScratchSpace &scratch);
 
 /// If the name has a completion-handler suffix, strip off that suffix.
-Optional<StringRef> stripWithCompletionHandlerSuffix(StringRef name);
+llvm::Optional<StringRef> stripWithCompletionHandlerSuffix(StringRef name);
 
 /// Represents a string that can be efficiently retrieved either as a StringRef
 /// or as a null-terminated C string.

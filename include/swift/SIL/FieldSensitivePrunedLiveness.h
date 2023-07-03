@@ -202,8 +202,8 @@ struct SubElementOffset {
   ///
   /// \returns None if we didn't know how to compute sub-element for this
   /// projection.
-  static Optional<SubElementOffset> compute(SILValue projectionFromRoot,
-                                            SILValue root) {
+  static llvm::Optional<SubElementOffset> compute(SILValue projectionFromRoot,
+                                                  SILValue root) {
     assert(projectionFromRoot->getType().getCategory() ==
                root->getType().getCategory() &&
            "projectionFromRoot and root must both be objects or address.");
@@ -220,10 +220,10 @@ struct SubElementOffset {
   }
 
 private:
-  static Optional<SubElementOffset>
+  static llvm::Optional<SubElementOffset>
   computeForAddress(SILValue projectionFromRoot, SILValue rootAddress);
-  static Optional<SubElementOffset> computeForValue(SILValue projectionFromRoot,
-                                                    SILValue rootValue);
+  static llvm::Optional<SubElementOffset>
+  computeForValue(SILValue projectionFromRoot, SILValue rootValue);
 };
 
 /// Given a type T, this is the number of leaf field types in T's type tree. A
@@ -294,11 +294,11 @@ struct TypeTreeLeafTypeRange {
   ///
   /// \returns None if we are unable to understand the path in between \p
   /// projectedAddress and \p rootAddress.
-  static Optional<TypeTreeLeafTypeRange> get(SILValue projectedValue,
-                                             SILValue rootValue) {
+  static llvm::Optional<TypeTreeLeafTypeRange> get(SILValue projectedValue,
+                                                   SILValue rootValue) {
     auto startEltOffset = SubElementOffset::compute(projectedValue, rootValue);
     if (!startEltOffset)
-      return None;
+      return llvm::None;
     return {{*startEltOffset,
              *startEltOffset + TypeSubElementCount(projectedValue)}};
   }
@@ -321,6 +321,10 @@ struct TypeTreeLeafTypeRange {
       SmallVectorImpl<std::pair<SILValue, TypeTreeLeafTypeRange>>
           &resultingProjections);
 
+  static void visitContiguousRanges(
+      SmallBitVector const &bits,
+      llvm::function_ref<void(TypeTreeLeafTypeRange)> callback);
+
   bool operator==(const TypeTreeLeafTypeRange &other) const {
     return startEltOffset == other.startEltOffset &&
            endEltOffset == other.endEltOffset;
@@ -332,7 +336,7 @@ struct TypeTreeLeafTypeRange {
 
   /// Return the type tree leaf type range that is the intersection of \p this
   /// and \p other.
-  Optional<TypeTreeLeafTypeRange>
+  llvm::Optional<TypeTreeLeafTypeRange>
   setIntersection(const TypeTreeLeafTypeRange &other) const {
     unsigned start = startEltOffset;
     if (startEltOffset < other.startEltOffset)
@@ -341,7 +345,7 @@ struct TypeTreeLeafTypeRange {
     if (endEltOffset >= other.endEltOffset)
       end = other.endEltOffset;
     if (start >= end)
-      return None;
+      return llvm::None;
     return TypeTreeLeafTypeRange(start, end);
   }
 
@@ -513,7 +517,7 @@ private:
   ///
   /// NOTE: After clearing, this is set to None to ensure that the user
   /// reinitializes it as appropriate.
-  Optional<unsigned> numBitsToTrack;
+  llvm::Optional<unsigned> numBitsToTrack;
 
   /// Optional vector of live blocks for clients that deterministically iterate.
   SmallVectorImpl<SILBasicBlock *> *discoveredBlocks;
@@ -538,7 +542,7 @@ public:
     liveBlocks.clear();
     if (discoveredBlocks)
       discoveredBlocks->clear();
-    numBitsToTrack = None;
+    numBitsToTrack = llvm::None;
     SWIFT_ASSERT_ONLY(seenUse = false);
   }
 
@@ -726,7 +730,8 @@ public:
         return;
 
       assert(ranges.empty());
-      Optional<std::pair<unsigned, IsInterestingUser>> current = llvm::None;
+      llvm::Optional<std::pair<unsigned, IsInterestingUser>> current =
+          llvm::None;
       for (unsigned bit = 0, size = liveBits.size(); bit < size; ++bit) {
         auto interesting = isInterestingUser(bit);
         if (!current) {
@@ -1108,11 +1113,11 @@ class FieldSensitiveSSAPrunedLiveRange
     : public FieldSensitivePrunedLiveRange<FieldSensitiveSSAPrunedLiveRange> {
   using Super = FieldSensitivePrunedLiveRange<FieldSensitiveSSAPrunedLiveRange>;
 
-  std::pair<SILValue, Optional<TypeTreeLeafTypeRange>> def = {{}, {}};
+  std::pair<SILValue, llvm::Optional<TypeTreeLeafTypeRange>> def = {{}, {}};
 
   /// None for arguments.
-  std::pair<SILInstruction *, Optional<TypeTreeLeafTypeRange>> defInst = {
-      nullptr, None};
+  std::pair<SILInstruction *, llvm::Optional<TypeTreeLeafTypeRange>> defInst = {
+      nullptr, llvm::None};
 
 public:
   FieldSensitiveSSAPrunedLiveRange(
@@ -1120,7 +1125,7 @@ public:
       SmallVectorImpl<SILBasicBlock *> *discoveredBlocks = nullptr)
       : FieldSensitivePrunedLiveRange(fn, discoveredBlocks) {}
 
-  std::pair<SILValue, Optional<TypeTreeLeafTypeRange>> getDef() const {
+  std::pair<SILValue, llvm::Optional<TypeTreeLeafTypeRange>> getDef() const {
     assert(isInitialized());
     return def;
   }
@@ -1214,6 +1219,11 @@ public:
     assert(isInitialized());
     defs.setFrozen();
     defBlocks.setFrozen();
+  }
+
+  void initializeDef(SILInstruction *def, SmallBitVector const &bits) {
+    TypeTreeLeafTypeRange::visitContiguousRanges(
+        bits, [&](auto range) { initializeDef(def, range); });
   }
 
   void initializeDef(SILValue def, TypeTreeLeafTypeRange span) {

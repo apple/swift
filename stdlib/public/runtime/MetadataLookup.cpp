@@ -785,19 +785,11 @@ _searchTypeMetadataRecords(TypeMetadataPrivateState &T,
 
 static const ConcurrencyStandardTypeDescriptors *concurrencyDescriptors;
 
+/// Perform a fast-path lookup for standard library type references with short
+/// manglings. Returns the appropriate descriptor, or NULL if the descriptor
+/// couldn't be resolved, or if the node does not refer to one of those types.
 static const ContextDescriptor *
-_findContextDescriptor(Demangle::NodePointer node,
-                       Demangle::Demangler &Dem) {
-  NodePointer symbolicNode = node;
-  if (symbolicNode->getKind() == Node::Kind::Type)
-    symbolicNode = symbolicNode->getChild(0);
-
-  // If we have a symbolic reference to a context, resolve it immediately.
-  if (symbolicNode->getKind() == Node::Kind::TypeSymbolicReference) {
-    return cast<TypeContextDescriptor>(
-      (const ContextDescriptor *)symbolicNode->getIndex());
-  }
-
+descriptorFromStandardMangling(Demangle::NodePointer symbolicNode) {
 #if SWIFT_STDLIB_SHORT_MANGLING_LOOKUPS
   // Fast-path lookup for standard library type references with short manglings.
   if (symbolicNode->getNumChildren() >= 2
@@ -823,6 +815,24 @@ _findContextDescriptor(Demangle::NodePointer node,
 #include "swift/Demangling/StandardTypesMangling.def"
   }
 #endif
+  return nullptr;
+}
+
+static const ContextDescriptor *
+_findContextDescriptor(Demangle::NodePointer node,
+                       Demangle::Demangler &Dem) {
+  NodePointer symbolicNode = node;
+  if (symbolicNode->getKind() == Node::Kind::Type)
+    symbolicNode = symbolicNode->getChild(0);
+
+  // If we have a symbolic reference to a context, resolve it immediately.
+  if (symbolicNode->getKind() == Node::Kind::TypeSymbolicReference) {
+    return cast<TypeContextDescriptor>(
+      (const ContextDescriptor *)symbolicNode->getIndex());
+  }
+
+  if (auto *standardDescriptor = descriptorFromStandardMangling(symbolicNode))
+    return standardDescriptor;
   
   const ContextDescriptor *foundContext = nullptr;
   auto &T = TypeMetadataRecords.get();
@@ -989,8 +999,7 @@ _searchProtocolRecords(ProtocolMetadataPrivateState &C,
 
 static const ProtocolDescriptor *
 _findProtocolDescriptor(NodePointer node,
-                        Demangle::Demangler &Dem,
-                        std::string &mangledName) {
+                        Demangle::Demangler &Dem) {
   const ProtocolDescriptor *foundProtocol = nullptr;
   auto &T = Protocols.get();
 
@@ -1002,13 +1011,18 @@ _findProtocolDescriptor(NodePointer node,
     return cast<ProtocolDescriptor>(
       (const ContextDescriptor *)symbolicNode->getIndex());
 
+  if (auto *standardDescriptor = descriptorFromStandardMangling(symbolicNode)) {
+    assert(standardDescriptor->getKind() == ContextDescriptorKind::Protocol);
+    return static_cast<const ProtocolDescriptor *>(standardDescriptor);
+  }
+
   auto mangling =
     Demangle::mangleNode(node, ExpandResolvedSymbolicReferences(Dem), Dem);
 
   if (!mangling.isSuccess())
     return nullptr;
 
-  mangledName = mangling.result().str();
+  auto mangledName = mangling.result().str();
 
   // Look for an existing entry.
   // Find the bucket for the metadata entry.
@@ -1068,13 +1082,15 @@ llvm::Optional<unsigned>
 swift::_depthIndexToFlatIndex(unsigned depth, unsigned index,
                               llvm::ArrayRef<unsigned> paramCounts) {
   // Out-of-bounds depth.
-  if (depth >= paramCounts.size()) return None;
+  if (depth >= paramCounts.size())
+    return llvm::None;
 
   // Compute the flat index.
   unsigned flatIndex = index + (depth == 0 ? 0 : paramCounts[depth - 1]);
 
   // Out-of-bounds index.
-  if (flatIndex >= paramCounts[depth]) return None;
+  if (flatIndex >= paramCounts[depth])
+    return llvm::None;
 
   return flatIndex;
 }
@@ -1391,7 +1407,8 @@ llvm::Optional<const ProtocolRequirement *>
 findAssociatedTypeByName(const ProtocolDescriptor *protocol, StringRef name) {
   // If we don't have associated type names, there's nothing to do.
   const char *associatedTypeNamesPtr = protocol->AssociatedTypeNames.get();
-  if (!associatedTypeNamesPtr) return None;
+  if (!associatedTypeNamesPtr)
+    return llvm::None;
 
   // Look through the list of associated type names.
   StringRef associatedTypeNames(associatedTypeNamesPtr);
@@ -1410,7 +1427,8 @@ findAssociatedTypeByName(const ProtocolDescriptor *protocol, StringRef name) {
     associatedTypeNames = associatedTypeNames.substr(splitIdx).substr(1);
   }
 
-  if (!found) return None;
+  if (!found)
+    return llvm::None;
 
   // We have a match on the Nth associated type; go find the Nth associated
   // type requirement.
@@ -1618,8 +1636,7 @@ public:
 
   BuiltProtocolDecl createProtocolDecl(NodePointer node) const {
     // Look for a protocol descriptor based on its mangled name.
-    std::string mangledName;
-    if (auto protocol = _findProtocolDescriptor(node, demangler, mangledName))
+    if (auto protocol = _findProtocolDescriptor(node, demangler))
       return ProtocolDescriptorRef::forSwift(protocol);;
 
 #if SWIFT_OBJC_INTEROP
@@ -1783,9 +1800,10 @@ public:
     return BuiltType();
   }
 
-  TypeLookupErrorOr<BuiltType> createMetatypeType(
-      BuiltType instance,
-      llvm::Optional<Demangle::ImplMetatypeRepresentation> repr = None) const {
+  TypeLookupErrorOr<BuiltType>
+  createMetatypeType(BuiltType instance,
+                     llvm::Optional<Demangle::ImplMetatypeRepresentation> repr =
+                         llvm::None) const {
     if (!instance.isMetadata())
       return TYPE_LOOKUP_ERROR_FMT("Tried to build a metatype from a pack");
     return BuiltType(swift_getMetatypeMetadata(instance.getMetadata()));
@@ -1793,7 +1811,8 @@ public:
 
   TypeLookupErrorOr<BuiltType> createExistentialMetatypeType(
       BuiltType instance,
-      llvm::Optional<Demangle::ImplMetatypeRepresentation> repr = None) const {
+      llvm::Optional<Demangle::ImplMetatypeRepresentation> repr =
+          llvm::None) const {
     if (!instance.isMetadata()) {
       return TYPE_LOOKUP_ERROR_FMT("Tried to build an existential metatype "
                                    "from a pack");
@@ -2950,13 +2969,13 @@ demangleToGenericParamRef(StringRef typeName) {
   StackAllocatedDemangler<1024> demangler;
   NodePointer node = demangler.demangleType(typeName);
   if (!node)
-    return None;
+    return llvm::None;
 
   // Find the flat index that the right-hand side refers to.
   if (node->getKind() == Demangle::Node::Kind::Type)
     node = node->getChild(0);
   if (node->getKind() != Demangle::Node::Kind::DependentGenericParamType)
-    return None;
+    return llvm::None;
 
   return std::pair<unsigned, unsigned>(node->getChild(0)->getIndex(),
                                        node->getChild(1)->getIndex());

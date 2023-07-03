@@ -1,5 +1,4 @@
-// RUN: %swift %use_no_opaque_pointers -swift-version 4 -target arm64e-apple-ios12.0 -parse-stdlib -parse-as-library %s -emit-ir -module-name test -Xcc -Xclang -Xcc -fptrauth-calls | %FileCheck %s --check-prefix=CHECK
-// RUN: %swift -swift-version 4 -target arm64e-apple-ios12.0 -parse-stdlib -parse-as-library %s -emit-ir -module-name test -Xcc -Xclang -Xcc -fptrauth-calls
+// RUN: %swift -swift-version 4 -target arm64e-apple-ios12.0 -parse-stdlib -parse-as-library %s -emit-ir -module-name test -Xcc -Xclang -Xcc -fptrauth-calls | %FileCheck %s --check-prefix=CHECK
 // REQUIRES: objc_interop
 
 // REQUIRES: CPU=arm64e
@@ -23,9 +22,8 @@ bb0(%0 : $A):
 
 // The partial apply was optimized.
 // CHECK-LABEL: define swiftcc void @test0(
-// CHECK:  %1 = load i8*, i8** @"\01L_selector(foo)"
-// CHECK:  %2 = bitcast %T4test1AC* %0
-// CHECK:  call void bitcast (void ()* @objc_msgSend to void (%0*, i8*)*)(%0* %2, i8* %1)
+// CHECK:  %1 = load ptr, ptr @"\01L_selector(foo)"
+// CHECK:  call void @objc_msgSend(ptr %0, ptr %1)
 sil @test0 : $@convention(thin) (@guaranteed A) -> () {
 bb0(%0: $A):
   %method = objc_method %0 : $A, #A.foo!foreign, $@convention(objc_method) (A) -> ()

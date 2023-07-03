@@ -20,6 +20,7 @@
 #include "swift/Driver/Action.h"
 #include "swift/Driver/Util.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
@@ -311,7 +312,7 @@ private:
 
   /// The path and argument string to use for the response file if the job's
   /// arguments should be passed using one.
-  Optional<ResponseFileInfo> ResponseFile;
+  llvm::Optional<ResponseFileInfo> ResponseFile;
 
   /// The modification time of the main input file, if any.
   llvm::sys::TimePoint<> InputModTime = llvm::sys::TimePoint<>::max();
@@ -339,7 +340,7 @@ public:
       llvm::opt::ArgStringList Arguments,
       EnvironmentVector ExtraEnvironment = {},
       std::vector<FilelistInfo> Infos = {},
-      Optional<ResponseFileInfo> ResponseFile = None)
+      llvm::Optional<ResponseFileInfo> ResponseFile = llvm::None)
       : SourceAndCondition(&Source, Condition::Always),
         Inputs(std::move(Inputs)), Output(std::move(Output)),
         Executable(Executable), Arguments(std::move(Arguments)),
@@ -456,7 +457,7 @@ public:
            llvm::opt::ArgStringList Arguments,
            EnvironmentVector ExtraEnvironment, std::vector<FilelistInfo> Infos,
            ArrayRef<const Job *> Combined, Job::PID &NextQuasiPID,
-           Optional<ResponseFileInfo> ResponseFile = None);
+           llvm::Optional<ResponseFileInfo> ResponseFile = llvm::None);
 
   ArrayRef<const Job*> getCombinedJobs() const {
     return CombinedJobs;

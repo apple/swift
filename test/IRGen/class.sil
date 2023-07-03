@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-objc-interop -emit-ir %s | %FileCheck %s -check-prefix CHECK -check-prefix CHECK-%target-import-type
-// RUN: %target-swift-frontend -enable-objc-interop -emit-ir %s
+// RUN: %target-swift-frontend -enable-objc-interop -emit-ir %s | %FileCheck %s -check-prefix CHECK -check-prefix CHECK-%target-import-type
 
 // REQUIRES: CPU=x86_64
 
@@ -10,8 +9,6 @@ import Swift
 // CHECK-DAG: [[TYPE:%swift.type]] = type
 // CHECK-DAG: [[OBJCCLASS:%objc_class]] = type
 // CHECK-DAG: [[OPAQUE:%swift.opaque]] = type opaque
-// CHECK-DAG: [[C_CLASS:%T5class1CC]] = type
-// CHECK-DAG: [[OBJCOBJ:%objc_object]] = type
 
 class C {}
 sil_vtable C {}
@@ -24,32 +21,31 @@ sil_vtable C {}
 // CHECK-SAME:   i32 16,
 // CHECK-SAME:   i32 16,
 // CHECK-SAME:   i32 0,
-// CHECK-SAME:   i8* null,
-// CHECK-SAME:   i8* getelementptr inbounds ([13 x i8], [13 x i8]* [[C_NAME]], i64 0, i64 0),
-// CHECK-SAME:   i8* null,
-// CHECK-SAME:   i8* null,
-// CHECK-SAME:   i8* null,
-// CHECK-SAME:   i8* null,
-// CHECK-SAME:   i8* null
+// CHECK-SAME:   ptr null,
+// CHECK-SAME:   ptr [[C_NAME]],
+// CHECK-SAME:   ptr null,
+// CHECK-SAME:   ptr null,
+// CHECK-SAME:   ptr null,
+// CHECK-SAME:   ptr null,
+// CHECK-SAME:   ptr null
 // CHECK-SAME: }
 
 // CHECK:      @"$s5class1CCMf" = internal global <{ {{.*}} }> <{
-// CHECK-SAME:   void ([[C_CLASS]]*)* @"$s5class1CCfD",
-// CHECK-DIRECT-SAME:   i8** @"$sBoWV",
-// CHECK-INDIRECT-SAME:   i8** null,
-// CHECK-SAME:   i64 ptrtoint ([[OBJCCLASS]]* @"$s5class1CCMm" to i64),
-// CHECK-DIRECT-SAME:     [[OBJCCLASS]]* @"OBJC_CLASS_$_{{(_TtCs12_)?}}SwiftObject",
-// CHECK-INDIRECT-SAME:   %swift.type* null,
-// CHECK-SAME:   [[OPAQUE]]* @_objc_empty_cache,
-// CHECK-SAME:   [[OPAQUE]]* null,
-// CHECK-SAME:   i64 add (i64 ptrtoint ({{.*}}* @_DATA__TtC5class1C to i64), i64 [[IS_SWIFT_BIT:1|2]])
+// CHECK-SAME:   ptr @"$s5class1CCfD",
+// CHECK-DIRECT-SAME:   ptr @"$sBoWV",
+// CHECK-INDIRECT-SAME:   ptr null,
+// CHECK-SAME:   i64 ptrtoint (ptr @"$s5class1CCMm" to i64),
+// CHECK-DIRECT-SAME:     ptr @"OBJC_CLASS_$_{{(_TtCs12_)?}}SwiftObject",
+// CHECK-INDIRECT-SAME:   ptr null,
+// CHECK-SAME:   ptr @_objc_empty_cache,
+// CHECK-SAME:   ptr null,
+// CHECK-SAME:   i64 add (i64 ptrtoint (ptr @_DATA__TtC5class1C to i64), i64 [[IS_SWIFT_BIT:1|2]])
 // CHECK-SAME: }>
 
 // Destroying destructor
-// CHECK: define{{( dllexport)?}}{{( protected)?}} swiftcc [[REF]]* @"$s5class1CCfd"([[C_CLASS]]* swiftself %0) {{.*}} {
+// CHECK: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @"$s5class1CCfd"(ptr swiftself %0) {{.*}} {
 // CHECK-NEXT: entry:
-// CHECK-NEXT: [[OBJ_PTR:%[a-zA-Z0-9]+]] = bitcast [[C_CLASS]]* %0 to [[REF]]*
-// CHECK-NEXT: ret [[REF]]* [[OBJ_PTR]]
+// CHECK-NEXT: ret ptr %0
 sil @$s5class1CCfd : $@convention(method) (@owned C) -> @owned Builtin.NativeObject {
 bb0(%0 : $C):
   %1 = unchecked_ref_cast %0 : $C to $Builtin.NativeObject // user: %2
@@ -57,60 +53,52 @@ bb0(%0 : $C):
 }
 
 // Deallocating destructor
-// CHECK: define{{( dllexport)?}}{{( protected)?}} swiftcc void @"$s5class1CCfD"([[C_CLASS]]* swiftself %0)
+// CHECK: define{{( dllexport)?}}{{( protected)?}} swiftcc void @"$s5class1CCfD"(ptr swiftself %0)
 sil @$s5class1CCfD : $@convention(method) (@owned C) -> () {
 bb0(%0 : $C):
   // CHECK-NEXT: entry
-  // CHECK-NEXT: [[SELF:%[a-zA-Z0-9]+]] = call swiftcc [[REF]]* @"$s5class1CCfd"([[C_CLASS]]* swiftself %0)
-  // CHECK-NEXT: [[SELF_OBJ:%[a-zA-Z0-9]+]] = bitcast [[REF]]* [[SELF]] to [[C_CLASS]]*
+  // CHECK-NEXT: [[SELF:%[a-zA-Z0-9]+]] = call swiftcc ptr @"$s5class1CCfd"(ptr swiftself %0)
   %1 = function_ref @$s5class1CCfd : $@convention(method) (@owned C) -> @owned Builtin.NativeObject // user: %2
   %2 = apply %1(%0) : $@convention(method) (@owned C) -> @owned Builtin.NativeObject // user: %3
   %3 = unchecked_ref_cast %2 : $Builtin.NativeObject to $C // user: %4
-  // CHECK-NEXT: [[SELF:%[a-zA-Z0-9]+]] = bitcast [[C_CLASS]]* [[SELF_OBJ]] to [[REF]]*
-  // CHECK-NEXT: call void @swift_deallocClassInstance([[REF]]* [[SELF]], i64 16, i64 7)
+  // CHECK-NEXT: call void @swift_deallocClassInstance(ptr [[SELF]], i64 16, i64 7)
   dealloc_ref %3 : $C                             // id: %4
   // CHECK-NEXT: ret void
   %5 = tuple ()                                   // user: %6
   return %5 : $()                                 // id: %6
 }
 
-// CHECK: define{{( dllexport)?}}{{( protected)?}} swiftcc [[REF]]* @unchecked_ref_cast_cast([[C_CLASS]]* %0)
-// CHECK:   bitcast [[C_CLASS]]* {{%.*}} to [[REF]]*
+// CHECK: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @unchecked_ref_cast_cast(ptr %0)
 sil @unchecked_ref_cast_cast : $@convention(thin) (C) -> Builtin.NativeObject {
 entry(%c : $C):
   %r = unchecked_ref_cast %c : $C to $Builtin.NativeObject
   return %r : $Builtin.NativeObject
 }
 
-// CHECK: define{{( dllexport)?}}{{( protected)?}} swiftcc [[OBJCOBJ]]* @ref_to_objc_pointer_cast([[C_CLASS]]* %0)
-// CHECK:   bitcast [[C_CLASS]]* %0 to [[OBJCOBJ]]*
+// CHECK: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @ref_to_objc_pointer_cast(ptr %0)
 sil @ref_to_objc_pointer_cast : $@convention(thin) (C) -> Builtin.AnyObject {
 entry(%c : $C):
   %r = unchecked_ref_cast %c : $C to $Builtin.AnyObject
   return %r : $Builtin.AnyObject
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc %T5class1CC* @alloc_ref_dynamic(%swift.type* %0)
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @alloc_ref_dynamic(ptr %0)
 sil @alloc_ref_dynamic : $@convention(thin) (@thick C.Type) -> @owned C {
 bb0(%0 : $@thick C.Type):
-  // CHECK:   [[META_PTR:%[0-9]+]] = bitcast %swift.type* %0 to i8*
-  // CHECK:   [[T0:%.*]] = getelementptr inbounds i8, i8* [[META_PTR]], i32 48
-  // CHECK:   [[T1:%.*]] = bitcast i8* [[T0]] to i32*
-  // CHECK:   [[SIZE32:%.*]] = load i32, i32* [[T1]], align 8
+  // CHECK:   [[T0:%.*]] = getelementptr inbounds i8, ptr %0, i32 48
+  // CHECK:   [[SIZE32:%.*]] = load i32, ptr [[T0]], align 8
   // CHECK:   [[SIZE:%.*]] = zext i32 [[SIZE32]] to i64
-  // CHECK:   [[T0:%.*]] = getelementptr inbounds i8, i8* [[META_PTR]], i32 52
-  // CHECK:   [[T1:%.*]] = bitcast i8* [[T0]] to i16*
-  // CHECK:   [[ALIGN16:%.*]] = load i16, i16* [[T1]], align 4
+  // CHECK:   [[T0:%.*]] = getelementptr inbounds i8, ptr %0, i32 52
+  // CHECK:   [[ALIGN16:%.*]] = load i16, ptr [[T0]], align 4
   // CHECK:   [[ALIGN:%.*]] = zext i16 [[ALIGN16]] to i64
-  // CHECK:   [[RESULT:%[0-9]+]] = call noalias %swift.refcounted* @swift_allocObject(%swift.type* %0, i64 [[SIZE]], i64 [[ALIGN]])
+  // CHECK:   [[RESULT:%[0-9]+]] = call noalias ptr @swift_allocObject(ptr %0, i64 [[SIZE]], i64 [[ALIGN]])
   %1 = alloc_ref_dynamic %0 : $@thick C.Type, $C
   return %1 : $C
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc %T5class1CC* @autorelease(%T5class1CC* %0) {{.*}} {
-// CHECK:         %1 = bitcast %T5class1CC* %0 to i8*
-// CHECK:         call i8* @llvm.objc.autorelease(i8* %1)
-// CHECK:         ret %T5class1CC* %0
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @autorelease(ptr %0) {{.*}} {
+// CHECK:         call ptr @llvm.objc.autorelease(ptr %0)
+// CHECK:         ret ptr %0
 sil @autorelease : $@convention(thin) (@owned C) -> C {
 entry(%c : $C):
   autorelease_value %c : $C
@@ -118,8 +106,8 @@ entry(%c : $C):
 }
 
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i64 @autorelease_optional(i64 %0) {{.*}} {
-// CHECK:         %1 = inttoptr i64 %0 to i8*
-// CHECK:         call i8* @llvm.objc.autorelease(i8* %1)
+// CHECK:         %1 = inttoptr i64 %0 to ptr
+// CHECK:         call ptr @llvm.objc.autorelease(ptr %1)
 // CHECK:         ret i64 %0
 sil @autorelease_optional : $@convention(thin) (@owned C?) -> C? {
 entry(%c : $C?):
@@ -165,7 +153,7 @@ entry(%x : $ClassConstrainedGenericField<ClassConstraintConformance>):
   %b = load %a : $*ClassConstraintConformance
   return %b : $ClassConstraintConformance
 }
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc %T5class26ClassConstraintConformanceC* @fixed_class_generic_field(%T5class28ClassConstrainedGenericFieldCyAA0B21ConstraintConformanceCG* %0)
-// CHECK:         [[FIELD_ADDR_GENERIC:%.*]] = getelementptr inbounds %T5class28ClassConstrainedGenericFieldCyAA0B21ConstraintConformanceCG, %T5class28ClassConstrainedGenericFieldCyAA0B21ConstraintConformanceCG* %0, i32 0, i32 1
-// CHECK:         load %T5class26ClassConstraintConformanceC*, %T5class26ClassConstraintConformanceC** [[FIELD_ADDR_GENERIC]]
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @fixed_class_generic_field(ptr %0)
+// CHECK:         [[FIELD_ADDR_GENERIC:%.*]] = getelementptr inbounds %T5class28ClassConstrainedGenericFieldCyAA0B21ConstraintConformanceCG, ptr %0, i32 0, i32 1
+// CHECK:         load ptr, ptr [[FIELD_ADDR_GENERIC]]
 

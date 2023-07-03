@@ -170,6 +170,13 @@ protected:
 #define SHARED_TEMPLATE_FIELD(T, I, ...) \
   class { template <T> friend class I; __VA_ARGS__; } I
 
+#define SHARED_TEMPLATE2_FIELD(T1, T2, I, ...)                                 \
+  class {                                                                      \
+    template <T1, T2>                                                          \
+    friend class I;                                                            \
+    __VA_ARGS__;                                                               \
+  } I
+
 /// Special case for `InstructionBaseWithTrailingOperands`.
 #define SHARED_TEMPLATE4_FIELD(T1, T2, T3, T4, I, ...) \
   class { template <T1, T2, T3, T4> friend class I; __VA_ARGS__; } I
@@ -179,6 +186,7 @@ protected:
     uint8_t opaque;
 
     SHARED_TEMPLATE_FIELD(typename, SwitchEnumInstBase, bool hasDefault);
+    SHARED_TEMPLATE2_FIELD(typename, typename, SelectEnumInstBase, bool hasDefault);
     SHARED_TEMPLATE_FIELD(SILInstructionKind, LoadReferenceInstBase, bool isTake);
     SHARED_TEMPLATE_FIELD(SILInstructionKind, StoreReferenceInstBase, bool isInitializationOfDest);
     SHARED_FIELD(MultipleValueInstructionResult, uint8_t valueOwnershipKind);
@@ -189,7 +197,6 @@ protected:
     SHARED_FIELD(AssignByWrapperInst, uint8_t mode);
     SHARED_FIELD(AssignOrInitInst, uint8_t mode);
     SHARED_FIELD(StringLiteralInst, uint8_t encoding);
-    SHARED_FIELD(SelectEnumInstBase, bool hasDefault);
     SHARED_FIELD(SwitchValueInst, bool hasDefault);
     SHARED_FIELD(RefCountingInst, bool atomicity);
     SHARED_FIELD(EndAccessInst, bool aborting);
@@ -202,6 +209,7 @@ protected:
     SHARED_FIELD(EndCOWMutationInst, bool keepUnique);
     SHARED_FIELD(ConvertFunctionInst, bool withoutActuallyEscaping);
     SHARED_FIELD(BeginCOWMutationInst, bool native);
+    SHARED_FIELD(GlobalValueInst, bool isBare);
 
     SHARED_FIELD(SILArgument, uint8_t
                  valueOwnershipKind : NumVOKindBits,
@@ -228,6 +236,7 @@ protected:
     SHARED_FIELD(AllocRefInstBase, uint8_t
       objC : 1,
       onStack : 1,
+      isBare : 1,   // Only used in AllocRefInst
       numTailTypes: NumAllocRefTailTypesBits);
 
     SHARED_FIELD(BeginBorrowInst, uint8_t

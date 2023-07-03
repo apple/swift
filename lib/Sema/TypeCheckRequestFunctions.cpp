@@ -52,7 +52,7 @@ Type InheritedTypeRequest::evaluate(
     context = TypeResolverContext::Inherited;
   }
 
-  Optional<TypeResolution> resolution;
+  llvm::Optional<TypeResolution> resolution;
   switch (stage) {
   case TypeResolutionStage::Structural:
     resolution =

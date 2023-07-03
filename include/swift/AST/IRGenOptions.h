@@ -466,9 +466,10 @@ public:
   TypeInfoDumpFilter TypeInfoFilter;
   
   /// Pull in runtime compatibility shim libraries by autolinking.
-  Optional<llvm::VersionTuple> AutolinkRuntimeCompatibilityLibraryVersion;
-  Optional<llvm::VersionTuple> AutolinkRuntimeCompatibilityDynamicReplacementLibraryVersion;
-  Optional<llvm::VersionTuple>
+  llvm::Optional<llvm::VersionTuple> AutolinkRuntimeCompatibilityLibraryVersion;
+  llvm::Optional<llvm::VersionTuple>
+      AutolinkRuntimeCompatibilityDynamicReplacementLibraryVersion;
+  llvm::Optional<llvm::VersionTuple>
       AutolinkRuntimeCompatibilityConcurrencyLibraryVersion;
   bool AutolinkRuntimeCompatibilityBytecodeLayoutsLibrary;
 

@@ -1,4 +1,4 @@
-// RUN: %target-swift-emit-sil -sil-verify-all -verify -enable-experimental-feature MoveOnlyClasses %s
+// RUN: %target-swift-emit-sil -enable-experimental-feature MoveOnlyPartialConsumption -sil-verify-all -verify -enable-experimental-feature MoveOnlyClasses %s
 
 //////////////////
 // Declarations //

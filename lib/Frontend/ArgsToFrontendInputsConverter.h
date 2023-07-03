@@ -65,8 +65,8 @@ public:
   /// \param buffers If present, buffers read in the processing of the frontend
   /// inputs will be saved here. These should only be used for debugging
   /// purposes.
-  Optional<FrontendInputsAndOutputs> convert(
-      SmallVectorImpl<std::unique_ptr<llvm::MemoryBuffer>> *buffers);
+  llvm::Optional<FrontendInputsAndOutputs>
+  convert(SmallVectorImpl<std::unique_ptr<llvm::MemoryBuffer>> *buffers);
 
 private:
   bool enforceFilelistExclusion();
@@ -75,7 +75,7 @@ private:
   bool forAllFilesInFilelist(llvm::opt::Arg const *const pathArg,
                              llvm::function_ref<void(StringRef)> fn);
   bool addFile(StringRef file);
-  Optional<std::set<StringRef>> readPrimaryFiles();
+  llvm::Optional<std::set<StringRef>> readPrimaryFiles();
 
   /// Returns the newly set-up FrontendInputsAndOutputs, as well as a set of
   /// any unused primary files (those that do not correspond to an input).

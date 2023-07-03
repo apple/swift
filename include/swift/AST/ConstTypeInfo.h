@@ -106,7 +106,7 @@ private:
 };
 
 struct TupleElement {
-  Optional<std::string> Label;
+  llvm::Optional<std::string> Label;
   swift::Type Type;
   std::shared_ptr<CompileTimeValue> Value;
 };

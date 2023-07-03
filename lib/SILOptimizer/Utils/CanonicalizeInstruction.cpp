@@ -76,7 +76,7 @@ killInstAndIncidentalUses(SingleValueInstruction *inst,
 
 // If simplification is successful, return a valid iterator to the next
 // instruction that wasn't erased.
-static Optional<SILBasicBlock::iterator>
+static llvm::Optional<SILBasicBlock::iterator>
 simplifyAndReplace(SILInstruction *inst, CanonicalizeInstruction &pass) {
   // Erase the simplified instruction and any instructions that end its
   // scope. Nothing needs to be added to the worklist except for Result,
@@ -85,7 +85,7 @@ simplifyAndReplace(SILInstruction *inst, CanonicalizeInstruction &pass) {
   auto result = simplifyAndReplaceAllSimplifiedUsesAndErase(
       inst, pass.callbacks, &pass.deadEndBlocks);
   if (!pass.callbacks.hadCallbackInvocation())
-    return None;
+    return llvm::None;
 
   return result;
 }
@@ -254,7 +254,7 @@ splitAggregateLoad(LoadOperation loadInst, CanonicalizeInstruction &pass) {
   // Create a new address projection instruction and load instruction for each
   // unique projection.
   Projection *lastProj = nullptr;
-  Optional<LoadOperation> lastNewLoad;
+  llvm::Optional<LoadOperation> lastNewLoad;
   for (auto &pair : projections) {
     auto &proj = pair.proj;
     auto *extract = pair.extract;
@@ -278,7 +278,7 @@ splitAggregateLoad(LoadOperation loadInst, CanonicalizeInstruction &pass) {
     pass.notifyNewInstruction(projInst);
 
     // When loading a trivial subelement, convert ownership.
-    Optional<LoadOwnershipQualifier> loadOwnership =
+    llvm::Optional<LoadOwnershipQualifier> loadOwnership =
         loadInst.getOwnershipQualifier();
     if (loadOwnership.has_value()) {
       if (*loadOwnership != LoadOwnershipQualifier::Unqualified &&
@@ -523,7 +523,7 @@ eliminateUnneededForwardingUnarySingleValueInst(SingleValueInstruction *inst,
   return killInstruction(inst, next, pass);
 }
 
-static Optional<SILBasicBlock::iterator>
+static llvm::Optional<SILBasicBlock::iterator>
 tryEliminateUnneededForwardingInst(SILInstruction *i,
                                    CanonicalizeInstruction &pass) {
   assert(ForwardingInstruction::isa(i) &&
@@ -532,7 +532,7 @@ tryEliminateUnneededForwardingInst(SILInstruction *i,
     if (svi->getNumOperands() == 1)
       return eliminateUnneededForwardingUnarySingleValueInst(svi, pass);
 
-  return None;
+  return llvm::None;
 }
 
 //===----------------------------------------------------------------------===//

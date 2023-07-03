@@ -1485,7 +1485,7 @@ static std::string mangleTypeAsContext(const NominalTypeDecl *decl) {
   return Mangler.mangleTypeAsContextUSR(decl);
 }
 
-Optional<YAMLTypeInfoNode>
+llvm::Optional<YAMLTypeInfoNode>
 TypeConverter::getLegacyTypeInfo(NominalTypeDecl *decl) const {
   auto &mangledName = const_cast<TypeConverter *>(this)->DeclMangledNames[decl];
   if (mangledName.empty())
@@ -1494,7 +1494,7 @@ TypeConverter::getLegacyTypeInfo(NominalTypeDecl *decl) const {
 
   auto found = LegacyTypeInfos.find(mangledName);
   if (found == LegacyTypeInfos.end())
-    return None;
+    return llvm::None;
 
   return found->second;
 }

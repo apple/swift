@@ -1,18 +1,17 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-objc-interop -emit-ir %s | %FileCheck %s
-// RUN: %target-swift-frontend -enable-objc-interop -emit-ir %s
+// RUN: %target-swift-frontend -enable-objc-interop -emit-ir %s | %FileCheck %s
 
 sil_stage canonical
 
 import Builtin
 
 // CHECK: @"\01L_selector_data(help:me:)" = private global [9 x i8] c"help:me:\00"
-// CHECK: @"\01L_selector(help:me:)" = private externally_initialized global i8* getelementptr inbounds ([9 x i8], [9 x i8]* @"\01L_selector_data(help:me:)", {{i(32|64)}} 0, {{i(32|64)}} 0)
+// CHECK: @"\01L_selector(help:me:)" = private externally_initialized global ptr @"\01L_selector_data(help:me:)"
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i8* @objc_selector_literal() #0 {
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @objc_selector_literal() #0 {
 sil @objc_selector_literal : $@convention(thin) () -> Builtin.RawPointer {
 bb0:
-  // CHECK: [[SEL:%[0-9]+]] = load i8*, i8** @"\01L_selector(help:me:)"
+  // CHECK: [[SEL:%[0-9]+]] = load ptr, ptr @"\01L_selector(help:me:)"
   %0 = string_literal objc_selector "help:me:"
-  // CHECK-NEXT: ret i8* [[SEL]]
+  // CHECK-NEXT: ret ptr [[SEL]]
   return %0 : $Builtin.RawPointer
 }

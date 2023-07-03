@@ -1,7 +1,6 @@
 // RUN: %empty-directory(%t)
 
-// RUN: %target-swift-frontend %use_no_opaque_pointers -prespecialize-generic-metadata -target %module-target-future -emit-ir -I %t -L %t %s > %t/out.ir
-// RUN: %target-swift-frontend -prespecialize-generic-metadata -target %module-target-future -emit-ir -I %t -L %t %s
+// RUN: %target-swift-frontend -prespecialize-generic-metadata -target %module-target-future -emit-ir -I %t -L %t %s > %t/out.ir
 // RUN: %FileCheck --input-file=%t/out.ir %s -DINT=i%target-ptrsize -DALIGNMENT=%target-alignment --check-prefix=CHECK --check-prefix=CHECK-%target-vendor
 
 // REQUIRES: VENDOR=apple || OS=linux-gnu
@@ -13,14 +12,12 @@
 //   CHECK-apple-SAME: global
 // CHECK-unknown-SAME: constant
 //         CHECK-SAME: <{
-//         CHECK-SAME:   void (
-//         CHECK-SAME:    %T4main5Value[[UNIQUE_ID_1]]LLC*
-//         CHECK-SAME:  )*,
-//         CHECK-SAME:  i8**,
+//         CHECK-SAME:  ptr,
+//         CHECK-SAME:  ptr,
 //                   :  [[INT]],
-//         CHECK-SAME:  %swift.type*,
-//   CHECK-apple-SAME:  %swift.opaque*,
-//   CHECK-apple-SAME:  %swift.opaque*,
+//         CHECK-SAME:  ptr,
+//   CHECK-apple-SAME:  ptr,
+//   CHECK-apple-SAME:  ptr,
 //   CHECK-apple-SAME:  [[INT]],
 //         CHECK-SAME:  i32,
 //         CHECK-SAME:  i32,
@@ -29,99 +26,26 @@
 //         CHECK-SAME:  i16,
 //         CHECK-SAME:  i32,
 //         CHECK-SAME:  i32,
-//         CHECK-SAME:  %swift.type_descriptor*,
-//         CHECK-SAME:  void (
-//         CHECK-SAME:    %T4main5Value[[UNIQUE_ID_1]]LLC*
-//         CHECK-SAME:  )*,
+//         CHECK-SAME:  ptr,
+//         CHECK-SAME:  ptr,
 //         CHECK-SAME:  [[INT]],
-//         CHECK-SAME:  %T4main9Ancestor2[[UNIQUE_ID_1]]LLC* (
-//         CHECK-SAME:    [[INT]],
-//         CHECK-SAME:    %swift.type*
-//         CHECK-SAME:  )*,
-//         CHECK-SAME:  %swift.type*,
+//         CHECK-SAME:  ptr,
+//         CHECK-SAME:  ptr,
 //         CHECK-SAME:  [[INT]]
-//         CHECK-SAME:  %T4main5Value[[UNIQUE_ID_1]]LLC* (
-//         CHECK-SAME:    %swift.opaque*,
-//         CHECK-SAME:    %swift.type*
-//         CHECK-SAME:  )*
-//         CHECK-SAME:  %swift.type*,
+//         CHECK-SAME:  ptr,
+//         CHECK-SAME:  ptr,
 //         CHECK-SAME:  [[INT]]
 //         CHECK-SAME:}> <{
-//         CHECK-SAME:  void (
-//         CHECK-SAME:    %T4main5Value[[UNIQUE_ID_1]]LLC*
 //         CHECK-SAME:  $s4main5Value[[UNIQUE_ID_1]]LLCfD
 //         CHECK-SAME:  $sBoWV
 //   CHECK-apple-SAME:  $s4main5Value[[UNIQUE_ID_1]]LLCySiGMM
 // CHECK-unknown-SAME:  [[INT]] 0,
-//                   :  %swift.type* getelementptr inbounds (
-//                   :    %swift.full_heapmetadata,
-//                   :    %swift.full_heapmetadata* bitcast (
-//                   :      <{
-//                   :        void (
-//                   :          %T4main9Ancestor2[[UNIQUE_ID_1]]LLC*
-//                   :        )*,
-//                   :        i8**,
-//                   :        [[INT]],
-//                   :        %swift.type*,
-//                   :        %swift.opaque*,
-//                   :        %swift.opaque*,
-//                   :        [[INT]],
-//                   :        i32,
-//                   :        i32,
-//                   :        i32,
-//                   :        i16,
-//                   :        i16,
-//                   :        i32,
-//                   :        i32,
-//                   :        %swift.type_descriptor*,
-//                   :        void (
-//                   :          %T4main9Ancestor2[[UNIQUE_ID_1]]LLC*
-//                   :        )*,
-//                   :        [[INT]],
-//                   :        %T4main9Ancestor2[[UNIQUE_ID_1]]LLC* (
-//                   :          [[INT]],
-//                   :          %swift.type*
-//                   :        )*,
-//                   :        %swift.type*,
-//                   :        [[INT]],
-//                   :        %T4main9Ancestor2[[UNIQUE_ID_1]]LLC* (
-//                   :          %swift.opaque*,
-//                   :          %swift.type*
-//                   :        )*
-//                   :      }>* @"$s4main9Ancestor2[[UNIQUE_ID_1]]LLCySiGMf" to %swift.full_heapmetadata*
-//                   :    ),
-//                   :    i32 0,
-//                   :    i32 2
-//                   :  ),
-//   CHECK-apple-SAME:  %swift.opaque* @_objc_empty_cache,
-//   CHECK-apple-SAME:  %swift.opaque* null,
+//                   :  $s4main9Ancestor2[[UNIQUE_ID_1]]LLCySiGMf
+//   CHECK-apple-SAME:  _objc_empty_cache
+//   CHECK-apple-SAME:  ptr null,
 //   CHECK-apple-SAME:  [[INT]] add (
 //   CHECK-apple-SAME:    [[INT]] ptrtoint (
-//   CHECK-apple-SAME:      {
-//   CHECK-apple-SAME:        i32,
-//   CHECK-apple-SAME:        i32,
-//   CHECK-apple-SAME:        i32,
-//                   :        i32,
-//   CHECK-apple-SAME:        i8*,
-//   CHECK-apple-SAME:        i8*,
-//   CHECK-apple-SAME:        i8*,
-//                   :        i8*,
-//   CHECK-apple-SAME:        {
-//   CHECK-apple-SAME:          i32,
-//   CHECK-apple-SAME:          i32,
-//   CHECK-apple-SAME:          [
-//   CHECK-apple-SAME:            1 x {
-//   CHECK-apple-SAME:              [[INT]]*,
-//   CHECK-apple-SAME:              i8*,
-//   CHECK-apple-SAME:              i8*,
-//   CHECK-apple-SAME:              i32,
-//   CHECK-apple-SAME:              i32
-//   CHECK-apple-SAME:            }
-//   CHECK-apple-SAME:          ]
-//   CHECK-apple-SAME:        }*,
-//   CHECK-apple-SAME:        i8*,
-//   CHECK-apple-SAME:        i8*
-//   CHECK-apple-SAME:      }* @"_DATA_$s4main5Value[[UNIQUE_ID_1]]LLCySiGMf" to [[INT]]
+//   CHECK-apple-SAME:      ptr {{[^@]*}}@"_DATA_$s4main5Value[[UNIQUE_ID_1]]LLCySiGMf" to [[INT]]
 //   CHECK-apple-SAME:    ),
 //   CHECK-apple-SAME:    [[INT]] 2
 //   CHECK-apple-SAME:  ),
@@ -133,48 +57,14 @@
 //   CHECK-apple-SAME:  i32 {{(160|92)}},
 // CHECK-unknown-SAME:  i32 136,
 //         CHECK-SAME:  i32 {{(24|12)}},
-//                   :  %swift.type_descriptor* bitcast (
-//                   :    <{
-//                   :      i32,
-//                   :      i32,
-//                   :      i32,
-//                   :      i32,
-//                   :      i32,
-//                   :      i32,
-//                   :      i32,
-//                   :      i32,
-//                   :      i32,
-//                   :      i32,
-//                   :      i32,
-//                   :      i32,
-//                   :      i32,
-//                   :      i16,
-//                   :      i16,
-//                   :      i16,
-//                   :      i16,
-//                   :      i8,
-//                   :      i8,
-//                   :      i8,
-//                   :      i8,
-//                   :      i32,
-//                   :      %swift.method_override_descriptor
-//         CHECK-SAME:    $s4main5Value[[UNIQUE_ID_2:[A-Za-z_0-9]+]]LLCMn
-//         CHECK-SAME:  ),
-//         CHECK-SAME:  void (
-//         CHECK-SAME:    %T4main5Value[[UNIQUE_ID_1]]LLC*
+//         CHECK-SAME:  $s4main5Value[[UNIQUE_ID_2:[A-Za-z_0-9]+]]LLCMn
 //         CHECK-SAME:  $s4main5Value[[UNIQUE_ID_1]]LLCfE
 //         CHECK-SAME:  [[INT]] {{16|8}},
-//         CHECK-SAME:  %T4main9Ancestor2[[UNIQUE_ID_1]]LLC* (
-//         CHECK-SAME:    [[INT]],
-//         CHECK-SAME:    %swift.type*
 //         CHECK-SAME:  $s4main9Ancestor2[[UNIQUE_ID_1]]LLCyADyxGSicfC
-//         CHECK-SAME:  %swift.type* @"$sSiN",
+//         CHECK-SAME:  $sSiN
 //         CHECK-SAME:  [[INT]] {{24|12}}
-//         CHECK-SAME:  %T4main5Value[[UNIQUE_ID_1]]LLC* (
-//         CHECK-SAME:    %swift.opaque*,
-//         CHECK-SAME:    %swift.type*
 //         CHECK-SAME:  $s4main5Value[[UNIQUE_ID_1]]LLC5firstADyxGx_tcfC
-//         CHECK-SAME:  %swift.type* @"$sSiN",
+//         CHECK-SAME:  $sSiN
 //         CHECK-SAME:  [[INT]] {{32|16}}
 //         CHECK-SAME:}>,
 //         CHECK-SAME:align [[ALIGNMENT]]
@@ -222,57 +112,19 @@ doit()
 
 //              CHECK: ; Function Attrs: noinline nounwind readnone
 //              CHECK: define linkonce_odr hidden swiftcc %swift.metadata_response @"$s4main5Value[[UNIQUE_ID_1]]LLCySiGMb"([[INT]] {{%[0-9]+}}) {{#[0-9]+}} {{(section)?.*}}{
-//         CHECK-NEXT: entry:
 //              CHECK:   [[SUPERCLASS_METADATA:%[0-9]+]] = call swiftcc %swift.metadata_response @"$s4main9Ancestor2[[UNIQUE_ID_1]]LLCySiGMb"([[INT]] 0)
 //      CHECK-unknown:   ret
-//        CHECK-apple:   [[THIS_CLASS_METADATA:%[0-9]+]] = call %objc_class* @objc_opt_self(
-//                   :     %objc_class* bitcast (
-//                   :       %swift.type* getelementptr inbounds (
+//        CHECK-apple:   [[THIS_CLASS_METADATA:%[0-9]+]] = call ptr @objc_opt_self(
+//                   :     ptr bitcast (
+//                   :       ptr getelementptr inbounds (
 //                   :         %swift.full_heapmetadata,
-//                   :         %swift.full_heapmetadata* bitcast (
-//                   :           <{
-//                   :             void (
-//                   :               %T4main5Value[[UNIQUE_ID_1]]LLC*
-//                   :             )*,
-//                   :             i8**,
-//                   :             i64,
-//                   :             %swift.type*,
-//                   :             %swift.opaque*,
-//                   :             %swift.opaque*,
-//                   :             i64,
-//                   :             i32,
-//                   :             i32,
-//                   :             i32,
-//                   :             i16,
-//                   :             i16,
-//                   :             i32,
-//                   :             i32,
-//                   :             %swift.type_descriptor*,
-//                   :             void (
-//                   :               %T4main5Value[[UNIQUE_ID_1]]LLC*
-//                   :             )*,
-//                   :             i64,
-//                   :             %T4main9Ancestor2[[UNIQUE_ID_1]]LLC* (
-//                   :               i64,
-//                   :               %swift.type*
-//                   :             )*,
-//                   :             %swift.type*,
-//                   :             i64,
-//                   :             %T4main5Value[[UNIQUE_ID_1]]LLC* (
-//                   :               %swift.opaque*,
-//                   :               %swift.type*
-//                   :             )*,
-//                   :             %swift.type*,
-//                   :             i64
-//         CHECK-SAME:           }>* @"$s4main5Value[[UNIQUE_ID_1]]LLCySiGMf" to %swift.full_heapmetadata*
-//                   :         ),
+//         CHECK-SAME:         $s4main5Value[[UNIQUE_ID_1]]LLCySiGMf
 //                   :         i32 0,
 //                   :         i32 2
-//                   :       ) to %objc_class*
+//                   :       ) to ptr
 //                   :     )
 //                   :   )
-//        CHECK-apple:   [[THIS_TYPE_METADATA:%[0-9]+]] = bitcast %objc_class* [[THIS_CLASS_METADATA]] to %swift.type*
-//        CHECK-apple:   [[RESPONSE:%[0-9]+]] = insertvalue %swift.metadata_response undef, %swift.type* [[THIS_TYPE_METADATA]], 0
+//        CHECK-apple:   [[RESPONSE:%[0-9]+]] = insertvalue %swift.metadata_response undef, ptr [[THIS_CLASS_METADATA]], 0
 //        CHECK-apple:   [[COMPLETE_RESPONSE:%[0-9]+]] = insertvalue %swift.metadata_response [[RESPONSE]], [[INT]] 0, 1
 //        CHECK-apple:   ret %swift.metadata_response [[COMPLETE_RESPONSE]]
 //              CHECK: }

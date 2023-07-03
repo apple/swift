@@ -23,6 +23,8 @@
 #include "swift/AST/Identifier.h"
 #include "swift/AST/Type.h"
 #include "swift/Basic/SourceLoc.h"
+#include "llvm/ADT/None.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/Support/PrettyStackTrace.h"
 
 namespace clang {
@@ -212,15 +214,15 @@ void printConformanceDescription(llvm::raw_ostream &out,
 class PrettyStackTraceGenericSignature : public llvm::PrettyStackTraceEntry {
   const char *Action;
   GenericSignature GenericSig;
-  Optional<unsigned> Requirement;
+  llvm::Optional<unsigned> Requirement;
 
 public:
-  PrettyStackTraceGenericSignature(const char *action,
-                                   GenericSignature genericSig,
-                                   Optional<unsigned> requirement = None)
-    : Action(action), GenericSig(genericSig), Requirement(requirement) { }
+  PrettyStackTraceGenericSignature(
+      const char *action, GenericSignature genericSig,
+      llvm::Optional<unsigned> requirement = llvm::None)
+      : Action(action), GenericSig(genericSig), Requirement(requirement) {}
 
-  void setRequirement(Optional<unsigned> requirement) {
+  void setRequirement(llvm::Optional<unsigned> requirement) {
     Requirement = requirement;
   }
 

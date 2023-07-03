@@ -179,20 +179,20 @@ static llvm::Optional<bool> proveNonPayloadedEnumCase(SILBasicBlock *BB,
   // keep searching up the domtree.
   SILBasicBlock *SinglePred = BB->getSinglePredecessorBlock();
   if (!SinglePred)
-    return None;
+    return llvm::None;
 
   // Check if SinglePred has a switch_enum terminator switching on
   // RCIdentity... If it does not, return None so we keep searching up the
   // domtree.
   auto *SEI = dyn_cast<SwitchEnumInst>(SinglePred->getTerminator());
   if (!SEI || SEI->getOperand() != RCIdentity)
-    return None;
+    return llvm::None;
 
   // Then return true if along the edge from the SEI to BB, RCIdentity has a
   // non-payloaded enum value.
   NullablePtr<EnumElementDecl> Decl = SEI->getUniqueCaseForDestination(BB);
   if (Decl.isNull())
-    return None;
+    return llvm::None;
   return !Decl.get()->hasAssociatedValues();
 }
 

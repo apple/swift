@@ -1235,12 +1235,12 @@ ConvertingInitialization::emitWithAdjustedConversion(SILGenFunction &SGF,
   return ManagedValue::forInContext();
 }
 
-Optional<AbstractionPattern>
+llvm::Optional<AbstractionPattern>
 ConvertingInitialization::getAbstractionPattern() const {
   if (TheConversion.isReabstraction()) {
     return TheConversion.getReabstractionOrigType();
   }
-  return None;
+  return llvm::None;
 }
 
 ManagedValue Conversion::emit(SILGenFunction &SGF, SILLocation loc,
@@ -1295,16 +1295,16 @@ ManagedValue Conversion::emit(SILGenFunction &SGF, SILLocation loc,
   llvm_unreachable("bad kind");
 }
 
-Optional<Conversion>
+llvm::Optional<Conversion>
 Conversion::adjustForInitialOptionalConversions(CanType newSourceType) const {
   switch (getKind()) {
   case SubstToOrig:
   case OrigToSubst:
     // TODO: handle reabstraction conversions here, too.
-    return None;
+    return llvm::None;
 
   case ForceAndBridgeToObjC:
-    return None;
+    return llvm::None;
 
   case AnyErasure:
   case BridgeToObjC:
@@ -1318,7 +1318,7 @@ Conversion::adjustForInitialOptionalConversions(CanType newSourceType) const {
   llvm_unreachable("bad kind");
 }
 
-Optional<Conversion> Conversion::adjustForInitialForceValue() const {
+llvm::Optional<Conversion> Conversion::adjustForInitialForceValue() const {
   switch (getKind()) {
   case SubstToOrig:
   case OrigToSubst:
@@ -1326,7 +1326,7 @@ Optional<Conversion> Conversion::adjustForInitialForceValue() const {
   case BridgeFromObjC:
   case BridgeResultFromObjC:
   case ForceAndBridgeToObjC:
-    return None;
+    return llvm::None;
 
   case BridgeToObjC: {
     auto sourceOptType =
@@ -1466,7 +1466,7 @@ static bool isMatchedAnyToAnyObjectConversion(CanType from, CanType to) {
   return false;
 }
 
-Optional<ConversionPeepholeHint>
+llvm::Optional<ConversionPeepholeHint>
 Lowering::canPeepholeConversions(SILGenFunction &SGF,
                                  const Conversion &outerConversion,
                                  const Conversion &innerConversion) {
@@ -1492,14 +1492,14 @@ Lowering::canPeepholeConversions(SILGenFunction &SGF,
       break;
     }
 
-    return None;
+    return llvm::None;
 
   case Conversion::AnyErasure:
   case Conversion::BridgeFromObjC:
   case Conversion::BridgeResultFromObjC:
     // TODO: maybe peephole bridging through a Swift type?
     // This isn't actually something that happens in normal code generation.
-    return None;
+    return llvm::None;
 
   case Conversion::ForceAndBridgeToObjC:
   case Conversion::BridgeToObjC:
@@ -1513,7 +1513,7 @@ Lowering::canPeepholeConversions(SILGenFunction &SGF,
       // Never peephole if both conversions are explicit; there might be
       // something the user's trying to do which we don't understand.
       if (outerExplicit && innerExplicit)
-        return None;
+        return llvm::None;
 
       // Otherwise, we can peephole if we understand the resulting conversion
       // and applying the peephole doesn't change semantics.
@@ -1529,7 +1529,8 @@ Lowering::canPeepholeConversions(SILGenFunction &SGF,
         outerConversion.getKind() == Conversion::ForceAndBridgeToObjC;
       if (forced) {
         sourceType = sourceType.getOptionalObjectType();
-        if (!sourceType) return None;
+        if (!sourceType)
+          return llvm::None;
         intermediateType = intermediateType.getOptionalObjectType();
         assert(intermediateType);
       }
@@ -1561,7 +1562,7 @@ Lowering::canPeepholeConversions(SILGenFunction &SGF,
       // TODO: use special SILGen to preserve semantics in this case,
       // e.g. by making a copy.
       if (!outerExplicit && !innerExplicit) {
-        return None;
+        return llvm::None;
       }
 
       // Okay, now we're in the domain of the bridging peephole: an
@@ -1594,13 +1595,12 @@ Lowering::canPeepholeConversions(SILGenFunction &SGF,
         }
       }
 
-      return None;
+      return llvm::None;
     }
 
     default:
-      return None;
+      return llvm::None;
     }
   }
   llvm_unreachable("bad kind");
 }
-

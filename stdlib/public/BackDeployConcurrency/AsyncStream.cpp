@@ -12,10 +12,12 @@
 
 #include <new>
 
+#include "swift/Runtime/Config.h"
 #include "swift/Threading/Mutex.h"
 
 namespace swift {
 // return the size in words for the given mutex primitive
+SWIFT_CC(swift)
 extern "C"
 size_t _swift_async_stream_lock_size() {
   size_t words = sizeof(Mutex) / sizeof(void *);
@@ -23,11 +25,14 @@ size_t _swift_async_stream_lock_size() {
   return words;
 }
 
+SWIFT_CC(swift)
 extern "C" void _swift_async_stream_lock_init(Mutex &lock) {
   new (&lock) Mutex();
 }
 
+SWIFT_CC(swift)
 extern "C" void _swift_async_stream_lock_lock(Mutex &lock) { lock.lock(); }
 
+SWIFT_CC(swift)
 extern "C" void _swift_async_stream_lock_unlock(Mutex &lock) { lock.unlock(); }
 }

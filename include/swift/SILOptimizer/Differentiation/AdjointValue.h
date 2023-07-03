@@ -54,7 +54,7 @@ class AdjointValueBase {
   using DebugInfo = std::pair<SILDebugLocation, SILDebugVariable>;
 
   /// The debug location and variable info associated with the original value.
-  Optional<DebugInfo> debugInfo;
+  llvm::Optional<DebugInfo> debugInfo;
 
   /// The underlying value.
   union Value {
@@ -71,7 +71,7 @@ class AdjointValueBase {
 
   explicit AdjointValueBase(SILType type,
                             llvm::ArrayRef<AdjointValue> aggregate,
-                            Optional<DebugInfo> debugInfo)
+                            llvm::Optional<DebugInfo> debugInfo)
       : kind(AdjointValueKind::Aggregate), type(type), debugInfo(debugInfo),
         value(aggregate.size()) {
     MutableArrayRef<AdjointValue> tailElements(
@@ -80,11 +80,11 @@ class AdjointValueBase {
         aggregate.begin(), aggregate.end(), tailElements.begin());
   }
 
-  explicit AdjointValueBase(SILValue v, Optional<DebugInfo> debugInfo)
+  explicit AdjointValueBase(SILValue v, llvm::Optional<DebugInfo> debugInfo)
       : kind(AdjointValueKind::Concrete), type(v->getType()),
         debugInfo(debugInfo), value(v) {}
 
-  explicit AdjointValueBase(SILType type, Optional<DebugInfo> debugInfo)
+  explicit AdjointValueBase(SILType type, llvm::Optional<DebugInfo> debugInfo)
       : kind(AdjointValueKind::Zero), type(type), debugInfo(debugInfo) {}
 };
 
@@ -103,24 +103,24 @@ public:
 
   using DebugInfo = AdjointValueBase::DebugInfo;
 
-  static AdjointValue createConcrete(
-      llvm::BumpPtrAllocator &allocator, SILValue value,
-      Optional<DebugInfo> debugInfo = None) {
+  static AdjointValue
+  createConcrete(llvm::BumpPtrAllocator &allocator, SILValue value,
+                 llvm::Optional<DebugInfo> debugInfo = llvm::None) {
     auto *buf = allocator.Allocate<AdjointValueBase>();
     return new (buf) AdjointValueBase(value, debugInfo);
   }
 
-  static AdjointValue createZero(
-      llvm::BumpPtrAllocator &allocator, SILType type,
-      Optional<DebugInfo> debugInfo = None) {
+  static AdjointValue
+  createZero(llvm::BumpPtrAllocator &allocator, SILType type,
+             llvm::Optional<DebugInfo> debugInfo = llvm::None) {
     auto *buf = allocator.Allocate<AdjointValueBase>();
     return new (buf) AdjointValueBase(type, debugInfo);
   }
 
-  static AdjointValue createAggregate(
-      llvm::BumpPtrAllocator &allocator, SILType type,
-      ArrayRef<AdjointValue> elements,
-      Optional<DebugInfo> debugInfo = None) {
+  static AdjointValue
+  createAggregate(llvm::BumpPtrAllocator &allocator, SILType type,
+                  ArrayRef<AdjointValue> elements,
+                  llvm::Optional<DebugInfo> debugInfo = llvm::None) {
     AdjointValue *buf = reinterpret_cast<AdjointValue *>(allocator.Allocate(
         sizeof(AdjointValueBase) + elements.size() * sizeof(AdjointValue),
         alignof(AdjointValueBase)));
@@ -130,7 +130,7 @@ public:
   AdjointValueKind getKind() const { return base->kind; }
   SILType getType() const { return base->type; }
   CanType getSwiftType() const { return getType().getASTType(); }
-  Optional<DebugInfo> getDebugInfo() const { return base->debugInfo; }
+  llvm::Optional<DebugInfo> getDebugInfo() const { return base->debugInfo; }
   void setDebugInfo(DebugInfo debugInfo) const { base->debugInfo = debugInfo; }
 
   NominalTypeDecl *getAnyNominal() const {

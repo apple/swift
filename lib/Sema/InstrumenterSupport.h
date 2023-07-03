@@ -42,8 +42,8 @@ class InstrumenterBase {
 protected:
   ASTContext &Context;
   DeclContext *TypeCheckDC;
-  Optional<DeclNameRef> ModuleIdentifier;
-  Optional<DeclNameRef> FileIdentifier;
+  llvm::Optional<DeclNameRef> ModuleIdentifier;
+  llvm::Optional<DeclNameRef> FileIdentifier;
 
   InstrumenterBase(ASTContext &C, DeclContext *DC);
   virtual ~InstrumenterBase() = default;
@@ -54,7 +54,7 @@ protected:
 
   /// Create an expression which retrieves a valid ModuleIdentifier or
   /// FileIdentifier, if available.
-  Expr *buildIDArgumentExpr(Optional<DeclNameRef> name, SourceRange SR);
+  Expr *buildIDArgumentExpr(llvm::Optional<DeclNameRef> name, SourceRange SR);
 
   class ClosureFinder : public ASTWalker {
   private:

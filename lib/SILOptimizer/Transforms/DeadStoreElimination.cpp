@@ -1012,7 +1012,8 @@ void DSEContext::processWrite(SILInstruction *I, SILValue Val, SILValue Mem,
     // particular instruction may not be accessing the base, so we need to
     // *rebase* the locations w.r.t. to the current instruction.
     SILValue B = Locs[0].getBase();
-    Optional<ProjectionPath> BP = ProjectionPath::getProjectionPath(B, Mem);
+    llvm::Optional<ProjectionPath> BP =
+        ProjectionPath::getProjectionPath(B, Mem);
     // Strip off the projection path from base to the accessed field.
     for (auto &X : Alives) {
       X.removePathPrefix(BP);

@@ -50,7 +50,7 @@ struct NestedApplyInfo {
   AutoDiffConfig config;
   /// The original pullback type before reabstraction. `None` if the pullback
   /// type is not reabstracted.
-  Optional<CanSILFunctionType> originalPullbackType;
+  llvm::Optional<CanSILFunctionType> originalPullbackType;
 };
 
 /// Per-module contextual information for the Differentiation pass.
@@ -217,7 +217,8 @@ public:
   DifferentiableFunctionInst *createDifferentiableFunction(
       SILBuilder &builder, SILLocation loc, IndexSubset *parameterIndices,
       IndexSubset *resultIndices, SILValue original,
-      Optional<std::pair<SILValue, SILValue>> derivativeFunctions = None);
+      llvm::Optional<std::pair<SILValue, SILValue>> derivativeFunctions =
+          llvm::None);
 
   /// Creates a `linear_function` instruction using the given builder
   /// and arguments. Erase the newly created instruction from the processed set,
@@ -226,7 +227,7 @@ public:
   LinearFunctionInst *
   createLinearFunction(SILBuilder &builder, SILLocation loc,
                        IndexSubset *parameterIndices, SILValue original,
-                       Optional<SILValue> transposeFunction = None);
+                       llvm::Optional<SILValue> transposeFunction = llvm::None);
 
   // Given a `differentiable_function` instruction, finds the corresponding
   // differential operator used in the AST. If no differential operator is

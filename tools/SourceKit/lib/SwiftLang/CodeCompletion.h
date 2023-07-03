@@ -84,7 +84,7 @@ struct NameStyle {
 class Completion {
   const SwiftResult &base;
   void *opaqueCustomKind = nullptr;
-  Optional<uint8_t> moduleImportDepth;
+  llvm::Optional<uint8_t> moduleImportDepth;
   PopularityFactor popularityFactor;
   StringRef name;
   StringRef description;
@@ -106,7 +106,9 @@ public:
   bool hasCustomKind() const { return opaqueCustomKind; }
   void *getCustomKind() const { return opaqueCustomKind; }
   StringRef getDescription() const { return description; }
-  Optional<uint8_t> getModuleImportDepth() const { return moduleImportDepth; }
+  llvm::Optional<uint8_t> getModuleImportDepth() const {
+    return moduleImportDepth;
+  }
 
   /// A popularity factory in the range [-1, 1]. The higher the value, the more
   /// 'popular' this result is.  0 indicates unknown.
@@ -201,7 +203,7 @@ class CompletionBuilder {
   CodeCompletionFlair flair;
   CodeCompletionString *completionString;
   void *customKind = nullptr;
-  Optional<uint8_t> moduleImportDepth;
+  llvm::Optional<uint8_t> moduleImportDepth;
   PopularityFactor popularityFactor;
 
 public:
@@ -209,7 +211,7 @@ public:
 
   void setCustomKind(void *opaqueCustomKind) { customKind = opaqueCustomKind; }
 
-  void setModuleImportDepth(Optional<uint8_t> value) {
+  void setModuleImportDepth(llvm::Optional<uint8_t> value) {
     assert(!value || *value <= Completion::maxModuleImportDepth);
     moduleImportDepth = value;
   }

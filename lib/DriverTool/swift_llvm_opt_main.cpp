@@ -143,7 +143,8 @@ getTargetMachine(llvm::Triple TheTriple, StringRef CPUStr,
 
   return TheTarget->createTargetMachine(
       TheTriple.getTriple(), CPUStr, FeaturesStr, targetOptions,
-      Optional<llvm::Reloc::Model>(llvm::codegen::getExplicitRelocModel()),
+      llvm::Optional<llvm::Reloc::Model>(
+          llvm::codegen::getExplicitRelocModel()),
       llvm::codegen::getExplicitCodeModel(), GetCodeGenOptLevel(options));
 }
 

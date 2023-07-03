@@ -59,6 +59,8 @@ void SwiftLangSupport::expandMacroSyntactically(
       macroRoles |= swift::MacroRole::Peer;
     if (req.roles.contains(SourceKit::MacroRole::Conformance))
       macroRoles |= swift::MacroRole::Conformance;
+    if (req.roles.contains(SourceKit::MacroRole::Extension))
+      macroRoles |= swift::MacroRole::Extension;
 
     MacroDefinition definition = [&] {
       if (auto *expanded =

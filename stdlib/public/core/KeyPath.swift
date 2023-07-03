@@ -3893,6 +3893,8 @@ internal func _instantiateKeyPathBuffer(
   return offset
 }
 
+#if SWIFT_ENABLE_REFLECTION
+
 @available(SwiftStdlib 5.9, *)
 public func _createOffsetBasedKeyPath(
   root: Any.Type,
@@ -3912,7 +3914,7 @@ public func _createOffsetBasedKeyPath(
   // The buffer header is 32 bits, but components must start on a word
   // boundary.
   let kpBufferSize = MemoryLayout<Int>.size + MemoryLayout<Int32>.size
-  return kpTy._create(capacityInBytes: kpBufferSize) {
+  let kp = kpTy._create(capacityInBytes: kpBufferSize) {
     var builder = KeyPathBuffer.Builder($0)
     let header = KeyPathBuffer.Header(
       size: kpBufferSize - MemoryLayout<Int>.size,
@@ -3923,7 +3925,7 @@ public func _createOffsetBasedKeyPath(
     builder.pushHeader(header)
 
     let componentHeader = RawKeyPathComponent.Header(
-      stored: .struct,
+      stored: _MetadataKind(root) == .struct ? .struct : .class,
       mutable: false,
       inlineOffset: UInt32(offset)
     )
@@ -3935,6 +3937,12 @@ public func _createOffsetBasedKeyPath(
 
     component.clone(into: &builder.buffer, endOfReferencePrefix: false)
   }
+
+  if _MetadataKind(root) == .struct {
+    kp.assignOffsetToStorage(offset: offset)
+  }
+
+  return kp
 }
 
 @_spi(ObservableRerootKeyPath)
@@ -3996,8 +4004,6 @@ public func _rerootKeyPath<NewRoot>(
     }
   } as! PartialKeyPath<NewRoot>
 }
-
-#if SWIFT_ENABLE_REFLECTION
 
 @_silgen_name("swift_keyPath_copySymbolName")
 fileprivate func keyPath_copySymbolName(

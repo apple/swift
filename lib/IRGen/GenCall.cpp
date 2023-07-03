@@ -29,6 +29,7 @@
 #include "clang/CodeGen/CodeGenABITypes.h"
 #include "clang/CodeGen/ModuleBuilder.h"
 #include "clang/Sema/Sema.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/IR/GlobalPtrAuthInfo.h"
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/Support/Compiler.h"
@@ -147,9 +148,10 @@ Alignment IRGenModule::getAsyncContextAlignment() const {
   return Alignment(MaximumAlignment);
 }
 
-Optional<Size>
+llvm::Optional<Size>
 FunctionPointerKind::getStaticAsyncContextSize(IRGenModule &IGM) const {
-  if (!isSpecial()) return None;
+  if (!isSpecial())
+    return llvm::None;
 
   auto headerSize = getAsyncContextHeaderSize(IGM);
   headerSize = headerSize.roundUpToAlignment(IGM.getPointerAlignment());
@@ -579,7 +581,7 @@ namespace {
   class YieldSchema {
     SILType YieldTy;
     const TypeInfo &YieldTI;
-    Optional<NativeConventionSchema> NativeSchema;
+    llvm::Optional<NativeConventionSchema> NativeSchema;
     bool IsIndirect;
   public:
     YieldSchema(IRGenModule &IGM, SILFunctionConventions fnConv,
@@ -2463,7 +2465,7 @@ class AsyncCallEmission final : public CallEmission {
   llvm::Value *currentResumeFn = nullptr;
   llvm::Value *thickContext = nullptr;
   Size staticContextSize = Size(0);
-  Optional<AsyncContextLayout> asyncContextLayout;
+  llvm::Optional<AsyncContextLayout> asyncContextLayout;
 
   AsyncContextLayout getAsyncContextLayout() {
     if (!asyncContextLayout) {
@@ -4290,7 +4292,7 @@ llvm::Value *irgen::emitYield(IRGenFunction &IGF,
                      + unsigned(!indirectComponents.empty()))));
 
   // Fill in the indirect buffer if necessary.
-  Optional<Address> indirectBuffer;
+  llvm::Optional<Address> indirectBuffer;
   Size indirectBufferSize;
   if (!indirectComponents.empty()) {
     auto bufferStructTy = coroInfo.indirectResultsType;
@@ -5294,7 +5296,7 @@ FunctionPointer FunctionPointer::getAsFunction(IRGenFunction &IGF) const {
 void irgen::emitAsyncReturn(
     IRGenFunction &IGF, AsyncContextLayout &asyncLayout,
     CanSILFunctionType fnType,
-    Optional<ArrayRef<llvm::Value *>> nativeResultArgs) {
+    llvm::Optional<ArrayRef<llvm::Value *>> nativeResultArgs) {
   auto contextAddr = asyncLayout.emitCastTo(IGF, IGF.getAsyncContext());
   auto returnToCallerLayout = asyncLayout.getResumeParentLayout();
   auto returnToCallerAddr =
@@ -5361,7 +5363,7 @@ void irgen::emitAsyncReturn(IRGenFunction &IGF, AsyncContextLayout &asyncLayout,
   auto &IGM = IGF.IGM;
 
   // Map the explosion to the native result type.
-  Optional<ArrayRef<llvm::Value *>> nativeResults = llvm::None;
+  llvm::Optional<ArrayRef<llvm::Value *>> nativeResults = llvm::None;
   SmallVector<llvm::Value *, 16> nativeResultsStorage;
   SILFunctionConventions conv(fnType, IGF.getSILModule());
   auto &nativeSchema =
@@ -5469,7 +5471,7 @@ void irgen::forwardAsyncCallResult(IRGenFunction &IGF,
   Explosion resultExplosion;
   Explosion errorExplosion;
   auto hasError = fnType->hasErrorResult();
-  Optional<ArrayRef<llvm::Value *>> nativeResults = llvm::None;
+  llvm::Optional<ArrayRef<llvm::Value *>> nativeResults = llvm::None;
   SmallVector<llvm::Value *, 16> nativeResultsStorage;
 
   if (suspendResultTy->getNumElements() == numAsyncContextParams) {

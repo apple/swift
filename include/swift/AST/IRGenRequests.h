@@ -132,7 +132,7 @@ public:
 struct IRGenDescriptor {
   llvm::PointerUnion<FileUnit *, ModuleDecl *> Ctx;
 
-  using SymsToEmit = Optional<llvm::SmallVector<std::string, 1>>;
+  using SymsToEmit = llvm::Optional<llvm::SmallVector<std::string, 1>>;
   SymsToEmit SymbolsToEmit;
 
   const IRGenOptions &Opts;
@@ -173,7 +173,7 @@ public:
           const TBDGenOptions &TBDOpts, const SILOptions &SILOpts,
           Lowering::TypeConverter &Conv, std::unique_ptr<SILModule> &&SILMod,
           StringRef ModuleName, const PrimarySpecificPaths &PSPs,
-          StringRef PrivateDiscriminator, SymsToEmit symsToEmit = None,
+          StringRef PrivateDiscriminator, SymsToEmit symsToEmit = llvm::None,
           llvm::GlobalVariable **outModuleHash = nullptr) {
     return IRGenDescriptor{file,
                            symsToEmit,
@@ -189,14 +189,13 @@ public:
                            outModuleHash};
   }
 
-  static IRGenDescriptor
-  forWholeModule(ModuleDecl *M, const IRGenOptions &Opts,
-                 const TBDGenOptions &TBDOpts, const SILOptions &SILOpts,
-                 Lowering::TypeConverter &Conv,
-                 std::unique_ptr<SILModule> &&SILMod, StringRef ModuleName,
-                 const PrimarySpecificPaths &PSPs, SymsToEmit symsToEmit = None,
-                 ArrayRef<std::string> parallelOutputFilenames = {},
-                 llvm::GlobalVariable **outModuleHash = nullptr) {
+  static IRGenDescriptor forWholeModule(
+      ModuleDecl *M, const IRGenOptions &Opts, const TBDGenOptions &TBDOpts,
+      const SILOptions &SILOpts, Lowering::TypeConverter &Conv,
+      std::unique_ptr<SILModule> &&SILMod, StringRef ModuleName,
+      const PrimarySpecificPaths &PSPs, SymsToEmit symsToEmit = llvm::None,
+      ArrayRef<std::string> parallelOutputFilenames = {},
+      llvm::GlobalVariable **outModuleHash = nullptr) {
     return IRGenDescriptor{M,
                            symsToEmit,
                            Opts,

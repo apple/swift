@@ -13,6 +13,7 @@
 // RUN: %S/Inputs/make-debuglink %t/fib %t/fib-stripped %t/fib.dbg && %target-run %t/ElfReader %t/fib-stripped | %FileCheck %s --check-prefix DBGLINK
 
 // REQUIRES: OS=linux-gnu
+// REQUIRES: backtracing
 
 @_spi(ElfTest) import _Backtracing
 

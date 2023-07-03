@@ -132,7 +132,7 @@ deriveBodyComparable_enum_hasAssociatedValues_lt(AbstractFunctionDecl *ltDecl, v
     rhsElemPat->setImplicit();
 
     auto hasBoundDecls = !lhsPayloadVars.empty();
-    Optional<MutableArrayRef<VarDecl *>> caseBodyVarDecls;
+    llvm::Optional<MutableArrayRef<VarDecl *>> caseBodyVarDecls;
     if (hasBoundDecls) {
       // We allocated a direct copy of our lhs var decls for the case
       // body.
@@ -197,7 +197,7 @@ deriveBodyComparable_enum_hasAssociatedValues_lt(AbstractFunctionDecl *ltDecl, v
     cases.push_back(CaseStmt::create(C, CaseParentKind::Switch, SourceLoc(),
                                      defaultItem, SourceLoc(), SourceLoc(),
                                      body,
-                                     /*case body var decls*/ None));
+                                     /*case body var decls*/ llvm::None));
   }
 
   // switch (a, b) { <case statements> }

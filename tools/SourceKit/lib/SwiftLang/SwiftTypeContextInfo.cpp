@@ -130,7 +130,7 @@ void SwiftLangSupport::getExpressionContextInfo(
     OptionsDictionary *optionsDict, ArrayRef<const char *> Args,
     SourceKitCancellationToken CancellationToken,
     SourceKit::TypeContextInfoConsumer &SKConsumer,
-    Optional<VFSOptions> vfsOptions) {
+    llvm::Optional<VFSOptions> vfsOptions) {
   std::string error;
 
   TypeContextInfo::Options options;
@@ -140,7 +140,8 @@ void SwiftLangSupport::getExpressionContextInfo(
 
   // FIXME: the use of None as primary file is to match the fact we do not read
   // the document contents using the editor documents infrastructure.
-  auto fileSystem = getFileSystem(vfsOptions, /*primaryFile=*/None, error);
+  auto fileSystem =
+      getFileSystem(vfsOptions, /*primaryFile=*/llvm::None, error);
   if (!fileSystem) {
     return SKConsumer.failed(error);
   }

@@ -165,7 +165,7 @@ namespace {
         auto lhsTerm = LHSSubstitutions[lhsIndex];
         auto rhsTerm = RHSSubstitutions[rhsIndex];
 
-        Optional<int> compare = lhsTerm.compare(rhsTerm, Context);
+        llvm::Optional<int> compare = lhsTerm.compare(rhsTerm, Context);
         if (*compare < 0) {
           SameTypesOnLHS.emplace_back(rhsIndex, lhsTerm);
         } else if (compare > 0) {
@@ -308,7 +308,7 @@ swift::rewriting::buildTypeDifference(
   auto type = symbol.getConcreteType();
   auto substitutions = symbol.getSubstitutions();
 
-  Type resultType = type.transformRec([&](Type t) -> Optional<Type> {
+  Type resultType = type.transformRec([&](Type t) -> llvm::Optional<Type> {
     if (t->is<GenericTypeParamType>()) {
       unsigned index = RewriteContext::getGenericParamIndex(t);
 
@@ -322,7 +322,7 @@ swift::rewriting::buildTypeDifference(
           auto concreteSymbol = pair.second;
           auto concreteType = concreteSymbol.getConcreteType();
 
-          return concreteType.transformRec([&](Type t) -> Optional<Type> {
+          return concreteType.transformRec([&](Type t) -> llvm::Optional<Type> {
             if (t->is<GenericTypeParamType>()) {
               unsigned index = RewriteContext::getGenericParamIndex(t);
               Term substitution = concreteSymbol.getSubstitutions()[index];
@@ -330,7 +330,7 @@ swift::rewriting::buildTypeDifference(
             }
 
             assert(!t->is<DependentMemberType>());
-            return None;
+            return llvm::None;
           });
         }
       }
@@ -339,7 +339,7 @@ swift::rewriting::buildTypeDifference(
       return nextSubstitution(substitutions[index]);
     }
 
-    return None;
+    return llvm::None;
   });
 
   auto resultSymbol = [&]() {
@@ -415,14 +415,14 @@ const TypeDifference &RewriteSystem::getTypeDifference(unsigned index) const {
 ///
 /// See the comment at the top of TypeDifference in TypeDifference.h for a
 /// description of the actual transformations.
-bool
-RewriteSystem::computeTypeDifference(Term baseTerm, Symbol lhs, Symbol rhs,
-                                     Optional<unsigned> &lhsDifferenceID,
-                                     Optional<unsigned> &rhsDifferenceID) {
+bool RewriteSystem::computeTypeDifference(
+    Term baseTerm, Symbol lhs, Symbol rhs,
+    llvm::Optional<unsigned> &lhsDifferenceID,
+    llvm::Optional<unsigned> &rhsDifferenceID) {
   assert(lhs.getKind() == rhs.getKind());
 
-  lhsDifferenceID = None;
-  rhsDifferenceID = None;
+  lhsDifferenceID = llvm::None;
+  rhsDifferenceID = llvm::None;
 
   // Fast path if there's nothing to do.
   if (lhs == rhs)

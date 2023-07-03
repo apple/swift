@@ -51,6 +51,9 @@ open class ManagedBuffer<Header, Element> {
   internal init(_doNotCallMe: ()) {
     _internalInvariantFailure("Only initialize these by calling create")
   }
+
+  @inlinable
+  deinit {}
 }
 
 extension ManagedBuffer {

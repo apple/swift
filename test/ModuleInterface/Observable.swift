@@ -9,7 +9,7 @@
 // REQUIRES: swift_swift_parser
 // REQUIRES: observation
 
-import _Observation
+import Observation
 
 // CHECK-NOT: @Observable
 // CHECK-NOT: @ObservationIgnored

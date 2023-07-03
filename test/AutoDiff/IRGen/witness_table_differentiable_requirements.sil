@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -parse-sil %s -emit-ir | %FileCheck %s
-// RUN: %target-swift-frontend -parse-sil %s -emit-ir
+// RUN: %target-swift-frontend -parse-sil %s -emit-ir | %FileCheck %s
 // REQUIRES: CPU=x86_64
 
 sil_stage canonical
@@ -74,9 +73,9 @@ sil_witness_table hidden DifferentiableConformance: DifferentiableRequirement mo
   method #DifferentiableRequirement.f!vjp.SU.<Self where Self : DifferentiableRequirement>: <Self where Self : DifferentiableRequirement> (Self) -> (Float) -> Float : @AD__$s41witness_table_differentiable_requirements25DifferentiableConformanceVAA0E11RequirementA2aDP1fyS2fFTW_vjp_SU	// AD__$s41witness_table_differentiable_requirements25DifferentiableConformanceVAA0E11RequirementA2aDP1fyS2fFTW_vjp_SU
 }
 
-// CHECK: @"$s41witness_table_differentiable_requirements25DifferentiableConformanceVAA0E11RequirementAAWP" = hidden constant [4 x i8*] [
-// CHECK-SAME:   i8* bitcast (%swift.protocol_conformance_descriptor* @"$s41witness_table_differentiable_requirements25DifferentiableConformanceVAA0E11RequirementAAMc" to i8*),
-// CHECK-SAME:   i8* bitcast (float (float, %T41witness_table_differentiable_requirements25DifferentiableConformanceV*, %swift.type*, i8**)* @"$s41witness_table_differentiable_requirements25DifferentiableConformanceVAA0E11RequirementA2aDP1fyS2fFTW" to i8*),
-// CHECK-SAME:   i8* bitcast ({ float, i8*, %swift.refcounted* } (float, %T41witness_table_differentiable_requirements25DifferentiableConformanceV*, %swift.type*, i8**)* @"AD__$s41witness_table_differentiable_requirements25DifferentiableConformanceVAA0E11RequirementA2aDP1fyS2fFTW_jvp_SU" to i8*),
-// CHECK-SAME:   i8* bitcast ({ float, i8*, %swift.refcounted* } (float, %T41witness_table_differentiable_requirements25DifferentiableConformanceV*, %swift.type*, i8**)* @"AD__$s41witness_table_differentiable_requirements25DifferentiableConformanceVAA0E11RequirementA2aDP1fyS2fFTW_vjp_SU" to i8*)
+// CHECK: @"$s41witness_table_differentiable_requirements25DifferentiableConformanceVAA0E11RequirementAAWP" = hidden constant [4 x ptr] [
+// CHECK-SAME:   ptr @"$s41witness_table_differentiable_requirements25DifferentiableConformanceVAA0E11RequirementAAMc",
+// CHECK-SAME:   ptr @"$s41witness_table_differentiable_requirements25DifferentiableConformanceVAA0E11RequirementA2aDP1fyS2fFTW",
+// CHECK-SAME:   ptr @"AD__$s41witness_table_differentiable_requirements25DifferentiableConformanceVAA0E11RequirementA2aDP1fyS2fFTW_jvp_SU",
+// CHECK-SAME:   ptr @"AD__$s41witness_table_differentiable_requirements25DifferentiableConformanceVAA0E11RequirementA2aDP1fyS2fFTW_vjp_SU"
 // CHECK-SAME: ]

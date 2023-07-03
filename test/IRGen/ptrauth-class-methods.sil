@@ -1,15 +1,14 @@
-// RUN: %swift %use_no_opaque_pointers -swift-version 4 -target arm64e-apple-ios12.0 -parse-stdlib -parse-as-library %s -emit-ir -module-name test -Xcc -Xclang -Xcc -fptrauth-calls | %FileCheck %s --check-prefix=CHECK
-// RUN: %swift -swift-version 4 -target arm64e-apple-ios12.0 -parse-stdlib -parse-as-library %s -emit-ir -module-name test -Xcc -Xclang -Xcc -fptrauth-calls
+// RUN: %swift -swift-version 4 -target arm64e-apple-ios12.0 -parse-stdlib -parse-as-library %s -emit-ir -module-name test -Xcc -Xclang -Xcc -fptrauth-calls | %FileCheck %s --check-prefix=CHECK
 
 // REQUIRES: CPU=arm64e
 // REQUIRES: OS=ios
 
 import Builtin
 
-// CHECK: @"$s4test1ACfD.ptrauth" = private constant { i8*, i32, i64, i64 } { i8* bitcast (void (%T4test1AC*)* @"$s4test1ACfD" to i8*), i32 0, i64 ptrtoint ({{.*}} @"$s4test1ACMf", i32 0, i32 1) to i64), i64 48063 }, section "llvm.ptrauth", align 8
-// CHECK: @A_foo.ptrauth = private constant { i8*, i32, i64, i64 } { i8* bitcast (void (%T4test1AC*)* @A_foo to i8*), i32 0, i64 ptrtoint ({{.*}} getelementptr inbounds ({{.*}} @"$s4test1ACMf", i32 0, i32 {{.*}}) to i64), i64 23008 }, section "llvm.ptrauth", align 8
-// CHECK: @"$s4test1BCfD.ptrauth" = private constant { i8*, i32, i64, i64 } { i8* bitcast (void (%T4test1BC*)* @"$s4test1BCfD" to i8*), i32 0, i64 ptrtoint ({{.*}} @"$s4test1BCMf", i32 0, i32 1) to i64), i64 48063 }, section "llvm.ptrauth", align 8
-// CHECK: @B_foo.ptrauth = private constant { i8*, i32, i64, i64 } { i8* bitcast (void (%T4test1BC*)* @B_foo to i8*), i32 0, i64 ptrtoint ({{.*}} getelementptr inbounds ({{.*}} @"$s4test1BCMf", i32 0, i32 {{.*}}) to i64), i64 23008 }, section "llvm.ptrauth", align 8
+// CHECK: @"$s4test1ACfD.ptrauth" = private constant { ptr, i32, i64, i64 } { ptr @"$s4test1ACfD", i32 0, i64 ptrtoint ({{.*}} @"$s4test1ACMf", i32 0, i32 1) to i64), i64 48063 }, section "llvm.ptrauth", align 8
+// CHECK: @A_foo.ptrauth = private constant { ptr, i32, i64, i64 } { ptr @A_foo, i32 0, i64 ptrtoint ({{.*}} getelementptr inbounds ({{.*}} @"$s4test1ACMf", i32 0, i32 {{.*}}) to i64), i64 23008 }, section "llvm.ptrauth", align 8
+// CHECK: @"$s4test1BCfD.ptrauth" = private constant { ptr, i32, i64, i64 } { ptr @"$s4test1BCfD", i32 0, i64 ptrtoint ({{.*}} @"$s4test1BCMf", i32 0, i32 1) to i64), i64 48063 }, section "llvm.ptrauth", align 8
+// CHECK: @B_foo.ptrauth = private constant { ptr, i32, i64, i64 } { ptr @B_foo, i32 0, i64 ptrtoint ({{.*}} getelementptr inbounds ({{.*}} @"$s4test1BCMf", i32 0, i32 {{.*}}) to i64), i64 23008 }, section "llvm.ptrauth", align 8
 
 // CHECK: @"$s4test1GCMn" =
 //   -1212481520 == 0xb7bb0010. 0xb7bb == 47035.
@@ -54,16 +53,14 @@ bb0(%0 : $A):
   %2 = apply %1(%0) : $@convention(method) (@guaranteed A) -> ()
   return %2 : $()
 }
-// CHECK-LABEL: define swiftcc void @test_call_a(%T4test1AC* %0)
-// CHECK:      [[T0:%.*]] = bitcast %T4test1AC* %0 to %swift.type**
-// CHECK-NEXT: [[META:%.*]] = load %swift.type*, %swift.type** [[T0]], align
-// CHECK-NEXT: [[T0:%.*]] = bitcast %swift.type* [[META]] to void (%T4test1AC*)**
-// CHECK-NEXT: [[SLOT:%.*]] = getelementptr inbounds void (%T4test1AC*)*, void (%T4test1AC*)** [[T0]], i64 {{.*}}
-// CHECK-NEXT: [[FN:%.*]] = load void (%T4test1AC*)*, void (%T4test1AC*)** [[SLOT]]
-// CHECK-NEXT: [[T0:%.*]] = ptrtoint void (%T4test1AC*)** [[SLOT]] to i64
+// CHECK-LABEL: define swiftcc void @test_call_a(ptr %0)
+// CHECK: [[META:%.*]] = load ptr, ptr %0, align
+// CHECK-NEXT: [[SLOT:%.*]] = getelementptr inbounds ptr, ptr [[META]], i64 {{.*}}
+// CHECK-NEXT: [[FN:%.*]] = load ptr, ptr [[SLOT]]
+// CHECK-NEXT: [[T0:%.*]] = ptrtoint ptr [[SLOT]] to i64
 //   Discriminator value is arbitrary, but must be the same as the next test.
 // CHECK-NEXT: [[DISCRIMINATOR:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[T0]], i64 23008)
-// CHECK-NEXT: call swiftcc void [[FN]](%T4test1AC* swiftself %0) [ "ptrauth"(i32 0, i64 [[DISCRIMINATOR]]) ]
+// CHECK-NEXT: call swiftcc void [[FN]](ptr swiftself %0) [ "ptrauth"(i32 0, i64 [[DISCRIMINATOR]]) ]
 // CHECK-NEXT: ret void
 
 sil @test_call_b : $@convention(thin) (@guaranteed B) -> () {
@@ -72,16 +69,14 @@ bb0(%0 : $B):
   %2 = apply %1(%0) : $@convention(method) (@guaranteed B) -> ()
   return %2 : $()
 }
-// CHECK-LABEL: define swiftcc void @test_call_b(%T4test1BC* %0)
-// CHECK:      [[T0:%.*]] = bitcast %T4test1BC* %0 to %swift.type**
-// CHECK-NEXT: [[META:%.*]] = load %swift.type*, %swift.type** [[T0]], align
-// CHECK-NEXT: [[T0:%.*]] = bitcast %swift.type* [[META]] to void (%T4test1BC*)**
-// CHECK-NEXT: [[SLOT:%.*]] = getelementptr inbounds void (%T4test1BC*)*, void (%T4test1BC*)** [[T0]], i64 {{.*}}
-// CHECK-NEXT: [[FN:%.*]] = load void (%T4test1BC*)*, void (%T4test1BC*)** [[SLOT]]
-// CHECK-NEXT: [[T0:%.*]] = ptrtoint void (%T4test1BC*)** [[SLOT]] to i64
+// CHECK-LABEL: define swiftcc void @test_call_b(ptr %0)
+// CHECK: [[META:%.*]] = load ptr, ptr %0, align
+// CHECK-NEXT: [[SLOT:%.*]] = getelementptr inbounds ptr, ptr [[META]], i64 {{.*}}
+// CHECK-NEXT: [[FN:%.*]] = load ptr, ptr [[SLOT]]
+// CHECK-NEXT: [[T0:%.*]] = ptrtoint ptr [[SLOT]] to i64
 //   Discriminator value is arbitrary, but must be the same as the previous test.
 // CHECK-NEXT: [[DISCRIMINATOR:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[T0]], i64 23008)
-// CHECK-NEXT: call swiftcc void [[FN]](%T4test1BC* swiftself %0) [ "ptrauth"(i32 0, i64 [[DISCRIMINATOR]]) ]
+// CHECK-NEXT: call swiftcc void [[FN]](ptr swiftself %0) [ "ptrauth"(i32 0, i64 [[DISCRIMINATOR]]) ]
 // CHECK-NEXT: ret void
 
 sil @test_call_g : $@convention(thin) <T> (@guaranteed G<T>) -> () {
@@ -90,15 +85,13 @@ bb0(%0 : $G<T>):
   %2 = apply %1<T>(%0) : $@convention(method) <t> (@guaranteed G<t>) -> ()
   return %2 : $()
 }
-// CHECK-LABEL: define swiftcc void @test_call_g(%T4test1GC* %0)
-// CHECK:      [[T0:%.*]] = bitcast %T4test1GC* %0 to %swift.type**
-// CHECK:      [[T0:%.*]] = bitcast %T4test1GC* %0 to %swift.type**
-// CHECK-NEXT: [[META:%.*]] = load %swift.type*, %swift.type** [[T0]], align
-// CHECK-NEXT: [[T0:%.*]] = bitcast %swift.type* [[META]] to void (%T4test1GC*)**
-// CHECK-NEXT: [[SLOT:%.*]] = getelementptr inbounds void (%T4test1GC*)*, void (%T4test1GC*)** [[T0]], i64 {{.*}}
-// CHECK-NEXT: [[FN:%.*]] = load void (%T4test1GC*)*, void (%T4test1GC*)** [[SLOT]]
-// CHECK-NEXT: [[T0:%.*]] = ptrtoint void (%T4test1GC*)** [[SLOT]] to i64
+// CHECK-LABEL: define swiftcc void @test_call_g(ptr %0)
+// CHECK: load
+// CHECK: [[META:%.*]] = load ptr, ptr %0, align
+// CHECK-NEXT: [[SLOT:%.*]] = getelementptr inbounds ptr, ptr [[META]], i64 {{.*}}
+// CHECK-NEXT: [[FN:%.*]] = load ptr, ptr [[SLOT]]
+// CHECK-NEXT: [[T0:%.*]] = ptrtoint ptr [[SLOT]] to i64
 //   Discriminator value is arbitrary, but must be the same as the previous test.
 // CHECK-NEXT: [[DISCRIMINATOR:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[T0]], i64 47035)
-// CHECK-NEXT: call swiftcc void [[FN]](%T4test1GC* swiftself %0) [ "ptrauth"(i32 0, i64 [[DISCRIMINATOR]]) ]
+// CHECK-NEXT: call swiftcc void [[FN]](ptr swiftself %0) [ "ptrauth"(i32 0, i64 [[DISCRIMINATOR]]) ]
 // CHECK-NEXT: ret void

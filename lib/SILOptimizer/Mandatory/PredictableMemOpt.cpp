@@ -690,7 +690,7 @@ AvailableValueAggregator::aggregateFullyAvailableValue(SILType loadTy,
   updater.initialize(loadTy, B.hasOwnership() ? OwnershipKind::Owned
                                               : OwnershipKind::None);
 
-  Optional<SILValue> singularValue;
+  llvm::Optional<SILValue> singularValue;
   for (auto *insertPt : insertPts) {
     // Use the scope and location of the store at the insertion point.
     SILBuilderWithScope builder(insertPt, &insertedInsts);
@@ -867,7 +867,7 @@ SILValue AvailableValueAggregator::handlePrimitiveValue(SILType loadTy,
   updater.initialize(loadTy, B.hasOwnership() ? OwnershipKind::Owned
                                               : OwnershipKind::None);
 
-  Optional<SILValue> singularValue;
+  llvm::Optional<SILValue> singularValue;
   for (auto *i : insertPts) {
     // Use the scope and location of the store at the insertion point.
     SILBuilderWithScope builder(i, &insertedInsts);
@@ -1482,7 +1482,7 @@ static inline void updateAvailableValuesHelper(
     SingleValueInstruction *theMemory, SILInstruction *inst, SILValue address,
     SmallBitVector &requiredElts, SmallVectorImpl<AvailableValue> &result,
     SmallBitVector &conflictingValues,
-    function_ref<Optional<AvailableValue>(unsigned)> defaultFunc,
+    function_ref<llvm::Optional<AvailableValue>(unsigned)> defaultFunc,
     function_ref<bool(AvailableValue &, unsigned)> isSafeFunc) {
   auto &mod = theMemory->getModule();
   unsigned startSubElt = computeSubelement(address, theMemory);
@@ -1546,19 +1546,20 @@ void AvailableValueDataflowContext::updateAvailableValues(
   if (auto *LI = dyn_cast<LoadInst>(Inst)) {
     // First see if this is a load inst that we are tracking.
     if (LoadTakeUses.count(LI)) {
-      updateAvailableValuesHelper(TheMemory, LI, LI->getOperand(), RequiredElts,
-                                  Result, ConflictingValues,
-                                  /*default*/
-                                  [](unsigned) -> Optional<AvailableValue> {
-                                    // We never initialize values. We only
-                                    // want to invalidate.
-                                    return None;
-                                  },
-                                  /*isSafe*/
-                                  [](AvailableValue &, unsigned) -> bool {
-                                    // Always assume values conflict.
-                                    return false;
-                                  });
+      updateAvailableValuesHelper(
+          TheMemory, LI, LI->getOperand(), RequiredElts, Result,
+          ConflictingValues,
+          /*default*/
+          [](unsigned) -> llvm::Optional<AvailableValue> {
+            // We never initialize values. We only
+            // want to invalidate.
+            return llvm::None;
+          },
+          /*isSafe*/
+          [](AvailableValue &, unsigned) -> bool {
+            // Always assume values conflict.
+            return false;
+          });
       return;
     }
   }
@@ -1568,8 +1569,8 @@ void AvailableValueDataflowContext::updateAvailableValues(
     updateAvailableValuesHelper(
         TheMemory, SI, SI->getDest(), RequiredElts, Result, ConflictingValues,
         /*default*/
-        [&](unsigned ResultOffset) -> Optional<AvailableValue> {
-          Optional<AvailableValue> Result;
+        [&](unsigned ResultOffset) -> llvm::Optional<AvailableValue> {
+          llvm::Optional<AvailableValue> Result;
           Result.emplace(SI->getSrc(), ResultOffset, SI);
           return Result;
         },
@@ -1596,19 +1597,20 @@ void AvailableValueDataflowContext::updateAvailableValues(
   if (auto *CAI = dyn_cast<CopyAddrInst>(Inst)) {
     // If we have a load take use, we must be tracking a store of CAI.
     if (LoadTakeUses.count(CAI)) {
-      updateAvailableValuesHelper(TheMemory, CAI, CAI->getSrc(), RequiredElts,
-                                  Result, ConflictingValues,
-                                  /*default*/
-                                  [](unsigned) -> Optional<AvailableValue> {
-                                    // We never give values default initialized
-                                    // values. We only want to invalidate.
-                                    return None;
-                                  },
-                                  /*isSafe*/
-                                  [](AvailableValue &, unsigned) -> bool {
-                                    // Always assume values conflict.
-                                    return false;
-                                  });
+      updateAvailableValuesHelper(
+          TheMemory, CAI, CAI->getSrc(), RequiredElts, Result,
+          ConflictingValues,
+          /*default*/
+          [](unsigned) -> llvm::Optional<AvailableValue> {
+            // We never give values default initialized
+            // values. We only want to invalidate.
+            return llvm::None;
+          },
+          /*isSafe*/
+          [](AvailableValue &, unsigned) -> bool {
+            // Always assume values conflict.
+            return false;
+          });
       return;
     }
 
@@ -1965,7 +1967,7 @@ public:
   bool tryToRemoveDeadAllocation();
 
 private:
-  Optional<std::pair<SILType, unsigned>>
+  llvm::Optional<std::pair<SILType, unsigned>>
   computeAvailableValues(SILValue SrcAddr, SILInstruction *Inst,
                          SmallVectorImpl<AvailableValue> &AvailableValues);
   bool promoteLoadCopy(LoadInst *li);
@@ -1990,13 +1992,14 @@ private:
 
 } // end anonymous namespace
 
-Optional<std::pair<SILType, unsigned>> AllocOptimize::computeAvailableValues(
+llvm::Optional<std::pair<SILType, unsigned>>
+AllocOptimize::computeAvailableValues(
     SILValue SrcAddr, SILInstruction *Inst,
     SmallVectorImpl<AvailableValue> &AvailableValues) {
   // If the box has escaped at this instruction, we can't safely promote the
   // load.
   if (DataflowContext.hasEscapedAt(Inst))
-    return None;
+    return llvm::None;
 
   SILType LoadTy = SrcAddr->getType().getObjectType();
 
@@ -2008,7 +2011,7 @@ Optional<std::pair<SILType, unsigned>> AllocOptimize::computeAvailableValues(
   // If this is a load from within an enum projection, we can't promote it since
   // we don't track subelements in a type that could be changing.
   if (FirstElt == ~0U)
-    return None;
+    return llvm::None;
 
   unsigned NumLoadSubElements = getNumSubElements(
       LoadTy, Module, TypeExpansionContext(*TheMemory->getFunction()));
@@ -2024,7 +2027,7 @@ Optional<std::pair<SILType, unsigned>> AllocOptimize::computeAvailableValues(
   if (NumLoadSubElements != 0 &&
       !DataflowContext.computeAvailableValues(
           Inst, FirstElt, NumLoadSubElements, RequiredElts, AvailableValues))
-    return None;
+    return llvm::None;
 
   return std::make_pair(LoadTy, FirstElt);
 }

@@ -60,7 +60,7 @@ enum class LayoutKind {
 class NonFixedOffsetsImpl;
 
 /// The type to pass around for non-fixed offsets.
-using NonFixedOffsets = Optional<NonFixedOffsetsImpl *>;
+using NonFixedOffsets = llvm::Optional<NonFixedOffsetsImpl *>;
 
 /// An abstract class for determining non-fixed offsets.
 class NonFixedOffsetsImpl {

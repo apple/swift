@@ -35,7 +35,8 @@ protocol Rope<Element>: ~Copyable { // expected-error {{cannot suppress conforma
 extension S: ~Copyable {} // expected-error {{cannot suppress conformances here}}
                           // expected-error@-1 {{cannot find type 'Copyable' in scope}}
 
-func takeNoncopyableGeneric<T: ~Copyable>(_ t: T) {} // expected-error {{expected a class type or protocol-constrained type restricting 'T'}}
+func takeNoncopyableGeneric<T: ~Copyable>(_ t: T) {} // expected-error {{cannot suppress conformances here}}
+                                                     // expected-error@-1 {{cannot find type 'Copyable' in scope}}
 
 @_moveOnly struct ExtraNonCopyable:         // expected-error {{duplicate attribute}}{{1-12=}}
                                   ~Copyable // expected-note {{attribute already specified here}}
@@ -57,3 +58,24 @@ public enum MoveOnlyE2<T: Equatable> : ~Copyable {
   case holding(s: MoveOnlyS1<T>)
   consuming func x() {}
 }
+
+func more() {
+  let foo: any ~Copyable = 19  // expected-error@:16 {{cannot suppress conformances here}}
+                               // expected-error@-1 {{cannot find type 'Copyable' in scope}}
+
+  let foo: any ~Equatable = 19  // expected-error@:16 {{cannot suppress conformances here}}
+}
+
+func blah<T>(_ t: T) where T: ~Copyable,    // expected-error@:31 {{cannot suppress conformances here}}
+                                            // expected-error@-1 {{cannot find type 'Copyable' in scope}}
+
+                           T: ~Hashable {}  // expected-error@:31 {{cannot suppress conformances here}}
+
+func foo<T: ~Copyable>(x: T) {} // expected-error {{cannot suppress conformances here}}
+                                // expected-error@-1 {{cannot find type 'Copyable' in scope}}
+
+struct Buurap<T: ~Copyable> {} // expected-error {{cannot suppress conformances here}}
+                               // expected-error@-1 {{cannot find type 'Copyable' in scope}}
+
+protocol Foo where Self: ~Copyable {} // expected-error {{cannot suppress conformances here}}
+                                      // expected-error@-1 {{cannot find type 'Copyable' in scope}}

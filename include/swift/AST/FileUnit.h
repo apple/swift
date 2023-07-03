@@ -135,8 +135,10 @@ public:
     return false;
   }
 
-  virtual Optional<Fingerprint>
-  loadFingerprint(const IterableDeclContext *IDC) const { return None; }
+  virtual llvm::Optional<Fingerprint>
+  loadFingerprint(const IterableDeclContext *IDC) const {
+    return llvm::None;
+  }
 
 protected:
   /// Look up an operator declaration. Do not call directly, use
@@ -162,38 +164,34 @@ public:
   /// This function is an implementation detail for comment serialization.
   /// If you just want to get a comment attached to a decl, use
   /// \c Decl::getRawComment() or \c Decl::getSemanticBriefComment().
-  virtual Optional<CommentInfo>
-  getCommentForDecl(const Decl *D) const {
-    return None;
+  virtual llvm::Optional<CommentInfo> getCommentForDecl(const Decl *D) const {
+    return llvm::None;
   }
 
   /// For a serialized AST file, returns \c true if an adjacent swiftdoc has been
   /// loaded. Otherwise, returns \c false.
   virtual bool hasLoadedSwiftDoc() const { return false; }
 
-  virtual Optional<StringRef>
-  getGroupNameForDecl(const Decl *D) const {
-    return None;
+  virtual llvm::Optional<StringRef> getGroupNameForDecl(const Decl *D) const {
+    return llvm::None;
   }
 
-  virtual Optional<StringRef>
+  virtual llvm::Optional<StringRef>
   getSourceFileNameForDecl(const Decl *D) const {
-    return None;
+    return llvm::None;
   }
 
-  virtual Optional<unsigned>
-  getSourceOrderForDecl(const Decl *D) const {
-    return None;
+  virtual llvm::Optional<unsigned> getSourceOrderForDecl(const Decl *D) const {
+    return llvm::None;
   }
 
-  virtual Optional<StringRef>
-  getGroupNameByUSR(StringRef USR) const {
-    return None;
+  virtual llvm::Optional<StringRef> getGroupNameByUSR(StringRef USR) const {
+    return llvm::None;
   }
 
-  virtual Optional<ExternalSourceLocs::RawLocs>
+  virtual llvm::Optional<ExternalSourceLocs::RawLocs>
   getExternalRawLocsForDecl(const Decl *D) const {
-    return None;
+    return llvm::None;
   }
 
   virtual void collectAllGroups(SmallVectorImpl<StringRef> &Names) const {}

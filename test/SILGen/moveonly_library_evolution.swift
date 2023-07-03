@@ -1,5 +1,5 @@
-// RUN: %target-swift-emit-silgen -enable-experimental-feature NoImplicitCopy -enable-experimental-feature MoveOnlyResilientTypes -enable-library-evolution %s | %FileCheck %s
-// RUN: %target-swift-emit-sil -O -sil-verify-all -enable-experimental-feature NoImplicitCopy -enable-experimental-feature MoveOnlyResilientTypes -enable-library-evolution %s
+// RUN: %target-swift-emit-silgen -enable-experimental-feature MoveOnlyPartialConsumption -enable-experimental-feature NoImplicitCopy -enable-experimental-feature MoveOnlyResilientTypes -enable-library-evolution %s | %FileCheck %s
+// RUN: %target-swift-emit-sil -O -sil-verify-all -enable-experimental-feature MoveOnlyPartialConsumption -enable-experimental-feature NoImplicitCopy -enable-experimental-feature MoveOnlyResilientTypes -enable-library-evolution %s
 
 ////////////////////////
 // MARK: Declarations //

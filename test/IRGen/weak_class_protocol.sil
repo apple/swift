@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -emit-ir %s | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-runtime
-// RUN: %target-swift-frontend -emit-ir %s
+// RUN: %target-swift-frontend -emit-ir %s | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-runtime
 
 // REQUIRES: CPU=x86_64
 
@@ -7,16 +6,16 @@ import Swift
 
 protocol Foo: class { }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @store_weak({ %swift.weak, i8** }* noalias nocapture sret({{.*}}) %0, i64 %1, i64 %2) {{.*}} {
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @store_weak(ptr noalias nocapture sret({{.*}}) %0, i64 %1, i64 %2) {{.*}} {
 // CHECK:       entry:
-// CHECK-objc:    [[INSTANCE:%.*]] = inttoptr i64 %1 to %objc_object*
-// CHECK-native:  [[INSTANCE:%.*]] = inttoptr i64 %1 to %swift.refcounted*
-// CHECK:         [[WTABLE:%.*]] = inttoptr i64 %2 to i8**
-// CHECK:         [[WTABLE_SLOT:%.*]] = getelementptr inbounds { %swift.weak, i8** }, { %swift.weak, i8** }* %0, i32 0, i32 1
-// CHECK:         store i8** [[WTABLE]], i8*** [[WTABLE_SLOT]], align 8
-// CHECK:         [[INSTANCE_SLOT:%.*]] = getelementptr inbounds { %swift.weak, i8** }, { %swift.weak, i8** }* %0, i32 0, i32 0
-// CHECK-objc:    call %swift.weak* @swift_unknownObjectWeakAssign(%swift.weak* returned [[INSTANCE_SLOT]], %objc_object* [[INSTANCE]]) {{#[0-9]+}}
-// CHECK-native:  call %swift.weak* @swift_weakAssign(%swift.weak* returned [[INSTANCE_SLOT]], %swift.refcounted* [[INSTANCE]]) {{#[0-9]+}}
+// CHECK-objc:    [[INSTANCE:%.*]] = inttoptr i64 %1 to ptr
+// CHECK-native:  [[INSTANCE:%.*]] = inttoptr i64 %1 to ptr
+// CHECK:         [[WTABLE:%.*]] = inttoptr i64 %2 to ptr
+// CHECK:         [[WTABLE_SLOT:%.*]] = getelementptr inbounds { %swift.weak, ptr }, ptr %0, i32 0, i32 1
+// CHECK:         store ptr [[WTABLE]], ptr [[WTABLE_SLOT]], align 8
+// CHECK:         [[INSTANCE_SLOT:%.*]] = getelementptr inbounds { %swift.weak, ptr }, ptr %0, i32 0, i32 0
+// CHECK-objc:    call ptr @swift_unknownObjectWeakAssign(ptr returned [[INSTANCE_SLOT]], ptr [[INSTANCE]]) {{#[0-9]+}}
+// CHECK-native:  call ptr @swift_weakAssign(ptr returned [[INSTANCE_SLOT]], ptr [[INSTANCE]]) {{#[0-9]+}}
 // CHECK:         ret void
 // CHECK:       }
 sil @store_weak : $@convention(thin) (@owned Foo?) -> @out @sil_weak Foo? {

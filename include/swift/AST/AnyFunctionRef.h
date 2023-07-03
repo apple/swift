@@ -13,14 +13,16 @@
 #ifndef SWIFT_AST_ANY_FUNCTION_REF_H
 #define SWIFT_AST_ANY_FUNCTION_REF_H
 
-#include "swift/Basic/Compiler.h"
-#include "swift/Basic/Debug.h"
-#include "swift/Basic/LLVM.h"
 #include "swift/AST/Decl.h"
 #include "swift/AST/Expr.h"
 #include "swift/AST/ParameterList.h"
 #include "swift/AST/Types.h"
+#include "swift/Basic/Compiler.h"
+#include "swift/Basic/Debug.h"
+#include "swift/Basic/LLVM.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/None.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/PointerUnion.h"
 
 namespace swift {
@@ -56,7 +58,7 @@ public:
 
   /// Construct an AnyFunctionRef from a decl context that might be
   /// some sort of function.
-  static Optional<AnyFunctionRef> fromDeclContext(DeclContext *dc) {
+  static llvm::Optional<AnyFunctionRef> fromDeclContext(DeclContext *dc) {
     if (auto fn = dyn_cast<AbstractFunctionDecl>(dc)) {
       return AnyFunctionRef(fn);
     }
@@ -65,7 +67,7 @@ public:
       return AnyFunctionRef(ace);
     }
 
-    return None;
+    return llvm::None;
   }
 
   CaptureInfo getCaptureInfo() const {

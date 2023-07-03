@@ -182,12 +182,12 @@ public:
 
   /// Try to form a conversion that does an optional injection
   /// or optional-to-optional conversion followed by this conversion.
-  Optional<Conversion>
+  llvm::Optional<Conversion>
   adjustForInitialOptionalConversions(CanType newSourceType) const;
 
   /// Try to form a conversion that does a force-value followed by
   /// this conversion.
-  Optional<Conversion> adjustForInitialForceValue() const;
+  llvm::Optional<Conversion> adjustForInitialForceValue() const;
 
   void dump() const LLVM_ATTRIBUTE_USED;
   void print(llvm::raw_ostream &out) const;
@@ -226,9 +226,8 @@ public:
   bool isForced() const { return Forced; }
 };
 
-Optional<ConversionPeepholeHint>
-canPeepholeConversions(SILGenFunction &SGF,
-                       const Conversion &outerConversion,
+llvm::Optional<ConversionPeepholeHint>
+canPeepholeConversions(SILGenFunction &SGF, const Conversion &outerConversion,
                        const Conversion &innerConversion);
 
 /// An initialization where we ultimately want to apply a conversion to
@@ -350,7 +349,7 @@ public:
   }
   
   // Get the abstraction pattern, if any, the value is converted to.
-  Optional<AbstractionPattern> getAbstractionPattern() const override;
+  llvm::Optional<AbstractionPattern> getAbstractionPattern() const override;
 
   // Bookkeeping.
   void finishInitialization(SILGenFunction &SGF) override {

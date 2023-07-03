@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -prespecialize-generic-metadata -target %module-target-future -emit-ir %s | %FileCheck %s -DINT=i%target-ptrsize -DALIGNMENT=%target-alignment
-// RUN: %target-swift-frontend -prespecialize-generic-metadata -target %module-target-future -emit-ir %s
+// RUN: %target-swift-frontend -prespecialize-generic-metadata -target %module-target-future -emit-ir %s | %FileCheck %s -DINT=i%target-ptrsize -DALIGNMENT=%target-alignment
 
 // REQUIRES: VENDOR=apple || OS=linux-gnu
 // UNSUPPORTED: CPU=i386 && OS=ios
@@ -20,10 +19,10 @@
 //           :   i32 trunc (
 //           :     i64 sub (
 //           :       i64 ptrtoint (
-//           :         %swift.type* (
-//           :           %swift.type_descriptor*, 
-//           :           i8**, 
-//           :           i8*
+//           :         ptr (
+//           :           ptr, 
+//           :           ptr, 
+//           :           ptr
 //           :         )* @"$s4main6EitherOMi" to i64
 //           :       ), 
 //           :       i64 ptrtoint (
@@ -35,9 +34,9 @@
 //           :     i64 sub (
 //           :       i64 ptrtoint (
 //           :         %swift.metadata_response (
-//           :           %swift.type*, 
-//           :           i8*, 
-//           :           i8**
+//           :           ptr, 
+//           :           ptr, 
+//           :           ptr
 //           :         )* @"$s4main6EitherOMr" to i64
 //           :       ), 
 //           :       i64 ptrtoint (
@@ -54,7 +53,7 @@
 //           :   i32 trunc (
 //           :     i64 sub (
 //           :       i64 ptrtoint (
-//           :         %swift.enum_vwtable* @"$s4main6EitherOWV" to i64
+//           :         ptr @"$s4main6EitherOWV" to i64
 //           :       ), 
 //           :       i64 ptrtoint (
 //           :         i32* getelementptr inbounds (
@@ -69,14 +68,12 @@
 //           :   i32 trunc (
 // CHECK-SAME:     [[INT]] sub (
 // CHECK-SAME:       [[INT]] ptrtoint (
-// CHECK-SAME:         <{ 
-// CHECK-SAME:           i64 
-// CHECK-SAME:         }>* [[EXTRA_DATA_PATTERN]] to [[INT]]
+// CHECK-SAME:         ptr [[EXTRA_DATA_PATTERN]] to [[INT]]
 // CHECK-SAME:       ), 
 // CHECK-SAME:       [[INT]] ptrtoint (
-// CHECK-SAME:         i32* getelementptr inbounds (
+// CHECK-SAME:         ptr getelementptr inbounds (
 // CHECK-SAME:           <{ i32, i32, i32, i32, i32, i16, i16 }>, 
-// CHECK-SAME:           <{ i32, i32, i32, i32, i32, i16, i16 }>* @"$s4main6EitherOMP", 
+// CHECK-SAME:           $s4main6EitherOMP
 // CHECK-SAME:           i32 0, 
 // CHECK-SAME:           i32 4
 // CHECK-SAME:         ) to [[INT]]

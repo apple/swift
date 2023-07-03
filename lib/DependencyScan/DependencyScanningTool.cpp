@@ -279,7 +279,8 @@ DependencyScanningTool::initCompilerInstanceForScan(
   }
 
   // Setup the caching service after the instance finishes setup.
-  ScanningService->setupCachingDependencyScanningService(*Instance);
+  if (ScanningService->setupCachingDependencyScanningService(*Instance))
+    return std::make_error_code(std::errc::invalid_argument);
 
   (void)Instance->getMainModule();
 

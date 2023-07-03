@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -primary-file %s -emit-ir -disable-objc-attr-requires-foundation-module -enable-objc-interop | %FileCheck %s -DINT=i%target-ptrsize
-// RUN: %target-swift-frontend -primary-file %s -emit-ir -disable-objc-attr-requires-foundation-module -enable-objc-interop
+// RUN: %target-swift-frontend -primary-file %s -emit-ir -disable-objc-attr-requires-foundation-module -enable-objc-interop | %FileCheck %s -DINT=i%target-ptrsize
 
 // REQUIRES: PTRSIZE=64
 // UNSUPPORTED: CPU=arm64e
@@ -62,7 +61,7 @@ protocol ABO : A, B, O { func abo() }
 // CHECK-SAME: }
 
 // -- @objc protocol OPT uses ObjC symbol mangling and layout
-// CHECK: @_PROTOCOL__TtP17protocol_metadata3OPT_ = weak hidden constant { {{.*}} i32, [4 x i8*]*, i8*, i8* } {
+// CHECK: @_PROTOCOL__TtP17protocol_metadata3OPT_ = weak hidden constant { {{.*}} i32, ptr, ptr, ptr } {
 // CHECK-SAME:   @_PROTOCOL_INSTANCE_METHODS_OPT__TtP17protocol_metadata3OPT_,
 // CHECK-SAME:   @_PROTOCOL_CLASS_METHODS_OPT__TtP17protocol_metadata3OPT_,
 // -- size, flags: 1 = Swift
@@ -106,7 +105,7 @@ protocol Comprehensive {
 // CHECK-SAME: i32 1
 // CHECK-SAME: i32 11,
 // CHECK-SAME: i32 trunc
-// CHECK-SAME: [6 x i8]* [[COMPREHENSIVE_ASSOC_NAME]]
+// CHECK-SAME: ptr [[COMPREHENSIVE_ASSOC_NAME]]
 // CHECK-SAME:   %swift.protocol_requirement { i32 8, i32 0 },
 // CHECK-SAME:   %swift.protocol_requirement { i32 7, i32 0 },
 // CHECK-SAME:   %swift.protocol_requirement { i32 2, i32 0 },

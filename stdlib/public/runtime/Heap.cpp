@@ -32,10 +32,11 @@ using namespace swift;
 /// On Apple platforms, \c malloc() is always 16-byte aligned.
 static constexpr size_t MALLOC_ALIGN_MASK = 15;
 
-#elif defined(__linux__) || defined(_WIN32)
+#elif defined(__linux__) || defined(_WIN32) || defined(__wasi__)
 /// On Linux and Windows, \c malloc() returns 16-byte aligned pointers on 64-bit
 /// and 8-byte aligned pointers on 32-bit.
-#if defined(__LP64) || defined(_WIN64)
+/// On wasi-libc, pointers are 16-byte aligned even though 32-bit for SIMD access.
+#if defined(__LP64) || defined(_WIN64) || defined(__wasi__)
 static constexpr size_t MALLOC_ALIGN_MASK = 15;
 #else
 static constexpr size_t MALLOC_ALIGN_MASK = 7;

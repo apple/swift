@@ -136,8 +136,8 @@ class BestMatchMatcher : public NodeMatcher {
     return MatchedRight.count(R) == 0 && CanMatch(L, R);
   }
 
-  Optional<NodePtr> findBestMatch(NodePtr Pin, NodeVector& Candidates) {
-    Optional<NodePtr> Best;
+  llvm::Optional<NodePtr> findBestMatch(NodePtr Pin, NodeVector &Candidates) {
+    llvm::Optional<NodePtr> Best;
     for (auto Can : Candidates) {
       if (!internalCanMatch(Pin, Can))
         continue;
@@ -221,10 +221,10 @@ class RemovedAddedNodeMatcher : public NodeMatcher, public MatchedNodeListener {
     N->getUsr().startswith("c:@E@");
   }
 
-  static Optional<StringRef> getLastPartOfUsr(SDKNodeDecl *N) {
+  static llvm::Optional<StringRef> getLastPartOfUsr(SDKNodeDecl *N) {
     auto LastPartIndex = N->getUsr().find_last_of('@');
     if (LastPartIndex == StringRef::npos)
-      return None;
+      return llvm::None;
     return N->getUsr().substr(LastPartIndex + 1);
   }
 
@@ -419,9 +419,9 @@ class SameNameNodeMatcher : public NodeMatcher {
   }
 
   // Given two SDK nodes, figure out the reason for why they have the same name.
-  Optional<NameMatchKind> getNameMatchKind(SDKNode *L, SDKNode *R) {
+  llvm::Optional<NameMatchKind> getNameMatchKind(SDKNode *L, SDKNode *R) {
     if (L->getKind() != R->getKind())
-      return None;
+      return llvm::None;
     auto NameEqual = L->getPrintedName() == R->getPrintedName();
     auto UsrEqual = isUSRSame(L, R);
     if (NameEqual && UsrEqual)
@@ -431,7 +431,7 @@ class SameNameNodeMatcher : public NodeMatcher {
     else if (UsrEqual)
       return NameMatchKind::USR;
     else
-      return None;
+      return llvm::None;
   }
 
   struct NameMatchCandidate {
@@ -1799,7 +1799,7 @@ public:
   }
 };
 
-static Optional<uint8_t> findSelfIndex(SDKNode* Node) {
+static llvm::Optional<uint8_t> findSelfIndex(SDKNode *Node) {
   if (auto func = dyn_cast<SDKNodeDeclAbstractFunc>(Node)) {
     return func->getSelfIndexOptional();
   } else if (auto vd = dyn_cast<SDKNodeDeclVar>(Node)) {
@@ -1810,7 +1810,7 @@ static Optional<uint8_t> findSelfIndex(SDKNode* Node) {
       }
     }
   }
-  return None;
+  return llvm::None;
 }
 
 /// Find cases where a diff is due to a change to being a type member
@@ -1829,13 +1829,16 @@ static void findTypeMemberDiffs(NodePtr leftSDKRoot, NodePtr rightSDKRoot,
     // index, old printed name)
     TypeMemberDiffItem item = {
         right->getAs<SDKNodeDecl>()->getUsr(),
-        rightParent->getKind() == SDKNodeKind::Root ?
-          StringRef() : rightParent->getAs<SDKNodeDecl>()->getFullyQualifiedName(),
-        right->getPrintedName(), findSelfIndex(right), None,
-        leftParent->getKind() == SDKNodeKind::Root ?
-          StringRef() : leftParent->getAs<SDKNodeDecl>()->getFullyQualifiedName(),
-        left->getPrintedName()
-    };
+        rightParent->getKind() == SDKNodeKind::Root
+            ? StringRef()
+            : rightParent->getAs<SDKNodeDecl>()->getFullyQualifiedName(),
+        right->getPrintedName(),
+        findSelfIndex(right),
+        llvm::None,
+        leftParent->getKind() == SDKNodeKind::Root
+            ? StringRef()
+            : leftParent->getAs<SDKNodeDecl>()->getFullyQualifiedName(),
+        left->getPrintedName()};
     out.emplace_back(item);
     Detector.workOn(left, right);
   }

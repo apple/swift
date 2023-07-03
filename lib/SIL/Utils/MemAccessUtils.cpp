@@ -57,7 +57,7 @@ class AccessPhiVisitor
   UseDefVisitor &useDefVisitor;
   StorageCastTy storageCastTy;
 
-  Optional<SILValue> commonDefinition;
+  llvm::Optional<SILValue> commonDefinition;
   SmallVector<SILValue, 8> pointerWorklist;
   SmallPtrSet<SILPhiArgument *, 4> nestedPhis;
 
@@ -267,12 +267,12 @@ protected:
   // If the optional baseVal is set, then a result was found. If the SILValue
   // within the optional is invalid, then there are multiple inconsistent base
   // addresses (this may currently happen with RawPointer phis).
-  Optional<SILValue> baseVal;
+  llvm::Optional<SILValue> baseVal;
   // If the kind optional is set, then 'baseVal' is a valid
   // AccessBase. 'baseVal' may be a valid SILValue while kind optional has no
   // value if an invalid address producer was detected, via a call to
   // visitNonAccess.
-  Optional<AccessBase::Kind> kindVal;
+  llvm::Optional<AccessBase::Kind> kindVal;
 
 public:
   FindAccessBaseVisitor(NestedAccessType nestedAccessTy,
@@ -307,12 +307,12 @@ public:
 
   void invalidateResult() {
     baseVal = SILValue();
-    kindVal = None;
+    kindVal = llvm::None;
   }
 
-  Optional<SILValue> saveResult() const { return baseVal; }
+  llvm::Optional<SILValue> saveResult() const { return baseVal; }
 
-  void restoreResult(Optional<SILValue> result) { baseVal = result; }
+  void restoreResult(llvm::Optional<SILValue> result) { baseVal = result; }
 
   void addUnknownOffset() { return; }
 
@@ -321,7 +321,7 @@ public:
   SILValue visitBase(SILValue base, AccessStorage::Kind kind) {
     setResult(base);
     if (!baseVal.value()) {
-      kindVal = None;
+      kindVal = llvm::None;
     } else {
       assert(!kindVal || kindVal.value() == kind);
       kindVal = kind;
@@ -331,7 +331,7 @@ public:
 
   SILValue visitNonAccess(SILValue value) {
     setResult(value);
-    kindVal = None;
+    kindVal = llvm::None;
     return SILValue();
   }
 
@@ -900,13 +900,15 @@ SILValue swift::findOwnershipReferenceAggregate(SILValue ref) {
       return root;
 
     if (auto *inst = root->getDefiningInstruction()) {
-      if (ForwardingInstruction::canForwardFirstOperandOnly(inst)) {
-        // The `enum` instruction can have no operand.
-        if (inst->getNumOperands() == 0)
-          return root;
+      if (auto fwdOp = ForwardingOperation(inst)) {
+        if (fwdOp.canForwardFirstOperandOnly()) {
+          // The `enum` instruction can have no operand.
+          if (inst->getNumOperands() == 0)
+            return root;
 
-        root = inst->getOperand(0);
-        continue;
+          root = inst->getOperand(0);
+          continue;
+        }
       }
     }
     if (auto *termResult = SILArgument::isTerminatorResult(root)) {
@@ -1050,9 +1052,9 @@ class FindAccessStorageVisitor
 
 public:
   struct Result {
-    Optional<AccessStorage> storage;
+    llvm::Optional<AccessStorage> storage;
     SILValue base;
-    Optional<AccessStorageCast> seenCast;
+    llvm::Optional<AccessStorageCast> seenCast;
   };
 
 private:
@@ -1088,7 +1090,7 @@ public:
   // may be multiple global_addr bases for identical storage.
   SILValue getBase() const { return result.base; }
 
-  Optional<AccessStorageCast> getCast() const { return result.seenCast; }
+  llvm::Optional<AccessStorageCast> getCast() const { return result.seenCast; }
 
   // MARK: AccessPhiVisitor::UseDefVisitor implementation.
 

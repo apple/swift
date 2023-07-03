@@ -179,7 +179,8 @@ class SDKContext {
   CheckerOptions Opts;
   std::vector<BreakingAttributeInfo> BreakingAttrs;
   // The common version of two ABI/API descriptors under comparison.
-  Optional<uint8_t> CommonVersion;
+  llvm::Optional<uint8_t> CommonVersion;
+
 public:
   // Define the set of known identifiers.
 #define IDENTIFIER_WITH_NAME(Name, IdStr) StringRef Id_##Name = IdStr;
@@ -231,7 +232,7 @@ public:
   const CheckerOptions &getOpts() const { return Opts; }
   bool shouldIgnore(Decl *D, const Decl* Parent = nullptr) const;
   ArrayRef<BreakingAttributeInfo> getBreakingAttributeInfo() const { return BreakingAttrs; }
-  Optional<uint8_t> getFixedBinaryOrder(ValueDecl *VD) const;
+  llvm::Optional<uint8_t> getFixedBinaryOrder(ValueDecl *VD) const;
 
   CompilerInstance &newCompilerInstance() {
     CIs.emplace_back(new CompilerInstance());
@@ -363,7 +364,7 @@ class SDKNodeDecl: public SDKNode {
   // In ABI mode, this field is populated as a user-friendly version of GenericSig.
   // Diagnostic preferes the sugared versions if they differ as well.
   StringRef SugaredGenericSig;
-  Optional<uint8_t> FixedBinaryOrder;
+  llvm::Optional<uint8_t> FixedBinaryOrder;
   PlatformIntroVersion introVersions;
   StringRef ObjCName;
 
@@ -586,11 +587,11 @@ public:
     return InheritsConvenienceInitializers;
   };
 
-  Optional<SDKNodeDeclType*> getSuperclass() const;
+  llvm::Optional<SDKNodeDeclType *> getSuperclass() const;
 
   /// Finding the node through all children, including the inherited ones,
   /// whose printed name matches with the given name.
-  Optional<SDKNodeDecl*> lookupChildByPrintedName(StringRef Name) const;
+  llvm::Optional<SDKNodeDecl *> lookupChildByPrintedName(StringRef Name) const;
   SDKNodeType *getRawValueType() const;
   bool isConformingTo(KnownProtocolKind Kind) const;
   void jsonize(json::Output &out) override;
@@ -684,7 +685,7 @@ public:
 class SDKNodeDeclAbstractFunc : public SDKNodeDecl {
   bool IsThrowing;
   bool ReqNewWitnessTableEntry;
-  Optional<uint8_t> SelfIndex;
+  llvm::Optional<uint8_t> SelfIndex;
 
 protected:
   SDKNodeDeclAbstractFunc(SDKNodeInitInfo Info, SDKNodeKind Kind);
@@ -693,7 +694,7 @@ public:
   bool isThrowing() const { return IsThrowing; }
   bool reqNewWitnessTableEntry() const { return ReqNewWitnessTableEntry; }
   uint8_t getSelfIndex() const { return SelfIndex.value(); }
-  Optional<uint8_t> getSelfIndexOptional() const { return SelfIndex; }
+  llvm::Optional<uint8_t> getSelfIndexOptional() const { return SelfIndex; }
   bool hasSelfIndex() const { return SelfIndex.has_value(); }
   static bool classof(const SDKNode *N);
   virtual void jsonize(json::Output &out) override;

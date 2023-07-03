@@ -807,6 +807,7 @@ static void addLateLoopOptPassPipeline(SILPassPipelinePlan &P) {
   P.addDCE();
   P.addSILCombine();
   P.addSimplifyCFG();
+  P.addStripObjectHeaders();
 
   // Try to hoist all releases, including epilogue releases. This should be
   // after FSO.

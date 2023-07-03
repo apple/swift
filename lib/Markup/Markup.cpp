@@ -10,12 +10,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/Support/ErrorHandling.h"
-#include "swift/AST/Comment.h"
-#include "swift/Markup/LineList.h"
 #include "swift/Markup/Markup.h"
 #include "cmark-gfm.h"
+#include "swift/AST/Comment.h"
+#include "swift/Markup/LineList.h"
+#include "llvm/ADT/None.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/ErrorHandling.h"
 
 using namespace swift;
 using namespace markup;
@@ -174,7 +176,8 @@ ParseResult<Image> parseImage(MarkupContext &MC, ParseState State) {
   
   auto NodeTitle = cmark_node_get_title(State.Node);
   std::string TitleString = NodeTitle ? NodeTitle : "";
-  auto Title = TitleString.empty() ? None : Optional<StringRef>(TitleString);
+  auto Title =
+      TitleString.empty() ? llvm::None : llvm::Optional<StringRef>(TitleString);
 
   SmallVector<MarkupASTNode *, 2> Children;
   auto ResultState = parseChildren(MC, State, Children);

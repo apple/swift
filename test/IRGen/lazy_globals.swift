@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -parse-as-library -emit-ir -primary-file %s | %FileCheck %s
-// RUN: %target-swift-frontend -parse-as-library -emit-ir -primary-file %s
+// RUN: %target-swift-frontend -parse-as-library -emit-ir -primary-file %s | %FileCheck %s
 
 // REQUIRES: CPU=x86_64
 
@@ -8,36 +7,35 @@
 // CHECK: @"$s12lazy_globals1ySivp" = hidden global %TSi zeroinitializer, align 8
 // CHECK: @"$s12lazy_globals1zSivp" = hidden global %TSi zeroinitializer, align 8
 
-// CHECK: define internal void @"[[T]]WZ"(i8* %0) {{.*}} {
+// CHECK: define internal void @"[[T]]WZ"(ptr %0) {{.*}} {
 // CHECK: entry:
-// CHECK:   store i64 1, i64* getelementptr inbounds (%TSi, %TSi* @"$s12lazy_globals1xSivp", i32 0, i32 0), align 8
-// CHECK:   store i64 2, i64* getelementptr inbounds (%TSi, %TSi* @"$s12lazy_globals1ySivp", i32 0, i32 0), align 8
-// CHECK:   store i64 3, i64* getelementptr inbounds (%TSi, %TSi* @"$s12lazy_globals1zSivp", i32 0, i32 0), align 8
+// CHECK:   store i64 1, ptr @"$s12lazy_globals1xSivp", align 8
+// CHECK:   store i64 2, ptr @"$s12lazy_globals1ySivp", align 8
+// CHECK:   store i64 3, ptr @"$s12lazy_globals1zSivp", align 8
 // CHECK:   ret void
 // CHECK: }
 
-// CHECK: define hidden swiftcc i8* @"$s12lazy_globals1xSivau"() {{.*}} {
+// CHECK: define hidden swiftcc ptr @"$s12lazy_globals1xSivau"() {{.*}} {
 // CHECK: entry:
-// CHECK:   call void @swift_once(i64* @"[[T]]Wz", i8* bitcast (void (i8*)* @"[[T]]WZ" to i8*), i8* undef)
+// CHECK:   call void @swift_once(ptr @"[[T]]Wz", ptr @"[[T]]WZ", ptr undef)
 // CHECK: }
 
-// CHECK: define hidden swiftcc i8* @"$s12lazy_globals1ySivau"() {{.*}} {
+// CHECK: define hidden swiftcc ptr @"$s12lazy_globals1ySivau"() {{.*}} {
 // CHECK: entry:
-// CHECK:   call void @swift_once(i64* @"[[T]]Wz", i8* bitcast (void (i8*)* @"[[T]]WZ" to i8*), i8* undef)
+// CHECK:   call void @swift_once(ptr @"[[T]]Wz", ptr @"[[T]]WZ", ptr undef)
 // CHECK: }
 
-// CHECK: define hidden swiftcc i8* @"$s12lazy_globals1zSivau"() {{.*}} {
+// CHECK: define hidden swiftcc ptr @"$s12lazy_globals1zSivau"() {{.*}} {
 // CHECK: entry:
-// CHECK:   call void @swift_once(i64* @"[[T]]Wz", i8* bitcast (void (i8*)* @"[[T]]WZ" to i8*), i8* undef)
+// CHECK:   call void @swift_once(ptr @"[[T]]Wz", ptr @"[[T]]WZ", ptr undef)
 // CHECK: }
 var (x, y, z) = (1, 2, 3)
 
 // CHECK: define hidden swiftcc i64 @"$s12lazy_globals4getXSiyF"() {{.*}} {
 // CHECK: entry:
-// CHECK:   %0 = call swiftcc i8* @"$s12lazy_globals1xSivau"()
-// CHECK:   %1 = bitcast i8* %0 to %TSi*
-// CHECK:   %._value = getelementptr inbounds %TSi, %TSi* %1, i32 0, i32 0
-// CHECK:   [[V:%.*]] = load i64, i64* %._value, align 8
+// CHECK:   %0 = call swiftcc ptr @"$s12lazy_globals1xSivau"()
+// CHECK:   %._value = getelementptr inbounds %TSi, ptr %0, i32 0, i32 0
+// CHECK:   [[V:%.*]] = load i64, ptr %._value, align 8
 // CHECK:   ret i64 [[V]]
 // CHECK: }
 func getX() -> Int { return x }

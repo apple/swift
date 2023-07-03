@@ -343,7 +343,7 @@ private:
   }
 
   /// Find the tangent space of a given canonical type.
-  Optional<TangentSpace> getTangentSpace(CanType type) {
+  llvm::Optional<TangentSpace> getTangentSpace(CanType type) {
     // Use witness generic signature to remap types.
     type = witness->getDerivativeGenericSignature().getReducedType(
         type);
@@ -1673,7 +1673,7 @@ void JVPCloner::Implementation::prepareForDifferentialGeneration() {
   auto *diffGenericEnv = diffGenericSig.getGenericEnvironment();
   auto diffType = SILFunctionType::get(
       diffGenericSig, SILExtInfo::getThin(), origTy->getCoroutineKind(),
-      origTy->getCalleeConvention(), dfParams, {}, dfResults, None,
+      origTy->getCalleeConvention(), dfParams, {}, dfResults, llvm::None,
       origTy->getPatternSubstitutions(), origTy->getInvocationSubstitutions(),
       original->getASTContext());
 

@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -stack-promotion-limit 48 -Onone -emit-ir %s | %FileCheck %s -DINT=i%target-ptrsize
-// RUN: %target-swift-frontend -stack-promotion-limit 48 -Onone -emit-ir %s
+// RUN: %target-swift-frontend -stack-promotion-limit 48 -Onone -emit-ir %s | %FileCheck %s -DINT=i%target-ptrsize
 
 import Builtin
 import Swift
@@ -33,12 +32,9 @@ sil_vtable BigClass {}
 // CHECK: %reference.raw = alloca %[[C:[a-zA-Z0-9_]+]], align 8
 // CHECK-NEXT: [[MR:%[0-9]+]] = call swiftcc %swift.metadata_response @"$s17class_stack_alloc9TestClassCMa"([[INT]] 0)
 // CHECK-NEXT: [[M:%.*]] = extractvalue %swift.metadata_response [[MR]], 0
-// CHECK-NEXT: [[O:%[0-9]+]] = bitcast %[[C]]* %reference.raw to %swift.refcounted*
-// CHECK-NEXT: %reference.new = call %swift.refcounted* @swift_initStackObject(%swift.type* [[M]], %swift.refcounted* [[O]])
-// CHECK-NEXT: [[R:%[0-9]+]] = bitcast %swift.refcounted* %reference.new to %[[C]]*
-// CHECK-NEXT: call {{.*}} @swift_release {{.*}} [[R]])
-// CHECK-NEXT: [[O2:%[0-9]+]] = bitcast %[[C]]* [[R]] to i8*
-// CHECK-NEXT: call void @llvm.lifetime.end.p0i8(i64 -1, i8* [[O2]])
+// CHECK-NEXT: %reference.new = call ptr @swift_initStackObject(ptr [[M]], ptr %reference.raw)
+// CHECK-NEXT: call {{.*}} @swift_release(ptr %reference.new)
+// CHECK-NEXT: call void @llvm.lifetime.end.p0(i64 -1, ptr %reference.new)
 // CHECK-NEXT: ret void
 sil @simple_promote : $@convention(thin) () -> () {
 bb0:
@@ -57,8 +53,8 @@ bb0:
 // CHECK: alloca {{.*}}TestClass
 // CHECK: alloca {{.*}}TestStruct
 // CHECK-NOT: alloca
-// CHECK: call %swift.refcounted* @swift_initStackObject
-// CHECK: call noalias %swift.refcounted* @swift_allocObject
+// CHECK: call ptr @swift_initStackObject
+// CHECK: call noalias ptr @swift_allocObject
 // CHECK: ret void
 sil @exceed_limit : $@convention(thin) () -> () {
 bb0:
@@ -85,13 +81,10 @@ bb0:
 // CHECK: %reference.raw = alloca %[[C:[a-zA-Z0-9_]+]], align 8
 // CHECK-NEXT: [[MR:%[0-9]+]] = call swiftcc %swift.metadata_response @"$s17class_stack_alloc9TestClassCMa"([[INT]] 0)
 // CHECK-NEXT: [[M:%.*]] = extractvalue %swift.metadata_response [[MR]], 0
-// CHECK-NEXT: [[O:%[0-9]+]] = bitcast %[[C]]* %reference.raw to %swift.refcounted*
-// CHECK-NEXT: %reference.new = call %swift.refcounted* @swift_initStackObject(%swift.type* [[M]], %swift.refcounted* [[O]])
-// CHECK-NEXT: [[R:%[0-9]+]] = bitcast %swift.refcounted* %reference.new to %[[C]]*
-// CHECK-NEXT: call {{.*}} @swift_setDeallocating {{.*}}(%[[C]]* [[R]])
-// CHECK-NEXT: call swiftcc void @not_inlined_destructor(%[[C]]* [[R]])
-// CHECK-NEXT: [[O2:%[0-9]+]] = bitcast %[[C]]* [[R]] to i8*
-// CHECK-NEXT: call void @llvm.lifetime.end.p0i8(i64 -1, i8* [[O2]])
+// CHECK-NEXT: %reference.new = call ptr @swift_initStackObject(ptr [[M]], ptr %reference.raw)
+// CHECK-NEXT: call {{.*}} @swift_setDeallocating(ptr %reference.new)
+// CHECK-NEXT: call swiftcc void @not_inlined_destructor(ptr %reference.new)
+// CHECK-NEXT: call void @llvm.lifetime.end.p0(i64 -1, ptr %reference.new)
 // CHECK-NEXT: ret void
 sil @promoted_with_devirtualized_release : $@convention(thin) () -> () {
 bb0:
@@ -105,16 +98,26 @@ bb0:
   return %r : $()
 }
 
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @bare_alloc_ref
+// CHECK:         %reference.raw = alloca %[[C:[a-zA-Z0-9_]+]], align 8
+// CHECK-NEXT:    call void @llvm.lifetime.end.p0(i64 -1, ptr %reference.raw)
+// CHECK-NEXT:    ret void
+sil @bare_alloc_ref : $@convention(thin) () -> () {
+bb0:
+  %o1 = alloc_ref [bare] [stack] $TestClass
+  set_deallocating %o1 : $TestClass
+  dealloc_stack_ref %o1 : $TestClass
+  %r = tuple()
+  return %r : $()
+}
+
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @promoted_with_inlined_devirtualized_release
 // CHECK: %reference.raw = alloca %[[C:[a-zA-Z0-9_]+]], align 8
 // CHECK-NEXT: [[MR:%[0-9]+]] = call swiftcc %swift.metadata_response @"$s17class_stack_alloc9TestClassCMa"([[INT]] 0)
 // CHECK-NEXT: [[M:%.*]] = extractvalue %swift.metadata_response [[MR]], 0
-// CHECK-NEXT: [[O:%[0-9]+]] = bitcast %[[C]]* %reference.raw to %swift.refcounted*
-// CHECK-NEXT: %reference.new = call %swift.refcounted* @swift_initStackObject(%swift.type* [[M]], %swift.refcounted* [[O]])
-// CHECK-NEXT: [[R:%[0-9]+]] = bitcast %swift.refcounted* %reference.new to %[[C]]*
+// CHECK-NEXT: %reference.new = call ptr @swift_initStackObject(ptr [[M]], ptr %reference.raw)
 // CHECK-NOT: call
-// CHECK: [[O2:%[0-9]+]] = bitcast %[[C]]* [[R]] to i8*
-// CHECK-NEXT: call void @llvm.lifetime.end.p0i8(i64 -1, i8* [[O2]])
+// CHECK: call void @llvm.lifetime.end.p0(i64 -1, ptr %reference.new)
 // CHECK-NEXT: ret void
 sil @promoted_with_inlined_devirtualized_release : $@convention(thin) () -> () {
 bb0:
@@ -129,10 +132,8 @@ bb0:
 
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @not_promoted_with_inlined_devirtualized_release
 // CHECK: [[O:%[0-9]+]] = call {{.*}} @swift_allocObject
-// CHECK-NEXT: [[BC:%[0-9]+]] = bitcast %swift.refcounted* [[O]] to
-// CHECK-NEXT: call {{.*}} @swift_setDeallocating {{.*}}({{.*}} [[BC]])
-// CHECK-NEXT: [[BC2:%[0-9]+]] = bitcast {{.*}} [[BC]] to %swift.refcounted*
-// CHECK-NEXT: call void @swift_deallocClassInstance(%swift.refcounted* [[BC2]], {{.*}})
+// CHECK-NEXT: call {{.*}} @swift_setDeallocating(ptr [[O]])
+// CHECK-NEXT: call void @swift_deallocClassInstance(ptr [[O]], {{.*}})
 // CHECK-NEXT: ret void
 sil @not_promoted_with_inlined_devirtualized_release : $@convention(thin) () -> () {
 bb0:

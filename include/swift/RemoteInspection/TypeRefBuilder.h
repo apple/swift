@@ -874,13 +874,13 @@ public:
 
   const ExistentialMetatypeTypeRef *createExistentialMetatypeType(
       const TypeRef *instance,
-      llvm::Optional<Demangle::ImplMetatypeRepresentation> repr = None) {
+      llvm::Optional<Demangle::ImplMetatypeRepresentation> repr = llvm::None) {
     return ExistentialMetatypeTypeRef::create(*this, instance);
   }
 
   const MetatypeTypeRef *createMetatypeType(
       const TypeRef *instance,
-      llvm::Optional<Demangle::ImplMetatypeRepresentation> repr = None) {
+      llvm::Optional<Demangle::ImplMetatypeRepresentation> repr = llvm::None) {
     bool WasAbstract = (repr && *repr != ImplMetatypeRepresentation::Thin);
     return MetatypeTypeRef::create(*this, instance, WasAbstract);
   }

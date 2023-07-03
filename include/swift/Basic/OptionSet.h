@@ -25,8 +25,6 @@
 
 namespace swift {
 
-using llvm::None;
-
 /// The class template \c OptionSet captures a set of options stored as the
 /// bits in an unsigned integral value.
 ///

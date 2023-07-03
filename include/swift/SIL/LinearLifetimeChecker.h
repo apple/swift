@@ -130,8 +130,8 @@ private:
   Error checkValueImpl(
       SILValue value, ArrayRef<Operand *> consumingUses,
       ArrayRef<Operand *> nonConsumingUses, ErrorBuilder &errorBuilder,
-      Optional<function_ref<void(SILBasicBlock *)>> leakingBlockCallback,
-      Optional<function_ref<void(Operand *)>>
+      llvm::Optional<function_ref<void(SILBasicBlock *)>> leakingBlockCallback,
+      llvm::Optional<function_ref<void(Operand *)>>
           nonConsumingUsesOutsideLifetimeCallback);
 };
 

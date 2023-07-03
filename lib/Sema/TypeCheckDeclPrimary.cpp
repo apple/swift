@@ -168,7 +168,7 @@ static void checkInheritanceClause(
   // Check all of the types listed in the inheritance clause.
   Type superclassTy;
   SourceRange superclassRange;
-  Optional<std::pair<unsigned, SourceRange>> inheritedAnyObject;
+  llvm::Optional<std::pair<unsigned, SourceRange>> inheritedAnyObject;
   for (unsigned i = 0, n = inheritedClause.size(); i != n; ++i) {
     auto &inherited = inheritedClause[i];
 
@@ -818,8 +818,8 @@ CheckRedeclarationRequest::evaluate(Evaluator &eval, ValueDecl *current,
 
       if (isAcceptableVersionBasedChange) {
         class AvailabilityRange {
-          Optional<llvm::VersionTuple> introduced;
-          Optional<llvm::VersionTuple> obsoleted;
+          llvm::Optional<llvm::VersionTuple> introduced;
+          llvm::Optional<llvm::VersionTuple> obsoleted;
 
         public:
           static AvailabilityRange from(const ValueDecl *VD) {
@@ -988,13 +988,13 @@ CheckRedeclarationRequest::evaluate(Evaluator &eval, ValueDecl *current,
   return std::make_tuple<>();
 }
 
-static Optional<unsigned>
-getParamIndex(const ParameterList *paramList, const ParamDecl *decl) {
+static llvm::Optional<unsigned> getParamIndex(const ParameterList *paramList,
+                                              const ParamDecl *decl) {
   ArrayRef<ParamDecl *> params = paramList->getArray();
   for (unsigned i = 0; i < params.size(); ++i) {
     if (params[i] == decl) return i;
   }
-  return None;
+  return llvm::None;
 }
 
 static void checkInheritedDefaultValueRestrictions(ParamDecl *PD) {
@@ -1023,7 +1023,7 @@ static void checkInheritedDefaultValueRestrictions(ParamDecl *PD) {
   }
 
   // The corresponding parameter should have a default value.
-  Optional<unsigned> idx = getParamIndex(ctor->getParameters(), PD);
+  llvm::Optional<unsigned> idx = getParamIndex(ctor->getParameters(), PD);
   assert(idx && "containing decl does not contain param?");
   ParamDecl *equivalentParam = overridden->getParameters()->get(*idx);
   if (equivalentParam->getDefaultArgumentKind() == DefaultArgumentKind::None) {
@@ -1267,19 +1267,19 @@ static void checkDynamicSelfType(ValueDecl *decl, Type type) {
 /// Build a default initializer string for the given pattern.
 ///
 /// This string is suitable for display in diagnostics.
-static Optional<std::string> buildDefaultInitializerString(DeclContext *dc,
-                                                           Pattern *pattern) {
+static llvm::Optional<std::string>
+buildDefaultInitializerString(DeclContext *dc, Pattern *pattern) {
   switch (pattern->getKind()) {
 #define REFUTABLE_PATTERN(Id, Parent) case PatternKind::Id:
 #define PATTERN(Id, Parent)
 #include "swift/AST/PatternNodes.def"
-    return None;
+    return llvm::None;
   case PatternKind::Any:
-    return None;
+    return llvm::None;
 
   case PatternKind::Named: {
     if (!pattern->hasType())
-      return None;
+      return llvm::None;
 
     // Special-case the various types we might see here.
     auto type = pattern->getType();
@@ -1304,7 +1304,7 @@ static Optional<std::string> buildDefaultInitializerString(DeclContext *dc,
     if (type->getOptionalObjectType())
       return std::string("nil");
 
-    return None;
+    return llvm::None;
   }
 
   case PatternKind::Paren: {
@@ -1313,7 +1313,7 @@ static Optional<std::string> buildDefaultInitializerString(DeclContext *dc,
       return "(" + *sub + ")";
     }
 
-    return None;
+    return llvm::None;
   }
 
   case PatternKind::Tuple: {
@@ -1329,7 +1329,7 @@ static Optional<std::string> buildDefaultInitializerString(DeclContext *dc,
 
         result += *sub;
       } else {
-        return None;
+        return llvm::None;
       }
     }
     result += ")";
@@ -1511,8 +1511,8 @@ static void diagnoseClassWithoutInitializers(ClassDecl *classDecl) {
       }
 
       auto varLoc = vars[0]->getLoc();
-      
-      Optional<InFlightDiagnostic> diag;
+
+      llvm::Optional<InFlightDiagnostic> diag;
       switch (vars.size()) {
       case 1:
         diag.emplace(C.Diags.diagnose(varLoc, diag::note_no_in_class_init_1,
@@ -1637,9 +1637,9 @@ static void diagnoseChangesByAccessNote(
 
 template <typename Attr>
 static void addOrRemoveAttr(ValueDecl *VD, const AccessNotesFile &notes,
-                            Optional<bool> expected,
+                            llvm::Optional<bool> expected,
                             SmallVectorImpl<DeclAttribute *> &removedAttrs,
-                            llvm::function_ref<Attr*()> willCreate) {
+                            llvm::function_ref<Attr *()> willCreate) {
   if (!expected) return;
 
   auto attr = VD->getAttrs().getAttribute<Attr>();
@@ -2069,7 +2069,7 @@ public:
       ExternalMacroDefinitionRequest request{
         &Ctx, external.moduleName, external.macroTypeName
       };
-      auto externalDef = evaluateOrDefault(Ctx.evaluator, request, None);
+      auto externalDef = evaluateOrDefault(Ctx.evaluator, request, llvm::None);
       if (!externalDef) {
         MD->diagnose(
             diag::external_macro_not_found,
@@ -2313,6 +2313,9 @@ public:
 
         // If the variable has no storage, it never needs an initializer.
         if (!var->hasStorage())
+          return;
+
+        if (var->getAttrs().hasAttribute<SILGenNameAttr>())
           return;
 
         if (var->isInvalid() || PBD->isInvalid())
@@ -3353,8 +3356,8 @@ public:
     // FIXME: This needs to be moved to its own request if we want to
     // productize @_cdecl.
     if (auto CDeclAttr = FD->getAttrs().getAttribute<swift::CDeclAttr>()) {
-      Optional<ForeignAsyncConvention> asyncConvention;
-      Optional<ForeignErrorConvention> errorConvention;
+      llvm::Optional<ForeignAsyncConvention> asyncConvention;
+      llvm::Optional<ForeignErrorConvention> errorConvention;
       ObjCReason reason(ObjCReason::ExplicitlyCDecl, CDeclAttr);
       if (isRepresentableInObjC(FD, reason, asyncConvention, errorConvention)) {
         if (FD->hasAsync()) {
@@ -3782,7 +3785,7 @@ void TypeChecker::typeCheckDecl(Decl *D, bool LeaveClosureBodiesUnchecked) {
 
 void TypeChecker::checkParameterList(ParameterList *params,
                                      DeclContext *owner) {
-  Optional<ParamDecl*> firstIsolatedParam;
+  llvm::Optional<ParamDecl *> firstIsolatedParam;
   bool diagnosedDuplicateIsolatedParam = false;
   for (auto param: *params) {
     checkDeclAttributes(param);
@@ -3898,7 +3901,7 @@ void TypeChecker::checkParameterList(ParameterList *params,
   }
 }
 
-Optional<unsigned>
+llvm::Optional<unsigned>
 ExpandMacroExpansionDeclRequest::evaluate(Evaluator &evaluator,
                                           MacroExpansionDecl *MED) const {
   auto &ctx = MED->getASTContext();
@@ -3908,7 +3911,7 @@ ExpandMacroExpansionDeclRequest::evaluate(Evaluator &evaluator,
   auto macro = evaluateOrDefault(ctx.evaluator, ResolveMacroRequest{MED, dc},
                                  ConcreteDeclRef());
   if (!macro)
-    return None;
+    return llvm::None;
   MED->setMacroRef(macro);
 
   auto roles = cast<MacroDecl>(macro.getDecl())->getMacroRoles();
@@ -3917,7 +3920,7 @@ ExpandMacroExpansionDeclRequest::evaluate(Evaluator &evaluator,
   // So there's no thing to be done here.
   if (!roles.contains(MacroRole::Declaration) &&
       !roles.contains(MacroRole::CodeItem))
-    return None;
+    return llvm::None;
 
   // For now, restrict global freestanding macros in script mode.
   if (dc->isModuleScopeContext() &&

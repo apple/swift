@@ -27,7 +27,7 @@ using namespace mocking_fine_grained_dependency_graphs;
 void mocking_fine_grained_dependency_graphs::simulateLoad(
     ModuleDepGraph &g, const driver::Job *cmd,
     const DependencyDescriptions &dependencyDescriptions,
-    Optional<Fingerprint> interfaceHashIfNonEmpty,
+    llvm::Optional<Fingerprint> interfaceHashIfNonEmpty,
     const bool hadCompilationError) {
   const auto changes = getChangesForSimulatedLoad(
       g, cmd, dependencyDescriptions, interfaceHashIfNonEmpty,
@@ -39,7 +39,7 @@ ModuleDepGraph::Changes
 mocking_fine_grained_dependency_graphs::getChangesForSimulatedLoad(
     ModuleDepGraph &g, const driver::Job *cmd,
     const DependencyDescriptions &dependencyDescriptions,
-    Optional<Fingerprint> interfaceHashIfNonEmpty,
+    llvm::Optional<Fingerprint> interfaceHashIfNonEmpty,
     const bool hadCompilationError) {
   auto swiftDeps =
     cmd->getOutput().getAdditionalOutputForType(file_types::TY_SwiftDeps).str();
@@ -65,7 +65,7 @@ std::vector<const driver::Job *>
 mocking_fine_grained_dependency_graphs::simulateReload(
     ModuleDepGraph &g, const driver::Job *cmd,
     const DependencyDescriptions &dependencyDescriptions,
-    Optional<Fingerprint> interfaceHashIfNonEmpty,
+    llvm::Optional<Fingerprint> interfaceHashIfNonEmpty,
     const bool hadCompilationError) {
   const auto changedNodes = getChangesForSimulatedLoad(
       g, cmd, dependencyDescriptions, interfaceHashIfNonEmpty,

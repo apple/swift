@@ -22,12 +22,13 @@
 #ifndef SWIFT_AST_ASTDEMANGLER_H
 #define SWIFT_AST_ASTDEMANGLER_H
 
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/StringRef.h"
 #include "swift/AST/Types.h"
 #include "swift/Demangling/Demangler.h"
 #include "swift/Demangling/NamespaceMacros.h"
 #include "swift/Demangling/TypeDecoder.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/StringRef.h"
 
 namespace swift {
  
@@ -123,11 +124,11 @@ public:
       FunctionMetadataDifferentiabilityKind diffKind, Type globalActor);
 
   Type createImplFunctionType(
-    Demangle::ImplParameterConvention calleeConvention,
-    ArrayRef<Demangle::ImplFunctionParam<Type>> params,
-    ArrayRef<Demangle::ImplFunctionResult<Type>> results,
-    Optional<Demangle::ImplFunctionResult<Type>> errorResult,
-    ImplFunctionTypeFlags flags);
+      Demangle::ImplParameterConvention calleeConvention,
+      ArrayRef<Demangle::ImplFunctionParam<Type>> params,
+      ArrayRef<Demangle::ImplFunctionResult<Type>> results,
+      llvm::Optional<Demangle::ImplFunctionResult<Type>> errorResult,
+      ImplFunctionTypeFlags flags);
 
   Type createProtocolCompositionType(ArrayRef<ProtocolDecl *> protocols,
                                      Type superclass,
@@ -142,11 +143,13 @@ public:
   Type createSymbolicExtendedExistentialType(NodePointer shapeNode,
                                              ArrayRef<Type> genArgs);
 
-  Type createExistentialMetatypeType(Type instance,
-                     Optional<Demangle::ImplMetatypeRepresentation> repr=None);
+  Type createExistentialMetatypeType(
+      Type instance,
+      llvm::Optional<Demangle::ImplMetatypeRepresentation> repr = llvm::None);
 
-  Type createMetatypeType(Type instance,
-                     Optional<Demangle::ImplMetatypeRepresentation> repr=None);
+  Type createMetatypeType(
+      Type instance,
+      llvm::Optional<Demangle::ImplMetatypeRepresentation> repr = llvm::None);
 
   Type createGenericTypeParameterType(unsigned depth, unsigned index);
 
@@ -222,8 +225,7 @@ private:
     SynthesizedByImporter
   };
 
-  Optional<ForeignModuleKind>
-  getForeignModuleKind(NodePointer node);
+  llvm::Optional<ForeignModuleKind> getForeignModuleKind(NodePointer node);
 
   GenericTypeDecl *findTypeDecl(DeclContext *dc,
                                 Identifier name,

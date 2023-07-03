@@ -1706,34 +1706,34 @@ SILInstruction *SILCombiner::visitFixLifetimeInst(FixLifetimeInst *fli) {
   return nullptr;
 }
 
-static Optional<SILType>
+static llvm::Optional<SILType>
 shouldReplaceCallByContiguousArrayStorageAnyObject(SILFunction &F,
                                                    CanType storageMetaTy) {
   auto metaTy = dyn_cast<MetatypeType>(storageMetaTy);
   if (!metaTy || metaTy->getRepresentation() != MetatypeRepresentation::Thick)
-    return None;
+    return llvm::None;
 
   auto storageTy = metaTy.getInstanceType()->getCanonicalType();
   if (!storageTy->is_ContiguousArrayStorage())
-    return None;
+    return llvm::None;
 
   auto boundGenericTy = dyn_cast<BoundGenericType>(storageTy);
   if (!boundGenericTy)
-    return None;
+    return llvm::None;
 
   // On SwiftStdlib 5.7 we can replace the call.
   auto &ctxt = storageMetaTy->getASTContext();
   auto deployment = AvailabilityContext::forDeploymentTarget(ctxt);
   if (!deployment.isContainedIn(ctxt.getSwift57Availability()))
-    return None;
+    return llvm::None;
 
   auto genericArgs = boundGenericTy->getGenericArgs();
   if (genericArgs.size() != 1)
-    return None;
+    return llvm::None;
 
   auto ty = genericArgs[0]->getCanonicalType();
   if (!ty->getClassOrBoundGenericClass() && !ty->isObjCExistentialType())
-    return None;
+    return llvm::None;
 
   auto anyObjectTy = ctxt.getAnyObjectType();
   auto arrayStorageTy =
@@ -1781,6 +1781,7 @@ visitAllocRefDynamicInst(AllocRefDynamicInst *ARDI) {
 
     NewInst = Builder.createAllocRef(ARDI->getLoc(), SILInstanceTy,
                                      ARDI->isObjC(), ARDI->canAllocOnStack(),
+                                     /*isBare=*/ false,
                                      ARDI->getTailAllocatedTypes(),
                                      getCounts(ARDI));
 
@@ -1806,6 +1807,7 @@ visitAllocRefDynamicInst(AllocRefDynamicInst *ARDI) {
         return nullptr;
       NewInst = Builder.createAllocRef(ARDI->getLoc(), SILInstanceTy,
                                        ARDI->isObjC(), ARDI->canAllocOnStack(),
+                                       /*isBare=*/ false,
                                        ARDI->getTailAllocatedTypes(),
                                        getCounts(ARDI));
     }
@@ -1833,6 +1835,7 @@ visitAllocRefDynamicInst(AllocRefDynamicInst *ARDI) {
       return nullptr;
     NewInst = Builder.createAllocRef(
         ARDI->getLoc(), *instanceTy, ARDI->isObjC(), false,
+        /*isBare=*/ false,
         ARDI->getTailAllocatedTypes(), getCounts(ARDI));
     NewInst = Builder.createUncheckedRefCast(ARDI->getLoc(), NewInst,
                                              ARDI->getType());

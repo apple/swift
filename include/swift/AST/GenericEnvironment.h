@@ -168,7 +168,7 @@ private:
   /// Retrieve the mapping for the given generic parameter, if present.
   ///
   /// This is only useful when lazily populating a generic environment.
-  Optional<Type> getMappingIfPresent(GenericParamKey key) const;
+  llvm::Optional<Type> getMappingIfPresent(GenericParamKey key) const;
 
 public:
   GenericSignature getGenericSignature() const {
@@ -177,7 +177,7 @@ public:
 
   Kind getKind() const { return SignatureAndKind.getInt(); }
 
-  TypeArrayView<GenericTypeParamType> getGenericParams() const;
+  ArrayRef<GenericTypeParamType *> getGenericParams() const;
 
   /// Retrieve the existential type for an opened existential environment.
   Type getOpenedExistentialType() const;

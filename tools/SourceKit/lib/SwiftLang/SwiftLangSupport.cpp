@@ -771,7 +771,8 @@ swift::ide::NameKind SwiftLangSupport::getNameKindForUID(SourceKit::UIdent Id) {
   return swift::ide::NameKind::Swift;
 }
 
-Optional<UIdent> SwiftLangSupport::getUIDForDeclAttribute(const swift::DeclAttribute *Attr) {
+llvm::Optional<UIdent>
+SwiftLangSupport::getUIDForDeclAttribute(const swift::DeclAttribute *Attr) {
   // Check special-case names first.
   switch (Attr->getKind()) {
     case DAK_IBAction: {
@@ -838,7 +839,7 @@ Optional<UIdent> SwiftLangSupport::getUIDForDeclAttribute(const swift::DeclAttri
     case DAK_RawDocComment:
     case DAK_HasInitialValue:
     case DAK_HasStorage:
-      return None;
+      return llvm::None;
     default:
       break;
   }
@@ -854,7 +855,7 @@ Optional<UIdent> SwiftLangSupport::getUIDForDeclAttribute(const swift::DeclAttri
 #include "swift/AST/Attr.def"
   }
 
-  return None;
+  return llvm::None;
 }
 
 UIdent SwiftLangSupport::getUIDForFormalAccessScope(const swift::AccessScope Scope) {
@@ -1002,8 +1003,8 @@ void SwiftLangSupport::setFileSystemProvider(
 }
 
 llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem>
-SwiftLangSupport::getFileSystem(const Optional<VFSOptions> &vfsOptions,
-                                Optional<StringRef> primaryFile,
+SwiftLangSupport::getFileSystem(const llvm::Optional<VFSOptions> &vfsOptions,
+                                llvm::Optional<StringRef> primaryFile,
                                 std::string &error) {
   // First, try the specified vfsOptions.
   if (vfsOptions) {

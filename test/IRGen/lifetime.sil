@@ -1,8 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -disable-debugger-shadow-copies -gnone -emit-ir %s | %FileCheck --check-prefix=CHECK --check-prefix=CHECK-%target-cpu %s -DINT=i%target-ptrsize
-// RUN: %target-swift-frontend -disable-debugger-shadow-copies -gnone -emit-ir %s
-
-// CHECK: [[OPAQUE:%swift.opaque]] = type opaque
-// CHECK: [[TYPE:%swift.type]] = type
+// RUN: %target-swift-frontend -disable-debugger-shadow-copies -gnone -emit-ir %s | %FileCheck --check-prefix=CHECK --check-prefix=CHECK-%target-cpu %s -DINT=i%target-ptrsize
 
 sil_stage canonical
 
@@ -18,35 +14,29 @@ bb0(%x : $*T):
   %0 = tuple ()
   return %0 : $()
 }
-// CHECK:    define{{( dllexport)?}}{{( protected)?}} swiftcc void @generic([[OPAQUE]]* noalias nocapture %0, [[TYPE]]* %T) {{.*}} {
+// CHECK:    define{{( dllexport)?}}{{( protected)?}} swiftcc void @generic(ptr noalias nocapture %0, ptr %T) {{.*}} {
 //   Allocate it.
-// CHECK: [[TYPE_ADDR:%.*]] = bitcast %swift.type* %T to i8***
-// CHECK-NEXT: [[VWT_ADDR:%.*]] = getelementptr inbounds i8**, i8*** [[TYPE_ADDR]], {{(i32|i64)}} -1
-// CHECK-NEXT: [[VWT:%.*]] = load i8**, i8*** [[VWT_ADDR]]
-// CHECK-NEXT: [[VWT_CAST:%.*]] = bitcast i8** [[VWT]] to %swift.vwtable*
-// CHECK-NEXT: [[SIZE_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, %swift.vwtable* [[VWT_CAST]], i32 0, i32 8
-// CHECK-NEXT: [[SIZE:%.*]] = load [[INT]], [[INT]]* [[SIZE_ADDR]]
+// CHECK:      [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr %T, {{(i32|i64)}} -1
+// CHECK-NEXT: [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK-NEXT: [[SIZE_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], i32 0, i32 8
+// CHECK-NEXT: [[SIZE:%.*]] = load [[INT]], ptr [[SIZE_ADDR]]
 // CHECK-NEXT: [[Y_ALLOCA:%.*]] = alloca i8, {{.*}} [[SIZE]], align 16
-// CHECK-NEXT: call void @llvm.lifetime.start.p0i8({{(i32|i64)}} -1, i8* [[Y_ALLOCA]])
-// CHECK-NEXT: [[Y_TMP:%.*]] = bitcast i8* [[Y_ALLOCA]] to %swift.opaque*
+// CHECK-NEXT: call void @llvm.lifetime.start.p0({{(i32|i64)}} -1, ptr [[Y_ALLOCA]])
 //   Copy 'x' into 'y'.
-// CHECK-NEXT: [[T3:%.*]] = getelementptr inbounds i8*, i8** [[VWT]], i32 2
-// CHECK-NEXT: [[T4:%.*]] = load i8*, i8** [[T3]], align
-// CHECK-NEXT: [[INIT_WITH_COPY_FN:%.*]] = bitcast i8* [[T4]] to [[OPAQUE]]* ([[OPAQUE]]*, [[OPAQUE]]*, [[TYPE]]*)*
-// CHECK-arm64e-NEXT: ptrtoint i8** [[T3]] to i64
+// CHECK-NEXT: [[T3:%.*]] = getelementptr inbounds ptr, ptr [[VWT]], i32 2
+// CHECK-NEXT: [[T4:%.*]] = load ptr, ptr [[T3]], align
+// CHECK-arm64e-NEXT: ptrtoint ptr [[T3]] to i64
 // CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
-// CHECK-NEXT: [[Y:%.*]] = call [[OPAQUE]]* [[INIT_WITH_COPY_FN]]([[OPAQUE]]* noalias [[Y_TMP]], [[OPAQUE]]* noalias [[X:%.*]], [[TYPE]]* %T)
+// CHECK-NEXT: [[Y:%.*]] = call ptr [[T4]](ptr noalias [[Y_ALLOCA]], ptr noalias [[X:%.*]], ptr %T)
 //   Destroy 'y'.
-// CHECK-NEXT: [[T3:%.*]] = getelementptr inbounds i8*, i8** [[VWT]], i32 1
-// CHECK-NEXT: [[T4:%.*]] = load i8*, i8** [[T3]], align
-// CHECK-NEXT: [[DESTROY_FN:%.*]] = bitcast i8* [[T4]] to void ([[OPAQUE]]*, [[TYPE]]*)*
-// CHECK-arm64e-NEXT: ptrtoint i8** [[T3]] to i64
+// CHECK-NEXT: [[T3:%.*]] = getelementptr inbounds ptr, ptr [[VWT]], i32 1
+// CHECK-NEXT: [[T4:%.*]] = load ptr, ptr [[T3]], align
+// CHECK-arm64e-NEXT: ptrtoint ptr [[T3]] to i64
 // CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
-// CHECK-NEXT: call void [[DESTROY_FN]]([[OPAQUE]]* noalias [[Y_TMP]], [[TYPE]]* %T)
+// CHECK-NEXT: call void [[T4]](ptr noalias [[Y_ALLOCA]], ptr %T)
 //   Destroy 'x'.
-// CHECK-NEXT: call void [[DESTROY_FN]]([[OPAQUE]]* noalias [[X]], [[TYPE]]* %T)
-// CHECK-NEXT: [[YBUFLIFE:%.*]] = bitcast [[OPAQUE]]* [[Y_TMP]] to i8*
-// CHECK-NEXT: call void @llvm.lifetime.end.p0i8({{(i32|i64)}} -1, i8* [[YBUFLIFE]])
+// CHECK-NEXT: call void [[T4]](ptr noalias [[X]], ptr %T)
+// CHECK-NEXT: call void @llvm.lifetime.end.p0({{(i32|i64)}} -1, ptr [[Y_ALLOCA]])
 //   Return.
 // CHECK-NEXT: ret void
 
@@ -61,42 +51,35 @@ bb0(%x : $*T):
   %0 = tuple ()
   return %0 : $()
 }
-// CHECK:    define{{( dllexport)?}}{{( protected)?}} swiftcc void @generic_with_reuse([[OPAQUE]]* noalias nocapture %0, [[TYPE]]* %T) {{.*}} {
+// CHECK:    define{{( dllexport)?}}{{( protected)?}} swiftcc void @generic_with_reuse(ptr noalias nocapture %0, ptr %T) {{.*}} {
 //   Allocate it.
-// CHECK: [[TYPE_ADDR:%.*]] = bitcast %swift.type* %T to i8***
-// CHECK-NEXT: [[VWT_ADDR:%.*]] = getelementptr inbounds i8**, i8*** [[TYPE_ADDR]], {{(i32|i64)}} -1
-// CHECK-NEXT: [[VWT:%.*]] = load i8**, i8*** [[VWT_ADDR]]
-// CHECK-NEXT: [[VWT_CAST:%.*]] = bitcast i8** [[VWT]] to %swift.vwtable*
-// CHECK-NEXT: [[SIZE_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, %swift.vwtable* [[VWT_CAST]], i32 0, i32 8
-// CHECK-NEXT: [[SIZE:%.*]] = load [[INT]], [[INT]]* [[SIZE_ADDR]]
+// CHECK:      [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr %T, {{(i32|i64)}} -1
+// CHECK-NEXT: [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK-NEXT: [[SIZE_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], i32 0, i32 8
+// CHECK-NEXT: [[SIZE:%.*]] = load [[INT]], ptr [[SIZE_ADDR]]
 // CHECK-NEXT: [[Y_ALLOCA:%.*]] = alloca i8, {{.*}} [[SIZE]], align 16
-// CHECK-NEXT: call void @llvm.lifetime.start.p0i8({{(i32|i64)}} -1, i8* [[Y_ALLOCA]])
-// CHECK-NEXT: [[Y_TMP:%.*]] = bitcast i8* [[Y_ALLOCA]] to %swift.opaque*
+// CHECK-NEXT: call void @llvm.lifetime.start.p0({{(i32|i64)}} -1, ptr [[Y_ALLOCA]])
 //   Copy 'x' into 'y'.
-// CHECK-NEXT: [[T3:%.*]] = getelementptr inbounds i8*, i8** [[VWT]], i32 2
-// CHECK-NEXT: [[T4:%.*]] = load i8*, i8** [[T3]], align
-// CHECK-NEXT: [[INIT_WITH_COPY_FN:%.*]] = bitcast i8* [[T4]] to [[OPAQUE]]* ([[OPAQUE]]*, [[OPAQUE]]*, [[TYPE]]*)*
-// CHECK-arm64e-NEXT: ptrtoint i8** [[T3]] to i64
+// CHECK-NEXT: [[T3:%.*]] = getelementptr inbounds ptr, ptr [[VWT]], i32 2
+// CHECK-NEXT: [[T4:%.*]] = load ptr, ptr [[T3]], align
+// CHECK-arm64e-NEXT: ptrtoint ptr [[T3]] to i64
 // CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
-// CHECK-NEXT: [[Y:%.*]] = call [[OPAQUE]]* [[INIT_WITH_COPY_FN]]([[OPAQUE]]* noalias [[Y_TMP]], [[OPAQUE]]* noalias [[X:%.*]], [[TYPE]]* %T)
+// CHECK-NEXT: [[Y:%.*]] = call ptr [[T4]](ptr noalias [[Y_ALLOCA]], ptr noalias [[X:%.*]], ptr %T)
 //   Destroy 'y'.
-// CHECK-NEXT: [[T3:%.*]] = getelementptr inbounds i8*, i8** [[VWT]], i32 1
-// CHECK-NEXT: [[T4:%.*]] = load i8*, i8** [[T3]], align
-// CHECK-NEXT: [[DESTROY_FN:%.*]] = bitcast i8* [[T4]] to void ([[OPAQUE]]*, [[TYPE]]*)*
-// CHECK-arm64e-NEXT: ptrtoint i8** [[T3]] to i64
+// CHECK-NEXT: [[T3:%.*]] = getelementptr inbounds ptr, ptr [[VWT]], i32 1
+// CHECK-NEXT: [[T4:%.*]] = load ptr, ptr [[T3]], align
+// CHECK-arm64e-NEXT: ptrtoint ptr [[T3]] to i64
 // CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
-// CHECK-NEXT: call void [[DESTROY_FN]]([[OPAQUE]]* noalias [[Y_TMP]], [[TYPE]]* %T)
+// CHECK-NEXT: call void [[T4]](ptr noalias [[Y_ALLOCA]], ptr %T)
 //   Copy 'x' into 'y' again, this time as a take.
-// CHECK-NEXT: [[T3:%.*]] = getelementptr inbounds i8*, i8** [[VWT]], i32 4
-// CHECK-NEXT: [[T4:%.*]] = load i8*, i8** [[T3]], align
-// CHECK-NEXT: [[TAKE_FN:%.*]] = bitcast i8* [[T4]] to [[OPAQUE]]* ([[OPAQUE]]*, [[OPAQUE]]*, [[TYPE]]*)*
-// CHECK-arm64e-NEXT: ptrtoint i8** [[T3]] to i64
+// CHECK-NEXT: [[T3:%.*]] = getelementptr inbounds ptr, ptr [[VWT]], i32 4
+// CHECK-NEXT: [[T5:%.*]] = load ptr, ptr [[T3]], align
+// CHECK-arm64e-NEXT: ptrtoint ptr [[T3]] to i64
 // CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
-// CHECK-NEXT: call [[OPAQUE]]* [[TAKE_FN]]([[OPAQUE]]* noalias [[Y_TMP]], [[OPAQUE]]* noalias [[X]], [[TYPE]]* %T)
+// CHECK-NEXT: call ptr [[T5]](ptr noalias [[Y_ALLOCA]], ptr noalias [[X]], ptr %T)
 //   Destroy 'y'.
-// CHECK-NEXT: call void [[DESTROY_FN]]([[OPAQUE]]* noalias [[Y_TMP]], [[TYPE]]* %T)
-// CHECK-NEXT: [[YBUFLIFE:%.*]] = bitcast [[OPAQUE]]* [[Y_TMP]] to i8*
-// CHECK-NEXT: call void @llvm.lifetime.end.p0i8({{(i32|i64)}} -1, i8* [[YBUFLIFE]])
+// CHECK-NEXT: call void [[T4]](ptr noalias [[Y_ALLOCA]], ptr %T)
+// CHECK-NEXT: call void @llvm.lifetime.end.p0({{(i32|i64)}} -1, ptr [[Y_ALLOCA]])
 //   Return.
 // CHECK-NEXT: ret void
 
@@ -110,12 +93,10 @@ bb0(%x : $*Builtin.Int64):
   %0 = tuple ()
   return %0 : $()
 }
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @fixed_size(i64* noalias nocapture dereferenceable(8) %0)
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @fixed_size(ptr noalias nocapture dereferenceable(8) %0)
 // CHECK:         [[XBUF:%.*]] = alloca i64
-// CHECK-NEXT:    [[XBUFLIFE:%.*]] = bitcast i64* [[XBUF]] to i8*
-// CHECK-NEXT:    call void @llvm.lifetime.start.p0i8({{(i32|i64)}} 8, i8* [[XBUFLIFE]])
+// CHECK-NEXT:    call void @llvm.lifetime.start.p0({{(i32|i64)}} 8, ptr [[XBUF]])
 // CHECK-NEXT:    load
 // CHECK-NEXT:    store
-// CHECK-NEXT:    [[XBUFLIFE:%.*]] = bitcast i64* [[XBUF]] to i8*
-// CHECK-NEXT:    call void @llvm.lifetime.end.p0i8({{(i32|i64)}} 8, i8* [[XBUFLIFE]])
+// CHECK-NEXT:    call void @llvm.lifetime.end.p0({{(i32|i64)}} 8, ptr [[XBUF]])
 

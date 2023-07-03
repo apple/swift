@@ -64,7 +64,7 @@ public:
 public:
   /// For each of searching, call this unless the insertion point is needed
   void addToScopeTree(ASTNode n, ASTScopeImpl *parent) {
-    (void)addToScopeTreeAndReturnInsertionPoint(n, parent, None);
+    (void)addToScopeTreeAndReturnInsertionPoint(n, parent, llvm::None);
   }
   /// Return new insertion point.
   /// For ease of searching, don't call unless insertion point is needed
@@ -73,7 +73,7 @@ public:
   /// we introduce here, such as PatternEntryDeclScope and GuardStmtScope
   ASTScopeImpl *
   addToScopeTreeAndReturnInsertionPoint(ASTNode, ASTScopeImpl *parent,
-                                        Optional<SourceLoc> endLoc);
+                                        llvm::Optional<SourceLoc> endLoc);
 
   template <typename Scope, typename... Args>
   ASTScopeImpl *constructExpandAndInsert(ASTScopeImpl *parent, Args... args) {
@@ -190,10 +190,9 @@ public:
   /// \param endLoc Must be valid iff the pattern binding is in a local
   /// scope, in which case this is the last source location where the
   /// pattern bindings are going to be visible.
-  ASTScopeImpl *
-  addPatternBindingToScopeTree(PatternBindingDecl *patternBinding,
-                               ASTScopeImpl *parent,
-                               Optional<SourceLoc> endLoc);
+  ASTScopeImpl *addPatternBindingToScopeTree(PatternBindingDecl *patternBinding,
+                                             ASTScopeImpl *parent,
+                                             llvm::Optional<SourceLoc> endLoc);
 
   SWIFT_DEBUG_DUMP { print(llvm::errs()); }
 
@@ -273,6 +272,7 @@ ASTSourceFileScope::ASTSourceFileScope(SourceFile *SF,
     case MacroRole::Accessor:
     case MacroRole::MemberAttribute:
     case MacroRole::Conformance:
+    case MacroRole::Extension:
       parentLoc = expansion.getStartLoc();
       break;
     case MacroRole::Peer: {
@@ -310,10 +310,10 @@ class NodeAdder
     : public ASTVisitor<NodeAdder, ASTScopeImpl *,
                         ASTScopeImpl *, ASTScopeImpl *,
                         void, void, void, ASTScopeImpl *, ScopeCreator &> {
-  Optional<SourceLoc> endLoc;
+  llvm::Optional<SourceLoc> endLoc;
 
 public:
-  explicit NodeAdder(Optional<SourceLoc> endLoc) : endLoc(endLoc) {}
+  explicit NodeAdder(llvm::Optional<SourceLoc> endLoc) : endLoc(endLoc) {}
 
 #pragma mark ASTNodes that do not create scopes
 
@@ -535,10 +535,8 @@ public:
 
 // These definitions are way down here so it can call into
 // NodeAdder
-ASTScopeImpl *
-ScopeCreator::addToScopeTreeAndReturnInsertionPoint(ASTNode n,
-                                                    ASTScopeImpl *parent,
-                                                    Optional<SourceLoc> endLoc) {
+ASTScopeImpl *ScopeCreator::addToScopeTreeAndReturnInsertionPoint(
+    ASTNode n, ASTScopeImpl *parent, llvm::Optional<SourceLoc> endLoc) {
   if (!n)
     return parent;
 
@@ -610,7 +608,7 @@ void ScopeCreator::addChildrenForKnownAttributes(Decl *decl,
 ASTScopeImpl *
 ScopeCreator::addPatternBindingToScopeTree(PatternBindingDecl *patternBinding,
                                            ASTScopeImpl *parentScope,
-                                           Optional<SourceLoc> endLoc) {
+                                           llvm::Optional<SourceLoc> endLoc) {
   if (auto *var = patternBinding->getSingleVar())
     addChildrenForKnownAttributes(var, parentScope);
 
@@ -624,7 +622,7 @@ ScopeCreator::addPatternBindingToScopeTree(PatternBindingDecl *patternBinding,
 
   auto *insertionPoint = parentScope;
   for (auto i : range(patternBinding->getNumPatternEntries())) {
-    Optional<SourceLoc> endLocForBinding = None;
+    llvm::Optional<SourceLoc> endLocForBinding = llvm::None;
     if (isLocalBinding) {
       endLocForBinding = endLoc;
       ASTScopeAssert(endLoc.has_value() && endLoc->isValid(),

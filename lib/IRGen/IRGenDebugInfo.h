@@ -160,7 +160,7 @@ public:
   void emitVariableDeclaration(IRBuilder &Builder,
                                ArrayRef<llvm::Value *> Storage,
                                DebugTypeInfo Ty, const SILDebugScope *DS,
-                               Optional<SILLocation> VarLoc,
+                               llvm::Optional<SILLocation> VarLoc,
                                SILDebugVariable VarInfo,
                                IndirectionKind Indirection = DirectValue,
                                ArtificialKind Artificial = RealValue,
@@ -182,7 +182,7 @@ public:
                                      StringRef Name, StringRef LinkageName,
                                      DebugTypeInfo DebugType,
                                      bool IsLocalToUnit,
-                                     Optional<SILLocation> Loc);
+                                     llvm::Optional<SILLocation> Loc);
 
   /// Emit debug metadata for type metadata (for generic types). So meta.
   void emitTypeMetadata(IRGenFunction &IGF, llvm::Value *Metadata,

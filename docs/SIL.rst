@@ -3816,6 +3816,7 @@ alloc_ref
 ::
 
   sil-instruction ::= 'alloc_ref'
+                        ('[' 'bare' ']')?
                         ('[' 'objc' ']')?
                         ('[' 'stack' ']')?
                         ('[' 'tail_elems' sil-type '*' sil-operand ']')*
@@ -3841,6 +3842,11 @@ Note that the ``stack`` attribute only specifies that stack allocation is
 possible. The final decision on stack allocation is done during llvm IR
 generation. This is because the decision also depends on the object size,
 which is not necessarily known at SIL level.
+
+The ``bare`` attribute indicates that the object header is not used throughout
+the lifetime of the object. This means, no reference counting operations are
+performed on the object and its metadata is not used. The header of bare
+objects doesn't need to be initialized.
 
 The optional ``tail_elems`` attributes specifies the amount of space to be
 reserved for tail-allocated arrays of given element types and element counts.
@@ -5484,7 +5490,7 @@ global_value
 `````````````
 ::
 
-  sil-instruction ::= 'global_value' sil-global-name ':' sil-type
+  sil-instruction ::= 'global_value' ('[' 'bare' ']')? sil-global-name ':' sil-type
 
   %1 = global_value @v : $T
 
@@ -5492,6 +5498,11 @@ Returns the value of a global variable which has been previously initialized
 by ``alloc_global``. It is undefined behavior to perform this operation on a
 global variable which has not been initialized, except the global variable
 has a static initializer.
+
+The ``bare`` attribute indicates that the object header is not used throughout
+the lifetime of the value. This means, no reference counting operations are
+performed on the object and its metadata is not used. The header of bare
+objects doesn't need to be initialized.
 
 integer_literal
 ```````````````

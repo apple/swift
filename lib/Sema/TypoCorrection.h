@@ -68,7 +68,7 @@ public:
   /// the notes subsequently emitted by noteAllCandidates will only make
   /// sense in the context of a diagnostic that suggests that the correction
   /// has happened.
-  Optional<SyntacticTypoCorrection> claimUniqueCorrection();
+  llvm::Optional<SyntacticTypoCorrection> claimUniqueCorrection();
 
   /// Emit a note for every candidate in the set.
   void noteAllCandidates() const;

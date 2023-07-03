@@ -231,13 +231,14 @@ private:
   /// Generalize the given type by preserving its top-level structure
   /// but generalizing its component types.
   Type generalizeComponentTypes(CanType type) {
-    return type.transformRec([&](TypeBase *componentType) -> Optional<Type> {
-      // Ignore the top level.
-      if (componentType == type.getPointer())
-        return None;
+    return type.transformRec(
+        [&](TypeBase *componentType) -> llvm::Optional<Type> {
+          // Ignore the top level.
+          if (componentType == type.getPointer())
+            return llvm::None;
 
-      return generalizeComponentType(CanType(componentType));
-    });
+          return generalizeComponentType(CanType(componentType));
+        });
   }
 
   Type generalizeComponentType(CanType origArg) {

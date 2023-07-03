@@ -1735,7 +1735,7 @@ handleRequestNameTranslation(const RequestDict &Req,
     llvm::transform(Selectors, std::back_inserter(Input.ArgNames),
                     [](const char *C) { return StringRef(C); });
     return Lang.getNameInfo(
-        *PrimaryFilePath, Offset, Input, Args, CancellationToken,
+        *PrimaryFilePath, "", Offset, Input, Args, CancellationToken,
         [Rec](const RequestResult<NameTranslatingInfo> &Result) {
           reportNameInfo(Result, Rec);
         });
@@ -1904,6 +1904,8 @@ static void handleRequestSyntacticMacroExpansion(
         macroRoles |= MacroRole::Peer;
       if (uid == KindMacroRoleConformance)
         macroRoles |= MacroRole::Conformance;
+      if (uid == KindMacroRoleExtension)
+        macroRoles |= MacroRole::Extension;
     }
 
     // definition.

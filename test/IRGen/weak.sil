@@ -1,17 +1,10 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-objc-interop -disable-type-layout -emit-ir %s | %FileCheck %s
-// RUN: %target-swift-frontend %use_no_opaque_pointers -O -S %s | %FileCheck %s --check-prefix=TAILCALL
-// RUN: %target-swift-frontend -enable-objc-interop -disable-type-layout -emit-ir %s
-// RUN: %target-swift-frontend -O -S %s
+// RUN: %target-swift-frontend -enable-objc-interop -disable-type-layout -emit-ir %s | %FileCheck %s
+// RUN: %target-swift-frontend -O -S %s | %FileCheck %s --check-prefix=TAILCALL
 
 // REQUIRES: CPU=x86_64
 
 // CHECK-DAG: [[TYPE:%swift.type]] = type
 // CHECK-DAG: [[OPAQUE:%swift.opaque]] = type opaque
-// CHECK-DAG: [[C:%T4weak1CC]] = type <{ [[REF:%swift.refcounted]] }>
-// CHECK-DAG: [[UNKNOWN:%objc_object]] = type opaque
-// CHECK-DAG: [[A:%T4weak1AV]] = type <{ [[WEAK:%swift.weak]] }>
-// CHECK-DAG: [[WEAK]] = type
-// CHECK-DAG: [[B:%T4weak1BV]] = type <{ { [[WEAK]], i8** } }>
 
 sil_stage canonical
 
@@ -43,14 +36,14 @@ bb0(%0 : $*A, %1 : $Optional<C>):
   %4 = tuple ()
   return %4 : $()
 }
-// CHECK:    define{{( dllexport)?}}{{( protected)?}} swiftcc void @test_weak_load_store([[A]]* nocapture dereferenceable({{.*}}) %0, i64 %1) {{.*}} {
-// CHECK:      [[X:%.*]] = getelementptr inbounds [[A]], [[A]]* %0, i32 0, i32 0
-// CHECK-NEXT: [[T0:%.*]] = call [[C]]* bitcast ([[REF]]* ([[WEAK]]*)* @swift_weakLoadStrong to [[C]]* ([[WEAK]]*)*)([[WEAK]]* [[X]])
-// CHECK-NEXT: %3 = ptrtoint  %T4weak1CC* %2 to i64
+// CHECK:    define{{( dllexport)?}}{{( protected)?}} swiftcc void @test_weak_load_store(ptr nocapture dereferenceable({{.*}}) %0, i64 %1) {{.*}} {
+// CHECK:      [[X:%.*]] = getelementptr inbounds [[A:%T4weak1AV]], ptr %0, i32 0, i32 0
+// CHECK-NEXT: [[T0:%.*]] = call ptr @swift_weakLoadStrong(ptr [[X]])
+// CHECK-NEXT: %3 = ptrtoint  ptr %2 to i64
 // CHECK-NEXT: %4 = inttoptr
-// CHECK-NEXT: call [[WEAK]]* bitcast ([[WEAK]]* ([[WEAK]]*, [[REF]]*)* @swift_weakAssign to [[WEAK]]* ([[WEAK]]*, [[C]]*)*)([[WEAK]]* returned [[X]], [[C]]* %4)
-// CHECK-NEXT: %6 = inttoptr i64 %3 to %swift.refcounted*
-// CHECK-NEXT: call void @swift_release([[REF]]* %6)
+// CHECK-NEXT: call ptr @swift_weakAssign(ptr returned [[X]], ptr %4)
+// CHECK-NEXT: %6 = inttoptr i64 %3 to ptr
+// CHECK-NEXT: call void @swift_release(ptr %6)
 // CHECK-NEXT: ret void
 
 struct B {
@@ -66,18 +59,18 @@ bb0(%0 : $*B, %1 : $Optional<P>):
   %4 = tuple ()
   return %4 : $()
 }
-// CHECK:    define{{( dllexport)?}}{{( protected)?}} swiftcc void @test_weak_load_store_proto([[B]]* nocapture dereferenceable({{.*}}) %0, i64 %1, i64 %2)
-// CHECK:      [[X:%.*]] = getelementptr inbounds [[B]], [[B]]* %0, i32 0, i32 0
-// CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds { [[WEAK]], i8** }, { [[WEAK]], i8** }* [[X]], i32 0, i32 0
-// CHECK-NEXT: [[T1:%.*]] = call [[UNKNOWN]]* @swift_unknownObjectWeakLoadStrong([[WEAK]]* [[T0]])
-// CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds { [[WEAK]], i8** }, { [[WEAK]], i8** }* [[X]], i32 0, i32 1
-// CHECK-NEXT: [[W:%.*]] = load i8**, i8*** [[T0]], align 8
-// CHECK: [[TMPOBJ:%.*]] = inttoptr {{.*}} to %objc_object*
-// CHECK: [[TMPTAB:%.*]] = inttoptr {{.*}} to i8**
-// CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds { [[WEAK]], i8** }, { [[WEAK]], i8** }* [[X]], i32 0, i32 1
-// CHECK-NEXT: store i8** [[TMPTAB]], i8*** [[T0]], align 8
-// CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds { [[WEAK]], i8** }, { [[WEAK]], i8** }* [[X]], i32 0, i32 0
-// CHECK-NEXT: call [[WEAK]]* @swift_unknownObjectWeakAssign([[WEAK]]* returned [[T0]], [[UNKNOWN]]* [[TMPOBJ]])
+// CHECK:    define{{( dllexport)?}}{{( protected)?}} swiftcc void @test_weak_load_store_proto(ptr nocapture dereferenceable({{.*}}) %0, i64 %1, i64 %2)
+// CHECK:      [[X:%.*]] = getelementptr inbounds [[B:%T4weak1BV]], ptr %0, i32 0, i32 0
+// CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds { [[WEAK:%swift.weak]], ptr }, ptr [[X]], i32 0, i32 0
+// CHECK-NEXT: [[T1:%.*]] = call ptr @swift_unknownObjectWeakLoadStrong(ptr [[T0]])
+// CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds { [[WEAK]], ptr }, ptr [[X]], i32 0, i32 1
+// CHECK-NEXT: [[W:%.*]] = load ptr, ptr [[T0]], align 8
+// CHECK: [[TMPOBJ:%.*]] = inttoptr {{.*}} to ptr
+// CHECK: [[TMPTAB:%.*]] = inttoptr {{.*}} to ptr
+// CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds { [[WEAK]], ptr }, ptr [[X]], i32 0, i32 1
+// CHECK-NEXT: store ptr [[TMPTAB]], ptr [[T0]], align 8
+// CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds { [[WEAK]], ptr }, ptr [[X]], i32 0, i32 0
+// CHECK-NEXT: call ptr @swift_unknownObjectWeakAssign(ptr returned [[T0]], ptr [[TMPOBJ]])
 // CHECK: call void @swift_unknownObjectRelease
 
 sil @test_weak_alloc_stack : $@convention(thin) (Optional<P>) -> () {
@@ -90,81 +83,63 @@ bb0(%0 : $Optional<P>):
   return %4 : $()
 }
 // CHECK:    define{{( dllexport)?}}{{( protected)?}} swiftcc void @test_weak_alloc_stack(i64 %0, i64 %1)
-// CHECK:      [[X:%.*]] = alloca { [[WEAK]], i8** }, align 8
-// CHECK: [[TMPOBJ:%.*]] = inttoptr {{.*}} to %objc_object*
-// CHECK: [[TMPTAB:%.*]] = inttoptr {{.*}} to i8**
-// CHECK: [[T0:%.*]] = getelementptr inbounds { [[WEAK]], i8** }, { [[WEAK]], i8** }* [[X]], i32 0, i32 1
-// CHECK-NEXT: store i8** [[TMPTAB:%.*]], i8*** [[T0]], align 8
-// CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds { [[WEAK]], i8** }, { [[WEAK]], i8** }* [[X]], i32 0, i32 0
-// CHECK-NEXT: call [[WEAK]]* @swift_unknownObjectWeakInit([[WEAK]]* returned [[T0]], [[UNKNOWN]]* [[TMPOBJ:%.*]])
-// CHECK-NEXT: call { %swift.weak, i8** }* @"$s4weak1P_pSgXwWOh"({ %swift.weak, i8** }* [[X]])
-// CHECK-NEXT: bitcast
+// CHECK:      [[X:%.*]] = alloca { [[WEAK]], ptr }, align 8
+// CHECK: [[TMPOBJ:%.*]] = inttoptr {{.*}} to ptr
+// CHECK: [[TMPTAB:%.*]] = inttoptr {{.*}} to ptr
+// CHECK: [[T0:%.*]] = getelementptr inbounds { [[WEAK]], ptr }, ptr [[X]], i32 0, i32 1
+// CHECK-NEXT: store ptr [[TMPTAB:%.*]], ptr [[T0]], align 8
+// CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds { [[WEAK]], ptr }, ptr [[X]], i32 0, i32 0
+// CHECK-NEXT: call ptr @swift_unknownObjectWeakInit(ptr returned [[T0]], ptr [[TMPOBJ:%.*]])
+// CHECK-NEXT: call ptr @"$s4weak1P_pSgXwWOh"(ptr [[X]])
 // CHECK-NEXT: llvm.lifetime.end
 // CHECK-NEXT: ret void
 
 // Value witnesses for A:
 
 //   initializeBufferWithCopyOfBuffer
-// CHECK:    define internal [[OPAQUE]]* @"$s4weak1AVwCP"([[BUFFER:\[24 x i8\]]]* noalias [[DESTBUF:%.*]], [[BUFFER]]* noalias [[SRCBUF:%.*]], [[TYPE]]*
-// CHECK:  [[DEST:%.*]] = bitcast [[BUFFER]]* [[DESTBUF]] to %swift.refcounted**
-// CHECK:  [[SRC:%.*]] = bitcast [[BUFFER]]* [[SRCBUF]] to %swift.refcounted**
-// CHECK:  [[REF:%.*]] = load %swift.refcounted*, %swift.refcounted** [[SRC]]
-// CHECK:  call %swift.refcounted* @swift_retain(%swift.refcounted* returned [[REF]])
-// CHECK:  store %swift.refcounted* [[REF]], %swift.refcounted** [[DEST]]
-// CHECK:  [[DEST:%.*]] = bitcast [[BUFFER]]* [[DESTBUF]] to %swift.refcounted**
-// CHECK:  [[REF:%.*]] = load %swift.refcounted*, %swift.refcounted** [[DEST]]
-// CHECK:  [[PTR:%.*]] = bitcast %swift.refcounted* [[REF]] to i8*
-// CHECK:  [[PTR2:%.*]] = getelementptr inbounds i8, i8* [[PTR]], {{(i64|i32)}} {{(16|8)}}
-// CHECK:  [[CAST:%.*]] = bitcast i8* [[PTR2]] to %swift.opaque*
-// CHECK:  [[CAST2:%.*]] = bitcast %swift.opaque* [[CAST]] to %T4weak1AV*
-// CHECK:  [[CAST3:%.*]] = bitcast %T4weak1AV* [[CAST2]] to %swift.opaque*
-// CHECK:  ret %swift.opaque* [[CAST3]]
+// CHECK:    define internal ptr @"$s4weak1AVwCP"(ptr noalias [[DESTBUF:%.*]], ptr noalias [[SRCBUF:%.*]], ptr
+// CHECK:  [[REF:%.*]] = load ptr, ptr [[SRCBUF]]
+// CHECK:  call ptr @swift_retain(ptr returned [[REF]])
+// CHECK:  store ptr [[REF]], ptr [[DESTBUF]]
+// CHECK:  [[REF:%.*]] = load ptr, ptr [[DESTBUF]]
+// CHECK:  [[PTR2:%.*]] = getelementptr inbounds i8, ptr [[REF]], {{(i64|i32)}} {{(16|8)}}
+// CHECK:  ret ptr [[PTR2]]
 
 //   destroy
-// CHECK:    define internal void @"$s4weak1AVwxx"([[OPAQUE]]* noalias [[ARG:%.*]], [[TYPE]]*
-// CHECK:      [[T0:%.*]] = bitcast [[OPAQUE]]* [[ARG]] to [[A]]*
-// CHECK-NEXT: [[T1:%.*]] = getelementptr inbounds [[A]], [[A]]* [[T0]], i32 0, i32 0
-// CHECK-NEXT: call void @swift_weakDestroy([[WEAK]]* [[T1]])
+// CHECK:    define internal void @"$s4weak1AVwxx"(ptr noalias [[ARG:%.*]], ptr
+// CHECK: [[T1:%.*]] = getelementptr inbounds [[A]], ptr [[ARG]], i32 0, i32 0
+// CHECK-NEXT: call void @swift_weakDestroy(ptr [[T1]])
 // CHECK-NEXT: ret void
 
 // TAILCALL: {{_?}}$s4weak1AVwxx:
 // TAILCALL:  jmp{{q?}} {{(\*__imp_)?_?}}swift_weakDestroy
 
 //   initializeWithCopy
-// CHECK:    define internal [[OPAQUE]]* @"$s4weak1AVwcp"([[OPAQUE]]* noalias [[DEST_OPQ:%.*]], [[OPAQUE]]* noalias [[SRC_OPQ:%.*]], [[TYPE]]*
-// CHECK:      [[DEST:%.*]] = bitcast [[OPAQUE]]* [[DEST_OPQ]] to [[A]]*
-// CHECK-NEXT: [[SRC:%.*]] = bitcast [[OPAQUE]]* [[SRC_OPQ]] to [[A]]*
-// CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds [[A]], [[A]]* [[DEST]], i32 0, i32 0
-// CHECK-NEXT: [[T1:%.*]] = getelementptr inbounds [[A]], [[A]]* [[SRC]], i32 0, i32 0
-// CHECK-NEXT: call [[WEAK]]* @swift_weakCopyInit([[WEAK]]* returned [[T0]], [[WEAK]]* [[T1]])
-// CHECK-NEXT: [[T0:%.*]] = bitcast [[A]]* [[DEST]] to [[OPAQUE]]*
-// CHECK-NEXT: ret [[OPAQUE]]* [[T0]]
+// CHECK:    define internal ptr @"$s4weak1AVwcp"(ptr noalias [[DEST_OPQ:%.*]], ptr noalias [[SRC_OPQ:%.*]], ptr
+// CHECK: [[T0:%.*]] = getelementptr inbounds [[A]], ptr [[DEST_OPQ]], i32 0, i32 0
+// CHECK-NEXT: [[T1:%.*]] = getelementptr inbounds [[A]], ptr [[SRC_OPQ]], i32 0, i32 0
+// CHECK-NEXT: call ptr @swift_weakCopyInit(ptr returned [[T0]], ptr [[T1]])
+// CHECK-NEXT: ret ptr [[DEST_OPQ]]
 
 // TAILCALL: {{_?}}$s4weak1AVwcp:
 // TAILCALL:  jmp{{q?}} {{(\*__imp_)?_?}}swift_weakCopyInit
 
 //   assignWithCopy
-// CHECK:    define internal [[OPAQUE]]* @"$s4weak1AVwca"([[OPAQUE]]* [[DEST_OPQ:%.*]], [[OPAQUE]]* [[SRC_OPQ:%.*]], [[TYPE]]*
-// CHECK:      [[DEST:%.*]] = bitcast [[OPAQUE]]* [[DEST_OPQ]] to [[A]]*
-// CHECK-NEXT: [[SRC:%.*]] = bitcast [[OPAQUE]]* [[SRC_OPQ]] to [[A]]*
-// CHECK-NEXT: [[DEST_X:%.*]] = getelementptr inbounds [[A]], [[A]]* [[DEST]], i32 0, i32 0
-// CHECK-NEXT: [[SRC_X:%.*]] = getelementptr inbounds [[A]], [[A]]* [[SRC]], i32 0, i32 0
-// CHECK-NEXT: call [[WEAK]]* @swift_weakCopyAssign([[WEAK]]* returned [[DEST_X]], [[WEAK]]* [[SRC_X]])
-// CHECK-NEXT: [[T0:%.*]] = bitcast [[A]]* [[DEST]] to [[OPAQUE]]*
-// CHECK-NEXT: ret [[OPAQUE]]* [[T0]]
+// CHECK:    define internal ptr @"$s4weak1AVwca"(ptr [[DEST_OPQ:%.*]], ptr [[SRC_OPQ:%.*]], ptr
+// CHECK: [[DEST_X:%.*]] = getelementptr inbounds [[A]], ptr [[DEST_OPQ]], i32 0, i32 0
+// CHECK-NEXT: [[SRC_X:%.*]] = getelementptr inbounds [[A]], ptr [[SRC_OPQ]], i32 0, i32 0
+// CHECK-NEXT: call ptr @swift_weakCopyAssign(ptr returned [[DEST_X]], ptr [[SRC_X]])
+// CHECK-NEXT: ret ptr [[DEST_OPQ]]
 
 // TAILCALL: {{_?}}$s4weak1AVwca:
 // TAILCALL:  jmp{{q?}} {{(\*__imp_)?_?}}swift_weakCopyAssign
 
 //   assignWithTake
-// CHECK:    define internal [[OPAQUE]]* @"$s4weak1AVwta"([[OPAQUE]]* noalias [[DEST_OPQ:%.*]], [[OPAQUE]]* noalias [[SRC_OPQ:%.*]], [[TYPE]]*
-// CHECK:      [[DEST:%.*]] = bitcast [[OPAQUE]]* [[DEST_OPQ]] to [[A]]*
-// CHECK-NEXT: [[SRC:%.*]] = bitcast [[OPAQUE]]* [[SRC_OPQ]] to [[A]]*
-// CHECK-NEXT: [[DEST_X:%.*]] = getelementptr inbounds [[A]], [[A]]* [[DEST]], i32 0, i32 0
-// CHECK-NEXT: [[SRC_X:%.*]] = getelementptr inbounds [[A]], [[A]]* [[SRC]], i32 0, i32 0
-// CHECK-NEXT: call [[WEAK]]* @swift_weakTakeAssign([[WEAK]]* returned [[DEST_X]], [[WEAK]]* [[SRC_X]])
-// CHECK-NEXT: [[T0:%.*]] = bitcast [[A]]* [[DEST]] to [[OPAQUE]]*
-// CHECK-NEXT: ret [[OPAQUE]]* [[T0]]
+// CHECK:    define internal ptr @"$s4weak1AVwta"(ptr noalias [[DEST_OPQ:%.*]], ptr noalias [[SRC_OPQ:%.*]], ptr
+// CHECK: [[DEST_X:%.*]] = getelementptr inbounds [[A]], ptr [[DEST_OPQ]], i32 0, i32 0
+// CHECK-NEXT: [[SRC_X:%.*]] = getelementptr inbounds [[A]], ptr [[SRC_OPQ]], i32 0, i32 0
+// CHECK-NEXT: call ptr @swift_weakTakeAssign(ptr returned [[DEST_X]], ptr [[SRC_X]])
+// CHECK-NEXT: ret ptr [[DEST_OPQ]]
 
 // TAILCALL: {{_?}}$s4weak1AVwtk:
 // TAILCALL:  jmp{{q?}} {{(\*__imp_)?_?}}swift_weakTakeInit

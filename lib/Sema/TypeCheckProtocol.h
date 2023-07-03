@@ -98,7 +98,7 @@ public:
 CheckTypeWitnessResult checkTypeWitness(Type type,
                                         AssociatedTypeDecl *assocType,
                                         const NormalProtocolConformance *Conf,
-                                        SubstOptions options = None);
+                                        SubstOptions options = llvm::None);
 
 /// A type witness inferred without the aid of a specific potential
 /// value witness.
@@ -403,36 +403,33 @@ public:
 /// Describes a match between a requirement and a witness.
 struct RequirementMatch {
   RequirementMatch(ValueDecl *witness, MatchKind kind,
-                   Optional<RequirementEnvironment> env = None)
-    : Witness(witness), Kind(kind), WitnessType(), ReqEnv(std::move(env)) {
+                   llvm::Optional<RequirementEnvironment> env = llvm::None)
+      : Witness(witness), Kind(kind), WitnessType(), ReqEnv(std::move(env)) {
     assert(!hasWitnessType() && "Should have witness type");
   }
 
   RequirementMatch(ValueDecl *witness, MatchKind kind,
                    const DeclAttribute *attr)
       : Witness(witness), Kind(kind), WitnessType(), UnmetAttribute(attr),
-        ReqEnv(None) {
+        ReqEnv(llvm::None) {
     assert(!hasWitnessType() && "Should have witness type");
     assert(hasUnmetAttribute() && "Should have unmet attribute");
   }
 
-  RequirementMatch(ValueDecl *witness, MatchKind kind,
-                   Type witnessType,
-                   Optional<RequirementEnvironment> env = None,
+  RequirementMatch(ValueDecl *witness, MatchKind kind, Type witnessType,
+                   llvm::Optional<RequirementEnvironment> env = llvm::None,
                    ArrayRef<OptionalAdjustment> optionalAdjustments = {},
                    GenericSignature derivativeGenSig = GenericSignature())
-    : Witness(witness), Kind(kind), WitnessType(witnessType),
-      ReqEnv(std::move(env)),
-      OptionalAdjustments(optionalAdjustments.begin(),
-                          optionalAdjustments.end()),
-      DerivativeGenSig(derivativeGenSig)
-  {
+      : Witness(witness), Kind(kind), WitnessType(witnessType),
+        ReqEnv(std::move(env)), OptionalAdjustments(optionalAdjustments.begin(),
+                                                    optionalAdjustments.end()),
+        DerivativeGenSig(derivativeGenSig) {
     assert(hasWitnessType() == !witnessType.isNull() &&
            "Should (or should not) have witness type");
   }
 
   RequirementMatch(ValueDecl *witness, MatchKind kind, Requirement requirement,
-                   Optional<RequirementEnvironment> env = None,
+                   llvm::Optional<RequirementEnvironment> env = llvm::None,
                    ArrayRef<OptionalAdjustment> optionalAdjustments = {},
                    GenericSignature derivativeGenSig = GenericSignature())
       : Witness(witness), Kind(kind), WitnessType(requirement.getFirstType()),
@@ -454,13 +451,13 @@ struct RequirementMatch {
   Type WitnessType;
 
   /// Requirement not met.
-  Optional<Requirement> MissingRequirement;
+  llvm::Optional<Requirement> MissingRequirement;
 
   /// Unmet attribute from the requirement.
   const DeclAttribute *UnmetAttribute = nullptr;
 
   /// The requirement environment to use for the witness thunk.
-  Optional<RequirementEnvironment> ReqEnv;
+  llvm::Optional<RequirementEnvironment> ReqEnv;
 
   /// The set of optional adjustments performed on the witness.
   SmallVector<OptionalAdjustment, 2> OptionalAdjustments;
@@ -617,7 +614,8 @@ protected:
 
   RequirementEnvironmentCache ReqEnvironmentCache;
 
-  Optional<std::pair<AccessScope, bool>> RequiredAccessScopeAndUsableFromInline;
+  llvm::Optional<std::pair<AccessScope, bool>>
+      RequiredAccessScopeAndUsableFromInline;
 
   WitnessChecker(ASTContext &ctx, ProtocolDecl *proto, Type adoptee,
                  DeclContext *dc);
@@ -783,8 +781,8 @@ private:
   /// \returns the isolation that needs to be enforced to invoke the witness
   /// from the requirement, used when entering an actor-isolated synchronous
   /// witness from an asynchronous requirement.
-  Optional<ActorIsolation>
-  checkActorIsolation(ValueDecl *requirement, ValueDecl *witness);
+  llvm::Optional<ActorIsolation> checkActorIsolation(ValueDecl *requirement,
+                                                     ValueDecl *witness);
 
   /// Record a type witness.
   ///
@@ -1069,7 +1067,7 @@ class AssociatedTypeInference {
   AssociatedTypeDecl *missingTypeWitness = nullptr;
 
   // Was there a conflict in type witness deduction?
-  Optional<TypeWitnessConflict> typeWitnessConflict;
+  llvm::Optional<TypeWitnessConflict> typeWitnessConflict;
   unsigned numTypeWitnessesBeforeConflict = 0;
 
 public:
@@ -1112,7 +1110,7 @@ private:
 
   /// Compute the default type witness from an associated type default,
   /// if there is one.
-  Optional<AbstractTypeWitness>
+  llvm::Optional<AbstractTypeWitness>
   computeDefaultTypeWitness(AssociatedTypeDecl *assocType) const;
 
   /// Compute the "derived" type witness for an associated type that is
@@ -1121,7 +1119,7 @@ private:
   computeDerivedTypeWitness(AssociatedTypeDecl *assocType);
 
   /// Compute a type witness without using a specific potential witness.
-  Optional<AbstractTypeWitness>
+  llvm::Optional<AbstractTypeWitness>
   computeAbstractTypeWitness(AssociatedTypeDecl *assocType);
 
   /// Collect abstract type witnesses and feed them to the given system.
@@ -1223,7 +1221,7 @@ public:
   /// Perform associated type inference.
   ///
   /// \returns \c true if an error occurred, \c false otherwise
-  Optional<InferredTypeWitnesses> solve(ConformanceChecker &checker);
+  llvm::Optional<InferredTypeWitnesses> solve(ConformanceChecker &checker);
 
   /// Find an associated type declaration that provides a default definition.
   static AssociatedTypeDecl *findDefaultedAssociatedType(
@@ -1234,15 +1232,13 @@ public:
 ///
 /// \returns the result of performing the match.
 RequirementMatch matchWitness(
-             DeclContext *dc, ValueDecl *req, ValueDecl *witness,
-             llvm::function_ref<
-                     std::tuple<Optional<RequirementMatch>, Type, Type>(void)>
-               setup,
-             llvm::function_ref<Optional<RequirementMatch>(Type, Type)>
-               matchTypes,
-             llvm::function_ref<
-                     RequirementMatch(bool, ArrayRef<OptionalAdjustment>)
-                   > finalize);
+    DeclContext *dc, ValueDecl *req, ValueDecl *witness,
+    llvm::function_ref<
+        std::tuple<llvm::Optional<RequirementMatch>, Type, Type>(void)>
+        setup,
+    llvm::function_ref<llvm::Optional<RequirementMatch>(Type, Type)> matchTypes,
+    llvm::function_ref<RequirementMatch(bool, ArrayRef<OptionalAdjustment>)>
+        finalize);
 
 RequirementMatch
 matchWitness(WitnessChecker::RequirementEnvironmentCache &reqEnvCache,

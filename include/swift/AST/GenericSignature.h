@@ -34,6 +34,7 @@ class ProtocolConformanceRef;
 class ProtocolType;
 class SubstitutionMap;
 class GenericEnvironment;
+class GenericTypeParamType;
 
 namespace rewriting {
   class RequirementMachine;
@@ -118,16 +119,13 @@ public:
   static GenericSignature get(ArrayRef<GenericTypeParamType *> params,
                               ArrayRef<Requirement> requirements,
                               bool isKnownCanonical = false);
-  static GenericSignature get(TypeArrayView<GenericTypeParamType> params,
-                              ArrayRef<Requirement> requirements,
-                              bool isKnownCanonical = false);
 
   /// Produce a new generic signature which drops all of the marker
   /// protocol conformance requirements associated with this one.
   GenericSignature withoutMarkerProtocols() const;
 
 public:
-  static ASTContext &getASTContext(TypeArrayView<GenericTypeParamType> params,
+  static ASTContext &getASTContext(ArrayRef<GenericTypeParamType *> params,
                                    ArrayRef<Requirement> requirements);
 
 public:
@@ -164,7 +162,7 @@ public:
   void Profile(llvm::FoldingSetNodeID &id) const;
 
   static void Profile(llvm::FoldingSetNodeID &ID,
-                      TypeArrayView<GenericTypeParamType> genericParams,
+                      ArrayRef<GenericTypeParamType *> genericParams,
                       ArrayRef<Requirement> requirements);
 public:
   using RequiredProtocols = SmallVector<ProtocolDecl *, 2>;
@@ -191,13 +189,13 @@ private:
 
 public:
   /// Retrieve the generic parameters.
-  TypeArrayView<GenericTypeParamType> getGenericParams() const;
+  ArrayRef<GenericTypeParamType *> getGenericParams() const;
 
   /// Retrieve the innermost generic parameters.
   ///
   /// Given a generic signature for a nested generic type, produce an
   /// array of the generic parameters for the innermost generic type.
-  TypeArrayView<GenericTypeParamType> getInnermostGenericParams() const;
+  ArrayRef<GenericTypeParamType *> getInnermostGenericParams() const;
 
   /// Retrieve the requirements.
   ArrayRef<Requirement> getRequirements() const;
@@ -240,7 +238,7 @@ public:
   /// Create a new generic signature with the given type parameters and
   /// requirements, first canonicalizing the types.
   static CanGenericSignature
-  getCanonical(TypeArrayView<GenericTypeParamType> params,
+  getCanonical(ArrayRef<GenericTypeParamType *> params,
                ArrayRef<Requirement> requirements);
 
 public:
@@ -267,7 +265,8 @@ public:
 /// The underlying implementation of generic signatures.
 class alignas(1 << TypeAlignInBits) GenericSignatureImpl final
   : public llvm::FoldingSetNode,
-    private llvm::TrailingObjects<GenericSignatureImpl, Type, Requirement> {
+    private llvm::TrailingObjects<GenericSignatureImpl, GenericTypeParamType *,
+                                  Requirement> {
   friend class ASTContext;
   friend GenericSignature;
   friend TrailingObjects;
@@ -286,14 +285,14 @@ class alignas(1 << TypeAlignInBits) GenericSignatureImpl final
   void *operator new(size_t Bytes) = delete;
   void operator delete(void *Data) = delete;
 
-  size_t numTrailingObjects(OverloadToken<Type>) const {
+  size_t numTrailingObjects(OverloadToken<GenericTypeParamType *>) const {
     return NumGenericParams;
   }
   size_t numTrailingObjects(OverloadToken<Requirement>) const {
     return NumRequirements;
   }
 
-  GenericSignatureImpl(TypeArrayView<GenericTypeParamType> params,
+  GenericSignatureImpl(ArrayRef<GenericTypeParamType *> params,
                        ArrayRef<Requirement> requirements,
                        bool isKnownCanonical);
 
@@ -325,6 +324,9 @@ public:
   /// Check if the generic signature makes all generic parameters
   /// concrete.
   bool areAllParamsConcrete() const;
+
+  /// Check if the generic signature has a parameter pack.
+  bool hasParameterPack() const;
 
   /// Compute the number of conformance requirements in this signature.
   unsigned getNumConformanceRequirements() const {
@@ -470,7 +472,7 @@ public:
   Type getDependentUpperBounds(Type type) const;
 
   static void Profile(llvm::FoldingSetNodeID &ID,
-                      TypeArrayView<GenericTypeParamType> genericParams,
+                      ArrayRef<GenericTypeParamType *> genericParams,
                       ArrayRef<Requirement> requirements);
   
   void print(raw_ostream &OS, PrintOptions Options = PrintOptions()) const;
@@ -483,16 +485,16 @@ private:
   friend CanGenericSignature;
 
   /// Retrieve the generic parameters.
-  TypeArrayView<GenericTypeParamType> getGenericParams() const {
-    return TypeArrayView<GenericTypeParamType>(
-        {getTrailingObjects<Type>(), NumGenericParams});
+  ArrayRef<GenericTypeParamType *> getGenericParams() const {
+    return ArrayRef<GenericTypeParamType *>(
+        {getTrailingObjects<GenericTypeParamType *>(), NumGenericParams});
   }
 
   /// Retrieve the innermost generic parameters.
   ///
   /// Given a generic signature for a nested generic type, produce an
   /// array of the generic parameters for the innermost generic type.
-  TypeArrayView<GenericTypeParamType> getInnermostGenericParams() const;
+  ArrayRef<GenericTypeParamType *> getInnermostGenericParams() const;
 
   /// Retrieve the requirements.
   ArrayRef<Requirement> getRequirements() const {

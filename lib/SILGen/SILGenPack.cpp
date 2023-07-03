@@ -207,6 +207,36 @@ public:
   }
 };
 
+/// Cleanup to destroy the remaining elements in a tuple following a
+/// particular value.
+class DestroyRemainingTupleElementsCleanup : public Cleanup {
+  SILValue Addr;
+  unsigned ComponentIndex;
+  CanPackType InducedPackType;
+public:
+  DestroyRemainingTupleElementsCleanup(SILValue tupleAddr,
+                                       CanPackType inducedPackType,
+                                       unsigned componentIndex)
+    : Addr(tupleAddr), ComponentIndex(componentIndex),
+      InducedPackType(inducedPackType) {}
+
+  void emit(SILGenFunction &SGF, CleanupLocation l,
+            ForUnwind_t forUnwind) override {
+    SGF.emitDestroyRemainingTupleElements(l, Addr, InducedPackType,
+                                          ComponentIndex);
+  }
+
+  void dump(SILGenFunction &) const override {
+#ifndef NDEBUG
+    llvm::errs() << "DestroyRemainingTupleElementsCleanup\n"
+                 << "State:" << getState() << "\n"
+                 << "Addr:" << Addr << "\n"
+                 << "InducedPackType:" << InducedPackType << "\n"
+                 << "ComponentIndex:" << ComponentIndex << "\n";
+#endif
+  }
+};
+
 /// An ASTWalker to emit tuple values in `MaterializePackExpr` nodes.
 ///
 /// Materialized packs are emitted inside a pack expansion context before
@@ -321,6 +351,17 @@ SILGenFunction::enterPartialDestroyRemainingTupleCleanup(SILValue addr,
                                                    indexWithinComponent);
   return Cleanups.getTopCleanup();
 }
+
+CleanupHandle
+SILGenFunction::enterDestroyRemainingTupleElementsCleanup(SILValue addr,
+                                                   CanPackType formalPackType,
+                                                   unsigned componentIndex) {
+  Cleanups.pushCleanup<DestroyRemainingTupleElementsCleanup>(addr,
+                                            formalPackType,
+                                            componentIndex);
+  return Cleanups.getTopCleanup();
+}
+
 
 void SILGenFunction::emitDestroyPack(SILLocation loc, SILValue packAddr,
                                      CanPackType formalPackType,
@@ -519,6 +560,44 @@ void SILGenFunction::emitPartialDestroyRemainingTuple(SILLocation loc,
       B.createTuplePackElementAddr(loc, packIndex, tupleAddr, elementTy);
     B.createDestroyAddr(loc, eltAddr);
   });
+}
+
+void SILGenFunction::emitDestroyRemainingTupleElements(
+       SILLocation loc, SILValue tupleAddr,
+       CanPackType inducedPackType, unsigned firstComponentIndex) {
+  auto tupleTy = tupleAddr->getType().castTo<TupleType>();
+  bool containsExpansions = tupleTy->containsPackExpansionType();
+  assert(!containsExpansions || inducedPackType);
+
+  // Destroy each of the elements of the pack.
+  for (auto componentIndex :
+         range(firstComponentIndex, tupleTy->getNumElements())) {
+    auto eltTy = tupleAddr->getType().getTupleElementType(componentIndex);
+
+    // We can skip this if the whole thing is trivial.
+    auto &eltTL = getTypeLowering(eltTy);
+    if (eltTL.isTrivial()) continue;
+
+    // If it's an expansion component, emit a "partial"-destroy loop.
+    if (auto expansion = eltTy.getAs<PackExpansionType>()) {
+      emitPartialDestroyRemainingTuple(loc, tupleAddr, inducedPackType,
+                                       componentIndex, /*limit*/ nullptr);
+
+    // If it's a scalar component, project and destroy it.
+    } else {
+      SILValue eltAddr;
+      if (containsExpansions) {
+        auto packIndex =
+          B.createScalarPackIndex(loc, componentIndex, inducedPackType);
+        eltAddr =
+          B.createTuplePackElementAddr(loc, packIndex, tupleAddr, eltTy);
+      } else {
+        eltAddr =
+          B.createTupleElementAddr(loc, tupleAddr, componentIndex, eltTy);
+      }
+      B.createDestroyAddr(loc, eltAddr);
+    }
+  }
 }
 
 void SILGenFunction::copyPackElementsToTuple(SILLocation loc,

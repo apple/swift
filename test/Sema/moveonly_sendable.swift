@@ -49,8 +49,8 @@ func processFiles(_ a: A, _ anotherFile: borrowing FileDescriptor) async {
   await a.takeMaybeFile(.available(anotherFile))
   _ = A(.available(anotherFile))
 
-  let ns = await a.getRef() // expected-warning {{non-sendable type 'NotSendableMO' returned by implicitly asynchronous call to actor-isolated instance method 'getRef()' cannot cross actor boundary}}
-  await takeNotSendable(ns) // expected-warning {{non-sendable type 'NotSendableMO' exiting main actor-isolated context in call to non-isolated global function 'takeNotSendable' cannot cross actor boundary}}
+  let ns = await a.getRef() // expected-warning {{non-sendable type 'NotSendableMO' returned by call to actor-isolated function cannot cross actor boundary}}
+  await takeNotSendable(ns) // expected-warning {{passing argument of non-sendable type 'NotSendableMO' outside of main actor-isolated context may introduce data races}}
 
   switch (await a.giveFileDescriptor()) {
   case let .available(fd):
@@ -91,19 +91,19 @@ enum Wrong_NoncopyableOption<T> : Sendable { // expected-note {{consider making 
 }
 
 func takeAnySendable(_ s: any Sendable) {}
-func takeSomeSendable(_ s: some Sendable) {}
+func takeSomeSendable(_ s: some Sendable) {} // expected-note {{generic parameter 'some Sendable' has an implicit Copyable requirement}}
 
-// expected-error@+1 {{noncopyable type 'FileDescriptor' cannot be used with generics yet}}
+// expected-error@+1 {{noncopyable type 'FileDescriptor' cannot be erased to copyable existential type 'any Sendable'}}
 func mkSendable() -> Sendable { return FileDescriptor(id: 0) }
 
 func tryToCastIt(_ fd: borrowing FileDescriptor) {
-  let _: any Sendable = fd // expected-error {{noncopyable type 'FileDescriptor' cannot be used with generics yet}}
-  let _: Sendable = fd // expected-error {{noncopyable type 'FileDescriptor' cannot be used with generics yet}}
+  let _: any Sendable = fd // expected-error {{noncopyable type 'FileDescriptor' cannot be erased to copyable existential type 'any Sendable'}}
+  let _: Sendable = fd // expected-error {{noncopyable type 'FileDescriptor' cannot be erased to copyable existential type 'any Sendable'}}
 
-  takeAnySendable(fd) // expected-error {{noncopyable type 'FileDescriptor' cannot be used with generics yet}}
-  takeSomeSendable(fd) // expected-error {{noncopyable type 'FileDescriptor' cannot be used with generics yet}}
+  takeAnySendable(fd) // expected-error {{noncopyable type 'FileDescriptor' cannot be erased to copyable existential type 'any Sendable'}}
+  takeSomeSendable(fd) // expected-error {{noncopyable type 'FileDescriptor' cannot be substituted for copyable generic parameter 'some Sendable' in 'takeSomeSendable'}}
 
-  let _ = fd as Sendable // expected-error {{noncopyable type 'FileDescriptor' cannot be used with generics yet}}
+  let _ = fd as Sendable // expected-error {{noncopyable type 'FileDescriptor' cannot be erased to copyable existential type 'any Sendable'}}
 
   let _ = fd as? Sendable // expected-warning {{cast from 'FileDescriptor' to unrelated type 'any Sendable' always fails}}
   // expected-error@-1 {{noncopyable types cannot be conditionally cast}}
@@ -146,7 +146,7 @@ class Container<T> where T:Sendable {
 }
 
 func createContainer(_ fd: borrowing FileDescriptor) {
-  let _: Container<Sendable> = Container(fd) // expected-error {{noncopyable type 'FileDescriptor' cannot be used with generics yet}}
+  let _: Container<Sendable> = Container(fd) // expected-error {{noncopyable type 'FileDescriptor' cannot be erased to copyable existential type 'any Sendable'}}
   let _: Container<Sendable> = Container(CopyableStruct())
 }
 
@@ -159,7 +159,8 @@ extension Sendable {
 }
 
 func tryToDupe(_ fd: borrowing FileDescriptor) {
-  fd.doIllegalThings() // expected-error {{noncopyable type 'FileDescriptor' cannot be used with generics yet}}
+  // FIXME: this should describe 'Self' as 'any Sendable' or something.
+  fd.doIllegalThings() // expected-error {{noncopyable type 'FileDescriptor' cannot be substituted for copyable generic parameter 'Self' in 'Sendable'}}
 }
 
 @_moveOnly

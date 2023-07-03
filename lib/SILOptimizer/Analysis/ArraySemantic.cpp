@@ -262,20 +262,20 @@ SILValue swift::ArraySemanticsCall::getIndex() const {
   return SemanticsCall->getArgument(0);
 }
 
-Optional<int64_t> swift::ArraySemanticsCall::getConstantIndex() const {
+llvm::Optional<int64_t> swift::ArraySemanticsCall::getConstantIndex() const {
   auto *IndexStruct = dyn_cast<StructInst>(getIndex());
   if (!IndexStruct)
-    return None;
+    return llvm::None;
   auto StructOpds = IndexStruct->getElements();
   if (StructOpds.size() != 1)
-    return None;
+    return llvm::None;
   auto *Literal = dyn_cast<IntegerLiteralInst>(StructOpds[0]);
   if (!Literal)
-    return None;
+    return llvm::None;
 
   auto Val = Literal->getValue();
   if (Val.getNumWords()>1)
-    return None;
+    return llvm::None;
 
   return Val.getSExtValue();
 }

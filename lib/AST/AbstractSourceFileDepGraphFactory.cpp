@@ -65,7 +65,8 @@ void AbstractSourceFileDepGraphFactory::addSourceFileNodesToGraph() {
 }
 
 void AbstractSourceFileDepGraphFactory::addADefinedDecl(
-    const DependencyKey &interfaceKey, Optional<Fingerprint> fingerprint) {
+    const DependencyKey &interfaceKey,
+    llvm::Optional<Fingerprint> fingerprint) {
 
   auto nodePair =
       g.findExistingNodePairOrCreateAndAddIfNew(interfaceKey, fingerprint);
@@ -77,8 +78,8 @@ void AbstractSourceFileDepGraphFactory::addADefinedDecl(
 
 void AbstractSourceFileDepGraphFactory::addAUsedDecl(
     const DependencyKey &defKey, const DependencyKey &useKey) {
-  auto *defNode =
-      g.findExistingNodeOrCreateIfNew(defKey, None, false /* = !isProvides */);
+  auto *defNode = g.findExistingNodeOrCreateIfNew(defKey, llvm::None,
+                                                  false /* = !isProvides */);
 
   // If the depended-upon node is defined in this file, then don't
   // create an arc to the user, when the user is the whole file.
@@ -112,7 +113,7 @@ void AbstractSourceFileDepGraphFactory::addAUsedDecl(
 
 void AbstractSourceFileDepGraphFactory::addAnExternalDependency(
     const DependencyKey &defKey, const DependencyKey &useKey,
-    Optional<Fingerprint> maybeFP) {
+    llvm::Optional<Fingerprint> maybeFP) {
   auto *defNode = g.findExistingNodeOrCreateIfNew(defKey, maybeFP,
                                                   false /* = !isProvides */);
 

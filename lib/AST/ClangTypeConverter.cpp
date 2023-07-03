@@ -152,9 +152,10 @@ const clang::Type *ClangTypeConverter::getFunctionType(
   llvm_unreachable("invalid representation");
 }
 
-const clang::Type *ClangTypeConverter::getFunctionType(
-    ArrayRef<SILParameterInfo> params, Optional<SILResultInfo> result,
-    SILFunctionType::Representation repr) {
+const clang::Type *
+ClangTypeConverter::getFunctionType(ArrayRef<SILParameterInfo> params,
+                                    llvm::Optional<SILResultInfo> result,
+                                    SILFunctionType::Representation repr) {
 
   // Using the interface type is sufficient as type parameters get mapped to
   // `id`, since ObjC lightweight generics use type erasure. (See also: SE-0057)
@@ -664,8 +665,9 @@ clang::QualType ClangTypeConverter::visitSILFunctionType(SILFunctionType *type) 
                         ? SILFunctionTypeRepresentation::Block
                         : repr);
     auto results = type->getResults();
-    auto optionalResult =
-        results.empty() ? None : llvm::Optional<SILResultInfo>(results[0]);
+    auto optionalResult = results.empty()
+                              ? llvm::None
+                              : llvm::Optional<SILResultInfo>(results[0]);
     clangTy = getFunctionType(type->getParameters(), optionalResult, newRepr);
   }
   return clang::QualType(clangTy, 0);

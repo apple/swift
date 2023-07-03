@@ -22,9 +22,10 @@ using namespace swift;
 
 AutoDiffDerivativeFunctionKind::AutoDiffDerivativeFunctionKind(
     StringRef string) {
-  Optional<innerty> result = llvm::StringSwitch<Optional<innerty>>(string)
-                                 .Case("jvp", JVP)
-                                 .Case("vjp", VJP);
+  llvm::Optional<innerty> result =
+      llvm::StringSwitch<llvm::Optional<innerty>>(string)
+          .Case("jvp", JVP)
+          .Case("vjp", VJP);
   assert(result && "Invalid string");
   rawValue = *result;
 }
@@ -44,19 +45,20 @@ NormalDifferentiableFunctionTypeComponent::
 
 NormalDifferentiableFunctionTypeComponent::
     NormalDifferentiableFunctionTypeComponent(StringRef string) {
-  Optional<innerty> result = llvm::StringSwitch<Optional<innerty>>(string)
-                                 .Case("original", Original)
-                                 .Case("jvp", JVP)
-                                 .Case("vjp", VJP);
+  llvm::Optional<innerty> result =
+      llvm::StringSwitch<llvm::Optional<innerty>>(string)
+          .Case("original", Original)
+          .Case("jvp", JVP)
+          .Case("vjp", VJP);
   assert(result && "Invalid string");
   rawValue = *result;
 }
 
-Optional<AutoDiffDerivativeFunctionKind>
+llvm::Optional<AutoDiffDerivativeFunctionKind>
 NormalDifferentiableFunctionTypeComponent::getAsDerivativeFunctionKind() const {
   switch (rawValue) {
   case Original:
-    return None;
+    return llvm::None;
   case JVP:
     return {AutoDiffDerivativeFunctionKind::JVP};
   case VJP:
@@ -67,24 +69,26 @@ NormalDifferentiableFunctionTypeComponent::getAsDerivativeFunctionKind() const {
 
 LinearDifferentiableFunctionTypeComponent::
     LinearDifferentiableFunctionTypeComponent(StringRef string) {
-  Optional<innerty> result = llvm::StringSwitch<Optional<innerty>>(string)
-                                 .Case("original", Original)
-                                 .Case("transpose", Transpose);
+  llvm::Optional<innerty> result =
+      llvm::StringSwitch<llvm::Optional<innerty>>(string)
+          .Case("original", Original)
+          .Case("transpose", Transpose);
   assert(result && "Invalid string");
   rawValue = *result;
 }
 
 DifferentiabilityWitnessFunctionKind::DifferentiabilityWitnessFunctionKind(
     StringRef string) {
-  Optional<innerty> result = llvm::StringSwitch<Optional<innerty>>(string)
-                                 .Case("jvp", JVP)
-                                 .Case("vjp", VJP)
-                                 .Case("transpose", Transpose);
+  llvm::Optional<innerty> result =
+      llvm::StringSwitch<llvm::Optional<innerty>>(string)
+          .Case("jvp", JVP)
+          .Case("vjp", VJP)
+          .Case("transpose", Transpose);
   assert(result && "Invalid string");
   rawValue = *result;
 }
 
-Optional<AutoDiffDerivativeFunctionKind>
+llvm::Optional<AutoDiffDerivativeFunctionKind>
 DifferentiabilityWitnessFunctionKind::getAsDerivativeFunctionKind() const {
   switch (rawValue) {
   case JVP:
@@ -92,7 +96,7 @@ DifferentiabilityWitnessFunctionKind::getAsDerivativeFunctionKind() const {
   case VJP:
     return {AutoDiffDerivativeFunctionKind::VJP};
   case Transpose:
-    return None;
+    return llvm::None;
   }
   llvm_unreachable("invalid derivative kind");
 }

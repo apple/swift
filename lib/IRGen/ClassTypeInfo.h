@@ -33,10 +33,10 @@ class ClassTypeInfo : public HeapTypeInfo<ClassTypeInfo> {
   // The resilient layout of the class, without making any assumptions
   // that violate resilience boundaries. This is used to allocate
   // and deallocate instances of the class, and to access fields.
-  mutable Optional<ClassLayout> ResilientLayout;
+  mutable llvm::Optional<ClassLayout> ResilientLayout;
 
   // A completely fragile layout, used for metadata emission.
-  mutable Optional<ClassLayout> FragileLayout;
+  mutable llvm::Optional<ClassLayout> FragileLayout;
 
   /// Can we use swift reference-counting, or do we have to use
   /// objc_retain/release?

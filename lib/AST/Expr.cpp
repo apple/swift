@@ -1912,7 +1912,7 @@ unsigned AbstractClosureExpr::getDiscriminator() const {
   // then assign the next discriminator now.
   if (getRawDiscriminator() == InvalidDiscriminator &&
       (ctx.Diags.hadAnyError() ||
-       getParentSourceFile()->getFulfilledMacroRole() != None)) {
+       getParentSourceFile()->getFulfilledMacroRole() != llvm::None)) {
     auto discriminator = ctx.getNextDiscriminator(getParent());
     ctx.setMaxAssignedDiscriminator(getParent(), discriminator + 1);
     const_cast<AbstractClosureExpr *>(this)->
@@ -2439,14 +2439,14 @@ KeyPathExpr::setComponents(ASTContext &C,
   Components = Components.slice(0, newComponents.size());
 }
 
-Optional<unsigned> KeyPathExpr::findComponentWithSubscriptArg(Expr *arg) {
+llvm::Optional<unsigned> KeyPathExpr::findComponentWithSubscriptArg(Expr *arg) {
   for (auto idx : indices(getComponents())) {
     if (auto *args = getComponents()[idx].getSubscriptArgs()) {
       if (args->findArgumentExpr(arg))
         return idx;
     }
   }
-  return None;
+  return llvm::None;
 }
 
 KeyPathExpr::Component KeyPathExpr::Component::forSubscript(

@@ -66,8 +66,8 @@ private:
 
   StableSerializationPath findImportedPath(const clang::NamedDecl *decl) {
     // We've almost certainly imported this declaration, look for it.
-    Optional<Decl *> swiftDeclOpt =
-      Impl.importDeclCached(decl, Impl.CurrentVersion);
+    llvm::Optional<Decl *> swiftDeclOpt =
+        Impl.importDeclCached(decl, Impl.CurrentVersion);
     if (swiftDeclOpt.has_value() && swiftDeclOpt.value()) {
       auto swiftDecl = swiftDeclOpt.value();
       // The serialization code doesn't allow us to cross-reference

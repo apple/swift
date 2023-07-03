@@ -1295,8 +1295,9 @@ public:
       }
     }
 
-    if (I->getFunction()->hasOwnership() && ForwardingInstruction::isa(I)) {
-      checkOwnershipForwardingInst(I);
+    if (I->getFunction()->hasOwnership()) {
+      if (auto fwdOp = ForwardingOperation(I))
+        checkOwnershipForwardingInst(fwdOp);
     }
   }
 
@@ -1340,25 +1341,24 @@ public:
 
   /// For an instruction \p i that forwards ownership from an operand to one
   /// of its results, check forwarding invariants.
-  void checkOwnershipForwardingInst(SILInstruction *i) {
-    ValueOwnershipKind ownership =
-        ForwardingInstruction::get(i)->getForwardingOwnershipKind();
+  void checkOwnershipForwardingInst(ForwardingOperation fwdOp) {
+    auto ownership = fwdOp.getForwardingOwnershipKind();
 
-    if (ForwardingInstruction::canForwardOwnedCompatibleValuesOnly(i)) {
+    if (fwdOp.canForwardOwnedCompatibleValuesOnly()) {
       ValueOwnershipKind kind = OwnershipKind::Owned;
       require(kind.isCompatibleWith(ownership),
               "OwnedFirstArgForwardingSingleValueInst's ownership kind must be "
               "compatible with owned");
     }
 
-    if (ForwardingInstruction::canForwardGuaranteedCompatibleValuesOnly(i)) {
+    if (fwdOp.canForwardGuaranteedCompatibleValuesOnly()) {
       ValueOwnershipKind kind = OwnershipKind::Guaranteed;
       require(kind.isCompatibleWith(ownership),
               "GuaranteedFirstArgForwardingSingleValueInst's ownership kind "
               "must be compatible with guaranteed");
     }
 
-    if (auto *term = dyn_cast<OwnershipForwardingTermInst>(i)) {
+    if (auto *term = dyn_cast<OwnershipForwardingTermInst>(*fwdOp)) {
       checkOwnershipForwardingTermInst(term);
     }
 
@@ -1367,16 +1367,15 @@ public:
     // representation. Non-destructive projection is allowed. Aggregation and
     // destructive disaggregation is not allowed. See SIL.rst, Forwarding
     // Addres-Only Values.
-    if (ownership == OwnershipKind::Guaranteed &&
-        ForwardingInstruction::isAddressOnly(i)) {
-      require(ForwardingInstruction::hasSameRepresentation(i),
+    if (ownership == OwnershipKind::Guaranteed && fwdOp.isAddressOnly()) {
+      require(fwdOp.hasSameRepresentation(),
               "Forwarding a guaranteed address-only value requires the same "
               "representation since no move or copy is allowed.");
     }
   }
 
   void checkDebugVariable(SILInstruction *inst) {
-    Optional<SILDebugVariable> varInfo;
+    llvm::Optional<SILDebugVariable> varInfo;
     if (auto *di = dyn_cast<AllocStackInst>(inst))
       varInfo = di->getVarInfo();
     else if (auto *di = dyn_cast<AllocBoxInst>(inst))
@@ -2725,17 +2724,12 @@ public:
     SILValue initFn = AI->getInitializer();
     SILValue setterFn = AI->getSetter();
 
-    CanSILFunctionType initTy = initFn->getType().castTo<SILFunctionType>();
     // Check init - it's an unapplied reference that takes property addresses
     // and `initialValue`.
     {
-      // We need to map un-applied function reference into context before
-      // check `initialValue` argument.
-      auto subs = cast<PartialApplyInst>(setterFn)->getSubstitutionMap();
-      initTy = initTy->substGenericArgs(F.getModule(), subs,
-                                        F.getTypeExpansionContext());
-
+      CanSILFunctionType initTy = initFn->getType().castTo<SILFunctionType>();
       SILFunctionConventions initConv(initTy, AI->getModule());
+
       require(initConv.getNumIndirectSILResults() ==
                   AI->getInitializedProperties().size(),
               "init function has invalid number of indirect results");
@@ -3645,7 +3639,7 @@ public:
     require(selfGenericParam->getDepth() == 0
             && selfGenericParam->getIndex() == 0,
             "method should be polymorphic on Self parameter at depth 0 index 0");
-    Optional<Requirement> selfRequirement;
+    llvm::Optional<Requirement> selfRequirement;
     for (auto req : genericSig.getRequirements()) {
       if (req.getKind() != RequirementKind::SameType) {
         selfRequirement = req;
@@ -4833,8 +4827,9 @@ public:
             "unwind dest of 'yield' must be uniquely used");
   }
 
-  void checkSelectEnumCases(SelectEnumInstBase *I) {
-    EnumDecl *eDecl = I->getEnumOperand()->getType().getEnumOrBoundGenericEnum();
+  void checkSelectEnumCases(SelectEnumOperation SEO) {
+    EnumDecl *eDecl =
+        SEO.getEnumOperand()->getType().getEnumOrBoundGenericEnum();
     require(eDecl, "select_enum operand must be an enum");
 
     // Find the set of enum elements for the type so we can verify
@@ -4843,10 +4838,10 @@ public:
     eDecl->getAllElements(unswitchedElts);
 
     // Verify the set of enum cases we dispatch on.
-    for (unsigned i = 0, e = I->getNumCases(); i < e; ++i) {
+    for (unsigned i = 0, e = SEO.getNumCases(); i < e; ++i) {
       EnumElementDecl *elt;
       SILValue result;
-      std::tie(elt, result) = I->getCase(i);
+      std::tie(elt, result) = SEO.getCase(i);
 
       require(elt->getDeclContext() == eDecl,
               "select_enum dispatches on enum element that is not part of "
@@ -4856,34 +4851,35 @@ public:
       unswitchedElts.erase(elt);
 
       // The result value must match the type of the instruction.
-      requireSameType(result->getType(), I->getType(),
-                    "select_enum case operand must match type of instruction");
+      requireSameType(
+          result->getType(), SEO->getType(),
+          "select_enum case operand must match type of instruction");
     }
 
     // If the select is non-exhaustive, we require a default.
     bool isExhaustive =
         eDecl->isEffectivelyExhaustive(F.getModule().getSwiftModule(),
                                        F.getResilienceExpansion());
-    require((isExhaustive && unswitchedElts.empty()) || I->hasDefault(),
-            "nonexhaustive select_enum must have a default destination");
-    if (I->hasDefault()) {
-      requireSameType(I->getDefaultResult()->getType(),
-                  I->getType(),
-                  "select_enum default operand must match type of instruction");
+    require((isExhaustive && unswitchedElts.empty()) || SEO.hasDefault(),
+            "nonexhaustive select_:enum must have a default destination");
+    if (SEO.hasDefault()) {
+      requireSameType(
+          SEO.getDefaultResult()->getType(), SEO->getType(),
+          "select_enum default operand must match type of instruction");
     }
   }
 
   void checkSelectEnumInst(SelectEnumInst *SEI) {
     require(SEI->getEnumOperand()->getType().isObject(),
             "select_enum operand must be an object");
-    
-    checkSelectEnumCases(SEI);
+
+    checkSelectEnumCases(SelectEnumOperation(SEI));
   }
   void checkSelectEnumAddrInst(SelectEnumAddrInst *SEI) {
     require(SEI->getEnumOperand()->getType().isAddress(),
             "select_enum_addr operand must be an address");
-    
-    checkSelectEnumCases(SEI);
+
+    checkSelectEnumCases(SelectEnumOperation(SEI));
   }
 
   void checkSwitchValueInst(SwitchValueInst *SVI) {

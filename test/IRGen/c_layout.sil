@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -I %S/Inputs/abi %s -emit-ir | %FileCheck %s --check-prefix=CHECK-%target-cpu -check-prefix CHECK-%target-abi-%target-cpu -check-prefix CHECK-%target-sdk-name-%target-cpu
-// RUN: %target-swift-frontend -I %S/Inputs/abi %s -emit-ir
+// RUN: %target-swift-frontend -I %S/Inputs/abi %s -emit-ir | %FileCheck %s --check-prefix=CHECK-%target-cpu -check-prefix CHECK-%target-abi-%target-cpu -check-prefix CHECK-%target-sdk-name-%target-cpu
 
 sil_stage canonical
 import c_layout
@@ -33,66 +32,58 @@ bb0:
 // CHECK-x86_64:   [[RESULT:%.*]] = alloca %TSo11BitfieldOneV, align 8
 // CHECK-x86_64:   [[ARG:%.*]] = alloca %TSo11BitfieldOneV, align 8
 //   Make the first call and pull all the values out of the indirect result.
-// CHECK-x86_64:   call void @createBitfieldOne(%TSo11BitfieldOneV* noalias nocapture sret({{.*}}) [[RESULT]])
-// CHECK-x86_64:   [[ADDR_A:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, %TSo11BitfieldOneV* [[RESULT]], i32 0, i32 0
-// CHECK-x86_64:   [[ADDR_A_V:%.*]] = getelementptr inbounds %Ts6UInt32V, %Ts6UInt32V* [[ADDR_A]], i32 0, i32 0
-// CHECK-x86_64:   [[A:%.*]] = load i32, i32* [[ADDR_A_V]], align 8
-// CHECK-x86_64:   [[ADDR_B:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, %TSo11BitfieldOneV* [[RESULT]], i32 0, i32 1
-// CHECK-x86_64:   [[ADDR_B_X:%.*]] = getelementptr inbounds %TSo6NestedV, %TSo6NestedV* [[ADDR_B]], i32 0, i32 0
-// CHECK-x86_64:   [[ADDR_B_X_V:%.*]] = getelementptr inbounds %TSf, %TSf* [[ADDR_B_X]], i32 0, i32 0
-// CHECK-x86_64:   [[B_X:%.*]] = load float, float* [[ADDR_B_X_V]], align 4
-// CHECK-x86_64:   [[ADDR_B_YZ:%.*]] = getelementptr inbounds %TSo6NestedV, %TSo6NestedV* [[ADDR_B]], i32 0, i32 1
-// CHECK-x86_64:   [[ADDR_B_YZ_1:%.*]] = bitcast [3 x i8]* [[ADDR_B_YZ]] to i24*
-// CHECK-x86_64:   [[B_YZ:%.*]] = load i24, i24* [[ADDR_B_YZ_1]], align 4
-// CHECK-x86_64:   [[ADDR_CDE:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, %TSo11BitfieldOneV* [[RESULT]], i32 0, i32 2
-// CHECK-x86_64:   [[ADDR_CDE_1:%.*]] = bitcast [4 x i8]* [[ADDR_CDE]] to i32*
-// CHECK-x86_64:   [[CDE:%.*]] = load i32, i32* [[ADDR_CDE_1]], align 4
-// CHECK-x86_64:   [[ADDR_FGH:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, %TSo11BitfieldOneV* [[RESULT]], i32 0, i32 3
-// CHECK-x86_64:   [[ADDR_FGH_1:%.*]] = bitcast [4 x i8]* [[ADDR_FGH]] to i32*
-// CHECK-x86_64:   [[FGH:%.*]] = load i32, i32* [[ADDR_FGH_1]], align 8
-// CHECK-x86_64:   [[ADDR_I:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, %TSo11BitfieldOneV* [[RESULT]], i32 0, i32 4
-// CHECK-x86_64:   [[ADDR_I_V:%.*]] = getelementptr inbounds %TSf, %TSf* [[ADDR_I]], i32 0, i32 0
-// CHECK-x86_64:   [[I:%.*]] = load float, float* [[ADDR_I_V]], align 4
-// CHECK-x86_64:   [[ADDR_JK:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, %TSo11BitfieldOneV* [[RESULT]], i32 0, i32 5
-// CHECK-x86_64:   [[ADDR_JK_1:%.*]] = bitcast [1 x i8]* [[ADDR_JK]] to i8*
-// CHECK-x86_64:   [[JK:%.*]] = load i8, i8* [[ADDR_JK_1]], align 8
-// CHECK-x86_64:   [[ADDR_L:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, %TSo11BitfieldOneV* [[RESULT]], i32 0, i32 7
-// CHECK-x86_64:   [[ADDR_L_V:%.*]] = getelementptr inbounds %Ts6UInt64V, %Ts6UInt64V* [[ADDR_L]], i32 0, i32 0
-// CHECK-x86_64:   [[L:%.*]] = load i64, i64* [[ADDR_L_V]], align 8
-// CHECK-x86_64:   [[ADDR_M:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, %TSo11BitfieldOneV* [[RESULT]], i32 0, i32 8
-// CHECK-x86_64:   [[ADDR_M_V:%.*]] = getelementptr inbounds %Ts6UInt32V, %Ts6UInt32V* [[ADDR_M]], i32 0, i32 0
-// CHECK-x86_64:   [[M:%.*]] = load i32, i32* [[ADDR_M_V]], align 8
+// CHECK-x86_64:   call void @createBitfieldOne(ptr noalias nocapture sret({{.*}}) [[RESULT]])
+// CHECK-x86_64:   [[ADDR_A:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, ptr [[RESULT]], i32 0, i32 0
+// CHECK-x86_64:   [[ADDR_A_V:%.*]] = getelementptr inbounds %Ts6UInt32V, ptr [[ADDR_A]], i32 0, i32 0
+// CHECK-x86_64:   [[A:%.*]] = load i32, ptr [[ADDR_A_V]], align 8
+// CHECK-x86_64:   [[ADDR_B:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, ptr [[RESULT]], i32 0, i32 1
+// CHECK-x86_64:   [[ADDR_B_X:%.*]] = getelementptr inbounds %TSo6NestedV, ptr [[ADDR_B]], i32 0, i32 0
+// CHECK-x86_64:   [[ADDR_B_X_V:%.*]] = getelementptr inbounds %TSf, ptr [[ADDR_B_X]], i32 0, i32 0
+// CHECK-x86_64:   [[B_X:%.*]] = load float, ptr [[ADDR_B_X_V]], align 4
+// CHECK-x86_64:   [[ADDR_B_YZ:%.*]] = getelementptr inbounds %TSo6NestedV, ptr [[ADDR_B]], i32 0, i32 1
+// CHECK-x86_64:   [[B_YZ:%.*]] = load i24, ptr [[ADDR_B_YZ]], align 4
+// CHECK-x86_64:   [[ADDR_CDE:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, ptr [[RESULT]], i32 0, i32 2
+// CHECK-x86_64:   [[CDE:%.*]] = load i32, ptr [[ADDR_CDE]], align 4
+// CHECK-x86_64:   [[ADDR_FGH:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, ptr [[RESULT]], i32 0, i32 3
+// CHECK-x86_64:   [[FGH:%.*]] = load i32, ptr [[ADDR_FGH]], align 8
+// CHECK-x86_64:   [[ADDR_I:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, ptr [[RESULT]], i32 0, i32 4
+// CHECK-x86_64:   [[ADDR_I_V:%.*]] = getelementptr inbounds %TSf, ptr [[ADDR_I]], i32 0, i32 0
+// CHECK-x86_64:   [[I:%.*]] = load float, ptr [[ADDR_I_V]], align 4
+// CHECK-x86_64:   [[ADDR_JK:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, ptr [[RESULT]], i32 0, i32 5
+// CHECK-x86_64:   [[JK:%.*]] = load i8, ptr [[ADDR_JK]], align 8
+// CHECK-x86_64:   [[ADDR_L:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, ptr [[RESULT]], i32 0, i32 7
+// CHECK-x86_64:   [[ADDR_L_V:%.*]] = getelementptr inbounds %Ts6UInt64V, ptr [[ADDR_L]], i32 0, i32 0
+// CHECK-x86_64:   [[L:%.*]] = load i64, ptr [[ADDR_L_V]], align 8
+// CHECK-x86_64:   [[ADDR_M:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, ptr [[RESULT]], i32 0, i32 8
+// CHECK-x86_64:   [[ADDR_M_V:%.*]] = getelementptr inbounds %Ts6UInt32V, ptr [[ADDR_M]], i32 0, i32 0
+// CHECK-x86_64:   [[M:%.*]] = load i32, ptr [[ADDR_M_V]], align 8
 //   Put all of the values into the indirect argument and make the second call.
-// CHECK-x86_64:   [[ADDR_A:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, %TSo11BitfieldOneV* [[ARG]], i32 0, i32 0
-// CHECK-x86_64:   [[ADDR_A_V:%.*]] = getelementptr inbounds %Ts6UInt32V, %Ts6UInt32V* [[ADDR_A]], i32 0, i32 0
-// CHECK-x86_64:   store i32 [[A]], i32* [[ADDR_A_V]], align 8
-// CHECK-x86_64:   [[ADDR_B:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, %TSo11BitfieldOneV* [[ARG]], i32 0, i32 1
-// CHECK-x86_64:   [[ADDR_B_X:%.*]] = getelementptr inbounds %TSo6NestedV, %TSo6NestedV* [[ADDR_B]], i32 0, i32 0
-// CHECK-x86_64:   [[ADDR_B_X_V:%.*]] = getelementptr inbounds %TSf, %TSf* [[ADDR_B_X]], i32 0, i32 0
-// CHECK-x86_64:   store float [[B_X]], float* [[ADDR_B_X_V]], align 4
-// CHECK-x86_64:   [[ADDR_B_YZ:%.*]] = getelementptr inbounds %TSo6NestedV, %TSo6NestedV* [[ADDR_B]], i32 0, i32 1
-// CHECK-x86_64:   [[ADDR_B_YZ_1:%.*]] = bitcast [3 x i8]* [[ADDR_B_YZ]] to i24*
-// CHECK-x86_64:   store i24 [[B_YZ]], i24* [[ADDR_B_YZ_1]], align 4
-// CHECK-x86_64:   [[ADDR_CDE:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, %TSo11BitfieldOneV* [[ARG]], i32 0, i32 2
-// CHECK-x86_64:   [[ADDR_CDE_1:%.*]] = bitcast [4 x i8]* [[ADDR_CDE]] to i32*
-// CHECK-x86_64:   store i32 [[CDE]], i32* [[ADDR_CDE_1]], align 4
-// CHECK-x86_64:   [[ADDR_FGH:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, %TSo11BitfieldOneV* [[ARG]], i32 0, i32 3
-// CHECK-x86_64:   [[ADDR_FGH_1:%.*]] = bitcast [4 x i8]* [[ADDR_FGH]] to i32*
-// CHECK-x86_64:   store i32 [[FGH]], i32* [[ADDR_FGH_1]], align 8
-// CHECK-x86_64:   [[ADDR_I:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, %TSo11BitfieldOneV* [[ARG]], i32 0, i32 4
-// CHECK-x86_64:   [[ADDR_I_V:%.*]] = getelementptr inbounds %TSf, %TSf* [[ADDR_I]], i32 0, i32 0
-// CHECK-x86_64:   store float [[I]], float* [[ADDR_I_V]], align 4
-// CHECK-x86_64:   [[ADDR_JK:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, %TSo11BitfieldOneV* [[ARG]], i32 0, i32 5
-// CHECK-x86_64:   [[ADDR_JK_1:%.*]] = bitcast [1 x i8]* [[ADDR_JK]] to i8*
-// CHECK-x86_64:   store i8 [[JK]], i8* [[ADDR_JK_1]], align 8
-// CHECK-x86_64:   [[ADDR_L:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, %TSo11BitfieldOneV* [[ARG]], i32 0, i32 7
-// CHECK-x86_64:   [[ADDR_L_V:%.*]] = getelementptr inbounds %Ts6UInt64V, %Ts6UInt64V* [[ADDR_L]], i32 0, i32 0
-// CHECK-x86_64:   store i64 [[L]], i64* [[ADDR_L_V]], align 8
-// CHECK-x86_64:   [[ADDR_M:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, %TSo11BitfieldOneV* [[ARG]], i32 0, i32 8
-// CHECK-x86_64:   [[ADDR_M_V:%.*]] = getelementptr inbounds %Ts6UInt32V, %Ts6UInt32V* [[ADDR_M]], i32 0, i32 0
-// CHECK-x86_64:   store i32 [[M]], i32* [[ADDR_M_V]], align 8
-// CHECK-SYSV-x86_64:  call void @consumeBitfieldOne(%TSo11BitfieldOneV* byval({{.*}}) align 8 [[ARG]])
-// CHECK-WIN-x86_64:   call void @consumeBitfieldOne(%TSo11BitfieldOneV* [[ARG]])
+// CHECK-x86_64:   [[ADDR_A:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, ptr [[ARG]], i32 0, i32 0
+// CHECK-x86_64:   [[ADDR_A_V:%.*]] = getelementptr inbounds %Ts6UInt32V, ptr [[ADDR_A]], i32 0, i32 0
+// CHECK-x86_64:   store i32 [[A]], ptr [[ADDR_A_V]], align 8
+// CHECK-x86_64:   [[ADDR_B:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, ptr [[ARG]], i32 0, i32 1
+// CHECK-x86_64:   [[ADDR_B_X:%.*]] = getelementptr inbounds %TSo6NestedV, ptr [[ADDR_B]], i32 0, i32 0
+// CHECK-x86_64:   [[ADDR_B_X_V:%.*]] = getelementptr inbounds %TSf, ptr [[ADDR_B_X]], i32 0, i32 0
+// CHECK-x86_64:   store float [[B_X]], ptr [[ADDR_B_X_V]], align 4
+// CHECK-x86_64:   [[ADDR_B_YZ:%.*]] = getelementptr inbounds %TSo6NestedV, ptr [[ADDR_B]], i32 0, i32 1
+// CHECK-x86_64:   store i24 [[B_YZ]], ptr [[ADDR_B_YZ]], align 4
+// CHECK-x86_64:   [[ADDR_CDE:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, ptr [[ARG]], i32 0, i32 2
+// CHECK-x86_64:   store i32 [[CDE]], ptr [[ADDR_CDE]], align 4
+// CHECK-x86_64:   [[ADDR_FGH:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, ptr [[ARG]], i32 0, i32 3
+// CHECK-x86_64:   store i32 [[FGH]], ptr [[ADDR_FGH]], align 8
+// CHECK-x86_64:   [[ADDR_I:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, ptr [[ARG]], i32 0, i32 4
+// CHECK-x86_64:   [[ADDR_I_V:%.*]] = getelementptr inbounds %TSf, ptr [[ADDR_I]], i32 0, i32 0
+// CHECK-x86_64:   store float [[I]], ptr [[ADDR_I_V]], align 4
+// CHECK-x86_64:   [[ADDR_JK:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, ptr [[ARG]], i32 0, i32 5
+// CHECK-x86_64:   store i8 [[JK]], ptr [[ADDR_JK]], align 8
+// CHECK-x86_64:   [[ADDR_L:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, ptr [[ARG]], i32 0, i32 7
+// CHECK-x86_64:   [[ADDR_L_V:%.*]] = getelementptr inbounds %Ts6UInt64V, ptr [[ADDR_L]], i32 0, i32 0
+// CHECK-x86_64:   store i64 [[L]], ptr [[ADDR_L_V]], align 8
+// CHECK-x86_64:   [[ADDR_M:%.*]] = getelementptr inbounds %TSo11BitfieldOneV, ptr [[ARG]], i32 0, i32 8
+// CHECK-x86_64:   [[ADDR_M_V:%.*]] = getelementptr inbounds %Ts6UInt32V, ptr [[ADDR_M]], i32 0, i32 0
+// CHECK-x86_64:   store i32 [[M]], ptr [[ADDR_M_V]], align 8
+// CHECK-SYSV-x86_64:  call void @consumeBitfieldOne(ptr byval({{.*}}) align 8 [[ARG]])
+// CHECK-WIN-x86_64:   call void @consumeBitfieldOne(ptr [[ARG]])
 // CHECK-x86_64:   ret void
 
 
@@ -111,9 +102,9 @@ sil public_external @consumeSIMDStruct : $@convention(c) (SIMDStruct) -> ()
 
 // CHECK-x86_64-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @testSIMDStruct()
 // CHECK-SYSV-x86_64:        call <3 x float> @createSIMDStruct
-// CHECK-WIN-x86_64:         call void @createSIMDStruct(%TSo10SIMDStructV* noalias nocapture sret({{.*}}) %
+// CHECK-WIN-x86_64:         call void @createSIMDStruct(ptr noalias nocapture sret({{.*}}) %
 // CHECK-SYSV-x86_64:        call void @consumeSIMDStruct(<3 x float>
-// CHECK-WIN-x86_64:         call void @consumeSIMDStruct(%TSo10SIMDStructV* %
+// CHECK-WIN-x86_64:         call void @consumeSIMDStruct(ptr %
 sil @testSIMDStruct : $() -> () {
 bb0:
   %f = function_ref @createSIMDStruct : $@convention(c) () -> SIMDStruct
@@ -372,18 +363,18 @@ entry(%a : $CChar, %b : $CSignedChar, %c : $CUnsignedChar, %d : $CShort, %e : $C
   return undef : $()
 }
 
-// CHECK-x86_64-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i8 @testIntegerExtensionInBlock(%objc_block* %0, i8 %1)
+// CHECK-x86_64-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i8 @testIntegerExtensionInBlock(ptr %0, i8 %1)
 sil @testIntegerExtensionInBlock : $@convention(thin) (@owned @convention(block) (CChar) -> CChar, CChar) -> CChar {
 entry(%b : $@convention(block) (CChar) -> CChar, %c : $CChar):
-// CHECK-SYSV-x86_64: call signext i8 {{%.*}}(%objc_block* {{%.*}}, i8 signext {{%.*}})
-// CHECK-WIN-x86_64: call i8 {{%.*}}(%objc_block* {{%.*}}, i8 {{%.*}})
+// CHECK-SYSV-x86_64: call signext i8 {{%.*}}(ptr {{%.*}}, i8 signext {{%.*}})
+// CHECK-WIN-x86_64: call i8 {{%.*}}(ptr {{%.*}}, i8 {{%.*}})
   %r = apply %b(%c) : $@convention(block) (CChar) -> CChar
   return %r : $CChar
 }
 
 // CHECK-x86_64-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @testBitfieldInBlock
-// CHECK-SYSV-x86_64:        call void {{%.*}}(%TSo11BitfieldOneV* noalias nocapture sret({{.*}}) {{%.*}}, %objc_block* {{%.*}}, %TSo11BitfieldOneV* byval({{.*}}) align 8 {{%.*}})
-// CHECK-WIN-x86_64:         call void {{%.*}}(%TSo11BitfieldOneV* noalias nocapture sret({{.*}}) {{%.*}}, %objc_block* {{%.*}}, %TSo11BitfieldOneV* {{%.*}})
+// CHECK-SYSV-x86_64:        call void {{%.*}}(ptr noalias nocapture sret({{.*}}) {{%.*}}, ptr {{%.*}}, ptr byval({{.*}}) align 8 {{%.*}})
+// CHECK-WIN-x86_64:         call void {{%.*}}(ptr noalias nocapture sret({{.*}}) {{%.*}}, ptr {{%.*}}, ptr {{%.*}})
 sil @testBitfieldInBlock : $@convention(thin) (@owned @convention(block) (BitfieldOne) -> BitfieldOne, BitfieldOne) -> BitfieldOne  {
 entry(%b : $@convention(block) (BitfieldOne) -> BitfieldOne, %x : $BitfieldOne):
   %r = apply %b(%x) : $@convention(block) (BitfieldOne) -> BitfieldOne

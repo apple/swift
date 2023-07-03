@@ -281,16 +281,14 @@ void RewriteSystem::processTypeDifference(const TypeDifference &difference,
 ///
 /// Otherwise returns an index which can be passed to
 /// RewriteSystem::getTypeDifference().
-Optional<unsigned>
-RewriteSystem::simplifySubstitutions(Term baseTerm, Symbol symbol,
-                                     const PropertyMap *map,
-                                     RewritePath *path) {
+llvm::Optional<unsigned> RewriteSystem::simplifySubstitutions(
+    Term baseTerm, Symbol symbol, const PropertyMap *map, RewritePath *path) {
   assert(symbol.hasSubstitutions());
 
   // Fast path if the type is fully concrete.
   auto substitutions = symbol.getSubstitutions();
   if (substitutions.empty())
-    return None;
+    return llvm::None;
 
   // Save the original rewrite path length so that we can reset if if we don't
   // find anything to simplify.
@@ -358,7 +356,7 @@ RewriteSystem::simplifySubstitutions(Term baseTerm, Symbol symbol,
 
       path->resize(oldSize);
     }
-    return None;
+    return llvm::None;
   }
 
   auto difference = buildTypeDifference(baseTerm, symbol,

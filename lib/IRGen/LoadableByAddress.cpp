@@ -3168,7 +3168,7 @@ void LoadableByAddress::run() {
     } else if (auto *globalVal = dyn_cast<GlobalValueInst>(inst)) {
       SILBuilderWithScope builder(inst);
       auto *newInst = builder.createGlobalValue(
-          globalVal->getLoc(), globalVal->getReferencedGlobal());
+          globalVal->getLoc(), globalVal->getReferencedGlobal(), globalVal->isBare());
       globalVal->replaceAllUsesWith(newInst);
       globalVal->eraseFromParent();
     }

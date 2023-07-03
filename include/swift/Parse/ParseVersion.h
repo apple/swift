@@ -34,16 +34,16 @@ public:
   /// \note This is \em only used for the string literal version, so it includes
   /// backwards-compatibility logic to convert it to something that can be
   /// compared with a modern SWIFT_COMPILER_VERSION.
-  static Optional<version::Version>
+  static llvm::Optional<version::Version>
   parseCompilerVersionString(StringRef VersionString, SourceLoc Loc,
                              DiagnosticEngine *Diags);
 
   /// Parse a generic version string of the format [0-9]+(.[0-9]+)*
   ///
   /// Version components can be any unsigned 64-bit number.
-  static Optional<version::Version> parseVersionString(StringRef VersionString,
-                                                       SourceLoc Loc,
-                                                       DiagnosticEngine *Diags);
+  static llvm::Optional<version::Version>
+  parseVersionString(StringRef VersionString, SourceLoc Loc,
+                     DiagnosticEngine *Diags);
 };
 } // namespace swift
 

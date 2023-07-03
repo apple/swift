@@ -412,9 +412,8 @@ bool SILModule::loadFunction(SILFunction *F, LinkingMode LinkMode) {
   return true;
 }
 
-SILFunction *SILModule::loadFunction(StringRef name,
-                                     LinkingMode LinkMode,
-                                     Optional<SILLinkage> linkage) {
+SILFunction *SILModule::loadFunction(StringRef name, LinkingMode LinkMode,
+                                     llvm::Optional<SILLinkage> linkage) {
   SILFunction *func = lookUpFunction(name);
   if (!func)
     func = getSILLoader()->lookupSILFunction(name, linkage);
@@ -905,10 +904,9 @@ void SILModule::performOnceForPrespecializedImportedExtensions(
   prespecializedFunctionDeclsImported = true;
 }
 
-SILProperty *SILProperty::create(SILModule &M,
-                                 bool Serialized,
-                                 AbstractStorageDecl *Decl,
-                                 Optional<KeyPathPatternComponent> Component) {
+SILProperty *
+SILProperty::create(SILModule &M, bool Serialized, AbstractStorageDecl *Decl,
+                    llvm::Optional<KeyPathPatternComponent> Component) {
   auto prop = new (M) SILProperty(Serialized, Decl, Component);
   M.properties.push_back(prop);
   return prop;

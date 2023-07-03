@@ -18,13 +18,14 @@
 #include "swift/Demangling/Demangler.h"
 #include "swift/Demangling/ManglingMacros.h"
 #include "swift/Demangling/ManglingUtils.h"
-#include "swift/Strings.h"
 #include "swift/Demangling/Punycode.h"
+#include "swift/Strings.h"
+#include "llvm/ADT/None.h"
 #include "llvm/ADT/Optional.h"
-#include <functional>
-#include <vector>
 #include <cstdio>
 #include <cstdlib>
+#include <functional>
+#include <vector>
 
 using namespace swift;
 using namespace Demangle;

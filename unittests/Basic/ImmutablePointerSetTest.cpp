@@ -61,7 +61,7 @@ TEST(ImmutablePointerSet, MultipleElementSets) {
   unsigned *Ptr3 = (unsigned *)3;
   unsigned *Ptr4 = (unsigned *)5;
   unsigned *Ptr5 = (unsigned *)6;
-  SmallVector<unsigned *, 2> Data1 = {Ptr1, Ptr2};
+  llvm::SmallVector<unsigned *, 2> Data1 = {Ptr1, Ptr2};
 
   auto *TwoEltSet = F.get(Data1);
   EXPECT_FALSE(TwoEltSet->empty());
@@ -83,7 +83,7 @@ TEST(ImmutablePointerSet, MultipleElementSets) {
   EXPECT_FALSE(ThreeEltSet->count(Ptr5));
   EXPECT_EQ(ThreeEltSet, F.merge(TwoEltSet, ThreeEltSet));
 
-  SmallVector<unsigned *, 3> Data2 = {Ptr3, Ptr4, Ptr5};
+  llvm::SmallVector<unsigned *, 3> Data2 = {Ptr3, Ptr4, Ptr5};
   auto *PartialOverlapSet = F.get(Data2);
   EXPECT_FALSE(PartialOverlapSet->empty());
   EXPECT_EQ(PartialOverlapSet->size(), 3u);
@@ -118,10 +118,10 @@ TEST(ImmutablePointerSet, EmptyIntersectionTests) {
   unsigned *Ptr4 = (unsigned *)5;
   unsigned *Ptr5 = (unsigned *)6;
 
-  SmallVector<unsigned *, 2> Data1 = {Ptr1, Ptr2};
-  SmallVector<unsigned *, 2> Data2 = {Ptr3, Ptr2};
-  SmallVector<unsigned *, 2> Data3 = {Ptr4, Ptr5};
-  SmallVector<unsigned *, 2> Data4 = {Ptr2, Ptr4};
+  llvm::SmallVector<unsigned *, 2> Data1 = {Ptr1, Ptr2};
+  llvm::SmallVector<unsigned *, 2> Data2 = {Ptr3, Ptr2};
+  llvm::SmallVector<unsigned *, 2> Data3 = {Ptr4, Ptr5};
+  llvm::SmallVector<unsigned *, 2> Data4 = {Ptr2, Ptr4};
 
   EXPECT_FALSE(F.get(Data1)->hasEmptyIntersection(F.get(Data2)));
   EXPECT_TRUE(F.get(Data1)->hasEmptyIntersection(F.get(Data3)));

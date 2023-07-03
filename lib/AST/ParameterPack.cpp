@@ -149,7 +149,7 @@ static Type increasePackElementLevelImpl(
     Type type, unsigned level, unsigned outerLevel) {
   assert(level > 0);
 
-  return type.transformRec([&](TypeBase *t) -> Optional<Type> {
+  return type.transformRec([&](TypeBase *t) -> llvm::Optional<Type> {
     if (auto *elementType = dyn_cast<PackElementType>(t)) {
       if (elementType->getLevel() >= outerLevel) {
         elementType = PackElementType::get(elementType->getPackType(),
@@ -173,7 +173,7 @@ static Type increasePackElementLevelImpl(
       return Type(t);
     }
 
-    return None;
+    return llvm::None;
   });
 }
 
@@ -351,14 +351,13 @@ SmallVector<Type, 2> BoundGenericType::getExpandedGenericArgs() {
   // It would be nicer to use genericSig.getInnermostGenericParams() here,
   // but that triggers a request cycle if we're in the middle of computing
   // the generic signature already.
-  SmallVector<Type, 2> params;
+  SmallVector<GenericTypeParamType *, 2> params;
   for (auto *paramDecl : getDecl()->getGenericParams()->getParams()) {
-    params.push_back(paramDecl->getDeclaredInterfaceType());
+    params.push_back(paramDecl->getDeclaredInterfaceType()
+                         ->castTo<GenericTypeParamType>());
   }
 
-  return PackType::getExpandedGenericArgs(
-                       TypeArrayView<GenericTypeParamType>(params),
-                       getGenericArgs());
+  return PackType::getExpandedGenericArgs(params, getGenericArgs());
 }
 
 /// <T...> Foo<T, Pack{Int, String}> => Pack{T..., Int, String}
@@ -374,7 +373,7 @@ SmallVector<Type, 2> TypeAliasType::getExpandedGenericArgs() {
 
 /// <T...> Pack{T, Pack{Int, String}} => {T..., Int, String}
 SmallVector<Type, 2>
-PackType::getExpandedGenericArgs(TypeArrayView<GenericTypeParamType> params,
+PackType::getExpandedGenericArgs(ArrayRef<GenericTypeParamType *> params,
                                  ArrayRef<Type> args) {
   SmallVector<Type, 2> wrappedArgs;
 
@@ -456,7 +455,7 @@ static CanPackType getApproximateFormalPackType(const ASTContext &ctx,
   // Build an array of formal element types, but be lazy about it:
   // use the original array unless we see an element type that doesn't
   // work as a legal formal type.
-  Optional<SmallVector<CanType, 4>> formalEltTypes;
+  llvm::Optional<SmallVector<CanType, 4>> formalEltTypes;
   for (auto i : indices(loweredEltTypes)) {
     auto loweredEltType = loweredEltTypes[i];
     bool isLegal = loweredEltType->isLegalFormalType();
@@ -481,7 +480,7 @@ static CanPackType getApproximateFormalPackType(const ASTContext &ctx,
       formalEltTypes->push_back(formalEltType);
     }
 
-    assert(isLegal || formalEltTypes.hasValue());
+    assert(isLegal || formalEltTypes.has_value());
   }
 
   // Use the array we built if we made one (if we ever saw a non-legal

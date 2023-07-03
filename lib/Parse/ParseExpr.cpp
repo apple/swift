@@ -467,7 +467,7 @@ ParserResult<Expr> Parser::parseExprSequenceElement(Diag<> message,
 
   SourceLoc tryLoc;
   bool hadTry = consumeIf(tok::kw_try, tryLoc);
-  Optional<Token> trySuffix;
+  llvm::Optional<Token> trySuffix;
   if (hadTry && Tok.isAny(tok::exclaim_postfix, tok::question_postfix)) {
     trySuffix = Tok;
     consumeToken();
@@ -957,7 +957,7 @@ void Parser::tryLexRegexLiteral(bool forUnappliedOperator) {
 
   CancellableBacktrackingScope backtrack(*this);
   {
-    Optional<Lexer::ForwardSlashRegexRAII> regexScope;
+    llvm::Optional<Lexer::ForwardSlashRegexRAII> regexScope;
     regexScope.emplace(*L, mustBeRegex);
 
     // Try re-lex as a `/.../` regex literal, this will split an operator if
@@ -1414,7 +1414,8 @@ Parser::parseExprPostfixSuffix(ParserResult<Expr> Result, bool isExprBasic,
       // it as a "postfix ifconfig expression".
       bool isPostfixIfConfigExpr = false;
       {
-        llvm::SaveAndRestore<Optional<StableHasher>> H(CurrentTokenHash, None);
+        llvm::SaveAndRestore<llvm::Optional<StableHasher>> H(CurrentTokenHash,
+                                                             llvm::None);
         Parser::BacktrackingScope Backtrack(*this);
         // Skip to the first body. We may need to skip multiple '#if' directives
         // since we support nested '#if's. e.g.
@@ -1667,7 +1668,7 @@ ParserResult<Expr> Parser::parseExprPrimary(Diag<> ID, bool isExprBasic) {
   case tok::kw_self: {   // self
     auto canParseBindingInPattern = [&]() {
       if (InBindingPattern != PatternBindingState::ImplicitlyImmutable &&
-          !InBindingPattern.getIntroducer().hasValue()) {
+          !InBindingPattern.getIntroducer().has_value()) {
         return false;
       }
       // If we have "case let x.", "case let x(", or "case let x[", we parse 'x'
@@ -1698,7 +1699,7 @@ ParserResult<Expr> Parser::parseExprPrimary(Diag<> ID, bool isExprBasic) {
       // If we have an inout/let/var, set that as our introducer. otherwise
       // default to Let.
       auto introducer =
-          InBindingPattern.getIntroducer().getValueOr(VarDecl::Introducer::Let);
+          InBindingPattern.getIntroducer().value_or(VarDecl::Introducer::Let);
       auto pattern = createBindingFromPattern(loc, name, introducer);
       return makeParserResult(new (Context) UnresolvedPatternExpr(pattern));
     }
@@ -1882,7 +1883,7 @@ ParserResult<Expr> Parser::parseExprPrimary(Diag<> ID, bool isExprBasic) {
     }
     if (peekToken().is(tok::code_complete) &&
         Tok.getLoc().getAdvancedLoc(1) == peekToken().getLoc()) {
-      return parseExprPoundCodeCompletion(/*ParentKind*/None);
+      return parseExprPoundCodeCompletion(/*ParentKind*/ llvm::None);
     }
 
     return parseExprMacroExpansion(isExprBasic);
@@ -2413,8 +2414,8 @@ Expr *Parser::parseExprEditorPlaceholder(Token PlaceholderTok,
   assert(PlaceholderId.isEditorPlaceholder());
 
   auto parseTypeForPlaceholder = [&]() -> std::pair<TypeRepr *, TypeRepr *> {
-    Optional<EditorPlaceholderData> DataOpt =
-      swift::parseEditorPlaceholder(PlaceholderTok.getText());
+    llvm::Optional<EditorPlaceholderData> DataOpt =
+        swift::parseEditorPlaceholder(PlaceholderTok.getText());
     if (!DataOpt)
       return {nullptr, nullptr};
     StringRef TypeStr = DataOpt->Type;
@@ -3161,7 +3162,7 @@ Parser::parseArgumentList(tok leftTok, tok rightTok, bool isExprBasic,
     args.emplace_back(elt.LabelLoc, elt.Label, elt.E);
 
   auto numNonTrailing = args.size();
-  Optional<unsigned> trailingClosureIndex;
+  llvm::Optional<unsigned> trailingClosureIndex;
 
   // If we can parse trailing closures, do so.
   if (allowTrailingClosure && Tok.is(tok::l_brace) &&
@@ -3416,7 +3417,7 @@ Parser::parseExprObjectLiteral(ObjectLiteralExpr::LiteralKind LitKind,
 /// expr-pound-codecompletion:
 ///   '#' code-completion-token
 ParserResult<Expr>
-Parser::parseExprPoundCodeCompletion(Optional<StmtKind> ParentKind) {
+Parser::parseExprPoundCodeCompletion(llvm::Optional<StmtKind> ParentKind) {
   assert(Tok.is(tok::pound) && peekToken().is(tok::code_complete) &&
          Tok.getLoc().getAdvancedLoc(1) == peekToken().getLoc());
   consumeToken(); // '#' token.
@@ -3445,7 +3446,7 @@ Parser::parseExprCallSuffix(ParserResult<Expr> fn, bool isExprBasic) {
     auto rParenLoc = Tok.getLoc();
     auto *argList = ArgumentList::createParsed(
         Context, lParenLoc, {Argument::unlabeled(CCE)}, rParenLoc,
-        /*trailingClosureIdx*/ None);
+        /*trailingClosureIdx*/ llvm::None);
     auto Result = makeParserResult(
         fn, CallExpr::create(Context, fn.get(), argList, /*implicit*/ false));
     CodeCompletionCallbacks->completePostfixExprParen(fn.get(), CCE);
@@ -3522,7 +3523,7 @@ ParserResult<Expr> Parser::parseExprCollection() {
   }
 
   ParserStatus Status;
-  Optional<bool> isDictionary;
+  llvm::Optional<bool> isDictionary;
   SmallVector<Expr *, 8> ElementExprs;
   SmallVector<SourceLoc, 8> CommaLocs;
 
@@ -3598,10 +3599,10 @@ ParserResult<Expr> Parser::parseExprCollection() {
 
 /// parseExprCollectionElement - Parse an element for collection expr.
 ///
-/// If \p isDictionary is \c None, it's set to \c true if the element is for
-/// dictionary literal, or \c false otherwise.
+/// If \p isDictionary is \c llvm::None, it's set to \c true if the element is
+/// for dictionary literal, or \c false otherwise.
 ParserResult<Expr>
-Parser::parseExprCollectionElement(Optional<bool> &isDictionary) {
+Parser::parseExprCollectionElement(llvm::Optional<bool> &isDictionary) {
   auto Element = parseExpr(isDictionary.has_value() && *isDictionary
                                ? diag::expected_key_in_dictionary_literal
                                : diag::expected_expr_in_collection_literal);
@@ -3712,7 +3713,7 @@ ParserResult<PlatformAgnosticVersionConstraintAvailabilitySpec>
 Parser::parsePlatformAgnosticVersionConstraintSpec() {
   SourceLoc PlatformAgnosticNameLoc;
   llvm::VersionTuple Version;
-  Optional<AvailabilitySpecKind> Kind;
+  llvm::Optional<AvailabilitySpecKind> Kind;
   SourceRange VersionRange;
 
   if (Tok.isIdentifierOrUnderscore()) {
@@ -3772,7 +3773,7 @@ Parser::parsePlatformVersionConstraintSpec() {
     return nullptr;
   }
 
-  Optional<PlatformKind> Platform =
+  llvm::Optional<PlatformKind> Platform =
       platformFromString(PlatformIdentifier.str());
 
   if (!Platform.has_value() || Platform.value() == PlatformKind::none) {

@@ -1,7 +1,6 @@
 // RUN: %empty-directory(%t)
 // RUN: %build-irgen-test-overlays
-// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) %use_no_opaque_pointers -primary-file %s -emit-ir > %t/out.txt
-// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) -primary-file %s -emit-ir
+// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) -primary-file %s -emit-ir > %t/out.txt
 // RUN: %FileCheck %s -DINT=i%target-ptrsize < %t/out.txt
 // RUN: %FileCheck %s --check-prefix=NEGATIVE < %t/out.txt
 
@@ -101,27 +100,27 @@ use_metadata(NSRuncingOptions.mince)
 }
 
 @objc class ObjCEnumMethods : NSObject {
-  // CHECK: define internal void @"$s12objc_ns_enum15ObjCEnumMethodsC0C2InyyAA010ExportedToD1COFTo"([[OBJC_ENUM_METHODS:.*]]* %0, i8* %1, i64 %2)
+  // CHECK: define internal void @"$s12objc_ns_enum15ObjCEnumMethodsC0C2InyyAA010ExportedToD1COFTo"(ptr %0, ptr %1, i64 %2)
   @objc dynamic func enumIn(_ x: ExportedToObjC) {}
-  // CHECK: define internal i64 @"$s12objc_ns_enum15ObjCEnumMethodsC0C3OutAA010ExportedToD1COyFTo"([[OBJC_ENUM_METHODS]]* %0, i8* %1)
+  // CHECK: define internal i64 @"$s12objc_ns_enum15ObjCEnumMethodsC0C3OutAA010ExportedToD1COyFTo"(ptr %0, ptr %1)
   @objc dynamic func enumOut() -> ExportedToObjC { return .Foo }
 
-  // CHECK: define internal i64 @"$s12objc_ns_enum15ObjCEnumMethodsC4propAA010ExportedToD1COvgTo"([[OBJC_ENUM_METHODS]]* %0, i8* %1)
-  // CHECK: define internal void @"$s12objc_ns_enum15ObjCEnumMethodsC4propAA010ExportedToD1COvsTo"([[OBJC_ENUM_METHODS]]* %0, i8* %1, i64 %2)
+  // CHECK: define internal i64 @"$s12objc_ns_enum15ObjCEnumMethodsC4propAA010ExportedToD1COvgTo"(ptr %0, ptr %1)
+  // CHECK: define internal void @"$s12objc_ns_enum15ObjCEnumMethodsC4propAA010ExportedToD1COvsTo"(ptr %0, ptr %1, i64 %2)
   @objc dynamic var prop: ExportedToObjC = .Foo
 }
 
-// CHECK-LABEL: define hidden swiftcc void @"$s12objc_ns_enum0a1_C13_method_callsyyAA15ObjCEnumMethodsCF"(%T12objc_ns_enum15ObjCEnumMethodsC* %0)
+// CHECK-LABEL: define hidden swiftcc void @"$s12objc_ns_enum0a1_C13_method_callsyyAA15ObjCEnumMethodsCF"(ptr %0)
 func objc_enum_method_calls(_ x: ObjCEnumMethods) {
   
-  // CHECK: call i64 bitcast (void ()* @objc_msgSend to i64 ([[OBJC_ENUM_METHODS]]*, i8*)*)
-  // CHECK: call void bitcast (void ()* @objc_msgSend to void ([[OBJC_ENUM_METHODS]]*, i8*, i64)*)
+  // CHECK: call i64 @objc_msgSend
+  // CHECK: call void @objc_msgSend
   x.enumIn(x.enumOut())
-  // CHECK: call i64 bitcast (void ()* @objc_msgSend to i64 ([[OBJC_ENUM_METHODS]]*, i8*)*)
-  // CHECK: call void bitcast (void ()* @objc_msgSend to void ([[OBJC_ENUM_METHODS]]*, i8*, i64)*)
+  // CHECK: call i64 @objc_msgSend
+  // CHECK: call void @objc_msgSend
   x.enumIn(x.prop)
-  // CHECK: call i64 bitcast (void ()* @objc_msgSend to i64 ([[OBJC_ENUM_METHODS]]*, i8*)*)
-  // CHECK: call void bitcast (void ()* @objc_msgSend to void ([[OBJC_ENUM_METHODS]]*, i8*, i64)*)
+  // CHECK: call i64 @objc_msgSend
+  // CHECK: call void @objc_msgSend
   x.prop = x.enumOut()
 }
 

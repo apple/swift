@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -disable-availability-checking -emit-ir %s | %FileCheck %s
-// RUN: %target-swift-frontend -disable-availability-checking -emit-ir %s
+// RUN: %target-swift-frontend -disable-availability-checking -emit-ir %s | %FileCheck %s
 
 protocol Butt { }
 
@@ -16,8 +15,7 @@ struct Foo<T: Tubb>: P {
 }
 
 // CHECK-LABEL: define {{.*}} @"$s030opaque_result_type_associated_C17_conformance_path3FooVyxGAA1PAA1AAaEP_AA4ButtPWT"
-// CHECK: [[TUBB_CONFORMANCE:%.*]] = call swiftcc i8** @swift_getOpaqueTypeConformance({{.*}}, i{{.*}} 1)
+// CHECK: [[TUBB_CONFORMANCE:%.*]] = call swiftcc ptr @swift_getOpaqueTypeConformance({{.*}}, i{{.*}} 1)
 // CHECK: [[BUTT_CONFORMANCE_ADDR:%.*]] = getelementptr {{.*}} [[TUBB_CONFORMANCE]], i32 1
-// CHECK: [[BUTT_CONFORMANCE_LOAD:%.*]] = load {{.*}} [[BUTT_CONFORMANCE_ADDR]]
-// CHECK: [[BUTT_CONFORMANCE:%.*]] = bitcast {{.*}} [[BUTT_CONFORMANCE_LOAD]]
+// CHECK: [[BUTT_CONFORMANCE:%.*]] = load {{.*}} [[BUTT_CONFORMANCE_ADDR]]
 // CHECK: ret {{.*}} [[BUTT_CONFORMANCE]]

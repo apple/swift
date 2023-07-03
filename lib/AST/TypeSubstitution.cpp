@@ -55,7 +55,13 @@ QueryTypeSubstitutionMapOrIdentity::operator()(SubstitutableType *type) const {
   auto known = substitutions.find(key);
   if (known != substitutions.end() && known->second)
     return known->second;
-  
+
+  if (isa<PackArchetypeType>(type) ||
+      (isa<GenericTypeParamType>(type) &&
+       cast<GenericTypeParamType>(type)->isParameterPack())) {
+    return PackType::getSingletonPackExpansion(type);
+  }
+
   return type;
 }
 
@@ -274,7 +280,7 @@ Type DependentMemberType::substBaseType(Type substBase,
       substBase->hasTypeParameter())
     return this;
 
-  InFlightSubstitution IFS(nullptr, lookupConformance, None);
+  InFlightSubstitution IFS(nullptr, lookupConformance, llvm::None);
   return getMemberForBaseType(IFS, getBase(), substBase,
                               getAssocType(), getName(),
                               /*level=*/0);
@@ -488,7 +494,7 @@ static Type substType(Type derivedType, unsigned level,
   if (IFS.isInvariant(derivedType))
     return derivedType;
 
-  return derivedType.transformRec([&](TypeBase *type) -> Optional<Type> {
+  return derivedType.transformRec([&](TypeBase *type) -> llvm::Optional<Type> {
     // FIXME: Add SIL versions of mapTypeIntoContext() and
     // mapTypeOutOfContext() and use them appropriately
     assert((IFS.getOptions().contains(SubstFlags::AllowLoweredTypes) ||
@@ -509,13 +515,14 @@ static Type substType(Type derivedType, unsigned level,
 
     if (auto packExpansionTy = dyn_cast<PackExpansionType>(type)) {
       auto eltTys = IFS.expandPackExpansionType(packExpansionTy);
-      if (eltTys.size() == 1) return eltTys[0];
+      if (eltTys.size() == 1)
+        return eltTys[0];
       return Type(PackType::get(packExpansionTy->getASTContext(), eltTys));
     }
 
     if (auto silFnTy = dyn_cast<SILFunctionType>(type)) {
       if (silFnTy->isPolymorphic())
-        return None;
+        return llvm::None;
       if (auto subs = silFnTy->getInvocationSubstitutions()) {
         auto newSubs = subs.subst(IFS);
         return silFnTy->withInvocationSubstitutions(newSubs);
@@ -524,7 +531,7 @@ static Type substType(Type derivedType, unsigned level,
         auto newSubs = subs.subst(IFS);
         return silFnTy->withPatternSubstitutions(newSubs);
       }
-      return None;
+      return llvm::None;
     }
 
     // Special-case TypeAliasType; we need to substitute conformances.
@@ -562,21 +569,21 @@ static Type substType(Type derivedType, unsigned level,
     
     auto substOrig = dyn_cast<SubstitutableType>(type);
     if (!substOrig)
-      return None;
+      return llvm::None;
 
     // Opaque types can't normally be directly substituted unless we
     // specifically were asked to substitute them.
     if (!IFS.shouldSubstituteOpaqueArchetypes()
         && isa<OpaqueTypeArchetypeType>(substOrig))
-      return None;
+      return llvm::None;
 
     // If we have a substitution for this type, use it.
     if (auto known = IFS.substType(substOrig, currentLevel)) {
       if (IFS.shouldSubstituteOpaqueArchetypes() &&
           isa<OpaqueTypeArchetypeType>(substOrig) &&
           known->getCanonicalType() == substOrig->getCanonicalType())
-        return None; // Recursively process the substitutions of the opaque type
-                     // archetype.
+        return llvm::None; // Recursively process the substitutions of the
+                           // opaque type archetype.
       return known;
     }
 
@@ -928,14 +935,14 @@ Type TypeBase::adjustSuperclassMemberDeclType(const ValueDecl *baseDecl,
 // Replacing opaque result archetypes with their underlying types
 //===----------------------------------------------------------------------===//
 
-static Optional<std::pair<ArchetypeType *, OpaqueTypeArchetypeType*>>
+static llvm::Optional<std::pair<ArchetypeType *, OpaqueTypeArchetypeType *>>
 getArchetypeAndRootOpaqueArchetype(Type maybeOpaqueType) {
   auto archetype = dyn_cast<ArchetypeType>(maybeOpaqueType.getPointer());
   if (!archetype)
-    return None;
+    return llvm::None;
   auto opaqueRoot = dyn_cast<OpaqueTypeArchetypeType>(archetype->getRoot());
   if (!opaqueRoot)
-    return None;
+    return llvm::None;
 
   return std::make_pair(archetype, opaqueRoot);
 }

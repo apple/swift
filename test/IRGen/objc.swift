@@ -1,8 +1,7 @@
 
 // RUN: %empty-directory(%t)
 // RUN: %build-irgen-test-overlays
-// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) %use_no_opaque_pointers -module-name objc -primary-file %s -emit-ir -disable-objc-attr-requires-foundation-module | %FileCheck %s
-// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) -module-name objc -primary-file %s -emit-ir -disable-objc-attr-requires-foundation-module
+// RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) -module-name objc -primary-file %s -emit-ir -disable-objc-attr-requires-foundation-module | %FileCheck %s
 
 // REQUIRES: CPU=x86_64
 // REQUIRES: objc_interop
@@ -11,17 +10,12 @@ import Foundation
 import gizmo
 
 // CHECK: [[TYPE:%swift.type]] = type
-// CHECK: [[BLAMMO:%T4objc6BlammoC]] = type
-// CHECK: [[MYBLAMMO:%T4objc8MyBlammoC]] = type
-// CHECK: [[TEST2:%T4objc5Test2C]] = type
-// CHECK: [[OBJC:%objc_object]] = type
 // CHECK: [[ID:%T4objc2idV]] = type <{ %AnyObject }>
-// CHECK: [[GIZMO:%TSo5GizmoC]] = type
 // CHECK: [[RECT:%TSo4RectV]] = type
 // CHECK: [[FLOAT:%TSf]] = type
 
 // CHECK: @"\01L_selector_data(bar)" = private global [4 x i8] c"bar\00", section "__TEXT,__objc_methname,cstring_literals", align 1
-// CHECK: @"\01L_selector(bar)" = private externally_initialized global i8* getelementptr inbounds ([4 x i8], [4 x i8]* @"\01L_selector_data(bar)", i64 0, i64 0), section "__DATA,__objc_selrefs,literal_pointers,no_dead_strip", align 8
+// CHECK: @"\01L_selector(bar)" = private externally_initialized global ptr @"\01L_selector_data(bar)", section "__DATA,__objc_selrefs,literal_pointers,no_dead_strip", align 8
 
 // CHECK: @"\01L_selector_data(acquiesce)"
 // CHECK-NOT: @"\01L_selector_data(disharmonize)"
@@ -40,14 +34,14 @@ struct id {
 // Class and methods are [objc] by inheritance.
 class MyBlammo : Blammo {
   func foo() {}
-// CHECK:  define hidden swiftcc void @"$s4objc8MyBlammoC3fooyyF"([[MYBLAMMO]]* swiftself %0) {{.*}} {
+// CHECK:  define hidden swiftcc void @"$s4objc8MyBlammoC3fooyyF"(ptr swiftself %0) {{.*}} {
 // CHECK:    ret void
 }
 
 // Class and methods are [objc] by inheritance.
 class Test2 : Gizmo {
   func foo() {}
-// CHECK:  define hidden swiftcc void @"$s4objc5Test2C3fooyyF"([[TEST2]]* swiftself %0) {{.*}} {
+// CHECK:  define hidden swiftcc void @"$s4objc5Test2C3fooyyF"(ptr swiftself %0) {{.*}} {
 // CHECK:    ret void
 
   @objc dynamic func bar() {}
@@ -71,12 +65,12 @@ class Octogenarian : Contrarian {
 @_silgen_name("unknown")
 func unknown(_ x: id) -> id
 
-// CHECK:    define hidden swiftcc %objc_object* @"$s4objc5test0{{[_0-9a-zA-Z]*}}F"(%objc_object* %0)
+// CHECK:    define hidden swiftcc ptr @"$s4objc5test0{{[_0-9a-zA-Z]*}}F"(ptr %0)
 // CHECK-NOT:  call {{.*}} @swift_unknownObjectRetain
 // CHECK:      call {{.*}} @swift_unknownObjectRetain
 // CHECK-NOT:  call {{.*}} @swift_unknownObjectRelease
 // CHECK:      call {{.*}} @swift_unknownObjectRelease
-// CHECK:      ret %objc_object*
+// CHECK:      ret ptr
 func test0(_ arg: id) -> id {
   var x : id
   x = arg
@@ -86,10 +80,9 @@ func test0(_ arg: id) -> id {
 }
 
 func test1(_ cell: Blammo) {}
-// CHECK:  define hidden swiftcc void @"$s4objc5test1{{[_0-9a-zA-Z]*}}F"([[BLAMMO]]* %0) {{.*}} {
+// CHECK:  define hidden swiftcc void @"$s4objc5test1{{[_0-9a-zA-Z]*}}F"(ptr %0) {{.*}} {
 // CHECK-NEXT:    entry
 // CHECK-NEXT:    alloca
-// CHECK-NEXT:    bitcast
 // CHECK-NEXT:    memset
 // CHECK-NEXT:    store
 // CHECK-NEXT:    ret void

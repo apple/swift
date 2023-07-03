@@ -79,8 +79,8 @@ class ConstantEvaluableSubsetChecker : public SILModuleTransform {
         callee = applyInst->getReferencedFunctionOrNull();
       }
 
-      Optional<SILBasicBlock::iterator> nextInstOpt;
-      Optional<SymbolicValue> errorVal;
+      llvm::Optional<SILBasicBlock::iterator> nextInstOpt;
+      llvm::Optional<SymbolicValue> errorVal;
 
       if (!applyInst || !callee || !isConstantEvaluable(callee)) {
 

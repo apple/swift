@@ -281,9 +281,8 @@ public:
     // Substitute the underlying conformance of opaque type archetypes if we
     // should look through opaque archetypes.
     if (typeExpansionContext.shouldLookThroughOpaqueTypeArchetypes()) {
-      auto substType = IFS.withNewOptions(None, [&] {
-        return selfType.subst(IFS)->getCanonicalType();
-      });
+      auto substType = IFS.withNewOptions(
+          llvm::None, [&] { return selfType.subst(IFS)->getCanonicalType(); });
       if (substType->hasOpaqueArchetype()) {
         substConformance = substOpaqueTypesWithUnderlyingTypes(
             substConformance, substType, typeExpansionContext);
@@ -511,7 +510,7 @@ SILType SILType::subst(SILModule &M, TypeSubstitutionFn subs,
 SILType SILType::subst(TypeConverter &tc, SubstitutionMap subs) const {
   auto sig = subs.getGenericSignature();
 
-  InFlightSubstitutionViaSubMap IFS(subs, None);
+  InFlightSubstitutionViaSubMap IFS(subs, llvm::None);
   return subst(tc, IFS, sig.getCanonicalSignature());
 }
 SILType SILType::subst(SILModule &M, SubstitutionMap subs) const{
@@ -520,10 +519,10 @@ SILType SILType::subst(SILModule &M, SubstitutionMap subs) const{
 
 SILType SILType::subst(SILModule &M, SubstitutionMap subs,
                        TypeExpansionContext context) const {
-  if (isSubstitutionInvariant(*this, None))
+  if (isSubstitutionInvariant(*this, llvm::None))
     return *this;
 
-  InFlightSubstitutionViaSubMap IFS(subs, None);
+  InFlightSubstitutionViaSubMap IFS(subs, llvm::None);
 
   SILTypeSubstituter STST(M.Types, context, IFS,
                           subs.getGenericSignature().getCanonicalSignature());
@@ -544,7 +543,7 @@ SILFunctionType::substGenericArgs(SILModule &silModule, SubstitutionMap subs,
     return CanSILFunctionType(this);
   }
 
-  InFlightSubstitutionViaSubMap IFS(subs, None);
+  InFlightSubstitutionViaSubMap IFS(subs, llvm::None);
 
   return substGenericArgs(silModule, IFS, context);
 }
@@ -556,7 +555,7 @@ SILFunctionType::substGenericArgs(SILModule &silModule,
                                   TypeExpansionContext context) {
   if (!isPolymorphic()) return CanSILFunctionType(this);
 
-  InFlightSubstitution IFS(subs, conformances, None);
+  InFlightSubstitution IFS(subs, conformances, llvm::None);
   return substGenericArgs(silModule, IFS, context);
 }
 

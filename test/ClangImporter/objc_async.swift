@@ -165,14 +165,14 @@ actor MySubclassCheckingSwiftAttributes : ProtocolWithSwiftAttributes {
   func syncMethod() { } // expected-note 2{{calls to instance method 'syncMethod()' from outside of its actor context are implicitly asynchronous}}
 
   nonisolated func independentMethod() {
-    syncMethod() // expected-error{{ctor-isolated instance method 'syncMethod()' can not be referenced from a non-isolated context}}
+    syncMethod() // expected-error{{call to actor-isolated instance method 'syncMethod()' in a synchronous nonisolated context}}
   }
 
   nonisolated func nonisolatedMethod() {
   }
 
   @MainActor func mainActorMethod() {
-    syncMethod() // expected-error{{actor-isolated instance method 'syncMethod()' can not be referenced from the main actor}}
+    syncMethod() // expected-error{{call to actor-isolated instance method 'syncMethod()' in a synchronous main actor-isolated context}}
   }
 
   @MainActor func uiActorMethod() { }

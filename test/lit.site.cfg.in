@@ -19,6 +19,7 @@ config.llvm_src_root = "@LLVM_MAIN_SRC_DIR@"
 config.llvm_obj_root = "@LLVM_BINARY_DIR@"
 config.llvm_tools_dir = "@LLVM_TOOLS_DIR@"
 config.llvm_libs_dir = "@LLVM_LIBS_DIR@"
+config.llvm_plugin_ext = "@LLVM_PLUGIN_EXT@"
 config.llvm_code_generators = "@LLVM_TARGETS_TO_BUILD@".split(";")
 config.lit_tools_dir = "@LLVM_LIT_TOOLS_DIR@"
 config.swift_src_root = lit_config.params.get("swift_src_root", "@SWIFT_SOURCE_DIR@")

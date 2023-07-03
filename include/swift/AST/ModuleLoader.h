@@ -24,6 +24,7 @@
 #include "swift/Basic/LLVM.h"
 #include "swift/Basic/Located.h"
 #include "swift/Basic/SourceLoc.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/ADT/TinyPtrVector.h"
@@ -326,11 +327,10 @@ public:
 
   /// Retrieve the dependencies for the given, named module, or \c None
   /// if no such module exists.
-  virtual Optional<const ModuleDependencyInfo*> getModuleDependencies(
-      StringRef moduleName,
-      ModuleDependenciesCache &cache,
-      InterfaceSubContextDelegate &delegate,
-      bool isTestableImport = false) = 0;
+  virtual llvm::Optional<const ModuleDependencyInfo *>
+  getModuleDependencies(StringRef moduleName, ModuleDependenciesCache &cache,
+                        InterfaceSubContextDelegate &delegate,
+                        bool isTestableImport = false) = 0;
 };
 
 } // namespace swift

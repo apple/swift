@@ -45,7 +45,8 @@ namespace swift {
 ///
 /// (a) The `blot operation' is leaving the value in the set vector, but marking
 /// the value as being dead.
-template <typename ValueT, typename VectorT = std::vector<Optional<ValueT>>,
+template <typename ValueT,
+          typename VectorT = std::vector<llvm::Optional<ValueT>>,
           typename MapT = llvm::DenseMap<ValueT, unsigned>>
 class BlotSetVector {
   VectorT vector;
@@ -66,7 +67,7 @@ public:
   const_iterator begin() const { return vector.begin(); }
   const_iterator end() const { return vector.end(); }
 
-  ArrayRef<Optional<ValueT>> getArray() const { return vector; }
+  ArrayRef<llvm::Optional<ValueT>> getArray() const { return vector; }
 
   iterator_range<const_iterator> getRange() const {
     return {begin(), end()};
@@ -79,7 +80,7 @@ public:
     return {rbegin(), rend()};
   }
 
-  const Optional<ValueT> &operator[](unsigned n) const {
+  const llvm::Optional<ValueT> &operator[](unsigned n) const {
     assert(n < vector.size() && "Out of range!");
     return vector[n];
   }
@@ -126,7 +127,7 @@ public:
 
     auto iterator2 = map.find(value2);
     if (iterator2 != map.end()) {
-      vector[index1] = None;
+      vector[index1] = llvm::None;
       return;
     }
 
@@ -142,12 +143,12 @@ public:
       return false;
     unsigned index = iterator->second;
     map.erase(iterator);
-    vector[index] = None;
+    vector[index] = llvm::None;
     return true;
   }
 
   /// Return the last element of the blot map vector. Will be None if blotted.
-  Optional<ValueT> pop_back_val() {
+  llvm::Optional<ValueT> pop_back_val() {
     auto result = vector.pop_back_val();
     if (!result)
       return result;
@@ -157,10 +158,10 @@ public:
 
   /// Attempt to lookup the index of \p value. Returns None upon failure and the
   /// value on success.
-  Optional<unsigned> getIndex(const ValueT &value) {
+  llvm::Optional<unsigned> getIndex(const ValueT &value) {
     auto iterator = map.find(value);
     if (iterator == map.end())
-      return None;
+      return llvm::None;
     return iterator->second;
   }
 
@@ -173,7 +174,7 @@ public:
 
 template <typename ValueT, unsigned N>
 class SmallBlotSetVector
-    : public BlotSetVector<ValueT, llvm::SmallVector<Optional<ValueT>, N>,
+    : public BlotSetVector<ValueT, llvm::SmallVector<llvm::Optional<ValueT>, N>,
                            llvm::SmallDenseMap<ValueT, unsigned, N>> {
 public:
   SmallBlotSetVector() {}

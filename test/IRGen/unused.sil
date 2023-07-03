@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -disable-autolinking-runtime-compatibility-concurrency -disable-autolinking-runtime-compatibility-dynamic-replacements -runtime-compatibility-version none -primary-file %s -emit-ir | %FileCheck -check-prefix CHECK -check-prefix NEGATIVE -check-prefix CHECK-%target-object-format %s
-// RUN: %target-swift-frontend -disable-autolinking-runtime-compatibility-concurrency -disable-autolinking-runtime-compatibility-dynamic-replacements -runtime-compatibility-version none -primary-file %s -emit-ir
+// RUN: %target-swift-frontend -disable-autolinking-runtime-compatibility-concurrency -disable-autolinking-runtime-compatibility-dynamic-replacements -runtime-compatibility-version none -primary-file %s -emit-ir | %FileCheck -check-prefix CHECK -check-prefix NEGATIVE -check-prefix CHECK-%target-object-format %s
 
 // REQUIRES: CPU=x86_64
 
@@ -53,11 +52,11 @@ bb0(%0 : $Int32, %1 : $UnsafeMutablePointer<Optional<UnsafeMutablePointer<Int8>>
   return %3 : $Int32                              // id: %4
 }
 
-// CHECK-macho: @"\01l_entry_point" = private constant { i32, i32 } { i32 trunc (i64 sub (i64 ptrtoint (i32 (i32, i8**)* @main to i64), i64 ptrtoint ({ i32, i32 }* @"\01l_entry_point" to i64)) to i32), i32 0 }, section "__TEXT, __swift5_entry, regular, no_dead_strip", align 4
-// CHECK-elf: @"\01l_entry_point" = private constant { i32, i32 } { i32 trunc (i64 sub (i64 ptrtoint (i32 (i32, i8**)* @main to i64), i64 ptrtoint ({ i32, i32 }* @"\01l_entry_point" to i64)) to i32), i32 0 }, section "swift5_entry", align 4
+// CHECK-macho: @"\01l_entry_point" = private constant { i32, i32 } { i32 trunc (i64 sub (i64 ptrtoint (ptr @main to i64), i64 ptrtoint (ptr @"\01l_entry_point" to i64)) to i32), i32 0 }, section "__TEXT, __swift5_entry, regular, no_dead_strip", align 4
+// CHECK-elf: @"\01l_entry_point" = private constant { i32, i32 } { i32 trunc (i64 sub (i64 ptrtoint (ptr @main to i64), i64 ptrtoint (ptr @"\01l_entry_point" to i64)) to i32), i32 0 }, section "swift5_entry", align 4
 
-// CHECK-macho: @llvm.used = appending global [4 x i8*] [i8* bitcast (void ()* @frieda to i8*), i8* bitcast (i32 (i32, i8**)* @main to i8*), i8* bitcast ({ i32, i32 }* @"\01l_entry_point" to i8*), i8* bitcast (i16* @__swift_reflection_version to i8*)], section "llvm.metadata"
-// CHECK-elf: @llvm.compiler.used = appending global [5 x i8*] [i8* bitcast (void ()* @frieda to i8*), i8* bitcast (i32 (i32, i8**)* @main to i8*), i8* bitcast ({ i32, i32 }* @"\01l_entry_point" to i8*), i8* bitcast (i16* @__swift_reflection_version to i8*), i8* getelementptr inbounds ([{{[0-9]+}} x i8], [{{[0-9]+}} x i8]* @_swift1_autolink_entries, i32 0, i32 0)], section "llvm.metadata"
+// CHECK-macho: @llvm.used = appending global [4 x ptr] [ptr @frieda, ptr @main, ptr @"\01l_entry_point", ptr @__swift_reflection_version], section "llvm.metadata"
+// CHECK-elf: @llvm.compiler.used = appending global [5 x ptr] [ptr @frieda, ptr @main, ptr @"\01l_entry_point", ptr @__swift_reflection_version, ptr @_swift1_autolink_entries], section "llvm.metadata"
 
 // CHECK: define linkonce_odr hidden swiftcc void @qux()
 // CHECK: define hidden swiftcc void @fred()

@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -primary-file %s -emit-ir| %FileCheck --check-prefix=CHECK --check-prefix=CHECK-%target-cpu %s
-// RUN: %target-swift-frontend -primary-file %s -emit-ir
+// RUN: %target-swift-frontend -primary-file %s -emit-ir| %FileCheck --check-prefix=CHECK --check-prefix=CHECK-%target-cpu %s
 
 // REQUIRES: CPU=i386 || CPU=x86_64
 
@@ -17,21 +16,19 @@ sil_vtable C {}
 
 protocol CP: class {}
 
-// CHECK-i386-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i32 @bitcast_trivial(%T7bitcast1CC* %0) {{.*}} {
-// CHECK-i386:         [[BUF:%.*]] = alloca %T7bitcast1CC*, align 4
-// CHECK-i386:         store %T7bitcast1CC* %0, %T7bitcast1CC** [[BUF]]
-// CHECK-i386:         [[OUT_BUF:%.*]] = bitcast %T7bitcast1CC** [[BUF]] to %TSi*
-// CHECK-i386:         [[VALUE_BUF:%.*]] = getelementptr inbounds %TSi, %TSi* [[OUT_BUF]], i32 0, i32 0
-// CHECK-i386:         [[VALUE:%.*]] = load i32, i32* [[VALUE_BUF]], align 4
+// CHECK-i386-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i32 @bitcast_trivial(ptr %0) {{.*}} {
+// CHECK-i386:         [[BUF:%.*]] = alloca ptr, align 4
+// CHECK-i386:         store ptr %0, ptr [[BUF]]
+// CHECK-i386:         [[VALUE_BUF:%.*]] = getelementptr inbounds %TSi, ptr [[BUF]], i32 0, i32 0
+// CHECK-i386:         [[VALUE:%.*]] = load i32, ptr [[VALUE_BUF]], align 4
 // CHECK-i386:         ret i32 [[VALUE]]
 // CHECK-i386:       }
 
-// CHECK-x86_64-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i64 @bitcast_trivial(%T7bitcast1CC* %0) {{.*}} {
-// CHECK-x86_64:         [[BUF:%.*]] = alloca %T7bitcast1CC*, align 8
-// CHECK-x86_64:         store %T7bitcast1CC* %0, %T7bitcast1CC** [[BUF]]
-// CHECK-x86_64:         [[OUT_BUF:%.*]] = bitcast %T7bitcast1CC** [[BUF]] to %TSi*
-// CHECK-x86_64:         [[VALUE_BUF:%.*]] = getelementptr inbounds %TSi, %TSi* [[OUT_BUF]], i32 0, i32 0
-// CHECK-x86_64:         [[VALUE:%.*]] = load i64, i64* [[VALUE_BUF]], align 8
+// CHECK-x86_64-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i64 @bitcast_trivial(ptr %0) {{.*}} {
+// CHECK-x86_64:         [[BUF:%.*]] = alloca ptr, align 8
+// CHECK-x86_64:         store ptr %0, ptr [[BUF]]
+// CHECK-x86_64:         [[VALUE_BUF:%.*]] = getelementptr inbounds %TSi, ptr [[BUF]], i32 0, i32 0
+// CHECK-x86_64:         [[VALUE:%.*]] = load i64, ptr [[VALUE_BUF]], align 8
 // CHECK-x86_64:         ret i64 [[VALUE]]
 // CHECK-x86_64:       }
 sil @bitcast_trivial: $@convention(thin) (C) -> Int {
@@ -55,15 +52,15 @@ entry(%c : $Optional<Int>):
   return %i : $Optional<Int>
 }
 
-// CHECK-i386-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i32 @bitcast_ref(%T7bitcast1CC* %0) {{.*}} {
+// CHECK-i386-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i32 @bitcast_ref(ptr %0) {{.*}} {
 // CHECK-i386-NEXT:  entry:
-// CHECK-i386-NEXT:    [[VALUE:%.*]] = ptrtoint %T7bitcast1CC* %0 to i32
+// CHECK-i386-NEXT:    [[VALUE:%.*]] = ptrtoint ptr %0 to i32
 // CHECK-i386-NEXT:    ret i32 [[VALUE]]
 // CHECK-i386-NEXT:  }
 
-// CHECK-x86_64-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i64 @bitcast_ref(%T7bitcast1CC* %0) {{.*}} {
+// CHECK-x86_64-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i64 @bitcast_ref(ptr %0) {{.*}} {
 // CHECK-x86_64-NEXT:  entry:
-// CHECK-x86_64-NEXT:    [[VALUE:%.*]] = ptrtoint %T7bitcast1CC* %0 to i64
+// CHECK-x86_64-NEXT:    [[VALUE:%.*]] = ptrtoint ptr %0 to i64
 // CHECK-x86_64-NEXT:    ret i64 [[VALUE]]
 // CHECK-x86_64-NEXT:  }
 sil @bitcast_ref: $@convention(thin) (C) -> Optional<C> {
@@ -91,11 +88,10 @@ bb0(%0 : $Optional<C>):
 // CHECK-x86_64-NEXT: entry:
 // CHECK-x86_64-NEXT: alloca <{ %TSi, %TSi }>, align 8
 //   A bunch of GEPs happen here to get from Int to int.
-// CHECK-x86_64:      store i64 %{{.*}}, i64* %bitcast.elt._value, align 8
-// CHECK-x86_64:      store i64 %{{.*}}, i64* %bitcast.elt1._value, align 8
-// CHECK-x86_64-NEXT: %{{.*}} = bitcast <{ %TSi, %TSi }>* %bitcast to %TSi*
-// CHECK-x86_64-NEXT: [[VAL:%.*]] = getelementptr inbounds %TSi, %TSi* %{{.*}}, i32 0, i32 0
-// CHECK-x86_64-NEXT: [[RESULT:%.*]] = load i64, i64* [[VAL]], align 8
+// CHECK-x86_64:      store i64 %{{.*}}, ptr %bitcast.elt._value, align 8
+// CHECK-x86_64:      store i64 %{{.*}}, ptr %bitcast.elt1._value, align 8
+// CHECK-x86_64-NEXT: [[VAL:%.*]] = getelementptr inbounds %TSi, ptr %bitcast, i32 0, i32 0
+// CHECK-x86_64-NEXT: [[RESULT:%.*]] = load i64, ptr [[VAL]], align 8
 // CHECK-x86_64:      ret i64 [[RESULT]]
 // CHECK-x86_64-NEXT: }
 sil hidden @unchecked_bitwise_cast : $@convention(thin) (Int, Int) -> Int {
@@ -108,7 +104,6 @@ bb0(%0 : $Int, %1 : $Int):
 // CHECK-x86_64-LABEL: define hidden swiftcc i64 @trivial_bitwise_cast(i64 %0, i64 %1) {{.*}} {
 // CHECK-x86_64-NOT: trap
 // CHECK-x86_64-NOT: unreachable
-// CHECK-x86_64: bitcast <{ %TSi, %TSi }>* %bitcast to %TSi*
 // CHECK-x86_64: ret
 sil hidden [noinline] @trivial_bitwise_cast : $@convention(thin) (Int, Int) -> Int {
 bb0(%0 : $Int, %1 : $Int):
@@ -118,8 +113,8 @@ bb0(%0 : $Int, %1 : $Int):
 }
 
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @unchecked_ref_cast_addr
-// CHECK-i386: call zeroext i1 @swift_dynamicCast(%swift.opaque* %0, %swift.opaque* %{{.*}}, %swift.type* %T, %swift.type* %U, i32 7)
-// CHECK-x86_64: call zeroext i1 @swift_dynamicCast(%swift.opaque* %0, %swift.opaque* %{{.*}}, %swift.type* %T, %swift.type* %U, i64 7)
+// CHECK-i386: call zeroext i1 @swift_dynamicCast(ptr %0, ptr %{{.*}}, ptr %T, ptr %U, i32 7)
+// CHECK-x86_64: call zeroext i1 @swift_dynamicCast(ptr %0, ptr %{{.*}}, ptr %T, ptr %U, i64 7)
 sil @unchecked_ref_cast_addr : $@convention(thin) <T, U> (@in T) -> @out U {
 bb0(%0 : $*U, %1 : $*T):
   %a = alloc_stack $T
@@ -132,11 +127,11 @@ bb0(%0 : $*U, %1 : $*T):
 }
 
 // CHECK-i386-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i32 @unchecked_ref_cast_class_optional
-// CHECK-i386: ptrtoint %T7bitcast1AC* %0 to i32
+// CHECK-i386: ptrtoint ptr %0 to i32
 // CHECK-i386-NEXT: ret i32
 
 // CHECK-x86_64-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i64 @unchecked_ref_cast_class_optional
-// CHECK-x86_64: ptrtoint %T7bitcast1AC* %0 to i64
+// CHECK-x86_64: ptrtoint ptr %0 to i64
 // CHECK-x86_64-NEXT: ret i64
 sil @unchecked_ref_cast_class_optional : $@convention(thin) (@owned A) -> @owned Optional<AnyObject> {
 bb0(%0 : $A):
@@ -156,11 +151,11 @@ bb0(%0 : $Optional<A>):
 }
 
 // CHECK-i386-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i32 @unchecked_ref_cast_proto_optional
-// CHECK-i386: ptrtoint {{%objc_object|%swift.refcounted}}* %0 to i32
+// CHECK-i386: ptrtoint ptr %0 to i32
 // CHECK-i386-NEXT: ret i32
 
 // CHECK-x86_64-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i64 @unchecked_ref_cast_proto_optional
-// CHECK-x86_64: ptrtoint {{%objc_object|%swift.refcounted}}* %0 to i64
+// CHECK-x86_64: ptrtoint ptr %0 to i64
 // CHECK-x86_64-NEXT: ret i64
 sil @unchecked_ref_cast_proto_optional : $@convention(thin) (@owned CP) -> @owned Optional<AnyObject> {
 bb0(%0 : $CP):

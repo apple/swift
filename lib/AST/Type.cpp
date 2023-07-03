@@ -530,7 +530,7 @@ Type TypeBase::typeEraseOpenedArchetypesWithRoot(
 
   std::function<Type(Type)> transformFn;
   transformFn = [&](Type type) -> Type {
-    return type.transformRec([&](TypeBase *ty) -> Optional<Type> {
+    return type.transformRec([&](TypeBase *ty) -> llvm::Optional<Type> {
       // Don't recurse into children unless we have to.
       if (!ty->hasOpenedExistential())
         return Type(ty);
@@ -565,7 +565,7 @@ Type TypeBase::typeEraseOpenedArchetypesWithRoot(
       auto *const archetype = dyn_cast<OpenedArchetypeType>(ty);
       if (!archetype) {
         // Recurse.
-        return None;
+        return llvm::None;
       }
 
       if (!root->isEqual(archetype->getRoot())) {
@@ -1073,7 +1073,7 @@ Type TypeBase::stripConcurrency(bool recurse, bool dropGlobalActor) {
     auto newInstanceType =
         instanceType->stripConcurrency(recurse, dropGlobalActor);
     if (instanceType.getPointer() != newInstanceType.getPointer()) {
-      Optional<MetatypeRepresentation> repr;
+      llvm::Optional<MetatypeRepresentation> repr;
       if (existentialMetatype->hasRepresentation())
         repr = existentialMetatype->getRepresentation();
       return ExistentialMetatypeType::get(
@@ -1753,7 +1753,7 @@ CanType TypeBase::computeCanonicalType() {
     getCanonicalParams(funcTy, genericSig, canParams);
     auto resultTy = funcTy->getResult()->getReducedType(genericSig);
 
-    Optional<ASTExtInfo> extInfo = None;
+    llvm::Optional<ASTExtInfo> extInfo = llvm::None;
     if (funcTy->hasExtInfo())
       extInfo = funcTy->getCanonicalExtInfo(useClangTypes(resultTy));
     if (genericSig) {
@@ -4034,11 +4034,10 @@ bool SILFunctionType::hasNonDerivableClangType() {
   if (clangTypeInfo.empty())
     return false;
   auto results = getResults();
-  auto computedClangType =
-      getASTContext().getCanonicalClangFunctionType(
-          getParameters(),
-          results.empty() ? None : Optional<SILResultInfo>(results[0]),
-          getRepresentation());
+  auto computedClangType = getASTContext().getCanonicalClangFunctionType(
+      getParameters(),
+      results.empty() ? llvm::None : llvm::Optional<SILResultInfo>(results[0]),
+      getRepresentation());
   assert(computedClangType && "Failed to compute Clang type.");
   return clangTypeInfo != ClangTypeInfo(computedClangType);
 }
@@ -4092,7 +4091,7 @@ Identifier DependentMemberType::getName() const {
 /// \param pos The variance position of the result type.
 static bool transformSILResult(
     TypePosition pos, SILResultInfo &result, bool &changed,
-    llvm::function_ref<Optional<Type>(TypeBase *, TypePosition)> fn) {
+    llvm::function_ref<llvm::Optional<Type>(TypeBase *, TypePosition)> fn) {
   Type transType = result.getInterfaceType().transformWithPosition(pos, fn);
   if (!transType) return true;
 
@@ -4107,7 +4106,7 @@ static bool transformSILResult(
 /// \param pos The variance position of the yield type.
 static bool transformSILYield(
     TypePosition pos, SILYieldInfo &yield, bool &changed,
-    llvm::function_ref<Optional<Type>(TypeBase *, TypePosition)> fn) {
+    llvm::function_ref<llvm::Optional<Type>(TypeBase *, TypePosition)> fn) {
   Type transType = yield.getInterfaceType().transformWithPosition(pos, fn);
   if (!transType) return true;
 
@@ -4122,7 +4121,7 @@ static bool transformSILYield(
 /// \param pos The variance position of the parameter type.
 static bool transformSILParameter(
     TypePosition pos, SILParameterInfo &param, bool &changed,
-    llvm::function_ref<Optional<Type>(TypeBase *, TypePosition)> fn) {
+    llvm::function_ref<llvm::Optional<Type>(TypeBase *, TypePosition)> fn) {
   Type transType = param.getInterfaceType().transformWithPosition(pos, fn);
   if (!transType) return true;
 
@@ -4135,19 +4134,20 @@ static bool transformSILParameter(
 }
 
 Type Type::transform(llvm::function_ref<Type(Type)> fn) const {
-  return transformWithPosition(TypePosition::Invariant,
-                               [fn](TypeBase *type, auto) -> Optional<Type> {
-    Type transformed = fn(Type(type));
-    if (!transformed)
-      return Type();
+  return transformWithPosition(
+      TypePosition::Invariant,
+      [fn](TypeBase *type, auto) -> llvm::Optional<Type> {
+        Type transformed = fn(Type(type));
+        if (!transformed)
+          return Type();
 
-    // If the function didn't change the type at
-    // all, let transformRec() recurse.
-    if (transformed.getPointer() == type)
-      return None;
+        // If the function didn't change the type at
+        // all, let transformRec() recurse.
+        if (transformed.getPointer() == type)
+          return llvm::None;
 
-    return transformed;
-  });
+        return transformed;
+      });
 }
 
 static PackType *getTransformedPack(Type substType) {
@@ -4168,17 +4168,18 @@ static PackType *getTransformedPack(Type substType) {
 }
 
 Type Type::transformRec(
-    llvm::function_ref<Optional<Type>(TypeBase *)> fn) const {
+    llvm::function_ref<llvm::Optional<Type>(TypeBase *)> fn) const {
   return transformWithPosition(TypePosition::Invariant,
                                [fn](TypeBase *type, auto) { return fn(type); });
 }
 
 Type Type::transformWithPosition(
     TypePosition pos,
-    llvm::function_ref<Optional<Type>(TypeBase *, TypePosition)> fn) const {
+    llvm::function_ref<llvm::Optional<Type>(TypeBase *, TypePosition)> fn)
+    const {
   if (!isa<ParenType>(getPointer())) {
     // Transform this type node.
-    if (Optional<Type> transformed = fn(getPointer(), pos))
+    if (llvm::Optional<Type> transformed = fn(getPointer(), pos))
       return *transformed;
 
     // Recur.
@@ -4345,7 +4346,7 @@ case TypeKind::Id:
       transInterfaceResults.push_back(result);
     }
 
-    Optional<SILResultInfo> transErrorResult;
+    llvm::Optional<SILResultInfo> transErrorResult;
     if (fnTy->hasErrorResult()) {
       SILResultInfo result = fnTy->getErrorResult();
       if (transformSILResult(pos, result, changed, fn)) return Type();
@@ -5348,7 +5349,7 @@ AnyFunctionType *AnyFunctionType::getWithoutThrowing() const {
   return withExtInfo(info);
 }
 
-Optional<TangentSpace>
+llvm::Optional<TangentSpace>
 TypeBase::getAutoDiffTangentSpace(LookupConformanceFn lookupConformance) {
   assert(lookupConformance);
   auto &ctx = getASTContext();
@@ -5357,7 +5358,7 @@ TypeBase::getAutoDiffTangentSpace(LookupConformanceFn lookupConformance) {
   auto lookup = ctx.AutoDiffTangentSpaces.find(cacheKey);
   if (lookup != ctx.AutoDiffTangentSpaces.end())
     return lookup->getSecond();
-  auto cache = [&](Optional<TangentSpace> tangentSpace) {
+  auto cache = [&](llvm::Optional<TangentSpace> tangentSpace) {
     ctx.AutoDiffTangentSpaces.insert({cacheKey, tangentSpace});
     return tangentSpace;
   };
@@ -5386,7 +5387,7 @@ TypeBase::getAutoDiffTangentSpace(LookupConformanceFn lookupConformance) {
   auto *differentiableProtocol =
       ctx.getProtocol(KnownProtocolKind::Differentiable);
   if (!differentiableProtocol)
-    return cache(None);
+    return cache(llvm::None);
   auto associatedTypeLookup =
       differentiableProtocol->lookupDirect(ctx.Id_TangentVector);
   assert(associatedTypeLookup.size() == 1);
@@ -5401,7 +5402,7 @@ TypeBase::getAutoDiffTangentSpace(LookupConformanceFn lookupConformance) {
     return cache(TangentSpace::getTangentVector(assocTy));
 
   // Otherwise, there is no associated tangent space. Return `None`.
-  return cache(None);
+  return cache(llvm::None);
 }
 
 bool TypeBase::isForeignReferenceType() {

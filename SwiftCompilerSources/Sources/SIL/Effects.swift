@@ -143,7 +143,7 @@ extension Function {
       if convention.isIndirectIn {
         // Even a `[readnone]` function can read from an indirect argument.
         result.memory.read = true
-      } else if convention == .indirectOut {
+      } else if convention.isIndirectOut {
         // Even `[readnone]` and `[readonly]` functions write to indirect results.
         result.memory.write = true
       }
@@ -546,7 +546,7 @@ public struct SideEffects : CustomStringConvertible, NoReflectionChildren {
       case .indirectInGuaranteed, .packGuaranteed:
         result.memory.write = false
         result.ownership.destroy = false
-      case .indirectOut, .packInout:
+      case .indirectOut, .packOut, .packInout:
         result.memory.read = false
         result.ownership.copy = false
         result.ownership.destroy = false

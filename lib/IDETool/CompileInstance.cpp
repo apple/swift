@@ -218,9 +218,9 @@ bool CompileInstance::performCachedSemaIfPossible(DiagnosticConsumer *DiagC) {
   auto FS = SM.getFileSystem();
 
   if (shouldCheckDependencies()) {
-    if (areAnyDependentFilesInvalidated(*CI, *FS, /*excludeBufferID=*/None,
-                                        DependencyCheckedTimestamp,
-                                        InMemoryDependencyHash)) {
+    if (areAnyDependentFilesInvalidated(
+            *CI, *FS, /*excludeBufferID=*/llvm::None,
+            DependencyCheckedTimestamp, InMemoryDependencyHash)) {
       return true;
     }
     DependencyCheckedTimestamp = std::chrono::system_clock::now();
@@ -345,7 +345,7 @@ bool CompileInstance::performSema(
   CachedArgHash = ArgsHash;
   CachedReuseCount = 0;
   InMemoryDependencyHash.clear();
-  cacheDependencyHashIfNeeded(*CI, /*excludeBufferID=*/None,
+  cacheDependencyHashIfNeeded(*CI, /*excludeBufferID=*/llvm::None,
                               InMemoryDependencyHash);
 
   // Perform!

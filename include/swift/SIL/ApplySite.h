@@ -53,14 +53,14 @@ struct ApplySiteKind {
   ApplySiteKind(innerty value) : value(value) {}
   operator innerty() const { return value; }
 
-  static Optional<ApplySiteKind> fromNodeKind(SILInstructionKind kind) {
+  static llvm::Optional<ApplySiteKind> fromNodeKind(SILInstructionKind kind) {
     if (auto innerTyOpt = ApplySiteKind::fromNodeKindHelper(kind))
       return ApplySiteKind(*innerTyOpt);
-    return None;
+    return llvm::None;
   }
 
 private:
-  static Optional<innerty> fromNodeKindHelper(SILInstructionKind kind) {
+  static llvm::Optional<innerty> fromNodeKindHelper(SILInstructionKind kind) {
     switch (kind) {
     case SILInstructionKind::ApplyInst:
       return ApplySiteKind::ApplyInst;
@@ -71,7 +71,7 @@ private:
     case SILInstructionKind::BeginApplyInst:
       return ApplySiteKind::BeginApplyInst;
     default:
-      return None;
+      return llvm::None;
     }
   }
 };
@@ -541,7 +541,7 @@ public:
 
   /// Attempt to cast this apply site to a full apply site, returning None on
   /// failure.
-  Optional<FullApplySite> asFullApplySite() const;
+  llvm::Optional<FullApplySite> asFullApplySite() const;
 };
 
 //===----------------------------------------------------------------------===//
@@ -564,14 +564,15 @@ struct FullApplySiteKind {
   FullApplySiteKind(innerty value) : value(value) {}
   operator innerty() const { return value; }
 
-  static Optional<FullApplySiteKind> fromNodeKind(SILInstructionKind kind) {
+  static llvm::Optional<FullApplySiteKind>
+  fromNodeKind(SILInstructionKind kind) {
     if (auto innerOpt = FullApplySiteKind::fromNodeKindHelper(kind))
       return FullApplySiteKind(*innerOpt);
-    return None;
+    return llvm::None;
   }
 
 private:
-  static Optional<innerty> fromNodeKindHelper(SILInstructionKind kind) {
+  static llvm::Optional<innerty> fromNodeKindHelper(SILInstructionKind kind) {
     switch (kind) {
     case SILInstructionKind::ApplyInst:
       return FullApplySiteKind::ApplyInst;
@@ -580,7 +581,7 @@ private:
     case SILInstructionKind::BeginApplyInst:
       return FullApplySiteKind::BeginApplyInst;
     default:
-      return None;
+      return llvm::None;
     }
   }
 };
@@ -803,7 +804,7 @@ template <> struct DenseMapInfo<::swift::FullApplySite> {
 
 namespace swift {
 
-inline Optional<FullApplySite> ApplySite::asFullApplySite() const {
+inline llvm::Optional<FullApplySite> ApplySite::asFullApplySite() const {
   return FullApplySite::isa(getInstruction());
 }
 

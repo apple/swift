@@ -152,7 +152,7 @@ static void splitConcreteEquivalenceClasses(
     ArrayRef<Requirement> requirements,
     const ProtocolDecl *proto,
     const RequirementMachine *machine,
-    TypeArrayView<GenericTypeParamType> genericParams,
+    ArrayRef<GenericTypeParamType *> genericParams,
     SmallVectorImpl<StructuralRequirement> &splitRequirements,
     unsigned &attempt) {
   bool debug = machine->getDebugOptions().contains(
@@ -409,7 +409,7 @@ RequirementSignatureRequest::evaluate(Evaluator &evaluator,
 
     // The requirement signature for the actual protocol that the result
     // was kicked off with.
-    Optional<RequirementSignature> result;
+    llvm::Optional<RequirementSignature> result;
 
     if (debug) {
       llvm::dbgs() << "\nRequirement signatures:\n";

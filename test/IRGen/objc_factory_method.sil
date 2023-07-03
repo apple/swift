@@ -1,9 +1,7 @@
-// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) %use_no_opaque_pointers -enable-objc-interop -emit-ir %s | %FileCheck %s
-// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -enable-objc-interop -emit-ir %s
+// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -enable-objc-interop -emit-ir %s | %FileCheck %s
 
 // REQUIRES: CPU=x86_64
 
-// CHECK: [[SWIFT_TYPE:%swift.type]] = type { i64 }
 sil_stage canonical
 
 import Builtin
@@ -21,7 +19,7 @@ bb0:
 sil @_TFCSo4HiveCfMS_FT5queenGSQCSo3Bee__S_ : $@convention(thin) (@owned Optional<Bee>, @thick Hive.Type) -> @owned Optional<Hive> {
 bb0(%0 : $Optional<Bee>, %1 : $@thick Hive.Type):
   %2 = thick_to_objc_metatype %1 : $@thick Hive.Type to $@objc_metatype Hive.Type // users: %3, %4
-  // CHECK: load i8*, i8** @"\01L_selector(hiveWithQueen:)"
+  // CHECK: load ptr, ptr @"\01L_selector(hiveWithQueen:)"
   %3 = objc_method %2 : $@objc_metatype Hive.Type, #Hive.init!allocator.foreign : (Hive.Type) -> (Bee!) -> Hive!, $@convention(objc_method) (Optional<Bee>, @objc_metatype Hive.Type) -> @autoreleased Optional<Hive> // user: %4
   // CHECK: call {{.*}} @objc_msgSend
   %4 = apply %3(%0, %2) : $@convention(objc_method) (Optional<Bee>, @objc_metatype Hive.Type) -> @autoreleased Optional<Hive> // users: %5, %6

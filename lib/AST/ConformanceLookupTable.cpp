@@ -286,6 +286,10 @@ void ConformanceLookupTable::updateLookupTable(NominalTypeDecl *nominal,
           ASTContext &ctx = nominal->getASTContext();
           (void)evaluateOrDefault(
               ctx.evaluator, ExpandConformanceMacros{nominal}, { });
+
+          // Expand extension macros.
+          (void)evaluateOrDefault(
+              ctx.evaluator, ExpandExtensionMacros{nominal}, { });
         },
         [&](ExtensionDecl *ext,
             ArrayRef<ConformanceConstructionInfo> protos) {

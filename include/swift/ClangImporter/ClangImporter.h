@@ -441,10 +441,10 @@ public:
       ModuleDependencyInfo &MDI,
       const clang::tooling::dependencies::TranslationUnitDeps &deps);
 
-  Optional<const ModuleDependencyInfo*> getModuleDependencies(
-      StringRef moduleName, ModuleDependenciesCache &cache,
-      InterfaceSubContextDelegate &delegate,
-      bool isTestableImport = false) override;
+  llvm::Optional<const ModuleDependencyInfo *>
+  getModuleDependencies(StringRef moduleName, ModuleDependenciesCache &cache,
+                        InterfaceSubContextDelegate &delegate,
+                        bool isTestableImport = false) override;
 
   /// Add dependency information for the bridging header.
   ///
@@ -495,7 +495,7 @@ public:
   /// to import said decl then return nullptr.
   /// Otherwise, if we have never encountered this decl previously then return
   /// None.
-  Optional<Decl *> importDeclCached(const clang::NamedDecl *ClangDecl);
+  llvm::Optional<Decl *> importDeclCached(const clang::NamedDecl *ClangDecl);
 
   // Returns true if it is expected that the macro is ignored.
   bool shouldIgnoreMacro(StringRef Name, const clang::MacroInfo *Macro);
@@ -538,10 +538,10 @@ public:
                          VarDecl *swiftDecl,
                          DeclContext *dc) override;
 
-  Optional<std::string>
+  llvm::Optional<std::string>
   getOrCreatePCH(const ClangImporterOptions &ImporterOptions,
                  StringRef SwiftPCHHash, bool Cached);
-  Optional<std::string>
+  llvm::Optional<std::string>
   /// \param isExplicit true if the PCH filename was passed directly
   /// with -import-objc-header option.
   getPCHFilename(const ClangImporterOptions &ImporterOptions,

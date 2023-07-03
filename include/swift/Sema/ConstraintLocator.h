@@ -169,10 +169,10 @@ public:
     /// Attempts to cast the path element to a specific \c LocatorPathElt
     /// subclass, returning \c None if unsuccessful.
     template <class T>
-    Optional<T> getAs() const {
+    llvm::Optional<T> getAs() const {
       if (auto *result = dyn_cast<T>(this))
         return *result;
-      return None;
+      return llvm::None;
     }
 
     /// Cast the path element to a specific \c LocatorPathElt subclass.
@@ -312,7 +312,7 @@ public:
 
   /// Whether this locator identifies a conversion for a SingleValueStmtExpr
   /// branch, and if so, the kind of branch.
-  Optional<SingleValueStmtBranchKind> isForSingleValueStmtBranch() const;
+  llvm::Optional<SingleValueStmtBranchKind> isForSingleValueStmtBranch() const;
 
   /// If the locator in question is for a pattern match, returns the pattern,
   /// otherwise \c nullptr.
@@ -345,10 +345,10 @@ public:
   /// \c LocatorPathElt subclass, returning \c None if either unsuccessful or
   /// the locator has no path elements.
   template <class T>
-  Optional<T> getFirstElementAs() const {
+  llvm::Optional<T> getFirstElementAs() const {
     auto path = getPath();
     if (path.empty())
-      return None;
+      return llvm::None;
 
     return path[0].getAs<T>();
   }
@@ -374,10 +374,10 @@ public:
   /// \c LocatorPathElt subclass, returning \c None if either unsuccessful or
   /// the locator has no path elements.
   template <class T>
-  Optional<T> getLastElementAs() const {
+  llvm::Optional<T> getLastElementAs() const {
     auto path = getPath();
     if (path.empty())
-      return None;
+      return llvm::None;
 
     return path.back().getAs<T>();
   }
@@ -401,7 +401,7 @@ public:
   /// \param iter A reference to an iterator which will be used to iterate
   /// over the locator's path.
   template <class T>
-  Optional<T> findFirst(PathIterator &iter) const {
+  llvm::Optional<T> findFirst(PathIterator &iter) const {
     auto path = getPath();
     auto end = path.end();
     assert(iter >= path.begin() && iter <= end);
@@ -409,14 +409,14 @@ public:
     for (; iter != end; ++iter)
       if (auto elt = iter->getAs<T>())
         return elt;
-    return None;
+    return llvm::None;
   }
 
   /// Attempts to find the first element in the locator's path that is a
   /// specific \c LocatorPathElt subclass, returning \c None if no such element
   /// exists.
   template <class T>
-  Optional<T> findFirst() const {
+  llvm::Optional<T> findFirst() const {
     auto iter = getPath().begin();
     return findFirst<T>(iter);
   }
@@ -428,7 +428,7 @@ public:
   /// \param iter A reference to a reverse iterator which will be used to
   /// iterate over the locator's path.
   template <class T>
-  Optional<T> findLast(PathReverseIterator &iter) const {
+  llvm::Optional<T> findLast(PathReverseIterator &iter) const {
     auto path = getPath();
     auto end = path.rend();
     assert(iter >= path.rbegin() && iter <= end);
@@ -436,14 +436,14 @@ public:
     for (; iter != end; ++iter)
       if (auto elt = iter->getAs<T>())
         return elt;
-    return None;
+    return llvm::None;
   }
 
   /// Attempts to find the last element in the locator's path that is a
   /// specific \c LocatorPathElt subclass, returning \c None if no such element
   /// exists.
   template <class T>
-  Optional<T> findLast() const {
+  llvm::Optional<T> findLast() const {
     auto iter = getPath().rbegin();
     return findLast<T>(iter);
   }
@@ -1243,7 +1243,7 @@ class ConstraintLocatorBuilder {
     previous;
 
   /// The current path element, if there is one.
-  Optional<LocatorPathElt> element;
+  llvm::Optional<LocatorPathElt> element;
 
   /// The current set of flags.
   unsigned summaryFlags;
@@ -1378,7 +1378,7 @@ public:
   Expr *trySimplifyToExpr() const;
 
   /// Retrieve the last element in the path, if there is one.
-  Optional<LocatorPathElt> last() const {
+  llvm::Optional<LocatorPathElt> last() const {
     // If we stored a path element here, grab it.
     if (element) return *element;
 
@@ -1389,11 +1389,12 @@ public:
     // Next, check the constraint locator itself.
     if (auto locator = previous.dyn_cast<ConstraintLocator *>()) {
       auto path = locator->getPath();
-      if (path.empty()) return None;
+      if (path.empty())
+        return llvm::None;
       return path.back();
     }
 
-    return None;
+    return llvm::None;
   }
 
   /// Check whether this locator has the given locator path element

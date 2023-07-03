@@ -1,7 +1,5 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -primary-file %s -emit-ir | %FileCheck %s
-// RUN: %target-swift-frontend %use_no_opaque_pointers -O -primary-file %s -emit-ir | %FileCheck %s --check-prefix=OPT
-// RUN: %target-swift-frontend -primary-file %s -emit-ir
-// RUN: %target-swift-frontend -O -primary-file %s -emit-ir
+// RUN: %target-swift-frontend -primary-file %s -emit-ir | %FileCheck %s
+// RUN: %target-swift-frontend -O -primary-file %s -emit-ir | %FileCheck %s --check-prefix=OPT
 
 // REQUIRES: CPU=x86_64
 
@@ -57,21 +55,17 @@ func create<T>(_ t: T) -> C<T> {
 // We use opaque storage types because LLVM performs type based analysis based
 // on the sret storage type which goes wrong with non fixed types.
 
-// CHECK-LABEL: define hidden swiftcc void @"$s16non_fixed_return1CVACyxGycfC"(%swift.opaque* noalias nocapture sret(%swift.opaque) %0
+// CHECK-LABEL: define hidden swiftcc void @"$s16non_fixed_return1CVACyxGycfC"(ptr noalias nocapture sret(%swift.opaque) %0
 
-// CHECK-LABEL: define hidden swiftcc void @"$s16non_fixed_return6createyAA1CVyxGxlF"(%swift.opaque* noalias nocapture sret(%swift.opaque) %0, %swift.opaque* noalias nocapture %1, %swift.type* %T)
-// CHECK:  [[CAST_PARAM:%.*]] = bitcast %swift.opaque* %0 to %T16non_fixed_return1CV*
-// CHECK:  [[CAST_ARG:%.*]] = bitcast %T16non_fixed_return1CV* [[CAST_PARAM]] to %swift.opaque*
-// CHECK:  call swiftcc void @"$s16non_fixed_return1CVACyxGycfC"(%swift.opaque* noalias nocapture sret(%swift.opaque) [[CAST_ARG]]
+// CHECK-LABEL: define hidden swiftcc void @"$s16non_fixed_return6createyAA1CVyxGxlF"(ptr noalias nocapture sret(%swift.opaque) %0, ptr noalias nocapture %1, ptr %T)
+// CHECK:  call swiftcc void @"$s16non_fixed_return1CVACyxGycfC"(ptr noalias nocapture sret(%swift.opaque) %0
 // CHECK:  ret void
 
 // Make sure we don't loose the stores for the optional UInt32? in optimize mode.
-// OPT-LABEL: define hidden swiftcc void @"$s16non_fixed_return1CVACyxGycfC"(%swift.opaque* noalias nocapture sret(%swift.opaque) %0
-// OPT:  [[ADDR:%.*]] = bitcast i8* [[BASE:%.*]] to i32*
-// OPT:  store i32 0, i32* [[ADDR]]
-// OPT:  [[ADDR2:%.*]] = getelementptr inbounds i8, i8* [[BASE:%.*]], i64 4
-// OPT:  [[ADDR3:%.*]] = bitcast i8* [[ADDR2]] to i1*
-// OPT:  store i1 true, i1* [[ADDR3]]
-// OPT:  [[ADDR4:%.*]] = getelementptr inbounds i8, i8* [[BASE]], i64 8
-// OPT: call void @llvm.memset.p0i8.i64(i8* {{.*}}[[ADDR4]], i8 0, i64 16, i1 false)
+// OPT-LABEL: define hidden swiftcc void @"$s16non_fixed_return1CVACyxGycfC"(ptr noalias nocapture sret(%swift.opaque) %0
+// OPT:  store i32 0, ptr [[BASE:%[0-9]+]]
+// OPT:  [[ADDR2:%.*]] = getelementptr inbounds %Ts6UInt32VSg, ptr [[BASE]], i64 0, i32 1
+// OPT:  store i1 true, ptr [[ADDR2]]
+// OPT:  [[ADDR4:%.*]] = getelementptr inbounds %T16non_fixed_return1BV, ptr [[BASE]], i64 0, i32 2
+// OPT: call void @llvm.memset.p0.i64(ptr {{.*}}[[ADDR4]], i8 0, i64 16, i1 false)
 // OPT: ret void

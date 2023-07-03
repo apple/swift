@@ -36,7 +36,7 @@ class ArgumentTypeCheckCompletionCallback : public TypeCheckCompletionCallback {
     /// The index of the argument containing the completion location
     unsigned ArgIdx;
     /// The index of the parameter corresponding to the completion argument.
-    Optional<unsigned> ParamIdx;
+    llvm::Optional<unsigned> ParamIdx;
     /// The indices of all params that were bound to non-synthesized
     /// arguments. Used so we don't suggest them even when the args are out of
     /// order.

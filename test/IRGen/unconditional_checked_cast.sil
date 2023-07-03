@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers %s -emit-ir | %FileCheck %s
-// RUN: %target-swift-frontend %s -emit-ir
+// RUN: %target-swift-frontend %s -emit-ir | %FileCheck %s
 
 // REQUIRES: CPU=x86_64
 
@@ -11,16 +10,13 @@ sil_vtable C {}
 class D : C {}
 sil_vtable D {}
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @downcast_test(%T26unconditional_checked_cast1DC** noalias nocapture sret({{.*}}) %0, %T26unconditional_checked_cast1CC** nocapture dereferenceable({{.*}}) %1) {{.*}} {
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @downcast_test(ptr noalias nocapture sret({{.*}}) %0, ptr nocapture dereferenceable({{.*}}) %1) {{.*}} {
 // CHECK: entry:
-// CHECK-NEXT: [[INPUTPTR:%[0-9]+]] = load %T26unconditional_checked_cast1CC*, %T26unconditional_checked_cast1CC** [[INPUTPTRPTR:%[0-9]+]], align 8
-// CHECK-NEXT: [[I8INPUTPTR:%[0-9]+]] = bitcast %T26unconditional_checked_cast1CC* [[INPUTPTR]] to i8*
+// CHECK-NEXT: [[INPUTPTR:%[0-9]+]] = load ptr, ptr [[INPUTPTRPTR:%[0-9]+]], align 8
 // CHECK-NEXT: [[TMP:%.*]] = call swiftcc %swift.metadata_response @"$s26unconditional_checked_cast1DCMa"(i64 0)
 // CHECK-NEXT: [[T0:%.*]] = extractvalue %swift.metadata_response [[TMP]], 0
-// CHECK-NEXT: [[T1:%.*]] = bitcast %swift.type* [[T0]] to i8*
-// CHECK-NEXT: [[I8RESULTPTR:%.*]] = call i8* @swift_dynamicCastClassUnconditional(i8* [[I8INPUTPTR]], i8* [[T1]], {{.*}})
-// CHECK-NEXT: [[DOWNCASTINPUTPTR:%[0-9]+]] = bitcast i8* [[I8RESULTPTR]] to %T26unconditional_checked_cast1DC*
-// CHECK-NEXT: store %T26unconditional_checked_cast1DC* [[DOWNCASTINPUTPTR]], %T26unconditional_checked_cast1DC** {{%[0-9]+}}, align 8
+// CHECK-NEXT: [[I8RESULTPTR:%.*]] = call ptr @swift_dynamicCastClassUnconditional(ptr [[INPUTPTR]], ptr [[T0]], {{.*}})
+// CHECK-NEXT: store ptr [[I8RESULTPTR]], ptr {{%[0-9]+}}, align 8
 // CHECK-NEXT: ret void
 
 sil @downcast_test : $@convention(thin) (@inout C) -> @out D {

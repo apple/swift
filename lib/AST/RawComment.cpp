@@ -185,37 +185,37 @@ RawComment Decl::getRawComment() const {
   return evaluateOrDefault(eval, RawCommentRequest{this}, RawComment());
 }
 
-Optional<StringRef> Decl::getGroupName() const {
+llvm::Optional<StringRef> Decl::getGroupName() const {
   if (hasClangNode())
-    return None;
+    return llvm::None;
   if (auto *Unit =
           dyn_cast<FileUnit>(getDeclContext()->getModuleScopeContext())) {
     // We can only get group information from deserialized module files.
     return Unit->getGroupNameForDecl(this);
   }
-  return None;
+  return llvm::None;
 }
 
-Optional<StringRef> Decl::getSourceFileName() const {
+llvm::Optional<StringRef> Decl::getSourceFileName() const {
   if (hasClangNode())
-    return None;
+    return llvm::None;
   if (auto *Unit =
           dyn_cast<FileUnit>(getDeclContext()->getModuleScopeContext())) {
     // We can only get group information from deserialized module files.
     return Unit->getSourceFileNameForDecl(this);
   }
-  return None;
+  return llvm::None;
 }
 
-Optional<unsigned> Decl::getSourceOrder() const {
+llvm::Optional<unsigned> Decl::getSourceOrder() const {
   if (hasClangNode())
-    return None;
+    return llvm::None;
   if (auto *Unit =
       dyn_cast<FileUnit>(this->getDeclContext()->getModuleScopeContext())) {
     // We can only get source orders from deserialized module files.
     return Unit->getSourceOrderForDecl(this);
   }
-  return None;
+  return llvm::None;
 }
 
 CharSourceRange RawComment::getCharSourceRange() {

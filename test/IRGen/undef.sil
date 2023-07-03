@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -emit-ir %s | %FileCheck %s
-// RUN: %target-swift-frontend -emit-ir %s
+// RUN: %target-swift-frontend -emit-ir %s | %FileCheck %s
 
 // REQUIRES: CPU=x86_64
 
@@ -7,9 +6,9 @@ import Builtin
 
 // CHECK: define{{( dllexport)?}}{{( protected)?}} swiftcc void @undefined() {{.*}} {
 // CHECK: entry:
-// CHECK:   store i64 undef, i64* poison, align 8
-// CHECK:   store i8 undef, i8* poison, align 8
-// CHECK:   store i8* undef, i8** poison, align 8
+// CHECK:   store i64 undef, ptr poison, align 8
+// CHECK:   store i8 undef, ptr poison, align 8
+// CHECK:   store ptr undef, ptr poison, align 8
 // CHECK:   ret void
 // CHECK: }
 sil @undefined : $() -> () {

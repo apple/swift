@@ -465,7 +465,7 @@ public:
   /// Strip the contextual options from the given type resolution options.
   inline TypeResolutionOptions withoutContext(bool preserveSIL = false) const {
     auto copy = *this;
-    copy.setContext(None);
+    copy.setContext(llvm::None);
     // FIXME: Move SILType to TypeResolverContext.
     if (!preserveSIL) copy -= TypeResolutionFlags::SILType;
     return copy;

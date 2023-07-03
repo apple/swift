@@ -25,3 +25,9 @@ import CenumsNSOptions
 // CHECK: struct HasNSOptionField {
 // CHECK:   var bar: Bar
 // CHECK: }
+
+// CHECK: class HasNSOptionFieldObjC {
+// CHECK-NEXT:   var bar: Bar
+// CHECK-NEXT:   class func bar() -> Bar
+// CHECK-NEXT:   class func setBar(_ bar: Bar)
+// CHECK-NEXT: }

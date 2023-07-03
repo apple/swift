@@ -172,7 +172,7 @@ public:
     // FIXME: Ideally, everywhere that synthesizes a function should include
     // its capture info.
     if (!hasBeenComputed())
-      return None;
+      return llvm::None;
     return StorageAndFlags.getPointer()->getCaptures();
   }
 

@@ -1,5 +1,4 @@
-// RUN: %swift %use_no_opaque_pointers -module-name bridge_object -emit-ir -target armv7-apple-ios8.0 -disable-legacy-type-info %s | %FileCheck %s
-// RUN: %swift -module-name bridge_object -emit-ir -target armv7-apple-ios8.0 -disable-legacy-type-info %s
+// RUN: %swift -module-name bridge_object -emit-ir -target armv7-apple-ios8.0 -disable-legacy-type-info %s | %FileCheck %s
 
 // REQUIRES: CODEGENERATOR=ARM
 
@@ -25,10 +24,10 @@ entry(%c : $C, %w : $Builtin.Word):
   return %b : $Builtin.BridgeObject
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc { %objc_object*, i32 } @convert_from_bridge_object
-// CHECK:         [[BOBITS:%.*]] = ptrtoint [[BRIDGE:%swift.bridge\*]] %0 to i32
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc { ptr, i32 } @convert_from_bridge_object
+// CHECK:         [[BOBITS:%.*]] = ptrtoint ptr %0 to i32
 // CHECK:         [[MASKED_BITS:%.*]] = and i32 [[BOBITS]], -4
-// CHECK:         inttoptr i32 [[MASKED_BITS]] to [[C:%objc_object\*]]
+// CHECK:         inttoptr i32 [[MASKED_BITS]] to ptr
 sil @convert_from_bridge_object : $(Builtin.BridgeObject) -> (ObjC, Builtin.Word) {
 entry(%b : $Builtin.BridgeObject):
   %c = bridge_object_to_ref %b : $Builtin.BridgeObject to $ObjC

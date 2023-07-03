@@ -363,8 +363,8 @@ void Projection::getFirstLevelProjections(
 //                            Projection Path
 //===----------------------------------------------------------------------===//
 
-Optional<ProjectionPath> ProjectionPath::getProjectionPath(SILValue Start,
-                                                           SILValue End) {
+llvm::Optional<ProjectionPath> ProjectionPath::getProjectionPath(SILValue Start,
+                                                                 SILValue End) {
   ProjectionPath P(Start->getType(), End->getType());
 
   // If Start == End, there is a "trivial" projection path in between the
@@ -376,7 +376,7 @@ Optional<ProjectionPath> ProjectionPath::getProjectionPath(SILValue Start,
   // and unions. This is currently only associated with structs.
   if (Start->getType().aggregateHasUnreferenceableStorage() ||
       End->getType().aggregateHasUnreferenceableStorage())
-    return None;
+    return llvm::None;
 
   auto Iter = End;
   while (Start != Iter) {
@@ -405,7 +405,7 @@ Optional<ProjectionPath> ProjectionPath::getProjectionPath(SILValue Start,
   // ProjectionPath never allow paths to be compared as a list of indices.
   // Only the encoded type+index pair will be compared.
   if (P.empty() || Start != Iter)
-    return None;
+    return llvm::None;
 
   // Reverse to get a path from base to most-derived.
   std::reverse(P.Path.begin(), P.Path.end());
@@ -535,12 +535,12 @@ ProjectionPath::computeSubSeqRelation(const ProjectionPath &RHS) const {
   return SubSeqRelation_t::RHSStrictSubSeqOfLHS;
 }
 
-Optional<ProjectionPath>
+llvm::Optional<ProjectionPath>
 ProjectionPath::removePrefix(const ProjectionPath &Path,
                              const ProjectionPath &Prefix) {
   // We can only subtract paths that have the same base.
   if (Path.BaseType != Prefix.BaseType)
-    return None;
+    return llvm::None;
 
   // If Prefix is greater than or equal to Path in size, Prefix can not be a
   // prefix of Path. Return None.
@@ -548,10 +548,10 @@ ProjectionPath::removePrefix(const ProjectionPath &Path,
   unsigned PathSize = Path.size();
 
   if (PrefixSize >= PathSize)
-    return None;
+    return llvm::None;
 
   // First make sure that the prefix matches.
-  Optional<ProjectionPath> P = ProjectionPath(Path.BaseType);
+  llvm::Optional<ProjectionPath> P = ProjectionPath(Path.BaseType);
   for (unsigned i = 0; i < PrefixSize; ++i) {
     if (Path.Path[i] != Prefix.Path[i]) {
       P.reset();

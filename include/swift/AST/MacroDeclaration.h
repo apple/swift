@@ -58,6 +58,9 @@ enum class MacroRole: uint32_t {
   /// A freestanding macro that expands to expressions, statements and
   /// declarations in a code block.
   CodeItem = 0x80,
+  /// An attached macro that adds extensions to the declaration the
+  /// macro is attached to.
+  Extension = 0x100,
 
   // NOTE: When adding a new macro role, also add it to `getAllMacroRoles`.
 };

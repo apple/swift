@@ -497,7 +497,7 @@ public:
   /// CleanupUninitializedBox cleanup that will be replaced when
   /// initialization is completed.
   LocalVariableInitialization(VarDecl *decl,
-                              Optional<MarkUninitializedInst::Kind> kind,
+                              llvm::Optional<MarkUninitializedInst::Kind> kind,
                               uint16_t ArgNo, bool generateDebugInfo,
                               SILGenFunction &SGF)
       : decl(decl) {
@@ -534,8 +534,8 @@ public:
 
     // The variable may have its lifetime extended by a closure, heap-allocate
     // it using a box.
-    
-    Optional<SILDebugVariable> DbgVar;
+
+    llvm::Optional<SILDebugVariable> DbgVar;
     if (generateDebugInfo)
       DbgVar = SILDebugVariable(decl->isLet(), ArgNo);
     Box = SGF.B.createAllocBox(
@@ -1469,7 +1469,7 @@ SILGenFunction::emitInitializationForVarDecl(VarDecl *vd, bool forceImmutable,
     VarLocs[vd] = SILGenFunction::VarLoc::get(addr);
     Result = InitializationPtr(new KnownAddressInitialization(addr));
   } else {
-    Optional<MarkUninitializedInst::Kind> uninitKind;
+    llvm::Optional<MarkUninitializedInst::Kind> uninitKind;
     if (isUninitialized) {
       uninitKind = MarkUninitializedInst::Kind::Var;
     }
@@ -1975,8 +1975,8 @@ CleanupHandle SILGenFunction::enterAsyncLetCleanup(SILValue alet,
 
 /// Create a LocalVariableInitialization for the uninitialized var.
 InitializationPtr SILGenFunction::emitLocalVariableWithCleanup(
-    VarDecl *vd, Optional<MarkUninitializedInst::Kind> kind, unsigned ArgNo,
-    bool generateDebugInfo) {
+    VarDecl *vd, llvm::Optional<MarkUninitializedInst::Kind> kind,
+    unsigned ArgNo, bool generateDebugInfo) {
   return InitializationPtr(new LocalVariableInitialization(
       vd, kind, ArgNo, generateDebugInfo, *this));
 }

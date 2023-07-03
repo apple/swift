@@ -653,7 +653,8 @@ static bool isInlineAlwaysCallSite(SILFunction *Callee, int numCallerBlocks) {
 /// It returns false if a function should not be inlined.
 /// It returns None if the decision cannot be made without a more complex
 /// analysis.
-static Optional<bool> shouldInlineGeneric(FullApplySite AI, int numCallerBlocks) {
+static llvm::Optional<bool> shouldInlineGeneric(FullApplySite AI,
+                                                int numCallerBlocks) {
   assert(AI.hasSubstitutions() &&
          "Expected a generic apply");
 
@@ -688,7 +689,7 @@ static Optional<bool> shouldInlineGeneric(FullApplySite AI, int numCallerBlocks)
     // enable inlining them in a generic context. Though the final inlining
     // decision is done by the usual heuristics. Therefore we return None and
     // not true.
-    return None;
+    return llvm::None;
   }
 
   // The returned partial_apply of a thunk is most likely being optimized away
@@ -704,7 +705,7 @@ static Optional<bool> shouldInlineGeneric(FullApplySite AI, int numCallerBlocks)
     return false;
 
   // It is not clear yet if this function should be decided or not.
-  return None;
+  return llvm::None;
 }
 
 bool SILPerformanceInliner::decideInWarmBlock(

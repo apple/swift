@@ -456,7 +456,7 @@ typedef const void *PluginCapabilityPtr;
 
 /// Set a capability data to the plugin object. Since the data is just a opaque
 /// pointer, it's not used in AST at all.
-void Plugin_setCapability(PluginHandle handle, PluginCapabilityPtr data);
+void Plugin_setCapability(PluginHandle handle, PluginCapabilityPtr _Nullable data);
 
 /// Get a capability data set by \c Plugin_setCapability .
 PluginCapabilityPtr _Nullable Plugin_getCapability(PluginHandle handle);

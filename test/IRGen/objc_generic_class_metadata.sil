@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) %use_no_opaque_pointers %s -emit-ir | %FileCheck %s -DINT=i%target-ptrsize
-// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) %s -emit-ir
+// RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) %s -emit-ir | %FileCheck %s -DINT=i%target-ptrsize
 
 // REQUIRES: objc_interop
 
@@ -10,11 +9,11 @@ import Foundation
 import objc_generics
 
 // CHECK-LABEL: @"OBJC_METACLASS_$__TtC27objc_generic_class_metadata8Subclass" = hidden global %objc_class
-// CHECK:         %objc_class* @"OBJC_METACLASS_$_NSObject"
-// CHECK:         %objc_class* @"OBJC_METACLASS_$_GenericClass"
+// CHECK:         ptr @"OBJC_METACLASS_$_NSObject"
+// CHECK:         ptr @"OBJC_METACLASS_$_GenericClass"
 // CHECK-LABEL: @"$s27objc_generic_class_metadata8SubclassCMf" = internal global
-// CHECK:         %objc_class* @"OBJC_METACLASS_$__TtC27objc_generic_class_metadata8Subclass"
-// CHECK:         %objc_class* @"OBJC_CLASS_$_GenericClass"
+// CHECK:         ptr @"OBJC_METACLASS_$__TtC27objc_generic_class_metadata8Subclass"
+// CHECK:         ptr @"OBJC_CLASS_$_GenericClass"
 class Subclass: GenericClass<NSString> {}
 
 sil_vtable Subclass {}
@@ -30,28 +29,28 @@ entry:
 
   // All instances of the generic ObjC class are erased to the same metadata
   // at runtime.
-  // CHECK: [[METADATA:%.*]] = call {{.*}} @__swift_instantiateConcreteTypeFromMangledName{{.*}}({{.*}} @"$sSo12GenericClassCMD")
+  // CHECK: [[METADATA:%[0-9]+]] = call ptr @__swift_instantiateConcreteTypeFromMangledName(ptr @"$sSo12GenericClassCMD")
   %a = metatype $@thick GenericClass<NSString>.Type
-  // CHECK: call swiftcc void @metatype_sink(%swift.type* [[METADATA]], %swift.type* [[METADATA]])
+  // CHECK: call swiftcc void @metatype_sink(ptr [[METADATA]], ptr [[METADATA]])
   apply %z<GenericClass<NSString>>(%a) : $@convention(thin) <T> (@thick T.Type) -> ()
 
-  // CHECK: call swiftcc void @metatype_sink(%swift.type* [[METADATA]], %swift.type* [[METADATA]])
+  // CHECK: call swiftcc void @metatype_sink(ptr [[METADATA]], ptr [[METADATA]])
   %b = metatype $@thick GenericClass<NSObject>.Type
   apply %z<GenericClass<NSObject>>(%b) : $@convention(thin) <T> (@thick T.Type) -> ()
 
-  // CHECK: [[T0:%.*]] = load %objc_class*, %objc_class** @"OBJC_CLASS_REF_$_GenericClass",
-  // CHECK: [[OBJC_CLASS:%.*]] = call %objc_class* @{{.*}}(%objc_class* [[T0]])
-  // CHECK: call swiftcc void @objc_class_sink(%objc_class* [[OBJC_CLASS]], %swift.type* [[METADATA]])
+  // CHECK: [[T0:%.*]] = load ptr, ptr @"OBJC_CLASS_REF_$_GenericClass",
+  // CHECK: [[OBJC_CLASS:%.*]] = call ptr @{{.*}}(ptr [[T0]])
+  // CHECK: call swiftcc void @objc_class_sink(ptr [[OBJC_CLASS]], ptr [[METADATA]])
   %c = metatype $@objc_metatype GenericClass<NSString>.Type
   apply %y<GenericClass<NSString>>(%c) : $@convention(thin) <T: AnyObject> (@objc_metatype T.Type) -> ()
 
   // Check that generic classes are erased at depth.
   // CHECK: [[TUPLE_METADATA:%.*]] = call {{.*}} @__swift_instantiateConcreteTypeFromMangledName{{.*}}({{.*}} @"$sSaySo12GenericClassC_SitGMD")
   %d = metatype $@thick Array<(GenericClass<NSString>, Int)>.Type
-  // CHECK: call swiftcc void @metatype_sink(%swift.type* [[TUPLE_METADATA]], %swift.type* [[TUPLE_METADATA]])
+  // CHECK: call swiftcc void @metatype_sink(ptr [[TUPLE_METADATA]], ptr [[TUPLE_METADATA]])
   apply %z<Array<(GenericClass<NSString>, Int)>>(%d) : $@convention(thin) <T> (@thick T.Type) -> ()
   %e = metatype $@thick Array<(GenericClass<NSObject>, Int)>.Type
-  // CHECK: call swiftcc void @metatype_sink(%swift.type* [[TUPLE_METADATA]], %swift.type* [[TUPLE_METADATA]])
+  // CHECK: call swiftcc void @metatype_sink(ptr [[TUPLE_METADATA]], ptr [[TUPLE_METADATA]])
   apply %z<Array<(GenericClass<NSObject>, Int)>>(%e) : $@convention(thin) <T> (@thick T.Type) -> ()
 
   return undef : $()
@@ -81,13 +80,11 @@ class K<T> {}
 
 sil @$useMeta : $@convention(thin) <P> () -> ()
 
-// CHECK-LABEL: define void @an_objc_method(i8* %0, i8* %1)
-// CHECK:   [[C:%.*]] = bitcast i8* %0 to %objc_class*
-// CHECK:   [[M:%.*]] = call %swift.type* @swift_getObjCClassMetadata(%objc_class* [[C]])
-// CHECK:   [[M2:%.*]] = bitcast %swift.type* [[M]] to %swift.type**
-// CHECK:   [[P:%.*]] = getelementptr inbounds %swift.type*, %swift.type** [[M2]]
-// CHECK:   [[P2:%.*]] = load %swift.type*, %swift.type** [[P]]
-// CHECK:   call swiftcc void @"$useMeta"(%swift.type* [[P2]])
+// CHECK-LABEL: define void @an_objc_method(ptr %0, ptr %1)
+// CHECK:   [[M:%.*]] = call ptr @swift_getObjCClassMetadata(ptr %0)
+// CHECK:   [[P:%.*]] = getelementptr inbounds ptr, ptr [[M]],
+// CHECK:   [[P2:%.*]] = load ptr, ptr [[P]]
+// CHECK:   call swiftcc void @"$useMeta"(ptr [[P2]])
 // CHECK:   ret void
 sil @an_objc_method : $@convention(objc_method) <P> (@objc_metatype K<P>.Type) -> () {
 bb0(%0 :  $@objc_metatype K<P>.Type):
@@ -99,10 +96,8 @@ bb0(%0 :  $@objc_metatype K<P>.Type):
 public class D {
 }
 
-// CHECK: define void @testDynamicSelfMetatype(i8* %0, i8* %1)
-// CHECK:   [[T0:%.*]] = bitcast {{.*}} %0
-// CHECK:   [[T1:%.*]] = bitcast {{.*}} [[T0]]
-// CHECK:   [[TYPE:%.*]] = load {{.*}} [[T1]]
+// CHECK: define void @testDynamicSelfMetatype(ptr %0, ptr %1)
+// CHECK:   [[TYPE:%.*]] = load {{.*}} %0
 sil @testDynamicSelfMetatype : $@convention(objc_method) (@owned D) -> () {
 bb0(%0 : $D):
   %1 = metatype $@thick @dynamic_self D.Type

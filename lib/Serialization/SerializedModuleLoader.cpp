@@ -50,7 +50,7 @@ void forEachTargetModuleBasename(const ASTContext &Ctx,
   auto normalizedTarget = getTargetSpecificModuleTriple(Ctx.LangOpts.Target);
 
   // An arm64 module can import an arm64e module.
-  Optional<llvm::Triple> normalizedAltTarget;
+  llvm::Optional<llvm::Triple> normalizedAltTarget;
   if ((normalizedTarget.getArch() == llvm::Triple::ArchType::aarch64) &&
       (normalizedTarget.getSubArch() !=
        llvm::Triple::SubArchType::AArch64SubArch_arm64e)) {
@@ -86,10 +86,10 @@ void forEachTargetModuleBasename(const ASTContext &Ctx,
 
 /// Apply \p body for each module search path in \p Ctx until \p body returns
 /// non-None value. Returns the return value from \p body, or \c None.
-Optional<bool> forEachModuleSearchPath(
+llvm::Optional<bool> forEachModuleSearchPath(
     const ASTContext &Ctx,
-    llvm::function_ref<Optional<bool>(StringRef, ModuleSearchPathKind,
-                                      bool isSystem)>
+    llvm::function_ref<llvm::Optional<bool>(StringRef, ModuleSearchPathKind,
+                                            bool isSystem)>
         callback) {
   for (const auto &path : Ctx.SearchPathOpts.getImportSearchPaths())
     if (auto result =
@@ -118,7 +118,7 @@ Optional<bool> forEachModuleSearchPath(
       return result;
   }
 
-  return None;
+  return llvm::None;
 }
 } // end unnamed namespace
 
@@ -203,7 +203,7 @@ void SerializedModuleLoaderBase::collectVisibleTopLevelModuleNamesImpl(
         auto name = llvm::sys::path::filename(path).drop_back(pathExt.size());
         names.push_back(Ctx.getIdentifier(name));
       });
-      return None;
+      return llvm::None;
     }
     case ModuleSearchPathKind::RuntimeLibrary: {
       // Look for:
@@ -230,7 +230,7 @@ void SerializedModuleLoaderBase::collectVisibleTopLevelModuleNamesImpl(
         auto name = llvm::sys::path::filename(path).drop_back(pathExt.size());
         names.push_back(Ctx.getIdentifier(name));
       });
-      return None;
+      return llvm::None;
     }
     case ModuleSearchPathKind::Framework:
     case ModuleSearchPathKind::DarwinImplicitFramework: {
@@ -252,7 +252,7 @@ void SerializedModuleLoaderBase::collectVisibleTopLevelModuleNamesImpl(
 
         names.push_back(Ctx.getIdentifier(name));
       });
-      return None;
+      return llvm::None;
     }
     }
     llvm_unreachable("covered switch");
@@ -628,7 +628,7 @@ bool SerializedModuleLoaderBase::findModule(
   /// was diagnosed, or None if neither one happened and the search should
   /// continue.
   auto findTargetSpecificModuleFiles = [&](bool IsFramework) -> SearchResult {
-    Optional<SerializedModuleBaseName> firstAbsoluteBaseName;
+    llvm::Optional<SerializedModuleBaseName> firstAbsoluteBaseName;
 
     for (const auto &targetSpecificBaseName : targetSpecificBaseNames) {
       SerializedModuleBaseName
@@ -782,8 +782,8 @@ getOSAndVersionForDiagnostics(const llvm::Triple &triple) {
 }
 
 LoadedFile *SerializedModuleLoaderBase::loadAST(
-    ModuleDecl &M, Optional<SourceLoc> diagLoc, StringRef moduleInterfacePath,
-    StringRef moduleInterfaceSourcePath,
+    ModuleDecl &M, llvm::Optional<SourceLoc> diagLoc,
+    StringRef moduleInterfacePath, StringRef moduleInterfaceSourcePath,
     std::unique_ptr<llvm::MemoryBuffer> moduleInputBuffer,
     std::unique_ptr<llvm::MemoryBuffer> moduleDocInputBuffer,
     std::unique_ptr<llvm::MemoryBuffer> moduleSourceInfoInputBuffer,
@@ -1625,7 +1625,7 @@ void SerializedASTFile::lookupObjCMethods(
   File.lookupObjCMethods(selector, results);
 }
 
-Optional<Fingerprint>
+llvm::Optional<Fingerprint>
 SerializedASTFile::loadFingerprint(const IterableDeclContext *IDC) const {
   return File.loadFingerprint(IDC);
 }
@@ -1647,7 +1647,7 @@ void SerializedASTFile::lookupImportedSPIGroups(
   }
 }
 
-Optional<CommentInfo>
+llvm::Optional<CommentInfo>
 SerializedASTFile::getCommentForDecl(const Decl *D) const {
   return File.getCommentForDecl(D);
 }
@@ -1656,23 +1656,22 @@ bool SerializedASTFile::hasLoadedSwiftDoc() const {
   return File.hasLoadedSwiftDoc();
 }
 
-Optional<ExternalSourceLocs::RawLocs>
+llvm::Optional<ExternalSourceLocs::RawLocs>
 SerializedASTFile::getExternalRawLocsForDecl(const Decl *D) const {
   return File.getExternalRawLocsForDecl(D);
 }
 
-Optional<StringRef>
+llvm::Optional<StringRef>
 SerializedASTFile::getGroupNameForDecl(const Decl *D) const {
   return File.getGroupNameForDecl(D);
 }
 
-
-Optional<StringRef>
+llvm::Optional<StringRef>
 SerializedASTFile::getSourceFileNameForDecl(const Decl *D) const {
   return File.getSourceFileNameForDecl(D);
 }
 
-Optional<unsigned>
+llvm::Optional<unsigned>
 SerializedASTFile::getSourceOrderForDecl(const Decl *D) const {
   return File.getSourceOrderForDecl(D);
 }
@@ -1682,7 +1681,7 @@ void SerializedASTFile::collectAllGroups(
   File.collectAllGroups(Names);
 }
 
-Optional<StringRef>
+llvm::Optional<StringRef>
 SerializedASTFile::getGroupNameByUSR(StringRef USR) const {
   return File.getGroupNameByUSR(USR);
 }

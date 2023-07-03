@@ -674,8 +674,8 @@ void TypeChecker::computeCaptures(AnyFunctionRef AFR) {
         AFD->diagnose(diag::objc_generic_extension_using_type_parameter);
 
         // If it's possible, suggest adding @objc.
-        Optional<ForeignAsyncConvention> asyncConvention;
-        Optional<ForeignErrorConvention> errorConvention;
+        llvm::Optional<ForeignAsyncConvention> asyncConvention;
+        llvm::Optional<ForeignErrorConvention> errorConvention;
         if (!AFD->isObjC() &&
             isRepresentableInObjC(AFD, ObjCReason::MemberOfObjCMembersClass,
                                   asyncConvention, errorConvention)) {

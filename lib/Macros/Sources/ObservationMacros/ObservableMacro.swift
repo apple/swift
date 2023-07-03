@@ -17,7 +17,7 @@ import SwiftSyntaxMacros
 @_implementationOnly import SwiftSyntaxBuilder
 
 public struct ObservableMacro {
-  static let moduleName = "_Observation"
+  static let moduleName = "Observation"
 
   static let conformanceName = "Observable"
   static var qualifiedConformanceName: String {

@@ -574,11 +574,12 @@ public:
   /// arguments along with their symbolic values when available.
   /// \param allocator the allocator to use for storing the contents of this
   /// symbolic value.
-  static SymbolicValue makeClosure(
-      SILFunction *target,
-      ArrayRef<std::pair<SILValue, Optional<SymbolicValue>>> capturedArguments,
-      SubstitutionMap substMap, SingleValueInstruction *closureInst,
-      SymbolicValueAllocator &allocator);
+  static SymbolicValue
+  makeClosure(SILFunction *target,
+              ArrayRef<std::pair<SILValue, llvm::Optional<SymbolicValue>>>
+                  capturedArguments,
+              SubstitutionMap substMap, SingleValueInstruction *closureInst,
+              SymbolicValueAllocator &allocator);
 
   SymbolicClosure *getClosure() const {
     assert(getKind() == Closure);
@@ -670,7 +671,8 @@ private:
   void operator=(const SymbolicValueMemoryObject &) = delete;
 };
 
-using SymbolicClosureArgument = std::pair<SILValue, Optional<SymbolicValue>>;
+using SymbolicClosureArgument =
+    std::pair<SILValue, llvm::Optional<SymbolicValue>>;
 
 /// Representation of a symbolic closure. A symbolic closure consists of a
 /// SILFunction and an array of SIL values, corresponding to the captured

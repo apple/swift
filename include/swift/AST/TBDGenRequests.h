@@ -216,10 +216,10 @@ class SymbolSourceMap {
   }
 
 public:
-  Optional<SymbolSource> find(StringRef symbol) const {
+  llvm::Optional<SymbolSource> find(StringRef symbol) const {
     auto result = storage->find(symbol);
     if (result == storage->end())
-      return None;
+      return llvm::None;
     return result->second;
   }
 

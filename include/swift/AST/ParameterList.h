@@ -130,7 +130,7 @@ public:
   /// Make a duplicate copy of this parameter list.  This allocates copies of
   /// the ParamDecls, so they can be reparented into a new DeclContext.
   ParameterList *clone(const ASTContext &C,
-                       OptionSet<CloneFlags> options = None) const;
+                       OptionSet<CloneFlags> options = llvm::None) const;
 
   /// Return a list of function parameters for this parameter list,
   /// based on the interface types of the parameters in this list.

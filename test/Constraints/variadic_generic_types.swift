@@ -29,3 +29,30 @@ struct MissingMemberError<each T> {
     // expected-error@-1 {{value of type 'MissingMemberError<repeat each T>' has no member 'doesNotExist'}}
   }
 }
+
+// https://github.com/apple/swift/issues/66095
+do {
+  struct Test<each S> {
+    init(_ s: repeat each S) {}
+  }
+
+  func test1<each T>(_ v: repeat each T) -> Test<repeat each T> {
+    return Test(repeat each v) // Ok
+  }
+
+  func test2<each T>(_ v: repeat each T) -> Test<repeat each T> {
+    return Test<repeat each T>(repeat each v) // Ok
+  }
+
+  func test3<each T>(_ v: repeat each T) -> Test<String, repeat each T, Int> {
+    return Test("a", repeat each v, 42) // Ok
+  }
+
+  func test4<each T>(_ v: repeat each T) -> Test<repeat each T, String, Int> {
+    return Test<repeat each T, String, Int>(repeat each v, "a", 42) // Ok
+  }
+
+  func test5<each T>(_ v: repeat each T) -> Test<String, Int, repeat each T> {
+    return Test<String, Int, repeat each T>("a", 42, repeat each v) // Ok
+  }
+}

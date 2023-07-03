@@ -409,7 +409,6 @@ public:
   /// Return the SIL argument convention of apply/entry argument at
   /// the given argument index.
   SILArgumentConvention getSILArgumentConvention(unsigned index) const;
-  // See SILArgument.h.
 
   /// Return the SIL type of the apply/entry argument at the given index.
   SILType getSILArgumentType(unsigned index,

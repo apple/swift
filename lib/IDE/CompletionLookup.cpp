@@ -325,7 +325,7 @@ void CompletionLookup::collectImportedModules(
 }
 
 void CompletionLookup::addModuleName(
-    ModuleDecl *MD, Optional<ContextualNotRecommendedReason> R) {
+    ModuleDecl *MD, llvm::Optional<ContextualNotRecommendedReason> R) {
 
   // Don't add underscored cross-import overlay modules.
   if (MD->getDeclaringModuleIfCrossImportOverlay())
@@ -368,7 +368,7 @@ void CompletionLookup::addImportModuleNames() {
     auto MD = ModuleDecl::create(ModuleName, Ctx);
     MD->setFailedToLoad();
 
-    Optional<ContextualNotRecommendedReason> Reason = None;
+    llvm::Optional<ContextualNotRecommendedReason> Reason = llvm::None;
 
     // Imported modules are not recommended.
     if (directImportedModules.contains(MD->getNameStr())) {
@@ -749,7 +749,7 @@ Type CompletionLookup::getAssociatedTypeType(const AssociatedTypeDecl *ATD) {
 
 void CompletionLookup::analyzeActorIsolation(
     const ValueDecl *VD, Type T, bool &implicitlyAsync,
-    Optional<ContextualNotRecommendedReason> &NotRecommended) {
+    llvm::Optional<ContextualNotRecommendedReason> &NotRecommended) {
   auto isolation = getActorIsolation(const_cast<ValueDecl *>(VD));
 
   switch (isolation.getKind()) {
@@ -838,7 +838,7 @@ void CompletionLookup::addVarDeclRef(const VarDecl *VD,
     VarType = getTypeOfMember(VD, dynamicLookupInfo);
   }
 
-  Optional<ContextualNotRecommendedReason> NotRecommended;
+  llvm::Optional<ContextualNotRecommendedReason> NotRecommended;
   // "not recommended" in its own getter.
   if (Kind == LookupKind::ValueInDeclContext) {
     if (auto accessor = dyn_cast<AccessorDecl>(CurrDeclContext)) {
@@ -1095,7 +1095,7 @@ void CompletionLookup::addEffectsSpecifiers(
     Builder.addAnnotatedThrows();
 }
 
-void CompletionLookup::addPoundAvailable(Optional<StmtKind> ParentKind) {
+void CompletionLookup::addPoundAvailable(llvm::Optional<StmtKind> ParentKind) {
   if (ParentKind != StmtKind::If && ParentKind != StmtKind::Guard)
     return;
   CodeCompletionResultBuilder Builder = makeResultBuilder(
@@ -1177,7 +1177,7 @@ CompletionLookup::getSemanticContextKind(const ValueDecl *VD) {
 
 void CompletionLookup::addSubscriptCallPattern(
     const AnyFunctionType *AFT, const SubscriptDecl *SD,
-    const Optional<SemanticContextKind> SemanticContext) {
+    const llvm::Optional<SemanticContextKind> SemanticContext) {
   foundFunction(AFT);
   GenericSignature genericSig;
   if (SD)
@@ -1214,7 +1214,7 @@ void CompletionLookup::addSubscriptCallPattern(
 
 void CompletionLookup::addFunctionCallPattern(
     const AnyFunctionType *AFT, const AbstractFunctionDecl *AFD,
-    const Optional<SemanticContextKind> SemanticContext) {
+    const llvm::Optional<SemanticContextKind> SemanticContext) {
   GenericSignature genericSig;
   if (AFD)
     genericSig = AFD->getGenericSignatureOfContext();
@@ -1363,7 +1363,7 @@ void CompletionLookup::addMethodCall(const FuncDecl *FD,
   if (AFT && !IsImplicitlyCurriedInstanceMethod)
     trivialTrailingClosure = hasTrivialTrailingClosure(FD, AFT);
 
-  Optional<ContextualNotRecommendedReason> NotRecommended;
+  llvm::Optional<ContextualNotRecommendedReason> NotRecommended;
   bool implictlyAsync = false;
   analyzeActorIsolation(FD, AFT, implictlyAsync, NotRecommended);
 
@@ -1496,9 +1496,9 @@ void CompletionLookup::addMethodCall(const FuncDecl *FD,
 void CompletionLookup::addConstructorCall(const ConstructorDecl *CD,
                                           DeclVisibilityKind Reason,
                                           DynamicLookupInfo dynamicLookupInfo,
-                                          Optional<Type> BaseType,
-                                          Optional<Type> Result, bool IsOnType,
-                                          Identifier addName) {
+                                          llvm::Optional<Type> BaseType,
+                                          llvm::Optional<Type> Result,
+                                          bool IsOnType, Identifier addName) {
   foundFunction(CD);
   Type MemberType = getTypeOfMember(CD, BaseType.value_or(ExprType));
   AnyFunctionType *ConstructorType = nullptr;
@@ -1605,7 +1605,7 @@ void CompletionLookup::addConstructorCallsForType(
     if (init->shouldHideFromEditor())
       continue;
     addConstructorCall(cast<ConstructorDecl>(init), Reason, dynamicLookupInfo,
-                       type, None,
+                       type, llvm::None,
                        /*IsOnType=*/true, name);
   }
 }
@@ -1627,7 +1627,7 @@ void CompletionLookup::addSubscriptCall(const SubscriptDecl *SD,
   if (!subscriptType)
     return;
 
-  Optional<ContextualNotRecommendedReason> NotRecommended;
+  llvm::Optional<ContextualNotRecommendedReason> NotRecommended;
   bool implictlyAsync = false;
   analyzeActorIsolation(SD, subscriptType, implictlyAsync, NotRecommended);
 
@@ -1659,7 +1659,7 @@ void CompletionLookup::addSubscriptCall(const SubscriptDecl *SD,
   Type resultTy = subscriptType->getResult();
   if (IsDynamicLookup) {
     // Values of properties that were found on a AnyObject have
-    // Optional<T> type.
+    // llvm::Optional<T> type.
     resultTy = OptionalType::get(resultTy);
   }
 
@@ -1996,7 +1996,7 @@ void CompletionLookup::foundDecl(ValueDecl *D, DeclVisibilityKind Reason,
 
         // If instance type is type alias, show users that the constructed
         // type is the typealias instead of the underlying type of the alias.
-        Optional<Type> Result = None;
+        llvm::Optional<Type> Result = llvm::None;
         if (!CD->getInterfaceType()->is<ErrorType>() &&
             isa<TypeAliasType>(Ty.getPointer()) &&
             Ty->getDesugaredType() ==
@@ -2009,12 +2009,12 @@ void CompletionLookup::foundDecl(ValueDecl *D, DeclVisibilityKind Reason,
         // and either the initializer is required, the base type's instance type
         // is not a class, or this is a 'self' or 'super' reference.
         if (IsStaticMetatype || IsUnresolvedMember || Ty->is<ArchetypeType>())
-          addConstructorCall(CD, Reason, dynamicLookupInfo, None, Result,
+          addConstructorCall(CD, Reason, dynamicLookupInfo, llvm::None, Result,
                              /*isOnType*/ true);
         else if ((IsSelfRefExpr || IsSuperRefExpr || !Ty->is<ClassType>() ||
                   CD->isRequired()) &&
                  !HaveLParen)
-          addConstructorCall(CD, Reason, dynamicLookupInfo, None, Result,
+          addConstructorCall(CD, Reason, dynamicLookupInfo, llvm::None, Result,
                              /*isOnType*/ false);
         return;
       }
@@ -2032,7 +2032,8 @@ void CompletionLookup::foundDecl(ValueDecl *D, DeclVisibilityKind Reason,
             return;
         }
         if (IsSelfRefExpr || IsSuperRefExpr)
-          addConstructorCall(CD, Reason, dynamicLookupInfo, None, None,
+          addConstructorCall(CD, Reason, dynamicLookupInfo, llvm::None,
+                             llvm::None,
                              /*IsOnType=*/false);
       }
       return;
@@ -2213,7 +2214,7 @@ bool CompletionLookup::tryTupleExprCompletions(Type ExprType) {
 
 bool CompletionLookup::tryFunctionCallCompletions(
     Type ExprType, const ValueDecl *VD,
-    Optional<SemanticContextKind> SemanticContext) {
+    llvm::Optional<SemanticContextKind> SemanticContext) {
   ExprType = ExprType->getRValueType();
   if (auto AFT = ExprType->getAs<AnyFunctionType>()) {
     if (auto *AFD = dyn_cast_or_null<AbstractFunctionDecl>(VD)) {
@@ -2972,7 +2973,7 @@ void CompletionLookup::getGenericRequirementCompletions(
 
 bool CompletionLookup::canUseAttributeOnDecl(DeclAttrKind DAK, bool IsInSil,
                                              bool IsConcurrencyEnabled,
-                                             Optional<DeclKind> DK,
+                                             llvm::Optional<DeclKind> DK,
                                              StringRef Name) {
   if (DeclAttribute::isUserInaccessible(DAK))
     return false;
@@ -2994,8 +2995,8 @@ bool CompletionLookup::canUseAttributeOnDecl(DeclAttrKind DAK, bool IsInSil,
   return DeclAttribute::canAttributeAppearOnDeclKind(DAK, DK.value());
 }
 
-void CompletionLookup::getAttributeDeclCompletions(bool IsInSil,
-                                                   Optional<DeclKind> DK) {
+void CompletionLookup::getAttributeDeclCompletions(
+    bool IsInSil, llvm::Optional<DeclKind> DK) {
   // FIXME: also include user-defined attribute keywords
   StringRef TargetName = "Declaration";
   if (DK.has_value()) {

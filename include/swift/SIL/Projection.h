@@ -40,7 +40,7 @@ namespace swift {
 class SILBuilder;
 class ProjectionPath;
 using ProjectionPathSet = llvm::DenseSet<ProjectionPath>;
-using ProjectionPathList = llvm::SmallVector<Optional<ProjectionPath>, 8>;
+using ProjectionPathList = llvm::SmallVector<llvm::Optional<ProjectionPath>, 8>;
 
 enum class SubSeqRelation_t : uint8_t {
   Unknown,
@@ -570,8 +570,8 @@ public:
   /// *NOTE* This method allows for transitions from object types to address
   /// types via ref_element_addr. If Start is an address type though, End will
   /// always also be an address type.
-  static Optional<ProjectionPath> getProjectionPath(SILValue Start,
-                                                    SILValue End);
+  static llvm::Optional<ProjectionPath> getProjectionPath(SILValue Start,
+                                                          SILValue End);
 
   /// Treating a projection path as an ordered set, if RHS is a prefix of LHS,
   /// return the projection path with that prefix removed.
@@ -579,7 +579,7 @@ public:
   /// An example of this transformation would be:
   ///
   /// LHS = [A, B, C, D, E], RHS = [A, B, C] => Result = [D, E]
-  static Optional<ProjectionPath>
+  static llvm::Optional<ProjectionPath>
   removePrefix(const ProjectionPath &Path, const ProjectionPath &Prefix);
 
   /// Given the SILType Base, expand every leaf nodes in the type tree.
@@ -765,7 +765,7 @@ public:
     return llvm::makeArrayRef(ChildProjections);
   }
 
-  Optional<Projection> &getProjection() { return Proj; }
+  llvm::Optional<Projection> &getProjection() { return Proj; }
 
   const ArrayRef<Operand *> getNonProjUsers() const {
     return llvm::makeArrayRef(NonProjUsers);

@@ -28,19 +28,6 @@ class SILPhiArgument;
 class SILUndef;
 class TermInst;
 
-// Map an argument index onto a SILArgumentConvention.
-inline SILArgumentConvention
-SILFunctionConventions::getSILArgumentConvention(unsigned index) const {
-  assert(index <= getNumSILArguments());
-  if (index < getNumIndirectSILResults()) {
-    assert(silConv.loweredAddresses);
-    return SILArgumentConvention::Indirect_Out;
-  } else {
-    auto param = funcTy->getParameters()[index - getNumIndirectSILResults()];
-    return SILArgumentConvention(param.getConvention());
-  }
-}
-
 struct SILArgumentKind {
   enum innerty : std::underlying_type<ValueKind>::type {
 #define ARGUMENT(ID, PARENT) ID = unsigned(SILNodeKind::ID),
@@ -53,14 +40,14 @@ struct SILArgumentKind {
   SILArgumentKind(innerty value) : value(value) {}
   operator innerty() const { return value; }
 
-  static Optional<SILArgumentKind> fromValueKind(ValueKind kind) {
+  static llvm::Optional<SILArgumentKind> fromValueKind(ValueKind kind) {
     switch (kind) {
 #define ARGUMENT(ID, PARENT)                                                   \
   case ValueKind::ID:                                                          \
     return SILArgumentKind(ID);
 #include "swift/SIL/SILNodes.def"
     default:
-      return None;
+      return llvm::None;
     }
   }
 };

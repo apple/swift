@@ -211,8 +211,8 @@ public:
   /// opportunity to generate the initial value directly at the proper
   /// abstraction level, avoiding the need for a conversion in some
   /// circumstances.
-  virtual Optional<AbstractionPattern> getAbstractionPattern() const {
-    return None;
+  virtual llvm::Optional<AbstractionPattern> getAbstractionPattern() const {
+    return llvm::None;
   }
 
 protected:

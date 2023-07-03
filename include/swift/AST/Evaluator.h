@@ -41,8 +41,6 @@ class raw_ostream;
 namespace swift {
 
 using llvm::ArrayRef;
-using llvm::Optional;
-using llvm::None;
 
 class DiagnosticEngine;
 class Evaluator;

@@ -20,18 +20,19 @@
 #ifndef SWIFT_TYPE_H
 #define SWIFT_TYPE_H
 
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/DenseMapInfo.h"
-#include "llvm/ADT/Hashing.h"
-#include "llvm/ADT/STLExtras.h"
-#include "swift/Basic/Debug.h"
-#include "swift/Basic/LLVM.h"
-#include "swift/Basic/ArrayRefView.h"
 #include "swift/AST/LayoutConstraint.h"
 #include "swift/AST/PrintOptions.h"
 #include "swift/AST/TypeAlignments.h"
-#include "swift/Basic/OptionSet.h"
+#include "swift/Basic/ArrayRefView.h"
 #include "swift/Basic/Compiler.h"
+#include "swift/Basic/Debug.h"
+#include "swift/Basic/LLVM.h"
+#include "swift/Basic/OptionSet.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/DenseMapInfo.h"
+#include "llvm/ADT/Hashing.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/STLExtras.h"
 #include <functional>
 #include <string>
 
@@ -171,7 +172,7 @@ struct SubstOptions : public OptionSet<SubstFlags> {
   /// conformance with the state \c CheckingTypeWitnesses.
   GetTentativeTypeWitness getTentativeTypeWitness;
 
-  SubstOptions(llvm::NoneType) : OptionSet(None) { }
+  SubstOptions(llvm::NoneType) : OptionSet(llvm::None) {}
 
   SubstOptions(SubstFlags flags) : OptionSet(flags) { }
 
@@ -294,7 +295,8 @@ public:
   /// than \c getAs when the transform is intended to preserve sugar.
   ///
   /// \returns the result of transforming the type.
-  Type transformRec(llvm::function_ref<Optional<Type>(TypeBase *)> fn) const;
+  Type
+  transformRec(llvm::function_ref<llvm::Optional<Type>(TypeBase *)> fn) const;
 
   /// Transform the given type by recursively applying the user-provided
   /// function to each node.
@@ -311,7 +313,8 @@ public:
   /// \returns the result of transforming the type.
   Type transformWithPosition(
       TypePosition pos,
-      llvm::function_ref<Optional<Type>(TypeBase *, TypePosition)> fn) const;
+      llvm::function_ref<llvm::Optional<Type>(TypeBase *, TypePosition)> fn)
+      const;
 
   /// Look through the given type and its children and apply fn to them.
   void visit(llvm::function_ref<void (Type)> fn) const {
@@ -331,7 +334,7 @@ public:
   ///
   /// \returns the substituted type, or a null type if an error occurred.
   Type subst(SubstitutionMap substitutions,
-             SubstOptions options=None) const;
+             SubstOptions options = llvm::None) const;
 
   /// Replace references to substitutable types with new, concrete types and
   /// return the substituted result.
@@ -344,9 +347,8 @@ public:
   /// \param options Options that affect the substitutions.
   ///
   /// \returns the substituted type, or a null type if an error occurred.
-  Type subst(TypeSubstitutionFn substitutions,
-             LookupConformanceFn conformances,
-             SubstOptions options=None) const;
+  Type subst(TypeSubstitutionFn substitutions, LookupConformanceFn conformances,
+             SubstOptions options = llvm::None) const;
 
   /// Apply an in-flight substitution to this type.
   ///
@@ -399,7 +401,7 @@ public:
   /// that can express the join, or Any if the only join would be a
   /// more-general existential type, or None if we cannot yet compute a
   /// correct join but one better than Any may exist.
-  static Optional<Type> join(Type first, Type second);
+  static llvm::Optional<Type> join(Type first, Type second);
 
   friend llvm::hash_code hash_value(Type T) {
     return llvm::hash_value(T.getPointer());
@@ -661,17 +663,6 @@ inline CanTypeWrapper<X> dyn_cast_or_null(CanTypeWrapper<P> type) {
   return CanTypeWrapper<X>(dyn_cast_or_null<X>(type.getPointer()));
 }
 
-template <typename T>
-inline T *staticCastHelper(const Type &Ty) {
-  // The constructor of the ArrayRef<Type> must guarantee this invariant.
-  // XXX -- We use reinterpret_cast instead of static_cast so that files
-  // can avoid including Types.h if they want to.
-  return reinterpret_cast<T*>(Ty.getPointer());
-}
-/// TypeArrayView allows arrays of 'Type' to have a static type.
-template <typename T>
-using TypeArrayView = ArrayRefView<Type, T*, staticCastHelper,
-                                   /*AllowOrigAccess*/true>;
 } // end namespace swift
 
 namespace llvm {

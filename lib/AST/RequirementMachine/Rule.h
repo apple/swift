@@ -13,6 +13,8 @@
 #ifndef SWIFT_RULE_H
 #define SWIFT_RULE_H
 
+#include "llvm/ADT/Optional.h"
+
 #include "Symbol.h"
 #include "Term.h"
 
@@ -108,14 +110,14 @@ public:
   const Term &getLHS() const { return LHS; }
   const Term &getRHS() const { return RHS; }
 
-  Optional<unsigned> getRequirementID() const {
+  llvm::Optional<unsigned> getRequirementID() const {
     if (RequirementID == 0)
-      return None;
+      return llvm::None;
     else
       return RequirementID - 1;
   }
 
-  void setRequirementID(Optional<unsigned> requirementID) {
+  void setRequirementID(llvm::Optional<unsigned> requirementID) {
     assert(!Frozen);
     if (!requirementID)
       RequirementID = 0;
@@ -123,7 +125,7 @@ public:
       RequirementID = *requirementID + 1;
   }
 
-  Optional<Symbol> isPropertyRule() const;
+  llvm::Optional<Symbol> isPropertyRule() const;
 
   const ProtocolDecl *isProtocolConformanceRule() const;
 
@@ -177,7 +179,7 @@ public:
             RHS.containsUnresolvedSymbols());
   }
 
-  Optional<Identifier> isProtocolTypeAliasRule() const;
+  llvm::Optional<Identifier> isProtocolTypeAliasRule() const;
 
   bool isDerivedFromConcreteProtocolTypeAliasRule() const;
 
@@ -246,7 +248,7 @@ public:
 
   unsigned getNesting() const;
 
-  Optional<int> compare(const Rule &other, RewriteContext &ctx) const;
+  llvm::Optional<int> compare(const Rule &other, RewriteContext &ctx) const;
 
   void dump(llvm::raw_ostream &out) const;
 

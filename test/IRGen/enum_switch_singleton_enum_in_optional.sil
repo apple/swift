@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -emit-ir %s | %FileCheck %s
-// RUN: %target-swift-frontend -emit-ir %s
+// RUN: %target-swift-frontend -emit-ir %s | %FileCheck %s
 sil_stage canonical
 
 enum Optional<T> { case some(T), none }
@@ -15,10 +14,9 @@ enum AnEnum {
 }
 
 // CHECK-LABEL: define {{.*}} @switch_singleton_enum_in_optional
-// CHECK:         [[CAST:%.*]] = bitcast {{.*}} %0 to { [[WORD:i[0-9]+]], [[WORD]], [[WORD]], [[WORD]], [[WORD]], [[WORD]] }*
-// CHECK:         [[GEP:%.*]] = getelementptr {{.*}} %1, i32 0, i32 0
-// CHECK:         [[FIRSTWORD:%.*]] = load [[WORD]], [[WORD]]* [[GEP]]
-// CHECK:         [[TEST:%.*]] = icmp eq [[WORD]] [[FIRSTWORD]], 0
+// CHECK:         [[GEP:%.*]] = getelementptr inbounds {{.*}}, ptr %0, i32 0, i32 0
+// CHECK:         [[FIRSTWORD:%.*]] = load {{.*}}, ptr [[GEP]]
+// CHECK:         [[TEST:%.*]] = icmp eq {{.*}} [[FIRSTWORD]], 0
 // CHECK:         br i1 [[TEST]]
 sil public @switch_singleton_enum_in_optional :
     $@convention(thin) (@in Optional<AnEnum>) -> () {

@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -primary-file %s -gnone -emit-ir | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize
-// RUN: %target-swift-frontend -primary-file %s -gnone -emit-ir
+// RUN: %target-swift-frontend -primary-file %s -gnone -emit-ir | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize
 
 // REQUIRES: CPU=x86_64
 
@@ -23,15 +22,14 @@ bb0(%0 : $Optional<() -> ()>):
   // CHECK: icmp eq i64 %0, 0
   switch_enum %0 : $Optional<() -> ()>, case #Optional.some!enumelt: bb1, case #Optional.none!enumelt: bb2
 
-  // CHECK: [[FNPTR:%.*]] = inttoptr [[WORD]] %0 to i8*
-  // CHECK: [[CTX:%.*]] = inttoptr [[WORD]] %1 to %swift.refcounted*
+  // CHECK: [[FNPTR:%.*]] = inttoptr [[WORD]] %0 to ptr
+  // CHECK: [[CTX:%.*]] = inttoptr [[WORD]] %1 to ptr
   // CHECK: br label
-  // CHECK: [[FNPTR2:%.*]] = phi i8* [ [[FNPTR]], {{%.*}} ]
-  // CHECK: [[CTX2:%.*]] = phi %swift.refcounted* [ [[CTX]], {{%.*}} ]
+  // CHECK: [[FNPTR2:%.*]] = phi ptr [ [[FNPTR]], {{%.*}} ]
+  // CHECK: [[CTX2:%.*]] = phi ptr [ [[CTX]], {{%.*}} ]
 bb1(%1 : $() -> ()):
 
-  // CHECK: [[FNPTR3:%.*]] = bitcast i8* [[FNPTR2]] to void (%swift.refcounted*)*
-  // CHECK: call swiftcc void [[FNPTR3]](%swift.refcounted* swiftself [[CTX2]])
+  // CHECK: call swiftcc void [[FNPTR2]](ptr swiftself [[CTX2]])
   apply %1() : $() -> ()
 
   // CHECK: br label [[CONT:%[0-9]+]]

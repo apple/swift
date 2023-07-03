@@ -212,10 +212,9 @@ DeclName SILGenModule::getMagicFunctionName(SILDeclRef ref) {
   llvm_unreachable("Unhandled SILDeclRefKind in switch.");
 }
 
-SILDebugLocation
-SILGenFunction::getSILDebugLocation(SILBuilder &B, SILLocation Loc,
-                                    Optional<SILLocation> CurDebugLocOverride,
-                                    bool ForMetaInstruction) {
+SILDebugLocation SILGenFunction::getSILDebugLocation(
+    SILBuilder &B, SILLocation Loc,
+    llvm::Optional<SILLocation> CurDebugLocOverride, bool ForMetaInstruction) {
   const SILDebugScope *Scope = B.getCurrentDebugScope();
   if (!Scope)
     Scope = F.getDebugScope();
@@ -332,7 +331,8 @@ static MacroInfo getMacroInfo(GeneratedSourceInfo &Info,
   case GeneratedSourceInfo::MemberAttributeMacroExpansion:
   case GeneratedSourceInfo::MemberMacroExpansion:
   case GeneratedSourceInfo::PeerMacroExpansion:
-  case GeneratedSourceInfo::ConformanceMacroExpansion: {
+  case GeneratedSourceInfo::ConformanceMacroExpansion:
+  case GeneratedSourceInfo::ExtensionMacroExpansion: {
     auto decl = ASTNode::getFromOpaqueValue(Info.astNode).get<Decl *>();
     auto attr = Info.attachedMacroCustomAttr;
     if (auto *macroDecl = decl->getResolvedMacro(attr)) {
@@ -376,12 +376,13 @@ const SILDebugScope *SILGenFunction::getMacroScope(SourceLoc SLoc) {
     SILGenFunctionBuilder B(SGM);
     auto &ASTContext = SGM.M.getASTContext();
     auto ExtInfo = SILFunctionType::ExtInfo::getThin();
-    auto FunctionType = SILFunctionType::get(
-        nullptr, ExtInfo, SILCoroutineKind::None,
-        ParameterConvention::Direct_Unowned, /*Params*/ {},
-        /*yields*/
-        {},
-        /*Results*/ {}, None, SubstitutionMap(), SubstitutionMap(), ASTContext);
+    auto FunctionType =
+        SILFunctionType::get(nullptr, ExtInfo, SILCoroutineKind::None,
+                             ParameterConvention::Direct_Unowned, /*Params*/ {},
+                             /*yields*/
+                             {},
+                             /*Results*/ {}, llvm::None, SubstitutionMap(),
+                             SubstitutionMap(), ASTContext);
     StringRef MacroName = ASTContext.getIdentifier(Macro.Name).str();
     RegularLocation MacroLoc(Macro.SLoc);
     // Use the ExpansionLoc as the location so IRGenDebugInfo can extract the
@@ -989,7 +990,7 @@ SILGenFunction::emitClosureValue(SILLocation loc, SILDeclRef constant,
 
   // Get the lowered AST types:
   //  - the original type
-  auto origFormalType = AbstractionPattern(constantInfo.LoweredType);
+  auto origFormalType = AbstractionPattern(subs, constantInfo.LoweredType);
 
   // - the substituted type
   auto substFormalType = expectedType;
@@ -1150,8 +1151,8 @@ void SILGenFunction::emitArtificialTopLevel(Decl *mainDecl) {
 
     auto NSStringFromClassType = SILFunctionType::get(
         nullptr, extInfo, SILCoroutineKind::None, paramConvention, params,
-        /*yields*/ {}, resultInfos, /*error result*/ None, SubstitutionMap(),
-        SubstitutionMap(), ctx);
+        /*yields*/ {}, resultInfos, /*error result*/ llvm::None,
+        SubstitutionMap(), SubstitutionMap(), ctx);
 
     auto NSStringFromClassFn = builder.getOrCreateFunction(
         mainClass, "NSStringFromClass", SILLinkage::PublicExternal,
@@ -1239,7 +1240,7 @@ void SILGenFunction::emitArtificialTopLevel(Decl *mainDecl) {
         ParameterConvention::Direct_Unowned, argTypes,
         /*yields*/ {},
         SILResultInfo(argc->getType().getASTType(), ResultConvention::Unowned),
-        /*error result*/ None, SubstitutionMap(), SubstitutionMap(),
+        /*error result*/ llvm::None, SubstitutionMap(), SubstitutionMap(),
         getASTContext());
 
     SILGenFunctionBuilder builder(SGM);
@@ -1446,7 +1447,7 @@ void SILGenFunction::emitAsyncMainThreadStart(SILDeclRef entryPoint) {
         {}, /*async*/ false, /*throws*/ false, {}, emptyParams,
         getASTContext().getNeverType(), moduleDecl);
     drainQueueFuncDecl->getAttrs().add(new (getASTContext()) SILGenNameAttr(
-        "swift_task_asyncMainDrainQueue", /*implicit*/ true));
+        "swift_task_asyncMainDrainQueue", /*raw*/ false, /*implicit*/ true));
   }
 
   SILFunction *drainQueueSILFunc = SGM.getFunction(
@@ -1629,7 +1630,7 @@ void SILGenFunction::emitGeneratorFunction(SILDeclRef function, VarDecl *var) {
 
 void SILGenFunction::emitGeneratorFunction(
     SILDeclRef function, Type resultInterfaceType, BraceStmt *body,
-    Optional<AbstractionPattern> pattern) {
+    llvm::Optional<AbstractionPattern> pattern) {
   MagicFunctionName = SILGenModule::getMagicFunctionName(function);
 
   RegularLocation loc(function.getDecl());
@@ -1695,10 +1696,10 @@ ProfileCounter SILGenFunction::loadProfilerCount(ASTNode Node) const {
   return ProfileCounter();
 }
 
-Optional<ASTNode> SILGenFunction::getPGOParent(ASTNode Node) const {
+llvm::Optional<ASTNode> SILGenFunction::getPGOParent(ASTNode Node) const {
   if (SILProfiler *SP = F.getProfiler())
     return SP->getPGOParent(Node);
-  return None;
+  return llvm::None;
 }
 
 SILValue SILGenFunction::emitUnwrapIntegerResult(SILLocation loc,

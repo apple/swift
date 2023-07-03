@@ -66,10 +66,10 @@ template <typename T> class ImmutablePointerSet : public llvm::FoldingSetNode {
   friend class ImmutablePointerSetFactory<T>;
 
   NullablePtr<ImmutablePointerSetFactory<T>> ParentFactory;
-  ArrayRef<PtrTy> Data;
+  llvm::ArrayRef<PtrTy> Data;
 
   ImmutablePointerSet(ImmutablePointerSetFactory<T> *ParentFactory,
-                      ArrayRef<PtrTy> NewData)
+                      llvm::ArrayRef<PtrTy> NewData)
       : ParentFactory(ParentFactory), Data(NewData) {}
 
 public:
@@ -112,7 +112,7 @@ public:
     return *LowerBound == Ptr;
   }
 
-  using iterator = typename ArrayRef<PtrTy>::iterator;
+  using iterator = typename llvm::ArrayRef<PtrTy>::iterator;
   iterator begin() const { return Data.begin(); }
   iterator end() const { return Data.end(); }
 
@@ -204,7 +204,7 @@ public:
 
   /// Given a sorted and uniqued list \p Array, return the ImmutablePointerSet
   /// containing Array. Asserts if \p Array is not sorted and uniqued.
-  PtrSet *get(ArrayRef<PtrTy> Array) {
+  PtrSet *get(llvm::ArrayRef<PtrTy> Array) {
     if (Array.empty())
       return ImmutablePointerSetFactory::getEmptySet();
 
@@ -233,7 +233,8 @@ public:
     // Copy in the pointers into the tail allocated memory. We do not need to do
     // any sorting/uniquing ourselves since we assume that our users perform
     // this task for us.
-    MutableArrayRef<PtrTy> DataMem(reinterpret_cast<PtrTy *>(&Mem[1]), NumElts);
+    llvm::MutableArrayRef<PtrTy> DataMem(reinterpret_cast<PtrTy *>(&Mem[1]),
+                                         NumElts);
     std::copy(Array.begin(), Array.end(), DataMem.begin());
 
     // Allocate the new node and insert it into the Set.
@@ -242,7 +243,7 @@ public:
     return NewNode;
   }
 
-  PtrSet *merge(PtrSet *S1, ArrayRef<PtrTy> S2) {
+  PtrSet *merge(PtrSet *S1, llvm::ArrayRef<PtrTy> S2) {
     if (S1->empty())
       return get(S2);
 
@@ -284,7 +285,8 @@ public:
     // Copy in the union of the two pointer sets into the tail allocated
     // memory. Since we know that our sorted arrays are uniqued, we can use
     // set_union to get the uniqued sorted array that we want.
-    MutableArrayRef<PtrTy> DataMem(reinterpret_cast<PtrTy *>(&Mem[1]), NumElts);
+    llvm::MutableArrayRef<PtrTy> DataMem(reinterpret_cast<PtrTy *>(&Mem[1]),
+                                         NumElts);
     std::set_union(S1->begin(), S1->end(), S2.begin(), S2.end(),
                    DataMem.begin());
 
@@ -333,7 +335,8 @@ public:
     // Copy in the union of the two pointer sets into the tail allocated
     // memory. Since we know that our sorted arrays are uniqued, we can use
     // set_union to get the uniqued sorted array that we want.
-    MutableArrayRef<PtrTy> DataMem(reinterpret_cast<PtrTy *>(&Mem[1]), NumElts);
+    llvm::MutableArrayRef<PtrTy> DataMem(reinterpret_cast<PtrTy *>(&Mem[1]),
+                                         NumElts);
     std::set_union(S1->begin(), S1->end(), S2->begin(), S2->end(),
                    DataMem.begin());
 

@@ -114,7 +114,8 @@ public:
       const ModuleDecl *moduleContext, Type resultTy,
       const ParameterList *params, bool hasThrows = false,
       const AnyFunctionType *funcType = nullptr, bool isStaticMethod = false,
-      Optional<IRABIDetailsProvider::MethodDispatchInfo> dispatchInfo = None);
+      llvm::Optional<IRABIDetailsProvider::MethodDispatchInfo> dispatchInfo =
+          llvm::None);
 
   /// Print the Swift method as C++ method declaration/definition, including
   /// constructors.
@@ -123,7 +124,7 @@ public:
       const NominalTypeDecl *typeDeclContext, const AbstractFunctionDecl *FD,
       const LoweredFunctionSignature &signature, StringRef swiftSymbolName,
       Type resultTy, bool isStatic, bool isDefinition,
-      Optional<IRABIDetailsProvider::MethodDispatchInfo> dispatchInfo);
+      llvm::Optional<IRABIDetailsProvider::MethodDispatchInfo> dispatchInfo);
 
   /// Print the C++ getter/setter method signature.
   void printCxxPropertyAccessorMethod(
@@ -131,7 +132,7 @@ public:
       const NominalTypeDecl *typeDeclContext, const AccessorDecl *accessor,
       const LoweredFunctionSignature &signature, StringRef swiftSymbolName,
       Type resultTy, bool isStatic, bool isDefinition,
-      Optional<IRABIDetailsProvider::MethodDispatchInfo> dispatchInfo);
+      llvm::Optional<IRABIDetailsProvider::MethodDispatchInfo> dispatchInfo);
 
   /// Print the C++ subscript method.
   void printCxxSubscriptAccessorMethod(
@@ -139,7 +140,7 @@ public:
       const NominalTypeDecl *typeDeclContext, const AccessorDecl *accessor,
       const LoweredFunctionSignature &signature, StringRef swiftSymbolName,
       Type resultTy, bool isDefinition,
-      Optional<IRABIDetailsProvider::MethodDispatchInfo> dispatchInfo);
+      llvm::Optional<IRABIDetailsProvider::MethodDispatchInfo> dispatchInfo);
 
   /// Print Swift type as C/C++ type, as the return type of a C/C++ function.
   ClangRepresentation
@@ -150,7 +151,7 @@ public:
   static void printGenericReturnSequence(
       raw_ostream &os, const GenericTypeParamType *gtpt,
       llvm::function_ref<void(StringRef)> invocationPrinter,
-      Optional<StringRef> initializeWithTakeFromValue = llvm::None);
+      llvm::Optional<StringRef> initializeWithTakeFromValue = llvm::None);
 
   using PrinterTy =
       llvm::function_ref<void(llvm::MapVector<Type, std::string> &)>;

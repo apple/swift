@@ -1,5 +1,4 @@
-// RUN: %swift %use_no_opaque_pointers -swift-version 4 -target arm64e-apple-ios12.0 -parse-stdlib -parse-as-library %s -emit-ir -module-name test | %FileCheck %s --check-prefix=CHECK
-// RUN: %swift -swift-version 4 -target arm64e-apple-ios12.0 -parse-stdlib -parse-as-library %s -emit-ir -module-name test
+// RUN: %swift -swift-version 4 -target arm64e-apple-ios12.0 -parse-stdlib -parse-as-library %s -emit-ir -module-name test | %FileCheck %s --check-prefix=CHECK
 
 // REQUIRES: CPU=arm64e
 // REQUIRES: OS=ios
@@ -13,8 +12,8 @@ bb0(%0 : $Builtin.NativeObject):
   strong_retain %0 : $Builtin.NativeObject
   return %0 : $Builtin.NativeObject
 }
-// CHECK-LABEL: define swiftcc %swift.refcounted* @test_retain(%swift.refcounted* %0)
-// CHECK:      call %swift.refcounted* @swift_retain(
-// CHECK-NEXT: ret %swift.refcounted* %0
+// CHECK-LABEL: define swiftcc ptr @test_retain(ptr %0)
+// CHECK:      call ptr @swift_retain(
+// CHECK-NEXT: ret ptr %0
 
-// CHECK: declare %swift.refcounted* @swift_retain(%swift.refcounted* returned
+// CHECK: declare ptr @swift_retain(ptr returned

@@ -237,7 +237,8 @@ ObjCSelector::parse(ASTContext &ctx, StringRef string) {
 
   // If there is no colon, we have a nullary selector.
   if (colonPos == StringRef::npos) {
-    if (string.empty() || !Lexer::isIdentifier(string)) return None;
+    if (string.empty() || !Lexer::isIdentifier(string))
+      return llvm::None;
     return ObjCSelector(ctx, 0, { ctx.getIdentifier(string) });
   }
 
@@ -248,7 +249,8 @@ ObjCSelector::parse(ASTContext &ctx, StringRef string) {
     if (piece.empty()) {
       pieces.push_back(Identifier());
     } else {
-      if (!Lexer::isIdentifier(piece)) return None;
+      if (!Lexer::isIdentifier(piece))
+        return llvm::None;
       pieces.push_back(ctx.getIdentifier(piece));
     }
 
@@ -258,7 +260,8 @@ ObjCSelector::parse(ASTContext &ctx, StringRef string) {
   } while (colonPos != StringRef::npos);
 
   // If anything remains of the string, it's not a selector.
-  if (!string.empty()) return None;
+  if (!string.empty())
+    return llvm::None;
 
   return ObjCSelector(ctx, pieces.size(), pieces);
 }

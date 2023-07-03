@@ -1,9 +1,7 @@
 // This file is also used by objc_properties_ios.swift.
 
-// RUN: %swift %use_no_opaque_pointers -target %target-cpu-apple-macosx10.11 %s -disable-target-os-checking -emit-ir -disable-objc-attr-requires-foundation-module | %FileCheck -check-prefix=CHECK -check-prefix=CHECK-NEW %s
-// RUN: %swift %use_no_opaque_pointers -target %target-cpu-apple-macosx10.10 %s -disable-target-os-checking -emit-ir -disable-objc-attr-requires-foundation-module | %FileCheck -check-prefix=CHECK -check-prefix=CHECK-OLD %s
-// RUN: %swift -target %target-cpu-apple-macosx10.11 %s -disable-target-os-checking -emit-ir -disable-objc-attr-requires-foundation-module
-// RUN: %swift -target %target-cpu-apple-macosx10.10 %s -disable-target-os-checking -emit-ir -disable-objc-attr-requires-foundation-module
+// RUN: %swift -target %target-cpu-apple-macosx10.11 %s -disable-target-os-checking -emit-ir -disable-objc-attr-requires-foundation-module | %FileCheck -check-prefix=CHECK -check-prefix=CHECK-NEW %s
+// RUN: %swift -target %target-cpu-apple-macosx10.10 %s -disable-target-os-checking -emit-ir -disable-objc-attr-requires-foundation-module | %FileCheck -check-prefix=CHECK -check-prefix=CHECK-OLD %s
 
 // REQUIRES: OS=macosx
 // REQUIRES: objc_interop
@@ -110,20 +108,20 @@ class SomeWrapperTests {
 // CHECK-NEW: @_CLASS_PROPERTIES__TtC15objc_properties10SomeObject = internal constant { {{.*}}] } {
 // CHECK-NEW:   i32 16,
 // CHECK-NEW:   i32 1,
-// CHECK-NEW:   [1 x { i8*, i8* }] [{
-// CHECK-NEW:     i8* getelementptr inbounds ([11 x i8], [11 x i8]* [[SHARED_NAME]], i64 0, i64 0),
-// CHECK-NEW:     i8* getelementptr inbounds ([5 x i8], [5 x i8]* [[SHARED_ATTRS]], i64 0, i64 0)
+// CHECK-NEW:   [1 x { ptr, ptr }] [{
+// CHECK-NEW:     ptr [[SHARED_NAME]],
+// CHECK-NEW:     ptr [[SHARED_ATTRS]]
 // CHECK-NEW:   }]
 // CHECK-NEW: }, section "__DATA, {{.*}}", align 8
 
 // CHECK: @_METACLASS_DATA__TtC15objc_properties10SomeObject = internal constant { {{.*}} } {
 // CHECK-SAME:   i32 {{[0-9]+}}, i32 {{[0-9]+}}, i32 {{[0-9]+}}, i32 {{[0-9]+}},
-// CHECK-SAME:   i8* null,
-// CHECK-SAME:   i8* getelementptr inbounds ([{{.+}} x i8], [{{.+}} x i8]* {{@.+}}, i64 0, i64 0),
-// CHECK-SAME:   { {{.+}} }* @_CLASS_METHODS__TtC15objc_properties10SomeObject{{(\.ptrauth)?}}
-// CHECK-SAME:   i8* null, i8* null, i8* null,
-// CHECK-NEW-SAME:   { {{.+}} }* @_CLASS_PROPERTIES__TtC15objc_properties10SomeObject
-// CHECK-OLD-SAME:   i8* null
+// CHECK-SAME:   ptr null,
+// CHECK-SAME:   ptr {{@[^,]+}},
+// CHECK-SAME:   ptr @_CLASS_METHODS__TtC15objc_properties10SomeObject{{(\.ptrauth)?}}
+// CHECK-SAME:   ptr null, ptr null, ptr null,
+// CHECK-NEW-SAME:   ptr @_CLASS_PROPERTIES__TtC15objc_properties10SomeObject
+// CHECK-OLD-SAME:   ptr null
 // CHECK-SAME: }, section "__DATA, {{.*}}", align 8
 
 // CHECK: [[GETTER_SIGNATURE:@.*]] = private unnamed_addr constant [8 x i8] c"@16@0:8\00"
@@ -132,37 +130,37 @@ class SomeWrapperTests {
 // CHECK: @_INSTANCE_METHODS__TtC15objc_properties10SomeObject = internal constant { {{.*}}] } {
 // CHECK:   i32 24,
 // CHECK:   i32 8,
-// CHECK:   [8 x { i8*, i8*, i8* }] [{
-// CHECK:     i8* getelementptr inbounds ([9 x i8], [9 x i8]* @"\01L_selector_data(readonly)", i64 0, i64 0),
-// CHECK:     i8* getelementptr inbounds ([8 x i8], [8 x i8]* [[GETTER_SIGNATURE]], i64 0, i64 0),
+// CHECK:   [8 x { ptr, ptr, ptr }] [{
+// CHECK:     ptr @"\01L_selector_data(readonly)",
+// CHECK:     ptr [[GETTER_SIGNATURE]],
 // CHECK:     @"$s15objc_properties10SomeObjectC8readonlyACvgTo{{(.ptrauth)?}}"
 // CHECK:   }, {
-// CHECK:     i8* getelementptr inbounds ([10 x i8], [10 x i8]* @"\01L_selector_data(readwrite)", i64 0, i64 0),
-// CHECK:     i8* getelementptr inbounds ([8 x i8], [8 x i8]* [[GETTER_SIGNATURE]], i64 0, i64 0),
+// CHECK:     ptr @"\01L_selector_data(readwrite)",
+// CHECK:     ptr [[GETTER_SIGNATURE]],
 // CHECK:     @"$s15objc_properties10SomeObjectC9readwriteACvgTo{{(.ptrauth)?}}"
 // CHECK:   }, {
-// CHECK:     i8* getelementptr inbounds ([14 x i8], [14 x i8]* @"\01L_selector_data(setReadwrite:)", i64 0, i64 0),
-// CHECK:     i8* getelementptr inbounds ([11 x i8], [11 x i8]* [[SETTER_SIGNATURE]], i64 0, i64 0),
+// CHECK:     ptr @"\01L_selector_data(setReadwrite:)",
+// CHECK:     ptr [[SETTER_SIGNATURE]],
 // CHECK:     @"$s15objc_properties10SomeObjectC9readwriteACvsTo{{(.ptrauth)?}}"
 // CHECK:   }, {
-// CHECK:     i8* getelementptr inbounds ([9 x i8], [9 x i8]* @"\01L_selector_data(bareIvar)", i64 0, i64 0),
-// CHECK:     i8* getelementptr inbounds ([8 x i8], [8 x i8]* [[GETTER_SIGNATURE]], i64 0, i64 0),
+// CHECK:     ptr @"\01L_selector_data(bareIvar)",
+// CHECK:     ptr [[GETTER_SIGNATURE]],
 // CHECK:     @"$s15objc_properties10SomeObjectC8bareIvarACvgTo{{(.ptrauth)?}}"
 // CHECK:   }, {
-// CHECK:     i8* getelementptr inbounds ([13 x i8], [13 x i8]* @"\01L_selector_data(setBareIvar:)", i64 0, i64 0),
-// CHECK:     i8* getelementptr inbounds ([11 x i8], [11 x i8]* [[SETTER_SIGNATURE]], i64 0, i64 0),
+// CHECK:     ptr @"\01L_selector_data(setBareIvar:)",
+// CHECK:     ptr [[SETTER_SIGNATURE]],
 // CHECK:     @"$s15objc_properties10SomeObjectC8bareIvarACvsTo{{(.ptrauth)?}}"
 // CHECK:   }, {
-// CHECK:     i8* getelementptr inbounds ([7 x i8], [7 x i8]* @"\01L_selector_data(wobble)", i64 0, i64 0),
-// CHECK:     i8* getelementptr inbounds ([8 x i8], [8 x i8]* [[GETTER_SIGNATURE]], i64 0, i64 0),
+// CHECK:     ptr @"\01L_selector_data(wobble)",
+// CHECK:     ptr [[GETTER_SIGNATURE]],
 // CHECK:     @"$s15objc_properties10SomeObjectC6wibbleACvgTo{{(.ptrauth)?}}"
 // CHECK:   }, {
-// CHECK:     i8* getelementptr inbounds ([11 x i8], [11 x i8]* @"\01L_selector_data(setWobble:)", i64 0, i64 0),
-// CHECK:     i8* getelementptr inbounds ([11 x i8], [11 x i8]* [[SETTER_SIGNATURE]], i64 0, i64 0),
+// CHECK:     ptr @"\01L_selector_data(setWobble:)",
+// CHECK:     ptr [[SETTER_SIGNATURE]],
 // CHECK:     @"$s15objc_properties10SomeObjectC6wibbleACvsTo{{(.ptrauth)?}}"
 // CHECK:   }, {
-// CHECK:     i8* getelementptr inbounds ([5 x i8], [5 x i8]* @"\01L_selector_data(init)", i64 0, i64 0),
-// CHECK:     i8* getelementptr inbounds ([8 x i8], [8 x i8]* [[GETTER_SIGNATURE]], i64 0, i64 0),
+// CHECK:     ptr @"\01L_selector_data(init)",
+// CHECK:     ptr [[GETTER_SIGNATURE]],
 // CHECK:     @"$s15objc_properties10SomeObjectCACycfcTo{{(.ptrauth)?}}"
 // CHECK:   }]
 // CHECK: }, section "__DATA, {{.*}}", align 8
@@ -184,42 +182,42 @@ class SomeWrapperTests {
 // CHECK: @_PROPERTIES__TtC15objc_properties10SomeObject = internal constant { {{.*}}] } {
 // CHECK:   i32 16,
 // CHECK:   i32 4,
-// CHECK:   [4 x { i8*, i8* }] [{
-// CHECK:     i8* getelementptr inbounds ([9 x i8], [9 x i8]* [[READONLY_NAME]], i64 0, i64 0),
-// CHECK:     i8* getelementptr inbounds ([42 x i8], [42 x i8]* [[READONLY_ATTRS]], i64 0, i64 0)
+// CHECK:   [4 x { ptr, ptr }] [{
+// CHECK:     ptr [[READONLY_NAME]],
+// CHECK:     ptr [[READONLY_ATTRS]]
 // CHECK:   }, {
-// CHECK:     i8* getelementptr inbounds ([10 x i8], [10 x i8]* [[READWRITE_NAME]], i64 0, i64 0),
-// CHECK:     i8* getelementptr inbounds ([42 x i8], [42 x i8]* [[READWRITE_ATTRS]], i64 0, i64 0)
+// CHECK:     ptr [[READWRITE_NAME]],
+// CHECK:     ptr [[READWRITE_ATTRS]]
 // CHECK:   }, {
-// CHECK:     i8* getelementptr inbounds ([9 x i8], [9 x i8]* [[BAREIVAR_NAME]], i64 0, i64 0),
-// CHECK:     i8* getelementptr inbounds ([52 x i8], [52 x i8]* [[BAREIVAR_ATTRS]], i64 0, i64 0)
+// CHECK:     ptr [[BAREIVAR_NAME]],
+// CHECK:     ptr [[BAREIVAR_ATTRS]]
 // CHECK:   }, {
-// CHECK:     i8* getelementptr inbounds ([7 x i8], [7 x i8]* [[WIBBLE_NAME]], i64 0, i64 0),
-// CHECK:     i8* getelementptr inbounds ([50 x i8], [50 x i8]* [[WIBBLE_ATTRS]], i64 0, i64 0)
+// CHECK:     ptr [[WIBBLE_NAME]],
+// CHECK:     ptr [[WIBBLE_ATTRS]]
 // CHECK:   }]
 // CHECK: }, section "__DATA, {{.*}}", align 8
 
 // CHECK: @_DATA__TtC15objc_properties10SomeObject = internal constant { {{.+}} } {
 // CHECK:   i32 {{[0-9]+}}, i32 {{[0-9]+}}, i32 {{[0-9]+}}, i32 {{[0-9]+}},
-// CHECK:   i8* null,
-// CHECK:   i8* getelementptr inbounds ([{{.+}} x i8], [{{.+}} x i8]* {{@.+}}, i64 0, i64 0),
-// CHECK:   { {{.+}} }* @_INSTANCE_METHODS__TtC15objc_properties10SomeObject{{(\.ptrauth)?}}
-// CHECK:   i8* null,
-// CHECK:   { {{.+}} }* @_IVARS__TtC15objc_properties10SomeObject,
-// CHECK:   i8* null,
-// CHECK:   { {{.+}} }* @_PROPERTIES__TtC15objc_properties10SomeObject
+// CHECK:   ptr null,
+// CHECK:   ptr {{@[^,]+}},
+// CHECK:   ptr @_INSTANCE_METHODS__TtC15objc_properties10SomeObject{{(\.ptrauth)?}}
+// CHECK:   ptr null,
+// CHECK:   ptr @_IVARS__TtC15objc_properties10SomeObject,
+// CHECK:   ptr null,
+// CHECK:   ptr @_PROPERTIES__TtC15objc_properties10SomeObject
 // CHECK: }, section "__DATA, {{.*}}", align 8
 
 // CHECK: @"_CATEGORY_INSTANCE_METHODS__TtC15objc_properties10SomeObject_$_objc_properties" = internal constant { {{.*}}] } {
 // CHECK:   i32 24,
 // CHECK:   i32 2,
-// CHECK:   [2 x { i8*, i8*, i8* }] [{
-// CHECK:     { i8* getelementptr inbounds ([18 x i8], [18 x i8]* @"\01L_selector_data(extensionProperty)", i64 0, i64 0),
-// CHECK:     i8* getelementptr inbounds ([8 x i8], [8 x i8]* [[GETTER_SIGNATURE]], i64 0, i64 0),
+// CHECK:   [2 x { ptr, ptr, ptr }] [{
+// CHECK:     { ptr @"\01L_selector_data(extensionProperty)",
+// CHECK:     ptr [[GETTER_SIGNATURE]],
 // CHECK:     @"$s15objc_properties10SomeObjectC17extensionPropertyACvgTo{{(.ptrauth)?}}"
 // CHECK:   }, {
-// CHECK:     i8* getelementptr inbounds ([22 x i8], [22 x i8]* @"\01L_selector_data(setExtensionProperty:)", i64 0, i64 0),
-// CHECK:     i8* getelementptr inbounds ([11 x i8], [11 x i8]* [[SETTER_SIGNATURE]], i64 0, i64 0),
+// CHECK:     ptr @"\01L_selector_data(setExtensionProperty:)",
+// CHECK:     ptr [[SETTER_SIGNATURE]],
 // CHECK:     @"$s15objc_properties10SomeObjectC17extensionPropertyACvsTo{{(.ptrauth)?}}"
 // CHECK:   }]
 // CHECK: }, section "__DATA, {{.*}}", align 8
@@ -229,9 +227,9 @@ class SomeWrapperTests {
 // CHECK: @"_CATEGORY_PROPERTIES__TtC15objc_properties10SomeObject_$_objc_properties" = internal constant { {{.*}}] } {
 // CHECK:   i32 16,
 // CHECK:   i32 1,
-// CHECK:   [1 x { i8*, i8* }] [{
-// CHECK:     i8* getelementptr inbounds ([18 x i8], [18 x i8]* [[EXTENSIONPROPERTY_NAME]], i64 0, i64 0),
-// CHECK:     i8* getelementptr inbounds ([42 x i8], [42 x i8]* [[READWRITE_ATTRS]], i64 0, i64 0)
+// CHECK:   [1 x { ptr, ptr }] [{
+// CHECK:     ptr [[EXTENSIONPROPERTY_NAME]],
+// CHECK:     ptr [[READWRITE_ATTRS]]
 // CHECK:   }]
 // CHECK: }, section "__DATA, {{.*}}", align 8
 
@@ -242,49 +240,49 @@ class SomeWrapperTests {
 // CHECK-NEW: @"_CATEGORY_CLASS_PROPERTIES__TtC15objc_properties10SomeObject_$_objc_properties" = internal constant { {{.*}}] } {
 // CHECK-NEW:   i32 16,
 // CHECK-NEW:   i32 2,
-// CHECK-NEW:   [2 x { i8*, i8* }] [{
-// CHECK-NEW:     i8* getelementptr inbounds ([19 x i8], [19 x i8]* [[EXTENSIONCLASSPROPERTY_NAME]], i64 0, i64 0),
-// CHECK-NEW:     i8* getelementptr inbounds ([7 x i8], [7 x i8]* [[EXTENSIONCLASSPROPERTY_ATTRS]], i64 0, i64 0)
+// CHECK-NEW:   [2 x { ptr, ptr }] [{
+// CHECK-NEW:     ptr [[EXTENSIONCLASSPROPERTY_NAME]],
+// CHECK-NEW:     ptr [[EXTENSIONCLASSPROPERTY_ATTRS]]
 // CHECK-NEW:   }, {
-// CHECK-NEW:	  i8* getelementptr inbounds ([26 x i8], [26 x i8]* [[EXTENSIONSTATICPROPERTY_NAME]], i64 0, i64 0),
-// CHECK-NEW:	  i8* getelementptr inbounds ([5 x i8], [5 x i8]* [[SHARED_ATTRS]], i64 0, i64 0) }]
+// CHECK-NEW:	  ptr [[EXTENSIONSTATICPROPERTY_NAME]],
+// CHECK-NEW:	  ptr [[SHARED_ATTRS]] }]
 // CHECK-NEW: }, section "__DATA, {{.*}}", align 8
 
 // CHECK: @"_CATEGORY__TtC15objc_properties10SomeObject_$_objc_properties" = internal constant { {{.+}} } {
-// CHECK:   i8* getelementptr inbounds ([{{.+}} x i8], [{{.+}} x i8]* {{@.+}}, i64 0, i64 0),
+// CHECK:   ptr {{@[^,]+}},
 // CHECK:   @"$s15objc_properties10SomeObjectCMf", i32 0, i32 3
-// CHECK:   { {{.+}} }* @"_CATEGORY_INSTANCE_METHODS__TtC15objc_properties10SomeObject_$_objc_properties{{(\.ptrauth)?}}"
-// CHECK:   { {{.+}} }* @"_CATEGORY_CLASS_METHODS__TtC15objc_properties10SomeObject_$_objc_properties{{(\.ptrauth)?}}"
-// CHECK:   i8* null,
-// CHECK:   { {{.+}} }* @"_CATEGORY_PROPERTIES__TtC15objc_properties10SomeObject_$_objc_properties{{(\.ptrauth)?}}", 
-// CHECK-NEW:   { {{.+}} }* @"_CATEGORY_CLASS_PROPERTIES__TtC15objc_properties10SomeObject_$_objc_properties",
-// CHECK-OLD:   i8* null,
+// CHECK:   ptr @"_CATEGORY_INSTANCE_METHODS__TtC15objc_properties10SomeObject_$_objc_properties{{(\.ptrauth)?}}"
+// CHECK:   ptr @"_CATEGORY_CLASS_METHODS__TtC15objc_properties10SomeObject_$_objc_properties{{(\.ptrauth)?}}"
+// CHECK:   ptr null,
+// CHECK:   ptr @"_CATEGORY_PROPERTIES__TtC15objc_properties10SomeObject_$_objc_properties{{(\.ptrauth)?}}", 
+// CHECK-NEW:   ptr @"_CATEGORY_CLASS_PROPERTIES__TtC15objc_properties10SomeObject_$_objc_properties",
+// CHECK-OLD:   ptr null,
 // CHECK:   i32 60
 // CHECK: }, section "__DATA, {{.*}}", align 8
 
 
 // CHECK: @_INSTANCE_METHODS__TtC15objc_properties4Tree =
-// CHECK:    i8* getelementptr inbounds ([7 x i8], [7 x i8]* @"\01L_selector_data(parent)", i64 0, i64 0),
-// CHECK:    i8* getelementptr inbounds ([8 x i8], [8 x i8]* [[GETTER_SIGNATURE]], i64 0, i64 0),
+// CHECK:    ptr @"\01L_selector_data(parent)",
+// CHECK:    ptr [[GETTER_SIGNATURE]],
 // CHECK:    @"$s15objc_properties4TreeC6parentACSgvgTo{{(.ptrauth)?}}"
-// CHECK:    i8* getelementptr inbounds ([11 x i8], [11 x i8]* @"\01L_selector_data(setParent:)", i64 0, i64 0),
-// CHECK:    i8* getelementptr inbounds ([11 x i8], [11 x i8]* [[SETTER_SIGNATURE]], i64 0, i64 0),
+// CHECK:    ptr @"\01L_selector_data(setParent:)",
+// CHECK:    ptr [[SETTER_SIGNATURE]],
 // CHECK:    @"$s15objc_properties4TreeC6parentACSgvsTo{{(.ptrauth)?}}"
 
 // CHECK: @_PROTOCOL__TtP15objc_properties5Proto_ = weak hidden constant { {{.+}} } {
-// CHECK:   i8* null,
-// CHECK:   i8* getelementptr inbounds ([{{.+}} x i8], [{{.+}} x i8]* {{@.+}}, i64 0, i64 0),
-// CHECK:   i8* null,
-// CHECK:   { {{.+}} }* @_PROTOCOL_INSTANCE_METHODS__TtP15objc_properties5Proto_,
-// CHECK:   { {{.+}} }* @_PROTOCOL_CLASS_METHODS__TtP15objc_properties5Proto_,
-// CHECK:   i8* null,
-// CHECK:   i8* null,
-// CHECK:   { {{.+}} }* @_PROTOCOL_PROPERTIES__TtP15objc_properties5Proto_,
+// CHECK:   ptr null,
+// CHECK:   ptr {{@[^,]+}},
+// CHECK:   ptr null,
+// CHECK:   ptr @_PROTOCOL_INSTANCE_METHODS__TtP15objc_properties5Proto_,
+// CHECK:   ptr @_PROTOCOL_CLASS_METHODS__TtP15objc_properties5Proto_,
+// CHECK:   ptr null,
+// CHECK:   ptr null,
+// CHECK:   ptr @_PROTOCOL_PROPERTIES__TtP15objc_properties5Proto_,
 // CHECK:   i32 96, i32 1,
-// CHECK:   [{{.+}}]* @_PROTOCOL_METHOD_TYPES__TtP15objc_properties5Proto_,
-// CHECK:   i8* null,
-// CHECK-NEW:   { {{.+}} }* @_PROTOCOL_CLASS_PROPERTIES__TtP15objc_properties5Proto_
-// CHECK-OLD:   i8* null
+// CHECK:   ptr @_PROTOCOL_METHOD_TYPES__TtP15objc_properties5Proto_,
+// CHECK:   ptr null,
+// CHECK-NEW:   ptr @_PROTOCOL_CLASS_PROPERTIES__TtP15objc_properties5Proto_
+// CHECK-OLD:   ptr null
 // CHECK: }, section "__DATA, {{.*}}", align 8
 
 
@@ -294,9 +292,9 @@ class SomeWrapperTests {
 // CHECK: @_PROTOCOL_PROPERTIES__TtP15objc_properties5Proto_ = weak hidden constant { {{.*}}] } {
 // CHECK:   i32 16,
 // CHECK:   i32 1,
-// CHECK:   [1 x { i8*, i8* }] [{
-// CHECK:     i8* getelementptr inbounds ([6 x i8], [6 x i8]* [[PROTOCOLPROPERTY_NAME]], i64 0, i64 0),
-// CHECK:     i8* getelementptr inbounds ([7 x i8], [7 x i8]* [[PROTOCOLPROPERTY_ATTRS]], i64 0, i64 0)
+// CHECK:   [1 x { ptr, ptr }] [{
+// CHECK:     ptr [[PROTOCOLPROPERTY_NAME]],
+// CHECK:     ptr [[PROTOCOLPROPERTY_ATTRS]]
 // CHECK:   }]
 // CHECK: }, section "__DATA, {{.*}}", align 8
 
@@ -306,8 +304,8 @@ class SomeWrapperTests {
 // CHECK-NEW: @_PROTOCOL_CLASS_PROPERTIES__TtP15objc_properties5Proto_ = weak hidden constant { {{.*}}] } {
 // CHECK-NEW:   i32 16,
 // CHECK-NEW:   i32 1,
-// CHECK-NEW:   [1 x { i8*, i8* }] [{
-// CHECK-NEW:     i8* getelementptr inbounds ([15 x i8], [15 x i8]* [[PROTOCOLCLASSPROPERTY_NAME]], i64 0, i64 0),
-// CHECK-NEW:     i8* getelementptr inbounds ([7 x i8], [7 x i8]* [[PROTOCOLCLASSPROPERTY_ATTRS]], i64 0, i64 0)
+// CHECK-NEW:   [1 x { ptr, ptr }] [{
+// CHECK-NEW:     ptr [[PROTOCOLCLASSPROPERTY_NAME]],
+// CHECK-NEW:     ptr [[PROTOCOLCLASSPROPERTY_ATTRS]]
 // CHECK-NEW:   }]
 // CHECK-NEW: }, section "__DATA, {{.*}}", align 8

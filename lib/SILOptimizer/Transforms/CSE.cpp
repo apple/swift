@@ -433,28 +433,27 @@ public:
                               X->getType());
   }
 
-  hash_code visitSelectEnumInstBase(SelectEnumInstBase *X) {
+  hash_code visitSelectEnumOperation(SelectEnumOperation X) {
     auto hash = llvm::hash_combine(
-        X->getKind(), tryLookThroughOwnershipInsts(&X->getEnumOperandRef()),
-        X->getType(), X->hasDefault());
+        X->getKind(), tryLookThroughOwnershipInsts(&X.getEnumOperandRef()),
+        X->getType(), X.hasDefault());
 
-    for (unsigned i = 0, e = X->getNumCases(); i < e; ++i) {
-      hash = llvm::hash_combine(hash, X->getCase(i).first,
-                                X->getCase(i).second);
+    for (unsigned i = 0, e = X.getNumCases(); i < e; ++i) {
+      hash = llvm::hash_combine(hash, X.getCase(i).first, X.getCase(i).second);
     }
-    
-    if (X->hasDefault())
-      hash = llvm::hash_combine(hash, X->getDefaultResult());
-    
+
+    if (X.hasDefault())
+      hash = llvm::hash_combine(hash, X.getDefaultResult());
+
     return hash;
   }
 
   hash_code visitSelectEnumInst(SelectEnumInst *X) {
-    return visitSelectEnumInstBase(X);
+    return visitSelectEnumOperation(X);
   }
 
   hash_code visitSelectEnumAddrInst(SelectEnumAddrInst *X) {
-    return visitSelectEnumInstBase(X);
+    return visitSelectEnumOperation(X);
   }
 
   hash_code visitWitnessMethodInst(WitnessMethodInst *X) {

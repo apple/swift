@@ -95,10 +95,10 @@ TypeVariableType::Implementation::getGenericParameter() const {
   return locator ? locator->getGenericParameter() : nullptr;
 }
 
-Optional<ExprKind>
+llvm::Optional<ExprKind>
 TypeVariableType::Implementation::getAtomicLiteralKind() const {
   if (!locator || !locator->directlyAt<LiteralExpr>())
-    return None;
+    return llvm::None;
 
   auto kind = getAsExpr(locator->getAnchor())->getKind();
   switch (kind) {
@@ -109,7 +109,7 @@ TypeVariableType::Implementation::getAtomicLiteralKind() const {
   case ExprKind::NilLiteral:
     return kind;
   default:
-    return None;
+    return llvm::None;
   }
 }
 
@@ -400,7 +400,7 @@ Type TypeChecker::typeCheckExpression(Expr *&expr, DeclContext *dc,
 /// FIXME: In order to remote this function both \c FrontendStatsTracer
 /// and \c PrettyStackTrace* have to be updated to accept `ASTNode`
 // instead of each individual syntactic element types.
-Optional<SyntacticElementTarget>
+llvm::Optional<SyntacticElementTarget>
 TypeChecker::typeCheckExpression(SyntacticElementTarget &target,
                                  TypeCheckExprOptions options) {
   DeclContext *dc = target.getDeclContext();
@@ -412,7 +412,7 @@ TypeChecker::typeCheckExpression(SyntacticElementTarget &target,
   return typeCheckTarget(target, options);
 }
 
-Optional<SyntacticElementTarget>
+llvm::Optional<SyntacticElementTarget>
 TypeChecker::typeCheckTarget(SyntacticElementTarget &target,
                              TypeCheckExprOptions options) {
   DeclContext *dc = target.getDeclContext();
@@ -425,7 +425,7 @@ TypeChecker::typeCheckTarget(SyntacticElementTarget &target,
   if (ConstraintSystem::preCheckTarget(
           target, /*replaceInvalidRefsWithErrors=*/true,
           options.contains(TypeCheckExprFlags::LeaveClosureBodyUnchecked))) {
-    return None;
+    return llvm::None;
   }
 
   // Check whether given target has a code completion token which requires
@@ -435,7 +435,7 @@ TypeChecker::typeCheckTarget(SyntacticElementTarget &target,
                                  [&](const constraints::Solution &S) {
                                    Context.CompletionCallback->sawSolution(S);
                                  }))
-    return None;
+    return llvm::None;
 
   // Construct a constraint system from this expression.
   ConstraintSystemOptions csOptions = ConstraintSystemFlags::AllowFixes;
@@ -471,7 +471,7 @@ TypeChecker::typeCheckTarget(SyntacticElementTarget &target,
   // Attempt to solve the constraint system.
   auto viable = cs.solve(target, allowFreeTypeVariables);
   if (!viable)
-    return None;
+    return llvm::None;
 
   // Apply this solution to the constraint system.
   // FIXME: This shouldn't be necessary.
@@ -482,7 +482,7 @@ TypeChecker::typeCheckTarget(SyntacticElementTarget &target,
   auto resultTarget = cs.applySolution(solution, target);
   if (!resultTarget) {
     // Failure already diagnosed, above, as part of applying the solution.
-    return None;
+    return llvm::None;
   }
 
   // Unless the client has disabled them, perform syntactic checks on the

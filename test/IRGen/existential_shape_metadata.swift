@@ -1,8 +1,7 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -emit-ir %s -swift-version 5 -disable-availability-checking | %IRGenFileCheck %s
-// RUN: %target-swift-frontend -emit-ir %s -swift-version 5 -disable-availability-checking
+// RUN: %target-swift-frontend -emit-ir %s -swift-version 5 -disable-availability-checking | %IRGenFileCheck %s
 
 // CHECK-LABEL: @"$sl26existential_shape_metadata2Q0_px1TRts_XPXGMq" = linkonce_odr hidden constant
-// CHECK-SAME:  { i32 {{.*}}sub ([[INT]] ptrtoint (i8** @{{[0-9]+}} to [[INT]])
+// CHECK-SAME:  { i32 {{.*}}sub ([[INT]] ptrtoint (ptr @{{[0-9]+}} to [[INT]])
 // CHECK-SAME:    i32 6400,
 // CHECK-SAME:    i32 {{.*}} @"flat unique 26existential_shape_metadata2Q0_px1TAaBPRts_XP"
 // CHECK-SAME:    i16 2, i16 2, i16 3, i16 0,
@@ -38,50 +37,44 @@ private struct C {}
 
 // CHECK-LABEL: define{{.*}} @"$s26existential_shape_metadata12testConcrete
 public func testConcrete() -> Any.Type {
-  // CHECK: [[METADATA:%.*]] = call %swift.type* @__swift_instantiateConcreteTypeFromMangledName({ i32, i32 }* @"$s26existential_shape_metadata2Q0_pSi1TAaBPRts_XPMD")
-  // CHECK: ret %swift.type* [[METADATA]]
+  // CHECK: [[METADATA:%.*]] = call ptr @__swift_instantiateConcreteTypeFromMangledName(ptr @"$s26existential_shape_metadata2Q0_pSi1TAaBPRts_XPMD")
+  // CHECK: ret ptr [[METADATA]]
   return (any Q0<Int>).self
 }
 
 //   Still the same shape with an application of a dependent type.
 // CHECK-LABEL: define{{.*}} @"$s26existential_shape_metadata13testDependent
 public func testDependent<T>(t: T.Type) -> Any.Type {
-  // CHECK: [[ARGS:%.*]] = alloca [1 x i8*], align
-  // CHECK: [[T0:%.*]] = getelementptr inbounds [1 x i8*], [1 x i8*]* [[ARGS]], i32 0, i32 0
-  // CHECK: [[T1:%.*]] = bitcast %swift.type* %T to i8*
-  // CHECK: store i8* [[T1]], i8** [[T0]], align
-  // CHECK: [[T0:%.*]] = bitcast [1 x i8*]* [[ARGS]] to i8**
-  // CHECK: [[METADATA:%.*]] = call %swift.type* @swift_getExtendedExistentialTypeMetadata({{.*}}@"$sl26existential_shape_metadata2Q0_px1TRts_XPXGMq{{(\.ptrauth)?}}" to i8*), i8** [[T0]])
-  // CHECK: ret %swift.type* [[METADATA]]
+  // CHECK: [[ARGS:%.*]] = alloca [1 x ptr], align
+  // CHECK: [[T0:%.*]] = getelementptr inbounds [1 x ptr], ptr [[ARGS]], i32 0, i32 0
+  // CHECK: store ptr %T, ptr [[T0]], align
+  // CHECK: [[METADATA:%.*]] = call ptr @swift_getExtendedExistentialTypeMetadata(ptr @"$sl26existential_shape_metadata2Q0_px1TRts_XPXGMq{{(\.ptrauth)?}}", ptr [[ARGS]])
+  // CHECK: ret ptr [[METADATA]]
   return (any Q0<T>).self
 }
 
 //   Still the same shape with an application of a complex type.
 // CHECK-LABEL: define{{.*}} @"$s26existential_shape_metadata22testComplexApplication
 public func testComplexApplication<T>(t: T.Type) -> Any.Type {
-  // CHECK: [[ARGS:%.*]] = alloca [1 x i8*], align
-  // CHECK: [[T0:%.*]] = call swiftcc %swift.metadata_response @"$s26existential_shape_metadata1BVMa"([[INT]] 255, %swift.type* %T)
+  // CHECK: [[ARGS:%.*]] = alloca [1 x ptr], align
+  // CHECK: [[T0:%.*]] = call swiftcc %swift.metadata_response @"$s26existential_shape_metadata1BVMa"([[INT]] 255, ptr %T)
   // CHECK: [[B_T:%.*]] = extractvalue %swift.metadata_response [[T0]], 0
-  // CHECK: [[T0:%.*]] = getelementptr inbounds [1 x i8*], [1 x i8*]* [[ARGS]], i32 0, i32 0
-  // CHECK: [[T1:%.*]] = bitcast %swift.type* [[B_T]] to i8*
-  // CHECK: store i8* [[T1]], i8** [[T0]], align
-  // CHECK: [[T0:%.*]] = bitcast [1 x i8*]* [[ARGS]] to i8**
-  // CHECK: [[METADATA:%.*]] = call %swift.type* @swift_getExtendedExistentialTypeMetadata({{.*}}@"$sl26existential_shape_metadata2Q0_px1TRts_XPXGMq{{(\.ptrauth)?}}" to i8*), i8** [[T0]])
-  // CHECK: ret %swift.type* [[METADATA]]
+  // CHECK: [[T0:%.*]] = getelementptr inbounds [1 x ptr], ptr [[ARGS]], i32 0, i32 0
+  // CHECK: store ptr [[B_T]], ptr [[T0]], align
+  // CHECK: [[METADATA:%.*]] = call ptr @swift_getExtendedExistentialTypeMetadata(ptr @"$sl26existential_shape_metadata2Q0_px1TRts_XPXGMq{{(\.ptrauth)?}}", ptr [[ARGS]])
+  // CHECK: ret ptr [[METADATA]]
   return (any Q0<B<T>>).self
 }
 
 //   Private protocols make the shape private and unique.
 // CHECK-LABEL: define{{.*}} @"$s26existential_shape_metadata12test_private
 public func test_private<T>(t: T.Type) -> Any.Type {
-  // CHECK: [[ARGS:%.*]] = alloca [1 x i8*], align
-  // CHECK: [[T0:%.*]] = getelementptr inbounds [1 x i8*], [1 x i8*]* [[ARGS]], i32 0, i32 0
-  // CHECK: [[T1:%.*]] = bitcast %swift.type* %T to i8*
-  // CHECK: store i8* [[T1]], i8** [[T0]], align
-  // CHECK: [[T0:%.*]] = bitcast [1 x i8*]* [[ARGS]] to i8**
+  // CHECK: [[ARGS:%.*]] = alloca [1 x ptr], align
+  // CHECK: [[T0:%.*]] = getelementptr inbounds [1 x ptr], ptr [[ARGS]], i32 0, i32 0
+  // CHECK: store ptr %T, ptr [[T0]], align
   //   FIXME: this should be unique?
-  // CHECK: [[METADATA:%.*]] = call %swift.type* @swift_getExtendedExistentialTypeMetadata_unique({{.*}}@"$sl26existential_shape_metadata2R033_881A0B6978EB4286E7CFF1E27030ACACLL_px1TRts_XPXG{{(\.ptrauth)?}}" to i8*), i8** [[T0]])
-  // CHECK: ret %swift.type* [[METADATA]]
+  // CHECK: [[METADATA:%.*]] = call ptr @swift_getExtendedExistentialTypeMetadata_unique(ptr @"$sl26existential_shape_metadata2R033_881A0B6978EB4286E7CFF1E27030ACACLL_px1TRts_XPXG{{(\.ptrauth)?}}", ptr [[ARGS]])
+  // CHECK: ret ptr [[METADATA]]
   return (any R0<T>).self
 }
 
@@ -89,7 +82,7 @@ public func test_private<T>(t: T.Type) -> Any.Type {
 //   change anything: the shape is still public.
 // CHECK-LABEL: define{{.*}} @"$s26existential_shape_metadata23test_privateApplication
 public func test_privateApplication<T>(t: T.Type) -> Any.Type {
-  // CHECK: [[METADATA:%.*]] = call %swift.type* @__swift_instantiateConcreteTypeFromMangledName({ i32, i32 }* @"$s26existential_shape_metadata2Q0_pAA1C33_881A0B6978EB4286E7CFF1E27030ACACLLV1TAaBPRts_XPMD")
-  // CHECK: ret %swift.type* [[METADATA]]
+  // CHECK: [[METADATA:%.*]] = call ptr @__swift_instantiateConcreteTypeFromMangledName(ptr @"$s26existential_shape_metadata2Q0_pAA1C33_881A0B6978EB4286E7CFF1E27030ACACLLV1TAaBPRts_XPMD")
+  // CHECK: ret ptr [[METADATA]]
   return (any Q0<C>).self
 }

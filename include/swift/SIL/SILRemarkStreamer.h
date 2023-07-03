@@ -89,10 +89,10 @@ template <typename RemarkT> static llvm::remarks::Type toRemarkType() {
   llvm_unreachable("Unknown remark type");
 }
 
-static inline Optional<llvm::remarks::RemarkLocation>
+static inline llvm::Optional<llvm::remarks::RemarkLocation>
 toRemarkLocation(const SourceLoc &loc, const SourceManager &srcMgr) {
   if (!loc.isValid())
-    return None;
+    return llvm::None;
 
   StringRef file = srcMgr.getDisplayNameForLoc(loc);
   unsigned line, col;

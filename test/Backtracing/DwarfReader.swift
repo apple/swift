@@ -4,6 +4,7 @@
 // RUN: %target-run %t/DwarfReader %t/Inlining | %FileCheck %s
 
 // REQUIRES: OS=linux-gnu
+// REQUIRES: backtracing
 
 @_spi(DwarfTest) import _Backtracing
 

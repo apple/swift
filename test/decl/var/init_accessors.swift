@@ -425,7 +425,7 @@ func test_memberwise_ordering() {
     var _c: Int
   }
 
-  _ = Test4(_a: 0, _b: 1, _c: 2) // Ok
+  _ = Test4(_a: 0, _b: 1, pair: (1, 2), _c: 2) // Ok
 
   struct Test5 {
     var _a: Int

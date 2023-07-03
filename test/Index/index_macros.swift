@@ -10,16 +10,17 @@
 // RUN: %host-build-swift -swift-version 5 -emit-library -o %t/%target-library-name(IndexMacros) -module-name=IndexMacros %t/IndexMacros.swift -g -no-toolchain-stdlib-rpath
 
 // Check indexed symbols
-// RUN: %target-swift-ide-test -print-indexed-symbols -source-filename %t/IndexTest.swift -load-plugin-library %t/%target-library-name(IndexMacros) -parse-as-library 2>&1 | tee %t/test.idx | %FileCheck %s
+// RUN: %target-swift-ide-test -print-indexed-symbols -source-filename %t/IndexTest.swift -load-plugin-library %t/%target-library-name(IndexMacros) -parse-as-library > %t/index.out
+// RUN: %FileCheck %s --input-file %t/index.out
 
 //--- IndexTest.swift
 @freestanding(expression)
-macro freestandingExpr() = #externalMacro(module: "IndexMacros", type: "FreestandingExprMacro")
-// CHECK: [[@LINE-1]]:7 | macro/Swift | freestandingExpr() |  [[EXPR_USR:.*]] | Def
+macro freestandingExpr<T>(arg: T) = #externalMacro(module: "IndexMacros", type: "FreestandingExprMacro")
+// CHECK: [[@LINE-1]]:7 | macro/Swift | freestandingExpr(arg:) |  [[EXPR_USR:.*]] | Def
 
 @freestanding(declaration, names: named(TestFree))
-macro freestandingDecl() = #externalMacro(module: "IndexMacros", type: "FreestandingDeclMacro")
-// CHECK: [[@LINE-1]]:7 | macro/Swift | freestandingDecl() |  [[DECL_USR:.*]] | Def
+macro freestandingDecl<T>(arg: T) = #externalMacro(module: "IndexMacros", type: "FreestandingDeclMacro")
+// CHECK: [[@LINE-1]]:7 | macro/Swift | freestandingDecl(arg:) |  [[DECL_USR:.*]] | Def
 
 @attached(accessor)
 macro Accessor() = #externalMacro(module: "IndexMacros", type: "SomeAccessorMacro")
@@ -38,8 +39,8 @@ macro MemberAttribute() = #externalMacro(module: "IndexMacros", type: "SomeMembe
 // CHECK: [[@LINE-1]]:7 | macro/Swift | MemberAttribute() |  [[MEMBER_ATTRIBUTE_USR:.*]] | Def
 
 @attached(peer, names: named(TestPeer))
-macro Peer() = #externalMacro(module: "IndexMacros", type: "SomePeerMacro")
-// CHECK: [[@LINE-1]]:7 | macro/Swift | Peer() |  [[PEER_USR:.*]] | Def
+macro Peer<T>(arg: T) = #externalMacro(module: "IndexMacros", type: "SomePeerMacro")
+// CHECK: [[@LINE-1]]:7 | macro/Swift | Peer(arg:) |  [[PEER_USR:.*]] | Def
 
 @attached(peer, names: named(peerMember))
 macro PeerMember() = #externalMacro(module: "IndexMacros", type: "SomePeerMemberMacro")
@@ -72,20 +73,30 @@ struct AddOne {
   }
 }
 
+// CHECK: [[@LINE+2]]:2 | macro/Swift | freestandingDecl(arg:) | [[DECL_USR]] | Ref
+// CHECK: [[@LINE+1]]:19 | struct/Swift | Double | s:Sd | Ref
+#freestandingDecl<Double>(arg: 1.0)
 // Creates a `TestFree` struct with `freeFunc` calling `freeLog`
-#freestandingDecl
-// CHECK: [[@LINE-1]]:2 | macro/Swift | freestandingDecl() | [[DECL_USR]] | Ref
 // CHECK: [[@LINE-2]]:1 | struct/Swift | TestFree | [[FREE_STRUCT_USR:.*]] | Def,Impl
 // CHECK: [[@LINE-3]]:1 | instance-method/Swift | freeFunc() | [[FREE_FUNC_USR:.*]] | Def,Impl,RelChild
 // CHECK-NEXT: RelChild | struct/Swift | TestFree | [[FREE_STRUCT_USR]]
 // CHECK: [[@LINE-5]]:1 | function/Swift | freeLog() | [[FREE_LOG_USR]] | Ref,Call,Impl,RelCall,RelCont
 // CHECK-NEXT: RelCall,RelCont | instance-method/Swift | freeFunc() | [[FREE_FUNC_USR]]
 
-// CHECK: [[@LINE+4]]:40 | macro/Swift | Peer() | [[PEER_USR]] | Ref
+func testExpr() {
+  // CHECK: [[@LINE+2]]:4 | macro/Swift | freestandingExpr(arg:) | [[EXPR_USR]] | Ref
+  // CHECK: [[@LINE+1]]:21 | struct/Swift | Double | s:Sd | Ref
+  #freestandingExpr<Double>(arg: 1.0)
+  // CHECK: [[@LINE-1]]:3 | function/Swift | exprLog() | [[EXPR_LOG_USR]] | Ref,Call,Impl,RelCall,RelCont
+  // CHECK-NEXT: RelCall,RelCont | function/Swift | testExpr()
+}
+
+// CHECK: [[@LINE+5]]:40 | macro/Swift | Peer(arg:) | [[PEER_USR]] | Ref
+// CHECK: [[@LINE+4]]:45 | struct/Swift | Double | s:Sd | Ref
 // CHECK: [[@LINE+3]]:23 | macro/Swift | MemberAttribute() | [[MEMBER_ATTRIBUTE_USR]] | Ref
 // CHECK: [[@LINE+2]]:15 | macro/Swift | Member() | [[MEMBER_USR]] | Ref
 // CHECK: [[@LINE+1]]:2 | macro/Swift | Conformance() | [[CONFORMANCE_USR]] | Ref
-@Conformance @Member @MemberAttribute @Peer
+@Conformance @Member @MemberAttribute @Peer<Double>(arg: 1.0)
 struct TestAttached {
   var attachedMember: Int
 
@@ -112,11 +123,6 @@ struct TestAttached {
 // CHECK: [[@LINE-24]]:39 | function/Swift | peerLog() | [[PEER_LOG_USR]] | Ref,Call,Impl,RelCall,RelCont
 // CHECK-NEXT: RelCall,RelCont | instance-method/Swift | peerFunc() | [[PEER_FUNC_USR]]
 
-// `Conformance` adds `TestProto` as a conformance on an extension of `TestAttached`
-// CHECK: [[@LINE-28]]:1 | extension/ext-struct/Swift | TestAttached | {{.*}} | Def,Impl
-// CHECK: [[@LINE-29]]:1 | protocol/Swift | TestProto | [[PROTO_USR]] | Ref,Impl,RelBase
-// CHECK-NEXT: RelBase | extension/ext-struct/Swift | TestAttached
-
 // CHECK: [[@LINE+1]]:8 | struct/Swift | Outer | [[OUTER_USR:.*]] | Def
 struct Outer {
   // CHECK: [[@LINE+1]]:4 | macro/Swift | PeerMember() | [[PEER_MEMBER_USR]] | Ref
@@ -137,16 +143,18 @@ struct Outer {
 // CHECK: [[@LINE-6]]:16 | function/Swift | memberLog() | [[MEMBER_LOG_USR]] | Ref,Call,Impl,RelCall,RelCont
 // CHECK-NEXT: RelCall,RelCont | instance-method/Swift | memberFunc() | [[INNER_FUNC_USR]]
 
-// `Conformance` adds `TestProto` as a conformance on an extension of `TestInner`
-// CHECK: [[@LINE-10]]:3 | extension/ext-struct/Swift | TestInner | {{.*}} | Def,Impl
-// CHECK: [[@LINE-11]]:3 | protocol/Swift | TestProto | [[PROTO_USR]] | Ref,Impl,RelBase
-// CHECK-NEXT: RelBase | extension/ext-struct/Swift | TestInner
 
-func testExpr() {
-  #freestandingExpr
-  // CHECK: [[@LINE-1]]:3 | function/Swift | exprLog() | [[EXPR_LOG_USR]] | Ref,Call,Impl,RelCall,RelCont
-  // CHECK-NEXT: RelCall,RelCont | function/Swift | testExpr()
-}
+// Expanded extensions are visited last
+
+// `Conformance` adds `TestProto` as a conformance on an extension of `TestAttached`
+// CHECK: [[@LINE-51]]:1 | extension/ext-struct/Swift | TestAttached | {{.*}} | Def,Impl
+// CHECK: [[@LINE-52]]:1 | protocol/Swift | TestProto | [[PROTO_USR]] | Ref,Impl,RelBase
+// CHECK-NEXT: RelBase | extension/ext-struct/Swift | TestAttached
+
+// `Conformance` adds `TestProto` as a conformance on an extension of `TestInner`
+// CHECK: [[@LINE-18]]:3 | extension/ext-struct/Swift | TestInner | {{.*}} | Def,Impl
+// CHECK: [[@LINE-19]]:3 | protocol/Swift | TestProto | [[PROTO_USR]] | Ref,Impl,RelBase
+// CHECK-NEXT: RelBase | extension/ext-struct/Swift | TestInner
 
 //--- IndexMacros.swift
 import SwiftSyntax

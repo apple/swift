@@ -208,7 +208,7 @@ swift::cxx_translation::getDeclRepresentation(const ValueDecl *VD) {
     return {Unsupported, UnrepresentableObjC};
   if (getActorIsolation(const_cast<ValueDecl *>(VD)).isActorIsolated())
     return {Unsupported, UnrepresentableIsolatedInActor};
-  Optional<CanGenericSignature> genericSignature;
+  llvm::Optional<CanGenericSignature> genericSignature;
   // Don't expose @_alwaysEmitIntoClient decls as they require their
   // bodies to be emitted into client.
   if (VD->getAttrs().hasAttribute<AlwaysEmitIntoClientAttr>())

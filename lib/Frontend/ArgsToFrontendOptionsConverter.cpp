@@ -181,7 +181,7 @@ bool ArgsToFrontendOptionsConverter::convert(
 
   computeDumpScopeMapLocations();
 
-  Optional<FrontendInputsAndOutputs> inputsAndOutputs =
+  llvm::Optional<FrontendInputsAndOutputs> inputsAndOutputs =
       ArgsToFrontendInputsConverter(Diags, Args).convert(buffers);
 
   // None here means error, not just "no inputs". Propagate unconditionally.
@@ -351,13 +351,23 @@ bool ArgsToFrontendOptionsConverter::convert(
     Opts.BlocklistConfigFilePaths.push_back(A);
   }
 
-  Opts.EnableCAS = Args.hasArg(OPT_enable_cas);
-  Opts.CASPath =
+  Opts.EnableCaching = Args.hasArg(OPT_cache_compile_job);
+  Opts.EnableCachingRemarks = Args.hasArg(OPT_cache_remarks);
+  Opts.CacheSkipReplay = Args.hasArg(OPT_cache_disable_replay);
+  Opts.CASOpts.CASPath =
       Args.getLastArgValue(OPT_cas_path, llvm::cas::getDefaultOnDiskCASPath());
+  Opts.CASOpts.PluginPath = Args.getLastArgValue(OPT_cas_plugin_path);
+  for (StringRef Opt : Args.getAllArgValues(OPT_cas_plugin_option)) {
+    StringRef Name, Value;
+    std::tie(Name, Value) = Opt.split('=');
+    Opts.CASOpts.PluginOptions.emplace_back(std::string(Name),
+                                            std::string(Value));
+  }
+
   Opts.CASFSRootIDs = Args.getAllArgValues(OPT_cas_fs);
   Opts.ClangIncludeTrees = Args.getAllArgValues(OPT_clang_include_tree_root);
 
-  if (Opts.EnableCAS && Opts.CASFSRootIDs.empty() &&
+  if (Opts.EnableCaching && Opts.CASFSRootIDs.empty() &&
       Opts.ClangIncludeTrees.empty() &&
       FrontendOptions::supportCompilationCaching(Opts.RequestedAction)) {
     if (!Args.hasArg(OPT_allow_unstable_cache_key_for_testing)) {
@@ -656,9 +666,9 @@ bool ArgsToFrontendOptionsConverter::computeFallbackModuleName() {
     // selected".
     return false;
   }
-  Optional<std::vector<std::string>> outputFilenames =
+  llvm::Optional<std::vector<std::string>> outputFilenames =
       OutputFilesComputer::getOutputFilenamesFromCommandLineOrFilelist(
-        Args, Diags, options::OPT_o, options::OPT_output_filelist);
+          Args, Diags, options::OPT_o, options::OPT_output_filelist);
 
   std::string nameToStem =
       outputFilenames && outputFilenames->size() == 1 &&

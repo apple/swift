@@ -1,5 +1,4 @@
-// RUN: %swift %use_no_opaque_pointers -module-name bridge_object -emit-ir -disable-legacy-type-info -target arm64-apple-ios8.0 %s | %FileCheck %s
-// RUN: %swift -module-name bridge_object -emit-ir -disable-legacy-type-info -target arm64-apple-ios8.0 %s
+// RUN: %swift -module-name bridge_object -emit-ir -disable-legacy-type-info -target arm64-apple-ios8.0 %s | %FileCheck %s
 
 // REQUIRES: CODEGENERATOR=AArch64
 
@@ -26,22 +25,21 @@ entry(%c : $C, %w : $Builtin.Word):
 }
 
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc { %objc_object*, i64 } @convert_from_bridge_object
-// CHECK:         [[BOBITS:%.*]] = ptrtoint [[BRIDGE:%swift.bridge\*]] %0 to i64
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc { ptr, i64 } @convert_from_bridge_object
+// CHECK:         [[BOBITS:%.*]] = ptrtoint ptr %0 to i64
 // --                                                     0x8000_0000_0000_0000
 // CHECK:         [[TAGBITS:%.*]] = and i64 [[BOBITS]], -9223372036854775808
 // CHECK:         [[TAGGED:%.*]] = icmp eq i64 [[TAGBITS]], 0
 // CHECK:         br i1 [[TAGGED]], label %not-tagged-pointer, label %tagged-pointer
 // CHECK:       tagged-pointer:
-// CHECK:         [[TAGGED_RESULT:%.*]] = bitcast [[BRIDGE]] %0 to [[C:%objc_object\*]]
 // CHECK:         br label %tagged-cont
 // CHECK:       not-tagged-pointer:
 // --                                                     0x0fff_ffff_ffff_fff8
 // CHECK:         [[MASKED_BITS:%.*]] = and i64 [[BOBITS]], 1152921504606846968
-// CHECK:         [[MASKED_RESULT:%.*]] = inttoptr i64 [[MASKED_BITS]] to [[C]]
+// CHECK:         [[MASKED_RESULT:%.*]] = inttoptr i64 [[MASKED_BITS]] to ptr
 // CHECK:         br label %tagged-cont
 // CHECK:      tagged-cont:
-// CHECK:         phi [[C]] [ [[TAGGED_RESULT]], %tagged-pointer ], [ [[MASKED_RESULT]], %not-tagged-pointer ]
+// CHECK:         phi ptr [ %0, %tagged-pointer ], [ [[MASKED_RESULT]], %not-tagged-pointer ]
 sil @convert_from_bridge_object : $(Builtin.BridgeObject) -> (ObjC, Builtin.Word) {
 entry(%b : $Builtin.BridgeObject):
   %c = bridge_object_to_ref %b : $Builtin.BridgeObject to $ObjC

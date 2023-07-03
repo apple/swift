@@ -876,7 +876,7 @@ private:
         assert(Range.getByteLength() > 1 &&
                (Range.str().front() == '_' || Range.str().front() == '$'));
         auto AfterDollar = Loc.getAdvancedLoc(1);
-        reportRef(Wrapped, AfterDollar, Info, None);
+        reportRef(Wrapped, AfterDollar, Info, llvm::None);
       }
     }
 
@@ -954,7 +954,7 @@ private:
   bool report(ValueDecl *D);
   bool reportExtension(ExtensionDecl *D);
   bool reportRef(ValueDecl *D, SourceLoc Loc, IndexSymbol &Info,
-                 Optional<AccessKind> AccKind);
+                 llvm::Optional<AccessKind> AccKind);
   bool reportImplicitConformance(ValueDecl *witness, ValueDecl *requirement,
                                  Decl *container);
 
@@ -1010,7 +1010,8 @@ private:
   bool initFuncDeclIndexSymbol(FuncDecl *D, IndexSymbol &Info);
   bool initFuncRefIndexSymbol(ValueDecl *D, SourceLoc Loc, IndexSymbol &Info);
   bool initVarRefIndexSymbols(Expr *CurrentE, ValueDecl *D, SourceLoc Loc,
-                              IndexSymbol &Info, Optional<AccessKind> AccKind);
+                              IndexSymbol &Info,
+                              llvm::Optional<AccessKind> AccKind);
 
   bool indexComment(const Decl *D);
 
@@ -1018,11 +1019,11 @@ private:
   // generated buffer or not. 0:0 if indexing a module and \p loc is invalid.
   // \c None if \p loc is otherwise invalid or its original location isn't
   // contained within the current buffer.
-  Optional<MappedLoc> getMappedLocation(SourceLoc loc) {
+  llvm::Optional<MappedLoc> getMappedLocation(SourceLoc loc) {
     if (loc.isInvalid()) {
       if (IsModuleFile)
         return {{0, 0, false}};
-      return None;
+      return llvm::None;
     }
 
     bool inGeneratedBuffer =
@@ -1033,7 +1034,7 @@ private:
       std::tie(bufferID, loc) = CurrentModule->getOriginalLocation(loc);
       if (BufferID != bufferID) {
         assert(false && "Location is not within file being indexed");
-        return None;
+        return llvm::None;
       }
     }
 
@@ -1141,6 +1142,9 @@ void IndexSwiftASTWalker::visitModule(ModuleDecl &Mod) {
     if (!handleSourceOrModuleFile(*SrcFile))
       return;
     walk(*SrcFile);
+    if (auto *synthesizedSF = SrcFile->getSynthesizedFile()) {
+      walk(synthesizedSF);
+    }
   } else {
     IsModuleFile = true;
     isSystemModule = Mod.isNonUserModule();
@@ -1185,7 +1189,7 @@ bool IndexSwiftASTWalker::visitImports(
     if (Path.empty() || Path == TopMod.getFilename())
       continue; // this is a submodule.
 
-    Optional<bool> IsClangModuleOpt;
+    llvm::Optional<bool> IsClangModuleOpt;
     for (auto File : Mod->getFiles()) {
       switch (File->getKind()) {
       case FileUnitKind::Source:
@@ -1372,7 +1376,7 @@ bool IndexSwiftASTWalker::reportRelatedRef(ValueDecl *D, SourceLoc Loc, bool isI
   // don't report this ref again when visitDeclReference reports it
   suppressRefAtLoc(Loc);
 
-  if (!reportRef(D, Loc, Info, None)) {
+  if (!reportRef(D, Loc, Info, llvm::None)) {
     Cancelled = true;
     return false;
   }
@@ -1407,7 +1411,7 @@ bool IndexSwiftASTWalker::reportRelatedTypeRef(const TypeLoc &Ty, SymbolRoleSet 
         IndexSymbol Info;
         if (isImplicit)
           Info.roles |= (unsigned)SymbolRole::Implicit;
-        if (!reportRef(TAD, IdLoc, Info, None))
+        if (!reportRef(TAD, IdLoc, Info, llvm::None))
           return false;
         if (auto Ty = TAD->getUnderlyingType()) {
           NTD = Ty->getAnyNominal();
@@ -1618,7 +1622,7 @@ static bool hasUsefulRoleInSystemModule(SymbolRoleSet roles) {
 
 bool IndexSwiftASTWalker::reportRef(ValueDecl *D, SourceLoc Loc,
                                     IndexSymbol &Info,
-                                    Optional<AccessKind> AccKind) {
+                                    llvm::Optional<AccessKind> AccKind) {
   if (!shouldIndex(D, /*IsRef=*/true))
     return true; // keep walking
 
@@ -1836,9 +1840,9 @@ bool IndexSwiftASTWalker::initFuncRefIndexSymbol(ValueDecl *D, SourceLoc Loc,
   return false;
 }
 
-bool IndexSwiftASTWalker::initVarRefIndexSymbols(Expr *CurrentE, ValueDecl *D,
-                                                 SourceLoc Loc, IndexSymbol &Info,
-                                                 Optional<AccessKind> AccKind) {
+bool IndexSwiftASTWalker::initVarRefIndexSymbols(
+    Expr *CurrentE, ValueDecl *D, SourceLoc Loc, IndexSymbol &Info,
+    llvm::Optional<AccessKind> AccKind) {
   if (initIndexSymbol(D, Loc, /*IsRef=*/true, Info))
     return true;
 

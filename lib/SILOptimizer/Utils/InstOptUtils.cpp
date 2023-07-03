@@ -55,14 +55,15 @@ static llvm::cl::opt<bool> KeepWillThrowCall(
     llvm::cl::desc(
       "Keep calls to swift_willThrow, even if the throw is optimized away"));
 
-Optional<SILBasicBlock::iterator> swift::getInsertAfterPoint(SILValue val) {
+llvm::Optional<SILBasicBlock::iterator>
+swift::getInsertAfterPoint(SILValue val) {
   if (auto *inst = val->getDefiningInstruction()) {
     return std::next(inst->getIterator());
   }
   if (isa<SILArgument>(val)) {
     return cast<SILArgument>(val)->getParentBlock()->begin();
   }
-  return None;
+  return llvm::None;
 }
 
 /// Creates an increment on \p Ptr before insertion point \p InsertPt that
@@ -1394,11 +1395,11 @@ bool swift::calleesAreStaticallyKnowable(SILModule &module, ValueDecl *vd) {
   llvm_unreachable("Unhandled access level in switch.");
 }
 
-Optional<FindLocalApplySitesResult>
+llvm::Optional<FindLocalApplySitesResult>
 swift::findLocalApplySites(FunctionRefBaseInst *fri) {
   SmallVector<Operand *, 32> worklist(fri->use_begin(), fri->use_end());
 
-  Optional<FindLocalApplySitesResult> f;
+  llvm::Optional<FindLocalApplySitesResult> f;
   f.emplace();
 
   // Optimistically state that we have no escapes before our def-use dataflow.
@@ -1471,7 +1472,7 @@ swift::findLocalApplySites(FunctionRefBaseInst *fri) {
   // If we did escape and didn't find any apply sites, then we have no
   // information for our users that is interesting.
   if (f->escapes && f->partialApplySites.empty() && f->fullApplySites.empty())
-    return None;
+    return llvm::None;
   return f;
 }
 
@@ -1808,11 +1809,10 @@ SILValue swift::makeValueAvailable(SILValue value, SILBasicBlock *inBlock) {
 
 bool swift::tryEliminateOnlyOwnershipUsedForwardingInst(
     SingleValueInstruction *forwardingInst, InstModCallbacks &callbacks) {
-  if (!ForwardingInstruction::isa(forwardingInst))
+  auto fwdOp = ForwardingOperation(forwardingInst);
+  if (!fwdOp || !fwdOp.canForwardFirstOperandOnly()) {
     return false;
-
-  if (ForwardingInstruction::canForwardAllOperands(forwardingInst))
-    return false;
+  }
 
   SmallVector<Operand *, 32> worklist(getNonDebugUses(forwardingInst));
   while (!worklist.empty()) {

@@ -33,6 +33,9 @@ import TestModule
  // CHECK-NEXT:        "swift": {
  // CHECK-NEXT:          "moduleInterfacePath": 
  // CHECK-NEXT:          "contextHash":
+ // CHECK-NEXT:          "compiledModuleCandidates": [
+ // CHECK-NEXT:            TestModule.swiftmodule
+ // CHECK-NEXT:          ],
  // CHECK-NEXT:          "commandLine": [
  // CHECK-NEXT:            "-frontend",
  // CHECK-NEXT:            "-compile-module-from-interface",

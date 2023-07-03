@@ -1,8 +1,5 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-objc-interop -emit-ir %s | %FileCheck %s --check-prefixes=CHECK,CHECK-objc,CHECK-%target-import-type-objc
-// RUN: %target-swift-frontend -enable-objc-interop -emit-ir %s
-// RUN: %target-swift-frontend %use_no_opaque_pointers -disable-objc-interop -emit-ir %s | %FileCheck %s --check-prefixes=CHECK,CHECK-native
-// RUN: %target-swift-frontend -disable-objc-interop -emit-ir %s
-// REQUIRES: executable_test
+// RUN: %target-swift-frontend -enable-objc-interop -emit-ir %s | %FileCheck %s --check-prefixes=CHECK,CHECK-objc,CHECK-%target-import-type-objc
+// RUN: %target-swift-frontend -disable-objc-interop -emit-ir %s | %FileCheck %s --check-prefixes=CHECK,CHECK-native
 
 // REQUIRES: CPU=x86_64
 
@@ -15,36 +12,34 @@ class C {
   required init()
 }
 
-// CHECK: [[C:%T6vtable1CC]] = type <{ %swift.refcounted }>
-
 sil @$s6vtable1CCACycACmcfC : $@convention(method) (@thick C.Type) -> @owned C
 sil @$s6vtable1CCfd : $@convention(method) (@owned C) -> @owned Builtin.NativeObject
 sil @$s6vtable1CCfD : $@convention(method) (@owned C) -> ()
 
-// CHECK-objc: @"$s6vtable1CCMf" = internal global [[C_METADATA_T:<{.*\* }>]] <{
-// CHECK-objc:          void ([[C]]*)* @"$s6vtable1CCfD",
-// CHECK-objc:          i8** {{@"\$sBoWV"|null}},
-// CHECK-objc:          i64 ptrtoint (%objc_class* @"$s6vtable1CCMm" to i64),
-// CHECK-DIRECT-objc:   %objc_class* @"OBJC_CLASS_$_{{(_TtCs12_)?}}SwiftObject",
-// CHECK-INDIRECT-objc: %swift.type* null,
-// CHECK-objc:          %swift.opaque* @_objc_empty_cache,
-// CHECK-objc:          %swift.opaque* null,
-// CHECK-objc:          i64 add (i64 ptrtoint ({ i32, i32, i32, i32, i8*, i8*, i8*, i8*, i8*, i8*, i8* }* @_DATA__TtC6vtable1C to i64), i64 {{1|2}}),
+// CHECK-objc: @"$s6vtable1CCMf" = internal global [[C_METADATA_T:<{.*}>]] <{
+// CHECK-objc:          ptr @"$s6vtable1CCfD",
+// CHECK-objc:          ptr {{@"\$sBoWV"|null}},
+// CHECK-objc:          i64 ptrtoint (ptr @"$s6vtable1CCMm" to i64),
+// CHECK-DIRECT-objc:   ptr @"OBJC_CLASS_$_{{(_TtCs12_)?}}SwiftObject",
+// CHECK-INDIRECT-objc: ptr null,
+// CHECK-objc:          ptr @_objc_empty_cache,
+// CHECK-objc:          ptr null,
+// CHECK-objc:          i64 add (i64 ptrtoint (ptr @_DATA__TtC6vtable1C to i64), i64 {{1|2}}),
 // CHECK-objc:          i32 {{3|2}}, i32 0, i32 16, i16 7, i16 0,
 // CHECK-objc:          i32 112, i32 24,
 // CHECK-objc:          @"$s6vtable1CCMn"
-// CHECK-objc:          [[C]]* (%swift.type*)* @"$s6vtable1CCACycACmcfC"
+// CHECK-objc:          ptr @"$s6vtable1CCACycACmcfC"
 // CHECK-objc:  }>
 
-// CHECK-native: @"$s6vtable1CCMf" = internal global [[C_METADATA_T:<{.*\* }>]] <{
-// CHECK-native: void ([[C]]*)* @"$s6vtable1CCfD",
-// CHECK-native: i8** {{@"\$sBoWV"|null}},
+// CHECK-native: @"$s6vtable1CCMf" = internal global [[C_METADATA_T:<{.*}>]] <{
+// CHECK-native: ptr @"$s6vtable1CCfD",
+// CHECK-native: ptr {{@"\$sBoWV"|null}},
 // CHECK-native: i64 0,
-// CHECK-native: %swift.type* null,
+// CHECK-native: ptr null,
 // CHECK-native: i32 {{3|2}}, i32 0, i32 16, i16 7, i16 0,
 // CHECK-native: i32 88, i32 24,
 // CHECK-native: @"$s6vtable1CCMn"
-// CHECK-native: [[C]]* (%swift.type*)* @"$s6vtable1CCACycACmcfC"
+// CHECK-native: ptr @"$s6vtable1CCACycACmcfC"
 // CHECK-native: }>
 
 sil_vtable C {

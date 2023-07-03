@@ -132,7 +132,7 @@ using AccessStorageSet = llvm::SmallDenseSet<StorageAccessInfo, 8>;
 /// AccessStorage, which is never allowed for class or global access.
 class AccessStorageResult {
   AccessStorageSet storageAccessSet;
-  Optional<SILAccessKind> unidentifiedAccess;
+  llvm::Optional<SILAccessKind> unidentifiedAccess;
 
 public:
   AccessStorageResult() {}
@@ -146,7 +146,9 @@ public:
     return storageAccessSet.empty() && !unidentifiedAccess;
   }
 
-  bool hasUnidentifiedAccess() const { return unidentifiedAccess != None; }
+  bool hasUnidentifiedAccess() const {
+    return unidentifiedAccess != llvm::None;
+  }
 
   /// Return true if the analysis has determined all accesses of otherStorage
   /// have the [no_nested_conflict] flag set.
@@ -169,7 +171,7 @@ public:
 
   void clear() {
     storageAccessSet.clear();
-    unidentifiedAccess = None;
+    unidentifiedAccess = llvm::None;
   }
 
   /// Return true if these effects are fully conservative.

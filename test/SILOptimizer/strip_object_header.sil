@@ -1,0 +1,66 @@
+// RUN: %target-sil-opt  %s -strip-object-headers | %FileCheck %s
+
+// REQUIRES: swift_in_compiler
+
+sil_stage canonical
+
+import Builtin
+import Swift
+import SwiftShims
+
+class B {
+}
+class C : B {
+  @_hasStorage var a: Int
+}
+
+sil_global @g : $C
+
+sil @unknown_func : $@convention(thin) (@guaranteed C) -> ()
+
+// CHECK-LABEL: sil @test_alloc_ref :
+// CHECK:         alloc_ref [bare] [stack] $C
+// CHECK:       } // end sil function 'test_alloc_ref'
+sil @test_alloc_ref : $@convention(thin) () -> () {
+bb0:
+  %0 = alloc_ref [stack] $C
+  debug_value %0 : $C, let, name "x"
+  %1 = upcast %0 : $C to $B
+  %2 = end_cow_mutation %1 : $B
+  %3 = unchecked_ref_cast %2 : $B to $C
+  %4 = ref_element_addr %3 : $C, #C.a
+  %5 = ref_tail_addr %3 : $C, $Int
+  set_deallocating %0 : $C
+  fix_lifetime %0 : $C
+  dealloc_ref %0 : $C
+  dealloc_stack_ref %0 : $C
+  %6 = tuple ()
+  return %6 : $()
+}
+
+// CHECK-LABEL: sil @test_global_value :
+// CHECK:         global_value [bare] @g
+// CHECK:       } // end sil function 'test_global_value'
+sil @test_global_value : $@convention(thin) () -> () {
+bb0:
+  %0 = global_value @g : $C
+  debug_value %0 : $C, let, name "x"
+  %4 = ref_element_addr %0 : $C, #C.a
+  %5 = ref_tail_addr %0 : $C, $Int
+  %6 = tuple ()
+  return %6 : $()
+}
+
+// CHECK-LABEL: sil @test_not_bare :
+// CHECK:         alloc_ref [stack] $C
+// CHECK:       } // end sil function 'test_not_bare'
+sil @test_not_bare : $@convention(thin) () -> () {
+bb0:
+  %0 = alloc_ref [stack] $C
+  %1 = function_ref @unknown_func : $@convention(thin) (@guaranteed C) -> ()
+  %2 = apply %1(%0) : $@convention(thin) (@guaranteed C) -> ()
+  dealloc_stack_ref %0 : $C
+  %6 = tuple ()
+  return %6 : $()
+}
+

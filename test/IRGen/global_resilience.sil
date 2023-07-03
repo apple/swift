@@ -1,8 +1,7 @@
 // RUN: %empty-directory(%t)
 
 // RUN: %target-swift-frontend %S/../Inputs/resilient_struct.swift -enable-library-evolution -emit-module -emit-module-path %t/resilient_struct.swiftmodule
-// RUN: %target-swift-frontend %use_no_opaque_pointers -Xllvm -sil-disable-pass=simplification -enable-library-evolution -I %t -emit-ir %s | %FileCheck %s
-// RUN: %target-swift-frontend -Xllvm -sil-disable-pass=simplification -enable-library-evolution -I %t -emit-ir %s
+// RUN: %target-swift-frontend -Xllvm -sil-disable-pass=simplification -enable-library-evolution -I %t -emit-ir %s | %FileCheck %s
 // RUN: %target-swift-frontend -Xllvm -sil-disable-pass=simplification -enable-library-evolution -I %t -emit-ir -O %s
 
 // CHECK: %swift.type = type { [[INT:i32|i64]] }
@@ -64,7 +63,7 @@ bb0:
 
   %addr = global_addr @smallGlobal : $*SmallResilientStruct
 
-  // CHECK: [[VALUE:%.*]] = load i32, i32* getelementptr inbounds (%T17global_resilience20SmallResilientStructV, %T17global_resilience20SmallResilientStructV* bitcast ([[BUFFER]]* @smallGlobal to %T17global_resilience20SmallResilientStructV*), i32 0, i32 0, i32 0)
+  // CHECK: [[VALUE:%.*]] = load i32, ptr @smallGlobal
   %x_addr = struct_element_addr %addr : $*SmallResilientStruct, #SmallResilientStruct.x
   %x = load %x_addr : $*Int32
 
@@ -75,11 +74,11 @@ bb0:
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @testLargeGlobal()
 sil @testLargeGlobal : $@convention(thin) () -> () {
 bb0:
-  // CHECK: [[ALLOC:%.*]] = call noalias i8* @swift_slowAlloc([[INT]] 32, [[INT]] 7)
-  // CHECK: store i8* [[ALLOC]], i8** bitcast ([[BUFFER]]* @largeGlobal to i8**), align {{(8|4)}}
+  // CHECK: [[ALLOC:%.*]] = call noalias ptr @swift_slowAlloc([[INT]] 32, [[INT]] 7)
+  // CHECK: store ptr [[ALLOC]], ptr @largeGlobal, align {{(8|4)}}
   alloc_global @largeGlobal
 
-  // CHECK: [[VALUE:%.*]] = load %T17global_resilience20LargeResilientStructV*, %T17global_resilience20LargeResilientStructV** bitcast ([[BUFFER]]* @largeGlobal to %T17global_resilience20LargeResilientStructV**)
+  // CHECK: [[VALUE:%.*]] = load ptr, ptr @largeGlobal
   %addr = global_addr @largeGlobal : $*LargeResilientStruct
 
   %tuple = tuple ()
@@ -95,7 +94,7 @@ bb0:
 
   %addr = global_addr @fixedGlobal : $*LargeResilientStruct
 
-  // CHECK: [[VALUE:%.*]] = load i64, i64* getelementptr inbounds (%T17global_resilience20LargeResilientStructV, %T17global_resilience20LargeResilientStructV* @fixedGlobal, i32 0, i32 1, i32 0)
+  // CHECK: [[VALUE:%.*]] = load i64, ptr getelementptr inbounds (%T17global_resilience20LargeResilientStructV, ptr @fixedGlobal, i32 0, i32 1)
   %x_addr = struct_element_addr %addr : $*LargeResilientStruct, #LargeResilientStruct.x
   %x = load %x_addr : $*Int64
 
@@ -108,10 +107,10 @@ sil @testOtherGlobal : $@convention(thin) () -> () {
 bb0:
   // CHECK: [[T0:%.*]] = call swiftcc %swift.metadata_response @"$s16resilient_struct4SizeVMa"([[INT]] 0)
   // CHECK: [[METADATA:%.*]] = extractvalue %swift.metadata_response [[T0]], 0
-  // CHECK: call %swift.opaque* @__swift_allocate_value_buffer(%swift.type* [[METADATA]], %swift.opaque* bitcast ([{{.*}} x i8]* @otherGlobal to %swift.opaque*))
+  // CHECK: call ptr @__swift_allocate_value_buffer(ptr [[METADATA]], ptr @otherGlobal)
     alloc_global @otherGlobal
 
-  // CHECK: call %swift.opaque* @__swift_project_value_buffer(%swift.type* [[METADATA]], %swift.opaque* bitcast ([{{.*}} x i8]* @otherGlobal to %swift.opaque*))
+  // CHECK: call ptr @__swift_project_value_buffer(ptr [[METADATA]], ptr @otherGlobal)
   %addr = global_addr @otherGlobal : $*Size
 
   %tuple = tuple ()
@@ -120,53 +119,44 @@ bb0:
   return %tuple : $()
 }
 
-// CHECK-LABEL: define linkonce_odr hidden %swift.opaque* @__swift_allocate_value_buffer(%swift.type* %0, %swift.opaque* %1)
+// CHECK-LABEL: define linkonce_odr hidden ptr @__swift_allocate_value_buffer(ptr %0, ptr %1)
 // CHECK: entry:
-// CHECK:   [[CAST:%.*]] = bitcast %swift.type* %0 to i8***
-// CHECK:   [[VWT_ADDR:%.*]] = getelementptr inbounds i8**, i8*** [[CAST]], {{.*}} -1
-// CHECK:   [[VWT:%.*]] = load i8**, i8*** [[VWT_ADDR]]
-// CHECK:   [[VWT_CAST:%.*]] = bitcast i8** [[VWT]] to %swift.vwtable*
-// CHECK:   [[FLAGS_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, %swift.vwtable* [[VWT_CAST]], i32 0, i32 10
-// CHECK:   [[FLAGS:%.*]] = load i32, i32* [[FLAGS_ADDR]]
+// CHECK:   [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr %0, {{.*}} -1
+// CHECK:   [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK:   [[FLAGS_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], i32 0, i32 10
+// CHECK:   [[FLAGS:%.*]] = load i32, ptr [[FLAGS_ADDR]]
 // CHECK:   [[ISNOTINLINE:%.*]] = and i32 [[FLAGS]], 131072
 // CHECK:   [[ISINLINE:%.*]] = icmp eq i32 [[ISNOTINLINE]], 0
 // CHECK:   br i1 [[ISINLINE]], label %done, label %outline.allocateValueInBuffer
 //
 // CHECK: outline.allocateValueInBuffer:
-// CHECK:   [[CAST:%.*]] = bitcast %swift.type* %0 to i8***
-// CHECK:   [[VWT_ADDR:%.*]] = getelementptr inbounds i8**, i8*** [[CAST]], {{.*}} -1
-// CHECK:   [[VWT:%.*]] = load i8**, i8*** [[VWT_ADDR]]
-// CHECK:   [[VWT_CAST:%.*]] = bitcast i8** [[VWT]] to %swift.vwtable*
-// CHECK:   [[SIZE_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, %swift.vwtable* [[VWT_CAST]], i32 0, i32 8
-// CHECK:   [[SIZE:%.*]] = load [[INT]], [[INT]]* [[SIZE_ADDR]]
+// CHECK:   [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr %0, {{.*}} -1
+// CHECK:   [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK:   [[SIZE_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], i32 0, i32 8
+// CHECK:   [[SIZE:%.*]] = load [[INT]], ptr [[SIZE_ADDR]]
 // CHECK:   [[ALIGN:%.*]] = and {{.*}}, 255
-// CHECK:   [[PTR:%.*]] = call noalias i8* @swift_slowAlloc({{.*}} [[SIZE]], {{.*}} [[ALIGN]])
-// CHECK:   [[ADDR:%.*]] = bitcast %swift.opaque* %1 to i8**
-// CHECK:   store i8* [[PTR]], i8** [[ADDR]]
-// CHECK:   [[OUTLINEADDR:%.*]] = bitcast i8* [[PTR]] to %swift.opaque*
+// CHECK:   [[PTR:%.*]] = call noalias ptr @swift_slowAlloc({{.*}} [[SIZE]], {{.*}} [[ALIGN]])
+// CHECK:   store ptr [[PTR]], ptr %1
 // CHECK:   br label %done
 //
 // CHECK: done:
-// CHECK:   [[PHI:%.*]] = phi %swift.opaque* [ %1, %entry ], [ [[OUTLINEADDR]], %outline.allocateValueInBuffer ]
-// CHECK:   ret %swift.opaque* [[PHI]]
+// CHECK:   [[PHI:%.*]] = phi ptr [ %1, %entry ], [ [[PTR]], %outline.allocateValueInBuffer ]
+// CHECK:   ret ptr [[PHI]]
 
 
-// CHECK-LABEL: define linkonce_odr hidden %swift.opaque* @__swift_project_value_buffer(%swift.type* %0, %swift.opaque* %1)
-// CHECK:   [[CAST:%.*]] = bitcast %swift.type* %0 to i8***
-// CHECK:   [[VWT_ADDR:%.*]] = getelementptr inbounds i8**, i8*** [[CAST]], {{.*}} -1
-// CHECK:   [[VWT:%.*]] = load i8**, i8*** [[VWT_ADDR]]
-// CHECK:   [[VWT_CAST:%.*]] = bitcast i8** [[VWT]] to %swift.vwtable*
-// CHECK:   [[FLAGS_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, %swift.vwtable* [[VWT_CAST]], i32 0, i32 10
-// CHECK:   [[FLAGS:%.*]] = load i32, i32* [[FLAGS_ADDR]]
+// CHECK-LABEL: define linkonce_odr hidden ptr @__swift_project_value_buffer(ptr %0, ptr %1)
+// CHECK:   [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr %0, {{.*}} -1
+// CHECK:   [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK:   [[FLAGS_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], i32 0, i32 10
+// CHECK:   [[FLAGS:%.*]] = load i32, ptr [[FLAGS_ADDR]]
 // CHECK:   [[ISNOTINLINE:%.*]] = and i32 [[FLAGS]], 131072
 // CHECK:   [[ISINLINE:%.*]] = icmp eq i32 [[ISNOTINLINE]], 0
 // CHECK:   br i1 [[ISINLINE]], label %done, label %outline.projectValueInBuffer
 //
 // CHECK: outline.projectValueInBuffer:
-// CHECK:   [[CAST:%.*]] = bitcast %swift.opaque* %1 to %swift.opaque**
-// CHECK:   [[PTR_TO_BUFFER:%.*]] = load %swift.opaque*, %swift.opaque** [[CAST]]
+// CHECK:   [[PTR_TO_BUFFER:%.*]] = load ptr, ptr %1
 // CHECK:   br label %done
 //
 // CHECK: done:
-// CHECK:   [[PHI:%.*]] = phi %swift.opaque* [ %1, %entry ], [ [[PTR_TO_BUFFER]], %outline.projectValueInBuffer ]
-// CHECK:   ret %swift.opaque* [[PHI]]
+// CHECK:   [[PHI:%.*]] = phi ptr [ %1, %entry ], [ [[PTR_TO_BUFFER]], %outline.projectValueInBuffer ]
+// CHECK:   ret ptr [[PHI]]

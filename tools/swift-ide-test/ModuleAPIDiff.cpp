@@ -730,14 +730,14 @@ public:
 
   llvm::Optional<sma::TypeName> convertToOptionalTypeName(Type T) const {
     if (!T)
-      return None;
+      return llvm::None;
     return convertToTypeName(T);
   }
 
   llvm::Optional<sma::GenericSignature>
   convertToGenericSignature(GenericSignature GS) {
     if (!GS)
-      return None;
+      return llvm::None;
     sma::GenericSignature ResultGS;
     for (auto *GTPT : GS.getGenericParams()) {
       sma::GenericParam ResultGP;

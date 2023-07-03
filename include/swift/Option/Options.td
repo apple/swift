@@ -1812,36 +1812,32 @@ def gcc_toolchain: Separate<["-"], "gcc-toolchain">,
   MetaVarName<"<path>">,
   HelpText<"Specify a directory where the clang importer and clang linker can find headers and libraries">;
 
+def cache_compile_job:  Flag<["-"], "cache-compile-job">,
+  Flags<[FrontendOption, NewDriverOnlyOption]>,
+  HelpText<"Enable compiler caching">;
+
+def cache_remarks:  Flag<["-"], "cache-remarks">,
+  Flags<[FrontendOption, NewDriverOnlyOption]>,
+  HelpText<"Show remarks for compiler caching">;
+
+def cache_disable_replay:  Flag<["-"], "cache-disable-replay">,
+  Flags<[FrontendOption, NewDriverOnlyOption]>,
+  HelpText<"Skip loading the compilation result from cache">;
+
 def cas_path: Separate<["-"], "cas-path">,
   Flags<[FrontendOption, NewDriverOnlyOption]>,
   HelpText<"Path to CAS">, MetaVarName<"<path>">;
 
-def allow_unstable_cache_key_for_testing: Flag<["-"], "allow-unstable-cache-key-for-testing">,
-  Flags<[FrontendOption, HelpHidden, NoDriverOption]>,
-  HelpText<"Allow compilation caching with unstable inputs for testing purpose">;
+def cas_plugin_path: Separate<["-"], "cas-plugin-path">,
+  Flags<[FrontendOption, NewDriverOnlyOption]>,
+  HelpText<"Path to CAS Plugin">, MetaVarName<"<path>">;
 
-def bridging_header_pch_key : Separate<["-"], "bridging-header-pch-key">,
-  Flags<[FrontendOption, HelpHidden, ArgumentIsPath]>,
-  HelpText<"Cache Key for bridging header pch">;
-
-def clang_include_tree: Flag<["-"], "clang-include-tree">,
-  Flags<[FrontendOption, NoDriverOption]>,
-  HelpText<"Use clang include tree">;
+def cas_plugin_option: Separate<["-"], "cas-plugin-option">,
+  Flags<[FrontendOption, NewDriverOnlyOption]>,
+  HelpText<"Option pass to CAS Plugin">, MetaVarName<"<name>=<option>">;
 
 
 // END ONLY SUPPORTED IN NEW DRIVER
-
-def enable_cas: Flag<["-"], "enable-cas">,
-  Flags<[FrontendOption, NoDriverOption]>,
-  HelpText<"Enable CAS for swift-frontend">;
-
-def cas_fs: Separate<["-"], "cas-fs">,
-  Flags<[FrontendOption, NoDriverOption]>,
-  HelpText<"Root CASID for CAS FileSystem">, MetaVarName<"<cas-id>">;
-
-def clang_include_tree_root: Separate<["-"], "clang-include-tree-root">,
-  Flags<[FrontendOption, NoDriverOption]>,
-  HelpText<"Clang Include Tree CASID">, MetaVarName<"<cas-id>">;
 
 
 def plugin_search_Group : OptionGroup<"<plugin search options>">;

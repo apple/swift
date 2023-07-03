@@ -1,7 +1,5 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -primary-file %s -emit-ir -enable-objc-interop | %FileCheck %s --check-prefixes=CHECK,CHECK-objc
-// RUN: %target-swift-frontend %use_no_opaque_pointers -primary-file %s -emit-ir -disable-objc-interop | %FileCheck %s --check-prefixes=CHECK,CHECK-native
-// RUN: %target-swift-frontend -primary-file %s -emit-ir -enable-objc-interop
-// RUN: %target-swift-frontend -primary-file %s -emit-ir -disable-objc-interop
+// RUN: %target-swift-frontend -primary-file %s -emit-ir -enable-objc-interop | %FileCheck %s --check-prefixes=CHECK,CHECK-objc
+// RUN: %target-swift-frontend -primary-file %s -emit-ir -disable-objc-interop | %FileCheck %s --check-prefixes=CHECK,CHECK-native
 
 // REQUIRES: CPU=x86_64
 
@@ -21,7 +19,7 @@ protocol P {
 class B<T, U:P> {}
 sil_vtable B {}
 
-// CHECK-LABEL: define hidden swiftcc void @thick_metatype(%swift.type* %0)
+// CHECK-LABEL: define hidden swiftcc void @thick_metatype(ptr %0)
 sil hidden @thick_metatype : $@convention(thin) <T> (@thick A<T>.Type) -> () {
 bb0(%0 : $@thick A<T>.Type):
   %2 = tuple ()
@@ -30,21 +28,19 @@ bb0(%0 : $@thick A<T>.Type):
 
 sil hidden_external @use_all : $@convention(thin) <T, U where T : P, U : P> () -> ()
 
-// CHECK-LABEL: define hidden swiftcc void @class_pointer(%T11fulfillment1BC* %0, i8** %T.P)
-// CHECK:      [[T0:%.*]] = bitcast %T11fulfillment1BC* %0 to %swift.type**
-// CHECK-NEXT: [[METADATA:%.*]] = load %swift.type*, %swift.type** [[T0]], align 8
-// CHECK:      [[T0:%.*]] = bitcast %swift.type* [[METADATA]] to %swift.type**
-// CHECK-objc-NEXT: [[T1:%.*]] = getelementptr inbounds %swift.type*, %swift.type** [[T0]], i64 10
-// CHECK-native-NEXT: [[T1:%.*]] = getelementptr inbounds %swift.type*, %swift.type** [[T0]], i64 7
-// CHECK-NEXT:  %T = load %swift.type*, %swift.type** [[T1]], align 8
-// CHECK:      [[T0:%.*]] = bitcast %swift.type* [[METADATA]] to %swift.type**
-// CHECK-objc-NEXT: [[T1:%.*]] = getelementptr inbounds %swift.type*, %swift.type** [[T0]], i64 11
-// CHECK-native-NEXT: [[T1:%.*]] = getelementptr inbounds %swift.type*, %swift.type** [[T0]], i64 8
-// CHECK-NEXT:  %U = load %swift.type*, %swift.type** [[T1]], align 8
-// CHECK:      [[T0:%.*]] = bitcast %swift.type* [[METADATA]] to i8***
-// CHECK-objc-NEXT: [[T1:%.*]] = getelementptr inbounds i8**, i8*** [[T0]], i64 12
-// CHECK-native-NEXT: [[T1:%.*]] = getelementptr inbounds i8**, i8*** [[T0]], i64 9
-// CHECK-NEXT:  %U.P = load i8**, i8*** [[T1]], align 8
+// CHECK-LABEL: define hidden swiftcc void @class_pointer(ptr %0, ptr %T.P)
+// CHECK: [[METADATA:%.*]] = load ptr, ptr %0, align 8
+// CHECK-objc-NEXT: [[T1:%.*]] = getelementptr inbounds ptr, ptr [[METADATA]], i64 10
+// CHECK-native-NEXT: [[T1:%.*]] = getelementptr inbounds ptr, ptr [[METADATA]], i64 7
+// CHECK-NEXT:  %T = load ptr, ptr [[T1]], align 8
+// CHECK: store
+// CHECK-objc-NEXT: [[T1:%.*]] = getelementptr inbounds ptr, ptr [[METADATA]], i64 11
+// CHECK-native-NEXT: [[T1:%.*]] = getelementptr inbounds ptr, ptr [[METADATA]], i64 8
+// CHECK-NEXT:  %U = load ptr, ptr [[T1]], align 8
+// CHECK: store
+// CHECK-objc-NEXT: [[T1:%.*]] = getelementptr inbounds ptr, ptr [[METADATA]], i64 12
+// CHECK-native-NEXT: [[T1:%.*]] = getelementptr inbounds ptr, ptr [[METADATA]], i64 9
+// CHECK-NEXT:  %U.P = load ptr, ptr [[T1]], align 8
 sil hidden @class_pointer : $@convention(thin) <T, U where T : P, U : P> (@guaranteed B<T, U>) -> () {
 bb0(%0 : $B<T, U>):
   %f = function_ref @use_all : $@convention(thin) <T, U where T : P, U : P> () -> ()
@@ -53,7 +49,7 @@ bb0(%0 : $B<T, U>):
   return %3 : $()
 }
 
-// CHECK-LABEL: define hidden swiftcc void @test_23121786(%T11fulfillment1AC* %0, %T11fulfillment1AC{{.*}}* %1)
+// CHECK-LABEL: define hidden swiftcc void @test_23121786(ptr %0, ptr %1)
 sil hidden @test_23121786 : $@convention(thin) <T> (@owned A<A<T>>, @owned A<T>) -> () {
 bb0(%0 : $A<A<T>>, %1 : $A<T>):
   %2 = tuple ()
@@ -76,13 +72,12 @@ class K<T> : A2 where T : C {
 
 sil @callee : $@convention(method) <τ_0_0 where τ_0_0 : A2, τ_0_0.AssocTy : C> (@in_guaranteed τ_0_0) -> ()
 
-// CHECK-LABEL: define{{.*}} swiftcc void @caller(%T11fulfillment1KC** {{.*}}, %swift.type* %Self, i8** %SelfWitnessTable)
+// CHECK-LABEL: define{{.*}} swiftcc void @caller(ptr {{.*}}, ptr %Self, ptr %SelfWitnessTable)
 // CHECK: entry:
-// CHECK:   %1 = bitcast %swift.type* %Self to i8***
-// CHECK-objc:   %2 = getelementptr inbounds i8**, i8*** %1, i64 11
-// CHECK-native:   %2 = getelementptr inbounds i8**, i8*** %1, i64 8
-// CHECK:   %"\CF\84_1_0.C" = load i8**, i8*** %2
-// CHECK:   call swiftcc void @callee(%swift.type* %Self, i8** %SelfWitnessTable, i8** %"\CF\84_1_0.C"
+// CHECK-objc:   %1 = getelementptr inbounds ptr, ptr %Self, i64 11
+// CHECK-native:   %1 = getelementptr inbounds ptr, ptr %Self, i64 8
+// CHECK:   %"\CF\84_1_0.C" = load ptr, ptr %1
+// CHECK:   call swiftcc void @callee(ptr %Self, ptr %SelfWitnessTable, ptr %"\CF\84_1_0.C"
 sil @caller : $@convention(witness_method: A2) <τ_0_0><τ_1_0 where τ_0_0 : K<τ_1_0>, τ_1_0 : C> (@in_guaranteed τ_0_0) -> () {
 bb0(%0 : $*τ_0_0):
   %1 = function_ref @callee : $@convention(method) <τ_0_0 where τ_0_0 : A2, τ_0_0.AssocTy : C> (@in_guaranteed τ_0_0) -> ()

@@ -82,7 +82,7 @@ namespace swift {
 // refactored into a large state object that is used by functions.
 class SILValueOwnershipChecker {
   /// The result of performing the check.
-  Optional<bool> result;
+  llvm::Optional<bool> result;
 
   /// A cache of dead-end basic blocks that we use to determine if we can
   /// ignore "leaks".
@@ -781,7 +781,7 @@ void SILInstruction::verifyOperandOwnership(
     return;
 
   using BehaviorKind = LinearLifetimeChecker::ErrorBehaviorKind;
-  Optional<LinearLifetimeChecker::ErrorBuilder> errorBuilder;
+  llvm::Optional<LinearLifetimeChecker::ErrorBuilder> errorBuilder;
   if (IsSILOwnershipVerifierTestingEnabled) {
     errorBuilder.emplace(*getFunction(),
                          BehaviorKind::PrintMessageAndReturnFalse);
@@ -934,7 +934,7 @@ void SILFunction::verifyOwnership(DeadEndBlocks *deadEndBlocks) const {
 
   using BehaviorKind = LinearLifetimeChecker::ErrorBehaviorKind;
   unsigned errorCounter = 0;
-  Optional<LinearLifetimeChecker::ErrorBuilder> errorBuilder;
+  llvm::Optional<LinearLifetimeChecker::ErrorBuilder> errorBuilder;
   if (IsSILOwnershipVerifierTestingEnabled) {
     errorBuilder.emplace(*this, BehaviorKind::PrintMessageAndReturnFalse,
                          &errorCounter);

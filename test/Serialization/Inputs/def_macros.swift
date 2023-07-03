@@ -36,3 +36,6 @@ public struct Builder {
 public macro macroWithBuilderArgs(@Builder _: () -> Void) = #externalMacro(module: "A", type: "B")
 
 @attached(member, names: named(init(coding:))) public macro ArbitraryMembers() = #externalMacro(module: "MacroDefinition", type: "ArbitraryMembersMacro")
+
+@attached(extension, conformances: Sendable)
+public macro AddSendable() = #externalMacro(module: "MacroDefinition", type: "SendableMacro")

@@ -66,7 +66,7 @@ bool TypeChecker::diagnoseInlinableDeclRefAccess(SourceLoc loc,
 
   // If the decl is imported, check if the import lowers it's access level.
   auto importAccessLevel = AccessLevel::Public;
-  ImportAccessLevel problematicImport = None;
+  ImportAccessLevel problematicImport = llvm::None;
 
   auto *DC = where.getDeclContext();
   auto targetModule = D->getDeclContext()->getParentModule();

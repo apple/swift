@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -emit-ir -parse-sil %s -parse-stdlib -Xllvm -sil-disable-pass=simplification | %FileCheck %s
-// RUN: %target-swift-frontend -emit-ir -parse-sil %s -parse-stdlib -Xllvm -sil-disable-pass=simplification
+// RUN: %target-swift-frontend -emit-ir -parse-sil %s -parse-stdlib -Xllvm -sil-disable-pass=simplification | %FileCheck %s
 
 import Builtin
 import Swift

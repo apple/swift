@@ -65,7 +65,7 @@ void emitFinishedMessage(raw_ostream &os, StringRef Name,
 
 /// Emits a "signalled" message to the given stream.
 void emitSignalledMessage(raw_ostream &os, StringRef Name, StringRef ErrorMsg,
-                          StringRef Output, Optional<int> Signal,
+                          StringRef Output, llvm::Optional<int> Signal,
                           int64_t Pid, sys::TaskProcessInformation ProcInfo);
 
 /// Emits a "skipped" message to the given stream.

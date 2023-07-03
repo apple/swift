@@ -1456,7 +1456,7 @@ BridgedPassContext::DevirtResult BridgedPassContext::tryDevirtualizeApply(Bridge
 
 OptionalBridgedValue BridgedPassContext::constantFoldBuiltin(BridgedInstruction builtin) const {
   auto bi = builtin.getAs<BuiltinInst>();
-  Optional<bool> resultsInError;
+  llvm::Optional<bool> resultsInError;
   return {::constantFoldBuiltin(bi, resultsInError)};
 }
 
