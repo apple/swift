@@ -307,7 +307,7 @@ RequirementMachine::initWithProtocolSignatureRequirements(
 ///
 /// Returns failure if completion fails within the configured number of steps.
 std::pair<CompletionResult, unsigned>
-RequirementMachine::initWithGenericSignature(CanGenericSignature sig) {
+RequirementMachine::initWithGenericSignature(GenericSignature sig) {
   Sig = sig;
   Params.append(sig.getGenericParams().begin(),
                 sig.getGenericParams().end());
@@ -323,7 +323,8 @@ RequirementMachine::initWithGenericSignature(CanGenericSignature sig) {
   // Collect the top-level requirements, and all transitively-referenced
   // protocol requirement signatures.
   RuleBuilder builder(Context, System.getReferencedProtocols());
-  builder.initWithGenericSignatureRequirements(sig.getRequirements());
+  builder.initWithGenericSignature(sig.getGenericParams(),
+                                   sig.getRequirements());
 
   // Add the initial set of rewrite rules to the rewrite system.
   System.initialize(/*recordLoops=*/false,
@@ -425,7 +426,7 @@ RequirementMachine::initWithWrittenRequirements(
   // Collect the top-level requirements, and all transitively-referenced
   // protocol requirement signatures.
   RuleBuilder builder(Context, System.getReferencedProtocols());
-  builder.initWithWrittenRequirements(requirements);
+  builder.initWithWrittenRequirements(genericParams, requirements);
 
   // Add the initial set of rewrite rules to the rewrite system.
   System.initialize(/*recordLoops=*/true,

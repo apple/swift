@@ -1,7 +1,7 @@
 // RUN: %target-swift-frontend -typecheck %s -debug-generic-signatures -disable-availability-checking 2>&1 | %FileCheck %s
 
 protocol P {
-  associatedtype A
+  associatedtype A: P
 }
 
 // CHECK-LABEL: inferSameShape(ts:us:)
@@ -65,3 +65,21 @@ struct Ts<each T> {
 func expandedParameters<each T, each Result>(_ t: repeat each T, transform: repeat (each T) -> each Result) -> (repeat each Result) {
   fatalError()
 }
+
+
+//////
+///
+/// Same-type requirements should imply same-shape requirements.
+///
+//////
+
+// CHECK-LABEL: sameType1
+// CHECK-NEXT: Generic signature: <each T, each U where repeat each T : P, repeat each U : P, repeat (each T).[P]A == (each U).[P]A>
+func sameType1<each T, each U>(_: repeat (each T, each U)) where repeat each T: P, repeat each U: P, repeat each T.A == each U.A {}
+
+// Make sure inherited associated types are handled
+protocol Q: P where A: Q {}
+
+// CHECK-LABEL: sameType2
+// CHECK-NEXT: Generic signature: <each T, each U where repeat each T : Q, repeat each U : Q, repeat (each T).[P]A.[P]A == (each U).[P]A.[P]A>
+func sameType2<each T, each U>(_: repeat (each T, each U)) where repeat each T: Q, repeat each U: Q, repeat each T.A.A == each U.A.A {}

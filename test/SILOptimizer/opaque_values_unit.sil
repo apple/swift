@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -enable-sil-opaque-values -unit-test-runner %s 2>&1 | %FileCheck %s
+// RUN: %target-sil-opt -enable-sil-opaque-values -test-runner %s 2>&1 | %FileCheck %s
 
 import Builtin
 

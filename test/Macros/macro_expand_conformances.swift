@@ -53,7 +53,8 @@ enum E {
 }
 
 // CHECK-DUMP: @__swiftmacro_25macro_expand_conformances1S9EquatablefMc_.swift
-// CHECK-DUMP: extension S : Equatable  {}
+// CHECK-DUMP: extension S: Equatable  {
+// CHECK-DUMP: }
 
 // CHECK: true
 requireEquatable(S())
@@ -94,7 +95,8 @@ struct Wrapped: P {
 struct Generic<Element> {}
 
 // CHECK-DUMP: @__swiftmacro_25macro_expand_conformances7Generic20DelegatedConformancefMc_.swift
-// CHECK-DUMP: extension Generic : P where Element: P {}
+// CHECK-DUMP: extension Generic: P where Element: P {
+// CHECK-DUMP: }
 
 func requiresP(_ value: (some P).Type) {
   value.requirement()

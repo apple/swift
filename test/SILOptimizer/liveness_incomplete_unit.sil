@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -unit-test-runner %s -o /dev/null 2>&1 | %FileCheck %s
+// RUN: %target-sil-opt -test-runner %s -o /dev/null 2>&1 | %FileCheck %s
 //
 // These tests rely on "incomplete" OSSA lifetimes. Incomplete OSSA
 // lifetimes are invalid SIL, but the OSSA liveness utilities still

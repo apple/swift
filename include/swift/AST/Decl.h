@@ -8449,7 +8449,7 @@ class MissingDecl : public Decl {
   /// \c unexpandedMacro contains the macro reference and the base declaration
   /// where the macro expansion applies.
   struct {
-    llvm::PointerUnion<MacroExpansionDecl *, CustomAttr *> macroRef;
+    llvm::PointerUnion<FreestandingMacroExpansion *, CustomAttr *> macroRef;
     Decl *baseDecl;
   } unexpandedMacro;
 
@@ -8473,7 +8473,7 @@ public:
 
   static MissingDecl *
   forUnexpandedMacro(
-      llvm::PointerUnion<MacroExpansionDecl *, CustomAttr *> macroRef,
+      llvm::PointerUnion<FreestandingMacroExpansion *, CustomAttr *> macroRef,
       Decl *baseDecl) {
     auto &ctx = baseDecl->getASTContext();
     auto *dc = baseDecl->getDeclContext();
@@ -8597,6 +8597,15 @@ public:
   /// by a given role of this macro.
   void getIntroducedNames(MacroRole role, ValueDecl *attachedTo,
                           SmallVectorImpl<DeclName> &names) const;
+
+  /// Populate the \c conformances vector with the protocols that
+  /// this macro generates conformances to.
+  ///
+  /// Only extension macros can add conformances; no results will
+  /// be added if this macro does not contain an extension role.
+  void getIntroducedConformances(
+      NominalTypeDecl *attachedTo,
+      SmallVectorImpl<ProtocolDecl *> &conformances) const;
 
   /// Returns a DeclName that represents arbitrary names.
   static DeclName getArbitraryName() {

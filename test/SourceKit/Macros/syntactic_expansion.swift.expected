@@ -6,7 +6,8 @@ source.edit.kind.active:
   Element.requirement()
 }"
 source.edit.kind.active:
-  13:2-13:2 "extension Generic : P where Element: P {}"
+  13:2-13:2 "extension Generic: P where Element: P {
+}"
 source.edit.kind.active:
   5:3-5:21 ""
 source.edit.kind.active:
@@ -105,4 +106,5 @@ source.edit.kind.active:
   Element.requirement()
 }"
 source.edit.kind.active:
-  13:2-13:2 "extension Generic : P where Element: P {}"
+  13:2-13:2 "extension Generic: P where Element: P {
+}"

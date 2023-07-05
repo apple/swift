@@ -1785,6 +1785,75 @@ static void noteGlobalActorOnContext(DeclContext *dc, Type globalActor) {
   }
 }
 
+/// Find the original type of a value, looking through various implicit
+/// conversions.
+static Type findOriginalValueType(Expr *expr) {
+  do {
+    expr = expr->getSemanticsProvidingExpr();
+
+    if (auto inout = dyn_cast<InOutExpr>(expr)) {
+      expr = inout->getSubExpr();
+      continue;
+    }
+
+    if (auto ice = dyn_cast<ImplicitConversionExpr>(expr)) {
+      expr = ice->getSubExpr();
+      continue;
+    }
+
+    if (auto open = dyn_cast<OpenExistentialExpr>(expr)) {
+      expr = open->getSubExpr();
+      continue;
+    }
+
+    break;
+  } while (true);
+
+  return expr->getType()->getRValueType();
+}
+
+bool swift::diagnoseApplyArgSendability(ApplyExpr *apply, const DeclContext *declContext) {
+  auto isolationCrossing = apply->getIsolationCrossing();
+  if (!isolationCrossing.has_value())
+    return false;
+
+  auto fnExprType = apply->getFn()->getType();
+  if (!fnExprType)
+    return false;
+
+  auto fnType = fnExprType->getAs<FunctionType>();
+  if (!fnType)
+    return false;
+
+  auto params = fnType->getParams();
+  for (unsigned paramIdx : indices(params)) {
+    const auto &param = params[paramIdx];
+
+    // Dig out the location of the argument.
+    SourceLoc argLoc = apply->getLoc();
+    Type argType;
+    if (auto argList = apply->getArgs()) {
+      auto arg = argList->get(paramIdx);
+      if (arg.getStartLoc().isValid())
+          argLoc = arg.getStartLoc();
+
+      // Determine the type of the argument, ignoring any implicit
+      // conversions that could have stripped sendability.
+      if (Expr *argExpr = arg.getExpr()) {
+          argType = findOriginalValueType(argExpr);
+      }
+    }
+
+    if (diagnoseNonSendableTypes(
+            argType ? argType : param.getParameterType(),
+            declContext, argLoc, diag::non_sendable_call_argument,
+            isolationCrossing.value().exitsIsolation(),
+            isolationCrossing.value().getDiagnoseIsolation()))
+      return true;
+  }
+  return false;
+}
+
 namespace {
   /// Check for adherence to the actor isolation rules, emitting errors
   /// when actor-isolated declarations are used in an unsafe manner.
@@ -2669,33 +2738,6 @@ namespace {
       return result;
     }
 
-    /// Find the original type of a value, looking through various implicit
-    /// conversions.
-    static Type findOriginalValueType(Expr *expr) {
-      do {
-        expr = expr->getSemanticsProvidingExpr();
-
-        if (auto inout = dyn_cast<InOutExpr>(expr)) {
-          expr = inout->getSubExpr();
-          continue;
-        }
-
-        if (auto ice = dyn_cast<ImplicitConversionExpr>(expr)) {
-          expr = ice->getSubExpr();
-          continue;
-        }
-
-        if (auto open = dyn_cast<OpenExistentialExpr>(expr)) {
-          expr = open->getSubExpr();
-          continue;
-        }
-
-        break;
-      } while (true);
-
-      return expr->getType()->getRValueType();
-    }
-
     /// Check actor isolation for a particular application.
     bool checkApply(ApplyExpr *apply) {
       auto fnExprType = getType(apply->getFn());
@@ -2819,6 +2861,11 @@ namespace {
       if (!unsatisfiedIsolation)
         return false;
 
+      // At this point, we know a jump is made to the callee that yields
+      // an isolation requirement unsatisfied by the calling context, so
+      // set the unsatisfiedIsolationJump fields of the ApplyExpr appropriately
+      apply->setIsolationCrossing(getContextIsolation(), *unsatisfiedIsolation);
+
       bool requiresAsync =
           callOptions.contains(ActorReferenceResult::Flags::AsyncPromotion);
 
@@ -2872,34 +2919,10 @@ namespace {
             unsatisfiedIsolation, setThrows, usesDistributedThunk);
       }
 
-      // Check for sendability of the parameter types.
-      auto params = fnType->getParams();
-      for (unsigned paramIdx : indices(params)) {
-        const auto &param = params[paramIdx];
-
-        // Dig out the location of the argument.
-        SourceLoc argLoc = apply->getLoc();
-        Type argType;
-        if (auto argList = apply->getArgs()) {
-          auto arg = argList->get(paramIdx);
-          if (arg.getStartLoc().isValid())
-            argLoc = arg.getStartLoc();
-
-          // Determine the type of the argument, ignoring any implicit
-          // conversions that could have stripped sendability.
-          if (Expr *argExpr = arg.getExpr()) {
-            argType = findOriginalValueType(argExpr);
-          }
-        }
-
-        bool isExiting = !unsatisfiedIsolation->isActorIsolated();
-        ActorIsolation diagnoseIsolation = isExiting ? getContextIsolation()
-                                                     : *unsatisfiedIsolation;
-        if (diagnoseNonSendableTypes(
-                argType ? argType : param.getParameterType(), getDeclContext(),
-                argLoc, diag::non_sendable_call_argument,
-                isExiting, diagnoseIsolation))
-          return true;
+      // check if language features ask us to defer sendable diagnostics
+      // if so, don't check for sendability of arguments here
+      if (!ctx.LangOpts.hasFeature(Feature::DeferredSendableChecking)) {
+        diagnoseApplyArgSendability(apply, getDeclContext());
       }
 
       // Check for sendability of the result type.

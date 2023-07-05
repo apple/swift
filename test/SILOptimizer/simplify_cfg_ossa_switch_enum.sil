@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -unit-test-runner %s | %FileCheck %s
+// RUN: %target-sil-opt -test-runner %s | %FileCheck %s
 
 class Klass {
 }

@@ -732,3 +732,39 @@ bb0(%0 : @owned $FixedSizeQueue):
   dealloc_stack %1 : $*FixedSizeQueue
   return %11 : $Builtin.Int32
 }
+
+// Make sure that we set the end_access as the implicit end lifetime use instead
+// of the terminator.
+// CHECK-LABEL: sil [ossa] @assignableButNotConsumableEndAccessImplicitLifetimeTest : $@convention(thin) (@guaranteed ClassContainingMoveOnly, @owned NonTrivialStruct2) -> () {
+// CHECK: bb0([[ARG0:%.*]] : @guaranteed $ClassContainingMoveOnly, [[ARG1:%.*]] : @owned
+// CHECK: bb2:
+// CHECK-NEXT:   [[ADDR:%.*]] = ref_element_addr [[ARG0]]
+// CHECK-NEXT:   [[ACCESS:%.*]] = begin_access [modify] [dynamic] [[ADDR]]
+// CHECK-NEXT:   [[GEP1:%.*]] = struct_element_addr [[ACCESS]]
+// CHECK-NEXT:   [[GEP2:%.*]] = struct_element_addr [[ACCESS]]
+// CHECK-NEXT:   destroy_addr [[GEP2]]
+// CHECK-NEXT:   store [[ARG1]] to [init] [[GEP1]]
+// CHECK-NEXT:   end_access [[ACCESS]]
+// CHECK-NEXT:   br bb3
+// CHECK: } // end sil function 'assignableButNotConsumableEndAccessImplicitLifetimeTest'
+sil [ossa] @assignableButNotConsumableEndAccessImplicitLifetimeTest : $@convention(thin) (@guaranteed ClassContainingMoveOnly, @owned NonTrivialStruct2) -> () {
+bb0(%0 : @guaranteed $ClassContainingMoveOnly, %1 : @owned $NonTrivialStruct2):
+  cond_br undef, bb1, bb2
+
+bb1:
+  destroy_value %1 : $NonTrivialStruct2
+  br bb3
+
+bb2:
+  %2 = ref_element_addr %0 : $ClassContainingMoveOnly, #ClassContainingMoveOnly.value
+  %3 = begin_access [modify] [dynamic] %2 : $*NonTrivialStruct
+  %4 = mark_must_check [assignable_but_not_consumable] %3 : $*NonTrivialStruct
+  %4a = struct_element_addr %4 : $*NonTrivialStruct, #NonTrivialStruct.nonTrivialStruct2
+  store %1 to [assign] %4a : $*NonTrivialStruct2
+  end_access %3 : $*NonTrivialStruct
+  br bb3
+
+bb3:
+  %9999 = tuple ()
+  return %9999 : $()
+}

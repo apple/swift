@@ -20,6 +20,10 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 
+namespace swift {
+class DominanceAnalysis;
+}
+
 using namespace swift;
 
 struct ThreadInfo;

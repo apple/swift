@@ -54,7 +54,7 @@ class RequirementMachine final {
   friend class swift::AbstractGenericSignatureRequest;
   friend class swift::InferredGenericSignatureRequest;
 
-  CanGenericSignature Sig;
+  GenericSignature Sig;
   SmallVector<GenericTypeParamType *, 2> Params;
 
   RewriteContext &Context;
@@ -95,7 +95,7 @@ class RequirementMachine final {
       ArrayRef<const ProtocolDecl *> protos);
 
   std::pair<CompletionResult, unsigned>
-  initWithGenericSignature(CanGenericSignature sig);
+  initWithGenericSignature(GenericSignature sig);
 
   std::pair<CompletionResult, unsigned>
   initWithProtocolWrittenRequirements(

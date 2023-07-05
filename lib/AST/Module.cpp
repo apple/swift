@@ -179,9 +179,9 @@ class swift::SourceLookupCache {
   /// Top-level macros that produce arbitrary names.
   SmallVector<MissingDecl *, 4> TopLevelArbitraryMacros;
 
-  SmallVector<Decl *, 4> MayHaveAuxiliaryDecls;
+  SmallVector<llvm::PointerUnion<Decl *, MacroExpansionExpr *>, 4>
+      MayHaveAuxiliaryDecls;
   void populateAuxiliaryDeclCache();
-
   SourceLookupCache(ASTContext &ctx);
 
 public:
@@ -238,10 +238,30 @@ SourceLookupCache &SourceFile::getCache() const {
   return *Cache;
 }
 
+static Expr *getAsExpr(Decl *decl) { return nullptr; }
+static Decl *getAsDecl(Decl *decl) { return decl; }
+
+static Expr *getAsExpr(ASTNode node) { return node.dyn_cast<Expr *>(); }
+static Decl *getAsDecl(ASTNode node) { return node.dyn_cast<Decl *>(); }
+
 template<typename Range>
-void SourceLookupCache::addToUnqualifiedLookupCache(Range decls,
+void SourceLookupCache::addToUnqualifiedLookupCache(Range items,
                                                     bool onlyOperators) {
-  for (Decl *D : decls) {
+  for (auto item : items) {
+    // In script mode, we'll see macro expansion expressions for freestanding
+    // macros.
+    if (Expr *E = getAsExpr(item)) {
+      if (auto MEE = dyn_cast<MacroExpansionExpr>(E)) {
+        if (!onlyOperators)
+          MayHaveAuxiliaryDecls.push_back(MEE);
+      }
+      continue;
+    }
+
+    Decl *D = getAsDecl(item);
+    if (!D)
+      continue;
+
     if (auto *VD = dyn_cast<ValueDecl>(D)) {
       if (onlyOperators ? VD->isOperator() : VD->hasName()) {
         // Cache the value under both its compound name and its full name.
@@ -280,6 +300,10 @@ void SourceLookupCache::addToUnqualifiedLookupCache(Range decls,
     else if (auto *MED = dyn_cast<MacroExpansionDecl>(D)) {
       if (!onlyOperators)
         MayHaveAuxiliaryDecls.push_back(MED);
+    } else if (auto TLCD = dyn_cast<TopLevelCodeDecl>(D)) {
+      if (auto body = TLCD->getBody()){
+        addToUnqualifiedLookupCache(body->getElements(), onlyOperators);
+      }
     }
   }
 }
@@ -335,75 +359,113 @@ void SourceLookupCache::addToMemberCache(Range decls) {
 }
 
 void SourceLookupCache::populateAuxiliaryDeclCache() {
-  using MacroRef = llvm::PointerUnion<MacroExpansionDecl *, CustomAttr *>;
-  for (auto *decl : MayHaveAuxiliaryDecls) {
+  using MacroRef = llvm::PointerUnion<FreestandingMacroExpansion *, CustomAttr *>;
+  for (auto item : MayHaveAuxiliaryDecls) {
+    TopLevelCodeDecl *topLevelCodeDecl = nullptr;
+
     // Gather macro-introduced peer names.
     llvm::SmallDenseMap<MacroRef, llvm::SmallVector<DeclName, 2>>
         introducedNames;
 
-    // This code deliberately avoids `forEachAttachedMacro`, because it
-    // will perform overload resolution and possibly invoke unqualified
-    // lookup for macro arguments, which will recursively populate the
-    // auxiliary decl cache and cause request cycles.
-    //
-    // We do not need a fully resolved macro until expansion. Instead, we
-    // conservatively consider peer names for all macro declarations with a
-    // custom attribute name. Unqualified lookup for that name will later
-    // invoke expansion of the macro, and will yield no results if the resolved
-    // macro does not produce the requested name, so the only impact is possibly
-    // expanding earlier than needed / unnecessarily looking in the top-level
-    // auxiliary decl cache.
-    for (auto attrConst : decl->getAttrs().getAttributes<CustomAttr>()) {
-      auto *attr = const_cast<CustomAttr *>(attrConst);
-      UnresolvedMacroReference macroRef(attr);
-      bool introducesArbitraryNames = false;
-      namelookup::forEachPotentialResolvedMacro(
-          decl->getDeclContext()->getModuleScopeContext(),
-          macroRef.getMacroName(), MacroRole::Peer,
-          [&](MacroDecl *macro, const MacroRoleAttr *roleAttr) {
-            // First check for arbitrary names.
-            if (roleAttr->hasNameKind(MacroIntroducedDeclNameKind::Arbitrary)) {
-              introducesArbitraryNames = true;
-            }
+    /// Introduce names for a freestanding macro.
+    auto introduceNamesForFreestandingMacro =
+      [&](FreestandingMacroExpansion *macroRef, Decl *decl, MacroRole role) {
+        bool introducesArbitraryNames = false;
+        namelookup::forEachPotentialResolvedMacro(
+            decl->getDeclContext()->getModuleScopeContext(),
+            macroRef->getMacroName(), role,
+            [&](MacroDecl *macro, const MacroRoleAttr *roleAttr) {
+              // First check for arbitrary names.
+              if (roleAttr->hasNameKind(MacroIntroducedDeclNameKind::Arbitrary)) {
+                introducesArbitraryNames = true;
+              }
 
-            macro->getIntroducedNames(MacroRole::Peer,
-                                      dyn_cast<ValueDecl>(decl),
-                                      introducedNames[attr]);
-          });
+              macro->getIntroducedNames(role,
+                                        /*attachedTo*/ nullptr,
+                                        introducedNames[macroRef]);
+            });
 
-      // Record this macro where appropriate.
-      if (introducesArbitraryNames)
-        TopLevelArbitraryMacros.push_back(MissingDecl::forUnexpandedMacro(attr, decl));
+        return introducesArbitraryNames;
+      };
+
+    // Handle macro expansion expressions, which show up in when we have
+    // freestanding macros in "script" mode.
+    if (auto expr = item.dyn_cast<MacroExpansionExpr *>()) {
+      topLevelCodeDecl = dyn_cast<TopLevelCodeDecl>(expr->getDeclContext());
+      if (topLevelCodeDecl) {
+        bool introducesArbitraryNames = false;
+        if (introduceNamesForFreestandingMacro(
+                expr, topLevelCodeDecl, MacroRole::Declaration))
+          introducesArbitraryNames = true;
+
+        if (introduceNamesForFreestandingMacro(
+                expr, topLevelCodeDecl, MacroRole::CodeItem))
+          introducesArbitraryNames = true;
+
+        // Record this macro if it introduces arbitrary names.
+        if (introducesArbitraryNames) {
+          TopLevelArbitraryMacros.push_back(
+              MissingDecl::forUnexpandedMacro(expr, topLevelCodeDecl));
+        }
+      }
     }
 
-    if (auto *med = dyn_cast<MacroExpansionDecl>(decl)) {
-      UnresolvedMacroReference macroRef(med);
-      bool introducesArbitraryNames = false;
-      namelookup::forEachPotentialResolvedMacro(
-          decl->getDeclContext()->getModuleScopeContext(),
-          macroRef.getMacroName(), MacroRole::Declaration,
-          [&](MacroDecl *macro, const MacroRoleAttr *roleAttr) {
-            // First check for arbitrary names.
-            if (roleAttr->hasNameKind(MacroIntroducedDeclNameKind::Arbitrary)) {
-              introducesArbitraryNames = true;
-            }
+    auto *decl = item.dyn_cast<Decl *>();
+    if (decl) {
+      // This code deliberately avoids `forEachAttachedMacro`, because it
+      // will perform overload resolution and possibly invoke unqualified
+      // lookup for macro arguments, which will recursively populate the
+      // auxiliary decl cache and cause request cycles.
+      //
+      // We do not need a fully resolved macro until expansion. Instead, we
+      // conservatively consider peer names for all macro declarations with a
+      // custom attribute name. Unqualified lookup for that name will later
+      // invoke expansion of the macro, and will yield no results if the resolved
+      // macro does not produce the requested name, so the only impact is possibly
+      // expanding earlier than needed / unnecessarily looking in the top-level
+      // auxiliary decl cache.
+      for (auto attrConst : decl->getAttrs().getAttributes<CustomAttr>()) {
+        auto *attr = const_cast<CustomAttr *>(attrConst);
+        UnresolvedMacroReference macroRef(attr);
+        bool introducesArbitraryNames = false;
+        namelookup::forEachPotentialResolvedMacro(
+            decl->getDeclContext()->getModuleScopeContext(),
+            macroRef.getMacroName(), MacroRole::Peer,
+            [&](MacroDecl *macro, const MacroRoleAttr *roleAttr) {
+              // First check for arbitrary names.
+              if (roleAttr->hasNameKind(
+                      MacroIntroducedDeclNameKind::Arbitrary)) {
+                introducesArbitraryNames = true;
+              }
 
-            macro->getIntroducedNames(MacroRole::Declaration,
-                                      /*attachedTo*/ nullptr,
-                                      introducedNames[med]);
-          });
+              macro->getIntroducedNames(MacroRole::Peer,
+                                        dyn_cast<ValueDecl>(decl),
+                                        introducedNames[attr]);
+            });
 
-      // Record this macro where appropriate.
+        // Record this macro where appropriate.
+        if (introducesArbitraryNames)
+          TopLevelArbitraryMacros.push_back(
+              MissingDecl::forUnexpandedMacro(attr, decl));
+      }
+    }
+
+    if (auto *med = dyn_cast_or_null<MacroExpansionDecl>(decl)) {
+      bool introducesArbitraryNames =
+          introduceNamesForFreestandingMacro(med, decl, MacroRole::Declaration);
+
+      // Note whether this macro produces arbitrary names.
       if (introducesArbitraryNames)
         TopLevelArbitraryMacros.push_back(MissingDecl::forUnexpandedMacro(med, decl));
     }
 
     // Add macro-introduced names to the top-level auxiliary decl cache as
     // unexpanded decls represented by a MissingDecl.
+    auto anchorDecl = decl ? decl : topLevelCodeDecl;
     for (auto macroNames : introducedNames) {
       auto macroRef = macroNames.getFirst();
       for (auto name : macroNames.getSecond()) {
-        auto *placeholder = MissingDecl::forUnexpandedMacro(macroRef, decl);
+        auto *placeholder = MissingDecl::forUnexpandedMacro(macroRef, anchorDecl);
         name.addToLookupTable(TopLevelAuxiliaryDecls, placeholder);
       }
     }
@@ -421,7 +483,7 @@ SourceLookupCache::SourceLookupCache(const SourceFile &SF)
 {
   FrontendStatsTracer tracer(SF.getASTContext().Stats,
                              "source-file-populate-cache");
-  addToUnqualifiedLookupCache(SF.getTopLevelDecls(), false);
+  addToUnqualifiedLookupCache(SF.getTopLevelItems(), false);
   addToUnqualifiedLookupCache(SF.getHoistedDecls(), false);
 }
 
@@ -432,7 +494,7 @@ SourceLookupCache::SourceLookupCache(const ModuleDecl &M)
                              "module-populate-cache");
   for (const FileUnit *file : M.getFiles()) {
     auto *SF = cast<SourceFile>(file);
-    addToUnqualifiedLookupCache(SF->getTopLevelDecls(), false);
+    addToUnqualifiedLookupCache(SF->getTopLevelItems(), false);
     addToUnqualifiedLookupCache(SF->getHoistedDecls(), false);
 
     if (auto *SFU = file->getSynthesizedFile()) {
@@ -1960,6 +2022,17 @@ LookupConformanceInModuleRequest::evaluate(
   // If we don't have a nominal type, there are no conformances.
   if (!nominal || isa<ProtocolDecl>(nominal))
     return ProtocolConformanceRef::forMissingOrInvalid(type, protocol);
+
+  // Expand conformances added by extension macros.
+  //
+  // FIXME: This expansion should only be done if the
+  // extension macro can generate a conformance to the
+  // given protocol, but conformance macros do not specify
+  // that information upfront.
+  (void)evaluateOrDefault(
+      ctx.evaluator,
+      ExpandExtensionMacros{nominal},
+      { });
 
   // Find the (unspecialized) conformance.
   SmallVector<ProtocolConformance *, 2> conformances;

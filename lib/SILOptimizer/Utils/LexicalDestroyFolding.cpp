@@ -85,7 +85,9 @@
 #include "swift/SIL/SILBuilder.h"
 #include "swift/SIL/SILInstruction.h"
 #include "swift/SIL/SILNode.h"
+#include "swift/SIL/Test.h"
 #include "swift/SILOptimizer/Analysis/Reachability.h"
+#include "swift/SILOptimizer/PassManager/Transforms.h"
 #include "swift/SILOptimizer/Utils/CanonicalizeBorrowScope.h"
 #include "swift/SILOptimizer/Utils/CanonicalizeOSSALifetime.h"
 #include "swift/SILOptimizer/Utils/InstructionDeleter.h"
@@ -798,3 +800,20 @@ swift::foldDestroysOfCopiedLexicalBorrow(BeginBorrowInst *bbi,
   auto context = LexicalDestroyFolding::Context(bbi, dominanceTree, deleter);
   return LexicalDestroyFolding::run(context);
 }
+
+namespace swift::test {
+// Arguments:
+// - the lexical borrow to fold
+// Dumps:
+// - the function
+static FunctionTest LexicalDestroyFoldingTest(
+    "lexical-destroy-folding", [](auto &function, auto &arguments, auto &test) {
+      auto *dominanceAnalysis = test.template getAnalysis<DominanceAnalysis>();
+      DominanceInfo *domTree = dominanceAnalysis->get(&function);
+      auto value = arguments.takeValue();
+      auto *bbi = cast<BeginBorrowInst>(value);
+      InstructionDeleter deleter;
+      foldDestroysOfCopiedLexicalBorrow(bbi, *domTree, deleter);
+      function.dump();
+    });
+} // end namespace swift::test

@@ -26,6 +26,7 @@
 #include "swift/Basic/Defer.h"
 #include "swift/SIL/InstructionUtils.h"
 #include "swift/SIL/OwnershipUtils.h"
+#include "swift/SIL/Test.h"
 #include "swift/SILOptimizer/Utils/CFGOptUtils.h"
 #include "swift/SILOptimizer/Utils/CanonicalizeOSSALifetime.h"
 #include "swift/SILOptimizer/Utils/DebugOptUtils.h"
@@ -851,3 +852,21 @@ canonicalizeBorrowScope(BorrowedValue borrowedValue) {
 
   return true;
 }
+
+namespace swift::test {
+// Arguments:
+// - SILValue: value to canonicalize
+// Dumps:
+// - function after value canonicalization
+static FunctionTest CanonicalizeBorrowScopeTest(
+    "canonicalize-borrow-scope",
+    [](auto &function, auto &arguments, auto &test) {
+      auto value = arguments.takeValue();
+      auto borrowedValue = BorrowedValue(value);
+      assert(borrowedValue && "specified value isn't a BorrowedValue!?");
+      InstructionDeleter deleter;
+      CanonicalizeBorrowScope canonicalizer(value->getFunction(), deleter);
+      canonicalizer.canonicalizeBorrowScope(borrowedValue);
+      function.dump();
+    });
+} // end namespace swift::test

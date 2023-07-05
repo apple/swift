@@ -292,6 +292,7 @@ public final class FakeRoundtripActorSystem: DistributedActorSystem, @unchecked 
 
       var decoder = invocation.makeDecoder()
 
+      print(" > execute distributed target: \(target)")
       try await executeDistributedTarget(
         on: active,
         target: target,
@@ -342,6 +343,7 @@ public final class FakeRoundtripActorSystem: DistributedActorSystem, @unchecked 
 
       var decoder = invocation.makeDecoder()
 
+      print(" > execute distributed target: \(target)")
       try await executeDistributedTarget(
         on: active,
         target: target,

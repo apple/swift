@@ -132,6 +132,7 @@ static void addMandatoryDiagnosticOptPipeline(SILPassPipelinePlan &P) {
   P.addAddressLowering();
 
   P.addFlowIsolation();
+  P.addSendNonSendable();
 
   // Automatic differentiation: canonicalize all differentiability witnesses
   // and `differentiable_function` instructions.

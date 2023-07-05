@@ -816,8 +816,8 @@ static bool isPrintLikeMethod(DeclName name, const DeclContext *dc) {
 using MirroredMethodEntry =
   std::tuple<const clang::ObjCMethodDecl*, ProtocolDecl*, bool /*isAsync*/>;
 
-ImportedType tryImportOptionsTypeForField(const clang::QualType type,
-                                          ClangImporter::Implementation &Impl) {
+ImportedType findOptionSetType(clang::QualType type,
+                               ClangImporter::Implementation &Impl) {
   ImportedType importedType;
   auto fieldType = type;
   if (auto elaborated = dyn_cast<clang::ElaboratedType>(fieldType))
@@ -3689,7 +3689,7 @@ namespace {
       }
 
       auto fieldType = decl->getType();
-      ImportedType importedType = tryImportOptionsTypeForField(fieldType, Impl);
+      ImportedType importedType = findOptionSetType(fieldType, Impl);
 
       if (!importedType)
         importedType =
@@ -5212,7 +5212,7 @@ namespace {
       }
 
       auto fieldType = decl->getType();
-      ImportedType importedType = tryImportOptionsTypeForField(fieldType, Impl);
+      ImportedType importedType = findOptionSetType(fieldType, Impl);
 
       if (!importedType)
         importedType = Impl.importPropertyType(decl, isInSystemModule(dc));

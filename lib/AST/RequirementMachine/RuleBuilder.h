@@ -95,8 +95,10 @@ struct RuleBuilder {
     Initialized = 0;
   }
 
-  void initWithGenericSignatureRequirements(ArrayRef<Requirement> requirements);
-  void initWithWrittenRequirements(ArrayRef<StructuralRequirement> requirements);
+  void initWithGenericSignature(ArrayRef<GenericTypeParamType *> genericParams,
+                                ArrayRef<Requirement> requirements);
+  void initWithWrittenRequirements(ArrayRef<GenericTypeParamType *> genericParams,
+                                   ArrayRef<StructuralRequirement> requirements);
   void initWithProtocolSignatureRequirements(ArrayRef<const ProtocolDecl *> proto);
   void initWithProtocolWrittenRequirements(
       ArrayRef<const ProtocolDecl *> component,
@@ -106,6 +108,7 @@ struct RuleBuilder {
                                        ArrayRef<Term> substitutions);
   void addReferencedProtocol(const ProtocolDecl *proto);
   void collectRulesFromReferencedProtocols();
+  void collectPackShapeRules(ArrayRef<GenericTypeParamType *> genericParams);
 
 private:
   void addPermanentProtocolRules(const ProtocolDecl *proto);

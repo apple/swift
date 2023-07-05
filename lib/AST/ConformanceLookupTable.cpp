@@ -43,6 +43,9 @@ DeclContext *ConformanceLookupTable::ConformanceSource::getDeclContext() const {
 
   case ConformanceEntryKind::Synthesized:
     return getSynthesizedDeclContext();
+
+  case ConformanceEntryKind::PreMacroExpansion:
+    return getMacroGeneratedDeclContext();
   }
 
   llvm_unreachable("Unhandled ConformanceEntryKind in switch.");
@@ -103,6 +106,10 @@ void ConformanceLookupTable::ConformanceEntry::dump(raw_ostream &os,
 
   case ConformanceEntryKind::Synthesized:
     os << " synthesized";
+    break;
+
+  case ConformanceEntryKind::PreMacroExpansion:
+    os << " unexpanded macro";
     break;
   }
 
@@ -282,14 +289,8 @@ void ConformanceLookupTable::updateLookupTable(NominalTypeDecl *nominal,
           addInheritedProtocols(nominal,
                                 ConformanceSource::forExplicit(nominal));
 
-          // Expand conformance macros.
-          ASTContext &ctx = nominal->getASTContext();
-          (void)evaluateOrDefault(
-              ctx.evaluator, ExpandConformanceMacros{nominal}, { });
-
-          // Expand extension macros.
-          (void)evaluateOrDefault(
-              ctx.evaluator, ExpandExtensionMacros{nominal}, { });
+          addMacroGeneratedProtocols(
+              nominal, ConformanceSource::forUnexpandedMacro(nominal));
         },
         [&](ExtensionDecl *ext,
             ArrayRef<ConformanceConstructionInfo> protos) {
@@ -445,6 +446,7 @@ bool ConformanceLookupTable::addProtocol(ProtocolDecl *protocol, SourceLoc loc,
       switch (existingEntry->getKind()) {
       case ConformanceEntryKind::Explicit:
       case ConformanceEntryKind::Inherited:
+      case ConformanceEntryKind::PreMacroExpansion:
         return false;
 
       case ConformanceEntryKind::Implied:
@@ -495,6 +497,20 @@ void ConformanceLookupTable::addInheritedProtocols(
   }
 }
 
+void ConformanceLookupTable::addMacroGeneratedProtocols(
+    NominalTypeDecl *nominal, ConformanceSource source) {
+  nominal->forEachAttachedMacro(
+      MacroRole::Extension,
+      [&](CustomAttr *attr, MacroDecl *macro) {
+        SmallVector<ProtocolDecl *, 2> conformances;
+        macro->getIntroducedConformances(nominal, conformances);
+
+        for (auto *protocol : conformances) {
+          addProtocol(protocol, attr->getLocation(), source);
+        }
+      });
+}
+
 void ConformanceLookupTable::expandImpliedConformances(NominalTypeDecl *nominal,
                                                        DeclContext *dc) {
   // Note: recursive type-checking implies that AllConformances
@@ -534,6 +550,7 @@ static bool isReplaceable(ConformanceEntryKind kind) {
   switch (kind) {
   case ConformanceEntryKind::Implied:
   case ConformanceEntryKind::Synthesized:
+  case ConformanceEntryKind::PreMacroExpansion:
     return true;
 
   case ConformanceEntryKind::Explicit:
@@ -562,6 +579,23 @@ ConformanceLookupTable::Ordering ConformanceLookupTable::compareConformances(
             : Ordering::After);
   }
 
+  ConformanceEntryKind lhsKind = lhs->getRankingKind();
+  ConformanceEntryKind rhsKind = rhs->getRankingKind();
+
+  // Pre-expanded macro conformances are always superseded by
+  // conformances written in source. If the conformance is not
+  // written in the original source, the pre-expanded conformance
+  // will be superseded by the conformance in the macro expansion
+  // buffer.
+  if (lhsKind == ConformanceEntryKind::PreMacroExpansion ||
+      rhsKind == ConformanceEntryKind::PreMacroExpansion) {
+    if (lhsKind != rhsKind) {
+      return (lhs->getKind() < rhs->getKind()
+              ? Ordering::Before
+              : Ordering::After);
+    }
+  }
+
   // If one entry is fixed and the other is not, we have our answer.
   if (lhs->isFixed() != rhs->isFixed()) {
     auto isReplaceableOrMarker = [](ConformanceEntry *entry) -> bool {
@@ -583,9 +617,6 @@ ConformanceLookupTable::Ordering ConformanceLookupTable::compareConformances(
       
     return lhs->isFixed() ? Ordering::Before : Ordering::After;
   }
-
-  ConformanceEntryKind lhsKind = lhs->getRankingKind();
-  ConformanceEntryKind rhsKind = rhs->getRankingKind();
 
   if (lhsKind != ConformanceEntryKind::Implied ||
       rhsKind != ConformanceEntryKind::Implied) {

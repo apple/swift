@@ -86,3 +86,32 @@ func testEnumNoInitWithGenericPayload() {
         } // expected-error {{'self.init' isn't called on all paths before returning from initializer}}
     }
 }
+
+// This test doesn't actually test anything today... but once the memory
+// lifetime verifier runs on ref_element_addr, this would assert in _Box<T>.init
+// since we were not setting the mark_must_check to initable_but_not_assignable.
+fileprivate final class _Box<T> {
+  var value: _Node<T>
+
+  init(_ value: consuming _Node<T>) { self.value = value }
+}
+
+struct _Node<T> : ~Copyable {
+  var value: T
+  var _next: ListEntry<T> = ListEntry<T>()
+
+  init(_ newValue: T) {
+    value = newValue
+  }
+}
+
+/// A noncopyable box that contains the memory for a linked list node. Can be
+/// embedded within other noncopyable data structures to point at a Node data
+/// structure.
+///
+/// Internally uses a class as the actual box.
+struct ListEntry<T> : ~Copyable {
+  private var innerBox: _Box<T>?
+
+  init() { innerBox = nil }
+}

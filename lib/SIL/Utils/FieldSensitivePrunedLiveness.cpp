@@ -22,6 +22,7 @@
 #include "swift/SIL/SILBuilder.h"
 #include "swift/SIL/SILInstruction.h"
 #include "swift/SIL/ScopedAddressUtils.h"
+#include "swift/SIL/Test.h"
 #include "llvm/ADT/SmallBitVector.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
@@ -835,6 +836,89 @@ void FieldSensitivePrunedLiveRange<LivenessWithDefs>::computeBoundary(
     assert(foundAnyNonDead && "We should have found atleast one non-dead bit");
   }
 }
+
+namespace swift::test {
+// Arguments:
+// - value: entity whose fields' livenesses are being computed
+// - string: "defs:"
+// - variadic list of triples consisting of
+//   - value: a live-range defining value
+//   - int: the beginning of the range of fields defined by the value
+//   - int: the end of the range of the fields defined by the value
+// - the string "uses:"
+// - variadic list of quadruples consisting of
+//   - instruction: a live-range user
+//   - bool: whether the user is lifetime-ending
+//   - int: the beginning of the range of fields used by the instruction
+//   - int: the end of the range of fields used by the instruction
+// Dumps:
+// - the liveness result and boundary
+//
+// Computes liveness for the specified def nodes by considering the
+// specified uses. The actual uses of the def nodes are ignored.
+//
+// This is useful for testing non-ssa liveness, for example, of memory
+// locations. In that case, the def nodes may be stores and the uses may be
+// destroy_addrs.
+static FunctionTest FieldSensitiveMultiDefUseLiveRangeTest(
+    "fieldsensitive-multidefuse-liverange",
+    [](auto &function, auto &arguments, auto &test) {
+      SmallVector<SILBasicBlock *, 8> discoveredBlocks;
+      auto value = arguments.takeValue();
+      FieldSensitiveMultiDefPrunedLiveRange liveness(&function, value,
+                                                     &discoveredBlocks);
+
+      llvm::outs() << "FieldSensitive MultiDef lifetime analysis:\n";
+      if (arguments.takeString() != "defs:") {
+        llvm::report_fatal_error(
+            "test specification expects the 'defs:' label\n");
+      }
+      while (true) {
+        auto argument = arguments.takeArgument();
+        if (isa<StringArgument>(argument)) {
+          if (cast<StringArgument>(argument).getValue() != "uses:") {
+            llvm::report_fatal_error(
+                "test specification expects the 'uses:' label\n");
+          }
+          break;
+        }
+        auto begin = arguments.takeUInt();
+        auto end = arguments.takeUInt();
+        TypeTreeLeafTypeRange range(begin, end);
+        if (isa<InstructionArgument>(argument)) {
+          auto *instruction = cast<InstructionArgument>(argument).getValue();
+          llvm::outs() << "  def in range [" << begin << ", " << end
+                       << ") instruction: " << *instruction;
+          liveness.initializeDef(instruction, range);
+          continue;
+        }
+        if (isa<ValueArgument>(argument)) {
+          SILValue value = cast<ValueArgument>(argument).getValue();
+          llvm::outs() << "  def in range [" << begin << ", " << end
+                       << ") value: " << value;
+          liveness.initializeDef(value, range);
+          continue;
+        }
+        llvm::report_fatal_error(
+            "test specification expects the 'uses:' label\n");
+      }
+      liveness.finishedInitializationOfDefs();
+      while (arguments.hasUntaken()) {
+        auto *inst = arguments.takeInstruction();
+        auto lifetimeEnding = arguments.takeBool();
+        auto begin = arguments.takeUInt();
+        auto end = arguments.takeUInt();
+        TypeTreeLeafTypeRange range(begin, end);
+        liveness.updateForUse(inst, range, lifetimeEnding);
+      }
+      liveness.print(llvm::errs());
+
+      FieldSensitivePrunedLivenessBoundary boundary(
+          liveness.getNumSubElements());
+      liveness.computeBoundary(boundary);
+      boundary.print(llvm::errs());
+    });
+} // end namespace swift::test
 
 bool FieldSensitiveMultiDefPrunedLiveRange::isUserBeforeDef(
     SILInstruction *user, unsigned element) const {

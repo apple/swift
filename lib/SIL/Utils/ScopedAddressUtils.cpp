@@ -16,6 +16,7 @@
 #include "swift/SIL/SILArgument.h"
 #include "swift/SIL/SILBuilder.h"
 #include "swift/SIL/SILInstruction.h"
+#include "swift/SIL/Test.h"
 #include "swift/SILOptimizer/Utils/InstructionDeleter.h"
 #include "swift/SILOptimizer/Utils/OwnershipOptUtils.h"
 
@@ -104,6 +105,31 @@ AddressUseKind ScopedAddressValue::computeTransitiveLiveness(
   liveness.initializeDef(value);
   return updateTransitiveLiveness(liveness);
 }
+
+namespace swift::test {
+// Arguments:
+// - SILValue: value to a analyze
+// Dumps:
+// - the liveness result and boundary
+static FunctionTest ScopedAddressLivenessTest(
+    "scoped-address-liveness", [](auto &function, auto &arguments, auto &test) {
+      auto value = arguments.takeValue();
+      assert(!arguments.hasUntaken());
+      llvm::outs() << "Scoped address analysis: " << value;
+
+      ScopedAddressValue scopedAddress(value);
+      assert(scopedAddress);
+
+      SmallVector<SILBasicBlock *, 8> discoveredBlocks;
+      SSAPrunedLiveness liveness(value->getFunction(), &discoveredBlocks);
+      scopedAddress.computeTransitiveLiveness(liveness);
+      liveness.print(llvm::outs());
+
+      PrunedLivenessBoundary boundary;
+      liveness.computeBoundary(boundary);
+      boundary.print(llvm::outs());
+    });
+} // end namespace swift::test
 
 AddressUseKind ScopedAddressValue::updateTransitiveLiveness(
     SSAPrunedLiveness &liveness) const {

@@ -1,5 +1,4 @@
-// RUN: %target-swift-emit-ir %use_no_opaque_pointers -I %S/Inputs %s | %FileCheck %s
-// RUN: %target-swift-emit-ir -I %S/Inputs %s
+// RUN: %target-swift-emit-ir -I %S/Inputs %s | %FileCheck %s
 
 // This test checks that structs that are imported from a C module are mangled
 // in Swift names as if they are declared in the global namespace, even when
@@ -49,7 +48,7 @@ public func take(_: StructTypedefTag4) {}
 // CHECK-LABEL: define {{.*}} void @"$s4main4takeyySo21StructNestedComplete4VF"({{.*}})
 public func take(_: StructNestedComplete4) {}
 
-// CHECK-LABEL: define {{.*}} void @"$s4main4takeyySpySo17StructTypedefTag4VGF"(i8* %0)
+// CHECK-LABEL: define {{.*}} void @"$s4main4takeyySpySo17StructTypedefTag4VGF"(ptr %0)
 public func take(_: StructTypedefName4) {}
 
 // CHECK-LABEL: define {{.*}} void @"$s4main4takeyySo27StructNestedCompletedLater4VF"({{.*}})
@@ -58,7 +57,7 @@ public func take(_: StructNestedCompletedLater4) {}
 // CHECK-LABEL: define {{.*}} void @"$s4main4takeyySo21StructNestedComplete5VF"({{.*}})
 public func take(_: StructNestedComplete5) {}
 
-// CHECK-LABEL: define {{.*}} void @"$s4main4takeyys13OpaquePointerVF"(i8* %0)
+// CHECK-LABEL: define {{.*}} void @"$s4main4takeyys13OpaquePointerVF"(ptr %0)
 public func take(_: StructTypedefName5) {}
 
 // CHECK-LABEL: define {{.*}} void @"$s4main4takeyySo27StructNestedCompletedLater5VF"({{.*}})
@@ -70,7 +69,7 @@ public func take(_: StructTypedefName6) {}
 // CHECK-LABEL: define {{.*}} void @"$s4main4takeyySo21StructNestedComplete6VF"({{.*}})
 public func take(_: StructNestedComplete6) {}
 
-// CHECK-LABEL: define {{.*}} void @"$s4main4takeyySpySo18StructTypedefName6aGF"(i8* %0)
+// CHECK-LABEL: define {{.*}} void @"$s4main4takeyySpySo18StructTypedefName6aGF"(ptr %0)
 public func take(_: StructTypedefName6Ptr) {}
 
 // CHECK-LABEL: define {{.*}} void @"$s4main4takeyySo27StructNestedCompletedLater6VF"({{.*}})
@@ -82,7 +81,7 @@ public func take(_: StructTypedefName7) {}
 // CHECK-LABEL: define {{.*}} void @"$s4main4takeyySo21StructNestedComplete7VF"({{.*}})
 public func take(_: StructNestedComplete7) {}
 
-// CHECK-LABEL: define {{.*}} void @"$s4main4takeyySpySo18StructTypedefName7aGF"(i8* %0)
+// CHECK-LABEL: define {{.*}} void @"$s4main4takeyySpySo18StructTypedefName7aGF"(ptr %0)
 public func take(_: StructTypedefName7Ptr) {}
 
 // CHECK-LABEL: define {{.*}} void @"$s4main4takeyySo27StructNestedCompletedLater7VF"({{.*}})
@@ -94,10 +93,10 @@ public func take(_: StructTypedefName8) {}
 // CHECK-LABEL: define {{.*}} void @"$s4main4takeyySo21StructNestedComplete8VF"({{.*}})
 public func take(_: StructNestedComplete8) {}
 
-// CHECK-LABEL: define {{.*}} void @"$s4main4takeyySpySo18StructTypedefName8aGF"(i8* %0)
+// CHECK-LABEL: define {{.*}} void @"$s4main4takeyySpySo18StructTypedefName8aGF"(ptr %0)
 public func take(_: StructTypedefName8Ptr) {}
 
-// CHECK-LABEL: define {{.*}} void @"$s4main4takeyySpySpySo18StructTypedefName8aGSgGF"(i8* %0)
+// CHECK-LABEL: define {{.*}} void @"$s4main4takeyySpySpySo18StructTypedefName8aGSgGF"(ptr %0)
 public func take(_: StructTypedefName8PtrPtr) {}
 
 // CHECK-LABEL: define {{.*}} void @"$s4main4takeyySo27StructNestedCompletedLater8VF"({{.*}})

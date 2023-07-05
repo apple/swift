@@ -3336,6 +3336,25 @@ public:
   void noteCycleStep(DiagnosticEngine &diags) const;
 };
 
+/// Returns the resolved constraint types that an extension macro
+/// adds conformances to.
+class ResolveExtensionMacroConformances
+    : public SimpleRequest<ResolveExtensionMacroConformances,
+                           ArrayRef<Type>(const MacroRoleAttr *, const Decl *),
+                           RequestFlags::Cached> {
+public:
+  using SimpleRequest::SimpleRequest;
+
+private:
+  friend SimpleRequest;
+
+  ArrayRef<Type> evaluate(Evaluator &evaluator,
+                          const MacroRoleAttr *, const Decl *) const;
+
+public:
+  bool isCached() const { return true; }
+};
+
 class ResolveTypeEraserTypeRequest
     : public SimpleRequest<ResolveTypeEraserTypeRequest,
                            Type (ProtocolDecl *, TypeEraserAttr *),
@@ -4024,28 +4043,6 @@ private:
 
   ArrayRef<unsigned> evaluate(
       Evaluator &evaluator, AbstractStorageDecl *storage) const;
-
-public:
-  bool isCached() const { return true; }
-  void diagnoseCycle(DiagnosticEngine &diags) const;
-  void noteCycleStep(DiagnosticEngine &diags) const;
-};
-
-/// Expand all conformance macros attached to the given declaration.
-///
-/// Produces the set of macro expansion buffer IDs.
-class ExpandConformanceMacros
-    : public SimpleRequest<ExpandConformanceMacros,
-                           ArrayRef<unsigned>(NominalTypeDecl *),
-                           RequestFlags::Cached> {
-public:
-  using SimpleRequest::SimpleRequest;
-
-private:
-  friend SimpleRequest;
-
-  ArrayRef<unsigned> evaluate(Evaluator &evaluator,
-                              NominalTypeDecl *nominal) const;
 
 public:
   bool isCached() const { return true; }

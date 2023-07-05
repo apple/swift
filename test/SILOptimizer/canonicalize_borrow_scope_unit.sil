@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -unit-test-runner %s -o /dev/null 2>&1 | %FileCheck %s
+// RUN: %target-sil-opt -test-runner %s -o /dev/null 2>&1 | %FileCheck %s
 
 import Builtin
 

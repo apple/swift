@@ -360,6 +360,9 @@ SWIFT_REQUEST(TypeChecker, ResolveImplicitMemberRequest,
 SWIFT_REQUEST(TypeChecker, ResolveMacroRequest,
               ConcreteDeclRef(UnresolvedMacroReference, const Decl *),
               Cached, NoLocationInfo)
+SWIFT_REQUEST(TypeChecker, ResolveExtensionMacroConformances,
+              ArrayRef<Type>(const MacroRoleAttr *, const Decl *),
+              Cached, NoLocationInfo)
 SWIFT_REQUEST(TypeChecker, ResolveTypeEraserTypeRequest,
               Type(ProtocolDecl *, TypeEraserAttr *),
               SeparatelyCached, NoLocationInfo)
@@ -456,9 +459,6 @@ SWIFT_REQUEST(TypeChecker, ExpandMemberAttributeMacros,
               Cached, NoLocationInfo)
 SWIFT_REQUEST(TypeChecker, ExpandAccessorMacros,
               ArrayRef<unsigned>(AbstractStorageDecl *),
-              Cached, NoLocationInfo)
-SWIFT_REQUEST(TypeChecker, ExpandConformanceMacros,
-              ArrayRef<unsigned>(NominalTypeDecl *),
               Cached, NoLocationInfo)
 SWIFT_REQUEST(TypeChecker, ExpandExtensionMacros,
               ArrayRef<unsigned>(NominalTypeDecl *),

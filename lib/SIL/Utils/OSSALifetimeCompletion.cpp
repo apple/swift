@@ -52,6 +52,7 @@
 #include "swift/SIL/OSSALifetimeCompletion.h"
 #include "swift/SIL/SILBuilder.h"
 #include "swift/SIL/SILInstruction.h"
+#include "swift/SIL/Test.h"
 
 using namespace swift;
 
@@ -165,6 +166,22 @@ bool OSSALifetimeCompletion::analyzeAndUpdateLifetime(
   assert(liveness.getUnenclosedPhis().empty());
   return changed;
 }
+
+namespace swift::test {
+// Arguments:
+// - SILValue: value
+// Dumps:
+// - function
+static FunctionTest OSSALifetimeCompletionTest(
+    "ossa-lifetime-completion",
+    [](auto &function, auto &arguments, auto &test) {
+      SILValue value = arguments.takeValue();
+      llvm::dbgs() << "OSSA lifetime completion: " << value;
+      OSSALifetimeCompletion completion(&function, /*domInfo*/ nullptr);
+      completion.completeOSSALifetime(value);
+      function.dump();
+    });
+} // end namespace swift::test
 
 // TODO: create a fast check for 'mayEndLifetime(SILInstruction *)'. Verify that
 // it returns true for every instruction that has a lifetime-ending operand.

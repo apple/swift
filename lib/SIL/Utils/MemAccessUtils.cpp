@@ -22,6 +22,7 @@
 #include "swift/SIL/SILInstruction.h"
 #include "swift/SIL/SILModule.h"
 #include "swift/SIL/SILUndef.h"
+#include "swift/SIL/Test.h"
 #include "llvm/Support/Debug.h"
 
 using namespace swift;
@@ -1997,6 +1998,41 @@ bool swift::visitAccessPathBaseUses(AccessUseVisitor &visitor,
   return AccessPathDefUseTraversal(visitor, accessPathWithBase, function)
       .visitUses();
 }
+
+namespace swift::test {
+struct AccessUseTestVisitor : public AccessUseVisitor {
+  AccessUseTestVisitor()
+      : AccessUseVisitor(AccessUseType::Overlapping,
+                         NestedAccessType::IgnoreAccessBegin) {}
+
+  bool visitUse(Operand *op, AccessUseType useTy) override {
+    switch (useTy) {
+    case AccessUseType::Exact:
+      llvm::errs() << "Exact Use: ";
+      break;
+    case AccessUseType::Inner:
+      llvm::errs() << "Inner Use: ";
+      break;
+    case AccessUseType::Overlapping:
+      llvm::errs() << "Overlapping Use ";
+      break;
+    }
+    llvm::errs() << *op->getUser();
+    return true;
+  }
+};
+
+static FunctionTest AccessPathBaseTest("accesspath-base", [](auto &function,
+                                                             auto &arguments,
+                                                             auto &test) {
+  auto value = arguments.takeValue();
+  function.dump();
+  llvm::outs() << "Access path base: " << value;
+  auto accessPathWithBase = AccessPathWithBase::compute(value);
+  AccessUseTestVisitor visitor;
+  visitAccessPathBaseUses(visitor, accessPathWithBase, &function);
+});
+} // end namespace swift::test
 
 bool swift::visitAccessStorageUses(AccessUseVisitor &visitor,
                                    AccessStorage storage,

@@ -34,7 +34,8 @@ using namespace rewriting;
 
 /// For building a rewrite system for a generic signature from canonical
 /// requirements.
-void RuleBuilder::initWithGenericSignatureRequirements(
+void RuleBuilder::initWithGenericSignature(
+    ArrayRef<GenericTypeParamType *> genericParams,
     ArrayRef<Requirement> requirements) {
   assert(!Initialized);
   Initialized = 1;
@@ -47,6 +48,7 @@ void RuleBuilder::initWithGenericSignatureRequirements(
   }
 
   collectRulesFromReferencedProtocols();
+  collectPackShapeRules(genericParams);
 
   // Add rewrite rules for all top-level requirements.
   for (const auto &req : requirements)
@@ -56,6 +58,7 @@ void RuleBuilder::initWithGenericSignatureRequirements(
 /// For building a rewrite system for a generic signature from user-written
 /// requirements.
 void RuleBuilder::initWithWrittenRequirements(
+    ArrayRef<GenericTypeParamType *> genericParams,
     ArrayRef<StructuralRequirement> requirements) {
   assert(!Initialized);
   Initialized = 1;
@@ -68,6 +71,7 @@ void RuleBuilder::initWithWrittenRequirements(
   }
 
   collectRulesFromReferencedProtocols();
+  collectPackShapeRules(genericParams);
 
   // Add rewrite rules for all top-level requirements.
   for (const auto &req : requirements)
@@ -486,5 +490,79 @@ void RuleBuilder::collectRulesFromReferencedProtocols() {
     ImportedRules.insert(ImportedRules.end(),
                          localRules.begin(),
                          localRules.end());
+  }
+}
+
+void RuleBuilder::collectPackShapeRules(ArrayRef<GenericTypeParamType *> genericParams) {
+  if (Dump) {
+    llvm::dbgs() << "adding shape rules\n";
+  }
+
+  if (!llvm::any_of(genericParams,
+                    [](GenericTypeParamType *t) {
+                      return t->isParameterPack();
+                    })) {
+    return;
+  }
+
+  // Each non-pack generic parameter is part of the "scalar shape class", represented
+  // by the empty term.
+  for (auto *genericParam : genericParams) {
+    if (genericParam->isParameterPack())
+      continue;
+
+    // Add the rule (τ_d_i.[shape] => [shape]).
+    MutableTerm lhs;
+    lhs.add(Symbol::forGenericParam(
+        cast<GenericTypeParamType>(genericParam->getCanonicalType()), Context));
+    lhs.add(Symbol::forShape(Context));
+
+    MutableTerm rhs;
+    rhs.add(Symbol::forShape(Context));
+
+    PermanentRules.emplace_back(lhs, rhs);
+  }
+
+  // A member type T.[P:A] is part of the same shape class as its base type T.
+  llvm::DenseSet<Symbol> visited;
+
+  auto addMemberShapeRule = [&](const ProtocolDecl *proto, AssociatedTypeDecl *assocType) {
+    auto symbol = Symbol::forAssociatedType(proto, assocType->getName(), Context);
+    if (!visited.insert(symbol).second)
+      return;
+
+    // Add the rule ([P:A].[shape] => [shape]).
+    MutableTerm lhs;
+    lhs.add(symbol);
+    lhs.add(Symbol::forShape(Context));
+
+    MutableTerm rhs;
+    rhs.add(Symbol::forShape(Context));
+
+    // Consider it an imported rule, since it is not part of our minimization
+    // domain. It would be more logical if we added these in the protocol component
+    // machine for this protocol, but instead we add them in the "leaf" generic
+    // signature machine. This avoids polluting machines that do not involve
+    // parameter packs with these extra rules, which would otherwise just slow
+    // things down.
+    Rule rule(Term::get(lhs, Context), Term::get(rhs, Context));
+    rule.markPermanent();
+    ImportedRules.push_back(rule);
+  };
+
+  for (auto *proto : ProtocolsToImport) {
+    if (Dump) {
+      llvm::dbgs() << "adding member shape rules for protocol " << proto->getName() << "\n";
+    }
+
+    for (auto *assocType : proto->getAssociatedTypeMembers()) {
+      addMemberShapeRule(proto, assocType);
+    }
+
+    for (auto *inheritedProto : Context.getInheritedProtocols(proto)) {
+      for (auto *assocType : inheritedProto->getAssociatedTypeMembers()) {
+        addMemberShapeRule(proto, assocType);
+      }
+    }
   }
 }

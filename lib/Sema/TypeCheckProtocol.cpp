@@ -6444,7 +6444,8 @@ void TypeChecker::checkConformancesInContext(IterableDeclContext *idc) {
   const auto defaultAccess = nominal->getFormalAccess();
 
   // Check each of the conformances associated with this context.
-  auto conformances = idc->getLocalConformances();
+  auto conformances = idc->getLocalConformances(
+      ConformanceLookupKind::ExcludeUnexpandedMacros);
 
   // The conformance checker bundle that checks all conformances in the context.
   auto &Context = dc->getASTContext();

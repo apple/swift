@@ -365,6 +365,8 @@ PASS(TempRValueOpt, "temp-rvalue-opt",
      "Remove short-lived immutable temporary copies")
 PASS(IRGenPrepare, "irgen-prepare",
      "Cleanup SIL in preparation for IRGen")
+PASS(SendNonSendable, "send-non-sendable",
+     "Checks calls that send non-sendable values between isolation domains")
 PASS(SILGenCleanup, "silgen-cleanup",
      "Cleanup SIL in preparation for diagnostics")
 PASS(SILCombine, "sil-combine",
@@ -433,7 +435,7 @@ PASS(SimplifyUnreachableContainingBlocks, "simplify-unreachable-containing-block
      "Utility pass. Removes all non-term insts from blocks with unreachable terms")
 PASS(SerializeSILPass, "serialize-sil",
      "Utility pass. Serializes the current SILModule")
-PASS(UnitTestRunner, "unit-test-runner",
+PASS(UnitTestRunner, "test-runner",
      "Utility pass.  Parses arguments and runs code with them.")
 PASS(YieldOnceCheck, "yield-once-check",
     "Check correct usage of yields in yield-once coroutines")

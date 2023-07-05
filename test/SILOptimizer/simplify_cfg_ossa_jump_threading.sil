@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -unit-test-runner -sil-infinite-jump-threading-budget %s 2>&1 
+// RUN: %target-sil-opt -test-runner -sil-infinite-jump-threading-budget %s 2>&1 
 
 import Builtin
 import Swift

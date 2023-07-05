@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -unit-test-runner %s -o /dev/null 2>&1 | %FileCheck %s
+// RUN: %target-sil-opt -test-runner %s -o /dev/null 2>&1 | %FileCheck %s
 
 class C {}
 sil [ossa] @callee_owned : $@convention(thin) (@owned C) -> ()

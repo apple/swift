@@ -362,9 +362,7 @@ static void desugarConformanceRequirement(Requirement req,
     desugarRequirement(subReq, loc, result, errors);
 }
 
-/// Desugar same-shape requirements by equating the shapes of the
-/// root pack types, and diagnose shape requirements on non-pack
-/// types.
+/// Diagnose shape requirements on non-pack types.
 static void desugarSameShapeRequirement(Requirement req, SourceLoc loc,
                                         SmallVectorImpl<Requirement> &result,
                                         SmallVectorImpl<RequirementError> &errors) {
@@ -376,8 +374,7 @@ static void desugarSameShapeRequirement(Requirement req, SourceLoc loc,
   }
 
   result.emplace_back(RequirementKind::SameShape,
-                      req.getFirstType()->getRootGenericParam(),
-                      req.getSecondType()->getRootGenericParam());
+                      req.getFirstType(), req.getSecondType());
 }
 
 /// Convert a requirement where the subject type might not be a type parameter,

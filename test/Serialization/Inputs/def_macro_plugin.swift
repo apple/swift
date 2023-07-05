@@ -57,8 +57,13 @@ public struct SendableMacro: ExtensionMacro {
     of node: AttributeSyntax,
     attachedTo: some DeclGroupSyntax,
     providingExtensionsOf type: some TypeSyntaxProtocol,
+    conformingTo protocols: [TypeSyntax],
     in context: some MacroExpansionContext
   ) throws -> [ExtensionDeclSyntax] {
+    if (protocols.isEmpty) {
+      return []
+    }
+
     let sendableExtension: DeclSyntax =
       """
       extension \(type.trimmed): Sendable {}

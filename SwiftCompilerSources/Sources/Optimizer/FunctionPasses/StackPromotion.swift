@@ -68,6 +68,11 @@ private func tryPromoteAlloc(_ allocRef: AllocRefInstBase,
     return false
   }
 
+  // The most important check: does the object escape the current function?
+  if allocRef.isEscaping(context) {
+    return false
+  }
+
   if deadEndBlocks.isDeadEnd(allocRef.parentBlock) {
 
     // Allocations inside a code region which ends up in a no-return block may missing their
@@ -77,11 +82,8 @@ private func tryPromoteAlloc(_ allocRef: AllocRefInstBase,
     //  ...
     //  unreachable  // The end of %k's lifetime
     //
-    // Also, such an allocation cannot escape the function, because the function does not
-    // return after the point of allocation. So we can stack-promote it unconditionally.
-    //
     // There is one exception: if it's in a loop (within the dead-end region) we must not
-    // extend its lifetime. On the other hand we can be sure that its final release is not
+    // extend its lifetime. In this case we can be sure that its final release is not
     // missing, because otherwise the object would be leaking. For example:
     //
     //  bb1:
@@ -93,18 +95,10 @@ private func tryPromoteAlloc(_ allocRef: AllocRefInstBase,
     //
     // Therefore, if the allocation is inside a loop, we can treat it like allocations in
     // non dead-end regions.
-    if !isInLoop(block: allocRef.parentBlock, context),
-       // TODO: for some reason this doesn't work for aysnc functions.
-       //       Maybe a problem with co-routine splitting in LLVM?
-       !allocRef.parentFunction.isAsync {
+    if !isInLoop(block: allocRef.parentBlock, context) {
       allocRef.setIsStackAllocatable(context)
       return true
     }
-  }
-
-  // The most important check: does the object escape the current function?
-  if allocRef.isEscaping(context) {
-    return false
   }
 
   // Try to find the top most dominator block which dominates all use points.

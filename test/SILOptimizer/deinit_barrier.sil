@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -compute-side-effects -unit-test-runner %s 2>&1 | %FileCheck %s
+// RUN: %target-sil-opt -compute-side-effects -test-runner %s 2>&1 | %FileCheck %s
 
 // REQUIRES: swift_in_compiler
 

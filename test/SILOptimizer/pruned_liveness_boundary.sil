@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -unit-test-runner %s 2>&1 | %FileCheck %s
+// RUN: %target-sil-opt -test-runner %s 2>&1 | %FileCheck %s
 
 // CHECK: begin running test 1 of {{[^,]+}} on last_uses_merge_points: dump-function
 // CHECK: [[REGISTER_3:%[^,]+]] = tuple ()

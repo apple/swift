@@ -441,7 +441,7 @@ class NormalProtocolConformance : public RootProtocolConformance,
   ///
   /// This should never be Inherited: that is handled by
   /// InheritedProtocolConformance.
-  llvm::PointerIntPair<NormalProtocolConformance *, 2, ConformanceEntryKind>
+  llvm::PointerIntPair<NormalProtocolConformance *, 3, ConformanceEntryKind>
       SourceKindAndImplyingConformance = {nullptr,
                                           ConformanceEntryKind::Explicit};
 

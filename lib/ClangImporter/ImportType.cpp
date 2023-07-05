@@ -3224,8 +3224,8 @@ ImportedType ClangImporter::Implementation::importMethodParamsAndReturnType(
           importedType.isImplicitlyUnwrapped()};
 }
 
-ImportedType tryImportOptionsTypeForField(const clang::QualType type,
-                                          ClangImporter::Implementation &Impl);
+ImportedType findOptionSetType(clang::QualType type,
+                               ClangImporter::Implementation &Impl);
 
 ImportedType ClangImporter::Implementation::importAccessorParamsAndReturnType(
     const DeclContext *dc, const clang::ObjCPropertyDecl *property,
@@ -3250,13 +3250,13 @@ ImportedType ClangImporter::Implementation::importAccessorParamsAndReturnType(
   DeclContext *origDC = importDeclContextOf(property,
                                             property->getDeclContext());
   assert(origDC);
-  auto fieldType = isGetter ? clangDecl->getReturnType() : clangDecl->getParamDecl(0)->getType();
-  ImportedType importedNSOptionsType = tryImportOptionsTypeForField(fieldType, *this);
+  auto fieldType = isGetter ? clangDecl->getReturnType()
+                            : clangDecl->getParamDecl(0)->getType();
 
   // Import the property type, independent of what kind of accessor this is.
-  auto importedType = importPropertyType(property, isFromSystemModule);
-  if (importedNSOptionsType)
-    importedType = importedNSOptionsType;
+  ImportedType importedType = findOptionSetType(fieldType, *this);
+  if (!importedType)
+    importedType = importPropertyType(property, isFromSystemModule);
   if (!importedType)
     return {Type(), false};
 

@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -unit-test-runner %s -o /dev/null 2>&1 | %FileCheck %s
+// RUN: %target-sil-opt -test-runner %s -o /dev/null 2>&1 | %FileCheck %s
 //
 // TODO: when complete lifetime verification become the default for SIL verification,
 // then consider moving all tests with 'unreachable' into a separate file with the flag

@@ -18,7 +18,9 @@
 #include "swift/SIL/MemAccessUtils.h"
 #include "swift/SIL/SILBridging.h"
 #include "swift/SIL/SILModule.h"
+#include "swift/SIL/Test.h"
 #include "swift/SILOptimizer/OptimizerBridging.h"
+#include "swift/SILOptimizer/PassManager/Transforms.h"
 #include "swift/SILOptimizer/Utils/InstOptUtils.h"
 #include "llvm/Support/Compiler.h"
 
@@ -370,3 +372,21 @@ bool swift::isDeinitBarrier(SILInstruction *const instruction,
   BridgedCalleeAnalysis analysis = {bca};
   return instructionIsDeinitBarrierFunction(inst, analysis);
 }
+
+namespace swift::test {
+// Arguments:
+// - instruction
+// Dumps:
+// - instruction
+// - whether it's a deinit barrier
+static FunctionTest IsDeinitBarrierTest("is-deinit-barrier", [](auto &function,
+                                                                auto &arguments,
+                                                                auto &test) {
+  auto *instruction = arguments.takeInstruction();
+  auto *analysis = test.template getAnalysis<BasicCalleeAnalysis>();
+  auto isBarrier = isDeinitBarrier(instruction, analysis);
+  instruction->dump();
+  auto *boolString = isBarrier ? "true" : "false";
+  llvm::errs() << boolString << "\n";
+});
+} // namespace swift::test

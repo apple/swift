@@ -390,6 +390,14 @@ std::pair<bool, bool> LangOptions::setTarget(llvm::Triple triple) {
     break;
   default:
     UnsupportedArch = true;
+
+    if (Target.getOSName() == "none") {
+      if (Target.getArch() != llvm::Triple::ArchType::UnknownArch) {
+        auto ArchName = llvm::Triple::getArchTypeName(Target.getArch());
+        addPlatformConditionValue(PlatformConditionKind::Arch, ArchName);
+        UnsupportedArch = false;
+      }
+    }
   }
 
   if (UnsupportedOS || UnsupportedArch)

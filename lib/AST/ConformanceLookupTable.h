@@ -83,13 +83,15 @@ class ConformanceLookupTable : public ASTAllocated<ConformanceLookupTable> {
   /// Describes the "source" of a conformance, indicating where the
   /// conformance came from.
   class ConformanceSource {
-    llvm::PointerIntPair<void *, 2, ConformanceEntryKind> Storage;
+    void *Storage;
+
+    ConformanceEntryKind Kind;
 
     /// The location of the "unchecked" attribute, if there is one.
     SourceLoc uncheckedLoc;
 
     ConformanceSource(void *ptr, ConformanceEntryKind kind) 
-      : Storage(ptr, kind) { }
+      : Storage(ptr), Kind(kind) { }
 
   public:
     /// Create an inherited conformance.
@@ -126,6 +128,10 @@ class ConformanceLookupTable : public ASTAllocated<ConformanceLookupTable> {
       return ConformanceSource(dc, ConformanceEntryKind::Synthesized);
     }
 
+    static ConformanceSource forUnexpandedMacro(DeclContext *dc) {
+      return ConformanceSource(dc, ConformanceEntryKind::PreMacroExpansion);
+    }
+
     /// Return a new conformance source with the given location of "@unchecked".
     ConformanceSource withUncheckedLoc(SourceLoc uncheckedLoc) {
       ConformanceSource result(*this);
@@ -135,7 +141,7 @@ class ConformanceLookupTable : public ASTAllocated<ConformanceLookupTable> {
     }
 
     /// Retrieve the kind of conformance formed from this source.
-    ConformanceEntryKind getKind() const { return Storage.getInt(); }
+    ConformanceEntryKind getKind() const { return Kind; }
 
     /// Retrieve kind of the conformance for ranking purposes.
     ///
@@ -148,6 +154,7 @@ class ConformanceLookupTable : public ASTAllocated<ConformanceLookupTable> {
       case ConformanceEntryKind::Explicit:
       case ConformanceEntryKind::Inherited:
       case ConformanceEntryKind::Synthesized:
+      case ConformanceEntryKind::PreMacroExpansion:
         return kind;
 
       case ConformanceEntryKind::Implied:
@@ -169,28 +176,33 @@ class ConformanceLookupTable : public ASTAllocated<ConformanceLookupTable> {
     /// for the inheriting class.
     ClassDecl *getInheritingClass() const {
       assert(getKind() == ConformanceEntryKind::Inherited);
-      return static_cast<ClassDecl *>(Storage.getPointer());      
+      return static_cast<ClassDecl *>(Storage);
     }
 
     /// For an explicit conformance, retrieve the declaration context
     /// that specifies the conformance.
     DeclContext *getExplicitDeclContext() const {
       assert(getKind() == ConformanceEntryKind::Explicit);
-      return static_cast<DeclContext *>(Storage.getPointer());      
+      return static_cast<DeclContext *>(Storage);
+    }
+
+    DeclContext *getMacroGeneratedDeclContext() const {
+      assert(getKind() == ConformanceEntryKind::PreMacroExpansion);
+      return static_cast<DeclContext *>(Storage);
     }
 
     /// For a synthesized conformance, retrieve the nominal type decl
     /// that will receive the conformance.
     ConformanceEntry *getImpliedSource() const {
       assert(getKind() == ConformanceEntryKind::Implied);
-      return static_cast<ConformanceEntry *>(Storage.getPointer());
+      return static_cast<ConformanceEntry *>(Storage);
     }
 
     /// For a synthesized conformance, retrieve the nominal type decl
     /// that will receive the conformance.
     DeclContext *getSynthesizedDeclContext() const {
       assert(getKind() == ConformanceEntryKind::Synthesized);
-      return static_cast<DeclContext *>(Storage.getPointer());
+      return static_cast<DeclContext *>(Storage);
     }
 
     /// Get the declaration context that this conformance will be
@@ -226,6 +238,10 @@ class ConformanceLookupTable : public ASTAllocated<ConformanceLookupTable> {
 
     /// Whether this conformance is already "fixed" and cannot be superseded.
     bool isFixed() const {
+      // A conformance from an unexpanded macro can always be superseded.
+      if (getKind() == ConformanceEntryKind::PreMacroExpansion)
+        return true;
+
       // If a conformance has been assigned, it cannot be superseded.
       if (getConformance())
         return true;
@@ -235,6 +251,7 @@ class ConformanceLookupTable : public ASTAllocated<ConformanceLookupTable> {
       case ConformanceEntryKind::Explicit:
       case ConformanceEntryKind::Implied:
       case ConformanceEntryKind::Synthesized:
+      case ConformanceEntryKind::PreMacroExpansion:
         return false;
 
       case ConformanceEntryKind::Inherited:
@@ -340,6 +357,11 @@ class ConformanceLookupTable : public ASTAllocated<ConformanceLookupTable> {
   void addInheritedProtocols(
       llvm::PointerUnion<const TypeDecl *, const ExtensionDecl *> decl,
       ConformanceSource source);
+
+  /// Add the protocols added by attached extension macros that are not
+  /// yet expanded.
+  void addMacroGeneratedProtocols(
+      NominalTypeDecl *nominal, ConformanceSource source);
 
   /// Expand the implied conformances for the given DeclContext.
   void expandImpliedConformances(NominalTypeDecl *nominal, DeclContext *dc);

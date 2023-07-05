@@ -1043,8 +1043,8 @@ static bool canSubstituteTypeInto(Type ty, const DeclContext *dc,
 
     // In the same file any visibility is okay.
     if (!dc->isModuleContext() &&
-        typeDecl->getDeclContext()->getParentSourceFile() ==
-        dc->getParentSourceFile())
+        typeDecl->getDeclContext()->getOutermostParentSourceFile() ==
+        dc->getOutermostParentSourceFile())
       return true;
 
     return typeDecl->getEffectiveAccess() > AccessLevel::FilePrivate;

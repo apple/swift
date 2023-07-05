@@ -31,3 +31,8 @@ import CenumsNSOptions
 // CHECK-NEXT:   class func bar() -> Bar
 // CHECK-NEXT:   class func setBar(_ bar: Bar)
 // CHECK-NEXT: }
+
+// CHECK: class HasNSOptionFieldObjC2 {
+// CHECK-NEXT:   class func setBar(_ bar: Bar)
+// CHECK-NEXT:   func setBar(_ bar: Bar)
+// CHECK-NEXT: }

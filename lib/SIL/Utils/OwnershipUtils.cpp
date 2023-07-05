@@ -22,6 +22,7 @@
 #include "swift/SIL/SILArgument.h"
 #include "swift/SIL/SILBuilder.h"
 #include "swift/SIL/SILInstruction.h"
+#include "swift/SIL/Test.h"
 
 using namespace swift;
 
@@ -93,6 +94,22 @@ bool swift::findPointerEscape(SILValue original) {
   }
   return false;
 }
+
+namespace swift::test {
+// Arguments:
+// - value: the value to check for escaping
+// Dumps:
+// - the value
+// - whether it has a pointer escape
+static FunctionTest OwnershipUtilsHasPointerEscape(
+    "has-pointer-escape", [](auto &function, auto &arguments, auto &test) {
+      auto value = arguments.takeValue();
+      auto has = findPointerEscape(value);
+      value->print(llvm::errs());
+      auto *boolString = has ? "true" : "false";
+      llvm::errs() << boolString << "\n";
+    });
+} // end namespace swift::test
 
 bool swift::canOpcodeForwardInnerGuaranteedValues(SILValue value) {
   if (auto *inst = value->getDefiningInstructionOrTerminator()) {
@@ -2046,6 +2063,23 @@ bool swift::visitEnclosingDefs(SILValue value,
     .visitEnclosingDefs(value, visitor);
 }
 
+namespace swift::test {
+// Arguments:
+// - SILValue: value
+// Dumps:
+// - function
+// - the enclosing defs
+static FunctionTest FindEnclosingDefsTest(
+    "find-enclosing-defs", [](auto &function, auto &arguments, auto &test) {
+      function.dump();
+      llvm::dbgs() << "Enclosing Defs:\n";
+      visitEnclosingDefs(arguments.takeValue(), [](SILValue def) {
+        def->dump();
+        return true;
+      });
+    });
+} // end namespace swift::test
+
 bool swift::visitBorrowIntroducers(SILValue value,
                                    function_ref<bool(SILValue)> visitor) {
   if (isa<SILUndef>(value))
@@ -2053,6 +2087,23 @@ bool swift::visitBorrowIntroducers(SILValue value,
   return FindEnclosingDefs(value->getFunction())
     .visitBorrowIntroducers(value, visitor);
 }
+
+namespace swift::test {
+// Arguments:
+// - SILValue: value
+// Dumps:
+// - function
+// - the borrow introducers
+static FunctionTest FindBorrowIntroducers(
+    "find-borrow-introducers", [](auto &function, auto &arguments, auto &test) {
+      function.dump();
+      llvm::dbgs() << "Introducers:\n";
+      visitBorrowIntroducers(arguments.takeValue(), [](SILValue def) {
+        def->dump();
+        return true;
+      });
+    });
+} // end namespace swift::test
 
 /// Return true of the lifetime of \p innerPhiVal depends on \p outerPhiVal.
 ///
@@ -2155,6 +2206,24 @@ bool swift::visitInnerAdjacentPhis(SILArgument *phi,
   }
   return true;
 }
+
+namespace swift::test {
+// Arguments:
+// - SILValue: phi
+// Dumps:
+// - function
+// - the adjacent phis
+static FunctionTest VisitInnerAdjacentPhisTest(
+    "visit-inner-adjacent-phis",
+    [](auto &function, auto &arguments, auto &test) {
+      function.dump();
+      visitInnerAdjacentPhis(cast<SILPhiArgument>(arguments.takeValue()),
+                             [](auto *argument) -> bool {
+                               argument->dump();
+                               return true;
+                             });
+    });
+} // end namespace swift::test
 
 void swift::visitTransitiveEndBorrows(
     SILValue value,

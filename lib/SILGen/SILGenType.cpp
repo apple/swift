@@ -1132,6 +1132,9 @@ public:
     // are existential and do not have witness tables.
     for (auto *conformance : theType->getLocalConformances(
                                ConformanceLookupKind::NonInherited)) {
+      if (conformance->getSourceKind() == ConformanceEntryKind::PreMacroExpansion)
+        continue;
+
       assert(conformance->isComplete());
       if (auto *normal = dyn_cast<NormalProtocolConformance>(conformance))
         SGM.getWitnessTable(normal);

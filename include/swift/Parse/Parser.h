@@ -156,6 +156,7 @@ public:
   /// ASTScopes are not created in inactive clauses and lookups to decls will fail.
   bool InInactiveClauseEnvironment = false;
   bool InSwiftKeyPath = false;
+  bool InFreestandingMacroArgument = false;
 
   /// Whether we should delay parsing nominal type, extension, and function
   /// bodies.

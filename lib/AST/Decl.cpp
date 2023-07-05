@@ -408,7 +408,25 @@ void Decl::visitAuxiliaryDecls(
   }
 
   if (visitFreestandingExpanded) {
-    if (auto *med = dyn_cast<MacroExpansionDecl>(mutableThis)) {
+    Decl *thisDecl = mutableThis;
+
+    // If this is a top-level code decl consisting of a macro expansion
+    // expression that substituted with a macro expansion declaration, use
+    // that instead.
+    if (auto *tlcd = dyn_cast<TopLevelCodeDecl>(thisDecl)) {
+      if (auto body = tlcd->getBody()) {
+        if (body->getNumElements() == 1) {
+          if (auto expr = body->getFirstElement().dyn_cast<Expr *>()) {
+            if (auto expansion = dyn_cast<MacroExpansionExpr>(expr)) {
+              if (auto substitute = expansion->getSubstituteDecl())
+                thisDecl = substitute;
+            }
+          }
+        }
+      }
+    }
+
+    if (auto *med = dyn_cast<MacroExpansionDecl>(thisDecl)) {
       if (auto bufferID = evaluateOrDefault(
               ctx.evaluator, ExpandMacroExpansionDeclRequest{med}, {})) {
         auto startLoc = sourceMgr.getLocForBufferStart(*bufferID);
@@ -10492,6 +10510,45 @@ bool swift::isMacroSupported(MacroRole role, ASTContext &ctx) {
 void MissingDecl::forEachMacroExpandedDecl(MacroExpandedDeclCallback callback) {
   auto macroRef = unexpandedMacro.macroRef;
   auto *baseDecl = unexpandedMacro.baseDecl;
+
+  // If the macro itself is a macro expansion expression, it should come with
+  // a top-level code declaration that we can use for resolution. For such
+  // cases, resolve the macro to determine whether it is a declaration or
+  // code-item macro, meaning that it can produce declarations. In such cases,
+  // expand the macro and use its substituted declaration (a MacroExpansionDecl)
+  // instead.
+  if (auto freestanding = macroRef.dyn_cast<FreestandingMacroExpansion *>()) {
+    if (auto expr = dyn_cast<MacroExpansionExpr>(freestanding)) {
+      bool replacedWithDecl = false;
+      if (auto tlcd = dyn_cast_or_null<TopLevelCodeDecl>(baseDecl)) {
+        ASTContext &ctx = tlcd->getASTContext();
+        if (auto macro = evaluateOrDefault(
+                ctx.evaluator,
+                ResolveMacroRequest{macroRef, tlcd->getDeclContext()},
+                nullptr)) {
+          auto macroDecl = cast<MacroDecl>(macro.getDecl());
+          auto roles = macroDecl->getMacroRoles();
+          if (roles.contains(MacroRole::Declaration) ||
+              roles.contains(MacroRole::CodeItem)) {
+            (void)evaluateOrDefault(ctx.evaluator,
+                                    ExpandMacroExpansionExprRequest{expr},
+                                    llvm::None);
+            if (auto substituted = expr->getSubstituteDecl()) {
+              macroRef = substituted;
+              baseDecl = substituted;
+              replacedWithDecl = true;
+            }
+          }
+        }
+      }
+
+      // If we didn't end up replacing the macro expansion expression with
+      // a declaration, we're done.
+      if (!replacedWithDecl)
+        return;
+    }
+  }
+
   if (!macroRef || !baseDecl)
     return;
   auto *module = getModuleContext();
@@ -10502,9 +10559,12 @@ void MissingDecl::forEachMacroExpandedDecl(MacroExpandedDeclCallback callback) {
         : auxiliaryDecl->getInnermostDeclContext()->getParentSourceFile();
     // We only visit auxiliary decls that are macro expansions associated with
     // this macro reference.
-    if (auto *med = macroRef.dyn_cast<MacroExpansionDecl *>()) {
-     if (med != sf->getMacroExpansion().dyn_cast<Decl *>())
-       return;
+    if (auto *med = macroRef.dyn_cast<FreestandingMacroExpansion *>()) {
+      auto medAsDecl = dyn_cast<MacroExpansionDecl>(med);
+      auto medAsExpr = dyn_cast<MacroExpansionExpr>(med);
+      if ((!medAsDecl || medAsDecl != sf->getMacroExpansion().dyn_cast<Decl *>()) &&
+          (!medAsExpr || medAsExpr != sf->getMacroExpansion().dyn_cast<Expr *>()))
+        return;
     } else if (auto *attr = macroRef.dyn_cast<CustomAttr *>()) {
      if (attr != sf->getAttachedMacroAttribute())
        return;
@@ -10692,6 +10752,43 @@ void MacroDecl::getIntroducedNames(MacroRole role, ValueDecl *attachedTo,
   case MacroRole::Conformance:
   case MacroRole::MemberAttribute:
     break;
+  }
+}
+
+void MacroDecl::getIntroducedConformances(
+    NominalTypeDecl *attachedTo,
+    SmallVectorImpl<ProtocolDecl *> &conformances) const {
+  auto *attr = getMacroRoleAttr(MacroRole::Extension);
+  if (!attr)
+    return;
+
+  auto &ctx = getASTContext();
+  auto constraintTypes = evaluateOrDefault(
+      ctx.evaluator,
+      ResolveExtensionMacroConformances{attr, this},
+      {});
+
+  for (auto constraint : constraintTypes) {
+    assert(constraint->isConstraintType());
+
+    std::function<void(Type)> addConstraint =
+        [&](Type constraint) -> void {
+          if (auto *proto = constraint->getAs<ParameterizedProtocolType>()) {
+            conformances.push_back(proto->getProtocol());
+            return;
+          } else if (auto *proto = constraint->getAs<ProtocolType>()) {
+            conformances.push_back(proto->getDecl());
+            return;
+          }
+
+          auto *composition =
+              constraint->castTo<ProtocolCompositionType>();
+          for (auto constraint : composition->getMembers()) {
+            addConstraint(constraint);
+          }
+        };
+
+    addConstraint(constraint);
   }
 }
 

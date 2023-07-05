@@ -17,6 +17,7 @@
 #include "swift/SIL/SILInstruction.h"
 #include "swift/SIL/SILModule.h"
 #include "swift/SIL/SILVisitor.h"
+#include "swift/SIL/Test.h"
 #include "llvm/ADT/StringSwitch.h"
 
 using namespace swift;
@@ -153,6 +154,23 @@ bool ValueBase::isLexical() const {
     return mvi->isLexical();
   return false;
 }
+
+namespace swift::test {
+// Arguments:
+// - value
+// Dumps:
+// - value
+// - whether it's lexical
+static FunctionTest IsLexicalTest("is-lexical", [](auto &function,
+                                                   auto &arguments,
+                                                   auto &test) {
+  auto value = arguments.takeValue();
+  auto isLexical = value->isLexical();
+  value->dump();
+  auto *boolString = isLexical ? "true" : "false";
+  llvm::errs() << boolString << "\n";
+});
+} // end namespace swift::test
 
 bool ValueBase::isGuaranteedForwarding() const {
   if (getOwnershipKind() != OwnershipKind::Guaranteed) {

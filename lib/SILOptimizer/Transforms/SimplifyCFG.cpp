@@ -30,6 +30,7 @@
 
 #define DEBUG_TYPE "sil-simplify-cfg"
 
+#include "swift/SILOptimizer/Transforms/SimplifyCFG.h"
 #include "swift/AST/Module.h"
 #include "swift/SIL/BasicBlockDatastructures.h"
 #include "swift/SIL/DebugUtils.h"
@@ -40,13 +41,13 @@
 #include "swift/SIL/SILModule.h"
 #include "swift/SIL/SILUndef.h"
 #include "swift/SIL/TerminatorUtils.h"
+#include "swift/SIL/Test.h"
 #include "swift/SILOptimizer/Analysis/DeadEndBlocksAnalysis.h"
 #include "swift/SILOptimizer/Analysis/DominanceAnalysis.h"
 #include "swift/SILOptimizer/Analysis/ProgramTerminationAnalysis.h"
 #include "swift/SILOptimizer/Analysis/SimplifyInstruction.h"
 #include "swift/SILOptimizer/PassManager/Passes.h"
 #include "swift/SILOptimizer/PassManager/Transforms.h"
-#include "swift/SILOptimizer/Transforms/SimplifyCFG.h"
 #include "swift/SILOptimizer/Utils/BasicBlockOptUtils.h"
 #include "swift/SILOptimizer/Utils/CFGOptUtils.h"
 #include "swift/SILOptimizer/Utils/CastOptimizer.h"
@@ -1065,6 +1066,22 @@ bool SimplifyCFG::tryJumpThreading(BranchInst *BI) {
   return true;
 }
 
+namespace swift::test {
+/// Arguments:
+/// - BranchInst - the branch whose destination might be merged into its parent
+/// Dumps:
+/// - nothing
+static FunctionTest SimplifyCFGTryJumpThreading(
+    "simplify-cfg-try-jump-threading",
+    [](auto &function, auto &arguments, auto &test) {
+      auto *passToRun = cast<SILFunctionTransform>(createSimplifyCFG());
+      passToRun->injectPassManager(test.getPassManager());
+      passToRun->injectFunction(&function);
+      SimplifyCFG(function, *passToRun, /*VerifyAll=*/false,
+                  /*EnableJumpThread=*/false)
+          .tryJumpThreading(cast<BranchInst>(arguments.takeInstruction()));
+    });
+} // end namespace swift::test
 
 /// simplifyBranchOperands - Simplify operands of branches, since it can
 /// result in exposing opportunities for CFG simplification.
@@ -1789,6 +1806,24 @@ bool SimplifyCFG::simplifySwitchEnumUnreachableBlocks(SwitchEnumInst *SEI) {
   return true;
 }
 
+namespace swift::test {
+/// Arguments:
+/// - SwitchEnumInst - the instruction to to simplify
+/// Dumps:
+/// - nothing
+static FunctionTest SimplifyCFGSimplifySwitchEnumUnreachableBlocks(
+    "simplify-cfg-simplify-switch-enum-unreachable-blocks",
+    [](auto &function, auto &arguments, auto &test) {
+      auto *passToRun = cast<SILFunctionTransform>(createSimplifyCFG());
+      passToRun->injectPassManager(test.getPassManager());
+      passToRun->injectFunction(&function);
+      SimplifyCFG(function, *passToRun, /*VerifyAll=*/false,
+                  /*EnableJumpThread=*/false)
+          .simplifySwitchEnumUnreachableBlocks(
+              cast<SwitchEnumInst>(arguments.takeInstruction()));
+    });
+} // end namespace swift::test
+
 /// Checks that the someBB only contains obj_method calls (possibly chained) on
 /// the optional value.
 ///
@@ -2081,6 +2116,24 @@ bool SimplifyCFG::simplifySwitchEnumOnObjcClassOptional(SwitchEnumInst *SEI) {
   return true;
 }
 
+namespace swift::test {
+/// Arguments:
+/// - SwitchEnumInst - the instruction to to simplify
+/// Dumps:
+/// - nothing
+static FunctionTest SimplifyCFGSwitchEnumOnObjcClassOptional(
+    "simplify-cfg-simplify-switch-enum-on-objc-class-optional",
+    [](auto &function, auto &arguments, auto &test) {
+      auto *passToRun = cast<SILFunctionTransform>(createSimplifyCFG());
+      passToRun->injectPassManager(test.getPassManager());
+      passToRun->injectFunction(&function);
+      SimplifyCFG(function, *passToRun, /*VerifyAll=*/false,
+                  /*EnableJumpThread=*/false)
+          .simplifySwitchEnumOnObjcClassOptional(
+              cast<SwitchEnumInst>(arguments.takeInstruction()));
+    });
+} // end namespace swift::test
+
 /// simplifySwitchEnumBlock - Simplify a basic block that ends with a
 /// switch_enum instruction that gets its operand from an enum
 /// instruction.
@@ -2136,6 +2189,24 @@ bool SimplifyCFG::simplifySwitchEnumBlock(SwitchEnumInst *SEI) {
   ++NumConstantFolded;
   return true;
 }
+
+namespace swift::test {
+/// Arguments:
+/// - SwitchEnumInst - the instruction to to simplify
+/// Dumps:
+/// - nothing
+static FunctionTest SimplifyCFGSimplifySwitchEnumBlock(
+    "simplify-cfg-simplify-switch-enum-block",
+    [](auto &function, auto &arguments, auto &test) {
+      auto *passToRun = cast<SILFunctionTransform>(createSimplifyCFG());
+      passToRun->injectPassManager(test.getPassManager());
+      passToRun->injectFunction(&function);
+      SimplifyCFG(function, *passToRun, /*VerifyAll=*/false,
+                  /*EnableJumpThread=*/false)
+          .simplifySwitchEnumBlock(
+              cast<SwitchEnumInst>(arguments.takeInstruction()));
+    });
+} // end namespace swift::test
 
 /// simplifySwitchValueBlock - Simplify a basic block that ends with a
 /// switch_value instruction that gets its operand from an integer
@@ -2564,6 +2635,23 @@ bool SimplifyCFG::simplifyTermWithIdenticalDestBlocks(SILBasicBlock *BB) {
   return true;
 }
 
+namespace swift::test {
+/// Arguments:
+/// - SILBasicBlock - the block whose terminator's destinations are all the same
+/// Dumps:
+/// - nothing
+static FunctionTest SimplifyCFGSimplifyTermWithIdenticalDestBlocks(
+    "simplify-cfg-simplify-term-with-identical-dest-blocks",
+    [](auto &function, auto &arguments, auto &test) {
+      auto *passToRun = cast<SILFunctionTransform>(createSimplifyCFG());
+      passToRun->injectPassManager(test.getPassManager());
+      passToRun->injectFunction(&function);
+      SimplifyCFG(function, *passToRun, /*VerifyAll=*/false,
+                  /*EnableJumpThread=*/false)
+          .simplifyTermWithIdenticalDestBlocks(arguments.takeBlock());
+    });
+} // end namespace swift::test
+
 /// Checks if the block contains a cond_fail as first side-effect instruction
 /// and tries to move it to the predecessors (if beneficial). A sequence
 ///
@@ -2791,6 +2879,23 @@ bool SimplifyCFG::canonicalizeSwitchEnums() {
 
   return Changed;
 }
+
+namespace swift::test {
+/// Arguments:
+/// - none
+/// Dumps:
+/// - nothing
+static FunctionTest SimplifyCFGCanonicalizeSwitchEnum(
+    "simplify-cfg-canonicalize-switch-enum",
+    [](auto &function, auto &arguments, auto &test) {
+      auto *passToRun = cast<SILFunctionTransform>(createSimplifyCFG());
+      passToRun->injectPassManager(test.getPassManager());
+      passToRun->injectFunction(&function);
+      SimplifyCFG(function, *passToRun, /*VerifyAll=*/false,
+                  /*EnableJumpThread=*/false)
+          .canonicalizeSwitchEnums();
+    });
+} // end namespace swift::test
 
 static SILBasicBlock *isObjCMethodCallBlock(SILBasicBlock &Block) {
   auto *Branch = dyn_cast<BranchInst>(Block.getTerminator());
@@ -3546,6 +3651,23 @@ bool SimplifyCFG::simplifyBlockArgs() {
   return Changed;
 }
 
+namespace swift::test {
+/// Arguments:
+/// - none
+/// Dumps:
+/// - nothing
+static FunctionTest SimplifyCFGSimplifyBlockArgs(
+    "simplify-cfg-simplify-block-args",
+    [](auto &function, auto &arguments, auto &test) {
+      auto *passToRun = cast<SILFunctionTransform>(createSimplifyCFG());
+      passToRun->injectPassManager(test.getPassManager());
+      passToRun->injectFunction(&function);
+      SimplifyCFG(function, *passToRun, /*VerifyAll=*/false,
+                  /*EnableJumpThread=*/false)
+          .simplifyBlockArgs();
+    });
+} // end namespace swift::test
+
 // Attempt to simplify the ith argument of BB.  We simplify cases
 // where there is a single use of the argument that is an extract from
 // a struct, tuple or enum and where the predecessors all build the struct,
@@ -3618,6 +3740,26 @@ bool SimplifyCFG::simplifyArgument(SILBasicBlock *BB, unsigned i) {
 
   return true;
 }
+
+namespace swift::test {
+/// Arguments
+/// - block - the block whose argument is to be simplified
+/// - index - the index of the argument to be simplified
+/// Dumps:
+/// - nothing
+static FunctionTest SimplifyCFGSimplifyArgument(
+    "simplify-cfg-simplify-argument",
+    [](auto &function, auto &arguments, auto &test) {
+      auto *passToRun = cast<SILFunctionTransform>(createSimplifyCFG());
+      passToRun->injectPassManager(test.getPassManager());
+      passToRun->injectFunction(&function);
+      auto *block = arguments.takeBlock();
+      auto index = arguments.takeUInt();
+      SimplifyCFG(function, *passToRun, /*VerifyAll=*/false,
+                  /*EnableJumpThread=*/false)
+          .simplifyArgument(block, index);
+    });
+} // end namespace swift::test
 
 // OWNERSHIP NOTE: This is always safe for guaranteed and owned arguments since
 // in both cases the phi will consume its input.

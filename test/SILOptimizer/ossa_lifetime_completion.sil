@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -enable-ossa-complete-lifetimes -unit-test-runner -sil-disable-input-verify %s -o /dev/null 2>&1 | %FileCheck %s
+// RUN: %target-sil-opt -enable-ossa-complete-lifetimes -test-runner -sil-disable-input-verify %s -o /dev/null 2>&1 | %FileCheck %s
 
 sil_stage raw
 

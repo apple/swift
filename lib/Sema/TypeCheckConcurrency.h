@@ -536,6 +536,11 @@ bool isPotentiallyIsolatedActor(
     VarDecl *var, llvm::function_ref<bool(ParamDecl *)> isIsolated =
                       [](ParamDecl *P) { return P->isIsolated(); });
 
+/// Check whether the given ApplyExpr makes an unsatisfied isolation jump
+/// and if so, emit diagnostics for any nonsendable arguments to the apply
+bool diagnoseApplyArgSendability(
+    swift::ApplyExpr *apply, const DeclContext *declContext);
+
 } // end namespace swift
 
 #endif /* SWIFT_SEMA_TYPECHECKCONCURRENCY_H */

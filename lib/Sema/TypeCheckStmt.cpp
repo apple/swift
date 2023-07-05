@@ -2011,6 +2011,23 @@ void TypeChecker::checkIgnoredExpr(Expr *E) {
 void StmtChecker::typeCheckASTNode(ASTNode &node) {
   // Type check the expression
   if (auto *E = node.dyn_cast<Expr *>()) {
+    auto checkMacroExpansion = [&] {
+      // If we have a macro expansion expression that's been replaced with a
+      // declaration, type-check that declaration.
+      if (auto macroExpr = dyn_cast<MacroExpansionExpr>(E)) {
+        if (auto decl = macroExpr->getSubstituteDecl()) {
+          ASTNode declNode(decl);
+          typeCheckASTNode(declNode);
+          return true;
+        }
+      }
+
+      return false;
+    };
+
+    if (checkMacroExpansion())
+      return;
+
     auto &ctx = DC->getASTContext();
 
     TypeCheckExprOptions options = TypeCheckExprFlags::IsExprStmt;
@@ -2024,6 +2041,11 @@ void StmtChecker::typeCheckASTNode(ASTNode &node) {
 
     auto resultTy =
         TypeChecker::typeCheckExpression(E, DC, /*contextualInfo=*/{}, options);
+
+    // Check for a freestanding macro expansion that produced declarations or
+    // code items.
+    if (checkMacroExpansion())
+      return;
 
     // If a closure expression is unused, the user might have intended to write
     // "do { ... }".

@@ -20,6 +20,7 @@
 #define SWIFT_ABI_PROTOCOLDISPATCHSTRATEGY_H
 
 #include "swift/Basic/Unreachable.h"
+#include <cstdint>
 
 namespace swift {
 

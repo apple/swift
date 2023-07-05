@@ -470,6 +470,7 @@ function verify_host_is_supported() {
       | linux-powerpc           \
       | linux-powerpc64         \
       | linux-powerpc64le       \
+      | linux-riscv64           \
       | linux-s390x             \
       | macosx-x86_64           \
       | macosx-arm64            \

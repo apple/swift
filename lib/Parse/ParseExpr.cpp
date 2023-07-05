@@ -2338,6 +2338,8 @@ ParserStatus Parser::parseFreestandingMacroExpansion(
       diagnose(leftAngleLoc, diag::while_parsing_as_left_angle_bracket);
   }
 
+  llvm::SaveAndRestore<bool> inMacroArgument(InFreestandingMacroArgument, true);
+
   if (Tok.isFollowingLParen()) {
     auto result = parseArgumentList(tok::l_paren, tok::r_paren, isExprBasic,
                                     /*allowTrailingClosure*/ true);

@@ -1,5 +1,4 @@
-// RUN: %target-swift-emit-ir %use_no_opaque_pointers %s -I %S/Inputs -enable-experimental-cxx-interop -validate-tbd-against-ir=none -disable-llvm-verify -Xcc -fignore-exceptions -disable-availability-checking | %FileCheck %s
-// RUN: %target-swift-emit-ir %s -I %S/Inputs -enable-experimental-cxx-interop -validate-tbd-against-ir=none -disable-llvm-verify -Xcc -fignore-exceptions -disable-availability-checking
+// RUN: %target-swift-emit-ir %s -I %S/Inputs -enable-experimental-cxx-interop -validate-tbd-against-ir=none -disable-llvm-verify -Xcc -fignore-exceptions -disable-availability-checking | %FileCheck %s
 //
 // XFAIL: OS=linux-android, OS=linux-androideabi
 
@@ -11,21 +10,19 @@ import POD
 
 // CHECK-LABEL: define {{.*}}swiftcc void @"$s4main4testyyF"
 
-// CHECK: [[X:%.*]] = alloca %TSo7IntPairV*
-// CHECK: [[TMP:%.*]] = alloca %TSo7IntPairV*
+// CHECK: [[X:%.*]] = alloca ptr
+// CHECK: [[TMP:%.*]] = alloca ptr
 
-// CHECK: [[CREATED:%.*]] = call %struct.IntPair* @{{_ZN7IntPair6createEv|"\?create\@IntPair\@\@SAPEAU1\@XZ"}}()
-// CHECK: [[SWIFT_CREATED:%.*]] = bitcast %struct.IntPair* [[CREATED]] to %TSo7IntPairV*
-// CHECK: store %TSo7IntPairV* [[SWIFT_CREATED]], %TSo7IntPairV** [[X]]
+// CHECK: [[CREATED:%.*]] = call ptr @{{_ZN7IntPair6createEv|"\?create\@IntPair\@\@SAPEAU1\@XZ"}}()
+// CHECK: store ptr [[CREATED]], ptr [[X]]
 
-// CHECK: [[B_FIELD:%.*]] = getelementptr inbounds %TSo7IntPairV, %TSo7IntPairV* [[SWIFT_CREATED]], i32 0, i32 1
-// CHECK: [[INT_VALUE:%.*]] = getelementptr inbounds %Ts5Int32V, %Ts5Int32V* [[B_FIELD]], i32 0, i32 0
-// CHECK: store i32 42, i32* [[INT_VALUE]], align 4
+// CHECK: [[B_FIELD:%.*]] = getelementptr inbounds %TSo7IntPairV, ptr [[CREATED]], i32 0, i32 1
+// CHECK: [[INT_VALUE:%.*]] = getelementptr inbounds %Ts5Int32V, ptr [[B_FIELD]], i32 0, i32 0
+// CHECK: store i32 42, ptr [[INT_VALUE]], align 4
 
-// CHECK: store %TSo7IntPairV* [[SWIFT_CREATED]], %TSo7IntPairV** [[TMP]]
-// CHECK: [[TMP_LOAD:%.*]] = load %TSo7IntPairV*, %TSo7IntPairV** [[TMP]]
-// CHECK: [[CLANG_CREATED:%.*]] = bitcast %TSo7IntPairV* [[TMP_LOAD]] to %struct.IntPair*
-// CHECK: call i32 @{{_ZNK7IntPair4testEv|"\?test\@IntPair\@\@QEBAHXZ"}}(%struct.IntPair* [[CLANG_CREATED]])
+// CHECK: store ptr [[CREATED]], ptr [[TMP]]
+// CHECK: [[TMP_LOAD:%.*]] = load ptr, ptr [[TMP]]
+// CHECK: call i32 @{{_ZNK7IntPair4testEv|"\?test\@IntPair\@\@QEBAHXZ"}}(ptr [[TMP_LOAD]])
 
 // CHECK: ret void
 

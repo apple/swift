@@ -721,20 +721,27 @@ MutableTerm
 RequirementMachine::getReducedShapeTerm(Type type) const {
   assert(type->isParameterPack());
 
-  auto rootType = type->getRootGenericParam();
-  auto term = Context.getMutableTermForType(rootType->getCanonicalType(),
+  auto term = Context.getMutableTermForType(type->getCanonicalType(),
                                             /*proto=*/nullptr);
 
-  // Append the 'shape' symbol to the term.
+  // From a type term T, form the shape term `T.[shape]`.
   term.add(Symbol::forShape(Context));
 
+  // Compute the reduced shape term `T'.[shape]`.
   System.simplify(term);
   verify(term);
 
-  // Remove the 'shape' symbol from the term.
-  assert(term.back().getKind() == Symbol::Kind::Shape);
-  MutableTerm reducedTerm(term.begin(), term.end() - 1);
+  // Get the term T', which is the reduced shape of T.
+  if (term.size() != 2 ||
+      term[0].getKind() != Symbol::Kind::GenericParam ||
+      term[1].getKind() != Symbol::Kind::Shape) {
+    llvm::errs() << "Invalid reduced shape\n";
+    llvm::errs() << "Type: " << type << "\n";
+    llvm::errs() << "Term: " << term << "\n";
+    abort();
+  }
 
+  MutableTerm reducedTerm(term.begin(), term.end() - 1);
   return reducedTerm;
 }
 

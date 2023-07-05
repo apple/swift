@@ -217,6 +217,9 @@ EXPERIMENTAL_FEATURE(BuiltinModule, true)
 // Enable strict concurrency.
 EXPERIMENTAL_FEATURE(StrictConcurrency, true)
 
+/// Defer Sendable checking to SIL diagnostic phase.
+EXPERIMENTAL_FEATURE(DeferredSendableChecking, false)
+
 #undef EXPERIMENTAL_FEATURE_EXCLUDED_FROM_MODULE_INTERFACE
 #undef EXPERIMENTAL_FEATURE
 #undef UPCOMING_FEATURE

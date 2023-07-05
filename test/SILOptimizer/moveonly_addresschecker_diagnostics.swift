@@ -4551,3 +4551,14 @@ public class NonFinalCopyableKlassWithMoveOnlyField {
     var moveOnlyVarProt = AddressOnlyProtocol()
     let moveOnlyLetProt = AddressOnlyProtocol()
 }
+
+//////////////////////
+// MARK: Misc Tests //
+//////////////////////
+
+// For misc tests associated with specific radars.
+func assignableButNotConsumableEndAccessImplicitLifetimeTest(_ x: CopyableKlassWithMoveOnlyField) {
+    if boolValue {
+        x.moveOnlyVarStruct.nonTrivialStruct2 = NonTrivialStruct2()
+    }
+}

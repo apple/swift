@@ -70,8 +70,10 @@
 #include "swift/SIL/NodeDatastructures.h"
 #include "swift/SIL/OwnershipUtils.h"
 #include "swift/SIL/PrunedLiveness.h"
+#include "swift/SIL/Test.h"
 #include "swift/SILOptimizer/Analysis/BasicCalleeAnalysis.h"
 #include "swift/SILOptimizer/Analysis/Reachability.h"
+#include "swift/SILOptimizer/PassManager/Transforms.h"
 #include "swift/SILOptimizer/Utils/CFGOptUtils.h"
 #include "swift/SILOptimizer/Utils/DebugOptUtils.h"
 #include "swift/SILOptimizer/Utils/InstructionDeleter.h"
@@ -1174,6 +1176,38 @@ bool CanonicalizeOSSALifetime::canonicalizeValueLifetime(SILValue def) {
 
   return true;
 }
+
+namespace swift::test {
+// Arguments:
+// - bool: pruneDebug
+// - bool: maximizeLifetimes
+// - bool: "respectAccessScopes", whether to contract lifetimes to end within
+//         access scopes which they previously enclosed but can't be hoisted
+//         before
+// - SILValue: value to canonicalize
+// Dumps:
+// - function after value canonicalization
+static FunctionTest CanonicalizeOSSALifetimeTest(
+    "canonicalize-ossa-lifetime",
+    [](auto &function, auto &arguments, auto &test) {
+      auto *accessBlockAnalysis =
+          test.template getAnalysis<NonLocalAccessBlockAnalysis>();
+      auto *dominanceAnalysis = test.template getAnalysis<DominanceAnalysis>();
+      DominanceInfo *domTree = dominanceAnalysis->get(&function);
+      auto *calleeAnalysis = test.template getAnalysis<BasicCalleeAnalysis>();
+      auto pruneDebug = arguments.takeBool();
+      auto maximizeLifetimes = arguments.takeBool();
+      auto respectAccessScopes = arguments.takeBool();
+      InstructionDeleter deleter;
+      CanonicalizeOSSALifetime canonicalizer(
+          pruneDebug, maximizeLifetimes, &function,
+          respectAccessScopes ? accessBlockAnalysis : nullptr, domTree,
+          calleeAnalysis, deleter);
+      auto value = arguments.takeValue();
+      canonicalizer.canonicalizeValueLifetime(value);
+      function.dump();
+    });
+} // end namespace swift::test
 
 //===----------------------------------------------------------------------===//
 //                              MARK: Debugging

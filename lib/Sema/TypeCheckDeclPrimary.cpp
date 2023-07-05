@@ -1850,6 +1850,10 @@ public:
   ASTContext &getASTContext() const { return Ctx; }
   void addDelayedFunction(AbstractFunctionDecl *AFD) {
     if (!SF) return;
+
+    while (auto enclosingSF = SF->getEnclosingSourceFile())
+      SF = enclosingSF;
+
     SF->DelayedFunctions.push_back(AFD);
   }
 
@@ -1934,6 +1938,14 @@ public:
         DE.diagnose(VD->getNameLoc(), diag::backticks_to_escape)
             .fixItReplace(VD->getNameLoc(),
                           "`" + VD->getBaseName().userFacingName().str() + "`");
+      }
+
+      // Expand extension macros.
+      if (auto *nominal = dyn_cast<NominalTypeDecl>(VD)) {
+        (void)evaluateOrDefault(
+            Ctx.evaluator,
+            ExpandExtensionMacros{nominal},
+            { });
       }
     }
   }
@@ -3921,12 +3933,6 @@ ExpandMacroExpansionDeclRequest::evaluate(Evaluator &evaluator,
   if (!roles.contains(MacroRole::Declaration) &&
       !roles.contains(MacroRole::CodeItem))
     return llvm::None;
-
-  // For now, restrict global freestanding macros in script mode.
-  if (dc->isModuleScopeContext() &&
-      dc->getParentSourceFile()->isScriptMode()) {
-    MED->diagnose(diag::global_freestanding_macro_script);
-  }
 
   return expandFreestandingMacro(MED);
 }

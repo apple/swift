@@ -10,11 +10,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "swift/SILOptimizer/Utils/ParseTestSpecification.h"
+#include "swift/SIL/ParseTestSpecification.h"
 #include "swift/SIL/SILFunction.h"
 #include "swift/SIL/SILModule.h"
 #include "swift/SIL/SILSuccessor.h"
-#include "swift/SILOptimizer/Utils/InstructionDeleter.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 
@@ -27,14 +26,13 @@ namespace {
 
 void findAndDeleteTraceValues(SILFunction *function,
                               SmallVectorImpl<SILValue> &values) {
-  InstructionDeleter deleter;
   for (auto &block : *function) {
     for (SILInstruction &inst : block.deletableInstructions()) {
       if (auto *debugValue = dyn_cast<DebugValueInst>(&inst)) {
         if (!debugValue->hasTrace())
           continue;
         values.push_back(debugValue->getOperand());
-        deleter.forceDelete(debugValue);
+        debugValue->eraseFromParent();
       }
     }
   }
@@ -632,14 +630,13 @@ void Argument::print(llvm::raw_ostream &os) {
 void swift::test::getTestSpecifications(
     SILFunction *function,
     SmallVectorImpl<UnparsedSpecification> &specifications) {
-  InstructionDeleter deleter;
   for (auto &block : *function) {
     for (SILInstruction &inst : block.deletableInstructions()) {
       if (auto *tsi = dyn_cast<TestSpecificationInst>(&inst)) {
         auto ref = tsi->getArgumentsSpecification();
         auto *anchor = findAnchorInstructionAfter(tsi);
         specifications.push_back({std::string(ref.begin(), ref.end()), anchor});
-        deleter.forceDelete(tsi);
+        tsi->eraseFromParent();
       }
     }
   }

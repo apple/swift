@@ -1857,22 +1857,6 @@ void ExpandAccessorMacros::noteCycleStep(DiagnosticEngine &diags) const {
                  decl->getName());
 }
 
-void ExpandConformanceMacros::diagnoseCycle(DiagnosticEngine &diags) const {
-  auto decl = std::get<0>(getStorage());
-  diags.diagnose(decl->getLoc(),
-                 diag::macro_expand_circular_reference_entity,
-                 "conformance",
-                 decl->getName());
-}
-
-void ExpandConformanceMacros::noteCycleStep(DiagnosticEngine &diags) const {
-  auto decl = std::get<0>(getStorage());
-  diags.diagnose(decl->getLoc(),
-                 diag::macro_expand_circular_reference_entity_through,
-                 "conformance",
-                 decl->getName());
-}
-
 void ExpandExtensionMacros::diagnoseCycle(DiagnosticEngine &diags) const {
   auto decl = std::get<0>(getStorage());
   diags.diagnose(decl->getLoc(),

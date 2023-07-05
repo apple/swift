@@ -12,10 +12,10 @@
 
 #define DEBUG_TYPE "libsil"
 
-#include "swift/AST/AnyFunctionRef.h"
+#include "swift/SIL/TypeLowering.h"
 #include "swift/AST/ASTContext.h"
+#include "swift/AST/AnyFunctionRef.h"
 #include "swift/AST/CanTypeVisitor.h"
-#include "swift/SIL/SILInstruction.h"
 #include "swift/AST/Decl.h"
 #include "swift/AST/DiagnosticEngine.h"
 #include "swift/AST/DiagnosticsSIL.h"
@@ -34,8 +34,9 @@
 #include "swift/SIL/PrettyStackTrace.h"
 #include "swift/SIL/SILArgument.h"
 #include "swift/SIL/SILBuilder.h"
+#include "swift/SIL/SILInstruction.h"
 #include "swift/SIL/SILModule.h"
-#include "swift/SIL/TypeLowering.h"
+#include "swift/SIL/Test.h"
 #include "clang/AST/Type.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
@@ -2737,6 +2738,20 @@ TypeConverter::getTypeLowering(AbstractionPattern origType,
 
   return *lowering;
 }
+
+namespace swift::test {
+// Arguments:
+// - value: whose type will be printed
+// Dumps:
+// - the type lowering of the type
+static FunctionTest PrintTypeLowering("print-type-lowering", [](auto &function,
+                                                                auto &arguments,
+                                                                auto &test) {
+  auto value = arguments.takeValue();
+  auto ty = value->getType();
+  function.getModule().Types.getTypeLowering(ty, function).print(llvm::dbgs());
+});
+} // end namespace swift::test
 
 #ifndef NDEBUG
 bool TypeConverter::visitAggregateLeaves(

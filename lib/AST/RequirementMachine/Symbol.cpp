@@ -700,12 +700,7 @@ void Symbol::dump(llvm::raw_ostream &out) const {
   }
 
   case Kind::GenericParam: {
-    auto *gp = getGenericParam();
-    if (gp->isParameterPack()) {
-      out << "(" << Type(gp) << "…)";
-    } else {
-      out << Type(gp);
-    }
+    out << Type(getGenericParam());
     return;
   }
 

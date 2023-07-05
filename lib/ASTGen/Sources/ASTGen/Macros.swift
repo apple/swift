@@ -708,6 +708,8 @@ func expandAttachedMacro(
   discriminatorTextLength: Int,
   qualifiedTypeText: UnsafePointer<UInt8>,
   qualifiedTypeLength: Int,
+  conformanceListText: UnsafePointer<UInt8>,
+  conformanceListLength: Int,
   rawMacroRole: UInt8,
   customAttrSourceFilePtr: UnsafeRawPointer,
   customAttrSourceLocPointer: UnsafePointer<UInt8>?,
@@ -764,6 +766,11 @@ func expandAttachedMacro(
   )
   let qualifiedType = String(decoding: qualifiedTypeBuffer, as: UTF8.self)
 
+  let conformanceListBuffer = UnsafeBufferPointer(
+    start: conformanceListText, count: conformanceListLength
+  )
+  let conformanceList = String(decoding: conformanceListBuffer, as: UTF8.self)
+
 
   let expandedSource: String?
   switch MacroPluginKind(rawValue: macroKind)! {
@@ -774,6 +781,7 @@ func expandAttachedMacro(
       rawMacroRole: rawMacroRole,
       discriminator: discriminator,
       qualifiedType: qualifiedType,
+      conformanceList: conformanceList,
       customAttrSourceFilePtr: customAttrSourceFilePtr,
       customAttrNode: customAttrNode,
       declarationSourceFilePtr: declarationSourceFilePtr,
@@ -787,6 +795,7 @@ func expandAttachedMacro(
       rawMacroRole: rawMacroRole,
       discriminator: discriminator,
       qualifiedType: qualifiedType,
+      conformanceList: conformanceList,
       customAttrSourceFilePtr: customAttrSourceFilePtr,
       customAttrNode: customAttrNode,
       declarationSourceFilePtr: declarationSourceFilePtr,
@@ -808,6 +817,7 @@ func expandAttachedMacroIPC(
   rawMacroRole: UInt8,
   discriminator: String,
   qualifiedType: String,
+  conformanceList: String,
   customAttrSourceFilePtr: UnsafePointer<ExportedSourceFile>,
   customAttrNode: AttributeSyntax,
   declarationSourceFilePtr: UnsafePointer<ExportedSourceFile>,
@@ -856,6 +866,17 @@ func expandAttachedMacroIPC(
     extendedTypeSyntax = nil
   }
 
+  let conformanceListSyntax: PluginMessage.Syntax?
+  if (qualifiedType.isEmpty) {
+    conformanceListSyntax = nil
+  } else {
+    let placeholderDecl: DeclSyntax =
+      """
+      struct Placeholder: \(raw: conformanceList) {}
+      """
+    conformanceListSyntax = .init(syntax: Syntax(placeholderDecl))!
+  }
+
   // Send the message.
   let message = HostToPluginMessage.expandAttachedMacro(
     macro: .init(moduleName: macro.moduleName, typeName: macro.typeName, name: macroName),
@@ -864,7 +885,8 @@ func expandAttachedMacroIPC(
     attributeSyntax: customAttributeSyntax,
     declSyntax: declSyntax,
     parentDeclSyntax: parentDeclSyntax,
-    extendedTypeSyntax: extendedTypeSyntax)
+    extendedTypeSyntax: extendedTypeSyntax,
+    conformanceListSyntax: conformanceListSyntax)
   do {
     let expandedSource: String?
     let diagnostics: [PluginMessage.Diagnostic]
@@ -929,6 +951,7 @@ func expandAttachedMacroInProcess(
   rawMacroRole: UInt8,
   discriminator: String,
   qualifiedType: String,
+  conformanceList: String,
   customAttrSourceFilePtr: UnsafePointer<ExportedSourceFile>,
   customAttrNode: AttributeSyntax,
   declarationSourceFilePtr: UnsafePointer<ExportedSourceFile>,
@@ -976,6 +999,22 @@ func expandAttachedMacroInProcess(
   let parentDeclNode = parentDeclNode.map { sourceManager.detach($0) }
   let extendedType: TypeSyntax = "\(raw: qualifiedType)"
 
+  let conformanceListSyntax: InheritedTypeListSyntax?
+  if (conformanceList.isEmpty) {
+    conformanceListSyntax = nil
+  } else {
+    let placeholderDecl: DeclSyntax =
+      """
+      struct Placeholder: \(raw: conformanceList) {}
+      """
+    let placeholderStruct = placeholderDecl.cast(StructDeclSyntax.self)
+    if let inheritanceClause = placeholderStruct.inheritanceClause {
+      conformanceListSyntax = inheritanceClause.inheritedTypeCollection
+    } else {
+      conformanceListSyntax = nil
+    }
+  }
+
   return SwiftSyntaxMacroExpansion.expandAttachedMacro(
     definition: macro,
     macroRole: MacroRole(rawMacroRole: rawMacroRole),
@@ -983,6 +1022,7 @@ func expandAttachedMacroInProcess(
     declarationNode: declarationNode,
     parentDeclNode: parentDeclNode,
     extendedType: extendedType,
+    conformanceList: conformanceListSyntax,
     in: context
   )
 }

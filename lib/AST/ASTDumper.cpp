@@ -2715,6 +2715,25 @@ public:
       PrintWithColorRAII(OS, ExprModifierColor)
         << (E->throws() ? " throws" : " nothrow");
     }
+    PrintWithColorRAII(OS, ExprModifierColor)
+        << " isolationCrossing=";
+    auto isolationCrossing = E->getIsolationCrossing();
+    if (isolationCrossing.has_value()) {
+      PrintWithColorRAII(OS, ExprModifierColor)
+          << "{caller='";
+      simple_display(PrintWithColorRAII(OS, ExprModifierColor).getOS(),
+                     isolationCrossing.value().getCallerIsolation());
+      PrintWithColorRAII(OS, ExprModifierColor)
+          << "', callee='";
+      simple_display(PrintWithColorRAII(OS, ExprModifierColor).getOS(),
+                     isolationCrossing.value().getCalleeIsolation());
+
+      PrintWithColorRAII(OS, ExprModifierColor)
+          << "'}";
+    } else {
+      PrintWithColorRAII(OS, ExprModifierColor)
+          << "none";
+    }
     OS << '\n';
     printRec(E->getFn());
     OS << '\n';
