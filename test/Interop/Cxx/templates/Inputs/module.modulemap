@@ -152,3 +152,8 @@ module UnevaluatedContext {
   header "unevaluated-context.h"
   requires cplusplus
 }
+
+module ManySpecializations {
+  header "many-specializations.h"
+  requires cplusplus
+}

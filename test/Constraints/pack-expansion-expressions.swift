@@ -89,7 +89,7 @@ func typeReprPacks<each T: ExpressibleByIntegerLiteral>(_ t: repeat each T) {
 func sameShapeDiagnostics<each T, each U>(t: repeat each T, u: repeat each U) {
   _ = (repeat (each t, each u)) // expected-error {{pack expansion requires that 'each T' and 'each U' have the same shape}}
   _ = (repeat Array<(each T, each U)>()) // expected-error {{pack expansion requires that 'each T' and 'each U' have the same shape}}
-  _ = (repeat (Array<each T>(), each u)) // expected-error {{pack expansion requires that 'each T' and 'each U' have the same shape}}
+  _ = (repeat (Array<each T>(), each u)) // expected-error {{pack expansion requires that 'each U' and 'each T' have the same shape}}
 }
 
 func returnPackExpansionType<each T>(_ t: repeat each T) -> repeat each T { // expected-error {{pack expansion 'repeat each T' can only appear in a function parameter list, tuple element, or generic argument list}}
@@ -602,5 +602,18 @@ func test_that_expansions_are_bound_early() {
     let _: Value<Data> = Value({
         equal($0.prop, i) // Ok
       })
+  }
+}
+
+do {
+  func test<T>(x: T) {}
+
+  // rdar://110711746 to make this valid
+  func caller1<each T>(x: repeat each T) {
+    _ = (repeat { test(x: each x) }()) // expected-error {{pack reference 'each T' can only appear in pack expansion}}
+  }
+
+  func caller2<each T>(x: repeat each T) {
+    _ = { (repeat test(x: each x)) }()
   }
 }

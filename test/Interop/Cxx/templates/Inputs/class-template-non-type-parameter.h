@@ -8,5 +8,6 @@ using size_t = __SIZE_TYPE__;
 template <class T, size_t Size> struct MagicArray { T t[Size]; };
 
 typedef MagicArray<int, 2> MagicIntPair;
+typedef MagicArray<int, 3> MagicIntTriple;
 
 #endif // TEST_INTEROP_CXX_TEMPLATES_INPUTS_CLASS_TEMPLATE_NON_TYPE_PARAMETER_H

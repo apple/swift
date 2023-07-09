@@ -1,0 +1,111 @@
+//===--- musl.modulemap ---------------------------------------------------===//
+//
+// This source file is part of the Swift.org open source project
+//
+// Copyright (c) 2014 - 2017 Apple Inc. and the Swift project authors
+// Licensed under Apache License v2.0 with Runtime Library Exception
+//
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
+//
+//===----------------------------------------------------------------------===//
+
+module SwiftMusl [system] {
+  header "stdc-predef.h"
+  header "features.h"
+
+  // C standard library
+  header "complex.h"
+  header "ctype.h"
+  header "errno.h"
+  header "fenv.h"
+  header "float.h"
+  header "inttypes.h"
+  header "iso646.h"
+  header "limits.h"
+  header "locale.h"
+  header "math.h"
+  header "pty.h"
+  header "setjmp.h"
+  header "signal.h"
+  header "stdarg.h"
+  header "stdbool.h"
+  header "stddef.h"
+  header "stdint.h"
+  header "stdio.h"
+  header "stdlib.h"
+  header "string.h"
+  header "tgmath.h"
+  header "time.h"
+  header "utmp.h"
+
+  // POSIX
+  header "aio.h"
+  header "arpa/inet.h"
+  header "cpio.h"
+  header "dirent.h"
+  header "dlfcn.h"
+  header "fcntl.h"
+  header "fmtmsg.h"
+  header "fnmatch.h"
+  header "ftw.h"
+  header "glob.h"
+  header "grp.h"
+  header "iconv.h"
+  header "ifaddrs.h"
+  header "langinfo.h"
+  header "libgen.h"
+  header "link.h"
+  header "monetary.h"
+  header "net/if.h"
+  header "netdb.h"
+  header "netinet/in.h"
+  header "netinet/tcp.h"
+  header "nl_types.h"
+  header "poll.h"
+  header "pthread.h"
+  header "pwd.h"
+  header "regex.h"
+  header "sched.h"
+  header "search.h"
+  header "semaphore.h"
+  header "spawn.h"
+  header "strings.h"
+  header "sys/file.h"
+  header "sys/inotify.h"
+  header "sys/ioctl.h"
+  header "sys/ipc.h"
+  header "sys/mman.h"
+  header "sys/mount.h"
+  header "sys/msg.h"
+  header "sys/resource.h"
+  header "sys/select.h"
+  header "sys/sem.h"
+  header "sys/sendfile.h"
+  header "sys/shm.h"
+  header "sys/socket.h"
+  header "sys/stat.h"
+  header "sys/statvfs.h"
+  header "sys/time.h"
+  header "sys/times.h"
+  header "sys/types.h"
+  header "sys/uio.h"
+  header "sys/un.h"
+  header "sys/user.h"
+  header "sys/utsname.h"
+  header "sys/wait.h"
+  header "sysexits.h"
+  header "syslog.h"
+  header "tar.h"
+  header "termios.h"
+  header "ulimit.h"
+  header "unistd.h"
+  header "utime.h"
+  header "utmpx.h"
+  header "wordexp.h"
+
+  // <assert.h>'s use of NDEBUG requires textual inclusion. 
+  textual header "assert.h"
+
+  export *
+}

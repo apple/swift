@@ -3496,6 +3496,13 @@ ConstraintSystem::matchFunctionTypes(FunctionType *func1, FunctionType *func2,
         return getTypeMatchFailure(argumentLocator);
       }
 
+      // If functions are differentiable, ensure that @noDerivative is not
+      // discarded.
+      if (func1->isDifferentiable() && func2->isDifferentiable() &&
+          func1Param.isNoDerivative() && !func2Param.isNoDerivative()) {
+        return getTypeMatchFailure(argumentLocator);
+      }
+
       // FIXME: We should check value ownership too, but it's not completely
       // trivial because of inout-to-pointer conversions.
 

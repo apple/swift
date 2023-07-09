@@ -127,7 +127,11 @@ internal func getImageCount() -> UInt32 {
 let rtldDefault = UnsafeMutableRawPointer(bitPattern: Int(-2))
 #elseif !os(Windows)
 import SwiftShims
+#if canImport(Glibc)
 import Glibc
+#elseif canImport(Musl)
+import Musl
+#endif
 
 let rtldDefault: UnsafeMutableRawPointer? = nil
 

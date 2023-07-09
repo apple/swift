@@ -10,6 +10,9 @@ var TemplatesTestSuite = TestSuite("TemplatesTestSuite")
 TemplatesTestSuite.test("typedeffed-non-type-parameter") {
   let pair = MagicIntPair(t: (1, 2))
   expectEqual(pair.t, (1, 2))
+
+  let triple = MagicIntTriple(t: (1, 2, 3))
+  expectEqual(triple.t, (1, 2, 3))
 }
 
 // TODO: This test doesn't work because Swift doesn't support defaulted generic

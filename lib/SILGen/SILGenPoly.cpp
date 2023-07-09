@@ -5843,10 +5843,12 @@ getWitnessFunctionRef(SILGenFunction &SGF,
       auto *loweredParamIndices = autodiff::getLoweredParameterIndices(
           derivativeId->getParameterIndices(),
           witness.getDecl()->getInterfaceType()->castTo<AnyFunctionType>());
-      auto *loweredResultIndices = IndexSubset::get(
-          SGF.getASTContext(), 1, {0}); // FIXME, set to all results
+      // FIXME: is this correct in the presence of curried types?
+      auto *resultIndices = autodiff::getFunctionSemanticResultIndices(
+        witness.getDecl()->getInterfaceType()->castTo<AnyFunctionType>(),
+        derivativeId->getParameterIndices());
       auto diffFn = SGF.B.createDifferentiableFunction(
-          loc, loweredParamIndices, loweredResultIndices, originalFn);
+          loc, loweredParamIndices, resultIndices, originalFn);
       return SGF.B.createDifferentiableFunctionExtract(
           loc,
           NormalDifferentiableFunctionTypeComponent(derivativeId->getKind()),

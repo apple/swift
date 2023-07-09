@@ -1269,9 +1269,33 @@ struct BridgedBuilder{
   }
 
   SWIFT_IMPORT_UNSAFE
+  BridgedInstruction createStructExtract(BridgedValue str, SwiftInt fieldIndex) const {
+    swift::SILValue v = str.getSILValue();
+    return {builder().createStructExtract(regularLoc(), v, v->getType().getFieldDecl(fieldIndex))};
+  }
+
+  SWIFT_IMPORT_UNSAFE
+  BridgedInstruction createStructElementAddr(BridgedValue addr, SwiftInt fieldIndex) const {
+    swift::SILValue v = addr.getSILValue();
+    return {builder().createStructElementAddr(regularLoc(), v, v->getType().getFieldDecl(fieldIndex))};
+  }
+
+  SWIFT_IMPORT_UNSAFE
   BridgedInstruction createTuple(swift::SILType type, BridgedValueArray elements) const {
     llvm::SmallVector<swift::SILValue, 16> elementValues;
     return {builder().createTuple(regularLoc(), type, elements.getValues(elementValues))};
+  }
+
+  SWIFT_IMPORT_UNSAFE
+  BridgedInstruction createTupleExtract(BridgedValue str, SwiftInt elementIndex) const {
+    swift::SILValue v = str.getSILValue();
+    return {builder().createTupleExtract(regularLoc(), v, elementIndex)};
+  }
+
+  SWIFT_IMPORT_UNSAFE
+  BridgedInstruction createTupleElementAddr(BridgedValue addr, SwiftInt elementIndex) const {
+    swift::SILValue v = addr.getSILValue();
+    return {builder().createTupleElementAddr(regularLoc(), v, elementIndex)};
   }
 
   SWIFT_IMPORT_UNSAFE

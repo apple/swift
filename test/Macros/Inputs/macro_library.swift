@@ -28,6 +28,7 @@ public struct ObservationRegistrar<Subject: Observable> {
   names: named(_registrar), named(addObserver), named(removeObserver), named(withTransaction), named(Storage), named(_storage)
 )
 @attached(memberAttribute)
+@attached(extension, conformances: Observable)
 public macro Observable() = #externalMacro(module: "MacroDefinition", type: "ObservableMacro")
 
 @attached(accessor)

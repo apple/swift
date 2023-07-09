@@ -226,6 +226,8 @@ Solution ConstraintSystem::finalize() {
     solution.PackExpansionEnvironments.insert(env);
   }
 
+  solution.PackEnvironments = PackEnvironments;
+
   return solution;
 }
 
@@ -288,6 +290,11 @@ void ConstraintSystem::applySolution(const Solution &solution) {
   // Register the solutions's pack expansion environments.
   for (const auto &expansion : solution.PackExpansionEnvironments) {
     PackExpansionEnvironments.insert(expansion);
+  }
+
+  // Register the solutions's pack environments.
+  for (auto &packEnvironment : solution.PackEnvironments) {
+    PackEnvironments.insert(packEnvironment);
   }
 
   // Register the defaulted type variables.
@@ -613,6 +620,7 @@ ConstraintSystem::SolverScope::SolverScope(ConstraintSystem &cs)
   numOpenedExistentialTypes = cs.OpenedExistentialTypes.size();
   numOpenedPackExpansionTypes = cs.OpenedPackExpansionTypes.size();
   numPackExpansionEnvironments = cs.PackExpansionEnvironments.size();
+  numPackEnvironments = cs.PackEnvironments.size();
   numDefaultedConstraints = cs.DefaultedConstraints.size();
   numAddedNodeTypes = cs.addedNodeTypes.size();
   numAddedKeyPathComponentTypes = cs.addedKeyPathComponentTypes.size();
@@ -696,6 +704,9 @@ ConstraintSystem::SolverScope::~SolverScope() {
 
   // Remove any pack expansion environments.
   truncate(cs.PackExpansionEnvironments, numPackExpansionEnvironments);
+
+  // Remove any pack environments.
+  truncate(cs.PackEnvironments, numPackEnvironments);
 
   // Remove any defaulted type variables.
   truncate(cs.DefaultedConstraints, numDefaultedConstraints);

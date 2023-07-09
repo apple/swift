@@ -43,6 +43,29 @@ func testWrtClause(x: Float, y: Float) -> Float {
   return x
 }
 
+// CHECK: @differentiable(reverse, wrt: x)
+// CHECK-NEXT: func testInout(x: inout Float)
+@differentiable(reverse)
+func testInout(x: inout Float) {
+  x = x * 2.0
+}
+
+// CHECK: @differentiable(reverse, wrt: x)
+// CHECK-NEXT: func testInoutResult(x: inout Float) -> Float
+@differentiable(reverse)
+func testInoutResult(x: inout Float) -> Float {
+  x = x * 2.0
+  return x
+}
+
+// CHECK: @differentiable(reverse, wrt: (x, y))
+// CHECK-NEXT: func testMultipleInout(x: inout Float, y: inout Float)
+@differentiable(reverse)
+func testMultipleInout(x: inout Float, y: inout Float) {
+  x = x * y
+  y = x
+}
+
 struct InstanceMethod : Differentiable {
   // CHECK: @differentiable(reverse, wrt: (self, y))
   // CHECK-NEXT: func testWrtClause(x: Float, y: Float) -> Float

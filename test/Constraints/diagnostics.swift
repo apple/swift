@@ -1557,3 +1557,26 @@ do {
     result.append(value) // expected-error {{argument type 'NonHashable' does not conform to expected type 'Hashable'}}
   }
 }
+
+// https://github.com/apple/swift/issues/66206
+func testNilCoalescingOperatorRemoveFix() {
+  let _ = "" ?? "" // expected-warning {{left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used}} {{13-19=}}
+  let _ = ""     ?? "" // expected-warning {{left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used}} {{13-23=}}
+  let _ = "" /* This is a comment */ ?? "" // expected-warning {{left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used}} {{13-43=}}
+
+  let _ = "" // This is a comment
+    ?? "" // expected-warning {{left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used}} {{1567:13-1568:10=}}
+
+  let _ = "" // This is a comment
+    /*
+     * The blank line below is part of the test case, do not delete it
+     */
+
+    ?? "" // expected-warning {{left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used}} {{1570:13-1575:10=}}
+
+  if ("" ?? // This is a comment // expected-warning {{left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used}} {{1577:9-1578:9=}}
+      "").isEmpty {}
+
+  if ("" // This is a comment
+      ?? "").isEmpty {} // expected-warning {{left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used}} {{1580:9-1581:12=}}
+}

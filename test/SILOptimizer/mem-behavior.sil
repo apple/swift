@@ -1002,3 +1002,25 @@ bb0(%0 : $Builtin.RawPointer):
   %6 = tuple ()
   return %6 : $()
 }
+
+
+// CHECK-LABEL: @test_debug_value
+// CHECK:       PAIR #0.
+// CHECK-NEXT:      debug_value %0 : $*Int, let, name "x"
+// CHECK-NEXT:      %0 = alloc_stack $Int
+// CHECK-NEXT:    r=1,w=0
+// CHECK:       PAIR #1.
+// CHECK-NEXT:      debug_value %0 : $*Int, let, name "x"
+// CHECK-NEXT:      %1 = alloc_stack $Int
+// CHECK-NEXT:    r=0,w=0
+sil @test_debug_value : $@convention(thin) () -> () {
+bb0:
+  %0 = alloc_stack $Int
+  %1 = alloc_stack $Int
+  debug_value %0 : $*Int, let, name "x"
+  dealloc_stack %1 : $*Int
+  dealloc_stack %0 : $*Int
+  %r = tuple ()
+  return %r : $()
+}
+

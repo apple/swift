@@ -3626,6 +3626,37 @@ StorageImplInfoRequest::evaluate(Evaluator &evaluator,
 
   bool hasWillSet = storage->getParsedAccessor(AccessorKind::WillSet);
   bool hasDidSet = storage->getParsedAccessor(AccessorKind::DidSet);
+  if ((hasWillSet || hasDidSet) && !isa<SubscriptDecl>(storage)) {
+    // Observers conflict with non-observers.
+    AccessorDecl *firstNonObserver = nullptr;
+    for (auto accessor : storage->getAllAccessors()) {
+      if (!accessor->isImplicit() && !accessor->isObservingAccessor()) {
+        firstNonObserver = accessor;
+        break;
+      }
+    }
+
+    if (firstNonObserver) {
+      if (auto willSet = storage->getParsedAccessor(AccessorKind::WillSet)) {
+        willSet->diagnose(
+            diag::observing_accessor_conflicts_with_accessor, 0,
+            getAccessorNameForDiagnostic(
+                firstNonObserver->getAccessorKind(), /*article=*/ true));
+        willSet->setInvalid();
+        hasWillSet = false;
+      }
+
+      if (auto didSet = storage->getParsedAccessor(AccessorKind::DidSet)) {
+        didSet->diagnose(
+            diag::observing_accessor_conflicts_with_accessor, 1,
+            getAccessorNameForDiagnostic(
+              firstNonObserver->getAccessorKind(), /*article=*/ true));
+        didSet->setInvalid();
+        hasDidSet = false;
+      }
+    }
+  }
+
   bool hasSetter = storage->getParsedAccessor(AccessorKind::Set);
   bool hasModify = storage->getParsedAccessor(AccessorKind::Modify);
   bool hasMutableAddress = storage->getParsedAccessor(AccessorKind::MutableAddress);

@@ -616,6 +616,8 @@ void DistributedAccessor::emit() {
 
   auto params = IGF.collectParameters();
 
+  GenericContextScope scope(IGM, targetTy->getInvocationGenericSignature());
+
   auto directResultTy = targetConv.getSILResultType(expansionContext);
   const auto &directResultTI = IGM.getTypeInfo(directResultTy);
 
@@ -651,8 +653,6 @@ void DistributedAccessor::emit() {
 
   // Witness table for decoder conformance to DistributedTargetInvocationDecoder
   auto *decoderProtocolWitness = params.claimNext();
-
-  GenericContextScope scope(IGM, targetTy->getInvocationGenericSignature());
 
   // Preliminary: Setup async context for this accessor.
   {

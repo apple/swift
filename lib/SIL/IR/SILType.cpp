@@ -320,6 +320,12 @@ static void addFieldSubstitutionsIfNeeded(TypeConverter &TC, SILType ty,
   }
 }
 
+VarDecl *SILType::getFieldDecl(intptr_t fieldIndex) const {
+  NominalTypeDecl *decl = getNominalOrBoundGenericNominal();
+  assert(decl && "expected nominal type");
+  return getIndexedField(decl, fieldIndex);
+}
+
 SILType SILType::getFieldType(VarDecl *field, TypeConverter &TC,
                               TypeExpansionContext context) const {
   AbstractionPattern origFieldTy = TC.getAbstractionPattern(field);
@@ -361,9 +367,7 @@ SILType SILType::getFieldType(VarDecl *field, SILFunction *fn) const {
 }
 
 SILType SILType::getFieldType(intptr_t fieldIndex, SILFunction *function) const {
-  NominalTypeDecl *decl = getNominalOrBoundGenericNominal();
-  assert(decl && "expected nominal type");
-  VarDecl *field = getIndexedField(decl, fieldIndex);
+  VarDecl *field = getFieldDecl(fieldIndex);
   return getFieldType(field, function->getModule(), function->getTypeExpansionContext());
 }
 

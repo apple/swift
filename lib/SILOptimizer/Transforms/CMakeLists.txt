@@ -14,7 +14,6 @@ target_sources(swiftSILOptimizer PRIVATE
   CopyPropagation.cpp
   DeadCodeElimination.cpp
   DeadObjectElimination.cpp
-  DeadStoreElimination.cpp
   DestroyHoisting.cpp
   Devirtualizer.cpp
   DifferentiabilityWitnessDevirtualizer.cpp

@@ -124,4 +124,13 @@ Var _StringGuts._isContiguousUTF16 has been removed
 Var _StringGuts.startUTF16 has been removed
 Func _persistCString(_:) has been removed
 
+// These functions have not been renamed, they are pre-specialized versions and purely additive.
+// These seem to be false positives in the ABI checker. The original symbols are still present.
+Func Array._createNewBuffer(bufferIsUnique:minimumCapacity:growForAppend:) has been renamed to Func __specialize_class__createNewBuffer(bufferIsUnique:minimumCapacity:growForAppend:)
+Func Array._createNewBuffer(bufferIsUnique:minimumCapacity:growForAppend:) has mangled name changing from 'Swift.Array._createNewBuffer(bufferIsUnique: Swift.Bool, minimumCapacity: Swift.Int, growForAppend: Swift.Bool) -> ()' to 'Swift.Array.__specialize_class__createNewBuffer(bufferIsUnique: Swift.Bool, minimumCapacity: Swift.Int, growForAppend: Swift.Bool) -> ()'
+Func ContiguousArray._createNewBuffer(bufferIsUnique:minimumCapacity:growForAppend:) has been renamed to Func __specialize_class__createNewBuffer(bufferIsUnique:minimumCapacity:growForAppend:)
+Func ContiguousArray._createNewBuffer(bufferIsUnique:minimumCapacity:growForAppend:) has mangled name changing from 'Swift.ContiguousArray._createNewBuffer(bufferIsUnique: Swift.Bool, minimumCapacity: Swift.Int, growForAppend: Swift.Bool) -> ()' to 'Swift.ContiguousArray.__specialize_class__createNewBuffer(bufferIsUnique: Swift.Bool, minimumCapacity: Swift.Int, growForAppend: Swift.Bool) -> ()'
+Func ContiguousArray._reserveCapacityImpl(minimumCapacity:growForAppend:) has been renamed to Func __specialize_class__reserveCapacityImpl(minimumCapacity:growForAppend:)
+Func ContiguousArray._reserveCapacityImpl(minimumCapacity:growForAppend:) has mangled name changing from 'Swift.ContiguousArray._reserveCapacityImpl(minimumCapacity: Swift.Int, growForAppend: Swift.Bool) -> ()' to 'Swift.ContiguousArray.__specialize_class__reserveCapacityImpl(minimumCapacity: Swift.Int, growForAppend: Swift.Bool) -> ()'
+
 // *** DO NOT DISABLE OR XFAIL THIS TEST. *** (See comment above.)

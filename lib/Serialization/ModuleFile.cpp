@@ -722,9 +722,10 @@ void ModuleFile::loadDerivativeFunctionConfigurations(
     }
     auto derivativeGenSig = derivativeGenSigOrError.get();
     // NOTE(TF-1038): Result indices are currently unsupported in derivative
-    // registration attributes. In the meantime, always use `{0}` (wrt the
-    // first and only result).
-    auto resultIndices = IndexSubset::get(ctx, 1, {0});
+    // registration attributes. In the meantime, always use all results.
+    auto *resultIndices =
+      autodiff::getFunctionSemanticResultIndices(originalAFD,
+                                                 parameterIndices);
     results.insert({parameterIndices, resultIndices, derivativeGenSig});
   }
 }

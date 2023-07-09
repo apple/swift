@@ -275,4 +275,8 @@ extension DeclGroupSyntax {
   var isEnum: Bool {
     return self.is(EnumDeclSyntax.self)
   }
+  
+  var isStruct: Bool {
+    return self.is(StructDeclSyntax.self)
+  }
 }

@@ -238,9 +238,6 @@ static void collectVisibleMemberDecls(const DeclContext *CurrDC, LookupState LS,
   }
 }
 
-static void
-synthesizePropertyWrapperVariables(IterableDeclContext *IDC);
-
 /// Lookup members in extensions of \p LookupType, using \p BaseType as the
 /// underlying type when checking any constraints on the extensions.
 static void doGlobalExtensionLookup(Type BaseType,
@@ -566,22 +563,6 @@ static void
   for (auto Proto : PD->getInheritedProtocols())
     lookupVisibleProtocolMemberDecls(BaseTy, Proto, Consumer, CurrDC, LS,
                                      getReasonForSuper(Reason), Sig, Visited);
-}
-
-// Generate '$' and '_' prefixed variables for members that have attached property
-// wrappers.
-static void
-synthesizePropertyWrapperVariables(IterableDeclContext *IDC) {
-  auto SF = IDC->getAsGenericContext()->getParentSourceFile();
-  if (!SF || SF->Kind == SourceFileKind::Interface)
-    return;
-
-  for (auto Member : IDC->getMembers())
-    if (auto var = dyn_cast<VarDecl>(Member))
-      if (var->hasAttachedPropertyWrapper()) {
-        (void)var->getPropertyWrapperAuxiliaryVariables();
-        (void)var->getPropertyWrapperInitializerInfo();
-      }
 }
 
 static void lookupVisibleMemberDeclsImpl(

@@ -115,6 +115,7 @@ public:
     WritebackPseudoKind,        // a fake component to customize writeback
     OpenNonOpaqueExistentialKind,  // opened class or metatype existential
     LogicalKeyPathApplicationKind, // applying a key path
+    InitAccessorKind,           // init accessor
     
     // Translation LValue kinds (a subtype of logical)
     OrigToSubstKind,            // generic type substitution

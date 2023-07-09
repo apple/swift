@@ -1501,6 +1501,16 @@ void LifetimeChecker::handleStoreUse(unsigned UseID) {
     auto allFieldsInitialized =
         getAnyUninitializedMemberAtInst(Use.Inst, 0,
                                         TheMemory.getNumElements()) == -1;
+
+    auto *AOI = cast<AssignOrInitInst>(Use.Inst);
+    // init accessor properties without setters behave like `let` properties
+    // and don't support re-initialization.
+    if (isa<SILUndef>(AOI->getSetter())) {
+      diagnose(Module, AOI->getLoc(),
+               diag::immutable_property_already_initialized,
+               AOI->getPropertyName());
+    }
+
     Use.Kind = allFieldsInitialized ? DIUseKind::Set : DIUseKind::Assign;
   } else if (isFullyInitialized) {
     Use.Kind = DIUseKind::Assign;

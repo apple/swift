@@ -1089,20 +1089,20 @@ namespace {
       return outputTy;
     }
 
-    Type openPackElement(Type packType, ConstraintLocator *locator) {
+    Type openPackElement(Type packType, ConstraintLocator *locator,
+                         PackExpansionExpr *packElementEnvironment) {
       // If 'each t' is written outside of a pack expansion expression, allow the
       // type to bind to a hole. The invalid pack reference will be diagnosed when
       // attempting to bind the type variable for the underlying pack reference to
       // a pack type without TVO_CanBindToPack.
-      if (PackElementEnvironments.empty()) {
+      if (!packElementEnvironment) {
         return CS.createTypeVariable(locator,
                                      TVO_CanBindToHole | TVO_CanBindToNoEscape);
       }
 
       // The type of a PackElementExpr is the opened pack element archetype
       // of the pack reference.
-      OpenPackElementType openPackElement(CS, locator,
-                                          PackElementEnvironments.back());
+      OpenPackElementType openPackElement(CS, locator, packElementEnvironment);
       return openPackElement(packType, /*packRepr*/ nullptr);
     }
 
@@ -1124,6 +1124,26 @@ namespace {
 
     void addPackElementEnvironment(PackExpansionExpr *expr) {
       PackElementEnvironments.push_back(expr);
+
+      SmallVector<ASTNode, 2> expandedPacks;
+      collectExpandedPacks(expr, expandedPacks);
+      for (auto pack : expandedPacks) {
+        if (auto *elementExpr = getAsExpr<PackElementExpr>(pack)) {
+          CS.addPackEnvironment(elementExpr, expr);
+        }
+      }
+
+      auto *patternLoc = CS.getConstraintLocator(
+          expr, ConstraintLocator::PackExpansionPattern);
+      auto patternType = CS.createTypeVariable(
+          patternLoc,
+          TVO_CanBindToPack | TVO_CanBindToNoEscape | TVO_CanBindToHole);
+      auto *shapeLoc =
+          CS.getConstraintLocator(expr, ConstraintLocator::PackShape);
+      auto *shapeTypeVar = CS.createTypeVariable(
+          shapeLoc, TVO_CanBindToPack | TVO_CanBindToHole);
+      auto expansionType = PackExpansionType::get(patternType, shapeTypeVar);
+      CS.setType(expr, expansionType);
     }
 
     virtual Type visitErrorExpr(ErrorExpr *E) {
@@ -1384,6 +1404,17 @@ namespace {
       return BoundGenericStructType::get(regexDecl, Type(), {matchType});
     }
 
+    PackExpansionExpr *getParentPackExpansionExpr(Expr *E) const {
+      auto *current = E;
+      while (auto *parent = CS.getParentExpr(current)) {
+        if (auto *expansion = dyn_cast<PackExpansionExpr>(parent)) {
+          return expansion;
+        }
+        current = parent;
+      }
+      return nullptr;
+    }
+
     Type visitDeclRefExpr(DeclRefExpr *E) {
       auto locator = CS.getConstraintLocator(E);
 
@@ -1426,13 +1457,15 @@ namespace {
 
           // value packs cannot be referenced without `each` immediately
           // preceding them.
-          if (auto *expansion = knownType->getAs<PackExpansionType>()) {
-            if (!PackElementEnvironments.empty() &&
+          if (auto *expansionType = knownType->getAs<PackExpansionType>()) {
+            if (auto *parentExpansionExpr = getParentPackExpansionExpr(E);
+                parentExpansionExpr &&
                 !isExpr<PackElementExpr>(CS.getParentExpr(E))) {
-              auto packType = expansion->getPatternType();
+              auto packType = expansionType->getPatternType();
               (void)CS.recordFix(
                   IgnoreMissingEachKeyword::create(CS, packType, locator));
-              auto eltType = openPackElement(packType, locator);
+              auto eltType =
+                  openPackElement(packType, locator, parentExpansionExpr);
               CS.setType(E, eltType);
               return eltType;
             }
@@ -3033,21 +3066,11 @@ namespace {
       assert(PackElementEnvironments.back() == expr);
       PackElementEnvironments.pop_back();
 
-      auto *patternLoc =
-          CS.getConstraintLocator(expr, ConstraintLocator::PackExpansionPattern);
-      auto patternTy = CS.createTypeVariable(patternLoc,
-                                             TVO_CanBindToPack |
-                                             TVO_CanBindToNoEscape |
-                                             TVO_CanBindToHole);
+      auto expansionType = CS.getType(expr)->castTo<PackExpansionType>();
       auto elementResultType = CS.getType(expr->getPatternExpr());
       CS.addConstraint(ConstraintKind::PackElementOf, elementResultType,
-                       patternTy, CS.getConstraintLocator(expr));
-
-      auto *shapeLoc =
-          CS.getConstraintLocator(expr, ConstraintLocator::PackShape);
-      auto *shapeTypeVar = CS.createTypeVariable(shapeLoc,
-                                                 TVO_CanBindToPack |
-                                                 TVO_CanBindToHole);
+                       expansionType->getPatternType(),
+                       CS.getConstraintLocator(expr));
 
       // Generate ShapeOf constraints between all packs expanded by this
       // pack expansion expression through the shape type variable.
@@ -3061,9 +3084,14 @@ namespace {
 
       for (auto pack : expandedPacks) {
         Type packType;
-        if (auto *elementExpr = getAsExpr<PackElementExpr>(pack)) {
-          packType = CS.getType(elementExpr->getPackRefExpr());
-        } else if (auto *elementType = getAsTypeRepr<PackElementTypeRepr>(pack)) {
+        /// Skipping over pack elements because the relationship to its
+        /// environment is now established during \c addPackElementEnvironment
+        /// upon visiting its pack expansion and the Shape constraint added
+        /// upon visiting the pack element.
+        if (isExpr<PackElementExpr>(pack)) {
+          continue;
+        } else if (auto *elementType =
+                       getAsTypeRepr<PackElementTypeRepr>(pack)) {
           // OpenPackElementType sets types for 'each T' type reprs in
           // expressions. Some invalid code won't make it there, and
           // the constraint system won't have recorded a type.
@@ -3076,11 +3104,11 @@ namespace {
         }
 
         CS.addConstraint(
-            ConstraintKind::ShapeOf, shapeTypeVar, packType,
+            ConstraintKind::ShapeOf, expansionType->getCountType(), packType,
             CS.getConstraintLocator(expr, ConstraintLocator::PackShape));
       }
 
-      return PackExpansionType::get(patternTy, shapeTypeVar);
+      return expansionType;
     }
 
     Type visitPackElementExpr(PackElementExpr *expr) {
@@ -3094,7 +3122,18 @@ namespace {
         CS.setType(expr->getPackRefExpr(), packType);
       }
 
-      return openPackElement(packType, CS.getConstraintLocator(expr));
+      auto *packEnvironment = CS.getPackEnvironment(expr);
+      if (packEnvironment) {
+        auto expansionType =
+            CS.getType(packEnvironment)->castTo<PackExpansionType>();
+        CS.addConstraint(ConstraintKind::ShapeOf, expansionType->getCountType(),
+                         packType,
+                         CS.getConstraintLocator(packEnvironment,
+                                                 ConstraintLocator::PackShape));
+      }
+
+      return openPackElement(packType, CS.getConstraintLocator(expr),
+                             packEnvironment);
     }
 
     Type visitMaterializePackExpr(MaterializePackExpr *expr) {

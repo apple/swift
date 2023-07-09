@@ -13,16 +13,21 @@
 import Swift
 import SwiftShims
 
-#if canImport(Darwin)
-import Darwin
-let (platform_read, platform_write, platform_close) = (read, write, close)
-#elseif canImport(Glibc)
-import Glibc
-let (platform_read, platform_write, platform_close) = (read, write, close)
-#elseif os(Windows)
+#if os(Windows)
 import CRT
 import WinSDK
+#else
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#elseif canImport(Musl)
+import Musl
+#elseif canImport(WASILibc)
+import WASILibc
 #endif
+let (platform_read, platform_write, platform_close) = (read, write, close)
+#endif 
 
 #if os(Windows)
 public struct _FDInputStream {

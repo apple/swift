@@ -179,3 +179,58 @@ class TestInitWithGuard {
     self.pair2 = (a, b)
   }
 }
+
+do {
+  class Base<T: Collection> {
+    private var _v: T
+
+    var data: T {
+      init(initialValue) initializes(_v) {
+        _v = initialValue
+      }
+
+      get { _v }
+    }
+
+    init(data: T) {
+      self.data = data
+    }
+
+    init(reinit: T) {
+      self.data = reinit
+      self.data = reinit // expected-error {{immutable value 'data' may only be initialized once}}
+    }
+  }
+
+  class Sub<U> : Base<U> where U: Collection, U.Element == String {
+    init(other: U) {
+      super.init(data: other)
+    }
+
+    init(error: U) {
+      super.init(data: error)
+      data = error // expected-error {{immutable value 'data' may only be initialized once}}
+    }
+  }
+
+  // Make sure that re-initialization is not allowed when there is no setter.
+  struct TestPartialWithoutSetter {
+    var _a: Int
+
+    var a: Int {
+      init(initialValue) initializes(_a) {
+        self._a = initialValue
+      }
+
+      get { _a }
+    }
+
+    var b: Int
+
+    init(v: Int) {
+      self.a = v
+      self.a = v // expected-error {{immutable value 'a' may only be initialized once}}
+      self.b = v
+    }
+  }
+}

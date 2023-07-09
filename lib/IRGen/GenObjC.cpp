@@ -150,17 +150,47 @@ llvm::InlineAsm *IRGenModule::getObjCRetainAutoreleasedReturnValueMarker() {
 /// Reclaim an autoreleased return value.
 llvm::Value *irgen::emitObjCRetainAutoreleasedReturnValue(IRGenFunction &IGF,
                                                           llvm::Value *value) {
+  auto &IGM = IGF.IGM;
   // Call the inline-assembly marker if we need one.
-  if (auto marker = IGF.IGM.getObjCRetainAutoreleasedReturnValueMarker()) {
+  if (auto marker = IGM.getObjCRetainAutoreleasedReturnValueMarker()) {
     IGF.Builder.CreateAsmCall(marker, {});
   }
 
+  const auto &triple = IGF.IGM.Context.LangOpts.Target;
+  const auto &arch = triple.getArch();
+
+  // FIXME: Do this on all targets and at -O0 too. This can be enabled only if
+  // the target backend knows how to handle the operand bundle.
+  // Don't use clang.arc.attachedcall on non-darwin platforms for now. On these
+  // platforms we have a workaround in-place to deal with the un-availability of
+  // a arc runtime -- we have implemented objc_retainAutoreleasedReturnValue in
+  // a library (src/swift/DispatchStubs.cc) as swift_retain.
+  // Using clang.arc.attachedcall enables a LLVM optimization that can transform
+  // objc_retainAutoreleasedReturnValue into objc_retain in some circumstances.
+  // There is no objc_retain stub defined and we would run into missing symbol
+  // errors.
+  if (IGM.getOptions().shouldOptimize() && triple.isOSDarwin() &&
+      (arch == llvm::Triple::aarch64 ||
+       arch == llvm::Triple::x86_64)) {
+    auto EP = llvm::Intrinsic::getDeclaration(&IGM.Module,
+      (llvm::Intrinsic::ID)llvm::Intrinsic::objc_retainAutoreleasedReturnValue);
+    llvm::Value *bundleArgs[] = {EP};
+    llvm::OperandBundleDef OB("clang.arc.attachedcall", bundleArgs);
+    auto *oldCall = cast<llvm::CallBase>(value);
+    llvm::CallBase *newCall = llvm::CallBase::addOperandBundle(
+        oldCall, llvm::LLVMContext::OB_clang_arc_attachedcall, OB, oldCall);
+    newCall->copyMetadata(*oldCall);
+    oldCall->replaceAllUsesWith(newCall);
+    oldCall->eraseFromParent();
+    auto noop = IGF.Builder.CreateIntrinsicCall(llvm::Intrinsic::objc_clang_arc_noop_use, newCall);
+    noop->addFnAttr(llvm::Attribute::NoUnwind);
+    return newCall;
+  }
   CastToInt8PtrTy savedType(IGF, value);
 
   auto call = IGF.Builder.CreateIntrinsicCall(
                      llvm::Intrinsic::objc_retainAutoreleasedReturnValue, value);
 
-  const llvm::Triple &triple = IGF.IGM.Context.LangOpts.Target;
   if (triple.getArch() == llvm::Triple::x86_64) {
     // Don't tail call objc_retainAutoreleasedReturnValue. This blocks the
     // autoreleased return optimization.

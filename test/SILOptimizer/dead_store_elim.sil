@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt %s -dead-store-elim -max-partial-store-count=2 -enable-sil-verify-all | %FileCheck %s
+// RUN: %target-sil-opt %s -dead-store-elimination -enable-sil-verify-all | %FileCheck %s
 
 // REQUIRES: swift_in_compiler
 
@@ -104,6 +104,11 @@ class foo {
   var a: Int
    deinit
   init()
+}
+
+struct IntAndFoo {
+  var i: Int
+  var f: foo
 }
 
 class AB {
@@ -252,6 +257,8 @@ bb0(%0 : $B):
 // CHECK: bb0
 // CHECK-NEXT: load
 // CHECK-NEXT: integer_literal
+// CHECK-NEXT: builtin
+// CHECK-NEXT: tuple_extract
 // CHECK-NEXT: builtin
 // CHECK-NEXT: tuple_extract
 // CHECK-NEXT: {{ store}}
@@ -1541,4 +1548,68 @@ bb0:
   dealloc_ref %1 : $foo
   dealloc_stack_ref %1 : $foo
   return %3 : $Int
+}
+
+sil @read_from_argument : $@convention(thin) (@in_guaranteed Int) -> ()
+
+// CHECK-LABEL: sil @test_ref_tail_addr  :
+// CHECK-NOT:     store
+// CHECK:       end sil function 'test_ref_tail_addr'
+sil @test_ref_tail_addr : $@convention(thin) (Int) -> () {
+bb0(%0 : $Int):
+  %1 = integer_literal $Builtin.Word, 1
+  %2 = alloc_ref [stack] [tail_elems $Int * %1 : $Builtin.Word] $foo
+  %3 = ref_element_addr %2 : $foo, #foo.a
+  store %0 to %3 : $*Int
+  %5 = ref_tail_addr %2 : $foo, $Int
+  %6 = function_ref @read_from_argument : $@convention(thin) (@in_guaranteed Int) -> ()
+  %7 = apply %6(%5) : $@convention(thin) (@in_guaranteed Int) -> ()
+  dealloc_stack_ref %2 : $foo
+  %r = tuple ()
+  return %r : $()
+}
+
+// CHECK-LABEL: sil @test_split_tuple  :
+// CHECK:         [[T1:%.*]] = tuple_element_addr %1 : $*(Int, Int), 0 
+// CHECK-NEXT:    store {{.*}} to [[T1]]
+// CHECK-NOT:     store
+// CHECK:         fix_lifetime
+// CHECK-NEXT:    [[T2:%.*]] = tuple_element_addr %1 : $*(Int, Int), 1
+// CHECK-NEXT:    store %0 to [[T2]]
+// CHECK-NOT:     store
+// CHECK:       end sil function 'test_split_tuple'
+sil @test_split_tuple : $@convention(thin) (Int, @inout (Int, Int)) -> () {
+bb0(%0 : $Int, %1 : $*(Int, Int)):
+  %2 = tuple (%0 : $Int, %0 : $Int)
+  store %2 to %1 : $*(Int, Int)
+  fix_lifetime %0 : $Int
+  %4 = tuple_element_addr %1 : $*(Int, Int), 1
+  store %0 to %4 : $*Int
+  %r = tuple ()
+  return %r : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_ossa_not_trivial  :
+// CHECK:         store %0
+// CHECK:         store %1
+// CHECK:       end sil function 'test_ossa_not_trivial'
+sil [ossa] @test_ossa_not_trivial : $@convention(thin) (@owned foo, @owned foo, @inout foo) -> () {
+bb0(%0 : @owned $foo, %1 : @owned $foo, %2 : $*foo):
+  store %0 to [assign] %2 : $*foo
+  store %1 to [assign] %2 : $*foo
+  %r = tuple ()
+  return %r : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_ossa_partial_trivial  :
+// CHECK-NOT:     store %0
+// CHECK:         store %1
+// CHECK:       end sil function 'test_ossa_partial_trivial'
+sil [ossa] @test_ossa_partial_trivial : $@convention(thin) (Int, @owned IntAndFoo, @inout IntAndFoo) -> () {
+bb0(%0 : $Int, %1 : @owned $IntAndFoo, %2 : $*IntAndFoo):
+  %3 = struct_element_addr %2 : $*IntAndFoo, #IntAndFoo.i
+  store %0 to [trivial] %3 : $*Int
+  store %1 to [assign] %2 : $*IntAndFoo
+  %r = tuple ()
+  return %r : $()
 }

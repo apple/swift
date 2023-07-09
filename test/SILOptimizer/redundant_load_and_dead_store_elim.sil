@@ -1,4 +1,6 @@
-// RUN: %target-sil-opt -enable-sil-verify-all %s -redundant-load-elim -dead-store-elim | %FileCheck %s
+// RUN: %target-sil-opt -enable-sil-verify-all %s -redundant-load-elim -dead-store-elimination | %FileCheck %s
+
+// REQUIRES: swift_in_compiler
 
 // NOTE, the order redundant-load and dead-store are ran is important. we have a pass dependence for some
 // of the tests to work.

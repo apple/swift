@@ -677,8 +677,20 @@ AvailabilityContext ASTContext::getSwift58Availability() {
 }
 
 AvailabilityContext ASTContext::getSwift59Availability() {
-  // TODO: Update Availability impl when Swift 5.9 is released
-  return getSwiftFutureAvailability();
+  auto target = LangOpts.Target;
+
+  if (target.isMacOSX()) {
+    return AvailabilityContext(
+        VersionRange::allGTE(llvm::VersionTuple(14, 0, 0)));
+  } else if (target.isiOS()) {
+    return AvailabilityContext(
+        VersionRange::allGTE(llvm::VersionTuple(17, 0, 0)));
+  } else if (target.isWatchOS()) {
+    return AvailabilityContext(
+        VersionRange::allGTE(llvm::VersionTuple(10, 0, 0)));
+  } else {
+    return AvailabilityContext::alwaysAvailable();
+  }
 }
 
 AvailabilityContext ASTContext::getSwiftFutureAvailability() {

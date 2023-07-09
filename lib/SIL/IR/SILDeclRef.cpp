@@ -1068,7 +1068,10 @@ std::string SILDeclRef::mangle(ManglingKind MKind) const {
     auto *silParameterIndices = autodiff::getLoweredParameterIndices(
         derivativeFunctionIdentifier->getParameterIndices(),
         getDecl()->getInterfaceType()->castTo<AnyFunctionType>());
-    auto *resultIndices = IndexSubset::get(getDecl()->getASTContext(), 1, {0});
+    // FIXME: is this correct in the presence of curried types?
+    auto *resultIndices = autodiff::getFunctionSemanticResultIndices(
+      asAutoDiffOriginalFunction().getAbstractFunctionDecl(),
+      derivativeFunctionIdentifier->getParameterIndices());
     AutoDiffConfig silConfig(
         silParameterIndices, resultIndices,
         derivativeFunctionIdentifier->getDerivativeGenericSignature());

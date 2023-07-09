@@ -18,7 +18,7 @@ import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 import SwiftSyntaxMacroExpansion
-@_spi(PluginMessage) import SwiftCompilerPluginMessageHandling
+import SwiftCompilerPluginMessageHandling
 
 extension SyntaxProtocol {
   func token(at position: AbsolutePosition) -> TokenSyntax? {
@@ -867,7 +867,7 @@ func expandAttachedMacroIPC(
   }
 
   let conformanceListSyntax: PluginMessage.Syntax?
-  if (qualifiedType.isEmpty) {
+  if (conformanceList.isEmpty) {
     conformanceListSyntax = nil
   } else {
     let placeholderDecl: DeclSyntax =

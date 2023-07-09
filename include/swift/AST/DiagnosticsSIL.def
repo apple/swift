@@ -788,6 +788,12 @@ ERROR(sil_movechecking_cannot_destructure_has_deinit, none,
 ERROR(sil_movechecking_cannot_destructure, none,
       "cannot partially consume '%0'",
       (StringRef))
+ERROR(sil_movechecking_cannot_partially_reinit_has_deinit, none,
+      "cannot partially reinitialize '%0' when it has a deinitializer; only full reinitialization is allowed",
+      (StringRef))
+ERROR(sil_movechecking_cannot_partially_reinit, none,
+      "cannot partially reinitialize '%0' after it has been consumed; only full reinitialization is allowed",
+      (StringRef))
 ERROR(sil_movechecking_discard_missing_consume_self, none,
       "must consume 'self' before exiting method that discards self", ())
 ERROR(sil_movechecking_reinit_after_discard, none,

@@ -206,11 +206,15 @@ extension ObservableMacro: MemberMacro {
     
     if declaration.isEnum {
       // enumerations cannot store properties
-      throw DiagnosticsError(syntax: node, message: "@Observable cannot be applied to enumeration type \(observableType.text)", id: .invalidApplication)
+      throw DiagnosticsError(syntax: node, message: "'@Observable' cannot be applied to enumeration type '\(observableType.text)'", id: .invalidApplication)
+    }
+    if declaration.isStruct {
+      // structs are not yet supported; copying/mutation semantics tbd
+      throw DiagnosticsError(syntax: node, message: "'@Observable' cannot be applied to struct type '\(observableType.text)'", id: .invalidApplication)
     }
     if declaration.isActor {
       // actors cannot yet be supported for their isolation
-      throw DiagnosticsError(syntax: node, message: "@Observable cannot be applied to actor type \(observableType.text)", id: .invalidApplication) 
+      throw DiagnosticsError(syntax: node, message: "'@Observable' cannot be applied to actor type '\(observableType.text)'", id: .invalidApplication)
     }
     
     var declarations = [DeclSyntax]()

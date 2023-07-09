@@ -1290,6 +1290,12 @@ bool AssignOrInitInst::isPropertyAlreadyInitialized(unsigned propertyIdx) {
   return Assignments.test(propertyIdx);
 }
 
+StringRef AssignOrInitInst::getPropertyName() const {
+  auto *accessor = getReferencedInitAccessor();
+  assert(accessor);
+  return cast<VarDecl>(accessor->getStorage())->getNameStr();
+}
+
 AccessorDecl *AssignOrInitInst::getReferencedInitAccessor() const {
   SILValue initRef = getInitializer();
   SILFunction *accessorFn = nullptr;

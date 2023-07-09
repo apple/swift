@@ -478,7 +478,6 @@ class TypeDecoder {
   using BuiltSubstitution = typename BuilderType::BuiltSubstitution;
   using BuiltRequirement = typename BuilderType::BuiltRequirement;
   using BuiltLayoutConstraint = typename BuilderType::BuiltLayoutConstraint;
-  using BuiltGenericTypeParam = typename BuilderType::BuiltGenericTypeParam;
   using BuiltGenericSignature = typename BuilderType::BuiltGenericSignature;
   using BuiltSubstitutionMap = typename BuilderType::BuiltSubstitutionMap;
   using NodeKind = Demangle::Node::Kind;
@@ -886,10 +885,11 @@ protected:
 
       bool hasParamFlags = false;
       llvm::SmallVector<FunctionParam<BuiltType>, 8> parameters;
-      if (!decodeMangledFunctionInputType(Node->getChild(firstChildIdx),
-                                          depth + 1, parameters, hasParamFlags))
-        return MAKE_NODE_TYPE_ERROR0(Node->getChild(firstChildIdx),
-                                     "failed to decode function type");
+      auto optError = decodeMangledFunctionInputType(Node->getChild(firstChildIdx),
+                                                     depth + 1, parameters, hasParamFlags);
+      if (optError)
+        return *optError;
+
       flags =
           flags.withNumParameters(parameters.size())
               .withParameterFlags(hasParamFlags)
@@ -1022,7 +1022,8 @@ protected:
 
     case NodeKind::Tuple: {
       llvm::SmallVector<BuiltType, 8> elements;
-      std::string labels;
+      llvm::SmallVector<StringRef, 8> labels;
+
       for (auto &element : *Node) {
         if (element->getKind() != NodeKind::TupleElement)
           return MAKE_NODE_TYPE_ERROR0(Node, "unexpected kind");
@@ -1033,31 +1034,32 @@ protected:
           return MAKE_NODE_TYPE_ERROR0(element->getChild(typeChildIndex),
                                        "no children");
         }
+
+        StringRef label;
         if (element->getChild(typeChildIndex)->getKind() == NodeKind::TupleElementName) {
-          // Add spaces to terminate all the previous labels if this
-          // is the first we've seen.
-          if (labels.empty()) labels.append(elements.size(), ' ');
-
-          // Add the label and its terminator.
-          labels += element->getChild(typeChildIndex)->getText();
-          labels += ' ';
+          label = element->getChild(typeChildIndex)->getText();
           typeChildIndex++;
-
-        // Otherwise, add a space if a previous element had a label.
-        } else if (!labels.empty()) {
-          labels += ' ';
         }
 
         // Decode the element type.
-        auto elementType =
-            decodeMangledType(element->getChild(typeChildIndex), depth + 1,
-                              /*forRequirement=*/false);
-        if (elementType.isError())
-          return elementType;
-
-        elements.push_back(elementType.getType());
+        auto optError = decodeTypeSequenceElement(
+            element->getChild(typeChildIndex), depth + 1,
+            [&](BuiltType type) {
+              elements.push_back(type);
+              labels.push_back(label);
+            });
+        if (optError)
+          return *optError;
       }
-      return Builder.createTupleType(elements, std::move(labels));
+
+      // Unwrap unlabeled one-element tuples.
+      //
+      // FIXME: The behavior of one-element labeled tuples is inconsistent throughout
+      // the different re-implementations of type substitution and pack expansion.
+      if (elements.size() == 1 && labels[0].empty())
+        return elements[0];
+
+      return Builder.createTupleType(elements, labels);
     }
     case NodeKind::TupleElement:
       if (Node->getNumChildren() < 1)
@@ -1082,12 +1084,13 @@ protected:
 
       for (auto &element : *Node) {
         // Decode the element type.
-        auto elementType =
-            decodeMangledType(element, depth + 1, /*forRequirement=*/false);
-        if (elementType.isError())
-          return elementType;
-
-        elements.push_back(elementType.getType());
+        auto optError = decodeTypeSequenceElement(
+            element, depth + 1,
+            [&](BuiltType elementType) {
+              elements.push_back(elementType);
+            });
+        if (optError)
+          return *optError;
       }
 
       switch (Node->getKind()) {
@@ -1103,16 +1106,8 @@ protected:
     }
 
     case NodeKind::PackExpansion: {
-      if (Node->getNumChildren() < 2)
-        return MAKE_NODE_TYPE_ERROR(Node,
-                                    "fewer children (%zu) than required (2)",
-                                    Node->getNumChildren());
-
-      auto patternType = decodeMangledType(Node->getChild(0), depth + 1);
-      auto countType = decodeMangledType(Node->getChild(1), depth + 1);
-
-      return Builder.createPackExpansionType(patternType.getType(),
-                                             countType.getType());
+      return MAKE_NODE_TYPE_ERROR0(Node,
+                                   "pack expansion type in unsupported position");
     }
 
     case NodeKind::DependentGenericType: {
@@ -1264,9 +1259,9 @@ return {}; // Not Implemented!
                                            /*forRequirement=*/false);
           if (substTy.isError())
             return substTy;
-          substitutions.emplace_back(
-              Builder.createGenericTypeParameterType(paramDepth, index),
-              substTy.getType());
+          auto paramTy = Builder.createGenericTypeParameterType(
+              paramDepth, index);
+          substitutions.emplace_back(paramTy, substTy.getType());
           ++index;
         }
       }
@@ -1369,6 +1364,58 @@ return {}; // Not Implemented!
   }
 
 private:
+  template<typename Fn>
+  llvm::Optional<TypeLookupError>
+  decodeTypeSequenceElement(Demangle::NodePointer node, unsigned depth,
+                            Fn resultCallback) {
+    if (node->getKind() == NodeKind::Type)
+      node = node->getChild(0);
+
+    if (node->getKind() == NodeKind::PackExpansion) {
+      if (node->getNumChildren() < 2)
+        return MAKE_NODE_TYPE_ERROR(node,
+                                    "fewer children (%zu) than required (2)",
+                                    node->getNumChildren());
+
+      auto patternType = node->getChild(0);
+
+      // Decode the shape pack first, to form a metadata pack.
+      auto countType = decodeMangledType(node->getChild(1), depth);
+      if (countType.isError())
+        return *countType.getError();
+
+      // Push the pack expansion on the active expansion stack inside the
+      // builder concept.
+      size_t numElements = Builder.beginPackExpansion(countType.getType());
+
+      for (size_t i = 0; i < numElements; ++i) {
+        // Advance the lane index inside the builder concept.
+        Builder.advancePackExpansion(i);
+
+        // Decode the pattern type, taking the ith element of each pack
+        // referenced therein.
+        auto expandedElementType = decodeMangledType(patternType, depth);
+        if (expandedElementType.isError())
+          return *expandedElementType.getError();
+
+        resultCallback(Builder.createExpandedPackElement(
+            expandedElementType.getType()));
+      }
+
+      // Pop the active expansion stack inside the builder concept.
+      Builder.endPackExpansion();
+    } else {
+      auto elementType =
+          decodeMangledType(node, depth, /*forRequirement=*/false);
+      if (elementType.isError())
+        return *elementType.getError();
+
+      resultCallback(elementType.getType());
+    }
+
+    return llvm::None;
+  }
+
   template <typename T>
   bool decodeImplFunctionPart(Demangle::NodePointer node, unsigned depth,
                               llvm::SmallVectorImpl<T> &results) {
@@ -1532,12 +1579,12 @@ private:
     return Builder.createProtocolDecl(node);
   }
 
-  bool decodeMangledFunctionInputType(
+  llvm::Optional<TypeLookupError> decodeMangledFunctionInputType(
       Demangle::NodePointer node, unsigned depth,
       llvm::SmallVectorImpl<FunctionParam<BuiltType>> &params,
       bool &hasParamFlags) {
     if (depth > TypeDecoder::MaxDepth)
-      return false;
+      return llvm::None;
 
     // Look through a couple of sugar nodes.
     if (node->getKind() == NodeKind::Type ||
@@ -1548,7 +1595,7 @@ private:
 
     auto decodeParamTypeAndFlags =
         [&](Demangle::NodePointer typeNode,
-            FunctionParam<BuiltType> &param) -> bool {
+            FunctionParam<BuiltType> &param) -> llvm::Optional<TypeLookupError> {
       Demangle::NodePointer node = typeNode;
 
       bool recurse = true;
@@ -1597,17 +1644,15 @@ private:
         }
       }
 
-      auto paramType = decodeMangledType(node, depth + 1,
-                                         /*forRequirement=*/false);
-      if (paramType.isError())
-        return false;
-
-      param.setType(paramType.getType());
-      return true;
+      return decodeTypeSequenceElement(node, depth + 1,
+                                       [&](BuiltType paramType) {
+                                         param.setType(paramType);
+                                         params.push_back(param);
+                                       });
     };
 
     auto decodeParam =
-        [&](NodePointer paramNode) -> llvm::Optional<FunctionParam<BuiltType>> {
+        [&](NodePointer paramNode) -> llvm::Optional<TypeLookupError> {
       if (paramNode->getKind() != NodeKind::TupleElement)
         return llvm::None;
 
@@ -1623,40 +1668,41 @@ private:
           hasParamFlags = true;
           break;
 
-        case NodeKind::Type:
-          if (!decodeParamTypeAndFlags(child->getFirstChild(), param))
-            return llvm::None;
+        case NodeKind::Type: {
+          auto optError = decodeParamTypeAndFlags(
+              child->getFirstChild(), param);
+          if (optError)
+            return optError;
           break;
+        }
 
         default:
-          return llvm::None;
+          return TYPE_LOOKUP_ERROR_FMT("unknown node");
         }
       }
 
-      return param;
+      return llvm::None;
     };
 
     // Expand a single level of tuple.
     if (node->getKind() == NodeKind::Tuple) {
       // Decode all the elements as separate arguments.
       for (const auto &elt : *node) {
-        auto param = decodeParam(elt);
-        if (!param)
-          return false;
-
-        params.push_back(std::move(*param));
+        auto optError = decodeParam(elt);
+        if (optError)
+          return *optError;
       }
 
-      return true;
+      return llvm::None;
     }
 
     // Otherwise, handle the type as a single argument.
     FunctionParam<BuiltType> param;
-    if (!decodeParamTypeAndFlags(node, param))
-      return false;
+    auto optError = decodeParamTypeAndFlags(node, param);
+    if (optError)
+      return *optError;
 
-    params.push_back(std::move(param));
-    return true;
+    return llvm::None;
   }
 };
 

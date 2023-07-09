@@ -117,3 +117,147 @@ internal func _prespecialize() {
   consume(UnsafeBufferPointer<Int8>.self)
   consume(UnsafePointer<Int8>.self)
 }
+
+@_specializeExtension
+extension Array {
+
+  @_specialize(exported: true,
+               availability: SwiftStdlib 5.9, *;
+               target: _endMutation(),
+               where @_noMetadata Element : _Class)
+  @available(SwiftStdlib 5.9, *)
+  @usableFromInline
+  mutating func __specialize_class__endMutation(){ Builtin.unreachable() }
+
+  @_specialize(exported: true,
+               availability: SwiftStdlib 5.9, *;
+               target: _createNewBuffer(bufferIsUnique:minimumCapacity:growForAppend:),
+               where @_noMetadata Element : _Class)
+  @available(SwiftStdlib 5.9, *)
+  @usableFromInline
+  mutating func __specialize_class__createNewBuffer(bufferIsUnique: Bool, minimumCapacity: Int, growForAppend: Bool) { Builtin.unreachable() }
+
+  @_specialize(exported: true,
+               availability: SwiftStdlib 5.9, *;
+               target: _makeUniqueAndReserveCapacityIfNotUnique(),
+               where @_noMetadata Element : _Class)
+  @available(SwiftStdlib 5.9, *)
+  @usableFromInline
+  mutating func __specialize_class__makeUniqueAndReserveCapacityIfNotUnique() { Builtin.unreachable() }
+
+  @_specialize(exported: true,
+               availability: SwiftStdlib 5.9, *;
+               target: _appendElementAssumeUniqueAndCapacity(_:newElement:),
+               where @_noMetadata Element : _Class)
+  @available(SwiftStdlib 5.9, *)
+  @usableFromInline
+  mutating func __specialize_class__appendElementAssumeUniqueAndCapacity(_: Int, newElement: __owned Element) { Builtin.unreachable() }
+}
+
+#if _runtime(_ObjC)
+@_specializeExtension
+extension _ArrayBuffer {
+  @_specialize(exported: true,
+               availability: SwiftStdlib 5.9, *;
+               target: _consumeAndCreateNew(bufferIsUnique:minimumCapacity:growForAppend:),
+               where @_noMetadata Element : _Class)
+  @available(SwiftStdlib 5.9, *)
+  @usableFromInline
+  func __specialize_class__consumeAndCreateNew(bufferIsUnique: Bool, minimumCapacity: Int, growForAppend: Bool) -> _ArrayBuffer<Element> { Builtin.unreachable() }
+
+  @_specialize(exported: true,
+               availability: SwiftStdlib 5.9, *;
+               target: _copyContents(initializing:),
+               where @_noMetadata Element : _Class)
+  @available(SwiftStdlib 5.9, *)
+  @usableFromInline
+  __consuming func __specialize_class__copyContents(
+    initializing buffer: UnsafeMutableBufferPointer<Element>
+  ) -> (Iterator, UnsafeMutableBufferPointer<Element>.Index) { Builtin.unreachable() }
+
+  @_specialize(exported: true,
+               availability: SwiftStdlib 5.9, *;
+               target: _copyContents(subRange:initializing:),
+               where @_noMetadata Element : _Class)
+  @available(SwiftStdlib 5.9, *)
+  @usableFromInline
+  __consuming func __specialize_class__copyContents(subRange: Range<Int>, initializing: Swift.UnsafeMutablePointer<Element>) -> Swift.UnsafeMutablePointer<Element> { Builtin.unreachable() }
+
+  @_specialize(exported: true,
+               availability: SwiftStdlib 5.9, *;
+               target: _getElementSlowPath(_:),
+               where @_noMetadata Element : _Class)
+  @available(SwiftStdlib 5.9, *)
+  func __specialize_class__getElementSlowPath(_ i: Int) -> AnyObject { Builtin.unreachable() }
+}
+#endif
+
+@_specializeExtension
+extension ContiguousArray {
+  @_specialize(exported: true,
+               availability: SwiftStdlib 5.9, *;
+               target: _endMutation(),
+               where @_noMetadata Element : _Class)
+  @available(SwiftStdlib 5.9, *)
+  @usableFromInline
+  mutating func __specialize_class__endMutation(){ Builtin.unreachable() }
+
+  @_specialize(exported: true,
+               availability: SwiftStdlib 5.9, *;
+               target: _createNewBuffer(bufferIsUnique:minimumCapacity:growForAppend:),
+               where @_noMetadata Element : _Class)
+  @available(SwiftStdlib 5.9, *)
+  @usableFromInline
+  mutating func __specialize_class__createNewBuffer(bufferIsUnique: Bool, minimumCapacity: Int, growForAppend: Bool) { Builtin.unreachable() }
+
+  @_specialize(exported: true,
+               availability: SwiftStdlib 5.9, *;
+               target: _makeUniqueAndReserveCapacityIfNotUnique(),
+               where @_noMetadata Element : _Class)
+  @available(SwiftStdlib 5.9, *)
+  @usableFromInline
+  mutating func __specialize_class__makeUniqueAndReserveCapacityIfNotUnique() { Builtin.unreachable() }
+
+  @_specialize(exported: true,
+               availability: SwiftStdlib 5.9, *;
+               target: _appendElementAssumeUniqueAndCapacity(_:newElement:),
+               where @_noMetadata Element : _Class)
+  @available(SwiftStdlib 5.9, *)
+  @usableFromInline
+  mutating func __specialize_class__appendElementAssumeUniqueAndCapacity(_: Int, newElement: __owned Element) { Builtin.unreachable() }
+
+  @_specialize(exported: true,
+               availability: SwiftStdlib 5.9, *;
+              target: _reserveCapacityImpl(minimumCapacity:growForAppend:),
+              where @_noMetadata Element : _Class)
+  @available(SwiftStdlib 5.9, *)
+  @usableFromInline
+  mutating func __specialize_class__reserveCapacityImpl(minimumCapacity: Int, growForAppend: Bool) { Builtin.unreachable() }
+
+  @_specialize(exported: true,
+               availability: SwiftStdlib 5.9, *;
+              target: _reserveCapacityAssumingUniqueBuffer(oldCount:),
+              where @_noMetadata Element : _Class)
+  @available(SwiftStdlib 5.9, *)
+  @usableFromInline
+  mutating func __specialize_class__reserveCapacityAssumingUniqueBuffer(oldCount: Int) { Builtin.unreachable() }
+
+  @_specialize(exported: true,
+               availability: SwiftStdlib 5.9, *;
+              target: reserveCapacity(_:),
+              where @_noMetadata Element : _Class)
+  @available(SwiftStdlib 5.9, *)
+  @usableFromInline
+  mutating func __specialize_class__reserveCapacity(_ minimumCapacity: Int) { Builtin.unreachable() }
+}
+
+@_specializeExtension
+extension _ContiguousArrayBuffer {
+  @_specialize(exported: true,
+               availability: SwiftStdlib 5.9, *;
+               target: _consumeAndCreateNew(bufferIsUnique:minimumCapacity:growForAppend:),
+               where @_noMetadata Element : _Class)
+  @available(SwiftStdlib 5.9, *)
+  @usableFromInline
+  func __specialize_class__consumeAndCreateNew(bufferIsUnique: Bool, minimumCapacity: Int, growForAppend: Bool) -> _ContiguousArrayBuffer<Element> { Builtin.unreachable() }
+}

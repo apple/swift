@@ -306,13 +306,8 @@ enum class CxxRecordSemanticsKind {
   MoveOnly,
   Reference,
   Iterator,
-  // An API that has be annotated as explicitly unsafe, but still importable.
-  // TODO: we should rename these APIs.
-  ExplicitlyUnsafe,
   // A record that is either not copyable or not destructible.
   MissingLifetimeOperation,
-  // A record that contains a pointer (aka non-trivial type).
-  UnsafePointerMember,
   // A C++ record that represents a Swift class type exposed to C++ from Swift.
   SwiftClassType
 };

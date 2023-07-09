@@ -2413,10 +2413,15 @@ getDirectReadAccessStrategy(const AbstractStorageDecl *storage) {
 static AccessStrategy
 getDirectWriteAccessStrategy(const AbstractStorageDecl *storage) {
   switch (storage->getWriteImpl()) {
-  case WriteImplKind::Immutable:
+  case WriteImplKind::Immutable: {
+    if (storage->hasInitAccessor())
+      return AccessStrategy::getAccessor(AccessorKind::Init,
+                                         /*dispatch=*/false);
+
     assert(isa<VarDecl>(storage) && cast<VarDecl>(storage)->isLet() &&
            "mutation of a immutable variable that isn't a let");
     return AccessStrategy::getStorage();
+  }
   case WriteImplKind::Stored:
     return AccessStrategy::getStorage();
   case WriteImplKind::StoredWithObservers:
@@ -2493,7 +2498,9 @@ getOpaqueReadAccessStrategy(const AbstractStorageDecl *storage, bool dispatch) {
 }
 
 static AccessStrategy
-getOpaqueWriteAccessStrategy(const AbstractStorageDecl *storage, bool dispatch){
+getOpaqueWriteAccessStrategy(const AbstractStorageDecl *storage, bool dispatch) {
+  if (storage->hasInitAccessor() && !storage->getAccessor(AccessorKind::Set))
+    return AccessStrategy::getAccessor(AccessorKind::Init, dispatch);
   return AccessStrategy::getAccessor(AccessorKind::Set, dispatch);
 }
 
@@ -6421,6 +6428,38 @@ bool ProtocolDecl::hasCircularInheritedProtocols() const {
       ctx.evaluator, HasCircularInheritedProtocolsRequest{mutableThis}, true);
 }
 
+/// Returns a descriptive name for the given accessor/addressor kind.
+StringRef swift::getAccessorNameForDiagnostic(AccessorKind accessorKind,
+                                              bool article) {
+  switch (accessorKind) {
+  case AccessorKind::Get:
+    return article ? "a getter" : "getter";
+  case AccessorKind::Set:
+    return article ? "a setter" : "setter";
+  case AccessorKind::Address:
+    return article ? "an addressor" : "addressor";
+  case AccessorKind::MutableAddress:
+    return article ? "a mutable addressor" : "mutable addressor";
+  case AccessorKind::Read:
+    return article ? "a 'read' accessor" : "'read' accessor";
+  case AccessorKind::Modify:
+    return article ? "a 'modify' accessor" : "'modify' accessor";
+  case AccessorKind::WillSet:
+    return "'willSet'";
+  case AccessorKind::DidSet:
+    return "'didSet'";
+  case AccessorKind::Init:
+    return article ? "an init accessor" : "init accessor";
+  }
+  llvm_unreachable("bad accessor kind");
+}
+
+StringRef swift::getAccessorNameForDiagnostic(AccessorDecl *accessor,
+                                              bool article) {
+  return getAccessorNameForDiagnostic(accessor->getAccessorKind(),
+                                      article);
+}
+
 bool AbstractStorageDecl::hasStorage() const {
   ASTContext &ctx = getASTContext();
   return evaluateOrDefault(ctx.evaluator,
@@ -6488,7 +6527,8 @@ void AbstractStorageDecl::setAccessors(SourceLoc lbraceLoc,
   auto record = Accessors.getPointer();
   if (record) {
     for (auto accessor : accessors) {
-      (void) record->addOpaqueAccessor(accessor);
+      if (!record->getAccessor(accessor->getAccessorKind()))
+        (void) record->addOpaqueAccessor(accessor);
     }
   } else {
     record = AccessorRecord::create(getASTContext(),
@@ -6580,6 +6620,27 @@ void AbstractStorageDecl::AccessorRecord::addOpaqueAccessor(AccessorDecl *decl){
   bool isUnique = registerAccessor(decl, index);
   assert(isUnique && "adding opaque accessor that's already present");
   (void) isUnique;
+}
+
+void AbstractStorageDecl::AccessorRecord::removeAccessor(
+    AccessorDecl *accessor
+) {
+  // Remove this accessor from the list of accessors.
+  assert(getAccessor(accessor->getAccessorKind()) == accessor);
+  std::remove(getAccessorsBuffer().begin(), getAccessorsBuffer().end(),
+              accessor);
+
+  // Clear out the accessor kind -> index mapping.
+  std::memset(AccessorIndices, 0, sizeof(AccessorIndices));
+
+  // Re-add all of the remaining accessors to build up the index mapping.
+  unsigned numAccessorsLeft = NumAccessors - 1;
+  NumAccessors = numAccessorsLeft;
+  auto buffer = getAccessorsBuffer();
+  NumAccessors = 0;
+  for (auto index : range(0, numAccessorsLeft)) {
+    addOpaqueAccessor(buffer[index]);
+  }
 }
 
 /// Register that we have an accessor of the given kind.
@@ -6773,8 +6834,17 @@ bool VarDecl::isSettable(const DeclContext *UseDC,
 
   // If this is a 'var' decl, then we're settable if we have storage or a
   // setter.
-  if (!isLet())
+  if (!isLet()) {
+    if (hasInitAccessor()) {
+      if (auto *ctor = dyn_cast_or_null<ConstructorDecl>(UseDC)) {
+        if (base && ctor->getImplicitSelfDecl() != base->getDecl())
+          return supportsMutation();
+        return true;
+      }
+    }
+
     return supportsMutation();
+  }
 
   // Static 'let's are always immutable.
   if (isStatic()) {

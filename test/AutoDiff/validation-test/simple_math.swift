@@ -121,6 +121,69 @@ SimpleMathTests.test("MultipleResults") {
   expectEqual((4, 3), gradient(at: 3, 4, of: multiply_swapAndReturnProduct))
 }
 
+// Test function with multiple `inout` parameters and a custom pullback.
+@differentiable(reverse)
+func swapCustom(_ x: inout Float, _ y: inout Float) {
+  let tmp = x; x = y; y = tmp
+}
+@derivative(of: swapCustom)
+func vjpSwapCustom(_ x: inout Float, _ y: inout Float) -> (
+  value: Void, pullback: (inout Float, inout Float) -> Void
+) {
+  swapCustom(&x, &y)
+  return ((), {v1, v2 in
+    let tmp = v1; v1 = v2; v2 = tmp
+  })
+}
+
+SimpleMathTests.test("MultipleResultsWithCustomPullback") {
+  func multiply_swapCustom(_ x: Float, _ y: Float) -> Float {
+    var tuple = (x, y)
+    swapCustom(&tuple.0, &tuple.1)
+    return tuple.0 * tuple.1
+  }
+
+  expectEqual((4, 3), gradient(at: 3, 4, of: multiply_swapCustom))
+  expectEqual((10, 5), gradient(at: 5, 10, of: multiply_swapCustom))
+}
+
+// Test functions returning tuples.
+@differentiable(reverse)
+func swapTuple(_ x: Float, _ y: Float) -> (Float, Float) {
+  return (y, x)
+}
+
+@differentiable(reverse)
+func swapTupleCustom(_ x: Float, _ y: Float) -> (Float, Float) {
+  return (y, x)
+}
+@derivative(of: swapTupleCustom)
+func vjpSwapTupleCustom(_ x: Float, _ y: Float) -> (
+  value: (Float, Float), pullback: (Float, Float) -> (Float, Float)
+) {
+  return (swapTupleCustom(x, y), {v1, v2 in
+    return (v2, v1)
+  })
+}
+
+SimpleMathTests.test("ReturningTuples") {
+  func multiply_swapTuple(_ x: Float, _ y: Float) -> Float {
+    let result = swapTuple(x, y)
+    return result.0 * result.1
+  }
+
+  expectEqual((4, 3), gradient(at: 3, 4, of: multiply_swapTuple))
+  expectEqual((10, 5), gradient(at: 5, 10, of: multiply_swapTuple))
+
+  func multiply_swapTupleCustom(_ x: Float, _ y: Float) -> Float {
+    let result = swapTupleCustom(x, y)
+    return result.0 * result.1
+  }
+
+  expectEqual((4, 3), gradient(at: 3, 4, of: multiply_swapTupleCustom))
+  expectEqual((10, 5), gradient(at: 5, 10, of: multiply_swapTupleCustom))
+}
+
 SimpleMathTests.test("CaptureLocal") {
   let z: Float = 10
   func foo(_ x: Float) -> Float {

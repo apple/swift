@@ -98,6 +98,22 @@ add_swift_target_library(swiftGlibc ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_SDK_O
     INSTALL_IN_COMPONENT sdk-overlay
     DEPENDS glibc_modulemap)
 
+add_swift_target_library(swiftMusl ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_SDK_OVERLAY
+    ${swift_platform_sources}
+    POSIXError.swift
+
+    GYB_SOURCES
+      ${swift_platform_gyb_sources}
+      Musl.swift.gyb
+
+    SWIFT_COMPILE_FLAGS
+      ${SWIFT_RUNTIME_SWIFT_COMPILE_FLAGS}
+      ${SWIFT_STANDARD_LIBRARY_SWIFT_FLAGS}
+      ${swift_platform_compile_flags}
+    LINK_FLAGS "${SWIFT_RUNTIME_SWIFT_LINK_FLAGS}"
+    TARGET_SDKS MUSL
+    INSTALL_IN_COMPONENT sdk-overlay)
+
 add_swift_target_library(swiftCRT ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_SDK_OVERLAY
     ucrt.swift
     ${swift_platform_sources}

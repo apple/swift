@@ -5238,6 +5238,8 @@ private:
 
     void addOpaqueAccessor(AccessorDecl *accessor);
 
+    void removeAccessor(AccessorDecl *accessor);
+
   private:
     MutableArrayRef<AccessorDecl *> getAccessorsBuffer() {
       return { getTrailingObjects<AccessorDecl*>(), NumAccessors };
@@ -5399,6 +5401,11 @@ public:
     if (const auto *info = Accessors.getPointer())
       return info->getAllAccessors();
     return {};
+  }
+
+  void removeAccessor(AccessorDecl *accessor) {
+    if (auto *info = Accessors.getPointer())
+      return info->removeAccessor(accessor);
   }
 
   /// This is the primary mechanism by which we can easily determine whether
@@ -8914,6 +8921,9 @@ const ParamDecl *getParameterAt(const ValueDecl *source, unsigned index);
 /// Retrieve parameter declaration from the given source at given index, or
 /// nullptr if the source does not have a parameter list.
 const ParamDecl *getParameterAt(const DeclContext *source, unsigned index);
+
+StringRef getAccessorNameForDiagnostic(AccessorDecl *accessor, bool article);
+StringRef getAccessorNameForDiagnostic(AccessorKind accessorKind, bool article);
 
 void simple_display(llvm::raw_ostream &out,
                     OptionSet<NominalTypeDecl::LookupDirectFlags> options);

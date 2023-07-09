@@ -24,6 +24,7 @@
 #include "swift/Basic/Debug.h"
 #include "swift/Basic/FrozenMultiMap.h"
 #include "swift/Basic/STLExtras.h"
+#include "swift/SIL/BasicBlockDatastructures.h"
 #include "swift/SIL/SILFunction.h"
 #include "swift/SIL/SILInstruction.h"
 #include "swift/SIL/SILValue.h"
@@ -1037,6 +1038,7 @@ public:
   }
 
   SmallBitVector &getDeadDefsBits(SILNode *def) {
+    assert(def->getParentBlock() && "Always expect to have a parent block!\n");
     auto iter = deadDefs.insert({def, SmallBitVector()});
     if (iter.second) {
       iter.first->second.resize(numBits);
@@ -1359,6 +1361,16 @@ public:
   void
   findBoundariesInBlock(SILBasicBlock *block, unsigned bitNo, bool isLiveOut,
                         FieldSensitivePrunedLivenessBoundary &boundary) const;
+
+  /// Walk from \p inst until we find a def for \p index. If we see a consuming
+  /// use, call \p callback. If \p callback returns true, then this is not the
+  /// consuming use we are looking for and we should keep on
+  /// searching. Otherwise, if it returns false, we bail early and return
+  /// false. If we find a def, we return true. If we stopped due to a consuming
+  /// use, we return false.
+  bool findEarlierConsumingUse(
+      SILInstruction *inst, unsigned index,
+      llvm::function_ref<bool(SILInstruction *)> callback) const;
 };
 
 } // namespace swift

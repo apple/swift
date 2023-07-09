@@ -565,6 +565,23 @@ void swift::conformToCxxSequenceIfNeeded(
   }
 }
 
+static bool isStdSetType(const clang::CXXRecordDecl *clangDecl) {
+  return isStdDecl(clangDecl, {"set", "unordered_set", "multiset"});
+}
+
+bool swift::isUnsafeStdMethod(const clang::CXXMethodDecl *methodDecl) {
+  auto parentDecl =
+      dyn_cast<clang::CXXRecordDecl>(methodDecl->getDeclContext());
+  if (!parentDecl)
+    return false;
+  if (!isStdSetType(parentDecl))
+    return false;
+  if (methodDecl->getDeclName().isIdentifier() &&
+      methodDecl->getName() == "insert")
+    return true;
+  return false;
+}
+
 void swift::conformToCxxSetIfNeeded(ClangImporter::Implementation &impl,
                                     NominalTypeDecl *decl,
                                     const clang::CXXRecordDecl *clangDecl) {
@@ -576,7 +593,7 @@ void swift::conformToCxxSetIfNeeded(ClangImporter::Implementation &impl,
 
   // Only auto-conform types from the C++ standard library. Custom user types
   // might have a similar interface but different semantics.
-  if (!isStdDecl(clangDecl, {"set", "unordered_set", "multiset"}))
+  if (!isStdSetType(clangDecl))
     return;
 
   auto valueType = lookupDirectSingleWithoutExtensions<TypeAliasDecl>(

@@ -1475,6 +1475,10 @@ public:
   llvm::DenseMap<ConstraintLocator *, std::pair<UUID, Type>>
       PackExpansionEnvironments;
 
+  /// The pack expansion environment that can open a given pack element.
+  llvm::SmallMapVector<PackElementExpr *, PackExpansionExpr *, 2>
+      PackEnvironments;
+
   /// The locators of \c Defaultable constraints whose defaults were used.
   llvm::SmallPtrSet<ConstraintLocator *, 2> DefaultedConstraints;
 
@@ -2251,6 +2255,9 @@ private:
   llvm::SmallMapVector<ConstraintLocator *, std::pair<UUID, Type>, 4>
       PackExpansionEnvironments;
 
+  llvm::SmallMapVector<PackElementExpr *, PackExpansionExpr *, 2>
+      PackEnvironments;
+
   /// The set of functions that have been transformed by a result builder.
   llvm::MapVector<AnyFunctionRef, AppliedBuilderTransform>
       resultBuilderTransformed;
@@ -2736,6 +2743,9 @@ public:
 
     /// The length of \c PackExpansionEnvironments.
     unsigned numPackExpansionEnvironments;
+
+    /// The length of \c PackEnvironments.
+    unsigned numPackEnvironments;
 
     /// The length of \c DefaultedConstraints.
     unsigned numDefaultedConstraints;
@@ -3231,6 +3241,13 @@ public:
   /// Get the opened element generic environment for the given locator.
   GenericEnvironment *getPackElementEnvironment(ConstraintLocator *locator,
                                                 CanType shapeClass);
+
+  /// Get the opened element generic environment for the given pack element.
+  PackExpansionExpr *getPackEnvironment(PackElementExpr *packElement) const;
+
+  /// Associate an opened element generic environment to a pack element.
+  void addPackEnvironment(PackElementExpr *packElement,
+                          PackExpansionExpr *packExpansion);
 
   /// Retrieve the constraint locator for the given anchor and
   /// path, uniqued and automatically infer the summary flags

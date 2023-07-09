@@ -683,6 +683,21 @@ ConstraintSystem::getPackElementEnvironment(ConstraintLocator *locator,
                                               shapeParam, contextSubs);
 }
 
+PackExpansionExpr *
+ConstraintSystem::getPackEnvironment(PackElementExpr *packElement) const {
+  const auto match = PackEnvironments.find(packElement);
+  return (match == PackEnvironments.end()) ? nullptr : match->second;
+}
+
+void ConstraintSystem::addPackEnvironment(PackElementExpr *packElement,
+                                          PackExpansionExpr *packExpansion) {
+  assert(packElement);
+  assert(packExpansion);
+  [[maybe_unused]] const auto inserted =
+      PackEnvironments.insert({packElement, packExpansion}).second;
+  assert(inserted && "Mapping already defined?");
+}
+
 /// Extend the given depth map by adding depths for all of the subexpressions
 /// of the given expression.
 static void extendDepthMap(

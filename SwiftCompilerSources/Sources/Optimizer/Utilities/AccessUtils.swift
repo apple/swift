@@ -162,6 +162,29 @@ enum AccessBase : CustomStringConvertible, Hashable {
     }
   }
 
+  // Returns true if it's guaranteed that this access has the same base address as the `other` access.
+  func isEqual(to other: AccessBase) -> Bool {
+    switch (self, other) {
+    case (.box(let pb1), .box(let pb2)):
+      return pb1.box.referenceRoot == pb2.box.referenceRoot
+    case (.class(let rea1), .class(let rea2)):
+      return rea1.fieldIndex == rea2.fieldIndex &&
+             rea1.instance.referenceRoot == rea2.instance.referenceRoot
+    case (.stack(let as1), .stack(let as2)):
+      return as1 == as2
+    case (.global(let gl1), .global(let gl2)):
+      return gl1 == gl2
+    case (.argument(let arg1), .argument(let arg2)):
+      return arg1 == arg2
+    case (.yield(let ba1), .yield(let ba2)):
+      return ba1 == ba2
+    case (.pointer(let p1), .pointer(let p2)):
+      return p1 == p2
+    default:
+      return false
+    }
+  }
+
   /// Returns `true` if the two access bases do not alias.
   func isDistinct(from other: AccessBase) -> Bool {
   
@@ -250,6 +273,13 @@ struct AccessPath : CustomStringConvertible {
       }
     }
     return false
+  }
+
+  func isEqualOrOverlaps(_ other: AccessPath) -> Bool {
+    return base.isEqual(to: other.base) &&
+           // Note: an access with a smaller path overlaps an access with larger path, e.g.
+           //       `s0` overlaps `s0.s1`
+           projectionPath.isSubPath(of: other.projectionPath)
   }
 }
 
@@ -448,6 +478,25 @@ extension Value {
       return .scope(ba)
     }
     return .base(walker.result.base)
+  }
+
+  /// The root definition of a reference, obtained by skipping casts, etc.
+  var referenceRoot: Value {
+    var value: Value = self
+    while true {
+      switch value {
+      case is BeginBorrowInst, is CopyValueInst, is MoveValueInst,
+           is UpcastInst, is UncheckedRefCastInst, is EndCOWMutationInst:
+        value = (value as! Instruction).operands[0].value
+      case let mvr as MultipleValueInstructionResult:
+        guard  let bcm = mvr.parentInstruction as? BeginCOWMutationInst else {
+          return value
+        }
+        value = bcm.instance
+      default:
+        return value
+      }
+    }
   }
 }
 

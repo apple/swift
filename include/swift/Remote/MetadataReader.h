@@ -179,7 +179,6 @@ public:
   using BuiltRequirement = typename BuilderType::BuiltRequirement;
   using BuiltSubstitution = typename BuilderType::BuiltSubstitution;
   using BuiltSubstitutionMap = typename BuilderType::BuiltSubstitutionMap;
-  using BuiltGenericTypeParam = typename BuilderType::BuiltGenericTypeParam;
   using BuiltGenericSignature = typename BuilderType::BuiltGenericSignature;
   using StoredPointer = typename Runtime::StoredPointer;
   using StoredSignedPointer = typename Runtime::StoredSignedPointer;
@@ -871,13 +870,26 @@ public:
       }
 
       // Read the labels string.
-      std::string labels;
+      std::string labelStr;
       if (tupleMeta->Labels &&
-          !Reader->readString(RemoteAddress(tupleMeta->Labels), labels))
+          !Reader->readString(RemoteAddress(tupleMeta->Labels), labelStr))
         return BuiltType();
 
+      std::vector<llvm::StringRef> labels;
+      std::string::size_type end, start = 0;
+      while (true) {
+        end = labelStr.find(' ', start);
+        if (end == std::string::npos)
+          break;
+        labels.push_back(llvm::StringRef(labelStr.data() + start, end - start));
+        start = end + 1;
+      }
+      // Pad the vector with empty labels.
+      for (unsigned i = labels.size(); i < elementTypes.size(); ++i)
+        labels.push_back(StringRef());
+
       auto BuiltTuple =
-          Builder.createTupleType(elementTypes, std::move(labels));
+          Builder.createTupleType(elementTypes, labels);
       TypeCache[MetadataAddress] = BuiltTuple;
       return BuiltTuple;
     }

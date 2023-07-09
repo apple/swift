@@ -16,33 +16,6 @@ import SIL
 struct AliasAnalysis {
   let bridged: BridgedAliasAnalysis
 
-  func mayRead(_ inst: Instruction, fromAddress: Value) -> Bool {
-    switch bridged.getMemBehavior(inst.bridged, fromAddress.bridged) {
-      case .MayRead, .MayReadWrite, .MayHaveSideEffects:
-        return true
-      default:
-        return false
-    }
-  }
-
-  func mayWrite(_ inst: Instruction, toAddress: Value) -> Bool {
-    switch bridged.getMemBehavior(inst.bridged, toAddress.bridged) {
-      case .MayWrite, .MayReadWrite, .MayHaveSideEffects:
-        return true
-      default:
-        return false
-    }
-  }
-
-  func mayReadOrWrite(_ inst: Instruction, address: Value) -> Bool {
-    switch bridged.getMemBehavior(inst.bridged, address.bridged) {
-      case .MayRead, .MayWrite, .MayReadWrite, .MayHaveSideEffects:
-        return true
-      default:
-        return false
-    }
-  }
-
   /// Returns the correct path for address-alias functions.
   static func getPtrOrAddressPath(for value: Value) -> SmallProjectionPath {
     let ty = value.type
@@ -116,6 +89,35 @@ struct AliasAnalysis {
         return lhs.canAddressAlias(with: rhs, context)
       }
     )
+  }
+}
+
+extension Instruction {
+  func mayRead(fromAddress: Value, _ aliasAnalysis: AliasAnalysis) -> Bool {
+    switch aliasAnalysis.bridged.getMemBehavior(bridged, fromAddress.bridged) {
+      case .MayRead, .MayReadWrite, .MayHaveSideEffects:
+        return true
+      default:
+        return false
+    }
+  }
+
+  func mayWrite(toAddress: Value, _ aliasAnalysis: AliasAnalysis) -> Bool {
+    switch aliasAnalysis.bridged.getMemBehavior(bridged, toAddress.bridged) {
+      case .MayWrite, .MayReadWrite, .MayHaveSideEffects:
+        return true
+      default:
+        return false
+    }
+  }
+
+  func mayReadOrWrite(address: Value, _ aliasAnalysis: AliasAnalysis) -> Bool {
+    switch aliasAnalysis.bridged.getMemBehavior(bridged, address.bridged) {
+      case .MayRead, .MayWrite, .MayReadWrite, .MayHaveSideEffects:
+        return true
+      default:
+        return false
+    }
   }
 }
 

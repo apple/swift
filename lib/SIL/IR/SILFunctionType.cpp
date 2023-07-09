@@ -231,15 +231,15 @@ SILFunctionType::getDifferentiabilityParameterIndices() {
 IndexSubset *SILFunctionType::getDifferentiabilityResultIndices() {
   assert(isDifferentiable() && "Must be a differentiable function");
   SmallVector<unsigned, 8> resultIndices;
+
   // Check formal results.
   for (auto resultAndIndex : enumerate(getResults()))
     if (resultAndIndex.value().getDifferentiability() !=
         SILResultDifferentiability::NotDifferentiable)
       resultIndices.push_back(resultAndIndex.index());
+  
   // Check `inout` parameters.
   for (auto inoutParamAndIndex : enumerate(getIndirectMutatingParameters()))
-    // FIXME(TF-1305): The `getResults().empty()` condition is a hack.
-    //
     // Currently, an `inout` parameter can either be:
     // 1. Both a differentiability parameter and a differentiability result.
     // 2. `@noDerivative`: neither a differentiability parameter nor a
@@ -254,10 +254,11 @@ IndexSubset *SILFunctionType::getDifferentiabilityResultIndices() {
     // parameters are not treated as differentiability results, unless the
     // original function has no formal results, in which case all `inout`
     // parameters are treated as differentiability results.
-    if (getResults().empty() ||
+    if (resultIndices.empty() ||
         inoutParamAndIndex.value().getDifferentiability() !=
-            SILParameterDifferentiability::NotDifferentiable)
+        SILParameterDifferentiability::NotDifferentiable)
       resultIndices.push_back(getNumResults() + inoutParamAndIndex.index());
+
   auto numSemanticResults =
       getNumResults() + getNumIndirectMutatingParameters();
   return IndexSubset::get(getASTContext(), numSemanticResults, resultIndices);
@@ -371,24 +372,19 @@ getDifferentiabilityParameters(SILFunctionType *originalFnTy,
 /// `inout` parameters, in type order.
 static void
 getSemanticResults(SILFunctionType *functionType, IndexSubset *parameterIndices,
-                   IndexSubset *&inoutParameterIndices,
                    SmallVectorImpl<SILResultInfo> &originalResults) {
-  auto &C = functionType->getASTContext();
-  SmallVector<unsigned, 4> inoutParamIndices;
   // Collect original formal results.
   originalResults.append(functionType->getResults().begin(),
                          functionType->getResults().end());
+
   // Collect original `inout` parameters.
   for (auto i : range(functionType->getNumParameters())) {
     auto param = functionType->getParameters()[i];
-    if (!param.isIndirectInOut())
+    if (!param.isIndirectMutating())
       continue;
-    inoutParamIndices.push_back(i);
-    originalResults.push_back(
-        SILResultInfo(param.getInterfaceType(), ResultConvention::Indirect));
+    if (param.getDifferentiability() != SILParameterDifferentiability::NotDifferentiable)
+      originalResults.emplace_back(param.getInterfaceType(), ResultConvention::Indirect);
   }
-  inoutParameterIndices =
-      IndexSubset::get(C, parameterIndices->getCapacity(), inoutParamIndices);
 }
 
 static CanGenericSignature buildDifferentiableGenericSignature(CanGenericSignature sig,
@@ -566,10 +562,8 @@ static CanSILFunctionType getAutoDiffDifferentialType(
   SmallVector<Type, 4> substReplacements;
   SmallVector<ProtocolConformanceRef, 4> substConformances;
 
-  IndexSubset *inoutParamIndices;
   SmallVector<SILResultInfo, 2> originalResults;
-  getSemanticResults(originalFnTy, parameterIndices, inoutParamIndices,
-                     originalResults);
+  getSemanticResults(originalFnTy, parameterIndices, originalResults);
 
   SmallVector<SILParameterInfo, 4> diffParams;
   getDifferentiabilityParameters(originalFnTy, parameterIndices, diffParams);
@@ -603,7 +597,7 @@ static CanSILFunctionType getAutoDiffDifferentialType(
       differentialResults.push_back({resultTanType, resultConv});
       continue;
     }
-    // Handle original `inout` parameter.
+    // Handle original `inout` parameters.
     auto inoutParamIndex = resultIndex - originalFnTy->getNumResults();
     auto inoutParamIt = std::next(
         originalFnTy->getIndirectMutatingParameters().begin(), inoutParamIndex);
@@ -650,10 +644,8 @@ static CanSILFunctionType getAutoDiffPullbackType(
   SmallVector<Type, 4> substReplacements;
   SmallVector<ProtocolConformanceRef, 4> substConformances;
 
-  IndexSubset *inoutParamIndices;
   SmallVector<SILResultInfo, 2> originalResults;
-  getSemanticResults(originalFnTy, parameterIndices, inoutParamIndices,
-                     originalResults);
+  getSemanticResults(originalFnTy, parameterIndices, originalResults);
 
   // Given a type, returns its formal SIL parameter info.
   auto getTangentParameterConventionForOriginalResult =
@@ -745,7 +737,7 @@ static CanSILFunctionType getAutoDiffPullbackType(
       pullbackParams.push_back({resultTanType, paramConv});
       continue;
     }
-    // Handle original `inout` parameter.
+    // Handle `inout` parameters.
     auto inoutParamIndex = resultIndex - originalFnTy->getNumResults();
     auto inoutParamIt = std::next(
         originalFnTy->getIndirectMutatingParameters().begin(), inoutParamIndex);

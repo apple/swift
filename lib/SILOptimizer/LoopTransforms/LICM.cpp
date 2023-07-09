@@ -502,6 +502,11 @@ hoistSpecialInstruction(std::unique_ptr<LoopNestSummary> &LoopSummary,
   bool Changed = false;
 
   for (auto *Inst : Special) {
+    if (isa<BeginAccessInst>(Inst) && LoopSummary->Loop->hasNoExitBlocks()) {
+      // If no exit block, don't try to hoist BeginAccess because
+      // sinking EndAccess would fail later.
+      continue;
+    }
     if (!hoistInstruction(DT, Inst, Loop, Preheader)) {
       continue;
     }

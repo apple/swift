@@ -176,6 +176,7 @@ public:
   MemBehavior visitDestroyValueInst(DestroyValueInst *DVI);
   MemBehavior visitSetDeallocatingInst(SetDeallocatingInst *BI);
   MemBehavior visitBeginCOWMutationInst(BeginCOWMutationInst *BCMI);
+  MemBehavior visitDebugValueInst(DebugValueInst *dv);
 #define ALWAYS_OR_SOMETIMES_LOADABLE_CHECKED_REF_STORAGE(Name, ...) \
   MemBehavior visit##Name##ReleaseInst(Name##ReleaseInst *BI);
 #include "swift/AST/ReferenceStorage.def"
@@ -371,6 +372,15 @@ visitBeginCOWMutationInst(BeginCOWMutationInst *BCMI) {
   // begin_cow_mutation is defined to have side effects, because it has
   // dependencies with instructions which retain the buffer operand.
   // But it never interferes with any memory address.
+  return MemBehavior::None;
+}
+
+MemBehavior MemoryBehaviorVisitor::
+visitDebugValueInst(DebugValueInst *dv) {
+  SILValue op = dv->getOperand();
+  if (op->getType().isAddress() && mayAlias(op)) {
+    return MemBehavior::MayRead;
+  }
   return MemBehavior::None;
 }
 

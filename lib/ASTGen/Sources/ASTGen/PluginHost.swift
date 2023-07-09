@@ -14,7 +14,7 @@ import CASTBridging
 import CBasicBridging
 import SwiftSyntax
 import swiftLLVMJSON
-@_spi(PluginMessage) import SwiftCompilerPluginMessageHandling
+import SwiftCompilerPluginMessageHandling
 
 enum PluginError: String, Error, CustomStringConvertible {
   case stalePlugin = "plugin is stale"

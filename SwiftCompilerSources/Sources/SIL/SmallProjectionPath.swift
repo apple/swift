@@ -72,17 +72,22 @@ public struct SmallProjectionPath : Hashable, CustomStringConvertible, NoReflect
     case tupleField     = 0x2 // A concrete tuple element: syntax e.g. `2`
     case enumCase       = 0x3 // A concrete enum case (with payload): syntax e.g. `e4'
     case classField     = 0x4 // A concrete class field: syntax e.g. `c1`
-    case tailElements   = 0x5 // A tail allocated element of a class: syntax `ct`
-    case anyValueFields = 0x6 // Any number of any value fields (struct, tuple, enum): syntax `v**`
+    case indexedElement = 0x5 // A constant offset into an array of elements: syntax e.g. 'i2'
+                              // The index must not be 0 and there must not be two successive element indices in the path.
 
     // "Large" kinds: starting from here the low 3 bits must be 1.
     // This and all following kinds (we'll add in the future) cannot have a field index.
-    case anyClassField  = 0x7 // Any class field, including tail elements: syntax `c*`    
-    case anything       = 0xf // Any number of any fields: syntax `**`
+    case tailElements   =    0x07 // (0 << 3) | 0x7    A tail allocated element of a class: syntax `ct`
+    case existential    =    0x0f // (1 << 3) | 0x7    A concrete value projected out of an existential: synatx 'x'
+    case anyClassField  =    0x17 // (2 << 3) | 0x7    Any class field, including tail elements: syntax `c*`
+    case anyIndexedElement = 0x1f // (3 << 3) | 0x7    An unknown offset into an array of elements.
+                                  // There must not be two successive element indices in the path.
+    case anyValueFields =    0x27 // (4 << 3) | 0x7    Any number of any value fields (struct, tuple, enum): syntax `v**`
+    case anything       =    0x2f // (5 << 3) | 0x7    Any number of any fields: syntax `**`
 
     public var isValueField: Bool {
       switch self {
-        case .anyValueFields, .structField, .tupleField, .enumCase:
+        case .anyValueFields, .structField, .tupleField, .enumCase, .indexedElement, .anyIndexedElement, .existential:
           return true
         case .root, .anything, .anyClassField, .classField, .tailElements:
           return false
@@ -93,8 +98,17 @@ public struct SmallProjectionPath : Hashable, CustomStringConvertible, NoReflect
       switch self {
         case .anyClassField, .classField, .tailElements:
           return true
-        case .root, .anything, .anyValueFields, .structField, .tupleField, .enumCase:
+        case .root, .anything, .anyValueFields, .structField, .tupleField, .enumCase, .indexedElement, .anyIndexedElement, .existential:
           return false
+      }
+    }
+
+    var isIndexedElement: Bool {
+      switch self {
+      case .anyIndexedElement, .indexedElement:
+        return true
+      default:
+        return false
       }
     }
   }
@@ -121,6 +135,9 @@ public struct SmallProjectionPath : Hashable, CustomStringConvertible, NoReflect
       case .enumCase:       s = "e\(idx)"
       case .classField:     s = "c\(idx)"
       case .tailElements:   s = "ct"
+      case .existential:    s = "x"
+      case .indexedElement: s = "i\(idx)"
+      case .anyIndexedElement: s = "i*"
       case .anything:       s = "**"
       case .anyValueFields: s = "v**"
       case .anyClassField:  s = "c*"
@@ -182,6 +199,17 @@ public struct SmallProjectionPath : Hashable, CustomStringConvertible, NoReflect
   /// For example, pushing `s0` to `c3.e1` returns `s0.c3.e1`.
   public func push(_ kind: FieldKind, index: Int = 0) -> SmallProjectionPath {
     assert(kind != .anything || bytes == 0, "'anything' only allowed in last path component")
+    if (kind.isIndexedElement) {
+      if kind == .indexedElement && index == 0 {
+        // Ignore zero indices
+        return self
+      }
+      // "Merge" two successive indexed elements
+      let (k, _, numBits) = top
+      if (k.isIndexedElement) {
+        return pop(numBits: numBits).push(.anyIndexedElement)
+      }
+    }
     var idx = index
     var b = bytes
     if (b >> 56) != 0 {
@@ -234,6 +262,11 @@ public struct SmallProjectionPath : Hashable, CustomStringConvertible, NoReflect
           return pop(numBits: numBits)
         }
         return nil
+      case .anyIndexedElement:
+        if kind.isIndexedElement {
+          return self
+        }
+        return pop(numBits: numBits).popIfMatches(kind, index: index)
       case kind:
         if let i = index {
           if i != idx { return nil }
@@ -294,6 +327,15 @@ public struct SmallProjectionPath : Hashable, CustomStringConvertible, NoReflect
     }
   }
 
+  public func popIndexedElements() -> SmallProjectionPath {
+    var p = self
+    while true {
+      let (k, _, numBits) = p.top
+      if !k.isIndexedElement { return p }
+      p = p.pop(numBits: numBits)
+    }
+  }
+
   /// Pops the last class projection and all following value fields from the tail of the path.
   /// For example:
   ///    `s0.e2.3.c4.s1` -> `s0.e2.3`
@@ -344,7 +386,9 @@ public struct SmallProjectionPath : Hashable, CustomStringConvertible, NoReflect
         let (kind, _, subPath) = pop()
         if !kind.isClassField { return false }
         return subPath.matches(pattern: subPattern)
-      case .structField, .tupleField, .enumCase, .classField, .tailElements:
+      case .anyIndexedElement:
+        return popIndexedElements().matches(pattern: subPattern)
+      case .structField, .tupleField, .enumCase, .classField, .tailElements, .indexedElement, .existential:
         let (kind, index, subPath) = pop()
         if kind != patternKind || index != patternIdx { return false }
         return subPath.matches(pattern: subPattern)
@@ -372,6 +416,15 @@ public struct SmallProjectionPath : Hashable, CustomStringConvertible, NoReflect
         return subPath
       }
       return subPath.push(lhsKind, index: lhsIdx)
+    }
+    if lhsKind.isIndexedElement || rhsKind.isIndexedElement {
+      let subPath = popIndexedElements().merge(with: rhs.popIndexedElements())
+      let subPathTopKind = subPath.top.kind
+      assert(!subPathTopKind.isIndexedElement)
+      if subPathTopKind == .anything || subPathTopKind == .anyValueFields {
+        return subPath
+      }
+      return subPath.push(.anyIndexedElement)
     }
     if lhsKind.isValueField || rhsKind.isValueField {
       let subPath = popAllValueFields().merge(with: rhs.popAllValueFields())
@@ -407,6 +460,9 @@ public struct SmallProjectionPath : Hashable, CustomStringConvertible, NoReflect
     if lhsKind == .anything || rhsKind == .anything {
       return true
     }
+    if lhsKind == .anyIndexedElement || rhsKind == .anyIndexedElement {
+      return popIndexedElements().mayOverlap(with: rhs.popIndexedElements())
+    }
     if lhsKind == .anyValueFields || rhsKind == .anyValueFields {
       return popAllValueFields().mayOverlap(with: rhs.popAllValueFields())
     }
@@ -416,6 +472,29 @@ public struct SmallProjectionPath : Hashable, CustomStringConvertible, NoReflect
       return pop(numBits: lhsBits).mayOverlap(with: rhs.pop(numBits: rhsBits))
     }
     return false
+  }
+
+  /// Return true if this path is a sub-path of `rhs` or is equivalent to `rhs`.
+  ///
+  /// For example:
+  ///   `s0` is a sub-path of `s0.s1`
+  ///   `s0` is not a sub-path of `s1`
+  ///   `s0.s1` is a sub-path of `s0.s1`
+  ///   `i*.s1` is not a sub-path of `i*.s1` because the actual field is unknown on both sides
+  public func isSubPath(of rhs: SmallProjectionPath) -> Bool {
+    let (lhsKind, lhsIdx, lhsBits) = top
+    switch lhsKind {
+    case .root:
+      return true
+    case .classField, .tailElements, .structField, .tupleField, .enumCase, .existential, .indexedElement:
+      let (rhsKind, rhsIdx, rhsBits) = rhs.top
+      if lhsKind == rhsKind && lhsIdx == rhsIdx {
+        return pop(numBits: lhsBits).isSubPath(of: rhs.pop(numBits: rhsBits))
+      }
+      return false
+    case .anything, .anyValueFields, .anyClassField, .anyIndexedElement:
+      return false
+    }
   }
 }
 
@@ -490,8 +569,12 @@ extension StringParser {
         entries.append((.anyClassField, 0))
       } else if consume("v**") {
         entries.append((.anyValueFields, 0))
+      } else if consume("i*") {
+        entries.append((.anyIndexedElement, 0))
       } else if consume("ct") {
         entries.append((.tailElements, 0))
+      } else if consume("x") {
+        entries.append((.existential, 0))
       } else if consume("c") {
         guard let idx = consumeInt(withWhiteSpace: false) else {
           try throwError("expected class field index")
@@ -507,6 +590,11 @@ extension StringParser {
           try throwError("expected struct field index")
         }
         entries.append((.structField, idx))
+      } else if consume("i") {
+        guard let idx = consumeInt(withWhiteSpace: false) else {
+          try throwError("expected index")
+        }
+        entries.append((.indexedElement, idx))
       } else if let tupleElemIdx = consumeInt() {
         entries.append((.tupleField, tupleElemIdx))
       } else if !consume(".") {
@@ -546,6 +634,7 @@ extension SmallProjectionPath {
     merging()
     matching()
     overlapping()
+    subPathTesting()
     predicates()
     path2path()
   
@@ -561,6 +650,11 @@ extension SmallProjectionPath {
       assert(k4 == .enumCase && i4 == 876)
       let p5 = SmallProjectionPath(.anything)
       assert(p5.pop().path.isEmpty)
+      let p6 = SmallProjectionPath(.indexedElement, index: 1).push(.indexedElement, index: 2)
+      let (k6, i6, p7) = p6.pop()
+      assert(k6 == .anyIndexedElement && i6 == 0 && p7.isEmpty)
+      let p8 = SmallProjectionPath(.indexedElement, index: 0)
+      assert(p8.isEmpty)
     }
     
     func parsing() {
@@ -575,7 +669,10 @@ extension SmallProjectionPath {
                                          .push(.enumCase, index: 6)
                                          .push(.anyClassField)
                                          .push(.tupleField, index: 2))
-                                         
+      testParse("i3.x.i*", expect: SmallProjectionPath(.anyIndexedElement)
+                                         .push(.existential)
+                                         .push(.indexedElement, index: 3))
+
       do {
         var parser = StringParser("c*.s123.s3.s123.s3.s123.s3.s123.s3.s123.s3.s123.s3.s123.s3.s123.s3.s123.s3.s123.s3.s123.s3.s123.s3.s123.s3.**")
         _ = try parser.parseProjectionPathFromSIL()
@@ -606,6 +703,10 @@ extension SmallProjectionPath {
       testMerge("s1.s1.c2", "s1.c2",  expect: "s1.v**.c2")
       testMerge("s1.s0",    "s2.s0",  expect: "v**")
       testMerge("ct",       "c2",     expect: "c*")
+      testMerge("i1",       "i2",     expect: "i*")
+      testMerge("i*",       "i2",     expect: "i*")
+      testMerge("s0.i*.e3", "s0.e3",  expect: "s0.i*.e3")
+      testMerge("i*",       "v**",    expect: "v**")
 
       testMerge("ct.s0.e0.v**.c0", "ct.s0.e0.v**.c0", expect: "ct.s0.e0.v**.c0")
       testMerge("ct.s0.s0.c0",     "ct.s0.e0.s0.c0",  expect: "ct.s0.v**.c0")
@@ -635,18 +736,22 @@ extension SmallProjectionPath {
       testMatch("c*", "c1",  expect: false)
       testMatch("c*", "ct",  expect: false)
       testMatch("v**", "s0", expect: false)
+      testMatch("i1", "i1",  expect: true)
+      testMatch("i1", "i*",  expect: true)
+      testMatch("i*", "i1",  expect: false)
 
       testMatch("s0.s1", "s0.s1",     expect: true)
       testMatch("s0.s2", "s0.s1",     expect: false)
       testMatch("s0", "s0.v**",       expect: true)
       testMatch("s0.s1", "s0.v**",    expect: true)
       testMatch("s0.1.e2", "s0.v**",  expect: true)
-      testMatch("s0.v**.e2", "v**",   expect: true)
+      testMatch("s0.v**.x.e2", "v**", expect: true)
       testMatch("s0.v**", "s0.s1",    expect: false)
       testMatch("s0.s1.c*", "s0.v**", expect: false)
       testMatch("s0.v**", "s0.**",    expect: true)
       testMatch("s1.v**", "s0.**",    expect: false)
       testMatch("s0.**", "s0.v**",    expect: false)
+      testMatch("s0.s1", "s0.i*.s1",  expect: true)
     }
 
     func testMatch(_ lhsStr: String, _ rhsStr: String, expect: Bool) {
@@ -670,13 +775,17 @@ extension SmallProjectionPath {
       testOverlap("s0.c*.s2", "s0.c1.c2.s2",  expect: false)
       testOverlap("s0.c*.s2", "s0.s2",        expect: false)
 
-      testOverlap("s0.v**.s2", "s0.s3",       expect: true)
+      testOverlap("s0.v**.s2", "s0.s3.x",     expect: true)
       testOverlap("s0.v**.s2.c2", "s0.s3.c1", expect: false)
       testOverlap("s0.v**.s2", "s1.s3",       expect: false)
       testOverlap("s0.v**.s2", "s0.v**.s3",   expect: true)
 
       testOverlap("s0.**", "s0.s3.c1",        expect: true)
       testOverlap("**", "s0.s3.c1",           expect: true)
+
+      testOverlap("i1", "i*",                 expect: true)
+      testOverlap("i1", "v**",                expect: true)
+      testOverlap("s0.i*.s1", "s0.s1",        expect: true)
     }
 
     func testOverlap(_ lhsStr: String, _ rhsStr: String, expect: Bool) {
@@ -688,6 +797,27 @@ extension SmallProjectionPath {
       assert(result == expect)
       let reversedResult = rhs.mayOverlap(with: lhs)
       assert(reversedResult == expect)
+    }
+
+    func subPathTesting() {
+      testSubPath("s0", "s0.s1",                  expect: true)
+      testSubPath("s0", "s1",                     expect: false)
+      testSubPath("s0.s1", "s0.s1",               expect: true)
+      testSubPath("i*.s1", "i*.s1",               expect: false)
+      testSubPath("ct.s1.0.i3.x", "ct.s1.0.i3.x", expect: true)
+      testSubPath("c0.s1.0.i3", "c0.s1.0.i3.x",   expect: true)
+      testSubPath("s1.0.i3.x", "s1.0.i3",         expect: false)
+      testSubPath("v**.s1", "v**.s1",             expect: false)
+      testSubPath("i*", "i*",                     expect: false)
+    }
+
+    func testSubPath(_ lhsStr: String, _ rhsStr: String, expect: Bool) {
+      var lhsParser = StringParser(lhsStr)
+      let lhs = try! lhsParser.parseProjectionPathFromSIL()
+      var rhsParser = StringParser(rhsStr)
+      let rhs = try! rhsParser.parseProjectionPathFromSIL()
+      let result = lhs.isSubPath(of: rhs)
+      assert(result == expect)
     }
 
     func predicates() {
@@ -737,6 +867,10 @@ extension SmallProjectionPath {
       testPath2Path("c0.s3",  { $0.popIfMatches(.anyClassField) }, expect: nil)
       testPath2Path("**",     { $0.popIfMatches(.anyClassField) }, expect: "**")
       testPath2Path("c*.e3",  { $0.popIfMatches(.anyClassField) }, expect: "e3")
+
+      testPath2Path("i*.e3.s0", { $0.popIfMatches(.enumCase, index: 3) }, expect: "s0")
+      testPath2Path("i1.e3.s0", { $0.popIfMatches(.enumCase, index: 3) }, expect: nil)
+      testPath2Path("i*.e3.s0", { $0.popIfMatches(.indexedElement, index: 0) }, expect: "i*.e3.s0")
     }
 
     func testPath2Path(_ pathStr: String, _ transform: (SmallProjectionPath) -> SmallProjectionPath?, expect: String?) {

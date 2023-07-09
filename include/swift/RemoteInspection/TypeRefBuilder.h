@@ -743,8 +743,9 @@ public:
   }
 
   const TupleTypeRef *createTupleType(llvm::ArrayRef<const TypeRef *> elements,
-                                      std::string &&labels) {
-    return TupleTypeRef::create(*this, elements, std::move(labels));
+                                      llvm::ArrayRef<StringRef> labels) {
+    std::vector<std::string> labelsVec(labels.begin(), labels.end());
+    return TupleTypeRef::create(*this, elements, labelsVec);
   }
 
   const TypeRef *createPackType(llvm::ArrayRef<const TypeRef *> elements) {
@@ -758,10 +759,22 @@ public:
     return nullptr;
   }
 
-  const TypeRef *createPackExpansionType(const TypeRef *patternType,
-                                         const TypeRef *countType) {
+  size_t beginPackExpansion(const TypeRef *countType) {
+    // FIXME: Remote mirrors support for variadic generics.
+    return 0;
+  }
+
+  void advancePackExpansion(size_t index) {
+    // FIXME: Remote mirrors support for variadic generics.
+  }
+
+  const TypeRef *createExpandedPackElement(const TypeRef *patternType) {
     // FIXME: Remote mirrors support for variadic generics.
     return nullptr;
+  }
+
+  void endPackExpansion() {
+    // FIXME: Remote mirrors support for variadic generics.
   }
 
   const FunctionTypeRef *createFunctionType(
@@ -825,7 +838,7 @@ public:
       break;
     }
 
-    auto result = createTupleType({}, "");
+    auto result = createTupleType({}, llvm::ArrayRef<llvm::StringRef>());
     return FunctionTypeRef::create(
         *this, {}, result, funcFlags, diffKind, nullptr);
   }

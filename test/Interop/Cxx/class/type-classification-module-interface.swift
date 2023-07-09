@@ -6,6 +6,8 @@
 // CHECK-NOT: StructWithInheritedPrivateDefaultedCopyConstructor
 // CHECK-NOT: StructWithSubobjectPrivateDefaultedCopyConstructor
 // CHECK-NOT: StructNonCopyableTriviallyMovable
+// CHECK-NOT: StructWithPointerNonCopyableTriviallyMovable
+// CHECK-NOT: StructWithPointerNonCopyableTriviallyMovableField
 // CHECK-NOT: StructNonCopyableNonMovable
 // CHECK-NOT: StructWithMoveConstructor
 // CHECK-NOT: StructWithInheritedMoveConstructor
@@ -16,6 +18,8 @@
 // CHECK-NOT: StructWithPrivateDefaultedDestructor
 // CHECK-NOT: StructWithInheritedPrivateDefaultedDestructor
 // CHECK-NOT: StructWithSubobjectPrivateDefaultedDestructor
+// CHECK-NOT: StructWithDeletedCopyConstructor
+// CHECK-NOT: StructWithMoveConstructorAndDeletedCopyConstructor
 // CHECK-NOT: StructWithDeletedDestructor
 // CHECK-NOT: StructWithInheritedDeletedDestructor
 // CHECK-NOT: StructWithSubobjectDeletedDestructor

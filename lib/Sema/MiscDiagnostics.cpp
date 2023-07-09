@@ -1405,10 +1405,14 @@ static void diagSyntacticUseRestrictions(const Expr *E, const DeclContext *DC,
       Expr *subExpr = nullptr;
       if (calleeName == "??" &&
           (subExpr = isImplicitPromotionToOptional(lhs))) {
-        Ctx.Diags.diagnose(DRE->getLoc(), diag::use_of_qq_on_non_optional_value,
-                           subExpr->getType())
-          .highlight(lhs->getSourceRange())
-          .fixItRemove(SourceRange(DRE->getLoc(), rhs->getEndLoc()));
+
+        Ctx.Diags
+            .diagnose(DRE->getLoc(), diag::use_of_qq_on_non_optional_value,
+                      subExpr->getType())
+            .highlight(lhs->getSourceRange())
+            .fixItRemoveChars(
+                Lexer::getLocForEndOfToken(Ctx.SourceMgr, lhs->getEndLoc()),
+                Lexer::getLocForEndOfToken(Ctx.SourceMgr, rhs->getEndLoc()));
         return;
       }
       

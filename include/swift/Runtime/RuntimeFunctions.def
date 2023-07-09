@@ -2336,6 +2336,17 @@ FUNCTION(SingletonEnumGetEnumTag,
          ATTRS(NoUnwind, WillReturn),
          EFFECT(NoEffect))
 
+// void swift_singletonEnum_destructiveInjectEnumTag(swift::OpaqueValue *address,
+//                                                   unsigned tag,
+//                                                   const Metadata *metadata)
+FUNCTION(SingletonEnumDestructiveInjectEnumTag,
+         swift_singletonEnum_destructiveInjectEnumTag,
+         C_CC, AlwaysAvailable,
+         RETURNS(VoidTy),
+         ARGS(Int8PtrTy, Int32Ty, TypeMetadataPtrTy),
+         ATTRS(NoUnwind, WillReturn),
+         EFFECT(NoEffect))
+
 // unsigned swift_enumSimple_getEnumTag(swift::OpaqueValue *address,
 //                                      const Metadata *metadata);
 FUNCTION(EnumSimpleGetEnumTag,
@@ -2343,6 +2354,17 @@ FUNCTION(EnumSimpleGetEnumTag,
          C_CC, AlwaysAvailable,
          RETURNS(Int32Ty),
          ARGS(Int8PtrTy, TypeMetadataPtrTy),
+         ATTRS(NoUnwind, WillReturn),
+         EFFECT(NoEffect))
+
+// unsigned swift_enumSimple_destructiveInjectEnumTag(swift::OpaqueValue *address,
+//                                                    unsigned tag,
+//                                                    const Metadata *metadata)
+FUNCTION(EnumSimpleDestructiveInjectEnumTag,
+         swift_enumSimple_destructiveInjectEnumTag,
+         C_CC, AlwaysAvailable,
+         RETURNS(VoidTy),
+         ARGS(Int8PtrTy, Int32Ty, TypeMetadataPtrTy),
          ATTRS(NoUnwind, WillReturn),
          EFFECT(NoEffect))
 

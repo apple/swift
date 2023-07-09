@@ -1158,42 +1158,40 @@ void SILGenModule::emitFunctionDefinition(SILDeclRef constant, SILFunction *f) {
   }
 }
 
-/// Emit a function now, if it's externally usable or has been referenced in
-/// the current TU, or remember how to emit it later if not.
-static void emitOrDelayFunction(SILGenModule &SGM, SILDeclRef constant) {
+void SILGenModule::emitOrDelayFunction(SILDeclRef constant) {
   assert(!constant.isThunk());
   assert(!constant.isClangImported());
 
-  auto emitAfter = SGM.lastEmittedFunction;
+  auto emitAfter = lastEmittedFunction;
 
   // Implicit decls may be delayed if they can't be used externally.
   auto linkage = constant.getLinkage(ForDefinition);
   bool mayDelay = !constant.hasUserWrittenCode() &&
                   !constant.isDynamicallyReplaceable() &&
-                  !isPossiblyUsedExternally(linkage, SGM.M.isWholeModule());
+                  !isPossiblyUsedExternally(linkage, M.isWholeModule());
 
   if (!mayDelay) {
-    SGM.emitFunctionDefinition(constant, SGM.getFunction(constant, ForDefinition));
+    emitFunctionDefinition(constant, getFunction(constant, ForDefinition));
     return;
   }
 
   // If the function is already forced then it was previously delayed and then
   // referenced. We don't need to emit or delay it again.
-  if (SGM.forcedFunctions.contains(constant))
+  if (forcedFunctions.contains(constant))
     return;
 
-  if (auto *f = SGM.getEmittedFunction(constant, ForDefinition)) {
-    SGM.emitFunctionDefinition(constant, f);
+  if (auto *f = getEmittedFunction(constant, ForDefinition)) {
+    emitFunctionDefinition(constant, f);
     return;
   }
 
   // This is a delayable function so remember how to emit it in case it gets
   // referenced later.
-  SGM.delayedFunctions.insert({constant, emitAfter});
+  delayedFunctions.insert({constant, emitAfter});
   // Even though we didn't emit the function now, update the
   // lastEmittedFunction so that we preserve the original ordering that
   // the symbols would have been emitted in.
-  SGM.lastEmittedFunction = constant;
+  lastEmittedFunction = constant;
 }
 
 void SILGenModule::preEmitFunction(SILDeclRef constant, SILFunction *F,
@@ -1247,11 +1245,13 @@ void SILGenModule::emitDifferentiabilityWitnessesForFunction(
   auto *AFD = constant.getAbstractFunctionDecl();
   auto emitWitnesses = [&](DeclAttributes &Attrs) {
     for (auto *diffAttr : Attrs.getAttributes<DifferentiableAttr>()) {
-      auto *resultIndices = IndexSubset::get(getASTContext(), 1, {0});
       assert((!F->getLoweredFunctionType()->getSubstGenericSignature() ||
               diffAttr->getDerivativeGenericSignature()) &&
              "Type-checking should resolve derivative generic signatures for "
              "all original SIL functions with generic signatures");
+      auto *resultIndices =
+        autodiff::getFunctionSemanticResultIndices(AFD,
+                                                   diffAttr->getParameterIndices());
       auto witnessGenSig =
           autodiff::getDifferentiabilityWitnessGenericSignature(
               AFD->getGenericSignature(),
@@ -1280,7 +1280,9 @@ void SILGenModule::emitDifferentiabilityWitnessesForFunction(
       auto witnessGenSig =
           autodiff::getDifferentiabilityWitnessGenericSignature(
               origAFD->getGenericSignature(), AFD->getGenericSignature());
-      auto *resultIndices = IndexSubset::get(getASTContext(), 1, {0});
+      auto *resultIndices =
+        autodiff::getFunctionSemanticResultIndices(origAFD,
+                                                   derivAttr->getParameterIndices());
       AutoDiffConfig config(derivAttr->getParameterIndices(), resultIndices,
                             witnessGenSig);
       emitDifferentiabilityWitness(origAFD, origFn,
@@ -1303,6 +1305,7 @@ void SILGenModule::emitDifferentiabilityWitness(
   auto origSilFnType = originalFunction->getLoweredFunctionType();
   auto *silParamIndices =
       autodiff::getLoweredParameterIndices(config.parameterIndices, origFnType);
+
   // NOTE(TF-893): Extending capacity is necessary when `origSilFnType` has
   // parameters corresponding to captured variables. These parameters do not
   // appear in the type of `origFnType`.
@@ -1432,7 +1435,7 @@ void SILGenModule::emitFunction(FuncDecl *fd) {
   emitAbstractFuncDecl(fd);
 
   if (fd->hasBody())
-    emitOrDelayFunction(*this, SILDeclRef(decl));
+    emitOrDelayFunction(SILDeclRef(decl));
 }
 
 void SILGenModule::addGlobalVariable(VarDecl *global) {
@@ -1457,11 +1460,11 @@ void SILGenModule::emitConstructor(ConstructorDecl *decl) {
     // initializers, have separate entry points for allocation and
     // initialization.
     if (decl->isDesignatedInit() || decl->isObjC()) {
-      emitOrDelayFunction(*this, constant);
+      emitOrDelayFunction(constant);
 
       if (decl->hasBody()) {
         SILDeclRef initConstant(decl, SILDeclRef::Kind::Initializer);
-        emitOrDelayFunction(*this, initConstant);
+        emitOrDelayFunction(initConstant);
       }
 
       return;
@@ -1471,7 +1474,7 @@ void SILGenModule::emitConstructor(ConstructorDecl *decl) {
   // Struct and enum constructors do everything in a single function, as do
   // non-@objc convenience initializers for classes.
   if (decl->hasBody()) {
-    emitOrDelayFunction(*this, constant);
+    emitOrDelayFunction(constant);
   }
 }
 
@@ -1620,7 +1623,7 @@ void SILGenModule::emitDefaultArgGenerator(SILDeclRef constant,
 
   case DefaultArgumentKind::Normal:
   case DefaultArgumentKind::StoredProperty:
-    emitOrDelayFunction(*this, constant);
+    emitOrDelayFunction(constant);
     break;
 
   case DefaultArgumentKind::Inherited:
@@ -1638,7 +1641,7 @@ void SILGenModule::
 emitStoredPropertyInitialization(PatternBindingDecl *pbd, unsigned i) {
   auto *var = pbd->getAnchoringVarDecl(i);
   SILDeclRef constant(var, SILDeclRef::Kind::StoredPropertyInitializer);
-  emitOrDelayFunction(*this, constant);
+  emitOrDelayFunction(constant);
 }
 
 void SILGenModule::
@@ -1647,12 +1650,12 @@ emitPropertyWrapperBackingInitializer(VarDecl *var) {
 
   if (initInfo.hasInitFromWrappedValue()) {
     SILDeclRef constant(var, SILDeclRef::Kind::PropertyWrapperBackingInitializer);
-    emitOrDelayFunction(*this, constant);
+    emitOrDelayFunction(constant);
   }
 
   if (initInfo.hasInitFromProjectedValue()) {
     SILDeclRef constant(var, SILDeclRef::Kind::PropertyWrapperInitFromProjectedValue);
-    emitOrDelayFunction(*this, constant);
+    emitOrDelayFunction(constant);
   }
 }
 
@@ -1687,7 +1690,7 @@ void SILGenModule::emitGlobalAccessor(VarDecl *global,
                                       SILFunction *onceFunc) {
   SILDeclRef accessor(global, SILDeclRef::Kind::GlobalAccessor);
   delayedGlobals[global] = std::make_pair(onceToken, onceFunc);
-  emitOrDelayFunction(*this, accessor);
+  emitOrDelayFunction(accessor);
 }
 
 void SILGenModule::emitArgumentGenerators(SILDeclRef::Loc decl,

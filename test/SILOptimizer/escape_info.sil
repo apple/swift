@@ -615,7 +615,7 @@ bb0:
 
 
 // CHECK-LABEL: Escape information for test_cast_and_existentials_walk_down:
-// CHECK: return[]: %0 = alloc_ref $Derived
+// CHECK: return[x]: %0 = alloc_ref $Derived
 // CHECK:  -    :   %1 = alloc_ref $Derived
 // CHECK: End function test_cast_and_existentials_walk_down
 sil @test_cast_and_existentials_walk_down : $@convention(thin) () -> ClassP {

@@ -83,7 +83,7 @@ public:
     Bits.push_back(Integer >> 32);
   }
 
-  void addString(const std::string &String) {
+  void addString(llvm::StringRef String) {
     if (String.empty()) {
       Bits.push_back(0);
     } else {
@@ -364,47 +364,34 @@ public:
 class TupleTypeRef final : public TypeRef {
 protected:
   std::vector<const TypeRef *> Elements;
-  std::string Labels;
+  std::vector<std::string> Labels;
 
   static TypeRefID Profile(const std::vector<const TypeRef *> &Elements,
-                           const std::string &Labels) {
+                           const std::vector<std::string> &Labels) {
     TypeRefID ID;
     for (auto Element : Elements)
       ID.addPointer(Element);
-    ID.addString(Labels);
+    for (auto Label : Labels)
+      ID.addString(Label);
     return ID;
   }
 
 public:
-  TupleTypeRef(std::vector<const TypeRef *> Elements, std::string &&Labels)
+  TupleTypeRef(std::vector<const TypeRef *> Elements,
+               std::vector<std::string> Labels)
       : TypeRef(TypeRefKind::Tuple), Elements(std::move(Elements)),
-        Labels(Labels) {}
+        Labels(std::move(Labels)) {}
 
   template <typename Allocator>
   static const TupleTypeRef *create(Allocator &A,
                                     std::vector<const TypeRef *> Elements,
-                                    std::string &&Labels) {
+                                    const std::vector<std::string> Labels) {
     FIND_OR_CREATE_TYPEREF(A, TupleTypeRef, Elements, Labels);
   }
 
   const std::vector<const TypeRef *> &getElements() const { return Elements; };
-  const std::string &getLabelString() const { return Labels; };
-  std::vector<llvm::StringRef> getLabels() const {
-    std::vector<llvm::StringRef> Vec;
-    std::string::size_type End, Start = 0;
-    while (true) {
-      End = Labels.find(' ', Start);
-      if (End == std::string::npos)
-        break;
-      Vec.push_back(llvm::StringRef(Labels.data() + Start, End - Start));
-      Start = End + 1;
-    }
-    // A canonicalized TypeRef has an empty label string.
-    // Pad the vector with empty labels.
-    for (unsigned N = Vec.size(); N < Elements.size(); ++N)
-      Vec.push_back({});
-    return Vec;
-  };
+
+  const std::vector<std::string> &getLabels() const { return Labels; }
 
   static bool classof(const TypeRef *TR) {
     return TR->getKind() == TypeRefKind::Tuple;

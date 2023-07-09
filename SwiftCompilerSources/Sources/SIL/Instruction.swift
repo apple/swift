@@ -345,7 +345,14 @@ final public class UnimplementedRefCountingInst : RefCountingInst {}
 //                      no-value deallocation instructions
 //===----------------------------------------------------------------------===//
 
-public protocol Deallocation : Instruction { }
+public protocol Deallocation : Instruction {
+  var allocatedValue: Value { get }
+}
+
+extension Deallocation {
+  public var allocatedValue: Value { operands[0].value }
+}
+
 
 final public class DeallocStackInst : Instruction, UnaryInstruction, Deallocation {
   public var allocstack: AllocStackInst {
@@ -460,7 +467,9 @@ class InitExistentialRefInst : SingleValueInstruction, UnaryInstruction {
 }
 
 final public
-class OpenExistentialRefInst : SingleValueInstruction, UnaryInstruction {}
+class OpenExistentialRefInst : SingleValueInstruction, UnaryInstruction {
+  public var existential: Value { operand.value }
+}
 
 final public
 class InitExistentialValueInst : SingleValueInstruction, UnaryInstruction {}

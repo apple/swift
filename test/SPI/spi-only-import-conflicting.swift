@@ -10,21 +10,29 @@
 
 /// Build clients.
 // RUN: %target-swift-frontend -typecheck %t/SPIOnly_Default.swift -I %t -verify \
+// RUN:   -swift-version 5 -enable-library-evolution \
 // RUN:   -experimental-spi-only-imports -verify
 // RUN: %target-swift-frontend -typecheck %t/Default_SPIOnly.swift -I %t -verify \
+// RUN:   -swift-version 5 -enable-library-evolution \
 // RUN:   -experimental-spi-only-imports -verify
 // RUN: %target-swift-frontend -typecheck %t/SPIOnly_Exported.swift -I %t -verify \
+// RUN:   -swift-version 5 -enable-library-evolution \
 // RUN:   -experimental-spi-only-imports -verify
 // RUN: %target-swift-frontend -typecheck %t/Exported_SPIOnly.swift -I %t -verify \
+// RUN:   -swift-version 5 -enable-library-evolution \
 // RUN:   -experimental-spi-only-imports -verify
 // RUN: %target-swift-frontend -typecheck %t/SPIOnly_IOI.swift -I %t -verify \
+// RUN:   -swift-version 5 -enable-library-evolution \
 // RUN:   -experimental-spi-only-imports -verify
 // RUN: %target-swift-frontend -typecheck %t/SPIOnly_IOI_Exported_Default.swift -I %t -verify \
+// RUN:   -swift-version 5 -enable-library-evolution \
 // RUN:   -experimental-spi-only-imports -verify
 // RUN: %target-swift-frontend -typecheck -primary-file %t/SPIOnly_Default_FileA.swift \
+// RUN:   -swift-version 5 -enable-library-evolution \
 // RUN:   %t/SPIOnly_Default_FileB.swift -I %t -verify \
 // RUN:   -experimental-spi-only-imports -verify
 // RUN: %target-swift-frontend -typecheck -primary-file %t/IOI_Default_FileA.swift \
+// RUN:   -swift-version 5 -enable-library-evolution \
 // RUN:   %t/IOI_Default_FileB.swift -I %t -verify \
 // RUN:   -experimental-spi-only-imports -verify
 

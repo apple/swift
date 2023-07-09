@@ -15,3 +15,15 @@ func b(_ f: @differentiable(_linear) (Float) -> Float) {}
 
 func c(_ f: @differentiable(reverse) (Float, @noDerivative Float) -> Float) {}
 // CHECK: func c(_ f: @differentiable(reverse) (Float, @noDerivative Float) -> Float)
+
+func d(_ f: @differentiable(reverse) (inout Float) -> ()) {}
+// CHECK: func d(_ f: @differentiable(reverse) (inout Float) -> ())
+
+func e(_ f: @differentiable(reverse) (inout Float, inout Float) -> ()) {}
+// CHECK: func e(_ f: @differentiable(reverse) (inout Float, inout Float) -> ())
+
+func f(_ f: @differentiable(reverse) (inout Float) -> Float) {}
+// CHECK: func f(_ f: @differentiable(reverse) (inout Float) -> Float)
+
+func g(_ f: @differentiable(reverse) (inout Float, Float) -> Float) {}
+// CHECK: func g(_ f: @differentiable(reverse) (inout Float, Float) -> Float)

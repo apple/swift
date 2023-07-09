@@ -564,6 +564,8 @@ public:
   bool isFunction() const { return is<SILFunctionType>(); }
   bool isMetatype() const { return is<MetatypeType>(); }
 
+  VarDecl *getFieldDecl(intptr_t fieldIndex) const;
+
   /// Given that this is a nominal type, return the lowered type of
   /// the given field.  Applies substitutions as necessary.  The
   /// result will be an address type if the base type is an address

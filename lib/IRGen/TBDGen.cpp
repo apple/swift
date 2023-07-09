@@ -606,13 +606,14 @@ TBDFile GenerateTBDRequest::evaluate(Evaluator &evaluator,
 
   llvm::MachO::Target target(ctx.LangOpts.Target);
   file.addTarget(target);
+  llvm::MachO::TargetList targets{target};
   // Add target variant
   if (ctx.LangOpts.TargetVariant.has_value()) {
     llvm::MachO::Target targetVar(*ctx.LangOpts.TargetVariant);
     file.addTarget(targetVar);
+    targets.push_back(targetVar);
   }
 
-  llvm::MachO::TargetList targets{target};
   auto addSymbol = [&](StringRef symbol, SymbolKind kind, SymbolSource source) {
     file.addSymbol(kind, symbol, targets);
   };

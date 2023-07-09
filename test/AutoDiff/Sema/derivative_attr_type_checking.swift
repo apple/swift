@@ -749,13 +749,19 @@ extension ProtocolRequirementDerivative {
 func multipleSemanticResults(_ x: inout Float) -> Float {
   return x
 }
-// expected-error @+1 {{cannot differentiate functions with both an 'inout' parameter and a result}}
 @derivative(of: multipleSemanticResults)
 func vjpMultipleSemanticResults(x: inout Float) -> (
-  value: Float, pullback: (Float) -> Float
-) {
-  return (multipleSemanticResults(&x), { $0 })
+  value: Float, pullback: (Float, inout Float) -> Void
+) { fatalError() }
+
+func inoutNonDifferentiableResult(_ x: inout Float) -> Int {
+  return 5
 }
+// expected-error @+1 {{can only differentiate functions with results that conform to 'Differentiable', but 'Int' does not conform to 'Differentiable'}}
+@derivative(of: inoutNonDifferentiableResult)
+func vjpInoutNonDifferentiableResult(x: inout Float) -> (
+  value: Int, pullback: (inout Float) -> Void
+) { fatalError() }
 
 struct InoutParameters: Differentiable {
   typealias TangentVector = DummyTangentVector
@@ -888,17 +894,32 @@ func vjpNoSemanticResults(_ x: Float) -> (value: Void, pullback: Void) {}
 
 extension InoutParameters {
   func multipleSemanticResults(_ x: inout Float) -> Float { x }
-  // expected-error @+1 {{cannot differentiate functions with both an 'inout' parameter and a result}}
-  @derivative(of: multipleSemanticResults)
+  @derivative(of: multipleSemanticResults, wrt: x)
   func vjpMultipleSemanticResults(_ x: inout Float) -> (
-    value: Float, pullback: (inout Float) -> Void
+    value: Float, pullback: (Float, inout Float) -> Void
   ) { fatalError() }
 
   func inoutVoid(_ x: Float, _ void: inout Void) -> Float {}
-  // expected-error @+1 {{cannot differentiate functions with both an 'inout' parameter and a result}}
-  @derivative(of: inoutVoid)
+  @derivative(of: inoutVoid, wrt: (x, void))
   func vjpInoutVoidParameter(_ x: Float, _ void: inout Void) -> (
-    value: Float, pullback: (inout Float) -> Void
+    value: Float, pullback: (Float) -> Float
+  ) { fatalError() }
+}
+
+// Test tuple results.
+
+extension InoutParameters {
+  func tupleResults(_ x: Float) -> (Float, Float) { (x, x) }
+  @derivative(of: tupleResults, wrt: x)
+  func vjpTupleResults(_ x: Float) -> (
+    value: (Float, Float), pullback: (Float, Float) -> Float
+  ) { fatalError() }
+
+  func tupleResultsInt(_ x: Float) -> (Int, Float) { (1, x) }
+  // expected-error @+1 {{can only differentiate functions with results that conform to 'Differentiable', but 'Int' does not conform to 'Differentiable'}}
+  @derivative(of: tupleResultsInt, wrt: x)
+  func vjpTupleResults(_ x: Float) -> (
+    value: (Int, Float), pullback: (Float) -> Float
   ) { fatalError() }
 }
 

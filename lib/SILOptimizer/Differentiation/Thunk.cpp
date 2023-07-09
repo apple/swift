@@ -474,6 +474,12 @@ getOrCreateSubsetParametersThunkForLinearMap(
     return mappedIndex;
   };
 
+  auto toIndirectResultsIter = thunk->getIndirectResults().begin();
+  auto useNextIndirectResult = [&]() {
+      assert(toIndirectResultsIter != thunk->getIndirectResults().end());
+      arguments.push_back(*toIndirectResultsIter++);
+  };
+
   switch (kind) {
   // Differential arguments are:
   // - All indirect results, followed by:
@@ -482,9 +488,29 @@ getOrCreateSubsetParametersThunkForLinearMap(
   //     indices).
   //   - Zeros (when parameter is not in desired indices).
   case AutoDiffDerivativeFunctionKind::JVP: {
-    // Forward all indirect results.
-    arguments.append(thunk->getIndirectResults().begin(),
-                     thunk->getIndirectResults().end());
+    unsigned numIndirectResults = linearMapType->getNumIndirectFormalResults();
+    // Forward desired indirect results
+    for (unsigned idx : *actualConfig.resultIndices) {
+      if (idx >= numIndirectResults)
+        break;
+
+      auto resultInfo = linearMapType->getResults()[idx];
+      assert(idx < linearMapType->getNumResults());
+
+      // Forward result argument in case we do not need to thunk it away
+      if (desiredConfig.resultIndices->contains(idx)) {
+        useNextIndirectResult();
+        continue;
+      }
+
+      // Otherwise, allocate and use an uninitialized indirect result
+      auto *indirectResult = builder.createAllocStack(
+        loc, resultInfo.getSILStorageInterfaceType());
+      localAllocations.push_back(indirectResult);
+      arguments.push_back(indirectResult);
+    }
+    assert(toIndirectResultsIter == thunk->getIndirectResults().end());
+
     auto toArgIter = thunk->getArgumentsWithoutIndirectResults().begin();
     auto useNextArgument = [&]() { arguments.push_back(*toArgIter++); };
     // Iterate over actual indices.
@@ -509,10 +535,6 @@ getOrCreateSubsetParametersThunkForLinearMap(
   //   - Zeros (when parameter is not in desired indices).
   // - All actual arguments.
   case AutoDiffDerivativeFunctionKind::VJP: {
-    auto toIndirectResultsIter = thunk->getIndirectResults().begin();
-    auto useNextIndirectResult = [&]() {
-      arguments.push_back(*toIndirectResultsIter++);
-    };
     // Collect pullback arguments.
     unsigned pullbackResultIndex = 0;
     for (unsigned i : actualConfig.parameterIndices->getIndices()) {
@@ -541,8 +563,17 @@ getOrCreateSubsetParametersThunkForLinearMap(
       arguments.push_back(indirectResult);
     }
     // Forward all actual non-indirect-result arguments.
-    arguments.append(thunk->getArgumentsWithoutIndirectResults().begin(),
-                     thunk->getArgumentsWithoutIndirectResults().end() - 1);
+    auto thunkArgs = thunk->getArgumentsWithoutIndirectResults();
+    // Slice out the function to be called
+    thunkArgs = thunkArgs.slice(0, thunkArgs.size() - 1);
+    unsigned thunkArg = 0;
+    for (unsigned idx : *actualConfig.resultIndices) {
+      // Forward result argument in case we do not need to thunk it away
+      if (desiredConfig.resultIndices->contains(idx))
+        arguments.push_back(thunkArgs[thunkArg++]);
+      else // otherwise, zero it out
+        buildZeroArgument(linearMapType->getParameters()[arguments.size()]);
+    }
     break;
   }
   }
@@ -552,10 +583,33 @@ getOrCreateSubsetParametersThunkForLinearMap(
   auto *ai = builder.createApply(loc, linearMap, SubstitutionMap(), arguments);
 
   // If differential thunk, deallocate local allocations and directly return
-  // `apply` result.
+  // `apply` result (if it is desired).
   if (kind == AutoDiffDerivativeFunctionKind::JVP) {
+    SmallVector<SILValue, 8> differentialDirectResults;
+    extractAllElements(ai, builder, differentialDirectResults);
+    SmallVector<SILValue, 8> allResults;
+    collectAllActualResultsInTypeOrder(ai, differentialDirectResults, allResults);
+    unsigned numResults = thunk->getConventions().getNumDirectSILResults() +
+     thunk->getConventions().getNumDirectSILResults();
+    SmallVector<SILValue, 8> results;
+    for (unsigned idx : *actualConfig.resultIndices) {
+      if (idx >= numResults)
+        break;
+
+      auto result = allResults[idx];
+      if (desiredConfig.isWrtResult(idx))
+        results.push_back(result);
+      else {
+        if (result->getType().isAddress())
+          builder.emitDestroyAddrAndFold(loc, result);
+        else
+          builder.emitDestroyValueOperation(loc, result);
+      }
+    }
+
     cleanupValues();
-    builder.createReturn(loc, ai);
+    auto result = joinElements(results, builder, loc);
+    builder.createReturn(loc, result);
     return {thunk, interfaceSubs};
   }
 
@@ -772,8 +826,8 @@ getOrCreateSubsetParametersThunkForDerivativeFunction(
         /*withoutActuallyEscaping*/ false);
   }
   assert(origFnType->getNumResults() +
-             origFnType->getNumIndirectMutatingParameters() ==
-         1);
+             origFnType->getNumIndirectMutatingParameters() >
+         0);
   if (origFnType->getNumResults() > 0 &&
       origFnType->getResults().front().isFormalDirect()) {
     auto result =

@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -emit-ir -disable-llvm-optzns -disable-swift-specific-llvm-optzns %s | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-%target-ptrsize-%target-ptrauth -DINT=i%target-ptrsize
-// RUN: %target-swift-frontend -emit-ir -disable-llvm-optzns -disable-swift-specific-llvm-optzns %s
+// RUN: %target-swift-frontend -emit-ir -disable-llvm-optzns -disable-swift-specific-llvm-optzns %s | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-%target-ptrsize-%target-ptrauth -DINT=i%target-ptrsize
 
 // i386 uses a scalar result count of 3 instead of 4, so this test would need
 // to be substantially different to test the functionality there.  It's easier
@@ -30,27 +29,27 @@ struct Biggish<T: SomeClass> {
 
 sil @make_biggish : $<T: SomeClass> () -> (@owned Biggish<T>)
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc { i8*, %T18yield_once_biggish9SomeClassC*, %T18yield_once_biggish9SomeClassC*, { %T18yield_once_biggish9SomeClassC*, %T18yield_once_biggish9SomeClassC* }* } @test_simple
-// CHECK-32-SAME:  (i8* noalias dereferenceable([[BUFFER_SIZE:16]]) %0, %swift.type* %C)
-// CHECK-64-SAME:  (i8* noalias dereferenceable([[BUFFER_SIZE:32]]) %0, %swift.type* %C)
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc { ptr, ptr, ptr, ptr } @test_simple
+// CHECK-32-SAME:  (ptr noalias dereferenceable([[BUFFER_SIZE:16]]) %0, ptr %C)
+// CHECK-64-SAME:  (ptr noalias dereferenceable([[BUFFER_SIZE:32]]) %0, ptr %C)
 sil [ossa] @test_simple : $@yield_once <C: SomeClass> () -> (@yields @owned Biggish<C>) {
 entry:
   //   Allocate space for the indirect spillover.
-  // CHECK:         [[SPILLS:%.*]] = alloca [[SPILLS_T:{ %T18yield_once_biggish9SomeClassC\*, %T18yield_once_biggish9SomeClassC\* }]]
+  // CHECK:         [[SPILLS:%.*]] = alloca [[SPILLS_T:{ ptr, ptr }]]
   // CHECK-32-SAME: , align 4
   // CHECK-64-SAME: , align 8
 
   //   Coroutine setup.
-  // CHECK-32-NEXT: [[ID:%.*]] = call token @llvm.coro.id.retcon.once(i32 [[BUFFER_SIZE]], i32 [[BUFFER_ALIGN:4]], i8* %0, i8* bitcast (void (i8*, i1)* @"$s18yield_once_biggish7BiggishVyxGAA9SomeClassCRbzlIetAYx_TC" to i8*), i8* bitcast (i8* (i32)* @malloc to i8*), i8* bitcast (void (i8*)* @free to i8*))
-  // CHECK-64-NEXT: [[ID:%.*]] = call token @llvm.coro.id.retcon.once(i32 [[BUFFER_SIZE]], i32 [[BUFFER_ALIGN:8]], i8* %0, i8* bitcast (void (i8*, i1)* @"$s18yield_once_biggish7BiggishVyxGAA9SomeClassCRbzlIetAYx_TC" to i8*), i8* bitcast (i8* (i64)* @malloc to i8*), i8* bitcast (void (i8*)* @free to i8*))
-  // CHECK-NEXT:    [[BEGIN:%.*]] = call i8* @llvm.coro.begin(token [[ID]], i8* null)
-  // CHECK-NEXT:    store %swift.type*
+  // CHECK-32-NEXT: [[ID:%.*]] = call token @llvm.coro.id.retcon.once(i32 [[BUFFER_SIZE]], i32 [[BUFFER_ALIGN:4]], ptr %0, ptr @"$s18yield_once_biggish7BiggishVyxGAA9SomeClassCRbzlIetAYx_TC", ptr @malloc, ptr @free)
+  // CHECK-64-NEXT: [[ID:%.*]] = call token @llvm.coro.id.retcon.once(i32 [[BUFFER_SIZE]], i32 [[BUFFER_ALIGN:8]], ptr %0, ptr @"$s18yield_once_biggish7BiggishVyxGAA9SomeClassCRbzlIetAYx_TC", ptr @malloc, ptr @free)
+  // CHECK-NEXT:    [[BEGIN:%.*]] = call ptr @llvm.coro.begin(token [[ID]], ptr null)
+  // CHECK-NEXT:    store ptr
   // CHECK-NEXT:    call swiftcc void @marker(i32 1000)
   %marker = function_ref @marker : $@convention(thin) (Builtin.Int32) -> ()
   %1000 = integer_literal $Builtin.Int32, 1000
   apply %marker(%1000) : $@convention(thin) (Builtin.Int32) -> ()
 
-  // CHECK-NEXT:    [[T0:%.*]] = call swiftcc [[BIGGISH:{ %T18yield_once_biggish9SomeClassC\*, %T18yield_once_biggish9SomeClassC\*, %T18yield_once_biggish9SomeClassC\*, %T18yield_once_biggish9SomeClassC\* }]] @make_biggish(%swift.type* %C)
+  // CHECK-NEXT:    [[T0:%.*]] = call swiftcc [[BIGGISH:{ ptr, ptr, ptr, ptr }]] @make_biggish(ptr %C)
   // CHECK-NEXT:    [[R0:%.*]] = extractvalue [[BIGGISH]] [[T0]], 0
   // CHECK-NEXT:    [[R1:%.*]] = extractvalue [[BIGGISH]] [[T0]], 1
   // CHECK-NEXT:    [[R2:%.*]] = extractvalue [[BIGGISH]] [[T0]], 2
@@ -59,19 +58,17 @@ entry:
   %value = apply %make<C>() : $@convention(thin) <T: SomeClass> () -> (@owned Biggish<T>)
 
   //   Write the spilled objects to the buffer.
-  // CHECK-NEXT:    [[T0:%.*]] = bitcast [[SPILLS_T]]* [[SPILLS]] to i8*
-  // CHECK-NEXT:    call void @llvm.lifetime.start.p0i8(i64 {{.*}}, i8* [[T0]])
-  // CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[SPILLS_T]], [[SPILLS_T]]* [[SPILLS]], i32 0, i32 0
-  // CHECK-NEXT:    store %T18yield_once_biggish9SomeClassC* [[R2]], %T18yield_once_biggish9SomeClassC** [[T0]]
-  // CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[SPILLS_T]], [[SPILLS_T]]* [[SPILLS]], i32 0, i32 1
-  // CHECK-NEXT:    store %T18yield_once_biggish9SomeClassC* [[R3]], %T18yield_once_biggish9SomeClassC** [[T0]]
+  // CHECK-NEXT:    call void @llvm.lifetime.start.p0(i64 {{.*}}, ptr [[SPILLS]])
+  // CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[SPILLS_T]], ptr [[SPILLS]], i32 0, i32 0
+  // CHECK-NEXT:    store ptr [[R2]], ptr [[T0]]
+  // CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[SPILLS_T]], ptr [[SPILLS]], i32 0, i32 1
+  // CHECK-NEXT:    store ptr [[R3]], ptr [[T0]]
 
   //   Suspend.
-  // CHECK-NEXT:    [[IS_UNWIND:%.*]] = call i1 (...) @llvm.coro.suspend.retcon.i1(%T18yield_once_biggish9SomeClassC* [[R0]], %T18yield_once_biggish9SomeClassC* [[R1]], [[SPILLS_T]]* [[SPILLS]])
+  // CHECK-NEXT:    [[IS_UNWIND:%.*]] = call i1 (...) @llvm.coro.suspend.retcon.i1(ptr [[R0]], ptr [[R1]], ptr [[SPILLS]])
 
   //   Clean up the spills buffer.
-  // CHECK-NEXT:    [[T0:%.*]] = bitcast [[SPILLS_T]]* [[SPILLS]] to i8*
-  // CHECK-NEXT:    call void @llvm.lifetime.end.p0i8(i64 {{.*}}, i8* [[T0]])
+  // CHECK-NEXT:    call void @llvm.lifetime.end.p0(i64 {{.*}}, ptr [[SPILLS]])
 
   // CHECK-NEXT:    br i1 [[IS_UNWIND]]
   yield %value : $Biggish<C>, resume resume, unwind unwind
@@ -92,41 +89,36 @@ unwind:
   unwind
 
   // CHECK:       coro.end:
-  // CHECK:         call i1 @llvm.coro.end(i8* [[BEGIN]], i1 false)
+  // CHECK:         call i1 @llvm.coro.end(ptr [[BEGIN]], i1 false)
   // CHECK-NEXT:    unreachable
 }
 
 // CHECK-LABEL:     declare{{( dllimport)?}}{{( protected)?}} swiftcc void @"$s18yield_once_biggish7BiggishVyxGAA9SomeClassCRbzlIetAYx_TC"
-// CHECK-SAME:      (i8* noalias dereferenceable([[BUFFER_SIZE]]), i1)
+// CHECK-SAME:      (ptr noalias dereferenceable([[BUFFER_SIZE]]), i1)
 
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @test_simple_call(i1 %0)
 sil [ossa] @test_simple_call : $(Builtin.Int1) -> () {
 entry(%flag : $Builtin.Int1):
   //   Allocate the buffer.
   // CHECK:         [[T0:%.*]] = alloca {{\[}}[[BUFFER_SIZE]] x i8], align [[BUFFER_ALIGN]]
-  // CHECK-NEXT:    [[BUFFER:%.*]] = getelementptr inbounds {{\[}}[[BUFFER_SIZE]] x i8], {{\[}}[[BUFFER_SIZE]] x i8]* [[T0]], i32 0, i32 0
-  // CHECK-NEXT:    call void @llvm.lifetime.start.p0i8(i64 [[BUFFER_SIZE]], i8* [[BUFFER]])
+  // CHECK-NEXT:    [[BUFFER:%.*]] = getelementptr inbounds {{\[}}[[BUFFER_SIZE]] x i8], ptr [[T0]], i32 0, i32 0
+  // CHECK-NEXT:    call void @llvm.lifetime.start.p0(i64 [[BUFFER_SIZE]], ptr [[BUFFER]])
 
   // CHECK-NEXT:    [[TMP:%.*]] = call swiftcc %swift.metadata_response @"$s18yield_once_biggish12SomeSubclassCMa"([[INT]] 0)
   // CHECK-NEXT:    [[SUBCLASS:%.*]] = extractvalue %swift.metadata_response [[TMP]], 0
 
   //   Prepare the continuation function pointer to block analysis.
-  // CHECK-NEXT:    [[T0:%.*]] = call i8* @llvm.coro.prepare.retcon(i8* bitcast ([[ORIG_CORO_T:.*]] @test_simple to i8*))
-  // CHECK-NEXT:    [[PREPARE:%.*]] = bitcast i8* [[T0]] to [[ORIG_CORO_T]]
+  // CHECK-NEXT:    [[T0:%.*]] = call ptr @llvm.coro.prepare.retcon(ptr @test_simple
   //   Call the function pointer.
-  // CHECK-NEXT:    [[RAMP_RESULT:%.*]] = call swiftcc [[RAMP_RESULT_T:{ i8\*, %T18yield_once_biggish9SomeClassC\*, %T18yield_once_biggish9SomeClassC\*, { %T18yield_once_biggish9SomeClassC\*, %T18yield_once_biggish9SomeClassC\* }\* }]] [[PREPARE]](i8* noalias dereferenceable([[BUFFER_SIZE]]) [[BUFFER]], %swift.type* [[SUBCLASS]])
+  // CHECK-NEXT:    [[RAMP_RESULT:%.*]] = call swiftcc [[RAMP_RESULT_T:{ ptr, ptr, ptr, ptr }]] [[T0]](ptr noalias dereferenceable([[BUFFER_SIZE]]) [[BUFFER]], ptr [[SUBCLASS]])
   // CHECK-NEXT:    [[CONTINUATION:%.*]] = extractvalue [[RAMP_RESULT_T]] [[RAMP_RESULT]], 0
   // CHECK-NEXT:    [[R0_ORIG:%.*]] = extractvalue [[RAMP_RESULT_T]] [[RAMP_RESULT]], 1
   // CHECK-NEXT:    [[R1_ORIG:%.*]] = extractvalue [[RAMP_RESULT_T]] [[RAMP_RESULT]], 2
   // CHECK-NEXT:    [[SPILLS:%.*]] = extractvalue [[RAMP_RESULT_T]] [[RAMP_RESULT]], 3
-  // CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[SPILLS_T]], [[SPILLS_T]]* [[SPILLS]], i32 0, i32 0
-  // CHECK-NEXT:    [[R2_ORIG:%.*]] = load %T18yield_once_biggish9SomeClassC*, %T18yield_once_biggish9SomeClassC** [[T0]], align
-  // CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[SPILLS_T]], [[SPILLS_T]]* [[SPILLS]], i32 0, i32 1
-  // CHECK-NEXT:    [[R3_ORIG:%.*]] = load %T18yield_once_biggish9SomeClassC*, %T18yield_once_biggish9SomeClassC** [[T0]], align
-  // CHECK-NEXT:    [[R0:%.*]] = bitcast %T18yield_once_biggish9SomeClassC* [[R0_ORIG]] to %T18yield_once_biggish12SomeSubclassC*
-  // CHECK-NEXT:    [[R1:%.*]] = bitcast %T18yield_once_biggish9SomeClassC* [[R1_ORIG]] to %T18yield_once_biggish12SomeSubclassC*
-  // CHECK-NEXT:    [[R2:%.*]] = bitcast %T18yield_once_biggish9SomeClassC* [[R2_ORIG]] to %T18yield_once_biggish12SomeSubclassC*
-  // CHECK-NEXT:    [[R3:%.*]] = bitcast %T18yield_once_biggish9SomeClassC* [[R3_ORIG]] to %T18yield_once_biggish12SomeSubclassC*
+  // CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[SPILLS_T]], ptr [[SPILLS]], i32 0, i32 0
+  // CHECK-NEXT:    [[R2_ORIG:%.*]] = load ptr, ptr [[T0]], align
+  // CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[SPILLS_T]], ptr [[SPILLS]], i32 0, i32 1
+  // CHECK-NEXT:    [[R3_ORIG:%.*]] = load ptr, ptr [[T0]], align
   %0 = function_ref @test_simple : $@convention(thin) @yield_once <T: SomeClass> () -> (@yields @owned Biggish<T>)
   (%value, %token) = begin_apply %0<SomeSubclass>() : $@convention(thin) @yield_once <T: SomeClass> () -> (@yields @owned Biggish<T>)
 
@@ -135,32 +127,30 @@ entry(%flag : $Builtin.Int1):
   cond_br %flag, yes, no
 
 yes:
-  // CHECK:         [[T0:%.*]] = bitcast i8* [[CONTINUATION]] to void (i8*, i1)*
-  // CHECK-64-ptrauth-NEXT: ptrtoint
+  // CHECK-64-ptrauth: ptrtoint
   // CHECK-64-ptrauth-NEXT: ptrauth.blend
-  // CHECK-NEXT:    call swiftcc void [[T0]](i8* noalias dereferenceable([[BUFFER_SIZE]]) [[BUFFER]], i1 false)
-  // CHECK-NEXT:    call void @llvm.lifetime.end.p0i8(i64 [[BUFFER_SIZE]], i8* [[BUFFER]])
+  // CHECK:    call swiftcc void [[CONTINUATION]](ptr noalias dereferenceable([[BUFFER_SIZE]]) [[BUFFER]], i1 false)
+  // CHECK-NEXT:    call void @llvm.lifetime.end.p0(i64 [[BUFFER_SIZE]], ptr [[BUFFER]])
   end_apply %token
 
   // CHECK-NEXT:    br label
   br cont
 
 no:
-  // CHECK:         [[T0:%.*]] = bitcast i8* [[CONTINUATION]] to void (i8*, i1)*
-  // CHECK-64-ptrauth-NEXT: ptrtoint
+  // CHECK-64-ptrauth: ptrtoint
   // CHECK-64-ptrauth-NEXT: ptrauth.blend
-  // CHECK-NEXT:    call swiftcc void [[T0]](i8* noalias dereferenceable([[BUFFER_SIZE]]) [[BUFFER]], i1 true)
-  // CHECK-NEXT:    call void @llvm.lifetime.end.p0i8(i64 [[BUFFER_SIZE]], i8* [[BUFFER]])
+  // CHECK:    call swiftcc void [[CONTINUATION]](ptr noalias dereferenceable([[BUFFER_SIZE]]) [[BUFFER]], i1 true)
+  // CHECK-NEXT:    call void @llvm.lifetime.end.p0(i64 [[BUFFER_SIZE]], ptr [[BUFFER]])
   abort_apply %token
 
   // CHECK-NEXT:    br label
   br cont
 
 cont:
-  // CHECK:         call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T18yield_once_biggish12SomeSubclassC*)*)(%T18yield_once_biggish12SomeSubclassC* [[R0]])
-  // CHECK-NEXT:    call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T18yield_once_biggish12SomeSubclassC*)*)(%T18yield_once_biggish12SomeSubclassC* [[R1]])
-  // CHECK-NEXT:    call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T18yield_once_biggish12SomeSubclassC*)*)(%T18yield_once_biggish12SomeSubclassC* [[R2]])
-  // CHECK-NEXT:    call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T18yield_once_biggish12SomeSubclassC*)*)(%T18yield_once_biggish12SomeSubclassC* [[R3]])
+  // CHECK:         call void @swift_release(ptr [[R0_ORIG]])
+  // CHECK-NEXT:    call void @swift_release(ptr [[R1_ORIG]])
+  // CHECK-NEXT:    call void @swift_release(ptr [[R2_ORIG]])
+  // CHECK-NEXT:    call void @swift_release(ptr [[R3_ORIG]])
   destroy_value %value : $Biggish<SomeSubclass>
 
   // CHECK-NEXT:    ret void

@@ -2914,12 +2914,12 @@ namespace {
       if (size_t(
               llvm::size(decl->getSpecializedTemplate()->specializations())) >
           specializationLimit) {
-        std::string name;
-        llvm::raw_string_ostream os(name);
-        decl->printQualifiedName(os);
-        // Emit a warning if we haven't warned about this decl yet.
-        if (Impl.tooDeepTemplateSpecializations.insert(name).second)
-          Impl.diagnose({}, diag::too_many_class_template_instantiations, name);
+        // Note: it would be nice to import a dummy unavailable struct,
+        // but we would then need to instantiate the template here,
+        // as we cannot import a struct without a definition. That would
+        // defeat the purpose. Also, we can't make the dummy
+        // struct simply unavailable, as that still makes the
+        // typelias that references it available.
         return nullptr;
       }
 
@@ -3162,16 +3162,13 @@ namespace {
 
       if (auto recordType = dyn_cast<clang::RecordType>(
               decl->getReturnType().getCanonicalType())) {
-        if (recordHasReferenceSemantics(recordType->getDecl())) {
-          Impl.addImportDiagnostic(
-              decl,
-              Diagnostic(diag::reference_passed_by_value,
-                         Impl.SwiftContext.AllocateCopy(
-                             recordType->getDecl()->getNameAsString()),
-                         "the return"),
-              decl->getLocation());
-          return true;
-        }
+        Impl.addImportDiagnostic(
+            decl, Diagnostic(diag::reference_passed_by_value,
+                             Impl.SwiftContext.AllocateCopy(
+                                 recordType->getDecl()->getNameAsString()),
+                             "the return"),
+            decl->getLocation());
+        return recordHasReferenceSemantics(recordType->getDecl());
       }
 
       return false;
@@ -3329,8 +3326,16 @@ namespace {
           // then still add a generic so that it can be overrieded.
           // TODO(https://github.com/apple/swift/issues/57184): In the future we might want to import two overloads in this case so that the default type could still be used.
           if (templateTypeParam->hasDefaultArgument() &&
-              !templateParamTypeUsedInSignature(templateTypeParam))
+              !templateParamTypeUsedInSignature(templateTypeParam)) {
+            // We do not yet support instantiation of default values of template
+            // parameters when the function template is instantiated, so do not
+            // import the function template if the template parameter has
+            // dependent default value.
+            auto defaultArgumentType = templateTypeParam->getDefaultArgument();
+            if (defaultArgumentType->isDependentType())
+              return nullptr;
             continue;
+          }
 
           auto *typeParam = Impl.createDeclWithClangNode<GenericTypeParamDecl>(
               param, AccessLevel::Public, dc,
@@ -3557,14 +3562,6 @@ namespace {
         func->setAccess(AccessLevel::Public);
       }
 
-      if (!isa<clang::CXXConstructorDecl>(decl) && !importedType) {
-        if (!Impl.importFunctionReturnType(decl, result->getDeclContext())) {
-          Impl.addImportDiagnostic(
-              decl, Diagnostic(diag::unsupported_return_type, decl),
-              decl->getSourceRange().getBegin());
-          return nullptr;
-        }
-      }
       result->setIsObjC(false);
       result->setIsDynamic(false);
 

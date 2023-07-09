@@ -1,6 +1,8 @@
 // RUN: %empty-directory(%t)
-// RUN: %target-swift-frontend -emit-module -emit-module-path %t/ImplementationOnlyDefs.swiftmodule -module-name ImplementationOnlyDefs %S/Inputs/ImplementationOnlyDefs.swift
-// RUN: %target-typecheck-verify-swift -disable-availability-checking -I %t
+// RUN: %target-swift-frontend -emit-module -emit-module-path %t/ImplementationOnlyDefs.swiftmodule -module-name ImplementationOnlyDefs %S/Inputs/ImplementationOnlyDefs.swift \
+// RUN:   -enable-library-evolution -swift-version 5
+// RUN: %target-typecheck-verify-swift -disable-availability-checking -I %t \
+// RUN:   -enable-library-evolution -swift-version 5
 
 // REQUIRES: concurrency
 

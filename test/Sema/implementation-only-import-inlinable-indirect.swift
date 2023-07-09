@@ -1,8 +1,11 @@
 // RUN: %empty-directory(%t)
-// RUN: %target-swift-frontend -emit-module -o %t/indirects.swiftmodule %S/Inputs/implementation-only-imports/indirects.swift
-// RUN: %target-swift-frontend -emit-module -o %t/directs.swiftmodule -I %t %S/Inputs/implementation-only-imports/directs.swift
+// RUN: %target-swift-frontend -emit-module -o %t/indirects.swiftmodule %S/Inputs/implementation-only-imports/indirects.swift \
+// RUN:   -enable-library-evolution -swift-version 5
+// RUN: %target-swift-frontend -emit-module -o %t/directs.swiftmodule -I %t %S/Inputs/implementation-only-imports/directs.swift \
+// RUN:   -enable-library-evolution -swift-version 5
 
-// RUN: %target-swift-frontend -typecheck -verify %s -I %t
+// RUN: %target-swift-frontend -typecheck -verify %s -I %t \
+// RUN:   -enable-library-evolution -swift-version 5
 
 @_implementationOnly import directs
 

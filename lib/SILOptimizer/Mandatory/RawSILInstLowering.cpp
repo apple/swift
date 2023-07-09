@@ -342,22 +342,32 @@ lowerAssignOrInitInstruction(SILBuilderWithScope &b,
         b.createEndAccess(loc, selfRef, /*aborted=*/false);
       }
 
-      auto *setterPA = dyn_cast<PartialApplyInst>(inst->getSetter());
-      assert(setterPA);
-
       // The unused partial_apply violates memory lifetime rules in case "self"
       // is an inout. Therefore we cannot keep it as a dead closure to be
       // cleaned up later. We have to delete it in this pass.
-      toDelete.insert(setterPA);
+      {
+        auto setterRef = inst->getSetter();
+        assert(isa<SILUndef>(setterRef) || isa<PartialApplyInst>(setterRef));
 
-      // Also the argument of the closure (which usually is a "load") has to be
-      // deleted to avoid memory lifetime violations.
-      if (setterPA->getNumArguments() == 1)
-        toDelete.insert(setterPA->getArgument(0));
+        toDelete.insert(setterRef);
+
+        if (auto *setterPA = dyn_cast<PartialApplyInst>(setterRef)) {
+          // Also the argument of the closure (which usually is a "load") has to
+          // be deleted to avoid memory lifetime violations.
+          if (setterPA->getNumArguments() == 1)
+            toDelete.insert(setterPA->getArgument(0));
+        }
+      }
       break;
     }
     case AssignOrInitInst::Set: {
       SILValue setterFn = inst->getSetter();
+
+      if (isa<SILUndef>(setterFn)) {
+        toDelete.insert(inst->getInitializer());
+        return;
+      }
+
       CanSILFunctionType fTy = setterFn->getType().castTo<SILFunctionType>();
       SILFunctionConventions convention(fTy, inst->getModule());
       assert(!convention.hasIndirectSILResults());

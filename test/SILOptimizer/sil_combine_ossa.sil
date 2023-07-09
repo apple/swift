@@ -89,10 +89,16 @@ sil [ossa] @get_owned_klass : $@convention(thin) () -> (@owned Klass)
 sil @use_anyobject_guaranteed : $@convention(thin) (@guaranteed AnyObject) -> ()
 sil @use_generic_obj_guaranteed : $@convention(thin) <τ_0_0> (@guaranteed τ_0_0) -> ()
 sil [ossa] @unknown : $@convention(thin) () -> ()
+sil [ossa] @get_myint : $@convention(thin) () -> (MyInt)
 
 enum KlassNativeObjEither {
 case lhs(Klass)
 case rhs(Builtin.NativeObject)
+}
+
+@_moveOnly
+struct MoveOnlyStruct {
+  var value: MyInt
 }
 
 //////////////////////
@@ -5396,3 +5402,17 @@ bb0:
   %2 = tuple ()
   return %2 : $()
 }
+
+// CHECK-LABEL: sil [ossa] @test_moveonly_singlestoreopt :
+// CHECK: struct_element_addr 
+// CHECK-LABEL: } // end sil function 'test_moveonly_singlestoreopt'
+sil [ossa] @test_moveonly_singlestoreopt : $@convention(method) (@inout MoveOnlyStruct) -> () {
+bb0(%0 : $*MoveOnlyStruct):
+  %1 = struct_element_addr %0 : $*MoveOnlyStruct, #MoveOnlyStruct.value
+  %2 = function_ref @get_myint : $@convention(thin) () -> MyInt
+  %3 = apply %2() : $@convention(thin) () -> MyInt
+  store %3 to [trivial] %1 : $*MyInt
+  %16 = tuple ()
+  return %16 : $()
+}
+

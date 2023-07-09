@@ -659,6 +659,11 @@ extern "C" unsigned swift_singletonEnum_getEnumTag(swift::OpaqueValue *address,
   return 0;
 }
 
+extern "C" void swift_singletonEnum_destructiveInjectEnumTag(
+    swift::OpaqueValue *address, unsigned tag, const Metadata *metadata) {
+  return;
+}
+
 template <typename T>
 static inline T handleSinglePayloadEnumSimpleTag(
     LayoutStringReader &reader, uint8_t *addr,
@@ -727,6 +732,62 @@ extern "C" unsigned swift_enumSimple_getEnumTag(swift::OpaqueValue *address,
 
   return handleSinglePayloadEnumSimpleTag<unsigned>(
       reader, addr, extraTagBytesHandler, xihandler);
+}
+
+extern "C" void swift_enumSimple_destructiveInjectEnumTag(
+    swift::OpaqueValue *address, unsigned tag, const Metadata *metadata) {
+  auto addr = reinterpret_cast<uint8_t *>(address);
+  LayoutStringReader reader{metadata->getLayoutString(),
+                            layoutStringHeaderSize + sizeof(uint64_t)};
+
+  auto extraTagBytesHandler =
+      [addr, tag](size_t payloadNumExtraInhabitants, size_t payloadSize,
+                  uint8_t numExtraTagBytes) -> std::optional<bool> {
+    if (tag <= payloadNumExtraInhabitants) {
+      return std::nullopt;
+    }
+
+    unsigned noPayloadIndex = tag - 1;
+    unsigned caseIndex = noPayloadIndex - payloadNumExtraInhabitants;
+    unsigned payloadIndex, extraTagIndex;
+    if (payloadSize >= 4) {
+      extraTagIndex = 1;
+      payloadIndex = caseIndex;
+    } else {
+      unsigned payloadBits = payloadSize * 8U;
+      extraTagIndex = 1U + (caseIndex >> payloadBits);
+      payloadIndex = caseIndex & ((1U << payloadBits) - 1U);
+    }
+
+    // Store into the value.
+    if (payloadSize)
+      storeEnumElement(addr, payloadIndex, payloadSize);
+    if (numExtraTagBytes)
+      storeEnumElement(addr + payloadSize, extraTagIndex, numExtraTagBytes);
+
+    return true;
+  };
+
+  auto xihandler = [addr, tag](size_t payloadNumExtraInhabitants,
+                               uint64_t zeroTagValue, uint8_t xiTagBytesPattern,
+                               unsigned xiTagBytesOffset, size_t payloadSize,
+                               uint8_t numExtraTagBytes) -> bool {
+    auto xiTagBytes = 1 << (xiTagBytesPattern - 1);
+    if (tag <= payloadNumExtraInhabitants) {
+      if (numExtraTagBytes != 0)
+        storeEnumElement(addr + payloadSize, 0, numExtraTagBytes);
+
+      if (tag == 0)
+        return true;
+
+      storeEnumElement(addr + xiTagBytesOffset, tag - 1 + zeroTagValue,
+                       xiTagBytes);
+    }
+    return true;
+  };
+
+  handleSinglePayloadEnumSimpleTag<bool>(reader, addr, extraTagBytesHandler,
+                                         xihandler);
 }
 
 extern "C"

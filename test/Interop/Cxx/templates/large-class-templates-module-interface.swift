@@ -12,4 +12,4 @@
 
 // TODO: we should not be importing functions that use this type in their
 // signature (such as the function below).
-// CHECK: mutating func test1() -> RegressionTest.ValExpr<SliceExpr<SliceExpr<Array<Int32>, _>, _>>
+// CHECK: mutating func test1() -> RegressionTest.ValExpr<SliceExpr<SliceExpr<Array<Int32>, _Int32_1>, _Int32_1>>

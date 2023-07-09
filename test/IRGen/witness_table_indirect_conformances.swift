@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -primary-file %s -emit-ir -disable-objc-attr-requires-foundation-module -swift-version 4 | %FileCheck %s -DINT=i%target-ptrsize
-// RUN: %target-swift-frontend -primary-file %s -emit-ir -disable-objc-attr-requires-foundation-module -swift-version 4
+// RUN: %target-swift-frontend -primary-file %s -emit-ir -disable-objc-attr-requires-foundation-module -swift-version 4 | %FileCheck %s -DINT=i%target-ptrsize
 
 protocol P1 {
 	associatedtype AssocP1
@@ -31,7 +30,7 @@ struct Z: P2 {
 	func getAssocP2() -> Y { return Y() }
 }
 
-// CHECK: @"$s35witness_table_indirect_conformances1WVAA2P3AAWP" = hidden global [5 x i8*] [
+// CHECK: @"$s35witness_table_indirect_conformances1WVAA2P3AAWP" = hidden global [5 x ptr] [
 // CHECK-SAME: @"$s35witness_table_indirect_conformances1WVAA2P3AAMc"
 // CHECK-SAME: {{(associated conformance 35witness_table_indirect_conformances1WVAA2P3AA05AssocE0AaDP_AA2P2|.ptrauth)}}
 // CHECK-SAME: @"$s35witness_table_indirect_conformances1WVAA2P3A2aDP08getAssocE00gE0QzyFTW{{(\.ptrauth)?}}"
@@ -44,4 +43,4 @@ struct W: P3 {
 // CHECK-LABEL: define hidden swiftcc %swift.metadata_response @"$s35witness_table_indirect_conformances1ZVMa"
 // CHECK-SAME:    ([[INT]] %0)
 // CHECK-NEXT: entry:
-// CHECK-NEXT: ret %swift.metadata_response { %swift.type* bitcast {{.*}} @"$s35witness_table_indirect_conformances1ZVMf", i32 0, i32 2) to %swift.type*), [[INT]] 0 }
+// CHECK-NEXT: ret %swift.metadata_response { ptr {{.*}} @"$s35witness_table_indirect_conformances1ZVMf", i32 0, i32 2), [[INT]] 0 }

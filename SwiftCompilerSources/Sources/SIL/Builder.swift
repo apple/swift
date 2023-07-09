@@ -250,11 +250,27 @@ public struct Builder {
     return notifyNew(structInst.getAs(StructInst.self))
   }
 
+  public func createStructExtract(struct: Value, fieldIndex: Int) -> StructExtractInst {
+    return notifyNew(bridged.createStructExtract(`struct`.bridged, fieldIndex).getAs(StructExtractInst.self))
+  }
+
+  public func createStructElementAddr(structAddress: Value, fieldIndex: Int) -> StructElementAddrInst {
+    return notifyNew(bridged.createStructElementAddr(structAddress.bridged, fieldIndex).getAs(StructElementAddrInst.self))
+  }
+
   public func createTuple(type: Type, elements: [Value]) -> TupleInst {
     let tuple = elements.withBridgedValues { valuesRef in
       return bridged.createTuple(type.bridged, valuesRef)
     }
     return notifyNew(tuple.getAs(TupleInst.self))
+  }
+
+  public func createTupleExtract(tuple: Value, elementIndex: Int) -> TupleExtractInst {
+    return notifyNew(bridged.createTupleExtract(tuple.bridged, elementIndex).getAs(TupleExtractInst.self))
+  }
+
+  public func createTupleElementAddr(tupleAddress: Value, elementIndex: Int) -> TupleElementAddrInst {
+    return notifyNew(bridged.createTupleElementAddr(tupleAddress.bridged, elementIndex).getAs(TupleElementAddrInst.self))
   }
 
   @discardableResult

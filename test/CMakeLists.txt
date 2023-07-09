@@ -92,6 +92,7 @@ function(get_test_dependencies SDK result_var_name)
       llvm-readobj
       llvm-size
       llvm-strings
+      llvm-tapi-diff
       not
       split-file)
   endif()

@@ -25,29 +25,6 @@ func _blackHole<T>(_ value: T) { }
 class ContainsNothing { }
 
 @Observable
-struct Structure {
-  var field: Int = 0
-}
-
-@Observable
-struct MemberwiseInitializers {
-  var field: Int
-}
-
-func validateMemberwiseInitializers() {
-  _ = MemberwiseInitializers(field: 3)
-}
-
-@Observable
-struct DefiniteInitialization {
-  var field: Int
-
-  init(field: Int) {
-    self.field = field
-  }
-}
-
-@Observable
 class ContainsWeak {
   weak var obj: AnyObject? = nil
 }
@@ -89,6 +66,31 @@ struct NonObservableContainer {
   @Observable
   class ObservableContents {
     var field: Int = 3
+  }
+}
+
+@Observable
+final class SendableClass: Sendable {
+  var field: Int = 3
+}
+
+@Observable
+class CodableClass: Codable {
+  var field: Int = 3
+}
+
+@Observable
+final class HashableClass {
+  var field: Int = 3
+}
+
+extension HashableClass: Hashable {
+  static func == (lhs: HashableClass, rhs: HashableClass) -> Bool {
+    lhs.field == rhs.field
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine(field)
   }
 }
 
@@ -159,9 +161,6 @@ class IsolatedInstance {
 }
 
 @Observable
-struct StructHasExistingConformance: Observable { }
-
-@Observable
 class ClassHasExistingConformance: Observable { }
 
 protocol Intermediary: Observable { }
@@ -206,23 +205,6 @@ struct Validator {
       expectEqual(changed.state, true)
       changed.state = false
       test.firstName = "c"
-      expectEqual(changed.state, false)
-    }
-
-    suite.test("tracking structure changes") {
-      let changed = CapturedState(state: false)
-      
-      var test = Structure()
-      withObservationTracking {
-        _blackHole(test.field)
-      } onChange: {
-        changed.state = true
-      }
-      
-      test.field = 4
-      expectEqual(changed.state, true)
-      changed.state = false
-      test.field = 5
       expectEqual(changed.state, false)
     }
 

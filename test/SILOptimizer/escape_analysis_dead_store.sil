@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt %s -dead-store-elim -enable-sil-verify-all | %FileCheck %s
+// RUN: %target-sil-opt %s -dead-store-elimination -enable-sil-verify-all | %FileCheck %s
 
 // REQUIRES: swift_in_compiler
 

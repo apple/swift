@@ -31,6 +31,10 @@ class XandIntClass {
   @_hasStorage var i: Int
 }
 
+protocol P {}
+
+extension Int : P {}
+
 sil @no_arguments : $@convention(thin) () -> ()
 sil @indirect_argument : $@convention(thin) (@in Int) -> ()
 sil @indirect_struct_argument : $@convention(thin) (@in Str) -> ()
@@ -631,5 +635,77 @@ bb0:
   %9 = load %0 : $*Int64
   dealloc_stack %0 : $*Int64
   return %9 : $Int64
+}
+
+// CHECK-LABEL: Address escape information for test_index_addr:
+// CHECK:      pair 0 - 1
+// CHECK-NEXT:   %2 = ref_tail_addr %1 : $X, $Int
+// CHECK-NEXT:   %5 = index_addr %2 : $*Int, %0 : $Builtin.Word
+// CHECK-NEXT: may alias
+// CHECK:      pair 0 - 2
+// CHECK-NEXT:   %2 = ref_tail_addr %1 : $X, $Int
+// CHECK-NEXT:   %6 = index_addr %2 : $*Int, %3 : $Builtin.Word
+// CHECK-NEXT: may alias
+// CHECK:      pair 0 - 3
+// CHECK-NEXT:   %2 = ref_tail_addr %1 : $X, $Int
+// CHECK-NEXT:   %7 = index_addr %2 : $*Int, %4 : $Builtin.Word
+// CHECK-NEXT: may alias
+// CHECK:      pair 0 - 4
+// CHECK-NEXT:   %2 = ref_tail_addr %1 : $X, $Int
+// CHECK-NEXT:   %8 = index_addr %7 : $*Int, %4 : $Builtin.Word
+// CHECK-NEXT: may alias
+// CHECK:      pair 1 - 2
+// CHECK-NEXT:   %5 = index_addr %2 : $*Int, %0 : $Builtin.Word
+// CHECK-NEXT:   %6 = index_addr %2 : $*Int, %3 : $Builtin.Word
+// CHECK-NEXT: may alias
+// CHECK:      pair 1 - 3
+// CHECK-NEXT:   %5 = index_addr %2 : $*Int, %0 : $Builtin.Word
+// CHECK-NEXT:   %7 = index_addr %2 : $*Int, %4 : $Builtin.Word
+// CHECK-NEXT: may alias
+// CHECK:      pair 1 - 4
+// CHECK-NEXT:   %5 = index_addr %2 : $*Int, %0 : $Builtin.Word
+// CHECK-NEXT:   %8 = index_addr %7 : $*Int, %4 : $Builtin.Word
+// CHECK-NEXT: may alias
+// CHECK:      pair 2 - 4
+// CHECK-NEXT:   %6 = index_addr %2 : $*Int, %3 : $Builtin.Word
+// CHECK-NEXT:   %8 = index_addr %7 : $*Int, %4 : $Builtin.Word
+// CHECK-NEXT: may alias
+// CHECK:      End function test_index_addr
+sil @test_index_addr : $@convention(thin) (Builtin.Word) -> () {
+bb0(%0 : $Builtin.Word):
+  %1 = alloc_ref $X
+  %2 = ref_tail_addr %1 : $X, $Int
+  %3 = integer_literal $Builtin.Word, 2
+  %4 = integer_literal $Builtin.Word, 1
+  %5 = index_addr %2 : $*Int, %0 : $Builtin.Word
+  %6 = index_addr %2 : $*Int, %3 : $Builtin.Word
+  %7 = index_addr %2 : $*Int, %4 : $Builtin.Word
+  %8 = index_addr %7 : $*Int, %4 : $Builtin.Word
+  fix_lifetime %2 : $*Int
+  fix_lifetime %5 : $*Int
+  fix_lifetime %6 : $*Int
+  fix_lifetime %7 : $*Int
+  fix_lifetime %8 : $*Int
+  %r = tuple ()
+  return %r : $()
+}
+
+// CHECK-LABEL: Address escape information for test_existentials:
+// CHECK:      pair 0 - 1
+// CHECK-NEXT:   %2 = init_existential_addr %1 : $*any P, $Int
+// CHECK-NEXT:   %4 = open_existential_addr immutable_access %1 : $*any P to $*@opened("D2149896-0C4D-11EE-92B7-0EA13E3AABB3", any P) Self
+// CHECK-NEXT: may alias
+// CHECK:      End function test_existentials
+sil @test_existentials : $@convention(thin) (Int) -> () {
+bb0(%0 : $Int):
+  %1 = alloc_stack $P
+  %2 = init_existential_addr %1 : $*P, $Int
+  store %0 to %2 : $*Int
+  %4 = open_existential_addr immutable_access %1 : $*any P to $*@opened("D2149896-0C4D-11EE-92B7-0EA13E3AABB3", any P) Self
+  fix_lifetime %2 : $*Int
+  fix_lifetime %4 : $*@opened("D2149896-0C4D-11EE-92B7-0EA13E3AABB3", any P) Self
+  dealloc_stack %1 : $*P
+  %r = tuple ()
+  return %r : $()
 }
 

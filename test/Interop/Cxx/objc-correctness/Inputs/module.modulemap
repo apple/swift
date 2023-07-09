@@ -18,3 +18,9 @@ module NSNofiticationBridging {
   requires objc
   requires cplusplus
 }
+
+module OSObject {
+  header "os-object.h"
+  requires objc
+  requires cplusplus
+}

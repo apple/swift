@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -emit-ir -disable-llvm-optzns -disable-swift-specific-llvm-optzns %s | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-%target-ptrsize-%target-ptrauth -DINT=i%target-ptrsize
-// RUN: %target-swift-frontend -emit-ir -disable-llvm-optzns -disable-swift-specific-llvm-optzns %s
+// RUN: %target-swift-frontend -emit-ir -disable-llvm-optzns -disable-swift-specific-llvm-optzns %s | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-%target-ptrsize-%target-ptrauth -DINT=i%target-ptrsize
 // UNSUPPORTED: CPU=arm64_32
 
 import Builtin
@@ -34,9 +33,9 @@ struct BigWrapper<T : SomeClass> {
 sil @make_big : $<T: SomeClass> () -> (@owned Big<T>)
 sil @use_some_class : $<T : SomeClass> (@guaranteed T) -> ()
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc { i8*, %T14yield_once_big3BigV* } @test_simple
-// CHECK-32-SAME:  (i8* noalias dereferenceable([[BUFFER_SIZE:16]]) %0, %swift.type* %C)
-// CHECK-64-SAME:  (i8* noalias dereferenceable([[BUFFER_SIZE:32]]) %0, %swift.type* %C)
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc { ptr, ptr } @test_simple
+// CHECK-32-SAME:  (ptr noalias dereferenceable([[BUFFER_SIZE:16]]) %0, ptr %C)
+// CHECK-64-SAME:  (ptr noalias dereferenceable([[BUFFER_SIZE:32]]) %0, ptr %C)
 sil [ossa] @test_simple : $@yield_once <C: SomeClass> () -> (@yields @owned Big<C>) {
 entry:
   //   Allocate space for the return value of make_big.
@@ -45,26 +44,25 @@ entry:
   // CHECK-64-SAME: , align 8
 
   //   Coroutine setup.
-  // CHECK-32-NEXT: [[ID:%.*]] = call token @llvm.coro.id.retcon.once(i32 [[BUFFER_SIZE]], i32 [[BUFFER_ALIGN:4]], i8* %0, i8* bitcast (void (i8*, i1)* @"$s14yield_once_big3BigVyxGAA9SomeClassCRbzlIetAYi_TC" to i8*), i8* bitcast (i8* (i32)* @malloc to i8*), i8* bitcast (void (i8*)* @free to i8*))
-  // CHECK-64-NEXT: [[ID:%.*]] = call token @llvm.coro.id.retcon.once(i32 [[BUFFER_SIZE]], i32 [[BUFFER_ALIGN:8]], i8* %0, i8* bitcast (void (i8*, i1)* @"$s14yield_once_big3BigVyxGAA9SomeClassCRbzlIetAYi_TC" to i8*), i8* bitcast (i8* (i64)* @malloc to i8*), i8* bitcast (void (i8*)* @free to i8*))
-  // CHECK-NEXT:    [[BEGIN:%.*]] = call i8* @llvm.coro.begin(token [[ID]], i8* null)
-  // CHECK-NEXT:    store %swift.type*
+  // CHECK-32-NEXT: [[ID:%.*]] = call token @llvm.coro.id.retcon.once(i32 [[BUFFER_SIZE]], i32 [[BUFFER_ALIGN:4]], ptr %0, ptr @"$s14yield_once_big3BigVyxGAA9SomeClassCRbzlIetAYi_TC", ptr @malloc, ptr @free)
+  // CHECK-64-NEXT: [[ID:%.*]] = call token @llvm.coro.id.retcon.once(i32 [[BUFFER_SIZE]], i32 [[BUFFER_ALIGN:8]], ptr %0, ptr @"$s14yield_once_big3BigVyxGAA9SomeClassCRbzlIetAYi_TC", ptr @malloc, ptr @free)
+  // CHECK-NEXT:    [[BEGIN:%.*]] = call ptr @llvm.coro.begin(token [[ID]], ptr null)
+  // CHECK-NEXT:    store ptr
 
   //   Create the return temporary.  We could give this a tighter bound.
-  // CHECK-NEXT:    [[T0:%.*]] = bitcast [[BIG]]* [[TEMP]] to i8*
-  // CHECK-NEXT:    call void @llvm.lifetime.start.p0i8(i64 {{.*}}, i8* [[T0]])
+  // CHECK-NEXT:    call void @llvm.lifetime.start.p0(i64 {{.*}}, ptr [[TEMP]])
 
   // CHECK-NEXT:    call swiftcc void @marker(i32 1000)
   %marker = function_ref @marker : $@convention(thin) (Builtin.Int32) -> ()
   %1000 = integer_literal $Builtin.Int32, 1000
   apply %marker(%1000) : $@convention(thin) (Builtin.Int32) -> ()
 
-  // CHECK-NEXT:    call swiftcc void @make_big([[BIG]]* noalias nocapture sret({{.*}}) [[TEMP]], %swift.type* %C)
+  // CHECK-NEXT:    call swiftcc void @make_big(ptr noalias nocapture sret({{.*}}) [[TEMP]], ptr %C)
   %make = function_ref @make_big : $@convention(thin) <T: SomeClass> () -> (@owned Big<T>)
   %value = apply %make<C>() : $@convention(thin) <T: SomeClass> () -> (@owned Big<T>)
 
   //   Suspend.
-  // CHECK-NEXT:    [[IS_UNWIND:%.*]] = call i1 (...) @llvm.coro.suspend.retcon.i1([[BIG]]* [[TEMP]])
+  // CHECK-NEXT:    [[IS_UNWIND:%.*]] = call i1 (...) @llvm.coro.suspend.retcon.i1(ptr [[TEMP]])
 
   // CHECK-NEXT:    br i1 [[IS_UNWIND]]
   yield %value : $Big<C>, resume resume, unwind unwind
@@ -73,8 +71,7 @@ resume:
   // CHECK:         call swiftcc void @marker(i32 2000)
   %2000 = integer_literal $Builtin.Int32, 2000
   apply %marker(%2000) : $@convention(thin) (Builtin.Int32) -> ()
-  // CHECK-NEXT:    [[T0:%.*]] = bitcast [[BIG]]* [[TEMP]] to i8*
-  // CHECK-NEXT:    call void @llvm.lifetime.end.p0i8(i64 {{.*}}, i8* [[T0]])
+  // CHECK-NEXT:    call void @llvm.lifetime.end.p0(i64 {{.*}}, ptr [[TEMP]])
   // CHECK-NEXT:    br label %coro.end
   %ret = tuple ()
   return %ret : $()
@@ -83,94 +80,89 @@ unwind:
   // CHECK:         call swiftcc void @marker(i32 3000)
   %3000 = integer_literal $Builtin.Int32, 3000
   apply %marker(%3000) : $@convention(thin) (Builtin.Int32) -> ()
-  // CHECK-NEXT:    [[T0:%.*]] = bitcast [[BIG]]* [[TEMP]] to i8*
-  // CHECK-NEXT:    call void @llvm.lifetime.end.p0i8(i64 {{.*}}, i8* [[T0]])
+  // CHECK-NEXT:    call void @llvm.lifetime.end.p0(i64 {{.*}}, ptr [[TEMP]])
   // CHECK-NEXT:    br label %coro.end
   unwind
 
   // CHECK:       coro.end:
-  // CHECK:         call i1 @llvm.coro.end(i8* [[BEGIN]], i1 false)
+  // CHECK:         call i1 @llvm.coro.end(ptr [[BEGIN]], i1 false)
   // CHECK-NEXT:    unreachable
 }
 
 // CHECK-LABEL:     declare{{( dllimport)?}}{{( protected)?}} swiftcc void @"$s14yield_once_big3BigVyxGAA9SomeClassCRbzlIetAYi_TC"
-// CHECK-SAME:      (i8* noalias dereferenceable([[BUFFER_SIZE]]), i1)
+// CHECK-SAME:      (ptr noalias dereferenceable([[BUFFER_SIZE]]), i1)
 
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @test_simple_call(i1 %0)
 sil [ossa] @test_simple_call : $(Builtin.Int1) -> () {
 entry(%flag : $Builtin.Int1):
   //   Allocate the buffer.
   // CHECK:         [[T0:%.*]] = alloca {{\[}}[[BUFFER_SIZE]] x i8], align [[BUFFER_ALIGN]]
-  // CHECK-NEXT:    [[BUFFER:%.*]] = getelementptr inbounds {{\[}}[[BUFFER_SIZE]] x i8], {{\[}}[[BUFFER_SIZE]] x i8]* [[T0]], i32 0, i32 0
-  // CHECK-NEXT:    call void @llvm.lifetime.start.p0i8(i64 [[BUFFER_SIZE]], i8* [[BUFFER]])
+  // CHECK-NEXT:    [[BUFFER:%.*]] = getelementptr inbounds {{\[}}[[BUFFER_SIZE]] x i8], ptr [[T0]], i32 0, i32 0
+  // CHECK-NEXT:    call void @llvm.lifetime.start.p0(i64 [[BUFFER_SIZE]], ptr [[BUFFER]])
 
   // CHECK-NEXT:    [[TMP:%.*]] = call swiftcc %swift.metadata_response @"$s14yield_once_big12SomeSubclassCMa"([[INT]] 0)
   // CHECK-NEXT:    [[SUBCLASS:%.*]] = extractvalue %swift.metadata_response [[TMP]], 0
 
   //   Prepare the continuation function pointer to block analysis.
-  // CHECK-NEXT:    [[T0:%.*]] = call i8* @llvm.coro.prepare.retcon(i8* bitcast ([[ORIG_CORO_T:.*]] @test_simple to i8*))
-  // CHECK-NEXT:    [[PREPARE:%.*]] = bitcast i8* [[T0]] to [[ORIG_CORO_T]]
+  // CHECK-NEXT:    [[T0:%.*]] = call ptr @llvm.coro.prepare.retcon(ptr @test_simple
   //   Call the function pointer.
-  // CHECK-NEXT:    [[RAMP_RESULT:%.*]] = call swiftcc [[RAMP_RESULT_T:{ i8\*, %T14yield_once_big3BigV\* }]] [[PREPARE]](i8* noalias dereferenceable([[BUFFER_SIZE]]) [[BUFFER]], %swift.type* [[SUBCLASS]])
+  // CHECK-NEXT:    [[RAMP_RESULT:%.*]] = call swiftcc [[RAMP_RESULT_T:{ ptr, ptr }]] [[T0]](ptr noalias dereferenceable([[BUFFER_SIZE]]) [[BUFFER]], ptr [[SUBCLASS]])
   // CHECK-NEXT:    [[CONTINUATION:%.*]] = extractvalue [[RAMP_RESULT_T]] [[RAMP_RESULT]], 0
   // CHECK-NEXT:    [[PTR:%.*]] = extractvalue [[RAMP_RESULT_T]] [[RAMP_RESULT]], 1
   %0 = function_ref @test_simple : $@convention(thin) @yield_once <T: SomeClass> () -> (@yields @owned Big<T>)
   (%value, %token) = begin_apply %0<SomeSubclass>() : $@convention(thin) @yield_once <T: SomeClass> () -> (@yields @owned Big<T>)
 
   //   Load.  This is spurious.
-  // CHECK-NEXT:    [[CAST_PTR:%.*]] = bitcast [[BIG]]* [[PTR]] to [[BIGSUB:%T14yield_once_big3BigVyAA12SomeSubclassCG]]*
-  // CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[BIGSUB]], [[BIGSUB]]* [[CAST_PTR]], i32 0, i32 0
-  // CHECK-NEXT:    [[R0:%.*]] = load %T14yield_once_big12SomeSubclassC*, %T14yield_once_big12SomeSubclassC** [[T0]], align
-  // CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[BIGSUB]], [[BIGSUB]]* [[CAST_PTR]], i32 0, i32 1
-  // CHECK-NEXT:    [[R1:%.*]] = load %T14yield_once_big12SomeSubclassC*, %T14yield_once_big12SomeSubclassC** [[T0]], align
-  // CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[BIGSUB]], [[BIGSUB]]* [[CAST_PTR]], i32 0, i32 2
-  // CHECK-NEXT:    [[R2:%.*]] = load %T14yield_once_big12SomeSubclassC*, %T14yield_once_big12SomeSubclassC** [[T0]], align
-  // CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[BIGSUB]], [[BIGSUB]]* [[CAST_PTR]], i32 0, i32 3
-  // CHECK-NEXT:    [[R3:%.*]] = load %T14yield_once_big12SomeSubclassC*, %T14yield_once_big12SomeSubclassC** [[T0]], align
-  // CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[BIGSUB]], [[BIGSUB]]* [[CAST_PTR]], i32 0, i32 4
-  // CHECK-NEXT:    [[R4:%.*]] = load %T14yield_once_big12SomeSubclassC*, %T14yield_once_big12SomeSubclassC** [[T0]], align
-  // CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[BIGSUB]], [[BIGSUB]]* [[CAST_PTR]], i32 0, i32 5
-  // CHECK-NEXT:    [[R5:%.*]] = load %T14yield_once_big12SomeSubclassC*, %T14yield_once_big12SomeSubclassC** [[T0]], align
-  // CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[BIGSUB]], [[BIGSUB]]* [[CAST_PTR]], i32 0, i32 6
-  // CHECK-NEXT:    [[R6:%.*]] = load %T14yield_once_big12SomeSubclassC*, %T14yield_once_big12SomeSubclassC** [[T0]], align
-  // CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[BIGSUB]], [[BIGSUB]]* [[CAST_PTR]], i32 0, i32 7
-  // CHECK-NEXT:    [[R7:%.*]] = load %T14yield_once_big12SomeSubclassC*, %T14yield_once_big12SomeSubclassC** [[T0]], align
+  // CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[BIGSUB:%T14yield_once_big3BigVyAA12SomeSubclassCG]], ptr [[PTR]], i32 0, i32 0
+  // CHECK-NEXT:    [[R0:%.*]] = load ptr, ptr [[T0]], align
+  // CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[BIGSUB]], ptr [[PTR]], i32 0, i32 1
+  // CHECK-NEXT:    [[R1:%.*]] = load ptr, ptr [[T0]], align
+  // CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[BIGSUB]], ptr [[PTR]], i32 0, i32 2
+  // CHECK-NEXT:    [[R2:%.*]] = load ptr, ptr [[T0]], align
+  // CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[BIGSUB]], ptr [[PTR]], i32 0, i32 3
+  // CHECK-NEXT:    [[R3:%.*]] = load ptr, ptr [[T0]], align
+  // CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[BIGSUB]], ptr [[PTR]], i32 0, i32 4
+  // CHECK-NEXT:    [[R4:%.*]] = load ptr, ptr [[T0]], align
+  // CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[BIGSUB]], ptr [[PTR]], i32 0, i32 5
+  // CHECK-NEXT:    [[R5:%.*]] = load ptr, ptr [[T0]], align
+  // CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[BIGSUB]], ptr [[PTR]], i32 0, i32 6
+  // CHECK-NEXT:    [[R6:%.*]] = load ptr, ptr [[T0]], align
+  // CHECK-NEXT:    [[T0:%.*]] = getelementptr inbounds [[BIGSUB]], ptr [[PTR]], i32 0, i32 7
+  // CHECK-NEXT:    [[R7:%.*]] = load ptr, ptr [[T0]], align
 
   //   Branch.
   // CHECK-NEXT:    br i1 %0,
   cond_br %flag, yes, no
 
 yes:
-  // CHECK:         [[T0:%.*]] = bitcast i8* [[CONTINUATION]] to void (i8*, i1)*
-  // CHECK-64-ptrauth-NEXT: ptrtoint
+  // CHECK-64-ptrauth: ptrtoint
   // CHECK-64-ptrauth-NEXT: ptrauth.blend
-  // CHECK-NEXT:    call swiftcc void [[T0]](i8* noalias dereferenceable([[BUFFER_SIZE]]) [[BUFFER]], i1 false)
-  // CHECK-NEXT:    call void @llvm.lifetime.end.p0i8(i64 [[BUFFER_SIZE]], i8* [[BUFFER]])
+  // CHECK:    call swiftcc void [[CONTINUATION]](ptr noalias dereferenceable([[BUFFER_SIZE]]) [[BUFFER]], i1 false)
+  // CHECK-NEXT:    call void @llvm.lifetime.end.p0(i64 [[BUFFER_SIZE]], ptr [[BUFFER]])
   end_apply %token
 
   // CHECK-NEXT:    br label
   br cont
 
 no:
-  // CHECK:         [[T0:%.*]] = bitcast i8* [[CONTINUATION]] to void (i8*, i1)*
-  // CHECK-64-ptrauth-NEXT: ptrtoint
+  // CHECK-64-ptrauth: ptrtoint
   // CHECK-64-ptrauth-NEXT: ptrauth.blend
-  // CHECK-NEXT:    call swiftcc void [[T0]](i8* noalias dereferenceable([[BUFFER_SIZE]]) [[BUFFER]], i1 true)
-  // CHECK-NEXT:    call void @llvm.lifetime.end.p0i8(i64 [[BUFFER_SIZE]], i8* [[BUFFER]])
+  // CHECK:    call swiftcc void [[CONTINUATION]](ptr noalias dereferenceable([[BUFFER_SIZE]]) [[BUFFER]], i1 true)
+  // CHECK-NEXT:    call void @llvm.lifetime.end.p0(i64 [[BUFFER_SIZE]], ptr [[BUFFER]])
   abort_apply %token
 
   // CHECK-NEXT:    br label
   br cont
 
 cont:
-  // CHECK:         call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T14yield_once_big12SomeSubclassC*)*)(%T14yield_once_big12SomeSubclassC* [[R0]])
-  // CHECK-NEXT:    call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T14yield_once_big12SomeSubclassC*)*)(%T14yield_once_big12SomeSubclassC* [[R1]])
-  // CHECK-NEXT:    call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T14yield_once_big12SomeSubclassC*)*)(%T14yield_once_big12SomeSubclassC* [[R2]])
-  // CHECK-NEXT:    call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T14yield_once_big12SomeSubclassC*)*)(%T14yield_once_big12SomeSubclassC* [[R3]])
-  // CHECK:         call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T14yield_once_big12SomeSubclassC*)*)(%T14yield_once_big12SomeSubclassC* [[R4]])
-  // CHECK-NEXT:    call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T14yield_once_big12SomeSubclassC*)*)(%T14yield_once_big12SomeSubclassC* [[R5]])
-  // CHECK-NEXT:    call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T14yield_once_big12SomeSubclassC*)*)(%T14yield_once_big12SomeSubclassC* [[R6]])
-  // CHECK-NEXT:    call void bitcast (void (%swift.refcounted*)* @swift_release to void (%T14yield_once_big12SomeSubclassC*)*)(%T14yield_once_big12SomeSubclassC* [[R7]])
+  // CHECK:         call void @swift_release(ptr [[R0]])
+  // CHECK-NEXT:    call void @swift_release(ptr [[R1]])
+  // CHECK-NEXT:    call void @swift_release(ptr [[R2]])
+  // CHECK-NEXT:    call void @swift_release(ptr [[R3]])
+  // CHECK:         call void @swift_release(ptr [[R4]])
+  // CHECK-NEXT:    call void @swift_release(ptr [[R5]])
+  // CHECK-NEXT:    call void @swift_release(ptr [[R6]])
+  // CHECK-NEXT:    call void @swift_release(ptr [[R7]])
   destroy_value %value : $Big<SomeSubclass>
 
   // CHECK-NEXT:    ret void
@@ -178,9 +170,9 @@ cont:
   return %ret : $()
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc { i8*, %T14yield_once_big3BigV* } @test_simple_guaranteed
-// CHECK-32-SAME:  (i8* noalias dereferenceable([[BUFFER_SIZE:16]]) %0, %T14yield_once_big10BigWrapperV* noalias nocapture dereferenceable(32) %1, %swift.type* %C)
-// CHECK-64-SAME:  (i8* noalias dereferenceable([[BUFFER_SIZE:32]]) %0, %T14yield_once_big10BigWrapperV* noalias nocapture dereferenceable(64) %1, %swift.type* %C)
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc { ptr, ptr } @test_simple_guaranteed
+// CHECK-32-SAME:  (ptr noalias dereferenceable([[BUFFER_SIZE:16]]) %0, ptr noalias nocapture dereferenceable(32) %1, ptr %C)
+// CHECK-64-SAME:  (ptr noalias dereferenceable([[BUFFER_SIZE:32]]) %0, ptr noalias nocapture dereferenceable(64) %1, ptr %C)
 sil [ossa] @test_simple_guaranteed : $@yield_once <C: SomeClass> (@in_guaranteed BigWrapper<C>) -> (@yields @guaranteed Big<C>) {
 entry(%arg : $*BigWrapper<C>):
   //   Allocate space for the return value of make_big.
@@ -189,14 +181,13 @@ entry(%arg : $*BigWrapper<C>):
   // CHECK-64-SAME: , align 8
 
   //   Coroutine setup.
-  // CHECK-32-NEXT: [[ID:%.*]] = call token @llvm.coro.id.retcon.once(i32 [[BUFFER_SIZE]], i32 [[BUFFER_ALIGN:4]], i8* %0, i8* bitcast (void (i8*, i1)* @"$s14yield_once_big10BigWrapperVyxGAA0D0VyxGAA9SomeClassCRbzlIetAnYn_TC" to i8*), i8* bitcast (i8* (i32)* @malloc to i8*), i8* bitcast (void (i8*)* @free to i8*))
-  // CHECK-64-NEXT: [[ID:%.*]] = call token @llvm.coro.id.retcon.once(i32 [[BUFFER_SIZE]], i32 [[BUFFER_ALIGN:8]], i8* %0, i8* bitcast (void (i8*, i1)* @"$s14yield_once_big10BigWrapperVyxGAA0D0VyxGAA9SomeClassCRbzlIetAnYn_TC" to i8*), i8* bitcast (i8* (i64)* @malloc to i8*), i8* bitcast (void (i8*)* @free to i8*))
-  // CHECK-NEXT:    [[BEGIN:%.*]] = call i8* @llvm.coro.begin(token [[ID]], i8* null)
-  // CHECK-NEXT:    store %swift.type*
+  // CHECK-32-NEXT: [[ID:%.*]] = call token @llvm.coro.id.retcon.once(i32 [[BUFFER_SIZE]], i32 [[BUFFER_ALIGN:4]], ptr %0, ptr @"$s14yield_once_big10BigWrapperVyxGAA0D0VyxGAA9SomeClassCRbzlIetAnYn_TC", ptr @malloc, ptr @free)
+  // CHECK-64-NEXT: [[ID:%.*]] = call token @llvm.coro.id.retcon.once(i32 [[BUFFER_SIZE]], i32 [[BUFFER_ALIGN:8]], ptr %0, ptr @"$s14yield_once_big10BigWrapperVyxGAA0D0VyxGAA9SomeClassCRbzlIetAnYn_TC", ptr @malloc, ptr @free)
+  // CHECK-NEXT:    [[BEGIN:%.*]] = call ptr @llvm.coro.begin(token [[ID]], ptr null)
+  // CHECK-NEXT:    store ptr
 
   //   Create the return temporary.  We could give this a tighter bound.
-  // CHECK-NEXT:    [[T0:%.*]] = bitcast [[BIG]]* [[TEMP]] to i8*
-  // CHECK-NEXT:    call void @llvm.lifetime.start.p0i8(i64 {{.*}}, i8* [[T0]])
+  // CHECK-NEXT:    call void @llvm.lifetime.start.p0(i64 {{.*}}, ptr [[TEMP]])
 
   // CHECK-NEXT:    call swiftcc void @marker(i32 1000)
   %marker = function_ref @marker : $@convention(thin) (Builtin.Int32) -> ()
@@ -216,7 +207,7 @@ entry(%arg : $*BigWrapper<C>):
   apply %f<C>(%field3) : $@convention(thin) <T : SomeClass>(@guaranteed T) -> ()
 
   //   Suspend.
-  // CHECK-NEXT:    [[IS_UNWIND:%.*]] = call i1 (...) @llvm.coro.suspend.retcon.i1([[BIG]]* [[TEMP]])
+  // CHECK-NEXT:    [[IS_UNWIND:%.*]] = call i1 (...) @llvm.coro.suspend.retcon.i1(ptr [[TEMP]])
 
   // CHECK-NEXT:    br i1 [[IS_UNWIND]]
   yield %field : $Big<C>, resume resume, unwind unwind
@@ -227,8 +218,7 @@ resume:
   // CHECK:         call swiftcc void @marker(i32 2000)
   %2000 = integer_literal $Builtin.Int32, 2000
   apply %marker(%2000) : $@convention(thin) (Builtin.Int32) -> ()
-  // CHECK-NEXT:    [[T0:%.*]] = bitcast [[BIG]]* [[TEMP]] to i8*
-  // CHECK-NEXT:    call void @llvm.lifetime.end.p0i8(i64 {{.*}}, i8* [[T0]])
+  // CHECK-NEXT:    call void @llvm.lifetime.end.p0(i64 {{.*}}, ptr [[TEMP]])
   // CHECK-NEXT:    br label %coro.end
   %ret = tuple ()
   return %ret : $()
@@ -238,12 +228,11 @@ unwind:
   // CHECK:         call swiftcc void @marker(i32 3000)
   %3000 = integer_literal $Builtin.Int32, 3000
   apply %marker(%3000) : $@convention(thin) (Builtin.Int32) -> ()
-  // CHECK-NEXT:    [[T0:%.*]] = bitcast [[BIG]]* [[TEMP]] to i8*
-  // CHECK-NEXT:    call void @llvm.lifetime.end.p0i8(i64 {{.*}}, i8* [[T0]])
+  // CHECK-NEXT:    call void @llvm.lifetime.end.p0(i64 {{.*}}, ptr [[TEMP]])
   // CHECK-NEXT:    br label %coro.end
   unwind
 
   // CHECK:       coro.end:
-  // CHECK:         call i1 @llvm.coro.end(i8* [[BEGIN]], i1 false)
+  // CHECK:         call i1 @llvm.coro.end(ptr [[BEGIN]], i1 false)
   // CHECK-NEXT:    unreachable
 }

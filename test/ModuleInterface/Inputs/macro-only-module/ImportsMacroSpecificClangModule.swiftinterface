@@ -1,4 +1,4 @@
 // swift-interface-format-version: 1.0
 // swift-module-flags: -enable-library-evolution -module-name ImportsMacroSpecificClangModule
 
-import OnlyWithMacro
+import SubImportsMacroSpecificClangModule

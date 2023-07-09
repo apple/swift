@@ -31,19 +31,13 @@ struct ElementTupleMaker<each T: Sequence> : TypeMaker {
 
 conformances.test("makeTuple1") {
   expectEqual("()", _typeName(makeTypeIndirectly(TupleMaker< >())))
-
-  // FIXME: This should unwrap the one-element tuple!
-  // expectEqual("(Swift.Int)", _typeName(makeTypeIndirectly(TupleMaker<Int>())))
-
+  expectEqual("Swift.Int", _typeName(makeTypeIndirectly(TupleMaker<Int>())))
   expectEqual("(Swift.Int, Swift.Bool)", _typeName(makeTypeIndirectly(TupleMaker<Int, Bool>())))
 }
 
 conformances.test("makeTuple2") {
   expectEqual("()", _typeName(makeTypeIndirectly(ElementTupleMaker< >())))
-
-  // FIXME: This should unwrap the one-element tuple!
-  // expectEqual("(Swift.Int)", _typeName(makeTypeIndirectly(ElementTupleMaker<Array<Int>>())))
-
+  expectEqual("Swift.Int", _typeName(makeTypeIndirectly(ElementTupleMaker<Array<Int>>())))
   expectEqual("(Swift.Int, Swift.Bool)", _typeName(makeTypeIndirectly(ElementTupleMaker<Array<Int>, Set<Bool>>())))
 }
 

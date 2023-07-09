@@ -750,15 +750,16 @@ static SILFunction *createEmptyVJP(ADContext &context,
                                    SILDifferentiabilityWitness *witness,
                                    IsSerialized_t isSerialized) {
   auto original = witness->getOriginalFunction();
+  auto config = witness->getConfig();
   LLVM_DEBUG({
     auto &s = getADDebugStream();
-    s << "Creating VJP:\n\t";
+    s << "Creating VJP for " << original->getName() << ":\n\t";
     s << "Original type: " << original->getLoweredFunctionType() << "\n\t";
+    s << "Config: " << config << "\n\t";
   });
 
   auto &module = context.getModule();
   auto originalTy = original->getLoweredFunctionType();
-  auto config = witness->getConfig();
 
   // === Create an empty VJP. ===
   Mangle::DifferentiationMangler mangler;
@@ -794,15 +795,16 @@ static SILFunction *createEmptyJVP(ADContext &context,
                                    SILDifferentiabilityWitness *witness,
                                    IsSerialized_t isSerialized) {
   auto original = witness->getOriginalFunction();
+  auto config = witness->getConfig();
   LLVM_DEBUG({
     auto &s = getADDebugStream();
-    s << "Creating JVP:\n\t";
+    s << "Creating JVP for " << original->getName() << ":\n\t";
     s << "Original type: " << original->getLoweredFunctionType() << "\n\t";
+    s << "Config: " << config << "\n\t";
   });
 
   auto &module = context.getModule();
   auto originalTy = original->getLoweredFunctionType();
-  auto config = witness->getConfig();
 
   Mangle::DifferentiationMangler mangler;
   auto jvpName = mangler.mangleDerivativeFunction(

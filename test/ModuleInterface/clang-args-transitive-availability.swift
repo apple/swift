@@ -30,6 +30,19 @@ import ImportsMacroSpecificClangModule
 //CHECK-NEXT:      ],
 //CHECK-NEXT:      "directDependencies": [
 //CHECK-NEXT:        {
+//CHECK-NEXT:          "swift": "SubImportsMacroSpecificClangModule"
+//CHECK-NEXT:        },
+//CHECK-NEXT:        {
+//CHECK-NEXT:          "swift": "SwiftOnoneSupport"
+
+//CHECK:      "swift": "SubImportsMacroSpecificClangModule"
+//CHECK-NEXT:    },
+//CHECK-NEXT:    {
+//CHECK-NEXT:      "modulePath": "{{.*}}{{/|\\}}SubImportsMacroSpecificClangModule-{{.*}}.swiftmodule",
+//CHECK-NEXT:      "sourceFiles": [
+//CHECK-NEXT:      ],
+//CHECK-NEXT:      "directDependencies": [
+//CHECK-NEXT:        {
 //CHECK-NEXT:          "clang": "OnlyWithMacro"
 
 // CHECK:      "clang": "OnlyWithMacro"

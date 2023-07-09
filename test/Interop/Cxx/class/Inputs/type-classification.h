@@ -112,6 +112,20 @@ struct StructWithSubobjectPrivateDefaultedDestructor {
   StructWithPrivateDefaultedDestructor subobject;
 };
 
+struct StructWithDeletedCopyConstructor {
+  StructWithDeletedCopyConstructor(
+      const StructWithDeletedCopyConstructor &other) = delete;
+};
+
+struct StructWithMoveConstructorAndDeletedCopyConstructor {
+  StructWithMoveConstructorAndDeletedCopyConstructor() {}
+  StructWithMoveConstructorAndDeletedCopyConstructor(
+      const StructWithMoveConstructorAndDeletedCopyConstructor &other) = delete;
+  StructWithMoveConstructorAndDeletedCopyConstructor(
+      StructWithMoveConstructorAndDeletedCopyConstructor &&other) {}
+  ~StructWithMoveConstructorAndDeletedCopyConstructor(){};
+};
+
 struct StructWithDeletedDestructor {
   ~StructWithDeletedDestructor() = delete;
 };
@@ -146,6 +160,22 @@ struct StructNonCopyableTriviallyMovable {
   StructNonCopyableTriviallyMovable &
   operator=(StructNonCopyableTriviallyMovable &&) = default;
   ~StructNonCopyableTriviallyMovable() = default;
+};
+
+/// Similar to std::unique_ptr
+struct StructWithPointerNonCopyableTriviallyMovable {
+  int *ptr = nullptr;
+
+  StructWithPointerNonCopyableTriviallyMovable() = default;
+  StructWithPointerNonCopyableTriviallyMovable(
+      const StructWithPointerNonCopyableTriviallyMovable &other) = delete;
+  StructWithPointerNonCopyableTriviallyMovable(
+      StructWithPointerNonCopyableTriviallyMovable &&other) = default;
+  ~StructWithPointerNonCopyableTriviallyMovable() = default;
+};
+
+struct StructWithPointerNonCopyableTriviallyMovableField {
+  StructWithPointerNonCopyableTriviallyMovable p = {};
 };
 
 struct StructNonCopyableNonMovable {

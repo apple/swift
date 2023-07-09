@@ -2076,15 +2076,6 @@ applyImportTypeAttrs(ImportTypeAttrs attrs, Type type,
 }
 
 ImportedType ClangImporter::Implementation::importFunctionReturnType(
-    const clang::FunctionDecl *clangDecl, DeclContext *dc) {
-  bool isInSystemModule =
-      cast<ClangModuleUnit>(dc->getModuleScopeContext())->isSystemModule();
-  bool allowNSUIntegerAsInt =
-      shouldAllowNSUIntegerAsInt(isInSystemModule, clangDecl);
-  return importFunctionReturnType(dc, clangDecl, allowNSUIntegerAsInt);
-}
-
-ImportedType ClangImporter::Implementation::importFunctionReturnType(
     DeclContext *dc, const clang::FunctionDecl *clangDecl,
     bool allowNSUIntegerAsInt) {
 
@@ -3437,7 +3428,7 @@ static Type getNamedProtocolType(ClangImporter::Implementation &impl,
   clang::LookupResult lookupResult(sema, clangName, clang::SourceLocation(),
                                    clang::Sema::LookupObjCProtocolName);
   lookupResult.setAllowHidden(true);
-  if (!sema.LookupName(lookupResult, /*Scope=*/nullptr))
+  if (!sema.LookupName(lookupResult, /*Scope=*/sema.TUScope))
     return Type();
 
   for (auto decl : lookupResult) {

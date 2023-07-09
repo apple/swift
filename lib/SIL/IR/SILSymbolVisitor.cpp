@@ -238,6 +238,9 @@ class SILSymbolVisitorImpl : public ASTVisitor<SILSymbolVisitorImpl> {
   void addConformances(const IterableDeclContext *IDC) {
     for (auto conformance :
          IDC->getLocalConformances(ConformanceLookupKind::NonInherited)) {
+      if (conformance->getSourceKind() == ConformanceEntryKind::PreMacroExpansion)
+        continue;
+
       auto protocol = conformance->getProtocol();
       if (Ctx.getOpts().PublicSymbolsOnly &&
           getDeclLinkage(protocol) != FormalLinkage::PublicUnique)
@@ -465,20 +468,29 @@ public:
 
     // Add derivative function symbols.
     for (const auto *differentiableAttr :
-         AFD->getAttrs().getAttributes<DifferentiableAttr>())
+           AFD->getAttrs().getAttributes<DifferentiableAttr>()) {
+      auto *resultIndices = autodiff::getFunctionSemanticResultIndices(
+        AFD,
+        differentiableAttr->getParameterIndices());
       addDerivativeConfiguration(
           differentiableAttr->getDifferentiabilityKind(), AFD,
           AutoDiffConfig(differentiableAttr->getParameterIndices(),
-                         IndexSubset::get(AFD->getASTContext(), 1, {0}),
+                         resultIndices,
                          differentiableAttr->getDerivativeGenericSignature()));
+    }
+
     for (const auto *derivativeAttr :
-         AFD->getAttrs().getAttributes<DerivativeAttr>())
+         AFD->getAttrs().getAttributes<DerivativeAttr>()) {
+      auto *resultIndices = autodiff::getFunctionSemanticResultIndices(
+        derivativeAttr->getOriginalFunction(AFD->getASTContext()),
+        derivativeAttr->getParameterIndices());
       addDerivativeConfiguration(
           DifferentiabilityKind::Reverse,
           derivativeAttr->getOriginalFunction(AFD->getASTContext()),
           AutoDiffConfig(derivativeAttr->getParameterIndices(),
-                         IndexSubset::get(AFD->getASTContext(), 1, {0}),
+                         resultIndices,
                          AFD->getGenericSignature()));
+    }
 
     addRuntimeDiscoverableAttrGenerators(AFD);
 
@@ -522,13 +534,17 @@ public:
 
     // Add derivative function symbols.
     for (const auto *differentiableAttr :
-         ASD->getAttrs().getAttributes<DifferentiableAttr>())
+         ASD->getAttrs().getAttributes<DifferentiableAttr>()) {
+      // FIXME: handle other accessors
+      auto accessorDecl = ASD->getOpaqueAccessor(AccessorKind::Get);
       addDerivativeConfiguration(
           differentiableAttr->getDifferentiabilityKind(),
-          ASD->getOpaqueAccessor(AccessorKind::Get),
+          accessorDecl,
           AutoDiffConfig(differentiableAttr->getParameterIndices(),
-                         IndexSubset::get(ASD->getASTContext(), 1, {0}),
+                         autodiff::getFunctionSemanticResultIndices(accessorDecl,
+                                                                    differentiableAttr->getParameterIndices()),
                          differentiableAttr->getDerivativeGenericSignature()));
+    }
   }
 
   void visitVarDecl(VarDecl *VD) {

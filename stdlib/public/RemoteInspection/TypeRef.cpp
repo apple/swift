@@ -111,12 +111,12 @@ public:
 
   void visitTupleTypeRef(const TupleTypeRef *T) {
     printHeader("tuple");
-    T->getLabels();
+
     auto Labels = T->getLabels();
     for (auto NameElement : llvm::zip_first(Labels, T->getElements())) {
       auto Label = std::get<0>(NameElement);
       if (!Label.empty())
-        stream << Label.str() << " = ";
+        stream << Label << " = ";
       printRec(std::get<1>(NameElement));
     }
     stream << ")";
@@ -1133,8 +1133,8 @@ public:
     std::vector<const TypeRef *> Elements;
     for (auto Element : T->getElements())
       Elements.push_back(visit(Element));
-    std::string Labels = T->getLabelString();
-    return TupleTypeRef::create(Builder, Elements, std::move(Labels));
+    auto Labels = T->getLabels();
+    return TupleTypeRef::create(Builder, Elements, Labels);
   }
 
   const TypeRef *visitFunctionTypeRef(const FunctionTypeRef *F) {
@@ -1268,8 +1268,8 @@ public:
     std::vector<const TypeRef *> Elements;
     for (auto Element : T->getElements())
       Elements.push_back(visit(Element));
-    std::string Labels = T->getLabelString();
-    return TupleTypeRef::create(Builder, Elements, std::move(Labels));
+    auto Labels = T->getLabels();
+    return TupleTypeRef::create(Builder, Elements, Labels);
   }
 
   const TypeRef *visitFunctionTypeRef(const FunctionTypeRef *F) {

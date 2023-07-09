@@ -595,6 +595,30 @@ func testResilientMultiPayloadEnumGenericTag() {
 testResilientMultiPayloadEnumGenericTag()
 
 @inline(never)
+func matchResilientSinglePayloadEnumSimpleTag(_ x: ResilientSinglePayloadEnumSimple) -> Int {
+    return switch x {
+    case .nonEmpty: 0
+    case .empty0: 1
+    case .empty1: 2
+    }
+}
+
+func testResilientSinglePayloadEnumSimpleInjectTag() {
+    let x = ResilientSinglePayloadEnumSimple.nonEmpty(SimpleClass(x: 23))
+    let y = ResilientSinglePayloadEnumSimple.empty0
+    let z = ResilientSinglePayloadEnumSimple.empty1
+
+    // CHECK: Enum case: 0
+    print("Enum case: \(matchResilientSinglePayloadEnumSimpleTag(x))")
+    // CHECK: Enum case: 1
+    print("Enum case: \(matchResilientSinglePayloadEnumSimpleTag(y))")
+    // CHECK: Enum case: 2
+    print("Enum case: \(matchResilientSinglePayloadEnumSimpleTag(z))")
+}
+
+testResilientSinglePayloadEnumSimpleInjectTag()
+
+@inline(never)
 func matchResilientSinglePayloadEnumGenericTag(_ x: ResilientSinglePayloadEnumGeneric<AnyObject>) -> Int {
     return switch x {
     case .nonEmpty: 0
@@ -645,6 +669,22 @@ func testResilientMultiPayloadEnumGenericInjectTag() {
 }
 
 testResilientMultiPayloadEnumGenericInjectTag()
+
+@inline(never)
+func matchResilientSingletonEnumTag(_ x: ResilientSingletonEnum) -> Int {
+    return switch x {
+    case .nonEmpty: 0
+    }
+}
+
+func testResilientSingletonEnumGenericInjectTag() {
+    let x = ResilientSingletonEnum.nonEmpty(SimpleClass(x: 23))
+
+    // CHECK: Enum case: 0
+    print("Enum case: \(matchResilientSingletonEnumTag(x))")
+}
+
+testResilientSingletonEnumGenericInjectTag()
 
 #if os(macOS)
 

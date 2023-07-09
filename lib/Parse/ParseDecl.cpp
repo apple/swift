@@ -7010,38 +7010,6 @@ void Parser::skipAnyAttribute() {
   (void)canParseCustomAttribute();
 }
 
-/// Returns a descriptive name for the given accessor/addressor kind.
-static StringRef getAccessorNameForDiagnostic(AccessorKind accessorKind,
-                                              bool article) {
-  switch (accessorKind) {
-  case AccessorKind::Get:
-    return article ? "a getter" : "getter";
-  case AccessorKind::Set:
-    return article ? "a setter" : "setter";
-  case AccessorKind::Address:
-    return article ? "an addressor" : "addressor";
-  case AccessorKind::MutableAddress:
-    return article ? "a mutable addressor" : "mutable addressor";
-  case AccessorKind::Read:
-    return article ? "a 'read' accessor" : "'read' accessor";
-  case AccessorKind::Modify:
-    return article ? "a 'modify' accessor" : "'modify' accessor";
-  case AccessorKind::WillSet:
-    return "'willSet'";
-  case AccessorKind::DidSet:
-    return "'didSet'";
-  case AccessorKind::Init:
-    return article ? "an init accessor" : "init accessor";
-  }
-  llvm_unreachable("bad accessor kind");  
-}
-
-static StringRef getAccessorNameForDiagnostic(AccessorDecl *accessor,
-                                              bool article) {
-  return getAccessorNameForDiagnostic(accessor->getAccessorKind(),
-                                      article);
-}
-
 static void diagnoseRedundantAccessors(Parser &P, SourceLoc loc,
                                        AccessorKind accessorKind,
                                        bool isSubscript,
@@ -7094,15 +7062,6 @@ struct Parser::ParsedAccessors {
     for (auto accessor : Accessors)
       if (!accessor->isGetter())
         func(accessor);
-  }
-
-  /// Find the first accessor that's not an observing accessor.
-  AccessorDecl *findFirstNonObserver() {
-    for (auto accessor : Accessors) {
-      if (!accessor->isObservingAccessor())
-        return accessor;
-    }
-    return nullptr;
   }
 
   /// Find the first accessor that can be used to perform mutation.
@@ -7521,8 +7480,14 @@ void Parser::parseTopLevelAccessors(
 
   bool hadLBrace = consumeIf(tok::l_brace);
 
-  ParserStatus status;
+  // Prepopulate the field for any accessors that were already parsed parsed accessors
   ParsedAccessors accessors;
+#define ACCESSOR(ID)                                            \
+    if (auto accessor = storage->getAccessor(AccessorKind::ID)) \
+      accessors.ID = accessor;
+#include "swift/AST/AccessorKinds.def"
+
+  ParserStatus status;
   bool hasEffectfulGet = false;
   bool parsingLimitedSyntax = false;
   while (!Tok.isAny(tok::r_brace, tok::eof)) {
@@ -7794,16 +7759,10 @@ void Parser::ParsedAccessors::classify(Parser &P, AbstractStorageDecl *storage,
   // The observing accessors have very specific restrictions.
   // Prefer to ignore them.
   if (WillSet || DidSet) {
-    // For now, we don't support the observing accessors on subscripts.
+    // We don't support the observing accessors on subscripts.
     if (isa<SubscriptDecl>(storage)) {
       diagnoseAndIgnoreObservers(P, *this,
                                  diag::observing_accessor_in_subscript);
-
-    // The observing accessors cannot be combined with other accessors.
-    } else if (auto nonObserver = findFirstNonObserver()) {
-      diagnoseAndIgnoreObservers(P, *this,
-                   diag::observing_accessor_conflicts_with_accessor,
-                   getAccessorNameForDiagnostic(nonObserver, /*article*/ true));
     }
   }
 

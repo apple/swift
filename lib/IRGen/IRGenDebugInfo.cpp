@@ -98,10 +98,11 @@ public:
 };
 
 static bool equalWithoutExistentialTypes(Type t1, Type t2) {
-  auto withoutExistentialTypes = [](Type type) -> Type {
+  static Type (*withoutExistentialTypes)(Type) = [](Type type) -> Type {
     return type.transform([](Type type) -> Type {
-      if (auto existential = type->getAs<ExistentialType>())
-        return existential->getConstraintType();
+      if (auto existential = type->getAs<ExistentialType>()) {
+        return withoutExistentialTypes(existential->getConstraintType());
+      }
       return type;
     });
   };

@@ -3556,8 +3556,7 @@ getSuperclassMetadata(MetadataRequest request, const ClassMetadata *self) {
     auto result = swift_getTypeByMangledName(
         request, superclassName, substitutions.getGenericArgs(),
         [&substitutions](unsigned depth, unsigned index) {
-          // FIXME: Variadic generics
-          return substitutions.getMetadata(depth, index).getMetadata();
+          return substitutions.getMetadata(depth, index).Ptr;
         },
         [&substitutions](const Metadata *type, unsigned index) {
           return substitutions.getWitnessTable(type, index);
@@ -6291,8 +6290,7 @@ swift_getAssociatedTypeWitnessSlowImpl(
     result = swift_getTypeByMangledName(
         request, mangledName, substitutions.getGenericArgs(),
         [&substitutions](unsigned depth, unsigned index) {
-          // FIXME: Variadic generics
-          return substitutions.getMetadata(depth, index).getMetadata();
+          return substitutions.getMetadata(depth, index).Ptr;
         },
         [&substitutions](const Metadata *type, unsigned index) {
           return substitutions.getWitnessTable(type, index);
@@ -6438,8 +6436,7 @@ swift_getAssociatedTypeWitnessRelativeSlowImpl(
   auto result = swift_getTypeByMangledName(
       request, mangledName, substitutions.getGenericArgs(),
       [&substitutions](unsigned depth, unsigned index) {
-        // FIXME: Variadic generics
-        return substitutions.getMetadata(depth, index).getMetadata();
+        return substitutions.getMetadata(depth, index).Ptr;
       },
       [&substitutions](const Metadata *type, unsigned index) {
         return substitutions.getWitnessTable(type, index);

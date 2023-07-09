@@ -180,39 +180,89 @@ void AnyFunctionType::getSubsetParameters(
   }
 }
 
-void autodiff::getFunctionSemanticResultTypes(
-    AnyFunctionType *functionType,
-    SmallVectorImpl<AutoDiffSemanticFunctionResultType> &result,
-    GenericEnvironment *genericEnv) {
+void autodiff::getFunctionSemanticResults(
+    const AnyFunctionType *functionType,
+    const IndexSubset *parameterIndices,
+    SmallVectorImpl<AutoDiffSemanticFunctionResultType> &resultTypes) {
   auto &ctx = functionType->getASTContext();
-
-  // Remap type in `genericEnv`, if specified.
-  auto remap = [&](Type type) {
-    if (!genericEnv)
-      return type;
-    return genericEnv->mapTypeIntoContext(type);
-  };
 
   // Collect formal result type as a semantic result, unless it is
   // `Void`.
   auto formalResultType = functionType->getResult();
   if (auto *resultFunctionType =
-          functionType->getResult()->getAs<AnyFunctionType>()) {
+      functionType->getResult()->getAs<AnyFunctionType>())
     formalResultType = resultFunctionType->getResult();
-  }
-  if (!formalResultType->isEqual(ctx.TheEmptyTupleType))
-    result.push_back({remap(formalResultType), /*isInout*/ false});
 
-  // Collect `inout` parameters as semantic results.
-  for (auto param : functionType->getParams())
-    if (param.isInOut())
-      result.push_back({remap(param.getPlainType()), /*isInout*/ true});
-  if (auto *resultFunctionType =
-          functionType->getResult()->getAs<AnyFunctionType>()) {
-    for (auto param : resultFunctionType->getParams())
-      if (param.isInOut())
-        result.push_back({remap(param.getPlainType()), /*isInout*/ true});
+  unsigned resultIdx = 0;
+  if (!formalResultType->isEqual(ctx.TheEmptyTupleType)) {
+    // Separate tuple elements into individual results.
+    if (formalResultType->is<TupleType>()) {
+      for (auto elt : formalResultType->castTo<TupleType>()->getElements()) {
+        resultTypes.emplace_back(elt.getType(), resultIdx++,
+                                 /*isInout*/ false, /*isWrt*/ false);
+      }
+    } else {
+      resultTypes.emplace_back(formalResultType, resultIdx++,
+                               /*isInout*/ false, /*isWrt*/ false);
+    }
   }
+
+  bool addNonWrts = resultTypes.empty();
+
+  // Collect wrt `inout` parameters as semantic results
+  // As an extention, collect all (including non-wrt) inouts as results for
+  // functions returning void.
+  auto collectSemanticResults = [&](const AnyFunctionType *functionType,
+                                    unsigned curryOffset = 0) {
+    for (auto paramAndIndex : enumerate(functionType->getParams())) {
+      if (!paramAndIndex.value().isInOut())
+        continue;
+
+      unsigned idx = paramAndIndex.index() + curryOffset;
+      assert(idx < parameterIndices->getCapacity() &&
+             "invalid parameter index");
+      bool isWrt = parameterIndices->contains(idx);
+      if (addNonWrts || isWrt)
+        resultTypes.emplace_back(paramAndIndex.value().getPlainType(),
+                                 resultIdx, /*isInout*/ true, isWrt);
+      resultIdx += 1;
+    }
+  };
+
+  if (auto *resultFnType =
+      functionType->getResult()->getAs<AnyFunctionType>()) {
+    // Here we assume that the input is a function type with curried `Self`
+    assert(functionType->getNumParams() == 1 && "unexpected function type");
+
+    collectSemanticResults(resultFnType);
+    collectSemanticResults(functionType, resultFnType->getNumParams());
+  } else
+    collectSemanticResults(functionType);
+}
+
+IndexSubset *
+autodiff::getFunctionSemanticResultIndices(const AnyFunctionType *functionType,
+                                           const IndexSubset *parameterIndices) {
+  auto &ctx = functionType->getASTContext();
+
+  SmallVector<AutoDiffSemanticFunctionResultType, 1> semanticResults;
+  autodiff::getFunctionSemanticResults(functionType, parameterIndices,
+                                       semanticResults);
+  SmallVector<unsigned> resultIndices;
+  unsigned cap = 0;
+  for (const auto& result : semanticResults) {
+    resultIndices.push_back(result.index);
+    cap = std::max(cap, result.index + 1U);
+  }
+
+  return IndexSubset::get(ctx, cap, resultIndices);
+}
+
+IndexSubset *
+autodiff::getFunctionSemanticResultIndices(const AbstractFunctionDecl *AFD,
+                                           const IndexSubset *parameterIndices) {
+  return getFunctionSemanticResultIndices(AFD->getInterfaceType()->castTo<AnyFunctionType>(),
+                                          parameterIndices);
 }
 
 // TODO(TF-874): Simplify this helper. See TF-874 for WIP.
@@ -398,9 +448,6 @@ void DerivativeFunctionTypeError::log(raw_ostream &OS) const {
   switch (kind) {
   case Kind::NoSemanticResults:
     OS << "has no semantic results ('Void' result)";
-    break;
-  case Kind::MultipleSemanticResults:
-    OS << "has multiple semantic results";
     break;
   case Kind::NoDifferentiabilityParameters:
     OS << "has no differentiability parameters";

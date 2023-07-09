@@ -32,6 +32,7 @@
 
 namespace swift {
 
+class AbstractFunctionDecl;
 class AnyFunctionType;
 class SourceFile;
 class SILFunctionType;
@@ -249,7 +250,12 @@ inline llvm::raw_ostream &operator<<(llvm::raw_ostream &s,
 /// an `inout` parameter type. Used in derivative function type calculation.
 struct AutoDiffSemanticFunctionResultType {
   Type type;
-  bool isInout;
+  unsigned index : 30;
+  bool isInout : 1;
+  bool isWrtParam : 1;
+
+  AutoDiffSemanticFunctionResultType(Type t, unsigned idx, bool inout, bool wrt)
+    : type(t), index(idx), isInout(inout), isWrtParam(wrt) { }
 };
 
 /// Key for caching SIL derivative function types.
@@ -400,9 +406,6 @@ public:
   enum class Kind {
     /// Original function type has no semantic results.
     NoSemanticResults,
-    /// Original function type has multiple semantic results.
-    // TODO(TF-1250): Support function types with multiple semantic results.
-    MultipleSemanticResults,
     /// Differentiability parmeter indices are empty.
     NoDifferentiabilityParameters,
     /// A differentiability parameter does not conform to `Differentiable`.
@@ -431,7 +434,6 @@ public:
   explicit DerivativeFunctionTypeError(AnyFunctionType *functionType, Kind kind)
       : functionType(functionType), kind(kind), value(Value()) {
     assert(kind == Kind::NoSemanticResults ||
-           kind == Kind::MultipleSemanticResults ||
            kind == Kind::NoDifferentiabilityParameters);
   };
 
@@ -574,15 +576,22 @@ namespace autodiff {
 /// `inout` parameter types.
 ///
 /// The function type may have at most two parameter lists.
-///
-/// Remaps the original semantic result using `genericEnv`, if specified.
-void getFunctionSemanticResultTypes(
-    AnyFunctionType *functionType,
-    SmallVectorImpl<AutoDiffSemanticFunctionResultType> &result,
-    GenericEnvironment *genericEnv = nullptr);
+void getFunctionSemanticResults(
+    const AnyFunctionType *functionType,
+    const IndexSubset *parameterIndices,
+    SmallVectorImpl<AutoDiffSemanticFunctionResultType> &resultTypes);
+
+/// Returns the indices of semantic results for a given function.
+IndexSubset *getFunctionSemanticResultIndices(
+    const AnyFunctionType *functionType,
+    const IndexSubset *parameterIndices);
+
+IndexSubset *getFunctionSemanticResultIndices(
+    const AbstractFunctionDecl *AFD,
+    const IndexSubset *parameterIndices);
 
 /// Returns the lowered SIL parameter indices for the given AST parameter
-/// indices and `AnyfunctionType`.
+/// indices and `AnyFunctionType`.
 ///
 /// Notable lowering-related changes:
 /// - AST tuple parameter types are exploded when lowered to SIL.

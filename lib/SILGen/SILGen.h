@@ -75,9 +75,6 @@ public:
   llvm::DenseMap<VarDecl *, std::pair<SILGlobalVariable *,
                                       SILFunction *>> delayedGlobals;
 
-  /// The most recent declaration we considered for emission.
-  SILDeclRef lastEmittedFunction;
-
   /// Bookkeeping to ensure that useConformancesFrom{ObjectiveC,}Type() is
   /// only called once for each unique type, as an optimization.
   llvm::DenseSet<TypeBase *> usedConformancesFromTypes;
@@ -309,6 +306,10 @@ public:
 
   /// Emits the function definition for a given SILDeclRef.
   void emitFunctionDefinition(SILDeclRef constant, SILFunction *f);
+
+  /// Emit a function now, if it's externally usable or has been referenced in
+  /// the current TU, or remember how to emit it later if not.
+  void emitOrDelayFunction(SILDeclRef constant);
 
   /// Generates code for the given closure expression and adds the
   /// SILFunction to the current SILModule under the name SILDeclRef(ce).
@@ -613,6 +614,9 @@ public:
   void tryEmitPropertyDescriptor(AbstractStorageDecl *decl);
 
 private:
+  /// The most recent declaration we considered for emission.
+  SILDeclRef lastEmittedFunction;
+
   /// Emit the deallocator for a class that uses the objc allocator.
   void emitObjCAllocatorDestructor(ClassDecl *cd, DestructorDecl *dd);
 };

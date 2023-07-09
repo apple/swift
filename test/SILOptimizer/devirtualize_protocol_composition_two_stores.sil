@@ -1,5 +1,7 @@
 // RUN: %target-sil-opt -O -wmo -enable-sil-verify-all %s | %FileCheck %s
 
+// REQUIRES: swift_in_compiler
+
 sil_stage canonical
 
 import Builtin

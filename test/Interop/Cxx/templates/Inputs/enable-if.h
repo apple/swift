@@ -26,4 +26,14 @@ struct HasMethodWithEnableIf {
   }
 };
 
+struct HasConstructorWithEnableIf {
+  template<class T, class _ = typename enable_if<is_bool<T>::value, bool>::type>
+  HasConstructorWithEnableIf(const T &);
+};
+
+struct HasConstructorWithEnableIfUsed {
+  template<class T, class U = typename enable_if<is_bool<T>::value, bool>::type>
+  HasConstructorWithEnableIfUsed(const T &, const U &);
+};
+
 #endif // TEST_INTEROP_CXX_TEMPLATES_INPUTS_ENABLE_IF_H

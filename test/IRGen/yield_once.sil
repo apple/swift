@@ -1,19 +1,18 @@
-// RUN: %target-swift-frontend %use_no_opaque_pointers -emit-ir -disable-llvm-optzns -disable-swift-specific-llvm-optzns %s | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-%target-ptrsize-%target-ptrauth
-// RUN: %target-swift-frontend -emit-ir -disable-llvm-optzns -disable-swift-specific-llvm-optzns %s
+// RUN: %target-swift-frontend -emit-ir -disable-llvm-optzns -disable-swift-specific-llvm-optzns %s | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize --check-prefix=CHECK-%target-ptrsize-%target-ptrauth
 
 import Builtin
 
 sil @marker : $(Builtin.Int32) -> ()
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc i8* @test_simple
-// CHECK-32-SAME:  i8* noalias dereferenceable([[BUFFER_SIZE:16]]) %0)
-// CHECK-64-SAME:  (i8* noalias dereferenceable([[BUFFER_SIZE:32]]) %0)
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @test_simple
+// CHECK-32-SAME:  ptr noalias dereferenceable([[BUFFER_SIZE:16]]) %0)
+// CHECK-64-SAME:  (ptr noalias dereferenceable([[BUFFER_SIZE:32]]) %0)
 // CHECK-SAME:  [[CORO_ATTRIBUTES:#[0-9]+]]
 sil @test_simple : $@yield_once () -> () {
 entry:
-  // CHECK-32:      [[ID:%.*]] = call token @llvm.coro.id.retcon.once(i32 [[BUFFER_SIZE]], i32 [[BUFFER_ALIGN:4]], i8* %0, i8* bitcast (void (i8*, i1)* @"$sIetA_TC" to i8*), i8* bitcast (i8* (i32)* @malloc to i8*), i8* bitcast (void (i8*)* @free to i8*))
-  // CHECK-64:      [[ID:%.*]] = call token @llvm.coro.id.retcon.once(i32 [[BUFFER_SIZE]], i32 [[BUFFER_ALIGN:8]], i8* %0, i8* bitcast (void (i8*, i1)* @"$sIetA_TC" to i8*), i8* bitcast (i8* (i64)* @malloc to i8*), i8* bitcast (void (i8*)* @free to i8*))
-  // CHECK-NEXT:    [[BEGIN:%.*]] = call i8* @llvm.coro.begin(token [[ID]], i8* null)
+  // CHECK-32:      [[ID:%.*]] = call token @llvm.coro.id.retcon.once(i32 [[BUFFER_SIZE]], i32 [[BUFFER_ALIGN:4]], ptr %0, ptr @"$sIetA_TC", ptr @malloc, ptr @free)
+  // CHECK-64:      [[ID:%.*]] = call token @llvm.coro.id.retcon.once(i32 [[BUFFER_SIZE]], i32 [[BUFFER_ALIGN:8]], ptr %0, ptr @"$sIetA_TC", ptr @malloc, ptr @free)
+  // CHECK-NEXT:    [[BEGIN:%.*]] = call ptr @llvm.coro.begin(token [[ID]], ptr null)
 
   // CHECK-NEXT:    call swiftcc void @marker(i32 1000)
   %marker = function_ref @marker : $@convention(thin) (Builtin.Int32) -> ()
@@ -40,26 +39,25 @@ unwind:
   unwind
 
   // CHECK:       coro.end:
-  // CHECK:         call i1 @llvm.coro.end(i8* [[BEGIN]], i1 false)
+  // CHECK:         call i1 @llvm.coro.end(ptr [[BEGIN]], i1 false)
   // CHECK-NEXT:    unreachable
 }
 
 // CHECK-LABEL:     declare{{( dllimport)?}}{{( protected)?}} swiftcc void @"$sIetA_TC"
-// CHECK-SAME:      (i8* noalias dereferenceable([[BUFFER_SIZE]]), i1)
+// CHECK-SAME:      (ptr noalias dereferenceable([[BUFFER_SIZE]]), i1)
 
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @test_simple_call(i1 %0)
 sil @test_simple_call : $(Builtin.Int1) -> () {
 entry(%flag : $Builtin.Int1):
   //   Allocate the buffer.
   // CHECK:         [[T0:%.*]] = alloca {{\[}}[[BUFFER_SIZE]] x i8], align [[BUFFER_ALIGN]]
-  // CHECK-NEXT:    [[BUFFER:%.*]] = getelementptr inbounds {{\[}}[[BUFFER_SIZE]] x i8], {{\[}}[[BUFFER_SIZE]] x i8]* [[T0]], i32 0, i32 0
-  // CHECK-NEXT:    call void @llvm.lifetime.start.p0i8(i64 [[BUFFER_SIZE]], i8* [[BUFFER]])
+  // CHECK-NEXT:    [[BUFFER:%.*]] = getelementptr inbounds {{\[}}[[BUFFER_SIZE]] x i8], ptr [[T0]], i32 0, i32 0
+  // CHECK-NEXT:    call void @llvm.lifetime.start.p0(i64 [[BUFFER_SIZE]], ptr [[BUFFER]])
 
   //   Prepare the continuation function pointer to block analysis.
-  // CHECK-NEXT:    [[T0:%.*]] = call i8* @llvm.coro.prepare.retcon(i8* bitcast (i8* (i8*)* @test_simple to i8*))
-  // CHECK-NEXT:    [[PREPARE:%.*]] = bitcast i8* [[T0]] to i8* (i8*)*
+  // CHECK-NEXT:    [[T0:%.*]] = call ptr @llvm.coro.prepare.retcon(ptr @test_simple)
   //   Call the function pointer.
-  // CHECK-NEXT:    [[CONTINUATION:%.*]] = call swiftcc i8* [[PREPARE]](i8* noalias dereferenceable([[BUFFER_SIZE]]) [[BUFFER]])
+  // CHECK-NEXT:    [[CONTINUATION:%.*]] = call swiftcc ptr [[T0]](ptr noalias dereferenceable([[BUFFER_SIZE]]) [[BUFFER]])
   %0 = function_ref @test_simple : $@convention(thin) @yield_once () -> ()
   %token = begin_apply %0() : $@convention(thin) @yield_once () -> ()
 
@@ -68,22 +66,20 @@ entry(%flag : $Builtin.Int1):
   cond_br %flag, yes, no
 
 yes:
-  // CHECK:         [[T0:%.*]] = bitcast i8* [[CONTINUATION]] to void (i8*, i1)*
-  // CHECK-64-ptrauth-NEXT: ptrtoint
+  // CHECK-64-ptrauth: ptrtoint
   // CHECK-64-ptrauth-NEXT: ptrauth.blend
-  // CHECK-NEXT:    call swiftcc void [[T0]](i8* noalias dereferenceable([[BUFFER_SIZE]]) [[BUFFER]], i1 false)
-  // CHECK-NEXT:    call void @llvm.lifetime.end.p0i8(i64 [[BUFFER_SIZE]], i8* [[BUFFER]])
+  // CHECK:    call swiftcc void [[CONTINUATION]](ptr noalias dereferenceable([[BUFFER_SIZE]]) [[BUFFER]], i1 false)
+  // CHECK-NEXT:    call void @llvm.lifetime.end.p0(i64 [[BUFFER_SIZE]], ptr [[BUFFER]])
   end_apply %token
 
   // CHECK-NEXT:    br label
   br cont
 
 no:
-  // CHECK:         [[T0:%.*]] = bitcast i8* [[CONTINUATION]] to void (i8*, i1)*
-  // CHECK-64-ptrauth-NEXT: ptrtoint
+  // CHECK-64-ptrauth: ptrtoint
   // CHECK-64-ptrauth-NEXT: ptrauth.blend
-  // CHECK-NEXT:    call swiftcc void [[T0]](i8* noalias dereferenceable([[BUFFER_SIZE]]) [[BUFFER]], i1 true)
-  // CHECK-NEXT:    call void @llvm.lifetime.end.p0i8(i64 [[BUFFER_SIZE]], i8* [[BUFFER]])
+  // CHECK:    call swiftcc void [[CONTINUATION]](ptr noalias dereferenceable([[BUFFER_SIZE]]) [[BUFFER]], i1 true)
+  // CHECK-NEXT:    call void @llvm.lifetime.end.p0(i64 [[BUFFER_SIZE]], ptr [[BUFFER]])
   abort_apply %token
 
   // CHECK-NEXT:    br label
@@ -104,28 +100,26 @@ entry:
 
   //   Allocate the buffer.
   // CHECK:         [[T0:%.*]] = alloca {{\[}}[[BUFFER_SIZE]] x i8], align [[BUFFER_ALIGN]]
-  // CHECK-NEXT:    [[BUFFER:%.*]] = getelementptr inbounds {{\[}}[[BUFFER_SIZE]] x i8], {{\[}}[[BUFFER_SIZE]] x i8]* [[T0]], i32 0, i32 0
-  // CHECK-NEXT:    call void @llvm.lifetime.start.p0i8(i64 [[BUFFER_SIZE]], i8* [[BUFFER]])
+  // CHECK-NEXT:    [[BUFFER:%.*]] = getelementptr inbounds {{\[}}[[BUFFER_SIZE]] x i8], ptr [[T0]], i32 0, i32 0
+  // CHECK-NEXT:    call void @llvm.lifetime.start.p0(i64 [[BUFFER_SIZE]], ptr [[BUFFER]])
 
   //   Prepare the continuation function pointer to block analysis.
-  // CHECK-NEXT:    [[T0:%.*]] = call i8* @llvm.coro.prepare.retcon(i8* bitcast ({ i8*, i32, i32 } (i8*)* @yields_pair to i8*))
-  // CHECK-NEXT:    [[PREPARE:%.*]] = bitcast i8* [[T0]] to { i8*, i32, i32 } (i8*)*
+  // CHECK-NEXT:    [[T0:%.*]] = call ptr @llvm.coro.prepare.retcon(ptr @yields_pair)
   //   Call the function pointer.
-  // CHECK-NEXT:    [[PACKED:%.*]] = call swiftcc { i8*, i32, i32 } [[PREPARE]](i8* noalias dereferenceable([[BUFFER_SIZE]]) [[BUFFER]])
-  // CHECK-NEXT:    [[CONTINUATION:%.*]] = extractvalue { i8*, i32, i32 } [[PACKED]], 0
-  // CHECK-NEXT:    [[FIRST:%.*]] = extractvalue { i8*, i32, i32 } [[PACKED]], 1
-  // CHECK-NEXT:    [[SECOND:%.*]] = extractvalue { i8*, i32, i32 } [[PACKED]], 2
+  // CHECK-NEXT:    [[PACKED:%.*]] = call swiftcc { ptr, i32, i32 } [[T0]](ptr noalias dereferenceable([[BUFFER_SIZE]]) [[BUFFER]])
+  // CHECK-NEXT:    [[CONTINUATION:%.*]] = extractvalue { ptr, i32, i32 } [[PACKED]], 0
+  // CHECK-NEXT:    [[FIRST:%.*]] = extractvalue { ptr, i32, i32 } [[PACKED]], 1
+  // CHECK-NEXT:    [[SECOND:%.*]] = extractvalue { ptr, i32, i32 } [[PACKED]], 2
   %coro = function_ref @yields_pair : $@yield_once @convention(thin) () -> (@yields Builtin.Int32, @yields Builtin.Int32)
   (%first, %second, %token) = begin_apply %coro() : $@yield_once @convention(thin) () -> (@yields Builtin.Int32, @yields Builtin.Int32)
 
   // CHECK-NEXT:    call swiftcc void @marker(i32 [[FIRST]])
   apply %marker(%first) : $@convention(thin) (Builtin.Int32) -> ()
 
-  // CHECK-NEXT:    [[T0:%.*]] = bitcast i8* [[CONTINUATION]] to void (i8*, i1)*
   // CHECK-64-ptrauth-NEXT: ptrtoint
   // CHECK-64-ptrauth-NEXT: ptrauth.blend
-  // CHECK-NEXT:    call swiftcc void [[T0]](i8* noalias dereferenceable([[BUFFER_SIZE]]) [[BUFFER]], i1 false)
-  // CHECK-NEXT:    call void @llvm.lifetime.end.p0i8(i64 [[BUFFER_SIZE]], i8* [[BUFFER]])
+  // CHECK-NEXT:    call swiftcc void [[CONTINUATION]](ptr noalias dereferenceable([[BUFFER_SIZE]]) [[BUFFER]], i1 false)
+  // CHECK-NEXT:    call void @llvm.lifetime.end.p0(i64 [[BUFFER_SIZE]], ptr [[BUFFER]])
   end_apply %token
 
   // CHECK-NEXT:    call swiftcc void @marker(i32 [[SECOND]])

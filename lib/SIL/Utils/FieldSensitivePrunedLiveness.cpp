@@ -1191,7 +1191,107 @@ void FieldSensitiveMultiDefPrunedLiveRange::findBoundariesInBlock(
                << "    Live at beginning of block! No dead args!\n");
   }
 
-  assert((isLiveOut ||
-          prevCount < boundary.getNumLastUsersAndDeadDefs(bitNo)) &&
-         "findBoundariesInBlock must be called on a live block");
+  assert(
+      (isLiveOut || prevCount < boundary.getNumLastUsersAndDeadDefs(bitNo)) &&
+      "findBoundariesInBlock must be called on a live block");
+}
+
+bool FieldSensitiveMultiDefPrunedLiveRange::findEarlierConsumingUse(
+    SILInstruction *inst, unsigned index,
+    llvm::function_ref<bool(SILInstruction *)> callback) const {
+  PRUNED_LIVENESS_LOG(
+      llvm::dbgs()
+      << "Performing single block search for consuming use for bit: " << index
+      << "!\n");
+
+  // Walk our block back from inst looking for defs or a consuming use. If we
+  // see a def, return true. If we see a use, we keep processing if the callback
+  // returns true... and return false early if the callback returns false.
+  for (auto ii = std::next(inst->getReverseIterator()),
+            ie = inst->getParent()->rend();
+       ii != ie; ++ii) {
+    PRUNED_LIVENESS_LOG(llvm::dbgs() << "Visiting: " << *ii);
+    // If we have a def, then we are automatically done.
+    if (isDef(&*ii, index)) {
+      PRUNED_LIVENESS_LOG(llvm::dbgs() << "    Is Def! Returning true!\n");
+      return true;
+    }
+
+    // If we have a consuming use, emit the error.
+    if (isInterestingUser(&*ii, index) ==
+        IsInterestingUser::LifetimeEndingUse) {
+      PRUNED_LIVENESS_LOG(llvm::dbgs() << "    Is Lifetime Ending Use!\n");
+      if (!callback(&*ii)) {
+        PRUNED_LIVENESS_LOG(llvm::dbgs()
+                            << "    Callback returned false... exiting!\n");
+        return false;
+      }
+      PRUNED_LIVENESS_LOG(llvm::dbgs()
+                          << "    Callback returned true... continuing!\n");
+    }
+
+    // Otherwise, keep going.
+  }
+
+  // Then check our argument defs.
+  for (auto *arg : inst->getParent()->getArguments()) {
+    PRUNED_LIVENESS_LOG(llvm::dbgs() << "Visiting arg: " << *arg);
+    if (isDef(arg, index)) {
+      PRUNED_LIVENESS_LOG(llvm::dbgs() << "    Found def. Returning true!\n");
+      return true;
+    }
+  }
+
+  PRUNED_LIVENESS_LOG(llvm::dbgs() << "Finished single block. Didn't find "
+                                      "anything... Performing interprocedural");
+
+  // Ok, we now know that we need to look further back.
+  BasicBlockWorklist worklist(inst->getFunction());
+  for (auto *predBlock : inst->getParent()->getPredecessorBlocks()) {
+    worklist.pushIfNotVisited(predBlock);
+  }
+
+  while (auto *next = worklist.pop()) {
+    PRUNED_LIVENESS_LOG(llvm::dbgs()
+                        << "Checking block bb" << next->getDebugID() << '\n');
+    for (auto ii = next->rbegin(), ie = next->rend(); ii != ie; ++ii) {
+      PRUNED_LIVENESS_LOG(llvm::dbgs() << "Visiting: " << *ii);
+      // If we have a def, then we are automatically done.
+      if (isDef(&*ii, index)) {
+        PRUNED_LIVENESS_LOG(llvm::dbgs() << "    Is Def! Returning true!\n");
+        return true;
+      }
+
+      // If we have a consuming use, emit the error.
+      if (isInterestingUser(&*ii, index) ==
+          IsInterestingUser::LifetimeEndingUse) {
+        PRUNED_LIVENESS_LOG(llvm::dbgs() << "    Is Lifetime Ending Use!\n");
+        if (!callback(&*ii)) {
+          PRUNED_LIVENESS_LOG(llvm::dbgs()
+                              << "    Callback returned false... exiting!\n");
+          return false;
+        }
+        PRUNED_LIVENESS_LOG(llvm::dbgs()
+                            << "    Callback returned true... continuing!\n");
+      }
+
+      // Otherwise, keep going.
+    }
+
+    for (auto *arg : next->getArguments()) {
+      PRUNED_LIVENESS_LOG(llvm::dbgs() << "Visiting arg: " << *arg);
+      if (isDef(arg, index)) {
+        PRUNED_LIVENESS_LOG(llvm::dbgs() << "    Found def. Returning true!\n");
+        return true;
+      }
+    }
+
+    PRUNED_LIVENESS_LOG(llvm::dbgs()
+                        << "Didn't find anything... visiting predecessors!\n");
+    for (auto *predBlock : next->getPredecessorBlocks()) {
+      worklist.pushIfNotVisited(predBlock);
+    }
+  }
+
+  return true;
 }

@@ -340,8 +340,15 @@ extension ValueDefUseWalker {
       } else {
         return unmatchedPath(value: operand, path: path)
       }
-    case is InitExistentialRefInst, is OpenExistentialRefInst,
-      is BeginBorrowInst, is CopyValueInst, is MoveValueInst,
+    case let ier as InitExistentialRefInst:
+      return walkDownUses(ofValue: ier, path: path.push(.existential, index: 0))
+    case let oer as OpenExistentialRefInst:
+      if let path = path.popIfMatches(.existential, index: 0) {
+        return walkDownUses(ofValue: oer, path: path)
+      } else {
+        return unmatchedPath(value: operand, path: path)
+      }
+    case is BeginBorrowInst, is CopyValueInst, is MoveValueInst,
       is UpcastInst, is UncheckedRefCastInst, is EndCOWMutationInst,
       is RefToBridgeObjectInst, is BridgeObjectToRefInst, is MarkMustCheckInst:
       return walkDownUses(ofValue: (instruction as! SingleValueInstruction), path: path)
@@ -470,14 +477,23 @@ extension AddressDefUseWalker {
       } else {
         return unmatchedPath(address: operand, path: path)
       }
-    case is InitExistentialAddrInst, is OpenExistentialAddrInst,
-      is IndexAddrInst, is MarkMustCheckInst:
-      // FIXME: for now `index_addr` is treated as a forwarding instruction since
-      // SmallProjectionPath does not track indices.
-      // This is ok since `index_addr` is eventually preceeded by a `tail_addr`
-      // which has pushed a `"ct"` component on the path that matches any
-      // `index_addr` address.
-      return walkDownUses(ofAddress: instruction as! SingleValueInstruction, path: path)
+    case is InitExistentialAddrInst, is OpenExistentialAddrInst:
+      if let path = path.popIfMatches(.existential, index: 0) {
+        return walkDownUses(ofAddress: instruction as! SingleValueInstruction, path: path)
+      } else {
+        return unmatchedPath(address: operand, path: path)
+      }
+    case let ia as IndexAddrInst:
+      if let (pathIdx, subPath) = path.pop(kind: .indexedElement) {
+        if let idx = ia.constantSmallIndex,
+           idx == pathIdx {
+          return walkDownUses(ofAddress: ia, path: subPath)
+        }
+        return walkDownUses(ofAddress: ia, path: subPath.push(.anyIndexedElement, index: 0))
+      }
+      return walkDownUses(ofAddress: ia, path: path)
+    case let mmc as MarkMustCheckInst:
+      return walkDownUses(ofAddress: mmc, path: path)
     case let ba as BeginAccessInst:
       // Don't treat `end_access` as leaf-use. Just ignore it.
       return walkDownNonEndAccessUses(of: ba, path: path)
@@ -630,8 +646,15 @@ extension ValueUseDefWalker {
       } else {
         return rootDef(value: mvr, path: path)
       }
-    case is InitExistentialRefInst, is OpenExistentialRefInst,
-      is BeginBorrowInst, is CopyValueInst, is MoveValueInst,
+    case let ier as InitExistentialRefInst:
+      if let path = path.popIfMatches(.existential, index: 0) {
+        return walkUp(value: ier.instance, path: path)
+      } else {
+        return unmatchedPath(value: ier, path: path)
+      }
+    case let oer as OpenExistentialRefInst:
+      return walkUp(value: oer.existential, path: path.push(.existential, index: 0))
+    case is BeginBorrowInst, is CopyValueInst, is MoveValueInst,
       is UpcastInst, is UncheckedRefCastInst, is EndCOWMutationInst,
       is RefToBridgeObjectInst, is BridgeObjectToRefInst, is MarkMustCheckInst:
       return walkUp(value: (def as! Instruction).operands[0].value, path: path)
@@ -718,14 +741,16 @@ extension AddressUseDefWalker {
     case is InitEnumDataAddrInst, is UncheckedTakeEnumDataAddrInst:
       return walkUp(address: (def as! UnaryInstruction).operand.value,
                     path: path.push(.enumCase, index: (def as! EnumInstruction).caseIndex))
-    case is InitExistentialAddrInst, is OpenExistentialAddrInst, is BeginAccessInst, is IndexAddrInst,
-         is MarkMustCheckInst:
-      // FIXME: for now `index_addr` is treated as a forwarding instruction since
-      // SmallProjectionPath does not track indices.
-      // This is ok since `index_addr` is eventually preceeded by a `tail_addr`
-      // which has pushed a `"ct"` component on the path that matches any
-      // `index_addr` address.
+    case is InitExistentialAddrInst, is OpenExistentialAddrInst:
+      return walkUp(address: (def as! Instruction).operands[0].value, path: path.push(.existential, index: 0))
+    case is BeginAccessInst, is MarkMustCheckInst:
       return walkUp(address: (def as! Instruction).operands[0].value, path: path)
+    case let ia as IndexAddrInst:
+      if let idx = ia.constantSmallIndex {
+        return walkUp(address: ia.base, path: path.push(.indexedElement, index: idx))
+      } else {
+        return walkUp(address: ia.base, path: path.push(.anyIndexedElement, index: 0))
+      }
     case let mdi as MarkDependenceInst:
       return walkUp(address: mdi.operands[0].value, path: path)
     default:
@@ -733,3 +758,17 @@ extension AddressUseDefWalker {
     }
   }
 }
+
+private extension IndexAddrInst {
+  var constantSmallIndex: Int? {
+    guard let literal = index as? IntegerLiteralInst else {
+      return nil
+    }
+    let index = literal.value
+    if index.isIntN(16) {
+      return Int(index.getSExtValue())
+    }
+    return nil
+  }
+}
+

@@ -465,3 +465,59 @@ func test_default_arguments_are_analyzed() {
     }
   }
 }
+
+struct TestStructPropWithoutSetter {
+  var _x: Int
+
+  var x: Int {
+    init(initialValue) initializes(_x) {
+      self._x = initialValue
+    }
+
+    get { _x }
+  }
+
+  init(v: Int) {
+    x = v // Ok
+  }
+}
+
+extension TestStructPropWithoutSetter {
+  init(other: Int) {
+    x = other // Ok
+  }
+
+  init(other: inout TestStructPropWithoutSetter, v: Int) {
+    other.x = v // expected-error {{cannot assign to property: 'x' is immutable}}
+  }
+}
+
+do {
+  class TestClassPropWithoutSetter {
+    var x: Int {
+      init {
+      }
+
+      get { 0 }
+    }
+  }
+
+  class SubTestPropWithoutSetter : TestClassPropWithoutSetter {
+    init(otherV: Int) {
+      x = otherV // Ok
+    }
+  }
+
+  class OtherWithoutSetter<U> {
+    var data: U {
+      init {
+      }
+
+      get { fatalError() }
+    }
+
+    init(data: U) {
+      self.data = data // Ok
+    }
+  }
+}

@@ -781,25 +781,36 @@ void UnboundImport::validateInterfaceWithPackageName(ModuleDecl *topLevelModule,
 
 void UnboundImport::validateResilience(NullablePtr<ModuleDecl> topLevelModule,
                                        SourceFile &SF) {
-  if (import.options.contains(ImportFlags::ImplementationOnly) ||
-      import.accessLevel < AccessLevel::Public)
-    return;
+  ASTContext &ctx = SF.getASTContext();
 
   // Per getTopLevelModule(), we'll only get nullptr here for non-Swift modules,
   // so these two really mean the same thing.
   if (!topLevelModule || topLevelModule.get()->isNonSwiftModule())
     return;
 
-  ASTContext &ctx = SF.getASTContext();
-
   // If the module we're validating is the builtin one, then just return because
   // this module is essentially a header only import and does not concern
   // itself with resiliency. This can occur when one has passed
   // '-enable-builtin-module' and is explicitly importing the Builtin module in
   // their sources.
-  if (topLevelModule.get() == ctx.TheBuiltinModule) {
+  if (topLevelModule.get() == ctx.TheBuiltinModule)
     return;
+
+  // @_implementationOnly is only supported when used from modules built with
+  // library-evolution. Otherwise it can lead to runtime crashes from a lack
+  // of memory layout information when building clients unaware of the
+  // dependency. The missing information is provided at run time by resilient
+  // modules.
+  if (import.options.contains(ImportFlags::ImplementationOnly) &&
+      !SF.getParentModule()->isResilient() && topLevelModule) {
+    ctx.Diags.diagnose(import.importLoc,
+                       diag::implementation_only_requires_library_evolution,
+                       SF.getParentModule()->getName());
   }
+
+  if (import.options.contains(ImportFlags::ImplementationOnly) ||
+      import.accessLevel < AccessLevel::Public)
+    return;
 
   if (!SF.getParentModule()->isResilient() ||
       topLevelModule.get()->isResilient())

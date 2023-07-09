@@ -873,6 +873,8 @@ static bool ParseLangArgs(LangOptions &Opts, ArgList &Args,
   if (Args.hasArg(OPT_enable_builtin_module))
     Opts.Features.insert(Feature::BuiltinModule);
 
+  Opts.Features.insert(Feature::LayoutPrespecialization);
+
   Opts.EnableAppExtensionRestrictions |= Args.hasArg(OPT_enable_app_extension);
 
   Opts.EnableSwift3ObjCInference =

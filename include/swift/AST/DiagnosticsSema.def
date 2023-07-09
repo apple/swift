@@ -1098,6 +1098,10 @@ ERROR(module_not_compiled_with_library_evolution,none,
       "module %0 was not compiled with library evolution support; "
       "using it means binary compatibility for %1 can't be guaranteed",
       (Identifier, Identifier))
+WARNING(implementation_only_requires_library_evolution,none,
+        "using '@_implementationOnly' without enabling library evolution "
+        "for %0 may lead to instability during execution",
+        (Identifier))
 
 ERROR(module_allowable_client_violation,none,
       "module %0 doesn't allow importation from module %1",
@@ -4000,9 +4004,6 @@ NOTE(autodiff_attr_original_decl_not_same_type_context,none,
      (DescriptiveDeclKind))
 ERROR(autodiff_attr_original_void_result,none,
       "cannot differentiate void function %0", (DeclName))
-ERROR(autodiff_attr_original_multiple_semantic_results,none,
-      "cannot differentiate functions with both an 'inout' parameter and a "
-      "result", ())
 ERROR(autodiff_attr_result_not_differentiable,none,
       "can only differentiate functions with results that conform to "
       "'Differentiable', but %0 does not conform to 'Differentiable'", (Type))

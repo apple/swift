@@ -163,3 +163,28 @@ public struct ObservationRegistrar: Sendable {
     return try mutation()
   }
 }
+
+@available(SwiftStdlib 5.9, *)
+extension ObservationRegistrar: Codable {
+  public init(from decoder: any Decoder) throws {
+    self.init()
+  }
+  
+  public func encode(to encoder: any Encoder) {
+    // Don't encode a registrar's transient state.
+  }
+}
+
+@available(SwiftStdlib 5.9, *)
+extension ObservationRegistrar: Hashable {
+  public static func == (lhs: Self, rhs: Self) -> Bool {
+    // A registrar should be ignored for the purposes of determining its
+    // parent type's equality.
+    return true
+  }
+  
+  public func hash(into hasher: inout Hasher) {
+    // Don't include a registrar's transient state in its parent type's
+    // hash value.
+  }
+}

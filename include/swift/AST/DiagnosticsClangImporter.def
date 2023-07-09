@@ -128,10 +128,6 @@ WARNING(libstdcxx_modulemap_not_found, none,
         "module map for libstdc++ not found for '%0'; C++ stdlib may be unavailable",
         (StringRef))
 
-WARNING(too_many_class_template_instantiations, none,
-        "template instantiation for '%0' not imported: too many instantiations",
-        (StringRef))
-
 WARNING(api_pattern_attr_ignored, none,
         "'%0' swift attribute ignored on type '%1': type is not copyable or destructible",
         (StringRef, StringRef))
@@ -256,7 +252,6 @@ NOTE(record_field_not_imported, none, "field %0 unavailable (cannot import)", (c
 NOTE(invoked_func_not_imported, none, "function %0 unavailable (cannot import)", (const clang::NamedDecl*))
 NOTE(record_method_not_imported, none, "method %0 unavailable (cannot import)", (const clang::NamedDecl*))
 NOTE(objc_property_not_imported, none, "property %0 unavailable (cannot import)", (const clang::NamedDecl*))
-NOTE(unsupported_return_type, none, "C++ function %0 is unavailable: return type is unavailable in Swift", (const clang::NamedDecl*))
 
 NOTE(placeholder_for_forward_declared_interface_member_access_failure, none,
      "class '%0' will be imported as an opaque placeholder class and may be "

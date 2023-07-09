@@ -801,7 +801,7 @@ func testNilCoalescePrecedence(cond: Bool, a: Int?, r: ClosedRange<Int>?) {
   // <rdar://problem/27457457> [Type checker] Diagnose unsavory optional injections
   // Accidental optional injection for ??.
   let i = 42
-  _ = i ?? 17 // expected-warning {{left side of nil coalescing operator '??' has non-optional type 'Int', so the right side is never used}} {{9-15=}}
+  _ = i ?? 17 // expected-warning {{left side of nil coalescing operator '??' has non-optional type 'Int', so the right side is never used}} {{8-14=}}
 }
 
 // <rdar://problem/19772570> Parsing of as and ?? regressed

@@ -741,7 +741,8 @@ struct TF_675 : Differentiable {
 let _: @differentiable(reverse) (Float) -> Float = TF_675().method
 
 // TF-918: Test parameter subset thunk + partially-applied original function.
-let _: @differentiable(reverse) (Float, Float) -> Float = (+) as @differentiable(reverse) (Float, @noDerivative Float) -> Float
+let _: @differentiable(reverse) (Float, @noDerivative Float) -> Float = (+) as @differentiable(reverse) (Float, Float) -> Float
+let _: @differentiable(reverse) (Float, @noDerivative Float) -> Float = (+) as @differentiable(reverse) (Float, @noDerivative Float) -> Float
 
 //===----------------------------------------------------------------------===//
 // Differentiation in fragile functions

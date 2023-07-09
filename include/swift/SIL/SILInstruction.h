@@ -4873,6 +4873,7 @@ public:
   ArrayRef<Operand> getAllOperands() const { return Operands.asArray(); }
   MutableArrayRef<Operand> getAllOperands() { return Operands.asArray(); }
 
+  StringRef getPropertyName() const;
   AccessorDecl *getReferencedInitAccessor() const;
 };
 

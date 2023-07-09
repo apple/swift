@@ -327,18 +327,14 @@ Type ASTBuilder::createBoundGenericType(GenericTypeDecl *decl,
   return aliasDecl->getDeclaredInterfaceType().subst(subMap);
 }
 
-Type ASTBuilder::createTupleType(ArrayRef<Type> eltTypes, StringRef labels) {
+Type ASTBuilder::createTupleType(ArrayRef<Type> eltTypes, ArrayRef<StringRef> labels) {
   SmallVector<TupleTypeElt, 4> elements;
   elements.reserve(eltTypes.size());
-  for (auto eltType : eltTypes) {
+  for (unsigned i : indices(eltTypes)) {
     Identifier label;
-    if (!labels.empty()) {
-      auto split = labels.split(' ');
-      if (!split.first.empty())
-        label = Ctx.getIdentifier(split.first);
-      labels = split.second;
-    }
-    elements.emplace_back(eltType, label);
+    if (!labels[i].empty())
+      label = Ctx.getIdentifier(labels[i]);
+    elements.emplace_back(eltTypes[i], label);
   }
 
   return TupleType::get(elements, Ctx);
@@ -359,8 +355,24 @@ Type ASTBuilder::createSILPackType(ArrayRef<Type> eltTypes,
   return SILPackType::get(Ctx, extInfo, elements);
 }
 
-Type ASTBuilder::createPackExpansionType(Type patternType, Type countType) {
+size_t ASTBuilder::beginPackExpansion(Type countType) {
+  ActivePackExpansions.push_back(countType);
+
+  return 1;
+}
+
+void ASTBuilder::advancePackExpansion(size_t index) {
+  assert(index == 0);
+}
+
+Type ASTBuilder::createExpandedPackElement(Type patternType) {
+  assert(!ActivePackExpansions.empty());
+  auto countType = ActivePackExpansions.back();
   return PackExpansionType::get(patternType, countType);
+}
+
+void ASTBuilder::endPackExpansion() {
+  ActivePackExpansions.pop_back();
 }
 
 Type ASTBuilder::createFunctionType(
@@ -880,7 +892,7 @@ Type ASTBuilder::createParenType(Type base) {
 GenericSignature
 ASTBuilder::createGenericSignature(ArrayRef<BuiltType> builtParams,
                                    ArrayRef<BuiltRequirement> requirements) {
-  std::vector<BuiltGenericTypeParam> params;
+  std::vector<GenericTypeParamType *> params;
   for (auto &param : builtParams) {
     auto paramTy = param->getAs<GenericTypeParamType>();
     if (!paramTy)

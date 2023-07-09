@@ -11,6 +11,7 @@ swift_compiler_sources(Optimizer
   CleanupDebugSteps.swift
   ComputeEscapeEffects.swift
   ComputeSideEffects.swift
+  DeadStoreElimination.swift
   InitializeStaticGlobals.swift
   ObjectOutliner.swift
   ObjCBridgingOptimization.swift

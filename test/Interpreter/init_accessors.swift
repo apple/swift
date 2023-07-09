@@ -462,3 +462,57 @@ test_memberwise_with_default_args()
 // CHECK-NEXT: test-defaulted-1: TestDefaulted(_a: 0, _b: 0)
 // CHECK-NEXT: test-defaulted-2: TestDefaulted(_a: 3, _b: 4)
 // CHECK-NEXT: test-defaulted-class: ("<<default>>", 1)
+
+func test_init_accessors_without_setters() {
+  struct TestStruct<T> {
+    var _x: T
+
+    var x: T {
+      init(initialValue) initializes(_x) {
+        _x = initialValue
+      }
+
+      get { _x }
+    }
+
+    init(value: T) {
+      x = value
+    }
+  }
+
+  let test1 = TestStruct(value: 42)
+  print("test-without-setter1: \(test1.x)")
+
+  class Base<T: Collection> {
+    private var _v: T
+
+    var data: T {
+      init(initialValue) initializes(_v) {
+        _v = initialValue
+      }
+
+      get { _v }
+    }
+
+    init(data: T) {
+      self.data = data
+    }
+  }
+
+  let test2 = Base(data: [1, 2, 3])
+  print("test-without-setter2: \(test2.data)")
+
+  class Sub<U> : Base<U> where U: Collection, U.Element == String {
+    init(other: U) {
+      super.init(data: other)
+    }
+  }
+
+  let test3 = Sub(other: ["a", "b", "c"])
+  print("test-without-setter3: \(test3.data)")
+}
+
+test_init_accessors_without_setters()
+// CHECK: test-without-setter1: 42
+// CHECK-NEXT: test-without-setter2: [1, 2, 3]
+// CHECK-NEXT: test-without-setter3: ["a", "b", "c"]

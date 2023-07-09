@@ -1,15 +1,11 @@
 // RUN: %target-swift-frontend -enable-experimental-feature SymbolLinkageMarkers -primary-file %s    -emit-sil | %FileCheck %s --check-prefix=SIL
 // RUN: %target-swift-frontend -enable-experimental-feature SymbolLinkageMarkers -primary-file %s -O -emit-sil | %FileCheck %s --check-prefix=SIL
-// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-experimental-feature SymbolLinkageMarkers -primary-file %s    -emit-ir  | %FileCheck %s --check-prefix=IR
-// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-experimental-feature SymbolLinkageMarkers -primary-file %s -O -emit-ir  | %FileCheck %s --check-prefix=IR
-// RUN: %target-swift-frontend -enable-experimental-feature SymbolLinkageMarkers -primary-file %s    -emit-ir
-// RUN: %target-swift-frontend -enable-experimental-feature SymbolLinkageMarkers -primary-file %s -O -emit-ir
+// RUN: %target-swift-frontend -enable-experimental-feature SymbolLinkageMarkers -primary-file %s    -emit-ir  | %FileCheck %s --check-prefix=IR
+// RUN: %target-swift-frontend -enable-experimental-feature SymbolLinkageMarkers -primary-file %s -O -emit-ir  | %FileCheck %s --check-prefix=IR
 // RUN: %target-swift-frontend -enable-experimental-feature SymbolLinkageMarkers -primary-file %s    -emit-sil -parse-as-library | %FileCheck %s --check-prefix=SIL
 // RUN: %target-swift-frontend -enable-experimental-feature SymbolLinkageMarkers -primary-file %s -O -emit-sil -parse-as-library | %FileCheck %s --check-prefix=SIL
-// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-experimental-feature SymbolLinkageMarkers -primary-file %s    -emit-ir  -parse-as-library | %FileCheck %s --check-prefix=IR
-// RUN: %target-swift-frontend %use_no_opaque_pointers -enable-experimental-feature SymbolLinkageMarkers -primary-file %s -O -emit-ir  -parse-as-library | %FileCheck %s --check-prefix=IR
-// RUN: %target-swift-frontend -enable-experimental-feature SymbolLinkageMarkers -primary-file %s    -emit-ir  -parse-as-library
-// RUN: %target-swift-frontend -enable-experimental-feature SymbolLinkageMarkers -primary-file %s -O -emit-ir  -parse-as-library
+// RUN: %target-swift-frontend -enable-experimental-feature SymbolLinkageMarkers -primary-file %s    -emit-ir  -parse-as-library | %FileCheck %s --check-prefix=IR
+// RUN: %target-swift-frontend -enable-experimental-feature SymbolLinkageMarkers -primary-file %s -O -emit-ir  -parse-as-library | %FileCheck %s --check-prefix=IR
 
 // REQUIRES: swift_in_compiler
 
@@ -29,8 +25,8 @@
 
 // SIL: sil hidden [used] @$s4used3fooyyF : $@convention(thin)
 
-// IR:      @llvm{{(\.compiler)?}}.used = appending global [{{.*}} x i8*] [
-// IR-SAME: i8* bitcast (%TSi* @"$s4used2g0Sivp" to i8*)
-// IR-SAME: i8* bitcast (<{ %TSi, %TSi }>* @"$s4used2g1Si_Sitvp" to i8*)
-// IR-SAME: i8* bitcast (%TSb* @"$s4used2g2Sbvp" to i8*)
-// IR-SAME: i8* bitcast (void ()* @"$s4used3fooyyF" to i8*)
+// IR:      @llvm{{(\.compiler)?}}.used = appending global [{{.*}} x ptr] [
+// IR-SAME: ptr @"$s4used2g0Sivp"
+// IR-SAME: ptr @"$s4used2g1Si_Sitvp"
+// IR-SAME: ptr @"$s4used2g2Sbvp"
+// IR-SAME: ptr @"$s4used3fooyyF"
