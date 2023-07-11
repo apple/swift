@@ -209,7 +209,7 @@ While this function declaration is trivial, it illustrates some important concep
 \paragraph{Parsing} Figure~\ref{identity ast} shows the abstract syntax tree produced by the parser before type checking. The key elements:
 \begin{enumerate}
 \item The \emph{generic parameter list} \texttt{<T>} introduces a single \emph{generic parameter declaration} named \texttt{T}. As its name suggests, this declares the generic parameter type \texttt{T}, scoped to the entire source range of this function.
-\item The \emph{type representation} \texttt{T} appears twice, first in the the parameter declaration \verb|_ x: T| and then as return type of \verb|identity(_:)|. A type representation is the purely syntactic form of a type. The parser does not perform name lookup, so the type representation stores the identifier \texttt{T} and does not refer to the generic parameter declaration of \texttt{T} in any way.
+\item The \emph{type representation} \texttt{T} appears twice, first in the parameter declaration \verb|_ x: T| and then as return type of \verb|identity(_:)|. A type representation is the purely syntactic form of a type. The parser does not perform name lookup, so the type representation stores the identifier \texttt{T} and does not refer to the generic parameter declaration of \texttt{T} in any way.
 \item The function body contains an expression referencing \texttt{x}. Again, the parser does not perform name lookup, so this is just the identifier \texttt{x} and is not associated with the parameter declaration \verb|_ x: T|.
 \end{enumerate}
 
@@ -221,7 +221,7 @@ While this function declaration is trivial, it illustrates some important concep
 \index{generic function type}
 \paragraph{Type checking} Some additional structure is formed during type checking:
 \begin{enumerate}
-\item The generic parameter declaration \texttt{T} declares the generic parameter type \texttt{T}. Types are distinct from type declarations in Swift; some types denote a \emph{reference} a type declaration, and some are \emph{structural} (such as function types or tuple types).
+\item The generic parameter declaration \texttt{T} declares the generic parameter type \texttt{T}. Types are distinct from type declarations in Swift; some types denote a \emph{reference} to a type declaration, and some are \emph{structural} (such as function types or tuple types).
 \item The type checker constructs a \emph{generic signature} for our function declaration. The generic signature has the printed representation \texttt{<T>} and contains the single generic parameter type \texttt{T}. This is the simplest possible generic signature, apart from the empty generic signature of a non-generic declaration.
 
 \item The type checker performs \emph{type resolution} to transform the type representation \texttt{T} appearing in our parameter declaration and return type into a semantic \emph{type}. Type resolution queries name lookup for the identifier \texttt{T} at the source location of each type representation, which finds the generic parameter declaration \texttt{T} in both cases. This type declaration declares the generic parameter type \texttt{T}, which becomes the resolved type.
@@ -406,7 +406,7 @@ The generic signatures we've seen previously were rather trivial, only storing a
 The interface type of \verb|drawShapes(_:)| is a generic function type incorporating this generic signature:
 \begin{quote}
 \begin{verbatim}
-<S where S: Shape> (S) -> ()
+<S where S: Shape> ([S]) -> ()
 \end{verbatim}
 \end{quote}
 
@@ -439,14 +439,14 @@ The declaration of \texttt{Circle} states a \emph{conformance} to the \texttt{Sh
 
 When the compiler generates the code for the declaration of \texttt{Circle}, it emits a witness table for each normal conformance defined on the type declaration. In our case, there is just a single requirement \texttt{Shape.draw()}, witnessed by the method \texttt{Circle.draw()}. The witness table for this conformance references the witness (indirectly, because the witness is always wrapped in a \emph{thunk}, which is a small function which shuffles some registers around and then calls the actual witness. This must be the case because protocol requirements use a slightly different calling convention than ordinary generic functions).
 
-Now, let's look at a call to \verb|drawShape(_:)| with an array of circles:
+Now, let's look at a call to \verb|drawShapes(_:)| with an array of circles:
 \begin{Verbatim}
 drawShapes([Circle(radius: 1), Circle(radius: 2)])
 \end{Verbatim}
 Recall that a reference to a generic function declaration comes with a substitution map. Substitution maps store a replacement type for each generic parameter of a generic signature, so our substitution map maps \texttt{S} to the replacement type \texttt{Circle}. When the generic signature has conformance requirements, the substitution map also stores a conformance for each conformance requirement. This is the ``proof'' that the concrete replacement type actually conforms to the protocol.
 
 \index{global conformance lookup}
-The type checker finds conformances by \emph{global conformance lookup}. The call to \verb|drawShape(_:)| will only type check if the replacement type conforms to \texttt{Shape}; the type checker rejects a call that provides an array of integers for example, because there is no conformance of \texttt{Int} to \texttt{Shape}.\footnote{Of course, you could define this conformance with an extension.}
+The type checker finds conformances by \emph{global conformance lookup}. The call to \verb|drawShapes(_:)| will only type check if the replacement type conforms to \texttt{Shape}; the type checker rejects a call that provides an array of integers for example, because there is no conformance of \texttt{Int} to \texttt{Shape}.\footnote{Of course, you could define this conformance with an extension.}
 
 We will use the following notation for substitution maps storing a conformance:
 \[\SubMapC{\SubType{S}{Circle}}{\SubConf{Circle:\ Shape}}\]
