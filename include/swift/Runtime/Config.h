@@ -199,7 +199,7 @@ extern uintptr_t __COMPATIBILITY_LIBRARIES_CANNOT_CHECK_THE_IS_SWIFT_BIT_DIRECTL
 
 // SWIFT_CC(swift) is the Swift calling convention.
 // FIXME: the next comment is false.
-// Functions outside the stdlib or runtime that include this file may be built 
+// Functions outside the stdlib or runtime that include this file may be built
 // with a compiler that doesn't support swiftcall; don't define these macros
 // in that case so any incorrect usage is caught.
 #if __has_attribute(swiftcall)
@@ -326,6 +326,18 @@ extern uintptr_t __COMPATIBILITY_LIBRARIES_CANNOT_CHECK_THE_IS_SWIFT_BIT_DIRECTL
 #define __ptrauth_swift_type_layout_string                                     \
   __ptrauth(ptrauth_key_process_independent_data, 1,                           \
             SpecialPointerAuthDiscriminators::TypeLayoutString)
+
+#if __has_attribute(ptrauth_struct)
+#define swift_ptrauth_struct(key, discriminator)                               \
+  __attribute__((ptrauth_struct(key, discriminator)))
+#else
+#define swift_ptrauth_struct(key, discriminator)
+#endif
+// Set ptrauth_struct to the same scheme as the ptrauth_struct on `from`, but
+// with a modified discriminator.
+#define swift_ptrauth_struct_derived(from)                                     \
+  swift_ptrauth_struct(__builtin_ptrauth_struct_key(from),                     \
+                       __builtin_ptrauth_struct_disc(from) + 1)
 #else
 #define SWIFT_PTRAUTH 0
 #define __ptrauth_swift_function_pointer(__typekey)
@@ -354,11 +366,18 @@ extern uintptr_t __COMPATIBILITY_LIBRARIES_CANNOT_CHECK_THE_IS_SWIFT_BIT_DIRECTL
 #define swift_ptrauth_sign_opaque_read_resume_function(__fn, __buffer) (__fn)
 #define swift_ptrauth_sign_opaque_modify_resume_function(__fn, __buffer) (__fn)
 #define __ptrauth_swift_type_layout_string
+#define swift_ptrauth_struct(key, discriminator)
+#define swift_ptrauth_struct_derived(from)
 #endif
 
 #ifdef __cplusplus
 
-/// Copy an address-discriminated signed pointer from the source to the dest.
+#define swift_ptrauth_struct_context_descriptor(name)                          \
+  swift_ptrauth_struct(ptrauth_key_process_dependent_data,                     \
+                       ptrauth_string_discriminator(#name))
+
+/// Copy an address-discriminated signed code pointer from the source
+/// to the destination.
 template <class T>
 SWIFT_RUNTIME_ATTRIBUTE_ALWAYS_INLINE static inline void
 swift_ptrauth_copy(T *dest, const T *src, unsigned extra, bool allowNull) {
@@ -462,9 +481,53 @@ template <typename T>
 SWIFT_RUNTIME_ATTRIBUTE_ALWAYS_INLINE
 static inline T swift_auth_data_non_address(T value, unsigned extra) {
 #if SWIFT_PTRAUTH
-  return (T)ptrauth_auth_data((void *)value,
-                               ptrauth_key_process_independent_data,
-                               extra);
+  // Cast to void* using a union to avoid implicit ptrauth operations when T
+  // points to a type with the ptrauth_struct attribute.
+  union {
+    T value;
+    void *voidValue;
+  } converter;
+  converter.value = value;
+  if (converter.voidValue == nullptr)
+    return nullptr;
+  return (T)ptrauth_auth_data(converter.voidValue,
+                              ptrauth_key_process_independent_data, extra);
+#else
+  return value;
+#endif
+}
+
+template <typename T>
+SWIFT_RUNTIME_ATTRIBUTE_ALWAYS_INLINE
+static inline T swift_sign_data_non_address(T value, unsigned extra) {
+#if SWIFT_PTRAUTH
+  // Cast from void* using a union to avoid implicit ptrauth operations when T
+  // points to a type with the ptrauth_struct attribute.
+  union {
+    T value;
+    void *voidValue;
+  } converter;
+  converter.voidValue = ptrauth_sign_unauthenticated(
+      (void *)value, ptrauth_key_process_independent_data, extra);
+  return converter.value;
+#else
+  return value;
+#endif
+}
+
+template <typename T>
+SWIFT_RUNTIME_ATTRIBUTE_ALWAYS_INLINE
+static inline T swift_strip_data(T value) {
+#if SWIFT_PTRAUTH
+  // Cast to void* using a union to avoid implicit ptrauth operations when T
+  // points to a type with the ptrauth_struct attribute.
+  union {
+    T value;
+    void *voidValue;
+  } converter;
+  converter.value = value;
+
+  return (T)ptrauth_strip(converter.voidValue, ptrauth_key_process_independent_data);
 #else
   return value;
 #endif

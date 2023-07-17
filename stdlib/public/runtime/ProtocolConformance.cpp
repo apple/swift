@@ -1147,8 +1147,8 @@ swift_conformsToProtocolMaybeInstantiateSuperclasses(
 }
 
 static const WitnessTable *
-swift_conformsToProtocolImpl(const Metadata *const type,
-                             const ProtocolDescriptor *protocol) {
+swift_conformsToProtocolCommonImpl(const Metadata *const type,
+                                   const ProtocolDescriptor *protocol) {
   const WitnessTable *table;
   bool hasUninstantiatedSuperclass;
 
@@ -1171,6 +1171,26 @@ swift_conformsToProtocolImpl(const Metadata *const type,
             type, protocol, true /*instantiateSuperclassMetadata*/);
 
   return table;
+}
+
+static const WitnessTable *
+swift_conformsToProtocol2Impl(const Metadata *const type,
+                              const ProtocolDescriptor *protocol) {
+  protocol = swift_auth_data_non_address(
+      protocol, SpecialPointerAuthDiscriminators::ProtocolDescriptor);
+  return swift_conformsToProtocolCommonImpl(type, protocol);
+}
+
+static const WitnessTable *
+swift_conformsToProtocolImpl(const Metadata *const type,
+                             const void *protocol) {
+  // This call takes `protocol` without a ptrauth signature. We declare
+  // it as `void *` to avoid the implicit ptrauth we get from the
+  // ptrauth_struct attribute. The static_cast implicitly signs the
+  // pointer when we call through to the implementation in
+  // swift_conformsToProtocolCommon.
+  return swift_conformsToProtocolCommonImpl(
+      type, static_cast<const ProtocolDescriptor *>(protocol));
 }
 
 const ContextDescriptor *

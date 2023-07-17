@@ -353,9 +353,10 @@ public:
   struct SingleValueStmtInitialization {
     /// The target expressions to be used for initialization.
     SmallPtrSet<Expr *, 4> Exprs;
-    Initialization *Init;
+    SILValue InitializationBuffer;
 
-    SingleValueStmtInitialization(Initialization *init) : Init(init) {}
+    SingleValueStmtInitialization(SILValue buffer)
+      : InitializationBuffer(buffer) {}
   };
 
   /// A stack of active SingleValueStmtExpr initializations that may be
@@ -741,7 +742,7 @@ public:
   /// Check to see if an initalization for a SingleValueStmtExpr is active, and
   /// if the provided expression is for one of its branches. If so, returns the
   /// initialization to use for the expression. Otherwise returns \c nullptr.
-  Initialization *getSingleValueStmtInit(Expr *E);
+  std::unique_ptr<Initialization> getSingleValueStmtInit(Expr *E);
 
   //===--------------------------------------------------------------------===//
   // Entry points for codegen

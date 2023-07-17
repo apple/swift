@@ -37,7 +37,7 @@ protocol LateOnoneSimplifyable : Instruction {
 let ononeSimplificationPass = FunctionPass(name: "onone-simplification") {
   (function: Function, context: FunctionPassContext) in
 
-  runSimplification(on: function, context, preserveDebugInfo: true) {
+  _ = runSimplification(on: function, context, preserveDebugInfo: true) {
     if let i = $0 as? OnoneSimplifyable {
       i.simplify($1)
     }
@@ -47,7 +47,7 @@ let ononeSimplificationPass = FunctionPass(name: "onone-simplification") {
 let simplificationPass = FunctionPass(name: "simplification") {
   (function: Function, context: FunctionPassContext) in
 
-  runSimplification(on: function, context, preserveDebugInfo: false) {
+  _ = runSimplification(on: function, context, preserveDebugInfo: false) {
     if let i = $0 as? Simplifyable {
       i.simplify($1)
     }
@@ -57,7 +57,7 @@ let simplificationPass = FunctionPass(name: "simplification") {
 let lateOnoneSimplificationPass = FunctionPass(name: "late-onone-simplification") {
   (function: Function, context: FunctionPassContext) in
 
-  runSimplification(on: function, context, preserveDebugInfo: true) {
+  _ = runSimplification(on: function, context, preserveDebugInfo: true) {
     if let i = $0 as? LateOnoneSimplifyable {
       i.simplifyLate($1)
     } else if let i = $0 as? OnoneSimplifyable {
@@ -73,13 +73,15 @@ let lateOnoneSimplificationPass = FunctionPass(name: "late-onone-simplification"
 
 func runSimplification(on function: Function, _ context: FunctionPassContext,
                        preserveDebugInfo: Bool,
-                       _ simplify: (Instruction, SimplifyContext) -> ()) {
+                       _ simplify: (Instruction, SimplifyContext) -> ()) -> Bool {
   var worklist = InstructionWorklist(context)
   defer { worklist.deinitialize() }
 
+  var changed = false
   let simplifyCtxt = context.createSimplifyContext(preserveDebugInfo: preserveDebugInfo,
                                                    notifyInstructionChanged: {
     worklist.pushIfNotVisited($0)
+    changed = true
   })
 
   // Push in reverse order so that popping from the tail of the worklist visits instruction in forward order again.
@@ -97,7 +99,7 @@ func runSimplification(on function: Function, _ context: FunctionPassContext,
         continue
       }
       if !context.continueWithNextSubpassRun(for: instruction) {
-        return
+        return changed
       }
       simplify(instruction, simplifyCtxt)
     }
@@ -110,6 +112,8 @@ func runSimplification(on function: Function, _ context: FunctionPassContext,
   if context.needFixStackNesting {
     function.fixStackNesting(context)
   }
+  
+  return changed
 }
 
 private func cleanupDeadInstructions(in function: Function,

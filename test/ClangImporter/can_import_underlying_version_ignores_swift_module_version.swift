@@ -11,7 +11,7 @@
 // conditional, the version in the `.tbd` should be honored. When `_version`
 // is specified, the version from the `.swiftmodule` should be honored.
 
-// RUN: echo "current-version: 3" > %t/frameworks/Simple.framework/Simple.tbd
+// RUN: sed -i -e "s/1830\.100/3/g" %t/frameworks/Simple.framework/Simple.tbd
 // RUN: echo "@_exported import Simple" > %t.overlay.swift
 // RUN: echo "public func additional() {}" >> %t.overlay.swift
 

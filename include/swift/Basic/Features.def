@@ -123,7 +123,7 @@ EXPERIMENTAL_FEATURE(CodeItemMacros, false)
 EXPERIMENTAL_FEATURE(TupleConformances, false)
 EXPERIMENTAL_FEATURE(InitAccessors, false)
 
-EXPERIMENTAL_FEATURE(ExtensionMacros, false)
+EXPERIMENTAL_FEATURE(ExtensionMacros, true)
 SUPPRESSIBLE_LANGUAGE_FEATURE(ExtensionMacroAttr, 0, "@attached(extension)", true)
 
 // Whether to enable @_used and @_section attributes
@@ -209,7 +209,7 @@ EXPERIMENTAL_FEATURE(ImportSymbolicCXXDecls, false)
 EXPERIMENTAL_FEATURE(GenerateBindingsForThrowingFunctionsInCXX, false)
 
 /// Enable reference bindings.
-EXPERIMENTAL_FEATURE(ReferenceBindings, false)
+EXPERIMENTAL_FEATURE(ReferenceBindings, true)
 
 /// Enable the explicit 'import Builtin' and allow Builtin usage.
 EXPERIMENTAL_FEATURE(BuiltinModule, true)

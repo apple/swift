@@ -8890,6 +8890,23 @@ void ClangImporter::Implementation::loadAllMembersOfRecordDecl(
   for (auto member: members) {
     // This means we found a member in a C++ record's base class.
     if (swiftDecl->getClangDecl() != clangRecord) {
+      // Do not clone the base member into the derived class
+      // when the derived class already has a member of such
+      // name and arity.
+      auto memberArity =
+          getImportedBaseMemberDeclArity(cast<ValueDecl>(member));
+      bool shouldAddBaseMember = true;
+      for (const auto *currentMember : swiftDecl->getMembers()) {
+        auto vd = dyn_cast<ValueDecl>(currentMember);
+        if (vd->getName() == cast<ValueDecl>(member)->getName()) {
+          if (memberArity == getImportedBaseMemberDeclArity(vd)) {
+            shouldAddBaseMember = false;
+            break;
+          }
+        }
+      }
+      if (!shouldAddBaseMember)
+        continue;
       // So we need to clone the member into the derived class.
       if (auto newDecl = importBaseMemberDecl(cast<ValueDecl>(member), swiftDecl)) {
         swiftDecl->addMember(newDecl);

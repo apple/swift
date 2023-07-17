@@ -284,21 +284,17 @@ emitApplyOfInitAccessor(SILGenFunction &SGF, SILLocation loc,
   };
 
   // First, let's emit all of the indirect results.
-  if (auto *initAttr = accessor->getAttrs().getAttribute<InitializesAttr>()) {
-    for (auto *property : initAttr->getPropertyDecls(accessor)) {
-      arguments.push_back(emitFieldReference(property, /*forInit=*/true));
-    }
+  for (auto *property : accessor->getInitializedProperties()) {
+    arguments.push_back(emitFieldReference(property, /*forInit=*/true));
   }
 
   // `initialValue`
   std::move(initialValue).forwardAll(SGF, arguments);
 
-  // And finally, all of the properties in `accesses(...)` list which are
+  // And finally, all of the properties in `accesses` list which are
   // `inout` arguments.
-  if (auto *accessAttr = accessor->getAttrs().getAttribute<AccessesAttr>()) {
-    for (auto *property : accessAttr->getPropertyDecls(accessor)) {
-      arguments.push_back(emitFieldReference(property));
-    }
+  for (auto *property : accessor->getAccessedProperties()) {
+    arguments.push_back(emitFieldReference(property));
   }
 
   SubstitutionMap subs;
@@ -1603,39 +1599,33 @@ void SILGenFunction::emitInitAccessor(AccessorDecl *accessor) {
     InitAccessorArgumentMappings[property] = arg;
   };
 
-  // First, emit results, this is our "initializes(...)" properties and
+  // First, emit results, this is our "initializes" properties and
   // require DI to check that each property is fully initialized.
-  if (auto *initAttr = accessor->getAttrs().getAttribute<InitializesAttr>()) {
-    auto initializedProperties = initAttr->getPropertyDecls(accessor);
-    for (unsigned i = 0, n = initializedProperties.size(); i != n; ++i) {
-      auto *property = initializedProperties[i];
-      auto propertyTy =
-          getSILTypeInContext(accessorTy->getResults()[i], accessorTy);
-      createArgument(property, propertyTy, /*markUninitialized=*/true);
-    }
+  auto initializedProperties = accessor->getInitializedProperties();
+  for (unsigned i = 0, n = initializedProperties.size(); i != n; ++i) {
+    auto *property = initializedProperties[i];
+    auto propertyTy =
+        getSILTypeInContext(accessorTy->getResults()[i], accessorTy);
+    createArgument(property, propertyTy, /*markUninitialized=*/true);
   }
 
   // Collect all of the parameters that represent properties listed by
   // "accesses" attribute. They have to be emitted in order of arguments which
   // means after the "newValue" which is emitted by \c emitBasicProlog.
-  llvm::Optional<ArrayRef<VarDecl *>> accessedProperties;
-  {
-    if (auto *accessAttr = accessor->getAttrs().getAttribute<AccessesAttr>())
-      accessedProperties = accessAttr->getPropertyDecls(accessor);
-  }
+  auto accessedProperties = accessor->getAccessedProperties();
 
   // Emit `newValue` argument.
   emitBasicProlog(accessor->getParameters(), /*selfParam=*/nullptr,
                   TupleType::getEmpty(F.getASTContext()), accessor,
                   /*throws=*/false, /*throwsLoc=*/SourceLoc(),
                   /*ignored parameters*/
-                  accessedProperties ? accessedProperties->size() : 0);
+                  accessedProperties.size());
 
-  // Emit arguments for all `accesses(...)` properties.
-  if (accessedProperties) {
-    auto propertyIter = accessedProperties->begin();
+  // Emit arguments for all `accesses` properties.
+  if (!accessedProperties.empty()) {
+    auto propertyIter = accessedProperties.begin();
     auto propertyArgs = accessorTy->getParameters().slice(
-        accessorTy->getNumParameters() - accessedProperties->size());
+        accessorTy->getNumParameters() - accessedProperties.size());
 
     for (const auto &argument : propertyArgs) {
       createArgument(*propertyIter, getSILTypeInContext(argument, accessorTy));

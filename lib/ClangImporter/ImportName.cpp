@@ -2247,7 +2247,6 @@ ImportedName NameImporter::importNameImpl(const clang::NamedDecl *D,
         if (arg.getKind() == clang::TemplateArgument::Type) {
           auto ty = arg.getAsType().getTypePtr();
           if (auto builtin = dyn_cast<clang::BuiltinType>(ty)) {
-            auto &ctx = swiftCtx;
             if (auto swiftTypeName = getSwiftBuiltinTypeName(builtin)) {
               buffer << *swiftTypeName;
               return;

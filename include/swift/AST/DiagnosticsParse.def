@@ -1399,6 +1399,10 @@ ERROR(expected_expr_after_copy, none,
       "expected expression after 'copy'", ())
 ERROR(expected_expr_after_borrow, none,
       "expected expression after '_borrow'", ())
+ERROR(expected_expr_after_each, none,
+      "expected expression after 'each'", ())
+ERROR(expected_expr_after_repeat, none,
+      "expected expression after 'repeat'", ())
 
 WARNING(move_consume_final_spelling, none,
         "'_move' has been renamed to 'consume', and the '_move' spelling will be removed shortly", ())
@@ -2127,6 +2131,18 @@ ERROR(sil_markuncheckedreferencebinding_invalid_attribute,none,
 ERROR(init_accessor_is_not_on_property,none,
       "init accessors could only be associated with properties",
       ())
+
+ERROR(missing_storage_restrictions_attr_label,none,
+      "missing label in @storageRestrictions attribute", ())
+
+ERROR(invalid_storage_restrictions_attr_label,none,
+      "unexpected label %0 in @storageRestrictions attribute", (Identifier))
+
+ERROR(duplicate_storage_restrictions_attr_label,none,
+      "duplicate label %0 in @storageRestrictions attribute", (Identifier))
+
+ERROR(storage_restrictions_attr_expected_name,none,
+      "expected property name in @storageRestrictions list", ())
 
 #define UNDEFINE_DIAGNOSTIC_MACROS
 #include "DefineDiagnosticMacros.h"

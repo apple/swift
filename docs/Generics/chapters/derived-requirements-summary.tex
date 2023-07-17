@@ -1,0 +1,45 @@
+\documentclass[../generics]{subfiles}
+
+\begin{document}
+
+\chapter{Derived Requirements Summary}\label{derived summary}
+
+\index{$\vdash$}
+\IndexStep{GenSig}
+\IndexStep{ReqSig}
+\IndexStep{AssocType}
+\IndexStep{Conf}
+\IndexStep{Equiv}
+\IndexStep{Same}
+\IndexStep{Member}
+\IndexStep{Concrete}
+
+\begin{gather*}
+\vdash\ConfReq{T}{P}\tag{\textsc{GenSig}}\\
+\vdash\ConfReq{T}{C}\\
+\vdash\ConfReq{T}{AnyObject}\\
+\vdash\FormalReq{T == U}\\[\medskipamount]
+\ConfReq{T}{P}\vdash\texttt{T.A}\tag{\textsc{AssocType}}\\
+\ConfReq{T}{P}\vdash\texttt{T.[P]A}\\
+\ConfReq{T}{P}\vdash\FormalReq{T.[P]A == T.A}\\[\medskipamount]
+\vdash\ConfReq{Self.U}{P}\qquad\mbox{(in \texttt{P})}\tag{\textsc{ReqSig}}\\
+\vdash\ConfReq{Self.U}{C}\qquad\mbox{(in \texttt{P})}\\
+\vdash\ConfReq{Self.U}{AnyObject}\qquad\mbox{(in \texttt{P})}\\
+\vdash\FormalReq{Self.U == Self.V}\qquad\mbox{(in \texttt{P})}\\[\medskipamount]
+\ConfReq{T}{P},\,\ConfReq{Self.U}{Q}\vdash\ConfReq{T.U}{Q}\tag{\textsc{Conf}}\\
+\ConfReq{T}{P},\,\ConfReq{Self.U}{C}\vdash\ConfReq{T.U}{C}\\
+\ConfReq{T}{P},\,\ConfReq{Self.U}{AnyObject}\vdash\ConfReq{T.U}{AnyObject}\\
+\ConfReq{T}{P},\,\FormalReq{Self.U == Self.V}\vdash\FormalReq{T.U == T.V}\\[\medskipamount]
+\texttt{T}\vdash\FormalReq{T == T}\tag{\textsc{Equiv}}\\
+\FormalReq{T == U}\vdash\FormalReq{U == T}\\
+\FormalReq{T == U},\,\FormalReq{U == V}\vdash\FormalReq{T == V}\\[\medskipamount]
+\ConfReq{U}{P},\,\FormalReq{T == U}\vdash\ConfReq{T}{P}\tag{\textsc{Same}}\\
+\ConfReq{U}{C},\,\FormalReq{T == U}\vdash\ConfReq{T}{C}\\
+\ConfReq{U}{AnyObject},\,\FormalReq{T == U}\vdash\ConfReq{T}{AnyObject}\\[\medskipamount]
+\ConfReq{U}{P},\,\FormalReq{T == U}\vdash\FormalReq{T.A == U.A}\tag{\textsc{Member}}\\
+\ConfReq{U}{P},\,\FormalReq{T == U}\vdash\FormalReq{T.[P]A == U.[P]A}\\[\medskipamount]
+\FormalReq{T == U}\vdash\FormalReq{G<T> == G<U>}\qquad\mbox{(arbitrary type constructor \texttt{G<>})}\tag{\textsc{Concrete}}\\
+\FormalReq{G<T> == G<U>}\vdash\FormalReq{T == U}\qquad\mbox{(arbitrary type constructor \texttt{G<>})}
+\end{gather*}
+
+\end{document}

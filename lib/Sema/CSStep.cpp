@@ -838,7 +838,7 @@ bool DisjunctionStep::attempt(const DisjunctionChoice &choice) {
           kind == ConstraintLocator::DynamicLookupResult) {
         assert(index == 0 || index == 1);
         if (index == 1)
-          CS.increaseScore(SK_ForceUnchecked);
+          CS.increaseScore(SK_ForceUnchecked, disjunctionLocator);
       }
     }
   }
@@ -959,7 +959,7 @@ StepResult ConjunctionStep::resume(bool prevFailed) {
 
       if (Solutions.size() == 1) {
         auto score = Solutions.front().getFixedScore();
-        if (score.Data[SK_Fix] > 0)
+        if (score.Data[SK_Fix] > 0 && !CS.getASTContext().CompletionCallback)
           Producer.markExhausted();
       }
     } else if (Solutions.size() != 1) {
@@ -1037,7 +1037,7 @@ StepResult ConjunctionStep::resume(bool prevFailed) {
                 ++numHoles;
               }
             }
-            CS.increaseScore(SK_Hole, numHoles);
+            CS.increaseScore(SK_Hole, Conjunction->getLocator(), numHoles);
           }
 
           if (CS.worseThanBestSolution())

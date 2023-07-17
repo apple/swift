@@ -1,0 +1,602 @@
+\documentclass[../generics]{subfiles}
+
+\begin{document}
+
+\chapter{Existential Types}\label{existentialtypes}
+
+\ifWIP
+
+Mention \cite{rajexistential}
+
+As every Swift developer knows, protocols serve a dual purpose in the language: as generic constraints, and as the types of values. The latter feature, formally known as existential types, is the topic of this chapter. An existential type can be thought of as a container for values which satisfy certain requirements. Existential types were borrowed from \index{Objective-C}Objective-C, and have been part of the Swift language since the beginning, in the form of protocol types and protocol compositions. 
+
+This feature has an interesting history. The protocols that could be used as types were initially restricted to those without associated types, or requirements with \texttt{Self} in non-covariant position (the latter rules out \texttt{Equatable} for example). This meant that the implementation of existential types was at first rather disjoint from generics. As existential types gained the ability to state more complex constraints over time, the two sides of protocols converged.
+
+Protocol compositions were originally written as \texttt{protocol<P,~Q>} for a value of a type conforming to both protocols \texttt{P} and \texttt{Q}. The modern syntax for protocol compositions \texttt{P~\&~Q} was introduced in Swift 3 \cite{se0095}. Protocol compositions with superclass terms were introduced in Swift 4 \cite{se0156}. The spelling \texttt{any P} of an existential type, to distinguish from \texttt{P} the constraint type, was introduced in Swift 5.6 \cite{se0355}. This was followed by Swift 5.7 allowing all protocols to be used as existential types \cite{se0309}, and introducing implicit opening of existential types \cite{se0352}, and constrained existential types \cite{se0353}.
+
+An existential type is written with the \texttt{any} keyword followed by a constraint type, which is a concept previously defined in Section~\ref{constraints}. For aesthetic reasons, the \texttt{any} keyword can be omitted if the constraint type is \texttt{Any} or \texttt{AnyObject}, since \texttt{any~Any} or \texttt{any~AnyObject} looks funny. For backwards compatibility, \texttt{any} can also be omitted if the protocols appearing in the constraint type do not have any associated types or requirements with \texttt{Self} in non-covariant position.
+
+\paragraph{Type representation}
+Existential types are instances of \texttt{ExistentialType}, which wraps a constraint type. Even in the cases where \texttt{any} can be omitted, type resolution will wrap the constraint type in \texttt{ExistentialType} when resolving a type in a context where the type of a value is expected. If the constraint type is a protocol composition with a superclass term, or a parameterized protocol type, arbitrary types can appear as structural components of the constraint type. This means that the constraint type of an existential type is subject to substitution by \texttt{Type::subst()}. For example, the interface type of the properties \texttt{foo} and \texttt{bar} below are existential types containing type parameters:
+\begin{Verbatim}
+struct S<T> {
+  var foo: any Sequence<T>
+  var bar: any Equatable & C<T>
+}
+
+class C<T> {}
+\end{Verbatim}
+
+Existential metatypes, written \texttt{any (P).Type} for some constraint type \texttt{P}, are containers for storing a concrete metatype whose instance type satisfies some requirements. An existential metatype is represented by an instance of \texttt{ExistentialMetatypeType}, which wraps a constraint type similarly to \texttt{ExistentialType}. The metatype of the existential value itself, \texttt{(any P).Type}, is represented as a \texttt{MetatypeType} with an instance type that is an \texttt{ExistentialType}.
+
+The special \texttt{Any} type can store an arbitrary Swift value. This ``absence of constraints'' is represented as an existential type with an empty protocol composition as the constraint type. The \texttt{ASTContext::getAnyExistentialType()} method returns this type.
+
+The \texttt{AnyObject} type which can store an arbitrary reference-counted pointer is an existential type with a special protocol composition storing a layout constraint as the constraint type. The \texttt{ASTContext::getAnyObjectType()} method returns this type. The \texttt{AnyClass} type in the standard library is a type alias for the existential metatype of \texttt{AnyObject}:
+\begin{Verbatim}
+typealias AnyClass = AnyObject.Type
+\end{Verbatim}
+
+\fi
+
+\section{Opened Existentials}\label{open existential archetypes}
+
+\ifWIP
+
+The \emph{opened existential signature} is a generic signature whose substitutions describe the possible concrete types that can be stored inside an existential type. The opened existential signature takes one of two forms, depending on whether the constraint type contains type parameters or not:
+\begin{enumerate}
+\item
+If the constraint type does not contain type parameters, the opened existential signature is a generic signature built from a single generic parameter \texttt{\ttgp{0}{0}} constrained to the constraint type. Note that if the constraint type contains archetypes, they behave essentially like concrete types when they appear inside the opened existential signature. The generic parameter \texttt{\ttgp{0}{0}} is called the \emph{interface type} of the existential.
+\item
+If the constraint type contains type parameters from some parent generic signature, the opened existential signature is built by adding a single generic parameter to the parent generic signature. The new parameter has a depth one higher than the depth of the last generic parameter of the parent generic signature. In this case, the last generic parameter of the opened existential signature is the interface type of the existential. The first case is in fact a special case of the second, if you consider the parent generic signature to be empty. 
+\end{enumerate}
+The \texttt{ASTContext::getOpenedArchetypeSignature()} method takes an existential type and an optional parent generic signature as arguments, and returns the opened existential signature. This is a relatively cheap operation used throughout the compiler; the results are cached.
+
+\begin{example}\label{existentialsigexample}
+Some examples of constraint types that do not contain type parameters, and their existential signatures.
+\begin{enumerate}
+\item The existential type \texttt{any Equatable} has this existential signature:
+\begin{quote}
+\texttt{<\ttgp{0}{0} where \ttgp{0}{0}:\ Equatable>}
+\end{quote}
+You may recall this is also the generic signature of the \emph{declaration} of the \texttt{Equatable} protocol. This is true of all existential types of the form \texttt{any P} for a protocol \texttt{P}.
+
+\item The existential type \texttt{any Equatable \& Sequence} has this existential signature:
+\begin{quote}
+\texttt{<\ttgp{0}{0} where \ttgp{0}{0}:\ Equatable, \ttgp{0}{0}:\ Sequence>}
+\end{quote}
+
+\item Suppose there is a generic class \texttt{SomeClass<T>} with a single unconstrained generic parameter. The existential type \texttt{any Equatable \& SomeClass<Int>} has this existential signature:
+\begin{quote}
+\texttt{<\ttgp{0}{0} where \ttgp{0}{0}:\ SomeClass<Int>, \ttgp{0}{0}:\ Equatable>}
+\end{quote}
+
+\item The existential type \texttt{any Sequence<Int>} has this existential signature:
+\begin{quote}
+\texttt{<\ttgp{0}{0} where \ttgp{0}{0}:\ Sequence, \ttgp{0}{0}.[Sequence]Element == Int>}
+\end{quote}
+\end{enumerate}
+\end{example}
+
+\begin{example}
+Consider this example:
+\begin{Verbatim}
+func foo<T, U>(x: any Equatable & SomeClass<T>, y: any Sequence<U>) {
+  let xx = x
+  let yy = y
+}
+
+class SomeClass<T> {}
+\end{Verbatim}
+The interface type of \texttt{foo()} involves existential types containing type parameters:
+\begin{quote}
+\texttt{<\ttgp{0}{0}, \ttgp{0}{1}> (any Equatable \& SomeClass<\ttgp{0}{0}>, any Sequence<\ttgp{0}{1}>) -> ()}
+\end{quote}
+The existential type \texttt{any Equatable \& SomeClass<T>} has this existential signature:
+\begin{quote}
+\texttt{<\ttgp{0}{0}, \ttgp{0}{1}, \ttgp{1}{0} where \ttgp{1}{0}:\ SomeClass<\ttgp{0}{0}>>}
+\end{quote}
+The existential type \texttt{any Sequence<U>} has this existential signature:
+\begin{quote}
+\texttt{<\ttgp{0}{0}, \ttgp{0}{1}, \ttgp{1}{0} where \ttgp{0}{1} == \ttgp{1}{0}.[Sequence]Element, \ttgp{1}{0}:\ Sequence>}
+\end{quote}
+In both signatures, the interface type of the existential is \texttt{\ttgp{1}{0}}.
+\end{example}
+Recall from Chapter~\ref{genericenv} that there are three kinds of generic environments. We've seen primary generic environments, which are associated with generic declarations. We also saw opaque generic environments, which are instantiated from an opaque return declaration and substitution map, in Section~\ref{opaquearchetype}. Now, it's time to introduce the third kind, the opened generic environment. An opened generic environment is created from an opened existential signature of the first kind (with no parent generic signature). The archetypes of an opened generic environment are \emph{opened archetypes}.
+
+\index{call expression}
+When the expression type checker encounters a call expression where an argument of existential type is passed to a parameter of generic parameter type, the existential value is \emph{opened}, projecting the value and assigning it a new opened archetype from a fresh opened generic environment. The call expression is rewritten by wrapping the entire call is wrapped in an \texttt{OpenExistentialExpr}, which stores two sub-expressions. The first sub-expression is the original call argument, which evaluates to the value of existential type. The payload value and opened archetype is scoped to the second sub-expression, which consumes the payload value. The call argument is replaced with a \texttt{OpaqueValueExpr}, which has the opened archetype type. The opened archetype also becomes the replacement type for the generic parameter in the call's substitution map.
+
+For example, if \texttt{animal} is a value of type \texttt{any Animal}, the expression \texttt{animal.eat()} calling a protocol method looks like this before opening:
+\begin{quote}
+\begin{tikzpicture}[%
+  grow via three points={one child at (0.5,-0.7) and
+  two children at (0.5,-0.7) and (0.5,-1.4)},
+  edge from parent path={[->] (\tikzparentnode.south) |- (\tikzchildnode.west)}]
+  \node  [class] {\texttt{\vphantom{p}CallExpr}}
+    child { node [class] {\texttt{\vphantom{p}SelfApplyExpr}}
+      child { node  [class] {\texttt{\vphantom{p}DeclRefExpr:\ Animal.eat()}}}
+      child { node  [class] {\texttt{\vphantom{p}DeclRefExpr:\ animal}}}
+    }
+    child [missing] {}
+    child [missing] {}
+    child { node  [class] {\texttt{\vphantom{p}ArgumentList}}};
+\end{tikzpicture}
+\end{quote}
+After opening, a new opened generic environment is created for the generic signature \texttt{<\ttgp{0}{0} where \ttgp{0}{0}:\ Animal>}. The entire call is wrapped in a \texttt{OpenExistentialExpr}, the \texttt{self} argument to the call becomes an \texttt{OpaqueValueExpr}, the reference to the \texttt{animal} variable moves up to the \texttt{OpenExistentialExpr}:
+\begin{quote}
+\begin{tikzpicture}[%
+  grow via three points={one child at (0.5,-0.7) and
+  two children at (0.5,-0.7) and (0.5,-1.4)},
+  edge from parent path={[->] (\tikzparentnode.south) |- (\tikzchildnode.west)}]
+  \node  [class] {\texttt{\vphantom{p}OpenExistentialExpr}}
+    child { node [class] {\texttt{\vphantom{p}CallExpr}}
+      child { node [class] {\texttt{\vphantom{p}SelfApplyExpr}}
+        child { node  [class] {\texttt{\vphantom{p}DeclRefExpr:\ Animal.eat()}}}
+        child { node  [class] {\texttt{\vphantom{p}OpaqueValueExpr}}}
+      }
+      child [missing] {}
+      child [missing] {}
+      child { node  [class] {\texttt{\vphantom{p}ArgumentList}}}
+    }
+    child [missing] {}
+    child [missing] {}
+    child [missing] {}
+    child [missing] {}
+    child { node  [class] {\texttt{\vphantom{p}DeclRefExpr:\ animal}}};
+\end{tikzpicture}
+\end{quote}
+Not shown in this picture is that the type of the \texttt{OpaqueValueExpr} is an opened archetype type, and the substitution map replacing \ttgp{0}{0} with this opened archetype is stored in the \texttt{DeclRefExpr} for \texttt{Animal.eat()}.
+
+An existential value can store different concrete types dynamically, so each call site where an existential value is opened must produce a new opened archetype from a fresh opened generic environment. Opened generic environments are keyed by the opened existential signature together with a unique ID:
+\[\left(\,\ttbox{GenericSignature}\otimes \mathboxed{Unique ID}\,\right) \rightarrow \mathboxed{Opened \texttt{GenericEnvironment}}\]
+The \texttt{GenericEnvironment::forOpenedExistential()} method creates a fresh opened generic environment, should you have occasion to do this yourself outside of the expression type checker.
+
+\fi
+
+\section{Existential Layouts}\label{existentiallayouts}
+
+\ifWIP
+
+The compiler selects one of several possible representations for an existential type by analyzing the existential's constraint. The \texttt{TypeBase::getExistentialLayout()} method returns an instance of \texttt{ExistentialLayout}, which encodes the information used to determine the representation. Various methods of \texttt{ExistentialLayout} that are occasionally useful:
+\begin{description}
+\item[\texttt{getKind()}] Returns an element of the \texttt{ExistentialLayout::Kind} enum, which is one of \texttt{Class}, \texttt{Error}, or \texttt{Opaque}, corresponding to one of the below representations.
+\item[\texttt{requiresClass()}] Returns whether this existential type requires the stored concrete type to be a class, that is, whether it uses class representation.
+\item[\texttt{getSuperclass()}] Returns the existential's superclass bound, either explicitly stated in a protocol composition or declared on a protocol.
+\item[\texttt{getProtocols()}] Returns the existential's protocol conformances. The protocols in this array are minimized with respect to protocol inheritance, and sorted in canonical protocol order (Definition~\ref{linear protocol order}).
+\item[\texttt{getLayoutConstraint()}] Returns the existential's layout constraint, if there is one. This is the \texttt{AnyObject} layout constraint if the existential can store any Swift or \index{Objective-C}Objective-C class instance. If the superclass bound is further known to be a Swift-native class, this is the stricter \texttt{\_NativeClass} layout constraint.
+\end{description}
+
+Some of the above methods might look familiar from the description of generic signature queries in Section~\ref{genericsigqueries}, or the local requirements of archetypes in Chapter~\ref{genericenv}. Indeed, for the most part, the same information can be recovered by asking questions about the existential's interface type in the opened existential signature, or if you have an opened archetype handy, by calling similar methods on the archetype. There is one important difference though. In a generic signature, the minimization algorithm drops protocol conformance requirements which are satisfied by a superclass bound. This is true with opened existential signatures as well. However, for historical reasons, the same transformation is not applied when computing an existential layout. This means that the list of protocols in \texttt{ExistentialLayout::getProtocols()} may include more protocols than the \texttt{getConformsTo()} query on the opened existential signature. It is the former list of protocols coming from the \texttt{ExistentialLayout} that informs the runtime representation of the existential type \texttt{any C \& P}. If \index{ABI}ABI stability was not a concern, this would be reworked to match the behavior of requirement minimization.
+
+\begin{example}
+Consider these definitions:
+\begin{Verbatim}
+protocol Q {}
+protocol P: Q {}
+class C: P {}
+
+let x: any P & Q = ...
+let y: any P & C = ...
+\end{Verbatim}
+First, consider \texttt{x}. The existential signature of \texttt{any P \& Q} is \texttt{<\ttgp{0}{0} where \ttgp{0}{0}:\ P>}; the requirement \texttt{\ttgp{0}{0}:\ Q} is dropped because the protocol \texttt{P} inherits from protocol \texttt{Q}. The \texttt{ExistentialLayout} also only stores the single protocol \texttt{P}. The existential type \texttt{any P \& Q} canonicalizes to \texttt{any P}.
+
+Now, look at \texttt{y}. The existential signature of \texttt{any C \& P} is \texttt{<\ttgp{0}{0} where \ttgp{0}{0}:\ C>}; notice that the conformance requirement \texttt{\ttgp{0}{0}:\ P} is dropped because the class \texttt{C} conforms to \texttt{P}. However, \texttt{any~C~\&~P} and \texttt{C} are still distinct types in the Swift type system, and the runtime representation of \texttt{any C \& P} stores a witness table for the conformance of \texttt{C} to \texttt{P} even though the conformance requirement \texttt{\ttgp{0}{0}:\ P} does not appear in the opened existential signature. This is because the list of protocols in the \texttt{ExistentialLayout} does not drop consider the conformance of \texttt{C} to \texttt{P} and retains the protocol \texttt{P}.
+\end{example}
+
+\paragraph{Opaque representation} This is the most general representation, used when no other specialized representation is applicable. Consists of a three-word buffer, type metadata for the stored concrete type, followed by zero or more witness tables. If the stored concrete type fits in the three-word buffer and uses default alignment, the value is stored directly in the buffer. Otherwise, the buffer stores a pointer to a copy-on-write buffer, sized to store the concrete type. The list of witness tables has the same length and ordering as the list of protocols returned by \texttt{ExistentialLayout::getProtocols()}.
+
+\begin{quote}
+\begin{tabular}{|l|l|}
+\hline
+Word 1&Value buffer\\
+Word 2&\\
+Word 3&\\
+\hline
+\hline
+Word 4&Type metadata\\
+\hline
+\hline
+Word 5&Witness table \#1\\
+Word 6&Witness table \#2\\
+Word 7&\ldots\\
+\hline
+\end{tabular}
+\end{quote}
+
+\paragraph{Class representation} This representation is used when the concrete type is known to be a reference-counted pointer. Instead of a three-word value buffer, only a single pointer is stored, and the type metadata does not need to be separately stored since it can be recovered from the first word of the heap allocation (the ``isa pointer''). The trailing witness tables are stored as in the opaque representation.
+
+\begin{quote}
+\begin{tabular}{|l|l|}
+\hline
+Word 1&Reference-counted pointer\\
+\hline
+\hline
+Word 2&Witness table \#1\\
+Word 3&Witness table \#2\\
+Word 4&\ldots\\
+\hline
+\end{tabular}
+\end{quote}
+
+\paragraph{Objective-C representation} A specialized variant of the class representation when all protocols named by the constraint type are \texttt{@objc} protocols. In this case, no witness tables are passed in and the existential value is layout-compatible with the corresponding \index{Objective-C}Objective-C protocol type.
+
+\begin{quote}
+\begin{tabular}{|l|l|}
+\hline
+Word 1&Reference-counted pointer\\
+\hline
+\end{tabular}
+\end{quote}
+
+\paragraph{Error representation} A special representation only used for types conforming to \texttt{Error}. This representation consists of a single reference-counted pointer. The heap allocation is layout-compatible with the \index{Objective-C}Objective-C \texttt{NSError} class. The concrete value and the witness table for the conformance is stored inside the heap allocation.
+
+\begin{quote}
+\begin{tabular}{|l|l|}
+\hline
+Word 1&Reference-counted pointer\\
+\hline
+\end{tabular}
+\end{quote}
+
+\paragraph{Metatype representation} This representation is only used for existential metatypes. It stores a concrete metatype, followed by zero or more witness tables.
+
+\begin{quote}
+\begin{tabular}{|l|l|}
+\hline
+Word 1&Type metadata\\
+\hline
+\hline
+Word 2&Witness table \#1\\
+Word 3&Witness table \#2\\
+Word 4&\ldots\\
+\hline
+\end{tabular}
+\end{quote}
+
+\section{Generalization Signatures}
+
+\index{metatype type}
+\index{runtime type metadata}
+Swift metatype values have a notion of equality. While metatypes are not nominal types, and cannot conform to protocols, in particular the \texttt{Equatable} protocol,\footnote{but maybe one day...} the standard library nevertheless defines an overload of the \texttt{==} operator taking a pair of \texttt{Any.Type} values. You might recall from the previous section that \texttt{Any.Type} is an existential metatype with no constraints, so it is represented is a single pointer to runtime type metadata. Equality of metatypes can therefore implemented as pointer equality. What this means is that runtime type metadata must be unique by construction. Frozen fixed-size types such as \texttt{Int} have statically-emitted metadata which is directly referenced thereafter, so uniqueness is trivial. On the other hand, generic nominal types and structural types such as functions or tuples can be instantiated with arbitrary generic arguments. Since the arguments are recursively guaranteed to be unique, the metadata instantiation function for each kind of type constructor maintains a cache mapping all generic arguments seen so far to instantiated types. Each new instantiation is only constructed once for a given set of generic arguments, guaranteeing uniqueness.
+
+\index{mangling}
+\begin{listing}\captionabove{Example demonstrating uniqueness of runtime metadata}\label{metadataunique}
+\begin{Verbatim}
+func concrete() -> Any.Type {
+  return (Int, Int).self
+}
+
+func generic<T>(_: T.Type) -> Any.Type {
+  return (T, T).self
+}
+
+print(concrete() == generic(Int.self))  // true
+\end{Verbatim}
+\end{listing}
+Listing~\ref{metadataunique} constructs the same metatype twice, once in a concrete function and then again in a generic function:
+\begin{itemize}
+\item The \texttt{concrete()} function encodes the type \texttt{(Int, Int)} using a compact mangled representation and passes it to the a runtime entry point for instantiating metadata from a mangled type string. This entry point ultimately calls the tuple type constructor after demangling the input string.
+\item The \texttt{generic()} function receives the type metadata for \texttt{Int} as an argument, and directly calls the tuple type constructor to build the type \texttt{(T, T)} with the substitution \texttt{T := Int}. Both functions return the same value of \texttt{Any.Type} because the two calls to the tuple type constructor return the same value.
+\end{itemize}
+
+In the absence of constrained existential types, the type metadata for an existential type looks like an \texttt{ExistentialLayout}: a minimal, canonical list of zero or more protocols, an optional superclass type, and an optional \texttt{AnyObject} layout constraint. This layout could not encode arbitrary generic requirements so it was not suitable for constrained existential types. Constrained existential type metadata uses a more general encoding based on the opened existential signature.
+
+\begin{listing}\captionabove{An example to motivate generalization signatures}\label{generalizationexample}
+\begin{Verbatim}
+protocol P<X, Y> {
+  associatedtype X: Q
+  associatedtype Y where X.T == Y
+}
+
+protocol Q {
+  associatedtype T
+}
+
+struct ConcreteQ: Q {
+  typealias T = Int
+}
+
+func concrete() -> Any.Type {
+  return (any P<ConcreteQ, Int>).self
+}
+
+func generic<X: Q>(_: X.Type) -> Any.Type where X.T == Int {
+  return (any P<X, Int>).self
+}
+
+print(concrete() == generic(ConcreteQ.self))
+\end{Verbatim}
+\end{listing}
+
+As a first attempt at solving this problem, you might think to use the opened existential signature as the uniquing key for existential type metadata at runtime. Unfortunately, naively encoding the requirements of the opened existential signature does not give you uniqueness, because the opened existential signature also includes all generic parameters and requirements from the parent generic signature. Listing~\ref{generalizationexample} shows a ``concrete vs. generic'' example similar to the above, but with constrained existential types.
+
+The opened existential signature of \texttt{any P<ConcreteQ, Int>} in \texttt{concrete()} is:
+\begin{quote}
+\texttt{<\ttgp{0}{0} where \ttgp{0}{0}:\ P, \ttgp{0}{0}.[P]X == ConcreteQ>}
+\end{quote}
+Note that the second same-type requirement \texttt{\ttgp{0}{0}.[P]Y == Int} is not part of the generic signature because it is implied by the first same-type requirement together with the relationship between \texttt{X} and \texttt{Y} in protocol \texttt{P}.
+
+The opened existential signature of \texttt{any P<X, Int>} in \texttt{generic()} is:
+\begin{quote}
+\texttt{<\ttgp{0}{0}, \ttgp{1}{0} where \ttgp{0}{0} == \ttgp{1}{0}.[P]X, \ttgp{1}{0}:\ P, \ttgp{0}{0}.[P]T == Int>}
+\end{quote}
+
+Applying the substitution map \texttt{X := ConcreteQ} to the type \texttt{any~P<X,~Int>} produces the type \texttt{any~P<ConcreteQ,~Int>}. This suggests that calling \texttt{generic()} with \texttt{X~:=~ConcreteQ} should output the same type metadata as a call to \texttt{concrete()}.
+
+In the compiler, you can certainly transform the second generic signature into the first as follows. We begin by applying a substitution map to each requirement of the second signature:
+\[
+\SubstMapLongC{
+\SubstType{\ttgp{0}{0}}{ConcreteQ}\\
+\SubstType{\ttgp{1}{0}}{\ttgp{0}{0}}
+}{
+\SubstConf{\ttgp{1}{0}}{\ttgp{0}{0}}{P}
+}
+\]
+This produces a list of substituted generic requirements:
+\begin{quote}
+\begin{tabular}{|l|l|}
+\hline
+Original requirement:&Substituted requirement:\\
+\hline
+\texttt{\ttgp{0}{0} == \ttgp{1}{0}.[P]X}&\texttt{ConcreteQ == \ttgp{0}{0}.[P]X}\\
+\texttt{\ttgp{1}{0}:\ P}&\texttt{\ttgp{0}{0}:\ P}\\
+\texttt{\ttgp{0}{0}.[P]T == Int}&\texttt{Int == Int}\\
+\hline
+\end{tabular}
+\end{quote}
+If we feed these requirements into \texttt{buildGenericSignature()} with the singleton generic parameter list \texttt{\ttgp{0}{0}}, we get back our original signature:
+\begin{quote}
+\texttt{<\ttgp{0}{0} where \ttgp{0}{0}:\ P, \ttgp{0}{0}.[P]X == ConcreteQ>}
+\end{quote}
+This two-step process of applying a substitution map to the requirements of a generic signature, then building a new generic signature from the substituted generic requirements re-appears several times throughout the compiler. Requirement inference in Section~\ref{requirementinference} used this technique. It will also come up again in Chapter \ref{classinheritance}~and~\ref{valuerequirements}. In this case though, \textsl{it doesn't actually solve our problem!} Whatever transformation we do here needs to happen at runtime, since the implementation of \texttt{generic()} needs to be able to do it for an arbitrary type \texttt{T}. Teaching the runtime to build minimal canonical generic signatures from scratch is not practical since it would require duplicating a large portion of the compiler there.
+
+Instead of using the ``most concrete'' opened existential signature as the uniquing key, the compiler constructs the ``most generic'' signature together with a substitution map. If the replacement types in this substitution map contain type parameters, they are filled in at runtime from the generic context when the existential type metadata is being constructed. The resulting generalization signature and substitution map serves as the uniquing key for the runtime instantiation of existential type metadata. This algorithm is implemented in \texttt{ExistentialGeneralization::get()}.
+
+\begin{algorithm}[Existential generalization]\label{existentialgeneralizationalgo}
+As input, takes the constraint type of an existential type, possibly containing type parameters. As output, produces a new constraint type, a new generic signature, and a substitution map for this signature.
+\begin{enumerate}
+\item Initialize $\texttt{N}:=0$.
+\item Initialize \texttt{R} to an empty list of requirements.
+\item Initialize \texttt{S} to an empty list of substitutions.
+\item Recursively generalize the constraint type by considering each of these five cases:
+\begin{description}
+\item [Protocol composition type] Recursively perform Step~4 on each term of the protocol composition.
+\item [Parameterized protocol type] Generalize each argument type by visiting them in order, and build a new parameterized protocol type with the generalized arguments:
+\begin{enumerate}
+\item replace the argument type with \ttgp{0}{N},
+\item add a substitution replacing \ttgp{0}{N} with the argument type to \texttt{S},
+\item increment \texttt{N}.
+\end{enumerate}
+\item [Generic class type] Generalize each argument type by visiting them in order, and build a new generic class type with the generalized arguments:
+\begin{enumerate}
+\item replace the argument type with \ttgp{0}{N},
+\item add a substitution replacing \ttgp{0}{N} with the argument type to \texttt{S},
+\item increment \texttt{N}.
+\end{enumerate}
+Let \texttt{C} be the context substitution map of the updated generic class type. For each requirement of the generic signature of the class, apply \texttt{C} to the requirement, and add the substituted requirement to \texttt{R}.
+\item [Protocol type] The type remains unchanged.
+\item [Class type] The type remains unchanged.
+\end{description}
+\item If $\texttt{N}=0$, the type does not have any substitutable arguments, and both \texttt{R} and \texttt{S} should be empty. Return the original constraint type with an empty generic signature and substitution map.
+\item Otherwise, build a new generic signature with parameters \texttt{\ttgp{0}{0}}\ldots\ttgp{0}{(N-1)} and requirements \texttt{R}. Note that the generalized constraint type is written with respect to this outer generic signature. Build a new substitution map from the new generic signature and list of substitutions \texttt{S}. Return the generalized constraint type, generic signature and substitution map.
+\end{enumerate}
+\end{algorithm}
+
+Say we have two existential types $T_1$ and $T_2$. Applying generalization to both types produces $(T_1', G_1, S_1)$ and $(T_2', G_2, S_2)$, where the tuple components are the generalized constraint type, generalization signature, and generalization substitution map, respectively. If $T_2$ can be constructed from $T_1$ by applying a substitution map $S$, then we have the following:
+\begin{enumerate}
+\item The generalized constraint types and generalization signatures will be equal; that is $T_1'=T_2'$, and $G_1=G_2$.
+\item The substitution map $S_2$ can be constructed by applying $S$ to $S_1$.
+\end{enumerate}
+These are the necessary invariants that ensures uniqueness of existential type metadata.
+
+\begin{example} Let's look at Listing~\ref{generalizationexample} again. Starting with \texttt{concrete()}, applying Algorithm~\ref{existentialgeneralizationalgo} to the type \texttt{any~P<ConcreteQ,~Int>} gives the generalized constraint type \texttt{any~P<\ttgp{0}{0},~\ttgp{0}{1}>} and the generalization signature \texttt{<\ttgp{0}{0}, \ttgp{0}{1}>} and the following substitution map:
+\[
+\SubstMap{
+\SubstType{\ttgp{0}{0}}{ConcreteQ}\\
+\SubstType{\ttgp{0}{1}}{Int}
+}
+\]
+Next up, in \texttt{generic()}, applying the algorithm to the type \texttt{any~P<X,~Int>} gives the same generalized constraint type and signature, but with a different substitution map:
+\[
+\SubstMap{
+\SubstType{\ttgp{0}{0}}{X}\\
+\SubstType{\ttgp{0}{1}}{Int}
+}
+\]
+When \texttt{generic()} is called with the substitution map \texttt{X := ConcreteQ}, the runtime type metadata collected for the uniquing key is the same in both \texttt{concrete()} and \texttt{generic()}, and both calls produce the same runtime type metadata pointer.
+\end{example}
+
+\begin{example}
+The generalization signature in the previous example does not have any generic requirements. In Listing~\ref{generalizationrequirements}, the existential type is a protocol composition containing a generic class type, which can introduce requirements in the generalization signature. Applying Algorithm~\ref{existentialgeneralizationalgo} to the type \texttt{any~Q<Int>~\&~G<ConcreteP>} produces the generalized constraint type \texttt{any~Q<\ttgp{0}{0}>~\&~G<\ttgp{0}{1}>} and the following generalization signature:
+\begin{quote}
+\texttt{<\ttgp{0}{0}, \ttgp{0}{1} where \ttgp{0}{1}:\ P, \ttgp{0}{1}.[P]X == \ttgp{0}{1}.[P]Y>}
+\end{quote}
+and substitution map:
+\[
+\SubstMapC{
+\SubstType{\ttgp{0}{0}}{Int}\\
+\SubstType{\ttgp{0}{1}}{ConcreteP}
+}{
+\SubstConf{\ttgp{0}{0}}{ConcreteP}{P}
+}
+\]
+\end{example}
+\begin{listing}\captionabove{Example where the generalization signature has requirements}\label{generalizationrequirements}
+\begin{Verbatim}
+protocol P {
+  associatedtype X
+  associatedtype Y
+}
+
+struct ConcreteP: P {
+  typealias X = Int
+  typealias Y = Int
+}
+
+class G<U: P> where U.X == U.Y {}
+
+protocol Q<T> {
+  associatedtype T
+}
+
+func concrete() -> Any.Type {
+  return (any Q<Int> & G<ConcreteP>).self
+}
+\end{Verbatim}
+\end{listing}
+
+\fi
+
+\section{Self-Conforming Protocols}\label{selfconformingprotocols}
+
+\ifWIP
+
+A common source of confusion for beginners is that in general, protocols in Swift do not conform to themselves. The layperson's explanation of this is that an existential type is a ``box'' for storing a value with an unknown concrete type. If the box requires that the value's type conforms to a protocol, you can't fit the ``box itself'' inside of another box, because it has the wrong shape. This explanation will be made precise in this section.
+
+For many purposes, implicit existential opening introduced in Swift 5.7 \cite{se0352} offers an elegant way around this problem:
+\begin{Verbatim}
+protocol Animal {...}
+
+func petAnimal<A: Animal>(_ animal: A) {...}
+
+func careForAnimals(_ animals: [any Animal]) {
+  for animal in animals {
+    careForAnimal(animal)  // existential opened here in Swift 5.7;
+                           // type check error in Swift 5.6.
+  }
+}
+\end{Verbatim}
+The above code type checks in Swift 5.7 because the replacement type for the generic parameter \texttt{A} of \texttt{careForAnimal()} becomes the opened archetype from the payload of \texttt{animal}. The lack of self-conformance can still be observed in Swift 5.7 when a generic parameter type is a structural sub-component of another type:
+\begin{Verbatim}
+func petAnimals<A: Animal>(_ animals: [A]) {...}
+
+func careForAnimals(_ animals: [any Animal]) {
+  petAnimals(animals)  // type check error.
+}
+\end{Verbatim}
+It is not possible to simultaneously open every element of \texttt{animals}, and the call to \texttt{petAnimals()} does not type check with the replacement type \texttt{any Animal} for the generic parameter \texttt{A}.
+
+\index{global conformance lookup}
+\index{self protocol conformance}
+Now let's make precise the ``in general'' part of ``in general, protocols in Swift do not conform to themselves.'' Some protocols do conform to themselves, and global conformance lookup returns a special \texttt{SelfProtocolConformance} type in this case.
+
+The first two special kinds of self-conforming existential types are those that do not have conformance requirements.
+
+\paragraph{Any} The \texttt{Any} type is an existential where the constraint type is an empty protocol composition. Constraining a generic parameter to \texttt{Any} has no effect and is equivalent to leaving the generic parameter unconstrained. An unconstrained generic parameter can be substituted with an arbitrary type, including \texttt{Any}. So in this sense, \texttt{Any} ``conforms to itself'':
+\begin{Verbatim}
+func doStuff<T: Any>(_: [T]) {...}  // `T: Any' is pointless
+
+let value: Any = ...
+
+doStuff([value])  // okay
+\end{Verbatim}
+
+\paragraph{AnyObject} The \texttt{AnyObject} type is an existential where the constraint type requires the stored value to be a single reference-counted pointer. The \texttt{AnyObject} existential does not carry any witness tables, so the existential itself has the same representation as its payload. For this reason, the \texttt{AnyObject} existential type satisfies the \texttt{AnyObject} layout constraint. The calling convention of \texttt{doStuff()} takes the type metadata for \texttt{T}, and an array of reference-counted pointers. Passing the type metadata of \texttt{AnyObject} itself for \texttt{T}, and an array of \texttt{AnyObject} values works just fine:
+\begin{Verbatim}
+func doStuff<T: AnyObject>(_: [T]) {...}
+
+let value: AnyObject = ...
+
+doStuff([value])  // okay
+\end{Verbatim}
+
+The next two kinds of self-conforming existential have protocol conformance requirements, but nevertheless does not carry witness tables.
+
+\paragraph{Sendable protocol} The \texttt{Sendable} protocol does not have a witness table or any requirements, so \texttt{Sendable} existentials trivially conform to themselves.
+
+\paragraph{Certain @objc protocols} \index{Objective-C}Objective-C protocols do not use witness tables to dispatch method calls, so an existential type where all protocols are \texttt{@objc} has the same representation as \texttt{AnyObject}---a single reference-counted pointer. This allows protocol compositions where all terms are \texttt{@objc} protocols to conform to themselves as long as each protocol satisfies some additional conditions:
+\begin{enumerate}
+\item Each inherited protocol must recursively self-conform.
+\item The protocol must be an \texttt{@objc} protocol.
+\item The protocol must not declare any static methods.
+\item The protocol must not declare any constructors.
+\end{enumerate}
+
+TODO: example of working case here.
+
+The last two conditions are semantic, and not representational. If the last condition was not enforced, the below code would be accepted, despite not having a well-defined meaning---the \texttt{init()} requirement is being invoked on the protocol metatype itself, and not a concrete implementation of the protocol:
+\begin{Verbatim}
+@objc protocol Initable {
+  init()
+}
+
+func makeNewInstance<I: Initable>(_ type: I.Type) -> I {
+  return type.init()
+}
+
+makeNewInstance(Initable.self)
+\end{Verbatim}
+
+\paragraph{Error protocol} The \texttt{Error} existential again uses a special representation where it is made to look like a single reference-counted pointer. The \texttt{Error} protocol dispatches method calls through a witness table, but the witness table for the concrete conformance to \texttt{Error} is stored inside the heap allocation, alongside the concrete value. 
+
+When a function has a generic parameter constrained to \texttt{Error}, it expects to receive the witness table for the \texttt{Error} conformance as a argument to the call, alongside the type metadata for the generic parameter. The witness table for the concrete conformance is stored inside the \emph{value}, and we don't have a value; if we did, we would have opened the \texttt{Error} existential instead. The solution is that the compiler emits a special \emph{self-conformance} witness table for the \texttt{Error} protocol. At the point where the witness method in the witness table is invoked, a value is available, so the witness method implementations in the self-conformance witness table unwrap the existential and dispatch again, this time through the concrete conformance witness table.
+
+\begin{itemize}
+\item Error as existential - error as generic arg - error as self-conforming generic arg
+\end{itemize}
+
+The need for double-dispatch becomes apparent if you consider the case where two \emph{different} concrete types conforming to \texttt{Error} are stored in an array of \texttt{any Error}:
+\begin{Verbatim}
+func printErrorDomain<E: Error>(_ errors: [E]) {
+  for error in errors {
+    print(error._domain)
+  }
+}
+
+printErrorDomain([MyError() as Error, YourError() as Error])
+\end{Verbatim}
+The \texttt{printErrorDomain()} function receives two lowered parameters in addition to the formal \texttt{errors} parameter: type metadata for \texttt{E}, and a witness table for the \texttt{E:~Error} conformance. The call on line 7 passes the existential type metadata {any~Error} as the generic parameter \texttt{E}, and the self-conforming witness table for the \texttt{E:~Error} conformance. Inside the body of \texttt{printErrorDomain()}, each call to \texttt{print(error.\_domain)} encounters an existential storing a different concrete type, but the call is made with the same self-conformance witness table. This works though, because the witness method in the self-conformance witness table loads the concrete witness table from the existential and dispatches to the actual concrete witness method.
+
+\index{SILGen}
+The self-conformance witness table for the \texttt{Error} protocol is emitted when building the standard library in \texttt{SILGenModule::emitSelfConformanceWitnessTable()}.
+
+\paragraph{What about other protocols?} In theory, the semantic conditions imposed on self-conforming \texttt{@objc} protocols could be combined with a trick like the self-conformance witness table for \texttt{Error} to allow more protocols to self-conform, perhaps with an opt-in mechanism to avoid the unconditional code size hit from always emitting a self-conformance witness table. For class existentials, some kind of \index{boxing}boxing would be necessary as well, similar to \texttt{Error}, since otherwise a class existential with witness tables does not satisfy the \texttt{AnyObject} layout constraint. This in turn would complicate the implementation of the \texttt{===} pointer identity operator, among other things. Doesn't seem worth the considerable increase in complexity... which is why Swift does not implement general self-conformance for protocols today.
+
+\fi
+
+\section{Source Code Reference}
+
+\iffalse
+
+TODO:
+
+\begin{description}
+\item[\texttt{TypeBase}] The base class of the Swift type hierarchy.
+\begin{itemize}
+\item \texttt{isAnyExistentialType()} Returns true if this is an \texttt{ExistentialType} or \texttt{ExistentialMetatypeType}.
+\end{itemize}
+
+\item[\texttt{ExistentialType}] An existential \texttt{any} type.
+\begin{itemize}
+\item \texttt{getConstraintType()} Returns the underlying constraint type.
+\end{itemize}
+\item[\texttt{ExistentialMetatypeType}] An existential metatype.
+\begin{itemize}
+\item \texttt{getConstraintType()} Returns the underlying constraint type.
+\end{itemize}
+
+\item[\texttt{MetatypeType}] A concrete metatype.
+\begin{itemize}
+\item \texttt{getInstanceType()} Returns the underlying instance type.
+\end{itemize}
+
+\item[\texttt{ASTContext}] Singleton for global state.
+\begin{itemize}
+\item \texttt{getAnyExistentialType()} Returns the existential type for \texttt{Any}.
+\item \texttt{getAnyObjectType()} Returns the existential type for \texttt{AnyObject}.
+\end{itemize}
+
+\item[\texttt{GenericEnvironment}] A mapping from type parameters to archetypes with respect to a generic signature.
+\begin{itemize}
+\item \texttt{forOpenedExistential()} Creates a fresh opened generic environment.
+\end{itemize}
+
+\item[\texttt{ASTContext}] Singleton for global state.
+\begin{itemize}
+\item \texttt{getOpenedArchetypeSignature()} Builds an opened existential signature.
+\end{itemize}
+\end{description}
+
+\fi
+
+\end{document}

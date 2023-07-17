@@ -11,3 +11,9 @@ extension Base {
 }
 
 Derived().swiftFunc() // expected-error {{value of type 'Derived' has no member 'swiftFunc'}}
+
+// ok, this calls the derived method.
+Derived().sameMethodNameSameSignature()
+Derived().sameMethodDifferentSignature(1)
+// ok, this is the base class method.
+Derived().sameMethodDifferentSignature()

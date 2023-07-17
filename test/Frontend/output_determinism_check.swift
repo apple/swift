@@ -1,6 +1,6 @@
 // RUN: %empty-directory(%t)
 // RUN: echo '[]' > %t/protocol.json
-// RUN: %target-swift-frontend -module-name test -emit-module -o %t/test.swiftmodule %s -emit-module-doc-path %t/test.docc -const-gather-protocols-file %t/protocol.json -emit-const-values-path %t/test.swiftconstvalues -emit-tbd-path %t/test.tbd -tbd-current-version 1 -tbd-compatibility-version 1 -tbd-install_name @rpath/test.dylib -enable-deterministic-check 2>&1 | %FileCheck %s --check-prefix=MODULE_OUTPUT --check-prefix=DOCC_OUTPUT --check-prefix=CONSTVALUE_OUTPUT --check-prefix=TBD_OUTPUT
+// RUN: %target-swift-frontend -module-name test -emit-module -o %t/test.swiftmodule %s -emit-module-doc-path %t/test.docc -const-gather-protocols-file %t/protocol.json -emit-const-values-path %t/test.swiftconstvalues -emit-tbd-path %t/test.tbd -tbd-current-version 1 -tbd-compatibility-version 1 -tbd-install_name @rpath/test.dylib -emit-loaded-module-trace -emit-loaded-module-trace-path %t/test.trace.json -enable-deterministic-check 2>&1 | %FileCheck %s --check-prefix=MODULE_OUTPUT --check-prefix=DOCC_OUTPUT --check-prefix=CONSTVALUE_OUTPUT --check-prefix=TBD_OUTPUT --check-prefix=TRACE_OUTPUT
 // RUN: %target-swift-frontend -module-name test -emit-sib -o %t/test.sib -primary-file %s -enable-deterministic-check 2>&1 | %FileCheck %s --check-prefix=SIB_OUTPUT
 
 /// object files are "not" deterministic because the second run going to match the mod hash and skip code generation.
@@ -29,6 +29,7 @@
 // CONSTVALUE_OUTPUT: remark: produced matching output file '{{.*}}{{/|\\}}test.swiftconstvalues'
 // MODULE_OUTPUT: remark: produced matching output file '{{.*}}{{/|\\}}test.swiftmodule'
 // TBD_OUTPUT: remark: produced matching output file '{{.*}}{{/|\\}}test.tbd'
+// TRACE_OUTPUT: remark: produced matching output file '{{.*}}{{/|\\}}test.trace.json'
 // SIB_OUTPUT: remark: produced matching output file '{{.*}}{{/|\\}}test.sib'
 // DEPS_OUTPUT: remark: produced matching output file '{{.*}}{{/|\\}}test.d'
 // OBJECT_OUTPUT: remark: produced matching output file '{{.*}}{{/|\\}}test.o'

@@ -34,9 +34,11 @@ struct TargetAnyClassMetadataObjCInterop;
 template <typename Runtime, typename TargetAnyClassMetadataVariant>
 struct TargetClassMetadata;
 template <typename Runtime>
-struct TargetContextDescriptor;
+struct swift_ptrauth_struct_context_descriptor(ContextDescriptor)
+    TargetContextDescriptor;
 template <typename Runtime>
-struct TargetProtocolDescriptor;
+struct swift_ptrauth_struct_context_descriptor(ProtocolDescriptor)
+    TargetProtocolDescriptor;
 
 namespace detail {
 template <typename Runtime, bool ObjCInterop = Runtime::ObjCInterop>

@@ -157,9 +157,58 @@ class MoveOnlyCheckerPass : public SILFunctionTransform {
     assert(fn->getModule().getStage() == SILStage::Raw &&
            "Should only run on Raw SIL");
 
+    // If an earlier pass asked us to eliminate the function body if it's
+    // unused, and the function is in fact unused, do that now.
+    if (fn->hasSemanticsAttr(semantics::MOVEONLY_DELETE_IF_UNUSED)) {
+      if (fn->getRefCount() == 0
+          && !isPossiblyUsedExternally(fn->getLinkage(),
+                                       fn->getModule().isWholeModule())) {
+        LLVM_DEBUG(llvm::dbgs() << "===> Deleting unused function " << fn->getName() << "'s body that was marked for deletion\n");
+        // Remove all non-entry blocks.
+        auto entryBB = fn->begin();
+        auto nextBB = std::next(entryBB);
+        
+        while (nextBB != fn->end()) {
+          auto thisBB = nextBB;
+          ++nextBB;
+          thisBB->eraseFromParent();
+        }
+        
+        // Rewrite the entry block to only contain an unreachable.
+        auto loc = entryBB->begin()->getLoc();
+        entryBB->eraseAllInstructions(fn->getModule());
+        {
+          SILBuilder b(&*entryBB);
+          b.createUnreachable(loc);
+        }
+        
+        // If the function has shared linkage, reduce this version to private
+        // linkage, because we don't want the deleted-body form to win in any
+        // ODR shootouts.
+        if (fn->getLinkage() == SILLinkage::Shared) {
+          fn->setLinkage(SILLinkage::Private);
+        }
+        
+        invalidateAnalysis(SILAnalysis::InvalidationKind::FunctionBody);
+        return;
+      }
+      // If the function wasn't unused, let it continue into diagnostics.
+      // This would come up if a closure function somehow was used in different
+      // functions with different escape analysis results. This shouldn't really
+      // be possible, and we should try harder to make it impossible, but if
+      // it does happen now, the least bad thing to do is to proceed with
+      // move checking. This will either succeed and make sure the original
+      // function contains valid SIL, or raise errors relating to the use
+      // of the captures in an escaping way, which is the right thing to do
+      // if they are in fact escapable.
+      LLVM_DEBUG(llvm::dbgs() << "===> Function " << fn->getName()
+                              << " was marked to be deleted, but has uses. Continuing with move checking\n");
+      
+    }
+
     // If an earlier pass told use to not emit diagnostics for this function,
     // clean up any copies, invalidate the analysis, and return early.
-    if (getFunction()->hasSemanticsAttr(semantics::NO_MOVEONLY_DIAGNOSTICS)) {
+    if (fn->hasSemanticsAttr(semantics::NO_MOVEONLY_DIAGNOSTICS)) {
       if (cleanupNonCopyableCopiesAfterEmittingDiagnostic(getFunction()))
         invalidateAnalysis(SILAnalysis::InvalidationKind::Instructions);
       return;
@@ -169,7 +218,7 @@ class MoveOnlyCheckerPass : public SILFunctionTransform {
                << "===> MoveOnly Checker. Visiting: " << fn->getName() << '\n');
 
     MoveOnlyChecker checker(
-        getFunction(), getAnalysis<DominanceAnalysis>()->get(getFunction()),
+        fn, getAnalysis<DominanceAnalysis>()->get(fn),
         getAnalysis<PostOrderAnalysis>());
 
     checker.checkObjects();
@@ -180,12 +229,12 @@ class MoveOnlyCheckerPass : public SILFunctionTransform {
     // non-copyable copies into explicit variants below and let the user
     // recompile.
     if (!checker.diagnosticEmitter.emittedDiagnostic()) {
-      emitCheckerMissedCopyOfNonCopyableTypeErrors(getFunction(),
+      emitCheckerMissedCopyOfNonCopyableTypeErrors(fn,
                                                    checker.diagnosticEmitter);
     }
 
     checker.madeChange |=
-        cleanupNonCopyableCopiesAfterEmittingDiagnostic(getFunction());
+        cleanupNonCopyableCopiesAfterEmittingDiagnostic(fn);
 
     if (checker.madeChange)
       invalidateAnalysis(SILAnalysis::InvalidationKind::Instructions);

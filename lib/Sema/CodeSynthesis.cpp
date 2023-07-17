@@ -1304,22 +1304,15 @@ HasMemberwiseInitRequest::evaluate(Evaluator &evaluator,
       if (auto *initAccessor = var->getAccessor(AccessorKind::Init)) {
         // Make sure that all properties accessed by init accessor
         // are previously initialized.
-        if (auto accessAttr =
-            initAccessor->getAttrs().getAttribute<AccessesAttr>()) {
-          for (auto *property : accessAttr->getPropertyDecls(initAccessor)) {
-            if (!initializedProperties.count(property))
-              invalidOrderings.push_back(
-                {var, property->getName()});
-          }
+        for (auto *property : initAccessor->getAccessedProperties()) {
+          if (!initializedProperties.count(property))
+            invalidOrderings.push_back({var, property->getName()});
         }
 
         // Record all of the properties initialized by calling init accessor.
-        if (auto initAttr =
-            initAccessor->getAttrs().getAttribute<InitializesAttr>()) {
-          auto properties = initAttr->getPropertyDecls(initAccessor);
-          initializedProperties.insert(properties.begin(), properties.end());
-        }
-
+        auto properties = initAccessor->getInitializedProperties();
+        initializedProperties.insert(var);
+        initializedProperties.insert(properties.begin(), properties.end());
         continue;
       }
 

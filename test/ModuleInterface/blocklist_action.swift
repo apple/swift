@@ -18,4 +18,8 @@
 // RUN: %target-swift-typecheck-module-from-interface(%t/Test.swiftinterface) -module-name Test -downgrade-typecheck-interface-error
 // RUN: %target-swift-typecheck-module-from-interface(%t/Test.swiftinterface) -module-name Test -blocklist-file %t/blocklist.yml
 
+// RUN: %target-swift-typecheck-module-from-interface(%t/Test.swiftinterface) -module-name Test -blocklist-file %t/blocklist.yml &> %t/notes.txt
+// RUN: %FileCheck -check-prefix CHECK-NOTES --input-file %t/notes.txt %s
+// CHECK-NOTES: note: textual interface for Test is blocklisted as broken; interface verification errors are downgraded to warnings
+
 public func foo() {}

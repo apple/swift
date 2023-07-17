@@ -1600,6 +1600,8 @@ StringRef DeclAttribute::getAttrName() const {
     return "initializes";
   case DAK_Accesses:
     return "accesses";
+  case DAK_StorageRestrictions:
+    return "storageRestrictions";
   case DAK_Implements:
     return "_implements";
   case DAK_ClangImporterSynthesizedType:
@@ -2405,6 +2407,29 @@ AccessesAttr::create(ASTContext &ctx, SourceLoc atLoc, SourceRange range,
   return new (mem) AccessesAttr(atLoc, range, properties);
 }
 
+StorageRestrictionsAttr::StorageRestrictionsAttr(
+    SourceLoc AtLoc, SourceRange Range, ArrayRef<Identifier> initializes,
+    ArrayRef<Identifier> accesses, bool Implicit)
+    : DeclAttribute(DAK_StorageRestrictions, AtLoc, Range, Implicit),
+      NumInitializes(initializes.size()),
+      NumAccesses(accesses.size()) {
+  std::uninitialized_copy(initializes.begin(), initializes.end(),
+                          getTrailingObjects<Identifier>());
+  std::uninitialized_copy(accesses.begin(), accesses.end(),
+                          getTrailingObjects<Identifier>() + NumInitializes);
+}
+
+StorageRestrictionsAttr *
+StorageRestrictionsAttr::create(
+    ASTContext &ctx, SourceLoc atLoc, SourceRange range,
+    ArrayRef<Identifier> initializes, ArrayRef<Identifier> accesses) {
+  unsigned size =
+      totalSizeToAlloc<Identifier>(initializes.size() + accesses.size());
+  void *mem = ctx.Allocate(size, alignof(StorageRestrictionsAttr));
+  return new (mem) StorageRestrictionsAttr(atLoc, range, initializes, accesses,
+                                           /*implicit=*/false);
+}
+
 ImplementsAttr::ImplementsAttr(SourceLoc atLoc, SourceRange range,
                                TypeRepr *TyR,
                                DeclName MemberName,
@@ -2581,6 +2606,26 @@ AccessesAttr::getPropertyDecls(AccessorDecl *attachedTo) const {
       InitAccessorReferencedVariablesRequest{const_cast<AccessesAttr *>(this),
                                              attachedTo, getProperties()},
       {});
+}
+
+ArrayRef<VarDecl *> StorageRestrictionsAttr::getInitializesProperties(
+    AccessorDecl *attachedTo) const {
+  auto &ctx = attachedTo->getASTContext();
+  return evaluateOrDefault(ctx.evaluator,
+                           InitAccessorReferencedVariablesRequest{
+                               const_cast<StorageRestrictionsAttr *>(this),
+                               attachedTo, getInitializesNames()},
+                           {});
+}
+
+ArrayRef<VarDecl *>
+StorageRestrictionsAttr::getAccessesProperties(AccessorDecl *attachedTo) const {
+  auto &ctx = attachedTo->getASTContext();
+  return evaluateOrDefault(ctx.evaluator,
+                           InitAccessorReferencedVariablesRequest{
+                               const_cast<StorageRestrictionsAttr *>(this),
+                               attachedTo, getAccessesNames()},
+                           {});
 }
 
 void swift::simple_display(llvm::raw_ostream &out, const DeclAttribute *attr) {

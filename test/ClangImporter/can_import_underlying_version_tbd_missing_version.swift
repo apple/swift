@@ -3,8 +3,7 @@
 // RUN: %empty-directory(%t/frameworks)
 
 // RUN: cp -rf %S/Inputs/frameworks/Simple.framework %t/frameworks/
-
-// RUN: echo "" > %t/frameworks/Simple.framework/Simple.tbd
+// RUN: rm -rf %t/frameworks/Simple.framework/Simple.tbd
 // RUN: %target-typecheck-verify-swift -disable-implicit-concurrency-module-import -F %t/frameworks
 
 import Simple

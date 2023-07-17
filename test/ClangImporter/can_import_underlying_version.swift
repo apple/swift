@@ -3,9 +3,6 @@
 // RUN: %empty-directory(%t/frameworks)
 
 // RUN: cp -rf %S/Inputs/frameworks/Simple.framework %t/frameworks/
-
-// RUN: echo "current-version: 1830.100" > %t/frameworks/Simple.framework/Simple.tbd
-
 // RUN: %target-typecheck-verify-swift -disable-implicit-concurrency-module-import -F %t/frameworks
 
 import Simple

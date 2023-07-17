@@ -21,6 +21,45 @@ using namespace swift;
 using namespace swift::constraints;
 using namespace swift::ide;
 
+bool UnresolvedMemberTypeCheckCompletionCallback::Result::canBeMergedWith(
+    const Result &Other, DeclContext &DC) const {
+  if (!isConvertibleTo(ExpectedTy, Other.ExpectedTy, /*openArchetypes=*/true,
+                       DC) &&
+      !isConvertibleTo(Other.ExpectedTy, ExpectedTy, /*openArchetypes=*/true,
+                       DC)) {
+    return false;
+  }
+  return true;
+}
+
+void UnresolvedMemberTypeCheckCompletionCallback::Result::merge(
+    const Result &Other, DeclContext &DC) {
+  assert(canBeMergedWith(Other, DC));
+  if (!ExpectedTy->isEqual(Other.ExpectedTy) &&
+      isConvertibleTo(ExpectedTy, Other.ExpectedTy, /*openArchetypes=*/true,
+                      DC)) {
+    // ExpectedTy is more general than Other.ExpectedTy. Complete based on the
+    // more general type because it offers more completion options.
+    ExpectedTy = Other.ExpectedTy;
+  }
+
+  IsImplicitSingleExpressionReturn |= Other.IsImplicitSingleExpressionReturn;
+  IsInAsyncContext |= Other.IsInAsyncContext;
+}
+
+void UnresolvedMemberTypeCheckCompletionCallback::addExprResult(
+    const Result &Res) {
+  auto ExistingRes =
+      llvm::find_if(ExprResults, [&Res, DC = DC](const Result &ExistingResult) {
+        return ExistingResult.canBeMergedWith(Res, *DC);
+      });
+  if (ExistingRes != ExprResults.end()) {
+    ExistingRes->merge(Res, *DC);
+  } else {
+    ExprResults.push_back(Res);
+  }
+}
+
 void UnresolvedMemberTypeCheckCompletionCallback::sawSolutionImpl(
     const constraints::Solution &S) {
   auto &CS = S.getConstraintSystem();
@@ -32,15 +71,9 @@ void UnresolvedMemberTypeCheckCompletionCallback::sawSolutionImpl(
   // to derive it from), let's not attempt to do a lookup since it wouldn't
   // produce any useful results anyway.
   if (ExpectedTy) {
-    // If ExpectedTy is a duplicate of any other result, ignore this solution.
-    auto IsEqual = [&](const Result &R) {
-      return R.ExpectedTy->isEqual(ExpectedTy);
-    };
-    if (!llvm::any_of(ExprResults, IsEqual)) {
-      bool SingleExprBody =
-          isImplicitSingleExpressionReturn(CS, CompletionExpr);
-      ExprResults.push_back({ExpectedTy, SingleExprBody, IsAsync});
-    }
+    bool SingleExprBody = isImplicitSingleExpressionReturn(CS, CompletionExpr);
+    Result Res = {ExpectedTy, SingleExprBody, IsAsync};
+    addExprResult(Res);
   }
 
   if (auto PatternType = getPatternMatchType(S, CompletionExpr)) {

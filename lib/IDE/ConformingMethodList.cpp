@@ -16,8 +16,10 @@
 #include "swift/AST/GenericEnvironment.h"
 #include "swift/AST/NameLookup.h"
 #include "swift/AST/USRGeneration.h"
+#include "swift/IDE/TypeCheckCompletionCallback.h"
 #include "swift/Parse/IDEInspectionCallbacks.h"
 #include "swift/Sema/IDETypeChecking.h"
+#include "swift/Sema/ConstraintSystem.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/Decl.h"
 
@@ -30,7 +32,7 @@ class ConformingMethodListCallbacks : public CodeCompletionCallbacks,
   ArrayRef<const char *> ExpectedTypeNames;
   ConformingMethodListConsumer &Consumer;
   SourceLoc Loc;
-  Expr *ParsedExpr = nullptr;
+  CodeCompletionExpr *CCExpr = nullptr;
   DeclContext *CurDeclContext = nullptr;
 
   void getMatchingMethods(Type T,
@@ -47,7 +49,7 @@ public:
   // Only handle callbacks for suffix completions.
   // {
   void completeDotExpr(CodeCompletionExpr *E, SourceLoc DotLoc) override;
-  void completePostfixExpr(Expr *E, bool hasSpace) override;
+  void completePostfixExpr(CodeCompletionExpr *E, bool hasSpace) override;
   // }
 
   void doneParsing(SourceFile *SrcFile) override;
@@ -56,34 +58,67 @@ public:
 void ConformingMethodListCallbacks::completeDotExpr(CodeCompletionExpr *E,
                                                     SourceLoc DotLoc) {
   CurDeclContext = P.CurDeclContext;
-  ParsedExpr = E->getBase();
+  CCExpr = E;
 }
 
-void ConformingMethodListCallbacks::completePostfixExpr(Expr *E,
+void ConformingMethodListCallbacks::completePostfixExpr(CodeCompletionExpr *E,
                                                         bool hasSpace) {
   CurDeclContext = P.CurDeclContext;
-  ParsedExpr = E;
+  CCExpr = E;
 }
 
+class ConformingMethodListCallback : public TypeCheckCompletionCallback {
+public:
+  struct Result {
+    Type Ty;
+
+    /// Types of variables that were determined in the solution that produced
+    /// this result. This in particular includes parameters of closures that
+    /// were type-checked with the code completion expression.
+    llvm::SmallDenseMap<const VarDecl *, Type> SolutionSpecificVarTypes;
+  };
+private:
+  CodeCompletionExpr *CCExpr;
+
+  SmallVector<Result> Results;
+
+  void sawSolutionImpl(const constraints::Solution &S) override {
+    if (!S.hasType(CCExpr->getBase())) {
+      return;
+    }
+    if (Type T = getTypeForCompletion(S, CCExpr->getBase())) {
+      llvm::SmallDenseMap<const VarDecl *, Type> SolutionSpecificVarTypes;
+      getSolutionSpecificVarTypes(S, SolutionSpecificVarTypes);
+      Results.push_back({T, SolutionSpecificVarTypes});
+    }
+  }
+
+public:
+  ConformingMethodListCallback(CodeCompletionExpr *CCExpr) : CCExpr(CCExpr) {}
+
+  ArrayRef<Result> getResults() const { return Results; }
+};
+
 void ConformingMethodListCallbacks::doneParsing(SourceFile *SrcFile) {
-  if (!ParsedExpr)
+  if (!CCExpr || !CCExpr->getBase())
     return;
 
-  typeCheckContextAt(TypeCheckASTNodeAtLocContext::declContext(CurDeclContext),
-                     ParsedExpr->getLoc());
-
-  Type T = ParsedExpr->getType();
-
-  // Type check the expression if needed.
-  if (!T || T->is<ErrorType>()) {
-    ConcreteDeclRef ReferencedDecl = nullptr;
-    auto optT = getTypeOfCompletionContextExpr(P.Context, CurDeclContext,
-                                               CompletionTypeCheckKind::Normal,
-                                               ParsedExpr, ReferencedDecl);
-    if (!optT)
-      return;
-    T = *optT;
+  ConformingMethodListCallback TypeCheckCallback(CCExpr);
+  {
+    llvm::SaveAndRestore<TypeCheckCompletionCallback *> CompletionCollector(
+        Context.CompletionCallback, &TypeCheckCallback);
+    typeCheckContextAt(
+        TypeCheckASTNodeAtLocContext::declContext(CurDeclContext),
+        CCExpr->getLoc());
   }
+
+  if (TypeCheckCallback.getResults().size() != 1) {
+    // Either no results or results were ambiguous, which we cannot handle.
+    return;
+  }
+  auto Res = TypeCheckCallback.getResults()[0];
+  Type T = Res.Ty;
+  WithSolutionSpecificVarTypesRAII VarType(Res.SolutionSpecificVarTypes);
 
   if (!T || T->is<ErrorType>() || T->is<UnresolvedType>())
     return;

@@ -519,7 +519,14 @@ public:
 
   void getPostfixKeywordCompletions(Type ExprType, Expr *ParsedExpr);
 
-  void getValueExprCompletions(Type ExprType, ValueDecl *VD = nullptr);
+  /// Add code completion results after an expression of type \p ExprType.
+  /// This includes members as well as call patterns if \p ExprType is a
+  /// function type.
+  /// If \p IsDeclUnapplied is \c true, we are completing after a refernce to
+  /// \p VD that hasn't been called yet. Thus, \p VD has type \p ExprType and we
+  /// can use \p VD to enrich call pattern completions of \p ExprType.
+  void getValueExprCompletions(Type ExprType, ValueDecl *VD = nullptr,
+                               bool IsDeclUnapplied = false);
 
   void collectOperators(SmallVectorImpl<OperatorDecl *> &results);
 
@@ -529,7 +536,7 @@ public:
 
   void tryPostfixOperator(Expr *expr, PostfixOperatorDecl *op);
 
-  void addAssignmentOperator(Type RHSType, Type resultType);
+  void addAssignmentOperator(Type RHSType);
 
   void addInfixOperatorCompletion(OperatorDecl *op, Type resultType,
                                   Type RHSType);

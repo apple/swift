@@ -778,7 +778,7 @@ extension String {
   /// If `codeUnits` is an ill-formed code unit sequence, the result is `nil`.
   ///
   /// - Complexity: O(N), where N is the length of the resulting `String`'s
-  ///   UTF-16.
+  ///   UTF-8 representation.
   public init?(_ codeUnits: Substring.UTF8View) {
     let guts = codeUnits._wholeGuts
     guard guts.isOnUnicodeScalarBoundary(codeUnits.startIndex),

@@ -178,6 +178,16 @@ TEST_F(CompatibilityOverrideRuntimeTest, test_swift_conformsToProtocol) {
   ASSERT_EQ(Result, nullptr);
 }
 
+TEST_F(CompatibilityOverrideRuntimeTest, test_swift_conformsToProtocol2) {
+  auto Result = swift_conformsToProtocol2(nullptr, nullptr);
+  ASSERT_EQ(Result, nullptr);
+}
+
+TEST_F(CompatibilityOverrideRuntimeTest, test_swift_conformsToProtocolCommon) {
+  auto Result = swift_conformsToProtocolCommon(nullptr, nullptr);
+  ASSERT_EQ(Result, nullptr);
+}
+
 TEST_F(CompatibilityOverrideRuntimeTest, test_swift_getTypeByMangledNode) {
   Demangler demangler;
   auto Result = swift_getTypeByMangledNode(MetadataState::Abstract,

@@ -588,29 +588,28 @@ void swift::simple_display(llvm::raw_ostream &out,
   switch (value.kind) {
   case FragileFunctionKind::Transparent:
     out << "transparent";
-    break;
+    return;
   case FragileFunctionKind::Inlinable:
     out << "inlinable";
-    break;
+    return;
   case FragileFunctionKind::AlwaysEmitIntoClient:
     out << "alwaysEmitIntoClient";
-    break;
+    return;
   case FragileFunctionKind::DefaultArgument:
     out << "defaultArgument";
-    break;
+    return;
   case FragileFunctionKind::PropertyInitializer:
     out << "propertyInitializer";
-    break;
+    return;
   case FragileFunctionKind::BackDeploy:
     out << "backDeploy";
-    break;
+    return;
   case FragileFunctionKind::None:
     out << "none";
-    break;
+    return;
   }
 
-  out << ", allowUsableFromInline: "
-      << (value.allowUsableFromInline ? "true" : "false");
+  llvm_unreachable("Bad FragileFunctionKind");
 }
 
 //----------------------------------------------------------------------------//

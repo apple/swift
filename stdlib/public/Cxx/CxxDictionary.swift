@@ -10,6 +10,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+/// A C++ type that represents a dictionary.
+///
+/// C++ standard library types such as `std::map` and `std::unordered_map`
+/// conform to this protocol.
 public protocol CxxDictionary<Key, Value> {
   associatedtype Key
   associatedtype Value

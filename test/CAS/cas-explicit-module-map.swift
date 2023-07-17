@@ -6,6 +6,7 @@
 // RUN: %target-swift-frontend -emit-module -module-cache-path %t/clang-module-cache %t/A.swift -o %t/A.swiftmodule -swift-version 5
 // RUN: %target-swift-frontend -emit-module -module-cache-path %t/clang-module-cache %t/B.swift -o %t/B.swiftmodule -I %t -swift-version 5
 // RUN: %target-swift-frontend -scan-dependencies -module-cache-path %t/clang-module-cache %t/Test.swift -o %t/deps.json -I %t -swift-version 5 -cache-compile-job -cas-path %t/cas
+// RUN: %validate-json %t/deps.json &>/dev/null
 
 // RUN: %S/Inputs/SwiftDepsExtractor.py %t/deps.json swiftPrebuiltExternal:A moduleCacheKey | tr -d '\n' > %t/A.key
 // RUN: %S/Inputs/SwiftDepsExtractor.py %t/deps.json swiftPrebuiltExternal:B moduleCacheKey | tr -d '\n' > %t/B.key
@@ -43,17 +44,17 @@
 // RUN: echo "[{" > %/t/map.json
 // RUN: echo "\"moduleName\": \"A\"," >> %/t/map.json
 // RUN: echo "\"modulePath\": \"A.swiftmodule\"," >> %/t/map.json
-// RUN: echo -n "\"moduleCacheKey\": \"" >> %/t/map.json
+// RUN: echo -n "\"moduleCacheKey\": " >> %/t/map.json
 // RUN: cat %t/A.key >> %/t/map.json
-// RUN: echo "\"," >> %/t/map.json
+// RUN: echo "," >> %/t/map.json
 // RUN: echo "\"isFramework\": false" >> %/t/map.json
 // RUN: echo "}," >> %/t/map.json
 // RUN: echo "{" >> %/t/map.json
 // RUN: echo "\"moduleName\": \"B\"," >> %/t/map.json
 // RUN: echo "\"modulePath\": \"B.swiftmodule\"," >> %/t/map.json
-// RUN: echo -n "\"moduleCacheKey\": \"" >> %/t/map.json
+// RUN: echo -n "\"moduleCacheKey\": " >> %/t/map.json
 // RUN: cat %t/B.key >> %/t/map.json
-// RUN: echo "\"," >> %/t/map.json
+// RUN: echo "," >> %/t/map.json
 // RUN: echo "\"isFramework\": false" >> %/t/map.json
 // RUN: echo "}," >> %/t/map.json
 // RUN: echo "{" >> %/t/map.json

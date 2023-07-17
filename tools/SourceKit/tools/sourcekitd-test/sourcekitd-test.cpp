@@ -1153,6 +1153,13 @@ static int handleTestInvocation(TestOptions Opts, TestOptions &InitOpts) {
                                           RequestSyntacticMacroExpansion);
     setSyntacticMacroExpansions(Req, Opts, SourceBuf.get());
     break;
+
+  case SourceKitRequest::IndexToStore:
+    sourcekitd_request_dictionary_set_string(Req, KeyName, SemaName.c_str());
+    sourcekitd_request_dictionary_set_string(Req, KeyIndexStorePath, Opts.IndexStorePath.c_str());
+    sourcekitd_request_dictionary_set_string(Req, KeyIndexUnitOutputPath, Opts.IndexUnitOutputPath.c_str());
+    sourcekitd_request_dictionary_set_uid(Req, KeyRequest, RequestIndexToStore);
+    break;
   }
 
   if (!Opts.SourceFile.empty()) {
@@ -1584,6 +1591,9 @@ static bool handleResponse(sourcekitd_response_t Resp, const TestOptions &Opts,
         break;
       case SourceKitRequest::Statistics:
         printStatistics(Info, llvm::outs());
+        break;
+      case SourceKitRequest::IndexToStore:
+        printRawResponse(Resp);
         break;
     }
   }

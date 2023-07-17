@@ -214,6 +214,13 @@ func testVarPeer() {
   _ = Date().value
 }
 
+#if TEST_DIAGNOSTICS
+// Macros cannot be attached to function parameters
+
+// expected-error@+1{{'peer' macro cannot be attached to parameter}}
+func test(@declareVarValuePeer x: Int) {}
+#endif
+
 // Stored properties added via peer macros.
 @attached(peer, names: named(_foo))
 macro AddPeerStoredProperty() =

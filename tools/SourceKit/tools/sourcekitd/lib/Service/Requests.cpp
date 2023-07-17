@@ -1421,6 +1421,48 @@ static void handleRequestIndex(const RequestDict &Req,
   });
 }
 
+static void handleRequestIndexToStore(
+    const RequestDict &Req, SourceKitCancellationToken CancellationToken,
+    ResponseReceiver Rec) {
+  if (checkVFSNotSupported(Req, Rec))
+    return;
+
+  handleSemanticRequest(Req, Rec, [Req, Rec, CancellationToken]() {
+    Optional<StringRef> PrimaryFilePath =
+        getPrimaryFilePathForRequestOrEmitError(Req, Rec);
+    if (!PrimaryFilePath)
+      return;
+
+    IndexStoreOptions Opts;
+    if (auto IndexStorePath = Req.getString(KeyIndexStorePath))
+      Opts.IndexStorePath = IndexStorePath->str();
+    else
+      return Rec(createErrorRequestInvalid("'key.index_store_path' is required"));
+
+    if (auto IndexUnitOutputPath = Req.getString(KeyIndexUnitOutputPath))
+      Opts.IndexUnitOutputPath = IndexUnitOutputPath->str();
+    else
+      return Rec(createErrorRequestInvalid("'key.index_unit_output_path' is required"));
+
+    SmallVector<const char *, 0> Args;
+    if (getCompilerArgumentsForRequestOrEmitError(Req, Args, Rec))
+      return;
+    LangSupport &Lang = getGlobalContext().getSwiftLangSupport();
+    Lang.indexToStore(*PrimaryFilePath, Args, std::move(Opts),
+      CancellationToken,
+      [Rec](const RequestResult<IndexStoreInfo> &Result) {
+        if (Result.isCancelled())
+          return Rec(createErrorRequestCancelled());
+        if (Result.isError())
+          return Rec(createErrorRequestFailed(Result.getError()));
+
+        ResponseBuilder RespBuilder;
+        return Rec(RespBuilder.createResponse());
+      });
+  });
+}
+
+
 static void
 handleRequestCursorInfo(const RequestDict &Req,
                         SourceKitCancellationToken CancellationToken,
@@ -2044,6 +2086,7 @@ void handleRequestImpl(sourcekitd_object_t ReqObj,
   HANDLE_REQUEST(RequestConformingMethodList, handleRequestConformingMethodList)
 
   HANDLE_REQUEST(RequestIndex, handleRequestIndex)
+  HANDLE_REQUEST(RequestIndexToStore, handleRequestIndexToStore)
   HANDLE_REQUEST(RequestCursorInfo, handleRequestCursorInfo)
   HANDLE_REQUEST(RequestRangeInfo, handleRequestRangeInfo)
   HANDLE_REQUEST(RequestSemanticRefactoring, handleRequestSemanticRefactoring)

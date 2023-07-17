@@ -1377,13 +1377,13 @@ static SILValue skipInvert(SILValue Cond, bool &Inverted,
     if (BI->getBuiltinInfo().ID == BuiltinValueKind::Xor) {
       // Check if it's a boolean inversion of the condition.
       if (auto *IL = dyn_cast<IntegerLiteralInst>(Args[1])) {
-        if (IL->getValue().isAllOnesValue()) {
+        if (IL->getValue().isAllOnes()) {
           Cond = Args[0];
           Inverted = !Inverted;
           continue;
         }
       } else if (auto *IL = dyn_cast<IntegerLiteralInst>(Args[0])) {
-        if (IL->getValue().isAllOnesValue()) {
+        if (IL->getValue().isAllOnes()) {
           Cond = Args[1];
           Inverted = !Inverted;
           continue;
@@ -1513,7 +1513,7 @@ bool SimplifyCFG::simplifyCondBrBlock(CondBranchInst *BI) {
       // Check if it's a boolean inversion of the condition.
       OperandValueArrayRef Args = Xor->getArguments();
       if (auto *IL = dyn_cast<IntegerLiteralInst>(Args[1])) {
-        if (IL->getValue().isAllOnesValue()) {
+        if (IL->getValue().isAllOnes()) {
           LLVM_DEBUG(llvm::dbgs() << "canonicalize cond_br: " << *BI);
           auto Cond = Args[0];
           SILBuilderWithScope Builder(BI);

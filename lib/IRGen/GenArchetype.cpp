@@ -39,6 +39,7 @@
 #include "GenHeap.h"
 #include "GenMeta.h"
 #include "GenOpaque.h"
+#include "GenPointerAuth.h"
 #include "GenPoly.h"
 #include "GenProto.h"
 #include "GenType.h"
@@ -460,13 +461,29 @@ getAddressOfOpaqueTypeDescriptor(IRGenFunction &IGF,
 MetadataResponse irgen::emitOpaqueTypeMetadataRef(IRGenFunction &IGF,
                                           CanOpaqueTypeArchetypeType archetype,
                                           DynamicMetadataRequest request) {
-  auto accessorFn = IGF.IGM.getGetOpaqueTypeMetadataFunctionPointer();
+  bool signedDescriptor = IGF.IGM.getAvailabilityContext().isContainedIn(
+    IGF.IGM.Context.getSignedDescriptorAvailability());
+
+  auto accessorFn = signedDescriptor ?
+    IGF.IGM.getGetOpaqueTypeMetadata2FunctionPointer() :
+    IGF.IGM.getGetOpaqueTypeMetadataFunctionPointer();
+
   auto opaqueDecl = archetype->getDecl();
   auto genericParam = archetype->getInterfaceType()
       ->castTo<GenericTypeParamType>();
   auto *descriptor = getAddressOfOpaqueTypeDescriptor(IGF, opaqueDecl);
   auto indexValue = llvm::ConstantInt::get(
       IGF.IGM.SizeTy, genericParam->getIndex());
+
+  // Sign the descriptor.
+  auto schema =
+    IGF.IGM.getOptions().PointerAuth.OpaqueTypeDescriptorsAsArguments;
+  if (schema && signedDescriptor) {
+    auto authInfo = PointerAuthInfo::emit(
+        IGF, schema, nullptr,
+        PointerAuthEntity::Special::OpaqueTypeDescriptorAsArgument);
+    descriptor = emitPointerAuthSign(IGF, descriptor, authInfo);
+  }
 
   llvm::CallInst *result = nullptr;
   withOpaqueTypeGenericArgs(IGF, archetype,
@@ -487,11 +504,26 @@ MetadataResponse irgen::emitOpaqueTypeMetadataRef(IRGenFunction &IGF,
 llvm::Value *irgen::emitOpaqueTypeWitnessTableRef(IRGenFunction &IGF,
                                           CanOpaqueTypeArchetypeType archetype,
                                           ProtocolDecl *protocol) {
-  auto accessorFn = IGF.IGM.getGetOpaqueTypeConformanceFunctionPointer();
+  bool signedDescriptor = IGF.IGM.getAvailabilityContext().isContainedIn(
+    IGF.IGM.Context.getSignedDescriptorAvailability());
+
+  auto accessorFn = signedDescriptor ?
+    IGF.IGM.getGetOpaqueTypeConformance2FunctionPointer() :
+    IGF.IGM.getGetOpaqueTypeConformanceFunctionPointer();
   auto opaqueDecl = archetype->getDecl();
   assert(archetype->isRoot() && "Can only follow from the root");
 
   llvm::Value *descriptor = getAddressOfOpaqueTypeDescriptor(IGF, opaqueDecl);
+
+  // Sign the descriptor.
+  auto schema =
+    IGF.IGM.getOptions().PointerAuth.OpaqueTypeDescriptorsAsArguments;
+  if (schema && signedDescriptor) {
+    auto authInfo = PointerAuthInfo::emit(
+        IGF, schema, nullptr,
+        PointerAuthEntity::Special::OpaqueTypeDescriptorAsArgument);
+    descriptor = emitPointerAuthSign(IGF, descriptor, authInfo);
+  }
 
   // Compute the index at which this witness table resides.
   unsigned index = opaqueDecl->getOpaqueGenericParams().size();

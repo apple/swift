@@ -137,8 +137,13 @@
 ///   NAME is the name of the instruction in SIL assembly.
 ///   The argument will be a bare identifier, not a string literal.
 ///
-///   MEMBEHAVIOR is an enum value that reflects the memory behavior of
-///   the instruction.
+///   MEMBEHAVIOR is an enum value that reflects the memory behavior of the
+///   instruction. It is only used in the implementation of
+///   SILInstruction::getMemoryBehavior(). Memory behavior is relative, so
+///   whenever possible, clients should instead use
+///   AliasAnalysis::computeMemoryBehavior(SILInstruction, SILValue) which only
+///   defaults to SILInstruction::getMemoryBehavior() when AliasAnalysis cannot
+///   disambiguate the instruction's effects from the value of interest.
 ///
 ///   MAYRELEASE indicates whether the execution of the
 ///   instruction may result in memory being released.

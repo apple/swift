@@ -239,11 +239,26 @@ const Metadata *swift_getObjectType(HeapObject *object);
 /// \param type The metadata for the type for which to do the conformance
 ///             check.
 /// \param protocol The protocol descriptor for the protocol to check
-///                 conformance for.
+///                 conformance for. This pointer does not have ptrauth applied.
 SWIFT_RUNTIME_EXPORT
 const WitnessTable *swift_conformsToProtocol(const Metadata *type,
-                                            const ProtocolDescriptor *protocol);
+                                             const void *protocol);
 
+/// Check whether a type conforms to a given native Swift protocol. Identical to
+/// swift_conformsToProtocol, except that the protocol parameter has a ptrauth
+/// signature on ARM64e that is signed with a process independent key.
+SWIFT_RUNTIME_EXPORT
+const WitnessTable *
+swift_conformsToProtocol2(const Metadata *type,
+                          const ProtocolDescriptor *protocol);
+
+/// Check whether a type conforms to a given native Swift protocol. Identical to
+/// swift_conformsToProtocol, except that the protocol parameter has a ptrauth
+/// signature on ARM64e that is signed with a process dependent key.
+SWIFT_RUNTIME_EXPORT
+const WitnessTable *
+swift_conformsToProtocolCommon(const Metadata *type,
+                               const ProtocolDescriptor *protocol);
 } // end namespace swift
 
 #endif // SWIFT_RUNTIME_CASTING_H

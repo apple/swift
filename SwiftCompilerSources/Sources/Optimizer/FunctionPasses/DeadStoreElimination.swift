@@ -14,7 +14,7 @@ import SIL
 
 /// Eliminates dead store instructions.
 ///
-/// A store is dead if after the store has occurred:
+/// A store is dead if, after the store has occurred:
 ///
 /// 1. The value in memory is not read until the memory object is deallocated:
 ///
@@ -46,6 +46,9 @@ import SIL
 ///     store %5 to %6
 ///     ...              // no reads from %1
 ///     store %7 to %3
+///
+/// The algorithm is a data flow analysis which starts at the original store and searches
+/// for successive stores by following the control flow in forward direction.
 ///
 let deadStoreElimination = FunctionPass(name: "dead-store-elimination") {
   (function: Function, context: FunctionPassContext) in
@@ -85,7 +88,7 @@ private func tryEliminate(store: StoreInst, _ context: FunctionPassContext) {
         case .dead:
           // The new individual stores are inserted right after the current store and
           // will be optimized in the following loop iterations.
-          store.trySplit(context)
+          store.split(context)
       }
   }
 }
@@ -111,18 +114,24 @@ private extension StoreInst {
   }
 
   func isDead(at accessPath: AccessPath, _ context: FunctionPassContext) -> DataflowResult {
-    var worklist = InstructionWorklist(context)
-    defer { worklist.deinitialize() }
-
-    worklist.pushIfNotVisited(self.next!)
-
-    let storageDefBlock = accessPath.base.reference?.referenceRoot.parentBlock
     var scanner = InstructionScanner(storePath: accessPath, storeAddress: self.destination, context.aliasAnalysis)
+    let storageDefBlock = accessPath.base.reference?.referenceRoot.parentBlock
 
-    while let startInstInBlock = worklist.pop() {
-      let block = startInstInBlock.parentBlock
-      switch scanner.scan(instructions: InstructionList(first: startInstInBlock)) {
-      case .transparent:
+    switch scanner.scan(instructions: InstructionList(first: self.next)) {
+    case .dead:
+      return .dead
+
+    case .alive:
+      return DataflowResult(aliveWith: scanner.potentiallyDeadSubpath)
+
+    case .transparent:
+      // Continue with iterative data flow analysis starting at the block's successors.
+      var worklist = BasicBlockWorklist(context)
+      defer { worklist.deinitialize() }
+      worklist.pushIfNotVisited(contentsOf: self.parentBlock.successors)
+
+      while let block = worklist.pop() {
+
         // Abort if we find the storage definition of the access in case of a loop, e.g.
         //
         //   bb1:
@@ -133,43 +142,45 @@ private extension StoreInst {
         //
         // The storage root is different in each loop iteration. Therefore the store of a
         // successive loop iteration does not overwrite the store of the previous iteration.
-        if let storageDefBlock = storageDefBlock,
-           block.successors.contains(storageDefBlock) {
+        if let storageDefBlock = storageDefBlock, block == storageDefBlock {
           return DataflowResult(aliveWith: scanner.potentiallyDeadSubpath)
         }
-        worklist.pushIfNotVisited(contentsOf: block.successors.lazy.map { $0.instructions.first! })
-      case .dead:
-        break
-      case .alive:
-        return DataflowResult(aliveWith: scanner.potentiallyDeadSubpath)
+        switch scanner.scan(instructions: block.instructions) {
+        case .transparent:
+          worklist.pushIfNotVisited(contentsOf: block.successors)
+        case .dead:
+          break
+        case .alive:
+          return DataflowResult(aliveWith: scanner.potentiallyDeadSubpath)
+        }
       }
+      return .dead
     }
-    return .dead
   }
 
-  func trySplit(_ context: FunctionPassContext) {
+  func split(_ context: FunctionPassContext) {
+    let builder = Builder(after: self, context)
     let type = source.type
     if type.isStruct {
-      let builder = Builder(after: self, context)
       for idx in 0..<type.getNominalFields(in: parentFunction).count {
         let srcField = builder.createStructExtract(struct: source, fieldIndex: idx)
         let destFieldAddr = builder.createStructElementAddr(structAddress: destination, fieldIndex: idx)
-        builder.createStore(source: srcField, destination: destFieldAddr, ownership: destinationOwnership)
+        builder.createStore(source: srcField, destination: destFieldAddr, ownership: storeOwnership)
       }
-      context.erase(instruction: self)
     } else if type.isTuple {
-      let builder = Builder(after: self, context)
       for idx in 0..<type.tupleElements.count {
         let srcField = builder.createTupleExtract(tuple: source, elementIndex: idx)
         let destFieldAddr = builder.createTupleElementAddr(tupleAddress: destination, elementIndex: idx)
-        builder.createStore(source: srcField, destination: destFieldAddr, ownership: destinationOwnership)
+        builder.createStore(source: srcField, destination: destFieldAddr, ownership: storeOwnership)
       }
-      context.erase(instruction: self)
+    } else {
+      fatalError("a materializable projection path should only contain struct and tuple projections")
     }
+    context.erase(instruction: self)
   }
 
   var hasValidOwnershipForDeadStoreElimination: Bool {
-    switch destinationOwnership {
+    switch storeOwnership {
     case .unqualified, .trivial:
       return true
     case .initialize, .assign:
@@ -181,11 +192,11 @@ private extension StoreInst {
 }
 
 private struct InstructionScanner {
-  let storePath: AccessPath
-  let storeAddress: Value
-  let aliasAnalysis: AliasAnalysis
+  private let storePath: AccessPath
+  private let storeAddress: Value
+  private let aliasAnalysis: AliasAnalysis
 
-  var potentiallyDeadSubpath: AccessPath? = nil
+  private(set) var potentiallyDeadSubpath: AccessPath? = nil
 
   // Avoid quadratic complexity by limiting the number of visited instructions for each store.
   // The limit of 1000 instructions is not reached by far in "real-world" functions.
@@ -208,14 +219,16 @@ private struct InstructionScanner {
       switch inst {
       case let successiveStore as StoreInst:
         let successivePath = successiveStore.destination.accessPath
-        if successivePath.isEqualOrOverlaps(storePath) {
+        if successivePath.isEqualOrContains(storePath) {
           return .dead
         }
-        if storePath.isEqualOrOverlaps(successivePath),
-           potentiallyDeadSubpath == nil {
+        if potentiallyDeadSubpath == nil,
+           storePath.getMaterializableProjection(to: successivePath) != nil {
           // Storing to a sub-field of the original store doesn't make the original store dead.
           // But when we split the original store, then one of the new individual stores might be
           // overwritten by this store.
+          // Requiring that the projection to the partial store path is materializable guarantees
+          // that we can split the store.
           potentiallyDeadSubpath = successivePath
         }
       case is DeallocRefInst, is DeallocStackRefInst, is DeallocBoxInst:
@@ -241,6 +254,8 @@ private struct InstructionScanner {
         if inst.mayRead(fromAddress: storeAddress, aliasAnalysis) {
           return .alive
         }
+        // TODO: We might detect that this is a partial read of the original store which potentially
+        //       enables partial dead store elimination.
       }
     }
     return .transparent

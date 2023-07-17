@@ -173,6 +173,8 @@ public:
   /// static initializer.
   SILInstruction *getStaticInitializerValue();
 
+  bool mustBeInitializedStatically() const;
+
   /// Returns true if the global is a statically initialized heap object.
   bool isInitializedObject() {
     return dyn_cast_or_null<ObjectInst>(getStaticInitializerValue()) != nullptr;

@@ -5,8 +5,6 @@
 
 // NOCRASH: Token
 
-// NORESULT: Token
-
 struct FooStruct {
   lazy var lazyInstanceVar = 0
   var instanceVar = 0
@@ -352,8 +350,12 @@ struct NoMetaCompletions {
   typealias Foo = Int
 }
 func testMetatypeCompletions() {
-  NoMetaCompletions.Type.#^FOO_STRUCT_META_1?check=FOO_STRUCT_META^#
+  NoMetaCompletions.Type.#^FOO_STRUCT_META_1^#
 }
+// FOO_STRUCT_META_1: Begin completions, 2 items
+// FOO_STRUCT_META_1-DAG: Keyword[self]/CurrNominal:          self[#NoMetaCompletions.Type.Type#]; name=self
+// FOO_STRUCT_META_1-DAG: Keyword/CurrNominal:                Type[#NoMetaCompletions.Type.Type#]; name=Type
+// FOO_STRUCT_META_1: End completions
 func testMetatypeCompletionsWithoutDot() {
   NoMetaCompletions.Type#^FOO_STRUCT_META_2?check=FOO_STRUCT_META^#
 }
@@ -388,11 +390,23 @@ func testImplicitlyCurriedFunc(_ fs: inout FooStruct) {
 
   // This call is ambiguous, and the expression is invalid.
   // Ensure that we don't suggest to call the result.
-  FooStruct.overloadedInstanceFunc1(&fs)#^IMPLICITLY_CURRIED_OVERLOADED_FUNC_1?check=NORESULT^#
+  FooStruct.overloadedInstanceFunc1(&fs)#^IMPLICITLY_CURRIED_OVERLOADED_FUNC_1^#
+// IMPLICITLY_CURRIED_OVERLOADED_FUNC_1: Begin completions, 4 items
+// IMPLICITLY_CURRIED_OVERLOADED_FUNC_1-DAG: Keyword[self]/CurrNominal:          .self[#() -> Int#];
+// IMPLICITLY_CURRIED_OVERLOADED_FUNC_1-DAG: Decl[InstanceMethod]/CurrNominal/Flair[ArgLabels]: ()[#Int#];
+// IMPLICITLY_CURRIED_OVERLOADED_FUNC_1-DAG: Keyword[self]/CurrNominal:          .self[#() -> Double#];
+// IMPLICITLY_CURRIED_OVERLOADED_FUNC_1-DAG: Decl[InstanceMethod]/CurrNominal/Flair[ArgLabels]: ()[#Double#];
+// IMPLICITLY_CURRIED_OVERLOADED_FUNC_1: End completions
 
   // This call is ambiguous, and the expression is invalid.
   // Ensure that we don't suggest to call the result.
-  FooStruct.overloadedInstanceFunc2(&fs)#^IMPLICITLY_CURRIED_OVERLOADED_FUNC_2?check=NORESULT^#
+  FooStruct.overloadedInstanceFunc2(&fs)#^IMPLICITLY_CURRIED_OVERLOADED_FUNC_2^#
+// IMPLICITLY_CURRIED_OVERLOADED_FUNC_2: Begin completions, 4 items
+// IMPLICITLY_CURRIED_OVERLOADED_FUNC_2-DAG: Keyword[self]/CurrNominal:          .self[#(Int) -> Int#];
+// IMPLICITLY_CURRIED_OVERLOADED_FUNC_2-DAG: Decl[InstanceMethod]/CurrNominal/Flair[ArgLabels]: ({#(x): Int#})[#Int#];
+// IMPLICITLY_CURRIED_OVERLOADED_FUNC_2-DAG: Keyword[self]/CurrNominal:          .self[#(Double) -> Int#];
+// IMPLICITLY_CURRIED_OVERLOADED_FUNC_2-DAG: Decl[InstanceMethod]/CurrNominal/Flair[ArgLabels]: ({#(x): Double#})[#Int#];
+// IMPLICITLY_CURRIED_OVERLOADED_FUNC_2: End completions
 }
 
 //===---
@@ -619,13 +633,15 @@ class FuncTypeVars {
 var funcTypeVarsObject: FuncTypeVars
 func testFuncTypeVars() {
   funcTypeVarsObject.funcVar1#^VF1^#
+// VF1: Begin completions, 3 items
 // VF1-DAG: Pattern/CurrModule/Flair[ArgLabels]: ()[#Double#]{{; name=.+$}}
-// VF1-DAG: BuiltinOperator/None:         = {#() -> Double##() -> Double#}[#Void#]
+// VF1-DAG: BuiltinOperator/None:         = {#() -> Double##() -> Double#}
 // VF1-DAG: Keyword[self]/CurrNominal:    .self[#() -> Double#]; name=self
 
   funcTypeVarsObject.funcVar2#^VF2^#
+// VF2: Begin completions, 3 items
 // VF2-DAG: Pattern/CurrModule/Flair[ArgLabels]: ({#Int#})[#Double#]{{; name=.+$}}
-// VF2-DAG: BuiltinOperator/None:         = {#(Int) -> Double##(_ a: Int) -> Double#}[#Void#]
+// VF2-DAG: BuiltinOperator/None:         = {#(Int) -> Double##(_ a: Int) -> Double#}
 // VF2-DAG: Keyword[self]/CurrNominal:    .self[#(Int) -> Double#]; name=self
 }
 
@@ -1103,18 +1119,18 @@ func testResolveModules1() {
 //===--- Check that we can complete inside interpolated string literals
 
 func testInterpolatedString1() {
-  "\(fooObject.#^INTERPOLATED_STRING_1?check=FOO_OBJECT_DOT1^#)"
+  "\(fooObject.#^INTERPOLATED_STRING_1^#)"
 }
 
-// FOO_OBJECT_DOT1-DAG: Decl[InstanceVar]/CurrNominal/TypeRelation[Convertible]:      lazyInstanceVar[#Int#]{{; name=.+$}}
-// FOO_OBJECT_DOT1-DAG: Decl[InstanceVar]/CurrNominal/TypeRelation[Convertible]:      instanceVar[#Int#]{{; name=.+$}}
-// FOO_OBJECT_DOT1-DAG: Decl[InstanceMethod]/CurrNominal/TypeRelation[Invalid]: instanceFunc0()[#Void#]{{; name=.+$}}
-// FOO_OBJECT_DOT1-DAG: Decl[InstanceMethod]/CurrNominal/TypeRelation[Invalid]: instanceFunc1({#(a): Int#})[#Void#]{{; name=.+$}}
-// FOO_OBJECT_DOT1-DAG: Decl[InstanceMethod]/CurrNominal/TypeRelation[Invalid]: instanceFunc2({#(a): Int#}, {#b: &Double#})[#Void#]{{; name=.+$}}
-// FOO_OBJECT_DOT1-DAG: Decl[InstanceMethod]/CurrNominal/TypeRelation[Invalid]: instanceFunc3({#(a): Int#}, {#(Float, Double)#})[#Void#]{{; name=.+$}}
-// FOO_OBJECT_DOT1-DAG: Decl[InstanceMethod]/CurrNominal/TypeRelation[Invalid]: instanceFunc4({#(a): Int?#}, {#b: Int!#}, {#c: &Int?#}, {#d: &Int!#})[#Void#]{{; name=.+$}}
-// FOO_OBJECT_DOT1-DAG: Decl[InstanceMethod]/CurrNominal:   instanceFunc5()[#Int?#]{{; name=.+$}}
-// FOO_OBJECT_DOT1-DAG: Decl[InstanceMethod]/CurrNominal:   instanceFunc6()[#Int!#]{{; name=.+$}}
+// INTERPOLATED_STRING_1-DAG: Decl[InstanceVar]/CurrNominal/TypeRelation[Convertible]:      lazyInstanceVar[#Int#]{{; name=.+$}}
+// INTERPOLATED_STRING_1-DAG: Decl[InstanceVar]/CurrNominal/TypeRelation[Convertible]:      instanceVar[#Int#]{{; name=.+$}}
+// INTERPOLATED_STRING_1-DAG: Decl[InstanceMethod]/CurrNominal/TypeRelation[Invalid]: instanceFunc0()[#Void#]{{; name=.+$}}
+// INTERPOLATED_STRING_1-DAG: Decl[InstanceMethod]/CurrNominal/TypeRelation[Invalid]: instanceFunc1({#(a): Int#})[#Void#]{{; name=.+$}}
+// INTERPOLATED_STRING_1-DAG: Decl[InstanceMethod]/CurrNominal/TypeRelation[Invalid]: instanceFunc2({#(a): Int#}, {#b: &Double#})[#Void#]{{; name=.+$}}
+// INTERPOLATED_STRING_1-DAG: Decl[InstanceMethod]/CurrNominal/TypeRelation[Invalid]: instanceFunc3({#(a): Int#}, {#(Float, Double)#})[#Void#]{{; name=.+$}}
+// INTERPOLATED_STRING_1-DAG: Decl[InstanceMethod]/CurrNominal/TypeRelation[Invalid]: instanceFunc4({#(a): Int?#}, {#b: Int!#}, {#c: &Int?#}, {#d: &Int!#})[#Void#]{{; name=.+$}}
+// INTERPOLATED_STRING_1-DAG: Decl[InstanceMethod]/CurrNominal:   instanceFunc5()[#Int?#]{{; name=.+$}}
+// INTERPOLATED_STRING_1-DAG: Decl[InstanceMethod]/CurrNominal:   instanceFunc6()[#Int!#]{{; name=.+$}}
 
 //===--- Check protocol extensions
 
@@ -1685,7 +1701,7 @@ func testKeyword(cat: Cat) {
   let _ = cat.class#^KEYWORD_2^#
 // KEYWORD_2-DAG: Decl[InstanceVar]/CurrNominal:      .prop1[#String#]; name=prop1
 // KEYWORD_2-DAG: Decl[InstanceVar]/CurrNominal:      .prop2[#String#]; name=prop2
-// KEYWORD_2-DAG: BuiltinOperator/None:                = {#Cat.Inner#}[#Void#]; name==
+// KEYWORD_2-DAG: BuiltinOperator/None:                = {#Cat.Inner#}; name==
 
   let _ = cat.class.#^KEYWORD_3^#
 // KEYWORD_3-DAG: Decl[InstanceVar]/CurrNominal:      prop1[#String#]; name=prop1

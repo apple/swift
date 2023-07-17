@@ -1617,6 +1617,48 @@ public:
   }
 };
 
+class StorageRestrictionsAttr final
+    : public DeclAttribute,
+      private llvm::TrailingObjects<StorageRestrictionsAttr, Identifier> {
+  friend TrailingObjects;
+
+  size_t NumInitializes;
+  size_t NumAccesses;
+
+  size_t numTrailingObjects(OverloadToken<Identifier>) const {
+    return NumInitializes + NumAccesses;
+  }
+
+public:
+  StorageRestrictionsAttr(SourceLoc AtLoc, SourceRange Range,
+                          ArrayRef<Identifier> initializes,
+                          ArrayRef<Identifier> accesses, bool Implicit);
+
+  unsigned getNumInitializesProperties() const { return NumInitializes; }
+
+  unsigned getNumAccessesProperties() const { return NumAccesses; }
+
+  ArrayRef<Identifier> getInitializesNames() const {
+    return {getTrailingObjects<Identifier>(), NumInitializes};
+  }
+
+  ArrayRef<Identifier> getAccessesNames() const {
+    return {getTrailingObjects<Identifier>() + NumInitializes, NumAccesses};
+  }
+
+  ArrayRef<VarDecl *> getInitializesProperties(AccessorDecl *attachedTo) const;
+  ArrayRef<VarDecl *> getAccessesProperties(AccessorDecl *attachedTo) const;
+
+  static StorageRestrictionsAttr *create(ASTContext &ctx, SourceLoc atLoc,
+                                         SourceRange range,
+                                         ArrayRef<Identifier> initializes,
+                                         ArrayRef<Identifier> accesses);
+
+  static bool classof(const DeclAttribute *DA) {
+    return DA->getKind() == DAK_StorageRestrictions;
+  }
+};
+
 /// The @_implements attribute, which treats a decl as the implementation for
 /// some named protocol requirement (but otherwise not-visible by that name).
 class ImplementsAttr : public DeclAttribute {

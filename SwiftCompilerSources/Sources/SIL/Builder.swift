@@ -113,7 +113,7 @@ public struct Builder {
     return notifyNew(cast.getAs(UpcastInst.self))
   }
 
-  public func createLoad(fromAddress: Value, ownership: LoadInst.Ownership) -> LoadInst {
+  public func createLoad(fromAddress: Value, ownership: LoadInst.LoadOwnership) -> LoadInst {
     let load = bridged.createLoad(fromAddress.bridged, ownership.rawValue)
     return notifyNew(load.getAs(LoadInst.self))
   }
@@ -274,7 +274,7 @@ public struct Builder {
   }
 
   @discardableResult
-  public func createStore(source: Value, destination: Value, ownership: StoreInst.Ownership) -> StoreInst {
+  public func createStore(source: Value, destination: Value, ownership: StoreInst.StoreOwnership) -> StoreInst {
     let store = bridged.createStore(source.bridged, destination.bridged, ownership.rawValue)
     return notifyNew(store.getAs(StoreInst.self))
   }

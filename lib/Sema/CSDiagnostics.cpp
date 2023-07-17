@@ -6229,8 +6229,10 @@ bool InvalidPackElement::diagnoseAsError() {
 }
 
 bool InvalidPackReference::diagnoseAsError() {
-  emitDiagnostic(diag::pack_reference_outside_expansion,
-                 packType);
+  auto patternType =
+      getPatternTypeOfSingleUnlabeledPackExpansionTuple(packType);
+  auto diagnosisType = patternType ? patternType : packType;
+  emitDiagnostic(diag::pack_reference_outside_expansion, diagnosisType);
   return true;
 }
 

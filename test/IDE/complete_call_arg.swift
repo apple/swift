@@ -221,7 +221,7 @@ class C3 {
 // OVERLOAD6-DAG: Decl[InstanceMethod]/CurrNominal/Flair[ArgLabels]:   ['(']{#(a1): C1#}, {#b1: C2#}[')'][#Void#]; name=:b1:
 // OVERLOAD6-DAG: Decl[InstanceMethod]/CurrNominal/Flair[ArgLabels]:   ['(']{#a2: C2#}, {#b2: C1#}[')'][#Void#]; name=a2:b2:
 // OVERLOAD6-DAG: Decl[InstanceVar]/CurrNominal/TypeRelation[Convertible]: C1I[#C1#]; name=C1I
-// OVERLOAD6-DAG: Decl[InstanceVar]/CurrNominal:      C2I[#C2#]; name=C2I
+// OVERLOAD6-DAG: Decl[InstanceVar]/CurrNominal/TypeRelation[Convertible]: C2I[#C2#]; name=C2I
 
 extension C3 {
   func hasError(a1: C1, b1: TypeInvalid) -> Int {}
@@ -234,7 +234,7 @@ extension C3 {
   }
 }
 
-// HASERROR1-DAG: Decl[InstanceMethod]/CurrNominal/Flair[ArgLabels]: ['(']{#a1: C1#}, {#b1: <<error type>>#}[')'][#Int#];
+// HASERROR1-DAG: Decl[InstanceMethod]/CurrNominal/Flair[ArgLabels]: ['(']{#a1: C1#}, {#b1: _#}[')'][#Int#];
 
 // HASERROR2-DAG: Decl[InstanceVar]/CurrNominal/TypeRelation[Convertible]: C1I[#C1#];
 // HASERROR2-DAG: Decl[InstanceVar]/CurrNominal:      C2I[#C2#];
@@ -426,8 +426,8 @@ class Bar {
 func curry<T1, T2, R>(_ f: @escaping (T1, T2) -> R) -> (T1) -> (T2) -> R {
   return { t1 in { t2 in f(#^NESTED_CLOSURE^#, t2) } }
   // FIXME: Should be '/TypeRelation[Invalid]: t2[#T2#]'
-  // NESTED_CLOSURE: Decl[LocalVar]/Local:               t2; name=t2
-  // NESTED_CLOSURE: Decl[LocalVar]/Local:               t1; name=t1
+  // NESTED_CLOSURE: Decl[LocalVar]/Local:                           t2[#T2#]; name=t2
+  // NESTED_CLOSURE: Decl[LocalVar]/Local/TypeRelation[Convertible]: t1[#T1#]; name=t1
 }
 
 func trailingClosureLocal(x: Int, fn: (Int) -> Void) {
@@ -554,8 +554,8 @@ func testStaticMemberCall() {
 // STATIC_METHOD_AFTERPAREN_1: Decl[StaticMethod]/CurrNominal/Flair[ArgLabels]:     ['(']{#arg1: Int#}[')'][#TestStaticMemberCall#]; name=arg1:
 
   let _ = TestStaticMemberCall.create2(#^STATIC_METHOD_AFTERPAREN_2^#)
-// STATIC_METHOD_AFTERPAREN_2-DAG: Decl[StaticMethod]/CurrNominal/Flair[ArgLabels]/TypeRelation[Convertible]: ['(']{#(arg1): Int#}[')'][#TestStaticMemberCall#];
-// STATIC_METHOD_AFTERPAREN_2-DAG: Decl[StaticMethod]/CurrNominal/Flair[ArgLabels]/TypeRelation[Convertible]: ['(']{#(arg1): Int#}, {#arg2: Int#}, {#arg3: Int#}, {#arg4: Int#}[')'][#TestStaticMemberCall#];
+// STATIC_METHOD_AFTERPAREN_2-DAG: Decl[StaticMethod]/CurrNominal/Flair[ArgLabels]: ['(']{#(arg1): Int#}[')'][#TestStaticMemberCall#];
+// STATIC_METHOD_AFTERPAREN_2-DAG: Decl[StaticMethod]/CurrNominal/Flair[ArgLabels]: ['(']{#(arg1): Int#}, {#arg2: Int#}, {#arg3: Int#}, {#arg4: Int#}[')'][#TestStaticMemberCall#];
 // STATIC_METHOD_AFTERPAREN_2-DAG: Decl[Struct]/OtherModule[Swift]/IsSystem/TypeRelation[Convertible]: Int[#Int#];
 // STATIC_METHOD_AFTERPAREN_2-DAG: Literal[Integer]/None/TypeRelation[Convertible]: 0[#Int#];
 
@@ -600,9 +600,8 @@ func testImplicitMember() {
 // IMPLICIT_MEMBER_SKIPPED: Pattern/Local/Flair[ArgLabels]: {#arg4: Int#}[#Int#];
 
   let _: TestStaticMemberCall = .createOverloaded(#^IMPLICIT_MEMBER_OVERLOADED^#)
-// IMPLICIT_MEMBER_OVERLOADED: Begin completions, 2 items
+// IMPLICIT_MEMBER_OVERLOADED: Begin completions, 1 item
 // IMPLICIT_MEMBER_OVERLOADED: Decl[StaticMethod]/CurrNominal/Flair[ArgLabels]/TypeRelation[Convertible]: ['(']{#arg1: Int#}[')'][#TestStaticMemberCall#]; name=arg1:
-// IMPLICIT_MEMBER_OVERLOADED: Decl[StaticMethod]/CurrNominal/Flair[ArgLabels]:     ['(']{#arg1: String#}[')'][#String#]; name=arg1:
 }
 func testImplicitMemberInArrayLiteral() {
   struct Receiver {
@@ -664,7 +663,7 @@ struct TestHasErrorAutoclosureParam {
   func test() {
     hasErrorAutoclosureParam(#^PARAM_WITH_ERROR_AUTOCLOSURE^#
 // PARAM_WITH_ERROR_AUTOCLOSURE: Begin completions, 1 items
-// PARAM_WITH_ERROR_AUTOCLOSURE: Decl[InstanceMethod]/CurrNominal/Flair[ArgLabels]:   ['(']{#value: <<error type>>#}[')'][#Void#];
+// PARAM_WITH_ERROR_AUTOCLOSURE: Decl[InstanceMethod]/CurrNominal/Flair[ArgLabels]:   ['(']{#value: _#}[')'][#Void#];
   }
 }
 
@@ -687,7 +686,7 @@ extension MyType where T == Int {
 func testTypecheckedTypeExpr() {
   MyType(#^TYPECHECKED_TYPEEXPR^#
 }
-// TYPECHECKED_TYPEEXPR: Decl[Constructor]/CurrNominal/Flair[ArgLabels]:      ['(']{#arg1: String#}, {#arg2: _#}[')'][#MyType<_>#]; name=arg1:arg2:
+// TYPECHECKED_TYPEEXPR: Decl[Constructor]/CurrNominal/Flair[ArgLabels]:      ['(']{#arg1: String#}, {#arg2: T#}[')'][#MyType<T>#]; name=arg1:arg2:
 // TYPECHECKED_TYPEEXPR: Decl[Constructor]/CurrNominal/Flair[ArgLabels]:      ['(']{#(intVal): Int#}[')'][#MyType<Int>#]; name=:
 
 func testPamrameterFlags(_: Int, inoutArg: inout Int, autoclosureArg: @autoclosure () -> Int, iuoArg: Int!, variadicArg: Int...) {
@@ -1281,8 +1280,8 @@ extension Rdar89773376 {
 func testRdar89773376(arry: [Int]) {
   arry.map { Rdar89773376(#^RDAR89773376^#) }
 // RDAR89773376: Begin completions, 2 items
-// RDAR89773376-DAG: Decl[Constructor]/CurrNominal/Flair[ArgLabels]: ['(']{#string: String#}[')'][#Rdar89773376#];
-// RDAR89773376-DAG: Decl[Constructor]/CurrNominal/Flair[ArgLabels]: ['(']{#intVal: Int#}[')'][#Rdar89773376#];
+// RDAR89773376-DAG: Decl[Constructor]/CurrNominal/Flair[ArgLabels]/TypeRelation[Convertible]: ['(']{#string: String#}[')'][#Rdar89773376#];
+// RDAR89773376-DAG: Decl[Constructor]/CurrNominal/Flair[ArgLabels]/TypeRelation[Convertible]: ['(']{#intVal: Int#}[')'][#Rdar89773376#];
 }
 
 // This is an incomplete macro definition but it's sufficient to get the signature for code completion purposes
@@ -1302,6 +1301,67 @@ func testMacroArg() {
 // MACRO_CALL_ARG-DAG: Literal[Integer]/None/TypeRelation[Convertible]: 0[#Int#]; name=0
 // MACRO_CALL_ARG-DAG: Literal[Boolean]/None:              true[#Bool#]; name=true
 // MACRO_CALL_ARG: End completions
+
+func testOverloadedWithDefaultedArgument() {
+  struct Image {
+    init(_ name: Int) {}
+    func grame(maxWidth: Double? = nil) {}
+    func grame() {}
+  }
+
+  func test() {
+    Image(0)
+      .grame(maxWidth: .#^OVERLOADED_WITH_DEFAULT_ARG^#infinity)
+// OVERLOADED_WITH_DEFAULT_ARG: Begin completions
+// OVERLOADED_WITH_DEFAULT_ARG: Decl[StaticVar]/CurrNominal/Flair[ExprSpecific]/IsSystem/TypeRelation[Convertible]: infinity[#Double#];
+// OVERLOADED_WITH_DEFAULT_ARG: End completions
+  }
+}
+
+func testSubscriptWithExistingRhs(someString: String) {
+  var userInfo: [String: Any] = [:]
+  userInfo[#^SUBSCRIPT_WITH_EXISTING_RHS^#] = message
+
+// SUBSCRIPT_WITH_EXISTING_RHS: Begin completions
+// SUBSCRIPT_WITH_EXISTING_RHS-DAG: Pattern/CurrNominal/Flair[ArgLabels]: ['[']{#keyPath: KeyPath<[String : Any], Value>#}[']'][#Value#];
+// SUBSCRIPT_WITH_EXISTING_RHS-DAG: Decl[Subscript]/CurrNominal/Flair[ArgLabels]/IsSystem/TypeRelation[Convertible]: ['[']{#(key): String#}[']'][#@lvalue Any?#];
+// SUBSCRIPT_WITH_EXISTING_RHS-DAG: Decl[Subscript]/CurrNominal/Flair[ArgLabels]/IsSystem/TypeRelation[Convertible]: ['[']{#(key): String#}, {#default: Any#}[']'][#@lvalue Any#];
+// SUBSCRIPT_WITH_EXISTING_RHS-DAG: Decl[LocalVar]/Local/TypeRelation[Convertible]: someString[#String#];
+// SUBSCRIPT_WITH_EXISTING_RHS: End completions
+}
+
+func testOptionalConversionFromSubscriptToCallArg() {
+  func takeOptionalInt(_ x: Int?) {}
+
+  func test(savedFilters: [Int], index: Int) {
+    takeOptionalInt(savedFilters[#^OPTIONAL_CONVERSION_FROM_SUBSCRIPT_TO_CALL_ARG^#index])
+// OPTIONAL_CONVERSION_FROM_SUBSCRIPT_TO_CALL_ARG: Begin completions
+// OPTIONAL_CONVERSION_FROM_SUBSCRIPT_TO_CALL_ARG-DAG: Pattern/CurrNominal/Flair[ArgLabels]/TypeRelation[Convertible]: ['[']{#keyPath: KeyPath<[Int], Value>#}[']'][#Value#];
+// OPTIONAL_CONVERSION_FROM_SUBSCRIPT_TO_CALL_ARG-DAG: Decl[Subscript]/CurrNominal/Flair[ArgLabels]/IsSystem/TypeRelation[Convertible]: ['[']{#(index): Int#}[']'][#Int#];
+// OPTIONAL_CONVERSION_FROM_SUBSCRIPT_TO_CALL_ARG-DAG: Decl[LocalVar]/Local/TypeRelation[Convertible]: index[#Int#];
+// OPTIONAL_CONVERSION_FROM_SUBSCRIPT_TO_CALL_ARG: End completions
+  }
+}
+
+func testOptionalConversionInSrcOfAssignment(myArray: [Int]) {
+  var optInt: Int?
+  optInt = myArray[#^OPTIONAL_CONVERSION_IN_ASSIGNMENT^#]
+// OPTIONAL_CONVERSION_IN_ASSIGNMENT: Begin completions
+// OPTIONAL_CONVERSION_IN_ASSIGNMENT-DAG: Pattern/CurrNominal/Flair[ArgLabels]/TypeRelation[Convertible]: ['[']{#keyPath: KeyPath<[Int], Value>#}[']'][#Value#]; name=keyPath:
+// OPTIONAL_CONVERSION_IN_ASSIGNMENT-DAG: Decl[Subscript]/CurrNominal/Flair[ArgLabels]/IsSystem/TypeRelation[Convertible]: ['[']{#(index): Int#}[']'][#Int#]; name=:
+// OPTIONAL_CONVERSION_IN_ASSIGNMENT-DAG: Literal[Integer]/None/TypeRelation[Convertible]: 0[#Int#]; name=0
+// OPTIONAL_CONVERSION_IN_ASSIGNMENT: End completions
+}
+
+func testAnyConversionInDestOfAssignment(_ message: String) {
+  var userInfo: [String: Any] = [:]
+  userInfo[#^ANY_CONVERSION_IN_ASSIGNMENT^#] = message
+// ANY_CONVERSION_IN_ASSIGNMENT: Begin completions
+// ANY_CONVERSION_IN_ASSIGNMENT-DAG: Pattern/CurrNominal/Flair[ArgLabels]: ['[']{#keyPath: KeyPath<[String : Any], Value>#}[']'][#Value#]; name=keyPath:
+// ANY_CONVERSION_IN_ASSIGNMENT-DAG: Decl[Subscript]/CurrNominal/Flair[ArgLabels]/IsSystem/TypeRelation[Convertible]: ['[']{#(key): String#}, {#default: Any#}[']'][#@lvalue Any#]; name=:default:
+// ANY_CONVERSION_IN_ASSIGNMENT-DAG: Decl[LocalVar]/Local:               userInfo[#[String : Any]#]; name=userInfo
+// ANY_CONVERSION_IN_ASSIGNMENT-DAG: Decl[LocalVar]/Local/TypeRelation[Convertible]: message[#String#]; name=message
+// ANY_CONVERSION_IN_ASSIGNMENT: End completions
 }
 
 func testParameterPack(intArray: [Int]) {
@@ -1309,4 +1369,24 @@ func testParameterPack(intArray: [Int]) {
   myZip([1], #^PARAMETER_PACK_ARG^#)
   // PARAMETER_PACK_ARG: Pattern/Local/Flair[ArgLabels]:     {#otherParam: Int#}[#Int#]; name=otherParam:
   // PARAMETER_PACK_ARG: Decl[LocalVar]/Local/TypeRelation[Convertible]: intArray[#[Int]#]; name=intArray
+}
+
+struct AmbiguousCallInResultBuilder {
+  @resultBuilder
+  struct MyResultBuilder {
+    static func buildBlock(_ value: Int) -> Int {
+      return value
+    }
+  }
+
+  func ttroke(_ content: Int, style: String) -> Int { 41 }
+  func ttroke(_ content: Int, lineWidth: Int = 1) -> Int { 42 }
+  
+  @MyResultBuilder var body: Int {
+    self.ttroke(1, #^AMBIGUOUS_IN_RESULT_BUILDER^#)
+// AMBIGUOUS_IN_RESULT_BUILDER: Begin completions, 2 items
+// AMBIGUOUS_IN_RESULT_BUILDER-DAG: Pattern/Local/Flair[ArgLabels]:     {#style: String#}[#String#];
+// AMBIGUOUS_IN_RESULT_BUILDER-DAG: Pattern/Local/Flair[ArgLabels]:     {#lineWidth: Int#}[#Int#];
+// AMBIGUOUS_IN_RESULT_BUILDER: End completions
+  }
 }

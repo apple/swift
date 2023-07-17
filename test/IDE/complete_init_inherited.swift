@@ -70,7 +70,7 @@ class D : C {
 
 // TEST_D_PAREN: Decl[Constructor]/CurrNominal/Flair[ArgLabels]:       ['(']{#d: D#}[')'][#D#]; name=d:
 // TEST_D_PAREN-DAG: Decl[Constructor]/CurrNominal/Flair[ArgLabels]:  ['(']{#int: Int#}[')'][#D#]; name=int:
-// TEST_D_PAREN-DAG: Decl[Constructor]/Super/Flair[ArgLabels]:  ['(']{#c: C#}[')'][#C#]; name=c:
+// TEST_D_PAREN-DAG: Decl[Constructor]/Super/Flair[ArgLabels]:  ['(']{#c: C#}[')'][#D#]; name=c:
 
 func testA() {
   A#^TEST_A^#
@@ -101,5 +101,5 @@ func testR74233797() {
     R74233797Derived(#^METATYPE_CONVERSION^#)
 // METATYPE_CONVERSION-DAG: Decl[Constructor]/CurrNominal/Flair[ArgLabels]: ['(']{#sub: Bool#}[')'][#R74233797Derived#];
 // METATYPE_CONVERSION-DAG: Decl[Constructor]/CurrNominal/Flair[ArgLabels]: ['('][')'][#R74233797Derived#];
-// METATYPE_CONVERSION-DAG: Decl[Constructor]/Super/Flair[ArgLabels]: ['(']{#(test): Bool#}[')'][#R74233797Base#];
+// METATYPE_CONVERSION-DAG: Decl[Constructor]/Super/Flair[ArgLabels]: ['(']{#(test): Bool#}[')'][#R74233797Derived#];
 }

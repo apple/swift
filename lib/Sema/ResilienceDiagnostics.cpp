@@ -61,8 +61,9 @@ bool TypeChecker::diagnoseInlinableDeclRefAccess(SourceLoc loc,
     return false;
 
   // General check on access-level of the decl.
-  auto declAccessScope = D->getFormalAccessScope(/*useDC=*/nullptr,
-                              fragileKind.allowUsableFromInline);
+  auto declAccessScope =
+      D->getFormalAccessScope(/*useDC=*/nullptr,
+                              /*allowUsableFromInline=*/true);
 
   // If the decl is imported, check if the import lowers it's access level.
   auto importAccessLevel = AccessLevel::Public;
@@ -134,13 +135,8 @@ bool TypeChecker::diagnoseInlinableDeclRefAccess(SourceLoc loc,
                          diagAccessLevel,
                          fragileKind.getSelector(), isAccessor);
 
-  if (fragileKind.allowUsableFromInline) {
-    Context.Diags.diagnose(D, diag::resilience_decl_declared_here,
-                           D->getDescriptiveKind(), diagName, isAccessor);
-  } else {
-    Context.Diags.diagnose(D, diag::resilience_decl_declared_here_public,
-                           D->getDescriptiveKind(), diagName, isAccessor);
-  }
+  Context.Diags.diagnose(D, diag::resilience_decl_declared_here,
+                         D->getDescriptiveKind(), diagName, isAccessor);
 
   if (problematicImport.has_value() &&
       diagAccessLevel == importAccessLevel) {

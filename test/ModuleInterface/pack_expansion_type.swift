@@ -2,6 +2,8 @@
 // RUN: %target-swift-emit-module-interface(%t/PackExpansionType.swiftinterface) %s -module-name PackExpansionType -disable-availability-checking
 // RUN: %FileCheck %s < %t/PackExpansionType.swiftinterface
 
+/// Requirements
+
 // CHECK: #if compiler(>=5.3) && $ParameterPacks
 // CHECK-NEXT: public func variadicFunction<each T, each U>(t: repeat each T, u: repeat each U) -> (repeat (each T, each U)) where (repeat (each T, each U)) : Any
 public func variadicFunction<each T, each U>(t: repeat each T, u: repeat each U) -> (repeat (each T, each U)) {}
@@ -23,6 +25,13 @@ public struct VariadicType<each T> {
 }
 // CHECK: }
 // CHECK-NEXT: #endif
+
+// The second requirement should not be prefixed with 'repeat'
+// CHECK: public struct SameTypeReq<T, each U> where T : Swift.Sequence, T.Element == PackExpansionType.VariadicType<repeat each U> {
+public struct SameTypeReq<T: Sequence, each U> where T.Element == VariadicType<repeat each U> {}
+// CHECK: }
+
+/// Pack expansion types
 
 // CHECK: public func returnsVariadicType() -> PackExpansionType.VariadicType<>
 public func returnsVariadicType() -> VariadicType< > {}

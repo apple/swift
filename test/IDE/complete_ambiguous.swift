@@ -51,8 +51,9 @@ func testCallAsFunctionDeduplication() {
   overloaded()#^SKIP_CALLASFUNCTION_DUPLICATES^#
 }
 
-// FIXME: Update this to check the callAsFunction pattern only appears once when PostfixExpr completion is migrated to the solver-based implementation (which handles ambiguity).
-// SKIP_CALLASFUNCTION_DUPLICATES-NOT: Begin completions
+// SKIP_CALLASFUNCTION_DUPLICATES: Begin completions
+// SKIP_CALLASFUNCTION_DUPLICATES-DAG: Decl[InstanceMethod]/CurrNominal: .callAsFunction({#x: Int#})[#Void#];
+// SKIP_CALLASFUNCTION_DUPLICATES: End completions
 
 givenErrorExpr(undefined).#^ERROR_IN_BASE?check=SIMPLE^#
 
@@ -394,8 +395,12 @@ CreateThings {
 CreateThings {
     Thing { point in
       print("hello")
-      point. // ErrorExpr
-      point.#^MULTICLOSURE_FUNCBUILDER_ERROR?check=POINT_MEMBER^#
+      do {
+        point. // ErrorExpr
+      }
+      do {
+        point.#^MULTICLOSURE_FUNCBUILDER_ERROR?check=POINT_MEMBER^#
+      }
     }
     Thing { point in 
       print("hello")
@@ -443,8 +448,8 @@ struct Struct123: Equatable {
 }
 func testBestSolutionFilter() {
   let a = Struct123();
-  let b = [Struct123]().first(where: { $0 == a && 1 + 90 * 5 / 8 == 45 * -10 })?.structMem != .#^BEST_SOLUTION_FILTER?xfail=rdar73282163^#
-  let c = min(10.3, 10 / 10.4) < 6 / 7 ? true : Optional(a)?.structMem != .#^BEST_SOLUTION_FILTER2?check=BEST_SOLUTION_FILTER;xfail=rdar73282163^#
+  let b = [Struct123]().first(where: { $0 == a && 1 + 90 * 5 / 8 == 45 * -10 })?.structMem != .#^BEST_SOLUTION_FILTER^#
+  let c = min(10.3, 10 / 10.4) < 6 / 7 ? true : Optional(a)?.structMem != .#^BEST_SOLUTION_FILTER2?check=BEST_SOLUTION_FILTER^#
 }
 
 // BEST_SOLUTION_FILTER-DAG: Decl[EnumElement]/CurrNominal/Flair[ExprSpecific]/TypeRelation[Convertible]: enumElem[#Enum123#]{{; name=.+$}}

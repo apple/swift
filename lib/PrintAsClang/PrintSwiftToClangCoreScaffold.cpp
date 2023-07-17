@@ -19,6 +19,7 @@
 #include "swift/AST/Type.h"
 #include "swift/IRGen/IRABIDetailsProvider.h"
 #include "swift/IRGen/Linking.h"
+#include "clang/Basic/TargetInfo.h"
 #include "llvm/ADT/STLExtras.h"
 
 using namespace swift;
@@ -164,9 +165,26 @@ void printPrimitiveGenericTypeTraits(raw_ostream &os, ASTContext &astContext,
 
       // Pointer types.
       // FIXME: support raw pointers?
-      astContext.getOpaquePointerType()};
+      astContext.getOpaquePointerType(),
 
-  for (Type type : llvm::makeArrayRef(supportedPrimitiveTypes)) {
+      astContext.getIntType(), astContext.getUIntType()};
+
+  auto primTypesArray = llvm::makeArrayRef(supportedPrimitiveTypes);
+
+  // Ensure that `long` and `unsigned long` are treated as valid
+  // generic Swift types (`Int` and `UInt`) on platforms
+  // that do define `Int`/`ptrdiff_t` as `long` and don't define `int64_t` to be
+  // `long`.
+  auto &clangTI =
+      astContext.getClangModuleLoader()->getClangASTContext().getTargetInfo();
+  bool isSwiftIntLong =
+      clangTI.getPtrDiffType(0) == clang::TransferrableTargetInfo::SignedLong;
+  bool isInt64Long =
+      clangTI.getInt64Type() == clang::TransferrableTargetInfo::SignedLong;
+  if (!(isSwiftIntLong && !isInt64Long))
+    primTypesArray = primTypesArray.drop_back(2);
+
+  for (Type type : primTypesArray) {
     auto typeInfo = *typeMapping.getKnownCxxTypeInfo(
         type->getNominalOrBoundGenericNominal());
 

@@ -702,7 +702,7 @@ getFileTypeFromScanOutputKind(swiftscan_output_kind_t kind) {
     return swift::file_types::ID::TY_SwiftModuleFile;
   case SWIFTSCAN_OUTPUT_TYPE_SWIFTINTERFACE:
     return swift::file_types::ID::TY_SwiftModuleInterfaceFile;
-  case SWIFTSCAN_OUTPUT_TYPE_SWIFTPRIAVEINTERFACE:
+  case SWIFTSCAN_OUTPUT_TYPE_SWIFTPRIVATEINTERFACE:
     return swift::file_types::ID::TY_PrivateSwiftModuleInterfaceFile;
   case SWIFTSCAN_OUTPUT_TYPE_CLANG_MODULE:
     return swift::file_types::ID::TY_ClangModuleFile;

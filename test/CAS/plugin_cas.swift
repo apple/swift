@@ -13,6 +13,7 @@
 // RUN:   -cas-plugin-option first-prefix=myfirst- -cas-plugin-option second-prefix=mysecond- \
 // RUN:   -cas-plugin-option upstream-path=%t/cas-upstream
 // Check the contents of the JSON output
+// RUN: %validate-json %t/deps.json &>/dev/null
 // RUN: %FileCheck -check-prefix CHECK -check-prefix CHECK_NO_CLANG_TARGET %s < %t/deps.json
 
 // Check the contents of the JSON output
@@ -31,6 +32,7 @@
 // RUN:   -cas-plugin-option first-prefix=myfirst- -cas-plugin-option second-prefix=mysecond- \
 // RUN:   -cas-plugin-option upstream-path=%t/cas-upstream
 // Check the contents of the JSON output
+// RUN: %validate-json %t/deps_clang_target.json &>/dev/null
 // RUN: %FileCheck -check-prefix CHECK_CLANG_TARGET %s < %t/deps_clang_target.json
 
 import C

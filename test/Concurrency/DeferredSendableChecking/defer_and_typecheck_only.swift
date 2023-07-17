@@ -4,14 +4,13 @@
 // RUN: %target-typecheck-verify-swift -strict-concurrency=complete -enable-experimental-feature DeferredSendableChecking
 
 /*
- This file tests the experimental DeferredSendableChecking feature. This features the passing
+ This file tests the experimental DeferredSendableChecking feature. This feature causes the passing
  of non-sendable values to isolation-crossing calls to not yield diagnostics during AST passes,
- but to instead emit them later during a mandatory SIL pass.
-
- Together, `defer_and_silgen.swift` and `defer_and_typecheck_only.swift` test this feature by
- testing the same code, but expecting different sets of diagnostics. The former runs -emit-sil,
- and expects all diagnostics to be emitted, but the latter only runs AST typechecking via -typecheck,
- and expects some sendability diagnostics but not non-sendable arg diagnostics to be emitted.
+ but to instead emit them later during a mandatory SIL pass. This file in particular checks that
+ isolation crossing via argument passing is deferred, but that isolation crossing via returned
+ results is not deferred. This is done because flow-sensitive "region" checking
+ (see region_based_sendability.swift) can determine that objects of non-Sendable type can be safely
+ returned as arguments, but not that they can be safely returned.
  */
 
 class NonSendable {
@@ -39,7 +38,7 @@ func callActorFuncsFromNonisolated(a : A, ns : NonSendable) async {
 }
 
 @available(SwiftStdlib 5.1, *)
-        actor A {
+actor A {
     let actorNS = NonSendable()
 
     func actorTakesNS(_ : NonSendable) async {}

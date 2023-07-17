@@ -185,10 +185,16 @@ func testInfixOperator3(_ x: String) {
 func testInfixOperator4(_ x: String) {
   x == ""#^INFIX_EXT_STRING_1?check=INFIX_EXT_STRING^#
 }
-// INFIX_EXT_STRING-DAG: Decl[InfixOperatorFunction]/OtherModule[Swift]/IsSystem:  + {#String#}[#String#]
-// INFIX_EXT_STRING-DAG: Decl[InfixOperatorFunction]/OtherModule[Swift]/IsSystem:  || {#Bool#}[#Bool#]
-// INFIX_EXT_STRING-DAG: Decl[InfixOperatorFunction]/OtherModule[Swift]/IsSystem:  && {#Bool#}[#Bool#]
-// INFIX_EXT_STRING-NOT: ==
+// INFIX_EXT_STRING-DAG: Decl[InfixOperatorFunction]/OtherModule[Swift]/IsSystem:  >= {#String#}[#Bool#]; name=>=
+// INFIX_EXT_STRING-DAG: Decl[InfixOperatorFunction]/OtherModule[Swift]/IsSystem:  ... {#String#}[#ClosedRange<String>#]; name=...
+// INFIX_EXT_STRING-DAG: Decl[InfixOperatorFunction]/OtherModule[Swift]/IsSystem:  ..< {#String#}[#Range<String>#]; name=..<
+// INFIX_EXT_STRING-DAG: Decl[InfixOperatorFunction]/OtherModule[Swift]/IsSystem:  <= {#String#}[#Bool#]; name=<=
+// INFIX_EXT_STRING-DAG: Decl[InfixOperatorFunction]/OtherModule[Swift]/IsSystem:  ~= {#Substring#}[#Bool#]; name=~=
+// INFIX_EXT_STRING-DAG: Decl[InfixOperatorFunction]/OtherModule[Swift]/IsSystem:  != {#String#}[#Bool#]; name=!=
+// INFIX_EXT_STRING-DAG: Decl[InfixOperatorFunction]/OtherModule[Swift]/IsSystem/TypeRelation[Convertible]:  + {#String#}[#String#]; name=+
+// INFIX_EXT_STRING-DAG: Decl[InfixOperatorFunction]/OtherModule[Swift]/IsSystem:  == {#String#}[#Bool#]; name===
+// INFIX_EXT_STRING-DAG: Decl[InfixOperatorFunction]/OtherModule[Swift]/IsSystem:  < {#String#}[#Bool#]; name=<
+// INFIX_EXT_STRING-DAG: Decl[InfixOperatorFunction]/OtherModule[Swift]/IsSystem:  > {#String#}[#Bool#]; name=>
 
 class TestSequence : Sequence {
 #^CONFORM_SEQUENCE^#

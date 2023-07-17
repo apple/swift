@@ -314,7 +314,7 @@ lowerAssignOrInitInstruction(SILBuilderWithScope &b,
 
       SmallVector<SILValue> arguments;
 
-      // First, emit all of the properties listed in `initializes(...)`. They
+      // First, emit all of the properties listed in `initializes`. They
       // are passed as indirect results.
       {
         auto toInitialize = inst->getInitializedProperties();
@@ -330,7 +330,7 @@ lowerAssignOrInitInstruction(SILBuilderWithScope &b,
       emitInitAccessorInitialValueArgument(arguments, src, convention, b,
                                            forCleanup);
 
-      // And finally, emit all of the `accesses(...)` properties.
+      // And finally, emit all of the `accesses` properties.
       for (auto *property : inst->getAccessedProperties())
         arguments.push_back(emitFieldReference(property));
 

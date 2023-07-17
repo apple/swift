@@ -267,6 +267,22 @@ bool swift::siloptimizer::searchForCandidateObjectMarkMustChecks(
         }
       }
 
+      // Handle guaranteed parameters of a resilient type used by a resilient
+      // function inside the module in which the resilient type is defined.
+      if (auto *cvi = dyn_cast<CopyValueInst>(mmci->getOperand())) {
+        if (auto *cmi = dyn_cast<CopyableToMoveOnlyWrapperValueInst>(cvi->getOperand())) {
+          if (auto *lbi = dyn_cast<LoadBorrowInst>(cmi->getOperand())) {
+            if (auto *arg = dyn_cast<SILFunctionArgument>(lbi->getOperand())) {
+              if (arg->getKnownParameterInfo().isIndirectInGuaranteed()) {
+                moveIntroducersToProcess.insert(mmci);
+                continue;
+              }
+            }
+          }
+        }
+      }
+
+
       // If we see a mark_must_check that is marked no implicit copy that we
       // don't understand, emit a diagnostic to fail the compilation. This
       // ensures that if someone marks something no implicit copy and we fail to

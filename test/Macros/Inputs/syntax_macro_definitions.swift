@@ -1314,6 +1314,16 @@ public struct EmptyMacro: MemberMacro {
   }
 }
 
+public struct EmptyPeerMacro: PeerMacro {
+  public static func expansion(
+    of node: AttributeSyntax,
+    providingPeersOf declaration: some DeclSyntaxProtocol,
+    in context: some MacroExpansionContext
+  ) throws -> [DeclSyntax] {
+    return []
+  }
+}
+
 public struct EquatableMacro: ConformanceMacro {
   public static func expansion(
     of node: AttributeSyntax,

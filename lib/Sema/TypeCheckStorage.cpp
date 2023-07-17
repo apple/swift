@@ -368,9 +368,8 @@ MemberwiseInitPropertiesRequest::evaluate(Evaluator &evaluator,
     // that the accessor initializes. Mark those stored properties as being subsumed; we'll
     // get back to them later.
     if (auto initAccessor = var->getAccessor(AccessorKind::Init)) {
-      if (auto initAttr = initAccessor->getAttrs().getAttribute<InitializesAttr>()) {
-        for (auto subsumed : initAttr->getPropertyDecls(initAccessor))
-          subsumedViaInitAccessor.insert(subsumed);
+      for (auto subsumed : initAccessor->getInitializedProperties()) {
+        subsumedViaInitAccessor.insert(subsumed);
       }
     }
   };

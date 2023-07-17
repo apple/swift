@@ -1,0 +1,145 @@
+\documentclass[../generics]{subfiles}
+
+\begin{document}
+
+\chapter*{Preface}
+
+% Emit this before the first citation to customize bibliography
+\bstctlcite{IEEEexample:BSTcontrol}
+
+\lettrine{T}{his is a book} about the implementation of generic programming, also known as parametric polymorphism, in the Swift compiler. You won't learn how to \emph{write} generic code in Swift here; the best reference for that is, of course, the official language guide \cite{tspl}.
+
+This work began as a paper about the ``Requirement Machine,'' a redesign of the core algorithms in Swift generics which shipped with Swift~5.6. After completing the first draft of the paper, I realized that a comprehensive reference guide for the entire generics implementation would be more broadly useful to the community. I worked backwards, filling in the gaps and revising subsequent sections until reaching a fixed point, hopefully converging on something approximating a coherent and self-contained treatment of this cross-section of the compiler.
+
+I wrote this book with several overlapping but distinct audiences in mind:
+\begin{itemize}
+\item Swift compiler developers who must interact with the generics implementation while working on other language features in the compiler.
+\item Swift compiler developers wishing to improve to the generics implementation itself.
+\item Language designers curious to understand how Swift generics are implemented and how the language evolved to have the feature set it does today.
+\item Swift programmers who would simply like to peek under the hood.
+\end{itemize}
+
+%You should ideally have some familiarity with compiler design, the Swift language itself, and some abstract algebra. However, being an expert in all three is certainly not required and will not preclude you from making the most of this book. I try to give enough context and citations so you at least know what to look for to close any gaps in your understanding.
+
+\paragraph{History} In my opinion, to truly understand a piece of code you need historical context. Instead of just explaining how the compiler works today, occasional asides also give brief history lessons about how things came to be. Starting with Swift~2.2, the design of the Swift language has been guided by the Swift evolution process, where language changes are pitched, debated, and formalized in the open. I will cite the relevant Swift evolution proposals where possible: following the URLs linked from the bibliography will allow you to read the proposal and associated discussion.
+
+\paragraph{Limitations}
+\IndexDefinition{limitation}
+Every complex system has imperfections. If you look up ``limitation'' in the index, you will see where various unimplemented corners and theoretical problems in the Swift generics system are explained. Some could be resolved with a little work, others are more fundamental, and a few are open research problems.
+
+\paragraph{C++}
+The Swift compiler is written in \index{C++}C++. To maintain distance between essential and incidental complexity, concepts are described without direct reference to the source code. Instead, each chapter ends with a ``Source Code Reference'' section, structured somewhat like an API reference, which translates what was previously explained into code. You can skip this material if you're only interested in a high-level overview. No knowledge of C++ is assumed outside of these sections.
+
+\section*{Chapter Overview}
+
+This book has three parts, each made up of several chapters. Part~\ref{part fundamentals} is most relevant if your immediate goal is to understand how the generics implementation is seen from the rest of the compiler. Part~\ref{part odds and ends} dives deeper inside the generics implementation, and shows how various language features are built up from the core concepts described in the first part. Part~\ref{part rqm} builds out the theory of rewrite systems and applies it to show how the compiler implements generic signature queries and requirement minimization.
+
+Chapter~\ref{roadmap} gives a high-level overview of the generics implementation, serving as a roadmap for what follows. The remaining chapters are organized by topic, but also by ``iterative deepening.'' There is some inherent circularity, so it difficult to completely present the material in a linear fashion. Often a detail is glossed over, introduced as a black box with a well-defined interface, while a full accounting of the machinery inside the box is left for a future chapter. The below chapter overview is thus intentionally non-linear, weaving a web of connections instead of following the outward spiral of the main narrative.
+
+Chapter~\ref{genericsig} defines the generic signature, which combines a list of generic parameter types and generic requirements. This is perhaps the most central concept in the generics implementation.
+
+One of the major themes in this book is the formalism for type substitution. Chapter~\ref{substmaps} introduces substitution maps, which are constructed from generic signatures. You will learn that the replacement for a generic parameter type is stored directly in a substitution map, while the replacement for a dependent member type is derived from a conformance. Chapter~\ref{conformances} discusses how concrete types conform to protocols in detail, focusing on associated types and the role played by conformances in type substitution.
+
+You will see that conformances can point to other conformances, and in the most general case, type substitution must first compute something known as a conformance path, which begins with one of the conformances stored by the substitution map and follows a series of steps to find another conformance. In Part~\ref{part odds and ends}, Chapter~\ref{conformance paths} explains the theory behind conformance paths, and presents the problem of finding a conformance path as a search problem in an infinite lazily-constructed conformance path graph. This chapter ends with a complete summary of the type substitution algebra thus far, which at this point has been fully developed.
+
+The construction of the conformance path graph asks certain questions about the type parameters of a generic signature. Section~\ref{genericsigqueries} introduces these generic signature queries, but the process of describing their implementation begins in Part~\ref{part rqm} with Chapter~\ref{rqm basic operation}, which builds a requirement machine from a list of generic requirements and protocols. Chapter~\ref{monoids} explains the theory of finitely-presented monoids and rewrite systems, on which the requirement machine is based. Chapter~\ref{symbols terms rules} defines the requirement machine rewrite system, showing how type parameters and generic requirements map to terms and rules. Chapter~\ref{completion} describes the Knuth-Bendix algorithm, which attempts to construct a ``well-behaved'' rewrite system from an arbitrary set of rules. A series of worked examples reveal how rewrite rules for different generic requirements relate. Finally, Chapter~\ref{propertymap} describes the construction of a property map from a rewrite system, and how the property map can answer generic signature queries.
+
+How the compiler actually builds generic signatures in the first place is intervowen with the above. Chapter~\ref{generic declarations} covers the syntactic blocks: generic parameter lists, \texttt{where} clauses, protocols, and associated types. There's more in Part~\ref{part odds and ends}. To construct generic requirements from syntactic representations, the compiler must first construct types from syntactic representations. Chapter~\ref{typeresolution} focuses on this type resolution procedure. Chapter~\ref{building generic signatures} explains how the various entry points for building generic signatures collect generic requirements to feed into the requirement minimization algorithm. As with generic signature queries, this algorithm is initially introduced as a black box with a well-defined interface. This connects to Part~\ref{part rqm}, since requirement minimization is implemented by the very same rewrite system as generic signature queries. Chapter~\ref{rqm minimization} presents the requirement minimization algorithm.
+
+The remaining chapters fill in various gaps:
+\begin{itemize}
+\item Chapter~\ref{compilation model} covers Swift's compilation model and how it differs from the typical ``compilation pipeline'' of parsing, type checking and code generation.
+
+\item Chapter \ref{types}~and~\ref{decls} define how the compiler models types and declarations, which are central to the language. Swift programmers might want to compare their mental model of the language with that of the compiler by reading through the enumeration of the different kinds of types and declarations here.
+\item Chapter~\ref{genericenv} explains generic environments and archetypes, two abstractions used throughout the compiler.
+
+\item Chapter~\ref{extensions} describes extensions, and in particular how constrained extensions and conditional conformances intersect with generics.
+
+\item Chapter~\ref{opaqueresult}, \ref{existentialtypes} and \ref{classinheritance} are about opaque return types, existential types, and class inheritance. These are largely independent of the rest.
+
+\item Chapter~\ref{concrete conformances} is perhaps the trickiest of all, describing the handling of concrete types in the requirement machine rewrite system.
+\end{itemize}
+
+\section*{Mathematical Preliminaries}
+
+While mathematical notation can be quite intimidating to the uninitiated, static type systems are difficult to discuss at any level of detail without introducing at least a little bit of math. An introductory course in calculus, linear algebra or combinatorics provides sufficient background to understand the material in this book. If you lack this level of knowledge, that's okay; you can still follow along without missing too much.
+
+The Greek alphabet is used in mathematics for variable names and other notation. This book only needs a handful of letters: lowercase $\varepsilon$ (``epsilon''), $\pi$ (``pi''), $\sigma$ (``sigma''), $\uptau$ (``tau'') and $\varphi$ (``phi''); and uppercase $\Sigma$ (``sigma'').
+
+The equals sign ``='' means two things are already known to be equivalent in some sense. The colon-equals ``:='' means the thing on the left hand side is being \emph{defined} to be the same as the thing on the right.
+
+\IndexDefinition{set}
+\IndexDefinition{natural numbers}
+\IndexDefinition{empty set}
+A \emph{set} is a collection of elements without regard to order or duplicates. Sets can be finite or infinite. A finite set can be specified by listing its elements in any order, for example $\{a,\,b,\,c\}$. The empty set \index{$\varnothing$}\index{$\varnothing$!z@\igobble|seealso{empty set}}$\varnothing$ is the unique set with no elements. The set of \emph{natural numbers} \index{$\mathbb{N}$}\index{$\mathbb{N}$!z@\igobble|seealso{natural numbers}}$\mathbb{N}$ is the infinite set of all non-negative integers, including zero: $\mathbb{N}:=\{0,\,1,\,2,\,\ldots\}$.
+
+The notation \index{$\in$}\index{$\in$!z@\igobble|seealso{set}}$x\in S$ means ``$x$ is an element of a set $S$,'' and \index{$\not\in$}$x\not\in S$ is its negation, which is ``$x$ is \emph{not} an element of $S$.'' Properties of sets can be stated using \emph{existential} quantification (``there exists (at least one) $x\in S$ such that $x$ has this property\ldots'') or \emph{universal} quantification (``for all $x\in S$, the following property is true of $x$\ldots'').
+
+\IndexDefinition{subset}%
+\IndexDefinition{proper subset}%
+A set $X$ is a \emph{subset} of another set $Y$, written as \index{$\subseteq$}\index{$\subseteq$!z@\igobble|seealso{subset}}$X\subseteq Y$, if for all $x\in X$, it is also true that $x\in Y$. Furthermore if there is at least one element $y\in Y$ such that $y\not\in X$, then $X\neq Y$, and $X$ is a \emph{proper} subset of $Y$, written as \index{$\subsetneq$}\index{$\subsetneq$!z@\igobble|seealso{proper subset}}$X\subsetneq Y$. The \IndexDefinition{union}\emph{union} \index{$\cup$}\index{$\cup$!z@\igobble|seealso{union}}$X\cup Y$ is the set of all elements belonging to either $X$ or $Y$. The \IndexDefinition{intersection}\emph{intersection} \index{$\cap$}\index{$\cap$!z@\igobble|seealso{intersection}}$X\cap Y$ is the set of all elements belonging to both $X$ and $Y$.
+
+\IndexDefinition{Cartesian product}
+\IndexDefinition{ordered pair}
+\IndexDefinition{ordered tuple}
+The \emph{Cartesian product} of two sets $X$ and $Y$, denoted \index{$\times$}\index{$\times$!z@\igobble|seealso{Cartesian product}}$X\times Y$, is the set of all \emph{ordered pairs} $(x,y)$ where $x\in X$, $y\in Y$. Note that the ordered pair $(x,y)$ is not the same as the set $\{x,y\}$. The Cartesian product construction generalizes to any finite number of sets, to give \emph{ordered tuples} or \emph{sequences}.
+
+\IndexDefinition{binary operation}
+\IndexDefinition{mapping}
+\IndexDefinition{homomorphism}
+\index{mapping|see{function}}
+A \emph{function} (or \emph{mapping}) $f\colon X\rightarrow Y$ assigns to each $x\in X$ a unique element $f(x)\in Y$. If the sets $X$ and $Y$ are equipped with some kind of additional structure (which will be explicitly defined), then $f$ is a \emph{homomorphism} if it preserves this structure.
+
+A function $f\colon X\times Y\rightarrow Z$ defined on the Cartesian product can be thought of as taking a pair of values $x\in X$, $y\in Y$ to an element $f(x,y)\in Z$. A \emph{binary operation} is a function named by a symbol like $\otimes$, $\star$ or $\cdot$ defined on the Cartesian product of two sets. The application of a binary operation is denoted by writing the symbol in between the two elements, like $x\otimes y$.
+
+The \emph{cardinality} of a finite set $S$, denoted $|S|$, is the number of elements in $S$. I also use the notation $|x|$ to denote certain other functions taking values in $\mathbb{N}$, such as the length of a sequence; this will always be explicitly defined when needed.
+
+Most of the writing is informal, but occasionally I use ``Euclidean style'':
+\begin{definition}
+Introduce terminology or notation.
+\end{definition}
+\begin{example}
+Show how this terminology and notation arises in practice.
+\end{example}
+\begin{proposition}
+State a logical consequence of one or more definitions.
+\end{proposition}
+\begin{proof}
+I don't even attempt to formally prove the correctness of most things, but sometimes a proof is written out if it is informative in some way.
+\end{proof}
+\begin{lemma} An intermediate proposition in service of proving another theorem.
+\end{lemma}
+\begin{theorem} A ``deeper'' proposition which is more profound in some sense.
+\end{theorem}
+\begin{algorithmx}[Name of algorithm] A description of the inputs and outputs, followed by the precise specification of some computable function.
+\begin{enumerate}
+\item Print \texttt{"Hello, world"}.
+\item Go back to Step~1.
+\end{enumerate}
+\end{algorithmx}
+\noindent The key mathematical ideas that underpin the theory of Swift generics:
+\begin{itemize}
+\item Formal logic (Section~\ref{derived req}, \ref{generic signature validity}, \ref{finding conformance paths}, \ref{monoidsasprotocols}).
+\item Partial orders, linear orders, and equivalence relations (Section~\ref{typeparams}, \ref{reducedtypes},  \ref{finitely presented monoids}, \ref{rewritesystemintro}, and \ref{reduction order}).
+\item Category theory, but only in passing (Section~\ref{submapcomposition}).
+\item Directed graphs (Section~\ref{type parameter graph}, \ref{finding conformance paths}, \ref{recursive conformances}, \ref{protocol component}, and \ref{rewrite graph}).
+\item Computability theory (Section~\ref{tag systems}, \ref{word problem}).
+\item Finitely-presented monoids and rewrite systems (Chapter~\ref{monoids} and \ref{completion}).
+\end{itemize}
+
+\section*{Miscellaneous}
+
+I'd like to thank everyone who read earlier versions of the text, pointed out typos, and asked clarifying questions. Also, the Swift generics system itself is the result of over a decade of collaborative effort by countless people. This includes compiler developers, Swift evolution proposal authors, members of the evolution community, and of course, all the users who repeatedly punched holes in our conceptual model by patiently reducing test cases and reporting mind-bending correctness bugs. This book attempts to give an overview of the sum total of all these contributions; I'm not claiming any of the design ideas or implementation techniques described here as my own.
+
+It's also worth mentioning what was left out. Most of the book is current as of Swift~5.8, but I don't talk about variadic generics, which are still under development. Also the low-level code generation and runtime support for generics only get a cursory mention in Chapter~\ref{roadmap} and Appendix~\ref{runtime representation}, but it really deserves a complete treatment in a future Part~IV.
+
+The \TeX{} source for this book is our git repository, under the same license as the rest of the codebase:
+\begin{quote}
+\url{https://github.com/apple/swift/tree/main/docs/Generics}
+\end{quote}
+A periodically-updated typeset PDF is available from the Swift website:
+\begin{quote}
+\url{https://download.swift.org/docs/assets/generics.pdf}
+\end{quote}
+
+\end{document}

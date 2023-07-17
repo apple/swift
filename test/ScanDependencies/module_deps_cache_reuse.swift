@@ -8,6 +8,7 @@
 // RUN: %target-swift-frontend -scan-dependencies -Rdependency-scan-cache -load-dependency-scan-cache -dependency-scan-cache-path %t/cache.moddepcache -module-cache-path %t/clang-module-cache %s -o %t/deps.json -I %S/Inputs/CHeaders -I %S/Inputs/Swift -import-objc-header %S/Inputs/CHeaders/Bridging.h -swift-version 4 2>&1 | %FileCheck %s -check-prefix CHECK-REMARK-LOAD
 
 // Check the contents of the JSON output
+// RUN: %validate-json %t/deps.json &>/dev/null
 // RUN: %FileCheck %s < %t/deps.json
 
 // REQUIRES: executable_test

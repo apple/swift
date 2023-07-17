@@ -7,7 +7,7 @@
 
 // Run the scanner once, ensuring CoreFoundation dependencies are as expected
 // RUN: %target-swift-frontend -scan-dependencies -module-cache-path %t/clang-module-cache %s -o %t/deps.json -swift-version 4
-// RUN: %FileCheck %s < %t/deps.json
+// RUN: %validate-json %t/deps.json | %FileCheck %s
 
 import CoreFoundation
 

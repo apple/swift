@@ -1311,26 +1311,18 @@ AccessorDecl *AssignOrInitInst::getReferencedInitAccessor() const {
 }
 
 unsigned AssignOrInitInst::getNumInitializedProperties() const {
-  if (auto *accessor = getReferencedInitAccessor()) {
-    auto *initAttr = accessor->getAttrs().getAttribute<InitializesAttr>();
-    return initAttr ? initAttr->getNumProperties() : 0;
-  }
-  return 0;
+  return getInitializedProperties().size();
 }
 
 ArrayRef<VarDecl *> AssignOrInitInst::getInitializedProperties() const {
-  if (auto *accessor = getReferencedInitAccessor()) {
-    if (auto *initAttr = accessor->getAttrs().getAttribute<InitializesAttr>())
-      return initAttr->getPropertyDecls(accessor);
-  }
+  if (auto *accessor = getReferencedInitAccessor())
+    return accessor->getInitializedProperties();
   return {};
 }
 
 ArrayRef<VarDecl *> AssignOrInitInst::getAccessedProperties() const {
-  if (auto *accessor = getReferencedInitAccessor()) {
-    if (auto *accessAttr = accessor->getAttrs().getAttribute<AccessesAttr>())
-      return accessAttr->getPropertyDecls(accessor);
-  }
+  if (auto *accessor = getReferencedInitAccessor())
+    return accessor->getAccessedProperties();
   return {};
 }
 

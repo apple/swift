@@ -1,0 +1,3 @@
+headings_flag 1
+heading_prefix "{\\textbf{\\large "
+heading_suffix "}}\\nopagebreak\n"

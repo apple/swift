@@ -530,6 +530,16 @@ ASTContext::getVariadicGenericTypeAvailability() {
   return getSwift59Availability();
 }
 
+AvailabilityContext
+ASTContext::getSignedConformsToProtocolAvailability() {
+  return getSwift59Availability();
+}
+
+AvailabilityContext
+ASTContext::getSignedDescriptorAvailability() {
+  return getSwift59Availability();
+}
+
 AvailabilityContext ASTContext::getSwift52Availability() {
   auto target = LangOpts.Target;
 

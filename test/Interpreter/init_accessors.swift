@@ -10,7 +10,8 @@ struct TestInit {
   var full: (Int, Int)
 
   var point: (Int, Int) {
-    init(initialValue) initializes(y, full) accesses(x) {
+    @storageRestrictions(initializes: y, full, accesses: x)
+    init(initialValue) {
       self.y = initialValue.1
       self.full = (self.x, self.y)
     }
@@ -36,7 +37,8 @@ struct TestSetter {
   var y: Int
 
   var point: (Int, Int) {
-    init(initialValue) accesses(x, y) {
+    @storageRestrictions(accesses: x, y)
+    init(initialValue) {
     }
 
     get { (x, y) }
@@ -61,7 +63,8 @@ struct TestInitThenSetter {
   var y: Int
 
   var point: (Int, Int) {
-    init(initialValue) initializes(x, y) {
+    @storageRestrictions(initializes: x, y)
+    init(initialValue) {
       self.x = initialValue.0
       self.y = initialValue.1
     }
@@ -94,7 +97,8 @@ struct TestPartialInt {
   var y: Int
 
   var pointX: Int {
-    init(newValue) initializes(x) {
+    @storageRestrictions(initializes: x)
+    init(newValue) {
       self.x = newValue
     }
 
@@ -103,7 +107,8 @@ struct TestPartialInt {
   }
 
   var pointY: Int {
-    init(newValue) initializes(y) {
+    @storageRestrictions(initializes: y)
+    init(newValue) {
       self.y = newValue
     }
 
@@ -135,7 +140,8 @@ struct TestNoInitAndInit {
   var y: Int
 
   var pointX: Int {
-    init(initalValue) accesses(x) {
+    @storageRestrictions(accesses: x)
+    init(initalValue) {
     }
 
     get { x }
@@ -143,7 +149,8 @@ struct TestNoInitAndInit {
   }
 
   var pointY: Int {
-    init(initialValue) initializes(y) {
+    @storageRestrictions(initializes: y)
+    init(initialValue) {
       self.y = initialValue
     }
 
@@ -169,7 +176,8 @@ class TestClass {
   var y: (Int, [String])
 
   var data: (Int, (Int, [String])) {
-    init(initialValue) initializes(x, y) {
+    @storageRestrictions(initializes: x, y)
+    init(initialValue) {
       x = initialValue.0
       y = initialValue.1
     }
@@ -198,7 +206,8 @@ struct TestGeneric<T, U> {
   var c: U
 
   var data: (T, T) {
-    init(initialValue) initializes(a, b) accesses(c) {
+    @storageRestrictions(initializes: a, b, accesses: c)
+    init(initialValue) {
       a = initialValue.0
       b = initialValue.1
       print("TestGeneric(c: \(c))")
@@ -230,7 +239,8 @@ func test_local_with_memberwise() {
     var b: String
 
     var pair: (Int, String) {
-      init(initialValue) initializes(a, b) {
+      @storageRestrictions(initializes: a, b)
+      init(initialValue) {
         a = initialValue.0
         b = initialValue.1
       }
@@ -251,7 +261,8 @@ func test_local_with_memberwise() {
     var _c: C
 
     var a: T {
-      init(initialValue) initializes(_a) {
+      @storageRestrictions(initializes: _a)
+      init(initialValue) {
         _a = initialValue
       }
 
@@ -260,7 +271,8 @@ func test_local_with_memberwise() {
     }
 
     var pair: (String, C) {
-      init(initialValue) initializes(_b, _c) accesses(_a) {
+      @storageRestrictions(initializes: _b, _c, accesses: _a)
+      init(initialValue) {
         _b = initialValue.0
         _c = initialValue.1
         _c.append(_a)
@@ -285,7 +297,8 @@ func test_assignments() {
     var _b: Int
 
     var a: Int {
-      init(initialValue) initializes(_a) {
+      @storageRestrictions(initializes: _a)
+      init(initialValue) {
         self._a = initialValue
         print("a-init-accessor: \(self._a)")
       }
@@ -294,7 +307,8 @@ func test_assignments() {
     }
 
     var pair: (Int, Int) {
-      init(initialValue) initializes(_a, _b) {
+      @storageRestrictions(initializes: _a, _b)
+      init(initialValue) {
         _a = initialValue.0
         _b = initialValue.1
       }
@@ -339,7 +353,8 @@ func test_memberwise_ordering() {
     var _b: Int
 
     var a: Int {
-      init(initialValue) initializes(_a) accesses(_b) {
+      @storageRestrictions(initializes: _a, accesses: _b)
+      init(initialValue) {
         _a = initialValue
       }
 
@@ -355,7 +370,8 @@ func test_memberwise_ordering() {
     var _a: Int
 
     var pair: (Int, Int) {
-      init(initialValue) initializes(_a, _b) {
+      @storageRestrictions(initializes: _a, _b)
+      init(initialValue) {
         _a = initialValue.0
         _b = initialValue.1
       }
@@ -375,7 +391,8 @@ func test_memberwise_ordering() {
     var _b: Int
 
     var pair: (Int, Int) {
-      init(initialValue) accesses(_a, _b) {
+      @storageRestrictions(accesses: _a, _b)
+      init(initialValue) {
       }
 
       get { (_a, _b) }
@@ -400,7 +417,8 @@ func test_memberwise_with_default_args() {
     var _b: Int
 
     var pair: (Int, Int) = (-1, 42) {
-      init(initialValue) initializes(_a, _b) {
+      @storageRestrictions(initializes: _a, _b)
+      init(initialValue) {
         _a = initialValue.0
         _b = initialValue.1
       }
@@ -421,7 +439,8 @@ func test_memberwise_with_default_args() {
     var _b: Int = 0
 
     var pair: (Int, Int) = (1, 2) {
-      init(initialValue) initializes(_a, _b) {
+      @storageRestrictions(initializes: _a, _b)
+      init(initialValue) {
         _a = initialValue.0
         _b = initialValue.1
       }
@@ -442,7 +461,8 @@ func test_memberwise_with_default_args() {
     var _a: Int = 1
 
     var pair: (String, Int) = ("", 42) {
-      init(initialValue) initializes(_q, _a) {
+      @storageRestrictions(initializes: _q, _a)
+      init(initialValue) {
         _q = initialValue.0
         _a = initialValue.1
       }
@@ -468,7 +488,8 @@ func test_init_accessors_without_setters() {
     var _x: T
 
     var x: T {
-      init(initialValue) initializes(_x) {
+      @storageRestrictions(initializes: _x)
+      init(initialValue) {
         _x = initialValue
       }
 
@@ -487,7 +508,8 @@ func test_init_accessors_without_setters() {
     private var _v: T
 
     var data: T {
-      init(initialValue) initializes(_v) {
+      @storageRestrictions(initializes: _v)
+      init(initialValue) {
         _v = initialValue
       }
 
@@ -516,3 +538,51 @@ test_init_accessors_without_setters()
 // CHECK: test-without-setter1: 42
 // CHECK-NEXT: test-without-setter2: [1, 2, 3]
 // CHECK-NEXT: test-without-setter3: ["a", "b", "c"]
+
+func test_effects_are_still_supported() {
+  struct Test {
+    var _a: Int
+    var _b: Int
+
+    var a: Int {
+      init(initialValue) initializes(_a) accesses(_b) {
+        _a = initialValue
+        _b = 0
+      }
+
+      get { _a }
+    }
+  }
+
+  let test = Test(_b: 1, a: 42)
+  print("effects-support-test: \(test)")
+}
+
+test_effects_are_still_supported()
+// CHEKC: effects-support-test: Test(_a: 42, b: 0)
+
+func test_memberwise_without_stored_properties() {
+  struct Test {
+    var a: Int {
+      init {
+        print("no-stored: a = \(newValue)")
+      }
+
+      get { 0 }
+    }
+
+    var b: Int {
+      init {
+        print("no-stored: b = \(newValue)")
+      }
+
+      get { 1 }
+    }
+  }
+
+  _ = Test(a: 1, b: 2)
+}
+
+test_memberwise_without_stored_properties()
+// CHECK: no-stored: a = 1
+// CHECK-NEXT: no-stored: b = 2

@@ -5630,6 +5630,30 @@ llvm::Error DeclDeserializer::deserializeDeclCommon() {
         break;
       }
 
+      case decls_block::StorageRestrictions_DECL_ATTR: {
+        unsigned numInitializesProperties;
+        ArrayRef<uint64_t> rawPropertyIDs;
+        serialization::decls_block::StorageRestrictionsDeclAttrLayout::
+            readRecord(scratch, numInitializesProperties, rawPropertyIDs);
+
+        SmallVector<Identifier> initializes;
+        SmallVector<Identifier> accesses;
+
+        for (unsigned i = 0, n = rawPropertyIDs.size(); i != n; ++i) {
+          auto propertyName = MF.getIdentifier(rawPropertyIDs[i]);
+
+          if (i < numInitializesProperties) {
+            initializes.push_back(propertyName);
+          } else {
+            accesses.push_back(propertyName);
+          }
+        }
+
+        Attr = StorageRestrictionsAttr::create(ctx, SourceLoc(), SourceRange(),
+                                               initializes, accesses);
+        break;
+      }
+
       case decls_block::DynamicReplacement_DECL_ATTR: {
         bool isImplicit;
         uint64_t numArgs;

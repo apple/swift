@@ -2200,17 +2200,9 @@ RValue RValueEmitter::visitSingleValueStmtExpr(SingleValueStmtExpr *E,
   auto &lowering = SGF.getTypeLowering(E->getType());
   auto resultAddr = SGF.emitTemporaryAllocation(E, lowering.getLoweredType());
 
-  // This won't give us a useful diagnostic if the result doesn't end up
-  // initialized ("variable '<unknown>' used before being initialized"), but it
-  // will at least catch a potential miscompile when the SIL verifier is
-  // disabled.
-  resultAddr = SGF.B.createMarkUninitialized(
-      E, resultAddr, MarkUninitializedInst::Kind::Var);
-  KnownAddressInitialization init(resultAddr);
-
   // Collect the target exprs that will be used for initialization.
   SmallVector<Expr *, 4> scratch;
-  SILGenFunction::SingleValueStmtInitialization initInfo(&init);
+  SILGenFunction::SingleValueStmtInitialization initInfo(resultAddr);
   for (auto *E : E->getSingleExprBranches(scratch))
     initInfo.Exprs.insert(E);
 

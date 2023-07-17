@@ -4,6 +4,10 @@ struct HasThreeFields {
   int c = 3;
 };
 
+struct DerivedWithSameField : HasThreeFields {
+  int a = 2;
+};
+
 struct DerivedWithOneField : HasThreeFields {
   int d = 4;
 };

@@ -28,8 +28,13 @@ void TypeCheckCompletionCallback::fallbackTypeCheck(DeclContext *DC) {
     return;
 
   auto fallback = finder.getFallbackCompletionExpr();
-  if (!fallback)
+  if (!fallback || isa<AbstractClosureExpr>(fallback->DC)) {
+    // If the expression is embedded in a closure, the constraint system tries
+    // to retrieve that closure's type, which will fail since we won't have
+    // generated any type variables for it. Thus, fallback type checking isn't
+    // available in this case.
     return;
+  }
 
   SyntacticElementTarget completionTarget(fallback->E, fallback->DC, CTP_Unused,
                                           Type(),

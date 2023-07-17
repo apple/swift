@@ -847,10 +847,21 @@ FUNCTION(GetCanonicalPrespecializedGenericMetadata,
 
 // MetadataResponse swift_getOpaqueTypeMetadata(MetadataRequest request,
 //                                     const void * const *arguments,
-//                                     const OpaqueTypeDescriptor *descriptor,
+//                                     const void *descriptor,
 //                                     uintptr_t index);
 FUNCTION(GetOpaqueTypeMetadata, swift_getOpaqueTypeMetadata,
          SwiftCC, OpaqueTypeAvailability,
+         RETURNS(TypeMetadataResponseTy),
+         ARGS(SizeTy, Int8PtrTy, OpaqueTypeDescriptorPtrTy, SizeTy),
+         ATTRS(NoUnwind, ReadOnly),
+         EFFECT(MetaData))
+
+// MetadataResponse swift_getOpaqueTypeMetadata2(MetadataRequest request,
+//                                     const void * const *arguments,
+//                                     const OpaqueTypeDescriptor *descriptor,
+//                                     uintptr_t index);
+FUNCTION(GetOpaqueTypeMetadata2, swift_getOpaqueTypeMetadata2,
+         SwiftCC, SignedDescriptorAvailability,
          RETURNS(TypeMetadataResponseTy),
          ARGS(SizeTy, Int8PtrTy, OpaqueTypeDescriptorPtrTy, SizeTy),
          ATTRS(NoUnwind, ReadOnly),
@@ -861,6 +872,16 @@ FUNCTION(GetOpaqueTypeMetadata, swift_getOpaqueTypeMetadata,
 //                                     uintptr_t index);
 FUNCTION(GetOpaqueTypeConformance, swift_getOpaqueTypeConformance,
          SwiftCC, OpaqueTypeAvailability,
+         RETURNS(WitnessTablePtrTy),
+         ARGS(Int8PtrTy, OpaqueTypeDescriptorPtrTy, SizeTy),
+         ATTRS(NoUnwind, ReadOnly, WillReturn),
+         EFFECT(MetaData))
+
+// const WitnessTable *swift_getOpaqueTypeConformance2(const void * const *arguments,
+//                                     const OpaqueTypeDescriptor *descriptor,
+//                                     uintptr_t index);
+FUNCTION(GetOpaqueTypeConformance2, swift_getOpaqueTypeConformance2,
+         SwiftCC, SignedDescriptorAvailability,
          RETURNS(WitnessTablePtrTy),
          ARGS(Int8PtrTy, OpaqueTypeDescriptorPtrTy, SizeTy),
          ATTRS(NoUnwind, ReadOnly, WillReturn),
@@ -1617,6 +1638,14 @@ FUNCTION(ConformsToProtocol,
          ATTRS(NoUnwind, ReadNone),
          EFFECT(Casting))
 
+// witness_table* swift_conformsToProtocol2(type*, protocol*);
+FUNCTION(ConformsToProtocol2,
+         swift_conformsToProtocol2, C_CC, SignedConformsToProtocolAvailability,
+         RETURNS(WitnessTablePtrTy),
+         ARGS(TypeMetadataPtrTy, ProtocolDescriptorPtrTy),
+         ATTRS(NoUnwind, ReadNone),
+         EFFECT(Casting))
+
 // bool swift_isClassType(type*);
 FUNCTION(IsClassType,
          swift_isClassType, C_CC, AlwaysAvailable,
@@ -1909,10 +1938,22 @@ FUNCTION(IntToFloat64, swift_intToFloat64, SwiftCC, AlwaysAvailable,
 // const Metadata *swift_getTypeByMangledNameInContext(
 //                        const char *typeNameStart,
 //                        size_t typeNameLength,
-//                        const TargetContextDescriptor<InProcess> *context,
+//                        const void *context,
 //                        const void * const *genericArgs)
 FUNCTION(GetTypeByMangledNameInContext, swift_getTypeByMangledNameInContext,
          SwiftCC, AlwaysAvailable,
+         RETURNS(TypeMetadataPtrTy),
+         ARGS(Int8PtrTy, SizeTy, TypeContextDescriptorPtrTy, Int8PtrPtrTy),
+         ATTRS(NoUnwind, ArgMemOnly),
+         EFFECT(MetaData))
+
+// const Metadata *swift_getTypeByMangledNameInContext2(
+//                        const char *typeNameStart,
+//                        size_t typeNameLength,
+//                        const TargetContextDescriptor<InProcess> *context,
+//                        const void * const *genericArgs)
+FUNCTION(GetTypeByMangledNameInContext2, swift_getTypeByMangledNameInContext2,
+         SwiftCC, SignedDescriptorAvailability,
          RETURNS(TypeMetadataPtrTy),
          ARGS(Int8PtrTy, SizeTy, TypeContextDescriptorPtrTy, Int8PtrPtrTy),
          ATTRS(NoUnwind, ArgMemOnly),
@@ -1922,11 +1963,26 @@ FUNCTION(GetTypeByMangledNameInContext, swift_getTypeByMangledNameInContext,
 //                        size_t metadataState,
 //                        const char *typeNameStart,
 //                        size_t typeNameLength,
-//                        const TargetContextDescriptor<InProcess> *context,
+//                        const void *context,
 //                        const void * const *genericArgs)
 FUNCTION(GetTypeByMangledNameInContextInMetadataState,
          swift_getTypeByMangledNameInContextInMetadataState, SwiftCC,
          GetTypesInAbstractMetadataStateAvailability,
+         RETURNS(TypeMetadataPtrTy),
+         ARGS(SizeTy, Int8PtrTy, SizeTy, TypeContextDescriptorPtrTy,
+              Int8PtrPtrTy),
+         ATTRS(NoUnwind, ArgMemOnly),
+         EFFECT(MetaData))
+
+// const Metadata *swift_getTypeByMangledNameInContextInMetadataState2(
+//                        size_t metadataState,
+//                        const char *typeNameStart,
+//                        size_t typeNameLength,
+//                        const TargetContextDescriptor<InProcess> *context,
+//                        const void * const *genericArgs)
+FUNCTION(GetTypeByMangledNameInContextInMetadataState2,
+         swift_getTypeByMangledNameInContextInMetadataState2, SwiftCC,
+         SignedDescriptorAvailability,
          RETURNS(TypeMetadataPtrTy),
          ARGS(SizeTy, Int8PtrTy, SizeTy, TypeContextDescriptorPtrTy,
               Int8PtrPtrTy),

@@ -1,0 +1,62 @@
+\documentclass[../generics]{subfiles}
+
+\begin{document}
+
+\chapter{Runtime Representation}\label{runtime representation}
+
+\index{contextual type}
+\index{fully-concrete type}
+\index{runtime type metadata}
+\index{witness table}
+\index{IRGen}
+\index{SIL}
+\index{LLVM}
+Conformance paths are also used when generating code for unspecialized generic functions. Way back in Chapter~\ref{roadmap}, you saw how type metadata and witness tables are reified as runtime values in unspecialized generic code. At the SIL level, operations on fully-concrete and contextual types are represented uniformly; in unspecialized generic code, the types and conformances appearing in SIL instructions can contain archetypes.
+
+When IRGen lowers SIL to LLVM IR, it introduces IR values to model types and conformances derived from archetypes, and emits code for constructing these values. This generated code has the same effect at runtime as type substitution operations do at compile time. Naturally, IRGen models this by evaluating conformance paths.
+
+This section just gives a summary of the implementation of runtime generics. There is a lot more to say about this topic, and it really deserves to be Part~IV of this book. For now, the most detailed resource is a recording of a talk from the LLVM Developer's Conference \cite{llvmtalk}.
+
+\paragraph{Generic signatures}
+\index{contextual type}
+\index{primary archetype type}
+\index{conformance requirement}
+\index{runtime type metadata}
+\index{witness table}
+IRGen computes the final calling convention of each generic function. The calling convention computation considers the formal named parameters of the function declaration. It also introduces some additional \emph{lowered parameters} derived from the function's generic signature:
+\begin{itemize}
+\item For every generic parameter that is not equivalent to some other generic parameter or concrete type, a pointer to runtime type metadata.
+\item For every conformance requirement, a pointer to a witness table.
+\end{itemize}
+SIL instructions are written in terms of contextual types. These contextual types can contain primary archetypes, which are instantiated from the type parameters of the function's generic signature. The lowered parameters directly provide type metadata and witness tables for the generic parameters and root abstract conformances of the function's generic signature. Type metadata and witness tables for other primary archetypes and abstract conformances are constructed using conformance paths.
+
+\paragraph{Substitution maps}
+\index{substitution map}
+These lowered parameters look like they define the shape of a substitution map, which is not a coincidence. The caller of the generic function passes in type metadata and witness tables from the substitution map at the call site. When emitting a call to a generic function, IRGen generates code to instantiate runtime type metadata for each generic argument, and witness table for each conformance. The replacement types or conformances might contain archetypes, which represent type parameters in the generic signature of the caller. In this way, the callee's generic arguments and witness tables for the call are ultimately derived from the caller's lowered parameters. Each conformance path in a generic function is effectively evaluated against the runtime substitution map provided by the caller.
+
+\paragraph{Type metadata}
+Non-generic nominal types define a \emph{metadata access function} taking no parameters. For generic nominal types, the metadata access function takes type metadata for each generic argument and a witness table for each conformance, much like a generic function. Metadata access functions for instantiating structural types, such as tuple types and function types, are defined in the Swift runtime.
+
+Runtime type metadata for an arbitrary contextual type can therefore be emitted recursively. At the leaves, we have non-generic nominal types and archetypes, which we can emit metadata for directly. The interior nodes are generic nominal types and structural types, for which we emit the metadata for each child, before passing the generic arguments to a metadata access function.
+
+\IndexDefinition{mangling}
+\index{name mangling|see{mangling}}
+\index{symbol mangling|see{mangling}}
+If a type does not contain any archetypes, the instantiated metadata does not depend on the lowered parameters of the outer function. Instead of emitting the code for constructing metadata for a fully-concrete type, IRGen calls a runtime entry point with a compact string representation of the type. This \emph{mangling} scheme also determines symbol names for declarations, and is defined in \cite{mangling}.
+
+\paragraph{Witness tables}
+Witness tables for concrete conformances are similarly instantiated by \emph{witness table access functions}. The witness table access function for the normal conformance of a non-generic type does not take any parameters. If the conforming type is generic, the witness table access function takes lowered parameters corresponding to the conforming type's generic signature. (If the conformance is conditional, the lowered parameters are actually those of the constrained extension in which the conformance was defined.)
+
+When emitting a protocol declaration, IRGen defines global symbols, called \emph{associated type descriptors} and \emph{associated conformance descriptors}. These represent associated type declarations and associated conformance requirements at runtime.
+
+Type witnesses and associated conformances are projected with a pair of runtime entry points:
+\begin{itemize}
+\item \verb|swift_getAssociatedTypeWitness()| takes a witness table, type metadata for the conforming type, and an associated type descriptor.
+\item \verb|swift_getAssociatedConformanceWitness()| takes a witness table, type metadata for the conforming type, type metadata for the conformance requirement's subject type, and an associated conformance descriptor.
+\end{itemize}
+In our idealized algebraic notation (and in the compiler's in-memory representation), conformances know their conforming type. However, witness tables do not, and it is legal to share witness tables between different instantiations of a generic type. For this reason the projection operations take type metadata in addition to a witness table.
+
+\paragraph{Conformance paths}
+Finally we get to conformance paths. To emit code for instantiating a type parameter or abstract conformance, we begin with the lowered parameter corresponding to the root abstract conformance. Then, we emit a call to the associated conformance access function for each subsequent step in the conformance path. When realizing a witness table, the process stops here; when deriving type metadata for a dependent member type, the last step is to call the associated type access function.
+
+\end{document}

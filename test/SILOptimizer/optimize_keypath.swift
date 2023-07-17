@@ -5,7 +5,7 @@
 
 // RUN: %target-build-swift -O %s -o %t/a.out
 // RUN: %target-run %t/a.out | %FileCheck %s -check-prefix=CHECK-OUTPUT
-// REQUIRES: executable_test,swift_stdlib_no_asserts,optimized_stdlib
+// REQUIRES: executable_test,optimized_stdlib
 // REQUIRES: CPU=arm64 || CPU=x86_64
 
 // REQUIRES: swift_in_compiler
@@ -388,9 +388,8 @@ func testClassMemberComputedModify<T : P>(_ s: inout GenClass<T>) {
 // CHECK: [[F:%[0-9]+]] = select_enum [[O:%[0-9]+]]
 // CHECK: cond_fail [[F]]
 // CHECK: unchecked_enum_data [[O]]
-// CHECK: [[E2:%[0-9]+]] = init_enum_data_addr [[E1:%[0-9]+]]
-// CHECK: store {{%[0-9]+}} to [[E2]]
-// CHECK: inject_enum_addr [[E1]]
+// CHECK: [[E2:%[0-9]+]] = enum $Optional<SimpleStruct.Nested>
+// CHECK: store [[E2]] to {{%[0-9]+}}
 // CHECK: return
 @inline(never)
 @_semantics("optimize.sil.specialize.generic.never")
@@ -405,9 +404,8 @@ func testModifyOptionalForce(_ s: inout SimpleStruct) {
 // CHECK: [[F:%[0-9]+]] = select_enum
 // CHECK: cond_fail [[F]]
 // CHECK: unchecked_enum_data [[E1:%[0-9]+]]
-// CHECK: [[E2:%[0-9]+]] = init_enum_data_addr [[E1:%[0-9]+]]
-// CHECK: store {{%[0-9]+}} to [[E2]]
-// CHECK: inject_enum_addr [[E1]]
+// CHECK: [[E2:%[0-9]+]] = enum $Optional<SimpleClass.Nested>
+// CHECK: store [[E2]] to {{%[0-9]+}}
 // CHECK: end_access
 // CHECK: return
 @inline(never)

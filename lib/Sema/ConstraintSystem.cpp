@@ -225,7 +225,7 @@ void ConstraintSystem::assignFixedType(TypeVariableType *typeVar, Type type,
         // Check whether the nominal types match. This makes sure that we
         // properly handle Array vs. Array<T>.
         if (defaultType->getAnyNominal() != type->getAnyNominal()) {
-          increaseScore(SK_NonDefaultLiteral);
+          increaseScore(SK_NonDefaultLiteral, locator);
         }
       }
 
@@ -515,7 +515,7 @@ ConstraintLocator *ConstraintSystem::getCalleeLocator(
   // If we have a locator that starts with a key path component element, we
   // may have a callee given by a property or subscript component.
   if (auto componentElt =
-          locator->getFirstElementAs<LocatorPathElt::KeyPathComponent>()) {
+      locator->getFirstElementAs<LocatorPathElt::KeyPathComponent>()) {
     auto *kpExpr = castToExpr<KeyPathExpr>(anchor);
     auto component = kpExpr->getComponents()[componentElt->getIndex()];
 
@@ -525,7 +525,7 @@ ConstraintLocator *ConstraintSystem::getCalleeLocator(
     case ComponentKind::Subscript:
       // For a subscript the callee is given by 'component -> subscript member'.
       return getConstraintLocator(
-          anchor, {*componentElt, ConstraintLocator::SubscriptMember});
+                                  anchor, {*componentElt, ConstraintLocator::SubscriptMember});
     case ComponentKind::UnresolvedProperty:
     case ComponentKind::Property:
       // For a property, the choice is just given by the component.
@@ -563,14 +563,14 @@ ConstraintLocator *ConstraintSystem::getCalleeLocator(
     if (fnTy->is<AnyMetatypeType>()) {
       return getConstraintLocator(anchor,
                                   {LocatorPathElt::ApplyFunction(),
-                                   LocatorPathElt::ConstructorMember()});
+        LocatorPathElt::ConstructorMember()});
     }
 
     // Handle an apply of a nominal type which supports callAsFunction.
     if (fnTy->isCallAsFunctionType(DC)) {
       return getConstraintLocator(anchor,
                                   {LocatorPathElt::ApplyFunction(),
-                                   LocatorPathElt::ImplicitCallAsFunction()});
+        LocatorPathElt::ImplicitCallAsFunction()});
     }
 
     // Handling an apply for a nominal type that supports @dynamicCallable.
@@ -605,13 +605,13 @@ ConstraintLocator *ConstraintSystem::getCalleeLocator(
         UDE->getName().getBaseName() == Context.Id_callAsFunction) {
       return getConstraintLocator(anchor,
                                   {LocatorPathElt::ApplyFunction(),
-                                   LocatorPathElt::ImplicitCallAsFunction()});
+        LocatorPathElt::ImplicitCallAsFunction()});
     }
 
     return getConstraintLocator(
-        anchor, TypeChecker::getSelfForInitDelegationInConstructor(DC, UDE)
-                    ? ConstraintLocator::ConstructorMember
-                    : ConstraintLocator::Member);
+                                anchor, TypeChecker::getSelfForInitDelegationInConstructor(DC, UDE)
+                                ? ConstraintLocator::ConstructorMember
+                                : ConstraintLocator::Member);
   }
 
   if (auto *UME = getAsExpr<UnresolvedMemberExpr>(anchor)) {
@@ -631,6 +631,9 @@ ConstraintLocator *ConstraintSystem::getCalleeLocator(
     return getCalleeLocator(locator, lookThroughApply, getType, simplifyType,
                             getOverloadFor);
   }
+
+  if (auto FVE = getAsExpr<ForceValueExpr>(anchor))
+    return getConstraintLocator(FVE->getSubExpr(), ConstraintLocator::Member);
 
   return getConstraintLocator(anchor);
 }
@@ -3450,7 +3453,7 @@ void ConstraintSystem::bindOverloadType(
     if (isSubscriptRef) {
       // Make sure that regular subscript declarations (if any) are
       // preferred over key path dynamic member lookup.
-      increaseScore(SK_KeyPathSubscript);
+      increaseScore(SK_KeyPathSubscript, locator);
 
       auto boundTypeVar = boundType->castTo<TypeVariableType>();
       auto constraints = getConstraintGraph().gatherConstraints(
@@ -3611,9 +3614,8 @@ void ConstraintSystem::resolveOverload(ConstraintLocator *locator,
     // In the future, _if_ the syntax allows for multiple expansions
     // this code would have to be adjusted to project l-value from the
     // base type just like TupleIndex does.
-    auto tuple = choice.getBaseType()->getRValueType()->castTo<TupleType>();
-    auto *expansion = tuple->getElementType(0)->castTo<PackExpansionType>();
-    adjustedRefType = expansion->getPatternType();
+    adjustedRefType =
+        getPatternTypeOfSingleUnlabeledPackExpansionTuple(choice.getBaseType());
     refType = adjustedRefType;
     break;
   }
@@ -3660,7 +3662,7 @@ void ConstraintSystem::resolveOverload(ConstraintLocator *locator,
     auto SE = getAsExpr<SubscriptExpr>(locator->getAnchor());
     if (!isForCodeCompletion() ||
         (SE && !containsIDEInspectionTarget(SE->getArgs()))) {
-      increaseScore(SK_KeyPathSubscript);
+      increaseScore(SK_KeyPathSubscript, locator);
     }
     break;
   }
@@ -3676,8 +3678,9 @@ void ConstraintSystem::resolveOverload(ConstraintLocator *locator,
       if (!Options.contains(ConstraintSystemFlags::IgnoreAsyncSyncMismatch) &&
           !func->hasPolymorphicEffect(EffectKind::Async) &&
           func->isAsyncContext() != isAsynchronousContext(useDC)) {
-        increaseScore(
-            func->isAsyncContext() ? SK_AsyncInSyncMismatch : SK_SyncInAsync);
+        increaseScore(func->isAsyncContext() ? SK_AsyncInSyncMismatch
+                                             : SK_SyncInAsync,
+                      locator);
       }
     }
 
@@ -3704,7 +3707,7 @@ void ConstraintSystem::resolveOverload(ConstraintLocator *locator,
       // choices based on the selector kind on the valid code path.
       if (choice.getFunctionRefKind() == FunctionRefKind::Unapplied &&
           !UnevaluatedRootExprs.contains(getAsExpr(anchor))) {
-        increaseScore(SK_UnappliedFunction);
+        increaseScore(SK_UnappliedFunction, locator);
       }
     }
 
@@ -3798,15 +3801,15 @@ void ConstraintSystem::resolveOverload(ConstraintLocator *locator,
   if (auto *decl = choice.getDeclOrNull()) {
     // If the declaration is unavailable, note that in the score.
     if (isDeclUnavailable(decl, locator))
-      increaseScore(SK_Unavailable);
+      increaseScore(SK_Unavailable, locator);
 
     // If this overload is disfavored, note that.
     if (decl->getAttrs().hasAttribute<DisfavoredOverloadAttr>())
-      increaseScore(SK_DisfavoredOverload);
+      increaseScore(SK_DisfavoredOverload, locator);
   }
 
   if (choice.isFallbackMemberOnUnwrappedBase()) {
-    increaseScore(SK_UnresolvedMemberViaOptional);
+    increaseScore(SK_UnresolvedMemberViaOptional, locator);
   }
 }
 
@@ -3869,7 +3872,8 @@ struct TypeSimplifier {
             if (typeVar->getImpl().isPackExpansion() &&
                 !resolvedType->isEqual(typeVar) &&
                 !resolvedType->is<PackExpansionType>() &&
-                !resolvedType->is<PackType>()) {
+                !resolvedType->is<PackType>() &&
+                !resolvedType->is<PackArchetypeType>()) {
               return resolvedType;
             }
           }

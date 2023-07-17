@@ -1,0 +1,87 @@
+\documentclass[../generics]{subfiles}
+
+\begin{document}
+
+\chapter{Type Substitution Summary}\label{notation summary}
+
+We've been using an algebraic notation for expressing identities among types, conformances and substitution maps. The formalism was gradually introduced over the course of Chapter \ref{substmaps}~and~\ref{conformances}, and this chapter filled in the gaps around conformance paths and dependent member type substitution. Now, we're going to restate the rules of this algebra in full to serve as a convenient reference.
+
+The entities being operated upon:
+\begin{itemize}
+\item \IndexSet{proto}{\ProtoObj}$\ProtoObj$ is the set of all \index{protocol declaration}protocols.
+\item \IndexSet{type}{\TypeObj{G}}$\TypeObj{G}$ is the set of all \index{interface type}interface types valid in the \index{generic signature}generic signature $G$ (see Section~\ref{derived req}).
+\item \IndexSet{sub}{\SubMapObj{G}{H}}$\SubMapObj{G}{H}$ is the set of all \index{substitution map}substitution maps with \index{input generic signature}input generic signature $G$ and \index{output generic signature}output generic signature $H$.
+\item \IndexSet{conf}{\ConfObj{G}}$\ConfObj{G}$ is the set of all \index{conformance}conformances with output generic signature $G$.
+\item \IndexSet{confp}{\ConfPObj{P}{G}}$\ConfPObj{P}{G}$ is the set of all conformances to protocol \texttt{P} with output generic signature $G$.
+\item \IndexSet{assoctype}{\AssocTypeObj{P}}$\AssocTypeObj{P}$ is the set of all \index{associated type declaration}associated type declarations in protocol $\texttt{P}$.
+\item \IndexSet{assocconf}{\AssocConfObj{P}}$\AssocConfObj{P}$ is the set of all \index{associated conformance requirement}associated conformance requirements in protocol $\texttt{P}$.
+\end{itemize}
+A composition operation is defined on various kinds of entities, written as \index{$\otimes$}$A \otimes B$. If a juxtaposition of three entities can be evaluated in two different ways, the result is always the same, so the composition operator is \emph{associative}: $A\otimes (B\otimes C) = (A\otimes B) \otimes C$.
+
+Substitution maps act on the right of types, conformances, and other substitution maps. This gives us \index{type substitution}type substitution (Section~\ref{substmaps}), \index{conformance substitution}conformance substitution (Chapter~\ref{conformances}) and \index{substitution map composition}substitution map composition (Section~\ref{submapcomposition}). This action produces a new entity of the same kind as the original:
+\begin{gather*}
+\TypeObj{G}\otimes\SubMapObj{G}{H}\longrightarrow\TypeObj{H}\\
+\ConfObj{G}\otimes\SubMapObj{G}{H}\longrightarrow\ConfObj{H}\\
+\SubMapObj{F}{G}\otimes\SubMapObj{G}{H}\longrightarrow\SubMapObj{F}{H}
+\end{gather*}
+Protocols act on the left of types (\index{global conformance lookup}global conformance lookup, Section~\ref{conformance lookup}):
+\[\ProtoObj\otimes\TypeObj{G}\longrightarrow\ConfObj{G}\]
+Associated type declarations act on the left of conformances (\index{type witness projection}type witness projection, Section~\ref{type witnesses}):
+\[\AssocTypeObj{P}\otimes\ConfPObj{P}{G}\longrightarrow\TypeObj{G}\]
+Associated conformance requirements act on the left of conformances (\index{associated conformance projection}associated conformance projection, Section~\ref{associated conformances}):
+\[\AssocConfObj{P}\otimes\ConfPObj{P}{G}\longrightarrow\ConfPObj{P}{G}\]
+
+\paragraph{Substitution maps}
+A substitution map is completely determined by its action on each generic parameter type and root abstract conformance. Type substitution with a \index{generic parameter type}generic parameter type projects the replacement type from the substitution map:
+\[\ttgp{d}{i} \otimes \SubstMapC{\ldots,\,\SubstType{\ttgp{d}{i}}{Int},\,\ldots}{\ldots} := \texttt{Int}\]
+Conformance substitution with a \index{root abstract conformance}root abstract conformance projects the corresponding conformance from the substitution map:
+\[
+\Conf{\texttt{T}}{Q} \otimes \SubstMapC{\ldots}{\ldots,\,\SubstConf{T}{G<Int>}{Q},\,\ldots} := \Conf{\texttt{G<Int>}}{Q}
+\]
+If $\texttt{T}\in\TypeObj{G_1}$, $\ConfReq{T}{P}\in\ConfPObj{P}{G_1}$, $\Sigma_1\in\SubMapObj{G_1}{G_2}$, $\Sigma_2\in\SubMapObj{G_2}{G_3}$, $\Sigma_3\in\SubMapObj{G_3}{G_4}$, then 
+\begin{gather*}
+(\texttt{T}\otimes \Sigma_1) \otimes \Sigma_2=\texttt{T}\otimes (\Sigma_1\otimes \Sigma_2)\\
+(\ConfReq{T}{P}\otimes \Sigma_1) \otimes \Sigma_2=\ConfReq{T}{P}\otimes (\Sigma_1\otimes \Sigma_2)\\
+(\Sigma_1\otimes \Sigma_2) \otimes \Sigma_3=\Sigma_1\otimes(\Sigma_2\otimes \Sigma_3)
+\end{gather*}
+
+\paragraph{Conformances} Type witness and associated conformance projection is compatible with conformance substitution. Suppose $\ConfReq{T}{P}\in\ConfPObj{P}{G}$, $\AssocType{[P]A}\in\AssocTypeObj{P}$, $\AssocConf{Self.U}{Q}\in\AssocConfObj{P}$, and $\Sigma\in\SubMapObj{G}{H}$, then
+\begin{gather*}
+\bigl(\AssocType{[P]A}\otimes \ConfReq{T}{P}\bigr)\otimes \Sigma=\AssocType{[P]A}\otimes (\ConfReq{T}{P}\otimes \Sigma)\\
+\bigl(\AssocConf{Self.U}{Q}\otimes \ConfReq{T}{P}\bigr)\otimes \Sigma=\AssocConf{Self.U}{Q}\otimes \bigl(\ConfReq{T}{P}\otimes \Sigma\bigr)
+\end{gather*}
+If $d$ is a \index{nominal type declaration}nominal type declaration conforming to \texttt{P}, and $G$ is the generic signature of the conformance context, then there exists a \index{normal conformance}normal conformance $\Conf{\texttt{T}_d}{P}\in\ConfPObj{P}{G}$, and
+\[\protosym{P}\otimes\texttt{T}_d=\Conf{\texttt{T}_d}{P}\]
+If $H$ is some other generic signature, $\Sigma\in\SubMapObj{G}{H}$, and $\texttt{T}=\texttt{T}_d\otimes \Sigma$, then there exists a \index{specialized conformance}specialized conformance $\Conf{\texttt{T}}{P}\in\ConfPObj{P}{H}$, and
+\[\protosym{P}\otimes\texttt{T}=\Conf{\texttt{T}_d}{P}\otimes \Sigma = \Conf{\texttt{T}}{P}\]
+If \texttt{T} is a \index{type parameter}type parameter of $G$ and the conformance requirement $\ConfReq{T}{P}$ can be derived from $G$, then there exists an \index{abstract conformance}abstract conformance $\Conf{\texttt{T}}{P}\in\ConfPObj{G}{P}$, and
+\[\protosym{P}\otimes\texttt{T} = \Conf{\texttt{T}}{P}\]
+Global conformance lookup is compatible with type substitution:
+\[(\protosym{P}\otimes\texttt{T})\otimes \Sigma = \texttt{P}\otimes(\texttt{T}\otimes \Sigma)\]
+
+\paragraph{Abstract conformances} The type witnesses of an abstract conformance are \index{dependent member type}dependent member types, and the associated conformances are other abstract conformances:
+\begin{gather*}
+\AssocType{[P]A} \otimes \Conf{\texttt{T}}{P} = \texttt{T.[P]A}\\
+\AssocConf{Self.U}{Q} \otimes \Conf{\texttt{T}}{P} = \Conf{\texttt{T.U}}{Q}
+\end{gather*}
+Applying a substitution map to an abstract conformance is called \index{local conformance lookup}local conformance lookup (Section~\ref{abstract conformances}). The first identity above defines substitution of dependent member types in terms of local conformance lookup:
+\[\texttt{T.[P]A} \otimes \Sigma = \AssocType{[P]A} \otimes (\Conf{\texttt{T}}{P} \otimes \Sigma)\]
+Every abstract conformance has a unique factorization as a \index{reduced conformance path}reduced conformance path. A conformance path is a sequence of zero or more associated conformance projections applied to an root abstract conformance:
+\[
+\AssocConf{Self.[$\texttt{P}_{n+1}$]$\texttt{A}_n$}{$\texttt{P}_n$}
+\otimes
+\cdots
+\otimes
+\AssocConf{Self.[$\texttt{P}_2$]$\texttt{A}_1$}{$\texttt{P}_1$}
+\otimes
+\Conf{\texttt{T}_0}{$\texttt{P}_0$}
+\]
+When applied to a non-root abstract conformance, local conformance lookup first factors the abstract conformance with a conformance path. Thus, applying a substitution map to a dependent member type breaks down into this juxtaposition of entities, from \emph{right} to \emph{left}:
+\begin{itemize}
+\item A substitution map.
+\item Then, a conformance path, consisting of a root abstract conformance, followed by zero or more associated conformance projections.
+\item Finally, a type witness projection.
+\end{itemize}
+The substituted type of a dependent member type is computed by taking a root conformance from the substitution map, following a chain of zero or more associated conformance projections, and finally projecting the type witness.
+
+\end{document}

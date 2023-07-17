@@ -1,0 +1,267 @@
+\documentclass[../generics]{subfiles}
+
+\begin{document}
+
+\chapter{Class Inheritance}\label{classinheritance}
+
+\ifWIP
+
+TODO:
+\begin{itemize}
+\item various rules around classes conforming to protocols---need to understand restrictions on protocol requirements and witnesses
+\item silly example:
+\begin{Verbatim}
+class Base<T, U> {
+ init(_: T) { print("a") }
+ init(_: U) { print("b") }
+}
+class Derived: Base<Int, Int> { }
+
+Derived(123)
+\end{Verbatim}
+\end{itemize}
+
+When a subclass inherits from a superclass, there is a subtype relationship between the subclass and superclass. If neither class is generic, the relationship is straightforward. Here, we have a pair of classes \texttt{C} and \texttt{D}; \texttt{D} inherits from \texttt{C}, so instances of \texttt{D} are also instances of \texttt{C}:
+\begin{Verbatim}
+class C {}
+class D {}
+
+let instanceOfD: D = D()
+let instanceOfC: C = instanceOfD  // okay
+\end{Verbatim}
+With generic classes, the situation is more subtle. The subclass \emph{declaration} states a superclass \emph{type}. The superclass type appears in the inheritance clause of the subclass, and can reference the subclass's generic parameters:
+\begin{Verbatim}
+class Base<T, U> {}
+class Derived<A>: Base<String, A> {}
+\end{Verbatim}
+Now, the declaration \texttt{Derived} has the generic superclass type \texttt{Base<String, A>}. Intuitively, we expect that \texttt{Derived<A>} is a subtype of \texttt{Base<String, A>}, and \texttt{Derived<Int>} is a subtype of \texttt{Base<String, Int>}, but that \texttt{Derived<Int>} and \texttt{Base<String, String>} are unrelated types.
+
+To get a complete picture of the subtype relationship, we need to define the concept of the superclass type \emph{of a type}, and not just the superclass type of a declaration.
+
+First of all, what is the superclass type of the declared interface type of a class? The superclass type of the class declaration is an interface type for the class declaration's generic signature, so we say that the superclass type of the declared interface type is just the superclass type of the declaration. In our example, this tells us that \texttt{Derived<A>} is a subtype of \texttt{Base<String, A>} and an unrelated type to \texttt{Base<Int, A>}.
+
+What about the superclass type of an arbitrary specialization of the class? Here, we rely on the property that a specialized type is the result of applying its context substitution map to the declared interface type. If we instead apply the context substitution map to the superclass type of the class declaration, we get the superclass type of our specialized type. This can be shown with a commutative diagram:
+\begin{quote}
+\begin{tikzcd}[column sep=3cm,row sep=1cm]
+\mathboxed{declared interface type} \arrow[d, "\text{superclass type}"{left}] \arrow[r, "\text{substitution}"] &\mathboxed{specialized type} \arrow[d, "\text{superclass type}"] \\
+\mathboxed{superclass type of declaration} \arrow[r, "\text{substitution}"]&\mathboxed{superclass type of type}
+\end{tikzcd}
+\end{quote}
+
+Now that we can compute the superclass type of a type, we can walk up the inheritance hierarchy by iterating the process, to get the superclass type of a superclass type, and so on.
+
+\fi
+
+\begin{algorithm}[Iterated superclass type]\label{superclassfordecl} As input, takes a class type \texttt{T} and a superclass declaration \texttt{D}. Returns the superclass type of \texttt{T} for \texttt{D}.
+\begin{enumerate}
+\item Let \texttt{C} be the class declaration referenced by \texttt{T}. If $\texttt{C}=\texttt{D}$, return \texttt{T}.
+\item If \texttt{C} does not have a superclass type, fail with an invariant violation; \texttt{D} is not actually a superclass of \texttt{T}.
+\item Otherwise, apply the context substitution map of \texttt{T} to the superclass type of \texttt{C}. Assign this new type to \texttt{T}, and go back to Step~1.
+\end{enumerate}
+\end{algorithm}
+
+\ifWIP
+
+\begin{listing}\captionabove{Computing superclass types}\label{generic superclass example listing}
+\begin{Verbatim}
+class Base<T> {
+  typealias C = () -> T
+}
+class Middle<T, U>: Base<(T, T)> {}
+class Derived: Middle<Int, String> {}
+
+let derived = Derived()
+let instanceOfMiddle: Middle<Int, String> = derived  // okay
+let instanceOfBase: Base<(Int, Int)> = derived  // okay
+\end{Verbatim}
+\end{listing}
+
+\begin{example}\label{genericsuperclassexample}
+Listing~\ref{generic superclass example listing} shows a class hierarchy demonstrating these behaviors:
+\begin{enumerate}
+\item The superclass type of \texttt{Derived} is \texttt{Middle<Int, String>}.
+\item The superclass type of \texttt{Middle} is \texttt{Base<(T, T)>}.
+\end{enumerate}
+The superclass type of the type \texttt{Middle<Int, String>} is the superclass type of \texttt{Middle} with the context substitution map of \texttt{Middle<Int, String>} applied:
+\[\texttt{Base<(T, T)>}\otimes
+\SubstMap{
+\SubstType{T}{Int}\\
+\SubstType{U}{String}
+} = \texttt{Base<(Int, Int)>}
+\]
+This means the superclass type of \texttt{Derived} with respect to \texttt{Base} is \texttt{Base<(Int, Int)>}.
+
+What is the type \texttt{Derived.C}? The type alias \texttt{C} is declared in \texttt{Base}. The superclass type of \texttt{Derived} with respect to \texttt{Base} is \texttt{Base<(Int, Int)>}. We can apply the context substitution map of this superclass type to the declared interface type of \texttt{C}:
+\[\texttt{() -> T}\otimes
+\SubstMap{
+\SubstType{T}{(Int, Int)}
+} = \texttt{() -> (Int, Int)}
+\]
+\end{example}
+
+We can finally describe the implementation of Case~3 of Definition~\ref{context substitution map for decl context}.
+
+The base type here is a class type, and the declaration context is some superclass declaration or an extension thereof. We first apply Algorithm~\ref{superclassfordecl} to the base type and superclass declaration to get the correct superclass type. Then, we compute the context substitution map of this superclass type with respect to our declaration context, which is now either the exact superclass declaration or an extension. Thus we have reduced the problem to Case~1, which we already know how to solve.
+
+TODO: example
+
+\fi
+
+\section{Inherited Conformances}\label{inheritedconformance}
+
+\ifWIP
+
+TODO:
+\begin{itemize}
+\item example where base class is not generic but subclass is -- two inherited conformances with same underlying specialized conformance
+\item behavior of inherited conformances under substitution
+\item restrictions on class conformances
+\item longest possible delegation chain is $inherited \rightarrow specialized \rightarrow normal$.
+\end{itemize}
+
+Protocol conformances are inherited from superclass to subclass. At each level of class inheritance, the conformance table of a subclass is initialized with a copy of the conformance table of the superclass, with the superclass substitution map applied to each inherited conformance.
+
+This behavior can be broken down into two cases. If a superclass directly conforms to a protocol, the superclass's conformance table will store a normal conformance. The subclass will inherit a specialized conformance built from this normal conformance together with the superclass substitution map. In the general case, the superclass conforms via an inherited conformance from further up the hierarchy, and the subclass conformance is built by composing the substitution map in some other specialized conformance with the superclass substitution map. In this way, an inherited conformance is ultimately derived from the normal conformance of some class further up in the hierarchy, specialized by the substitution map obtained by composing all superclass substitution maps at every level of inheritance, up to the base class declaring the conformance.
+
+The lookup conformance table machinery actually introduces an additional level of indirection by wrapping these specialized conformances in a bespoke \emph{inherited conformance} data type. Conformances store their conforming type; the defining invariant is that if a conformance was the result of a lookup, the stored conforming type should equal the original type of the lookup. With class inheritance however, the conforming type of a conformance declared on the superclass is ultimately always some substitution of the type of the superclass. An inherited conformance stores the original subclass type, but otherwise just delegates to an underlying conformance, either normal or specialized. By wrapping inherited conformances in a special type, the compiler is able to keep track of the original type of a conformance lookup.
+\begin{example}
+We can amend Example~\ref{genericsuperclassexample} to add a conformance to the \texttt{Base} class:
+\begin{Verbatim}
+protocol P {
+  associatedtype A
+}
+
+extension Base: P {}
+\end{Verbatim}
+The normal conformance \texttt{Base<T>:\ P} stores the type witness for \texttt{A}, which is \texttt{Array<T>}. Looking up the conformance \texttt{Derived:\ P} returns an inherited conformance. The inherited conformance reports its conforming type as \texttt{Derived} instead of \texttt{Base<(Int,~Int)>}, but otherwise delegates all operations to a specialized conformance with the substitution map $\texttt{T}:=\texttt{(Int, Int)}$. The specialized conformance in turn delegates to the normal conformance, but applies the substitution map when looking up type witnesses and associated conformances. Therefore, looking up the type witness for \texttt{A} in the inherited conformance \texttt{Derived:\ P} returns \texttt{Array<(Int,~Int)>}, which is the result of applying our substitution map to the type witness stored in the normal conformance.
+\end{example}
+
+\fi
+
+\section{Override Checking}\label{overridechecking}
+
+\ifWIP
+
+When a subclass overrides a method from a superclass, the type checker must ensure the subclass method is compatible with the superclass method in order to guarantee that instances of the subclass are dynamically interchangeable with a superclass. If neither the superclass nor the subclass are generic, the compatibility check simply compares the fully concrete parameter and result types of the non-generic declarations. Otherwise, the superclass substitution map plays a critical role yet again, because the compatibility relation must project the superclass method's type into the subclass to meaningfully compare it with the override.
+
+\paragraph{Non-generic overrides}
+The simple case is when the superclass or subclass is generic, but the superclass method does not define generic parameters of its own, either explicitly or via the opaque parameters of Section~\ref{opaque parameters}. Let's call such a method ``non-generic,'' even if the class it appears inside is generic. So a non-generic method has the same generic signature as its parent context, which in our case is a class. In the non-generic case, the superclass substitution map is enough to understand the relation between the interface type of the superclass method and its override.
+
+\begin{listing}\captionabove{Some method overrides}\label{method overrides}
+\begin{Verbatim}
+class Outer<T> {
+  class Inner<U> {
+    func doStuff(_: T, _: U) {}
+
+    func doGeneric<A: Equatable>(_: A) {}
+  }
+}
+
+class Derived<V>: Outer<Int>.Inner<(V, V)> {
+  func doStuff(_: Int, _: (V, V)) {}
+
+  override func doGeneric<A>(_: A) {}
+}
+\end{Verbatim}
+\end{listing}
+
+In Listing~\ref{method overrides}, the \texttt{Derived} class overrides the \texttt{doStuff()} method from \texttt{Outer.Inner}. Dropping the first level of function application from the interface type of \texttt{doStuff()} leaves us with \texttt{(T, U) -> ()}, to which we apply the superclass substitution map for \texttt{Derived} to get the final result:
+\[
+\texttt{(T, U) -> ()} \otimes
+\SubstMap{
+\SubstType{T}{Int}\\
+\SubstType{U}{(V, V)}
+} =
+\texttt{(Int, (V, V)) -> ()}
+\]
+This happens to exactly equal the interface type of the subclass method \texttt{doStuff()} in \texttt{Derived}, again not including the self clause. An override with an exact type match is valid. (In fact, some variance in parameter and return types is permitted as well, but it's not particularly interesting from a generics point of view, so here is the executive summary: an override can narrow the return type, and widen the parameter types. This means it is valid to override a method returning \texttt{Optional<T>} with a method returning \texttt{T}, because a \texttt{T} can also trivially become a \texttt{Optional<T>} via an injection. Similarly, if \texttt{A} is a superclass of \texttt{B}, a method returning \texttt{A} can be overridden to return \texttt{B}, because a \texttt{B} is always an \texttt{A}. A dual set of rules are in play in method parameter position; if the original method takes an \texttt{Int} the override can accept \texttt{Optional<Int>}, etc.)
+
+\paragraph{Generic overrides}
+In the non-generic case, applying the superclass substitution map directly to the interface type of a superclass method tells us what ``the type of the superclass method should be'' in the subclass, and this happens to work because the superclass method had the same generic signature as the superclass. Once this is no longer required to be so, the problem becomes more complicated, and the below details were not worked out until Swift 5.2 \cite{sr4206}.
+
+The generic signature of the superclass (resp. override) method is built by adding any additional generic parameters and requirements to the generic signature of the superclass (resp. subclass) itself. To relate these four generic signatures together, we generalize the superclass substitution map into something called the \emph{attaching map}. Once we can compute an attaching map, applying it to the interface type of the superclass method produces a substituted type which can be compared against the interface type of the override, just as before. However, while this part is still necessary, it is no longer sufficient, since we also need to compare the \emph{generic signatures} of the superclass method and its override for compatibility. Here the attaching map also plays a role.
+
+Overrides with a different number of innermost generic parameters are immediately known to be invalid, and no further checking needs to take place. (Interestingly enough, the names of generic parameters do not matter. Generic parameters are uniquely identified by depth and index, not name.) Once it is known that both generic signatures have the same number of innermost parameters, we can define a 1:1 correspondence between the two generic parameter lists which preserves the index but possibly changes the depth.
+
+We build the attaching map by ``extending'' the superclass substitution map, adding replacement types for the superclass method's innermost generic parameters, which map to the subclass method's generic parameters via the above correspondence. In addition to new replacement types, the attaching map stores conformances not present in the superclass substitution map, if the superclass method introduces conformance requirements.
+
+\begin{algorithm}[Compute attaching map for generic method override]\label{superclass attaching map} As input, takes the superclass method's generic signature \texttt{G}, the superclass declaration \texttt{B}, and some subclass declaration \texttt{D}. Outputs a substitution map for \texttt{G}.
+\begin{enumerate}
+\item Initialize \texttt{R} to an empty list of replacement types.
+\item Initialize \texttt{C} to an empty list of conformances.
+\item Let $\texttt{G}'$ be the generic signature of \texttt{B}, and let \texttt{T} be the declared interface type of \texttt{D}.
+\item (Trivial case) If $\texttt{D}=\texttt{B}$, return \texttt{G}.
+\item (Remapping) Let \texttt{S} be the context substitution map of \texttt{T} for the declaration context of \texttt{B}.
+\item (Replacements) For each generic parameter of \texttt{G}, check if this is a valid generic parameter in $\texttt{G}'$. If so, this is a generic parameter of the superclass, so apply \texttt{S} and record the replacement type in \texttt{R}. Otherwise, this is an innermost generic parameter of the superclass method. Adjust the depth of this parameter by subtracting the generic context depth of \texttt{B} and adding the generic context depth of \texttt{D}, and record a new generic parameter type with the adjusted depth but identical index in \texttt{R}.
+
+\item (Conformances) For each conformance requirement \texttt{T:\ P} of \texttt{G}, first check if \texttt{T} is a valid type in $\texttt{G}'$, and if \texttt{T} conforms to \texttt{P} in $\texttt{G}'$. If so, look up the conformance \texttt{T:\ P} in \texttt{S} and record the result in \texttt{C}. Otherwise, this is a new conformance requirement present in \texttt{G} but not $\texttt{G}'$. Record the abstract conformance to \texttt{P} in \texttt{C}.
+
+\item (Return) Return the substitution map for \texttt{G} from \texttt{R} and \texttt{C}.
+\end{enumerate}
+\end{algorithm}
+
+\begin{example}
+To continue the \texttt{doGeneric()} example from Listing~\ref{method overrides}, the superclass method defines a generic parameter \texttt{A} at depth 2, but the ``same'' parameter has depth 1 in the subclass method of \texttt{Derived}. For clarity, the attaching map is written with canonical types (otherwise, it would replace \texttt{A} with \texttt{A}, with a different meaning of \texttt{A} on each side):
+\[
+\SubstMapLongC{
+\SubstType{\ttgp{0}{0}}{Int}\\
+\SubstType{\ttgp{1}{0}}{(\ttgp{0}{0}, \ttgp{0}{0})}\\
+\SubstType{\ttgp{2}{0}}{\ttgp{1}{0}}
+}{
+\SubstConf{\ttgp{1}{0}}{(\ttgp{0}{0}, \ttgp{0}{0})}{Equatable}
+}
+\]
+\end{example}
+
+\paragraph{The override signature}
+The attaching map is called such because it allows us to ``glue'' together the generic signature of the superclass method with the generic signature of the subclass type, and build the expected generic signature of the subclass method, also known as the \emph{override signature}. The expected generic signature can then be compared against the actual generic signature of the subclass method.
+
+The actual generic signature of the subclass method is constructed from three parts:
+\begin{enumerate}
+\item the generic signature of the subclass type
+\item the subclass method's innermost generic parameters
+\item any additional generic requirements imposed by the subclass method
+\end{enumerate}
+The computation of the expected generic signature is similar, except in place of the third step, we build the additional requirements by applying the attaching map to each requirement of the \emph{superclass} method.
+\begin{algorithm}[Compute override generic signature] As input, takes the superclass method's generic signature \texttt{G}, the superclass declaration \texttt{B}, and some subclass declaration \texttt{D}. Outputs a new generic signature.
+\begin{enumerate}
+\item Initialize \texttt{P} to an empty list of generic parameter types.
+\item Initialize \texttt{R} to an empty list of generic requirements.
+\item Let \texttt{S} be the attaching map for \texttt{G}, \texttt{B} and \texttt{D} computed using Algorithm~\ref{superclass attaching map}.
+\item (Parent signature) Let $\texttt{G}''$ be the generic signature of \texttt{D}. (In Algorithm~\ref{superclass attaching map}, $\texttt{G}'$ was used for the generic signature of \texttt{B}.)
+\item (Additional parameters) For each generic parameter of \texttt{G} at the innermost depth, apply \texttt{S} to the generic parameter. By construction, the result is another generic parameter type; record this type in \texttt{P}.
+\item (Additional requirements) For each requirement of \texttt{G}, apply \texttt{S} to the requirement and record the result in \texttt{R}.
+\item (Return) Build a minimized generic signature from $\texttt{G}''$, \texttt{P} and \texttt{R}, and return the result.
+\end{enumerate}
+\end{algorithm}
+
+For the override to satisfy the contract of the superclass method, it should accept any valid set of concrete type arguments also accepted by the superclass method. The override might be more permissive, however. The correct relation is that each generic requirement of the actual override signature must be satisfied by the expected override signature, but not necessarily vice versa. This uses the same mechanism as conditional requirement checking for conditional conformances, described in Section~\ref{conditional conformance}. The requirements of one signature can be mapped to archetypes of the primary generic environment of another signature. This makes the requirement types concrete, which allows the \texttt{isSatisfied()} predicate to be checked against the substituted requirement.
+
+\begin{example} In Listing~\ref{method overrides}, the superclass method generic signature is \texttt{<T, U, A where A: Equatable>}. The generic parameter \texttt{A} belongs to the method; the other two are from the generic signature of the superclass. The override signature glues together the innermost generic parameters and their requirements from the superclass method with the generic signature of the subclass, which is \texttt{<V>}. This operation produces the signature \texttt{<V, A where A:\ Equatable>}. This is different from the actual override generic signature of \texttt{doStuff()} in \texttt{Derived}, which is \texttt{<V, A>}. However, the actual signature's requirements are satisfied by the expected signature.
+\end{example}
+
+\fi
+
+\section{Designated Initializer Inheritance}
+
+\iffalse
+
+TODO:
+\begin{itemize}
+\item Initializer or constructor?
+\item Substitute requirements + build new signature
+\item The rules
+\item Worked example
+\end{itemize}
+
+\fi
+
+\section{Source Code Reference}
+
+\iffalse
+
+TODO:
+
+\fi
+
+\end{document}

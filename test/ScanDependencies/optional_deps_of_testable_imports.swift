@@ -12,6 +12,7 @@
 
 // Step 3: scan dependencies
 // RUN: %target-swift-frontend -scan-dependencies %s -o %t/deps.json -I %t -sdk %t -prebuilt-module-cache-path %t/clang-module-cache -I %S/Inputs/CHeaders -I %S/Inputs/Swift
+// RUN: %validate-json %t/deps.json | %FileCheck %s
 
 // The dependency of `Foo` on `A` will not be visible if the scanner simply scans the textual interface
 // of `Foo`. So we verify that for a `@testable` import, the scanner also opens up the adjacent binary module and

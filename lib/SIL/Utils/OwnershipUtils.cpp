@@ -850,24 +850,10 @@ void BorrowedValue::print(llvm::raw_ostream &os) const {
 
 void BorrowedValue::getLocalScopeEndingInstructions(
     SmallVectorImpl<SILInstruction *> &scopeEndingInsts) const {
-  assert(isLocalScope() && "Should only call this given a local scope");
-
-  switch (kind) {
-  case BorrowedValueKind::Invalid:
-    llvm_unreachable("Using invalid case?!");
-  case BorrowedValueKind::SILFunctionArgument:
-    llvm_unreachable("Should only call this with a local scope");
-  case BorrowedValueKind::BeginBorrow:
-  case BorrowedValueKind::LoadBorrow:
-  case BorrowedValueKind::Phi:
-    for (auto *use : value->getUses()) {
-      if (use->isLifetimeEnding()) {
-        scopeEndingInsts.push_back(use->getUser());
-      }
-    }
-    return;
-  }
-  llvm_unreachable("Covered switch isn't covered?!");
+  visitLocalScopeEndingUses([&](auto *use) {
+    scopeEndingInsts.push_back(use->getUser());
+    return true;
+  });
 }
 
 // Note: BorrowedLifetimeExtender assumes no intermediate values between a

@@ -2956,6 +2956,30 @@ class Serializer::DeclSerializer : public DeclVisitor<DeclSerializer> {
       return;
     }
 
+    case DAK_StorageRestrictions: {
+      auto abbrCode = S.DeclTypeAbbrCodes[AccessesDeclAttrLayout::Code];
+      auto attr = cast<StorageRestrictionsAttr>(DA);
+
+      SmallVector<IdentifierID, 4> properties;
+
+      llvm::transform(attr->getInitializesNames(),
+                      std::back_inserter(properties),
+                      [&](Identifier propertyName) {
+                        return S.addDeclBaseNameRef(propertyName);
+                      });
+
+      llvm::transform(attr->getAccessesNames(),
+                      std::back_inserter(properties),
+                      [&](Identifier propertyName) {
+                        return S.addDeclBaseNameRef(propertyName);
+                      });
+
+      StorageRestrictionsDeclAttrLayout::emitRecord(
+          S.Out, S.ScratchRecord, abbrCode, attr->getNumInitializesProperties(),
+          properties);
+      return;
+    }
+
     case DAK_DynamicReplacement: {
       auto abbrCode =
           S.DeclTypeAbbrCodes[DynamicReplacementDeclAttrLayout::Code];

@@ -888,6 +888,24 @@ namespace RuntimeConstants {
     return RuntimeAvailability::AlwaysAvailable;
   }
 
+  RuntimeAvailability SignedConformsToProtocolAvailability(ASTContext &context) {
+    auto featureAvailability =
+        context.getSignedConformsToProtocolAvailability();
+    if (!isDeploymentAvailabilityContainedIn(context, featureAvailability)) {
+      return RuntimeAvailability::ConditionallyAvailable;
+    }
+    return RuntimeAvailability::AlwaysAvailable;
+  }
+
+  RuntimeAvailability SignedDescriptorAvailability(ASTContext &context) {
+    auto featureAvailability =
+        context.getSignedDescriptorAvailability();
+    if (!isDeploymentAvailabilityContainedIn(context, featureAvailability)) {
+      return RuntimeAvailability::ConditionallyAvailable;
+    }
+    return RuntimeAvailability::AlwaysAvailable;
+  }
+
   RuntimeAvailability TaskRunInlineAvailability(ASTContext &context) {
     if (context.LangOpts.isConcurrencyModelTaskToThread()) {
       return RuntimeAvailability::AlwaysAvailable;

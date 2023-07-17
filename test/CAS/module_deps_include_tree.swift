@@ -6,6 +6,7 @@
 
 // RUN: %target-swift-frontend -scan-dependencies -module-cache-path %t/clang-module-cache %s -o %t/deps.json -I %S/../ScanDependencies/Inputs/CHeaders -I %S/../ScanDependencies/Inputs/Swift -emit-dependencies -emit-dependencies-path %t/deps.d -import-objc-header %S/../ScanDependencies/Inputs/CHeaders/Bridging.h -swift-version 4 -cache-compile-job -cas-path %t/cas -clang-include-tree
 // Check the contents of the JSON output
+// RUN: %validate-json %t/deps.json &>/dev/null
 // RUN: %FileCheck -check-prefix CHECK -check-prefix CHECK_NO_CLANG_TARGET %s < %t/deps.json
 
 // Check the contents of the JSON output
@@ -15,11 +16,13 @@
 // RUN: %FileCheck %s -check-prefix CHECK-MAKE-DEPS < %t/deps.d
 
 // RUN: %target-swift-frontend -scan-dependencies -test-dependency-scan-cache-serialization -module-cache-path %t/clang-module-cache %s -o %t/deps.json -I %S/../ScanDependencies/Inputs/CHeaders -I %S/../ScanDependencies/Inputs/Swift -import-objc-header %S/../ScanDependencies/Inputs/CHeaders/Bridging.h -swift-version 4 -cache-compile-job -cas-path %t/cas -clang-include-tree
+// RUN: %validate-json %t/deps.json &>/dev/null
 // RUN: %FileCheck -check-prefix CHECK -check-prefix CHECK_NO_CLANG_TARGET %s < %t/deps.json
 
 // Ensure that scanning with `-clang-target` makes sure that Swift modules' respective PCM-dependency-build-argument sets do not contain target triples.
 // RUN: %target-swift-frontend -scan-dependencies -module-cache-path %t/clang-module-cache %s -o %t/deps_clang_target.json -I %S/../ScanDependencies/Inputs/CHeaders -I %S/../ScanDependencies/Inputs/Swift -import-objc-header %S/../ScanDependencies/Inputs/CHeaders/Bridging.h -swift-version 4 -clang-target %target-cpu-apple-macosx10.14 -cache-compile-job -cas-path %t/cas -clang-include-tree
 // Check the contents of the JSON output
+// RUN: %validate-json %t/deps_clang_target.json &>/dev/null
 // RUN: %FileCheck -check-prefix CHECK_CLANG_TARGET %s < %t/deps_clang_target.json
 
 /// check cas-fs content
@@ -28,6 +31,10 @@
 
 // RUN: %S/Inputs/SwiftDepsExtractor.py %t/deps.json clang:F clangIncludeTree > %t/F_tree.casid
 // RUN: clang-cas-test --cas %t/cas --print-include-tree @%t/F_tree.casid | %FileCheck %s -check-prefix INCLUDE_TREE_F
+
+/// make sure the number of CASFS is correct. 10 entries with 2 line each + 1 extra bracket
+// RUN: NUM_CMDS=$(%S/Inputs/SwiftDepsExtractor.py %t/deps.json deps commandLine | wc -l)
+// RUN: if [ ! $NUM_CMDS -eq 21 ]; then echo "wrong number of CASFS from scanning"; exit 1; fi
 
 // FS_ROOT_E-DAG: E.swiftinterface
 // FS_ROOT_E-DAG: SDKSettings.json

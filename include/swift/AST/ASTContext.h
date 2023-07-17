@@ -929,6 +929,14 @@ public:
   /// variadic generic types.
   AvailabilityContext getVariadicGenericTypeAvailability();
 
+  /// Get the runtime availability of the conformsToProtocol runtime entrypoint
+  /// that takes a signed protocol descriptor pointer.
+  AvailabilityContext getSignedConformsToProtocolAvailability();
+
+  /// Get the runtime availability of runtime entrypoints that take signed type
+  /// descriptors.
+  AvailabilityContext getSignedDescriptorAvailability();
+
   /// Get the runtime availability of features introduced in the Swift 5.2
   /// compiler for the target platform.
   AvailabilityContext getSwift52Availability();

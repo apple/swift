@@ -79,4 +79,10 @@ FieldsTestSuite.test("Derived from class template") {
   expectEqual(derived.value, 42)
 }
 
+FieldsTestSuite.test("Same field from derived") {
+  var derived = DerivedWithSameField()
+  derived.a = 42
+  expectEqual(derived.a, 42)
+}
+
 runAllTests()

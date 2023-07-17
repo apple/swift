@@ -2072,7 +2072,7 @@ public:
     if (!assocType) return BuiltType();
 
     auto projectDependentMemberType = [&](const Metadata *baseMetadata) -> const Metadata * {
-      auto witnessTable = swift_conformsToProtocol(baseMetadata, swiftProtocol);
+      auto witnessTable = swift_conformsToProtocolCommon(baseMetadata, swiftProtocol);
       if (!witnessTable)
         return nullptr;
 
@@ -2343,9 +2343,9 @@ swift_getTypeByMangledNameInEnvironmentInMetadataState(
   return result.getType().getMetadata();
 }
 
-SWIFT_CC(swift) SWIFT_RUNTIME_EXPORT
+static
 const Metadata * _Nullable
-swift_getTypeByMangledNameInContext(
+swift_getTypeByMangledNameInContextImpl(
                         const char *typeNameStart,
                         size_t typeNameLength,
                         const TargetContextDescriptor<InProcess> *context,
@@ -2376,7 +2376,38 @@ swift_getTypeByMangledNameInContext(
 
 SWIFT_CC(swift) SWIFT_RUNTIME_EXPORT
 const Metadata * _Nullable
-swift_getTypeByMangledNameInContextInMetadataState(
+swift_getTypeByMangledNameInContext2(
+                        const char *typeNameStart,
+                        size_t typeNameLength,
+                        const TargetContextDescriptor<InProcess> *context,
+                        const void * const *genericArgs) {
+  context = swift_auth_data_non_address(
+      context, SpecialPointerAuthDiscriminators::ContextDescriptor);
+  return swift_getTypeByMangledNameInContextImpl(typeNameStart, typeNameLength,
+                                                 context, genericArgs);
+}
+
+SWIFT_CC(swift) SWIFT_RUNTIME_EXPORT
+const Metadata * _Nullable
+swift_getTypeByMangledNameInContext(
+                        const char *typeNameStart,
+                        size_t typeNameLength,
+                        const void *context,
+                        const void * const *genericArgs) {
+  // This call takes `context` without a ptrauth signature. We
+  // declare it as `void *` to avoid the implicit ptrauth we get from
+  // the ptrauth_struct attribute. The static_cast implicitly signs the
+  // pointer when we call through to the implementation in
+  // swift_getTypeByMangledNameInContextImpl.
+  return swift_getTypeByMangledNameInContextImpl(
+      typeNameStart, typeNameLength,
+      static_cast<const TargetContextDescriptor<InProcess> *>(context),
+      genericArgs);
+}
+
+static
+const Metadata * _Nullable
+swift_getTypeByMangledNameInContextInMetadataStateImpl(
                         size_t metadataState,
                         const char *typeNameStart,
                         size_t typeNameLength,
@@ -2404,7 +2435,39 @@ swift_getTypeByMangledNameInContextInMetadataState(
     return nullptr;
   }
   return result.getType().getMetadata();
+}
 
+SWIFT_CC(swift) SWIFT_RUNTIME_EXPORT
+const Metadata * _Nullable
+swift_getTypeByMangledNameInContextInMetadataState2(
+                        size_t metadataState,
+                        const char *typeNameStart,
+                        size_t typeNameLength,
+                        const TargetContextDescriptor<InProcess> *context,
+                        const void * const *genericArgs) {
+  context = swift_auth_data_non_address(
+      context, SpecialPointerAuthDiscriminators::ContextDescriptor);
+  return swift_getTypeByMangledNameInContextInMetadataStateImpl(
+      metadataState, typeNameStart, typeNameLength, context, genericArgs);
+}
+
+SWIFT_CC(swift) SWIFT_RUNTIME_EXPORT
+const Metadata * _Nullable
+swift_getTypeByMangledNameInContextInMetadataState(
+                        size_t metadataState,
+                        const char *typeNameStart,
+                        size_t typeNameLength,
+                        const void *context,
+                        const void * const *genericArgs) {
+  // This call takes `descriptor` without a ptrauth signature. We
+  // declare it as `void *` to avoid the implicit ptrauth we get from
+  // the ptrauth_struct attribute. The static_cast implicitly signs the
+  // pointer when we call through to the implementation in
+  // swift_getTypeByMangledNameInContextInMetadataState2.
+  return swift_getTypeByMangledNameInContextInMetadataStateImpl(
+      metadataState, typeNameStart, typeNameLength,
+      static_cast<const TargetContextDescriptor<InProcess> *>(context),
+      genericArgs);
 }
 
 /// Demangle a mangled name, but don't allow symbolic references.
@@ -2680,9 +2743,9 @@ swift_distributed_getWitnessTables(GenericEnvironmentDescriptor *genericEnv,
 
 // ==== End of Function metadata functions ---------------------------------------
 
-SWIFT_CC(swift) SWIFT_RUNTIME_EXPORT
+static
 MetadataResponse
-swift_getOpaqueTypeMetadata(MetadataRequest request,
+swift_getOpaqueTypeMetadataImpl(MetadataRequest request,
                             const void * const *arguments,
                             const OpaqueTypeDescriptor *descriptor,
                             unsigned index) {
@@ -2700,14 +2763,63 @@ swift_getOpaqueTypeMetadata(MetadataRequest request,
 }
 
 SWIFT_CC(swift) SWIFT_RUNTIME_EXPORT
+MetadataResponse
+swift_getOpaqueTypeMetadata2(MetadataRequest request,
+                            const void * const *arguments,
+                            const OpaqueTypeDescriptor *descriptor,
+                            unsigned index) {
+  descriptor = swift_auth_data_non_address(
+      descriptor, SpecialPointerAuthDiscriminators::OpaqueTypeDescriptor);
+  return swift_getOpaqueTypeMetadataImpl(request, arguments, descriptor, index);
+}
+
+SWIFT_CC(swift) SWIFT_RUNTIME_EXPORT
+MetadataResponse
+swift_getOpaqueTypeMetadata(MetadataRequest request,
+                            const void * const *arguments,
+                            const void *descriptor,
+                            unsigned index) {
+  // This call takes `descriptor` without a ptrauth signature. We
+  // declare it as `void *` to avoid the implicit ptrauth we get from
+  // the ptrauth_struct attribute. The static_cast implicitly signs the
+  // pointer when we call through to the implementation in
+  // swift_getOpaqueTypeMetadataImpl.
+  return swift_getOpaqueTypeMetadataImpl(
+      request, arguments, static_cast<const OpaqueTypeDescriptor *>(descriptor),
+      index);
+}
+
+static const WitnessTable *
+swift_getOpaqueTypeConformanceImpl(const void *const *arguments,
+                                   const OpaqueTypeDescriptor *descriptor,
+                                   unsigned index) {
+  auto response = swift_getOpaqueTypeMetadataImpl(
+      MetadataRequest(MetadataState::Complete), arguments, descriptor, index);
+  return (const WitnessTable *)response.Value;
+}
+
+SWIFT_CC(swift) SWIFT_RUNTIME_EXPORT
 const WitnessTable *
-swift_getOpaqueTypeConformance(const void * const *arguments,
+swift_getOpaqueTypeConformance2(const void * const *arguments,
                                const OpaqueTypeDescriptor *descriptor,
                                unsigned index) {
-  auto response = swift_getOpaqueTypeMetadata(
-                                    MetadataRequest(MetadataState::Complete),
-                                    arguments, descriptor, index);
-  return (const WitnessTable *)response.Value;
+  descriptor = swift_auth_data_non_address(
+      descriptor, SpecialPointerAuthDiscriminators::OpaqueTypeDescriptor);
+  return swift_getOpaqueTypeConformanceImpl(arguments, descriptor, index);
+}
+
+SWIFT_CC(swift) SWIFT_RUNTIME_EXPORT
+const WitnessTable *
+swift_getOpaqueTypeConformance(const void * const *arguments,
+                               const void *descriptor,
+                               unsigned index) {
+  // This call takes `descriptor` without a ptrauth signature. We
+  // declare it as `void *` to avoid the implicit ptrauth we get from
+  // the ptrauth_struct attribute. The static_cast implicitly signs the
+  // pointer when we call through to the implementation in
+  // swift_getOpaqueTypeConformanceImpl.
+  return swift_getOpaqueTypeConformanceImpl(
+      arguments, static_cast<const OpaqueTypeDescriptor *>(descriptor), index);
 }
 
 #if SWIFT_OBJC_INTEROP

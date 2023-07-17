@@ -72,7 +72,7 @@ func testAcceptColorTagged(paramIntVal: Int, paramStringVal: String) {
 
   acceptColorTagged { color in
     paramIntVal.tag(#^IN_CLOSURE_COLOR_CONTEXT^#)
-// IN_CLOSURE_COLOR_CONTEXT-DAG: Decl[LocalVar]/Local:               color; name=color
+// IN_CLOSURE_COLOR_CONTEXT-DAG: Decl[LocalVar]/Local:               color[#Color#]; name=color
 // IN_CLOSURE_COLOR_CONTEXT-DAG: Decl[LocalVar]/Local:               taggedValue[#Tagged<Color, Int>#]; name=taggedValue
 // IN_CLOSURE_COLOR_CONTEXT-DAG: Decl[LocalVar]/Local:               paramIntVal[#Int#]; name=paramIntVal
 // IN_CLOSURE_COLOR_CONTEXT-DAG: Decl[LocalVar]/Local:               paramStringVal[#String#]; name=paramStringVal

@@ -359,6 +359,13 @@ static void createConjunction(ConstraintSystem &cs,
     isIsolated = true;
   }
 
+  if (locator->directlyAt<TapExpr>()) {
+    // Body of the interpolation is always isolated from its context, only
+    // its individual elements are allowed access to type information
+    // from the outside e.g. external declaration references.
+    isIsolated = true;
+  }
+
   UnresolvedVarCollector paramCollector(cs);
 
   for (const auto &entry : elements) {
@@ -410,12 +417,14 @@ ElementInfo makeJoinElement(ConstraintSystem &cs, TypeJoinExpr *join,
 
 struct SyntacticElementContext
     : public llvm::PointerUnion<AbstractFunctionDecl *, AbstractClosureExpr *,
-                                SingleValueStmtExpr *, ExprPattern *> {
+                                SingleValueStmtExpr *, ExprPattern *, TapExpr *> {
   // Inherit the constructors from PointerUnion.
   using PointerUnion::PointerUnion;
 
   /// A join that should be applied to the elements of a SingleValueStmtExpr.
   NullablePtr<TypeJoinExpr> ElementJoin;
+
+  static SyntacticElementContext forTapExpr(TapExpr *tap) { return {tap}; }
 
   static SyntacticElementContext forFunctionRef(AnyFunctionRef ref) {
     if (auto *decl = ref.getAbstractFunctionDecl()) {
@@ -454,6 +463,8 @@ struct SyntacticElementContext
       return SVE->getDeclContext();
     } else if (auto *EP = dyn_cast<ExprPattern *>()) {
       return EP->getDeclContext();
+    } else if (auto *tap = this->dyn_cast<TapExpr *>()) {
+      return tap->getVar()->getDeclContext();
     } else {
       llvm_unreachable("unsupported kind");
     }
@@ -489,6 +500,8 @@ struct SyntacticElementContext
       return closure->getBody();
     } else if (auto *SVE = dyn_cast<SingleValueStmtExpr *>()) {
       return SVE->getStmt();
+    } else if (auto *tap = this->dyn_cast<TapExpr *>()) {
+      return tap->getBody();
     } else {
       llvm_unreachable("unsupported kind");
     }
@@ -1154,17 +1167,26 @@ private:
     for (auto element : braceStmt->getElements()) {
       if (cs.isForCodeCompletion() &&
           !cs.containsIDEInspectionTarget(element)) {
-        // Statements and expressions can't influence the expresion that
-        // contains the code completion token. To improve performance, skip
-        // type checking them entirely.
-        if (element.is<Expr *>() && !element.isExpr(ExprKind::TypeJoin)) {
-          // Type join expressions are not really pure expressions, they kind of
-          // declare new type variables and are important to a result builder's
-          // structure. Don't skip them.
-          continue;
-        } else if (element.is<Stmt *>() && !element.isStmt(StmtKind::Guard)) {
+        // To improve performance, skip type checking elements that can't
+        // influence the code completion token.
+        if (element.is<Stmt *>() && !element.isStmt(StmtKind::Guard) && !element.isStmt(StmtKind::Return)) {
+          // Statements can't influence the expresion that contains the code
+          // completion token.
           // Guard statements might define variables that are used in the code
           // completion expression. Don't skip them.
+          // Return statements influence the type of the closure itself. Don't
+          // skip them either.
+          continue;
+        }
+        if (element.isExpr(ExprKind::Assign)) {
+          // Assignments are also similar to statements and can't influence the
+          // code completion token.
+          continue;
+        }
+        if (element.isExpr(ExprKind::Error)) {
+          // ErrorExpr can't influcence the expresssion that contains the code
+          // completion token. Since they are causing type checking to abort
+          // early, just skip them.
           continue;
         }
       }
@@ -1369,6 +1391,22 @@ private:
 };
 }
 
+bool ConstraintSystem::generateConstraints(TapExpr *tap) {
+  SyntacticElementConstraintGenerator generator(
+      *this, SyntacticElementContext::forTapExpr(tap),
+      getConstraintLocator(tap));
+
+  auto *body = tap->getBody();
+
+  if (!body) {
+    assert(tap->getSubExpr());
+    return false;
+  }
+
+  generator.visit(tap->getBody());
+  return generator.hadError;
+}
+
 bool ConstraintSystem::generateConstraints(AnyFunctionRef fn, BraceStmt *body) {
   NullablePtr<ConstraintLocator> locator;
 
@@ -1542,6 +1580,8 @@ ConstraintSystem::simplifySyntacticElementConstraint(
     context = SyntacticElementContext::forSingleValueStmtExpr(SVE);
   } else if (auto *EP = getAsPattern<ExprPattern>(anchor)) {
     context = SyntacticElementContext::forExprPattern(EP);
+  } else if (auto *tap = getAsExpr<TapExpr>(anchor)) {
+    context = SyntacticElementContext::forTapExpr(tap);
   } else {
     return SolutionKind::Error;
   }
@@ -1605,7 +1645,6 @@ class SyntacticElementSolutionApplication
 protected:
   Solution &solution;
   SyntacticElementContext context;
-  Type resultType;
   RewriteTargetFn rewriteTarget;
 
   /// All `func`s declared in the body of the closure.
@@ -1618,24 +1657,39 @@ public:
   SyntacticElementSolutionApplication(Solution &solution,
                                       SyntacticElementContext context,
                                       RewriteTargetFn rewriteTarget)
-      : solution(solution), context(context), rewriteTarget(rewriteTarget) {
-    if (auto fn = AnyFunctionRef::fromDeclContext(context.getAsDeclContext())) {
-      if (auto transform = solution.getAppliedBuilderTransform(*fn)) {
-        resultType = solution.simplifyType(transform->bodyResultType);
-      } else if (auto *closure =
-                     getAsExpr<ClosureExpr>(fn->getAbstractClosureExpr())) {
-        resultType = solution.getResolvedType(closure)
-                         ->castTo<FunctionType>()
-                         ->getResult();
-      } else {
-        resultType = fn->getBodyResultType();
-      }
-    }
-  }
+      : solution(solution), context(context), rewriteTarget(rewriteTarget) {}
 
   virtual ~SyntacticElementSolutionApplication() {}
 
 private:
+  Type getContextualResultType() const {
+    // Taps do not have a contextual result type.
+    if (context.is<TapExpr *>()) {
+      return Type();
+    }
+
+    auto fn = context.getAsAnyFunctionRef();
+
+    if (context.is<SingleValueStmtExpr *>()) {
+      // if/switch expressions can have `return` inside.
+      fn = AnyFunctionRef::fromDeclContext(context.getAsDeclContext());
+    }
+
+    if (fn) {
+      if (auto transform = solution.getAppliedBuilderTransform(*fn)) {
+        return solution.simplifyType(transform->bodyResultType);
+      } else if (auto *closure =
+                     getAsExpr<ClosureExpr>(fn->getAbstractClosureExpr())) {
+        return solution.getResolvedType(closure)
+            ->castTo<FunctionType>()
+            ->getResult();
+      } else {
+        return fn->getBodyResultType();
+      }
+    }
+
+    return Type();
+  }
 
   ASTNode visit(Stmt *S, bool performSyntacticDiagnostics = true) {
     auto rewritten = ASTVisitor::visit(S);
@@ -1991,17 +2045,18 @@ private:
     auto closure = context.getAsAbstractClosureExpr();
     if (closure && !closure.get()->hasSingleExpressionBody() &&
         closure.get()->getBody() == braceStmt) {
+      auto resultType = getContextualResultType();
       if (resultType->getOptionalObjectType() &&
           resultType->lookThroughAllOptionalTypes()->isVoid() &&
           !braceStmt->getLastElement().isStmt(StmtKind::Return)) {
-        return addImplicitVoidReturn(braceStmt);
+        return addImplicitVoidReturn(braceStmt, resultType);
       }
     }
 
     return braceStmt;
   }
 
-  ASTNode addImplicitVoidReturn(BraceStmt *braceStmt) {
+  ASTNode addImplicitVoidReturn(BraceStmt *braceStmt, Type contextualResultTy) {
     auto &cs = solution.getConstraintSystem();
     auto &ctx = cs.getASTContext();
 
@@ -2016,7 +2071,7 @@ private:
     // number of times.
     {
       SyntacticElementTarget target(resultExpr, context.getAsDeclContext(),
-                                    CTP_ReturnStmt, resultType,
+                                    CTP_ReturnStmt, contextualResultTy,
                                     /*isDiscarded=*/false);
       cs.setTargetFor(returnStmt, target);
 
@@ -2036,6 +2091,8 @@ private:
 
   ASTNode visitReturnStmt(ReturnStmt *returnStmt) {
     auto &cs = solution.getConstraintSystem();
+
+    auto resultType = getContextualResultType();
 
     if (!returnStmt->hasResult()) {
       // If contextual is not optional, there is nothing to do here.
@@ -2530,8 +2587,23 @@ bool ConstraintSystem::applySolutionToBody(Solution &solution,
   return false;
 }
 
+bool ConstraintSystem::applySolutionToBody(Solution &solution, TapExpr *tapExpr,
+                                           DeclContext *&currentDC,
+                                           RewriteTargetFn rewriteTarget) {
+  SyntacticElementSolutionApplication application(
+      solution, SyntacticElementContext::forTapExpr(tapExpr), rewriteTarget);
+
+  auto body = application.apply();
+
+  if (!body || application.hadError)
+    return true;
+
+  tapExpr->setBody(castToStmt<BraceStmt>(body));
+  return false;
+}
+
 bool ConjunctionElement::mightContainCodeCompletionToken(
-    const ConstraintSystem &cs) const {
+  const ConstraintSystem &cs) const {
   if (Element->getKind() == ConstraintKind::SyntacticElement) {
     if (Element->getSyntacticElement().getSourceRange().isInvalid()) {
       return true;

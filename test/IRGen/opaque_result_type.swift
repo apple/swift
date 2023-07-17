@@ -192,7 +192,7 @@ public func useFoo(x: String, y: C) {
 
 // CHECK-LABEL: define {{.*}} @"$s18opaque_result_type6useFoo1x1yySS_AA1CCtF"
 // CHECK: [[OPAQUE:%.*]] = call {{.*}} @"$s18opaque_result_type3baz1zQrx_tAA1PRzAA1QRzlFQOMg"
-// CHECK: [[CONFORMANCE:%.*]] = call swiftcc ptr @swift_getOpaqueTypeConformance(ptr {{.*}}, ptr [[OPAQUE]], [[WORD:i32|i64]] 1)
+// CHECK: [[CONFORMANCE:%.*]] = call swiftcc ptr @swift_getOpaqueTypeConformance{{2?}}(ptr {{.*}}, ptr [[OPAQUE]], [[WORD:i32|i64]] 1)
 // CHECK: [[TYPE:%.*]] = call {{.*}} @__swift_instantiateConcreteTypeFromMangledName{{.*}}({{.*}} @"$s18opaque_result_type3baz1zQrx_tAA1PRzAA1QRzlFQOyAA1CCQo_MD")
 // CHECK: call swiftcc ptr @swift_getAssociatedConformanceWitness(ptr [[CONFORMANCE]], ptr [[TYPE]]
 
@@ -210,7 +210,7 @@ public func gimmeBoom() -> Any {
 
 // CHECK-LABEL: define {{.*}} @"$sSS18opaque_result_type1PAA1AAaBP_AA1OPWT"
 // CHECK: [[OPAQUE:%.*]] = call {{.*}} @"$sSS18opaque_result_typeE3pooQryFQOMg"
-// CHECK: call swiftcc ptr @swift_getOpaqueTypeConformance(ptr {{.*}}, ptr [[OPAQUE]], [[WORD]] 1)
+// CHECK: call swiftcc ptr @swift_getOpaqueTypeConformance{{2?}}(ptr {{.*}}, ptr [[OPAQUE]], [[WORD]] 1)
 
 // rdar://problem/49585457
 protocol R {

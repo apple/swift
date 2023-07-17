@@ -93,8 +93,7 @@
 // CHECK-NEXT: SWIFT_IMPORT_STDLIB_SYMBOL extern size_t $sSdN;
 // CHECK-NEXT: // type metadata address for OpaquePointer.
 // CHECK-NEXT: SWIFT_IMPORT_STDLIB_SYMBOL extern size_t $ss13OpaquePointerVN;
-// CHECK-EMPTY:
-// CHECK-NEXT: #ifdef __cplusplus
+// CHECK: #ifdef __cplusplus
 // CHECK-NEXT: }
 // CHECK-NEXT: #endif
 // CHECK-EMPTY:
@@ -224,7 +223,7 @@
 // CHECK-NEXT:   }
 // CHECK-NEXT: };
 // CHECK-EMPTY:
-// CHECK-NEXT: #pragma clang diagnostic pop
+// CHECK: #pragma clang diagnostic pop
 // CHECK-EMPTY:
 // CHECK-NEXT: } // namespace swift
 // CHECK-EMPTY:

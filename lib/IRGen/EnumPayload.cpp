@@ -111,7 +111,7 @@ static APInt createElementMask(const llvm::DataLayout &DL,
 
   // Pad the valueMask so that it can be applied to the entire
   // payload.
-  auto mask = APInt::getNullValue(payloadSizeInBits);
+  auto mask = APInt::getZero(payloadSizeInBits);
   auto offset = payloadOffset;
   if (DL.isBigEndian()) {
     offset = payloadSizeInBits - payloadOffset - elStoreSize;
@@ -348,7 +348,7 @@ EnumPayload::emitCompare(IRGenFunction &IGF,
       continue;
     
     // Apply the mask and test.
-    bool isMasked = !maskPiece.isAllOnesValue();
+    bool isMasked = !maskPiece.isAllOnes();
     auto intTy = llvm::IntegerType::get(IGF.IGM.getLLVMContext(), size);
     // Need to bitcast to an integer in order to use 'icmp eq' if the piece
     // isn't already an int or pointer, or in order to apply a mask.
@@ -381,7 +381,7 @@ EnumPayload::emitCompare(IRGenFunction &IGF,
 void
 EnumPayload::emitApplyAndMask(IRGenFunction &IGF, const APInt &mask) {
   // Early exit if the mask has no effect.
-  if (mask.isAllOnesValue())
+  if (mask.isAllOnes())
     return;
 
   auto &DL = IGF.IGM.DataLayout;
@@ -395,7 +395,7 @@ EnumPayload::emitApplyAndMask(IRGenFunction &IGF, const APInt &mask) {
     auto maskPiece = maskReader.read(size);
     
     // If this piece is all ones, it has no effect.
-    if (maskPiece.isAllOnesValue())
+    if (maskPiece.isAllOnes())
       continue;
 
     // If the payload value is vacant, the mask can't change it.
@@ -446,7 +446,7 @@ EnumPayload::emitApplyOrMask(IRGenModule &IGM,
     
     // If the payload value is vacant, or the mask is all ones,
     // we can adopt the mask value directly.
-    if (pv.is<llvm::Type *>() || maskPiece.isAllOnesValue()) {
+    if (pv.is<llvm::Type *>() || maskPiece.isAllOnes()) {
       pv = builder.CreateBitOrPointerCast(maskConstant, payloadTy);
       continue;
     }

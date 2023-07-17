@@ -263,7 +263,7 @@ class StdlibDeploymentTarget(object):
     Freestanding = Platform("freestanding", archs=[
         "i386", "x86_64",
         "armv7", "armv7s", "armv7k", "armv7m", "armv7em",
-        "arm64", "arm64e"])
+        "arm64", "arm64e", "arm64_32"])
 
     Linux = Platform("linux", archs=[
         "x86_64",

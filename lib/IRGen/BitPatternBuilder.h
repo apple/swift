@@ -108,7 +108,7 @@ public:
     assert(numBits % 8 == 0);
     if (numBits) {
       Size += numBits;
-      Elements.push_back(APInt::getAllOnesValue(numBits));
+      Elements.push_back(APInt::getAllOnes(numBits));
     }
   }
 
@@ -119,7 +119,7 @@ public:
     assert(numBits % 8 == 0);
     if (numBits) {
       Size += numBits;
-      Elements.push_back(APInt::getNullValue(numBits));
+      Elements.push_back(APInt::getZero(numBits));
     }
   }
 
@@ -150,7 +150,7 @@ public:
     if (Size == 0) {
       return llvm::Optional<APInt>();
     }
-    auto result = APInt::getNullValue(Size);
+    auto result = APInt::getZero(Size);
     unsigned offset = 0;
     for (const auto &e : Elements) {
       unsigned index = offset;

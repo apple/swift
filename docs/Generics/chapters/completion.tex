@@ -1,0 +1,1037 @@
+\documentclass[../generics]{subfiles}
+
+\begin{document}
+
+\chapter{Completion}\label{completion}
+
+\IndexDefinition{Knuth-Bendix algorithm}%
+\index{completion!z@\igobble|seealso{Knuth-Bendix algorithm}}
+\lettrine{K}{nuth-Bendix completion} is the central algorithm that assigns meaning to Swift generic signatures.
+
+Theorem~\ref{church rosser theorem} gives two equivalent conditions for a ``well-behaved'' reduction relation: \index{confluence}confluence, and the \index{Church-Rosser property}Church-Rosser property. It is not immediately apparent an effective procedure exists to test either one; such a procedure was devised by Max~Newman in a 1941 paper \cite{newman}. First, we need a simpler notion of confluence involving rewrite paths of length one (that is, just single rewrite steps).
+\begin{definition}
+A reduction relation $\rightarrow$ is \IndexDefinition{local confluence}\emph{locally confluent} if whenever $t\rightarrow u$ and $t\rightarrow v$ via directed rewrite paths of length one, there exists a term $z$ such that $u\rightarrow z$ and $v\rightarrow z$ (the latter two being directed rewrite paths of arbitrary length as usual).
+\end{definition}
+Note that this is identical to the definition of confluence, except that the rewrite paths $t\rightarrow u$ and $t\rightarrow v$ have length one. Newman showed this simpler condition actually implies confluence when the reduction relation is terminating.
+\begin{theorem}[Newman's Lemma]
+If a reduction relation $\rightarrow$ is terminating and locally confluent, then it is confluent.
+\end{theorem}
+\paragraph{Overlapping rules} To determine whether a reduction relation is locally confluent, we need to look at all candidate terms which are the source of two distinct directed rewrite steps, and then check that the destination of these rewrite steps reduce to the same term. There are still infinitely many such candidate terms. However, we can show that most such terms can be removed from consideration. Suppose we have a rewrite system over some alphabet $A$ with two rules:
+\begin{gather*}
+u_1\Rightarrow v_1\\
+u_2\Rightarrow v_2
+\end{gather*}
+For any $x$, $y$, $z\in A^*$, the term $t := xu_1yu_2z$ can be reduced by the two rewrite steps $s_1 := x(u_1\Rightarrow v_1)yu_2z$ and $s_2 := xu_1y(u_2\Rightarrow v_2)z$. Notice that $s_1$ and $s_2$ rewrite disjoint subterms of $t$; we say that such pairs of rewrite steps are \IndexDefinition{orthogonal rewrite step}\emph{orthogonal}. Their importance stems from the observation that we don't need to check orthogonal rewrite steps for local confluence, because regardless of whether we apply $s_1$ or $s_2$ first, there exists a complementary rewrite step $s_1^\prime$ or $s_2^\prime$ to rewrite $\Dst(s_1)$ or $\Dst(s_2)$ into a final term $xv_1yv_2z$. Let's demonstrate this by bringing back a notation for rewrite steps we briefly used in Section~\ref{rewrite graph}:
+\[
+\begin{array}{cc}
+\begin{array}{|c|c|c|c|c|}
+\hline
+\multicolumn{5}{|c|}{xu_1yu_2z}\\
+\hline
+\hline
+&u_1&&&\\
+x&\Downarrow&y&u_2&z\\
+&v_1&&&\\
+\hline
+\hline
+\multicolumn{5}{|c|}{xv_1yu_2z}\\
+\hline
+\hline
+&&&u_2&\\
+x&v_1&y&\Downarrow&z\\
+&&&v_2&\\
+\hline
+\hline
+\multicolumn{5}{|c|}{xv_1yv_2z}\\
+\hline
+\end{array}
+&
+\begin{array}{|c|c|c|c|c|}
+\hline
+\multicolumn{5}{|c|}{xu_1yu_2z}\\
+\hline
+\hline
+&&&u_2&\\
+x&u_1&y&\Downarrow&z\\
+&&&v_2&\\
+\hline
+\hline
+\multicolumn{5}{|c|}{xu_1yv_2z}\\
+\hline
+\hline
+&u_1&&&\\
+x&\Downarrow&y&v_2&z\\
+&v_2&&&\\
+\hline
+\hline
+\multicolumn{5}{|c|}{xv_1yv_2z}\\
+\hline
+\end{array}
+\end{array}
+\]
+More concisely, we can exhibit this in the form of a \index{commutative diagram}commutative diagram:
+\[
+\begin{tikzcd}
+&xu_1yu_2z\arrow[ld, Rightarrow, "x(u_1\Rightarrow v_1)yu_2z"', bend right]\arrow[rd, Rightarrow, "xu_1y(u_2\Rightarrow v_2)z", bend left]\\
+xv_1yu_2z\arrow[rd, Rightarrow, "xv_1y(u_2\Rightarrow v_2)z"', bend right]&&xu_1yv_2z\arrow[ld, Rightarrow, "xv_1y(u_2\Rightarrow v_2)z", bend left]\\
+&xv_1yv_2z
+\end{tikzcd}
+\]
+By removing orthogonal rewrite steps from consideration, we only need to consider pairs of directed rewrite steps which rewrite overlapping subterms of some term. There are only finitely many such terms, and to find them we only need to examine the left-hand sides of every pair of rewrite rules in our rewrite system.
+\begin{definition}\label{overlappingrules}
+Two rules $u_1\Rightarrow v_1$ and $u_2\Rightarrow v_2$ \IndexDefinition{overlapping rules}\emph{overlap} on a term $t$ if either of the following holds:
+\begin{enumerate}
+\item The left-hand side of the second rule is contained entirely within the left-hand side of the first. That is, $u_1=xu_2z$ for some $x$, $z\in A^*$. In this case, we say the two rules overlap on the term $xu_2z$:
+\begin{align*}
+x&u_2z\\
+&u_2
+\end{align*}
+\item The left-hand side of the second rule has a prefix equal to a suffix of the left-hand side of the first. That is, $u_1=xy$, $u_2=yz$ for some $x$, $y$, $z\in A^*$. In this case, we say the two rules overlap on the term $xyz$:
+\begin{align*}
+x&y\\
+&yz
+\end{align*}
+\end{enumerate}
+In the second case, we also require that both $x$ and $z$ are non-empty. If $|x|=0$, then we would have $u_2=u_1z$, and this would already be handled as an overlap of the first kind when the roles of $u_1$ and $u_2$ are reversed:
+\begin{alignat*}{2}
+u_2&z\qquad\qquad u_2\\
+u_2&\qquad\qquad u_2&z
+\end{alignat*}
+A simular situation arises when $|z|=0$. In these cases it suffices to only consider one of the two orderings; considering the same overlap but with the two rules reversed won't ever produce anything new.
+
+It can, however, happen that two rules overlap in ``more than one way'' at different positions; in this case we must consider every possible overlap. For example, two rules $abab\Rightarrow s$ and $baba\Rightarrow t$ overlap in two different ways:
+\begin{alignat*}{2}
+a&bab\qquad\qquad aba&&b\\
+&baba\qquad\qquad &&baba
+\end{alignat*}
+\end{definition}
+
+\paragraph{Resolving critical pairs}
+The two kinds of overlap can be depicted with a \index{commutative diagram}commutative diagram:
+\begin{quote}
+\begin{tabular}{cc}
+Overlap of the first kind&
+Overlap of the second kind\\
+\begin{tikzcd}
+&xuy\arrow[ld, Rightarrow, "(u_1\Rightarrow v_1)"', bend right]\arrow[rd, Rightarrow, "x(u_2\Rightarrow v_2)y", bend left]\\
+v_1\arrow[d, Rightarrow]&&xv_2y\arrow[d, Rightarrow]\\
+\ldots&&\ldots
+\end{tikzcd}&
+\begin{tikzcd}
+&xty\arrow[ld, Rightarrow, "(u_1\Rightarrow v_1)y"', bend right]\arrow[rd, Rightarrow, "x(u_2\Rightarrow v_2)", bend left]\\
+v_1y\arrow[d, Rightarrow]&&xv_2\arrow[d, Rightarrow]\\
+\ldots&&\ldots
+\end{tikzcd}
+\end{tabular}
+\end{quote}
+When two rules overlap on some term $t$, we can rewrite $t$ with each rule to get a pair of terms called a \IndexDefinition{critical pair}\emph{critical pair}. Both sides of a critical pair are equivalent to the original term $t$, and thus to each other. In the first case above, our critical pair is $(v_1,\,xv_2y)$; in the second, $(v_1,\,xv_2)$. We \emph{resolve} the critical pair by reducing both terms. There are two possible outcomes:
+\begin{enumerate}
+\item If both sides reduce to the same term, we say the \IndexDefinition{trivial critical pair}critical pair is \emph{trivial}. We've discovered two rewrite paths which begin at $t$ and end at at the same term.
+\item If both sides reduce to distinct terms, we have two distinct reduced terms $u$ and $v$ in the same equivalence class; we've discovered a \index{confluence}confluence violation. We can repair the confluence violation by adding a new rewrite rule $u\Rightarrow v$ (if $v<u$) or $v\Rightarrow u$ (if $u<v$).
+\end{enumerate}
+We can understand the two possibilities with a commutative diagram:
+\begin{quote}
+\begin{tabular}{cc}
+Trivial overlap&
+Adding a new rule\\
+\begin{tikzcd}
+&t\arrow[ld, Rightarrow, bend right]\arrow[rd, Rightarrow, bend left]\\
+\vphantom{P}\cdots\arrow[rd, Rightarrow, bend right]&&\vphantom{P}\cdots\arrow[ld, Rightarrow, bend left]\\
+&\vphantom{P}\cdots
+\end{tikzcd}&
+\begin{tikzcd}
+&t\arrow[ld, Rightarrow, bend right]\arrow[rd, Rightarrow, bend left]\\
+\vphantom{P}\cdots\arrow[d, Rightarrow]&&\vphantom{P}\cdots\arrow[d, Rightarrow]\\
+\vphantom{P}\cdots\arrow[rr, Rightarrow, dashed]&&\vphantom{P}\cdots
+\end{tikzcd}
+\end{tabular}
+\end{quote}
+
+\paragraph{An optimization}
+The standard formulation of the Knuth-Bendix algorithm must check all possible pairs of rules for overlap, thus the number of checks is quadratic in the total number of rules. The structure of our rewrite system, in particular the partition of rewrite rules into \index{imported rule}imported rules and \index{local rule}local rules, enables an optimization where certain pairings need not be considered at all. This cuts down on the work performed in the completion procedure. Namely, only these combinations may arise:
+\begin{enumerate}
+\item Two local rules can overlap.
+\item A local rule can overlap with an imported rule.
+\end{enumerate}
+Specifically, these pairings need not be considered:
+\begin{enumerate}
+\item An imported rule cannot overlap with a local rule.
+\item Two imported rules can overlap, but only if both were imported from the same protocol component, in which case the overlap was already considered there; any rules introduced to resolve the overlap will have also been imported.
+\end{enumerate}
+
+To understand why, recall the definition of the protocol dependency graph and the $\prec$ relation from Section~\ref{protocol component}, and the domain of a term from Section~\ref{building terms}. Let's say the rule $u_1\Rightarrow v_1$ overlaps with some other rule $u_2\Rightarrow v_2$, where both were constructed from requirements by Algorithm~\ref{build rule}. We look at protocol component rewrite systems and generic signature rewrite systems separately, since the reasoning is slightly different.
+
+In a protocol component rewrite system, the left-hand side of every rewrite rule is either a protocol symbol or associated type symbol; the protocol declaration named by this symbol is what we call the domain of the rule. Let's say the domain of $u_1\Rightarrow v_1$ is \texttt{P}, and $u_2\Rightarrow v_2$ is \texttt{Q}. The overlap between the two rules implies a relationship between these two protocols:
+\begin{itemize}
+\item If $u_2$ is a prefix of $u_1$, so $u_1=u_2y$, then both rules of course have the same domain, so $\texttt{P}=\texttt{Q}$.
+
+\item Otherwise, $u_1=xu_2$, or $u_1=xt$ and $u_2=ty$. Then $x.\protosym{Q}\sim x$ (why?). In other words, the type parameter represented by $x$ conforms to \texttt{Q} in the protocol generic signature $G_\texttt{P}$, and thus $\texttt{P}\prec\texttt{Q}$.
+\end{itemize}
+If both rules were imported---that is, the current protocol component is downstream of \texttt{P} and \texttt{Q}---then the fact that $\texttt{P}=\texttt{Q}$ or $\texttt{P}\prec\texttt{Q}$ means we must have \emph{already} resolved the overlap when building the rewrite system for \texttt{P}. This shows we do not need to consider overlaps between imported rules.
+
+The first rule being imported and the second being local is an impossibility, for then we would have $\texttt{Q}\prec\texttt{P}$. But it is also the case that $\texttt{P}\prec\texttt{Q}$, which would imply that \texttt{P} and \texttt{Q} belong to the same protocol component. This can only happen if both are imported, or both are local. The only remaining possibilities are that both rules are local, or the first rule is local and the second is imported.
+
+In a generic signature rewrite system, the local rules are precisely those whose left-hand side starts with a generic parameter symbol. The left-hand side of an imported rule cannot start with, or contain, a generic parameter symbol. Thus if $u_2\Rightarrow v_2$ is a local rule, $u_1\Rightarrow v_1$ cannot be an imported rule.
+
+\paragraph{Another optimization} Furthermore, we can use the rule trie to find all rules that overlap with a given rule. It then suffices to perform a linear-time trie lookup at each position in the left-hand side of each local rule. In Algorithm~\ref{trie lookup algo}, we took a sequence of symbols and searched for the shortest prefix in the rule trie, stopping the search after the first match. When checking for overlaps, we must instead consider all matches. Also, if we reach the end of the input sequence before reaching a leaf node in the trie, we must visit all child nodes. That is, if our rule trie stores the keys $a$, $ac$, $cb$, $abc$, $acd$, $abcd$, and $abce$. Given the sequence $abc$, the below algorithm successively outputs the rule ID associated with $a$, $abc$, $abcd$, and $abce$.
+
+\begin{algorithm}[Overlap lookup in rule trie]\label{overlap trie lookup}
+Takes a sequence of symbols $t$ as input, together with a callback. For each rule $u\Rightarrow v$ where $t$ is a prefix of $u$, or $u$ is a prefix of $t$, invokes the the callback with the rule ID.
+\begin{enumerate}
+\item (Initialize) Set \texttt{N} to the root node of the trie. Set $i:=0$.
+\item (End) If $i\geq|t|$, we've reached the end of the sequence. Perform a pre-order traversal of all child nodes of \texttt{N}, invoking the callback with the rule ID stored at each child node (in this case, $t$ is a prefix of the left-hand side of each child node's rule ID).
+\item (Traverse) Let $s_i$ be the $i$th symbol of $t$. Look up $s_i$ in \texttt{N}. If the lookup fails, return.
+\item (Child) Otherwise, let \texttt{M} be the child node of \texttt{N} associated with $s_i$. If \texttt{M} stores a rule ID, invoke the callback with this rule ID (in this case, the rule's left-hand side is a prefix of $t$).
+\item (Loop) Set $\texttt{N}:=\texttt{M}$. Increment $i$ and go back to Step~2.
+\end{enumerate}
+\end{algorithm}
+
+\begin{algorithm}[Computing a critical pair]\label{critical pair algo}
+
+\end{algorithm}
+
+\begin{algorithm}[Finding overlapping rules]\label{find overlapping rule algo}
+Takes a rewrite system as input, and outputs a list of critical pairs.
+\begin{enumerate}
+\item (Initialize) Set $i:=0$. Set \texttt{N} to the number of local rules in the rewrite system. Initialize an empty list for the return value.
+\item (Get rule) Suppose $u_i\Rightarrow v_i$ is the $i$th local rule in the rewrite system. If the rule is \index{left-simplified rule}\textbf{left-simplified}, \index{right-simplified rule}\textbf{right-simplified} or \index{substitution-simplified rule}\textbf{substitution-simplified}, skip it entirely and go to Step~10. Otherwise, set $j:=0$.
+\item (Find overlaps) Use Algorithm~\ref{overlap trie lookup} to find all rules whose left-hand side is a prefix of the symbol range $u_i[j:]$ or vice versa.
+\item (Record) For each matching rule $s\Rightarrow t$ found above, compute the critical pair using Algorithm~\ref{critical pair algo} and add it to the list.
+\item (Inner loop) Increment $j$, and go back to Step~3.
+\item (Outer loop) Increment $i$, and go back to Step~2.
+\item Return the list.
+\end{enumerate}
+\end{algorithm}
+
+We have yet to explain how the \textbf{left-simplified}, \textbf{right-simplified} and \textbf{substitution-simplified} flags are set, but we will in Section~\ref{rule reduction} and Section~TODO.
+
+We are interested in not only constructing a confluent rewrite system, but also identifying relationships between rewrite rules so that we can compute a minimal set of rules. To do this, we implement an extension of the algorithm described in \cite{loggedrewriting}, which records the necessary information in the form of \emph{rewrite loops}. Essentially the same extension was discovered in 2013 \cite{homotopicalcompletion}, apparently independently.
+\begin{definition}
+A \IndexDefinition{rewrite loop}\emph{rewrite loop} is a rewrite path $l$ whose source and destination are the same element of $A^*$; that is, $\Src(l)=\Dst(l)$. This term is called the \IndexDefinition{basepoint}\emph{basepoint} of the rewrite loop. Notice that for each $t\in A^*$, the \index{empty rewrite path}empty rewrite path $1_t$ is actually the empty rewrite loop with basepoint $t$.
+\end{definition}
+
+\begin{algorithm}[Add a rule derived from other rules]\label{add rule derived algo}
+As input, takes a pair of terms $u$, $v$ and a rewrite path $p$ from $u$ to $v$. Returns true if a new rule was added.
+\begin{enumerate}
+\item Reduce $u\rightarrow u^\prime$, building a rewrite path $p_u$.
+\item Reduce $v\rightarrow v^\prime$, building a rewrite path $p_v$.
+\item If $u^\prime=v^\prime$, add the rewrite loop $p_u^{-1}\circ p\circ p_v$ with basepoint $u^\prime=v^\prime$, and return false.
+\item If $v^\prime<u^\prime$, add the rewrite rule $u^\prime\Rightarrow v^\prime$, add the rewrite loop $p_u^{-1}\circ p\circ p_v\circ (v^\prime\Rightarrow u^\prime)$ with basepoint $u^\prime$, and return true.
+\item If $u^\prime<v^\prime$, add the rewrite rule $v^\prime\Rightarrow u^\prime$, add the rewrite loop $p_v^{-1}\circ p^{-1} \circ p_u \circ (u^\prime\Rightarrow v^\prime)$ with basepoint $v^\prime$, and return true.
+\item Otherwise, $u$ and $v$ are incomparable; signal an error.
+\end{enumerate}
+\end{algorithm}
+
+\begin{algorithm}[Knuth-Bendix completion procedure]\label{knuthbendix} Takes a rewrite system as input, and outputs success or failure.
+\begin{enumerate}
+\item Clear the flag.
+\item Use Algorithm~\ref{find overlapping rule algo} to build a list of critical pairs.
+\item For each trivial critical pair, record a rewrite loop.
+\item For each non-trivial critical pair, attempt to add a new rewrite rule using Algorithm~\ref{add rule derived algo}; if the algorithm returned true, set the flag.
+\item If the flag is true, go back to Step~1. Otherwise, return.
+\end{enumerate}
+\end{algorithm}
+
+\index{convergent presentation}
+If the Knuth-Bendix completion procedure terminates after a finite number of steps, the monoid is said to be \emph{convergent}. If the monoid is not convergent, the algorithm will continue adding new rewrite rules forever, as longer and longer overlapped terms are discovered in Step 2. In practice, you want an algorithm that will succeed or fail, instead of always succeeding after a possibly-infinite number of steps. This is can be handled by limiting the maximum number of iterations or the maximum length of the left-hand side of a rewrite rule. If either limit is exceeded, the rewrite system is rejected.
+
+
+\IndexFlag{requirement-machine-max-rule-count}
+\IndexFlag{requirement-machine-max-rule-length}
+\IndexFlag{requirement-machine-max-concrete-nesting}
+\IndexTwoFlag{debug-requirement-machine}{completion}
+\IndexTwoFlag{debug-requirement-machine}{add}
+
+The algorithm was described for general term rewrite systems in \cite{Knuth1983} by Donald~Knuth and Peter~Bendix. A correctness proof was given by \cite{HUET198111}, and the specific formulation for string rewrite systems was studied in \cite{narendran}. The general idea behind the Knuth-Bendix algorithm also has applications beyond term and string rewriting; a survey of related techniques appears in \cite{BUCHBERGER19873}.
+
+
+\newcommand{\AssocIntro}[2]{\protosym{#1}.\texttt{#2}\Rightarrow\assocsym{#1}{#2}}
+\newcommand{\AssocIntroInv}[2]{\assocsym{#1}{#2}\Rightarrow\protosym{#1}.\texttt{#2}}
+
+\newcommand{\InheritAssocIntro}[3]{\protosym{#1}.\assocsym{#2}{#3}\Rightarrow\assocsym{#1}{#3}}
+\newcommand{\InheritAssocIntroInv}[3]{\assocsym{#1}{#3}\Rightarrow\protosym{#1}.\assocsym{#2}{#3}}
+
+\newcommand{\ProtoConf}[2]{#1.\protosym{#2}\Rightarrow #1}
+\newcommand{\ProtoConfInv}[2]{#1\Rightarrow #1.\protosym{#2}}
+
+\newcommand{\ProtoInherit}[2]{\ProtoConf{\protosym{#1}}{#2}}
+\newcommand{\ProtoInheritInv}[2]{\ProtoConfInv{\protosym{#1}}{#2}}
+
+\newcommand{\FourLoopDerived}[8]{%
+\begin{tikzcd}[ampersand replacement=\&]%
+\&#1\arrow[ld, Rightarrow, "#5"', bend right]\&\\
+#2\arrow[rd, Rightarrow, "#6"', bend right, dashed]\&\&#4\arrow[lu, Rightarrow,"#8"', bend right]\\
+\&#3\arrow[ru, Rightarrow, "#7"', bend right]\&
+\end{tikzcd}}
+\newcommand{\FourLoopTrivial}[8]{%
+\begin{tikzcd}[ampersand replacement=\&]%
+\&#1\arrow[ld, Rightarrow, "#5"', bend right]\&\\
+#2\arrow[rd, Rightarrow, "#6"', bend right]\&\&#4\arrow[lu, Rightarrow,"#8"', bend right]\\
+\&#3\arrow[ru, Rightarrow, "#7"', bend right]\&
+\end{tikzcd}}
+
+\section{Critical Pairs}\label{critical pairs}
+
+\begin{example}\label{proto assoc rule}
+Consider a protocol with a single associated type, and an empty requirement signature:
+\begin{Verbatim}
+protocol P {
+  associatedtype A
+}
+\end{Verbatim}
+We get an \index{identity conformance rule}identity conformance rule, and an \index{associated type introduction rule}associated type introduction rule:
+\begin{gather*}
+\protosym{P}.\protosym{P}\Rightarrow\protosym{P}\tag{1}\\
+\protosym{P}.\texttt{A}\Rightarrow\assocsym{P}{A}\tag{2}
+\end{gather*}
+Rule (1) overlaps with itself on the term $\protosym{P}.\protosym{P}.\protosym{P}$:
+\begin{align*}
+\protosym{P}.&\protosym{P}\\
+&\protosym{P}.\protosym{P}
+\end{align*}
+The critical pair is resolved without adding any new rules:
+\[
+\begin{tikzcd}
+\protosym{P}.\protosym{P}.\protosym{P}\arrow[d, Rightarrow, "(\ProtoInherit{P}{P}).\protosym{P}"', bend right]\\
+\protosym{P}.\protosym{P}\arrow[d, Rightarrow, "(\ProtoInherit{P}{P})"', bend right]
+\arrow[u, Rightarrow, "\protosym{P}.(\ProtoInheritInv{P}{P})"', bend right]\\
+\protosym{P}\arrow[u, Rightarrow, "(\ProtoInheritInv{P}{P})"', bend right]
+\end{tikzcd}
+\]
+Rule (1) also overlaps with (2) on the term $\protosym{P}.\protosym{P}.\texttt{A}$:
+\begin{align*}
+\protosym{P}.&\protosym{P}\\
+&\protosym{P}.\texttt{A}
+\end{align*}
+The critical pair is resolved by adding the rule $\protosym{P}.\assocsym{P}{A}\Rightarrow\assocsym{P}{A}$:
+\[
+\FourLoopDerived%
+{\protosym{P}.\protosym{P}.\texttt{A}}%
+{\protosym{P}.\assocsym{P}{A}}%
+{\assocsym{P}{A}}%
+{\protosym{P}.\texttt{A}}%
+{\protosym{P}.(\AssocIntro{P}{A})}%
+{(\protosym{P}.\assocsym{P}{A}\Rightarrow\assocsym{P}{A})}%
+{(\AssocIntroInv{P}{A})}%
+{(\ProtoInheritInv{P}{P}).\texttt{A}}
+\]
+\end{example}
+\begin{example}
+Now, let's define a protocol \texttt{Q} with an associated type conforming to \texttt{P}:
+\begin{Verbatim}
+protocol Q {
+  associatedtype B: P
+}
+\end{Verbatim}
+\begin{gather*}
+\ProtoConf{\protosym{P}}{P}\tag{1}\\
+\AssocIntro{P}{A}\tag{2}\\
+\protosym{P}.\assocsym{P}{A}\Rightarrow\assocsym{P}{A}\tag{3}\\[\medskipamount]
+\ProtoConf{\protosym{Q}}{Q}\tag{4}\\
+\AssocIntro{Q}{B}\tag{5}\\
+\ProtoConf{\protosym{Q}.\texttt{B}}{P}\tag{6}\\
+\protosym{Q}.\assocsym{Q}{B}\Rightarrow\assocsym{Q}{B}\tag{7}
+\end{gather*}
+Rule (4) overlaps with rule (5) on the term $\protosym{Q}.\texttt{B}.\protosym{P}$:
+\begin{align*}
+&\protosym{Q}.\texttt{B}\\
+&\protosym{Q}.\texttt{B}.\protosym{P}
+\end{align*}
+Resolving this critical pair adds a new rule $\ProtoConf{\assocsym{Q}{B}}{P}$:
+\[
+\FourLoopDerived%
+{\protosym{Q}.\texttt{B}.\protosym{P}}%
+{\assocsym{Q}{B}.\protosym{P}}%
+{\assocsym{Q}{B}}%
+{\protosym{Q}.\texttt{B}}%
+{(\AssocIntro{Q}{B}).\protosym{P}}%
+{(\ProtoConf{\assocsym{Q}{B}}{P})}%
+{(\AssocIntroInv{Q}{B})}%
+{(\ProtoConfInv{\assocsym{Q}{B}}{P})}
+\]
+Now, the new rule overlaps with rule (4) on the term $\assocsym{Q}{B}.\protosym{P}.\texttt{A}$:
+\begin{align*}
+\assocsym{Q}{B}.&\protosym{P}\\
+&\protosym{P}.\texttt{A}
+\end{align*}
+Resolving this critical pair adds a new rule $\assocsym{Q}{B}.\texttt{A}\Rightarrow\assocsym{Q}{B}.\assocsym{P}{A}$:
+\[
+\begin{tikzcd}
+&\assocsym{Q}{B}.\protosym{P}.\texttt{A}
+\arrow[ld, Rightarrow, bend right, "(\ProtoConf{\assocsym{Q}{B}}{P}).\texttt{A}"']\\
+\assocsym{Q}{B}.\texttt{A}\arrow[rr, Rightarrow, bend right, dashed, "(\assocsym{Q}{B}.\texttt{A}\Rightarrow\assocsym{Q}{B}.\assocsym{P}{A})"']
+&&
+\assocsym{Q}{B}.\assocsym{P}{A}\arrow[lu, Rightarrow, bend right, "\assocsym{Q}{B}.(\AssocIntroInv{P}{A})"']
+\end{tikzcd}
+\]
+\end{example}
+\begin{example}\label{proto assoc rule 2}
+Take protocols \texttt{P} and \texttt{Q} from the previous example. The \index{protocol generic signature}protocol generic signature $G_\texttt{Q}$ imports all rewrite rules from protocol \texttt{P} and \texttt{Q}, and adds a rule for the requirement $\ConfReq{\ttgp{0}{0}}{Q}$:
+\begin{gather*}
+\ProtoConf{\ttgp{0}{0}}{Q}
+\end{gather*}
+This rule overlaps with the associated type introduction rule $\AssocIntro{Q}{B}$ on the term
+$\ttgp{0}{0}.\protosym{Q}.\texttt{B}$:
+\begin{align*}
+\ttgp{0}{0}.&\protosym{Q}\\
+&\protosym{Q}.\texttt{B}
+\end{align*}
+The critical pair is resolved by adding the rule $\ttgp{0}{0}.\texttt{B}\Rightarrow\ttgp{0}{0}.\assocsym{Q}{B}$:
+\[
+\begin{tikzcd}
+&\ttgp{0}{0}.\protosym{Q}.\texttt{B}\arrow[ld, Rightarrow, "(\ProtoConf{\ttgp{0}{0}}{Q}).\texttt{B}"', bend right]\\
+\ttgp{0}{0}.\texttt{B}\arrow[rr, Rightarrow, "(\ttgp{0}{0}.\texttt{B}\Rightarrow\ttgp{0}{0}.\assocsym{Q}{B})"', bend right, dashed]&&
+\ttgp{0}{0}.\assocsym{Q}{B}\arrow[ul, Rightarrow, "\ttgp{0}{0}.(\AssocIntroInv{Q}{B})"', bend right]
+\end{tikzcd}
+\]
+Now, we have a number of similar rules:
+\begin{gather*}
+\AssocIntro{P}{A}\\
+\AssocIntro{Q}{B}\\
+\assocsym{Q}{B}.\texttt{A}\Rightarrow\assocsym{Q}{B}.\assocsym{P}{A}\\
+\ttgp{0}{0}.\texttt{B}\Rightarrow\ttgp{0}{0}.\assocsym{Q}{B}
+\end{gather*}
+These rules help us reduce unbound type parameters to bound type parameters. The term $\ttgp{0}{0}.\texttt{A}.\texttt{B}$ reduces in two rewrite steps:
+\[
+\begin{tikzcd}[column sep=9em]
+\ttgp{0}{0}.\texttt{B}.\texttt{A}\arrow[r, Rightarrow, "(\ttgp{0}{0}.\texttt{B}\Rightarrow\ttgp{0}{0}.\assocsym{Q}{B}).\texttt{A}"]&
+\ttgp{0}{0}.\assocsym{Q}{B}.\texttt{A}\arrow[r, Rightarrow, "\ttgp{0}{0}.(\assocsym{Q}{B}.\texttt{A}\Rightarrow\assocsym{Q}{B}.\assocsym{P}{A}"]&
+\ttgp{0}{0}.\assocsym{Q}{B}.\assocsym{P}{A}
+\end{tikzcd}
+\]
+\end{example}
+
+\begin{example}
+We declare a protocol \texttt{Q} inheriting from \texttt{P}:
+\begin{Verbatim}
+protocol P {
+  associatedtype A
+}
+protocol Q: P {}
+\end{Verbatim}
+The rewrite system for \texttt{Q} imports all rules from \texttt{P} and adds an identity conformance rule (4), a rule (5) for the conformance requirement $\ConfReq{Self}{P}$, and an inherited associated type introduction rule (6) for $\assocsym{Q}{A}$:
+\begin{gather*}
+\ProtoInherit{P}{P}\tag{1}\\
+\AssocIntro{P}{A}\tag{2}\\
+\protosym{P}.\assocsym{P}{A}\Rightarrow\assocsym{P}{A}\tag{3}\\[\medskipamount]
+\ProtoInherit{Q}{Q}\tag{4}\\
+\ProtoInherit{Q}{P}\tag{5}\\
+\AssocIntro{Q}{A}\tag{6}
+\end{gather*}
+Rule (5) overlaps with (2) on the term $\protosym{Q}.\protosym{P}.\texttt{A}$:
+\begin{align*}
+\protosym{Q}.&\protosym{P}\\
+&\protosym{P}.\texttt{A}
+\end{align*}
+The critical pair is resolved by adding a new rule $\protosym{Q}.\assocsym{P}{A}\Rightarrow\assocsym{Q}{A}$:
+\[
+\FourLoopDerived%
+{\protosym{Q}.\protosym{P}.\texttt{A}}%
+{\protosym{Q}.\assocsym{P}{A}}%
+{\assocsym{Q}{A}}%
+{\protosym{Q}.\texttt{A}}%
+{\protosym{Q}.(\AssocIntro{P}{A})}%
+{(\protosym{Q}.\assocsym{P}{A}\Rightarrow\assocsym{Q}{A})}%
+{(\AssocIntroInv{Q}{A})}%
+{(\ProtoInheritInv{Q}{P}).\texttt{A}}
+\]
+This is similar to Example~\ref{proto assoc rule}, where completion added the rule $\protosym{P}.\assocsym{P}{A}\Rightarrow\assocsym{P}{A}$. The rewrite system for \texttt{Q} now has the following rules related to the associated type \texttt{A}; the first two were added by Algorithm~\ref{rules for protocol algo}, and the other four by completion:
+\begin{gather*}
+\protosym{P}.\texttt{A}\Rightarrow\assocsym{P}{A}\\
+\protosym{Q}.\texttt{A}\Rightarrow\assocsym{Q}{A}\\[\medskipamount]
+\protosym{P}.\assocsym{P}{A}\Rightarrow\assocsym{P}{A}\\
+\protosym{Q}.\assocsym{P}{A}\Rightarrow\assocsym{Q}{A}\\
+\protosym{Q}.\assocsym{Q}{A}\Rightarrow\assocsym{Q}{A}
+\end{gather*}
+\end{example}
+In all of the examples so far, the new rules are ``technical'' artifacts of the rewrite system construction and do not describe any fundamental identities. The next example is more interesting.
+
+\begin{example}
+Take protocols \texttt{P} and \texttt{Q} from the previous example, and consider the protocol generic signature $G_\texttt{Q}$. The one local rule corresponds to the requirement $\ConfReq{\ttgp{0}{0}}{Q}$:
+\[\ttgp{0}{0}.\protosym{Q}\Rightarrow\ttgp{0}{0}\]
+This rule overlaps with $\protosym{Q}.\protosym{P}\Rightarrow\protosym{Q}$ on the term $\ttgp{0}{0}.\protosym{P}.\protosym{Q}$:
+\begin{align*}
+\ttgp{0}{0}.&\protosym{P}\\
+&\protosym{P}.\protosym{Q}
+\end{align*}
+Resolving this critical pair adds the rule $\ttgp{0}{0}.\protosym{Q}\Rightarrow\ttgp{0}{0}$:
+\[
+\FourLoopDerived%
+{\ttgp{0}{0}.\protosym{Q}.\protosym{P}}%
+{\ttgp{0}{0}.\protosym{P}}%
+{\ttgp{0}{0}}%
+{\ttgp{0}{0}.\protosym{P}}%
+{(\ProtoInherit{\ttgp{0}{0}}{Q}).\protosym{P}}%
+{(\ProtoConf{\ttgp{0}{0}}{P})}%
+{(\ProtoConfInv{\ttgp{0}{0}}{P})}%
+{(\ProtoInheritInv{\ttgp{0}{0}}{Q}).\protosym{P}}
+\]
+This rule corresponds to the derived requirement $\ConfReq{\ttgp{0}{0}}{Q}$.
+\end{example}
+
+\begin{example}
+Say two protocols declare an associated type named \texttt{A}:
+\begin{Verbatim}
+protocol P1 {
+  associatedtype A
+}
+
+protocol P2 {
+  associatedtype A
+}
+\end{Verbatim}
+Let's look at the generic signature \texttt{<\ttgp{0}{0} where \ttgp{0}{0}:~P1, \ttgp{0}{0}:~P2>}. The first six rules are the imported rules from \texttt{P1} and \texttt{P2}; rules (7) and (8) are the local rules for the two conformance requirements:
+\begin{gather*}
+\ProtoConf{\protosym{P1}}{P1}\tag{1}\\
+\ProtoConf{\protosym{P2}}{P2}\tag{2}\\
+\AssocIntro{P1}{A}\tag{3}\\
+\AssocIntro{P2}{A}\tag{4}\\
+\protosym{P1}.\assocsym{P1}{A}\Rightarrow\assocsym{P1}{A}\tag{5}\\
+\protosym{P2}.\assocsym{P2}{A}\Rightarrow\assocsym{P2}{A}\tag{6}\\[\medskipamount]
+\ProtoConf{\ttgp{0}{0}}{P1}\tag{7}\\
+\ProtoConf{\ttgp{0}{0}}{P2}\tag{8}
+\end{gather*}
+Rule (7) overlaps with rule (3), and rule (8) overlaps with rule (4). Resolving the first critical pair plays out as in Example~\ref{proto assoc rule 2}, adding the rule $\ttgp{0}{0}.\texttt{A}\Rightarrow\ttgp{0}{0}.\assocsym{P1}{A}$.
+
+\[
+\begin{tikzcd}
+\ttgp{0}{0}.\protosym{P2}.\texttt{A}
+\arrow[rd, Rightarrow, bend left]
+&&\ttgp{0}{0}.\protosym{P1}.\texttt{A}
+\arrow[dd, Rightarrow, bend left]
+\\
+&\ttgp{0}{0}.\texttt{A}
+\arrow[ld, Rightarrow, bend right]
+\arrow[ru, Rightarrow, bend left]
+\\
+\ttgp{0}{0}.\assocsym{P2}{A}
+\arrow[rr, Rightarrow, bend right, dashed, "(\ttgp{0}{0}.\assocsym{P2}{A}\Rightarrow\ttgp{0}{0}.\assocsym{P1}{A})"']
+\arrow[uu, Rightarrow, bend left]
+&&\ttgp{0}{0}.\assocsym{P1}{A}
+\arrow[ul, Rightarrow, bend right]
+\end{tikzcd}
+\]
+
+This rule corresponds to the derived requirement $\FormalReq{\ttgp{0}{0}.\assocsym{P1}{A} == \ttgp{0}{0}.\assocsym{P2}{A}}$. Let's look at the derivation now. Starting from the first conformance requirement, a \IndexStep{Member}\textsc{Member} derivation step gives an equivalence between the bound and unbound dependent member types \texttt{\ttgp{0}{0}.[P1]A} and \texttt{\ttgp{0}{0}.A}:
+\begin{gather*}
+\vdash\ConfReq{\ttgp{0}{0}}{P1}\tag{1}\\
+(1)\vdash\FormalReq{\ttgp{0}{0}.\assocsym{P1}{A} == \ttgp{0}{0}.\texttt{A}}\tag{2}
+\end{gather*}
+Same with the second:
+\begin{gather*}
+\vdash\ConfReq{\ttgp{0}{0}}{P2}\tag{3}\\
+(3)\vdash\FormalReq{\ttgp{0}{0}.\assocsym{P2}{A} == \ttgp{0}{0}.\texttt{A}}\tag{4}
+\end{gather*}
+Now, a pair of \IndexStep{Equiv}\textsc{Equiv} derivation steps combine (2) and (4) into an equivalence between \texttt{\ttgp{0}{0}.[P1]A} and \texttt{\ttgp{0}{0}.[P2]A}:
+\begin{gather*}
+(4)\vdash\FormalReq{\ttgp{0}{0}.\texttt{A} == \ttgp{0}{0}.\assocsym{P2}{A}}\tag{5}\\
+(2),\,(5)\vdash\FormalReq{\ttgp{0}{0}.\assocsym{P1}{A} == \ttgp{0}{0}.\assocsym{P2}{A}}\tag{6}
+\end{gather*}
+
+\end{example}
+
+\begin{example}
+Now we're going to look at the same-type requirement in the generic signature:
+\begin{quote}
+\begin{verbatim}
+<τ_0_0 where τ_0_0: X, τ_0_0.A == τ_0_0.B>
+\end{verbatim}
+\end{quote}
+Protocol \texttt{X} has two associated types \texttt{A} and \texttt{B}, where \texttt{A} conforms to another protocol \texttt{Y}:
+\begin{Verbatim}
+protocol X {
+  associatedtype A
+  associatedtype B: Y
+}
+
+protocol Y {}
+\end{Verbatim}
+Rewrite rules:
+\begin{gather*}
+\ProtoConf{\protosym{X}}{X}\tag{1}\\
+\AssocIntro{X}{A}\tag{2}\\
+\AssocIntro{X}{B}\tag{3}\\
+\ProtoConf{\assocsym{X}{B}}{Y}\tag{4}\\
+\ProtoConf{\protosym{Y}}{Y}\tag{5}\\[\medskipamount]
+\ProtoConf{\ttgp{0}{0}}{X}\tag{6}\\
+\ttgp{0}{0}.\assocsym{X}{B}\Rightarrow\ttgp{0}{0}.\assocsym{X}{A}\tag{7}
+\end{gather*}
+Rule (7) overlaps with rule (4) on the term $\ttgp{0}{0}.\assocsym{X}{B}.\protosym{Y}$:
+\begin{align*}
+\ttgp{0}{0}.&\assocsym{X}{B}\\
+&\assocsym{X}{B}.\protosym{Y}
+\end{align*}
+Resolving this critical pair adds a rule $\ProtoConf{\ttgp{0}{0}.\assocsym{X}{A}}{Y}$:
+\[
+\FourLoopDerived%
+{\ttgp{0}{0}.\assocsym{X}{B}.\protosym{Y}}%
+{\ttgp{0}{0}.\assocsym{X}{A}.\protosym{Y}}%
+{\ttgp{0}{0}.\assocsym{X}{A}}%
+{\ttgp{0}{0}.\assocsym{X}{B}}%
+{(\ttgp{0}{0}.\assocsym{X}{B}\Rightarrow\ttgp{0}{0}.\assocsym{X}{A}).\protosym{Y}}%
+{(\ProtoConf{\ttgp{0}{0}.\assocsym{X}{A}}{Y})}%
+{(\ttgp{0}{0}.\assocsym{X}{A}\Rightarrow\ttgp{0}{0}.\assocsym{X}{B})}%
+{\ttgp{0}{0}.(\ProtoConfInv{\assocsym{X}{B}}{Y})}
+\]
+Completion has ``transported'' the requirement on $\ttgp{0}{0}.\assocsym{X}{B}$ to $\ttgp{0}{0}.\assocsym{X}{A}$ via the same-type requirement. Compare the two rules:
+\begin{gather*}
+\ProtoConf{\assocsym{X}{B}}{Y}\\
+\ProtoConf{\ttgp{0}{0}.\assocsym{X}{A}}{Y}
+\end{gather*}
+The first rule means that every type conforming to \texttt{X} has a member type \texttt{[X]B} conforming to \texttt{Y}. The new rule only applies to the member type \texttt{A} of $\ttgp{0}{0}$; not \emph{every} \texttt{[X]A} conforms to \texttt{Y}, but the \texttt{[X]A} of $\ttgp{0}{0}$ does.
+\end{example}
+
+TODO:
+\begin{itemize}
+
+\item protocol conformance vs identity conformance vs same-type creating a loop in the type param graph. Z5 protocol example
+
+\[
+\begin{tikzcd}
+&\assocsym{P}{A}.\assocsym{P}{A}.\protosym{P}
+\arrow[rd, Rightarrow, "(\assocsym{P}{A}.\assocsym{P}{A}\Rightarrow\protosym{P}).\protosym{P}", bend left]
+\\
+\assocsym{P}{A}.\assocsym{P}{A}
+\arrow[ru, Rightarrow, "\assocsym{P}{A}.(\assocsym{P}{A}\Rightarrow\assocsym{P}{A}.\protosym{P})", bend left]
+&&\protosym{P}.\protosym{P}\arrow[ld, Rightarrow, "(\protosym{P}.\protosym{P}\Rightarrow\protosym{P})", bend left]\\
+&\protosym{P}\arrow[ul, Rightarrow, "(\protosym{P}\Rightarrow\assocsym{P}{A}.\assocsym{P}{A})", bend left]
+\end{tikzcd}
+\]
+
+\item same-type vs protocol conformance --- ``carries'' properties over to shorter term
+\item show how an unbound type param rule becomes a bound type param rule via several rules. ``coherence diagram''
+\item conformance vs abstract protocol type alias
+\item conformance vs concrete protocol type alias
+\item \verb|T.A == G<T.B>| vs \verb|[P].[P:A]| -- concrete type adjustment and substitution simplifaction
+\item redundant requirement like \texttt{T.Iterator: IteratorProtocol}; how does completion handle this?
+\end{itemize}
+
+\section{Reduced Rewrite Systems}\label{rule reduction}
+
+Suppose we have a pair of rewrite rules, $xuy\Rightarrow t$ and $u\Rightarrow v$. The term $xuy$ can be reduced by either rule; or in our parlance, the rules overlap on the term $xuy$:
+\begin{align*}
+x&uy\\
+&u
+\end{align*}
+This is what we called an interior overlap. Completion will resolve this critical pair:
+\[
+\begin{tikzcd}
+&xuy
+\arrow[ld, Rightarrow, bend right, "(xuy\Rightarrow t)"']
+\arrow[rd, Rightarrow, bend left, "x(u\Rightarrow v)y"]
+\\
+t\arrow[d, Rightarrow]&&xvy\arrow[d, Rightarrow]\\
+\ldots&&\ldots
+\end{tikzcd}
+\]
+Now, any number of things can happen; if $t<xvy$, we might record the rule $xvy\Rightarrow t$; if $t>xvy$, we might record $t\Rightarrow xvy$; the critical pair might resolve trivially with $t=xvy$, one or both of $t$ or $xvy$ might reduce further, and so on. However, the key point is that after completion, we have a confluent reduction relation; so if we start with the term $xuy$, it doesn't matter if we reduce it with $xuy\Rightarrow t$, $u\Rightarrow v$, or some other rule---by confluence we will always eventually end up with the same reduced term. Indeed, if we \emph{always} prefer $u\Rightarrow v$ over $xuy\Rightarrow t$, we don't need the latter rule at all.
+
+We say that a rewrite system is \emph{left-reduced} if no rule's left-hand side contains the left-hand side of any other rule as a subterm. The below algorithm transforms a rewrite system into a left-reduced rewrite system. We don't actually delete rewrite rules below; instead, we set the \index{left-simplified rule}\textbf{left-simplified} rule flag.
+
+\begin{algorithm}[Compute left-reduced rewrite system]\label{left simplification}
+Takes a rewrite system as input, and modifies its rules as needed.
+\begin{enumerate}
+\item (Initialize) Let \texttt{R} be the list of local rules in our rewrite system, and set $i:=0$.
+\item (Outer check) If $i=|\texttt{R}|$, return. Otherwise, let $u_i\Rightarrow v_i$ be the $i$th rule in \texttt{R}, and set $j:=0$.
+\item (Inner check) If $j=|u_i|$, go to Step~8.
+\item (Search) Look up $u_i[:j]$ in the \index{rule trie}rule \index{trie}trie, where $u_i[:j]$ is the suffix of $u_i$ starting from the $j$th index.
+\item (Decide) If the trie lookup returns no results, or returns the $i$th rule itself (which can only happen if $j=0$, so $u_i[:j]=u_i$), go to Step~7.
+\item (Mark) Otherwise, $u_i$ has a subterm equal to the left-hand side of some other rule. Mark $u_i\Rightarrow v_i$ as \textbf{left-simplified} and go to Step~7.
+\item (Inner loop) Increment $j$ and go back to Step~3.
+\item (Outer loop) Increment $i$ and go back to Step~2.
+\end{enumerate}
+\end{algorithm}
+
+There is an analogous simplification algorithm which considers the right-hand side of each rewrite rule. Suppose we have a rule $u\Rightarrow v$, but $v$ is not reduced. Then there exists some other reduced term $v^\prime$ with $v\rightarrow v^\prime$. If a directed rewrite path contains the rewrite step $x(u\Rightarrow v)y$, the term $xvy$ can always be reduced to $xv^\prime y$, and possibly further. We can avoid this redundant work by replacing the rewrite rule $u\Rightarrow v$ with $u\Rightarrow v^\prime$.
+
+We say that a rewrite system is \IndexDefinition{right-reduced rewrite system}\emph{right-reduced} if the right-hand side of every rewrite rule is reduced. Our next algorithm transforms a rewrite system into a right-reduced rewrite system. While Algorithm~\ref{left simplification} relied on completion already having resolved the overlap involving the rules that became left simplified, this algorithm must add new rules itself, and relate them to existing rules by recording rewrite loops. Once again though, we don't actually delete obsolete rules; they are marked \index{right-simplified rule}\textbf{right-simplified}.
+\[
+\begin{tikzcd}
+&v_i\arrow[r, Rightarrow]&\ldots\arrow[rd, Rightarrow, bend left, "p"]&\\
+u_i\arrow[ru, Rightarrow, bend left, "(u_i\Rightarrow v_i)"]\arrow[rrr, Rightarrow, bend right, "(u_i\Rightarrow v_i^\prime)"']&&&v_i^\prime
+\end{tikzcd}
+\]
+
+\begin{algorithm}[Compute right-reduced rewrite system]\label{right simplification}
+Takes a rewrite system as input, and modifies its rules as needed.
+\begin{enumerate}
+\item (Initialize) Let \texttt{R} be the list of local rules in our rewrite system, and set $i:=0$.
+\item (Check) If $i=|\texttt{R}|$, return. Otherwise, let $u_i\Rightarrow v_i$ be the $i$th rule in \texttt{R}.
+\item (Reduce) Apply Algorithm~\ref{term reduction trie algo} to $v_i$ to get a rewrite path $p$. If $p$ is the empty rewrite path $1_{v_i}$, the right-hand side $v_i$ is already reduced, so go to Step~7.
+\item (Record) Let $v^\prime_i=\Dst(p)$. Add a new rewrite rule $u_i\Rightarrow v^\prime_i$ to the list of local rules, and insert it into the rule trie with the key $u_i$, replacing the old rule $u_i\Rightarrow v_i$.
+\item (Relate) Add the rewrite loop $(u_i\Rightarrow v_i)\circ p\circ(v^\prime_i\Rightarrow u_i)$ with basepoint $u_i$, relating the old rule $u_i\Rightarrow v_i$ with the new rule $u_i\Rightarrow v^\prime_i$.
+\item (Mark) Mark the old rule as \textbf{right-simplified}.
+\item (Loop) Increment $i$ and go back to Step~2.
+\end{enumerate}
+\end{algorithm}
+A good example of both left- and right-simplification occurs when computing the completion of a rewrite system built from user-written requirements. Recall that requirement resolution runs in the \index{structural resolution stage}structural type resolution stage, so the type parameters in user-written requirements are \index{unbound type parameter}unbound. Unbound type parameters map to \index{name symbol}name symbols.
+
+blah blah blah
+
+We say that a rewrite system is \emph{reduced} is both left-reduced and right-reduced. The completion procedure runs Algorithm~\ref{left simplification} and Algorithm~\ref{right simplification} after every round of critical pair resolution; this both ensures the final rewrite system is reduced, and cuts down on unnecessary work by reducing the rewrite system at intermediate stages. Completion does not consider critical pairs involving left-simplified or right-simplified rules. Rules marked as such as also skipped when importing rules from a protocol component, they do not appear in the rule trie, and rewrite system minimization favors them for eliminiation (Section~\ref{elimination order}).
+
+In the literature, reduced rewrite systems are alternatively referred to as ``normalized'', ``canonical'', or ``inter-reduced''. The Requirement Machine actually implements one more pass for rewrite system simplification, known as \emph{substitution simplification}. It is a little bit different because it is something we ``invented,'' and not an inherent part of string rewrite system theory. Substitution simplification reduces substitution terms appearing in superclass, concrete type and concrete conformance symbols. We will discuss it in Chapter~\ref{propertymap}.
+
+The definitions of left-reduced and right-reduced rewrite systems resemble left-reduced and right-reduced same-type requirements in a generic signature from Section~\ref{minimal requirements}. These are very similar concepts, but there are a few important differences. The most obvious is that the roles of ``left'' and ``right'' are reversed; in a same-type requirement $\FormalReq{U == V}$, we have $\texttt{U} < \texttt{V}$, whereas a rewrite rule $u\Rightarrow v$ we have $v<u$. A more subtle difference is that reduced same-type requirements are defined to have the ``shortest'' distance between the left-hand and right-hand side, so if \texttt{T}, \texttt{U} and \texttt{V} are all equivalent and $\texttt{T}<\texttt{U}<\texttt{v}$, a pair of reduced same-type requirements could be $\FormalReq{T == U}$, $\FormalReq{U == V}$. On the other hand, if we have three terms $t$, $u$ and $v$ with $t<u<v$, then the two corresponding rewrite rules would be $u\Rightarrow t$, $v\Rightarrow t$.
+
+\begin{itemize}
+\item valid type parameter => we can erase the names and resolve it
+\end{itemize}
+
+\section{Tietze Transformations}\label{tietze transformations}
+
+Both the Knuth-Bendix completion algorithm and the rule simplification algorithms must uphold an important invariant for the sake of correctness. When completion adds a new rewrite rule, it is because the corresponding pair of terms are already joined by a \index{rewrite path}rewrite path. This rewrite path just doesn't have the requisite form---it is not directed---hence the new rewrite rule must be added to repair the confluence violation. If we consider the underlying monoid though, the two terms are already equivalent, so the new rule doesn't change a thing. Similarly, when rule simplification deletes a rewrite rule, the two terms must be known to be joined by some other rewrite path, not involving this rule. Intuitively, we understand that these transformations knead the reduction relation into one that is better-behaved, but they must not change the equivalence relation, which remains fixed, completely determined by the initial set of relations.
+
+Mathematically speaking, applying one of these algorithms to a monoid presentation outputs a new monoid presentation that is \index{monoid isomorphism}isomorphic to the original. Such isomorphism-preserving transformations can be completely characterized as the composition of one or more primitive steps.
+
+\begin{definition}
+Let $\AR$ be a finitely-presented monoid. A \IndexDefinition{Tietze transformation}\emph{Tietze transformation} is one of the following:
+\begin{enumerate}
+\item (Adding a relation) If a pair of terms $u$, $v\in A^*$ are already joined by a rewrite path from $u$ to $v$---that is, if $u\sim v$ as elements of $\AR$---we can add the relation $(u,\,v)$:
+\[\langle A;\,R\cup\{(u,\,v)\}\rangle\]
+\item (Removing a relation) If we have a relation $(u,\,v)\in R$, and there is a rewrite path from $u$ to $v$ that does not involve $(u,\,v)$, we can remove $(u,\,v)$:
+\[\langle A;\,R\setminus\{(u,\,v)\}\rangle\]
+\item (Adding a symbol) If $a$ is some symbol distinct from all other symbols of $A$, and $t\in A^*$ is any term, we can simultaneously add $a$ and make it equivalent to $t$:
+\[\langle A\cup\{a\};\,R\cup\{(a,\,t)\}\rangle\]
+\item (Removing a symbol) If $a\in A$, there is a relation $(a,\,t)\in R$ for some term $t\in A^*$, and $a$ occurs in no other relation of $R$, we can simultaneously remove $a$ and $(a,\,t)$:
+\[\langle A\setminus\{a\};\,R\setminus\{(a,\,t)\}\rangle\]
+\end{enumerate}
+\end{definition}
+
+Note that (1) and (2) are inverses of each other, and similarly for (3) and (4). Some definitions of (4) omit the condition that the removed symbol not appear in any remaining relations of $\AR$. This does not give us anything new, for if any relation involves $a$, we can first adjoin an equivalent relation where $a$ is replaced by $x$, and remove the old relation, before finally removing $a$.
+
+We say two monoid presentations are \emph{Tietze-equivalent} if one can be obtained from another via a finite sequence of Tietze transformations. The fundamental theorem here is that two monoid presentations are isomorphic if and only if they are Tietze-equivalent.
+
+Tietze transformations are fundamental to the study of \emph{combinatorial group theory}, and are described in any book on the subject, such as \cite{combinatorialgroup}. Note that in a group presentation, a relation $u\sim v$ can always be written as $uv^{-1}\sim\varepsilon$, with the identity element on the right hand side. The term $uv^{-1}$ is called a \emph{relator}. The theory for monoids is described in \cite{book2012string} and \cite{henry2021tietze}.
+
+So, Knuth-Bendix completion performs (1). Algorithm~\ref{left simplification} performs (2). Algorithm~\ref{right simplification} does both (1) and (2). Now, we will see an instance of (3), adding a symbol.
+
+\paragraph{Associated type symbols} Using Tietze transformations, we can see that associated type symbols are, in some sense, redundant. Algorithm \ref{build term generic}~and~\ref{build term protocol} map bound dependent member types to associated type symbols, but that is just an optimization; if instead they only produced terms containing \index{name symbol}name symbols, term reduction would convert the name symbols into associated type symbols anyway. Indeed, every \index{associated type symbol}associated type symbol $\assocsym{P}{A}$ has a corresponding \index{associated type introduction rule}associated type introduction rule:
+\[\protosym{P}.\texttt{A}\Rightarrow\assocsym{P}{A}\]
+
+This rule equates the associated type symbol with the term $\protosym{P}.\texttt{A}$, so each associated type symbol, together with its introduction rule, defines a Tietze transformation of the third kind. We can imagine a sequence of such Tietze transformations, exhibiting an isomorphism between two monoid presentation. The first monoid presentation has the full set of symbols as its alphabet, including name, protocol and associated type symbols. The second is defined over the name and \index{protocol symbol}protocol symbols only. The obvious question is then, if these two monoids are isomorphic, why do we need associated type symbols at all? The answer, once again, involves the reduction relation.
+
+We're going to look at our protocol \texttt{N} that we encountered several times already, most recently in Section~\ref{monoidsasprotocols}:
+\begin{Verbatim}
+protocol N {
+  associatedtype A: N
+}
+\end{Verbatim}
+When building the requirement signature from this protocol written in source, we get a requirement machine with an initial set of three rewrite rules:
+\begin{gather*}
+\protosym{N}.\protosym{N}\Rightarrow\protosym{N}\tag{1}\\
+\protosym{N}.\texttt{A}\Rightarrow\assocsym{N}{A}\tag{2}\\
+\protosym{N}.\texttt{A}.\protosym{N}\Rightarrow\protosym{N}.\texttt{A}\tag{3}
+\end{gather*}
+The identity conformance rule (1) doesn't do anything useful in this case, so we can ignore it completely. Now we pretend the associated type introduction rule (2) is also not there. This leaves us with the recursive conformance requirement (3) on the associated type \texttt{A}. Perhaps surprisingly, there is a non-trivial critical pair; the third rule overlaps with itself on the term $\protosym{N}.\texttt{A}.\protosym{N}.\texttt{A}.\protosym{N}$:
+\begin{align*}
+\protosym{N}.\texttt{A}.&\protosym{N}\\
+&\protosym{N}.\texttt{A}.\protosym{N}
+\end{align*}
+Resolving this critical pair introduces a new rule $\protosym{N}.\texttt{A}.\texttt{A}.\protosym{N}\Rightarrow\protosym{N}.\texttt{A}.\texttt{A}$:
+\[
+\FourLoopDerived%
+{\protosym{N}.\texttt{A}.\protosym{N}.\texttt{A}.\protosym{N}}%
+{\protosym{N}.\texttt{A}.\texttt{A}.\protosym{N}}%
+{\protosym{N}.\texttt{A}.\texttt{A}}%
+{\protosym{N}.\texttt{A}.\protosym{N}.\texttt{A}}%
+{(\protosym{N}.\texttt{A}.\protosym{N}\Rightarrow\protosym{N}.\texttt{A}).\texttt{A}.\protosym{N}}%
+{(\protosym{N}.\texttt{A}.\texttt{A}.\protosym{N}\Rightarrow\protosym{N}.\texttt{A}.\texttt{A})}%
+{(\protosym{N}.\texttt{A}\Rightarrow\protosym{N}.\texttt{A}.\protosym{N}).\texttt{A}}%
+{\protosym{N}.\texttt{A}.(\protosym{N}.\texttt{A}\Rightarrow\protosym{N}.\texttt{A}.\protosym{N})}
+\]
+This rule introduces several new critical pairs. It overlaps with itself, and also with (3) in two ways. We will look at one of these overlaps, on the term $\protosym{N}.\texttt{A}.\texttt{A}.\protosym{N}.\texttt{A}.\protosym{N}$:
+\begin{align*}
+\protosym{N}.\texttt{A}.\texttt{A}.&\protosym{N}\\
+&\protosym{N}.\texttt{A}.\protosym{N}
+\end{align*}
+Resolving this critical pair introduces a new rule $\protosym{N}.\texttt{A}.\texttt{A}.\texttt{A}.\protosym{N}\Rightarrow\protosym{N}.\texttt{A}.\texttt{A}.\texttt{A}$:
+\[
+\FourLoopDerived%
+{\protosym{N}.\texttt{A}.\texttt{A}.\protosym{N}.\texttt{A}.\protosym{N}}%
+{\protosym{N}.\texttt{A}.\texttt{A}.\texttt{A}.\protosym{N}}%
+{\protosym{N}.\texttt{A}.\texttt{A}.\texttt{A}}%
+{\protosym{N}.\texttt{A}.\texttt{A}.\protosym{N}.\texttt{A}}%
+{(\protosym{N}.\texttt{A}.\texttt{A}.\protosym{N}\Rightarrow\protosym{N}.\texttt{A}.\texttt{A}).\texttt{A}.\protosym{N}}%
+{(\protosym{N}.\texttt{A}.\texttt{A}.\texttt{A}.\protosym{N}\Rightarrow\protosym{N}.\texttt{A}.\texttt{A}.\texttt{A})}%
+{(\protosym{N}.\texttt{A}.\texttt{A}\Rightarrow\protosym{N}.\texttt{A}.\texttt{A}.\protosym{N}).\texttt{A}}%
+{\protosym{N}.\texttt{A}.\texttt{A}.(\protosym{N}.\texttt{A}\Rightarrow\protosym{N}.\texttt{A}.\protosym{N})}
+\]
+The above diagram is almost identical to the previous one. Generalizing, for all $n\in\mathbb{N}$, the rule $\protosym{N}.\texttt{A}^n.\protosym{N}\Rightarrow\protosym{N}.\texttt{A}^n$ overlaps with $\protosym{N}.\texttt{A}.\protosym{N}\Rightarrow\protosym{N}.\texttt{A}$ on the term $\protosym{N}.\texttt{A}^n.\protosym{N}.\texttt{A}.\protosym{N}$, and resolving the critical pairs produces a new rule $\protosym{N}.\texttt{A}^{n+1}.\protosym{N}\Rightarrow\protosym{N}.\texttt{A}^{n+1}$:
+\[
+\FourLoopDerived%
+{\protosym{N}.\texttt{A}^n.\protosym{N}.\texttt{A}.\protosym{N}}%
+{\protosym{N}.\texttt{A}^{n+1}.\protosym{N}}%
+{\protosym{N}.\texttt{A}^{n+1}}%
+{\protosym{N}.\texttt{A}^n.\protosym{N}.\texttt{A}}%
+{(\protosym{N}.\texttt{A}^n.\protosym{N}\Rightarrow\protosym{N}.\texttt{A}^n).\texttt{A}.\protosym{N}}%
+{(\protosym{N}.\texttt{A}^{n+1}.\protosym{N}\Rightarrow\protosym{N}.\texttt{A}^{n+1})}%
+{(\protosym{N}.\texttt{A}^n\Rightarrow\protosym{N}.\texttt{A}^n.\protosym{N}).\texttt{A}}%
+{\protosym{N}.\texttt{A}^n.(\protosym{N}.\texttt{A}\Rightarrow\protosym{N}.\texttt{A}.\protosym{N})}
+\]
+Indeed, every critical pair we resolve only creates more critical pairs, and the Knuth-Bendix algorithm outputs an endless sequence of rewrite rules; in practice, eventually hitting an iteration limit and terminating with an error:
+\begin{gather*}
+\protosym{N}.\texttt{A}.\texttt{A}.\protosym{N}\Rightarrow\protosym{N}.\texttt{A}.\texttt{A}\\
+\protosym{N}.\texttt{A}.\texttt{A}.\texttt{A}.\protosym{N}\Rightarrow\protosym{N}.\texttt{A}.\texttt{A}.\texttt{A}\\
+\protosym{N}.\texttt{A}.\texttt{A}.\texttt{A}.\texttt{A}.\protosym{N}\Rightarrow\protosym{N}.\texttt{A}.\texttt{A}.\texttt{A}.\texttt{A}\\
+\ldots\\
+\protosym{N}.\texttt{A}^n.\protosym{N}\Rightarrow\protosym{N}.\texttt{A}^n\\
+\ldots
+\end{gather*}
+Each of the above rules corresponds to a derived conformance requirement:
+\begin{gather*}
+\ConfReq{Self.A.A}{N}\\
+\ConfReq{Self.A.A.A}{N}\\
+\ConfReq{Self.A.A.A.A}{N}\\
+\ldots\\
+\ConfReq{Self.$\texttt{A}^n$}{N}\\
+\ldots
+\end{gather*}
+All of these derived requirements are implied by the original requirement $\ConfReq{Self.A}{N}$. Now, it is apparent that without associated type symbols, our rewrite system could not represent a recursive conformance requirement.
+
+Now, let's see how the associated type introduction rule $\protosym{N}.\texttt{A}\Rightarrow\assocsym{N}{A}$ changes the Knuth-Bendix completion algorithm. The recursive conformance rule $\protosym{N}.\texttt{A}.\protosym{N}\Rightarrow\protosym{N}.\texttt{A}$ overlaps with the associated type introduction rule on the term $\protosym{N}.\texttt{A}.\protosym{N}$:
+\begin{gather*}
+\protosym{N}.\texttt{A}.\protosym{N}\\
+\protosym{N}.\texttt{A}
+\end{gather*}
+Resolving the critical pair introduces the rule $\assocsym{N}{A}.\protosym{N}\Rightarrow\assocsym{N}{A}$:
+\[
+\FourLoopDerived%
+{\protosym{N}.\texttt{A}.\protosym{N}}%
+{\assocsym{N}{A}.\protosym{N}}%
+{\assocsym{N}{A}}%
+{\protosym{N}.\texttt{A}}%
+{(\protosym{N}.\texttt{A}\Rightarrow\assocsym{N}{A}).\protosym{N}}%
+{(\assocsym{N}{A}.\protosym{N}\Rightarrow\assocsym{N}{A})}%
+{(\assocsym{N}{A}\Rightarrow\protosym{N}.\texttt{A})}%
+{(\protosym{N}.\texttt{A}\Rightarrow\protosym{N}.\texttt{A}.\protosym{N})}
+\]
+While $\protosym{N}.\texttt{A}.\protosym{N}\Rightarrow\protosym{N}.\texttt{A}$ represents the conformance requirement $\ConfReq{Self.A}{N}$, having an \index{unbound dependent member type}unbound dependent member type as its subject type, the new rule $\assocsym{N}{A}.\protosym{N}\Rightarrow\assocsym{N}{A}$ represents $\ConfReq{Self.[N]A}{N}$, where the subject type is bound. The new rule overlaps with the associated type introduction rule on the term $\assocsym{N}{A}.\protosym{N}.\texttt{A}$:
+\begin{align*}
+\assocsym{N}{A}.&\protosym{N}\\
+&\protosym{N}.\texttt{A}
+\end{align*}
+Resolving the critical pair introduces the rule $\assocsym{N}{A}.\texttt{A}\Rightarrow\assocsym{N}{A}.\assocsym{N}{A}$:
+\[
+\begin{tikzcd}[ampersand replacement=\&]%
+\&\assocsym{N}{A}.\protosym{N}.\texttt{A}\arrow[ld, Rightarrow, "(\ProtoConf{\assocsym{N}{A}}{N}).\texttt{A}"', bend right]\\
+\assocsym{N}{A}.\texttt{A}\arrow[rd, Rightarrow, "(\assocsym{N}{A}.\texttt{A}\Rightarrow\assocsym{N}{A}.\assocsym{N}{A})"', bend right, dashed]\&\\
+\&\assocsym{N}{A}.\assocsym{N}{A}\arrow[uu, Rightarrow, "\assocsym{N}{A}.(\AssocIntroInv{N}{A})"', bend right]
+\end{tikzcd}
+\]
+No more non-trivial critical pairs remain, and we have a convergent rewrite system. The left-hand side of rule (3) can be reduced by (2), so Algorithm~\ref{left simplification} removes it. We are now left with:
+\begin{gather*}
+\protosym{N}.\protosym{N}\Rightarrow\protosym{N}\tag{1}\\
+\protosym{N}.\texttt{A}\Rightarrow\assocsym{N}{A}\tag{2}\\
+\text{\sout{$\protosym{N}.\texttt{A}.\protosym{N}\Rightarrow\protosym{N}.\texttt{A}$}}\tag{3}\\
+\assocsym{N}{A}.\protosym{N}\Rightarrow\assocsym{N}{A}\tag{4}\\
+\assocsym{N}{A}.\texttt{A}\Rightarrow\assocsym{N}{A}.\assocsym{N}{A}\tag{5}
+\end{gather*}
+This finite set of rewrite rules encodes the same equivalences as the infinite sequence of rules we ended up with prior. For example, without the associated type symbol, this was one of the infinitely many rules derived by the Knuth-Bendix algorithm:
+\[\protosym{N}.\texttt{A}.\texttt{A}.\texttt{A}.\protosym{N}\Rightarrow\protosym{N}.\texttt{A}.\texttt{A}.\texttt{A}\]
+We had to add this rule, because otherwise there were no directed rewrite paths joining the two sides to a common term. But now, both sides reduce to $\assocsym{N}{A}.\assocsym{N}{A}.\assocsym{N}{A}$:
+\[
+\begin{tikzcd}
+\protosym{N}.\texttt{A}.\texttt{A}.\texttt{A}.\protosym{N}
+\arrow[d, Rightarrow]\\
+\assocsym{N}{A}.\texttt{A}.\texttt{A}.\protosym{N}
+\arrow[d, Rightarrow]&&
+\protosym{N}.\texttt{A}.\texttt{A}.\texttt{A}
+\arrow[d, Rightarrow]\\
+\assocsym{N}{A}.\assocsym{N}{A}.\texttt{A}.\protosym{N}
+\arrow[d, Rightarrow]&&
+\assocsym{N}{A}.\texttt{A}.\texttt{A}
+\arrow[d, Rightarrow]\\
+\assocsym{N}{A}.\assocsym{N}{A}.\assocsym{N}{A}.\protosym{N}
+\arrow[rd, Rightarrow]&&
+\assocsym{N}{A}.\assocsym{N}{A}.\texttt{A}
+\arrow[ld, Rightarrow]\\
+&\assocsym{N}{A}.\assocsym{N}{A}.\assocsym{N}{A}
+\end{tikzcd}
+\]
+We can exhibit a similar diagram for $\protosym{N}.\texttt{A}.\texttt{A}.\texttt{A}.\texttt{A}.\protosym{N}$ and $\protosym{N}.\texttt{A}.\texttt{A}.\texttt{A}.\texttt{A}$, and so on. There is one more thing. We rely on associated type symbols preceding name symbols in the term reduction order here. Otherwise rule (5) above would look like this:
+\[\assocsym{N}{A}.\assocsym{N}{A}\Rightarrow\assocsym{N}{A}.\texttt{A}\]
+We would then once again end up with an infinite sequence of rewrite rules, as completion goes haywire:
+\begin{gather*}
+\assocsym{N}{A}.\texttt{A}.\protosym{N}\Rightarrow\assocsym{N}{A}.\texttt{A}\\
+\assocsym{N}{A}.\texttt{A}.\texttt{A}.\protosym{N}\Rightarrow\assocsym{N}{A}.\texttt{A}.\texttt{A}\\
+\assocsym{N}{A}.\texttt{A}.\texttt{A}.\texttt{A}.\protosym{N}\Rightarrow\assocsym{N}{A}.\texttt{A}.\texttt{A}.\texttt{A}\\
+\ldots\\
+\assocsym{N}{A}.\texttt{A}^n.\protosym{N}\Rightarrow\assocsym{N}{A}.\texttt{A}^n\\
+\ldots
+\end{gather*}
+
+We can look at the abstract monoid presentations, replacing $\protosym{N}$ with $a$, \texttt{A} with $b$, and $\assocsym{N}{A}$ with $c$. We started with the following presentation, which is not convergent:
+\[\langle a,\,b;\,aba\sim ab\rangle\]
+We then added a symbol $c$ and relation $ab\sim c$:
+\[\langle a,\,b,\,c;\,aba\sim ab,\,ab\sim c\rangle\]
+Next, we added two relations $ca\sim c$ and $cb\sim cc$:
+\[\langle a,\,b,\,c;\,aba\sim ab,\,ab\sim c,\,ca\sim c,\,cb\sim cc\rangle\]
+Finally, we removed the relation $aba\sim ab$:
+\[\langle a,\,b,\,c;\,ab\sim c,\,ca\sim c,\,cb\sim cc\rangle\]
+All of the above presentations are Tietze equivalent. At no point did the equivalence relation change, but the last two presentations are convergent, and the final one is reduced, under the reduction order $c<a<b$.
+
+\paragraph{Inherited associated types}
+Consider this protocol:
+\begin{Verbatim}
+protocol Q: N where A: Q {}
+\end{Verbatim}
+Here are the initial rewrite rules:
+\begin{gather*}
+\protosym{Q}.\protosym{Q}\Rightarrow\protosym{Q}\tag{1}\\
+\protosym{Q}.\protosym{N}\Rightarrow\protosym{Q}\tag{2}\\
+\protosym{Q}.\texttt{A}.\protosym{Q}\Rightarrow\protosym{Q}.\texttt{A}\tag{3}\\
+\protosym{Q}.\texttt{A}\Rightarrow\assocsym{Q}{A}\tag{4}
+\end{gather*}
+
+Rule (2) overlaps with the associated type introduction rule for $\assocsym{N}{A}$ on the term $\protosym{Q}.\protosym{N}.\texttt{A}$:
+\begin{align*}
+\protosym{Q}.&\protosym{N}\\
+&\protosym{N}.\texttt{A}
+\end{align*}
+Resolving this critical pair adds a new rule $\protosym{Q}.\texttt{A}\Rightarrow\protosym{Q}.\assocsym{N}{A}$:
+\[
+\begin{tikzcd}
+&\protosym{Q}.\protosym{N}.\texttt{A}\arrow[ld, Rightarrow, bend right, "(\protosym{Q}.\protosym{N}\Rightarrow\protosym{Q}).\texttt{A}"']\\
+\protosym{Q}.\texttt{A}\arrow[rd, Rightarrow, bend right, dashed, "(\protosym{Q}.\texttt{A}\Rightarrow\protosym{Q}.\assocsym{N}{A})"']&\\
+&\protosym{Q}.\assocsym{N}{A}\arrow[uu, Rightarrow, bend right, "\protosym{Q}.(\assocsym{N}{A}\Rightarrow\protosym{N}.\texttt{A})"']
+\end{tikzcd}
+\]
+
+Rule (3) overlaps with the new rule on the term $\protosym{Q}.\texttt{A}.\protosym{Q}$:
+\begin{align*}
+&\protosym{Q}.\texttt{A}.\protosym{Q}\\
+&\protosym{Q}.\texttt{A}
+\end{align*}
+Resolving this critical pair adds a new rule $\protosym{Q}.\assocsym{N}{A}.\protosym{Q}\Rightarrow\protosym{Q}.\assocsym{N}{A}$:
+\[
+\FourLoopDerived%
+{\protosym{Q}.\texttt{A}.\protosym{Q}}%
+{\protosym{Q}.\assocsym{N}{A}.\protosym{Q}}%
+{\protosym{Q}.\assocsym{N}{A}}%
+{\protosym{Q}.\texttt{A}}%
+{(\protosym{Q}.\texttt{A}\Rightarrow\protosym{Q}.\assocsym{N}{A}).\protosym{Q}}%
+{(\protosym{Q}.\assocsym{N}{A}.\protosym{Q}\Rightarrow\protosym{Q}.\assocsym{N}{A})}%
+{\protosym{Q}.(\assocsym{N}{A}\Rightarrow\texttt{A})}%
+{(\protosym{Q}.\texttt{A}\Rightarrow\protosym{Q}.\texttt{A}.\protosym{Q})}
+\]
+Rule (3) overlaps with the new rule on the term $\protosym{Q}.\assocsym{N}{A}.\protosym{Q}.\texttt{A}.\protosym{Q}$:
+\begin{align*}
+\protosym{Q}.\assocsym{N}{A}.&\protosym{Q}.\texttt{A}.\protosym{Q}\\
+&\protosym{Q}.\texttt{A}.\protosym{Q}
+\end{align*}
+Resolving this critical pair adds a new rule $\protosym{Q}.\assocsym{N}{A}.\assocsym{N}{A}.\protosym{Q}\Rightarrow\protosym{Q}.\assocsym{N}{A}.\assocsym{N}{A}$:
+\[
+\begin{tikzcd}
+&\protosym{Q}.\assocsym{N}{A}.\protosym{Q}.\texttt{A}.\protosym{Q}\arrow[ld, Rightarrow, "(\protosym{Q}.\assocsym{N}{A}.\protosym{Q}\Rightarrow\protosym{Q}.\assocsym{N}{A}).\texttt{A}.\protosym{Q}"']&\\
+\protosym{Q}.\assocsym{N}{A}.\texttt{A}.\protosym{Q}\arrow[d, Rightarrow, "\protosym{Q}.(\assocsym{N}{A}.\texttt{A}\Rightarrow\assocsym{N}{A}.\assocsym{N}{A}).\protosym{Q}"']&&
+\protosym{Q}.\assocsym{N}{A}.\protosym{Q}.\texttt{A}\arrow[ul, Rightarrow, "\protosym{Q}.\assocsym{N}{A}.(\protosym{Q}.\texttt{A}\Rightarrow\protosym{Q}.\texttt{A}.\protosym{Q})"']\\
+\protosym{Q}.\assocsym{N}{A}.\assocsym{N}{A}.\protosym{Q}\arrow[rd, Rightarrow, dashed, "(\protosym{Q}.\assocsym{N}{A}.\assocsym{N}{A}.\protosym{Q}\Rightarrow\protosym{Q}.\assocsym{N}{A}.\assocsym{N}{A})"']&&
+\protosym{Q}.\assocsym{N}{A}.\texttt{A}\arrow[u, Rightarrow, "(\protosym{Q}.\assocsym{N}{A}\Rightarrow\protosym{Q}.\assocsym{N}{A}.\protosym{Q}).\texttt{A}"']\\
+&\protosym{Q}.\assocsym{N}{A}.\assocsym{N}{A}\arrow[ru, Rightarrow, "\protosym{Q}.(\assocsym{N}{A}.\assocsym{N}{A}\Rightarrow\assocsym{N}{A}.\texttt{A})"']
+\end{tikzcd}
+\]
+Once again, we see a pattern emerge. Rule (3) overlaps with each rule of the form $\protosym{Q}.\assocsym{N}{A}^n.\protosym{Q}\Rightarrow\protosym{Q}.\assocsym{N}{A}^n$ on the term $\protosym{Q}.\assocsym{N}{A}^n\protosym{Q}.\texttt{A}.\protosym{Q}$. Resolving this critical pair adds a new rule $\protosym{Q}.\assocsym{N}{A}^{n+1}.\protosym{Q}\Rightarrow\protosym{Q}.\assocsym{N}{A}^{n+1}$. Completion ends up introducing an infinite sequence of rules:
+\begin{gather*}
+\protosym{Q}.\assocsym{N}{A}.\protosym{Q}\Rightarrow\protosym{Q}.\assocsym{N}{A}\\
+\protosym{Q}.\assocsym{N}{A}.\assocsym{N}{A}.\protosym{Q}\Rightarrow\protosym{Q}.\assocsym{N}{A}.\assocsym{N}{A}\\
+\protosym{Q}.\assocsym{N}{A}.\assocsym{N}{A}.\assocsym{N}{A}.\protosym{Q}\Rightarrow\protosym{Q}.\assocsym{N}{A}.\assocsym{N}{A}.\assocsym{N}{A}\\
+\ldots\\
+\protosym{Q}.\assocsym{N}{A}^n.\protosym{Q}\Rightarrow\protosym{Q}.\assocsym{N}{A}^n\\
+\ldots
+\end{gather*}
+Now, suppose we add the inherited associated type symbol $\assocsym{Q}{A}$ and the rule $\protosym{Q}.\texttt{A}\Rightarrow\assocsym{Q}{A}$. We already saw that protocol inheritance rule $\protosym{Q}.\protosym{N}\Rightarrow\protosym{Q}$ overlaps with the associated type introduction rule $\protosym{N}.\texttt{A}\Rightarrow\protosym{N}$ on the term $\protosym{Q}.\protosym{N}.\texttt{A}$:
+\begin{align*}
+\protosym{Q}.&\protosym{N}\\
+&\protosym{N}.\texttt{A}
+\end{align*}
+But now, resolution of this critical pair involves $\protosym{Q}.\texttt{A}\Rightarrow\assocsym{Q}{A}$, and we get a new rule $\protosym{Q}.\assocsym{N}{A}\Rightarrow\assocsym{Q}{A}$:
+\[
+\FourLoopDerived%
+{\protosym{Q}.\protosym{N}.\texttt{A}}%
+{\protosym{Q}.\assocsym{N}{A}}%
+{\assocsym{Q}{A}}%
+{\protosym{Q}.\texttt{A}}%
+{\protosym{Q}.(\protosym{N}.\texttt{A}\Rightarrow\assocsym{N}{A})}%
+{(\protosym{Q}.\assocsym{N}{A}\Rightarrow\assocsym{Q}{A})}%
+{(\assocsym{Q}{A}\Rightarrow\protosym{Q}.\texttt{A})}%
+{(\protosym{Q}\Rightarrow\protosym{Q}.\protosym{N}).\texttt{A}}
+\]
+
+The reduction order is significant here. If protocol \texttt{Q} did not inherit from \texttt{N}, we would have $\protosym{N}<\protosym{Q}$ and $\assocsym{N}{A}<\assocsym{Q}{A}$ (of course the last symbol would then only exist if \texttt{Q} had its own associated type \texttt{A}). However, since \texttt{Q} inherits from \texttt{N}, we instead get that $\protosym{Q}<\protosym{N}$ and $\assocsym{Q}{A}<\assocsym{N}{A}$.
+
+Here is the final rewrite system after completion, where the first five rules are imported from the rewrite system for \texttt{N}:
+\begin{gather*}
+\protosym{N}.\protosym{N}\Rightarrow\protosym{N}\tag{1}\\
+\protosym{N}.\texttt{A}\Rightarrow\assocsym{N}{A}\tag{2}\\
+\text{\sout{$\protosym{N}.\texttt{A}.\protosym{N}\Rightarrow\protosym{N}.\texttt{A}$}}\tag{3}\\
+\assocsym{N}{A}.\protosym{N}\Rightarrow\assocsym{N}{A}\tag{4}\\
+\assocsym{N}{A}.\texttt{A}\Rightarrow\assocsym{N}{A}.\assocsym{N}{A}\tag{5}\\[\medskipamount]
+\protosym{Q}.\protosym{Q}\Rightarrow\protosym{Q}\tag{6}\\
+\protosym{Q}.\texttt{A}\Rightarrow\assocsym{Q}{A}\tag{7}\\
+\protosym{Q}.\protosym{N}\Rightarrow\protosym{Q}\tag{8}\\
+\text{\sout{$\protosym{Q}.\texttt{A}.\protosym{Q}\Rightarrow\protosym{Q}.\texttt{A}$}}\tag{9}\\
+\protosym{Q}.\assocsym{N}{A}\Rightarrow\assocsym{Q}{A}\tag{10}\\
+\assocsym{Q}{A}.\protosym{Q}\Rightarrow\assocsym{Q}{A}\tag{11}\\
+\assocsym{Q}{A}.\texttt{A}\Rightarrow\assocsym{Q}{A}.\assocsym{Q}{A}\tag{12}\\
+\assocsym{Q}{A}.\assocsym{N}{A}\Rightarrow\assocsym{Q}{A}.\assocsym{Q}{A}\tag{13}
+\end{gather*}
+
+\paragraph{Merged associated types}
+The previous section showed an example of what can be called ``vertical composition,'' where the $\proto{BidirectionalCollection}$ protocol imposed an additional protocol conformance requirement on the $\namesym{Indices}$ associated type it inherits from $\proto{Collection}$. The recursive conformance on the $\namesym{Indices}$ associated type caused some trouble, which was resolved with the introduction of inherited associated type symbols.
+
+Now consider ``horizontal composition,'' where a type parameter conforms to two unrelated protocols, and both protocols define nested associated types with the same name. In this case, the requirements on both nested types are ``merged'' to form a single type parameter. Listing~\ref{horizontalcomp} shows a contrived example, which once again prominently features recursive protocol conformances.
+\begin{listing}\captionabove{Example of horizontal composition}\label{horizontalcomp}
+\begin{Verbatim}
+protocol P1 {
+  associatedtype A: P1
+}
+
+protocol P2 {
+  associatedtype A: P2
+}
+
+protocol P3 {
+  associatedtype T: P1, P2
+}
+\end{Verbatim}
+\end{listing}
+This process will continue forever, introducing an infinite sequence of rewrite rules, for all $n\in\mathbb{N}$:
+\begin{align*}
+\assocsym{P3}{T}.\underbrace{\assocsym{P1}{A}.\assocsym{P1}{A}.\assocsym{P1}{A}}_{\text{$n$ times}}.\protosym{P2}&\Rightarrow \assocsym{P3}{T}.\underbrace{\assocsym{P1}{A}.\assocsym{P1}{A}.\assocsym{P1}{A}}_{\text{$n$ times}}\\
+\assocsym{P3}{T}.\underbrace{\assocsym{P1}{A}.\assocsym{P1}{A}.\assocsym{P1}{A}}_{\text{$n$ times}}.\assocsym{P2}{A}&\Rightarrow \assocsym{P3}{T}.\underbrace{\assocsym{P1}{A}.\assocsym{P1}{A}.\assocsym{P1}{A}}_{\text{$n$ times}}.\assocsym{P1}{A}
+\end{align*}
+What happened here is that the rewrite system wants to normalize a mix of $\assocsym{P1}{A}$ and $\assocsym{P2}{A}$ that follows $\assocsym{P3}{T}$ into the same-length sequence of $\assocsym{P1}{A}$ alone. Additionally, each one of these type parameters needs to conform to $\protosym{P2}$ as well, even though $\assocsym{P1}{T}$ alone does \emph{not} conform to $\proto{P2}$.
+
+Unfortunately, this cannot be expressed with a convergent rewrite system over the existing alphabet. Recall the two other examples of this phenomenon shown in this chapter:
+\begin{enumerate}
+\item Introducing associated type symbols made recursive protocol conformance requirements convergent.
+\item Introducing inherited associated type symbols made recursive protocol conformance requirements on inherited associated types convergent.
+\end{enumerate}
+
+\section{Source Code Reference}\label{completion sourceref}
+
+Key source files:
+\begin{itemize}
+\item \SourceFile{lib/AST/RequirementMachine/KnuthBendix.cpp}
+\item \SourceFile{lib/AST/RequirementMachine/RewriteSystem.cpp}
+\item \SourceFile{lib/AST/RequirementMachine/Trie.h}
+\end{itemize}
+
+\apiref{rewriting::RewriteSystem}{class}
+See also Section~\ref{symbols terms rules sourceref}.
+\begin{itemize}
+\item \texttt{addRule()} implements Algorithm~\ref{add rule derived algo}.
+\item \texttt{recordRewriteLoop()} records a rewrite loop if this rewrite system is used for minimization.
+\item \IndexSource{critical pair}\texttt{computeCriticalPair()} implements Algorithm~\ref{critical pair algo}.
+\item \IndexSource{Knuth-Bendix algorithm}\texttt{computeConfluentCompletion()} implements Algorithm~\ref{knuthbendix}.
+\item \texttt{simplifyLeftHandSides()} implements Algorithm~\ref{left simplification}.
+\item \texttt{simplifyRightHandSides()} implements Algorithm~\ref{right simplification}.
+\end{itemize}
+
+\apiref{rewriting::Trie}{template class}
+\begin{itemize}
+\item \texttt{findAll()} finds all overlapping rules using Algorithm~\ref{find overlapping rule algo}.
+\end{itemize}
+
+\end{document}

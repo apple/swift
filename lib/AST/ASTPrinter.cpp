@@ -803,7 +803,7 @@ class PrintAST : public ASTVisitor<PrintAST> {
 
   void printType(Type T) { printTypeWithOptions(T, Options); }
 
-  void printTransformedTypeWithOptions(Type T, PrintOptions options) {
+  Type getTransformedType(Type T) {
     if (CurrentType && Current && CurrentType->mayHaveMembers()) {
       auto *M = Current->getDeclContext()->getParentModule();
       SubstitutionMap subMap;
@@ -824,9 +824,16 @@ class PrintAST : public ASTVisitor<PrintAST> {
       }
 
       T = T.subst(subMap, SubstFlags::DesugarMemberTypes);
-
-      options.TransformContext = TypeTransformContext(CurrentType);
     }
+
+    return T;
+  }
+
+  void printTransformedTypeWithOptions(Type T, PrintOptions options) {
+    T = getTransformedType(T);
+
+    if (CurrentType && Current && CurrentType->mayHaveMembers())
+      options.TransformContext = TypeTransformContext(CurrentType);
 
     printTypeWithOptions(T, options);
   }
@@ -1832,6 +1839,11 @@ void PrintAST::printSingleDepthOfGenericSignature(
 }
 
 void PrintAST::printRequirement(const Requirement &req) {
+  SmallVector<Type, 2> rootParameterPacks;
+  getTransformedType(req.getFirstType())
+      ->getTypeParameterPacks(rootParameterPacks);
+  bool isPackRequirement = !rootParameterPacks.empty();
+
   switch (req.getKind()) {
   case RequirementKind::SameShape:
     Printer << "(repeat (";
@@ -1841,7 +1853,7 @@ void PrintAST::printRequirement(const Requirement &req) {
     Printer << ")) : Any";
     return;
   case RequirementKind::Layout:
-    if (req.getFirstType()->hasParameterPack())
+    if (isPackRequirement)
       Printer << "repeat ";
     printTransformedType(req.getFirstType());
     Printer << " : ";
@@ -1849,14 +1861,13 @@ void PrintAST::printRequirement(const Requirement &req) {
     return;
   case RequirementKind::Conformance:
   case RequirementKind::Superclass:
-    if (req.getFirstType()->hasParameterPack())
+    if (isPackRequirement)
       Printer << "repeat ";
     printTransformedType(req.getFirstType());
     Printer << " : ";
     break;
   case RequirementKind::SameType:
-    if (req.getFirstType()->hasParameterPack() ||
-        req.getSecondType()->hasParameterPack())
+    if (isPackRequirement)
       Printer << "repeat ";
     printTransformedType(req.getFirstType());
     Printer << " == ";

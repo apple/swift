@@ -1,0 +1,611 @@
+\documentclass[../generics]{subfiles}
+
+\begin{document}
+
+\chapter{Declarations}\label{decls}
+
+\IndexDefinition{declaration}
+\IndexDefinition{value declaration}
+\IndexDefinition{interface type}
+\index{extension declaration}
+\index{top-level code declaration}
+\index{identifier}
+\index{expression}
+\lettrine{D}{eclarations are the building blocks} of Swift programs. The different kinds of declarations are categorized into a taxonomy. A \emph{value declaration} is a named entity which can be directly referenced from an expression. Every value declaration also has an \emph{interface type}; roughly speaking, this is the type of the expression naming the declaration. Most declarations one encounters are value declarations, for instance structs and functions. There are some important exceptions, however; extensions, described in Chapter~\ref{extensions}, add members to a type but do not themselves have names. A \emph{top-level code declaration} is another kind of declaration that is not a value declaration; it holds the statements and expressions at the top level of a source file.
+
+\IndexDefinition{declared interface type}
+\IndexDefinition{type declaration}
+\index{metatype type}
+A \emph{type declaration} is an important kind of value declaration. A type declaration declares a new type that you can write down in a type annotation; this is the \emph{declared interface type} of the type declaration. Since type declarations are value declarations, they also have an interface type, which is the type of an expression referencing the type declaration. When a type is used as a value, the type of the value is a metatype. A type declaration's interface type is therefore the metatype of its declared interface type.
+
+\index{struct declaration}%
+\index{enum declaration}%
+\index{class declaration}%
+\index{nominal type declaration}%
+\index{protocol declaration}%
+\IndexDefinition{self interface type}%
+\Index{protocol Self type@protocol \texttt{Self} type}%
+Struct, enum and class declarations are called \emph{nominal type declarations}. Protocols are also nominal type declarations, but they are special enough it is best to think of them as a separate kind of entity.
+The \emph{self interface type} of a nominal type or extension declaration is the type from which the \texttt{self} parameter type of a method is derived. In a struct, enum or class declaration, the self interface type and declared interface type coincide. In a protocol, they differ; the declared interface type is a nominal type, while the self interface type is the protocol \texttt{Self} type (Section~\ref{protocols}).
+
+\index{call expression}
+\index{initial value expression}
+\index{expression}
+In the following, the nominal type declaration \texttt{Fish} is referenced twice, first as a type annotation, and then in an expression:
+\begin{Verbatim}
+struct Fish {}
+
+let myFish: Fish = Fish()
+\end{Verbatim}
+This is a very simple piece of code, but there's more going on than seems at first glance. The first occurrence of \texttt{Fish} is the type annotation for the variable declaration \texttt{myFish}, so the interface type of \texttt{myFish} becomes the nominal type \texttt{Fish}. The second occurrence is inside the initial value expression of \texttt{myFish}. The callee of the call expression \texttt{Fish()} is the type expression \texttt{Fish}, whose type is the metatype \texttt{Fish.Type}. A call of a metatype is transformed into a call of the \texttt{init} member, which names a constructor declaration. Constructors are called on an instance of the metatype of a type, and return an instance of the type. So the initial value expression has the type \texttt{Fish}, which matches the interface type of \texttt{myFish}. The constructor has the interface type \verb|(Fish.Type) -> () -> Fish|.
+
+\paragraph{Nesting}
+\IndexDefinition{declaration context}
+\index{module declaration}
+\index{function declaration}
+\index{variable declaration}
+\index{generic parameter declaration}
+\index{closure expression}
+\index{source file}
+A \emph{declaration context} contains declarations. They overlap with declarations, but neither one implies the other. Module declarations, nominal type declarations, extension declarations and function declarations are also declaration contexts. Variables and generic parameter declarations are declarations, but not declaration contexts. Last but not least, closure expressions and source files are declaration contexts, but not declarations. Table~\ref{taxonomy examples} summarizes the above.
+\begin{table}\captionabove{Classifying various entities in our taxonomy}\label{taxonomy examples}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Entity}&\textbf{Declaration?}&\textbf{Value decl?}&\textbf{Type decl?}&\textbf{Decl context?}\\
+\midrule
+Module&\checkmark&$\checkmark$&$\checkmark$&\checkmark\\
+Source file&$\times$&$\times$&$\times$&\checkmark\\
+Nominal type&\checkmark&\checkmark&\checkmark&\checkmark\\
+Extension&\checkmark&$\times$&$\times$&\checkmark\\
+Generic parameter&\checkmark&\checkmark&\checkmark&$\times$\\
+Function&\checkmark&\checkmark&$\times$&\checkmark\\
+Variable&\checkmark&\checkmark&$\times$&$\times$\\
+Top-level code&$\checkmark$&$\times$&$\times$&\checkmark\\
+Closure expression&$\times$&$\times$&$\times$&\checkmark\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\IndexDefinition{local declaration context}%
+\index{subscript declaration}%
+\IndexDefinition{initializer declaration context}%
+Declarations and declaration contexts are nested within each other. The roots in this hierarchy are module declarations; all other declarations and declaration contexts point at a parent declaration context. Source files are always immediate children of module declarations. A \emph{local context} is any declaration context that is not a module, source file, type declaration or extension. Top-level code declarations, function declarations and closure expressions are three kinds of local contexts we've already seen.
+
+\index{initial value expression}
+The three remaining kinds of local context are subscript declarations, enum element declarations and initializer contexts:
+\begin{itemize}
+\item Subscripts and enum elements are local contexts, because they contain their parameter declarations.
+\item Subscript declarations can also be generic, so they need to contain their generic parameters.
+\item Initializer contexts represent the initial value expression of a variable that is itself not a child of a local context. This ensures that any declarations appearing in the initial value expression of a variable are always children of a local context.
+\end{itemize}
+
+\IndexDefinition{local type declaration}
+\IndexDefinition{top-level type declaration}
+\IndexDefinition{nested type declaration}
+\IndexDefinition{local type declaration}
+\IndexDefinition{top-level function declaration}
+\IndexDefinition{method declaration}
+\IndexDefinition{local function declaration}
+\IndexDefinition{global variable declaration}
+\IndexDefinition{stored property declaration}
+\IndexDefinition{local variable declaration}
+There is special terminology for type declarations in different kinds of declaration contexts:
+\begin{itemize}
+\item A \emph{top-level type} is an immediate child of a source file.
+\item A \emph{nested type} or \emph{member type} is an immediate child of a nominal type declaration or an extension.
+\item A \emph{local type} is an immediate child of a local context.
+\end{itemize}
+Similarly, for functions:
+\begin{itemize}
+\item A \emph{top-level function} or \emph{global function} is an immediate child of a source file.
+\item A \emph{method} is an immediate child of a nominal type declaration or an extension.
+\item A \emph{local function} is an immediate child of a local context.
+\end{itemize}
+And finally, for variables:
+\begin{itemize}
+\item A \emph{global variable} is an immediate child of a source file.
+\item A \emph{property} is an immediate child of a nominal type declaration or an extension.
+\item A \emph{local variable} is an immediate child of a local context.
+\end{itemize}
+
+\paragraph{Computing interface types}
+\IndexDefinition{interface type request}
+The \Request{interface type request} computes the interface type of a value declaration. The evaluation function switches over the declaration kind and takes different kinds of action, for example:
+\begin{itemize}
+\item Given a function declaration, this request recursively evaluates itself to get the interface type of each parameter declaration, and constructs a function type from the interface type of each parameter declaration together with the function's return type.
+\item For a parameter declaration, this request resolves the type representation written by the user.
+\item For a type declaration, it constructs a metatype from the declared interface type of the type declaration.
+\end{itemize}
+ 
+\section{Type Declarations}\label{type declarations}
+
+\IndexDefinition{nominal type declaration}%
+\IndexDefinition{struct declaration}%
+\IndexDefinition{enum declaration}%
+\IndexDefinition{class declaration}%
+\index{declared interface type}%
+\paragraph{Struct, enum and class declarations}
+These are the concrete nominal types. The declared interface type of a non-generic nominal type declaration is a nominal type. If the nominal type declaration is generic, the declared interface type is a generic nominal type where the generic arguments are the declaration's generic parameters.
+
+Concrete nominal types can be nested inside of other declaration contexts, with a few limitations described in Section~\ref{nested nominal types}. The declared interface type reflects this nesting. For example, the declared interface type of \texttt{Outer.Inner} is the generic nominal type \texttt{Outer<T>.Inner<U>}:
+\begin{Verbatim}
+struct Outer<T> {
+  struct Inner<U> {}
+}
+\end{Verbatim}
+Structs, enums and classes can conform to protocols; how this is modeled is the topic of Chapter~\ref{conformances}. Classes can also inherit from other classes; Chapter~\ref{classinheritance} describes how inheritance interacts with generics.
+
+\IndexDefinition{protocol declaration}%
+\paragraph{Protocol declarations}
+The declared interface type of a protocol declaration is the protocol type \texttt{P}. Protocols are the fourth kind of nominal type, but they behave differently in many ways, because they do not have concrete instances. Protocol declarations are described in Chapter~\ref{protocols}.
+
+\IndexDefinition{type alias declaration}%
+\IndexDefinition{underlying type}%
+\paragraph{Type alias declarations}
+Type aliases assign a new name to an underlying type. The declared interface type is a type alias type whose canonical type is the underlying type of the type alias. While type aliases are declaration contexts, the only kind of declaration they contain is their own generic parameter declarations. The special case of type aliases in protocols is discussed in Section~\ref{protocol type alias}.
+
+\IndexDefinition{generic parameter declaration}%
+\paragraph{Generic parameter declarations}
+Generic parameter declarations declare generic parameter types. They appear inside the generic parameter lists of generic declarations. The declared interface type of a generic parameter declaration is a sugared type that prints as the name of the declaration; the canonical type is the generic parameter type \ttgp{d}{i}, where \texttt{d} is the depth and \texttt{i} is the index. Generic parameter declarations are described in Chapter~\ref{generic declarations}.
+
+\IndexDefinition{associated type declaration}%
+\index{bound dependent member type}%
+\paragraph{Associated type declarations}
+Associated type declarations appear inside protocols. The declared interface type of an associated type \texttt{A} is a bound dependent member type \texttt{Self.[P]A} referencing the declaration of \texttt{A}, with the \texttt{Self} generic parameter of the protocol as the base type. Associated type declarations are described in Section~\ref{protocols}.
+
+\section{Function Declarations}\label{func decls}
+
+\IndexDefinition{function declaration}
+\index{generic function type}
+\paragraph{Function declarations}
+Functions can either appear at the top level, inside of a local context such as another function, or as a member of a type, called a method. If a function is itself generic or nested inside of a generic context, the interface type is a generic function type, otherwise it is a function type.
+
+The interface type of a function is constructed from the interface types of the function's parameter declarations, and the function's return type. If the return type is omitted, it becomes the empty tuple type \texttt{()}. For methods, this function type is then wrapped in another level of function type representing the base of the call which becomes the \texttt{self} parameter of the method.
+
+\index{self interface type}
+\IndexDefinition{method self parameter}
+The \texttt{self} parameter's type and parameter flags are constructed from the self interface type of the method's type declaration, and various attributes of the method:
+\begin{itemize}
+\item If the method is \texttt{mutating}, the \texttt{self} parameter becomes \texttt{inout}.
+\item If the method returns the dynamic Self type, the \texttt{self} parameter type is wrapped in the dynamic Self type.
+\item Finally, if the method is \texttt{static}, the \texttt{self} parameter is wrapped in a metatype.
+\end{itemize}
+
+This can be summarized as follows; note that \texttt{(Self)} parameter list means the self interface type of the method's type declaration, together with any additional parameter flags computed via the above:
+\begin{quote}
+\begin{tabular}{ccll}
+\toprule
+\textbf{Generic?}&\textbf{Method?}&\textbf{Interface type}\\
+\midrule
+$\times$&$\times$&\texttt{(Params)\ -> Result}\\
+\checkmark&$\times$&\texttt{<Sig> (Params)\ -> Result}\\
+$\times$&\checkmark&\texttt{(Self) -> (Params)\ -> Result}\\
+\checkmark&\checkmark&\texttt{<Sig> (Self) -> (Params)\ -> Result}\\
+\bottomrule
+\end{tabular}
+\end{quote}
+
+\index{call expression}
+The two levels of function type in the interface type of a method mirror the two-level structure of a method call expression \texttt{foo.bar(1, 2)}, shown in Figure~\ref{method call expr}:
+\begin{itemize}
+\item The self apply expression \texttt{foo.bar} applies the single argument \texttt{foo} to the method's \texttt{self} parameter. The type of the self apply expression is the method's inner function type.
+\item The outer call applies the argument list \texttt{(1, 2)} to the inner function type. The type of the outer call expression is the method's return type.
+\end{itemize}
+
+\begin{figure}\captionabove{Two levels of function application in a method call \texttt{foo.bar(1, 2)}}\label{method call expr}
+\begin{center}
+\begin{tikzpicture}[%
+  grow via three points={one child at (0.5,-0.7) and
+  two children at (0.5,-0.7) and (0.5,-1.4)},
+  edge from parent path={[->] (\tikzparentnode.south) |- (\tikzchildnode.west)}]
+  \node  [class] {\vphantom{p}call expression: \texttt{Result}}
+    child { node [class] {\vphantom{p}self apply expression: \texttt{(Int, Int) -> ()}}
+      child { node  [class] {\vphantom{p}declaration reference expression: \texttt{Foo.bar}}}
+      child { node  [class] {\vphantom{p}declaration reference expression: \texttt{foo}}}}
+    child [missing] {}
+    child [missing] {}
+    child { node [class] {\vphantom{p}argument list}
+      child { node  [class] {\vphantom{p}integer literal expression: \texttt{1}}}
+      child { node  [class] {\vphantom{p}integer literal expression: \texttt{2}}}}
+    child [missing] {}
+    child [missing] {}
+    child [missing] {};
+\end{tikzpicture}
+\end{center}
+\end{figure}
+
+\IndexDefinition{constructor declaration}
+\paragraph{Constructor declarations}
+Constructor declarations always appear as members of other types, and are named \texttt{init}. The interface type of a constructor takes a metatype and returns an instance of the constructed type, possibly wrapped in an \texttt{Optional}.
+
+\begin{quote}
+\begin{tabular}{cl}
+\toprule
+\textbf{Generic?}&\textbf{Interface type}\\
+\midrule
+$\times$&\texttt{(Self.Type) -> (Params)\ -> Self}\\
+\checkmark&\texttt{<Sig> (Self.Type) -> (Params)\ -> Self}\\
+\bottomrule
+\end{tabular}
+\end{quote}
+
+\IndexDefinition{initializer interface type}
+Class constructors also have a \emph{initializer interface type}, used when a subclass initializer delegates to an initializer in the superclass. The initializer interface type is the same as the interface type, except it takes a self value instead of a self metatype.
+
+\begin{quote}
+\begin{tabular}{cl}
+\toprule
+\textbf{Generic?}&\textbf{Initializer interface type}\\
+\midrule
+$\times$&\texttt{(Self) -> (Params)\ -> Self}\\
+\checkmark&\texttt{<Sig> (Self) -> (Params)\ -> Self}\\
+\bottomrule
+\end{tabular}
+\end{quote}
+
+\IndexDefinition{destructor declaration}
+\paragraph{Destructor declarations}
+Destructor declarations cannot have a generic parameter list, a \texttt{where} clause, or a parameter list. Formally they take no parameters and return \texttt{()}.
+
+\begin{quote}
+\begin{tabular}{cl}
+\toprule
+\textbf{Generic?}&\textbf{Interface type}\\
+\midrule
+$\times$&\texttt{(Self) -> ()\ -> ()}\\
+\checkmark&\texttt{<Sig> (Self) -> ()\ -> ()}\\
+\bottomrule
+\end{tabular}
+\end{quote}
+
+\section{Storage Declarations}
+\IndexDefinition{storage declaration}
+\index{l-value type}
+Storage declarations represent the declaration of an l-value. Storage declarations can have zero or more associated accessor declarations. The accessor declarations are siblings of the storage declaration in the declaration context hierarchy.
+
+\IndexDefinition{variable declaration}
+\paragraph{Variable declarations} The interface type of a variable is the stored value type, possibly wrapped in a reference storage type if the variable is declared as \texttt{weak} or \texttt{unowned}. The \emph{value interface type} of a variable is the storage type without any wrapping.
+
+For historical reasons, the interface type of a property (a variable appearing inside of a type) does not include the \texttt{Self} clause, the way that method declarations do.
+
+\IndexDefinition{pattern binding declaration}
+\IndexDefinition{pattern binding entry}
+\IndexDefinition{pattern}
+\IndexDefinition{initial value expression}
+Variable declarations are always created alongside a \emph{pattern binding declaration} which represents the various ways in which variables can be bound to values in Swift. A pattern binding declaration consists of one or more \emph{pattern binding entries}. Each pattern binding entry has a \emph{pattern} and an optional \emph{initial value expression}. A pattern declares zero or more variables.
+
+\begin{example}
+A pattern binding declaration with a single entry, where the pattern declares a single variable:
+\begin{Verbatim}
+let x = 123
+\end{Verbatim}
+Same as the above, except with a more complex pattern which declares a variable storing the first element of a tuple while discarding the second element:
+\begin{Verbatim}
+let (x, _) = (123, "hello")
+\end{Verbatim}
+A pattern binding declaration with a single entry, where the pattern declares two variables \texttt{x} and \texttt{y}:
+\begin{Verbatim}
+let (x, y) = (123, "hello")
+\end{Verbatim}
+A pattern binding declaration with two entries, where the first pattern declares \texttt{x} and the second declares \texttt{y}:
+\begin{Verbatim}
+let x = 123, y = "hello"
+\end{Verbatim}
+A pattern binding declaration with a single entry that does not declare any variables:
+\begin{Verbatim}
+let _ = ignored()
+\end{Verbatim}
+And finally, two pattern binding declarations, where each one pattern binding declaration has a single entry declaring a single variable:
+\begin{Verbatim}
+let x = 123
+let y = "hello"
+\end{Verbatim}
+\end{example}
+\begin{example}
+When a pattern binding declaration appears outside of a local context, each entry must declare at least one variable, so we reject both of the following:
+\begin{Verbatim}
+let _ = 123
+
+struct S {
+  let _ = "hello"
+}
+\end{Verbatim}
+\end{example}
+\index{typed pattern}
+\index{tuple pattern}
+\begin{example}
+A funny quirk of the pattern grammar is that typed patterns and tuple patterns do not compose in the way one might think. If ``\texttt{let x:~Int}'' is a typed pattern declaring a variable \texttt{x} type with annotation \texttt{Int}, and ``\texttt{let (x, y)}'' is a tuple pattern declaring two variables \texttt{x} and \texttt{y}, you might expect ``\texttt{let~(x:~Int,~y:~String)}'' to declare two variables \texttt{x} and \texttt{y} with type annotations \texttt{Int} and \texttt{String} respectively; what actually happens is you get a tuple pattern declaring two variables named \texttt{Int} and \texttt{String} that binds a two-element tuple with \emph{labels} \texttt{x} and \texttt{y}:
+\begin{Verbatim}
+let (x: Int, y: String) = (x: 123, y: "hello")
+print(Int)  // huh? prints 123
+print(String)  // weird! prints "hello"
+\end{Verbatim}
+\end{example}
+
+\IndexDefinition{parameter declaration}%
+\IndexDefinition{value ownership kind}%
+\index{autoclosure function type}%
+\paragraph{Parameter declarations} Functions, enum elements and subscripts can have parameter lists; each parameter is represented by a parameter declaration. The interface type of a declaration with a parameter list is built by first computing the interface type of each parameter. Among other things, the parameter declaration stores the value ownership kind, the variadic flag, and the \texttt{@autoclosure} attribute. This is in fact the same exact information encoded in the parameter list of a function type.
+
+\index{argument label}%
+\IndexDefinition{default argument expression}%
+\index{closure expression}%
+Closure expressions also have parameter lists and thus parent parameter declarations. Parameter declarations of named declarations can have argument labels and default argument expressions, which are not encoded in a function type. These phenomena are only visible when directly calling a named declaration and not a closure value.
+
+\IndexDefinition{subscript declaration}%
+\paragraph{Subscript declarations} Subscripts always appear as members of types, with a special declaration name. The interface type of a subscript is a function type taking the index parameters and returning the storage type. The value interface type of a subscript is just the storage type. For historical reasons, the interface type of a subscript does not include the \texttt{Self} clause, the way that method declarations do.
+\begin{quote}
+\begin{tabular}{clll}
+\toprule
+\textbf{Generic?}&\textbf{Interface type}\\
+\midrule
+$\times$&\texttt{(Indices...)\ -> Value}\\
+$\checkmark$&\texttt{<Sig...>\ (Indices...)\ -> Value}\\
+\bottomrule
+\end{tabular}
+\end{quote}
+
+\IndexDefinition{accessor declaration}
+\paragraph{Accessor declarations}
+
+The interface type of an accessor depends the accessor kind. For example, getters return the value, and setters take the new value as a parameter. Property accessors do not take any other parameters; subscript accessors also take the subscript's index parameters. There is a lot more to say about accessors and storage declarations, but unfortunately, you'll have to wait for the next book.
+
+\section{Source Code Reference}\label{declarationssourceref}
+
+Key source files:
+\begin{itemize}
+\item \SourceFile{include/swift/AST/Decl.h}
+\item \SourceFile{include/swift/AST/DeclContext.h}
+\item \SourceFile{lib/AST/Decl.cpp}
+\item \SourceFile{lib/AST/DeclContext.cpp}
+\end{itemize}
+Other source files:
+\begin{itemize}
+\item \SourceFile{include/swift/AST/DeclNodes.def}
+\item \SourceFile{include/swift/AST/ASTVisitor.h}
+\item \SourceFile{include/swift/AST/ASTWalker.h}
+\end{itemize}
+
+\IndexSource{declaration}
+\apiref{Decl}{class}
+Base class of declarations. Figure~\ref{declhierarchy} shows various subclasses, which correspond to the different kinds of declarations defined previously in this chapter.
+\begin{figure}\captionabove{The \texttt{Decl} class hierarchy}\label{declhierarchy}
+\begin{center}
+\begin{tikzpicture}[%
+  grow via three points={one child at (0.5,-0.7) and
+  two children at (0.5,-0.7) and (0.5,-1.4)},
+  edge from parent path={[->] (\tikzparentnode.south) |- (\tikzchildnode.west)}]
+  \node  [class] {\texttt{\vphantom{p}Decl}}
+    child { node [class] {\texttt{\vphantom{p}ValueDecl}}
+      child { node  [class] {\texttt{\vphantom{p}TypeDecl}}
+        child { node  [class] {\texttt{\vphantom{p}NominalTypeDecl}}
+          child { node  [class] {\texttt{\vphantom{p}StructDecl}}}
+          child { node  [class] {\texttt{\vphantom{p}EnumDecl}}}
+          child { node  [class] {\texttt{\vphantom{p}ClassDecl}}}
+          child { node  [class] {\texttt{\vphantom{p}ProtocolDecl}}}
+        }
+        child [missing] {}
+        child [missing] {}
+        child [missing] {}
+        child [missing] {}
+        child { node  [class] {\texttt{\vphantom{p}TypeAliasDecl}}}
+        child { node  [class] {\texttt{\vphantom{p}AbstractTypeParamDecl}}
+          child { node  [class] {\texttt{\vphantom{p}GenericTypeParamDecl}}}
+          child { node  [class] {\texttt{\vphantom{p}AssociatedTypeDecl}}}
+        }
+      }
+      child [missing] {}
+      child [missing] {}
+      child [missing] {}
+      child [missing] {}
+      child [missing] {}
+      child [missing] {}
+      child [missing] {}
+      child [missing] {}
+      child [missing] {}
+      child { node  [class] {\texttt{\vphantom{p}AbstractFunctionDecl}}
+        child { node [class] {\texttt{\vphantom{p}FuncDecl}}
+             child { node  [class] {\texttt{\vphantom{p}AccessorDecl}}}
+        }
+        child [missing] {}
+        child { node  [class] {\texttt{\vphantom{p}ConstructorDecl}}}
+        child { node  [class] {\texttt{\vphantom{p}DestructorDecl}}}
+      }
+      child [missing] {}
+      child [missing] {}
+      child [missing] {}
+      child [missing] {}
+      child { node  [class] {\texttt{\vphantom{p}AbstractStorageDecl}}
+        child { node  [class] {\texttt{\vphantom{p}VarDecl}}
+            child { node  [class] {\texttt{\vphantom{p}ParamDecl}}}
+        }
+        child [missing] {}
+        child { node  [class] {\texttt{\vphantom{p}SubscriptDecl}}}
+      }
+      child [missing] {}
+      child [missing] {}
+      child [missing] {}
+    }
+    child [missing] {}
+    child [missing] {}
+    child [missing] {}
+    child [missing] {}
+    child [missing] {}
+    child [missing] {}
+    child [missing] {}
+    child [missing] {}
+    child [missing] {}
+    child [missing] {}
+    child [missing] {}
+    child [missing] {}
+    child [missing] {}
+    child [missing] {}
+    child [missing] {}
+    child [missing] {}
+    child [missing] {}
+    child [missing] {}
+    child [missing] {}
+    child { node  [class] {\texttt{\vphantom{p}ExtensionDecl}}};
+\end{tikzpicture}
+\end{center}
+\end{figure}
+
+\IndexSource{synthesized declaration}
+Instances are always allocated in the permanent arena of the \texttt{ASTContext}, either when the declaration is parsed or synthesized. The top-level \verb|isa<>|, \verb|cast<>| and \verb|dyn_cast<>| template functions support dynamic casting from \texttt{Decl *} to any of its subclasses.
+\begin{itemize}
+\item \texttt{getDeclContext()} returns the parent \texttt{DeclContext} of this declaration.
+\item \texttt{getInnermostDeclContext()} if this declaration is also a declaration context, returns the declaration as a \texttt{DeclContext}, otherwise returns the parent \texttt{DeclContext}.
+\item \texttt{getASTContext()} returns the singleton AST context from a declaration.
+\end{itemize}
+
+\index{visitor pattern}
+\IndexSource{declaration kind}
+\index{exhaustive switch}
+\index{statement}
+\index{expression}
+\index{type representation}
+\paragraph{Visitors}
+If you need to exhaustively handle each kind of declaration, the simplest way is to switch over the kind, which is an instance of the \texttt{DeclKind} enum, like this:
+\begin{Verbatim}
+Decl *decl = ...;
+switch (decl->getKind()) {
+case DeclKind::Struct: {
+  auto *structDecl = decl->castTo<StructDecl>();
+  ...
+}
+case DeclKind::Enum:
+  ...
+case DeclKind::Class:
+  ...
+}
+\end{Verbatim}
+However, just as with types, is can be more convenient to use the visitor pattern. You can subclass \texttt{ASTVisitor} and override various \texttt{visit\emph{Kind}Decl()} methods, then hand the declaration to the visitor's \texttt{visit()} method, which performs the switch and dynamic cast dance above:
+\begin{Verbatim}
+class MyVisitor: public ASTVisitor<MyVisitor> {
+public:
+  void visitStructDecl(StructType *decl) {
+    ...
+  }
+};
+
+MyVisitor visitor;
+
+Decl *decl = ...;
+visitor.visit(decl);
+\end{Verbatim}
+The \texttt{ASTVisitor} also defines various methods corresponding to abstract base classes in the \texttt{Decl} hierarchy, so for example you can override \texttt{visitNominalTypeDecl()} to handle all nominal type declarations at once. The \texttt{ASTVisitor} is more general than just visiting declarations; it also supports visiting statements, expressions, and type representations.
+
+A more elaborate form is implemented by the \texttt{ASTWalker}. While the visitor visits a single declaration, the walker traverses nested declarations, statements and expressions for you in a pre-order walk.
+
+\IndexSource{value declaration}
+\apiref{ValueDecl}{class}
+Base class of named declarations.
+
+\IndexSource{interface type}
+\begin{itemize}
+\item \texttt{getDeclName()} returns the declaration's name.
+\item \texttt{getInterfaceType()} returns the declaration's interface type.
+\end{itemize}
+
+\IndexSource{type declaration}
+\IndexSource{declared interface type}
+\apiref{TypeDecl}{class}
+Base class of type declarations.
+\begin{itemize}
+\item \texttt{getDeclaredInterfaceType()} returns the type of an instance of this declaration.
+\end{itemize}
+
+\IndexSource{nominal type declaration}
+\IndexSource{struct declaration}
+\IndexSource{enum declaration}
+\IndexSource{class declaration}
+\IndexSource{nominal type declaration}
+\IndexSource{self interface type}
+\apiref{NominalTypeDecl}{class}
+Base class of nominal type declarations. Also a \texttt{DeclContext}.
+\begin{itemize}
+\item \texttt{getSelfInterfaceType()} returns the type of the \texttt{self} value inside the body of this declaration. Different from the declared interface type for protocols, where the declared interface type is a nominal but the declared self type is the generic parameter \texttt{Self}.
+\item \texttt{getDeclaredType()} returns the type of an instance of this declaration, without generic arguments. If the declaration is generic, this is an unbound generic type. If this declaration is not generic, this is a nominal type. This is occasionally used in diagnostics instead of the declared interface type, when the generic parameter types are irrelevant.
+\end{itemize}
+
+\IndexSource{type alias declaration}
+\IndexSource{underlying type}
+\apiref{TypeAliasDecl}{class}
+A type alias declaration. Also a \texttt{DeclContext}.
+\begin{itemize}
+\item \texttt{getDeclaredInterfaceType()} returns the underlying type of the type alias declaration, wrapped in type alias type sugar.
+\item \texttt{getUnderlyingType()} returns the underlying type of the type alias declaration, without wrapping it in type alias type sugar.
+\end{itemize}
+
+\IndexSource{function declaration}
+\IndexSource{method self parameter}
+\apiref{AbstractFunctionDecl}{class}
+Base class of function-like declarations. Also a \texttt{DeclContext}.
+\begin{itemize}
+\item \texttt{getImplicitSelfDecl()} returns the implicit \texttt{self} parameter, if there is one.
+\item \texttt{getParameters()} returns the function's parameter list.
+\item \texttt{getMethodInterfaceType()} returns the type of a method without the \texttt{Self} clause.
+\item \texttt{getResultInterfaceType()} returns the return type of this function or method.
+\end{itemize}
+
+\apiref{ParameterList}{class}
+The parameter list of \texttt{AbstractFunctionDecl}, \texttt{EnumElementDecl} or \texttt{SubscriptDecl}.
+\begin{itemize}
+\item \texttt{size()} returns the number of parameters.
+\item \texttt{get()} returns the \texttt{ParamDecl} at the given index.
+\end{itemize}
+
+\IndexSource{constructor declaration}
+\apiref{ConstructorDecl}{class}
+Constructor declarations.
+\begin{itemize}
+\item \texttt{getInitializerInterfaceType()} returns the initializer interface type, used when type checking \texttt{super.init()} delegation.
+\end{itemize}
+
+\IndexSource{storage declaration}
+\apiref{AbstractStorageDecl}{class}
+Base class for storage declarations.
+\begin{itemize}
+\item \texttt{getValueInterfaceType()} returns the type of the stored value, without \texttt{weak} or \texttt{unowned} storage qualifiers.
+\end{itemize}
+
+\IndexSource{declaration context}
+\apiref{DeclContext}{class}
+Base class for declaration contexts. The top-level \verb|isa<>|, \verb|cast<>| and \verb|dyn_cast<>| template functions also support dynamic casting from a \texttt{DeclContext *} to any of its subclasses.
+
+\IndexSource{closure expression}
+\IndexSource{source file}
+\IndexSource{file unit}
+There are a handful of subclasses which are not also subclasses of \texttt{Decl *}:
+\begin{itemize}
+\item \texttt{ClosureExpr}.
+\item \texttt{FileUnit} and its various subclasses, such as \texttt{SourceFile}.
+\item A few other less interesting ones you can find in the source.
+\end{itemize}
+
+Utilities for understanding the nesting of declaration contexts:
+\begin{itemize}
+\item \texttt{getAsDecl()} if declaration context is also a declaration, returns the declaration, otherwise returns \texttt{nullptr}.
+\item \texttt{getParent()} returns the parent declaration context.
+\item \texttt{isModuleScopeContext()} returns true if this is a \texttt{ModuleDecl} or \texttt{FileUnit}.
+\item \texttt{isTypeContext()} returns true if this is a nominal type declaration or an extension.
+\item \texttt{isLocalContext()} returns true if this is not a module scope context or type context.
+\item \texttt{getParentModule()} returns the module declaration at the root of the hierarchy.
+\item \texttt{getModuleScopeContext()} returns the innermost parent which is a \texttt{ModuleDecl} or \texttt{FileUnit}.
+\item \texttt{getParentSourceFile()} returns the innermost parent which is a source file, or \texttt{nullptr} if this declaration context was not parsed from source.
+\item \texttt{getInnermostDeclarationDeclContext()} returns the innermost parent which is also a declaration, or \texttt{nullptr}.
+\item \texttt{getInnermostDeclarationTypeContext()} returns the innermost parent which is also a nominal type or extension, or \texttt{nullptr}.
+\end{itemize}
+Operations on type contexts:
+\begin{itemize}
+\item \texttt{getSelfNominalDecl()} returns the nominal type declaration if this is a type context, or \texttt{nullptr}.
+\item \texttt{getSelfStructDecl()} as above but result is a \texttt{StructDecl *} or \texttt{nullptr}.
+\item \texttt{getSelfEnumDecl()} as above but result is a \texttt{EnumDecl *} or \texttt{nullptr}.
+\item \texttt{getSelfClassDecl()} as above but result is a \texttt{ClassDecl *} or \texttt{nullptr}.
+\item \texttt{getSelfProtocolDecl()} as above but result is a \texttt{ProtocolDecl *} or \texttt{nullptr}.
+\item \texttt{getDeclaredInterfaceType()} delegates to the method on \texttt{NominalTypeDecl} or \texttt{ExtensionDecl} as appropriate.
+\item \texttt{getSelfInterfaceType()} is similar.
+\end{itemize}
+Generics-related methods on \texttt{DeclContext} are described in Section~\ref{genericdeclsourceref}.
+
+\end{document}

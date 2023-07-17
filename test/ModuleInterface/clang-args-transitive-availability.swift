@@ -6,6 +6,7 @@
 // RUN: %target-swift-frontend -typecheck -strict-implicit-module-context %s -I %S/Inputs/macro-only-module -Xcc -DTANGERINE=1 -disable-implicit-concurrency-module-import -disable-implicit-string-processing-module-import
 
 // RUN: %target-swift-frontend -scan-dependencies -strict-implicit-module-context %s -o %t/deps.json -I %S/Inputs/macro-only-module -Xcc -DTANGERINE=1 -disable-implicit-concurrency-module-import -disable-implicit-string-processing-module-import
+// RUN: %validate-json %t/deps.json &>/dev/null
 // RUN: %FileCheck %s < %t/deps.json
 
 import ImportsMacroSpecificClangModule

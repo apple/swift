@@ -8,6 +8,13 @@
 // CHECK-NEXT:   var c: Int32
 // CHECK-NEXT: }
 
+// CHECK-NEXT: struct DerivedWithSameField {
+// CHECK-NEXT:   init()
+// CHECK-NEXT:   var a: Int32
+// CHECK-NEXT:   var b: Int32
+// CHECK-NEXT:   var c: Int32
+// CHECK-NEXT: }
+
 // CHECK-NEXT: struct DerivedWithOneField {
 // CHECK-NEXT:   init()
 // CHECK-NEXT:   var d: Int32

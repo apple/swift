@@ -24,3 +24,17 @@ func test() {
 // GLOBALFUNC_SAMELINE-DAG: Pattern/Local/Flair[ArgLabels]: {#fn7:  (inout Int) -> Void {<#inout Int#> in|}#}[#(inout Int) -> Void#];
 // GLOBALFUNC_SAMELINE-DAG: Pattern/Local/Flair[ArgLabels]: {#fn8:  (Int...) -> Void {<#Int...#> in|}#}[#(Int...) -> Void#];
 }
+
+func testStringAndMulipleTrailingClosures() {
+  func stringAndClosure(_ key: String, _ body: () -> Void) {}
+
+  func takeClosure(_ x: () -> Void) {}
+
+  takeClosure {
+    stringAndClosure("\(1)") { }#^STRING_AND_MULTIPLE_TRAILING_CLOSURES^#
+  }
+  // STRING_AND_MULTIPLE_TRAILING_CLOSURES: Begin completions
+  // STRING_AND_MULTIPLE_TRAILING_CLOSURES-DAG: Decl[InfixOperatorFunction]/OtherModule[Swift]/IsSystem:  == {#()#}[#Bool#];
+  // STRING_AND_MULTIPLE_TRAILING_CLOSURES-DAG: Keyword[self]/CurrNominal:          .self[#Void#]; name=self
+  // STRING_AND_MULTIPLE_TRAILING_CLOSURES: End completions
+}

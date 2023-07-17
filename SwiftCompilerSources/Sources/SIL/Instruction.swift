@@ -228,7 +228,7 @@ extension StoringInstruction {
 
 final public class StoreInst : Instruction, StoringInstruction {
   // must match with enum class StoreOwnershipQualifier
-  public enum Ownership: Int {
+  public enum StoreOwnership: Int {
     case unqualified = 0, initialize = 1, assign = 2, trivial = 3
 
     public init(for type: Type, in function: Function, initialize: Bool) {
@@ -243,8 +243,8 @@ final public class StoreInst : Instruction, StoringInstruction {
       }
     }
   }
-  public var destinationOwnership: Ownership {
-    Ownership(rawValue: bridged.StoreInst_getStoreOwnership())!
+  public var storeOwnership: StoreOwnership {
+    StoreOwnership(rawValue: bridged.StoreInst_getStoreOwnership())!
   }
 }
 
@@ -387,11 +387,11 @@ final public class LoadInst : SingleValueInstruction, UnaryInstruction {
   public var address: Value { operand.value }
 
   // must match with enum class LoadOwnershipQualifier
-  public enum Ownership: Int {
+  public enum LoadOwnership: Int {
     case unqualified = 0, take = 1, copy = 2, trivial = 3
   }
-  public var ownership: Ownership {
-    Ownership(rawValue: bridged.LoadInst_getLoadOwnership())!
+  public var loadOwnership: LoadOwnership {
+    LoadOwnership(rawValue: bridged.LoadInst_getLoadOwnership())!
   }
 }
 

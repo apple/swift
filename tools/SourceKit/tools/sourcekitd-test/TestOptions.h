@@ -71,6 +71,7 @@ enum class SourceKitRequest {
   Compile,
   CompileClose,
   SyntacticMacroExpansion,
+  IndexToStore,
 #define SEMANTIC_REFACTORING(KIND, NAME, ID) KIND,
 #include "swift/Refactoring/RefactoringKinds.def"
 };
@@ -148,6 +149,8 @@ struct TestOptions {
   llvm::Optional<std::string> VFSName;
   llvm::Optional<bool> CancelOnSubsequentRequest;
   bool ShellExecution = false;
+  std::string IndexStorePath;
+  std::string IndexUnitOutputPath;
   bool parseArgs(llvm::ArrayRef<const char *> Args);
   void printHelp(bool ShowHidden) const;
 };

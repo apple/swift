@@ -45,7 +45,7 @@ postfix func ***<G: Fooable>(x: G) -> G { return x }
 func testPostfix6() {
   1 + 2 * 3#^POSTFIX_6^#
 }
-// POSTFIX_6: Decl[PostfixOperatorFunction]/CurrModule:  ***[#Int#]
+// POSTFIX_6: Decl[PostfixOperatorFunction]/CurrModule/TypeRelation[Convertible]:  ***[#Int#]
 
 func testPostfix7() {
   1 + 2 * 3.0#^POSTFIX_7^#
@@ -119,7 +119,7 @@ func testInfix2(x: inout S2) {
 // S2_INFIX_LVALUE-DAG: Decl[InfixOperatorFunction]/OtherModule[Swift]/IsSystem:   + {#S2#}[#S2#]
 // S2_INFIX_LVALUE-DAG: Decl[InfixOperatorFunction]/CurrModule:   ** {#Int#}[#S2#]
 // S2_INFIX_LVALUE-DAG: Decl[InfixOperatorFunction]/CurrModule:   **= {#Int#}[#Void#]
-// S2_INFIX_LVALUE-DAG: BuiltinOperator/None:                             = {#S2#}[#Void#]
+// S2_INFIX_LVALUE-DAG: BuiltinOperator/None:                             = {#S2#}
 // NEGATIVE_S2_INFIX_LVALUE-NOT: +=
 // NEGATIVE_S2_INFIX_LVALUE-NOT: \* {#Int#}
 // NEGATIVE_S2_INFIX_LVALUE-NOT: ??
@@ -205,11 +205,13 @@ func testInfix14() {
 func testInfix15<T: P where T.T == S2>() {
   T#^INFIX_15^#
 }
-// INFIX_15: Begin completions, 4 items
-// INFIX_15-NEXT: Decl[AssociatedType]/CurrNominal:   .T; name=T
-// INFIX_15-NEXT: Decl[InstanceMethod]/CurrNominal:   .foo({#(self): P#})[#() -> S2#]; name=foo(:)
-// INFIX_15-NEXT: Keyword[self]/CurrNominal:          .self[#T.Type#]; name=self
-// INFIX_15-NEXT: Keyword/CurrNominal:                .Type[#T.Type#]; name=Type
+// INFIX_15: Begin completions, 6 items
+// INFIX_15-DAG: Decl[AssociatedType]/CurrNominal:   .T; name=T
+// INFIX_15-DAG: Decl[InstanceMethod]/CurrNominal:   .foo({#(self): P#})[#() -> S2#]; name=foo(:)
+// INFIX_15-DAG: Keyword[self]/CurrNominal:          .self[#T.Type#]; name=self
+// INFIX_15-DAG: Keyword/CurrNominal:                .Type[#T.Type#]; name=Type
+// INFIX_15-DAG: Decl[InfixOperatorFunction]/OtherModule[Swift]/IsSystem:  != {#(any Any.Type)?#}[#Bool#];
+// INFIX_15-DAG: Decl[InfixOperatorFunction]/OtherModule[Swift]/IsSystem:  == {#(any Any.Type)?#}[#Bool#];
 
 func testInfix16<T: P where T.T == S2>() {
   T.foo#^INFIX_16^#
@@ -264,8 +266,12 @@ func testSpace(x: S2) {
 // S2_INFIX_SPACE-DAG: Decl[InfixOperatorFunction]/OtherModule[Swift]/IsSystem: [' ']+ {#S2#}[#S2#]
 
 func testExtInfix1(x: inout S2) {
-  x + S2() + x + S2() + x + S2() + x#^EXT_INFIX_1?check=S2_INFIX^#
+  x + S2() + x + S2() + x + S2() + x#^EXT_INFIX_1^#
 }
+// EXT_INFIX_1: Begin completions
+// EXT_INFIX_1-DAG: Decl[InfixOperatorFunction]/CurrModule/TypeRelation[Convertible]: ** {#Int#}[#S2#]
+// EXT_INFIX_1-DAG: Decl[InfixOperatorFunction]/OtherModule[Swift]/IsSystem/TypeRelation[Convertible]: + {#S2#}[#S2#]
+// EXT_INFIX_1: End completions
 
 struct S4 {}
 func +(x: S4, y: S4) -> S4 { return x }
@@ -285,26 +291,27 @@ precedencegroup ReallyHighPrecedence {
 func &&&(x: Bool, y: Bool) -> S4 { return x }
 
 func testExtInfix2(x: S4) {
-  x + x == x + x#^EXT_INFIX_2?check=S4_EXT_INFIX;check=S4_EXT_INFIX_NEG^#
+  x + x == x + x#^EXT_INFIX_2^#
 }
-// S4_EXT_INFIX-DAG: Decl[InfixOperatorFunction]/OtherModule[Swift]/IsSystem:  + {#S4#}[#S4#]
-// S4_EXT_INFIX-DAG: Decl[InfixOperatorFunction]/OtherModule[Swift]/IsSystem:  && {#Bool#}[#Bool#]
-// S4_EXT_INFIX-DAG: Decl[InfixOperatorFunction]/OtherModule[Swift]/IsSystem:  || {#Bool#}[#Bool#]
-
-// S4_EXT_INFIX-NEG-NOT: !=
-// S4_EXT_INFIX-NEG-NOT: ==
-// S4_EXT_INFIX_NEG-NOT: +++
-// S4_EXT_INFIX_NEG-NOT: &&&
+// EXT_INFIX_2: Begin completions, 4 items
+// EXT_INFIX_2-DAG: Keyword[self]/CurrNominal:          .self[#S4#];
+// EXT_INFIX_2-DAG: Decl[InfixOperatorFunction]/CurrModule/TypeRelation[Convertible]:  +++ {#S4#}[#S4#];
+// EXT_INFIX_2-DAG: Decl[InfixOperatorFunction]/OtherModule[Swift]/IsSystem/TypeRelation[Convertible]:  + {#S4#}[#S4#];
+// EXT_INFIX_2-DAG: Decl[InfixOperatorFunction]/OtherModule[Swift]/IsSystem:  == {#S4#}[#Bool#];
 
 func testExtInfix3(x: S4) {
-   x + x#^EXT_INFIX_3?check=S4_EXT_INFIX_SIMPLE^#
+   x + x#^EXT_INFIX_3^#
 }
-// S4_EXT_INFIX_SIMPLE-DAG: Decl[InfixOperatorFunction]/OtherModule[Swift]/IsSystem:  + {#S4#}[#S4#]
-// S4_EXT_INFIX_SIMPLE-DAG: Decl[InfixOperatorFunction]/CurrModule:  +++ {#S4#}[#S4#]
+// EXT_INFIX_3-DAG: Decl[InfixOperatorFunction]/OtherModule[Swift]/IsSystem/TypeRelation[Convertible]:  + {#S4#}[#S4#]
+// EXT_INFIX_3-DAG: Decl[InfixOperatorFunction]/CurrModule/TypeRelation[Convertible]:  +++ {#S4#}[#S4#]
 
 func testExtInfix4(x: S4) {
-   1 + 1.0 + x#^EXT_INFIX_4?check=S4_EXT_INFIX_SIMPLE^#
+   1 + 1.0 + x#^EXT_INFIX_4^#
 }
+// EXT_INFIX_4: Begin completions
+// EXT_INFIX_4-DAG: Decl[InfixOperatorFunction]/OtherModule[Swift]/IsSystem:  + {#S4#}[#S4#]
+// EXT_INFIX_4-DAG: Decl[InfixOperatorFunction]/CurrModule:  +++ {#S4#}[#S4#]
+// EXT_INFIX_4: End completions
 
 func testAssignTuple1() {
   ()#^ASSIGN_TUPLE_1^#
@@ -323,7 +330,7 @@ func testAssignTuple2() {
   var y: S2
   (x, y)#^ASSIGN_TUPLE_2^#
 }
-// ASSIGN_TUPLE_2: BuiltinOperator/None:                        = {#(S2, S2)#}[#Void#];
+// ASSIGN_TUPLE_2: BuiltinOperator/None:                        = {#(S2, S2)#};
 
 
 infix operator ====: ComparisonPrecedence
@@ -336,12 +343,18 @@ func ||||(x: Boolish, y: @autoclosure ()->Boolish) -> Boolish { return x }
 
 func testAutoclosure(x: Boolish, y: Boolish) {
   if x #^INFIX_AUTOCLOSURE_1^# {}
-  if x &&&& y #^INFIX_AUTOCLOSURE_2?check=INFIX_AUTOCLOSURE_1^# {}
-  if x |||| y #^INFIX_AUTOCLOSURE_3?check=INFIX_AUTOCLOSURE_1^# {}
-  if x &&&& x |||| y #^INFIX_AUTOCLOSURE_4?check=INFIX_AUTOCLOSURE_1^# {}
+  if x &&&& y #^INFIX_AUTOCLOSURE_2^# {}
+  if x |||| y #^INFIX_AUTOCLOSURE_3?check=INFIX_AUTOCLOSURE_2^# {}
+  if x &&&& x |||| y #^INFIX_AUTOCLOSURE_4?check=INFIX_AUTOCLOSURE_2^# {}
 }
 
 // INFIX_AUTOCLOSURE_1-DAG: Decl[InfixOperatorFunction]/CurrModule: [' ']&&&& {#Boolish#}[#Boolish#];
 // INFIX_AUTOCLOSURE_1-DAG: Decl[InfixOperatorFunction]/CurrModule: [' ']==== {#Boolish#}[#Boolish#];
 // INFIX_AUTOCLOSURE_1-DAG: Decl[InfixOperatorFunction]/CurrModule: [' ']|||| {#Boolish#}[#Boolish#];
+
+// INFIX_AUTOCLOSURE_2: Begin completions
+// INFIX_AUTOCLOSURE_2-DAG: Decl[InfixOperatorFunction]/CurrModule/TypeRelation[Convertible]: [' ']&&&& {#Boolish#}[#Boolish#];
+// INFIX_AUTOCLOSURE_2-DAG: Decl[InfixOperatorFunction]/CurrModule/TypeRelation[Convertible]: [' ']==== {#Boolish#}[#Boolish#];
+// INFIX_AUTOCLOSURE_2-DAG: Decl[InfixOperatorFunction]/CurrModule/TypeRelation[Convertible]: [' ']|||| {#Boolish#}[#Boolish#];
+// INFIX_AUTOCLOSURE_2: End completions
 

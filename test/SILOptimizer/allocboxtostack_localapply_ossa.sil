@@ -488,3 +488,63 @@ bb0(%0 : @guaranteed ${ var Int }, %1 : @guaranteed ${ var Int }):
   %8 = apply %7(%0, %1) : $@convention(thin) (@guaranteed { var Int }, @guaranteed { var Int }) -> Int
   return %8 : $Int
 }
+
+class C {}
+
+sil @getC : $@convention(thin) () -> (@owned C)
+
+sil [ossa] @borrow_c_box : $@convention(thin) (@guaranteed { var C }) -> () {
+entry(%box : @guaranteed ${var C}):
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_copy_applied : {{.*}} {
+// CHECK:         [[CLOSURE:%[^,]+]] = partial_apply
+// CHECK:         [[COPY:%[^,]+]] = copy_value [[CLOSURE]]
+// CHECK:         destroy_value [[CLOSURE]]
+// CHECK:         apply [[COPY]]()
+// CHECK:         destroy_addr
+// CHECK:         dealloc_stack
+// CHECK-LABEL: } // end sil function 'test_copy_applied'
+sil [ossa] @test_copy_applied : $@convention(thin) () -> () {
+bb0:
+  %box = alloc_box ${ var C }, var, name "x"
+  %addr = project_box %box : ${ var C }, 0
+  %getC = function_ref @getC : $@convention(thin) () -> (@owned C)
+  %c = apply %getC() : $@convention(thin) () -> (@owned C)
+  store %c to [init] %addr : $*C
+
+  %borrow_int_box = function_ref @borrow_c_box : $@convention(thin) (@guaranteed { var C }) -> ()
+  %closure = partial_apply [callee_guaranteed] %borrow_int_box(%box) : $@convention(thin) (@guaranteed { var C }) -> ()
+  %copy = copy_value %closure : $@callee_guaranteed () -> ()
+  destroy_value %closure : $@callee_guaranteed () -> ()
+  apply %copy() : $@callee_guaranteed () -> ()
+  destroy_value %copy : $@callee_guaranteed () -> ()
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_move_applied : {{.*}} {
+// CHECK:         [[CLOSURE:%[^,]+]] = partial_apply
+// CHECK:         [[MOVE:%[^,]+]] = move_value [[CLOSURE]]
+// CHECK:         apply [[MOVE]]()
+// CHECK:         destroy_addr
+// CHECK:         dealloc_stack
+// CHECK-LABEL: } // end sil function 'test_move_applied'
+sil [ossa] @test_move_applied : $@convention(thin) () -> () {
+bb0:
+  %box = alloc_box ${ var C }, var, name "x"
+  %addr = project_box %box : ${ var C }, 0
+  %getC = function_ref @getC : $@convention(thin) () -> (@owned C)
+  %c = apply %getC() : $@convention(thin) () -> (@owned C)
+  store %c to [init] %addr : $*C
+
+  %borrow_int_box = function_ref @borrow_c_box : $@convention(thin) (@guaranteed { var C }) -> ()
+  %closure = partial_apply [callee_guaranteed] %borrow_int_box(%box) : $@convention(thin) (@guaranteed { var C }) -> ()
+  %move = move_value %closure : $@callee_guaranteed () -> ()
+  apply %move() : $@callee_guaranteed () -> ()
+  destroy_value %move : $@callee_guaranteed () -> ()
+  %retval = tuple ()
+  return %retval : $()
+}

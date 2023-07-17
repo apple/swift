@@ -66,6 +66,14 @@ sil_global private @g1_token : $Builtin.Word
 sil_global [let] @g2 : $Int32
 sil_global private @g2_token : $Builtin.Word
 
+// CHECK-LABEL: sil_global [let] @g3 : $Optional<UnsafeMutablePointer<Int>>
+sil_global [let] @g3 : $Optional<UnsafeMutablePointer<Int>>
+sil_global private @g3_token : $Builtin.Word
+
+// CHECK-LABEL: sil_global [let] @g4 : $Optional<UnsafeMutablePointer<Int>>
+sil_global [let] @g4 : $Optional<UnsafeMutablePointer<Int>>
+sil_global private @g4_token : $Builtin.Word
+
 
 // CHECK-LABEL: sil [global_init_once_fn] [ossa] @globalinit_trivialglobal_func :
 // CHECK-NOT:     alloc_global
@@ -151,3 +159,33 @@ bb0:
   return %6 : $()
 }
 
+// CHECK-LABEL: sil [global_init_once_fn] [ossa] @globalinit_enum :
+// CHECK-NOT:     alloc_global
+// CHECK-NOT:     store
+// CHECK:       } // end sil function 'globalinit_enum'
+sil [global_init_once_fn] [ossa] @globalinit_enum : $@convention(c) () -> () {
+bb0:
+  alloc_global @g3
+  %2 = global_addr @g3 : $*Optional<UnsafeMutablePointer<Int>>
+  %3 = enum $Optional<UnsafeMutablePointer<Int>>, #Optional.none!enumelt
+  store %3 to [trivial] %2 : $*Optional<UnsafeMutablePointer<Int>>
+  %5 = tuple ()
+  return %5 : $()
+}
+
+// CHECK-LABEL: sil [global_init_once_fn] [ossa] @globalinit_enum_inttoptr :
+// CHECK-NOT:     alloc_global
+// CHECK-NOT:     store
+// CHECK:       } // end sil function 'globalinit_enum_inttoptr'
+sil [global_init_once_fn] [ossa] @globalinit_enum_inttoptr : $@convention(c) () -> () {
+bb0:
+  alloc_global @g4
+  %2 = global_addr @g4 : $*Optional<UnsafeMutablePointer<Int>>
+  %4 = integer_literal $Builtin.Word, 1111638594
+  %5 = builtin "inttoptr_Word"(%4 : $Builtin.Word) : $Builtin.RawPointer
+  %6 = struct $UnsafeMutablePointer<Int> (%5 : $Builtin.RawPointer)
+  %7 = enum $Optional<UnsafeMutablePointer<Int>>, #Optional.some!enumelt, %6 : $UnsafeMutablePointer<Int>
+  store %7 to [trivial] %2 : $*Optional<UnsafeMutablePointer<Int>>
+  %10 = tuple ()
+  return %10 : $()
+}

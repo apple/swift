@@ -12,7 +12,7 @@
 // should be no diagnostics and the version in the `.swiftmodule` should be
 // honored.
 
-// RUN: echo "" > %t/frameworks/Simple.framework/Simple.tbd
+// RUN: rm -rf %t/frameworks/Simple.framework/Simple.tbd
 // RUN: echo "@_exported import Simple" > %t.overlay.swift
 // RUN: echo "public func additional() {}" >> %t.overlay.swift
 

@@ -403,6 +403,12 @@ int main(int argc, char **argv) {
                         "is quoted or escaped.\n";
         continue;
       }
+      if (name == "") {
+        llvm::errs() << "warning: empty input symbol is likely the result of "
+                        "variable expansion by the shell. Ensure the argument "
+                        "is quoted or escaped.\n";
+        continue;
+      }
       if (name.startswith("S") || name.startswith("s") ) {
         std::string correctedName = std::string("$") + name.str();
         demangle(llvm::outs(), correctedName, DCtx, options);

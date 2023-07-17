@@ -317,50 +317,50 @@ MemBehavior MemoryBehaviorVisitor::visitMarkUnresolvedMoveAddrInst(
 MemBehavior MemoryBehaviorVisitor::visitBuiltinInst(BuiltinInst *BI) {
   MemBehavior mb = BI->getMemoryBehavior();
   if (mb != MemBehavior::None) {
-    return AA->getMemoryBehaviorOfInst(V, BI);
+    return AA->getMemoryEffectOnEscapedAddress(V, BI);
   }
   return MemBehavior::None;
 }
 
 MemBehavior MemoryBehaviorVisitor::visitTryApplyInst(TryApplyInst *AI) {
-  return AA->getMemoryBehaviorOfInst(V, AI);
+  return AA->getMemoryEffectOnEscapedAddress(V, AI);
 }
 
 MemBehavior MemoryBehaviorVisitor::visitApplyInst(ApplyInst *AI) {
-  return AA->getMemoryBehaviorOfInst(V, AI);
+  return AA->getMemoryEffectOnEscapedAddress(V, AI);
 }
 
 MemBehavior MemoryBehaviorVisitor::visitBeginApplyInst(BeginApplyInst *AI) {
-  return AA->getMemoryBehaviorOfInst(V, AI);
+  return AA->getMemoryEffectOnEscapedAddress(V, AI);
 }
 
 MemBehavior MemoryBehaviorVisitor::visitEndApplyInst(EndApplyInst *EAI) {
-  return AA->getMemoryBehaviorOfInst(V, EAI->getBeginApply());
+  return AA->getMemoryEffectOnEscapedAddress(V, EAI->getBeginApply());
 }
 
 MemBehavior MemoryBehaviorVisitor::visitAbortApplyInst(AbortApplyInst *AAI) {
-  return AA->getMemoryBehaviorOfInst(V, AAI->getBeginApply());
+  return AA->getMemoryEffectOnEscapedAddress(V, AAI->getBeginApply());
 }
 
 MemBehavior
 MemoryBehaviorVisitor::visitStrongReleaseInst(StrongReleaseInst *SI) {
-  return AA->getMemoryBehaviorOfInst(V, SI);
+  return AA->getMemoryEffectOnEscapedAddress(V, SI);
 }
 
 #define ALWAYS_OR_SOMETIMES_LOADABLE_CHECKED_REF_STORAGE(Name, ...) \
 MemBehavior \
 MemoryBehaviorVisitor::visit##Name##ReleaseInst(Name##ReleaseInst *SI) { \
-  return AA->getMemoryBehaviorOfInst(V, SI); \
+  return AA->getMemoryEffectOnEscapedAddress(V, SI); \
 }
 #include "swift/AST/ReferenceStorage.def"
 
 MemBehavior MemoryBehaviorVisitor::visitReleaseValueInst(ReleaseValueInst *SI) {
-  return AA->getMemoryBehaviorOfInst(V, SI);
+  return AA->getMemoryEffectOnEscapedAddress(V, SI);
 }
 
 MemBehavior
 MemoryBehaviorVisitor::visitDestroyValueInst(DestroyValueInst *DVI) {
-  return AA->getMemoryBehaviorOfInst(V, DVI);
+  return AA->getMemoryEffectOnEscapedAddress(V, DVI);
 }
 
 MemBehavior MemoryBehaviorVisitor::visitSetDeallocatingInst(SetDeallocatingInst *SDI) {

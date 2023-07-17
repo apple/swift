@@ -2128,8 +2128,21 @@ ResultTypeRequest::evaluate(Evaluator &evaluator, ValueDecl *decl) const {
   if (!resultTyRepr && decl->getClangDecl() &&
       isa<clang::FunctionDecl>(decl->getClangDecl())) {
     auto clangFn = cast<clang::FunctionDecl>(decl->getClangDecl());
-    return ctx.getClangModuleLoader()->importFunctionReturnType(
+    auto returnType = ctx.getClangModuleLoader()->importFunctionReturnType(
         clangFn, decl->getDeclContext());
+    if (returnType)
+      return *returnType;
+    // Mark the imported Swift function as unavailable.
+    // That will ensure that the function will not be
+    // usable from Swift, even though it is imported.
+    if (!decl->getAttrs().isUnavailable(ctx)) {
+      StringRef unavailabilityMsgRef = "return type is unavailable in Swift";
+      auto ua =
+          AvailableAttr::createPlatformAgnostic(ctx, unavailabilityMsgRef);
+      decl->getAttrs().add(ua);
+    }
+
+    return ctx.getNeverType();
   }
 
   // Nothing to do if there's no result type.

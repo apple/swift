@@ -19,6 +19,7 @@
 #include "swift/Frontend/Frontend.h"
 #include "swift/Frontend/PrintingDiagnosticConsumer.h"
 #include "swift/Index/Index.h"
+#include "swift/Index/IndexRecord.h"
 #include "swift/Serialization/SerializedModuleLoader.h"
 // This is included only for createLazyResolver(). Move to different header ?
 #include "swift/Sema/IDETypeChecking.h"
@@ -366,4 +367,80 @@ void SwiftLangSupport::indexSource(StringRef InputFile,
   
   SKIndexDataConsumer IdxDataConsumer(IdxConsumer);
   index::indexSourceFile(CI.getPrimarySourceFile(), IdxDataConsumer);
+}
+
+static void emitIndexDataForSourceFile(SourceFile &PrimarySourceFile,
+                                       StringRef IndexStorePath,
+                                       StringRef IndexUnitOutputPath,
+                                       const CompilerInstance &Instance) {
+  const auto &Invocation = Instance.getInvocation();
+  const auto &Opts = Invocation.getFrontendOptions();
+
+  bool isDebugCompilation;
+  switch (Invocation.getSILOptions().OptMode) {
+    case OptimizationMode::NotSet:
+    case OptimizationMode::NoOptimization:
+      isDebugCompilation = true;
+      break;
+    case OptimizationMode::ForSpeed:
+    case OptimizationMode::ForSize:
+      isDebugCompilation = false;
+      break;
+  }
+
+  (void) index::indexAndRecord(&PrimarySourceFile, IndexUnitOutputPath,
+                               IndexStorePath,
+                               !Opts.IndexIgnoreClangModules,
+                               Opts.IndexSystemModules,
+                               Opts.IndexIgnoreStdlib,
+                               Opts.IndexIncludeLocals,
+                               isDebugCompilation,
+                               Invocation.getTargetTriple(),
+                               *Instance.getDependencyTracker(),
+                               Invocation.getIRGenOptions().FilePrefixMap);
+}
+
+void SwiftLangSupport::indexToStore(
+    StringRef PrimaryFilePath, ArrayRef<const char *> Args,
+    IndexStoreOptions Opts,
+    SourceKitCancellationToken CancellationToken,
+    IndexToStoreReceiver Receiver) {
+  std::string Error;
+  SwiftInvocationRef Invok =
+      ASTMgr->getTypecheckInvocation(Args, PrimaryFilePath, Error);
+  if (!Invok) {
+    LOG_WARN_FUNC("failed to create an ASTInvocation: " << Error);
+    Receiver(RequestResult<IndexStoreInfo>::fromError(Error));
+    return;
+  }
+
+  struct IndexStoreASTConsumer : public SwiftASTConsumer {
+    IndexToStoreReceiver Receiver;
+    IndexStoreOptions Opts;
+
+    IndexStoreASTConsumer(IndexToStoreReceiver Receiver, IndexStoreOptions Opts)
+        : Receiver(std::move(Receiver)), Opts(std::move(Opts)) {}
+
+    void handlePrimaryAST(ASTUnitRef AstUnit) override {
+      auto &SF = AstUnit->getPrimarySourceFile();
+      auto &CI = AstUnit->getCompilerInstance();
+      emitIndexDataForSourceFile(
+          SF, Opts.IndexStorePath, Opts.IndexUnitOutputPath, CI);
+      Receiver(RequestResult<IndexStoreInfo>::fromResult(IndexStoreInfo{}));
+    }
+
+    void cancelled() override {
+      Receiver(RequestResult<IndexStoreInfo>::cancelled());
+    }
+
+    void failed(StringRef Error) override {
+      Receiver(RequestResult<IndexStoreInfo>::fromError(Error));
+    }
+  };
+
+  auto ASTConsumer = std::make_shared<IndexStoreASTConsumer>(std::move(Receiver), std::move(Opts));
+  getASTManager()->processASTAsync(Invok, ASTConsumer,
+                                   /*OncePerASTToken=*/nullptr,
+                                   CancellationToken,
+                                   llvm::vfs::getRealFileSystem());
 }

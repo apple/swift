@@ -483,18 +483,20 @@ private:
 
     // Check that @_section, @_silgen_name is only on constant globals
     for (SILGlobalVariable &g : module->getSILGlobals()) {
-      if (!g.getStaticInitializerValue()) {
+      if (!g.getStaticInitializerValue() && g.mustBeInitializedStatically()) {
+        auto *decl = g.getDecl();
         if (g.getSectionAttr()) {
           module->getASTContext().Diags.diagnose(
             g.getDecl()->getLoc(), diag::bad_attr_on_non_const_global,
             "@_section");
-        }
-
-        auto *decl = g.getDecl();
-        if (decl && g.isDefinition() && decl->getAttrs().hasAttribute<SILGenNameAttr>()) {
+        } else if (decl && g.isDefinition() &&
+                   decl->getAttrs().hasAttribute<SILGenNameAttr>()) {
           module->getASTContext().Diags.diagnose(
             g.getDecl()->getLoc(), diag::bad_attr_on_non_const_global,
             "@_silgen_name");
+        } else {
+          module->getASTContext().Diags.diagnose(
+            g.getDecl()->getLoc(), diag::global_must_be_compile_time_const);
         }
       }
     }

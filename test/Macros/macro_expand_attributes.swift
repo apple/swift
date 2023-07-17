@@ -140,3 +140,13 @@ expansionOrder.expandedMember = 27
 
 // CHECK: setting 28
 expansionOrder.originalMember = 28
+
+#if TEST_DIAGNOSTICS
+@wrapAllProperties
+typealias A = Int
+// expected-error@-1{{'memberAttribute' macro cannot be attached to type alias}}
+
+@wrapAllProperties
+func noMembers() {}
+// expected-error@-1{{'memberAttribute' macro cannot be attached to global function}}
+#endif

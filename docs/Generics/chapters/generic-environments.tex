@@ -1,0 +1,821 @@
+\documentclass[../generics]{subfiles}
+
+\begin{document}
+
+\chapter{Generic Environments}\label{genericenv}
+
+\lettrine{A}{n archetype encapsulates} a type parameter together with a generic signature. This self-contained representation can answer ``what protocols do you conform to'' and similar questions without further context. Contrast this with type parameters, which are always interpreted with respect to a separately-given generic signature. Archetypes are created by mapping type parameters into a \emph{generic environment}, an object which associates a generic signature with some additional state.
+
+\index{SILGen}%
+\index{IRGen}%
+\index{runtime type metadata}%
+\index{expression}%
+While there can be more than one generic environment for a single generic signature, exactly one of them is the \emph{primary generic environment}, its archetypes being \emph{primary archetypes}. We will discuss these first. Primary archetypes appear when the constraint solver assigns types to expressions. SILGen lowers these expressions to SIL instructions which consume and produce SIL values, whose types can also in turn contain archetypes. Finally, when IRGen generates code for a generic function, archetypes become \emph{values} representing the runtime type metadata provided by the caller of the generic function. To completely nail down the semantic distinction between type parameters and primary archetypes, consider this simple program:
+\begin{Verbatim}
+struct G<I: IteratorProtocol> {
+  var iter: I
+
+  mutating func f() {
+    let a: I.Element = iter.next()!
+  }
+  
+  mutating func g() where I.Element: Equatable {
+    let a: I.Element = iter.next()!
+    let b: I.Element = iter.next()!
+    print(a == b)
+  }
+}
+\end{Verbatim}
+\index{type representation}%
+The syntactic type representation ``\texttt{I.Element}'' appearing in the body of \texttt{f()} and \texttt{g()} resolves to the \emph{same} type parameter \texttt{I.[IteratorProtocol]Element} in all three source locations. Notice however that \texttt{f()} and \texttt{g()} have different generic signatures, with \texttt{f()} inheriting the generic signature of struct \texttt{G}, and \texttt{g()} imposing an additional conformance requirement on \texttt{I.[IteratorProtocol]Element}.
+
+Thus, \texttt{f()} and \texttt{g()} have different generic environments, and the same type parameter is mapped to two different primary archetypes in the two functions. Let's use the notation $\archetype{T}_e$ for the archetype obtained by mapping the type parameter \texttt{T} into some generic environment $e$:
+\begin{gather*}
+\archetype{I.[IteratorProtocol]Element}_f\\
+\archetype{I.[IteratorProtocol]Element}_g
+\end{gather*}
+The first archetype does not conform to any protocols, while the second one conforms to \texttt{Equatable}. By working with archetypes instead of type parameters, the constraint solver knows this without plumbing a separate generic signature through everywhere that types of expressions must be reasoned about. Thus, the expression ``\texttt{iter.next()!}'' actually has a different type inside \texttt{f()} and \texttt{g()}.
+
+Primary archetypes are lexically scoped, but a nested generic context which adds new generic parameters or requirements does not inherit archetypes from the outer scope. Instead, as archetypes are instantiated from a generic signature which represents all outer generic parameters in a ``flat'' form, each nested context receives a whole new set of archetypes. The only case where a generic environment is inherited is when an inner declaration does not declare new generic parameters nor requirements, giving it the same exact generic signature as its parent context. When working on expression type checker logic related to generic declarations, care should be taken to map types into the correct generic environment.
+
+\paragraph{Mapping}
+A pair of operations define a bidirectional mapping between type parameters and archetypes:
+\begin{itemize}
+\item \IndexDefinition{map type into environment}\textbf{Mapping into an environment} recursively replaces type parameters in the given type with the archetypes of the given generic environment.
+\item \IndexDefinition{map type out of environment}\textbf{Mapping out of an environment} recursively replaces primary archetypes with their reduced type parameters.
+\end{itemize}
+Note the asymmetry: the first operation needs a generic environment, while the second does not and only considers primary archetypes. Recursively replacing non-primary archetypes with their type parameters is not meaningful; generally, a type may contain a mix of archetypes from multiple generic environments. For example, we might be type checking a method call on a value of existential type:
+\begin{Verbatim}
+func first<Element>(_ c: any Collection<Element>) -> Element {
+  return c.randomElement()!
+}
+\end{Verbatim}
+The substituted type of the expression \texttt{c.randomElement} is a function type involving both the opened existential archetype representing the $\archetype{Self}_e$ type stored inside the existential containe, and the primary archetype $\archetype{Element}_f$; notice how we're using subscripts to disambiguate the two generic environments:
+\begin{quote}
+\texttt{($\archetype{Self}_e$) -> () -> $\archetype{Element}_f$}
+\end{quote}
+This type cannot be mapped to an interface type, because in doing so both archetypes would become the generic parameter type \ttgp{0}{0}; we would lose information and get this meaningless type:
+\begin{quote}
+\texttt{(\ttgp{0}{0}) -> () -> \ttgp{0}{0}}
+\end{quote}
+However, a restricted form of mapping out of an environment is defined for non-primary archetypes, by projecting the type parameter from an \emph{individual} archetype.
+
+\paragraph{Archetype equality} Per Section~\ref{reducedtypes}, \index{same-type requirement}same-type requirements define an equivalence relation on the type parameters of a generic signature. Two type parameters that belong to the same equivalence class essentially represent two different ``spellings'' of the same \index{reduced type}reduced type parameter. In constrast, the underlying type parameter of an archetype is always reduced. So, a single archetype represents an entire equivalence class of type parameters in a fixed generic environment, and every type parameter in this equivalence class maps to the same archetype. This has several consequences:
+\begin{itemize}
+\item The three relations of \index{reduced type equality}reduced type equality, \index{canonical type equality}canonical type equality and \index{type pointer equality}type pointer equality coincide on archetypes. Note that types \emph{containing} archetypes may still be canonically equal without being pointer equal, if they differ by type sugar in other positions.
+
+\item Mapping two equivalent type parameters into the same environment produces two equal pointers to the same archetype.
+
+\item Conversely, mapping the same type parameter into two different environments always produces two distinct (not equal pointers) archetypes.
+
+\item Mapping an interface type into a primary generic environment and back out again outputs the reduced type of the interface type, except the generic parameter types contained therein remain sugared types. (There is no reason to ever do this intentionally though---a reduced type can be computed directly from a generic signature, and ``resugaring'' is also implemented as an operation on generic signatures.)
+
+\item A type parameter fixed to a concrete type is never reduced, so mapping such a type parameter into a generic environment does not produce an archetype at all. Instead, it recursively maps the concrete type into the environment, replacing any type parameters it contains with archetypes.
+\end{itemize}
+
+\begin{example}
+\index{equivalence class}%
+Consider the primary generic environment of \verb|<S where S: Sequence>|. This generic signature has three reduced type parameters, which therefore map to three distinct primary archetypes:
+\begin{quote}
+\begin{verbatim}
+S
+S.[Sequence]Element
+S.[Sequence]Iterator
+\end{verbatim}
+\end{quote}
+Recall that \texttt{Sequence} defines a same-type requirement between its own element type and that of its iterator. So the second equivalence class actually contains two type parameters; that is, they are distinct as canonical types but equal as reduced types:
+\begin{quote}
+\begin{verbatim}
+S.[Sequence]Element
+S.[Sequence]Iterator.[IteratorProtocol]Element
+\end{verbatim}
+\end{quote}
+Thus, both of the above map to the same primary archetype, $\archetype{S.[Sequence]Element}$.
+Now consider \verb|<S where S: Sequence, S.[Sequence]Element == Int>|. We only have two reduced type parameters now:
+\begin{quote}
+\begin{verbatim}
+S
+S.[Sequence]Iterator
+\end{verbatim}
+\end{quote}
+As for \texttt{S.[Sequence]Element}, the reduced type representing this equivalence class is now the concrete type \texttt{Int}. So mapping \texttt{S.[Sequence]Element} (or or its longer spelling as the element type of the iterator) into our environment does not produce an archetype at all;  it just gives you the type \texttt{Int}.
+\end{example}
+
+\paragraph{Generic environment kinds}
+\IndexDefinition{generic environment}%
+\IndexDefinition{primary generic environment}%
+\index{opaque generic environment}%
+\index{opened generic environment}%
+\IndexDefinition{primary archetype type}%
+\index{opened archetype type}%
+\index{opaque archetype type}%
+Formally, a generic environment is a uniquing key, which together with a reduced type parameter, identifies an archetype. There are three kinds of generic environment, each with its own uniquing key:
+\begin{itemize}
+\item As described above, every generic signature has exactly one \textbf{primary generic environment} of \emph{primary archetypes}.
+\begin{quote}
+\begin{tikzpicture}
+\node[genericenvmatrix] {
+\node (a) [genericenvpart] {\strut generic signature};\\
+};
+\begin{scope}[on background layer]
+\node (aa) [genericenv, fit=(a), minimum width=15em] {};
+\node [genericenvlabel] at (aa.north) {primary generic environment};
+\end{scope}
+\end{tikzpicture}
+\end{quote}
+Primary generic environments preserve the sugared names of generic parameters for the printed representation of an archetype, so two generic signatures which are not equal pointers will instantiate distinct primary generic environments, even if those generic signatures are canonically equal.
+
+\item When a declaration has an opaque return type, an \textbf{opaque generic environment} is created for each unique substitution map of the owner declaration's generic signature.
+\begin{quote}
+\begin{tikzpicture}
+\node [genericenvmatrix] {
+\node (a) [genericenvpart] {\strut opaque type declaration};&
+\node (b) [genericenvpart] {\strut substitution map};\\
+};
+\begin{scope}[on background layer]
+\node (ab) [genericenv, fit=(a)(b)] {};
+\node [genericenvlabel] at (ab.north) {opaque generic environment};
+\end{scope}
+\end{tikzpicture}
+\end{quote}
+Unlike primary archetypes, opaque archetypes are visible outside of any lexical scope; using the substitution map, they can represent a reference to a (substituted) return type of the owner declaration. Opaque archetypes are also valid inside interface types, in particular they also represent the return type in the interface type of the owner declaration itself. Details are in Chapter~\ref{opaqueresult}.
+\index{call expression}
+\index{expression}
+\item An \textbf{opened generic environment} is created when an existential value is opened at a call site. Formally, opened archetypes represent the concrete payload stored inside an existential type.
+\begin{quote}
+\begin{tikzpicture}
+\node [genericenvmatrix] {
+\node [genericenvpart] (a) {\strut generic signature};&
+\node [genericenvpart] (b) {\strut existential type};&
+\node [genericenvpart] (c) {\strut UUID};\\
+};
+\begin{scope}[on background layer]
+\node (abc) [genericenv, fit=(a)(b)(c)] {};
+\node [genericenvlabel] at (abc.north) {opened generic environment};
+\end{scope}
+\end{tikzpicture}
+\end{quote}
+Every opening expression gets a fresh UUID, and therefore a new opened generic environment. In the AST, opened archetypes cannot ``escape'' outside of their opening expression; in SIL, they are introduced by an opening instruction and are similarly scoped by the dominance relation on the control flow graph. Details in Chapter~\ref{existentialtypes}.
+\end{itemize}
+
+\section{Local Requirements}\label{local requirements}
+
+The \IndexDefinition{local requirements}\emph{local requirements} of an archetype describe the behavior of the archetype's type parameter. Abstractly, a local requirement of an archetype $\archetype{T}$ is a \index{derived requirement}derived requirement whose subject type is \texttt{T}. Concretely, the local requirements are the results of \index{generic signature query}generic signature queries against the archetype's generic signature (Section~\ref{genericsigqueries}):
+\begin{itemize}
+\item \textbf{Required protocols:} a minimal and canonical list of protocols the archetype is known to conform to. This is the result of the \Index{getRequiredProtocols()@\texttt{getRequiredProtocols()}}\texttt{getRequiredProtocols()} generic signature query.
+\item \textbf{Superclass bound:} an optional superclass type that the archetype is known to be a subclass of. This is the result of the \Index{getSuperclassBound()@\texttt{getSuperclassBound()}}\texttt{getSuperclassBound()} generic signature query.
+\item \textbf{Requires class flag:} a boolean indicating if the archetype is class-constrained. This is the result of the \Index{requiresClass()@\texttt{requiresClass()}}\texttt{requiresClass()} generic signature query.
+\item \textbf{Layout constraint:} an optional layout constraint the archetype is known to satisfy. This is the result of the \Index{getLayoutConstraint()@\texttt{getLayoutConstraint()}}\texttt{getLayoutConstraint()} generic signature query.
+\end{itemize}
+By storing their local requirements, archetype take on certain behaviors of the fully-concrete types, namely that they can be interpreted without an explicitly-provided generic signature. In a sense, archetypes are ``most general'' concrete types satisfying the requirements of a generic signature. (As a minor point, we don't actually perform all of the above generic signature queries in succession when constructing an archetype. A special \index{getLocalRequirements()@\texttt{getLocalRequirements()}}\texttt{getLocalRequirements()} query returns all of the necessary information in one shot.)
+
+\paragraph{Global conformance lookup} We've seen \index{global conformance lookup}global conformance lookup with nominal types (Section~\ref{conformance lookup}) and type parameters (Section~\ref{abstract conformances}). It also generalizes to archetypes. Let $\archetype{T}$ be an archetype, and \texttt{P} be a protocol.
+\begin{enumerate}
+\item If a superclass requirement $\ConfReq{T}{C}$ can be \index{derived requirement}derived from the archetype's generic signature of the archetype's generic environment, and the class type \texttt{C} conforms to \texttt{P}, then the archetype \emph{conforms concretely}. Global conformance lookup recursively calls itself with the archetype's superclass type.
+\[\protosym{P}\otimes\archetype{T}=\protosym{P}\otimes\texttt{C}=\ConfReq{C}{P}\]
+The result is actually wrapped in an inherited conformance, which doesn't do much except report the conforming type as $\archetype{T}$ rather than \texttt{C} (Section~\ref{inheritedconformance}).
+\item If the conformance requirement $\ConfReq{T}{P}$ can be derived from the generic signature, the archetype \emph{conforms abstractly}, and thus global conformance lookup returns an abstract conformance:
+\[\protosym{P}\otimes\archetype{T}=\ConfReq{$\archetype{T}$}{P}\]
+\item Otherwise, $\archetype{T}$ does not conform to \texttt{P}, and global conformance lookup returns an invalid conformance.
+\end{enumerate}
+For example, working with the generic signature \verb|<T, U, V where T: C<U, V>, T: P>| where \texttt{C} is a class and \texttt{P} is a protocol, the archetype $\archetype{T}$ conforms to \texttt{P} abstractly:
+\[
+\protosym{P}\otimes \archetype{T} = \ConfReq{$\archetype{T}$}{P}
+\]
+Now let's say that the class \texttt{C} also conforms to some protocol \texttt{Q}. The superclass type of \archetype{T} is \texttt{C<$\archetype{U}$, $\archetype{V}$>}, so \archetype{T} conforms to \texttt{Q} concretely via a specialized conformance:
+\[
+\protosym{Q}\otimes \archetype{T} = \ConfReq{C<$\archetype{U}$, $\archetype{V}$>}{Q}
+\]
+
+\paragraph{Qualified name lookup} An archetype can serve as the base type for a \index{qualified lookup}qualified name lookup. Recall from Section~\ref{contextsubstmap} that qualified lookup searches within the reachable declaration contexts of the given base type. The reachable declaration contexts of an archetype are the protocols it conforms to, the class declaration of its superclass type, and any protocols the superclass conforms to. One can write a protocol composition type with each of these as terms; a qualified lookup with an archetype will find the same members as a qualified lookup with this protocol composition type as the base type.
+
+To continue with our example, consider a member reference \index{expression}expression where the base type is $\archetype{T}$. The reachable declaration contexts are the class declaration of \texttt{C}, the protocol declaration of \texttt{P}, and the protocol declaration of \texttt{Q}.
+The corresponding protocol composition type is just \texttt{C<$\archetype{U}$, $\archetype{V}$> \& P} (we said that \texttt{C} conforms to \texttt{Q}, so \texttt{Q} is not an explicit part of this composition).
+
+\paragraph{Context substitution map} An archetype can serve as the base type when computing a \index{context substitution map}context substitution map for a reference to a member of some declaration context. The declaration context can either be a protocol context or a class context. In the case of a protocol context, the archetype can conform abstractly or concretely, as described above; a \index{protocol substitution map}protocol substitution map is constructed from the archetype and the conformance returned by global conformance lookup. The case where the declaration context is a class is handled by replacing the archetype with its superclass bound, and computing the context substitution map with this superclass bound as the base type.
+
+In our example, if we reference a member of protocol \texttt{P} on a value of type $\archetype{T}$, we will use the \index{protocol substitution map}protocol substitution map for \verb|<Self where Self: P>|, because $\archetype{T}$ conforms abstractly:
+\[
+\SubstMapC{\SubstType{Self}{$\archetype{T}$}}{\SubstConf{Self}{$\archetype{T}$}{P}}
+\]
+If the member were instead in protocol \texttt{Q}, we'd build a protocol substitution map for \verb|<Self where Self: Q>| with a concrete conformance to \texttt{Q}, because members of \texttt{Q} are only visible by looking into the archetype's superclass, \texttt{C}:
+\[
+\SubstMapLongC{\SubstType{Self}{$\archetype{T}$}}{\SubstConf{Self}{C<$\archetype{U}$, $\archetype{V}$>}{Q}}
+\]
+Finally, for a member of class \texttt{C}, we get the context substitution map of the superclass type (we never said what the names of \texttt{C}'s generic parameters are, so let's call them \ttgp{0}{0} and \ttgp{0}{1}):
+\[
+\SubstMapLong{\SubstType{\ttgp{0}{0}}{$\archetype{U}$}\\\SubstType{\ttgp{0}{1}}{$\archetype{V}$}}
+\]
+Incidentally, the above is also the conformance substitution map for the superclass type's specialized conformance:
+\[
+\ConfReq{C<$\archetype{U}$, $\archetype{V}$>}{P} = \ConfReq{C<\ttgp{0}{0}, \ttgp{0}{1}>}{P} \otimes \SubstMapLong{\SubstType{\ttgp{0}{0}}{$\archetype{U}$}\\\SubstType{\ttgp{0}{1}}{$\archetype{V}$}}
+\]
+
+\paragraph{Abstract conformances}
+We earlier defined global conformance lookup to output an \index{abstract conformance}abstract conformance if the archetype conforms abstractly, but we haven't seen abstract conformances whose conforming type is an archetype yet. This new construction merits some elaboration; in particular, we must define type witness and associated conformance projection. As is often the case with the type substitution algebra, there is only one way this can work. We map this abstract conformance out of its environment, replacing the conforming type with its type parameter. At this point, we have an ``ordinary'' abstract conformance, and we can project a \index{type witness}type witness or \index{associated conformance}associated conformance as before. Then, we map the result back into the abstract conformance's environment.
+
+In the generic signature \verb|<S where S: Sequence>|, the archetype \archetype{S} conforms to \texttt{Sequence}, and \archetype{S.Iterator} conforms to \texttt{IteratorProtocol}, both abstractly:
+\begin{gather*}
+\Proto{Sequence}\otimes \archetype{S} = \ConfReq{$\archetype{S}$}{Sequence}\\
+\Proto{IteratorProtocol}\otimes \archetype{S.Iterator} = \ConfReq{$\archetype{S.Iterator}$}{IteratorProtocol}
+\end{gather*}
+We can project the type witness for \texttt{[Sequence]Element} from the first conformance, and arrive at the archetype $\archetype{S.Element}$:
+\begin{gather*}
+\AssocType{[Sequence]Element} \otimes \ConfReq{$\archetype{S}$}{Sequence}\\
+\qquad {} = \archetype{S.Element}
+\end{gather*}
+Projecting the type witness for \texttt{[IteratorProtocol]Element} from the second conformance gives us the same archetype:
+\begin{gather*}
+\AssocType{[IteratorProtocol]Element}\otimes \ConfReq{$\archetype{S.Iterator}$}{IteratorProtocol}\\
+\qquad {} = \archetype{S.Element} 
+\end{gather*}
+Compare this with the generic signature \verb|<S where S: Sequence, S.Element == Int>|, where the corresponding type witnesses are both \texttt{Int}:
+\begin{gather*}
+\AssocType{[Sequence]Element} \otimes \ConfReq{$\archetype{S}$}{Sequence} = \texttt{Int} \\
+\AssocType{[IteratorProtocol]Element}\otimes \ConfReq{$\archetype{S.Iterator}$}{IteratorProtocol} = \texttt{Int}
+\end{gather*}
+It turns out that we can define a directed graph where the vertices are archetypes are edges are given by type witness projection. We will explore this in Section~\ref{type parameter graph}.
+
+\section{Primary Archetypes}\label{archetypesubst}
+
+Mapping an \index{interface type}interface type into a primary generic environment produces a type which does not contain type parameters, but may contain \index{primary archetype}primary archetypes. Such a type is referred to as a \IndexDefinition{contextual type}\emph{contextual type}. 
+
+A few examples of this definition are worth internalizing. The primary archetype \archetype{T} is \emph{also} a contextual type, but \texttt{Array<$\archetype{T}$>} is a contextual type that is not itself a primary archetype; it just \emph{contains} a primary archetype. The fully-concrete type \texttt{Array<Int>} can be seen as both an interface type and a contextual type. The interface type \texttt{Array<T>} is not a contextual type. Opaque archetypes do not come from a primary generic environment and can appear in both interface types and contextual types.
+
+If $G$ is a generic signature, recall that \IndexSet{type}{\TypeObj{G}}$\TypeObj{G}$ is our notation for talking about the set of all interface types valid for this generic signature. Now, let's write $\TypeObj{\EquivClass{G}}$ to refer to the set of all contextual types in the \index{primary generic environment}primary generic environment of $G$. We can think of the mapping of interface types into and out of the primary environment as defining a pair of functions:
+\begin{gather*}
+\mathrm{in}_G\colon\TypeObj{G}\longrightarrow\TypeObj{\EquivClass{G}}\\
+\mathrm{out}_G\colon\TypeObj{\EquivClass{G}}\longrightarrow\TypeObj{G}
+\end{gather*}
+These mappings help us understand how type substitution behaves with contextual types. We can define a new form of our $\otimes$ operator:
+\[\TypeObj{\EquivClass{G}}\otimes\SubMapObj{G}{H}\longrightarrow\TypeObj{H}\]
+If $\texttt{T}^\prime\in\TypeObj{\EquivClass{G}}$ is a contextual type and $\Sigma\in \SubMapObj{G}{H}$ is a substitution map, then applying the substitution map to the contextual type first maps the contextual type out of its environment, and then applies the substitution map to the resulting interface type:
+\[\texttt{T}^\prime\otimes \Sigma = \mathrm{out}_G(\texttt{T}^\prime)\otimes \Sigma\]
+
+\paragraph{Forwarding substitution map} When working in the expression type checker, the SIL optimizer, or anywhere else that deals with both interface types and contextual types, a special substitution map often appears. If $G$ is a generic signature, the \IndexDefinition{forwarding substitution map}\emph{forwarding substitution map} of $G$, denoted \index{$1_{\EquivClass{G}}$}\index{$1_{\EquivClass{G}}$!z@\igobble|seealso{forwarding substitution map}}$1_{\EquivClass{G}}$, sends each generic parameter \ttgp{d}{i} of $G$ to the corresponding archetype $\archetype{\ttgp{d}{i}}$ in the primary generic environment of $G$:
+\[1_{\EquivClass{G}}:=\{\archetype{\ttgp{0}{0}},\,\ldots,\,\archetype{\ttgp{m}{n}};\,\ldots,\,\ConfReq{$\archetype{\ttgp{0}{0}}$}{P},\,\ldots\}\]
+The forwarding substitution map looks similar to the identity substitution map $1_G$ that we saw in Section~\ref{submapcomposition}, which sends every generic parameter to itself:
+\[1_{G}:=\{\ttgp{0}{0},\,\ldots,\,\ttgp{m}{n};\,\ldots,\,\ConfReq{\ttgp{0}{0}}{P},\,\ldots\}\]
+If $\texttt{T}\in\TypeObj{G}$ and $\texttt{T}^\prime\in\TypeObj{\EquivClass{G}}$, we can apply $1_G$ and $1_{\EquivClass{G}}$ to each one of \texttt{T} and $\texttt{T}^\prime$:
+\begin{gather*}
+\texttt{T}\otimes 1_G=\texttt{T}\\
+\texttt{T}\otimes 1_{\EquivClass{G}}=\mathrm{in}_G(\texttt{T})\\
+\texttt{T}^\prime\otimes 1_G=\mathrm{out}_G(\texttt{T}^\prime)\otimes 1_G=\mathrm{out}_G(\texttt{T}^\prime)\\
+\texttt{T}^\prime\otimes 1_{\EquivClass{G}}=\mathrm{out}_G(\texttt{T}^\prime)\otimes 1_{\EquivClass{G}}=\mathrm{in}_G(\mathrm{out}_G(\texttt{T}^\prime))=\texttt{T}^\prime
+\end{gather*}
+Or in words,
+\begin{itemize}
+\item The identity substitution map leaves interface types unchanged.
+\item The identity substitution map maps contextual types out of the environment.
+\item The forwarding substitution map maps interface types into the environment.
+\item The forwarding substitution map leaves contextual types unchanged.
+\end{itemize}
+So the identity substitution map is no longer an identity on contextual types; instead, it maps a contextual type out of its environment. Instead, the forwarding substitution map plays the role of the identity on contextual types.
+
+\paragraph{Contextual substitution maps} A forwarding substitution map is special, because it's replacement types are contextual types and not interface types. Let's say that when a substitution map's replacement types are interface types, it is an \IndexDefinition{interface substitution map}\emph{interface substitution map}, and if they are contextual types, it is a \IndexDefinition{contextual substitution map}\emph{contextual substitution map} (not to be confused with the context substitution map of a specialized type).
+
+Recall our notation $\SubMapObj{G}{H}$ for the set of substitution maps with input generic signature $G$ and output generic signature $H$; these are the interface substitution maps. Now, let's define \IndexSet{sub}{\SubMapObj{G}{H}}$\SubMapObj{G}{\EquivClass{H}}$ to be the set of contextual substitution maps, whose replacement types are the elements of  $\TypeObj{\EquivClass{H}}$. By this definition, we also have that $1_{\EquivClass{G}}\in\SubMapObj{G}{\EquivClass{G}}$.
+
+Applying a contextual substitution map to an interface or contextual type outputs a new contextual type:
+\begin{gather*}
+\TypeObj{G}\otimes\SubMapObj{G}{\EquivClass{H}}\longrightarrow\TypeObj{\EquivClass{H}}\\
+\TypeObj{\EquivClass{G}}\otimes\SubMapObj{G}{\EquivClass{H}}\longrightarrow\TypeObj{\EquivClass{H}}
+\end{gather*}
+From the above, it follows that \index{substitution map composition}substitution map composition generalizes like so:
+\begin{gather*}
+\SubMapObj{F}{G}\otimes\SubMapObj{G}{\EquivClass{H}}\longrightarrow\SubMapObj{F}{\EquivClass{H}}\\
+\SubMapObj{F}{\EquivClass{G}}\otimes\SubMapObj{G}{\EquivClass{H}}\longrightarrow\SubMapObj{F}{\EquivClass{H}}
+\end{gather*}
+In particular, we can convert between interface substitution maps and contextual substitution maps by composing with the \index{identity substitution map}identity or forwarding substitution map on the right. If $\Sigma\in\SubMapObj{G}{H}$ and $\Sigma^\prime\in\SubMapObj{G}{\EquivClass{H}}$, we have:
+\begin{gather*}
+\Sigma\otimes 1_{\EquivClass{H}}\in\SubMapObj{G}{\EquivClass{H}}\\
+\Sigma^\prime\otimes 1_H\in\SubMapObj{G}{H}
+\end{gather*}
+Furthermore, if $T\in\TypeObj{G}$,
+\begin{gather*}
+T\otimes (\Sigma\otimes 1_{\EquivClass{G}}) = \mathrm{in}_H(T\otimes S)\\
+T\otimes (\Sigma^\prime \otimes 1_G) = \mathrm{out}_H(T\otimes \Sigma^\prime)
+\end{gather*}
+However, just like contextual types can be mapped out of their environment without providing the environment itself, substitution maps support a \IndexDefinition{map replacement types out of environment}\textbf{map replacement types out of environment} operation which is more direct than composing with the identity substitution map:
+\[\mathrm{out}_H\colon\SubMapObj{G}{\EquivClass{H}}\longrightarrow\SubMapObj{G}{H}\]
+
+\paragraph{Invariants} A pair of predicates are defined to distinguish interface types from contextual types:
+\begin{itemize}
+\item \texttt{hasTypeParameter()} tests if the type contains type parameters.
+\item \texttt{hasArchetype()} tests if the type contains primary or opened archetypes. (Types that contain only opaque archetypes do not respond with \texttt{true} here, since opaque archetypes have global scope, and may occur in the interface types of declarations.)
+\end{itemize}
+These predicates are used to check preconditions. Generally, the predicate asserted is the negation of the \emph{opposite} predicate:
+\begin{itemize}
+\item A function that only operates on interface types should assert that the given type does not contain archetypes.
+\item A function that only operates on contextual types should assert that the type does not contain type parameters.
+\end{itemize}
+This scheme accomodates fully-concrete types, which contain neither type parameters nor archetypes. An example of this can be seen in the mapping operations. Mapping a type into an environment asserts that the input type does not already contain archetypes, and similarly mapping a type out of an environment asserts that the input type does not already contain type parameters. This ensures that these operations cannot be called ``just in case,'' which would be a sign of sloppy programming; callers must establish that they are working with the correct sort of type upfront with an additional check or assertion.
+
+\section{The Type Parameter Graph}\label{type parameter graph}
+
+The recursive structure of type parameters (Section~\ref{fundamental types}) suggests an intuitive viewpoint where we consider a dependent member type, like \texttt{\ttgp{0}{0}.Iterator.Element}, to be a ``child'' of \texttt{\ttgp{0}{0}.Iterator}, which is a ``child'' of \ttgp{0}{0}, a ``top level'' generic parameter type. The derived requirements formalism (Section~\ref{derived req}) tells us what ``children'' a base type has; they are the formed from the associated type declarations of the base type's protocol conformances. Thus, if \ttgp{0}{0} conforms to \texttt{Sequence}, we can think of it as having two ``children,'' \texttt{\ttgp{0}{0}.Element} and \texttt{\ttgp{0}{0}.Iterator}. This gives us a visual aid to understand the type parameters of a generic signature.
+
+So far, we've described a tree structure, where each generic parameter type has zero or more dependent member types as children, some of which may then have their own children, and so on. However, it is more illuminative to consider not the type parameters themselves, but rather equivalence classes of type parameters, under the reduced type equality relation of a generic signature (Section~\ref{reducedtypes}). This is justified by observing that if two type parameters are equivalent, any requirement that applies to one also applies to the other.
+
+Thus, we no longer have a tree, because ``parents'' can share ``children,'' and children can have children that point back at their own parents, and so on. In fact, we only get a tree in the special case where the generic signature does not have any derived same-type requirements; then, every equivalence class contains exactly one representative (if we ignore \index{unbound dependent member type}unbound dependent member types). In the general case where the equivalence relation may be non-trivial, we get a directed graph. We will have occasion to study other directed graphs later, so we'll start with some general definitions.
+
+\begin{definition}
+A \IndexDefinition{directed graph}\index{graph|see{directed graph}}\emph{directed graph} is a pair $(V,\, E)$ consisting of a set of \IndexDefinition{vertex}vertices $V$ together with a \index{set}set of \IndexDefinition{edge}edges $E$, where every edge $e\in E$ has an associated \IndexDefinition{source vertex}\emph{source} vertex and a \IndexDefinition{destination vertex}\emph{destination} vertex, denoted $\Src(e)$ and $\Dst(e)$, respectively.
+
+Some books (for example, \cite{grimaldi}) define directed graphs such that an edge is exactly an \index{ordered pair}ordered pair of vertices. This precludes graphs where two edges share the same source and destination. Our formulation, where the source and destination to be \emph{properties} of an edge, allows for two distinct edges with the same source and destination; this is called a \emph{directed multi-graph} in \cite{alggraph}.
+\end{definition}
+
+\begin{wrapfigure}{l}{2.6cm}
+\begin{tikzpicture}
+\node (a) [abstractvertex] at (0,1) {};
+\node (b) [abstractvertex] at (2,0) {};
+\node (c) [abstractvertex] at (2,1) {};
+\node (d) [abstractvertex] at (2,2) {};
+
+\draw [arrow] (a) edge [bend right] (b);
+\draw [arrow] (a) -- (c);
+\draw [arrow] (a) edge [bend left] (d);
+
+\draw [arrow] (b) edge [bend left] (c);
+\draw [arrow] (c) edge [bend left] (b);
+
+\draw [arrow] (c) edge [bend left] (d);
+\draw [arrow] (d) edge [bend left] (c);
+
+\end{tikzpicture}
+\end{wrapfigure}
+\noindent
+Intuitively, a directed graph can be visualized by representing each vertex as a point, with each edge drawn as an arrow joining the source to the destination. The direction of the arrow points towards the destination vertex. Our definition allows for $V$ or $E$ to be an infinite set; if so, we say $(V, E)$ is an \IndexDefinition{infinite graph}\emph{infinite graph}. We cannot hope to draw the entire directed graph in this case, but we can still look at a finite \IndexDefinition{subgraph}\emph{subgraph} $(V^\prime, E^\prime)$, where $V^\prime\subset V$ and $E^\prime\subset E$.
+
+
+\begin{wrapfigure}{r}{2.8cm}
+\begin{tikzpicture}
+\node (a) [abstractvertex] at (0,1) {};
+\node (b) [abstractvertex] at (2,0) {};
+\node (c) [abstractvertex] at (2,1) {};
+\node (d) [abstractvertex] at (2,2) {};
+
+\draw (a) edge [bend right] (b);
+\draw (a) -- (c);
+\draw (a) edge [bend left] (d);
+
+\draw (b) edge [bend left] (c);
+\draw (b) edge [bend right] (c);
+
+\draw (c) edge [bend left] (d);
+\draw (c) edge [bend right] (d);
+\end{tikzpicture}
+\end{wrapfigure}
+A closely related concept is the \index{undirected graph}\emph{undirected} graph, sometimes just called a graph. In an undirected graph, an edge is associated with an \emph{unordered} pair of vertices $\{u,v\}$. When depicted in a diagram, the edges of an undirected graph are drawn as lines and not arrows, as there is no implied ordering between the source and destination. In this book we only need to talk about directed graphs.
+
+\begin{definition}\label{digraph path}
+Let $(V,E)$ be a directed graph. A \IndexDefinition{path}\emph{path} $p := (v,\,(e_1,\,\ldots,\,e_n))$ starts at a source vertex $v\in V$ and follows a sequence of zero or more edges $(e_1,\,\ldots,\,e_n)$, not necessarily distinct, which must satisfy the following conditions:
+\begin{enumerate}
+\item If the path contains at least one edge, the source of the first edge must equal the source vertex: $\Src(e_1)=v$.
+\item If the path contains at least two edges, the source of each subsequent edge must equal the destination of the preceding edge: $\Src(e_{i+1})=\Dst(e_i)$ for $0<i\leq n$.
+\end{enumerate}
+Each path has a \emph{source} and \emph{destination}. The source of a path $p$ is the source vertex~$v$, and the destination is either the source vertex $v$ again (if the sequence of edges is empty), or the destination of the final edge:
+\begin{gather*}
+\Src(p) := v\\
+\Dst(p) := \begin{cases}
+v&\text{(if $n=0$)}\\
+\Dst(e_n)&\text{(if $n>0$)}
+\end{cases}
+\end{gather*}
+The \IndexDefinition{path length}\emph{length} of a path is the number of edges in the path. Every vertex $v\in V$ defines an \IndexDefinition{empty path}empty path (of length zero), denoted $1_v$, with source vertex $v$ followed by an empty sequence of edges; by the above definitions, we have $\Src(1_v)=\Dst(1_v)=v$. Every edge $e$ also defines a one-element path (of length one), with source vertex $\Src(e)$ and destination vertex $\Dst(e)$. We can also denote the one-element path as $e$, because $\Src(e)$ and $\Dst(e)$ have the same meaning whether we interpret $e$ as an edge or a path.
+\end{definition}
+
+\begin{definition}
+Let $(V, E)$ be a directed graph. If $u,v\in V$, we say $v$ is \IndexDefinition{reachability relation}\emph{reachable} from $u$ if there is a path $p$ with $\Src(p)=u$ and $\Dst(p)=v$. Note that $v$ is always reachable from itself via the empty path $1_v$. If $v$ is reachable from $u$, it is not always the case that $u$ is reachable from $v$, precisely because the edges in a directed graph are directed.
+\end{definition}
+
+\begin{definition} We can define two special kinds of directed graphs. A \IndexDefinition{tree}\emph{tree} is a directed graph where every vertex is reachable from a distinguished root vertex via exactly one unique path; this coincides with the notion of a tree familiar to many programmers. A \IndexDefinition{forest}\emph{forest} is a disjoint union of one or more trees; there is a set of one or more root vertices, and every vertex is reachable via a unique path from exactly one root vertex from this set. A tree is then a forest with a single root.
+\end{definition}
+
+The entire diagram below shows a single forest; each dashed component can also be considered as a tree, with the root vertices shaded in a darker color:
+\begin{quote}
+\begin{tikzpicture}
+\node (a) [abstractvertex] at (1,2) {};
+\node (b) [abstractvertex2] at (0,1) {};
+\node (c) [abstractvertex2] at (2,1) {};
+\node (d) [abstractvertex2] at (2,0) {};
+
+\node (e) [abstractvertex] at (5,2) {};
+\node (f) [abstractvertex2] at (5,1) {};
+\node (g) [abstractvertex2] at (4,0) {};
+\node (h) [abstractvertex2] at (6,0) {};
+
+\draw [arrow] (a) -- (b);
+\draw [arrow] (a) -- (c);
+\draw [arrow] (c) -- (d);
+
+\draw [arrow] (e) -- (f);
+\draw [arrow] (f) -- (g);
+\draw [arrow] (f) -- (h);
+
+\begin{scope}[on background layer]
+  \node[fit=(a) (b) (c) (d), inner sep=5pt, rounded corners, draw=gray, dashed] {};
+\end{scope}
+
+\begin{scope}[on background layer]
+  \node[fit=(e) (f) (g) (h), inner sep=5pt, rounded corners, draw=gray, dashed] {};
+\end{scope}
+
+\end{tikzpicture}
+\end{quote}
+
+One can study the combinatorial properties of directed graphs in a purely abstract fashion, where the vertices and edges have no structure beyond being distinct from one another. However, we are going to use directed graphs to model entities in our problem domain, so when we draw a graph in diagram form, we will assign relevant labels to the vertices and edges. The labels do not change the mathematical properties of the graph, but convey meaning to us. Finally, as we already saw in the definition of tree and forest above, we sometimes select a distinguished set of vertices to serve as \emph{root vertices}.
+
+\smallskip
+With the preliminaries squared away, we can now formalize the construction from the start of this chapter. 
+\begin{definition}
+We construct the \IndexDefinition{type parameter graph}\emph{type parameter graph} of a generic signature $G$ as follows:
+\begin{itemize}
+\item A distinguished root vertex represents the generic signature itself.
+\item The remaining vertices represent \index{equivalence class}equivalence classes of type parameters of $G$. Each vertex is labeled by the reduced type of the equivalence class. The \index{reduced type}reduced type of an equivalence class might be a concrete type; the vertex is labeled with the concrete type in this case.
+\item For each generic parameter type of $G$, we add an edge with the root vertex as the source, and the reduced type of this generic parameter as the destination.
+\item For each pair of reduced types \texttt{U} and \texttt{V}, we add an edge with source vertex \texttt{U} and destination vertex \texttt{V} if for some protocol \texttt{P} and associated type \texttt{A} of \texttt{P}, the following two conditions hold:
+\begin{enumerate}
+\item \texttt{U} is a type parameter conforming to the protocol \texttt{P} (that is, $G\vDash\ConfReq{U}{P}$),
+\item the dependent member type \texttt{U.[P]A} with base type \texttt{U} is equivalent to \texttt{V} (that is, $G\vDash\FormalReq{U.[P]A == V}$).
+\end{enumerate}
+The added edge is labeled by the associated type declaration, which we denote by its name prefixed with ``\texttt{.}'', like ``\texttt{.A}''. The intuitive interpretation is that we can ``jump'' from \texttt{U} to \texttt{V} by suffixing \texttt{U} with \texttt{.A} to get \texttt{U.A}, which is equivalent to \texttt{V}.
+\end{itemize}
+\end{definition}
+
+Note that the edges originating from the root vertex are labeled by generic parameter types, and all other edges are labeled by associated type declarations. Thus, every bound\footnote{We could model unbound type parameters as paths too, by doubling the set of edges to include an identifier ``\texttt{A}'' for each associated type declaration \texttt{A}, but this doesn't give us any new insights so we will not pursue it further.} type parameter \texttt{\ttgp{d}{i}.[$\texttt{P}_1$]$\texttt{A}_1$...[$\texttt{P}_n$]$\texttt{A}_n$} defines a non-empty path, having the root vertex as a source. Two type parameters belong to the same equivalence class if and only if they define a pair of paths with the same destination vertex. If a type parameter is equivalent to a concrete type, the type parameter's path ends at a vertex labeled by this concrete type.
+
+\begin{example}
+Let's begin with a generic signature having no requirements at all, such as \texttt{<\ttgp{0}{0}, \ttgp{0}{1}, \ttgp{1}{0}>}:
+\begin{quote}
+\begin{tikzpicture}
+
+\node (Root) [root] {root};
+\node (B) [interior, below=of Root] {\ttgp{0}{1}};
+\node (A) [interior, left=of B] {\ttgp{0}{0}};
+\node (C) [interior, right=of B] {\ttgp{1}{0}};
+
+\begin{scope}[on background layer]
+\path (Root) edge [arrow, bend right] node [left, yshift=4pt] {\tiny{\ttgp{0}{0}}} (A);
+\path (Root) edge [arrow] node [left] {\tiny{\ttgp{0}{1}}} (B);
+\path (Root) edge [arrow, bend left] node [right, yshift=4pt] {\tiny{\ttgp{1}{0}}} (C);
+\end{scope}
+\end{tikzpicture}
+\end{quote}
+Each of the three generic parameters is in its own equivalence class, and there is one unique path from the root vertex to each of its children. This meets our definition of a tree.
+\end{example}
+
+Admittedly, the root vertex feels somewhat artificial; it introduces a special case, because all other vertices correspond to equivalence classes of type parameters, and all edges not originating from the root vertex correspond to associated type declarations. However, it also resolves a conceptual difficulty. A generic parameter equivalent to another generic parameter or to some concrete type is not represented by a vertex in the graph. However, there will always be an \emph{edge}, labeled by this generic parameter, joining the root vertex to to its reduced type.
+
+\begin{example} We can add a pair of same-type requirements to our generic signature:
+\begin{quote}
+\texttt{<\ttgp{0}{0}, \ttgp{0}{1}, \ttgp{1}{0} where \ttgp{0}{0} == \ttgp{0}{1}, \ttgp{1}{0} == Int>}
+\end{quote}
+Now, \ttgp{0}{0} and \ttgp{0}{1} both belong to the same equivalence class, and \ttgp{1}{0} is fixed to a concrete type; compared with the previous example, we no longer have a tree:
+\begin{quote}
+\begin{tikzpicture}
+\node (Root) [root] {root};
+\node (A) [interior, below left=of Root] {\ttgp{0}{0}};
+\node (C) [interior, below right=of Root] {\texttt{Int}};
+
+\begin{scope}[on background layer]
+\path (Root) edge [arrow, bend right] node [left, yshift=4pt] {\tiny{\ttgp{0}{0}}} (A);
+\path (Root) edge [arrow, bend left] node [right] {\tiny{\ttgp{0}{1}}} (A);
+\path (Root) edge [arrow, bend left] node [right, yshift=4pt] {\tiny{\ttgp{1}{0}}} (C);
+\end{scope}
+
+\end{tikzpicture}
+\end{quote}
+\end{example}
+
+\begin{example} Conformance requirements to protocols with associated types generate more vertices, corresponding to dependent member types:
+\begin{quote}
+\begin{verbatim}
+<τ_0_0, τ_0_1 where τ_0_0: IteratorProtocol,
+                    τ_0_1: IteratorProtocol>
+\end{verbatim}
+\end{quote}
+\begin{quote}
+\begin{tikzpicture}
+\node (Root) [root] {root};
+\node (A) [interior, below left=of Root] {\ttgp{0}{0}};
+\node (B) [interior, below right=of Root] {\ttgp{0}{1}};
+
+\node (AElement) [interior, below=of A] {\texttt{\ttgp{0}{0}.Element}};
+\node (BElement) [interior, below=of B] {\texttt{\ttgp{0}{1}.Element}};
+
+\begin{scope}[on background layer]
+\path (Root) edge [arrow, bend right] node [left, yshift=4pt] {\tiny{\ttgp{0}{0}}} (A);
+\path (Root) edge [arrow, bend left] node [right, yshift=4pt] {\tiny{\ttgp{0}{1}}} (B);
+
+\path (A) edge [arrow] node [left] {\tiny{\texttt{.Element}}} (AElement);
+\path (B) edge [arrow] node [right] {\tiny{\texttt{.Element}}} (BElement);
+\end{scope}
+\end{tikzpicture}
+\end{quote}
+Now, let's add a same-type requirement to the above:
+\begin{quote}
+\begin{verbatim}
+<τ_0_0, τ_0_1 where τ_0_0: IteratorProtocol,
+                    τ_0_1: IteratorProtocol,
+                    τ_0_0.Element == τ_0_1.Element>
+\end{verbatim}
+\end{quote}
+The two type parameters \texttt{\ttgp{0}{0}.Element} and \texttt{\ttgp{0}{1}.Element} belong to separate equivalence classes in the first signature, but are now equivalent in the second:
+\begin{quote}
+\begin{tikzpicture}
+\node (Root) [root] {root};
+\node (A) [interior, below left=of Root] {\ttgp{0}{0}};
+\node (B) [interior, below right=of Root] {\ttgp{0}{1}};
+
+\node (Dummy) [below=of Root] {};
+\node (AElement) [interior, below=of Dummy] {\texttt{\ttgp{0}{0}.Element}};
+
+\begin{scope}[on background layer]
+\path (Root) edge [arrow, bend right] node [left, yshift=4pt] {\tiny{\ttgp{0}{0}}} (A);
+\path (Root) edge [arrow, bend left] node [right, yshift=4pt] {\tiny{\ttgp{0}{1}}} (B);
+
+\path (A) edge [arrow, bend right] node [left] {\tiny{\texttt{.Element}}} (AElement);
+\path (B) edge [arrow, bend left] node [right] {\tiny{\texttt{.Element}}} (AElement);
+\end{scope}
+\end{tikzpicture}
+\end{quote}
+\end{example}
+
+\begin{example} Now consider \verb|<τ_0_0 where τ_0_0: Sequence>|:
+\begin{quote}
+\begin{tikzpicture}
+\node (Root) [root] {root};
+\node (A) [interior, below=of Root] {\ttgp{0}{0}};
+\node (AIterator) [interior, below left=of A] {\texttt{\ttgp{0}{0}.Iterator}};
+\node (AElement) [interior, below right=of A] {\texttt{\ttgp{0}{0}.Element}};
+
+\begin{scope}[on background layer]
+\path (Root) edge [arrow] node [left] {\tiny{\ttgp{0}{0}}} (A);
+\path (A) edge [arrow, bend right] node [left, yshift=4pt] {\tiny{\texttt{.Iterator}}} (AIterator);
+\path (A) edge [arrow, bend left] node [right, yshift=4pt] {\tiny{\texttt{.Element}}} (AElement);
+\path (AIterator) edge [arrow] node [yshift=-6pt] {\tiny{\texttt{.Element}}} (AElement);
+\end{scope}
+\end{tikzpicture}
+\end{quote}
+Notice how the graph exhibits the equivalence between \texttt{\ttgp{0}{0}.Iterator.Element} and \texttt{\ttgp{0}{0}.Element}.
+\end{example}
+
+\begin{example} We saw this example already at the end of Section~\ref{reducedtypes}. Recall our protocol \texttt{N} whose \index{recursive conformance}associated type conforms to itself:
+\begin{Verbatim}
+protocol N {
+  associatedtype A: N
+}
+\end{Verbatim}
+The type parameter graph of \verb|<τ_0_0 where τ_0_0: N>| is infinite; each type parameter has a member type corresponding to the associated type declaration:
+\begin{quote}
+\begin{tikzpicture}
+\node (Root) [root] {root};
+\node (T) [interior, below=of Root] {\ttgp{0}{0}};
+\node (TA) [interior, below=of T] {\texttt{\ttgp{0}{0}.A}};
+\node (TAA) [interior, below=of TA] {\texttt{\ttgp{0}{0}.A.A}};
+\node (Rest) [interior, below=of TAA] {\texttt{\vphantom{Ty}...}};
+
+\path [arrow] (Root) edge [left] node {\tiny{\ttgp{0}{0}}} (T);
+\path [arrow] (T) edge [left] node {\tiny{\texttt{.A}}} (TA);
+\path [arrow] (TA) edge [left] node {\tiny{\texttt{.A}}} (TAA);
+\path [arrow] (TAA) edge [left] node {\tiny{\texttt{.A}}} (Rest);
+\end{tikzpicture}
+\end{quote}
+\end{example}
+
+\begin{example} Now let's add a same-type requirement:
+\begin{quote}
+\verb|<τ_0_0 where τ_0_0: N, where τ_0_0 == τ_0_0.A.A.A.A>|
+\end{quote}
+The type parameter graph is no longer infinite; in fact, it has a cycle:
+\begin{quote}
+\begin{tikzpicture}
+\node (Root) [root] {root};
+\node (T) [interior, below=of Root] {\ttgp{0}{0}};
+\node (TA) [interior, below left=of T] {\texttt{\ttgp{0}{0}.A}};
+\node (Dummy) [below=of T] {};
+\node (TAA) [interior, below=of Dummy] {\texttt{\ttgp{0}{0}.A.A}};
+\node (TAAA) [interior, below right=of T] {\texttt{\ttgp{0}{0}.A.A.A}};
+
+\path [arrow] (Root) edge [left] node {\tiny{\ttgp{0}{0}}} (T);
+\path [arrow, bend right] (T) edge [left] node {\tiny{\texttt{.A}}} (TA);
+\path [arrow, bend right] (TA) edge [left] node {\tiny{\texttt{.A}}} (TAA);
+\path [arrow, bend right] (TAA) edge [right] node {\tiny{\texttt{.A}}} (TAAA);
+\path [arrow, bend right] (TAAA) edge [right] node {\tiny{\texttt{.A}}} (T);
+\end{tikzpicture}
+\end{quote}
+For example, \texttt{\ttgp{0}{0}.A} and \texttt{\ttgp{0}{0}.A.A.A.A.A} are equivalent. We now have a finite set of equivalence classes, but each equivalence class has infinitely many elements.
+\end{example}
+
+\begin{example} Here is a simplified form of the standard library \texttt{Collection} protocol:
+\begin{Verbatim}
+protocol Collection {
+  associatedtype Element
+      where Element == SubSequence.Element
+  associatedtype SubSequence: Collection
+      where SubSequence == SubSequence.SubSequence
+}
+\end{Verbatim}
+Unlike the real definition, ours does not inherit from \texttt{Sequence}, and it only has has two associated types, \texttt{Element} and \texttt{SubSequence}. The two same-type requirements can intuitively be understood as follows:
+\begin{enumerate}
+\item If you slice a collection, you get back a potentially different type of collection, but one with the same element type. For example, slicing an \texttt{Array<Int>} returns an \texttt{ArraySlice<Int>}.
+\item If you slice a slice, you get the \emph{same} type of collection back. For example, slicing an \texttt{ArraySlice<Int>} gives you back another \texttt{ArraySlice<Int>}.
+\end{enumerate}
+Here is the type parameter graph for \verb|<τ_0_0 where τ_0_0: Collection>|:
+\begin{quote}
+\begin{tikzpicture}
+
+\node (Root) [root] {};
+\node (T) [interior] {\texttt{\vphantom{y}\ttgp{0}{0}}};
+\node (dummy) [below=of T] {};
+\node (TSubSequence) [interior, left=of dummy] {\texttt{\vphantom{y}\ttgp{0}{0}.SubSequence}};
+\node (TElement) [interior, right=of dummy] {\texttt{\vphantom{y}\ttgp{0}{0}.Element}};
+
+\path [->] (T) edge [left, bend right] node [yshift=4pt] {\tiny{\texttt{\vphantom{y}.SubSequence}}} (TSubSequence)
+           (T) edge [right, bend left] node [yshift=4pt] {\tiny{\texttt{\vphantom{y}.Element}}} (TElement)
+           (TSubSequence) edge [below] node {\tiny{\texttt{\vphantom{y}.Element}}} (TElement);
+\path [->,every loop/.style={min distance=13mm}] (TSubSequence) edge [loop below] node {\tiny{\texttt{\vphantom{y}.SubSequence}}} ();
+
+\end{tikzpicture}
+\end{quote}
+The equivalence class of \texttt{\ttgp{0}{0}.SubSequence} contains infinitely many type parameters; this is represented in the graph by the ``\texttt{.SubSequence}'' loop:
+\begin{quote}
+\begin{verbatim}
+τ_0_0.SubSequence
+τ_0_0.SubSequence.SubSequence
+τ_0_0.SubSequence.SubSequence.SubSequence
+...
+\end{verbatim}
+\end{quote}
+The equivalence class of \texttt{\ttgp{0}{0}.Element} also contains infinitely many elements; from one of the above representatives, we can follow the ``\texttt{.Element}'' edge to end up there:
+\begin{quote}
+\begin{verbatim}
+τ_0_0.Element
+τ_0_0.SubSequence.Element
+τ_0_0.SubSequence.SubSequence.Element
+...
+\end{verbatim}
+\end{quote}
+\end{example}
+
+\paragraph{Archetypes} The foregoing discussion of the type parameter graph appears to have little to do with the earlier content of this chapter. However, they are actually closely related, in that a generic environment is a realization of this graph:
+\begin{itemize}
+\item An archetype represents the reduced type parameter of some equivalence class, and therefore defines a vertex.
+\item The edge relation is implied by each archetype storing it's \index{local requirements}local requirements, in particular its list of conformed protocols; the associated type declarations of each protocol define the outgoing edges of each vertex.
+\end{itemize}
+In general, the type parameter graph may be infinite, but the compiler can only ever instantiate a finite set of archetypes in a compilation session. Archetypes are built lazily as needed when type parameters are mapped into an environment, so we only ever explore a finite, but arbitrarily large, \index{subgraph}subgraph of the type parameter graph. We will see a similar construction in Chapter~\ref{conformance paths}, where we show that the \emph{conformance path graph} is infinite in the general case, but we are able to construct arbitrarily-large finite subgraphs during compilation.
+
+\paragraph{Historical aside} A generic environment gives a complete semantic description of a generic signature: the type parameter graph encodes the reduced type equality relation, and archetypes store their local requirements. Today, this is a derived representation, and not a ``source of truth''; the reduced types and local requirements of archetypes are determined by generic signature queries, which are ultimately implemented with a rewrite system, as we will see in in Chapter~\ref{rqm basic operation}. One might ask if it is possible to go the other way, and directly construct a type parameter graph from a generic signature, and then use this graph to compute reduced types and answer generic signature queries. In fact, Swift generics were formerly implemented in this manner.
+
+This was only possible up through Swift 3.1, when the type parameter graph took on a much simpler form:
+\begin{itemize}
+\item Prior to the introduction of \texttt{where} clauses on protocols and associated types in Swift 4.0 \cite{se0142}, protocols were quite limited in what requirements they could impose on the protocol \texttt{Self} type. A protocol's contribution to the type parameter graph was defined by its protocol inheritance relationships, together with conformance and superclass requirements on the protocol's immediate associated types.
+\item Even more importantly, prior to the introduction of recursive conformances in Swift~4.1 \cite{se0157}, the set of equivalence classes in a generic signature was always finite, and thus the set of vertices in the type parameter graph was also finite.
+\end{itemize}
+Given the above restrictions, the so-called \IndexDefinition{ArchetypeBuilder@\texttt{ArchetypeBuilder}}\texttt{ArchetypeBuilder} algorithm was able to directly construct the type parameter graph from the user-written requirements of a generic declaration in one fell swoop.
+
+While now obsolete, the algorithm was quite elegant, and understanding its limitations helps motivate the material in Part~\ref{part rqm}, so we're going to review it here. Note that Swift 3.1 did not have layout requirements, and to simplify matters we're going to ignore superclass and concrete type requirements also, since they only involve a little bit of additional bookkeeping and are not central to the algorithm; so we will only consider conformance requirements and same-type requirements between type parameters below.
+
+The \texttt{ArchetypeBuilder} represented each equivalence class of type parameters by a structure containing these fields:
+\begin{itemize}
+\item An optional forwarding pointer, used when merging equivalence classes.
+\item A list of type parameters in the equivalence class.
+\item A list of protocols this equivalence class is known to conform to.
+\item A member type mapping, from identifiers to potential archetypes.
+\end{itemize}
+
+The algorithm begins by creating an array of empty equivalence classes, one for each generic parameter of the declaration. These equivalence classes and their member types are built up by processing requirements. A subroutine finds the equivalence class for a type parameter:
+\begin{algorithm}[\texttt{ArchetypeBuilder} equivalence class lookup]\label{archetype builder lookup} Receives the array of generic parameter equivalence classes, and a type parameter. Returns the equivalence class for this type parameter, or \texttt{null} if it does not exist.
+\begin{enumerate}
+\item If the type parameter is a generic parameter, return the corresponding entry from the array. If the equivalence class has a forwarding pointer, follow the pointer, and repeat if necessary.
+\item If the type parameter is a dependent member type \texttt{T.[P]A} with base type \texttt{T} and associated type \texttt{A}, recursively invoke this algorithm with the base type \texttt{T}.
+\item Look up \texttt{A} in the member type mapping of the equivalence class of \texttt{T}. If there is no entry for \texttt{A}, return \texttt{null}.
+\item Otherwise, if the entry for \texttt{A} has a forwarding pointer, follow the pointer, and repeat if necessary. Return this equivalence class.
+\end{enumerate}
+\end{algorithm}
+The next part of the algorithm is the recursive expansion. If an equivalence class is subject to a conformance requirement, we add a member type for each of the protocol's associated types. If an associated type is subject to a conformance requirement, we add another level of children, for each associated type of the conformed protocol. This process continues until all conformance requirements have been expanded; and we must reach this state after finitely many steps, because recursive conformance requirements do not exist.
+\begin{algorithm}[\texttt{ArchetypeBuilder} conformance requirement expansion]\label{archetype builder expand}
+Receives an equivalence class and a protocol \texttt{P}. Updates the equivalence class.
+\begin{enumerate}
+\item Let \texttt{T} be the reduced type of this equivalence class.
+\item Record \texttt{P} in the list of protocols this equivalence class conforms to. If this list already contains \texttt{P}, return.
+\item Visit each associated type declaration \texttt{A} of the protocol \texttt{P} in order.
+\item If the equivalence class does not yet have a member type for \texttt{A}, create a new equivalence class for \texttt{T.[P]A}, and add it to the member type list. Otherwise, look up the existing equivalence class for this member type.
+\item If \texttt{A} declares any conformance requirements, recursively invoke this algorithm with the equivalence class for the member type, together with each conformed protocol of \texttt{A}.
+\item Go to Step~4 if there are more associated type declarations, otherwise return.
+\end{enumerate}
+\end{algorithm}
+To process a same-type requirement between type parameters, we need another subroutine to merge two equivalence classes.
+\begin{algorithm}[\texttt{ArchetypeBuilder} equivalence class merging]\label{archetype builder merge}
+Receives two equivalence classes as input, possibly updating one.
+\begin{enumerate}
+\item If either equivalence class has a forwarding pointer, follow the forwarding pointer, and repeat if necessary.
+\item If the two equivalence classes are identical, there is nothing to do. Return.
+\item If the reduced type of the second precedes the reduced type of the first, swap them. This ensures the first equivalence class is always the more reduced one.
+\item Add each type parameter listed in the second equivalence class to the first, and re-sort this list to maintain the invariant that the first element is the reduced type.
+\item Add each protocol listed in the second equivalence class to the first.
+\item For each member type of the second equivalence class,
+\begin{enumerate}
+\item If the first equivalence class also has a member type with the same name, recursively invoke this algorithm to merge the two equivalence classes for this member type.
+\item Otherwise, just add the member type to the first equivalence class.
+\end{enumerate}
+\end{enumerate}
+\end{algorithm}
+We're now ready to look at the main algorithm. The above subroutines implement most of the logic already; the only remaining detail is that requirements can appear out-of-order, so for example \texttt{T.Element:~Equatable} may be processed before \texttt{T:~Sequence}. So the equivalence class for \texttt{T.Element} may not have been created yet. As this is not an error, if equivalence class lookup fails, we add requirements to a ``delayed requirements'' list and re-process them again later.
+\begin{algorithm}[Historical \texttt{ArchetypeBuilder} algorithm]\label{archetypebuilder} Receives a list of generic parameters, requirements, and protocol declarations as input. Produces a type parameter graph as output.
+There are three intermediate data structures: a list of pending requirements, a list of delayed requirements, and a flag to record forward progress.
+\begin{enumerate}
+\item (Initialize) Add all requirements to the pending list. Set the flag to false. Create an empty equivalence class for each generic parameter.
+\item (Reprocess) If the pending list is empty and the flag is set, move any requirements from the delayed list to the pending list, and clear the flag.
+\item (Check) If the pending list is still empty, go to Step~8.
+\item (Resolve) Remove a requirement from the pending list.
+\item (Conformance) For a conformance requirement $\ConfReq{T}{P}$, invoke Algorithm~\ref{archetype builder lookup} to resolve \texttt{T} to an equivalence class. If this equivalence class does not exist, add $\ConfReq{T}{P}$ to the delayed list and set the flag. Otherwise, invoke Algorithm~\ref{archetype builder expand} to expand the conformance requirement.
+\item (Same-type) For a same-type requirement $\FormalReq{T == U}$, invoke Algorithm~\ref{archetype builder lookup} to resolve each one of \texttt{T} and \texttt{U} to an equivalence class. If either equivalence class does not exist, add $\FormalReq{T == U}$ to the delayed list and set the flag. Otherwise, invoke Algorithm~\ref{archetype builder merge} to merge the two equivalence classes.
+\item (Repeat) Go back to Step~2.
+\item (Diagnose) If we end up here, there are no more pending requirements. Any requirements remaining on the delayed list reference type parameters which cannot be resolved; diagnose them as invalid.
+\end{enumerate}
+\end{algorithm}
+Once the type parameter graph was complete, the \texttt{ArchetypeBuilder} would live up to its name, and actually build archetypes; each archetype stored its conformed protocols, member types, and other information. Generic signature queries did not exist back then; semantic questions were answered from the archetype representation. A nascent form of requirement minimization was implemented by traversing the entire type parameter graph and collecting the requirements from each equivalence class, but we'll skip over the details here.
+
+To use modern terminology, we can say that the \texttt{ArchetypeBuilder} discovered all \index{derived requirement}derived requirements of a generic signature (of which there were only finitely many, at the time) by exhaustive enumeration. This design survived the introduction of protocol \texttt{where} clauses in Swift 4.0 with only relatively minor complications. The introduction of recursive conformances in Swift 4.1 necessitated a much larger overhaul. The type parameter graph could now be infinite, so the eager conformance requirement expansion of Algorithm~\ref{archetype builder expand} no longer made sense. The \texttt{ArchetypeBuilder} was renamed to the \IndexDefinition{GenericSignatureBuilder@\texttt{GenericSignatureBuilder}}\texttt{GenericSignatureBuilder}, receiving an overhaul where instead of an up-front graph construction, the type parameter graph was incrementally expanded while resolving type parameters to equivalence classes \cite{implrecursive}.
+
+Eventually, the limitations of the second-generation lazy expansion approach also made themselves apparent. Unlike the lazy construction of archetypes that exists today, this kind of lazy expansion would not only create new vertices, but also merge existing vertices to form new equivalence classes, as more derived same-type requirements could be ``discovered'' at any time. The on-going mutation made things difficult to understand and debug, and also prevented sharing structure between \texttt{GenericSignatureBuilder} instances. Any generic signature referencing one of the more complicated protocol towers from the standard library, such as \texttt{RangeReplaceableCollection}, would essentially construct an entire copy of a large subgraph of associated types, causing problems with memory usage and performance
+
+The \texttt{GenericSignatureBuilder} was later discovered to suffer from an even more fundamental problem. As we will learn in Section \ref{monoidsasprotocols}~and~\ref{word problem}, it is possible to write down a generic signature with an undecidable theory of derived requirements. By virtue of its design, the \texttt{GenericSignatureBuilder} pretended to accept all generic signatures as input, meaning the original generalization to infinite type parameter graphs was fundamentally incorrect. All these problems motivated the search for a sound and decidable foundation on top of which generic signature queries and requirement minimization can be implemented, which became the Requirement Machine.
+
+\section{Source Code Reference}
+
+\IndexSource{generic environment}
+\IndexSource{map type into environment}
+\IndexSource{forwarding substitution map}
+\apiref{GenericEnvironment}{class}
+A generic environment. Instances are allocated in the AST context, and passed by pointer. A flat array maps generic parameter types to archetypes, and a separate side table is allocated to store the mapping for dependent member types.
+\begin{itemize}
+\item \texttt{getGenericSignature()} returns this generic environment's generic signature.
+\item \texttt{mapTypeIntoContext()} returns the contextual type obtained by mapping an interface type into this generic environment.
+\item \texttt{getForwardingSubstitutionMap()} returns a substitution map for mapping each generic parameter to its contextual type---an archetype, or a concrete type if the generic parameter is fixed to a concrete type via a same-type requirement.
+
+\IndexSource{getLocalRequirements()@\texttt{getLocalRequirements()}}
+\item \texttt{getOrCreateArchetypeFromInterfaceType()} is the private entry point which maps a single type parameter to an archetype, creating the archetype the first time. This method uses the \IndexSource{local requirements}\Index{getLocalRequirements()@\texttt{getLocalRequirements()}}\texttt{getLocalRequirements()} generic signature query.
+\end{itemize}
+
+\apiref{GenericSignature}{class}
+See also Section~\ref{genericsigsourceref}.
+\begin{itemize}
+\item \texttt{getGenericEnvironment()} returns the \IndexSource{primary generic environment}primary generic environment associated with this generic signature.
+\end{itemize}
+
+\apiref{TypeBase}{class}
+See also Section~\ref{typesourceref}.
+\begin{itemize}
+\item \texttt{mapTypeOutOfContext()} returns the interface type obtained by \IndexSource{map type out of environment}mapping this contextual type out of its generic environment.
+\end{itemize}
+
+\apiref{SubstitutionMap}{class}
+See also Section~\ref{substmapsourcecoderef}.
+\begin{itemize}
+\item \texttt{mapReplacementTypesOutOfContext()} returns the substitution map obtained by \IndexSource{map replacement types out of environment}mapping this substitution map's replacement types and conformances out of their generic environment.
+\end{itemize}
+
+\apiref{ProtocolConformanceRef}{class}
+See also Section~\ref{conformancesourceref}.
+\begin{itemize}
+\item \texttt{mapConformanceOutOfContext()} returns the protocol conformance obtained by mapping this protocol conformance out of its generic environment.
+\end{itemize}
+
+\apiref{DeclContext}{class}
+See also Section~\ref{declarationssourceref}.
+\begin{itemize}
+\item \texttt{getGenericEnvironmentOfContext()} returns the generic environment of the innermost generic declaration containing this declaration context.
+\item \texttt{mapTypeIntoContext()} Maps an interface type into the primary generic environment for the innermost generic declaration. If at least one outer declaration context is generic, this is equivalent to:
+\begin{Verbatim}
+dc->getGenericEnvironmentOfContext()->mapTypeIntoContext(type);
+\end{Verbatim}
+For convenience, the \texttt{DeclContext} version of \texttt{mapTypeIntoContext()} also handles the case where no outer declaration is generic. In this case, it returns the input type unchanged, after asserting that it does not contain any type parameters (since type parameters appearing outside of a generic declaration are nonsensical).
+\end{itemize}
+
+\apiref{ArchetypeType}{class}
+An archetype.
+\begin{itemize}
+\item \texttt{getName()} returns the name of this archetype, which is either the name of its generic parameter type or associated type declaration.
+\item \texttt{getFullName()} returns the ``dotted'' name of this archetype, which looks like a string representation of its type parameter.
+\end{itemize}
+Taking an archetype apart:
+\begin{itemize}
+\item \texttt{getInterfaceType()} returns the reduced type parameter of this archetype.
+\item \texttt{getGenericEnvironment()} returns the archetype's generic environment.
+\item \texttt{isRoot()} answers if the reduced type parameter is a generic parameter type.
+\end{itemize}
+Local requirements (Section~\ref{local requirements}):
+\begin{itemize}
+\item \texttt{getConformsTo()} returns the archetype's required protocols.
+\item \texttt{getSuperclass()} returns the archetype's superclass bound, or the empty \texttt{Type} if there isn't one.
+\item \texttt{requiresClass()} answers with the requires class flag.
+\item \texttt{getLayoutConstraint()} returns the layout constraint, or the empty layout constraint if there isn't one.
+\end{itemize}
+
+\apiref{PrimaryArchetypeType}{class}
+Subclass of \texttt{ArchetypeType} representing a primary archetype.
+
+\end{document}

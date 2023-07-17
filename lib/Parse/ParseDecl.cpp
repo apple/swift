@@ -1165,6 +1165,111 @@ bool Parser::parseSpecializeAttribute(
   return true;
 }
 
+ParserResult<StorageRestrictionsAttr>
+Parser::parseStorageRestrictionsAttribute(SourceLoc AtLoc, SourceLoc Loc) {
+  StringRef AttrName = "storageRestrictions";
+  ParserStatus Status;
+
+  if (Tok.isNot(tok::l_paren)) {
+    diagnose(Loc, diag::attr_expected_lparen, AttrName,
+             /*DeclModifier=*/false);
+    Status.setIsParseError();
+    return Status;
+  }
+
+  // Consume '('
+  SourceLoc lParenLoc = consumeToken();
+
+  SmallVector<Identifier> initializesProperties;
+  SmallVector<Identifier> accessesProperties;
+
+  auto parseProperties = [&](SourceLoc loc, Identifier label,
+                             SmallVectorImpl<Identifier> &properties) {
+    if (!properties.empty()) {
+      diagnose(loc, diag::duplicate_storage_restrictions_attr_label, label);
+      return true;
+    }
+
+    bool hasNextProperty = false;
+    do {
+      // Next is not a property name but a label followed by ':'
+      if (peekToken().is(tok::colon))
+        break;
+
+      Identifier propertyName;
+      SourceLoc propertyNameLoc;
+      if (parseIdentifier(propertyName, propertyNameLoc,
+                          diag::storage_restrictions_attr_expected_name,
+                          /*diagnoseDollarPrefix=*/true)) {
+        return true;
+      }
+
+      properties.push_back(propertyName);
+
+      // Parse the comma, if the list continues.
+      hasNextProperty = consumeIf(tok::comma);
+    } while (hasNextProperty);
+
+    return false;
+  };
+
+  auto parseArgument = [&](bool isOptional = false) -> bool {
+    if (Tok.is(tok::r_paren) && isOptional)
+      return false;
+
+    Identifier accessLabel;
+    SourceLoc loc;
+    parseOptionalArgumentLabel(accessLabel, loc);
+
+    if (accessLabel.empty()) {
+      diagnose(Loc, diag::missing_storage_restrictions_attr_label);
+      return true;
+    }
+
+    enum class AccessKind { Initialization, Access, Invalid };
+
+    auto access = llvm::StringSwitch<AccessKind>(accessLabel.str())
+                      .Case("initializes", AccessKind::Initialization)
+                      .Case("accesses", AccessKind::Access)
+                      .Default(AccessKind::Invalid);
+
+    switch (access) {
+    case AccessKind::Initialization:
+      return parseProperties(loc, accessLabel, initializesProperties);
+
+    case AccessKind::Access:
+      return parseProperties(loc, accessLabel, accessesProperties);
+
+    case AccessKind::Invalid:
+      diagnose(loc, diag::invalid_storage_restrictions_attr_label, accessLabel);
+      return true;
+    }
+  };
+
+  // Attribute should have at least one argument.
+  if (parseArgument() || parseArgument(/*isOptional=*/true)) {
+    Status.setIsParseError();
+    // Let's skip ahead to `)` to recover.
+    skipUntil(tok::r_paren);
+  }
+
+  // Consume ')'
+  SourceLoc rParenLoc;
+  if (!consumeIf(tok::r_paren, rParenLoc)) {
+    diagnose(lParenLoc, diag::attr_expected_rparen, AttrName,
+             /*DeclModifier=*/false);
+    Status.setIsParseError();
+  }
+
+  if (Status.isErrorOrHasCompletion()) {
+    return Status;
+  }
+
+  return ParserResult<StorageRestrictionsAttr>(StorageRestrictionsAttr::create(
+      Context, AtLoc, SourceRange(Loc, rParenLoc), initializesProperties,
+      accessesProperties));
+}
+
 ParserResult<ImplementsAttr>
 Parser::parseImplementsAttribute(SourceLoc AtLoc, SourceLoc Loc) {
   StringRef AttrName = "_implements";
@@ -3424,6 +3529,15 @@ ParserStatus Parser::parseNewDeclAttribute(DeclAttributes &Attributes,
     llvm_unreachable("AccessesAttr not yet implemented");
   }
 
+  case DAK_StorageRestrictions: {
+    ParserResult<StorageRestrictionsAttr> Attr =
+        parseStorageRestrictionsAttribute(AtLoc, Loc);
+    if (Attr.isNonNull()) {
+      Attributes.add(Attr.get());
+    }
+    break;
+  }
+
   case DAK_Implements: {
     ParserResult<ImplementsAttr> Attr = parseImplementsAttribute(AtLoc, Loc);
     if (Attr.isNonNull()) {
@@ -3681,15 +3795,22 @@ ParserResult<CustomAttr> Parser::parseCustomAttribute(
   ArgumentList *argList = nullptr;
   if (Tok.isFollowingLParen() && isCustomAttributeArgument()) {
     if (peekToken().is(tok::code_complete)) {
-      consumeToken(tok::l_paren);
+      auto lParenLoc = consumeToken(tok::l_paren);
+      auto typeE = new (Context) TypeExpr(type.get());
+      auto CCE = new (Context) CodeCompletionExpr(Tok.getLoc());
       if (CodeCompletionCallbacks) {
-        auto typeE = new (Context) TypeExpr(type.get());
-        auto CCE = new (Context) CodeCompletionExpr(Tok.getLoc());
         CodeCompletionCallbacks->completePostfixExprParen(typeE, CCE);
       }
       consumeToken(tok::code_complete);
-      skipUntil(tok::r_paren);
-      consumeIf(tok::r_paren);
+      skipUntilDeclStmtRBrace(tok::r_paren);
+      auto rParenLoc = PreviousLoc;
+      if (Tok.is(tok::r_paren)) {
+        rParenLoc = consumeToken(tok::r_paren);
+      }
+
+      argList = ArgumentList::createParsed(
+          Context, lParenLoc, {Argument::unlabeled(CCE)}, rParenLoc,
+          /*trailingClosureIdx=*/llvm::None);
       status.setHasCodeCompletionAndIsError();
     } else {
       // If we have no local context to parse the initial value into, create
@@ -7066,6 +7187,7 @@ struct Parser::ParsedAccessors {
 
   /// Find the first accessor that can be used to perform mutation.
   AccessorDecl *findFirstMutator() const {
+    if (Init) return Init;
     if (Set) return Set;
     if (Modify) return Modify;
     if (MutableAddress) return MutableAddress;

@@ -90,8 +90,6 @@ inline bool isForwardingConsume(SILValue value) {
 //                        Ownership Def-Use Utilities
 //===----------------------------------------------------------------------===//
 
-bool findPointerEscape(BorrowedValue value);
-
 /// Whether the specified OSSA-lifetime introducer has a pointer escape.
 ///
 /// precondition: \p value introduces an OSSA-lifetime, either a BorrowedValue

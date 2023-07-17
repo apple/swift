@@ -14,55 +14,6 @@ import ObjectiveC
 import Foundation
 import StdlibUnittest
 
-internal var _temporaryLocaleCurrentLocale: NSLocale?
-
-extension NSLocale {
-  @objc
-  public class func __swiftUnittest_currentLocale() -> NSLocale {
-    return _temporaryLocaleCurrentLocale!
-  }
-}
-
-public func withOverriddenLocaleCurrentLocale<Result>(
-  _ temporaryLocale: NSLocale,
-  _ body: () -> Result
-) -> Result {
-  guard let oldMethod = class_getClassMethod(
-    NSLocale.self, #selector(getter: NSLocale.current)) as Optional
-  else {
-    preconditionFailure("Could not find +[Locale currentLocale]")
-  }
-
-  guard let newMethod = class_getClassMethod(
-    NSLocale.self, #selector(NSLocale.__swiftUnittest_currentLocale)) as Optional
-  else {
-    preconditionFailure("Could not find +[Locale __swiftUnittest_currentLocale]")
-  }
-
-  precondition(_temporaryLocaleCurrentLocale == nil,
-    "Nested calls to withOverriddenLocaleCurrentLocale are not supported")
-
-  _temporaryLocaleCurrentLocale = temporaryLocale
-  method_exchangeImplementations(oldMethod, newMethod)
-  let result = body()
-  method_exchangeImplementations(newMethod, oldMethod)
-  _temporaryLocaleCurrentLocale = nil
-
-  return result
-}
-
-public func withOverriddenLocaleCurrentLocale<Result>(
-  _ temporaryLocaleIdentifier: String,
-  _ body: () -> Result
-) -> Result {
-  precondition(
-    NSLocale.availableLocaleIdentifiers.contains(temporaryLocaleIdentifier),
-    "Requested locale \(temporaryLocaleIdentifier) is not available")
-
-  return withOverriddenLocaleCurrentLocale(
-    NSLocale(localeIdentifier: temporaryLocaleIdentifier), body)
-}
-
 /// Executes the `body` in an autorelease pool if the platform does not
 /// implement the return-autoreleased optimization.
 ///

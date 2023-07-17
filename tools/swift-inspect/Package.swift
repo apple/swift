@@ -1,10 +1,13 @@
-// swift-tools-version:5.2
+// swift-tools-version:5.3
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
 
 let package = Package(
     name: "swift-inspect",
+    products: [
+        .library(name: "SwiftInspectClient", type: .dynamic, targets: ["SwiftInspectClient"]),
+    ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser", from: "0.0.1"),
     ],
@@ -16,12 +19,18 @@ let package = Package(
             dependencies: [
                 "SymbolicationShims",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                .target(name: "SwiftInspectClient", condition: .when(platforms: [.windows])),
+                .target(name: "SwiftInspectClientInterface", condition: .when(platforms: [.windows])),
             ],
             swiftSettings: [
                 .unsafeFlags([
                     "-parse-as-library",
                 ]),
             ]),
+        .target(
+            name: "SwiftInspectClient"),
+        .systemLibrary(
+            name: "SwiftInspectClientInterface"),
         .testTarget(
             name: "swiftInspectTests",
             dependencies: ["swift-inspect"]),

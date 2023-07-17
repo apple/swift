@@ -2981,6 +2981,7 @@ LValue SILGenLValue::visitRec(Expr *e, SGFAccessKind accessKind,
   // a `borrow x` operator, the operator is used on the base here), we want to
   // apply the lvalue within a formal access to the original value instead of
   // an actual loaded copy.
+  
   if (e->getType()->isPureMoveOnly()) {
     if (auto load = dyn_cast<LoadExpr>(e)) {
       LValue lv = visitRec(load->getSubExpr(), SGFAccessKind::BorrowedAddressRead,
@@ -2992,7 +2993,7 @@ LValue SILGenLValue::visitRec(Expr *e, SGFAccessKind accessKind,
       return lv;
     }
   }
-
+  
   // Otherwise we have a non-lvalue type (references, values, metatypes,
   // etc). These act as the root of a logical lvalue. Compute the root value,
   // wrap it in a ValueComponent, and return it for our caller.

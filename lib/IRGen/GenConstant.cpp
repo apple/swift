@@ -218,7 +218,7 @@ static BuiltinInst *getOffsetSubtract(const TupleExtractInst *TE, SILModule &M) 
     return nullptr;
 
   auto *overflowFlag = dyn_cast<IntegerLiteralInst>(BI->getArguments()[2]);
-  if (!overflowFlag || !overflowFlag->getValue().isNullValue())
+  if (!overflowFlag || !overflowFlag->getValue().isZero())
     return nullptr;
 
   return BI;
@@ -301,6 +301,10 @@ Explosion irgen::emitConstantValue(IRGenModule &IGM, SILValue operand,
       case BuiltinValueKind::PtrToInt: {
         auto *ptr = emitConstantValue(IGM, args[0]).claimNextConstant();
         return llvm::ConstantExpr::getPtrToInt(ptr, IGM.IntPtrTy);
+      }
+      case BuiltinValueKind::IntToPtr: {
+        auto *num = emitConstantValue(IGM, args[0]).claimNextConstant();
+        return llvm::ConstantExpr::getIntToPtr(num, IGM.Int8PtrTy);
       }
       case BuiltinValueKind::ZExtOrBitCast: {
         auto *val = emitConstantValue(IGM, args[0]).claimNextConstant();

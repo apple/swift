@@ -113,7 +113,7 @@ private struct CollectedEffects {
 
     case let store as StoreInst:
       addEffects(.write, to: store.destination)
-      if store.destinationOwnership == .assign {
+      if store.storeOwnership == .assign {
         addDestroyEffects(ofAddress: store.destination)
       }
 
@@ -454,7 +454,7 @@ private struct ArgumentEscapingWalker : ValueDefUseWalker, AddressDefUseWalker {
     case let load as LoadInst:
       if !address.value.hasTrivialType &&
           // In non-ossa SIL we don't know if a load is taking.
-          (!function.hasOwnership || load.ownership == .take) {
+          (!function.hasOwnership || load.loadOwnership == .take) {
         foundTakingLoad = true
       }
       return .continueWalk

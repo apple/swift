@@ -435,7 +435,7 @@ fileprivate struct EscapeWalker<V: EscapeVisitor> : ValueDefUseWalker,
     case is StoreInst, is StoreWeakInst, is StoreUnownedInst:
       let store = instruction as! StoringInstruction
       assert(operand == store.destinationOperand)
-      if let si = store as? StoreInst, si.destinationOwnership == .assign {
+      if let si = store as? StoreInst, si.storeOwnership == .assign {
         if handleDestroy(of: operand.value, path: path.with(knownType: nil)) == .abortWalk {
           return .abortWalk
         }

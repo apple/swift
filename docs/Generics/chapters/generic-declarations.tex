@@ -1,0 +1,499 @@
+\documentclass[../generics]{subfiles}
+
+\begin{document}
+
+\chapter{Generic Declarations}\label{generic declarations}
+
+\IndexDefinition{generic declaration}
+\index{generic parameter list}
+\IndexDefinition{generic type alias}
+\lettrine{V}{arious kinds of declarations} can have a generic parameter list and a trailing \texttt{where} clause, and by looking at their syntax and semantics, our foray into generics can begin in earnest. In this chapter, we will explore the so-called \emph{generic declarations}:
+\begin{itemize}
+\item classes, structs and enums,
+\item type aliases,
+\item functions,
+\item constructors,
+\item subscripts,
+\item extensions.
+\end{itemize}
+
+\IndexDefinition{parsed generic parameter list}
+\Index{protocol Self type@protocol \texttt{Self} type}
+\index{opaque parameter}
+The \emph{parsed} generic parameter list of a declaration is what's written in source, with the familiar \texttt{<...>} syntax following the declaration name. The declaration's complete generic parameter list includes the parsed generic parameter list together with any implicit generic parameters:
+\begin{enumerate}
+\item Functions and subscripts may have a parsed generic parameter list, or they can declare opaque parameters with the \texttt{some} keyword, or both (Section~\ref{opaque parameters}).
+\item Protocols always have a single implicit \texttt{Self} generic parameter, and no parsed generic parameter list (Section~\ref{protocols}).
+\item Extensions always have an implicit set of generic parameters inherited from the extended type, and no parsed generic parameter list (Chapter~\ref{extension binding}).
+\end{enumerate}
+Parsed generic parameters, the protocol \texttt{Self} type, and the implicit generic parameters of an extension all have names that remain in scope for the entire source range of the generic declaration. Generic parameters introduced by opaque parameter declarations are unnamed; only the value declared by the opaque parameter has a name.
+
+\index{declaration context}
+\IndexDefinition{generic context}
+All generic declarations are declaration contexts, because they contain their generic parameter declarations. A \emph{generic context} is a declaration context where at least one parent context is a generic declaration. Note the subtle distinction in the meaning of ``generic'' when talking about declarations and declaration contexts; a declaration is generic only if it has generic parameters of its own, whereas a declaration context being a generic context is a transitive properly inherited from the parent context.
+
+\IndexDefinition{depth}
+\IndexDefinition{index}
+Inside a generic context, unqualified name lookup will find all outer generic parameters. Each generic parameter is therefore uniquely identified within a generic context by its \emph{depth} and \emph{index}:
+\begin{itemize}
+\item The depth identifies a specific generic declaration, starting from zero for the top-level generic declaration and incrementing for each nested generic declaration.
+\item The index identifies a generic parameter within a single generic parameter list.
+\end{itemize}
+
+\index{sugared type}
+The declared interface type of a generic parameter declaration is a sugared type that prints as the generic parameter name. The canonical type of this type only stores the depth and index. The notation for a canonical generic parameter type is \ttgp{d}{i}, where \texttt{d} is the depth and \texttt{i} is the index.
+
+\begin{listing}\captionabove{Two nested generic declarations}\label{linkedlistexample}
+\begin{Verbatim}
+enum LinkedList<Element> {
+  case none
+  indirect case entry(Element, LinkedList<Element>)
+
+  func mapReduce<T, A>(_ f: (Element) -> T,
+                       _ m: (A, T) -> A,
+                       _ a: A) -> A {
+    switch self {
+    case .none:
+      return a
+    case .entry(let x, let xs): 
+      return m(xs.mapReduce(f, m, a), f(x))
+  }
+}
+\end{Verbatim}
+\end{listing}
+
+\begin{example}
+Listing~\ref{linkedlistexample} declares a \texttt{LinkedList} type with a single generic parameter named \texttt{Element}, and a \texttt{mapReduce()} method with two generic parameters named \texttt{T} and \texttt{A}. All three generic parameters are visible from inside the method:
+\begin{quote}
+\begin{tabular}{|l|l|l|l|}
+\hline
+Name&Depth&Index&Canonical type\\
+\hline
+\texttt{Element}&0&0&\ttgp{0}{0}\\
+\texttt{T}&1&0&\ttgp{1}{0}\\
+\texttt{A}&1&1&\ttgp{1}{1}\\
+\hline
+\end{tabular}
+\end{quote}
+\end{example}
+
+\paragraph{History}
+The list of generic declaration kinds at the beginning of this chapter has grown two new additions over time: generic type aliases were introduced in Swift 3 \cite{se0048}, while generic subscripts were introduced in Swift 4 \cite{se0148}. It is conceivable that Swift might get generic (computed) properties at some point, or even generic associated types (which would be a major redesign). Beyond that, there are probably limited opportunities for allowing more existing declaration kinds to be generic, but who knows.
+
+\section{Constraint Types}\label{constraints}
+
+\IndexDefinition{constraint type}
+\index{requirement}
+\IndexDefinition{inheritance clause}
+\index{generic parameter declaration}
+A generic requirement adds new capabilities to a generic parameter type, by restricting the possible substituted concrete types to those that provide this capability. The next section will introduce the trailing \texttt{where} clause syntax for stating generic requirements in a fully general way. Before doing that, we'll take a look at the simpler mechanism of stating a \emph{constraint type} in the inheritance clause of a generic parameter declaration:
+\begin{Verbatim}
+func allEqual<T: Equatable>(_ elements: [T]) {...}
+\end{Verbatim}
+\index{protocol type}%
+\index{protocol composition type}%
+\index{parameterized protocol type}%
+\index{class type}%
+\Index{AnyObject@\texttt{AnyObject}}%
+\index{layout constraint}%
+\Index{Any@\texttt{Any}}%
+A constraint type is one of the following:
+\begin{enumerate}
+\item A protocol type, like \texttt{Hashable}.
+\item A parameterized protocol type, like \texttt{Sequence<String>} (Section~\ref{protocols}).
+\item A protocol composition, like \texttt{ShapeProtocol \& MyClass}. Protocol compositions were originally just compositions of protocol types, but they can include class types as of Swift 4 \cite{se0156}.
+\item A class type, like \texttt{NSObject}.
+\item The \texttt{AnyObject} \emph{layout constraint}, which restricts the possible concrete types to those represented as a single reference-counted pointer.
+\item The empty protocol composition, written \texttt{Any}. Writing \texttt{Any} in a generic parameter's inheritance clause is pointless, but it is allowed for completeness.
+\end{enumerate}
+Constraint types can appear in various positions:
+\begin{enumerate}
+\item In the inheritance clause of a generic parameter declaration, which is the focus of this section.
+\item On the right hand side of a conformance, superclass or layout requirement in a \texttt{where} clause, which you will see shortly.
+\item In the inheritance clauses of protocols and associated types (Section~\ref{protocols}).
+\item Following the \texttt{some} keyword in an opaque parameter (Section~\ref{opaque parameters}) or return type (Chapter~\ref{opaqueresult}).
+\item Following the \texttt{any} keyword in an existential type (Chapter~\ref{existentialtypes}). A single class type cannot be the constraint type of an existential; \texttt{any~NSObject} is just written as \texttt{NSObject}. Existential types where the constraint type is \texttt{AnyObject} and \texttt{Any} can also be written without the \texttt{any} keyword.
+\end{enumerate}
+\begin{example}
+In Listing~\ref{dependentconstrainttype}, the generic parameter \texttt{B} of \texttt{open(box:)} references the generic parameter \texttt{C} from its constraint type; the lexical scope of \texttt{C} includes its own generic parameter list.
+\end{example}
+\begin{listing}\captionabove{The constraint type of \texttt{B} in \texttt{open(box:)} refers to \texttt{C}}\label{dependentconstrainttype}
+\begin{Verbatim}
+class Box<Contents> {
+  var contents: Contents
+}
+
+func open<B: Box<C>, C>(box: B) -> C {
+  return box.contents
+}
+
+struct Vegetables {}
+class FarmBox: Box<Vegetables> {}
+let vegetables: Vegetables = open(box: FarmBox())
+\end{Verbatim}
+\end{listing}
+
+\section{Requirements}\label{trailing where clauses}
+\IndexDefinition{where clause@\texttt{where} clause}
+\index{trailing where clause@trailing \texttt{where} clause|see{\texttt{where} clause}}
+\IndexDefinition{requirement representation}
+\IndexDefinition{constraint requirement representation}
+\IndexDefinition{same-type requirement representation}
+\IndexDefinition{requirement}
+A constraint type in the inheritance clause of a generic parameter declaration is sugar for a \texttt{where} clause requirement whose subject type is the generic parameter type:
+\begin{Verbatim}
+struct Set<Element: Hashable> {...}
+struct Set<Element> where Element: Hashable {...}
+\end{Verbatim}
+The requirements in a \texttt{where} clause name the subject type explicitly, so that dependent member types can be constrained too, for example:
+\begin{Verbatim}
+func isSorted<S: Sequence>(_: S) where S.Element: Comparable {...}
+\end{Verbatim}
+Another generalization over generic parameter inheritance clauses is that \texttt{where} clauses can define same-type requirements:
+\begin{Verbatim}
+func merge<S: Sequence, T: Sequence>(_: S, _: T) -> [S.Element]
+    where S: Comparable, S.Element == T.Element {...}
+\end{Verbatim}
+Formally, a \texttt{where} clause is a list of one or more \emph{requirement representations}. There are three kinds of requirement representations, with the first two kinds storing a pair of type representations, and the third storing a type representation and layout constraint:
+\begin{enumerate}
+\item \textbf{Constraint requirement representations}, written as \texttt{T:\ C}, where \texttt{T} and \texttt{C} are type representations, called the subject type and constraint type, respectively.
+\item \textbf{Same-type requirement representations}, written as \texttt{T == U}, where \texttt{T} and \texttt{U} are type representations.
+\item \textbf{Layout requirement representations}, written as \texttt{T:\ L} where \texttt{L} is a layout constraint. The only type of layout constraint which can be written in the source language is \texttt{AnyObject}, but this is actually parsed as a constraint requirement representation. Bona-fide layout requirement representations only appear within the \texttt{@\_specialize} attribute.
+\end{enumerate}
+\index{requirement resolution}
+Just as type resolution resolves type representations to types, \emph{requirement resolution} resolves requirement representations to \emph{requirements}. Requirements store types instead of type representations. Figure~\ref{typerequirementrepresentation} shows the correspondence.
+\begin{figure}\captionabove{Types and requirements, at the syntactic and semantic layers}\label{typerequirementrepresentation}
+\begin{center}
+\begin{tikzcd}[column sep=3cm,row sep=1cm]
+\mathboxed{requirement representation} \arrow[d, "\text{contains}"{left}] \arrow[r, "\text{resolves to}"] &\mathboxed{requirement} \arrow[d, "\text{contains}"] \\
+\mathboxed{type representation} \arrow[r, "\text{resolves to}"]&\mathboxed{type}
+\end{tikzcd}
+\end{center}
+\end{figure}
+
+\IndexDefinition{conformance requirement}%
+\IndexDefinition{superclass requirement}%
+\IndexDefinition{layout requirement}%
+\IndexDefinition{same-type requirement}%
+\IndexDefinition{requirement kind}%
+Requirement resolution resolves each type representation to a type, and computes the requirement kind. The requirement kind encodes more detail than the requirement representation kind:
+\begin{itemize}
+\item \textbf{Conformance requirements} state that a type must conform to a protocol, protocol composition or parameterized protocol type.
+\item \textbf{Superclass requirements} state that a type must either equal to be a subclass of the superclass type.
+\item \textbf{Layout requirements} state that a type must satisfy a layout constraint.
+\item \textbf{Same-type requirements} state that two interface types are equivalent under the \index{reduced type equality}\index{equivalent type parameter|see{reduced type equality}}reduced type equality relation (this concept was first introduced in Chapter~\ref{types} and will be detailed in Section~\ref{reducedtypes}).
+\end{itemize}
+Constraint requirement representations resolve to conformance, superclass and layout requirements; the exact kind of requirement is only known after type resolution resolves the constraint type by performing name lookups. Same-type requirement representations always resolve to same-type requirements.
+
+The simpler syntax introduced in the previous section, where a constraint type can be written in the inheritance clause of a generic parameter declaration, also resolves to a requirement. The requirement's subject type is the generic parameter type. The requirement kind is always a conformance, superclass or layout requirement, never a same-type requirement.
+
+\paragraph{History}
+The \texttt{where} clause syntax used to be part of the generic parameter list itself, but was moved to the modern \Index{where clause@\texttt{where} clause}``trailing'' form in Swift 3 \cite{se0081}. Implementation limitations prevented \texttt{where} clause requirements from constraining outer generic parameters until Swift 3. Once these implementation difficulties were solved, it no longer made sense to restrict a \texttt{where} clause to appear only on a declaration that has its own generic parameter list; this restriction was lifted in Swift 5.3 \cite{se0261}, allowing any declaration in a generic context to declare a \texttt{where} clause.
+
+For example, the following became valid:
+\begin{Verbatim}
+enum LinkedList<Element> {
+  ...
+  
+  func sum() -> Element where Element: AdditiveArithmetic {...}
+}
+\end{Verbatim}
+There is no semantic distinction between attaching a \texttt{where} clause to a member of a type, or moving the member to a constrained extension, so the above is equivalent to the following:
+\begin{Verbatim}
+extension LinkedList where Element: AdditiveArithmetic {
+  func sum() -> Element {...}
+}
+\end{Verbatim}
+\index{mangling}
+Unfortunately, due to historical quirks in the name mangling scheme, the above is not an \index{ABI}ABI-compatible transformation.
+
+\index{value requirement}
+\index{conforming type}
+\paragraph{Protocol requirements}
+There is still one situation where constraining outer generic parameters is prohibited, for usability reasons. The \emph{value requirements} of a protocol (properties, subscripts and methods) cannot constrain \texttt{Self} or its associated types in their \Index{where clause@\texttt{where} clause}\texttt{where} clause. Since value requirements must be fulfilled by all concrete conforming types, if a value requirement's \texttt{where} clause imposed additional constraints on \texttt{Self}, it would be impossible for a concrete type which did not otherwise satisfy those constraints to declare a witness for this value requirement. Rather than allow defining a protocol which cannot be conformed to, the type checker diagnoses an error.
+\begin{example}
+The following protocol attempts to define an \texttt{Element} associated type with no requirements, and a \texttt{minElement()} method which requires that \texttt{Element} conform to the \texttt{Comparable} protocol:
+\begin{Verbatim}
+protocol SetProtocol {
+  associatedtype Element
+  
+  func minElement() -> Element where Element: Comparable
+}
+\end{Verbatim}
+This is not allowed, because there is no way to implement the \texttt{minElement()} requirement in a concrete conforming type whose \texttt{Element} type is not \texttt{Comparable}. One way to fix the error is to move the \texttt{where} clause from the protocol method to the associated type, which would instead impose the requirement on all conforming types.\end{example}
+
+\section{Opaque Parameters}\label{opaque parameters}
+
+\index{opaque parameter}
+\index{depth}
+\index{index}
+\index{parsed generic parameter list}
+In the type of a function or subscript parameter, the \texttt{some} keyword declares an \emph{opaque parameter type}. The \texttt{some} keyword is followed by a constraint type. This introduces an unnamed generic parameter, and the constraint type imposes a conformance, superclass or layout requirement on this generic parameter. When a declaration has both a parsed generic parameter list and opaque parameters, the opaque parameters have the same depth as the parsed generic parameters, and appear after the parsed generic parameters in index order.
+
+\index{expression}
+Opaque parameter types are unnamed, and therefore are not visible to type resolution. In particular, there is no way to refer to an opaque parameter type within the function's \Index{where clause@\texttt{where} clause}\texttt{where} clause, or from a type annotation on a declaration nested in the function's body. From expression context however, the type of an opaque parameter can be obtained via the built-in \texttt{type(of:)} pseudo-function,\footnote{It looks like a function call, but the type checking behavior of \texttt{type(of:)} cannot be described by a Swift function type; it is not a real function.} which produces a metatype value. This allows for invoking static methods and such.
+\begin{example}
+These two definitions are equivalent:
+\begin{Verbatim}
+func merge<E>(_: some Sequence<E>, _: some Sequence<E>) -> [E] {}
+func merge<E, S: Sequence<E>, T: Sequence<E>>(_: S, _: T) -> [E] {}
+\end{Verbatim}
+The constraint types here are parameterized protocol types, which are described in the next section.
+\end{example}
+Opaque parameter declarations were introduced in Swift 5.7 \cite{se0341}. Note that \texttt{some} appearing in the return type of a function declares an \emph{opaque return type}, which is a related but quite different feature (Chapter~\ref{opaqueresult}).
+
+\section{Protocol Declarations}\label{protocols}
+
+\index{protocol declaration}
+\index{conforming type}
+\IndexDefinition{protocol Self type@protocol \texttt{Self} type}
+Protocols have an implicit generic parameter list with a single generic parameter named \texttt{Self}, which conceptually stands in for the concrete conforming type. Protocols can specify generic requirements on the \texttt{Self} type and its associated types, using similar syntax as other generic declarations; conforming concrete types are checked to satisfy these requirements (Section~\ref{requirement sig}). Protocols can only appear at the top level of a source file, and structs, classes and enums cannot be nested inside protocols (Section~\ref{nested nominal types}).
+
+\IndexDefinition{primary associated type}%
+\index{parameterized protocol type}%
+\paragraph{Primary associated types}
+A protocol can declare a list of \emph{primary associated types} with a syntax resembling a generic parameter list. While generic parameter lists introduce new generic parameter declarations, the entries in the primary associated type list reference \emph{existing} associated types declared in the protocol's body.
+
+A protocol with primary associated types can then be used as a parameterized protocol type. As a constraint type, a parameterized protocol type is equivalent to a conformance requirement between the subject type and the protocol, together with same-type requirements. The same-type requirements relate the primary associated types of the subject type with the arguments of the parameterized protocol type.
+
+\begin{example}
+The standard library's iterator protocol has a primary associated type:
+\begin{Verbatim}
+protocol IteratorProtocol<Element> {
+  associatedtype Element
+  mutating func next() -> Element?
+}
+\end{Verbatim}
+We can then write a parameterized protocol type:
+\begin{Verbatim}
+func sumOfSquares<I: IteratorProtocol<Int>>(_: I) -> Int {...}
+\end{Verbatim}
+The above is equivalent to the following \emph{desugaring}, which will receive a more formal treatment in Section~\ref{requirement desugaring}:
+\begin{Verbatim}
+func sumOfSquares<I: IteratorProtocol>(_: I) -> Int
+    where I.Element == Int {...}
+\end{Verbatim}
+\end{example}
+Parameterized protocol types and primary associated types were added to the language in Swift~5.7~\cite{se0346}. 
+
+\index{associated type declaration}%
+\Index{where clause@\texttt{where} clause}%
+\index{inheritance clause}%
+\paragraph{Associated type requirements}
+Associated types can state one or more constraint types in their inheritance clause, in addition to an optional \texttt{where} clause. Constraint types in the inheritance clause resolve to requirements whose subject type is the associated type declaration's declared interface type---which you might recall is the dependent member type \texttt{Self.[P]A}, where \texttt{A} is the associated type declaration and \texttt{P} is the protocol. The standard library \texttt{Sequence} protocol demonstrates all of these features:
+\begin{Verbatim}
+protocol Sequence<Element> {
+  associatedtype Iterator: IteratorProtocol
+  associatedtype Element where Iterator.Element == Element
+
+  func makeIterator() -> Iterator
+}
+\end{Verbatim}
+The conformance requirement on \texttt{Iterator} could have been written with a \texttt{where} clause as well:
+\begin{Verbatim}
+associatedtype Iterator where Iterator: IteratorProtocol
+\end{Verbatim}
+Finally, a \texttt{where} clause can be attached to the protocol itself; there is no semantic difference between that and attaching it to an associated type:
+\begin{Verbatim}
+protocol Sequence where Iterator: IteratorProtocol,
+                        Iterator.Element == Element {...}
+\end{Verbatim}
+Unlike generic parameters, associated type inheritance clauses allow multiple entries, separated by commas. This is effectively equivalent to a single inheritance clause entry containing a protocol composition:
+\begin{Verbatim}
+associatedtype Data: Codable & Hashable
+associatedtype Data: Codable, Hashable
+\end{Verbatim}
+\paragraph{Unqualified lookup inside protocols}
+Within the entire source range of the protocol declaration, unqualified references to associated types, like \texttt{Element} and \texttt{Iterator} above, resolve to their declared interface type. This is a shorthand for accessing the associated type as a member type of the protocol \texttt{Self} type. The \texttt{Sequence} protocol above could instead have been declared as follows:
+\begin{Verbatim}
+protocol Sequence where Self.Iterator: IteratorProtocol,
+                        Self.Iterator.Element == Self.Element {...}
+\end{Verbatim}
+\index{inheritance clause}
+\IndexDefinition{inherited protocol}
+\index{protocol inheritance|see{inherited protocol}}
+\index{conforming type}
+\paragraph{Protocol inheritance clauses}
+Constraint types appearing in the protocol's inheritance clause become generic requirements on \texttt{Self} in the same manner that constraint types in generic parameter inheritance clauses become requirements on the generic parameter type. Requirements on \texttt{Self} are imposed by the conformance checker on concrete types conforming to the protocol.
+
+If the constraint type is another protocol, we call the protocol stating the requirement the \emph{derived protocol} and the protocol named by the constraint type the \emph{base protocol}. The derived protocol is said to \emph{inherit} from (or sometimes, \emph{refine}) the base protocol. Protocol inheritance can be observed in two ways; first, every concrete type conforming to the derived protocol must also conform to the base protocol. Second, qualified name lookup will search through inherited protocols when the lookup begins from the derived protocol or one of its concrete conforming types. 
+
+For example, the standard library's \texttt{Collection} protocol inherits from \texttt{Sequence}, therefore any concrete type conforming \texttt{Collection} must also conform to \texttt{Sequence}. If some type parameter \texttt{T} is known to conform to \texttt{Collection}, members of both the \texttt{Collection} and \texttt{Sequence} protocols will be visible to qualified name lookup on a value of type \texttt{T}.
+\begin{Verbatim}
+protocol Collection: Sequence {...}
+\end{Verbatim}
+Protocols can restrict their conforming types to those with a reference-counted pointer representation by stating an \texttt{AnyObject} layout constraint:
+\begin{Verbatim}
+protocol BoxProtocol: AnyObject {...}
+\end{Verbatim}
+Protocols can also impose a superclass requirement on their conforming types:
+\begin{Verbatim}
+class Plant {}
+class Animal {}
+protocol Duck: Animal {}
+class MockDuck: Plant, Duck {}
+// error: MockDuck is not a subclass of Animal
+\end{Verbatim}
+
+\IndexDefinition{class-constrained protocol}
+A protocol is \emph{class-constrained} if the \texttt{Self:~AnyObject} requirement can be proven from its inheritance clause; either directly stated, implied by a superclass requirement, or inherited from another protocol. Qualified name lookup understands a superclass in a protocol's inheritance clause, making the members of the superclass visible to all lookups that look into the protocol.
+
+We'll say more about the semantics of protocol inheritance clauses and name lookup in Section \ref{requirement sig}~and~\ref{identtyperepr}.
+
+\paragraph{History}
+In older releases of Swift, protocols could only constrain associated types by writing a constraint type in the associated type's inheritance clause, which limited the kinds of requirements that could be imposed on the associated type. The trailing \texttt{where} clause syntax was extended to cover associated types and protocols in Swift~4~\cite{se0142}.
+
+\index{recursive conformance}%
+Another important generalization allowed an associated type to conform to the same protocol that it appears in, either directly or indirectly. The ability to declare a so-called \emph{recursive conformance} was introduced in Swift 4.1 \cite{se0157}. This feature has some profound implications, which are further explored in Section~\ref{type parameter graph}, \ref{recursive conformances}, and \ref{monoidsasprotocols}.
+
+\section{Source Code Reference}\label{genericdeclsourceref}
+
+Key source files:
+\begin{itemize}
+\item \SourceFile{include/swift/AST/Decl.h}
+\item \SourceFile{include/swift/AST/DeclContext.h}
+\item \SourceFile{include/swift/AST/GenericParamList.h}
+\item \SourceFile{lib/AST/Decl.cpp}
+\item \SourceFile{lib/AST/DeclContext.cpp}
+\item \SourceFile{lib/AST/GenericParamList.cpp}
+\end{itemize}
+Other source files:
+\begin{itemize}
+\item \SourceFile{include/swift/AST/Types.h}
+\item \SourceFile{lib/AST/NameLookup.cpp}
+\end{itemize}
+
+\index{declaration context}
+\IndexSource{generic context}
+\IndexSource{generic declaration}
+\IndexSource{parsed generic parameter list}
+\apiref{DeclContext}{class}
+See also Section~\ref{name lookup}, Section~\ref{declarationssourceref} and Section~\ref{genericsigsourceref}.
+\begin{itemize}
+\item \texttt{isGenericContext()} answers if this declaration context or one of its parent contexts has a generic parameter list.
+\item \texttt{isInnermostContextGeneric()} answers if this declaration context is a generic context with its own generic parameter list, that is, if its declaration is a generic declaration.
+\end{itemize}
+\apiref{GenericContext}{class}
+Base class for declarations which can be generic. See also Section~\ref{genericsigsourceref}.
+\begin{itemize}
+\item \texttt{getParsedGenericParams()} returns the declaration's parsed generic parameter list, or \texttt{nullptr}.
+\item \texttt{getGenericParams()} returns the declaration's full generic parameter list, which includes any implicit generic parameters. Evaluates a \texttt{GenericParamListRequest}.
+\item \texttt{isGeneric()} answers if this declaration has a generic parameter list.
+\item \texttt{getGenericContextDepth()} returns the depth of the innermost generic parameter list, or \texttt{(unsigned)-1} if neither this declaration nor any outer declaration is generic.
+\item \texttt{getTrailingWhereClause()} returns the trailing \texttt{where} clause, or \texttt{nullptr}.
+\end{itemize}
+
+Trailing \texttt{where} clauses are not preserved in serialized generic contexts. Most code uses \texttt{GenericContext::getGenericSignature()} instead (Section~\ref{genericsigsourceref}), except when actually building the generic signature.
+
+\IndexSource{generic parameter list}
+\apiref{GenericParamList}{class}
+A generic parameter list.
+\begin{itemize}
+\item \texttt{getParams()} returns an array of generic parameter declarations.
+\item \texttt{getOuterParameters()} returns the outer generic parameter list, linking multiple generic parameter lists for the same generic context. Only used for extensions of nested generic types.
+\end{itemize}
+
+\IndexSource{protocol Self type@protocol \texttt{Self} type}
+\apiref{GenericParamListRequest}{class}
+This request creates the full generic parameter list for a declaration. Kicked off from \texttt{GenericContext::getGenericParams()}.
+\begin{itemize}
+\item For protocols, this creates the implicit \texttt{Self} parameter.
+\item For functions and subscripts, calls \texttt{createOpaqueParameterGenericParams()} to walk the formal parameter list and look for \texttt{OpaqueTypeRepr}s.
+\item For extensions, calls \texttt{createExtensionGenericParams()} which clones the generic parameter lists of the extended nominal itself and all of its outer generic contexts, and links them together via \texttt{GenericParamList::getOuterParameters()}.
+\end{itemize}
+
+\IndexSource{generic parameter declaration}
+\apiref{GenericTypeParamDecl}{class}
+A generic parameter declaration.
+\begin{itemize}
+\item \texttt{getDepth()} returns the depth of the generic parameter declaration.
+\item \texttt{getIndex()} returns the index of the generic parameter declaration.
+\item \texttt{getName()} returns the name of the generic parameter declaration.
+\item \texttt{getDeclaredInterfaceType()} returns the non-canonical generic parameter type for this declaration.
+\item \texttt{isOpaque()} answers if this generic parameter is associated with an opaque parameter.
+\item \texttt{getOpaqueTypeRepr()} returns the associated \texttt{OpaqueReturnTypeRepr} if this is an opaque parameter, otherwise \texttt{nullptr}.
+\item \texttt{getInherited()} returns the generic parameter declaration's inheritance clause.
+\end{itemize}
+
+Inheritance clauses are not preserved in serialized generic parameter declarations. Requirements stated on generic parameter declarations are part of the corresponding generic context's generic signature, so except when actually building the generic signature, most code uses \texttt{GenericContext::getGenericSignature()} instead (Section~\ref{genericsigsourceref}).
+
+\IndexSource{generic parameter type}
+\IndexSource{depth}
+\IndexSource{index}
+\apiref{GenericTypeParamType}{class}
+A generic parameter type.
+\begin{itemize}
+\item \texttt{getDepth()} returns the depth of the generic parameter declaration.
+\item \texttt{getIndex()} returns the index of the generic parameter declaration.
+\item \texttt{getName()} returns the name of the generic parameter declaration, only if this is a non-canonical type.
+\end{itemize}
+
+\IndexSource{where clause@\texttt{where} clause}
+\apiref{TrailingWhereClause}{class}
+The syntactic representation of a trailing \texttt{where} clause.
+\begin{itemize}
+\item \texttt{getRequirements()} returns an array of \texttt{RequirementRepr}.
+\end{itemize}
+
+\IndexSource{requirement representation}
+\apiref{RequirementRepr}{class}
+The syntactic representation of a requirement in a trailing \texttt{where} clause.
+\begin{itemize}
+\item \texttt{getKind()} returns a \texttt{RequirementReprKind}.
+\item \texttt{getFirstTypeRepr()} returns the first \texttt{TypeRepr} of a same-type requirement.
+\item \texttt{getSecondTypeRepr()} returns the second \texttt{TypeRepr} of a same-type requirement.
+\item \texttt{getSubjectTypeRepr()} returns the first \texttt{TypeRepr} of a constraint or layout requirement.
+\item \texttt{getConstraintTypeRepr()} returns the second \texttt{TypeRepr} of a constraint requirement.
+\item \texttt{getLayoutConstraint()} returns the layout constraint of a layout requirement.
+\end{itemize}
+
+\apiref{RequirementReprKind}{enum class}
+\begin{itemize}
+\item \texttt{RequirementRepr::TypeConstraint}
+\item \texttt{RequirementRepr::SameType}
+\item \texttt{RequirementRepr::LayoutConstraint}
+\end{itemize}
+
+\apiref{WhereClauseOwner}{class}
+Represents a reference to some set of requirement representations which can be resolved to requirements, for example a trailing \texttt{where} clause. This is used by various requests, such as the \texttt{RequirementRequest} below, and the \texttt{InferredGenericSignatureRequest} in Section~\ref{buildinggensigsourceref}.
+\begin{itemize}
+\item \texttt{getRequirements()} returns an array of \texttt{RequirementRepr}.
+\item \texttt{visitRequirements()} resolves each requirement representation and invokes a callback with the \texttt{RequirementRepr} and resolved \texttt{Requirement}.
+\end{itemize}
+
+\apiref{RequirementRequest}{class}
+Request which can be evaluated to resolve a single requirement representation in a \texttt{WhereClauseOwner}. Used by \texttt{WhereClauseOwner::visitRequirements()}.
+
+\IndexSource{protocol declaration}
+\IndexSource{primary associated type}
+\apiref{ProtocolDecl}{class}
+A protocol declaration.
+\begin{itemize}
+\item \texttt{getTrailingWhereClause()} returns the protocol \texttt{where} clause, or \texttt{nullptr}.
+\item \texttt{getAssociatedTypes()} returns an array of all associated type declarations in the protocol.
+\item \texttt{getPrimaryAssociatedTypes()} returns an array of all primary associated type declarations in the protocol.
+\item \texttt{getInherited()} returns the parsed inheritance clause.
+\end{itemize}
+
+Trailing \texttt{where} clauses and inheritance clauses are not preserved in serialized protocol declarations. Except when actually building the requirement signature, most code uses \texttt{ProtocolDecl::getRequirementSignature()} instead (Section~\ref{genericsigsourceref}).
+
+\IndexSource{inherited protocol}
+The last four utility methods operate on the requirement signature, so are safe to use on deserialized protocols:
+\begin{itemize}
+\item \texttt{getInheritedProtocols()} returns an array of all protocols directly inherited by this protocol, computed from the inheritance clause.
+\item \texttt{inheritsFrom()} determines if this protocol inherits from the given protocol, possibly transitively.
+\item \texttt{getSuperclass()} returns the protocol's superclass type.
+\item \texttt{getSuperclassDecl()} returns the protocol's superclass declaration.
+\end{itemize}
+
+\index{associated type declaration}
+\apiref{AssociatedTypeDecl}{class}
+An associated type declaration.
+\begin{itemize}
+\item \texttt{getTrailingWhereClause()} returns the associated type's trailing \texttt{where} clause, or \texttt{nullptr}.
+\item \texttt{getInherited()} returns the associated type's inheritance clause.
+\end{itemize}
+
+Trailing \texttt{where} clauses and inheritance clauses are not preserved in serialized associated type declarations. Requirements on associated types are part of a protocol's requirement signature, so except when actually building the requirement signature, most code uses \texttt{ProtocolDecl::getRequirementSignature()} instead (Section~\ref{genericsigsourceref}).
+
+\end{document}

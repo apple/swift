@@ -330,8 +330,8 @@ static void bindElementSignatureRequirementsAtIndex(
               IGF.emitTypeMetadataRef(patternPackArchetype, request);
           auto elementArchetype =
               context.environment
-                  ->mapPackTypeIntoElementContext(
-                      patternPackArchetype->getInterfaceType())
+                  ->mapContextualPackTypeIntoElementContext(
+                      patternPackArchetype)
                   ->getCanonicalType();
           auto *patternPack = response.getMetadata();
           auto elementMetadata = bindMetadataAtIndex(
@@ -346,8 +346,8 @@ static void bindElementSignatureRequirementsAtIndex(
           auto patternPackArchetype = getMappedPackArchetypeType(context, ty);
           auto elementArchetype =
               context.environment
-                  ->mapPackTypeIntoElementContext(
-                      patternPackArchetype->getInterfaceType())
+                  ->mapContextualPackTypeIntoElementContext(
+                      patternPackArchetype)
                   ->getCanonicalType();
           llvm::Value *_metadata = nullptr;
           auto packConformance =

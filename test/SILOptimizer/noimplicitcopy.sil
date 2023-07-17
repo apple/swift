@@ -6,6 +6,10 @@
 
 class Klass {}
 
+struct CopyableStruct {
+  var k = Klass()
+}
+
 sil @classUseMoveOnlyWithoutEscaping : $@convention(thin) (@guaranteed Klass) -> ()
 
 ///////////
@@ -28,4 +32,17 @@ bb0(%0 : @noImplicitCopy @guaranteed $Klass):
   destroy_value %3 : $@moveOnly Klass
   %11 = tuple ()
   return %11 : $()
+}
+
+sil [ossa] @testSimpleBorrowParameter : $@convention(thin) (@in_guaranteed CopyableStruct) -> () {
+bb0(%0 : @noImplicitCopy $*CopyableStruct):
+  %1 = load_borrow %0 : $*CopyableStruct                       // users: %7, %2
+  %2 = copyable_to_moveonlywrapper [guaranteed] %1 : $CopyableStruct // user: %3
+  %3 = copy_value %2 : $@moveOnly CopyableStruct               // user: %4
+  %4 = mark_must_check [no_consume_or_assign] %3 : $@moveOnly CopyableStruct // users: %6, %5
+  debug_value %4 : $@moveOnly CopyableStruct, let, name "x", argno 1 // id: %5
+  destroy_value %4 : $@moveOnly CopyableStruct                 // id: %6
+  end_borrow %1 : $CopyableStruct                              // id: %7
+  %8 = tuple ()                                   // user: %9
+  return %8 : $()                                 // id: %9
 }

@@ -236,7 +236,18 @@ void ArgumentTypeCheckCompletionCallback::sawSolutionImpl(const Solution &S) {
     for (auto Idx : range(0, ParamsToPass.size())) {
       bool Optional = false;
       if (Info.ValueRef) {
-        if (const ParamDecl *DeclParam = getParameterAt(Info.ValueRef, Idx)) {
+        if (Info.ValueRef.getDecl()->isInstanceMember() &&
+            !doesMemberRefApplyCurriedSelf(Info.BaseTy,
+                                           Info.ValueRef.getDecl())) {
+          // We are completing in an unapplied instance function, eg.
+          // struct TestStatic {
+          //   func method() ->  Void {}
+          // }
+          // TestStatic.method(#^STATIC^#)
+          // The 'self' parameter is never optional, so don't enter the check
+          // below (which always assumes that self has been applied).
+        } else if (const ParamDecl *DeclParam =
+                       getParameterAt(Info.ValueRef, Idx)) {
           Optional |= DeclParam->isDefaultArgument();
           Optional |= DeclParam->getType()->is<PackExpansionType>();
         }

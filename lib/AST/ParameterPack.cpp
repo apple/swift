@@ -25,6 +25,64 @@
 
 using namespace swift;
 
+/// FV(PackExpansionType(Pattern, Count), N) = FV(Pattern, N+1)
+/// FV(PackElementType(Param, M), N) = FV(Param, 0) if M >= N, {} otherwise
+/// FV(Param, N) = {Param}
+static Type transformTypeParameterPacksRec(
+    Type t, llvm::function_ref<llvm::Optional<Type>(SubstitutableType *)> fn,
+    unsigned expansionLevel) {
+  return t.transformWithPosition(
+      TypePosition::Invariant,
+      [&](TypeBase *t, TypePosition p) -> llvm::Optional<Type> {
+
+    // If we're already inside N levels of PackExpansionType,  and we're
+    // walking into another PackExpansionType, a type parameter pack
+    // reference now needs level (N+1) to be free.
+    if (auto *expansionType = dyn_cast<PackExpansionType>(t)) {
+      auto countType = expansionType->getCountType();
+      auto patternType = expansionType->getPatternType();
+      auto newPatternType = transformTypeParameterPacksRec(
+          patternType, fn, expansionLevel + 1);
+      if (patternType.getPointer() != newPatternType.getPointer())
+        return Type(PackExpansionType::get(patternType, countType));
+
+      return Type(expansionType);
+    }
+
+    // A PackElementType with level N reaches past N levels of
+    // nested PackExpansionType. So a type parameter pack reference
+    // therein is free if N is greater than or equal to our current
+    // expansion level.
+    if (auto *eltType = dyn_cast<PackElementType>(t)) {
+      if (eltType->getLevel() >= expansionLevel) {
+        return transformTypeParameterPacksRec(eltType->getPackType(), fn,
+                                              /*expansionLevel=*/0);
+      }
+
+      return Type(eltType);
+    }
+
+    // A bare type parameter pack is like a PackElementType with level 0.
+    if (auto *paramType = dyn_cast<SubstitutableType>(t)) {
+      if (expansionLevel == 0 &&
+          (isa<PackArchetypeType>(paramType) ||
+           (isa<GenericTypeParamType>(paramType) &&
+            cast<GenericTypeParamType>(paramType)->isParameterPack()))) {
+        return fn(paramType);
+      }
+
+      return Type(paramType);
+    }
+
+    return llvm::None;
+  });
+}
+
+Type Type::transformTypeParameterPacks(
+    llvm::function_ref<llvm::Optional<Type>(SubstitutableType *)> fn) const {
+  return transformTypeParameterPacksRec(*this, fn, /*expansionLevel=*/0);
+}
+
 namespace {
 
 /// Collects all unique pack type parameters referenced from the pattern type,
@@ -100,21 +158,16 @@ void TypeBase::walkPackReferences(
 
 void TypeBase::getTypeParameterPacks(
     SmallVectorImpl<Type> &rootParameterPacks) {
-  llvm::SmallSetVector<Type, 2> rootParameterPackSet;
-
   walkPackReferences([&](Type t) {
     if (auto *paramTy = t->getAs<GenericTypeParamType>()) {
       if (paramTy->isParameterPack())
-        rootParameterPackSet.insert(paramTy);
+        rootParameterPacks.push_back(paramTy);
     } else if (auto *archetypeTy = t->getAs<PackArchetypeType>()) {
-      rootParameterPackSet.insert(archetypeTy->getRoot());
+      rootParameterPacks.push_back(archetypeTy->getRoot());
     }
 
     return false;
   });
-
-  rootParameterPacks.append(rootParameterPackSet.begin(),
-                            rootParameterPackSet.end());
 }
 
 bool GenericTypeParamType::isParameterPack() const {

@@ -81,6 +81,17 @@ SILInstruction *SILGlobalVariable::getStaticInitializerValue() {
   return &StaticInitializerBlock.back();
 }
 
+bool SILGlobalVariable::mustBeInitializedStatically() const {
+  if (getSectionAttr())
+    return true;
+
+  auto *decl = getDecl();
+  if (decl && isDefinition() && decl->getAttrs().hasAttribute<SILGenNameAttr>())
+    return true;
+
+  return false;
+}
+
 /// Return whether this variable corresponds to a Clang node.
 bool SILGlobalVariable::hasClangNode() const {
   return (VDecl ? VDecl->hasClangNode() : false);

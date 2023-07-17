@@ -208,6 +208,11 @@ bool BridgedGlobalVar::canBeInitializedStatically() const {
   return tl.isLoadable();
 }
 
+bool BridgedGlobalVar::mustBeInitializedStatically() const {
+  SILGlobalVariable *global = getGlobal();
+  return global->mustBeInitializedStatically();
+}
+
 //===----------------------------------------------------------------------===//
 //                            SILVTable
 //===----------------------------------------------------------------------===//

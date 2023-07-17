@@ -1073,6 +1073,11 @@ public:
       llvm::function_ref<bool(Parser &)> parseSILTargetName,
       llvm::function_ref<bool(Parser &)> parseSILSIPModule);
 
+  /// Parse the @storageRestrictions(initializes:accesses:) attribute.
+  /// \p Attr is where to store the parsed attribute
+  ParserResult<StorageRestrictionsAttr>
+  parseStorageRestrictionsAttribute(SourceLoc AtLoc, SourceLoc Loc);
+
   /// Parse the @_implements attribute.
   /// \p Attr is where to store the parsed attribute
   ParserResult<ImplementsAttr> parseImplementsAttribute(SourceLoc AtLoc,

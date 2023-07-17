@@ -17,7 +17,8 @@
 // RUN: %target-swift-frontend -scan-dependencies -disable-implicit-concurrency-module-import -disable-implicit-string-processing-module-import -target %target-cpu-apple-macosx11.0 -module-cache-path %t/clang-module-cache %s -o %t/deps.json -I %S/Inputs/CHeaders -I %S/Inputs/Swift -emit-dependencies -emit-dependencies-path %t/deps.d -import-objc-header %S/Inputs/CHeaders/Bridging.h -swift-version 4 -batch-scan-input-file %/t/inputs/input.json
 
 // Check the contents of the JSON output
-// RUN: %FileCheck %s -check-prefix=CHECK-PCM109 < %t/outputs/G_109.pcm.json
+// RUN: %validate-json %t/outputs/G_109.pcm.json | %FileCheck %s -check-prefix=CHECK-PCM109
+// RUN: %validate-json %t/outputs/G_110.pcm.json &>/dev/null
 // RUN: %FileCheck %s -check-prefix=CHECK-PCM110 < %t/outputs/G_110.pcm.json
 
 // CHECK-PCM109: 		{

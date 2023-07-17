@@ -1924,6 +1924,60 @@ entry(%addr : $*T):
     return %retval : $()
 }
 
+// The move_value is lexical so the corresponding alloc_stack must be marked
+// lexical too.
+// CHECK-LABEL: sil [ossa] @testMoveValueLexical : {{.*}} {
+// CHECK:         alloc_stack [lexical]
+// CHECK-LABEL: } // end sil function 'testMoveValueLexical'
+sil [ossa] @testMoveValueLexical : $@convention(thin) <T> () -> () {
+  %getT = function_ref @getT : $@convention(thin) <T> () -> @out T
+  %instance = apply %getT<T>() : $@convention(thin) <T> () -> @out T
+  %moved = move_value [lexical] %instance : $T
+  destroy_value %moved : $T
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// Verify that the temporary storage is lexical and moved out of 
+// (copy_addr [take]).
+// CHECK-LABEL: sil [ossa] @testMoveValueLexicalAndReturn : {{.*}} {
+// CHECK:       {{bb[0-9]+}}([[RETVAL:%[^,]+]] :
+// CHECK:         [[STACK:%[^,]+]] = alloc_stack [lexical]
+// CHECK:         copy_addr [take] [[STACK]] to [init] [[RETVAL]]
+// CHECK-LABEL: } // end sil function 'testMoveValueLexicalAndReturn'
+sil [ossa] @testMoveValueLexicalAndReturn : $@convention(thin) <T> () -> @out T {
+  %getT = function_ref @getT : $@convention(thin) <T> () -> @out T
+  %instance = apply %getT<T>() : $@convention(thin) <T> () -> @out T
+  %moved = move_value [lexical] %instance : $T
+  return %moved : $T
+}
+
+// Verify that a move_value gets no stack storage if it's from an argument.
+// CHECK-LABEL: sil [ossa] @testMoveValueLexicalArgument : {{.*}} {
+// CHECK:       {{bb[0-9]+}}([[INSTANCE:%[^,]+]] :
+// CHECK:         destroy_addr [[INSTANCE]]
+// CHECK-LABEL: } // end sil function 'testMoveValueLexicalArgument'
+sil [ossa] @testMoveValueLexicalArgument : $@convention(thin) <T> (@in T) -> () {
+entry(%instance : @owned $T):
+  %moved = move_value [lexical] %instance : $T
+  destroy_value %moved : $T
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// Only lexical move_values should mark the alloc_stack lexical.
+// CHECK-LABEL: sil [ossa] @testMoveValueNonlexical : {{.*}} {
+// CHECK-NOT:     alloc_stack [lexical]
+// CHECK-LABEL: } // end sil function 'testMoveValueNonlexical'
+sil [ossa] @testMoveValueNonlexical : $@convention(thin) <T> () -> () {
+  %getT = function_ref @getT : $@convention(thin) <T> () -> @out T
+  %instance = apply %getT<T>() : $@convention(thin) <T> () -> @out T
+  %moved = move_value %instance : $T
+  destroy_value %moved : $T
+  %retval = tuple ()
+  return %retval : $()
+}
+
 // CHECK-LABEL: sil hidden [ossa] @testOpaqueYield :
 // CHECK: bb0(%0 : @guaranteed $TestGeneric<T>):
 // CHECK:   [[REF:%.*]] = ref_element_addr %0 : $TestGeneric<T>, #TestGeneric.borrowedGeneric

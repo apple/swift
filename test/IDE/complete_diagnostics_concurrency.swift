@@ -29,7 +29,7 @@ func testActor(obj: MyActor) async {
 
 func testClosure(obj: (Int) async -> Void) {
   obj(#^CLOSURE_CALL^#)
-// CLOSURE_CALL-DAG: Pattern/CurrModule/Flair[ArgLabels]/NotRecommended: ['(']{#Int#}[')'][' async'][#Void#]; name=; diagnostics=error:async function used in a context that does not support concurrency
+// CLOSURE_CALL-DAG: Pattern/Local/Flair[ArgLabels]/NotRecommended: ['(']{#Int#}[')'][' async'][#Void#]; name=; diagnostics=error:async function used in a context that does not support concurrency
 }
 
 func test() {

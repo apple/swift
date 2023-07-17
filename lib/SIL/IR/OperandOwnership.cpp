@@ -294,8 +294,7 @@ OPERAND_OWNERSHIP(DestroyingConsume, DestroyValue)
 OPERAND_OWNERSHIP(DestroyingConsume, EndLifetime)
 OPERAND_OWNERSHIP(DestroyingConsume, BeginCOWMutation)
 OPERAND_OWNERSHIP(DestroyingConsume, EndCOWMutation)
-
-// TODO: Should this be a forwarding consume.
+// The move_value instruction creates a distinct lifetime.
 OPERAND_OWNERSHIP(DestroyingConsume, MoveValue)
 
 // Instructions that move an owned value.

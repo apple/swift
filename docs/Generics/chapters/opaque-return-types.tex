@@ -1,0 +1,436 @@
+\documentclass[../generics]{subfiles}
+
+\begin{document}
+
+\chapter{Opaque Return Types}\label{opaqueresult}
+
+\ifWIP
+
+\IndexDefinition{opaque return type}
+
+TODO:
+\begin{itemize}
+\item Say a few words about how the underlying type is inferred
+\item Joe's thing where an opaque return type of a generic method cannot fulfill an associated type requirement
+\end{itemize}
+
+An opaque return type hides a fixed concrete type behind a generic interface. Opaque return types are declared by defining a function, property or subscript return type with the \texttt{some} keyword:
+\begin{Verbatim}
+func foo() -> some P {...}
+var bar: some P {...}
+subscript() -> some P {...}
+\end{Verbatim}
+Opaque return types were first introduced in Swift 5.1 \cite{se0244}. The feature was generalized to allow occurrences of \texttt{some} structurally nested in other types, as well as multiple occurrences of \texttt{some}, in Swift 5.7 \cite{se0328}.
+
+The type that follows \texttt{some} is a constraint type, as defined in Section~\ref{constraints}. The underlying type is inferred from \texttt{return} statements in the function body. There must be at least one return statement; if there is more than one, all must return the same concrete type.
+
+At the implementation level, a declaration has an associated \emph{opaque return type declaration} if \texttt{some} appears at least once in the declaration's return type. An opaque return type declaration stores three pieces of information:
+\begin{enumerate}
+\item A generic signature describing the \emph{interface} of the opaque return type, called the \emph{opaque interface generic signature}.
+\item A generic environment instantiated from the opaque generic signature, called the \emph{opaque generic environment}, mapping each generic parameter to its opaque archetype. (Opaque generic environments also store a substitution map, described in the next section.)
+\item A substitution map for this generic signature, called the \emph{underlying type substitution map}, mapping each generic parameter to its underlying type. The underlying type substitution map is the \emph{implementation} of the opaque type declaration, and callers from other modules cannot depend on its contents. (This is different from the substitution map stored inside the generic environment.)
+\end{enumerate}
+The opaque interface generic signature is built from the generic signature of the original function, property or subscript (the owning declaration). Each occurrence of the \texttt{some} keyword introduces a new generic parameter with a single requirement relating the generic parameter to the constraint type.
+ 
+The opaque generic environment describes the type of an opaque return type. When computing the interface type of the owner declaration, type resolution replaces each occurrence of the \texttt{some} keyword in the return type with the corresponding opaque archetype.
+
+The underlying substitution map is computed by analyzing the concrete types returned by one or more \texttt{return} statements appearing in the owner declaration's body. The underlying type substitution map is only needed when emitting the owner declaration, not when referencing the owner declaration. It is not computed if the body of the declaration appears in a secondary source file in batch mode (because the body is not parsed or type checked), or if the declaration was parsed from a \texttt{swiftinterface} file (because declaration bodies are not printed in module interfaces).
+
+\begin{example}
+Consider the following declaration:
+\begin{Verbatim}
+struct Farm {
+  var horses: [Horse] = []
+
+  var hungryHorses: some Collection<Horse> {
+    return horses.lazy.filter(\.isHungry)
+  }
+}
+\end{Verbatim}
+The \texttt{hungryHorses} property has an associated opaque result type declaration, because \texttt{some} appears in its return type.
+
+The property appears in a non-generic context, so there is no parent generic signature. The return type has a single occurrence of \texttt{some}, so the opaque interface generic signature has a single generic parameter \texttt{\ttgp{0}{0}}. The constraint type is \texttt{Collection<Horse>}, so the sugared generic requirement \texttt{\ttgp{0}{0}:\ Collection<Horse>} desugars to a pair of requirements. The opaque generic signature is
+\begin{quote}
+\texttt{<\ttgp{0}{0} where \ttgp{0}{0}:\ Collection, \ttgp{0}{0}.[Sequence]Element == Horse>}.
+\end{quote}
+
+The return statement's underlying type is \texttt{LazyFilterSequence<Array<Horse>>}, so the substitution map is
+\[
+\SubstMapLongC{
+\SubstType{\ttgp{0}{0}}{LazyFilterSequence<Array<Horse>>}
+}{
+\SubstConf{\ttgp{0}{0}}{LazyFilterSequence<Array<Horse>>}{Collection}
+}
+\]
+The opaque generic environment has a single opaque archetype $\archetype{\ttgp{0}{0}}$ corresponding to the opaque interface generic signature's single generic parameter \ttgp{0}{0}. The interface type of the declaration \texttt{hungryHorses} is the opaque archetype $\archetype{\ttgp{0}{0}}$.
+\end{example}
+
+\begin{example}
+Consider the following declaration:
+\begin{Verbatim}
+func makePair<T: Equatable>(first: T, second: T) -> (some Collection<T>, some Collection<T>) {
+  return ([first], [second])
+}
+\end{Verbatim}
+The generic signature of the \texttt{makePair} function is
+\begin{quote}
+\texttt{<\ttgp{0}{0} where \ttgp{0}{0}:\ Equatable>}
+\end{quote}
+
+The opaque interface generic signature is constructed from this with two additional generic parameters and requirements added for each of the two occurrences of \texttt{some} in the return type:
+\begin{quote}
+\texttt{<\ttgp{0}{0}, \ttgp{1}{0}, \ttgp{1}{1} where \ttgp{0}{0}:\ Equatable, \ttgp{1}{0}:\ Collection, \ttgp{1}{1}:\ Collection, \ttgp{1}{0}.[Collection]Element == \ttgp{1}{1}.[Collection]Element, \ttgp{1}{1}.[Collection]Element == \ttgp{0}{0}>}
+\end{quote}
+
+The substitution map sends the outer generic parameter \ttgp{0}{0} to itself, and the two inner generic parameters \ttgp{1}{0}, \ttgp{1}{1} both to \texttt{Array<\ttgp{0}{0}>}.
+\[
+\SubstMapLongC{
+\SubstType{\ttgp{0}{0}}{\ttgp{0}{0}}\\
+\SubstType{\ttgp{1}{0}}{Array<\ttgp{0}{0}>}\\
+\SubstType{\ttgp{1}{1}}{Array<\ttgp{0}{0}>}
+}{
+\SubstConf{\ttgp{0}{0}}{\ttgp{0}{0}}{Equatable}
+}
+\]
+The opaque generic environment has two opaque archetypes $\archetype{\ttgp{1}{0}}$ and $\archetype{\ttgp{1}{1}}$. The interface type of the function is
+\begin{quote}
+\texttt{<\ttgp{0}{0} where \ttgp{0}{0}:\ Equatable> (\ttgp{0}{0}) -> ($\archetype{\ttgp{1}{0}}$, \archetype{\ttgp{1}{1}})}
+\end{quote}
+\end{example}
+
+\fi
+
+\section{Opaque Archetypes}\label{opaquearchetype}
+
+\ifWIP
+
+\IndexDefinition{opaque archetype}
+
+TODO:
+\begin{itemize}
+\item opaque archetypes: global extent and same underlying concrete type 
+\item primary archetypes: lexically scoped and bound by caller
+\item every type written with primary archetypes has an equivalent interface type representation. opaque archetypes don't correspond to any type parameter in our generic context's signature, etc.
+\end{itemize}
+
+Opaque archetypes appear inside interface types, unlike primary archetypes. Also, unlike primary archetypes, opaque archetypes do not represent type parameters to be substituted by the caller. They behave differently from primary archetypes in two important respects:
+\begin{itemize}
+\item The \texttt{TypeBase::hasArchetype()} predicate does not detect their presence, since this predicate is asserted to be false for interface types of declarations. To check if a type contains opaque archetypes, use \texttt{TypeBase::hasOpaqueArchetype()}.
+
+\item The \texttt{Type::subst()} method does not replace opaque archetypes by default. For situations where opaque archetypes need to be replaced, \texttt{subst()} takes an optional set of flags. The \texttt{SubstFlags::SubstituteOpaqueArchetypes} flag can be passed in to enable replacement of opaque archetypes. Usually the lower level two-callback form of \texttt{subst()} is used with this flag, instead of the variant taking a substitution map. To differentiate between the two behaviors, let's call them ``opaque archetype replacement'' and ``opaque archetype substitution,'' respectively.
+\end{itemize}
+Opaque archetype substitution is the default and common case, but there is less to say about opaque archetype replacement, so let's discuss it first.
+
+\paragraph{Opaque archetype replacement} A notable appearance of the first behavior is for an optimization performed during SIL lowering. When a usage of an opaque return type appears in the same compilation unit as the definition (the same source file in batch mode, or the same module in whole-module mode), the opaque archetype can be safely replaced with its underlying type. This replacement is performed after type checking; the abstraction boundary between the opaque archetype's interface and implementation still exists as far as the type checker is concerned, but SIL optimizations can generate more efficient code with knowledge of the underlying type. SIL type lowering implements this with appropriately-placed calls to \texttt{Type::subst()} with an instance of the \texttt{ReplaceOpaqueTypesWithUnderlyingTypes} functor as the type replacement callback, and the \texttt{SubstFlags::SubstituteOpaqueArchetypes} flag set.
+
+\paragraph{Opaque archetype substitution}
+Opaque archetypes are parameterized by the generic signature of the owner declaration. In the general case, the underlying type of an opaque archetype can depend on the generic parameters of the owner declaration. For this reason, each substitution map of the owner declaration's generic signature must produce a different opaque archetype. A new opaque generic environment is instantiated for each combination of an opaque return declaration and substitution map; the substitution map is stored in the opaque generic environment:
+\[\left(\,\ttbox{OpaqueTypeDecl}\otimes \ttbox{SubstitutionMap}\,\right) \rightarrow \mathboxed{Opaque \texttt{GenericEnvironment}}\]
+
+\begin{algorithm}[Applying a substitution map to an opaque archetype]\label{opaquearchetypesubst}
+As input, takes an opaque archetype $T$ and a substitution map $S$. As output, produces a new type (which is not necessarily an opaque archetype).
+\begin{enumerate}
+\item Let $G$ be the opaque generic environment of $T$.
+\item Compose the original substitution map of $G$ with $S$ to produce the substituted substitution map $S'$.
+\item Look up the opaque generic environment for the same opaque return type declaration as $T$ the substituted substitution map $S'$; call it $G'$.
+\item Map the interface type of $T$ into $G'$ to produce the result, $T'$.
+\end{enumerate}
+\end{algorithm}
+
+TODO: figure with one generic signature, two generic environments, two archetypes. Arrow from generic signatures to generic environments, arrow from generic environment to archetype labeled ``map type into context''. arrow from one archetype to another labeled ''substitution''.
+
+\begin{example} Consider this definition:
+\begin{Verbatim}
+func underlyingType<T: Equatable>(_ t: T) -> some Equatable { return 3 }
+\end{Verbatim}
+The original declaration's generic signature has a single generic parameter, and the return type has a single occurrence of \texttt{some}, so the opaque interface generic signature has two generic parameters, both constrained to \texttt{Equatable}:
+\begin{quote}
+\texttt{<\ttgp{0}{0}, \ttgp{1}{0} where \ttgp{0}{0}:\ Equatable, \ttgp{1}{0}:\ Equatable>}
+\end{quote}
+The interface type of \texttt{underlyingType()} is a generic function type with an opaque archetype as the return type:
+\begin{quote}
+\texttt{<\ttgp{0}{0} where \ttgp{0}{0}:\ Equatable> (\ttgp{0}{0}) -> \$\ttgp{1}{0}}
+\end{quote}
+Consider the following three calls:
+\begin{Verbatim}
+let x = underlyingType(1)
+let y = underlyingType(2)
+let z = underlyingType("hello")
+\end{Verbatim}
+The types of \texttt{x}, \texttt{y} and \texttt{z} are constructed by applying substitution maps to the opaque archetype \texttt{\$\ttgp{1}{0}}. For \texttt{x} and \texttt{y}, the substitution map is the following:
+\[
+\SubstMapC{
+\SubstType{\ttgp{0}{0}}{Int}
+}{
+\SubstConf{\ttgp{0}{0}}{Int}{Equatable}
+}
+\]
+For \texttt{z}, the substitution map is different:
+\[
+\SubstMapC{
+\SubstType{\ttgp{0}{0}}{String}
+}{
+\SubstConf{\ttgp{0}{0}}{String}{Equatable}
+}
+\]
+Per Algorithm~\ref{opaquearchetypesubst}, two new opaque generic environments are constructed from the opaque return type declaration of \texttt{underlyingType()} with each of the above two substitution maps. The substituted opaque archetypes are constructed by mapping the interface type \texttt{\ttgp{1}{0}} into each of the two opaque generic environments.
+
+Indeed, even though the generic parameter \texttt{T} and the value \texttt{t} are completely unused in the body of the \texttt{underlyingType()} function, each call of \texttt{underlyingType()} with a different specialization produces a different type. This can be observed by noting the behavior of the \texttt{Equatable} protocol's \texttt{==} operator; it expects both operands to have the same type:
+\begin{Verbatim}
+let x = underlyingType(1)
+let y = underlyingType(2)
+print(x == y)  // okay
+
+let z = underlyingType("hello")
+print(x == z)  // type check error
+\end{Verbatim}
+The expression \texttt{x == y} type checks successfully, because \texttt{x} and \texttt{y} have the same type, an opaque archetype instantiated from the declaration of \texttt{underlyingType()} with the substitution \texttt{T := Int}. On the other hand, the expression \texttt{x == z} fails to type check, because \texttt{x} and \texttt{z} have different types; both originate from \texttt{underlyingType()}, but with different substitutions:
+\begin{itemize}
+\item the type of \texttt{x} was instantiated with \texttt{T := Int},
+\item the type of \texttt{z} was instantiated with \texttt{T := String}.
+\end{itemize}
+\end{example}
+\begin{example}
+The above behavior might seem silly, since the underlying type of \texttt{underlyingType()}'s opaque return type is always \texttt{Int}, irrespective of the generic parameter \texttt{T} supplied by the caller. However, since opaque return types introduce an abstraction boundary, it is in fact a source-compatible and binary-compatible change to redefine \texttt{underlyingType()} as follows:
+\begin{Verbatim}
+func underlyingType<T: Equatable>(_ t: T) -> some Equatable { return t }
+\end{Verbatim}
+Now, the underlying type is \texttt{T}; it would certainly not be valid to mix up the result of calling \texttt{underlyingType()} with an \texttt{Int} and \texttt{String}.
+\end{example}
+
+The \texttt{GenericEnvironment::forOpaqueType()} method creates an opaque generic environment for a given substitution map, should you have occasion to do this yourself outside of the type substitution machinery. The opaque generic environment's substitution map plays a role beyond its use as a uniquing key for creating new opaque archetypes; it is also applied to the ``outer'' generic parameters of the opaque return type's interface signature when they are mapped into context. This is important when a same-type requirement equates an associated type of an opaque return type with a generic parameter of the owner declaration; the substituted opaque archetype will behave correctly when the associated type is projected.
+
+\begin{example}
+In this example, the specialization of the original declaration is ``exposed'' via a same-type requirement on the opaque return type.
+\begin{Verbatim}
+func sequenceOfOne<Element>(_ elt: Element) -> some Sequence<Element> {
+  return [elt]
+}
+
+let result = sequenceOfOne(3)
+var iterator = result.makeIterator()
+let value: Int = iterator.next()!
+\end{Verbatim}
+Let's walk through the formalities first. The opaque interface generic signature:
+\begin{quote}
+\texttt{<\ttgp{0}{0}, \ttgp{1}{0} where \ttgp{1}{0}:\ Sequence, \ttgp{1}{0}.Element == \ttgp{0}{0}>}
+\end{quote}
+The interface type of \texttt{sequenceOfOne()} has an opaque archetype in return position:
+\begin{quote}
+\texttt{<\ttgp{0}{0}> (\ttgp{0}{0}) -> $\archetype{\ttgp{1}{0}}$}
+\end{quote}
+The type of \texttt{result} is the substituted opaque archetype with the substitution map \texttt{T := Int}, which is the substitution map of the call to \texttt{sequenceOfOne()}. For lack of a better notation, call this archetype $\archetype{\ttgp{1}{0}<Int>}$.
+
+\Index{protocol Self type@protocol \texttt{Self} type}%
+The type of \texttt{iterator} is calculated by applying a substitution replacing the protocol \texttt{Self} type with the type of \texttt{result} to the return type of the \texttt{makeIterator()} requirement of the \texttt{Sequence} protocol. The type of \texttt{result} is the substituted opaque archetype we're calling \archetype{\ttgp{1}{0}<Int>} above, so the type of \texttt{iterator} is the substituted opaque archetype \archetype{\ttgp{1}{0}<Int>.Iterator} from the same substituted opaque generic environment as \archetype{\ttgp{1}{0}<Int>}.
+
+What about \texttt{value}? The \texttt{next()} requirement of the \texttt{IteratorProtocol} protocol returns the \texttt{Self.Element} associated type of \texttt{IteratorProtocol}. We're substituting \texttt{Self} here with the type of \texttt{iterator}, which is \texttt{\ttgp{1}{0}<Int>.Iterator}. This means the type of \texttt{value} can be computed by mapping the type parameter \texttt{\ttgp{1}{0}.Iterator.Element} into the substituted opaque generic environment.
+
+The type parameter \texttt{\ttgp{0}{0}.Iterator.Element} is equivalent to \texttt{\ttgp{0}{0}} in the opaque interface generic signature. So mapping \texttt{\ttgp{1}{0}.Iterator.Element} into our substituted opaque generic environment applies the substitution map to the interface type \texttt{\ttgp{0}{0}}. This is just \texttt{Int}. So the type of \texttt{value} is \texttt{Int}!
+\end{example}
+
+\fi
+
+\section{Referencing Opaque Archetypes}\label{reference opaque archetype}
+
+\ifWIP
+
+\index{AST printer}
+TODO: right now, my understanding is the parser puts all OpaqueTypeDecls in a big list, and the first time you do a type reconstruction, we go and compute the interface type of each entry in that list, which implicitly populates a second mangled name -> OpaqueTypeDecl map, and then we go and look in that second map
+
+\index{associated type inference}
+Opaque return types are different from other type declarations in that the \texttt{some P} syntax serves to both declare an opaque return type, and immediately reference the declared type. It is however possible to reference an opaque return type of an existing declaration from a different context. The trick is to use associated type inference to synthesize a type alias whose underlying type is the opaque return type, and then reference this type alias. This can be useful when writing tests to exercise an opaque return type showing up in compiler code paths that might not expect them.
+
+\begin{example} The normal conformance \texttt{ConcreteP:\ P} in Listing~\ref{reference opaque return type} shows how an opaque archetype can witness an associated type requirement. The method \texttt{ConcreteP.f()} witnesses the protocol requirement \texttt{P.f()}. The return type of \texttt{ConcreteP.f()} is a tuple type of two opaque archetypes, and the type witnesses for the \texttt{X} and \texttt{Y} associated types are inferred to be the first and second of these opaque archetypes, respectively. Associated type inference synthesizes two type aliases, \texttt{ConcreteP.X} and \texttt{ConcreteP.Y}, which are then referenced further down in the program:
+\begin{enumerate}
+\item The global variable \texttt{mince} has an explicit type \texttt{(ConcreteP.X,~ConcreteP.Y)}.
+\item The function \texttt{pie()} declares a same-type requirement whose right hand side is the type alias \texttt{ConcreteP.X}.
+\end{enumerate}
+
+\begin{listing}\captionabove{Referencing an opaque return type via associated type inference}\label{reference opaque return type}
+\begin{Verbatim}
+public protocol P {
+  associatedtype X: Q
+  associatedtype Y: Q
+  
+  func f() -> (X, Y)
+}
+
+public protocol Q {}
+
+public struct ConcreteP: P {
+  public func f() -> (some Q, some Q) {
+    return (FirstQ(), SecondQ())
+  }
+}
+
+public struct FirstQ: Q {}
+public struct SecondQ: Q {}
+
+public let mince: (ConcreteP.X, ConcreteP.Y) = ConcreteP().f()
+
+public func pie<S: Sequence>(_: S) where S.Element == ConcreteP.X {}
+\end{Verbatim}
+\end{listing}
+\end{example}
+
+\index{synthesized declaration}
+\index{associated type inference}
+The above trick allows referencing opaque return types, albeit indirectly. Is there a way to write down the underlying type of the type aliases \texttt{ConcreteP.X} and \texttt{ConcreteP.Y}? The answer is yes, but only in module interface files and textual SIL, not source code. Module interface files explicitly spell out all type aliases synthesized by associated type inference, avoiding the need to perform associated type inference when building the interface file in another compilation job. Textual SIL similarly needs to spell out the type of the value produced by each SIL instruction.
+
+\index{mangling}
+A direct reference to an opaque return type is expressed in the grammar as a type attribute encoding the mangled name of the owner declaration together with an index:
+\begin{quote}
+\texttt{@\_opaqueReturnTypeOf("\underline{mangled name}", \underline{index}) \underline{identifier}}
+\end{quote}
+The mangled name unambiguously identifies the owner declaration. The index identifies a specific opaque archetype among several when the owner declaration's return type contains multiple occurrences of \texttt{some}. The identifier is ignored; in the Swift language grammar, a type attribute must apply to some underlying type representation, so by convention module interface printing outputs ``\texttt{\_\_}'' as the underlying type representation.
+
+\begin{example}
+Listing~\ref{reference opaque return type from interface} shows the generated module interface for Listing~\ref{reference opaque return type}, with some line breaks inserted for readability.
+\begin{listing}\captionabove{References to opaque return types in a module interface}\label{reference opaque return type from interface}
+\begin{Verbatim}
+public protocol P {
+  associatedtype X : mince.Q
+  associatedtype Y : mince.Q
+  func f() -> (Self.X, Self.Y)
+}
+public protocol Q {
+}
+public struct ConcreteP : mince.P {
+  public func f() -> (some mince.Q, some mince.Q)
+  
+  public typealias X = @_opaqueReturnTypeOf("$s5mince9ConcretePV1fQr_QR_tyF", 0) __
+  public typealias Y = @_opaqueReturnTypeOf("$s5mince9ConcretePV1fQr_QR_tyF", 1) __
+}
+public struct FirstQ : mince.Q {
+}
+public struct SecondQ : mince.Q {
+}
+
+public let mince: (@_opaqueReturnTypeOf("$s5mince9ConcretePV1fQr_QR_tyF", 0) __,
+                   @_opaqueReturnTypeOf("$s5mince9ConcretePV1fQr_QR_tyF", 1) __)
+public func pie<S>(_: S)
+  where S : Swift.Sequence,
+        S.Element == @_opaqueReturnTypeOf("$s5mince9ConcretePV1fQr_QR_tyF", 0) __
+\end{Verbatim}
+\end{listing}
+\end{example}
+
+A direct reference to a substituted opaque archetype is written like a generic argument list following the identifier. The generic arguments correspond to the flattened list of generic parameters in the generic signature of the opaque archetype's owner declaration.
+
+\begin{example}
+In Listing~\ref{substituted opaque archetype reference}, the conformance is declared on the \texttt{Derived} class, but the type witness for \texttt{X} is an opaque archetype from a method on \texttt{Outer.Inner}. The superclass type of \texttt{Derived} is \texttt{Outer<Int>.Inner<String>}, so a substitution map is applied to the opaque archetype:
+\[
+\SubstMap{
+\SubstType{T}{Int}\\
+\SubstType{U}{String}
+}
+\]
+In the module interface file, this prints as the generic argument list \texttt{<Int,~String>}, as shown in Listing~\ref{substituted opaque archetype reference interface}.
+\end{example}
+\begin{listing}\captionabove{Source code with a substituted opaque archetype as a type witness}\label{substituted opaque archetype reference}
+\begin{Verbatim}
+public protocol P {
+  associatedtype X: Q
+
+  func f() -> X
+}
+
+public protocol Q {}
+
+public struct ConcreteQ: Q {}
+
+public class Outer<T> {
+  public class Inner<U> {
+    public func f() -> some Q {
+      return ConcreteQ()
+    }
+  }
+}
+
+public class Derived: Outer<Int>.Inner<String>, P {}
+\end{Verbatim}
+\end{listing}
+\begin{listing}\captionabove{Module interface with a substituted opaque archetype as a type witness}\label{substituted opaque archetype reference interface}
+\begin{Verbatim}
+public protocol P {
+  associatedtype X : mince.Q
+  func f() -> Self.X
+}
+public protocol Q {
+}
+public struct ConcreteQ : mince.Q {
+}
+public class Outer<T> {
+  public class Inner<U> {
+    public func f() -> some mince.Q
+  }
+}
+public class Derived : mince.Outer<Swift.Int>.Inner<Swift.String>, mince.P {
+  public typealias X = @_opaqueReturnTypeOf("$s5mince5OuterC5InnerC1fQryF", 0)
+    __<Swift.Int, Swift.String>
+}
+\end{Verbatim}
+\end{listing}
+
+\section{Runtime Representation}
+
+At runtime, an instance of an opaque archetype must be manipulated abstractly, similar to a generic parameter. This mechanism allows the underlying type of an opaque return type to change without breaking callers in other modules.
+
+Recall that an opaque type declaration consists of an opaque interface generic signature, and an underlying type substitution map for this generic signature.
+
+The opaque interface generic signature is the \emph{interface} of the opaque type declaration. The underlying type substitution map is the \emph{implementation} of the opaque type declaration. For each generic parameter and conformance requirement, the compiler emits an accessor function. Each accessor function returns the corresponding concrete type metadata or witness table from the substitution map.
+
+Opaque archetypes are also parameterized by the owner declaration's generic signature. The generic parameters and conformance requirements of the owner declaration become the input parameters of these accessor functions.
+
+Note the symmetry here between a function's ``input'' generic parameters and conformance requirements, which become input parameters, and the opaque type declaration's ``output'' generic parameters and conformance requirements, which become calls to accessor functions. The caller provides a substitution map for the ``input'' parameters by passing in concrete type metadata and witness tables. The opaque type declaration provides a substitution map for the ``output'' parameters by emitting an accessor function to return the concrete type metadata and witness tables.
+
+TODO: figure
+
+\begin{example}
+The following generic function declares an opaque return type:
+\begin{Verbatim}
+func uniqueElements<E: Hashable>(_ elts: [E]) -> some Sequence<E> {...}
+\end{Verbatim}
+The calling convention for \texttt{uniqueElements()} receives the type metadata for \texttt{E} together with a witness table for \texttt{E:\ Hashable} as lowered arguments. The return value is an instance of an opaque archetype, and is returned indirectly.
+
+In order to allocate a buffer of the correct size to hold the return value prior to making the call and to manipulate the return value after the call, the caller invokes the opaque type metadata accessor for \texttt{uniqueElements()}. The metadata accessor also takes the type metadata for \texttt{E} together with a witness table for \texttt{E:\ Hashable}, since the underlying type is parameterized by the generic signature of \texttt{uniqueElements()}.
+
+Finally, the witness table for the conformance of the underlying type to \texttt{Sequence} is obtained by calling the opaque type witness table accessor for \texttt{uniqueElements()}, which again takes the type metadata for \texttt{E} together with a witness table for \texttt{E:\ Hashable}.
+\end{example}
+
+\fi
+
+\section{Source Code Reference}
+
+\iffalse
+
+TODO:
+
+\begin{description}
+\item[\texttt{TypeBase}] The base class of the Swift type hierarchy.
+\begin{itemize}
+\item \texttt{hasOpaqueArchetype()} Returns true if the type contains an opaque archetype.
+\end{itemize}
+\item[\texttt{OpaqueTypeArchetypeType}] The class of opaque archetypes.
+\begin{itemize}
+\item \texttt{getOpaqueDecl()} Returns the opaque type declaration that owns this archetype.
+\item \texttt{getSubstitutions()} Returns substitutions applied to this archetype's generic environment. Initially this is an identity substitution map.
+\end{itemize}
+\item[\texttt{OpaqueTypeDecl}] An opaque type declaration.
+\begin{itemize}
+\item \texttt{getNamingDecl()} Returns the original declaration having this opaque return type.
+\item \texttt{getOpaqueInterfaceGenericSignature()} Returns the generic signature describing the opaque return types and their requirements.
+\item \texttt{getUniqueUnderlyingTypeSubstitutions()} Returns the substitution map describing the underlying types of the opaque archetypes. Will return \texttt{None} if the underlying types have not been computed yet (or if they will never be computed because the original declaration's body is not available).
+\end{itemize}
+
+\item[\texttt{GenericEnvironment}] A mapping from type parameters to archetypes with respect to a generic signature.
+\begin{itemize}
+\item \texttt{forOpaqueType()} Returns the unique opaque generic environment for an opaque return type declaration and substitution map.
+\end{itemize}
+
+\end{description}
+
+\fi
+
+\end{document}

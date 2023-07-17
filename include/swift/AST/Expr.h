@@ -4649,7 +4649,7 @@ struct ApplyIsolationCrossing {
 
   // Whether to use the isolation of the caller or callee for generating
   // informative diagnostics depends on whether this crossing is an exit.
-  // In particular, we tend to use the caller isolation for diagnostics,
+  // In particular, we tend to use the callee isolation for diagnostics,
   // but if this crossing is an exit from isolation then the callee isolation
   // is not very informative, so we use the caller isolation instead.
   ActorIsolation getDiagnoseIsolation() const {

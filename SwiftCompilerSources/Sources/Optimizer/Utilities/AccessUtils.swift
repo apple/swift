@@ -162,7 +162,11 @@ enum AccessBase : CustomStringConvertible, Hashable {
     }
   }
 
-  // Returns true if it's guaranteed that this access has the same base address as the `other` access.
+  /// Returns true if it's guaranteed that this access has the same base address as the `other` access.
+  ///
+  /// `isEqual` abstracts away the projection instructions that are included as part of the AccessBase:
+  /// multiple `project_box` and `ref_element_addr` instructions are equivalent bases as long as they
+  /// refer to the same variable or class property.
   func isEqual(to other: AccessBase) -> Bool {
     switch (self, other) {
     case (.box(let pb1), .box(let pb2)):
@@ -275,11 +279,52 @@ struct AccessPath : CustomStringConvertible {
     return false
   }
 
-  func isEqualOrOverlaps(_ other: AccessPath) -> Bool {
-    return base.isEqual(to: other.base) &&
-           // Note: an access with a smaller path overlaps an access with larger path, e.g.
-           //       `s0` overlaps `s0.s1`
-           projectionPath.isSubPath(of: other.projectionPath)
+  /// Returns true if this access addresses the same memory location as `other` or if `other`
+  /// is a sub-field of this access.
+
+  /// Note that this access _contains_ `other` if `other` has a _larger_ projection path than this acccess.
+  /// For example:
+  ///   `%value.s0` contains `%value.s0.s1`
+  func isEqualOrContains(_ other: AccessPath) -> Bool {
+    return getProjection(to: other) != nil
+  }
+
+  /// Returns the projection path to `other` if this access path is equal or contains `other`.
+  ///
+  /// For example,
+  ///   `%value.s0`.getProjection(to: `%value.s0.s1`)
+  /// yields
+  ///   `s1`
+  func getProjection(to other: AccessPath) -> SmallProjectionPath? {
+    if !base.isEqual(to: other.base) {
+      return nil
+    }
+    return projectionPath.subtract(from: other.projectionPath)
+  }
+
+  /// Like `getProjection`, but also requires that the resulting projection path is materializable.
+  func getMaterializableProjection(to other: AccessPath) -> SmallProjectionPath? {
+    if let projectionPath = getProjection(to: other),
+       projectionPath.isMaterializable {
+      return projectionPath
+    }
+    return nil
+  }
+}
+
+private extension SmallProjectionPath {
+  /// Returns true if the path only contains projections which can be materialized as
+  /// SIL struct or tuple projection instructions - for values or addresses.
+  var isMaterializable: Bool {
+    let (kind, _, subPath) = pop()
+    switch kind {
+    case .root:
+      return true
+    case .structField, .tupleField:
+      return subPath.isMaterializable
+    default:
+      return false
+    }
   }
 }
 

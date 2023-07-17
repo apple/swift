@@ -90,6 +90,11 @@ bool accessorMacroOnlyIntroducesObservers(
 bool accessorMacroIntroducesInitAccessor(
     MacroDecl *macro, const MacroRoleAttr *attr);
 
+/// Diagnose an error if the given macro role does not apply
+/// to the declaration kind of \c attachedTo.
+bool diagnoseInvalidAttachedMacro(MacroRole role,
+                                  Decl *attachedTo);
+
 } // end namespace swift
 
 #endif /* SWIFT_SEMA_TYPECHECKMACROS_H */

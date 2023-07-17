@@ -1,0 +1,501 @@
+\documentclass[../generics]{subfiles}
+
+\begin{document}
+
+\chapter{Witness Thunks}\label{valuerequirements}
+
+\ifWIP
+
+When protocol conformances were introduced in Chapter~\ref{conformances}, our main focus was the mapping from associated type requirements to type witnesses, and how conformances participate in type substitution. Now let's look at the other facet of conformances, which is how they map value requirements to value witnesses.\footnote{The term ``value witness'' is overloaded to have two meanings in Swift. The first is a witness to a value requirement in a protocol. The second is an implementation of an intrinsic operation all types support, like copy, move, destroy, etc., appearing in the value witness table of runtime type metadata. Here I'm talking about the first meaning.} Recording a witness for a protocol requirement requires more detail than simply stating the witness.
+
+What is the relationship between the generic signature of a protocol requirement and the generic signature of the witness? Well, ``it's complicated.'' A protocol requirement's generic signature has a \texttt{Self} generic parameter constrained to that protocol. If the witness is a default implementation from a protocol extension, it will have a \texttt{Self} generic parameter, too, but it might conform to a \emph{different} protocol. Or if the witness is a member of the conforming type and the conforming type has generic parameters of its own, it will have its own set of generic parameters, with different requirements. A witness might be ``more generic'' than a protocol requirement, where the requirement is satisfied by a fixed specialization of the witness. Conditional conformance and class inheritance introduce even more possibilities. (There will be examples of all of these different cases at the end of Section~\ref{witnessthunksignature}.)
+
+\index{SILGen}
+All of this means that when the compiler generates a witness table to represent a conformance at runtime, the entries in the witness table cannot simply point directly to the witness implementations. The protocol requirement and the witness will have different calling conventions, so SILGen must emit a \emph{witness thunk} to translate the calling convention of the requirement into that of each witness. Conformance checking records a mapping between protocol requirements and witnesses together with the necessary details for witness thunk emission inside each normal conformance.
+
+The \texttt{ProtocolConformance::getWitness()} method takes the declaration of a protocol value requirement, and returns an instance of \texttt{Witness}, which stores all of the this information, obtainable by calling getter methods:
+\begin{description}
+\item[\texttt{getDecl()}] The witness declaration itself.
+\item[\texttt{getWitnessThunkSignature()}] The \emph{witness thunk generic signature}, which bridges the gap between the protocol requirement's generic signature and the witness generic signature. Adopting this generic signature is what allows the witness thunk to have the correct calling convention that matches the caller's invocation of the protocol requirement, while providing the necessary type parameters and conformances to invoke a member of the concrete conforming type.
+\item[\texttt{getSubstitutions()}] The \emph{witness substitution map}. Maps the witness generic signature to the type parameters of the witness thunk generic signature. This is the substitution map at the call of the actual witness from inside the witness thunk.
+\item[\texttt{getRequirementToWitnessThunkSubs()}] The \emph{requirement substitution map}.  Maps the protocol requirement generic signature to the type parameters of the witness thunk generic signature. This substituted map is used by SILGen to compute the interface type of the witness thunk, by applying it to the interface type of the protocol requirement.
+\end{description}
+
+TODO:
+\begin{itemize}
+\item diagram with the protocol requirement caller, the protocol requirement type, the witness thunk signature/type, and the witness signature/type.
+\item more details about how the witness\_method CC recovers self generic parameters in a special way
+\end{itemize}
+
+\section{Covariant Self Problem}
+
+In Swift, subclasses inherit protocol conformances from their superclass. If a class conforms to a protocol, a requirement of this protocol can be called on an instance of a subclass. When the protocol requirement is witnessed by a default implementation in a protocol extension, the \texttt{Self} parameter of the protocol extension method is bound to the specific subclass substituted at the call site. The subclass can be observed if, for example, the protocol requirement returns an instance of \texttt{Self}, and the default implementation constructs a new instance via an \texttt{init()} requirement on the protocol.
+
+The protocol requirement can be invoked in one of two ways:
+\begin{enumerate}
+\item Directly on an instance of the class or one of its subclasses. Since the implementation is known to always be the default implementation, the call is statically dispatched to the default implementation without any indirection through the witness thunk.
+\item Indirectly via some other generic function with a generic parameter constrained to the protocol. Since the implementation is unknown, the call inside the generic function is dynamically dispatched via the witness thunk stored in the witness table for the conformance. If the generic function in turn is called with an instance of the class or one of its subclasses, the witness thunk stored in the witness table for the conformance will statically dispatch to the default implementation.
+\end{enumerate}
+The two cases are demonstrated in Listing~\ref{covariantselfexample}. The \texttt{Animal} protocol, which defines a \texttt{clone()} requirement returning an instance of \texttt{Self}. This requirement has a default implementation which constructs a new instance of \texttt{Self} via the \texttt{init()} requirement on the protocol. The \texttt{Horse} class conforms to \texttt{Animal}, using the default implementation for \texttt{clone()}. The \texttt{Horse} class also has a subclass, \texttt{Pony}. It follows from substitution semantics that both \texttt{newPony1} and \texttt{newPony2} should have a type of \texttt{Pony}:
+\begin{itemize}
+\item The definition of \texttt{newPony1} calls \texttt{clone()} with the substitution map $\texttt{Self} := \texttt{Pony}$. The original return type of \texttt{clone()} is \texttt{Self}, so the substituted type is \texttt{Pony}.
+\item Similarly, the definition of \texttt{newPonyIndirect} calls \texttt{cloneAnimal()} with the substitution map $\texttt{A} := \texttt{Pony}$. The original return type of \texttt{cloneAnimal()} is \texttt{A}, so the substituted type is also \texttt{Pony}.
+\end{itemize}
+The second call dispatches through the witness thunk, so the witness thunk must also ultimately call the default implementation of \texttt{Animal.clone()} with the substitution map $\texttt{Self} := \texttt{Pony}$. When the conforming type is a struct or an enum, the \texttt{self} parameter of a witness thunk has a concrete type. If the conforming type was a class though, it would not be correct to use the concrete \texttt{Horse} type, because the witness thunk would then invoke the default implementation with the substitution map $\texttt{Self} := \texttt{Horse}$, and the second call would return an instance of \texttt{Horse} at runtime and not \texttt{Pony}, which would be a type soundness hole.
+
+\begin{listing}\captionabove{Statically and dynamically dispatched calls to a default implementation}\label{covariantselfexample}
+\begin{Verbatim}
+protocol Animal {
+  init()
+  func clone() -> Self
+}
+
+extension Animal {
+  func clone() -> Self {
+    return Self()
+  }
+}
+
+class Horse: Animal {}
+class Pony: Horse {}
+
+func cloneAnimal<A: Animal>(_ animal: A) -> A {
+  return animal.clone()
+}
+
+let newPonyDirect = Pony().clone()
+let newPonyIndirect = cloneAnimal(Pony())
+\end{Verbatim}
+\end{listing}
+
+\Index{protocol Self type@protocol \texttt{Self} type}
+This soundness hole was finally discovered and addressed in Swift~4.1 \cite{sr617}. The solution is to model the covariant behavior of \texttt{Self} with a superclass-constrained generic parameter. When the conforming type is a class, witness thunks dispatching to a default implementation have this special generic parameter, in addition to the generic parameters of the class itself (there are none in our example, so the witness thunk just has the single generic parameter for \texttt{Self}). In the next section, the algorithms for building the substitution map and generic signature all take a boolean flag indicating if a covariant \texttt{Self} type should be introduced. The specific conditions under which this flag is set are a bit subtle:
+\begin{enumerate}
+\item The conforming type must be a non-final class. If the class is final, there is no need to preserve variance since \texttt{Self} is always the exact class type.
+\item The witness must be in a protocol extension. If the witness is a method on the class, there is no way to observe the concrete substitution for the protocol \texttt{Self} type, because it is not a generic parameter of the class method.
+\item (The hack) The interface type of the protocol requirement must not mention any associated types.
+\end{enumerate}
+The determination of whether to use a static or covariant \texttt{Self} type for a class conformance is implemented by the type cheker function \texttt{matchWitness()}.
+
+Indeed, Condition~3 is a hack; it opens up an exception where the soundness hole we worked so hard to close is once again allowed. In an ideal world, Conditions 1~and~2 would be sufficient, but by the time the soundness hole was discovered and closed, existing code had already been written taking advantage of it. The scenario necessitating Condition~3 is when the default implementation appears in a \emph{constrained} protocol extension:
+\begin{Verbatim}
+protocol P {
+  associatedtype T = Self
+  func f() -> T
+}
+
+extension P where Self.T == Self {
+  func f() -> Self { return self }
+}
+
+class C: P {}
+class D: C {}
+\end{Verbatim}
+The non-final class \texttt{C} does not declare a type witness for associated type \texttt{T} of protocol~\texttt{P}. The associated type specifies a default, so conformance checking proceeds with the default type witness. The language model is that a conformance is checked once, at the declaration of \texttt{C}, so the default type \texttt{Self} is the ``static'' \texttt{Self} type of the conformance, which is \texttt{C}. Moving on to value requirements, class \texttt{C} does not provide an implementation of the protocol requirement \texttt{f()} either, and the original intent of this code is that the default implementation of \texttt{f()} from the constrained extension of \texttt{P} should used.
+
+Without Condition~3, the requirement \texttt{Self.T == Self} would not be satisfied when matching the requirement \texttt{f()} with its witness; the left hand side of the requirement, \texttt{C}, is not exactly equal to the right hand side, which is the covariant \texttt{Self} type that is only known to be \emph{some subclass} of \texttt{C}. The conformance would be rejected unless \texttt{C} was declared final. With Condition~3, \texttt{Self.T == Self} is satisfied because the static type \texttt{C} is used in place of \texttt{Self} during witness matching.
+
+The compiler therefore continued to accept the above code, because it worked prior to Swift~4.1. Unfortunately, it means that a call to \texttt{D().f()} via the witness thunk will still return an instance of \texttt{C}, and not \texttt{D} as expected. One day, we might remove this exception and close the soundness hole completely, breaking source compatibility for the above example until the developer makes it type safe by declaring \texttt{C} as final. For now, a good guideline to ensure type safety when mixing classes with protocols is \textsl{only final classes should conform to protocols with associated types}.
+
+\fi
+
+\section{Witness Thunk Signatures}\label{witnessthunksignature}
+
+\ifWIP
+
+Now we turn our attention to the construction of the data recorded in the \texttt{Witness} type. This is done with the aid of the \texttt{RequirementEnvironment} class, which implements the ``builder'' pattern.
+
+Building the witness thunk signature is an expensive operation. The below algorithms only depend on the conformance being checked, the generic signature of a protocol requirement, and whether the witness requires the use of a covariant \texttt{Self} type. These three pieces of information can be used as a uniquing key to cache the results of these algorithms. Conformance checking might need to consider a number of protocol requirements, each requirement having multiple candidate witnesses that have to be checked to find the best one. In the common case, many protocol requirements will share a generic signature---for example, any protocol requirement without generic parameters of its own has the simple generic signature \texttt{<Self where Self:\ P>}. Therefore this caching can eliminate a fair amount of duplicated work.
+
+The \textbf{witness substitution map} is built by the constraint solver when matching the interface type of a witness to the interface type of a requirement. A description of this process is outside of the scope of this manual.
+
+The \textbf{requirement substitution map} is built by mapping the requirement's \texttt{Self} parameter either to the witness thunk's \texttt{Self} parameter (if the witness has a covariant class \texttt{Self} type), or to the concrete conforming type otherwise. All other generic parameters of the requirement map over to generic parameters of the witness thunk, possibly at a different depth. The requirement's \texttt{Self} conformance is always a concrete conformance, even in the covariant \texttt{Self} case, because \texttt{Self} is subject to a superclass requirement in that case. All other conformance requirements of the requirement's generic signature remain abstract.
+
+The \textbf{witness thunk generic signature} is constructed by stitching together the generic signature of the conformance context with the generic signature of the protocol requirement.
+
+\begin{algorithm}[Build the requirement to witness thunk substitution map] As input, takes a normal conformance~\texttt{N}, the generic signature of a protocol requirement~\texttt{G}, and a flag indicating if the witness has a covariant class \texttt{Self} type,~\texttt{F}. Outputs a substitution map for \texttt{G}.
+\begin{enumerate}
+\item Initialize \texttt{R} to an empty list of replacement types.
+\item Initialize \texttt{C} to an empty list of conformances.
+\item (Remapping) First compute the depth at which non-\texttt{Self} generic parameters of \texttt{G} appear in the witness thunk signature. Let $\texttt{G}'$ be the generic signature of \texttt{N}, and let \texttt{D} be one greater than the depth of the last generic parameter of $\texttt{G}'$. If $\texttt{G}'$ has no generic parameters, set $\texttt{D}=0$. If \texttt{F} is set, increment \texttt{d} again.
+\item (Self replacement) If \texttt{F} is set, record the replacement $\ttgp{0}{0} := \ttgp{0}{0}$ in \texttt{R}. Otherwise, let \texttt{T} be the type of \texttt{N}, and record the replacement $\ttgp{0}{0} := \texttt{T}$.
+\item (Remaining replacements) Any remaining generic parameters of \texttt{G} must have a depth of 1. For each remaining generic parameter \ttgp{1}{i},  record the replacement $\ttgp{1}{i}~:=~\ttgp{D}{i}$.
+\item (Self conformance) If \texttt{F} is set, build a substitution map $\texttt{S}$ for $\texttt{G}'$ mapping each generic parameter \ttgp{d}{i} to \ttgp{(d+1)}{i}. Apply this substitution map to \texttt{N} to get a specialized conformance, and record this specialized conformance in \texttt{C}.
+\item (Self conformance) Otherwise if \texttt{F} is not set, just record \texttt{N} in \texttt{C}.
+\item (Remaining conformances) Any remaining conformance requirements in \texttt{G} have a subject type rooted in a generic parameter at depth~1. For each remaining conformance requirement \texttt{T:~P}, record an abstract conformance to \texttt{P} in \texttt{C}. Abstract conformances do not store a conforming type, but if they did, the same remapping process would be applied here.
+\item (Return) Build a substitution map for \texttt{G} from \texttt{R} and \texttt{C}.
+\end{enumerate}
+\end{algorithm}
+
+\begin{algorithm}[Build the witness thunk generic signature] As input, takes a normal conformance~\texttt{N}, the generic signature of a protocol requirement~\texttt{G}, and a flag indicating if the witness has a covariant class \texttt{Self} type,~\texttt{F}. Outputs a substitution map for \texttt{G}.
+\begin{enumerate}
+\item Initialize \texttt{P} to an empty list of generic parameter types.
+\item Initialize \texttt{R} to an empty list of generic requirements.
+\item (Remapping) First compute the depth at which non-\texttt{Self} generic parameters of \texttt{G} appear in the witness thunk signature. Let $\texttt{G}'$ be the generic signature of \texttt{N}, and let \texttt{d} be one greater than the depth of the last generic parameter of $\texttt{G}'$. If $\texttt{G}'$ has no generic parameters, set $\texttt{d}=0$. If \texttt{F} is set, increment \texttt{d} again.
+\item If \texttt{F} is set, we must first introduce a generic parameter and superclass requirement for the covariant \texttt{Self} type:
+\begin{enumerate}
+\item (Self parameter) Add the generic parameter \ttgp{0}{0} to \texttt{P}. This generic parameter will represent the covariant \texttt{Self} type.
+\item (Remap Self type) Build a substitution map for $\texttt{G}'$ mapping each generic parameter \ttgp{d}{i} to \ttgp{(d+1)}{i}. Apply this substitution map to the type of \texttt{N}, and call the result \texttt{T}.
+\item (Self requirement) Add a superclass requirement \texttt{\ttgp{0}{0}:\ T} to \texttt{R}.
+\item (Context generic parameters) For each generic parameter \ttgp{d}{i} in $\texttt{G}'$, add the generic parameter \ttgp{(d+1)}{i} to \texttt{P}.
+\item (Context generic requirements) For each requirement of $\texttt{G}'$, apply \texttt{S} to the requirement and add the substituted requirement to \texttt{R}.
+\end{enumerate}
+\item If \texttt{F} is not set, the generic parameters and requirements of the conformance context carry over unchanged:
+\begin{enumerate}
+\item (Context generic parameters) Add all generic parameters of $\texttt{G}'$ to \texttt{P}.
+\item (Context generic requirements) Add all generic requirements of $\texttt{G}'$ to \texttt{R}.
+\end{enumerate}
+\item (Remaining generic parameters) All non-\texttt{Self} generic parameters of \texttt{G} must have a depth of 1. For each remaining generic parameter \ttgp{1}{i}, add \ttgp{D}{i} to \texttt{P}.
+\item (Trivial case) If no generic parameters have been added to \texttt{P} so far, the witness thunk generic signature is empty. Return.
+\item (Remaining generic requirements) For each generic requirement of \texttt{G}, apply the requirement to witness thunk substitution map to the requirement, and add the substituted requirement to \texttt{R}.
+\item (Return) Build a minimized generic signature from \texttt{P} and \texttt{R} and return the result.
+
+\end{enumerate}
+\end{algorithm}
+
+\vfill
+\eject
+
+\begin{example} If the neither the conforming type nor the witness is generic, and there is no covariant \texttt{Self} parameter, the witness thunk signature is trivial.
+\begin{Verbatim}
+protocol Animal {
+  associatedtype CommodityType: Commodity
+  func produce() -> CommodityType
+}
+
+struct Chicken: Animal {
+  func produce() -> Egg {...}
+}
+\end{Verbatim}
+\begin{description}
+\item[Witness thunk signature] None.
+\item[Witness generic signature] None.
+\item[Witness substitution map] None.
+\item[Requirement generic signature]  \vphantom{a}
+\begin{quote}
+\texttt{<Self where Self:\ Animal>}
+\end{quote}
+\item[Requirement substitution map] The protocol requirement does not have its own generic parameter list, but it still inherits a generic signature from the protocol declaration.
+\[
+\SubstMapC{
+\SubstType{Self}{Chicken}
+}{
+\SubstConf{Self}{Chicken}{Animal}
+}
+\]
+\end{description}
+\end{example}
+
+\vfill
+\eject
+
+\begin{example} Generic conforming type.
+\begin{Verbatim}
+protocol Habitat {
+  associatedtype AnimalType: Animal
+  func adopt(_: AnimalType)
+}
+
+struct Barn<AnimalType: Animal, StallType>: Habitat {
+  func adopt(_: AnimalType) {...}
+}
+\end{Verbatim}
+\begin{description}
+\item[Witness thunk signature]  \vphantom{a}
+\begin{quote}
+\texttt{<\ttgp{0}{0}, \ttgp{0}{1} where \ttgp{0}{0}:\ AnimalType>}
+\end{quote}
+\item[Witness generic signature]  \vphantom{a}
+\begin{quote}
+\texttt{<AnimalType, StallType where AnimalType:\ Animal>}
+\end{quote}
+\item[Witness substitution map] This is actually the identity substitution map because each generic parameter is replaced with its canonical form.
+\[
+\SubstMapC{
+\SubstType{AnimalType}{\ttgp{0}{0}}\\
+\SubstType{StallType}{\ttgp{0}{1}}
+}{
+\SubstConf{AnimalType}{AnimalType}{Animal}
+}
+\]
+
+\item[Requirement generic signature]  \vphantom{a}
+\begin{quote}
+\texttt{<Self where Self:\ Habitat>}
+\end{quote}
+\item[Requirement substitution map] \phantom{a}
+\[
+\SubstMapC{
+\SubstType{Self}{Barn<\ttgp{0}{0}, \ttgp{0}{1}>}
+}{
+\SubstConf{Self}{Barn<\ttgp{0}{0}, \ttgp{0}{1}>}{Habitat}
+}
+\]
+\end{description}
+\end{example}
+
+\vfill
+\eject
+
+\begin{example} Conditional conformance.
+\begin{Verbatim}
+struct Dictionary<Key: Hashable, Value> {...}
+
+extension Dictionary: Equatable where Value: Equatable {
+  static func ==(lhs: Self, rhs: Self) -> Bool {...}
+}
+\end{Verbatim}
+\begin{description}
+\item[Witness thunk signature]  \vphantom{a}
+\begin{quote}
+\texttt{<\ttgp{0}{0}, \ttgp{0}{1} where \ttgp{0}{0}:\ Hashable, \ttgp{0}{1}:\ Equatable>}
+\end{quote}
+\item[Witness generic signature]  \vphantom{a}
+\begin{quote}
+\texttt{<Key, Value where Key:\ Hashable, Value:\ Equatable>}
+\end{quote}
+\item[Witness substitution map] This is again the identity substitution map because each generic parameter is replaced with its canonical form.
+\[
+\SubstMapLongC{
+\SubstType{Key}{\ttgp{0}{0}}\\
+\SubstType{Value}{\ttgp{0}{1}}
+}{
+\SubstConf{Key}{\ttgp{0}{0}}{Hashable}\\
+\SubstConf{Value}{\ttgp{0}{1}}{Equatable}
+}
+\]
+
+\item[Requirement generic signature]  \vphantom{a}
+\begin{quote}
+\texttt{<Self where Self:\ Equatable>}
+\end{quote}
+\item[Requirement substitution map] \vphantom{a}
+\[
+\SubstMapC{
+\SubstType{Self}{Dictionary<\ttgp{0}{0}, \ttgp{0}{1}>}
+}{
+\SubstConf{Self}{Dictionary<\ttgp{0}{0}, \ttgp{0}{1}>}{Equatable}\\
+\text{with conditional requirement \texttt{\ttgp{0}{1}:\ Equatable}}
+}
+\]
+\end{description}
+\end{example}
+
+\vfill
+\eject
+
+\begin{example} Witness is in a protocol extension.
+\begin{Verbatim}
+protocol Shape {
+  var children: [any Shape]
+}
+
+protocol PrimitiveShape:\ Shape {
+  var children: [any Shape] { return [] }
+}
+
+struct Empty: PrimitiveShape {}
+\end{Verbatim}
+\begin{description}
+\item[Witness thunk signature] None.
+\item[Witness generic signature]  \vphantom{a}
+\begin{quote}
+\texttt{<Self where Self:\ PrimitiveShape>}
+\end{quote}
+\item[Witness substitution map] \vphantom{a}
+\[
+\SubstMapC{
+\SubstType{Self}{Empty}
+}{
+\SubstConf{Self}{Empty}{PrimitiveShape}
+}
+\]
+
+\item[Requirement generic signature]  \vphantom{a}
+\begin{quote}
+\texttt{<Self where Self:\ Shape>}
+\end{quote}
+\item[Requirement substitution map] \phantom{a}
+\[
+\SubstMapC{
+\SubstType{Self}{Empty}
+}{
+\SubstConf{Self}{Empty}{Shape}
+}
+\]
+\end{description}
+\end{example}
+
+\vfill
+\eject
+
+\begin{example} Conforming type is a generic class, and the witness is in a protocol extension.
+\begin{Verbatim}
+protocol Cloneable {
+  init(from: Self)
+  func clone() -> Self
+}
+
+extension Cloneable {
+  func clone() -> Self {
+    return Self(from: self)
+  }
+}
+
+class Box<Contents>: Cloneable {
+  var contents: Contents
+
+  required init(from other: Self) {
+    self.contents = other.contents
+  }
+}
+\end{Verbatim}
+\begin{description}
+\item[Witness thunk signature]  \vphantom{a}
+\begin{quote}
+\texttt{<\ttgp{0}{0}, \ttgp{1}{0} where \ttgp{0}{0}:\ Box<\ttgp{1}{0}>>}
+\end{quote}
+\item[Witness generic signature]  \vphantom{a}
+\begin{quote}
+\texttt{<Self where Self:\ Cloneable>}
+\end{quote}
+\item[Witness substitution map] \vphantom{a}
+\[
+\SubstMapC{
+\SubstType{Self}{\ttgp{0}{0}}
+}{
+\SubstConf{Self}{Box<\ttgp{1}{0}>}{Cloneable}
+}
+\]
+
+\item[Requirement generic signature]  \vphantom{a}
+\begin{quote}
+\texttt{<Self where Self:\ Cloneable>}
+\end{quote}
+\item[Requirement substitution map] \phantom{a}
+\[
+\SubstMapC{
+\SubstType{Self}{\ttgp{0}{0}}
+}{
+\SubstConf{Self}{Box<\ttgp{1}{0}>}{Cloneable}
+}
+\]
+\end{description}
+\end{example}
+
+\vfill
+\eject
+
+\begin{example} Requirement is generic.
+\begin{Verbatim}
+protocol Q {}
+
+protocol P {
+  func f<A: Q>(_: A)
+}
+
+struct Outer<T> {
+  struct Inner<U>: P {
+    func f<A: Q>(_: A) {}
+  }
+}
+\end{Verbatim}
+\begin{description}
+\item[Witness thunk signature]  \vphantom{a}
+\begin{quote}
+\texttt{<\ttgp{0}{0}, \ttgp{1}{0}, \ttgp{2}{0} where \ttgp{2}{0}:\ Q>}
+\end{quote}
+\item[Witness generic signature]  \vphantom{a}
+\begin{quote}
+\texttt{<T, U, A where A:\ Q>}
+\end{quote}
+\item[Witness substitution map] \vphantom{a}
+\[
+\SubstMapC{
+\SubstType{T}{\ttgp{0}{0}}\\
+\SubstType{U}{\ttgp{1}{0}}\\
+\SubstType{A}{\ttgp{2}{0}}
+}{
+\SubstConf{A}{\ttgp{2}{0}}{Q}
+}
+\]
+
+\item[Requirement generic signature]  \vphantom{a}
+\begin{quote}
+\texttt{<Self, A where Self:\ P, A:\ Q>}
+\end{quote}
+\item[Requirement substitution map] \phantom{a}
+\[
+\SubstMapC{
+\SubstType{Self}{Outer<\ttgp{0}{0}>.Inner<\ttgp{1}{0}>}\\
+\SubstType{A}{\ttgp{2}{0}}
+}{
+\SubstConf{A}{\ttgp{2}{0}}{Q}
+}
+\]
+\end{description}
+\end{example}
+
+\vfill
+\eject
+
+\begin{example} Witness is more generic than the requirement.
+\begin{Verbatim}
+protocol P {
+  associatedtype A: Equatable
+  associatedtype B: Equatable
+
+  func f(_: A, _: B)
+}
+
+struct S<A: Equatable>: P {
+  typealias B = Int
+
+  func f<T: Equatable, U: Equatable>(_: T, _: U) {}
+}
+\end{Verbatim}
+The type witness for \texttt{A} is the generic parameter \texttt{A}, and the type witness for \texttt{B} is the concrete type \texttt{Int}.
+The witness \texttt{S.f()} for \texttt{P.f()} is generic, and can be called with any two types that conform to \texttt{Equatable}. Since the type witnesses for \texttt{A} and \texttt{B} are both \texttt{Equatable}, a fixed specialization of \texttt{S.f()} witnesses \texttt{P.f()}.
+
+\begin{description}
+\item[Witness thunk signature] \vphantom{a}
+\begin{quote}
+\texttt{<\ttgp{0}{0} where \ttgp{0}{0}:\ Equatable>}
+\end{quote}
+\item[Witness generic signature] \vphantom{a}
+\begin{quote}
+\texttt{<A, T, U where A:\ Equatable, T:\ Equatable, U:\ Equatable>}
+\end{quote}
+\item[Witness substitution map] \vphantom{a}
+\[
+\SubstMapC{
+\SubstType{A}{\ttgp{0}{0}}\\
+\SubstType{T}{\ttgp{0}{0}}\\
+\SubstType{U}{Int}
+}{
+\SubstConf{A}{\ttgp{0}{0}}{Equatable}\\
+\SubstConf{T}{\ttgp{0}{0}}{Equatable}\\
+\SubstConf{U}{Int}{Equatable}
+}
+\]
+
+\item[Requirement generic signature]  \vphantom{a}
+\begin{quote}
+\texttt{<Self where Self:\ P>}
+\end{quote}
+\item[Requirement substitution map] \phantom{a}
+\[
+\SubstMapC{
+\SubstType{Self}{S<\ttgp{0}{0}>}
+}{
+\SubstConf{Self}{S<\ttgp{0}{0}>}{P}
+}
+\]
+\end{description}
+\end{example}
+
+\fi
+
+\section{Source Code Reference}
+
+\end{document}

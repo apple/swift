@@ -283,8 +283,9 @@ public:
 
   virtual bool isUnsafeCXXMethod(const FuncDecl *func) = 0;
 
-  virtual Type importFunctionReturnType(const clang::FunctionDecl *clangDecl,
-                                        DeclContext *dc) = 0;
+  virtual llvm::Optional<Type>
+  importFunctionReturnType(const clang::FunctionDecl *clangDecl,
+                           DeclContext *dc) = 0;
 
   virtual Type importVarDeclType(const clang::VarDecl *clangDecl,
                                  VarDecl *swiftDecl,

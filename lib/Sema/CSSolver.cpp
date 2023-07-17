@@ -188,6 +188,11 @@ Solution ConstraintSystem::finalize() {
     solution.keyPathComponentTypes.insert(keyPathComponentType);
   }
 
+  // Remember key paths.
+  for (const auto &keyPaths : KeyPaths) {
+    solution.KeyPaths.insert(keyPaths);
+  }
+
   // Remember contextual types.
   for (auto &entry : contextualTypes) {
     solution.contextualTypes.push_back({entry.first, entry.second.first});
@@ -309,6 +314,11 @@ void ConstraintSystem::applySolution(const Solution &solution) {
   for (auto &nodeType : solution.keyPathComponentTypes) {
     setType(nodeType.getFirst().first, nodeType.getFirst().second,
             nodeType.getSecond());
+  }
+
+  // Add key paths.
+  for (const auto &keypath : solution.KeyPaths) {
+    KeyPaths.insert(keypath);
   }
 
   // Add the contextual types.
@@ -624,6 +634,7 @@ ConstraintSystem::SolverScope::SolverScope(ConstraintSystem &cs)
   numDefaultedConstraints = cs.DefaultedConstraints.size();
   numAddedNodeTypes = cs.addedNodeTypes.size();
   numAddedKeyPathComponentTypes = cs.addedKeyPathComponentTypes.size();
+  numKeyPaths = cs.KeyPaths.size();
   numDisabledConstraints = cs.solverState->getNumDisabledConstraints();
   numFavoredConstraints = cs.solverState->getNumFavoredConstraints();
   numResultBuilderTransformed = cs.resultBuilderTransformed.size();
@@ -734,6 +745,9 @@ ConstraintSystem::SolverScope::~SolverScope() {
     }
   }
   truncate(cs.addedKeyPathComponentTypes, numAddedKeyPathComponentTypes);
+
+  /// Remove any key path expressions.
+  truncate(cs.KeyPaths, numKeyPaths);
 
   /// Remove any builder transformed closures.
   truncate(cs.resultBuilderTransformed, numResultBuilderTransformed);

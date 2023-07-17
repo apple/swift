@@ -739,6 +739,21 @@ static void setPointerAuthOptions(PointerAuthOptions &opts,
   opts.ProtocolConformanceDescriptorsAsArguments =
       PointerAuthSchema(dataKey, /*address*/ false, Discrimination::Decl);
 
+  opts.ProtocolDescriptorsAsArguments =
+      PointerAuthSchema(dataKey, /*address*/ false, Discrimination::Decl);
+
+  opts.OpaqueTypeDescriptorsAsArguments =
+      PointerAuthSchema(dataKey, /*address*/ false, Discrimination::Decl);
+
+  opts.ContextDescriptorsAsArguments =
+      PointerAuthSchema(dataKey, /*address*/ false, Discrimination::Decl);
+
+  opts.OpaqueTypeDescriptorsAsArguments =
+      PointerAuthSchema(dataKey, /*address*/ false, Discrimination::Decl);
+
+  opts.ContextDescriptorsAsArguments =
+      PointerAuthSchema(dataKey, /*address*/ false, Discrimination::Decl);
+
   // Coroutine resumption functions are never stored globally in the ABI,
   // so we can do some things that aren't normally okay to do.  However,
   // we can't use ASIB because that would break ARM64 interoperation.

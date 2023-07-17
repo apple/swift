@@ -2283,6 +2283,22 @@ public:
     }
   }
 
+  bool checkBoundInOutVarDecl(PatternBindingDecl *pbd, unsigned patternIndex,
+                              const Pattern *p, VarDecl *vd) {
+    // If our var decl doesn't have an initial value, error. We always want an
+    // inout var decl to have an lvalue initial value that it is binding to.
+    auto *expr = pbd->getInit(patternIndex);
+    assert(expr && "Code assumes that we checked for validity");
+
+    // Next make sure that our initial value was an lvalue.
+    if (!isa<LoadExpr>(expr)) {
+      vd->diagnose(diag::referencebindings_binding_must_be_to_lvalue, "inout");
+      return false;
+    }
+
+    return true;
+  }
+
   void visitPatternBindingDecl(PatternBindingDecl *PBD) {
     DeclContext *DC = PBD->getDeclContext();
 
@@ -2308,6 +2324,11 @@ public:
       Pat->forEachVariable([&](VarDecl *var) {
         this->visitBoundVariable(var);
 
+        auto markVarAndPBDInvalid = [PBD, var] {
+          PBD->setInvalid();
+          var->setInvalid();
+        };
+
         if (PBD->isInitialized(i)) {
           // Add the attribute that preserves the "has an initializer" value
           // across module generation, as required for TBDGen.
@@ -2316,6 +2337,15 @@ public:
             var->getAttrs().add(new (Ctx)
                                     HasInitialValueAttr(/*IsImplicit=*/true));
           }
+
+          // If we fail to check the bound inout introducer, mark the variable
+          // and pbd invalid().
+          if (var->getIntroducer() == VarDecl::Introducer::InOut) {
+            if (!checkBoundInOutVarDecl(PBD, i, Pat, var)) {
+              markVarAndPBDInvalid();
+            }
+          }
+
           return;
         }
 
@@ -2333,11 +2363,6 @@ public:
         if (var->isInvalid() || PBD->isInvalid())
           return;
 
-        auto markVarAndPBDInvalid = [PBD, var] {
-          PBD->setInvalid();
-          var->setInvalid();
-        };
-        
         // Properties with an opaque return type need an initializer to
         // determine their underlying type.
         if (var->getOpaqueResultTypeDecl()) {
@@ -2390,6 +2415,14 @@ public:
           var->diagnose(diag::global_requires_initializer, var->isLet());
           var->diagnose(diag::static_requires_initializer_add_init)
             .fixItInsert(Pat->getEndLoc(), " = <#initializer#>");
+          markVarAndPBDInvalid();
+          return;
+        }
+
+        // Inout VarDecls need to have an initializer.
+        if (var->getIntroducer() == VarDecl::Introducer::InOut) {
+          var->diagnose(diag::referencebindings_binding_must_have_initial_value,
+                        "inout");
           markVarAndPBDInvalid();
           return;
         }

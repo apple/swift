@@ -1,6 +1,6 @@
 // RUN: %empty-directory(%t)
 // RUN: %target-swift-frontend %s -module-name SkipProtocolImplementations -emit-module -emit-module-path %t/SkipProtocolImplementations.swiftmodule -emit-symbol-graph -emit-symbol-graph-dir %t/ -skip-protocol-implementations
-// RUN: %{python} -m json.tool %t/SkipProtocolImplementations.symbols.json %t/SkipProtocolImplementations.formatted.symbols.json
+// RUN: %validate-json %t/SkipProtocolImplementations.symbols.json %t/SkipProtocolImplementations.formatted.symbols.json
 // RUN: %FileCheck %s --input-file %t/SkipProtocolImplementations.formatted.symbols.json
 // RUN: %FileCheck %s --input-file %t/SkipProtocolImplementations.formatted.symbols.json --check-prefix COUNT
 

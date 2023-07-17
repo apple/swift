@@ -217,11 +217,9 @@ struct FragileFunctionKind {
   };
 
   Kind kind = None;
-  bool allowUsableFromInline = false;
 
   friend bool operator==(FragileFunctionKind lhs, FragileFunctionKind rhs) {
-    return (lhs.kind == rhs.kind &&
-            lhs.allowUsableFromInline == rhs.allowUsableFromInline);
+    return lhs.kind == rhs.kind;
   }
 
   /// Casts to `unsigned` for diagnostic %selects.

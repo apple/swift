@@ -38,7 +38,7 @@
 #endif
 
 
-#if defined(_M_ARM) || defined(__arm__) || defined(__aarch64__)
+#if defined(_M_ARM) || defined(_M_ARM64) || defined(__arm__) || defined(__aarch64__)
 #define SWIFT_HAS_MSVC_ARM_ATOMICS 1
 #else
 #define SWIFT_HAS_MSVC_ARM_ATOMICS 0

@@ -212,6 +212,8 @@ UID_KEYS = [
     KEY('Expansions', 'key.expansions'),
     KEY('MacroRoles', 'key.macro_roles'),
     KEY('ExpandedMacroReplacements', 'key.expanded_macro_replacements'),
+    KEY('IndexStorePath', 'key.index_store_path'),
+    KEY('IndexUnitOutputPath', 'key.index_unit_output_path'),
 ]
 
 
@@ -279,6 +281,7 @@ UID_REQUESTS = [
     REQUEST('EnableRequestBarriers', 'source.request.enable_request_barriers'),
     REQUEST('SyntacticMacroExpansion',
             'source.request.syntactic_macro_expansion'),
+    REQUEST('IndexToStore', 'source.request.index_to_store'),
 ]
 
 

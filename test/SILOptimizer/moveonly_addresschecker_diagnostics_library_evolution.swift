@@ -17,8 +17,15 @@ public class CopyableKlass {
     var letS = NonEmptyStruct()
 }
 
+public struct CopyableStruct {
+    var k = CopyableKlass()
+}
+
 public func borrowVal(_ x: borrowing NonEmptyStruct) {}
 public func borrowVal(_ x: borrowing EmptyStruct) {}
+public func borrowVal(_ x: borrowing CopyableKlass) {}
+public func borrowVal(_ x: borrowing CopyableStruct) {}
+public func consumeVal(_ x: consuming CopyableKlass) {}
 public func consumeVal(_ x: consuming NonEmptyStruct) {}
 public func consumeVal(_ x: consuming EmptyStruct) {}
 

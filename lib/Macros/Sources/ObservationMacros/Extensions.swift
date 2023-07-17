@@ -58,7 +58,7 @@ extension VariableDeclSyntax {
       guard let decl = accessor.as(AccessorDeclSyntax.self) else {
         return nil
       }
-      if predicate(decl.accessorKind.tokenKind) {
+      if predicate(decl.accessorSpecifier.tokenKind) {
         return decl
       } else {
         return nil
@@ -85,7 +85,7 @@ extension VariableDeclSyntax {
   
   
   var isImmutable: Bool {
-    return bindingKeyword.tokenKind == .keyword(.let)
+    return bindingSpecifier.tokenKind == .keyword(.let)
   }
   
   func isEquivalent(to other: VariableDeclSyntax) -> Bool {
@@ -198,9 +198,9 @@ extension FunctionDeclSyntax {
   var signatureStandin: SignatureStandin {
     var parameters = [String]()
     for parameter in signature.input.parameterList {
-      parameters.append(parameter.firstName.text + ":" + (parameter.type.genericSubstitution(genericParameterClause?.genericParameterList) ?? "" ))
+      parameters.append(parameter.firstName.text + ":" + (parameter.type.genericSubstitution(genericParameterClause?.parameters) ?? "" ))
     }
-    let returnType = signature.output?.returnType.genericSubstitution(genericParameterClause?.genericParameterList) ?? "Void"
+    let returnType = signature.output?.returnType.genericSubstitution(genericParameterClause?.parameters) ?? "Void"
     return SignatureStandin(isInstance: isInstance, identifier: identifier.text, parameters: parameters, returnType: returnType)
   }
   

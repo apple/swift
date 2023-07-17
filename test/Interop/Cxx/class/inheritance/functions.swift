@@ -38,6 +38,13 @@ FunctionsTestSuite.test("Other base member from derived") {
   expectEqual(String(cString: derived.inOtherBase()!), "OtherBase::inOtherBase")
 }
 
+FunctionsTestSuite.test("Unambiguous members from derived") {
+  let derived = Derived()
+  expectEqual(derived.sameMethodNameSameSignature(), 21)
+  expectEqual(derived.sameMethodDifferentSignature(1), 2)
+  expectEqual(derived.sameMethodDifferentSignature(), 18)
+}
+
 FunctionsTestSuite.test("Basic methods from derived * 2") {
   let dd = DerivedFromDerived()
   expectEqual(String(cString: dd.constInBase()!), "Base::constInBase")

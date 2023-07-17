@@ -930,6 +930,9 @@ NOTE(modularization_issue_related_modules,none,
      "the %select{declaration|type}0 %1 moved between related modules; "
      "clang preprocessor macros may affect headers shared between these modules",
      (bool, DeclName))
+NOTE(interface_block_listed_broken,none,
+     "textual interface for %0 is blocklisted as broken; "
+     "interface verification errors are downgraded to warnings", (StringRef))
 
 NOTE(modularization_issue_side_effect_extension_error,none,
      "could not deserialize extension",
@@ -6539,10 +6542,6 @@ ERROR(availability_macro_in_inlinable, none,
 
 #undef FRAGILE_FUNC_KIND
 
-NOTE(resilience_decl_declared_here_public,
-     none, DECL_OR_ACCESSOR "2 %1 is not public",
-     (DescriptiveDeclKind, DeclName, bool))
-
 NOTE(resilience_decl_declared_here,
      none, DECL_OR_ACCESSOR "2 %1 is not '@usableFromInline' or public",
      (DescriptiveDeclKind, DeclName, bool))
@@ -6723,6 +6722,10 @@ WARNING(executor_enqueue_deprecated_owned_job_implementation,Deprecation,
         "'Executor.enqueue(Job)' is deprecated as a protocol requirement; "
         "conform type %0 to 'Executor' by implementing 'func enqueue(ExecutorJob)' instead",
         (Type))
+WARNING(executor_enqueue_unused_implementation, none,
+        "'Executor.enqueue(ExecutorJob)' will never be used, due to the presence of "
+        "'enqueue(UnownedJob)'",
+        ())
 
 //------------------------------------------------------------------------------
 // MARK: property wrapper diagnostics
@@ -7268,6 +7271,9 @@ ERROR(local_extension_macro,none,
 ERROR(extension_macro_invalid_conformance,none,
       "invalid protocol conformance %0 in extension macro",
       (Type))
+ERROR(macro_attached_to_invalid_decl,none,
+      "'%0' macro cannot be attached to %1",
+      (StringRef, DescriptiveDeclKind))
 
 ERROR(macro_resolve_circular_reference, none,
       "circular reference resolving %select{freestanding|attached}0 macro %1",
@@ -7457,6 +7463,9 @@ ERROR(init_accessor_initializes_attribute_on_other_declaration,none,
 ERROR(init_accessor_accesses_attribute_on_other_declaration,none,
       "accesses(...) attribute could only be used with init accessors",
       ())
+ERROR(storage_restrictions_attribute_not_on_init_accessor,none,
+      "@storageRestrictions attribute could only be used with init accessors",
+      ())
 ERROR(init_accessor_property_both_init_and_accessed,none,
       "property %0 cannot be both initialized and accessed",
       (DeclName))
@@ -7476,6 +7485,15 @@ NOTE(out_of_order_access_in_init_accessor,none,
      "init accessor for %0 cannot access stored property %1 because it "
      "is called before %1 is initialized",
      (Identifier, Identifier))
+
+//------------------------------------------------------------------------------
+// MARK: Reference Bindings Errors
+//------------------------------------------------------------------------------
+
+ERROR(referencebindings_binding_must_have_initial_value,none,
+      "%0 bindings must have an initial value", (StringRef))
+ERROR(referencebindings_binding_must_be_to_lvalue,none,
+      "%0 bindings must be bound to an lvalue", (StringRef))
 
 #define UNDEFINE_DIAGNOSTIC_MACROS
 #include "DefineDiagnosticMacros.h"

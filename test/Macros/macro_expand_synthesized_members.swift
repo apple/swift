@@ -19,6 +19,12 @@ macro addMembers() = #externalMacro(module: "MacroDefinition", type: "AddMembers
 )
 macro addMembersQuotedInit() = #externalMacro(module: "MacroDefinition", type: "AddMembers")
 
+#if TEST_DIAGNOSTICS
+@addMembers
+import Swift
+// expected-error@-1 {{'member' macro cannot be attached to import}}
+#endif
+
 @addMembers
 struct S {
   func useSynthesized() {

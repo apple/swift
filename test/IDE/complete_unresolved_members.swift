@@ -262,7 +262,7 @@ class C6 {
 
 class C6 {
   func f1(e: SomeEnum1) {
-    if let x = Optional(e) where x == .#^UNRESOLVED_25?check=UNRESOLVED_3^#
+    if let x = Optional(e) where x == .#^UNRESOLVED_25?check=UNRESOLVED_3_OPT^#
   }
 }
 class C7 {}

@@ -2373,26 +2373,22 @@ static CanSILFunctionType getSILFunctionTypeForInitAccessor(
   // Drop `self` parameter.
   inputs.pop_back();
 
-  // `accesses(...)` appear as `inout` parameters because they could be
+  // accessed properties appear as `inout` parameters because they could be
   // read from and modified.
-  if (auto *attr = accessor->getAttrs().getAttribute<AccessesAttr>()) {
-    for (auto *property : attr->getPropertyDecls(accessor)) {
-      inputs.push_back(
-          SILParameterInfo(property->getInterfaceType()->getCanonicalType(),
-                           ParameterConvention::Indirect_Inout));
-    }
+  for (auto *property : accessor->getAccessedProperties()) {
+    inputs.push_back(
+        SILParameterInfo(property->getInterfaceType()->getCanonicalType(),
+                         ParameterConvention::Indirect_Inout));
   }
 
   SmallVector<SILResultInfo, 8> results;
 
-  // `initializes(...)` appear as `@out` result because they are initialized
-  // by the accessor.
-  if (auto *attr = accessor->getAttrs().getAttribute<InitializesAttr>()) {
-    for (auto *property : attr->getPropertyDecls(accessor)) {
-      results.push_back(
-          SILResultInfo(property->getInterfaceType()->getCanonicalType(),
-                        ResultConvention::Indirect));
-    }
+  // initialized properties appear as `@out` results because they are
+  // initialized by the accessor.
+  for (auto *property : accessor->getInitializedProperties()) {
+    results.push_back(
+        SILResultInfo(property->getInterfaceType()->getCanonicalType(),
+                      ResultConvention::Indirect));
   }
 
   auto calleeConvention = ParameterConvention::Direct_Unowned;

@@ -1,0 +1,37 @@
+// RUN: %target-sil-opt -module-name main -sil-move-only-checker -enable-sil-verify-all %s | %FileCheck %s
+
+// No uses, shared linkage. Can delete and make private
+// CHECK-LABEL: sil private{{.*}} @unused_shared
+// CHECK:         unreachable
+sil shared [_semantics "sil.optimizer.moveonly.delete_if_unused"] [ossa] @unused_shared : $@convention(thin) () -> () {
+entry:
+  return undef : $()
+}
+
+// No uses, private linkage. Can delete
+// CHECK-LABEL: sil private{{.*}} @unused_private
+// CHECK:         unreachable
+sil private [_semantics "sil.optimizer.moveonly.delete_if_unused"] [ossa] @unused_private : $@convention(thin) () -> () {
+entry:
+  return undef : $()
+}
+
+// Public linkage. Leave as is
+// CHECK-LABEL: sil {{.*}} @unused_public
+// CHECK:         [[F:%.*]] = function_ref @still_used
+// CHECK:         apply [[F]]()
+// CHECK:         return undef : $()
+sil public [_semantics "sil.optimizer.moveonly.delete_if_unused"] [ossa] @unused_public : $@convention(thin) () -> () {
+entry:
+  %f = function_ref @still_used : $@convention(thin) () -> ()
+  apply %f() : $@convention(thin) () -> ()
+  return undef : $()
+}
+
+// Private linkage but used. Leave as is
+// CHECK-LABEL: sil private{{.*}} @still_used
+// CHECK:         return undef : $()
+sil private [_semantics "sil.optimizer.moveonly.delete_if_unused"] [ossa] @still_used : $@convention(thin) () -> () {
+entry:
+  return undef : $()
+}

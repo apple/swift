@@ -188,6 +188,9 @@ void IRGenModule::emitClangDecl(const clang::Decl *decl) {
       if (isa<clang::TagDecl>(DC)) {
         break;
       }
+      if (isa<clang::LinkageSpecDecl>(DC)) {
+        break;
+      }
       D = cast<const clang::Decl>(DC);
     }
     if (!GlobalClangDecls.insert(D->getCanonicalDecl()).second) {

@@ -189,10 +189,14 @@ bool ExplicitModuleInterfaceBuilder::collectDepsForSerialization(
 
 static bool shouldDowngradeInterfaceVerificationError(const FrontendOptions &opts,
                                                       ASTContext &ctx) {
-  return opts.DowngradeInterfaceVerificationError ||
-    ctx.blockListConfig.hasBlockListAction(opts.ModuleName,
-                                           BlockListKeyKind::ModuleName,
-                        BlockListAction::DowngradeInterfaceVerificationFailure);
+  if (ctx.blockListConfig.hasBlockListAction(opts.ModuleName,
+                                             BlockListKeyKind::ModuleName,
+                        BlockListAction::DowngradeInterfaceVerificationFailure)) {
+    ctx.Diags.diagnose(SourceLoc(), diag::interface_block_listed_broken,
+                       opts.ModuleName);
+    return true;
+  }
+  return opts.DowngradeInterfaceVerificationError;
 }
 
 std::error_code ExplicitModuleInterfaceBuilder::buildSwiftModuleFromInterface(

@@ -37,6 +37,9 @@ func test010(x: E1, y: FooBar) {
 // INNER_POSTFIX_0b-NOT: key.description: "one{{.+}}"
 // INNER_POSTFIX_0b: key.description: "one",{{$}}
 // INNER_POSTFIX_0b: key.description: "one.",{{$}}
+// INNER_POSTFIX_0b: key.description: "one==",{{$}}
+// INNER_POSTFIX_0b: key.description: "one!=",{{$}}
+// INNER_POSTFIX_0b: key.description: "one~=",{{$}}
 // INNER_POSTFIX_0b-NOT: key.description: "one{{.+}}"
 
 // RUN: %sourcekitd-test -req=complete.open -pos=27:9 -req-opts=filtertext=pro %s -- %s | %FileCheck %s -check-prefix=INNER_POSTFIX_1

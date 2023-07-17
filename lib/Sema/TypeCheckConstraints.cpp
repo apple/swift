@@ -120,6 +120,10 @@ bool TypeVariableType::Implementation::isClosureType() const {
   return isExpr<ClosureExpr>(locator->getAnchor()) && locator->getPath().empty();
 }
 
+bool TypeVariableType::Implementation::isTapType() const {
+  return locator && locator->directlyAt<TapExpr>();
+}
+
 bool TypeVariableType::Implementation::isClosureParameterType() const {
   if (!(locator && locator->getAnchor()))
     return false;

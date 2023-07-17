@@ -236,7 +236,7 @@ func test8() {
     }
 // CALLARG: (arg: String)
 // CALLARG: (label: Int)
+// CALLARG: intVal
 // CALLARG: stringVal
 // CALLARG: String
-// CALLARG: intVal
 }

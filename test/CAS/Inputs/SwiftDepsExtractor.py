@@ -27,8 +27,8 @@ with open(input_json, 'r') as file:
             continue
 
         if key in detail.keys():
-            print(detail[key])
+            json.dump(detail[key], sys.stdout, indent=2)
             break
 
-        print(detail['details'][mode][key])
+        json.dump(detail['details'][mode][key], sys.stdout, indent=2)
         break

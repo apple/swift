@@ -1114,12 +1114,12 @@ APInt BuiltinIntegerWidth::parse(StringRef text, unsigned radix, bool negate,
     // Now we can safely negate.
     if (negate) {
       value = -value;
-      assert(value.isNegative() || value.isNullValue());
+      assert(value.isNegative() || value.isZero());
     }
 
     // Truncate down to the minimum number of bits required to express
     // this value exactly.
-    auto requiredBits = value.getMinSignedBits();
+    auto requiredBits = value.getSignificantBits();
     if (value.getBitWidth() > requiredBits)
       value = value.trunc(requiredBits);
 

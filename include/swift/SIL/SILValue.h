@@ -466,8 +466,14 @@ public:
   /// entire use list.
   inline bool hasTwoUses() const;
 
-  /// Helper struct for DowncastUserFilterRange
+  /// Helper struct for DowncastUserFilterRange and UserRange
   struct UseToUser;
+
+  using UserRange =
+      llvm::iterator_range<llvm::mapped_iterator<swift::ValueBaseUseIterator,
+                                                 swift::ValueBase::UseToUser,
+                                                 swift::SILInstruction *>>;
+  inline UserRange getUsers() const;
 
   template <typename Subclass>
   using DowncastUserFilterRange =
@@ -1438,6 +1444,10 @@ struct ValueBase::UseToUser {
   SILInstruction *operator()(Operand *use) { return use->getUser(); }
   SILInstruction *operator()(Operand &use) { return use.getUser(); }
 };
+
+inline ValueBase::UserRange ValueBase::getUsers() const {
+  return llvm::map_range(getUses(), ValueBase::UseToUser());
+}
 
 template <typename T>
 inline ValueBase::DowncastUserFilterRange<T> ValueBase::getUsersOfType() const {

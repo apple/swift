@@ -56,12 +56,24 @@ template <typename Runtime> struct TargetOpaqueMetadata;
 template <typename Runtime> struct TargetValueMetadata;
 template <typename Runtime> struct TargetForeignClassMetadata;
 template <typename Runtime> struct TargetForeignReferenceTypeMetadata;
-template <typename Runtime> struct TargetContextDescriptor;
-template <typename Runtime> class TargetTypeContextDescriptor;
-template <typename Runtime> class TargetClassDescriptor;
-template <typename Runtime> class TargetValueTypeDescriptor;
-template <typename Runtime> class TargetEnumDescriptor;
-template <typename Runtime> class TargetStructDescriptor;
+template <typename Runtime>
+struct swift_ptrauth_struct_context_descriptor(ContextDescriptor)
+    TargetContextDescriptor;
+template <typename Runtime>
+class swift_ptrauth_struct_context_descriptor(TypeContextDescriptor)
+    TargetTypeContextDescriptor;
+template <typename Runtime>
+class swift_ptrauth_struct_context_descriptor(ClassDescriptor)
+    TargetClassDescriptor;
+template <typename Runtime>
+class swift_ptrauth_struct_context_descriptor(ValueTypeDescriptor)
+    TargetValueTypeDescriptor;
+template <typename Runtime>
+class swift_ptrauth_struct_context_descriptor(EnumDescriptor)
+    TargetEnumDescriptor;
+template <typename Runtime>
+class swift_ptrauth_struct_context_descriptor(StructDescriptor)
+    TargetStructDescriptor;
 template <typename Runtime> struct TargetGenericMetadataPattern;
 template <typename Runtime> struct TargetProtocolConformanceDescriptor;
 
@@ -1632,7 +1644,9 @@ TargetTupleTypeMetadata<Runtime>::getOffsetToNumElements() -> StoredSize {
   return offsetof(TargetTupleTypeMetadata<Runtime>, NumElements);
 }
 
-template <typename Runtime> struct TargetProtocolDescriptor;
+template <typename Runtime>
+struct swift_ptrauth_struct_context_descriptor(ProtocolDescriptor)
+    TargetProtocolDescriptor;
 
 /// A protocol requirement descriptor. This describes a single protocol
 /// requirement in a protocol descriptor. The index of the requirement in
@@ -1660,7 +1674,9 @@ struct TargetProtocolRequirement {
 
 using ProtocolRequirement = TargetProtocolRequirement<InProcess>;
 
-template<typename Runtime> struct TargetProtocolDescriptor;
+template <typename Runtime>
+struct swift_ptrauth_struct_context_descriptor(ProtocolDescriptor)
+    TargetProtocolDescriptor;
 using ProtocolDescriptor = TargetProtocolDescriptor<InProcess>;
 
 template<template <typename Runtime> class ObjCInteropKind, unsigned PointerSize>
@@ -2803,12 +2819,14 @@ using ExternalProtocolConformanceDescriptor = TargetProtocolConformanceDescripto
 template<template <typename Runtime> class ObjCInteropKind, unsigned PointerSize>
 using ExternalProtocolConformanceRecord = TargetProtocolConformanceRecord<External<ObjCInteropKind<RuntimeTarget<PointerSize>>>>;
 
-template<typename Runtime>
-struct TargetModuleContextDescriptor;
+template <typename Runtime>
+struct swift_ptrauth_struct_context_descriptor(ModuleContextDescriptor)
+    TargetModuleContextDescriptor;
 
 /// Base class for all context descriptors.
-template<typename Runtime>
-struct TargetContextDescriptor {
+template <typename Runtime>
+struct swift_ptrauth_struct_context_descriptor(ContextDescriptor)
+    TargetContextDescriptor {
   /// Flags describing the context, including its kind and format version.
   ContextDescriptorFlags Flags;
   
@@ -2864,8 +2882,9 @@ inline bool isCImportedModuleName(llvm::StringRef name) {
 }
 
 /// Descriptor for a module context.
-template<typename Runtime>
-struct TargetModuleContextDescriptor final : TargetContextDescriptor<Runtime> {
+template <typename Runtime>
+struct swift_ptrauth_struct_context_descriptor(ModuleContextDescriptor)
+    TargetModuleContextDescriptor final : TargetContextDescriptor<Runtime> {
   /// The module name.
   RelativeDirectPointer<const char, /*nullable*/ false> Name;
 
@@ -2905,8 +2924,9 @@ TargetContextDescriptor<Runtime>::getModuleContext() const {
 }
 
 /// Descriptor for an extension context.
-template<typename Runtime>
-struct TargetExtensionContextDescriptor final
+template <typename Runtime>
+struct swift_ptrauth_struct_context_descriptor(ExtensionContextDescriptor)
+    TargetExtensionContextDescriptor final
     : TargetContextDescriptor<Runtime>,
       TrailingGenericContextObjects<TargetExtensionContextDescriptor<Runtime>>
 {
@@ -2944,8 +2964,9 @@ struct TargetMangledContextName {
   TargetRelativeDirectPointer<Runtime, const char, /*nullable*/ false> name;
 };
 
-template<typename Runtime>
-struct TargetAnonymousContextDescriptor final
+template <typename Runtime>
+struct swift_ptrauth_struct_context_descriptor(AnonymousContextDescriptor)
+    TargetAnonymousContextDescriptor final
     : TargetContextDescriptor<Runtime>,
       TrailingGenericContextObjects<TargetAnonymousContextDescriptor<Runtime>,
                                     TargetGenericContextDescriptorHeader,
@@ -3025,8 +3046,9 @@ using ExternalAnonymousContextDescriptor = TargetAnonymousContextDescriptor<Exte
 /// Only Swift protocols are defined by a protocol descriptor, whereas
 /// Objective-C (including protocols defined in Swift as @objc) use the
 /// Objective-C protocol layout.
-template<typename Runtime>
-struct TargetProtocolDescriptor final
+template <typename Runtime>
+struct swift_ptrauth_struct_context_descriptor(ProtocolDescriptor)
+    TargetProtocolDescriptor final
     : TargetContextDescriptor<Runtime>,
       swift::ABI::TrailingObjects<
         TargetProtocolDescriptor<Runtime>,
@@ -3114,11 +3136,12 @@ public:
     return cd->getKind() == ContextDescriptorKind::Protocol;
   }
 };
-  
+
 /// The descriptor for an opaque type.
 template <typename Runtime>
-struct TargetOpaqueTypeDescriptor final
-  : TargetContextDescriptor<Runtime>,
+struct swift_ptrauth_struct_context_descriptor(OpaqueTypeDescriptor)
+    TargetOpaqueTypeDescriptor final
+    : TargetContextDescriptor<Runtime>,
     TrailingGenericContextObjects<TargetOpaqueTypeDescriptor<Runtime>,
                                   TargetGenericContextDescriptorHeader,
                                   RelativeDirectPointer<const char>>
@@ -3694,8 +3717,8 @@ struct TargetCanonicalSpecializedMetadatasCachingOnceToken {
 };
 
 template <typename Runtime>
-class TargetTypeContextDescriptor
-    : public TargetContextDescriptor<Runtime> {
+class swift_ptrauth_struct_context_descriptor(TypeContextDescriptor)
+    TargetTypeContextDescriptor : public TargetContextDescriptor<Runtime> {
 public:
   /// The name of the type.
   TargetRelativeDirectPointer<Runtime, const char, /*nullable*/ false> Name;
@@ -3917,7 +3940,8 @@ struct TargetObjCResilientClassStubInfo {
 };
 
 template <typename Runtime>
-class TargetClassDescriptor final
+class swift_ptrauth_struct_context_descriptor(ClassDescriptor)
+    TargetClassDescriptor final
     : public TargetTypeContextDescriptor<Runtime>,
       public TrailingGenericContextObjects<TargetClassDescriptor<Runtime>,
                               TargetTypeGenericContextDescriptorHeader,
@@ -4307,8 +4331,8 @@ public:
 using ClassDescriptor = TargetClassDescriptor<InProcess>;
 
 template <typename Runtime>
-class TargetValueTypeDescriptor
-    : public TargetTypeContextDescriptor<Runtime> {
+class swift_ptrauth_struct_context_descriptor(ValueTypeDescriptor)
+    TargetValueTypeDescriptor : public TargetTypeContextDescriptor<Runtime>{
 public:
   static bool classof(const TargetContextDescriptor<Runtime> *cd) {
     return cd->getKind() == ContextDescriptorKind::Struct ||
@@ -4318,7 +4342,8 @@ public:
 using ValueTypeDescriptor = TargetValueTypeDescriptor<InProcess>;
 
 template <typename Runtime>
-class TargetStructDescriptor final
+class swift_ptrauth_struct_context_descriptor(StructDescriptor)
+    TargetStructDescriptor final
     : public TargetValueTypeDescriptor<Runtime>,
       public TrailingGenericContextObjects<TargetStructDescriptor<Runtime>,
                             TargetTypeGenericContextDescriptorHeader,
@@ -4445,7 +4470,8 @@ public:
 using StructDescriptor = TargetStructDescriptor<InProcess>;
 
 template <typename Runtime>
-class TargetEnumDescriptor final
+class swift_ptrauth_struct_context_descriptor(EnumDescriptor)
+    TargetEnumDescriptor final
     : public TargetValueTypeDescriptor<Runtime>,
       public TrailingGenericContextObjects<TargetEnumDescriptor<Runtime>,
                             TargetTypeGenericContextDescriptorHeader,

@@ -10,10 +10,6 @@ enum E {
   case B(AnyObject)
 }
 
-enum GenE<T> {
-  case A(Int)
-  case B(T)
-}
 // CHECK-LABEL: sil @optional_int
 // CHECK:         %2 = enum $Optional<Int>, #Optional.some!enumelt, %1 : $Int
 // CHECK:         store %2 to %0 : $*Optional<Int>
@@ -59,6 +55,11 @@ bb0(%0 : $*E, %1 : $Int):
   return %5 : $()
 }
 
+enum GenE<T> {
+  case A(Int)
+  case B(T)
+}
+
 // CHECK-LABEL: sil [ossa] @not_loadable
 // CHECK:         %2 = init_enum_data_addr
 // CHECK:         store %1 to [trivial] %2
@@ -73,3 +74,24 @@ bb0(%0 : $*GenE<T>, %1 : $Int):
   return %5 : $()
 }
 
+enum F {
+  case A(UnsafeMutableRawPointer)
+  case B(AnyObject)
+}
+
+// CHECK-LABEL: sil [ossa] @enum_data_addr
+// CHECK:         %2 = struct $UnsafeMutableRawPointer (%1 : $Builtin.RawPointer)
+// CHECK:         %3 = enum $F, #F.A!enumelt, %2 : $UnsafeMutableRawPointer
+// CHECK:         store %3 to [init] %0 : $*F
+// CHECK:         %5 = tuple ()
+// CHECK:         return %5
+// CHECK:       } // end sil function 'enum_data_addr'
+sil [ossa] @enum_data_addr : $@convention(thin) (Builtin.RawPointer) -> @out F {
+bb0(%0 : $*F, %1 : $Builtin.RawPointer):
+  %2 = init_enum_data_addr %0 : $*F, #F.A!enumelt
+  %3 = struct $UnsafeMutableRawPointer (%1 : $Builtin.RawPointer)
+  store %3 to [trivial] %2 : $*UnsafeMutableRawPointer
+  inject_enum_addr %0 : $*F, #F.A!enumelt
+  %6 = tuple ()
+  return %6 : $()
+}

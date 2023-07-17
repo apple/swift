@@ -7650,6 +7650,13 @@ public:
   /// for anything other than a getter or setter.
   void printUserFacingName(llvm::raw_ostream &out) const;
 
+  /// If this is an init accessor, retrieve a list of instance properties
+  /// initialized by it.
+  ArrayRef<VarDecl *> getInitializedProperties() const;
+  /// If this is an init accessor, retrieve a list of instance properties
+  /// accessed by it.
+  ArrayRef<VarDecl *> getAccessedProperties() const;
+
   static bool classof(const Decl *D) {
     return D->getKind() == DeclKind::Accessor;
   }

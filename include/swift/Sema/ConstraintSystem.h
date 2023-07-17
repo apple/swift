@@ -472,6 +472,9 @@ public:
   /// Determine whether this type variable represents a closure type.
   bool isClosureType() const;
 
+  /// Determine whether this type variable represents a type of tap expression.
+  bool isTapType() const;
+
   /// Determine whether this type variable represents one of the
   /// parameter types associated with a closure.
   bool isClosureParameterType() const;
@@ -935,6 +938,9 @@ enum ScoreKind: unsigned int {
   /// A reference to an @unavailable declaration.
   SK_Unavailable,
   /// A reference to an async function in a synchronous context.
+  ///
+  /// \note Any score kind after this is considered a conversion that doesn't
+  /// require fixing the source and will be ignored during code completion.
   SK_AsyncInSyncMismatch,
   /// Synchronous function in an asynchronous context or a conversion of
   /// a synchronous function to an asynchronous one.
@@ -1492,6 +1498,13 @@ public:
   /// The key path component types introduced by this solution.
   llvm::DenseMap<std::pair<const KeyPathExpr *, unsigned>, Type>
       keyPathComponentTypes;
+
+  /// The key path expression and its root type, value type, and decl context
+  /// introduced by this solution.
+  llvm::MapVector<const KeyPathExpr *,
+                  std::tuple</*root=*/TypeVariableType *,
+                             /*value=*/TypeVariableType *, DeclContext *>>
+      KeyPaths;
 
   /// Contextual types introduced by this solution.
   std::vector<std::pair<ASTNode, ContextualTypeInfo>> contextualTypes;
@@ -2158,6 +2171,12 @@ private:
       std::tuple<const KeyPathExpr *, /*component index=*/unsigned, Type>>
       addedKeyPathComponentTypes;
 
+  /// Maps a key path root, value, and decl context to the key path expression.
+  llvm::MapVector<const KeyPathExpr *,
+                  std::tuple</*root=*/TypeVariableType *,
+                             /*value=*/TypeVariableType *, DeclContext *>>
+      KeyPaths;
+
   /// Maps AST entries to their targets.
   llvm::MapVector<SyntacticElementTargetKey, SyntacticElementTarget> targets;
 
@@ -2790,6 +2809,9 @@ public:
     /// The length of \c ImplicitValueConversions.
     unsigned numImplicitValueConversions;
 
+    /// The length of \c KeyPaths.
+    unsigned numKeyPaths;
+
     /// The length of \c ArgumentLists.
     unsigned numArgumentLists;
 
@@ -3421,6 +3443,11 @@ public:
   void recordCallAsFunction(UnresolvedDotExpr *root, ArgumentList *arguments,
                             ConstraintLocator *locator);
 
+  /// Record root, value, and declContext of keypath expression for use across
+  /// constraint system.
+  void recordKeyPath(KeyPathExpr *keypath, TypeVariableType *root,
+                     TypeVariableType *value, DeclContext *dc);
+
   /// Walk a closure AST to determine its effects.
   ///
   /// \returns a function's extended info describing the effects, as
@@ -3951,6 +3978,20 @@ public:
   /// \returns `true` if pack expansion has been resolved, `false` otherwise.
   bool resolvePackExpansion(TypeVariableType *typeVar, Type contextualType);
 
+  /// Bind tap expression to the given contextual type and generate
+  /// constraints for its body.
+  ///
+  /// \param typeVar The type variable representing the tap expression.
+  /// \param contextualType The contextual type this tap expression
+  /// would be bound to.
+  /// \param locator The locator associated with contextual type.
+  ///
+  /// \returns `true` if it was possible to generate constraints for
+  /// the body and assign fixed type to the tap expression, `false`
+  /// otherwise.
+  bool resolveTapBody(TypeVariableType *typeVar, Type contextualType,
+                      ConstraintLocatorBuilder locator);
+
   /// Assign a fixed type to the given type variable.
   ///
   /// \param typeVar The type variable to bind.
@@ -4353,6 +4394,14 @@ public:
   generateConstraints(SyntacticElementTarget &target,
                       FreeTypeVariableBinding allowFreeTypeVariables =
                           FreeTypeVariableBinding::Disallow);
+
+  /// Generate constraints for the body of the given tap expression.
+  ///
+  /// \param tap the tap expression
+  ///
+  /// \returns \c true if constraint generation failed, \c false otherwise
+  [[nodiscard]]
+  bool generateConstraints(TapExpr *tap);
 
   /// Generate constraints for the body of the given function or closure.
   ///
@@ -4938,6 +4987,13 @@ private:
                                            TypeMatchOptions flags,
                                            ConstraintLocatorBuilder locator);
 
+  /// Remove the tuple wrapping of left-hand type if it contains only a single
+  /// unlabeled element that is a pack expansion.
+  SolutionKind
+  simplifyMaterializePackExpansionConstraint(Type type1, Type type2,
+                                             TypeMatchOptions flags,
+                                             ConstraintLocatorBuilder locator);
+
 public: // FIXME: Public for use by static functions.
   /// Simplify a conversion constraint with a fix applied to it.
   SolutionKind simplifyFixConstraint(ConstraintFix *fix, Type type1, Type type2,
@@ -5203,7 +5259,8 @@ private:
 public:
   /// Increase the score of the given kind for the current (partial) solution
   /// along the.
-  void increaseScore(ScoreKind kind, unsigned value = 1);
+  void increaseScore(ScoreKind kind, ConstraintLocatorBuilder Locator,
+                     unsigned value = 1);
 
   /// Determine whether this solution is guaranteed to be worse than the best
   /// solution found so far.
@@ -5284,6 +5341,22 @@ public:
       std::function<
           llvm::Optional<SyntacticElementTarget>(SyntacticElementTarget)>
           rewriteTarget);
+
+  /// Apply the given solution to the given tap expression.
+  ///
+  /// \param solution The solution to apply.
+  /// \param tapExpr The tap expression to which the solution is being applied.
+  /// \param currentDC The declaration context in which transformations
+  /// will be applied.
+  /// \param rewriteTarget Function that performs a rewrite of any
+  /// solution application target within the context.
+  ///
+  /// \returns true if solution cannot be applied.
+  bool applySolutionToBody(Solution &solution, TapExpr *tapExpr,
+                           DeclContext *&currentDC,
+                           std::function<llvm::Optional<SyntacticElementTarget>(
+                               SyntacticElementTarget)>
+                               rewriteTarget);
 
   /// Reorder the disjunctive clauses for a given expression to
   /// increase the likelihood that a favored constraint will be successfully
@@ -5480,7 +5553,8 @@ public:
     }
 
     cs.addConstraint(ConstraintKind::PackElementOf, elementType,
-                     packType, cs.getConstraintLocator(elementEnv));
+                     packType->getRValueType(),
+                     cs.getConstraintLocator(elementEnv));
     return elementType;
   }
 };
@@ -6162,6 +6236,9 @@ Type isPlaceholderVar(PatternBindingDecl *PB);
 void dumpAnchor(ASTNode anchor, SourceManager *SM, raw_ostream &out);
 
 bool isSingleUnlabeledPackExpansionTuple(Type type);
+
+/// \returns null if \c type is not a single unlabeled pack expansion tuple.
+Type getPatternTypeOfSingleUnlabeledPackExpansionTuple(Type type);
 
 } // end namespace constraints
 

@@ -711,7 +711,7 @@ void BridgedAliasAnalysis::registerAnalysis(GetMemEffectFn getMemEffectsFn,
   canReferenceSameFieldFunction = canReferenceSameFieldFn;
 }
 
-MemoryBehavior AliasAnalysis::getMemoryBehaviorOfInst(
+MemoryBehavior AliasAnalysis::getMemoryEffectOnEscapedAddress(
             SILValue addr, SILInstruction *toInst) {
   if (getMemEffectsFunction) {
     return (MemoryBehavior)getMemEffectsFunction({PM->getSwiftPassInvocation()}, {addr},

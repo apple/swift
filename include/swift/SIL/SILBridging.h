@@ -369,6 +369,8 @@ struct BridgedGlobalVar {
   inline OptionalBridgedInstruction getStaticInitializerValue() const;
 
   bool canBeInitializedStatically() const;
+  
+  bool mustBeInitializedStatically() const;
 };
 
 struct OptionalBridgedGlobalVar {

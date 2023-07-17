@@ -6,6 +6,6 @@
 import arm64
 
 // RUN: %target-swift-frontend -scan-dependencies %s -o %t/deps.json -I %t -target arm64-apple-macos11.0
-// RUN: %FileCheck %s < %t/deps.json
+// RUN: %validate-json %t/deps.json | %FileCheck %s
 
 // CHECK-NOT: arm64e-apple-macos11.0

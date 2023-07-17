@@ -10,6 +10,7 @@
 // RUN:   %t/Test.swift -o %t/deps.json -cache-compile-job -cas-path %t/cas -clang-include-tree \
 // RUN:   -Xcc -fmodule-map-file=%t/module.modulemap -Xcc -ivfsoverlay -Xcc %t/empty.yaml \
 // RUN:   -Xcc -I%t/empty.hmap
+// RUN: %validate-json %t/deps.json &>/dev/null
 
 // RUN: %S/Inputs/SwiftDepsExtractor.py %t/deps.json deps casFSRootID > %t/fs.casid
 // RUN: llvm-cas --cas %t/cas --ls-tree-recursive @%t/fs.casid | %FileCheck %s -DDIR=%basename_t -check-prefix FS_ROOT

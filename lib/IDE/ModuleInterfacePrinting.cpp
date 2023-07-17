@@ -576,10 +576,10 @@ void swift::ide::printModuleInterface(
 
         // If we're supposed to visit submodules, add them now.
         if (TraversalOptions & ModuleTraversal::VisitSubmodules) {
-          for (auto Sub = CM->submodule_begin(), SubEnd = CM->submodule_end();
-               Sub != SubEnd; ++Sub) {
-            if (Visited.insert(*Sub).second)
-              Worklist.push_back(*Sub);
+          for (clang::Module * submodule: CM->submodules()) {
+            if (Visited.insert(submodule).second) {
+                Worklist.push_back(submodule);
+            }
           }
         }
       }
@@ -593,9 +593,8 @@ void swift::ide::printModuleInterface(
   llvm::SmallPtrSet<const clang::Module *, 16> NoImportSubModules;
   if (TargetClangMod) {
     // Assume all submodules are missing.
-    for (auto It = TargetClangMod->submodule_begin();
-         It != TargetClangMod->submodule_end(); ++It) {
-      NoImportSubModules.insert(*It);
+    for (clang::Module *submodule: TargetClangMod->submodules()) {
+      NoImportSubModules.insert(submodule);
     }
   }
   llvm::StringMap<std::vector<Decl*>> FileRangedDecls;

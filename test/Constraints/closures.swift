@@ -624,7 +624,10 @@ extension P_47606 {
 let u = rdar33296619().element //expected-error {{cannot find 'rdar33296619' in scope}}
 
 [1].forEach { _ in
-  _ = "\(u)"
+  _ = "\(u)" // No diagnostic because `u` is already diagnosed and marked as invalid
+}
+
+[1].forEach { _ in
   _ = 1 + "hi" // expected-error {{binary operator '+' cannot be applied to operands of type 'Int' and 'String'}}
   // expected-note@-1 {{overloads for '+' exist with these partially matching parameter lists: (Int, Int), (String, String)}}
 }

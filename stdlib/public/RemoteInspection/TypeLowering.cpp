@@ -653,13 +653,16 @@ public:
 // }
 // ```
 class TaggedMultiPayloadEnumTypeInfo: public EnumTypeInfo {
+  unsigned NumEffectivePayloadCases;
 public:
   TaggedMultiPayloadEnumTypeInfo(unsigned Size, unsigned Alignment,
                            unsigned Stride, unsigned NumExtraInhabitants,
                            bool BitwiseTakable,
-                           const std::vector<FieldInfo> &Cases)
+                           const std::vector<FieldInfo> &Cases,
+                           unsigned NumEffectivePayloadCases)
     : EnumTypeInfo(Size, Alignment, Stride, NumExtraInhabitants,
-                   BitwiseTakable, EnumKind::MultiPayloadEnum, Cases) {
+                   BitwiseTakable, EnumKind::MultiPayloadEnum, Cases),
+      NumEffectivePayloadCases(NumEffectivePayloadCases) {
     // Definition of "multi-payload enum"
     assert(getCases().size() > 1); // At least 2 cases
     assert(Cases[0].TR != 0); // At least 2 payloads
@@ -698,7 +701,7 @@ public:
                         remote::RemoteAddress address,
                         int *CaseIndex) const override {
     unsigned long PayloadSize = getPayloadSize();
-    unsigned PayloadCount = getNumPayloadCases();
+    unsigned PayloadCount = NumEffectivePayloadCases;
     unsigned NumCases = getNumCases();
     unsigned TagSize = getSize() - PayloadSize;
     unsigned tag = 0;
@@ -1030,15 +1033,24 @@ private:
 // bits in the payload.
 class MultiPayloadEnumTypeInfo: public EnumTypeInfo {
   BitMask spareBitsMask;
+  // "Effective" payload cases includes those with
+  // generic payload and non-generic cases that are
+  // statically known to have non-zero size.
+  // It does not include cases with payloads that are
+  // non-generic and zero-sized (these are treated as
+  // non-payload cases for many purposes).
+  unsigned NumEffectivePayloadCases;
 public:
   MultiPayloadEnumTypeInfo(unsigned Size, unsigned Alignment,
                            unsigned Stride, unsigned NumExtraInhabitants,
                            bool BitwiseTakable,
                            const std::vector<FieldInfo> &Cases,
-                           BitMask spareBitsMask)
+                           BitMask spareBitsMask,
+                           unsigned NumEffectivePayloadCases)
     : EnumTypeInfo(Size, Alignment, Stride, NumExtraInhabitants,
                    BitwiseTakable, EnumKind::MultiPayloadEnum, Cases),
-      spareBitsMask(spareBitsMask) {
+      spareBitsMask(spareBitsMask),
+      NumEffectivePayloadCases(NumEffectivePayloadCases) {
     assert(Cases[0].TR != 0);
     assert(Cases[1].TR != 0);
     assert(getNumNonEmptyPayloadCases() > 1);
@@ -1125,7 +1137,6 @@ public:
                         remote::RemoteAddress address,
                         int *CaseIndex) const override {
     unsigned long payloadSize = getPayloadSize();
-    unsigned NumPayloadCases = getNumPayloadCases();
 
     // Extra Tag (if any) holds upper bits of case value
     auto extraTagSize = getSize() - payloadSize;
@@ -1156,7 +1167,7 @@ public:
     }
 
     // If the above identifies a payload case, we're done
-    if (static_cast<unsigned>(tagValue) < NumPayloadCases) {
+    if (static_cast<unsigned>(tagValue) < NumEffectivePayloadCases) {
       *CaseIndex = tagValue;
       return true;
     }
@@ -1173,9 +1184,9 @@ public:
 
     int ComputedCase = 0;
     if (occupiedBitCount >= 32) {
-      ComputedCase = payloadValue + NumPayloadCases;
+      ComputedCase = payloadValue + NumEffectivePayloadCases;
     } else {
-      ComputedCase = (((tagValue - NumPayloadCases) << occupiedBitCount) |  payloadValue) + NumPayloadCases;
+      ComputedCase = (((tagValue - NumEffectivePayloadCases) << occupiedBitCount) |  payloadValue) + NumEffectivePayloadCases;
     }
 
     if (static_cast<unsigned>(ComputedCase) < getNumCases()) {
@@ -1193,8 +1204,8 @@ public:
   // * The remainder of the payload bits (for non-payload cases)
   // This computes the bits used for the payload tag.
   BitMask getMultiPayloadTagBitsMask() const {
-    auto payloadTagValues = getNumPayloadCases() - 1;
-    if (getNumCases() > getNumPayloadCases()) {
+    auto payloadTagValues = NumEffectivePayloadCases - 1;
+    if (getNumCases() > NumEffectivePayloadCases) {
       payloadTagValues += 1;
     }
     int payloadTagBits = 0;
@@ -2257,7 +2268,7 @@ public:
         Stride = 1;
       return TC.makeTypeInfo<TaggedMultiPayloadEnumTypeInfo>(
         Size, Alignment, Stride, NumExtraInhabitants,
-        BitwiseTakable, Cases);
+        BitwiseTakable, Cases, EffectivePayloadCases);
     }
 
     // This is a multi-payload enum that:
@@ -2291,7 +2302,7 @@ public:
         // If there are no spare bits, use the "simple" tag-only implementation.
         return TC.makeTypeInfo<TaggedMultiPayloadEnumTypeInfo>(
           Size, Alignment, Stride, NumExtraInhabitants,
-          BitwiseTakable, Cases);
+          BitwiseTakable, Cases, EffectivePayloadCases);
       }
 
 #if 0  // TODO: This should be !defined(NDEBUG)
@@ -2314,7 +2325,8 @@ public:
       // Use compiler-provided spare bit information
       return TC.makeTypeInfo<MultiPayloadEnumTypeInfo>(
         Size, Alignment, Stride, NumExtraInhabitants,
-        BitwiseTakable, Cases, spareBitsMask);
+        BitwiseTakable, Cases, spareBitsMask,
+        EffectivePayloadCases);
     }
 
     // Either there was no compiler data or it didn't make sense
@@ -2339,13 +2351,14 @@ public:
       // above only returns an empty mask when the mask is really empty,
       return TC.makeTypeInfo<TaggedMultiPayloadEnumTypeInfo>(
         Size, Alignment, Stride, NumExtraInhabitants,
-        BitwiseTakable, Cases);
+        BitwiseTakable, Cases, EffectivePayloadCases);
     } else {
       // General case can mix spare bits and extra discriminator
       // It obviously relies on having an accurate spare bit mask.
       return TC.makeTypeInfo<MultiPayloadEnumTypeInfo>(
         Size, Alignment, Stride, NumExtraInhabitants,
-        BitwiseTakable, Cases, spareBitsMask);
+        BitwiseTakable, Cases, spareBitsMask,
+        EffectivePayloadCases);
     }
   }
 };

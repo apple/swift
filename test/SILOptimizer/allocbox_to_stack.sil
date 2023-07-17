@@ -398,7 +398,7 @@ bb0(%0 : $Int):
 }
 
 // CHECK-LABEL: sil private @$s6struct8useStack1tySi_tFSiycfU_Tf0s_n
-// CHECK-LABEL: sil private [_semantics "sil.optimizer.moveonly.diagnostic.ignore"] @$s6struct8useStack1tySi_tFSiycfU_
+// CHECK-LABEL: sil private [_semantics "sil.optimizer.moveonly.delete_if_unused"] @$s6struct8useStack1tySi_tFSiycfU_
 // struct.(useStack (t : Swift.Int) -> ()).(closure #1)
 sil private @$s6struct8useStack1tySi_tFSiycfU_ : $@convention(thin) (@owned <τ_0_0> { var τ_0_0 } <Int>) -> Int {
 bb0(%0 : $<τ_0_0> { var τ_0_0 } <Int>):
@@ -651,13 +651,9 @@ bb0(%0 : $Int, %1 : $*S<T>):
   return %9 : $Bool
 }
 
-// This closure body gets specialized with unboxed capture parameters, so
-// the original function body is stubbed out once the call sites are all
-// specialized.
-// CHECK-LABEL: sil private [_semantics "sil.optimizer.moveonly.diagnostic.ignore"] @closure1
-// CHECK: bb0
-// CHECK-NEXT: unreachable
+// CHECK-LABEL: sil shared [_semantics "sil.optimizer.moveonly.delete_if_unused"] @closure1
 sil shared @closure1 : $@convention(thin) <T where T : Count> (Int, @owned <τ_0_0 : Count> { var S<τ_0_0> } <T>) -> Bool {
+// CHECK: bb0
 bb0(%0 : $Int, %1 : $<τ_0_0 where τ_0_0 : Count> { var S<τ_0_0> } <T>):
   %2 = project_box %1 : $<τ_0_0 where τ_0_0 : Count> { var S<τ_0_0> } <T>, 0
   %3 = function_ref @inner : $@convention(thin) (@owned @callee_owned () -> Bool) -> Bool
@@ -668,6 +664,7 @@ bb0(%0 : $Int, %1 : $<τ_0_0 where τ_0_0 : Count> { var S<τ_0_0> } <T>):
   %7 = partial_apply %4<T>(%0, %5) : $@convention(thin) <τ_0_0 where τ_0_0 : Count> (Int, @owned <τ_0_0 : Count> { var S<τ_0_0> } <τ_0_0>) -> Bool
   %8 = apply %3(%7) : $@convention(thin) (@owned @callee_owned () -> Bool) -> Bool
   strong_release %1 : $<τ_0_0 where τ_0_0 : Count> { var S<τ_0_0> } <T>
+// CHECK: return
   return %8 : $Bool
 }
 
@@ -676,7 +673,7 @@ bb0(%0 : $Int, %1 : $<τ_0_0 where τ_0_0 : Count> { var S<τ_0_0> } <T>):
 // CHECK: return
 // CHECK-NOT: bb1
 
-// CHECK-LABEL: sil shared [_semantics "sil.optimizer.moveonly.diagnostic.ignore"] @closure2
+// CHECK-LABEL: sil shared [_semantics "sil.optimizer.moveonly.delete_if_unused"] @closure2
 sil shared @closure2 : $@convention(thin) <T where T : Count> (Int, @owned <τ_0_0 : Count> { var S<τ_0_0> } <T>) -> Bool {
 // CHECK: bb0
 bb0(%0 : $Int, %1 : $<τ_0_0 where τ_0_0 : Count> { var S<τ_0_0> } <T>):

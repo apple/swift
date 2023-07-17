@@ -1644,7 +1644,7 @@ const HashableWitnessTable *
 swift::hashable_support::getNSStringHashableConformance() {
   return SWIFT_LAZY_CONSTANT(
     reinterpret_cast<const HashableWitnessTable *>(
-      swift_conformsToProtocol(
+      swift_conformsToProtocolCommon(
         getNSStringMetadata(),
         &HashableProtocolDescriptor
       )

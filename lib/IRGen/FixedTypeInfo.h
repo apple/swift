@@ -151,7 +151,7 @@ public:
 
   /// Get the bit mask that must be applied before testing an extra inhabitant.
   virtual APInt getFixedExtraInhabitantMask(IRGenModule &IGM) const {
-    return APInt::getAllOnesValue(getFixedSize().getValueInBits());
+    return APInt::getAllOnes(getFixedSize().getValueInBits());
   }
 
   /// Create a constant of the given bit width holding one of the extra

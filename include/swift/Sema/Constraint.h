@@ -234,6 +234,9 @@ enum class ConstraintKind : char {
   ExplicitGenericArguments,
   /// Both (first and second) pack types should have the same reduced shape.
   SameShape,
+  /// The first type is a tuple containing a single unlabeled element that is a
+  /// pack expansion. The second type is that pack expansion.
+  MaterializePackExpansion,
 };
 
 /// Classification of the different kinds of constraints.
@@ -703,6 +706,7 @@ public:
     case ConstraintKind::UnresolvedMemberChainBase:
     case ConstraintKind::PackElementOf:
     case ConstraintKind::SameShape:
+    case ConstraintKind::MaterializePackExpansion:
       return ConstraintClassification::Relational;
 
     case ConstraintKind::ValueMember:

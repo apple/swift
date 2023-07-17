@@ -1,23 +1,20 @@
 // REQUIRES: swift_swift_parser
 
-// RUN: %target-typecheck-verify-swift -swift-version 5 -module-name MacrosTest
+// RUN: %empty-directory(%t)
+// RUN: %host-build-swift -swift-version 5 -emit-library -o %t/%target-library-name(MacroDefinition) -parse-as-library -module-name=MacroDefinition %S/Inputs/syntax_macro_definitions.swift -g -no-toolchain-stdlib-rpath
+// RUN: %target-typecheck-verify-swift -swift-version 5 -load-plugin-library %t/%target-library-name(MacroDefinition) -disable-availability-checking -module-name MacrosTest
 
-@attached(accessor) macro m1() = #externalMacro(module: "MyMacros", type: "Macro1")
-// expected-warning@-1{{external macro implementation type 'MyMacros.Macro1' could not be found for macro 'm1()'}}
-// expected-note@-2{{'m1()' declared here}}
+@attached(peer) macro m1() = #externalMacro(module: "MacroDefinition", type: "EmptyPeerMacro")
 
-@attached(accessor) macro m2(_: Int) = #externalMacro(module: "MyMacros", type: "Macro2")
-// expected-warning@-1{{external macro implementation type 'MyMacros.Macro2' could not be found for macro 'm2'}}
-// expected-note@-2{{candidate has partially matching parameter list (Int)}}
-// expected-note@-3{{candidate expects value of type 'Int' for parameter #1 (got 'String')}}
+@attached(peer) macro m2(_: Int) = #externalMacro(module: "MacroDefinition", type: "EmptyPeerMacro")
+// expected-note@-1{{candidate has partially matching parameter list (Int)}}
+// expected-note@-2{{candidate expects value of type 'Int' for parameter #1 (got 'String')}}
 
-@attached(accessor) macro m2(_: Double) = #externalMacro(module: "MyMacros", type: "Macro2")
-// expected-warning@-1{{external macro implementation type 'MyMacros.Macro2' could not be found for macro 'm2'}}
-// expected-note@-2{{candidate has partially matching parameter list (Double)}}
-// expected-note@-3{{candidate expects value of type 'Double' for parameter #1 (got 'String')}}
+@attached(peer) macro m2(_: Double) = #externalMacro(module: "MacroDefinition", type: "EmptyPeerMacro")
+// expected-note@-1{{candidate has partially matching parameter list (Double)}}
+// expected-note@-2{{candidate expects value of type 'Double' for parameter #1 (got 'String')}}
 
-@attached(accessor) macro m3(message: String) = #externalMacro(module: "MyMacros", type: "Macro3")
-// expected-warning@-1{{external macro implementation type 'MyMacros.Macro3' could not be found for macro 'm3(message:)'}}
+@attached(peer) macro m3(message: String) = #externalMacro(module: "MacroDefinition", type: "EmptyPeerMacro")
 
 @freestanding(expression) macro stringify<T>(_ value: T) -> (T, String) = #externalMacro(module: "MyMacros", type: "StringifyMacro")
 // expected-warning@-1{{external macro implementation type 'MyMacros.StringifyMacro' could not be found for macro 'stringify'}}
@@ -38,7 +35,12 @@ struct SkipNestedType {
 
   // We select the macro, not the property wrapper.
   @m1 var x: Int = 0
-  // expected-error@-1{{external macro implementation type 'MyMacros.Macro1' could not be found for macro 'm1()'}}
+  //expected-note@-1{{did you mean 'x'?}}
+
+  func test() {
+    let _: m1<Int> = _x
+    // expected-error@-1{{cannot find '_x' in scope}}
+  }
 }
 
 struct TestMacroArgs {

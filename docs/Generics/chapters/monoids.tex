@@ -1,0 +1,1143 @@
+\documentclass[../generics]{subfiles}
+
+\begin{document}
+
+\chapter{Monoids}\label{monoids}
+
+\lettrine{M}{onoids are algebraic structures} that most programmers encounter at some point without even realizing. We begin by describing finitely-presented monoids, and then show that they embed into Swift generics. Next, we encounter the so-called ``word problem'' and take a brief detour into computability theory. This motivates the concept of a rewrite system, which restricts our domain, but provides a computable algorithm to solve the word problem. The theory of rewrite systems will eventually lead to the implementation of generic signature queries and requirement minimization.
+
+But first, all the math. Abstract algebra is the area of mathematics concerned with various generalizations of the familiar concepts of addition and multiplication of numbers. To study these generalizations, we have four key tools at our disposal:
+\begin{itemize}
+\item We can introduce an abstraction, defining some algebraic operations, and axioms obeyed by those operations.
+\item We can prove that some \emph{specific} object models this abstraction, hopefully showing that our abstraction is not completely vacuous in the process.
+\item We can prove theorems from our operations and axioms, whose consequences give us results about \emph{all} objects which model this abstraction.
+\item We can further classify our objects by introducing more specific abstractions which add additional axioms, drawing a distinction between those objects which satisfy the new axioms and those that do not. These refined abstractions describe more structure, allowing us to prove more theorems, but this in turn narrows the domain of objects we can abstract over.
+\end{itemize}
+Now, compare with what we do as Swift programmers:
+\begin{itemize}
+\item We can define protocols which model various concepts in our problem domain.
+\item We can declare that a specific concrete type conforms to the protocol, providing an implementation of each protocol requirement.
+\item We can reuse code across all conforming types by implementing generic algorithms on top of our protocol.
+\item We can classify our conforming types by using protocol inheritance to introduce additional requirements which are only satisfied by some concrete types.
+\end{itemize}
+
+To make these matters concrete, take the standard library \texttt{Collection} protocol. We can conform a hypothetical \texttt{LinkedList} type to this protocol. Then, we can write a \texttt{randomElement()} generic function, and use it with both the standard library \texttt{Array} and our own \texttt{LinkedList}. Finally, we can consider the \texttt{RandomAccessCollection} protocol, which adds richer indexing operations on top of those provided by \texttt{Collection}. An implementation of \texttt{randomElement()} generic over \texttt{RandomAccessCollection} might run in constant time, instead of linear time. However, our strawman \texttt{LinkedList} cannot correctly implement this protocol, so our new algorithm is limited to \texttt{Array} and similar data types.
+
+Of course in the real world Swift programmers do more than abstract over collection types, and similarly, our description of a mathematician's job is overly simplistic. Still, this view of the world will serve us well for now. Let's define the abstraction we will be working with, and look at a specific example of this abstraction. This definition is standard, and can be found in many texts, such as \cite{semigroup}.
+\begin{definition}
+\IndexDefinition{monoid}%
+\index{binary operation}%
+\IndexDefinition{identity element}%
+\IndexDefinition{associative operation}%
+\index{set}%
+A \emph{monoid} \index{$\cdot$}\index{$\cdot$!z@\igobble|seealso{monoid}}$(M,\, \cdot,\, \varepsilon)$ is a set of elements $M$ together with a binary operation $\cdot$ and an element $\varepsilon\in M$, which together satisfy the following three axioms:
+\begin{itemize}
+\item The set $M$ is \emph{closed} under the binary operation: for all $x, y \in M$, $x\cdot y\in M$.
+\item The binary operation is \emph{associative}: for all $x, y, z \in M$, $x\cdot(y\cdot z)=(x\cdot y)\cdot z$.
+\item The fixed element $\varepsilon$ is the \emph{identity}: for all $x\in M$, $x\cdot \varepsilon=\varepsilon\cdot x=x$.
+\end{itemize}
+We use two convenient bits of shorthand. When the binary operation and identity are implicit from context, we can write $M$ instead of $(M,\,\cdot,\,\varepsilon)$. We also sometimes omit the symbol ``$\cdot$'' in equations, and simply write $xy$ instead of $x\cdot y$.
+\end{definition}
+\begin{example}
+\index{natural numbers}%
+Let's take our set of elements to be the natural numbers $\mathbb{N}$, the operation to be addition, and the identity element to be zero. Elementary properties of arithmetic show this satisfies the axioms of a monoid:
+\begin{itemize}
+\item The sum of two elements of $\mathbb{N}$ is again an element of $\mathbb{N}$.
+\item The operation is associative: for all $x,y,z\in\mathbb{N}$, $(x+y)+z=x+(y+z)$.
+\item We have an identity element: for all $x\in\mathbb{N}$, $x+0=0+x=x$.
+\end{itemize}
+Another rule of arithmetic states that each non-zero element of $\mathbb{N}$ can be expressed as a sum of $1$'s, for example $3=1+1+1$, $5=1+1+1+1+1$, and so on. Let's write $a$ instead of $1$, $\varepsilon$ instead of $0$, and $\cdot$ instead of $+$. Now, the equation $3+5=8$ becomes:
+\[aaa\cdot aaaaa=aaaaaaaa\]
+This notation is more cumbersome, but hold tight; it is more consistent with what follows next. Let's denote this monoid by $\{a\}^*$. We will see shortly this is the \emph{free monoid on one generator}.
+\end{example}
+The axioms of a monoid are very general, and countless other mathematical objects can be equipped with the structure of a monoid. On the other hand, since these axioms are so general, there isn't a whole lot we can say that is true of \emph{all} monoids. One thing we can do is show that the \index{natural numbers}natural numbers ``act'' on any monoid in a straightforward way.
+\begin{definition}
+Let $x\in M$ be an element of a monoid $M$, and let $n\in\mathbb{N}$. We define the ``$n$th power'' of $x$, denoted as $x^n$, as follows:
+\[
+x^n = \begin{cases}
+\varepsilon&\text{(if $n=0$)}\\
+x&\text{(if $n=1$)}\\
+x^{n-1}\cdot x&\text{(if $n>1$)}
+\end{cases}
+\]
+\end{definition}
+(The $n=1$ case is actually redundant with the other two, but is included for clarity.) With this notation, we can state a result which holds in all monoids.
+\begin{proposition}\label{monoid exp law}
+Let $x\in M$ be an element of a monoid $M$, and let $m,n\in\mathbb{N}$. Then the above \index{action}action of $\mathbb{N}$ on $M$ satisfies something akin to ``the law of exponents'':
+\[x^m\cdot x^n=x^{m+n}\]
+\end{proposition}
+\begin{proof}
+\index{induction}
+\index{proof by induction|see{induction}}
+We show this to be true using induction, a fundamental property of the arithmetic of $\mathbb{N}$ we encountered in Section~\ref{generic signature validity}. First, we prove the base case, that $x^m\cdot x^0=x^{m+0}$. Then, we assume the inductive hypothesis, $x^m\cdot x^{n-1}=x^{m+n-1}$, and show that $x^m\cdot x^n=x^{m+n}$. By induction over $\mathbb{N}$, this proves the result for all $n\in\mathbb{N}$.
+
+The base case follows from the definition of $x^0$, the identity element axiom of $M$, and the fact that $m=m+0$ in $\mathbb{N}$:
+\[x^m\cdot x^0=x^m\cdot\varepsilon=x^m=x^{m+0}\]
+Now, for the inductive step, we assume that the inductive hypothesis holds:
+\[x^m\cdot x^{n-1}=x^{m+n-1}\]
+We multiply both sides by $x$:
+\[(x^m\cdot x^{n-1})\cdot x =x^{m+n-1}\cdot x\]
+Using the fact that the binary operation $\cdot$ of $M$ is associative together with the definition of $x^n$, the left-hand side is equal to:
+\[
+(x^m\cdot x^{n-1})\cdot x = x^m\cdot (x^{n-1}\cdot x) = x^m\cdot x^{n-1+1}=x^m\cdot x^n
+\]
+Finally, using the definition of $x^n$, the right-hand side is equal to:
+\[
+x^{m+n-1}\cdot x = x^{m+n-1+1}=x^{m+n}
+\]
+Therefore the inductive hypothesis implies that $x^m\cdot x^n=x^{m+n}$. Since the base case also holds, this concludes our proof.
+\end{proof}
+As this result holds in all monoids, we know it holds true in $\{a\}^*$ as well. Also, $\{a\}^*$ has the very special property that every element can be written as $a^n$ for some $n\in\mathbb{N}$. So given two arbitrary elements $a^m,\,a^n\in \{a\}^*$, our proposition shows that $a^m\cdot a^n=a^{m+n}$, which is what we expect since this monoid models the \index{natural numbers}natural numbers under addition. This also shows that the monoid operation on $\{a\}^*$ is \index{commutative operation}\emph{commutative}, that is, $x\cdot y=y\cdot x$ for all $x,\,y\in\{a\}^*$.
+
+\medskip
+Now we've defined our algebraic structure, shown a specific example of this structure, and proved a result that holds in all such structures. Recall that the next step in our little program is gaining a deeper understanding of an algebraic structure by introducing further classification.
+
+A typical abstract algebra course spends little time on monoids; one quickly moves on to \emph{groups}, which add the axiom that for each element $x$, there is an inverse element $x^{-1}$ such that $x\cdot x^{-1}=\varepsilon$. There is a lot more we can say about groups than monoids, all because of this one additional axiom. The natural numbers under addition are not a group, but if we instead consider the set of all integers $\mathbb{Z}$, positive and negative, then we see that for each $n\in\mathbb{Z}$, $n+(-n)=(-n)+n=0$. Thus, $\mathbb{Z}$ is a group under addition.
+
+\index{group}
+\index{ring}
+\index{field}
+\index{integers}
+\index{rational numbers}
+\index{complex numbers}
+\index{quaternions}
+\index{matrices}
+\index{polynomials}
+After groups, the next level of structure one might build is the \emph{ring}. A ring is a set $R$ with \emph{two} binary operations, denoted $+$ and $\cdot$, and two special elements, $0$~and~$1$. The ring axioms state that $(R,\,+,\,0)$ is a group, $(R,\,\cdot,\,1)$ is a monoid, and $+$ and $\cdot$ are related via the \emph{distributive law}: $a(b+c)=ab+ac$, $(a+b)c=ac+bc$. With the usual addition and multiplication operations, $\mathbb{Z}$ becomes a ring. If we further require multiplication to be commutative, and that every non-zero element has a multiplicative inverse, we get to the study of \emph{fields}. The rational numbers $\mathbb{Q}$ are an example of a field. This tower of abstractions describes complex numbers, quaternions, matrices, polynomials, modular arithmetic, and other ``number-like'' things which commonly arise in various applications of mathematics.
+
+We're going in a rather different direction. Our domain of discourse is Swift generic signatures and the type parameters they generate, so we don't need the theory of groups, rings, or fields. Instead, in what follows, we're going to concern ourselves with \emph{free monoids}, \emph{finitely-presented monoids}, and \emph{rewrite systems}. We will use these abstractions to build an algebra that models the behavior of Swift generic signatures.
+
+\begin{definition}
+\IndexDefinition{free monoid}%
+\IndexDefinition{term}%
+\IndexDefinition{generating set}%
+\index{alphabet!z@\igobble|seealso{generating set}}%
+Given some \index{set}set $A$, the \emph{free monoid} over $A$, denoted $A^*$, is the set of all ordered sequences of elements from $A$. The binary operation concatenates two sequences together, and the identity element $\varepsilon$ is the empty sequence. The set $A$ is called the \emph{alphabet} or \emph{generating set} of $A^*$; the elements of $A^*$ are called \emph{terms}. The set $A$ may be finite or infinite in general, but for our purposes, we take it to be finite.
+\end{definition}
+\begin{example}
+\IndexDefinition{trivial monoid}%
+\index{monoid isomorphism}%
+\index{empty set}%
+The free monoid over the empty set $\varnothing$ contains just the identity element and nothing else. To see why, notice that the only way to form an ordered sequence whose elements are drawn from the empty set is if the sequence itself is empty.
+\end{example}
+\begin{example}
+\index{commutative operation}%
+The free monoid over two elements $\{a,b\}^*$ consists of all finite strings made up of $a$ and $b$. Two typical elements of $\{a,b\}^*$ are $abba$ and $ba$, and $abba\cdot ba=abbaba$. Note that $abba\cdot ba\neq ba\cdot abba$, so unlike $\{a\}^*$, the free monoid over two elements is no longer commutative: in general, $x\cdot y \neq y \cdot x$. However, Proposition~\ref{monoid exp law} still holds; for example, if we let $x:=abb$, a quick computation shows that $x^2\cdot x^3=x^3\cdot x^2=x^5$.
+\end{example}
+
+\section{Finitely-Presented Monoids}\label{finitely presented monoids}
+
+The free monoids are, in a sense, the ``most general'' objects which satisfy the monoid axioms.\footnote{The idea of a free object can actually be formalized using category theory.} In a free monoid $A^*$, the only propositions we can prove are those that follow directly from the monoid axioms, together with the fact that every term has a \emph{unique} representation as a sequence of elements from the generating set $A$. If the generating set is finite, the terms of a free monoid have an appealing interpretation as finite strings drawn from a finite alphabet.
+
+\index{finitely-presented monoid}Finitely-presented monoids start with a \index{set}\index{generating set}finite generating set and also define the monoid operation to be concatenation of terms, but they have some additional structure in the form of \index{relation}\emph{relations}. We use the following notation to describe a finitely-presented monoid:
+\[\langle \underbrace{a_1,\,\ldots,\, a_m}_{\text{generators}};\, \underbrace{u_1 \sim v_1,\,\ldots,\, u_n \sim v_n}_{\text{relations}}\rangle\]
+Each relation is an \index{ordered pair}ordered pair of terms $(u,\,v)$ with the following interpretation. Suppose we have a term containing $u$ as a subterm; we can write such a term as $xuy$. The relation allows us to ``replace'' $u$ with $v$ to get the term $xvy$. We then say that $xuy$ is equivalent to $xvy$, denoted $xuy\sim xvy$. Either one of $x$ or $y$ can also be the \index{empty term}empty term $\varepsilon$, in which case we get equivalences like $u\sim v$, $xu\sim xv$, or $uy\sim vy$. Relations are bidirectional, so we can also go backwards, replacing a subterm $v$ with $u$. We're going to formalize this in the next section, but this is good enough for now.
+
+A few words on notation:
+\begin{itemize}
+\item If we have two finite sets $A := \{a_1,\,\ldots,\, a_m\}$ and $R := \{(u_1,\,v_1),\,\ldots,\,(u_n,\,v_n)\}$ where $u_i$, $v_i\in A^*$, we can also write the monoid as $\AR$.
+\item The relations here are not to be confused with the concept of a relation over a set from Section~\ref{typeparams}. Indeed, the full set of relations $R$, being a finite subset of $A^*\times A^*$, can be thought of as a relation over $A^*$, but we won't use this interpretation here and leave the two concepts wholly separate.
+\item We only use $x=y$ to mean that $x$ and $y$ are equal in $A^*$; that is, they have the same exact spelling as terms. To denote equivalence with respect to the set of relations $R$, we always write $x\sim y$.
+\end{itemize}
+
+Every free monoid with a finite generating set can be seen as a finitely-presented monoid if we take the set of relations to be empty, in which case $x\sim y$ if and only if $x=y$. Also, any relation where both sides are equal, like $(u,\,u)$, doesn't give us anything useful and can be discarded. Now, let's look at more interesting examples of finitely-presented monoids which actually have non-tivial relations.
+\begin{example}
+Consider the finite set $\{0,1,2,3,4\}$ and the binary operation given by the following table. This is the remainder after division by 5 of the sum of two numbers; or alternatively $m+n \pmod 5$:
+\begin{quote}
+\begin{tabular}{c|c|c|c|c|c}
+$\oplus$&0&1&2&3&4\\
+\hline
+0&0&1&2&3&4\\
+\hline
+1&1&2&3&4&0\\
+\hline
+2&2&3&4&0&1\\
+\hline
+3&3&4&0&1&2\\
+\hline
+4&4&0&1&2&3
+\end{tabular}
+\end{quote}
+Notice that 0 is the identity element in the above table. Once again, every non-zero element can be written as a sum of 1's, so we're going to write $a$ instead of $1$, $\varepsilon$ instead of $0$, and $\cdot$ instead of $\oplus$. Let's call this monoid $M$ for now.
+
+\index{modular arithmetic}
+Compare this monoid $M$ with the free monoid $\{a\}^*$. In the free monoid, $a^3\cdot a^4=a^7$, so in $M$, $a^3\cdot a^4\sim a^7$. On the other hand, our table above tells us that $3\oplus 4=2$. So it is also true that $a^3\cdot a^4\sim a^2$. Thus, $a^2\sim a^7$. Indeed, more generally, we have
+\[a^m\sim a^n\qquad\text{if $m\equiv n \pmod 5$}\]
+It so happens that all the equivalences that are true in $M$ are a consequence of the single relation $a^5\sim \varepsilon$. For example, to see that $a^2\sim a^7$, note that $a^7=a^2\cdot a^5$; replacing $a^5$ with $\varepsilon$ gives us $a^2\cdot\varepsilon=a^2$. Thus, $M$ is a finitely-presented monoid with a single relation:
+\[M := \langle a;\,a^5\sim\varepsilon\rangle\]
+We can say a couple more things about $M$. A visual inspection of the table shows that every element has an inverse, making this monoid into a group. For example, $a^2\cdot a^3=a^5$, but $a^5\sim\varepsilon$, so the inverse of $a^2$ is $a^3$ (and vice versa). Finally, the binary operation is \index{commutative operation}commutative. A group with a commutative operation is said to be \emph{Abelian}. So $M$ is a finite \index{group}\index{Abelian group}\index{Abelian group!z @\igobble|seealso{commutative operation}}Abelian group.
+\end{example}
+\iffalse
+\begin{example}
+Take a regular hexagon centered on the origin, and consider the linear transformations which map the outline of the hexagon back to itself. These are called the \emph{symmetries} of the hexagon. Each symmetry defines a permutation of the sides of the hexagon, and the composition of two symmetries is another symmetry. Two examples of such symmetries are rotation clockwise by $60^{\circ}$, and a reflection across the $x$ axis. In fact, every symmetry of the hexagon can be expressed as a composition of these two. Let's call the rotation $s$ and the reflection $t$, these two fundamental symmetries have the following properties:
+\begin{itemize}
+\item If we perform six rotations in a row, we end up where we started.
+
+\end{example}
+\fi
+\begin{example}\label{bicyclic}
+Consider strings made up of only the two characters ``\texttt{(}'' and ``\texttt{)}''. Then given two such strings where all the parentheses are balanced, such as ``\texttt{(()(()))}'' and ``\texttt{()((()))}'', we can transform one into another by repeatedly inserting or deleting two adjacent characters ``\texttt{()}''. An unbalanced string, such as ``\texttt{)(}'' cannot be transformed into a balanced string or vice versa. However, two unbalanced strings can still be equivalent if they have the same number of mismatched parentheses, for example ``\texttt{)(()(}'' and ``\texttt{)()((}''. Now, write $a$ instead of ``\texttt{(}'', $b$ instead of ``\texttt{)}'', and $\varepsilon$ instead of the empty string. This is the \IndexDefinition{bicyclic monoid}\emph{bicyclic monoid}:
+\[\langle a, b;\; ab\sim\varepsilon\rangle\]
+Let's again refer to this monoid as $M$, and also let $A:=\{a,b\}$ be our alphabet. As in the free monoid $A^*$, all elements of $M$ are finite sequences of $a$ and $b$, but we also have this relation $ab\sim\varepsilon$. Consider the term $baaba$, which contains $ab$ as a subterm. Since $ab\sim\varepsilon$, we have the following equivalence:
+\[baaba=ba\cdot ab\cdot a\sim ba\cdot\varepsilon\cdot a=b\cdot aa = baa\]
+We've ``deleted'' the occurrence of $ab$ in the middle without changing the ``meaning'' of the term. We can insert $ab$ anywhere in the middle of a term as well:
+\[baa=b\cdot aa=b\cdot\varepsilon\cdot aa\sim b\cdot ab\cdot aa=babaa\]
+This shows that the terms $baaba$, $baa$ and $babaa$ are all equivalent as elements of $M$. We will encounter the bicyclic monoid again in subsequent sections. More discussion of its algebraic properties can be found in \cite{semigroup}.
+\end{example}
+\begin{example}
+Not every ``elementary'' monoid is finitely presented, one example being the \index{natural numbers}natural numbers under multiplication. This follows from four deep properties of the natural numbers:
+\begin{itemize}
+\item Every non-zero \index{prime number}natural number has a unique representation as a product of prime numbers (\emph{The Fundamental Theorem of Arithmetic}).
+\item There are infinitely many prime numbers (\emph{Euclid's Theorem}).
+\item Multiplication of natural numbers is \index{commutative operation}commutative.
+\item Multiplication by zero always yields zero.
+\end{itemize}
+These give us an \emph{infinite} presentation of $(\mathbb{N},\,\times,\,1)$: we need a generator $z$ representing zero, and an infinite set of generators $\{p_i\}_{i\geq 0}$ to represent the prime numbers. Then, we add the relation $z\cdot z\sim z$ to encode that zero multiplied by zero is zero, followed by two infinite sets of relations relating the primes with each other and zero:
+\begin{itemize}
+\item For all $i$, $j\in\mathbb{N}$, $p_i\cdot p_j\sim p_j\cdot p_i$ makes multiplication commutative.
+\item For all $i\in\mathbb{N}$, $z\cdot p_i\sim z$ and $p_i\cdot z\sim z$ makes $z$ into the \index{zero element}zero element.
+\end{itemize}
+In fact, no ``smaller'' presentation exists. It is perhaps surprising to constrast this with $(\mathbb{N},\,+,\,0)$, which just the free monoid with one generator.
+\end{example}
+
+\section{The Rewrite Graph}\label{rewrite graph}
+Having informally sketched out finitely-presented monoids, we now wish to make precise what is meant when we say that a relation like $ab\sim\varepsilon$ allows us to transform $baaba$ into $baa$ and then $baa$ into $babaa$. We follow \cite{SQUIER1994271} in associating a directed graph with the description of a finitely-presented monoid $\AR$. While the aforesaid paper calls this graph the \index{derivation graph|see{rewrite graph}}derivation graph, we prefer to call it the \emph{rewrite graph}, to avoid confusion with derivations in the sense of Section~\ref{derived req}.
+
+The rewrite graph explicitly encodes transformations of terms as paths in this graph. The vertices are the terms of the free monoid $A^*$, and the edge set in defined in such a way that two vertices $x$ and $y$ are joined by a path if $x\sim y$ under the set of relations $R$. This provides a more constructive definition than the classical approach of starting from the intersection of all equivalence relations that contain $R$. The rewrite graph also forms the theoretical basis of the rewrite system minimization algorithm in Chapter~\ref{rqm minimization}. We begin by defining the structure of the edge set.
+
+\begin{definition}
+Given an alphabet $A$ and a set of relations $R$, a \IndexDefinition{rewrite step}\emph{rewrite step} is an \index{ordered tuple}ordered 4-tuple of terms such that $x$, $y\in A^*$ and either $(u,\,v)$ or $(v,\,u)\in R$. We write this rewrite step as \index{$\Rightarrow$}\index{$\Rightarrow$!z@\igobble|seealso{rewrite path, rewrite step}}$x(u\Rightarrow v)y$. The terms $x$ and $y$ are called the left and right \emph{whiskers}, respectively. If $x=\varepsilon$, we write the rewrite step as $(u\Rightarrow v)y$, and if $y=\varepsilon$, we similarly write it as $x(u\Rightarrow v)$. Of course, it may be the case that $x=y=\varepsilon$, in which case the rewrite step is simply denoted $(u\Rightarrow v)$.
+\end{definition}
+Intuitively, the rewrite step $x(u\Rightarrow v)y$ represents the transformation of $xuy$ into $xvy$ via the relation $u\sim v$; it leaves the whiskers $x$ and $y$ unchanged, while rewriting $u$ to $v$ ``in the middle.'' We can draw a picture:
+\[
+\begin{array}{|c|c|c|}
+\hline
+\multicolumn{3}{|c|}{xuy}\\
+\hline
+\hline
+&u&\\
+x&\Downarrow&y\\
+&v&\\
+\hline
+\hline
+\multicolumn{3}{|c|}{xvy}\\
+\hline
+\end{array}
+\]
+Note that unlike relations, rewrite steps encode the \emph{direction} of transformation.
+\begin{definition}
+Given an alphabet $A$ and a set of relations $R$, the rewrite graph of $A$ and $R$ has as vertices the terms of $A^*$, and as edges the collection of all possible rewrite steps with respect to $A$ and $R$; that is, for each relation $(u,\,v)\in R$, and every pair of terms $x$, $y\in A^*$, the edge set contains a complementary pair of rewrite steps:
+\begin{itemize}
+\item A rewrite step $x(u\Rightarrow v)y$, representing the transformation of $xuy$ to $xvy$.
+\item A rewrite step $x(v\Rightarrow u)y$, representing the transformation of $xvy$ to $xuy$.
+\end{itemize}
+\end{definition}
+For rewrite steps to function as edges in a directed graph, we also need a pair of mappings associating a source and destination vertex with each rewrite step.
+\begin{definition}
+If $s$ is the rewrite path $x(u\Rightarrow v)y$, we define the \emph{source} and \emph{destination} of $s$ as the following two terms of $A^*$:
+\begin{gather*}
+\Src(s) := xuy\\
+\Dst(s) := xvy
+\end{gather*}
+We also have a more concise pictorial notation for visualizing a rewrite step as an edge between two vertices:
+\begin{quote}
+\begin{tikzcd}[column sep=huge]
+xuy\arrow[r, Rightarrow, "x(u\Rightarrow v)y"] &xvy
+\end{tikzcd}
+\end{quote}
+\end{definition}
+\begin{example}
+Returning to the bicyclic monoid, when we transformed $baaba$ into $baa$, we performed this rewrite step:
+\begin{quote}
+\begin{tikzcd}[column sep=huge]
+baaba\arrow[r, Rightarrow, "ba(ab\Rightarrow \varepsilon)a"] & baa
+\end{tikzcd}
+\end{quote}
+Similarly, to transform $baa$ into $babaa$, we performed this rewrite step:
+\begin{quote}
+\begin{tikzcd}[column sep=huge]
+baa\arrow[r, Rightarrow, "b(\varepsilon \Rightarrow ab)aa"] & babaa
+\end{tikzcd}
+\end{quote}
+\end{example}
+\begin{definition}
+\IndexDefinition{inverse rewrite step}
+The \emph{inverse} of a rewrite step $s:=x(u\Rightarrow v)y$, denoted $s^{-1}$, is defined as $x(v\Rightarrow u)y$; that is, we swap the $u$ and the $v$. Note that $\Src(s^{-1})=\Dst(s)$, and likewise $\Dst(s^{-1})=\Src(s)$. We can draw a diagram showing a rewrite step and its inverse:
+\begin{quote}
+\begin{tikzcd}[column sep=huge]
+xuy\arrow[r, Rightarrow, "x(u\Rightarrow v)y", bend left] \arrow[r, Leftarrow, "x(v\Rightarrow u)y"', bend right] & xvy
+\end{tikzcd}
+\end{quote}
+\end{definition}
+\begin{definition}
+\IndexDefinition{rewrite step whiskering}
+If $s:=x(u\Rightarrow v)y$ and $z\in A^*$, we define the left and right \emph{whiskering} action of $z$ on $s$:\index{$\star$}\index{$\star$!z@\igobble|seealso{whiskering}}
+\begin{gather*}
+z\star s := zx(u\Rightarrow v)y\\
+s\star z := x(u\Rightarrow v)yz
+\end{gather*}
+Whiskering produces a rewrite step which leaves a longer left or right whisker unchanged:
+\begin{quote}
+\begin{tikzcd}
+zxuy\arrow[r, Rightarrow, "z\star s"]& zxvy\\
+xuy\arrow[r, Rightarrow, "s"]& xvy\\
+xuyz\arrow[r, Rightarrow, "s\star z"]& xvyz
+\end{tikzcd}
+\end{quote}
+A computation shows whiskering is related to the monoid operation of $A^*$ in two ways. First, we have:
+\begin{gather*}
+\Src(z\star s)=z\cdot \Src(s)\\
+\Dst(z\star s)=z\cdot \Dst(s)\\[\medskipamount]
+\Src(s\star z)=\Src(s)\cdot z\\
+\Dst(s\star z)=\Dst(s)\cdot z
+\end{gather*}
+But also:
+\begin{gather*}
+z\star (z^\prime \star s)=(z\cdot z^\prime) \star s\\
+(s\star z)\star z^\prime=s\star (z\cdot z^\prime)
+\end{gather*}
+Finally, by expanding both sides of the below equality and recalling that the monoid operation is associative, we see that left and right whiskering actions are compatible:
+\[(z\star s)\star z^\prime = z\star(s\star z^\prime)\]
+\end{definition}
+These operations have an important property, which follows immediately from the definition of the edge set.
+\begin{proposition}\label{edge set closed}
+Given an alphabet $A$ and set of relations $R$, let $S$ be the edge set of the rewrite graph of $A$ and $R$. Then, if $s\in S$ and $z\in A^*$, we also have $s^{-1}$, $z\star s$ and $s\star z\in S$. That is, the edge set is closed under inverses and whiskering.
+\end{proposition}
+
+\begin{example}
+In the bicyclic monoid, inverting the rewrite step $ba(ab\Rightarrow\varepsilon)a$ gives us $ba(\varepsilon\Rightarrow ab)a$. The original rewrite step defined a transformation from the term $baaba$ to $baa$; its inverse is a transformation from $baa$ to $baaba$. If we whisker the rewrite step $ba(ab\Rightarrow\varepsilon)a$ on the left by $b$, we get a transformation from $bbaaba$ to $bbaa$:
+\[b\star ba(ab\Rightarrow\varepsilon)a=bba(ab\Rightarrow\varepsilon)a\]
+
+Now, we are ready to introduce rewrite paths, which are paths in the rewrite graph. 
+\end{example}
+\begin{definition}
+\IndexDefinition{rewrite path}%
+A \emph{rewrite path} is an ordered pair consisting of an initial term $t\in A^*$ followed by a sequence of zero or more rewrite steps $\{s_i\}_{0\leq i<n}$ which satisfy the following conditions:
+\begin{enumerate}
+\item If the rewrite path contains at least one rewrite step, the source of the first rewrite step must equal the initial term: $\Src(s_1)=t$.
+\item If the rewrite path contains at least two steps, the source of each subsequent step must equal the destination of the preceding step: $\Src(s_{i+1})=\Dst(s_i)$ for $0<i\leq n$.
+\end{enumerate}
+Notice how this definition is actually identical to the definition of a path in a \index{directed graph}directed graph from Section~\ref{type parameter graph}. Like rewrite steps, rewrite paths have a source and destination:
+\begin{gather*}
+\Src(p):=t\\
+\Dst(p):=\begin{cases}
+\Dst(s_n)&\text{(if $n>0$)}\\
+t&\text{(if $n=0$)}
+\end{cases}
+\end{gather*}
+If the sequence of rewrite steps in a rewrite path is empty, we say it is an \IndexDefinition{empty rewrite path}empty rewrite path. Each term $t\in A^*$ has a unique empty rewrite path, denoted $1_t$, which starts and ends at this term; thus $\Src(1_t)=\Dst(1_t)=t$.
+
+If a rewrite path $p$ is non-empty, we can denote it as the composition of a series of rewrite steps: $p=s_1\circ\cdots\circ s_n$. We can also visualize a non-empty rewrite path like so:
+\begin{quote}
+\begin{tikzcd}[column sep=large]
+  \Src(p)\arrow[r, "s_1", Rightarrow]&\cdots\arrow[r, Rightarrow, "\cdots"]&\cdots\arrow[r, "s_n", Rightarrow]&\Dst(p)
+\end{tikzcd}
+\end{quote}
+
+\end{definition}
+\begin{example}
+In the bicyclic monoid, the transformation from $baaba$ to $babaa$ can be expressed as a rewrite path composed of two rewrite steps, with source $baaba$ and destination $babaa$:
+\[ba(ab\Rightarrow\varepsilon)a\circ b(\varepsilon\Rightarrow ab)aa\]
+Note that our rewrite path is well-formed; the destination of the first rewrite step, $baa$, is also the source of the second rewrite step. The diagram makes this clear:
+\begin{quote}
+\begin{tikzcd}[column sep=huge]
+baaba\arrow[r, "ba(ab\Rightarrow\varepsilon)a", Rightarrow]&baa\arrow[r, "b(\varepsilon\Rightarrow ab)aa", Rightarrow]&babaa
+\end{tikzcd}
+\end{quote}
+\end{example}
+\begin{definition}
+We can \IndexDefinition{inverse rewrite path}invert a rewrite path to get a new rewrite path which performs the same transformation backwards. The \index{empty rewrite path}empty rewrite path is its own inverse. For a non-empty rewrite path, we invert each rewrite step and perform them in reverse order; the initial term of the inverse is the destination of the original rewrite path:
+\[p^{-1}:=\begin{cases}
+1_t&\text{(if $p=1_t$)}\\
+s_n^{-1}\circ\cdots\circ s_1^{-1}&\text{(otherwise)}
+\end{cases}
+\]
+The above implies that the source and destination of the inverse rewrite path is the destination and source of the original rewrite path:
+\begin{gather*}
+\Src(p^{-1})=\Dst(p)\\
+\Dst(p^{-1})=\Src(p)
+\end{gather*}
+When drawn as a diagram, the inverse path $p^{-1}$ is $p$ but ``backwards in time'':
+\begin{quote}
+\begin{tikzcd}[column sep=large]
+\Src(p^{-1})\arrow[r, "s_n^{-1}", Rightarrow]&
+\cdots\arrow[r, "\cdots", Rightarrow]&
+\cdots\arrow[r, "s_1^{-1}", Rightarrow]&
+\Dst(p^{-1})
+\end{tikzcd}
+\end{quote}
+\end{definition}
+\begin{example}
+In the bicyclic monoid, we can invert our rewrite path to get a transformation from $babaa$ to $baaba$:
+\[b(ab\Rightarrow\varepsilon)aa\circ ba(\varepsilon\Rightarrow ab)a\]
+Or as a diagram:
+\begin{quote}
+\begin{tikzcd}[column sep=huge,row sep=large]
+babaa\arrow[r, "b(ab\Rightarrow \varepsilon)aa", Rightarrow]&baa\arrow[r, Rightarrow, "ba(\varepsilon\Rightarrow ab)a"]&baaba
+\end{tikzcd}
+\end{quote}
+\end{example}
+\begin{definition}
+The left and right \index{rewrite path whiskering}whiskering actions generalize to rewrite paths by applying the monoid operation on the left or right of the initial term, and then whiskering each rewrite step; note that this preserves the compatibility condition from the definition of a rewrite path. If the path is empty, whiskering produces another empty rewrite path on a new term:
+\begin{gather*}
+z\star (1_t) = 1_{z\cdot t}\\
+(1_t)\star z = 1_{t\cdot z}
+\end{gather*}
+If the path is non-empty, we can understand whiskering as a sort of distributive law:
+\begin{gather*}
+z\star (s_1\circ\cdots\circ s_n) = (z\star s_1)\circ\cdots\circ (z\star s_n)\\
+(s_1\circ\cdots\circ s_n)\star z = (s_1\star z)\circ\cdots\circ (s_n\star z)
+\end{gather*}
+In the form of a diagram, we have $z\star p$:
+\begin{quote}
+\begin{tikzcd}[column sep=large]
+z\cdot\Src(p)\arrow[r, "z\star s_1", Rightarrow]&z\cdots\arrow[r, Rightarrow]&z\cdots\arrow[r, "z\star s_n", Rightarrow]&z\cdot \Dst(p)
+\end{tikzcd}
+\end{quote}
+Similarly, $p\star z$:
+\begin{quote}
+\begin{tikzcd}[column sep=large]
+\Src(p)\cdot z\arrow[r, "s_1\star z", Rightarrow]&\cdots z\arrow[r, Rightarrow]&\cdots z\arrow[r, "s_n\star z", Rightarrow]&\Dst(p)\cdot z
+\end{tikzcd}
+\end{quote}
+As with rewrite steps, the left and right whiskering actions on rewrite paths are compatible with each other:
+\[(z\star p)\star z^\prime = z\star(p\star z^\prime)\]
+We also have the following identities:
+\begin{gather*}
+\Src(z\star p)=z\cdot\Src(p)\\
+\Dst(z\star p)=z\cdot\Dst(p)\\[\medskipamount]
+\Src(p\star z)=\Src(p)\cdot z\\
+\Dst(p\star z)=\Dst(p)\cdot z
+\end{gather*}
+
+Our theory has a certain consistency: if we think of a rewrite step $s$ as a one-element rewrite path, all of the above definitions remain unambiguous under either interpretation.
+\end{definition}%
+\begin{definition}
+\IndexDefinition{rewrite path composition}%
+If $p_1$ and $p_2$ are two rewrite paths with $\Dst(p_1)=\Src(p_2)$, we define their \emph{composition} \index{$\circ$}\index{$\circ$!z@\igobble|seealso{rewrite path}}$p_1 \circ p_2$ as the rewrite path consisting of the initial term of $p_1$, followed by the rewrite steps of $p_1$, and then $p_2$. This gives us a new rewrite path whose source and destination are the source and destination of $p_1$ and $p_2$, respectively:
+\begin{gather*}
+\Src(p_1 \circ p_2) = \Src(p_1)\\
+\Dst(p_1 \circ p_2) = \Dst(p_2)
+\end{gather*}
+Shown as a diagram, composition joins two paths (here the ``$=$'' is not an edge in the graph, but denotes equality of terms):
+\begin{quote}
+\begin{tikzcd}
+\Src(p_1)\arrow[r, Rightarrow]&\cdots\arrow[r, Rightarrow]&(\Dst(p_1)=\Src(p_2))\arrow[r, Rightarrow]&\cdots\arrow[r, Rightarrow]&\Dst(p_2)
+\end{tikzcd}
+\end{quote}
+Empty rewrite paths \index{empty rewrite path}act as the identity with respect to composition:
+\begin{gather*}
+(1_{\Src(p)})\circ p = p\\
+p\circ (1_{\Dst(p)}) = p
+\end{gather*}
+The inverse of the composition is the composition of the inverses, but flipped:
+\[(p_1 \circ p_2)^{-1} = p_2^{-1} \circ p_1^{-1}\]
+Rewrite path composition is compatible with whiskering:
+\begin{gather*}
+z\star (p_1 \circ p_2) = (z\star p_1) \circ (z\star p_2)\\
+(p_1 \circ p_2)\star z = (p_1\star z) \circ (p_2\star z)
+\end{gather*}
+Finally, rewrite path composition is associative; if $p_3$ is another rewrite path such that $\Dst(p_2)=\Src(p_3)$, then $p_1 \circ (p_2 \circ p_3) = (p_1 \circ p_2) \circ p_3$.
+\end{definition}
+Just as set of rewrite steps is closed under inverses and whiskering, the set of rewrite paths is closed under inverses, whiskering and composition.
+\begin{proposition}
+Given an alphabet $A$ and set of relations $R$, let $P$ be the set of paths in the rewrite graph of $A$ and $R$. This set $P$ has the following properties:
+\begin{enumerate}
+\item If $(u_i,\,v_i)\in R$, there is a one-element rewrite path $(u_i\Rightarrow v_i)\in P$.
+\item (Closure under inversion) If $p\in P$, then $p^{-1}\in P$.
+\item (Closure under composition) If $p_1$, $p_2\in P$ with $\Dst(p_1)=\Src(p_2)$, then $p_1\circ p_2\in P$.
+\item (Closure under whiskering) If $p\in P$ and $z\in A^*$, then $z\star p$, $p\star z\in P$.
+\end{enumerate}
+\end{proposition}
+\begin{proof}
+This is an immediate consequence of Proposition~\ref{edge set closed}.
+\end{proof}
+
+We are almost ready to actually define our equivalence relation $\sim$. Recall equivalence relations and equivalence classes from Section~\ref{reducedtypes}. While the elements of a free monoid are terms, the elements of a finitely-presented monoid are equivalence classes of terms. For the set of equivalence classes to have a monoid structure, we need our equivalence relation to be compatible with term concatenation.
+\begin{definition}
+\IndexDefinition{translation-invariant relation}%
+A relation $R$ on a monoid $M$ is \emph{translation-invariant} if for any ordered pair $(x,y)\in R$ and for any $z\in M$, we have $(zx,zy)\in R$ and $(xz,yz)\in R$.
+\end{definition}
+\begin{example}
+The standard ``less-than'' relation $<$ on \index{natural numbers}$\mathbb{N}$ is a \index{linear order}linear order which is also translation-invariant if we view $\mathbb{N}$ as a monoid under addition; for example, since $5<7$, we also have $(5+2)<(7+2)$.
+\end{example}
+As we said earlier, two terms of $A^*$ are equivalent by $\sim$ if a path joins them in the rewrite graph of $A$ and $R$. Now we have the tools to state this formally.
+\begin{proposition}\label{monoid congruence}
+Given an alphabet $A$ and set of relations $R$, let $P$ be the set of paths in the rewrite graph of $A$ and $R$. Define the relation \index{$\sim$}\index{$\sim$!z@\igobble|seealso{monoid congruence}}$\sim$ on $A^*$ such that $x\sim y$ if there is a rewrite path $p\in P$ with $x=\Src(p)$ and $y=\Dst(p)$. Then $\sim$ is a translation-invariant \index{equivalence relation}equivalence relation on $A^*$.
+\end{proposition}
+\begin{proof}
+We prove each condition in turn using the properties of rewrite paths.
+\begin{enumerate}
+\item (Reflexivity) For each $x\in A^*$, there is an \index{empty rewrite path}empty rewrite path $1_x\in P$. Since $\Src(1_x)=\Dst(1_x)=x$, it follows that $x\sim x$.
+\item (Symmetry) Assume $x\sim y$. Then there is a $p\in P$ such that $x=\Src(p)$ and $y=\Dst(p)$. Since $P$ is closed under taking inverses, $p^{-1}\in P$. But $y=\Src(p^{-1})$ and $x=\Dst(p^{-1})$, so we have $y\sim x$.
+\item (Transitivity) Assume $x\sim y$ and $y\sim z$. Then there is a $p_1\in P$ with $x=\Src(p_1)$ and $y=\Dst(p_1)$, and a $p_2\in P$ with $y=\Src(p_2)$ and $z=\Dst(p_2)$. The composition $p_1\circ p_2$ is valid since $\Dst(p_1)=\Src(p_2)$, and $P$ is closed under composition so $p_1\circ p_2 \in P$. Now, from the definition of rewrite path composition, we also know that
+\begin{gather*}
+\Src(p_1\circ p_2)=\Src(p_1)=x\\
+\Dst(p_1\circ p_2)=\Dst(p_2)=z
+\end{gather*}
+Thus, $x\sim z$.
+\item (Translation invariance) If $x\sim y$ and $z\in A^*$, we have a $p\in P$ such that $x=\Src(p)$ and $y=\Dst(p)$. Since $P$ is closed under whiskering, $z\star p\in P$. Recall that
+\begin{gather*}
+\Src(z\star p)=z\cdot \Src(p)=zx\\
+\Dst(z\star p)=z\cdot \Dst(p)=zy
+\end{gather*}
+This shows that $zx \sim zy$. The proof that $xz \sim yz$ is similar.
+\end{enumerate}
+A translation-invariant equivalence relation is also known as a \IndexDefinition{monoid congruence}\emph{monoid congruence}.
+\end{proof}
+
+Given a term $x\in A^*$ and a set of relations $R$, the \emph{equivalence class} of $x$ is the set of all $y\in A^*$ such that $x\sim y$.
+
+\begin{example}
+Here is a table listing some equivalence classes and their representatives in the bicyclic monoid; each row is a distinct equivalence class, and the terms within each row are equivalent:
+\begin{quote}
+\begin{tabular}{l}
+\toprule
+$\varepsilon$, $ab$, $aabb$, $abaabb$, \ldots\\
+\midrule
+$a$, $aab$, $aaabb$, $aabab$, $aaabbab$, \ldots\\
+\midrule
+$b$, $bab$, $baabb$, $babab$, $baabbab$, \ldots\\
+\midrule
+$ba$, $baab$, $abba$, $abbaab$, \ldots\\
+\midrule
+$baa$, $babaa$, $baaba$, $babaaba$, \ldots\\
+\midrule
+\ldots\\
+\bottomrule
+\end{tabular}
+\end{quote}
+Indeed, the bicyclic monoid has infinitely many equivalence classes, and each equivalence class contains infinitely many terms.
+
+Since the elements of the bicyclic monoid are actually equivalence classes, the monoid operation also operates on equivalence classes, and not terms. What does this mean? Well, let's define $x := baba$, $x^\prime := ba$, $y := a$, $y^\prime := aba$. From the above table, we see that $x$ and $x^\prime$ belong to the same equivalence class (the 4th row in the table), and so do $y$ and $y^\prime$ (the 2nd row). It turns out that $xy$ and $x^\prime y^\prime$ are also both equivalent, appearing in the 5th row of the table; in fact, we already knew about this specific equivalence earlier when we exhibited a rewrite path from $xy=babaa$ to $x^\prime y^\prime=baaba$.
+
+If we didn't have this rewrite path already though, we could derive one. We first write down a rewrite path $p_x$ from $baba$ to $ba$, and another rewrite path $p_y$ from $a$ to $aba$:
+\begin{gather*}
+p_x := b(ab\Rightarrow \varepsilon)a\\
+p_y := (\varepsilon\Rightarrow ab)a
+\end{gather*}
+If we whisker $p_x$ on the right by $y$, we get a rewrite path $p_x\star a$ going from $babaa$ to $baa$:
+\[b(ab\Rightarrow\varepsilon)aa\]
+Then, we whisker $p_y$ on the left by $x^\prime$, and get a rewrite path $ba\star p_y$ from $baa$ to $baaba$:
+\[ba(\varepsilon\Rightarrow ab)a\]
+Their composition is exactly the same as our earlier rewrite path from $babaa$ to $baaba$:
+\[b(ab\Rightarrow\varepsilon)aa\circ ba(\varepsilon\Rightarrow ab)a\]
+The next proposition proves that this construction actually works in general.
+\end{example}
+\begin{proposition}
+\index{equivalence class}%
+The monoid operation on the equivalence classes of $\sim$ does not depend on the choice of representatives; that is, if $x\sim x^\prime$ and $y\sim y^\prime$, then $xy\sim x^\prime y^\prime$. (Another way of saying this is that $\cdot$ is \index{well-defined}\emph{well-defined} on the equivalence classes of $\sim$.)
+\end{proposition}
+\begin{proof}
+Let $P$ be the set of rewrite paths in the rewrite graph of $A$ and $R$, as before. Since $x\sim x^\prime$ and $y\sim y^\prime$, we have a pair of rewrite paths $p_x,\,p_y\in P$ where:
+\begin{gather*}
+\Src(p_x)=x\\
+\Dst(p_x)=x^\prime\\[\medskipamount]
+\Src(p_y)=y\\
+\Dst(p_y)=y^\prime
+\end{gather*}
+We also know that $P$ is closed under whiskering, so $p_x\star y\in P$ is a rewrite path from $xy$ to $x^\prime y$:
+\begin{gather*}
+\Src(p_x\star y)=\Src(p_x)\cdot y=xy\\
+\Dst(p_x\star y)=\Dst(p_x)\cdot y=x^\prime y
+\end{gather*}
+And similarly $x^\prime\star p_y\in P$ is a rewrite path from $x^\prime y$ to $x^\prime y^\prime$:
+\begin{gather*}
+\Src(x^\prime \star p_y)=x^\prime \cdot\Src(p_y)=x^\prime y\\
+\Dst(x^\prime \star p_y)=x^\prime \cdot\Dst(p_y)=x^\prime y^\prime
+\end{gather*}
+Now, we define $p_{xy}:=(p_x\star y) \circ (x^\prime\star p_y)$; this is valid, because $\Src(x^\prime \star p_y)=\Dst(p_x\star y)$.
+Also, $P$ is closed under composition, so $p_{xy}\in P$. We have:
+\begin{gather*}
+\Src(p_{xy}) = \Src(p_x\star y) = xy\\
+\Dst(p_{xy}) = \Dst(x^\prime \star p_y) = x^\prime y^\prime
+\end{gather*}
+Thus $xy\sim x^\prime y^\prime$. We can also prove this with a diagram as shown in Figure~\ref{monoid operation well defined}.
+\end{proof}
+\begin{figure}\captionabove{The monoid operation on the equivalence classes of $\sim$ is well-defined}\label{monoid operation well defined}
+\[
+\begin{array}{c}
+\begin{tikzcd}
+x\arrow[d, Rightarrow]\\
+\cdots\arrow[d, Rightarrow]\\
+x^\prime
+\end{tikzcd}\\
+\\
+\begin{tikzcd}
+y\arrow[d, Rightarrow]\\
+\cdots\arrow[d, Rightarrow]\\
+y^\prime
+\end{tikzcd}
+\end{array} \qquad \xrightarrow{whiskering} \qquad
+\begin{array}{c}
+\begin{tikzcd}
+x\cdot y\arrow[d, Rightarrow]\\
+\cdots \arrow[d, Rightarrow]\\
+x^\prime\cdot y
+\end{tikzcd}\\
+\\
+\begin{tikzcd}
+x^\prime\cdot y\arrow[d, Rightarrow]\\
+\cdots\arrow[d, Rightarrow]\\
+x^\prime\cdot y^\prime
+\end{tikzcd}
+\end{array} \qquad \xrightarrow{composition} \qquad
+\begin{tikzcd}
+x\cdot y\arrow[d, Rightarrow]\\
+\cdots\arrow[d, Rightarrow]\\
+x^\prime\cdot y\arrow[d, Rightarrow]\\
+\cdots\arrow[d, Rightarrow]\\
+x^\prime\cdot y^\prime
+\end{tikzcd}
+\]
+\end{figure}
+Here is the culmination of everything we've learned so far.
+\begin{definition} A \IndexDefinition{finitely-presented monoid}\emph{finitely-presented monoid} $\langle A;\, R\rangle$ with alphabet $A:=\{a_1,\,\ldots,\,a_n\}$ and relations $\{(u_1,\,v_1),\,\ldots,\,(u_n,\,v_n)\}$ is constructed from the \index{free monoid}free monoid $A^*$ and \index{rewrite graph}rewrite graph of $A$ and $R$:
+\begin{itemize}
+\item The elements of $\langle A;\, R\rangle$ are the \index{equivalence class}equivalence classes of $A^*$ under the equivalence relation $\sim$ from Proposition~\ref{monoid congruence}.
+\item The monoid operation of $\langle A;\, R\rangle$ picks an arbitrary representative term from each of the two equivalence classes, concatenates the terms using the monoid operation on $A^*$, and returns the equivalence class of the result.
+\item The identity element of $\langle A;\, R\rangle$ is the equivalence class of the \index{identity element}identity element $\varepsilon\in A^*$.
+\end{itemize}
+\end{definition}
+
+\section{The Swift Connection}\label{monoidsasprotocols}
+
+In this section, we will show that any finitely-presented monoid defines a Swift protocol in a natural way. We make use of the \index{derived requirement}derived requirements formalism we defined in Section~\ref{derived req}, and further results from Section~\ref{generic signature validity}.
+
+\paragraph{Free monoids} Let's begin with the \index{free monoid}free monoid over the two-element alphabet $\{a,\,b\}^*$. We can define a protocol \texttt{P} with two associated types \texttt{A} and \texttt{B}, both conforming to \texttt{P}:
+\begin{Verbatim}
+protocol P {
+  associatedtype A: P
+  associatedtype B: P
+}
+\end{Verbatim}
+We let $G_\texttt{P}$ also denote its set of \index{type parameter}type parameters, and define a mapping $\varphi\colon\{a,\,b\}^*\rightarrow G_\texttt{P}$:
+\begin{itemize}
+\item $\varphi$ maps the identity element $\varepsilon$ to $\texttt{Self}$; that is, $\varphi(\varepsilon):=\texttt{Self}$.
+\item $\varphi$ maps a term $ta$ to a \index{dependent member type}dependent member type with base type $\varphi(t)$ and associated type \texttt{[P]A}; that is, $\varphi(ta):=\texttt{$\varphi(t)$.[P]A}$.
+\item $\varphi$ maps a term $tb$ to a dependent member type with base type $\varphi(t)$ and associated type \texttt{[P]B}; that is, $\varphi(tb):=\texttt{$\varphi(t)$.[P]B}$.
+\end{itemize}
+The above definition is exhaustive since every term in $\{a,\,b\}^*$ is either the identity, or a composition of a shorter term with $a$ or $b$. For example, the four distinct terms of length 2 map to the following type parameters:
+\begin{gather*}
+\varphi(aa)=\texttt{Self.[P]A.[P]A}\\
+\varphi(ab)=\texttt{Self.[P]A.[P]B}\\
+\varphi(ba)=\texttt{Self.[P]B.[P]A}\\
+\varphi(bb)=\texttt{Self.[P]B.[P]B}
+\end{gather*}
+In fact, while the definition of $\varphi$ is ``syntactic,'' every type parameter produced by $\varphi$ is also semantically valid in $G_\texttt{P}$, and every such type parameter also conforms to \texttt{P}:
+\begin{proposition}\label{monoid type lemma} If $t\in A^*$ and $\texttt{T}:=\varphi(t)$, then $G_\texttt{P}\vDash\texttt{T}$ and $G_\texttt{P}\vDash\ConfReq{T}{P}$.
+\end{proposition}
+\begin{proof}
+We proceed by \index{induction}induction on the length of $t$. If $|t|=0$, then $t=\varepsilon$, and $\varphi(\varepsilon)=\texttt{Self}$ by definition. We can derive \texttt{Self} from $G_\texttt{P}$ with a single \IndexStep{GenSig}\textsc{GenSig} derivation step:
+\begin{gather*}
+\vdash\texttt{Self}\tag{1}
+\end{gather*}
+Likewise for $\ConfReq{Self}{P}$:
+\begin{gather*}
+\vdash\ConfReq{Self}{P}\tag{1}
+\end{gather*}
+
+In the inductive step, we have a term of non-zero length, so $ta$ or $tb$. Let $\texttt{T}:=\varphi(t)$. By the inductive hypothesis, $G_\texttt{P}\vDash\texttt{T}$ and $G_\texttt{P}\vDash\ConfReq{T}{P}$. Now, we can extend the derivation of $\ConfReq{T}{P}$ with a \IndexStep{Member}\textsc{Member} derivation step to obtain a derivation of \texttt{T.[P]A} or \texttt{T.[P]B} as required:
+\begin{gather*}
+\ldots\vdash\ConfReq{U}{P}\tag{1}\\
+(1)\vdash\texttt{U.[P]A}\tag{2}\\
+(1)\vdash\texttt{U.[P]B}\tag{3}
+\end{gather*}
+We similarly obtain a derivation of $\ConfReq{T.[P]A}{P}$ or $\ConfReq{T.[P]B}{P}$ from $\ConfReq{T}{P}$ by adding a \IndexStep{ReqSig}\textsc{ReqSig} derivation step for the requirement $\ConfReq{Self.[P]A}{P}$ or $\ConfReq{Self.[P]B}{P}$ of \texttt{P}, followed by a \IndexStep{Conf}\textsc{Conf} step:
+\begin{gather*}
+\ldots\vdash\ConfReq{T}{P}\tag{1}\\
+\vdash\ConfReq{Self.[P]A}{P}\tag{2}\\
+\vdash\ConfReq{Self.[P]B}{P}\tag{3}\\
+(1),\,(2)\vdash\ConfReq{T.[P]A}{P}\tag{4}\\
+(1),\,(3)\vdash\ConfReq{T.[P]B}{P}\tag{5}
+\end{gather*}
+This completes the induction.
+\end{proof}
+
+The next step is to define an associative \index{binary operation}binary operation ``$\cdot$'' on $G_\texttt{P}$ and show that $(G_\texttt{P},\,\cdot,\,\texttt{Self})$ is a monoid. Consider the two type parameters \texttt{Self.[P]A.[P]A} and \texttt{Self.[P]B.[P]B}. Intuitively, we can drop ``\texttt{Self}'' from the right-hand side, and then concatenate this onto the left-hand side, as a string:
+\[(\texttt{Self.[P]A.[P]A})\cdot(\texttt{Self.[P]B.[P]B})=\texttt{Self.[P]A.[P]A.[P]B.[P]B}\]
+Manipulation of string representations is unsatisfying, though; we would like our theory to be more rigorous than that. In fact, we can formalize this operation in one of two equivalent ways.
+
+The first approach uses the \index{type substitution}type substitution algebra. We build a \index{protocol substitution map}protocol substitution map from the left-hand side, which we know conforms to \texttt{P}, and then apply it to the right-hand side, which we can decompose as a \index{conformance path}conformance path:
+\begin{gather*}
+\texttt{Self.[P]B.[P]B}\otimes\Sigma_{\ConfReq{Self.[P]A.[P]A}{P}}\\
+\qquad {} = \AssocType{[P]B} \otimes \AssocConf{Self.[P]B}{P} \otimes \ConfReq{Self}{P} \otimes \Sigma_{\ConfReq{Self.[P]A.[P]A}{P}}\\
+\qquad {} = \AssocType{[P]B} \otimes \AssocConf{Self.[P]B}{P} \otimes \ConfReq{Self.[P]A.[P]A}{P}\\
+\qquad {} = \AssocType{[P]B} \otimes \AssocConf{Self.[P]B}{P} \otimes \ConfReq{Self.[P]A.[P]A}{P}\\
+\qquad {} = \texttt{Self.[P]A.[P]A.[P]B.[P]B}
+\end{gather*}
+More generally, for two type parameters \texttt{U} and \texttt{V} of $G_\texttt{P}$, we define:
+\[\texttt{U}\cdot\texttt{V}:=\texttt{V}\otimes\Sigma_{\ConfReq{U}{P}}\]
+It is easy to see that \Index{protocol Self type@protocol \texttt{Self} type}\texttt{Self} acts as the \index{identity element}identity element on the left, since $\Sigma_{\ConfReq{Self}{P}}$ is the \index{identity substitution map}identity substitution map of $G_\texttt{P}$:
+\[
+\texttt{Self}\cdot\texttt{T} = \texttt{T}\otimes\Sigma_{\ConfReq{Self}{P}} = \texttt{T}
+\]
+Similarly, it acts as the identity element on the right, since applying a protocol substitution map to \texttt{Self} projects the conforming type:
+\[
+\texttt{T}\cdot\texttt{Self} = \texttt{Self}\otimes\Sigma_{\ConfReq{T}{P}} = \texttt{T}
+\]
+We won't show that ``$\cdot$'' is associative, but this can be shown with enough effort by considering the conformance path decomposition, as above.
+
+Another approach to formalizing ``$\cdot$'' is to use Lemma~\ref{subst lemma}. This has the advantage that it avoids the type substitution algebra entirely, instead being defined in terms of the more restricted form of \index{formal substitution}formal substitution in the derived requirements formalism. Suppose we are given two type parameters \texttt{U} and \texttt{V} of $G_\texttt{P}$. By Proposition~\ref{monoid type lemma}, we know that $G_\texttt{P}\vDash\ConfReq{U}{P}$ and $G_\texttt{P}\vDash\texttt{V}$. Thus, the conditions of Lemma~\ref{subst lemma} are satisfied, so we can define $\texttt{U}\cdot\texttt{V}$ as the valid type parameter obtained by performing a formal substitution of \texttt{Self} with \texttt{U} in \texttt{V}.
+
+The last question is then, in what sense is $(G_\texttt{P},\,\cdot,\,\varepsilon)$ ``equivalent'' to the free monoid $\{a,\,b\}^*$? To answer this, we return to the mapping $\varphi$. This is actually a special kind of mapping, which we define now.
+
+\begin{definition}
+\index{homomorphism}%
+\IndexDefinition{monoid homomorphism}%
+\IndexDefinition{monoid isomorphism}%
+\index{homomorphism}%
+A function $f\colon M\rightarrow N$ is a \emph{monoid homomorphism} if it maps the identity of $M$ to the identity of $N$ and is compatible with the binary operation of $M$ and $N$; that is, $f(\varepsilon)=\varepsilon$, and for all $x$, $y\in M$, $f(x\cdot y)=f(x)\cdot f(y)$. Furthermore if $f$ has an inverse $f^{-1}$ such that $f^{-1}(f(x))=x$ for all $x\in M$ and $f(f^{-1}(f(x))=x$ for all $x\in N$, then $f$ is a \emph{monoid isomorphism}, in which case we say $M$ and $N$ are \emph{isomorphic}.
+\end{definition}
+
+To see that $\varphi$ is a monoid isomorphism, we consider each part of the definition. We know that $\varphi$ maps the identity element $\varepsilon$ of $\{a,\,b\}^*$ to the identity element \texttt{Self} of $G_\texttt{P}$. It also respects the monoid operation. For example,
+\begin{gather*}
+\varphi(aa)\cdot\varphi(bb)\\
+\qquad {}=(\texttt{Self.[P]A.[P]A})\cdot(\texttt{Self.[P]B.[P]B})\\
+\qquad {}=\texttt{Self.[P]A.[P]A.[P]B.[P]B}\\
+\qquad {}=\varphi(aabb)
+\end{gather*}
+More generally, we claim without proof that $\varphi(uv)=\varphi(u)\cdot\varphi(v)$, for all $u$, $v\in\{a,\,b\}^*$. We can also define an inverse mapping $\PhiInv\colon G_\texttt{P}\rightarrow\{a,\,b\}^*$:
+\begin{gather*}
+\varphi(\texttt{Self}):=\varepsilon\\
+\varphi(\texttt{T}.[P]A):=\PhiInv(\texttt{T})\cdot a\\
+\varphi(\texttt{T}.[P]B):=\PhiInv(\texttt{T})\cdot b
+\end{gather*}
+
+Thus, $\varphi$ is a monoid isomorphism, and $(G_\texttt{P},\,\cdot,\,\varepsilon)$ is isomorphic to $\{a,\,b\}^*$. Also, nothing in our construction depends on there being exactly two associated type declarations in \texttt{P}. If we instead consider the protocol \texttt{N} from Section~\ref{recursive conformances}, we see that set of type parameters of $G_\texttt{N}$ is isomorphic to the free monoid over the one-element alphabet $\{a\}^*$, which is just the set of \index{natural number}natural numbers $\mathbb{N}$ under addition; this justifies the name \texttt{N} we've been using for this protocol throughout! Similarly, adding a third associated type \texttt{C}, together with a conformance requirement $\ConfReq{Self.C}{P}$ gives us a monoid isomorphic to $\{a,\,b,\,c\}^*$, and so on.
+
+\paragraph{Finitely-presented monoids}
+Now, we generalize our construction from a free monoid $A^*$ to a \index{finitely-presented monoid}finitely-presented monoid $\AR$. We define a protocol \texttt{P} containing a series of associated types corresponding to the elements of $A$, as before. Now, for the set of relations~$R$, we attach a \Index{where clause@\texttt{where} clause}trailing \texttt{where} clause to \texttt{P}, by applying $\varphi$ to each relation $(u_i,\,v_i)\in R$, to get a \index{same-type requirement}same-type requirement \texttt{$\varphi(u_i)$ == $\varphi(v_j)$}. Note that if $R$ is empty, we get the same protocol as before, as expected, since the finitely-presented monoid $\langle A;\varnothing\rangle$ is isomorphic to the free monoid $A^*$.
+
+If the set of relations $R$ is non-empty, the same-type requirements give our generic signature $G_\texttt{P}$ a non-trivial \index{equivalence class}equivalence class structure under the \index{reduced type equality}reduced type equality relation. To show that this is the \emph{same} equivalence class structure as $\AR$, we must convince ourselves of two facts:
+\begin{enumerate}
+\item The mapping $\varphi$ must be well-defined. That is, if $x\sim y$ as elements of $\AR$, then $\varphi(x)$ and $\varphi(y)$ must also have the same reduced type.
+\item The mapping $\varphi$ must be an isomorphism. That is, if $\varphi(x)$ and $\varphi(y)$ have the same reduced type, then it is also the case that $x\sim y$.
+\end{enumerate}
+We recall that two terms $x$, $y\in A^*$ are equivalent under $\sim$ if there exists a \index{rewrite path}rewrite path $p$ with $\Src(p)=x$ and $\Dst(p)=y$, and two type parameters \texttt{X} and \texttt{Y} of $G_\texttt{P}$ have the same reduced type if we can \index{derived requirement}derive a same-type requirement $\FormalReq{X == Y}$ from $G_\texttt{P}$. Thus, every rewrite path of $\AR$ must correspond to a derivation of a same-type requirement of $G_\texttt{P}$, and vice versa. We prove this correspondence with a pair of propositions.
+
+\begin{theorem}\label{path to derivation}
+If $x\sim y$ in $\AR$, then $G_\texttt{P}\vDash\FormalReq{X == Y}$, where $\texttt{X}:=\varphi(x)$ and $\texttt{Y}:=\varphi(y)$.
+\end{theorem}
+\begin{proof}
+We are given a rewrite path $p$ with $\Src(p)=x$ and $\Dst(p)=y$, and we must construct a derivation of $\FormalReq{X == Y}$ in $G_\texttt{P}$.
+
+If the rewrite path is empty, that is, $p=1_t$ for some $t\in A^*$, we construct a derivation of $\texttt{T}:=\varphi(t)$ using Proposition~\ref{monoid type lemma}, and then extend it with an \IndexStep{Equiv}\textsc{Equiv} rule to get a derivation of $\FormalReq{T == T}$:
+\begin{gather*}
+\ldots\vdash\texttt{T}\tag{1}\\
+(1)\vdash\FormalReq{T == T}\tag{2}
+\end{gather*}
+
+If the rewrite path contains more than one rewrite step, we derive a same-type requirement for each rewrite step, and combine them into one with a sequence of \IndexStep{Equiv}\textsc{Equiv} derivation steps:
+\begin{itemize}
+\item The left-hand side of the first same-type requirement corresponds to the source of the first rewrite step, which is the source of the rewrite path, and is therefore the type parameter \texttt{X}.
+\item The left-hand side of each subsequent requirement is identical to the right-hand side of the previous requirement.
+\item Finally, the right-hand side of the final requirement corresponds to the destination of the final rewrite step, which is the destination of the rewrite path, and is therefore the type parameter \texttt{Y}.
+\end{itemize}
+
+It remains to consider the case of a single rewrite step. Suppose we are given a rewrite step $t(u\Rightarrow v)w$, with $t$, $u$, $v$, $w\in A^*$. We first define the following type parameters (the ``\texttt{Self.}'' is explicit in all but the first one, because for notational convenience we want to write down type parameters like \texttt{T.U} and such, which wouldn't make sense if \texttt{U} included the ``\texttt{Self.}'' part):
+\begin{gather*}
+\texttt{T} := \varphi(t)\\
+\texttt{Self.U} := \varphi(u)\\
+\texttt{Self.V} := \varphi(v)\\
+\texttt{Self.W} := \varphi(w)
+\end{gather*}
+Now, we construct a derivation as follows:
+\begin{itemize}
+\item First, we derive $\ConfReq{T}{P}$ using Proposition~\ref{monoid type lemma}.
+\item The terms $u$ and $v$ are related by a relation of the form $(u,v)$ or $(v,u)\in R$. This corresponds to an explicit same-type requirement of \texttt{P}, either $\FormalReq{Self.U == Self.V}$ or $\FormalReq{Self.V == Self.U}$.
+
+We introduce this requirement using a \textsc{ReqSig} derivation step, and combine it with the derivation of $\ConfReq{T}{P}$ using a \textsc{Conf} step, to get a derivation of $\FormalReq{T.U == T.V}$ or $\FormalReq{T.V == T.U}$.
+
+If the requirement has the form $\FormalReq{T.V == T.U}$, we also add an \textsc{Equiv} step, flipping it around to get $\FormalReq{T.U == T.V}$. This gives us a derivaton corresponding to the rewrite step $t(u\Rightarrow v)$.
+
+\item Then, we construct a derivation of $\texttt{Self.W}$  using Proposition~\ref{monoid type lemma}.
+\item Finally, we make use of Lemma~\ref{subst lemma}, and combine the derivation of $\FormalReq{T.U == T.V}$ with the derivation of \texttt{Self.W}, to get a derivation of $\FormalReq{T.U.W == T.V.W}$. This corresponds to the rewrite step $t(u\Rightarrow v)w$.
+\end{itemize}
+Thus, every rewrite path has a corresponding derived same-type requirement.
+\end{proof}
+
+Now, we prove the other direction.
+
+\begin{theorem}\label{derivation to path}
+If $G_\texttt{P}\vDash\FormalReq{X == Y}$, then $x\sim y$ in $\AR$, where $x:=\PhiInv(\texttt{X})$ and $y:=\PhiInv(\texttt{Y})$.
+\end{theorem}
+\begin{proof}
+We are given a derivation of $\FormalReq{X == Y}$. We will show that $x\sim y$ by constructing a rewrite path $p$ corresponding to $\FormalReq{X == Y}$, meaning its source and destination is the left-hand and right-hand side of the requirement, respectively; that is, $\Src(p)=x$ and $\Dst(p)=y$.
+
+We proceed by \index{structural induction}structural induction on derivations. It suffices to only consider the derivation steps that produce new same-type requirements. At each step, the inductive hypothesis gives us a rewrite path corresponding to every same-type requirement on the left-hand side of $\vdash$, if there are any. We must then use these rewrite paths to construct a new rewrite path which corresponds to the same-type requirement on the right-hand side of $\vdash$. We do this by making use of the \index{rewrite path composition}composition and \index{rewrite path whiskering}whiskering operations on rewrite paths.
+
+Each case deals with one, two, or three type parameters, denoted \texttt{T}, \texttt{U}, and \texttt{V}; and possibly an associated type declaration \texttt{[P]A}. For concision, we write the corresponding terms of $A^*$ as lowercase italic letters; also note that $|a|=1$, so in fact $a\in A$:
+\begin{gather*}
+t:=\PhiInv(\texttt{T})\\
+u:=\PhiInv(\texttt{U})\\
+v:=\PhiInv(\texttt{V})\\
+a:=\PhiInv(\texttt{Self.[P]A})\qquad\mbox{(for (5))}
+\end{gather*}
+
+There are five cases to handle (the protocol generic signature $G_\texttt{P}$ does not have explicit same-type requirements, so we do not need to consider \IndexStep{GenSig}\textsc{GenSig} derivation steps here):
+\begin{enumerate}
+\item A \IndexStep{Conf}\textsc{Conf} step with a same-type requirement from the requirement signature of \texttt{P}; $\ConfReq{T}{P},\,\FormalReq{Self.U == Self.V}\vdash\FormalReq{T.U == T.V}$.
+\item An \IndexStep{Equiv}\textsc{Equiv} step of the first kind; $\texttt{T}\vdash\FormalReq{T == T}$.
+\item An \textsc{Equiv} step of the second kind; $\FormalReq{T == U}\vdash\FormalReq{U == T}$.
+\item An \textsc{Equiv} step of the third kind; $\FormalReq{T == U},\,\FormalReq{U == V}\vdash\FormalReq{T == V}$.
+\item A \IndexStep{Member}\textsc{Member} step; $\ConfReq{U}{P},\,\FormalReq{T == U}\vdash\FormalReq{T.[P]A == U.[P]A}$.
+\end{enumerate}
+
+For (1), the explicit same-type requirement $\FormalReq{Self.U == Self.V}$ in the requirement signature of \texttt{P} corresponds to the relation $(u, v)$ or $(v, u)$ of $R$. Take $p:=t(u\Rightarrow v)$. This corresponds to $\FormalReq{T.U == T.V}$, because $\Src(p)=tu$ and $\Dst(p)=tv$.
+
+For (2), take $p:=1_t$, the identity rewrite path at $t$. This corresponds to $\FormalReq{T == T}$, since $\Src(p)=\Dst(p)=t$.
+
+For (3), we have a rewrite path $p^\prime$ for $\FormalReq{T == U}$, where $\Src(p^\prime)=t$ and $\Dst(p^\prime)=u$. Take $p := (p^\prime)^{-1}$. This corresponds to $\FormalReq{U == T}$, because $\Src(p)=u$ and $\Dst(p)=t$.
+
+For (4), we have a pair of rewrite paths $p_1$ and $p_2$, with $\Src(p_1)=t$, $\Dst(p_1)=\Src(p_2)=u$, and $\Dst(p_2)=v$. We compose the two rewrite paths, and take $p:=p_1\circ p_2$. This corresponds to $\FormalReq{T == V}$, because $\Src(p)=\Src(p_1)=t$, and $\Dst(p)=\Dst(p_2)=v$.
+
+For (5), we have a rewrite path $p^\prime$, with $\Src(p^\prime)=t$ and $\Dst(p^\prime)=u$. We whisker the rewrite path on the right, and take $p:=p^\prime\star a$. This corresponds to $\FormalReq{T.[P]A == U.[P]A}$, because $\Src(p)=ta$ and $\Dst(p)=ua$.
+\end{proof}
+
+Let's try this out on the \index{bicyclic monoid}bicyclic monoid $\langle a,\,b;\,ab\sim\varepsilon\rangle$. If we apply $\varphi$ to both sides of the relation $ab\sim\varepsilon$, we get a same-type requirement $\FormalReq{Self == Self.A.B}$. Let's add this requirement to our protocol \texttt{P}:
+\begin{Verbatim}
+protocol P {
+  associatedtype A: P
+  associatedtype B: P where Self == Self.A.B
+}
+\end{Verbatim}
+We previously claimed that the terms $baaba$ and $babaa$ belong to the same equivalence class in the bicyclic monoid, and we exhibited the following rewrite path:
+\[
+ba(ab\Rightarrow\varepsilon)a \circ
+b(\varepsilon\Rightarrow ab)aa
+\]
+We now show the type parameters \verb|Self.B.A.A.B.A| and \verb|Self.B.A.B.A.A| belong to the same equivalence class, using Theorem~\ref{path to derivation} to translate our rewrite path into a derivation. The rewrite path consists of two rewrite steps. The first rewrite step, $ba(ab\Rightarrow\varepsilon)a$, proves an equivalence between $baaba$ and $baa$. We build up the derived same-type requirement $\FormalReq{Self.B.A.A.B.A == B.A.A}$ in piecemeal fashion; first, we prove $\ConfReq{Self.[P]B.[P]A}{P}$, corresponding to the $ab$ on the left:
+\begin{gather*}
+\vdash\ConfReq{Self}{P}\tag{1}\\
+\vdash\ConfReq{Self.[P]B}{P}\qquad\hbox{(in \texttt{P})}\tag{2}\\
+(1),\,(2)\vdash\ConfReq{Self.[P]B}{P}\tag{3}\\
+\vdash\ConfReq{Self.[P]A}{P}\qquad\hbox{(in \texttt{P})}\tag{4}\\
+(3),\,(4)\vdash\ConfReq{Self.[P]B.[P]A}{P}\tag{5}
+\end{gather*}
+We then introduce the same-type requirement corresponding to $(\varepsilon\Rightarrow ab)$ and combine it with $\ConfReq{Self.[P]B.[P]A}{P}$ using a \IndexStep{Conf}\textsc{Conf} step, to get a derivation for the rewrite step $ba(\varepsilon\Rightarrow ab)$:
+\begin{gather*}
+\vdash\FormalReq{Self == Self.[P]A.[P]B}\qquad\hbox{(in \texttt{P})}\tag{6}\\
+(5),\,(6)\vdash\FormalReq{Self.[P]B.[P]A == Self.[P]B.[P]A.[P]A.[P]B}\tag{7}
+\end{gather*}
+We invert it with an \IndexStep{Equiv}\textsc{Equiv} step, to get a derivation for the rewrite step $ba(ab\Rightarrow \varepsilon)$:
+\begin{gather*}
+(7)\vdash\FormalReq{Self.[P]B.[P]A.[P]A.[P]B == Self.[P]B.[P]A}\tag{8}
+\end{gather*}
+We derive $\ConfReq{Self.[P]B.[P]A.[P]A.[P]B}{P}$, corresponding to the term $baab$:
+\begin{gather*}
+(4),\,(5)\vdash\ConfReq{Self.[P]B.[P]A.[P]A}{P}\tag{9}\\
+(2),\,(9)\vdash\ConfReq{Self.[P]B.[P]A.[P]A.[P]B}{P}\tag{10}
+\end{gather*}
+Finally, we add a \IndexStep{Member}\textsc{Member} step, and get a derivation corresponding to the actual rewrite step $ba(ab\Rightarrow\varepsilon)a$:
+\begin{gather*}
+(8),\,(10)\vdash\FormalReq{Self.[P]B.[P]A.[P]A.[P]B.[P]A == Self.[P]B.[P]A.[P]A}\tag{11}
+\end{gather*}
+
+The second rewrite step, $b(\varepsilon\Rightarrow ab)a$, proves an equivalence between $baa$ and $babaa$. We can reuse some of the above derivation steps here. We first build a derivation for the rewrite step $b(\varepsilon\Rightarrow ab)$:
+\begin{gather*}
+(3),\,(7)\vdash\FormalReq{Self.[P]B == Self.[P]B.[P]A.[P]B}\tag{12}\\
+(12)\vdash\FormalReq{Self.[P]B.[P]A == Self.[P]B.[P]A.[P]B.[P]A}\tag{13}
+\end{gather*}
+Finally, we add a \IndexStep{Member}\textsc{Member} derivation step, which gives us the derived same-type requirement $\FormalReq{Self.B.A.A == B.A.B.A.A}$:
+\[
+(5),\,(13)\vdash\FormalReq{Self.[P]B.[P]A.[P]A == Self.[P]B.[P]A.[P]B.[P]A.[P]A}\tag{14}
+\]
+
+Now that we have a derived same-type requirement for both rewrite steps in our rewrite path, we can combine them with a \IndexStep{Equiv}\textsc{Equiv} step:
+\begin{gather*}
+(11),\,(14)\vdash[\texttt{Self.[P]B.[P]A.[P]A.[P]B.[P]A ==}\\
+\qquad\qquad\qquad\qquad\texttt{Self.[P]B.[P]A.[P]B.[P]A.[P]A}]\tag{15}
+\end{gather*}
+
+We're done. While this derivation is quite a bit longer than our rewrite path, the translation process was entirely mechanical. The same procedure can be applied to any rewrite path. Now, here is the important thing---equivalence of type parameters is something the compiler must be able to compute, via the \IndexDefinition{areReducedTypeParametersEqual()@\texttt{areReducedTypeParametersEqual()}}\texttt{areReducedTypeParametersEqual()} generic signature query.
+Consider this program together with protocol \texttt{P} as above:
+\begin{Verbatim}
+extension P {
+  func testBicyclicMonoid() {
+    sameType(Self.B.A.A.B.A.self, Self.B.A.B.A.A.self)  // ok
+    sameType(Self.A.A.A.self, Self.B.B.B.self)  // error
+  }
+}
+\end{Verbatim}
+A call to \texttt{sameType()} is only valid when both arguments are \index{metatype type}metatypes with the same \index{instance type}instance type. Inside the body of \texttt{testBicyclicMonoid()}, the first call is valid because \verb|Self.A.B.B.B| and \verb|Self.B.A.B.B| are the same type, as we've already seen. However the second call fails to type check, because \verb|Self.A.A.A| and \verb|Self.B.B.B| are not equivalent under reduced type equality; there is no derived same-type requirement relating them.
+
+\section{The Word Problem}\label{word problem}
+
+Now we continue with our previous discussion of computability theory, Turing machines and the halting problem from Section~\ref{tag systems}. There, we saw that termination checking for type substitution is an \index{undecidable problem}undecidable problem. The prior construction relied on recursive conformance requirements, introduced by \cite{se0157}. Now, we will look at another undecidable problem.
+
+In the previous section, we showed that any finitely-presented monoid $\AR$ can be mechanically translated into a Swift protocol declaration. Furthermore, we can write a program which asks the type checker to determine if two terms $x$ and $y$ are equivalent as elements of $\AR$. This construction used the aforesaid recursive conformance requirements, together with same-type requirements in protocol \texttt{where} clauses \cite{se0142}.
+
+Our construction works with the examples of monoids we've seen so far---free monoids, the integers modulo $n$, the bicyclic monoid---and also countless others. An adventurous reader might try the \index{dihedral group}\emph{Dihedral group of order~12},
+\[\langle s,\,t;\; s^6\sim\varepsilon,\, t^2\sim\varepsilon,\, tst\sim s^5\rangle\]
+or the \index{plactic monoid}\emph{plactic monoid of order 2},
+\[\langle a,\,b;\; aba\sim baa,\, bba\sim bab\rangle\]
+We can translate these into protocol declarations, and play with our \texttt{sameType()} function to determine compile-time equivalence of terms to our heart's content. We are then led to ask if this always works, or if we somehow restrict which protocol declarations are accepted by the compiler. As it turns out, this is actually the well-known \IndexDefinition{word problem}\emph{word problem}:
+\begin{quote}
+Given a description of a finitely-presented monoid $\AR$, and a pair of terms $x$, $y\in A^*$, is there an effectively-computable algorithm to determine if $x\sim y$?
+\end{quote}
+
+This question was first posed in the early 20th century by Axel Thue, who studied various formalisms defined by the replacement of substrings within larger strings via a fixed set of rules. Thue described what later became known as \index{Thue system}\index{Thue system!z@\igobble|seealso{finitely-presented monoid}}\emph{Thue~systems} and \index{semi-Thue system}\index{semi-Thue system!z@\igobble|seealso{rewrite system}}\emph{semi-Thue~systems} in a 1914 paper \cite{thue_translation}. A Thue system is essentially a finitely-presented monoid, while a semi-Thue system is a string rewrite system, something we will define in the next section.
+
+In a 1947 paper, Emil L.~Post showed that the word problem is undecidable, by constructing a Thue system from a \index{Turing machine}Turing machine, in such a way that if the Turing machine reaches some given state, the Thue system could prove an equivalence between an input string and a string representing the desired end state \cite{post_1947}. For if we could solve the word problem for an arbitrary Thue system, we could then encode any Turing machine as a Thue system, and solve the \index{halting problem}halting problem by asking if an input string was equivalent to the string representing the halting state in this Thue system.
+
+Not only is there no general algorithm to solve the word problem given arbitrary inputs, but we can construct a \emph{specific} finitely-presented monoid where this is impossible. This can be accomplished via Turing's construction of a \index{universal Turing machine}\emph{universal machine}, which takes the \index{standard description}standard description of another machine as input, and simulates the execution of this machine step by step. In today's lingo, a universal machine is a ``Turing machine emulator'' or ``\index{metacircular interpreter}metacircular interpreter.'' Applying Post's construction to a universal Turing machine gives us a concrete finitely-presented monoid in which the word problem cannot be solved. While the finitely-presented monoid for a universal Turing machine has a large alphabet and set of relations, G.~S.~Tseitin significantly improved upon this result in 1958~\cite{undecidablesemigroup}.
+\begin{theorem}\label{undecidablemonoid} Consider the following finitely-presented monoid:
+\begin{align*}
+\langle a,\,b,\,c,\,d,\,e;\,&ac\sim ca,\,ad\sim da,\,bc\sim cb,\,bd\sim db,\\
+&eca\sim ce,\,cdca\sim cdcae,\,caaa\sim aaa,\,daaa\sim aaa\rangle
+\end{align*}
+No algorithm can determine in finite time if an arbitrary term, made up of the symbols $a$, $b$, $c$, $d$, and $e$ is equivalent to $aaa$ under the above set of relations.
+\end{theorem}
+
+Here is the protocol declaration corresponding to the above finitely-presented monoid:
+\begin{Verbatim}
+protocol P {
+  associatedtype A: P
+  associatedtype B: P
+  associatedtype C: P
+  associatedtype D: P
+  associatedtype E: P
+    where A.C == C.A, A.D == D.A,
+          B.C == C.B, B.D == D.B,
+          C.E == E.C.A,
+          D.E == E.D.B,
+          C.C.A == C.C.A.E
+}
+\end{Verbatim}
+The Swift compiler will reject this declaration and diagnose an error; the realization that this must be so is what ultimately led to the development of the Requirement Machine, as mentioned in Section~\ref{type parameter graph}. The error message hints at our next topic:
+\begin{quote}
+\begin{verbatim}
+error: cannot build rewrite system for protocol;
+rule length limit exceeded
+\end{verbatim}
+\end{quote}
+Indeed, the word problem can be solved if we impose some additional restrictions, and require that our finitely-presented monoid defines a string \index{rewrite system}rewrite system. The next section will explain how string rewrite systems have a solvable word problem, while retaining much expressivity.
+
+\paragraph{The big picture} Encoding a finitely-presented monoid as a Swift protocol is certainly academically interesting, but to make use of string rewrite systems in the Swift generics implementation, we need to do the opposite: given a generic signature and some set of protocol declarations, we must translate this whole mess into a finitely-presented monoid. If we just ``invert'' the construction from the previous section, we would find ourselves with a very restricted form of generics which is quite useless in practice:
+\begin{itemize}
+\item A generic signature would just be a protocol generic signature: a single generic parameter conforming to a single protocol.
+\item All associated types of every protocol must conform to the same protocol and no other protocol.
+\item The only other kind of requirements which could be stated are same-type requirements in a protocol \texttt{where} clause.
+\end{itemize}
+Chapter~\ref{symbols terms rules} will show that if we take a suitable alphabet and set of relations, a finitely-presented monoid can actually express Swift's generics system in all its glory: multiple generic parameters, conformance requirements to multiple protocols, different kinds of associated type requirements inside protocols, superclass requirements, and so on. The undecidability of the word problem prevents us from accepting \emph{all} syntactically well-formed generic signatures and protocol declarations, because we must be able to compute the reduced type equality relation in those generic signatures we do accept. However, most reasonable generic signatures fit within the restrictions of our model.
+
+\section{Rewrite Systems}\label{rewritesystemintro}
+
+A \index{rewrite path}rewrite path demonstrates an equivalence between a pair of terms. As the \index{word problem}word problem is \index{undecidable problem}undecidable, there is no general algorithm that can find a rewrite path between a pair of terms in an arbitrary finitely-presented monoid. An intuitive way to think of this difficulty is that the relations $u\sim v$ are bidirectional equivalences, so a rewrite path might need to ``wander'' in both directions, taking one or both rewrite steps of the form $x(u\Rightarrow v)y$ or $x(v\Rightarrow u)y$, producing longer intermediate terms without restriction:
+\begin{quote}
+\begin{tikzcd}
+s\arrow[rd, Rightarrow]&&\cdots\arrow[rd, Rightarrow]&&t\\
+&\cdots\arrow[ru, Rightarrow]&&\cdots\arrow[ru, Rightarrow]
+\end{tikzcd}
+\end{quote}
+Now, instead of relations $u\sim v$, we might consider unidirectional \IndexDefinition{rewrite rule}\emph{rewrite rules} $u\Rightarrow v$. A rewrite rule allows us to replace the left hand side $u$ with the right-hand side $v$ when the left-hand side $u$ appears as a subterm of another term $xuy$, but not vice versa; that is, we can form the rewrite step $x(u\Rightarrow v)y$ but not $x(v\Rightarrow u)y$. With this restriction, we have the inkling of a computable algorithm.
+\begin{algorithm}[Term reduction]\label{term reduction algo}
+As input, takes a term $t\in A^*$ and a list of rewrite rules $R:=\{(u_1,\,v_1),\,\ldots\,(u_n,\,v_n)\}$, and outputs a rewrite path $p$.
+\begin{enumerate}
+\item Initialize $p$ to be the empty rewrite path $1_t$.
+\item If $t=xu_iy$ for some $x$, $y\in A^*$ and $(u_i,\,v_i)\in R$, then append the rewrite step $x(u_i\Rightarrow v_i)y$ to $p$, replace $t$ with $xv_iy$, and go back to Step~1.
+\item Otherwise, return $p$.
+\end{enumerate}
+\end{algorithm}
+The algorithm outputs a rewrite path $p$ where $\Src(p)=t$, and $\Dst(p)$ is some term $t^\prime$ that does not contain the left-hand side of any rewrite rule as a subterm. We say that $t^\prime$ is a \IndexDefinition{reduced term}\index{irreducible term|see{reduced term}}\emph{reduced term}, and that $t$ \emph{reduces} to $t^\prime$.
+
+How does this help us answer the word problem? Suppose we wish to find a rewrite path from $s$ to $t$. We first \emph{orient} each relation $u\sim v$ to get a rewrite rule $u\Rightarrow v$ or $v\Rightarrow u$ (but not both, or our algorithm will get stuck in a loop). Then we apply the algorithm to $s$ and $t$ to get a pair of rewrite paths $p_s$ and $p_t$, where $\Src(p_s)=s$, $\Src(p_t)=t$, and both $\Dst(p_s)$ and $\Dst(p_t)$ are reduced terms. If it so happens that $\Dst(p_s)=\Dst(p_t)$, then we know that $s\sim t$, and that $p:= p_s \circ p_t^{-1}$ is actually a rewrite path from $s$ to $t$:
+\begin{quote}
+\begin{tikzcd}
+s\arrow[rd, Rightarrow]&&&&t\arrow[ld, Leftarrow]\\
+&\cdots\arrow[rd, Rightarrow]&&\cdots\arrow[ld, Leftarrow]\\
+&&s^\prime = t^\prime
+\end{tikzcd}
+\end{quote}
+We must overcome three technical difficulties for the above strategy to be viable:
+\begin{enumerate}
+\item Our algorithm does not actually guarantee termination as written. For example, consider these rules:
+\begin{gather*}
+ab\Rightarrow bc\\
+ba\Rightarrow ab\\
+c\Rightarrow a
+\end{gather*}
+Now, an attempt to reduce the term $ab$ gets stuck:
+\[ab\rightarrow bc\rightarrow ba\rightarrow ab\rightarrow\ldots\]
+
+\item Our algorithm is actually non-deterministic, because we may get to a point where we have a choice of several rewrite rules to apply. There is no reason to assume different choices won't give us different irreducible terms.
+
+\item If $s$ reduces to $s^\prime$, $t$ reduces to $t^\prime$, and $s^\prime=t^\prime$, then it is true that $s\sim t$. Unfortunately, \emph{a~priori} there is no reason for the converse to hold. It can happen that $s^\prime\neq t^\prime$ where both $s^\prime$ and $t^\prime$ are reduced, and yet $s\sim t$.
+
+\end{enumerate}
+
+We wish to construct sufficiently ``well-behaved'' rewrite rules from the relations of a \index{finitely-presented monoid}finitely-presented monoid, in a manner that avoids these difficulties. When we succeed---and we know this will not be possible in every case---we can solve the word problem using Algorithm~\ref{term reduction algo}.
+
+What we're looking at here is actually the theory of \index{string rewrite system}\index{string rewrite system!z@\igobble|seealso{rewrite system}}\emph{string rewriting}; our rewrite rules are constructed from the relations of a finitely-presented monoid, so they operate on ``flat'' sequences of symbols from a finite alphabet. More general rewrite systems can also be considered; \index{term rewrite system}\index{term rewrite system!z@\igobble|seealso{rewrite system}}\emph{term rewriting} is the study of techniques for simplifying ``tree-like'' expressions, of which strings are a special case. An in-depth treatment of string rewriting can be found in \cite{book2012string}, while the more general theory of term rewriting is discussed in \cite{andallthat} and \cite{formalmans6}. (While all of our terms are strings in this setting, so we do not refer to them as strings to avoid confusion with the ``string'' data type in programming.)
+
+\paragraph{Termination}  We will now consider each of our three ``problems'' in turn. To convert a relation $u\sim v$ into a rewrite rule, we need to pick one of the two orientations $u\Rightarrow v$ or $v\Rightarrow u$. The choice of orientation is not completely arbitrary; we already saw an example where term reduction gets stuck in a loop. Another possibility is that it produces an infinite sequence of distinct terms, none of which are reduced; for example, with the single rewrite rule $a\Rightarrow aa$, term reduction never terminates with $a$, producing an ever-longer sequence of terms:
+\[a\Rightarrow aa\Rightarrow aaa\Rightarrow aaaa\Rightarrow\ldots\]
+One way to prevent both possibilities is to choose a suitable a partial order, and to orient each rewrite rule such that term reduction produces a smaller term under this order. We can formalize this as follows.
+\begin{definition}\label{reduction order def}
+If $A$ is some alphabet, a \emph{reduction order} $<$ on the free monoid $A^*$ is a \index{translation-invariant relation}translation-invariant, well-founded, partial order. A \IndexDefinition{rewrite system}\emph{rewrite system} is a finitely-presented monoid $\AR$ together with a reduction order $<$, where the relations are oriented with respect to this order, meaning that $v<u$ for all $(u,v)\in R$. Note that if our reduction order is not a \index{linear order}linear order, it may happen that we have a \IndexDefinition{non-orientable relation}\emph{non-orientable} relation $u\sim v\in R$ where $u\not< v$ and $v\not< u$. We cannot build a rewrite system in this case.
+\end{definition}
+We defined well-founded orders in Section~\ref{reducedtypes}, where we saw that the existence of a reduced type, as the smallest element of an equivalence class of type parameters, was contingent upon the type parameter order being a well-founded order. We're going to re-state this definition here.
+\begin{definition}
+A \index{partial order}partial order $<$ over a set $S$ is \index{well-founded order}\emph{well-founded} if $S$ does not have an infinite descending chain; that is, there does not exist an infinite sequence of elements $x_i\in S$ such that:
+\[\ldots <x_n<\ldots <x_3<x_2<x_1\]
+\end{definition}
+Translation invariance ensures that as long as each rewrite rule is oriented, term reduction produces a smaller term at each step, because if $u<v$, then it is also true that $xuy<xvy$. Well-foundedness ensures that since the term becomes smaller at each step, the term reduction must terminate after a finite number of steps.
+
+\begin{definition}
+The \index{term length}\emph{length} of a term $x\in A^*$ is the number of elements of $A$ appearing in $x$, counting duplicates. (Once again, this is defined on the terms of a free monoid, not the equivalence classes of a finitely-presented monoid.) For example, in $\{a,\,b,\,c\}^*$, $|\varepsilon|=0$, $|c|=1$, $|ab|=2$, $|aaa|=3$, and so on. Perhaps the simplest possible reduction order compares term length, so $x<y$ if $|x|<|y|$. Under the length order, length-preserving relations such as $ab\sim ba$ are non-orientable and cannot be considered.
+\end{definition}
+\begin{example} Consider the following finitely-presented monoid:
+\[\langle a,\,b,\,c;\,cc\sim c,\,ca\sim a,\,a\sim ba\rangle\]
+Using the length order as our reduction order, we're going to show that $acca\sim bcaa$ by constructing a rewrite path from $acca$ to $bcaa$. Each of our relations above equates a term of length 1 and length 2, so our reduction order gives us the following rewrite rules:
+\begin{align*}
+cc&\Rightarrow c\\
+ca&\Rightarrow a\\
+ba&\Rightarrow a
+\end{align*}
+First, we reduce the term $acca$ using Algorithm~\ref{term reduction algo}. We apply the first rewrite rule to replace the subterm $cc$ with $c$, leaving us with the term $aca$. This transformation is described by the rewrite step $a(cc\Rightarrow c)a$. Then, we apply the second rewrite rule to replace the subterm $ca$ with $a$, leaving us with $aa$. This is described by the rewrite step $a(ca\Rightarrow a)$. The term $aa$ cannot be reduced any further using our rewrite rules. We now have a rewrite path from $acca$ to $aa$, which we will call $p_1$:
+\[p_1 := a(cc\Rightarrow c)a\circ a(ca\Rightarrow a)\]
+Or in the form of a diagram:
+\begin{quote}
+\begin{tikzcd}[column sep=large]
+acca\arrow[r, Rightarrow, "a(cc\Rightarrow c)a"]&aca\arrow[r, Rightarrow, "a(ca\Rightarrow a)"]&aa
+\end{tikzcd}
+\end{quote}
+Next, we repeat this process with the term $bcaa$. We apply the second rewrite rule to replace the subterm $ca$ with $a$, leaving us with $baa$. Then, we apply the third rewrite rule to replace $ba$ with $a$, leaving us with $aa$, which again cannot be reduced further. This gives us a rewrite path from $bcaa$ to $aa$, which we will call $p_2$:
+\[p_2 := b(ca\Rightarrow a)a\circ(ba\Rightarrow a)a\]
+Or in the form of a diagram:
+\begin{quote}
+\begin{tikzcd}[column sep=large]
+bcaa\arrow[r, Rightarrow, "b(ca\Rightarrow a)a"]&baa\arrow[r, Rightarrow, "(ba\Rightarrow a)a"]&aa
+\end{tikzcd}
+\end{quote}
+If we invert $p_2$, we get a rewrite path $p_2^{-1}$ from $aa$ to $bcaa$. Note that $\Dst(p_1)=\Src(p_2^{-1})$. If we compose $p_1$ with $p_2^{-1}$, we get a rewrite path from $acca$ to $bcaa$, showing that $acca\sim bcaa$:
+\begin{quote}
+\begin{tikzcd}
+acca\arrow[d, "a(cc\Rightarrow c)a"', Rightarrow] &&bcaa\arrow[d, Leftarrow, "b(a\Rightarrow ca)a"]\\
+aca\arrow[dr, "a(ca\Rightarrow a)"', Rightarrow, bend right] &&baa\arrow[dl, Leftarrow, "(a\Rightarrow ba)a", bend left]\\
+&aa&
+\end{tikzcd}
+\end{quote}
+\end{example}
+\index{type parameter order}%
+\index{reduced type}%
+Before moving on, let's define a fancier reduction order, called the \emph{shortlex order}. We compare the lengths of terms as before, but instead of giving up when they have the same length, we proceed to compare their elements pairwise using an order on $A$. For example, if $A:=\{a,\,b,\,c\}$, we might say that $a<b<c$, so then $ab<ac$.
+\IndexDefinition{shortlex order}%
+\begin{algorithm}[Shortlex order]\label{shortlex}
+Takes two terms $x,y\in A^*$ as input, and returns one of ``$<$'', ``$>$'', ``$=$'' or \index{$\bot$}\index{$\bot$!z@\igobble|seealso{partial order}}``$\bot$'' as output.
+\begin{enumerate}
+\item (Shorter) If $|x|<|y|$, return ``$<$''.
+\item (Longer) If $|x|>|y|$, return ``$>$''.
+\item (Initialize) If $|x|=|y|$, we compare elements. Let $i:=0$ and $\texttt{N}:=|x|$.
+\item (Equal) If $i=\texttt{N}$, we didn't find any differences, so $x=y$. Return ``$=$''.
+\item (Subscript) Let $x_i$, $y_i\in A$ be the $i$th elements of $x$ and $y$, respectively.
+\item (Compare) Compare $x_i$ with $y_i$ using the order on $A$. Return the result if it is ``$<$'', ``$>$'', or ``$\bot$''. Otherwise, we must have $x_i=y_i$, so keep going.
+\item (Next) Increment $i$ and go back to Step~4.
+\end{enumerate}
+\end{algorithm}
+The shortlex order is very similar to the type parameter order of Algorithm~\ref{type parameter order}, except the type parameter order was defined in a recursive manner, whereas the above iterates over a ``flat'' representation of two terms in parallel. Also, the above algorithm allows for a partial order on $A$ by returning ``$\bot$'' when the two terms $x$ and $y$ contain an incomparable pair of symbols at the same position. The shortlex order on $A^*$ has a number of useful properties:
+\begin{itemize}
+\index{well-founded order}
+\item Since we assume $A$ to be finite, the shortlex order on $A^*$ is well-founded. (More generally if we allow $A$ to be infinite, the shortlex order on $A^*$ is well-founded if and only if the order on $A$ is well-founded. But our monoid is no longer finitely-presented in this case, so we won't have much use for this generalization.)
+\item If $x,y\in A$ are viewed as terms of length 1 in $A^*$, then $x<y$ has the same meaning under either interpretation.
+\index{linear order}
+\item The shortlex order on $A^*$ is linear if and only if the original order on $A$ is linear.
+\index{translation-invariant relation}
+\item The shortlex order on $A^*$ is translation-invariant.
+\end{itemize}
+\begin{example} Let $A:=\{a,\,b,\,c\}$ with $a<b<c$. Then in the shortlex order on $A^*$,
+\[b<aa<ac<ba<aaa<aab<aca<baa<\cdots\]
+\end{example}
+\index{lexicographic order}
+The shortlex order is \emph{not} the same as the standard lexicographic ``dictionary'' order on strings. For example, $ab<b$ in the lexicographic order, but $b<ab$ in the shortlex order. Unlike the shortlex order, the lexicographic order is \emph{not} well-founded, thus it is unsuitable for use as a reduction order:
+\[b>ab>aab>aaab>aaaab>\ldots\]
+
+Algorithm~\ref{term reduction algo} does not directly involve a reduction order, but if the initial rewrite rules are oriented, it always outputs a special kind of rewrite path.
+
+\begin{definition}
+A \IndexDefinition{directed rewrite step}rewrite step $s := x(u\Rightarrow v)y$ is \emph{directed} if $v<u$ (or equivalently, $xuy<xvy$). A \IndexDefinition{directed rewrite path}rewrite path is \emph{directed} if every rewrite step in the path is directed.
+\end{definition}
+An \index{empty rewrite path}empty rewrite path vacuously satisfies the condition of being directed. If $z\in A^*$ and $p$ is a directed rewrite path, then so are the \index{whiskering}whiskered paths $z\star p$ and $p\star z$. Similarly, if $p_1$ and $p_2$ are two directed rewrite paths with $\Dst(p_1)=\Src(p_2)$, then the \index{rewrite path composition}composition $p_1\circ p_2$ is a directed rewrite path. (However, if $p$ is a directed rewrite path, then $p^{-1}$ is \emph{never} directed, unless $p$ is the empty rewrite path.)
+\begin{definition}
+Recall that $x\sim y$ if there is a rewrite path from $x$ to $y$. Now we will write $x\rightarrow y$ if there is a \emph{directed} rewrite path from $x$ to $y$. This relation \index{$\rightarrow$}\index{$\rightarrow$!z@\igobble|seealso{reduction relation}}$\rightarrow$ is the \emph{reduction relation} of our rewrite system.
+\end{definition}
+
+The three relations $\sim$, $<$, and $\rightarrow$ are closely related; if $x\rightarrow y$, then $x\sim y$ and $y<x$. However, $y<x$ does not imply $x\sim y$; we can compare terms in different equivalence classes with the reduction order. We will also see that $x\sim y$ and $y<x$ together do not imply $x\rightarrow y$ without further conditions.
+
+\paragraph{Confluence}
+Now we return to our list of three potential ``problems'' from earlier. Having tackled termination, we turn our attention to the remaining two. Both actually concern the uniqueness of reduced terms in an equivalence class. If $x$ can be reduced via two different directed rewrite paths due to non-determinism in Algorithm~\ref{term reduction algo}, we want both paths to ultimately end at the same reduced term. Similarly, if $x\sim y$, we want both $x$ and $y$ to reduce to the same term $z$. Not every rewrite system has these properties, but if it satisfies one, it satisfies both.
+
+The \emph{Church-Rosser Theorem} was originally stated in \cite{conversion} as a result about the \index{lambda calculus}lambda calculus, which can be thought of as a kind of a rewrite system on tree-structured terms. The lambda calculus can express any computable function, where evaluation is given by a reduction relation on terms. Unlike the rewrite systems we are considering, reduction of lambda terms does not necessarily terminate, but it enjoys the two properties below. Many other kinds of abstract systems also satisfy the necessary conditions of this theorem, and a more general form appeared in \cite{combinatory}, with abstract terms and reduction given by a ``monotone quasi-ordering'' taking the place of lambda calculus. The corresponding result for string rewrite systems can be found in \cite{book2012string}.
+
+\begin{theorem}[Church-Rosser Theorem]\label{church rosser theorem}
+The following are equivalent:
+\begin{enumerate}
+\item \index{confluence}(Confluence) If $t\rightarrow u$ and $t\rightarrow v$, there exists a term $z$ such that $u\rightarrow z$ and $v\rightarrow z$.
+\item \index{Church-Rosser property}(Church-Rosser property) If $x\sim y$, there exists $z$ such that $x\rightarrow z$ and $y\rightarrow z$.
+\end{enumerate}
+\end{theorem}
+A well-founded reduction order gives us a termination guarantee, which lets us find \emph{some} reduced term in every equivalence class. The Church-Rosser property tells us this reduced term is \emph{unique}. For if $x$, $y$ are both reduced and $x\sim y$, then we have a $z$ such that $x\rightarrow z$ and $y\rightarrow z$. But since $x$ and $y$ are both reduced, $x=y=z$. In Chapter~\ref{completion}, we see that our termination guarantee allows us to further strengthen the above theorem.
+\begin{example}
+Consider the following finitely-presented monoid:
+\[\langle a,\,b,\,c;\,ab\sim a,\,bc\sim b\rangle\]
+For the reduction order, let's take the shortlex order with $a<b<c$, but in this case the order on the elements of $A$ doesn't actually change the outcome. Orienting the relations gives us following two rewrite rules; we will see this reduction relation is not confluent:
+\begin{align*}
+ab&\Rightarrow a\\
+bc&\Rightarrow b
+\end{align*}
+
+\index{equivalence class}%
+First, observe that both $ac$ and $a$ are reduced terms; neither contains a subterm equal to the left hand side of either of the above rules above. Now, let's play with the term $abc$. This is where we get into trouble. We can begin by applying either of the two rewrite rules:
+\begin{enumerate}
+\item Applying the first rule to $abc$ gives us $ac$.
+\item Applying the second rule to $abc$ gives us $ab$.
+\end{enumerate}
+The first term $ac$ is reduced as we said; the second $ab$ reduces to $a$ by an application of the first rule, and $a$ is reduced. This non-determinism gives us two directed rewrite paths $p_1$ and $p_2$:
+\begin{gather*}
+p_1 := (ab\Rightarrow a)c\\
+p_2 := a(bc\Rightarrow b)\circ(ab\Rightarrow a)
+\end{gather*}
+\index{directed rewrite path}%
+Observe that $\Src(p_1)=\Src(p_2)=abc$, $\Dst(p_1)=ac$, and $\Dst(p_2)=a$. In fact, $p_1^{-1}\circ p_2$ is a perfectly valid (non-directed) rewrite path from $ac$ to $a$, showing that $ac\sim a$; however there is no \emph{directed} rewrite path from $ac$ to $a$, so $ac\sim a$ and $ac>a$ do not together imply that $ac\rightarrow a$. Here is the rewrite path $p_1^{-1}\circ p_2$ in the form of a diagram; intuitively, a directed rewrite path only goes ``down,'' but to get from $ac$ to $a$, we have to go ``up'' and ``down'':
+\begin{quote}
+\begin{tikzcd}
+&abc \arrow[dl, "(a\Rightarrow ab)c"', Leftarrow, bend right] \arrow[dr, "a(bc\Rightarrow b)", Rightarrow, bend left] &\\
+ac &&ab \arrow[dl, "(ab\Rightarrow a)", Rightarrow, bend left] \\
+&a&
+\end{tikzcd}
+\end{quote}
+Our reduction relation does not have the Church-Rosser property, because we were able to construct a (necessarily non-directed) rewrite path between two distinct reduced terms. However, let's say we \emph{add} the relation $ac\sim a$ to our monoid:
+\[\langle a,\,b,\,c;\,ab\sim a,\,bc\sim b,\,ac\sim a\rangle\]
+As a monoid, this is equivalent to the earlier presentation; the relation $ac\sim a$ does not change our equivalence relation $\sim$, because we \emph{already had} a rewrite path from $ac$ to $a$. However, it \emph{does} change the reduction relation $\rightarrow$, by adding the rewrite rule $ac\Rightarrow a$. Now, $ac$ is no longer reduced; the new rewrite rule reduces $ac$ to $a$ via the directed rewrite path $(ac\Rightarrow a)$. Furthermore, if we start with the term $abc$, we can apply rewrite rules in any order and always end up at $a$.
+\end{example}
+\paragraph{Completion} This process of adding new rewrite rules to obtain a confluent reduction relation is called \IndexDefinition{completion}\emph{completion}. Completion does not change the equivalence relation $\sim$, so we can only add a rewrite rule $x\Rightarrow y$ if we already have $x\sim y$. In Chapter~\ref{completion}, we will introduce the \index{Knuth-Bendix algorithm}Knuth-Bendix algorithm, which attempts to do just that. Completion does not always succeed; the algorithm can fail by running forever, adding an infinite sequence of rules with the reduction relation never becoming confluent.
+
+A finitely-presented monoid is \IndexDefinition{convergent presentation}\emph{convergent} with respect to some reduction order $<$ if completion terminates after finitely many steps. To determine whether a monoid presentation is convergent is itself an \index{undecidable problem}undecidable problem \cite{ODUNLAING1983339}; we will see in Chapter~\ref{completion} that a maximum iteration count is imposed on the completion procedure.
+
+Any monoid with an undecidable word problem cannot be convergent, because we can always solve the word problem using Algorithm~\ref{term reduction algo} in a convergent monoid. Is the converse true? That is, if we know the word problem in some monoid is decidable, but we don't know how, can we always construct a rewrite system with a confluent reduction relation, and solve the word problem with term reduction? The answer is no. Several things can go wrong:
+\begin{enumerate}
+\item Convergence can depend on the choice of reduction order $<$.
+\item Convergence also depends on the choice of generators. We can have two different presentations $\AR$ and $\langle A^\prime;\,R^\prime\rangle$ define two isomorphic monoids, such that one presentation is convergent but the other is not.
+\item Some finitely-presented monoids are known to have decidable word problems, but no convergent presentation over \emph{any} generating set.
+\end{enumerate}
+We will see examples of the first two cases in Chapter~\ref{completion}, because they motivate several design decisions in the rewrite system used by the Swift generics implementation. For the second case, we also have this simple example from \cite{KAPUR1985337}: the monoid presentation $\langle a,\,b;\,aba\sim bab\rangle$ is not convergent under any rewrite order, but if we add a new generator $c$ together with the relation $c\sim ab$, we get an isomorphic monoid that is convergent. The third case is more difficult, but an example was shown to exist in \cite{SQUIER1994271}.
+\begin{theorem} The following finitely-presented monoid has a word problem decidable via a ``bespoke'' algorithm, but no convergent presentation over any generating set or reduction order:
+\[\langle a,\,b,\,t,\,x,\,y;\,ab\sim \varepsilon,\,xa\sim atx,\,xt\sim tx,\,xb\sim bx,\,xy\sim \varepsilon\rangle\]
+\end{theorem}
+The proof defines a combinatorial property of the \index{rewrite graph}rewrite graph (which they call the derivation graph), referred to as having \emph{finite derivation type}. It is shown that the rewrite graph of a convergent presentation has finite derivation type. But also, finite derivation type is preserved by isomorphism and does not depend on the choice of presentation, so it is an invariant of the monoid itself, and not just the rewrite graph. (So, for example, $\langle a,\,b;\,aba\sim bab\rangle$ from above must still have finite derivation type, because a \emph{different} presentation is convergent.) Thus, if a monoid does not have finite derivation type, no possible presentation of this monoid be convergent. The authors then show their monoid does not have finite derivation type; and yet, they are able to give an explicit algorithm for solving its word problem.
+
+So, each of the below is a \index{proper subset}proper subset of the next, and we shall be content to play in the shallow end of the pool from here on out:
+\[
+\begin{array}{c}
+\boxed{\hbox{Has convergent presentation}} \\
+\subsetneq \\
+\boxed{\hbox{Has decidable word problem}} \\
+\subsetneq \\
+\boxed{\hbox{All finitely-presented monoids}}
+\end{array}
+\]
+To learn more about the word problem in finitely-presented monoids, see \cite{fptype}, \cite{fdtfp3}, \cite{mild}, and \cite{Otto1997}. As for undecidable problems in abstract algebra in general, see \cite{tarski1953undecidable}.
+
+\paragraph{Type substitution} In fact, we could have formalized the \index{type substitution}type substitution algebra as a kind of rewrite system. This would be more general than a \emph{string} rewrite system, as the terms have a recursive structure; substitution maps contain types and conformances, and specialized conformances contain substitution maps. The reduction relation is given by the various evaluation rules involving the $\otimes$ operator. When we derived various identities showing that $\otimes$ is associative, what we really proved is that this reduction relation is confluent. In Section~\ref{tag systems}, we demonstrated that type substitution can express arbitrary computation, and thus cannot have a termination guarantee. So, when viewed as a rewrite system, type substitution is confluent but non-terminating---much like the \index{lambda calculus}lambda calculus! While this is an interesting direction, we will not pursue it further.
+\end{document}

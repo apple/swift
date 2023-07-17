@@ -331,6 +331,14 @@ bool OptimizeHopToExecutor::needsExecutor(SILInstruction *inst) {
   if (auto *copy = dyn_cast<CopyAddrInst>(inst)) {
     return isGlobalMemory(copy->getSrc()) || isGlobalMemory(copy->getDest());
   }
+  // BeginBorrowInst and EndBorrowInst currently have
+  // MemoryBehavior::MayHaveSideEffects.  Fixing that is tracked by
+  // rdar://111875527.  These instructions only have effects in the sense of
+  // memory dependencies, which aren't relevant for hop_to_executor
+  // elimination.
+  if (isa<BeginBorrowInst>(inst) || isa<EndBorrowInst>(inst)) {
+    return false;
+  }
   return inst->mayReadOrWriteMemory();
 }
 

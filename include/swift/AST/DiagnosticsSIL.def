@@ -342,6 +342,8 @@ ERROR(performance_callee_unavailable,none,
       "called function is not available in this module and can have unpredictable performance", ())
 ERROR(bad_attr_on_non_const_global,none,
       "global variable must be a compile-time constant to use %0 attribute", (StringRef))
+ERROR(global_must_be_compile_time_const,none,
+      "global variable must be a compile-time constant", ())
 NOTE(performance_called_from,none,
       "called from here", ())
 
@@ -853,6 +855,13 @@ ERROR(sil_referencebinding_src_used_within_inout_scope, none,
 NOTE(sil_referencebinding_inout_binding_here, none,
       "inout binding here",
       ())
+
+// Warnings arising from the flow-sensitive checking of Sendability of
+// non-Sendable values
+WARNING(consumed_value_used, none,
+        "Non-Sendable value consumed, then used at this site; could yield race with another thread", ())
+WARNING(arg_region_consumed, none,
+        "This application could pass `self` or a Non-Sendable argument of this function to another thread, potentially yielding a race with the caller", ())
 
 #define UNDEFINE_DIAGNOSTIC_MACROS
 #include "DefineDiagnosticMacros.h"

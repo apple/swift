@@ -5867,13 +5867,13 @@ ASTContext::getOpenedElementSignature(CanGenericSignature baseGenericSig,
   }
 
   auto eraseParameterPackRec = [&](Type type) -> Type {
-    return type.transformRec([&](Type t) -> llvm::Optional<Type> {
-      if (auto *paramType = t->getAs<GenericTypeParamType>()) {
+    return type.transformTypeParameterPacks([&](SubstitutableType *t) -> llvm::Optional<Type> {
+      if (auto *paramType = dyn_cast<GenericTypeParamType>(t)) {
         if (packElementParams.find(paramType) != packElementParams.end()) {
           return Type(packElementParams[paramType]);
         }
 
-        return t;
+        return Type(t);
       }
       return llvm::None;
     });

@@ -73,7 +73,7 @@ public struct SmallProjectionPath : Hashable, CustomStringConvertible, NoReflect
     case enumCase       = 0x3 // A concrete enum case (with payload): syntax e.g. `e4'
     case classField     = 0x4 // A concrete class field: syntax e.g. `c1`
     case indexedElement = 0x5 // A constant offset into an array of elements: syntax e.g. 'i2'
-                              // The index must not be 0 and there must not be two successive element indices in the path.
+                              // The index must be greater than 0 and there must not be two successive element indices in the path.
 
     // "Large" kinds: starting from here the low 3 bits must be 1.
     // This and all following kinds (we'll add in the future) cannot have a field index.
@@ -200,12 +200,18 @@ public struct SmallProjectionPath : Hashable, CustomStringConvertible, NoReflect
   public func push(_ kind: FieldKind, index: Int = 0) -> SmallProjectionPath {
     assert(kind != .anything || bytes == 0, "'anything' only allowed in last path component")
     if (kind.isIndexedElement) {
-      if kind == .indexedElement && index == 0 {
-        // Ignore zero indices
-        return self
+      let (k, i, numBits) = top
+      if kind == .indexedElement {
+        if index == 0 {
+          // Ignore zero indices
+          return self
+        }
+        if k == .indexedElement {
+          // "Merge" two constant successive indexed elements
+          return pop(numBits: numBits).push(.indexedElement, index: index + i)
+        }
       }
-      // "Merge" two successive indexed elements
-      let (k, _, numBits) = top
+      // "Merge" two successive indexed elements which doesn't have a constant result
       if (k.isIndexedElement) {
         return pop(numBits: numBits).push(.anyIndexedElement)
       }
@@ -474,26 +480,26 @@ public struct SmallProjectionPath : Hashable, CustomStringConvertible, NoReflect
     return false
   }
 
-  /// Return true if this path is a sub-path of `rhs` or is equivalent to `rhs`.
+  /// Subtracts this path from a larger path if this path is a prefix of the other path.
   ///
   /// For example:
-  ///   `s0` is a sub-path of `s0.s1`
-  ///   `s0` is not a sub-path of `s1`
-  ///   `s0.s1` is a sub-path of `s0.s1`
-  ///   `i*.s1` is not a sub-path of `i*.s1` because the actual field is unknown on both sides
-  public func isSubPath(of rhs: SmallProjectionPath) -> Bool {
+  ///   subtracting `s0` from `s0.s1` yields `s1`
+  ///   subtracting `s0` from `s1` yields nil, because `s0` is not a prefix of `s1`
+  ///   subtracting `s0.s1` from `s0.s1` yields an empty path
+  ///   subtracting `i*.s1` from `i*.s1` yields nil, because the actual index is unknown on both sides
+  public func subtract(from rhs: SmallProjectionPath) -> SmallProjectionPath? {
     let (lhsKind, lhsIdx, lhsBits) = top
     switch lhsKind {
     case .root:
-      return true
+      return rhs
     case .classField, .tailElements, .structField, .tupleField, .enumCase, .existential, .indexedElement:
       let (rhsKind, rhsIdx, rhsBits) = rhs.top
       if lhsKind == rhsKind && lhsIdx == rhsIdx {
-        return pop(numBits: lhsBits).isSubPath(of: rhs.pop(numBits: rhsBits))
+        return pop(numBits: lhsBits).subtract(from: rhs.pop(numBits: rhsBits))
       }
-      return false
+      return nil
     case .anything, .anyValueFields, .anyClassField, .anyIndexedElement:
-      return false
+      return nil
     }
   }
 }
@@ -632,9 +638,9 @@ extension SmallProjectionPath {
     basicPushPop()
     parsing()
     merging()
+    subtracting()
     matching()
     overlapping()
-    subPathTesting()
     predicates()
     path2path()
   
@@ -652,9 +658,15 @@ extension SmallProjectionPath {
       assert(p5.pop().path.isEmpty)
       let p6 = SmallProjectionPath(.indexedElement, index: 1).push(.indexedElement, index: 2)
       let (k6, i6, p7) = p6.pop()
-      assert(k6 == .anyIndexedElement && i6 == 0 && p7.isEmpty)
+      assert(k6 == .indexedElement && i6 == 3 && p7.isEmpty)
       let p8 = SmallProjectionPath(.indexedElement, index: 0)
       assert(p8.isEmpty)
+      let p9 = SmallProjectionPath(.indexedElement, index: 1).push(.anyIndexedElement)
+      let (k9, i9, p10) = p9.pop()
+      assert(k9 == .anyIndexedElement && i9 == 0 && p10.isEmpty)
+      let p11 = SmallProjectionPath(.anyIndexedElement).push(.indexedElement, index: 1)
+      let (k11, i11, p12) = p11.pop()
+      assert(k11 == .anyIndexedElement && i11 == 0 && p12.isEmpty)
     }
     
     func parsing() {
@@ -727,6 +739,35 @@ extension SmallProjectionPath {
       assert(result2 == expect)
     }
    
+    func subtracting() {
+      testSubtract("s0",           "s0.s1",        expect: "s1")
+      testSubtract("s0",           "s1",           expect: nil)
+      testSubtract("s0.s1",        "s0.s1",        expect: "")
+      testSubtract("i*.s1",        "i*.s1",        expect: nil)
+      testSubtract("ct.s1.0.i3.x", "ct.s1.0.i3.x", expect: "")
+      testSubtract("c0.s1.0.i3",   "c0.s1.0.i3.x", expect: "x")
+      testSubtract("s1.0.i3.x",    "s1.0.i3",      expect: nil)
+      testSubtract("v**.s1",       "v**.s1",       expect: nil)
+      testSubtract("i*",           "i*",           expect: nil)
+    }
+
+    func testSubtract(_ lhsStr: String, _ rhsStr: String, expect expectStr: String?) {
+      var lhsParser = StringParser(lhsStr)
+      let lhs = try! lhsParser.parseProjectionPathFromSIL()
+      var rhsParser = StringParser(rhsStr)
+      let rhs = try! rhsParser.parseProjectionPathFromSIL()
+
+      let result = lhs.subtract(from: rhs)
+
+      if let expectStr = expectStr {
+        var expectParser = StringParser(expectStr)
+        let expect = try! expectParser.parseProjectionPathFromSIL()
+        assert(result! == expect)
+      } else {
+        assert(result == nil)
+      }
+    }
+
     func matching() {
       testMatch("ct", "c*",  expect: true)
       testMatch("c1", "c*",  expect: true)
@@ -797,27 +838,6 @@ extension SmallProjectionPath {
       assert(result == expect)
       let reversedResult = rhs.mayOverlap(with: lhs)
       assert(reversedResult == expect)
-    }
-
-    func subPathTesting() {
-      testSubPath("s0", "s0.s1",                  expect: true)
-      testSubPath("s0", "s1",                     expect: false)
-      testSubPath("s0.s1", "s0.s1",               expect: true)
-      testSubPath("i*.s1", "i*.s1",               expect: false)
-      testSubPath("ct.s1.0.i3.x", "ct.s1.0.i3.x", expect: true)
-      testSubPath("c0.s1.0.i3", "c0.s1.0.i3.x",   expect: true)
-      testSubPath("s1.0.i3.x", "s1.0.i3",         expect: false)
-      testSubPath("v**.s1", "v**.s1",             expect: false)
-      testSubPath("i*", "i*",                     expect: false)
-    }
-
-    func testSubPath(_ lhsStr: String, _ rhsStr: String, expect: Bool) {
-      var lhsParser = StringParser(lhsStr)
-      let lhs = try! lhsParser.parseProjectionPathFromSIL()
-      var rhsParser = StringParser(rhsStr)
-      let rhs = try! rhsParser.parseProjectionPathFromSIL()
-      let result = lhs.isSubPath(of: rhs)
-      assert(result == expect)
     }
 
     func predicates() {

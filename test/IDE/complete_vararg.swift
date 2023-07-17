@@ -45,8 +45,10 @@ func testObjDot1() {
 // OBJ_DOT_1-DAG: Decl[InstanceMethod]/CurrNominal:   method6({#class: Int...#})[#Void#]{{; name=.+$}}
 // OBJ_DOT_1-DAG: Decl[InstanceMethod]/CurrNominal:   method7({#`inout`: Int...#})[#Void#]{{; name=.+$}}
 
-func testFreeFunc() {
+func testFreeFunc1() {
   freeFunc1(#^FREE_FUNC_1^#
+}
+func testFreeFunc2() {
   freeFunc2(#^FREE_FUNC_2^#
 }
 // FREE_FUNC_1: Begin completions, 1 items
@@ -60,8 +62,10 @@ func testInit() {
 // INIT_1: Begin completions, 1 items
 // INIT_1: Decl[Constructor]/CurrNominal/Flair[ArgLabels]:      ['(']{#x: Int...#}[')'][#C#]{{; name=.+$}}
 
-func testMethod() {
+func testMethod1() {
   obj.method1(#^METHOD_1^#
+}
+func testMethod2() {
   obj.method2(#^METHOD_2^#
 }
 // METHOD_1: Begin completions, 1 items

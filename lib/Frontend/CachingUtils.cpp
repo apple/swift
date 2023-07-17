@@ -384,9 +384,7 @@ createCASFileSystem(ObjectStore &CAS, ArrayRef<std::string> FSRoots,
     auto ID = CAS.parseID(FSRoots.front());
     if (!ID)
       return ID.takeError();
-    auto Ref = CAS.getReference(*ID);
-    if (!Ref)
-      return createCASObjectNotFoundError(*ID);
+    return createCASFileSystem(CAS, *ID);
   }
 
   auto NewRoot = mergeCASFileSystem(CAS, FSRoots);

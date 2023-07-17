@@ -2,7 +2,7 @@
 // RUN: mkdir -p %t/clang-module-cache
 
 // RUN: %target-swift-frontend -scan-dependencies -module-cache-path %t/clang-module-cache %s -o %t/deps.json -I %S/Inputs/CHeaders -I %S/Inputs/Swift -swift-version 4 -embed-tbd-for-module E
-// RUN: %FileCheck %s < %t/deps.json
+// RUN: %validate-json %t/deps.json | %FileCheck %s
 
 // CHECK: "mainModuleName": "deps"
 // CHECK-NEXT:  "modules": [

@@ -445,9 +445,10 @@ ResilienceExpansion DeclContext::getResilienceExpansion() const {
 
 FragileFunctionKind DeclContext::getFragileFunctionKind() const {
   auto &context = getASTContext();
-  return evaluateOrDefault(context.evaluator,
-                           FragileFunctionKindRequest { const_cast<DeclContext *>(this) },
-                           {FragileFunctionKind::None, false});
+  return evaluateOrDefault(
+      context.evaluator,
+      FragileFunctionKindRequest{const_cast<DeclContext *>(this)},
+      {FragileFunctionKind::None});
 }
 
 FragileFunctionKind
@@ -466,23 +467,17 @@ swift::FragileFunctionKindRequest::evaluate(Evaluator &evaluator,
       if (VD->getDeclContext()->isLocalContext()) {
         auto kind = VD->getDeclContext()->getFragileFunctionKind();
         if (kind.kind != FragileFunctionKind::None)
-          return {FragileFunctionKind::DefaultArgument,
-                  kind.allowUsableFromInline};
+          return {FragileFunctionKind::DefaultArgument};
       }
 
       auto effectiveAccess =
-        VD->getFormalAccessScope(/*useDC=*/nullptr,
-                                 /*treatUsableFromInlineAsPublic=*/true);
-      auto formalAccess =
-        VD->getFormalAccessScope(/*useDC=*/nullptr,
-                                 /*treatUsableFromInlineAsPublic=*/false);
+          VD->getFormalAccessScope(/*useDC=*/nullptr,
+                                   /*treatUsableFromInlineAsPublic=*/true);
       if (effectiveAccess.isPublic()) {
-        return {FragileFunctionKind::DefaultArgument,
-                !formalAccess.isPublic()};
+        return {FragileFunctionKind::DefaultArgument};
       }
 
-      return {FragileFunctionKind::None,
-              /*allowUsableFromInline=*/false};
+      return {FragileFunctionKind::None};
     }
 
     // Stored property initializer contexts use minimal resilience expansion
@@ -491,13 +486,11 @@ swift::FragileFunctionKindRequest::evaluate(Evaluator &evaluator,
       auto bindingIndex = init->getBindingIndex();
       if (auto *varDecl = init->getBinding()->getAnchoringVarDecl(bindingIndex)) {
         if (varDecl->isInitExposedToClients()) {
-          return {FragileFunctionKind::PropertyInitializer,
-                  /*allowUsableFromInline=*/true};
+          return {FragileFunctionKind::PropertyInitializer};
         }
       }
 
-      return {FragileFunctionKind::None,
-              /*allowUsableFromInline=*/false};
+      return {FragileFunctionKind::None};
     }
 
     if (auto *AFD = dyn_cast<AbstractFunctionDecl>(dc)) {
@@ -513,29 +506,24 @@ swift::FragileFunctionKindRequest::evaluate(Evaluator &evaluator,
       // If the function is not externally visible, we will not be serializing
       // its body.
       if (!funcAccess.isPublic()) {
-        return {FragileFunctionKind::None,
-                /*allowUsableFromInline=*/false};
+        return {FragileFunctionKind::None};
       }
 
       // If the function is public, @_transparent implies @inlinable.
       if (AFD->isTransparent()) {
-        return {FragileFunctionKind::Transparent,
-                /*allowUsableFromInline=*/true};
+        return {FragileFunctionKind::Transparent};
       }
 
       if (AFD->getAttrs().hasAttribute<InlinableAttr>()) {
-        return {FragileFunctionKind::Inlinable,
-                /*allowUsableFromInline=*/true};
+        return {FragileFunctionKind::Inlinable};
       }
 
       if (AFD->getAttrs().hasAttribute<AlwaysEmitIntoClientAttr>()) {
-        return {FragileFunctionKind::AlwaysEmitIntoClient,
-                /*allowUsableFromInline=*/true};
+        return {FragileFunctionKind::AlwaysEmitIntoClient};
       }
 
       if (AFD->isBackDeployed(context->getASTContext())) {
-        return {FragileFunctionKind::BackDeploy,
-                /*allowUsableFromInline=*/true};
+        return {FragileFunctionKind::BackDeploy};
       }
 
       // Property and subscript accessors inherit @_alwaysEmitIntoClient,
@@ -543,23 +531,19 @@ swift::FragileFunctionKindRequest::evaluate(Evaluator &evaluator,
       if (auto accessor = dyn_cast<AccessorDecl>(AFD)) {
         auto *storage = accessor->getStorage();
         if (storage->getAttrs().getAttribute<InlinableAttr>()) {
-          return {FragileFunctionKind::Inlinable,
-                  /*allowUsableFromInline=*/true};
+          return {FragileFunctionKind::Inlinable};
         }
         if (storage->getAttrs().hasAttribute<AlwaysEmitIntoClientAttr>()) {
-          return {FragileFunctionKind::AlwaysEmitIntoClient,
-                  /*allowUsableFromInline=*/true};
+          return {FragileFunctionKind::AlwaysEmitIntoClient};
         }
         if (storage->isBackDeployed(context->getASTContext())) {
-          return {FragileFunctionKind::BackDeploy,
-                  /*allowUsableFromInline=*/true};
+          return {FragileFunctionKind::BackDeploy};
         }
       }
     }
   }
 
-  return {FragileFunctionKind::None,
-          /*allowUsableFromInline=*/false};
+  return {FragileFunctionKind::None};
 }
 
 /// Determine whether the innermost context is generic.

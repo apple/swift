@@ -1,5 +1,5 @@
-// Make sure we don't crash
-// RUN: %target-swift-ide-test -code-completion -source-filename %s -code-completion-token COMPLETE
+// RUN: %empty-directory(%t)
+// RUN: %target-swift-ide-test -batch-code-completion -source-filename %s -filecheck %raw-FileCheck -completion-output-dir %t
 
 public struct AnyError {
 
@@ -10,3 +10,8 @@ extension AnyError {
     return AnyError(error)#^COMPLETE^#
   }
 }
+
+// COMPLETE: Begin completions, 1 items
+// COMPLETE: Keyword[self]/CurrNominal:          .self[#AnyError#];
+// COMPLETE: End completions
+

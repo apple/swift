@@ -89,7 +89,7 @@ func typeReprPacks<each T: ExpressibleByIntegerLiteral>(_ t: repeat each T) {
 func sameShapeDiagnostics<each T, each U>(t: repeat each T, u: repeat each U) {
   _ = (repeat (each t, each u)) // expected-error {{pack expansion requires that 'each T' and 'each U' have the same shape}}
   _ = (repeat Array<(each T, each U)>()) // expected-error {{pack expansion requires that 'each T' and 'each U' have the same shape}}
-  _ = (repeat (Array<each T>(), each u)) // expected-error {{pack expansion requires that 'each U' and 'each T' have the same shape}}
+  _ = (repeat (Array<each T>(), each u)) // expected-error {{pack expansion requires that 'each T' and 'each U' have the same shape}}
 }
 
 func returnPackExpansionType<each T>(_ t: repeat each T) -> repeat each T { // expected-error {{pack expansion 'repeat each T' can only appear in a function parameter list, tuple element, or generic argument list}}
@@ -615,5 +615,68 @@ do {
 
   func caller2<each T>(x: repeat each T) {
     _ = { (repeat test(x: each x)) }()
+  }
+}
+
+// https://github.com/apple/swift/issues/66393
+do {
+  struct S<each T> {
+    var property: (repeat each T) -> Void { // expected-note 4 {{'property' declared here}}
+      get {}
+    }
+
+    func method(_: repeat each T) {} // expected-note 4 {{'method' declared here}}
+  }
+  S<Int, Bool>().method((5, true))
+  // expected-error@-1 {{value pack expansion at parameter #0 expects 2 separate arguments; remove extra parentheses to change tuple into separate arguments}}
+
+  S<Int, Bool>().method((5, true, 6))
+  // expected-error@-1 {{value pack expansion at parameter #0 expects 2 separate arguments; remove extra parentheses to change tuple into separate arguments}}
+
+  S<Int, Bool>().property((5, true))
+  // expected-error@-1 {{value pack expansion at parameter #0 expects 2 separate arguments; remove extra parentheses to change tuple into separate arguments}}
+
+  S<Int, Bool>().property((5, true, 6))
+  // expected-error@-1 {{value pack expansion at parameter #0 expects 2 separate arguments; remove extra parentheses to change tuple into separate arguments}}
+
+  func foo<each U>(u: repeat each U) {
+    S<repeat each U>().property((3, 4, 5))
+    // expected-error@-1 {{value pack expansion at parameter #0 expects 1 separate arguments; remove extra parentheses to change tuple into separate arguments}}
+
+    // FIXME: The count of 'repeat each U' is not statically known, but error suggests that it is 1.
+    S<repeat each U>().method((3, 4, 5))
+    // expected-error@-1 {{value pack expansion at parameter #0 expects 1 separate arguments; remove extra parentheses to change tuple into separate arguments}}
+    // FIXME: Bad diagnostics
+    // expected-error@-3 {{pack expansion requires that 'each U' and '_' have the same shape}}
+    // expected-error@-4 {{pack expansion requires that 'each U' and '_.RawValue' have the same shape}}
+
+    // FIXME: The count of '(Int, Int), repeat each U' is not statically known, but error suggests that it is 2.
+    S<(Int, Int), repeat each U>().method((3, 4))
+    // expected-error@-1 {{value pack expansion at parameter #0 expects 2 separate arguments; remove extra parentheses to change tuple into separate arguments}}
+    // FIXME: Duplicate diagnostics
+    // expected-error@-3 2 {{pack expansion requires that 'each U' and '' have the same shape}}
+
+    // FIXME: The count of '(Int, Int), repeat each U' is not statically known, but error suggests that it is 2.
+    S<(Int, Int), repeat each U>().property((3, 4))
+    // expected-error@-1 {{value pack expansion at parameter #0 expects 2 separate arguments; remove extra parentheses to change tuple into separate arguments}}
+  }
+}
+
+// rdar://110401127 - name lookup bug when abstract tuple stored property shadows a global
+do {
+  let c = [false, true]
+  _ = c
+
+  struct ZipCollection<each C> {
+    public let c: (repeat each C)
+
+    func makeTuple() -> (repeat each C) {
+      fatalError()
+    }
+
+    public func f() -> (repeat Optional<each C>) {
+      _ = (repeat each makeTuple())
+      _ = (repeat (each makeTuple()))
+    }
   }
 }

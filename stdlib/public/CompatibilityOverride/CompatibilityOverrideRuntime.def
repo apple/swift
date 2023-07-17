@@ -168,6 +168,16 @@ OVERRIDE_FOREIGN(dynamicCastForeignClassMetatypeUnconditional,
 
 OVERRIDE_PROTOCOLCONFORMANCE(conformsToProtocol, const WitnessTable *, , , swift::,
                              (const Metadata * const type,
+                              const void *protocol),
+                             (type, protocol))
+
+OVERRIDE_PROTOCOLCONFORMANCE(conformsToProtocol2, const WitnessTable *, , , swift::,
+                             (const Metadata * const type,
+                              const ProtocolDescriptor *protocol),
+                             (type, protocol))
+
+OVERRIDE_PROTOCOLCONFORMANCE(conformsToProtocolCommon, const WitnessTable *, , , swift::,
+                             (const Metadata * const type,
                               const ProtocolDescriptor *protocol),
                              (type, protocol))
 

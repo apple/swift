@@ -91,6 +91,7 @@ std::pair<StringRef, StringRef> Symbol::getKind(const Decl *D) {
       return {"swift.method", "Instance Method"};
     return {"swift.func", "Function"};
   }
+  case swift::DeclKind::Param: LLVM_FALLTHROUGH;
   case swift::DeclKind::Var: {
     const auto *VD = cast<ValueDecl>(D);
 
@@ -839,6 +840,7 @@ bool Symbol::supportsKind(DeclKind Kind) {
   case DeclKind::Destructor: LLVM_FALLTHROUGH;
   case DeclKind::Func: LLVM_FALLTHROUGH;
   case DeclKind::Var: LLVM_FALLTHROUGH;
+  case DeclKind::Param: LLVM_FALLTHROUGH;
   case DeclKind::Subscript: LLVM_FALLTHROUGH;
   case DeclKind::TypeAlias: LLVM_FALLTHROUGH;
   case DeclKind::AssociatedType: LLVM_FALLTHROUGH;

@@ -3090,8 +3090,19 @@ emitMetadataAccessByMangledName(IRGenFunction &IGF, CanType type,
     stringAddr = subIGF.Builder.CreateIntToPtr(stringAddr, IGM.Int8PtrTy);
 
     llvm::CallInst *call;
+    bool signedDescriptor = IGM.getAvailabilityContext().isContainedIn(
+      IGM.Context.getSignedDescriptorAvailability());
     if (request.isStaticallyAbstract()) {
-      call = subIGF.Builder.CreateCall(
+      call = signedDescriptor ?
+        subIGF.Builder.CreateCall(
+          IGM.getGetTypeByMangledNameInContextInMetadataState2FunctionPointer(),
+          {llvm::ConstantInt::get(IGM.SizeTy, (size_t)MetadataState::Abstract),
+           stringAddr, size,
+           // TODO: Use mangled name lookup in generic
+           // contexts?
+           llvm::ConstantPointerNull::get(IGM.TypeContextDescriptorPtrTy),
+           llvm::ConstantPointerNull::get(IGM.Int8PtrPtrTy)}):
+        subIGF.Builder.CreateCall(
           IGM.getGetTypeByMangledNameInContextInMetadataStateFunctionPointer(),
           {llvm::ConstantInt::get(IGM.SizeTy, (size_t)MetadataState::Abstract),
            stringAddr, size,
@@ -3100,7 +3111,15 @@ emitMetadataAccessByMangledName(IRGenFunction &IGF, CanType type,
            llvm::ConstantPointerNull::get(IGM.TypeContextDescriptorPtrTy),
            llvm::ConstantPointerNull::get(IGM.Int8PtrPtrTy)});
     } else {
-      call = subIGF.Builder.CreateCall(
+      call = signedDescriptor ?
+        subIGF.Builder.CreateCall(
+          IGM.getGetTypeByMangledNameInContext2FunctionPointer(),
+          {stringAddr, size,
+           // TODO: Use mangled name lookup in generic
+           // contexts?
+           llvm::ConstantPointerNull::get(IGM.TypeContextDescriptorPtrTy),
+           llvm::ConstantPointerNull::get(IGM.Int8PtrPtrTy)}) :
+        subIGF.Builder.CreateCall(
           IGM.getGetTypeByMangledNameInContextFunctionPointer(),
           {stringAddr, size,
            // TODO: Use mangled name lookup in generic

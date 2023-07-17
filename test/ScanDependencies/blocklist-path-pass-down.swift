@@ -15,7 +15,7 @@
 
 // Run the scan
 // RUN: %target-swift-frontend -scan-dependencies %s -o %t/deps.json -F %t/Frameworks/ -sdk %t -blocklist-file %t/blocklist.yml
-// RUN: %FileCheck %s < %t/deps.json
+// RUN: %validate-json %t/deps.json | %FileCheck %s
 
 import E
 

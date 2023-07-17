@@ -33,14 +33,14 @@ testSdump()
 // SIL-TRIVIAL-NEXT:   apply %{{.*}}(%{{.*}}) : $@convention(cxx_method) (@in_guaranteed S) -> ()
 // SIL-TRIVIAL:      $@convention(objc_method) (@owned S, ClassWithNonTrivialDestructorIvar) -> ()
 // SIL-TRIVIAL-NEXT: apply %{{.*}}(%{{.*}}) : $@convention(objc_method) (@owned S, ClassWithNonTrivialDestructorIvar) -> ()
-// SIL-TRIVIAL: function_ref @_Z9takeSFunc : $@convention(c) (@owned S) -> ()
+// SIL-TRIVIAL: function_ref @_Z9takeSFunc1S : $@convention(c) (@owned S) -> ()
 // SIL-TRIVIAL-NEXT: apply %{{.*}}(%{{.*}}) : $@convention(c) (@owned S) -> ()
 
 // SIL-NONTRIVIAL:   function_ref @_ZNK1S4dumpEv : $@convention(cxx_method) (@in_guaranteed S) -> ()
 // SIL-NONTRIVIAL-NEXT:   apply %{{.*}}(%{{.*}}) : $@convention(cxx_method) (@in_guaranteed S) -> ()
 // SIL-NONTRIVIAL:      $@convention(objc_method) (@in S, ClassWithNonTrivialDestructorIvar) -> ()
 // SIL-NONTRIVIAL-NEXT: apply %{{.*}}(%{{.*}}) : $@convention(objc_method) (@in S, ClassWithNonTrivialDestructorIvar) -> ()
-// SIL-NONTRIVIAL: function_ref @_Z9takeSFunc : $@convention(c) (@in S) -> ()
+// SIL-NONTRIVIAL: function_ref @_Z9takeSFunc1S : $@convention(c) (@in S) -> ()
 // SIL-NONTRIVIAL-NEXT: apply %{{.*}}(%{{.*}}) : $@convention(c) (@in S) -> ()
 
 

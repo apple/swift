@@ -40,7 +40,7 @@ func resyncParser1() {}
 fooObject#^TYPE_CHECKED_EXPR_1^#
 // TYPE_CHECKED_EXPR_1-DAG: Decl[InstanceVar]/CurrNominal:      .instanceVar[#Int#]{{; name=.+$}}
 // TYPE_CHECKED_EXPR_1-DAG: Decl[InstanceMethod]/CurrNominal:   .instanceFunc({#(a): Int#})[#Void#]{{; name=.+$}}
-// TYPE_CHECKED_EXPR_1-DAG: BuiltinOperator/None:               = {#FooStruct#}[#Void#]{{; name=.+$}}
+// TYPE_CHECKED_EXPR_1-DAG: BuiltinOperator/None:               = {#FooStruct#}{{; name=.+$}}
 // TYPE_CHECKED_EXPR_1-DAG: Keyword[self]/CurrNominal:          .self[#FooStruct#]{{; name=.+$}}
 
 func resyncParser2() {}
@@ -51,7 +51,7 @@ var _tmpVar1 : FooStruct
 fooObject#^TYPE_CHECKED_EXPR_2^#
 // TYPE_CHECKED_EXPR_2-DAG: Decl[InstanceVar]/CurrNominal: .instanceVar[#Int#]{{; name=.+$}}
 // TYPE_CHECKED_EXPR_2-DAG: Decl[InstanceMethod]/CurrNominal: .instanceFunc({#(a): Int#})[#Void#]{{; name=.+$}}
-// TYPE_CHECKED_EXPR_2-DAG: BuiltinOperator/None:                     = {#FooStruct#}[#Void#]{{; name=.+$}}
+// TYPE_CHECKED_EXPR_2-DAG: BuiltinOperator/None:                     = {#FooStruct#}{{; name=.+$}}
 // TYPE_CHECKED_EXPR_2-DAG: Keyword[self]/CurrNominal: .self[#FooStruct#]{{; name=.+$}}
 
 func resyncParser3() {}
@@ -59,7 +59,7 @@ func resyncParser3() {}
 fooObject#^TYPE_CHECKED_EXPR_3^#.bar
 // TYPE_CHECKED_EXPR_3-DAG: Decl[InstanceVar]/CurrNominal: .instanceVar[#Int#]{{; name=.+$}}
 // TYPE_CHECKED_EXPR_3-DAG: Decl[InstanceMethod]/CurrNominal: .instanceFunc({#(a): Int#})[#Void#]{{; name=.+$}}
-// TYPE_CHECKED_EXPR_3-DAG: BuiltinOperator/None:                     = {#FooStruct#}[#Void#]{{; name=.+$}}
+// TYPE_CHECKED_EXPR_3-DAG: BuiltinOperator/None:                     = {#FooStruct#}{{; name=.+$}}
 // TYPE_CHECKED_EXPR_3-DAG: Keyword[self]/CurrNominal: .self[#FooStruct#]{{; name=.+$}}
 
 func resyncParser4() {}
@@ -295,7 +295,7 @@ func resyncParserB14() {}
 "\(1) \(#^STRING_INTERP_2?check=STRING_INTERP^#) \(2)"
 var stringInterp = "\(#^STRING_INTERP_3?check=STRING_INTERP^#)"
 _ = "" + "\(#^STRING_INTERP_4?check=STRING_INTERP^#)" + ""
-// STRING_INTERP-DAG: Decl[InstanceMethod]/CurrNominal/Flair[ArgLabels]/IsSystem: ['(']{#(value): T#}[')'][#Void#];
+// STRING_INTERP-DAG: Decl[InstanceMethod]/CurrNominal/Flair[ArgLabels]/IsSystem: ['(']{#(value): any Any.Type#}[')'][#Void#];
 // STRING_INTERP-DAG: Decl[Struct]/CurrModule: FooStruct[#FooStruct#]; name=FooStruct
 // STRING_INTERP-DAG: Decl[FreeFunction]/CurrModule/TypeRelation[Invalid]: fooFunc1()[#Void#];
 // STRING_INTERP-DAG: Decl[FreeFunction]/CurrModule: optStr()[#String?#];

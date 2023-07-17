@@ -77,7 +77,8 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/Support/VirtualOutputBackend.h"
-#include "llvm/Support/YAMLParser.h"
+#include "llvm/TextAPI/InterfaceFile.h"
+#include "llvm/TextAPI/TextAPIReader.h"
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -1934,9 +1935,29 @@ bool ClangImporter::isModuleImported(const clang::Module *M) {
   return M->NameVisibility == clang::Module::NameVisibilityKind::AllVisible;
 }
 
-static std::string getScalaNodeText(llvm::yaml::Node *N) {
-  SmallString<32> Buffer;
-  return cast<llvm::yaml::ScalarNode>(N)->getValue(Buffer).str();
+static llvm::VersionTuple getCurrentVersionFromTBD(StringRef path,
+                                                   StringRef moduleName) {
+  std::string fwName = (moduleName + ".framework").str();
+  auto pos = path.find(fwName);
+  if (pos == StringRef::npos)
+    return {};
+  llvm::SmallString<256> buffer(path.substr(0, pos + fwName.size()));
+  llvm::sys::path::append(buffer, moduleName + ".tbd");
+  auto tbdPath = buffer.str();
+  llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> tbdBufOrErr =
+      llvm::MemoryBuffer::getFile(tbdPath);
+  // .tbd file doesn't exist, exit.
+  if (!tbdBufOrErr)
+    return {};
+  auto tbdFileOrErr =
+      llvm::MachO::TextAPIReader::get(tbdBufOrErr.get()->getMemBufferRef());
+  if (auto err = tbdFileOrErr.takeError()) {
+    consumeError(std::move(err));
+    return {};
+  }
+  auto tbdCV = (*tbdFileOrErr)->getCurrentVersion();
+  return llvm::VersionTuple(tbdCV.getMajor(), tbdCV.getMinor(),
+                            tbdCV.getSubminor());
 }
 
 bool ClangImporter::canImportModule(ImportPath::Module modulePath,
@@ -1988,49 +2009,13 @@ bool ClangImporter::canImportModule(ImportPath::Module modulePath,
     return true;
 
   assert(available);
-  llvm::VersionTuple currentVersion;
   StringRef path = getClangASTContext().getSourceManager()
     .getFilename(clangModule->DefinitionLoc);
+
   // Look for the .tbd file inside .framework dir to get the project version
   // number.
-  std::string fwName = (llvm::Twine(topModule.Item.str()) + ".framework").str();
-  auto pos = path.find(fwName);
-  while (pos != StringRef::npos) {
-    llvm::SmallString<256> buffer(path.substr(0, pos + fwName.size()));
-    llvm::sys::path::append(buffer, llvm::Twine(topModule.Item.str()) + ".tbd");
-    auto tbdPath = buffer.str();
-    llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> tbdBufOrErr =
-      llvm::MemoryBuffer::getFile(tbdPath);
-    // .tbd file doesn't exist, break.
-    if (!tbdBufOrErr) {
-      break;
-    }
-    StringRef tbdBuffer = tbdBufOrErr->get()->getBuffer();
-
-    // Use a new source manager instead of the one from ASTContext because we
-    // don't want the Json file to be persistent.
-    SourceManager SM;
-    llvm::yaml::Stream Stream(llvm::MemoryBufferRef(tbdBuffer, tbdPath),
-                              SM.getLLVMSourceMgr());
-    auto DI = Stream.begin();
-    assert(DI != Stream.end() && "Failed to read a document");
-    llvm::yaml::Node *N = DI->getRoot();
-    assert(N && "Failed to find a root");
-    auto *pairs = dyn_cast_or_null<llvm::yaml::MappingNode>(N);
-    if (!pairs)
-      break;
-    for (auto &keyValue: *pairs) {
-      auto key = getScalaNodeText(keyValue.getKey());
-      // Look for field "current-version" in the .tbd file.
-      if (key == "current-version") {
-        auto ver = getScalaNodeText(keyValue.getValue());
-        currentVersion.tryParse(ver);
-        break;
-      }
-    }
-    break;
-  }
-
+  llvm::VersionTuple currentVersion =
+      getCurrentVersionFromTBD(path, topModule.Item.str());
   versionInfo->setVersion(currentVersion,
                           ModuleVersionSourceKind::ClangModuleTBD);
   return true;
@@ -5167,6 +5152,15 @@ TinyPtrVector<ValueDecl *> ClangRecordMemberLookup::evaluate(
   // If this is a C++ record, look through any base classes.
   if (auto cxxRecord =
           dyn_cast<clang::CXXRecordDecl>(recordDecl->getClangDecl())) {
+    // Capture the arity of already found members in the
+    // current record, to avoid adding ambiguous members
+    // from base classes.
+    const auto getArity =
+        ClangImporter::Implementation::getImportedBaseMemberDeclArity;
+    llvm::SmallSet<size_t, 4> foundNameArities;
+    for (const auto *valueDecl : result)
+      foundNameArities.insert(getArity(valueDecl));
+
     for (auto base : cxxRecord->bases()) {
       if (base.getAccessSpecifier() != clang::AccessSpecifier::AS_public)
         continue;
@@ -5202,6 +5196,10 @@ TinyPtrVector<ValueDecl *> ClangRecordMemberLookup::evaluate(
           }
         }
         for (auto foundInBase : baseResults) {
+          // Do not add duplicate entry with the same arity,
+          // as that would cause an ambiguous lookup.
+          if (foundNameArities.count(getArity(foundInBase)))
+            continue;
           if (auto newDecl = clangModuleLoader->importBaseMemberDecl(
                   foundInBase, recordDecl)) {
             result.push_back(newDecl);
@@ -5709,8 +5707,9 @@ importName(const clang::NamedDecl *D,
     getDeclName();
 }
 
-Type ClangImporter::importFunctionReturnType(
-    const clang::FunctionDecl *clangDecl, DeclContext *dc) {
+llvm::Optional<Type>
+ClangImporter::importFunctionReturnType(const clang::FunctionDecl *clangDecl,
+                                        DeclContext *dc) {
   bool isInSystemModule =
       cast<ClangModuleUnit>(dc->getModuleScopeContext())->isSystemModule();
   bool allowNSUIntegerAsInt =
@@ -5719,7 +5718,7 @@ Type ClangImporter::importFunctionReturnType(
           Impl.importFunctionReturnType(dc, clangDecl, allowNSUIntegerAsInt)
               .getType())
     return imported;
-  return dc->getASTContext().getNeverType();
+  return {};
 }
 
 Type ClangImporter::importVarDeclType(
@@ -6373,6 +6372,16 @@ ValueDecl *ClangImporter::Implementation::importBaseMemberDecl(
   }
 
   return known->second;
+}
+
+size_t ClangImporter::Implementation::getImportedBaseMemberDeclArity(
+    const ValueDecl *valueDecl) {
+  if (auto *func = dyn_cast<FuncDecl>(valueDecl)) {
+    if (auto *params = func->getParameters()) {
+      return params->size();
+    }
+  }
+  return 0;
 }
 
 ValueDecl *ClangImporter::importBaseMemberDecl(ValueDecl *decl,

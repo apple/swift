@@ -659,6 +659,10 @@ Type GenericEnvironment::mapTypeIntoContext(GenericTypeParamType *type) const {
   return result;
 }
 
+/// So this expects a type written with the archetypes of the original generic
+/// environment, not 'this', the opened element environment, because it is the
+/// original PackArchetypes that become ElementArchetypes. Also this function
+/// does not apply outer substitutions, which might not be what you expect.
 Type
 GenericEnvironment::mapContextualPackTypeIntoElementContext(Type type) const {
   assert(getKind() == Kind::OpenedElement);
@@ -672,35 +676,16 @@ GenericEnvironment::mapContextualPackTypeIntoElementContext(Type type) const {
   FindElementArchetypeForOpenedPackParam
     findElementArchetype(this, getOpenedPackParams());
 
-  return type.transformRec([&](TypeBase *ty) -> llvm::Optional<Type> {
-    // We're only directly substituting pack archetypes.
-    auto archetype = ty->getAs<PackArchetypeType>();
-    if (!archetype) {
-      // Don't recurse into nested pack expansions.
-      if (ty->is<PackExpansionType>())
-        return Type(ty);
+  return type.transformTypeParameterPacks(
+      [&](SubstitutableType *ty) -> llvm::Optional<Type> {
+        if (auto *packArchetype = dyn_cast<PackArchetypeType>(ty)) {
+          auto interfaceType = packArchetype->getInterfaceType();
+          if (sig->haveSameShape(interfaceType, shapeClass))
+            return Type(findElementArchetype(interfaceType));
+        }
 
-      // Recurse into any other type.
-      return llvm::None;
-    }
-
-    auto rootArchetype = cast<PackArchetypeType>(archetype->getRoot());
-
-    // TODO: assert that the generic environment of the pack archetype
-    // matches the signature that was originally opened to make this
-    // environment.  Unfortunately, that isn't a trivial check because of
-    // the extra opened-element parameters.
-
-    // If the archetype isn't the shape that was opened by this
-    // environment, ignore it.
-    auto rootParam = cast<GenericTypeParamType>(
-      rootArchetype->getInterfaceType().getPointer());
-    assert(rootParam->isParameterPack());
-    if (!sig->haveSameShape(rootParam, shapeClass))
-      return Type(ty);
-
-    return Type(findElementArchetype(archetype->getInterfaceType()));
-  });
+        return llvm::None;
+      });
 }
 
 CanType
@@ -708,41 +693,23 @@ GenericEnvironment::mapContextualPackTypeIntoElementContext(CanType type) const 
   return CanType(mapContextualPackTypeIntoElementContext(Type(type)));
 }
 
+/// Unlike mapContextualPackTypeIntoElementContext(), this also applies outer
+/// substitutions, so it behaves like mapTypeIntoContext() in that respect.
 Type
 GenericEnvironment::mapPackTypeIntoElementContext(Type type) const {
   assert(getKind() == Kind::OpenedElement);
   assert(!type->hasArchetype());
 
-  auto sig = getGenericSignature();
-  auto shapeClass = getOpenedElementShapeClass();
+  if (!type->hasTypeParameter()) return type;
 
-  FindElementArchetypeForOpenedPackParam
-    findElementArchetype(this, getOpenedPackParams());
+  // Get a contextual type in the original generic environment, not the
+  // substituted one, which is what mapContextualPackTypeIntoElementContext()
+  // expects.
+  auto contextualType = getPackElementContextSubstitutions()
+    .getGenericSignature().getGenericEnvironment()->mapTypeIntoContext(type);
 
-  // Map the interface type to the element type by stripping
-  // away the isParameterPack bit before mapping type parameters
-  // to archetypes.
-  return type.transformRec([&](TypeBase *ty) -> llvm::Optional<Type> {
-    // We're only directly substituting pack parameters.
-    if (!ty->isTypeParameter()) {
-      // Don't recurse into nested pack expansions; just map it into
-      // context.
-      if (ty->is<PackExpansionType>())
-        return mapTypeIntoContext(ty);
-
-      // Recurse into any other type.
-      return llvm::None;
-    }
-
-    // Just do normal mapping for types that are not rooted in
-    // opened type parameters.
-    auto rootParam = ty->getRootGenericParam();
-    if (!rootParam->isParameterPack() ||
-        !sig->haveSameShape(rootParam, shapeClass))
-      return mapTypeIntoContext(ty);
-
-    return Type(findElementArchetype(ty));
-  });
+  contextualType = mapContextualPackTypeIntoElementContext(contextualType);
+  return maybeApplyOuterContextSubstitutions(contextualType);
 }
 
 Type

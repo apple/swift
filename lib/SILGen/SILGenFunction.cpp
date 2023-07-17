@@ -1650,7 +1650,7 @@ void SILGenFunction::emitGeneratorFunction(
   mergeCleanupBlocks();
 }
 
-Initialization *SILGenFunction::getSingleValueStmtInit(Expr *E) {
+std::unique_ptr<Initialization> SILGenFunction::getSingleValueStmtInit(Expr *E) {
   if (SingleValueStmtInitStack.empty())
     return nullptr;
 
@@ -1659,7 +1659,15 @@ Initialization *SILGenFunction::getSingleValueStmtInit(Expr *E) {
   if (!SingleValueStmtInitStack.back().Exprs.contains(E))
     return nullptr;
 
-  return SingleValueStmtInitStack.back().Init;
+  // This won't give us a useful diagnostic if the result doesn't end up
+  // initialized ("variable '<unknown>' used before being initialized"), but it
+  // will at least catch a potential miscompile when the SIL verifier is
+  // disabled.
+  auto resultAddr = SingleValueStmtInitStack.back().InitializationBuffer;
+  resultAddr = B.createMarkUninitialized(
+      E, resultAddr, MarkUninitializedInst::Kind::Var);
+      
+  return std::make_unique<KnownAddressInitialization>(resultAddr);
 }
 
 void SILGenFunction::emitProfilerIncrement(ASTNode Node) {

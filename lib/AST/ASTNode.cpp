@@ -41,6 +41,7 @@ SourceRange ASTNode::getSourceRange() const {
   if (const auto *I = this->dyn_cast<CaseLabelItem *>()) {
     return I->getSourceRange();
   }
+  assert(!isNull() && "Null ASTNode doesn't have a source range");
   llvm_unreachable("unsupported AST node");
 }
 

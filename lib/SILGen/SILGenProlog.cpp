@@ -130,6 +130,39 @@ struct LoweredParamGenerator {
   }
 };
 
+struct WritebackReabstractedInoutCleanup final : Cleanup {
+  SILValue OrigAddress, SubstAddress;
+  AbstractionPattern OrigTy;
+  CanType SubstTy;
+  WritebackReabstractedInoutCleanup(SILValue origAddress, SILValue substAddress,
+                                    AbstractionPattern origTy,
+                                    CanType substTy)
+      : OrigAddress(origAddress), SubstAddress(substAddress),
+        OrigTy(origTy), SubstTy(substTy)
+  {}
+  
+  void emit(SILGenFunction &SGF, CleanupLocation l, ForUnwind_t forUnwind)
+  override {
+    Scope s(SGF.Cleanups, l);
+    // Load the final local value coming in.
+    auto mv = SGF.emitLoad(l, SubstAddress,
+                           SGF.getTypeLowering(SubstAddress->getType()),
+                           SGFContext(), IsTake);
+    // Reabstract the value back to the original representation.
+    mv = SGF.emitSubstToOrigValue(l, mv.ensurePlusOne(SGF, l),
+                                  OrigTy, SubstTy);
+    // Write it back to the original inout parameter.
+    SGF.B.createStore(l, mv.forward(SGF), OrigAddress,
+                      StoreOwnershipQualifier::Init);
+  }
+  
+  void dump(SILGenFunction&) const override {
+    llvm::errs() << "WritebackReabstractedInoutCleanup\n";
+    OrigAddress->print(llvm::errs());
+    SubstAddress->print(llvm::errs());
+  }
+};
+
 class EmitBBArguments : public CanTypeVisitor<EmitBBArguments,
                                               /*RetTy*/ ManagedValue,
                                               /*ArgTys...*/ AbstractionPattern,
@@ -255,6 +288,23 @@ public:
       if (mv.getType().isMoveOnly() && !mv.getType().isMoveOnlyWrapped())
         mv = SGF.B.createMarkMustCheckInst(
             loc, mv, MarkMustCheckInst::CheckKind::ConsumableAndAssignable);
+
+      // If the value needs to be reabstracted, set up a shadow copy with
+      // writeback here.
+      if (argType.getASTType() != mv.getType().getASTType()) {
+        // Load the value coming in.
+        auto origBuf = mv.getValue();
+        mv = SGF.emitLoad(loc, origBuf, SGF.getTypeLowering(mv.getType()), SGFContext(), IsTake);
+        // Reabstract the value if necessary.
+        mv = SGF.emitOrigToSubstValue(loc, mv.ensurePlusOne(SGF, loc), orig, t);
+        // Store the value to a local buffer.
+        auto substBuf = SGF.emitTemporaryAllocation(loc, argType);
+        SGF.B.createStore(loc, mv.forward(SGF), substBuf, StoreOwnershipQualifier::Init);
+        // Introduce a writeback to put the final value back in the inout.
+        SGF.Cleanups.pushCleanup<WritebackReabstractedInoutCleanup>(origBuf, substBuf, orig, t);
+        mv = ManagedValue::forLValue(substBuf);
+      }
+
       return mv;
     }
 

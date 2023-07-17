@@ -7,7 +7,8 @@ struct Test1 {
   var _b: String
 
   var a: Int {
-    init(initialValue) initializes(_a) {
+    @storageRestrictions(initializes: _a)
+    init(initialValue) {
       _a = initialValue
     }
 
@@ -16,7 +17,8 @@ struct Test1 {
   }
 
   var b: String {
-    init(initialValue) initializes(_a, _b) {
+    @storageRestrictions(initializes: _a, _b)
+    init(initialValue) {
       _a = 0
       _b = initialValue
     }
@@ -46,7 +48,8 @@ struct Test2<T> {
   var _c: String
 
   var pair: (Int, T) {
-    init(initialValue) initializes(_a, _b) {
+    @storageRestrictions(initializes: _a, _b)
+    init(initialValue) {
       _a = initialValue.0
       _b = initialValue.1
     }

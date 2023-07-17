@@ -51,7 +51,7 @@
 
 // - Scan main module
 // RUN: %target-swift-frontend -scan-dependencies %s -I %t/SwiftModules -I %S/Inputs/Swift -o %t/deps.json
-// RUN: %FileCheck %s --input-file %t/deps.json
+// RUN: %validate-json %t/deps.json | %FileCheck %s
 
 // CHECK: "swift": "FooClient"
 // CHECK: "swift": "FooClient"

@@ -278,3 +278,27 @@ bb0(%0 : @guaranteed $MyActor):
   %r = tuple ()
   return %r : $()
 }
+
+// CHECK-LABEL: sil [ossa] @handleBeginBorrow : {{.*}} {
+// CHECK-NOT:     hop_to_executor
+// CHECK-LABEL: } // end sil function 'handleBeginBorrow'
+sil [ossa] @handleBeginBorrow : $@convention(method) @async (@guaranteed MyActor) -> () {
+bb0(%0 : @guaranteed $MyActor):
+  hop_to_executor %0 : $MyActor
+  %b = begin_borrow %0 : $MyActor
+  end_borrow %b : $MyActor
+  %r = tuple ()
+  return %r : $()
+}
+
+// CHECK-LABEL: sil [ossa] @handleEndBorrow : {{.*}} {
+// CHECK-NOT:     hop_to_executor
+// CHECK-LABEL: } // end sil function 'handleEndBorrow'
+sil [ossa] @handleEndBorrow : $@convention(method) @async (@guaranteed MyActor) -> () {
+bb0(%0 : @guaranteed $MyActor):
+  %b = begin_borrow %0 : $MyActor
+  hop_to_executor %0 : $MyActor
+  end_borrow %b : $MyActor
+  %r = tuple ()
+  return %r : $()
+}

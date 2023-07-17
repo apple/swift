@@ -45,7 +45,7 @@ extension LoadInst : OnoneSimplifyable, SILCombineSimplifyable {
 
       operand.set(to: uac.fromAddress, context)
       let builder = Builder(before: self, context)
-      let newLoad = builder.createLoad(fromAddress: uac.fromAddress, ownership: ownership)
+      let newLoad = builder.createLoad(fromAddress: uac.fromAddress, ownership: loadOwnership)
       let cast = builder.createUpcast(from: newLoad, to: type)
       uses.replaceAll(with: cast, context)
       context.erase(instruction: self)
@@ -184,7 +184,7 @@ extension LoadInst : OnoneSimplifyable, SILCombineSimplifyable {
 
   /// Removes the `load [copy]` if the loaded value is just destroyed.
   private func removeIfDead(_ context: SimplifyContext) {
-    if ownership == .copy,
+    if loadOwnership == .copy,
        loadedValueIsDead(context) {
       for use in uses {
         context.erase(instruction: use.instruction)

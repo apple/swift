@@ -301,6 +301,13 @@ static Type
 getTypeOfExpressionWithoutApplying(Expr *&expr, DeclContext *dc,
                                    ConcreteDeclRef &referencedDecl,
                                  FreeTypeVariableBinding allowFreeTypeVariables) {
+  if (isa<AbstractClosureExpr>(dc)) {
+    // If the expression is embedded in a closure, the constraint system tries
+    // to retrieve that closure's type, which will fail since we won't have
+    // generated any type variables for it. Thus, fallback type checking isn't
+    // available in this case.
+    return Type();
+  }
   auto &Context = dc->getASTContext();
 
   expr = expr->walk(SanitizeExpr(Context));
@@ -586,15 +593,6 @@ bool TypeChecker::typeCheckForCodeCompletion(
   if (!contextAnalyzer.hasCompletion())
     return false;
 
-  // Interpolation components are type-checked separately.
-  if (contextAnalyzer.locatedInStringInterpolation())
-    return false;
-
-  // FIXME: There is currently no way to distinguish between
-  // multi-statement closures which are result builder bodies
-  // (that are type-checked together with enclosing context)
-  // and regular closures which are type-checked separately.
-
   if (needsPrecheck) {
     // First, pre-check the expression, validating any types that occur in the
     // expression and folding sequence expressions.
@@ -656,18 +654,27 @@ bool TypeChecker::typeCheckForCodeCompletion(
 
   // Determine the best subexpression to use based on the collected context
   // of the code completion expression.
-  if (auto fallback = contextAnalyzer.getFallbackCompletionExpr()) {
-    if (auto *expr = target.getAsExpr()) {
-      assert(fallback->E != expr);
-      (void)expr;
-    }
-    SyntacticElementTarget completionTarget(fallback->E, fallback->DC,
-                                            CTP_Unused,
-                                            /*contextualType=*/Type(),
-                                            /*isDiscarded=*/true);
-    typeCheckForCodeCompletion(completionTarget, fallback->SeparatePrecheck,
-                               callback);
+  auto fallback = contextAnalyzer.getFallbackCompletionExpr();
+  if (!fallback) {
+    return true;
   }
+  if (isa<AbstractClosureExpr>(fallback->DC)) {
+    // If the expression is embedded in a closure, the constraint system tries
+    // to retrieve that closure's type, which will fail since we won't have
+    // generated any type variables for it. Thus, fallback type checking isn't
+    // available in this case.
+    return true;
+  }
+  if (auto *expr = target.getAsExpr()) {
+    assert(fallback->E != expr);
+    (void)expr;
+  }
+  SyntacticElementTarget completionTarget(fallback->E, fallback->DC,
+                                          CTP_Unused,
+                                          /*contextualType=*/Type(),
+                                          /*isDiscarded=*/true);
+  typeCheckForCodeCompletion(completionTarget, fallback->SeparatePrecheck,
+                             callback);
   return true;
 }
 

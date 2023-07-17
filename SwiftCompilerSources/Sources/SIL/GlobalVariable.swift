@@ -53,6 +53,10 @@ final public class GlobalVariable : CustomStringConvertible, HasShortDescription
     return bridged.canBeInitializedStatically()
   }
 
+  public var mustBeInitializedStatically: Bool {
+    return bridged.mustBeInitializedStatically()
+  }
+
   public static func ==(lhs: GlobalVariable, rhs: GlobalVariable) -> Bool {
     lhs === rhs
   }
@@ -78,6 +82,8 @@ extension Instruction {
         return type.isBuiltinInteger || type.isBuiltinFloat
       case .PtrToInt:
         return bi.operands[0].value is StringLiteralInst
+      case .IntToPtr:
+        return bi.operands[0].value is IntegerLiteralInst
       case .StringObjectOr:
         // The first operand can be a string literal (i.e. a pointer), but the
         // second operand must be a constant. This enables creating a

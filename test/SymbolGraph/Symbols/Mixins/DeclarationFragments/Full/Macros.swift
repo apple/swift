@@ -4,7 +4,7 @@
 // RUN: %empty-directory(%t)
 // RUN: %host-build-swift -swift-version 5 -emit-library -o %t/%target-library-name(MacroDefinition) -module-name=MacroDefinition %S/Inputs/stringify_macro.swift -g -no-toolchain-stdlib-rpath -swift-version 5
 // RUN: %target-swift-frontend -load-plugin-library %t/%target-library-name(MacroDefinition) %s -module-name Macros -emit-module -emit-module-path %t/Macros.swiftmodule -emit-symbol-graph -emit-symbol-graph-dir %t/
-// RUN: %{python} -m json.tool %t/Macros.symbols.json %t/Macros.formatted.symbols.json
+// RUN: %validate-json %t/Macros.symbols.json %t/Macros.formatted.symbols.json
 
 // Make sure that the `= #externalMacro(...)` doesn't show up in declaration fragments and in names
 // fragments, and also that macros with no parameters get the `()` in their name.

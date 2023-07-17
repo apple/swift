@@ -1037,8 +1037,10 @@ private:
   /// Restore best and current scores as they were before conjunction.
   void restoreCurrentScore(const Score &solutionScore) const {
     CS.CurrentScore = CurrentScore;
-    CS.increaseScore(SK_Fix, solutionScore.Data[SK_Fix]);
-    CS.increaseScore(SK_Hole, solutionScore.Data[SK_Hole]);
+    CS.increaseScore(SK_Fix, Conjunction->getLocator(),
+                     solutionScore.Data[SK_Fix]);
+    CS.increaseScore(SK_Hole, Conjunction->getLocator(),
+                     solutionScore.Data[SK_Hole]);
   }
 
   void restoreBestScore() const { CS.solverState->BestScore = BestScore; }

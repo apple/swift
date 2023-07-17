@@ -1,0 +1,1255 @@
+\documentclass[../generics]{subfiles}
+
+\begin{document}
+
+\chapter{Type Resolution}\label{typeresolution}
+
+\IndexDefinition{type representation}
+\IndexDefinition{type resolution}
+\index{type}
+\IndexDefinition{type resolution context}
+\IndexDefinition{type resolution flags}
+\IndexDefinition{type resolution options}
+\IndexDefinition{type resolution stage}
+Recall from Chapter~\ref{types} that \emph{type resolution} transforms a type representation read by the \index{parser}parser into a semantic type understood by the type checker. We're now going to take a closer look at this process.
+
+\index{tree}
+Type representations have a recursive tree structure, and type resolution proceeds recursively, first resolving the child nodes of a type representation into types, before forming a more complex type from its constituent parts. The leaf nodes of a type representation are the non-generic \emph{identifier type representations}, such as \texttt{Int}. These name a type declaration and are resolved by querying name lookup. The interior nodes of a type representation include function type representations and tuple type representations, as well as generic identifier type representations which store a list of generic arguments.
+
+\index{non-escaping function type}
+\index{escaping function type}
+\index{source location}
+\index{declaration context}
+\index{unqualified lookup}
+The type resolution procedure receives a type representation as input, together with some additional information packaged into a \emph{type resolution context}:
+\begin{enumerate}
+\item The \emph{declaration context} where the type representation appears. Any identifiers appearing in the type representation are resolved by querying unqualified name lookup from this declaration context. (Recall from Section~\ref{name lookup} that the declaration context alone is actually not enough, because unqualified name lookup also needs a source location, but this is stored in the type representation itself.)
+\item A set of \emph{type resolution options} that encode the semantic position where the type representation appears, consisting of a \emph{type resolution context} and \emph{type resolution flags}.
+\item A \emph{type resolution stage}, to select between \emph{structural} and \emph{interface} type resolution.
+\end{enumerate}
+You can see that type resolution depends on context in two different ways:
+\begin{enumerate}
+\item Name lookup depends on the lexical scope containing the type representation; for example, a type representation might name a generic parameter declaration scoped to the current function.
+\item The semantic position of a type representation also influences the outcome. One example is that a function type representation appearing in the parameter list of a function declaration or another function type resolves into a non-escaping function type, unless it was annotated with the \texttt{@escaping} attribute. Elsewhere, such as the type of a variable declaration or in the return type of a function, a function type is always \texttt{@escaping}. This behavior was introduced in Swift 3~\cite{se0103}.
+\end{enumerate}
+
+\paragraph{Type resolution stage}
+\index{dependent member type}%
+\index{bound dependent member type}%
+\index{unbound dependent member type}%
+\index{identifier}%
+The \emph{type resolution stage} specifies the \emph{temporal} context for type resolution, where some type representations are first resolved before a generic signature has been built for their generic context, and then again after.
+
+Recall from Section~\ref{fundamental types} that there are two kinds of dependent member types: unbound, and bound. Both kinds store a base type, which is a generic parameter type or another dependent member type. Unbound dependent member types also store an identifier naming an associated type, and bound dependent member types store a reference to an associated type declaration.
+
+\IndexDefinition{structural resolution stage}
+For example, if \texttt{T} is a generic parameter type subject to the conformance requirement \verb|T: Sequence|, the type representation \texttt{T.Element} resolves in one of two ways, depending on the type resolution stage:
+\begin{enumerate}
+\item In the structural resolution stage, our type representation resolves to an unbound dependent member type, also written as \texttt{T.Element}, which stores the identifier ``\texttt{Element}.''
+
+Type resolution does not have any knowledge of the requirements imposed on \texttt{T} in the structural resolution stage, because it is not permitted to ask for the generic signature of the type representation's declaration context. It simply constructs an unbound dependent member type with the identifier from the type representation.
+\item In the interface resolution stage, our type representation instead resolves to a bound dependent member type \texttt{T.[Sequence]Element}, which stores a reference to the \texttt{Element} associated type declaration of the \texttt{Sequence} protocol.
+
+\Index{getRequiredProtocols()@\texttt{getRequiredProtocols()}}
+\index{qualified lookup}
+\IndexDefinition{interface resolution stage}
+Type resolution is allowed to look at the generic signature of the current declaration context in the interface resolution stage. With this generic signature, it issues the \verb|getRequiredProtocols()| generic signature query (Section~\ref{genericsigqueries}) to get a list of all protocol conformance requirements for the base type \texttt{T}. This list of protocols is then handed off to qualified name lookup, which finds the associated type declaration \texttt{Element} of the \texttt{Sequence} protocol.
+\end{enumerate}
+
+\index{generic signature request}
+\index{interface type request}
+\Index{where clause@\texttt{where} clause}
+\index{inheritance clause}
+\index{interface type}
+\index{value declaration}
+This design breaks the inherent circularity between type resolution when building a generic signature, and type resolution when computing the interface type of a declaration, which depends on the generic signature to perform semantic checks:
+\begin{itemize}
+\item The structural resolution stage is used by the \Request{generic signature request} to resolve type representations appearing in generic parameter inheritance clauses, trailing \texttt{where} clauses, as well as function and subscript parameter lists (these feed into requirement inference, which you will meet in Section~\ref{requirementinference}).
+
+\item The interface resolution stage is used by the \Request{interface type request} to resolve type representations that form the interface type of a value declaration. In this way, the \Request{interface type request} depends on the \Request{generic signature request}.
+\end{itemize}
+As the next example shows, there is some overlap between the type representations resolved by the two requests, with some type representations getting resolved twice in the two type resolution stages.
+
+\begin{example}
+The return type of this function declaration contains a member type:
+\begin{Verbatim}
+func union<T: Sequence, U: Sequence>(_: T, _: U) -> Set<T.Element>
+  where T.Element == U.Element
+\end{Verbatim}
+The \Request{generic signature request} resolves various type representations appearing above in the structural resolution stage:
+\begin{itemize}
+\item The inheritance clause entry \texttt{Sequence} of \texttt{T};
+\item The inheritance clause entry \texttt{Sequence} of \texttt{U};
+\item The left hand side of the same-type requirement, \texttt{T.Element};
+\item The right hand side of the same-type requirement, \texttt{U.Element};
+\item The types of the function's parameters, \texttt{T} and \texttt{U};
+\item The return type of the function, \texttt{Set<T.Element>}.
+\end{itemize}
+The type representations \texttt{T.Element} and \texttt{U.Element} resolve to unbound member types during structural resolution. Requirement inference also introduces the conformance requirement \verb|T.Element: Hashable| from the application of \texttt{Set<>} to \texttt{T.Element} in the return type.
+
+All of this information feeds into requirement minimization, which constructs a generic signature with a minimal, reduced list of requirements consisting of bound dependent member types:
+\begin{quote}
+\begin{verbatim}
+<S1, S2 where S1: Sequence, S2: Sequence,
+              S1.[Sequence]Element: Hashable,
+              S1.[Sequence]Element == S2.[Sequence]Element>
+\end{verbatim}
+\end{quote}
+The \Request{interface type request} resolves the parameter and return types of our function again, this time in the interface resolution stage. The parameter types remain unchanged, but the return type becomes \texttt{Set<S1.[Sequence]Element>}.
+
+\index{generic function type}
+The interface type of \texttt{merge()} is a generic function type, constructed from the generic signature, parameter types and return type:
+\begin{quote}
+\begin{verbatim}
+<S1, S2 where ...> (S1, S2) -> Set<S1.[Sequence]Element>
+\end{verbatim}
+\end{quote}
+\end{example}
+
+\paragraph{Practical considerations}
+While structural resolution skips many semantic checks, there is some overlap between the work performed by the two stages and care must be taken to not emit the same diagnostics twice if the type representation is invalid. To help deal with this, each type representation has an ``invalid'' flag. After emitting a diagnostic, the invalid flag should be set and an error type returned. Resolving an invalid type representation again will short-circuit and immediately return an error type, skipping the actual type resolution process. Note that a type representation can only transition from a valid state to invalid, and never back again.
+
+If you use the structural resolution stage, keep in mind that unbound dependent member types are not universally accepted by the type checker. For example, generic signature queries accept unbound dependent member types as long as they correspond to a valid type parameter for the given generic signature. On the other hand, type substitution will assert if the original type contains an unbound dependent member type.
+
+\Index{getReducedType()@\texttt{getReducedType()}}
+\Index{isValidTypeParameter()@\texttt{isValidTypeParameter()}}
+\index{type parameter order}
+\index{bound dependent member type}
+\index{unbound dependent member type}
+Recall that the linear order on type parameters was defined such that bound dependent member types precede unbound dependent member types, in Section~\ref{typeparams}. In particular, if you encounter an unbound dependent member type and need to convert it to bound, the \texttt{getReducedType()} generic signature query will do the trick. To determine whether an unbound dependent member type corresponds to a valid type parameter at all, use the \texttt{isValidTypeParameter()} generic signature query.
+
+\section{Identifier Type Representations}\label{identtyperepr}
+
+\index{generic arguments}
+\IndexDefinition{identifier type representation}
+An \emph{identifier type representation} consists of one or more \emph{components}, separated by dot in written syntax. Each component stores an identifier, together with an optional list of one or more generic arguments, where each generic argument is again recursively a type representation. Identifier type representations are very general; by naming different kinds of type declarations, they can resolve to nominal types, type aliases, generic parameters, and dependent member types. Examples of identifier type representations:
+\begin{quote}
+\begin{verbatim}
+T
+T.Element
+Array<Int>
+Foo.Bar<(Int) -> ()>.Baz<Float, String>
+\end{verbatim}
+\end{quote}
+Type resolution visits the components of an identifier type representation from left to right, resolving each component to a type and then using the result as the base type for resolving the next component, and so on. If a component carries generic arguments, their type representations are resolved and checked against the generic requirements of the component's type declaration. The type of the final component becomes the resolved type of the entire identifier type representation.
+
+\index{unqualified lookup}
+\paragraph{Unqualified lookup} The first component refers to a type declaration in the lexical scope of the type representation's source location. Type resolution queries unqualified name lookup to find this type declaration (Section~\ref{name lookup}).
+
+\index{module declaration}
+Unqualified lookup will return a module declaration if the first component names a module. In this case, the identifier type representation must have at least one additional component naming a type declaration inside this module. Modules can only be used as the base of a lookup, and are not first-class entities which can be referenced on their own (except from an \texttt{import} declaration, but those do not go through type resolution). An example is \texttt{Swift.Int}, which has two components, \texttt{Swift} naming the standard library module, and \texttt{Int} naming the type declaration. 
+
+\index{generic parameter declaration}
+\IndexDefinition{generic parameter list}
+Unqualified lookup will find generic parameter declarations if one of the outer declaration contexts has a generic parameter list. In this manner, if the first component names a generic parameter declaration, the type representation will resolve to a generic parameter type (if this is the only component) or a dependent member type thereof (if there is more than one component).
+
+\Index{where clause@\texttt{where} clause}
+\index{associated type declaration}
+\index{protocol declaration}
+Generic parameters are always visible to unqualified lookup from inside the \texttt{where} clause of a nominal type or extension. However, member types are only visible from the \texttt{where} clause of a protocol or protocol extension (Section~\ref{protocols}). This allows the associated types of a protocol to be referenced from its \texttt{where} clause, without the explicit ``\texttt{Self.}'' prefix. In other kinds of nominal type declarations, type representations written in the \texttt{where} clause cannot reference member types from the first component; they must be referenced as member types of the nominal type. Listing~\ref{where clause unqualified} demonstrates this behavior.
+
+\begin{listing}\captionabove{Unqualified lookup from a \texttt{where} clause}\label{where clause unqualified}
+\begin{Verbatim}
+// This is OK; `A' resolves to `Self.[P]A' 
+protocol P where A: Hashable {
+  associatedtype A
+}
+
+// This is not OK; typealias `A' is not visible from the `where' clause
+struct G<T> where A: Hashable {
+  typealias A = T
+}
+\end{Verbatim}
+\end{listing}
+
+\index{declared interface type}
+\Index{protocol Self type@protocol \texttt{Self} type}
+\Index{dynamic Self type@dynamic \texttt{Self} type}
+If the first component names the innermost type declaration or one of its parent type declarations without specifying generic arguments, type resolution implicitly applies the type declaration's generic parameter types as generic arguments. In order words, the component resolves to the declared interface type of this type declaration.
+
+The identifier \texttt{Self} serves a similar purpose since Swift 5.1~\cite{se0068}. If the innermost type declaration is a struct or enum, \texttt{Self} stands for its declared interface type. If the innermost type declaration is a class, \texttt{Self} stands for the declared interface type of the class wrapped in a dynamic \texttt{Self} type (Section~\ref{misc types}). Inside a protocol or protocol extension, \texttt{Self} is just the protocol's implicit generic parameter named \texttt{Self}, not a special case (Section~\ref{protocols}). Listing~\ref{type resolution unqualified} demonstrates some of the above behaviors.
+
+\begin{listing}\captionabove{Referencing a type declaration from inside its body}\label{type resolution unqualified}
+\begin{Verbatim}
+struct Outer<T> {
+  struct Inner<U> {
+    // Return type is `Outer<T>.Inner<U>'
+    func f1() -> Self {}
+
+    // Return type is `Outer<T>.Inner<U>'
+    func f2() -> Inner {}
+
+    // Return type is `Outer<T>'
+    func f3() -> Outer {} 
+  }
+  
+  class Class {
+    // Return type is the dynamic Self type of `Outer<T>.Class'
+    func f1() -> Self {}
+    
+    // Return type is `Outer<T>.Class'
+    func f2() -> Class {}
+  }
+}
+
+protocol Proto {
+  // Return type is the `Self' generic parameter of the protocol
+  func f1() -> Self
+}
+\end{Verbatim}
+\end{listing}
+
+\index{qualified lookup}
+\index{identifier}
+\paragraph{Qualified lookup} Every subsequent component after the first names a member type of the previous component. There are two cases to consider; the first is where the type of the previous component is not a type parameter, in which case it must be a struct, enum or class, type, or a dynamic \texttt{Self} type wrapping a class type. The second case is where the type of the previous component is a type parameter.
+
+When the type of the previous component is not a type parameter, member types are resolved via a qualified name lookup with the previous component's type as the base type of the lookup (Section~\ref{name lookup}).
+
+When the type of the previous component is a type parameter, the behavior of type resolution depends on the type resolution stage:
+\begin{itemize}
+\item In the structural resolution stage, type resolution constructs an unbound dependent member type from the base type parameter and the current component's identifier. The lookup cannot fail; if the identifier does not name a valid member type, the error is diagnosed later, when the type representation is resolved again in the interface resolution stage.
+\item In the interface resolution stage, type resolution collects a list of declarations with the \texttt{getRequiredProtocols()} and \texttt{getSuperclassBound()} generic signature queries. This list of declarations is then handed off to a qualified lookup.
+
+Conceptually, this means that associated types, protocol type aliases and member types of the superclass bound are all visible as member types of a type parameter.
+\end{itemize}
+
+\index{type witness}
+\index{improper dependent member type}
+\index{global conformance lookup}
+\index{associated type inference}
+If the base type is a struct, enum or class type, qualified name lookup might find an associated type declaration from a protocol that the base type conforms to. Recall from Section~\ref{type witnesses} that the conformance checker inserts synthesized type alias members when a type witness is inferred from another protocol requirement. However, depending on request evaluation order, type resolution might find the associated type declaration before the conformance checker has run. Type resolution will never form a dependent member type with a concrete base type. Instead, we perform a global conformance lookup of the base type to the associated type's protocol, and project the corresponding type witness from this conformance, which will trigger associated type inference and synthesize the corresponding type alias.
+
+\begin{listing}\captionabove{Resolving a reference to an associated type member of a concrete type}\label{associated type of concrete type}
+\begin{Verbatim}
+struct Egg {}
+
+protocol Animal {
+  associatedtype CommodityType
+
+  func produce() -> CommodityType
+}
+
+struct Chicken: Animal {
+  func produce() -> Egg {...}
+}
+
+func cookOmelette(_ egg: Chicken.CommodityType) {}
+\end{Verbatim}
+\end{listing}
+\begin{example} In Listing~\ref{associated type of concrete type}, the type representation \texttt{Chicken.CommodityType} has two components. Type resolution proceeds as follows:
+\begin{enumerate}
+\item The first component is resolved by performing an unqualified lookup of \texttt{Chicken}, which finds the struct declaration \texttt{Chicken}. The declared interface type of this struct declaration is the struct type \texttt{Chicken}, which becomes the resolved type of the first component.
+
+\item The second component is resolved via a qualified lookup of \texttt{CommodityType} into the base type \texttt{Chicken}. The qualified lookup will find the associated type declaration \texttt{CommodityType} of the \texttt{Animal} protocol, because \texttt{Chicken} conforms to \texttt{Animal}.
+
+\item Type resolution projects the type witness of \texttt{CommodityType} from the conformance \texttt{Chicken:\ Animal}, which triggers associated type inference. The \texttt{Chicken} type declaration does not declare a member type named \texttt{CommodifyType}, so associated type inference derives the type witness from the type of the \texttt{produce()} method of \texttt{Chicken}. The return type of this method is \texttt{Egg}. This synthesizes the type alias member \texttt{CommodityType} of \texttt{Chicken}, with underlying type \texttt{Egg}.
+\end{enumerate}
+So the type representation \texttt{Chicken.CommodityType} resolves to the struct type \texttt{Egg}.
+\end{example}
+
+Regardless of whether the base type is a type parameter, concrete type or protocol type, qualified name lookup can also find type alias members of protocols. This exciting possibility is discussed in Section~\ref{protocol type alias}.
+
+\index{generic arguments}
+\paragraph{Applying generic arguments} So far we've seen how type resolution uses name lookup to find type declarations, but we've skipped over the important detail of how we can go from a type declaration to the resolved \emph{type}.
+
+\index{declared interface type}
+If the type declaration is not generic, the resolved type is just the declared interface type of the type declaration. If the type declaration is generic, type resolution must apply a substitution map to the type declaration's declared interface type.
+
+When a type representation refers to a nested generic type, each component provides a list of generic arguments for each level of nesting. As each component is resolved, type resolution collects the outer generic arguments applied so far together with the new generic arguments of each component into a substitution map, as follows.
+
+When resolving the first component, the only possibilities are that the named type declaration does not have any outer generic parameters at all, or that it is was found in an outer generic context of the generic context containing the type representation. In this case, the outer generic parameters, if any, are mapped to themselves.
+
+\index{context substitution map}
+When resolving subsequent components, type resolution recovers the outer generic arguments from the resolved type of the previous component. In Section~\ref{contextsubstmap}, you saw the concept of a context substitution map with respect to a declaration context. When type resolution finds a type declaration with a qualified lookup on the base type, the outer generic arguments are derived by taking the context substitution map of the base type with respect to the found type declaration's declaration context. 
+
+\begin{listing}\captionabove{Applying generic arguments in type resolution}\label{applying generic arguments}
+\begin{Verbatim}
+func f1() -> Outer<Int>.Inner<String> {}
+
+struct Outer<T> {
+  struct Inner<U> {
+    // Return type resolves to `Outer<T>.Inner<String>`
+    func f2() -> Inner<String> {}
+  }
+}
+\end{Verbatim}
+\end{listing}
+\begin{example} Listing~\ref{applying generic arguments} shows two functions \texttt{f1()} and \texttt{f2()} whose return types are identifier type representations demonstrating some of these behaviors.
+
+The return type of \texttt{f1()} is resolved as follows:
+\begin{enumerate}
+\item The first component refers to \texttt{Outer}, whose generic signature has a single innermost generic parameter and no outer generic parameters. The resolved type is obtained by forming a substitution map with the component's generic argument and applying it to the declared interface type of \texttt{Outer}:
+\[\texttt{Outer<T>}\otimes\SubstMap{\SubstType{T}{Int}}=\texttt{Outer<Int>}\]
+\item The second component refers to \texttt{Inner}, whose generic signature has a single innermost generic parameter, as well as the outer parameter from the generic signature of \texttt{Outer}. The resolved type is obtained by forming a substitution map from the context substitution map of the previous component's type together with the second component's generic argument, and applying it to the declared interface type of \texttt{Outer.Inner}:
+\[\texttt{Outer<T>.Inner<U>}\otimes\SubstMap{\SubstType{T}{Int}\\
+\SubstType{U}{String}}=\texttt{Outer<Int>.Inner<String>}\]
+\end{enumerate}
+The return type of \texttt{f2} has a single component, \texttt{Inner<String>}. Here, unqualified lookup finds \texttt{Outer.Inner}, because the source location of the type representation is inside the source range of \texttt{Outer}. The outer generic parameter \texttt{T} is mapped to itself, so type resolution applies the following substitution map to the declared interface type of \texttt{Outer.Inner}:
+\[\texttt{Outer<T>.Inner<U>}\otimes\SubstMap{\SubstType{T}{T}\\
+\SubstType{U}{String}}=\texttt{Outer<Int>.Inner<String>}\]
+
+\end{example}
+
+\paragraph{An incorrect simplification}
+The type resolution process for a nested generic type might appear unnecessarily convoluted at first sight. At each step, we collect the outer generic arguments by constructing a substitution map from the previous component's resolved type, extend the substitution map with the current component's generic arguments, and apply it to the declared interface type of the type declaration found via name lookup. Instead, could we perform a chain of name lookups to find the final type declaration, then collect all of the generic arguments and apply them in one shot? Unfortunately, the answer is ``no''! The next example shows why this appealing simplification does not handle the full generality of type resolution.
+
+\begin{listing}\captionabove{The named type declaration of a component can depend on previously-applied generic arguments}\label{type resolution with dependent base}
+\begin{Verbatim}
+struct Paul {
+  struct Pony {}
+}
+
+struct Maureen {
+  struct Pony<T> {}
+}
+
+struct Person<T> {
+  typealias Rides = T
+}
+
+struct Misty {}
+
+typealias A = Person<Paul>.Rides.Pony
+typealias B = Person<Maureen>.Rides.Pony<Misty>
+\end{Verbatim}
+\end{listing}
+\begin{example}
+The two type aliases \texttt{A} and \texttt{B} in Listing~\ref{type resolution with dependent base} demonstrate an interesting phenomenon. The type representations of their underlying types look very similar, only differing in the generic arguments applied. However, they resolve to two different nominal types.
+
+First, consider how type resolution builds the underlying type of \texttt{A}:
+\begin{enumerate}
+\item The first component resolves to the generic struct type \texttt{Person<Paul>}.
+\item The second component performs a qualified name lookup into the declaration of \texttt{Person}, which finds the member type alias \texttt{Rides}. Applying the substitution map to the underlying type of \texttt{Person.Rides} gives us the struct type \texttt{Paul}.
+\item The third component performs a qualified name lookup into the declaration of \texttt{Paul}, which finds the non-generic struct declaration \texttt{Paul.Pony}. The declared interface type \texttt{Paul.Pony} becomes the final resolved type.
+\end{enumerate}
+Now compare the above with the underlying type of \texttt{B}:
+\begin{enumerate}
+\item The first component resolves to \texttt{Person<Maureen>}.
+\item The second component performs a qualified name lookup into the declaration of \texttt{Person}, which again finds the member type alias \texttt{Rides}. Applying the substitution map to the underlying type of \texttt{Person.Rides} gives us the struct type \texttt{Maureen}. The base type for the third component is now a completely different nominal type!
+\item The third component performs a qualified name lookup into the declaration of \texttt{Maureen}, which finds the generic struct declaration \texttt{Maureen.Pony}. Applying the generic argument to this type declaration's declared interface type gives us the generic struct type \texttt{Maureen.Pony<Misty>}.
+\end{enumerate}
+
+Clearly, \texttt{Paul.Pony} and \texttt{Maureen.Pony} are two unrelated type declarations, and one is even generic while the other is not. If you tried to save the generic arguments and apply them in a single shot at the end, you'd quickly realize there is no way to resolve the type representation \texttt{Person.Rides.Pony} to a single type declaration. The complication here is the type alias \texttt{Person.Rides}, whose underlying type is a type parameter.
+
+\end{example}
+
+\paragraph{Bound components} A minor optimization worth understanding, because it slightly complicates the implementation. After resolving the type of a component, the bound (or found, perhaps) type declaration is stored inside the component. If the identifier type representation is resolved again (perhaps the first time was the structural stage, and the second was the interface stage), resolving a bound component skips the name lookup and proceeds directly to computing the type from the bound declaration.
+
+\index{generic environment}
+\index{map type into environment}
+The optimization was more profitable in the past, when type resolution actually had \emph{three} stages, with a third stage resolving interface types to archetypes. The third stage was subsumed by the \textbf{map type into environment} operation on generic environments. Parsing textual SIL also ``manually'' binds components to type declarations which name lookup would otherwise not find, in order to parse some of the more esoteric SIL syntax that we're not going to discuss here.
+
+\section{Checking Generic Arguments}\label{checking generic arguments}
+
+\index{generic signature}
+\index{identifier type representation}
+In the previous section, you saw how type resolution applies generic arguments when resolving a generic identifier type representation. Now, we're going to turn our attention to the problem of checking whether those generic arguments satisfy the requirements of the type declaration's generic signature. Type resolution collects generic arguments into a substitution map whose input generic signature is the generic signature of the type declaration, so our problem reduces to asking if a substitution map satisfies the requirements of its input generic signature.
+
+\index{original requirement}
+\IndexDefinition{substituted requirement}
+\index{substitution map}
+\index{requirement}
+\index{conformance requirement}
+\index{superclass requirement}
+\index{same-type requirement}
+\index{layout requirement}
+We've seen that substitution maps can be applied to types, conformances and other substitution maps; it turns out that we can apply a substitution map to a requirement as well:
+\[\mathboxed{original requirement}\otimes\mathboxed{substitution map} = \mathboxed{substituted requirement}\]
+Requirement substitution is defined by applying the substitution map to each of the types stored in the requirement. All requirement kinds store a \emph{subject type}, which is a type parameter for its generic signature to which the requirement applies. Conformance, superclass and same-type requirements store a second type as well:
+\begin{itemize}
+\item In a conformance requirement, the second type is a protocol type, which is always non-generic and cannot be substituted.
+\item Superclass and same-type requirements store an interface type which can contain type parameters for their generic signature.
+\item Layout requirements store a layout constraint, which is not a type and cannot be substituted.
+\end{itemize}
+
+\index{type parameter}
+\index{generic environment}
+\index{declaration context}
+\index{primary archetype type}
+The type parameters in the original requirement are written for the generic signature of the referenced type declaration. The generic argument substitution map can also contain type parameters; they are written for the generic signature of the declaration context in which the type representation appears. To simplify the logic for checking whether a substituted requirement is satisfied, type resolution maps the replacement types of the generic argument substitution map into the generic environment of the current declaration context first. Thus, a substituted requirement no longer contains any type parameters; however, it may contain primary archetypes from the current declaration context's generic environment.
+
+Thus, requirement substitution replaces the type parameters in a requirement with concrete types from the generic argument substitution map. A substituted requirement becomes a statement about concrete types whose truth is independent of any generic signature, and type resolution can then check if the statement holds, in which case we say the requirement is \emph{satisfied}.
+
+Since the type parameters in the replacement types of the generic argument substitution map are mapped into the current declaration context's generic environment, checking generic arguments depends on the generic signature of the current declaration having already been built. For this reason, checking generic arguments is done in the interface resolution stage---the structural resolution stage only checks that the number of generic arguments in the component matches the number of generic parameters in the named type declaration.
+
+\index{conformance checker}
+\index{conforming type}
+This concept of applying a substitution map to a set of requirements and then checking if they are satisfied is important. It comes up elsewhere in the type checker:
+\begin{enumerate}
+\item The expression type checker uses similar logic when solving constraints generated from requirements when type checking a call to a generic function.
+\item Conformance checking ensures that the conforming type and its type witnesses satisfy the protocol's requirement signature (Section~\ref{requirement sig}).
+\item Requirement inference is in some sense solving the ``opposite'' problem: when building a generic signature, we want to \emph{add} requirements to ensure that the substituted requirements derived from a generic type representation are satisfied (Section~\ref{requirementinference}).
+\item The conditional requirements of a conditional normal conformance are computed by taking the requirements of a constrained extension not satisfied by the generic signature of the extended type.
+
+After applying a substitution map to a conditional normal conformance, we get a conditional specialized conformance, whose substituted requirements are checked in the same manner as below (Section~\ref{conditional conformance}).
+\item Class method override checking checks if the generic signature of the subclass method satisfies the requirements of the superclass method (Section~\ref{overridechecking}).
+\end{enumerate}
+
+\IndexDefinition{satisfied requirement}
+\begin{algorithm}[``Requirement is satisfied'' check]\label{reqissatisfied}
+Takes a substituted requirement as input. The substituted requirement's types must not contain type parameters, but may contain archetypes. Returns true if the requirement is satisfied.
+
+\index{global conformance lookup}
+\index{abstract conformance}
+\index{concrete conformance}
+\index{conditional conformance}
+\index{conformance requirement}
+\index{superclass requirement}
+\index{layout requirement}
+\index{same-type requirement}
+\index{self-conforming protocol}
+The algorithm handles each requirement kind as follows:
+\begin{itemize}
+\item \textbf{Conformance requirements:} Decompose the requirement into its subject type and protocol type, and perform a global conformance lookup. There are three possible outcomes:
+\begin{enumerate}
+\item If the conformance is abstract, the subject type was an archetype known to satisfy this conformance requirement. Return true.
+\item If the conformance is concrete, it might be conditional (Section~\ref{conditional conformance}), and its conditional requirements are checked by recursively applying the algorithm. If all conditional requirements are satisfied (or if there are no conditional requirements), return true.
+\item Otherwise, the conformance is invalid. Return false.
+\end{enumerate}
+\index{superclass type}
+\index{class declaration}
+\item \textbf{Superclass requirements:} Decompose the requirement into its subject type and constraint type. There are three possible cases:
+\begin{enumerate}
+\item If the subject type is canonically equal to the constraint type, return true.
+\item If the subject type and constraint type are both generic class types with the same declaration but distinct generic arguments, return false.
+\item If the subject type does not have a superclass type (Chapter~\ref{classinheritance}), return false.
+\item The final case is where the subject type has a superclass type. Construct a new requirement by replacing the given requirement's subject type with its superclass type, and leave the constraint type unchanged. Recursively apply the algorithm to the new requirement.
+\end{enumerate}
+\item \textbf{Layout requirements:} Decompose the requirement into its subject type and layout constraint. The only kind of layout constraint that can be written in source is an \texttt{AnyObject} constraint. If the subject type is a class type, an archetype satisfying the \texttt{AnyObject} layout constraint, or an \texttt{@objc} existential, return true.
+\index{canonical type equality}
+\item \textbf{Same-type requirements:} Decompose the requirement into its subject type and constraint type. If the two types are canonical-equal, return true.
+\end{itemize}
+\end{algorithm}
+
+\index{error type}
+\index{substitution failure}
+Using our algorithm, we can check the generic argument substitution map against its input generic signature.
+\begin{algorithm}[Substitution map requirement check]\label{check generic arguments algorithm}
+Takes two inputs:
+\begin{enumerate}
+\item A substitution map where the replacement types do not contain type parameters (but they may contain archetypes).
+\item A list of requirements, understood to contain type parameters from the substitution map's input generic signature. (In type resolution, these are exactly the requirements of the referenced type declaration's generic signature, but elsewhere the requirements are obtained differently.)
+\end{enumerate}
+As output, returns three lists, which together form a partition of the input requirements: a \emph{satisfied} list, an \emph{unsatisfied} list, and a \emph{failed} list.
+\begin{enumerate}
+\item Initialize the three output lists, initially empty.
+\item If the input list is empty, return.
+\item Otherwise, remove the next original requirement from the input list and apply the substitution map to get a substituted requirement.
+\item If the substituted requirement contains error types, move the original requirement to the failed list.
+\item Otherwise, check if the substituted requirement is satisfied using Algorithm~\ref{reqissatisfied}, and move the original requirement to the satisfied or unsatisfied list based on the outcome of this check.
+\item Go back to Step~2.
+\end{enumerate}
+\end{algorithm}
+Type resolution applies the above algorithm to the generic argument substitution map together with the list of requirements in the named type declaration's generic signature.
+
+Any failed requirements are ignored, because a substitution failure indicates that either some other requirement is unsatisfied, or an error was diagnosed elsewhere by the conformance checker (for example, a missing type witness in a conformance).
+
+Unsatisfied requirements are diagnosed at the source location of the component's generic arguments, with the appropriate error message showing the substituted subject type and requirement kind.
+
+\begin{listing}\captionabove{Satisfied and unsatisfied requirements with concrete types}\label{unsatisfied requirements}
+\begin{Verbatim}
+struct G<T: Sequence, U: Sequence> where T.Element == U.Element {}
+
+// (1) all requirements satisfied
+typealias A = G<Array<Int>, Set<Int>>
+
+// (2) `T.Element == U.Element' unsatisfied
+typealias B = G<Array<Int>, Set<String>>
+
+// (3) `T: Sequence' unsatisfied;
+// `T.Element == U.Element' substitution failure
+typealias C = G<Float, Set<Int>>
+\end{Verbatim}
+\end{listing}
+\begin{example}
+Listing~\ref{unsatisfied requirements} shows three examples of checking generic arguments. The underlying type of each type alias is an identifier type representation referencing the declaration of \texttt{G} with different generic arguments. The generic signature of \texttt{G} is:
+\begin{quote}
+\begin{verbatim}
+<T, U where T: Sequence, U: Sequence,
+            T.[Sequence]Element == U.[Sequence]Element>
+\end{verbatim}
+\end{quote}
+There are four requirements:
+\begin{quote}
+\begin{tabular}{|l|l|l|}
+\hline
+Kind&Subject type&Constraint type\\
+\hline
+Conformance&\texttt{T}&\texttt{Sequence}\\
+Conformance&\texttt{U}&\texttt{Sequence}\\
+Same type&\texttt{T.[Sequence]Element}&\texttt{U.[Sequence]Element}\\
+\hline
+\end{tabular}
+\end{quote}
+
+\paragraph{First type alias} The context substitution map of the underlying type of \texttt{A}:
+\[
+\SubstMapC{
+\SubstType{T}{Array<Int>}\\
+\SubstType{U}{Set<Int>}
+}{
+\SubstConf{T}{Array<Int>}{Sequence}\\
+\SubstConf{U}{Set<Int>}{Sequence}
+}
+\]
+We apply this substitution map to each requirement of our generic signature:
+\begin{quote}
+\begin{tabular}{|l|l|l|c|}
+\hline
+Kind&Subject type&Constraint type&Satisfied?\\
+\hline
+Conformance&\texttt{Array<Int>}&\texttt{Sequence}&$\checkmark$\\
+Conformance&\texttt{Set<Int>}&\texttt{Sequence}&$\checkmark$\\
+Same type&\texttt{Int}&\texttt{Int}&$\checkmark$\\
+\hline
+\end{tabular}
+\end{quote}
+The two conformance requirements are satisfied, because both substituted subject types conform to \texttt{Sequence}. The same-type requirement is satisfied, because the two substituted types are canonical-equal.
+
+\paragraph{Second type alias} The context substitution map of the underlying type of \texttt{B}:
+\[
+\SubstMapLongC{
+\SubstType{T}{Array<Int>}\\
+\SubstType{U}{Set<String>}
+}{
+\SubstConf{T}{Array<Int>}{Sequence}\\
+\SubstConf{U}{Set<String>}{Sequence}
+}
+\]
+We apply this substitution map to each requirement of our generic signature:
+\begin{quote}
+\begin{tabular}{|l|l|l|c|}
+\hline
+Kind&Subject type&Constraint type&Satisfied?\\
+\hline
+Conformance&\texttt{Array<Int>}&\texttt{Sequence}&$\checkmark$\\
+Conformance&\texttt{Set<String>}&\texttt{Sequence}&$\checkmark$\\
+Same type&\texttt{Int}&\texttt{String}&$\times$\\
+\hline
+\end{tabular}
+\end{quote}
+The two conformance requirements are satisfied, because the substituted subject types conform to \texttt{Sequence}. The same-type requirement is unsatisfied, because the two substituted types are not canonical-equal.
+
+\paragraph{Third type alias} The context substitution map of the underlying type of \texttt{C}:
+\[
+\SubstMapLongC{
+\SubstType{T}{Float}\\
+\SubstType{U}{Set<Int>}
+}{
+\mbox{(invalid)}\\
+\SubstConf{U}{Set<Int>}{Sequence}
+}
+\]
+We apply this substitution map to each requirement of our generic signature:
+\begin{quote}
+\begin{tabular}{|l|l|l|c|}
+\hline
+Kind&Subject type&Constraint type&Satisfied?\\
+\hline
+Conformance&\texttt{Float}&\texttt{Sequence}&$\times$\\
+Conformance&\texttt{Set<Int>}&\texttt{Sequence}&$\checkmark$\\
+Same type&\texttt{<<error type>>}&\texttt{Int}&$-$\\
+\hline
+\end{tabular}
+\end{quote}
+The first conformance requirement is unsatisfied and will be diagnosed. The same-type requirement has a substitution failure, and does not need to be diagnosed; in fact, its failure is a consequence of the first conformance requirement being unsatisfied.
+\end{example}
+
+\begin{listing}\captionabove{Satisfied and unsatisfied requirements with archetypes}\label{unsatisfied requirements archetypes}
+\begin{Verbatim}
+struct G<T: Sequence, U: Sequence> where T.Element == U.Element {}
+
+struct H<X: Sequence, Y> {
+  // (1) all requirements satisfied
+  typealias A = G<X, Array<X.Element>>
+
+  // (2) `T.Element == U.Element' unsatisfied
+  typealias B = G<X, Array<Y>>
+}
+\end{Verbatim}
+\end{listing}
+\begin{example}
+Listing~\ref{unsatisfied requirements archetypes} shows a pair of type alias declarations whose underlying types contain type parameters. Using the notation of Chapter~\ref{genericenv}, we write $\archetype{X}$ and $\archetype{Y}$ for the archetype of \texttt{X} and \texttt{Y} in the generic environment of \texttt{H}.
+
+\paragraph{First type alias} The context substitution map for the underlying type of \texttt{A}:
+\[
+\SubstMapC{
+\SubstType{T}{$\archetype{X}$}\\
+\SubstType{U}{Array<$\archetype{X.Element}$>}
+}{
+\SubstConf{T}{$\archetype{X}$}{Sequence}\\
+\SubstConf{U}{Array<$\archetype{X.Element}$>}{Sequence}
+}
+\]
+We apply this substitution map to each requirement of our generic signature:
+\begin{quote}
+\begin{tabular}{|l|l|l|c|}
+\hline
+Kind&Subject type&Constraint type&Satisfied?\\
+\hline
+Conformance&$\archetype{X}$&\texttt{Sequence}&$\checkmark$\\
+Conformance&\texttt{Array<$\archetype{X.Element}$>}&\texttt{Sequence}&$\checkmark$\\
+Same type&$\archetype{X.Element}$&$\archetype{X.Element}$&$\checkmark$\\
+\hline
+\end{tabular}
+\end{quote}
+Note that there are two generic signatures in play here; the generic signature of \texttt{G} describes the requirements to be checked, and the generic signature of \texttt{H} describes the type parameters appearing in the underlying type of \texttt{B}.
+
+\index{canonical type equality}
+The same-type requirement merits a little bit of explanation. The replacement type for \texttt{T} is the archetype $\archetype{X}$, which conforms abstractly to \texttt{Sequence}. The replacement type for \texttt{U} is \texttt{Array<$\archetype{X.Element}$>}, which conforms concretely to \texttt{Sequence}. The type witness of \texttt{Element} in both conformances is the archetype $\archetype{X.Element}$, so the same-type requirement is satisfied because both substituted types are canonical-equal.
+
+\paragraph{Second type alias} The context substitution map for the underlying type of \texttt{B}:
+\[
+\SubstMapC{
+\SubstType{T}{$\archetype{X}$}\\
+\SubstType{U}{Array<$\archetype{Y}$>}
+}{
+\SubstConf{T}{$\archetype{X}$}{Sequence}\\
+\SubstConf{U}{Array<$\archetype{Y}$>}{Sequence}
+}
+\]
+We apply this substitution map to each requirement of the generic signature of \texttt{H}:
+\begin{quote}
+\begin{tabular}{|l|l|l|c|}
+\hline
+Kind&Subject type&Constraint type&Satisfied?\\
+\hline
+Conformance&\texttt{$\archetype{X}$}&\texttt{Sequence}&$\checkmark$\\
+Conformance&\texttt{Array<$\archetype{Y}$>}&\texttt{Sequence}&$\checkmark$\\
+Same type&\archetype{X.Element}&$\archetype{Y}$&$\times$\\
+\hline
+\end{tabular}
+\end{quote}
+The second type alias differs from the first, because the \texttt{Element} type witness in the conformance of \texttt{Array<$\archetype{Y}$>} to \texttt{Sequence} is $\archetype{Y}$, which is not canonical-equal to $\archetype{X.Element}$; they represent two distinct type parameters in the generic signature of \texttt{H}. Thus, the same-type requirement is unsatisfied, and a diagnostic is produced.
+\end{example}
+
+\begin{listing}\captionabove{Satisfied and unsatisfied superclass requirements}\label{unsatisfied requirements superclass}
+\begin{Verbatim}
+class Base<T> {}
+class Derived: Base<Int> {}
+
+struct G<T: Base<U>, U> {}
+
+struct H<X: Derived, Y> {
+  // (1) requirement is satisfied
+  typealias A = G<Base<Y>, Y>
+
+  // (1) requirement is satisfied
+  typealias B = G<X, Int>
+
+  // (2) requirement is unsatisfied
+  typealias C = G<Derived, Y>
+}
+\end{Verbatim}
+\end{listing}
+\begin{example}
+Listing~\ref{unsatisfied requirements superclass} shows two examples involving superclass requirements. The generic signature of \texttt{G} is:
+\begin{quote}
+\begin{verbatim}
+<T, U where T: Base<U>>
+\end{verbatim}
+\end{quote}
+The generic signature has a single requirement:
+\begin{quote}
+\begin{tabular}{|l|l|l|}
+\hline
+Kind&Subject type&Constraint type\\
+\hline
+Superclass&\texttt{T}&\texttt{Base<U>}\\
+\hline
+\end{tabular}
+\end{quote}
+
+\paragraph{First type alias} The context substitution map of the underlying type of \texttt{A}:
+\[
+\SubstMap{
+\SubstType{T}{Base<$\archetype{Y}$>}\\
+\SubstType{U}{$\archetype{Y}$}
+}
+\]
+We apply this substitution map to the requirement of our generic signature:
+\begin{quote}
+\begin{tabular}{|l|l|l|c|}
+\hline
+Kind&Subject type&Constraint type&Satisfied?\\
+\hline
+Superclass&\texttt{Base<$\archetype{Y}$>}&\texttt{Base<$\archetype{Y}$>}&$\checkmark$\\
+\hline
+\end{tabular}
+\end{quote}
+The requirement is satisfied, because the subject type is canonical-equal to the constraint type.
+
+\index{superclass type}
+\paragraph{Second type alias} The context substitution map of the underlying type of \texttt{B}:
+\[
+\SubstMap{
+\SubstType{T}{$\archetype{X}$}\\
+\SubstType{U}{Int}
+}
+\]
+We apply this substitution map to the requirement of our generic signature:
+\begin{quote}
+\begin{tabular}{|l|l|l|}
+\hline
+Kind&Subject type&Constraint type\\
+\hline
+Superclass&\archetype{X}&\texttt{Base<Int>}\\
+\hline
+\end{tabular}
+\end{quote}
+The requirement hits the recursive case for superclass requirements in Algorithm~\ref{reqissatisfied}. The archetype \archetype{X} is replaced with its superclass type \texttt{Derived}, via the generic signature of \texttt{H}:
+\begin{quote}
+\begin{tabular}{|l|l|l|}
+\hline
+Kind&Subject type&Constraint type\\
+\hline
+Superclass&\texttt{Derived}&\texttt{Base<Int>}\\
+\hline
+\end{tabular}
+\end{quote}
+The algorithm recurses again, after replacing the class type \texttt{Derived} with its superclass type \texttt{Base<Int>}:
+\begin{quote}
+\begin{tabular}{|l|l|l|c|}
+\hline
+Kind&Subject type&Constraint type&Satisfied?\\
+\hline
+Superclass&\texttt{Base<Int>}&\texttt{Base<Int>}&$\checkmark$\\
+\hline
+\end{tabular}
+\end{quote}
+In its final form, the substituted requirement is trivially seen to be satisfied because the subject type is canonical-equal to the constraint type.
+
+\index{superclass type}
+\paragraph{Third type alias} The context substitution map of the underlying type of \texttt{C}:
+\[
+\SubstMap{
+\SubstType{T}{$\archetype{X}$}\\
+\SubstType{U}{$\archetype{Y}$}
+}
+\]
+We apply this substitution map to the requirement of our generic signature:
+\begin{quote}
+\begin{tabular}{|l|l|l|}
+\hline
+Kind&Subject type&Constraint type\\
+\hline
+Superclass&\archetype{X}&\texttt{Base<\archetype{Y}>}\\
+\hline
+\end{tabular}
+\end{quote}
+The requirement is seen to be unsatisfied, as follows. As above, the archetype \archetype{X} is replaced with its superclass type \texttt{Derived}, which is replaced with its superclass type \texttt{Base<Int>}:
+\begin{quote}
+\begin{tabular}{|l|l|l|c|}
+\hline
+Kind&Subject type&Constraint type&Satisfied?\\
+\hline
+Superclass&\texttt{Base<Int>}&\texttt{Base<$\archetype{Y}$>}&$\times$\\
+\hline
+\end{tabular}
+\end{quote}
+At this point, the substituted requirement is between two different specializations of the same class declaration, \texttt{Base<Int>} and \texttt{Base<$\archetype{Y}$>}. They are not canonical-equal, because $\archetype{Y}$ is not \texttt{Int}, so the requirement is unsatisfied.
+\end{example}
+\index{specialized type}
+\index{generic class type}
+\index{class declaration}
+
+The previous examples show that Algorithm~\ref{reqissatisfied} works when the substituted requirements contain archetypes as well as concrete types. As outlined in Section~\ref{archetypesubst}, archetypes can be used with global conformance lookup, getting the superclass type, and testing canonical equality.
+
+There is one more case to cover. Recall from Section~\ref{trailing where clauses} that a \texttt{where} clause on a type declaration can constrain outer generic parameters. A similar phenomenon occurs when declarations appear inside constrained extensions, which will be introduced in Section~\ref{constrained extensions}. Type resolution needs to check these requirements even when resolving a non-generic identifier type representation, as shown in the next example.
+
+\begin{listing}\captionabove{Checking references to a nested type with a requirement on an outer generic parameter}\label{unsatisfied requirements nested}
+\begin{Verbatim}
+struct Outer<T: Sequence> {
+  struct Inner where T.Element == Int {}
+}
+
+// (1) requirements are satisfied
+typealias A = Outer<Array<Int>>.Inner
+
+// (2) requirement `T.Element == Int' is unsatisfied
+typealias B = Outer<Array<String>>.Inner
+\end{Verbatim}
+\end{listing}
+
+\begin{example}
+Listing~\ref{unsatisfied requirements nested} shows two examples involving a generic requirement on an outer generic parameter. The generic signature of \texttt{Outer.Inner} is:
+\begin{quote}
+\begin{verbatim}
+<T where T: Sequence,
+         T.[Sequence]Element == Int>
+\end{verbatim}
+\end{quote}
+The generic signature has two requirements:
+\begin{quote}
+\begin{tabular}{|l|l|l|}
+\hline
+Kind&Subject type&Constraint type\\
+\hline
+Conformance&\texttt{T}&\texttt{Sequence}\\
+Same-type&\texttt{T.[Sequence]Element}&\texttt{Int}\\
+\hline
+\end{tabular}
+\end{quote}
+
+\paragraph{First type alias} The context substitution map of the underlying type of \texttt{A}:
+\[
+\SubstMapC{\SubstType{T}{Array<Int>}}{\SubstConf{T}{Array<Int>}{Sequence}}
+\]
+We apply this substitution map to each requirement of our generic signature:
+\begin{quote}
+\begin{tabular}{|l|l|l|c|}
+\hline
+Kind&Subject type&Constraint type&Satisfied?\\
+\hline
+Conformance&\texttt{Array<Int>}&\texttt{Sequence}&$\checkmark$\\
+Same-type&\texttt{Int}&\texttt{Int}&$\checkmark$\\
+\hline
+\end{tabular}
+\end{quote}
+
+\paragraph{Second type alias} The context substitution map of the underlying type of \texttt{B}:
+\[
+\SubstMapC{\SubstType{T}{Array<String>}}{\SubstConf{T}{Array<String>}{Sequence}}
+\]
+We apply this substitution map to each requirement of our generic signature:
+\begin{quote}
+\begin{tabular}{|l|l|l|c|}
+\hline
+Kind&Subject type&Constraint type&Satisfied?\\
+\hline
+Conformance&\texttt{Array<String>}&\texttt{Sequence}&$\checkmark$\\
+Same-type&\texttt{String}&\texttt{Int}&$\times$\\
+\hline
+\end{tabular}
+\end{quote}
+The second requirement is unsatisfied, and type resolution emits a diagnostic.
+\end{example}
+
+\section{Unbound Generic Types}\label{unbound generic types}
+
+\index{unbound generic type}
+\index{type resolution context}
+Recall from Section~\ref{misc types} that an \emph{unbound generic type} is a reference to a generic type declaration without generic arguments. You might remember from Section~\ref{identtyperepr} that generic arguments can be omitted when referencing a generic type declaration from inside its own context (or an extension). However, in that case type resolution does not return an actual unbound generic type; rather it is shorthand for forming a bound generic type whose generic arguments are the corresponding generic parameters of the type declaration.
+
+Type representations only resolve to actual unbound generic types in a very limited set of positions. The position where a type representation appears is encoded by the \emph{type resolution context}, and the following type resolution contexts allow unbound generic types:
+\begin{enumerate}
+
+\index{variable declaration}
+\index{initial value expression}
+\item The type annotation of a variable declaration with an initial value expression:
+\begin{quote}
+\begin{verbatim}
+let callback: () -> (Array) = { return [1, 2, 3] }
+\end{verbatim}
+\end{quote}
+The generic arguments of unbound generic types are inferred from the initial value expression when computing the variable declaration's interface type.
+
+\item Types appearing in the expressions, such as a metatype value (\texttt{GenericType.self}), the callee of a constructor invocation (\texttt{GenericType(...)}), or the target type of a cast (\texttt{x as GenericType}). In all cases, the generic arguments are inferred from the surrounding expression.
+
+\index{extension declaration}
+\index{extended type}
+\item The extended type of an extension:
+\begin{quote}
+\begin{verbatim}
+struct GenericType<T> { ... }
+extension GenericType { ... }
+\end{verbatim}
+\end{quote}
+The extended type of an extension names a type declaration, not a specific specialization, so no generic arguments need to be provided. (You will see in Section~\ref{constrained extensions} that providing generic arguments for the extended type also has a meaning, as a shorthand for writing a series of same-type requirements.)
+
+\index{type alias declaration}
+\index{underlying type}
+\item The underlying type of a type alias:
+\begin{quote}
+\begin{verbatim}
+typealias GenericAlias = GenericType
+\end{verbatim}
+\end{quote}
+This is a shorthand for a generic type alias that forwards its generic arguments, so the above is equivalent to:
+\begin{quote}
+\begin{verbatim}
+typealias MyGenericAlias<T> = MyGenericAlias<T>
+\end{verbatim}
+\end{quote}
+Note that such a type alias cannot have its own generic parameter list, so the following is invalid:
+\begin{quote}
+\begin{verbatim}
+typealias MyGenericAlias<T> = MyGenericAlias
+\end{verbatim}
+\end{quote}
+Additionally, only the outermost type representation can resolve to an unbound generic type in this case. So the following is prohibited as well:
+\begin{quote}
+\begin{verbatim}
+typealias MyGenericAlias = () -> (GenericType)
+\end{verbatim}
+\end{quote}
+\end{enumerate}
+Notice how the first two contexts allow any type representation to resolve to an unbound generic type, while in the last two, only the top-level type representation can resolve to an unbound generic type.
+
+\index{limitation}
+\paragraph{A limitation} An unbound generic type can refer to either a nominal type declaration, or a type alias declaration. However, an unbound generic type referring to a type alias declaration cannot be the parent type of a nominal type. As Listing~\ref{unbound generic parent type} shows, it is an error to access a member type of a generic type alias without providing generic arguments, even if an unbound generic type referencing a nominal type declaration can appear in the same position.
+\begin{listing}\captionabove{Member types of unbound generic types}\label{unbound generic parent type}
+\begin{Verbatim}
+struct GenericType<T> {
+  struct Nested {
+    let value: T
+  }
+}
+
+typealias GenericAlias = GenericType
+_ = GenericType.Nested(value: 123)  // OK
+_ = GenericAlias<Int>.Nested(value: 123)  // OK
+_ = GenericAlias.Nested(value: 123)  // error
+\end{Verbatim}
+\end{listing}
+
+\index{type variable type}
+\paragraph{A future direction} If you think of type representations as syntactic, and types as semantic, unbound generic types occupy a weird point in between. They are produced by type resolution and refer to type declarations, but they do not actually survive type checking, and neither expressions nor values can actually have an unbound generic type.
+
+A better model is to allow type resolution to take a callback that fills in missing generic arguments. The expression type checker would provide a callback which returns a fresh type variable type, other places might provide a callback which returns the corresponding generic parameter, and so on. This would eliminate unbound generic types altogether.
+
+This callback model is partially implemented today, but all existing callbacks simply return the unbound generic type; the presence of the callback effectively communicates to type resolution that an unbound generic type is permitted in this position.
+
+\section{Protocol Type Aliases}\label{protocol type alias}
+
+\index{type alias declaration}
+\IndexDefinition{protocol type alias}
+Now we're going to take a closer look at type alias members of protocols, or protocol type aliases for short. The other kinds of protocol members---associated types, methods, properties and subscripts---declare \emph{requirements} which must be implemented by the protocol's conforming types, a protocol type alias is merely a shorthand for writing out a possibly longer type by hand, much like any other type alias.
+
+\begin{listing}\captionabove{A protocol type alias as a member type of a type parameter and concrete type}\label{dependent protocol type alias listing}
+\begin{Verbatim}
+protocol Animal {
+  associatedtype Feed: AnimalFeed
+  typealias FeedStorage = Silo<Feed>
+}
+
+struct Cow: Animal {
+  typealias Feed = Grain
+}
+
+func useAlias<T: Sequence<Animal>>(_: T) {
+  let x: T.Element.FeedStorage = ...  // Silo<T.Element.Feed>
+  let y: Horse.FeedStorage = ...  // Silo<Grain>
+}
+\end{Verbatim}
+\end{listing}
+
+A component of an identifier type representation can reference a protocol type alias as a member type of either of the following:
+\begin{enumerate}
+\item A type parameter conforming to the protocol.
+\item A concrete type conforming to the protocol.
+\item The protocol type itself.
+\end{enumerate}
+Listing~\ref{dependent protocol type alias listing} shows examples of the first two cases, which we're going to look at first. The third case is special; a protocol type alias is only visible as a member type of the protocol type itself if it is not \emph{dependent}. A protocol type alias is dependent if its underlying type contains the protocol \texttt{Self} type (or one of the protocol's associated types as a dependent member type of \texttt{Self}).
+
+\index{protocol substitution map}
+Recall that when resolving an identifier type representation, each component after the first component is resolved by performing a qualified lookup into the previous component's type, and then applying a substitution map to the declared interface type of the found type declaration. When this declaration is a dependent protocol type alias, the substitution map is the protocol substitution map (Section~\ref{contextsubstmap}) constructed from the base type together with the base type's conformance to the protocol.
+
+\index{type parameter}
+\index{type resolution stage}
+\paragraph{Type parameter base}
+If the base type is another type parameter, the behavior depends on the type resolution stage.
+
+\index{structural resolution stage}
+In the structural resolution stage, references to protocol type aliases resolve to unbound dependent member types, because there is not enough information to locate the type alias declaration via qualified lookup. This is entirely analogous to the situation with references to associated types, which require a generic signature before the associated type declaration can be found.
+
+In our example, the conformance of \texttt{T.Element} to \texttt{Animal} only becomes known after the generic signature has been built, so the type representation \texttt{T.Element.FeedStorage} resolves to the unbound dependent member type \texttt{T.Element.FeedStorage}.
+
+\index{abstract conformance}
+\index{interface resolution stage}
+In the interface resolution stage, the generic signature allows us to determine that \texttt{T.Element} conforms to \texttt{Animal}, and a qualified lookup finds the protocol type alias. Type resolution constructs the protocol substitution map with the type parameter and the abstract conformance of the type parameter to the protocol, and applies the substitution map to the underlying type of the type alias to get the substituted underlying type:
+\[
+\texttt{Silo<Self.Feed>} \otimes \SubstMapC{\SubstType{Self}{T.Element}}{\SubstConf{Self}{T.Element}{Animal}} = \texttt{Silo<T.Element.Feed>}
+\]
+Applying this substitution map has the effect of replacing all occurrences of \texttt{Self} in the underlying type with this type parameter. The substituted type is then wrapped in a type alias type, which prints as \texttt{T.Element.FeedStorage} in diagnostics, but is canonically equal to \texttt{Silo<T.Element.Feed>}.
+
+\index{generic type alias}
+\index{limitation}
+Note that the special behavior of protocol type aliases with a type parameter base allows type resolution to proceed before a generic signature has been built. However, there is no way to construct an unbound dependent member type with applied generic arguments. This means that only non-generic protocol type aliases are supported in full generality. A type representation appearing in a position visited by the structural resolution stage (such as a function parameter or return type, or a requirement in a \texttt{where} clause) cannot reference a \emph{generic} type alias with a type parameter base.
+
+In our example, \texttt{FeedStorage} is not generic, and it is referenced from inside a function body, where it is not visited by the structural resolution stage regardless, so we're fine on both counts. Listing~\ref{unsupported generic type alias} shows a different example which hits the implementation limitation.
+\begin{listing}\captionabove{Unsupported reference to generic type alias with type parameter base}\label{unsupported generic type alias}
+\begin{Verbatim}
+protocol P {
+  typealias G<T> = (A) -> T
+  associatedtype A
+}
+
+// `T.G<Int>' cannot be resolved from the `where' clause while building
+// the generic signature of `f()'
+func f<T: P, U: Sequence>(_: T, _: U)
+  where U.Element == T.G<Int> {}
+\end{Verbatim}
+\end{listing}
+Note that generic protocol type aliases can still be accessed as member types of a concrete conforming type, because even in the structural resolution stage, there is enough information for name lookup to locate the type alias declaration.
+
+\index{global conformance lookup}
+\index{concrete conformance}
+\paragraph{Concrete base}
+If the base type is a concrete type, the protocol substitution map is constructed with the base type and its conformance to the protocol, which is now a concrete conformance found by global conformance lookup:
+\[
+\texttt{Silo<Self.Feed>} \otimes \SubstMapC{\SubstType{Self}{Horse}}{\SubstConf{Self}{Horse}{Animal}} = \texttt{Silo<Grain>}
+\]
+Note that \texttt{Silo.Feed} was replaced with \texttt{Grain}. You might recall from Section~\ref{abstract conformances} that when a substitution map's replacement type for a generic parameter is a concrete type, applying the substitution map to a dependent member type outputs the corresponding type witness from the concrete conformance:
+\begin{gather*}
+\texttt{Self.Feed} \otimes \SubstMapC{\SubstType{Self}{Horse}}{\SubstConf{Self}{Horse}{Animal}}\\
+= \AssocType{[Animal]Feed} \otimes \ConfReq{Horse}{Animal} \\
+= \texttt{Grain}
+\end{gather*}
+
+\index{protocol type}
+\paragraph{Protocol base} The \texttt{FeedStorage} protocol type alias above cannot be used as a member type of \texttt{Animal} itself, because its underlying type contains the protocol \texttt{Self} type. The \texttt{Animal} protocol does not conform to itself, so a protocol substitution map cannot be formed for the base type \texttt{Animal}. Type resolution diagnoses an error when resolving the type representation \texttt{Animal.FeedStorage}.
+
+However, if a protocol type alias is not dependent---that is, if its underlying type does not contain any type parameters---then it can be referenced as a member type of the protocol itself. In this case, the underlying type is just a shortcut for some other type, and no substitution is performed when resolving the identifier type representation:
+\begin{Verbatim}
+protocol Animal {
+  typealias Age = Int
+}
+
+// `Animal.Age' is just another spelling for `Int'
+func celebrateBirthday<A: Animal>(_ animal: A, age: Animal.Age) {
+
+  // Also just `Int'; type parameter base is ignored
+  let age: A.Age = ...
+  ...
+}
+\end{Verbatim}
+A generic protocol type alias is always dependent, even if its underlying type does not reference \texttt{Self}, because resolving an identifier type representation that references a generic type alias must apply generic arguments, which requires forming a substitution map which is then applied to the underlying type of the type alias. Thus, this final kind of protocol type alias reference is only valid in a very narrow set of circumstances.
+
+For similar reasons, an associated type can never be referenced as a member type of the protocol. The declared interface type of an associated type \texttt{A} in a protocol \texttt{P} is the bound dependent member type \texttt{Self.[P]A}, which is always dependent since it contains \texttt{Self}.
+
+\index{protocol extension}
+\paragraph{Protocol extensions} Type aliases can also appear in protocol extensions, where they have almost identical semantics to type aliases inside protocols. However, type aliases in protocol extensions cannot be referenced from a \texttt{where} clause, or a constraint type appearing in the inheritance clause of a generic parameter or associated type. The technical reason for this limitation will be explained in Section~\ref{building rules}.
+
+\paragraph{History} In pre-evolution Swift, associated type declarations in protocols were declared with the \texttt{typealias} keyword, and protocol type aliases did not exist. Swift 2.2 \cite{se0011} added the distinct \texttt{associatedtype} keyword for declaring associated types, to leave room for protocol type aliases. Protocol type aliases were then introduced in Swift 3 \cite{se0092}.
+
+\section{Source Code Reference}\label{type resolution source ref}
+
+\subsection*{Type Resolution Interface}
+
+Key source files:
+\begin{itemize}
+\item \SourceFile{include/swift/AST/TypeResolutionStage.h}
+\item \SourceFile{lib/Sema/TypeCheckType.h}
+\item \SourceFile{lib/Sema/TypeCheckType.cpp}
+\end{itemize}
+First, we will look at how the rest of the compiler interfaces with type resolution.
+
+\IndexSource{type resolution options}
+\apiref{TypeResolutionOptions}{class}
+Encodes the semantic information that controls various different behaviors of type resolution, consisting of a base context, a current context, and flags. The base context and context are initially identical. When type resolution recurses on a nested type representation, it preserves the base context, but possibly changes the context, and clears the \texttt{Direct} flag. Thus, the base context encodes the overall syntactic position of the type representation, while the context encodes the role of the current type representation.
+\begin{itemize}
+\item \texttt{TypeResolutionOptions(TypeResolutionContext)} creates a new instance with the given base context, and no flags.
+\item \texttt{getBaseContext()} returns the base \texttt{TypeResolverContext}.
+\item \texttt{getContext()} returns the current \texttt{TypeResolverContext}.
+\item \texttt{getFlags()} returns the \texttt{TypeResolutionFlags}.
+\end{itemize}
+
+\IndexSource{type resolution context}
+\apiref{TypeResolverContext}{enum class}
+The type resolution context, which encodes the position of a type representation:
+\begin{itemize}
+\item \texttt{TypeResolverContext::None}: no special type handling is required.
+\item \texttt{TypeResolverContext::GenericArgument}: generic arguments of a bound generic type.
+\item \texttt{TypeResolverContext::ProtocolGenericArgument}: generic arguments of a parameterized protocol type.
+\item \texttt{TypeResolverContext::TupleElement}: elements of a tuple element type.
+\item \texttt{TypeResolverContext::AbstractFunctionDecl}: the base context of a function declaration's parameter list.
+\item \texttt{TypeResolverContext::SubscriptDecl}: the base context of a subscript declaration's parameter list.
+\item \texttt{TypeResolverContext::ClosureExpr}: the base context of a closure expression's parameter list.
+\item \texttt{TypeResolverContext::FunctionInput}: the type of a parameter in a function type or declaration.
+\item \texttt{TypeResolverContext::VariadicFunctionInput}: the type of a variadic parameter in a function type or declaration. This differs from the above in that nested function types become \texttt{@escaping} by default.
+\item \texttt{TypeResolverContext::InoutFunctionInput}: the type of an \texttt{inout} parameter in a function type or declaration.
+\item \texttt{TypeResolverContext::FunctionResult}: the result type of a function type or declaration.
+\item \texttt{TypeResolverContext::PatternBindingDecl}: the type of a pattern in a pattern binding declaration.
+\item \texttt{TypeResolverContext::ForEachStmt}: the type of a variable in a \texttt{for} statement.
+\item \texttt{TypeResolverContext::ExtensionBinding}: the extended type of an extension declaration.
+\item \texttt{TypeResolverContext::InExpression}: a type appearing in expression context.
+\item \texttt{TypeResolverContext::ExplicitCastExpr}: the target type of an \texttt{as} cast expression.
+\item \texttt{TypeResolverContext::EnumElementDecl}: the base context of an enum element parameter list.
+\item \texttt{TypeResolverContext::EnumPatternPayload}: the payload type of an enum element pattern. Tweaks the behavior of tuple element labels.
+\item \texttt{TypeResolverContext::TypeAliasDecl}: the underlying type of a non-generic type alias.
+\item \texttt{TypeResolverContext::GenericTypeAliasDecl}: the underlying type of a generic type alias.
+\item \texttt{TypeResolverContext::ExistentialConstraint}: the constraint type of an existential type (Chapter~\ref{existentialtypes});
+\item \texttt{TypeResolverContext::GenericRequirement}: the constraint type of a conformance requirement in a \texttt{where} clause.
+\item \texttt{TypeResolverContext::SameTypeRequirement}: the subject type or constraint type of a same-type requirement in a \texttt{where} clause.
+\item \texttt{TypeResolverContext::ProtocolMetatypeBase}: the instance type of a protocol metatype, like \texttt{P.Protocol}.
+\item \texttt{TypeResolverContext::MetatypeBase}: the base type of a concrete metatype, like \texttt{T.Type}.
+\item \texttt{TypeResolverContext::ImmediateOptionalTypeArgument}: the argument of an optional type, like \texttt{T?}. This just tailors some diagnostics.
+\item \texttt{TypeResolverContext::EditorPlaceholderExpr}: the type of an editor placeholder.
+\item \texttt{TypeResolverContext::Inherited}: the inheritance clause of a concrete type.
+\item \texttt{TypeResolverContext::GenericParameterInherited}: the inheritance clause of a generic parameter.
+\item \texttt{TypeResolverContext::AssociatedTypeInherited}: the inheritance clause of an associated type.
+\item \texttt{TypeResolverContext::CustomAttr}: the type of a custom attribute referencing a property wrapper or result builder.
+\end{itemize}
+
+\IndexSource{type resolution flags}
+\apiref{TypeResolutionFlags}{enum class}
+A set of flags to control various esoteric behaviors:
+\begin{itemize}
+\item \texttt{TypeResolutionFlags::AllowUnspecifiedTypes}: allows type resolution to succeed if no type representation was actually provided. Used when resolving type annotations which can be omitted, such as the types of variable declarations and the types of closure parameters.
+\item \texttt{TypeResolutionFlags::SILType}: used when resolving a position where lowered SIL types, such as SIL function types, can appear.
+\item \texttt{TypeResolutionFlags::SILMode}: used when resolving a position where ordinary AST types appear, but in textual SIL, which enables special syntax, for example \texttt{@dynamic\_self} for the dynamic \texttt{Self} type.
+\item \texttt{TypeResolutionFlags::FromNonInferredPattern}: when resolving an explicitly-stated type annotation in a pattern binding, muffles warnings where the type of a variable binding is inferred as \texttt{()} or \texttt{Never}, which suggests a programmer mistake unless the type was explicitly stated.
+\item \texttt{TypeResolutionFlags::Direct}: set when resolving the top-level type representation, and cleared when type resolution recurses on a child. Allows certain type representations which cannot be nested inside other type representations, such as \texttt{inout T} for an \texttt{inout} parameter type.
+\item \texttt{TypeResolutionFlags::SilenceErrors}: disables diagnostics, simply returning an error type if type resolution fails. Used in pattern resolution when it is not known if a pattern refers to a type or some other member.
+\item \texttt{TypeResolutionFlags::AllowModule}: allows an identifier type representation with a single component to resolve to a \texttt{ModuleType}, which is usually prohibited.
+\item \texttt{TypeResolutionFlags::AllowUsableFromInline}: makes internal type declarations annotated with the \texttt{@usableFromInline} attribute visible, which is used in the implementation of the \texttt{@\_specialize} attribute.
+\item \texttt{TypeResolutionFlags::DisallowOpaqueTypes}: prevents opaque parameter declarations from appearing in contexts where they would otherwise be allowed, such as the generic arguments of a parameterized protocol type \verb|any P<some Q>|.
+\item \texttt{TypeResolutionFlags::Preconcurrency}: when resolving a reference to a type alias marked with the \texttt{@preconcurrency} attribute, strips off \texttt{@Sendable} and global actor attributes from function types appearing in the underlying type of the type alias.
+\end{itemize}
+
+\IndexSource{structural resolution stage}
+\IndexSource{interface resolution stage}
+\IndexSource{contextual type}
+\apiref{TypeResolution}{class}
+This class is the main entry point into type resolution. A pair of static factory methods create instances. Each method takes a \texttt{DeclContext}, \texttt{TypeResolutionOptions}, and a pair of callbacks for resolving placeholder types and unbound generic types:
+\begin{itemize}
+\item \texttt{forStructural()} creates a type resolution in structural resolution stage.
+\item \texttt{forInterface()} creates a type resolution in interface resolution stage.
+\end{itemize}
+The main entry point is an instance method:
+\begin{itemize}
+\item \texttt{resolveType()} takes a \texttt{TypeRepr *} and returns a \texttt{Type}.
+\end{itemize}
+A static utility method creates a new type resolution in interface resolution stage, resolves a type representation, and maps it into a generic environment; this is used by the expression type checker to resolve types appearing in expression context:
+\begin{itemize}
+\item \texttt{resolveContextualType()}
+\end{itemize}
+Utility methods used by the implementation of \texttt{resolveType()}:
+\begin{itemize}
+\item \texttt{getDeclContext()} returns the declaration context where this type representation appears.
+\item \texttt{getASTContext()} returns the global AST context singleton.
+\item \texttt{getStage()} returns the current \texttt{TypeResolutionStage}.
+\end{itemize}
+
+\IndexSource{type resolution stage}
+\apiref{TypeResolutionStage}{enum class}
+Encodes the type resolution stage:
+\begin{itemize}
+\item \texttt{TypeResolutionStage::Structural}
+\item \texttt{TypeResolutionStage::Interface}
+\end{itemize}
+
+\apiref{ResolveTypeRequest}{class}
+The \texttt{TypeResolution::resolveType()} entry point evaluates the \texttt{ResolveTypeRequest}. While this request is not cached, it uses the request evaluator infrastructure to detect and diagnose circular type resolution. The evaluation function creates an instance of a visitor class, which recursively visits the given type representation.
+
+\apiref{TypeResolver}{class}
+A recursive visitor, internal to the implementation of type resolution. The methods of this visitor implement type resolution for each kind of type representation.
+
+\subsection*{Identifier Type Representations}
+
+\IndexSource{type representation}
+\IndexSource{identifier type representation}
+Key source files:
+\begin{itemize}
+\item \SourceFile{include/swift/AST/TypeRepr.h}
+\item \SourceFile{lib/Sema/TypeCheckType.cpp}
+\end{itemize}
+
+\apiref{TypeRepr}{class}
+Abstract base class for type representations.
+
+\apiref{IdentTypeRepr}{class}
+Abstract base class for identifier type representations.
+
+\apiref{ComponentIdentTypeRepr}{class}
+Abstract base class for components of identifier type representations.
+\begin{itemize}
+\item \texttt{getNameRef()} returns the name stored in this type representation.
+\item \texttt{getNameLoc()} returns the source location of the name stored in this type representation.
+\end{itemize}
+Recall that type representations cache the type declaration found by name lookup to speed up the case where multiple type resolution stages resolve the same type representation:
+\begin{itemize}
+\item \texttt{getBoundDecl()} returns the cached type declaration.
+\item \texttt{getDeclContext()} for the first component only, returns the outer declaration context where unqualified lookup found the type declaration.
+\item \texttt{setValue()} records a cached type declaration and the declaration context from which it was found.
+\end{itemize}
+Note that \texttt{getDeclContext()} is not always the same as the declaration context of the type declaration, because the type declaration might be a member of a conformed protocol or superclass of the declaration context, having been reached indirectly. However, the declaration context is always one of the outer declaration contexts in which the type representation appears.
+
+\apiref{SimpleIdentTypeRepr}{class}
+A non-generic component of an identifier type representation.
+
+\IndexSource{generic arguments}
+\apiref{GenericIdentTypeRepr}{class}
+A generic component of an identifier type representation.
+\begin{itemize}
+\item \texttt{getGenericArgs()} returns the generic arguments of this component as an array of type representations.
+\end{itemize}
+
+\apiref{CompoundIdentTypeRepr}{class}
+An identifier type representation consisting of two or more components.
+\begin{itemize}
+\item \texttt{getComponents()} returns an array of \texttt{ComponentIdentTypeRepr}.
+\end{itemize}
+
+\apiref{resolveIdentTypeComponent()}{function}
+The \texttt{TypeResolver()} visitor calls this static function in \texttt{TypeCheckType.cpp} to resolve identifier type representations.
+
+\subsection*{Unqualified Lookup}
+
+Key source files:
+\begin{itemize}
+\item \SourceFile{lib/Sema/TypeCheckType.cpp}
+\item \SourceFile{lib/Sema/TypeCheckNameLookup.cpp}
+\end{itemize}
+
+\IndexSource{unqualified lookup}
+\apiref{resolveTopLevelIdentTypeComponent()}{function}
+Resolves the first component of an identifier type representation. Performs an unqualified lookup, disambiguates results, handles the special case of a \texttt{Self} reference, applies generic arguments if they were provided, and diagnoses errors.
+
+\apiref{TypeChecker::lookupUnqualifiedType()}{function}
+Wrapper around unqualified lookup which only considers type declarations.
+
+\Index{dynamic Self type@dynamic \texttt{Self} type}
+\Index{protocol Self type@protocol \texttt{Self} type}
+\apiref{getSelfTypeKind()}{function}
+Determines if \texttt{Self} in the given context refers to the innermost nominal type declaration, the dynamic \texttt{Self} type of the innermost class declaration, or if it is invalid to utter \texttt{Self}.
+
+\apiref{resolveTypeDecl()}{function}
+Resolves an unqualified reference to a type declaration to a type. This handles the behavior where omitted generic arguments when referencing type within its own context are deduced to be the corresponding generic parameters. It also handles various edge-case behaviors where the referenced type declaration was a nested type of a different nominal type, such as a superclass or conformed protocol, and requires substitutions.
+
+\subsection*{Qualified Lookup}
+
+Key source files:
+\begin{itemize}
+\item \SourceFile{lib/Sema/TypeCheckType.cpp}
+\item \SourceFile{lib/Sema/TypeCheckNameLookup.cpp}
+\end{itemize}
+
+\IndexSource{qualified lookup}
+\apiref{resolveNestedIdentTypeComponent()}{function}
+Resolves subsequent components of an identifier type representation. Performs a qualified lookup, disambiguates results, applies generic arguments if they were provided, and diagnoses errors.
+
+\apiref{TypeResolution::resolveDependentMemberType()}{function}
+Implements the special behavior where a member type of a type parameter directly resolves to an unbound dependent member type in the structural resolution stage, or via name lookup to a bound dependent member type or type alias type in the interface resolution stage.
+
+\apiref{TypeChecker::lookupMemberType()}{function}
+Wrapper around qualified lookup which only considers type declarations, and resolves type witnesses of concrete types when it finds an associated type declaration with a concrete base type.
+
+\apiref{TypeChecker::isUnsupportedMemberTypeAccess()}{function}
+Determines if a member type access is invalid. This includes such oddities as accessing a member type of an unbound generic type referencing a type alias (Section~\ref{unbound generic types}), or accessing a dependent protocol type alias where the base type is the protocol itself (Section~\ref{protocol type alias}).
+
+\subsection*{Checking Generic Arguments}
+
+\IndexSource{generic arguments}
+\begin{itemize}
+\item \SourceFile{include/swift/AST/Requirement.h}
+\item \SourceFile{lib/AST/Requirement.cpp}
+\item \SourceFile{lib/Sema/TypeCheckGeneric.cpp}
+\end{itemize}
+\apiref{applyGenericArguments()}{function}
+Constructs a nominal type or type alias type, given a type declaration and a list of generic arguments. In the interface resolution stage, also checks that the generic arguments satisfy the requirements of the type declaration's generic signature.
+
+\IndexSource{requirement}
+\IndexSource{substituted requirement}
+\apiref{Requirement}{class}
+See also Section~\ref{genericsigsourceref}.
+\begin{itemize}
+\item \texttt{subst()} applies a substitution map to this requirement, returning the substituted requirement.
+\item \texttt{isSatisfied()} answers if the substituted requirement is satisfied, implementing Algorithm~\ref{reqissatisfied}.
+\end{itemize}
+
+\apiref{checkGenericArgumentsForDiagnostics()}{function}
+Implements Algorithm~\ref{check generic arguments algorithm} using \texttt{Requirement::isSatisfied()}.
+
+\end{document}

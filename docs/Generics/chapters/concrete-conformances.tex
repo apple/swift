@@ -1,0 +1,68 @@
+\documentclass[../generics]{subfiles}
+
+\begin{document}
+
+\chapter{Concrete Conformances}\label{concrete conformances}
+
+\ifWIP
+TODO:
+\begin{itemize}
+\item Concrete conformance rule, property-like
+\item Virtual rule that introduces it
+\item Idea: it should eliminate the conformance rule but not the concrete type rule
+\item Doesn't actually appear in signature so should not impact minimization
+\item Conditional requirement inference, only in generic signatures and not protocols, because we can't merge connected components during completion. for a generic signature this actually has to import new components in the general case
+\end{itemize}
+\fi
+
+\section{Type Witnesses}
+
+\IndexTwoFlag{debug-requirement-machine}{concretize-nested-types}
+
+\ifWIP
+TODO:
+\begin{itemize}
+\item Concrete type witness
+\item Abstract type witness
+\item Virtual rules
+\item Algorithm for building a ``relative'' concrete type symbol from substituting another symbol's pattern type
+\end{itemize}
+\fi
+
+\section{Recursive Conformances}
+
+\ifWIP
+TODO:
+\begin{itemize}
+\item Free conformances
+\item Can a protocol have a free conformance
+\item Can a conformance be made free by changing the protocol
+\item Conformance evaluation graph
+\item Heuristic to find same-type requirements from a conformance; just the parent type thing
+\item The problem with opaque archetypes
+\item Open question: can we encode a conformance more directly without evaluating it; \verb|G<G<G<T>>>| example
+\end{itemize}
+\fi
+
+\IndexFlag{enable-requirement-machine-opaque-archetypes}
+
+\section{Concrete Contraction}
+
+\IndexFlag{disable-requirement-machine-concrete-contraction}
+\IndexTwoFlag{debug-requirement-machine}{concrete-contraction}
+
+\ifWIP
+TODO:
+\begin{itemize}
+\item Doesn't actually appear in signature so should not impact minimization
+\item The problem: it might give you a smaller anchor
+\item Invariant violation without concrete contraction
+\item Concrete contraction substitutes superclass and concrete types
+\item Also GSB compatibility: T.A, T == C, C.A is a concrete typealias that's not an associated type. this doesn't add a rule
+\item Open question: can we do this in a more principled way
+\end{itemize}
+\fi
+
+\section{Source Code Reference}
+
+\end{document}

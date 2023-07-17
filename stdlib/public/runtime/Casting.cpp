@@ -519,7 +519,7 @@ bool swift::_conformsToProtocol(const OpaqueValue *value,
                                 const WitnessTable **conformance) {
   // Look up the witness table for protocols that need them.
   if (protocol.needsWitnessTable()) {
-    auto witness = swift_conformsToProtocol(type, protocol.getSwiftProtocol());
+    auto witness = swift_conformsToProtocolCommon(type, protocol.getSwiftProtocol());
     if (!witness)
       return false;
     if (conformance)
@@ -1349,7 +1349,7 @@ extern "C" const StructDescriptor NOMINAL_TYPE_DESCR_SYM(SS);
 static const _ObjectiveCBridgeableWitnessTable *
 swift_conformsToObjectiveCBridgeable(const Metadata *T) {
   return reinterpret_cast<const _ObjectiveCBridgeableWitnessTable *>
-    (swift_conformsToProtocol(T, &PROTOCOL_DESCR_SYM(s21_ObjectiveCBridgeable)));
+    (swift_conformsToProtocolCommon(T, &PROTOCOL_DESCR_SYM(s21_ObjectiveCBridgeable)));
 }
 
 static const _ObjectiveCBridgeableWitnessTable *

@@ -3,7 +3,7 @@ module ProtocolNamingConflict [extern_c] {
   requires objc
 }
 
-module CxxClassWithNSStringInit [extern_c] {
+module CxxClassWithNSStringInit {
   header "cxx-class-with-arc-fields-ctor.h"
   requires objc
   requires cplusplus
@@ -23,4 +23,9 @@ module OSObject {
   header "os-object.h"
   requires objc
   requires cplusplus
+}
+
+module NSTextCheckingResult {
+  header "NSTextCheckingResult.h"
+  requires objc
 }

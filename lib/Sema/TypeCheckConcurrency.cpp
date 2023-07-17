@@ -1346,8 +1346,34 @@ void swift::tryDiagnoseExecutorConformance(ASTContext &C,
 
   // --- Diagnose warnings and errors
 
+  // true iff the nominal type's availability allows the legacy requirement
+  // to be omitted in favor of moveOnlyEnqueueRequirement
+  bool canRemoveOldDecls;
+  if (!moveOnlyEnqueueRequirement) {
+    // The move only enqueue does not exist in this lib version, we must keep relying on the UnownedJob version
+    canRemoveOldDecls = false;
+  } else if (C.LangOpts.DisableAvailabilityChecking) {
+    // Assume we have all APIs available, and thus can use the ExecutorJob
+    canRemoveOldDecls = true;
+  } else {
+    // Check if the availability of nominal is high enough to be using the ExecutorJob version
+    AvailabilityContext requirementInfo
+        = AvailabilityInference::availableRange(moveOnlyEnqueueRequirement, C);
+    AvailabilityContext declInfo =
+        TypeChecker::overApproximateAvailabilityAtLocation(nominal->getLoc(), dyn_cast<DeclContext>(nominal));
+    canRemoveOldDecls = declInfo.isContainedIn(requirementInfo);
+  }
+
+  // If both old and new enqueue are implemented, but the old one cannot be removed,
+  // emit a warning that the new enqueue is unused.
+  if (!canRemoveOldDecls &&
+      unownedEnqueueWitnessDecl && unownedEnqueueWitnessDecl->getLoc().isValid() &&
+      moveOnlyEnqueueWitnessDecl && moveOnlyEnqueueWitnessDecl->getLoc().isValid()) {
+    diags.diagnose(moveOnlyEnqueueWitnessDecl->getLoc(), diag::executor_enqueue_unused_implementation);
+  }
+
   // Old UnownedJob based impl is present, warn about it suggesting the new protocol requirement.
-  if (unownedEnqueueWitnessDecl && unownedEnqueueWitnessDecl->getLoc().isValid()) {
+  if (canRemoveOldDecls && unownedEnqueueWitnessDecl && unownedEnqueueWitnessDecl->getLoc().isValid()) {
     diags.diagnose(unownedEnqueueWitnessDecl->getLoc(), diag::executor_enqueue_unowned_implementation, nominalTy);
   }
   // Old Job based impl is present, warn about it suggesting the new protocol requirement.
@@ -2155,8 +2181,6 @@ namespace {
     }
 
     bool shouldWalkCaptureInitializerExpressions() override { return true; }
-
-    bool shouldWalkIntoTapExpression() override { return true; }
 
     MacroWalking getMacroWalkingBehavior() const override {
       return MacroWalking::Expansion;

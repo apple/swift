@@ -2,3 +2,8 @@ module ExternC {
   header "extern-c.h"
   requires cplusplus
 }
+
+module InlineFunc {
+  header "inline-func.h"
+  requires cplusplus
+}

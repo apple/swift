@@ -5,6 +5,7 @@
 // RUN: %target-build-swift -module-name TestModule -module-link-name TestModule %S/Inputs/TestModule.swift -enable-library-evolution -emit-module-interface -o %t/TestModule.swiftmodule -swift-version 5 -Xfrontend -disable-implicit-concurrency-module-import -Xfrontend -disable-implicit-string-processing-module-import
 
 // RUN: %target-swift-frontend -scan-dependencies %s -o %t/deps.json -I%t -validate-clang-modules-once -clang-build-session-file %t/Build.session -disable-implicit-concurrency-module-import -disable-implicit-string-processing-module-import
+// RUN: %validate-json %t/deps.json &>/dev/null
 // RUN: %FileCheck %s < %t/deps.json
 
 import TestModule

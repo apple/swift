@@ -117,7 +117,7 @@ SwiftValueHeader::getHashableConformance() const {
   const HashableWitnessTable *expectedWT = nullptr;
   const HashableWitnessTable *wt =
       reinterpret_cast<const HashableWitnessTable *>(
-          swift_conformsToProtocol(type, &HashableProtocolDescriptor));
+          swift_conformsToProtocolCommon(type, &HashableProtocolDescriptor));
   hashableConformance.compare_exchange_strong(
       expectedWT, wt ? wt : reinterpret_cast<const HashableWitnessTable *>(1),
       std::memory_order_acq_rel);

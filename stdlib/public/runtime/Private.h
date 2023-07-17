@@ -30,7 +30,7 @@
 #endif
 
 // Opaque ISAs need to use object_getClass which is in runtime.h
-#if SWIFT_HAS_OPAQUE_ISAS
+#if SWIFT_OBJC_INTEROP && SWIFT_HAS_OPAQUE_ISAS
 #include <objc/runtime.h>
 #endif
 
@@ -172,7 +172,7 @@ public:
   /// Note, in this case, the object may or may not have a non-pointer ISA.
   /// Masking, or otherwise, may be required to get a class pointer.
   static inline const ClassMetadata *_swift_getClassOfAllocated(const void *object) {
-#if SWIFT_HAS_OPAQUE_ISAS
+#if SWIFT_OBJC_INTEROP && SWIFT_HAS_OPAQUE_ISAS
     // The ISA is opaque so masking it will not return a pointer.  We instead
     // need to call the objc runtime to get the class.
     id idObject = reinterpret_cast<id>(const_cast<void *>(object));

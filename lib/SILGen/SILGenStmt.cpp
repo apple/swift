@@ -423,9 +423,9 @@ void StmtEmitter::visitBraceStmt(BraceStmt *S) {
       // active, and if so, use it for this expression branch. If the expression
       // is uninhabited, we can skip this, and let unreachability checking
       // handle it.
-      auto *init = SGF.getSingleValueStmtInit(E);
+      auto init = SGF.getSingleValueStmtInit(E);
       if (init && !E->getType()->isStructurallyUninhabited()) {
-        SGF.emitExprInto(E, init);
+        SGF.emitExprInto(E, init.get());
       } else {
         SGF.emitIgnoredExpr(E);
       }

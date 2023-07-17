@@ -946,6 +946,11 @@ DECL_MODIFIER_KINDS = [
                   code=142),
     DeclAttributeAlias('freestanding', 'MacroRole'),
 
+    DeclAttribute('storageRestrictions', 'StorageRestrictions',
+                  OnAccessor,
+                  ABIStableToAdd, ABIStableToRemove,
+                  APIBreakingToAdd, APIBreakingToRemove,
+                  code=145),
 ]
 
 DEPRECATED_MODIFIER_KINDS = [

@@ -53,6 +53,9 @@ CFPointeeInfo
 CFPointeeInfo::classifyTypedef(const clang::TypedefNameDecl *typedefDecl) {
   clang::QualType type = typedefDecl->getUnderlyingType();
 
+  if (auto elaborated = type->getAs<clang::ElaboratedType>())
+    type = elaborated->desugar();
+
   if (auto subTypedef = type->getAs<clang::TypedefType>()) {
     if (classifyTypedef(subTypedef->getDecl()))
       return forTypedef(subTypedef->getDecl());

@@ -17,5 +17,10 @@ public func test() -> String {
     return ""
 }
 
+@_expose(Cxx)
+public func testIntArray() -> [Int] {
+    return []
+}
+
 // CHECK: namespace swift SWIFT_PRIVATE_ATTR SWIFT_SYMBOL_MODULE("swift") {
 // CHECK: class SWIFT_SYMBOL("{{.*}}") String final {

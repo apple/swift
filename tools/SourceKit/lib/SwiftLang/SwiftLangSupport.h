@@ -563,6 +563,12 @@ public:
   void indexSource(StringRef Filename, IndexingConsumer &Consumer,
                    ArrayRef<const char *> Args) override;
 
+  void indexToStore(StringRef InputFile,
+                    ArrayRef<const char *> Args,
+                    IndexStoreOptions Opts,
+                    SourceKitCancellationToken CancellationToken,
+                    IndexToStoreReceiver Receiver) override;
+
   void codeComplete(llvm::MemoryBuffer *InputBuf, unsigned Offset,
                     OptionsDictionary *options,
                     SourceKit::CodeCompletionConsumer &Consumer,

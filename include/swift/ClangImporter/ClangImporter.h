@@ -531,8 +531,9 @@ public:
       const clang::NamedDecl *D,
       clang::DeclarationName givenName = clang::DeclarationName()) override;
 
-  Type importFunctionReturnType(const clang::FunctionDecl *clangDecl,
-                                 DeclContext *dc) override;
+  llvm::Optional<Type>
+  importFunctionReturnType(const clang::FunctionDecl *clangDecl,
+                           DeclContext *dc) override;
 
   Type importVarDeclType(const clang::VarDecl *clangDecl,
                          VarDecl *swiftDecl,

@@ -234,7 +234,8 @@ protected:
 /// See the file comment for details on the usage of the
 /// TrailingObjects type.
 template <typename BaseTy, typename... TrailingTys>
-class TrailingObjects : private trailing_objects_internal::TrailingObjectsImpl<
+class swift_ptrauth_struct_derived(BaseTy) TrailingObjects
+    : private trailing_objects_internal::TrailingObjectsImpl<
                             trailing_objects_internal::AlignmentCalcHelper<
                                 TrailingTys...>::Alignment,
                             BaseTy, TrailingObjects<BaseTy, TrailingTys...>,

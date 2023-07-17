@@ -40,20 +40,20 @@ func testGlobalLookup() {
 
   @TupleBuilder<String> var x2 {
     if true {
-      #^GLOBAL_LOOKUP_IN_IF_BODY?check=GLOBAL_LOOKUP_NO_TYPE_RELATION^#
-// GLOBAL_LOOKUP_NO_TYPE_RELATION: Decl[GlobalVar]/CurrModule:         MyConstantString[#String#];
+      #^GLOBAL_LOOKUP_IN_IF_BODY^#
+// GLOBAL_LOOKUP_IN_IF_BODY: Decl[GlobalVar]/CurrModule:         MyConstantString[#String#];
     }
   }
 
   @TupleBuilder<String> var x3 {
     if {
-      #^GLOBAL_LOOKUP_IN_IF_BODY_WITHOUT_CONDITION?check=GLOBAL_LOOKUP_NO_TYPE_RELATION^#
+      #^GLOBAL_LOOKUP_IN_IF_BODY_WITHOUT_CONDITION?check=GLOBAL_LOOKUP_IN_IF_BODY^#
     }
   }
 
   @TupleBuilder<String> var x4 {
     guard else {
-      #^GLOBAL_LOOKUP_IN_GUARD_BODY_WITHOUT_CONDITION?check=GLOBAL_LOOKUP_NO_TYPE_RELATION^#
+      #^GLOBAL_LOOKUP_IN_GUARD_BODY_WITHOUT_CONDITION?check=GLOBAL_LOOKUP_IN_IF_BODY^#
     }
   }
 
@@ -85,7 +85,10 @@ func testStaticMemberLookup() {
   }
 
   @TupleBuilder<String> var x3 {
-    "hello: \(StringFactory.#^COMPLETE_STATIC_MEMBER_IN_STRING_LITERAL?check=COMPLETE_STATIC_MEMBER;xfail=rdar78015646^#)"
+    "hello: \(StringFactory.#^COMPLETE_STATIC_MEMBER_IN_STRING_LITERAL^#)"
+// COMPLETE_STATIC_MEMBER_IN_STRING_LITERAL: Begin completions
+// COMPLETE_STATIC_MEMBER_IN_STRING_LITERAL: Decl[StaticMethod]/CurrNominal/TypeRelation[Convertible]:     makeString({#x: String#})[#String#];
+// COMPLETE_STATIC_MEMBER_IN_STRING_LITERAL: End completions
   }
 }
 
@@ -132,7 +135,7 @@ func testCompleteFunctionArgumentLabels() {
   @TupleBuilder<String> var x1 {
     StringFactory.makeString(#^FUNCTION_ARGUMENT_LABEL^#)
     // FUNCTION_ARGUMENT_LABEL: Begin completions, 1 item
-    // FUNCTION_ARGUMENT_LABEL: Decl[StaticMethod]/CurrNominal/Flair[ArgLabels]: ['(']{#x: String#}[')'][#String#];
+    // FUNCTION_ARGUMENT_LABEL: Decl[StaticMethod]/CurrNominal/Flair[ArgLabels]/TypeRelation[Convertible]: ['(']{#x: String#}[')'][#String#];
   }
 }
 
@@ -327,13 +330,54 @@ func testSwitchInResultBuilder() {
       Reduce2()
       Reduce2 { action in
         switch action {
-        case .#^SWITCH_IN_RESULT_BUILDER^# alertDismissed:
+        case .#^SWITCH_IN_RESULT_BUILDER?xfail=rdar106720462^# alertDismissed:
           return 0
         }
       }
     }
   }
-// SWITCH_IN_RESULT_BUILDER: Begin completions, 2 items
+// SWITCH_IN_RESULT_BUILDER: Begin completions, 1 item
 // SWITCH_IN_RESULT_BUILDER-DAG: Decl[EnumElement]/CurrNominal/Flair[ExprSpecific]/TypeRelation[Convertible]: alertDismissed[#Action#];
-// SWITCH_IN_RESULT_BUILDER-DAG: Decl[InstanceMethod]/CurrNominal/TypeRelation[Invalid]: hash({#(self): Action#})[#(into: inout Hasher) -> Void#];
+}
+
+func testCompleteIfLetInResultBuilder() {
+  func takeClosure(_ x: () -> Void) -> Int {
+    return 0
+  }
+
+  @resultBuilder struct MyResultBuilder {
+    static func buildBlock() -> Int { return 0 }
+    static func buildBlock(_ content: Int) -> Int { content }
+  }
+
+  @MyResultBuilder func test(integer: Int?) -> Int {
+    takeClosure {
+      if let #^IF_LET_IN_RESULT_BUILDER^#integer = integer {
+      }
+    }
+    // IF_LET_IN_RESULT_BUILDER: Begin completions, 1 items
+    // IF_LET_IN_RESULT_BUILDER: Decl[LocalVar]/Local:               integer[#Int?#]; name=integer
+    // IF_LET_IN_RESULT_BUILDER: End completions
+  }
+}
+
+func testOverloadedCallArgs() {
+  func overloaded(single: Int) -> Int {}
+  func overloaded(_ first: Int, second: Int) -> Int {}
+
+  @resultBuilder struct ViewBuilder {
+    static func buildBlock(_ content: Int) -> Int { content }
+  }
+
+  struct Test {
+    @ViewBuilder var body: Int {
+      overloaded(#^OVERLOADED_CALL_ARG^#, second: 1)
+      // OVERLOADED_CALL_ARG: Begin completions
+      // OVERLOADED_CALL_ARG-DAG: Decl[FreeFunction]/Local/Flair[ArgLabels]/TypeRelation[Convertible]: ['(']{#single: Int#}[')'][#Int#];
+      // OVERLOADED_CALL_ARG-DAG: Decl[FreeFunction]/Local/Flair[ArgLabels]/TypeRelation[Convertible]: ['(']{#(first): Int#}, {#second: Int#}[')'][#Int#];
+      // OVERLOADED_CALL_ARG-DAG: Literal[Integer]/None/TypeRelation[Convertible]: 0[#Int#];
+      // OVERLOADED_CALL_ARG: End completions
+    }
+  }
+
 }

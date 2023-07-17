@@ -19,11 +19,14 @@
 #define SWIFT_ABI_TYPEIDENTITY_H
 
 #include "swift/Basic/LLVM.h"
+#include "swift/Runtime/Config.h"
 #include <llvm/ADT/Optional.h>
 #include <llvm/ADT/StringRef.h>
 
 namespace swift {
-template <class> class TargetTypeContextDescriptor;
+template <typename Runtime>
+class swift_ptrauth_struct_context_descriptor(TypeContextDescriptor)
+    TargetTypeContextDescriptor;
 struct InProcess;
 using TypeContextDescriptor = TargetTypeContextDescriptor<InProcess>;
 

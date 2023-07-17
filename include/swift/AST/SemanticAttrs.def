@@ -128,21 +128,23 @@ SEMANTICS_ATTR(LIFETIMEMANAGEMENT_COPY, "lifetimemanagement.copy")
 SEMANTICS_ATTR(NO_PERFORMANCE_ANALYSIS, "no_performance_analysis")
 
 // A flag used to turn off moveonly diagnostics on a function due to an earlier
-// pass that ran.
-//
-// DISCUSSION: This is used in a few situations:
-//
-// 1. When allocbox to stack specializes a function, we do not want to emit move
-// errors twice, once on the specialized and once on the original
-// function. Instead, we put this on the original function.
-//
-// 2. If we emit a diagnose invalid escaping captures error due to an inout
-// being escaped into an escaping closure, we do not want to emit move errors in
-// the closure. This is because SILGen today assumes that we will error in such
-// cases and thus does not emit markers in said function for the inout. This
-// then causes us to emit spurious "found a copy of a noncopyable value" errors
-// that may cause the user to think there is a bug in the compiler.
+// pass that ran. If we emit a diagnose invalid escaping captures error due to
+// an inout being escaped into an escaping closure, we do not want to emit move
+// errors in the closure. This is because SILGen today assumes that we will error
+// in such cases and thus does not emit markers in said function for the inout.
+// This then causes us to emit spurious "found a copy of a noncopyable value"
+// errors that may cause the user to think there is a bug in the compiler.
 SEMANTICS_ATTR(NO_MOVEONLY_DIAGNOSTICS, "sil.optimizer.moveonly.diagnostic.ignore")
+
+// Tell the move-only checker to delete this function body instead of performing
+// diagnostics if the function is not used at the time of checking.
+// When allocbox to stack specializes a function, we do not want to emit move
+// errors twice, once on the specialized and once on the original
+// function. The semantics of the closure with regards to move-only values may
+// also be dependent on stack promotion. Therefore, we mark the original with
+// this attribute, so that after it's promoted, the original function gets deleted
+// instead of raising spurious diagnostics.
+SEMANTICS_ATTR(MOVEONLY_DELETE_IF_UNUSED, "sil.optimizer.moveonly.delete_if_unused")
 
 // Force the use of the frame pointer for the specified function
 SEMANTICS_ATTR(USE_FRAME_POINTER, "use_frame_pointer")

@@ -316,6 +316,14 @@ public:
       llvm::function_ref<llvm::Optional<Type>(TypeBase *, TypePosition)> fn)
       const;
 
+  /// Transform free pack element references, that is, those not captured by a
+  /// pack expansion.
+  ///
+  /// This is the 'map' counterpart to TypeBase::getTypeParameterPacks().
+  Type transformTypeParameterPacks(
+      llvm::function_ref<llvm::Optional<Type>(SubstitutableType *)> fn)
+      const;
+
   /// Look through the given type and its children and apply fn to them.
   void visit(llvm::function_ref<void (Type)> fn) const {
     findIf([&fn](Type t) -> bool {

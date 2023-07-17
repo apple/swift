@@ -3,7 +3,7 @@
 // RUN: %target-swift-frontend -scan-dependencies %s -o %t/deps.json -sdk %t/mysecretsdk.sdk
 
 // Check the contents of the JSON output
-// RUN: %FileCheck %s < %t/deps.json
+// RUN: %validate-json %t/deps.json | %FileCheck %s
 
 func foo() { print(1) }
 
