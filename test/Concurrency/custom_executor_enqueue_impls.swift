@@ -1,16 +1,14 @@
-// RUN: %target-typecheck-verify-swift -enable-experimental-move-only -disable-availability-checking
+// RUN: %target-typecheck-verify-swift -enable-experimental-move-only
 // REQUIRES: concurrency
 
 // rdar://106849189 move-only types should be supported in freestanding mode
 // UNSUPPORTED: freestanding
 
-// FIXME: rdar://107112715 test failing on iOS simulator, investigating
-// UNSUPPORTED: OS=ios
-
 // Such type may be encountered since Swift 5.5 (5.1 backdeployed) if someone implemented the
 // not documented, but public Executor types back then already.
 //
 // We keep support for them, but also log a deprecation warning that they should move to the new signature.
+@available(SwiftStdlib 5.1, *)
 final class OldExecutor: SerialExecutor {
   func enqueue(_ job: UnownedJob) {} // expected-warning{{'Executor.enqueue(UnownedJob)' is deprecated as a protocol requirement; conform type 'OldExecutor' to 'Executor' by implementing 'func enqueue(ExecutorJob)' instead}}
 
@@ -23,6 +21,7 @@ final class OldExecutor: SerialExecutor {
 /// we call into the "old one"; so the Owned version is not used in such impl.
 ///
 /// That's why we do log the deprecation warning, people should use the move-only version.
+@available(SwiftStdlib 5.9, *)
 final class BothExecutor: SerialExecutor {
   func enqueue(_ job: UnownedJob) {} // expected-warning{{'Executor.enqueue(UnownedJob)' is deprecated as a protocol requirement; conform type 'BothExecutor' to 'Executor' by implementing 'func enqueue(ExecutorJob)' instead}}
 
@@ -52,6 +51,7 @@ final class TripleExecutor: SerialExecutor {
 /// we manually detect and emit an error if neither of them is implemented.
 ///
 /// We do so because we implement them recursively, so one of them must be implemented basically.
+@available(SwiftStdlib 5.9, *)
 final class NoneExecutor: SerialExecutor { // expected-error{{type 'NoneExecutor' does not conform to protocol 'Executor'}}
 
   func asUnownedSerialExecutor() -> UnownedSerialExecutor {
@@ -71,6 +71,7 @@ final class StillDeprecated: SerialExecutor {
 }
 
 /// Just implementing the new signature causes no warnings, good.
+@available(SwiftStdlib 5.9, *)
 final class NewExecutor: SerialExecutor {
   func enqueue(_ job: consuming ExecutorJob) {} // no warnings
 
